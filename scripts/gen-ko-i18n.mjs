@@ -10,7 +10,7 @@ const out = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "src",
 
 const t = {
   app: {
-    title: "\uB9E4\uC218 \uD6C4\uBCF4 \uC2A4\uD06C\uB9AC\uB108",
+    title: "\uC885\uBAA9 \uB300\uC2DC\uBCF4\uB4DC",
     subtitle: "\uAD6D\uB0B4 300 \u00B7 \uB098\uC2A4\uB2E5 500",
     telegram: "\uD154\uB808\uADF8\uB7A8",
     telegramResetAria: "\uC624\uB298 \uD154\uB808\uADF8\uB7A8 \uC54C\uB9BC \uC774\uB825 \uCD08\uAE30\uD654",

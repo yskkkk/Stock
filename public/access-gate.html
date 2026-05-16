@@ -7,7 +7,7 @@
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
     <meta name="theme-color" content="#0a0e13" />
-    <title>접근 확인 · 매수 후보 스크리너</title>
+    <title>접근 확인 · 종목 대시보드</title>
     <style>
       :root {
         --bg: #0a0e13;
@@ -223,7 +223,7 @@
       style="max-width: 440px; margin: 0 auto 1rem; text-align: center"
     ></p>
     <div id="main" class="card hidden">
-      <p class="product">매수 후보 스크리너</p>
+      <p class="product">종목 대시보드</p>
       <h1>접근 제한</h1>
       <p>
         이 사이트는 허가된 IP에서만 이용할 수 있습니다. 아래에서 접속을 신청하거나 관리자에게
@@ -251,7 +251,7 @@
       </div>
 
       <div id="pendingBlock" class="hidden">
-        <p>승인 대기 중입니다. 관리자가 처리하면 자동으로 스크리너로 이동합니다.</p>
+        <p>승인 대기 중입니다. 관리자가 처리하면 자동으로 사이트로 이동합니다.</p>
         <div class="row">
           <button type="button" class="btn-secondary" id="btnAdmin2">접근 관리</button>
         </div>
@@ -365,7 +365,7 @@
         const st = s.state;
         if (st === "pending") {
           $("stateText").textContent =
-            "승인 대기 중입니다. 관리자가 처리하면 이 창이 스크리너로 바뀝니다.";
+            "승인 대기 중입니다. 관리자가 처리하면 이 창이 메인 화면으로 바뀝니다.";
           requestBlock.classList.add("hidden");
           pendingBlock.classList.remove("hidden");
           startPoll();
