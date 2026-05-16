@@ -1548,6 +1548,58 @@ button.chip.chip--on,
 .access-admin-close {
   flex-shrink: 0;
 }
+.access-admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.55rem;
+}
+.access-admin-tab {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--card-border);
+  background: var(--bg-elevated);
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.access-admin-tab--active {
+  color: var(--text);
+  border-color: var(--accent-border);
+  background: var(--accent-dim);
+}
+.access-admin-body--feedback,
+.access-admin-body--telegram {
+  max-height: min(70vh, 520px);
+  overflow: auto;
+}
+.access-admin-feedback-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.access-admin-feedback-item {
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid var(--card-border);
+}
+.access-admin-feedback-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.72rem;
+  margin-bottom: 0.4rem;
+}
+.access-admin-feedback-msg {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.78rem;
+}
+.top-bar__admin {
+  font-size: 0.75rem;
+  padding: 0.35rem 0.55rem;
+}
 .access-admin-token-row {
   display: flex;
   flex-wrap: wrap;

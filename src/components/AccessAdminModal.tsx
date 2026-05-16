@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchAccessAdminRequests,
+  fetchFeedbackInbox,
   postAccessAdminAllowedMemo,
   postAccessAdminApprove,
   postAccessAdminReject,
@@ -10,9 +11,12 @@ import {
   type AccessDeviceInfoPayload,
   type AccessRequestItem,
 } from "../api";
+import type { FeedbackInboxItem } from "../types";
 import { ko } from "../i18n/ko";
 
 const TOKEN_KEY = "stock_access_admin_token";
+
+type AdminTab = "access" | "feedback" | "telegram";
 
 function formatDeviceInfoBlock(
   d: AccessDeviceInfoPayload | null | undefined,
@@ -36,11 +40,25 @@ function formatDeviceInfoBlock(
 export default function AccessAdminModal({
   open,
   onClose,
+  adminIpBypassPassword = false,
+  telegramNotify,
+  telegramSentCount,
+  onOpenTelegramSent,
+  onResetTelegram,
+  resettingTelegram,
 }: {
   open: boolean;
   onClose: () => void;
+  /** ACCESS_ADMIN_IPS 에 등록된 IP — 비밀번호 없이 전체 탭 이용 */
+  adminIpBypassPassword?: boolean;
+  telegramNotify: boolean;
+  telegramSentCount: number;
+  onOpenTelegramSent: () => void;
+  onResetTelegram: () => void | Promise<void>;
+  resettingTelegram: boolean;
 }) {
   const [phase, setPhase] = useState<"password" | "admin">("password");
+  const [tab, setTab] = useState<AdminTab>("access");
   const [passwordInput, setPasswordInput] = useState("");
   const [activeToken, setActiveToken] = useState("");
   const [snapshot, setSnapshot] = useState<AccessAdminSnapshot | null>(null);
@@ -49,38 +67,58 @@ export default function AccessAdminModal({
   const [actionId, setActionId] = useState<string | null>(null);
   const [memoDrafts, setMemoDrafts] = useState<Record<string, string>>({});
   const [approveMemos, setApproveMemos] = useState<Record<string, string>>({});
+  const [feedbackItems, setFeedbackItems] = useState<FeedbackInboxItem[]>([]);
+  const [feedbackBusy, setFeedbackBusy] = useState(false);
+  const [feedbackErr, setFeedbackErr] = useState<string | null>(null);
+  const [feedbackRefreshKey, setFeedbackRefreshKey] = useState(0);
   const passwordFieldRef = useRef<HTMLInputElement>(null);
 
-  const load = useCallback(async (token: string) => {
-    const t = token.trim();
-    if (!t) {
+  const authForApi = useCallback(() => activeToken.trim(), [activeToken]);
+
+  const load = useCallback(
+    async (token: string) => {
+      const t = token.trim();
+      if (!t && !adminIpBypassPassword) {
+        setError(null);
+        setSnapshot(null);
+        return;
+      }
+      setLoading(true);
       setError(null);
-      setSnapshot(null);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await fetchAccessAdminRequests(t);
-      setSnapshot(data);
-    } catch (e) {
-      setSnapshot(null);
-      setError(e instanceof Error ? e.message : ko.access.adminError);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      try {
+        const data = await fetchAccessAdminRequests(t);
+        setSnapshot(data);
+      } catch (e) {
+        setSnapshot(null);
+        setError(e instanceof Error ? e.message : ko.access.adminError);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [adminIpBypassPassword],
+  );
 
   useEffect(() => {
     if (!open) return;
-    setPhase("password");
-    setPasswordInput("");
-    setActiveToken("");
-    setSnapshot(null);
     setError(null);
     setMemoDrafts({});
     setApproveMemos({});
-  }, [open]);
+    setTab("access");
+    setFeedbackItems([]);
+    setFeedbackErr(null);
+    setFeedbackRefreshKey(0);
+    if (adminIpBypassPassword) {
+      setPhase("admin");
+      setPasswordInput("");
+      setActiveToken("");
+      void load("");
+    } else {
+      setPhase("password");
+      setPasswordInput("");
+      setActiveToken("");
+      setSnapshot(null);
+    }
+  }, [open, adminIpBypassPassword, load]);
 
   useEffect(() => {
     if (!snapshot?.allowed) return;
@@ -90,6 +128,32 @@ export default function AccessAdminModal({
     }
     setMemoDrafts(m);
   }, [snapshot]);
+
+  useEffect(() => {
+    if (!open || phase !== "admin" || tab !== "feedback") return;
+    let cancelled = false;
+    setFeedbackBusy(true);
+    setFeedbackErr(null);
+    const tok = authForApi() || undefined;
+    void fetchFeedbackInbox(tok)
+      .then((d) => {
+        if (!cancelled) setFeedbackItems(d.items ?? []);
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setFeedbackErr(e instanceof Error ? e.message : ko.errors.request);
+          setFeedbackItems([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setFeedbackBusy(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, phase, tab, authForApi, feedbackRefreshKey]);
+
+  const reloadFeedback = () => setFeedbackRefreshKey((k) => k + 1);
 
   const unlock = async () => {
     const p = passwordInput.trim();
@@ -125,6 +189,11 @@ export default function AccessAdminModal({
   };
 
   const lockAgain = () => {
+    if (adminIpBypassPassword) {
+      setError(null);
+      void load("");
+      return;
+    }
     try {
       sessionStorage.removeItem(TOKEN_KEY);
     } catch {
@@ -139,9 +208,11 @@ export default function AccessAdminModal({
     setApproveMemos({});
   };
 
+  const canUseAccessApi = () =>
+    Boolean(authForApi().trim()) || adminIpBypassPassword;
+
   const runAction = async (fn: () => Promise<unknown>) => {
-    const t = activeToken.trim();
-    if (!t) {
+    if (!canUseAccessApi()) {
       setError(null);
       return;
     }
@@ -149,7 +220,7 @@ export default function AccessAdminModal({
     setError(null);
     try {
       await fn();
-      await load(t);
+      await load(authForApi());
     } catch (e) {
       setError(e instanceof Error ? e.message : ko.access.adminError);
     } finally {
@@ -177,7 +248,7 @@ export default function AccessAdminModal({
       >
         <div className="access-admin-head">
           <h2 id="access-admin-title" className="access-admin-title">
-            {ko.access.adminTitle}
+            {ko.access.adminConsoleTitle}
           </h2>
           <button type="button" className="btn btn--ghost access-admin-close" onClick={onClose}>
             {ko.access.adminClose}
@@ -223,26 +294,66 @@ export default function AccessAdminModal({
           </>
         ) : (
           <>
-            <div className="access-admin-token-row">
+            <div className="access-admin-tabs" role="tablist" aria-label={ko.access.adminTabListAria}>
               <button
                 type="button"
-                className="btn btn--secondary"
-                disabled={loading}
-                onClick={() => void load(activeToken)}
+                role="tab"
+                aria-selected={tab === "access"}
+                className={`access-admin-tab${tab === "access" ? " access-admin-tab--active" : ""}`}
+                onClick={() => setTab("access")}
               >
-                {ko.access.adminLoad}
+                {ko.access.adminTabAccess}
               </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === "feedback"}
+                className={`access-admin-tab${tab === "feedback" ? " access-admin-tab--active" : ""}`}
+                onClick={() => setTab("feedback")}
+              >
+                {ko.access.adminTabFeedback}
+              </button>
+              {telegramNotify ? (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === "telegram"}
+                  className={`access-admin-tab${tab === "telegram" ? " access-admin-tab--active" : ""}`}
+                  onClick={() => setTab("telegram")}
+                >
+                  {ko.access.adminTabTelegram}
+                </button>
+              ) : null}
+            </div>
+
+            <div className="access-admin-token-row">
+              {tab !== "telegram" ? (
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  disabled={loading}
+                  onClick={() => {
+                    if (tab === "access") void load(authForApi());
+                    else reloadFeedback();
+                  }}
+                >
+                  {tab === "feedback" ? ko.feedback.inboxReload : ko.access.adminLoad}
+                </button>
+              ) : null}
               <button type="button" className="btn btn--ghost" onClick={lockAgain}>
                 {ko.access.adminLockAgain}
               </button>
             </div>
-            {error && (
+            {error && tab === "access" && (
               <p className="access-admin-error" role="alert">
                 {error}
               </p>
             )}
-            {loading && !snapshot && <p className="access-admin-muted">{ko.macro.loading}</p>}
-            {snapshot && (
+            {loading && tab === "access" && !snapshot && (
+              <p className="access-admin-muted">{ko.macro.loading}</p>
+            )}
+
+            {tab === "access" && snapshot && (
               <div className="access-admin-body">
                 <section className="access-admin-section">
                   <h3>{ko.access.adminPending}</h3>
@@ -291,7 +402,7 @@ export default function AccessAdminModal({
                                 setActionId(`a-${r.id}`);
                                 void runAction(() =>
                                   postAccessAdminApprove(
-                                    activeToken,
+                                    authForApi(),
                                     r.id,
                                     approveMemos[r.id],
                                   ),
@@ -306,7 +417,9 @@ export default function AccessAdminModal({
                               disabled={loading && actionId === `r-${r.id}`}
                               onClick={() => {
                                 setActionId(`r-${r.id}`);
-                                void runAction(() => postAccessAdminReject(activeToken, r.id));
+                                void runAction(() =>
+                                  postAccessAdminReject(authForApi(), r.id),
+                                );
                               }}
                             >
                               {ko.access.adminReject}
@@ -360,7 +473,7 @@ export default function AccessAdminModal({
                                 setActionId(`m-${a.ip}`);
                                 void runAction(() =>
                                   postAccessAdminAllowedMemo(
-                                    activeToken,
+                                    authForApi(),
                                     a.ip,
                                     (memoDrafts[a.ip] ?? "").trim(),
                                   ),
@@ -375,7 +488,7 @@ export default function AccessAdminModal({
                               disabled={loading}
                               onClick={() =>
                                 void runAction(() =>
-                                  postAccessAdminRevoke(activeToken, a.ip),
+                                  postAccessAdminRevoke(authForApi(), a.ip),
                                 )
                               }
                             >
@@ -387,6 +500,70 @@ export default function AccessAdminModal({
                     </ul>
                   )}
                 </section>
+              </div>
+            )}
+
+            {tab === "feedback" && (
+              <div className="access-admin-body access-admin-body--feedback">
+                {feedbackBusy ? (
+                  <p className="access-admin-muted">{ko.telegramSent.loading}</p>
+                ) : feedbackErr ? (
+                  <p className="access-admin-error" role="alert">
+                    {feedbackErr}
+                  </p>
+                ) : feedbackItems.length === 0 ? (
+                  <p className="access-admin-muted">{ko.feedback.inboxEmpty}</p>
+                ) : (
+                  <ul className="access-admin-feedback-list">
+                    {feedbackItems.map((it) => (
+                      <li key={it.id} className="access-admin-feedback-item">
+                        <div className="access-admin-feedback-meta">
+                          <span>
+                            <strong>{ko.feedback.inboxTime}</strong> {it.at}
+                          </span>
+                          <span>
+                            <strong>{ko.feedback.inboxIp}</strong>{" "}
+                            <code>{it.ip}</code>
+                          </span>
+                        </div>
+                        <pre className="access-admin-feedback-msg">{it.message}</pre>
+                        {it.userAgent ? (
+                          <p className="access-admin-ua">
+                            <strong>{ko.feedback.inboxUa}</strong> {it.userAgent}
+                          </p>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {tab === "telegram" && telegramNotify && (
+              <div className="access-admin-body access-admin-body--telegram">
+                <p className="access-admin-muted">
+                  {ko.app.telegramListAria} · {telegramSentCount}
+                </p>
+                <div className="access-admin-item-actions">
+                  <button
+                    type="button"
+                    className="btn btn--secondary"
+                    onClick={() => {
+                      onClose();
+                      onOpenTelegramSent();
+                    }}
+                  >
+                    {ko.access.adminTelegramOpenList}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--primary"
+                    disabled={resettingTelegram}
+                    onClick={() => void onResetTelegram()}
+                  >
+                    {ko.app.telegramResetLabel}
+                  </button>
+                </div>
               </div>
             )}
           </>

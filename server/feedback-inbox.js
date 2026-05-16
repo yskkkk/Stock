@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
 import { fileURLToPath } from "url";
+import { isAccessAdminRequest } from "./access-control.js";
 import { clientIp } from "./access-log.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -75,15 +76,21 @@ export function postFeedback(req, res) {
 }
 
 /**
- * GET /api/feedback/inbox — Authorization: Bearer FEEDBACK_INBOX_TOKEN
+ * GET /api/feedback/inbox — Bearer FEEDBACK_INBOX_TOKEN 또는 관리자(ACCESS 토큰·등록 IP)
  */
 export function getFeedbackInbox(req, res) {
   const tok = inboxToken();
-  if (!tok) {
+  const admin = isAccessAdminRequest(req);
+  if (!tok && !admin) {
     res.status(503).json({
       error:
-        "서버에 FEEDBACK_INBOX_TOKEN이 설정되지 않았습니다. .env 에 토큰을 넣어 주세요.",
+        "접수함을 열려면 FEEDBACK_INBOX_TOKEN을 설정하거나, 관리자(ACCESS_ADMIN_TOKEN 또는 ACCESS_ADMIN_IPS)로 접속하세요.",
     });
+    return;
+  }
+  if (admin) {
+    const items = readItems();
+    res.json({ items, count: items.length });
     return;
   }
   const auth = String(req.headers.authorization ?? "");

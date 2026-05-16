@@ -119,8 +119,7 @@ export default function App() {
   const newsReqIdRef = useRef(0);
   const newsAbortRef = useRef<AbortController | null>(null);
   const [showAccessAdmin, setShowAccessAdmin] = useState(false);
-  const [feedbackInboxEnabled, setFeedbackInboxEnabled] = useState(false);
-  const [telegramResetAllowed, setTelegramResetAllowed] = useState(false);
+  const [adminIpConsole, setAdminIpConsole] = useState(false);
 
   const closeNews = useCallback(() => {
     newsReqIdRef.current += 1;
@@ -173,14 +172,12 @@ export default function App() {
         setDartEnabled(cfg.dartEnabled);
         setTelegramNotify(cfg.telegramNotify?.enabled ?? false);
         setTelegramSentCount(cfg.telegramNotify?.todaySentCount ?? 0);
-        setFeedbackInboxEnabled(cfg.feedbackInboxEnabled ?? false);
-        setTelegramResetAllowed(cfg.telegramResetAllowed ?? false);
+        setAdminIpConsole(cfg.adminIpConsole ?? false);
       })
       .catch(() => {
         setDartEnabled(false);
         setTelegramNotify(false);
-        setFeedbackInboxEnabled(false);
-        setTelegramResetAllowed(false);
+        setAdminIpConsole(false);
       });
   }, []);
 
@@ -410,7 +407,7 @@ export default function App() {
   return (
     <div className="app">
       <MacroEventsBar onSecretAdminOpen={() => setShowAccessAdmin(true)} />
-      <FeedbackCorner inboxEnabled={feedbackInboxEnabled} />
+      <FeedbackCorner />
       <header
         className={`top-bar card${showTopScanStrip ? " top-bar--with-scan" : ""}`}
       >
@@ -438,21 +435,6 @@ export default function App() {
                         <span className="tag-count">{telegramSentCount}</span>
                       )}
                     </button>
-                    {telegramResetAllowed && (
-                      <button
-                        type="button"
-                        className="tag-reset"
-                        title={ko.app.telegramResetAria}
-                        aria-label={ko.app.telegramResetAria}
-                        disabled={resettingTelegram}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void handleResetTelegramSent();
-                        }}
-                      >
-                        {ko.app.telegramResetLabel}
-                      </button>
-                    )}
                   </span>
                 )}
               </p>
@@ -478,6 +460,15 @@ export default function App() {
             </nav>
 
             <div className="top-bar__tools">
+              {adminIpConsole && (
+                <button
+                  type="button"
+                  className="btn btn--secondary top-bar__admin"
+                  onClick={() => setShowAccessAdmin(true)}
+                >
+                  {ko.access.adminToolbarBtn}
+                </button>
+              )}
               <button
                 type="button"
                 className="theme-toggle"
@@ -880,6 +871,15 @@ export default function App() {
       <AccessAdminModal
         open={showAccessAdmin}
         onClose={() => setShowAccessAdmin(false)}
+        adminIpBypassPassword={adminIpConsole}
+        telegramNotify={telegramNotify}
+        telegramSentCount={telegramSentCount}
+        onOpenTelegramSent={() => {
+          setShowAccessAdmin(false);
+          void handleOpenTelegramSent();
+        }}
+        onResetTelegram={() => void handleResetTelegramSent()}
+        resettingTelegram={resettingTelegram}
       />
     </div>
   );

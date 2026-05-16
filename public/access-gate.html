@@ -359,6 +359,7 @@
       }
 
       let pollId = null;
+      let lastStatusAdminIp = false;
 
       function stopPoll() {
         if (pollId) clearInterval(pollId);
@@ -382,6 +383,8 @@
           $("fetchErr").classList.remove("hidden");
           return;
         }
+
+        lastStatusAdminIp = Boolean(s.adminIpConsole);
 
         if (!s.enabled || s.state === "allowed") {
           stopPoll();
@@ -428,12 +431,22 @@
 
       function openAdmin() {
         $("adminPanel").classList.remove("hidden");
-        $("adminPwdGate").classList.remove("hidden");
-        $("adminContent").classList.add("hidden");
-        $("admPwd").value = "";
-        $("admPwdErr").classList.add("hidden");
-        $("admPwdErr").textContent = "";
-        $("admErr").classList.add("hidden");
+        if (lastStatusAdminIp) {
+          $("adminPwdGate").classList.add("hidden");
+          $("adminContent").classList.remove("hidden");
+          $("admPwd").value = "";
+          $("admPwdErr").classList.add("hidden");
+          $("admPwdErr").textContent = "";
+          $("admErr").classList.add("hidden");
+          void loadAdmin();
+        } else {
+          $("adminPwdGate").classList.remove("hidden");
+          $("adminContent").classList.add("hidden");
+          $("admPwd").value = "";
+          $("admPwdErr").classList.add("hidden");
+          $("admPwdErr").textContent = "";
+          $("admErr").classList.add("hidden");
+        }
       }
 
       /** 앱의 MacroEventsBar와 동일: 제목 연속 탭으로만 관리 패널 */
@@ -501,6 +514,10 @@
         try {
           sessionStorage.removeItem(TOKEN_KEY);
         } catch (_) {}
+        if (lastStatusAdminIp) {
+          void loadAdmin();
+          return;
+        }
         $("adminPwdGate").classList.remove("hidden");
         $("adminContent").classList.add("hidden");
         $("admPwd").value = "";
@@ -511,18 +528,20 @@
       }
 
       async function loadAdmin() {
-        const t = token().trim();
         $("admErr").classList.add("hidden");
         const pend = $("admPending");
         const allow = $("admAllowed");
-        if (!t) {
+        const t = token().trim();
+        if (!t && !lastStatusAdminIp) {
           $("admErr").textContent = "먼저 비밀번호로 확인하세요.";
           $("admErr").classList.remove("hidden");
           return;
         }
         try {
+          const headers = {};
+          if (t) headers.Authorization = "Bearer " + t;
           const res = await fetch("/api/access/admin/requests", {
-            headers: { Authorization: "Bearer " + t },
+            headers,
             cache: "no-store",
           });
           const data = await parseJson(res);
@@ -685,17 +704,16 @@
         if (t.dataset.approve) {
           const id = t.dataset.approve;
           const tk = tok();
-          if (!tk) {
+          if (!tk && !lastStatusAdminIp) {
             alert("비밀번호 확인이 필요합니다.");
             return;
           }
           try {
+            const headers = { "Content-Type": "application/json" };
+            if (tk) headers.Authorization = "Bearer " + tk;
             await api("/api/access/admin/approve", {
               method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: "Bearer " + tk,
-              },
+              headers,
               body: JSON.stringify({
                 id,
                 memo: (function () {
@@ -713,7 +731,7 @@
         if (t.dataset.saveMemo) {
           const ip = t.dataset.saveMemo;
           const tk = tok();
-          if (!tk) {
+          if (!tk && !lastStatusAdminIp) {
             alert("비밀번호 확인이 필요합니다.");
             return;
           }
@@ -721,12 +739,11 @@
           const inp = item?.querySelector(".adm-allowed-memo-inp");
           const memo = inp ? String(inp.value || "").trim() : "";
           try {
+            const headers = { "Content-Type": "application/json" };
+            if (tk) headers.Authorization = "Bearer " + tk;
             await api("/api/access/admin/allowed-memo", {
               method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: "Bearer " + tk,
-              },
+              headers,
               body: JSON.stringify({ ip, memo }),
             });
             await loadAdmin();
@@ -738,17 +755,16 @@
         if (t.dataset.reject) {
           const id = t.dataset.reject;
           const tk = tok();
-          if (!tk) {
+          if (!tk && !lastStatusAdminIp) {
             alert("비밀번호 확인이 필요합니다.");
             return;
           }
           try {
+            const headers = { "Content-Type": "application/json" };
+            if (tk) headers.Authorization = "Bearer " + tk;
             await api("/api/access/admin/reject", {
               method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: "Bearer " + tk,
-              },
+              headers,
               body: JSON.stringify({ id }),
             });
             await loadAdmin();
@@ -760,17 +776,16 @@
         if (t.dataset.revoke) {
           const ip = t.dataset.revoke;
           const tk = tok();
-          if (!tk) {
+          if (!tk && !lastStatusAdminIp) {
             alert("비밀번호 확인이 필요합니다.");
             return;
           }
           try {
+            const headers = { "Content-Type": "application/json" };
+            if (tk) headers.Authorization = "Bearer " + tk;
             await api("/api/access/admin/revoke", {
               method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: "Bearer " + tk,
-              },
+              headers,
               body: JSON.stringify({ ip }),
             });
             await loadAdmin();

@@ -1,9 +1,10 @@
 import express from "express";
 import {
-  normalizeAccessIp,
+  isAccessAdminIp,
+  isAccessAdminRequest,
   registerAccessControl,
 } from "./access-control.js";
-import { clientIp, expressAccessLogger } from "./access-log.js";
+import { expressAccessLogger } from "./access-log.js";
 import { isDartEnabled } from "./dart.js";
 import {
   ensureScreening,
@@ -29,19 +30,6 @@ function asyncRoute(handler) {
   };
 }
 
-/** TELEGRAM_RESET_ADMIN_IPS(쉼표 구분)에 현재 클라이언트 IP가 있을 때만 true */
-function isTelegramResetAdminClient(req) {
-  const raw = String(process.env.TELEGRAM_RESET_ADMIN_IPS ?? "").trim();
-  if (!raw) return false;
-  const ip = normalizeAccessIp(clientIp(req));
-  if (!ip) return false;
-  const allowed = raw
-    .split(",")
-    .map((s) => normalizeAccessIp(s.trim()))
-    .filter(Boolean);
-  return allowed.includes(ip);
-}
-
 export function createApp() {
   const app = express();
   app.set("trust proxy", 1);
@@ -63,13 +51,14 @@ export function createApp() {
   });
 
   app.get("/api/config", (req, res) => {
+    const adminReq = isAccessAdminRequest(req);
+    const feedbackTok = String(process.env.FEEDBACK_INBOX_TOKEN ?? "").trim();
     res.json({
       dartEnabled: isDartEnabled(),
       telegramNotify: getTelegramNotifyStatus(),
-      feedbackInboxEnabled: Boolean(
-        String(process.env.FEEDBACK_INBOX_TOKEN ?? "").trim(),
-      ),
-      telegramResetAllowed: isTelegramResetAdminClient(req),
+      feedbackInboxEnabled: Boolean(feedbackTok) || adminReq,
+      telegramResetAllowed: adminReq,
+      adminIpConsole: isAccessAdminIp(req),
     });
   });
 
@@ -115,10 +104,10 @@ export function createApp() {
       });
       return;
     }
-    if (!isTelegramResetAdminClient(req)) {
+    if (!isAccessAdminRequest(req)) {
       res.status(403).json({
         ok: false,
-        message: "알림 초기화는 관리자 IP에서만 사용할 수 있습니다.",
+        message: "알림 초기화는 관리자(토큰 또는 등록 IP)만 사용할 수 있습니다.",
       });
       return;
     }

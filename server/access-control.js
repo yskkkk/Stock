@@ -62,6 +62,40 @@ function getAdminToken() {
   return String(process.env.ACCESS_ADMIN_TOKEN ?? "").trim();
 }
 
+/** ACCESS_ADMIN_IPS(쉼표). 없으면 TELEGRAM_RESET_ADMIN_IPS(구 설정)와 동일 목록으로 간주 */
+function parseAccessAdminIps() {
+  const primary = String(process.env.ACCESS_ADMIN_IPS ?? "").trim();
+  const raw = primary || String(process.env.TELEGRAM_RESET_ADMIN_IPS ?? "").trim();
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((s) => normalizeAccessIp(s.trim()))
+    .filter(Boolean);
+}
+
+export function isAccessAdminIp(req) {
+  const list = parseAccessAdminIps();
+  if (!list.length) return false;
+  const ip = normalizeAccessIp(clientIp(req));
+  if (!ip) return false;
+  return list.includes(ip);
+}
+
+function readBearerToken(req) {
+  const auth = String(req.headers.authorization ?? "");
+  const m = auth.match(/^Bearer\s+(.+)$/i);
+  return m ? m[1].trim() : "";
+}
+
+/** Bearer ACCESS_ADMIN_TOKEN 또는 관리자 등록 IP */
+export function isAccessAdminRequest(req) {
+  const token = getAdminToken();
+  const bearer = readBearerToken(req);
+  if (token && bearer === token) return true;
+  if (isAccessAdminIp(req)) return true;
+  return false;
+}
+
 function getBootstrapIps() {
   const raw = String(process.env.ACCESS_BOOTSTRAP_IPS ?? "").trim();
   if (!raw) return [];
@@ -144,19 +178,19 @@ export function accessIpGateMiddleware(req, res, next) {
 
 function requireAdmin(req, res, next) {
   const token = getAdminToken();
-  if (!token) {
+  const hasIps = parseAccessAdminIps().length > 0;
+  if (!token && !hasIps) {
     res.status(503).json({
-      error: "서버에 ACCESS_ADMIN_TOKEN이 설정되지 않았습니다.",
+      error:
+        "서버에 ACCESS_ADMIN_TOKEN 또는 ACCESS_ADMIN_IPS(관리자 IP)가 필요합니다.",
     });
     return;
   }
-  const auth = String(req.headers.authorization ?? "");
-  const m = auth.match(/^Bearer\s+(.+)$/i);
-  if (!m || m[1].trim() !== token) {
-    res.status(401).json({ error: "관리자 토큰이 필요합니다." });
+  if (isAccessAdminRequest(req)) {
+    next();
     return;
   }
-  next();
+  res.status(401).json({ error: "관리자 권한이 필요합니다." });
 }
 
 /**
@@ -172,6 +206,7 @@ export function registerAccessControl(app) {
         enabled: false,
         state: "allowed",
         yourIp: ip,
+        adminIpConsole: isAccessAdminIp(req),
       });
       return;
     }
@@ -351,10 +386,11 @@ export function registerAccessControl(app) {
 
   if (isAccessControlEnabled()) {
     console.log("[access-control] IP 허용제 ON — 허가 IP만 /api 사용");
-    const envTok = String(process.env.ACCESS_ADMIN_TOKEN ?? "").trim();
-    if (!envTok) {
+    const envTok = getAdminToken();
+    const ips = parseAccessAdminIps();
+    if (!envTok && ips.length === 0) {
       console.warn(
-        "[access-control] 관리자 토큰 미설정 — 승인·거절·메모 API는 503",
+        "[access-control] ACCESS_ADMIN_TOKEN·ACCESS_ADMIN_IPS 미설정 — 관리 API는 503",
       );
     }
   }

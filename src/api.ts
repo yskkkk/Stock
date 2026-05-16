@@ -38,6 +38,17 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
+const ACCESS_ADMIN_TOKEN_KEY = "stock_access_admin_token";
+
+export function getStoredAccessAdminToken(): string {
+  if (typeof sessionStorage === "undefined") return "";
+  try {
+    return sessionStorage.getItem(ACCESS_ADMIN_TOKEN_KEY)?.trim() ?? "";
+  } catch {
+    return "";
+  }
+}
+
 export function fetchPicks() {
   return fetchJson<PicksResponse>("/api/picks");
 }
@@ -51,6 +62,9 @@ export function refreshPicks() {
 }
 
 export function fetchConfig() {
+  const t = getStoredAccessAdminToken();
+  const headers: Record<string, string> = {};
+  if (t) headers.Authorization = `Bearer ${t}`;
   return fetchJson<{
     dartEnabled: boolean;
     telegramNotify?: {
@@ -59,15 +73,18 @@ export function fetchConfig() {
       todaySentCount?: number;
     };
     feedbackInboxEnabled?: boolean;
-    /** 서버 TELEGRAM_RESET_ADMIN_IPS에 포함된 클라이언트만 true */
     telegramResetAllowed?: boolean;
-  }>("/api/config");
+    adminIpConsole?: boolean;
+  }>("/api/config", Object.keys(headers).length ? { headers } : undefined);
 }
 
 export function resetTelegramAlertHistory() {
+  const t = getStoredAccessAdminToken();
+  const headers: Record<string, string> = {};
+  if (t) headers.Authorization = `Bearer ${t}`;
   return fetchJson<{ ok: boolean; removed: number; message: string }>(
     "/api/telegram/reset-sent",
-    { method: "POST" },
+    { method: "POST", headers: Object.keys(headers).length ? headers : undefined },
   );
 }
 
@@ -113,6 +130,8 @@ export interface AccessStatusResponse {
   enabled: boolean;
   state: AccessClientState;
   yourIp: string;
+  /** ACCESS_ADMIN_IPS — 게이트에서 관리자 패널 비밀번호 생략 */
+  adminIpConsole?: boolean;
 }
 
 export type AccessDeviceInfoPayload = {
@@ -177,10 +196,21 @@ export function postAccessRequest(
   });
 }
 
+/** adminToken 이 비면 등록 관리자 IP로만 호출 가능 */
 export function fetchAccessAdminRequests(adminToken: string) {
+  const headers: Record<string, string> = {};
+  const t = adminToken.trim();
+  if (t) headers.Authorization = `Bearer ${t}`;
   return fetchJson<AccessAdminSnapshot>("/api/access/admin/requests", {
-    headers: { Authorization: `Bearer ${adminToken}` },
+    headers: Object.keys(headers).length ? headers : undefined,
   });
+}
+
+function accessAdminPostHeaders(adminToken: string): Record<string, string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const t = adminToken.trim();
+  if (t) headers.Authorization = `Bearer ${t}`;
+  return headers;
 }
 
 export function postAccessAdminApprove(
@@ -190,10 +220,7 @@ export function postAccessAdminApprove(
 ) {
   return fetchJson<{ ok: boolean }>("/api/access/admin/approve", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${adminToken}`,
-    },
+    headers: accessAdminPostHeaders(adminToken),
     body: JSON.stringify({
       id,
       memo: (memo ?? "").trim().slice(0, 300),
@@ -208,10 +235,7 @@ export function postAccessAdminAllowedMemo(
 ) {
   return fetchJson<{ ok: boolean }>("/api/access/admin/allowed-memo", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${adminToken}`,
-    },
+    headers: accessAdminPostHeaders(adminToken),
     body: JSON.stringify({ ip, memo }),
   });
 }
@@ -219,10 +243,7 @@ export function postAccessAdminAllowedMemo(
 export function postAccessAdminReject(adminToken: string, id: string) {
   return fetchJson<{ ok: boolean }>("/api/access/admin/reject", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${adminToken}`,
-    },
+    headers: accessAdminPostHeaders(adminToken),
     body: JSON.stringify({ id }),
   });
 }
@@ -230,10 +251,7 @@ export function postAccessAdminReject(adminToken: string, id: string) {
 export function postAccessAdminRevoke(adminToken: string, ip: string) {
   return fetchJson<{ ok: boolean }>("/api/access/admin/revoke", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${adminToken}`,
-    },
+    headers: accessAdminPostHeaders(adminToken),
     body: JSON.stringify({ ip }),
   });
 }
@@ -246,8 +264,11 @@ export function postFeedbackMessage(message: string) {
   });
 }
 
-export function fetchFeedbackInbox(token: string) {
+export function fetchFeedbackInbox(token?: string) {
+  const headers: Record<string, string> = {};
+  const t = token?.trim() ?? "";
+  if (t) headers.Authorization = `Bearer ${t}`;
   return fetchJson<FeedbackInboxResponse>("/api/feedback/inbox", {
-    headers: { Authorization: `Bearer ${token.trim()}` },
+    headers: Object.keys(headers).length ? headers : undefined,
   });
 }
