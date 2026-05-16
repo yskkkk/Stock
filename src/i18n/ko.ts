@@ -146,6 +146,10 @@ export const ko = {
     adminError: "요청에 실패했습니다.",
     adminNoToken: "토큰을 입력한 뒤 적용하세요.",
   },
+  launch: {
+    run: "실행",
+    loading: "불러오는 중…",
+  },
 } as const;
 
 export const macroGuide = {

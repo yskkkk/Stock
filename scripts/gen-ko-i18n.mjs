@@ -166,6 +166,10 @@ const t = {
     adminError: "요청에 실패했습니다.",
     adminNoToken: "토큰을 입력한 뒤 적용하세요.",
   },
+  launch: {
+    run: "\uC2E4\uD589",
+    loading: "\uBD88\uB7EC\uC624\uB294 \uC911\u2026",
+  },
 };
 
 function emitObj(obj, indent = 2) {
@@ -217,6 +221,9 @@ ${emitObj(t.crypto, 4)}
   },
   access: {
 ${emitObj(t.access, 4)}
+  },
+  launch: {
+${emitObj(t.launch, 4)}
   },
 } as const;
 
