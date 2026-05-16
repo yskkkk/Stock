@@ -1,0 +1,150 @@
+.profit-model-backdrop {
+  z-index: 2100;
+}
+
+.profit-model-modal {
+  width: min(400px, 100%);
+  max-height: min(80vh, 420px);
+}
+
+.profit-model-body {
+  padding: 0 1.25rem 1.25rem;
+}
+
+.profit-model-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+  letter-spacing: 0.04em;
+}
+
+.profit-model-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.65rem;
+}
+
+.profit-model-input {
+  flex: 1 1 140px;
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+}
+
+.profit-model-input:focus {
+  outline: none;
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 1px var(--accent-dim);
+}
+
+.profit-model-quote-ref {
+  margin: 0 0 1rem;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+
+.profit-model-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.profit-model-persist-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.profit-model-browser-id {
+  margin: 0.5rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  font-size: 0.68rem;
+  color: var(--text-dim);
+}
+
+.profit-model-browser-id__label {
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.profit-model-browser-id__code {
+  font-family: ui-monospace, "JetBrains Mono", monospace;
+  font-size: 0.62rem;
+  word-break: break-all;
+  padding: 0.12rem 0.35rem;
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--card-border);
+  color: var(--accent);
+}
+
+.chart-section .quote-bar.card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem 1rem;
+}
+
+.quote-bar__right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.45rem;
+}
+
+.quote-bar__profit-btn {
+  font-size: 0.72rem;
+  padding: 0.28rem 0.55rem;
+}
+
+.profit-model-strip {
+  margin-top: 0.5rem;
+  padding: 0.55rem 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.85rem;
+  font-size: 0.8rem;
+  border: 1px solid var(--card-border);
+  background: rgba(10, 14, 19, 0.35);
+  border-radius: var(--radius-sm);
+}
+
+.profit-model-strip__label {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+}
+
+.profit-model-strip__value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.profit-model-strip--up .profit-model-strip__pct {
+  color: var(--up);
+}
+
+.profit-model-strip--down .profit-model-strip__pct {
+  color: var(--down);
+}
+
+.profit-model-strip--flat .profit-model-strip__pct {
+  color: var(--text-dim);
+}

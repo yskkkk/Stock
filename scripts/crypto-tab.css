@@ -1,0 +1,231 @@
+/* Crypto tab — merged into src/index.css by scripts/patch-index-css.mjs */
+.crypto-workspace {
+  align-items: stretch;
+}
+
+.crypto-panel .panel-head {
+  justify-content: flex-start;
+  padding-bottom: 0.55rem;
+  margin-bottom: 0.35rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.crypto-panel .panel-head__title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text, #e8eaed);
+  letter-spacing: -0.02em;
+}
+
+.crypto-panel .crypto-pick-list {
+  padding: 0.35rem 0.4rem 0.5rem;
+  gap: 0;
+}
+
+.crypto-panel .pick-item.crypto-pick-item {
+  margin-bottom: 0.45rem;
+  border-radius: 11px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: linear-gradient(
+    165deg,
+    rgba(22, 29, 39, 0.95) 0%,
+    rgba(12, 16, 22, 0.88) 100%
+  );
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.12s ease;
+}
+
+.crypto-panel .pick-item.crypto-pick-item:hover {
+  border-color: rgba(94, 234, 212, 0.28);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+}
+
+.crypto-panel .pick-item.crypto-pick-item:hover .crypto-pick-row {
+  transform: translateY(-1px);
+}
+
+.crypto-panel .pick-item.crypto-pick-item.active {
+  border-color: rgba(94, 234, 212, 0.42);
+  box-shadow:
+    0 0 0 1px rgba(94, 234, 212, 0.12),
+    0 6px 22px rgba(94, 234, 212, 0.08);
+  background: linear-gradient(
+    165deg,
+    rgba(94, 234, 212, 0.09) 0%,
+    rgba(12, 16, 22, 0.92) 55%
+  );
+}
+
+.crypto-panel .pick-item.crypto-pick-item .crypto-pick-row {
+  padding: 0.65rem 0.75rem 0.7rem;
+  text-align: left;
+  transition: transform 0.12s ease;
+}
+
+.crypto-pick-row__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.crypto-pick-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text, #eef2f7);
+  letter-spacing: -0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crypto-pick-row__metrics {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.55rem;
+  margin-top: 0.42rem;
+}
+
+.crypto-pick-ticker {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--muted, #6d7d92);
+  padding: 0.16rem 0.42rem;
+  border-radius: 6px;
+  background: rgba(10, 14, 19, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.crypto-pick-vol {
+  font-size: 0.62rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.crypto-panel .crypto-pick-quote.pick-quote {
+  margin-top: 0;
+  flex: 1;
+  min-width: 0;
+  justify-content: flex-end;
+  gap: 0.4rem 0.5rem;
+}
+
+.crypto-panel .crypto-pick-quote .pick-quote__price {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.crypto-panel .crypto-pick-quote .pick-quote__chg {
+  font-size: 0.68rem;
+  padding: 0.1rem 0.38rem;
+}
+
+/* 코인 탭: 차트 열이 flex로 남는 높이를 쓰고, 휠·가격축 입력이 차트에 닿도록 */
+.chart-section.crypto-chart-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.crypto-chart-section .chart-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* 코인 차트: 드로잉 툴바 + Shift+휠 가격축 */
+.chart-canvas-wrap--draw {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-height: 0;
+}
+
+.chart-canvas-wrap--draw .chart-canvas {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.chart-draw-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.chart-draw-btn {
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.28rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(10, 14, 19, 0.65);
+  color: var(--text-dim, #9aa8bc);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.chart-draw-btn:hover {
+  border-color: rgba(94, 234, 212, 0.35);
+  color: var(--text, #eef2f7);
+}
+
+.chart-draw-btn--active {
+  border-color: rgba(94, 234, 212, 0.5);
+  background: rgba(94, 234, 212, 0.12);
+  color: var(--accent, #5eead4);
+}
+
+.chart-draw-persist-hint {
+  font-size: 0.65rem;
+  line-height: 1.35;
+  color: var(--text-dim, #94a3b8);
+  padding: 0 0 0.15rem;
+  max-width: 100%;
+}
+
+.crypto-chart-section .chart-panel.crypto-chart-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.crypto-chart-panel .crypto-chart-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tradingview-widget-container.tradingview-embed-mount {
+  flex: 1 1 auto;
+  min-height: 420px;
+  min-width: 0;
+}
+
+.tradingview-widget-copyright {
+  font-size: 0.72rem;
+  line-height: 1.35;
+  padding-top: 0.2rem;
+}
+
+.tradingview-widget-copyright .blue-text {
+  color: var(--accent, #5eead4);
+}
+
+.tradingview-widget-copyright .trademark {
+  color: var(--muted, #6d7d92);
+}

@@ -1,0 +1,29 @@
+{
+  "name": "stock-chart-app",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:watch": "node scripts/laptop-git-watch-dev.mjs",
+    "i18n:gen": "node scripts/gen-ko-i18n.mjs",
+    "verify": "node scripts/verify-encoding.mjs",
+    "build": "npm run verify && tsc -b && vite build",
+    "preview": "concurrently -k \"node server/index.js\" \"vite preview\""
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "lightweight-charts": "^5.0.7",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "@vitejs/plugin-react": "^4.4.1",
+    "concurrently": "^9.1.2",
+    "tree-kill": "^1.2.2",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5"
+  }
+}

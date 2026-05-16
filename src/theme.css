@@ -1,0 +1,90 @@
+/**
+ * 라이트 모드 — :root 변수 덮어쓰기 + 일부 하드코딩 보정
+ * 다크: data-theme 없음(기본)
+ */
+html[data-theme="light"] {
+  --bg: #e8edf4;
+  --bg-elevated: #dfe7f1;
+  --surface: #ffffff;
+  --card: #ffffff;
+  --card-border: rgba(15, 23, 42, 0.12);
+  --text: #0f172a;
+  --text-dim: #475569;
+  --muted: #64748b;
+  --accent: #0d9488;
+  --accent-dim: rgba(13, 148, 136, 0.14);
+  --accent-border: rgba(13, 148, 136, 0.4);
+  --up: #15803d;
+  --down: #dc2626;
+  --warn: #b45309;
+  --shadow: 0 4px 22px rgba(15, 23, 42, 0.08);
+  --scrollbar-track: #dbe4f0;
+  --scrollbar-thumb: rgba(71, 85, 105, 0.35);
+  --scrollbar-thumb-hover: rgba(71, 85, 105, 0.52);
+  color-scheme: light;
+}
+
+html[data-theme="light"] body::before {
+  opacity: 0.22;
+}
+
+html[data-theme="light"] .main-tab.active {
+  color: #ffffff;
+}
+
+html[data-theme="light"] .btn--primary {
+  color: #ffffff;
+}
+
+html[data-theme="light"] .search-row button,
+html[data-theme="light"] .error-overlay button {
+  color: #ffffff;
+}
+
+html[data-theme="light"] .macro-bar {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.96),
+    rgba(241, 245, 249, 0.98)
+  );
+  border-color: var(--card-border);
+  box-shadow: var(--shadow);
+}
+
+html[data-theme="light"] .macro-card {
+  background: rgba(255, 255, 255, 0.82);
+}
+
+html[data-theme="light"] .overlay {
+  background: rgba(248, 250, 252, 0.88);
+}
+
+.theme-toggle {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.35rem;
+  min-height: 2.1rem;
+  padding: 0.35rem 0.55rem;
+  font-size: 1.05rem;
+  line-height: 1;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--card-border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform 0.1s ease;
+}
+
+.theme-toggle:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-dim);
+}
+
+.theme-toggle:active {
+  transform: scale(0.97);
+}
