@@ -4,5 +4,7 @@ dist
 server/.data
 .DS_Store
 *.log
-.cursor/
+.cursor/**
+!.cursor/rules/
+!.cursor/rules/**
 tsconfig.tsbuildinfo
