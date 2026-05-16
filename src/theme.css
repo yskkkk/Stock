@@ -55,8 +55,176 @@ html[data-theme="light"] .macro-card {
   background: rgba(255, 255, 255, 0.82);
 }
 
+/* 상단 바 — 라이트: 비활성 탭·스캔 문구 대비 */
+html[data-theme="light"] .main-tab:not(.active) {
+  color: #334155;
+}
+
+html[data-theme="light"] .top-bar__scan .scan-status__msg {
+  color: #334155;
+}
+
+html[data-theme="light"] .top-bar__scan .scan-status__eta,
+html[data-theme="light"] .top-bar__scan .scan-status__time,
+html[data-theme="light"] .top-bar__scan .scan-status__next {
+  color: #475569;
+}
+
 html[data-theme="light"] .overlay {
   background: rgba(248, 250, 252, 0.88);
+}
+
+/* 스크리너 종목 카드 — 라이트: 시그널 태그·티커 pill이 파스텔+연한 글자로 묻힘 → 진한 글자·살짝 진한 배경 */
+html[data-theme="light"] .pick-quote__symbol {
+  color: #334155;
+  background: #f1f5f9;
+  border-color: rgba(15, 23, 42, 0.14);
+}
+
+html[data-theme="light"] .pick-quote__chg--up {
+  color: var(--up);
+  background: rgba(21, 128, 61, 0.12);
+  border-color: rgba(21, 128, 61, 0.28);
+}
+
+html[data-theme="light"] .pick-quote__chg--down {
+  color: var(--down);
+  background: rgba(220, 38, 38, 0.08);
+  border-color: rgba(220, 38, 38, 0.24);
+}
+
+html[data-theme="light"] .signal-tag--align {
+  background: rgba(13, 148, 136, 0.16);
+  color: #0f766e;
+  border-color: rgba(13, 148, 136, 0.42);
+}
+
+html[data-theme="light"] .signal-tag--golden {
+  background: rgba(180, 83, 9, 0.16);
+  color: #9a3412;
+  border-color: rgba(180, 83, 9, 0.38);
+}
+
+html[data-theme="light"] .signal-tag--ma20 {
+  background: rgba(2, 132, 199, 0.14);
+  color: #0369a1;
+  border-color: rgba(2, 132, 199, 0.34);
+}
+
+html[data-theme="light"] .signal-tag--rsi {
+  background: rgba(91, 33, 182, 0.12);
+  color: #5b21b6;
+  border-color: rgba(91, 33, 182, 0.3);
+}
+
+html[data-theme="light"] .signal-tag--volume {
+  background: rgba(21, 128, 61, 0.14);
+  color: #166534;
+  border-color: rgba(21, 128, 61, 0.3);
+}
+
+html[data-theme="light"] .pick-reason-chip {
+  color: #166534;
+  background: rgba(21, 128, 61, 0.11);
+  border-color: rgba(21, 128, 61, 0.28);
+}
+
+html[data-theme="light"] .pick-reason-preview {
+  border-top-color: rgba(15, 23, 42, 0.1);
+}
+
+/* 코인 탭 — 라이트: 어두운 카드 + 어두운 --text 조합으로 글자 대비 붕괴 → 밝은 카드·명시 색 */
+html[data-theme="light"] .crypto-panel .panel-head__title {
+  color: var(--text);
+}
+
+html[data-theme="light"] .crypto-panel .panel-head {
+  border-bottom-color: var(--card-border);
+}
+
+html[data-theme="light"] .crypto-panel .pick-item.crypto-pick-item {
+  background: linear-gradient(165deg, #ffffff 0%, #f1f5f9 100%);
+  border-color: var(--card-border);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+html[data-theme="light"] .crypto-panel .pick-item.crypto-pick-item:hover {
+  border-color: rgba(13, 148, 136, 0.35);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+}
+
+html[data-theme="light"] .crypto-panel .pick-item.crypto-pick-item.active {
+  border-color: rgba(13, 148, 136, 0.45);
+  box-shadow:
+    0 0 0 1px rgba(13, 148, 136, 0.18),
+    0 4px 16px rgba(13, 148, 136, 0.12);
+  background: linear-gradient(
+    165deg,
+    rgba(13, 148, 136, 0.1) 0%,
+    #f8fafc 58%
+  );
+}
+
+html[data-theme="light"] .crypto-pick-name {
+  color: var(--text);
+}
+
+html[data-theme="light"] .crypto-pick-ticker {
+  color: var(--text-dim);
+  background: rgba(15, 23, 42, 0.06);
+  border-color: rgba(15, 23, 42, 0.12);
+}
+
+html[data-theme="light"] .crypto-panel .crypto-pick-vol,
+html[data-theme="light"] .crypto-panel .chart-toolbar__muted {
+  color: var(--muted);
+}
+
+html[data-theme="light"] .crypto-panel .crypto-pick-quote .pick-quote__symbol {
+  color: var(--text-dim);
+  background: rgba(15, 23, 42, 0.06);
+  border-color: rgba(15, 23, 42, 0.1);
+}
+
+html[data-theme="light"] .crypto-panel .crypto-pick-quote .pick-quote__price {
+  color: var(--text);
+}
+
+html[data-theme="light"] .crypto-chart-panel .chart-toolbar__label {
+  color: var(--text);
+}
+
+html[data-theme="light"] .crypto-chart-panel .chart-toolbar__muted {
+  color: var(--muted);
+}
+
+html[data-theme="light"] .crypto-chart-panel .chart-draw-btn {
+  background: rgba(15, 23, 42, 0.05);
+  border-color: rgba(15, 23, 42, 0.14);
+  color: var(--text-dim);
+}
+
+html[data-theme="light"] .crypto-chart-panel .chart-draw-btn:hover {
+  color: var(--text);
+  border-color: rgba(13, 148, 136, 0.35);
+}
+
+html[data-theme="light"] .crypto-chart-panel .chart-draw-btn--active {
+  background: rgba(13, 148, 136, 0.14);
+  border-color: rgba(13, 148, 136, 0.45);
+  color: var(--accent);
+}
+
+html[data-theme="light"] .crypto-chart-panel .chart-draw-persist-hint {
+  color: var(--muted);
+}
+
+html[data-theme="light"] .crypto-chart-panel .chart-status {
+  color: var(--text-dim);
+}
+
+html[data-theme="light"] .crypto-chart-panel .chart-status--error {
+  color: var(--down);
 }
 
 .theme-toggle {

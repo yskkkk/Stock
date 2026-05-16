@@ -1,76 +1,12 @@
-.top-bar__actions--col {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.55rem;
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.top-bar__actions--col .scan-status.scan-status--stacked {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.45rem;
-  width: 100%;
-  max-width: min(29rem, 92vw);
-}
-
-.scan-status__primary {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.35rem;
-  width: 100%;
-}
-
-.scan-status__primary .progress-bar {
-  width: 100%;
-  max-width: 18rem;
-}
-
-.scan-status__msg {
-  font-size: 0.8rem;
-  line-height: 1.5;
-  color: var(--text-dim);
-  text-align: right;
-}
-
-.scan-status__eta {
-  font-size: 0.75rem;
-  color: var(--muted);
-}
-
-.scan-status__secondary {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.45rem 0.75rem;
-  width: 100%;
-  row-gap: 0.4rem;
-}
-
-.scan-status__time {
-  font-size: 0.78rem;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-.scan-status__next {
+/* 상단 스캔 타이머·상태 (patch-index-css.mjs 가 index.css에 없을 때만 append) */
+.scan-status--compact .scan-status__next {
   flex-shrink: 0;
   color: var(--accent);
-  font-size: 0.78rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  padding: 0.3rem 0.75rem;
   border-radius: 999px;
   background: var(--accent-dim);
   border: 1px solid var(--accent-border);
   line-height: 1.25;
-}
-
-.scan-status__fail-btn {
-  flex-shrink: 0;
 }

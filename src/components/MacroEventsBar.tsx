@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchMacroEvents } from "../api";
 import { ko } from "../i18n/ko";
 import {
@@ -72,11 +72,34 @@ function MacroEventCard({
   );
 }
 
-export default function MacroEventsBar() {
+const SECRET_ADMIN_TAPS = 10;
+const SECRET_ADMIN_GAP_MS = 2800;
+
+type MacroEventsBarProps = {
+  /** 제목 문구를 연속으로 눌렀을 때만 호출 (접근 관리 등). */
+  onSecretAdminOpen?: () => void;
+};
+
+export default function MacroEventsBar({
+  onSecretAdminOpen,
+}: MacroEventsBarProps) {
   const [events, setEvents] = useState<MacroEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(() => Date.now());
   const [infoEvent, setInfoEvent] = useState<MacroEvent | null>(null);
+  const secretTitleTapRef = useRef({ count: 0, at: 0 });
+
+  const handleMacroTitleClick = useCallback(() => {
+    if (!onSecretAdminOpen) return;
+    const nowMs = Date.now();
+    const prev = secretTitleTapRef.current;
+    if (nowMs - prev.at > SECRET_ADMIN_GAP_MS) prev.count = 0;
+    prev.at = nowMs;
+    prev.count += 1;
+    if (prev.count < SECRET_ADMIN_TAPS) return;
+    prev.count = 0;
+    onSecretAdminOpen();
+  }, [onSecretAdminOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -116,7 +139,22 @@ export default function MacroEventsBar() {
       <section className="macro-bar card" aria-label={ko.macro.title}>
         <div className="macro-bar__head">
           <div className="macro-bar__title-wrap">
-            <h2 className="macro-bar__title">{ko.macro.title}</h2>
+            <div
+              className={
+                onSecretAdminOpen
+                  ? "macro-bar__title-group macro-bar__title-group--secret"
+                  : "macro-bar__title-group"
+              }
+            >
+              <h2 className="macro-bar__title">{ko.macro.title}</h2>
+              {onSecretAdminOpen ? (
+                <span
+                  className="macro-bar__title-secret-hit"
+                  onClick={handleMacroTitleClick}
+                  aria-hidden
+                />
+              ) : null}
+            </div>
             <span className="macro-bar__sub">{ko.macro.subtitle}</span>
           </div>
         </div>

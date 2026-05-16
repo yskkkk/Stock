@@ -9,7 +9,7 @@ import {
 } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
-import { getTradingSessionKey, isMarketOpen } from "./market-hours.js";
+import { getTradingSessionKey } from "./market-hours.js";
 import { MAX_TECH_SCORE } from "./technical.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -398,7 +398,7 @@ export function countTodayTelegramSent() {
 
 
 
-/** 오늘(각 시장 정규장 거래일) 텔레그램 발송 이력 제거 → 동일 종목 재알림 가능 */
+/** 오늘(각 시장 현지일 세션 키) 텔레그램 발송 이력 제거 → 동일 종목 재알림 가능 */
 
 export function clearTodayTelegramSent() {
 
@@ -450,7 +450,7 @@ export function getTelegramNotifyStatus() {
 
 
 
-/** 오늘(정규장 거래일) 텔레그램 발송 종목 목록 */
+/** 오늘(시장·현지일 세션) 텔레그램 발송 종목 목록 */
 
 export function listTodayTelegramSent() {
 
@@ -652,7 +652,7 @@ function buildMessage(pick) {
 
     "",
 
-    `<i>🕐 ${time} KST · 정규장</i>`,
+    `<i>🕐 ${time} KST</i>`,
 
   ].join("\n");
 
@@ -710,15 +710,13 @@ async function sendTelegramMessage(text) {
 
 
 
-/** 스캔 중 고득점 + 정규장 개장 시에만 텔레그램 알림 */
+/** 스캔 중 고득점(임계 초과)이면 텔레그램 알림 — 정규장 여부와 무관 */
 
 export function notifyHighScorePick(pick) {
 
   if (!isTelegramNotifyEnabled()) return;
 
   if (pick.score <= minScore()) return;
-
-  if (!isMarketOpen(pick.market, pick.marketState)) return;
 
 
 

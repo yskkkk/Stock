@@ -4,6 +4,7 @@ import type {
   ChartTimeframe,
   CryptoQuotesResponse,
   CryptoUniverseResponse,
+  FeedbackInboxResponse,
   MacroEventsResponse,
   NewsResponse,
   PicksResponse,
@@ -57,6 +58,9 @@ export function fetchConfig() {
       minAlertScore: number;
       todaySentCount?: number;
     };
+    feedbackInboxEnabled?: boolean;
+    /** 서버 TELEGRAM_RESET_ADMIN_IPS에 포함된 클라이언트만 true */
+    telegramResetAllowed?: boolean;
   }>("/api/config");
 }
 
@@ -111,17 +115,37 @@ export interface AccessStatusResponse {
   yourIp: string;
 }
 
+export type AccessDeviceInfoPayload = {
+  userAgent?: string;
+  platform?: string;
+  language?: string;
+  languages?: string;
+  screen?: string;
+  viewport?: string;
+  timezone?: string;
+  hardwareConcurrency?: number | null;
+  deviceMemory?: number | null;
+  maxTouchPoints?: number | null;
+  cookieEnabled?: boolean | null;
+};
+
 export interface AccessRequestItem {
   id: string;
   ip: string;
   userAgent: string;
   message: string;
+  deviceInfo?: AccessDeviceInfoPayload | null;
   requestedAt: string;
   status: string;
 }
 
 export interface AccessAllowedEntry {
   ip: string;
+  /** 관리자가 적은 식별 메모 */
+  memo?: string;
+  /** 승인 시점 신청자 메시지 (구 데이터는 `note`에만 있을 수 있음) */
+  requestMessage?: string;
+  /** 구버전: 신청 메시지가 note에만 저장됨 */
   note?: string;
   addedAt: string;
   fromRequestId?: string;
@@ -139,11 +163,17 @@ export function fetchAccessStatus() {
   });
 }
 
-export function postAccessRequest(message: string) {
+export function postAccessRequest(
+  message: string,
+  deviceInfo?: AccessDeviceInfoPayload | null,
+) {
   return fetchJson<{ ok: boolean; message: string }>("/api/access/request", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({
+      message,
+      ...(deviceInfo ? { deviceInfo } : {}),
+    }),
   });
 }
 
@@ -153,14 +183,36 @@ export function fetchAccessAdminRequests(adminToken: string) {
   });
 }
 
-export function postAccessAdminApprove(adminToken: string, id: string) {
+export function postAccessAdminApprove(
+  adminToken: string,
+  id: string,
+  memo?: string,
+) {
   return fetchJson<{ ok: boolean }>("/api/access/admin/approve", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${adminToken}`,
     },
-    body: JSON.stringify({ id }),
+    body: JSON.stringify({
+      id,
+      memo: (memo ?? "").trim().slice(0, 300),
+    }),
+  });
+}
+
+export function postAccessAdminAllowedMemo(
+  adminToken: string,
+  ip: string,
+  memo: string,
+) {
+  return fetchJson<{ ok: boolean }>("/api/access/admin/allowed-memo", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${adminToken}`,
+    },
+    body: JSON.stringify({ ip, memo }),
   });
 }
 
@@ -183,5 +235,19 @@ export function postAccessAdminRevoke(adminToken: string, ip: string) {
       Authorization: `Bearer ${adminToken}`,
     },
     body: JSON.stringify({ ip }),
+  });
+}
+
+export function postFeedbackMessage(message: string) {
+  return fetchJson<{ ok: boolean }>("/api/feedback", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message }),
+  });
+}
+
+export function fetchFeedbackInbox(token: string) {
+  return fetchJson<FeedbackInboxResponse>("/api/feedback/inbox", {
+    headers: { Authorization: `Bearer ${token.trim()}` },
   });
 }

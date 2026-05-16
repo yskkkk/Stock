@@ -13,13 +13,29 @@
   align-items: baseline;
   gap: 0.35rem 0.65rem;
 }
+.macro-bar__title-group {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+.macro-bar__title-group--secret .macro-bar__title {
+  pointer-events: none;
+}
+.macro-bar__title-secret-hit {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+}
 .macro-bar__title {
   margin: 0;
   font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--text-dim);
+  user-select: none;
 }
 .macro-bar__sub { font-size: 0.72rem; color: var(--muted); }
 .macro-bar__track {

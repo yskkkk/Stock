@@ -32,11 +32,13 @@ function mergeStockProcessEnv(mode) {
     "TELEGRAM_BOT_TOKEN",
     "TELEGRAM_CHAT_ID",
     "TELEGRAM_MIN_SCORE",
+    "TELEGRAM_RESET_ADMIN_IPS",
     "ACCESS_CONTROL_ENABLED",
     "ACCESS_CONTROL_DISABLED",
     "ACCESS_ADMIN_TOKEN",
     "ACCESS_BOOTSTRAP_IPS",
     "ACCESS_ALLOW_LOCALHOST",
+    "FEEDBACK_INBOX_TOKEN",
   ]) {
     if (env[key]) process.env[key] = env[key];
   }
@@ -58,7 +60,8 @@ function attachStockApiMiddlewares(server) {
     if (!req.url?.startsWith("/api")) return next();
     app(req, res, (err) => {
       if (err) {
-        console.error("[api]", err);
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("[api] 요청 처리 오류:", msg);
         if (!res.headersSent) {
           res.statusCode = 500;
           res.setHeader("Content-Type", "application/json; charset=utf-8");

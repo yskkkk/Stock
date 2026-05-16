@@ -130,6 +130,19 @@ export interface TelegramSentResponse {
   count: number;
 }
 
+export interface FeedbackInboxItem {
+  id: string;
+  at: string;
+  ip: string;
+  userAgent: string;
+  message: string;
+}
+
+export interface FeedbackInboxResponse {
+  items: FeedbackInboxItem[];
+  count: number;
+}
+
 export interface PicksResponse {
   running: boolean;
   progress: number;

@@ -53,12 +53,13 @@ export function isAccessControlEnabled() {
   return true;
 }
 
-/** 비운영(NODE_ENV≠production)에서만 .env 미설정 시 사용. 운영에서는 미사용. */
-const DEFAULT_DEV_ADMIN_TOKEN = "dev-stock-access-admin-change-in-env";
-
 function allowLocalhost() {
   const v = String(process.env.ACCESS_ALLOW_LOCALHOST ?? "0").toLowerCase();
   return v === "1" || v === "true" || v === "yes";
+}
+
+function getAdminToken() {
+  return String(process.env.ACCESS_ADMIN_TOKEN ?? "").trim();
 }
 
 function getBootstrapIps() {
@@ -68,14 +69,6 @@ function getBootstrapIps() {
     .split(",")
     .map((s) => normalizeAccessIp(s.trim()))
     .filter(Boolean);
-}
-
-function getAdminToken() {
-  const t = String(process.env.ACCESS_ADMIN_TOKEN ?? "").trim();
-  if (t) return t;
-  const nodeEnv = String(process.env.NODE_ENV ?? "").toLowerCase();
-  if (nodeEnv !== "production") return DEFAULT_DEV_ADMIN_TOKEN;
-  return "";
 }
 
 export function readAccessStore() {
@@ -100,6 +93,7 @@ function writeAccessStore(data) {
 function isPathPublic(pathname, method) {
   if (method === "GET" && pathname === "/api/access/status") return true;
   if (method === "POST" && pathname === "/api/access/request") return true;
+  if (method === "POST" && pathname === "/api/feedback") return true;
   return false;
 }
 
@@ -215,11 +209,44 @@ export function registerAccessControl(app) {
 
     const message = String(req.body?.message ?? "").trim().slice(0, 500);
     const id = randomUUID();
+    const rawDevice = req.body?.deviceInfo;
+    let deviceInfo = null;
+    if (rawDevice != null && typeof rawDevice === "object" && !Array.isArray(rawDevice)) {
+      deviceInfo = {
+        userAgent: String(rawDevice.userAgent ?? "").slice(0, 400),
+        platform: String(rawDevice.platform ?? "").slice(0, 120),
+        language: String(rawDevice.language ?? "").slice(0, 80),
+        languages: String(rawDevice.languages ?? "").slice(0, 200),
+        screen: String(rawDevice.screen ?? "").slice(0, 80),
+        viewport: String(rawDevice.viewport ?? "").slice(0, 80),
+        timezone: String(rawDevice.timezone ?? "").slice(0, 80),
+        hardwareConcurrency:
+          typeof rawDevice.hardwareConcurrency === "number" &&
+          Number.isFinite(rawDevice.hardwareConcurrency)
+            ? rawDevice.hardwareConcurrency
+            : null,
+        deviceMemory:
+          typeof rawDevice.deviceMemory === "number" &&
+          Number.isFinite(rawDevice.deviceMemory)
+            ? rawDevice.deviceMemory
+            : null,
+        maxTouchPoints:
+          typeof rawDevice.maxTouchPoints === "number" &&
+          Number.isFinite(rawDevice.maxTouchPoints)
+            ? rawDevice.maxTouchPoints
+            : null,
+        cookieEnabled:
+          typeof rawDevice.cookieEnabled === "boolean"
+            ? rawDevice.cookieEnabled
+            : null,
+      };
+    }
     store.requests.push({
       id,
       ip,
       userAgent: String(req.headers["user-agent"] ?? "").slice(0, 400),
       message,
+      deviceInfo,
       requestedAt: new Date().toISOString(),
       status: "pending",
     });
@@ -240,6 +267,7 @@ export function registerAccessControl(app) {
       res.status(400).json({ error: "id가 필요합니다." });
       return;
     }
+    const adminMemo = String(req.body?.memo ?? "").trim().slice(0, 300);
     const store = readAccessStore();
     const reqEntry = store.requests.find((r) => r.id === id && r.status === "pending");
     if (!reqEntry) {
@@ -247,16 +275,40 @@ export function registerAccessControl(app) {
       return;
     }
     const ipn = normalizeAccessIp(reqEntry.ip);
+    const requestMsg = String(reqEntry.message ?? "").trim().slice(0, 500);
     if (!store.allowed.some((a) => normalizeAccessIp(a.ip) === ipn)) {
-      store.allowed.push({
+      /** @type {{ ip: string; addedAt: string; fromRequestId: string; memo?: string; requestMessage?: string }} */
+      const row = {
         ip: reqEntry.ip,
-        note: String(reqEntry.message ?? "").slice(0, 200),
         addedAt: new Date().toISOString(),
         fromRequestId: id,
-      });
+      };
+      if (adminMemo) row.memo = adminMemo;
+      if (requestMsg) row.requestMessage = requestMsg;
+      store.allowed.push(row);
     }
     reqEntry.status = "approved";
     reqEntry.resolvedAt = new Date().toISOString();
+    writeAccessStore(store);
+    res.json({ ok: true });
+  });
+
+  app.post("/api/access/admin/allowed-memo", requireAdmin, (req, res) => {
+    const rawIp = String(req.body?.ip ?? "").trim();
+    if (!rawIp) {
+      res.status(400).json({ error: "ip가 필요합니다." });
+      return;
+    }
+    const memo = String(req.body?.memo ?? "").trim().slice(0, 300);
+    const store = readAccessStore();
+    const target = normalizeAccessIp(rawIp);
+    const entry = store.allowed.find((a) => normalizeAccessIp(a.ip) === target);
+    if (!entry) {
+      res.status(404).json({ error: "허용 목록에 없는 IP입니다." });
+      return;
+    }
+    if (memo) entry.memo = memo;
+    else delete entry.memo;
     writeAccessStore(store);
     res.json({ ok: true });
   });
@@ -298,21 +350,12 @@ export function registerAccessControl(app) {
   });
 
   if (isAccessControlEnabled()) {
-    console.log(
-      "[access-control] IP 허용제 ON — 허가된 IP만 /api 사용(신청·상태·관리 API 제외).",
-    );
+    console.log("[access-control] IP 허용제 ON — 허가 IP만 /api 사용");
     const envTok = String(process.env.ACCESS_ADMIN_TOKEN ?? "").trim();
     if (!envTok) {
-      const nodeEnv = String(process.env.NODE_ENV ?? "").toLowerCase();
-      if (nodeEnv !== "production") {
-        console.warn(
-          "[access-control] 비운영: ACCESS_ADMIN_TOKEN 미설정 → 기본 토큰으로 관리 API 허용. 운영에서는 .env에 ACCESS_ADMIN_TOKEN 필수.",
-        );
-      } else {
-        console.warn(
-          "[access-control] ACCESS_ADMIN_TOKEN이 없습니다. 승인/거절 API는 503입니다. .env에 설정하세요.",
-        );
-      }
+      console.warn(
+        "[access-control] 관리자 토큰 미설정 — 승인·거절·메모 API는 503",
+      );
     }
   }
 }

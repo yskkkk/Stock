@@ -70,15 +70,6 @@
         line-height: 1.55;
         color: var(--dim);
       }
-      .ip {
-        margin: 0 0 0.75rem;
-        font-size: 0.82rem;
-      }
-      .ip code {
-        font-family: "JetBrains Mono", ui-monospace, monospace;
-        font-size: 0.85rem;
-        color: var(--text);
-      }
       .feedback {
         color: var(--accent);
         font-size: 0.85rem;
@@ -86,7 +77,27 @@
       .err {
         color: var(--down);
       }
-      label span {
+      label.adm-memo-apr span,
+      label.adm-memo-allow span {
+        display: block;
+        font-size: 0.76rem;
+        color: var(--muted);
+        margin-bottom: 0.3rem;
+      }
+      label.adm-memo-apr input,
+      label.adm-memo-allow input {
+        width: 100%;
+        margin-bottom: 0.45rem;
+        padding: 0.45rem 0.55rem;
+        font-family: inherit;
+        font-size: 0.85rem;
+        color: var(--text);
+        background: #121820;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+      }
+      #requestBlock label > span,
+      #adminPwdGate label > span {
         display: block;
         font-size: 0.78rem;
         color: var(--muted);
@@ -224,15 +235,7 @@
     ></p>
     <div id="main" class="card hidden">
       <p class="product">종목 대시보드</p>
-      <h1>접근 제한</h1>
-      <p>
-        이 사이트는 허가된 IP에서만 이용할 수 있습니다. 아래에서 접속을 신청하거나 관리자에게
-        문의하세요.
-      </p>
-      <p class="ip">
-        확인된 IP: <code id="yourIp">-</code>
-      </p>
-      <p id="stateText"></p>
+      <h1 id="accessGateSecretTap">접근 제한</h1>
       <p id="feedback" class="feedback hidden"></p>
 
       <div id="requestBlock">
@@ -246,12 +249,10 @@
         </label>
         <div class="row">
           <button type="button" class="btn-primary" id="btnReq">접속 신청</button>
-          <button type="button" class="btn-secondary" id="btnAdmin">접근 관리</button>
         </div>
       </div>
 
       <div id="pendingBlock" class="hidden">
-        <p>승인 대기 중입니다. 관리자가 처리하면 자동으로 사이트로 이동합니다.</p>
         <div class="row">
           <button type="button" class="btn-secondary" id="btnAdmin2">접근 관리</button>
         </div>
@@ -259,13 +260,20 @@
 
       <div id="adminPanel" class="admin hidden">
         <h2>IP 접근 관리</h2>
-        <label>
-          <span>관리자 토큰 (Bearer)</span>
-          <input type="password" id="admTok" autocomplete="off" placeholder="ACCESS_ADMIN_TOKEN" />
-        </label>
+        <div id="adminPwdGate">
+          <label>
+            <span>관리자 비밀번호</span>
+            <input type="password" id="admPwd" autocomplete="current-password" placeholder="비밀번호" />
+          </label>
+          <div class="row" style="margin-top: 0.5rem">
+            <button type="button" class="btn-primary" id="btnAdminUnlock">확인</button>
+          </div>
+          <p id="admPwdErr" class="err hidden"></p>
+        </div>
+        <div id="adminContent" class="hidden">
         <div class="row">
-          <button type="button" class="btn-secondary" id="btnTokSave">토큰 적용</button>
           <button type="button" class="btn-secondary" id="btnReload">목록 새로고침</button>
+          <button type="button" class="btn-secondary" id="btnAdminLock">잠금</button>
           <button type="button" class="btn-ghost" id="btnAdmClose">닫기</button>
         </div>
         <p id="admErr" class="err hidden"></p>
@@ -273,12 +281,12 @@
         <div id="admPending"></div>
         <h3 style="margin: 0.75rem 0 0.35rem; font-size: 0.82rem">허용 목록</h3>
         <div id="admAllowed"></div>
+        </div>
       </div>
     </div>
 
     <script type="module">
       const TOKEN_KEY = "stock_access_admin_token";
-      const DEV_FALLBACK = "dev-stock-access-admin-change-in-env";
 
       const $ = (id) => document.getElementById(id);
       const loading = $("loading");
@@ -327,6 +335,29 @@
         } catch (_) {}
       }
 
+      function collectDeviceInfo() {
+        const nav = navigator;
+        const scr = window.screen;
+        const dm = nav.deviceMemory;
+        return {
+          userAgent: nav.userAgent,
+          platform: nav.platform,
+          language: nav.language,
+          languages: Array.isArray(nav.languages)
+            ? nav.languages.slice(0, 24).join(", ")
+            : nav.language,
+          screen: scr ? `${scr.width}x${scr.height}` : "",
+          viewport: `${window.innerWidth}x${window.innerHeight}`,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
+          hardwareConcurrency:
+            typeof nav.hardwareConcurrency === "number" ? nav.hardwareConcurrency : null,
+          deviceMemory: typeof dm === "number" ? dm : null,
+          maxTouchPoints:
+            typeof nav.maxTouchPoints === "number" ? nav.maxTouchPoints : null,
+          cookieEnabled: nav.cookieEnabled,
+        };
+      }
+
       let pollId = null;
 
       function stopPoll() {
@@ -360,12 +391,9 @@
 
         loading.classList.remove("show");
         main.classList.remove("hidden");
-        $("yourIp").textContent = s.yourIp || "-";
 
         const st = s.state;
         if (st === "pending") {
-          $("stateText").textContent =
-            "승인 대기 중입니다. 관리자가 처리하면 이 창이 메인 화면으로 바뀝니다.";
           requestBlock.classList.add("hidden");
           pendingBlock.classList.remove("hidden");
           startPoll();
@@ -373,13 +401,6 @@
           stopPoll();
           pendingBlock.classList.add("hidden");
           requestBlock.classList.remove("hidden");
-          if (st === "rejected") {
-            $("stateText").textContent =
-              "이전 신청이 거절되었습니다. 사유를 보완해 다시 신청하거나 관리자에게 문의하세요.";
-          } else {
-            $("stateText").textContent =
-              "아직 신청이 없습니다. 아래 버튼으로 접속을 신청해 주세요.";
-          }
         }
       }
 
@@ -388,13 +409,14 @@
         $("feedback").classList.add("hidden");
         btn.disabled = true;
         try {
-          const data = await api("/api/access/request", {
+          await api("/api/access/request", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: $("msg").value.trim() }),
+            body: JSON.stringify({
+              message: $("msg").value.trim(),
+              deviceInfo: collectDeviceInfo(),
+            }),
           });
-          $("feedback").textContent = data.message || "처리되었습니다.";
-          $("feedback").classList.remove("hidden");
           await refresh();
         } catch (e) {
           $("feedback").textContent = e.message || "요청 실패";
@@ -406,20 +428,82 @@
 
       function openAdmin() {
         $("adminPanel").classList.remove("hidden");
-        $("admTok").value = token() || DEV_FALLBACK;
-        void loadAdmin();
+        $("adminPwdGate").classList.remove("hidden");
+        $("adminContent").classList.add("hidden");
+        $("admPwd").value = "";
+        $("admPwdErr").classList.add("hidden");
+        $("admPwdErr").textContent = "";
+        $("admErr").classList.add("hidden");
       }
 
-      $("btnAdmin").addEventListener("click", openAdmin);
-      $("btnAdmin2").addEventListener("click", openAdmin);
+      /** 앱의 MacroEventsBar와 동일: 제목 연속 탭으로만 관리 패널 */
+      const SECRET_ADMIN_TAPS = 10;
+      const SECRET_ADMIN_GAP_MS = 2800;
+      const secretGateTap = { count: 0, at: 0 };
+      $("accessGateSecretTap")?.addEventListener("click", () => {
+        const nowMs = Date.now();
+        if (nowMs - secretGateTap.at > SECRET_ADMIN_GAP_MS) secretGateTap.count = 0;
+        secretGateTap.at = nowMs;
+        secretGateTap.count += 1;
+        if (secretGateTap.count < SECRET_ADMIN_TAPS) return;
+        secretGateTap.count = 0;
+        openAdmin();
+      });
 
       $("btnAdmClose").addEventListener("click", () => {
         $("adminPanel").classList.add("hidden");
       });
 
-      $("btnTokSave").addEventListener("click", () => {
-        setToken($("admTok").value.trim());
-        $("admErr").classList.add("hidden");
+      async function tryAdminUnlock() {
+        const el = $("admPwd");
+        const pwd = el.value.trim();
+        $("admPwdErr").classList.add("hidden");
+        if (!pwd) {
+          $("admPwdErr").classList.add("hidden");
+          $("admPwdErr").textContent = "";
+          el.focus();
+          return;
+        }
+        el.disabled = true;
+        $("btnAdminUnlock").disabled = true;
+        try {
+          const res = await fetch("/api/access/admin/requests", {
+            headers: { Authorization: "Bearer " + pwd },
+            cache: "no-store",
+          });
+          const data = await parseJson(res);
+          if (!res.ok) throw new Error(data.error || data.message || "실패");
+          setToken(pwd);
+          $("adminPwdGate").classList.add("hidden");
+          $("adminContent").classList.remove("hidden");
+          await loadAdmin();
+        } catch (e) {
+          $("admPwdErr").textContent = "비밀번호가 올바르지 않습니다.";
+          $("admPwdErr").classList.remove("hidden");
+          el.value = "";
+          el.focus();
+        } finally {
+          el.disabled = false;
+          $("btnAdminUnlock").disabled = false;
+        }
+      }
+
+      $("btnAdminUnlock").addEventListener("click", () => void tryAdminUnlock());
+
+      $("admPwd").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          void tryAdminUnlock();
+        }
+      });
+
+      $("btnAdminLock").addEventListener("click", () => {
+        try {
+          sessionStorage.removeItem(TOKEN_KEY);
+        } catch (_) {}
+        $("adminPwdGate").classList.remove("hidden");
+        $("adminContent").classList.add("hidden");
+        $("admPwd").value = "";
       });
 
       function clearBox(el) {
@@ -427,10 +511,15 @@
       }
 
       async function loadAdmin() {
-        const t = token() || $("admTok").value.trim() || DEV_FALLBACK;
+        const t = token().trim();
         $("admErr").classList.add("hidden");
         const pend = $("admPending");
         const allow = $("admAllowed");
+        if (!t) {
+          $("admErr").textContent = "먼저 비밀번호로 확인하세요.";
+          $("admErr").classList.remove("hidden");
+          return;
+        }
         try {
           const res = await fetch("/api/access/admin/requests", {
             headers: { Authorization: "Bearer " + t },
@@ -464,6 +553,47 @@
                 sub.textContent = x.message;
                 div.appendChild(sub);
               }
+              const uaEl = document.createElement("div");
+              uaEl.className = "sub";
+              uaEl.textContent = "UA: " + (x.userAgent || "-");
+              div.appendChild(uaEl);
+              if (x.deviceInfo && typeof x.deviceInfo === "object") {
+                const d = x.deviceInfo;
+                const lines = [];
+                if (d.platform) lines.push("platform: " + d.platform);
+                if (d.screen) lines.push("screen: " + d.screen);
+                if (d.viewport) lines.push("viewport: " + d.viewport);
+                if (d.timezone) lines.push("timezone: " + d.timezone);
+                if (d.language) lines.push("language: " + d.language);
+                if (d.languages) lines.push("languages: " + d.languages);
+                if (d.hardwareConcurrency != null)
+                  lines.push("hardwareConcurrency: " + d.hardwareConcurrency);
+                if (d.deviceMemory != null) lines.push("deviceMemory(GB): " + d.deviceMemory);
+                if (d.maxTouchPoints != null) lines.push("maxTouchPoints: " + d.maxTouchPoints);
+                if (d.cookieEnabled != null) lines.push("cookieEnabled: " + d.cookieEnabled);
+                if (lines.length) {
+                  const pre = document.createElement("pre");
+                  pre.className = "sub";
+                  pre.style.whiteSpace = "pre-wrap";
+                  pre.style.wordBreak = "break-word";
+                  pre.style.fontSize = "0.7rem";
+                  pre.style.marginTop = "0.35rem";
+                  pre.textContent = lines.join("\n");
+                  div.appendChild(pre);
+                }
+              }
+              const memoLab = document.createElement("label");
+              memoLab.className = "adm-memo-apr";
+              const memoSp = document.createElement("span");
+              memoSp.textContent = "허용 시 내 메모 (누구·용도)";
+              const memoInp = document.createElement("input");
+              memoInp.type = "text";
+              memoInp.maxLength = 300;
+              memoInp.placeholder = "예: 홍길동 노트북";
+              memoInp.id = "adm-apr-memo-" + x.id;
+              memoLab.appendChild(memoSp);
+              memoLab.appendChild(memoInp);
+              div.appendChild(memoLab);
               const row = document.createElement("div");
               row.className = "row";
               row.style.marginTop = "0.45rem";
@@ -493,24 +623,48 @@
             for (const a of al) {
               const div = document.createElement("div");
               div.className = "item";
-              const row = document.createElement("div");
-              row.style.display = "flex";
-              row.style.flexWrap = "wrap";
-              row.style.gap = "0.5rem";
-              row.style.alignItems = "center";
-              const span = document.createElement("span");
+              const head = document.createElement("div");
+              head.style.marginBottom = "0.35rem";
               const c = document.createElement("code");
               c.textContent = a.ip || "";
-              span.appendChild(c);
-              span.appendChild(
+              head.appendChild(c);
+              head.appendChild(
                 document.createTextNode(" · " + (a.addedAt || "")),
               );
-              row.appendChild(span);
+              div.appendChild(head);
+              const rq = a.requestMessage || a.note;
+              if (rq) {
+                const rp = document.createElement("p");
+                rp.className = "sub";
+                rp.textContent = "신청 메시지: " + rq;
+                div.appendChild(rp);
+              }
+              const memoLab = document.createElement("label");
+              memoLab.className = "adm-memo-allow";
+              const memoSp = document.createElement("span");
+              memoSp.textContent = "내 메모 (누구·용도)";
+              const memoInp = document.createElement("input");
+              memoInp.type = "text";
+              memoInp.maxLength = 300;
+              memoInp.className = "adm-allowed-memo-inp";
+              memoInp.value = a.memo || "";
+              memoLab.appendChild(memoSp);
+              memoLab.appendChild(memoInp);
+              div.appendChild(memoLab);
+              const row = document.createElement("div");
+              row.className = "row";
+              row.style.marginTop = "0.45rem";
+              const saveBtn = document.createElement("button");
+              saveBtn.type = "button";
+              saveBtn.className = "btn-secondary";
+              saveBtn.dataset.saveMemo = a.ip;
+              saveBtn.textContent = "메모 저장";
               const revBtn = document.createElement("button");
               revBtn.type = "button";
               revBtn.className = "btn-ghost";
               revBtn.dataset.revoke = a.ip;
               revBtn.textContent = "허가 취소";
+              row.appendChild(saveBtn);
               row.appendChild(revBtn);
               div.appendChild(row);
               allow.appendChild(div);
@@ -527,17 +681,53 @@
       document.addEventListener("click", async (ev) => {
         const t = ev.target;
         if (!(t instanceof HTMLElement)) return;
-        const tok = () => token() || $("admTok").value.trim() || DEV_FALLBACK;
+        const tok = () => token().trim();
         if (t.dataset.approve) {
           const id = t.dataset.approve;
+          const tk = tok();
+          if (!tk) {
+            alert("비밀번호 확인이 필요합니다.");
+            return;
+          }
           try {
             await api("/api/access/admin/approve", {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                Authorization: "Bearer " + tok(),
+                Authorization: "Bearer " + tk,
               },
-              body: JSON.stringify({ id }),
+              body: JSON.stringify({
+                id,
+                memo: (function () {
+                  const el = document.getElementById("adm-apr-memo-" + id);
+                  return el ? String(el.value || "").trim() : "";
+                })(),
+              }),
+            });
+            await loadAdmin();
+            await refresh();
+          } catch (e) {
+            alert(e.message);
+          }
+        }
+        if (t.dataset.saveMemo) {
+          const ip = t.dataset.saveMemo;
+          const tk = tok();
+          if (!tk) {
+            alert("비밀번호 확인이 필요합니다.");
+            return;
+          }
+          const item = t.closest(".item");
+          const inp = item?.querySelector(".adm-allowed-memo-inp");
+          const memo = inp ? String(inp.value || "").trim() : "";
+          try {
+            await api("/api/access/admin/allowed-memo", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + tk,
+              },
+              body: JSON.stringify({ ip, memo }),
             });
             await loadAdmin();
             await refresh();
@@ -547,12 +737,17 @@
         }
         if (t.dataset.reject) {
           const id = t.dataset.reject;
+          const tk = tok();
+          if (!tk) {
+            alert("비밀번호 확인이 필요합니다.");
+            return;
+          }
           try {
             await api("/api/access/admin/reject", {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                Authorization: "Bearer " + tok(),
+                Authorization: "Bearer " + tk,
               },
               body: JSON.stringify({ id }),
             });
@@ -564,12 +759,17 @@
         }
         if (t.dataset.revoke) {
           const ip = t.dataset.revoke;
+          const tk = tok();
+          if (!tk) {
+            alert("비밀번호 확인이 필요합니다.");
+            return;
+          }
           try {
             await api("/api/access/admin/revoke", {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                Authorization: "Bearer " + tok(),
+                Authorization: "Bearer " + tk,
               },
               body: JSON.stringify({ ip }),
             });

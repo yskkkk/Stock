@@ -10,6 +10,7 @@ import {
 } from "./api";
 import BullishReasonModal from "./components/BullishReasonModal";
 import AccessAdminModal from "./components/AccessAdminModal";
+import FeedbackCorner from "./components/FeedbackCorner";
 import MacroEventsBar from "./components/MacroEventsBar";
 import NewsModal from "./components/NewsModal";
 import ProfitModelModal from "./components/ProfitModelModal";
@@ -118,6 +119,8 @@ export default function App() {
   const newsReqIdRef = useRef(0);
   const newsAbortRef = useRef<AbortController | null>(null);
   const [showAccessAdmin, setShowAccessAdmin] = useState(false);
+  const [feedbackInboxEnabled, setFeedbackInboxEnabled] = useState(false);
+  const [telegramResetAllowed, setTelegramResetAllowed] = useState(false);
 
   const closeNews = useCallback(() => {
     newsReqIdRef.current += 1;
@@ -170,10 +173,14 @@ export default function App() {
         setDartEnabled(cfg.dartEnabled);
         setTelegramNotify(cfg.telegramNotify?.enabled ?? false);
         setTelegramSentCount(cfg.telegramNotify?.todaySentCount ?? 0);
+        setFeedbackInboxEnabled(cfg.feedbackInboxEnabled ?? false);
+        setTelegramResetAllowed(cfg.telegramResetAllowed ?? false);
       })
       .catch(() => {
         setDartEnabled(false);
         setTelegramNotify(false);
+        setFeedbackInboxEnabled(false);
+        setTelegramResetAllowed(false);
       });
   }, []);
 
@@ -398,138 +405,146 @@ export default function App() {
     picks?.failedCount && picks.failedCount > 0
       ? failedCountLabel(picks.failedCount)
       : "";
+  const showTopScanStrip = Boolean(picks && appTab !== "crypto");
 
   return (
     <div className="app">
-      <MacroEventsBar />
-      <header className="top-bar card">
-        <div className="top-bar__brand">
-          <span className="brand-mark" aria-hidden />
-          <div>
-            <h1>{ko.app.title}</h1>
-            <p>
-              {ko.app.subtitle}
-              {dartEnabled && <span className="tag tag--dart">DART</span>}
-              {telegramNotify && (
-                <span className="tag-group">
-                  <button
-                    type="button"
-                    className="tag tag--telegram tag--telegram-btn"
-                    title={ko.app.telegramListAria}
-                    aria-label={ko.app.telegramListAria}
-                    onClick={handleOpenTelegramSent}
-                  >
-                    {ko.app.telegram}
-                    {telegramSentCount > 0 && (
-                      <span className="tag-count">{telegramSentCount}</span>
+      <MacroEventsBar onSecretAdminOpen={() => setShowAccessAdmin(true)} />
+      <FeedbackCorner inboxEnabled={feedbackInboxEnabled} />
+      <header
+        className={`top-bar card${showTopScanStrip ? " top-bar--with-scan" : ""}`}
+      >
+        <div
+          className={`top-bar__grid${showTopScanStrip ? " top-bar__grid--with-scan" : ""}`}
+        >
+          <div className="top-bar__brand">
+            <span className="brand-mark" aria-hidden />
+            <div>
+              <h1>{ko.app.title}</h1>
+              <p>
+                {ko.app.subtitle}
+                {dartEnabled && <span className="tag tag--dart">DART</span>}
+                {telegramNotify && (
+                  <span className="tag-group">
+                    <button
+                      type="button"
+                      className="tag tag--telegram tag--telegram-btn"
+                      title={ko.app.telegramListAria}
+                      aria-label={ko.app.telegramListAria}
+                      onClick={handleOpenTelegramSent}
+                    >
+                      {ko.app.telegram}
+                      {telegramSentCount > 0 && (
+                        <span className="tag-count">{telegramSentCount}</span>
+                      )}
+                    </button>
+                    {telegramResetAllowed && (
+                      <button
+                        type="button"
+                        className="tag-reset"
+                        title={ko.app.telegramResetAria}
+                        aria-label={ko.app.telegramResetAria}
+                        disabled={resettingTelegram}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleResetTelegramSent();
+                        }}
+                      >
+                        {ko.app.telegramResetLabel}
+                      </button>
                     )}
-                  </button>
-                  <button
-                    type="button"
-                    className="tag-reset"
-                    title={ko.app.telegramResetAria}
-                    aria-label={ko.app.telegramResetAria}
-                    disabled={resettingTelegram}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void handleResetTelegramSent();
-                    }}
-                  >
-                    {ko.app.telegramResetLabel}
-                  </button>
-                </span>
-              )}
-            </p>
+                  </span>
+                )}
+              </p>
+            </div>
           </div>
-        </div>
 
-        <nav className="main-tabs" aria-label={ko.app.mainNav}>
-          <button
-            type="button"
-            className={appTab === "screener" ? "main-tab active" : "main-tab"}
-            onClick={() => setAppTab("screener")}
-          >
-            {ko.app.tabScreener}
-          </button>
-          <button
-            type="button"
-            className={appTab === "crypto" ? "main-tab active" : "main-tab"}
-            onClick={() => setAppTab("crypto")}
-          >
-            {ko.app.tabCrypto}
-          </button>
-        </nav>
+          <div className="top-bar__right">
+            <nav className="main-tabs" aria-label={ko.app.mainNav}>
+              <button
+                type="button"
+                className={appTab === "screener" ? "main-tab active" : "main-tab"}
+                onClick={() => setAppTab("screener")}
+              >
+                {ko.app.tabScreener}
+              </button>
+              <button
+                type="button"
+                className={appTab === "crypto" ? "main-tab active" : "main-tab"}
+                onClick={() => setAppTab("crypto")}
+              >
+                {ko.app.tabCrypto}
+              </button>
+            </nav>
 
-        <div className="top-bar__actions top-bar__actions--col">
-          <button
-            type="button"
-            className="btn btn--ghost access-admin-open"
-            onClick={() => setShowAccessAdmin(true)}
-          >
-            {ko.access.adminBtn}
-          </button>
-          <button
-            type="button"
-            className="theme-toggle"
-            onClick={() =>
-              setColorMode((m) => (m === "dark" ? "light" : "dark"))
-            }
-            title={
-              colorMode === "dark" ? ko.app.themeUseLight : ko.app.themeUseDark
-            }
-            aria-label={ko.app.themeToggleAria}
-            aria-pressed={colorMode === "light"}
-          >
-            {colorMode === "dark" ? "\u2600" : "\u263E"}
-          </button>
-          <button
-            type="button"
-            className="btn btn--secondary"
-            disabled={appTab === "crypto" || rescanning || picks?.running}
-            onClick={handleRescan}
-          >
-            {rescanning ? ko.app.rescanning : ko.app.rescan}
-          </button>
-          {picks && appTab !== "crypto" && (
-            <div className="scan-status scan-status--stacked">
-              <div className="scan-status__primary">
-                {picks.running && (
-                  <div className="progress-bar" aria-hidden>
-                    <div
-                      className="progress-fill"
-                      style={{ width: `${progress}%` }}
-                    />
-                  </div>
-                )}
-                <span className="scan-status__msg">{picks.message}</span>
-                {etaLabel && (
-                  <span className="scan-status__eta">{etaLabel}</span>
-                )}
-              </div>
-              <div className="scan-status__secondary">
-                {failedLabel && (
-                  <button
-                    type="button"
-                    className="scan-status__warn scan-status__fail-btn"
-                    onClick={() => setShowScreenFailures(true)}
-                    title={ko.app.failBtnTitle}
-                  >
-                    {failedLabel}
-                  </button>
-                )}
-                {picks.updatedAt && !picks.running && (
-                  <span className="scan-status__time">
-                    {formatUpdatedAt(picks.updatedAt)}
-                  </span>
-                )}
-                {nextRescanLabel && (
-                  <span className="scan-status__next" title={nextRescanLabel}>
-                    {nextRescanLabel}
-                  </span>
-                )}
+            <div className="top-bar__tools">
+              <button
+                type="button"
+                className="theme-toggle"
+                onClick={() =>
+                  setColorMode((m) => (m === "dark" ? "light" : "dark"))
+                }
+                title={
+                  colorMode === "dark" ? ko.app.themeUseLight : ko.app.themeUseDark
+                }
+                aria-label={ko.app.themeToggleAria}
+                aria-pressed={colorMode === "light"}
+              >
+                {colorMode === "dark" ? "\u2600" : "\u263E"}
+              </button>
+              <button
+                type="button"
+                className="btn btn--secondary top-bar__rescan"
+                disabled={appTab === "crypto" || rescanning || picks?.running}
+                onClick={handleRescan}
+              >
+                {rescanning ? ko.app.rescanning : ko.app.rescan}
+              </button>
+            </div>
+          </div>
+
+          {showTopScanStrip && picks ? (
+            <div className="top-bar__scan">
+              <div className="scan-status scan-status--compact scan-status--bar">
+                <div className="scan-status__primary">
+                  {picks.running && (
+                    <div className="progress-bar" aria-hidden>
+                      <div
+                        className="progress-fill"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                  )}
+                  <span className="scan-status__msg">{picks.message}</span>
+                  {etaLabel && (
+                    <span className="scan-status__eta">{etaLabel}</span>
+                  )}
+                </div>
+                <div className="scan-status__secondary">
+                  {failedLabel && (
+                    <button
+                      type="button"
+                      className="scan-status__warn scan-status__fail-btn"
+                      onClick={() => setShowScreenFailures(true)}
+                      title={ko.app.failBtnTitle}
+                    >
+                      {failedLabel}
+                    </button>
+                  )}
+                  {picks.updatedAt && !picks.running && (
+                    <span className="scan-status__time">
+                      {formatUpdatedAt(picks.updatedAt)}
+                    </span>
+                  )}
+                  {nextRescanLabel && (
+                    <span className="scan-status__next" title={nextRescanLabel}>
+                      {nextRescanLabel}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
-          )}
+          ) : null}
         </div>
       </header>
 

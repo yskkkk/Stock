@@ -52,7 +52,7 @@ export function isMarketOpen(market, marketState) {
   return isMarketOpenBySchedule(market);
 }
 
-/** 정규장 거래일(시장 현지 날짜) — 새 장마다 알림 이력 초기화용 */
+/** 시장 현지 달력일 — 알림 발송 이력(세션) 구분용 */
 export function getTradingSessionKey(market) {
   const tz = market === "kr" ? "Asia/Seoul" : "America/New_York";
   const date = new Intl.DateTimeFormat("en-CA", {

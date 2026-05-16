@@ -103,13 +103,38 @@ const t = {
   },
   telegramSent: {
     title: "\uD154\uB808\uADF8\uB7A8 \uC54C\uB9BC \uC774\uB825",
-    sub: "\uC624\uB298 \uC815\uADDC\uC7A5 \uAC70\uB798\uC77C \uBC1C\uC1A1 \u00B7 \uCD1D {n}\uAC74",
+    sub: "\uC624\uB298 \uBC1C\uC1A1 \u00B7 \uCD1D {n}\uAC74",
     empty: "\uC624\uB298 \uBC1C\uC1A1\uD55C \uC54C\uB9BC\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.",
     loading: "\uC774\uB825 \uBD88\uB7EC\uC624\uB294 \uC911\u2026",
     kr: "\uAD6D\uB0B4",
     us: "\uBBF8\uAD6D",
     close: "\uB2EB\uAE30",
     scoreSuffix: "\uC810",
+  },
+  feedback: {
+    cornerButton: "\uBD88\uD3B8",
+    cornerAria: "\uBD88\uD3B8 \uC811\uC218 \uBC0F \uC811\uC218\uD568",
+    menuSubmit: "\uB0B4\uC6A9 \uC811\uC218",
+    menuInbox: "\uC811\uC218\uD568 \uD655\uC778",
+    submitTitle: "\uBD88\uD3B8 \uC811\uC218",
+    submitPlaceholder: "\uBD88\uD3B8 \uC0AC\uD56D\uC744 \uC801\uC5B4 \uC8FC\uC138\uC694\u2026",
+    submitSend: "\uBCF4\uB0B4\uAE30",
+    submitOk: "\uC811\uC218\uB418\uC5C8\uC2B5\uB2C8\uB2E4.",
+    submitClose: "\uB2EB\uAE30",
+    inboxTitle: "\uBD88\uD3B8 \uC811\uC218\uD568",
+    inboxPasswordLabel: "\uBE44\uBC00\uBC88\uD638",
+    inboxPasswordPlaceholder: "\uC811\uC218\uD568 \uBE44\uBC00\uBC88\uD638",
+    inboxUnlock: "\uD655\uC778",
+    inboxReload: "\uC0C8\uB85C\uACE0\uCE68",
+    inboxLock: "\uC7A0\uAE08",
+    inboxClose: "\uB2EB\uAE30",
+    inboxEmpty: "\uC811\uC218\uB41C \uB0B4\uC6A9\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.",
+    inboxIp: "IP",
+    inboxTime: "\uC2DC\uAC01",
+    inboxMsg: "\uB0B4\uC6A9",
+    inboxUa: "UA",
+    inboxHintNoServer:
+      "\uC11C\uBC84\uC5D0 FEEDBACK_INBOX_TOKEN\uC774 \uC5C6\uC73C\uBA74 \uC811\uC218\uD568\uC744 \uC5F4 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.",
   },
   crypto: {
     panelTitle:
@@ -136,22 +161,23 @@ const t = {
     statusFetchFail:
       "접근 권한을 확인할 수 없습니다. 서버가 실행 중인지·주소가 맞는지 확인한 뒤 다시 시도해 주세요.",
     gateTitle: "접근 제한",
-    gateBody:
-      "이 사이트는 허가된 IP에서만 데이터 API를 사용할 수 있습니다. 아래에서 접속을 신청할 수 있습니다.",
-    yourIp: "확인된 IP",
-    statePending: "승인 대기 중입니다. 관리자가 처리하면 이 페이지가 자동으로 열립니다.",
-    stateRejected:
-      "이전 신청이 거절되었습니다. 사유를 보완해 다시 신청하거나 관리자에게 문의하세요.",
-    stateNone: "아직 신청이 없습니다. 아래 버튼으로 접속을 신청해 주세요.",
+    gateBody: "",
+    yourIp: "",
+    statePending: "",
+    stateRejected: "",
+    stateNone: "",
     messageLabel: "메모 (선택)",
     messagePlaceholder: "신청 사유, 연락처 등",
     submitRequest: "접속 신청",
     submitting: "전송 중…",
-    adminBtn: "접근 관리",
     adminTitle: "IP 접근 관리",
-    adminTokenLabel: "관리자 토큰",
-    adminTokenPlaceholder: ".env의 ACCESS_ADMIN_TOKEN 값",
-    adminSaveToken: "토큰 적용",
+    adminPasswordLabel: "관리자 비밀번호",
+    adminConfirm: "확인",
+    adminLockAgain: "잠금",
+    adminWrongPassword: "비밀번호가 올바르지 않습니다.",
+    adminDeviceInfo: "기기·환경",
+    adminTokenPlaceholder: "비밀번호 입력",
+    adminSaveToken: "확인",
     adminLoad: "목록 새로고침",
     adminPending: "대기 중인 신청",
     adminAllowed: "허용된 IP",
@@ -164,10 +190,13 @@ const t = {
     adminUa: "User-Agent",
     adminRequestedAt: "신청 시각",
     adminError: "요청에 실패했습니다.",
-    adminNoToken: "토큰을 입력한 뒤 적용하세요.",
+    adminMemoLabel: "내 메모 (누구·용도)",
+    adminMemoPlaceholder: "예: 홍길동 노트북, 사무실 PC",
+    adminMemoSave: "메모 저장",
+    adminRequestMessage: "신청 메시지",
+    requestDeviceNote: "",
   },
   launch: {
-    run: "\uC2E4\uD589",
     loading: "\uBD88\uB7EC\uC624\uB294 \uC911\u2026",
   },
 };
@@ -215,6 +244,9 @@ ${emitObj(t.screenFailures, 4)}
   },
   telegramSent: {
 ${emitObj(t.telegramSent, 4)}
+  },
+  feedback: {
+${emitObj(t.feedback, 4)}
   },
   crypto: {
 ${emitObj(t.crypto, 4)}

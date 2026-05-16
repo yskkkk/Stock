@@ -1,6 +1,9 @@
 import express from "express";
-import { registerAccessControl } from "./access-control.js";
-import { expressAccessLogger } from "./access-log.js";
+import {
+  normalizeAccessIp,
+  registerAccessControl,
+} from "./access-control.js";
+import { clientIp, expressAccessLogger } from "./access-log.js";
 import { isDartEnabled } from "./dart.js";
 import {
   ensureScreening,
@@ -18,11 +21,25 @@ import { loadCryptoQuotes } from "./crypto-quotes.js";
 import { loadCryptoWatchlistTen } from "./crypto-universe.js";
 import { loadStock } from "./stock-data.js";
 import { getMacroEventsCached } from "./macro-events.js";
+import { postFeedback, getFeedbackInbox } from "./feedback-inbox.js";
 
 function asyncRoute(handler) {
   return (req, res, next) => {
     Promise.resolve(handler(req, res, next)).catch(next);
   };
+}
+
+/** TELEGRAM_RESET_ADMIN_IPS(쉼표 구분)에 현재 클라이언트 IP가 있을 때만 true */
+function isTelegramResetAdminClient(req) {
+  const raw = String(process.env.TELEGRAM_RESET_ADMIN_IPS ?? "").trim();
+  if (!raw) return false;
+  const ip = normalizeAccessIp(clientIp(req));
+  if (!ip) return false;
+  const allowed = raw
+    .split(",")
+    .map((s) => normalizeAccessIp(s.trim()))
+    .filter(Boolean);
+  return allowed.includes(ip);
 }
 
 export function createApp() {
@@ -45,11 +62,23 @@ export function createApp() {
     res.json(getMacroEventsCached());
   });
 
-  app.get("/api/config", (_req, res) => {
+  app.get("/api/config", (req, res) => {
     res.json({
       dartEnabled: isDartEnabled(),
       telegramNotify: getTelegramNotifyStatus(),
+      feedbackInboxEnabled: Boolean(
+        String(process.env.FEEDBACK_INBOX_TOKEN ?? "").trim(),
+      ),
+      telegramResetAllowed: isTelegramResetAdminClient(req),
     });
+  });
+
+  app.post("/api/feedback", (req, res) => {
+    postFeedback(req, res);
+  });
+
+  app.get("/api/feedback/inbox", (req, res) => {
+    getFeedbackInbox(req, res);
   });
 
   app.get("/api/telegram/sent", (_req, res) => {
@@ -78,11 +107,18 @@ export function createApp() {
     res.json({ items: enriched, count: enriched.length });
   });
 
-  app.post("/api/telegram/reset-sent", (_req, res) => {
+  app.post("/api/telegram/reset-sent", (req, res) => {
     if (!isTelegramNotifyEnabled()) {
       res.status(400).json({
         ok: false,
         message: "텔레그램 알림이 설정되지 않았습니다.",
+      });
+      return;
+    }
+    if (!isTelegramResetAdminClient(req)) {
+      res.status(403).json({
+        ok: false,
+        message: "알림 초기화는 관리자 IP에서만 사용할 수 있습니다.",
       });
       return;
     }

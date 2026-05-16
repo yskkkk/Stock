@@ -4,10 +4,18 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const LOG_DIR = path.join(__dirname, ".data");
-const LOG_FILE = path.join(LOG_DIR, "access.log");
 
 function ensureDir() {
   if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
+}
+
+/** 서버 로컬 날짜 기준 — 자정이 지나면 다음 파일로 자연 전환 */
+function accessLogPathForToday() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return path.join(LOG_DIR, `access-${y}-${m}-${day}.log`);
 }
 
 export function clientIp(req) {
@@ -18,15 +26,79 @@ export function clientIp(req) {
   return raw || "-";
 }
 
+/** Express는 `req.path`, Vite Connect는 주로 `url`만 있음 */
+function pathnameOnly(req) {
+  const p = req.path;
+  if (typeof p === "string" && p.startsWith("/")) return p;
+  const raw = String(req.originalUrl ?? req.url ?? "/");
+  return raw.split("?")[0].split("#")[0] || "/";
+}
+
+/** 폴링·반복 조회로 로그가 과다한 GET 경로는 기록 생략 */
+function shouldSkipAccessLog(req) {
+  const method = String(req.method ?? "GET").toUpperCase();
+  if (method !== "GET") return false;
+  const path = pathnameOnly(req);
+  if (path === "/api/picks") return true;
+  if (path === "/api/crypto-quotes") return true;
+  if (path === "/api/crypto-universe") return true;
+  if (path === "/api/macro-events") return true;
+  if (path === "/api/config") return true;
+  if (path === "/api/access/status") return true;
+  if (path.startsWith("/api/stock/")) return true;
+  if (path.startsWith("/api/news/")) return true;
+  return false;
+}
+
+/**
+ * 사람이 읽기 쉬운 요약 (IP·메서드와 함께 콘솔/파일에 남김)
+ * @param {import("http").IncomingMessage} req
+ */
+function humanAction(req) {
+  const method = String(req.method ?? "GET").toUpperCase();
+  const path = pathnameOnly(req);
+
+  if (method === "POST" && path === "/api/picks/refresh") return "스크리너 전체 재분석";
+  if (method === "GET" && path === "/api/macro-events") return "경제 지표 일정 조회";
+  if (method === "GET" && path === "/api/config") return "앱 설정 조회";
+  if (method === "GET" && path === "/api/telegram/sent") return "텔레그램 오늘 발송 목록";
+  if (method === "POST" && path === "/api/telegram/reset-sent") return "텔레그램 발송 이력 초기화";
+  if (method === "GET" && path.startsWith("/api/news/")) {
+    const sym = path.slice("/api/news/".length) || "?";
+    return `뉴스 조회 (${sym})`;
+  }
+  if (method === "GET" && path === "/api/crypto-universe") return "코인 유니버스 조회";
+  if (method === "GET" && path === "/api/crypto-quotes") return "코인 시세 조회";
+  if (method === "POST" && path === "/api/feedback") return "불편 접수 제출";
+  if (method === "GET" && path === "/api/feedback/inbox") return "불편 접수함 열람";
+  if (method === "GET" && path.startsWith("/api/stock/")) {
+    const sym = path.slice("/api/stock/".length) || "?";
+    return `종목 시세·차트 (${sym})`;
+  }
+
+  if (method === "GET" && path === "/api/access/status") return "IP 접근 상태 조회";
+  if (method === "POST" && path === "/api/access/request") return "IP 접근 신청";
+  if (method === "GET" && path === "/api/access/admin/requests") return "접근 관리 목록 조회";
+  if (method === "POST" && path === "/api/access/admin/approve") return "접근 신청 승인";
+  if (method === "POST" && path === "/api/access/admin/reject") return "접근 신청 거절";
+  if (method === "POST" && path === "/api/access/admin/revoke") return "허용 IP 취소";
+  if (method === "POST" && path === "/api/access/admin/allowed-memo") return "허용 IP 메모 저장";
+
+  if (path === "/" || path === "/index.html") return "메인 페이지";
+  if (path === "/access-gate.html" || path.endsWith("/access-gate.html")) return "접근 게이트 페이지";
+
+  return `${method} ${path}`;
+}
+
 function lineFromReq(req) {
   const ts = new Date().toISOString();
   const ip = clientIp(req);
-  const method = req.method ?? "-";
-  const url = req.url ?? "-";
-  const ua = String(req.headers?.["user-agent"] ?? "-")
-    .replace(/\s+/g, " ")
-    .slice(0, 240);
-  return `${ts}\t${ip}\t${method}\t${url}\t${ua}\n`;
+  const method = String(req.method ?? "GET").toUpperCase();
+  const action = humanAction(req);
+  return {
+    file: `${ts}\tip=${ip}\t${method}\t${action}\n`,
+    console: `${ts} ip=${ip} ${method} ${action}`,
+  };
 }
 
 export function shouldLogViteUrl(url) {
@@ -50,12 +122,13 @@ export function shouldLogViteUrl(url) {
 
 /** Vite `IncomingMessage` / Express `req` 공통 */
 export function appendAccessLog(req) {
+  if (shouldSkipAccessLog(req)) return;
   try {
     ensureDir();
-    const line = lineFromReq(req);
-    console.log("[access]", line.trimEnd());
-    fs.appendFile(LOG_FILE, line, (err) => {
-      if (err) console.warn("[access-log]", err.message);
+    const { file, console: consoleLine } = lineFromReq(req);
+    console.log("[access]", consoleLine);
+    fs.appendFile(accessLogPathForToday(), file, (err) => {
+      if (err) console.warn("[access-log] 파일 기록 실패:", err.message);
     });
   } catch (e) {
     console.warn("[access-log]", e instanceof Error ? e.message : e);
