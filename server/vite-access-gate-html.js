@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "fs";
 import path from "path";
-import { appendAccessLog, clientIp } from "./access-log.js";
+import { clientIp } from "./access-log.js";
 import {
   isAccessControlEnabled,
   isClientIpOnAllowlist,
@@ -91,8 +91,6 @@ export function installAccessGateHtmlMiddleware(server) {
     res.statusCode = 200;
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Cache-Control", "no-store");
-    /** Vite 필터(`shouldLogViteUrl`) 없이 기록 — 게이트가 `res.end`로 끊어 뒤쪽 미들웨어가 안 타던 경우 대비 */
-    appendAccessLog(req);
     res.end(html);
   };
 

@@ -29,7 +29,7 @@ function lineFromReq(req) {
   return `${ts}\t${ip}\t${method}\t${url}\t${ua}\n`;
 }
 
-function shouldLogViteUrl(url) {
+export function shouldLogViteUrl(url) {
   if (!url) return true;
   const p = url.split("?")[0] ?? url;
   if (
@@ -43,6 +43,8 @@ function shouldLogViteUrl(url) {
   ) {
     return false;
   }
+  /** preview 빌드 청크 — 문서 한 번에 수십 줄 나오는 것 방지 */
+  if (p.includes("/assets/") && /\.js($|\?)/i.test(p)) return false;
   return true;
 }
 
@@ -70,4 +72,23 @@ export function appendAccessLogVite(req) {
 export function expressAccessLogger(req, _res, next) {
   appendAccessLog(req);
   next();
+}
+
+/**
+ * Vite Connect 스택 **최상단**에 삽입.
+ * 외부에서 `/` 등으로 들어와도 게이트가 `res.end`로 끊기기 전에 `[access]`가 남는다.
+ * `/api`는 Express `expressAccessLogger`가 기록하므로 여기서는 생략한다.
+ * @param {import("vite").ViteDevServer | import("vite").PreviewServer} server
+ */
+export function installViteAccessTraceMiddleware(server) {
+  const stack = server.middlewares?.stack;
+  if (!Array.isArray(stack)) return;
+  stack.unshift({
+    route: "",
+    handle(req, _res, next) {
+      if (String(req.url ?? "").startsWith("/api")) return next();
+      appendAccessLogVite(req);
+      next();
+    },
+  });
 }

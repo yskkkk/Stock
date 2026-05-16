@@ -1,5 +1,5 @@
 import { loadEnv } from "vite";
-import { appendAccessLogVite } from "./access-log.js";
+import { installViteAccessTraceMiddleware } from "./access-log.js";
 import { createApp } from "./create-app.js";
 import { loadEnvFile } from "./load-env.js";
 import { installProcessGuards } from "./process-guards.js";
@@ -46,11 +46,6 @@ function mergeStockProcessEnv(mode) {
 function attachStockApiMiddlewares(server) {
   const app = createApp();
 
-  server.middlewares.use((req, _res, next) => {
-    if (!req.url?.startsWith("/api")) appendAccessLogVite(req);
-    next();
-  });
-
   server.middlewares.use((req, res, next) => {
     if (!req.url?.startsWith("/api")) return next();
     app(req, res, (err) => {
@@ -79,6 +74,7 @@ export function stockApiPlugin() {
     configureServer(server) {
       mergeStockProcessEnv(server.config.mode);
       installAccessGateHtmlMiddleware(server);
+      installViteAccessTraceMiddleware(server);
       attachStockApiMiddlewares(server);
       setTimeout(() => {
         startScreening().catch(logScreeningError);
@@ -87,6 +83,7 @@ export function stockApiPlugin() {
     configurePreviewServer(server) {
       mergeStockProcessEnv(server.config.mode);
       installAccessGateHtmlMiddleware(server);
+      installViteAccessTraceMiddleware(server);
       attachStockApiMiddlewares(server);
       setTimeout(() => {
         startScreening().catch(logScreeningError);
