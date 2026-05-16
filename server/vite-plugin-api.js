@@ -1,5 +1,8 @@
 import { loadEnv } from "vite";
-import { installViteAccessTraceMiddleware } from "./access-log.js";
+import {
+  appendAccessLogVite,
+  installViteAccessTraceMiddleware,
+} from "./access-log.js";
 import { createApp } from "./create-app.js";
 import { loadEnvFile } from "./load-env.js";
 import { installProcessGuards } from "./process-guards.js";
@@ -45,6 +48,11 @@ function mergeStockProcessEnv(mode) {
  */
 function attachStockApiMiddlewares(server) {
   const app = createApp();
+
+  server.middlewares.use((req, _res, next) => {
+    if (!req.url?.startsWith("/api")) appendAccessLogVite(req);
+    next();
+  });
 
   server.middlewares.use((req, res, next) => {
     if (!req.url?.startsWith("/api")) return next();
