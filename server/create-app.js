@@ -1,4 +1,5 @@
 import express from "express";
+import { expressAccessLogger } from "./access-log.js";
 import { isDartEnabled } from "./dart.js";
 import {
   ensureScreening,
@@ -25,6 +26,8 @@ function asyncRoute(handler) {
 
 export function createApp() {
   const app = express();
+  app.set("trust proxy", 1);
+  app.use(expressAccessLogger);
   app.use(express.json());
 
   app.get("/api/picks", (req, res) => {

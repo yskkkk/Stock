@@ -1,4 +1,5 @@
 import { loadEnv } from "vite";
+import { appendAccessLogVite } from "./access-log.js";
 import { createApp } from "./create-app.js";
 import { loadEnvFile } from "./load-env.js";
 import { installProcessGuards } from "./process-guards.js";
@@ -33,6 +34,11 @@ export function stockApiPlugin() {
         if (env[key]) process.env[key] = env[key];
       }
       loadEnvFile();
+
+      server.middlewares.use((req, _res, next) => {
+        if (!req.url?.startsWith("/api")) appendAccessLogVite(req);
+        next();
+      });
 
       server.middlewares.use((req, res, next) => {
         if (!req.url?.startsWith("/api")) return next();
