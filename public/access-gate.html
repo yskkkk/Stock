@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0a0e13" />
+    <title>접근 확인 · 매수 후보 스크리너</title>
+    <style>
+      :root {
+        --bg: #0a0e13;
+        --card: #161d27;
+        --border: rgba(148, 163, 184, 0.14);
+        --text: #eef2f7;
+        --dim: #9aa8bc;
+        --muted: #6d7d92;
+        --accent: #5eead4;
+        --accent-dim: rgba(94, 234, 212, 0.12);
+        --down: #f87171;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        font-family: "DM Sans", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        -webkit-text-size-adjust: 100%;
+      }
+      body {
+        min-height: 100dvh;
+        padding: max(1.25rem, env(safe-area-inset-top, 0px))
+          max(1rem, env(safe-area-inset-right, 0px))
+          max(1.25rem, env(safe-area-inset-bottom, 0px))
+          max(1rem, env(safe-area-inset-left, 0px));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .card {
+        width: 100%;
+        max-width: 440px;
+        padding: 1.25rem 1.35rem;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+      }
+      .product {
+        margin: 0 0 0.35rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+      h1 {
+        margin: 0 0 0.5rem;
+        font-size: 1.25rem;
+        line-height: 1.35;
+      }
+      p {
+        margin: 0 0 0.65rem;
+        font-size: 0.85rem;
+        line-height: 1.55;
+        color: var(--dim);
+      }
+      .ip {
+        margin: 0 0 0.75rem;
+        font-size: 0.82rem;
+      }
+      .ip code {
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 0.85rem;
+        color: var(--text);
+      }
+      .feedback {
+        color: var(--accent);
+        font-size: 0.85rem;
+      }
+      .err {
+        color: var(--down);
+      }
+      label span {
+        display: block;
+        font-size: 0.78rem;
+        color: var(--muted);
+        margin-bottom: 0.35rem;
+      }
+      textarea {
+        width: 100%;
+        min-height: 4rem;
+        margin-bottom: 0.85rem;
+        padding: 0.55rem 0.65rem;
+        font-family: inherit;
+        font-size: 16px;
+        color: var(--text);
+        background: #121820;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        resize: vertical;
+      }
+      textarea:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+        margin-top: 0.25rem;
+      }
+      button {
+        font-family: inherit;
+        font-size: 0.82rem;
+        font-weight: 600;
+        padding: 0.5rem 0.9rem;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        cursor: pointer;
+      }
+      .btn-primary {
+        color: #0a0e13;
+        background: var(--accent);
+      }
+      .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .btn-secondary {
+        color: var(--text);
+        background: #121820;
+        border-color: var(--border);
+      }
+      .btn-ghost {
+        color: var(--dim);
+        background: transparent;
+        border-color: var(--border);
+      }
+      .admin {
+        margin-top: 1.25rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--border);
+      }
+      .admin h2 {
+        margin: 0 0 0.5rem;
+        font-size: 0.95rem;
+      }
+      .admin input[type="password"] {
+        width: 100%;
+        padding: 0.45rem 0.55rem;
+        margin-bottom: 0.5rem;
+        font-family: ui-monospace, monospace;
+        font-size: 0.85rem;
+        color: var(--text);
+        background: #121820;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+      }
+      .admin .item {
+        font-size: 0.78rem;
+        padding: 0.55rem 0.6rem;
+        margin-bottom: 0.45rem;
+        background: #121820;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--dim);
+      }
+      .admin .item code {
+        color: var(--text);
+        font-size: 0.8rem;
+      }
+      .admin .item .sub {
+        font-size: 0.7rem;
+        margin-top: 0.35rem;
+        word-break: break-all;
+      }
+      .hidden {
+        display: none !important;
+      }
+      .spinner {
+        width: 28px;
+        height: 28px;
+        border: 3px solid var(--border);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        margin: 0 auto 0.75rem;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      #loading {
+        text-align: center;
+      }
+      #main.hidden + #loading {
+        display: block;
+      }
+      #loading:not(.show) {
+        display: none;
+      }
+      #loading.show {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="loading" class="show">
+      <div class="spinner" aria-hidden="true"></div>
+      <p style="text-align: center; color: var(--dim)">접근 권한을 확인하는 중…</p>
+    </div>
+    <p
+      id="fetchErr"
+      class="err hidden"
+      style="max-width: 440px; margin: 0 auto 1rem; text-align: center"
+    ></p>
+    <div id="main" class="card hidden">
+      <p class="product">매수 후보 스크리너</p>
+      <h1>접근 제한</h1>
+      <p>
+        이 사이트는 허가된 IP에서만 이용할 수 있습니다. 아래에서 접속을 신청하거나 관리자에게
+        문의하세요.
+      </p>
+      <p class="ip">
+        확인된 IP: <code id="yourIp">-</code>
+      </p>
+      <p id="stateText"></p>
+      <p id="feedback" class="feedback hidden"></p>
+
+      <div id="requestBlock">
+        <label>
+          <span>메모 (선택)</span>
+          <textarea
+            id="msg"
+            maxlength="500"
+            placeholder="신청 사유, 연락처 등"
+          ></textarea>
+        </label>
+        <div class="row">
+          <button type="button" class="btn-primary" id="btnReq">접속 신청</button>
+          <button type="button" class="btn-secondary" id="btnAdmin">접근 관리</button>
+        </div>
+      </div>
+
+      <div id="pendingBlock" class="hidden">
+        <p>승인 대기 중입니다. 관리자가 처리하면 자동으로 스크리너로 이동합니다.</p>
+        <div class="row">
+          <button type="button" class="btn-secondary" id="btnAdmin2">접근 관리</button>
+        </div>
+      </div>
+
+      <div id="adminPanel" class="admin hidden">
+        <h2>IP 접근 관리</h2>
+        <label>
+          <span>관리자 토큰 (Bearer)</span>
+          <input type="password" id="admTok" autocomplete="off" placeholder="ACCESS_ADMIN_TOKEN" />
+        </label>
+        <div class="row">
+          <button type="button" class="btn-secondary" id="btnTokSave">토큰 적용</button>
+          <button type="button" class="btn-secondary" id="btnReload">목록 새로고침</button>
+          <button type="button" class="btn-ghost" id="btnAdmClose">닫기</button>
+        </div>
+        <p id="admErr" class="err hidden"></p>
+        <h3 style="margin: 0.75rem 0 0.35rem; font-size: 0.82rem">대기 중</h3>
+        <div id="admPending"></div>
+        <h3 style="margin: 0.75rem 0 0.35rem; font-size: 0.82rem">허용 목록</h3>
+        <div id="admAllowed"></div>
+      </div>
+    </div>
+
+    <script type="module">
+      const TOKEN_KEY = "stock_access_admin_token";
+      const DEV_FALLBACK = "dev-stock-access-admin-change-in-env";
+
+      const $ = (id) => document.getElementById(id);
+      const loading = $("loading");
+      const main = $("main");
+      const requestBlock = $("requestBlock");
+      const pendingBlock = $("pendingBlock");
+
+      async function parseJson(res) {
+        const t = await res.text();
+        try {
+          return t ? JSON.parse(t) : {};
+        } catch {
+          return {};
+        }
+      }
+
+      async function api(path, opts = {}) {
+        const res = await fetch(path, {
+          ...opts,
+          headers: {
+            Accept: "application/json",
+            ...(opts.headers || {}),
+          },
+          cache: "no-store",
+        });
+        const data = await parseJson(res);
+        if (!res.ok) {
+          const err = new Error(data.error || data.message || "요청 실패");
+          err.status = res.status;
+          throw err;
+        }
+        return data;
+      }
+
+      function token() {
+        return (
+          localStorage.getItem(TOKEN_KEY) ||
+          sessionStorage.getItem(TOKEN_KEY) ||
+          ""
+        ).trim();
+      }
+
+      function setToken(t) {
+        try {
+          sessionStorage.setItem(TOKEN_KEY, t);
+        } catch (_) {}
+      }
+
+      let pollId = null;
+
+      function stopPoll() {
+        if (pollId) clearInterval(pollId);
+        pollId = null;
+      }
+
+      function startPoll() {
+        stopPoll();
+        pollId = setInterval(() => void refresh(), 5000);
+      }
+
+      async function refresh() {
+        $("fetchErr").classList.add("hidden");
+        let s;
+        try {
+          s = await api("/api/access/status");
+        } catch (e) {
+          loading.classList.remove("show");
+          $("fetchErr").textContent =
+            "서버에 연결할 수 없습니다. npm run dev 가 실행 중인지 확인한 뒤 새로고침하세요.";
+          $("fetchErr").classList.remove("hidden");
+          return;
+        }
+
+        if (!s.enabled || s.state === "allowed") {
+          stopPoll();
+          window.location.replace("/");
+          return;
+        }
+
+        loading.classList.remove("show");
+        main.classList.remove("hidden");
+        $("yourIp").textContent = s.yourIp || "-";
+
+        const st = s.state;
+        if (st === "pending") {
+          $("stateText").textContent =
+            "승인 대기 중입니다. 관리자가 처리하면 이 창이 스크리너로 바뀝니다.";
+          requestBlock.classList.add("hidden");
+          pendingBlock.classList.remove("hidden");
+          startPoll();
+        } else {
+          stopPoll();
+          pendingBlock.classList.add("hidden");
+          requestBlock.classList.remove("hidden");
+          if (st === "rejected") {
+            $("stateText").textContent =
+              "이전 신청이 거절되었습니다. 사유를 보완해 다시 신청하거나 관리자에게 문의하세요.";
+          } else {
+            $("stateText").textContent =
+              "아직 신청이 없습니다. 아래 버튼으로 접속을 신청해 주세요.";
+          }
+        }
+      }
+
+      $("btnReq").addEventListener("click", async () => {
+        const btn = $("btnReq");
+        $("feedback").classList.add("hidden");
+        btn.disabled = true;
+        try {
+          const data = await api("/api/access/request", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: $("msg").value.trim() }),
+          });
+          $("feedback").textContent = data.message || "처리되었습니다.";
+          $("feedback").classList.remove("hidden");
+          await refresh();
+        } catch (e) {
+          $("feedback").textContent = e.message || "요청 실패";
+          $("feedback").classList.remove("hidden");
+        } finally {
+          btn.disabled = false;
+        }
+      });
+
+      function openAdmin() {
+        $("adminPanel").classList.remove("hidden");
+        $("admTok").value = token() || DEV_FALLBACK;
+        void loadAdmin();
+      }
+
+      $("btnAdmin").addEventListener("click", openAdmin);
+      $("btnAdmin2").addEventListener("click", openAdmin);
+
+      $("btnAdmClose").addEventListener("click", () => {
+        $("adminPanel").classList.add("hidden");
+      });
+
+      $("btnTokSave").addEventListener("click", () => {
+        setToken($("admTok").value.trim());
+        $("admErr").classList.add("hidden");
+      });
+
+      function clearBox(el) {
+        while (el.firstChild) el.removeChild(el.firstChild);
+      }
+
+      async function loadAdmin() {
+        const t = token() || $("admTok").value.trim() || DEV_FALLBACK;
+        $("admErr").classList.add("hidden");
+        const pend = $("admPending");
+        const allow = $("admAllowed");
+        try {
+          const res = await fetch("/api/access/admin/requests", {
+            headers: { Authorization: "Bearer " + t },
+            cache: "no-store",
+          });
+          const data = await parseJson(res);
+          if (!res.ok) throw new Error(data.error || data.message || "실패");
+          clearBox(pend);
+          clearBox(allow);
+          const list = data.pending || [];
+          if (list.length === 0) {
+            const p = document.createElement("p");
+            p.className = "item";
+            p.textContent = "(대기 없음)";
+            pend.appendChild(p);
+          } else {
+            for (const x of list) {
+              const div = document.createElement("div");
+              div.className = "item";
+              const head = document.createElement("div");
+              const code = document.createElement("code");
+              code.textContent = x.ip || "";
+              head.appendChild(code);
+              head.appendChild(
+                document.createTextNode(" · " + (x.requestedAt || "")),
+              );
+              div.appendChild(head);
+              if (x.message) {
+                const sub = document.createElement("div");
+                sub.className = "sub";
+                sub.textContent = x.message;
+                div.appendChild(sub);
+              }
+              const row = document.createElement("div");
+              row.className = "row";
+              row.style.marginTop = "0.45rem";
+              const b1 = document.createElement("button");
+              b1.type = "button";
+              b1.className = "btn-primary";
+              b1.dataset.approve = x.id;
+              b1.textContent = "승인";
+              const b2 = document.createElement("button");
+              b2.type = "button";
+              b2.className = "btn-secondary";
+              b2.dataset.reject = x.id;
+              b2.textContent = "거절";
+              row.appendChild(b1);
+              row.appendChild(b2);
+              div.appendChild(row);
+              pend.appendChild(div);
+            }
+          }
+          const al = data.allowed || [];
+          if (al.length === 0) {
+            const p = document.createElement("p");
+            p.className = "item";
+            p.textContent = "(허용 없음)";
+            allow.appendChild(p);
+          } else {
+            for (const a of al) {
+              const div = document.createElement("div");
+              div.className = "item";
+              const row = document.createElement("div");
+              row.style.display = "flex";
+              row.style.flexWrap = "wrap";
+              row.style.gap = "0.5rem";
+              row.style.alignItems = "center";
+              const span = document.createElement("span");
+              const c = document.createElement("code");
+              c.textContent = a.ip || "";
+              span.appendChild(c);
+              span.appendChild(
+                document.createTextNode(" · " + (a.addedAt || "")),
+              );
+              row.appendChild(span);
+              const revBtn = document.createElement("button");
+              revBtn.type = "button";
+              revBtn.className = "btn-ghost";
+              revBtn.dataset.revoke = a.ip;
+              revBtn.textContent = "허가 취소";
+              row.appendChild(revBtn);
+              div.appendChild(row);
+              allow.appendChild(div);
+            }
+          }
+        } catch (e) {
+          $("admErr").textContent = e.message || "목록 실패";
+          $("admErr").classList.remove("hidden");
+        }
+      }
+
+      $("btnReload").addEventListener("click", () => void loadAdmin());
+
+      document.addEventListener("click", async (ev) => {
+        const t = ev.target;
+        if (!(t instanceof HTMLElement)) return;
+        const tok = () => token() || $("admTok").value.trim() || DEV_FALLBACK;
+        if (t.dataset.approve) {
+          const id = t.dataset.approve;
+          try {
+            await api("/api/access/admin/approve", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + tok(),
+              },
+              body: JSON.stringify({ id }),
+            });
+            await loadAdmin();
+            await refresh();
+          } catch (e) {
+            alert(e.message);
+          }
+        }
+        if (t.dataset.reject) {
+          const id = t.dataset.reject;
+          try {
+            await api("/api/access/admin/reject", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + tok(),
+              },
+              body: JSON.stringify({ id }),
+            });
+            await loadAdmin();
+            await refresh();
+          } catch (e) {
+            alert(e.message);
+          }
+        }
+        if (t.dataset.revoke) {
+          const ip = t.dataset.revoke;
+          try {
+            await api("/api/access/admin/revoke", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + tok(),
+              },
+              body: JSON.stringify({ ip }),
+            });
+            await loadAdmin();
+            await refresh();
+          } catch (e) {
+            alert(e.message);
+          }
+        }
+      });
+
+      void refresh();
+    </script>
+  </body>
+</html>

@@ -102,3 +102,86 @@ export function fetchCryptoQuotes(symbols: readonly string[]) {
     `/api/crypto-quotes?symbols=${encodeURIComponent(q)}`,
   );
 }
+
+export type AccessClientState = "allowed" | "pending" | "rejected" | "none";
+
+export interface AccessStatusResponse {
+  enabled: boolean;
+  state: AccessClientState;
+  yourIp: string;
+}
+
+export interface AccessRequestItem {
+  id: string;
+  ip: string;
+  userAgent: string;
+  message: string;
+  requestedAt: string;
+  status: string;
+}
+
+export interface AccessAllowedEntry {
+  ip: string;
+  note?: string;
+  addedAt: string;
+  fromRequestId?: string;
+}
+
+export interface AccessAdminSnapshot {
+  pending: AccessRequestItem[];
+  allowed: AccessAllowedEntry[];
+  recent: AccessRequestItem[];
+}
+
+export function fetchAccessStatus() {
+  return fetchJson<AccessStatusResponse>("/api/access/status", {
+    cache: "no-store",
+  });
+}
+
+export function postAccessRequest(message: string) {
+  return fetchJson<{ ok: boolean; message: string }>("/api/access/request", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message }),
+  });
+}
+
+export function fetchAccessAdminRequests(adminToken: string) {
+  return fetchJson<AccessAdminSnapshot>("/api/access/admin/requests", {
+    headers: { Authorization: `Bearer ${adminToken}` },
+  });
+}
+
+export function postAccessAdminApprove(adminToken: string, id: string) {
+  return fetchJson<{ ok: boolean }>("/api/access/admin/approve", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${adminToken}`,
+    },
+    body: JSON.stringify({ id }),
+  });
+}
+
+export function postAccessAdminReject(adminToken: string, id: string) {
+  return fetchJson<{ ok: boolean }>("/api/access/admin/reject", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${adminToken}`,
+    },
+    body: JSON.stringify({ id }),
+  });
+}
+
+export function postAccessAdminRevoke(adminToken: string, ip: string) {
+  return fetchJson<{ ok: boolean }>("/api/access/admin/revoke", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${adminToken}`,
+    },
+    body: JSON.stringify({ ip }),
+  });
+}

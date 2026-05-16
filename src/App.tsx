@@ -9,6 +9,7 @@ import {
   resetTelegramAlertHistory,
 } from "./api";
 import BullishReasonModal from "./components/BullishReasonModal";
+import AccessAdminModal from "./components/AccessAdminModal";
 import MacroEventsBar from "./components/MacroEventsBar";
 import NewsModal from "./components/NewsModal";
 import ProfitModelModal from "./components/ProfitModelModal";
@@ -116,6 +117,7 @@ export default function App() {
   const [profitModalOpen, setProfitModalOpen] = useState(false);
   const newsReqIdRef = useRef(0);
   const newsAbortRef = useRef<AbortController | null>(null);
+  const [showAccessAdmin, setShowAccessAdmin] = useState(false);
 
   const closeNews = useCallback(() => {
     newsReqIdRef.current += 1;
@@ -250,7 +252,8 @@ export default function App() {
       !reasonPick &&
       !showScreenFailures &&
       !showTelegramSent &&
-      !profitModalOpen,
+      !profitModalOpen &&
+      !showAccessAdmin,
   );
 
   useEffect(() => {
@@ -458,6 +461,13 @@ export default function App() {
         </nav>
 
         <div className="top-bar__actions top-bar__actions--col">
+          <button
+            type="button"
+            className="btn btn--ghost access-admin-open"
+            onClick={() => setShowAccessAdmin(true)}
+          >
+            {ko.access.adminBtn}
+          </button>
           <button
             type="button"
             className="theme-toggle"
@@ -851,6 +861,11 @@ export default function App() {
           }}
         />
       )}
+
+      <AccessAdminModal
+        open={showAccessAdmin}
+        onClose={() => setShowAccessAdmin(false)}
+      />
     </div>
   );
 }

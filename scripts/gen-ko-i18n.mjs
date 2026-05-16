@@ -130,6 +130,42 @@ const t = {
     tvCopyrightSuffix: " by TradingView",
     tvChartAria: "TradingView \uC784\uBCA0\uB4DC \uCC28\uD2B8",
   },
+  access: {
+    checking: "접근 권한을 확인하는 중…",
+    openingApp: "서비스 화면을 여는 중…",
+    statusFetchFail:
+      "접근 권한을 확인할 수 없습니다. 서버가 실행 중인지·주소가 맞는지 확인한 뒤 다시 시도해 주세요.",
+    gateTitle: "접근 제한",
+    gateBody:
+      "이 사이트는 허가된 IP에서만 데이터 API를 사용할 수 있습니다. 아래에서 접속을 신청할 수 있습니다.",
+    yourIp: "확인된 IP",
+    statePending: "승인 대기 중입니다. 관리자가 처리하면 이 페이지가 자동으로 열립니다.",
+    stateRejected:
+      "이전 신청이 거절되었습니다. 사유를 보완해 다시 신청하거나 관리자에게 문의하세요.",
+    stateNone: "아직 신청이 없습니다. 아래 버튼으로 접속을 신청해 주세요.",
+    messageLabel: "메모 (선택)",
+    messagePlaceholder: "신청 사유, 연락처 등",
+    submitRequest: "접속 신청",
+    submitting: "전송 중…",
+    adminBtn: "접근 관리",
+    adminTitle: "IP 접근 관리",
+    adminTokenLabel: "관리자 토큰",
+    adminTokenPlaceholder: ".env의 ACCESS_ADMIN_TOKEN 값",
+    adminSaveToken: "토큰 적용",
+    adminLoad: "목록 새로고침",
+    adminPending: "대기 중인 신청",
+    adminAllowed: "허용된 IP",
+    adminApprove: "승인",
+    adminReject: "거절",
+    adminRevoke: "허가 취소",
+    adminClose: "닫기",
+    adminEmptyPending: "대기 중인 신청이 없습니다.",
+    adminEmptyAllowed: "허용된 IP가 없습니다.",
+    adminUa: "User-Agent",
+    adminRequestedAt: "신청 시각",
+    adminError: "요청에 실패했습니다.",
+    adminNoToken: "토큰을 입력한 뒤 적용하세요.",
+  },
 };
 
 function emitObj(obj, indent = 2) {
@@ -178,6 +214,9 @@ ${emitObj(t.telegramSent, 4)}
   },
   crypto: {
 ${emitObj(t.crypto, 4)}
+  },
+  access: {
+${emitObj(t.access, 4)}
   },
 } as const;
 

@@ -1377,3 +1377,426 @@ button.chip.chip--on,
 .chart-toolbar__toggles .chip.chip--on {
   box-shadow: 0 0 0 1px rgba(94, 234, 212, 0.2);
 }
+
+/* IP 접근 제어 — 앱 내 관리자 모달 */
+.access-admin-open {
+  font-size: 0.72rem !important;
+  padding: 0.35rem 0.55rem !important;
+}
+.access-admin-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(10, 14, 19, 0.75);
+}
+.access-admin-modal {
+  width: min(560px, 100%);
+  max-height: min(90vh, 720px);
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 1.1rem;
+  overflow: hidden;
+}
+.access-admin-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.access-admin-title {
+  margin: 0;
+  font-size: 1rem;
+}
+.access-admin-close {
+  flex-shrink: 0;
+}
+.access-admin-token-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: flex-end;
+  margin-bottom: 0.65rem;
+}
+.access-admin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1 1 200px;
+  min-width: 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.access-admin-field input {
+  padding: 0.45rem 0.55rem;
+  font-family: JetBrains Mono, monospace;
+  font-size: 0.78rem;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+}
+.access-admin-error {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  color: var(--down);
+}
+.access-admin-muted {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.access-admin-body {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-top: 0.25rem;
+}
+.access-admin-section h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+  color: var(--text);
+}
+.access-admin-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.access-admin-item {
+  padding: 0.6rem 0.65rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--card-border);
+  font-size: 0.78rem;
+}
+.access-admin-item--row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+.access-admin-item-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  align-items: baseline;
+  margin-bottom: 0.35rem;
+}
+.access-admin-msg {
+  margin: 0 0 0.35rem;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+.access-admin-ua {
+  margin: 0 0 0.5rem;
+  font-size: 0.68rem;
+  color: var(--muted);
+  word-break: break-all;
+}
+.access-admin-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+/* -------------------------------------------------------------------------- */
+/* 모바일·핸드폰 (터치·노치·세로 레이아웃)                                      */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  .app {
+    padding-top: max(0.85rem, env(safe-area-inset-top, 0px));
+    padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+    padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+    gap: 0.65rem;
+  }
+
+  .macro-bar {
+    padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+  }
+
+  .workspace,
+  .crypto-workspace {
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: none;
+    min-height: 0;
+    gap: 0.65rem;
+    flex: 1 1 auto;
+  }
+
+  .picks-panel {
+    max-height: min(44dvh, 400px);
+    min-height: 0;
+    flex: 0 1 auto;
+    max-width: none;
+  }
+
+  .picks-panel .pick-list {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  .chart-section.crypto-chart-section {
+    flex: 1 1 auto;
+    min-height: min(52dvh, 520px);
+    min-width: 0;
+  }
+
+  .chart-panel {
+    min-height: min(46dvh, 480px);
+    height: auto;
+  }
+
+  .top-bar {
+    padding: 0.75rem 0.85rem;
+    gap: 0.65rem;
+  }
+
+  .top-bar__brand h1 {
+    font-size: 1rem;
+  }
+
+  .top-bar__actions--col {
+    align-items: stretch;
+    width: 100%;
+    max-width: none;
+  }
+
+  .top-bar__actions--col .scan-status.scan-status--stacked {
+    align-items: stretch;
+    max-width: none;
+  }
+
+  .scan-status__primary {
+    align-items: stretch;
+  }
+
+  .scan-status__primary .progress-bar {
+    max-width: none;
+  }
+
+  .scan-status__msg,
+  .scan-status__secondary {
+    text-align: left;
+    justify-content: flex-start;
+  }
+
+  .main-tab {
+    min-height: 44px;
+    padding: 0.5rem 1rem;
+    touch-action: manipulation;
+  }
+
+  .theme-toggle {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: manipulation;
+  }
+
+  .btn {
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+
+  .access-admin-open {
+    min-height: 40px;
+    align-self: flex-start;
+  }
+
+  .quote-bar.card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
+    padding: 0.85rem 1rem;
+  }
+
+  .quote-bar__right {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 0.5rem;
+  }
+
+  .quote-bar__profit-btn {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .timeframe-seg.segmented.compact {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .timeframe-seg .seg {
+    min-height: 42px;
+    padding: 0.4rem 0.55rem;
+  }
+
+  .chart-toolbar {
+    gap: 0.45rem;
+  }
+
+  .filter-bar.card {
+    padding: 0.65rem 0.75rem;
+  }
+
+  .signal-filter .chip,
+  .signal-filter .seg,
+  .signal-filter .filter-clear {
+    min-height: 40px;
+    padding: 0.35rem 0.65rem;
+    touch-action: manipulation;
+  }
+
+  .macro-card.macro-card--btn {
+    min-height: 88px;
+    padding: 0.6rem 0.7rem;
+  }
+
+  .access-admin-modal {
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 1.5rem);
+  }
+
+  .news-modal-backdrop {
+    padding: max(0.65rem, env(safe-area-inset-top, 0px))
+      max(0.5rem, env(safe-area-inset-right, 0px))
+      max(0.65rem, env(safe-area-inset-bottom, 0px))
+      max(0.5rem, env(safe-area-inset-left, 0px));
+  }
+
+  .news-modal {
+    width: 100%;
+    max-width: min(720px, 100%);
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 1.25rem);
+  }
+
+  .news-modal-close {
+    width: 44px;
+    height: 44px;
+    touch-action: manipulation;
+  }
+}
+
+@media (max-width: 600px) {
+  .pick-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    padding: 0.55rem 0.65rem;
+  }
+
+  .pick-search {
+    width: 100%;
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .pick-sort {
+    width: 100%;
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .market-tabs {
+    max-width: none;
+    width: 100%;
+  }
+
+  .market-tab {
+    min-height: 44px;
+    flex: 1;
+    touch-action: manipulation;
+  }
+
+  .pick-row {
+    min-height: 48px;
+    padding: 0.65rem 0.7rem;
+  }
+
+  .pick-action {
+    min-height: 44px;
+    font-size: 0.78rem;
+    padding: 0.4rem 0.35rem;
+  }
+
+  .panel-head {
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+
+  .panel-head__meta {
+    width: 100%;
+    text-align: right;
+  }
+
+  .chart-placeholder.card {
+    min-height: 280px;
+    padding: 1.25rem 1rem;
+  }
+
+  .profit-model-strip {
+    flex-wrap: wrap;
+    gap: 0.35rem 0.65rem;
+    padding: 0.65rem 0.75rem;
+  }
+
+  .crypto-panel .pick-item.crypto-pick-item .crypto-pick-row {
+    padding: 0.75rem 0.8rem 0.8rem;
+  }
+
+  .chart-draw-btn {
+    min-height: 40px;
+    padding: 0.35rem 0.6rem;
+  }
+
+  .profit-model-input {
+    font-size: 16px;
+    min-height: 44px;
+  }
+
+  .profit-model-actions .btn {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 400px) {
+  .top-bar__brand p {
+    font-size: 0.72rem;
+  }
+
+  .main-tabs {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .main-tab {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .tag-reset {
+    min-height: 36px;
+    min-width: 36px;
+  }
+}

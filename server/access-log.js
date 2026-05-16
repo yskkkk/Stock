@@ -10,7 +10,7 @@ function ensureDir() {
   if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
 }
 
-function clientIp(req) {
+export function clientIp(req) {
   const xff = req.headers?.["x-forwarded-for"];
   if (xff) return String(xff).split(",")[0]?.trim() || "-";
   const raw = req.socket?.remoteAddress ?? "";
@@ -51,6 +51,7 @@ export function appendAccessLog(req) {
   try {
     ensureDir();
     const line = lineFromReq(req);
+    console.log("[access]", line.trimEnd());
     fs.appendFile(LOG_FILE, line, (err) => {
       if (err) console.warn("[access-log]", err.message);
     });

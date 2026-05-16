@@ -1,4 +1,5 @@
 import express from "express";
+import { registerAccessControl } from "./access-control.js";
 import { expressAccessLogger } from "./access-log.js";
 import { isDartEnabled } from "./dart.js";
 import {
@@ -29,6 +30,7 @@ export function createApp() {
   app.set("trust proxy", 1);
   app.use(expressAccessLogger);
   app.use(express.json());
+  registerAccessControl(app);
 
   app.get("/api/picks", (req, res) => {
     ensureScreening();
