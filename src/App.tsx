@@ -671,6 +671,58 @@ export default function App() {
 
   return (
     <div className="app">
+      <div className="app-theme-corner">
+        {colorMode === "light" ? (
+          <div
+            className="light-palette-picker light-palette-picker--corner"
+            role="group"
+            aria-label={ko.app.lightPaletteAria}
+          >
+            {LIGHT_PALETTE_IDS.map((id, idx) => (
+              <button
+                key={id}
+                type="button"
+                className={
+                  lightPalette === id
+                    ? "light-palette-swatch light-palette-swatch--active"
+                    : "light-palette-swatch"
+                }
+                aria-label={`${idx + 1} / ${LIGHT_PALETTE_IDS.length}`}
+                aria-pressed={lightPalette === id}
+                onClick={() => handleLightPalette(id)}
+                style={
+                  {
+                    "--lp-fill": LIGHT_PALETTE_PREVIEW[id],
+                  } as CSSProperties
+                }
+              />
+            ))}
+          </div>
+        ) : null}
+        <button
+          type="button"
+          className="theme-toggle app-theme-corner__toggle"
+          disabled={!ENABLE_THEME_MODE_TOGGLE}
+          onClick={() =>
+            setColorMode((m) => (m === "dark" ? "light" : "dark"))
+          }
+          title={
+            !ENABLE_THEME_MODE_TOGGLE
+              ? ko.app.themeToggleDisabledHint
+              : colorMode === "dark"
+                ? ko.app.themeUseLight
+                : ko.app.themeUseDark
+          }
+          aria-label={
+            !ENABLE_THEME_MODE_TOGGLE
+              ? ko.app.themeToggleDisabledAria
+              : ko.app.themeToggleAria
+          }
+          aria-pressed={ENABLE_THEME_MODE_TOGGLE && colorMode === "light"}
+        >
+          {colorMode === "dark" ? "\u2600" : "\u263E"}
+        </button>
+      </div>
       <div className="app-corner-stack">
         {accessAdmin ? (
           <button
@@ -698,33 +750,6 @@ export default function App() {
             <MacroEventsBar onSecretAdminOpen={() => setShowAccessAdmin(true)} />
           </div>
           <div className="top-bar__brand">
-            {colorMode === "light" ? (
-              <div
-                className="light-palette-picker light-palette-picker--leading"
-                role="group"
-                aria-label={ko.app.lightPaletteAria}
-              >
-                {LIGHT_PALETTE_IDS.map((id, idx) => (
-                  <button
-                    key={id}
-                    type="button"
-                    className={
-                      lightPalette === id
-                        ? "light-palette-swatch light-palette-swatch--active"
-                        : "light-palette-swatch"
-                    }
-                    aria-label={`${idx + 1} / ${LIGHT_PALETTE_IDS.length}`}
-                    aria-pressed={lightPalette === id}
-                    onClick={() => handleLightPalette(id)}
-                    style={
-                      {
-                        "--lp-fill": LIGHT_PALETTE_PREVIEW[id],
-                      } as CSSProperties
-                    }
-                  />
-                ))}
-              </div>
-            ) : null}
             <span className="brand-mark" aria-hidden />
             <div className="top-bar__brand-main">
               <h1>{ko.app.title}</h1>
@@ -787,29 +812,6 @@ export default function App() {
                   {ko.access.adminToolbarBtn}
                 </button>
               )}
-              <button
-                type="button"
-                className="theme-toggle"
-                disabled={!ENABLE_THEME_MODE_TOGGLE}
-                onClick={() =>
-                  setColorMode((m) => (m === "dark" ? "light" : "dark"))
-                }
-                title={
-                  !ENABLE_THEME_MODE_TOGGLE
-                    ? ko.app.themeToggleDisabledHint
-                    : colorMode === "dark"
-                      ? ko.app.themeUseLight
-                      : ko.app.themeUseDark
-                }
-                aria-label={
-                  !ENABLE_THEME_MODE_TOGGLE
-                    ? ko.app.themeToggleDisabledAria
-                    : ko.app.themeToggleAria
-                }
-                aria-pressed={ENABLE_THEME_MODE_TOGGLE && colorMode === "light"}
-              >
-                {colorMode === "dark" ? "\u2600" : "\u263E"}
-              </button>
               <button
                 type="button"
                 className="btn btn--secondary top-bar__rescan"

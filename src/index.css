@@ -908,10 +908,8 @@
   margin-top: 0;
 }
 
-.light-palette-picker--leading {
+.light-palette-picker--corner {
   margin-top: 0;
-  margin-right: 0.1rem;
-  align-self: center;
   flex-shrink: 0;
 }
 
@@ -2903,6 +2901,26 @@ html[data-theme="light"] .access-admin-tab--active {
     transform: scale(0.985);
     transition: transform 0.07s ease;
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* 좌측 상단: 라이트 팔레트 + 테마 토글 고정 스택 (우측 운영/불편과 대칭) */
+/* -------------------------------------------------------------------------- */
+
+.app-theme-corner {
+  position: fixed;
+  top: max(0.55rem, env(safe-area-inset-top, 0px));
+  left: max(0.55rem, env(safe-area-inset-left, 0px));
+  z-index: 9990;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.app-theme-corner__toggle {
+  border-radius: 999px;
+  box-shadow: var(--shadow);
 }
 
 /* -------------------------------------------------------------------------- */
