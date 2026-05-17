@@ -127,14 +127,12 @@ export function createApp() {
         res.status(400).json({ error: "instruction 필드에 요청 내용을 입력하세요." });
         return;
       }
-      const context = String(req.body?.context ?? "").trim();
       try {
         const rip = normalizeAccessIp(expressClientIp(req));
         const out = await enqueueOpsAgentJob(
           () =>
             runOpsCursorAgent({
               instruction,
-              context,
               requestIp: rip,
             }),
           undefined,
@@ -201,11 +199,10 @@ export function createApp() {
         });
         return;
       }
-      const context = String(req.body?.context ?? "").trim();
       try {
         const rip = normalizeAccessIp(expressClientIp(req));
         await enqueueOpsAgentJob(
-          () => streamOpsCursorAgentSse(req, res, { instruction, context }),
+          () => streamOpsCursorAgentSse(req, res, { instruction }),
           () => {
             writeOpsAgentSseEvent(res, {
               type: "phase",
@@ -247,7 +244,6 @@ export function createApp() {
       const p = ip ? getOpsAgentPendingForIp(ip) : null;
       res.json({
         instruction: p?.instruction ?? "",
-        context: p?.context ?? "",
         startedAtMs: p?.startedAtMs ?? null,
       });
     }),
@@ -315,6 +311,10 @@ export function createApp() {
           code: "FORBIDDEN",
         });
         return;
+      }
+      const snapshot = readOpsAgentHistorySync();
+      for (const e of snapshot) {
+        if (e.state === "running") triggerOpsStreamUserCancel(e.id);
       }
       await clearOpsAgentHistoryAsync();
       res.json({ ok: true });

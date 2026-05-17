@@ -3297,16 +3297,129 @@ html[data-theme="light"] .feedback-inbox-item {
   word-break: break-word;
 }
 
-.ops-management__my-ip-queue {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  gap: 0.45rem;
+.ops-management__my-ip-none {
+  margin: 0 0 0.5rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.ops-management__my-ip-subtitle {
+  margin: 0.35rem 0 0.35rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.ops-management__my-ip-running-block {
+  margin-bottom: 0.45rem;
+}
+
+.ops-management__my-ip-queue-track {
+  margin-top: 0.35rem;
 }
 
 .ops-management__server-queue {
   margin-bottom: 0.65rem;
   padding: 0.55rem 0.65rem 0.6rem;
+}
+
+.ops-management__server-queue-track {
+  min-height: 2rem;
+}
+
+/* 지표 발표 막대(macros)와 비슷한 좁은 카드 가로 스크롤 */
+.ops-agent-queue-track {
+  display: flex;
+  gap: 0.55rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 0.2rem;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ops-agent-queue-card {
+  position: relative;
+  flex: 0 0 auto;
+  width: min(148px, 42vw);
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
+  padding: 0.5rem 0.55rem 0.45rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--card-border);
+  background: rgba(10, 14, 19, 0.55);
+  font-size: 0.72rem;
+  line-height: 1.3;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+html[data-theme="light"] .ops-agent-queue-card {
+  background: var(--surface);
+}
+
+.ops-agent-queue-card:hover {
+  border-color: rgba(148, 163, 184, 0.22);
+}
+
+.ops-agent-queue-card--running {
+  border-color: rgba(96, 165, 250, 0.45);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.12);
+}
+
+html[data-theme="light"] .ops-agent-queue-card--running {
+  border-color: rgba(37, 99, 235, 0.5);
+}
+
+.ops-agent-queue-card__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.35rem;
+}
+
+.ops-agent-queue-card__status {
+  font-weight: 700;
+  font-size: 0.68rem;
+  flex-shrink: 0;
+}
+
+.ops-agent-queue-card__meta {
+  font-size: 0.62rem;
+  color: var(--muted);
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.ops-agent-queue-card__ip {
+  font-size: 0.62rem;
+  color: var(--muted);
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.ops-agent-queue-card__preview {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--text-dim);
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
 }
 
 .ops-management__server-queue-sub {
@@ -3316,64 +3429,11 @@ html[data-theme="light"] .feedback-inbox-item {
   color: var(--muted);
 }
 
-.ops-management__server-queue-scroll {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  gap: 0.45rem;
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding-bottom: 2px;
-  scrollbar-width: thin;
-  -webkit-overflow-scrolling: touch;
-}
-
 .ops-management__server-queue-empty {
   font-size: 0.78rem;
   color: var(--muted);
   white-space: nowrap;
-}
-
-.ops-management__queue-chip {
-  flex: 0 0 auto;
-  display: inline-flex;
-  flex-direction: row;
-  align-items: baseline;
-  gap: 0.35rem;
-  max-width: min(340px, 85vw);
-  padding: 0.35rem 0.5rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--card-border);
-  background: var(--bg-elevated);
-  font-size: 0.74rem;
-  line-height: 1.25;
-}
-
-.ops-management__queue-chip--running {
-  border-color: rgba(96, 165, 250, 0.45);
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.12);
-}
-
-html[data-theme="light"] .ops-management__queue-chip--running {
-  border-color: rgba(37, 99, 235, 0.5);
-}
-
-.ops-management__queue-chip-status {
-  font-weight: 700;
   flex-shrink: 0;
-}
-
-.ops-management__queue-chip-ip {
-  flex-shrink: 0;
-}
-
-.ops-management__queue-chip-preview {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text-dim);
 }
 
 .ops-management__aside {

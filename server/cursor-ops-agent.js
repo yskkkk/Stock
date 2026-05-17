@@ -126,9 +126,8 @@ function githubRepoForCloud() {
 
 /**
  * @param {string} instruction
- * @param {string} context
  */
-export function buildOpsPromptMessage(instruction, context) {
+export function buildOpsPromptMessage(instruction) {
   const parts = [
     "You are working in the local git repository for a Korean stock dashboard web app (Vite + React + Express API).",
     "Apply the operator's request by editing files as needed. Reply in Korean with a concise summary of what you changed.",
@@ -136,9 +135,6 @@ export function buildOpsPromptMessage(instruction, context) {
     "## Operator request",
     instruction,
   ];
-  if (context) {
-    parts.push("", "## Extra context", context);
-  }
   parts.push(
     "",
     "## Git (mandatory)",
@@ -296,14 +292,13 @@ export function writeOpsAgentSseEvent(res, obj) {
  * SSE로 에이전트 진행·델타·최종 결과 전송.
  * @param {import("express").Request} req
  * @param {import("express").Response} res
- * @param {{ instruction: string; context: string }} body
+ * @param {{ instruction: string }} body
  */
 export async function streamOpsCursorAgentSse(req, res, body) {
   const instruction = String(body.instruction ?? "").trim();
-  const context = String(body.context ?? "").trim();
   const requestIp = normalizeAccessIp(clientIp(req));
   if (requestIp) {
-    setOpsAgentPending(requestIp, instruction, context);
+    setOpsAgentPending(requestIp, instruction);
   }
 
   const capture = {
@@ -387,7 +382,7 @@ export async function streamOpsCursorAgentSse(req, res, body) {
       String(process.env.CURSOR_AGENT_MODEL ?? "composer-2").trim() ||
       "composer-2";
     const modelId = await resolveModelId(apiKey, envModel);
-    const message = buildOpsPromptMessage(instruction, context);
+    const message = buildOpsPromptMessage(instruction);
     const base = {
       apiKey,
       model: { id: modelId },
@@ -536,7 +531,7 @@ export async function streamOpsCursorAgentSse(req, res, body) {
 }
 
 /**
- * @param {{ instruction: string; context?: string; requestIp?: string }} input
+ * @param {{ instruction: string; requestIp?: string }} input
  * @returns {Promise<{ status: string; result: string; durationMs?: number; model?: unknown; runtime?: string }>}
  */
 export async function runOpsCursorAgent(input) {
@@ -556,9 +551,8 @@ export async function runOpsCursorAgent(input) {
     "composer-2";
   const modelId = await resolveModelId(apiKey, envModel);
   const instruction = String(input.instruction ?? "").trim();
-  const context = String(input.context ?? "").trim();
 
-  const message = buildOpsPromptMessage(instruction, context);
+  const message = buildOpsPromptMessage(instruction);
 
   const base = {
     apiKey,

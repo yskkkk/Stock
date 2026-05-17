@@ -3,7 +3,7 @@
  */
 import { normalizeAccessIp } from "./access-control.js";
 
-/** @typedef {{ instruction: string; context: string; startedAtMs: number }} OpsAgentPending */
+/** @typedef {{ instruction: string; startedAtMs: number }} OpsAgentPending */
 
 /** @type {Map<string, OpsAgentPending>} */
 const byIp = new Map();
@@ -11,14 +11,12 @@ const byIp = new Map();
 /**
  * @param {string} ip
  * @param {string} instruction
- * @param {string} context
  */
-export function setOpsAgentPending(ip, instruction, context) {
+export function setOpsAgentPending(ip, instruction) {
   const n = normalizeAccessIp(ip);
   if (!n) return;
   byIp.set(n, {
     instruction: String(instruction ?? ""),
-    context: String(context ?? ""),
     startedAtMs: Date.now(),
   });
 }

@@ -176,7 +176,6 @@ export type OpsAgentHistoryResponse = {
 
 export type OpsCursorAgentPendingResponse = {
   instruction: string;
-  context: string;
   startedAtMs: number | null;
 };
 
@@ -265,7 +264,6 @@ export function postOpsCursorAgentStreamCancel(runId: string) {
 /** 관리자 전용 — SSE로 에이전트 진행·델타·결과 수신 */
 export async function fetchOpsCursorAgentStream(
   instruction: string,
-  context: string,
   onEvent: (ev: OpsAgentSseEvent) => void,
   signal?: AbortSignal,
 ): Promise<void> {
@@ -278,7 +276,7 @@ export async function fetchOpsCursorAgentStream(
   const res = await fetch("/api/ops/cursor-agent-stream", {
     method: "POST",
     headers,
-    body: JSON.stringify({ instruction, context }),
+    body: JSON.stringify({ instruction }),
     signal,
     cache: "no-store",
   });
@@ -346,7 +344,7 @@ export async function fetchOpsCursorAgentStream(
 }
 
 /** 관리자 전용 — 서버에서 로컬 Cursor 에이전트 실행 (수 분 소요 가능) */
-export function postOpsCursorAgent(instruction: string, context: string) {
+export function postOpsCursorAgent(instruction: string) {
   const t = getStoredAccessAdminToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json; charset=utf-8",
@@ -355,7 +353,7 @@ export function postOpsCursorAgent(instruction: string, context: string) {
   return fetchJson<OpsCursorAgentResponse>("/api/ops/cursor-agent", {
     method: "POST",
     headers,
-    body: JSON.stringify({ instruction, context }),
+    body: JSON.stringify({ instruction }),
   });
 }
 

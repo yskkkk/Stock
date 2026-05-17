@@ -349,6 +349,12 @@ export function appendOpsAgentHistoryEntry(entry) {
 export function clearOpsAgentHistoryAsync() {
   return chainWrite(async () => {
     ensureDirSync();
+    const list = readRawListSync()
+      .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))
+      .filter(Boolean);
+    for (const e of list) {
+      if (e.state === "running") finalizeSkippedIds.add(e.id);
+    }
     await fs.writeFile(HISTORY_FILE, JSON.stringify([]), "utf8");
   });
 }
