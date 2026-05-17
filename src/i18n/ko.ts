@@ -38,6 +38,7 @@ export const ko = {
     opsHistoryClearAll: "전체 삭제",
     opsHistoryClearConfirm: "저장된 에이전트 실행 이력을 모두 삭제할까요?",
     opsHistoryInstructionReplay: "해당 요청내용",
+    opsHistoryClientIp: "요청 IP",
     opsHistoryStreamArchived: "진행 로그 (저장본)",
     opsSubmit: "에이전트에 전달",
     opsSubmitting: "실행 중… (수 분 걸릴 수 있습니다)",

@@ -2,9 +2,10 @@ import express from "express";
 import {
   isAccessAdminIp,
   isAccessAdminRequest,
+  normalizeAccessIp,
   registerAccessControl,
 } from "./access-control.js";
-import { expressAccessLogger } from "./access-log.js";
+import { expressAccessLogger, clientIp as expressClientIp } from "./access-log.js";
 import { isDartEnabled } from "./dart.js";
 import {
   ensureScreening,
@@ -30,6 +31,7 @@ import {
   clearOpsAgentHistoryAsync,
   readOpsAgentHistorySync,
 } from "./ops-agent-history-store.js";
+import { getOpsAgentPendingForIp } from "./ops-agent-pending-store.js";
 
 function asyncRoute(handler) {
   return (req, res, next) => {
@@ -127,7 +129,28 @@ export function createApp() {
         return;
       }
       const context = String(req.body?.context ?? "").trim();
-      await streamOpsCursorAgentSse(res, { instruction, context });
+      const ip = normalizeAccessIp(expressClientIp(req));
+      await streamOpsCursorAgentSse(res, { instruction, context }, { clientIp: ip });
+    }),
+  );
+
+  app.get(
+    "/api/ops/cursor-agent-pending",
+    asyncRoute(async (req, res) => {
+      if (!isAccessAdminRequest(req)) {
+        res.status(403).json({
+          error: "관리자만 Cursor 에이전트 연동을 사용할 수 있습니다.",
+          code: "FORBIDDEN",
+        });
+        return;
+      }
+      const ip = normalizeAccessIp(expressClientIp(req));
+      const p = ip ? getOpsAgentPendingForIp(ip) : null;
+      res.json({
+        instruction: p?.instruction ?? "",
+        context: p?.context ?? "",
+        startedAtMs: p?.startedAtMs ?? null,
+      });
     }),
   );
 

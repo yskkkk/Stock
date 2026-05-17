@@ -3359,6 +3359,15 @@ html[data-theme="light"] .ops-management__history-details {
   margin-bottom: 0.25rem;
 }
 
+.ops-management__history-ip-line {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin: -0.1rem 0 0.28rem;
+  font-variant-numeric: tabular-nums;
+  word-break: break-all;
+}
+
 .ops-management__history-snippet {
   display: block;
   color: var(--text-dim);

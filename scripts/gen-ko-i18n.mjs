@@ -53,6 +53,7 @@ const t = {
     opsHistoryClearConfirm:
       "\uC800\uC7A5\uB41C \uC5D0\uC774\uC804\uD2B8 \uC2E4\uD589 \uC774\uB825\uC744 \uBAA8\uB450 \uC0AD\uC81C\uD560\uAE4C\uC694?",
     opsHistoryInstructionReplay: "\uD574\uB2F9 \uC694\uCCAD\uB0B4\uC6A9",
+    opsHistoryClientIp: "\uC694\uCCAD IP",
     opsHistoryStreamArchived: "\uC9C4\uD589 \uB85C\uADF8 (\uC800\uC7A5\uBCF8)",
     opsSubmit: "\uC5D0\uC774\uC804\uD2B8\uC5D0 \uC804\uB2EC",
     opsSubmitting: "\uC2E4\uD589 \uC911\u2026 (\uC218 \uBD84 \uAC78\uB9B4 \uC218 \uC788\uC2B5\uB2C8\uB2E4)",

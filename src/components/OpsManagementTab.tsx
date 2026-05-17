@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   deleteOpsAgentHistory,
   fetchOpsAgentHistory,
+  fetchOpsCursorAgentPending,
   fetchOpsCursorAgentStream,
   type OpsAgentHistoryEntry,
 } from "../api";
@@ -68,6 +69,24 @@ export default function OpsManagementTab({
       window.clearInterval(id);
     };
   }, [available]);
+
+  useEffect(() => {
+    if (!available || opsUiTab !== "request") return;
+    let cancelled = false;
+    void fetchOpsCursorAgentPending()
+      .then((r) => {
+        if (cancelled) return;
+        const ins = (r.instruction ?? "").trim();
+        if (!ins) return;
+        setInstruction((prev) => (prev.trim() === "" ? r.instruction : prev));
+      })
+      .catch(() => {
+        /* 다음 진입·탭 전환에서 재시도 */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [available, opsUiTab]);
 
   const clearHistory = useCallback(async () => {
     if (typeof window !== "undefined" && !window.confirm(ko.app.opsHistoryClearConfirm)) {
@@ -347,6 +366,11 @@ export default function OpsManagementTab({
                         <span className="ops-management__history-when">
                           {formatHistorySavedAt(run.finishedAtMs)}
                         </span>
+                        {run.clientIp ? (
+                          <span className="ops-management__history-ip-line">
+                            {ko.app.opsHistoryClientIp}: {run.clientIp}
+                          </span>
+                        ) : null}
                         <span className="ops-management__history-snippet">{header}</span>
                       </summary>
 
