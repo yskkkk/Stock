@@ -140,8 +140,14 @@ export function appendAccessLog(req) {
  * @param {string} category 짧은 태그 (예: auto-git)
  * @param {string} message 한 줄
  * @param {"info"|"warn"|"error"} [level]
+ * @param {string | null | undefined} [eventClientIp] 에이전트 등 요청자 IP (없으면 `-`)
  */
-export function appendServerEventLog(category, message, level = "info") {
+export function appendServerEventLog(
+  category,
+  message,
+  level = "info",
+  eventClientIp = null,
+) {
   try {
     ensureDir();
     const ts = new Date().toISOString();
@@ -149,8 +155,13 @@ export function appendServerEventLog(category, message, level = "info") {
       .replace(/[\t\r\n]/g, "_")
       .slice(0, 32);
     const safeMsg = String(message).replace(/\r|\n/g, " ").slice(0, 800);
-    const file = `${ts}\tip=-\tINTERNAL\t${safeCat}\t${safeMsg}\n`;
-    const consoleLine = `${ts} ip=- INTERNAL ${safeCat} ${safeMsg}`;
+    const rawIp = String(eventClientIp ?? "").trim();
+    const ipField =
+      rawIp && rawIp !== "-"
+        ? rawIp.replace(/[\t\r\n]/g, "_").slice(0, 120)
+        : "-";
+    const file = `${ts}\tip=${ipField}\tINTERNAL\t${safeCat}\t${safeMsg}\n`;
+    const consoleLine = `${ts} ip=${ipField} INTERNAL ${safeCat} ${safeMsg}`;
     const logFn =
       level === "error"
         ? console.error.bind(console)

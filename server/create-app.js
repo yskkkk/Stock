@@ -130,7 +130,11 @@ export function createApp() {
       const context = String(req.body?.context ?? "").trim();
       try {
         const out = await enqueueOpsAgentJob(() =>
-          runOpsCursorAgent({ instruction, context }),
+          runOpsCursorAgent({
+            instruction,
+            context,
+            requestIp: normalizeAccessIp(expressClientIp(req)),
+          }),
         );
         res.json({ ok: true, ...out });
       } catch (err) {
