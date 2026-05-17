@@ -61,7 +61,7 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
 
 const ACCESS_ADMIN_TOKEN_KEY = "stock_access_admin_token";
 
-/** 운영 탭 요청 입력 초안 — 접근 게이트로 보낼 때 비워 두면 복귀 후 기본(빈) 입력으로 시작 */
+/** 예전 운영 탭 요청 초안 키(저장 기능 제거 후). stale 값 제거·게이트 전환 시 비우기 용도로만 사용 */
 export const STOCK_OPS_INSTRUCTION_DRAFT_KEY = "stock-app-ops-instruction-draft-v1";
 
 export function clearStockOpsInstructionDraft(): void {

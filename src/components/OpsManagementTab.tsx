@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  STOCK_OPS_INSTRUCTION_DRAFT_KEY,
+  clearStockOpsInstructionDraft,
   deleteOpsAgentHistory,
   deleteOpsAgentHistoryEntry,
   fetchOpsAgentHistory,
@@ -17,36 +17,6 @@ import { ko } from "../i18n/ko";
 
 const HISTORY_POLL_MS = 2000;
 const AGENT_QUEUE_POLL_MS = 5000;
-function readOpsInstructionDraft(): { instruction: string; nextInstruction: string } {
-  if (typeof window === "undefined") {
-    return { instruction: "", nextInstruction: "" };
-  }
-  try {
-    const raw = sessionStorage.getItem(STOCK_OPS_INSTRUCTION_DRAFT_KEY);
-    if (!raw) return { instruction: "", nextInstruction: "" };
-    const parsed = JSON.parse(raw) as unknown;
-    if (!parsed || typeof parsed !== "object") return { instruction: "", nextInstruction: "" };
-    const o = parsed as Record<string, unknown>;
-    return {
-      instruction: typeof o.instruction === "string" ? o.instruction : "",
-      nextInstruction: typeof o.nextInstruction === "string" ? o.nextInstruction : "",
-    };
-  } catch {
-    return { instruction: "", nextInstruction: "" };
-  }
-}
-
-function writeOpsInstructionDraft(instruction: string, nextInstruction: string): void {
-  if (typeof window === "undefined") return;
-  try {
-    sessionStorage.setItem(
-      STOCK_OPS_INSTRUCTION_DRAFT_KEY,
-      JSON.stringify({ instruction, nextInstruction }),
-    );
-  } catch {
-    /* quota 등 — 무시 */
-  }
-}
 
 function formatHistoryTs(ms: number): string {
   try {
@@ -338,13 +308,9 @@ export default function OpsManagementTab({
 }: {
   available: boolean;
 }) {
-  const [instruction, setInstruction] = useState(
-    () => readOpsInstructionDraft().instruction,
-  );
+  const [instruction, setInstruction] = useState("");
   const [streamHeadlineInstruction, setStreamHeadlineInstruction] = useState("");
-  const [nextInstruction, setNextInstruction] = useState(
-    () => readOpsInstructionDraft().nextInstruction,
-  );
+  const [nextInstruction, setNextInstruction] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [queuedCount, setQueuedCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -402,9 +368,10 @@ export default function OpsManagementTab({
     };
   }, []);
 
+  /** 예전 초안 저장 키를 비워 둠 (새로고침·재방문 후에도 텍스트는 복원하지 않음) */
   useEffect(() => {
-    writeOpsInstructionDraft(instruction, nextInstruction);
-  }, [instruction, nextInstruction]);
+    if (available) clearStockOpsInstructionDraft();
+  }, [available]);
 
   useEffect(() => {
     if (!available) {
