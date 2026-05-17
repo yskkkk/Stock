@@ -858,7 +858,10 @@
 }
 
 /* 상단 바: 좌측 브랜드·스캔 / 우측 탭·도구 — 그리드로 위·아래 정리 */
+/* fixed 우측 상단 피드백(z-index 9990)보다 위에 두어 테마·재스캔 등 버튼이 클릭 가능하게 함 */
 .top-bar.card {
+  position: relative;
+  z-index: 9995;
   display: block;
   padding: 0.55rem 0.95rem 0.65rem;
 }
@@ -2794,7 +2797,7 @@ html[data-theme="light"] .access-admin-tab--active {
   .top-bar.card {
     position: sticky;
     top: max(0.35rem, env(safe-area-inset-top, 0px));
-    z-index: 40;
+    z-index: 9995;
     -webkit-backdrop-filter: blur(18px) saturate(1.15);
     backdrop-filter: blur(18px) saturate(1.15);
     background: color-mix(in srgb, var(--card) 76%, transparent);
