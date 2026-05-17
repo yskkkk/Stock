@@ -1,0 +1,40 @@
+# cursor/** 브랜치에 푸시되면 기본 브랜치로 향하는 열린 PR 이 없을 때 PR 을 자동 생성합니다.
+# (이미 열린 PR 이 Draft 면 gh pr ready 로 먼저 전환합니다.)
+# 이후 워크플로 auto-merge-cursor-prs.yml 이 pull_request(opened 등)에서 머지를 시도합니다.
+
+name: Open PR for cursor branches
+
+on:
+  push:
+    branches:
+      - "cursor/**"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  open-pr-if-absent:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create pull request when none is open
+        env:
+          GH_TOKEN: ${{ secrets.AUTO_MERGE_TOKEN || github.token }}
+        run: |
+          set -euo pipefail
+          HEAD="${GITHUB_REF_NAME}"
+          BASE="${{ github.event.repository.default_branch }}"
+          while IFS= read -r num; do
+            [ -z "${num:-}" ] && continue
+            gh pr ready "$num"
+          done < <(gh pr list --head "$HEAD" --base "$BASE" --state open --json number,isDraft --jq '.[] | select(.isDraft==true) | .number')
+          N=$(gh pr list --head "$HEAD" --base "$BASE" --state open --json number --jq "length")
+          if [ "${N:-0}" -gt 0 ]; then
+            echo "Open PR already exists for ${HEAD} -> ${BASE}"
+            exit 0
+          fi
+          gh pr create --base "$BASE" --head "$HEAD" \
+            --title "chore(ops): Cursor agent ${HEAD}" \
+            --body "This PR was opened automatically after a push to \`${HEAD}\`. Repository workflows will run checks and merge when allowed."

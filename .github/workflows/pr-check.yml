@@ -1,0 +1,36 @@
+# main 으로 가는 PR 에 필수 상태 검사를 제공합니다.
+# 브랜치 보호에서 이 job 을 필수로 지정하면 PR 이 "즉시 머지 불가" 상태가 되어
+# GitHub UI 의 "Enable auto-merge" 가 표시됩니다 (무료·비공개 저장소 동일).
+#
+# GitHub 에서 할 일: .github/AUTO_MERGE_SETUP.md 참고
+
+name: PR check
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-check-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr-check:
+    name: pr-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: npm test

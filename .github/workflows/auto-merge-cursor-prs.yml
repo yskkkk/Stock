@@ -1,0 +1,55 @@
+# Cursor(또는 유사) 클라우드 에이전트가 연 PR을 조건부로 자동 머지합니다.
+#
+# 동작 조건 (둘 중 하나면 실행; Draft 면 먼저 Ready 로 전환 후 머지 시도)
+#   1) PR head 가 cursor/ 이고 이벤트가 labeled 가 아닐 때 (opened / synchronize / reopened / ready_for_review)
+#   2) PR에 라벨 cursor-auto-merge 가 붙은 labeled 이벤트 (다른 브랜치도 가능)
+#
+# 제한
+#   - 포크에서 온 PR은 제외 (head repo == 본 저장소일 때만)
+#   - Branch protection(필수 리뷰·필수 CI)이 있으면 GITHUB_TOKEN 만으로 막힐 수 있음
+#     → Settings → Actions → General → Workflow permissions: Read and write
+#     → 필요 시 저장소 Secrets 에 PAT 를 AUTO_MERGE_TOKEN 으로 등록 (contents + pull-requests)
+#
+# 머지: squash, head 브랜치 삭제 시도. 필수 체크가 있으면 --auto 로 통과 후 머지를 먼저 시도합니다.
+#
+# 비공개·무료 저장소에서 GitHub 기본 "Enable auto-merge" 까지 쓰려면:
+#   .github/AUTO_MERGE_SETUP.md + 워크플로 pr-check.yml
+# cursor/** 푸시 후 PR 이 없으면: cursor-branch-open-pr.yml
+
+name: Auto-merge Cursor agent PRs
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, ready_for_review]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: auto-merge-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (
+        (startsWith(github.head_ref, 'cursor/') && github.event.action != 'labeled')
+        || (github.event.action == 'labeled' && github.event.label.name == 'cursor-auto-merge')
+      )
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Exit draft if needed, then merge
+        env:
+          GH_TOKEN: ${{ secrets.AUTO_MERGE_TOKEN || github.token }}
+        run: |
+          set -euo pipefail
+          PR="${{ github.event.pull_request.number }}"
+          if [ "$(gh pr view "$PR" --json isDraft -q .isDraft)" = "true" ]; then
+            gh pr ready "$PR"
+          fi
+          gh pr merge "$PR" --squash --delete-branch --auto || \
+          gh pr merge "$PR" --squash --delete-branch
