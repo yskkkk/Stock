@@ -2303,6 +2303,24 @@ html[data-theme="light"] .access-admin-tab--active {
     min-width: 0;
   }
 
+  /*
+   * 종목 스크리너/검색: TV 위젯 기본 min-height(420px) + 차트 열 min-height가 합쳐져
+   * 모바일에서 세로 스크롤이 과하게 길어지는 문제 완화 (코인 탭은 .crypto-workspace 규칙 유지)
+   */
+  .workspace:not(.crypto-workspace) .chart-section.crypto-chart-section {
+    min-height: 0;
+    flex: 1 1 auto;
+  }
+
+  .workspace:not(.crypto-workspace) .chart-panel.crypto-chart-panel {
+    min-height: min(32dvh, 280px);
+  }
+
+  .workspace:not(.crypto-workspace)
+    .tradingview-widget-container.tradingview-embed-mount {
+    min-height: min(38dvh, 300px);
+  }
+
   /* 코인 탭: 목록 높이·가독성 — 한 줄에 시세·거래량이 몰려 잘리는 문제 완화 */
   .crypto-workspace .picks-panel.crypto-panel {
     max-height: min(46dvh, 440px);
