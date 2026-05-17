@@ -184,6 +184,8 @@ export type OpsAgentQueueEntry = {
   id: string;
   requestIp: string;
   instructionPreview: string;
+  /** 첫 몇 줄 요약 — 큐 칩 title(툴팁)용 */
+  instructionTooltip?: string;
   enqueuedAtMs: number;
   status: "running" | "waiting";
 };

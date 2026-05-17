@@ -5,7 +5,15 @@
 
 import { randomUUID } from "node:crypto";
 
-/** @typedef {{ id: string; requestIp: string; instructionPreview: string; enqueuedAtMs: number }} OpsAgentQueueMeta */
+/**
+ * @typedef {{
+ *   id: string;
+ *   requestIp: string;
+ *   instructionPreview: string;
+ *   instructionTooltip: string;
+ *   enqueuedAtMs: number;
+ * }} OpsAgentQueueMeta
+ */
 
 /** @typedef {{ fn: () => Promise<unknown>; resolve: (v: unknown) => void; reject: (e: unknown) => void; meta: OpsAgentQueueMeta | null }} QueuedJob */
 
@@ -28,6 +36,10 @@ function sanitizeQueueIp(ip) {
     .slice(0, OPS_QUEUE_IP_MAX);
 }
 
+const PREVIEW_MAX = 220;
+const TOOLTIP_MAX = 900;
+const TOOLTIP_MAX_LINES = 4;
+
 /** @param {unknown} instruction */
 function previewInstruction(instruction) {
   const line =
@@ -35,7 +47,18 @@ function previewInstruction(instruction) {
       .split(/\r?\n/)
       .find((l) => String(l).trim().length > 0) ?? "";
   const t = line.trim();
-  return t.length > 72 ? `${t.slice(0, 69)}…` : t;
+  return t.length > PREVIEW_MAX ? `${t.slice(0, PREVIEW_MAX - 1)}…` : t;
+}
+
+/** @param {unknown} instruction — 네이티브 title용 (여러 줄) */
+function tooltipInstruction(instruction) {
+  const lines = String(instruction ?? "")
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+  const chunk = lines.slice(0, TOOLTIP_MAX_LINES).join("\n");
+  if (chunk.length <= TOOLTIP_MAX) return chunk;
+  return `${chunk.slice(0, TOOLTIP_MAX - 1)}…`;
 }
 
 export function getOpsAgentQueueWaitingCount() {
@@ -48,7 +71,7 @@ export function isOpsAgentJobRunning() {
 
 /**
  * 관리자 UI 폴링용 — 실행 중 1건 + FIFO 대기열 (완료 시 서버 메모리에서 제거됨).
- * @returns {{ entries: Array<{ id: string; requestIp: string; instructionPreview: string; enqueuedAtMs: number; status: 'running' | 'waiting' }> }}
+ * @returns {{ entries: Array<{ id: string; requestIp: string; instructionPreview: string; instructionTooltip: string; enqueuedAtMs: number; status: 'running' | 'waiting' }> }}
  */
 export function getOpsAgentQueueSnapshot() {
   const entries = [];
@@ -85,6 +108,7 @@ export function enqueueOpsAgentJob(fn, onQueued, meta) {
           id: randomUUID(),
           requestIp: sanitizeQueueIp(meta.requestIp),
           instructionPreview: previewInstruction(meta.instruction),
+          instructionTooltip: tooltipInstruction(meta.instruction),
           enqueuedAtMs: Date.now(),
         }
       : null;
