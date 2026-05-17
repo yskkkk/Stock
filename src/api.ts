@@ -147,6 +147,47 @@ export type OpsAgentSseEvent =
     }
   | { type: "error"; message: string };
 
+export type OpsAgentHistoryEntry = {
+  id: string;
+  finishedAtMs: number;
+  instruction: string;
+  error: string | null;
+  phaseLine: string;
+  cursorLine: string;
+  thinkingLine: string;
+  toolLine: string;
+  streamText: string;
+  statusText: string | null;
+  resultText: string | null;
+  durationMs: number | null;
+  runtimeLabel: string | null;
+};
+
+export type OpsAgentHistoryResponse = {
+  entries: OpsAgentHistoryEntry[];
+};
+
+/** 관리자 전용 — 서버에 저장된 에이전트 실행 이력 */
+export function fetchOpsAgentHistory() {
+  const t = getStoredAccessAdminToken();
+  const headers: Record<string, string> = {};
+  if (t) headers.Authorization = `Bearer ${t}`;
+  return fetchJson<OpsAgentHistoryResponse>("/api/ops/cursor-agent-history", {
+    headers: Object.keys(headers).length ? headers : undefined,
+  });
+}
+
+/** 관리자 전용 — 서버 실행 이력 전체 삭제 */
+export function deleteOpsAgentHistory() {
+  const t = getStoredAccessAdminToken();
+  const headers: Record<string, string> = {};
+  if (t) headers.Authorization = `Bearer ${t}`;
+  return fetchJson<{ ok: boolean }>("/api/ops/cursor-agent-history", {
+    method: "DELETE",
+    headers: Object.keys(headers).length ? headers : undefined,
+  });
+}
+
 /** 관리자 전용 — SSE로 에이전트 진행·델타·결과 수신 */
 export async function fetchOpsCursorAgentStream(
   instruction: string,

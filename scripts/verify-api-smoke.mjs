@@ -123,6 +123,13 @@ await expect(
 );
 
 await expect(
+  "ops-cursor-agent-history-forbidden",
+  "GET",
+  "/api/ops/cursor-agent-history",
+  (r) => r.status === 403 && r.json?.code === "FORBIDDEN",
+);
+
+await expect(
   "access-status",
   "GET",
   "/api/access/status",

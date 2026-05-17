@@ -896,9 +896,14 @@ export default function App() {
           onFocusSymbolConsumed={handleCryptoFocusConsumed}
         />
       ) : appTab === "ops" ? (
-        <section className="ops-management-wrap card" aria-label={ko.app.opsPanelTitle}>
-          <OpsManagementTab available={opsCursorAgentAvailable} />
-        </section>
+        <div className="workspace ops-workspace">
+          <section
+            className="ops-management-wrap card ops-management-main"
+            aria-label={ko.app.opsPanelTitle}
+          >
+            <OpsManagementTab available={opsCursorAgentAvailable} />
+          </section>
+        </div>
       ) : (
         <div className="workspace">
         <aside className="picks-panel card">

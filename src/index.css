@@ -3184,6 +3184,39 @@ html[data-theme="light"] .feedback-inbox-item {
 /* 운영관리 — Cursor 에이전트 연동 */
 /* -------------------------------------------------------------------------- */
 
+.ops-workspace {
+  width: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.ops-management-main {
+  flex: 1 1 auto;
+  min-height: min(72vh, 920px);
+  min-width: 0;
+}
+
+.ops-management__head {
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+
+.ops-management__head .ops-management__title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ops-management__subtabs {
+  flex-shrink: 0;
+}
+
+.ops-management__textarea--request {
+  min-height: min(42vh, 420px);
+}
+
 .ops-management-wrap {
   width: 100%;
   max-width: none;
@@ -3249,8 +3282,8 @@ html[data-theme="light"] .feedback-inbox-item {
   margin-top: 0.25rem;
 }
 
-.ops-management__history {
-  margin-top: 1.25rem;
+.ops-management__history-pane {
+  margin-top: 0.75rem;
   padding: 0.65rem 0.75rem;
 }
 
@@ -3299,8 +3332,12 @@ html[data-theme="light"] .feedback-inbox-item {
 .ops-management__history-details {
   border: 1px solid var(--card-border);
   border-radius: var(--radius-sm);
-  background: rgba(148, 163, 184, 0.04);
+  background: var(--bg-elevated);
   padding: 0 0.5rem;
+}
+
+html[data-theme="light"] .ops-management__history-details {
+  background: var(--surface);
 }
 
 .ops-management__history-summary {
@@ -3352,7 +3389,7 @@ html[data-theme="light"] .feedback-inbox-item {
   overflow: auto;
 }
 
-.ops-management__history .ops-management__stream {
+.ops-management__history-pane .ops-management__stream {
   margin-top: 0.65rem;
 }
 
