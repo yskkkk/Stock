@@ -3499,6 +3499,18 @@ html[data-theme="light"] .feedback-inbox-item {
 
 .ops-management__textarea--request {
   min-height: min(42vh, 420px);
+  /* 기본 필드보다 한 단계 밝게 — 다크·라이트 모두 가독성 유지 */
+  background: color-mix(in srgb, var(--surface) 78%, #64748b);
+  border-color: color-mix(in srgb, var(--card-border) 40%, rgba(148, 163, 184, 0.42));
+}
+
+html[data-theme="light"] .ops-management__textarea--request {
+  background: color-mix(in srgb, var(--surface) 68%, #ffffff);
+  border-color: color-mix(in srgb, var(--card-border) 35%, rgba(100, 116, 139, 0.35));
+}
+
+.ops-management__textarea--request:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-dim) 100%, rgba(148, 163, 184, 0.08));
 }
 
 .ops-management-wrap {
