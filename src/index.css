@@ -2255,14 +2255,15 @@ html[data-theme="light"] .access-admin-tab--active {
   html {
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .app {
-    padding-top: max(0.85rem, env(safe-area-inset-top, 0px));
-    padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
-    padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
-    padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
-    gap: 0.65rem;
+    padding-top: max(0.55rem, env(safe-area-inset-top, 0px));
+    padding-right: max(0.55rem, env(safe-area-inset-right, 0px));
+    padding-bottom: max(0.65rem, env(safe-area-inset-bottom, 0px));
+    padding-left: max(0.55rem, env(safe-area-inset-left, 0px));
+    gap: 0.48rem;
   }
 
   .macro-bar {
@@ -2281,7 +2282,7 @@ html[data-theme="light"] .access-admin-tab--active {
   }
 
   .picks-panel {
-    max-height: min(44dvh, 400px);
+    max-height: min(36dvh, 340px);
     min-height: 0;
     flex: 0 1 auto;
     max-width: none;
@@ -2294,14 +2295,14 @@ html[data-theme="light"] .access-admin-tab--active {
 
   .chart-section.crypto-chart-section {
     flex: 1 1 auto;
-    min-height: min(52dvh, 520px);
+    min-height: min(50dvh, 500px);
     min-width: 0;
   }
 
   /* 코인 탭: 목록 높이·가독성 — 한 줄에 시세·거래량이 몰려 잘리는 문제 완화 */
   .crypto-workspace .picks-panel.crypto-panel {
-    max-height: min(58dvh, 640px);
-    min-height: min(38dvh, 300px);
+    max-height: min(52dvh, 520px);
+    min-height: min(32dvh, 260px);
     width: 100%;
     align-self: stretch;
   }
@@ -2332,9 +2333,9 @@ html[data-theme="light"] .access-admin-tab--active {
   }
 
   .crypto-panel .crypto-pick-name {
-    font-size: 1rem;
+    font-size: 0.92rem;
     white-space: normal;
-    line-height: 1.35;
+    line-height: 1.32;
     overflow: visible;
     text-overflow: clip;
     word-break: break-word;
@@ -2345,40 +2346,46 @@ html[data-theme="light"] .access-admin-tab--active {
   }
 
   .crypto-panel .crypto-pick-ticker {
-    font-size: 0.78rem;
-    padding: 0.22rem 0.55rem;
+    font-size: 0.72rem;
+    padding: 0.18rem 0.48rem;
   }
 
   .crypto-panel .crypto-pick-vol {
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     white-space: normal;
     line-height: 1.35;
   }
 
   .crypto-panel .crypto-pick-quote .pick-quote__price {
-    font-size: 1.02rem;
+    font-size: 0.94rem;
   }
 
   .crypto-panel .crypto-pick-quote .pick-quote__chg {
-    font-size: 0.76rem;
+    font-size: 0.7rem;
   }
 
   .crypto-panel .pick-row.crypto-pick-row {
-    min-height: 2.85rem;
+    min-height: 2.5rem;
     touch-action: manipulation;
   }
 
   .crypto-workspace .tradingview-widget-container.tradingview-embed-mount {
-    min-height: min(36dvh, 360px);
+    min-height: min(32dvh, 320px);
   }
 
   .chart-panel {
-    min-height: min(46dvh, 480px);
+    min-height: min(42dvh, 440px);
     height: auto;
   }
 
   .top-bar.card {
-    padding: 0.55rem 0.7rem 0.6rem;
+    padding: 0.45rem 0.55rem 0.5rem;
+  }
+
+  .top-bar__brand .brand-mark {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
   }
 
   .top-bar__grid,
@@ -2486,18 +2493,23 @@ html[data-theme="light"] .access-admin-tab--active {
   }
 
   .top-bar__brand h1 {
-    font-size: 1rem;
+    font-size: 0.92rem;
+  }
+
+  .top-bar__brand p {
+    font-size: 0.76rem;
   }
 
   .main-tab {
-    min-height: 44px;
-    padding: 0.5rem 1rem;
+    min-height: 40px;
+    padding: 0.34rem 0.72rem;
+    font-size: 0.78rem;
     touch-action: manipulation;
   }
 
   .theme-toggle {
-    min-width: 44px;
-    min-height: 44px;
+    min-width: 40px;
+    min-height: 40px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -2505,15 +2517,40 @@ html[data-theme="light"] .access-admin-tab--active {
   }
 
   .btn {
-    min-height: 44px;
+    min-height: 40px;
+    padding: 0.34rem 0.75rem;
+    font-size: 0.76rem;
     touch-action: manipulation;
   }
 
   .quote-bar.card {
     flex-direction: column;
     align-items: stretch;
-    gap: 0.65rem;
-    padding: 0.85rem 1rem;
+    gap: 0.5rem;
+    padding: 0.65rem 0.75rem;
+  }
+
+  .quote-bar__info h2 {
+    font-size: 0.98rem;
+  }
+
+  .quote-bar__title-ko {
+    font-size: 0.76rem;
+  }
+
+  .quote-bar__info .pick-quote--md .pick-quote__price {
+    font-size: 0.98rem;
+  }
+
+  .quote-bar__info .pick-quote--md .pick-quote__chg {
+    font-size: 0.72rem;
+    padding: 0.12rem 0.48rem;
+  }
+
+  .quote-currency-toggle {
+    min-width: 1.75rem;
+    padding: 0.18rem 0.38rem;
+    font-size: 0.68rem;
   }
 
   .quote-bar__right {
@@ -2534,29 +2571,59 @@ html[data-theme="light"] .access-admin-tab--active {
   }
 
   .timeframe-seg .seg {
-    min-height: 42px;
-    padding: 0.4rem 0.55rem;
+    min-height: 36px;
+    padding: 0.3rem 0.48rem;
+    font-size: 0.72rem;
   }
 
   .chart-toolbar {
-    gap: 0.45rem;
+    gap: 0.38rem;
+    padding: 0.42rem 0.55rem 0;
+    font-size: 0.72rem;
+  }
+
+  .chart-toolbar__toggles .chip {
+    padding: 0.22rem 0.52rem;
+    font-size: 0.68rem;
+    min-height: 34px;
   }
 
   .filter-bar.card {
-    padding: 0.65rem 0.75rem;
+    padding: 0.52rem 0.62rem;
+  }
+
+  .signal-filter {
+    gap: 0.48rem;
+  }
+
+  .signal-filter .filter-title {
+    font-size: 0.76rem;
   }
 
   .signal-filter .chip,
   .signal-filter .seg,
   .signal-filter .filter-clear {
-    min-height: 40px;
-    padding: 0.35rem 0.65rem;
+    min-height: 36px;
+    padding: 0.26rem 0.55rem;
+    font-size: 0.72rem;
     touch-action: manipulation;
   }
 
   .macro-card.macro-card--btn {
-    min-height: 88px;
-    padding: 0.6rem 0.7rem;
+    min-height: 76px;
+    padding: 0.48rem 0.58rem;
+  }
+
+  .macro-card__countdown {
+    font-size: 0.88rem;
+  }
+
+  .macro-bar__title {
+    font-size: 0.76rem;
+  }
+
+  .macro-bar__sub {
+    font-size: 0.66rem;
   }
 
   .access-admin-modal {
@@ -2587,19 +2654,19 @@ html[data-theme="light"] .access-admin-tab--active {
   .pick-toolbar {
     flex-direction: column;
     align-items: stretch;
-    gap: 0.5rem;
-    padding: 0.55rem 0.65rem;
+    gap: 0.42rem;
+    padding: 0.45rem 0.55rem;
   }
 
   .pick-search {
     width: 100%;
-    min-height: 44px;
+    min-height: 40px;
     font-size: 16px;
   }
 
   .pick-sort {
     width: 100%;
-    min-height: 44px;
+    min-height: 40px;
     font-size: 16px;
   }
 
@@ -2609,20 +2676,22 @@ html[data-theme="light"] .access-admin-tab--active {
   }
 
   .market-tab {
-    min-height: 44px;
+    min-height: 40px;
     flex: 1;
     touch-action: manipulation;
+    font-size: 0.76rem;
+    padding: 0.32rem 0.42rem;
   }
 
   .pick-row {
-    min-height: 48px;
-    padding: 0.65rem 0.7rem;
+    min-height: 44px;
+    padding: 0.52rem 0.58rem;
   }
 
   .pick-action {
-    min-height: 44px;
-    font-size: 0.78rem;
-    padding: 0.4rem 0.35rem;
+    min-height: 40px;
+    font-size: 0.72rem;
+    padding: 0.32rem 0.28rem;
   }
 
   .panel-head {
@@ -2636,19 +2705,24 @@ html[data-theme="light"] .access-admin-tab--active {
   }
 
   .chart-placeholder.card {
-    min-height: 280px;
-    padding: 1.25rem 1rem;
+    min-height: 240px;
+    padding: 1rem 0.85rem;
+  }
+
+  .placeholder-icon {
+    font-size: 1.65rem;
   }
 
   .profit-model-strip {
     flex-wrap: wrap;
-    gap: 0.35rem 0.65rem;
-    padding: 0.65rem 0.75rem;
+    gap: 0.28rem 0.52rem;
+    padding: 0.52rem 0.62rem;
+    font-size: 0.72rem;
   }
 
   .crypto-panel .pick-item.crypto-pick-item .crypto-pick-row {
-    padding: 0.95rem 0.9rem 1rem;
-    min-height: 58px;
+    padding: 0.72rem 0.72rem 0.78rem;
+    min-height: 52px;
   }
 
   .crypto-chart-panel > .chart-toolbar {
@@ -2664,29 +2738,30 @@ html[data-theme="light"] .access-admin-tab--active {
   }
 
   .chart-draw-btn {
-    min-height: 40px;
-    padding: 0.35rem 0.6rem;
+    min-height: 36px;
+    padding: 0.28rem 0.52rem;
+    font-size: 0.72rem;
   }
 
   .profit-model-input {
     font-size: 16px;
-    min-height: 44px;
+    min-height: 40px;
   }
 
   .profit-model-actions .btn {
-    min-height: 44px;
+    min-height: 40px;
   }
 
   .pick-list {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    padding: 0.45rem 0.4rem 0.6rem;
+    gap: 0.38rem;
+    padding: 0.38rem 0.35rem 0.5rem;
   }
 
   .pick-item {
     margin-bottom: 0;
-    border-radius: 14px;
+    border-radius: 12px;
     overflow: hidden;
     border: 1px solid var(--card-border);
     background: var(--bg-elevated);
@@ -2711,9 +2786,9 @@ html[data-theme="light"] .access-admin-tab--active {
   }
 
   .crypto-panel .pick-item.crypto-pick-item {
-    border-radius: 14px;
-    margin-bottom: 0.5rem;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
+    border-radius: 12px;
+    margin-bottom: 0.42rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   }
 }
 
@@ -2744,14 +2819,14 @@ html[data-theme="light"] .access-admin-tab--active {
 
 @media (max-width: 900px) {
   :root {
-    --radius: 17px;
-    --radius-sm: 12px;
-    --shadow: 0 14px 44px rgba(0, 0, 0, 0.28);
+    --radius: 14px;
+    --radius-sm: 10px;
+    --shadow: 0 10px 36px rgba(0, 0, 0, 0.26);
     --card-border: rgba(148, 163, 184, 0.1);
   }
 
   html[data-theme="light"] {
-    --shadow: 0 16px 48px rgba(15, 23, 42, 0.08);
+    --shadow: 0 12px 40px rgba(15, 23, 42, 0.07);
   }
 
   body {
@@ -2765,28 +2840,29 @@ html[data-theme="light"] .access-admin-tab--active {
       "Segoe UI",
       system-ui,
       sans-serif;
-    letter-spacing: -0.018em;
+    letter-spacing: -0.016em;
+    font-weight: 560;
   }
 
   .app {
-    gap: 0.78rem;
+    gap: 0.52rem;
   }
 
   .macro-bar.card {
-    border-radius: 20px;
-    padding: 0.9rem 1rem 1rem;
+    border-radius: 16px;
+    padding: 0.62rem 0.75rem 0.68rem;
     box-shadow: var(--shadow);
     border-color: var(--card-border);
   }
 
   .macro-bar__track {
-    gap: 0.65rem;
-    padding-bottom: 0.25rem;
-    scroll-padding-inline: 0.25rem;
+    gap: 0.52rem;
+    padding-bottom: 0.18rem;
+    scroll-padding-inline: 0.18rem;
   }
 
   .macro-card.macro-card--btn {
-    border-radius: 14px;
+    border-radius: 12px;
   }
 
   .top-bar.card {
@@ -2796,19 +2872,19 @@ html[data-theme="light"] .access-admin-tab--active {
     -webkit-backdrop-filter: blur(18px) saturate(1.15);
     backdrop-filter: blur(18px) saturate(1.15);
     background: color-mix(in srgb, var(--card) 76%, transparent);
-    border-radius: 20px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.22);
+    border-radius: 16px;
+    box-shadow: 0 6px 26px rgba(0, 0, 0, 0.2);
     border-color: var(--card-border);
   }
 
   html[data-theme="light"] .top-bar.card {
     background: color-mix(in srgb, var(--card) 88%, transparent);
-    box-shadow: 0 10px 36px rgba(15, 23, 42, 0.07);
+    box-shadow: 0 8px 30px rgba(15, 23, 42, 0.06);
   }
 
   .main-tabs {
-    padding: 5px;
-    gap: 5px;
+    padding: 3px;
+    gap: 3px;
     border-radius: 999px;
   }
 
@@ -2822,31 +2898,31 @@ html[data-theme="light"] .access-admin-tab--active {
   }
 
   .picks-panel.card {
-    border-radius: 20px;
+    border-radius: 16px;
     box-shadow: var(--shadow);
     border-color: var(--card-border);
   }
 
   .filter-bar.card {
-    border-radius: 18px;
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.14);
+    border-radius: 15px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.12);
   }
 
   html[data-theme="light"] .filter-bar.card {
-    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.06);
+    box-shadow: 0 6px 24px rgba(15, 23, 42, 0.05);
   }
 
   .quote-bar.card {
-    border-radius: 18px;
-    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.16);
+    border-radius: 15px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.14);
   }
 
   html[data-theme="light"] .quote-bar.card {
-    box-shadow: 0 8px 26px rgba(15, 23, 42, 0.06);
+    box-shadow: 0 6px 24px rgba(15, 23, 42, 0.05);
   }
 
   .chart-placeholder.card {
-    border-radius: 18px;
+    border-radius: 15px;
   }
 
   .access-admin-backdrop {
@@ -2867,11 +2943,11 @@ html[data-theme="light"] .access-admin-tab--active {
   .access-admin-modal {
     width: 100%;
     max-width: 100%;
-    border-radius: 22px 22px 0 0;
-    padding: 1.05rem 1.1rem 1.25rem;
-    padding-bottom: max(1.25rem, env(safe-area-inset-bottom, 0px));
+    border-radius: 18px 18px 0 0;
+    padding: 0.85rem 0.95rem 1.05rem;
+    padding-bottom: max(1.05rem, env(safe-area-inset-bottom, 0px));
     max-height: min(92dvh, 760px);
-    box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.32);
   }
 
   html[data-theme="light"] .access-admin-modal {
@@ -2879,15 +2955,16 @@ html[data-theme="light"] .access-admin-tab--active {
   }
 
   .access-admin-field input {
-    min-height: 48px;
-    padding: 0.55rem 0.7rem;
+    min-height: 44px;
+    padding: 0.48rem 0.62rem;
     font-size: 16px;
-    border-radius: 12px;
+    border-radius: 11px;
   }
 
   .alert.alert--error {
-    border-radius: 16px;
-    padding: 0.85rem 1rem;
+    border-radius: 14px;
+    padding: 0.68rem 0.85rem;
+    font-size: 0.8rem;
   }
 }
 
@@ -3812,11 +3889,11 @@ body {
 @media (max-width: 900px) {
   /* 우측(불편·운영) / 라이트 모드 좌측(팔레트) FAB과 스티키 헤더가 겹치지 않게 */
   .top-bar.card {
-    padding-inline-end: max(calc(0.7rem + 5rem), env(safe-area-inset-right, 0px));
+    padding-inline-end: max(calc(0.55rem + 4.25rem), env(safe-area-inset-right, 0px));
   }
 
   html[data-theme="light"] .top-bar.card {
-    padding-inline-start: max(calc(0.7rem + 5.75rem), env(safe-area-inset-left, 0px));
+    padding-inline-start: max(calc(0.55rem + 5.25rem), env(safe-area-inset-left, 0px));
   }
 
   .filter-header {
@@ -3926,9 +4003,9 @@ body {
   .feedback-modal.feedback-modal--wide {
     width: 100%;
     max-width: 100%;
-    border-radius: 22px 22px 0 0;
+    border-radius: 18px 18px 0 0;
     max-height: min(92dvh, 760px);
-    padding-bottom: max(1.1rem, env(safe-area-inset-bottom, 0px));
+    padding-bottom: max(0.95rem, env(safe-area-inset-bottom, 0px));
     box-sizing: border-box;
   }
 

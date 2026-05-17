@@ -320,17 +320,86 @@ body {
 }
 
 @media (max-width: 900px) {
-  :root {
-    --radius: 22px;
-    --radius-sm: 14px;
-    --radius-xl: 26px;
+  html {
+    font-size: 15px;
   }
 
-  .macro-bar.card {
-    border-radius: var(--radius-xl);
+  body {
+    font-weight: 580;
+    line-height: 1.52;
+    letter-spacing: -0.017em;
+  }
+
+  .app {
+    gap: 0.48rem;
+    padding-top: max(0.55rem, env(safe-area-inset-top, 0px));
+    padding-right: max(0.55rem, env(safe-area-inset-right, 0px));
+    padding-bottom: max(0.65rem, env(safe-area-inset-bottom, 0px));
+    padding-left: max(0.55rem, env(safe-area-inset-left, 0px));
+  }
+
+  .btn {
+    font-size: 0.78rem;
+    padding: 0.36rem 0.88rem;
+  }
+
+  .main-tab {
+    padding: 0.34rem 0.72rem;
+    font-size: 0.8rem;
+  }
+
+  .top-bar__brand h1 {
+    font-size: 0.95rem;
+    letter-spacing: -0.028em;
+  }
+
+  .top-bar__brand p {
+    font-size: 0.78rem;
+  }
+
+  .quote-bar__info h2,
+  .quote-main h2 {
+    font-size: 0.98rem;
+    letter-spacing: -0.026em;
+  }
+
+  .pick-name {
+    font-size: 0.88rem;
+  }
+
+  .pick-action {
+    font-size: 0.68rem;
+    padding: 0.32rem 0;
+  }
+
+  .chip {
+    padding: 0.26rem 0.58rem;
+    font-size: 0.72rem;
+  }
+
+  .timeframe-seg .seg {
+    padding: 0.3rem 0.48rem;
+    font-size: 0.74rem;
+  }
+
+  .chart-toolbar {
+    font-size: 0.74rem;
+  }
+
+  .chart-draw-btn {
+    padding: 0.28rem 0.55rem;
+    font-size: 0.72rem;
+  }
+
+  .macro-card {
+    border-radius: 12px;
   }
 
   .macro-card.macro-card--btn {
-    border-radius: 18px;
+    border-radius: 12px;
+  }
+
+  .brand-mark {
+    border-radius: 10px;
   }
 }
