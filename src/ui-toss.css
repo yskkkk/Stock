@@ -339,13 +339,15 @@ body {
   }
 
   .btn {
-    font-size: 0.74rem;
-    padding: 0.32rem 0.78rem;
+    font-size: 0.73rem;
+    padding: 0.34rem 0.78rem;
+    min-height: 40px;
   }
 
   .main-tab {
-    padding: 0.3rem 0.62rem;
-    font-size: 0.76rem;
+    min-height: 40px;
+    padding: 0.32rem 0.5rem;
+    font-size: 0.74rem;
   }
 
   .top-bar__brand h1 {
@@ -431,11 +433,13 @@ body {
 
   .btn {
     font-size: 0.72rem;
-    padding: 0.28rem 0.68rem;
+    padding: 0.32rem 0.68rem;
+    min-height: 40px;
   }
 
   .main-tab {
-    padding: 0.26rem 0.52rem;
+    min-height: 40px;
+    padding: 0.3rem 0.46rem;
     font-size: 0.73rem;
   }
 
