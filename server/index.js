@@ -1,3 +1,4 @@
+import { startMacroReminderLoop } from "./macro-telegram-reminders.js";
 import { createApp } from "./create-app.js";
 import { loadEnvFile } from "./load-env.js";
 import { installProcessGuards } from "./process-guards.js";
@@ -11,6 +12,8 @@ const app = createApp();
 startScreening().catch((err) => {
   console.warn("[screener]", err instanceof Error ? err.message : err);
 });
+
+startMacroReminderLoop();
 
 const server = app.listen(PORT, () => {
   console.log(`API server http://localhost:${PORT}`);

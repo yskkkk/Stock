@@ -1,0 +1,142 @@
+/**
+ * 라이트 모드 색조 — html[data-theme="light"][data-light-palette="…"]
+ * (theme.css 다음에 로드; JS가 data-light-palette를 항상 설정)
+ */
+
+html[data-theme="light"][data-light-palette="mist"] {
+  --bg: #c9d4e2;
+  --bg-elevated: #bcc8d8;
+  --surface: #d6dee9;
+  --card: #dde6f1;
+  --card-border: rgba(15, 23, 42, 0.12);
+  --text: #0f172a;
+  --text-dim: #3d4f66;
+  --muted: #526077;
+  --accent: #0d9488;
+  --accent-ink: #0f766e;
+  --accent-press: #115e59;
+  --accent-dim: rgb(from var(--accent) r g b / 0.14);
+  --accent-border: rgb(from var(--accent) r g b / 0.4);
+  --up: #15803d;
+  --down: #c62828;
+  --warn: #b45309;
+  --shadow: 0 4px 22px rgba(15, 23, 42, 0.08);
+  --scrollbar-track: #b4c0d2;
+  --scrollbar-thumb: rgba(71, 85, 105, 0.35);
+  --scrollbar-thumb-hover: rgba(71, 85, 105, 0.52);
+}
+
+html[data-theme="light"][data-light-palette="paper"] {
+  --bg: #e8e4dc;
+  --bg-elevated: #ddd8cf;
+  --surface: #efeae3;
+  --card: #f5f1ea;
+  --card-border: rgba(55, 48, 40, 0.11);
+  --text: #2a2622;
+  --text-dim: #5a5349;
+  --muted: #756c62;
+  --accent: #5a6bb5;
+  --accent-ink: #3d4677;
+  --accent-press: #2f375e;
+  --accent-dim: rgb(from var(--accent) r g b / 0.15);
+  --accent-border: rgb(from var(--accent) r g b / 0.38);
+  --up: #2a6b3f;
+  --down: #b83232;
+  --warn: #a16207;
+  --shadow: 0 4px 22px rgba(42, 38, 34, 0.07);
+  --scrollbar-track: #d2ccc2;
+  --scrollbar-thumb: rgba(90, 82, 72, 0.32);
+  --scrollbar-thumb-hover: rgba(90, 82, 72, 0.48);
+}
+
+html[data-theme="light"][data-light-palette="sage"] {
+  --bg: #dbe3de;
+  --bg-elevated: #cdd8d1;
+  --surface: #e6ede8;
+  --card: #eef4ef;
+  --card-border: rgba(35, 55, 45, 0.11);
+  --text: #1e2b24;
+  --text-dim: #3d5247;
+  --muted: #5a6e62;
+  --accent: #2f6f55;
+  --accent-ink: #245a44;
+  --accent-press: #1b4534;
+  --accent-dim: rgb(from var(--accent) r g b / 0.14);
+  --accent-border: rgb(from var(--accent) r g b / 0.38);
+  --up: #1f6b3a;
+  --down: #ba2f2f;
+  --warn: #9a6700;
+  --shadow: 0 4px 22px rgba(30, 43, 36, 0.07);
+  --scrollbar-track: #c5d0c8;
+  --scrollbar-thumb: rgba(60, 80, 68, 0.32);
+  --scrollbar-thumb-hover: rgba(60, 80, 68, 0.48);
+}
+
+html[data-theme="light"][data-light-palette="lavender"] {
+  --bg: #e2e0ec;
+  --bg-elevated: #d5d2e3;
+  --surface: #eae8f3;
+  --card: #f0eef8;
+  --card-border: rgba(45, 38, 70, 0.11);
+  --text: #252134;
+  --text-dim: #4b4668;
+  --muted: #6a6488;
+  --accent: #5f4bb0;
+  --accent-ink: #4a3a8c;
+  --accent-press: #3c2f6f;
+  --accent-dim: rgb(from var(--accent) r g b / 0.14);
+  --accent-border: rgb(from var(--accent) r g b / 0.38);
+  --up: #2a6b45;
+  --down: #b42c2c;
+  --warn: #955f0a;
+  --shadow: 0 4px 22px rgba(37, 33, 52, 0.07);
+  --scrollbar-track: #cdc8df;
+  --scrollbar-thumb: rgba(75, 70, 110, 0.3);
+  --scrollbar-thumb-hover: rgba(75, 70, 110, 0.46);
+}
+
+html[data-theme="light"][data-light-palette="sand"] {
+  --bg: #ebe2d8;
+  --bg-elevated: #e0d4c8;
+  --surface: #f0e8df;
+  --card: #f6efe6;
+  --card-border: rgba(70, 52, 38, 0.11);
+  --text: #2f241c;
+  --text-dim: #5c4d42;
+  --muted: #7a6a5e;
+  --accent: #8b5f3a;
+  --accent-ink: #6b482c;
+  --accent-press: #543822;
+  --accent-dim: rgb(from var(--accent) r g b / 0.15);
+  --accent-border: rgb(from var(--accent) r g b / 0.38);
+  --up: #2d6a3a;
+  --down: #b03030;
+  --warn: #92400e;
+  --shadow: 0 4px 22px rgba(47, 36, 28, 0.07);
+  --scrollbar-track: #d8cdc2;
+  --scrollbar-thumb: rgba(110, 90, 72, 0.3);
+  --scrollbar-thumb-hover: rgba(110, 90, 72, 0.46);
+}
+
+html[data-theme="light"][data-light-palette="dusk"] {
+  --bg: #d6dce8;
+  --bg-elevated: #c8d0df;
+  --surface: #dfe5ef;
+  --card: #e8edf5;
+  --card-border: rgba(30, 42, 62, 0.12);
+  --text: #152238;
+  --text-dim: #3d4f6a;
+  --muted: #55657d;
+  --accent: #3d6ea8;
+  --accent-ink: #2d5280;
+  --accent-press: #244066;
+  --accent-dim: rgb(from var(--accent) r g b / 0.14);
+  --accent-border: rgb(from var(--accent) r g b / 0.4);
+  --up: #1f6b3d;
+  --down: #c02626;
+  --warn: #a15f0a;
+  --shadow: 0 4px 22px rgba(21, 34, 56, 0.08);
+  --scrollbar-track: #bcc6d6;
+  --scrollbar-thumb: rgba(60, 76, 100, 0.32);
+  --scrollbar-thumb-hover: rgba(60, 76, 100, 0.48);
+}

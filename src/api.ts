@@ -6,11 +6,14 @@ import type {
   CryptoUniverseResponse,
   FeedbackInboxResponse,
   MacroEventsResponse,
+  Market,
   NewsResponse,
   PicksResponse,
   QuoteResponse,
   RefreshResponse,
+  StockSearchResponse,
   TelegramSentResponse,
+  UsdKrwRateResponse,
 } from "./types";
 
 export interface StockData extends ChartResponse {
@@ -28,13 +31,30 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
     throw err;
   }
   const text = await res.text();
-  let data: { error?: string; message?: string } = {};
+  let data: { error?: string; message?: string; code?: string } = {};
   try {
     data = text ? JSON.parse(text) : {};
   } catch {
     throw new Error(ko.errors.parse);
   }
-  if (!res.ok) throw new Error(data.error ?? data.message ?? ko.errors.request);
+  if (!res.ok) {
+    if (
+      res.status === 403 &&
+      data.code === "ACCESS_DENIED" &&
+      typeof window !== "undefined"
+    ) {
+      if (!(window as unknown as { __stockAccessDeniedNav?: boolean }).__stockAccessDeniedNav) {
+        (window as unknown as { __stockAccessDeniedNav?: boolean }).__stockAccessDeniedNav = true;
+        try {
+          clearStoredAccessAdminToken();
+        } catch {
+          /* ignore */
+        }
+        window.location.replace("/access-gate.html");
+      }
+    }
+    throw new Error(data.error ?? data.message ?? ko.errors.request);
+  }
   return data as T;
 }
 
@@ -46,6 +66,30 @@ export function getStoredAccessAdminToken(): string {
     return sessionStorage.getItem(ACCESS_ADMIN_TOKEN_KEY)?.trim() ?? "";
   } catch {
     return "";
+  }
+}
+
+/** 관리자 모달·게이트와 동일 키 — 잠금/로그아웃 시 둘 다 비움 */
+export function clearStoredAccessAdminToken(): void {
+  if (typeof sessionStorage === "undefined") return;
+  try {
+    sessionStorage.removeItem(ACCESS_ADMIN_TOKEN_KEY);
+    localStorage.removeItem(ACCESS_ADMIN_TOKEN_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** 세션에만 저장하고, 예전에 localStorage에 남은 동일 키는 제거(우선순위 꼬임 방지) */
+export function persistAccessAdminToken(token: string): void {
+  if (typeof sessionStorage === "undefined") return;
+  const t = token.trim();
+  if (!t) return;
+  try {
+    localStorage.removeItem(ACCESS_ADMIN_TOKEN_KEY);
+    sessionStorage.setItem(ACCESS_ADMIN_TOKEN_KEY, t);
+  } catch {
+    /* ignore */
   }
 }
 
@@ -75,7 +119,30 @@ export function fetchConfig() {
     feedbackInboxEnabled?: boolean;
     telegramResetAllowed?: boolean;
     adminIpConsole?: boolean;
+    accessAdmin?: boolean;
+    opsCursorAgentAvailable?: boolean;
   }>("/api/config", Object.keys(headers).length ? { headers } : undefined);
+}
+
+export interface OpsCursorAgentResponse {
+  ok: boolean;
+  status: string;
+  result: string;
+  durationMs?: number;
+}
+
+/** 관리자 전용 — 서버에서 로컬 Cursor 에이전트 실행 (수 분 소요 가능) */
+export function postOpsCursorAgent(instruction: string, context: string) {
+  const t = getStoredAccessAdminToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json; charset=utf-8",
+  };
+  if (t) headers.Authorization = `Bearer ${t}`;
+  return fetchJson<OpsCursorAgentResponse>("/api/ops/cursor-agent", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ instruction, context }),
+  });
 }
 
 export function resetTelegramAlertHistory() {
@@ -108,6 +175,26 @@ export function fetchStock(symbol: string, timeframe: ChartTimeframe, live = fal
   const liveParam = live ? "&live=1" : "";
   return fetchJson<StockData>(
     `/api/stock/${encodeURIComponent(symbol)}?timeframe=${timeframe}${liveParam}`,
+  );
+}
+
+export function fetchStockSearch(
+  query: string,
+  market: Market,
+  signal?: AbortSignal,
+) {
+  const q = query.trim();
+  return fetchJson<StockSearchResponse>(
+    `/api/stock-search?q=${encodeURIComponent(q)}&market=${market}`,
+    signal ? { signal } : undefined,
+  );
+}
+
+/** USD/KRW (Yahoo KRW=X, 서버 짧은 캐시) */
+export function fetchUsdKrw(signal?: AbortSignal) {
+  return fetchJson<UsdKrwRateResponse>(
+    "/api/fx/usd-krw",
+    signal ? { signal } : undefined,
   );
 }
 
@@ -168,6 +255,8 @@ export interface AccessAllowedEntry {
   note?: string;
   addedAt: string;
   fromRequestId?: string;
+  /** 허용 IP에 부여된 위임 관리자(접속 IP 일치 시 관리자 API 사용 가능) */
+  adminDelegate?: boolean;
 }
 
 export interface AccessAdminSnapshot {
@@ -256,6 +345,22 @@ export function postAccessAdminRevoke(adminToken: string, ip: string) {
   });
 }
 
+export function postAccessAdminGrantDelegate(adminToken: string, ip: string) {
+  return fetchJson<{ ok: boolean }>("/api/access/admin/grant-delegate", {
+    method: "POST",
+    headers: accessAdminPostHeaders(adminToken),
+    body: JSON.stringify({ ip }),
+  });
+}
+
+export function postAccessAdminRevokeDelegate(adminToken: string, ip: string) {
+  return fetchJson<{ ok: boolean }>("/api/access/admin/revoke-delegate", {
+    method: "POST",
+    headers: accessAdminPostHeaders(adminToken),
+    body: JSON.stringify({ ip }),
+  });
+}
+
 export function postFeedbackMessage(message: string) {
   return fetchJson<{ ok: boolean }>("/api/feedback", {
     method: "POST",
@@ -270,5 +375,22 @@ export function fetchFeedbackInbox(token?: string) {
   if (t) headers.Authorization = `Bearer ${t}`;
   return fetchJson<FeedbackInboxResponse>("/api/feedback/inbox", {
     headers: Object.keys(headers).length ? headers : undefined,
+    cache: "no-store",
+  });
+}
+
+export function postFeedbackAdminReply(adminToken: string, id: string, message: string) {
+  return fetchJson<{ ok: boolean }>("/api/feedback/admin/reply", {
+    method: "POST",
+    headers: accessAdminPostHeaders(adminToken),
+    body: JSON.stringify({ id, message }),
+  });
+}
+
+export function postFeedbackAdminDelete(adminToken: string, id: string) {
+  return fetchJson<{ ok: boolean }>("/api/feedback/admin/delete", {
+    method: "POST",
+    headers: accessAdminPostHeaders(adminToken),
+    body: JSON.stringify({ id }),
   });
 }

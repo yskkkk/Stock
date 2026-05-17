@@ -7,7 +7,6 @@ export interface PickQuoteStripProps {
   changePercent?: number | null;
   size?: "sm" | "md";
   className?: string;
-  showSymbol?: boolean;
 }
 
 export default function PickQuoteStrip({
@@ -17,7 +16,6 @@ export default function PickQuoteStrip({
   changePercent,
   size = "sm",
   className = "",
-  showSymbol = true,
 }: PickQuoteStripProps) {
   const up = (changePercent ?? 0) >= 0;
   const hasChg = changePercent != null;
@@ -31,11 +29,6 @@ export default function PickQuoteStrip({
       role="group"
       aria-label={`${symbol} 시세`}
     >
-      {showSymbol && (
-        <span className="pick-quote__symbol" title={symbol}>
-          {symbol}
-        </span>
-      )}
       {hasPrice && (
         <span className="pick-quote__price">
           {formatPrice(price, currency ?? undefined)}

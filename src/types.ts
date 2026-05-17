@@ -1,6 +1,9 @@
 export type ChartTimeframe = "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
 export type Market = "kr" | "us";
 
+/** 텔레그램 발송 이력 등 — 코인 알림 확장용 */
+export type TelegramSentMarket = Market | "crypto";
+
 export type MacroImportance = "high" | "medium";
 export type MacroRegion = "us" | "kr";
 
@@ -83,8 +86,37 @@ export interface StockPick {
   score: number;
   signalIds?: string[];
   signals: string[];
+  /** 미국 종목 한글 표기(검색·로컬 맵) */
+  nameKo?: string;
+  /** 미국 종목 영문 회사명(검색 보조) */
+  nameEn?: string;
   /** 상승 유망 탭용 근거 문장 */
   bullishReasons?: string[];
+}
+
+/** GET /api/stock-search — Yahoo Finance 심볼 검색 (국내·미국 시장 필터) */
+export interface StockSearchQuoteRow {
+  symbol: string;
+  name: string;
+  market: Market;
+  exchange?: string;
+  quoteType?: string;
+  nameKo?: string | null;
+  nameEn?: string | null;
+  price?: number;
+  changePercent?: number;
+  currency?: string;
+  marketState?: string;
+}
+
+/** GET /api/fx/usd-krw */
+export interface UsdKrwRateResponse {
+  rate: number;
+  updatedAt: number;
+}
+
+export interface StockSearchResponse {
+  quotes: StockSearchQuoteRow[];
 }
 
 export type NewsKind = "news" | "disclosure";
@@ -115,7 +147,7 @@ export interface ScreenFailure {
 }
 
 export interface TelegramSentItem {
-  market: Market;
+  market: TelegramSentMarket;
   symbol: string;
   name: string;
   score: number;
@@ -130,12 +162,19 @@ export interface TelegramSentResponse {
   count: number;
 }
 
+export interface FeedbackComment {
+  id: string;
+  at: string;
+  message: string;
+}
+
 export interface FeedbackInboxItem {
   id: string;
   at: string;
   ip: string;
   userAgent: string;
   message: string;
+  comments?: FeedbackComment[];
 }
 
 export interface FeedbackInboxResponse {

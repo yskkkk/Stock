@@ -26,7 +26,7 @@ loadJson("universe-us.json");
 loadJson("names-ko-us.json");
 
 /** 한글 포함 여부 */
-function hasHangul(text) {
+export function hasHangul(text) {
   return /[\uAC00-\uD7A3]/.test(text);
 }
 
@@ -52,4 +52,19 @@ export function resolveDisplayName(symbol, ...candidates) {
 
 export function registerKoreanName(symbol, nameKo) {
   if (symbol && nameKo) nameMap.set(String(symbol).toUpperCase(), nameKo);
+}
+
+/** names-ko-us 등에 등록된 한글 표기 (없으면 null) */
+export function getKoreanStockName(symbol) {
+  const sym = String(symbol ?? "").toUpperCase();
+  return nameMap.get(sym) ?? null;
+}
+
+/** Yahoo 검색 행 등 — 영문 회사명(한글 제외 우선) */
+export function englishYahooName(shortName, longName) {
+  const long = String(longName ?? "").trim();
+  const short = String(shortName ?? "").trim();
+  if (long && !hasHangul(long)) return long;
+  if (short && !hasHangul(short)) return short;
+  return "";
 }

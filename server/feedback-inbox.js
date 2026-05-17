@@ -9,10 +9,35 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const STORE_PATH = path.join(__dirname, ".data", "feedback-inbox.json");
 const MAX_ITEMS = 400;
 const MAX_MESSAGE_LEN = 2000;
+const MAX_REPLY_LEN = 2000;
+const MAX_COMMENTS_PER_THREAD = 40;
 const POST_COOLDOWN_MS = 20_000;
 
 function ensureDir() {
   fs.mkdirSync(path.dirname(STORE_PATH), { recursive: true });
+}
+
+function normalizeItem(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const id = String(raw.id ?? "").trim();
+  if (!id) return null;
+  const comments = Array.isArray(raw.comments)
+    ? raw.comments
+        .map((c) => ({
+          id: String(c?.id ?? "").trim(),
+          at: String(c?.at ?? ""),
+          message: String(c?.message ?? "").slice(0, MAX_REPLY_LEN),
+        }))
+        .filter((c) => c.id && c.message)
+    : [];
+  return {
+    id,
+    at: String(raw.at ?? new Date().toISOString()),
+    ip: String(raw.ip ?? ""),
+    userAgent: String(raw.userAgent ?? "").slice(0, 400),
+    message: String(raw.message ?? "").slice(0, MAX_MESSAGE_LEN),
+    comments,
+  };
 }
 
 function readItems() {
@@ -20,7 +45,8 @@ function readItems() {
     if (!fs.existsSync(STORE_PATH)) return [];
     const raw = fs.readFileSync(STORE_PATH, "utf8");
     const data = JSON.parse(raw);
-    return Array.isArray(data) ? data : [];
+    if (!Array.isArray(data)) return [];
+    return data.map(normalizeItem).filter(Boolean);
   } catch {
     return [];
   }
@@ -32,10 +58,6 @@ function writeItems(items) {
 }
 
 const lastPostAt = new Map();
-
-function inboxToken() {
-  return String(process.env.FEEDBACK_INBOX_TOKEN ?? "").trim();
-}
 
 /**
  * POST /api/feedback — 본문 저장 + 접속 IP·UA 기록 (IP 게이트 밖에서도 제출 가능)
@@ -67,6 +89,7 @@ export function postFeedback(req, res) {
     ip,
     userAgent: String(req.headers["user-agent"] ?? "").slice(0, 400),
     message: message.slice(0, MAX_MESSAGE_LEN),
+    comments: [],
   };
 
   const next = [entry, ...readItems()].slice(0, MAX_ITEMS);
@@ -76,29 +99,76 @@ export function postFeedback(req, res) {
 }
 
 /**
- * GET /api/feedback/inbox — Bearer FEEDBACK_INBOX_TOKEN 또는 관리자(ACCESS 토큰·등록 IP)
+ * GET /api/feedback/inbox — 공개 조회 (IP 게이트 예외 경로). 댓글 포함.
  */
-export function getFeedbackInbox(req, res) {
-  const tok = inboxToken();
-  const admin = isAccessAdminRequest(req);
-  if (!tok && !admin) {
-    res.status(503).json({
-      error:
-        "접수함을 열려면 FEEDBACK_INBOX_TOKEN을 설정하거나, 관리자(ACCESS_ADMIN_TOKEN 또는 ACCESS_ADMIN_IPS)로 접속하세요.",
-    });
+export function getFeedbackInbox(_req, res) {
+  const items = readItems();
+  res.json({ items, count: items.length });
+}
+
+/**
+ * POST /api/feedback/admin/reply — 관리자만 (토큰·등록 IP·위임 IP)
+ */
+export function postFeedbackAdminReply(req, res) {
+  if (!isAccessAdminRequest(req)) {
+    res.status(401).json({ error: "관리자 권한이 필요합니다." });
     return;
   }
-  if (admin) {
-    const items = readItems();
-    res.json({ items, count: items.length });
+  const id = String(req.body?.id ?? "").trim();
+  const message = String(req.body?.message ?? "").trim();
+  if (!id) {
+    res.status(400).json({ error: "id가 필요합니다." });
     return;
   }
-  const auth = String(req.headers.authorization ?? "");
-  const m = auth.match(/^Bearer\s+(.+)$/i);
-  if (!m || m[1].trim() !== tok) {
-    res.status(401).json({ error: "비밀번호가 올바르지 않습니다." });
+  if (!message) {
+    res.status(400).json({ error: "댓글 내용을 입력해 주세요." });
+    return;
+  }
+  if (message.length > MAX_REPLY_LEN) {
+    res.status(400).json({ error: `댓글은 ${MAX_REPLY_LEN}자 이하로 적어 주세요.` });
     return;
   }
   const items = readItems();
-  res.json({ items, count: items.length });
+  const idx = items.findIndex((x) => x.id === id);
+  if (idx < 0) {
+    res.status(404).json({ error: "해당 접수를 찾을 수 없습니다." });
+    return;
+  }
+  const row = items[idx];
+  const comments = Array.isArray(row.comments) ? [...row.comments] : [];
+  if (comments.length >= MAX_COMMENTS_PER_THREAD) {
+    res.status(400).json({ error: "댓글 수가 상한에 도달했습니다." });
+    return;
+  }
+  comments.push({
+    id: randomUUID(),
+    at: new Date().toISOString(),
+    message: message.slice(0, MAX_REPLY_LEN),
+  });
+  items[idx] = { ...row, comments };
+  writeItems(items);
+  res.json({ ok: true });
+}
+
+/**
+ * POST /api/feedback/admin/delete — 관리자만
+ */
+export function deleteFeedbackAdmin(req, res) {
+  if (!isAccessAdminRequest(req)) {
+    res.status(401).json({ error: "관리자 권한이 필요합니다." });
+    return;
+  }
+  const id = String(req.body?.id ?? "").trim();
+  if (!id) {
+    res.status(400).json({ error: "id가 필요합니다." });
+    return;
+  }
+  const items = readItems();
+  const next = items.filter((x) => x.id !== id);
+  if (next.length === items.length) {
+    res.status(404).json({ error: "해당 접수를 찾을 수 없습니다." });
+    return;
+  }
+  writeItems(next);
+  res.json({ ok: true });
 }

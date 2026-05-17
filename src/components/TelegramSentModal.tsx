@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useModalDrag } from "../hooks/useModalDrag";
 import PickQuoteStrip from "./PickQuoteStrip";
 import {
   ko,
@@ -13,6 +14,8 @@ interface TelegramSentModalProps {
   loading: boolean;
   error: string | null;
   onClose: () => void;
+  /** 종목 행 클릭 시 차트로 이동 */
+  onOpenStock?: (item: TelegramSentItem) => void;
 }
 
 function formatSentAt(ts: number) {
@@ -32,6 +35,7 @@ export default function TelegramSentModal({
   loading,
   error,
   onClose,
+  onOpenStock,
 }: TelegramSentModalProps) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -46,8 +50,11 @@ export default function TelegramSentModal({
     };
   }, [onClose]);
 
+  const drag = useModalDrag([items.length, loading, Boolean(error)]);
+
   const kr = items.filter((i) => i.market === "kr");
   const us = items.filter((i) => i.market === "us");
+  const crypto = items.filter((i) => i.market === "crypto");
 
   return createPortal(
     <div
@@ -60,9 +67,13 @@ export default function TelegramSentModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="telegram-sent-title"
+        style={drag.modalStyle}
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="news-modal-header">
+        <header
+          className="news-modal-header modal-drag-handle"
+          onPointerDown={drag.onDragHandlePointerDown}
+        >
           <div>
             <h2 id="telegram-sent-title">{ko.telegramSent.title}</h2>
             <p className="news-modal-sub">
@@ -97,10 +108,25 @@ export default function TelegramSentModal({
           {!loading && !error && items.length > 0 && (
             <>
               {kr.length > 0 && (
-                <SentSection title={telegramSentSection("kr", kr.length)} items={kr} />
+                <SentSection
+                  title={telegramSentSection("kr", kr.length)}
+                  items={kr}
+                  onOpenStock={onOpenStock}
+                />
               )}
               {us.length > 0 && (
-                <SentSection title={telegramSentSection("us", us.length)} items={us} />
+                <SentSection
+                  title={telegramSentSection("us", us.length)}
+                  items={us}
+                  onOpenStock={onOpenStock}
+                />
+              )}
+              {crypto.length > 0 && (
+                <SentSection
+                  title={telegramSentSection("crypto", crypto.length)}
+                  items={crypto}
+                  onOpenStock={onOpenStock}
+                />
               )}
             </>
           )}
@@ -114,42 +140,73 @@ export default function TelegramSentModal({
 function SentSection({
   title,
   items,
+  onOpenStock,
 }: {
   title: string;
   items: TelegramSentItem[];
+  onOpenStock?: (item: TelegramSentItem) => void;
 }) {
   return (
     <section className="telegram-sent-section">
       <h3 className="telegram-sent-section__title">{title}</h3>
       <ul className="telegram-sent-list">
         {items.map((item) => (
-            <li key={`${item.market}:${item.symbol}`} className="telegram-sent-item">
-              <div className="telegram-sent-item__head">
-                <span className="telegram-sent-item__name" title={item.name}>
-                  {item.name}
-                </span>
-                <span className="telegram-sent-item__score">
-                  {item.score}
-                  {ko.telegramSent.scoreSuffix}
-                </span>
-              </div>
-              <div className="telegram-sent-item__body">
-                <PickQuoteStrip
-                  symbol={item.symbol}
-                  price={item.price}
-                  currency={item.currency}
-                  changePercent={item.changePercent}
-                />
-              </div>
-              <footer className="telegram-sent-item__foot">
-                <time
-                  className="telegram-sent-item__time"
-                  dateTime={new Date(item.sentAt).toISOString()}
-                >
-                  {formatSentAt(item.sentAt)}
-                </time>
-              </footer>
-            </li>
+          <li
+            key={`${item.market}:${item.symbol}`}
+            className={
+              onOpenStock
+                ? "telegram-sent-item telegram-sent-item--clickable"
+                : "telegram-sent-item"
+            }
+            role={onOpenStock ? "button" : undefined}
+            tabIndex={onOpenStock ? 0 : undefined}
+            aria-label={
+              onOpenStock ? `${item.name} — ${ko.telegramSent.openStockRowAria}` : undefined
+            }
+            onClick={
+              onOpenStock
+                ? () => {
+                    onOpenStock(item);
+                  }
+                : undefined
+            }
+            onKeyDown={
+              onOpenStock
+                ? (e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onOpenStock(item);
+                    }
+                  }
+                : undefined
+            }
+          >
+            <div className="telegram-sent-item__head">
+              <span className="telegram-sent-item__name" title={item.name}>
+                {item.name}
+              </span>
+              <span className="telegram-sent-item__score">
+                {item.score}
+                {ko.telegramSent.scoreSuffix}
+              </span>
+            </div>
+            <div className="telegram-sent-item__body">
+              <PickQuoteStrip
+                symbol={item.symbol}
+                price={item.price}
+                currency={item.currency}
+                changePercent={item.changePercent}
+              />
+            </div>
+            <footer className="telegram-sent-item__foot">
+              <time
+                className="telegram-sent-item__time"
+                dateTime={new Date(item.sentAt).toISOString()}
+              >
+                {formatSentAt(item.sentAt)}
+              </time>
+            </footer>
+          </li>
         ))}
       </ul>
     </section>

@@ -40,6 +40,9 @@ function mergeStockProcessEnv(mode) {
     "ACCESS_BOOTSTRAP_IPS",
     "ACCESS_ALLOW_LOCALHOST",
     "FEEDBACK_INBOX_TOKEN",
+    "CURSOR_API_KEY",
+    "CURSOR_AGENT_MODEL",
+    "CURSOR_RIPGREP_PATH",
   ]) {
     if (env[key]) process.env[key] = env[key];
   }

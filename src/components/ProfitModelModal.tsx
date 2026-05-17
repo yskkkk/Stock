@@ -3,15 +3,33 @@ import { createPortal } from "react-dom";
 import { formatPrice } from "../lib/format";
 import { ko } from "../i18n/ko";
 
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+function formatDatetimeLocalFromMs(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+function parseDatetimeLocalToMs(s: string): number | null {
+  if (!s.trim()) return null;
+  const t = new Date(s).getTime();
+  return Number.isFinite(t) ? t : null;
+}
+
 interface ProfitModelModalProps {
   open: boolean;
   browserUserId: string;
   currentPrice: number | undefined;
   currency: string | undefined;
   entry: number | null;
+  entryAtMs: number | null;
+  exit: number | null;
   onClose: () => void;
-  onApply: (entryPrice: number) => void;
+  onApply: (entryPrice: number, entryAtMs: number) => void;
   onClear: () => void;
+  onRecordSell: () => void;
 }
 
 export default function ProfitModelModal({
@@ -20,11 +38,15 @@ export default function ProfitModelModal({
   currentPrice,
   currency,
   entry,
+  entryAtMs,
+  exit,
   onClose,
   onApply,
   onClear,
+  onRecordSell,
 }: ProfitModelModalProps) {
   const [draft, setDraft] = useState("");
+  const [entryAtLocal, setEntryAtLocal] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -35,7 +57,10 @@ export default function ProfitModelModal({
           ? String(currentPrice)
           : "",
     );
-  }, [open, entry, currentPrice]);
+    const baseMs =
+      entryAtMs != null && entryAtMs > 0 ? entryAtMs : Date.now();
+    setEntryAtLocal(formatDatetimeLocalFromMs(baseMs));
+  }, [open, entry, currentPrice, entryAtMs]);
 
   useEffect(() => {
     if (!open) return;
@@ -56,7 +81,8 @@ export default function ProfitModelModal({
   function handleApply() {
     const n = Number(String(draft).replace(/\s/g, "").replace(/,/g, ""));
     if (!Number.isFinite(n) || n <= 0) return;
-    onApply(n);
+    const ms = parseDatetimeLocalToMs(entryAtLocal) ?? Date.now();
+    onApply(n, ms);
     onClose();
   }
 
@@ -64,6 +90,13 @@ export default function ProfitModelModal({
     if (currentPrice == null || !Number.isFinite(currentPrice)) return;
     setDraft(String(currentPrice));
   }
+
+  const canSell =
+    entry != null &&
+    entry > 0 &&
+    currentPrice != null &&
+    Number.isFinite(currentPrice) &&
+    currentPrice > 0;
 
   return createPortal(
     <div
@@ -123,10 +156,28 @@ export default function ProfitModelModal({
               {ko.app.profitModelUseQuote}
             </button>
           </div>
+          <label className="profit-model-label" htmlFor="profit-model-entry-at">
+            {ko.app.profitModelEntryTime}
+          </label>
+          <div className="profit-model-row">
+            <input
+              id="profit-model-entry-at"
+              className="profit-model-input"
+              type="datetime-local"
+              value={entryAtLocal}
+              onChange={(e) => setEntryAtLocal(e.target.value)}
+            />
+          </div>
           {currentPrice != null && (
             <p className="profit-model-quote-ref">
               {ko.app.profitModelCurrentRef}{" "}
               <strong>{formatPrice(currentPrice, currency)}</strong>
+            </p>
+          )}
+          {exit != null && exit > 0 && (
+            <p className="profit-model-quote-ref">
+              {ko.app.profitModelStripExit}{" "}
+              <strong>{formatPrice(exit, currency)}</strong>
             </p>
           )}
           <div className="profit-model-actions">
@@ -138,6 +189,17 @@ export default function ProfitModelModal({
                 {ko.app.profitModelClear}
               </button>
             )}
+            <button
+              type="button"
+              className="btn btn--secondary"
+              disabled={!canSell}
+              onClick={() => {
+                if (!canSell) return;
+                onRecordSell();
+              }}
+            >
+              {ko.app.profitModelSell}
+            </button>
             <button type="button" className="btn btn--primary" onClick={handleApply}>
               {ko.app.profitModelApply}
             </button>

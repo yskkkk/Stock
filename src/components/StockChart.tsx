@@ -18,7 +18,13 @@ import {
   type SeriesType,
   type Time,
 } from "lightweight-charts";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   computeIchimokuLines,
   buildIchimokuCloudBarsFromSpans,
@@ -33,15 +39,22 @@ import {
   type ChartDrawingSnapshotV1,
 } from "../lib/userPersist";
 import type { ChartDrawMode, ChartDrawToolbarApi } from "../chartDrawTypes";
+import { CHART_DRAW_RAY_TOOL_ENABLED } from "../chartDrawTypes";
 import { ko } from "../i18n/ko";
 import type { Candle, ChartTime } from "../types";
 import {
   computeRayLineEndpoints,
   extrapolateTimeBeyondLast,
+  logicalFromPanePixelLinear,
   logicalFromPaneX,
+  logicalIndexToDataTime,
   newChartDrawingId,
   rayHandlePanePositions,
-  rayLogicalHintFromStoredRay,
+  rayLineTwoPointsFromAnchorAndPanePixel,
+  rayLineTwoPointsFromStoredRayPixels,
+  rayLogicalDeltaFromAnchorThroughTimes,
+  rayThroughLogicalHintForGeometry,
+  timePriceLogicalFromPanePixel,
   type ChartDrawingModel,
   type ChartDrawingStore,
   type RayDraft,
@@ -51,6 +64,9 @@ import { hitTestDrawings, type DrawingHitTarget } from "../lib/chartDrawingHitTe
 import ChartDrawToolbarButtons from "./ChartDrawToolbarButtons";
 
 const KST = "Asia/Seoul";
+
+/** 마지막 봉 오른쪽 빈 시간축(픽셀). `rightOffset`(봉 단위)는 줌에 따라 과도해져 화면이 밀릴 수 있어 픽셀 여백만 사용 */
+const MAIN_CHART_TIME_RIGHT_GAP_PX = 360;
 
 const DRAW_HLINE_REST = {
   color: "rgba(94, 234, 212, 0.9)",
@@ -71,6 +87,25 @@ const DRAW_RAY_HOVER = {
   lineWidth: 2 as const,
 };
 const DRAW_RAY_PREVIEW = "rgba(251, 191, 36, 0.55)";
+
+/** 광선 Line은 반드시 캔들과 같은 가격축 — 아니면 coordinateToPrice로 만든 점이 화면 Y에서 엇나감 */
+function rayLineSeriesBaseOpts(candle: ISeriesApi<"Candlestick">) {
+  const id = candle.options().priceScaleId;
+  return {
+    ...DRAW_RAY_REST,
+    ...(id != null && id !== "" ? { priceScaleId: id } : {}),
+  };
+}
+
+function alignRaySeriesToCandlePriceScale(
+  line: ISeriesApi<"Line">,
+  candle: ISeriesApi<"Candlestick">,
+): void {
+  const id = candle.options().priceScaleId;
+  if (id != null && id !== "") {
+    line.applyOptions({ priceScaleId: id });
+  }
+}
 
 const DRAW_HLINE_PREVIEW = {
   color: "rgba(251, 191, 36, 0.5)",
@@ -375,48 +410,6 @@ function anchorLogicalFallback(
   return (lr.from + lr.to) / 2;
 }
 
-/** 마우스 X의 logical → 캔들 데이터 범위·오른쪽 빈 구간까지 일관된 Time */
-function logicalToDataTime(
-  candle: ISeriesApi<"Candlestick">,
-  logical: number,
-): Time | null {
-  const n = candle.data().length;
-  const lastIdx = n - 1;
-  if (lastIdx < 0) return null;
-  if (lastIdx === 0) {
-    return logical > 1e-9
-      ? extrapolateTimeBeyondLast(candle, 0, logical)
-      : (candle.dataByIndex(0, MismatchDirection.NearestLeft)?.time as Time) ?? null;
-  }
-
-  if (logical >= lastIdx) {
-    if (logical > lastIdx + 1e-9) {
-      return extrapolateTimeBeyondLast(candle, lastIdx, logical);
-    }
-    const b = candle.dataByIndex(lastIdx, MismatchDirection.NearestLeft);
-    return b ? (b.time as Time) : null;
-  }
-
-  const li = Math.min(lastIdx - 1, Math.max(0, Math.floor(logical)));
-  const frac = logical - li;
-  const b0 = candle.dataByIndex(li, MismatchDirection.NearestLeft);
-  if (!b0) return null;
-  if (frac < 1e-9) return b0.time as Time;
-  const b1 = candle.dataByIndex(li + 1, MismatchDirection.NearestLeft);
-  if (!b1) return b0.time as Time;
-  const t0 = b0.time as Time;
-  const t1 = b1.time as Time;
-  if (
-    typeof t0 === "number" &&
-    typeof t1 === "number" &&
-    Number.isFinite(t0) &&
-    Number.isFinite(t1)
-  ) {
-    return (t0 + frac * (t1 - t0)) as unknown as Time;
-  }
-  return t0;
-}
-
 /** 드로잉용: 브라우저 좌표 → 시각·가격·logical (coordinateToTime 금지 — 빈 오른쪽이 마지막 봉으로 붙는 문제 방지) */
 function resolveDrawPointFromClient(
   clientX: number,
@@ -443,94 +436,71 @@ function resolveDrawPointFromClient(
   if (price == null || !Number.isFinite(price as number)) return null;
 
   const ts = chart.timeScale();
-  let logical: number | null = ts.coordinateToLogical(x) as number | null;
+  let logical: number | null = logicalFromPanePixelLinear(chart, x);
+  if (logical == null || !Number.isFinite(logical)) {
+    logical = ts.coordinateToLogical(x) as number | null;
+  }
   if (logical == null || !Number.isFinite(logical)) {
     logical = logicalFromPaneX(chart, x);
   }
   if (logical == null || !Number.isFinite(logical)) return null;
 
-  const time = logicalToDataTime(candle, logical);
+  const time = logicalIndexToDataTime(candle, logical);
   if (time == null) return null;
   return { time, price: price as number, logical };
 }
 
-/** 광선 2단계 미리보기: 연장 끝이 아니라 앵커—현재 포인터(마우스) 직선으로 그려 크로스헤어와 맞춤 */
-function rayPreviewChordFromDraftAndPointer(
-  candle: ISeriesApi<"Candlestick">,
-  draft: RayDraft,
-  pointer: { time: Time; price: number; logical: number },
-): { time: ChartTime; value: number }[] {
-  const sk = (t: Time): number => {
-    if (typeof t === "number") return t;
-    if (typeof t === "string") return Date.parse(t) / 1000 || 0;
-    return Date.UTC(t.year, t.month - 1, t.day) / 1000;
-  };
-
-  let tA = draft.time as Time;
-  let vA = draft.value;
-  let tB = pointer.time;
-  const vB = pointer.price;
-
-  if (Math.abs(sk(tA) - sk(tB)) < 1e-6) {
-    const lastIdx = candle.data().length - 1;
-    if (lastIdx >= 0) {
-      const nudged =
-        logicalToDataTime(candle, pointer.logical + 0.35) ??
-        extrapolateTimeBeyondLast(candle, lastIdx, pointer.logical + 0.5);
-      if (nudged != null) tB = nudged;
-    }
-    if (Math.abs(sk(tA) - sk(tB)) < 1e-6 && typeof tB === "number" && Number.isFinite(tB)) {
-      tB = (tB + 0.001) as unknown as Time;
-    }
+/**
+ * 크로스헤어 콜백의 `point`는 차트 내부 좌표라 패인 rect에 더하면 Y가 틀어질 수 있음.
+ * 가능하면 `sourceEvent`의 뷰포트 좌표를 쓴다.
+ */
+function clientPointFromCrosshairParam(
+  chart: IChartApi,
+  param: MouseEventParams<Time>,
+): { clientX: number; clientY: number } | null {
+  if (param.point === undefined) return null;
+  const se = param.sourceEvent;
+  if (
+    se != null &&
+    Number.isFinite(se.clientX as number) &&
+    Number.isFinite(se.clientY as number)
+  ) {
+    return { clientX: se.clientX as number, clientY: se.clientY as number };
   }
-
-  const pAnchor = { time: tA as ChartTime, value: vA };
-  const pPtr = { time: tB as ChartTime, value: vB };
-  return sk(tA) <= sk(tB) ? [pAnchor, pPtr] : [pPtr, pAnchor];
+  const cr = chart.chartElement().getBoundingClientRect();
+  return {
+    clientX: cr.left + param.point.x,
+    clientY: cr.top + param.point.y,
+  };
 }
 
 const MAGNET_OHLC_PX = 96;
 
 /**
- * 마그넷: 가까운 봉의 시·고·저·종 중 화면상 커서와 픽셀 거리가 가장 가까운 점(몸통·꼬리).
- * coordinateToLogical이 null이어도 가시 범위 보간·raw.time 기반으로 봉을 잡는다.
+ * 패인 로컬 좌표 기준, 화면 거리 ≤ MAGNET_OHLC_PX 인 OHLC가 있으면 그 점만 반환.
+ * 그보다 멀면 null → 호출부에서 마우스 그대로 쓴다.
  */
-function snapDrawPointMagnet(
+function findNearestOhlcPaneHitWithinMagnet(
   chart: IChartApi,
   candle: ISeriesApi<"Candlestick">,
-  clientX: number,
-  clientY: number,
-  raw: { time: Time; price: number },
-  enabled: boolean,
-): { time: Time; price: number } {
-  if (!enabled) return raw;
-  const pane0 = chart.panes()[0]?.getHTMLElement();
-  if (!pane0) return raw;
-  const pr = pane0.getBoundingClientRect();
-  const px = clientX - pr.left;
-  const py = clientY - pr.top;
+  paneLocalX: number,
+  paneLocalY: number,
+): { time: Time; price: number; px: number; py: number; logical: number } | null {
   const ts = chart.timeScale();
   const last = candle.data().length - 1;
-  if (last < 0) return raw;
+  if (last < 0) return null;
 
-  let center: number | null = null;
-  const log = ts.coordinateToLogical(px);
-  if (log != null && Number.isFinite(log as number)) {
-    center = log as number;
+  let center: number | null = ts.coordinateToLogical(paneLocalX) as number | null;
+  if (center == null || !Number.isFinite(center as number)) {
+    center = logicalFromPaneX(chart, paneLocalX);
   }
-  if (center == null) {
-    center = logicalFromPaneX(chart, px);
-  }
-  if (center == null) {
-    const ix = ts.timeToIndex(raw.time, true);
-    if (ix != null) center = ix as number;
-  }
-  if (center == null) return raw;
+  if (center == null || !Number.isFinite(center as number)) return null;
 
-  const maxD2 = (MAGNET_OHLC_PX + 24) ** 2;
-  let bestD2 = maxD2;
-  let best: { time: Time; price: number } | null = null;
-  const iBase = Math.round(center);
+  const maxD2 = MAGNET_OHLC_PX * MAGNET_OHLC_PX;
+  let bestD2 = Infinity;
+  let best: { time: Time; price: number; px: number; py: number; logical: number } | null =
+    null;
+  const iBase = Math.round(center as number);
   for (let d = -10; d <= 10; d++) {
     const idx = Math.max(0, Math.min(last, iBase + d));
     const bar = candle.dataByIndex(idx, MismatchDirection.NearestLeft);
@@ -556,49 +526,46 @@ function snapDrawPointMagnet(
     for (const p of [b.open, b.high, b.low, b.close] as const) {
       const cy = candle.priceToCoordinate(p);
       if (cy == null) continue;
-      const dx = px - cxn;
-      const dy = py - (cy as number);
+      const dx = paneLocalX - cxn;
+      const dy = paneLocalY - (cy as number);
       const d2 = dx * dx + dy * dy;
       if (d2 < bestD2) {
         bestD2 = d2;
-        best = { time: b.time, price: p };
+        best = {
+          time: b.time,
+          price: p,
+          px: cxn,
+          py: cy as number,
+          logical: idx,
+        };
       }
     }
   }
-  if (best) return best;
+  if (best != null && bestD2 <= maxD2) return best;
+  return null;
+}
 
-  const idxFb = ts.timeToIndex(raw.time, true);
-  if (idxFb == null) return raw;
-  const barOnly = candle.dataByIndex(
-    Math.max(0, Math.min(last, idxFb as number)),
-    MismatchDirection.NearestLeft,
-  );
-  if (!barOnly) return raw;
-  const bo = barOnly as {
-    time: Time;
-    open: number;
-    high: number;
-    low: number;
-    close: number;
-  };
-  if (
-    typeof bo.open !== "number" ||
-    typeof bo.high !== "number" ||
-    typeof bo.low !== "number" ||
-    typeof bo.close !== "number"
-  ) {
-    return raw;
-  }
-  let snapP = bo.open;
-  let bestAbs = Math.abs(raw.price - snapP);
-  for (const p of [bo.high, bo.low, bo.close] as const) {
-    const a = Math.abs(raw.price - p);
-    if (a < bestAbs) {
-      bestAbs = a;
-      snapP = p;
-    }
-  }
-  return { time: bo.time, price: snapP };
+/**
+ * 마그넷: 가까운 봉의 시·고·저·종 중 **화면 거리 MAGNET_OHLC_PX 이내**일 때만 붙인다.
+ * 멀면 raw 그대로(마우스와 동일) — 광선 미리보기·둘째 점과 동일 규칙.
+ */
+function snapDrawPointMagnet(
+  chart: IChartApi,
+  candle: ISeriesApi<"Candlestick">,
+  clientX: number,
+  clientY: number,
+  raw: { time: Time; price: number; logical: number },
+  enabled: boolean,
+): { time: Time; price: number; logical: number } {
+  if (!enabled) return raw;
+  const pane0 = chart.panes()[0]?.getHTMLElement();
+  if (!pane0) return raw;
+  const pr = pane0.getBoundingClientRect();
+  const px = clientX - pr.left;
+  const py = clientY - pr.top;
+  const hit = findNearestOhlcPaneHitWithinMagnet(chart, candle, px, py);
+  if (!hit) return raw;
+  return { time: hit.time, price: hit.price, logical: hit.logical };
 }
 
 function rayAnchorThroughClientPositions(
@@ -632,6 +599,9 @@ function applyChartDrawing(
   onRayDraftChange?: (draft: RayDraft | null) => void,
   rayThroughLogical?: number | null,
   beforeCommit?: () => void,
+  rayThroughPaneLocal?: { x: number; y: number } | null,
+  /** 광선 첫 클릭: resolve와 동일한 logical — 미리보기·픽셀 직선 앵커 X와 맞춤 */
+  rayAnchorPickLogical?: number | null,
 ): void {
   if (mode === "hline") {
     beforeCommit?.();
@@ -659,22 +629,65 @@ function applyChartDrawing(
   }
   if (mode === "ray") {
     if (!acc.rayDraft) {
-      acc.rayDraft = { time, value: price };
+      acc.rayDraft = {
+        time,
+        value: price,
+        ...(rayAnchorPickLogical != null && Number.isFinite(rayAnchorPickLogical)
+          ? { logical: rayAnchorPickLogical }
+          : {}),
+      };
       onRayDraftChange?.(acc.rayDraft);
       return;
     }
     const anchor = acc.rayDraft;
     acc.rayDraft = null;
     onRayDraftChange?.(null);
-    const pts = computeRayLineEndpoints(
-      chart,
-      candle,
-      anchor.time,
-      anchor.value,
-      time,
-      price,
-      rayThroughLogical ?? null,
-    );
+    const tp =
+      rayThroughPaneLocal != null
+        ? timePriceLogicalFromPanePixel(
+            chart,
+            candle,
+            rayThroughPaneLocal.x,
+            rayThroughPaneLocal.y,
+          )
+        : null;
+    const throughTimeUse = tp?.time ?? time;
+    const throughValueUse = tp?.price ?? price;
+    const hintUse = rayThroughLogical ?? tp?.logical ?? null;
+
+    const ptsPixel =
+      rayThroughPaneLocal != null
+        ? rayLineTwoPointsFromAnchorAndPanePixel(
+            chart,
+            candle,
+            anchor.time,
+            anchor.value,
+            rayThroughPaneLocal.x,
+            rayThroughPaneLocal.y,
+            anchor.logical ?? null,
+          )
+        : null;
+    const pts =
+      ptsPixel ??
+      computeRayLineEndpoints(
+        chart,
+        candle,
+        anchor.time,
+        anchor.value,
+        throughTimeUse,
+        throughValueUse,
+        hintUse,
+        { viewportIndependentFar: true },
+      ) ??
+      computeRayLineEndpoints(
+        chart,
+        candle,
+        anchor.time,
+        anchor.value,
+        throughTimeUse,
+        throughValueUse,
+        hintUse,
+      );
     if (!pts) {
       acc.rayDraft = anchor;
       onRayDraftChange?.(anchor);
@@ -682,10 +695,21 @@ function applyChartDrawing(
     }
     beforeCommit?.();
     const rid = newChartDrawingId();
+    const ts = chart.timeScale();
+    const ia = ts.timeToIndex(anchor.time, true);
+    const it = ts.timeToIndex(throughTimeUse, true);
+    let throughLogicalDelta: number | undefined;
+    if (ia != null && it != null) {
+      const d = Number(it) - Number(ia);
+      if (Math.abs(d) > 1e-6) throughLogicalDelta = d;
+    } else if (hintUse != null && ia != null) {
+      const d = hintUse - (ia as number);
+      if (Math.abs(d) > 1e-6) throughLogicalDelta = d;
+    }
     const line = chart.addSeries(
       LineSeries,
       {
-        ...DRAW_RAY_REST,
+        ...rayLineSeriesBaseOpts(candle),
         lineStyle: LineStyle.Solid,
         priceLineVisible: false,
         lastValueVisible: false,
@@ -693,6 +717,7 @@ function applyChartDrawing(
       },
       0,
     );
+    alignRaySeriesToCandlePriceScale(line, candle);
     line.setData(toLineData(pts));
     acc.objects.push({
       kind: "ray",
@@ -700,8 +725,9 @@ function applyChartDrawing(
       series: line,
       anchorTime: anchor.time,
       anchorValue: anchor.value,
-      throughTime: time,
-      throughValue: price,
+      throughTime: throughTimeUse,
+      throughValue: throughValueUse,
+      ...(throughLogicalDelta != null ? { throughLogicalDelta } : {}),
     });
     persistChartDrawingSnapshot(
       persistKey,
@@ -747,6 +773,11 @@ function drawingSnapshotFromAccum(
         v1: o.anchorValue,
         t2: o.throughTime as ChartTime,
         v2: o.throughValue,
+        ...(typeof o.throughLogicalDelta === "number" &&
+        Number.isFinite(o.throughLogicalDelta) &&
+        Math.abs(o.throughLogicalDelta) > 1e-9
+          ? { logicalDelta: o.throughLogicalDelta }
+          : {}),
       });
     }
   }
@@ -774,6 +805,28 @@ function snapRayTimesToLoadedBars(
   const b = snap(tB);
   if (!a || !b) return null;
   return { tA: a, tB: b };
+}
+
+/** 스냅샷의 `logicalDelta`(+앵커 인덱스)로 through 절대 logical — `computeRayLineEndpoints`용 */
+function rayAbsoluteHintForSnapshot(
+  chart: IChartApi,
+  tA: Time,
+  tB: Time,
+  r: { logicalDelta?: number },
+): number | null {
+  const ts = chart.timeScale();
+  const ia = ts.timeToIndex(tA, true);
+  if (ia == null) return null;
+  if (
+    typeof r.logicalDelta === "number" &&
+    Number.isFinite(r.logicalDelta) &&
+    Math.abs(r.logicalDelta) > 1e-9
+  ) {
+    return (ia as number) + r.logicalDelta;
+  }
+  const d = rayLogicalDeltaFromAnchorThroughTimes(chart, tA, tB);
+  if (d == null) return null;
+  return (ia as number) + d;
 }
 
 function hydrateDrawingsFromSnapshot(
@@ -806,20 +859,28 @@ function hydrateDrawingsFromSnapshot(
     try {
       let tA = toSeriesTime(r.t1);
       let tB = toSeriesTime(r.t2);
-      let pts = computeRayLineEndpoints(
-        b.chart,
-        b.candle,
-        tA,
-        r.v1,
-        tB,
-        r.v2,
-      );
-      if (!pts) {
-        const sn = snapRayTimesToLoadedBars(b.chart, b.candle, tA, tB);
-        if (!sn) continue;
-        tA = sn.tA;
-        tB = sn.tB;
-        pts = computeRayLineEndpoints(
+      let hintAbs = rayAbsoluteHintForSnapshot(b.chart, tA, tB, r);
+      let pts =
+        computeRayLineEndpoints(
+          b.chart,
+          b.candle,
+          tA,
+          r.v1,
+          tB,
+          r.v2,
+          hintAbs,
+          { viewportIndependentFar: true },
+        ) ??
+        computeRayLineEndpoints(
+          b.chart,
+          b.candle,
+          tA,
+          r.v1,
+          tB,
+          r.v2,
+          hintAbs,
+        ) ??
+        rayLineTwoPointsFromStoredRayPixels(
           b.chart,
           b.candle,
           tA,
@@ -827,13 +888,47 @@ function hydrateDrawingsFromSnapshot(
           tB,
           r.v2,
         );
+      if (!pts) {
+        const sn = snapRayTimesToLoadedBars(b.chart, b.candle, tA, tB);
+        if (!sn) continue;
+        tA = sn.tA;
+        tB = sn.tB;
+        hintAbs = rayAbsoluteHintForSnapshot(b.chart, tA, tB, r);
+        pts =
+          computeRayLineEndpoints(
+            b.chart,
+            b.candle,
+            tA,
+            r.v1,
+            tB,
+            r.v2,
+            hintAbs,
+            { viewportIndependentFar: true },
+          ) ??
+          computeRayLineEndpoints(
+            b.chart,
+            b.candle,
+            tA,
+            r.v1,
+            tB,
+            r.v2,
+            hintAbs,
+          ) ??
+          rayLineTwoPointsFromStoredRayPixels(
+            b.chart,
+            b.candle,
+            tA,
+            r.v1,
+            tB,
+            r.v2,
+          );
       }
       if (!pts) continue;
       const rid = r.id ?? newChartDrawingId();
       const line = b.chart.addSeries(
         LineSeries,
         {
-          ...DRAW_RAY_REST,
+          ...rayLineSeriesBaseOpts(b.candle),
           lineStyle: LineStyle.Solid,
           priceLineVisible: false,
           lastValueVisible: false,
@@ -841,6 +936,7 @@ function hydrateDrawingsFromSnapshot(
         },
         0,
       );
+      alignRaySeriesToCandlePriceScale(line, b.candle);
       line.setData(toLineData(pts));
       acc.objects.push({
         kind: "ray",
@@ -850,6 +946,11 @@ function hydrateDrawingsFromSnapshot(
         anchorValue: r.v1,
         throughTime: tB,
         throughValue: r.v2,
+        ...(typeof r.logicalDelta === "number" &&
+        Number.isFinite(r.logicalDelta) &&
+        Math.abs(r.logicalDelta) > 1e-9
+          ? { throughLogicalDelta: r.logicalDelta }
+          : {}),
       });
     } catch {
       /* time scale / series mismatch after interval change */
@@ -914,20 +1015,56 @@ function removeDrawingById(
   return true;
 }
 
+function updateRayThroughLogicalDeltaFromTimes(
+  chart: IChartApi,
+  o: RayDrawingModel,
+): void {
+  const ts = chart.timeScale();
+  const ia = ts.timeToIndex(o.anchorTime, true);
+  const it = ts.timeToIndex(o.throughTime, true);
+  if (ia != null && it != null) {
+    const d = Number(it) - Number(ia);
+    if (Math.abs(d) > 1e-6) o.throughLogicalDelta = d;
+    else delete o.throughLogicalDelta;
+  } else {
+    delete o.throughLogicalDelta;
+  }
+}
+
 function refreshRaySeriesGeometry(
   b: ChartSeriesBundle,
   ray: RayDrawingModel,
 ): void {
-  const hint = rayLogicalHintFromStoredRay(b.chart, ray);
-  const pts = computeRayLineEndpoints(
-    b.chart,
-    b.candle,
-    ray.anchorTime,
-    ray.anchorValue,
-    ray.throughTime,
-    ray.throughValue,
-    hint,
-  );
+  alignRaySeriesToCandlePriceScale(ray.series, b.candle);
+  const hint = rayThroughLogicalHintForGeometry(b.chart, ray);
+  const pts =
+    computeRayLineEndpoints(
+      b.chart,
+      b.candle,
+      ray.anchorTime,
+      ray.anchorValue,
+      ray.throughTime,
+      ray.throughValue,
+      hint,
+      { viewportIndependentFar: true },
+    ) ??
+    computeRayLineEndpoints(
+      b.chart,
+      b.candle,
+      ray.anchorTime,
+      ray.anchorValue,
+      ray.throughTime,
+      ray.throughValue,
+      hint,
+    ) ??
+    rayLineTwoPointsFromStoredRayPixels(
+      b.chart,
+      b.candle,
+      ray.anchorTime,
+      ray.anchorValue,
+      ray.throughTime,
+      ray.throughValue,
+    );
   if (!pts) return;
   ray.series.setData(toLineData(pts));
 }
@@ -958,21 +1095,41 @@ function duplicateDrawingVariant(
     (Math.max(Math.abs(src.throughValue), Math.abs(src.anchorValue)) * 0.0012 +
       1e-6) *
     sign;
-  const pts = computeRayLineEndpoints(
-    b.chart,
-    b.candle,
-    src.anchorTime,
-    src.anchorValue,
-    src.throughTime,
-    src.throughValue + dv,
-    rayLogicalHintFromStoredRay(b.chart, src),
-  );
+  const dupHint = rayThroughLogicalHintForGeometry(b.chart, src);
+  const pts =
+    computeRayLineEndpoints(
+      b.chart,
+      b.candle,
+      src.anchorTime,
+      src.anchorValue,
+      src.throughTime,
+      src.throughValue + dv,
+      dupHint,
+      { viewportIndependentFar: true },
+    ) ??
+    computeRayLineEndpoints(
+      b.chart,
+      b.candle,
+      src.anchorTime,
+      src.anchorValue,
+      src.throughTime,
+      src.throughValue + dv,
+      dupHint,
+    ) ??
+    rayLineTwoPointsFromStoredRayPixels(
+      b.chart,
+      b.candle,
+      src.anchorTime,
+      src.anchorValue,
+      src.throughTime,
+      src.throughValue + dv,
+    );
   if (!pts) return;
   const rid = newChartDrawingId();
   const line = b.chart.addSeries(
     LineSeries,
     {
-      ...DRAW_RAY_REST,
+      ...rayLineSeriesBaseOpts(b.candle),
       lineStyle: LineStyle.Solid,
       priceLineVisible: false,
       lastValueVisible: false,
@@ -980,6 +1137,7 @@ function duplicateDrawingVariant(
     },
     0,
   );
+  alignRaySeriesToCandlePriceScale(line, b.candle);
   line.setData(toLineData(pts));
   acc.objects.push({
     kind: "ray",
@@ -989,6 +1147,11 @@ function duplicateDrawingVariant(
     anchorValue: src.anchorValue,
     throughTime: src.throughTime,
     throughValue: src.throughValue + dv,
+    ...(typeof src.throughLogicalDelta === "number" &&
+    Number.isFinite(src.throughLogicalDelta) &&
+    Math.abs(src.throughLogicalDelta) > 1e-9
+      ? { throughLogicalDelta: src.throughLogicalDelta }
+      : {}),
   });
 }
 
@@ -996,7 +1159,14 @@ const CLIPBOARD_DRAWING_PREFIX = "stock-chart-drawing-v1:";
 
 type ClipboardDrawingPayload =
   | { kind: "hline"; price: number }
-  | { kind: "ray"; t1: ChartTime; v1: number; t2: ChartTime; v2: number };
+  | {
+      kind: "ray";
+      t1: ChartTime;
+      v1: number;
+      t2: ChartTime;
+      v2: number;
+      logicalDelta?: number;
+    };
 
 function serializeDrawingForClipboard(o: ChartDrawingModel): string {
   const payload: ClipboardDrawingPayload =
@@ -1008,6 +1178,11 @@ function serializeDrawingForClipboard(o: ChartDrawingModel): string {
           v1: o.anchorValue,
           t2: o.throughTime as ChartTime,
           v2: o.throughValue,
+          ...(typeof o.throughLogicalDelta === "number" &&
+          Number.isFinite(o.throughLogicalDelta) &&
+          Math.abs(o.throughLogicalDelta) > 1e-9
+            ? { logicalDelta: o.throughLogicalDelta }
+            : {}),
         };
   return CLIPBOARD_DRAWING_PREFIX + JSON.stringify(payload);
 }
@@ -1068,20 +1243,28 @@ function appendDrawingFromClipboardPayload(
     (Math.max(Math.abs(d.v2), Math.abs(d.v1)) * 0.0012 + 1e-6) * sign;
   let tA = toSeriesTime(d.t1);
   let tB = toSeriesTime(d.t2);
-  let pts = computeRayLineEndpoints(
-    b.chart,
-    b.candle,
-    tA,
-    d.v1,
-    tB,
-    d.v2 + dv,
-  );
-  if (!pts) {
-    const sn = snapRayTimesToLoadedBars(b.chart, b.candle, tA, tB);
-    if (!sn) return false;
-    tA = sn.tA;
-    tB = sn.tB;
-    pts = computeRayLineEndpoints(
+  let hintCb = rayAbsoluteHintForSnapshot(b.chart, tA, tB, d);
+  let pts =
+    computeRayLineEndpoints(
+      b.chart,
+      b.candle,
+      tA,
+      d.v1,
+      tB,
+      d.v2 + dv,
+      hintCb,
+      { viewportIndependentFar: true },
+    ) ??
+    computeRayLineEndpoints(
+      b.chart,
+      b.candle,
+      tA,
+      d.v1,
+      tB,
+      d.v2 + dv,
+      hintCb,
+    ) ??
+    rayLineTwoPointsFromStoredRayPixels(
       b.chart,
       b.candle,
       tA,
@@ -1089,6 +1272,40 @@ function appendDrawingFromClipboardPayload(
       tB,
       d.v2 + dv,
     );
+  if (!pts) {
+    const sn = snapRayTimesToLoadedBars(b.chart, b.candle, tA, tB);
+    if (!sn) return false;
+    tA = sn.tA;
+    tB = sn.tB;
+    hintCb = rayAbsoluteHintForSnapshot(b.chart, tA, tB, d);
+    pts =
+      computeRayLineEndpoints(
+        b.chart,
+        b.candle,
+        tA,
+        d.v1,
+        tB,
+        d.v2 + dv,
+        hintCb,
+        { viewportIndependentFar: true },
+      ) ??
+      computeRayLineEndpoints(
+        b.chart,
+        b.candle,
+        tA,
+        d.v1,
+        tB,
+        d.v2 + dv,
+        hintCb,
+      ) ??
+      rayLineTwoPointsFromStoredRayPixels(
+        b.chart,
+        b.candle,
+        tA,
+        d.v1,
+        tB,
+        d.v2 + dv,
+      );
   }
   if (!pts) return false;
   try {
@@ -1096,7 +1313,7 @@ function appendDrawingFromClipboardPayload(
     const line = b.chart.addSeries(
       LineSeries,
       {
-        ...DRAW_RAY_REST,
+        ...rayLineSeriesBaseOpts(b.candle),
         lineStyle: LineStyle.Solid,
         priceLineVisible: false,
         lastValueVisible: false,
@@ -1104,8 +1321,9 @@ function appendDrawingFromClipboardPayload(
       },
       0,
     );
+    alignRaySeriesToCandlePriceScale(line, b.candle);
     line.setData(toLineData(pts));
-    acc.objects.push({
+    const pasted: RayDrawingModel = {
       kind: "ray",
       id: rid,
       series: line,
@@ -1113,7 +1331,16 @@ function appendDrawingFromClipboardPayload(
       anchorValue: d.v1,
       throughTime: tB,
       throughValue: d.v2 + dv,
-    });
+      ...(typeof d.logicalDelta === "number" &&
+      Number.isFinite(d.logicalDelta) &&
+      Math.abs(d.logicalDelta) > 1e-9
+        ? { throughLogicalDelta: d.logicalDelta }
+        : {}),
+    };
+    if (pasted.throughLogicalDelta == null) {
+      updateRayThroughLogicalDeltaFromTimes(b.chart, pasted);
+    }
+    acc.objects.push(pasted);
     return true;
   } catch {
     return false;
@@ -1519,6 +1746,8 @@ export default function StockChart({
   const isDrawControlled =
     chartDrawModeProp !== undefined && onChartDrawModeChange !== undefined;
   const drawMode = isDrawControlled ? chartDrawModeProp! : internalDrawMode;
+  const drawModeForChart =
+    !CHART_DRAW_RAY_TOOL_ENABLED && drawMode === "ray" ? "cursor" : drawMode;
   const setDrawMode = useCallback(
     (m: ChartDrawMode) => {
       if (chartDrawModeProp !== undefined && onChartDrawModeChange) {
@@ -1655,6 +1884,9 @@ export default function StockChart({
     null,
   );
   const rayPreviewLineRef = useRef<ISeriesApi<"Line"> | null>(null);
+  /** 광선 2단계: 마지막 포인터(크로스헤어·이동) — 범위 변경 시 미리보기 재계산에 사용 */
+  const lastRayPreviewClientRef = useRef<{ x: number; y: number } | null>(null);
+  const rayPreviewRequestRedrawRef = useRef<(() => void) | null>(null);
   const hlinePreviewPlRef = useRef<IPriceLine | null>(null);
   const [drawingRayDots, setDrawingRayDots] = useState<{
     id: string;
@@ -1665,8 +1897,8 @@ export default function StockChart({
   } | null>(null);
 
   useEffect(() => {
-    drawModeRef.current = drawMode;
-  }, [drawMode]);
+    drawModeRef.current = drawModeForChart;
+  }, [drawModeForChart]);
 
   const clearAllDrawings = useCallback(() => {
     const b = bundleRef.current;
@@ -1754,7 +1986,11 @@ export default function StockChart({
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
         textColor: "#94a3b8",
-        fontFamily: "'DM Sans', 'Malgun Gothic', system-ui, sans-serif",
+        // Pretendard is loaded in index.html; DM Sans was not — missing weights
+        // made canvas scale labels look soft on Windows HiDPI.
+        fontFamily:
+          'Pretendard, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif',
+        fontSize: 13,
       },
       grid: {
         vertLines: { color: "rgba(148, 163, 184, 0.08)" },
@@ -1778,6 +2014,8 @@ export default function StockChart({
         timeVisible: isIntraday,
         secondsVisible: false,
         tickMarkFormatter: (time: Time) => formatChartTime(time, isIntraday),
+        rightOffsetPixels: MAIN_CHART_TIME_RIGHT_GAP_PX,
+        fixRightEdge: false,
       },
     });
 
@@ -1824,7 +2062,13 @@ export default function StockChart({
 
     const shouldFit = structureKey !== lastFitKeyRef.current;
     lastFitKeyRef.current = structureKey;
-    if (shouldFit) chart.timeScale().fitContent();
+    if (shouldFit) {
+      chart.timeScale().fitContent();
+      chart.timeScale().applyOptions({
+        rightOffsetPixels: MAIN_CHART_TIME_RIGHT_GAP_PX,
+        fixRightEdge: false,
+      });
+    }
 
     prevStructureKeyForStreamRef.current = "";
     prevCandlesForStreamRef.current = [];
@@ -2017,7 +2261,7 @@ export default function StockChart({
   }, [structureKey]);
 
   useEffect(() => {
-    if (!drawingsEnabled || drawMode === "cursor") return;
+    if (!drawingsEnabled || drawModeForChart === "cursor") return;
     const b = bundleRef.current;
     if (!b || b.structureKey !== structureKey) return;
     const chartEl = b.chart.chartElement();
@@ -2031,6 +2275,7 @@ export default function StockChart({
       const chNow = bundleRef.current?.chart;
       if (!cNow || !chNow || chNow !== b.chart) return;
 
+      const rayDraft = drawingAccumRef.current.rayDraft;
       const resolvedRaw = resolveDrawPointFromClient(
         ev.clientX,
         ev.clientY,
@@ -2039,24 +2284,39 @@ export default function StockChart({
       );
       if (!resolvedRaw) return;
 
-      const isRaySecond =
-        mode === "ray" && drawingAccumRef.current.rayDraft != null;
-      /** 두 번째 점: 마그넷이 빈 오른쪽·마지막 봉만 검색해 첫 점과 같은 봉으로 붙는 문제가 있어 비활성 */
-      const resolved = isRaySecond
-        ? resolvedRaw
-        : snapDrawPointMagnet(
-            chNow,
-            cNow,
-            ev.clientX,
-            ev.clientY,
-            resolvedRaw,
-            magnetEnabled,
-          );
+      const resolved = snapDrawPointMagnet(
+        chNow,
+        cNow,
+        ev.clientX,
+        ev.clientY,
+        resolvedRaw,
+        magnetEnabled,
+      );
+
+      const paneForRay = chNow.panes()[0]?.getHTMLElement();
+      const prRay = paneForRay?.getBoundingClientRect();
+      let rayPaneLocal: { x: number; y: number } | null = null;
+      if (mode === "ray" && rayDraft != null && prRay != null) {
+        const px0 = ev.clientX - prRay.left;
+        const py0 = ev.clientY - prRay.top;
+        const hit =
+          magnetEnabled &&
+          findNearestOhlcPaneHitWithinMagnet(chNow, cNow, px0, py0);
+        rayPaneLocal = hit ? { x: hit.px, y: hit.py } : { x: px0, y: py0 };
+      }
 
       const throughLog =
-        mode === "ray" && drawingAccumRef.current.rayDraft != null
-          ? resolvedRaw.logical
+        rayPaneLocal != null
+          ? timePriceLogicalFromPanePixel(
+              chNow,
+              cNow,
+              rayPaneLocal.x,
+              rayPaneLocal.y,
+            )?.logical ?? resolvedRaw.logical
           : null;
+
+      const rayAnchorPickLogical =
+        mode === "ray" && rayDraft == null ? resolved.logical : null;
 
       ev.preventDefault();
       ev.stopPropagation();
@@ -2074,7 +2334,18 @@ export default function StockChart({
         setRayDraftForPreview,
         throughLog,
         pushDrawingUndo,
+        rayPaneLocal,
+        rayAnchorPickLogical,
       );
+
+      if (mode === "ray" && drawingAccumRef.current.rayDraft != null) {
+        lastRayPreviewClientRef.current = {
+          x: ev.clientX,
+          y: ev.clientY,
+        };
+      } else if (mode === "ray") {
+        lastRayPreviewClientRef.current = null;
+      }
 
       if (mode === "hline") {
         const br = bundleRef.current;
@@ -2094,7 +2365,7 @@ export default function StockChart({
     return () => {
       chartEl.removeEventListener("pointerdown", onPointerDown, true);
     };
-  }, [drawingsEnabled, drawMode, structureKey, magnetEnabled, drawingPersistKey, setDrawMode]);
+  }, [drawingsEnabled, drawModeForChart, structureKey, magnetEnabled, drawingPersistKey, setDrawMode]);
 
   useEffect(() => {
     const b = bundleRef.current;
@@ -2116,7 +2387,7 @@ export default function StockChart({
   }, [profitMarker, structureKey]);
 
   useEffect(() => {
-    if (!drawingsEnabled || drawMode !== "cursor") return;
+    if (!drawingsEnabled || drawModeForChart !== "cursor") return;
     const b = bundleRef.current;
     if (!b || b.structureKey !== structureKey) return;
 
@@ -2270,6 +2541,7 @@ export default function StockChart({
             o.throughTime = barT.time as Time;
             o.throughValue = o.anchorValue + slope * (iTr - iA);
           }
+          updateRayThroughLogicalDeltaFromTimes(br.chart, o);
           refreshRaySeriesGeometry(br, o);
           return;
         }
@@ -2284,6 +2556,7 @@ export default function StockChart({
             o.throughTime = pt.time;
             o.throughValue = pt.price;
           }
+          updateRayThroughLogicalDeltaFromTimes(br.chart, o);
           refreshRaySeriesGeometry(br, o);
         }
       };
@@ -2291,10 +2564,20 @@ export default function StockChart({
       const onUp = (e: PointerEvent) => {
         const d = drawDragRef.current;
         if (!d || e.pointerId !== d.pointerId) return;
+        const draggedId = d.id;
+        const syncRayDelta = d.role !== "hline";
         drawDragRef.current = null;
         window.removeEventListener("pointermove", onMove);
         window.removeEventListener("pointerup", onUp);
         window.removeEventListener("pointercancel", onUp);
+        const br = bundleRef.current;
+        if (syncRayDelta && br && br.structureKey === structureKey) {
+          const o = findDrawingById(drawingAccumRef.current, draggedId);
+          if (o && o.kind === "ray") {
+            updateRayThroughLogicalDeltaFromTimes(br.chart, o);
+            refreshRaySeriesGeometry(br, o);
+          }
+        }
         finishDragPersist();
       };
 
@@ -2335,10 +2618,10 @@ export default function StockChart({
       chartEl.removeEventListener("contextmenu", onContextMenu);
       chartEl.removeEventListener("pointerdown", onChartPointerDown, true);
     };
-  }, [drawingsEnabled, drawMode, structureKey, pushDrawingUndo]);
+  }, [drawingsEnabled, drawModeForChart, structureKey, pushDrawingUndo]);
 
   useEffect(() => {
-    if (!drawingsEnabled || drawMode !== "cursor") {
+    if (!drawingsEnabled || drawModeForChart !== "cursor") {
       const br = bundleRef.current;
       const id = drawingHoverIdRef.current;
       if (br && id) {
@@ -2429,7 +2712,7 @@ export default function StockChart({
       drawingRayDotsHoverIdRef.current = null;
       setDrawingRayDots(null);
     };
-  }, [drawingsEnabled, drawMode, structureKey]);
+  }, [drawingsEnabled, drawModeForChart, structureKey]);
 
   useEffect(() => {
     if (!drawHitMenu) return;
@@ -2444,7 +2727,8 @@ export default function StockChart({
   }, [drawHitMenu]);
 
   useEffect(() => {
-    if (drawMode !== "ray") {
+    if (drawModeForChart !== "ray") {
+      lastRayPreviewClientRef.current = null;
       drawingAccumRef.current.rayDraft = null;
       setRayDraftForPreview(null);
       const br = bundleRef.current;
@@ -2458,10 +2742,10 @@ export default function StockChart({
         rayPreviewLineRef.current = null;
       }
     }
-  }, [drawMode]);
+  }, [drawModeForChart]);
 
   useEffect(() => {
-    if (!drawingsEnabled || drawMode !== "hline") {
+    if (!drawingsEnabled || drawModeForChart !== "hline") {
       const br = bundleRef.current;
       const pl = hlinePreviewPlRef.current;
       if (br?.candle && pl) {
@@ -2510,7 +2794,7 @@ export default function StockChart({
     return () => {
       chartEl.removeEventListener("pointermove", paint);
     };
-  }, [drawingsEnabled, drawMode, structureKey, magnetEnabled]);
+  }, [drawingsEnabled, drawModeForChart, structureKey, magnetEnabled]);
 
   useEffect(() => {
     if (!drawingsEnabled) return;
@@ -2523,6 +2807,7 @@ export default function StockChart({
       for (const o of drawingAccumRef.current.objects) {
         if (o.kind === "ray") refreshRaySeriesGeometry(br, o);
       }
+      rayPreviewRequestRedrawRef.current?.();
       const rid = drawingRayDotsHoverIdRef.current;
       if (!rid) return;
       const ro = findDrawingById(drawingAccumRef.current, rid);
@@ -2539,8 +2824,8 @@ export default function StockChart({
       ch.timeScale().unsubscribeVisibleLogicalRangeChange(onRange);
   }, [drawingsEnabled, structureKey]);
 
-  useEffect(() => {
-    if (!drawingsEnabled || drawMode !== "ray" || rayDraftForPreview == null) {
+  useLayoutEffect(() => {
+    if (!drawingsEnabled || drawModeForChart !== "ray" || rayDraftForPreview == null) {
       const br = bundleRef.current;
       const pv = rayPreviewLineRef.current;
       if (br && pv) {
@@ -2556,54 +2841,100 @@ export default function StockChart({
     const b = bundleRef.current;
     if (!b || b.structureKey !== structureKey) return;
     const chart = b.chart;
-    const chartEl = chart.chartElement();
+    const paneEl = chart.panes()[0]?.getHTMLElement() ?? chart.chartElement();
 
-    const paintFromClient = (clientX: number, clientY: number) => {
+    let rafId = 0;
+    let pending: { x: number; y: number } | null = null;
+
+    const flushPreview = () => {
+      rafId = 0;
+      if (!pending) return;
+      const { x, y } = pending;
+      pending = null;
+      const br = bundleRef.current;
+      if (!br || br.chart !== chart || br.structureKey !== structureKey) return;
       const draft = drawingAccumRef.current.rayDraft;
       if (!draft) return;
-      const raw = resolveDrawPointFromClient(clientX, clientY, chart, b.candle);
-      if (!raw) return;
-      const pts = rayPreviewChordFromDraftAndPointer(b.candle, draft, raw);
-      if (pts.length < 2) return;
+      const pane0 = br.chart.panes()[0]?.getHTMLElement();
+      if (!pane0) return;
+      const pr = pane0.getBoundingClientRect();
+      const px0 = x - pr.left;
+      const py0 = y - pr.top;
+      let px = px0;
+      let py = py0;
+      if (magnetEnabledRef.current) {
+        const hit = findNearestOhlcPaneHitWithinMagnet(chart, br.candle, px0, py0);
+        if (hit) {
+          px = hit.px;
+          py = hit.py;
+        }
+      }
+      const pts = rayLineTwoPointsFromAnchorAndPanePixel(
+        chart,
+        br.candle,
+        draft.time,
+        draft.value,
+        px,
+        py,
+        draft.logical ?? null,
+      );
+      if (!pts) return;
       if (!rayPreviewLineRef.current) {
         rayPreviewLineRef.current = chart.addSeries(
           LineSeries,
           {
+            ...rayLineSeriesBaseOpts(br.candle),
             color: DRAW_RAY_PREVIEW,
-            lineWidth: 1,
-            lineStyle: LineStyle.Dashed,
+            lineWidth: 2,
+            lineStyle: LineStyle.Solid,
             priceLineVisible: false,
             lastValueVisible: false,
             crosshairMarkerVisible: false,
           },
           0,
         );
+        alignRaySeriesToCandlePriceScale(rayPreviewLineRef.current, br.candle);
       }
       rayPreviewLineRef.current.setData(toLineData(pts));
     };
 
-    const onCrosshairMove = (param: MouseEventParams<Time>) => {
-      if (param.point === undefined) return;
-      const br = bundleRef.current;
-      if (!br || br.chart !== chart || br.structureKey !== structureKey) return;
-      const pane = chart.panes()[0]?.getHTMLElement();
-      if (!pane) return;
-      const pr = pane.getBoundingClientRect();
-      paintFromClient(pr.left + param.point.x, pr.top + param.point.y);
+    const schedulePreview = (clientX: number, clientY: number) => {
+      lastRayPreviewClientRef.current = { x: clientX, y: clientY };
+      pending = { x: clientX, y: clientY };
+      if (rafId) return;
+      rafId = window.requestAnimationFrame(flushPreview);
     };
 
-    chart.subscribeCrosshairMove(onCrosshairMove);
+    rayPreviewRequestRedrawRef.current = () => {
+      const p = lastRayPreviewClientRef.current;
+      if (p) schedulePreview(p.x, p.y);
+    };
 
     const paint = (ev: PointerEvent) => {
-      paintFromClient(ev.clientX, ev.clientY);
+      schedulePreview(ev.clientX, ev.clientY);
     };
 
-    chartEl.addEventListener("pointermove", paint);
-    return () => {
-      chartEl.removeEventListener("pointermove", paint);
-      chart.unsubscribeCrosshairMove(onCrosshairMove);
+    const onCrosshairMove = (param: MouseEventParams<Time>) => {
+      const cpt = clientPointFromCrosshairParam(chart, param);
+      if (!cpt) return;
+      schedulePreview(cpt.clientX, cpt.clientY);
     };
-  }, [drawingsEnabled, drawMode, rayDraftForPreview, structureKey]);
+
+    paneEl.addEventListener("pointermove", paint);
+    chart.subscribeCrosshairMove(onCrosshairMove);
+
+    const kick = lastRayPreviewClientRef.current;
+    if (kick) schedulePreview(kick.x, kick.y);
+
+    return () => {
+      rayPreviewRequestRedrawRef.current = null;
+      paneEl.removeEventListener("pointermove", paint);
+      chart.unsubscribeCrosshairMove(onCrosshairMove);
+      if (rafId) window.cancelAnimationFrame(rafId);
+      rafId = 0;
+      pending = null;
+    };
+  }, [drawingsEnabled, drawModeForChart, rayDraftForPreview, structureKey, magnetEnabled]);
 
   useEffect(() => {
     if (!drawHitMenu) return;
@@ -2753,23 +3084,13 @@ export default function StockChart({
       }
     >
       {showBuiltinDrawToolbar && (
-        <>
-          <ChartDrawToolbarButtons
-            drawMode={drawMode}
-            onDrawModeChange={setDrawMode}
-            onClearAll={clearAllDrawings}
-            magnetEnabled={magnetEnabled}
-            onMagnetChange={setMagnetEnabled}
-          />
-          <div className="chart-draw-persist-hint" role="note">
-            {ko.crypto.drawPersistHint}
-          </div>
-        </>
-      )}
-      {drawingsEnabled && !showBuiltinDrawToolbar && (
-        <div className="chart-draw-persist-hint" role="note">
-          {ko.crypto.drawPersistHint}
-        </div>
+        <ChartDrawToolbarButtons
+          drawMode={drawModeForChart}
+          onDrawModeChange={setDrawMode}
+          onClearAll={clearAllDrawings}
+          magnetEnabled={magnetEnabled}
+          onMagnetChange={setMagnetEnabled}
+        />
       )}
       {drawingsEnabled && drawHitMenu ? (
         <div
@@ -2861,7 +3182,7 @@ export default function StockChart({
           chartDrawAreaPointerInsideRef.current = false;
         }}
       />
-      {drawingRayDots && drawMode === "cursor" && drawingsEnabled ? (
+      {drawingRayDots && drawModeForChart === "cursor" && drawingsEnabled ? (
         <>
           <span
             className="chart-draw-ray-dot-wrap"

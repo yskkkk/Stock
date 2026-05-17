@@ -9,22 +9,30 @@
     "i18n:gen": "node scripts/gen-ko-i18n.mjs",
     "verify": "node scripts/verify-encoding.mjs",
     "verify:entry": "node scripts/verify-entry-http.mjs",
+    "verify:api-smoke": "node scripts/verify-api-smoke.mjs",
+    "test": "vitest run",
     "build": "npm run verify && tsc -b && vite build",
     "preview": "concurrently -k \"node server/index.js\" \"vite preview\""
   },
   "dependencies": {
+    "@cursor/sdk": "^1.0.13",
+    "@vscode/ripgrep": "^1.18.0",
     "express": "^5.1.0",
     "lightweight-charts": "^5.0.7",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/react": "^16.3.0",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "@vitejs/plugin-react": "^4.4.1",
     "concurrently": "^9.1.2",
+    "jsdom": "^26.1.0",
     "tree-kill": "^1.2.2",
     "typescript": "^5.8.3",
-    "vite": "^6.3.5"
+    "vite": "^6.3.5",
+    "vitest": "^3.2.4"
   }
 }

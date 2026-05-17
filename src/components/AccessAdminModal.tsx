@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useModalDrag } from "../hooks/useModalDrag";
 import {
+  clearStoredAccessAdminToken,
   fetchAccessAdminRequests,
   fetchFeedbackInbox,
+  getStoredAccessAdminToken,
+  persistAccessAdminToken,
   postAccessAdminAllowedMemo,
   postAccessAdminApprove,
+  postAccessAdminGrantDelegate,
   postAccessAdminReject,
   postAccessAdminRevoke,
+  postAccessAdminRevokeDelegate,
+  postFeedbackAdminDelete,
+  postFeedbackAdminReply,
   type AccessAdminSnapshot,
   type AccessAllowedEntry,
   type AccessDeviceInfoPayload,
@@ -13,8 +21,6 @@ import {
 } from "../api";
 import type { FeedbackInboxItem } from "../types";
 import { ko } from "../i18n/ko";
-
-const TOKEN_KEY = "stock_access_admin_token";
 
 type AdminTab = "access" | "feedback" | "telegram";
 
@@ -71,28 +77,37 @@ export default function AccessAdminModal({
   const [feedbackBusy, setFeedbackBusy] = useState(false);
   const [feedbackErr, setFeedbackErr] = useState<string | null>(null);
   const [feedbackRefreshKey, setFeedbackRefreshKey] = useState(0);
+  const [feedbackReplyDrafts, setFeedbackReplyDrafts] = useState<Record<string, string>>({});
   const passwordFieldRef = useRef<HTMLInputElement>(null);
+  const { modalStyle, onDragHandlePointerDown } = useModalDrag([open, phase]);
 
   const authForApi = useCallback(() => activeToken.trim(), [activeToken]);
 
   const load = useCallback(
-    async (token: string) => {
+    async (token: string, options?: { silent?: boolean }) => {
+      const silent = Boolean(options?.silent);
       const t = token.trim();
       if (!t && !adminIpBypassPassword) {
-        setError(null);
-        setSnapshot(null);
+        if (!silent) {
+          setError(null);
+          setSnapshot(null);
+        }
         return;
       }
-      setLoading(true);
-      setError(null);
+      if (!silent) {
+        setLoading(true);
+        setError(null);
+      }
       try {
         const data = await fetchAccessAdminRequests(t);
         setSnapshot(data);
       } catch (e) {
-        setSnapshot(null);
-        setError(e instanceof Error ? e.message : ko.access.adminError);
+        if (!silent) {
+          setSnapshot(null);
+          setError(e instanceof Error ? e.message : ko.access.adminError);
+        }
       } finally {
-        setLoading(false);
+        if (!silent) setLoading(false);
       }
     },
     [adminIpBypassPassword],
@@ -112,6 +127,26 @@ export default function AccessAdminModal({
       setPasswordInput("");
       setActiveToken("");
       void load("");
+      return;
+    }
+    const saved = getStoredAccessAdminToken();
+    if (saved) {
+      setPhase("admin");
+      setActiveToken(saved);
+      setSnapshot(null);
+      setLoading(true);
+      void fetchAccessAdminRequests(saved)
+        .then((data) => {
+          setSnapshot(data);
+        })
+        .catch(() => {
+          clearStoredAccessAdminToken();
+          setPhase("password");
+          setActiveToken("");
+          setSnapshot(null);
+          setPasswordInput("");
+        })
+        .finally(() => setLoading(false));
     } else {
       setPhase("password");
       setPasswordInput("");
@@ -120,22 +155,38 @@ export default function AccessAdminModal({
     }
   }, [open, adminIpBypassPassword, load]);
 
+  /** 폴링으로 스냅샷이 갱신돼도 입력 중인 메모 초기화 방지 — 서버와 같을 때만 동기 */
   useEffect(() => {
     if (!snapshot?.allowed) return;
-    const m: Record<string, string> = {};
-    for (const a of snapshot.allowed) {
-      m[a.ip] = a.memo ?? "";
-    }
-    setMemoDrafts(m);
+    setMemoDrafts((prev) => {
+      const next: Record<string, string> = { ...prev };
+      const ips = new Set(snapshot.allowed.map((a) => a.ip));
+      for (const a of snapshot.allowed) {
+        const serverMemo = a.memo ?? "";
+        if (next[a.ip] === undefined) next[a.ip] = serverMemo;
+        else if (next[a.ip] === serverMemo) next[a.ip] = serverMemo;
+      }
+      for (const k of Object.keys(next)) {
+        if (!ips.has(k)) delete next[k];
+      }
+      return next;
+    });
   }, [snapshot]);
+
+  useEffect(() => {
+    if (!open || phase !== "admin" || tab !== "access") return;
+    const id = window.setInterval(() => {
+      void load(authForApi(), { silent: true });
+    }, 2500);
+    return () => window.clearInterval(id);
+  }, [open, phase, tab, load, authForApi]);
 
   useEffect(() => {
     if (!open || phase !== "admin" || tab !== "feedback") return;
     let cancelled = false;
     setFeedbackBusy(true);
     setFeedbackErr(null);
-    const tok = authForApi() || undefined;
-    void fetchFeedbackInbox(tok)
+    void fetchFeedbackInbox()
       .then((d) => {
         if (!cancelled) setFeedbackItems(d.items ?? []);
       })
@@ -151,7 +202,7 @@ export default function AccessAdminModal({
     return () => {
       cancelled = true;
     };
-  }, [open, phase, tab, authForApi, feedbackRefreshKey]);
+  }, [open, phase, tab, feedbackRefreshKey]);
 
   const reloadFeedback = () => setFeedbackRefreshKey((k) => k + 1);
 
@@ -168,11 +219,7 @@ export default function AccessAdminModal({
     setError(null);
     try {
       const data = await fetchAccessAdminRequests(p);
-      try {
-        sessionStorage.setItem(TOKEN_KEY, p);
-      } catch {
-        /* ignore */
-      }
+      persistAccessAdminToken(p);
       setActiveToken(p);
       setSnapshot(data);
       setPhase("admin");
@@ -189,16 +236,8 @@ export default function AccessAdminModal({
   };
 
   const lockAgain = () => {
-    if (adminIpBypassPassword) {
-      setError(null);
-      void load("");
-      return;
-    }
-    try {
-      sessionStorage.removeItem(TOKEN_KEY);
-    } catch {
-      /* ignore */
-    }
+    if (adminIpBypassPassword) return;
+    clearStoredAccessAdminToken();
     setActiveToken("");
     setSnapshot(null);
     setPhase("password");
@@ -229,6 +268,22 @@ export default function AccessAdminModal({
     }
   };
 
+  const runFeedbackAdminAction = async (fn: () => Promise<unknown>) => {
+    if (!canUseAccessApi()) return;
+    setLoading(true);
+    setFeedbackErr(null);
+    try {
+      await fn();
+      const d = await fetchFeedbackInbox();
+      setFeedbackItems(d.items ?? []);
+    } catch (e) {
+      setFeedbackErr(e instanceof Error ? e.message : ko.errors.request);
+    } finally {
+      setLoading(false);
+      setActionId(null);
+    }
+  };
+
   if (!open) return null;
 
   return (
@@ -241,12 +296,16 @@ export default function AccessAdminModal({
     >
       <div
         className="access-admin-modal card"
+        style={modalStyle}
         role="dialog"
         aria-modal="true"
         aria-labelledby="access-admin-title"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="access-admin-head">
+        <div
+          className="access-admin-head modal-drag-handle"
+          onPointerDown={onDragHandlePointerDown}
+        >
           <h2 id="access-admin-title" className="access-admin-title">
             {ko.access.adminConsoleTitle}
           </h2>
@@ -294,6 +353,12 @@ export default function AccessAdminModal({
           </>
         ) : (
           <>
+            {adminIpBypassPassword ? (
+              <p className="access-admin-muted access-admin-ip-banner" role="status">
+                {ko.access.adminIpBanner}
+              </p>
+            ) : null}
+
             <div className="access-admin-tabs" role="tablist" aria-label={ko.access.adminTabListAria}>
               <button
                 type="button"
@@ -327,23 +392,25 @@ export default function AccessAdminModal({
             </div>
 
             <div className="access-admin-token-row">
-              {tab !== "telegram" ? (
+              {tab === "feedback" ? (
                 <button
                   type="button"
                   className="btn btn--secondary"
                   disabled={loading}
-                  onClick={() => {
-                    if (tab === "access") void load(authForApi());
-                    else reloadFeedback();
-                  }}
+                  onClick={() => reloadFeedback()}
                 >
-                  {tab === "feedback" ? ko.feedback.inboxReload : ko.access.adminLoad}
+                  {ko.feedback.inboxReload}
                 </button>
               ) : null}
-              <button type="button" className="btn btn--ghost" onClick={lockAgain}>
-                {ko.access.adminLockAgain}
-              </button>
+              {!adminIpBypassPassword ? (
+                <button type="button" className="btn btn--ghost" onClick={lockAgain}>
+                  {ko.access.adminLockAgain}
+                </button>
+              ) : null}
             </div>
+            {!adminIpBypassPassword && phase === "admin" ? (
+              <p className="access-admin-muted access-admin-lock-hint">{ko.access.adminLockHint}</p>
+            ) : null}
             {error && tab === "access" && (
               <p className="access-admin-error" role="alert">
                 {error}
@@ -355,6 +422,7 @@ export default function AccessAdminModal({
 
             {tab === "access" && snapshot && (
               <div className="access-admin-body">
+                <p className="access-admin-intro">{ko.access.adminIntro}</p>
                 <section className="access-admin-section">
                   <h3>{ko.access.adminPending}</h3>
                   {snapshot.pending.length === 0 ? (
@@ -486,14 +554,59 @@ export default function AccessAdminModal({
                               type="button"
                               className="btn btn--ghost"
                               disabled={loading}
-                              onClick={() =>
+                              onClick={() => {
+                                if (
+                                  !window.confirm(
+                                    ko.access.adminRevokeConfirm.replace("{ip}", a.ip),
+                                  )
+                                ) {
+                                  return;
+                                }
                                 void runAction(() =>
                                   postAccessAdminRevoke(authForApi(), a.ip),
-                                )
-                              }
+                                );
+                              }}
                             >
                               {ko.access.adminRevoke}
                             </button>
+                          </div>
+                          <div className="access-admin-item-actions access-admin-item-actions--delegate">
+                            {a.adminDelegate ? (
+                              <span className="access-admin-delegate-badge">
+                                {ko.feedback.accessDelegateBadge}
+                              </span>
+                            ) : null}
+                            {!a.adminDelegate ? (
+                              <button
+                                type="button"
+                                className="btn btn--secondary"
+                                disabled={loading && actionId === `gd-${a.ip}`}
+                                onClick={() => {
+                                  if (!window.confirm(ko.feedback.accessDelegateConfirm)) return;
+                                  setActionId(`gd-${a.ip}`);
+                                  void runAction(() =>
+                                    postAccessAdminGrantDelegate(authForApi(), a.ip),
+                                  );
+                                }}
+                              >
+                                {ko.feedback.accessGrantDelegate}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className="btn btn--secondary"
+                                disabled={loading && actionId === `rd-${a.ip}`}
+                                onClick={() => {
+                                  if (!window.confirm(ko.feedback.accessRevokeDelegateConfirm)) return;
+                                  setActionId(`rd-${a.ip}`);
+                                  void runAction(() =>
+                                    postAccessAdminRevokeDelegate(authForApi(), a.ip),
+                                  );
+                                }}
+                              >
+                                {ko.feedback.accessRevokeDelegate}
+                              </button>
+                            )}
                           </div>
                         </li>
                       ))}
@@ -505,6 +618,7 @@ export default function AccessAdminModal({
 
             {tab === "feedback" && (
               <div className="access-admin-body access-admin-body--feedback">
+                <p className="access-admin-muted">{ko.feedback.inboxPublicHint}</p>
                 {feedbackBusy ? (
                   <p className="access-admin-muted">{ko.telegramSent.loading}</p>
                 ) : feedbackErr ? (
@@ -532,6 +646,74 @@ export default function AccessAdminModal({
                             <strong>{ko.feedback.inboxUa}</strong> {it.userAgent}
                           </p>
                         ) : null}
+                        {it.comments && it.comments.length > 0 ? (
+                          <div className="access-admin-feedback-comments">
+                            <strong className="access-admin-feedback-comments__title">
+                              {ko.feedback.inboxReplies}
+                            </strong>
+                            <ul>
+                              {it.comments.map((c) => (
+                                <li key={c.id}>
+                                  <span className="access-admin-muted">{c.at}</span>
+                                  <pre className="access-admin-feedback-comment-msg">{c.message}</pre>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
+                        <label className="access-admin-field access-admin-field--block">
+                          <span>{ko.feedback.inboxReplyFieldLabel}</span>
+                          <input
+                            type="text"
+                            maxLength={2000}
+                            value={feedbackReplyDrafts[it.id] ?? ""}
+                            disabled={loading}
+                            onChange={(e) =>
+                              setFeedbackReplyDrafts((prev) => ({
+                                ...prev,
+                                [it.id]: e.target.value,
+                              }))
+                            }
+                            placeholder={ko.feedback.inboxReplyPlaceholder}
+                          />
+                        </label>
+                        <div className="access-admin-item-actions">
+                          <button
+                            type="button"
+                            className="btn btn--primary"
+                            disabled={loading && actionId === `fr-${it.id}`}
+                            onClick={() => {
+                              const msg = (feedbackReplyDrafts[it.id] ?? "").trim();
+                              if (!msg) return;
+                              setActionId(`fr-${it.id}`);
+                              void runFeedbackAdminAction(() =>
+                                postFeedbackAdminReply(authForApi(), it.id, msg),
+                              ).then(() => {
+                                setFeedbackReplyDrafts((prev) => {
+                                  const next = { ...prev };
+                                  delete next[it.id];
+                                  return next;
+                                });
+                              });
+                            }}
+                          >
+                            {ko.feedback.inboxReplySend}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn--ghost"
+                            disabled={loading && actionId === `fd-${it.id}`}
+                            onClick={() => {
+                              if (!window.confirm(ko.feedback.inboxDeleteConfirm)) return;
+                              setActionId(`fd-${it.id}`);
+                              void runFeedbackAdminAction(() =>
+                                postFeedbackAdminDelete(authForApi(), it.id),
+                              );
+                            }}
+                          >
+                            {ko.feedback.inboxDelete}
+                          </button>
+                        </div>
                       </li>
                     ))}
                   </ul>

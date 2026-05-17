@@ -87,12 +87,18 @@ function readBearerToken(req) {
   return m ? m[1].trim() : "";
 }
 
-/** Bearer ACCESS_ADMIN_TOKEN 또는 관리자 등록 IP */
+/** Bearer ACCESS_ADMIN_TOKEN 또는 관리자 등록 IP 또는 허용 목록의 위임 관리자 */
 export function isAccessAdminRequest(req) {
   const token = getAdminToken();
   const bearer = readBearerToken(req);
   if (token && bearer === token) return true;
   if (isAccessAdminIp(req)) return true;
+  const ip = normalizeAccessIp(clientIp(req));
+  if (!ip) return false;
+  const store = readAccessStore();
+  for (const a of store.allowed) {
+    if (normalizeAccessIp(a.ip) === ip && a.adminDelegate === true) return true;
+  }
   return false;
 }
 
@@ -128,6 +134,7 @@ function isPathPublic(pathname, method) {
   if (method === "GET" && pathname === "/api/access/status") return true;
   if (method === "POST" && pathname === "/api/access/request") return true;
   if (method === "POST" && pathname === "/api/feedback") return true;
+  if (method === "GET" && pathname === "/api/feedback/inbox") return true;
   return false;
 }
 
@@ -293,7 +300,12 @@ export function registerAccessControl(app) {
     const store = readAccessStore();
     const pending = store.requests.filter((r) => r.status === "pending");
     const recent = [...store.requests].reverse().slice(0, 80);
-    res.json({ pending, allowed: store.allowed, recent });
+    const allowed = [...store.allowed].sort((a, b) => {
+      const ta = Date.parse(String(a.addedAt ?? "")) || 0;
+      const tb = Date.parse(String(b.addedAt ?? "")) || 0;
+      return tb - ta;
+    });
+    res.json({ pending, allowed, recent });
   });
 
   app.post("/api/access/admin/approve", requireAdmin, (req, res) => {
@@ -314,7 +326,7 @@ export function registerAccessControl(app) {
     if (!store.allowed.some((a) => normalizeAccessIp(a.ip) === ipn)) {
       /** @type {{ ip: string; addedAt: string; fromRequestId: string; memo?: string; requestMessage?: string }} */
       const row = {
-        ip: reqEntry.ip,
+        ip: ipn,
         addedAt: new Date().toISOString(),
         fromRequestId: id,
       };
@@ -380,6 +392,46 @@ export function registerAccessControl(app) {
       res.status(404).json({ error: "허용 목록에 없는 IP입니다." });
       return;
     }
+    writeAccessStore(store);
+    res.json({ ok: true });
+  });
+
+  app.post("/api/access/admin/grant-delegate", requireAdmin, (req, res) => {
+    const rawIp = String(req.body?.ip ?? "").trim();
+    if (!rawIp) {
+      res.status(400).json({ error: "ip가 필요합니다." });
+      return;
+    }
+    const target = normalizeAccessIp(rawIp);
+    const store = readAccessStore();
+    const entry = store.allowed.find((a) => normalizeAccessIp(a.ip) === target);
+    if (!entry) {
+      res.status(404).json({ error: "허용 목록에 없는 IP입니다. 먼저 접속을 허용한 뒤 위임할 수 있습니다." });
+      return;
+    }
+    entry.adminDelegate = true;
+    writeAccessStore(store);
+    res.json({ ok: true });
+  });
+
+  app.post("/api/access/admin/revoke-delegate", requireAdmin, (req, res) => {
+    const rawIp = String(req.body?.ip ?? "").trim();
+    if (!rawIp) {
+      res.status(400).json({ error: "ip가 필요합니다." });
+      return;
+    }
+    const target = normalizeAccessIp(rawIp);
+    const store = readAccessStore();
+    const entry = store.allowed.find((a) => normalizeAccessIp(a.ip) === target);
+    if (!entry) {
+      res.status(404).json({ error: "허용 목록에 없는 IP입니다." });
+      return;
+    }
+    if (entry.adminDelegate !== true) {
+      res.status(400).json({ error: "이 IP에는 위임된 관리자 권한이 없습니다." });
+      return;
+    }
+    delete entry.adminDelegate;
     writeAccessStore(store);
     res.json({ ok: true });
   });

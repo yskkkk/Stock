@@ -1,0 +1,336 @@
+/**
+ * Toss 스타일에 가깝게: 둥근 카드·pill 버튼·조금 더 굵은 본문·부드러운 그림자
+ * (index.css / theme.css 이후 로드)
+ */
+
+:root {
+  --radius: 18px;
+  --radius-sm: 12px;
+  --radius-xl: 22px;
+  --shadow: 0 12px 44px rgba(0, 0, 0, 0.38);
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.22);
+}
+
+html {
+  font-size: 16px;
+}
+
+html[data-theme="light"] {
+  --shadow: 0 14px 40px rgba(15, 23, 42, 0.1);
+  --shadow-card: 0 4px 18px rgba(15, 23, 42, 0.06);
+}
+
+body {
+  font-weight: 620;
+  letter-spacing: -0.022em;
+  line-height: 1.58;
+}
+
+.app {
+  gap: 0.95rem;
+  padding: 1.35rem 1.35rem 1.65rem;
+}
+
+.card {
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+/* 상단·패널 카드는 조금 더 둥글게 */
+.top-bar.card,
+.filter-bar.card,
+.picks-panel.card,
+.quote-bar.card,
+.chart-panel.card,
+.chart-placeholder.card,
+.macro-bar.card,
+.news-modal.card,
+.access-admin-modal.card,
+.feedback-modal.card {
+  border-radius: var(--radius-xl);
+}
+
+.feedback-modal__title {
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.feedback-modal__textarea,
+.feedback-modal__field input {
+  border-radius: 14px;
+  font-weight: 600;
+}
+
+.launch-shell--loading {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.btn {
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.84rem;
+  padding: 0.52rem 1.1rem;
+}
+
+.search-row button,
+.error-overlay button {
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.rescan-btn,
+.picks-error button {
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.chip {
+  padding: 0.32rem 0.72rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.seg,
+.overlay-toggle {
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.timeframe-seg .seg {
+  border-radius: 999px;
+  padding: 0.42rem 0.62rem;
+  font-size: 0.8rem;
+}
+
+.main-tabs {
+  padding: 4px;
+}
+
+.main-tab {
+  padding: 0.5rem 1.1rem;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.top-bar__brand h1 {
+  font-size: 1.18rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.top-bar__brand p {
+  font-weight: 600;
+  font-size: 0.84rem;
+}
+
+.panel-head__meta,
+.scan-status {
+  font-weight: 600;
+}
+
+.market-tab {
+  font-weight: 700;
+  border-radius: 999px;
+}
+
+.panel-head .market-tabs {
+  border-radius: 999px;
+  padding: 3px;
+}
+
+.quote-bar__info h2,
+.quote-main h2 {
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-size: 1.12rem;
+}
+
+.pick-name {
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.pick-score {
+  font-weight: 800;
+}
+
+.pick-action {
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.72rem;
+  padding: 0.38rem 0;
+}
+
+.pick-item {
+  border-radius: var(--radius);
+}
+
+.pick-search,
+.pick-sort {
+  border-radius: 14px;
+  font-weight: 600;
+}
+
+.filter-presets button {
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.filter-clear {
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.search-row input {
+  border-radius: 14px;
+  font-weight: 600;
+}
+
+.chart-toolbar {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.chart-toolbar__label {
+  font-weight: 800;
+}
+
+.chart-draw-btn {
+  border-radius: 999px;
+  font-weight: 700;
+  padding: 0.34rem 0.65rem;
+  font-size: 0.76rem;
+}
+
+.profit-model-input {
+  border-radius: 14px;
+  font-weight: 600;
+}
+
+.profit-model-label {
+  font-weight: 700;
+}
+
+.profit-model-strip {
+  border-radius: var(--radius);
+}
+
+.news-modal-header h2 {
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.news-modal-close {
+  border-radius: 999px;
+}
+
+.macro-bar {
+  border-radius: var(--radius-xl);
+}
+
+.macro-card {
+  border-radius: 16px;
+}
+
+.macro-card__name {
+  font-weight: 700;
+}
+
+.macro-card__region {
+  border-radius: 999px;
+}
+
+.macro-info-modal {
+  border-radius: var(--radius-xl);
+}
+
+.theme-toggle {
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+.brand-mark {
+  border-radius: 14px;
+}
+
+.tag {
+  border-radius: 999px;
+  font-weight: 800;
+}
+
+.alert {
+  border-radius: var(--radius);
+  font-weight: 600;
+}
+
+.screen-failures-item {
+  border-radius: var(--radius-sm);
+}
+
+.pick-quote__symbol,
+.pick-quote__chg {
+  font-weight: 700;
+}
+
+.crypto-pick-name {
+  font-weight: 800;
+}
+
+.crypto-pick-ticker {
+  font-weight: 700;
+  border-radius: 999px;
+}
+
+.panel-head__title,
+.crypto-panel .panel-head__title {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.placeholder-title {
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.placeholder-desc {
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.price {
+  font-weight: 800;
+}
+
+.change {
+  font-weight: 800;
+}
+
+.filter-title {
+  font-weight: 800;
+}
+
+.chart-status {
+  font-weight: 600;
+}
+
+
+*::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+}
+
+@media (max-width: 900px) {
+  :root {
+    --radius: 22px;
+    --radius-sm: 14px;
+    --radius-xl: 26px;
+  }
+
+  .macro-bar.card {
+    border-radius: var(--radius-xl);
+  }
+
+  .macro-card.macro-card--btn {
+    border-radius: 18px;
+  }
+}

@@ -189,12 +189,38 @@
   color: var(--accent, #5eead4);
 }
 
+.chart-draw-btn--icon {
+  padding: 0.32rem 0.4rem;
+  min-width: 2rem;
+  min-height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chart-draw-btn__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+}
+
+.chart-draw-btn__icon svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
 .chart-draw-persist-hint {
-  font-size: 0.65rem;
-  line-height: 1.35;
-  color: var(--text-dim, #94a3b8);
-  padding: 0 0 0.15rem;
-  max-width: 100%;
+  display: none !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  visibility: hidden !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
 }
 
 .crypto-chart-section .chart-panel.crypto-chart-panel {

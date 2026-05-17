@@ -59,7 +59,6 @@ export default function PickList({
                 price={pick.price}
                 currency={pick.currency}
                 changePercent={pick.changePercent}
-                showSymbol={false}
               />
               {signalIds.length > 0 && (
                 <div className="pick-signals">

@@ -21,8 +21,11 @@ import { loadNews } from "./news.js";
 import { loadCryptoQuotes } from "./crypto-quotes.js";
 import { loadCryptoWatchlistTen } from "./crypto-universe.js";
 import { loadStock } from "./stock-data.js";
+import { getUsdKrwRate } from "./fx-usd-krw.js";
+import { searchStocks } from "./stock-search.js";
 import { getMacroEventsCached } from "./macro-events.js";
-import { postFeedback, getFeedbackInbox } from "./feedback-inbox.js";
+import { postFeedback, getFeedbackInbox, postFeedbackAdminReply, deleteFeedbackAdmin } from "./feedback-inbox.js";
+import { runOpsCursorAgent } from "./cursor-ops-agent.js";
 
 function asyncRoute(handler) {
   return (req, res, next) => {
@@ -52,15 +55,55 @@ export function createApp() {
 
   app.get("/api/config", (req, res) => {
     const adminReq = isAccessAdminRequest(req);
-    const feedbackTok = String(process.env.FEEDBACK_INBOX_TOKEN ?? "").trim();
+    const cursorKey = String(process.env.CURSOR_API_KEY ?? "").trim();
     res.json({
       dartEnabled: isDartEnabled(),
       telegramNotify: getTelegramNotifyStatus(),
-      feedbackInboxEnabled: Boolean(feedbackTok) || adminReq,
+      feedbackInboxEnabled: true,
       telegramResetAllowed: adminReq,
       adminIpConsole: isAccessAdminIp(req),
+      accessAdmin: adminReq,
+      opsCursorAgentAvailable: adminReq && Boolean(cursorKey),
     });
   });
+
+  app.post(
+    "/api/ops/cursor-agent",
+    asyncRoute(async (req, res) => {
+      if (!isAccessAdminRequest(req)) {
+        res.status(403).json({
+          error: "관리자만 Cursor 에이전트 연동을 사용할 수 있습니다.",
+          code: "FORBIDDEN",
+        });
+        return;
+      }
+      const instruction = String(req.body?.instruction ?? "").trim();
+      if (!instruction) {
+        res.status(400).json({ error: "instruction 필드에 요청 내용을 입력하세요." });
+        return;
+      }
+      const context = String(req.body?.context ?? "").trim();
+      try {
+        const out = await runOpsCursorAgent({ instruction, context });
+        res.json({ ok: true, ...out });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const code =
+          err && typeof err === "object" && "code" in err
+            ? String(err.code)
+            : "";
+        if (code === "NO_API_KEY") {
+          res.status(503).json({ error: msg, code: "NO_API_KEY" });
+          return;
+        }
+        if (code === "AGENT_RUN_FAILED") {
+          res.status(502).json({ error: msg, code: "AGENT_RUN_FAILED" });
+          return;
+        }
+        res.status(500).json({ error: msg });
+      }
+    }),
+  );
 
   app.post("/api/feedback", (req, res) => {
     postFeedback(req, res);
@@ -68,6 +111,14 @@ export function createApp() {
 
   app.get("/api/feedback/inbox", (req, res) => {
     getFeedbackInbox(req, res);
+  });
+
+  app.post("/api/feedback/admin/reply", (req, res) => {
+    postFeedbackAdminReply(req, res);
+  });
+
+  app.post("/api/feedback/admin/delete", (req, res) => {
+    deleteFeedbackAdmin(req, res);
   });
 
   app.get("/api/telegram/sent", (_req, res) => {
@@ -165,6 +216,43 @@ export function createApp() {
         res.json(data);
       } catch (err) {
         const message = err instanceof Error ? err.message : "요청 실패";
+        res.status(404).json({ error: message });
+      }
+    }),
+  );
+
+  app.get(
+    "/api/fx/usd-krw",
+    asyncRoute(async (_req, res) => {
+      try {
+        const data = await getUsdKrwRate();
+        res.json(data);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "요청 실패";
+        res.status(404).json({ error: message });
+      }
+    }),
+  );
+
+  app.get(
+    "/api/stock-search",
+    asyncRoute(async (req, res) => {
+      try {
+        const q = String(req.query.q ?? "").trim();
+        const market = String(req.query.market ?? "kr").toLowerCase();
+        if (market !== "kr" && market !== "us") {
+          res.status(400).json({ error: "market은 kr 또는 us여야 합니다." });
+          return;
+        }
+        const data = await searchStocks(q, market);
+        res.json(data);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "요청 실패";
+        const code = err && typeof err === "object" && "code" in err ? err.code : "";
+        if (code === "BAD_QUERY") {
+          res.status(400).json({ error: message });
+          return;
+        }
         res.status(404).json({ error: message });
       }
     }),

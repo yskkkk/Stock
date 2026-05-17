@@ -69,6 +69,21 @@ function todaySessionKeys() {
   ]);
 }
 
+/** 발송 시각 기준 한국 날짜(YYYY-MM-DD) — 이력 목록·초기화를 KST 자정 기준으로 통일 */
+function kstYmdFromMs(ms) {
+  if (!ms || !Number.isFinite(ms)) return "";
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(ms));
+}
+
+function kstTodayYmd() {
+  return kstYmdFromMs(Date.now());
+}
+
 function sleepMs(ms) {
   const end = Date.now() + ms;
   while (Date.now() < end) {
@@ -373,32 +388,22 @@ function tryClaimNotify(pick) {
 
 
 export function countTodayTelegramSent() {
-
-  const sessions = todaySessionKeys();
-
+  const today = kstTodayYmd();
   const seen = new Set();
-
   const sent = loadSentFresh();
 
-
-
   for (const [key, entry] of Object.entries(sent)) {
-
-    if (!entry?.session || !sessions.has(entry.session)) continue;
-
+    if (kstYmdFromMs(entry?.at ?? 0) !== today) continue;
     const { market, symbol } = parseSentKey(key, entry);
-
     seen.add(`${market}:${symbol}`);
-
   }
 
   return seen.size;
-
 }
 
 
 
-/** 오늘(각 시장 현지일 세션 키) 텔레그램 발송 이력 제거 → 동일 종목 재알림 가능 */
+/** 오늘(KST 달력일) 텔레그램 발송 이력 제거 → 동일 종목 재알림 가능 */
 
 export function clearTodayTelegramSent() {
 
@@ -406,19 +411,17 @@ export function clearTodayTelegramSent() {
 
     const sent = loadSentFresh();
 
-    const sessions = todaySessionKeys();
+    const today = kstTodayYmd();
 
     let removed = 0;
 
     for (const key of Object.keys(sent)) {
 
-      if (sessions.has(sent[key]?.session)) {
+      if (kstYmdFromMs(sent[key]?.at ?? 0) !== today) continue;
 
-        delete sent[key];
+      delete sent[key];
 
-        removed += 1;
-
-      }
+      removed += 1;
 
     }
 
@@ -450,11 +453,11 @@ export function getTelegramNotifyStatus() {
 
 
 
-/** 오늘(시장·현지일 세션) 텔레그램 발송 종목 목록 */
+/** 오늘(KST 달력일) 발송한 종목 목록 */
 
 export function listTodayTelegramSent() {
 
-  const sessions = todaySessionKeys();
+  const today = kstTodayYmd();
 
   const sent = loadSentFresh();
 
@@ -464,7 +467,7 @@ export function listTodayTelegramSent() {
 
   for (const [key, entry] of Object.entries(sent)) {
 
-    if (!entry?.session || !sessions.has(entry.session)) continue;
+    if (kstYmdFromMs(entry?.at ?? 0) !== today) continue;
 
     const { market, symbol } = parseSentKey(key, entry);
 
@@ -504,6 +507,24 @@ export function listTodayTelegramSent() {
 
   return [...bySymbol.values()].sort((a, b) => b.sentAt - a.sentAt);
 
+}
+
+
+
+function buildAppDeepLink(pick) {
+  const raw = (process.env.APP_PUBLIC_BASE_URL || process.env.PUBLIC_APP_URL || "")
+    .trim()
+    .replace(/\/$/, "");
+  if (!raw) return null;
+  try {
+    const base = raw.includes("://") ? raw : `https://${raw}`;
+    const u = new URL(base);
+    u.searchParams.set("symbol", normalizeSymbol(pick.symbol));
+    u.searchParams.set("market", pick.market === "kr" ? "kr" : "us");
+    return u.toString();
+  } catch {
+    return null;
+  }
 }
 
 
@@ -660,7 +681,7 @@ function buildMessage(pick) {
 
 
 
-async function sendTelegramMessage(text) {
+export async function sendTelegramMessage(text, replyMarkup) {
 
   const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
 
@@ -672,23 +693,31 @@ async function sendTelegramMessage(text) {
 
   const url = `https://api.telegram.org/bot${token}/sendMessage`;
 
+  const payload = {
+
+    chat_id: chatId,
+
+    text: text.slice(0, 4096),
+
+    parse_mode: "HTML",
+
+    disable_web_page_preview: true,
+
+  };
+
+  if (replyMarkup && typeof replyMarkup === "object") {
+
+    payload.reply_markup = replyMarkup;
+
+  }
+
   const res = await fetch(url, {
 
     method: "POST",
 
     headers: { "Content-Type": "application/json" },
 
-    body: JSON.stringify({
-
-      chat_id: chatId,
-
-      text: text.slice(0, 4096),
-
-      parse_mode: "HTML",
-
-      disable_web_page_preview: true,
-
-    }),
+    body: JSON.stringify(payload),
 
   });
 
@@ -736,7 +765,15 @@ export function notifyHighScorePick(pick) {
 
   const session = getTradingSessionKey(pick.market);
 
-  void sendTelegramMessage(text)
+  const openUrl = buildAppDeepLink(pick);
+
+  const replyMarkup = openUrl
+
+    ? { inline_keyboard: [[{ text: "📈 종목 보기", url: openUrl }]] }
+
+    : undefined;
+
+  void sendTelegramMessage(text, replyMarkup)
 
     .then((ok) => {
 

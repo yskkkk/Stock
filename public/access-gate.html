@@ -271,9 +271,11 @@
           <p id="admPwdErr" class="err hidden"></p>
         </div>
         <div id="adminContent" class="hidden">
+        <p class="admin-intro" style="margin: 0 0 0.75rem; font-size: 0.78rem; line-height: 1.55; color: var(--muted, #64748b); padding: 0.5rem 0.55rem; border: 1px solid rgba(148,163,184,0.25); border-radius: 8px; background: rgba(148,163,184,0.08)">
+          허용된 IP만 API·대시보드를 쓸 수 있습니다. <strong>대기</strong>는 신청만 접수된 상태, <strong>승인</strong>은 허용 목록에 추가, <strong>거절</strong>은 이번 신청만 끝냅니다. <strong>허가 취소</strong>는 이미 허용된 IP를 목록에서 제거해 곧바로 차단합니다.
+        </p>
         <div class="row">
-          <button type="button" class="btn-secondary" id="btnReload">목록 새로고침</button>
-          <button type="button" class="btn-secondary" id="btnAdminLock">잠금</button>
+          <button type="button" class="btn-secondary" id="btnAdminLock">관리 종료</button>
           <button type="button" class="btn-ghost" id="btnAdmClose">닫기</button>
         </div>
         <p id="admErr" class="err hidden"></p>
@@ -322,15 +324,24 @@
       }
 
       function token() {
-        return (
-          localStorage.getItem(TOKEN_KEY) ||
-          sessionStorage.getItem(TOKEN_KEY) ||
-          ""
-        ).trim();
+        try {
+          const s = (sessionStorage.getItem(TOKEN_KEY) || "").trim();
+          if (s) return s;
+          const l = (localStorage.getItem(TOKEN_KEY) || "").trim();
+          if (l) {
+            try {
+              sessionStorage.setItem(TOKEN_KEY, l);
+              localStorage.removeItem(TOKEN_KEY);
+            } catch (_) {}
+            return l;
+          }
+        } catch (_) {}
+        return "";
       }
 
       function setToken(t) {
         try {
+          localStorage.removeItem(TOKEN_KEY);
           sessionStorage.setItem(TOKEN_KEY, t);
         } catch (_) {}
       }
@@ -359,6 +370,7 @@
       }
 
       let pollId = null;
+      let adminPollId = null;
       let lastStatusAdminIp = false;
 
       function stopPoll() {
@@ -366,9 +378,20 @@
         pollId = null;
       }
 
+      function stopAdminPoll() {
+        if (adminPollId) clearInterval(adminPollId);
+        adminPollId = null;
+      }
+
+      function startAdminPoll() {
+        if (adminPollId != null) return;
+        if ($("adminContent").classList.contains("hidden")) return;
+        adminPollId = setInterval(() => void loadAdmin(), 2500);
+      }
+
       function startPoll() {
         stopPoll();
-        pollId = setInterval(() => void refresh(), 5000);
+        pollId = setInterval(() => void refresh(), 2000);
       }
 
       async function refresh() {
@@ -388,6 +411,7 @@
 
         if (!s.enabled || s.state === "allowed") {
           stopPoll();
+          stopAdminPoll();
           window.location.replace("/");
           return;
         }
@@ -464,6 +488,7 @@
       });
 
       $("btnAdmClose").addEventListener("click", () => {
+        stopAdminPoll();
         $("adminPanel").classList.add("hidden");
       });
 
@@ -511,11 +536,15 @@
       });
 
       $("btnAdminLock").addEventListener("click", () => {
+        stopAdminPoll();
         try {
           sessionStorage.removeItem(TOKEN_KEY);
+          localStorage.removeItem(TOKEN_KEY);
         } catch (_) {}
         if (lastStatusAdminIp) {
-          void loadAdmin();
+          $("adminPanel").classList.add("hidden");
+          $("adminContent").classList.add("hidden");
+          $("adminPwdGate").classList.add("hidden");
           return;
         }
         $("adminPwdGate").classList.remove("hidden");
@@ -525,6 +554,28 @@
 
       function clearBox(el) {
         while (el.firstChild) el.removeChild(el.firstChild);
+      }
+
+      function captureAprMemosFromDom() {
+        const out = {};
+        for (const el of document.querySelectorAll('[id^="adm-apr-memo-"]')) {
+          if (!(el instanceof HTMLInputElement)) continue;
+          const id = el.id.replace("adm-apr-memo-", "");
+          if (id) out[id] = String(el.value || "");
+        }
+        return out;
+      }
+
+      function captureAllowedMemosFromDom() {
+        const out = {};
+        for (const inp of document.querySelectorAll(".adm-allowed-memo-inp")) {
+          if (!(inp instanceof HTMLInputElement)) continue;
+          const item = inp.closest(".item");
+          const code = item?.querySelector("code");
+          const ip = code?.textContent?.trim();
+          if (ip) out[ip] = String(inp.value || "");
+        }
+        return out;
       }
 
       async function loadAdmin() {
@@ -546,6 +597,8 @@
           });
           const data = await parseJson(res);
           if (!res.ok) throw new Error(data.error || data.message || "실패");
+          const prevAprMemos = captureAprMemosFromDom();
+          const prevAllowedMemos = captureAllowedMemosFromDom();
           clearBox(pend);
           clearBox(allow);
           const list = data.pending || [];
@@ -610,6 +663,7 @@
               memoInp.maxLength = 300;
               memoInp.placeholder = "예: 홍길동 노트북";
               memoInp.id = "adm-apr-memo-" + x.id;
+              memoInp.value = prevAprMemos[x.id] ?? "";
               memoLab.appendChild(memoSp);
               memoLab.appendChild(memoInp);
               div.appendChild(memoLab);
@@ -666,7 +720,10 @@
               memoInp.type = "text";
               memoInp.maxLength = 300;
               memoInp.className = "adm-allowed-memo-inp";
-              memoInp.value = a.memo || "";
+              const serverMemo = a.memo || "";
+              const prevM = prevAllowedMemos[a.ip];
+              memoInp.value =
+                prevM !== undefined && prevM !== serverMemo ? prevM : serverMemo;
               memoLab.appendChild(memoSp);
               memoLab.appendChild(memoInp);
               div.appendChild(memoLab);
@@ -692,10 +749,10 @@
         } catch (e) {
           $("admErr").textContent = e.message || "목록 실패";
           $("admErr").classList.remove("hidden");
+          return;
         }
+        startAdminPoll();
       }
-
-      $("btnReload").addEventListener("click", () => void loadAdmin());
 
       document.addEventListener("click", async (ev) => {
         const t = ev.target;
@@ -775,6 +832,15 @@
         }
         if (t.dataset.revoke) {
           const ip = t.dataset.revoke;
+          if (
+            !confirm(
+              "이 IP(" +
+                ip +
+                ")를 허용 목록에서 제거할까요? 즉시 API 접속이 차단됩니다.",
+            )
+          ) {
+            return;
+          }
           const tk = tok();
           if (!tk && !lastStatusAdminIp) {
             alert("비밀번호 확인이 필요합니다.");

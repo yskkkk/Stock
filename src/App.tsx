@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { useChartDrawMagnet } from "./hooks/useChartDrawMagnet";
 import {
   clearStoredAccessAdminToken,
@@ -26,12 +27,15 @@ import SignalFilter from "./components/SignalFilter";
 import type { ChartDrawMode, ChartDrawToolbarApi } from "./chartDrawTypes";
 import ChartDrawToolbarButtons from "./components/ChartDrawToolbarButtons";
 import CryptoTab from "./components/CryptoTab";
+import OpsManagementTab from "./components/OpsManagementTab";
+import StockSearchTab from "./components/StockSearchTab";
 import StockChart from "./components/StockChart";
 import TradingViewAdvancedChart from "./components/TradingViewAdvancedChart";
 import { CHART_TIMEFRAMES } from "./constants/timeframes";
 import type { SignalId } from "./constants/signals";
 import { SHOW_PROFIT_MODEL_BUTTON } from "./constants/uiFlags";
 import { usePickKeyboard } from "./hooks/usePickKeyboard";
+import { useUsdKrwRate } from "./hooks/useUsdKrwRate";
 import { enrichBullishPick } from "./lib/bullishPicks";
 import {
   filterPicksBySignals,
@@ -41,10 +45,16 @@ import { formatEta, formatPercent, formatPrice, formatRescanCountdown, formatSig
 import { computeProfitFromEntry } from "./lib/profitModel";
 import { findChartTimeNearEntryMs } from "./lib/profitMarker";
 import {
+  applyLightPalette,
   applyTheme,
+  LIGHT_PALETTE_IDS,
+  LIGHT_PALETTE_PREVIEW,
+  persistLightPalette,
   persistTheme,
+  readStoredLightPalette,
   readStoredTheme,
   type ColorMode,
+  type LightPaletteId,
 } from "./lib/theme";
 import {
   getBrowserUserId,
@@ -67,9 +77,20 @@ import type {
   TelegramSentItem,
 } from "./types";
 
-export type AppTab = "screener" | "crypto";
+export type AppTab = "screener" | "stockLookup" | "crypto" | "ops";
 
 type StockChartEngine = "tradingview" | "app";
+
+const US_QUOTE_KRW_KEY = "stock_us_quote_krw";
+
+function readUsQuoteKrwPref(): boolean {
+  if (typeof sessionStorage === "undefined") return false;
+  try {
+    return sessionStorage.getItem(US_QUOTE_KRW_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 export default function App() {
   const [picks, setPicks] = useState<PicksResponse | null>(null);
@@ -79,14 +100,23 @@ export default function App() {
   const [telegramSentCount, setTelegramSentCount] = useState(0);
   const [resettingTelegram, setResettingTelegram] = useState(false);
   const [appTab, setAppTab] = useState<AppTab>("screener");
+  const prevAppTabRef = useRef<AppTab>("screener");
   const [colorMode, setColorMode] = useState<ColorMode>(() => readStoredTheme());
-  const [marketTab, setMarketTab] = useState<Market>("kr");
+  const [lightPalette, setLightPalette] = useState<LightPaletteId>(() =>
+    readStoredLightPalette(),
+  );
+  const [screenerMarketTab, setScreenerMarketTab] = useState<Market>("kr");
+  const [lookupMarketTab, setLookupMarketTab] = useState<Market>("kr");
+  /** 수동 국내↔나스닥 탭 전환 시에만 증가 — 자동 교차 시장 검색 시 검색창·조건 유지 */
+  const [lookupSearchTabMountKey, setLookupSearchTabMountKey] = useState(0);
+  const [usQuoteInKrw, setUsQuoteInKrw] = useState(readUsQuoteKrwPref);
   const [cryptoFocusSymbol, setCryptoFocusSymbol] = useState<string | null>(null);
   const [signalFilters, setSignalFilters] = useState<SignalId[]>([]);
   const [filterMode, setFilterMode] = useState<FilterMode>("and");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("score");
-  const [selected, setSelected] = useState<StockPick | null>(null);
+  const [screenerSelected, setScreenerSelected] = useState<StockPick | null>(null);
+  const [lookupSelected, setLookupSelected] = useState<StockPick | null>(null);
   const [timeframe, setTimeframe] = useState<ChartTimeframe>("1d");
   const [quote, setQuote] = useState<QuoteResponse | null>(null);
   const [candles, setCandles] = useState<Candle[]>([]);
@@ -97,6 +127,23 @@ export default function App() {
   const [chartError, setChartError] = useState<string | null>(null);
   const [chartStale, setChartStale] = useState(false);
   const [chartEngine, setChartEngine] = useState<StockChartEngine>("app");
+
+  useEffect(() => {
+    const prev = prevAppTabRef.current;
+    prevAppTabRef.current = appTab;
+    if (appTab !== "stockLookup") return;
+    if (prev === "stockLookup") return;
+    setLookupSelected(null);
+    setCandles([]);
+    setDailyCandles([]);
+    setChartError(null);
+    setChartStale(false);
+    setCandleCount(0);
+    setChartInterval("1d");
+    setQuote(null);
+    setChartLoading(false);
+  }, [appTab]);
+
   const [chartDrawMode, setChartDrawMode] = useState<ChartDrawMode>("cursor");
   const [chartDrawMagnet, setChartDrawMagnet] = useChartDrawMagnet();
   const chartDrawApiRef = useRef<ChartDrawToolbarApi | null>(null);
@@ -124,6 +171,7 @@ export default function App() {
   const [showAccessAdmin, setShowAccessAdmin] = useState(false);
   const [adminIpConsole, setAdminIpConsole] = useState(false);
   const [accessAdmin, setAccessAdmin] = useState(false);
+  const [opsCursorAgentAvailable, setOpsCursorAgentAvailable] = useState(false);
 
   const closeNews = useCallback(() => {
     newsReqIdRef.current += 1;
@@ -196,7 +244,18 @@ export default function App() {
   useEffect(() => {
     applyTheme(colorMode);
     persistTheme(colorMode);
+    if (colorMode === "light") {
+      const id = readStoredLightPalette();
+      setLightPalette(id);
+      applyLightPalette(id);
+    }
   }, [colorMode]);
+
+  const handleLightPalette = useCallback((id: LightPaletteId) => {
+    persistLightPalette(id);
+    setLightPalette(id);
+    applyLightPalette(id);
+  }, []);
 
   useEffect(() => {
     if (!picks || picks.running) return;
@@ -217,11 +276,13 @@ export default function App() {
         setTelegramSentCount(cfg.telegramNotify?.todaySentCount ?? 0);
         setAdminIpConsole(cfg.adminIpConsole ?? false);
         setAccessAdmin(cfg.accessAdmin ?? false);
+        setOpsCursorAgentAvailable(cfg.opsCursorAgentAvailable ?? false);
       })
       .catch(() => {
         setTelegramNotify(false);
         setAdminIpConsole(false);
         setAccessAdmin(false);
+        setOpsCursorAgentAvailable(false);
       });
   }, []);
 
@@ -236,8 +297,8 @@ export default function App() {
     [picks?.us, signalFilters, filterMode],
   );
   const baseListPicks = useMemo(() => {
-    return marketTab === "kr" ? krFiltered : usFiltered;
-  }, [marketTab, krFiltered, usFiltered]);
+    return screenerMarketTab === "kr" ? krFiltered : usFiltered;
+  }, [screenerMarketTab, krFiltered, usFiltered]);
 
   const listPicks = useMemo(
     () => sortPicksList(filterPicksByQuery(baseListPicks, searchQuery), sortKey),
@@ -245,9 +306,32 @@ export default function App() {
   );
 
   const rawCount =
-    marketTab === "kr" ? (picks?.kr.length ?? 0) : (picks?.us.length ?? 0);
+    screenerMarketTab === "kr"
+      ? (picks?.kr.length ?? 0)
+      : (picks?.us.length ?? 0);
 
   const filteredCount = baseListPicks.length;
+
+  const workspacePick = useMemo(() => {
+    if (appTab === "crypto" || appTab === "ops") return null;
+    return appTab === "stockLookup" ? lookupSelected : screenerSelected;
+  }, [appTab, lookupSelected, screenerSelected]);
+
+  const usdKrwEnabled =
+    appTab !== "crypto" && appTab !== "ops" && workspacePick?.market === "us";
+  const { rate: usdKrwRate } = useUsdKrwRate(usdKrwEnabled);
+
+  const toggleUsQuoteKrw = useCallback(() => {
+    setUsQuoteInKrw((prev) => {
+      const next = !prev;
+      try {
+        sessionStorage.setItem(US_QUOTE_KRW_KEY, next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }, []);
 
   const handleOpenTelegramSent = useCallback(async () => {
     setShowTelegramSent(true);
@@ -285,10 +369,28 @@ export default function App() {
     }
   }, []);
 
+  /** 종목 검색 탭에서 국내 ↔ 나스닥 전환 시 검색·선택·차트를 비움 */
+  const resetStockLookupSession = useCallback(() => {
+    setLookupSelected(null);
+    setCandles([]);
+    setDailyCandles([]);
+    setChartError(null);
+    setChartStale(false);
+    setCandleCount(0);
+    setChartInterval("1d");
+    setQuote(null);
+    setChartLoading(false);
+  }, []);
+
+  const handleLookupSelect = useCallback((pick: StockPick) => {
+    setLookupSelected(pick);
+    setLookupMarketTab(pick.market);
+  }, []);
+
   const handleSelect = useCallback((pick: StockPick) => {
     setAppTab("screener");
-    setSelected(pick);
-    setMarketTab(pick.market);
+    setScreenerSelected(pick);
+    setScreenerMarketTab(pick.market);
   }, []);
 
   const handleCryptoFocusConsumed = useCallback(() => {
@@ -334,9 +436,9 @@ export default function App() {
 
   usePickKeyboard(
     listPicks,
-    selected?.symbol ?? null,
+    screenerSelected?.symbol ?? null,
     handleSelect,
-    appTab !== "crypto" &&
+    appTab === "screener" &&
       listPicks.length > 0 &&
       !newsPick &&
       !reasonPick &&
@@ -349,7 +451,7 @@ export default function App() {
   useEffect(() => {
     setProfitModalOpen(false);
     setProfitPersistTick((t) => t + 1);
-  }, [selected?.symbol]);
+  }, [workspacePick?.symbol]);
 
   const loadChart = useCallback(
     async (pick: StockPick, tf: ChartTimeframe, live = false) => {
@@ -388,12 +490,15 @@ export default function App() {
   );
 
   useEffect(() => {
-    if (!selected || appTab === "crypto") return;
-    loadChart(selected, timeframe);
+    if (!workspacePick || appTab === "crypto" || appTab === "ops") return;
+    loadChart(workspacePick, timeframe);
     const refreshMs = timeframe === "1m" ? 1_000 : 30_000;
-    const id = window.setInterval(() => loadChart(selected, timeframe, true), refreshMs);
+    const id = window.setInterval(
+      () => loadChart(workspacePick, timeframe, true),
+      refreshMs,
+    );
     return () => window.clearInterval(id);
-  }, [selected, timeframe, loadChart, appTab]);
+  }, [workspacePick, timeframe, loadChart, appTab]);
 
   const handleReason = useCallback((pick: StockPick) => {
     closeNews();
@@ -447,7 +552,7 @@ export default function App() {
     picks && picks.total > 0
       ? Math.round((picks.progress / picks.total) * 100)
       : 0;
-  const fitKey = selected ? `${selected.symbol}:${timeframe}` : "";
+  const fitKey = workspacePick ? `${workspacePick.symbol}:${timeframe}` : "";
   const stockChartOverlays = useMemo(
     () => ({
       ma: showMa,
@@ -462,38 +567,80 @@ export default function App() {
   }, []);
   const stockTvSymbol = useMemo(
     () =>
-      selected
-        ? yahooStockSymbolToTradingView(selected.symbol, selected.market)
+      workspacePick
+        ? yahooStockSymbolToTradingView(
+            workspacePick.symbol,
+            workspacePick.market,
+          )
         : "",
-    [selected],
+    [workspacePick],
   );
 
   useEffect(() => {
     setChartDrawMode("cursor");
-  }, [selected?.symbol, timeframe, chartInterval]);
+  }, [workspacePick?.symbol, timeframe, chartInterval]);
 
   useEffect(() => {
     if (chartEngine === "tradingview") setChartDrawMode("cursor");
   }, [chartEngine]);
-  const quotePx = quote?.price ?? selected?.price;
-  const quoteCur = quote?.currency ?? selected?.currency;
+  const nativeQuotePx = quote?.price ?? workspacePick?.price;
+  const nativeQuoteCur = quote?.currency ?? workspacePick?.currency;
+
+  const usStockAsUsd = useMemo(() => {
+    if (workspacePick?.market !== "us") return false;
+    const c = nativeQuoteCur;
+    return c == null || c === "" || c === "USD";
+  }, [workspacePick?.market, nativeQuoteCur]);
+
+  const canUsdToKrw = useMemo(
+    () =>
+      usStockAsUsd &&
+      usQuoteInKrw &&
+      usdKrwRate != null &&
+      usdKrwRate > 0 &&
+      nativeQuotePx != null &&
+      Number.isFinite(nativeQuotePx) &&
+      nativeQuotePx > 0,
+    [usStockAsUsd, usQuoteInKrw, usdKrwRate, nativeQuotePx],
+  );
+
+  const stripQuotePx = useMemo(() => {
+    if (!canUsdToKrw || nativeQuotePx == null || usdKrwRate == null) {
+      return nativeQuotePx;
+    }
+    return Math.round(nativeQuotePx * usdKrwRate);
+  }, [canUsdToKrw, nativeQuotePx, usdKrwRate]);
+
+  const stripQuoteCur = canUsdToKrw ? "KRW" : nativeQuoteCur;
+
+  const toDisplayMoney = useCallback(
+    (v: number | null | undefined): number | undefined => {
+      if (v == null || !Number.isFinite(v)) return undefined;
+      if (canUsdToKrw && usdKrwRate != null) return Math.round(v * usdKrwRate);
+      return v;
+    },
+    [canUsdToKrw, usdKrwRate],
+  );
+
   const profitRow = useMemo(
-    () => (selected ? getPersistedProfitRow(selected.symbol) : null),
-    [selected?.symbol, profitPersistTick],
+    () =>
+      workspacePick ? getPersistedProfitRow(workspacePick.symbol) : null,
+    [workspacePick?.symbol, profitPersistTick],
   );
   const profitEntry = profitRow?.entry ?? null;
   const profitModelResult = useMemo(
-    () => computeProfitFromEntry(quotePx, profitEntry, profitRow?.exit),
-    [quotePx, profitEntry, profitRow?.exit],
+    () => computeProfitFromEntry(nativeQuotePx, profitEntry, profitRow?.exit),
+    [nativeQuotePx, profitEntry, profitRow?.exit],
   );
   const profitMarker = useMemo(() => {
-    if (!selected || profitEntry == null || !(profitEntry > 0)) return null;
+    if (!workspacePick || profitEntry == null || !(profitEntry > 0))
+      return null;
     const ms = profitRow?.entryAtMs;
     if (!ms || candles.length === 0) return null;
     const t = findChartTimeNearEntryMs(ms, candles);
     if (!t) return null;
     return { time: t, price: profitEntry };
-  }, [selected?.symbol, profitEntry, profitRow?.entryAtMs, candles]);
+  }, [workspacePick?.symbol, profitEntry, profitRow?.entryAtMs, candles]);
   const profitStripTone =
     profitModelResult == null
       ? "flat"
@@ -517,11 +664,10 @@ export default function App() {
     picks?.failedCount && picks.failedCount > 0
       ? failedCountLabel(picks.failedCount)
       : "";
-  const showTopScanStrip = Boolean(picks && appTab !== "crypto");
+  const showTopScanStrip = Boolean(picks && appTab === "screener");
 
   return (
     <div className="app">
-      <MacroEventsBar onSecretAdminOpen={() => setShowAccessAdmin(true)} />
       <FeedbackCorner accessAdmin={accessAdmin} />
       <header
         className={`top-bar card${showTopScanStrip ? " top-bar--with-scan" : ""}`}
@@ -529,9 +675,39 @@ export default function App() {
         <div
           className={`top-bar__grid${showTopScanStrip ? " top-bar__grid--with-scan" : ""}`}
         >
+          <div className="top-bar__macro">
+            <MacroEventsBar onSecretAdminOpen={() => setShowAccessAdmin(true)} />
+          </div>
           <div className="top-bar__brand">
+            {colorMode === "light" ? (
+              <div
+                className="light-palette-picker light-palette-picker--leading"
+                role="group"
+                aria-label={ko.app.lightPaletteAria}
+              >
+                {LIGHT_PALETTE_IDS.map((id, idx) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className={
+                      lightPalette === id
+                        ? "light-palette-swatch light-palette-swatch--active"
+                        : "light-palette-swatch"
+                    }
+                    aria-label={`${idx + 1} / ${LIGHT_PALETTE_IDS.length}`}
+                    aria-pressed={lightPalette === id}
+                    onClick={() => handleLightPalette(id)}
+                    style={
+                      {
+                        "--lp-fill": LIGHT_PALETTE_PREVIEW[id],
+                      } as CSSProperties
+                    }
+                  />
+                ))}
+              </div>
+            ) : null}
             <span className="brand-mark" aria-hidden />
-            <div>
+            <div className="top-bar__brand-main">
               <h1>{ko.app.title}</h1>
               <p>
                 {ko.app.subtitle}
@@ -566,11 +742,29 @@ export default function App() {
               </button>
               <button
                 type="button"
+                className={
+                  appTab === "stockLookup" ? "main-tab active" : "main-tab"
+                }
+                onClick={() => setAppTab("stockLookup")}
+              >
+                {ko.app.tabStockLookup}
+              </button>
+              <button
+                type="button"
                 className={appTab === "crypto" ? "main-tab active" : "main-tab"}
                 onClick={() => setAppTab("crypto")}
               >
                 {ko.app.tabCrypto}
               </button>
+              {accessAdmin ? (
+                <button
+                  type="button"
+                  className={appTab === "ops" ? "main-tab active" : "main-tab"}
+                  onClick={() => setAppTab("ops")}
+                >
+                  {ko.app.tabOps}
+                </button>
+              ) : null}
             </nav>
 
             <div className="top-bar__tools">
@@ -600,7 +794,9 @@ export default function App() {
               <button
                 type="button"
                 className="btn btn--secondary top-bar__rescan"
-                disabled={appTab === "crypto" || rescanning || picks?.running}
+                disabled={
+                  appTab !== "screener" || rescanning || picks?.running
+                }
                 onClick={handleRescan}
               >
                 {rescanning ? ko.app.rescanning : ko.app.rescan}
@@ -678,6 +874,10 @@ export default function App() {
           focusSymbol={cryptoFocusSymbol}
           onFocusSymbolConsumed={handleCryptoFocusConsumed}
         />
+      ) : appTab === "ops" ? (
+        <section className="ops-management-wrap card" aria-label={ko.app.opsPanelTitle}>
+          <OpsManagementTab available={opsCursorAgentAvailable} />
+        </section>
       ) : (
         <div className="workspace">
         <aside className="picks-panel card">
@@ -685,67 +885,157 @@ export default function App() {
             <div className="market-tabs">
               <button
                 type="button"
-                className={marketTab === "kr" ? "market-tab active" : "market-tab"}
-                onClick={() => setMarketTab("kr")}
+                className={
+                  (appTab === "stockLookup" ? lookupMarketTab : screenerMarketTab) ===
+                  "kr"
+                    ? "market-tab active"
+                    : "market-tab"
+                }
+                onClick={() => {
+                  if (appTab === "stockLookup") {
+                    if (lookupMarketTab !== "kr") {
+                      resetStockLookupSession();
+                      setLookupSearchTabMountKey((k) => k + 1);
+                      setLookupMarketTab("kr");
+                    }
+                    return;
+                  }
+                  setScreenerMarketTab("kr");
+                }}
               >
                 {ko.app.marketKr}
-                <span className="market-tab__count">{krFiltered.length}</span>
+                {appTab === "screener" && (
+                  <span className="market-tab__count">{krFiltered.length}</span>
+                )}
               </button>
               <button
                 type="button"
-                className={marketTab === "us" ? "market-tab active" : "market-tab"}
-                onClick={() => setMarketTab("us")}
+                className={
+                  (appTab === "stockLookup" ? lookupMarketTab : screenerMarketTab) ===
+                  "us"
+                    ? "market-tab active"
+                    : "market-tab"
+                }
+                onClick={() => {
+                  if (appTab === "stockLookup") {
+                    if (lookupMarketTab !== "us") {
+                      resetStockLookupSession();
+                      setLookupSearchTabMountKey((k) => k + 1);
+                      setLookupMarketTab("us");
+                    }
+                    return;
+                  }
+                  setScreenerMarketTab("us");
+                }}
               >
                 {ko.app.marketUs}
-                <span className="market-tab__count">{usFiltered.length}</span>
+                {appTab === "screener" && (
+                  <span className="market-tab__count">{usFiltered.length}</span>
+                )}
               </button>
             </div>
             <span className="panel-head__meta">
-              {filteredCount} / {rawCount}
+              {appTab === "screener" ? (
+                <>
+                  {filteredCount} / {rawCount}
+                </>
+              ) : null}
             </span>
           </div>
 
-          <PickToolbar
-            search={searchQuery}
-            onSearchChange={setSearchQuery}
-            sortKey={sortKey}
-            onSortChange={setSortKey}
-          />
+          {appTab === "screener" ? (
+            <>
+              <PickToolbar
+                search={searchQuery}
+                onSearchChange={setSearchQuery}
+                sortKey={sortKey}
+                onSortChange={setSortKey}
+              />
 
-          <PickList
-            market={marketTab}
-            picks={listPicks}
-            totalCount={rawCount}
-            selected={selected?.symbol ?? null}
-            onSelect={handleSelect}
-            onNews={handleNews}
-            onReason={handleReason}
-          />
+              <PickList
+                market={screenerMarketTab}
+                picks={listPicks}
+                totalCount={rawCount}
+                selected={screenerSelected?.symbol ?? null}
+                onSelect={handleSelect}
+                onNews={handleNews}
+                onReason={handleReason}
+              />
+            </>
+          ) : (
+            <StockSearchTab
+              key={lookupSearchTabMountKey}
+              market={lookupMarketTab}
+              selectedSymbol={lookupSelected?.symbol ?? null}
+              onSelectPick={handleLookupSelect}
+              onLookupMarketChange={setLookupMarketTab}
+            />
+          )}
         </aside>
 
         <section className="chart-section crypto-chart-section">
-          {!selected ? (
+          {!workspacePick ? (
             <div className="chart-placeholder card">
               <div className="placeholder-icon" aria-hidden>
                 ?
               </div>
-              <p className="placeholder-title">{ko.app.selectTitle}</p>
-              <p className="placeholder-desc">{ko.app.selectDesc}</p>
+              <p className="placeholder-title">
+                {appTab === "stockLookup"
+                  ? ko.app.stockLookupSelectTitle
+                  : ko.app.selectTitle}
+              </p>
+              <p className="placeholder-desc">
+                {appTab === "stockLookup"
+                  ? ko.app.stockLookupSelectDesc
+                  : ko.app.selectDesc}
+              </p>
             </div>
           ) : (
             <>
               <div className="quote-bar card">
                 <div className="quote-bar__info">
-                  <h2>{quote?.name ?? selected.name}</h2>
-                  <PickQuoteStrip
-                    symbol={selected.symbol}
-                    price={quote?.price ?? selected.price}
-                    currency={quote?.currency ?? selected.currency}
-                    changePercent={
-                      quote?.changePercent ?? selected.changePercent
-                    }
-                    size="md"
-                  />
+                  <h2 className="quote-bar__title-stack">
+                    <span className="quote-bar__title-line">
+                      {quote?.name ?? workspacePick.name}
+                    </span>
+                    {workspacePick.market === "us" &&
+                      workspacePick.nameKo &&
+                      workspacePick.nameKo.trim() !==
+                        (quote?.name ?? workspacePick.name).trim() && (
+                      <span className="quote-bar__title-ko">
+                        {workspacePick.nameKo}
+                      </span>
+                    )}
+                  </h2>
+                  <div className="quote-bar__quote-row">
+                    <PickQuoteStrip
+                      symbol={workspacePick.symbol}
+                      price={(stripQuotePx ?? nativeQuotePx) ?? workspacePick.price}
+                      currency={stripQuoteCur ?? workspacePick.currency}
+                      changePercent={
+                        quote?.changePercent ?? workspacePick.changePercent
+                      }
+                      size="md"
+                    />
+                    {workspacePick.market === "us" ? (
+                      <button
+                        type="button"
+                        className="btn btn--ghost quote-currency-toggle"
+                        onClick={toggleUsQuoteKrw}
+                        title={
+                          usQuoteInKrw
+                            ? ko.app.quoteCurrencyShowUsd
+                            : ko.app.quoteCurrencyShowKrw
+                        }
+                        aria-label={ko.app.quoteCurrencyToggleAria}
+                        aria-pressed={usQuoteInKrw}
+                      >
+                        <span className="quote-currency-toggle__icon" aria-hidden>
+                          {usQuoteInKrw ? "$" : "₩"}
+                        </span>
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
                 <div className="quote-bar__right">
                   {SHOW_PROFIT_MODEL_BUTTON ? (
@@ -785,7 +1075,10 @@ export default function App() {
                     {ko.app.profitModelEntry}
                   </span>
                   <span className="profit-model-strip__value">
-                    {formatPrice(profitEntry, quoteCur)}
+                    {formatPrice(
+                      toDisplayMoney(profitEntry),
+                      stripQuoteCur,
+                    )}
                   </span>
                   {profitRow?.entryAtMs != null && profitRow.entryAtMs > 0 && (
                     <>
@@ -803,7 +1096,10 @@ export default function App() {
                         {ko.app.profitModelStripExit}
                       </span>
                       <span className="profit-model-strip__value">
-                        {formatPrice(profitRow.exit, quoteCur)}
+                        {formatPrice(
+                          toDisplayMoney(profitRow.exit),
+                          stripQuoteCur,
+                        )}
                       </span>
                     </>
                   )}
@@ -811,7 +1107,7 @@ export default function App() {
                     {ko.app.profitModelStripCurrent}
                   </span>
                   <span className="profit-model-strip__value">
-                    {formatPrice(quotePx, quoteCur)}
+                    {formatPrice(stripQuotePx ?? nativeQuotePx, stripQuoteCur)}
                   </span>
                   <span className="profit-model-strip__label">
                     {ko.app.profitModelReturn}
@@ -823,7 +1119,10 @@ export default function App() {
                     {ko.app.profitModelPerShare}
                   </span>
                   <span className="profit-model-strip__value">
-                    {formatSignedMoney(profitModelResult.abs, quoteCur)}
+                    {formatSignedMoney(
+                      toDisplayMoney(profitModelResult.abs) ?? 0,
+                      stripQuoteCur,
+                    )}
                   </span>
                 </div>
               )}
@@ -909,10 +1208,10 @@ export default function App() {
                 <div className="crypto-chart-panel-body">
                   {chartEngine === "tradingview" && stockTvSymbol ? (
                     <TradingViewAdvancedChart
-                      key={`tv-${selected.symbol}-${timeframe}`}
+                      key={`tv-${workspacePick.symbol}-${timeframe}`}
                       tvSymbol={stockTvSymbol}
                       timeframe={timeframe}
-                      displayName={quote?.name ?? selected.name}
+                      displayName={quote?.name ?? workspacePick.name}
                       ariaLabel={ko.crypto.tvChartAria}
                     />
                   ) : null}
@@ -929,7 +1228,9 @@ export default function App() {
                       <button
                         type="button"
                         className="btn btn--primary"
-                        onClick={() => loadChart(selected, timeframe, true)}
+                        onClick={() =>
+                          loadChart(workspacePick, timeframe, true)
+                        }
                       >
                         {ko.app.retry}
                       </button>
@@ -1019,30 +1320,34 @@ export default function App() {
         />
       )}
 
-      {SHOW_PROFIT_MODEL_BUTTON && profitModalOpen && selected && (
+      {SHOW_PROFIT_MODEL_BUTTON && profitModalOpen && workspacePick && (
         <ProfitModelModal
           open={profitModalOpen}
           browserUserId={browserUserId}
-          currentPrice={quotePx}
-          currency={quoteCur}
+          currentPrice={(stripQuotePx ?? nativeQuotePx) ?? workspacePick.price}
+          currency={stripQuoteCur ?? workspacePick.currency}
           entry={profitEntry}
           entryAtMs={profitRow?.entryAtMs ?? null}
           exit={profitRow?.exit ?? null}
           onClose={() => setProfitModalOpen(false)}
           onApply={(n, entryAtMs) => {
-            persistProfitEntry(selected.symbol, n, { entryAtMs });
+            persistProfitEntry(workspacePick.symbol, n, { entryAtMs });
             setProfitPersistTick((x) => x + 1);
           }}
           onClear={() => {
-            persistProfitEntry(selected.symbol, null);
+            persistProfitEntry(workspacePick.symbol, null);
             setProfitPersistTick((x) => x + 1);
             setProfitModalOpen(false);
           }}
           onRecordSell={() => {
-            if (quotePx == null || !Number.isFinite(quotePx) || quotePx <= 0) {
+            if (
+              nativeQuotePx == null ||
+              !Number.isFinite(nativeQuotePx) ||
+              nativeQuotePx <= 0
+            ) {
               return;
             }
-            persistProfitSell(selected.symbol, quotePx);
+            persistProfitSell(workspacePick.symbol, nativeQuotePx);
             setProfitPersistTick((x) => x + 1);
           }}
         />
@@ -1056,6 +1361,7 @@ export default function App() {
             .then((cfg) => {
               setAccessAdmin(cfg.accessAdmin ?? false);
               setAdminIpConsole(cfg.adminIpConsole ?? false);
+              setOpsCursorAgentAvailable(cfg.opsCursorAgentAvailable ?? false);
             })
             .catch(() => {});
         }}

@@ -4,6 +4,8 @@ import { ko } from "./i18n/ko";
 import { applyTheme, readStoredTheme } from "./lib/theme";
 import "./index.css";
 import "./theme.css";
+import "./theme-light-palettes.css";
+import "./ui-toss.css";
 
 const App = lazy(() => import("./App"));
 

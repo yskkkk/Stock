@@ -3,29 +3,28 @@
  * 다크: data-theme 없음(기본)
  */
 html[data-theme="light"] {
-  --bg: #e8edf4;
-  --bg-elevated: #dfe7f1;
-  --surface: #ffffff;
-  --card: #ffffff;
-  --card-border: rgba(15, 23, 42, 0.12);
-  --text: #0f172a;
-  --text-dim: #475569;
-  --muted: #64748b;
-  --accent: #0d9488;
-  --accent-dim: rgba(13, 148, 136, 0.14);
-  --accent-border: rgba(13, 148, 136, 0.4);
-  --up: #15803d;
-  --down: #dc2626;
-  --warn: #b45309;
-  --shadow: 0 4px 22px rgba(15, 23, 42, 0.08);
-  --scrollbar-track: #dbe4f0;
-  --scrollbar-thumb: rgba(71, 85, 105, 0.35);
-  --scrollbar-thumb-hover: rgba(71, 85, 105, 0.52);
   color-scheme: light;
 }
 
 html[data-theme="light"] body::before {
-  opacity: 0.22;
+  opacity: 0.14;
+}
+
+/* 수익 모델 스트립 — 라이트: 다크용 반투명 배경이 회색 덩어리로 보임 → 카드 톤에 맞춤 */
+html[data-theme="light"] .profit-model-strip {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--card) 94%, white) 0%,
+    color-mix(in srgb, var(--surface) 88%, var(--card)) 100%
+  );
+  border-color: rgba(15, 23, 42, 0.1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+html[data-theme="light"] .profit-model-strip__value {
+  color: var(--text);
 }
 
 html[data-theme="light"] .main-tab.active {
@@ -44,20 +43,30 @@ html[data-theme="light"] .error-overlay button {
 html[data-theme="light"] .macro-bar {
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.96),
-    rgba(241, 245, 249, 0.98)
+    color-mix(in srgb, var(--surface) 92%, white) 0%,
+    color-mix(in srgb, var(--card) 90%, var(--surface)) 100%
   );
   border-color: var(--card-border);
   box-shadow: var(--shadow);
 }
 
 html[data-theme="light"] .macro-card {
-  background: rgba(255, 255, 255, 0.82);
+  background: color-mix(in srgb, var(--card) 90%, transparent);
 }
 
 /* 상단 바 — 라이트: 비활성 탭·스캔 문구 대비 */
 html[data-theme="light"] .main-tab:not(.active) {
   color: #334155;
+}
+
+html[data-theme="light"] .main-tabs {
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.55);
+}
+
+html[data-theme="light"] .main-tab.active {
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
 }
 
 html[data-theme="light"] .top-bar__scan .scan-status__msg {
@@ -71,13 +80,13 @@ html[data-theme="light"] .top-bar__scan .scan-status__next {
 }
 
 html[data-theme="light"] .overlay {
-  background: rgba(248, 250, 252, 0.88);
+  background: color-mix(in srgb, var(--bg) 86%, rgba(15, 23, 42, 0.28));
 }
 
 /* 스크리너 종목 카드 — 라이트: 시그널 태그·티커 pill이 파스텔+연한 글자로 묻힘 → 진한 글자·살짝 진한 배경 */
 html[data-theme="light"] .pick-quote__symbol {
   color: #334155;
-  background: #f1f5f9;
+  background: color-mix(in srgb, var(--card) 78%, white);
   border-color: rgba(15, 23, 42, 0.14);
 }
 
@@ -94,9 +103,9 @@ html[data-theme="light"] .pick-quote__chg--down {
 }
 
 html[data-theme="light"] .signal-tag--align {
-  background: rgba(13, 148, 136, 0.16);
-  color: #0f766e;
-  border-color: rgba(13, 148, 136, 0.42);
+  background: rgb(from var(--accent) r g b / 0.16);
+  color: var(--accent-ink);
+  border-color: rgb(from var(--accent) r g b / 0.42);
 }
 
 html[data-theme="light"] .signal-tag--golden {
@@ -133,6 +142,283 @@ html[data-theme="light"] .pick-reason-preview {
   border-top-color: rgba(15, 23, 42, 0.1);
 }
 
+/* 텔레그램 알림 이력 — 라이트: 행 배경·시간·상단 태그를 앱 액센트와 맞춤 */
+html[data-theme="light"] .telegram-sent-item {
+  background: #e8edf5;
+  border-color: rgba(15, 23, 42, 0.1);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+html[data-theme="light"] .telegram-sent-item__time {
+  color: var(--muted);
+}
+
+html[data-theme="light"] .tag--telegram-btn {
+  border-color: rgb(from var(--accent) r g b / 0.38);
+  background: rgb(from var(--accent) r g b / 0.12);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+html[data-theme="light"] .tag--telegram-btn:hover {
+  border-color: rgb(from var(--accent) r g b / 0.52);
+  background: rgb(from var(--accent) r g b / 0.2);
+  box-shadow: none;
+  color: var(--accent-press);
+}
+
+html[data-theme="light"] .tag.tag--telegram.tag--telegram-btn .tag-count {
+  background: var(--accent);
+  color: #ecfdf5;
+  border: 1px solid rgb(from var(--accent) r g b / 0.35);
+}
+
+html[data-theme="light"] .access-admin-intro {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.1);
+  color: var(--text-dim);
+}
+
+/* 조건 필터 카드 — 라이트: 단색·무거운 칩 대신 얇은 테두리·내부 하이라이트 */
+html[data-theme="light"] .filter-bar.card {
+  background: linear-gradient(165deg, #f4f6fa 0%, #e8edf4 100%);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.65) inset,
+    0 6px 28px rgba(15, 23, 42, 0.055);
+}
+
+html[data-theme="light"] .signal-filter .filter-title {
+  color: #0f172a;
+  letter-spacing: -0.025em;
+}
+
+html[data-theme="light"] .signal-filter .filter-mode-seg {
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.6);
+}
+
+html[data-theme="light"] .signal-filter .filter-mode-seg .seg {
+  color: #64748b;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+html[data-theme="light"] .signal-filter .filter-mode-seg .seg.active {
+  color: #f8fafc;
+  background: linear-gradient(180deg, #475569 0%, #334155 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.2) inset,
+    0 3px 10px rgba(15, 23, 42, 0.18);
+}
+
+html[data-theme="light"] .signal-filter .filter-clear {
+  color: #64748b;
+  background: rgba(255, 255, 255, 0.55);
+  border-color: rgba(15, 23, 42, 0.12);
+}
+
+html[data-theme="light"] .signal-filter .filter-clear:hover {
+  color: #0f172a;
+  background: #ffffff;
+  border-color: rgba(51, 65, 85, 0.28);
+}
+
+html[data-theme="light"] .signal-filter .chip:not(.active),
+html[data-theme="light"] .signal-filter .chip.preset {
+  color: #475569;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.035);
+}
+
+html[data-theme="light"] .signal-filter .chip:not(.active):hover,
+html[data-theme="light"] .signal-filter .chip.preset:hover {
+  color: #0f172a;
+  background: #ffffff;
+  border-color: rgba(100, 116, 139, 0.35);
+}
+
+html[data-theme="light"] .signal-filter .chip.active {
+  color: var(--accent-press);
+  background: linear-gradient(
+    180deg,
+    rgb(from var(--accent) r g b / 0.16) 0%,
+    rgb(from var(--accent) r g b / 0.06) 100%
+  );
+  border-color: rgb(from var(--accent) r g b / 0.42);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.55) inset,
+    0 2px 6px rgb(from var(--accent) r g b / 0.08);
+}
+
+/* 스크리너(주식) 좌측 패널 — 라이트: 패널·툴바·행 카드 일체감 */
+html[data-theme="light"] .picks-panel:not(.crypto-panel).card {
+  background: linear-gradient(180deg, #e9eef6 0%, #dfe7f1 100%);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 8px 36px rgba(15, 23, 42, 0.065);
+}
+
+html[data-theme="light"] .picks-panel:not(.crypto-panel) .panel-head {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+}
+
+html[data-theme="light"] .picks-panel:not(.crypto-panel) .panel-head__meta {
+  color: #64748b;
+}
+
+html[data-theme="light"] .picks-panel:not(.crypto-panel) .panel-head .market-tabs {
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5);
+}
+
+html[data-theme="light"] .picks-panel:not(.crypto-panel) .market-tab {
+  color: #64748b;
+}
+
+html[data-theme="light"] .picks-panel:not(.crypto-panel) .market-tab.active {
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+html[data-theme="light"] .picks-panel:not(.crypto-panel) .market-tab.active .market-tab__count {
+  color: var(--accent-ink);
+}
+
+html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-name {
+  color: #0f172a;
+}
+
+html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-score {
+  color: var(--accent-ink);
+}
+
+html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-item {
+  background: linear-gradient(165deg, #fbfcfe 0%, #f0f3f9 100%);
+  border: 1px solid rgba(15, 23, 42, 0.09);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.85) inset,
+    0 2px 6px rgba(15, 23, 42, 0.045),
+    0 10px 28px rgba(15, 23, 42, 0.04);
+}
+
+html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-item:hover {
+  border-color: rgba(100, 116, 139, 0.35);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.85) inset,
+    0 4px 14px rgba(15, 23, 42, 0.06);
+}
+
+html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-item.active {
+  border-color: rgb(from var(--accent) r g b / 0.4);
+  box-shadow:
+    0 0 0 1px rgb(from var(--accent) r g b / 0.16),
+    0 6px 22px rgb(from var(--accent) r g b / 0.1);
+  background: linear-gradient(
+    165deg,
+    rgb(from var(--accent) r g b / 0.09) 0%,
+    #eef2f8 58%
+  );
+}
+
+html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-toolbar {
+  background: rgba(255, 255, 255, 0.38);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  backdrop-filter: blur(10px) saturate(1.1);
+  border-top-color: rgba(15, 23, 42, 0.08);
+  border-bottom-color: rgba(15, 23, 42, 0.08);
+}
+
+html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-search,
+html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-sort {
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.11);
+  color: #0f172a;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.035);
+}
+
+html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-search::placeholder {
+  color: #94a3b8;
+}
+
+html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-search:focus,
+html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-sort:focus {
+  border-color: rgb(from var(--accent) r g b / 0.45);
+  box-shadow:
+    inset 0 1px 2px rgba(15, 23, 42, 0.035),
+    0 0 0 3px rgb(from var(--accent) r g b / 0.12);
+  outline: none;
+}
+
+html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-action {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  color: #475569;
+}
+
+html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-action:hover {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: rgba(15, 23, 42, 0.14);
+}
+
+html[data-theme="light"] .picks-panel:not(.crypto-panel) .picks-empty {
+  color: #64748b;
+  line-height: 1.6;
+  padding: 1.5rem 0.85rem;
+  text-align: center;
+}
+
+.picks-empty--muted {
+  opacity: 0.88;
+}
+
+.picks-empty--warn {
+  color: var(--down);
+}
+
+.stock-search-tab__hint {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin: 0 0.65rem 0.55rem;
+  line-height: 1.45;
+}
+
+.stock-search-tab__sym {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  flex-shrink: 0;
+  max-width: 46%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stock-search-tab__meta {
+  font-size: 0.68rem;
+  color: var(--muted);
+  padding: 0 0.7rem 0.55rem;
+  margin-top: -0.2rem;
+}
+
+.stock-search-tab__row {
+  width: 100%;
+  text-align: left;
+}
+
+html[data-theme="light"] .picks-empty--warn {
+  color: #b91c1c;
+}
+
 /* 코인 탭 — 라이트: 어두운 카드 + 어두운 --text 조합으로 글자 대비 붕괴 → 밝은 카드·명시 색 */
 html[data-theme="light"] .crypto-panel .panel-head__title {
   color: var(--text);
@@ -143,25 +429,25 @@ html[data-theme="light"] .crypto-panel .panel-head {
 }
 
 html[data-theme="light"] .crypto-panel .pick-item.crypto-pick-item {
-  background: linear-gradient(165deg, #ffffff 0%, #f1f5f9 100%);
+  background: linear-gradient(165deg, #f0f4fa 0%, #e4ebf4 100%);
   border-color: var(--card-border);
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
 }
 
 html[data-theme="light"] .crypto-panel .pick-item.crypto-pick-item:hover {
-  border-color: rgba(13, 148, 136, 0.35);
+  border-color: rgb(from var(--accent) r g b / 0.35);
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
 }
 
 html[data-theme="light"] .crypto-panel .pick-item.crypto-pick-item.active {
-  border-color: rgba(13, 148, 136, 0.45);
+  border-color: rgb(from var(--accent) r g b / 0.45);
   box-shadow:
-    0 0 0 1px rgba(13, 148, 136, 0.18),
-    0 4px 16px rgba(13, 148, 136, 0.12);
+    0 0 0 1px rgb(from var(--accent) r g b / 0.18),
+    0 4px 16px rgb(from var(--accent) r g b / 0.12);
   background: linear-gradient(
     165deg,
-    rgba(13, 148, 136, 0.1) 0%,
-    #f8fafc 58%
+    rgb(from var(--accent) r g b / 0.1) 0%,
+    #e6edf6 58%
   );
 }
 
@@ -206,17 +492,17 @@ html[data-theme="light"] .crypto-chart-panel .chart-draw-btn {
 
 html[data-theme="light"] .crypto-chart-panel .chart-draw-btn:hover {
   color: var(--text);
-  border-color: rgba(13, 148, 136, 0.35);
+  border-color: rgb(from var(--accent) r g b / 0.35);
 }
 
 html[data-theme="light"] .crypto-chart-panel .chart-draw-btn--active {
-  background: rgba(13, 148, 136, 0.14);
-  border-color: rgba(13, 148, 136, 0.45);
+  background: rgb(from var(--accent) r g b / 0.14);
+  border-color: rgb(from var(--accent) r g b / 0.45);
   color: var(--accent);
 }
 
 html[data-theme="light"] .crypto-chart-panel .chart-draw-persist-hint {
-  color: var(--muted);
+  display: none !important;
 }
 
 html[data-theme="light"] .crypto-chart-panel .chart-status {
@@ -225,6 +511,130 @@ html[data-theme="light"] .crypto-chart-panel .chart-status {
 
 html[data-theme="light"] .crypto-chart-panel .chart-status--error {
   color: var(--down);
+}
+
+/* 차트 상단(호가·타임프레임·지표·드로잉) — 라이트: 단색 pill 덜어내고 카드·세그먼트 정리 */
+.chart-draw-toolbar__sep {
+  flex-shrink: 0;
+  width: 1px;
+  min-height: 1.2rem;
+  align-self: center;
+  margin: 0 0.12rem;
+  background: rgba(148, 163, 184, 0.32);
+}
+
+html[data-theme="light"] .chart-section .quote-bar.card {
+  background: linear-gradient(165deg, #fafbfc 0%, #f1f5f9 100%);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.65) inset,
+    0 6px 24px rgba(15, 23, 42, 0.055);
+}
+
+html[data-theme="light"] .chart-section .quote-bar .btn--secondary {
+  color: #334155;
+  background: rgba(255, 255, 255, 0.75);
+  border-color: rgba(15, 23, 42, 0.12);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+html[data-theme="light"] .chart-section .quote-bar .btn--secondary:hover {
+  background: #ffffff;
+  border-color: rgba(51, 65, 85, 0.25);
+  color: #0f172a;
+}
+
+html[data-theme="light"] .chart-section .timeframe-seg.segmented {
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.55);
+}
+
+html[data-theme="light"] .chart-section .timeframe-seg .seg {
+  color: #64748b;
+  background: transparent;
+  border: none;
+}
+
+html[data-theme="light"] .chart-section .timeframe-seg .seg.active {
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+html[data-theme="light"] .crypto-chart-panel.card {
+  background: linear-gradient(180deg, #e9eef6 0%, #e2e9f2 100%);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.45) inset,
+    0 8px 32px rgba(15, 23, 42, 0.06);
+}
+
+html[data-theme="light"] .crypto-chart-panel > .chart-toolbar {
+  flex-wrap: wrap;
+  gap: 0.4rem 0.55rem;
+  padding: 0.55rem 0.65rem 0.5rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+  background: rgba(255, 255, 255, 0.42);
+  -webkit-backdrop-filter: blur(10px) saturate(1.08);
+  backdrop-filter: blur(10px) saturate(1.08);
+}
+
+html[data-theme="light"] .crypto-chart-panel .chart-toolbar__toggles {
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+html[data-theme="light"] .crypto-chart-panel .chart-toolbar__toggles > .chip {
+  color: #475569;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.035);
+}
+
+html[data-theme="light"] .crypto-chart-panel .chart-toolbar__toggles > .chip:hover {
+  color: #0f172a;
+  background: #ffffff;
+  border-color: rgba(100, 116, 139, 0.32);
+}
+
+html[data-theme="light"] .crypto-chart-panel .chart-toolbar__toggles > .chip.chip--on {
+  color: var(--accent-press);
+  background: linear-gradient(
+    180deg,
+    rgb(from var(--accent) r g b / 0.14) 0%,
+    rgb(from var(--accent) r g b / 0.06) 100%
+  );
+  border-color: rgb(from var(--accent) r g b / 0.4);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 2px 6px rgb(from var(--accent) r g b / 0.08);
+}
+
+html[data-theme="light"] .crypto-chart-panel .chart-draw-toolbar--inline {
+  padding-left: 0.45rem;
+  margin-left: 0.15rem;
+  border-left: 1px solid rgba(15, 23, 42, 0.1);
+}
+
+html[data-theme="light"] .crypto-chart-panel .chart-draw-toolbar__sep {
+  background: rgba(15, 23, 42, 0.12);
+}
+
+html[data-theme="light"] .crypto-chart-panel .chart-draw-btn--magnet.chart-draw-btn--active {
+  color: #7c3aed;
+  border-color: rgba(124, 58, 237, 0.45);
+  background: linear-gradient(
+    180deg,
+    rgba(124, 58, 237, 0.12) 0%,
+    rgba(124, 58, 237, 0.05) 100%
+  );
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.45) inset,
+    0 2px 6px rgba(124, 58, 237, 0.1);
 }
 
 .theme-toggle {
