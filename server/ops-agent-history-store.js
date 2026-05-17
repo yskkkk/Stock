@@ -209,49 +209,8 @@ export function prependRunningOpsEntry(id, instruction, requestIp = "") {
 }
 
 /**
- * FIFO에만 올라간 단계 — 실제 에이전트 호출 전까지 이력에서 `waiting`으로 표시.
- * `enqueueOpsAgentJob`의 onCommitted에서 동기 호출해 `drainQueue`보다 먼저 기록한다.
- * @param {string} id
- * @param {string} instruction
- * @param {string} [requestIp]
- */
-export function prependQueuedOpsEntrySync(id, instruction, requestIp = "") {
-  ensureDirSync();
-  const ins = trimStoredTextForOpsHistory(
-    instruction,
-    OPS_AGENT_INSTRUCTION_STORE_MAX,
-  );
-  const rip = sanitizeRequestIpForStore(requestIp);
-  const now = Date.now();
-  const entry = {
-    id,
-    instruction: ins,
-    state: "waiting",
-    startedAtMs: now,
-    updatedAtMs: now,
-    finishedAtMs: null,
-    error: null,
-    phaseLine: "",
-    cursorLine: "",
-    thinkingLine: "",
-    toolLine: "",
-    streamText: "",
-    statusText: null,
-    resultText: null,
-    durationMs: null,
-    runtimeLabel: null,
-    requestIp: rip,
-  };
-  const prev = readRawListSync()
-    .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))
-    .filter(Boolean)
-    .filter((e) => e.id !== id);
-  const next = [entry, ...prev].slice(0, OPS_AGENT_HISTORY_MAX);
-  saveRawListSync(next);
-}
-
-/**
- * 큐 대기 레코드를 실행 중으로 전환. 해당 id가 없으면 false.
+ * 큐 대기(`waiting`) 상태 레코드는 더 이상 만들지 않는다.
+ * 과거 파일·레거시 행만 `waiting`일 수 있음 — 실행 시작 시 running으로 승격.
  * @param {string} id
  * @returns {Promise<boolean>}
  */

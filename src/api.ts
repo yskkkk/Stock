@@ -217,7 +217,7 @@ export function fetchOpsCursorAgentPending() {
   });
 }
 
-/** 관리자 전용 — 서버 에이전트 FIFO 큐 (실행 중·대기만, 완료 시 제거) */
+/** 관리자 전용 — 서버에서 **실행 중**인 Cursor 에이전트 작업만(FIFO 대기 제외) */
 export function fetchOpsCursorAgentQueue() {
   const t = getStoredAccessAdminToken();
   const headers: Record<string, string> = {};

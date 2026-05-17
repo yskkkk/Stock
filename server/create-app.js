@@ -34,7 +34,6 @@ import { runOpsCursorAgent, streamOpsCursorAgentSse, writeOpsAgentSseEvent } fro
 import { enqueueOpsAgentJob, getOpsAgentQueueSnapshot } from "./ops-agent-job-queue.js";
 import {
   clearOpsAgentHistoryAsync,
-  prependQueuedOpsEntrySync,
   readOpsAgentHistorySync,
   removeOpsAgentHistoryEntryById,
 } from "./ops-agent-history-store.js";
@@ -214,13 +213,6 @@ export function createApp() {
             });
           },
           { requestIp: rip, instruction },
-          () => {
-            try {
-              prependQueuedOpsEntrySync(historyRunId, instruction, rip);
-            } catch {
-              /* 디스크 오류 — 실행 시작 시 running 레코드로 보완 */
-            }
-          },
         );
       } catch (e) {
         const code =
