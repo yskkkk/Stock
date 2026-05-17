@@ -30,6 +30,8 @@ export const ko = {
     opsCancelRequest: "요청 중단",
     opsCancelled: "요청이 중단되었습니다.",
     opsInstructionPlaceholder: "예: 피크 목록 정렬 기준에 '시가총액' 추가",
+    opsExtraContextLabel: "추가 컨텍스트 (선택)",
+    opsExtraContextPlaceholder: "배경·참고 사항을 적습니다. 비워 두면 요청 내용만 전달됩니다.",
     opsStoredTruncated: "이하 저장 생략",
     opsHistoryTitle: "에이전트 실행 이력",
     opsHistoryEmpty: "저장된 실행 이력이 없습니다.",

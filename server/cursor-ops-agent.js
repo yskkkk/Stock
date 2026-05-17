@@ -444,15 +444,24 @@ export async function streamOpsCursorAgentSse(req, res, body) {
         "[안내] 이번 실행은 GitHub에 연결된 Cursor 클라우드 에이전트로 처리되었습니다. 로컬 폴더가 바로 바뀌지 않으면 원격/PR에서 변경을 확인하세요.";
     }
 
+    let postGit = /** @type {{ cloudPullOk: boolean | null }} */ ({
+      cloudPullOk: null,
+    });
     try {
-      commitAndPushAfterOpsAgent({ writeSse, runtime });
+      postGit = commitAndPushAfterOpsAgent({
+        writeSse,
+        runtime,
+        requestIp: requestIp || undefined,
+      });
     } catch (e) {
       sendError(e instanceof Error ? e.message : String(e));
       return;
     }
     const pushNote =
       runtime === "cloud"
-        ? "\n\n[후처리] 이 서버의 로컬 클론을 origin과 동기화(git pull --ff-only)했습니다."
+        ? postGit.cloudPullOk
+          ? "\n\n[후처리] 이 서버의 로컬 클론을 origin과 동기화(git pull --ff-only)했습니다."
+          : "\n\n[후처리] 로컬 클론 자동 동기화(git pull --ff-only)는 건너뛰었습니다. 원격/PR에서 변경을 확인하세요."
         : "\n\n[후처리] 이 서버에서 변경분을 커밋(필요 시)하고 origin으로 git push 했습니다.";
     outText = (outText ? outText.trimEnd() : "") + pushNote;
 
@@ -527,7 +536,7 @@ export async function streamOpsCursorAgentSse(req, res, body) {
 }
 
 /**
- * @param {{ instruction: string; context?: string }} input
+ * @param {{ instruction: string; context?: string; requestIp?: string }} input
  * @returns {Promise<{ status: string; result: string; durationMs?: number; model?: unknown; runtime?: string }>}
  */
 export async function runOpsCursorAgent(input) {
@@ -600,10 +609,16 @@ export async function runOpsCursorAgent(input) {
       "[안내] 이번 실행은 GitHub에 연결된 Cursor 클라우드 에이전트로 처리되었습니다. 로컬 폴더가 바로 바뀌지 않으면 원격/PR에서 변경을 확인하세요.";
   }
 
-  commitAndPushAfterOpsAgent({ runtime });
+  const reqIpNorm = normalizeAccessIp(String(input.requestIp ?? ""));
+  const postGit = commitAndPushAfterOpsAgent({
+    runtime,
+    requestIp: reqIpNorm || undefined,
+  });
   const pushNote =
     runtime === "cloud"
-      ? "\n\n[후처리] 이 서버의 로컬 클론을 origin과 동기화(git pull --ff-only)했습니다."
+      ? postGit.cloudPullOk
+        ? "\n\n[후처리] 이 서버의 로컬 클론을 origin과 동기화(git pull --ff-only)했습니다."
+        : "\n\n[후처리] 로컬 클론 자동 동기화(git pull --ff-only)는 건너뛰었습니다. 원격/PR에서 변경을 확인하세요."
       : "\n\n[후처리] 이 서버에서 변경분을 커밋(필요 시)하고 origin으로 git push 했습니다.";
   outText = (outText ? outText.trimEnd() : "") + pushNote;
 

@@ -3,6 +3,7 @@ import {
   deleteOpsAgentHistory,
   deleteOpsAgentHistoryEntry,
   fetchOpsAgentHistory,
+  fetchOpsCursorAgentPending,
   fetchOpsCursorAgentStream,
   postOpsCursorAgentStreamCancel,
   type OpsAgentHistoryEntry,
@@ -35,6 +36,7 @@ export default function OpsManagementTab({
   available: boolean;
 }) {
   const [instruction, setInstruction] = useState("");
+  const [extraContext, setExtraContext] = useState("");
   const [nextInstruction, setNextInstruction] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [queuedCount, setQueuedCount] = useState(0);
@@ -55,7 +57,10 @@ export default function OpsManagementTab({
   const abortRef = useRef<AbortController | null>(null);
   const runIdRef = useRef<string | null>(null);
   const pendingAfterRef = useRef<string[]>([]);
+  const extraContextRef = useRef("");
   const runStreamImpl = useRef<(ins: string) => Promise<void>>(async () => {});
+
+  extraContextRef.current = extraContext;
 
   useEffect(() => {
     return () => {
@@ -84,6 +89,26 @@ export default function OpsManagementTab({
     return () => {
       cancelled = true;
       window.clearInterval(id);
+    };
+  }, [available]);
+
+  useEffect(() => {
+    if (!available) return;
+    let cancelled = false;
+    void fetchOpsCursorAgentPending()
+      .then((p) => {
+        if (cancelled) return;
+        const ins = String(p.instruction ?? "").trim();
+        const ctx = String(p.context ?? "").trim();
+        if (!ins && !ctx) return;
+        setInstruction((prev) => (prev.trim() ? prev : ins));
+        setExtraContext((prev) => (prev.trim() ? prev : ctx));
+      })
+      .catch(() => {
+        /* 접근 게이트 복귀 직후 등 — 조용히 무시 */
+      });
+    return () => {
+      cancelled = true;
     };
   }, [available]);
 
@@ -117,7 +142,7 @@ export default function OpsManagementTab({
       try {
         await fetchOpsCursorAgentStream(
           trimmed,
-          "",
+          extraContextRef.current.trim(),
           (ev) => {
             if (ev.type === "meta") {
               const rid = typeof ev.requestId === "string" ? ev.requestId.trim() : "";
@@ -276,6 +301,20 @@ export default function OpsManagementTab({
             onChange={(e) => setInstruction(e.target.value)}
             placeholder={ko.app.opsInstructionPlaceholder}
             rows={10}
+            disabled={!available || submitting}
+            spellCheck={false}
+          />
+
+          <label className="ops-management__label" htmlFor="ops-extra-context">
+            {ko.app.opsExtraContextLabel}
+          </label>
+          <textarea
+            id="ops-extra-context"
+            className="ops-management__textarea ops-management__textarea--sm"
+            value={extraContext}
+            onChange={(e) => setExtraContext(e.target.value)}
+            placeholder={ko.app.opsExtraContextPlaceholder}
+            rows={4}
             disabled={!available || submitting}
             spellCheck={false}
           />
