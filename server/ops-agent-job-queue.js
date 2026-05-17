@@ -70,18 +70,13 @@ export function isOpsAgentJobRunning() {
 }
 
 /**
- * 관리자 UI 폴링용 — 실행 중 1건 + FIFO 대기열 (완료 시 서버 메모리에서 제거됨).
- * @returns {{ entries: Array<{ id: string; requestIp: string; instructionPreview: string; instructionTooltip: string; enqueuedAtMs: number; status: 'running' | 'waiting' }> }}
+ * 관리자 UI 폴링용 — **실행 중인 작업만** 노출(FIFO 대기는 제외). 완료 시 서버 메모리에서 제거됨.
+ * @returns {{ entries: Array<{ id: string; requestIp: string; instructionPreview: string; instructionTooltip: string; enqueuedAtMs: number; status: 'running' }> }}
  */
 export function getOpsAgentQueueSnapshot() {
   const entries = [];
   if (runningMeta) {
     entries.push({ ...runningMeta, status: /** @type {const} */ ("running") });
-  }
-  for (const job of queue) {
-    if (job.meta) {
-      entries.push({ ...job.meta, status: /** @type {const} */ ("waiting") });
-    }
   }
   return { entries };
 }
@@ -91,7 +86,7 @@ export function getOpsAgentQueueSnapshot() {
  * @param {() => Promise<T>} fn
  * @param {() => void} [onQueued] busy일 때 이번 요청이 대기열에만 들어간 직후(헤더·SSE를 먼저 열 때)
  * @param {{ requestIp?: string | null; instruction?: string }} [meta]
- * @param {() => void} [onCommittedToQueue] 큐에 push된 직후(`drainQueue`보다 먼저) — FIFO 대기 이력 등
+ * @param {() => void} [onCommittedToQueue] 큐에 push된 직후(`drainQueue`보다 먼저) — 필요 시 훅
  * @returns {Promise<T>}
  */
 export function enqueueOpsAgentJob(fn, onQueued, meta, onCommittedToQueue) {

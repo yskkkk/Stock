@@ -8,7 +8,7 @@ import { fileURLToPath } from "url";
 import { rgPath } from "@vscode/ripgrep";
 import { Agent, Cursor } from "@cursor/sdk";
 import { commitAndPushAfterOpsAgent } from "./ops-agent-git-push.js";
-import { clientIp } from "./access-log.js";
+import { appendServerEventLog, clientIp } from "./access-log.js";
 import { normalizeAccessIp } from "./access-control.js";
 import {
   finalizeOpsAgentEntry,
@@ -70,6 +70,35 @@ function streamAbortError() {
   const e = new Error("stream aborted");
   e.name = "AbortError";
   return e;
+}
+
+/** @param {unknown} instruction */
+function opsAgentInstructionLogSnippet(instruction) {
+  const line =
+    String(instruction ?? "")
+      .split(/\r?\n/)
+      .find((l) => String(l).trim().length > 0) ?? "";
+  const t = line.trim();
+  return t.length > 180 ? `${t.slice(0, 179)}…` : t;
+}
+
+/**
+ * 큐에서 실제 워커가 돌기 시작해 이력이 running으로 잡힌 시점 — 접근 로그와 동일한 일일 파일에 기록.
+ * @param {"SSE"|"API"} kind
+ * @param {string} runId
+ * @param {string} instruction
+ * @param {string} requestIp
+ */
+function logOpsAgentExecutionStarted(kind, runId, instruction, requestIp) {
+  const prev = opsAgentInstructionLogSnippet(instruction);
+  const ip = normalizeAccessIp(String(requestIp ?? ""));
+  const tail = prev ? ` «${prev}»` : "";
+  appendServerEventLog(
+    "ops-agent",
+    `${kind} 에이전트 실행 시작 runId=${runId}${tail}`,
+    "info",
+    ip || null,
+  );
 }
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -381,11 +410,13 @@ export async function streamOpsCursorAgentSse(req, res, body) {
         }
         registerOpsStreamUserCancel(historyRunId, userCancelAc);
         writeSse({ type: "meta", requestId: historyRunId });
+        logOpsAgentExecutionStarted("SSE", historyRunId, instruction, requestIp);
       } catch {
         try {
           await prependRunningOpsEntry(historyRunId, instruction, requestIp);
           registerOpsStreamUserCancel(historyRunId, userCancelAc);
           writeSse({ type: "meta", requestId: historyRunId });
+          logOpsAgentExecutionStarted("SSE", historyRunId, instruction, requestIp);
         } catch {
           /* 디스크 오류 등 — 스트림은 계속 */
         }
@@ -397,6 +428,7 @@ export async function streamOpsCursorAgentSse(req, res, body) {
         runId = id;
         registerOpsStreamUserCancel(id, userCancelAc);
         writeSse({ type: "meta", requestId: id });
+        logOpsAgentExecutionStarted("SSE", id, instruction, requestIp);
       } catch {
         /* 디스크 오류 등 — 스트림은 계속 */
       }
@@ -586,6 +618,14 @@ export async function runOpsCursorAgent(input) {
     name: "ops-dashboard",
   };
 
+  const reqIpNorm = normalizeAccessIp(String(input.requestIp ?? ""));
+  logOpsAgentExecutionStarted(
+    "API",
+    randomUUID(),
+    instruction,
+    reqIpNorm,
+  );
+
   let result = await Agent.prompt(message, {
     ...base,
     local: { cwd: OPS_AGENT_REPO_ROOT },
@@ -629,7 +669,6 @@ export async function runOpsCursorAgent(input) {
       "[안내] 이번 실행은 GitHub에 연결된 Cursor 클라우드 에이전트로 처리되었습니다. 로컬 폴더가 바로 바뀌지 않으면 원격/PR에서 변경을 확인하세요.";
   }
 
-  const reqIpNorm = normalizeAccessIp(String(input.requestIp ?? ""));
   const postGit = commitAndPushAfterOpsAgent({
     runtime,
     requestIp: reqIpNorm || undefined,
