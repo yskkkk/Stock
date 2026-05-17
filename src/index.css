@@ -2266,6 +2266,23 @@ html[data-theme="light"] .access-admin-tab--active {
     gap: 0.4rem;
   }
 
+  /* 라이트 팔레트(좌상단 고정)가 모바일에서 상단바·종목 패널과 겹침 → 헤더 위 한 줄로 배치 */
+  .app-theme-corner {
+    position: relative;
+    top: auto;
+    left: auto;
+    z-index: 2;
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    align-content: center;
+    padding: 0.15rem 0 0.35rem;
+    margin: 0;
+    box-sizing: border-box;
+  }
+
   .macro-bar {
     padding-left: max(0.55rem, env(safe-area-inset-left, 0px));
     padding-right: max(0.55rem, env(safe-area-inset-right, 0px));
