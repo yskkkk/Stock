@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { useChartDrawMagnet } from "./hooks/useChartDrawMagnet";
 import {
+  clearStockOpsInstructionDraft,
   clearStoredAccessAdminToken,
   fetchConfig,
   fetchAccessStatus,
@@ -226,6 +227,7 @@ export default function App() {
             intervalId = null;
           }
           clearStoredAccessAdminToken();
+          clearStockOpsInstructionDraft();
           window.location.replace("/access-gate.html");
           return;
         }

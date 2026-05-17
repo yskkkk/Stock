@@ -50,6 +50,7 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
         } catch {
           /* ignore */
         }
+        clearStockOpsInstructionDraft();
         window.location.replace("/access-gate.html");
       }
     }
@@ -59,6 +60,18 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 const ACCESS_ADMIN_TOKEN_KEY = "stock_access_admin_token";
+
+/** 운영 탭 요청 입력 초안 — 접근 게이트로 보낼 때 비워 두면 복귀 후 기본(빈) 입력으로 시작 */
+export const STOCK_OPS_INSTRUCTION_DRAFT_KEY = "stock-app-ops-instruction-draft-v1";
+
+export function clearStockOpsInstructionDraft(): void {
+  if (typeof sessionStorage === "undefined") return;
+  try {
+    sessionStorage.removeItem(STOCK_OPS_INSTRUCTION_DRAFT_KEY);
+  } catch {
+    /* ignore */
+  }
+}
 
 export function getStoredAccessAdminToken(): string {
   if (typeof sessionStorage === "undefined") return "";
@@ -306,6 +319,7 @@ export async function fetchOpsCursorAgentStream(
         } catch {
           /* ignore */
         }
+        clearStockOpsInstructionDraft();
         window.location.replace("/access-gate.html");
       }
     }
