@@ -101,7 +101,7 @@ export default function App() {
   const [resettingTelegram, setResettingTelegram] = useState(false);
   const [appTab, setAppTab] = useState<AppTab>("screener");
   const prevAppTabRef = useRef<AppTab>("screener");
-  const [colorMode, setColorMode] = useState<ColorMode>(() => readStoredTheme());
+  const [colorMode] = useState<ColorMode>(() => readStoredTheme());
   const [lightPalette, setLightPalette] = useState<LightPaletteId>(() =>
     readStoredLightPalette(),
   );
@@ -780,14 +780,9 @@ export default function App() {
               <button
                 type="button"
                 className="theme-toggle"
-                onClick={() =>
-                  setColorMode((m) => (m === "dark" ? "light" : "dark"))
-                }
-                title={
-                  colorMode === "dark" ? ko.app.themeUseLight : ko.app.themeUseDark
-                }
-                aria-label={ko.app.themeToggleAria}
-                aria-pressed={colorMode === "light"}
+                disabled
+                title={ko.app.themeToggleUnavailable}
+                aria-label={ko.app.themeToggleUnavailable}
               >
                 {colorMode === "dark" ? "\u2600" : "\u263E"}
               </button>

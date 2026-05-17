@@ -666,3 +666,16 @@ html[data-theme="light"] .crypto-chart-panel .chart-draw-btn--magnet.chart-draw-
 .theme-toggle:active {
   transform: scale(0.97);
 }
+
+.theme-toggle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.theme-toggle:disabled:hover,
+.theme-toggle:disabled:active {
+  border-color: var(--card-border);
+  background: var(--bg-elevated);
+  transform: none;
+}
