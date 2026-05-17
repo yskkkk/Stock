@@ -2256,10 +2256,18 @@ html[data-theme="light"] .access-admin-tab--active {
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
+    /* 고정 코너(FAB·라이트 팔레트)와 스티키 헤더 정렬용 — 매크로 바 100vw 브레이크아웃 포함 */
+    --mobile-fab-stack-offset: calc(env(safe-area-inset-top, 0px) + 2.85rem);
+    --mobile-corner-pad-right: max(calc(0.55rem + 10.5rem), env(safe-area-inset-right, 0px));
+    --mobile-corner-pad-left: max(0.55rem, env(safe-area-inset-left, 0px));
+  }
+
+  html[data-theme="light"] {
+    --mobile-corner-pad-left: max(calc(0.55rem + 11.75rem), env(safe-area-inset-left, 0px));
   }
 
   .app {
-    padding-top: max(0.45rem, env(safe-area-inset-top, 0px));
+    padding-top: max(0.45rem, var(--mobile-fab-stack-offset));
     padding-right: max(0.45rem, env(safe-area-inset-right, 0px));
     padding-bottom: max(0.55rem, env(safe-area-inset-bottom, 0px));
     padding-left: max(0.45rem, env(safe-area-inset-left, 0px));
@@ -3051,7 +3059,7 @@ html[data-theme="light"] .access-admin-tab--active {
 
   .top-bar.card {
     position: sticky;
-    top: max(0.35rem, env(safe-area-inset-top, 0px));
+    top: var(--mobile-fab-stack-offset);
     z-index: 40;
     -webkit-backdrop-filter: blur(18px) saturate(1.15);
     backdrop-filter: blur(18px) saturate(1.15);
@@ -4278,11 +4286,27 @@ body {
 @media (max-width: 900px) {
   /* 우측(운영·불편 가로 배치) / 라이트 모드 좌측(팔레트 행)과 스티키 헤더가 겹치지 않게 */
   .top-bar.card {
-    padding-inline-end: max(calc(0.55rem + 9.25rem), env(safe-area-inset-right, 0px));
+    padding-inline-end: var(--mobile-corner-pad-right);
   }
 
   html[data-theme="light"] .top-bar.card {
-    padding-inline-start: max(calc(0.55rem + 11.75rem), env(safe-area-inset-left, 0px));
+    padding-inline-start: var(--mobile-corner-pad-left);
+  }
+
+  /* 매크로 바가 뷰포트 전체 너비로 깔릴 때 코너 FAB·팔레트와 가로 겹침 방지 */
+  .top-bar__macro .macro-bar {
+    padding-left: max(0.6rem, var(--mobile-corner-pad-left));
+    padding-right: max(0.6rem, var(--mobile-corner-pad-right));
+    box-sizing: border-box;
+  }
+
+  .top-bar__macro .macro-bar .macro-bar__track {
+    scroll-padding-inline-start: var(--mobile-corner-pad-left);
+    scroll-padding-inline-end: var(--mobile-corner-pad-right);
+  }
+
+  .quote-bar__info {
+    min-width: 0;
   }
 
   .filter-header {
@@ -4423,6 +4447,24 @@ body {
   .news-modal.telegram-sent-modal {
     border-radius: 22px 22px 0 0;
     max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 0.85rem);
+  }
+}
+
+/* 매우 좁은 폭: 수익 모델 스트립 라벨·값 세로 정렬로 서로 덮이지 않게 */
+@media (max-width: 480px) {
+  .profit-model-strip {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 0.5rem;
+    row-gap: 0.28rem;
+    align-items: baseline;
+  }
+
+  .profit-model-strip__value {
+    justify-self: end;
+    text-align: right;
+    min-width: 0;
+    word-break: break-word;
   }
 }
 
