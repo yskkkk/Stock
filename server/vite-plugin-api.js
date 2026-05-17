@@ -3,6 +3,7 @@ import {
   appendAccessLogVite,
   installViteAccessTraceMiddleware,
 } from "./access-log.js";
+import { startAutoGitSync } from "./auto-git-sync.js";
 import { createApp } from "./create-app.js";
 import { loadEnvFile } from "./load-env.js";
 import { installProcessGuards } from "./process-guards.js";
@@ -43,6 +44,12 @@ function mergeStockProcessEnv(mode) {
     "CURSOR_API_KEY",
     "CURSOR_AGENT_MODEL",
     "CURSOR_RIPGREP_PATH",
+    "AUTO_GIT_SYNC",
+    "AUTO_GIT_SYNC_INTERVAL_MS",
+    "AUTO_GIT_REMOTE",
+    "AUTO_GIT_BRANCH",
+    "AUTO_GIT_SKIP_NPM_REFRESH",
+    "AUTO_GIT_POST_PULL_CMD",
   ]) {
     if (env[key]) process.env[key] = env[key];
   }
@@ -80,6 +87,15 @@ function attachStockApiMiddlewares(server) {
   });
 }
 
+/** Vite 개발 서버만 — `npm run preview`는 보통 `server/index.js`와 동시에 뜨므로 중복 방지 */
+function attachAutoGitSyncWhenListening(server) {
+  const hs = server.httpServer;
+  if (!hs) return;
+  const go = () => startAutoGitSync({ httpServer: hs });
+  if (hs.listening) go();
+  else hs.once("listening", go);
+}
+
 export function stockApiPlugin() {
   installProcessGuards();
 
@@ -91,6 +107,7 @@ export function stockApiPlugin() {
       installAccessGateHtmlMiddleware(server);
       installViteAccessTraceMiddleware(server);
       attachStockApiMiddlewares(server);
+      attachAutoGitSyncWhenListening(server);
       setTimeout(() => {
         startScreening().catch(logScreeningError);
       }, 1500);

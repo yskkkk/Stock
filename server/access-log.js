@@ -135,6 +135,37 @@ export function appendAccessLog(req) {
   }
 }
 
+/**
+ * HTTP 요청이 아닌 서버 내부 이벤트 — `appendAccessLog`와 같은 일일 파일·콘솔 `[access]` 패턴
+ * @param {string} category 짧은 태그 (예: auto-git)
+ * @param {string} message 한 줄
+ * @param {"info"|"warn"|"error"} [level]
+ */
+export function appendServerEventLog(category, message, level = "info") {
+  try {
+    ensureDir();
+    const ts = new Date().toISOString();
+    const safeCat = String(category ?? "server")
+      .replace(/[\t\r\n]/g, "_")
+      .slice(0, 32);
+    const safeMsg = String(message).replace(/\r|\n/g, " ").slice(0, 800);
+    const file = `${ts}\tip=-\tINTERNAL\t${safeCat}\t${safeMsg}\n`;
+    const consoleLine = `${ts} ip=- INTERNAL ${safeCat} ${safeMsg}`;
+    const logFn =
+      level === "error"
+        ? console.error.bind(console)
+        : level === "warn"
+          ? console.warn.bind(console)
+          : console.log.bind(console);
+    logFn("[access]", consoleLine);
+    fs.appendFile(accessLogPathForToday(), file, (err) => {
+      if (err) console.warn("[access-log] 파일 기록 실패:", err.message);
+    });
+  } catch (e) {
+    console.warn("[access-log]", e instanceof Error ? e.message : e);
+  }
+}
+
 /** Vite 전용: 페이지·API·주요 요청만 (HMR·소스맵 제외) */
 export function appendAccessLogVite(req) {
   if (!shouldLogViteUrl(req.url)) return;

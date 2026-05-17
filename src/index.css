@@ -2906,14 +2906,30 @@ html[data-theme="light"] .access-admin-tab--active {
 }
 
 /* -------------------------------------------------------------------------- */
-/* 불편 접수함 — 화면 우측 상단 고정 */
+/* 우측 상단: 운영(관리자) + 불편 접수함 고정 스택 */
 /* -------------------------------------------------------------------------- */
 
-.feedback-corner {
+.app-corner-stack {
   position: fixed;
   top: max(0.55rem, env(safe-area-inset-top, 0px));
   right: max(0.55rem, env(safe-area-inset-right, 0px));
   z-index: 9990;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+}
+
+.app-corner-stack__ops {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.35rem 0.55rem;
+  border-radius: 999px;
+  box-shadow: var(--shadow);
+  white-space: nowrap;
+}
+
+.feedback-corner {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -3217,6 +3233,59 @@ html[data-theme="light"] .feedback-inbox-item {
 .ops-management__submit {
   align-self: flex-start;
   margin-top: 0.25rem;
+}
+
+.ops-management__stream {
+  margin-top: 1rem;
+  padding: 0.65rem 0.75rem;
+}
+
+.ops-management__stream-title {
+  margin: 0 0 0.45rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.ops-management__stream-row {
+  margin: 0.2rem 0 0;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.ops-management__stream-row--thinking {
+  color: var(--muted);
+}
+
+.ops-management__stream-k {
+  font-weight: 600;
+  color: var(--muted);
+  margin-right: 0.35rem;
+}
+
+.ops-management__stream-v {
+  word-break: break-word;
+}
+
+.ops-management__stream-v--mono {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.ops-management__stream-pre {
+  margin: 0.5rem 0 0;
+  padding: 0.55rem 0.65rem;
+  max-height: min(40vh, 320px);
+  overflow: auto;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--card-border);
 }
 
 .ops-management__out {

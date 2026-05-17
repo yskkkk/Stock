@@ -33,7 +33,10 @@ import StockChart from "./components/StockChart";
 import TradingViewAdvancedChart from "./components/TradingViewAdvancedChart";
 import { CHART_TIMEFRAMES } from "./constants/timeframes";
 import type { SignalId } from "./constants/signals";
-import { SHOW_PROFIT_MODEL_BUTTON } from "./constants/uiFlags";
+import {
+  ENABLE_THEME_MODE_TOGGLE,
+  SHOW_PROFIT_MODEL_BUTTON,
+} from "./constants/uiFlags";
 import { usePickKeyboard } from "./hooks/usePickKeyboard";
 import { useUsdKrwRate } from "./hooks/useUsdKrwRate";
 import { enrichBullishPick } from "./lib/bullishPicks";
@@ -668,7 +671,23 @@ export default function App() {
 
   return (
     <div className="app">
-      <FeedbackCorner accessAdmin={accessAdmin} />
+      <div className="app-corner-stack">
+        {accessAdmin ? (
+          <button
+            type="button"
+            className={
+              appTab === "ops"
+                ? "btn btn--primary app-corner-stack__ops"
+                : "btn btn--secondary app-corner-stack__ops"
+            }
+            aria-current={appTab === "ops" ? "page" : undefined}
+            onClick={() => setAppTab("ops")}
+          >
+            {ko.app.tabOps}
+          </button>
+        ) : null}
+        <FeedbackCorner accessAdmin={accessAdmin} />
+      </div>
       <header
         className={`top-bar card${showTopScanStrip ? " top-bar--with-scan" : ""}`}
       >
@@ -756,15 +775,6 @@ export default function App() {
               >
                 {ko.app.tabCrypto}
               </button>
-              {accessAdmin ? (
-                <button
-                  type="button"
-                  className={appTab === "ops" ? "main-tab active" : "main-tab"}
-                  onClick={() => setAppTab("ops")}
-                >
-                  {ko.app.tabOps}
-                </button>
-              ) : null}
             </nav>
 
             <div className="top-bar__tools">
@@ -780,14 +790,23 @@ export default function App() {
               <button
                 type="button"
                 className="theme-toggle"
+                disabled={!ENABLE_THEME_MODE_TOGGLE}
                 onClick={() =>
                   setColorMode((m) => (m === "dark" ? "light" : "dark"))
                 }
                 title={
-                  colorMode === "dark" ? ko.app.themeUseLight : ko.app.themeUseDark
+                  !ENABLE_THEME_MODE_TOGGLE
+                    ? ko.app.themeToggleDisabledHint
+                    : colorMode === "dark"
+                      ? ko.app.themeUseLight
+                      : ko.app.themeUseDark
                 }
-                aria-label={ko.app.themeToggleAria}
-                aria-pressed={colorMode === "light"}
+                aria-label={
+                  !ENABLE_THEME_MODE_TOGGLE
+                    ? ko.app.themeToggleDisabledAria
+                    : ko.app.themeToggleAria
+                }
+                aria-pressed={ENABLE_THEME_MODE_TOGGLE && colorMode === "light"}
               >
                 {colorMode === "dark" ? "\u2600" : "\u263E"}
               </button>

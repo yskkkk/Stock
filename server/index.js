@@ -1,4 +1,5 @@
 import { startMacroReminderLoop } from "./macro-telegram-reminders.js";
+import { startAutoGitSync } from "./auto-git-sync.js";
 import { createApp } from "./create-app.js";
 import { loadEnvFile } from "./load-env.js";
 import { installProcessGuards } from "./process-guards.js";
@@ -17,6 +18,7 @@ startMacroReminderLoop();
 
 const server = app.listen(PORT, () => {
   console.log(`API server http://localhost:${PORT}`);
+  startAutoGitSync({ httpServer: server });
 });
 
 server.on("error", (err) => {

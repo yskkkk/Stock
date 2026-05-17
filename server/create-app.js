@@ -25,7 +25,7 @@ import { getUsdKrwRate } from "./fx-usd-krw.js";
 import { searchStocks } from "./stock-search.js";
 import { getMacroEventsCached } from "./macro-events.js";
 import { postFeedback, getFeedbackInbox, postFeedbackAdminReply, deleteFeedbackAdmin } from "./feedback-inbox.js";
-import { runOpsCursorAgent } from "./cursor-ops-agent.js";
+import { runOpsCursorAgent, streamOpsCursorAgentSse } from "./cursor-ops-agent.js";
 
 function asyncRoute(handler) {
   return (req, res, next) => {
@@ -102,6 +102,28 @@ export function createApp() {
         }
         res.status(500).json({ error: msg });
       }
+    }),
+  );
+
+  app.post(
+    "/api/ops/cursor-agent-stream",
+    asyncRoute(async (req, res) => {
+      if (!isAccessAdminRequest(req)) {
+        res.status(403).json({
+          error: "관리자만 Cursor 에이전트 연동을 사용할 수 있습니다.",
+          code: "FORBIDDEN",
+        });
+        return;
+      }
+      const instruction = String(req.body?.instruction ?? "").trim();
+      if (!instruction) {
+        res.status(400).json({
+          error: "instruction 필드에 요청 내용을 입력하세요.",
+        });
+        return;
+      }
+      const context = String(req.body?.context ?? "").trim();
+      await streamOpsCursorAgentSse(res, { instruction, context });
     }),
   );
 

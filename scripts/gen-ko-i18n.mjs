@@ -19,6 +19,10 @@ const t = {
     themeToggleAria: "\uD654\uBA74 \uD14C\uB9C8 \uC804\uD658",
     themeUseLight: "\uB77C\uC774\uD2B8 \uBAA8\uB4DC",
     themeUseDark: "\uB2E4\uD06C \uBAA8\uB4DC",
+    themeToggleDisabledAria:
+      "\uD654\uBA74 \uD14C\uB9C8 \uC804\uD658 (\uC77C\uC2DC \uBE44\uD65C\uC131\uD654)",
+    themeToggleDisabledHint:
+      "\uD14C\uB9C8 \uC804\uD658\uC774 \uC77C\uC2DC\uC801\uC73C\uB85C \uBE44\uD65C\uC131\uD654\uB418\uC5C8\uC2B5\uB2C8\uB2E4",
     lightPaletteAria: "\uB77C\uC774\uD2B8 \uBAA8\uB4DC \uC0C9\uC870 \uC120\uD0DD",
     lightPaletteHint: "\uB208\uC5D0 \uD3B8\uD55C \uD1A4",
     lightPaletteMist: "\uBBF8\uC2A4\uD2B8 \uBE14\uB8E8\uADF8\uB808\uC774",
@@ -43,9 +47,15 @@ const t = {
       "\uC7AC\uD604 \uB2E8\uACC4, \uC6B0\uC120\uC21C\uC704, \uAD00\uB828 URL \uB4F1",
     opsSubmit: "\uC5D0\uC774\uC804\uD2B8\uC5D0 \uC804\uB2EC",
     opsSubmitting: "\uC2E4\uD589 \uC911\u2026 (\uC218 \uBD84 \uAC78\uB9B4 \uC218 \uC788\uC2B5\uB2C8\uB2E4)",
+    opsStreamTitle: "\uC9C4\uD589\u00B7\uC751\uB2F5 (\uC2E4\uC2DC\uAC04)",
+    opsStreamPhase: "\uB2E8\uACC4",
+    opsStreamThinking: "\uC0DD\uAC01",
+    opsStreamTool: "\uB3C4\uAD6C",
+    opsStreamCursorStatus: "Cursor \uC0C1\uD0DC",
     opsResultLabel: "\uACB0\uACFC",
     opsStatusLabel: "\uC0C1\uD0DC",
     opsDurationLabel: "\uC18C\uC694 \uC2DC\uAC04",
+    opsRuntimeLabel: "\uC2E4\uD589 \uD658\uACBD",
     opsError: "\uC694\uCCAD\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.",
     opsNoKey:
       "\uC11C\uBC84\uC5D0 CURSOR_API_KEY\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4. .env \uC608: .env.example\uC744 \uCC38\uACE0\uD558\uC5EC \uD0A4\uB97C \uB123\uACE0 \uAC1C\uBC1C \uC11C\uBC84\uB97C \uB2E4\uC2DC \uC2DC\uC791\uD558\uC138\uC694.",

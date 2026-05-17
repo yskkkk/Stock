@@ -131,6 +131,96 @@ export interface OpsCursorAgentResponse {
   durationMs?: number;
 }
 
+export type OpsAgentSseEvent =
+  | { type: "phase"; message: string }
+  | { type: "delta"; text: string }
+  | { type: "cursor_status"; status: string; detail: string }
+  | { type: "thinking"; text: string }
+  | { type: "tool"; name: string; toolStatus: string }
+  | {
+      type: "done";
+      ok: true;
+      status: string;
+      result: string;
+      durationMs?: number;
+      runtime?: string;
+    }
+  | { type: "error"; message: string };
+
+/** 관리자 전용 — SSE로 에이전트 진행·델타·결과 수신 */
+export async function fetchOpsCursorAgentStream(
+  instruction: string,
+  context: string,
+  onEvent: (ev: OpsAgentSseEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const t = getStoredAccessAdminToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json; charset=utf-8",
+    Accept: "text/event-stream",
+  };
+  if (t) headers.Authorization = `Bearer ${t}`;
+  const res = await fetch("/api/ops/cursor-agent-stream", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ instruction, context }),
+    signal,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let msg: string = ko.errors.request;
+    let accessDenied = false;
+    try {
+      const j = text ? JSON.parse(text) : {};
+      if (typeof j.error === "string") msg = j.error;
+      if (j.code === "ACCESS_DENIED") accessDenied = true;
+    } catch {
+      if (text) msg = text.slice(0, 500);
+    }
+    if (
+      res.status === 403 &&
+      accessDenied &&
+      typeof window !== "undefined"
+    ) {
+      if (!(window as unknown as { __stockAccessDeniedNav?: boolean }).__stockAccessDeniedNav) {
+        (window as unknown as { __stockAccessDeniedNav?: boolean }).__stockAccessDeniedNav = true;
+        try {
+          clearStoredAccessAdminToken();
+        } catch {
+          /* ignore */
+        }
+        window.location.replace("/access-gate.html");
+      }
+    }
+    throw new Error(msg);
+  }
+  if (!res.body) {
+    throw new Error(ko.errors.network);
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    for (;;) {
+      const m = /\r?\n\r?\n/.exec(buffer);
+      if (!m || m.index === undefined) break;
+      const chunk = buffer.slice(0, m.index);
+      buffer = buffer.slice(m.index + m[0].length);
+      const line = chunk.split(/\r?\n/).find((l) => l.startsWith("data: "));
+      if (!line) continue;
+      try {
+        const ev = JSON.parse(line.slice(6)) as OpsAgentSseEvent;
+        onEvent(ev);
+      } catch {
+        /* ignore malformed frame */
+      }
+    }
+  }
+}
+
 /** 관리자 전용 — 서버에서 로컬 Cursor 에이전트 실행 (수 분 소요 가능) */
 export function postOpsCursorAgent(instruction: string, context: string) {
   const t = getStoredAccessAdminToken();
