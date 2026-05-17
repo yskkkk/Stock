@@ -29,14 +29,17 @@ export const LIGHT_PALETTE_PREVIEW: Record<LightPaletteId, string> = {
   dusk: "#3d6ea8",
 };
 
+/** 앱은 라이트 전용 — 저장값이 예전 다크였으면 라이트로 덮어씀 */
 export function readStoredTheme(): ColorMode {
   try {
     const v = localStorage.getItem(THEME_STORAGE_KEY);
-    if (v === "light" || v === "dark") return v;
+    if (v === "dark") {
+      localStorage.setItem(THEME_STORAGE_KEY, "light");
+    }
   } catch {
     /* ignore */
   }
-  return "dark";
+  return "light";
 }
 
 export function readStoredLightPalette(): LightPaletteId {
@@ -65,21 +68,17 @@ export function persistLightPalette(id: LightPaletteId): void {
   }
 }
 
-export function persistTheme(mode: ColorMode): void {
+export function persistTheme(_mode?: ColorMode): void {
   try {
-    localStorage.setItem(THEME_STORAGE_KEY, mode);
+    localStorage.setItem(THEME_STORAGE_KEY, "light");
   } catch {
     /* ignore */
   }
 }
 
-export function applyTheme(mode: ColorMode): void {
+/** 항상 라이트 테마 적용 (`_mode` 인자는 기존 호출부 호환용, 무시됨) */
+export function applyTheme(_mode?: ColorMode): void {
   const root = document.documentElement;
-  if (mode === "light") {
-    root.setAttribute("data-theme", "light");
-    applyLightPalette(readStoredLightPalette());
-  } else {
-    root.removeAttribute("data-theme");
-    clearLightPaletteAttr();
-  }
+  root.setAttribute("data-theme", "light");
+  applyLightPalette(readStoredLightPalette());
 }

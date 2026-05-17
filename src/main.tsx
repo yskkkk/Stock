@@ -1,7 +1,7 @@
 import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { ko } from "./i18n/ko";
-import { applyTheme, readStoredTheme } from "./lib/theme";
+import { applyTheme } from "./lib/theme";
 import "./index.css";
 import "./theme.css";
 import "./theme-light-palettes.css";
@@ -9,7 +9,7 @@ import "./ui-toss.css";
 
 const App = lazy(() => import("./App"));
 
-applyTheme(readStoredTheme());
+applyTheme();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

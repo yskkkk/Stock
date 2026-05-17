@@ -48,7 +48,7 @@ function TradingViewAdvancedChartInner({
       symbol: tvSymbol,
       interval,
       timezone: "Asia/Seoul",
-      theme: "dark",
+      theme: "light",
       style: "1",
       locale: "kr",
       calendar: false,
@@ -59,7 +59,7 @@ function TradingViewAdvancedChartInner({
       save_image: true,
       allow_symbol_change: true,
       support_host: "https://www.tradingview.com",
-      backgroundColor: "rgba(10, 14, 19, 1)",
+      backgroundColor: "rgba(255, 255, 255, 1)",
     });
 
     root.appendChild(script);

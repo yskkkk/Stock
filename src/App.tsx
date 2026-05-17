@@ -34,7 +34,6 @@ import TradingViewAdvancedChart from "./components/TradingViewAdvancedChart";
 import { CHART_TIMEFRAMES } from "./constants/timeframes";
 import type { SignalId } from "./constants/signals";
 import {
-  ENABLE_THEME_MODE_TOGGLE,
   SHOW_PROFIT_MODEL_BUTTON,
 } from "./constants/uiFlags";
 import { usePickKeyboard } from "./hooks/usePickKeyboard";
@@ -49,14 +48,10 @@ import { computeProfitFromEntry } from "./lib/profitModel";
 import { findChartTimeNearEntryMs } from "./lib/profitMarker";
 import {
   applyLightPalette,
-  applyTheme,
   LIGHT_PALETTE_IDS,
   LIGHT_PALETTE_PREVIEW,
   persistLightPalette,
-  persistTheme,
   readStoredLightPalette,
-  readStoredTheme,
-  type ColorMode,
   type LightPaletteId,
 } from "./lib/theme";
 import {
@@ -104,7 +99,6 @@ export default function App() {
   const [resettingTelegram, setResettingTelegram] = useState(false);
   const [appTab, setAppTab] = useState<AppTab>("screener");
   const prevAppTabRef = useRef<AppTab>("screener");
-  const [colorMode, setColorMode] = useState<ColorMode>(() => readStoredTheme());
   const [lightPalette, setLightPalette] = useState<LightPaletteId>(() =>
     readStoredLightPalette(),
   );
@@ -243,16 +237,6 @@ export default function App() {
       if (intervalId != null) window.clearInterval(intervalId);
     };
   }, []);
-
-  useEffect(() => {
-    applyTheme(colorMode);
-    persistTheme(colorMode);
-    if (colorMode === "light") {
-      const id = readStoredLightPalette();
-      setLightPalette(id);
-      applyLightPalette(id);
-    }
-  }, [colorMode]);
 
   const handleLightPalette = useCallback((id: LightPaletteId) => {
     persistLightPalette(id);
@@ -698,8 +682,7 @@ export default function App() {
             <MacroEventsBar onSecretAdminOpen={() => setShowAccessAdmin(true)} />
           </div>
           <div className="top-bar__brand">
-            {colorMode === "light" ? (
-              <div
+            <div
                 className="light-palette-picker light-palette-picker--leading"
                 role="group"
                 aria-label={ko.app.lightPaletteAria}
@@ -724,7 +707,6 @@ export default function App() {
                   />
                 ))}
               </div>
-            ) : null}
             <span className="brand-mark" aria-hidden />
             <div className="top-bar__brand-main">
               <h1>{ko.app.title}</h1>
@@ -787,29 +769,6 @@ export default function App() {
                   {ko.access.adminToolbarBtn}
                 </button>
               )}
-              <button
-                type="button"
-                className="theme-toggle"
-                disabled={!ENABLE_THEME_MODE_TOGGLE}
-                onClick={() =>
-                  setColorMode((m) => (m === "dark" ? "light" : "dark"))
-                }
-                title={
-                  !ENABLE_THEME_MODE_TOGGLE
-                    ? ko.app.themeToggleDisabledHint
-                    : colorMode === "dark"
-                      ? ko.app.themeUseLight
-                      : ko.app.themeUseDark
-                }
-                aria-label={
-                  !ENABLE_THEME_MODE_TOGGLE
-                    ? ko.app.themeToggleDisabledAria
-                    : ko.app.themeToggleAria
-                }
-                aria-pressed={ENABLE_THEME_MODE_TOGGLE && colorMode === "light"}
-              >
-                {colorMode === "dark" ? "\u2600" : "\u263E"}
-              </button>
               <button
                 type="button"
                 className="btn btn--secondary top-bar__rescan"
