@@ -212,7 +212,7 @@ export function createApp() {
                 "앞선 에이전트 요청이 끝날 때까지 대기 중입니다. 곧 진행 상황이 표시됩니다.",
             });
           },
-          { requestIp: rip, instruction },
+          { requestIp: rip, instruction, historyRunId },
         );
       } catch (e) {
         const code =

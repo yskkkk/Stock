@@ -4,6 +4,7 @@
  */
 
 import { randomUUID } from "node:crypto";
+import { trimStoredTextForOpsHistory } from "./ops-agent-history-store.js";
 
 /**
  * @typedef {{
@@ -11,11 +12,14 @@ import { randomUUID } from "node:crypto";
  *   requestIp: string;
  *   instructionPreview: string;
  *   instructionTooltip: string;
+ *   instructionBody: string;
  *   enqueuedAtMs: number;
  * }} OpsAgentQueueMeta
  */
 
 /** @typedef {{ fn: () => Promise<unknown>; resolve: (v: unknown) => void; reject: (e: unknown) => void; meta: OpsAgentQueueMeta | null }} QueuedJob */
+
+const OPS_QUEUE_INSTRUCTION_BODY_MAX = 16_000;
 
 const queue = /** @type {QueuedJob[]} */ ([]);
 let busy = false;
@@ -70,11 +74,16 @@ export function isOpsAgentJobRunning() {
 }
 
 /**
- * 관리자 UI 폴링용 — **실행 중인 작업만** 노출(FIFO 대기는 제외). 완료 시 서버 메모리에서 제거됨.
- * @returns {{ entries: Array<{ id: string; requestIp: string; instructionPreview: string; instructionTooltip: string; enqueuedAtMs: number; status: 'running' }> }}
+ * 관리자 UI 폴링용 — 워커 대기열(`waiting`) + 현재 실행(`running`).
+ * SSE의 `historyRunId`를 큐 카드 id로 쓰면 이력·팝업에서 동일 실행을 매칭할 수 있다.
+ * @returns {{ entries: Array<{ id: string; requestIp: string; instructionPreview: string; instructionTooltip: string; instructionBody: string; enqueuedAtMs: number; status: 'running' | 'waiting' }> }}
  */
 export function getOpsAgentQueueSnapshot() {
   const entries = [];
+  for (const job of queue) {
+    if (job.meta)
+      entries.push({ ...job.meta, status: /** @type {const} */ ("waiting") });
+  }
   if (runningMeta) {
     entries.push({ ...runningMeta, status: /** @type {const} */ ("running") });
   }
@@ -85,7 +94,7 @@ export function getOpsAgentQueueSnapshot() {
  * @template T
  * @param {() => Promise<T>} fn
  * @param {() => void} [onQueued] busy일 때 이번 요청이 대기열에만 들어간 직후(헤더·SSE를 먼저 열 때)
- * @param {{ requestIp?: string | null; instruction?: string }} [meta]
+ * @param {{ requestIp?: string | null; instruction?: string; historyRunId?: string | null }} [meta]
  * @param {() => void} [onCommittedToQueue] 큐에 push된 직후(`drainQueue`보다 먼저) — 필요 시 훅
  * @returns {Promise<T>}
  */
@@ -101,10 +110,18 @@ export function enqueueOpsAgentJob(fn, onQueued, meta, onCommittedToQueue) {
   const queueMeta =
     meta != null
       ? {
-          id: randomUUID(),
+          id:
+            typeof meta.historyRunId === "string" &&
+            meta.historyRunId.trim().length > 0
+              ? meta.historyRunId.trim()
+              : randomUUID(),
           requestIp: sanitizeQueueIp(meta.requestIp),
           instructionPreview: previewInstruction(meta.instruction),
           instructionTooltip: tooltipInstruction(meta.instruction),
+          instructionBody: trimStoredTextForOpsHistory(
+            String(meta.instruction ?? ""),
+            OPS_QUEUE_INSTRUCTION_BODY_MAX,
+          ),
           enqueuedAtMs: Date.now(),
         }
       : null;

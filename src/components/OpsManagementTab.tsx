@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   STOCK_OPS_INSTRUCTION_DRAFT_KEY,
   deleteOpsAgentHistory,
@@ -80,6 +81,7 @@ function OpsManagementLiveStreamContent({
   toolLine,
   thinkingLine,
   streamText,
+  suppressHeadline = false,
 }: {
   streamHeadlineInstruction: string;
   phaseLine: string;
@@ -87,13 +89,15 @@ function OpsManagementLiveStreamContent({
   toolLine: string;
   thinkingLine: string;
   streamText: string;
+  /** 카드 바깥에 제목을 이미 렌더한 경우(저장 진행 로그 등) */
+  suppressHeadline?: boolean;
 }) {
   const head = streamHeadlineFromInstruction(streamHeadlineInstruction, 72);
   const titleText = head ? `${head} · ${ko.app.opsStreamTitle}` : ko.app.opsStreamTitle;
 
   return (
     <>
-      <p className="ops-management__stream-title">{titleText}</p>
+      {!suppressHeadline ? <p className="ops-management__stream-title">{titleText}</p> : null}
       {phaseLine ? (
         <p className="ops-management__stream-row">
           <span className="ops-management__stream-k">{ko.app.opsStreamPhase}</span>
@@ -129,6 +133,206 @@ function OpsManagementLiveStreamContent({
   );
 }
 
+function OpsAgentQueueProgressModal({
+  runId,
+  queueEntries,
+  historyRuns,
+  onClose,
+}: {
+  runId: string;
+  queueEntries: OpsAgentQueueEntry[];
+  historyRuns: OpsAgentHistoryEntry[];
+  onClose: () => void;
+}) {
+  const queueRow = useMemo(
+    () => queueEntries.find((q) => q.id === runId) ?? null,
+    [queueEntries, runId],
+  );
+  const hist = useMemo(
+    () => historyRuns.find((r) => r.id === runId) ?? null,
+    [historyRuns, runId],
+  );
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
+  const headlineInstruction =
+    hist?.instruction?.trim().length
+      ? hist.instruction
+      : queueRow?.instructionBody?.trim().length
+        ? queueRow.instructionBody
+        : queueRow?.instructionTooltip?.trim().length
+          ? queueRow.instructionTooltip
+          : queueRow?.instructionPreview ?? "";
+
+  const statusLabel =
+    hist != null
+      ? historyStateLabel(hist.state ?? "ok")
+      : queueRow?.status === "waiting"
+        ? ko.app.opsAgentQueueWaiting
+        : queueRow?.status === "running"
+          ? ko.app.opsHistoryStatusRunning
+          : ko.app.opsHistoryStatusRunning;
+
+  const tsMs =
+    hist != null
+      ? (hist.state === "running" || hist.state === "waiting"
+          ? hist.updatedAtMs ?? hist.startedAtMs ?? Date.now()
+          : hist.finishedAtMs ?? hist.updatedAtMs ?? hist.startedAtMs ?? Date.now())
+      : queueRow?.enqueuedAtMs ?? Date.now();
+
+  const hasStreamFields = Boolean(
+    hist &&
+      (hist.phaseLine ||
+        hist.cursorLine ||
+        hist.thinkingLine ||
+        hist.toolLine ||
+        hist.streamText),
+  );
+
+  const histState = hist?.state;
+  const showResult =
+    hist != null &&
+    histState !== "running" &&
+    histState !== "waiting" &&
+    hist.resultText != null;
+
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      className="news-modal-backdrop"
+      role="presentation"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        className="news-modal card ops-queue-progress-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ops-queue-progress-title"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <header className="news-modal-header">
+          <div className="ops-queue-progress-modal__head-text">
+            <h2 id="ops-queue-progress-title">{ko.app.opsQueueProgressModalTitle}</h2>
+            <p className="news-modal-sub">
+              <span>{statusLabel}</span>
+              <span className="ops-queue-progress-meta-sep" aria-hidden>
+                {" "}
+                ·{" "}
+              </span>
+              <span>{formatHistoryTs(tsMs)}</span>
+            </p>
+          </div>
+          <button
+            type="button"
+            className="news-modal-close"
+            aria-label={ko.app.opsQueueProgressCloseAria}
+            onClick={onClose}
+          >
+            ×
+          </button>
+        </header>
+        <div className="news-modal-body ops-queue-progress-modal__body">
+          {hist == null && queueRow == null ? (
+            <p className="ops-queue-progress-stale" role="status">
+              {ko.app.opsQueueProgressStale}
+            </p>
+          ) : null}
+
+          {!hist && queueRow?.status === "waiting" ? (
+            <p className="ops-queue-progress-notice" role="status">
+              {ko.app.opsQueueProgressWaitingNotice}
+            </p>
+          ) : null}
+
+          {headlineInstruction.trim() ? (
+            <>
+              <p className="ops-management__history-instruction-label">{ko.app.opsInstructionLabel}</p>
+              <pre className="ops-management__history-instruction">{headlineInstruction}</pre>
+            </>
+          ) : null}
+
+          {hasStreamFields && hist ? (
+            <div className="ops-management__stream ops-management__stream--archive card">
+              <p className="ops-management__stream-title">{ko.app.opsHistoryStreamArchived}</p>
+              <OpsManagementLiveStreamContent
+                suppressHeadline
+                streamHeadlineInstruction={hist.instruction}
+                phaseLine={hist.phaseLine ?? ""}
+                cursorLine={hist.cursorLine ?? ""}
+                toolLine={hist.toolLine ?? ""}
+                thinkingLine={hist.thinkingLine ?? ""}
+                streamText={hist.streamText ?? ""}
+              />
+            </div>
+          ) : null}
+
+          {hist &&
+          (hist.state === "running" || hist.state === "waiting") &&
+          !hasStreamFields ? (
+            <p className="ops-queue-progress-notice" role="status">
+              {ko.app.opsQueueProgressLogPending}
+            </p>
+          ) : null}
+
+          {hist?.error ? (
+            <div className="alert alert--error ops-management__history-error" role="alert">
+              {hist.error}
+            </div>
+          ) : null}
+
+          {showResult ? (
+            <div className="ops-management__history-result card">
+              {hist.statusText ? (
+                <p className="ops-management__meta">
+                  <span className="ops-management__meta-k">{ko.app.opsStatusLabel}</span>
+                  <span className="ops-management__meta-v">{hist.statusText}</span>
+                  {hist.runtimeLabel ? (
+                    <>
+                      <span className="ops-management__meta-sep" aria-hidden>
+                        ·
+                      </span>
+                      <span className="ops-management__meta-k">{ko.app.opsRuntimeLabel}</span>
+                      <span className="ops-management__meta-v">{hist.runtimeLabel}</span>
+                    </>
+                  ) : null}
+                  {hist.durationMs != null ? (
+                    <>
+                      <span className="ops-management__meta-sep" aria-hidden>
+                        ·
+                      </span>
+                      <span className="ops-management__meta-k">{ko.app.opsDurationLabel}</span>
+                      <span className="ops-management__meta-v">
+                        {(hist.durationMs / 1000).toFixed(1)}s
+                      </span>
+                    </>
+                  ) : null}
+                </p>
+              ) : null}
+              <p className="ops-management__result-label">{ko.app.opsResultLabel}</p>
+              <pre className="ops-management__result">{hist.resultText}</pre>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 export default function OpsManagementTab({
   available,
 }: {
@@ -161,6 +365,7 @@ export default function OpsManagementTab({
   const [remotePending, setRemotePending] = useState<OpsCursorAgentPendingResponse | null>(
     null,
   );
+  const [progressModalRunId, setProgressModalRunId] = useState<string | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
   const runIdRef = useRef<string | null>(null);
@@ -474,7 +679,8 @@ export default function OpsManagementTab({
               <p className="ops-management__server-queue-sub">{ko.app.opsAgentQueueSubtitle}</p>
               <div
                 className="ops-agent-queue-track ops-management__server-queue-track"
-                role="list"
+                role="group"
+                aria-label={ko.app.opsAgentQueueSubtitle}
                 aria-live="polite"
                 aria-relevant="additions removals"
               >
@@ -482,10 +688,12 @@ export default function OpsManagementTab({
                   <span className="ops-management__server-queue-empty">{ko.app.opsAgentQueueEmpty}</span>
                 ) : (
                   serverQueue.map((q) => (
-                    <div
+                    <button
                       key={q.id}
+                      type="button"
                       className={`ops-agent-queue-card ops-agent-queue-card--${q.status}`}
-                      role="listitem"
+                      aria-label={ko.app.opsQueueProgressModalTitle + ": " + (q.instructionPreview.trim() || "—")}
+                      onClick={() => setProgressModalRunId(q.id)}
                     >
                       <div className="ops-agent-queue-card__top">
                         <span className="ops-agent-queue-card__status">
@@ -500,10 +708,10 @@ export default function OpsManagementTab({
                           {q.requestIp.trim() ? q.requestIp : "—"}
                         </span>
                       </div>
-                      <p className="ops-agent-queue-card__preview" title={q.instructionPreview}>
+                      <p className="ops-agent-queue-card__preview" title={q.instructionTooltip ?? q.instructionPreview}>
                         {q.instructionPreview.trim() ? q.instructionPreview : "—"}
                       </p>
-                    </div>
+                    </button>
                   ))
                 )}
               </div>
@@ -557,14 +765,7 @@ export default function OpsManagementTab({
                       <span className="ops-management__my-ip-pending-badge">
                         {ko.app.opsRemotePendingBadge}
                       </span>
-                      <span
-                        className="ops-management__my-ip-pending-text"
-                        title={remotePendingInstruction}
-                      >
-                        {remotePendingInstruction.length > 160
-                          ? `${remotePendingInstruction.slice(0, 157)}…`
-                          : remotePendingInstruction}
-                      </span>
+                      <span className="ops-management__my-ip-pending-text">{ko.app.opsRemotePendingHint}</span>
                     </div>
                   ) : null}
 
@@ -573,7 +774,7 @@ export default function OpsManagementTab({
                       <p className="ops-management__my-ip-subtitle">{ko.app.opsMyIpHistoryRunning}</p>
                       <div
                         className="ops-agent-queue-track"
-                        role="list"
+                        role="group"
                         aria-label={ko.app.opsMyIpHistoryRunning}
                       >
                         {myIpRunningHistory.map((run) => {
@@ -582,10 +783,12 @@ export default function OpsManagementTab({
                           const prev =
                             line.length > 200 ? `${line.slice(0, 197)}…` : line;
                           return (
-                            <div
+                            <button
                               key={run.id}
+                              type="button"
                               className="ops-agent-queue-card ops-agent-queue-card--running"
-                              role="listitem"
+                              aria-label={`${ko.app.opsMyIpHistoryRunning}: ${prev.trim() || "—"}`}
+                              onClick={() => setProgressModalRunId(run.id)}
                             >
                               <div className="ops-agent-queue-card__top">
                                 <span className="ops-agent-queue-card__status">
@@ -600,7 +803,7 @@ export default function OpsManagementTab({
                               <p className="ops-agent-queue-card__preview" title={line}>
                                 {prev.trim() ? prev : "—"}
                               </p>
-                            </div>
+                            </button>
                           );
                         })}
                       </div>
@@ -610,14 +813,16 @@ export default function OpsManagementTab({
                   {myQueueJobs.length > 0 ? (
                     <div
                       className="ops-agent-queue-track ops-management__my-ip-queue-track"
-                      role="list"
+                      role="group"
                       aria-label={ko.app.opsAgentQueueSubtitle}
                     >
                       {myQueueJobs.map((q) => (
-                        <div
+                        <button
                           key={q.id}
+                          type="button"
                           className={`ops-agent-queue-card ops-agent-queue-card--${q.status}`}
-                          role="listitem"
+                          aria-label={`${ko.app.opsMyIpJobsTitle}: ${q.instructionPreview.trim() || "—"}`}
+                          onClick={() => setProgressModalRunId(q.id)}
                         >
                           <div className="ops-agent-queue-card__top">
                             <span className="ops-agent-queue-card__status">
@@ -626,10 +831,13 @@ export default function OpsManagementTab({
                                 : ko.app.opsAgentQueueWaiting}
                             </span>
                           </div>
-                          <p className="ops-agent-queue-card__preview" title={q.instructionPreview}>
+                          <p
+                            className="ops-agent-queue-card__preview"
+                            title={q.instructionTooltip ?? q.instructionPreview}
+                          >
                             {q.instructionPreview.trim() ? q.instructionPreview : "—"}
                           </p>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   ) : null}
@@ -858,10 +1066,18 @@ export default function OpsManagementTab({
                       </button>
                     </summary>
 
-                    <p className="ops-management__history-instruction-label">
-                      {ko.app.opsHistoryInstructionReplay}
-                    </p>
-                    <pre className="ops-management__history-instruction">{run.instruction}</pre>
+                    {state === "running" || state === "waiting" ? (
+                      <p className="ops-management__history-instruction-muted" role="note">
+                        {ko.app.opsHistoryRunningNoReplayHint}
+                      </p>
+                    ) : (
+                      <>
+                        <p className="ops-management__history-instruction-label">
+                          {ko.app.opsHistoryInstructionReplay}
+                        </p>
+                        <pre className="ops-management__history-instruction">{run.instruction}</pre>
+                      </>
+                    )}
 
                     {showArchiveStream ? (
                       <div className="ops-management__stream ops-management__stream--archive card">
@@ -956,6 +1172,14 @@ export default function OpsManagementTab({
           </ul>
         )}
       </aside>
+      {progressModalRunId ? (
+        <OpsAgentQueueProgressModal
+          runId={progressModalRunId}
+          queueEntries={serverQueue}
+          historyRuns={historyRuns}
+          onClose={() => setProgressModalRunId(null)}
+        />
+      ) : null}
     </div>
   );
 }

@@ -196,8 +196,10 @@ export type OpsAgentQueueEntry = {
   id: string;
   requestIp: string;
   instructionPreview: string;
-  /** 첫 몇 줄 요약 — 큐 칩 title(툴팁)용 */
+  /** 큐 카드 도움말(title) 짧은 요약 — 서버 폴링 버전에서는 전체 초안 가능 */
   instructionTooltip?: string;
+  /** 카드 클릭 팝업용 요청 원문(길면 생략) */
+  instructionBody?: string;
   enqueuedAtMs: number;
   status: "running" | "waiting";
 };
