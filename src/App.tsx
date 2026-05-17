@@ -669,6 +669,35 @@ export default function App() {
   return (
     <div className="app">
       <FeedbackCorner accessAdmin={accessAdmin} />
+      {colorMode === "light" ? (
+        <div className="light-palette-corner">
+          <div
+            className="light-palette-picker"
+            role="group"
+            aria-label={ko.app.lightPaletteAria}
+          >
+            {LIGHT_PALETTE_IDS.map((id, idx) => (
+              <button
+                key={id}
+                type="button"
+                className={
+                  lightPalette === id
+                    ? "light-palette-swatch light-palette-swatch--active"
+                    : "light-palette-swatch"
+                }
+                aria-label={`${idx + 1} / ${LIGHT_PALETTE_IDS.length}`}
+                aria-pressed={lightPalette === id}
+                onClick={() => handleLightPalette(id)}
+                style={
+                  {
+                    "--lp-fill": LIGHT_PALETTE_PREVIEW[id],
+                  } as CSSProperties
+                }
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
       <header
         className={`top-bar card${showTopScanStrip ? " top-bar--with-scan" : ""}`}
       >
@@ -679,33 +708,6 @@ export default function App() {
             <MacroEventsBar onSecretAdminOpen={() => setShowAccessAdmin(true)} />
           </div>
           <div className="top-bar__brand">
-            {colorMode === "light" ? (
-              <div
-                className="light-palette-picker light-palette-picker--leading"
-                role="group"
-                aria-label={ko.app.lightPaletteAria}
-              >
-                {LIGHT_PALETTE_IDS.map((id, idx) => (
-                  <button
-                    key={id}
-                    type="button"
-                    className={
-                      lightPalette === id
-                        ? "light-palette-swatch light-palette-swatch--active"
-                        : "light-palette-swatch"
-                    }
-                    aria-label={`${idx + 1} / ${LIGHT_PALETTE_IDS.length}`}
-                    aria-pressed={lightPalette === id}
-                    onClick={() => handleLightPalette(id)}
-                    style={
-                      {
-                        "--lp-fill": LIGHT_PALETTE_PREVIEW[id],
-                      } as CSSProperties
-                    }
-                  />
-                ))}
-              </div>
-            ) : null}
             <span className="brand-mark" aria-hidden />
             <div className="top-bar__brand-main">
               <h1>{ko.app.title}</h1>

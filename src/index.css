@@ -900,19 +900,25 @@
   flex: 1;
 }
 
+/* 라이트 색조 — 불편 접수(우상단)과 대칭으로 화면 좌상단 고정 */
+.light-palette-corner {
+  position: fixed;
+  top: max(0.55rem, env(safe-area-inset-top, 0px));
+  left: max(0.55rem, env(safe-area-inset-left, 0px));
+  z-index: 9990;
+  padding: 0.2rem 0.38rem;
+  border-radius: 999px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow);
+}
+
 .light-palette-picker {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.28rem 0.35rem;
   margin-top: 0;
-}
-
-.light-palette-picker--leading {
-  margin-top: 0;
-  margin-right: 0.1rem;
-  align-self: center;
-  flex-shrink: 0;
 }
 
 .light-palette-swatch {
