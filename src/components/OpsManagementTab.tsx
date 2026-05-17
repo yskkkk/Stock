@@ -15,6 +15,38 @@ import { ko } from "../i18n/ko";
 
 const HISTORY_POLL_MS = 2000;
 const AGENT_QUEUE_POLL_MS = 5000;
+const OPS_INSTRUCTION_DRAFT_KEY = "stock-app-ops-instruction-draft-v1";
+
+function readOpsInstructionDraft(): { instruction: string; nextInstruction: string } {
+  if (typeof window === "undefined") {
+    return { instruction: "", nextInstruction: "" };
+  }
+  try {
+    const raw = sessionStorage.getItem(OPS_INSTRUCTION_DRAFT_KEY);
+    if (!raw) return { instruction: "", nextInstruction: "" };
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object") return { instruction: "", nextInstruction: "" };
+    const o = parsed as Record<string, unknown>;
+    return {
+      instruction: typeof o.instruction === "string" ? o.instruction : "",
+      nextInstruction: typeof o.nextInstruction === "string" ? o.nextInstruction : "",
+    };
+  } catch {
+    return { instruction: "", nextInstruction: "" };
+  }
+}
+
+function writeOpsInstructionDraft(instruction: string, nextInstruction: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(
+      OPS_INSTRUCTION_DRAFT_KEY,
+      JSON.stringify({ instruction, nextInstruction }),
+    );
+  } catch {
+    /* quota 등 — 무시 */
+  }
+}
 
 function formatHistoryTs(ms: number): string {
   try {
@@ -103,9 +135,13 @@ export default function OpsManagementTab({
 }: {
   available: boolean;
 }) {
-  const [instruction, setInstruction] = useState("");
+  const [instruction, setInstruction] = useState(
+    () => readOpsInstructionDraft().instruction,
+  );
   const [streamHeadlineInstruction, setStreamHeadlineInstruction] = useState("");
-  const [nextInstruction, setNextInstruction] = useState("");
+  const [nextInstruction, setNextInstruction] = useState(
+    () => readOpsInstructionDraft().nextInstruction,
+  );
   const [submitting, setSubmitting] = useState(false);
   const [queuedCount, setQueuedCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -157,6 +193,10 @@ export default function OpsManagementTab({
       pendingAfterRef.current = [];
     };
   }, []);
+
+  useEffect(() => {
+    writeOpsInstructionDraft(instruction, nextInstruction);
+  }, [instruction, nextInstruction]);
 
   useEffect(() => {
     if (!available) {
@@ -251,7 +291,6 @@ export default function OpsManagementTab({
       setSubmitting(true);
       setPhaseLine("서버에 연결하는 중…");
       setStreamHeadlineInstruction(trimmed);
-      setInstruction("");
       setError(null);
       setResultText(null);
       setStatusText(null);
@@ -390,7 +429,6 @@ export default function OpsManagementTab({
       setNextInstruction("");
       return;
     }
-    setNextInstruction("");
     runOneStream(n);
   }, [available, submitting, nextInstruction, runOneStream]);
 
