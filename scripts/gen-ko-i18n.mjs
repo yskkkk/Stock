@@ -64,6 +64,10 @@ const t = {
     opsNextSubmitQueued: "\uAC1C\uBC1C \uC694\uCCAD \uB300\uAE30\uC5F4\uC5D0 \uCD94\uAC00",
     opsNextSubmitNow: "\uAC1C\uBC1C \uC694\uCCAD \uC2E4\uD589",
     opsQueuePending: "\uC2E4\uD589 \uB300\uAE30 {n}\uAC74",
+    opsAgentQueueSubtitle: "\uC5D0\uC774\uC804\uD2B8 \uC2E4\uD589 \uD050",
+    opsAgentQueueEmpty:
+      "\uB300\uAE30 \uB610\uB294 \uC2E4\uD589 \uC911\uC778 \uC694\uCCAD\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.",
+    opsAgentQueueWaiting: "\uB300\uAE30",
     opsHistoryDeleteEntry: "\uC0AD\uC81C",
     opsHistoryDeleteEntryAria: "\uC774 \uC2E4\uD589 \uAE30\uB85D \uC0AD\uC81C",
     opsHistoryDeleteEntryConfirm:

@@ -4,13 +4,16 @@ import {
   deleteOpsAgentHistoryEntry,
   fetchOpsAgentHistory,
   fetchOpsCursorAgentPending,
+  fetchOpsCursorAgentQueue,
   fetchOpsCursorAgentStream,
   postOpsCursorAgentStreamCancel,
   type OpsAgentHistoryEntry,
+  type OpsAgentQueueEntry,
 } from "../api";
 import { ko } from "../i18n/ko";
 
 const HISTORY_POLL_MS = 2000;
+const AGENT_QUEUE_POLL_MS = 5000;
 
 function formatHistoryTs(ms: number): string {
   try {
@@ -53,6 +56,7 @@ export default function OpsManagementTab({
   const [streamText, setStreamText] = useState("");
 
   const [historyRuns, setHistoryRuns] = useState<OpsAgentHistoryEntry[]>([]);
+  const [serverQueue, setServerQueue] = useState<OpsAgentQueueEntry[]>([]);
 
   const abortRef = useRef<AbortController | null>(null);
   const runIdRef = useRef<string | null>(null);
@@ -86,6 +90,29 @@ export default function OpsManagementTab({
     };
     pull();
     const id = window.setInterval(pull, HISTORY_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [available]);
+
+  useEffect(() => {
+    if (!available) {
+      setServerQueue([]);
+      return;
+    }
+    let cancelled = false;
+    const pull = () => {
+      void fetchOpsCursorAgentQueue()
+        .then((r) => {
+          if (!cancelled) setServerQueue(Array.isArray(r.entries) ? r.entries : []);
+        })
+        .catch(() => {
+          /* 다음 폴링에서 재시도 */
+        });
+    };
+    pull();
+    const id = window.setInterval(pull, AGENT_QUEUE_POLL_MS);
     return () => {
       cancelled = true;
       window.clearInterval(id);
@@ -196,6 +223,12 @@ export default function OpsManagementTab({
             });
         }
 
+        void fetchOpsCursorAgentQueue()
+          .then((r) => setServerQueue(Array.isArray(r.entries) ? r.entries : []))
+          .catch(() => {
+            /* 큐 폴링으로 보완 */
+          });
+
         const nextIns = pendingAfterRef.current.shift();
         setQueuedCount(pendingAfterRef.current.length);
         if (nextIns) {
@@ -280,6 +313,48 @@ export default function OpsManagementTab({
   return (
     <div className="ops-management ops-management--split">
       <div className="ops-management__main">
+        {available ? (
+          <section
+            className="ops-management__server-queue card"
+            aria-label={ko.app.opsAgentQueueSubtitle}
+          >
+            <p className="ops-management__server-queue-sub">{ko.app.opsAgentQueueSubtitle}</p>
+            <div
+              className="ops-management__server-queue-scroll"
+              role="list"
+              aria-live="polite"
+              aria-relevant="additions removals"
+            >
+              {serverQueue.length === 0 ? (
+                <span className="ops-management__server-queue-empty">{ko.app.opsAgentQueueEmpty}</span>
+              ) : (
+                serverQueue.map((q) => (
+                  <div
+                    key={q.id}
+                    className={`ops-management__queue-chip ops-management__queue-chip--${q.status}`}
+                    role="listitem"
+                  >
+                    <span className="ops-management__queue-chip-status">
+                      {q.status === "running"
+                        ? ko.app.opsHistoryStatusRunning
+                        : ko.app.opsAgentQueueWaiting}
+                    </span>
+                    <span
+                      className="ops-management__queue-chip-ip ops-management__stream-v--mono"
+                      title={ko.app.opsHistoryRequestIp}
+                    >
+                      {q.requestIp.trim() ? q.requestIp : "—"}
+                    </span>
+                    <span className="ops-management__queue-chip-preview" title={q.instructionPreview}>
+                      {q.instructionPreview.trim() ? q.instructionPreview : "—"}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+        ) : null}
+
         <div className="panel-head ops-management__head">
           <h3 className="ops-management__title">{ko.app.opsPanelTitle}</h3>
         </div>
@@ -499,6 +574,14 @@ export default function OpsManagementTab({
                         {historyStateLabel(state)}
                       </span>
                       <span className="ops-management__history-when">{formatHistoryTs(tsMs)}</span>
+                      {run.requestIp ? (
+                        <span
+                          className="ops-management__history-ip-inline ops-management__stream-v--mono"
+                          title={ko.app.opsHistoryRequestIp}
+                        >
+                          {run.requestIp}
+                        </span>
+                      ) : null}
                       <span className="ops-management__history-snippet">{header}</span>
                       {canDeleteEntry ? (
                         <button
@@ -520,16 +603,6 @@ export default function OpsManagementTab({
                       {ko.app.opsHistoryInstructionReplay}
                     </p>
                     <pre className="ops-management__history-instruction">{run.instruction}</pre>
-                    {run.requestIp ? (
-                      <p className="ops-management__history-ip">
-                        <span className="ops-management__history-ip-k">
-                          {ko.app.opsHistoryRequestIp}
-                        </span>
-                        <span className="ops-management__history-ip-v ops-management__stream-v--mono">
-                          {run.requestIp}
-                        </span>
-                      </p>
-                    ) : null}
 
                     {showArchiveStream ? (
                       <div className="ops-management__stream ops-management__stream--archive card">
