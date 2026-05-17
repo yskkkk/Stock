@@ -158,12 +158,15 @@ function githubRepoForCloud() {
  * @param {string} instruction
  */
 export function buildOpsPromptMessage(instruction) {
+  const task = String(instruction ?? "").trim();
   const parts = [
     "You are working in the local git repository for a Korean stock dashboard web app (Vite + React + Express API).",
     "Apply the operator's request by editing files as needed. Reply in Korean with a concise summary of what you changed.",
     "",
     "## Operator request",
-    instruction,
+    "",
+    "## 작업 지시",
+    task,
   ];
   parts.push(
     "",
