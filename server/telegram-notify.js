@@ -813,4 +813,48 @@ export function notifyHighScorePick(pick) {
 
 }
 
+/**
+ * 운영(Cursor) 웹 에이전트 작업 종료 시 텔레그램 안내 — 요청자·제목·내용 형식.
+ * TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID 가 있을 때만 전송.
+ *
+ * @param {{ requester: string; title: string; body: string }} opts
+ */
+export function notifyOpsAgentCompleted(opts) {
+  if (!isTelegramNotifyEnabled()) return;
+
+  const requester = String(opts.requester ?? "").trim() || "—";
+  const title = String(opts.title ?? "").trim() || "웹 에이전트";
+  let body = String(opts.body ?? "").trim() || "—";
+  const max = 3200;
+  if (body.length > max) body = `${body.slice(0, max - 1)}…`;
+
+  const text = [
+    `<b>웹 에이전트 작업 알림</b>`,
+    "",
+    `<b>요청자</b>`,
+    escHtml(requester),
+    "",
+    `<b>제목</b>`,
+    escHtml(title),
+    "",
+    `<b>내용</b>`,
+    escHtml(body),
+  ].join("\n");
+
+  void sendTelegramMessage(text)
+    .then((ok) => {
+      if (ok) {
+        console.log("[telegram] ops-agent completion notice sent");
+      } else {
+        console.warn("[telegram] ops-agent completion notice failed");
+      }
+    })
+    .catch((err) => {
+      console.warn(
+        "[telegram] ops-agent notify error:",
+        err instanceof Error ? err.message : err,
+      );
+    });
+}
+
 
