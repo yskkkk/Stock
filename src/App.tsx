@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useChartDrawMagnet } from "./hooks/useChartDrawMagnet";
 import {
+  clearStoredAccessAdminToken,
   fetchConfig,
+  fetchAccessStatus,
   fetchNews,
   fetchPicks,
   fetchStock,
@@ -20,27 +23,23 @@ import PickList from "./components/PickList";
 import PickQuoteStrip from "./components/PickQuoteStrip";
 import PickToolbar from "./components/PickToolbar";
 import SignalFilter from "./components/SignalFilter";
+import type { ChartDrawMode, ChartDrawToolbarApi } from "./chartDrawTypes";
+import ChartDrawToolbarButtons from "./components/ChartDrawToolbarButtons";
 import CryptoTab from "./components/CryptoTab";
 import StockChart from "./components/StockChart";
 import TradingViewAdvancedChart from "./components/TradingViewAdvancedChart";
 import { CHART_TIMEFRAMES } from "./constants/timeframes";
 import type { SignalId } from "./constants/signals";
+import { SHOW_PROFIT_MODEL_BUTTON } from "./constants/uiFlags";
 import { usePickKeyboard } from "./hooks/usePickKeyboard";
 import { enrichBullishPick } from "./lib/bullishPicks";
 import {
   filterPicksBySignals,
   type FilterMode,
 } from "./lib/filterPicks";
-import {
-  formatEta,
-  formatPercent,
-  formatPrice,
-  formatRescanCountdown,
-  formatSignedMoney,
-  formatUpdatedAt,
-  resolveNextScanAt,
-} from "./lib/format";
+import { formatEta, formatPercent, formatPrice, formatRescanCountdown, formatSignedMoney, formatUpdatedAt, resolveNextScanAt } from "./lib/format";
 import { computeProfitFromEntry } from "./lib/profitModel";
+import { findChartTimeNearEntryMs } from "./lib/profitMarker";
 import {
   applyTheme,
   persistTheme,
@@ -49,8 +48,9 @@ import {
 } from "./lib/theme";
 import {
   getBrowserUserId,
-  getPersistedProfitEntry,
+  getPersistedProfitRow,
   persistProfitEntry,
+  persistProfitSell,
 } from "./lib/userPersist";
 import { filterPicksByQuery } from "./lib/searchPicks";
 import { sortPicksList, type SortKey } from "./lib/sortPicks";
@@ -75,13 +75,13 @@ export default function App() {
   const [picks, setPicks] = useState<PicksResponse | null>(null);
   const [picksError, setPicksError] = useState<string | null>(null);
   const [rescanning, setRescanning] = useState(false);
-  const [dartEnabled, setDartEnabled] = useState(false);
   const [telegramNotify, setTelegramNotify] = useState(false);
   const [telegramSentCount, setTelegramSentCount] = useState(0);
   const [resettingTelegram, setResettingTelegram] = useState(false);
   const [appTab, setAppTab] = useState<AppTab>("screener");
   const [colorMode, setColorMode] = useState<ColorMode>(() => readStoredTheme());
   const [marketTab, setMarketTab] = useState<Market>("kr");
+  const [cryptoFocusSymbol, setCryptoFocusSymbol] = useState<string | null>(null);
   const [signalFilters, setSignalFilters] = useState<SignalId[]>([]);
   const [filterMode, setFilterMode] = useState<FilterMode>("and");
   const [searchQuery, setSearchQuery] = useState("");
@@ -97,6 +97,9 @@ export default function App() {
   const [chartError, setChartError] = useState<string | null>(null);
   const [chartStale, setChartStale] = useState(false);
   const [chartEngine, setChartEngine] = useState<StockChartEngine>("app");
+  const [chartDrawMode, setChartDrawMode] = useState<ChartDrawMode>("cursor");
+  const [chartDrawMagnet, setChartDrawMagnet] = useChartDrawMagnet();
+  const chartDrawApiRef = useRef<ChartDrawToolbarApi | null>(null);
   const [showMa, setShowMa] = useState(true);
   const [showIchimoku, setShowIchimoku] = useState(false);
   const [showVolume, setShowVolume] = useState(true);
@@ -114,12 +117,13 @@ export default function App() {
   const [telegramSentLoading, setTelegramSentLoading] = useState(false);
   const [telegramSentError, setTelegramSentError] = useState<string | null>(null);
   const [rescanClockMs, setRescanClockMs] = useState(() => Date.now());
-  const [profitEntry, setProfitEntry] = useState<number | null>(null);
+  const [profitPersistTick, setProfitPersistTick] = useState(0);
   const [profitModalOpen, setProfitModalOpen] = useState(false);
   const newsReqIdRef = useRef(0);
   const newsAbortRef = useRef<AbortController | null>(null);
   const [showAccessAdmin, setShowAccessAdmin] = useState(false);
   const [adminIpConsole, setAdminIpConsole] = useState(false);
+  const [accessAdmin, setAccessAdmin] = useState(false);
 
   const closeNews = useCallback(() => {
     newsReqIdRef.current += 1;
@@ -149,6 +153,46 @@ export default function App() {
     return () => window.clearInterval(id);
   }, [pollPicks]);
 
+  /** IP 허용이 해제되면 API 403 외에도 상태 폴링으로 즉시 게이트로 보낸다 */
+  useEffect(() => {
+    let cancelled = false;
+    let intervalId: number | null = null;
+
+    async function tick() {
+      try {
+        const s = await fetchAccessStatus();
+        if (cancelled) return;
+        if (!s.enabled) {
+          if (intervalId != null) {
+            window.clearInterval(intervalId);
+            intervalId = null;
+          }
+          return;
+        }
+        if (s.state !== "allowed") {
+          if (intervalId != null) {
+            window.clearInterval(intervalId);
+            intervalId = null;
+          }
+          clearStoredAccessAdminToken();
+          window.location.replace("/access-gate.html");
+          return;
+        }
+        if (intervalId == null && !cancelled) {
+          intervalId = window.setInterval(() => void tick(), 6_000);
+        }
+      } catch {
+        /* 네트워크 일시 오류 — 다음 틱에서 재시도 */
+      }
+    }
+
+    void tick();
+    return () => {
+      cancelled = true;
+      if (intervalId != null) window.clearInterval(intervalId);
+    };
+  }, []);
+
   useEffect(() => {
     applyTheme(colorMode);
     persistTheme(colorMode);
@@ -169,15 +213,15 @@ export default function App() {
   useEffect(() => {
     fetchConfig()
       .then((cfg) => {
-        setDartEnabled(cfg.dartEnabled);
         setTelegramNotify(cfg.telegramNotify?.enabled ?? false);
         setTelegramSentCount(cfg.telegramNotify?.todaySentCount ?? 0);
         setAdminIpConsole(cfg.adminIpConsole ?? false);
+        setAccessAdmin(cfg.accessAdmin ?? false);
       })
       .catch(() => {
-        setDartEnabled(false);
         setTelegramNotify(false);
         setAdminIpConsole(false);
+        setAccessAdmin(false);
       });
   }, []);
 
@@ -242,9 +286,51 @@ export default function App() {
   }, []);
 
   const handleSelect = useCallback((pick: StockPick) => {
+    setAppTab("screener");
     setSelected(pick);
     setMarketTab(pick.market);
   }, []);
+
+  const handleCryptoFocusConsumed = useCallback(() => {
+    setCryptoFocusSymbol(null);
+  }, []);
+
+  const deepLinkHandledRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!picks || picks.running) return;
+    const q = window.location.search;
+    if (!q || q.length < 2) {
+      deepLinkHandledRef.current = null;
+      return;
+    }
+    const params = new URLSearchParams(q);
+    const sym = params.get("symbol")?.trim().toUpperCase();
+    const mkt = params.get("market")?.toLowerCase();
+    if (!sym || (mkt !== "kr" && mkt !== "us")) {
+      deepLinkHandledRef.current = null;
+      return;
+    }
+    const key = `${mkt}:${sym}`;
+    if (deepLinkHandledRef.current === key) return;
+    const all = [...(picks.kr ?? []), ...(picks.us ?? [])];
+    const fromList = all.find(
+      (p) => p.symbol.toUpperCase() === sym && p.market === mkt,
+    );
+    const pick: StockPick =
+      fromList ??
+      ({
+        symbol: sym,
+        name: sym,
+        market: mkt as Market,
+        score: 0,
+        signals: [],
+      } as StockPick);
+    deepLinkHandledRef.current = key;
+    handleSelect(pick);
+    const path = window.location.pathname || "/";
+    window.history.replaceState({}, "", path);
+  }, [picks, picks?.running, handleSelect]);
 
   usePickKeyboard(
     listPicks,
@@ -262,11 +348,7 @@ export default function App() {
 
   useEffect(() => {
     setProfitModalOpen(false);
-    if (!selected?.symbol) {
-      setProfitEntry(null);
-      return;
-    }
-    setProfitEntry(getPersistedProfitEntry(selected.symbol));
+    setProfitPersistTick((t) => t + 1);
   }, [selected?.symbol]);
 
   const loadChart = useCallback(
@@ -366,6 +448,18 @@ export default function App() {
       ? Math.round((picks.progress / picks.total) * 100)
       : 0;
   const fitKey = selected ? `${selected.symbol}:${timeframe}` : "";
+  const stockChartOverlays = useMemo(
+    () => ({
+      ma: showMa,
+      ichimoku: showIchimoku,
+      volume: showVolume,
+      rsi: showRsi,
+    }),
+    [showMa, showIchimoku, showVolume, showRsi],
+  );
+  const registerStockDrawApi = useCallback((api: ChartDrawToolbarApi | null) => {
+    chartDrawApiRef.current = api;
+  }, []);
   const stockTvSymbol = useMemo(
     () =>
       selected
@@ -373,12 +467,33 @@ export default function App() {
         : "",
     [selected],
   );
+
+  useEffect(() => {
+    setChartDrawMode("cursor");
+  }, [selected?.symbol, timeframe, chartInterval]);
+
+  useEffect(() => {
+    if (chartEngine === "tradingview") setChartDrawMode("cursor");
+  }, [chartEngine]);
   const quotePx = quote?.price ?? selected?.price;
   const quoteCur = quote?.currency ?? selected?.currency;
-  const profitModelResult = useMemo(
-    () => computeProfitFromEntry(quotePx, profitEntry),
-    [quotePx, profitEntry],
+  const profitRow = useMemo(
+    () => (selected ? getPersistedProfitRow(selected.symbol) : null),
+    [selected?.symbol, profitPersistTick],
   );
+  const profitEntry = profitRow?.entry ?? null;
+  const profitModelResult = useMemo(
+    () => computeProfitFromEntry(quotePx, profitEntry, profitRow?.exit),
+    [quotePx, profitEntry, profitRow?.exit],
+  );
+  const profitMarker = useMemo(() => {
+    if (!selected || profitEntry == null || !(profitEntry > 0)) return null;
+    const ms = profitRow?.entryAtMs;
+    if (!ms || candles.length === 0) return null;
+    const t = findChartTimeNearEntryMs(ms, candles);
+    if (!t) return null;
+    return { time: t, price: profitEntry };
+  }, [selected?.symbol, profitEntry, profitRow?.entryAtMs, candles]);
   const profitStripTone =
     profitModelResult == null
       ? "flat"
@@ -407,7 +522,7 @@ export default function App() {
   return (
     <div className="app">
       <MacroEventsBar onSecretAdminOpen={() => setShowAccessAdmin(true)} />
-      <FeedbackCorner />
+      <FeedbackCorner accessAdmin={accessAdmin} />
       <header
         className={`top-bar card${showTopScanStrip ? " top-bar--with-scan" : ""}`}
       >
@@ -420,7 +535,6 @@ export default function App() {
               <h1>{ko.app.title}</h1>
               <p>
                 {ko.app.subtitle}
-                {dartEnabled && <span className="tag tag--dart">DART</span>}
                 {telegramNotify && (
                   <span className="tag-group">
                     <button
@@ -560,9 +674,12 @@ export default function App() {
       )}
 
       {appTab === "crypto" ? (
-        <CryptoTab />
+        <CryptoTab
+          focusSymbol={cryptoFocusSymbol}
+          onFocusSymbolConsumed={handleCryptoFocusConsumed}
+        />
       ) : (
-        <div className="workspace crypto-workspace">
+        <div className="workspace">
         <aside className="picks-panel card">
           <div className="panel-head">
             <div className="market-tabs">
@@ -631,13 +748,15 @@ export default function App() {
                   />
                 </div>
                 <div className="quote-bar__right">
-                  <button
-                    type="button"
-                    className="btn btn--secondary quote-bar__profit-btn"
-                    onClick={() => setProfitModalOpen(true)}
-                  >
-                    {ko.app.profitModelBtn}
-                  </button>
+                  {SHOW_PROFIT_MODEL_BUTTON ? (
+                    <button
+                      type="button"
+                      className="btn btn--secondary quote-bar__profit-btn"
+                      onClick={() => setProfitModalOpen(true)}
+                    >
+                      {ko.app.profitModelBtn}
+                    </button>
+                  ) : null}
                   {chartEngine === "app" && (
                     <div className="timeframe-seg segmented compact">
                       {CHART_TIMEFRAMES.map((t) => (
@@ -656,7 +775,9 @@ export default function App() {
                   )}
                 </div>
               </div>
-              {profitModelResult && profitEntry != null && (
+              {SHOW_PROFIT_MODEL_BUTTON &&
+                profitModelResult &&
+                profitEntry != null && (
                 <div
                   className={`profit-model-strip card profit-model-strip--${profitStripTone}`}
                 >
@@ -666,6 +787,26 @@ export default function App() {
                   <span className="profit-model-strip__value">
                     {formatPrice(profitEntry, quoteCur)}
                   </span>
+                  {profitRow?.entryAtMs != null && profitRow.entryAtMs > 0 && (
+                    <>
+                      <span className="profit-model-strip__label">
+                        {ko.app.profitModelStripEntryTime}
+                      </span>
+                      <span className="profit-model-strip__value">
+                        {formatUpdatedAt(profitRow.entryAtMs)}
+                      </span>
+                    </>
+                  )}
+                  {profitRow?.exit != null && profitRow.exit > 0 && (
+                    <>
+                      <span className="profit-model-strip__label">
+                        {ko.app.profitModelStripExit}
+                      </span>
+                      <span className="profit-model-strip__value">
+                        {formatPrice(profitRow.exit, quoteCur)}
+                      </span>
+                    </>
+                  )}
                   <span className="profit-model-strip__label">
                     {ko.app.profitModelStripCurrent}
                   </span>
@@ -750,6 +891,18 @@ export default function App() {
                           {label}
                         </button>
                       ))}
+                    {chartEngine === "app" &&
+                      !chartLoading &&
+                      candles.length > 0 && (
+                        <ChartDrawToolbarButtons
+                          className="chart-draw-toolbar--inline"
+                          drawMode={chartDrawMode}
+                          onDrawModeChange={setChartDrawMode}
+                          onClearAll={() => chartDrawApiRef.current?.clearAll()}
+                          magnetEnabled={chartDrawMagnet}
+                          onMagnetChange={setChartDrawMagnet}
+                        />
+                      )}
                   </div>
                 </div>
 
@@ -792,12 +945,14 @@ export default function App() {
                         fitKey={fitKey}
                         interval={chartInterval}
                         drawingsEnabled
-                        overlays={{
-                          ma: showMa,
-                          ichimoku: showIchimoku,
-                          volume: showVolume,
-                          rsi: showRsi,
-                        }}
+                        chartDrawMode={chartDrawMode}
+                        onChartDrawModeChange={setChartDrawMode}
+                        chartDrawMagnet={chartDrawMagnet}
+                        onChartDrawMagnetChange={setChartDrawMagnet}
+                        showBuiltInDrawToolbar={false}
+                        registerDrawApi={registerStockDrawApi}
+                        overlays={stockChartOverlays}
+                        profitMarker={profitMarker}
                       />
                     )}
                   {chartEngine === "app" &&
@@ -845,32 +1000,65 @@ export default function App() {
           loading={telegramSentLoading}
           error={telegramSentError}
           onClose={() => setShowTelegramSent(false)}
+          onOpenStock={(item) => {
+            setShowTelegramSent(false);
+            if (item.market === "crypto") {
+              setAppTab("crypto");
+              setCryptoFocusSymbol(item.symbol.trim());
+              return;
+            }
+            const pick: StockPick = {
+              symbol: item.symbol,
+              name: item.name,
+              market: item.market,
+              score: item.score,
+              signals: [],
+            };
+            handleSelect(pick);
+          }}
         />
       )}
 
-      {profitModalOpen && selected && (
+      {SHOW_PROFIT_MODEL_BUTTON && profitModalOpen && selected && (
         <ProfitModelModal
           open={profitModalOpen}
           browserUserId={browserUserId}
           currentPrice={quotePx}
           currency={quoteCur}
           entry={profitEntry}
+          entryAtMs={profitRow?.entryAtMs ?? null}
+          exit={profitRow?.exit ?? null}
           onClose={() => setProfitModalOpen(false)}
-          onApply={(n) => {
-            persistProfitEntry(selected.symbol, n);
-            setProfitEntry(n);
+          onApply={(n, entryAtMs) => {
+            persistProfitEntry(selected.symbol, n, { entryAtMs });
+            setProfitPersistTick((x) => x + 1);
           }}
           onClear={() => {
             persistProfitEntry(selected.symbol, null);
-            setProfitEntry(null);
+            setProfitPersistTick((x) => x + 1);
             setProfitModalOpen(false);
+          }}
+          onRecordSell={() => {
+            if (quotePx == null || !Number.isFinite(quotePx) || quotePx <= 0) {
+              return;
+            }
+            persistProfitSell(selected.symbol, quotePx);
+            setProfitPersistTick((x) => x + 1);
           }}
         />
       )}
 
       <AccessAdminModal
         open={showAccessAdmin}
-        onClose={() => setShowAccessAdmin(false)}
+        onClose={() => {
+          setShowAccessAdmin(false);
+          void fetchConfig()
+            .then((cfg) => {
+              setAccessAdmin(cfg.accessAdmin ?? false);
+              setAdminIpConsole(cfg.adminIpConsole ?? false);
+            })
+            .catch(() => {});
+        }}
         adminIpBypassPassword={adminIpConsole}
         telegramNotify={telegramNotify}
         telegramSentCount={telegramSentCount}
