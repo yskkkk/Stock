@@ -45,6 +45,9 @@ function shouldSkipAccessLog(req) {
   if (path === "/api/macro-events") return true;
   if (path === "/api/config") return true;
   if (path === "/api/access/status") return true;
+  /** 운영 탭 이력·대기열 폴링 — 로그만 과다 */
+  if (path === "/api/ops/cursor-agent-history") return true;
+  if (path === "/api/ops/cursor-agent-queue") return true;
   if (path.startsWith("/api/stock/")) return true;
   if (path.startsWith("/api/news/")) return true;
   return false;

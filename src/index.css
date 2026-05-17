@@ -3224,6 +3224,14 @@ html[data-theme="light"] .feedback-inbox-item {
   padding: 0.85rem 1rem 1.1rem;
 }
 
+@media (max-width: 640px) {
+  .ops-management-wrap {
+    padding-left: max(0.55rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.55rem, env(safe-area-inset-right, 0px));
+    padding-bottom: max(0.85rem, env(safe-area-inset-bottom, 0px));
+  }
+}
+
 .ops-management--split {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(260px, 380px);
@@ -3758,12 +3766,47 @@ body {
     flex-wrap: wrap;
   }
 
+  /* 운영 탭: 좁은 화면에서 2열 그리드가 본문 너비를 0에 가깝게 만드는 문제 → 1열 스택 */
+  .ops-workspace {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+
   .ops-management-main {
-    min-height: min(58dvh, 760px);
+    min-height: 0;
+    flex: 1 1 auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .ops-management--split {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .ops-management__main,
+  .ops-management__aside {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .ops-management__aside {
+    max-height: min(52dvh, 520px);
+    order: 2;
+  }
+
+  .ops-management__main {
+    order: 1;
   }
 
   .ops-management__textarea--request {
-    min-height: min(30dvh, 360px);
+    min-height: min(22dvh, 240px);
   }
 
   .panel-head.ops-management__head {
