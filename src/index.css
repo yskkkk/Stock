@@ -2906,16 +2906,17 @@ html[data-theme="light"] .access-admin-tab--active {
 }
 
 /* -------------------------------------------------------------------------- */
-/* 불편 접수함 — 화면 우측 상단 고정 */
+/* 불편 접수함 — 화면 우측 하단 고정(상단 바·테마 버튼과 겹침 방지) */
 /* -------------------------------------------------------------------------- */
 
 .feedback-corner {
   position: fixed;
-  top: max(0.55rem, env(safe-area-inset-top, 0px));
+  bottom: max(0.85rem, env(safe-area-inset-bottom, 0px));
   right: max(0.55rem, env(safe-area-inset-right, 0px));
+  top: auto;
   z-index: 9990;
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse;
   align-items: flex-end;
   gap: 0.35rem;
 }

@@ -73,6 +73,22 @@ export function persistTheme(mode: ColorMode): void {
   }
 }
 
+function syncMetaThemeColorFromCss(): void {
+  const root = document.documentElement;
+  let meta = document.querySelector('meta[name="theme-color"]');
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.setAttribute("name", "theme-color");
+    document.head.appendChild(meta);
+  }
+  try {
+    const bg = getComputedStyle(root).getPropertyValue("--bg").trim();
+    if (bg) meta.setAttribute("content", bg);
+  } catch {
+    meta.setAttribute("content", "#0a0e13");
+  }
+}
+
 export function applyTheme(mode: ColorMode): void {
   const root = document.documentElement;
   if (mode === "light") {
@@ -82,4 +98,6 @@ export function applyTheme(mode: ColorMode): void {
     root.removeAttribute("data-theme");
     clearLightPaletteAttr();
   }
+  root.style.colorScheme = mode === "light" ? "light" : "dark";
+  requestAnimationFrame(() => syncMetaThemeColorFromCss());
 }
