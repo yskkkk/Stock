@@ -3244,6 +3244,66 @@ html[data-theme="light"] .feedback-inbox-item {
   min-width: 0;
 }
 
+.ops-management__my-ip-jobs {
+  margin-bottom: 0.65rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--accent-border);
+  box-shadow: inset 0 0 0 1px var(--accent-dim);
+}
+
+.ops-management__my-ip-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.ops-management__my-ip-hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.ops-management__my-ip-line {
+  margin: 0 0 0.45rem;
+  font-size: 0.8rem;
+}
+
+.ops-management__my-ip-k {
+  margin-right: 0.35rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.ops-management__my-ip-pending {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0 0 0.5rem;
+  padding: 0.45rem 0.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--accent-dim);
+}
+
+.ops-management__my-ip-pending-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.ops-management__my-ip-pending-text {
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ops-management__my-ip-queue {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
 .ops-management__server-queue {
   margin-bottom: 0.65rem;
   padding: 0.55rem 0.65rem 0.6rem;

@@ -263,7 +263,11 @@ export function createApp() {
         });
         return;
       }
-      res.json(getOpsAgentQueueSnapshot());
+      const viewerIp = normalizeAccessIp(expressClientIp(req));
+      res.json({
+        ...getOpsAgentQueueSnapshot(),
+        viewerIp: viewerIp || null,
+      });
     }),
   );
 
@@ -297,6 +301,7 @@ export function createApp() {
         return;
       }
       await removeOpsAgentHistoryEntryById(id);
+      triggerOpsStreamUserCancel(id);
       res.json({ ok: true });
     }),
   );

@@ -149,6 +149,9 @@ export function readOpsAgentHistorySync() {
 
 let writeChain = /** @type {Promise<unknown>} */ (Promise.resolve());
 
+/** 실행 중인 이력을 사용자가 삭제한 경우 finalize가 동일 id로 레코드를 다시 만들지 않도록 함 */
+const finalizeSkippedIds = /** @type {Set<string>} */ (new Set());
+
 /**
  * @param {() => Promise<void>} fn
  */
@@ -267,6 +270,10 @@ export function patchOpsAgentEntry(id, patch) {
  */
 export function finalizeOpsAgentEntry(id, fin) {
   return chainWrite(async () => {
+    if (finalizeSkippedIds.has(id)) {
+      finalizeSkippedIds.delete(id);
+      return;
+    }
     ensureDirSync();
     const raw = readRawListSync();
     const list = raw
@@ -356,9 +363,13 @@ export function removeOpsAgentHistoryEntryById(id) {
     const raw = readRawListSync();
     const list = raw
       .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))
-      .filter(Boolean)
-      .filter((e) => e.id !== id);
-    await fs.writeFile(HISTORY_FILE, JSON.stringify(list), "utf8");
+      .filter(Boolean);
+    const victim = list.find((e) => e.id === id);
+    if (victim?.state === "running") {
+      finalizeSkippedIds.add(id);
+    }
+    const next = list.filter((e) => e.id !== id);
+    await fs.writeFile(HISTORY_FILE, JSON.stringify(next), "utf8");
   });
 }
 

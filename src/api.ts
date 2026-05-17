@@ -190,6 +190,7 @@ export type OpsAgentQueueEntry = {
 
 export type OpsAgentQueueResponse = {
   entries: OpsAgentQueueEntry[];
+  viewerIp?: string | null;
 };
 
 /** 관리자 전용 — 동일 IP에서 진행 중인 SSE 요청(리다이렉트·새 탭 후 복원용) */
@@ -233,7 +234,7 @@ export function deleteOpsAgentHistory() {
   });
 }
 
-/** 관리자 전용 — 완료·오류·중단된 실행 이력 한 건 삭제 */
+/** 관리자 전용 — 완료·오류·중단·실행 중 포함 실행 이력 한 건 삭제 (실행 중이면 서버에서 중단) */
 export function deleteOpsAgentHistoryEntry(id: string) {
   const t = getStoredAccessAdminToken();
   const headers: Record<string, string> = {};

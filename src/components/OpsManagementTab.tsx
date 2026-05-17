@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   deleteOpsAgentHistory,
   deleteOpsAgentHistoryEntry,
@@ -9,6 +9,7 @@ import {
   postOpsCursorAgentStreamCancel,
   type OpsAgentHistoryEntry,
   type OpsAgentQueueEntry,
+  type OpsCursorAgentPendingResponse,
 } from "../api";
 import { ko } from "../i18n/ko";
 
@@ -39,7 +40,6 @@ export default function OpsManagementTab({
   available: boolean;
 }) {
   const [instruction, setInstruction] = useState("");
-  const [extraContext, setExtraContext] = useState("");
   const [nextInstruction, setNextInstruction] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [queuedCount, setQueuedCount] = useState(0);
@@ -57,14 +57,22 @@ export default function OpsManagementTab({
 
   const [historyRuns, setHistoryRuns] = useState<OpsAgentHistoryEntry[]>([]);
   const [serverQueue, setServerQueue] = useState<OpsAgentQueueEntry[]>([]);
+  const [viewerIp, setViewerIp] = useState<string | null>(null);
+  const [remotePending, setRemotePending] = useState<OpsCursorAgentPendingResponse | null>(
+    null,
+  );
 
   const abortRef = useRef<AbortController | null>(null);
   const runIdRef = useRef<string | null>(null);
   const pendingAfterRef = useRef<string[]>([]);
-  const extraContextRef = useRef("");
   const runStreamImpl = useRef<(ins: string) => Promise<void>>(async () => {});
 
-  extraContextRef.current = extraContext;
+  const myQueueJobs = useMemo(() => {
+    if (!viewerIp) return [];
+    return serverQueue.filter((q) => q.requestIp === viewerIp);
+  }, [serverQueue, viewerIp]);
+
+  const remotePendingInstruction = String(remotePending?.instruction ?? "").trim();
 
   useEffect(() => {
     return () => {
@@ -76,10 +84,14 @@ export default function OpsManagementTab({
   useEffect(() => {
     if (!available) {
       setHistoryRuns([]);
+      setServerQueue([]);
+      setViewerIp(null);
+      setRemotePending(null);
       return;
     }
     let cancelled = false;
-    const pull = () => {
+
+    const pullHistory = () => {
       void fetchOpsAgentHistory()
         .then((r) => {
           if (!cancelled) setHistoryRuns(Array.isArray(r.entries) ? r.entries : []);
@@ -88,54 +100,60 @@ export default function OpsManagementTab({
           /* 다음 폴링에서 재시도 */
         });
     };
-    pull();
-    const id = window.setInterval(pull, HISTORY_POLL_MS);
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-    };
-  }, [available]);
 
-  useEffect(() => {
-    if (!available) {
-      setServerQueue([]);
-      return;
-    }
-    let cancelled = false;
-    const pull = () => {
+    const pullQueue = () => {
       void fetchOpsCursorAgentQueue()
         .then((r) => {
-          if (!cancelled) setServerQueue(Array.isArray(r.entries) ? r.entries : []);
+          if (cancelled) return;
+          setServerQueue(Array.isArray(r.entries) ? r.entries : []);
+          const rawIp = r.viewerIp;
+          const ip =
+            rawIp === null || rawIp === undefined
+              ? null
+              : String(rawIp).trim() || null;
+          setViewerIp(ip);
         })
         .catch(() => {
           /* 다음 폴링에서 재시도 */
         });
     };
-    pull();
-    const id = window.setInterval(pull, AGENT_QUEUE_POLL_MS);
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-    };
-  }, [available]);
 
-  useEffect(() => {
-    if (!available) return;
-    let cancelled = false;
-    void fetchOpsCursorAgentPending()
-      .then((p) => {
-        if (cancelled) return;
-        const ins = String(p.instruction ?? "").trim();
-        const ctx = String(p.context ?? "").trim();
-        if (!ins && !ctx) return;
-        setInstruction((prev) => (prev.trim() ? prev : ins));
-        setExtraContext((prev) => (prev.trim() ? prev : ctx));
-      })
-      .catch(() => {
-        /* 접근 게이트 복귀 직후 등 — 조용히 무시 */
-      });
+    const pullPending = () => {
+      void fetchOpsCursorAgentPending()
+        .then((p) => {
+          if (cancelled) return;
+          setRemotePending(p);
+          const ins = String(p.instruction ?? "").trim();
+          if (ins) setInstruction((prev) => (prev.trim() ? prev : ins));
+        })
+        .catch(() => {
+          /* 접근 게이트 복귀 직후 등 — 조용히 무시 */
+        });
+    };
+
+    const refreshAll = () => {
+      pullHistory();
+      pullQueue();
+      pullPending();
+    };
+
+    refreshAll();
+
+    const histId = window.setInterval(pullHistory, HISTORY_POLL_MS);
+    const queueId = window.setInterval(pullQueue, AGENT_QUEUE_POLL_MS);
+    const pendId = window.setInterval(pullPending, HISTORY_POLL_MS);
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") refreshAll();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
       cancelled = true;
+      window.clearInterval(histId);
+      window.clearInterval(queueId);
+      window.clearInterval(pendId);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [available]);
 
@@ -169,7 +187,7 @@ export default function OpsManagementTab({
       try {
         await fetchOpsCursorAgentStream(
           trimmed,
-          extraContextRef.current.trim(),
+          "",
           (ev) => {
             if (ev.type === "meta") {
               const rid = typeof ev.requestId === "string" ? ev.requestId.trim() : "";
@@ -254,16 +272,17 @@ export default function OpsManagementTab({
     }
   }, []);
 
-  const deleteHistoryEntry = useCallback(async (id: string) => {
-    if (
-      typeof window !== "undefined" &&
-      !window.confirm(ko.app.opsHistoryDeleteEntryConfirm)
-    ) {
+  const deleteHistoryEntry = useCallback(async (run: OpsAgentHistoryEntry) => {
+    const msg =
+      run.state === "running"
+        ? ko.app.opsHistoryDeleteRunningConfirm
+        : ko.app.opsHistoryDeleteEntryConfirm;
+    if (typeof window !== "undefined" && !window.confirm(msg)) {
       return;
     }
     try {
-      await deleteOpsAgentHistoryEntry(id);
-      setHistoryRuns((prev) => prev.filter((r) => r.id !== id));
+      await deleteOpsAgentHistoryEntry(run.id);
+      setHistoryRuns((prev) => prev.filter((r) => r.id !== run.id));
     } catch {
       void fetchOpsAgentHistory()
         .then((r) => setHistoryRuns(Array.isArray(r.entries) ? r.entries : []))
@@ -314,10 +333,67 @@ export default function OpsManagementTab({
     <div className="ops-management ops-management--split">
       <div className="ops-management__main">
         {available ? (
-          <section
-            className="ops-management__server-queue card"
-            aria-label={ko.app.opsAgentQueueSubtitle}
-          >
+          <>
+            {remotePendingInstruction || myQueueJobs.length > 0 ? (
+              <section
+                className="ops-management__my-ip-jobs card"
+                aria-label={ko.app.opsMyIpJobsTitle}
+              >
+                <p className="ops-management__my-ip-title">{ko.app.opsMyIpJobsTitle}</p>
+                <p className="ops-management__my-ip-hint">{ko.app.opsMyIpJobsHint}</p>
+                {viewerIp ? (
+                  <p className="ops-management__my-ip-line ops-management__stream-v--mono">
+                    <span className="ops-management__my-ip-k">{ko.app.opsHistoryRequestIp}</span>
+                    {viewerIp}
+                  </p>
+                ) : null}
+                {remotePendingInstruction ? (
+                  <div
+                    className="ops-management__my-ip-pending"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <span className="ops-management__my-ip-pending-badge">
+                      {ko.app.opsRemotePendingBadge}
+                    </span>
+                    <span className="ops-management__my-ip-pending-text" title={remotePendingInstruction}>
+                      {remotePendingInstruction.length > 160
+                        ? `${remotePendingInstruction.slice(0, 157)}…`
+                        : remotePendingInstruction}
+                    </span>
+                  </div>
+                ) : null}
+                {myQueueJobs.length > 0 ? (
+                  <div
+                    className="ops-management__my-ip-queue"
+                    role="list"
+                    aria-label={ko.app.opsAgentQueueSubtitle}
+                  >
+                    {myQueueJobs.map((q) => (
+                      <div
+                        key={q.id}
+                        className={`ops-management__queue-chip ops-management__queue-chip--${q.status}`}
+                        role="listitem"
+                      >
+                        <span className="ops-management__queue-chip-status">
+                          {q.status === "running"
+                            ? ko.app.opsHistoryStatusRunning
+                            : ko.app.opsAgentQueueWaiting}
+                        </span>
+                        <span className="ops-management__queue-chip-preview" title={q.instructionPreview}>
+                          {q.instructionPreview.trim() ? q.instructionPreview : "—"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
+
+            <section
+              className="ops-management__server-queue card"
+              aria-label={ko.app.opsAgentQueueSubtitle}
+            >
             <p className="ops-management__server-queue-sub">{ko.app.opsAgentQueueSubtitle}</p>
             <div
               className="ops-management__server-queue-scroll"
@@ -353,6 +429,7 @@ export default function OpsManagementTab({
               )}
             </div>
           </section>
+          </>
         ) : null}
 
         <div className="panel-head ops-management__head">
@@ -376,20 +453,6 @@ export default function OpsManagementTab({
             onChange={(e) => setInstruction(e.target.value)}
             placeholder={ko.app.opsInstructionPlaceholder}
             rows={10}
-            disabled={!available || submitting}
-            spellCheck={false}
-          />
-
-          <label className="ops-management__label" htmlFor="ops-extra-context">
-            {ko.app.opsExtraContextLabel}
-          </label>
-          <textarea
-            id="ops-extra-context"
-            className="ops-management__textarea ops-management__textarea--sm"
-            value={extraContext}
-            onChange={(e) => setExtraContext(e.target.value)}
-            placeholder={ko.app.opsExtraContextPlaceholder}
-            rows={4}
             disabled={!available || submitting}
             spellCheck={false}
           />
@@ -564,8 +627,6 @@ export default function OpsManagementTab({
                     ? "ops-history__badge--ok"
                     : "ops-history__badge--err";
 
-              const canDeleteEntry = state !== "running";
-
               return (
                 <li key={run.id} className="ops-management__history-item">
                   <details className="ops-management__history-details">
@@ -583,20 +644,18 @@ export default function OpsManagementTab({
                         </span>
                       ) : null}
                       <span className="ops-management__history-snippet">{header}</span>
-                      {canDeleteEntry ? (
-                        <button
-                          type="button"
-                          className="btn btn--ghost btn--sm ops-management__history-delete"
-                          aria-label={ko.app.opsHistoryDeleteEntryAria}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            void deleteHistoryEntry(run.id);
-                          }}
-                        >
-                          {ko.app.opsHistoryDeleteEntry}
-                        </button>
-                      ) : null}
+                      <button
+                        type="button"
+                        className="btn btn--ghost btn--sm ops-management__history-delete"
+                        aria-label={ko.app.opsHistoryDeleteEntryAria}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          void deleteHistoryEntry(run);
+                        }}
+                      >
+                        {ko.app.opsHistoryDeleteEntry}
+                      </button>
                     </summary>
 
                     <p className="ops-management__history-instruction-label">
