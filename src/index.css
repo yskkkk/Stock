@@ -2304,8 +2304,8 @@ html[data-theme="light"] .access-admin-tab--active {
   }
 
   /*
-   * 종목 스크리너/검색: TV 위젯 기본 min-height(420px) + 차트 열 min-height가 합쳐져
-   * 모바일에서 세로 스크롤이 과하게 길어지는 문제 완화 (코인 탭은 .crypto-workspace 규칙 유지)
+   * 종목 스크리너/검색: 차트 카드·TV 임베드에 각각 큰 min-height가 겹치면
+   * 모바일에서 세로가 과도하게 길어짐 → 본문 높이는 패널 바디 한 번만 잡고 TV는 채움
    */
   .workspace:not(.crypto-workspace) .chart-section.crypto-chart-section {
     min-height: 0;
@@ -2313,12 +2313,21 @@ html[data-theme="light"] .access-admin-tab--active {
   }
 
   .workspace:not(.crypto-workspace) .chart-panel.crypto-chart-panel {
-    min-height: min(32dvh, 280px);
+    min-height: 0;
+    flex: 1 1 auto;
+  }
+
+  .workspace:not(.crypto-workspace) .crypto-chart-panel .crypto-chart-panel-body {
+    flex: 1 1 auto;
+    min-height: min(30dvh, 248px);
+    min-width: 0;
   }
 
   .workspace:not(.crypto-workspace)
     .tradingview-widget-container.tradingview-embed-mount {
-    min-height: min(38dvh, 300px);
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
   }
 
   /* 코인 탭: 목록 높이·가독성 — 한 줄에 시세·거래량이 몰려 잘리는 문제 완화 */
@@ -2581,7 +2590,7 @@ html[data-theme="light"] .access-admin-tab--active {
       0 2px 10px rgba(15, 23, 42, 0.06);
   }
 
-  /* 우측 코너 운영·불편: 라이트 모드 팔레트 스와치(터치 행)와 동일 높이 */
+  /* 우측 코너 운영·불편: 가로로 나란히 (팔레트 스와치는 별도 크기) */
   .app-corner-stack {
     flex-direction: row;
     align-items: center;
@@ -2590,9 +2599,13 @@ html[data-theme="light"] .access-admin-tab--active {
   }
 
   html[data-theme="light"] .app-theme-corner .light-palette-swatch {
-    width: 40px;
-    height: 40px;
+    width: 1.55rem;
+    height: 1.55rem;
     box-sizing: border-box;
+  }
+
+  html[data-theme="light"] .app-theme-corner .light-palette-picker {
+    gap: 0.22rem 0.28rem;
   }
 
   .app-corner-stack__ops,
@@ -4242,7 +4255,7 @@ body {
   }
 
   html[data-theme="light"] .top-bar.card {
-    padding-inline-start: max(calc(0.55rem + 15.25rem), env(safe-area-inset-left, 0px));
+    padding-inline-start: max(calc(0.55rem + 11.75rem), env(safe-area-inset-left, 0px));
   }
 
   .filter-header {
