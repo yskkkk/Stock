@@ -74,19 +74,21 @@ export function isOpsAgentJobRunning() {
 }
 
 /**
- * 관리자 UI 폴링용 — 워커 대기열(`waiting`) + 현재 실행(`running`).
+ * 관리자 UI 폴링용 — **현재 실행(`running`)이 배열 선두**, 이어 워커 FIFO 대기(`waiting`).
  * SSE의 `historyRunId`를 큐 카드 id로 쓰면 이력·팝업에서 동일 실행을 매칭할 수 있다.
  * @returns {{ entries: Array<{ id: string; requestIp: string; instructionPreview: string; instructionTooltip: string; instructionBody: string; enqueuedAtMs: number; status: 'running' | 'waiting' }> }}
  */
 export function getOpsAgentQueueSnapshot() {
-  const entries = [];
+  const waiting = [];
   for (const job of queue) {
     if (job.meta)
-      entries.push({ ...job.meta, status: /** @type {const} */ ("waiting") });
+      waiting.push({ ...job.meta, status: /** @type {const} */ ("waiting") });
   }
+  const entries = [];
   if (runningMeta) {
     entries.push({ ...runningMeta, status: /** @type {const} */ ("running") });
   }
+  entries.push(...waiting);
   return { entries };
 }
 

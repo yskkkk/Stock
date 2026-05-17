@@ -3673,6 +3673,9 @@ html[data-theme="light"] .ops-management__my-ip-jobs--inline {
 /* 지표 발표 막대(macros)와 비슷한 좁은 카드 가로 스크롤 */
 .ops-agent-queue-track {
   display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: stretch;
   gap: 0.55rem;
   overflow-x: auto;
   overflow-y: hidden;
