@@ -348,117 +348,8 @@ export default function OpsManagementTab({
   return (
     <div className="ops-management ops-management--split">
       <div className="ops-management__main">
-            {available ? (
+        {available ? (
           <>
-            <section
-              className="ops-management__my-ip-jobs card"
-              aria-label={ko.app.opsMyIpJobsTitle}
-            >
-              <p className="ops-management__my-ip-title">{ko.app.opsMyIpJobsTitle}</p>
-              <p className="ops-management__my-ip-hint">{ko.app.opsMyIpJobsHint}</p>
-              {viewerIp ? (
-                <p className="ops-management__my-ip-line ops-management__stream-v--mono">
-                  <span className="ops-management__my-ip-k">{ko.app.opsHistoryRequestIp}</span>
-                  {viewerIp}
-                </p>
-              ) : (
-                <p className="ops-management__my-ip-none" role="status">
-                  {ko.app.opsMyIpNoViewerIp}
-                </p>
-              )}
-              {viewerIp && !hasMyIpServerActivity ? (
-                <p className="ops-management__my-ip-none" role="status">
-                  {ko.app.opsMyIpJobsNone}
-                </p>
-              ) : null}
-
-              {remotePendingInstruction ? (
-                <div
-                  className="ops-management__my-ip-pending"
-                  role="status"
-                  aria-live="polite"
-                >
-                  <span className="ops-management__my-ip-pending-badge">
-                    {ko.app.opsRemotePendingBadge}
-                  </span>
-                  <span
-                    className="ops-management__my-ip-pending-text"
-                    title={remotePendingInstruction}
-                  >
-                    {remotePendingInstruction.length > 160
-                      ? `${remotePendingInstruction.slice(0, 157)}…`
-                      : remotePendingInstruction}
-                  </span>
-                </div>
-              ) : null}
-
-              {myIpRunningHistory.length > 0 ? (
-                <div className="ops-management__my-ip-running-block">
-                  <p className="ops-management__my-ip-subtitle">{ko.app.opsMyIpHistoryRunning}</p>
-                  <div
-                    className="ops-agent-queue-track"
-                    role="list"
-                    aria-label={ko.app.opsMyIpHistoryRunning}
-                  >
-                    {myIpRunningHistory.map((run) => {
-                      const line =
-                        run.instruction.split(/\r?\n/).find(Boolean) ?? run.instruction;
-                      const prev =
-                        line.length > 200 ? `${line.slice(0, 197)}…` : line;
-                      return (
-                        <div
-                          key={run.id}
-                          className="ops-agent-queue-card ops-agent-queue-card--running"
-                          role="listitem"
-                        >
-                          <div className="ops-agent-queue-card__top">
-                            <span className="ops-agent-queue-card__status">
-                              {ko.app.opsHistoryStatusRunning}
-                            </span>
-                            <span className="ops-agent-queue-card__meta ops-management__stream-v--mono">
-                              {formatHistoryTs(
-                                run.updatedAtMs ?? run.startedAtMs ?? Date.now(),
-                              )}
-                            </span>
-                          </div>
-                          <p className="ops-agent-queue-card__preview" title={line}>
-                            {prev.trim() ? prev : "—"}
-                          </p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
-
-              {myQueueJobs.length > 0 ? (
-                <div
-                  className="ops-agent-queue-track ops-management__my-ip-queue-track"
-                  role="list"
-                  aria-label={ko.app.opsAgentQueueSubtitle}
-                >
-                  {myQueueJobs.map((q) => (
-                    <div
-                      key={q.id}
-                      className={`ops-agent-queue-card ops-agent-queue-card--${q.status}`}
-                      role="listitem"
-                    >
-                      <div className="ops-agent-queue-card__top">
-                        <span className="ops-agent-queue-card__status">
-                          {q.status === "running"
-                            ? ko.app.opsHistoryStatusRunning
-                            : ko.app.opsAgentQueueWaiting}
-                        </span>
-                      </div>
-                      <p className="ops-agent-queue-card__preview" title={q.instructionPreview}>
-                        {q.instructionPreview.trim() ? q.instructionPreview : "—"}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </section>
-
             <section
               className="ops-management__server-queue card"
               aria-label={ko.app.opsAgentQueueSubtitle}
@@ -498,6 +389,117 @@ export default function OpsManagementTab({
                     </div>
                   ))
                 )}
+              </div>
+            </section>
+
+            <section
+              className="ops-management__my-ip-jobs ops-management__my-ip-jobs--bubble card"
+              aria-label={ko.app.opsMyIpJobsTitle}
+            >
+              <div className="ops-management__my-ip-bubble-body">
+                <p className="ops-management__my-ip-title">{ko.app.opsMyIpJobsTitle}</p>
+                <p className="ops-management__my-ip-hint">{ko.app.opsMyIpJobsHint}</p>
+                {viewerIp ? (
+                  <p className="ops-management__my-ip-line ops-management__stream-v--mono">
+                    <span className="ops-management__my-ip-k">{ko.app.opsHistoryRequestIp}</span>
+                    {viewerIp}
+                  </p>
+                ) : (
+                  <p className="ops-management__my-ip-none" role="status">
+                    {ko.app.opsMyIpNoViewerIp}
+                  </p>
+                )}
+                {viewerIp && !hasMyIpServerActivity ? (
+                  <p className="ops-management__my-ip-none" role="status">
+                    {ko.app.opsMyIpJobsNone}
+                  </p>
+                ) : null}
+
+                {remotePendingInstruction ? (
+                  <div
+                    className="ops-management__my-ip-pending"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <span className="ops-management__my-ip-pending-badge">
+                      {ko.app.opsRemotePendingBadge}
+                    </span>
+                    <span
+                      className="ops-management__my-ip-pending-text"
+                      title={remotePendingInstruction}
+                    >
+                      {remotePendingInstruction.length > 160
+                        ? `${remotePendingInstruction.slice(0, 157)}…`
+                        : remotePendingInstruction}
+                    </span>
+                  </div>
+                ) : null}
+
+                {myIpRunningHistory.length > 0 ? (
+                  <div className="ops-management__my-ip-running-block">
+                    <p className="ops-management__my-ip-subtitle">{ko.app.opsMyIpHistoryRunning}</p>
+                    <div
+                      className="ops-agent-queue-track"
+                      role="list"
+                      aria-label={ko.app.opsMyIpHistoryRunning}
+                    >
+                      {myIpRunningHistory.map((run) => {
+                        const line =
+                          run.instruction.split(/\r?\n/).find(Boolean) ?? run.instruction;
+                        const prev =
+                          line.length > 200 ? `${line.slice(0, 197)}…` : line;
+                        return (
+                          <div
+                            key={run.id}
+                            className="ops-agent-queue-card ops-agent-queue-card--running"
+                            role="listitem"
+                          >
+                            <div className="ops-agent-queue-card__top">
+                              <span className="ops-agent-queue-card__status">
+                                {ko.app.opsHistoryStatusRunning}
+                              </span>
+                              <span className="ops-agent-queue-card__meta ops-management__stream-v--mono">
+                                {formatHistoryTs(
+                                  run.updatedAtMs ?? run.startedAtMs ?? Date.now(),
+                                )}
+                              </span>
+                            </div>
+                            <p className="ops-agent-queue-card__preview" title={line}>
+                              {prev.trim() ? prev : "—"}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+
+                {myQueueJobs.length > 0 ? (
+                  <div
+                    className="ops-agent-queue-track ops-management__my-ip-queue-track"
+                    role="list"
+                    aria-label={ko.app.opsAgentQueueSubtitle}
+                  >
+                    {myQueueJobs.map((q) => (
+                      <div
+                        key={q.id}
+                        className={`ops-agent-queue-card ops-agent-queue-card--${q.status}`}
+                        role="listitem"
+                      >
+                        <div className="ops-agent-queue-card__top">
+                          <span className="ops-agent-queue-card__status">
+                            {q.status === "running"
+                              ? ko.app.opsHistoryStatusRunning
+                              : ko.app.opsAgentQueueWaiting}
+                          </span>
+                        </div>
+                        <p className="ops-agent-queue-card__preview" title={q.instructionPreview}>
+                          {q.instructionPreview.trim() ? q.instructionPreview : "—"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </section>
           </>
