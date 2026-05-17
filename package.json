@@ -10,6 +10,7 @@
     "verify": "node scripts/verify-encoding.mjs",
     "verify:entry": "node scripts/verify-entry-http.mjs",
     "verify:api-smoke": "node scripts/verify-api-smoke.mjs",
+    "verify:express-spa": "node scripts/verify-express-spa-root.mjs",
     "test": "vitest run",
     "build": "npm run verify && tsc -b && vite build",
     "preview": "concurrently -k \"node server/index.js\" \"vite preview\""

@@ -1,4 +1,7 @@
 import express from "express";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import {
   isAccessAdminIp,
   isAccessAdminRequest,
@@ -26,17 +29,53 @@ import { getUsdKrwRate } from "./fx-usd-krw.js";
 import { searchStocks } from "./stock-search.js";
 import { getMacroEventsCached } from "./macro-events.js";
 import { postFeedback, getFeedbackInbox, postFeedbackAdminReply, deleteFeedbackAdmin } from "./feedback-inbox.js";
-import { runOpsCursorAgent, streamOpsCursorAgentSse } from "./cursor-ops-agent.js";
+import { runOpsCursorAgent, streamOpsCursorAgentSse, writeOpsAgentSseEvent } from "./cursor-ops-agent.js";
+import { enqueueOpsAgentJob } from "./ops-agent-job-queue.js";
 import {
   clearOpsAgentHistoryAsync,
   readOpsAgentHistorySync,
+  removeOpsAgentHistoryEntryById,
 } from "./ops-agent-history-store.js";
 import { getOpsAgentPendingForIp } from "./ops-agent-pending-store.js";
+import { triggerOpsStreamUserCancel } from "./ops-stream-cancel.js";
 
 function asyncRoute(handler) {
   return (req, res, next) => {
     Promise.resolve(handler(req, res, next)).catch(next);
   };
+}
+
+const __createAppDir = path.dirname(fileURLToPath(import.meta.url));
+const DIST_DIR = path.join(__createAppDir, "..", "dist");
+const DIST_INDEX_HTML = path.join(DIST_DIR, "index.html");
+
+/**
+ * `npm run build` 산출물이 있으면 API와 동일 포트에서 SPA를 제공한다.
+ * (그렇지 않으면 API 전용 — 개발은 Vite가 문서를 담당)
+ */
+function installDistSpaIfPresent(app) {
+  if (!fs.existsSync(DIST_INDEX_HTML)) return;
+
+  app.use(
+    express.static(DIST_DIR, {
+      index: false,
+    }),
+  );
+
+  app.use((req, res, next) => {
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      return next();
+    }
+    const raw = String(req.originalUrl ?? req.url ?? "/");
+    const pathname = raw.split("?")[0].split("#")[0] || "/";
+    const p = pathname.startsWith("/") ? pathname : `/${pathname}`;
+    if (p.startsWith("/api")) {
+      return next();
+    }
+    res.sendFile(path.resolve(DIST_INDEX_HTML), (err) => {
+      if (err) next(err);
+    });
+  });
 }
 
 export function createApp() {
@@ -90,7 +129,9 @@ export function createApp() {
       }
       const context = String(req.body?.context ?? "").trim();
       try {
-        const out = await runOpsCursorAgent({ instruction, context });
+        const out = await enqueueOpsAgentJob(() =>
+          runOpsCursorAgent({ instruction, context }),
+        );
         res.json({ ok: true, ...out });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -98,6 +139,10 @@ export function createApp() {
           err && typeof err === "object" && "code" in err
             ? String(err.code)
             : "";
+        if (code === "OPS_QUEUE_FULL") {
+          res.status(503).json({ error: msg, code: "OPS_QUEUE_FULL" });
+          return;
+        }
         if (code === "NO_API_KEY") {
           res.status(503).json({ error: msg, code: "NO_API_KEY" });
           return;
@@ -108,6 +153,26 @@ export function createApp() {
         }
         res.status(500).json({ error: msg });
       }
+    }),
+  );
+
+  app.post(
+    "/api/ops/cursor-agent-stream/cancel",
+    asyncRoute(async (req, res) => {
+      if (!isAccessAdminRequest(req)) {
+        res.status(403).json({
+          error: "관리자만 Cursor 에이전트 연동을 사용할 수 있습니다.",
+          code: "FORBIDDEN",
+        });
+        return;
+      }
+      const runId = String(req.body?.runId ?? "").trim();
+      if (!runId) {
+        res.status(400).json({ error: "runId가 필요합니다." });
+        return;
+      }
+      triggerOpsStreamUserCancel(runId);
+      res.json({ ok: true });
     }),
   );
 
@@ -129,8 +194,32 @@ export function createApp() {
         return;
       }
       const context = String(req.body?.context ?? "").trim();
-      const ip = normalizeAccessIp(expressClientIp(req));
-      await streamOpsCursorAgentSse(res, { instruction, context }, { clientIp: ip });
+      try {
+        await enqueueOpsAgentJob(
+          () => streamOpsCursorAgentSse(req, res, { instruction, context }),
+          () => {
+            writeOpsAgentSseEvent(res, {
+              type: "phase",
+              message:
+                "앞선 에이전트 요청이 끝날 때까지 대기 중입니다. 곧 진행 상황이 표시됩니다.",
+            });
+          },
+        );
+      } catch (e) {
+        const code =
+          e && typeof e === "object" && "code" in e
+            ? String(/** @type {{ code?: string }} */ (e).code)
+            : "";
+        if (code === "OPS_QUEUE_FULL" && !res.headersSent) {
+          const msg =
+            e instanceof Error
+              ? e.message
+              : "운영 에이전트 대기열이 가득 찼습니다. 잠시 후 다시 시도하세요.";
+          res.status(503).json({ error: msg, code: "OPS_QUEUE_FULL" });
+          return;
+        }
+        throw e;
+      }
     }),
   );
 
@@ -165,6 +254,26 @@ export function createApp() {
         return;
       }
       res.json({ entries: readOpsAgentHistorySync() });
+    }),
+  );
+
+  app.delete(
+    "/api/ops/cursor-agent-history/:id",
+    asyncRoute(async (req, res) => {
+      if (!isAccessAdminRequest(req)) {
+        res.status(403).json({
+          error: "관리자만 Cursor 에이전트 연동을 사용할 수 있습니다.",
+          code: "FORBIDDEN",
+        });
+        return;
+      }
+      const id = String(req.params?.id ?? "").trim();
+      if (!id) {
+        res.status(400).json({ error: "id가 필요합니다." });
+        return;
+      }
+      await removeOpsAgentHistoryEntryById(id);
+      res.json({ ok: true });
     }),
   );
 
@@ -351,6 +460,8 @@ export function createApp() {
       }
     }),
   );
+
+  installDistSpaIfPresent(app);
 
   app.use((err, _req, res, _next) => {
     const message = err instanceof Error ? err.message : "요청 실패";

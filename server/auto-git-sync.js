@@ -20,12 +20,17 @@
  * pull 성공 후에는 npm ci/install·build가 실패해도 서버는 재시작합니다(로그에 경고만 남김).
  * 예전 동작(빌드·후크까지 성공해야만 재시작): `AUTO_GIT_RESTART_ONLY_IF_BUILD_OK=1`
  * 미커밋 변경·fast-forward 불가면 `git pull --ff-only`가 실패하고 재시작하지 않습니다.
+ *
+ * 재시작은 `server/restart-node-process.js`의 `respawnNodeProcess`를 사용합니다.
+ * 장기 SSE 등으로 `httpServer.close()`가 멈추면 재시작을 중단하고 서버·auto-git 폴링을 유지합니다.
+ * (닫기 상한: `RESPAWN_CLOSE_TIMEOUT_MS`, 기본 25000)
  */
 import { existsSync } from "node:fs";
-import { execFileSync, execSync, spawn, spawnSync } from "node:child_process";
+import { execFileSync, execSync, spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { appendServerEventLog } from "./access-log.js";
+import { respawnNodeProcess } from "./restart-node-process.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
@@ -110,17 +115,20 @@ export function startAutoGitSync({ httpServer }) {
 
   let timer = null;
   let stopping = false;
+  let tickBusy = false;
 
   const tick = async () => {
     if (stopping) return;
-
+    if (tickBusy) return;
+    tickBusy = true;
     try {
-      execGitOut(["rev-parse", "--is-inside-work-tree"]);
-    } catch {
-      return;
-    }
+      try {
+        execGitOut(["rev-parse", "--is-inside-work-tree"]);
+      } catch {
+        return;
+      }
 
-    let branch = branchFromEnv;
+      let branch = branchFromEnv;
     if (!branch) {
       try {
         branch = execGitOut(["rev-parse", "--abbrev-ref", "HEAD"]);
@@ -292,25 +300,25 @@ export function startAutoGitSync({ httpServer }) {
 
     appendServerEventLog("auto-git", "restarting Node process…");
 
-    await new Promise((resolve, reject) => {
-      httpServer.close((err) => {
-        if (err) reject(err);
-        else resolve(undefined);
-      });
-    });
-
-    const spawnOpts = {
-      cwd: process.cwd(),
-      detached: true,
-      stdio: "inherit",
-      env: process.env,
-    };
-    if (process.platform === "win32") {
-      spawnOpts.shell = true;
+    const restarted = await respawnNodeProcess(httpServer);
+    if (!restarted) {
+      appendServerEventLog(
+        "auto-git",
+        "재시작이 완료되지 않았습니다. 서버는 계속 동작하며 auto-git 폴링을 재개합니다.",
+        "warn",
+      );
+      stopping = false;
+      timer = setInterval(() => {
+        void tick();
+      }, intervalMs);
+      if (typeof timer.unref === "function") timer.unref();
     }
-    const child = spawn(process.argv[0], process.argv.slice(1), spawnOpts);
-    child.unref();
-    setTimeout(() => process.exit(0), 180);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      appendServerEventLog("auto-git", `tick error: ${msg}`, "error");
+    } finally {
+      tickBusy = false;
+    }
   };
 
   timer = setInterval(() => {

@@ -1,5 +1,6 @@
 /**
  * 운영 탭 Cursor 에이전트 실행 이력 — 서버 재시작 후에도 유지 (server/.data)
+ * 실행 중(running) 레코드를 주기적으로 갱신해 UI 폴링으로 실시간 상태 표시 가능.
  */
 import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
@@ -14,8 +15,17 @@ const HISTORY_FILE = path.join(DATA_DIR, "ops-cursor-agent-history.json");
 export const OPS_AGENT_HISTORY_MAX = 40;
 const OPS_AGENT_FIELD_MAX_CHARS = 120_000;
 const OPS_AGENT_INSTRUCTION_STORE_MAX = 16_000;
+const OPS_AGENT_REQUEST_IP_MAX = 120;
 
 const TRUNC_SUFFIX = "\n\n…(이하 저장 생략)";
+
+/** @param {unknown} ip */
+function sanitizeRequestIpForStore(ip) {
+  return String(ip ?? "")
+    .trim()
+    .replace(/[\r\n\u0000]/g, "")
+    .slice(0, OPS_AGENT_REQUEST_IP_MAX);
+}
 
 /** @param {string} s @param {number} maxChars */
 export function trimStoredTextForOpsHistory(s, maxChars) {
@@ -35,12 +45,7 @@ function isPlainObject(x) {
 
 /** @param {Record<string, unknown>} o */
 function parseHistoryRecord(o) {
-  if (
-    typeof o.id !== "string" ||
-    typeof o.instruction !== "string" ||
-    typeof o.finishedAtMs !== "number" ||
-    !Number.isFinite(o.finishedAtMs)
-  ) {
+  if (typeof o.id !== "string" || typeof o.instruction !== "string") {
     return null;
   }
 
@@ -48,95 +53,316 @@ function parseHistoryRecord(o) {
   const error =
     typeof errRaw === "string" && errRaw.trim().length > 0 ? errRaw.trim() : null;
 
-  const clientIp =
-    typeof o.clientIp === "string" && o.clientIp.trim().length > 0
-      ? o.clientIp.trim()
-      : "";
+  const finishedRaw = o.finishedAtMs;
+  const finishedAtMs =
+    typeof finishedRaw === "number" && Number.isFinite(finishedRaw)
+      ? finishedRaw
+      : null;
+
+  const startedRaw = o.startedAtMs;
+  const startedAtMs =
+    typeof startedRaw === "number" && Number.isFinite(startedRaw)
+      ? startedRaw
+      : finishedAtMs ?? Date.now();
+
+  const updatedRaw = o.updatedAtMs;
+  const updatedAtMs =
+    typeof updatedRaw === "number" && Number.isFinite(updatedRaw)
+      ? updatedRaw
+      : startedAtMs;
+
+  const st = o.state;
+  let state =
+    st === "running" || st === "ok" || st === "error" || st === "cancelled"
+      ? st
+      : null;
+  if (!state) {
+    if (finishedAtMs == null) state = "running";
+    else state = error ? "error" : "ok";
+  }
+  if (state === "running" && finishedAtMs != null) {
+    state = error ? "error" : "ok";
+  }
 
   return {
     id: o.id,
-    finishedAtMs: o.finishedAtMs,
+    state,
+    startedAtMs,
+    updatedAtMs,
+    finishedAtMs,
     instruction: o.instruction,
-    clientIp,
     error,
     phaseLine: typeof o.phaseLine === "string" ? o.phaseLine : "",
     cursorLine: typeof o.cursorLine === "string" ? o.cursorLine : "",
     thinkingLine: typeof o.thinkingLine === "string" ? o.thinkingLine : "",
     toolLine: typeof o.toolLine === "string" ? o.toolLine : "",
     streamText: typeof o.streamText === "string" ? o.streamText : "",
-    statusText: typeof o.statusText === "string" ? o.statusText : null,
-    resultText: typeof o.resultText === "string" ? o.resultText : null,
+    statusText:
+      o.statusText === null || typeof o.statusText === "string"
+        ? o.statusText
+        : null,
+    resultText:
+      o.resultText === null || typeof o.resultText === "string"
+        ? o.resultText
+        : null,
     durationMs:
       typeof o.durationMs === "number" && Number.isFinite(o.durationMs)
         ? o.durationMs
         : null,
-    runtimeLabel: typeof o.runtimeLabel === "string" ? o.runtimeLabel : null,
+    runtimeLabel:
+      o.runtimeLabel === null || typeof o.runtimeLabel === "string"
+        ? o.runtimeLabel
+        : null,
+    requestIp: sanitizeRequestIpForStore(
+      typeof o.requestIp === "string" ? o.requestIp : "",
+    ),
   };
 }
 
 /** @returns {object[]} */
-export function readOpsAgentHistorySync() {
+function readRawListSync() {
   try {
     if (!fsSync.existsSync(HISTORY_FILE)) return [];
     const raw = fsSync.readFileSync(HISTORY_FILE, "utf8");
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter(isPlainObject)
-      .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))
-      .filter(Boolean)
-      .slice(0, OPS_AGENT_HISTORY_MAX);
+    return parsed.filter(isPlainObject);
   } catch {
     return [];
   }
 }
 
-let writeChain = Promise.resolve();
+function saveRawListSync(list) {
+  ensureDirSync();
+  fsSync.writeFileSync(HISTORY_FILE, JSON.stringify(list), "utf8");
+}
+
+/** @returns {object[]} */
+export function readOpsAgentHistorySync() {
+  const raw = readRawListSync();
+  const rows = raw
+    .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))
+    .filter(Boolean);
+  rows.sort((a, b) => (b.updatedAtMs ?? 0) - (a.updatedAtMs ?? 0));
+  return rows.slice(0, OPS_AGENT_HISTORY_MAX);
+}
+
+let writeChain = /** @type {Promise<unknown>} */ (Promise.resolve());
+
+/**
+ * @param {() => Promise<void>} fn
+ */
+function chainWrite(fn) {
+  const p = writeChain.then(fn);
+  writeChain = p.catch(() => {});
+  return p;
+}
+
+/**
+ * @param {string} id
+ * @param {string} instruction
+ * @param {string} [requestIp]
+ * @returns {Promise<void>}
+ */
+export function prependRunningOpsEntry(id, instruction, requestIp = "") {
+  return chainWrite(async () => {
+    ensureDirSync();
+    const ins = trimStoredTextForOpsHistory(
+      instruction,
+      OPS_AGENT_INSTRUCTION_STORE_MAX,
+    );
+    const rip = sanitizeRequestIpForStore(requestIp);
+    const now = Date.now();
+    const entry = {
+      id,
+      instruction: ins,
+      state: "running",
+      startedAtMs: now,
+      updatedAtMs: now,
+      finishedAtMs: null,
+      error: null,
+      phaseLine: "",
+      cursorLine: "",
+      thinkingLine: "",
+      toolLine: "",
+      streamText: "",
+      statusText: null,
+      resultText: null,
+      durationMs: null,
+      runtimeLabel: null,
+      requestIp: rip,
+    };
+    const prev = readRawListSync()
+      .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))
+      .filter(Boolean)
+      .filter((e) => e.id !== id);
+    const next = [entry, ...prev].slice(0, OPS_AGENT_HISTORY_MAX);
+    await fs.writeFile(HISTORY_FILE, JSON.stringify(next), "utf8");
+  });
+}
+
+/**
+ * @param {string} id
+ * @param {{
+ *   phaseLine?: string;
+ *   cursorLine?: string;
+ *   thinkingLine?: string;
+ *   toolLine?: string;
+ *   streamText?: string;
+ *   statusText?: string | null;
+ *   resultText?: string | null;
+ *   durationMs?: number | null;
+ *   runtimeLabel?: string | null;
+ *   error?: string | null;
+ * }} patch
+ * @returns {Promise<void>}
+ */
+export function patchOpsAgentEntry(id, patch) {
+  return chainWrite(async () => {
+    ensureDirSync();
+    const raw = readRawListSync();
+    const list = raw
+      .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))
+      .filter(Boolean);
+    const i = list.findIndex((e) => e.id === id);
+    if (i === -1) return;
+
+    const cur = list[i];
+    const streamPatch =
+      patch.streamText !== undefined
+        ? trimStoredTextForOpsHistory(patch.streamText, OPS_AGENT_FIELD_MAX_CHARS)
+        : undefined;
+
+    const nextRow = {
+      ...cur,
+      ...patch,
+      ...(streamPatch !== undefined ? { streamText: streamPatch } : {}),
+      updatedAtMs: Date.now(),
+      state: "running",
+      finishedAtMs: null,
+    };
+    list[i] = nextRow;
+    await fs.writeFile(HISTORY_FILE, JSON.stringify(list), "utf8");
+  });
+}
+
+/**
+ * @param {string} id
+ * @param {{
+ *   state: "ok" | "error" | "cancelled";
+ *   instruction?: string;
+ *   phaseLine: string;
+ *   cursorLine: string;
+ *   thinkingLine: string;
+ *   toolLine: string;
+ *   streamText: string;
+ *   statusText: string | null;
+ *   resultText: string | null;
+ *   durationMs: number | null;
+ *   runtimeLabel: string | null;
+ *   error: string | null;
+ *   requestIp?: string;
+ * }} fin
+ * @returns {Promise<void>}
+ */
+export function finalizeOpsAgentEntry(id, fin) {
+  return chainWrite(async () => {
+    ensureDirSync();
+    const raw = readRawListSync();
+    const list = raw
+      .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))
+      .filter(Boolean);
+    const i = list.findIndex((e) => e.id === id);
+    const now = Date.now();
+    const streamText = trimStoredTextForOpsHistory(
+      fin.streamText,
+      OPS_AGENT_FIELD_MAX_CHARS,
+    );
+    const resultText =
+      fin.resultText != null
+        ? trimStoredTextForOpsHistory(fin.resultText, OPS_AGENT_FIELD_MAX_CHARS)
+        : null;
+    const instruction =
+      fin.instruction != null
+        ? trimStoredTextForOpsHistory(fin.instruction, OPS_AGENT_INSTRUCTION_STORE_MAX)
+        : undefined;
+
+    const requestIpStored =
+      fin.requestIp != null
+        ? sanitizeRequestIpForStore(fin.requestIp)
+        : sanitizeRequestIpForStore(list[i]?.requestIp ?? "");
+
+    const row = {
+      id,
+      instruction: instruction ?? (list[i]?.instruction ?? ""),
+      state: fin.state,
+      startedAtMs: list[i]?.startedAtMs ?? now,
+      updatedAtMs: now,
+      finishedAtMs: now,
+      error: fin.error,
+      phaseLine: fin.phaseLine,
+      cursorLine: fin.cursorLine,
+      thinkingLine: fin.thinkingLine,
+      toolLine: fin.toolLine,
+      streamText,
+      statusText: fin.statusText,
+      resultText,
+      durationMs: fin.durationMs,
+      runtimeLabel: fin.runtimeLabel,
+      requestIp: requestIpStored,
+    };
+
+    if (i === -1) {
+      const next = [row, ...list].slice(0, OPS_AGENT_HISTORY_MAX);
+      await fs.writeFile(HISTORY_FILE, JSON.stringify(next), "utf8");
+      return;
+    }
+    list[i] = { ...list[i], ...row };
+    await fs.writeFile(HISTORY_FILE, JSON.stringify(list), "utf8");
+  });
+}
 
 /**
  * @param {object} entry
  * @returns {Promise<void>}
  */
 export function appendOpsAgentHistoryEntry(entry) {
-  const run = async () => {
+  return chainWrite(async () => {
     ensureDirSync();
-    let prev = [];
-    try {
-      const raw = await fs.readFile(HISTORY_FILE, "utf8");
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        prev = parsed
-          .filter(isPlainObject)
-          .map((o) =>
-            parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)),
-          )
-          .filter(Boolean);
-      }
-    } catch {
-      /* missing or corrupt */
-    }
+    const prev = readRawListSync()
+      .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))
+      .filter(Boolean)
+      .filter((e) => e.id !== entry.id);
     const next = [entry, ...prev].slice(0, OPS_AGENT_HISTORY_MAX);
     await fs.writeFile(HISTORY_FILE, JSON.stringify(next), "utf8");
-  };
-
-  const p = writeChain.then(run);
-  writeChain = p.catch(() => {});
-  return p;
+  });
 }
 
 /** @returns {Promise<void>} */
 export function clearOpsAgentHistoryAsync() {
-  const run = async () => {
+  return chainWrite(async () => {
     ensureDirSync();
     await fs.writeFile(HISTORY_FILE, JSON.stringify([]), "utf8");
-  };
-  const p = writeChain.then(run);
-  writeChain = p.catch(() => {});
-  return p;
+  });
 }
 
 /**
- * SSE 캡처로부터 저장 레코드 생성 (클라이언트 OpsAgentHistoryEntry 와 동일 스키마)
+ * @param {string} id
+ * @returns {Promise<void>}
+ */
+export function removeOpsAgentHistoryEntryById(id) {
+  return chainWrite(async () => {
+    ensureDirSync();
+    const raw = readRawListSync();
+    const list = raw
+      .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))
+      .filter(Boolean)
+      .filter((e) => e.id !== id);
+    await fs.writeFile(HISTORY_FILE, JSON.stringify(list), "utf8");
+  });
+}
+
+/**
  * @param {{
  *   instruction: string;
  *   phaseLine: string;
@@ -149,7 +375,7 @@ export function clearOpsAgentHistoryAsync() {
  *   durationMs: number | null;
  *   runtimeLabel: string | null;
  *   error: string | null;
- *   clientIp?: string;
+ *   requestIp?: string;
  * }} cap
  */
 export function buildHistoryEntryFromCapture(cap) {
@@ -159,16 +385,14 @@ export function buildHistoryEntryFromCapture(cap) {
   );
   const err =
     cap.error && String(cap.error).trim() ? String(cap.error).trim() : null;
-  const ip =
-    typeof cap.clientIp === "string" && cap.clientIp.trim().length > 0
-      ? cap.clientIp.trim()
-      : "";
-
+  const now = Date.now();
   return {
     id: randomUUID(),
-    finishedAtMs: Date.now(),
     instruction,
-    clientIp: ip,
+    state: err ? "error" : "ok",
+    startedAtMs: now,
+    updatedAtMs: now,
+    finishedAtMs: now,
     error: err,
     phaseLine: cap.phaseLine ?? "",
     cursorLine: cap.cursorLine ?? "",
@@ -182,5 +406,6 @@ export function buildHistoryEntryFromCapture(cap) {
         : null,
     durationMs: cap.durationMs,
     runtimeLabel: cap.runtimeLabel,
+    requestIp: sanitizeRequestIpForStore(cap.requestIp ?? ""),
   };
 }

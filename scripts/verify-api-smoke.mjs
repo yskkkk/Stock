@@ -137,6 +137,21 @@ await expect(
 );
 
 await expect(
+  "ops-cursor-agent-stream-cancel-forbidden",
+  "POST",
+  "/api/ops/cursor-agent-stream/cancel",
+  (r) => r.status === 403 && r.json?.code === "FORBIDDEN",
+  { body: { runId: "00000000-0000-0000-0000-000000000000" } },
+);
+
+await expect(
+  "ops-cursor-agent-history-id-forbidden",
+  "DELETE",
+  "/api/ops/cursor-agent-history/00000000-0000-0000-0000-000000000000",
+  (r) => r.status === 403 && r.json?.code === "FORBIDDEN",
+);
+
+await expect(
   "access-status",
   "GET",
   "/api/access/status",

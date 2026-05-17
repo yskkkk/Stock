@@ -1,4 +1,6 @@
 import "./symbol-dispose-polyfill.js";
+import { randomUUID } from "node:crypto";
+import { finished } from "node:stream/promises";
 import { execFileSync } from "child_process";
 import fs from "fs";
 import path from "path";
@@ -6,14 +8,21 @@ import { fileURLToPath } from "url";
 import { rgPath } from "@vscode/ripgrep";
 import { Agent, Cursor } from "@cursor/sdk";
 import { commitAndPushAfterOpsAgent } from "./ops-agent-git-push.js";
+import { clientIp } from "./access-log.js";
+import { normalizeAccessIp } from "./access-control.js";
 import {
-  appendOpsAgentHistoryEntry,
-  buildHistoryEntryFromCapture,
+  finalizeOpsAgentEntry,
+  patchOpsAgentEntry,
+  prependRunningOpsEntry,
 } from "./ops-agent-history-store.js";
 import {
   clearOpsAgentPending,
   setOpsAgentPending,
 } from "./ops-agent-pending-store.js";
+import {
+  registerOpsStreamUserCancel,
+  unregisterOpsStreamUserCancel,
+} from "./ops-stream-cancel.js";
 
 /** @param {object} obj */
 function applyOpsSsePayloadToCapture(obj, capture) {
@@ -50,6 +59,16 @@ function applyOpsSsePayloadToCapture(obj, capture) {
   } else if (t === "error") {
     capture.error = String(obj.message ?? "");
   }
+  /* meta 등 — 캡처 필드 없음 */
+}
+
+function streamAbortError() {
+  if (typeof DOMException !== "undefined") {
+    return new DOMException("stream aborted", "AbortError");
+  }
+  const e = new Error("stream aborted");
+  e.name = "AbortError";
+  return e;
 }
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -156,35 +175,82 @@ async function resolveModelId(apiKey, envModel) {
  * @param {(obj: unknown) => void} writeSse
  * @param {string} message
  * @param {object} agentOptions Agent.create 인자( local 또는 cloud 등 )
+ * @param {AbortSignal | undefined} signal
  */
-async function runStreamOnce(writeSse, message, agentOptions) {
+async function runStreamOnce(writeSse, message, agentOptions, signal) {
   const agent = await Agent.create(agentOptions);
   try {
+    if (signal?.aborted) {
+      return { status: "cancelled", result: "", durationMs: undefined };
+    }
     const run = await agent.send(message);
     writeSse({ type: "phase", message: "실행 중 — 응답·도구 스트림 수신" });
-    for await (const event of run.stream()) {
-      if (event.type === "assistant") {
-        for (const block of event.message.content) {
-          if (block.type === "text") {
-            writeSse({ type: "delta", text: block.text });
+    const stream = run.stream();
+    const it = stream[Symbol.asyncIterator]();
+    const abortErr = streamAbortError();
+    try {
+      for (;;) {
+        const step =
+          signal != null
+            ? await Promise.race([
+                it.next(),
+                new Promise((_, rej) => {
+                  if (signal.aborted) rej(abortErr);
+                  else
+                    signal.addEventListener("abort", () => rej(abortErr), {
+                      once: true,
+                    });
+                }),
+              ])
+            : await it.next();
+        if (step.done) break;
+        const event = step.value;
+        if (event.type === "assistant") {
+          for (const block of event.message.content) {
+            if (block.type === "text") {
+              writeSse({ type: "delta", text: block.text });
+            }
           }
+        } else if (event.type === "status") {
+          writeSse({
+            type: "cursor_status",
+            status: event.status,
+            detail: event.message ?? "",
+          });
+        } else if (event.type === "thinking" && event.text) {
+          writeSse({ type: "thinking", text: event.text.slice(0, 800) });
+        } else if (event.type === "tool_call") {
+          writeSse({
+            type: "tool",
+            name: event.name,
+            toolStatus: event.status,
+          });
         }
-      } else if (event.type === "status") {
-        writeSse({
-          type: "cursor_status",
-          status: event.status,
-          detail: event.message ?? "",
-        });
-      } else if (event.type === "thinking" && event.text) {
-        writeSse({ type: "thinking", text: event.text.slice(0, 800) });
-      } else if (event.type === "tool_call") {
-        writeSse({
-          type: "tool",
-          name: event.name,
-          toolStatus: event.status,
-        });
       }
+    } catch (e) {
+      const aborted =
+        Boolean(signal?.aborted) ||
+        e === abortErr ||
+        (e &&
+          typeof e === "object" &&
+          "name" in e &&
+          /** @type {{ name?: string }} */ (e).name === "AbortError");
+      if (aborted) {
+        try {
+          await run.cancel();
+        } catch {
+          /* ignore */
+        }
+      }
+      try {
+        if (typeof it.return === "function") await it.return();
+      } catch {
+        /* ignore */
+      }
+      if (!aborted) throw e;
+      return { status: "cancelled", result: "", durationMs: undefined };
     }
+
     return await run.wait();
   } finally {
     if (typeof agent[Symbol.asyncDispose] === "function") {
@@ -193,20 +259,55 @@ async function runStreamOnce(writeSse, message, agentOptions) {
   }
 }
 
+const OPS_AGENT_SSE_HEADERS = {
+  "Content-Type": "text/event-stream; charset=utf-8",
+  "Cache-Control": "no-cache, no-transform",
+  Connection: "keep-alive",
+  "X-Accel-Buffering": "no",
+};
+
 /**
- * SSE로 에이전트 진행·델타·최종 결과 전송 (Express response).
+ * 운영 에이전트 SSE — 큐 대기 중에도 먼저 열 수 있게 idempotent.
+ * @param {import("express").Response} res
+ */
+export function ensureOpsAgentSseHeaders(res) {
+  if (res.headersSent) return;
+  res.writeHead(200, OPS_AGENT_SSE_HEADERS);
+}
+
+/**
+ * @param {import("express").Response} res
+ * @param {object} obj
+ */
+export function writeOpsAgentSseEvent(res, obj) {
+  if (res.writableEnded) return;
+  ensureOpsAgentSseHeaders(res);
+  try {
+    res.write(`data: ${JSON.stringify(obj)}\n\n`);
+    if (typeof res.flush === "function") {
+      res.flush();
+    }
+  } catch {
+    /* 클라이언트 조기 종료 */
+  }
+}
+
+/**
+ * SSE로 에이전트 진행·델타·최종 결과 전송.
+ * @param {import("express").Request} req
  * @param {import("express").Response} res
  * @param {{ instruction: string; context: string }} body
- * @param {{ clientIp?: string } | undefined} meta
  */
-export async function streamOpsCursorAgentSse(res, body, meta) {
+export async function streamOpsCursorAgentSse(req, res, body) {
   const instruction = String(body.instruction ?? "").trim();
   const context = String(body.context ?? "").trim();
-  const clientIp = String(meta?.clientIp ?? "").trim();
+  const requestIp = normalizeAccessIp(clientIp(req));
+  if (requestIp) {
+    setOpsAgentPending(requestIp, instruction, context);
+  }
 
   const capture = {
     instruction,
-    clientIp,
     phaseLine: "",
     cursorLine: "",
     thinkingLine: "",
@@ -219,23 +320,37 @@ export async function streamOpsCursorAgentSse(res, body, meta) {
     error: null,
   };
 
-  if (clientIp) {
-    setOpsAgentPending(clientIp, instruction, context);
-  }
+  let runId = /** @type {string | null} */ (null);
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let patchTimer = null;
+
+  const userCancelAc = new AbortController();
+
+  const flushPatchSoon = () => {
+    if (!runId) return;
+    if (patchTimer) clearTimeout(patchTimer);
+    patchTimer = setTimeout(() => {
+      patchTimer = null;
+      void patchOpsAgentEntry(runId, {
+        phaseLine: capture.phaseLine,
+        cursorLine: capture.cursorLine,
+        thinkingLine: capture.thinkingLine,
+        toolLine: capture.toolLine,
+        streamText: capture.streamText,
+        statusText: capture.statusText,
+        resultText: capture.resultText,
+        durationMs: capture.durationMs,
+        runtimeLabel: capture.runtimeLabel,
+        error: capture.error,
+      });
+    }, 450);
+  };
 
   const writeSse = (obj) => {
     applyOpsSsePayloadToCapture(obj, capture);
-    if (!res.writableEnded) {
-      res.write(`data: ${JSON.stringify(obj)}\n\n`);
-    }
+    flushPatchSoon();
+    writeOpsAgentSseEvent(res, obj);
   };
-
-  res.writeHead(200, {
-    "Content-Type": "text/event-stream; charset=utf-8",
-    "Cache-Control": "no-cache, no-transform",
-    Connection: "keep-alive",
-    "X-Accel-Buffering": "no",
-  });
 
   const sendError = (message) => {
     try {
@@ -252,6 +367,18 @@ export async function streamOpsCursorAgentSse(res, body, meta) {
         "CURSOR_API_KEY가 설정되어 있지 않습니다. .env에 키를 넣고 서버를 다시 시작하세요.",
       );
       return;
+    }
+
+    writeSse({ type: "phase", message: "에이전트 실행 준비 중…" });
+
+    const id = randomUUID();
+    try {
+      await prependRunningOpsEntry(id, instruction, requestIp);
+      runId = id;
+      registerOpsStreamUserCancel(id, userCancelAc);
+      writeSse({ type: "meta", requestId: id });
+    } catch {
+      /* 디스크 오류 등 — 스트림은 계속 */
     }
 
     ensureCursorRipgrepPath();
@@ -271,12 +398,17 @@ export async function streamOpsCursorAgentSse(res, body, meta) {
     let result = await runStreamOnce(writeSse, message, {
       ...base,
       local: { cwd: OPS_AGENT_REPO_ROOT },
-    });
+    }, userCancelAc.signal);
     let runtime = "local";
+
+    if (result.status === "cancelled") {
+      sendError("사용자가 요청을 중단했습니다.");
+      return;
+    }
 
     if (result.status !== "finished") {
       const cloudRepo = githubRepoForCloud();
-      if (cloudRepo) {
+      if (cloudRepo && !userCancelAc.signal.aborted) {
         writeSse({
           type: "phase",
           message: "로컬이 정상 종료되지 않아 GitHub 클라우드로 재시도합니다…",
@@ -285,9 +417,14 @@ export async function streamOpsCursorAgentSse(res, body, meta) {
         result = await runStreamOnce(writeSse, cloudMessage, {
           ...base,
           cloud: { repos: [cloudRepo] },
-        });
+        }, userCancelAc.signal);
         runtime = "cloud";
       }
+    }
+
+    if (result.status === "cancelled") {
+      sendError("사용자가 요청을 중단했습니다.");
+      return;
     }
 
     if (result.status !== "finished") {
@@ -330,24 +467,62 @@ export async function streamOpsCursorAgentSse(res, body, meta) {
   } catch (err) {
     sendError(err instanceof Error ? err.message : String(err));
   } finally {
-    if (clientIp) {
-      clearOpsAgentPending(clientIp);
+    if (requestIp) {
+      clearOpsAgentPending(requestIp);
     }
+
+    if (patchTimer) {
+      clearTimeout(patchTimer);
+      patchTimer = null;
+    }
+
+    if (runId) {
+      try {
+        let state = /** @type {"ok" | "error" | "cancelled"} */ ("ok");
+        if (userCancelAc.signal.aborted) {
+          state = "cancelled";
+        } else if (capture.error) {
+          state = "error";
+        }
+        const errorStored =
+          state === "cancelled"
+            ? "사용자가 요청을 중단했습니다."
+            : state === "error"
+              ? (capture.error ?? "알 수 없는 오류")
+              : null;
+        await finalizeOpsAgentEntry(runId, {
+          state,
+          instruction: capture.instruction,
+          requestIp,
+          phaseLine: capture.phaseLine,
+          cursorLine: capture.cursorLine,
+          thinkingLine: capture.thinkingLine,
+          toolLine: capture.toolLine,
+          streamText: capture.streamText,
+          statusText: capture.statusText,
+          resultText: capture.resultText,
+          durationMs: capture.durationMs,
+          runtimeLabel: capture.runtimeLabel,
+          error: errorStored,
+        });
+      } catch {
+        /* disk full 등 */
+      }
+      unregisterOpsStreamUserCancel(runId);
+    }
+
     try {
-      const cap = capture;
-      const save =
-        cap.error != null ||
-        cap.resultText != null ||
-        cap.streamText.trim().length > 0 ||
-        cap.phaseLine.trim().length > 0 ||
-        cap.cursorLine.trim().length > 0;
-      if (instruction && save) {
-        await appendOpsAgentHistoryEntry(buildHistoryEntryFromCapture(cap));
+      if (!res.writableEnded) {
+        res.end();
       }
     } catch {
-      /* disk full 등 — 클라이언트 스트림은 이미 전송됨 */
+      /* ignore */
     }
-    res.end();
+    try {
+      await finished(res, { readable: false });
+    } catch {
+      /* 클라이언트 조기 종료 */
+    }
   }
 }
 

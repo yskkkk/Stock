@@ -138,6 +138,21 @@ function isPathPublic(pathname, method) {
   return false;
 }
 
+/** 빌드된 SPA 셸·청크 — IP 미허용이어도 로드 허용(데이터는 /api에서 계속 게이트) */
+function isBundledFrontendGet(pathname, method) {
+  const m = String(method || "GET").toUpperCase();
+  if (m !== "GET" && m !== "HEAD") return false;
+  if (pathname.startsWith("/assets/")) return true;
+  if (
+    pathname === "/" ||
+    pathname === "/index.html" ||
+    pathname === "/access-gate.html"
+  ) {
+    return true;
+  }
+  return false;
+}
+
 function isAdminPath(pathname) {
   return pathname.startsWith("/api/access/admin");
 }
@@ -175,6 +190,7 @@ export function accessIpGateMiddleware(req, res, next) {
   const method = req.method || "GET";
   if (isAdminPath(pathname)) return next();
   if (isPathPublic(pathname, method)) return next();
+  if (isBundledFrontendGet(pathname, method)) return next();
   const ip = clientIp(req);
   if (isClientIpOnAllowlist(ip)) return next();
   res.status(403).json({

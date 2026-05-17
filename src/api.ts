@@ -132,6 +132,7 @@ export interface OpsCursorAgentResponse {
 }
 
 export type OpsAgentSseEvent =
+  | { type: "meta"; requestId: string }
   | { type: "phase"; message: string }
   | { type: "delta"; text: string }
   | { type: "cursor_status"; status: string; detail: string }
@@ -149,9 +150,14 @@ export type OpsAgentSseEvent =
 
 export type OpsAgentHistoryEntry = {
   id: string;
-  finishedAtMs: number;
+  state?: "running" | "ok" | "error" | "cancelled";
+  startedAtMs?: number;
+  updatedAtMs?: number;
+  /** 완료 후에만 설정 (진행 중이면 null) */
+  finishedAtMs: number | null;
   instruction: string;
-  clientIp?: string;
+  /** HTTP 요청 클라이언트 IP (프록시 시 X-Forwarded-For 첫 값 등) */
+  requestIp?: string;
   error: string | null;
   phaseLine: string;
   cursorLine: string;
@@ -167,22 +173,6 @@ export type OpsAgentHistoryEntry = {
 export type OpsAgentHistoryResponse = {
   entries: OpsAgentHistoryEntry[];
 };
-
-export type OpsAgentPendingResponse = {
-  instruction: string;
-  context: string;
-  startedAtMs: number | null;
-};
-
-/** 관리자 전용 — 해당 IP에서 진행 중인 에이전트 요청(SSE) 본문 */
-export function fetchOpsCursorAgentPending() {
-  const t = getStoredAccessAdminToken();
-  const headers: Record<string, string> = {};
-  if (t) headers.Authorization = `Bearer ${t}`;
-  return fetchJson<OpsAgentPendingResponse>("/api/ops/cursor-agent-pending", {
-    headers: Object.keys(headers).length ? headers : undefined,
-  });
-}
 
 /** 관리자 전용 — 서버에 저장된 에이전트 실행 이력 */
 export function fetchOpsAgentHistory() {
@@ -205,6 +195,34 @@ export function deleteOpsAgentHistory() {
   });
 }
 
+/** 관리자 전용 — 완료·오류·중단된 실행 이력 한 건 삭제 */
+export function deleteOpsAgentHistoryEntry(id: string) {
+  const t = getStoredAccessAdminToken();
+  const headers: Record<string, string> = {};
+  if (t) headers.Authorization = `Bearer ${t}`;
+  return fetchJson<{ ok: boolean }>(
+    `/api/ops/cursor-agent-history/${encodeURIComponent(id)}`,
+    {
+      method: "DELETE",
+      headers: Object.keys(headers).length ? headers : undefined,
+    },
+  );
+}
+
+/** 관리자 전용 — 서버에서 해당 SSE 실행만 사용자 취소(abort) */
+export function postOpsCursorAgentStreamCancel(runId: string) {
+  const t = getStoredAccessAdminToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json; charset=utf-8",
+  };
+  if (t) headers.Authorization = `Bearer ${t}`;
+  return fetchJson<{ ok: boolean }>("/api/ops/cursor-agent-stream/cancel", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ runId }),
+  });
+}
+
 /** 관리자 전용 — SSE로 에이전트 진행·델타·결과 수신 */
 export async function fetchOpsCursorAgentStream(
   instruction: string,
@@ -223,6 +241,7 @@ export async function fetchOpsCursorAgentStream(
     headers,
     body: JSON.stringify({ instruction, context }),
     signal,
+    cache: "no-store",
   });
   if (!res.ok) {
     const text = await res.text();
@@ -232,6 +251,7 @@ export async function fetchOpsCursorAgentStream(
       const j = text ? JSON.parse(text) : {};
       if (typeof j.error === "string") msg = j.error;
       if (j.code === "ACCESS_DENIED") accessDenied = true;
+      if (j.code === "OPS_QUEUE_FULL") msg = typeof j.error === "string" ? j.error : msg;
     } catch {
       if (text) msg = text.slice(0, 500);
     }
@@ -258,6 +278,17 @@ export async function fetchOpsCursorAgentStream(
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  const dispatchSseChunk = (chunk: string) => {
+    const lines = chunk.split(/\r?\n/).filter((l) => l.startsWith("data: "));
+    for (const line of lines) {
+      try {
+        const ev = JSON.parse(line.slice(6)) as OpsAgentSseEvent;
+        onEvent(ev);
+      } catch {
+        /* ignore malformed frame */
+      }
+    }
+  };
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -267,15 +298,11 @@ export async function fetchOpsCursorAgentStream(
       if (!m || m.index === undefined) break;
       const chunk = buffer.slice(0, m.index);
       buffer = buffer.slice(m.index + m[0].length);
-      const line = chunk.split(/\r?\n/).find((l) => l.startsWith("data: "));
-      if (!line) continue;
-      try {
-        const ev = JSON.parse(line.slice(6)) as OpsAgentSseEvent;
-        onEvent(ev);
-      } catch {
-        /* ignore malformed frame */
-      }
+      dispatchSseChunk(chunk);
     }
+  }
+  if (buffer.trim()) {
+    dispatchSseChunk(buffer);
   }
 }
 
