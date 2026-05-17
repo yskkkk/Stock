@@ -3510,3 +3510,162 @@ html[data-theme="light"] .ops-management__history-details {
   max-height: min(55vh, 420px);
   overflow: auto;
 }
+
+/* -------------------------------------------------------------------------- */
+/* 모바일 전역 레이아웃 보강 (고정 코너 FAB, 가로 넘침, 차트 툴바·운영 탭 등)              */
+/* -------------------------------------------------------------------------- */
+
+html {
+  overflow-x: clip;
+}
+
+body {
+  overflow-x: clip;
+}
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+@media (max-width: 900px) {
+  /* 우측(불편·운영) / 라이트 모드 좌측(팔레트) FAB과 스티키 헤더가 겹치지 않게 */
+  .top-bar.card {
+    padding-inline-end: max(calc(0.7rem + 5rem), env(safe-area-inset-right, 0px));
+  }
+
+  html[data-theme="light"] .top-bar.card {
+    padding-inline-start: max(calc(0.7rem + 5.75rem), env(safe-area-inset-left, 0px));
+  }
+
+  .filter-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.45rem;
+  }
+
+  .filter-header .filter-clear {
+    margin-left: 0;
+    align-self: flex-start;
+  }
+
+  .filter-mode-seg {
+    justify-content: flex-start;
+    width: fit-content;
+    max-width: 100%;
+  }
+
+  .chart-panel.crypto-chart-panel > .chart-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+    row-gap: 0.35rem;
+  }
+
+  .chart-toolbar__toggles {
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+
+  .chart-toolbar__toggles .chart-draw-toolbar--inline {
+    flex-basis: 100%;
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0;
+    padding-left: 0;
+    border-left: none;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .ops-management-main {
+    min-height: min(58dvh, 760px);
+  }
+
+  .ops-management__textarea--request {
+    min-height: min(30dvh, 360px);
+  }
+
+  .panel-head.ops-management__head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ops-management__head .market-tabs.ops-management__subtabs {
+    max-width: none;
+    width: 100%;
+  }
+
+  .feedback-modal-backdrop {
+    align-items: flex-end;
+    justify-content: center;
+    padding: max(0.35rem, env(safe-area-inset-top, 0px))
+      max(0.35rem, env(safe-area-inset-right, 0px))
+      max(0.35rem, env(safe-area-inset-bottom, 0px))
+      max(0.35rem, env(safe-area-inset-left, 0px));
+  }
+
+  .feedback-modal,
+  .feedback-modal.feedback-modal--wide {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 22px 22px 0 0;
+    max-height: min(92dvh, 760px);
+    padding-bottom: max(1.1rem, env(safe-area-inset-bottom, 0px));
+    box-sizing: border-box;
+  }
+
+  html[data-theme="light"] .feedback-modal,
+  html[data-theme="light"] .feedback-modal.feedback-modal--wide {
+    box-shadow: 0 -12px 40px rgba(15, 23, 42, 0.12);
+  }
+
+  html:not([data-theme="light"]) .feedback-modal,
+  html:not([data-theme="light"]) .feedback-modal.feedback-modal--wide {
+    box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.35);
+  }
+
+  /* 텔레그램 전송 목록만 하단 정렬 시트처럼 높이·노치 보정 */
+  .news-modal-backdrop:has(.telegram-sent-modal) {
+    align-items: flex-end;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+  }
+
+  .news-modal.telegram-sent-modal {
+    border-radius: 22px 22px 0 0;
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 0.85rem);
+  }
+}
+
+@media (max-width: 640px) {
+  .stock-search-tab__row-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .stock-search-tab__row-right {
+    max-width: 100%;
+    align-items: flex-start;
+    align-self: stretch;
+  }
+
+  .stock-search-tab__strip.pick-quote {
+    justify-content: flex-start;
+  }
+
+  .alert.alert--error {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.6rem;
+  }
+
+  .alert.alert--error .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  body {
+    overscroll-behavior-y: contain;
+  }
+}

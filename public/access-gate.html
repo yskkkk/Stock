@@ -221,6 +221,51 @@
       #loading.show {
         display: block;
       }
+
+      @media (max-width: 520px) {
+        body {
+          align-items: flex-start;
+          padding-top: max(0.85rem, env(safe-area-inset-top, 0px))
+            max(0.85rem, env(safe-area-inset-right, 0px))
+            max(1rem, env(safe-area-inset-bottom, 0px))
+            max(0.85rem, env(safe-area-inset-left, 0px));
+          overflow-x: clip;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        #main.card {
+          max-width: none;
+          width: min(440px, 100%);
+          margin-inline: auto;
+        }
+
+        .card {
+          padding: 1.05rem 1rem;
+        }
+
+        h1 {
+          font-size: 1.08rem;
+        }
+
+        .row button {
+          flex: 1 1 auto;
+          min-height: 44px;
+          min-width: min(140px, 100%);
+          justify-content: center;
+          display: inline-flex;
+          align-items: center;
+        }
+
+        .admin .item {
+          word-break: break-word;
+        }
+      }
+
+      @media (max-height: 520px) and (max-width: 900px) {
+        body {
+          align-items: flex-start;
+        }
+      }
     </style>
   </head>
   <body>
