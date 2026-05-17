@@ -999,6 +999,11 @@ html[data-theme="light"] .top-bar__scan {
   gap: 0.3rem 0.4rem;
   flex: 0 1 auto;
   min-width: 0;
+  /*
+   * 우측 상단 고정 피드백 FAB(z-index 높음)과 겹칠 때 테마·재스캔 버튼이 먹통이 되지 않게
+   * 뷰포트 쪽 여백을 확보합니다.
+   */
+  padding-inline-end: max(0px, calc(env(safe-area-inset-right, 0px) + 3.35rem));
 }
 
 .top-bar__rescan {
@@ -2918,6 +2923,8 @@ html[data-theme="light"] .access-admin-tab--active {
   flex-direction: column;
   align-items: flex-end;
   gap: 0.35rem;
+  /* 컨테이너는 클릭 통과 → 상단 우측의 다른 버튼(테마 등)과 겹치지 않도록 */
+  pointer-events: none;
 }
 
 .feedback-corner__fab {
@@ -2926,6 +2933,7 @@ html[data-theme="light"] .access-admin-tab--active {
   padding: 0.35rem 0.55rem;
   border-radius: 999px;
   box-shadow: var(--shadow);
+  pointer-events: auto;
 }
 
 .feedback-corner__menu {
@@ -2935,6 +2943,7 @@ html[data-theme="light"] .access-admin-tab--active {
   flex-direction: column;
   gap: 0.2rem;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+  pointer-events: auto;
 }
 
 html[data-theme="light"] .feedback-corner__menu {
