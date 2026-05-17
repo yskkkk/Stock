@@ -3332,52 +3332,95 @@ html[data-theme="light"] .feedback-inbox-item {
 .ops-management__my-ip-jobs--bubble {
   position: fixed;
   left: max(0.55rem, env(safe-area-inset-left, 0px));
-  bottom: max(0.65rem, env(safe-area-inset-bottom, 0px));
+  bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
   z-index: 9985;
-  width: min(300px, calc(100vw - max(1.1rem, env(safe-area-inset-left, 0px) + env(safe-area-inset-right, 0px))));
+  width: min(312px, calc(100vw - max(1.1rem, env(safe-area-inset-left, 0px) + env(safe-area-inset-right, 0px))));
   margin: 0;
-  padding: 0.65rem 0.72rem 0.72rem;
+  padding: 0.72rem 0.78rem 0.82rem;
   overflow: visible;
-  border-radius: 18px;
-  border: 1px solid var(--card-border);
-  background: var(--card);
+  /* 카드형 알림이 아니라 말풍선 형태: 부드러운 타원 + 한쪽이 살짝 뾰족한 코믹 스타일 */
+  border-radius: 26px 26px 26px 14px;
+  border: 2px solid color-mix(in srgb, var(--accent) 28%, var(--card-border));
+  background: color-mix(in srgb, var(--card) 94%, var(--accent-dim));
   box-shadow:
-    0 14px 44px rgba(0, 0, 0, 0.42),
-    0 0 0 1px rgba(148, 163, 184, 0.06);
+    0 3px 0 color-mix(in srgb, var(--card-border) 55%, transparent),
+    0 10px 32px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .ops-management__my-ip-bubble-body {
-  max-height: min(34vh, 300px);
+  max-height: min(38vh, 340px);
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 
+/* 아래쪽 삼각 꼬리 (테두리 + 채움) */
 .ops-management__my-ip-jobs--bubble::before {
   content: "";
   position: absolute;
-  left: 1.35rem;
-  bottom: -6px;
-  width: 12px;
-  height: 12px;
-  background: var(--card);
-  border-right: 1px solid var(--card-border);
-  border-bottom: 1px solid var(--card-border);
-  transform: rotate(45deg);
-  border-radius: 0 0 2px 0;
+  left: 1.15rem;
+  bottom: -13px;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 13px 11px 0 11px;
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--card-border)) transparent transparent transparent;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 0 color-mix(in srgb, var(--card-border) 40%, transparent));
+}
+
+.ops-management__my-ip-jobs--bubble::after {
+  content: "";
+  position: absolute;
+  left: calc(1.15rem + 2px);
+  bottom: -10px;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 11px 9px 0 9px;
+  border-color: color-mix(in srgb, var(--card) 94%, var(--accent-dim)) transparent transparent transparent;
   pointer-events: none;
 }
 
 html[data-theme="light"] .ops-management__my-ip-jobs--bubble {
+  border-color: color-mix(in srgb, var(--accent) 22%, rgba(148, 163, 184, 0.35));
+  background: color-mix(in srgb, var(--card) 96%, var(--accent-dim));
   box-shadow:
-    0 12px 36px rgba(15, 23, 42, 0.14),
-    0 0 0 1px rgba(148, 163, 184, 0.12);
+    0 3px 0 rgba(148, 163, 184, 0.22),
+    0 12px 36px rgba(15, 23, 42, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
 html[data-theme="light"] .ops-management__my-ip-jobs--bubble::before {
-  background: var(--card);
-  border-right-color: rgba(148, 163, 184, 0.18);
-  border-bottom-color: rgba(148, 163, 184, 0.18);
+  border-top-color: color-mix(in srgb, var(--accent) 22%, rgba(148, 163, 184, 0.35));
+  filter: drop-shadow(0 2px 0 rgba(148, 163, 184, 0.18));
+}
+
+html[data-theme="light"] .ops-management__my-ip-jobs--bubble::after {
+  border-top-color: color-mix(in srgb, var(--card) 96%, var(--accent-dim));
+}
+
+/* 말풍선 안의 에이전트 스트림: 본문 카드와 동일 내용, 더 조밀하게 */
+.ops-management__my-ip-jobs--bubble .ops-management__stream--bubble-duplicate {
+  margin-top: 0.45rem;
+  margin-bottom: 0.4rem;
+  padding: 0.48rem 0.52rem;
+}
+
+.ops-management__my-ip-jobs--bubble .ops-management__stream--bubble-duplicate .ops-management__stream-title {
+  font-size: 0.72rem;
+}
+
+.ops-management__my-ip-jobs--bubble .ops-management__stream--bubble-duplicate .ops-management__stream-row {
+  font-size: 0.71rem;
+}
+
+.ops-management__my-ip-jobs--bubble .ops-management__stream--bubble-duplicate .ops-management__stream-pre {
+  max-height: min(22vh, 140px);
+  margin-top: 0.4rem;
+  padding: 0.45rem 0.5rem;
+  font-size: 0.74rem;
 }
 
 .ops-management__my-ip-title {
