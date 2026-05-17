@@ -30,7 +30,7 @@ import { searchStocks } from "./stock-search.js";
 import { getMacroEventsCached } from "./macro-events.js";
 import { postFeedback, getFeedbackInbox, postFeedbackAdminReply, deleteFeedbackAdmin } from "./feedback-inbox.js";
 import { runOpsCursorAgent, streamOpsCursorAgentSse, writeOpsAgentSseEvent } from "./cursor-ops-agent.js";
-import { enqueueOpsAgentJob } from "./ops-agent-job-queue.js";
+import { enqueueOpsAgentJob, getOpsAgentQueueSnapshot } from "./ops-agent-job-queue.js";
 import {
   clearOpsAgentHistoryAsync,
   readOpsAgentHistorySync,
@@ -129,12 +129,16 @@ export function createApp() {
       }
       const context = String(req.body?.context ?? "").trim();
       try {
-        const out = await enqueueOpsAgentJob(() =>
-          runOpsCursorAgent({
-            instruction,
-            context,
-            requestIp: normalizeAccessIp(expressClientIp(req)),
-          }),
+        const rip = normalizeAccessIp(expressClientIp(req));
+        const out = await enqueueOpsAgentJob(
+          () =>
+            runOpsCursorAgent({
+              instruction,
+              context,
+              requestIp: rip,
+            }),
+          undefined,
+          { requestIp: rip, instruction },
         );
         res.json({ ok: true, ...out });
       } catch (err) {
@@ -199,6 +203,7 @@ export function createApp() {
       }
       const context = String(req.body?.context ?? "").trim();
       try {
+        const rip = normalizeAccessIp(expressClientIp(req));
         await enqueueOpsAgentJob(
           () => streamOpsCursorAgentSse(req, res, { instruction, context }),
           () => {
@@ -208,6 +213,7 @@ export function createApp() {
                 "앞선 에이전트 요청이 끝날 때까지 대기 중입니다. 곧 진행 상황이 표시됩니다.",
             });
           },
+          { requestIp: rip, instruction },
         );
       } catch (e) {
         const code =
@@ -244,6 +250,20 @@ export function createApp() {
         context: p?.context ?? "",
         startedAtMs: p?.startedAtMs ?? null,
       });
+    }),
+  );
+
+  app.get(
+    "/api/ops/cursor-agent-queue",
+    asyncRoute(async (req, res) => {
+      if (!isAccessAdminRequest(req)) {
+        res.status(403).json({
+          error: "관리자만 Cursor 에이전트 연동을 사용할 수 있습니다.",
+          code: "FORBIDDEN",
+        });
+        return;
+      }
+      res.json(getOpsAgentQueueSnapshot());
     }),
   );
 

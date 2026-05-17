@@ -137,6 +137,13 @@ await expect(
 );
 
 await expect(
+  "ops-cursor-agent-queue-forbidden",
+  "GET",
+  "/api/ops/cursor-agent-queue",
+  (r) => r.status === 403 && r.json?.code === "FORBIDDEN",
+);
+
+await expect(
   "ops-cursor-agent-stream-cancel-forbidden",
   "POST",
   "/api/ops/cursor-agent-stream/cancel",

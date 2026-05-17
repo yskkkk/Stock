@@ -180,12 +180,34 @@ export type OpsCursorAgentPendingResponse = {
   startedAtMs: number | null;
 };
 
+export type OpsAgentQueueEntry = {
+  id: string;
+  requestIp: string;
+  instructionPreview: string;
+  enqueuedAtMs: number;
+  status: "running" | "waiting";
+};
+
+export type OpsAgentQueueResponse = {
+  entries: OpsAgentQueueEntry[];
+};
+
 /** 관리자 전용 — 동일 IP에서 진행 중인 SSE 요청(리다이렉트·새 탭 후 복원용) */
 export function fetchOpsCursorAgentPending() {
   const t = getStoredAccessAdminToken();
   const headers: Record<string, string> = {};
   if (t) headers.Authorization = `Bearer ${t}`;
   return fetchJson<OpsCursorAgentPendingResponse>("/api/ops/cursor-agent-pending", {
+    headers: Object.keys(headers).length ? headers : undefined,
+  });
+}
+
+/** 관리자 전용 — 서버 에이전트 FIFO 큐 (실행 중·대기만, 완료 시 제거) */
+export function fetchOpsCursorAgentQueue() {
+  const t = getStoredAccessAdminToken();
+  const headers: Record<string, string> = {};
+  if (t) headers.Authorization = `Bearer ${t}`;
+  return fetchJson<OpsAgentQueueResponse>("/api/ops/cursor-agent-queue", {
     headers: Object.keys(headers).length ? headers : undefined,
   });
 }
