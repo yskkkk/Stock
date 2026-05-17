@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  STOCK_OPS_INSTRUCTION_DRAFT_KEY,
   deleteOpsAgentHistory,
   deleteOpsAgentHistoryEntry,
   fetchOpsAgentHistory,
@@ -15,14 +16,12 @@ import { ko } from "../i18n/ko";
 
 const HISTORY_POLL_MS = 2000;
 const AGENT_QUEUE_POLL_MS = 5000;
-const OPS_INSTRUCTION_DRAFT_KEY = "stock-app-ops-instruction-draft-v1";
-
 function readOpsInstructionDraft(): { instruction: string; nextInstruction: string } {
   if (typeof window === "undefined") {
     return { instruction: "", nextInstruction: "" };
   }
   try {
-    const raw = sessionStorage.getItem(OPS_INSTRUCTION_DRAFT_KEY);
+    const raw = sessionStorage.getItem(STOCK_OPS_INSTRUCTION_DRAFT_KEY);
     if (!raw) return { instruction: "", nextInstruction: "" };
     const parsed = JSON.parse(raw) as unknown;
     if (!parsed || typeof parsed !== "object") return { instruction: "", nextInstruction: "" };
@@ -40,7 +39,7 @@ function writeOpsInstructionDraft(instruction: string, nextInstruction: string):
   if (typeof window === "undefined") return;
   try {
     sessionStorage.setItem(
-      OPS_INSTRUCTION_DRAFT_KEY,
+      STOCK_OPS_INSTRUCTION_DRAFT_KEY,
       JSON.stringify({ instruction, nextInstruction }),
     );
   } catch {
