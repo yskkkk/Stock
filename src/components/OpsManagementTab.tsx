@@ -34,6 +34,19 @@ function historyStateLabel(s: OpsAgentHistoryEntry["state"]): string {
   return ko.app.opsHistoryStatusOk;
 }
 
+function opsQueueEntryTitle(q: OpsAgentQueueEntry): string {
+  const tip = String(q.instructionTooltip ?? "").trim();
+  if (tip) return tip;
+  return String(q.instructionPreview ?? "").trim();
+}
+
+function streamHeadlineFromInstruction(text: string, maxChars: number): string {
+  const line = text.split(/\r?\n/).find((l) => l.trim().length > 0) ?? "";
+  const t = line.trim();
+  if (!t) return "";
+  return t.length > maxChars ? `${t.slice(0, maxChars - 1)}…` : t;
+}
+
 export default function OpsManagementTab({
   available,
 }: {
@@ -374,15 +387,18 @@ export default function OpsManagementTab({
                         key={q.id}
                         className={`ops-management__queue-chip ops-management__queue-chip--${q.status}`}
                         role="listitem"
+                        title={opsQueueEntryTitle(q)}
                       >
-                        <span className="ops-management__queue-chip-status">
-                          {q.status === "running"
-                            ? ko.app.opsHistoryStatusRunning
-                            : ko.app.opsAgentQueueWaiting}
-                        </span>
-                        <span className="ops-management__queue-chip-preview" title={q.instructionPreview}>
+                        <div className="ops-management__queue-chip-top">
+                          <span className="ops-management__queue-chip-status">
+                            {q.status === "running"
+                              ? ko.app.opsHistoryStatusRunning
+                              : ko.app.opsAgentQueueWaiting}
+                          </span>
+                        </div>
+                        <p className="ops-management__queue-chip-preview">
                           {q.instructionPreview.trim() ? q.instructionPreview : "—"}
-                        </span>
+                        </p>
                       </div>
                     ))}
                   </div>
@@ -409,21 +425,24 @@ export default function OpsManagementTab({
                     key={q.id}
                     className={`ops-management__queue-chip ops-management__queue-chip--${q.status}`}
                     role="listitem"
+                    title={opsQueueEntryTitle(q)}
                   >
-                    <span className="ops-management__queue-chip-status">
-                      {q.status === "running"
-                        ? ko.app.opsHistoryStatusRunning
-                        : ko.app.opsAgentQueueWaiting}
-                    </span>
-                    <span
-                      className="ops-management__queue-chip-ip ops-management__stream-v--mono"
-                      title={ko.app.opsHistoryRequestIp}
-                    >
-                      {q.requestIp.trim() ? q.requestIp : "—"}
-                    </span>
-                    <span className="ops-management__queue-chip-preview" title={q.instructionPreview}>
+                    <div className="ops-management__queue-chip-top">
+                      <span className="ops-management__queue-chip-status">
+                        {q.status === "running"
+                          ? ko.app.opsHistoryStatusRunning
+                          : ko.app.opsAgentQueueWaiting}
+                      </span>
+                      <span
+                        className="ops-management__queue-chip-ip ops-management__stream-v--mono"
+                        title={ko.app.opsHistoryRequestIp}
+                      >
+                        {q.requestIp.trim() ? q.requestIp : "—"}
+                      </span>
+                    </div>
+                    <p className="ops-management__queue-chip-preview">
                       {q.instructionPreview.trim() ? q.instructionPreview : "—"}
-                    </span>
+                    </p>
                   </div>
                 ))
               )}
@@ -479,7 +498,12 @@ export default function OpsManagementTab({
 
         {showStream ? (
           <div className="ops-management__stream card" aria-live="polite">
-            <p className="ops-management__stream-title">{ko.app.opsStreamTitle}</p>
+            <p className="ops-management__stream-title">
+              {(() => {
+                const head = streamHeadlineFromInstruction(instruction, 72);
+                return head ? `${head} · ${ko.app.opsStreamTitle}` : ko.app.opsStreamTitle;
+              })()}
+            </p>
             {phaseLine ? (
               <p className="ops-management__stream-row">
                 <span className="ops-management__stream-k">{ko.app.opsStreamPhase}</span>
