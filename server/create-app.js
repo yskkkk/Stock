@@ -1,4 +1,5 @@
 import express from "express";
+import { randomUUID } from "node:crypto";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -33,6 +34,7 @@ import { runOpsCursorAgent, streamOpsCursorAgentSse, writeOpsAgentSseEvent } fro
 import { enqueueOpsAgentJob, getOpsAgentQueueSnapshot } from "./ops-agent-job-queue.js";
 import {
   clearOpsAgentHistoryAsync,
+  prependQueuedOpsEntrySync,
   readOpsAgentHistorySync,
   removeOpsAgentHistoryEntryById,
 } from "./ops-agent-history-store.js";
@@ -204,8 +206,14 @@ export function createApp() {
       const context = String(req.body?.context ?? "").trim();
       try {
         const rip = normalizeAccessIp(expressClientIp(req));
+        const historyRunId = randomUUID();
         await enqueueOpsAgentJob(
-          () => streamOpsCursorAgentSse(req, res, { instruction, context }),
+          () =>
+            streamOpsCursorAgentSse(req, res, {
+              instruction,
+              context,
+              historyRunId,
+            }),
           () => {
             writeOpsAgentSseEvent(res, {
               type: "phase",
@@ -214,6 +222,13 @@ export function createApp() {
             });
           },
           { requestIp: rip, instruction },
+          () => {
+            try {
+              prependQueuedOpsEntrySync(historyRunId, instruction, rip);
+            } catch {
+              /* 디스크 오류 — 실행 시작 시 running 레코드로 보완 */
+            }
+          },
         );
       } catch (e) {
         const code =

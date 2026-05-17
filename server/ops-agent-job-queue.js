@@ -91,9 +91,10 @@ export function getOpsAgentQueueSnapshot() {
  * @param {() => Promise<T>} fn
  * @param {() => void} [onQueued] busy일 때 이번 요청이 대기열에만 들어간 직후(헤더·SSE를 먼저 열 때)
  * @param {{ requestIp?: string | null; instruction?: string }} [meta]
+ * @param {() => void} [onCommittedToQueue] 큐에 push된 직후(`drainQueue`보다 먼저) — FIFO 대기 이력 등
  * @returns {Promise<T>}
  */
-export function enqueueOpsAgentJob(fn, onQueued, meta) {
+export function enqueueOpsAgentJob(fn, onQueued, meta, onCommittedToQueue) {
   if (queue.length >= MAX_WAITING) {
     const err = new Error(
       "운영 에이전트 대기열이 가득 찼습니다. 잠시 후 다시 시도하세요.",
@@ -116,6 +117,11 @@ export function enqueueOpsAgentJob(fn, onQueued, meta) {
   return new Promise((resolve, reject) => {
     const willWaitBehindRunningJob = busy;
     queue.push({ fn, resolve, reject, meta: queueMeta });
+    try {
+      onCommittedToQueue?.();
+    } catch {
+      /* ignore */
+    }
     if (willWaitBehindRunningJob) {
       try {
         onQueued?.();

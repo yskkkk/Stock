@@ -150,7 +150,7 @@ export type OpsAgentSseEvent =
 
 export type OpsAgentHistoryEntry = {
   id: string;
-  state?: "running" | "ok" | "error" | "cancelled";
+  state?: "waiting" | "running" | "ok" | "error" | "cancelled";
   startedAtMs?: number;
   updatedAtMs?: number;
   /** 완료 후에만 설정 (진행 중이면 null) */

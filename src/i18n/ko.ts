@@ -39,6 +39,7 @@ export const ko = {
     opsHistoryRequestIp: "요청 IP",
     opsHistoryStreamArchived: "진행 로그 (저장본)",
     opsHistoryStatusRunning: "실행 중",
+    opsHistoryStatusWaiting: "큐 대기",
     opsHistoryStatusOk: "완료",
     opsHistoryStatusError: "오류",
     opsHistoryStatusCancelled: "중단",
