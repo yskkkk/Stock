@@ -44,6 +44,47 @@ function streamHeadlineFromInstruction(text: string, maxChars: number): string {
   return t.length > maxChars ? `${t.slice(0, maxChars - 1)}…` : t;
 }
 
+/** 서버 `ops-agent-job-queue` previewInstruction 과 동일 규칙(220자) */
+const QUEUE_PREVIEW_MAX = 220;
+const QUEUE_TOOLTIP_MAX = 900;
+const QUEUE_TOOLTIP_MAX_LINES = 4;
+
+function instructionPreviewForQueue(text: string): string {
+  return streamHeadlineFromInstruction(text, QUEUE_PREVIEW_MAX);
+}
+
+function instructionTooltipForQueue(text: string): string {
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+  const chunk = lines.slice(0, QUEUE_TOOLTIP_MAX_LINES).join("\n");
+  if (chunk.length <= QUEUE_TOOLTIP_MAX) return chunk;
+  return `${chunk.slice(0, QUEUE_TOOLTIP_MAX - 1)}…`;
+}
+
+type LocalQueuedInstruction = {
+  id: string;
+  instruction: string;
+  enqueuedAtMs: number;
+};
+
+function localQueuedToQueueEntry(
+  item: LocalQueuedInstruction,
+  viewerIp: string | null,
+): OpsAgentQueueEntry {
+  const ip = viewerIp?.trim() ?? "";
+  return {
+    id: `local:${item.id}`,
+    requestIp: ip,
+    instructionPreview: instructionPreviewForQueue(item.instruction),
+    instructionTooltip: instructionTooltipForQueue(item.instruction),
+    instructionBody: item.instruction,
+    enqueuedAtMs: item.enqueuedAtMs,
+    status: "waiting",
+  };
+}
+
 function OpsManagementLiveStreamContent({
   streamHeadlineInstruction,
   phaseLine,
@@ -312,7 +353,10 @@ export default function OpsManagementTab({
   const [streamHeadlineInstruction, setStreamHeadlineInstruction] = useState("");
   const [nextInstruction, setNextInstruction] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [queuedCount, setQueuedCount] = useState(0);
+  /** 서버 POST 전 브라우저에만 있는 후속 요청 — 큐 UI에 즉시 반영 */
+  const [localPendingInstructions, setLocalPendingInstructions] = useState<
+    LocalQueuedInstruction[]
+  >([]);
   const [error, setError] = useState<string | null>(null);
   const [resultText, setResultText] = useState<string | null>(null);
   const [statusText, setStatusText] = useState<string | null>(null);
@@ -335,17 +379,29 @@ export default function OpsManagementTab({
 
   const abortRef = useRef<AbortController | null>(null);
   const runIdRef = useRef<string | null>(null);
-  const pendingAfterRef = useRef<string[]>([]);
+  const pendingAfterRef = useRef<LocalQueuedInstruction[]>([]);
   /** 스트림 세션(큐 연속 실행 포함) 동안 중복 POST 방지 — `submitting`보다 먼저 동기적으로 막는다 */
   const streamSessionLockRef = useRef(false);
   const runStreamImpl = useRef<(ins: string, opts?: { chained?: boolean }) => Promise<void>>(
     async () => {},
   );
 
+  const localQueueEntries = useMemo(
+    () =>
+      localPendingInstructions.map((p) => localQueuedToQueueEntry(p, viewerIp)),
+    [localPendingInstructions, viewerIp],
+  );
+
+  const displayServerQueue = useMemo(
+    () => [...serverQueue, ...localQueueEntries],
+    [serverQueue, localQueueEntries],
+  );
+
   const myQueueJobs = useMemo(() => {
-    if (!viewerIp) return [];
-    return serverQueue.filter((q) => q.requestIp === viewerIp);
-  }, [serverQueue, viewerIp]);
+    const ip = viewerIp?.trim() || null;
+    const serverMine = ip ? serverQueue.filter((q) => q.requestIp === ip) : [];
+    return [...serverMine, ...localQueueEntries];
+  }, [serverQueue, viewerIp, localQueueEntries]);
 
   const myIpRunningHistory = useMemo(() => {
     if (!viewerIp) return [];
@@ -379,6 +435,8 @@ export default function OpsManagementTab({
       setServerQueue([]);
       setViewerIp(null);
       setRemotePending(null);
+      setLocalPendingInstructions([]);
+      pendingAfterRef.current = [];
       return;
     }
     let cancelled = false;
@@ -547,10 +605,10 @@ export default function OpsManagementTab({
             /* 큐 폴링으로 보완 */
           });
 
-        const nextIns = pendingAfterRef.current.shift();
-        setQueuedCount(pendingAfterRef.current.length);
-        if (nextIns) {
-          void runStreamImpl.current(nextIns, { chained: true });
+        const nextItem = pendingAfterRef.current.shift();
+        setLocalPendingInstructions([...pendingAfterRef.current]);
+        if (nextItem) {
+          void runStreamImpl.current(nextItem.instruction, { chained: true });
         } else {
           streamSessionLockRef.current = false;
         }
@@ -606,8 +664,13 @@ export default function OpsManagementTab({
     const n = nextInstruction.trim();
     if (!n) return;
     if (submitting || streamSessionLockRef.current) {
-      pendingAfterRef.current.push(n);
-      setQueuedCount(pendingAfterRef.current.length);
+      const item: LocalQueuedInstruction = {
+        id: crypto.randomUUID(),
+        instruction: n,
+        enqueuedAtMs: Date.now(),
+      };
+      pendingAfterRef.current.push(item);
+      setLocalPendingInstructions([...pendingAfterRef.current]);
       setNextInstruction("");
       return;
     }
@@ -632,7 +695,9 @@ export default function OpsManagementTab({
 
   /** IP 연결 상태 말풍선: 진행 중/대기/큐에 실제 작업이 있을 때만 노출 — 유효하지 않게 전체 화면을 덮지 않음 */
   const showMyIpJobsPanel =
-    hasMyIpServerActivity || submitting || queuedCount > 0;
+    hasMyIpServerActivity ||
+    submitting ||
+    localPendingInstructions.length > 0;
 
   return (
     <div className="ops-management ops-management--split">
@@ -651,10 +716,10 @@ export default function OpsManagementTab({
                 aria-live="polite"
                 aria-relevant="additions removals"
               >
-                {serverQueue.length === 0 ? (
+                {displayServerQueue.length === 0 ? (
                   <span className="ops-management__server-queue-empty">{ko.app.opsAgentQueueEmpty}</span>
                 ) : (
-                  serverQueue.map((q) => (
+                  displayServerQueue.map((q) => (
                     <button
                       key={q.id}
                       type="button"
@@ -717,7 +782,7 @@ export default function OpsManagementTab({
                       />
                     </div>
                   ) : null}
-                  {viewerIp && !hasMyIpServerActivity && queuedCount === 0 ? (
+                  {viewerIp && !hasMyIpServerActivity && localPendingInstructions.length === 0 ? (
                     <p className="ops-management__my-ip-none" role="status">
                       {ko.app.opsMyIpJobsNone}
                     </p>
@@ -917,7 +982,7 @@ export default function OpsManagementTab({
           </div>
         ) : null}
 
-        {available && (submitting || queuedCount > 0) ? (
+        {available && (submitting || localPendingInstructions.length > 0) ? (
           <div className="ops-management__next-block">
             <label className="ops-management__label" htmlFor="ops-next-instruction">
               {ko.app.opsNextInstructionLabel}
@@ -937,9 +1002,12 @@ export default function OpsManagementTab({
               rows={4}
               spellCheck={false}
             />
-            {queuedCount > 0 ? (
+            {localPendingInstructions.length > 0 ? (
               <p className="ops-management__queue-hint">
-                {ko.app.opsQueuePending.replace("{n}", String(queuedCount))}
+                {ko.app.opsQueuePending.replace(
+                  "{n}",
+                  String(localPendingInstructions.length),
+                )}
               </p>
             ) : null}
             <div className="ops-management__actions">
@@ -1142,7 +1210,7 @@ export default function OpsManagementTab({
       {progressModalRunId ? (
         <OpsAgentQueueProgressModal
           runId={progressModalRunId}
-          queueEntries={serverQueue}
+          queueEntries={displayServerQueue}
           historyRuns={historyRuns}
           onClose={() => setProgressModalRunId(null)}
         />
