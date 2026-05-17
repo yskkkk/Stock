@@ -10,6 +10,8 @@ export const ko = {
     themeToggleAria: "화면 테마 전환",
     themeUseLight: "라이트 모드",
     themeUseDark: "다크 모드",
+    themeToggleDisabledAria: "화면 테마 전환 (일시 비활성화)",
+    themeToggleDisabledHint: "테마 전환이 일시적으로 비활성화되었습니다",
     lightPaletteAria: "라이트 모드 색조 선택",
     lightPaletteHint: "눈에 편한 톤",
     lightPaletteMist: "미스트 블루그레이",

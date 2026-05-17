@@ -33,7 +33,10 @@ import StockChart from "./components/StockChart";
 import TradingViewAdvancedChart from "./components/TradingViewAdvancedChart";
 import { CHART_TIMEFRAMES } from "./constants/timeframes";
 import type { SignalId } from "./constants/signals";
-import { SHOW_PROFIT_MODEL_BUTTON } from "./constants/uiFlags";
+import {
+  ENABLE_THEME_MODE_TOGGLE,
+  SHOW_PROFIT_MODEL_BUTTON,
+} from "./constants/uiFlags";
 import { usePickKeyboard } from "./hooks/usePickKeyboard";
 import { useUsdKrwRate } from "./hooks/useUsdKrwRate";
 import { enrichBullishPick } from "./lib/bullishPicks";
@@ -780,14 +783,23 @@ export default function App() {
               <button
                 type="button"
                 className="theme-toggle"
+                disabled={!ENABLE_THEME_MODE_TOGGLE}
                 onClick={() =>
                   setColorMode((m) => (m === "dark" ? "light" : "dark"))
                 }
                 title={
-                  colorMode === "dark" ? ko.app.themeUseLight : ko.app.themeUseDark
+                  !ENABLE_THEME_MODE_TOGGLE
+                    ? ko.app.themeToggleDisabledHint
+                    : colorMode === "dark"
+                      ? ko.app.themeUseLight
+                      : ko.app.themeUseDark
                 }
-                aria-label={ko.app.themeToggleAria}
-                aria-pressed={colorMode === "light"}
+                aria-label={
+                  !ENABLE_THEME_MODE_TOGGLE
+                    ? ko.app.themeToggleDisabledAria
+                    : ko.app.themeToggleAria
+                }
+                aria-pressed={ENABLE_THEME_MODE_TOGGLE && colorMode === "light"}
               >
                 {colorMode === "dark" ? "\u2600" : "\u263E"}
               </button>

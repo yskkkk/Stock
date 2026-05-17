@@ -19,6 +19,10 @@ const t = {
     themeToggleAria: "\uD654\uBA74 \uD14C\uB9C8 \uC804\uD658",
     themeUseLight: "\uB77C\uC774\uD2B8 \uBAA8\uB4DC",
     themeUseDark: "\uB2E4\uD06C \uBAA8\uB4DC",
+    themeToggleDisabledAria:
+      "\uD654\uBA74 \uD14C\uB9C8 \uC804\uD658 (\uC77C\uC2DC \uBE44\uD65C\uC131\uD654)",
+    themeToggleDisabledHint:
+      "\uD14C\uB9C8 \uC804\uD658\uC774 \uC77C\uC2DC\uC801\uC73C\uB85C \uBE44\uD65C\uC131\uD654\uB418\uC5C8\uC2B5\uB2C8\uB2E4",
     lightPaletteAria: "\uB77C\uC774\uD2B8 \uBAA8\uB4DC \uC0C9\uC870 \uC120\uD0DD",
     lightPaletteHint: "\uB208\uC5D0 \uD3B8\uD55C \uD1A4",
     lightPaletteMist: "\uBBF8\uC2A4\uD2B8 \uBE14\uB8E8\uADF8\uB808\uC774",
