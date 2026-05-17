@@ -673,51 +673,53 @@ export default function App() {
 
   return (
     <div className="app">
-      <div className="app-theme-corner">
-        {colorMode === "light" ? (
-          <div
-            className="light-palette-picker light-palette-picker--corner"
-            role="group"
-            aria-label={ko.app.lightPaletteAria}
-          >
-            {LIGHT_PALETTE_IDS.map((id, idx) => (
-              <button
-                key={id}
-                type="button"
-                className={
-                  lightPalette === id
-                    ? "light-palette-swatch light-palette-swatch--active"
-                    : "light-palette-swatch"
-                }
-                aria-label={`${idx + 1} / ${LIGHT_PALETTE_IDS.length}`}
-                aria-pressed={lightPalette === id}
-                onClick={() => handleLightPalette(id)}
-                style={
-                  {
-                    "--lp-fill": LIGHT_PALETTE_PREVIEW[id],
-                  } as CSSProperties
-                }
-              />
-            ))}
-          </div>
-        ) : null}
-      </div>
-      <div className="app-corner-stack">
-        {accessAdmin ? (
-          <button
-            type="button"
-            className={
-              appTab === "ops"
-                ? "btn btn--primary app-corner-stack__ops"
-                : "btn btn--secondary app-corner-stack__ops"
-            }
-            aria-current={appTab === "ops" ? "page" : undefined}
-            onClick={() => setAppTab("ops")}
-          >
-            {ko.app.tabOps}
-          </button>
-        ) : null}
-        <FeedbackCorner accessAdmin={accessAdmin} />
+      <div className="app-page-top" aria-label={ko.app.pageTopToolsAria}>
+        <div className="app-theme-corner">
+          {colorMode === "light" ? (
+            <div
+              className="light-palette-picker light-palette-picker--corner"
+              role="group"
+              aria-label={ko.app.lightPaletteAria}
+            >
+              {LIGHT_PALETTE_IDS.map((id, idx) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={
+                    lightPalette === id
+                      ? "light-palette-swatch light-palette-swatch--active"
+                      : "light-palette-swatch"
+                  }
+                  aria-label={`${idx + 1} / ${LIGHT_PALETTE_IDS.length}`}
+                  aria-pressed={lightPalette === id}
+                  onClick={() => handleLightPalette(id)}
+                  style={
+                    {
+                      "--lp-fill": LIGHT_PALETTE_PREVIEW[id],
+                    } as CSSProperties
+                  }
+                />
+              ))}
+            </div>
+          ) : null}
+        </div>
+        <div className="app-corner-stack">
+          {accessAdmin ? (
+            <button
+              type="button"
+              className={
+                appTab === "ops"
+                  ? "btn btn--primary app-corner-stack__ops"
+                  : "btn btn--secondary app-corner-stack__ops"
+              }
+              aria-current={appTab === "ops" ? "page" : undefined}
+              onClick={() => setAppTab("ops")}
+            >
+              {ko.app.tabOps}
+            </button>
+          ) : null}
+          <FeedbackCorner accessAdmin={accessAdmin} />
+        </div>
       </div>
       <header
         className={`top-bar card${showTopScanStrip ? " top-bar--with-scan" : ""}`}

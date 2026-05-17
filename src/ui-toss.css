@@ -332,8 +332,8 @@ body {
 
   .app {
     gap: 0.42rem;
-    /* index.css의 --mobile-fab-stack-offset과 동기: 고정 코너 FAB 아래로 본문 시작 */
-    padding-top: max(0.45rem, var(--mobile-fab-stack-offset, env(safe-area-inset-top, 0px)));
+    /* 상단 줄(app-page-top)에서 노치(safe-area) 처리 — 본문 패딩과 중복하지 않음 */
+    padding-top: 0.38rem;
     padding-right: max(0.45rem, env(safe-area-inset-right, 0px));
     padding-bottom: max(0.55rem, env(safe-area-inset-bottom, 0px));
     padding-left: max(0.45rem, env(safe-area-inset-left, 0px));
@@ -426,7 +426,7 @@ body {
 
   .app {
     gap: 0.34rem;
-    padding-top: max(0.38rem, var(--mobile-fab-stack-offset, env(safe-area-inset-top, 0px)));
+    padding-top: 0.32rem;
     padding-right: max(0.38rem, env(safe-area-inset-right, 0px));
     padding-bottom: max(0.48rem, env(safe-area-inset-bottom, 0px));
     padding-left: max(0.38rem, env(safe-area-inset-left, 0px));
