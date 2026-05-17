@@ -454,6 +454,41 @@ function resolveDrawPointFromClient(
   return { time, price: price as number, logical };
 }
 
+/** 광선 2단계 미리보기: 연장 끝이 아니라 앵커—현재 포인터(마우스) 직선으로 그려 크로스헤어와 맞춤 */
+function rayPreviewChordFromDraftAndPointer(
+  candle: ISeriesApi<"Candlestick">,
+  draft: RayDraft,
+  pointer: { time: Time; price: number; logical: number },
+): { time: ChartTime; value: number }[] {
+  const sk = (t: Time): number => {
+    if (typeof t === "number") return t;
+    if (typeof t === "string") return Date.parse(t) / 1000 || 0;
+    return Date.UTC(t.year, t.month - 1, t.day) / 1000;
+  };
+
+  let tA = draft.time as Time;
+  let vA = draft.value;
+  let tB = pointer.time;
+  const vB = pointer.price;
+
+  if (Math.abs(sk(tA) - sk(tB)) < 1e-6) {
+    const lastIdx = candle.data().length - 1;
+    if (lastIdx >= 0) {
+      const nudged =
+        logicalToDataTime(candle, pointer.logical + 0.35) ??
+        extrapolateTimeBeyondLast(candle, lastIdx, pointer.logical + 0.5);
+      if (nudged != null) tB = nudged;
+    }
+    if (Math.abs(sk(tA) - sk(tB)) < 1e-6 && typeof tB === "number" && Number.isFinite(tB)) {
+      tB = (tB + 0.001) as unknown as Time;
+    }
+  }
+
+  const pAnchor = { time: tA as ChartTime, value: vA };
+  const pPtr = { time: tB as ChartTime, value: vB };
+  return sk(tA) <= sk(tB) ? [pAnchor, pPtr] : [pPtr, pAnchor];
+}
+
 const MAGNET_OHLC_PX = 96;
 
 /**
@@ -2520,30 +2555,18 @@ export default function StockChart({
     }
     const b = bundleRef.current;
     if (!b || b.structureKey !== structureKey) return;
-    const chartEl = b.chart.chartElement();
+    const chart = b.chart;
+    const chartEl = chart.chartElement();
 
-    const paint = (ev: PointerEvent) => {
+    const paintFromClient = (clientX: number, clientY: number) => {
       const draft = drawingAccumRef.current.rayDraft;
       if (!draft) return;
-      const raw = resolveDrawPointFromClient(
-        ev.clientX,
-        ev.clientY,
-        b.chart,
-        b.candle,
-      );
+      const raw = resolveDrawPointFromClient(clientX, clientY, chart, b.candle);
       if (!raw) return;
-      const pts = computeRayLineEndpoints(
-        b.chart,
-        b.candle,
-        draft.time,
-        draft.value,
-        raw.time,
-        raw.price,
-        raw.logical,
-      );
-      if (!pts) return;
+      const pts = rayPreviewChordFromDraftAndPointer(b.candle, draft, raw);
+      if (pts.length < 2) return;
       if (!rayPreviewLineRef.current) {
-        rayPreviewLineRef.current = b.chart.addSeries(
+        rayPreviewLineRef.current = chart.addSeries(
           LineSeries,
           {
             color: DRAW_RAY_PREVIEW,
@@ -2559,9 +2582,26 @@ export default function StockChart({
       rayPreviewLineRef.current.setData(toLineData(pts));
     };
 
+    const onCrosshairMove = (param: MouseEventParams<Time>) => {
+      if (param.point === undefined) return;
+      const br = bundleRef.current;
+      if (!br || br.chart !== chart || br.structureKey !== structureKey) return;
+      const pane = chart.panes()[0]?.getHTMLElement();
+      if (!pane) return;
+      const pr = pane.getBoundingClientRect();
+      paintFromClient(pr.left + param.point.x, pr.top + param.point.y);
+    };
+
+    chart.subscribeCrosshairMove(onCrosshairMove);
+
+    const paint = (ev: PointerEvent) => {
+      paintFromClient(ev.clientX, ev.clientY);
+    };
+
     chartEl.addEventListener("pointermove", paint);
     return () => {
       chartEl.removeEventListener("pointermove", paint);
+      chart.unsubscribeCrosshairMove(onCrosshairMove);
     };
   }, [drawingsEnabled, drawMode, rayDraftForPreview, structureKey]);
 
