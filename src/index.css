@@ -877,13 +877,20 @@
   row-gap: 0.28rem;
 }
 
-.top-bar__macro {
+.top-bar__head {
   grid-column: 1 / -1;
   grid-row: 1;
-  justify-self: start;
-  width: fit-content;
-  max-width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
   min-width: 0;
+}
+
+.top-bar__macro {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  max-width: 100%;
 }
 
 .top-bar__brand {
@@ -910,8 +917,8 @@
 
 .light-palette-picker--leading {
   margin-top: 0;
-  margin-right: 0.1rem;
-  align-self: center;
+  margin-right: 0;
+  align-self: flex-start;
   flex-shrink: 0;
 }
 
@@ -2389,6 +2396,13 @@ html[data-theme="light"] .access-admin-tab--active {
     grid-template-rows: auto;
     row-gap: 0.45rem;
     column-gap: 0;
+  }
+
+  .top-bar__head {
+    grid-column: 1;
+    grid-row: auto;
+    width: 100%;
+    flex-wrap: wrap;
   }
 
   .top-bar__macro {

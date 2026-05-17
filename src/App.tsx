@@ -675,10 +675,7 @@ export default function App() {
         <div
           className={`top-bar__grid${showTopScanStrip ? " top-bar__grid--with-scan" : ""}`}
         >
-          <div className="top-bar__macro">
-            <MacroEventsBar onSecretAdminOpen={() => setShowAccessAdmin(true)} />
-          </div>
-          <div className="top-bar__brand">
+          <div className="top-bar__head">
             {colorMode === "light" ? (
               <div
                 className="light-palette-picker light-palette-picker--leading"
@@ -706,6 +703,13 @@ export default function App() {
                 ))}
               </div>
             ) : null}
+            <div className="top-bar__macro">
+              <MacroEventsBar
+                onSecretAdminOpen={() => setShowAccessAdmin(true)}
+              />
+            </div>
+          </div>
+          <div className="top-bar__brand">
             <span className="brand-mark" aria-hidden />
             <div className="top-bar__brand-main">
               <h1>{ko.app.title}</h1>
