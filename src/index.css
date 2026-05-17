@@ -2256,18 +2256,10 @@ html[data-theme="light"] .access-admin-tab--active {
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
-    /* 고정 코너(FAB·라이트 팔레트)와 스티키 헤더 정렬용 — 매크로 바 100vw 브레이크아웃 포함 */
-    --mobile-fab-stack-offset: calc(env(safe-area-inset-top, 0px) + 2.85rem);
-    --mobile-corner-pad-right: max(calc(0.55rem + 10.5rem), env(safe-area-inset-right, 0px));
-    --mobile-corner-pad-left: max(0.55rem, env(safe-area-inset-left, 0px));
-  }
-
-  html[data-theme="light"] {
-    --mobile-corner-pad-left: max(calc(0.55rem + 11.75rem), env(safe-area-inset-left, 0px));
   }
 
   .app {
-    padding-top: max(0.45rem, var(--mobile-fab-stack-offset));
+    padding-top: 0.35rem;
     padding-right: max(0.45rem, env(safe-area-inset-right, 0px));
     padding-bottom: max(0.55rem, env(safe-area-inset-bottom, 0px));
     padding-left: max(0.45rem, env(safe-area-inset-left, 0px));
@@ -2622,11 +2614,11 @@ html[data-theme="light"] .access-admin-tab--active {
       0 2px 10px rgba(15, 23, 42, 0.06);
   }
 
-  /* 우측 코너 운영·불편: 가로로 나란히 (팔레트 스와치는 별도 크기) */
+  /* 우측 운영·불편 / 라이트 팔레트: 페이지 상단 줄에서 가로 배치 */
   .app-corner-stack {
     flex-direction: row;
     align-items: center;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 0.35rem;
   }
 
@@ -3059,7 +3051,7 @@ html[data-theme="light"] .access-admin-tab--active {
 
   .top-bar.card {
     position: sticky;
-    top: var(--mobile-fab-stack-offset);
+    top: max(0px, env(safe-area-inset-top, 0px));
     z-index: 40;
     -webkit-backdrop-filter: blur(18px) saturate(1.15);
     backdrop-filter: blur(18px) saturate(1.15);
@@ -3173,36 +3165,56 @@ html[data-theme="light"] .access-admin-tab--active {
 }
 
 /* -------------------------------------------------------------------------- */
-/* 좌측 상단: 라이트 팔레트 고정 (우측 운영/불편과 대칭) — 다크/라이트 토글은 상단바 */
+/* 페이지 최상단 줄: 라이트 팔레트(좌) · 운영·불편(우) — 뷰포트 고정 오버레이 아님 */
 /* -------------------------------------------------------------------------- */
 
-.app-theme-corner {
-  position: fixed;
-  top: max(0.55rem, env(safe-area-inset-top, 0px));
-  left: max(0.55rem, env(safe-area-inset-left, 0px));
-  z-index: 9990;
+.app-page-top {
+  position: relative;
+  z-index: 45;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem 0.65rem;
+  flex-wrap: wrap;
+  width: 100%;
+  box-sizing: border-box;
+  padding-top: max(0.35rem, env(safe-area-inset-top, 0px));
+  padding-bottom: 0.42rem;
+  margin: 0 0 0.12rem;
+  border-bottom: 1px solid var(--card-border);
+  background: color-mix(in srgb, var(--bg-elevated) 92%, transparent);
+}
+
+html[data-theme="light"] .app-page-top {
+  background: color-mix(in srgb, var(--bg-elevated) 96%, #ffffff);
+}
+
+.app-theme-corner {
+  position: relative;
+  z-index: auto;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
   gap: 0.35rem;
   width: max-content;
-  max-width: calc(100vw - 4.25rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+  max-width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
   box-sizing: border-box;
 }
 
-/* -------------------------------------------------------------------------- */
-/* 우측 상단: 운영(관리자) + 불편 접수함 고정 스택 */
-/* -------------------------------------------------------------------------- */
-
 .app-corner-stack {
-  position: fixed;
-  top: max(0.55rem, env(safe-area-inset-top, 0px));
-  right: max(0.55rem, env(safe-area-inset-right, 0px));
-  z-index: 9990;
+  position: relative;
+  z-index: auto;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 0.35rem;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .app-corner-stack__ops {
@@ -4267,7 +4279,7 @@ html[data-theme="light"] .ops-management__history-details {
 }
 
 /* -------------------------------------------------------------------------- */
-/* 모바일 전역 레이아웃 보강 (고정 코너 FAB, 가로 넘침, 차트 툴바·운영 탭 등)              */
+/* 모바일 전역 레이아웃 보강 (가로 넘침, 차트 툴바·운영 탭 등)                      */
 /* -------------------------------------------------------------------------- */
 
 html {
@@ -4284,27 +4296,6 @@ body {
 }
 
 @media (max-width: 900px) {
-  /* 우측(운영·불편 가로 배치) / 라이트 모드 좌측(팔레트 행)과 스티키 헤더가 겹치지 않게 */
-  .top-bar.card {
-    padding-inline-end: var(--mobile-corner-pad-right);
-  }
-
-  html[data-theme="light"] .top-bar.card {
-    padding-inline-start: var(--mobile-corner-pad-left);
-  }
-
-  /* 매크로 바가 뷰포트 전체 너비로 깔릴 때 코너 FAB·팔레트와 가로 겹침 방지 */
-  .top-bar__macro .macro-bar {
-    padding-left: max(0.6rem, var(--mobile-corner-pad-left));
-    padding-right: max(0.6rem, var(--mobile-corner-pad-right));
-    box-sizing: border-box;
-  }
-
-  .top-bar__macro .macro-bar .macro-bar__track {
-    scroll-padding-inline-start: var(--mobile-corner-pad-left);
-    scroll-padding-inline-end: var(--mobile-corner-pad-right);
-  }
-
   .quote-bar__info {
     min-width: 0;
   }

@@ -13,6 +13,7 @@ export const ko = {
     themeToggleDisabledAria: "화면 테마 전환 (일시 비활성화)",
     themeToggleDisabledHint: "테마 전환이 일시적으로 비활성화되었습니다",
     lightPaletteAria: "라이트 모드 색조 선택",
+    pageTopToolsAria: "색 테마 · 운영 · 불편 접수 도구 영역",
     lightPaletteHint: "눈에 편한 톤",
     lightPaletteMist: "미스트 블루그레이",
     lightPalettePaper: "페이퍼 웜 베이지",
@@ -146,7 +147,7 @@ export const ko = {
   },
   macro: {
     title: "주요 지표 발표",
-    subtitle: "남은 시간 기준(KST) · 미국 FOMC·의사록 일정 포함",
+    subtitle: "남은 시간 기준 (KST)",
     live: "진행 중",
     soon: "곧 발표",
     loading: "일정 불러오는 중…",
