@@ -6,6 +6,47 @@ import { fileURLToPath } from "url";
 import { rgPath } from "@vscode/ripgrep";
 import { Agent, Cursor } from "@cursor/sdk";
 import { commitAndPushAfterOpsAgent } from "./ops-agent-git-push.js";
+import {
+  appendOpsAgentHistoryEntry,
+  buildHistoryEntryFromCapture,
+} from "./ops-agent-history-store.js";
+
+/** @param {object} obj */
+function applyOpsSsePayloadToCapture(obj, capture) {
+  if (!obj || typeof obj !== "object") return;
+  const t = obj.type;
+  if (t === "phase") {
+    capture.phaseLine = String(obj.message ?? "");
+  } else if (t === "delta") {
+    capture.streamText += String(obj.text ?? "");
+  } else if (t === "cursor_status") {
+    const d = String(obj.detail ?? "").trim();
+    capture.cursorLine = d
+      ? `${String(obj.status ?? "")}: ${d}`
+      : String(obj.status ?? "");
+  } else if (t === "thinking") {
+    capture.thinkingLine = String(obj.text ?? "").slice(0, 800);
+  } else if (t === "tool") {
+    capture.toolLine = `${String(obj.name ?? "")} (${String(obj.toolStatus ?? "")})`;
+  } else if (t === "done") {
+    capture.statusText =
+      typeof obj.status === "string" ? obj.status : obj.status != null ? String(obj.status) : null;
+    const rawRes = String(obj.result ?? "").trim();
+    capture.resultText = rawRes ? rawRes : "(내용 없음)";
+    capture.durationMs =
+      typeof obj.durationMs === "number" && Number.isFinite(obj.durationMs)
+        ? obj.durationMs
+        : null;
+    capture.runtimeLabel =
+      typeof obj.runtime === "string"
+        ? obj.runtime
+        : obj.runtime != null
+          ? String(obj.runtime)
+          : null;
+  } else if (t === "error") {
+    capture.error = String(obj.message ?? "");
+  }
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -154,14 +195,29 @@ async function runStreamOnce(writeSse, message, agentOptions) {
  * @param {{ instruction: string; context: string }} body
  */
 export async function streamOpsCursorAgentSse(res, body) {
+  const instruction = String(body.instruction ?? "").trim();
+  const context = String(body.context ?? "").trim();
+
+  const capture = {
+    instruction,
+    phaseLine: "",
+    cursorLine: "",
+    thinkingLine: "",
+    toolLine: "",
+    streamText: "",
+    statusText: null,
+    resultText: null,
+    durationMs: null,
+    runtimeLabel: null,
+    error: null,
+  };
+
   const writeSse = (obj) => {
+    applyOpsSsePayloadToCapture(obj, capture);
     if (!res.writableEnded) {
       res.write(`data: ${JSON.stringify(obj)}\n\n`);
     }
   };
-
-  const instruction = String(body.instruction ?? "").trim();
-  const context = String(body.context ?? "").trim();
 
   res.writeHead(200, {
     "Content-Type": "text/event-stream; charset=utf-8",
@@ -263,6 +319,20 @@ export async function streamOpsCursorAgentSse(res, body) {
   } catch (err) {
     sendError(err instanceof Error ? err.message : String(err));
   } finally {
+    try {
+      const cap = capture;
+      const save =
+        cap.error != null ||
+        cap.resultText != null ||
+        cap.streamText.trim().length > 0 ||
+        cap.phaseLine.trim().length > 0 ||
+        cap.cursorLine.trim().length > 0;
+      if (instruction && save) {
+        await appendOpsAgentHistoryEntry(buildHistoryEntryFromCapture(cap));
+      }
+    } catch {
+      /* disk full 등 — 클라이언트 스트림은 이미 전송됨 */
+    }
     res.end();
   }
 }

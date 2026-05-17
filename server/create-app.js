@@ -26,6 +26,10 @@ import { searchStocks } from "./stock-search.js";
 import { getMacroEventsCached } from "./macro-events.js";
 import { postFeedback, getFeedbackInbox, postFeedbackAdminReply, deleteFeedbackAdmin } from "./feedback-inbox.js";
 import { runOpsCursorAgent, streamOpsCursorAgentSse } from "./cursor-ops-agent.js";
+import {
+  clearOpsAgentHistoryAsync,
+  readOpsAgentHistorySync,
+} from "./ops-agent-history-store.js";
 
 function asyncRoute(handler) {
   return (req, res, next) => {
@@ -124,6 +128,35 @@ export function createApp() {
       }
       const context = String(req.body?.context ?? "").trim();
       await streamOpsCursorAgentSse(res, { instruction, context });
+    }),
+  );
+
+  app.get(
+    "/api/ops/cursor-agent-history",
+    asyncRoute(async (req, res) => {
+      if (!isAccessAdminRequest(req)) {
+        res.status(403).json({
+          error: "관리자만 Cursor 에이전트 연동을 사용할 수 있습니다.",
+          code: "FORBIDDEN",
+        });
+        return;
+      }
+      res.json({ entries: readOpsAgentHistorySync() });
+    }),
+  );
+
+  app.delete(
+    "/api/ops/cursor-agent-history",
+    asyncRoute(async (req, res) => {
+      if (!isAccessAdminRequest(req)) {
+        res.status(403).json({
+          error: "관리자만 Cursor 에이전트 연동을 사용할 수 있습니다.",
+          code: "FORBIDDEN",
+        });
+        return;
+      }
+      await clearOpsAgentHistoryAsync();
+      res.json({ ok: true });
     }),
   );
 
