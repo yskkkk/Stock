@@ -48,10 +48,16 @@ function parseHistoryRecord(o) {
   const error =
     typeof errRaw === "string" && errRaw.trim().length > 0 ? errRaw.trim() : null;
 
+  const clientIp =
+    typeof o.clientIp === "string" && o.clientIp.trim().length > 0
+      ? o.clientIp.trim()
+      : "";
+
   return {
     id: o.id,
     finishedAtMs: o.finishedAtMs,
     instruction: o.instruction,
+    clientIp,
     error,
     phaseLine: typeof o.phaseLine === "string" ? o.phaseLine : "",
     cursorLine: typeof o.cursorLine === "string" ? o.cursorLine : "",
@@ -143,6 +149,7 @@ export function clearOpsAgentHistoryAsync() {
  *   durationMs: number | null;
  *   runtimeLabel: string | null;
  *   error: string | null;
+ *   clientIp?: string;
  * }} cap
  */
 export function buildHistoryEntryFromCapture(cap) {
@@ -152,10 +159,16 @@ export function buildHistoryEntryFromCapture(cap) {
   );
   const err =
     cap.error && String(cap.error).trim() ? String(cap.error).trim() : null;
+  const ip =
+    typeof cap.clientIp === "string" && cap.clientIp.trim().length > 0
+      ? cap.clientIp.trim()
+      : "";
+
   return {
     id: randomUUID(),
     finishedAtMs: Date.now(),
     instruction,
+    clientIp: ip,
     error: err,
     phaseLine: cap.phaseLine ?? "",
     cursorLine: cap.cursorLine ?? "",

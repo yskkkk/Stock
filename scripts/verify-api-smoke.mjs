@@ -130,6 +130,13 @@ await expect(
 );
 
 await expect(
+  "ops-cursor-agent-pending-forbidden",
+  "GET",
+  "/api/ops/cursor-agent-pending",
+  (r) => r.status === 403 && r.json?.code === "FORBIDDEN",
+);
+
+await expect(
   "access-status",
   "GET",
   "/api/access/status",

@@ -151,6 +151,7 @@ export type OpsAgentHistoryEntry = {
   id: string;
   finishedAtMs: number;
   instruction: string;
+  clientIp?: string;
   error: string | null;
   phaseLine: string;
   cursorLine: string;
@@ -166,6 +167,22 @@ export type OpsAgentHistoryEntry = {
 export type OpsAgentHistoryResponse = {
   entries: OpsAgentHistoryEntry[];
 };
+
+export type OpsAgentPendingResponse = {
+  instruction: string;
+  context: string;
+  startedAtMs: number | null;
+};
+
+/** 관리자 전용 — 해당 IP에서 진행 중인 에이전트 요청(SSE) 본문 */
+export function fetchOpsCursorAgentPending() {
+  const t = getStoredAccessAdminToken();
+  const headers: Record<string, string> = {};
+  if (t) headers.Authorization = `Bearer ${t}`;
+  return fetchJson<OpsAgentPendingResponse>("/api/ops/cursor-agent-pending", {
+    headers: Object.keys(headers).length ? headers : undefined,
+  });
+}
 
 /** 관리자 전용 — 서버에 저장된 에이전트 실행 이력 */
 export function fetchOpsAgentHistory() {

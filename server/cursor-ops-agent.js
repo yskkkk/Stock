@@ -10,6 +10,10 @@ import {
   appendOpsAgentHistoryEntry,
   buildHistoryEntryFromCapture,
 } from "./ops-agent-history-store.js";
+import {
+  clearOpsAgentPending,
+  setOpsAgentPending,
+} from "./ops-agent-pending-store.js";
 
 /** @param {object} obj */
 function applyOpsSsePayloadToCapture(obj, capture) {
@@ -193,13 +197,16 @@ async function runStreamOnce(writeSse, message, agentOptions) {
  * SSE로 에이전트 진행·델타·최종 결과 전송 (Express response).
  * @param {import("express").Response} res
  * @param {{ instruction: string; context: string }} body
+ * @param {{ clientIp?: string } | undefined} meta
  */
-export async function streamOpsCursorAgentSse(res, body) {
+export async function streamOpsCursorAgentSse(res, body, meta) {
   const instruction = String(body.instruction ?? "").trim();
   const context = String(body.context ?? "").trim();
+  const clientIp = String(meta?.clientIp ?? "").trim();
 
   const capture = {
     instruction,
+    clientIp,
     phaseLine: "",
     cursorLine: "",
     thinkingLine: "",
@@ -211,6 +218,10 @@ export async function streamOpsCursorAgentSse(res, body) {
     runtimeLabel: null,
     error: null,
   };
+
+  if (clientIp) {
+    setOpsAgentPending(clientIp, instruction, context);
+  }
 
   const writeSse = (obj) => {
     applyOpsSsePayloadToCapture(obj, capture);
@@ -319,6 +330,9 @@ export async function streamOpsCursorAgentSse(res, body) {
   } catch (err) {
     sendError(err instanceof Error ? err.message : String(err));
   } finally {
+    if (clientIp) {
+      clearOpsAgentPending(clientIp);
+    }
     try {
       const cap = capture;
       const save =
