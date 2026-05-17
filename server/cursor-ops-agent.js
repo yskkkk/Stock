@@ -9,6 +9,7 @@ import { rgPath } from "@vscode/ripgrep";
 import { Agent, Cursor } from "@cursor/sdk";
 import { commitAndPushAfterOpsAgent } from "./ops-agent-git-push.js";
 import { appendServerEventLog, clientIp } from "./access-log.js";
+import { notifyOpsAgentCompleted } from "./telegram-notify.js";
 import { normalizeAccessIp } from "./access-control.js";
 import {
   finalizeOpsAgentEntry,
@@ -555,23 +556,45 @@ export async function streamOpsCursorAgentSse(req, res, body) {
             : state === "error"
               ? (capture.error ?? "알 수 없는 오류")
               : null;
-        await finalizeOpsAgentEntry(runId, {
-          state,
-          instruction: capture.instruction,
-          requestIp,
-          phaseLine: capture.phaseLine,
-          cursorLine: capture.cursorLine,
-          thinkingLine: capture.thinkingLine,
-          toolLine: capture.toolLine,
-          streamText: capture.streamText,
-          statusText: capture.statusText,
-          resultText: capture.resultText,
-          durationMs: capture.durationMs,
-          runtimeLabel: capture.runtimeLabel,
-          error: errorStored,
+        try {
+          await finalizeOpsAgentEntry(runId, {
+            state,
+            instruction: capture.instruction,
+            requestIp,
+            phaseLine: capture.phaseLine,
+            cursorLine: capture.cursorLine,
+            thinkingLine: capture.thinkingLine,
+            toolLine: capture.toolLine,
+            streamText: capture.streamText,
+            statusText: capture.statusText,
+            resultText: capture.resultText,
+            durationMs: capture.durationMs,
+            runtimeLabel: capture.runtimeLabel,
+            error: errorStored,
+          });
+        } catch {
+          /* disk full 등 — 이력 저장 실패여도 텔레그램 안내는 시도 */
+        }
+
+        const titleForNotify = opsAgentInstructionLogSnippet(capture.instruction);
+        const requesterLabel = requestIp || "알 수 없음";
+        const bodyForNotify =
+          state === "ok"
+            ? String(capture.resultText ?? "").trim() || "(요약 없음)"
+            : String(
+                errorStored ??
+                  capture.error ??
+                  (state === "cancelled"
+                    ? "사용자가 요청을 중단했습니다."
+                    : "알 수 없는 오류"),
+              ).trim() || "(내용 없음)";
+        notifyOpsAgentCompleted({
+          requester: requesterLabel,
+          title: titleForNotify || "웹 에이전트",
+          body: bodyForNotify,
         });
       } catch {
-        /* disk full 등 */
+        /* runId 블록 초기화 실패 등 */
       }
       unregisterOpsStreamUserCancel(runId);
     }
@@ -629,66 +652,81 @@ export async function runOpsCursorAgent(input) {
     reqIpNorm,
   );
 
-  let result = await Agent.prompt(message, {
-    ...base,
-    local: { cwd: OPS_AGENT_REPO_ROOT },
-  });
+  try {
+    let result = await Agent.prompt(message, {
+      ...base,
+      local: { cwd: OPS_AGENT_REPO_ROOT },
+    });
 
-  let runtime = "local";
+    let runtime = "local";
 
-  if (result.status !== "finished") {
-    const cloudRepo = githubRepoForCloud();
-    if (cloudRepo) {
-      const cloudNote =
-        "\n\n(You may be running in Cursor Cloud against the linked GitHub repo.)\n\n## Mandatory on GitHub before you finish\n- Commit every file change you made.\n- Run `git push` to the linked remote on your working branch and ensure it succeeds.\n- Do not end until the push has completed successfully.";
-      result = await Agent.prompt(message + cloudNote, {
-        ...base,
-        cloud: { repos: [cloudRepo] },
-      });
-      runtime = "cloud";
+    if (result.status !== "finished") {
+      const cloudRepo = githubRepoForCloud();
+      if (cloudRepo) {
+        const cloudNote =
+          "\n\n(You may be running in Cursor Cloud against the linked GitHub repo.)\n\n## Mandatory on GitHub before you finish\n- Commit every file change you made.\n- Run `git push` to the linked remote on your working branch and ensure it succeeds.\n- Do not end until the push has completed successfully.";
+        result = await Agent.prompt(message + cloudNote, {
+          ...base,
+          cloud: { repos: [cloudRepo] },
+        });
+        runtime = "cloud";
+      }
     }
+
+    if (result.status !== "finished") {
+      const tail = result.result?.trim()
+        ? `\n에이전트 메시지: ${result.result.trim()}`
+        : "";
+      const cloudHint = githubRepoForCloud()
+        ? " 로컬 실패 시 GitHub 클라우드 재시도도 실패했습니다."
+        : " origin이 GitHub HTTPS가 아니면 클라우드 폴백을 쓸 수 없습니다.";
+      const err = new Error(
+        `Cursor 에이전트가 정상 종료되지 않았습니다 (상태: ${result.status}).${tail}${cloudHint}\n` +
+          "로컬: Cursor CLI 설치 후 터미널에서 `cursor` 명령이 되는지, `cursor agent` 로그인 여부를 확인하세요.\n" +
+          "모델: 대시보드 Integrations에서 발급한 키로 사용 가능한 모델인지 확인하거나 .env의 CURSOR_AGENT_MODEL을 비워 보세요.",
+      );
+      err.code = "AGENT_RUN_FAILED";
+      throw err;
+    }
+
+    let outText = result.result ?? "";
+    if (runtime === "cloud") {
+      outText =
+        (outText ? `${outText}\n\n` : "") +
+        "[안내] 이번 실행은 GitHub에 연결된 Cursor 클라우드 에이전트로 처리되었습니다. 로컬 폴더가 바로 바뀌지 않으면 원격/PR에서 변경을 확인하세요.";
+    }
+
+    const postGit = commitAndPushAfterOpsAgent({
+      runtime,
+      requestIp: reqIpNorm || undefined,
+    });
+    const pushNote =
+      runtime === "cloud"
+        ? postGit.cloudPullOk
+          ? "\n\n[후처리] 이 서버의 로컬 클론을 origin과 동기화(git pull --ff-only)했습니다."
+          : "\n\n[후처리] 로컬 클론 자동 동기화(git pull --ff-only)는 건너뛰었습니다. 원격/PR에서 변경을 확인하세요."
+        : "\n\n[후처리] 이 서버에서 변경분을 커밋(필요 시)하고 origin으로 git push 했습니다.";
+    outText = (outText ? outText.trimEnd() : "") + pushNote;
+
+    notifyOpsAgentCompleted({
+      requester: reqIpNorm || "알 수 없음",
+      title: opsAgentInstructionLogSnippet(instruction) || "웹 에이전트",
+      body: outText,
+    });
+
+    return {
+      status: result.status,
+      result: outText,
+      durationMs: result.durationMs,
+      model: result.model,
+      runtime,
+    };
+  } catch (e) {
+    notifyOpsAgentCompleted({
+      requester: reqIpNorm || "알 수 없음",
+      title: opsAgentInstructionLogSnippet(instruction) || "웹 에이전트",
+      body: e instanceof Error ? e.message : String(e),
+    });
+    throw e;
   }
-
-  if (result.status !== "finished") {
-    const tail = result.result?.trim()
-      ? `\n에이전트 메시지: ${result.result.trim()}`
-      : "";
-    const cloudHint = githubRepoForCloud()
-      ? " 로컬 실패 시 GitHub 클라우드 재시도도 실패했습니다."
-      : " origin이 GitHub HTTPS가 아니면 클라우드 폴백을 쓸 수 없습니다.";
-    const err = new Error(
-      `Cursor 에이전트가 정상 종료되지 않았습니다 (상태: ${result.status}).${tail}${cloudHint}\n` +
-        "로컬: Cursor CLI 설치 후 터미널에서 `cursor` 명령이 되는지, `cursor agent` 로그인 여부를 확인하세요.\n" +
-        "모델: 대시보드 Integrations에서 발급한 키로 사용 가능한 모델인지 확인하거나 .env의 CURSOR_AGENT_MODEL을 비워 보세요.",
-    );
-    err.code = "AGENT_RUN_FAILED";
-    throw err;
-  }
-
-  let outText = result.result ?? "";
-  if (runtime === "cloud") {
-    outText =
-      (outText ? `${outText}\n\n` : "") +
-      "[안내] 이번 실행은 GitHub에 연결된 Cursor 클라우드 에이전트로 처리되었습니다. 로컬 폴더가 바로 바뀌지 않으면 원격/PR에서 변경을 확인하세요.";
-  }
-
-  const postGit = commitAndPushAfterOpsAgent({
-    runtime,
-    requestIp: reqIpNorm || undefined,
-  });
-  const pushNote =
-    runtime === "cloud"
-      ? postGit.cloudPullOk
-        ? "\n\n[후처리] 이 서버의 로컬 클론을 origin과 동기화(git pull --ff-only)했습니다."
-        : "\n\n[후처리] 로컬 클론 자동 동기화(git pull --ff-only)는 건너뛰었습니다. 원격/PR에서 변경을 확인하세요."
-      : "\n\n[후처리] 이 서버에서 변경분을 커밋(필요 시)하고 origin으로 git push 했습니다.";
-  outText = (outText ? outText.trimEnd() : "") + pushNote;
-
-  return {
-    status: result.status,
-    result: outText,
-    durationMs: result.durationMs,
-    model: result.model,
-    runtime,
-  };
 }
