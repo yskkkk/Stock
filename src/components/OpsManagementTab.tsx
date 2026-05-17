@@ -410,7 +410,22 @@ export default function OpsManagementTab({
     );
   }, [historyRuns, viewerIp]);
 
+  /** 큐에 이미 같은 id의 "실행 중" 카드가 있으면 이력 쪽 카드는 렌더하지 않음(동일 진행 줄 이중 노출 방지). */
+  const myIpQueueRunningIds = useMemo(
+    () => new Set(myQueueJobs.filter((q) => q.status === "running").map((q) => q.id)),
+    [myQueueJobs],
+  );
+
+  const myIpRunningHistoryDeduped = useMemo(
+    () => myIpRunningHistory.filter((r) => !myIpQueueRunningIds.has(r.id)),
+    [myIpRunningHistory, myIpQueueRunningIds],
+  );
+
   const remotePendingInstruction = String(remotePending?.instruction ?? "").trim();
+
+  /** pending API는 SSE용 복구 안내지만, 실행 큐에 이미 같은 IP의 실행 중 행이 있으면 카드 하나로 충분 */
+  const showRemotePendingDupBlock =
+    Boolean(remotePendingInstruction) && !myQueueJobs.some((q) => q.status === "running");
 
   const hasMyIpServerActivity =
     Boolean(remotePendingInstruction) ||
@@ -788,7 +803,7 @@ export default function OpsManagementTab({
                     </p>
                   ) : null}
 
-                  {remotePendingInstruction ? (
+                  {showRemotePendingDupBlock ? (
                     <div
                       className="ops-management__my-ip-pending"
                       role="status"
@@ -801,7 +816,7 @@ export default function OpsManagementTab({
                     </div>
                   ) : null}
 
-                  {myIpRunningHistory.length > 0 ? (
+                  {myIpRunningHistoryDeduped.length > 0 ? (
                     <div className="ops-management__my-ip-running-block">
                       <p className="ops-management__my-ip-subtitle">{ko.app.opsMyIpHistoryRunning}</p>
                       <div
@@ -809,7 +824,7 @@ export default function OpsManagementTab({
                         role="group"
                         aria-label={ko.app.opsMyIpHistoryRunning}
                       >
-                        {myIpRunningHistory.map((run) => {
+                        {myIpRunningHistoryDeduped.map((run) => {
                           const line =
                             run.instruction.split(/\r?\n/).find(Boolean) ?? run.instruction;
                           const prev =
