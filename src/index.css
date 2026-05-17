@@ -2904,7 +2904,7 @@ html[data-theme="light"] .access-admin-tab--active {
 }
 
 /* -------------------------------------------------------------------------- */
-/* 좌측 상단: 라이트 팔레트 + 테마 토글 고정 스택 (우측 운영/불편과 대칭) */
+/* 좌측 상단: 라이트 팔레트 고정 (우측 운영/불편과 대칭) — 다크/라이트 토글은 상단바 */
 /* -------------------------------------------------------------------------- */
 
 .app-theme-corner {
@@ -2916,11 +2916,6 @@ html[data-theme="light"] .access-admin-tab--active {
   flex-direction: column;
   align-items: flex-start;
   gap: 0.35rem;
-}
-
-.app-theme-corner__toggle {
-  border-radius: 999px;
-  box-shadow: var(--shadow);
 }
 
 /* -------------------------------------------------------------------------- */
