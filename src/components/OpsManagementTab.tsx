@@ -166,7 +166,11 @@ export default function OpsManagementTab({
   const abortRef = useRef<AbortController | null>(null);
   const runIdRef = useRef<string | null>(null);
   const pendingAfterRef = useRef<string[]>([]);
-  const runStreamImpl = useRef<(ins: string) => Promise<void>>(async () => {});
+  /** 스트림 세션(큐 연속 실행 포함) 동안 중복 POST 방지 — `submitting`보다 먼저 동기적으로 막는다 */
+  const streamSessionLockRef = useRef(false);
+  const runStreamImpl = useRef<(ins: string, opts?: { chained?: boolean }) => Promise<void>>(
+    async () => {},
+  );
 
   const myQueueJobs = useMemo(() => {
     if (!viewerIp) return [];
@@ -278,10 +282,15 @@ export default function OpsManagementTab({
   }, [available]);
 
   useEffect(() => {
-    runStreamImpl.current = async (ins: string) => {
+    runStreamImpl.current = async (ins: string, opts?: { chained?: boolean }) => {
       if (!available) return;
       const trimmed = ins.trim();
       if (!trimmed) return;
+
+      if (!opts?.chained) {
+        if (streamSessionLockRef.current) return;
+        streamSessionLockRef.current = true;
+      }
 
       runIdRef.current = null;
       abortRef.current?.abort();
@@ -370,7 +379,9 @@ export default function OpsManagementTab({
         const nextIns = pendingAfterRef.current.shift();
         setQueuedCount(pendingAfterRef.current.length);
         if (nextIns) {
-          void runStreamImpl.current(nextIns);
+          void runStreamImpl.current(nextIns, { chained: true });
+        } else {
+          streamSessionLockRef.current = false;
         }
       }
     };
@@ -413,7 +424,7 @@ export default function OpsManagementTab({
   }, []);
 
   const handleMainSubmit = useCallback(() => {
-    if (!available || submitting) return;
+    if (!available || submitting || streamSessionLockRef.current) return;
     const ins = instruction.trim();
     if (!ins) return;
     runOneStream(ins);
@@ -423,7 +434,7 @@ export default function OpsManagementTab({
     if (!available) return;
     const n = nextInstruction.trim();
     if (!n) return;
-    if (submitting) {
+    if (submitting || streamSessionLockRef.current) {
       pendingAfterRef.current.push(n);
       setQueuedCount(pendingAfterRef.current.length);
       setNextInstruction("");
@@ -642,6 +653,12 @@ export default function OpsManagementTab({
             className="ops-management__textarea ops-management__textarea--request"
             value={instruction}
             onChange={(e) => setInstruction(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter" || e.repeat) return;
+              if (!(e.ctrlKey || e.metaKey)) return;
+              e.preventDefault();
+              void handleMainSubmit();
+            }}
             placeholder={ko.app.opsInstructionPlaceholder}
             rows={10}
             disabled={!available || submitting}
@@ -730,6 +747,12 @@ export default function OpsManagementTab({
               className="ops-management__textarea ops-management__textarea--sm"
               value={nextInstruction}
               onChange={(e) => setNextInstruction(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter" || e.repeat) return;
+                if (!(e.ctrlKey || e.metaKey)) return;
+                e.preventDefault();
+                void handleNextSubmit();
+              }}
               placeholder={ko.app.opsNextInstructionPlaceholder}
               rows={4}
               spellCheck={false}
