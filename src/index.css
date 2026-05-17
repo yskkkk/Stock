@@ -3493,6 +3493,21 @@ html[data-theme="light"] .ops-management__my-ip-jobs--inline {
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
+button.ops-agent-queue-card {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  box-sizing: border-box;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.ops-agent-queue-card::-moz-focus-inner {
+  border: 0;
+}
+
 html[data-theme="light"] .ops-agent-queue-card {
   background: var(--surface);
 }
@@ -3884,6 +3899,40 @@ html[data-theme="light"] .ops-management__history-details {
   border: 1px solid var(--card-border);
   max-height: min(36vh, 280px);
   overflow: auto;
+}
+
+.ops-management__history-instruction-muted {
+  margin: 0.35rem 0 0.15rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.news-modal.ops-queue-progress-modal {
+  width: min(760px, 100%);
+}
+
+.ops-queue-progress-modal__body {
+  padding: 0.75rem 1.25rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.ops-queue-progress-modal__head-text {
+  min-width: 0;
+}
+
+.ops-queue-progress-notice,
+.ops-queue-progress-stale {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.ops-queue-progress-meta-sep {
+  color: var(--muted);
 }
 
 .ops-management__history-ip {
