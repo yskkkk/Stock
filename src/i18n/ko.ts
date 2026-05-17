@@ -8,6 +8,7 @@ export const ko = {
     telegramResetLabel: "알림 초기화",
     mainNav: "메인 메뉴",
     themeToggleAria: "화면 테마 전환",
+    themeToolbarAria: "테마 및 색조 도구",
     themeUseLight: "라이트 모드",
     themeUseDark: "다크 모드",
     lightPaletteAria: "라이트 모드 색조 선택",

@@ -17,6 +17,7 @@ const t = {
     telegramResetLabel: "\uC54C\uB9BC \uCD08\uAE30\uD654",
     mainNav: "\uBA54\uC778 \uBA54\uB274",
     themeToggleAria: "\uD654\uBA74 \uD14C\uB9C8 \uC804\uD658",
+    themeToolbarAria: "\uD14C\uB9C8 \uBC0F \uC0C9\uC870 \uB3C4\uAD6C",
     themeUseLight: "\uB77C\uC774\uD2B8 \uBAA8\uB4DC",
     themeUseDark: "\uB2E4\uD06C \uBAA8\uB4DC",
     lightPaletteAria: "\uB77C\uC774\uD2B8 \uBAA8\uB4DC \uC0C9\uC870 \uC120\uD0DD",

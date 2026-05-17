@@ -675,13 +675,14 @@ export default function App() {
         <div
           className={`top-bar__grid${showTopScanStrip ? " top-bar__grid--with-scan" : ""}`}
         >
-          <div className="top-bar__macro">
-            <MacroEventsBar onSecretAdminOpen={() => setShowAccessAdmin(true)} />
-          </div>
-          <div className="top-bar__brand">
+          <div
+            className="top-bar__appearance"
+            role="toolbar"
+            aria-label={ko.app.themeToolbarAria}
+          >
             {colorMode === "light" ? (
               <div
-                className="light-palette-picker light-palette-picker--leading"
+                className="light-palette-picker"
                 role="group"
                 aria-label={ko.app.lightPaletteAria}
               >
@@ -706,6 +707,27 @@ export default function App() {
                 ))}
               </div>
             ) : null}
+            <button
+              type="button"
+              className="theme-toggle"
+              onClick={() =>
+                setColorMode((m) => (m === "dark" ? "light" : "dark"))
+              }
+              title={
+                colorMode === "dark"
+                  ? ko.app.themeUseLight
+                  : ko.app.themeUseDark
+              }
+              aria-label={ko.app.themeToggleAria}
+              aria-pressed={colorMode === "light"}
+            >
+              {colorMode === "dark" ? "\u2600" : "\u263E"}
+            </button>
+          </div>
+          <div className="top-bar__macro">
+            <MacroEventsBar onSecretAdminOpen={() => setShowAccessAdmin(true)} />
+          </div>
+          <div className="top-bar__brand">
             <span className="brand-mark" aria-hidden />
             <div className="top-bar__brand-main">
               <h1>{ko.app.title}</h1>
@@ -777,20 +799,6 @@ export default function App() {
                   {ko.access.adminToolbarBtn}
                 </button>
               )}
-              <button
-                type="button"
-                className="theme-toggle"
-                onClick={() =>
-                  setColorMode((m) => (m === "dark" ? "light" : "dark"))
-                }
-                title={
-                  colorMode === "dark" ? ko.app.themeUseLight : ko.app.themeUseDark
-                }
-                aria-label={ko.app.themeToggleAria}
-                aria-pressed={colorMode === "light"}
-              >
-                {colorMode === "dark" ? "\u2600" : "\u263E"}
-              </button>
               <button
                 type="button"
                 className="btn btn--secondary top-bar__rescan"
