@@ -42,6 +42,62 @@ function streamHeadlineFromInstruction(text: string, maxChars: number): string {
   return t.length > maxChars ? `${t.slice(0, maxChars - 1)}…` : t;
 }
 
+function OpsManagementLiveStreamContent({
+  streamHeadlineInstruction,
+  phaseLine,
+  cursorLine,
+  toolLine,
+  thinkingLine,
+  streamText,
+}: {
+  streamHeadlineInstruction: string;
+  phaseLine: string;
+  cursorLine: string;
+  toolLine: string;
+  thinkingLine: string;
+  streamText: string;
+}) {
+  const head = streamHeadlineFromInstruction(streamHeadlineInstruction, 72);
+  const titleText = head ? `${head} · ${ko.app.opsStreamTitle}` : ko.app.opsStreamTitle;
+
+  return (
+    <>
+      <p className="ops-management__stream-title">{titleText}</p>
+      {phaseLine ? (
+        <p className="ops-management__stream-row">
+          <span className="ops-management__stream-k">{ko.app.opsStreamPhase}</span>
+          <span className="ops-management__stream-v">{phaseLine}</span>
+        </p>
+      ) : null}
+      {cursorLine ? (
+        <p className="ops-management__stream-row">
+          <span className="ops-management__stream-k">{ko.app.opsStreamCursorStatus}</span>
+          <span className="ops-management__stream-v ops-management__stream-v--mono">
+            {cursorLine}
+          </span>
+        </p>
+      ) : null}
+      {toolLine ? (
+        <p className="ops-management__stream-row">
+          <span className="ops-management__stream-k">{ko.app.opsStreamTool}</span>
+          <span className="ops-management__stream-v ops-management__stream-v--mono">
+            {toolLine}
+          </span>
+        </p>
+      ) : null}
+      {thinkingLine ? (
+        <p className="ops-management__stream-row ops-management__stream-row--thinking">
+          <span className="ops-management__stream-k">{ko.app.opsStreamThinking}</span>
+          <span className="ops-management__stream-v">{thinkingLine}</span>
+        </p>
+      ) : null}
+      {streamText ? (
+        <pre className="ops-management__stream-pre">{streamText}</pre>
+      ) : null}
+    </>
+  );
+}
+
 export default function OpsManagementTab({
   available,
 }: {
@@ -402,7 +458,7 @@ export default function OpsManagementTab({
             </section>
 
             <section
-              className="ops-management__my-ip-jobs ops-management__my-ip-jobs--bubble card"
+              className="ops-management__my-ip-jobs ops-management__my-ip-jobs--bubble"
               aria-label={ko.app.opsMyIpJobsTitle}
             >
               <div className="ops-management__my-ip-bubble-body">
@@ -418,6 +474,21 @@ export default function OpsManagementTab({
                     {ko.app.opsMyIpNoViewerIp}
                   </p>
                 )}
+                {showStream ? (
+                  <div
+                    className="ops-management__stream ops-management__stream--bubble-duplicate card"
+                    aria-hidden="true"
+                  >
+                    <OpsManagementLiveStreamContent
+                      streamHeadlineInstruction={streamHeadlineInstruction}
+                      phaseLine={phaseLine}
+                      cursorLine={cursorLine}
+                      toolLine={toolLine}
+                      thinkingLine={thinkingLine}
+                      streamText={streamText}
+                    />
+                  </div>
+                ) : null}
                 {viewerIp && !hasMyIpServerActivity ? (
                   <p className="ops-management__my-ip-none" role="status">
                     {ko.app.opsMyIpJobsNone}
@@ -561,43 +632,14 @@ export default function OpsManagementTab({
 
         {showStream ? (
           <div className="ops-management__stream card" aria-live="polite">
-            <p className="ops-management__stream-title">
-              {(() => {
-                const head = streamHeadlineFromInstruction(streamHeadlineInstruction, 72);
-                return head ? `${head} · ${ko.app.opsStreamTitle}` : ko.app.opsStreamTitle;
-              })()}
-            </p>
-            {phaseLine ? (
-              <p className="ops-management__stream-row">
-                <span className="ops-management__stream-k">{ko.app.opsStreamPhase}</span>
-                <span className="ops-management__stream-v">{phaseLine}</span>
-              </p>
-            ) : null}
-            {cursorLine ? (
-              <p className="ops-management__stream-row">
-                <span className="ops-management__stream-k">{ko.app.opsStreamCursorStatus}</span>
-                <span className="ops-management__stream-v ops-management__stream-v--mono">
-                  {cursorLine}
-                </span>
-              </p>
-            ) : null}
-            {toolLine ? (
-              <p className="ops-management__stream-row">
-                <span className="ops-management__stream-k">{ko.app.opsStreamTool}</span>
-                <span className="ops-management__stream-v ops-management__stream-v--mono">
-                  {toolLine}
-                </span>
-              </p>
-            ) : null}
-            {thinkingLine ? (
-              <p className="ops-management__stream-row ops-management__stream-row--thinking">
-                <span className="ops-management__stream-k">{ko.app.opsStreamThinking}</span>
-                <span className="ops-management__stream-v">{thinkingLine}</span>
-              </p>
-            ) : null}
-            {streamText ? (
-              <pre className="ops-management__stream-pre">{streamText}</pre>
-            ) : null}
+            <OpsManagementLiveStreamContent
+              streamHeadlineInstruction={streamHeadlineInstruction}
+              phaseLine={phaseLine}
+              cursorLine={cursorLine}
+              toolLine={toolLine}
+              thinkingLine={thinkingLine}
+              streamText={streamText}
+            />
           </div>
         ) : null}
 
