@@ -3185,8 +3185,9 @@ html[data-theme="light"] .feedback-inbox-item {
 /* -------------------------------------------------------------------------- */
 
 .ops-management-wrap {
-  max-width: 820px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
   padding: 0.85rem 1rem 1.1rem;
 }
 
@@ -3246,6 +3247,122 @@ html[data-theme="light"] .feedback-inbox-item {
 .ops-management__submit {
   align-self: flex-start;
   margin-top: 0.25rem;
+}
+
+.ops-management__history {
+  margin-top: 1.25rem;
+  padding: 0.65rem 0.75rem;
+}
+
+.ops-management__history-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.ops-management__history-title {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.ops-management__history-clear {
+  font-size: 0.76rem;
+  padding: 0.35rem 0.55rem;
+}
+
+.ops-management__history-hint {
+  margin-top: 0.35rem;
+}
+
+.ops-management__history-empty {
+  margin: 0.55rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.ops-management__history-list {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.ops-management__history-item {
+  margin: 0;
+}
+
+.ops-management__history-details {
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  background: rgba(148, 163, 184, 0.04);
+  padding: 0 0.5rem;
+}
+
+.ops-management__history-summary {
+  cursor: pointer;
+  padding: 0.5rem 0.25rem;
+  font-size: 0.76rem;
+  line-height: 1.35;
+  list-style-position: outside;
+}
+
+.ops-management__history-summary::-webkit-details-marker {
+  margin-right: 0.35rem;
+}
+
+.ops-management__history-when {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-bottom: 0.25rem;
+}
+
+.ops-management__history-snippet {
+  display: block;
+  color: var(--text-dim);
+  word-break: break-word;
+}
+
+.ops-management__history-instruction-label {
+  margin: 0.35rem 0 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.ops-management__history-instruction {
+  margin: 0 0 0.5rem;
+  padding: 0.5rem 0.55rem;
+  font-family: inherit;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--card-border);
+  max-height: min(36vh, 280px);
+  overflow: auto;
+}
+
+.ops-management__history .ops-management__stream {
+  margin-top: 0.65rem;
+}
+
+.ops-management__history-error {
+  margin: 0.5rem 0;
+}
+
+.ops-management__history-result {
+  margin: 0.5rem 0;
+  padding: 0.65rem 0.75rem;
 }
 
 .ops-management__stream {
