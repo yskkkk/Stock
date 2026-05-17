@@ -28,10 +28,18 @@ function formatHistoryTs(ms: number): string {
 }
 
 function historyStateLabel(s: OpsAgentHistoryEntry["state"]): string {
+  if (s === "waiting") return ko.app.opsHistoryStatusWaiting;
   if (s === "running") return ko.app.opsHistoryStatusRunning;
   if (s === "error") return ko.app.opsHistoryStatusError;
   if (s === "cancelled") return ko.app.opsHistoryStatusCancelled;
   return ko.app.opsHistoryStatusOk;
+}
+
+function streamHeadlineFromInstruction(text: string, maxChars: number): string {
+  const line = text.split(/\r?\n/).find((l) => l.trim().length > 0) ?? "";
+  const t = line.trim();
+  if (!t) return "";
+  return t.length > maxChars ? `${t.slice(0, maxChars - 1)}…` : t;
 }
 
 export default function OpsManagementTab({
@@ -40,6 +48,7 @@ export default function OpsManagementTab({
   available: boolean;
 }) {
   const [instruction, setInstruction] = useState("");
+  const [streamHeadlineInstruction, setStreamHeadlineInstruction] = useState("");
   const [nextInstruction, setNextInstruction] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [queuedCount, setQueuedCount] = useState(0);
@@ -135,8 +144,6 @@ export default function OpsManagementTab({
         .then((p) => {
           if (cancelled) return;
           setRemotePending(p);
-          const ins = String(p.instruction ?? "").trim();
-          if (ins) setInstruction((prev) => (prev.trim() ? prev : ins));
         })
         .catch(() => {
           /* 접근 게이트 복귀 직후 등 — 조용히 무시 */
@@ -187,7 +194,8 @@ export default function OpsManagementTab({
 
       setSubmitting(true);
       setPhaseLine("서버에 연결하는 중…");
-      setInstruction(trimmed);
+      setStreamHeadlineInstruction(trimmed);
+      setInstruction("");
       setError(null);
       setResultText(null);
       setStatusText(null);
@@ -247,6 +255,7 @@ export default function OpsManagementTab({
         }
       } finally {
         setSubmitting(false);
+        setStreamHeadlineInstruction("");
         if (abortRef.current === ac) abortRef.current = null;
 
         if (!didAbort && !ac.signal.aborted) {
@@ -290,7 +299,7 @@ export default function OpsManagementTab({
 
   const deleteHistoryEntry = useCallback(async (run: OpsAgentHistoryEntry) => {
     const msg =
-      run.state === "running"
+      run.state === "running" || run.state === "waiting"
         ? ko.app.opsHistoryDeleteRunningConfirm
         : ko.app.opsHistoryDeleteEntryConfirm;
     if (typeof window !== "undefined" && !window.confirm(msg)) {
@@ -550,7 +559,12 @@ export default function OpsManagementTab({
 
         {showStream ? (
           <div className="ops-management__stream card" aria-live="polite">
-            <p className="ops-management__stream-title">{ko.app.opsStreamTitle}</p>
+            <p className="ops-management__stream-title">
+              {(() => {
+                const head = streamHeadlineFromInstruction(streamHeadlineInstruction, 72);
+                return head ? `${head} · ${ko.app.opsStreamTitle}` : ko.app.opsStreamTitle;
+              })()}
+            </p>
             {phaseLine ? (
               <p className="ops-management__stream-row">
                 <span className="ops-management__stream-k">{ko.app.opsStreamPhase}</span>
@@ -688,13 +702,15 @@ export default function OpsManagementTab({
                   run.streamText,
               );
               const tsMs =
-                state === "running"
+                state === "running" || state === "waiting"
                   ? (run.updatedAtMs ?? run.startedAtMs ?? Date.now())
                   : (run.finishedAtMs ?? run.updatedAtMs ?? run.startedAtMs ?? Date.now());
               const badgeClass =
                 state === "running"
                   ? "ops-history__badge--pending"
-                  : state === "ok"
+                  : state === "waiting"
+                    ? "ops-history__badge--waiting"
+                    : state === "ok"
                     ? "ops-history__badge--ok"
                     : "ops-history__badge--err";
 
@@ -785,7 +801,9 @@ export default function OpsManagementTab({
                         {run.error}
                       </div>
                     ) : null}
-                    {run.resultText != null && state !== "running" ? (
+                    {run.resultText != null &&
+                    state !== "running" &&
+                    state !== "waiting" ? (
                       <div className="ops-management__history-result card">
                         {run.statusText ? (
                           <p className="ops-management__meta">

@@ -14,6 +14,7 @@ import {
   finalizeOpsAgentEntry,
   patchOpsAgentEntry,
   prependRunningOpsEntry,
+  promoteOpsAgentEntryToRunning,
 } from "./ops-agent-history-store.js";
 import {
   clearOpsAgentPending,
@@ -292,10 +293,15 @@ export function writeOpsAgentSseEvent(res, obj) {
  * SSE로 에이전트 진행·델타·최종 결과 전송.
  * @param {import("express").Request} req
  * @param {import("express").Response} res
- * @param {{ instruction: string }} body
+ * @param {{ instruction: string; historyRunId?: string | null }} body
  */
 export async function streamOpsCursorAgentSse(req, res, body) {
   const instruction = String(body.instruction ?? "").trim();
+  const historyRunIdRaw = body.historyRunId;
+  const historyRunId =
+    typeof historyRunIdRaw === "string" && historyRunIdRaw.trim().length > 0
+      ? historyRunIdRaw.trim()
+      : null;
   const requestIp = normalizeAccessIp(clientIp(req));
   if (requestIp) {
     setOpsAgentPending(requestIp, instruction);
@@ -366,14 +372,34 @@ export async function streamOpsCursorAgentSse(req, res, body) {
 
     writeSse({ type: "phase", message: "에이전트 실행 준비 중…" });
 
-    const id = randomUUID();
-    try {
-      await prependRunningOpsEntry(id, instruction, requestIp);
-      runId = id;
-      registerOpsStreamUserCancel(id, userCancelAc);
-      writeSse({ type: "meta", requestId: id });
-    } catch {
-      /* 디스크 오류 등 — 스트림은 계속 */
+    if (historyRunId) {
+      runId = historyRunId;
+      try {
+        const promoted = await promoteOpsAgentEntryToRunning(historyRunId);
+        if (!promoted) {
+          await prependRunningOpsEntry(historyRunId, instruction, requestIp);
+        }
+        registerOpsStreamUserCancel(historyRunId, userCancelAc);
+        writeSse({ type: "meta", requestId: historyRunId });
+      } catch {
+        try {
+          await prependRunningOpsEntry(historyRunId, instruction, requestIp);
+          registerOpsStreamUserCancel(historyRunId, userCancelAc);
+          writeSse({ type: "meta", requestId: historyRunId });
+        } catch {
+          /* 디스크 오류 등 — 스트림은 계속 */
+        }
+      }
+    } else {
+      const id = randomUUID();
+      try {
+        await prependRunningOpsEntry(id, instruction, requestIp);
+        runId = id;
+        registerOpsStreamUserCancel(id, userCancelAc);
+        writeSse({ type: "meta", requestId: id });
+      } catch {
+        /* 디스크 오류 등 — 스트림은 계속 */
+      }
     }
 
     ensureCursorRipgrepPath();

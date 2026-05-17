@@ -73,14 +73,18 @@ function parseHistoryRecord(o) {
 
   const st = o.state;
   let state =
-    st === "running" || st === "ok" || st === "error" || st === "cancelled"
+    st === "running" ||
+    st === "waiting" ||
+    st === "ok" ||
+    st === "error" ||
+    st === "cancelled"
       ? st
       : null;
   if (!state) {
     if (finishedAtMs == null) state = "running";
     else state = error ? "error" : "ok";
   }
-  if (state === "running" && finishedAtMs != null) {
+  if ((state === "running" || state === "waiting") && finishedAtMs != null) {
     state = error ? "error" : "ok";
   }
 
@@ -201,6 +205,75 @@ export function prependRunningOpsEntry(id, instruction, requestIp = "") {
       .filter((e) => e.id !== id);
     const next = [entry, ...prev].slice(0, OPS_AGENT_HISTORY_MAX);
     await fs.writeFile(HISTORY_FILE, JSON.stringify(next), "utf8");
+  });
+}
+
+/**
+ * FIFO에만 올라간 단계 — 실제 에이전트 호출 전까지 이력에서 `waiting`으로 표시.
+ * `enqueueOpsAgentJob`의 onCommitted에서 동기 호출해 `drainQueue`보다 먼저 기록한다.
+ * @param {string} id
+ * @param {string} instruction
+ * @param {string} [requestIp]
+ */
+export function prependQueuedOpsEntrySync(id, instruction, requestIp = "") {
+  ensureDirSync();
+  const ins = trimStoredTextForOpsHistory(
+    instruction,
+    OPS_AGENT_INSTRUCTION_STORE_MAX,
+  );
+  const rip = sanitizeRequestIpForStore(requestIp);
+  const now = Date.now();
+  const entry = {
+    id,
+    instruction: ins,
+    state: "waiting",
+    startedAtMs: now,
+    updatedAtMs: now,
+    finishedAtMs: null,
+    error: null,
+    phaseLine: "",
+    cursorLine: "",
+    thinkingLine: "",
+    toolLine: "",
+    streamText: "",
+    statusText: null,
+    resultText: null,
+    durationMs: null,
+    runtimeLabel: null,
+    requestIp: rip,
+  };
+  const prev = readRawListSync()
+    .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))
+    .filter(Boolean)
+    .filter((e) => e.id !== id);
+  const next = [entry, ...prev].slice(0, OPS_AGENT_HISTORY_MAX);
+  saveRawListSync(next);
+}
+
+/**
+ * 큐 대기 레코드를 실행 중으로 전환. 해당 id가 없으면 false.
+ * @param {string} id
+ * @returns {Promise<boolean>}
+ */
+export function promoteOpsAgentEntryToRunning(id) {
+  return chainWrite(async () => {
+    ensureDirSync();
+    const raw = readRawListSync();
+    const list = raw
+      .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))
+      .filter(Boolean);
+    const i = list.findIndex((e) => e.id === id);
+    if (i === -1) return false;
+    const cur = list[i];
+    if (cur.state !== "waiting" && cur.state !== "running") return false;
+    list[i] = {
+      ...cur,
+      state: "running",
+      updatedAtMs: Date.now(),
+      finishedAtMs: null,
+    };
+    await fs.writeFile(HISTORY_FILE, JSON.stringify(list), "utf8");
+    return true;
   });
 }
 
@@ -371,7 +444,7 @@ export function removeOpsAgentHistoryEntryById(id) {
       .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))
       .filter(Boolean);
     const victim = list.find((e) => e.id === id);
-    if (victim?.state === "running") {
+    if (victim?.state === "running" || victim?.state === "waiting") {
       finalizeSkippedIds.add(id);
     }
     const next = list.filter((e) => e.id !== id);
