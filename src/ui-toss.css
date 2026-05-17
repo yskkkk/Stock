@@ -321,74 +321,81 @@ body {
 
 @media (max-width: 900px) {
   html {
-    font-size: 15px;
+    font-size: 14px;
   }
 
   body {
-    font-weight: 580;
-    line-height: 1.52;
-    letter-spacing: -0.017em;
+    font-weight: 560;
+    line-height: 1.45;
+    letter-spacing: -0.015em;
   }
 
   .app {
-    gap: 0.48rem;
-    padding-top: max(0.55rem, env(safe-area-inset-top, 0px));
-    padding-right: max(0.55rem, env(safe-area-inset-right, 0px));
-    padding-bottom: max(0.65rem, env(safe-area-inset-bottom, 0px));
-    padding-left: max(0.55rem, env(safe-area-inset-left, 0px));
+    gap: 0.42rem;
+    padding-top: max(0.45rem, env(safe-area-inset-top, 0px));
+    padding-right: max(0.45rem, env(safe-area-inset-right, 0px));
+    padding-bottom: max(0.55rem, env(safe-area-inset-bottom, 0px));
+    padding-left: max(0.45rem, env(safe-area-inset-left, 0px));
   }
 
   .btn {
-    font-size: 0.78rem;
-    padding: 0.36rem 0.88rem;
+    font-size: 0.74rem;
+    padding: 0.32rem 0.78rem;
   }
 
   .main-tab {
-    padding: 0.34rem 0.72rem;
-    font-size: 0.8rem;
+    padding: 0.3rem 0.62rem;
+    font-size: 0.76rem;
   }
 
   .top-bar__brand h1 {
-    font-size: 0.95rem;
-    letter-spacing: -0.028em;
+    font-size: 0.9rem;
+    letter-spacing: -0.026em;
   }
 
   .top-bar__brand p {
-    font-size: 0.78rem;
+    font-size: 0.73rem;
   }
 
   .quote-bar__info h2,
   .quote-main h2 {
-    font-size: 0.98rem;
-    letter-spacing: -0.026em;
+    font-size: 0.92rem;
+    letter-spacing: -0.024em;
   }
 
   .pick-name {
-    font-size: 0.88rem;
+    font-size: 0.84rem;
   }
 
   .pick-action {
-    font-size: 0.68rem;
-    padding: 0.32rem 0;
+    font-size: 0.65rem;
+    padding: 0.28rem 0;
   }
 
   .chip {
-    padding: 0.26rem 0.58rem;
-    font-size: 0.72rem;
+    padding: 0.22rem 0.52rem;
+    font-size: 0.69rem;
   }
 
   .timeframe-seg .seg {
-    padding: 0.3rem 0.48rem;
-    font-size: 0.74rem;
+    padding: 0.26rem 0.44rem;
+    font-size: 0.7rem;
   }
 
   .chart-toolbar {
-    font-size: 0.74rem;
+    font-size: 0.7rem;
   }
 
   .chart-draw-btn {
-    padding: 0.28rem 0.55rem;
-    font-size: 0.72rem;
+    padding: 0.24rem 0.48rem;
+    font-size: 0.68rem;
+  }
+
+  .theme-toggle {
+    min-width: 2.05rem;
+    min-height: 2rem;
+    padding: 0.28rem 0.42rem;
+    font-size: 0.95rem;
   }
 
   .macro-card {
@@ -401,5 +408,56 @@ body {
 
   .brand-mark {
     border-radius: 10px;
+  }
+}
+
+/* 좁은 폰: 한 화면에 헤더·목록·차트가 더 들어가도록 한 단계 더 축소 */
+@media (max-width: 560px) {
+  html {
+    font-size: 13px;
+  }
+
+  body {
+    line-height: 1.42;
+  }
+
+  .app {
+    gap: 0.34rem;
+    padding-top: max(0.38rem, env(safe-area-inset-top, 0px));
+    padding-right: max(0.38rem, env(safe-area-inset-right, 0px));
+    padding-bottom: max(0.48rem, env(safe-area-inset-bottom, 0px));
+    padding-left: max(0.38rem, env(safe-area-inset-left, 0px));
+  }
+
+  .btn {
+    font-size: 0.72rem;
+    padding: 0.28rem 0.68rem;
+  }
+
+  .main-tab {
+    padding: 0.26rem 0.52rem;
+    font-size: 0.73rem;
+  }
+
+  .top-bar__brand h1 {
+    font-size: 0.86rem;
+  }
+
+  .top-bar__brand p {
+    font-size: 0.7rem;
+  }
+
+  .chip {
+    padding: 0.2rem 0.46rem;
+    font-size: 0.66rem;
+  }
+
+  .pick-name {
+    font-size: 0.8rem;
+  }
+
+  .panel-head__title,
+  .crypto-panel .panel-head__title {
+    font-size: 0.88rem;
   }
 }
