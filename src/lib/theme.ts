@@ -29,6 +29,27 @@ export const LIGHT_PALETTE_PREVIEW: Record<LightPaletteId, string> = {
   dusk: "#3d6ea8",
 };
 
+/**
+ * 로컬에 저장된 테마가 없을 때의 기본값.
+ * `@media (max-width: 900px) and (hover: none) and (pointer: coarse)` 와 동일하게
+ * 터치 중심 모바일에서는 라이트(화이트) 모드를 기본으로 한다.
+ */
+function defaultColorModeWhenUnset(): ColorMode {
+  if (typeof window === "undefined") return "dark";
+  try {
+    if (
+      window.matchMedia(
+        "(max-width: 900px) and (hover: none) and (pointer: coarse)",
+      ).matches
+    ) {
+      return "light";
+    }
+  } catch {
+    /* ignore */
+  }
+  return "dark";
+}
+
 export function readStoredTheme(): ColorMode {
   try {
     const v = localStorage.getItem(THEME_STORAGE_KEY);
@@ -36,7 +57,7 @@ export function readStoredTheme(): ColorMode {
   } catch {
     /* ignore */
   }
-  return "dark";
+  return defaultColorModeWhenUnset();
 }
 
 export function readStoredLightPalette(): LightPaletteId {
