@@ -699,29 +699,6 @@ export default function App() {
             ))}
           </div>
         ) : null}
-        <button
-          type="button"
-          className="theme-toggle app-theme-corner__toggle"
-          disabled={!ENABLE_THEME_MODE_TOGGLE}
-          onClick={() =>
-            setColorMode((m) => (m === "dark" ? "light" : "dark"))
-          }
-          title={
-            !ENABLE_THEME_MODE_TOGGLE
-              ? ko.app.themeToggleDisabledHint
-              : colorMode === "dark"
-                ? ko.app.themeUseLight
-                : ko.app.themeUseDark
-          }
-          aria-label={
-            !ENABLE_THEME_MODE_TOGGLE
-              ? ko.app.themeToggleDisabledAria
-              : ko.app.themeToggleAria
-          }
-          aria-pressed={ENABLE_THEME_MODE_TOGGLE && colorMode === "light"}
-        >
-          {colorMode === "dark" ? "\u2600" : "\u263E"}
-        </button>
       </div>
       <div className="app-corner-stack">
         {accessAdmin ? (
@@ -812,6 +789,29 @@ export default function App() {
                   {ko.access.adminToolbarBtn}
                 </button>
               )}
+              <button
+                type="button"
+                className="theme-toggle"
+                disabled={!ENABLE_THEME_MODE_TOGGLE}
+                onClick={() =>
+                  setColorMode((m) => (m === "dark" ? "light" : "dark"))
+                }
+                title={
+                  !ENABLE_THEME_MODE_TOGGLE
+                    ? ko.app.themeToggleDisabledHint
+                    : colorMode === "dark"
+                      ? ko.app.themeUseLight
+                      : ko.app.themeUseDark
+                }
+                aria-label={
+                  !ENABLE_THEME_MODE_TOGGLE
+                    ? ko.app.themeToggleDisabledAria
+                    : ko.app.themeToggleAria
+                }
+                aria-pressed={ENABLE_THEME_MODE_TOGGLE && colorMode === "light"}
+              >
+                {colorMode === "dark" ? "\u2600" : "\u263E"}
+              </button>
               <button
                 type="button"
                 className="btn btn--secondary top-bar__rescan"
