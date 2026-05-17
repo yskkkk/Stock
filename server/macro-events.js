@@ -332,27 +332,52 @@ export function getUpcomingMacroEvents(opts = {}) {
 
   events.sort((a, b) => a.at - b.at);
 
+  const POLICY_MACRO_CODES = ["FOMC", "FOMC_MINUTES"];
+  /** 다음 연준(FOMC·의사록) 각 1건 — 한도 때문에 뒤로 밀려 나가지 않게 항상 후보 포함 */
+  const pinnedPolicy = [];
+  const pinnedIds = new Set();
+  for (const code of POLICY_MACRO_CODES) {
+    const next = events.find((e) => e.code === code);
+    if (next && !pinnedIds.has(next.id)) {
+      pinnedPolicy.push(next);
+      pinnedIds.add(next.id);
+    }
+  }
+
   const high = events.filter((e) => e.importance === "high");
   const medium = events.filter((e) => e.importance === "medium");
+  /** @type {typeof events} */
   const merged = [];
-  const pick = (arr, n) => {
+  const pick = (arr) => {
     for (const e of arr) {
       if (merged.length >= limit) break;
+      if (pinnedIds.has(e.id)) continue;
       if (!merged.some((x) => x.id === e.id)) merged.push(e);
     }
   };
-  pick(high, limit);
-  pick(medium, Math.max(0, limit - merged.length));
+  pick(high);
+  pick(medium);
 
   if (merged.length < limit) {
     for (const e of events) {
       if (merged.length >= limit) break;
+      if (pinnedIds.has(e.id)) continue;
       if (!merged.some((x) => x.id === e.id)) merged.push(e);
     }
   }
 
-  merged.sort((a, b) => a.at - b.at);
-  return merged.slice(0, limit);
+  const withPinned = [...pinnedPolicy.filter((p) => p.at <= horizon), ...merged];
+  const dedup = [];
+  const seenMerge = new Set();
+  for (const e of withPinned) {
+    if (seenMerge.has(e.id)) continue;
+    seenMerge.add(e.id);
+    dedup.push(e);
+    if (dedup.length >= limit) break;
+  }
+
+  dedup.sort((a, b) => a.at - b.at);
+  return dedup.slice(0, limit);
 }
 
 let cache = { at: 0, data: null };

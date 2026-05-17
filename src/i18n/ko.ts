@@ -146,7 +146,7 @@ export const ko = {
   },
   macro: {
     title: "주요 지표 발표",
-    subtitle: "남은 시간 기준 (KST)",
+    subtitle: "남은 시간 기준(KST) · 미국 FOMC·의사록 일정 포함",
     live: "진행 중",
     soon: "곧 발표",
     loading: "일정 불러오는 중…",

@@ -26,5 +26,13 @@
   { "code": "KR_CPI", "at": "2026-07-02T08:00:00", "tz": "Asia/Seoul" },
   { "code": "KR_BOK", "at": "2026-07-23T10:00:00", "tz": "Asia/Seoul" },
   { "code": "KR_CPI", "at": "2026-08-04T08:00:00", "tz": "Asia/Seoul" },
-  { "code": "KR_BOK", "at": "2026-10-22T10:00:00", "tz": "Asia/Seoul" }
+  { "code": "KR_BOK", "at": "2026-10-22T10:00:00", "tz": "Asia/Seoul" },
+  { "code": "FOMC", "at": "2027-01-27T14:00:00", "tz": "America/New_York" },
+  { "code": "FOMC", "at": "2027-03-17T14:00:00", "tz": "America/New_York" },
+  { "code": "FOMC", "at": "2027-04-28T14:00:00", "tz": "America/New_York" },
+  { "code": "FOMC", "at": "2027-06-09T14:00:00", "tz": "America/New_York" },
+  { "code": "FOMC", "at": "2027-07-28T14:00:00", "tz": "America/New_York" },
+  { "code": "FOMC", "at": "2027-09-15T14:00:00", "tz": "America/New_York" },
+  { "code": "FOMC", "at": "2027-10-27T14:00:00", "tz": "America/New_York" },
+  { "code": "FOMC", "at": "2027-12-08T14:00:00", "tz": "America/New_York" }
 ]
