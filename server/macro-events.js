@@ -1,7 +1,14 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { enrichMacroEventsWithFinnhubConsensus } from "./macro-consensus-finhub.js";
 
+/**
+ * 정적 일정: `data/macro-releases.json` — 행에 선택 필드 `forecast`(문자열)를 넣으면
+ * API·카드에 예상치로 노출됩니다(시장 컨센서스 수치를 수동으로 넣는 용도).
+ * `FINNHUB_API_KEY`가 설정된 경우 Finnhub 경제 캘린더의 estimate(컨센서스)가
+ * 일치하는 이벤트에 병합되어 우선 표시됩니다. 없으면 클라이언트에서「발표 전」표시.
+ */
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** @type {Record<string, { name: string; region: "us" | "kr"; importance: "high" | "medium"; category: string }>} */
@@ -209,10 +216,26 @@ function firstFridayOfMonth(year, month, timeZone) {
   return 7;
 }
 
-/** @returns {{ code: string; at: string; tz: string }[]} */
+/** @returns {{ code: string; at: string; tz: string; forecast?: string }[]} */
 function loadStaticReleases() {
   const file = path.join(__dirname, "data", "macro-releases.json");
-  return JSON.parse(fs.readFileSync(file, "utf8"));
+  const arr = JSON.parse(fs.readFileSync(file, "utf8"));
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .map((x) => {
+      if (!x || typeof x !== "object") return null;
+      const code = typeof x.code === "string" ? x.code.trim() : "";
+      const at = typeof x.at === "string" ? x.at.trim() : "";
+      const tz = typeof x.tz === "string" ? x.tz.trim() : "";
+      if (!code || !at || !tz) return null;
+      const fc = x.forecast;
+      const forecast =
+        typeof fc === "string" && fc.trim()
+          ? fc.trim()
+          : undefined;
+      return { code, at, tz, forecast };
+    })
+    .filter(Boolean);
 }
 
 /** @param {Date} from @param {Date} to */
@@ -298,7 +321,16 @@ export function getUpcomingMacroEvents(opts = {}) {
 
   for (const row of loadStaticReleases()) {
     const at = parseLocalIso(row.at, row.tz);
-    raw.push({ code: row.code, at, tz: row.tz });
+    const fc =
+      row.forecast != null && String(row.forecast).trim()
+        ? String(row.forecast).trim()
+        : undefined;
+    raw.push({
+      code: row.code,
+      at,
+      tz: row.tz,
+      ...(fc ? { forecast: fc } : {}),
+    });
   }
 
   const from = new Date(now - 86400000);
@@ -327,6 +359,10 @@ export function getUpcomingMacroEvents(opts = {}) {
       category: meta.category,
       at: row.at,
       timezone: row.tz,
+      forecast:
+        row.forecast != null && String(row.forecast).trim()
+          ? String(row.forecast).trim()
+          : null,
     });
   }
 
@@ -380,15 +416,28 @@ export function getUpcomingMacroEvents(opts = {}) {
   return dedup.slice(0, limit);
 }
 
-let cache = { at: 0, data: null };
+let macroEventsCache = { at: 0, data: null };
+/** @type {Promise<{ events: unknown[]; updatedAt: number }> | null} */
+let macroEventsInflight = null;
 
-export function getMacroEventsCached() {
+export async function getMacroEventsCachedAsync() {
   const now = Date.now();
-  if (cache.data && now - cache.at < 60_000) return cache.data;
-  const events = getUpcomingMacroEvents();
-  cache = {
-    at: now,
-    data: { events, updatedAt: now },
-  };
-  return cache.data;
+  if (macroEventsCache.data && now - macroEventsCache.at < 60_000) {
+    return macroEventsCache.data;
+  }
+  if (macroEventsInflight) return macroEventsInflight;
+
+  macroEventsInflight = (async () => {
+    const events = getUpcomingMacroEvents();
+    await enrichMacroEventsWithFinnhubConsensus(events).catch(() => {});
+    const data = { events, updatedAt: Date.now() };
+    macroEventsCache = { at: Date.now(), data };
+    return data;
+  })();
+
+  try {
+    return await macroEventsInflight;
+  } finally {
+    macroEventsInflight = null;
+  }
 }

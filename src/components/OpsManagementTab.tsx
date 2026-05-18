@@ -9,21 +9,23 @@ import {
   fetchOpsCursorAgentQueue,
   fetchOpsCursorAgentStream,
   fetchOpsRecordMode,
-  fetchOpsFileDevQueue,
+  fetchOpsRecordModeActivity,
   postOpsAgentHistoryWorkspaceApplied,
-  postOpsCursorAgentStreamCancel,
+  postOpsRecordModeJob,
   putOpsRecordMode,
-  putOpsFileDevQueue,
   type OpsAgentHistoryEntry,
   type OpsAgentQueueEntry,
   type OpsCursorAgentPendingResponse,
-  type OpsFileDevItem,
+  type OpsRecordModeActivityEntry,
   type OpsRecordModeItem,
 } from "../api";
 import { ko } from "../i18n/ko";
 
 const HISTORY_POLL_MS = 2000;
 const AGENT_QUEUE_POLL_MS = 5000;
+/** 기록 모드(파일 요청) 대기 목록 — 에이전트 실행 큐와 동일 주기로 스냅샷 갱신 */
+const RECORD_MODE_QUEUE_POLL_MS = AGENT_QUEUE_POLL_MS;
+const FILE_ACTIVITY_POLL_MS = 5000;
 
 function formatHistoryTs(ms: number): string {
   try {
@@ -45,63 +47,93 @@ function historyStateLabel(s: OpsAgentHistoryEntry["state"]): string {
   return ko.app.opsHistoryStatusOk;
 }
 
+/** 큐·기록 행 id 비교용(공백·타입 불일치로 서버 행이 중복 삽입되는 것 방지) */
+function normalizeOpQueueId(id: unknown): string {
+  return String(id ?? "").trim();
+}
+
+function newLocalQueueItemId(): string {
+  const c = typeof globalThis !== "undefined" ? globalThis.crypto : undefined;
+  if (c && "randomUUID" in c && typeof c.randomUUID === "function") {
+    try {
+      return c.randomUUID();
+    } catch {
+      /* fall through */
+    }
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}-${Math.random().toString(16).slice(2)}`;
+}
+
+/** 동일 id가 next에 두 번 나오면(병합 버그·JSON 중복) 첫 등장 순서를 유지하고 마지막 병합본을 사용 */
+function dedupeQueueRowsById<T extends { id: string }>(rows: T[]): T[] {
+  const lastById = new Map<string, T>();
+  for (const row of rows) {
+    const id = normalizeOpQueueId(row.id);
+    if (!id) continue;
+    lastById.set(id, { ...row, id });
+  }
+  const out: T[] = [];
+  const seen = new Set<string>();
+  for (const row of rows) {
+    const id = normalizeOpQueueId(row.id);
+    if (!id) continue;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const merged = lastById.get(id);
+    if (merged) out.push(merged);
+  }
+  return out;
+}
+
 function mergeRecordModePoll(
   prev: OpsRecordModeItem[],
   server: OpsRecordModeItem[],
 ): OpsRecordModeItem[] {
-  const srvById = new Map(server.map((x) => [x.id, x]));
+  const srvById = new Map(
+    server.map((x) => {
+      const id = normalizeOpQueueId(x.id);
+      return id ? ([id, { ...x, id }] as const) : null;
+    }).filter((e): e is readonly [string, OpsRecordModeItem] => e != null),
+  );
   const next = prev.map((row) => {
-    const s = srvById.get(row.id);
-    if (!s) return row;
-    if (row.status === "pending" && s.status === "pending") {
-      return { ...row, createdAtMs: s.createdAtMs };
+    const id = normalizeOpQueueId(row.id);
+    const rowNorm = id ? { ...row, id } : row;
+    const s = id ? srvById.get(id) : undefined;
+    if (!s) return rowNorm;
+    if (rowNorm.status === "pending" && s.status === "pending") {
+      return {
+        ...rowNorm,
+        unifiedQueueSeq:
+          typeof s.unifiedQueueSeq === "number" && Number.isFinite(s.unifiedQueueSeq)
+            ? s.unifiedQueueSeq
+            : (rowNorm.unifiedQueueSeq ?? null),
+        createdAtMs: s.createdAtMs,
+      };
     }
     return {
-      ...row,
+      ...rowNorm,
+      unifiedQueueSeq:
+        typeof s.unifiedQueueSeq === "number" && Number.isFinite(s.unifiedQueueSeq)
+          ? s.unifiedQueueSeq
+          : (rowNorm.unifiedQueueSeq ?? null),
       status: s.status,
       error: s.error ?? null,
       lockedAtMs: s.lockedAtMs ?? null,
       updatedAtMs: s.updatedAtMs ?? null,
       createdAtMs: s.createdAtMs,
       instruction:
-        row.status === "pending" && s.status === "pending" ? row.instruction : s.instruction,
+        rowNorm.status === "pending" && s.status === "pending"
+          ? rowNorm.instruction
+          : s.instruction,
     };
   });
   for (const s of server) {
-    if (!next.some((x) => x.id === s.id)) next.push(s);
+    const sid = normalizeOpQueueId(s.id);
+    if (!sid) continue;
+    const sNorm = { ...s, id: sid };
+    if (!next.some((x) => normalizeOpQueueId(x.id) === sid)) next.push(sNorm);
   }
-  return next;
-}
-
-function mergeFileDevPoll(prev: OpsFileDevItem[], server: OpsFileDevItem[]): OpsFileDevItem[] {
-  const srvById = new Map(server.map((x) => [x.id, x]));
-  const next = prev.map((row) => {
-    const s = srvById.get(row.id);
-    if (!s) return row;
-    if (row.status === "pending" && s.status === "pending") {
-      return {
-        ...row,
-        createdAtMs: s.createdAtMs,
-        fingerprint: s.fingerprint ?? row.fingerprint,
-      };
-    }
-    return {
-      ...row,
-      status: s.status,
-      error: s.error ?? null,
-      applySummary: s.applySummary ?? null,
-      lockedAtMs: s.lockedAtMs ?? null,
-      updatedAtMs: s.updatedAtMs ?? null,
-      createdAtMs: s.createdAtMs,
-      fingerprint: s.fingerprint ?? row.fingerprint,
-      requestJson:
-        row.status === "pending" && s.status === "pending" ? row.requestJson : s.requestJson,
-    };
-  });
-  for (const s of server) {
-    if (!next.some((x) => x.id === s.id)) next.push(s);
-  }
-  return next;
+  return dedupeQueueRowsById(next);
 }
 
 function streamHeadlineFromInstruction(text: string, maxChars: number): string {
@@ -111,45 +143,23 @@ function streamHeadlineFromInstruction(text: string, maxChars: number): string {
   return t.length > maxChars ? `${t.slice(0, maxChars - 1)}…` : t;
 }
 
-/** 서버 `ops-agent-job-queue` previewInstruction 과 동일 규칙(220자) */
-const QUEUE_PREVIEW_MAX = 220;
-const QUEUE_TOOLTIP_MAX = 900;
-const QUEUE_TOOLTIP_MAX_LINES = 4;
-
-function instructionPreviewForQueue(text: string): string {
-  return streamHeadlineFromInstruction(text, QUEUE_PREVIEW_MAX);
+/** 기록 모드 행을 에이전트 큐 카드 변형(`ops-agent-queue-card--*`)에 맞춤 */
+function recordModeItemQueueCardClass(
+  status: OpsRecordModeItem["status"],
+): "running" | "waiting" | "done" | "error" {
+  if (status === "running") return "running";
+  if (status === "pending") return "waiting";
+  if (status === "done") return "done";
+  return "error";
 }
 
-function instructionTooltipForQueue(text: string): string {
-  const lines = text
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0);
-  const chunk = lines.slice(0, QUEUE_TOOLTIP_MAX_LINES).join("\n");
-  if (chunk.length <= QUEUE_TOOLTIP_MAX) return chunk;
-  return `${chunk.slice(0, QUEUE_TOOLTIP_MAX - 1)}…`;
-}
-
-type LocalQueuedInstruction = {
-  id: string;
-  instruction: string;
-  enqueuedAtMs: number;
-};
-
-function localQueuedToQueueEntry(
-  item: LocalQueuedInstruction,
-  viewerIp: string | null,
-): OpsAgentQueueEntry {
-  const ip = viewerIp?.trim() ?? "";
-  return {
-    id: `local:${item.id}`,
-    requestIp: ip,
-    instructionPreview: instructionPreviewForQueue(item.instruction),
-    instructionTooltip: instructionTooltipForQueue(item.instruction),
-    instructionBody: item.instruction,
-    enqueuedAtMs: item.enqueuedAtMs,
-    status: "waiting",
-  };
+function OpsQueueUnifiedSeqBadge({ seq }: { seq?: number | null }) {
+  if (typeof seq !== "number" || !Number.isFinite(seq) || seq < 1) return null;
+  return (
+    <span className="ops-agent-queue-card__seq" title={ko.app.opsUnifiedQueueSeqTitle}>
+      #{seq}
+    </span>
+  );
 }
 
 function OpsManagementLiveStreamContent({
@@ -229,7 +239,6 @@ function OpsAgentQueueProgressModal({
   queueEntries,
   historyRuns,
   available,
-  submitting,
   onClose,
   onRetryInstruction,
 }: {
@@ -237,7 +246,6 @@ function OpsAgentQueueProgressModal({
   queueEntries: OpsAgentQueueEntry[];
   historyRuns: OpsAgentHistoryEntry[];
   available: boolean;
-  submitting: boolean;
   onClose: () => void;
   onRetryInstruction: (instruction: string) => void;
 }) {
@@ -332,6 +340,17 @@ function OpsAgentQueueProgressModal({
                 ·{" "}
               </span>
               <span>{formatHistoryTs(tsMs)}</span>
+              {queueRow != null && typeof queueRow.unifiedQueueSeq === "number" ? (
+                <>
+                  <span className="ops-queue-progress-meta-sep" aria-hidden>
+                    {" "}
+                    ·{" "}
+                  </span>
+                  <span title={ko.app.opsUnifiedQueueSeqTitle}>
+                    #{queueRow.unifiedQueueSeq}
+                  </span>
+                </>
+              ) : null}
             </p>
           </div>
           <button
@@ -396,9 +415,7 @@ function OpsAgentQueueProgressModal({
                 <button
                   type="button"
                   className="btn btn--secondary ops-management__history-retry"
-                  disabled={
-                    !available || submitting || Boolean(hist?.workspaceAppliedAtMs)
-                  }
+                  disabled={!available || Boolean(hist?.workspaceAppliedAtMs)}
                   aria-label={ko.app.opsHistoryRetryFromErrorAria}
                   title={
                     hist?.workspaceAppliedAtMs
@@ -464,25 +481,12 @@ export default function OpsManagementTab({
   available: boolean;
 }) {
   const [instruction, setInstruction] = useState("");
-  const [streamHeadlineInstruction, setStreamHeadlineInstruction] = useState("");
-  const [nextInstruction, setNextInstruction] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  /** 서버 POST 전 브라우저에만 있는 후속 요청 — 큐 UI에 즉시 반영 */
-  const [localPendingInstructions, setLocalPendingInstructions] = useState<
-    LocalQueuedInstruction[]
-  >([]);
   const [error, setError] = useState<string | null>(null);
   const [resultText, setResultText] = useState<string | null>(null);
   const [statusText, setStatusText] = useState<string | null>(null);
   const [durationMs, setDurationMs] = useState<number | null>(null);
   const [runtimeLabel, setRuntimeLabel] = useState<string | null>(null);
-
-  const [phaseLine, setPhaseLine] = useState("");
-  const [cursorLine, setCursorLine] = useState("");
-  const [thinkingLine, setThinkingLine] = useState("");
-  const [toolLine, setToolLine] = useState("");
-  const [streamToolLog, setStreamToolLog] = useState("");
-  const [streamText, setStreamText] = useState("");
 
   const [historyRuns, setHistoryRuns] = useState<OpsAgentHistoryEntry[]>([]);
   const [serverQueue, setServerQueue] = useState<OpsAgentQueueEntry[]>([]);
@@ -492,41 +496,40 @@ export default function OpsManagementTab({
   );
   const [progressModalRunId, setProgressModalRunId] = useState<string | null>(null);
 
-  const [mainTab, setMainTab] = useState<"agent" | "record" | "fileDev">("agent");
+  const [mainTab, setMainTab] = useState<"agent" | "fileWork">("agent");
+  const [workDraftText, setWorkDraftText] = useState("");
+  const [workSaving, setWorkSaving] = useState(false);
+  const [workSaveError, setWorkSaveError] = useState<string | null>(null);
   const [recordItems, setRecordItems] = useState<OpsRecordModeItem[]>([]);
-  const [recordPollMs, setRecordPollMs] = useState(10_000);
   const [recordLoadError, setRecordLoadError] = useState<string | null>(null);
   const [recordSaving, setRecordSaving] = useState(false);
-  const [fileDevItems, setFileDevItems] = useState<OpsFileDevItem[]>([]);
-  const [fileDevPollMs, setFileDevPollMs] = useState(12_000);
-  const [fileDevLoadError, setFileDevLoadError] = useState<string | null>(null);
-  const [fileDevSaving, setFileDevSaving] = useState(false);
-
-  const abortRef = useRef<AbortController | null>(null);
-  const runIdRef = useRef<string | null>(null);
-  const pendingAfterRef = useRef<LocalQueuedInstruction[]>([]);
-  /** 스트림 세션(큐 연속 실행 포함) 동안 중복 POST 방지 — `submitting`보다 먼저 동기적으로 막는다 */
-  const streamSessionLockRef = useRef(false);
-  const runStreamImpl = useRef<(ins: string, opts?: { chained?: boolean }) => Promise<void>>(
-    async () => {},
+  const [recordQueueDetailsOpen, setRecordQueueDetailsOpen] = useState<Record<string, boolean>>(
+    () => ({}),
   );
+  const [recordActivityEntries, setRecordActivityEntries] = useState<
+    OpsRecordModeActivityEntry[]
+  >([]);
+  const [recordActivityError, setRecordActivityError] = useState<string | null>(null);
+  /** PUT/작업 중에는 폴링 병합을 건너뛰어, 삭제 직후 오래된 GET 응답이 행을 되살리는 레이스를 막음 */
+  const recordMutationLockRef = useRef(false);
 
-  const localQueueEntries = useMemo(
-    () =>
-      localPendingInstructions.map((p) => localQueuedToQueueEntry(p, viewerIp)),
-    [localPendingInstructions, viewerIp],
-  );
+  const displayServerQueue = useMemo(() => serverQueue, [serverQueue]);
 
-  const displayServerQueue = useMemo(
-    () => [...serverQueue, ...localQueueEntries],
-    [serverQueue, localQueueEntries],
-  );
+  const serverQueueSeqById = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const q of serverQueue) {
+      if (typeof q.unifiedQueueSeq === "number" && Number.isFinite(q.unifiedQueueSeq)) {
+        m.set(normalizeOpQueueId(q.id), q.unifiedQueueSeq);
+      }
+    }
+    return m;
+  }, [serverQueue]);
 
   const myQueueJobs = useMemo(() => {
     const ip = viewerIp?.trim() || null;
     const serverMine = ip ? serverQueue.filter((q) => q.requestIp === ip) : [];
-    return [...serverMine, ...localQueueEntries];
-  }, [serverQueue, viewerIp, localQueueEntries]);
+    return serverMine;
+  }, [serverQueue, viewerIp]);
 
   const myIpRunningHistory = useMemo(() => {
     if (!viewerIp) return [];
@@ -557,13 +560,6 @@ export default function OpsManagementTab({
     myQueueJobs.length > 0 ||
     myIpRunningHistory.length > 0;
 
-  useEffect(() => {
-    return () => {
-      abortRef.current?.abort();
-      pendingAfterRef.current = [];
-    };
-  }, []);
-
   /** 예전 초안 저장 키를 비워 둠 (새로고침·재방문 후에도 텍스트는 복원하지 않음) */
   useEffect(() => {
     if (available) clearStockOpsInstructionDraft();
@@ -575,8 +571,6 @@ export default function OpsManagementTab({
       setServerQueue([]);
       setViewerIp(null);
       setRemotePending(null);
-      setLocalPendingInstructions([]);
-      pendingAfterRef.current = [];
       return;
     }
     let cancelled = false;
@@ -651,7 +645,7 @@ export default function OpsManagementTab({
   }, [available]);
 
   useEffect(() => {
-    if (!available || mainTab !== "record") {
+    if (!available || mainTab !== "fileWork") {
       return;
     }
     let cancelled = false;
@@ -659,60 +653,58 @@ export default function OpsManagementTab({
       void fetchOpsRecordMode()
         .then((r) => {
           if (cancelled) return;
-          const srv = Array.isArray(r.items) ? r.items : [];
-          const pm =
-            typeof r.pollIntervalMs === "number" &&
-            Number.isFinite(r.pollIntervalMs) &&
-            r.pollIntervalMs > 0
-              ? r.pollIntervalMs
-              : 10_000;
-          setRecordPollMs(pm);
+          const rsrv = Array.isArray(r.items) ? r.items : [];
           setRecordLoadError(null);
-          setRecordItems((prev) => mergeRecordModePoll(prev, srv));
+          setRecordItems((prev) => {
+            if (recordMutationLockRef.current) return prev;
+            return mergeRecordModePoll(prev, rsrv);
+          });
         })
         .catch(() => {
           if (!cancelled) setRecordLoadError(ko.app.opsRecordModeLoadError);
         });
     };
     pull();
-    const id = window.setInterval(pull, 10_000);
+    const id = window.setInterval(pull, RECORD_MODE_QUEUE_POLL_MS);
     const onVis = () => {
       if (document.visibilityState === "visible") pull();
     };
+    const onPageShow = (ev: PageTransitionEvent) => {
+      if (ev.persisted) pull();
+    };
     document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("pageshow", onPageShow);
     return () => {
       cancelled = true;
       window.clearInterval(id);
       document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("pageshow", onPageShow);
     };
   }, [available, mainTab]);
 
   useEffect(() => {
-    if (!available || mainTab !== "fileDev") {
+    if (!available) {
+      setRecordActivityEntries([]);
+      setRecordActivityError(null);
+      return;
+    }
+    if (mainTab !== "fileWork") {
       return;
     }
     let cancelled = false;
     const pull = () => {
-      void fetchOpsFileDevQueue()
+      void fetchOpsRecordModeActivity()
         .then((r) => {
           if (cancelled) return;
-          const srv = Array.isArray(r.items) ? r.items : [];
-          const pm =
-            typeof r.pollIntervalMs === "number" &&
-            Number.isFinite(r.pollIntervalMs) &&
-            r.pollIntervalMs > 0
-              ? r.pollIntervalMs
-              : 12_000;
-          setFileDevPollMs(pm);
-          setFileDevLoadError(null);
-          setFileDevItems((prev) => mergeFileDevPoll(prev, srv));
+          setRecordActivityEntries(Array.isArray(r.entries) ? r.entries : []);
+          setRecordActivityError(null);
         })
         .catch(() => {
-          if (!cancelled) setFileDevLoadError(ko.app.opsFileDevLoadError);
+          if (!cancelled) setRecordActivityError(ko.app.opsFileRequestHistoryLoadError);
         });
     };
     pull();
-    const id = window.setInterval(pull, 10_000);
+    const id = window.setInterval(pull, FILE_ACTIVITY_POLL_MS);
     const onVis = () => {
       if (document.visibilityState === "visible") pull();
     };
@@ -724,150 +716,71 @@ export default function OpsManagementTab({
     };
   }, [available, mainTab]);
 
-  useEffect(() => {
-    runStreamImpl.current = async (ins: string, opts?: { chained?: boolean }) => {
-      if (!available) return;
-      const trimmed = ins.trim();
-      if (!trimmed) return;
-
-      if (!opts?.chained) {
-        if (streamSessionLockRef.current) return;
-        streamSessionLockRef.current = true;
-      }
-
-      runIdRef.current = null;
-      abortRef.current?.abort();
-      const ac = new AbortController();
-      abortRef.current = ac;
-
+  const enqueueOrRunInstruction = useCallback(
+    async (ins: string): Promise<boolean> => {
+      if (!available) return false;
+      const n = ins.trim();
+      if (!n) return false;
       setSubmitting(true);
-      setPhaseLine("서버에 연결하는 중…");
-      setStreamHeadlineInstruction(trimmed);
       setError(null);
       setResultText(null);
       setStatusText(null);
       setDurationMs(null);
       setRuntimeLabel(null);
-      setPhaseLine("");
-      setCursorLine("");
-      setThinkingLine("");
-      setToolLine("");
-      setStreamToolLog("");
-      setStreamText("");
-
-      let didAbort = false;
-
       try {
-        await fetchOpsCursorAgentStream(
-          trimmed,
-          (ev) => {
-            if (ev.type === "meta") {
-              const rid = typeof ev.requestId === "string" ? ev.requestId.trim() : "";
-              if (rid) runIdRef.current = rid;
-              return;
-            }
-            if (ev.type === "phase") {
-              setPhaseLine(ev.message);
-            } else if (ev.type === "delta") {
-              setStreamText((prev) => prev + ev.text);
-            } else if (ev.type === "cursor_status") {
-              const d = ev.detail?.trim();
-              const line = d ? `${ev.status}: ${d}` : ev.status;
-              setCursorLine(line);
-            } else if (ev.type === "thinking") {
-              setThinkingLine(ev.text);
-            } else if (ev.type === "tool") {
-              const name = ev.name ?? "";
-              const st = ev.toolStatus ?? "";
-              const detail = typeof ev.detail === "string" ? ev.detail.trim() : "";
-              const line = detail ? `${name} (${st}) — ${detail}` : `${name} (${st})`;
-              setToolLine(`${name} (${st})`);
-              setStreamToolLog((prev) => (prev ? `${prev}\n${line}` : line));
-            } else if (ev.type === "done") {
-              setStatusText(ev.status);
-              const res = ev.result?.trim() ? ev.result : "(내용 없음)";
-              setResultText(res);
-              const dur =
-                typeof ev.durationMs === "number" && Number.isFinite(ev.durationMs)
-                  ? ev.durationMs
-                  : null;
-              setDurationMs(dur);
-              setRuntimeLabel(ev.runtime ?? null);
-            } else if (ev.type === "error") {
-              setError(ev.message);
-            }
-          },
-          ac.signal,
-        );
+        await fetchOpsCursorAgentStream(n, (ev) => {
+          if (ev.type === "phase") {
+            setStatusText(ev.message);
+          } else if (ev.type === "cursor_status") {
+            const d = ev.detail?.trim() ? ` · ${ev.detail.trim()}` : "";
+            setStatusText(`${ev.status}${d}`.slice(0, 280));
+          } else if (ev.type === "done") {
+            setResultText(ev.result);
+            setStatusText(ev.status);
+            setDurationMs(
+              typeof ev.durationMs === "number" && Number.isFinite(ev.durationMs)
+                ? ev.durationMs
+                : null,
+            );
+            setRuntimeLabel(typeof ev.runtime === "string" ? ev.runtime : null);
+          } else if (ev.type === "error") {
+            throw new Error(ev.message);
+          }
+        });
+        return true;
       } catch (e) {
-        if (e instanceof Error && e.name === "AbortError") {
-          didAbort = true;
-          setError(ko.app.opsCancelled);
-        } else {
-          setError(e instanceof Error ? e.message : ko.app.opsError);
-        }
+        setResultText(null);
+        setError(e instanceof Error ? e.message : String(e));
+        return false;
       } finally {
         setSubmitting(false);
-        setStreamHeadlineInstruction("");
-        if (abortRef.current === ac) abortRef.current = null;
-
-        if (!didAbort && !ac.signal.aborted) {
-          void fetchOpsAgentHistory()
-            .then((r) => setHistoryRuns(Array.isArray(r.entries) ? r.entries : []))
-            .catch(() => {
-              /* 폴링으로 보완 */
-            });
-        }
-
-        void fetchOpsCursorAgentQueue()
-          .then((r) => setServerQueue(Array.isArray(r.entries) ? r.entries : []))
-          .catch(() => {
-            /* 큐 폴링으로 보완 */
-          });
-
-        const nextItem = pendingAfterRef.current.shift();
-        setLocalPendingInstructions([...pendingAfterRef.current]);
-        if (nextItem) {
-          void runStreamImpl.current(nextItem.instruction, { chained: true });
-        } else {
-          streamSessionLockRef.current = false;
-        }
       }
-    };
-  }, [available]);
-
-  const runOneStream = useCallback((ins: string) => {
-    void runStreamImpl.current(ins);
-  }, []);
-
-  const enqueueOrRunInstruction = useCallback(
-    (ins: string) => {
-      if (!available) return;
-      const n = ins.trim();
-      if (!n) return;
-      if (submitting || streamSessionLockRef.current) {
-        const item: LocalQueuedInstruction = {
-          id: crypto.randomUUID(),
-          instruction: n,
-          enqueuedAtMs: Date.now(),
-        };
-        pendingAfterRef.current.push(item);
-        setLocalPendingInstructions([...pendingAfterRef.current]);
-        return;
-      }
-      runOneStream(n);
     },
-    [available, submitting, runOneStream],
+    [available],
   );
+
+  /** 메인 폼 `submitting`과 분리 — 서버 FIFO에만 쌓고, 여러 건 재큐잉 가능 */
+  const enqueueAgentInstructionOnServerOnly = useCallback((ins: string) => {
+    if (!available) return;
+    const n = ins.trim();
+    if (!n) return;
+    void fetchOpsCursorAgentStream(n, (ev) => {
+      if (ev.type === "error") {
+        throw new Error(ev.message);
+      }
+    }).catch((e) => {
+      setError(e instanceof Error ? e.message : String(e));
+    });
+  }, [available]);
 
   const retryFromHistoryPanel = useCallback(
     (ins: string) => {
       const t = ins.trim();
       if (!t) return;
       setInstruction(t);
-      enqueueOrRunInstruction(t);
+      enqueueAgentInstructionOnServerOnly(t);
     },
-    [enqueueOrRunInstruction],
+    [enqueueAgentInstructionOnServerOnly],
   );
 
   const retryFromQueueModal = useCallback(
@@ -875,10 +788,10 @@ export default function OpsManagementTab({
       const t = ins.trim();
       if (!t) return;
       setInstruction(t);
-      enqueueOrRunInstruction(t);
+      enqueueAgentInstructionOnServerOnly(t);
       setProgressModalRunId(null);
     },
-    [enqueueOrRunInstruction],
+    [enqueueAgentInstructionOnServerOnly],
   );
 
   const clearHistory = useCallback(async () => {
@@ -927,11 +840,6 @@ export default function OpsManagementTab({
     [recordItems],
   );
 
-  const fileDevHasRunning = useMemo(
-    () => fileDevItems.some((x) => x.status === "running"),
-    [fileDevItems],
-  );
-
   const recordStatusLabel = useCallback((s: OpsRecordModeItem["status"]) => {
     if (s === "running") return ko.app.opsRecordModeStatusRunning;
     if (s === "done") return ko.app.opsRecordModeStatusDone;
@@ -940,11 +848,9 @@ export default function OpsManagementTab({
   }, []);
 
   const addRecordItem = useCallback(() => {
-    if (!available) return;
-    const id =
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    if (!available || workSaving) return;
+    const id = newLocalQueueItemId();
+    setRecordQueueDetailsOpen((m) => ({ ...m, [id]: true }));
     const row: OpsRecordModeItem = {
       id,
       instruction: "",
@@ -952,85 +858,70 @@ export default function OpsManagementTab({
       createdAtMs: Date.now(),
     };
     setRecordItems((prev) => [...prev, row]);
-  }, [available]);
+  }, [available, workSaving]);
 
-  const saveRecordMode = useCallback(async () => {
-    if (!available || recordSaving || recordHasRunning) return;
-    setRecordSaving(true);
+  /** 작성 칸(한 줄 추가) + 목록 편집을 한 번에 서버에 반영 */
+  const applyFileWorkQueue = useCallback(async () => {
+    if (!available || workSaving || recordSaving || recordHasRunning) return;
+    const draft = workDraftText.trim();
+    recordMutationLockRef.current = true;
+    setWorkSaving(true);
+    setWorkSaveError(null);
     setRecordLoadError(null);
     try {
-      const r = await putOpsRecordMode(recordItems);
-      setRecordItems(Array.isArray(r.items) ? r.items : []);
-    } catch {
-      setRecordLoadError(ko.app.opsRecordModeSaveError);
+      let merged = recordItems;
+      if (draft) {
+        const r = await postOpsRecordModeJob(draft);
+        const srv = Array.isArray(r.items) ? r.items : [];
+        merged = mergeRecordModePoll(recordItems, srv);
+        setRecordItems(merged);
+        setWorkDraftText("");
+      }
+      const putR = await putOpsRecordMode(merged);
+      setRecordItems(Array.isArray(putR.items) ? putR.items : merged);
+      setRecordQueueDetailsOpen({});
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setWorkSaveError(msg || ko.app.opsWorkApplyError);
     } finally {
-      setRecordSaving(false);
+      recordMutationLockRef.current = false;
+      setWorkSaving(false);
     }
-  }, [available, recordSaving, recordHasRunning, recordItems]);
+  }, [available, workSaving, recordSaving, recordHasRunning, recordItems, workDraftText]);
 
-  const fileDevStatusLabel = useCallback((s: OpsFileDevItem["status"]) => {
-    if (s === "running") return ko.app.opsRecordModeStatusRunning;
-    if (s === "applied") return ko.app.opsFileDevStatusApplied;
-    if (s === "error") return ko.app.opsRecordModeStatusError;
-    return ko.app.opsRecordModeStatusPending;
-  }, []);
-
-  const addFileDevItem = useCallback(() => {
-    if (!available) return;
-    const id =
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const row: OpsFileDevItem = {
-      id,
-      requestJson: "",
-      status: "pending",
-      createdAtMs: Date.now(),
-    };
-    setFileDevItems((prev) => [...prev, row]);
-  }, [available]);
-
-  const saveFileDevQueue = useCallback(async () => {
-    if (!available || fileDevSaving || fileDevHasRunning) return;
-    setFileDevSaving(true);
-    setFileDevLoadError(null);
-    try {
-      const r = await putOpsFileDevQueue(fileDevItems);
-      setFileDevItems(Array.isArray(r.items) ? r.items : []);
-    } catch {
-      setFileDevLoadError(ko.app.opsFileDevSaveError);
-    } finally {
-      setFileDevSaving(false);
-    }
-  }, [available, fileDevSaving, fileDevHasRunning, fileDevItems]);
-
-  const removeFileDevItem = useCallback((id: string) => {
-    setFileDevItems((prev) => prev.filter((x) => x.id !== id));
-  }, []);
-
-  const updateFileDevRequestJson = useCallback((id: string, text: string) => {
-    setFileDevItems((prev) => prev.map((x) => (x.id === id ? { ...x, requestJson: text } : x)));
-  }, []);
-
-  const requeueFileDevItem = useCallback((id: string) => {
-    setFileDevItems((prev) =>
-      prev.map((x) =>
-        x.id === id
-          ? {
-              ...x,
-              status: "pending" as const,
-              error: null,
-              applySummary: null,
-              lockedAtMs: null,
-            }
-          : x,
-      ),
-    );
-  }, []);
-
-  const removeRecordItem = useCallback((id: string) => {
-    setRecordItems((prev) => prev.filter((x) => x.id !== id));
-  }, []);
+  const removeRecordItem = useCallback(
+    async (id: string) => {
+      if (!available || recordSaving) return;
+      const nid = normalizeOpQueueId(id);
+      const target = recordItems.find((x) => normalizeOpQueueId(x.id) === nid);
+      if (target?.status === "running") return;
+      const previous = recordItems;
+      const next = previous.filter((x) => normalizeOpQueueId(x.id) !== nid);
+      if (next.length === previous.length) return;
+      recordMutationLockRef.current = true;
+      setRecordSaving(true);
+      setRecordLoadError(null);
+      setRecordItems(next);
+      try {
+        const r = await putOpsRecordMode(next);
+        setRecordItems(Array.isArray(r.items) ? r.items : next);
+        setRecordQueueDetailsOpen((m) => {
+          if (!(id in m) && !(nid in m)) return m;
+          const o = { ...m };
+          delete o[id];
+          if (nid !== id) delete o[nid];
+          return o;
+        });
+      } catch {
+        setRecordItems(previous);
+        setRecordLoadError(ko.app.opsRecordModeSaveError);
+      } finally {
+        recordMutationLockRef.current = false;
+        setRecordSaving(false);
+      }
+    },
+    [available, recordSaving, recordItems],
+  );
 
   const updateRecordInstruction = useCallback((id: string, text: string) => {
     setRecordItems((prev) =>
@@ -1046,49 +937,21 @@ export default function OpsManagementTab({
     );
   }, []);
 
-  const handleMainSubmit = useCallback(() => {
-    if (!available || submitting || streamSessionLockRef.current) return;
+  const handleMainSubmit = useCallback(async () => {
+    if (!available || submitting) return;
     const ins = instruction.trim();
     if (!ins) return;
-    runOneStream(ins);
-  }, [available, submitting, instruction, runOneStream]);
+    setInstruction("");
+    const ok = await enqueueOrRunInstruction(ins);
+    if (!ok) setInstruction(ins);
+  }, [available, submitting, instruction, enqueueOrRunInstruction]);
 
-  const handleNextSubmit = useCallback(() => {
-    if (!available) return;
-    const n = nextInstruction.trim();
-    if (!n) return;
-    setNextInstruction("");
-    enqueueOrRunInstruction(n);
-  }, [available, nextInstruction, enqueueOrRunInstruction]);
-
-  const handleCancelRequest = useCallback(async () => {
-    const rid = runIdRef.current;
-    if (rid) {
-      try {
-        await postOpsCursorAgentStreamCancel(rid);
-      } catch {
-        /* 서버 취소 실패해도 로컬 읽기는 중단 */
-      }
-    }
-    abortRef.current?.abort();
-  }, []);
-
-  const showStream =
-    submitting ||
-    Boolean(
-      phaseLine || cursorLine || thinkingLine || toolLine || streamToolLog || streamText,
-    );
-
-  /** IP 연결 상태 말풍선: 진행 중/대기/큐에 실제 작업이 있을 때만 노출 — 유효하지 않게 전체 화면을 덮지 않음 */
-  const showMyIpJobsPanel =
-    hasMyIpServerActivity ||
-    submitting ||
-    localPendingInstructions.length > 0;
+  const showMyIpJobsPanel = hasMyIpServerActivity || submitting;
 
   return (
     <div className="ops-management ops-management--split">
       <div className="ops-management__main">
-        {available ? (
+        {available && mainTab === "agent" ? (
           <>
             <section
               className="ops-management__server-queue card"
@@ -1114,6 +977,7 @@ export default function OpsManagementTab({
                       onClick={() => setProgressModalRunId(q.id)}
                     >
                       <div className="ops-agent-queue-card__top">
+                        <OpsQueueUnifiedSeqBadge seq={q.unifiedQueueSeq} />
                         <span className="ops-agent-queue-card__status">
                           {q.status === "running"
                             ? ko.app.opsHistoryStatusRunning
@@ -1153,23 +1017,7 @@ export default function OpsManagementTab({
                       {ko.app.opsMyIpNoViewerIp}
                     </p>
                   )}
-                  {showStream ? (
-                    <div
-                      className="ops-management__stream ops-management__stream--bubble-duplicate card"
-                      aria-hidden="true"
-                    >
-                      <OpsManagementLiveStreamContent
-                        streamHeadlineInstruction={streamHeadlineInstruction}
-                        phaseLine={phaseLine}
-                        cursorLine={cursorLine}
-                        toolLine={toolLine}
-                        toolLog={streamToolLog}
-                        thinkingLine={thinkingLine}
-                        streamText={streamText}
-                      />
-                    </div>
-                  ) : null}
-                  {viewerIp && !hasMyIpServerActivity && localPendingInstructions.length === 0 ? (
+                  {viewerIp && !hasMyIpServerActivity ? (
                     <p className="ops-management__my-ip-none" role="status">
                       {ko.app.opsMyIpJobsNone}
                     </p>
@@ -1210,6 +1058,9 @@ export default function OpsManagementTab({
                               onClick={() => setProgressModalRunId(run.id)}
                             >
                               <div className="ops-agent-queue-card__top">
+                                <OpsQueueUnifiedSeqBadge
+                                  seq={serverQueueSeqById.get(normalizeOpQueueId(run.id)) ?? null}
+                                />
                                 <span className="ops-agent-queue-card__status">
                                   {ko.app.opsHistoryStatusRunning}
                                 </span>
@@ -1244,6 +1095,7 @@ export default function OpsManagementTab({
                           onClick={() => setProgressModalRunId(q.id)}
                         >
                           <div className="ops-agent-queue-card__top">
+                            <OpsQueueUnifiedSeqBadge seq={q.unifiedQueueSeq} />
                             <span className="ops-agent-queue-card__status">
                               {q.status === "running"
                                 ? ko.app.opsHistoryStatusRunning
@@ -1262,6 +1114,138 @@ export default function OpsManagementTab({
                   ) : null}
                 </div>
               </section>
+            ) : null}
+          </>
+        ) : null}
+
+        {available && mainTab === "fileWork" ? (
+          <>
+            <section
+              className="ops-management__server-queue card ops-management__file-request-queue"
+              aria-label={ko.app.opsWorkSectionRequests}
+            >
+              <p className="ops-management__server-queue-sub">{ko.app.opsWorkSectionRequests}</p>
+              <div
+                className="ops-agent-queue-track ops-management__server-queue-track"
+                role="group"
+                aria-label={ko.app.opsWorkSectionRequests}
+                aria-live="polite"
+                aria-relevant="additions removals"
+              >
+                {recordItems.length === 0 ? (
+                  <span className="ops-management__server-queue-empty">{ko.app.opsRecordModeEmpty}</span>
+                ) : (
+                  recordItems.map((it, idx) => {
+                    const cardClass = recordModeItemQueueCardClass(it.status);
+                    const ro =
+                      it.status === "running" ||
+                      it.status === "done" ||
+                      !available ||
+                      recordSaving;
+                    const line =
+                      it.instruction.split(/\r?\n/).find((l) => l.trim()) ?? it.instruction;
+                    const previewText = line.trim() ? line : "—";
+                    const ts = it.updatedAtMs ?? it.createdAtMs;
+                    const ixLabel =
+                      typeof it.unifiedQueueSeq === "number" && Number.isFinite(it.unifiedQueueSeq)
+                        ? it.unifiedQueueSeq
+                        : idx + 1;
+                    return (
+                      <div
+                        key={it.id}
+                        className={`ops-agent-queue-card ops-agent-queue-card--${cardClass} ops-management__file-request-queue-card`}
+                      >
+                        <div className="ops-agent-queue-card__top">
+                          <OpsQueueUnifiedSeqBadge seq={it.unifiedQueueSeq} />
+                          <span className="ops-agent-queue-card__status">
+                            {recordStatusLabel(it.status)}
+                          </span>
+                          <span className="ops-agent-queue-card__meta ops-management__stream-v--mono">
+                            {formatHistoryTs(ts)}
+                          </span>
+                        </div>
+                        <p
+                          className="ops-agent-queue-card__preview"
+                          title={it.instruction.trim() ? it.instruction : undefined}
+                        >
+                          {previewText}
+                        </p>
+                        <div className="ops-management__file-request-queue-card-actions">
+                          {it.status === "error" || it.status === "done" ? (
+                            <button
+                              type="button"
+                              className="btn btn--ghost btn--sm"
+                              aria-label={ko.app.opsRecordModeRequeueAria}
+                              disabled={!available || recordSaving || recordHasRunning}
+                              onClick={() => requeueRecordItem(it.id)}
+                            >
+                              {ko.app.opsRecordModeRequeue}
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            className="btn btn--ghost btn--sm"
+                            aria-label={ko.app.opsRecordModeRemoveAria}
+                            disabled={it.status === "running" || !available || recordSaving}
+                            onClick={() => void removeRecordItem(it.id)}
+                          >
+                            {ko.app.opsRecordModeRemove}
+                          </button>
+                        </div>
+                        <details
+                          className="ops-management__file-request-queue-card-details"
+                          open={Boolean(recordQueueDetailsOpen[it.id])}
+                          onToggle={(e) => {
+                            const id = it.id;
+                            const nextOpen = e.currentTarget.open;
+                            setRecordQueueDetailsOpen((m) => ({ ...m, [id]: nextOpen }));
+                          }}
+                        >
+                          <summary className="ops-management__file-request-queue-card-details-sum">
+                            <span className="ops-management__file-request-queue-card-sum-row">
+                              <span className="ops-management__file-request-queue-card-sum-k">
+                                {ko.app.opsRecordModeQueueRankLabel}
+                              </span>
+                              <span className="ops-management__stream-v--mono ops-management__file-request-queue-card-sum-v">
+                                #{ixLabel}
+                              </span>
+                            </span>
+                            <span className="ops-management__file-request-queue-card-sum-row ops-management__file-request-queue-card-sum-row--label">
+                              <span className="ops-management__file-request-queue-card-sum-k">
+                                {ko.app.opsInstructionLabel}
+                              </span>
+                            </span>
+                          </summary>
+                          <textarea
+                            id={`ops-record-${it.id}`}
+                            className="ops-management__textarea ops-management__textarea--sm ops-management__file-request-queue-card-textarea"
+                            value={it.instruction}
+                            onChange={(e) => updateRecordInstruction(it.id, e.target.value)}
+                            placeholder={ko.app.opsRecordModePlaceholder}
+                            rows={4}
+                            disabled={ro}
+                            spellCheck={false}
+                            aria-label={`${ko.app.opsRecordModeItemLabel} · ${ko.app.opsRecordModeQueueRankLabel} ${ixLabel}`}
+                          />
+                        </details>
+                        {it.error ? (
+                          <pre className="ops-management__record-err" role="alert">
+                            {it.error}
+                          </pre>
+                        ) : null}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </section>
+            {recordLoadError ? (
+              <div
+                className="alert alert--error ops-management__record-alert ops-management__file-request-queue-load-err"
+                role="alert"
+              >
+                {recordLoadError}
+              </div>
             ) : null}
           </>
         ) : null}
@@ -1285,20 +1269,11 @@ export default function OpsManagementTab({
             <button
               type="button"
               role="tab"
-              aria-selected={mainTab === "record"}
-              className={mainTab === "record" ? "market-tab active" : "market-tab"}
-              onClick={() => setMainTab("record")}
+              aria-selected={mainTab === "fileWork"}
+              className={mainTab === "fileWork" ? "market-tab active" : "market-tab"}
+              onClick={() => setMainTab("fileWork")}
             >
-              {ko.app.opsMainTabRecord}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mainTab === "fileDev"}
-              className={mainTab === "fileDev" ? "market-tab active" : "market-tab"}
-              onClick={() => setMainTab("fileDev")}
-            >
-              {ko.app.opsMainTabFileDev}
+              {ko.app.opsMainTabFileWork}
             </button>
           </div>
         </div>
@@ -1328,7 +1303,7 @@ export default function OpsManagementTab({
                 }}
                 placeholder={ko.app.opsInstructionPlaceholder}
                 rows={10}
-                disabled={!available || submitting}
+                disabled={!available}
                 spellCheck={false}
               />
 
@@ -1339,32 +1314,13 @@ export default function OpsManagementTab({
                   disabled={!available || submitting || !instruction.trim()}
                   onClick={() => void handleMainSubmit()}
                 >
-                  {submitting ? ko.app.opsSubmitting : ko.app.opsSubmit}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--secondary ops-management__cancel"
-                  disabled={!available || !submitting}
-                  onClick={() => void handleCancelRequest()}
-                >
-                  {ko.app.opsCancelRequest}
+                  {ko.app.opsSubmit}
                 </button>
               </div>
+              <p className="ops-management__muted" style={{ marginTop: "0.65rem" }}>
+                {ko.app.opsAgentServerQueueHint}
+              </p>
             </div>
-
-            {showStream ? (
-              <div className="ops-management__stream card" aria-live="polite">
-                <OpsManagementLiveStreamContent
-                  streamHeadlineInstruction={streamHeadlineInstruction}
-                  phaseLine={phaseLine}
-                  cursorLine={cursorLine}
-                  toolLine={toolLine}
-                  toolLog={streamToolLog}
-                  thinkingLine={thinkingLine}
-                  streamText={streamText}
-                />
-              </div>
-            ) : null}
 
             {error ? (
               <div className="ops-management__live-error-wrap">
@@ -1375,9 +1331,12 @@ export default function OpsManagementTab({
                   <button
                     type="button"
                     className="btn btn--secondary ops-management__history-retry"
-                    disabled={!available || submitting}
+                    disabled={!available}
                     aria-label={ko.app.opsLiveErrorRetryAria}
-                    onClick={() => enqueueOrRunInstruction(instruction)}
+                    onClick={() => {
+                      setError(null);
+                      enqueueAgentInstructionOnServerOnly(instruction);
+                    }}
                   >
                     {ko.app.opsHistoryRetryFromError}
                   </button>
@@ -1418,75 +1377,56 @@ export default function OpsManagementTab({
               </div>
             ) : null}
 
-            {available && (submitting || localPendingInstructions.length > 0) ? (
-              <div className="ops-management__next-block">
-                <label className="ops-management__label" htmlFor="ops-next-instruction">
-                  {ko.app.opsNextInstructionLabel}
-                </label>
-                <textarea
-                  id="ops-next-instruction"
-                  className="ops-management__textarea ops-management__textarea--sm"
-                  value={nextInstruction}
-                  onChange={(e) => setNextInstruction(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key !== "Enter" || e.repeat) return;
-                    if (!(e.ctrlKey || e.metaKey)) return;
-                    e.preventDefault();
-                    void handleNextSubmit();
-                  }}
-                  placeholder={ko.app.opsNextInstructionPlaceholder}
-                  rows={4}
-                  spellCheck={false}
-                />
-                {localPendingInstructions.length > 0 ? (
-                  <p className="ops-management__queue-hint">
-                    {ko.app.opsQueuePending.replace(
-                      "{n}",
-                      String(localPendingInstructions.length),
-                    )}
-                  </p>
-                ) : null}
-                <div className="ops-management__actions">
-                  <button
-                    type="button"
-                    className="btn btn--primary ops-management__submit"
-                    disabled={!nextInstruction.trim()}
-                    onClick={() => void handleNextSubmit()}
-                  >
-                    {submitting ? ko.app.opsNextSubmitQueued : ko.app.opsNextSubmitNow}
-                  </button>
-                </div>
-              </div>
-            ) : null}
           </>
         ) : null}
-        {mainTab === "record" ? (
+        {mainTab === "fileWork" ? (
           <div className="ops-management__record">
-            <p className="ops-management__muted ops-management__record-hint">{ko.app.opsRecordModeHint}</p>
-            <p className="ops-management__muted ops-management__record-meta">
-              {ko.app.opsRecordModePollNote.replace("{n}", String(Math.round(recordPollMs / 1000)))}
-            </p>
-            {recordLoadError ? (
+            <label className="ops-management__label" htmlFor="ops-work-draft">
+              {ko.app.opsWorkWriteLabel}
+            </label>
+            <textarea
+              id="ops-work-draft"
+              className="ops-management__textarea ops-management__textarea--request"
+              value={workDraftText}
+              onChange={(e) => {
+                setWorkDraftText(e.target.value);
+                if (workSaveError) setWorkSaveError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter" || e.repeat) return;
+                if (!(e.ctrlKey || e.metaKey)) return;
+                e.preventDefault();
+                void applyFileWorkQueue();
+              }}
+              placeholder={ko.app.opsInstructionPlaceholder}
+              rows={10}
+              disabled={!available || workSaving || recordSaving}
+              spellCheck={false}
+            />
+            {workSaveError ? (
               <div className="alert alert--error ops-management__record-alert" role="alert">
-                {recordLoadError}
+                {workSaveError}
               </div>
             ) : null}
+            <div className="ops-management__actions">
+              <button
+                type="button"
+                className="btn btn--primary ops-management__submit"
+                disabled={!available || workSaving || recordSaving || recordHasRunning}
+                onClick={() => void applyFileWorkQueue()}
+              >
+                {workSaving ? ko.app.opsWorkApplying : ko.app.opsWorkApplyQueue}
+              </button>
+            </div>
+
             <div className="ops-management__record-actions">
               <button
                 type="button"
                 className="btn btn--secondary"
-                disabled={!available || recordSaving}
+                disabled={!available || workSaving || recordSaving}
                 onClick={() => addRecordItem()}
               >
                 {ko.app.opsRecordModeAdd}
-              </button>
-              <button
-                type="button"
-                className="btn btn--primary"
-                disabled={!available || recordSaving || recordHasRunning}
-                onClick={() => void saveRecordMode()}
-              >
-                {recordSaving ? ko.app.opsRecordModeSaving : ko.app.opsRecordModeSave}
               </button>
             </div>
             {recordHasRunning ? (
@@ -1494,190 +1434,12 @@ export default function OpsManagementTab({
                 {ko.app.opsRecordModeSaveBlocked}
               </p>
             ) : null}
-            {recordItems.length === 0 ? (
-              <p className="ops-management__muted ops-management__record-empty">{ko.app.opsRecordModeEmpty}</p>
-            ) : (
-              <ul className="ops-management__record-list">
-                {recordItems.map((it, idx) => {
-                  const badgeClass =
-                    it.status === "running"
-                      ? "ops-history__badge--pending"
-                      : it.status === "done"
-                        ? "ops-history__badge--ok"
-                        : it.status === "error"
-                          ? "ops-history__badge--err"
-                          : "ops-history__badge--waiting";
-                  const ro =
-                    it.status === "running" || it.status === "done" || !available || recordSaving;
-                  return (
-                    <li key={it.id} className="card ops-management__record-card">
-                      <div className="ops-management__record-card-head">
-                        <span className={`ops-history__badge ${badgeClass}`}>
-                          {recordStatusLabel(it.status)}
-                        </span>
-                        <div className="ops-management__record-card-actions">
-                          {it.status === "error" || it.status === "done" ? (
-                            <button
-                              type="button"
-                              className="btn btn--ghost btn--sm"
-                              aria-label={ko.app.opsRecordModeRequeueAria}
-                              disabled={!available || recordSaving || recordHasRunning}
-                              onClick={() => requeueRecordItem(it.id)}
-                            >
-                              {ko.app.opsRecordModeRequeue}
-                            </button>
-                          ) : null}
-                          <button
-                            type="button"
-                            className="btn btn--ghost btn--sm"
-                            aria-label={ko.app.opsRecordModeRemoveAria}
-                            disabled={it.status === "running" || !available || recordSaving}
-                            onClick={() => removeRecordItem(it.id)}
-                          >
-                            {ko.app.opsRecordModeRemove}
-                          </button>
-                        </div>
-                      </div>
-                      <label className="ops-management__label" htmlFor={`ops-record-${it.id}`}>
-                        {ko.app.opsRecordModeItemLabel} · {idx + 1}
-                      </label>
-                      <textarea
-                        id={`ops-record-${it.id}`}
-                        className="ops-management__textarea ops-management__textarea--sm"
-                        value={it.instruction}
-                        onChange={(e) => updateRecordInstruction(it.id, e.target.value)}
-                        placeholder={ko.app.opsRecordModePlaceholder}
-                        rows={6}
-                        disabled={ro}
-                        spellCheck={false}
-                      />
-                      {it.error ? (
-                        <pre className="ops-management__record-err" role="alert">
-                          {it.error}
-                        </pre>
-                      ) : null}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-        ) : null}
-        {mainTab === "fileDev" ? (
-          <div className="ops-management__record">
-            <p className="ops-management__muted ops-management__record-hint">{ko.app.opsFileDevHint}</p>
-            <p className="ops-management__muted ops-management__record-meta">
-              {ko.app.opsFileDevPollNote.replace("{n}", String(Math.round(fileDevPollMs / 1000)))}
-            </p>
-            {fileDevLoadError ? (
-              <div className="alert alert--error ops-management__record-alert" role="alert">
-                {fileDevLoadError}
-              </div>
-            ) : null}
-            <div className="ops-management__record-actions">
-              <button
-                type="button"
-                className="btn btn--secondary"
-                disabled={!available || fileDevSaving}
-                onClick={() => addFileDevItem()}
-              >
-                {ko.app.opsRecordModeAdd}
-              </button>
-              <button
-                type="button"
-                className="btn btn--primary"
-                disabled={!available || fileDevSaving || fileDevHasRunning}
-                onClick={() => void saveFileDevQueue()}
-              >
-                {fileDevSaving ? ko.app.opsRecordModeSaving : ko.app.opsRecordModeSave}
-              </button>
-            </div>
-            {fileDevHasRunning ? (
-              <p className="ops-management__muted ops-management__record-blocked">
-                {ko.app.opsRecordModeSaveBlocked}
-              </p>
-            ) : null}
-            {fileDevItems.length === 0 ? (
-              <p className="ops-management__muted ops-management__record-empty">{ko.app.opsFileDevEmpty}</p>
-            ) : (
-              <ul className="ops-management__record-list">
-                {fileDevItems.map((it, idx) => {
-                  const badgeClass =
-                    it.status === "running"
-                      ? "ops-history__badge--pending"
-                      : it.status === "applied"
-                        ? "ops-history__badge--ok"
-                        : it.status === "error"
-                          ? "ops-history__badge--err"
-                          : "ops-history__badge--waiting";
-                  const ro =
-                    it.status === "running" ||
-                    it.status === "applied" ||
-                    !available ||
-                    fileDevSaving;
-                  return (
-                    <li key={it.id} className="card ops-management__record-card">
-                      <div className="ops-management__record-card-head">
-                        <span className={`ops-history__badge ${badgeClass}`}>
-                          {fileDevStatusLabel(it.status)}
-                        </span>
-                        <div className="ops-management__record-card-actions">
-                          {it.status === "error" || it.status === "applied" ? (
-                            <button
-                              type="button"
-                              className="btn btn--ghost btn--sm"
-                              aria-label={ko.app.opsRecordModeRequeueAria}
-                              disabled={!available || fileDevSaving || fileDevHasRunning}
-                              onClick={() => requeueFileDevItem(it.id)}
-                            >
-                              {ko.app.opsRecordModeRequeue}
-                            </button>
-                          ) : null}
-                          <button
-                            type="button"
-                            className="btn btn--ghost btn--sm"
-                            aria-label={ko.app.opsRecordModeRemoveAria}
-                            disabled={it.status === "running" || !available || fileDevSaving}
-                            onClick={() => removeFileDevItem(it.id)}
-                          >
-                            {ko.app.opsRecordModeRemove}
-                          </button>
-                        </div>
-                      </div>
-                      <label className="ops-management__label" htmlFor={`ops-file-dev-${it.id}`}>
-                        {ko.app.opsFileDevItemLabel} · {idx + 1}
-                      </label>
-                      <textarea
-                        id={`ops-file-dev-${it.id}`}
-                        className="ops-management__textarea ops-management__textarea--sm"
-                        value={it.requestJson}
-                        onChange={(e) => updateFileDevRequestJson(it.id, e.target.value)}
-                        placeholder={ko.app.opsFileDevPlaceholder}
-                        rows={8}
-                        disabled={ro}
-                        spellCheck={false}
-                      />
-                      {it.applySummary ? (
-                        <p className="ops-management__muted ops-management__record-meta">
-                          <span className="ops-management__meta-k">{ko.app.opsFileDevSummaryLabel}</span>{" "}
-                          {it.applySummary}
-                        </p>
-                      ) : null}
-                      {it.error ? (
-                        <pre className="ops-management__record-err" role="alert">
-                          {it.error}
-                        </pre>
-                      ) : null}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
           </div>
         ) : null}
       </div>
 
-      <aside className="ops-management__aside card" aria-label={ko.app.opsHistoryTitle}>
+      {mainTab === "agent" ? (
+        <aside className="ops-management__aside card" aria-label={ko.app.opsHistoryTitle}>
         <div className="ops-management__history-bar">
           <h4 className="ops-management__history-title">{ko.app.opsHistoryTitle}</h4>
           {historyRuns.length > 0 ? (
@@ -1858,9 +1620,7 @@ export default function OpsManagementTab({
                           <button
                             type="button"
                             className="btn btn--secondary ops-management__history-retry"
-                            disabled={
-                              !available || submitting || Boolean(run.workspaceAppliedAtMs)
-                            }
+                            disabled={!available || Boolean(run.workspaceAppliedAtMs)}
                             aria-label={ko.app.opsHistoryRetryFromErrorAria}
                             title={
                               run.workspaceAppliedAtMs
@@ -1924,14 +1684,96 @@ export default function OpsManagementTab({
             })}
           </ul>
         )}
-      </aside>
+        </aside>
+      ) : null}
+      {mainTab === "fileWork" ? (
+        <aside
+          className="ops-management__aside card"
+          aria-label={ko.app.opsFileRequestHistoryTitle}
+        >
+          <div className="ops-management__history-bar">
+            <h4 className="ops-management__history-title">
+              {ko.app.opsFileRequestHistoryTitle}
+            </h4>
+          </div>
+          <p className="ops-management__muted" style={{ fontSize: "0.78rem", marginBottom: "0.75rem" }}>
+            {ko.app.opsFileRequestHistoryHint}
+          </p>
+          {recordActivityError ? (
+            <div className="alert alert--error" role="alert">
+              {recordActivityError}
+            </div>
+          ) : recordActivityEntries.length === 0 ? (
+            <p className="ops-management__history-empty">{ko.app.opsFileRequestHistoryEmpty}</p>
+          ) : (
+            <ul className="ops-management__history-list ops-management__file-request-activity-list">
+              {recordActivityEntries.map((ent, idx) => {
+                const label =
+                  ent.event === "start"
+                    ? ko.app.opsFileRequestActivityStart
+                    : ent.event === "ok"
+                      ? ko.app.opsFileRequestActivityOk
+                      : ko.app.opsFileRequestActivityError;
+                const badgeClass =
+                  ent.event === "start"
+                    ? "ops-history__badge--waiting"
+                    : ent.event === "ok"
+                      ? "ops-history__badge--ok"
+                      : "ops-history__badge--err";
+                let tsMs = Date.now();
+                const p = Date.parse(ent.iso);
+                if (Number.isFinite(p)) tsMs = p;
+                const rawIns = ent.instruction ?? "";
+                const insLine =
+                  rawIns.split(/\r?\n/).find((l) => l.trim()) ?? rawIns;
+                const insPrev =
+                  insLine.length > 160 ? `${insLine.slice(0, 157)}…` : insLine;
+                const key = `${idx}-${ent.iso}-${ent.id}-${ent.event}`;
+                const idShort =
+                  ent.id.length > 14 ? `${ent.id.slice(0, 10)}…` : ent.id;
+                return (
+                  <li
+                    key={key}
+                    className="ops-management__history-item ops-management__file-request-activity-item"
+                  >
+                    <div className="ops-management__file-request-activity-head">
+                      <span className={`ops-history__badge ${badgeClass}`}>{label}</span>
+                      <span className="ops-management__history-when">
+                        {formatHistoryTs(tsMs)}
+                      </span>
+                      <span
+                        className="ops-management__file-request-activity-id ops-management__stream-v--mono"
+                        title={`${ko.app.opsFileRequestActivityIdLabel}: ${ent.id}`}
+                      >
+                        {idShort}
+                      </span>
+                    </div>
+                    {insPrev.trim() ? (
+                      <pre className="ops-management__file-request-activity-instruction">
+                        {insPrev.trim()}
+                      </pre>
+                    ) : null}
+                    {ent.message?.trim() ? (
+                      <pre
+                        className="ops-management__file-request-activity-message"
+                        role={ent.event === "error" ? "alert" : undefined}
+                      >
+                        {ent.message.trim()}
+                      </pre>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </aside>
+      ) : null}
       {progressModalRunId ? (
         <OpsAgentQueueProgressModal
           runId={progressModalRunId}
           queueEntries={displayServerQueue}
           historyRuns={historyRuns}
           available={available}
-          submitting={submitting}
           onClose={() => setProgressModalRunId(null)}
           onRetryInstruction={retryFromQueueModal}
         />

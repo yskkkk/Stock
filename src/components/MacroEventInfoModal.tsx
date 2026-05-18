@@ -81,6 +81,16 @@ export default function MacroEventInfoModal({
                 {formatMacroCountdown(msLeft)}
               </span>
             </p>
+            <p
+              className="macro-info-forecast"
+              title={event.forecast?.trim() ? undefined : ko.macro.forecastHelp}
+            >
+              <span className="macro-info-forecast-k">{ko.macro.forecastLabel}</span>
+              <span className="macro-info-meta__sep">·</span>
+              <span className="macro-info-forecast-v">
+                {event.forecast?.trim() || ko.macro.forecastPending}
+              </span>
+            </p>
           </div>
           <button
             type="button"

@@ -92,7 +92,7 @@ export default function FeedbackCorner({ accessAdmin }: { accessAdmin: boolean }
       <div className="feedback-corner">
         <button
           type="button"
-          className="feedback-corner__fab btn btn--secondary"
+          className="feedback-corner__fab app-page-top__corner-text"
           aria-label={ko.feedback.cornerAria}
           aria-expanded={menuOpen}
           onClick={() => {

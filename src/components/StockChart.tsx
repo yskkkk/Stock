@@ -22,6 +22,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -41,6 +42,7 @@ import {
 import type { ChartDrawMode, ChartDrawToolbarApi } from "../chartDrawTypes";
 import { CHART_DRAW_RAY_TOOL_ENABLED } from "../chartDrawTypes";
 import { ko } from "../i18n/ko";
+import type { ColorMode } from "../lib/theme";
 import type { Candle, ChartTime } from "../types";
 import {
   computeRayLineEndpoints,
@@ -150,6 +152,8 @@ interface StockChartProps {
   /** 있으면 이평선은 일봉 기준(20·50일)으로 표시 */
   dailyCandles?: Candle[];
   fitKey: string;
+  /** 미지정 시 `"dark"` — 앱 루트에서 `colorMode`를 넘기는 것을 권장 */
+  colorMode?: ColorMode;
   interval?: string;
   overlays: ChartOverlays;
   /** 수평선·광선 등 간단 드로잉(TradingView 수준은 아님) */
@@ -165,6 +169,36 @@ interface StockChartProps {
   onChartDrawMagnetChange?: (next: boolean) => void;
   /** 수익 모델 매수 시점·가격 마커(없으면 표시 안 함) */
   profitMarker?: { time: ChartTime; price: number } | null;
+}
+
+type ChartUiPalette = {
+  layoutText: string;
+  gridVert: string;
+  gridHorz: string;
+  scaleBorder: string;
+  rsiAxisLabelBg: string;
+  rsiAxisLabelText: string;
+};
+
+function chartUiPalette(isLight: boolean): ChartUiPalette {
+  if (isLight) {
+    return {
+      layoutText: "#64748b",
+      gridVert: "rgba(15, 23, 42, 0.07)",
+      gridHorz: "rgba(15, 23, 42, 0.07)",
+      scaleBorder: "rgba(15, 23, 42, 0.12)",
+      rsiAxisLabelBg: "rgba(255, 255, 255, 0.94)",
+      rsiAxisLabelText: "#475569",
+    };
+  }
+  return {
+    layoutText: "#94a3b8",
+    gridVert: "rgba(148, 163, 184, 0.08)",
+    gridHorz: "rgba(148, 163, 184, 0.08)",
+    scaleBorder: "rgba(148, 163, 184, 0.15)",
+    rsiAxisLabelBg: "rgba(30, 41, 59, 0.92)",
+    rsiAxisLabelText: "#cbd5e1",
+  };
 }
 
 function disposeChartDrawingModel(
@@ -1472,6 +1506,7 @@ function syncOverlaySeries(
   overlays: ChartOverlays,
   mainStretch: number,
   scaleMargin: number,
+  palette: ChartUiPalette,
 ) {
   const chart = b.chart;
   const c = candles;
@@ -1641,9 +1676,8 @@ function syncOverlaySeries(
         lineVisible: true,
         axisLabelVisible: true,
         title,
-        /** 기본값은 선색과 동일 → 축 라벨이 칠해져 보임 */
-        axisLabelColor: "rgba(0, 0, 0, 0)",
-        axisLabelTextColor: "#94a3b8",
+        axisLabelColor: palette.rsiAxisLabelBg,
+        axisLabelTextColor: palette.rsiAxisLabelText,
       });
     b.rsiZone70Line = rsiRef(70, "rgba(248, 113, 113, 0.42)", "70");
     b.rsiMid50Line = rsiRef(50, "rgba(148, 163, 184, 0.45)", "");
@@ -1721,6 +1755,7 @@ export default function StockChart({
   candles,
   dailyCandles,
   fitKey,
+  colorMode = "dark",
   interval = "1d",
   overlays,
   drawingsEnabled = false,
@@ -1786,6 +1821,10 @@ export default function StockChart({
   const scaleMarginRef = useRef(0.12);
 
   const isIntraday = isIntradayInterval(interval);
+  const chartPalette = useMemo(
+    () => chartUiPalette(colorMode === "light"),
+    [colorMode],
+  );
   const structureKey = `${fitKey}:${interval}`;
   const drawingPersistKey = drawingStorageKeyFromFitKey(fitKey);
 
@@ -1985,7 +2024,7 @@ export default function StockChart({
       autoSize: true,
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
-        textColor: "#94a3b8",
+        textColor: chartPalette.layoutText,
         // Pretendard is loaded in index.html; DM Sans was not — missing weights
         // made canvas scale labels look soft on Windows HiDPI.
         fontFamily:
@@ -1993,8 +2032,8 @@ export default function StockChart({
         fontSize: 13,
       },
       grid: {
-        vertLines: { color: "rgba(148, 163, 184, 0.08)" },
-        horzLines: { color: "rgba(148, 163, 184, 0.08)" },
+        vertLines: { color: chartPalette.gridVert },
+        horzLines: { color: chartPalette.gridHorz },
       },
       crosshair: { mode: CrosshairMode.Normal },
       handleScale: {
@@ -2003,14 +2042,14 @@ export default function StockChart({
         axisPressedMouseMove: { time: true, price: true },
         axisDoubleClickReset: { time: true, price: true },
       },
-      rightPriceScale: { borderColor: "rgba(148, 163, 184, 0.15)" },
+      rightPriceScale: { borderColor: chartPalette.scaleBorder },
       localization: {
         locale: "ko-KR",
         dateFormat: "yyyy-MM-dd",
         timeFormatter: (time: Time) => formatChartTime(time, isIntraday),
       },
       timeScale: {
-        borderColor: "rgba(148, 163, 184, 0.15)",
+        borderColor: chartPalette.scaleBorder,
         timeVisible: isIntraday,
         secondsVisible: false,
         tickMarkFormatter: (time: Time) => formatChartTime(time, isIntraday),
@@ -2058,6 +2097,7 @@ export default function StockChart({
       overlaysRef.current,
       mainPaneStretchRef.current,
       scaleMarginRef.current,
+      chartPalette,
     );
 
     const shouldFit = structureKey !== lastFitKeyRef.current;
@@ -2123,7 +2163,7 @@ export default function StockChart({
       chart.remove();
       bundleRef.current = null;
     };
-  }, [structureKey, drawingsEnabled, fitKey, interval]);
+  }, [structureKey, drawingsEnabled, fitKey, interval, colorMode]);
 
   useEffect(() => {
     const b = bundleRef.current;
@@ -2136,6 +2176,7 @@ export default function StockChart({
       overlaysRef.current,
       mainPaneStretchRef.current,
       scaleMarginRef.current,
+      chartPalette,
     );
   }, [
     overlays.ma,
@@ -2144,6 +2185,7 @@ export default function StockChart({
     overlays.rsi,
     structureKey,
     interval,
+    chartPalette,
   ]);
 
   useEffect(() => {

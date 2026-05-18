@@ -1,3 +1,4 @@
+import "./symbol-dispose-polyfill.js";
 import { startMacroReminderLoop } from "./macro-telegram-reminders.js";
 import { startAutoGitSync } from "./auto-git-sync.js";
 import { createApp } from "./create-app.js";

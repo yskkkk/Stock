@@ -40,6 +40,18 @@ export function formatNewsDate(ts: number) {
   });
 }
 
+/** KST 기준 시·분·초 (일자별 추천 기록 등) */
+export function formatTimeMsKst(ms: number | null | undefined) {
+  if (ms == null || !Number.isFinite(ms) || ms <= 0) return "—";
+  return new Date(ms).toLocaleString("ko-KR", {
+    timeZone: "Asia/Seoul",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+}
+
 export function formatEta(seconds: number | null | undefined) {
   if (seconds == null || seconds <= 0) return "";
   const m = Math.floor(seconds / 60);

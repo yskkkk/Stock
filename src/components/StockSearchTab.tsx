@@ -1,8 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchStockSearch } from "../api";
-import { displayStockSymbol } from "../lib/format";
+import { fetchStockSearch, fetchStockTechnical } from "../api";
+import {
+  resolvePickSignalIds,
+  signalChipMeta,
+} from "../constants/signalChips";
 import { ko } from "../i18n/ko";
-import type { Market, StockPick, StockSearchQuoteRow } from "../types";
+import type {
+  Market,
+  StockPick,
+  StockSearchQuoteRow,
+  StockTechnicalResponse,
+} from "../types";
 import PickQuoteStrip from "./PickQuoteStrip";
 
 const HANGUL_RE = /[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7A3]/;
@@ -17,17 +25,10 @@ function looksKrAlternateQuery(q: string) {
   return HANGUL_RE.test(t);
 }
 
-function marketStateLabel(ms: string | undefined): string | null {
-  if (!ms?.trim()) return null;
-  const u = ms.trim().toUpperCase();
-  if (u === "REGULAR") return ko.app.stockLookupMktRegular;
-  if (u === "CLOSED") return ko.app.stockLookupMktClosed;
-  if (u === "PRE" || u === "PREMARKET" || u === "PRE_MARKET")
-    return ko.app.stockLookupMktPre;
-  if (u === "POST" || u === "POSTMARKET" || u === "POST_MARKET")
-    return ko.app.stockLookupMktPost;
-  return null;
-}
+type TechnicalSlot =
+  | { status: "loading" }
+  | { status: "ok"; data: StockTechnicalResponse }
+  | { status: "err"; message?: string };
 
 export interface StockSearchTabProps {
   market: Market;
@@ -35,6 +36,16 @@ export interface StockSearchTabProps {
   onSelectPick: (pick: StockPick) => void;
   /** 교차 시장 검색으로 탭을 맞출 때 */
   onLookupMarketChange: (market: Market) => void;
+  onNews: (pick: StockPick) => void;
+  onReason: (pick: StockPick) => void;
+  /** 스크리너와 동일 기술 점수·신호가 도착하면 현재 선택 종목만 병합(차트 재요청 방지) */
+  onLookupPickPatch?: (patch: {
+    symbol: string;
+    market: Market;
+    score: number;
+    signalIds: string[];
+    signals: string[];
+  }) => void;
 }
 
 function rowToPick(row: StockSearchQuoteRow): StockPick {
@@ -55,6 +66,26 @@ function rowToPick(row: StockSearchQuoteRow): StockPick {
   }
   if (row.currency?.trim()) pick.currency = row.currency.trim();
   return pick;
+}
+
+function mergeTechnical(
+  base: StockPick,
+  slot: TechnicalSlot | undefined,
+): StockPick {
+  if (!slot || slot.status === "loading") return base;
+  if (slot.status === "err") return base;
+  return {
+    ...base,
+    score: slot.data.score,
+    signalIds: slot.data.signalIds,
+    signals: slot.data.signals,
+  };
+}
+
+function scoreDisplay(slot: TechnicalSlot | undefined): string | number {
+  if (!slot || slot.status === "loading") return "…";
+  if (slot.status === "err") return "—";
+  return slot.data.score;
 }
 
 /** 검색창에 심볼만 넣고 Enter 했을 때 최소 `StockPick` 추정 */
@@ -87,13 +118,19 @@ export default function StockSearchTab({
   selectedSymbol,
   onSelectPick,
   onLookupMarketChange,
+  onNews,
+  onReason,
+  onLookupPickPatch,
 }: StockSearchTabProps) {
   const [input, setInput] = useState("");
   const [debounced, setDebounced] = useState("");
   const [quotes, setQuotes] = useState<StockSearchQuoteRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [techBySym, setTechBySym] = useState<Record<string, TechnicalSlot>>({});
   const abortRef = useRef<AbortController | null>(null);
+  const selectedSymRef = useRef<string | null>(null);
+  selectedSymRef.current = selectedSymbol;
 
   useEffect(() => {
     const id = window.setTimeout(() => setDebounced(input.trim()), 320);
@@ -153,6 +190,70 @@ export default function StockSearchTab({
     return () => ac.abort();
   }, [debounced, market, onLookupMarketChange]);
 
+  useEffect(() => {
+    if (quotes.length === 0) {
+      setTechBySym({});
+      return;
+    }
+
+    const ac = new AbortController();
+    const init: Record<string, TechnicalSlot> = {};
+    for (const r of quotes) {
+      init[r.symbol] = { status: "loading" };
+    }
+    setTechBySym(init);
+
+    void (async () => {
+      await Promise.all(
+        quotes.map(async (row) => {
+          try {
+            const data = await fetchStockTechnical(row.symbol, ac.signal);
+            if (ac.signal.aborted) return;
+            setTechBySym((prev) => ({
+              ...prev,
+              [row.symbol]: { status: "ok", data },
+            }));
+            const sel = (selectedSymRef.current ?? "").trim().toUpperCase();
+            if (
+              onLookupPickPatch &&
+              sel &&
+              sel === row.symbol.trim().toUpperCase()
+            ) {
+              onLookupPickPatch({
+                symbol: data.symbol,
+                market: row.market,
+                score: data.score,
+                signalIds: data.signalIds,
+                signals: data.signals,
+              });
+            }
+          } catch (e: unknown) {
+            if (ac.signal.aborted) return;
+            if (e instanceof DOMException && e.name === "AbortError") return;
+            setTechBySym((prev) => ({
+              ...prev,
+              [row.symbol]: {
+                status: "err",
+                message: e instanceof Error ? e.message : "",
+              },
+            }));
+          }
+        }),
+      );
+    })();
+
+    return () => ac.abort();
+  }, [quotes, onLookupPickPatch]);
+
+  /** 검색 결과 첫 종목을 기본 선택(선택이 없거나 결과에 없을 때만) */
+  useEffect(() => {
+    if (quotes.length === 0) return;
+    const norm = (s: string | null | undefined) => (s ?? "").trim().toUpperCase();
+    const sel = norm(selectedSymbol);
+    const still = sel && quotes.some((r) => norm(r.symbol) === sel);
+    if (!still) onSelectPick(rowToPick(quotes[0]));
+  }, [quotes, selectedSymbol, onSelectPick]);
+
   const tryDirectSubmit = useCallback(() => {
     const pick = pickFromDirectInput(input, market);
     if (pick) onSelectPick(pick);
@@ -171,7 +272,8 @@ export default function StockSearchTab({
             if (e.key !== "Enter") return;
             e.preventDefault();
             if (quotes.length > 0) {
-              onSelectPick(rowToPick(quotes[0]));
+              const row = quotes[0];
+              onSelectPick(mergeTechnical(rowToPick(row), techBySym[row.symbol]));
               return;
             }
             tryDirectSubmit();
@@ -198,20 +300,11 @@ export default function StockSearchTab({
       {!loading && !error && quotes.length > 0 && (
         <ul className="pick-list stock-search-tab__list">
           {quotes.map((row) => {
-            const pick = rowToPick(row);
+            const base = rowToPick(row);
+            const slot = techBySym[row.symbol];
+            const pick = mergeTechnical(base, slot);
             const active = selectedSymbol === row.symbol;
-            const showKo =
-              row.market === "us" &&
-              row.nameKo &&
-              row.nameKo.trim() !== "" &&
-              row.nameKo.trim() !== row.name.trim();
-            const showEn =
-              row.market === "us" &&
-              row.nameEn &&
-              row.nameEn.trim() !== "" &&
-              row.nameEn.trim() !== row.name.trim() &&
-              row.nameEn.trim() !== (row.nameKo ?? "").trim();
-            const msLabel = marketStateLabel(row.marketState);
+            const signalIds = resolvePickSignalIds(pick);
             const hasPrice = row.price != null && Number.isFinite(row.price);
             return (
               <li
@@ -220,72 +313,74 @@ export default function StockSearchTab({
               >
                 <button
                   type="button"
-                  className="pick-row stock-search-tab__row"
+                  className="pick-row"
                   onClick={() => onSelectPick(pick)}
                 >
-                  <div className="stock-search-tab__row-top">
-                    <div className="stock-search-tab__row-left">
-                      <span className="pick-name" title={row.name}>
-                        {row.name}
-                      </span>
-                      {(showKo || showEn) && (
-                        <div className="stock-search-tab__subnames">
-                          {showKo ? (
-                            <span className="stock-search-tab__name-ko">
-                              {row.nameKo}
-                            </span>
-                          ) : null}
-                          {showEn ? (
-                            <span className="stock-search-tab__name-en">
-                              {row.nameEn}
-                            </span>
-                          ) : null}
-                        </div>
-                      )}
-                    </div>
-                    <div className="stock-search-tab__row-right">
-                      <span
-                        className="stock-search-tab__sym"
-                        title={displayStockSymbol(row.symbol)}
-                      >
-                        {displayStockSymbol(row.symbol)}
-                      </span>
-                      {hasPrice ? (
-                        <PickQuoteStrip
-                          symbol={row.symbol}
-                          price={row.price}
-                          currency={row.currency}
-                          changePercent={row.changePercent}
-                          size="sm"
-                          className="stock-search-tab__strip"
-                        />
-                      ) : (
-                        <span className="stock-search-tab__quote-pending">
-                          {ko.app.stockLookupQuotePending}
-                        </span>
-                      )}
-                    </div>
+                  <div className="pick-head">
+                    <span className="pick-name" title={row.name}>
+                      {row.name}
+                    </span>
+                    <span className="pick-score">{scoreDisplay(slot)}</span>
                   </div>
-                  {(msLabel || row.quoteType || row.exchange) && (
-                    <div className="stock-search-tab__row-foot">
-                      {msLabel ? (
-                        <span className="stock-search-tab__chip stock-search-tab__chip--state">
-                          {msLabel}
-                        </span>
-                      ) : null}
-                      {row.quoteType ? (
-                        <span className="stock-search-tab__chip">
-                          {row.quoteType}
-                        </span>
-                      ) : null}
-                      {row.exchange ? (
-                        <span className="stock-search-tab__chip stock-search-tab__chip--muted">
-                          {row.exchange}
-                        </span>
-                      ) : null}
+                  {hasPrice ? (
+                    <PickQuoteStrip
+                      symbol={row.symbol}
+                      price={row.price}
+                      currency={row.currency}
+                      changePercent={row.changePercent}
+                    />
+                  ) : (
+                    <span className="stock-search-tab__quote-pending">
+                      {ko.app.stockLookupQuotePending}
+                    </span>
+                  )}
+                  {signalIds.length > 0 && (
+                    <div className="pick-signals">
+                      {signalIds.map((id) => {
+                        const chip = signalChipMeta(id);
+                        return (
+                          <span
+                            key={id}
+                            className={chip.className}
+                            title={chip.label}
+                          >
+                            {chip.short}
+                          </span>
+                        );
+                      })}
                     </div>
                   )}
                 </button>
+                <div className="pick-actions">
+                  <button
+                    type="button"
+                    className="pick-action pick-action--reason"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onReason(pick);
+                    }}
+                  >
+                    <span className="pick-action__icon" aria-hidden>
+                      ◆
+                    </span>
+                    이유
+                  </button>
+                  <button
+                    type="button"
+                    className="pick-action pick-action--news"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onNews(pick);
+                    }}
+                  >
+                    <span className="pick-action__icon" aria-hidden>
+                      ▸
+                    </span>
+                    뉴스
+                  </button>
+                </div>
               </li>
             );
           })}

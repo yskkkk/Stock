@@ -141,6 +141,22 @@ function parseChartResult(symbol, result, displayInterval, yahooInterval, aggreg
     meta,
   );
 
+  const lastCandle = candles.at(-1);
+  const dh = meta.regularMarketDayHigh;
+  const dl = meta.regularMarketDayLow;
+  const ch = lastCandle?.high;
+  const cl = lastCandle?.low;
+  let dayHigh =
+    typeof dh === "number" && Number.isFinite(dh) && dh > 0 ? dh : undefined;
+  let dayLow =
+    typeof dl === "number" && Number.isFinite(dl) && dl > 0 ? dl : undefined;
+  if (dayHigh == null && typeof ch === "number" && Number.isFinite(ch) && ch > 0) {
+    dayHigh = ch;
+  }
+  if (dayLow == null && typeof cl === "number" && Number.isFinite(cl) && cl > 0) {
+    dayLow = cl;
+  }
+
   return {
     symbol: meta.symbol ?? symbol,
     currency: meta.currency,
@@ -161,6 +177,8 @@ function parseChartResult(symbol, result, displayInterval, yahooInterval, aggreg
       changePercent,
       currency: meta.currency,
       marketState: meta.marketState,
+      dayHigh,
+      dayLow,
     },
     stale: false,
   };

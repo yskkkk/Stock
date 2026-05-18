@@ -40,6 +40,7 @@ function shouldSkipAccessLog(req) {
   if (method !== "GET") return false;
   const path = pathnameOnly(req);
   if (path === "/api/picks") return true;
+  if (path === "/api/picks/daily-history") return true;
   if (path === "/api/crypto-quotes") return true;
   if (path === "/api/crypto-universe") return true;
   if (path === "/api/macro-events") return true;
@@ -49,6 +50,7 @@ function shouldSkipAccessLog(req) {
   if (path === "/api/ops/cursor-agent-history") return true;
   if (path === "/api/ops/cursor-agent-queue") return true;
   if (path === "/api/ops/record-mode") return true;
+  if (path === "/api/ops/record-mode/activity") return true;
   if (path === "/api/ops/file-dev-queue") return true;
   if (path.startsWith("/api/stock/")) return true;
   if (path.startsWith("/api/news/")) return true;
@@ -90,6 +92,8 @@ function humanAction(req) {
   if (method === "POST" && path === "/api/access/admin/allowed-memo") return "허용 IP 메모 저장";
 
   if (method === "GET" && path === "/api/ops/record-mode") return "운영 기록 모드 큐 조회";
+  if (method === "GET" && path === "/api/ops/record-mode/activity")
+    return "운영 기록 모드 활동 이력 조회";
   if (method === "PUT" && path === "/api/ops/record-mode") return "운영 기록 모드 큐 저장";
   if (method === "GET" && path === "/api/ops/file-dev-queue") return "운영 파일 반영 큐 조회";
   if (method === "PUT" && path === "/api/ops/file-dev-queue") return "운영 파일 반영 큐 저장";

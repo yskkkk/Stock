@@ -139,6 +139,25 @@ body {
   padding: 3px;
 }
 
+/* 스크리너·검색 패널 시장 탭: 뒤따르는 pill 트랙/칩 배경 없음(선택은 굵기만) */
+.picks-panel:not(.crypto-panel) .panel-head__filters .market-tabs {
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.picks-panel:not(.crypto-panel) .panel-head__filters .market-tab {
+  border-radius: 0;
+  background: transparent;
+}
+
+.picks-panel:not(.crypto-panel) .panel-head__filters .market-tab.active {
+  background: transparent;
+  box-shadow: none;
+}
+
 .quote-bar__info h2,
 .quote-main h2 {
   font-weight: 800;
@@ -251,7 +270,7 @@ body {
 }
 
 .brand-mark {
-  border-radius: 14px;
+  border-radius: 22%;
 }
 
 .tag {
@@ -410,7 +429,7 @@ body {
   }
 
   .brand-mark {
-    border-radius: 10px;
+    border-radius: 22%;
   }
 }
 

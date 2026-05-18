@@ -80,7 +80,7 @@ export function installAccessGateHtmlMiddleware(server) {
     if (!isAccessControlEnabled()) return next();
 
     const ip = clientIp(req);
-    if (isClientIpOnAllowlist(ip)) return next();
+    if (isClientIpOnAllowlist(ip, req)) return next();
 
     const isRoot =
       pathname === "/" || pathname === "/index.html" || pathname === "";

@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { fetchMacroEvents } from "../api";
 import { ko } from "../i18n/ko";
 import {
@@ -11,6 +19,158 @@ import {
 import { getMacroSurpriseUpBias } from "../lib/macroSentiment";
 import type { MacroEvent, SectorEarningsSpotlightItem } from "../types";
 import MacroEventInfoModal from "./MacroEventInfoModal";
+
+type MacroTrackEdge = { side: "none" | "left" | "right"; pull: number };
+
+/** 끝에서 세로 스크롤로 넘기기까지 휠 델타 누적(음영 pull에도 사용) */
+const MACRO_EDGE_THRESHOLD = 500;
+/** 휠 입력이 이 시간(ms) 동안 없으면 음영·누적·게이트 초기화 후 다음 휠부터 다시 카운트 */
+const MACRO_WHEEL_IDLE_RESET_MS = 500;
+
+function attachMacroTrackWheel(
+  el: HTMLElement,
+  setEdge: Dispatch<SetStateAction<MacroTrackEdge>>,
+) {
+  const acc = { left: 0, right: 0 };
+  let gateL = false;
+  let gateR = false;
+  let resetTimer: number | undefined;
+
+  const clearEdge = () => setEdge({ side: "none", pull: 0 });
+
+  const scheduleReset = () => {
+    if (resetTimer !== undefined) window.clearTimeout(resetTimer);
+    resetTimer = window.setTimeout(() => {
+      acc.left = 0;
+      acc.right = 0;
+      gateL = false;
+      gateR = false;
+      clearEdge();
+    }, MACRO_WHEEL_IDLE_RESET_MS);
+  };
+
+  const onWheel = (e: WheelEvent) => {
+    scheduleReset();
+
+    if (el.scrollWidth <= el.clientWidth + 1) return;
+
+    let dy = e.deltaY;
+    if (e.deltaMode === WheelEvent.DOM_DELTA_LINE) dy *= 16;
+    else if (e.deltaMode === WheelEvent.DOM_DELTA_PAGE) dy *= el.clientHeight * 0.9;
+
+    if (Math.abs(e.deltaX) >= Math.abs(e.deltaY) && e.deltaX !== 0) {
+      acc.left = 0;
+      acc.right = 0;
+      gateL = false;
+      gateR = false;
+      clearEdge();
+      return;
+    }
+
+    const max = el.scrollWidth - el.clientWidth;
+    const sl = el.scrollLeft;
+    const eps = 2;
+    const atStart = sl <= eps;
+    const atEnd = sl >= max - eps;
+
+    if (sl > eps) gateL = false;
+    if (sl < max - eps) gateR = false;
+
+    if (!atStart && !atEnd) {
+      acc.left = 0;
+      acc.right = 0;
+      clearEdge();
+      e.preventDefault();
+      el.scrollLeft = Math.min(max, Math.max(0, sl + dy));
+      return;
+    }
+
+    if (!atStart && dy < 0) {
+      acc.left = 0;
+      acc.right = 0;
+      clearEdge();
+      e.preventDefault();
+      el.scrollLeft = Math.min(max, Math.max(0, sl + dy));
+      return;
+    }
+    if (!atEnd && dy > 0) {
+      acc.left = 0;
+      acc.right = 0;
+      clearEdge();
+      e.preventDefault();
+      el.scrollLeft = Math.min(max, Math.max(0, sl + dy));
+      return;
+    }
+
+    if (atEnd && dy > 0) {
+      e.preventDefault();
+      if (gateR) {
+        window.scrollBy({ top: dy, left: 0, behavior: "auto" });
+        clearEdge();
+        return;
+      }
+      acc.right += Math.abs(dy);
+      acc.left = 0;
+      setEdge({ side: "right", pull: Math.min(1, acc.right / MACRO_EDGE_THRESHOLD) });
+      if (acc.right >= MACRO_EDGE_THRESHOLD) {
+        gateR = true;
+        acc.right = 0;
+        window.scrollBy({ top: dy, left: 0, behavior: "auto" });
+        clearEdge();
+      }
+      return;
+    }
+
+    if (atStart && dy < 0) {
+      e.preventDefault();
+      if (gateL) {
+        window.scrollBy({ top: dy, left: 0, behavior: "auto" });
+        clearEdge();
+        return;
+      }
+      acc.left += Math.abs(dy);
+      acc.right = 0;
+      setEdge({ side: "left", pull: Math.min(1, acc.left / MACRO_EDGE_THRESHOLD) });
+      if (acc.left >= MACRO_EDGE_THRESHOLD) {
+        gateL = true;
+        acc.left = 0;
+        window.scrollBy({ top: dy, left: 0, behavior: "auto" });
+        clearEdge();
+      }
+      return;
+    }
+
+    if (atStart && dy > 0) {
+      acc.left = 0;
+      acc.right = 0;
+      clearEdge();
+      e.preventDefault();
+      el.scrollLeft = Math.min(max, sl + dy);
+      return;
+    }
+    if (atEnd && dy < 0) {
+      acc.left = 0;
+      acc.right = 0;
+      clearEdge();
+      e.preventDefault();
+      el.scrollLeft = Math.max(0, sl + dy);
+      return;
+    }
+  };
+
+  el.addEventListener("wheel", onWheel, { passive: false });
+  return () => {
+    el.removeEventListener("wheel", onWheel);
+    if (resetTimer !== undefined) window.clearTimeout(resetTimer);
+  };
+}
+
+function macroTrackWrapClass(edge: MacroTrackEdge) {
+  const base = "macro-bar__track-wrap";
+  if (edge.side === "left") return `${base} macro-bar__track-wrap--edge-left`;
+  if (edge.side === "right") return `${base} macro-bar__track-wrap--edge-right`;
+  return base;
+}
 
 const CATEGORY_ICON: Record<string, string> = {
   inflation: "◆",
@@ -48,7 +208,7 @@ function MacroEventCard({
       data-region={event.region}
       onClick={() => onOpen(event)}
       title={ko.macro.cardHint}
-      aria-label={`${event.name}, ${ko.macro.cardHint}`}
+      aria-label={`${event.name}, ${ko.macro.forecastLabel} ${event.forecast?.trim() || ko.macro.forecastPending}, ${ko.macro.cardHint}`}
     >
       <div className="macro-card__top">
         <span className="macro-card__code">{codeShort}</span>
@@ -60,6 +220,19 @@ function MacroEventCard({
         </span>
       </div>
       <p className="macro-card__name">{event.name}</p>
+      <p
+        className="macro-card__forecast"
+        title={event.forecast?.trim() ? undefined : ko.macro.forecastHelp}
+      >
+        <span className="macro-card__forecast-k">{ko.macro.forecastLabel}</span>
+        <span className="macro-card__forecast-sep" aria-hidden>
+          {" "}
+          ·{" "}
+        </span>
+        <span className="macro-card__forecast-v">
+          {event.forecast?.trim() || ko.macro.forecastPending}
+        </span>
+      </p>
       <p className="macro-card__countdown" aria-live="polite">
         {formatMacroCountdown(msLeft)}
       </p>
@@ -203,6 +376,28 @@ export default function MacroEventsBar({
   const visible = events.filter((e) => e.at > now - 30 * 60 * 1000);
   const visibleEarnings = sectorEarnings.filter((e) => e.at > now - 12 * 60 * 60 * 1000);
 
+  const eventsTrackRef = useRef<HTMLDivElement>(null);
+  const earningsTrackRef = useRef<HTMLDivElement>(null);
+  const [eventsTrackEdge, setEventsTrackEdge] = useState<MacroTrackEdge>({
+    side: "none",
+    pull: 0,
+  });
+  const [earningsTrackEdge, setEarningsTrackEdge] = useState<MacroTrackEdge>({
+    side: "none",
+    pull: 0,
+  });
+
+  useEffect(() => {
+    const el1 = eventsTrackRef.current;
+    const el2 = earningsTrackRef.current;
+    const c1 = el1 ? attachMacroTrackWheel(el1, setEventsTrackEdge) : () => {};
+    const c2 = el2 ? attachMacroTrackWheel(el2, setEarningsTrackEdge) : () => {};
+    return () => {
+      c1();
+      c2();
+    };
+  }, [loading, visible.length, visibleEarnings.length]);
+
   return (
     <>
       <section className="macro-bar card" aria-label={ko.macro.title}>
@@ -227,22 +422,31 @@ export default function MacroEventsBar({
             <span className="macro-bar__sub">{ko.macro.subtitle}</span>
           </div>
         </div>
-        <div className="macro-bar__track">
-          {loading && (
-            <p className="macro-bar__status">{ko.macro.loading}</p>
-          )}
-          {!loading && visible.length === 0 && (
-            <p className="macro-bar__status">{ko.macro.empty}</p>
-          )}
-          {!loading &&
-            visible.map((event) => (
-              <MacroEventCard
-                key={event.id}
-                event={event}
-                now={now}
-                onOpen={setInfoEvent}
-              />
-            ))}
+        <div
+          className={macroTrackWrapClass(eventsTrackEdge)}
+          style={
+            {
+              "--macro-edge-pull": String(eventsTrackEdge.pull),
+            } as CSSProperties
+          }
+        >
+          <div className="macro-bar__track" ref={eventsTrackRef}>
+            {loading && (
+              <p className="macro-bar__status">{ko.macro.loading}</p>
+            )}
+            {!loading && visible.length === 0 && (
+              <p className="macro-bar__status">{ko.macro.empty}</p>
+            )}
+            {!loading &&
+              visible.map((event) => (
+                <MacroEventCard
+                  key={event.id}
+                  event={event}
+                  now={now}
+                  onOpen={setInfoEvent}
+                />
+              ))}
+          </div>
         </div>
 
         {!loading && visibleEarnings.length > 0 ? (
@@ -251,10 +455,19 @@ export default function MacroEventsBar({
               <span className="macro-bar__sector-title">{ko.macro.sectorEarningsTitle}</span>
               <span className="macro-bar__sector-sub">{ko.macro.sectorEarningsSubtitle}</span>
             </div>
-            <div className="macro-bar__track macro-bar__track--earnings">
-              {visibleEarnings.map((row) => (
-                <SectorEarningsCard key={row.id} row={row} now={now} />
-              ))}
+            <div
+              className={macroTrackWrapClass(earningsTrackEdge)}
+              style={
+                {
+                  "--macro-edge-pull": String(earningsTrackEdge.pull),
+                } as CSSProperties
+              }
+            >
+              <div className="macro-bar__track macro-bar__track--earnings" ref={earningsTrackRef}>
+                {visibleEarnings.map((row) => (
+                  <SectorEarningsCard key={row.id} row={row} now={now} />
+                ))}
+              </div>
             </div>
           </div>
         ) : null}

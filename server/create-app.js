@@ -25,14 +25,16 @@ import {
 import { loadNews } from "./news.js";
 import { loadCryptoQuotes } from "./crypto-quotes.js";
 import { loadCryptoWatchlistTen } from "./crypto-universe.js";
-import { loadStock } from "./stock-data.js";
+import { fetchScanCandles, loadStock } from "./stock-data.js";
+import { analyzeTechnicals } from "./technical.js";
+import { clearYahooSession } from "./yahoo.js";
 import { getUsdKrwRate } from "./fx-usd-krw.js";
 import { searchStocks } from "./stock-search.js";
-import { getMacroEventsCached } from "./macro-events.js";
+import { getMacroEventsCachedAsync } from "./macro-events.js";
 import { fetchSectorEarningsSpotlight } from "./sector-earnings-spotlight.js";
 import { postFeedback, getFeedbackInbox, postFeedbackAdminReply, deleteFeedbackAdmin } from "./feedback-inbox.js";
 import { runOpsCursorAgent, streamOpsCursorAgentSse, writeOpsAgentSseEvent } from "./cursor-ops-agent.js";
-import { enqueueOpsAgentJob, getOpsAgentQueueSnapshot } from "./ops-agent-job-queue.js";
+import { enqueueOpsAgentJob } from "./ops-agent-job-queue.js";
 import {
   clearOpsAgentHistoryAsync,
   prependPolicyRejectedOpsEntry,
@@ -44,13 +46,22 @@ import { checkOpsInstructionPolicy } from "./ops-agent-instruction-policy.js";
 import { getOpsAgentPendingForIp } from "./ops-agent-pending-store.js";
 import { triggerOpsStreamUserCancel } from "./ops-stream-cancel.js";
 import {
+  appendRecordModePendingJob,
   mergeRecordModeQueueFromClient,
+  purgeRecordModeErrorItemsSync,
+  readRecordModeActivityLogEntries,
   readRecordModeQueueSync,
   RECORD_MODE_POLL_MS,
 } from "./ops-record-mode-store.js";
+import {
+  enrichPicksStateWithHistory,
+  getPicksDailyHistoryForApi,
+} from "./picks-history-store.js";
+import { enrichUnifiedQueueAgentAndRecord } from "./ops-unified-queue-seq.js";
 import { startOpsRecordModePoller } from "./ops-record-mode-poller.js";
 import {
   FILE_DEV_POLL_MS,
+  appendFileDevPendingJob,
   mergeFileDevQueueFromClient,
   readFileDevQueueSync,
 } from "./ops-file-dev-store.js";
@@ -136,7 +147,11 @@ export function createApp() {
 
   app.get("/api/picks", (req, res) => {
     ensureScreening();
-    res.json(getPicksState());
+    res.json(enrichPicksStateWithHistory(getPicksState()));
+  });
+
+  app.get("/api/picks/daily-history", (_req, res) => {
+    res.json(getPicksDailyHistoryForApi());
   });
 
   app.post("/api/picks/refresh", (_req, res) => {
@@ -146,7 +161,7 @@ export function createApp() {
   app.get(
     "/api/macro-events",
     asyncRoute(async (_req, res) => {
-      const base = getMacroEventsCached();
+      const base = await getMacroEventsCachedAsync();
       let sectorEarnings = [];
       try {
         sectorEarnings = await fetchSectorEarningsSpotlight();
@@ -340,8 +355,10 @@ export function createApp() {
         return;
       }
       const viewerIp = normalizeAccessIp(expressClientIp(req));
+      const disk = readRecordModeQueueSync();
+      const { agentEntries } = enrichUnifiedQueueAgentAndRecord(disk.items);
       res.json({
-        ...getOpsAgentQueueSnapshot(),
+        entries: agentEntries,
         viewerIp: viewerIp || null,
       });
     }),
@@ -443,8 +460,24 @@ export function createApp() {
         });
         return;
       }
-      const { items } = readRecordModeQueueSync();
-      res.json({ items, pollIntervalMs: RECORD_MODE_POLL_MS });
+      const { items } = purgeRecordModeErrorItemsSync();
+      const { recordItems } = enrichUnifiedQueueAgentAndRecord(items);
+      res.json({ items: recordItems, pollIntervalMs: RECORD_MODE_POLL_MS });
+    }),
+  );
+
+  app.get(
+    "/api/ops/record-mode/activity",
+    asyncRoute(async (req, res) => {
+      if (!isAccessAdminRequest(req)) {
+        res.status(403).json({
+          error: "관리자만 기록 모드를 사용할 수 있습니다.",
+          code: "FORBIDDEN",
+        });
+        return;
+      }
+      const entries = readRecordModeActivityLogEntries();
+      res.json({ entries });
     }),
   );
 
@@ -460,7 +493,60 @@ export function createApp() {
       }
       const raw = req.body?.items;
       const merged = await mergeRecordModeQueueFromClient(Array.isArray(raw) ? raw : []);
-      res.json({ ok: true, ...merged });
+      const { recordItems } = enrichUnifiedQueueAgentAndRecord(merged.items);
+      res.json({ ok: true, items: recordItems });
+    }),
+  );
+
+  app.post(
+    "/api/ops/record-mode/jobs",
+    asyncRoute(async (req, res) => {
+      if (!isAccessAdminRequest(req)) {
+        res.status(403).json({
+          error: "관리자만 기록 모드를 사용할 수 있습니다.",
+          code: "FORBIDDEN",
+        });
+        return;
+      }
+      const instruction = String(req.body?.instruction ?? "").trim();
+      if (!instruction) {
+        res.status(400).json({
+          error: "instruction 필드에 요청 내용을 입력하세요.",
+          code: "EMPTY_INSTRUCTION",
+        });
+        return;
+      }
+      const pol = checkOpsInstructionPolicy(instruction);
+      if (!pol.ok) {
+        await respondInstructionPolicyBlock(req, res, {
+          code: pol.code,
+          messageKo: pol.messageKo,
+        });
+        return;
+      }
+      const out = await appendRecordModePendingJob(instruction);
+      if (!out.ok) {
+        if (out.code === "QUEUE_FULL") {
+          res.status(503).json({
+            error:
+              "기록 모드 큐가 가득 찼습니다. 완료·오류 항목을 정리한 뒤 다시 시도하세요.",
+            code: "OPS_RECORD_MODE_QUEUE_FULL",
+          });
+          return;
+        }
+        res.status(400).json({
+          error: "instruction 필드에 요청 내용을 입력하세요.",
+          code: "EMPTY_INSTRUCTION",
+        });
+        return;
+      }
+      const { recordItems } = enrichUnifiedQueueAgentAndRecord(out.items);
+      res.json({
+        ok: true,
+        id: out.id,
+        items: recordItems,
+        pollIntervalMs: RECORD_MODE_POLL_MS,
+      });
     }),
   );
 
@@ -492,6 +578,50 @@ export function createApp() {
       const raw = req.body?.items;
       const merged = await mergeFileDevQueueFromClient(Array.isArray(raw) ? raw : []);
       res.json({ ok: true, ...merged });
+    }),
+  );
+
+  app.post(
+    "/api/ops/file-dev-queue/jobs",
+    asyncRoute(async (req, res) => {
+      if (!isAccessAdminRequest(req)) {
+        res.status(403).json({
+          error: "관리자만 파일 반영 큐를 사용할 수 있습니다.",
+          code: "FORBIDDEN",
+        });
+        return;
+      }
+      const requestJson = String(req.body?.requestJson ?? "").trim();
+      if (!requestJson) {
+        res.status(400).json({
+          error: "requestJson 필드에 반영할 JSON을 입력하세요.",
+          code: "EMPTY_REQUEST_JSON",
+        });
+        return;
+      }
+      const out = await appendFileDevPendingJob(requestJson);
+      if (!out.ok) {
+        if (out.code === "QUEUE_FULL") {
+          res.status(503).json({
+            error:
+              "파일 반영 큐가 가득 찼습니다. 반영 완료·오류 항목을 정리한 뒤 다시 시도하세요.",
+            code: "OPS_FILE_DEV_QUEUE_FULL",
+          });
+          return;
+        }
+        res.status(400).json({
+          error: "requestJson 필드에 반영할 JSON을 입력하세요.",
+          code: "EMPTY_REQUEST_JSON",
+        });
+        return;
+      }
+      res.json({
+        ok: true,
+        id: out.id,
+        items: out.items,
+        appliedFingerprints: out.appliedFingerprints,
+        pollIntervalMs: out.pollIntervalMs,
+      });
     }),
   );
 
@@ -643,6 +773,35 @@ export function createApp() {
           res.status(400).json({ error: message });
           return;
         }
+        res.status(404).json({ error: message });
+      }
+    }),
+  );
+
+  app.get(
+    "/api/stock/:symbol/technical",
+    asyncRoute(async (req, res) => {
+      try {
+        const symbol = String(req.params.symbol ?? "").trim();
+        if (!symbol) {
+          res.status(400).json({ error: "symbol이 필요합니다." });
+          return;
+        }
+        const data = await fetchScanCandles(symbol);
+        const analysis = analyzeTechnicals(data.candles);
+        res.json({
+          symbol: data.symbol,
+          score: analysis.score,
+          signalIds: analysis.signalIds,
+          signals: analysis.signals,
+          buy: analysis.buy,
+          candleCount: data.candleCount ?? data.candles?.length ?? 0,
+        });
+      } catch (err) {
+        if (err && typeof err === "object" && "code" in err && err.code === "RATE_LIMIT") {
+          clearYahooSession();
+        }
+        const message = err instanceof Error ? err.message : "요청 실패";
         res.status(404).json({ error: message });
       }
     }),

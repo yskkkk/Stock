@@ -3,7 +3,25 @@ import {
   signalChipMeta,
 } from "../constants/signalChips";
 import PickQuoteStrip from "./PickQuoteStrip";
+import { formatPercent } from "../lib/format";
+import { ko } from "../i18n/ko";
 import type { Market, StockPick } from "../types";
+
+function formatFirstPickDateLabel(ymd: string | undefined): string {
+  if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return "";
+  const [y, m, d] = ymd.split("-").map((x) => parseInt(x, 10));
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return ymd;
+  try {
+    return new Date(`${ymd}T12:00:00+09:00`).toLocaleDateString("ko-KR", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return ymd;
+  }
+}
 
 interface PickListProps {
   market?: Market;
@@ -74,6 +92,44 @@ export default function PickList({
                       </span>
                     );
                   })}
+                </div>
+              )}
+              {pick.pickStats && (
+                <div
+                  className="pick-stats"
+                  title={
+                    pick.pickStats.firstPickDate
+                      ? `${ko.app.picksStatsFirstDateTitle}: ${formatFirstPickDateLabel(pick.pickStats.firstPickDate)}`
+                      : undefined
+                  }
+                >
+                  <span className="pick-stats__item">
+                    <span className="pick-stats__label">{ko.app.picksStatsStreakLabel}</span>{" "}
+                    <span className="pick-stats__value">
+                      {pick.pickStats.consecutiveWeekdays > 0
+                        ? `${pick.pickStats.consecutiveWeekdays}${ko.app.picksStatsStreakUnit}`
+                        : "—"}
+                    </span>
+                  </span>
+                  <span className="pick-stats__sep" aria-hidden>
+                    ·
+                  </span>
+                  <span className="pick-stats__item">
+                    <span className="pick-stats__label">{ko.app.picksStatsSinceFirstLabel}</span>{" "}
+                    <span
+                      className={
+                        pick.pickStats.sinceFirstPickPct == null
+                          ? "pick-stats__value"
+                          : pick.pickStats.sinceFirstPickPct >= 0
+                            ? "pick-stats__value pick-stats__pct--up"
+                            : "pick-stats__value pick-stats__pct--down"
+                      }
+                    >
+                      {pick.pickStats.sinceFirstPickPct == null
+                        ? "—"
+                        : formatPercent(pick.pickStats.sinceFirstPickPct)}
+                    </span>
+                  </span>
                 </div>
               )}
             </button>

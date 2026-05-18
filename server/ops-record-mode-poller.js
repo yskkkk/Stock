@@ -1,6 +1,6 @@
 /**
- * 기록 모드: queue.json을 10초마다 읽어 pending을 실행.
- * 에이전트는 기존과 동일 워커로 직렬화하되 meta를 넘기지 않아 **대시보드 실행 큐 UI에는 표시되지 않음**.
+ * 기록 모드: queue.json을 `RECORD_MODE_POLL_MS`(기본 30초)마다 읽어 pending을 실행.
+ * 에이전트는 기존과 동일 워커로 직렬화하며, `enqueueOpsAgentJob` meta로 **운영 실행 큐 UI**와 이력 id를 맞춘다.
  */
 import { runOpsCursorAgent } from "./cursor-ops-agent.js";
 import { enqueueOpsAgentJob } from "./ops-agent-job-queue.js";
@@ -10,6 +10,7 @@ import {
   RECORD_MODE_REQUEST_IP,
   appendRecordModeActivityLog,
   claimNextPendingRecordJob,
+  removeRecordModeQueueItem,
   revertRecordModeJobToPending,
   updateRecordModeItemStatus,
 } from "./ops-record-mode-store.js";
@@ -70,7 +71,12 @@ async function runRecordModeAgentJob(id, instruction) {
       runtimeLabel: null,
       error: msg,
     });
-    await updateRecordModeItemStatus(id, "error", msg);
+    await removeRecordModeQueueItem(id);
+  } finally {
+    /** 다음 `pending`을 폴링 주기를 기다리지 않고 바로 집어감 */
+    setImmediate(() => {
+      void tickRecordModePoller();
+    });
   }
 }
 
@@ -85,7 +91,11 @@ async function tickRecordModePoller() {
     await enqueueOpsAgentJob(
       () => runRecordModeAgentJob(claimed.id, claimed.instruction),
       undefined,
-      undefined,
+      {
+        historyRunId: claimed.id,
+        requestIp: RECORD_MODE_REQUEST_IP,
+        instruction: claimed.instruction,
+      },
     );
   } catch (e) {
     const code =

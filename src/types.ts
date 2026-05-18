@@ -16,6 +16,8 @@ export interface MacroEvent {
   category: string;
   at: number;
   timezone: string;
+  /** macro-releases.json 등에서만 채움; 없으면 UI에서「발표 전」 */
+  forecast?: string | null;
 }
 
 export interface MacroEventsResponse {
@@ -94,17 +96,30 @@ export interface StockPick {
   name: string;
   market: Market;
   price?: number;
+  change?: number;
   changePercent?: number;
   currency?: string;
   score: number;
   signalIds?: string[];
   signals: string[];
+  marketState?: string;
+  dayHigh?: number;
+  dayLow?: number;
   /** 미국 종목 한글 표기(검색·로컬 맵) */
   nameKo?: string;
   /** 미국 종목 영문 회사명(검색 보조) */
   nameEn?: string;
   /** 상승 유망 탭용 근거 문장 */
   bullishReasons?: string[];
+  /** 일별 스냅샷 기준 연속 추천·첫 추천가 대비 등(서버) */
+  pickStats?: PickRecommendationStats;
+}
+
+export interface PickRecommendationStats {
+  consecutiveWeekdays: number;
+  firstPickDate?: string;
+  firstPickPrice?: number;
+  sinceFirstPickPct: number | null;
 }
 
 /** GET /api/stock-search — Yahoo Finance 심볼 검색 (국내·미국 시장 필터) */
@@ -130,6 +145,16 @@ export interface UsdKrwRateResponse {
 
 export interface StockSearchResponse {
   quotes: StockSearchQuoteRow[];
+}
+
+/** GET /api/stock/:symbol/technical — 스크리너와 동일 일봉·기술적 분석 */
+export interface StockTechnicalResponse {
+  symbol: string;
+  score: number;
+  signalIds: string[];
+  signals: string[];
+  buy: boolean;
+  candleCount: number;
 }
 
 export type NewsKind = "news" | "disclosure";
@@ -210,6 +235,28 @@ export interface PicksResponse {
   us: StockPick[];
   updatedAt: number | null;
   message: string;
+}
+
+export interface PicksDailyHistorySlimPick {
+  symbol: string;
+  name: string;
+  price?: number | null;
+  currency?: string | null;
+  /** 최초 스냅샷 기록 시각(ms) */
+  recordedAtMs?: number | null;
+  dayHigh?: number | null;
+  dayLow?: number | null;
+}
+
+export interface PicksDailyHistoryDay {
+  date: string;
+  scannedAtMs: number;
+  kr: PicksDailyHistorySlimPick[];
+  us: PicksDailyHistorySlimPick[];
+}
+
+export interface PicksDailyHistoryResponse {
+  days: PicksDailyHistoryDay[];
 }
 
 export interface RefreshResponse {

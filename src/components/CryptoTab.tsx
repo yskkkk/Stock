@@ -25,6 +25,7 @@ import TradingViewCryptoChart from "./TradingViewCryptoChart";
 import PickQuoteStrip from "./PickQuoteStrip";
 import ProfitModelModal from "./ProfitModelModal";
 import { ko } from "../i18n/ko";
+import type { ColorMode } from "../lib/theme";
 import type { Candle, ChartTimeframe, QuoteResponse } from "../types";
 
 type ListQuoteMap = Partial<Record<string, QuoteResponse>>;
@@ -61,11 +62,13 @@ function cryptoSymbolMatchesFocus(focusRaw: string, assetSymbol: string): boolea
 }
 
 export type CryptoTabProps = {
+  colorMode?: ColorMode;
   focusSymbol?: string | null;
   onFocusSymbolConsumed?: () => void;
 };
 
 export default function CryptoTab({
+  colorMode = "dark",
   focusSymbol = null,
   onFocusSymbolConsumed,
 }: CryptoTabProps) {
@@ -605,6 +608,7 @@ export default function CryptoTab({
               )}
             {chartEngine === "app" && !chartLoading && candles.length > 0 && (
               <StockChart
+                colorMode={colorMode}
                 candles={candles}
                 dailyCandles={dailyCandles}
                 fitKey={fitKey}

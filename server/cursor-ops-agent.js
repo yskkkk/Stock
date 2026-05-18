@@ -271,6 +271,47 @@ function asAsyncIterableStream(stream) {
 }
 
 /**
+ * `Agent.prompt` 내부 `n[Symbol.asyncDispose]()` 가 런타임 심볼 불일치 등으로
+ * TypeError(`…asyncDispose… is not a function`) 를 낼 수 있어 동등 경로로 실행하고
+ * dispose 는 `close` 폴백까지 시도한다.
+ * @param {string} message
+ * @param {object} agentOptions `Agent.create` 인자와 동일
+ */
+async function agentPromptDisposeSafe(message, agentOptions) {
+  const agent = await Agent.create(agentOptions);
+  try {
+    const run = await agent.send(message);
+    return await run.wait();
+  } finally {
+    await disposeSdkAgentSafe(agent);
+  }
+}
+
+/** @param {unknown} agent */
+async function disposeSdkAgentSafe(agent) {
+  if (agent == null || typeof agent !== "object") return;
+  const o = /** @type {Record<PropertyKey, unknown>} */ (agent);
+  try {
+    const ad = Symbol.asyncDispose;
+    const fn = ad != null ? o[ad] : undefined;
+    if (typeof fn === "function") {
+      await /** @type {(this: unknown) => PromiseLike<unknown> | unknown} */ (fn).call(agent);
+      return;
+    }
+  } catch {
+    /* dispose 실패 시 close 시도 */
+  }
+  try {
+    const close = o.close;
+    if (typeof close === "function") {
+      /** @type {(this: unknown) => void} */ (close).call(agent);
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
  * @param {string} apiKey
  * @param {string} envModel
  * @returns {Promise<string>}
@@ -788,7 +829,7 @@ export async function runOpsCursorAgent(input) {
   );
 
   try {
-    let result = await Agent.prompt(message, {
+    let result = await agentPromptDisposeSafe(message, {
       ...base,
       local: { cwd: OPS_AGENT_REPO_ROOT },
     });
@@ -800,7 +841,7 @@ export async function runOpsCursorAgent(input) {
       if (cloudRepo) {
         const cloudNote =
           "\n\n(You may be running in Cursor Cloud against the linked GitHub repo.)\n\n## Mandatory on GitHub before you finish\n- Commit every file change you made.\n- Run `git push` to the linked remote on your working branch and ensure it succeeds.\n- Do not end until the push has completed successfully.";
-        result = await Agent.prompt(message + cloudNote, {
+        result = await agentPromptDisposeSafe(message + cloudNote, {
           ...base,
           cloud: { repos: [cloudRepo] },
         });

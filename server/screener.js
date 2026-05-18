@@ -3,6 +3,8 @@ import { fetchScanCandles } from "./stock-data.js";
 import { resolveDisplayName } from "./names-ko.js";
 import { analyzeTechnicals } from "./technical.js";
 import { notifyHighScorePick } from "./telegram-notify.js";
+import { recordPicksDailySnapshot } from "./picks-history-store.js";
+import { readLastScanSnapshotSync, writeLastScanSnapshotSync } from "./picks-live-persist.js";
 import { loadUniverse } from "./universe.js";
 import { clearYahooSession, getYahooSession } from "./yahoo.js";
 
@@ -121,6 +123,8 @@ async function screenSymbol(item, market) {
         change: data.quote.change,
         changePercent: data.quote.changePercent,
         currency: data.quote.currency,
+        dayHigh: data.quote.dayHigh,
+        dayLow: data.quote.dayLow,
         score: analysis.score,
         signalIds: analysis.signalIds,
         signals: analysis.signals,
@@ -141,12 +145,16 @@ async function screenSymbol(item, market) {
   }
 }
 
-function applyScreenResult(result) {
-  if (result.type === "pick") {
-    if (result.pick.market === "kr") state.kr.push(result.pick);
-    else state.us.push(result.pick);
-    sortPicks(state.kr);
-    sortPicks(state.us);
+/**
+ * @param {{ type: string; pick?: object; failure?: object }} result
+ * @param {{ kr: object[]; us: object[] }} bucket
+ */
+function applyScreenResult(result, bucket) {
+  if (result.type === "pick" && result.pick) {
+    if (result.pick.market === "kr") bucket.kr.push(result.pick);
+    else bucket.us.push(result.pick);
+    sortPicks(bucket.kr);
+    sortPicks(bucket.us);
     notifyHighScorePick(result.pick);
   } else if (result.type === "error" && result.failure) {
     state.failedCount += 1;
@@ -160,14 +168,19 @@ async function runScreening() {
   clearNextScanTimer();
   nextScanAt = null;
 
+  const prevKr = [...state.kr];
+  const prevUs = [...state.us];
+  const prevFailures = [...state.failures];
+  const prevUpdatedAt = state.updatedAt;
+
   state.running = true;
   state.startedAt = Date.now();
   state.failedCount = 0;
   state.failures = [];
   state.message = "시총 상위 종목 목록 불러오는 중…";
   state.progress = 0;
-  state.kr = [];
-  state.us = [];
+
+  const draft = { kr: [], us: [] };
 
   screeningPromise = (async () => {
     try {
@@ -187,16 +200,30 @@ async function runScreening() {
           chunk.map((item) => screenSymbol(item, item.market)),
         );
         for (let j = 0; j < results.length; j++) {
-          applyScreenResult(results[j]);
+          applyScreenResult(results[j], draft);
         }
         state.progress += chunk.length;
       }
 
+      state.kr = draft.kr;
+      state.us = draft.us;
       state.updatedAt = Date.now();
+      recordPicksDailySnapshot([...state.kr], [...state.us], state.updatedAt);
       const failMsg =
         state.failedCount > 0 ? ` · 조회 실패 ${state.failedCount}건` : "";
       state.message = `분석 완료 · 매수 후보 ${state.kr.length + state.us.length}개${failMsg}`;
+      writeLastScanSnapshotSync({
+        kr: state.kr,
+        us: state.us,
+        updatedAt: state.updatedAt,
+        message: state.message,
+      });
     } catch (err) {
+      state.kr = prevKr;
+      state.us = prevUs;
+      state.failures = prevFailures;
+      state.failedCount = prevFailures.length;
+      state.updatedAt = prevUpdatedAt;
       state.message =
         err instanceof Error ? err.message : "분석 중 오류가 발생했습니다.";
     } finally {
@@ -221,8 +248,6 @@ export function forceRescreen() {
   }
   clearNextScanTimer();
   nextScanAt = null;
-  state.updatedAt = null;
-  state.total = 0;
   runScreening().catch(logScreeningError);
   return { ok: true, message: "전체 재분석을 시작했습니다." };
 }
@@ -233,4 +258,12 @@ export function ensureScreening() {
   if (!state.running && (stale || state.total === 0)) {
     runScreening().catch(logScreeningError);
   }
+}
+
+const _snap = readLastScanSnapshotSync();
+if (_snap && (_snap.kr.length > 0 || _snap.us.length > 0)) {
+  state.kr = _snap.kr;
+  state.us = _snap.us;
+  if (_snap.updatedAt > 0) state.updatedAt = _snap.updatedAt;
+  if (_snap.message) state.message = _snap.message;
 }

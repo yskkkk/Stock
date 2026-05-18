@@ -54,6 +54,24 @@ html[data-theme="light"] .macro-card {
   background: color-mix(in srgb, var(--card) 90%, transparent);
 }
 
+html[data-theme="light"] .macro-bar__track-wrap::before {
+  background: linear-gradient(
+    90deg,
+    rgba(15, 23, 42, 0.32) 0%,
+    rgba(15, 23, 42, 0.08) 55%,
+    transparent 100%
+  );
+}
+
+html[data-theme="light"] .macro-bar__track-wrap::after {
+  background: linear-gradient(
+    270deg,
+    rgba(15, 23, 42, 0.32) 0%,
+    rgba(15, 23, 42, 0.08) 55%,
+    transparent 100%
+  );
+}
+
 /* 상단 바 — 라이트: 비활성 탭·스캔 문구 대비 */
 html[data-theme="light"] .main-tab:not(.active) {
   color: #334155;
@@ -179,17 +197,21 @@ html[data-theme="light"] .access-admin-intro {
   color: var(--text-dim);
 }
 
-/* 조건 필터 카드 — 라이트: 단색·무거운 칩 대신 얇은 테두리·내부 하이라이트 */
+/* 조건 필터 카드 — 라이트: 팔레트(--card/--surface)와 동일 톤 */
 html[data-theme="light"] .filter-bar.card {
-  background: linear-gradient(165deg, #f4f6fa 0%, #e8edf4 100%);
-  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--card) 92%, white) 0%,
+    color-mix(in srgb, var(--surface) 86%, var(--card)) 100%
+  );
+  border: 1px solid var(--card-border);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.65) inset,
-    0 6px 28px rgba(15, 23, 42, 0.055);
+    var(--shadow);
 }
 
 html[data-theme="light"] .signal-filter .filter-title {
-  color: #0f172a;
+  color: var(--text);
   letter-spacing: -0.025em;
 }
 
@@ -202,35 +224,40 @@ html[data-theme="light"] .signal-filter .filter-mode-seg {
 }
 
 html[data-theme="light"] .signal-filter .filter-mode-seg .seg {
-  color: #64748b;
+  color: var(--muted);
   background: transparent;
   border: none;
   box-shadow: none;
 }
 
 html[data-theme="light"] .signal-filter .filter-mode-seg .seg.active {
-  color: #f8fafc;
-  background: linear-gradient(180deg, #475569 0%, #334155 100%);
+  color: var(--accent-press);
+  background: linear-gradient(
+    180deg,
+    rgb(from var(--accent) r g b / 0.22) 0%,
+    rgb(from var(--accent) r g b / 0.1) 100%
+  );
+  border: 1px solid rgb(from var(--accent) r g b / 0.38);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.2) inset,
-    0 3px 10px rgba(15, 23, 42, 0.18);
+    0 1px 0 rgba(255, 255, 255, 0.55) inset,
+    0 2px 8px rgb(from var(--accent) r g b / 0.12);
 }
 
 html[data-theme="light"] .signal-filter .filter-clear {
-  color: #64748b;
+  color: var(--muted);
   background: rgba(255, 255, 255, 0.55);
   border-color: rgba(15, 23, 42, 0.12);
 }
 
 html[data-theme="light"] .signal-filter .filter-clear:hover {
-  color: #0f172a;
+  color: var(--text);
   background: #ffffff;
   border-color: rgba(51, 65, 85, 0.28);
 }
 
 html[data-theme="light"] .signal-filter .chip:not(.active),
 html[data-theme="light"] .signal-filter .chip.preset {
-  color: #475569;
+  color: var(--text-dim);
   background: rgba(255, 255, 255, 0.78);
   border: 1px solid rgba(15, 23, 42, 0.1);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.035);
@@ -238,7 +265,7 @@ html[data-theme="light"] .signal-filter .chip.preset {
 
 html[data-theme="light"] .signal-filter .chip:not(.active):hover,
 html[data-theme="light"] .signal-filter .chip.preset:hover {
-  color: #0f172a;
+  color: var(--text);
   background: #ffffff;
   border-color: rgba(100, 116, 139, 0.35);
 }
@@ -256,45 +283,113 @@ html[data-theme="light"] .signal-filter .chip.active {
     0 2px 6px rgb(from var(--accent) r g b / 0.08);
 }
 
-/* 스크리너(주식) 좌측 패널 — 라이트: 패널·툴바·행 카드 일체감 */
+/* 스크리너·종목 검색 좌측 패널 — 라이트: 팔레트 변수로 통일(차가운 블루 그레이 제거) */
 html[data-theme="light"] .picks-panel:not(.crypto-panel).card {
-  background: linear-gradient(180deg, #e9eef6 0%, #dfe7f1 100%);
-  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--card) 94%, white) 0%,
+    color-mix(in srgb, var(--surface) 88%, var(--card)) 100%
+  );
+  border: 1px solid var(--card-border);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.5) inset,
-    0 8px 36px rgba(15, 23, 42, 0.065);
+    var(--shadow);
 }
 
 html[data-theme="light"] .picks-panel:not(.crypto-panel) .panel-head {
-  border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+  border-bottom: 1px solid var(--card-border);
 }
 
 html[data-theme="light"] .picks-panel:not(.crypto-panel) .panel-head__meta {
-  color: #64748b;
+  color: var(--muted);
 }
 
-html[data-theme="light"] .picks-panel:not(.crypto-panel) .panel-head .market-tabs {
-  background: rgba(255, 255, 255, 0.55);
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5);
+html[data-theme="light"] .picks-panel:not(.crypto-panel) .panel-head__filters .market-tabs {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0;
 }
 
 html[data-theme="light"] .picks-panel:not(.crypto-panel) .market-tab {
-  color: #64748b;
+  color: #334155;
+  font-weight: 600;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
 }
 
 html[data-theme="light"] .picks-panel:not(.crypto-panel) .market-tab.active {
   color: #0f172a;
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+  font-weight: 850;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
 }
 
 html[data-theme="light"] .picks-panel:not(.crypto-panel) .market-tab.active .market-tab__count {
-  color: var(--accent-ink);
+  color: var(--accent-press);
+  font-weight: 850;
+}
+
+/* 스크리너 시장 탭 — 다크: 활성도 pill 배경 없이 굵게만 */
+html:not([data-theme="light"]) .picks-panel:not(.crypto-panel) .market-tab {
+  font-weight: 600;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+html:not([data-theme="light"]) .picks-panel:not(.crypto-panel) .market-tab.active {
+  font-weight: 850;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+html:not([data-theme="light"]) .picks-panel:not(.crypto-panel) .market-tab.active .market-tab__count {
+  font-weight: 850;
+}
+
+html:not([data-theme="light"]) .picks-panel:not(.crypto-panel) .panel-head__filters .market-tabs {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0;
+}
+
+html[data-theme="light"] .picks-history-modal .picks-history-date {
+  color: #64748b;
+}
+
+html[data-theme="light"] .picks-history-modal .picks-history-date:hover {
+  color: #0f172a;
+}
+
+html[data-theme="light"] .picks-history-modal .picks-history-date--selected {
+  color: #0f172a;
+}
+
+html[data-theme="light"] .picks-panel:not(.crypto-panel) .picks-history-open {
+  color: #475569;
+}
+
+html[data-theme="light"] .picks-panel:not(.crypto-panel) .picks-history-open:hover {
+  color: #0f172a;
+}
+
+html[data-theme="light"] .picks-panel:not(.crypto-panel) .picks-history-open--active {
+  color: #0f172a;
 }
 
 html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-name {
-  color: #0f172a;
+  color: var(--text);
 }
 
 html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-score {
@@ -302,18 +397,22 @@ html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-score {
 }
 
 html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-item {
-  background: linear-gradient(165deg, #fbfcfe 0%, #f0f3f9 100%);
-  border: 1px solid rgba(15, 23, 42, 0.09);
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--card) 97%, white) 0%,
+    color-mix(in srgb, var(--surface) 82%, var(--card)) 100%
+  );
+  border: 1px solid var(--card-border);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.85) inset,
+    0 1px 0 rgba(255, 255, 255, 0.75) inset,
     0 2px 6px rgba(15, 23, 42, 0.045),
     0 10px 28px rgba(15, 23, 42, 0.04);
 }
 
 html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-item:hover {
-  border-color: rgba(100, 116, 139, 0.35);
+  border-color: rgb(from var(--accent) r g b / 0.28);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.85) inset,
+    0 1px 0 rgba(255, 255, 255, 0.75) inset,
     0 4px 14px rgba(15, 23, 42, 0.06);
 }
 
@@ -325,28 +424,28 @@ html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-item.active {
   background: linear-gradient(
     165deg,
     rgb(from var(--accent) r g b / 0.09) 0%,
-    #eef2f8 58%
+    color-mix(in srgb, var(--card) 90%, white) 58%
   );
 }
 
 html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-toolbar {
-  background: rgba(255, 255, 255, 0.38);
+  background: color-mix(in srgb, var(--card) 42%, transparent);
   -webkit-backdrop-filter: blur(10px) saturate(1.1);
   backdrop-filter: blur(10px) saturate(1.1);
-  border-top-color: rgba(15, 23, 42, 0.08);
-  border-bottom-color: rgba(15, 23, 42, 0.08);
+  border-top-color: var(--card-border);
+  border-bottom-color: var(--card-border);
 }
 
 html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-search,
 html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-sort {
-  background: #ffffff;
-  border: 1px solid rgba(15, 23, 42, 0.11);
-  color: #0f172a;
+  background: color-mix(in srgb, var(--card) 22%, white);
+  border: 1px solid var(--card-border);
+  color: var(--text);
   box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.035);
 }
 
 html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-search::placeholder {
-  color: #94a3b8;
+  color: var(--muted);
 }
 
 html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-search:focus,
@@ -359,19 +458,19 @@ html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-sort:focus {
 }
 
 html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-action {
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  color: #475569;
+  background: color-mix(in srgb, var(--card) 35%, white);
+  border: 1px solid var(--card-border);
+  color: var(--text-dim);
 }
 
 html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-action:hover {
-  background: #ffffff;
-  color: #0f172a;
-  border-color: rgba(15, 23, 42, 0.14);
+  background: color-mix(in srgb, var(--card) 12%, white);
+  color: var(--text);
+  border-color: var(--card-border);
 }
 
 html[data-theme="light"] .picks-panel:not(.crypto-panel) .picks-empty {
-  color: #64748b;
+  color: var(--muted);
   line-height: 1.6;
   padding: 1.5rem 0.85rem;
   text-align: center;

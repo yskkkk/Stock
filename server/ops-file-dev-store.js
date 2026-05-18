@@ -2,7 +2,7 @@
  * 운영 탭「파일 반영」— 에이전트·작업 큐와 무관하게 JSON만 읽어 순차 디스크 반영.
  * server/.data/ops-file-dev-queue.json
  */
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -223,6 +223,59 @@ export function mergeFileDevQueueFromClient(incomingRaw) {
     const trimmed = out.slice(0, MAX_ITEMS);
     writeQueueSync({ appliedFingerprints: disk.appliedFingerprints, items: trimmed });
     return { appliedFingerprints: disk.appliedFingerprints, items: trimmed, pollIntervalMs: FILE_DEV_POLL_MS };
+  });
+}
+
+/**
+ * 웹/API에서 JSON 한 건을 큐 파일에 `pending`으로 추가(목록 저장 버튼 없이).
+ * 용량 초과 시 applied·error 항목을 앞에서부터 제거해 공간을 만든다.
+ * @param {string} requestJsonRaw
+ * @returns {Promise<
+ *   | { ok: true; id: string; items: FileDevItem[]; appliedFingerprints: string[]; pollIntervalMs: number }
+ *   | { ok: false; code: "EMPTY" | "QUEUE_FULL" }
+ * >}
+ */
+export function appendFileDevPendingJob(requestJsonRaw) {
+  return chain(async () => {
+    const body = String(requestJsonRaw ?? "")
+      .trim()
+      .slice(0, MAX_REQUEST_JSON_CHARS);
+    if (!body) {
+      return { ok: false, code: /** @type {const} */ ("EMPTY") };
+    }
+    const fp = fingerprintFileDevRequest(body);
+    const data = readFileDevQueueSync();
+    resetStaleFileDevRunningInPlace(data.items);
+
+    while (data.items.length >= MAX_ITEMS) {
+      const i = data.items.findIndex((x) => x.status === "applied" || x.status === "error");
+      if (i === -1) {
+        return { ok: false, code: /** @type {const} */ ("QUEUE_FULL") };
+      }
+      data.items.splice(i, 1);
+    }
+
+    const now = Date.now();
+    const id = randomUUID();
+    data.items.push({
+      id,
+      requestJson: body,
+      fingerprint: fp,
+      status: "pending",
+      createdAtMs: now,
+      lockedAtMs: null,
+      updatedAtMs: now,
+      error: null,
+      applySummary: null,
+    });
+    writeQueueSync(data);
+    return {
+      ok: true,
+      id,
+      items: data.items,
+      appliedFingerprints: data.appliedFingerprints,
+      pollIntervalMs: FILE_DEV_POLL_MS,
+    };
   });
 }
 
