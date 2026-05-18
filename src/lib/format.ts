@@ -87,3 +87,8 @@ export function formatUpdatedAt(ts: number | null) {
     minute: "2-digit",
   });
 }
+
+/** UI 표기용: 국내 Yahoo 접미사 `.KS` / `.KQ` 제거 (예: `001450.KS` → `001450`) */
+export function displayStockSymbol(symbol: string): string {
+  return symbol.trim().replace(/\.(KS|KQ)$/i, "");
+}

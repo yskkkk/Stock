@@ -13,8 +13,22 @@ import { loadChartQuoteSnapshot } from "./stock-data.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const CACHE_MS = 20_000;
+/** 검색 쿼리 캐시 — TTL 경과 후에도 Map에 남지 않도록 정리 */
+const SEARCH_CACHE_MAX_KEYS = 240;
+const SEARCH_CACHE_DEAD_MS = CACHE_MS * 30;
 /** @type {Map<string, { at: number, payload: { quotes: unknown[] } }>} */
 const cache = new Map();
+
+function pruneStockSearchCache() {
+  const now = Date.now();
+  for (const [key, hit] of cache) {
+    if (now - hit.at > SEARCH_CACHE_DEAD_MS) cache.delete(key);
+  }
+  if (cache.size <= SEARCH_CACHE_MAX_KEYS) return;
+  const sorted = [...cache.entries()].sort((a, b) => a[1].at - b[1].at);
+  const remove = cache.size - SEARCH_CACHE_MAX_KEYS;
+  for (let i = 0; i < remove; i++) cache.delete(sorted[i][0]);
+}
 
 const KR_EX = new Set([
   "KSC",
@@ -243,5 +257,6 @@ export async function searchStocks(query, market) {
   const enriched = await fillMissingQuotes(sliced);
   const payload = { quotes: enriched };
   cache.set(cacheKey, { at: Date.now(), payload });
+  pruneStockSearchCache();
   return payload;
 }

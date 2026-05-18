@@ -5,6 +5,7 @@ import {
   screenFailuresSection,
   screenFailuresSub,
 } from "../i18n/ko";
+import { displayStockSymbol } from "../lib/format";
 import type { ScreenFailure } from "../types";
 
 interface ScreenFailuresModalProps {
@@ -105,7 +106,9 @@ function FailureSection({
               <span className="screen-failures-item__name" title={f.name}>
                 {f.name}
               </span>
-              <span className="screen-failures-item__symbol">{f.symbol}</span>
+              <span className="screen-failures-item__symbol">
+                {displayStockSymbol(f.symbol)}
+              </span>
               <span className="screen-failures-item__market">
                 {f.market === "kr" ? ko.screenFailures.kr : ko.screenFailures.us}
               </span>

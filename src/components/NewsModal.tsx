@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { formatNewsDate } from "../lib/format";
+import { displayStockSymbol, formatNewsDate } from "../lib/format";
 import type { NewsItem, NewsSentiment, StockPick } from "../types";
 
 const SENTIMENT_LABEL: Record<NewsSentiment, string> = {
@@ -35,10 +35,21 @@ export default function NewsModal({
 }: NewsModalProps) {
   const [selected, setSelected] = useState<number | null>(null);
   const openLock = useRef(false);
+  const openLockTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     setSelected(null);
   }, [pick.symbol, items]);
+
+  useEffect(() => {
+    return () => {
+      if (openLockTimerRef.current != null) {
+        window.clearTimeout(openLockTimerRef.current);
+        openLockTimerRef.current = null;
+      }
+      openLock.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -60,7 +71,11 @@ export default function NewsModal({
     if (!current?.url || openLock.current) return;
     openLock.current = true;
     window.open(current.url, "_blank", "noopener,noreferrer");
-    window.setTimeout(() => {
+    if (openLockTimerRef.current != null) {
+      window.clearTimeout(openLockTimerRef.current);
+    }
+    openLockTimerRef.current = window.setTimeout(() => {
+      openLockTimerRef.current = null;
       openLock.current = false;
     }, 800);
   }
@@ -82,7 +97,7 @@ export default function NewsModal({
           <div>
             <h2 id="news-modal-title">{pick.name}</h2>
             <p className="news-modal-sub">
-              {pick.symbol} · {pick.name} 관련만 표시 · 최신순
+              {displayStockSymbol(pick.symbol)} · {pick.name} 관련만 표시 · 최신순
             </p>
           </div>
           <button

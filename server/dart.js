@@ -1,6 +1,21 @@
 const BASE = "https://opendart.fss.or.kr/api";
 const CACHE_MS = 10 * 60_000;
+const DART_CACHE_MAX = 180;
 const cache = new Map();
+
+function pruneDartCache() {
+  const now = Date.now();
+  for (const [key, hit] of cache) {
+    const ttl = key.startsWith("corp:")
+      ? 26 * 60 * 60_000
+      : CACHE_MS * 4;
+    if (now - hit.at > ttl) cache.delete(key);
+  }
+  if (cache.size <= DART_CACHE_MAX) return;
+  const sorted = [...cache.entries()].sort((a, b) => a[1].at - b[1].at);
+  const remove = cache.size - DART_CACHE_MAX;
+  for (let i = 0; i < remove; i++) cache.delete(sorted[i][0]);
+}
 
 function apiKey() {
   return process.env.OPENDART_API_KEY?.trim() ?? "";
@@ -39,6 +54,7 @@ async function resolveCorpCode(symbol) {
   if (!corpCode) return null;
 
   cache.set(`corp:${code}`, { at: Date.now(), corpCode });
+  pruneDartCache();
   return corpCode;
 }
 
@@ -102,5 +118,6 @@ export async function fetchDartDisclosures(symbol, days = 90) {
   });
 
   cache.set(cacheKey, { at: Date.now(), items });
+  pruneDartCache();
   return items;
 }

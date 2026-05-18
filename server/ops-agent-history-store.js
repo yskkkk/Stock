@@ -14,6 +14,8 @@ const DATA_DIR = path.join(__dirname, ".data");
 const HISTORY_FILE = path.join(DATA_DIR, "ops-cursor-agent-history.json");
 export const OPS_AGENT_HISTORY_MAX = 40;
 const OPS_AGENT_FIELD_MAX_CHARS = 120_000;
+/** read_file / write 등 도구 호출 누적 로그 상한 */
+const OPS_AGENT_TOOL_LOG_MAX_CHARS = 96_000;
 const OPS_AGENT_INSTRUCTION_STORE_MAX = 16_000;
 const OPS_AGENT_REQUEST_IP_MAX = 120;
 
@@ -77,14 +79,18 @@ function parseHistoryRecord(o) {
     st === "waiting" ||
     st === "ok" ||
     st === "error" ||
-    st === "cancelled"
+    st === "cancelled" ||
+    st === "rejected"
       ? st
       : null;
   if (!state) {
     if (finishedAtMs == null) state = "running";
     else state = error ? "error" : "ok";
   }
-  if ((state === "running" || state === "waiting") && finishedAtMs != null) {
+  if (
+    (state === "running" || state === "waiting") &&
+    finishedAtMs != null
+  ) {
     state = error ? "error" : "ok";
   }
 
@@ -100,6 +106,10 @@ function parseHistoryRecord(o) {
     cursorLine: typeof o.cursorLine === "string" ? o.cursorLine : "",
     thinkingLine: typeof o.thinkingLine === "string" ? o.thinkingLine : "",
     toolLine: typeof o.toolLine === "string" ? o.toolLine : "",
+    toolLog:
+      typeof o.toolLog === "string"
+        ? trimStoredTextForOpsHistory(o.toolLog, OPS_AGENT_TOOL_LOG_MAX_CHARS)
+        : "",
     streamText: typeof o.streamText === "string" ? o.streamText : "",
     statusText:
       o.statusText === null || typeof o.statusText === "string"
@@ -120,6 +130,10 @@ function parseHistoryRecord(o) {
     requestIp: sanitizeRequestIpForStore(
       typeof o.requestIp === "string" ? o.requestIp : "",
     ),
+    workspaceAppliedAtMs:
+      typeof o.workspaceAppliedAtMs === "number" && Number.isFinite(o.workspaceAppliedAtMs)
+        ? o.workspaceAppliedAtMs
+        : null,
   };
 }
 
@@ -192,17 +206,63 @@ export function prependRunningOpsEntry(id, instruction, requestIp = "") {
       cursorLine: "",
       thinkingLine: "",
       toolLine: "",
+      toolLog: "",
       streamText: "",
       statusText: null,
       resultText: null,
       durationMs: null,
       runtimeLabel: null,
       requestIp: rip,
+      workspaceAppliedAtMs: null,
     };
     const prev = readRawListSync()
       .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))
       .filter(Boolean)
       .filter((e) => e.id !== id);
+    const next = [entry, ...prev].slice(0, OPS_AGENT_HISTORY_MAX);
+    await fs.writeFile(HISTORY_FILE, JSON.stringify(next), "utf8");
+  });
+}
+
+const POLICY_REJECTED_INSTRUCTION_PLACEHOLDER =
+  "(정책에 의해 요청 원문은 저장하지 않았습니다.)";
+
+/**
+ * 정책 거부 이력 — 에이전트 미실행.
+ * @param {{ id: string; requestIp?: string; policyCode: string; userMessage: string }} p
+ * @returns {Promise<void>}
+ */
+export function prependPolicyRejectedOpsEntry(p) {
+  return chainWrite(async () => {
+    ensureDirSync();
+    const rip = sanitizeRequestIpForStore(p.requestIp ?? "");
+    const now = Date.now();
+    const errLine = `${String(p.userMessage ?? "").trim()} [${String(p.policyCode ?? "").trim()}]`;
+    const entry = {
+      id: p.id,
+      instruction: POLICY_REJECTED_INSTRUCTION_PLACEHOLDER,
+      state: "rejected",
+      startedAtMs: now,
+      updatedAtMs: now,
+      finishedAtMs: now,
+      error: errLine.slice(0, OPS_AGENT_FIELD_MAX_CHARS),
+      phaseLine: "",
+      cursorLine: "",
+      thinkingLine: "",
+      toolLine: "",
+      toolLog: "",
+      streamText: "",
+      statusText: null,
+      resultText: null,
+      durationMs: 0,
+      runtimeLabel: null,
+      requestIp: rip,
+      workspaceAppliedAtMs: null,
+    };
+    const prev = readRawListSync()
+      .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))
+      .filter(Boolean)
+      .filter((e) => e.id !== p.id);
     const next = [entry, ...prev].slice(0, OPS_AGENT_HISTORY_MAX);
     await fs.writeFile(HISTORY_FILE, JSON.stringify(next), "utf8");
   });
@@ -243,6 +303,7 @@ export function promoteOpsAgentEntryToRunning(id) {
  *   cursorLine?: string;
  *   thinkingLine?: string;
  *   toolLine?: string;
+ *   toolLog?: string;
  *   streamText?: string;
  *   statusText?: string | null;
  *   resultText?: string | null;
@@ -267,11 +328,16 @@ export function patchOpsAgentEntry(id, patch) {
       patch.streamText !== undefined
         ? trimStoredTextForOpsHistory(patch.streamText, OPS_AGENT_FIELD_MAX_CHARS)
         : undefined;
+    const toolLogPatch =
+      patch.toolLog !== undefined
+        ? trimStoredTextForOpsHistory(patch.toolLog, OPS_AGENT_TOOL_LOG_MAX_CHARS)
+        : undefined;
 
     const nextRow = {
       ...cur,
       ...patch,
       ...(streamPatch !== undefined ? { streamText: streamPatch } : {}),
+      ...(toolLogPatch !== undefined ? { toolLog: toolLogPatch } : {}),
       updatedAtMs: Date.now(),
       state: "running",
       finishedAtMs: null,
@@ -284,12 +350,13 @@ export function patchOpsAgentEntry(id, patch) {
 /**
  * @param {string} id
  * @param {{
- *   state: "ok" | "error" | "cancelled";
+ *   state: "ok" | "error" | "cancelled" | "rejected";
  *   instruction?: string;
  *   phaseLine: string;
  *   cursorLine: string;
  *   thinkingLine: string;
  *   toolLine: string;
+ *   toolLog: string;
  *   streamText: string;
  *   statusText: string | null;
  *   resultText: string | null;
@@ -343,12 +410,17 @@ export function finalizeOpsAgentEntry(id, fin) {
       cursorLine: fin.cursorLine,
       thinkingLine: fin.thinkingLine,
       toolLine: fin.toolLine,
+      toolLog: trimStoredTextForOpsHistory(
+        fin.toolLog ?? list[i]?.toolLog ?? "",
+        OPS_AGENT_TOOL_LOG_MAX_CHARS,
+      ),
       streamText,
       statusText: fin.statusText,
       resultText,
       durationMs: fin.durationMs,
       runtimeLabel: fin.runtimeLabel,
       requestIp: requestIpStored,
+      workspaceAppliedAtMs: list[i]?.workspaceAppliedAtMs ?? null,
     };
 
     if (i === -1) {
@@ -358,6 +430,34 @@ export function finalizeOpsAgentEntry(id, fin) {
     }
     list[i] = { ...list[i], ...row };
     await fs.writeFile(HISTORY_FILE, JSON.stringify(list), "utf8");
+  });
+}
+
+/**
+ * 워크스페이스에 반영 완료로 표시(재실행 UI에서 막기 위함). running/waiting 은 불가.
+ * @param {string} id
+ * @param {boolean} applied true면 시각 기록, false면 해제
+ * @returns {Promise<boolean>}
+ */
+export function setOpsHistoryWorkspaceApplied(id, applied) {
+  return chainWrite(async () => {
+    ensureDirSync();
+    const raw = readRawListSync();
+    const list = raw
+      .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))
+      .filter(Boolean);
+    const i = list.findIndex((e) => e.id === id);
+    if (i === -1) return false;
+    const cur = list[i];
+    if (cur.state === "running" || cur.state === "waiting" || cur.state === "rejected")
+      return false;
+    list[i] = {
+      ...cur,
+      workspaceAppliedAtMs: applied ? Date.now() : null,
+      updatedAtMs: Date.now(),
+    };
+    await fs.writeFile(HISTORY_FILE, JSON.stringify(list), "utf8");
+    return true;
   });
 }
 
@@ -418,6 +518,7 @@ export function removeOpsAgentHistoryEntryById(id) {
  *   cursorLine: string;
  *   thinkingLine: string;
  *   toolLine: string;
+ *   toolLog: string;
  *   streamText: string;
  *   statusText: string | null;
  *   resultText: string | null;
@@ -447,6 +548,7 @@ export function buildHistoryEntryFromCapture(cap) {
     cursorLine: cap.cursorLine ?? "",
     thinkingLine: cap.thinkingLine ?? "",
     toolLine: cap.toolLine ?? "",
+    toolLog: trimStoredTextForOpsHistory(cap.toolLog ?? "", OPS_AGENT_TOOL_LOG_MAX_CHARS),
     streamText: trimStoredTextForOpsHistory(cap.streamText, OPS_AGENT_FIELD_MAX_CHARS),
     statusText: cap.statusText,
     resultText:
@@ -456,5 +558,6 @@ export function buildHistoryEntryFromCapture(cap) {
     durationMs: cap.durationMs,
     runtimeLabel: cap.runtimeLabel,
     requestIp: sanitizeRequestIpForStore(cap.requestIp ?? ""),
+    workspaceAppliedAtMs: null,
   };
 }

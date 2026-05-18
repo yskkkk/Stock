@@ -14,9 +14,22 @@ const CACHE_FRESH_MS = 5 * 60_000;
 const SCAN_CACHE_MS = 25 * 60_000;
 const LIVE_CACHE_MS = 8_000;
 const CACHE_STALE_MS = 7 * 24 * 60 * 60_000;
+/** 캔들 캐시 무한 증가 방지 — 장시간 가동 시 메모리·GC 악화 원인 제거 */
+const MAX_CACHE_KEYS = 360;
 
 const cache = new Map();
 const inflight = new Map();
+
+function pruneStockDataCache() {
+  const now = Date.now();
+  for (const [key, entry] of cache) {
+    if (now - entry.savedAt > CACHE_STALE_MS) cache.delete(key);
+  }
+  if (cache.size <= MAX_CACHE_KEYS) return;
+  const sorted = [...cache.entries()].sort((a, b) => a[1].savedAt - b[1].savedAt);
+  const remove = cache.size - MAX_CACHE_KEYS;
+  for (let i = 0; i < remove; i++) cache.delete(sorted[i][0]);
+}
 
 function getCacheEntry(key) {
   return cache.get(key) ?? null;
@@ -24,6 +37,7 @@ function getCacheEntry(key) {
 
 function setCacheEntry(key, data) {
   cache.set(key, { data, savedAt: Date.now() });
+  pruneStockDataCache();
 }
 
 function readCache(key, { allowStale = false, maxAgeMs = CACHE_FRESH_MS } = {}) {

@@ -20,7 +20,20 @@ export interface MacroEvent {
 
 export interface MacroEventsResponse {
   events: MacroEvent[];
+  sectorEarnings: SectorEarningsSpotlightItem[];
   updatedAt: number;
+}
+
+/** Yahoo calendarEvents 기준 — 주목 섹터(서버 JSON) 예정 실적 */
+export interface SectorEarningsSpotlightItem {
+  id: string;
+  sectorId: string;
+  sectorLabel: string;
+  symbol: string;
+  name: string;
+  market: Market;
+  at: number;
+  timezone: string;
 }
 
 export type ChartTime =

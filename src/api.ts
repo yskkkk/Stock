@@ -150,7 +150,7 @@ export type OpsAgentSseEvent =
   | { type: "delta"; text: string }
   | { type: "cursor_status"; status: string; detail: string }
   | { type: "thinking"; text: string }
-  | { type: "tool"; name: string; toolStatus: string }
+  | { type: "tool"; name: string; toolStatus: string; detail?: string }
   | {
       type: "done";
       ok: true;
@@ -163,7 +163,7 @@ export type OpsAgentSseEvent =
 
 export type OpsAgentHistoryEntry = {
   id: string;
-  state?: "waiting" | "running" | "ok" | "error" | "cancelled";
+  state?: "waiting" | "running" | "ok" | "error" | "cancelled" | "rejected";
   startedAtMs?: number;
   updatedAtMs?: number;
   /** 완료 후에만 설정 (진행 중이면 null) */
@@ -176,11 +176,15 @@ export type OpsAgentHistoryEntry = {
   cursorLine: string;
   thinkingLine: string;
   toolLine: string;
+  /** read_file / write 등 도구 호출 누적(줄바꿈 구분) */
+  toolLog?: string;
   streamText: string;
   statusText: string | null;
   resultText: string | null;
   durationMs: number | null;
   runtimeLabel: string | null;
+  /** 사용자가 워크스페이스 반영 완료로 표시한 시각 — 재실행 UI에서 차단 */
+  workspaceAppliedAtMs?: number | null;
 };
 
 export type OpsAgentHistoryResponse = {
@@ -208,6 +212,91 @@ export type OpsAgentQueueResponse = {
   entries: OpsAgentQueueEntry[];
   viewerIp?: string | null;
 };
+
+export type OpsRecordModeItemStatus = "pending" | "running" | "done" | "error";
+
+export type OpsRecordModeItem = {
+  id: string;
+  instruction: string;
+  status: OpsRecordModeItemStatus;
+  createdAtMs: number;
+  lockedAtMs?: number | null;
+  updatedAtMs?: number | null;
+  error?: string | null;
+};
+
+export type OpsRecordModeResponse = {
+  items: OpsRecordModeItem[];
+  pollIntervalMs: number;
+};
+
+/** 관리자 전용 — 기록 모드 큐(JSON 파일) 조회 */
+export function fetchOpsRecordMode() {
+  const t = getStoredAccessAdminToken();
+  const headers: Record<string, string> = {};
+  if (t) headers.Authorization = `Bearer ${t}`;
+  return fetchJson<OpsRecordModeResponse>("/api/ops/record-mode", {
+    headers: Object.keys(headers).length ? headers : undefined,
+  });
+}
+
+/** 관리자 전용 — 기록 모드 큐 저장(서버가 실행 중 행은 보존) */
+export function putOpsRecordMode(items: OpsRecordModeItem[]) {
+  const t = getStoredAccessAdminToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json; charset=utf-8",
+  };
+  if (t) headers.Authorization = `Bearer ${t}`;
+  return fetchJson<OpsRecordModeResponse>("/api/ops/record-mode", {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({ items }),
+  });
+}
+
+export type OpsFileDevItemStatus = "pending" | "running" | "applied" | "error";
+
+export type OpsFileDevItem = {
+  id: string;
+  requestJson: string;
+  fingerprint?: string;
+  status: OpsFileDevItemStatus;
+  createdAtMs: number;
+  lockedAtMs?: number | null;
+  updatedAtMs?: number | null;
+  error?: string | null;
+  applySummary?: string | null;
+};
+
+export type OpsFileDevQueueResponse = {
+  items: OpsFileDevItem[];
+  appliedFingerprints: string[];
+  pollIntervalMs: number;
+};
+
+/** 관리자 전용 — 파일 반영 큐(JSON). 에이전트 없이 순차 디스크 반영 */
+export function fetchOpsFileDevQueue() {
+  const t = getStoredAccessAdminToken();
+  const headers: Record<string, string> = {};
+  if (t) headers.Authorization = `Bearer ${t}`;
+  return fetchJson<OpsFileDevQueueResponse>("/api/ops/file-dev-queue", {
+    headers: Object.keys(headers).length ? headers : undefined,
+  });
+}
+
+/** 관리자 전용 — 파일 반영 큐 저장(실행 중 행은 보존) */
+export function putOpsFileDevQueue(items: OpsFileDevItem[]) {
+  const t = getStoredAccessAdminToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json; charset=utf-8",
+  };
+  if (t) headers.Authorization = `Bearer ${t}`;
+  return fetchJson<OpsFileDevQueueResponse>("/api/ops/file-dev-queue", {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({ items }),
+  });
+}
 
 /** 관리자 전용 — 동일 IP에서 진행 중인 SSE 요청(리다이렉트·새 탭 후 복원용) */
 export function fetchOpsCursorAgentPending() {
@@ -260,6 +349,23 @@ export function deleteOpsAgentHistoryEntry(id: string) {
     {
       method: "DELETE",
       headers: Object.keys(headers).length ? headers : undefined,
+    },
+  );
+}
+
+/** 관리자 전용 — 실행 이력에「워크스페이스에 반영함」표시(재실행 버튼 비활성화용) */
+export function postOpsAgentHistoryWorkspaceApplied(id: string, applied: boolean) {
+  const t = getStoredAccessAdminToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json; charset=utf-8",
+  };
+  if (t) headers.Authorization = `Bearer ${t}`;
+  return fetchJson<OpsAgentHistoryResponse>(
+    `/api/ops/cursor-agent-history/${encodeURIComponent(id)}/workspace-applied`,
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ applied }),
     },
   );
 }
@@ -401,10 +507,16 @@ export function fetchNews(
   );
 }
 
-export function fetchStock(symbol: string, timeframe: ChartTimeframe, live = false) {
+export function fetchStock(
+  symbol: string,
+  timeframe: ChartTimeframe,
+  live = false,
+  signal?: AbortSignal,
+) {
   const liveParam = live ? "&live=1" : "";
   return fetchJson<StockData>(
     `/api/stock/${encodeURIComponent(symbol)}?timeframe=${timeframe}${liveParam}`,
+    signal ? { signal } : undefined,
   );
 }
 

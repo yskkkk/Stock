@@ -4,10 +4,12 @@ import { ko } from "../i18n/ko";
 import {
   formatMacroCountdown,
   formatMacroWhen,
+  formatSectorEarningsDday,
+  formatSectorEarningsWhen,
   macroUrgency,
 } from "../lib/formatMacro";
 import { getMacroSurpriseUpBias } from "../lib/macroSentiment";
-import type { MacroEvent } from "../types";
+import type { MacroEvent, SectorEarningsSpotlightItem } from "../types";
 import MacroEventInfoModal from "./MacroEventInfoModal";
 
 const CATEGORY_ICON: Record<string, string> = {
@@ -72,6 +74,51 @@ function MacroEventCard({
   );
 }
 
+function SectorEarningsCard({
+  row,
+  now,
+}: {
+  row: SectorEarningsSpotlightItem;
+  now: number;
+}) {
+  const msLeft = row.at - now;
+  const urgency = macroUrgency(msLeft);
+  const dday = formatSectorEarningsDday(row.at, now, row.timezone);
+  const when = formatSectorEarningsWhen(row.at, row.timezone);
+  const href = `https://finance.yahoo.com/quote/${encodeURIComponent(row.symbol)}`;
+  return (
+    <a
+      className={`macro-card macro-card--earnings macro-card--${urgency}`}
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={ko.macro.sectorEarningsCardHint}
+      aria-label={`${row.name} · ${row.symbol} · ${dday}`}
+    >
+      <div className="macro-card__top">
+        <span className="macro-card__code macro-card__code--sector">{row.sectorLabel}</span>
+        <span className={`macro-card__region macro-card__region--${row.market}`}>
+          {row.market === "kr" ? ko.macro.regionKr : ko.macro.regionUs}
+        </span>
+      </div>
+      <p className="macro-card__name macro-card__name--earnings" title={row.name}>
+        {row.name}
+      </p>
+      <p className="macro-card__sym" title={row.symbol}>
+        {row.symbol}
+      </p>
+      <p className="macro-card__dday" aria-live="polite">
+        {dday}
+      </p>
+      <p className="macro-card__when">{when}</p>
+      {urgency === "live" && <span className="macro-card__pill">{ko.macro.live}</span>}
+      {urgency === "soon" && msLeft > 0 && (
+        <span className="macro-card__pill macro-card__pill--soon">{ko.macro.soon}</span>
+      )}
+    </a>
+  );
+}
+
 const SECRET_ADMIN_TAPS = 10;
 const SECRET_ADMIN_GAP_MS = 2800;
 
@@ -84,6 +131,7 @@ export default function MacroEventsBar({
   onSecretAdminOpen,
 }: MacroEventsBarProps) {
   const [events, setEvents] = useState<MacroEvent[]>([]);
+  const [sectorEarnings, setSectorEarnings] = useState<SectorEarningsSpotlightItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(() => Date.now());
   const [infoEvent, setInfoEvent] = useState<MacroEvent | null>(null);
@@ -105,10 +153,18 @@ export default function MacroEventsBar({
     let cancelled = false;
     fetchMacroEvents()
       .then((data) => {
-        if (!cancelled) setEvents(data.events);
+        if (!cancelled) {
+          setEvents(data.events);
+          setSectorEarnings(
+            Array.isArray(data.sectorEarnings) ? data.sectorEarnings : [],
+          );
+        }
       })
       .catch(() => {
-        if (!cancelled) setEvents([]);
+        if (!cancelled) {
+          setEvents([]);
+          setSectorEarnings([]);
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -124,15 +180,28 @@ export default function MacroEventsBar({
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     const id = window.setInterval(() => {
       fetchMacroEvents()
-        .then((data) => setEvents(data.events))
-        .catch(() => {});
+        .then((data) => {
+          if (cancelled) return;
+          setEvents(data.events);
+          setSectorEarnings(
+            Array.isArray(data.sectorEarnings) ? data.sectorEarnings : [],
+          );
+        })
+        .catch(() => {
+          /* 다음 주기에서 재시도 — 기존 이벤트 유지 */
+        });
     }, 5 * 60 * 1000);
-    return () => window.clearInterval(id);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
   }, []);
 
   const visible = events.filter((e) => e.at > now - 30 * 60 * 1000);
+  const visibleEarnings = sectorEarnings.filter((e) => e.at > now - 12 * 60 * 60 * 1000);
 
   return (
     <>
@@ -175,6 +244,20 @@ export default function MacroEventsBar({
               />
             ))}
         </div>
+
+        {!loading && visibleEarnings.length > 0 ? (
+          <div className="macro-bar__sector-block">
+            <div className="macro-bar__sector-head">
+              <span className="macro-bar__sector-title">{ko.macro.sectorEarningsTitle}</span>
+              <span className="macro-bar__sector-sub">{ko.macro.sectorEarningsSubtitle}</span>
+            </div>
+            <div className="macro-bar__track macro-bar__track--earnings">
+              {visibleEarnings.map((row) => (
+                <SectorEarningsCard key={row.id} row={row} now={now} />
+              ))}
+            </div>
+          </div>
+        ) : null}
       </section>
 
       {infoEvent && (

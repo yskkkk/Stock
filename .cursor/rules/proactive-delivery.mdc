@@ -1,6 +1,6 @@
 ---
-description: 명령 수행 시 같은 맥락 안에서 연관 개선·편의를 스스로 제안·반영
-alwaysApply: true
+description: 기능·수정 요청 시 같은 맥락의 UX·검증·일관성을 스스로 보강(무관 대규모 리팩터는 금지)
+alwaysApply: false
 ---
 
 # 적극적 완성도 (Proactive delivery)

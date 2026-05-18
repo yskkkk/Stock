@@ -14,6 +14,7 @@ import { normalizeAccessIp } from "./access-control.js";
 import {
   finalizeOpsAgentEntry,
   patchOpsAgentEntry,
+  prependPolicyRejectedOpsEntry,
   prependRunningOpsEntry,
   promoteOpsAgentEntryToRunning,
 } from "./ops-agent-history-store.js";
@@ -25,6 +26,19 @@ import {
   registerOpsStreamUserCancel,
   unregisterOpsStreamUserCancel,
 } from "./ops-stream-cancel.js";
+import { checkOpsInstructionPolicy } from "./ops-agent-instruction-policy.js";
+
+/** @param {Record<string, unknown>} ev */
+function toolCallDetailFromEvent(ev) {
+  const raw = ev.arguments ?? ev.input ?? ev.params ?? ev.payload;
+  if (raw == null) return "";
+  if (typeof raw === "string") return raw.trim().slice(0, 6000);
+  try {
+    return JSON.stringify(raw).slice(0, 6000);
+  } catch {
+    return "";
+  }
+}
 
 /** @param {object} obj */
 function applyOpsSsePayloadToCapture(obj, capture) {
@@ -42,7 +56,16 @@ function applyOpsSsePayloadToCapture(obj, capture) {
   } else if (t === "thinking") {
     capture.thinkingLine = String(obj.text ?? "").slice(0, 800);
   } else if (t === "tool") {
-    capture.toolLine = `${String(obj.name ?? "")} (${String(obj.toolStatus ?? "")})`;
+    const name = String(obj.name ?? "");
+    const st = String(obj.toolStatus ?? "");
+    const extra =
+      typeof obj.detail === "string" && obj.detail.trim()
+        ? obj.detail.trim().slice(0, 6000)
+        : "";
+    capture.toolLine = `${name} (${st})`;
+    const line = extra ? `${name} (${st}) — ${extra}` : `${name} (${st})`;
+    if (!capture.toolLog) capture.toolLog = "";
+    capture.toolLog = capture.toolLog ? `${capture.toolLog}\n${line}` : line;
   } else if (t === "done") {
     capture.statusText =
       typeof obj.status === "string" ? obj.status : obj.status != null ? String(obj.status) : null;
@@ -179,6 +202,75 @@ export function buildOpsPromptMessage(instruction) {
 }
 
 /**
+ * @cursor/sdk `run.stream()`이 AsyncIterable이 아니라 Web ReadableStream인 경우가 있어
+ * `stream[Symbol.asyncIterator] is not a function` 를 피한다.
+ * @param {unknown} stream
+ * @returns {AsyncIterable<unknown>}
+ */
+function asAsyncIterableStream(stream) {
+  if (stream == null) {
+    throw new Error("에이전트 스트림이 비어 있습니다.");
+  }
+  const s = /** @type {Record<PropertyKey, unknown>} */ (Object(stream));
+  const asyncIter = s[Symbol.asyncIterator];
+  if (typeof asyncIter === "function") {
+    return /** @type {AsyncIterable<unknown>} */ (stream);
+  }
+  const getReader = s.getReader;
+  if (typeof getReader === "function") {
+    const reader = /** @type {{ read: () => Promise<{ done: boolean; value?: unknown }>; cancel?: (reason?: unknown) => Promise<void>; releaseLock?: () => void }} */ (
+      getReader.call(stream)
+    );
+    let released = false;
+    async function releaseReader() {
+      if (released) return;
+      released = true;
+      try {
+        await reader.cancel?.();
+      } catch {
+        /* ignore */
+      }
+      try {
+        reader.releaseLock?.();
+      } catch {
+        /* ignore */
+      }
+    }
+    return {
+      [Symbol.asyncIterator]() {
+        const iter = {
+          async next() {
+            const chunk = await reader.read();
+            return { done: chunk.done, value: chunk.value };
+          },
+          async return() {
+            await releaseReader();
+            return { done: true, value: undefined };
+          },
+        };
+        const ad = Symbol.asyncDispose;
+        if (ad != null && typeof ad === "symbol") {
+          try {
+            Object.defineProperty(iter, ad, {
+              value: releaseReader,
+              enumerable: false,
+              configurable: true,
+              writable: true,
+            });
+          } catch {
+            /* ignore */
+          }
+        }
+        return iter;
+      },
+    };
+  }
+  throw new Error(
+    "에이전트 스트림을 읽을 수 없습니다(AsyncIterable·ReadableStream 아님). @cursor/sdk 버전을 확인하세요.",
+  );
+}
+
+/**
  * @param {string} apiKey
  * @param {string} envModel
  * @returns {Promise<string>}
@@ -216,7 +308,8 @@ async function runStreamOnce(writeSse, message, agentOptions, signal) {
     const run = await agent.send(message);
     writeSse({ type: "phase", message: "실행 중 — 응답·도구 스트림 수신" });
     const stream = run.stream();
-    const it = stream[Symbol.asyncIterator]();
+    const iterable = asAsyncIterableStream(stream);
+    const it = iterable[Symbol.asyncIterator]();
     const abortErr = streamAbortError();
     try {
       for (;;) {
@@ -250,10 +343,13 @@ async function runStreamOnce(writeSse, message, agentOptions, signal) {
         } else if (event.type === "thinking" && event.text) {
           writeSse({ type: "thinking", text: event.text.slice(0, 800) });
         } else if (event.type === "tool_call") {
+          const ev = /** @type {Record<string, unknown>} */ (event);
+          const detail = toolCallDetailFromEvent(ev);
           writeSse({
             type: "tool",
             name: event.name,
             toolStatus: event.status,
+            detail,
           });
         }
       }
@@ -283,8 +379,20 @@ async function runStreamOnce(writeSse, message, agentOptions, signal) {
 
     return await run.wait();
   } finally {
-    if (typeof agent[Symbol.asyncDispose] === "function") {
-      await agent[Symbol.asyncDispose]();
+    try {
+      const ad = Symbol.asyncDispose;
+      if (ad != null && typeof /** @type {unknown} */ (agent)[ad] === "function") {
+        await /** @type {(this: unknown) => Promise<void>} */ (/** @type {unknown} */ (agent)[ad]).call(
+          agent,
+        );
+      } else {
+        const d = Symbol.dispose;
+        if (d != null && typeof /** @type {unknown} */ (agent)[d] === "function") {
+          /** @type {(this: unknown) => void} */ (/** @type {unknown} */ (agent)[d]).call(agent);
+        }
+      }
+    } catch {
+      /* dispose 실패는 무시 */
     }
   }
 }
@@ -346,6 +454,7 @@ export async function streamOpsCursorAgentSse(req, res, body) {
     cursorLine: "",
     thinkingLine: "",
     toolLine: "",
+    toolLog: "",
     streamText: "",
     statusText: null,
     resultText: null,
@@ -370,6 +479,7 @@ export async function streamOpsCursorAgentSse(req, res, body) {
         cursorLine: capture.cursorLine,
         thinkingLine: capture.thinkingLine,
         toolLine: capture.toolLine,
+        toolLog: capture.toolLog,
         streamText: capture.streamText,
         statusText: capture.statusText,
         resultText: capture.resultText,
@@ -565,6 +675,7 @@ export async function streamOpsCursorAgentSse(req, res, body) {
             cursorLine: capture.cursorLine,
             thinkingLine: capture.thinkingLine,
             toolLine: capture.toolLine,
+            toolLog: capture.toolLog,
             streamText: capture.streamText,
             statusText: capture.statusText,
             resultText: capture.resultText,
@@ -635,6 +746,31 @@ export async function runOpsCursorAgent(input) {
     "composer-2";
   const modelId = await resolveModelId(apiKey, envModel);
   const instruction = String(input.instruction ?? "").trim();
+  const reqIpNorm = normalizeAccessIp(String(input.requestIp ?? ""));
+
+  const pol = checkOpsInstructionPolicy(instruction);
+  if (!pol.ok) {
+    const rid = randomUUID();
+    try {
+      await prependPolicyRejectedOpsEntry({
+        id: rid,
+        requestIp: reqIpNorm,
+        policyCode: pol.code,
+        userMessage: pol.messageKo,
+      });
+    } catch {
+      /* ignore */
+    }
+    appendServerEventLog(
+      "ops-agent",
+      `instruction policy reject (API run) code=${pol.code} id=${rid}`,
+      "warn",
+      reqIpNorm || null,
+    );
+    const err = new Error(pol.messageKo);
+    err.code = pol.code;
+    throw err;
+  }
 
   const message = buildOpsPromptMessage(instruction);
 
@@ -644,7 +780,6 @@ export async function runOpsCursorAgent(input) {
     name: "ops-dashboard",
   };
 
-  const reqIpNorm = normalizeAccessIp(String(input.requestIp ?? ""));
   logOpsAgentExecutionStarted(
     "API",
     randomUUID(),

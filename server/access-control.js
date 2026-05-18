@@ -20,6 +20,19 @@ const STORE_FILE = path.join(__dirname, ".data", "access-control.json");
 
 const lastRequestAt = new Map();
 const THROTTLE_MS = 45_000;
+const ACCESS_THROTTLE_MAP_MAX = 1200;
+const ACCESS_THROTTLE_PRUNE_AGE_MS = 30 * 24 * 60 * 60_000;
+
+function pruneAccessRequestThrottle() {
+  const now = Date.now();
+  for (const [ip, t] of lastRequestAt) {
+    if (now - t > ACCESS_THROTTLE_PRUNE_AGE_MS) lastRequestAt.delete(ip);
+  }
+  if (lastRequestAt.size <= ACCESS_THROTTLE_MAP_MAX) return;
+  const sorted = [...lastRequestAt.entries()].sort((a, b) => a[1] - b[1]);
+  const remove = lastRequestAt.size - ACCESS_THROTTLE_MAP_MAX;
+  for (let i = 0; i < remove; i++) lastRequestAt.delete(sorted[i][0]);
+}
 
 function ensureDir() {
   const dir = path.dirname(STORE_FILE);
@@ -258,6 +271,7 @@ export function registerAccessControl(app) {
       return;
     }
     lastRequestAt.set(ipn, now);
+    pruneAccessRequestThrottle();
 
     const store = readAccessStore();
     if (store.requests.some((r) => normalizeAccessIp(r.ip) === ipn && r.status === "pending")) {

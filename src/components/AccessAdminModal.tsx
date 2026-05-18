@@ -79,7 +79,27 @@ export default function AccessAdminModal({
   const [feedbackRefreshKey, setFeedbackRefreshKey] = useState(0);
   const [feedbackReplyDrafts, setFeedbackReplyDrafts] = useState<Record<string, string>>({});
   const passwordFieldRef = useRef<HTMLInputElement>(null);
+  const passwordFocusTimerRef = useRef<number | null>(null);
   const { modalStyle, onDragHandlePointerDown } = useModalDrag([open, phase]);
+
+  const schedulePasswordFocus = useCallback(() => {
+    if (passwordFocusTimerRef.current != null) {
+      window.clearTimeout(passwordFocusTimerRef.current);
+    }
+    passwordFocusTimerRef.current = window.setTimeout(() => {
+      passwordFocusTimerRef.current = null;
+      passwordFieldRef.current?.focus();
+    }, 0);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (passwordFocusTimerRef.current != null) {
+        window.clearTimeout(passwordFocusTimerRef.current);
+        passwordFocusTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const authForApi = useCallback(() => activeToken.trim(), [activeToken]);
 
@@ -210,9 +230,7 @@ export default function AccessAdminModal({
     const p = passwordInput.trim();
     if (!p) {
       setError(null);
-      window.setTimeout(() => {
-        passwordFieldRef.current?.focus();
-      }, 0);
+      schedulePasswordFocus();
       return;
     }
     setLoading(true);
@@ -227,9 +245,7 @@ export default function AccessAdminModal({
       setSnapshot(null);
       setError(ko.access.adminWrongPassword);
       setPasswordInput("");
-      window.setTimeout(() => {
-        passwordFieldRef.current?.focus();
-      }, 0);
+      schedulePasswordFocus();
     } finally {
       setLoading(false);
     }

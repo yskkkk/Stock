@@ -30,3 +30,39 @@ export function macroUrgency(msLeft: number): "live" | "soon" | "normal" {
   if (msLeft < 2 * 60 * 60 * 1000) return "soon";
   return "normal";
 }
+
+function calendarDateKeyInTz(ms: number, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(ms));
+}
+
+/** 상장지 기준 캘린더 일자로 D-day / D-n / D+n */
+export function formatSectorEarningsDday(
+  atMs: number,
+  nowMs: number,
+  timeZone: string,
+): string {
+  const a = calendarDateKeyInTz(atMs, timeZone);
+  const b = calendarDateKeyInTz(nowMs, timeZone);
+  const [ya, ma, da] = a.split("-").map(Number);
+  const [yb, mb, db] = b.split("-").map(Number);
+  const t0 = Date.UTC(ya, ma - 1, da);
+  const t1 = Date.UTC(yb, mb - 1, db);
+  const diffDays = Math.round((t0 - t1) / 86400000);
+  if (diffDays > 0) return `D-${diffDays}`;
+  if (diffDays === 0) return "D-day";
+  return `D+${-diffDays}`;
+}
+
+export function formatSectorEarningsWhen(at: number, timeZone: string): string {
+  return new Date(at).toLocaleString("ko-KR", {
+    timeZone,
+    month: "numeric",
+    day: "numeric",
+    weekday: "short",
+  });
+}

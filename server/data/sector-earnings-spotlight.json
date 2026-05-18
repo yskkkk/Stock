@@ -1,0 +1,20 @@
+{
+  "note": "Yahoo quoteSummary calendarEvents 기준 예정 실적. 섹터·심볼은 주기적으로 갱신하세요.",
+  "sectors": [
+    {
+      "id": "semis_ai",
+      "label": "반도체·AI",
+      "symbols": ["NVDA", "AMD", "AVGO", "MU", "INTC", "TSM", "ASML", "QCOM"]
+    },
+    {
+      "id": "mega_tech",
+      "label": "빅테크",
+      "symbols": ["AAPL", "MSFT", "GOOGL", "META", "AMZN", "NFLX"]
+    },
+    {
+      "id": "kr_tech",
+      "label": "국내 대표 IT·반디",
+      "symbols": ["005930.KS", "000660.KS", "373220.KS", "035420.KS", "035720.KS"]
+    }
+  ]
+}

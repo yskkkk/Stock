@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
+import { displayStockSymbol } from "../lib/format";
 import PickQuoteStrip from "./PickQuoteStrip";
 import type { StockPick } from "../types";
 
@@ -44,7 +45,7 @@ export default function BullishReasonModal({
           <div>
             <h2 id="reason-modal-title">{pick.name}</h2>
             <p className="news-modal-sub">
-              {pick.symbol} · {pick.score}점 · 상승 유망 근거
+              {displayStockSymbol(pick.symbol)} · {pick.score}점 · 상승 유망 근거
             </p>
           </div>
           <button

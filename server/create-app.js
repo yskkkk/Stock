@@ -9,7 +9,7 @@ import {
   normalizeAccessIp,
   registerAccessControl,
 } from "./access-control.js";
-import { expressAccessLogger, clientIp as expressClientIp } from "./access-log.js";
+import { appendServerEventLog, expressAccessLogger, clientIp as expressClientIp } from "./access-log.js";
 import { isDartEnabled } from "./dart.js";
 import {
   ensureScreening,
@@ -29,16 +29,32 @@ import { loadStock } from "./stock-data.js";
 import { getUsdKrwRate } from "./fx-usd-krw.js";
 import { searchStocks } from "./stock-search.js";
 import { getMacroEventsCached } from "./macro-events.js";
+import { fetchSectorEarningsSpotlight } from "./sector-earnings-spotlight.js";
 import { postFeedback, getFeedbackInbox, postFeedbackAdminReply, deleteFeedbackAdmin } from "./feedback-inbox.js";
 import { runOpsCursorAgent, streamOpsCursorAgentSse, writeOpsAgentSseEvent } from "./cursor-ops-agent.js";
 import { enqueueOpsAgentJob, getOpsAgentQueueSnapshot } from "./ops-agent-job-queue.js";
 import {
   clearOpsAgentHistoryAsync,
+  prependPolicyRejectedOpsEntry,
   readOpsAgentHistorySync,
   removeOpsAgentHistoryEntryById,
+  setOpsHistoryWorkspaceApplied,
 } from "./ops-agent-history-store.js";
+import { checkOpsInstructionPolicy } from "./ops-agent-instruction-policy.js";
 import { getOpsAgentPendingForIp } from "./ops-agent-pending-store.js";
 import { triggerOpsStreamUserCancel } from "./ops-stream-cancel.js";
+import {
+  mergeRecordModeQueueFromClient,
+  readRecordModeQueueSync,
+  RECORD_MODE_POLL_MS,
+} from "./ops-record-mode-store.js";
+import { startOpsRecordModePoller } from "./ops-record-mode-poller.js";
+import {
+  FILE_DEV_POLL_MS,
+  mergeFileDevQueueFromClient,
+  readFileDevQueueSync,
+} from "./ops-file-dev-store.js";
+import { startOpsFileDevPoller } from "./ops-file-dev-poller.js";
 
 function asyncRoute(handler) {
   return (req, res, next) => {
@@ -82,6 +98,38 @@ function installDistSpaIfPresent(app) {
 export function createApp() {
   const app = express();
   app.set("trust proxy", 1);
+
+  /**
+   * @param {import("express").Request} req
+   * @param {import("express").Response} res
+   * @param {{ code: string; messageKo: string }} bad
+   */
+  async function respondInstructionPolicyBlock(req, res, bad) {
+    const rip = normalizeAccessIp(expressClientIp(req));
+    const rejectedId = randomUUID();
+    try {
+      await prependPolicyRejectedOpsEntry({
+        id: rejectedId,
+        requestIp: rip,
+        policyCode: bad.code,
+        userMessage: bad.messageKo,
+      });
+    } catch {
+      /* 디스크 오류 등 */
+    }
+    appendServerEventLog(
+      "ops-agent",
+      `instruction policy reject code=${bad.code} id=${rejectedId}`,
+      "warn",
+      rip || null,
+    );
+    res.status(422).json({
+      error: bad.messageKo,
+      code: bad.code,
+      rejectedRunId: rejectedId,
+    });
+  }
+
   app.use(expressAccessLogger);
   app.use(express.json());
   registerAccessControl(app);
@@ -95,9 +143,19 @@ export function createApp() {
     res.json(forceRescreen());
   });
 
-  app.get("/api/macro-events", (_req, res) => {
-    res.json(getMacroEventsCached());
-  });
+  app.get(
+    "/api/macro-events",
+    asyncRoute(async (_req, res) => {
+      const base = getMacroEventsCached();
+      let sectorEarnings = [];
+      try {
+        sectorEarnings = await fetchSectorEarningsSpotlight();
+      } catch {
+        sectorEarnings = [];
+      }
+      res.json({ ...base, sectorEarnings });
+    }),
+  );
 
   app.get("/api/config", (req, res) => {
     const adminReq = isAccessAdminRequest(req);
@@ -128,6 +186,14 @@ export function createApp() {
         res.status(400).json({ error: "instruction 필드에 요청 내용을 입력하세요." });
         return;
       }
+      const pol = checkOpsInstructionPolicy(instruction);
+      if (!pol.ok) {
+        await respondInstructionPolicyBlock(req, res, {
+          code: pol.code,
+          messageKo: pol.messageKo,
+        });
+        return;
+      }
       try {
         const rip = normalizeAccessIp(expressClientIp(req));
         const out = await enqueueOpsAgentJob(
@@ -156,6 +222,10 @@ export function createApp() {
         }
         if (code === "AGENT_RUN_FAILED") {
           res.status(502).json({ error: msg, code: "AGENT_RUN_FAILED" });
+          return;
+        }
+        if (String(code).startsWith("INSTRUCTION_POLICY_")) {
+          res.status(422).json({ error: msg, code });
           return;
         }
         res.status(500).json({ error: msg });
@@ -197,6 +267,14 @@ export function createApp() {
       if (!instruction) {
         res.status(400).json({
           error: "instruction 필드에 요청 내용을 입력하세요.",
+        });
+        return;
+      }
+      const pol = checkOpsInstructionPolicy(instruction);
+      if (!pol.ok) {
+        await respondInstructionPolicyBlock(req, res, {
+          code: pol.code,
+          messageKo: pol.messageKo,
         });
         return;
       }
@@ -304,6 +382,38 @@ export function createApp() {
     }),
   );
 
+  app.post(
+    "/api/ops/cursor-agent-history/:id/workspace-applied",
+    asyncRoute(async (req, res) => {
+      if (!isAccessAdminRequest(req)) {
+        res.status(403).json({
+          error: "관리자만 Cursor 에이전트 연동을 사용할 수 있습니다.",
+          code: "FORBIDDEN",
+        });
+        return;
+      }
+      const id = String(req.params?.id ?? "").trim();
+      if (!id) {
+        res.status(400).json({ error: "id가 필요합니다." });
+        return;
+      }
+      const raw = req.body?.applied;
+      const applied = raw === true || raw === 1 || raw === "1" || raw === "true";
+      const cleared =
+        raw === false || raw === 0 || raw === "0" || raw === "false" || raw === null;
+      if (!applied && !cleared) {
+        res.status(400).json({ error: "body에 applied: true 또는 false가 필요합니다." });
+        return;
+      }
+      const ok = await setOpsHistoryWorkspaceApplied(id, applied);
+      if (!ok) {
+        res.status(404).json({ error: "해당 이력이 없거나 실행 중이라 표시를 바꿀 수 없습니다." });
+        return;
+      }
+      res.json({ ok: true, entries: readOpsAgentHistorySync() });
+    }),
+  );
+
   app.delete(
     "/api/ops/cursor-agent-history",
     asyncRoute(async (req, res) => {
@@ -320,6 +430,68 @@ export function createApp() {
       }
       await clearOpsAgentHistoryAsync();
       res.json({ ok: true });
+    }),
+  );
+
+  app.get(
+    "/api/ops/record-mode",
+    asyncRoute(async (req, res) => {
+      if (!isAccessAdminRequest(req)) {
+        res.status(403).json({
+          error: "관리자만 기록 모드를 사용할 수 있습니다.",
+          code: "FORBIDDEN",
+        });
+        return;
+      }
+      const { items } = readRecordModeQueueSync();
+      res.json({ items, pollIntervalMs: RECORD_MODE_POLL_MS });
+    }),
+  );
+
+  app.put(
+    "/api/ops/record-mode",
+    asyncRoute(async (req, res) => {
+      if (!isAccessAdminRequest(req)) {
+        res.status(403).json({
+          error: "관리자만 기록 모드를 사용할 수 있습니다.",
+          code: "FORBIDDEN",
+        });
+        return;
+      }
+      const raw = req.body?.items;
+      const merged = await mergeRecordModeQueueFromClient(Array.isArray(raw) ? raw : []);
+      res.json({ ok: true, ...merged });
+    }),
+  );
+
+  app.get(
+    "/api/ops/file-dev-queue",
+    asyncRoute(async (req, res) => {
+      if (!isAccessAdminRequest(req)) {
+        res.status(403).json({
+          error: "관리자만 파일 반영 큐를 사용할 수 있습니다.",
+          code: "FORBIDDEN",
+        });
+        return;
+      }
+      const { items, appliedFingerprints } = readFileDevQueueSync();
+      res.json({ items, appliedFingerprints, pollIntervalMs: FILE_DEV_POLL_MS });
+    }),
+  );
+
+  app.put(
+    "/api/ops/file-dev-queue",
+    asyncRoute(async (req, res) => {
+      if (!isAccessAdminRequest(req)) {
+        res.status(403).json({
+          error: "관리자만 파일 반영 큐를 사용할 수 있습니다.",
+          code: "FORBIDDEN",
+        });
+        return;
+      }
+      const raw = req.body?.items;
+      const merged = await mergeFileDevQueueFromClient(Array.isArray(raw) ? raw : []);
+      res.json({ ok: true, ...merged });
     }),
   );
 
@@ -493,6 +665,9 @@ export function createApp() {
   );
 
   installDistSpaIfPresent(app);
+
+  startOpsRecordModePoller();
+  startOpsFileDevPoller();
 
   app.use((err, _req, res, _next) => {
     const message = err instanceof Error ? err.message : "요청 실패";

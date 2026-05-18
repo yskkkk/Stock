@@ -21,6 +21,24 @@ export function useModalDrag(resetDeps: ReadonlyArray<unknown>) {
     oy: number;
   } | null>(null);
 
+  const dragWindowListenersRef = useRef<{
+    move: (ev: PointerEvent) => void;
+    up: (ev: PointerEvent) => void;
+  } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      const L = dragWindowListenersRef.current;
+      if (L) {
+        window.removeEventListener("pointermove", L.move);
+        window.removeEventListener("pointerup", L.up);
+        window.removeEventListener("pointercancel", L.up);
+        dragWindowListenersRef.current = null;
+      }
+      dragRef.current = null;
+    };
+  }, []);
+
   const onDragHandlePointerDown = useCallback((e: React.PointerEvent) => {
     if (e.button !== 0) return;
     const t = e.target as HTMLElement;
@@ -55,7 +73,9 @@ export function useModalDrag(resetDeps: ReadonlyArray<unknown>) {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
+      dragWindowListenersRef.current = null;
     };
+    dragWindowListenersRef.current = { move, up };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", up);

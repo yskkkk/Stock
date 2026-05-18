@@ -1,6 +1,6 @@
 ---
-description: 실수 없이 정확하게 작업
-alwaysApply: true
+description: 수정 후 검증·완료 보고·금지 사항 등 정확성 원칙
+alwaysApply: false
 ---
 
 # 정확성 원칙

@@ -1,4 +1,4 @@
-import { formatPercent, formatPrice } from "../lib/format";
+import { displayStockSymbol, formatPercent, formatPrice } from "../lib/format";
 
 export interface PickQuoteStripProps {
   symbol: string;
@@ -21,14 +21,17 @@ export default function PickQuoteStrip({
   const hasChg = changePercent != null;
   const hasPrice = price != null;
 
+  const sym = displayStockSymbol(symbol);
+
   return (
     <div
       className={["pick-quote", `pick-quote--${size}`, className]
         .filter(Boolean)
         .join(" ")}
       role="group"
-      aria-label={`${symbol} 시세`}
+      aria-label={`${sym} 시세`}
     >
+      {sym ? <span className="pick-quote__symbol">{sym}</span> : null}
       {hasPrice && (
         <span className="pick-quote__price">
           {formatPrice(price, currency ?? undefined)}

@@ -1,6 +1,6 @@
 ---
-description: 작업 완료 시 소리로 알림
-alwaysApply: true
+description: 작업 완료 시 Windows 비프 알림 순서·PowerShell 예제(필요할 때만)
+alwaysApply: false
 ---
 
 # 작업 완료 알림

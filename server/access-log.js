@@ -48,6 +48,8 @@ function shouldSkipAccessLog(req) {
   /** 운영 탭 이력·대기열 폴링 — 로그만 과다 */
   if (path === "/api/ops/cursor-agent-history") return true;
   if (path === "/api/ops/cursor-agent-queue") return true;
+  if (path === "/api/ops/record-mode") return true;
+  if (path === "/api/ops/file-dev-queue") return true;
   if (path.startsWith("/api/stock/")) return true;
   if (path.startsWith("/api/news/")) return true;
   return false;
@@ -86,6 +88,18 @@ function humanAction(req) {
   if (method === "POST" && path === "/api/access/admin/reject") return "접근 신청 거절";
   if (method === "POST" && path === "/api/access/admin/revoke") return "허용 IP 취소";
   if (method === "POST" && path === "/api/access/admin/allowed-memo") return "허용 IP 메모 저장";
+
+  if (method === "GET" && path === "/api/ops/record-mode") return "운영 기록 모드 큐 조회";
+  if (method === "PUT" && path === "/api/ops/record-mode") return "운영 기록 모드 큐 저장";
+  if (method === "GET" && path === "/api/ops/file-dev-queue") return "운영 파일 반영 큐 조회";
+  if (method === "PUT" && path === "/api/ops/file-dev-queue") return "운영 파일 반영 큐 저장";
+  if (
+    method === "POST" &&
+    path.startsWith("/api/ops/cursor-agent-history/") &&
+    path.endsWith("/workspace-applied")
+  ) {
+    return "에이전트 실행 이력 작업 반영 표시";
+  }
 
   if (path === "/" || path === "/index.html") return "메인 페이지";
   if (path === "/access-gate.html" || path.endsWith("/access-gate.html")) return "접근 게이트 페이지";

@@ -91,6 +91,7 @@ export default function CryptoTab({
   const [chartDrawMode, setChartDrawMode] = useState<ChartDrawMode>("cursor");
   const [chartDrawMagnet, setChartDrawMagnet] = useChartDrawMagnet();
   const chartDrawApiRef = useRef<ChartDrawToolbarApi | null>(null);
+  const cryptoChartAbortRef = useRef<AbortController | null>(null);
   const [profitPersistTick, setProfitPersistTick] = useState(0);
   const [profitModalOpen, setProfitModalOpen] = useState(false);
 
@@ -132,10 +133,15 @@ export default function CryptoTab({
 
   const loadChart = useCallback(
     async (sym: string, tf: ChartTimeframe, live = false) => {
+      cryptoChartAbortRef.current?.abort();
+      const ac = new AbortController();
+      cryptoChartAbortRef.current = ac;
+
       if (!live) setChartLoading(true);
       setChartError(null);
       try {
-        const data = await fetchStock(sym, tf, live);
+        const data = await fetchStock(sym, tf, live, ac.signal);
+        if (cryptoChartAbortRef.current !== ac) return;
         setQuote(data.quote);
         setCandles(data.candles);
         setDailyCandles(
@@ -145,6 +151,13 @@ export default function CryptoTab({
         setCandleCount(data.candleCount ?? data.candles.length);
         setChartStale(Boolean(data.stale));
       } catch (err) {
+        if (
+          ac.signal.aborted ||
+          (err instanceof DOMException && err.name === "AbortError")
+        ) {
+          return;
+        }
+        if (cryptoChartAbortRef.current !== ac) return;
         setChartError(
           err instanceof Error ? err.message : ko.errors.chartLoad,
         );
@@ -160,7 +173,9 @@ export default function CryptoTab({
         setDailyCandles([]);
         setCandleCount(0);
       } finally {
-        setChartLoading(false);
+        if (cryptoChartAbortRef.current === ac) {
+          setChartLoading(false);
+        }
       }
     },
     [active.name],
@@ -196,6 +211,7 @@ export default function CryptoTab({
 
   useEffect(() => {
     let cancelled = false;
+    const listAc = new AbortController();
     const symbols = cryptoAssets.map((a) => a.symbol);
     let inFlight = false;
 
@@ -205,7 +221,7 @@ export default function CryptoTab({
       try {
         try {
           const res = await fetchCryptoQuotes(symbols);
-          if (cancelled) return;
+          if (cancelled || listAc.signal.aborted) return;
           setListQuotes((prev) => {
             const next: ListQuoteMap = { ...prev };
             const pool = Object.values(res.quotes);
@@ -234,14 +250,14 @@ export default function CryptoTab({
         const entries = await Promise.all(
           symbols.map(async (sym) => {
             try {
-              const data = await fetchStock(sym, "1m", true);
+              const data = await fetchStock(sym, "1m", true, listAc.signal);
               return [sym, data.quote] as const;
             } catch {
               return [sym, undefined] as const;
             }
           }),
         );
-        if (cancelled) return;
+        if (cancelled || listAc.signal.aborted) return;
         setListQuotes((prev) => {
           const next: ListQuoteMap = { ...prev };
           for (const [sym, q] of entries) {
@@ -260,6 +276,7 @@ export default function CryptoTab({
     }, CRYPTO_LIST_POLL_MS);
     return () => {
       cancelled = true;
+      listAc.abort();
       window.clearInterval(id);
     };
   }, [symbolListKey]);
@@ -270,7 +287,10 @@ export default function CryptoTab({
     const id = window.setInterval(() => {
       void loadChart(symbol, timeframe, true);
     }, refreshMs);
-    return () => window.clearInterval(id);
+    return () => {
+      window.clearInterval(id);
+      cryptoChartAbortRef.current?.abort();
+    };
   }, [symbol, timeframe, loadChart]);
 
   useEffect(() => {

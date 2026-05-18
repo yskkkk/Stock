@@ -4,6 +4,14 @@
  */
 
 const decodeCache = new Map();
+const DECODE_CACHE_MAX = 450;
+
+function pruneDecodeCache() {
+  if (decodeCache.size <= DECODE_CACHE_MAX) return;
+  const sorted = [...decodeCache.entries()].sort((a, b) => a[1].at - b[1].at);
+  const remove = decodeCache.size - DECODE_CACHE_MAX;
+  for (let i = 0; i < remove; i++) decodeCache.delete(sorted[i][0]);
+}
 
 function isGoogleNewsArticleUrl(url) {
   try {
@@ -132,6 +140,7 @@ export async function decodeGoogleNewsUrl(sourceUrl) {
   }
 
   decodeCache.set(sourceUrl, { at: Date.now(), url: resolved });
+  pruneDecodeCache();
   return resolved;
 }
 

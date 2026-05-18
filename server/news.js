@@ -20,7 +20,21 @@ import { yahooGet, YAHOO_UA } from "./yahoo.js";
 
 const CACHE_MS = 5 * 60_000;
 const MAX_ITEMS = 20;
+/** 종목별 뉴스 캐시 키 상한 — 조회 종목이 많을 때 Map 무한 증가 방지 */
+const NEWS_CACHE_MAX_KEYS = 100;
 const cache = new Map();
+
+function pruneNewsCache() {
+  const now = Date.now();
+  const deadAfter = CACHE_MS * 6;
+  for (const [key, hit] of cache) {
+    if (now - hit.at > deadAfter) cache.delete(key);
+  }
+  if (cache.size <= NEWS_CACHE_MAX_KEYS) return;
+  const sorted = [...cache.entries()].sort((a, b) => a[1].at - b[1].at);
+  const remove = cache.size - NEWS_CACHE_MAX_KEYS;
+  for (let i = 0; i < remove; i++) cache.delete(sorted[i][0]);
+}
 
 function decodeEntities(text) {
   return text
@@ -234,5 +248,6 @@ export async function loadNews(symbol, name = "") {
   };
 
   cache.set(cacheKey, { at: Date.now(), data });
+  pruneNewsCache();
   return data;
 }

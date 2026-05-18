@@ -1,0 +1,7 @@
+﻿# Agent/인덱싱에서 제외 — 컨텍스트·토큰 절약 (규칙은 .gitignore로 .cursor/rules 유지)
+node_modules/
+dist/
+**/node_modules/**
+*.tsbuildinfo
+server/.data/
+*.log

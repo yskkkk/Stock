@@ -39,6 +39,47 @@ const t = {
     tabCrypto: "\uCF54\uC778",
     tabOps: "\uC6B4\uC601",
     opsPanelTitle: "\uAC1C\uBC1C \uC694\uCCAD",
+    opsMainTabAgent: "\uC5D0\uC774\uC804\uD2B8",
+    opsMainTabRecord: "\uAE30\uB85D \uBAA8\uB4DC",
+    opsMainTabFileDev: "\uD30C\uC77C \uBC18\uC601",
+    opsFileDevHint:
+      "목록은 server/.data/ops-file-dev-queue.json에만 저장됩니다. Cursor 에이전트·에이전트 실행 큐와 무관하게, 서버가 이 파일만 읽어 대기(pending) 항목을 위에서부터 한 건씩 JSON을 파싱해 워크스페이스에 바로 씁니다. 동일 요청 본문(SHA-256 지문)은 appliedFingerprints에 기록되어 다시 디스크에 반영하지 않습니다(대기 항목은 건너뛰어 applied로 표시). OPS_FILE_DEV_DISABLED=1 이면 폴링만 중지됩니다.",
+    opsFileDevPollNote:
+      "\uD3F4 \uAC04\uACA9: {n}\uCD08 (\uC11C\uBC84 \uC7AC\uC2DC\uC791 \uD6C4 \uC57D 2.5\uCD08 \uD6C4 \uCCAB \uD2F0\uD2F1\uB3C4 \uB3D9\uC791)",
+    opsFileDevLoadError:
+      "\uD30C\uC77C \uBC18\uC601 \uBAA9\uB85D\uC744 \uBD88\uB7EC\uC62C \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.",
+    opsFileDevSaveError: "\uC800\uC7A5\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.",
+    opsFileDevEmpty:
+      "\uB4F1\uB85D\uB41C \uD56D\uBAA9\uC774 \uC5C6\uC2B5\uB2C8\uB2E4. \u201C\uD56D\uBAA9 \uCD94\uAC00\u201D\uB97C \uB20C\uB7EC JSON\uC744 \uC801\uACE0 \uC800\uC7A5\uD558\uC138\uC694.",
+    opsFileDevItemLabel: "\uBC18\uC601\uC6A9 JSON (\uC608: {\"files\":[{\"path\":\"src/a.ts\",\"content\":\"\u2026\"}]})",
+    opsFileDevPlaceholder:
+      '{"files":[{"path":"src/example.ts","content":"// ..."}]}',
+    opsFileDevStatusApplied: "\uBC18\uC601 \uC644\uB8CC",
+    opsFileDevSummaryLabel: "\uC694\uC57D",
+    opsRecordModeHint:
+      "목록은 server/.data/ops-record-mode-queue.json에만 저장됩니다. 서버가 약 10초마다 이 파일을 읽어 위에서부터 내용이 있는 대기(pending) 항목을 비스트리밍 Cursor 에이전트로 순서 실행합니다. 이 실행은 화면 위쪽「에이전트 실행 큐」카드에 나타나지 않으며, 실행 시작·완료·오류는 server/.data/ops-record-mode-activity.log에 JSON 한 줄씩 이어 씁니다. 실행 중인 항목은 저장이 비활성화됩니다.",
+    opsRecordModePollNote:
+      "\uD3F4 \uAC04\uACA9: {n}\uCD08 (\uC11C\uBC84 \uC7AC\uC2DC\uC791 \uD6C4 \uC57D 3\uCD08 \uD6C4 \uCCAB \uD2F0\uD2F1\uB3C4 \uB3D9\uC791)",
+    opsRecordModeAdd: "\uD56D\uBAA9 \uCD94\uAC00",
+    opsRecordModeSave: "\uD050 \uC800\uC7A5",
+    opsRecordModeSaving: "\uC800\uC7A5 \uC911\u2026",
+    opsRecordModeLoadError: "\uAE30\uB85D \uBAA8\uB4DC \uBAA9\uB85D\uC744 \uBD88\uB7EC\uC62C \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.",
+    opsRecordModeSaveError: "\uC800\uC7A5\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.",
+    opsRecordModeEmpty:
+      "\uB4F1\uB85D\uB41C \uAC1C\uBC1C \uD56D\uBAA9\uC774 \uC5C6\uC2B5\uB2C8\uB2E4. \u201C\uD56D\uBAA9 \uCD94\uAC00\u201D\uB97C \uB20C\uB7EC \uC694\uCCAD \uB0B4\uC6A9\uC744 \uC801\uACE0 \uC800\uC7A5\uD558\uC138\uC694.",
+    opsRecordModeItemLabel: "\uAC1C\uBC1C \uC694\uCCAD \uB0B4\uC6A9",
+    opsRecordModePlaceholder:
+      "\uC774 \uD56D\uBAA9\uC744 Cursor \uC5D0\uC774\uC804\uD2B8\uC5D0 \uADF8\uB300\uB85C \uC804\uB2EC\uD569\uB2C8\uB2E4. \uBE44\uC5B4 \uC788\uC73C\uBA74 \uC2E4\uD589\uB418\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.",
+    opsRecordModeRemove: "\uC0AD\uC81C",
+    opsRecordModeRemoveAria: "\uC774 \uD56D\uBAA9 \uC0AD\uC81C",
+    opsRecordModeRequeue: "\uB2E4\uC2DC \uB300\uAE30",
+    opsRecordModeRequeueAria: "\uC624\uB958 \uD56D\uBAA9\uC744 \uB2E4\uC2DC \uB300\uAE30 \uC5F4\uC5D0 \uC62C\uB9BC\uAE30",
+    opsRecordModeStatusPending: "\uB300\uAE30",
+    opsRecordModeStatusRunning: "\uC2E4\uD589 \uC911",
+    opsRecordModeStatusDone: "\uC644\uB8CC",
+    opsRecordModeStatusError: "\uC624\uB958",
+    opsRecordModeSaveBlocked:
+      "\uC2E4\uD589 \uC911\uC778 \uD56D\uBAA9\uC774 \uC788\uC744 \uB54C\uB294 \uC800\uC7A5\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uC644\uB8CC\uB41C \uD6C4 \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.",
     opsInstructionLabel: "\uC694\uCCAD \uB0B4\uC6A9",
     opsCancelRequest: "\uC694\uCCAD \uC911\uB2E8",
     opsCancelled: "\uC694\uCCAD\uC774 \uC911\uB2E8\uB418\uC5C8\uC2B5\uB2C8\uB2E4.",
@@ -53,11 +94,20 @@ const t = {
     opsHistoryInstructionReplay: "\uD574\uB2F9 \uC694\uCCAD\uB0B4\uC6A9",
     opsHistoryRequestIp: "\uC694\uCCAD IP",
     opsHistoryStreamArchived: "\uC9C4\uD589 \uB85C\uADF8 (\uC800\uC7A5\uBCF8)",
+    opsHistoryToolLogTitle:
+      "\uD30C\uC77C\u00B7\uB3C4\uAD6C \uC694\uCCAD \uAE30\uB85D (\uACBD\uB85C\u00B7\uC778\uC790 \uB4F1)",
+    opsHistoryWorkspaceAppliedBadge: "\uBC18\uC601\uD568",
+    opsHistoryMarkWorkspaceApplied: "\uC791\uC5C5 \uBC18\uC601\uD568\uC73C\uB85C \uD45C\uC2DC",
+    opsHistoryUnmarkWorkspaceApplied: "\uBC18\uC601 \uD45C\uC2DC \uD574\uC81C",
+    opsHistoryRetryBlockedApplied:
+      "\uC774\uBBF8 \uBC18\uC601\uD568\uC73C\uB85C \uD45C\uC2DC\uB41C \uC2E4\uD589\uC740 \uC5EC\uAE30\uC11C \uB2E4\uC2DC \uC2E4\uD589\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uD45C\uC2DC\uB97C \uD574\uC81C\uD55C \uB4A4 \uC7AC\uC2DC\uB3C4\uD558\uC138\uC694.",
+    opsHistoryMarkAppliedError: "\uD45C\uC2DC \uC800\uC7A5\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.",
     opsHistoryStatusRunning: "\uC2E4\uD589 \uC911",
     opsHistoryStatusWaiting: "\uD050\uC6B0 \uB300\uAE30",
     opsHistoryStatusOk: "\uC644\uB8CC",
     opsHistoryStatusError: "\uC624\uB958",
     opsHistoryStatusCancelled: "\uC911\uB2E8",
+    opsHistoryStatusRejected: "\uC815\uCC45 \uCC28\uB2E8",
     opsNextInstructionLabel: "\uAC1C\uBC1C \uC694\uCCAD (\uC2E4\uD589 \uC911\uC5D0\uB3C4 \uC785\uB825)",
     opsNextInstructionPlaceholder:
       "\uC774\uC5B4\uC11C \uC2E4\uD589\uD560 \uAC1C\uBC1C \uC694\uCCAD \uB0B4\uC6A9\uC744 \uC801\uC2B5\uB2C8\uB2E4. \uC9C4\uD589 \uC911\uC774\uBA74 \uB300\uAE30\uC5F4\uC5D0 \uCD94\uAC00\uB429\uB2C8\uB2E4.",
@@ -95,6 +145,11 @@ const t = {
     opsHistoryDeleteEntryAria: "\uC774 \uC2E4\uD589 \uAE30\uB85D \uC0AD\uC81C",
     opsHistoryDeleteEntryConfirm:
       "\uC774 \uC2E4\uD589 \uAE30\uB85D\uC744 \uC0AD\uC81C\uD560\uAE4C\uC694?",
+    opsHistoryRetryFromError: "\uC624\uB958 \uC694\uCCAD \uB2E4\uC2DC \uC2E4\uD589",
+    opsHistoryRetryFromErrorAria:
+      "\uC774 \uAE30\uB85D\uC758 \uC694\uCCAD \uB0B4\uC6A9\uC73C\uB85C \uC5D0\uC774\uC804\uD2B8\uB97C \uB2E4\uC2DC \uC2E4\uD589\uD569\uB2C8\uB2E4",
+    opsLiveErrorRetryAria:
+      "\uC704 \uC624\uB958 \uB0B4\uC6A9\uC73C\uB85C \uAC19\uC740 \uC694\uCCAD\uC744 \uB2E4\uC2DC \uC2E4\uD589\uD569\uB2C8\uB2E4",
     opsSubmit: "\uC5D0\uC774\uC804\uD2B8\uC5D0 \uC804\uB2EC",
     opsSubmitting: "\uC2E4\uD589 \uC911\u2026 (\uC218 \uBD84 \uAC78\uB9B4 \uC218 \uC788\uC2B5\uB2C8\uB2E4)",
     opsStreamTitle: "\uC9C4\uD589\u00B7\uC751\uB2F5 (\uC2E4\uC2DC\uAC04)",
@@ -193,6 +248,10 @@ const t = {
     guideNote: "\uCC38\uACE0",
     guideClose: "\uB2EB\uAE30",
     cardHint: "\uD074\uB9AD\uD558\uBA74 \uC124\uBA85",
+    sectorEarningsTitle: "\uC8FC\uBAA9 \uC139\uD130 \uC2E4\uC801 (\uC608\uC815)",
+    sectorEarningsSubtitle:
+      "Yahoo Finance \uC608\uC815\uC77C \uAE30\uC900 \u00B7 \uD589\uC5B0 3\uC8FC \uB0B4 \uC8FC\uC694 \uC139\uD130 \uB300\uD45C\uC885",
+    sectorEarningsCardHint: "\uC2E4\uC801 \uC77C\uC815 \u00B7 Yahoo \uC885\uBAA9 \uD398\uC774\uC9C0\uB85C \uC5F4\uAE30",
   },
   errors: {
     picksLoad: "\uC885\uBAA9 \uBAA9\uB85D\uC744 \uBD88\uB7EC\uC62C \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.",

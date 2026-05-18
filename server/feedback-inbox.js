@@ -58,6 +58,19 @@ function writeItems(items) {
 }
 
 const lastPostAt = new Map();
+const LAST_POST_MAP_MAX = 400;
+const LAST_POST_PRUNE_AGE_MS = 3 * 60 * 60_000;
+
+function pruneLastPostAtMap() {
+  const now = Date.now();
+  for (const [ip, t] of lastPostAt) {
+    if (now - t > LAST_POST_PRUNE_AGE_MS) lastPostAt.delete(ip);
+  }
+  if (lastPostAt.size <= LAST_POST_MAP_MAX) return;
+  const sorted = [...lastPostAt.entries()].sort((a, b) => a[1] - b[1]);
+  const remove = lastPostAt.size - LAST_POST_MAP_MAX;
+  for (let i = 0; i < remove; i++) lastPostAt.delete(sorted[i][0]);
+}
 
 /**
  * POST /api/feedback — 본문 저장 + 접속 IP·UA 기록 (IP 게이트 밖에서도 제출 가능)
@@ -95,6 +108,7 @@ export function postFeedback(req, res) {
   const next = [entry, ...readItems()].slice(0, MAX_ITEMS);
   writeItems(next);
   lastPostAt.set(ip, now);
+  pruneLastPostAtMap();
   res.json({ ok: true });
 }
 

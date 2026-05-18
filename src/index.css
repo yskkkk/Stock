@@ -172,6 +172,85 @@
     inset 0 3px 0 0 rgba(248, 113, 113, 0.45);
 }
 
+.macro-bar__sector-block {
+  margin-top: 0.55rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+.macro-bar__sector-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.65rem;
+  margin-bottom: 0.4rem;
+}
+.macro-bar__sector-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.macro-bar__sector-sub {
+  font-size: 0.65rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+.macro-bar__track--earnings {
+  margin-top: 0.1rem;
+}
+.macro-card--earnings {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  border-left: 3px solid rgba(167, 139, 250, 0.75);
+  cursor: pointer;
+}
+.macro-card--earnings:hover {
+  border-color: rgba(196, 181, 253, 0.95);
+}
+.macro-card__code--sector {
+  max-width: min(7.5rem, 38vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+.macro-card__name--earnings {
+  font-size: 0.68rem;
+  line-height: 1.32;
+  min-height: 2.5em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.macro-card__sym {
+  margin: 0.12rem 0 0.08rem;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+.macro-card__dday {
+  margin: 0.1rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--warn);
+  font-variant-numeric: tabular-nums;
+}
+.macro-card--earnings.macro-card--live .macro-card__dday {
+  color: var(--accent);
+}
+.macro-card--earnings.macro-card--soon .macro-card__dday {
+  color: #fcd34d;
+}
+
 
 /* Pick signals — color by type */
 .pick-actions {
@@ -922,9 +1001,8 @@
   background: var(--lp-fill, var(--accent));
   cursor: pointer;
   flex-shrink: 0;
-  box-shadow:
-    inset 0 0 0 1px rgba(15, 23, 42, 0.14),
-    0 1px 2px rgba(15, 23, 42, 0.06);
+  /* 가장자리만 구분 — 바깥 드롭 섀도(음영) 없음 */
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.14);
   transition:
     border-color 0.12s ease,
     transform 0.12s ease,
@@ -2286,15 +2364,155 @@ html[data-theme="light"] .access-admin-tab--active {
   }
 
   .picks-panel {
-    max-height: min(30dvh, 272px);
+    max-height: min(48dvh, 400px);
     min-height: 0;
     flex: 0 1 auto;
     max-width: none;
   }
 
-  .picks-panel .pick-list {
+  /* 국내·나스닥 공통: 패널 높이 고정 시 목록만 스크롤 */
+  .workspace:not(.crypto-workspace) .picks-panel:not(.crypto-panel) {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .workspace:not(.crypto-workspace) .picks-panel:not(.crypto-panel) .pick-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
+  }
+
+  .workspace:not(.crypto-workspace) .picks-panel:not(.crypto-panel) > .panel-head,
+  .workspace:not(.crypto-workspace) .picks-panel:not(.crypto-panel) > .pick-toolbar {
+    flex-shrink: 0;
+  }
+
+  .workspace:not(.crypto-workspace) .picks-panel:not(.crypto-panel) > .stock-search-tab {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .workspace:not(.crypto-workspace) .picks-panel:not(.crypto-panel) > .stock-search-tab > .pick-toolbar {
+    flex-shrink: 0;
+  }
+
+  /* 모바일: 종목명·티커·시세 줄 세로 간격·터치 영역 확보 */
+  .pick-item .pick-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.38rem;
+    padding-top: 0.52rem;
+    padding-bottom: 0.48rem;
+  }
+
+  .pick-head {
+    align-items: baseline;
+    gap: 0.45rem;
+  }
+
+  .pick-name {
+    line-height: 1.38;
+    font-size: 0.93rem;
+  }
+
+  .pick-quote {
+    margin-top: 0;
+    gap: 0.4rem 0.5rem;
+    align-items: center;
+  }
+
+  .pick-quote__symbol {
+    font-size: 0.76rem;
+    padding: 0.2rem 0.48rem;
+    line-height: 1.35;
+    align-self: flex-start;
+  }
+
+  .pick-quote--md .pick-quote__symbol {
+    font-size: 0.8rem;
+    padding: 0.22rem 0.52rem;
+  }
+
+  .quote-bar__info .pick-quote__symbol {
+    font-size: 0.8rem;
+    padding: 0.22rem 0.52rem;
+    line-height: 1.35;
+  }
+
+  .pick-quote__price {
+    line-height: 1.35;
+  }
+
+  .pick-quote__chg {
+    line-height: 1.35;
+    padding: 0.14rem 0.48rem;
+  }
+
+  .pick-quote--md .pick-quote__chg {
+    padding: 0.16rem 0.52rem;
+  }
+
+  /* 스크리너·종목 검색: 목록을 전폭 카드 스택(601–900px 구간 포함) */
+  .picks-panel:not(.crypto-panel) .pick-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.4rem 0.38rem 0.52rem;
+  }
+
+  .picks-panel:not(.crypto-panel) .pick-item {
+    margin-bottom: 0;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--card-border);
+    background: var(--surface);
+    box-shadow: 0 2px 14px rgba(0, 0, 0, 0.16);
+  }
+
+  .picks-panel:not(.crypto-panel) .pick-item.active {
+    border-color: rgba(94, 234, 212, 0.4);
+    box-shadow:
+      0 0 0 2px var(--accent-dim),
+      0 8px 24px rgba(0, 0, 0, 0.2);
+  }
+
+  html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-item {
+    box-shadow: 0 2px 14px rgba(15, 23, 42, 0.07);
+  }
+
+  html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-item.active {
+    box-shadow:
+      0 0 0 2px var(--accent-dim),
+      0 10px 26px rgba(15, 23, 42, 0.09);
+  }
+
+  .picks-panel:not(.crypto-panel) .pick-name {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.38;
+    font-size: 0.96rem;
+    font-weight: 650;
+  }
+
+  .quote-bar__title-stack {
+    gap: 0.22rem;
+    line-height: 1.35;
+  }
+
+  .quote-bar__title-line {
+    line-height: 1.35;
   }
 
   .chart-section.crypto-chart-section {
@@ -2336,12 +2554,25 @@ html[data-theme="light"] .access-admin-tab--active {
     min-height: min(28dvh, 220px);
     width: 100%;
     align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
 
   .crypto-workspace .crypto-panel .crypto-pick-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
     padding-left: max(0.4rem, env(safe-area-inset-left, 0px));
     padding-right: max(0.4rem, env(safe-area-inset-right, 0px));
-    gap: 0.35rem;
+    gap: 0.42rem;
+  }
+
+  .crypto-workspace .crypto-panel .pick-item.crypto-pick-item {
+    margin-bottom: 0;
+    border-radius: 14px;
+    box-shadow: 0 2px 14px rgba(0, 0, 0, 0.18);
   }
 
   .crypto-workspace .chart-section.crypto-chart-section {
@@ -2642,16 +2873,6 @@ html[data-theme="light"] .access-admin-tab--active {
     height: 40px;
     padding: 0 0.72rem;
     font-size: 0.72rem;
-    box-shadow:
-      0 2px 12px rgba(0, 0, 0, 0.22),
-      0 1px 0 rgba(255, 255, 255, 0.05);
-  }
-
-  html[data-theme="light"] .app-corner-stack__ops,
-  html[data-theme="light"] .feedback-corner__fab {
-    box-shadow:
-      0 2px 12px rgba(15, 23, 42, 0.1),
-      0 1px 0 rgba(255, 255, 255, 0.75);
   }
 
   .scan-status__fail-btn {
@@ -2822,8 +3043,8 @@ html[data-theme="light"] .access-admin-tab--active {
   }
 
   .pick-row {
-    min-height: 40px;
-    padding: 0.44rem 0.52rem;
+    min-height: 0;
+    padding: 0.48rem 0.52rem 0.52rem;
   }
 
   .pick-item .pick-actions {
@@ -2909,43 +3130,20 @@ html[data-theme="light"] .access-admin-tab--active {
     min-height: 40px;
   }
 
-  .pick-list {
-    display: flex;
-    flex-direction: column;
+  /* 카드형 목록은 상위 @media (max-width: 900px)에서 통일 적용 */
+  .picks-panel:not(.crypto-panel) .pick-list {
     gap: 0.32rem;
     padding: 0.32rem 0.3rem 0.45rem;
   }
 
-  .pick-item {
-    margin-bottom: 0;
+  .picks-panel:not(.crypto-panel) .pick-item {
     border-radius: 12px;
-    overflow: hidden;
-    border: 1px solid var(--card-border);
-    background: var(--bg-elevated);
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.16);
-  }
-
-  .pick-item.active {
-    border-color: rgba(94, 234, 212, 0.38);
-    box-shadow:
-      0 0 0 2px var(--accent-dim),
-      0 6px 18px rgba(0, 0, 0, 0.18);
-  }
-
-  html[data-theme="light"] .pick-item {
-    box-shadow: 0 2px 12px rgba(15, 23, 42, 0.06);
-  }
-
-  html[data-theme="light"] .pick-item.active {
-    box-shadow:
-      0 0 0 2px var(--accent-dim),
-      0 8px 22px rgba(15, 23, 42, 0.08);
   }
 
   .crypto-panel .pick-item.crypto-pick-item {
     border-radius: 12px;
-    margin-bottom: 0.42rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    margin-bottom: 0;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
   }
 }
 
@@ -2975,7 +3173,7 @@ html[data-theme="light"] .access-admin-tab--active {
 
 @media (max-width: 560px) {
   .picks-panel {
-    max-height: min(28dvh, 240px);
+    max-height: min(48dvh, 380px);
   }
 
   .panel-head {
@@ -3183,11 +3381,14 @@ html[data-theme="light"] .access-admin-tab--active {
   padding-bottom: 0.42rem;
   margin: 0 0 0.12rem;
   border-bottom: 1px solid var(--card-border);
-  background: color-mix(in srgb, var(--bg-elevated) 92%, transparent);
+  /* 본문과 동일 배경 — color-mix 반투명 띠(음영) 제거 */
+  background: var(--bg);
 }
 
-html[data-theme="light"] .app-page-top {
-  background: color-mix(in srgb, var(--bg-elevated) 96%, #ffffff);
+/* 이 줄의 .btn은 카드용 그림자 없이 테두리만 */
+.app-page-top .app-corner-stack .btn,
+.app-page-top .feedback-corner__fab.btn {
+  box-shadow: none;
 }
 
 .app-theme-corner {
@@ -3222,7 +3423,6 @@ html[data-theme="light"] .app-page-top {
   font-weight: 700;
   padding: 0.35rem 0.55rem;
   border-radius: 999px;
-  box-shadow: var(--shadow);
   white-space: nowrap;
 }
 
@@ -3238,7 +3438,6 @@ html[data-theme="light"] .app-page-top {
   font-weight: 700;
   padding: 0.35rem 0.55rem;
   border-radius: 999px;
-  box-shadow: var(--shadow);
 }
 
 .feedback-corner__menu {
@@ -3495,6 +3694,91 @@ html[data-theme="light"] .feedback-inbox-item {
 
 .ops-management__subtabs {
   flex-shrink: 0;
+}
+
+.ops-management__muted {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  margin: 0 0 0.5rem;
+}
+
+.ops-management__record {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-top: 0.25rem;
+}
+
+.ops-management__record-hint,
+.ops-management__record-meta {
+  margin-bottom: 0;
+}
+
+.ops-management__record-meta {
+  font-size: 0.76rem;
+}
+
+.ops-management__record-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.ops-management__record-blocked {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--warn);
+}
+
+.ops-management__record-empty {
+  margin: 0.35rem 0 0;
+}
+
+.ops-management__record-alert {
+  margin: 0;
+}
+
+.ops-management__record-list {
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.ops-management__record-card {
+  padding: 0.55rem 0.65rem 0.65rem;
+}
+
+.ops-management__record-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+  margin-bottom: 0.45rem;
+}
+
+.ops-management__record-card-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.ops-management__record-err {
+  margin: 0.45rem 0 0;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.78rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.28);
+  border-radius: var(--radius-sm);
+  color: #fca5a5;
 }
 
 .ops-management__textarea--request {
@@ -3938,6 +4222,39 @@ html[data-theme="light"] .ops-management__queue-chip {
   border: 1px solid rgba(96, 165, 250, 0.35);
 }
 
+.ops-history__badge--rejected {
+  color: #c4b5fd;
+  background: rgba(139, 92, 246, 0.14);
+  border: 1px solid rgba(167, 139, 250, 0.38);
+}
+
+.ops-history__badge--applied {
+  color: var(--muted);
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+}
+
+.ops-management__history-applied-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.35rem 0 0.25rem;
+}
+
+.ops-management__stream-title--sub {
+  margin: 0.65rem 0 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.ops-management__stream-pre--toollog {
+  max-height: min(40vh, 320px);
+  overflow: auto;
+  font-size: 0.72rem;
+}
+
 .ops-management__title {
   margin: 0;
   font-size: 1rem;
@@ -4182,6 +4499,24 @@ html[data-theme="light"] .ops-management__history-details {
 
 .ops-management__history-pane .ops-management__stream {
   margin-top: 0.65rem;
+}
+
+.ops-management__history-error-wrap,
+.ops-management__live-error-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: stretch;
+  margin: 0.5rem 0;
+}
+
+.ops-management__history-error-wrap .ops-management__history-error,
+.ops-management__live-error-wrap .ops-management__out {
+  margin: 0;
+}
+
+.ops-management__history-retry {
+  align-self: flex-start;
 }
 
 .ops-management__history-error {

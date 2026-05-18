@@ -172,6 +172,7 @@ export default function App() {
   const [profitModalOpen, setProfitModalOpen] = useState(false);
   const newsReqIdRef = useRef(0);
   const newsAbortRef = useRef<AbortController | null>(null);
+  const chartAbortRef = useRef<AbortController | null>(null);
   const [showAccessAdmin, setShowAccessAdmin] = useState(false);
   const [adminIpConsole, setAdminIpConsole] = useState(false);
   const [accessAdmin, setAccessAdmin] = useState(false);
@@ -275,8 +276,10 @@ export default function App() {
   ]);
 
   useEffect(() => {
+    let cancelled = false;
     fetchConfig()
       .then((cfg) => {
+        if (cancelled) return;
         setTelegramNotify(cfg.telegramNotify?.enabled ?? false);
         setTelegramSentCount(cfg.telegramNotify?.todaySentCount ?? 0);
         setAdminIpConsole(cfg.adminIpConsole ?? false);
@@ -284,11 +287,15 @@ export default function App() {
         setOpsCursorAgentAvailable(cfg.opsCursorAgentAvailable ?? false);
       })
       .catch(() => {
+        if (cancelled) return;
         setTelegramNotify(false);
         setAdminIpConsole(false);
         setAccessAdmin(false);
         setOpsCursorAgentAvailable(false);
       });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const browserUserId = useMemo(() => getBrowserUserId(), []);
@@ -460,10 +467,15 @@ export default function App() {
 
   const loadChart = useCallback(
     async (pick: StockPick, tf: ChartTimeframe, live = false) => {
+      chartAbortRef.current?.abort();
+      const ac = new AbortController();
+      chartAbortRef.current = ac;
+
       if (!live) setChartLoading(true);
       setChartError(null);
       try {
-        const data = await fetchStock(pick.symbol, tf, live);
+        const data = await fetchStock(pick.symbol, tf, live, ac.signal);
+        if (chartAbortRef.current !== ac) return;
         setQuote(data.quote);
         setCandles(data.candles);
         setDailyCandles(
@@ -473,6 +485,13 @@ export default function App() {
         setCandleCount(data.candleCount ?? data.candles.length);
         setChartStale(Boolean(data.stale));
       } catch (err) {
+        if (
+          ac.signal.aborted ||
+          (err instanceof DOMException && err.name === "AbortError")
+        ) {
+          return;
+        }
+        if (chartAbortRef.current !== ac) return;
         setChartError(
           err instanceof Error ? err.message : ko.errors.chartLoad,
         );
@@ -488,7 +507,9 @@ export default function App() {
         setDailyCandles([]);
         setCandleCount(0);
       } finally {
-        setChartLoading(false);
+        if (chartAbortRef.current === ac) {
+          setChartLoading(false);
+        }
       }
     },
     [],
@@ -502,7 +523,10 @@ export default function App() {
       () => loadChart(workspacePick, timeframe, true),
       refreshMs,
     );
-    return () => window.clearInterval(id);
+    return () => {
+      window.clearInterval(id);
+      chartAbortRef.current?.abort();
+    };
   }, [workspacePick, timeframe, loadChart, appTab]);
 
   const handleReason = useCallback((pick: StockPick) => {

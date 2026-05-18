@@ -1,6 +1,6 @@
 ---
-description: 작업 후 git 커밋·푸시 — 사용자가 명시적으로 금지하지 않는 한 잊지 말 것
-alwaysApply: true
+description: Stock에서 작업 후 git 커밋·푸시 습관(전역 규칙과 충돌 시 이 프로젝트 우선)
+alwaysApply: false
 ---
 
 # Git 커밋·푸시 (이 저장소)

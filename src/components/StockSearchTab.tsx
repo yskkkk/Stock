@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchStockSearch } from "../api";
+import { displayStockSymbol } from "../lib/format";
 import { ko } from "../i18n/ko";
 import type { Market, StockPick, StockSearchQuoteRow } from "../types";
 import PickQuoteStrip from "./PickQuoteStrip";
@@ -245,9 +246,9 @@ export default function StockSearchTab({
                     <div className="stock-search-tab__row-right">
                       <span
                         className="stock-search-tab__sym"
-                        title={row.symbol}
+                        title={displayStockSymbol(row.symbol)}
                       >
-                        {row.symbol}
+                        {displayStockSymbol(row.symbol)}
                       </span>
                       {hasPrice ? (
                         <PickQuoteStrip

@@ -1,6 +1,7 @@
 ---
-description: 서버 코드·환경 변경 시 에이전트가 재시작까지 수행
-alwaysApply: true
+description: Node/Vite 등 서버 재시작이 필요할 때 이 프로젝트 프로세스만 재기동
+alwaysApply: false
+globs: server/**/*,package.json,vite.config.*,.env
 ---
 
 # 서버 재시작 (적용 반영)
