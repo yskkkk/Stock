@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState, type KeyboardEvent } from "react";
-import { fetchOpsDevQueueDisplay } from "../api";
-import { OPS_DEV_QUEUE_POLL_MS } from "../constants/opsDevQueuePoll";
+import { useOpsDevQueueDisplay } from "../hooks/useOpsDevQueueDisplay";
 import { ko } from "../i18n/ko";
 import {
   readOpsDevQueueDisplayCache,
@@ -35,31 +34,23 @@ function OpsQueueUnifiedSeqBadge({ seq }: { seq?: number | null }) {
 }
 
 export default function OpsGlobalQueueStrip({ onOpenOps }: { onOpenOps: () => void }) {
+  const snap = useOpsDevQueueDisplay();
   const [rows, setRows] = useState<OpsGlobalQueueRow[]>(() => readOpsDevQueueDisplayCache() ?? []);
 
-  const pull = useCallback(() => {
-    void fetchOpsDevQueueDisplay()
-      .then((snap) => {
-        writeOpsDevQueueDisplayCache(snap);
-        setRows(rowsFromDevQueueDisplayPayload(snap));
-      })
-      .catch(() => {
-        /* 403·게이트 리다이렉트 직전 — 세션 캐시·이전 행 유지 */
-      });
-  }, []);
-
   useEffect(() => {
-    pull();
-    const id = window.setInterval(pull, OPS_DEV_QUEUE_POLL_MS);
-    const onVis = () => {
-      if (document.visibilityState === "visible") pull();
-    };
-    document.addEventListener("visibilitychange", onVis);
-    return () => {
-      window.clearInterval(id);
-      document.removeEventListener("visibilitychange", onVis);
-    };
-  }, [pull]);
+    if (!snap) return;
+    writeOpsDevQueueDisplayCache(snap);
+    const next = rowsFromDevQueueDisplayPayload(snap);
+    setRows((prev) => {
+      if (
+        prev.length === next.length &&
+        prev.every((r, i) => r.key === next[i]?.key && r.cardClass === next[i]?.cardClass)
+      ) {
+        return prev;
+      }
+      return next;
+    });
+  }, [snap]);
 
   const openCard = useCallback(() => {
     onOpenOps();
@@ -86,66 +77,66 @@ export default function OpsGlobalQueueStrip({ onOpenOps }: { onOpenOps: () => vo
         role="list"
       >
         {rows.map((r) => {
-            const aria = `${sourceLabelForRow(r)}. ${ko.app.opsGlobalQueueFieldProcessRank}: ${r.processRankDisplay}. ${ko.app.opsGlobalQueueFieldStatus}: ${r.statusLabel}. ${ko.app.opsGlobalQueueFieldTitle}: ${r.requestTitle}`;
-            return (
-              <div
-                key={r.key}
-                className={`ops-agent-queue-card ops-agent-queue-card--${r.cardClass} ops-global-queue-card`}
-                role="listitem"
-                tabIndex={0}
-                aria-label={aria}
-                onClick={openCard}
-                onKeyDown={onCardKeyDown}
-              >
-                <div className="ops-global-queue-card__seq-row">
-                  <OpsQueueUnifiedSeqBadge seq={r.unifiedSeq} />
-                </div>
-                <dl className="ops-global-queue-card__fields">
-                  <div className="ops-global-queue-card__field">
-                    <dt>{ko.app.opsGlobalQueueFieldProcessRank}</dt>
-                    <dd
-                      className="ops-global-queue-card__process-rank"
-                      title={ko.app.opsUnifiedQueueSeqTitle}
-                    >
-                      {r.processRankDisplay}
-                    </dd>
-                  </div>
-                  <div className="ops-global-queue-card__field">
-                    <dt>{ko.app.opsGlobalQueueFieldSource}</dt>
-                    <dd>{sourceLabelForRow(r)}</dd>
-                  </div>
-                  {!r.hideIp ? (
-                    <div className="ops-global-queue-card__field">
-                      <dt>{ko.app.opsGlobalQueueFieldIp}</dt>
-                      <dd className="ops-management__stream-v--mono">{r.ipDisplay}</dd>
-                    </div>
-                  ) : null}
-                  <div className="ops-global-queue-card__field ops-global-queue-card__field--status-time">
-                    <dt>{ko.app.opsGlobalQueueFieldStatus}</dt>
-                    <dd
-                      className={`ops-global-queue-card__value ops-global-queue-card__value--${r.cardClass}`}
-                    >
-                      <span>{r.statusLabel}</span>
-                      <span className="ops-global-queue-card__time">{formatQueueTime(r.timeMs)}</span>
-                    </dd>
-                  </div>
-                  <div className="ops-global-queue-card__field ops-global-queue-card__field--title">
-                    <dt>{ko.app.opsGlobalQueueFieldTitle}</dt>
-                    <dd
-                      className="ops-global-queue-card__title-dd"
-                      title={
-                        r.requestTitleFull.length > r.requestTitle.length
-                          ? r.requestTitleFull
-                          : undefined
-                      }
-                    >
-                      {r.requestTitle}
-                    </dd>
-                  </div>
-                </dl>
+          const aria = `${sourceLabelForRow(r)}. ${ko.app.opsGlobalQueueFieldProcessRank}: ${r.processRankDisplay}. ${ko.app.opsGlobalQueueFieldStatus}: ${r.statusLabel}. ${ko.app.opsGlobalQueueFieldTitle}: ${r.requestTitle}`;
+          return (
+            <div
+              key={r.key}
+              className={`ops-agent-queue-card ops-agent-queue-card--${r.cardClass} ops-global-queue-card`}
+              role="listitem"
+              tabIndex={0}
+              aria-label={aria}
+              onClick={openCard}
+              onKeyDown={onCardKeyDown}
+            >
+              <div className="ops-global-queue-card__seq-row">
+                <OpsQueueUnifiedSeqBadge seq={r.unifiedSeq} />
               </div>
-            );
-          })}
+              <dl className="ops-global-queue-card__fields">
+                <div className="ops-global-queue-card__field">
+                  <dt>{ko.app.opsGlobalQueueFieldProcessRank}</dt>
+                  <dd
+                    className="ops-global-queue-card__process-rank"
+                    title={ko.app.opsUnifiedQueueSeqTitle}
+                  >
+                    {r.processRankDisplay}
+                  </dd>
+                </div>
+                <div className="ops-global-queue-card__field">
+                  <dt>{ko.app.opsGlobalQueueFieldSource}</dt>
+                  <dd>{sourceLabelForRow(r)}</dd>
+                </div>
+                {!r.hideIp ? (
+                  <div className="ops-global-queue-card__field">
+                    <dt>{ko.app.opsGlobalQueueFieldIp}</dt>
+                    <dd className="ops-management__stream-v--mono">{r.ipDisplay}</dd>
+                  </div>
+                ) : null}
+                <div className="ops-global-queue-card__field ops-global-queue-card__field--status-time">
+                  <dt>{ko.app.opsGlobalQueueFieldStatus}</dt>
+                  <dd
+                    className={`ops-global-queue-card__value ops-global-queue-card__value--${r.cardClass}`}
+                  >
+                    <span>{r.statusLabel}</span>
+                    <span className="ops-global-queue-card__time">{formatQueueTime(r.timeMs)}</span>
+                  </dd>
+                </div>
+                <div className="ops-global-queue-card__field ops-global-queue-card__field--title">
+                  <dt>{ko.app.opsGlobalQueueFieldTitle}</dt>
+                  <dd
+                    className="ops-global-queue-card__title-dd"
+                    title={
+                      r.requestTitleFull.length > r.requestTitle.length
+                        ? r.requestTitleFull
+                        : undefined
+                    }
+                  >
+                    {r.requestTitle}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          );
+        })}
       </div>
     </section>
   );

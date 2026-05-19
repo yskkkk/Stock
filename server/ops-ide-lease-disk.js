@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { scheduleDevQueueDisplayRefresh } from "./ops-dev-queue-display-store.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");
@@ -99,12 +100,21 @@ export function mergeIdeLeaseDiskIntoAgentEntries(memoryEntries) {
   ];
 }
 
-/** @param {{ prompt: string; sessionId?: string | null; leaseId?: string | null }} input */
+/**
+ * @param {{
+ *   prompt: string;
+ *   sessionId?: string | null;
+ *   leaseId?: string | null;
+ *   queueStatus?: "waiting" | "running";
+ * }} input
+ */
 export function writeIdeLeaseDiskImmediate(input) {
   const prompt = String(input.prompt ?? "").trim();
   if (!prompt) return;
   const now = Date.now();
   const preview = previewInstruction(prompt);
+  const statusRaw = String(input.queueStatus ?? "waiting").toLowerCase();
+  const queueStatus = statusRaw === "running" ? "running" : "waiting";
   const body = {
     leaseId: input.leaseId ?? null,
     sessionId: input.sessionId ?? null,
@@ -114,22 +124,27 @@ export function writeIdeLeaseDiskImmediate(input) {
     promptPreview: preview,
     enqueuedAtMs: now,
     sinceMs: now,
-    queueStatus: "waiting",
+    queueStatus,
     source: "ide",
   };
-  fs.writeFileSync(IDE_LEASE_PATH, `${JSON.stringify(body, null, 2)}\n`, "utf8");
-  void import("./ops-dev-queue-display-store.js")
-    .then((m) => m.scheduleDevQueueDisplayRefresh())
-    .catch(() => {});
+  const line = `${JSON.stringify(body, null, 2)}\n`;
+  try {
+    if (fs.existsSync(IDE_LEASE_PATH) && fs.readFileSync(IDE_LEASE_PATH, "utf8") === line) {
+      return;
+    }
+  } catch {
+    /* write */
+  }
+  fs.writeFileSync(IDE_LEASE_PATH, line, "utf8");
+  scheduleDevQueueDisplayRefresh();
 }
 
 export function clearIdeLeaseOnDisk() {
   try {
+    if (!fs.existsSync(IDE_LEASE_PATH)) return;
     fs.unlinkSync(IDE_LEASE_PATH);
   } catch {
     /* ignore */
   }
-  void import("./ops-dev-queue-display-store.js")
-    .then((m) => m.scheduleDevQueueDisplayRefresh())
-    .catch(() => {});
+  scheduleDevQueueDisplayRefresh();
 }

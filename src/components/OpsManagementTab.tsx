@@ -5,7 +5,6 @@ import {
   deleteOpsAgentHistory,
   deleteOpsAgentHistoryEntry,
   fetchOpsAgentHistory,
-  fetchOpsDevQueueDisplay,
   fetchOpsCursorAgentPending,
   fetchOpsCursorAgentStream,
   postOpsAgentHistoryWorkspaceApplied,
@@ -13,7 +12,7 @@ import {
   type OpsAgentQueueEntry,
   type OpsCursorAgentPendingResponse,
 } from "../api";
-import { OPS_DEV_QUEUE_POLL_MS } from "../constants/opsDevQueuePoll";
+import { useOpsDevQueueDisplay } from "../hooks/useOpsDevQueueDisplay";
 import { parseOpsDevQueueAgentEntries } from "../lib/opsGlobalQueueRows";
 import { ko } from "../i18n/ko";
 
@@ -404,7 +403,33 @@ export default function OpsManagementTab({
   );
   const [progressModalRunId, setProgressModalRunId] = useState<string | null>(null);
 
-  const displayServerQueue = useMemo(() => serverQueue, [serverQueue]);
+  const queueSnap = useOpsDevQueueDisplay({
+    includeViewerIp: true,
+    enabled: available,
+  });
+
+  useEffect(() => {
+    if (!queueSnap) return;
+    const entries = parseOpsDevQueueAgentEntries(queueSnap.agentEntries);
+    setServerQueue((prev) => {
+      if (
+        prev.length === entries.length &&
+        prev.every(
+          (q, i) =>
+            q.id === entries[i]?.id &&
+            q.status === entries[i]?.status &&
+            q.instructionPreview === entries[i]?.instructionPreview,
+        )
+      ) {
+        return prev;
+      }
+      return entries;
+    });
+    const rawIp = queueSnap.viewerIp;
+    const ip =
+      rawIp === null || rawIp === undefined ? null : String(rawIp).trim() || null;
+    setViewerIp((prev) => (prev === ip ? prev : ip));
+  }, [queueSnap]);
 
   const serverQueueSeqById = useMemo(() => {
     const m = new Map<string, number>();
@@ -476,23 +501,6 @@ export default function OpsManagementTab({
         });
     };
 
-    const pullQueue = () => {
-      void fetchOpsDevQueueDisplay({ includeViewerIp: true })
-        .then((snap) => {
-          if (cancelled) return;
-          setServerQueue(parseOpsDevQueueAgentEntries(snap.agentEntries));
-          const rawIp = snap.viewerIp;
-          const ip =
-            rawIp === null || rawIp === undefined
-              ? null
-              : String(rawIp).trim() || null;
-          setViewerIp(ip);
-        })
-        .catch(() => {
-          /* 다음 폴링에서 재시도 */
-        });
-    };
-
     const pullPending = () => {
       void fetchOpsCursorAgentPending()
         .then((p) => {
@@ -506,14 +514,12 @@ export default function OpsManagementTab({
 
     const refreshAll = () => {
       pullHistory();
-      pullQueue();
       pullPending();
     };
 
     refreshAll();
 
     const histId = window.setInterval(pullHistory, HISTORY_POLL_MS);
-    const queueId = window.setInterval(pullQueue, OPS_DEV_QUEUE_POLL_MS);
     const pendId = window.setInterval(pullPending, HISTORY_POLL_MS);
 
     const onVisibility = () => {
@@ -528,7 +534,6 @@ export default function OpsManagementTab({
     return () => {
       cancelled = true;
       window.clearInterval(histId);
-      window.clearInterval(queueId);
       window.clearInterval(pendId);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("pageshow", onPageShow);
@@ -682,10 +687,10 @@ export default function OpsManagementTab({
                 aria-live="polite"
                 aria-relevant="additions removals"
               >
-                {displayServerQueue.length === 0 ? (
+                {serverQueue.length === 0 ? (
                   <span className="ops-management__server-queue-empty">{ko.app.opsAgentQueueEmpty}</span>
                 ) : (
-                  displayServerQueue.map((q) => (
+                  serverQueue.map((q) => (
                     <button
                       key={q.id}
                       type="button"
@@ -1193,7 +1198,7 @@ export default function OpsManagementTab({
       {progressModalRunId ? (
         <OpsAgentQueueProgressModal
           runId={progressModalRunId}
-          queueEntries={displayServerQueue}
+          queueEntries={serverQueue}
           historyRuns={historyRuns}
           available={available}
           onClose={() => setProgressModalRunId(null)}

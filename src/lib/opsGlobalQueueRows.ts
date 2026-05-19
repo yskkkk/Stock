@@ -133,6 +133,11 @@ export function buildOpsGlobalQueueRows(agentRaw: unknown[]): OpsGlobalQueueRow[
   }));
 }
 
+/** 폴링·캐시 비교용 — agentEntries 내용이 같으면 동일 키 */
+export function agentEntriesSnapshotKey(agentEntries: unknown[]): string {
+  return JSON.stringify(agentEntries);
+}
+
 export const OPS_DEV_QUEUE_DISPLAY_CACHE_KEY = "stock-ops-dev-queue-display-v1";
 
 export type OpsDevQueueDisplayPayload = {
@@ -169,8 +174,13 @@ export function sourceLabelForRow(row: OpsGlobalQueueRow): string {
   return ko.app.opsGlobalQueueSourceWeb;
 }
 
+let lastSessionCacheAgentKey = "";
+
 export function writeOpsDevQueueDisplayCache(payload: OpsDevQueueDisplayPayload): void {
   if (typeof sessionStorage === "undefined") return;
+  const agentKey = agentEntriesSnapshotKey(payload.agentEntries);
+  if (agentKey === lastSessionCacheAgentKey) return;
+  lastSessionCacheAgentKey = agentKey;
   try {
     sessionStorage.setItem(
       OPS_DEV_QUEUE_DISPLAY_CACHE_KEY,

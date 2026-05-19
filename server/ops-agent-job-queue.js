@@ -365,18 +365,14 @@ export function enqueueOpsAgentJob(fn, onQueued, meta, onCommittedToQueue) {
 }
 
 /** @param {string} slotId */
-function queueSeqForSlotId(slotId) {
+function queueSeqAndStatusForSlotId(slotId) {
   const snap = getOpsAgentQueueSnapshot();
   const idx = snap.entries.findIndex((e) => e.id === slotId);
-  return idx >= 0 ? idx + 1 : snap.entries.length + 1;
-}
-
-/** @param {string} slotId */
-function queueStatusForSlotId(slotId) {
-  if (runningMeta?.id === slotId) return "running";
-  const snap = getOpsAgentQueueSnapshot();
-  const hit = snap.entries.find((e) => e.id === slotId);
-  return hit?.status === "running" ? "running" : "waiting";
+  const queueSeq = idx >= 0 ? idx + 1 : snap.entries.length + 1;
+  const hit = idx >= 0 ? snap.entries[idx] : null;
+  const queueStatus =
+    runningMeta?.id === slotId || hit?.status === "running" ? "running" : "waiting";
+  return { queueSeq, queueStatus };
 }
 
 /**
@@ -424,11 +420,12 @@ export function registerIdeDevQueueSlot(input) {
   const existing = findActiveIdeSlotByPrompt(prompt);
   if (existing?.meta) {
     const leaseId = existing.id;
+    const { queueSeq, queueStatus } = queueSeqAndStatusForSlotId(leaseId);
     return {
       ok: true,
       leaseId,
-      queueStatus: queueStatusForSlotId(leaseId),
-      queueSeq: queueSeqForSlotId(leaseId),
+      queueStatus,
+      queueSeq,
       instructionPreview: existing.meta.instructionPreview,
       instructionTooltip: existing.meta.instructionTooltip,
       enqueuedAtMs: existing.meta.enqueuedAtMs,
@@ -480,8 +477,7 @@ export function registerIdeDevQueueSlot(input) {
   void drainQueue();
 
   const leaseId = slot.id;
-  const queueStatus = queueStatusForSlotId(leaseId);
-  const queueSeq = queueSeqForSlotId(leaseId);
+  const { queueSeq, queueStatus } = queueSeqAndStatusForSlotId(leaseId);
 
   return {
     ok: true,
