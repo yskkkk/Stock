@@ -12,6 +12,7 @@ import {
   releaseAnyRunningIdeDevQueueSlot,
   releaseRunningIdeDevQueueIfDifferentPrompt,
 } from "./ops-agent-job-queue.js";
+import { readDevQueueLiveAgentEntriesSync } from "./ops-dev-queue-live-store.js";
 import {
   clearIdeLeaseOnDisk,
   writeIdeLeaseDiskImmediate,
@@ -114,52 +115,37 @@ function releaseActiveLease() {
   clearIdeLeaseOnDisk();
 }
 
-/**
- * @param {string[]} lines
- * @returns {{ hasToolUse: boolean; textOnly: boolean } | null}
- */
-function parseLastAssistantTail(lines) {
-  for (let i = lines.length - 1; i >= 0; i--) {
-    let row;
-    try {
-      row = JSON.parse(lines[i]);
-    } catch {
-      continue;
-    }
-    if (row?.role !== "assistant") return null;
-    const parts = row?.message?.content;
-    if (!Array.isArray(parts)) {
-      return { hasToolUse: false, textOnly: true };
-    }
-    const hasToolUse = parts.some((p) => p?.type === "tool_use");
-    const textOnly =
-      parts.length > 0 && parts.every((p) => p?.type === "text");
-    return { hasToolUse, textOnly };
+/** 메모리 큐·디스크 영속·활성 lease 중 IDE 작업 존재 여부 */
+function hasIdeQueueWork(/** @type {ReturnType<typeof getOpsAgentQueueSnapshot>} */ snap) {
+  if (activeLeaseId) return true;
+  if (
+    snap.entries.some(
+      (e) => e.source === "ide" || e.requestIp === "cursor-ide",
+    )
+  ) {
+    return true;
   }
-  return null;
+  return readDevQueueLiveAgentEntriesSync().some(
+    (e) =>
+      (e.source === "ide" || e.requestIp === "cursor-ide") &&
+      (e.status === "running" || e.status === "waiting"),
+  );
 }
 
 /**
+ * transcript가 TURN_END_IDLE_MS 동안 갱신 없으면 턴 종료로 간주해 해제.
+ * (마지막 assistant가 tool_use만 있어도 완료 후 stuck 되지 않게 — 유휴 시간으로 구분)
+ *
  * @param {string[]} lines
  * @param {ReturnType<typeof getOpsAgentQueueSnapshot>} snap
  */
 function tryReleaseWhenTurnEnded(lines, snap) {
-  const hasIde = snap.entries.some(
-    (e) => e.source === "ide" || e.requestIp === "cursor-ide",
-  );
-  if (!hasIde && !activeLeaseId) {
+  if (!hasIdeQueueWork(snap)) {
     clearIdeLeaseOnDisk();
     return;
   }
 
   if (!lines.length) return;
-
-  const tail = parseLastAssistantTail(lines);
-  if (!tail) return;
-
-  /* 도구 호출 직후·진행 중 — 마지막 줄에 tool_use 가 있으면 내리지 않음 */
-  if (tail.hasToolUse) return;
-  if (!tail.textOnly) return;
 
   if (Date.now() - lastFileChangeMs < TURN_END_IDLE_MS) return;
   if (idleTurnReleasedForMtime === lastFileMtimeMs) return;
@@ -172,10 +158,7 @@ function tryReleaseWhenTurnEnded(lines, snap) {
  * @param {ReturnType<typeof getOpsAgentQueueSnapshot>} snap
  */
 function sweepStaleDiskLease(snap) {
-  const hasIde = snap.entries.some(
-    (e) => e.source === "ide" || e.requestIp === "cursor-ide",
-  );
-  if (hasIde) return;
+  if (hasIdeQueueWork(snap)) return;
 
   try {
     const leasePath = path.join(process.cwd(), ".stock-ops-ide-lease.json");
@@ -192,6 +175,31 @@ function sweepStaleDiskLease(snap) {
     }
   } catch {
     clearIdeLeaseOnDisk();
+  }
+}
+
+/** 메모리 슬롯 없이 디스크에만 running IDE가 남은 경우(훅 미호출·재시작) */
+function sweepOrphanedPersistRunning(snap) {
+  const memRunning = snap.entries.find(
+    (e) =>
+      e.status === "running" &&
+      (e.source === "ide" || e.requestIp === "cursor-ide"),
+  );
+  const memRunningId = memRunning ? String(memRunning.id ?? "").trim() : "";
+  const orphans = readDevQueueLiveAgentEntriesSync().filter((e) => {
+    if (e.status !== "running") return false;
+    if (e.source !== "ide" && e.requestIp !== "cursor-ide") return false;
+    const id = String(e.id ?? "").trim();
+    if (!id) return false;
+    if (memRunningId && id === memRunningId) return false;
+    return true;
+  });
+  if (!orphans.length) return;
+  if (Date.now() - lastFileChangeMs < TURN_END_IDLE_MS) return;
+  try {
+    releaseAnyRunningIdeDevQueueSlot();
+  } catch {
+    /* ignore */
   }
 }
 
@@ -307,6 +315,7 @@ function scanTranscriptFile(filePath) {
   }
 
   tryReleaseWhenTurnEnded(lines, snap);
+  sweepOrphanedPersistRunning(snap);
   sweepStaleDiskLease(snap);
 }
 

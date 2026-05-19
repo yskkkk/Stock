@@ -1014,6 +1014,8 @@ export function createApp() {
 
   try {
     reconcilePersistQueueToAgentHistorySync();
+    releaseAnyRunningIdeDevQueueSlot();
+    clearIdeLeaseOnDisk();
   } catch {
     /* ignore */
   }

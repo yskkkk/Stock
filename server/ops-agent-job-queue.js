@@ -647,38 +647,41 @@ export function releaseAnyRunningIdeDevQueueSlot() {
     }
   }
 
-  if (!released) {
-    for (const e of readDevQueueLiveAgentEntriesSync()) {
-      if (e.status !== "running") continue;
-      if (e.source !== "ide" && e.requestIp !== "cursor-ide") continue;
-      const id = String(e.id ?? "").trim();
-      if (!id) continue;
-      const ins = String(e.instructionBody ?? e.instructionPreview ?? "").trim();
-      void finalizeOpsAgentEntry(id, {
-        state: "ok",
-        instruction: ins,
-        requestIp: "cursor-ide",
-        phaseLine: "Cursor IDE (단일 개발 큐)",
-        cursorLine: "",
-        thinkingLine: "",
-        toolLine: "",
-        toolLog: "",
-        streamText: "",
-        statusText: "IDE 세션 종료",
-        resultText:
-          "Cursor IDE에서 요청이 완료되어 개발 큐에서 해제되었습니다.",
-        durationMs: Math.max(
-          0,
-          Date.now() -
-            (typeof e.enqueuedAtMs === "number" ? e.enqueuedAtMs : Date.now()),
-        ),
-        runtimeLabel: "ide",
-        error: null,
-      });
-      persistDevQueueRemove(id);
-      released = true;
-      break;
-    }
+  const memRunningId =
+    active && runningSlot?.source === "ide"
+      ? String(runningSlot.id ?? "").trim()
+      : "";
+
+  for (const e of readDevQueueLiveAgentEntriesSync()) {
+    if (e.status !== "running") continue;
+    if (e.source !== "ide" && e.requestIp !== "cursor-ide") continue;
+    const id = String(e.id ?? "").trim();
+    if (!id) continue;
+    if (memRunningId && id === memRunningId) continue;
+    const ins = String(e.instructionBody ?? e.instructionPreview ?? "").trim();
+    void finalizeOpsAgentEntry(id, {
+      state: "ok",
+      instruction: ins,
+      requestIp: "cursor-ide",
+      phaseLine: "Cursor IDE (단일 개발 큐)",
+      cursorLine: "",
+      thinkingLine: "",
+      toolLine: "",
+      toolLog: "",
+      streamText: "",
+      statusText: "IDE 세션 종료",
+      resultText:
+        "Cursor IDE에서 요청이 완료되어 개발 큐에서 해제되었습니다.",
+      durationMs: Math.max(
+        0,
+        Date.now() -
+          (typeof e.enqueuedAtMs === "number" ? e.enqueuedAtMs : Date.now()),
+      ),
+      runtimeLabel: "ide",
+      error: null,
+    });
+    persistDevQueueRemove(id);
+    released = true;
   }
 
   return { ok: true, released };

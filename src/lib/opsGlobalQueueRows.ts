@@ -182,6 +182,10 @@ export function writeOpsDevQueueDisplayCache(payload: OpsDevQueueDisplayPayload)
   if (agentKey === lastSessionCacheAgentKey) return;
   lastSessionCacheAgentKey = agentKey;
   try {
+    if (!payload.agentEntries.length && !payload.recordItems.length) {
+      sessionStorage.removeItem(OPS_DEV_QUEUE_DISPLAY_CACHE_KEY);
+      return;
+    }
     sessionStorage.setItem(
       OPS_DEV_QUEUE_DISPLAY_CACHE_KEY,
       JSON.stringify({
