@@ -38,6 +38,7 @@ import {
   abandonIdeDevQueueSlot,
   acquireIdeDevQueueSlot,
   enqueueOpsAgentJob,
+  getOpsAgentQueueSnapshot,
   registerIdeDevQueueSlot,
   releaseAnyRunningIdeDevQueueSlot,
   releaseIdeDevQueueSlot,
@@ -71,6 +72,7 @@ import { enrichUnifiedQueueAgentAndRecord } from "./ops-unified-queue-seq.js";
 import {
   readDevQueueDisplaySnapshotSync,
   reconcilePersistQueueToAgentHistorySync,
+  sweepStalePersistedDevQueueSync,
 } from "./ops-dev-queue-live-store.js";
 import {
   FILE_DEV_POLL_MS,
@@ -530,7 +532,7 @@ export function createApp() {
         return;
       }
       const viewerIp = normalizeAccessIp(expressClientIp(req));
-      const snap = readDevQueueDisplaySnapshotSync();
+      const snap = readDevQueueDisplaySnapshotSync(getOpsAgentQueueSnapshot().entries);
       res.json({
         entries: snap.agentEntries,
         viewerIp: viewerIp || null,
@@ -538,11 +540,12 @@ export function createApp() {
     }),
   );
 
-  /** 허용 IP — 개발 대기열 표시 SSOT(디스크만, 메모리 fallback 없음) */
+  /** 허용 IP — 개발 대기열: 디스크 스냅샷 + 메모리 실행 큐 병합 표시 */
   app.get(
     "/api/ops/dev-queue-display",
     asyncRoute(async (req, res) => {
-      const snap = readDevQueueDisplaySnapshotSync();
+      const runtime = getOpsAgentQueueSnapshot().entries;
+      const snap = readDevQueueDisplaySnapshotSync(runtime);
       const viewerIp = isAccessAdminRequest(req)
         ? normalizeAccessIp(expressClientIp(req)) || null
         : null;
@@ -1014,8 +1017,7 @@ export function createApp() {
 
   try {
     reconcilePersistQueueToAgentHistorySync();
-    releaseAnyRunningIdeDevQueueSlot();
-    clearIdeLeaseOnDisk();
+    sweepStalePersistedDevQueueSync();
   } catch {
     /* ignore */
   }

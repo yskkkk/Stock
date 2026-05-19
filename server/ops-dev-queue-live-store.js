@@ -164,6 +164,11 @@ export function persistDevQueueSetRunning(id) {
   if (hit) syncAgentHistoryFromPersistEntry(hit);
 }
 
+/** 완료·정리 시 — agentEntries를 비운 스냅샷만 남김 */
+export function persistDevQueueClear() {
+  writeLiveRawSync({ updatedAtMs: Date.now(), agentEntries: [] });
+}
+
 /** @param {string} id */
 export function persistDevQueueRemove(id) {
   const slotId = String(id ?? "").trim();
@@ -171,18 +176,69 @@ export function persistDevQueueRemove(id) {
   const live = readLiveRawSync();
   const next = live.agentEntries.filter((e) => String(e.id ?? "") !== slotId);
   if (next.length === live.agentEntries.length) return;
+  if (next.length === 0) {
+    persistDevQueueClear();
+    return;
+  }
   live.agentEntries = next;
   writeLiveRawSync(live);
 }
 
+/**
+ * 디스크 스냅샷 + 메모리 실행 큐 병합(표시용 — 디스크는 덮어쓰지 않음)
+ * @param {Array<Record<string, unknown>>} disk
+ * @param {Array<Record<string, unknown>>} runtime
+ */
+export function unionAgentEntriesForDisplay(disk, runtime) {
+  /** @type {Map<string, Record<string, unknown>>} */
+  const byId = new Map();
+  for (const e of disk) {
+    const id = String(e.id ?? "").trim();
+    if (!id) continue;
+    byId.set(id, e);
+  }
+  for (const e of runtime) {
+    if (String(e.requestIp ?? "").trim() === RECORD_MODE_REQUEST_IP) continue;
+    const id = String(e.id ?? "").trim();
+    if (!id) continue;
+    const prev = byId.get(id);
+    byId.set(id, prev ? { ...prev, ...e } : e);
+  }
+  return sortLiveEntries([...byId.values()]);
+}
+
+/**
+ * 오래된 running만 제거·파일 비움(dev 재시작 시 전체 삭제하지 않음)
+ * @param {number} [maxRunningAgeMs]
+ */
+export function sweepStalePersistedDevQueueSync(maxRunningAgeMs = 45 * 60 * 1000) {
+  const live = readLiveRawSync();
+  const now = Date.now();
+  const next = live.agentEntries.filter((e) => {
+    if (e.status !== "running") return true;
+    const at = typeof e.enqueuedAtMs === "number" ? e.enqueuedAtMs : 0;
+    return at <= 0 || now - at < maxRunningAgeMs;
+  });
+  if (next.length === live.agentEntries.length) return;
+  if (next.length === 0) persistDevQueueClear();
+  else {
+    live.agentEntries = sortLiveEntries(next);
+    writeLiveRawSync(live);
+  }
+}
+
 /** UI·GET — 디스크 영속 큐 + lease 보조 + 순번 */
-export function readDevQueueDisplaySnapshotSync() {
+/**
+ * @param {Array<Record<string, unknown>>} [runtimeEntries]
+ */
+export function readDevQueueDisplaySnapshotSync(runtimeEntries = []) {
   const live = loadLiveFromDiskSync();
   memoryLive = live;
   const filtered = live.agentEntries.filter(
     (e) => String(e.requestIp ?? "").trim() !== RECORD_MODE_REQUEST_IP,
   );
-  const merged = mergeIdeLeaseIntoDisplayEntries(filtered);
+  const unioned = unionAgentEntriesForDisplay(filtered, runtimeEntries);
+  const merged = mergeIdeLeaseIntoDisplayEntries(unioned);
   const agentEntries = enrichAgentEntriesWithUnifiedSeq(merged);
   return {
     updatedAtMs: live.updatedAtMs,

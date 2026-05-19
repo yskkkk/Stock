@@ -2,9 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  persistDevQueueClear,
   persistDevQueueRemove,
   persistDevQueueSetRunning,
   persistDevQueueUpsert,
+  readDevQueueLiveAgentEntriesSync,
 } from "./ops-dev-queue-live-store.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -133,8 +135,13 @@ export function writeIdeLeaseDiskImmediate(input) {
     /* write */
   }
   fs.writeFileSync(IDE_LEASE_PATH, line, "utf8");
+  const sessionId = String(input.sessionId ?? "").trim();
+  const leaseId = String(input.leaseId ?? "").trim();
   const persistId =
-    String(input.leaseId ?? "").trim() || `ide-lease-${now}`;
+    leaseId || (sessionId ? `ide-session-${sessionId}` : `ide-lease-${now}`);
+  if (leaseId && sessionId) {
+    persistDevQueueRemove(`ide-session-${sessionId}`);
+  }
   persistDevQueueUpsert({
     id: persistId,
     requestIp: "cursor-ide",
@@ -144,7 +151,7 @@ export function writeIdeLeaseDiskImmediate(input) {
     instructionBody: prompt.slice(0, 16_000),
     enqueuedAtMs: now,
     status: queueStatus,
-    sessionId: input.sessionId ?? null,
+    sessionId: sessionId || null,
   });
   if (queueStatus === "running") {
     persistDevQueueSetRunning(persistId);
@@ -154,6 +161,7 @@ export function writeIdeLeaseDiskImmediate(input) {
 export function clearIdeLeaseOnDisk() {
   const lease = readIdeLeaseDiskSync();
   const leaseId = String(lease?.leaseId ?? lease?.id ?? "").trim();
+  const sessionId = String(lease?.sessionId ?? "").trim();
   try {
     if (!fs.existsSync(IDE_LEASE_PATH)) return;
     fs.unlinkSync(IDE_LEASE_PATH);
@@ -161,4 +169,6 @@ export function clearIdeLeaseOnDisk() {
     /* ignore */
   }
   if (leaseId) persistDevQueueRemove(leaseId);
+  if (sessionId) persistDevQueueRemove(`ide-session-${sessionId}`);
+  if (readDevQueueLiveAgentEntriesSync().length === 0) persistDevQueueClear();
 }

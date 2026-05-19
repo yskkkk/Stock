@@ -4593,6 +4593,14 @@ html[data-theme="light"] .ops-global-queue-stack {
     0 4px 20px rgba(15, 23, 42, 0.09);
 }
 
+.ops-global-queue-stack__empty {
+  margin: 0;
+  padding: 0.35rem 0.5rem;
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
 .ops-global-queue-stack__heading {
   margin: 0 0 0.45rem;
   padding: 0.2rem 0.35rem 0.28rem;

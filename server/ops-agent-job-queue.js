@@ -18,6 +18,7 @@ import {
 import { mergeIdeLeaseDiskIntoAgentEntries } from "./ops-ide-lease-disk.js";
 import {
   metaToPersistEntry,
+  persistDevQueueClear,
   persistDevQueueRemove,
   persistDevQueueSetRunning,
   persistDevQueueUpsert,
@@ -682,6 +683,13 @@ export function releaseAnyRunningIdeDevQueueSlot() {
     });
     persistDevQueueRemove(id);
     released = true;
+  }
+
+  if (!active && slots.length === 0) {
+    const left = readDevQueueLiveAgentEntriesSync().filter(
+      (e) => e.status === "running" || e.status === "waiting",
+    );
+    if (left.length === 0) persistDevQueueClear();
   }
 
   return { ok: true, released };

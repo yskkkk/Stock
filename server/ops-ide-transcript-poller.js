@@ -12,7 +12,10 @@ import {
   releaseAnyRunningIdeDevQueueSlot,
   releaseRunningIdeDevQueueIfDifferentPrompt,
 } from "./ops-agent-job-queue.js";
-import { readDevQueueLiveAgentEntriesSync } from "./ops-dev-queue-live-store.js";
+import {
+  readDevQueueLiveAgentEntriesSync,
+  sweepStalePersistedDevQueueSync,
+} from "./ops-dev-queue-live-store.js";
 import {
   clearIdeLeaseOnDisk,
   writeIdeLeaseDiskImmediate,
@@ -354,8 +357,7 @@ export function startOpsIdeTranscriptPoller() {
   pollerStarted = true;
 
   try {
-    releaseAnyRunningIdeDevQueueSlot();
-    clearIdeLeaseOnDisk();
+    sweepStalePersistedDevQueueSync();
   } catch {
     /* ignore */
   }

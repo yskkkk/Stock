@@ -9,4 +9,7 @@ export {
   persistDevQueueUpsert,
   persistDevQueueSetRunning,
   persistDevQueueRemove,
+  persistDevQueueClear,
+  sweepStalePersistedDevQueueSync,
+  unionAgentEntriesForDisplay,
 } from "./ops-dev-queue-live-store.js";

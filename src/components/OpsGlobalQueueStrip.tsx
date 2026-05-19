@@ -76,6 +76,9 @@ export default function OpsGlobalQueueStrip({ onOpenOps }: { onOpenOps: () => vo
         className="ops-agent-queue-track ops-management__server-queue-track ops-global-queue-stack__track"
         role="list"
       >
+        {rows.length === 0 ? (
+          <p className="ops-global-queue-stack__empty">{ko.app.opsGlobalQueueEmpty}</p>
+        ) : null}
         {rows.map((r) => {
           const aria = `${sourceLabelForRow(r)}. ${ko.app.opsGlobalQueueFieldProcessRank}: ${r.processRankDisplay}. ${ko.app.opsGlobalQueueFieldStatus}: ${r.statusLabel}. ${ko.app.opsGlobalQueueFieldTitle}: ${r.requestTitle}`;
           return (
