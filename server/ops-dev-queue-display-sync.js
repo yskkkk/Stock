@@ -1,12 +1,9 @@
 /**
- * display JSON = 메모리 FIFO 미러(± 4s 이내 pending lease, GET 이중 병합 없음).
+ * display JSON = 메모리 FIFO 미러(+ 디스크 lease, GET 이중 병합 없음).
  */
 import { getOpsAgentQueueMemorySnapshot } from "./ops-agent-job-queue.js";
 import { writeDevQueueDisplayMirrorFromRuntime } from "./ops-dev-queue-live-store.js";
-import { readIdeLeaseDiskSync } from "./ops-ide-lease-disk.js";
-
-/** enqueue API 응답 전 잠깐만 — lease 파일만 있을 때 미러에 보조 표시 */
-const PENDING_LEASE_MIRROR_MS = 4_000;
+import { mergeIdeLeaseDiskIntoAgentEntries } from "./ops-ide-lease-disk.js";
 
 /** UI 폴링과 동일(100ms) — env로 조정 가능 */
 export const DEV_QUEUE_DISPLAY_SYNC_MS = (() => {
@@ -36,43 +33,7 @@ export function syncDevQueueDisplayFromRuntimeEntries(runtimeEntries) {
 
 function entriesForDisplayMirror() {
   const { entries: memory } = getOpsAgentQueueMemorySnapshot();
-  const hasIdeInMemory = memory.some(
-    (e) => e.source === "ide" || e.requestIp === "cursor-ide",
-  );
-  if (hasIdeInMemory) return memory;
-
-  const lease = readIdeLeaseDiskSync();
-  if (!lease) return memory;
-
-  const since =
-    typeof lease.enqueuedAtMs === "number"
-      ? lease.enqueuedAtMs
-      : typeof lease.sinceMs === "number"
-        ? lease.sinceMs
-        : 0;
-  if (since > 0 && Date.now() - since > PENDING_LEASE_MIRROR_MS) return memory;
-
-  const preview = String(
-    lease.instructionPreview ?? lease.promptPreview ?? lease.prompt ?? "",
-  ).trim();
-  if (!preview) return memory;
-
-  const leaseId = String(lease.leaseId ?? lease.id ?? "").trim();
-  const id = leaseId || `ide-lease-${since || Date.now()}`;
-  const statusRaw = String(lease.queueStatus ?? "waiting").toLowerCase();
-  return [
-    ...memory,
-    {
-      id,
-      requestIp: "cursor-ide",
-      source: "ide",
-      instructionPreview: preview,
-      instructionTooltip: preview,
-      instructionBody: String(lease.instructionBody ?? preview).slice(0, 16_000),
-      enqueuedAtMs: since || Date.now(),
-      status: statusRaw === "running" ? "running" : "waiting",
-    },
-  ];
+  return mergeIdeLeaseDiskIntoAgentEntries(memory);
 }
 
 export function syncDevQueueDisplayFromRuntimeSync() {

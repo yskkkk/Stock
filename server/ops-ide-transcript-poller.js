@@ -160,10 +160,8 @@ function hasIdeQueueWork(/** @type {ReturnType<typeof getOpsAgentQueueMemorySnap
  * @param {ReturnType<typeof getOpsAgentQueueMemorySnapshot>} snap
  */
 function tryReleaseWhenTurnEnded(lines, snap) {
-  if (!hasIdeQueueWork(snap)) {
-    clearIdeLeaseOnDisk();
-    return;
-  }
+  /* 메모리만 비었다고 lease를 지우지 않음 — 훅이 enqueue 전에 쓴 lease가 매 100ms마다 삭제되던 원인 */
+  if (!hasIdeQueueWork(snap)) return;
 
   if (!lines.length) return;
 
