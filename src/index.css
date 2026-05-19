@@ -6421,9 +6421,9 @@ body {
 .pick-cond-matrix__head,
 .pick-cond-matrix__row {
   display: grid;
-  grid-template-columns: repeat(11, minmax(2.1rem, 1fr));
-  gap: 0.12rem;
-  min-width: min(100%, 26rem);
+  grid-template-columns: repeat(11, minmax(2.35rem, 1fr));
+  gap: 0.14rem;
+  min-width: min(100%, 30rem);
 }
 
 .pick-cond-matrix__col-head {
@@ -6445,18 +6445,27 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.62rem;
-  line-height: 1;
-  min-height: 1.1rem;
-  border-radius: 3px;
-  color: var(--muted);
-  background: rgba(148, 163, 184, 0.06);
+  font-size: 0.58rem;
+  font-weight: 600;
+  line-height: 1.15;
+  min-height: 1.25rem;
+  padding: 0.1rem 0.12rem;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.pick-cond-matrix__cell--on {
-  color: var(--accent);
-  background: var(--accent-dim);
-  font-weight: 700;
+.pick-cond-matrix__cell--off {
+  color: var(--muted);
+  background: rgba(148, 163, 184, 0.06);
+  opacity: 0.55;
+  font-weight: 500;
+}
+
+.pick-cond-matrix__cell--on.signal-tag {
+  border-width: 1px;
+  border-style: solid;
 }
 
 .pick-item .pick-cond-matrix__row {
