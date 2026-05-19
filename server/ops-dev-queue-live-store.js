@@ -1,6 +1,6 @@
 /**
- * 개발 대기열 **영속 상태** — server/.data/ops-dev-queue-display.json
- * 작업 등록·실행·완료 시 즉시 upsert/remove (메모리·dev 재시작과 무관).
+ * 개발 대기열 **표시 미러** — server/.data/ops-dev-queue-display.json
+ * SSOT는 메모리 FIFO(ops-agent-job-queue). 이 파일은 display-sync 폴러가 주기적으로 덮어씀.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -17,25 +17,6 @@ export const DEV_QUEUE_LIVE_FILE = path.join(DATA_DIR, "ops-dev-queue-display.js
 
 /** @type {{ updatedAtMs: number; agentEntries: Array<Record<string, unknown>> } | null} */
 let memoryLive = null;
-
-/** @type {(() => boolean) | null} true면 display 파일 비워도 됨 */
-let mayClearDisplayFile = null;
-
-/** @param {() => boolean} fn */
-export function setDevQueueDisplayClearGuard(fn) {
-  mayClearDisplayFile = fn;
-}
-
-/** 메모리·디스크 모두 활성 작업 없을 때만 JSON 비움 */
-export function persistDevQueueClearWhenAllowed() {
-  const disk = readLiveRawSync().agentEntries;
-  const hasDisk = disk.some(
-    (e) => e.status === "running" || e.status === "waiting",
-  );
-  if (hasDisk) return;
-  if (mayClearDisplayFile && !mayClearDisplayFile()) return;
-  persistDevQueueClear();
-}
 
 function ensureDirSync() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -148,83 +129,75 @@ function syncAgentHistoryFromPersistEntry(entry) {
   }
 }
 
-/** @param {Record<string, unknown>} entry */
-export function persistDevQueueUpsert(entry) {
-  const id = String(entry.id ?? "").trim();
-  if (!id) return;
-  const live = readLiveRawSync();
-  const idx = live.agentEntries.findIndex((e) => String(e.id ?? "") === id);
-  const next = { ...entry, id };
-  if (idx >= 0) live.agentEntries[idx] = { ...live.agentEntries[idx], ...next };
-  else live.agentEntries.push(next);
-  live.agentEntries = sortLiveEntries(live.agentEntries);
-  writeLiveRawSync(live);
-  syncAgentHistoryFromPersistEntry(next);
-}
+/** @deprecated display-sync 미러 사용 — 호환용 no-op */
+export function persistDevQueueUpsert(_entry) {}
 
-/** @param {string} id */
-export function persistDevQueueSetRunning(id) {
-  const slotId = String(id ?? "").trim();
-  if (!slotId) return;
-  const live = readLiveRawSync();
-  let found = false;
-  for (const e of live.agentEntries) {
-    if (String(e.id ?? "") === slotId) {
-      e.status = "running";
-      found = true;
-    } else if (e.status === "running") {
-      e.status = "waiting";
-    }
-  }
-  if (!found) return;
-  live.agentEntries = sortLiveEntries(live.agentEntries);
-  writeLiveRawSync(live);
-  const hit = live.agentEntries.find((e) => String(e.id ?? "") === slotId);
-  if (hit) syncAgentHistoryFromPersistEntry(hit);
-}
+/** @deprecated display-sync 미러 사용 — 호환용 no-op */
+export function persistDevQueueSetRunning(_id) {}
 
 /** 완료·정리 시 — agentEntries를 비운 스냅샷만 남김 */
 export function persistDevQueueClear() {
   writeLiveRawSync({ updatedAtMs: Date.now(), agentEntries: [] });
 }
 
-/** @param {string} id */
-export function persistDevQueueRemove(id) {
-  const slotId = String(id ?? "").trim();
-  if (!slotId) return;
-  const live = readLiveRawSync();
-  const next = live.agentEntries.filter((e) => String(e.id ?? "") !== slotId);
-  if (next.length === live.agentEntries.length) return;
-  if (next.length === 0) {
-    live.agentEntries = [];
-    writeLiveRawSync(live);
-    return;
-  }
-  live.agentEntries = next;
-  writeLiveRawSync(live);
+/** @deprecated display-sync 미러 사용 — 호환용 no-op */
+export function persistDevQueueRemove(_id) {}
+
+/** @param {unknown} e */
+function normalizeMirrorEntry(e) {
+  if (!isPlainObject(e)) return null;
+  const id = String(e.id ?? "").trim();
+  if (!id) return null;
+  const st = String(e.status ?? "waiting");
+  const status = st === "running" ? "running" : "waiting";
+  const out = {
+    id,
+    requestIp: String(e.requestIp ?? "").trim() || "—",
+    source: e.source === "ide" ? "ide" : "web",
+    instructionPreview: String(e.instructionPreview ?? "").trim() || "—",
+    instructionTooltip: String(e.instructionTooltip ?? e.instructionPreview ?? "").trim() || "—",
+    instructionBody: String(e.instructionBody ?? e.instructionPreview ?? "").slice(0, 16_000),
+    enqueuedAtMs:
+      typeof e.enqueuedAtMs === "number" && Number.isFinite(e.enqueuedAtMs)
+        ? e.enqueuedAtMs
+        : Date.now(),
+    status,
+  };
+  const sessionId = String(e.sessionId ?? "").trim();
+  if (sessionId) out.sessionId = sessionId;
+  return out;
 }
 
 /**
- * 디스크 스냅샷 + 메모리 실행 큐 병합(표시용 — 디스크는 덮어쓰지 않음)
- * @param {Array<Record<string, unknown>>} disk
- * @param {Array<Record<string, unknown>>} runtime
+ * 메모리 FIFO → display JSON 미러
+ * @param {Array<Record<string, unknown>>} runtimeEntries
+ * @param {{ preserveDiskWhenMemoryEmpty?: boolean }} [opts]
  */
-export function unionAgentEntriesForDisplay(disk, runtime) {
-  /** @type {Map<string, Record<string, unknown>>} */
-  const byId = new Map();
-  for (const e of disk) {
-    const id = String(e.id ?? "").trim();
-    if (!id) continue;
-    byId.set(id, e);
+export function writeDevQueueDisplayMirrorFromRuntime(runtimeEntries, opts = {}) {
+  const mem = (Array.isArray(runtimeEntries) ? runtimeEntries : [])
+    .map(normalizeMirrorEntry)
+    .filter(Boolean)
+    .filter((e) => String(e.requestIp ?? "").trim() !== RECORD_MODE_REQUEST_IP);
+
+  /** @type {Array<Record<string, unknown>>} */
+  let toWrite;
+  if (mem.length > 0) {
+    toWrite = sortLiveEntries(mem);
+  } else if (opts.preserveDiskWhenMemoryEmpty) {
+    const disk = loadLiveFromDiskSync().agentEntries;
+    toWrite = sortLiveEntries(
+      disk.filter(
+        (e) =>
+          String(e.requestIp ?? "").trim() !== RECORD_MODE_REQUEST_IP &&
+          (e.status === "running" || e.status === "waiting"),
+      ),
+    );
+  } else {
+    toWrite = [];
   }
-  for (const e of runtime) {
-    if (String(e.requestIp ?? "").trim() === RECORD_MODE_REQUEST_IP) continue;
-    const id = String(e.id ?? "").trim();
-    if (!id) continue;
-    const prev = byId.get(id);
-    byId.set(id, prev ? { ...prev, ...e } : e);
-  }
-  return sortLiveEntries([...byId.values()]);
+
+  writeLiveRawSync({ updatedAtMs: Date.now(), agentEntries: toWrite });
+  for (const row of toWrite) syncAgentHistoryFromPersistEntry(row);
 }
 
 /**
@@ -247,18 +220,14 @@ export function sweepStalePersistedDevQueueSync(maxRunningAgeMs = 45 * 60 * 1000
   }
 }
 
-/** UI·GET — 디스크 영속 큐 + lease 보조 + 순번 */
-/**
- * @param {Array<Record<string, unknown>>} [runtimeEntries]
- */
-export function readDevQueueDisplaySnapshotSync(runtimeEntries = []) {
+/** UI·GET — display 미러 파일(+ enqueue 전 lease 보조) */
+export function readDevQueueDisplaySnapshotSync() {
   const live = loadLiveFromDiskSync();
   memoryLive = live;
   const filtered = live.agentEntries.filter(
     (e) => String(e.requestIp ?? "").trim() !== RECORD_MODE_REQUEST_IP,
   );
-  const unioned = unionAgentEntriesForDisplay(filtered, runtimeEntries);
-  const merged = mergeIdeLeaseIntoDisplayEntries(unioned);
+  const merged = mergeIdeLeaseIntoDisplayEntries(filtered);
   const agentEntries = enrichAgentEntriesWithUnifiedSeq(merged);
   return {
     updatedAtMs: live.updatedAtMs,
@@ -267,17 +236,16 @@ export function readDevQueueDisplaySnapshotSync(runtimeEntries = []) {
   };
 }
 
-/** @deprecated 메모리→전체 덮어쓰기 제거(재시작 시 큐 유실 방지) */
-export function syncDevQueueDisplayFromRuntimeSync() {
-  return readDevQueueDisplaySnapshotSync();
-}
-
 export function refreshDevQueueDisplaySnapshotSync() {
   return readDevQueueDisplaySnapshotSync();
 }
 
-/** @deprecated 증분 persist 사용 */
-export function scheduleDevQueueDisplayRefresh() {}
+/** @deprecated — ops-dev-queue-display-sync.js 사용 */
+export function scheduleDevQueueDisplayRefresh() {
+  void import("./ops-dev-queue-display-sync.js")
+    .then((m) => m.requestDevQueueDisplaySyncNow())
+    .catch(() => {});
+}
 
 export function buildDevQueueDisplayPayload() {
   return readDevQueueDisplaySnapshotSync();

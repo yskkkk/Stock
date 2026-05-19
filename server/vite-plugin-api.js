@@ -7,6 +7,8 @@ import { startAutoGitSync } from "./auto-git-sync.js";
 import { createApp } from "./create-app.js";
 import { loadEnvFile } from "./load-env.js";
 import { installProcessGuards } from "./process-guards.js";
+import { startDevQueueDisplaySyncPoller } from "./ops-dev-queue-display-sync.js";
+import { startOpsIdeTranscriptPoller } from "./ops-ide-transcript-poller.js";
 import { startScreening } from "./screener.js";
 import { installAccessGateHtmlMiddleware } from "./vite-access-gate-html.js";
 
@@ -108,6 +110,8 @@ export function stockApiPlugin() {
       installViteAccessTraceMiddleware(server);
       attachStockApiMiddlewares(server);
       attachAutoGitSyncWhenListening(server);
+      startDevQueueDisplaySyncPoller();
+      startOpsIdeTranscriptPoller();
       setTimeout(() => {
         startScreening().catch(logScreeningError);
       }, 1500);
@@ -117,6 +121,8 @@ export function stockApiPlugin() {
       installAccessGateHtmlMiddleware(server);
       installViteAccessTraceMiddleware(server);
       attachStockApiMiddlewares(server);
+      startDevQueueDisplaySyncPoller();
+      startOpsIdeTranscriptPoller();
       setTimeout(() => {
         startScreening().catch(logScreeningError);
       }, 1500);

@@ -1,15 +1,22 @@
-/** @deprecated import from ops-dev-queue-live-store.js */
+/** @deprecated import from ops-dev-queue-live-store.js / ops-dev-queue-display-sync.js */
 export {
   buildDevQueueDisplayPayload,
   readDevQueueDisplaySnapshotSync,
   refreshDevQueueDisplaySnapshotSync,
   scheduleDevQueueDisplayRefresh,
-  syncDevQueueDisplayFromRuntimeSync,
   metaToPersistEntry,
   persistDevQueueUpsert,
   persistDevQueueSetRunning,
   persistDevQueueRemove,
   persistDevQueueClear,
   sweepStalePersistedDevQueueSync,
-  unionAgentEntriesForDisplay,
+  writeDevQueueDisplayMirrorFromRuntime,
 } from "./ops-dev-queue-live-store.js";
+
+export {
+  startDevQueueDisplaySyncPoller,
+  requestDevQueueDisplaySyncNow,
+  syncDevQueueDisplayFromRuntimeEntries,
+  syncDevQueueDisplayFromRuntimeSync,
+  DEV_QUEUE_DISPLAY_SYNC_MS,
+} from "./ops-dev-queue-display-sync.js";

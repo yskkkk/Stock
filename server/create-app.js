@@ -38,7 +38,6 @@ import {
   abandonIdeDevQueueSlot,
   acquireIdeDevQueueSlot,
   enqueueOpsAgentJob,
-  getOpsAgentQueueSnapshot,
   registerIdeDevQueueSlot,
   releaseAnyRunningIdeDevQueueSlot,
   releaseIdeDevQueueSlot,
@@ -74,6 +73,7 @@ import {
   reconcilePersistQueueToAgentHistorySync,
   sweepStalePersistedDevQueueSync,
 } from "./ops-dev-queue-live-store.js";
+import { startDevQueueDisplaySyncPoller } from "./ops-dev-queue-display-sync.js";
 import {
   FILE_DEV_POLL_MS,
   appendFileDevPendingJob,
@@ -532,7 +532,7 @@ export function createApp() {
         return;
       }
       const viewerIp = normalizeAccessIp(expressClientIp(req));
-      const snap = readDevQueueDisplaySnapshotSync(getOpsAgentQueueSnapshot().entries);
+      const snap = readDevQueueDisplaySnapshotSync();
       res.json({
         entries: snap.agentEntries,
         viewerIp: viewerIp || null,
@@ -540,12 +540,11 @@ export function createApp() {
     }),
   );
 
-  /** 허용 IP — 개발 대기열: 디스크 스냅샷 + 메모리 실행 큐 병합 표시 */
+  /** 허용 IP — 개발 대기열: display 미러 파일(주기 sync) */
   app.get(
     "/api/ops/dev-queue-display",
     asyncRoute(async (req, res) => {
-      const runtime = getOpsAgentQueueSnapshot().entries;
-      const snap = readDevQueueDisplaySnapshotSync(runtime);
+      const snap = readDevQueueDisplaySnapshotSync();
       const viewerIp = isAccessAdminRequest(req)
         ? normalizeAccessIp(expressClientIp(req)) || null
         : null;
@@ -1018,6 +1017,7 @@ export function createApp() {
   try {
     reconcilePersistQueueToAgentHistorySync();
     sweepStalePersistedDevQueueSync();
+    startDevQueueDisplaySyncPoller();
   } catch {
     /* ignore */
   }

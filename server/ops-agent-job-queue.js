@@ -18,12 +18,7 @@ import {
 import { mergeIdeLeaseDiskIntoAgentEntries } from "./ops-ide-lease-disk.js";
 import {
   metaToPersistEntry,
-  persistDevQueueClearWhenAllowed,
-  persistDevQueueRemove,
-  persistDevQueueSetRunning,
-  persistDevQueueUpsert,
   readDevQueueLiveAgentEntriesSync,
-  setDevQueueDisplayClearGuard,
 } from "./ops-dev-queue-live-store.js";
 import { opsIdePromptsMatch } from "./ops-ide-prompt-match.js";
 
@@ -73,29 +68,16 @@ const PREVIEW_MAX = 220;
 const TOOLTIP_MAX = 900;
 const TOOLTIP_MAX_LINES = 4;
 
-/** @param {QueueSlot} slot */
-function persistDevQueueWaiting(slot) {
-  if (!slot.meta) return;
-  persistDevQueueUpsert(metaToPersistEntry(slot.meta, "waiting"));
-}
-
-/** @param {QueueSlot} slot */
-function persistDevQueueRunning(slot) {
-  if (!slot.meta) return;
-  persistDevQueueSetRunning(slot.id);
-}
-
-/** @param {string} slotId */
-function persistDevQueueDone(slotId) {
-  persistDevQueueRemove(slotId);
-}
-
 /** IDE 턴이 메모리 큐에서 아직 열려 있는지(해제 전) */
 export function isIdeDevQueueTurnOpen() {
   return active && runningSlot?.source === "ide";
 }
 
-setDevQueueDisplayClearGuard(() => !active && slots.length === 0);
+function bumpDevQueueDisplayMirror() {
+  void import("./ops-dev-queue-display-sync.js")
+    .then((m) => m.requestDevQueueDisplaySyncNow())
+    .catch(() => {});
+}
 
 /** @param {unknown} ip */
 function sanitizeQueueIp(ip) {
@@ -264,7 +246,7 @@ async function drainQueue() {
   runningSlot = slot;
   runningMeta = slot.meta;
   writeRunningBusyMarker();
-  persistDevQueueRunning(slot);
+  bumpDevQueueDisplayMirror();
 
   if (slot.source === "web") {
     try {
@@ -279,7 +261,7 @@ async function drainQueue() {
       runningSlot = null;
       runningMeta = null;
       clearOpsWebAgentBusyMarkerSync();
-      persistDevQueueDone(slot.id);
+      bumpDevQueueDisplayMirror();
       void drainQueue();
     }
     return;
@@ -327,7 +309,7 @@ async function drainQueue() {
     runningSlot = null;
     runningMeta = null;
     clearOpsWebAgentBusyMarkerSync();
-    persistDevQueueDone(slot.id);
+    bumpDevQueueDisplayMirror();
     void drainQueue();
   }
 }
@@ -363,7 +345,7 @@ export function enqueueOpsAgentJob(fn, onQueued, meta, onCommittedToQueue) {
       reject,
     });
     slots.push(slot);
-    persistDevQueueWaiting(slot);
+    bumpDevQueueDisplayMirror();
     try {
       onCommittedToQueue?.();
     } catch {
@@ -507,8 +489,8 @@ export function registerIdeDevQueueSlot(input) {
     ...metaToPersistEntry(queueMeta, "waiting"),
     sessionId,
   };
-  persistDevQueueUpsert(waitingEntry);
   syncIdeHistoryWaiting(slot);
+  bumpDevQueueDisplayMirror();
   void drainQueue();
 
   const leaseId = slot.id;
@@ -577,7 +559,7 @@ export function abandonIdeDevQueueSlot(leaseId) {
 
   const idx = slots.findIndex((s) => s.id === id && s.source === "ide");
   if (idx < 0) {
-    persistDevQueueRemove(id);
+    bumpDevQueueDisplayMirror();
     return { ok: true, cancelled: true, fromPersistOnly: true };
   }
 
@@ -600,7 +582,7 @@ export function abandonIdeDevQueueSlot(leaseId) {
     /* ignore */
   }
   syncIdeHistoryFinalize(slot, "cancelled");
-  persistDevQueueRemove(id);
+  bumpDevQueueDisplayMirror();
   if (!active) {
     clearOpsWebAgentBusyMarkerSync();
     void drainQueue();
@@ -631,6 +613,7 @@ export function releaseIdeDevQueueSlot(input) {
   } catch {
     /* ignore */
   }
+  bumpDevQueueDisplayMirror();
   return { ok: true };
 }
 
@@ -656,47 +639,7 @@ export function releaseAnyRunningIdeDevQueueSlot() {
     }
   }
 
-  /* IDE 턴 진행 중에는 디스크 행(ide-session-* vs lease UUID)을 고아로 지우지 않음 */
-  if (!isIdeDevQueueTurnOpen()) {
-    const memRunningId =
-      active && runningSlot?.source === "ide"
-        ? String(runningSlot.id ?? "").trim()
-        : "";
-
-    for (const e of readDevQueueLiveAgentEntriesSync()) {
-      if (e.status !== "running") continue;
-      if (e.source !== "ide" && e.requestIp !== "cursor-ide") continue;
-      const id = String(e.id ?? "").trim();
-      if (!id) continue;
-      if (memRunningId && id === memRunningId) continue;
-      const ins = String(e.instructionBody ?? e.instructionPreview ?? "").trim();
-      void finalizeOpsAgentEntry(id, {
-        state: "ok",
-        instruction: ins,
-        requestIp: "cursor-ide",
-        phaseLine: "Cursor IDE (단일 개발 큐)",
-        cursorLine: "",
-        thinkingLine: "",
-        toolLine: "",
-        toolLog: "",
-        streamText: "",
-        statusText: "IDE 세션 종료",
-        resultText:
-          "Cursor IDE에서 요청이 완료되어 개발 큐에서 해제되었습니다.",
-        durationMs: Math.max(
-          0,
-          Date.now() -
-            (typeof e.enqueuedAtMs === "number" ? e.enqueuedAtMs : Date.now()),
-        ),
-        runtimeLabel: "ide",
-        error: null,
-      });
-      persistDevQueueRemove(id);
-      released = true;
-    }
-  }
-
-  persistDevQueueClearWhenAllowed();
+  bumpDevQueueDisplayMirror();
 
   return { ok: true, released };
 }

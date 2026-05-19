@@ -1,12 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  persistDevQueueClearWhenAllowed,
-  persistDevQueueRemove,
-  persistDevQueueSetRunning,
-  persistDevQueueUpsert,
-} from "./ops-dev-queue-live-store.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");
@@ -134,40 +128,19 @@ export function writeIdeLeaseDiskImmediate(input) {
     /* write */
   }
   fs.writeFileSync(IDE_LEASE_PATH, line, "utf8");
-  const sessionId = String(input.sessionId ?? "").trim();
-  const leaseId = String(input.leaseId ?? "").trim();
-  const persistId =
-    leaseId || (sessionId ? `ide-session-${sessionId}` : `ide-lease-${now}`);
-  if (leaseId && sessionId) {
-    persistDevQueueRemove(`ide-session-${sessionId}`);
-  }
-  persistDevQueueUpsert({
-    id: persistId,
-    requestIp: "cursor-ide",
-    source: "ide",
-    instructionPreview: preview,
-    instructionTooltip: preview,
-    instructionBody: prompt.slice(0, 16_000),
-    enqueuedAtMs: now,
-    status: queueStatus,
-    sessionId: sessionId || null,
-  });
-  if (queueStatus === "running") {
-    persistDevQueueSetRunning(persistId);
-  }
+  void import("./ops-dev-queue-display-sync.js")
+    .then((m) => m.requestDevQueueDisplaySyncNow())
+    .catch(() => {});
 }
 
 export function clearIdeLeaseOnDisk() {
-  const lease = readIdeLeaseDiskSync();
-  const leaseId = String(lease?.leaseId ?? lease?.id ?? "").trim();
-  const sessionId = String(lease?.sessionId ?? "").trim();
   try {
     if (!fs.existsSync(IDE_LEASE_PATH)) return;
     fs.unlinkSync(IDE_LEASE_PATH);
   } catch {
     /* ignore */
   }
-  if (leaseId) persistDevQueueRemove(leaseId);
-  if (sessionId) persistDevQueueRemove(`ide-session-${sessionId}`);
-  persistDevQueueClearWhenAllowed();
+  void import("./ops-dev-queue-display-sync.js")
+    .then((m) => m.requestDevQueueDisplaySyncNow())
+    .catch(() => {});
 }

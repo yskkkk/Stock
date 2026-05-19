@@ -10,4 +10,4 @@ alwaysApply: true
 - **서버**: `server/**`, `vite.config.*`, `package.json` 등 재기동이 필요하면 이 프로젝트 dev 프로세스만 재시작(가능할 때). 세부는 `@server-restart-after-changes`.
 - **완료 비프**: 사용자에게 보낼 **최종 답 직전에만** `[Console]::Beep(880,200);[Console]::Beep(1100,250)` (다른 셸 명령 없이). 사용자가 끄라고 하면 생략, push 실패 등 미완료 턴은 생략. 순서·예외는 `@task-complete-sound`.
 - **품질**: 추측 보고 금지, 확인 후 완료라고 말하기. 더 촘촘한 원칙은 `@zero-mistakes`.
-- **단일 개발 큐**: SSOT `server/.data/ops-dev-queue-display.json`(끝나면 **비움**). 전송 직후 훅·lease·웹 **0.1s** 폴링. 답 끝 → `stop`/`sessionEnd` 또는 transcript **12s** 유휴 → `release-active`. 훅 없으면 `node scripts/ops-ide-queue-pulse.mjs "요약"`. 상세 `@dev-queue`.
+- **단일 개발 큐**: 실행 SSOT=메모리 FIFO, 표시=`ops-dev-queue-display.json`( **100ms 미러** ). 답 끝 → 훅 release 또는 transcript 12s+텍스트-only. 상세 `@dev-queue`.
