@@ -635,7 +635,14 @@ export function releaseAnyRunningIdeDevQueueSlot() {
   }
 
   clearIdeLeaseOnDisk();
-  bumpDevQueueDisplayMirror();
+  void import("./ops-dev-queue-display-sync.js")
+    .then((m) => {
+      m.releaseDevQueueDisplayPreserve();
+      m.requestDevQueueDisplaySyncNow();
+    })
+    .catch(() => {
+      bumpDevQueueDisplayMirror();
+    });
 
   return { ok: true, released };
 }

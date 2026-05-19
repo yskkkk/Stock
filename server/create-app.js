@@ -68,10 +68,7 @@ import {
 } from "./picks-history-store.js";
 import { mergeLiveQuotesIntoPicksState } from "./picks-live-quotes.js";
 import { enrichUnifiedQueueAgentAndRecord } from "./ops-unified-queue-seq.js";
-import {
-  readDevQueueDisplaySnapshotSync,
-  reconcilePersistQueueToAgentHistorySync,
-} from "./ops-dev-queue-live-store.js";
+import { readDevQueueDisplaySnapshotSync } from "./ops-dev-queue-live-store.js";
 import { startDevQueueDisplaySyncPoller } from "./ops-dev-queue-display-sync.js";
 import {
   FILE_DEV_POLL_MS,
@@ -1014,7 +1011,6 @@ export function createApp() {
   installDistSpaIfPresent(app);
 
   try {
-    reconcilePersistQueueToAgentHistorySync();
     startDevQueueDisplaySyncPoller();
   } catch {
     /* ignore */

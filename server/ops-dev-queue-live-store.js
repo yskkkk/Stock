@@ -5,6 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { mergeIdeLeaseIntoDisplayEntries } from "./ops-ide-lease-disk.js";
 import { upsertOpsAgentHistoryFromQueueSync } from "./ops-agent-history-store.js";
 import { enrichAgentEntriesWithUnifiedSeq } from "./ops-unified-queue-seq.js";
 
@@ -203,14 +204,15 @@ export function sweepStalePersistedDevQueueSync(maxRunningAgeMs = 45 * 60 * 1000
   }
 }
 
-/** UI·GET — display 파일 그대로(이중 lease 병합 없음 → 깜빡임 방지) */
+/** UI·GET — 파일 미러 + enqueue 직전 lease(폴링·파일 읽기용, sync는 display-sync가 담당) */
 export function readDevQueueDisplaySnapshotSync() {
   const live = loadLiveFromDiskSync();
   memoryLive = live;
   const filtered = live.agentEntries.filter(
     (e) => String(e.requestIp ?? "").trim() !== RECORD_MODE_REQUEST_IP,
   );
-  const agentEntries = enrichAgentEntriesWithUnifiedSeq(filtered);
+  const merged = mergeIdeLeaseIntoDisplayEntries(filtered);
+  const agentEntries = enrichAgentEntriesWithUnifiedSeq(merged);
   return {
     updatedAtMs: live.updatedAtMs,
     agentEntries,

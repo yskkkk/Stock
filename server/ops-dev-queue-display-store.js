@@ -16,7 +16,9 @@ export {
 export {
   startDevQueueDisplaySyncPoller,
   requestDevQueueDisplaySyncNow,
+  releaseDevQueueDisplayPreserve,
   resetDevQueueDisplayMirrorOnBoot,
+  reconcileDevQueueDisplayMirrorOnBoot,
   syncDevQueueDisplayFromRuntimeEntries,
   syncDevQueueDisplayFromRuntimeSync,
   DEV_QUEUE_DISPLAY_SYNC_MS,
