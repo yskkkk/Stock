@@ -1,5 +1,18 @@
 import fs from "fs";
-import { dailyServerLogPath, ensureServerLogDirSync } from "./log-paths.js";
+import {
+  dailyServerLogPath,
+  ensureServerLogDirSync,
+  migrateLegacyServerLogsSync,
+} from "./log-paths.js";
+
+let legacyLogsMigrated = false;
+function ensureAccessLogReady() {
+  ensureServerLogDirSync();
+  if (!legacyLogsMigrated) {
+    legacyLogsMigrated = true;
+    migrateLegacyServerLogsSync();
+  }
+}
 
 /** 서버 로컬 날짜 기준 — 자정이 지나면 다음 파일로 자연 전환 */
 function accessLogPathForToday() {
@@ -137,7 +150,7 @@ export function shouldLogViteUrl(url) {
 export function appendAccessLog(req) {
   if (shouldSkipAccessLog(req)) return;
   try {
-    ensureServerLogDirSync();
+    ensureAccessLogReady();
     const { file, console: consoleLine } = lineFromReq(req);
     console.log("[access]", consoleLine);
     fs.appendFile(accessLogPathForToday(), file, (err) => {
@@ -162,7 +175,7 @@ export function appendServerEventLog(
   eventClientIp = null,
 ) {
   try {
-    ensureServerLogDirSync();
+    ensureAccessLogReady();
     const ts = new Date().toISOString();
     const safeCat = String(category ?? "server")
       .replace(/[\t\r\n]/g, "_")

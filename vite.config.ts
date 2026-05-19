@@ -18,6 +18,18 @@ export default defineConfig({
     port: 5173,
     host: true,
     strictPort: true,
+    /** lease·이력·트랜스크립트 등 런타임 파일 변경으로 dev 서버가 재시작되지 않게 */
+    watch: {
+      ignored: [
+        "**/.git/**",
+        "**/.cursor/**",
+        "**/server/.data/**",
+        "**/server/.logs/**",
+        "**/.stock-ops-ide-lease.json",
+        "**/agent-transcripts/**",
+        "**/*.log",
+      ],
+    },
   },
   /** `npm run preview` 시에도 동일하게 외부에서 접근 가능 */
   preview: {

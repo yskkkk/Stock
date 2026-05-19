@@ -7,6 +7,8 @@ import { startAutoGitSync } from "./auto-git-sync.js";
 import { createApp } from "./create-app.js";
 import { loadEnvFile } from "./load-env.js";
 import { installProcessGuards } from "./process-guards.js";
+import { migrateLegacyServerLogsSync } from "./log-paths.js";
+import { appendServerEventLog } from "./access-log.js";
 import { startDevQueueDisplaySyncPoller } from "./ops-dev-queue-display-sync.js";
 import { startOpsIdeTranscriptPoller } from "./ops-ide-transcript-poller.js";
 import { startScreening } from "./screener.js";
@@ -110,6 +112,8 @@ export function stockApiPlugin() {
       installViteAccessTraceMiddleware(server);
       attachStockApiMiddlewares(server);
       attachAutoGitSyncWhenListening(server);
+      migrateLegacyServerLogsSync();
+      appendServerEventLog("server", "dev 서버 기동 — 로그는 server/.logs 에 append 유지");
       startDevQueueDisplaySyncPoller();
       startOpsIdeTranscriptPoller();
       setTimeout(() => {

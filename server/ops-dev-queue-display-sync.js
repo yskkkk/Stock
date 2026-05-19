@@ -2,7 +2,10 @@
  * display JSON = 메모리 FIFO 미러(+ 디스크 lease, GET 이중 병합 없음).
  */
 import { getOpsAgentQueueMemorySnapshot } from "./ops-agent-job-queue.js";
-import { writeDevQueueDisplayMirrorFromRuntime } from "./ops-dev-queue-live-store.js";
+import {
+  readDevQueueDisplaySnapshotSync,
+  writeDevQueueDisplayMirrorFromRuntime,
+} from "./ops-dev-queue-live-store.js";
 import { mergeIdeLeaseDiskIntoAgentEntries } from "./ops-ide-lease-disk.js";
 
 /** UI 폴링과 동일(1s) — env로 조정 가능 */
@@ -12,6 +15,8 @@ export const DEV_QUEUE_DISPLAY_SYNC_MS = (() => {
 })();
 
 let pollerStarted = false;
+/** 프로세스 콜드 부트 직후 — 메모리 비어 있어도 디스크 미러를 즉시 비우지 않음 */
+let bootPreserveDisplayDisk = false;
 
 /** Vite HMR마다 모듈이 리로드되어도 디스크 미러를 매번 []로 지우지 않음 */
 function isColdDevQueueMirrorBoot() {
@@ -20,6 +25,7 @@ function isColdDevQueueMirrorBoot() {
   );
   if (g.__stockDevQueueMirrorBooted) return false;
   g.__stockDevQueueMirrorBooted = true;
+  bootPreserveDisplayDisk = true;
   return true;
 }
 
@@ -37,7 +43,14 @@ function entriesForDisplayMirror() {
 }
 
 export function syncDevQueueDisplayFromRuntimeSync() {
-  syncDevQueueDisplayFromRuntimeEntries(entriesForDisplayMirror());
+  const entries = entriesForDisplayMirror();
+  if (bootPreserveDisplayDisk && entries.length === 0) {
+    const { agentEntries } = readDevQueueDisplaySnapshotSync();
+    if (agentEntries.length > 0) return;
+    bootPreserveDisplayDisk = false;
+  }
+  if (entries.length > 0) bootPreserveDisplayDisk = false;
+  syncDevQueueDisplayFromRuntimeEntries(entries);
 }
 
 /** 큐 변경 직후 1회 — 폴링 틱을 기다리지 않음 */
@@ -45,8 +58,9 @@ export function requestDevQueueDisplaySyncNow() {
   syncDevQueueDisplayFromRuntimeSync();
 }
 
-/** 서버 기동 — 메모리 큐는 비어 있으므로 display 파일을 즉시 []에 맞춤 */
+/** 명시적 초기화(관리·복구) — 일반 재시작에서는 호출하지 않음 */
 export function resetDevQueueDisplayMirrorOnBoot() {
+  bootPreserveDisplayDisk = false;
   writeDevQueueDisplayMirrorFromRuntime([]);
 }
 
@@ -54,10 +68,7 @@ export function startDevQueueDisplaySyncPoller() {
   if (process.env.STOCK_DEV_QUEUE_SYNC === "0") return;
   if (pollerStarted) return;
   pollerStarted = true;
-  if (isColdDevQueueMirrorBoot()) {
-    resetDevQueueDisplayMirrorOnBoot();
-  } else {
-    syncDevQueueDisplayFromRuntimeSync();
-  }
+  isColdDevQueueMirrorBoot();
+  syncDevQueueDisplayFromRuntimeSync();
   setInterval(syncDevQueueDisplayFromRuntimeSync, DEV_QUEUE_DISPLAY_SYNC_MS);
 }
