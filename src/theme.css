@@ -150,6 +150,42 @@ html[data-theme="light"] .signal-tag--volume {
   border-color: rgba(21, 128, 61, 0.3);
 }
 
+html[data-theme="light"] .signal-tag--ma50 {
+  background: rgba(13, 148, 136, 0.14);
+  color: #0f766e;
+  border-color: rgba(13, 148, 136, 0.32);
+}
+
+html[data-theme="light"] .signal-tag--ma5 {
+  background: rgba(8, 145, 178, 0.14);
+  color: #0e7490;
+  border-color: rgba(8, 145, 178, 0.32);
+}
+
+html[data-theme="light"] .signal-tag--vol-surge {
+  background: rgba(5, 150, 105, 0.16);
+  color: #047857;
+  border-color: rgba(5, 150, 105, 0.34);
+}
+
+html[data-theme="light"] .signal-tag--macd {
+  background: rgba(190, 24, 93, 0.12);
+  color: #9d174d;
+  border-color: rgba(190, 24, 93, 0.28);
+}
+
+html[data-theme="light"] .signal-tag--high60 {
+  background: rgba(234, 88, 12, 0.14);
+  color: #c2410c;
+  border-color: rgba(234, 88, 12, 0.3);
+}
+
+html[data-theme="light"] .signal-tag--bull {
+  background: rgba(220, 38, 38, 0.1);
+  color: #b91c1c;
+  border-color: rgba(220, 38, 38, 0.26);
+}
+
 html[data-theme="light"] .pick-reason-chip {
   color: #166534;
   background: rgba(21, 128, 61, 0.11);
@@ -175,7 +211,8 @@ html[data-theme="light"] .tag--telegram-btn {
   border-color: rgb(from var(--accent) r g b / 0.38);
   background: rgb(from var(--accent) r g b / 0.12);
   color: var(--accent-ink);
-  font-weight: 600;
+  font-size: 0.68rem;
+  font-weight: 750;
 }
 
 html[data-theme="light"] .tag--telegram-btn:hover {
@@ -189,6 +226,25 @@ html[data-theme="light"] .tag.tag--telegram.tag--telegram-btn .tag-count {
   background: var(--accent);
   color: #ecfdf5;
   border: 1px solid rgb(from var(--accent) r g b / 0.35);
+}
+
+html[data-theme="light"] .tag--picks-history-btn {
+  border-color: rgba(91, 33, 182, 0.32);
+  background: rgba(91, 33, 182, 0.08);
+  color: #5b21b6;
+  font-weight: 700;
+}
+
+html[data-theme="light"] .tag--picks-history-btn:hover {
+  border-color: rgba(91, 33, 182, 0.45);
+  background: rgba(91, 33, 182, 0.14);
+  color: #4c1d95;
+}
+
+html[data-theme="light"] .tag--picks-history-btn--active {
+  border-color: rgba(91, 33, 182, 0.52);
+  background: rgba(91, 33, 182, 0.16);
+  color: #4c1d95;
 }
 
 html[data-theme="light"] .access-admin-intro {
@@ -373,18 +429,6 @@ html[data-theme="light"] .picks-history-modal .picks-history-date:hover {
 }
 
 html[data-theme="light"] .picks-history-modal .picks-history-date--selected {
-  color: #0f172a;
-}
-
-html[data-theme="light"] .picks-panel:not(.crypto-panel) .picks-history-open {
-  color: #475569;
-}
-
-html[data-theme="light"] .picks-panel:not(.crypto-panel) .picks-history-open:hover {
-  color: #0f172a;
-}
-
-html[data-theme="light"] .picks-panel:not(.crypto-panel) .picks-history-open--active {
   color: #0f172a;
 }
 

@@ -1230,9 +1230,14 @@
 }
 
 
+/* 스크리너(브랜드 줄)와 동일 크기 — 탭별 font:inherit 로 커지지 않게 고정 */
 .tag--telegram-btn {
   cursor: pointer;
-  font: inherit;
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  font-weight: 750;
+  line-height: 1.25;
+  padding: 0.22rem 0.52rem;
   border: 1px solid rgba(56, 189, 248, 0.28);
   background: rgba(34, 158, 217, 0.12);
   box-shadow: none;
@@ -1240,6 +1245,12 @@
     border-color 0.15s,
     background 0.15s,
     box-shadow 0.15s;
+}
+
+.tag--telegram-btn .tag-count {
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1.2;
 }
 .tag--telegram-btn:hover {
   border-color: rgba(56, 189, 248, 0.45);
