@@ -1,5 +1,5 @@
 /**
- * display JSON = 메모리 FIFO 직렬 큐 미러만 (디스크 잔상·lease 미포함).
+ * display JSON = 메모리 FIFO 직렬 큐 미러 (+ enqueue 직전 lease 보조).
  */
 import { getOpsAgentQueueSnapshot } from "./ops-agent-job-queue.js";
 import { writeDevQueueDisplayMirrorFromRuntime } from "./ops-dev-queue-live-store.js";
@@ -11,6 +11,16 @@ export const DEV_QUEUE_DISPLAY_SYNC_MS = (() => {
 })();
 
 let pollerStarted = false;
+
+/** Vite HMR마다 모듈이 리로드되어도 디스크 미러를 매번 []로 지우지 않음 */
+function isColdDevQueueMirrorBoot() {
+  const g = /** @type {typeof globalThis & { __stockDevQueueMirrorBooted?: boolean }} */ (
+    globalThis
+  );
+  if (g.__stockDevQueueMirrorBooted) return false;
+  g.__stockDevQueueMirrorBooted = true;
+  return true;
+}
 
 /**
  * @param {Array<Record<string, unknown>>} runtimeEntries
@@ -39,6 +49,10 @@ export function startDevQueueDisplaySyncPoller() {
   if (process.env.STOCK_DEV_QUEUE_SYNC === "0") return;
   if (pollerStarted) return;
   pollerStarted = true;
-  resetDevQueueDisplayMirrorOnBoot();
+  if (isColdDevQueueMirrorBoot()) {
+    resetDevQueueDisplayMirrorOnBoot();
+  } else {
+    syncDevQueueDisplayFromRuntimeSync();
+  }
   setInterval(syncDevQueueDisplayFromRuntimeSync, DEV_QUEUE_DISPLAY_SYNC_MS);
 }

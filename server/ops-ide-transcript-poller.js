@@ -12,7 +12,6 @@ import {
   releaseAnyRunningIdeDevQueueSlot,
   releaseRunningIdeDevQueueIfDifferentPrompt,
 } from "./ops-agent-job-queue.js";
-import { readDevQueueLiveAgentEntriesSync } from "./ops-dev-queue-live-store.js";
 import {
   clearIdeLeaseOnDisk,
   readIdeLeaseDiskSync,
@@ -146,20 +145,11 @@ function releaseActiveLease() {
   clearIdeLeaseOnDisk();
 }
 
-/** 메모리 큐·디스크 영속·활성 lease 중 IDE 작업 존재 여부 */
+/** 메모리 큐·활성 lease(스냅샷 병합) 중 IDE 작업 존재 여부 — 표시 파일 잔상은 보지 않음 */
 function hasIdeQueueWork(/** @type {ReturnType<typeof getOpsAgentQueueSnapshot>} */ snap) {
   if (activeLeaseId) return true;
-  if (
-    snap.entries.some(
-      (e) => e.source === "ide" || e.requestIp === "cursor-ide",
-    )
-  ) {
-    return true;
-  }
-  return readDevQueueLiveAgentEntriesSync().some(
-    (e) =>
-      (e.source === "ide" || e.requestIp === "cursor-ide") &&
-      (e.status === "running" || e.status === "waiting"),
+  return snap.entries.some(
+    (e) => e.source === "ide" || e.requestIp === "cursor-ide",
   );
 }
 

@@ -35,24 +35,6 @@ function block(msg) {
   );
 }
 
-async function cancelLease(leaseId) {
-  if (!leaseId) return;
-  try {
-    await postDevQueueApi(
-      "/api/ops/dev-queue/ide/cancel",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json; charset=utf-8" },
-        body: JSON.stringify({ leaseId }),
-        signal: AbortSignal.timeout(8_000),
-      },
-      { timeoutMs: 8_000 },
-    );
-  } catch {
-    /* ignore */
-  }
-}
-
 function cleanupLocal() {
   clearIdeLeaseFile();
   clearIdeTurnRule();
@@ -183,7 +165,7 @@ try {
   }
 
   if (!grantBody || grantBody.ok === false) {
-    await cancelLease(leaseId);
+    /* 슬롯·lease는 서버에 남겨 display JSON·웹 UI에 대기로 보이게 함(취소하면 파일이 바로 비어 보임) */
     cleanupLocal();
     block(
       "개발 큐에서 실행 차례를 기다리는 중 시간이 초과되었습니다.\n\n" +

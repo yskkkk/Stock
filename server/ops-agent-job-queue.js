@@ -16,10 +16,7 @@ import {
   writeOpsWebAgentBusyMarker,
 } from "./ops-web-agent-busy-marker.js";
 import { mergeIdeLeaseDiskIntoAgentEntries } from "./ops-ide-lease-disk.js";
-import {
-  metaToPersistEntry,
-  readDevQueueLiveAgentEntriesSync,
-} from "./ops-dev-queue-live-store.js";
+import { metaToPersistEntry } from "./ops-dev-queue-live-store.js";
 import { opsIdePromptsMatch } from "./ops-ide-prompt-match.js";
 
 /**
@@ -379,17 +376,7 @@ function queueSeqAndStatusForSlotId(slotId) {
  */
 /** @param {string} prompt */
 export function hasActiveIdeSlotForPrompt(prompt) {
-  if (findActiveIdeSlotByPrompt(prompt) != null) return true;
-  const probe = String(prompt ?? "").trim();
-  if (!probe) return false;
-  for (const e of readDevQueueLiveAgentEntriesSync()) {
-    if (e.source !== "ide" && e.requestIp !== "cursor-ide") continue;
-    const preview = String(e.instructionPreview ?? "").trim();
-    const body = String(e.instructionBody ?? "").trim();
-    const text = body || preview;
-    if (text && opsIdePromptsMatch(text, probe)) return true;
-  }
-  return false;
+  return findActiveIdeSlotByPrompt(prompt) != null;
 }
 
 /** @param {string} prompt */
@@ -453,17 +440,12 @@ export function registerIdeDevQueueSlot(input) {
 
   if (
     sessionId &&
-    (slots.some(
+    slots.some(
       (s) =>
         s.source === "ide" &&
         s.sessionId === sessionId &&
         (s === slots[0] || slots.indexOf(s) > 0),
-    ) ||
-      readDevQueueLiveAgentEntriesSync().some(
-        (e) =>
-          (e.source === "ide" || e.requestIp === "cursor-ide") &&
-          String(e.sessionId ?? "") === sessionId,
-      ))
+    )
   ) {
     const err = new Error(
       "이 Cursor 세션에 이미 대기·실행 중인 IDE 요청이 있습니다. 끝난 뒤 다시 보내세요.",

@@ -169,12 +169,15 @@ function normalizeMirrorEntry(e) {
 }
 
 /**
- * 메모리 FIFO → display JSON 미러 (메모리만 — lease·옛 디스크 내용 미포함)
+ * 메모리 FIFO(+ enqueue 직전 lease) → display JSON 미러
  * @param {Array<Record<string, unknown>>} runtimeEntries
  */
 export function writeDevQueueDisplayMirrorFromRuntime(runtimeEntries) {
+  const merged = mergeIdeLeaseIntoDisplayEntries(
+    Array.isArray(runtimeEntries) ? runtimeEntries : [],
+  );
   const toWrite = sortLiveEntries(
-    (Array.isArray(runtimeEntries) ? runtimeEntries : [])
+    merged
       .map(normalizeMirrorEntry)
       .filter(Boolean)
       .filter((e) => String(e.requestIp ?? "").trim() !== RECORD_MODE_REQUEST_IP),
