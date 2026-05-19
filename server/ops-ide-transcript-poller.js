@@ -29,6 +29,10 @@ const POLL_MS = 100;
 const TURN_END_IDLE_MS = 12_000;
 /** @deprecated */ const IDLE_RELEASE_MS = TURN_END_IDLE_MS;
 const STALE_LEASE_MS = 8_000;
+const TRANSCRIPT_POLLER_MARKER = path.join(
+  process.cwd(),
+  ".stock-ops-transcript-poller.on",
+);
 
 let pollerBootstrapped = false;
 let pollerStarted = false;
@@ -312,12 +316,11 @@ function scanTranscriptFile(filePath) {
 
   if (latestUser) {
     const userKey = `${filePath}:${latestUser.lineIndex}`;
-    if (!pollerBootstrapped) {
+    if (userKey !== lastProcessedUserKey) {
       lastProcessedUserKey = userKey;
-      pollerBootstrapped = true;
-    } else if (userKey !== lastProcessedUserKey) {
       enqueueFromTranscript(filePath, latestUser.prompt, latestUser.lineIndex);
     }
+    pollerBootstrapped = true;
   }
   }
 
@@ -358,6 +361,12 @@ export function startOpsIdeTranscriptPoller() {
   if (process.env.STOCK_IDE_TRANSCRIPT_POLLER === "0") return;
   if (pollerStarted) return;
   pollerStarted = true;
+
+  try {
+    fs.writeFileSync(TRANSCRIPT_POLLER_MARKER, `${Date.now()}\n`, "utf8");
+  } catch {
+    /* ignore */
+  }
 
   try {
     sweepStalePersistedDevQueueSync();

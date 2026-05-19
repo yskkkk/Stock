@@ -196,8 +196,26 @@ export function writeDevQueueDisplayMirrorFromRuntime(runtimeEntries, opts = {})
     toWrite = [];
   }
 
+  toWrite = sortLiveEntries(
+    mergeIdeLeaseIntoDisplayEntries(toWrite).filter(
+      (e) => String(e.requestIp ?? "").trim() !== RECORD_MODE_REQUEST_IP,
+    ),
+  );
+
   writeLiveRawSync({ updatedAtMs: Date.now(), agentEntries: toWrite });
   for (const row of toWrite) syncAgentHistoryFromPersistEntry(row);
+}
+
+/** 전송 직후 lease만 있을 때 — 메모리 enqueue 전 display 파일에 즉시 반영 */
+export function mirrorIdeLeaseIntoDisplayFileSync() {
+  const disk = loadLiveFromDiskSync().agentEntries.filter(
+    (e) => String(e.requestIp ?? "").trim() !== RECORD_MODE_REQUEST_IP,
+  );
+  const merged = mergeIdeLeaseIntoDisplayEntries(disk);
+  writeLiveRawSync({
+    updatedAtMs: Date.now(),
+    agentEntries: sortLiveEntries(merged),
+  });
 }
 
 /**

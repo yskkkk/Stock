@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { mirrorIdeLeaseIntoDisplayFileSync } from "./ops-dev-queue-live-store.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");
@@ -128,6 +129,7 @@ export function writeIdeLeaseDiskImmediate(input) {
     /* write */
   }
   fs.writeFileSync(IDE_LEASE_PATH, line, "utf8");
+  mirrorIdeLeaseIntoDisplayFileSync();
   void import("./ops-dev-queue-display-sync.js")
     .then((m) => m.requestDevQueueDisplaySyncNow())
     .catch(() => {});

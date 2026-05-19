@@ -1,0 +1,209 @@
+/**
+ * Cursor IDE → 단일 개발 큐(FIFO).
+ * - enqueue: 웹 대기열에 즉시 표시
+ * - wait-grant: 차례까지 대기 (Cursor 훅 타임아웃 방지를 위해 짧은 HTTP 타임아웃으로 폴링)
+ * - dev 서버 없음: fail-open (IDE 단독)
+ */
+import fs from "node:fs";
+import {
+  clearIdeLeaseFile,
+  clearIdeTurnRule,
+  hookSessionId,
+  postDevQueueApi,
+  writeIdeLeaseFile,
+  writeIdeTurnRule,
+} from "./stock-ops-queue-hook-lib.mjs";
+import { writeIdeLeaseDiskImmediate } from "../../server/ops-ide-lease-disk.js";
+
+const HOOK_WAIT_MS = 12_000;
+const HOOK_WAIT_ROUNDS = 3;
+
+function allow() {
+  process.stdout.write(JSON.stringify({ continue: true }) + "\n");
+}
+
+function block(msg) {
+  process.stdout.write(
+    JSON.stringify({
+      continue: false,
+      user_message: msg,
+    }) + "\n",
+  );
+}
+
+async function cancelLease(leaseId) {
+  if (!leaseId) return;
+  try {
+    await postDevQueueApi(
+      "/api/ops/dev-queue/ide/cancel",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify({ leaseId }),
+        signal: AbortSignal.timeout(8_000),
+      },
+      { timeoutMs: 8_000 },
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
+function cleanupLocal() {
+  clearIdeLeaseFile();
+  clearIdeTurnRule();
+}
+
+try {
+  const raw = fs.readFileSync(0, "utf8");
+  const input = raw ? JSON.parse(raw) : {};
+  const prompt = String(input.prompt ?? "").trim();
+  const sessionId = hookSessionId(input);
+
+  if (!prompt) {
+    allow();
+    process.exit(0);
+  }
+
+  /* 전송 직후 웹 UI(0.1s 폴링)에 먼저 표시 — transcript(jsonl)는 10~30초 늦게 기록됨 */
+  writeIdeLeaseDiskImmediate({ prompt, sessionId, queueStatus: "waiting" });
+  writeIdeLeaseFile({
+    leaseId: null,
+    sessionId,
+    sinceMs: Date.now(),
+    queueSeq: null,
+    queueStatus: "waiting",
+    instructionPreview: prompt.slice(0, 220),
+  });
+
+  let enqRes;
+  try {
+    enqRes = await postDevQueueApi(
+      "/api/ops/dev-queue/ide/enqueue",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify({
+          prompt,
+          session_id: sessionId,
+        }),
+        signal: AbortSignal.timeout(12_000),
+      },
+      { timeoutMs: 12_000 },
+    );
+  } catch {
+    /* 디스크 lease 유지 → UI 즉시 표시, dev 미연결 시 fail-open */
+    allow();
+    process.exit(0);
+  }
+
+  const enqText = await enqRes.text();
+  /** @type {{ ok?: boolean; error?: string; code?: string; leaseId?: string; queueSeq?: number }} */
+  let enqBody = {};
+  try {
+    enqBody = enqText ? JSON.parse(enqText) : {};
+  } catch {
+    enqBody = {};
+  }
+
+  if (!enqRes.ok) {
+    const code =
+      enqBody && typeof enqBody === "object" && "code" in enqBody
+        ? String(/** @type {{ code?: string }} */ (enqBody).code)
+        : "";
+    const errMsg =
+      typeof enqBody.error === "string"
+        ? enqBody.error
+        : `개발 큐 등록 오류 (HTTP ${enqRes.status})`;
+    if (code === "OPS_QUEUE_FULL" || code === "IDE_SESSION_BUSY") {
+      cleanupLocal();
+      block(errMsg);
+      process.exit(0);
+    }
+    allow();
+    process.exit(0);
+  }
+
+  const leaseId = String(enqBody.leaseId ?? "").trim();
+  if (!leaseId) {
+    allow();
+    process.exit(0);
+  }
+
+  writeIdeLeaseDiskImmediate({ prompt, sessionId, leaseId });
+
+  writeIdeLeaseFile({
+    leaseId,
+    sessionId,
+    sinceMs: Date.now(),
+    queueSeq: enqBody.queueSeq ?? null,
+    queueStatus: "waiting",
+  });
+
+  /** @type {Record<string, unknown> | null} */
+  let grantBody = null;
+  for (let round = 0; round < HOOK_WAIT_ROUNDS; round++) {
+    let grantRes;
+    try {
+      grantRes = await postDevQueueApi(
+        "/api/ops/dev-queue/ide/wait-grant",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json; charset=utf-8" },
+          body: JSON.stringify({ leaseId }),
+          signal: AbortSignal.timeout(HOOK_WAIT_MS + 2_000),
+        },
+        { timeoutMs: HOOK_WAIT_MS },
+      );
+    } catch {
+      continue;
+    }
+
+    const grantText = await grantRes.text();
+    try {
+      grantBody = grantText ? JSON.parse(grantText) : {};
+    } catch {
+      grantBody = {};
+    }
+
+    if (grantRes.ok && grantBody) break;
+
+    const code =
+      grantBody && typeof grantBody === "object" && "code" in grantBody
+        ? String(/** @type {{ code?: string }} */ (grantBody).code)
+        : "";
+    if (code === "IDE_LEASE_NOT_FOUND") {
+      break;
+    }
+  }
+
+  if (!grantBody || grantBody.ok === false) {
+    await cancelLease(leaseId);
+    cleanupLocal();
+    block(
+      "개발 큐에서 실행 차례를 기다리는 중 시간이 초과되었습니다.\n\n" +
+        "웹 에이전트가 끝난 뒤 다시 보내세요. 계속 막히면 `npm run dev`를 재시작하세요.",
+    );
+    process.exit(0);
+  }
+
+  const contextNote = String(grantBody.contextNote ?? "").slice(0, 4000);
+  writeIdeLeaseFile({
+    leaseId,
+    sessionId,
+    sinceMs: Date.now(),
+    queueSeq: grantBody.queueSeq ?? enqBody.queueSeq ?? null,
+    waitedMs: grantBody.waitedMs ?? null,
+    gitHead: grantBody.gitHead ?? null,
+    queueStatus: "running",
+    contextNote,
+  });
+  writeIdeTurnRule(contextNote);
+
+  allow();
+  process.exit(0);
+} catch {
+  cleanupLocal();
+  allow();
+  process.exit(0);
+}
