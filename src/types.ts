@@ -299,6 +299,8 @@ export interface RecommendationSymbolStat extends RecommendationTrackerRollup {
 
 export interface RecommendationsTrackerResponse {
   updatedAtMs: number;
+  /** KST 일자 목록(최신순) */
+  dates: string[];
   summary: RecommendationTrackerRollup;
   signalStats: RecommendationSignalStat[];
   scoreStats: RecommendationScoreStat[];

@@ -70,6 +70,7 @@ export default function RecommendationsTab({
   const [market, setMarket] = useState<MarketFilter>("all");
   const [signalFilter, setSignalFilter] = useState<SignalId | null>(null);
   const [scoreFilter, setScoreFilter] = useState<number | null>(null);
+  const [dateFilter, setDateFilter] = useState<string>("all");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -89,15 +90,19 @@ export default function RecommendationsTab({
     return () => clearInterval(t);
   }, [load]);
 
+  const availableDates = useMemo(() => data?.dates ?? [], [data?.dates]);
+
   const filteredItems = useMemo(() => {
-    if (!data?.items.length) return [];
-    return data.items.filter((it) => {
+    const items = data?.items ?? [];
+    if (!items.length) return [];
+    return items.filter((it) => {
+      if (dateFilter !== "all" && it.date !== dateFilter) return false;
       if (market !== "all" && it.market !== market) return false;
       if (signalFilter && !it.signalIds.includes(signalFilter)) return false;
       if (scoreFilter != null && it.score !== scoreFilter) return false;
       return true;
     });
-  }, [data?.items, market, signalFilter, scoreFilter]);
+  }, [data?.items, dateFilter, market, signalFilter, scoreFilter]);
 
   const filteredSummary = useMemo(() => {
     let wins = 0;
@@ -122,8 +127,16 @@ export default function RecommendationsTab({
   }, [filteredItems]);
 
   const signalStats = useMemo(() => {
-    if (!data?.signalStats.length) return [];
-    if (market === "all" && !signalFilter) return data.signalStats;
+    const base = data?.signalStats ?? [];
+    if (!base.length && !filteredItems.length) return [];
+    if (
+      market === "all" &&
+      !signalFilter &&
+      scoreFilter == null &&
+      dateFilter === "all"
+    ) {
+      return base;
+    }
     const fromFiltered = new Map<string, { wins: number; losses: number; total: number }>();
     for (const it of filteredItems) {
       const ids = it.signalIds.length ? it.signalIds : [];
@@ -147,7 +160,7 @@ export default function RecommendationsTab({
         };
       })
       .sort((a, b) => b.total - a.total);
-  }, [data?.signalStats, filteredItems, market, signalFilter]);
+  }, [data?.signalStats, filteredItems, market, signalFilter, scoreFilter, dateFilter]);
 
   const scoreStats = useMemo(() => {
     const base = data?.scoreStats ?? [];
@@ -173,7 +186,7 @@ export default function RecommendationsTab({
         };
       })
       .sort((a, b) => b.score - a.score);
-  }, [data?.scoreStats, filteredItems, market, signalFilter, scoreFilter]);
+  }, [data?.scoreStats, filteredItems, market, signalFilter, scoreFilter, dateFilter]);
 
   return (
     <div className="workspace workspace--rec-tracker">
@@ -227,6 +240,29 @@ export default function RecommendationsTab({
         </div>
 
         <p className="rec-tracker-sub">{ko.app.recTrackerSub}</p>
+        <p className="rec-tracker-note">{ko.app.recTrackerBackfillNote}</p>
+
+        {availableDates.length > 0 && (
+          <div className="rec-tracker-date-tabs market-tabs">
+            <button
+              type="button"
+              className={dateFilter === "all" ? "market-tab active" : "market-tab"}
+              onClick={() => setDateFilter("all")}
+            >
+              {ko.app.recTrackerDateAll}
+            </button>
+            {availableDates.map((d) => (
+              <button
+                key={d}
+                type="button"
+                className={dateFilter === d ? "market-tab active" : "market-tab"}
+                onClick={() => setDateFilter(d)}
+              >
+                {d}
+              </button>
+            ))}
+          </div>
+        )}
 
         {loading && !data && (
           <p className="news-modal-status">{ko.app.recTrackerLoading}</p>
@@ -239,6 +275,10 @@ export default function RecommendationsTab({
 
         {!loading && data && filteredItems.length === 0 && (
           <p className="picks-empty">{ko.app.recTrackerEmpty}</p>
+        )}
+
+        {!loading && data && filteredSummary.unknown > 0 && (
+          <p className="rec-tracker-warn">{ko.app.recTrackerUnknownHint}</p>
         )}
 
         {data && filteredItems.length > 0 && (

@@ -1,8 +1,16 @@
 /**
  * 일자별 추천 이력 → 추천가·현재가·승패·근거별 승률 집계
  */
+import {
+  backfillMissingSignalIdsFromTechnical,
+  enrichSlimPickFromBackfill,
+  reconcileRecommendationHistoryEnrichmentSync,
+} from "./picks-recommendation-enrich.js";
 import { getPicksDailyHistoryForApi } from "./picks-history-store.js";
 import { fetchQuoteSnapshotsForSymbols } from "./picks-live-quotes.js";
+
+let enrichOnce = false;
+let signalBackfillOnce = false;
 
 const VALID_SIGNAL = new Set([
   "ma_align",
@@ -134,6 +142,21 @@ function rollupCounts(items) {
 }
 
 export async function buildRecommendationsTrackerPayload() {
+  if (!enrichOnce) {
+    enrichOnce = true;
+    reconcileRecommendationHistoryEnrichmentSync();
+  }
+  if (!signalBackfillOnce) {
+    signalBackfillOnce = true;
+    try {
+      await backfillMissingSignalIdsFromTechnical(
+        Number(process.env.STOCK_REC_SIGNAL_BACKFILL_MAX ?? 120),
+      );
+    } catch {
+      /* ignore */
+    }
+  }
+
   const { days } = getPicksDailyHistoryForApi();
   /** @type {ReturnType<typeof slimToEvent>[]} */
   const baseEvents = [];
@@ -141,10 +164,12 @@ export async function buildRecommendationsTrackerPayload() {
     const date = String(day.date ?? "").trim();
     if (!date) continue;
     for (const p of day.kr ?? []) {
+      enrichSlimPickFromBackfill(p, "kr", date);
       const ev = slimToEvent(p, "kr", date);
       if (ev) baseEvents.push(ev);
     }
     for (const p of day.us ?? []) {
+      enrichSlimPickFromBackfill(p, "us", date);
       const ev = slimToEvent(p, "us", date);
       if (ev) baseEvents.push(ev);
     }
@@ -233,8 +258,11 @@ export async function buildRecommendationsTrackerPayload() {
     }))
     .sort((a, b) => b.score - a.score);
 
+  const dates = [...new Set(items.map((it) => it.date))].sort((a, b) => b.localeCompare(a));
+
   return {
     updatedAtMs: Date.now(),
+    dates,
     summary,
     signalStats,
     scoreStats,

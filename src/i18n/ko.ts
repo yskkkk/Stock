@@ -59,6 +59,10 @@ export const ko = {
     recTrackerClearFilter: "필터 해제",
     recTrackerNoSignals: "근거 미기록",
     recTrackerRefresh: "새로고침",
+    recTrackerDateAll: "전체 일자",
+    recTrackerUnknownHint: "현재가 조회 실패 — 새로고침 또는 잠시 후 다시 시도",
+    recTrackerBackfillNote:
+      "점수·근거는 새로 기록분부터 저장됩니다. 과거 건은 텔레그램·기술분석 캐시로 보강 중일 수 있습니다.",
     picksStatsStreakLabel: "영업일 연속 추천",
     picksStatsStreakUnit: "일",
     picksStatsSinceFirstLabel: "첫 추천가 대비",

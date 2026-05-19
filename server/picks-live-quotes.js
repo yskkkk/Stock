@@ -5,6 +5,14 @@
 import { loadChartQuoteSnapshot } from "./stock-data.js";
 
 const TTL_MS = Number(process.env.PICKS_LIVE_QUOTE_TTL_MS) || 4500;
+const QUOTE_FETCH_CONCURRENCY = (() => {
+  const n = Number(process.env.PICKS_QUOTE_FETCH_CONCURRENCY ?? 8);
+  return Number.isFinite(n) && n >= 1 ? Math.min(24, Math.floor(n)) : 8;
+})();
+const QUOTE_FETCH_MAX_SYMBOLS = (() => {
+  const n = Number(process.env.PICKS_QUOTE_FETCH_MAX ?? 600);
+  return Number.isFinite(n) && n >= 1 ? Math.min(2000, Math.floor(n)) : 600;
+})();
 
 /** @type {Map<string, { at: number, quote: object | null }>} */
 const cache = new Map();
@@ -54,6 +62,74 @@ function mergeQuoteIntoPick(pick, q) {
 }
 
 /**
+ * @param {string[]} symbols
+ * @param {(sym: string) => Promise<void>} worker
+ */
+async function mapPool(symbols, worker) {
+  const list = [...symbols];
+  let i = 0;
+  const n = Math.min(QUOTE_FETCH_CONCURRENCY, list.length || 1);
+  await Promise.all(
+    Array.from({ length: n }, async () => {
+      for (;;) {
+        const idx = i++;
+        if (idx >= list.length) break;
+        await worker(list[idx]);
+      }
+    }),
+  );
+}
+
+/**
+ * @param {string[]} symbols
+ * @returns {Promise<Record<string, { price: number; changePercent?: number; currency?: string }>>}
+ */
+export async function fetchQuoteSnapshotsForSymbols(symbols) {
+  const uniq = [
+    ...new Set(
+      (Array.isArray(symbols) ? symbols : [])
+        .map((s) => String(s ?? "").trim().toUpperCase())
+        .filter(Boolean),
+    ),
+  ].slice(0, QUOTE_FETCH_MAX_SYMBOLS);
+
+  /** @type {Record<string, { price: number; changePercent?: number; currency?: string }>} */
+  const out = {};
+
+  await mapPool(uniq, async (sym) => {
+    const q = await quoteSnapshotCached(sym);
+    if (!q || q.price == null || !Number.isFinite(q.price)) return;
+    out[sym] = {
+      price: q.price,
+      changePercent:
+        typeof q.changePercent === "number" && Number.isFinite(q.changePercent)
+          ? q.changePercent
+          : undefined,
+      currency: typeof q.currency === "string" ? q.currency : undefined,
+    };
+  });
+
+  const missing = uniq.filter((sym) => !out[sym]);
+  if (missing.length > 0) {
+    await mapPool(missing, async (sym) => {
+      cache.delete(sym);
+      const q = await quoteSnapshotCached(sym);
+      if (!q || q.price == null || !Number.isFinite(q.price)) return;
+      out[sym] = {
+        price: q.price,
+        changePercent:
+          typeof q.changePercent === "number" && Number.isFinite(q.changePercent)
+            ? q.changePercent
+            : undefined,
+        currency: typeof q.currency === "string" ? q.currency : undefined,
+      };
+    });
+  }
+
+  return out;
+}
+
+/**
  * 스크리너 전체 재스캔 중에는 청크마다 이미 시세가 들어가므로 추가 Yahoo 호출을 생략한다.
  *
  * @param {{ running?: boolean; kr?: unknown[]; us?: unknown[] }} state
@@ -78,37 +154,4 @@ export async function mergeLiveQuotesIntoPicksState(state) {
   ]);
 
   return { ...state, kr, us };
-}
-
-/**
- * 일자별 추천·텔레그램 이력 등 — 심볼별 현재가 스냅샷(캐시 TTL 동일).
- * @param {string[]} symbols
- * @returns {Promise<Record<string, { price: number; changePercent?: number; currency?: string }>>}
- */
-export async function fetchQuoteSnapshotsForSymbols(symbols) {
-  const uniq = [
-    ...new Set(
-      (Array.isArray(symbols) ? symbols : [])
-        .map((s) => String(s ?? "").trim().toUpperCase())
-        .filter(Boolean),
-    ),
-  ].slice(0, 120);
-
-  /** @type {Record<string, { price: number; changePercent?: number; currency?: string }>} */
-  const out = {};
-  await Promise.all(
-    uniq.map(async (sym) => {
-      const q = await quoteSnapshotCached(sym);
-      if (!q || q.price == null || !Number.isFinite(q.price)) return;
-      out[sym] = {
-        price: q.price,
-        changePercent:
-          typeof q.changePercent === "number" && Number.isFinite(q.changePercent)
-            ? q.changePercent
-            : undefined,
-        currency: typeof q.currency === "string" ? q.currency : undefined,
-      };
-    }),
-  );
-  return out;
 }

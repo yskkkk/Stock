@@ -6,6 +6,7 @@
 import fs from "node:fs";
 import path from "path";
 import { fileURLToPath } from "node:url";
+import { upsertRecommendationMeta } from "./picks-recommendation-meta.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, ".data");
@@ -81,7 +82,7 @@ function ensureDirSync() {
 }
 
 /** @returns {{ version: number; days: DailyPicksRow[] }} */
-function readHistorySync() {
+export function readHistorySync() {
   try {
     if (!fs.existsSync(HISTORY_FILE)) return { version: 1, days: [] };
     const raw = fs.readFileSync(HISTORY_FILE, "utf8");
@@ -187,7 +188,7 @@ function tightenDayRowAnchors(row) {
   }
 }
 
-function writeHistorySync(data) {
+export function writeHistorySync(data) {
   ensureDirSync();
   fs.writeFileSync(HISTORY_FILE, JSON.stringify(data, null, 0), "utf8");
 }
@@ -319,6 +320,24 @@ export function recordPicksDailySnapshot(kr, us, scannedAtMs) {
     }
     while (days.length > MAX_DAYS) days.shift();
     writeHistorySync({ version: 1, days });
+
+    const row = days.find((d) => d.date === date);
+    if (row) {
+      for (const p of row.kr) {
+        upsertRecommendationMeta(date, "kr", {
+          symbol: p.symbol,
+          score: p.score,
+          signalIds: p.signalIds,
+        });
+      }
+      for (const p of row.us) {
+        upsertRecommendationMeta(date, "us", {
+          symbol: p.symbol,
+          score: p.score,
+          signalIds: p.signalIds,
+        });
+      }
+    }
   } catch {
     /* ignore disk errors */
   }

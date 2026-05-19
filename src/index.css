@@ -6507,6 +6507,23 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+.rec-tracker-note,
+.rec-tracker-warn {
+  margin: 0 0 0.65rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text-muted, #8b95a8);
+}
+
+.rec-tracker-warn {
+  color: var(--warning, #c9a227);
+}
+
+.rec-tracker-date-tabs {
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
 .rec-tracker-sub {
   margin: 0 0 0.65rem;
   padding: 0 0.35rem;
