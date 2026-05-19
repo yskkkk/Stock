@@ -15,7 +15,10 @@ import {
   clearOpsWebAgentBusyMarkerSync,
   writeOpsWebAgentBusyMarker,
 } from "./ops-web-agent-busy-marker.js";
-import { mergeIdeLeaseDiskIntoAgentEntries } from "./ops-ide-lease-disk.js";
+import {
+  clearIdeLeaseOnDisk,
+  mergeIdeLeaseDiskIntoAgentEntries,
+} from "./ops-ide-lease-disk.js";
 import { metaToPersistEntry } from "./ops-dev-queue-live-store.js";
 import { opsIdePromptsMatch } from "./ops-ide-prompt-match.js";
 
@@ -196,7 +199,7 @@ function syncIdeHistoryFinalize(slot, state, error = null) {
   });
 }
 
-export function getOpsAgentQueueSnapshot() {
+function buildOpsAgentQueueMemoryEntries() {
   const waiting = [];
   for (let i = active ? 1 : 0; i < slots.length; i++) {
     const s = slots[i];
@@ -217,11 +220,21 @@ export function getOpsAgentQueueSnapshot() {
     });
   }
   entries.push(...waiting);
-  const merged = mergeIdeLeaseDiskIntoAgentEntries(entries);
-  const visible = merged.filter(
+  return entries.filter(
     (e) => String(e.requestIp ?? "").trim() !== "record-mode",
   );
-  return { entries: visible };
+}
+
+/** 메모리 FIFO만 — display 미러·턴 종료 판정용(lease 미포함) */
+export function getOpsAgentQueueMemorySnapshot() {
+  return { entries: buildOpsAgentQueueMemoryEntries() };
+}
+
+export function getOpsAgentQueueSnapshot() {
+  const merged = mergeIdeLeaseDiskIntoAgentEntries(
+    buildOpsAgentQueueMemoryEntries(),
+  );
+  return { entries: merged };
 }
 
 function writeRunningBusyMarker() {
@@ -621,6 +634,7 @@ export function releaseAnyRunningIdeDevQueueSlot() {
     }
   }
 
+  clearIdeLeaseOnDisk();
   bumpDevQueueDisplayMirror();
 
   return { ok: true, released };

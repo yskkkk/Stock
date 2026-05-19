@@ -5,7 +5,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { mergeIdeLeaseIntoDisplayEntries } from "./ops-ide-lease-disk.js";
 import { upsertOpsAgentHistoryFromQueueSync } from "./ops-agent-history-store.js";
 import { enrichAgentEntriesWithUnifiedSeq } from "./ops-unified-queue-seq.js";
 
@@ -169,15 +168,12 @@ function normalizeMirrorEntry(e) {
 }
 
 /**
- * 메모리 FIFO(+ enqueue 직전 lease) → display JSON 미러
+ * display JSON 미러 — 인자는 sync가 만든 최종 행(메모리 ± 짧은 pending lease).
  * @param {Array<Record<string, unknown>>} runtimeEntries
  */
 export function writeDevQueueDisplayMirrorFromRuntime(runtimeEntries) {
-  const merged = mergeIdeLeaseIntoDisplayEntries(
-    Array.isArray(runtimeEntries) ? runtimeEntries : [],
-  );
   const toWrite = sortLiveEntries(
-    merged
+    (Array.isArray(runtimeEntries) ? runtimeEntries : [])
       .map(normalizeMirrorEntry)
       .filter(Boolean)
       .filter((e) => String(e.requestIp ?? "").trim() !== RECORD_MODE_REQUEST_IP),
@@ -207,15 +203,14 @@ export function sweepStalePersistedDevQueueSync(maxRunningAgeMs = 45 * 60 * 1000
   }
 }
 
-/** UI·GET — 파일(메모리 미러) + enqueue 직전 lease만 응답에 병합(파일에는 안 씀) */
+/** UI·GET — display 파일 그대로(이중 lease 병합 없음 → 깜빡임 방지) */
 export function readDevQueueDisplaySnapshotSync() {
   const live = loadLiveFromDiskSync();
   memoryLive = live;
   const filtered = live.agentEntries.filter(
     (e) => String(e.requestIp ?? "").trim() !== RECORD_MODE_REQUEST_IP,
   );
-  const merged = mergeIdeLeaseIntoDisplayEntries(filtered);
-  const agentEntries = enrichAgentEntriesWithUnifiedSeq(merged);
+  const agentEntries = enrichAgentEntriesWithUnifiedSeq(filtered);
   return {
     updatedAtMs: live.updatedAtMs,
     agentEntries,

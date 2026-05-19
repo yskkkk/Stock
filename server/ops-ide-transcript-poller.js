@@ -6,7 +6,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
-  getOpsAgentQueueSnapshot,
+  getOpsAgentQueueMemorySnapshot,
   hasActiveIdeSlotForPrompt,
   registerIdeDevQueueSlot,
   releaseAnyRunningIdeDevQueueSlot,
@@ -14,7 +14,6 @@ import {
 } from "./ops-agent-job-queue.js";
 import {
   clearIdeLeaseOnDisk,
-  readIdeLeaseDiskSync,
   writeIdeLeaseDiskImmediate,
 } from "./ops-ide-lease-disk.js";
 
@@ -137,6 +136,7 @@ function parseLastAssistantTail(lines) {
 function releaseActiveLease() {
   activeLeaseId = null;
   activeTranscriptPath = null;
+  idleTurnReleasedForMtime = lastFileMtimeMs;
   try {
     releaseAnyRunningIdeDevQueueSlot();
   } catch {
@@ -145,8 +145,8 @@ function releaseActiveLease() {
   clearIdeLeaseOnDisk();
 }
 
-/** 메모리 큐·활성 lease(스냅샷 병합) 중 IDE 작업 존재 여부 — 표시 파일 잔상은 보지 않음 */
-function hasIdeQueueWork(/** @type {ReturnType<typeof getOpsAgentQueueSnapshot>} */ snap) {
+/** 메모리 큐·이 transcript 턴에서 등록한 lease만 — 디스크 lease 재승격 없음 */
+function hasIdeQueueWork(/** @type {ReturnType<typeof getOpsAgentQueueMemorySnapshot>} */ snap) {
   if (activeLeaseId) return true;
   return snap.entries.some(
     (e) => e.source === "ide" || e.requestIp === "cursor-ide",
@@ -157,7 +157,7 @@ function hasIdeQueueWork(/** @type {ReturnType<typeof getOpsAgentQueueSnapshot>}
  * transcript: 유휴 + 마지막 assistant가 **텍스트만**일 때만 턴 종료(도구 실행·대기 중에는 파일 비우지 않음).
  *
  * @param {string[]} lines
- * @param {ReturnType<typeof getOpsAgentQueueSnapshot>} snap
+ * @param {ReturnType<typeof getOpsAgentQueueMemorySnapshot>} snap
  */
 function tryReleaseWhenTurnEnded(lines, snap) {
   if (!hasIdeQueueWork(snap)) {
@@ -180,7 +180,7 @@ function tryReleaseWhenTurnEnded(lines, snap) {
 }
 
 /**
- * @param {ReturnType<typeof getOpsAgentQueueSnapshot>} snap
+ * @param {ReturnType<typeof getOpsAgentQueueMemorySnapshot>} snap
  */
 function sweepStaleDiskLease(snap) {
   if (hasIdeQueueWork(snap)) return;
@@ -200,32 +200,6 @@ function sweepStaleDiskLease(snap) {
     }
   } catch {
     clearIdeLeaseOnDisk();
-  }
-}
-
-/** lease만 있고 메모리 큐가 비었을 때(훅 enqueue 실패 보완) */
-function tryPromoteLeaseToMemoryQueue() {
-  const lease = readIdeLeaseDiskSync();
-  if (!lease) return;
-  const preview = String(
-    lease.instructionPreview ?? lease.promptPreview ?? lease.instructionBody ?? "",
-  ).trim();
-  if (!preview) return;
-  if (hasActiveIdeSlotForPrompt(preview)) return;
-  const sessionId = String(lease.sessionId ?? "").trim() || null;
-  try {
-    registerIdeDevQueueSlot({ prompt: preview, sessionId });
-  } catch (e) {
-    const code =
-      e && typeof e === "object" && "code" in e
-        ? String(/** @type {{ code?: string }} */ (e).code)
-        : "";
-    if (code !== "IDE_SESSION_BUSY") {
-      console.warn(
-        "[ops-ide-transcript]",
-        e instanceof Error ? e.message : e,
-      );
-    }
   }
 }
 
@@ -305,11 +279,9 @@ function scanTranscriptFile(filePath) {
   }
 
   const lines = cachedTranscriptLines;
-  const snap = getOpsAgentQueueSnapshot();
+  const snap = getOpsAgentQueueMemorySnapshot();
   const lineCountChanged = lines.length !== lastTranscriptLineCount;
   lastTranscriptLineCount = lines.length;
-
-  tryPromoteLeaseToMemoryQueue();
 
   if (mtimeChanged || lineCountChanged) {
   /** @type {{ lineIndex: number; prompt: string } | null} */
