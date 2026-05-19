@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { writeDevQueueDisplayMirrorFromRuntime } from "./ops-dev-queue-live-store.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");
@@ -128,6 +129,8 @@ export function writeIdeLeaseDiskImmediate(input) {
     /* write */
   }
   fs.writeFileSync(IDE_LEASE_PATH, line, "utf8");
+  /* 훅·enqueue API 전에 display JSON에 즉시 반영(비동기 sync만으면 빈 채로 보일 수 있음) */
+  writeDevQueueDisplayMirrorFromRuntime(mergeIdeLeaseIntoDisplayEntries([]));
   void import("./ops-dev-queue-display-sync.js")
     .then((m) => m.requestDevQueueDisplaySyncNow())
     .catch(() => {});

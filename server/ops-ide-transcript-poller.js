@@ -74,6 +74,7 @@ function findNewestTranscriptFile(root) {
     for (const ent of entries) {
       const full = path.join(dir, ent.name);
       if (ent.isDirectory()) {
+        if (ent.name === "subagents") continue;
         walk(full);
         continue;
       }
@@ -305,7 +306,10 @@ function scanTranscriptFile(filePath) {
 
   if (latestUser) {
     const userKey = `${filePath}:${latestUser.lineIndex}`;
-    if (userKey !== lastProcessedUserKey) {
+    const shouldEnqueue =
+      userKey !== lastProcessedUserKey ||
+      !hasActiveIdeSlotForPrompt(latestUser.prompt);
+    if (shouldEnqueue) {
       lastProcessedUserKey = userKey;
       enqueueFromTranscript(filePath, latestUser.prompt, latestUser.lineIndex);
     }

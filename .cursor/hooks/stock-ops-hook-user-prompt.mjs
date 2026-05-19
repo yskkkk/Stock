@@ -24,7 +24,12 @@ export function extractUserPromptText(text) {
 export function hookUserPromptFromInput(input) {
   const o = input && typeof input === "object" ? input : {};
   const direct = extractUserPromptText(
-    o.prompt ?? o.user_message ?? o.text ?? o.message ?? "",
+    o.prompt ??
+      o.user_message ??
+      o.user_query ??
+      o.text ??
+      o.message ??
+      "",
   );
   if (direct) return direct;
 
@@ -77,6 +82,7 @@ function findNewestTranscriptFile(root) {
     for (const ent of entries) {
       const full = path.join(dir, ent.name);
       if (ent.isDirectory()) {
+        if (ent.name === "subagents") continue;
         walk(full);
         continue;
       }
