@@ -2,11 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  persistDevQueueClear,
+  persistDevQueueClearWhenAllowed,
   persistDevQueueRemove,
   persistDevQueueSetRunning,
   persistDevQueueUpsert,
-  readDevQueueLiveAgentEntriesSync,
 } from "./ops-dev-queue-live-store.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -170,5 +169,5 @@ export function clearIdeLeaseOnDisk() {
   }
   if (leaseId) persistDevQueueRemove(leaseId);
   if (sessionId) persistDevQueueRemove(`ide-session-${sessionId}`);
-  if (readDevQueueLiveAgentEntriesSync().length === 0) persistDevQueueClear();
+  persistDevQueueClearWhenAllowed();
 }

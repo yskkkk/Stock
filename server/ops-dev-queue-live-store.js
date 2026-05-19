@@ -18,6 +18,25 @@ export const DEV_QUEUE_LIVE_FILE = path.join(DATA_DIR, "ops-dev-queue-display.js
 /** @type {{ updatedAtMs: number; agentEntries: Array<Record<string, unknown>> } | null} */
 let memoryLive = null;
 
+/** @type {(() => boolean) | null} true면 display 파일 비워도 됨 */
+let mayClearDisplayFile = null;
+
+/** @param {() => boolean} fn */
+export function setDevQueueDisplayClearGuard(fn) {
+  mayClearDisplayFile = fn;
+}
+
+/** 메모리·디스크 모두 활성 작업 없을 때만 JSON 비움 */
+export function persistDevQueueClearWhenAllowed() {
+  const disk = readLiveRawSync().agentEntries;
+  const hasDisk = disk.some(
+    (e) => e.status === "running" || e.status === "waiting",
+  );
+  if (hasDisk) return;
+  if (mayClearDisplayFile && !mayClearDisplayFile()) return;
+  persistDevQueueClear();
+}
+
 function ensureDirSync() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 }
@@ -177,7 +196,8 @@ export function persistDevQueueRemove(id) {
   const next = live.agentEntries.filter((e) => String(e.id ?? "") !== slotId);
   if (next.length === live.agentEntries.length) return;
   if (next.length === 0) {
-    persistDevQueueClear();
+    live.agentEntries = [];
+    writeLiveRawSync(live);
     return;
   }
   live.agentEntries = next;

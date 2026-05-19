@@ -107,6 +107,31 @@ function extractUserPrompt(text) {
   return t.trim();
 }
 
+/**
+ * @param {string[]} lines
+ * @returns {{ hasToolUse: boolean; textOnly: boolean } | null}
+ */
+function parseLastAssistantTail(lines) {
+  for (let i = lines.length - 1; i >= 0; i--) {
+    let row;
+    try {
+      row = JSON.parse(lines[i]);
+    } catch {
+      continue;
+    }
+    if (row?.role !== "assistant") return null;
+    const parts = row?.message?.content;
+    if (!Array.isArray(parts)) {
+      return { hasToolUse: false, textOnly: true };
+    }
+    const hasToolUse = parts.some((p) => p?.type === "tool_use");
+    const textOnly =
+      parts.length > 0 && parts.every((p) => p?.type === "text");
+    return { hasToolUse, textOnly };
+  }
+  return null;
+}
+
 function releaseActiveLease() {
   activeLeaseId = null;
   activeTranscriptPath = null;
@@ -136,8 +161,7 @@ function hasIdeQueueWork(/** @type {ReturnType<typeof getOpsAgentQueueSnapshot>}
 }
 
 /**
- * transcript가 TURN_END_IDLE_MS 동안 갱신 없으면 턴 종료로 간주해 해제.
- * (마지막 assistant가 tool_use만 있어도 완료 후 stuck 되지 않게 — 유휴 시간으로 구분)
+ * transcript: 유휴 + 마지막 assistant가 **텍스트만**일 때만 턴 종료(도구 실행·대기 중에는 파일 비우지 않음).
  *
  * @param {string[]} lines
  * @param {ReturnType<typeof getOpsAgentQueueSnapshot>} snap
@@ -149,6 +173,11 @@ function tryReleaseWhenTurnEnded(lines, snap) {
   }
 
   if (!lines.length) return;
+
+  const tail = parseLastAssistantTail(lines);
+  if (!tail) return;
+  if (tail.hasToolUse) return;
+  if (!tail.textOnly) return;
 
   if (Date.now() - lastFileChangeMs < TURN_END_IDLE_MS) return;
   if (idleTurnReleasedForMtime === lastFileMtimeMs) return;
@@ -178,31 +207,6 @@ function sweepStaleDiskLease(snap) {
     }
   } catch {
     clearIdeLeaseOnDisk();
-  }
-}
-
-/** 메모리 슬롯 없이 디스크에만 running IDE가 남은 경우(훅 미호출·재시작) */
-function sweepOrphanedPersistRunning(snap) {
-  const memRunning = snap.entries.find(
-    (e) =>
-      e.status === "running" &&
-      (e.source === "ide" || e.requestIp === "cursor-ide"),
-  );
-  const memRunningId = memRunning ? String(memRunning.id ?? "").trim() : "";
-  const orphans = readDevQueueLiveAgentEntriesSync().filter((e) => {
-    if (e.status !== "running") return false;
-    if (e.source !== "ide" && e.requestIp !== "cursor-ide") return false;
-    const id = String(e.id ?? "").trim();
-    if (!id) return false;
-    if (memRunningId && id === memRunningId) return false;
-    return true;
-  });
-  if (!orphans.length) return;
-  if (Date.now() - lastFileChangeMs < TURN_END_IDLE_MS) return;
-  try {
-    releaseAnyRunningIdeDevQueueSlot();
-  } catch {
-    /* ignore */
   }
 }
 
@@ -318,7 +322,6 @@ function scanTranscriptFile(filePath) {
   }
 
   tryReleaseWhenTurnEnded(lines, snap);
-  sweepOrphanedPersistRunning(snap);
   sweepStaleDiskLease(snap);
 }
 
