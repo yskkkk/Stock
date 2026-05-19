@@ -1440,6 +1440,10 @@
   min-width: 0;
 }
 
+.top-bar--screener .top-bar__brand {
+  align-items: flex-start;
+}
+
 .top-bar__brand-main {
   min-width: 0;
   flex: 1;

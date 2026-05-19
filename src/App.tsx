@@ -861,7 +861,9 @@ export default function App() {
         </div>
       </div>
       <header
-        className={`top-bar card${showTopScanStrip ? " top-bar--with-scan" : ""}`}
+        className={`top-bar card${showTopScanStrip ? " top-bar--with-scan" : ""}${
+          appTab === "screener" ? " top-bar--screener" : ""
+        }`}
       >
         <div
           className={`top-bar__grid${showTopScanStrip ? " top-bar__grid--with-scan" : ""}`}
@@ -914,12 +916,28 @@ export default function App() {
                     </button>
                   </span>
                 )}
+                {appTab === "screener" && telegramNotify ? (
+                  <span className="tag-group">
+                    <button
+                      type="button"
+                      className="tag tag--telegram tag--telegram-btn"
+                      title={ko.app.telegramListAria}
+                      aria-label={ko.app.telegramListAria}
+                      onClick={handleOpenTelegramSent}
+                    >
+                      {ko.app.telegram}
+                      {telegramSentCount > 0 ? (
+                        <span className="tag-count">{telegramSentCount}</span>
+                      ) : null}
+                    </button>
+                  </span>
+                ) : null}
               </p>
             </div>
           </div>
 
           <div className="top-bar__right">
-            {telegramNotify ? (
+            {(appTab === "stockLookup" || appTab === "crypto") && telegramNotify ? (
               <span className="tag-group top-bar__telegram">
                 <button
                   type="button"
