@@ -117,6 +117,22 @@ export function fetchPicksDailyHistory() {
   return fetchJson<PicksDailyHistoryResponse>("/api/picks/daily-history");
 }
 
+export function fetchPicksDailyHistoryQuotes(symbols: string[]) {
+  const uniq = [...new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean))];
+  if (!uniq.length) {
+    return Promise.resolve({ quotes: {} as PicksDailyHistoryQuotesMap });
+  }
+  const q = uniq.map(encodeURIComponent).join(",");
+  return fetchJson<{ quotes: PicksDailyHistoryQuotesMap }>(
+    `/api/picks/daily-history/quotes?symbols=${q}`,
+  );
+}
+
+export type PicksDailyHistoryQuotesMap = Record<
+  string,
+  { price: number; changePercent?: number; currency?: string }
+>;
+
 export function fetchMacroEvents() {
   return fetchJson<MacroEventsResponse>("/api/macro-events");
 }

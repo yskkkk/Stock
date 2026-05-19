@@ -687,6 +687,23 @@
   opacity: 0.55;
 }
 
+.picks-history-pick-item__prices {
+  display: inline;
+}
+
+.picks-history-pick-item__quotes-pending {
+  opacity: 0.7;
+  font-style: italic;
+}
+
+.picks-history-pick-item__vs--up b {
+  color: var(--up);
+}
+
+.picks-history-pick-item__vs--down b {
+  color: var(--down);
+}
+
 .pick-reason-preview {
   display: flex;
   flex-wrap: wrap;

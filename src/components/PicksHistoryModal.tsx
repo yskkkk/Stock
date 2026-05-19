@@ -1,30 +1,147 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { fetchPicksDailyHistory } from "../api";
-import { displayStockSymbol, formatPrice, formatTimeMsKst } from "../lib/format";
+import {
+  fetchPicksDailyHistory,
+  fetchPicksDailyHistoryQuotes,
+  type PicksDailyHistoryQuotesMap,
+} from "../api";
+import {
+  displayStockSymbol,
+  formatPercent,
+  formatPrice,
+  formatTimeMsKst,
+} from "../lib/format";
 import { ko } from "../i18n/ko";
 import type { PicksDailyHistoryDay, PicksDailyHistorySlimPick } from "../types";
 
 const PICKS_HISTORY_LS = "stock_picks_daily_history_v1";
 
-function formatPriceLine(
+function pickSortTimeMs(
+  p: PicksDailyHistorySlimPick,
+  rowScannedAtMs: number,
+): number {
+  if (
+    p.recordedAtMs != null &&
+    p.recordedAtMs > 0 &&
+    Number.isFinite(p.recordedAtMs)
+  ) {
+    return p.recordedAtMs;
+  }
+  return rowScannedAtMs > 0 && Number.isFinite(rowScannedAtMs)
+    ? rowScannedAtMs
+    : 0;
+}
+
+function historyPickSortLabel(p: PicksDailyHistorySlimPick): string {
+  const sym = displayStockSymbol(p.symbol);
+  const name = (p.name ?? "").trim();
+  return name && name !== sym ? `${name} (${sym})` : sym;
+}
+
+/** 최신(늦은 시각)이 위로; 시각 같으면 표시 제목(이름) 오름차순 */
+function compareHistoryPicksDesc(
+  a: PicksDailyHistorySlimPick,
+  b: PicksDailyHistorySlimPick,
+  rowScannedAtMs: number,
+): number {
+  const tb = pickSortTimeMs(b, rowScannedAtMs);
+  const ta = pickSortTimeMs(a, rowScannedAtMs);
+  if (tb !== ta) return tb - ta;
+  return historyPickSortLabel(a).localeCompare(
+    historyPickSortLabel(b),
+    "ko",
+    { sensitivity: "base" },
+  );
+}
+
+/** 당일 최초 스냅샷 가격만(고저 범위 표시 안 함) */
+function formatInitialPrice(
   p: PicksDailyHistorySlimPick,
   defaultCurrency: string,
 ): string {
   const cur = (p.currency ?? defaultCurrency).trim() || defaultCurrency;
-  const lo = p.dayLow;
-  const hi = p.dayHigh;
-  if (
-    lo != null &&
-    hi != null &&
-    typeof lo === "number" &&
-    typeof hi === "number" &&
-    lo > 0 &&
-    hi >= lo
-  ) {
-    return `${formatPrice(lo, cur)} ~ ${formatPrice(hi, cur)}`;
-  }
   return formatPrice(p.price ?? undefined, cur);
+}
+
+function pctVsInitial(
+  initial: number | null | undefined,
+  current: number | null | undefined,
+): number | null {
+  if (
+    initial == null ||
+    current == null ||
+    !Number.isFinite(initial) ||
+    !Number.isFinite(current) ||
+    initial <= 0
+  ) {
+    return null;
+  }
+  return ((current - initial) / initial) * 100;
+}
+
+function HistoryPickPriceMeta({
+  pick,
+  defaultCurrency,
+  quotes,
+  quotesLoading,
+}: {
+  pick: PicksDailyHistorySlimPick;
+  defaultCurrency: string;
+  quotes: PicksDailyHistoryQuotesMap;
+  quotesLoading: boolean;
+}) {
+  const sym = pick.symbol.trim().toUpperCase();
+  const initial = pick.price;
+  const live = quotes[sym];
+  const cur = live?.price;
+  const curCurrency =
+    (live?.currency ?? pick.currency ?? defaultCurrency).trim() || defaultCurrency;
+  const vs = pctVsInitial(initial, cur);
+  const up = (vs ?? 0) >= 0;
+
+  return (
+    <span className="picks-history-pick-item__prices">
+      <span>
+        {ko.app.picksHistoryInitialPrice}{" "}
+        <b>{formatInitialPrice(pick, defaultCurrency)}</b>
+      </span>
+      {quotesLoading && !live ? (
+        <span className="picks-history-pick-item__quotes-pending">
+          {ko.app.picksHistoryQuotesLoading}
+        </span>
+      ) : null}
+      {!quotesLoading && cur != null && Number.isFinite(cur) ? (
+        <>
+          <span className="picks-history-pick-item__sep" aria-hidden>
+            {" "}
+            ·{" "}
+          </span>
+          <span>
+            {ko.app.picksHistoryCurrentPrice}{" "}
+            <b>{formatPrice(cur, curCurrency)}</b>
+          </span>
+          {vs != null ? (
+            <>
+              <span className="picks-history-pick-item__sep" aria-hidden>
+                {" "}
+                ·{" "}
+              </span>
+              <span
+                className={
+                  up
+                    ? "picks-history-pick-item__vs picks-history-pick-item__vs--up"
+                    : "picks-history-pick-item__vs picks-history-pick-item__vs--down"
+                }
+              >
+                {ko.app.picksHistoryVsInitial}{" "}
+                <b>{formatPercent(vs)}</b>
+              </span>
+            </>
+          ) : null}
+        </>
+      ) : null}
+    </span>
+  );
 }
 
 /** 행·종목에 시각이 섞여 있을 때 표시용으로 가장 이른 시각(당일 첫 스냅샷에 가깝게) */
@@ -49,21 +166,31 @@ function HistoryPickColumn({
   picks,
   rowScannedAtMs,
   defaultCurrency,
+  quotes,
+  quotesLoading,
 }: {
   picks: PicksDailyHistorySlimPick[];
   rowScannedAtMs: number;
   defaultCurrency: string;
+  quotes: PicksDailyHistoryQuotesMap;
+  quotesLoading: boolean;
 }) {
+  const sortedPicks = useMemo(() => {
+    return [...picks].sort((a, b) =>
+      compareHistoryPicksDesc(a, b, rowScannedAtMs),
+    );
+  }, [picks, rowScannedAtMs]);
+
   const anchorMs = useMemo(
-    () => rowDisplayTimeAnchor(picks, rowScannedAtMs),
-    [picks, rowScannedAtMs],
+    () => rowDisplayTimeAnchor(sortedPicks, rowScannedAtMs),
+    [sortedPicks, rowScannedAtMs],
   );
-  if (!picks.length) {
+  if (!sortedPicks.length) {
     return <span className="picks-history-table__empty">—</span>;
   }
   return (
     <ul className="picks-history-pick-list">
-      {picks.map((p) => {
+      {sortedPicks.map((p) => {
         const sym = displayStockSymbol(p.symbol);
         const title =
           p.name && p.name !== sym ? `${p.name} (${sym})` : sym;
@@ -80,7 +207,12 @@ function HistoryPickColumn({
                 {" "}
                 ·{" "}
               </span>
-              <span>{formatPriceLine(p, defaultCurrency)}</span>
+              <HistoryPickPriceMeta
+                pick={p}
+                defaultCurrency={defaultCurrency}
+                quotes={quotes}
+                quotesLoading={quotesLoading}
+              />
             </div>
           </li>
         );
@@ -99,6 +231,8 @@ export default function PicksHistoryModal({
   const [loading, setLoading] = useState(false);
   const [days, setDays] = useState<PicksDailyHistoryDay[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [quotes, setQuotes] = useState<PicksDailyHistoryQuotesMap>({});
+  const [quotesLoading, setQuotesLoading] = useState(false);
 
   useEffect(() => {
     if (!days.length) {
@@ -139,6 +273,39 @@ export default function PicksHistoryModal({
       .finally(() => setLoading(false));
   }, [open]);
 
+  const selectedRow =
+    (selectedDate && days.find((d) => d.date === selectedDate)) ?? days[0] ?? null;
+
+  const symbolsForQuotes = useMemo(() => {
+    if (!selectedRow) return [];
+    return [...selectedRow.kr, ...selectedRow.us]
+      .map((p) => p.symbol.trim().toUpperCase())
+      .filter(Boolean);
+  }, [selectedRow]);
+
+  useEffect(() => {
+    if (!open || !symbolsForQuotes.length) {
+      setQuotes({});
+      setQuotesLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setQuotesLoading(true);
+    void fetchPicksDailyHistoryQuotes(symbolsForQuotes)
+      .then((data) => {
+        if (!cancelled) setQuotes(data.quotes ?? {});
+      })
+      .catch(() => {
+        if (!cancelled) setQuotes({});
+      })
+      .finally(() => {
+        if (!cancelled) setQuotesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, symbolsForQuotes.join(",")]);
+
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
@@ -154,9 +321,6 @@ export default function PicksHistoryModal({
   }, [open, onClose]);
 
   if (!open) return null;
-
-  const selectedRow =
-    (selectedDate && days.find((d) => d.date === selectedDate)) ?? days[0] ?? null;
 
   return createPortal(
     <div
@@ -231,6 +395,8 @@ export default function PicksHistoryModal({
                         picks={selectedRow.kr}
                         rowScannedAtMs={selectedRow.scannedAtMs}
                         defaultCurrency="KRW"
+                        quotes={quotes}
+                        quotesLoading={quotesLoading}
                       />
                     </td>
                     <td className="picks-history-table__cell picks-history-table__cell--list">
@@ -238,6 +404,8 @@ export default function PicksHistoryModal({
                         picks={selectedRow.us}
                         rowScannedAtMs={selectedRow.scannedAtMs}
                         defaultCurrency="USD"
+                        quotes={quotes}
+                        quotesLoading={quotesLoading}
                       />
                     </td>
                   </tr>

@@ -66,7 +66,10 @@ import {
   enrichPicksStateWithHistory,
   getPicksDailyHistoryForApi,
 } from "./picks-history-store.js";
-import { mergeLiveQuotesIntoPicksState } from "./picks-live-quotes.js";
+import {
+  fetchQuoteSnapshotsForSymbols,
+  mergeLiveQuotesIntoPicksState,
+} from "./picks-live-quotes.js";
 import { enrichUnifiedQueueAgentAndRecord } from "./ops-unified-queue-seq.js";
 import { readDevQueueDisplaySnapshotSync } from "./ops-dev-queue-live-store.js";
 import { startDevQueueDisplaySyncPoller } from "./ops-dev-queue-display-sync.js";
@@ -204,6 +207,21 @@ export function createApp() {
   app.get("/api/picks/daily-history", (_req, res) => {
     res.json(getPicksDailyHistoryForApi());
   });
+
+  app.get(
+    "/api/picks/daily-history/quotes",
+    asyncRoute(async (req, res) => {
+      const raw = String(req.query.symbols ?? "").trim();
+      const symbols = raw
+        ? raw
+            .split(/[,\s]+/)
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : [];
+      const quotes = await fetchQuoteSnapshotsForSymbols(symbols);
+      res.json({ quotes });
+    }),
+  );
 
   app.post("/api/picks/refresh", (_req, res) => {
     res.json(forceRescreen());
