@@ -166,15 +166,11 @@ export function startAutoGitSync({ httpServer }) {
       return;
     }
 
-    const ts = new Date().toISOString();
     if (localRev === remoteRev) {
-      appendServerEventLog(
-        "auto-git",
-        `${ts} compare ${remoteRef} HEAD=${localRev.slice(0, 7)} same as remote — skip`,
-      );
       return;
     }
 
+    const ts = new Date().toISOString();
     appendServerEventLog(
       "auto-git",
       `${ts} compare ${remoteRef} remote=${remoteRev.slice(0, 7)} local HEAD=${localRev.slice(0, 7)} differ → pull --ff-only`,
