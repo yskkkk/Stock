@@ -9,6 +9,7 @@ import {
 } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
+import { buildBullishReasons } from "./bullish-reasons.js";
 import { getTradingSessionKey } from "./market-hours.js";
 import {
   MAX_TECH_SCORE,
@@ -666,31 +667,11 @@ function buildMessage(pick) {
 
 
 
-  const signalLines =
-
-    pick.signals?.length > 0
-
-      ? pick.signals
-
-          .slice(0, 8)
-
-          .map((s) => `  • ${escHtml(s)}`)
-
-          .join("\n")
-
+  const reasons = buildBullishReasons(pick);
+  const reasonLines =
+    reasons.length > 0
+      ? reasons.map((r, i) => `  ${i + 1}. ${escHtml(r)}`).join("\n")
       : "  • —";
-
-
-
-  const more =
-
-    pick.signals?.length > 8
-
-      ? `\n  <i>외 ${pick.signals.length - 8}개 신호</i>`
-
-      : "";
-
-
 
   return [
 
@@ -716,9 +697,9 @@ function buildMessage(pick) {
 
     "",
 
-    `<b>신호</b>`,
+    `<b>충족 이유</b> (${reasons.length}개)`,
 
-    signalLines + more,
+    reasonLines,
 
     "",
 
