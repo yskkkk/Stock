@@ -1,7 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { scheduleDevQueueDisplayRefresh } from "./ops-dev-queue-display-store.js";
+import {
+  persistDevQueueRemove,
+  persistDevQueueSetRunning,
+  persistDevQueueUpsert,
+} from "./ops-dev-queue-live-store.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");
@@ -32,55 +36,43 @@ export function readIdeLeaseDiskSync() {
 }
 
 /**
- * 디스크 lease → 큐 카드(메모리 스냅샷에 없을 때 UI 즉시 표시용).
- * @param {Array<Record<string, unknown>>} memoryEntries
- * @returns {Array<Record<string, unknown>>}
+ * 영속 표시 큐에 IDE lease 보조 카드 병합(dev 재시작 후에도 유지).
+ * @param {Array<Record<string, unknown>>} entries
  */
-/**
- * 디스크 lease는 **실행 중 메모리 큐가 있을 때만** 보조 표시(즉시 UI용).
- * 메모리에 없으면 고아 lease — 새로고침·리다이렉트 시 유령 카드 방지.
- */
-export function mergeIdeLeaseDiskIntoAgentEntries(memoryEntries) {
-  const memIde = memoryEntries.filter(
-    (e) => e.source === "ide" || e.requestIp === "cursor-ide",
-  );
-  if (memIde.length === 0) {
-    clearIdeLeaseOnDisk();
-    return memoryEntries;
-  }
-
+export function mergeIdeLeaseIntoDisplayEntries(entries) {
   const lease = readIdeLeaseDiskSync();
-  if (!lease) return memoryEntries;
+  if (!lease) return entries;
 
   const leaseId = String(lease.leaseId ?? lease.id ?? "").trim();
   const preview = String(
     lease.instructionPreview ?? lease.promptPreview ?? lease.prompt ?? "",
   ).trim();
-  if (!preview && !leaseId) return memoryEntries;
+  if (!preview && !leaseId) return entries;
 
   const id = leaseId || `ide-lease-${String(lease.sinceMs ?? Date.now())}`;
-  if (memoryEntries.some((e) => String(e.id ?? "") === id)) {
-    return memoryEntries;
+  if (entries.some((e) => String(e.id ?? "") === id)) {
+    return entries;
   }
 
   if (
-    memIde.some(
+    entries.some(
       (e) =>
-        String(e.instructionPreview ?? "").trim() === preview ||
-        (preview &&
-          String(e.instructionBody ?? "")
-            .trim()
-            .startsWith(preview.slice(0, 80))),
+        (e.source === "ide" || e.requestIp === "cursor-ide") &&
+        (String(e.instructionPreview ?? "").trim() === preview ||
+          (preview &&
+            String(e.instructionBody ?? "")
+              .trim()
+              .startsWith(preview.slice(0, 80)))),
     )
   ) {
-    return memoryEntries;
+    return entries;
   }
 
   const statusRaw = String(lease.queueStatus ?? "waiting").toLowerCase();
   const status = statusRaw === "running" ? "running" : "waiting";
 
   return [
-    ...memoryEntries,
+    ...entries,
     {
       id,
       requestIp: "cursor-ide",
@@ -98,6 +90,11 @@ export function mergeIdeLeaseDiskIntoAgentEntries(memoryEntries) {
       fromDiskLease: true,
     },
   ];
+}
+
+/** @param {Array<Record<string, unknown>>} memoryEntries */
+export function mergeIdeLeaseDiskIntoAgentEntries(memoryEntries) {
+  return mergeIdeLeaseIntoDisplayEntries(memoryEntries);
 }
 
 /**
@@ -136,15 +133,32 @@ export function writeIdeLeaseDiskImmediate(input) {
     /* write */
   }
   fs.writeFileSync(IDE_LEASE_PATH, line, "utf8");
-  scheduleDevQueueDisplayRefresh();
+  const persistId =
+    String(input.leaseId ?? "").trim() || `ide-lease-${now}`;
+  persistDevQueueUpsert({
+    id: persistId,
+    requestIp: "cursor-ide",
+    source: "ide",
+    instructionPreview: preview,
+    instructionTooltip: preview,
+    instructionBody: prompt.slice(0, 16_000),
+    enqueuedAtMs: now,
+    status: queueStatus,
+    sessionId: input.sessionId ?? null,
+  });
+  if (queueStatus === "running") {
+    persistDevQueueSetRunning(persistId);
+  }
 }
 
 export function clearIdeLeaseOnDisk() {
+  const lease = readIdeLeaseDiskSync();
+  const leaseId = String(lease?.leaseId ?? lease?.id ?? "").trim();
   try {
     if (!fs.existsSync(IDE_LEASE_PATH)) return;
     fs.unlinkSync(IDE_LEASE_PATH);
   } catch {
     /* ignore */
   }
-  scheduleDevQueueDisplayRefresh();
+  if (leaseId) persistDevQueueRemove(leaseId);
 }

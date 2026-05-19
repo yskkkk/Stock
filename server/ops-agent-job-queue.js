@@ -18,6 +18,13 @@ import {
   writeOpsWebAgentBusyMarker,
 } from "./ops-web-agent-busy-marker.js";
 import { mergeIdeLeaseDiskIntoAgentEntries } from "./ops-ide-lease-disk.js";
+import {
+  metaToPersistEntry,
+  persistDevQueueRemove,
+  persistDevQueueSetRunning,
+  persistDevQueueUpsert,
+  readDevQueueLiveAgentEntriesSync,
+} from "./ops-dev-queue-live-store.js";
 import { opsIdePromptsMatch } from "./ops-ide-prompt-match.js";
 
 /**
@@ -66,10 +73,21 @@ const PREVIEW_MAX = 220;
 const TOOLTIP_MAX = 900;
 const TOOLTIP_MAX_LINES = 4;
 
-function bumpDevQueueDisplay() {
-  void import("./ops-dev-queue-display-store.js")
-    .then((m) => m.scheduleDevQueueDisplayRefresh())
-    .catch(() => {});
+/** @param {QueueSlot} slot */
+function persistDevQueueWaiting(slot) {
+  if (!slot.meta) return;
+  persistDevQueueUpsert(metaToPersistEntry(slot.meta, "waiting"));
+}
+
+/** @param {QueueSlot} slot */
+function persistDevQueueRunning(slot) {
+  if (!slot.meta) return;
+  persistDevQueueSetRunning(slot.id);
+}
+
+/** @param {string} slotId */
+function persistDevQueueDone(slotId) {
+  persistDevQueueRemove(slotId);
 }
 
 /** @param {unknown} ip */
@@ -248,7 +266,7 @@ async function drainQueue() {
   runningSlot = slot;
   runningMeta = slot.meta;
   writeRunningBusyMarker();
-  bumpDevQueueDisplay();
+  persistDevQueueRunning(slot);
 
   if (slot.source === "web") {
     try {
@@ -263,7 +281,7 @@ async function drainQueue() {
       runningSlot = null;
       runningMeta = null;
       clearOpsWebAgentBusyMarkerSync();
-      bumpDevQueueDisplay();
+      persistDevQueueDone(slot.id);
       void drainQueue();
     }
     return;
@@ -311,7 +329,7 @@ async function drainQueue() {
     runningSlot = null;
     runningMeta = null;
     clearOpsWebAgentBusyMarkerSync();
-    bumpDevQueueDisplay();
+    persistDevQueueDone(slot.id);
     void drainQueue();
   }
 }
@@ -347,7 +365,7 @@ export function enqueueOpsAgentJob(fn, onQueued, meta, onCommittedToQueue) {
       reject,
     });
     slots.push(slot);
-    bumpDevQueueDisplay();
+    persistDevQueueWaiting(slot);
     try {
       onCommittedToQueue?.();
     } catch {
@@ -381,7 +399,17 @@ function queueSeqAndStatusForSlotId(slotId) {
  */
 /** @param {string} prompt */
 export function hasActiveIdeSlotForPrompt(prompt) {
-  return findActiveIdeSlotByPrompt(prompt) != null;
+  if (findActiveIdeSlotByPrompt(prompt) != null) return true;
+  const probe = String(prompt ?? "").trim();
+  if (!probe) return false;
+  for (const e of readDevQueueLiveAgentEntriesSync()) {
+    if (e.source !== "ide" && e.requestIp !== "cursor-ide") continue;
+    const preview = String(e.instructionPreview ?? "").trim();
+    const body = String(e.instructionBody ?? "").trim();
+    const text = body || preview;
+    if (text && opsIdePromptsMatch(text, probe)) return true;
+  }
+  return false;
 }
 
 /** @param {string} prompt */
@@ -445,12 +473,17 @@ export function registerIdeDevQueueSlot(input) {
 
   if (
     sessionId &&
-    slots.some(
+    (slots.some(
       (s) =>
         s.source === "ide" &&
         s.sessionId === sessionId &&
         (s === slots[0] || slots.indexOf(s) > 0),
-    )
+    ) ||
+      readDevQueueLiveAgentEntriesSync().some(
+        (e) =>
+          (e.source === "ide" || e.requestIp === "cursor-ide") &&
+          String(e.sessionId ?? "") === sessionId,
+      ))
   ) {
     const err = new Error(
       "이 Cursor 세션에 이미 대기·실행 중인 IDE 요청이 있습니다. 끝난 뒤 다시 보내세요.",
@@ -472,7 +505,11 @@ export function registerIdeDevQueueSlot(input) {
     sessionId,
   });
   slots.push(slot);
-  bumpDevQueueDisplay();
+  const waitingEntry = {
+    ...metaToPersistEntry(queueMeta, "waiting"),
+    sessionId,
+  };
+  persistDevQueueUpsert(waitingEntry);
   syncIdeHistoryWaiting(slot);
   void drainQueue();
 
@@ -542,7 +579,8 @@ export function abandonIdeDevQueueSlot(leaseId) {
 
   const idx = slots.findIndex((s) => s.id === id && s.source === "ide");
   if (idx < 0) {
-    return { ok: false, error: "개발 큐에 등록된 IDE 요청을 찾을 수 없습니다." };
+    persistDevQueueRemove(id);
+    return { ok: true, cancelled: true, fromPersistOnly: true };
   }
 
   const slot = slots[idx];
@@ -564,12 +602,10 @@ export function abandonIdeDevQueueSlot(leaseId) {
     /* ignore */
   }
   syncIdeHistoryFinalize(slot, "cancelled");
+  persistDevQueueRemove(id);
   if (!active) {
     clearOpsWebAgentBusyMarkerSync();
-    bumpDevQueueDisplay();
     void drainQueue();
-  } else {
-    bumpDevQueueDisplay();
   }
   return { ok: true, cancelled: true };
 }
@@ -619,6 +655,18 @@ export function releaseAnyRunningIdeDevQueueSlot() {
       if (active && runningSlot?.id === s.id) continue;
       const ab = abandonIdeDevQueueSlot(s.id);
       if (ab.ok) released = true;
+    }
+  }
+
+  if (!released) {
+    for (const e of readDevQueueLiveAgentEntriesSync()) {
+      if (e.status !== "running") continue;
+      if (e.source !== "ide" && e.requestIp !== "cursor-ide") continue;
+      const id = String(e.id ?? "").trim();
+      if (!id) continue;
+      persistDevQueueRemove(id);
+      released = true;
+      break;
     }
   }
 

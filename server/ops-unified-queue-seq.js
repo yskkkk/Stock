@@ -19,6 +19,14 @@ import { getOpsAgentQueueSnapshot } from "./ops-agent-job-queue.js";
  *   recordItems: Array<Record<string, unknown> & { unifiedQueueSeq: number | null }>;
  * }}
  */
+/** @param {Array<Record<string, unknown>>} entries */
+export function enrichAgentEntriesWithUnifiedSeq(entries) {
+  return entries.map((e, i) => ({
+    ...e,
+    unifiedQueueSeq: i + 1,
+  }));
+}
+
 export function enrichUnifiedQueueAgentAndRecord(recordItemsRaw) {
   const snap = getOpsAgentQueueSnapshot();
   const agentEntries = snap.entries.map((e, i) => ({
