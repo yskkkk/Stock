@@ -22,6 +22,7 @@ const MAX_DAYS = 160;
  *   dayHigh?: number | null;
  *   dayLow?: number | null;
  *   signalIds?: string[];
+ *   score?: number | null;
  * }} SlimPick
  */
 /** @typedef {{ date: string; scannedAtMs: number; kr: SlimPick[]; us: SlimPick[] }} DailyPicksRow */
@@ -142,10 +143,14 @@ function slimFrom(x) {
         .map((x) => String(x ?? "").trim())
         .filter((id) => id.length > 0)
     : [];
+  const sc = o.score;
+  const score =
+    typeof sc === "number" && Number.isFinite(sc) && sc >= 0 ? Math.round(sc) : null;
   /** @type {SlimPick} */
   const out = { symbol, name, price, currency, dayHigh, dayLow };
   if (recordedAtMs !== undefined) out.recordedAtMs = recordedAtMs;
   if (signalIds.length) out.signalIds = signalIds;
+  if (score != null) out.score = score;
   return out;
 }
 
@@ -214,6 +219,8 @@ function toSlimPick(p, recordedAtMs, defaultCurrency) {
     dayLow: typeof dl === "number" && Number.isFinite(dl) && dl > 0 ? dl : null,
   };
   if (signalIds.length) out.signalIds = signalIds;
+  const sc = p.score;
+  if (typeof sc === "number" && Number.isFinite(sc) && sc >= 0) out.score = Math.round(sc);
   return out;
 }
 

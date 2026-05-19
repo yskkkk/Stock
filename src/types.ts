@@ -253,6 +253,7 @@ export interface PicksDailyHistorySlimPick {
   dayHigh?: number | null;
   dayLow?: number | null;
   signalIds?: string[];
+  score?: number | null;
 }
 
 export type RecommendationOutcome = "win" | "loss" | "flat" | "unknown";
@@ -276,6 +277,7 @@ export interface RecommendationTrackerItem {
   entryPrice: number | null;
   recordedAtMs: number | null;
   signalIds: string[];
+  score: number | null;
   currentPrice: number | null;
   changePct: number | null;
   outcome: RecommendationOutcome;
@@ -283,6 +285,10 @@ export interface RecommendationTrackerItem {
 
 export interface RecommendationSignalStat extends RecommendationTrackerRollup {
   signalId: string;
+}
+
+export interface RecommendationScoreStat extends RecommendationTrackerRollup {
+  score: number;
 }
 
 export interface RecommendationSymbolStat extends RecommendationTrackerRollup {
@@ -295,6 +301,7 @@ export interface RecommendationsTrackerResponse {
   updatedAtMs: number;
   summary: RecommendationTrackerRollup;
   signalStats: RecommendationSignalStat[];
+  scoreStats: RecommendationScoreStat[];
   symbolStats: RecommendationSymbolStat[];
   items: RecommendationTrackerItem[];
 }

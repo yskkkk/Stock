@@ -69,6 +69,7 @@ export default function RecommendationsTab({
   const [error, setError] = useState<string | null>(null);
   const [market, setMarket] = useState<MarketFilter>("all");
   const [signalFilter, setSignalFilter] = useState<SignalId | null>(null);
+  const [scoreFilter, setScoreFilter] = useState<number | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -93,9 +94,10 @@ export default function RecommendationsTab({
     return data.items.filter((it) => {
       if (market !== "all" && it.market !== market) return false;
       if (signalFilter && !it.signalIds.includes(signalFilter)) return false;
+      if (scoreFilter != null && it.score !== scoreFilter) return false;
       return true;
     });
-  }, [data?.items, market, signalFilter]);
+  }, [data?.items, market, signalFilter, scoreFilter]);
 
   const filteredSummary = useMemo(() => {
     let wins = 0;
@@ -146,6 +148,32 @@ export default function RecommendationsTab({
       })
       .sort((a, b) => b.total - a.total);
   }, [data?.signalStats, filteredItems, market, signalFilter]);
+
+  const scoreStats = useMemo(() => {
+    const base = data?.scoreStats ?? [];
+    if (market === "all" && !signalFilter && scoreFilter == null) return base;
+    const fromFiltered = new Map<number, { wins: number; losses: number; total: number }>();
+    for (const it of filteredItems) {
+      if (it.score == null || !Number.isFinite(it.score)) continue;
+      const cur = fromFiltered.get(it.score) ?? { wins: 0, losses: 0, total: 0 };
+      cur.total++;
+      if (it.outcome === "win") cur.wins++;
+      else if (it.outcome === "loss") cur.losses++;
+      fromFiltered.set(it.score, cur);
+    }
+    return [...fromFiltered.entries()]
+      .map(([score, c]) => {
+        const decided = c.wins + c.losses;
+        return {
+          score,
+          ...c,
+          flats: 0,
+          unknown: c.total - decided,
+          winRatePct: decided > 0 ? (c.wins / decided) * 100 : null,
+        };
+      })
+      .sort((a, b) => b.score - a.score);
+  }, [data?.scoreStats, filteredItems, market, signalFilter, scoreFilter]);
 
   return (
     <div className="workspace workspace--rec-tracker">
@@ -243,6 +271,51 @@ export default function RecommendationsTab({
               />
             </div>
 
+            {scoreStats.length > 0 && (
+              <div className="rec-tracker-signals rec-tracker-scores card">
+                <div className="rec-tracker-signals__head">
+                  <span className="filter-title">{ko.app.recTrackerByScore}</span>
+                  {scoreFilter != null ? (
+                    <button
+                      type="button"
+                      className="filter-clear"
+                      onClick={() => setScoreFilter(null)}
+                    >
+                      {ko.app.recTrackerClearFilter}
+                    </button>
+                  ) : null}
+                </div>
+                <div className="rec-tracker-signals__chips">
+                  {scoreStats.map((s) => (
+                    <button
+                      key={s.score}
+                      type="button"
+                      className={
+                        scoreFilter === s.score
+                          ? "rec-tracker-score-chip rec-tracker-score-chip--active"
+                          : "rec-tracker-score-chip"
+                      }
+                      aria-pressed={scoreFilter === s.score}
+                      onClick={() =>
+                        setScoreFilter((prev) => (prev === s.score ? null : s.score))
+                      }
+                    >
+                      <span className="rec-tracker-score-chip__pts">
+                        {s.score}
+                        {ko.app.recTrackerScoreUnit}
+                      </span>
+                      <span className="rec-tracker-score-chip__rate">
+                        {formatWinRate(s.winRatePct)}
+                      </span>
+                      <span className="rec-tracker-signal-chip__n">
+                        {s.wins}승/{s.losses}패
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {signalStats.length > 0 && (
               <div className="rec-tracker-signals card">
                 <div className="rec-tracker-signals__head">
@@ -298,6 +371,7 @@ export default function RecommendationsTab({
                   <tr>
                     <th>{ko.app.recTrackerColDate}</th>
                     <th>{ko.app.recTrackerColName}</th>
+                    <th>{ko.app.recTrackerColScore}</th>
                     <th>{ko.app.recTrackerColSignals}</th>
                     <th>{ko.app.recTrackerColEntry}</th>
                     <th>{ko.app.recTrackerColCurrent}</th>
@@ -340,7 +414,7 @@ function RecTrackerRow({
           symbol: item.symbol,
           name: item.name,
           market: item.market,
-          score: 0,
+          score: item.score ?? 0,
           signals: [],
           signalIds: item.signalIds,
           price: item.currentPrice ?? item.entryPrice ?? undefined,
@@ -354,7 +428,7 @@ function RecTrackerRow({
             symbol: item.symbol,
             name: item.name,
             market: item.market,
-            score: 0,
+            score: item.score ?? 0,
             signals: [],
             signalIds: item.signalIds,
             price: item.currentPrice ?? item.entryPrice ?? undefined,
@@ -367,6 +441,16 @@ function RecTrackerRow({
       <td className="rec-tracker-table__name">
         <span className="rec-tracker-table__sym">{sym}</span>
         <span className="rec-tracker-table__nm">{item.name}</span>
+      </td>
+      <td className="rec-tracker-table__score">
+        {item.score != null ? (
+          <span className="rec-tracker-table__score-val">
+            {item.score}
+            {ko.app.recTrackerScoreUnit}
+          </span>
+        ) : (
+          <span className="rec-tracker-table__muted">—</span>
+        )}
       </td>
       <td className="rec-tracker-table__signals">
         {item.signalIds.length ? (

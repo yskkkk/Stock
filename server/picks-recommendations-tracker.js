@@ -51,6 +51,10 @@ function slimToEvent(p, market, date) {
       ? p.recordedAtMs
       : null;
 
+  const sc = p.score;
+  const score =
+    typeof sc === "number" && Number.isFinite(sc) && sc >= 0 ? Math.round(sc) : null;
+
   return {
     id: `${date}:${market}:${symbol}`,
     date,
@@ -61,6 +65,7 @@ function slimToEvent(p, market, date) {
     entryPrice,
     recordedAtMs,
     signalIds: normalizeSignalIds(p.signalIds),
+    score,
   };
 }
 
@@ -212,10 +217,27 @@ export async function buildRecommendationsTrackerPayload() {
     }))
     .sort((a, b) => b.total - a.total);
 
+  /** @type {Map<number, typeof items>} */
+  const byScore = new Map();
+  for (const it of items) {
+    if (it.score == null || !Number.isFinite(it.score)) continue;
+    const key = it.score;
+    if (!byScore.has(key)) byScore.set(key, []);
+    byScore.get(key).push(it);
+  }
+
+  const scoreStats = [...byScore.entries()]
+    .map(([score, group]) => ({
+      score,
+      ...rollupCounts(group),
+    }))
+    .sort((a, b) => b.score - a.score);
+
   return {
     updatedAtMs: Date.now(),
     summary,
     signalStats,
+    scoreStats,
     symbolStats,
     items,
   };

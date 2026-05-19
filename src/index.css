@@ -6596,6 +6596,49 @@ body {
   opacity: 0.85;
 }
 
+.rec-tracker-score-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.05rem;
+  padding: 0.28rem 0.5rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(148, 163, 184, 0.08);
+  color: var(--text);
+}
+
+.rec-tracker-score-chip--active {
+  outline: 2px solid var(--accent-border);
+  outline-offset: 1px;
+  background: var(--accent-dim);
+  border-color: var(--accent-border);
+}
+
+.rec-tracker-score-chip__pts {
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.rec-tracker-score-chip__rate {
+  font-variant-numeric: tabular-nums;
+}
+
+.rec-tracker-table__score {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.rec-tracker-table__score-val {
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
 .rec-tracker-table-wrap {
   flex: 1;
   min-height: 0;
