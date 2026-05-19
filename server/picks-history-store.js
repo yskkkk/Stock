@@ -21,6 +21,7 @@ const MAX_DAYS = 160;
  *   recordedAtMs?: number;
  *   dayHigh?: number | null;
  *   dayLow?: number | null;
+ *   signalIds?: string[];
  * }} SlimPick
  */
 /** @typedef {{ date: string; scannedAtMs: number; kr: SlimPick[]; us: SlimPick[] }} DailyPicksRow */
@@ -136,9 +137,15 @@ function slimFrom(x) {
   const dl = o.dayLow;
   const dayLow =
     typeof dl === "number" && Number.isFinite(dl) && dl > 0 ? dl : null;
+  const signalIds = Array.isArray(o.signalIds)
+    ? o.signalIds
+        .map((x) => String(x ?? "").trim())
+        .filter((id) => id.length > 0)
+    : [];
   /** @type {SlimPick} */
   const out = { symbol, name, price, currency, dayHigh, dayLow };
   if (recordedAtMs !== undefined) out.recordedAtMs = recordedAtMs;
+  if (signalIds.length) out.signalIds = signalIds;
   return out;
 }
 
@@ -189,7 +196,13 @@ function writeHistorySync(data) {
 function toSlimPick(p, recordedAtMs, defaultCurrency) {
   const dh = p.dayHigh;
   const dl = p.dayLow;
-  return {
+  const signalIds = Array.isArray(p.signalIds)
+    ? p.signalIds
+        .map((x) => String(x ?? "").trim())
+        .filter((id) => id.length > 0)
+    : [];
+  /** @type {SlimPick} */
+  const out = {
     symbol: String(p.symbol ?? "").trim(),
     name: String(p.name ?? "").trim() || String(p.symbol ?? "").trim(),
     price:
@@ -200,6 +213,8 @@ function toSlimPick(p, recordedAtMs, defaultCurrency) {
     dayHigh: typeof dh === "number" && Number.isFinite(dh) && dh > 0 ? dh : null,
     dayLow: typeof dl === "number" && Number.isFinite(dl) && dl > 0 ? dl : null,
   };
+  if (signalIds.length) out.signalIds = signalIds;
+  return out;
 }
 
 /**

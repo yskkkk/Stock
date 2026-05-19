@@ -10,6 +10,7 @@ import type {
   NewsResponse,
   PicksDailyHistoryResponse,
   PicksResponse,
+  RecommendationsTrackerResponse,
   QuoteResponse,
   RefreshResponse,
   StockSearchResponse,
@@ -115,6 +116,10 @@ export function fetchPicks() {
 
 export function fetchPicksDailyHistory() {
   return fetchJson<PicksDailyHistoryResponse>("/api/picks/daily-history");
+}
+
+export function fetchRecommendationsTracker() {
+  return fetchJson<RecommendationsTrackerResponse>("/api/picks/recommendations-tracker");
 }
 
 export function fetchPicksDailyHistoryQuotes(symbols: string[]) {

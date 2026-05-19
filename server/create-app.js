@@ -66,6 +66,7 @@ import {
   enrichPicksStateWithHistory,
   getPicksDailyHistoryForApi,
 } from "./picks-history-store.js";
+import { buildRecommendationsTrackerPayload } from "./picks-recommendations-tracker.js";
 import {
   fetchQuoteSnapshotsForSymbols,
   mergeLiveQuotesIntoPicksState,
@@ -220,6 +221,13 @@ export function createApp() {
         : [];
       const quotes = await fetchQuoteSnapshotsForSymbols(symbols);
       res.json({ quotes });
+    }),
+  );
+
+  app.get(
+    "/api/picks/recommendations-tracker",
+    asyncRoute(async (_req, res) => {
+      res.json(await buildRecommendationsTrackerPayload());
     }),
   );
 

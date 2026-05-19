@@ -31,6 +31,7 @@ import ChartDrawToolbarButtons from "./components/ChartDrawToolbarButtons";
 import CryptoTab from "./components/CryptoTab";
 import OpsGlobalQueueStrip from "./components/OpsGlobalQueueStrip";
 import OpsManagementTab from "./components/OpsManagementTab";
+import RecommendationsTab from "./components/RecommendationsTab";
 import StockSearchTab from "./components/StockSearchTab";
 import StockChart from "./components/StockChart";
 import TradingViewAdvancedChart from "./components/TradingViewAdvancedChart";
@@ -84,7 +85,7 @@ import type {
   TelegramSentItem,
 } from "./types";
 
-export type AppTab = "screener" | "stockLookup" | "crypto" | "ops";
+export type AppTab = "screener" | "recommendations" | "stockLookup" | "crypto" | "ops";
 
 type StockChartEngine = "tradingview" | "app";
 
@@ -964,6 +965,15 @@ export default function App() {
               <button
                 type="button"
                 className={
+                  appTab === "recommendations" ? "main-tab active" : "main-tab"
+                }
+                onClick={() => setAppTab("recommendations")}
+              >
+                {ko.app.tabRecommendations}
+              </button>
+              <button
+                type="button"
+                className={
                   appTab === "stockLookup" ? "main-tab active" : "main-tab"
                 }
                 onClick={() => setAppTab("stockLookup")}
@@ -1111,6 +1121,8 @@ export default function App() {
           focusSymbol={cryptoFocusSymbol}
           onFocusSymbolConsumed={handleCryptoFocusConsumed}
         />
+      ) : appTab === "recommendations" ? (
+        <RecommendationsTab onOpenPick={handleSelect} />
       ) : appTab === "ops" ? (
         <div className="workspace ops-workspace">
           <section

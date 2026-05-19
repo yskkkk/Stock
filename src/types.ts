@@ -71,9 +71,11 @@ export interface QuoteResponse {
   changePercent?: number;
   currency?: string;
   marketState?: string;
+  /** 당일 거래대금 (거래량 × 현재가) */
+  turnover?: number;
 }
 
-/** GET /api/crypto-quotes — USDT는 Binance 배치, 그 외 Yahoo 차트 스냅샷 */
+/** GET /api/crypto-quotes — USDT 키는 빗썸 KRW 공개 API, 그 외 Yahoo 차트 스냅샷 */
 export interface CryptoQuotesResponse {
   quotes: Record<string, QuoteResponse>;
   updatedAt: number;
@@ -105,6 +107,8 @@ export interface StockPick {
   marketState?: string;
   dayHigh?: number;
   dayLow?: number;
+  /** 당일 거래대금 (거래량 × 현재가) */
+  turnover?: number;
   /** 미국 종목 한글 표기(검색·로컬 맵) */
   nameKo?: string;
   /** 미국 종목 영문 회사명(검색 보조) */
@@ -135,6 +139,8 @@ export interface StockSearchQuoteRow {
   changePercent?: number;
   currency?: string;
   marketState?: string;
+  /** 당일 거래대금 (거래량 × 현재가) */
+  turnover?: number;
 }
 
 /** GET /api/fx/usd-krw */
@@ -246,6 +252,51 @@ export interface PicksDailyHistorySlimPick {
   recordedAtMs?: number | null;
   dayHigh?: number | null;
   dayLow?: number | null;
+  signalIds?: string[];
+}
+
+export type RecommendationOutcome = "win" | "loss" | "flat" | "unknown";
+
+export interface RecommendationTrackerRollup {
+  total: number;
+  wins: number;
+  losses: number;
+  flats: number;
+  unknown: number;
+  winRatePct: number | null;
+}
+
+export interface RecommendationTrackerItem {
+  id: string;
+  date: string;
+  market: Market;
+  symbol: string;
+  name: string;
+  currency: string;
+  entryPrice: number | null;
+  recordedAtMs: number | null;
+  signalIds: string[];
+  currentPrice: number | null;
+  changePct: number | null;
+  outcome: RecommendationOutcome;
+}
+
+export interface RecommendationSignalStat extends RecommendationTrackerRollup {
+  signalId: string;
+}
+
+export interface RecommendationSymbolStat extends RecommendationTrackerRollup {
+  symbol: string;
+  name: string;
+  market: Market;
+}
+
+export interface RecommendationsTrackerResponse {
+  updatedAtMs: number;
+  summary: RecommendationTrackerRollup;
+  signalStats: RecommendationSignalStat[];
+  symbolStats: RecommendationSymbolStat[];
+  items: RecommendationTrackerItem[];
 }
 
 export interface PicksDailyHistoryDay {

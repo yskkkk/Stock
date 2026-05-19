@@ -43,6 +43,7 @@ function shouldSkipAccessLog(req) {
   if (path === "/api/picks") return true;
   if (path === "/api/picks/daily-history") return true;
   if (path === "/api/picks/daily-history/quotes") return true;
+  if (path === "/api/picks/recommendations-tracker") return true;
   if (path === "/api/crypto-quotes") return true;
   if (path === "/api/crypto-universe") return true;
   if (path === "/api/macro-events") return true;

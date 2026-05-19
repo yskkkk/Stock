@@ -6480,3 +6480,242 @@ body {
 .signal-filter .filter-presets {
   flex-wrap: wrap;
 }
+
+/* 추천 목록 탭 — 실적 추적 */
+.workspace--rec-tracker {
+  grid-template-columns: 1fr;
+  max-width: 100%;
+}
+
+.rec-tracker-panel {
+  max-height: calc(100vh - 7.5rem);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.rec-tracker-panel .panel-head__tail {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.rec-tracker-updated {
+  font-size: 0.65rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.rec-tracker-sub {
+  margin: 0 0 0.65rem;
+  padding: 0 0.35rem;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.rec-tracker-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin-bottom: 0.65rem;
+}
+
+.rec-tracker-stat {
+  padding: 0.45rem 0.55rem;
+  border-radius: var(--radius-sm);
+  background: rgba(148, 163, 184, 0.06);
+  border: 1px solid var(--card-border);
+}
+
+.rec-tracker-stat__label {
+  display: block;
+  font-size: 0.62rem;
+  color: var(--muted);
+}
+
+.rec-tracker-stat__value {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.rec-tracker-stat--up .rec-tracker-stat__value {
+  color: var(--up);
+}
+
+.rec-tracker-stat--down .rec-tracker-stat__value {
+  color: var(--down);
+}
+
+.rec-tracker-signals {
+  margin-bottom: 0.65rem;
+  padding: 0.5rem 0.55rem;
+  background: rgba(148, 163, 184, 0.04);
+}
+
+.rec-tracker-signals__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.rec-tracker-signals__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.rec-tracker-signal-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.05rem;
+  padding: 0.28rem 0.45rem !important;
+  font-size: 0.62rem !important;
+  cursor: pointer;
+  border-radius: 6px !important;
+}
+
+.rec-tracker-signal-chip--active {
+  outline: 2px solid var(--accent-border);
+  outline-offset: 1px;
+}
+
+.rec-tracker-signal-chip__rate {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.rec-tracker-signal-chip__n {
+  font-size: 0.55rem;
+  opacity: 0.85;
+}
+
+.rec-tracker-table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.rec-tracker-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.rec-tracker-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  text-align: left;
+  padding: 0.35rem 0.4rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--card);
+  border-bottom: 1px solid var(--card-border);
+  white-space: nowrap;
+}
+
+.rec-tracker-table td {
+  padding: 0.4rem 0.4rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+  vertical-align: middle;
+}
+
+.rec-tracker-row--clickable {
+  cursor: pointer;
+}
+
+.rec-tracker-row--clickable:hover td {
+  background: rgba(94, 234, 212, 0.06);
+}
+
+.rec-tracker-table__name {
+  min-width: 5.5rem;
+}
+
+.rec-tracker-table__sym {
+  display: block;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.rec-tracker-table__nm {
+  display: block;
+  font-size: 0.6rem;
+  color: var(--muted);
+  max-width: 8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rec-tracker-table__signal-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+}
+
+.rec-tracker-table__signal-tags .signal-tag {
+  font-size: 0.55rem;
+  padding: 0.1rem 0.28rem;
+  border-radius: 3px;
+}
+
+.rec-tracker-table__muted {
+  color: var(--muted);
+  font-size: 0.6rem;
+}
+
+.rec-tracker-table__num {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.rec-tracker-table__num--up {
+  color: var(--up);
+  font-weight: 600;
+}
+
+.rec-tracker-table__num--down {
+  color: var(--down);
+  font-weight: 600;
+}
+
+.rec-tracker-badge {
+  display: inline-block;
+  padding: 0.12rem 0.38rem;
+  border-radius: 4px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--muted);
+}
+
+.rec-tracker-badge--win {
+  background: rgba(74, 222, 128, 0.14);
+  color: var(--up);
+}
+
+.rec-tracker-badge--loss {
+  background: rgba(248, 113, 113, 0.14);
+  color: var(--down);
+}
+
+@media (max-width: 720px) {
+  .rec-tracker-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rec-tracker-table th:nth-child(3),
+  .rec-tracker-table td:nth-child(3) {
+    display: none;
+  }
+}
