@@ -125,6 +125,8 @@ export function stockApiPlugin() {
       installAccessGateHtmlMiddleware(server);
       installViteAccessTraceMiddleware(server);
       attachStockApiMiddlewares(server);
+      migrateLegacyServerLogsSync();
+      appendServerEventLog("server", "preview 서버 기동 — 로그는 server/.logs 에 append 유지");
       startDevQueueDisplaySyncPoller();
       startOpsIdeTranscriptPoller();
       setTimeout(() => {
