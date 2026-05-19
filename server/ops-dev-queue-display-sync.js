@@ -6,11 +6,16 @@
  */
 import { getOpsAgentQueueMemorySnapshot } from "./ops-agent-job-queue.js";
 import {
+  clearOrphanDevQueueDisplayOnBootSync,
   reconcilePersistQueueToAgentHistorySync,
   sweepStalePersistedDevQueueSync,
   writeDevQueueDisplayMirrorFromRuntime,
 } from "./ops-dev-queue-live-store.js";
-import { mergeIdeLeaseDiskIntoAgentEntries } from "./ops-ide-lease-disk.js";
+import {
+  clearIdeLeaseOnDisk,
+  mergeIdeLeaseDiskIntoAgentEntries,
+  readIdeLeaseDiskSync,
+} from "./ops-ide-lease-disk.js";
 
 /** UI 폴링과 동일(1s) — env로 조정 가능 */
 export const DEV_QUEUE_DISPLAY_SYNC_MS = (() => {
@@ -40,9 +45,23 @@ function memoryHasIdeWork(memory) {
  * 평소: 메모리만. enqueue 직전(메모리에 IDE 없고 lease만 있을 때)만 lease 병합.
  * @returns {Array<Record<string, unknown>>}
  */
+/** enqueue 직전 lease만 — 오래된 lease는 고아로 제거 */
 function entriesForDisplayMirror() {
   const { entries: memory } = getOpsAgentQueueMemorySnapshot();
   if (memoryHasIdeWork(memory)) return memory;
+  const lease = readIdeLeaseDiskSync();
+  if (lease) {
+    const since =
+      typeof lease.sinceMs === "number"
+        ? lease.sinceMs
+        : typeof lease.enqueuedAtMs === "number"
+          ? lease.enqueuedAtMs
+          : 0;
+    if (since > 0 && Date.now() - since > 120_000) {
+      clearIdeLeaseOnDisk();
+      return memory;
+    }
+  }
   return mergeIdeLeaseDiskIntoAgentEntries(memory);
 }
 
@@ -71,6 +90,11 @@ export function releaseDevQueueDisplayPreserve() {}
  */
 export function reconcileDevQueueDisplayMirrorOnBoot() {
   sweepStalePersistedDevQueueSync();
+  const { entries: memory } = getOpsAgentQueueMemorySnapshot();
+  if (memory.length === 0) {
+    clearOrphanDevQueueDisplayOnBootSync();
+    clearIdeLeaseOnDisk();
+  }
   reconcilePersistQueueToAgentHistorySync();
   syncDevQueueDisplayFromRuntimeSync();
 }

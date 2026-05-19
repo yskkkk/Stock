@@ -5,7 +5,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { mergeIdeLeaseIntoDisplayEntries } from "./ops-ide-lease-disk.js";
 import { upsertOpsAgentHistoryFromQueueSync } from "./ops-agent-history-store.js";
 import { enrichAgentEntriesWithUnifiedSeq } from "./ops-unified-queue-seq.js";
 
@@ -140,6 +139,12 @@ export function persistDevQueueClear() {
   writeLiveRawSync({ updatedAtMs: Date.now(), agentEntries: [] });
 }
 
+/** 콜드 부트 — 메모리 큐 비었을 때 디스크 미러·캐시 고아 제거 */
+export function clearOrphanDevQueueDisplayOnBootSync() {
+  memoryLive = { updatedAtMs: Date.now(), agentEntries: [] };
+  persistDevQueueClear();
+}
+
 /** @deprecated display-sync 미러 사용 — 호환용 no-op */
 export function persistDevQueueRemove(_id) {}
 
@@ -204,15 +209,14 @@ export function sweepStalePersistedDevQueueSync(maxRunningAgeMs = 45 * 60 * 1000
   }
 }
 
-/** UI·GET — 파일 미러 + enqueue 직전 lease(폴링·파일 읽기용, sync는 display-sync가 담당) */
+/** UI·GET — display JSON 미러만(SSOT). lease 병합은 display-sync가 파일에 반영. */
 export function readDevQueueDisplaySnapshotSync() {
   const live = loadLiveFromDiskSync();
   memoryLive = live;
   const filtered = live.agentEntries.filter(
     (e) => String(e.requestIp ?? "").trim() !== RECORD_MODE_REQUEST_IP,
   );
-  const merged = mergeIdeLeaseIntoDisplayEntries(filtered);
-  const agentEntries = enrichAgentEntriesWithUnifiedSeq(merged);
+  const agentEntries = enrichAgentEntriesWithUnifiedSeq(filtered);
   return {
     updatedAtMs: live.updatedAtMs,
     agentEntries,

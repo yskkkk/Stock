@@ -179,6 +179,17 @@ function tryReleaseWhenTurnEnded(lines, snap) {
 }
 
 /**
+ * 마지막 assistant가 텍스트만이고 transcript가 유휴 — 턴 종료로 간주.
+ * @param {string[]} lines
+ */
+function isTranscriptTurnIdleCompleted(lines) {
+  if (!lines.length) return false;
+  const tail = parseLastAssistantTail(lines);
+  if (!tail || tail.hasToolUse || !tail.textOnly) return false;
+  return Date.now() - lastFileChangeMs >= TURN_END_IDLE_MS;
+}
+
+/**
  * @param {ReturnType<typeof getOpsAgentQueueMemorySnapshot>} snap
  */
 function sweepStaleDiskLease(snap) {
@@ -203,11 +214,12 @@ function sweepStaleDiskLease(snap) {
 }
 
 /**
- * 훅이 enqueue를 안 할 때 transcript 백업 — release 후 같은 user 줄도 다시 올림.
+ * 훅이 enqueue를 안 할 때 transcript 백업.
  * @param {string} filePath
  * @param {{ lineIndex: number; prompt: string }} latestUser
+ * @param {string[]} lines
  */
-function ensureLatestUserInQueue(filePath, latestUser) {
+function ensureLatestUserInQueue(filePath, latestUser, lines) {
   const preview = latestUser.prompt.trim();
   if (!preview) return;
   if (hasActiveIdeSlotForPrompt(preview)) return;
@@ -215,12 +227,19 @@ function ensureLatestUserInQueue(filePath, latestUser) {
   const userKey = `${filePath}:${latestUser.lineIndex}`;
   const sessionId = path.basename(filePath, ".jsonl");
 
+  if (isTranscriptTurnIdleCompleted(lines)) {
+    lastProcessedUserKey = userKey;
+    return;
+  }
+
   if (userKey !== lastProcessedUserKey) {
     enqueueFromTranscript(filePath, preview, latestUser.lineIndex);
     return;
   }
 
-  /* release 직후: userKey는 같지만 메모리·lease가 비었음 → 파일·큐 재등록 */
+  /* release 직후·같은 턴 진행 중에만 재등록(재기동·완료 턴은 위에서 스킵) */
+  if (Date.now() - lastFileChangeMs >= TURN_END_IDLE_MS) return;
+
   writeIdeLeaseDiskImmediate({ prompt: preview, sessionId, queueStatus: "waiting" });
   releaseRunningIdeDevQueueIfDifferentPrompt(preview);
   try {
@@ -310,7 +329,7 @@ function scanTranscriptFile(filePath) {
   const mtimeChanged = st.mtimeMs !== lastFileMtimeMs;
   if (mtimeChanged || cachedTranscriptPath !== filePath) {
     lastFileMtimeMs = st.mtimeMs;
-    lastFileChangeMs = Date.now();
+    lastFileChangeMs = st.mtimeMs;
     idleTurnReleasedForMtime = 0;
     cachedTranscriptPath = filePath;
     let raw = "";
@@ -325,6 +344,9 @@ function scanTranscriptFile(filePath) {
   const lines = cachedTranscriptLines;
   const snap = getOpsAgentQueueMemorySnapshot();
   const lineCountChanged = lines.length !== lastTranscriptLineCount;
+  if (lineCountChanged && !mtimeChanged) {
+    lastFileChangeMs = Date.now();
+  }
   lastTranscriptLineCount = lines.length;
 
   /** @type {{ lineIndex: number; prompt: string } | null} */
@@ -349,7 +371,7 @@ function scanTranscriptFile(filePath) {
   }
 
   if (latestUser) {
-    ensureLatestUserInQueue(filePath, latestUser);
+    ensureLatestUserInQueue(filePath, latestUser, lines);
     pollerBootstrapped = true;
   }
 
