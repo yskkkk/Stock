@@ -6,8 +6,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getOpsAgentQueueSnapshot } from "./ops-agent-job-queue.js";
-import { readRecordModeQueueSync } from "./ops-record-mode-store.js";
 import { enrichUnifiedQueueAgentAndRecord } from "./ops-unified-queue-seq.js";
+
+const RECORD_MODE_REQUEST_IP = "record-mode";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, ".data");
@@ -33,15 +34,14 @@ function isPlainObject(x) {
  * }}
  */
 export function buildDevQueueDisplayPayload() {
-  const disk = readRecordModeQueueSync();
-  const { agentEntries, recordItems } = enrichUnifiedQueueAgentAndRecord(disk.items);
-  const recordVisible = recordItems.filter(
-    (it) => String(it.status ?? "") !== "error",
+  const { agentEntries } = enrichUnifiedQueueAgentAndRecord([]);
+  const agentOnly = agentEntries.filter(
+    (e) => String(e.requestIp ?? "").trim() !== RECORD_MODE_REQUEST_IP,
   );
   return {
     updatedAtMs: Date.now(),
-    agentEntries,
-    recordItems: recordVisible,
+    agentEntries: agentOnly,
+    recordItems: [],
   };
 }
 

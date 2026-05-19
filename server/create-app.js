@@ -72,7 +72,6 @@ import {
   readDevQueueDisplaySnapshotSync,
   refreshDevQueueDisplaySnapshotSync,
 } from "./ops-dev-queue-display-store.js";
-import { startOpsRecordModePoller } from "./ops-record-mode-poller.js";
 import {
   FILE_DEV_POLL_MS,
   appendFileDevPendingJob,
@@ -1018,7 +1017,6 @@ export function createApp() {
   } catch {
     /* ignore */
   }
-  startOpsRecordModePoller();
   startOpsFileDevPoller();
 
   app.use((err, _req, res, _next) => {

@@ -222,7 +222,11 @@ export function getOpsAgentQueueSnapshot() {
     });
   }
   entries.push(...waiting);
-  return { entries: mergeIdeLeaseDiskIntoAgentEntries(entries) };
+  const merged = mergeIdeLeaseDiskIntoAgentEntries(entries);
+  const visible = merged.filter(
+    (e) => String(e.requestIp ?? "").trim() !== "record-mode",
+  );
+  return { entries: visible };
 }
 
 function writeRunningBusyMarker() {

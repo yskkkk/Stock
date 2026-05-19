@@ -1,8 +1,4 @@
-import type {
-  OpsAgentQueueEntry,
-  OpsAgentQueueSource,
-  OpsRecordModeItem,
-} from "../api";
+import type { OpsAgentQueueEntry, OpsAgentQueueSource } from "../api";
 import { ko } from "../i18n/ko";
 
 const QUEUE_TITLE_DISPLAY_MAX = 52;
@@ -64,20 +60,6 @@ function sortKeyFrom(seq: number | null, tieMs: number): number {
   return s * 1e15 + tieMs;
 }
 
-function recordStatusLabel(s: OpsRecordModeItem["status"]): string {
-  if (s === "running") return ko.app.opsRecordModeStatusRunning;
-  if (s === "done") return ko.app.opsRecordModeStatusDone;
-  if (s === "error") return ko.app.opsRecordModeStatusError;
-  return ko.app.opsRecordModeStatusPending;
-}
-
-function recordToCardClass(s: OpsRecordModeItem["status"]): OpsGlobalQueueCardClass {
-  if (s === "running") return "running";
-  if (s === "pending") return "waiting";
-  if (s === "done") return "done";
-  return "error";
-}
-
 function parseAgentEntry(raw: unknown): OpsAgentQueueEntry | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
@@ -104,34 +86,8 @@ function parseAgentEntry(raw: unknown): OpsAgentQueueEntry | null {
   };
 }
 
-function parseRecordItem(raw: unknown): OpsRecordModeItem | null {
-  if (!raw || typeof raw !== "object") return null;
-  const o = raw as Record<string, unknown>;
-  const id = normalizeOpQueueId(o.id);
-  if (!id) return null;
-  const st = o.status;
-  const status: OpsRecordModeItem["status"] =
-    st === "pending" || st === "running" || st === "done" || st === "error"
-      ? st
-      : "pending";
-  return {
-    id,
-    instruction: String(o.instruction ?? ""),
-    status,
-    createdAtMs:
-      typeof o.createdAtMs === "number" && Number.isFinite(o.createdAtMs)
-        ? o.createdAtMs
-        : 0,
-    unifiedQueueSeq: seqNum(o.unifiedQueueSeq),
-  };
-}
-
-export function buildOpsGlobalQueueRows(
-  agentRaw: unknown[],
-  recordRaw: unknown[],
-): OpsGlobalQueueRow[] {
+export function buildOpsGlobalQueueRows(agentRaw: unknown[]): OpsGlobalQueueRow[] {
   const agent = agentRaw.map(parseAgentEntry).filter((x): x is OpsAgentQueueEntry => x != null);
-  const recItems = recordRaw.map(parseRecordItem).filter((x): x is OpsRecordModeItem => x != null);
 
   const out: Omit<OpsGlobalQueueRow, "processRankDisplay">[] = [];
   for (const e of agent) {
@@ -164,25 +120,6 @@ export function buildOpsGlobalQueueRows(
       timeMs: e.enqueuedAtMs ?? 0,
     });
   }
-  for (const it of recItems) {
-    if (it.status === "error") continue;
-    const sid = normalizeOpQueueId(it.id);
-    const sn = seqNum(it.unifiedQueueSeq);
-    const titleFull = String(it.instruction ?? "").trim();
-    out.push({
-      key: `r:${sid}`,
-      kind: "record",
-      sortKey: sortKeyFrom(sn, it.createdAtMs ?? 0),
-      cardClass: recordToCardClass(it.status),
-      unifiedSeq: sn,
-      statusLabel: recordStatusLabel(it.status),
-      ipDisplay: "—",
-      hideIp: true,
-      requestTitle: summarizeQueueTitle(titleFull),
-      requestTitleFull: titleFull,
-      timeMs: it.createdAtMs ?? 0,
-    });
-  }
   out.sort((a, b) => a.sortKey - b.sortKey || a.key.localeCompare(b.key));
   return out.map((r, i) => ({
     ...r,
@@ -201,7 +138,7 @@ export type OpsDevQueueDisplayPayload = {
 export function rowsFromDevQueueDisplayPayload(
   payload: OpsDevQueueDisplayPayload,
 ): OpsGlobalQueueRow[] {
-  return buildOpsGlobalQueueRows(payload.agentEntries, payload.recordItems);
+  return buildOpsGlobalQueueRows(payload.agentEntries);
 }
 
 export function readOpsDevQueueDisplayCache(): OpsGlobalQueueRow[] | null {
