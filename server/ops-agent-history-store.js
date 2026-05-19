@@ -7,6 +7,7 @@ import fs from "node:fs/promises";
 import fsSync from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { opsIdePromptFingerprint, opsIdePromptsMatch } from "./ops-ide-prompt-match.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -155,6 +156,70 @@ function saveRawListSync(list) {
   fsSync.writeFileSync(HISTORY_FILE, JSON.stringify(list), "utf8");
 }
 
+/**
+ * 개발 큐 영속 행 → 이력 JSON 동기 기록(재시작 전 async 유실 방지).
+ * @param {Record<string, unknown>} queueEntry
+ */
+export function upsertOpsAgentHistoryFromQueueSync(queueEntry) {
+  const id = String(queueEntry.id ?? "").trim();
+  if (!id) return;
+
+  const requestIp = sanitizeRequestIpForStore(queueEntry.requestIp ?? "");
+  const ins = trimStoredTextForOpsHistory(
+    String(queueEntry.instructionBody ?? "").trim() ||
+      String(queueEntry.instructionPreview ?? "").trim(),
+    OPS_AGENT_INSTRUCTION_STORE_MAX,
+  );
+  if (!ins) return;
+
+  const stRaw = String(queueEntry.status ?? "waiting").toLowerCase();
+  const state = stRaw === "running" ? "running" : "waiting";
+  const enqueuedAtMs =
+    typeof queueEntry.enqueuedAtMs === "number" && Number.isFinite(queueEntry.enqueuedAtMs)
+      ? queueEntry.enqueuedAtMs
+      : Date.now();
+
+  const prev = readRawListSync()
+    .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))
+    .filter(Boolean);
+  const i = prev.findIndex((e) => e.id === id);
+  if (i >= 0 && prev[i].finishedAtMs != null) {
+    return;
+  }
+
+  const now = Date.now();
+  const row = {
+    id,
+    instruction: ins,
+    state,
+    startedAtMs: i >= 0 ? prev[i].startedAtMs : enqueuedAtMs,
+    updatedAtMs: now,
+    finishedAtMs: null,
+    error: null,
+    phaseLine: i >= 0 ? prev[i].phaseLine : "",
+    cursorLine: i >= 0 ? prev[i].cursorLine : "",
+    thinkingLine: i >= 0 ? prev[i].thinkingLine : "",
+    toolLine: i >= 0 ? prev[i].toolLine : "",
+    toolLog: i >= 0 ? prev[i].toolLog : "",
+    streamText: i >= 0 ? prev[i].streamText : "",
+    statusText: i >= 0 ? prev[i].statusText : null,
+    resultText: i >= 0 ? prev[i].resultText : null,
+    durationMs: null,
+    runtimeLabel:
+      i >= 0 && prev[i].runtimeLabel != null
+        ? prev[i].runtimeLabel
+        : requestIp === "cursor-ide"
+          ? "ide"
+          : null,
+    requestIp,
+    workspaceAppliedAtMs: i >= 0 ? prev[i].workspaceAppliedAtMs : null,
+  };
+
+  const withoutId = prev.filter((e) => e.id !== id);
+  const next = [row, ...withoutId].slice(0, OPS_AGENT_HISTORY_MAX);
+  saveRawListSync(next);
+}
+
 /** @returns {object[]} */
 export function readOpsAgentHistorySync() {
   const raw = readRawListSync();
@@ -185,6 +250,55 @@ function chainWrite(fn) {
  * @param {string} [requestIp]
  * @returns {Promise<void>}
  */
+/**
+ * IDE 단일 큐 대기 — 웹 운영 탭·개발 대기열에 표시.
+ * @param {string} id
+ * @param {string} instruction
+ * @param {string} [requestIp]
+ */
+export function prependWaitingOpsEntry(id, instruction, requestIp = "") {
+  return chainWrite(async () => {
+    ensureDirSync();
+    const ins = trimStoredTextForOpsHistory(
+      instruction,
+      OPS_AGENT_INSTRUCTION_STORE_MAX,
+    );
+    const rip = sanitizeRequestIpForStore(requestIp);
+    const prev = readRawListSync()
+      .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))
+      .filter(Boolean);
+    const dup = findRecentIdeHistoryDuplicateIndex(prev, ins, rip);
+    if (dup >= 0 && prev[dup].id !== id) {
+      return;
+    }
+    const now = Date.now();
+    const entry = {
+      id,
+      instruction: ins,
+      state: "waiting",
+      startedAtMs: now,
+      updatedAtMs: now,
+      finishedAtMs: null,
+      error: null,
+      phaseLine: "",
+      cursorLine: "",
+      thinkingLine: "",
+      toolLine: "",
+      toolLog: "",
+      streamText: "",
+      statusText: null,
+      resultText: null,
+      durationMs: null,
+      runtimeLabel: null,
+      requestIp: rip,
+      workspaceAppliedAtMs: null,
+    };
+    const withoutId = prev.filter((e) => e.id !== id);
+    const next = [entry, ...withoutId].slice(0, OPS_AGENT_HISTORY_MAX);
+    await fs.writeFile(HISTORY_FILE, JSON.stringify(next), "utf8");
+  });
+}
+
 export function prependRunningOpsEntry(id, instruction, requestIp = "") {
   return chainWrite(async () => {
     ensureDirSync();
@@ -193,6 +307,13 @@ export function prependRunningOpsEntry(id, instruction, requestIp = "") {
       OPS_AGENT_INSTRUCTION_STORE_MAX,
     );
     const rip = sanitizeRequestIpForStore(requestIp);
+    const prev = readRawListSync()
+      .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))
+      .filter(Boolean);
+    const dup = findRecentIdeHistoryDuplicateIndex(prev, ins, rip);
+    if (dup >= 0 && prev[dup].id !== id) {
+      return;
+    }
     const now = Date.now();
     const entry = {
       id,
@@ -215,11 +336,8 @@ export function prependRunningOpsEntry(id, instruction, requestIp = "") {
       requestIp: rip,
       workspaceAppliedAtMs: null,
     };
-    const prev = readRawListSync()
-      .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))
-      .filter(Boolean)
-      .filter((e) => e.id !== id);
-    const next = [entry, ...prev].slice(0, OPS_AGENT_HISTORY_MAX);
+    const withoutId = prev.filter((e) => e.id !== id);
+    const next = [entry, ...withoutId].slice(0, OPS_AGENT_HISTORY_MAX);
     await fs.writeFile(HISTORY_FILE, JSON.stringify(next), "utf8");
   });
 }
@@ -367,6 +485,40 @@ export function patchOpsAgentEntry(id, patch) {
  * }} fin
  * @returns {Promise<void>}
  */
+/**
+ * IDE 동일 지시문에 대한 중복 이력 행(실행 중·방금 완료) 찾기.
+ * @param {NonNullable<ReturnType<typeof parseHistoryRecord>>[]} list
+ * @param {string} instruction
+ * @param {string} requestIp
+ * @param {number} [maxAgeMs]
+ */
+function findRecentIdeHistoryDuplicateIndex(
+  list,
+  instruction,
+  requestIp,
+  maxAgeMs = 120_000,
+) {
+  const rip = sanitizeRequestIpForStore(requestIp);
+  if (rip !== "cursor-ide") return -1;
+  const fp = opsIdePromptFingerprint(instruction);
+  if (!fp) return -1;
+  const now = Date.now();
+  for (let j = 0; j < list.length; j++) {
+    const e = list[j];
+    if (sanitizeRequestIpForStore(e.requestIp) !== rip) continue;
+    if (!opsIdePromptsMatch(e.instruction, instruction)) continue;
+    if (e.state === "running" || e.state === "waiting") return j;
+    if (
+      e.finishedAtMs != null &&
+      now - e.finishedAtMs < maxAgeMs &&
+      (e.state === "ok" || e.state === "cancelled")
+    ) {
+      return j;
+    }
+  }
+  return -1;
+}
+
 export function finalizeOpsAgentEntry(id, fin) {
   return chainWrite(async () => {
     if (finalizeSkippedIds.has(id)) {
@@ -378,7 +530,7 @@ export function finalizeOpsAgentEntry(id, fin) {
     const list = raw
       .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))
       .filter(Boolean);
-    const i = list.findIndex((e) => e.id === id);
+    let i = list.findIndex((e) => e.id === id);
     const now = Date.now();
     const streamText = trimStoredTextForOpsHistory(
       fin.streamText,
@@ -424,8 +576,31 @@ export function finalizeOpsAgentEntry(id, fin) {
     };
 
     if (i === -1) {
+      const rip =
+        fin.requestIp != null
+          ? sanitizeRequestIpForStore(fin.requestIp)
+          : sanitizeRequestIpForStore("");
+      const dup = findRecentIdeHistoryDuplicateIndex(
+        list,
+        row.instruction,
+        rip,
+      );
+      if (dup >= 0) {
+        const prev = list[dup];
+        if (prev.finishedAtMs != null && prev.state === fin.state) {
+          return;
+        }
+        list[dup] = { ...prev, ...row, id: prev.id };
+        await fs.writeFile(HISTORY_FILE, JSON.stringify(list), "utf8");
+        return;
+      }
       const next = [row, ...list].slice(0, OPS_AGENT_HISTORY_MAX);
       await fs.writeFile(HISTORY_FILE, JSON.stringify(next), "utf8");
+      return;
+    }
+
+    const cur = list[i];
+    if (cur.finishedAtMs != null && cur.state === fin.state) {
       return;
     }
     list[i] = { ...list[i], ...row };

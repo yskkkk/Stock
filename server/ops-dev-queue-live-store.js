@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { mergeIdeLeaseIntoDisplayEntries } from "./ops-ide-lease-disk.js";
+import { upsertOpsAgentHistoryFromQueueSync } from "./ops-agent-history-store.js";
 import { enrichAgentEntriesWithUnifiedSeq } from "./ops-unified-queue-seq.js";
 
 const RECORD_MODE_REQUEST_IP = "record-mode";
@@ -121,6 +122,13 @@ export function metaToPersistEntry(meta, status) {
   };
 }
 
+function syncAgentHistoryFromPersistEntry(entry) {
+  const st = String(entry.status ?? "");
+  if (st === "running" || st === "waiting") {
+    upsertOpsAgentHistoryFromQueueSync(entry);
+  }
+}
+
 /** @param {Record<string, unknown>} entry */
 export function persistDevQueueUpsert(entry) {
   const id = String(entry.id ?? "").trim();
@@ -132,6 +140,7 @@ export function persistDevQueueUpsert(entry) {
   else live.agentEntries.push(next);
   live.agentEntries = sortLiveEntries(live.agentEntries);
   writeLiveRawSync(live);
+  syncAgentHistoryFromPersistEntry(next);
 }
 
 /** @param {string} id */
@@ -151,6 +160,8 @@ export function persistDevQueueSetRunning(id) {
   if (!found) return;
   live.agentEntries = sortLiveEntries(live.agentEntries);
   writeLiveRawSync(live);
+  const hit = live.agentEntries.find((e) => String(e.id ?? "") === slotId);
+  if (hit) syncAgentHistoryFromPersistEntry(hit);
 }
 
 /** @param {string} id */
@@ -199,4 +210,14 @@ export function buildDevQueueDisplayPayload() {
 /** 영속 큐 항목(메모리 비어도 dev 재시작 후 매칭용) */
 export function readDevQueueLiveAgentEntriesSync() {
   return readLiveRawSync().agentEntries;
+}
+
+/** 서버 기동·복구 — 영속 큐의 대기·실행 중 항목을 이력 파일에 맞춤 */
+export function reconcilePersistQueueToAgentHistorySync() {
+  for (const e of readLiveRawSync().agentEntries) {
+    const st = String(e.status ?? "");
+    if (st === "running" || st === "waiting") {
+      upsertOpsAgentHistoryFromQueueSync(e);
+    }
+  }
 }
