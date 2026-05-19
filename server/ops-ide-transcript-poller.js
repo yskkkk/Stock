@@ -164,7 +164,7 @@ function tryReleaseWhenTurnEnded(lines, snap) {
   /* 메모리만 비었다고 lease를 지우지 않음 — 훅이 enqueue 전에 쓴 lease가 매 100ms마다 삭제되던 원인 */
   if (!hasIdeQueueWork(snap)) return;
 
-  if (!lines.length) return;
+  if (!Array.isArray(lines) || lines.length === 0) return;
 
   const tail = parseLastAssistantTail(lines);
   if (!tail) return;
@@ -183,7 +183,7 @@ function tryReleaseWhenTurnEnded(lines, snap) {
  * @param {string[]} lines
  */
 function isTranscriptTurnIdleCompleted(lines) {
-  if (!lines.length) return false;
+  if (!Array.isArray(lines) || lines.length === 0) return false;
   const tail = parseLastAssistantTail(lines);
   if (!tail || tail.hasToolUse || !tail.textOnly) return false;
   return Date.now() - lastFileChangeMs >= TURN_END_IDLE_MS;
@@ -220,6 +220,7 @@ function sweepStaleDiskLease(snap) {
  * @param {string[]} lines
  */
 function ensureLatestUserInQueue(filePath, latestUser, lines) {
+  if (!Array.isArray(lines)) lines = [];
   const preview = latestUser.prompt.trim();
   if (!preview) return;
   if (hasActiveIdeSlotForPrompt(preview)) return;
