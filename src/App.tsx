@@ -40,6 +40,7 @@ import {
   ENABLE_THEME_MODE_TOGGLE,
   SHOW_PROFIT_MODEL_BUTTON,
 } from "./constants/uiFlags";
+import { useMobilePullToRefresh } from "./hooks/useMobilePullToRefresh";
 import { usePickKeyboard } from "./hooks/usePickKeyboard";
 import { useUsdKrwRate } from "./hooks/useUsdKrwRate";
 import { enrichBullishPick } from "./lib/bullishPicks";
@@ -123,11 +124,11 @@ export default function App() {
   const [sortKey, setSortKey] = useState<SortKey>("score");
   const [screenerSelected, setScreenerSelected] = useState<StockPick | null>(null);
   const [lookupSelected, setLookupSelected] = useState<StockPick | null>(null);
-  const [timeframe, setTimeframe] = useState<ChartTimeframe>("1d");
+  const [timeframe, setTimeframe] = useState<ChartTimeframe>("1m");
   const [quote, setQuote] = useState<QuoteResponse | null>(null);
   const [candles, setCandles] = useState<Candle[]>([]);
   const [dailyCandles, setDailyCandles] = useState<Candle[]>([]);
-  const [chartInterval, setChartInterval] = useState("1d");
+  const [chartInterval, setChartInterval] = useState("1m");
   const [candleCount, setCandleCount] = useState(0);
   const [chartLoading, setChartLoading] = useState(false);
   const [chartError, setChartError] = useState<string | null>(null);
@@ -145,10 +146,10 @@ export default function App() {
     setChartError(null);
     setChartStale(false);
     setCandleCount(0);
-    setChartInterval("1d");
+    setChartInterval(timeframe);
     setQuote(null);
     setChartLoading(false);
-  }, [appTab]);
+  }, [appTab, timeframe]);
 
   const [chartDrawMode, setChartDrawMode] = useState<ChartDrawMode>("cursor");
   const [chartDrawMagnet, setChartDrawMagnet] = useChartDrawMagnet();
@@ -180,6 +181,8 @@ export default function App() {
   const [adminIpConsole, setAdminIpConsole] = useState(false);
   const [accessAdmin, setAccessAdmin] = useState(false);
   const [opsCursorAgentAvailable, setOpsCursorAgentAvailable] = useState(false);
+  /** /api/config 완료 전에는 IP 게이트 리다이렉트 금지(관리자 대기열 깜빡임 방지) */
+  const [configReady, setConfigReady] = useState(false);
 
   const closeNews = useCallback(() => {
     newsReqIdRef.current += 1;
@@ -204,13 +207,16 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    pollPicks();
-    const id = window.setInterval(pollPicks, 3000);
+    void pollPicks();
+    const ms = picks?.running ? 1_500 : 2_000;
+    const id = window.setInterval(() => void pollPicks(), ms);
     return () => window.clearInterval(id);
-  }, [pollPicks]);
+  }, [pollPicks, picks?.running]);
 
   /** IP 허용이 해제되면 API 403 외에도 상태 폴링으로 즉시 게이트로 보낸다 */
   useEffect(() => {
+    if (!configReady) return;
+
     let cancelled = false;
     let intervalId: number | null = null;
 
@@ -225,7 +231,7 @@ export default function App() {
           }
           return;
         }
-        if (s.state !== "allowed") {
+        if (s.state !== "allowed" && !accessAdmin && !adminIpConsole) {
           if (intervalId != null) {
             window.clearInterval(intervalId);
             intervalId = null;
@@ -248,7 +254,7 @@ export default function App() {
       cancelled = true;
       if (intervalId != null) window.clearInterval(intervalId);
     };
-  }, []);
+  }, [configReady, accessAdmin, adminIpConsole]);
 
   useEffect(() => {
     applyTheme(colorMode);
@@ -295,6 +301,9 @@ export default function App() {
         setAdminIpConsole(false);
         setAccessAdmin(false);
         setOpsCursorAgentAvailable(false);
+      })
+      .finally(() => {
+        if (!cancelled) setConfigReady(true);
       });
     return () => {
       cancelled = true;
@@ -325,8 +334,6 @@ export default function App() {
       ? (picks?.kr.length ?? 0)
       : (picks?.us.length ?? 0);
 
-  const filteredCount = baseListPicks.length;
-
   const workspacePick = useMemo(() => {
     if (appTab === "crypto" || appTab === "ops") return null;
     return appTab === "stockLookup" ? lookupSelected : screenerSelected;
@@ -334,6 +341,28 @@ export default function App() {
 
   const workspacePickRef = useRef<StockPick | null>(null);
   workspacePickRef.current = workspacePick;
+
+  const stockChartSectionRef = useRef<HTMLElement | null>(null);
+  const appScrollRef = useRef<HTMLDivElement>(null);
+  const pullToRefreshHintRef = useRef<HTMLDivElement>(null);
+  useMobilePullToRefresh(appScrollRef, pullToRefreshHintRef, {
+    pullHint: ko.app.pullToRefreshHint,
+    releaseHint: ko.app.pullToRefreshRelease,
+  });
+
+  /** 모바일: 목록 아래 차트가 잘리지 않도록 선택 시 차트 블록으로 스크롤 */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!workspacePick) return;
+    if (appTab === "crypto" || appTab === "ops") return;
+    if (window.innerWidth > 900) return;
+    const el = stockChartSectionRef.current;
+    if (!el) return;
+    const t = window.setTimeout(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+    }, 90);
+    return () => window.clearTimeout(t);
+  }, [workspacePick?.symbol, workspacePick?.market, appTab]);
 
   const usdKrwEnabled =
     appTab !== "crypto" && appTab !== "ops" && workspacePick?.market === "us";
@@ -395,10 +424,10 @@ export default function App() {
     setChartError(null);
     setChartStale(false);
     setCandleCount(0);
-    setChartInterval("1d");
+    setChartInterval(timeframe);
     setQuote(null);
     setChartLoading(false);
-  }, []);
+  }, [timeframe]);
 
   const handleLookupSelect = useCallback((pick: StockPick) => {
     setLookupSelected(pick);
@@ -500,6 +529,24 @@ export default function App() {
       !showAccessAdmin,
   );
 
+  /** picks 폴링으로 목록 시세가 바뀌면 선택 종목 객체도 동기화(차트 상단·참조 일치) */
+  useEffect(() => {
+    if (appTab !== "screener" || !picks || picks.running || !screenerSelected) return;
+    const sym = screenerSelected.symbol.trim().toUpperCase();
+    const next = [...(picks.kr ?? []), ...(picks.us ?? [])].find(
+      (p) => p.symbol.trim().toUpperCase() === sym,
+    );
+    if (!next) return;
+    if (
+      next.price === screenerSelected.price &&
+      next.changePercent === screenerSelected.changePercent &&
+      next.change === screenerSelected.change
+    ) {
+      return;
+    }
+    setScreenerSelected(next);
+  }, [appTab, picks, picks?.running, screenerSelected]);
+
   useEffect(() => {
     setProfitModalOpen(false);
     setProfitPersistTick((t) => t + 1);
@@ -565,7 +612,7 @@ export default function App() {
     const pick = workspacePickRef.current;
     if (!pick || appTab === "crypto" || appTab === "ops") return;
     loadChart(pick, timeframe);
-    const refreshMs = timeframe === "1m" ? 1_000 : 30_000;
+    const refreshMs = timeframe === "1m" ? 1_000 : 8_000;
     const id = window.setInterval(() => {
       const p = workspacePickRef.current;
       if (!p) return;
@@ -744,9 +791,22 @@ export default function App() {
   const showTopScanStrip = Boolean(picks && appTab === "screener");
 
   return (
-    <div className="app">
+    <div className="app" ref={appScrollRef}>
+      <div
+        ref={pullToRefreshHintRef}
+        className="app-ptr-hint"
+        aria-live="polite"
+        aria-atomic="true"
+      />
+      <div className="app-header-sticky">
       <div className="app-page-top" aria-label={ko.app.pageTopToolsAria}>
-        <div className="app-theme-corner">
+        <div
+          className={
+            colorMode === "light"
+              ? "app-theme-corner"
+              : "app-theme-corner app-theme-corner--empty"
+          }
+        >
           {colorMode === "light" ? (
             <div
               className="light-palette-picker light-palette-picker--corner"
@@ -775,7 +835,7 @@ export default function App() {
             </div>
           ) : null}
         </div>
-        {accessAdmin && opsCursorAgentAvailable ? (
+        {accessAdmin ? (
           <div className="app-page-top__queue">
             <OpsGlobalQueueStrip onOpenOps={() => setAppTab("ops")} />
           </div>
@@ -831,21 +891,26 @@ export default function App() {
             </span>
             <div className="top-bar__brand-main">
               <h1>{ko.app.title}</h1>
-              <p>
-                {ko.app.subtitle}
-                {telegramNotify && (
+              <p className="top-bar__brand-tags">
+                <span className="top-bar__brand-tags__lead">{ko.app.subtitle}</span>
+                {appTab === "screener" && (
                   <span className="tag-group">
                     <button
                       type="button"
-                      className="tag tag--telegram tag--telegram-btn"
-                      title={ko.app.telegramListAria}
-                      aria-label={ko.app.telegramListAria}
-                      onClick={handleOpenTelegramSent}
+                      className={
+                        picksHistoryOpen
+                          ? "tag tag--picks-history tag--picks-history-btn tag--picks-history-btn--active"
+                          : "tag tag--picks-history tag--picks-history-btn"
+                      }
+                      title={ko.app.picksHistoryButtonAria}
+                      aria-label={ko.app.picksHistoryButtonAria}
+                      aria-expanded={picksHistoryOpen}
+                      aria-controls={
+                        picksHistoryOpen ? "picks-history-dialog" : undefined
+                      }
+                      onClick={() => setPicksHistoryOpen(true)}
                     >
-                      {ko.app.telegram}
-                      {telegramSentCount > 0 && (
-                        <span className="tag-count">{telegramSentCount}</span>
-                      )}
+                      {ko.app.picksHistoryButton}
                     </button>
                   </span>
                 )}
@@ -854,6 +919,22 @@ export default function App() {
           </div>
 
           <div className="top-bar__right">
+            {telegramNotify ? (
+              <span className="tag-group top-bar__telegram">
+                <button
+                  type="button"
+                  className="tag tag--telegram tag--telegram-btn"
+                  title={ko.app.telegramListAria}
+                  aria-label={ko.app.telegramListAria}
+                  onClick={handleOpenTelegramSent}
+                >
+                  {ko.app.telegram}
+                  {telegramSentCount > 0 ? (
+                    <span className="tag-count">{telegramSentCount}</span>
+                  ) : null}
+                </button>
+              </span>
+            ) : null}
             <nav className="main-tabs" aria-label={ko.app.mainNav}>
               <button
                 type="button"
@@ -878,6 +959,20 @@ export default function App() {
               >
                 {ko.app.tabCrypto}
               </button>
+              {accessAdmin ? (
+                <button
+                  type="button"
+                  className={
+                    appTab === "ops"
+                      ? "main-tab main-tab--ops active"
+                      : "main-tab main-tab--ops"
+                  }
+                  aria-current={appTab === "ops" ? "page" : undefined}
+                  onClick={() => setAppTab("ops")}
+                >
+                  {ko.app.tabOps}
+                </button>
+              ) : null}
             </nav>
 
             <div className="top-bar__tools">
@@ -970,6 +1065,7 @@ export default function App() {
           ) : null}
         </div>
       </header>
+      </div>
 
       {picksError && (
         <div className="alert alert--error" role="alert">
@@ -1063,36 +1159,11 @@ export default function App() {
                   )}
                 </button>
               </div>
-              {appTab === "screener" ? (
-                <button
-                  type="button"
-                  className={
-                    picksHistoryOpen
-                      ? "picks-history-open picks-history-open--active"
-                      : "picks-history-open"
-                  }
-                  onClick={() => setPicksHistoryOpen(true)}
-                  aria-label={ko.app.picksHistoryButtonAria}
-                  aria-expanded={picksHistoryOpen}
-                  aria-controls={picksHistoryOpen ? "picks-history-dialog" : undefined}
-                >
-                  {ko.app.picksHistoryButton}
-                </button>
-              ) : null}
-            </div>
-            <div className="panel-head__tail">
-              <span className="panel-head__meta">
-                {appTab === "screener" ? (
-                  <>
-                    {filteredCount} / {rawCount}
-                  </>
-                ) : null}
-              </span>
             </div>
           </div>
 
           {appTab === "screener" ? (
-            <>
+            <div className="picks-panel-stack">
               <PickToolbar
                 search={searchQuery}
                 onSearchChange={setSearchQuery}
@@ -1104,12 +1175,15 @@ export default function App() {
                 market={screenerMarketTab}
                 picks={listPicks}
                 totalCount={rawCount}
+                scanning={Boolean(picks?.running)}
+                scanProgress={picks?.progress}
+                scanTotal={picks?.total}
                 selected={screenerSelected?.symbol ?? null}
                 onSelect={handleSelect}
                 onNews={handleNews}
                 onReason={handleReason}
               />
-            </>
+            </div>
           ) : (
             <StockSearchTab
               key={lookupSearchTabMountKey}
@@ -1124,7 +1198,10 @@ export default function App() {
           )}
         </aside>
 
-        <section className="chart-section crypto-chart-section">
+        <section
+          ref={stockChartSectionRef}
+          className="chart-section crypto-chart-section"
+        >
           {!workspacePick ? (
             <div className="chart-placeholder card">
               <div className="placeholder-icon" aria-hidden>
