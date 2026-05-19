@@ -70,7 +70,7 @@ import { mergeLiveQuotesIntoPicksState } from "./picks-live-quotes.js";
 import { enrichUnifiedQueueAgentAndRecord } from "./ops-unified-queue-seq.js";
 import {
   readDevQueueDisplaySnapshotSync,
-  refreshDevQueueDisplaySnapshotSync,
+  syncDevQueueDisplayFromRuntimeSync,
 } from "./ops-dev-queue-display-store.js";
 import {
   FILE_DEV_POLL_MS,
@@ -518,6 +518,7 @@ export function createApp() {
     }),
   );
 
+  /** @deprecated — 표시 SSOT는 dev-queue-display. 디스크 스냅샷만 반환. */
   app.get(
     "/api/ops/cursor-agent-queue",
     asyncRoute(async (req, res) => {
@@ -529,27 +530,26 @@ export function createApp() {
         return;
       }
       const viewerIp = normalizeAccessIp(expressClientIp(req));
-      const disk = readRecordModeQueueSync();
-      const { agentEntries } = enrichUnifiedQueueAgentAndRecord(disk.items);
+      const snap = readDevQueueDisplaySnapshotSync();
       res.json({
-        entries: agentEntries,
+        entries: snap.agentEntries,
         viewerIp: viewerIp || null,
       });
     }),
   );
 
-  /** 허용 IP — 관리자 토큰 없이 개발 대기열 스트립 복원(디스크 스냅샷) */
+  /** 허용 IP — 개발 대기열 표시 SSOT(디스크만, 메모리 fallback 없음) */
   app.get(
     "/api/ops/dev-queue-display",
-    asyncRoute(async (_req, res) => {
-      let snap = readDevQueueDisplaySnapshotSync();
-      if (
-        snap.updatedAtMs <= 0 ||
-        (!snap.agentEntries.length && !snap.recordItems.length)
-      ) {
-        snap = refreshDevQueueDisplaySnapshotSync();
-      }
-      res.json(snap);
+    asyncRoute(async (req, res) => {
+      const snap = readDevQueueDisplaySnapshotSync();
+      const viewerIp = isAccessAdminRequest(req)
+        ? normalizeAccessIp(expressClientIp(req)) || null
+        : null;
+      res.json({
+        ...snap,
+        viewerIp,
+      });
     }),
   );
 
@@ -1013,7 +1013,7 @@ export function createApp() {
   installDistSpaIfPresent(app);
 
   try {
-    refreshDevQueueDisplaySnapshotSync();
+    syncDevQueueDisplayFromRuntimeSync();
   } catch {
     /* ignore */
   }

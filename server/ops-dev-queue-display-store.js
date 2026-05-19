@@ -1,6 +1,9 @@
 /**
- * 개발 대기열 UI용 스냅샷 — server/.data/ops-dev-queue-display.json
- * 에이전트·기록 모드·IDE lease 변경 시 갱신. 리다이렉트·새로고침 후에도 동일 목록 복원.
+ * 개발 대기열 **표시 SSOT** — server/.data/ops-dev-queue-display.json
+ *
+ * - UI·GET API는 이 파일만 읽는다(메모리 큐 직접 조회 없음).
+ * - 실행 큐(ops-agent-job-queue)·IDE lease·기록 모드 변경 시
+ *   `syncDevQueueDisplayFromRuntimeSync` / `scheduleDevQueueDisplayRefresh` 로만 갱신.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -68,11 +71,17 @@ export function readDevQueueDisplaySnapshotSync() {
   }
 }
 
-export function refreshDevQueueDisplaySnapshotSync() {
+/** 실행 큐·lease 등 런타임 상태 → 표시 스냅샷 디스크 기록(쓰기 전용). */
+export function syncDevQueueDisplayFromRuntimeSync() {
   const payload = buildDevQueueDisplayPayload();
   ensureDirSync();
   fs.writeFileSync(DISPLAY_FILE, `${JSON.stringify(payload, null, 0)}\n`, "utf8");
   return payload;
+}
+
+/** @deprecated 이름 호환 — syncDevQueueDisplayFromRuntimeSync 와 동일 */
+export function refreshDevQueueDisplaySnapshotSync() {
+  return syncDevQueueDisplayFromRuntimeSync();
 }
 
 /** 큐 변경이 연속될 때 디스크 쓰기를 한 틱으로 묶는다. */
@@ -81,7 +90,7 @@ export function scheduleDevQueueDisplayRefresh() {
   refreshScheduled = setImmediate(() => {
     refreshScheduled = null;
     try {
-      refreshDevQueueDisplaySnapshotSync();
+      syncDevQueueDisplayFromRuntimeSync();
     } catch {
       /* ignore */
     }

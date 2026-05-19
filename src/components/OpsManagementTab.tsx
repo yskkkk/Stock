@@ -5,18 +5,19 @@ import {
   deleteOpsAgentHistory,
   deleteOpsAgentHistoryEntry,
   fetchOpsAgentHistory,
+  fetchOpsDevQueueDisplay,
   fetchOpsCursorAgentPending,
-  fetchOpsCursorAgentQueue,
   fetchOpsCursorAgentStream,
   postOpsAgentHistoryWorkspaceApplied,
   type OpsAgentHistoryEntry,
   type OpsAgentQueueEntry,
   type OpsCursorAgentPendingResponse,
 } from "../api";
+import { OPS_DEV_QUEUE_POLL_MS } from "../constants/opsDevQueuePoll";
+import { parseOpsDevQueueAgentEntries } from "../lib/opsGlobalQueueRows";
 import { ko } from "../i18n/ko";
 
 const HISTORY_POLL_MS = 2000;
-const AGENT_QUEUE_POLL_MS = 5000;
 
 function formatHistoryTs(ms: number): string {
   try {
@@ -476,11 +477,11 @@ export default function OpsManagementTab({
     };
 
     const pullQueue = () => {
-      void fetchOpsCursorAgentQueue()
-        .then((r) => {
+      void fetchOpsDevQueueDisplay({ includeViewerIp: true })
+        .then((snap) => {
           if (cancelled) return;
-          setServerQueue(Array.isArray(r.entries) ? r.entries : []);
-          const rawIp = r.viewerIp;
+          setServerQueue(parseOpsDevQueueAgentEntries(snap.agentEntries));
+          const rawIp = snap.viewerIp;
           const ip =
             rawIp === null || rawIp === undefined
               ? null
@@ -512,7 +513,7 @@ export default function OpsManagementTab({
     refreshAll();
 
     const histId = window.setInterval(pullHistory, HISTORY_POLL_MS);
-    const queueId = window.setInterval(pullQueue, AGENT_QUEUE_POLL_MS);
+    const queueId = window.setInterval(pullQueue, OPS_DEV_QUEUE_POLL_MS);
     const pendId = window.setInterval(pullPending, HISTORY_POLL_MS);
 
     const onVisibility = () => {

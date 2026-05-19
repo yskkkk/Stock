@@ -231,10 +231,19 @@ export type OpsDevQueueDisplayResponse = {
   updatedAtMs: number;
   agentEntries: OpsAgentQueueEntry[];
   recordItems: OpsRecordModeItem[];
+  /** 관리자 Bearer 시에만 — 운영 탭「내 IP」필터용 */
+  viewerIp?: string | null;
 };
 
-export function fetchOpsDevQueueDisplay() {
-  return fetchJson<OpsDevQueueDisplayResponse>("/api/ops/dev-queue-display");
+export function fetchOpsDevQueueDisplay(opts?: { includeViewerIp?: boolean }) {
+  const headers: Record<string, string> = {};
+  if (opts?.includeViewerIp) {
+    const t = getStoredAccessAdminToken();
+    if (t) headers.Authorization = `Bearer ${t}`;
+  }
+  return fetchJson<OpsDevQueueDisplayResponse>("/api/ops/dev-queue-display", {
+    headers: Object.keys(headers).length ? headers : undefined,
+  });
 }
 
 export type OpsRecordModeItemStatus = "pending" | "running" | "done" | "error";
@@ -397,14 +406,15 @@ export function fetchOpsCursorAgentPending() {
   });
 }
 
-/** 관리자 전용 — 서버에서 **실행 중**인 Cursor 에이전트 작업만(FIFO 대기 제외) */
+/**
+ * @deprecated `fetchOpsDevQueueDisplay` 사용(표시 SSOT·100ms 폴링).
+ * 레거시 라우트 — 응답은 dev-queue-display 디스크 스냅샷과 동일.
+ */
 export function fetchOpsCursorAgentQueue() {
-  const t = getStoredAccessAdminToken();
-  const headers: Record<string, string> = {};
-  if (t) headers.Authorization = `Bearer ${t}`;
-  return fetchJson<OpsAgentQueueResponse>("/api/ops/cursor-agent-queue", {
-    headers: Object.keys(headers).length ? headers : undefined,
-  });
+  return fetchOpsDevQueueDisplay({ includeViewerIp: true }).then((snap) => ({
+    entries: snap.agentEntries,
+    viewerIp: snap.viewerIp ?? null,
+  }));
 }
 
 /** 관리자 전용 — 서버에 저장된 에이전트 실행 이력 */

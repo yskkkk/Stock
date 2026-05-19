@@ -60,7 +60,7 @@ function sortKeyFrom(seq: number | null, tieMs: number): number {
   return s * 1e15 + tieMs;
 }
 
-function parseAgentEntry(raw: unknown): OpsAgentQueueEntry | null {
+export function parseOpsDevQueueAgentEntry(raw: unknown): OpsAgentQueueEntry | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
   const id = normalizeOpQueueId(o.id);
@@ -86,8 +86,14 @@ function parseAgentEntry(raw: unknown): OpsAgentQueueEntry | null {
   };
 }
 
+export function parseOpsDevQueueAgentEntries(agentRaw: unknown[]): OpsAgentQueueEntry[] {
+  return agentRaw
+    .map(parseOpsDevQueueAgentEntry)
+    .filter((x): x is OpsAgentQueueEntry => x != null);
+}
+
 export function buildOpsGlobalQueueRows(agentRaw: unknown[]): OpsGlobalQueueRow[] {
-  const agent = agentRaw.map(parseAgentEntry).filter((x): x is OpsAgentQueueEntry => x != null);
+  const agent = parseOpsDevQueueAgentEntries(agentRaw);
 
   const out: Omit<OpsGlobalQueueRow, "processRankDisplay">[] = [];
   for (const e of agent) {

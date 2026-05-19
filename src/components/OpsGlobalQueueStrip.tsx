@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type KeyboardEvent } from "react";
 import { fetchOpsDevQueueDisplay } from "../api";
+import { OPS_DEV_QUEUE_POLL_MS } from "../constants/opsDevQueuePoll";
 import { ko } from "../i18n/ko";
 import {
   readOpsDevQueueDisplayCache,
@@ -8,8 +9,6 @@ import {
   writeOpsDevQueueDisplayCache,
   type OpsGlobalQueueRow,
 } from "../lib/opsGlobalQueueRows";
-
-const POLL_MS = 100;
 
 function formatQueueTime(ms: number): string {
   if (!Number.isFinite(ms) || ms <= 0) return "—";
@@ -51,7 +50,7 @@ export default function OpsGlobalQueueStrip({ onOpenOps }: { onOpenOps: () => vo
 
   useEffect(() => {
     pull();
-    const id = window.setInterval(pull, POLL_MS);
+    const id = window.setInterval(pull, OPS_DEV_QUEUE_POLL_MS);
     const onVis = () => {
       if (document.visibilityState === "visible") pull();
     };
