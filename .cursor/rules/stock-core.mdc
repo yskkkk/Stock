@@ -5,8 +5,9 @@ alwaysApply: true
 
 # Stock — 항상(요약)
 
-- **Git**: 이 턴에 저장소를 바꿨으면 `git status`/`diff`로 확인 → **그 턴 변경만** 스테이지 → **커밋 후 `git push`**까지 같은 흐름. push 여부 묻지 않음. 변경 없으면 생략. **`git config` 변경·force push·`main`/`master` 강제 푸시·`--no-verify` 등 훅 무시 금지.** `.env`/키/토큰은 커밋 안 함. 상세·실패 처리는 채팅에서 `@git-push-after-work` 또는 `@git-commit-push`.
+- **Git(필수)**: 소스를 수정·추가·삭제한 **매 턴** 끝에 **반드시** `git push`까지 완료(원격 미반영으로 끝내지 않음 — auto-git·다른 세션과 **컨플릭트** 방지). `git status`/`diff` → **그 턴 변경만** 스테이지 → 커밋 → `git push`. push 여부 묻지 않음. 변경 없으면 생략. **`git config` 변경·force push·`main`/`master` 강제 푸시·`--no-verify` 등 훅 무시 금지.** `.env`/키/토큰은 커밋 안 함. 상세는 `@git-push-after-work`.
 - **검증**: 수정 후 가능하면 관련 빌드·테스트·린트 한 번. 불가하면 이유만.
 - **서버**: `server/**`, `vite.config.*`, `package.json` 등 재기동이 필요하면 이 프로젝트 dev 프로세스만 재시작(가능할 때). 세부는 `@server-restart-after-changes`.
 - **완료 비프**: 사용자에게 보낼 **최종 답 직전에만** `[Console]::Beep(880,200);[Console]::Beep(1100,250)` (다른 셸 명령 없이). 사용자가 끄라고 하면 생략, push 실패 등 미완료 턴은 생략. 순서·예외는 `@task-complete-sound`.
 - **품질**: 추측 보고 금지, 확인 후 완료라고 말하기. 더 촘촘한 원칙은 `@zero-mistakes`.
+- **단일 개발 큐**: 전송 직후 훅 `enqueue`·lease(웹 **0.1s** 폴링). 답 **완전히** 끝나면 `stop`/`sessionEnd` 또는 마지막 텍스트만 assistant·**12s** 유휴 후 `release-active`. 도구 호출 중간에는 내리지 않음. 훅 없으면 **첫 도구 전** `node scripts/ops-ide-queue-pulse.mjs "요약"`.
