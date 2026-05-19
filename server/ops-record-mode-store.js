@@ -141,6 +141,9 @@ export function resetStaleRunningInPlace(items) {
 function writeQueueSync(data) {
   ensureDirSync();
   fs.writeFileSync(QUEUE_FILE, JSON.stringify(data, null, 0), "utf8");
+  void import("./ops-dev-queue-display-store.js")
+    .then((m) => m.scheduleDevQueueDisplayRefresh())
+    .catch(() => {});
 }
 
 /**

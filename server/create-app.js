@@ -34,7 +34,16 @@ import { getMacroEventsCachedAsync } from "./macro-events.js";
 import { fetchSectorEarningsSpotlight } from "./sector-earnings-spotlight.js";
 import { postFeedback, getFeedbackInbox, postFeedbackAdminReply, deleteFeedbackAdmin } from "./feedback-inbox.js";
 import { runOpsCursorAgent, streamOpsCursorAgentSse, writeOpsAgentSseEvent } from "./cursor-ops-agent.js";
-import { enqueueOpsAgentJob } from "./ops-agent-job-queue.js";
+import {
+  abandonIdeDevQueueSlot,
+  acquireIdeDevQueueSlot,
+  enqueueOpsAgentJob,
+  registerIdeDevQueueSlot,
+  releaseAnyRunningIdeDevQueueSlot,
+  releaseIdeDevQueueSlot,
+  waitIdeDevQueueGrant,
+} from "./ops-agent-job-queue.js";
+import { clearIdeLeaseOnDisk } from "./ops-ide-lease-disk.js";
 import {
   clearOpsAgentHistoryAsync,
   prependPolicyRejectedOpsEntry,
@@ -57,7 +66,12 @@ import {
   enrichPicksStateWithHistory,
   getPicksDailyHistoryForApi,
 } from "./picks-history-store.js";
+import { mergeLiveQuotesIntoPicksState } from "./picks-live-quotes.js";
 import { enrichUnifiedQueueAgentAndRecord } from "./ops-unified-queue-seq.js";
+import {
+  readDevQueueDisplaySnapshotSync,
+  refreshDevQueueDisplaySnapshotSync,
+} from "./ops-dev-queue-display-store.js";
 import { startOpsRecordModePoller } from "./ops-record-mode-poller.js";
 import {
   FILE_DEV_POLL_MS,
@@ -106,6 +120,36 @@ function installDistSpaIfPresent(app) {
   });
 }
 
+/** Cursor IDE 개발 큐 — 로컬 훅 전용 */
+function isLoopbackDevQueueRequest(req) {
+  const ip = normalizeAccessIp(expressClientIp(req));
+  if (ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1") return true;
+  const ra = String(req.socket?.remoteAddress ?? "");
+  return !ip && (ra === "127.0.0.1" || ra === "::1" || ra.endsWith("127.0.0.1"));
+}
+
+/** @param {import("express").Response} res @param {unknown} err */
+function respondIdeDevQueueError(res, err) {
+  const msg = err instanceof Error ? err.message : String(err);
+  const code =
+    err && typeof err === "object" && "code" in err
+      ? String(/** @type {{ code?: string }} */ (err).code)
+      : "";
+  if (code === "OPS_QUEUE_FULL") {
+    res.status(503).json({ error: msg, code });
+    return;
+  }
+  if (code === "IDE_SESSION_BUSY") {
+    res.status(409).json({ error: msg, code });
+    return;
+  }
+  if (code === "IDE_LEASE_NOT_FOUND") {
+    res.status(404).json({ error: msg, code });
+    return;
+  }
+  res.status(500).json({ error: msg, code: code || undefined });
+}
+
 export function createApp() {
   const app = express();
   app.set("trust proxy", 1);
@@ -145,10 +189,20 @@ export function createApp() {
   app.use(express.json());
   registerAccessControl(app);
 
-  app.get("/api/picks", (req, res) => {
-    ensureScreening();
-    res.json(enrichPicksStateWithHistory(getPicksState()));
-  });
+  app.get(
+    "/api/picks",
+    asyncRoute(async (_req, res) => {
+      ensureScreening();
+      const base = getPicksState();
+      let merged = base;
+      try {
+        merged = await mergeLiveQuotesIntoPicksState(base);
+      } catch {
+        /* 시세 병합 실패 시 스크리너 스냅샷만 반환 */
+      }
+      res.json(enrichPicksStateWithHistory(merged));
+    }),
+  );
 
   app.get("/api/picks/daily-history", (_req, res) => {
     res.json(getPicksDailyHistoryForApi());
@@ -325,6 +379,127 @@ export function createApp() {
     }),
   );
 
+  app.post(
+    "/api/ops/dev-queue/ide/enqueue",
+    asyncRoute(async (req, res) => {
+      if (!isLoopbackDevQueueRequest(req)) {
+        res.status(403).json({
+          error: "IDE 개발 큐는 이 PC의 로컬 요청(loopback)에서만 사용할 수 있습니다.",
+          code: "FORBIDDEN",
+        });
+        return;
+      }
+      const prompt = String(req.body?.prompt ?? "");
+      const sessionId =
+        String(req.body?.session_id ?? req.body?.sessionId ?? "").trim() || null;
+      try {
+        const reg = registerIdeDevQueueSlot({ prompt, sessionId });
+        res.json(reg);
+      } catch (err) {
+        respondIdeDevQueueError(res, err);
+      }
+    }),
+  );
+
+  app.post(
+    "/api/ops/dev-queue/ide/wait-grant",
+    asyncRoute(async (req, res) => {
+      if (!isLoopbackDevQueueRequest(req)) {
+        res.status(403).json({
+          error: "IDE 개발 큐는 이 PC의 로컬 요청(loopback)에서만 사용할 수 있습니다.",
+          code: "FORBIDDEN",
+        });
+        return;
+      }
+      const leaseId = String(req.body?.leaseId ?? req.body?.lease_id ?? "").trim();
+      try {
+        const grant = await waitIdeDevQueueGrant(leaseId);
+        res.json({ ok: true, ...grant });
+      } catch (err) {
+        respondIdeDevQueueError(res, err);
+      }
+    }),
+  );
+
+  app.post(
+    "/api/ops/dev-queue/ide/acquire",
+    asyncRoute(async (req, res) => {
+      if (!isLoopbackDevQueueRequest(req)) {
+        res.status(403).json({
+          error: "IDE 개발 큐는 이 PC의 로컬 요청(loopback)에서만 사용할 수 있습니다.",
+          code: "FORBIDDEN",
+        });
+        return;
+      }
+      const prompt = String(req.body?.prompt ?? "");
+      const sessionId =
+        String(req.body?.session_id ?? req.body?.sessionId ?? "").trim() || null;
+      try {
+        const grant = await acquireIdeDevQueueSlot({ prompt, sessionId });
+        res.json({ ok: true, ...grant });
+      } catch (err) {
+        respondIdeDevQueueError(res, err);
+      }
+    }),
+  );
+
+  app.post(
+    "/api/ops/dev-queue/ide/release",
+    asyncRoute(async (req, res) => {
+      if (!isLoopbackDevQueueRequest(req)) {
+        res.status(403).json({
+          error: "IDE 개발 큐는 이 PC의 로컬 요청(loopback)에서만 사용할 수 있습니다.",
+          code: "FORBIDDEN",
+        });
+        return;
+      }
+      const leaseId = String(req.body?.leaseId ?? req.body?.lease_id ?? "").trim();
+      const out = releaseIdeDevQueueSlot({ leaseId });
+      if (!out.ok) {
+        res.status(404).json(out);
+        return;
+      }
+      clearIdeLeaseOnDisk();
+      res.json(out);
+    }),
+  );
+
+  app.post(
+    "/api/ops/dev-queue/ide/release-active",
+    asyncRoute(async (req, res) => {
+      if (!isLoopbackDevQueueRequest(req)) {
+        res.status(403).json({
+          error: "IDE 개발 큐는 이 PC의 로컬 요청(loopback)에서만 사용할 수 있습니다.",
+          code: "FORBIDDEN",
+        });
+        return;
+      }
+      const out = releaseAnyRunningIdeDevQueueSlot();
+      clearIdeLeaseOnDisk();
+      res.json(out);
+    }),
+  );
+
+  app.post(
+    "/api/ops/dev-queue/ide/cancel",
+    asyncRoute(async (req, res) => {
+      if (!isLoopbackDevQueueRequest(req)) {
+        res.status(403).json({
+          error: "IDE 개발 큐는 이 PC의 로컬 요청(loopback)에서만 사용할 수 있습니다.",
+          code: "FORBIDDEN",
+        });
+        return;
+      }
+      const leaseId = String(req.body?.leaseId ?? req.body?.lease_id ?? "").trim();
+      const out = abandonIdeDevQueueSlot(leaseId);
+      if (!out.ok) {
+        res.status(404).json(out);
+        return;
+      }
+      res.json(out);
+    }),
+  );
+
   app.get(
     "/api/ops/cursor-agent-pending",
     asyncRoute(async (req, res) => {
@@ -361,6 +536,21 @@ export function createApp() {
         entries: agentEntries,
         viewerIp: viewerIp || null,
       });
+    }),
+  );
+
+  /** 허용 IP — 관리자 토큰 없이 개발 대기열 스트립 복원(디스크 스냅샷) */
+  app.get(
+    "/api/ops/dev-queue-display",
+    asyncRoute(async (_req, res) => {
+      let snap = readDevQueueDisplaySnapshotSync();
+      if (
+        snap.updatedAtMs <= 0 ||
+        (!snap.agentEntries.length && !snap.recordItems.length)
+      ) {
+        snap = refreshDevQueueDisplaySnapshotSync();
+      }
+      res.json(snap);
     }),
   );
 
@@ -659,8 +849,6 @@ export function createApp() {
       return {
         ...item,
         name: item.name === item.symbol && pick.name ? pick.name : item.name,
-        price: item.price ?? pick.price ?? null,
-        changePercent: item.changePercent ?? pick.changePercent ?? null,
         currency: item.currency ?? pick.currency ?? null,
       };
     });
@@ -825,6 +1013,11 @@ export function createApp() {
 
   installDistSpaIfPresent(app);
 
+  try {
+    refreshDevQueueDisplaySnapshotSync();
+  } catch {
+    /* ignore */
+  }
   startOpsRecordModePoller();
   startOpsFileDevPoller();
 

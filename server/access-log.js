@@ -49,9 +49,11 @@ function shouldSkipAccessLog(req) {
   /** 운영 탭 이력·대기열 폴링 — 로그만 과다 */
   if (path === "/api/ops/cursor-agent-history") return true;
   if (path === "/api/ops/cursor-agent-queue") return true;
+  if (path === "/api/ops/dev-queue-display") return true;
   if (path === "/api/ops/record-mode") return true;
   if (path === "/api/ops/record-mode/activity") return true;
   if (path === "/api/ops/file-dev-queue") return true;
+  if (path === "/api/ops/cursor-agent-pending") return true;
   if (path.startsWith("/api/stock/")) return true;
   if (path.startsWith("/api/news/")) return true;
   return false;
@@ -91,6 +93,8 @@ function humanAction(req) {
   if (method === "POST" && path === "/api/access/admin/revoke") return "허용 IP 취소";
   if (method === "POST" && path === "/api/access/admin/allowed-memo") return "허용 IP 메모 저장";
 
+  if (method === "GET" && path === "/api/ops/dev-queue-display")
+    return "개발 대기열 표시 스냅샷 조회";
   if (method === "GET" && path === "/api/ops/record-mode") return "운영 기록 모드 큐 조회";
   if (method === "GET" && path === "/api/ops/record-mode/activity")
     return "운영 기록 모드 활동 이력 조회";

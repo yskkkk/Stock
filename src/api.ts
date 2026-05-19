@@ -22,84 +22,8 @@ export interface StockData extends ChartResponse {
   quote: QuoteResponse;
 }
 
-/** 서버 `ACCESS_CLIENT_MAC_COOKIE` / `clientMacFromReq` 와 동일 키 */
-export const ACCESS_CLIENT_MAC_STORAGE_KEY = "stock_access_client_mac";
-
-function normalizeClientMacLocal(raw: string): string {
-  const s = String(raw).trim().toLowerCase().replace(/[^0-9a-f]/g, "");
-  if (s.length !== 12 || !/^[0-9a-f]{12}$/.test(s)) return "";
-  const p = s.toUpperCase().match(/.{2}/g);
-  return p ? p.join(":") : "";
-}
-
-export function getStoredAccessClientMac(): string {
-  if (typeof localStorage === "undefined") return "";
-  try {
-    return normalizeClientMacLocal(
-      localStorage.getItem(ACCESS_CLIENT_MAC_STORAGE_KEY) ?? "",
-    );
-  } catch {
-    return "";
-  }
-}
-
-function syncAccessClientMacCookie(canonical: string): void {
-  if (typeof document === "undefined") return;
-  try {
-    if (canonical) {
-      document.cookie = `${ACCESS_CLIENT_MAC_STORAGE_KEY}=${encodeURIComponent(canonical)}; Path=/; Max-Age=31536000; SameSite=Lax`;
-    } else {
-      document.cookie = `${ACCESS_CLIENT_MAC_STORAGE_KEY}=; Path=/; Max-Age=0`;
-    }
-  } catch {
-    /* ignore */
-  }
-}
-
-/** Wi-Fi 설정 등에서 확인한 MAC 저장 — IP가 바뀌어도 서버가 동일 단말로 인식 */
-export function persistAccessClientMac(raw: string): string {
-  const canonical = normalizeClientMacLocal(raw);
-  if (typeof localStorage !== "undefined") {
-    try {
-      if (canonical) {
-        localStorage.setItem(ACCESS_CLIENT_MAC_STORAGE_KEY, canonical);
-      } else {
-        localStorage.removeItem(ACCESS_CLIENT_MAC_STORAGE_KEY);
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-  syncAccessClientMacCookie(canonical);
-  return canonical;
-}
-
-/** 문서 요청(GET /) 게이트가 쿠키로 MAC을 볼 수 있게 동기화 */
-export function syncStoredAccessClientMacToCookie(): void {
-  syncAccessClientMacCookie(getStoredAccessClientMac());
-}
-
-function shouldAttachAccessMacHeader(url: string): boolean {
-  if (typeof window === "undefined") return false;
-  if (url.startsWith("/api")) return true;
-  try {
-    const u = new URL(url, window.location.origin);
-    return u.pathname.startsWith("/api");
-  } catch {
-    return false;
-  }
-}
-
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
-  let reqInit: RequestInit = init ?? {};
-  if (shouldAttachAccessMacHeader(url)) {
-    const headers = new Headers(init?.headers);
-    const mac = getStoredAccessClientMac();
-    if (mac && !headers.has("X-Access-Client-Mac")) {
-      headers.set("X-Access-Client-Mac", mac);
-    }
-    reqInit = { ...init, headers };
-  }
+  const reqInit: RequestInit = init ?? {};
   let res: Response;
   try {
     res = await fetch(url, reqInit);
@@ -279,9 +203,13 @@ export type OpsCursorAgentPendingResponse = {
   startedAtMs: number | null;
 };
 
+export type OpsAgentQueueSource = "web" | "ide";
+
 export type OpsAgentQueueEntry = {
   id: string;
   requestIp: string;
+  /** web=운영 탭 SSE·기록, ide=Cursor IDE 입력(단일 큐) */
+  source?: OpsAgentQueueSource;
   instructionPreview: string;
   /** 큐 카드 도움말(title) 짧은 요약 — 서버 폴링 버전에서는 전체 초안 가능 */
   instructionTooltip?: string;
@@ -297,6 +225,17 @@ export type OpsAgentQueueResponse = {
   entries: OpsAgentQueueEntry[];
   viewerIp?: string | null;
 };
+
+/** 허용 IP — 디스크 스냅샷 기반 개발 대기열(관리자 토큰 불필요) */
+export type OpsDevQueueDisplayResponse = {
+  updatedAtMs: number;
+  agentEntries: OpsAgentQueueEntry[];
+  recordItems: OpsRecordModeItem[];
+};
+
+export function fetchOpsDevQueueDisplay() {
+  return fetchJson<OpsDevQueueDisplayResponse>("/api/ops/dev-queue-display");
+}
 
 export type OpsRecordModeItemStatus = "pending" | "running" | "done" | "error";
 
@@ -716,8 +655,6 @@ export interface AccessStatusResponse {
   enabled: boolean;
   state: AccessClientState;
   yourIp: string;
-  /** 서버가 인식한 단말 MAC(헤더·쿠키·본문 기준, 정규화됨) */
-  yourMac?: string;
   /** ACCESS_ADMIN_IPS — 게이트에서 관리자 패널 비밀번호 생략 */
   adminIpConsole?: boolean;
 }
@@ -734,8 +671,6 @@ export type AccessDeviceInfoPayload = {
   deviceMemory?: number | null;
   maxTouchPoints?: number | null;
   cookieEnabled?: boolean | null;
-  /** Wi-Fi 등에서 사용자가 확인한 MAC(자가 신고) */
-  clientMac?: string;
 };
 
 export interface AccessRequestItem {
@@ -744,16 +679,12 @@ export interface AccessRequestItem {
   userAgent: string;
   message: string;
   deviceInfo?: AccessDeviceInfoPayload | null;
-  /** 정규화된 MAC — 신청 시 단말 식별 */
-  clientMac?: string;
   requestedAt: string;
   status: string;
 }
 
 export interface AccessAllowedEntry {
   ip: string;
-  /** 승인된 단말 MAC — IP와 별도로 매칭되면 동일 권한 유지 */
-  mac?: string;
   /** 관리자가 적은 식별 메모 */
   memo?: string;
   /** 승인 시점 신청자 메시지 (구 데이터는 `note`에만 있을 수 있음) */
@@ -762,7 +693,7 @@ export interface AccessAllowedEntry {
   note?: string;
   addedAt: string;
   fromRequestId?: string;
-  /** 허용 행에 부여된 위임 관리자(접속 IP 또는 등록 MAC 일치 시 관리자 API 사용 가능) */
+  /** 허용 행에 부여된 위임 관리자(접속 IP 일치 시 관리자 API 사용 가능) */
   adminDelegate?: boolean;
 }
 
@@ -782,9 +713,7 @@ export function postAccessRequest(
   message: string,
   deviceInfo?: AccessDeviceInfoPayload | null,
 ) {
-  const mac = getStoredAccessClientMac();
   const base: AccessDeviceInfoPayload = { ...(deviceInfo ?? {}) };
-  if (mac) base.clientMac = mac;
   const includeDevice = Object.keys(base).length > 0;
   return fetchJson<{ ok: boolean; message: string }>("/api/access/request", {
     method: "POST",
@@ -906,10 +835,3 @@ export function postFeedbackAdminDelete(adminToken: string, id: string) {
   });
 }
 
-if (typeof window !== "undefined") {
-  try {
-    syncStoredAccessClientMacToCookie();
-  } catch {
-    /* ignore */
-  }
-}

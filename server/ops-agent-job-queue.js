@@ -1,10 +1,24 @@
 /**
- * Cursor 운영 에이전트는 동시에 여러 개 돌리면 git/워킹트리 충돌이 나기 쉬움.
- * 모든 SSE·비스트리밍 실행을 단일 워커 FIFO 큐로 직렬화한다.
+ * 웹 운영 에이전트(SSE·비스트리밍·기록 모드)와 Cursor IDE 채팅을
+ * 하나의 FIFO로 직렬화한다. IDE는 서버에서 코드를 실행하지 않고,
+ * 큐 차례가 오면 훅이 프롬프트 전송을 허용한다.
  */
 
 import { randomUUID } from "node:crypto";
-import { trimStoredTextForOpsHistory } from "./ops-agent-history-store.js";
+import {
+  finalizeOpsAgentEntry,
+  prependWaitingOpsEntry,
+  promoteOpsAgentEntryToRunning,
+  prependRunningOpsEntry,
+  trimStoredTextForOpsHistory,
+} from "./ops-agent-history-store.js";
+import { buildIdeQueueGrant } from "./ops-ide-queue-grant.js";
+import {
+  clearOpsWebAgentBusyMarkerSync,
+  writeOpsWebAgentBusyMarker,
+} from "./ops-web-agent-busy-marker.js";
+import { mergeIdeLeaseDiskIntoAgentEntries } from "./ops-ide-lease-disk.js";
+import { opsIdePromptsMatch } from "./ops-ide-prompt-match.js";
 
 /**
  * @typedef {{
@@ -14,23 +28,49 @@ import { trimStoredTextForOpsHistory } from "./ops-agent-history-store.js";
  *   instructionTooltip: string;
  *   instructionBody: string;
  *   enqueuedAtMs: number;
+ *   source?: 'web' | 'ide';
  * }} OpsAgentQueueMeta
  */
 
-/** @typedef {{ fn: () => Promise<unknown>; resolve: (v: unknown) => void; reject: (e: unknown) => void; meta: OpsAgentQueueMeta | null }} QueuedJob */
+/**
+ * @typedef {{
+ *   id: string;
+ *   source: 'web' | 'ide';
+ *   meta: OpsAgentQueueMeta | null;
+ *   fn?: () => Promise<unknown>;
+ *   resolve?: (v: unknown) => void;
+ *   reject?: (e: unknown) => void;
+ *   sessionId?: string | null;
+ *   grantResolve?: (grant: Record<string, unknown>) => void;
+ *   grantReject?: (e: unknown) => void;
+ *   releaseResolve?: () => void;
+ * }} QueueSlot
+ */
 
-const OPS_QUEUE_INSTRUCTION_BODY_MAX = 16_000;
-
-const queue = /** @type {QueuedJob[]} */ ([]);
-let busy = false;
+/** @type {QueueSlot[]} */
+const slots = [];
+let active = false;
 
 /** @type {OpsAgentQueueMeta | null} */
 let runningMeta = null;
 
-/** 대기만 제한 (실행 중 1건은 별도). 과하면 503 */
-const MAX_WAITING = 25;
+/** @type {QueueSlot | null} */
+let runningSlot = null;
 
+const MAX_WAITING = 25;
+const OPS_QUEUE_INSTRUCTION_BODY_MAX = 16_000;
+const IDE_ACQUIRE_TIMEOUT_MS = 45 * 60 * 1000;
 const OPS_QUEUE_IP_MAX = 120;
+
+const PREVIEW_MAX = 220;
+const TOOLTIP_MAX = 900;
+const TOOLTIP_MAX_LINES = 4;
+
+function bumpDevQueueDisplay() {
+  void import("./ops-dev-queue-display-store.js")
+    .then((m) => m.scheduleDevQueueDisplayRefresh())
+    .catch(() => {});
+}
 
 /** @param {unknown} ip */
 function sanitizeQueueIp(ip) {
@@ -39,10 +79,6 @@ function sanitizeQueueIp(ip) {
     .replace(/[\r\n\u0000]/g, "")
     .slice(0, OPS_QUEUE_IP_MAX);
 }
-
-const PREVIEW_MAX = 220;
-const TOOLTIP_MAX = 900;
-const TOOLTIP_MAX_LINES = 4;
 
 /** @param {unknown} instruction */
 function previewInstruction(instruction) {
@@ -54,7 +90,7 @@ function previewInstruction(instruction) {
   return t.length > PREVIEW_MAX ? `${t.slice(0, PREVIEW_MAX - 1)}…` : t;
 }
 
-/** @param {unknown} instruction — 네이티브 title용 (여러 줄) */
+/** @param {unknown} instruction */
 function tooltipInstruction(instruction) {
   const lines = String(instruction ?? "")
     .split(/\r?\n/)
@@ -65,43 +101,228 @@ function tooltipInstruction(instruction) {
   return `${chunk.slice(0, TOOLTIP_MAX - 1)}…`;
 }
 
+/** @param {{ requestIp?: string | null; instruction?: string; historyRunId?: string | null; source?: 'web' | 'ide' }} meta */
+function buildQueueMeta(meta) {
+  const source = meta.source === "ide" ? "ide" : "web";
+  const id =
+    typeof meta.historyRunId === "string" && meta.historyRunId.trim().length > 0
+      ? meta.historyRunId.trim()
+      : randomUUID();
+  return {
+    id,
+    requestIp:
+      source === "ide"
+        ? "cursor-ide"
+        : sanitizeQueueIp(meta.requestIp),
+    instructionPreview: previewInstruction(meta.instruction),
+    instructionTooltip: tooltipInstruction(meta.instruction),
+    instructionBody: trimStoredTextForOpsHistory(
+      String(meta.instruction ?? ""),
+      OPS_QUEUE_INSTRUCTION_BODY_MAX,
+    ),
+    enqueuedAtMs: Date.now(),
+    source,
+  };
+}
+
+function waitingSlotCount() {
+  return Math.max(0, slots.length - (active ? 1 : 0));
+}
+
 export function getOpsAgentQueueWaitingCount() {
-  return queue.length;
+  return waitingSlotCount();
 }
 
 export function isOpsAgentJobRunning() {
-  return busy;
+  return active;
+}
+
+/** @param {OpsAgentQueueMeta | null | undefined} meta */
+function instructionTextFromMeta(meta) {
+  if (!meta) return "";
+  const body = String(meta.instructionBody ?? "").trim();
+  if (body) return body;
+  return String(meta.instructionPreview ?? "").trim();
+}
+
+/** @param {QueueSlot} slot */
+function syncIdeHistoryWaiting(slot) {
+  if (!slot.meta) return;
+  void prependWaitingOpsEntry(
+    slot.id,
+    instructionTextFromMeta(slot.meta),
+    "cursor-ide",
+  ).catch(() => {
+    /* 디스크 오류 등 */
+  });
+}
+
+/** @param {QueueSlot} slot */
+function syncIdeHistoryRunning(slot) {
+  if (!slot.meta) return;
+  const ins = instructionTextFromMeta(slot.meta);
+  void promoteOpsAgentEntryToRunning(slot.id)
+    .then((ok) => {
+      if (!ok) return prependRunningOpsEntry(slot.id, ins, "cursor-ide");
+    })
+    .catch(() => {
+      /* ignore */
+    });
 }
 
 /**
- * 관리자 UI 폴링용 — **현재 실행(`running`)이 배열 선두**, 이어 워커 FIFO 대기(`waiting`).
- * SSE의 `historyRunId`를 큐 카드 id로 쓰면 이력·팝업에서 동일 실행을 매칭할 수 있다.
- * @returns {{ entries: Array<{ id: string; requestIp: string; instructionPreview: string; instructionTooltip: string; instructionBody: string; enqueuedAtMs: number; status: 'running' | 'waiting' }> }}
+ * @param {QueueSlot} slot
+ * @param {"ok" | "error" | "cancelled"} state
+ * @param {string | null} [error]
  */
+function syncIdeHistoryFinalize(slot, state, error = null) {
+  if (!slot.meta) return;
+  const started = slot.meta.enqueuedAtMs ?? Date.now();
+  void finalizeOpsAgentEntry(slot.id, {
+    state,
+    instruction: instructionTextFromMeta(slot.meta),
+    requestIp: "cursor-ide",
+    phaseLine: "Cursor IDE (단일 개발 큐)",
+    cursorLine: "",
+    thinkingLine: "",
+    toolLine: "",
+    toolLog: "",
+    streamText: "",
+    statusText: state === "ok" ? "IDE 세션 종료" : null,
+    resultText:
+      state === "ok"
+        ? "Cursor IDE에서 요청이 완료되어 개발 큐에서 해제되었습니다."
+        : null,
+    durationMs: Math.max(0, Date.now() - started),
+    runtimeLabel: "ide",
+    error,
+  }).catch(() => {
+    /* ignore */
+  });
+}
+
 export function getOpsAgentQueueSnapshot() {
   const waiting = [];
-  for (const job of queue) {
-    if (job.meta)
-      waiting.push({ ...job.meta, status: /** @type {const} */ ("waiting") });
+  for (let i = active ? 1 : 0; i < slots.length; i++) {
+    const s = slots[i];
+    if (s.meta) {
+      waiting.push({
+        ...s.meta,
+        source: s.meta.source === "ide" ? "ide" : "web",
+        status: /** @type {const} */ ("waiting"),
+      });
+    }
   }
   const entries = [];
-  if (runningMeta) {
-    entries.push({ ...runningMeta, status: /** @type {const} */ ("running") });
+  if (active && runningMeta) {
+    entries.push({
+      ...runningMeta,
+      source: runningMeta.source === "ide" ? "ide" : "web",
+      status: /** @type {const} */ ("running"),
+    });
   }
   entries.push(...waiting);
-  return { entries };
+  return { entries: mergeIdeLeaseDiskIntoAgentEntries(entries) };
+}
+
+function writeRunningBusyMarker() {
+  if (!runningMeta) return;
+  writeOpsWebAgentBusyMarker({
+    runId: runningMeta.id,
+    instructionPreview: runningMeta.instructionPreview,
+    requestIp: runningMeta.requestIp,
+    source: runningMeta.source === "ide" ? "ide" : "web",
+  });
+}
+
+async function drainQueue() {
+  if (active) return;
+  const slot = slots[0];
+  if (!slot) return;
+
+  active = true;
+  runningSlot = slot;
+  runningMeta = slot.meta;
+  writeRunningBusyMarker();
+  bumpDevQueueDisplay();
+
+  if (slot.source === "web") {
+    try {
+      if (!slot.fn) throw new Error("웹 큐 작업 함수가 없습니다.");
+      const out = await slot.fn();
+      slot.resolve?.(out);
+    } catch (e) {
+      slot.reject?.(e);
+    } finally {
+      slots.shift();
+      active = false;
+      runningSlot = null;
+      runningMeta = null;
+      clearOpsWebAgentBusyMarkerSync();
+      bumpDevQueueDisplay();
+      void drainQueue();
+    }
+    return;
+  }
+
+  let ideHistoryFinalized = false;
+  const finishIdeHistory = (/** @type {"ok" | "error" | "cancelled"} */ state, err = null) => {
+    if (ideHistoryFinalized) return;
+    ideHistoryFinalized = true;
+    syncIdeHistoryFinalize(slot, state, err);
+  };
+
+  try {
+    syncIdeHistoryRunning(slot);
+    const waitedMs = Date.now() - (slot.meta?.enqueuedAtMs ?? Date.now());
+    const queueSeq =
+      slots.findIndex((s) => s.id === slot.id) >= 0
+        ? slots.findIndex((s) => s.id === slot.id) + 1
+        : 1;
+    const grant = buildIdeQueueGrant({
+      leaseId: slot.id,
+      waitedMs,
+      queueSeq,
+    });
+    /** @type {{ settledGrant?: Record<string, unknown> }} */ (slot).settledGrant =
+      grant;
+    slot.grantResolve?.(grant);
+    await new Promise((resolve, reject) => {
+      const t = setTimeout(() => {
+        reject(new Error("IDE 개발 큐 슬롯이 시간 초과되었습니다."));
+      }, IDE_ACQUIRE_TIMEOUT_MS);
+      slot.releaseResolve = () => {
+        clearTimeout(t);
+        resolve();
+      };
+    });
+    finishIdeHistory("ok");
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    finishIdeHistory("error", msg || "IDE 큐 오류");
+    slot.grantReject?.(e);
+  } finally {
+    slots.shift();
+    active = false;
+    runningSlot = null;
+    runningMeta = null;
+    clearOpsWebAgentBusyMarkerSync();
+    bumpDevQueueDisplay();
+    void drainQueue();
+  }
 }
 
 /**
  * @template T
  * @param {() => Promise<T>} fn
- * @param {() => void} [onQueued] busy일 때 이번 요청이 대기열에만 들어간 직후(헤더·SSE를 먼저 열 때)
+ * @param {() => void} [onQueued]
  * @param {{ requestIp?: string | null; instruction?: string; historyRunId?: string | null }} [meta]
- * @param {() => void} [onCommittedToQueue] 큐에 push된 직후(`drainQueue`보다 먼저) — 필요 시 훅
+ * @param {() => void} [onCommittedToQueue]
  * @returns {Promise<T>}
  */
 export function enqueueOpsAgentJob(fn, onQueued, meta, onCommittedToQueue) {
-  if (queue.length >= MAX_WAITING) {
+  const waiting = waitingSlotCount();
+  if (waiting >= MAX_WAITING) {
     const err = new Error(
       "운영 에이전트 대기열이 가득 찼습니다. 잠시 후 다시 시도하세요.",
     );
@@ -109,28 +330,20 @@ export function enqueueOpsAgentJob(fn, onQueued, meta, onCommittedToQueue) {
     return Promise.reject(err);
   }
 
-  const queueMeta =
-    meta != null
-      ? {
-          id:
-            typeof meta.historyRunId === "string" &&
-            meta.historyRunId.trim().length > 0
-              ? meta.historyRunId.trim()
-              : randomUUID(),
-          requestIp: sanitizeQueueIp(meta.requestIp),
-          instructionPreview: previewInstruction(meta.instruction),
-          instructionTooltip: tooltipInstruction(meta.instruction),
-          instructionBody: trimStoredTextForOpsHistory(
-            String(meta.instruction ?? ""),
-            OPS_QUEUE_INSTRUCTION_BODY_MAX,
-          ),
-          enqueuedAtMs: Date.now(),
-        }
-      : null;
+  const queueMeta = meta != null ? buildQueueMeta({ ...meta, source: "web" }) : null;
 
   return new Promise((resolve, reject) => {
-    const willWaitBehindRunningJob = busy;
-    queue.push({ fn, resolve, reject, meta: queueMeta });
+    const willWaitBehindRunningJob = active || slots.length > 0;
+    const slot = /** @type {QueueSlot} */ ({
+      id: queueMeta?.id ?? randomUUID(),
+      source: "web",
+      meta: queueMeta,
+      fn,
+      resolve,
+      reject,
+    });
+    slots.push(slot);
+    bumpDevQueueDisplay();
     try {
       onCommittedToQueue?.();
     } catch {
@@ -147,20 +360,267 @@ export function enqueueOpsAgentJob(fn, onQueued, meta, onCommittedToQueue) {
   });
 }
 
-async function drainQueue() {
-  if (busy) return;
-  const job = queue.shift();
-  if (!job) return;
-  busy = true;
-  runningMeta = job.meta;
-  try {
-    const out = await job.fn();
-    job.resolve(out);
-  } catch (e) {
-    job.reject(e);
-  } finally {
-    busy = false;
-    runningMeta = null;
-    void drainQueue();
+/** @param {string} slotId */
+function queueSeqForSlotId(slotId) {
+  const snap = getOpsAgentQueueSnapshot();
+  const idx = snap.entries.findIndex((e) => e.id === slotId);
+  return idx >= 0 ? idx + 1 : snap.entries.length + 1;
+}
+
+/** @param {string} slotId */
+function queueStatusForSlotId(slotId) {
+  if (runningMeta?.id === slotId) return "running";
+  const snap = getOpsAgentQueueSnapshot();
+  const hit = snap.entries.find((e) => e.id === slotId);
+  return hit?.status === "running" ? "running" : "waiting";
+}
+
+/**
+ * IDE 요청을 큐에 즉시 등록(웹 에이전트 대기 등록과 동일하게 스냅샷에 바로 표시).
+ * @param {{ prompt: string; sessionId?: string | null }} input
+ */
+/** @param {string} prompt */
+export function hasActiveIdeSlotForPrompt(prompt) {
+  return findActiveIdeSlotByPrompt(prompt) != null;
+}
+
+/** @param {string} prompt */
+function findActiveIdeSlotByPrompt(prompt) {
+  const probe = String(prompt ?? "").trim();
+  if (!probe) return null;
+  for (const s of slots) {
+    if (s.source !== "ide" || !s.meta) continue;
+    if (opsIdePromptsMatch(instructionTextFromMeta(s.meta), probe)) return s;
   }
+  return null;
+}
+
+/**
+ * 실행 중 IDE 슬롯이 새 프롬프트와 다를 때만 해제(같은 턴이면 유지).
+ * @param {string} prompt
+ */
+export function releaseRunningIdeDevQueueIfDifferentPrompt(prompt) {
+  if (!active || runningSlot?.source !== "ide" || !runningMeta) {
+    return { ok: true, skipped: true };
+  }
+  if (opsIdePromptsMatch(instructionTextFromMeta(runningMeta), prompt)) {
+    return { ok: true, skipped: true, samePrompt: true };
+  }
+  return releaseIdeDevQueueSlot({ leaseId: runningSlot.id });
+}
+
+export function registerIdeDevQueueSlot(input) {
+  const prompt = String(input.prompt ?? "").trim();
+  if (!prompt) {
+    const err = new Error("prompt가 비어 있습니다.");
+    err.code = "IDE_PROMPT_EMPTY";
+    throw err;
+  }
+
+  const existing = findActiveIdeSlotByPrompt(prompt);
+  if (existing?.meta) {
+    const leaseId = existing.id;
+    return {
+      ok: true,
+      leaseId,
+      queueStatus: queueStatusForSlotId(leaseId),
+      queueSeq: queueSeqForSlotId(leaseId),
+      instructionPreview: existing.meta.instructionPreview,
+      instructionTooltip: existing.meta.instructionTooltip,
+      enqueuedAtMs: existing.meta.enqueuedAtMs,
+      deduped: true,
+    };
+  }
+
+  const sessionId = String(input.sessionId ?? "").trim() || null;
+  const waiting = waitingSlotCount();
+  if (waiting >= MAX_WAITING) {
+    const err = new Error(
+      "개발 대기열이 가득 찼습니다. 잠시 후 다시 시도하세요.",
+    );
+    err.code = "OPS_QUEUE_FULL";
+    throw err;
+  }
+
+  if (
+    sessionId &&
+    slots.some(
+      (s) =>
+        s.source === "ide" &&
+        s.sessionId === sessionId &&
+        (s === slots[0] || slots.indexOf(s) > 0),
+    )
+  ) {
+    const err = new Error(
+      "이 Cursor 세션에 이미 대기·실행 중인 IDE 요청이 있습니다. 끝난 뒤 다시 보내세요.",
+    );
+    err.code = "IDE_SESSION_BUSY";
+    throw err;
+  }
+
+  const queueMeta = buildQueueMeta({
+    instruction: prompt,
+    requestIp: "cursor-ide",
+    source: "ide",
+  });
+
+  const slot = /** @type {QueueSlot} */ ({
+    id: queueMeta.id,
+    source: "ide",
+    meta: queueMeta,
+    sessionId,
+  });
+  slots.push(slot);
+  bumpDevQueueDisplay();
+  syncIdeHistoryWaiting(slot);
+  void drainQueue();
+
+  const leaseId = slot.id;
+  const queueStatus = queueStatusForSlotId(leaseId);
+  const queueSeq = queueSeqForSlotId(leaseId);
+
+  return {
+    ok: true,
+    leaseId,
+    queueStatus,
+    queueSeq,
+    instructionPreview: queueMeta.instructionPreview,
+    instructionTooltip: queueMeta.instructionTooltip,
+    enqueuedAtMs: queueMeta.enqueuedAtMs,
+  };
+}
+
+/**
+ * register 직후 호출 — 실행 차례가 오면 grant 반환.
+ * @param {string} leaseId
+ */
+export function waitIdeDevQueueGrant(leaseId) {
+  const id = String(leaseId ?? "").trim();
+  if (!id) {
+    return Promise.reject(new Error("leaseId가 필요합니다."));
+  }
+
+  const slot = slots.find((s) => s.id === id && s.source === "ide");
+  if (!slot) {
+    const err = new Error("개발 큐에 등록된 IDE 요청을 찾을 수 없습니다.");
+    err.code = "IDE_LEASE_NOT_FOUND";
+    return Promise.reject(err);
+  }
+
+  /** @type {Record<string, unknown> | undefined} */
+  const settled = /** @type {{ settledGrant?: Record<string, unknown> }} */ (slot)
+    .settledGrant;
+  if (settled) return Promise.resolve(settled);
+
+  return new Promise((resolve, reject) => {
+    slot.grantResolve = (grant) => {
+      /** @type {{ settledGrant?: Record<string, unknown> }} */ (slot).settledGrant =
+        grant;
+      resolve(grant);
+    };
+    slot.grantReject = reject;
+  });
+}
+
+/**
+ * Cursor IDE — 큐 등록 + 차례까지 대기(레거시 단일 HTTP용).
+ * @param {{ prompt: string; sessionId?: string | null }} input
+ */
+export async function acquireIdeDevQueueSlot(input) {
+  const reg = registerIdeDevQueueSlot(input);
+  const grant = await waitIdeDevQueueGrant(reg.leaseId);
+  return { ok: true, ...grant, queueSeq: reg.queueSeq };
+}
+
+/**
+ * 대기·실행 중 IDE 슬롯을 큐에서 제거(훅 타임아웃·세션 종료 시 정리).
+ * @param {string} leaseId
+ */
+export function abandonIdeDevQueueSlot(leaseId) {
+  const id = String(leaseId ?? "").trim();
+  if (!id) return { ok: false, error: "leaseId가 필요합니다." };
+
+  const idx = slots.findIndex((s) => s.id === id && s.source === "ide");
+  if (idx < 0) {
+    return { ok: false, error: "개발 큐에 등록된 IDE 요청을 찾을 수 없습니다." };
+  }
+
+  const slot = slots[idx];
+  if (active && runningSlot?.id === id) {
+    try {
+      slot.releaseResolve?.();
+    } catch {
+      /* ignore */
+    }
+    return { ok: true, released: true };
+  }
+
+  slots.splice(idx, 1);
+  const err = new Error("IDE 개발 큐 요청이 취소되었습니다.");
+  err.code = "IDE_QUEUE_CANCELLED";
+  try {
+    slot.grantReject?.(err);
+  } catch {
+    /* ignore */
+  }
+  syncIdeHistoryFinalize(slot, "cancelled");
+  if (!active) {
+    clearOpsWebAgentBusyMarkerSync();
+    bumpDevQueueDisplay();
+    void drainQueue();
+  } else {
+    bumpDevQueueDisplay();
+  }
+  return { ok: true, cancelled: true };
+}
+
+/**
+ * @param {{ leaseId: string }} input
+ * @returns {{ ok: boolean; error?: string }}
+ */
+export function releaseIdeDevQueueSlot(input) {
+  const leaseId = String(input.leaseId ?? "").trim();
+  if (!leaseId) return { ok: false, error: "leaseId가 필요합니다." };
+
+  const slot = runningSlot;
+  if (!slot || slot.source !== "ide" || slot.id !== leaseId) {
+    const abandoned = abandonIdeDevQueueSlot(leaseId);
+    if (abandoned.ok) return { ok: true };
+    return {
+      ok: false,
+      error: "해당 IDE 슬롯이 실행 중이 아닙니다.",
+    };
+  }
+
+  try {
+    slot.releaseResolve?.();
+  } catch {
+    /* ignore */
+  }
+  return { ok: true };
+}
+
+/**
+ * 에이전트 턴 종료·훅 release — 실행 중 IDE 슬롯 + 고아 lease 정리.
+ * @returns {{ ok: boolean; released?: boolean; cleared?: boolean }}
+ */
+export function releaseAnyRunningIdeDevQueueSlot() {
+  let released = false;
+
+  if (active && runningSlot?.source === "ide") {
+    const out = releaseIdeDevQueueSlot({ leaseId: runningSlot.id });
+    released = out.ok;
+  }
+
+  if (!released) {
+    for (let i = slots.length - 1; i >= 0; i--) {
+      const s = slots[i];
+      if (s.source !== "ide") continue;
+      if (active && runningSlot?.id === s.id) continue;
+      const ab = abandonIdeDevQueueSlot(s.id);
+      if (ab.ok) released = true;
+    }
+  }
+
+  return { ok: true, released };
 }
