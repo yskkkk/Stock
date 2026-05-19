@@ -10,15 +10,20 @@ import {
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { getTradingSessionKey } from "./market-hours.js";
-import { MAX_TECH_SCORE } from "./technical.js";
+import {
+  MAX_TECH_SCORE,
+  SIGNAL_CONDITION_TOTAL,
+  MIN_TELEGRAM_SCORE_RATIO,
+  meetsTelegramNotifyScore,
+  minConditionsRequired,
+  minTelegramScoreRequired,
+} from "./technical.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DATA_DIR = join(root, "server", ".data");
 const SENT_PATH = join(DATA_DIR, "telegram-sent.json");
 const SENT_LOCK_PATH = join(DATA_DIR, "telegram-sent.lock");
 
-/** 만점 8점 기준 — 기본 6점 초과(7점+) 알림 */
-const DEFAULT_MIN_SCORE = 6;
 const LOCK_SPIN_MS = 25;
 const LOCK_TIMEOUT_MS = 8_000;
 
@@ -50,9 +55,40 @@ function notifyFlightKey(symbol, market) {
   return `${market}:${normalizeSymbol(symbol)}`;
 }
 
-function minScore() {
-  const n = Number(process.env.TELEGRAM_MIN_SCORE);
-  return Number.isFinite(n) && n > 0 ? n : DEFAULT_MIN_SCORE;
+/** 알림 발송·저장용 단일 시점 가격(당일 고저 범위 사용 안 함) */
+function snapshotAlertPrice(pick) {
+  const p = Number(pick?.price);
+  if (Number.isFinite(p) && p > 0) return p;
+  return null;
+}
+
+/**
+ * 예전에 dayHigh/dayLow 등으로 저장된 항목을 단일 price로 정리.
+ * @param {Record<string, unknown>} entry
+ */
+function sanitizeSentEntry(entry) {
+  if (!entry || typeof entry !== "object") return entry;
+  const out = { ...entry };
+  delete out.dayHigh;
+  delete out.dayLow;
+  delete out.priceMin;
+  delete out.priceMax;
+  delete out.priceHigh;
+  delete out.priceLow;
+  const p = Number(out.price);
+  if (Number.isFinite(p) && p > 0) {
+    out.price = p;
+    return out;
+  }
+  const legacy = Number(out.alertPrice ?? out.sentPrice);
+  if (Number.isFinite(legacy) && legacy > 0) {
+    out.price = legacy;
+    delete out.alertPrice;
+    delete out.sentPrice;
+    return out;
+  }
+  out.price = null;
+  return out;
 }
 
 export function isTelegramNotifyEnabled() {
@@ -140,7 +176,7 @@ function loadSent() {
         const nk = k.includes(":")
           ? k
           : `legacy:${normalizeSymbol(k)}`;
-        sentCache[nk] = entry;
+        sentCache[nk] = sanitizeSentEntry(entry);
       }
       return sentCache;
     }
@@ -297,9 +333,12 @@ function writeSentEntry(pick, sent) {
 
     name: pick.name ?? sym,
 
-    price: pick.price ?? null,
+    price: snapshotAlertPrice(pick),
 
-    changePercent: pick.changePercent ?? null,
+    changePercent:
+      pick.changePercent != null && Number.isFinite(Number(pick.changePercent))
+        ? Number(pick.changePercent)
+        : null,
 
     currency: pick.currency ?? null,
 
@@ -436,19 +475,16 @@ export function clearTodayTelegramSent() {
 
 
 export function getTelegramNotifyStatus() {
-
+  const minMet = minConditionsRequired();
+  const minScore = minTelegramScoreRequired();
   return {
-
     enabled: isTelegramNotifyEnabled(),
-
-    minScore: minScore(),
-
-    minAlertScore: minScore() + 1,
-
+    minConditionsRequired: minMet,
+    minAlertScore: minScore,
+    maxTechScore: MAX_TECH_SCORE,
+    minTelegramScoreRatio: MIN_TELEGRAM_SCORE_RATIO,
     todaySentCount: countTodayTelegramSent(),
-
   };
-
 }
 
 
@@ -487,9 +523,16 @@ export function listTodayTelegramSent() {
 
       sentAt: entry.at ?? 0,
 
-      price: entry.price ?? null,
+      price:
+        typeof entry.price === "number" && Number.isFinite(entry.price)
+          ? entry.price
+          : null,
 
-      changePercent: entry.changePercent ?? null,
+      changePercent:
+        typeof entry.changePercent === "number" &&
+        Number.isFinite(entry.changePercent)
+          ? entry.changePercent
+          : null,
 
       currency: entry.currency ?? null,
 
@@ -544,8 +587,8 @@ function escHtml(s) {
 
 
 function formatPrice(pick) {
-
-  const { price, currency } = pick;
+  const price = snapshotAlertPrice(pick);
+  const currency = pick.currency;
 
   if (price == null) return "—";
 
@@ -577,12 +620,12 @@ function formatChangeLine(pick) {
 
 
 
-function scoreBar(score, max = MAX_TECH_SCORE, width = 10) {
-
-  const filled = Math.max(0, Math.min(width, Math.round((score / max) * width)));
-
+function conditionBar(met, total = SIGNAL_CONDITION_TOTAL, width = 10) {
+  const filled = Math.max(
+    0,
+    Math.min(width, Math.round((met / total) * width)),
+  );
   return "█".repeat(filled) + "░".repeat(width - filled);
-
 }
 
 
@@ -599,7 +642,11 @@ function buildMessage(pick) {
 
   const price = formatPrice(pick);
 
-  const bar = scoreBar(pick.score);
+  const conditionsMet = Array.isArray(pick.signalIds) ? pick.signalIds.length : 0;
+  const conditionsTotal = SIGNAL_CONDITION_TOTAL;
+  const conditionsPct = Math.round((conditionsMet / conditionsTotal) * 100);
+  const bar = conditionBar(conditionsMet, conditionsTotal);
+  const minMet = minConditionsRequired();
 
   const time = new Date().toLocaleString("ko-KR", {
 
@@ -647,7 +694,7 @@ function buildMessage(pick) {
 
   return [
 
-    `<b>${flag} ${marketLabel} · 고득점 알림</b>`,
+    `<b>${flag} ${marketLabel} · 점수 ${Math.round(MIN_TELEGRAM_SCORE_RATIO * 100)}%+ 알림</b>`,
 
     "",
 
@@ -657,9 +704,11 @@ function buildMessage(pick) {
 
     "",
 
-    `📊 점수  <b>${pick.score}</b> / ${MAX_TECH_SCORE}`,
+    `📊 조건  <b>${conditionsMet}</b> / ${conditionsTotal} (${conditionsPct}%, 기준 ${minMet}개+)`,
 
     `<code>${bar}</code>`,
+
+    `📈 가중 점수  <b>${pick.score}</b> / ${MAX_TECH_SCORE} (알림 기준 ${minTelegramScoreRequired()}점 초과)`,
 
     "",
 
@@ -745,9 +794,7 @@ export function notifyHighScorePick(pick) {
 
   if (!isTelegramNotifyEnabled()) return;
 
-  if (pick.score <= minScore()) return;
-
-
+  if (!meetsTelegramNotifyScore(pick.score)) return;
 
   const sym = normalizeSymbol(pick.symbol);
 
