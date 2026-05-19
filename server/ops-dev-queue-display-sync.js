@@ -5,10 +5,10 @@ import { getOpsAgentQueueMemorySnapshot } from "./ops-agent-job-queue.js";
 import { writeDevQueueDisplayMirrorFromRuntime } from "./ops-dev-queue-live-store.js";
 import { mergeIdeLeaseDiskIntoAgentEntries } from "./ops-ide-lease-disk.js";
 
-/** UI 폴링과 동일(100ms) — env로 조정 가능 */
+/** UI 폴링과 동일(1s) — env로 조정 가능 */
 export const DEV_QUEUE_DISPLAY_SYNC_MS = (() => {
-  const raw = Number(process.env.STOCK_DEV_QUEUE_SYNC_MS ?? 100);
-  return Number.isFinite(raw) && raw >= 50 ? Math.min(raw, 2000) : 100;
+  const raw = Number(process.env.STOCK_DEV_QUEUE_SYNC_MS ?? 1000);
+  return Number.isFinite(raw) && raw >= 50 ? Math.min(raw, 10_000) : 1000;
 })();
 
 let pollerStarted = false;
