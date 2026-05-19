@@ -203,6 +203,51 @@ function sweepStaleDiskLease(snap) {
 }
 
 /**
+ * 훅이 enqueue를 안 할 때 transcript 백업 — release 후 같은 user 줄도 다시 올림.
+ * @param {string} filePath
+ * @param {{ lineIndex: number; prompt: string }} latestUser
+ */
+function ensureLatestUserInQueue(filePath, latestUser) {
+  const preview = latestUser.prompt.trim();
+  if (!preview) return;
+  if (hasActiveIdeSlotForPrompt(preview)) return;
+
+  const userKey = `${filePath}:${latestUser.lineIndex}`;
+  const sessionId = path.basename(filePath, ".jsonl");
+
+  if (userKey !== lastProcessedUserKey) {
+    enqueueFromTranscript(filePath, preview, latestUser.lineIndex);
+    return;
+  }
+
+  /* release 직후: userKey는 같지만 메모리·lease가 비었음 → 파일·큐 재등록 */
+  writeIdeLeaseDiskImmediate({ prompt: preview, sessionId, queueStatus: "waiting" });
+  releaseRunningIdeDevQueueIfDifferentPrompt(preview);
+  try {
+    const reg = registerIdeDevQueueSlot({ prompt: preview, sessionId });
+    activeLeaseId = String(reg.leaseId ?? "").trim() || null;
+    activeTranscriptPath = filePath;
+    writeIdeLeaseDiskImmediate({
+      prompt: preview,
+      sessionId,
+      leaseId: activeLeaseId,
+      queueStatus: reg.queueStatus === "running" ? "running" : "waiting",
+    });
+  } catch (e) {
+    const code =
+      e && typeof e === "object" && "code" in e
+        ? String(/** @type {{ code?: string }} */ (e).code)
+        : "";
+    if (code !== "IDE_SESSION_BUSY") {
+      console.warn(
+        "[ops-ide-transcript]",
+        e instanceof Error ? e.message : e,
+      );
+    }
+  }
+}
+
+/**
  * @param {string} filePath
  * @param {string} prompt
  * @param {number} lineIndex
@@ -282,7 +327,6 @@ function scanTranscriptFile(filePath) {
   const lineCountChanged = lines.length !== lastTranscriptLineCount;
   lastTranscriptLineCount = lines.length;
 
-  if (mtimeChanged || lineCountChanged) {
   /** @type {{ lineIndex: number; prompt: string } | null} */
   let latestUser = null;
 
@@ -305,16 +349,12 @@ function scanTranscriptFile(filePath) {
   }
 
   if (latestUser) {
-    const userKey = `${filePath}:${latestUser.lineIndex}`;
-    const shouldEnqueue =
-      userKey !== lastProcessedUserKey ||
-      !hasActiveIdeSlotForPrompt(latestUser.prompt);
-    if (shouldEnqueue) {
-      lastProcessedUserKey = userKey;
-      enqueueFromTranscript(filePath, latestUser.prompt, latestUser.lineIndex);
-    }
+    ensureLatestUserInQueue(filePath, latestUser);
     pollerBootstrapped = true;
   }
+
+  if (mtimeChanged || lineCountChanged) {
+    /* mtime·줄 수 변경 플래그만 — enqueue는 위에서 매 틱 처리 */
   }
 
   tryReleaseWhenTurnEnded(lines, snap);
