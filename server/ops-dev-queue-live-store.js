@@ -169,53 +169,19 @@ function normalizeMirrorEntry(e) {
 }
 
 /**
- * 메모리 FIFO → display JSON 미러
+ * 메모리 FIFO → display JSON 미러 (메모리만 — lease·옛 디스크 내용 미포함)
  * @param {Array<Record<string, unknown>>} runtimeEntries
- * @param {{ preserveDiskWhenMemoryEmpty?: boolean }} [opts]
  */
-export function writeDevQueueDisplayMirrorFromRuntime(runtimeEntries, opts = {}) {
-  const mem = (Array.isArray(runtimeEntries) ? runtimeEntries : [])
-    .map(normalizeMirrorEntry)
-    .filter(Boolean)
-    .filter((e) => String(e.requestIp ?? "").trim() !== RECORD_MODE_REQUEST_IP);
-
-  /** @type {Array<Record<string, unknown>>} */
-  let toWrite;
-  if (mem.length > 0) {
-    toWrite = sortLiveEntries(mem);
-  } else if (opts.preserveDiskWhenMemoryEmpty) {
-    const disk = loadLiveFromDiskSync().agentEntries;
-    toWrite = sortLiveEntries(
-      disk.filter(
-        (e) =>
-          String(e.requestIp ?? "").trim() !== RECORD_MODE_REQUEST_IP &&
-          (e.status === "running" || e.status === "waiting"),
-      ),
-    );
-  } else {
-    toWrite = [];
-  }
-
-  toWrite = sortLiveEntries(
-    mergeIdeLeaseIntoDisplayEntries(toWrite).filter(
-      (e) => String(e.requestIp ?? "").trim() !== RECORD_MODE_REQUEST_IP,
-    ),
+export function writeDevQueueDisplayMirrorFromRuntime(runtimeEntries) {
+  const toWrite = sortLiveEntries(
+    (Array.isArray(runtimeEntries) ? runtimeEntries : [])
+      .map(normalizeMirrorEntry)
+      .filter(Boolean)
+      .filter((e) => String(e.requestIp ?? "").trim() !== RECORD_MODE_REQUEST_IP),
   );
 
   writeLiveRawSync({ updatedAtMs: Date.now(), agentEntries: toWrite });
   for (const row of toWrite) syncAgentHistoryFromPersistEntry(row);
-}
-
-/** 전송 직후 lease만 있을 때 — 메모리 enqueue 전 display 파일에 즉시 반영 */
-export function mirrorIdeLeaseIntoDisplayFileSync() {
-  const disk = loadLiveFromDiskSync().agentEntries.filter(
-    (e) => String(e.requestIp ?? "").trim() !== RECORD_MODE_REQUEST_IP,
-  );
-  const merged = mergeIdeLeaseIntoDisplayEntries(disk);
-  writeLiveRawSync({
-    updatedAtMs: Date.now(),
-    agentEntries: sortLiveEntries(merged),
-  });
 }
 
 /**
@@ -238,7 +204,7 @@ export function sweepStalePersistedDevQueueSync(maxRunningAgeMs = 45 * 60 * 1000
   }
 }
 
-/** UI·GET — display 미러 파일(+ enqueue 전 lease 보조) */
+/** UI·GET — 파일(메모리 미러) + enqueue 직전 lease만 응답에 병합(파일에는 안 씀) */
 export function readDevQueueDisplaySnapshotSync() {
   const live = loadLiveFromDiskSync();
   memoryLive = live;

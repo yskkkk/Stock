@@ -11,12 +11,12 @@ export {
   persistDevQueueClear,
   sweepStalePersistedDevQueueSync,
   writeDevQueueDisplayMirrorFromRuntime,
-  mirrorIdeLeaseIntoDisplayFileSync,
 } from "./ops-dev-queue-live-store.js";
 
 export {
   startDevQueueDisplaySyncPoller,
   requestDevQueueDisplaySyncNow,
+  resetDevQueueDisplayMirrorOnBoot,
   syncDevQueueDisplayFromRuntimeEntries,
   syncDevQueueDisplayFromRuntimeSync,
   DEV_QUEUE_DISPLAY_SYNC_MS,

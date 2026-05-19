@@ -1,6 +1,5 @@
 /**
- * 하이브리드 display 동기화 — 메모리 FIFO 직렬 큐를 주기적으로
- * ops-dev-queue-display.json 에 미러(재시작 직후·완료 시 규칙 포함).
+ * display JSON = 메모리 FIFO 직렬 큐 미러만 (디스크 잔상·lease 미포함).
  */
 import { getOpsAgentQueueSnapshot } from "./ops-agent-job-queue.js";
 import { writeDevQueueDisplayMirrorFromRuntime } from "./ops-dev-queue-live-store.js";
@@ -12,18 +11,13 @@ export const DEV_QUEUE_DISPLAY_SYNC_MS = (() => {
 })();
 
 let pollerStarted = false;
-/** 이 프로세스에서 메모리 큐에 항목이 있었으면 true — 완료 후 [] 반영용 */
-let sawRuntimeQueueThisProcess = false;
 
 /**
  * @param {Array<Record<string, unknown>>} runtimeEntries
  */
 export function syncDevQueueDisplayFromRuntimeEntries(runtimeEntries) {
   const mem = Array.isArray(runtimeEntries) ? runtimeEntries : [];
-  if (mem.length > 0) sawRuntimeQueueThisProcess = true;
-  writeDevQueueDisplayMirrorFromRuntime(mem, {
-    preserveDiskWhenMemoryEmpty: !sawRuntimeQueueThisProcess,
-  });
+  writeDevQueueDisplayMirrorFromRuntime(mem);
 }
 
 export function syncDevQueueDisplayFromRuntimeSync() {
@@ -36,10 +30,15 @@ export function requestDevQueueDisplaySyncNow() {
   syncDevQueueDisplayFromRuntimeSync();
 }
 
+/** 서버 기동 — 메모리 큐는 비어 있으므로 display 파일을 즉시 []에 맞춤 */
+export function resetDevQueueDisplayMirrorOnBoot() {
+  writeDevQueueDisplayMirrorFromRuntime([]);
+}
+
 export function startDevQueueDisplaySyncPoller() {
   if (process.env.STOCK_DEV_QUEUE_SYNC === "0") return;
   if (pollerStarted) return;
   pollerStarted = true;
-  syncDevQueueDisplayFromRuntimeSync();
+  resetDevQueueDisplayMirrorOnBoot();
   setInterval(syncDevQueueDisplayFromRuntimeSync, DEV_QUEUE_DISPLAY_SYNC_MS);
 }

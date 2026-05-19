@@ -12,10 +12,7 @@ import {
   releaseAnyRunningIdeDevQueueSlot,
   releaseRunningIdeDevQueueIfDifferentPrompt,
 } from "./ops-agent-job-queue.js";
-import {
-  readDevQueueLiveAgentEntriesSync,
-  sweepStalePersistedDevQueueSync,
-} from "./ops-dev-queue-live-store.js";
+import { readDevQueueLiveAgentEntriesSync } from "./ops-dev-queue-live-store.js";
 import {
   clearIdeLeaseOnDisk,
   writeIdeLeaseDiskImmediate,
@@ -364,12 +361,6 @@ export function startOpsIdeTranscriptPoller() {
 
   try {
     fs.writeFileSync(TRANSCRIPT_POLLER_MARKER, `${Date.now()}\n`, "utf8");
-  } catch {
-    /* ignore */
-  }
-
-  try {
-    sweepStalePersistedDevQueueSync();
   } catch {
     /* ignore */
   }

@@ -71,7 +71,6 @@ import { enrichUnifiedQueueAgentAndRecord } from "./ops-unified-queue-seq.js";
 import {
   readDevQueueDisplaySnapshotSync,
   reconcilePersistQueueToAgentHistorySync,
-  sweepStalePersistedDevQueueSync,
 } from "./ops-dev-queue-live-store.js";
 import { startDevQueueDisplaySyncPoller } from "./ops-dev-queue-display-sync.js";
 import {
@@ -1016,7 +1015,6 @@ export function createApp() {
 
   try {
     reconcilePersistQueueToAgentHistorySync();
-    sweepStalePersistedDevQueueSync();
     startDevQueueDisplaySyncPoller();
   } catch {
     /* ignore */

@@ -1,38 +1,25 @@
 ---
-description: Stock 개발 대기열(IDE·웹) — 하이브리드 미러 규칙
+description: Stock 개발 대기열(IDE·웹) — 메모리 큐 미러
 alwaysApply: false
 ---
 
-# 개발 대기열 — 하이브리드(3번)
+# 개발 대기열
 
 ## SSOT
 
-- **실행·순서**: 메모리 FIFO `ops-agent-job-queue.js` (`slots`, `drainQueue`)
-- **화면·파일**: `server/.data/ops-dev-queue-display.json` ← **100ms마다** 메모리 큐를 **통째로 미러**
+- **실행·순서**: 메모리 FIFO `ops-agent-job-queue.js`
+- **`ops-dev-queue-display.json`**: 위 큐만 **100ms마다 통째로 미러** (옛 디스크·lease 내용 안 넣음)
 
-## 동기화
+## 화면 vs 파일
 
-- `ops-dev-queue-display-sync.js` — `getOpsAgentQueueSnapshot()` → JSON 덮어쓰기
-- 큐 변경 직후 `requestDevQueueDisplaySyncNow()` (훅·enqueue·release)
-- **직접 upsert/remove로 JSON 수정하지 않음** (lease 파일만 별도)
+- **파일** = 메모리 큐와 동일 (서버 재시작 시 메모리 비면 **즉시 `[]`**)
+- **GET 응답** = 파일 + (enqueue 전) `.stock-ops-ide-lease.json` 병합 → 전송 직후 UI만 잠깐 lease 카드 가능
 
-## 재시작
+## IDE 턴
 
-- 서버 켠 직후 메모리가 비어 있으면, 디스크에 **running/waiting** 이 있으면 **한동안 유지**(고아 표시)
-- 이 프로세스에서 큐를 쓴 뒤 메모리가 비면 → 파일 **`[]`**
-- 45분 넘은 `running`만 `sweepStalePersistedDevQueueSync` 로 정리
-
-## IDE 턴 종료
-
-1. 훅 `stop` / `sessionEnd` → 큐 release → 다음 sync 틱에 파일 반영  
-2. 백업: transcript **12초 유휴 + 마지막 assistant 텍스트만** → release (도구 중에는 비우지 않음)
-
-## 웹·리다이렉트
-
-- 웹 에이전트도 같은 FIFO → 같은 미러 파일  
-- `.stock-ops-web-agent-busy.json` — IDE 전송 차단용(표시 파일과 별도)
+1. `beforeSubmit` → enqueue → sync  
+2. 끝 → 훅 `stop`/`sessionEnd` 또는 transcript **12s 유휴 + 텍스트-only** → release → sync `[]`
 
 ## 에이전트
 
-- 끝나면 큐만 해제; JSON은 sync가 비움  
-- 수동 편집 시 `agentEntries` 전체를 큐 상태와 맞출 것
+- JSON 수동 편집 금지 — sync가 덮어씀
