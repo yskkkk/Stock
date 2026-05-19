@@ -2,9 +2,16 @@ node_modules
 dist
 .env
 server/.data
+server/.logs
 .DS_Store
 *.log
 .cursor/**
 !.cursor/rules/
 !.cursor/rules/**
+!.cursor/hooks.json
+!.cursor/hooks/
+!.cursor/hooks/**
+.stock-ops-web-agent-busy.json
+.stock-ops-ide-lease.json
+.cursor/rules/.stock-ide-queue-turn.mdc
 tsconfig.tsbuildinfo

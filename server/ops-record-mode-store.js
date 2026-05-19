@@ -1,18 +1,22 @@
 /**
  * 운영 탭「기록 모드」— 서버가 주기적으로 읽어 Cursor 에이전트(비스트리밍)로 순차 실행.
  * 상태·대기 목록: server/.data/ops-record-mode-queue.json
- * 실행 기록(추가 전용): server/.data/ops-record-mode-activity.log
+ * 실행 기록(추가 전용): server/.logs/record-mode-activity.log
  * 실행 순서는 `ops-agent-job-queue` 단일 FIFO와 동일하며, API 응답에 `unifiedQueueSeq`로만 노출한다.
  */
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "path";
 import { fileURLToPath } from "node:url";
+import {
+  RECORD_MODE_ACTIVITY_LOG_FILE,
+  ensureServerLogDirSync,
+} from "./log-paths.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, ".data");
 const QUEUE_FILE = path.join(DATA_DIR, "ops-record-mode-queue.json");
-const ACTIVITY_LOG = path.join(DATA_DIR, "ops-record-mode-activity.log");
+
 const ACTIVITY_FIELD_MAX = 12_000;
 /** 활동 로그 API에서 읽는 최대 줄 수(파일 끝부터) */
 const ACTIVITY_LOG_READ_MAX_LINES = 400;
@@ -344,8 +348,8 @@ export function appendRecordModePendingJob(instructionRaw) {
  */
 export function readRecordModeActivityLogEntries() {
   try {
-    if (!fs.existsSync(ACTIVITY_LOG)) return [];
-    const raw = fs.readFileSync(ACTIVITY_LOG, "utf8");
+    if (!fs.existsSync(RECORD_MODE_ACTIVITY_LOG_FILE)) return [];
+    const raw = fs.readFileSync(RECORD_MODE_ACTIVITY_LOG_FILE, "utf8");
     const lines = raw.split(/\r?\n/).filter((l) => l.trim().length > 0);
     const slice =
       lines.length > ACTIVITY_LOG_READ_MAX_LINES
@@ -392,6 +396,7 @@ export function readRecordModeActivityLogEntries() {
  */
 export function appendRecordModeActivityLog(rec) {
   ensureDirSync();
+  ensureServerLogDirSync();
   const payload = {
     iso: new Date().toISOString(),
     source: "record-mode",
@@ -404,7 +409,11 @@ export function appendRecordModeActivityLog(rec) {
     }
   }
   try {
-    fs.appendFileSync(ACTIVITY_LOG, `${JSON.stringify(payload)}\n`, "utf8");
+    fs.appendFileSync(
+      RECORD_MODE_ACTIVITY_LOG_FILE,
+      `${JSON.stringify(payload)}\n`,
+      "utf8",
+    );
   } catch {
     /* 디스크 실패는 조용히 무시 */
   }

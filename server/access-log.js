@@ -1,21 +1,9 @@
 import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const LOG_DIR = path.join(__dirname, ".data");
-
-function ensureDir() {
-  if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
-}
+import { dailyServerLogPath, ensureServerLogDirSync } from "./log-paths.js";
 
 /** 서버 로컬 날짜 기준 — 자정이 지나면 다음 파일로 자연 전환 */
 function accessLogPathForToday() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return path.join(LOG_DIR, `access-${y}-${m}-${day}.log`);
+  return dailyServerLogPath("access");
 }
 
 export function clientIp(req) {
@@ -149,7 +137,7 @@ export function shouldLogViteUrl(url) {
 export function appendAccessLog(req) {
   if (shouldSkipAccessLog(req)) return;
   try {
-    ensureDir();
+    ensureServerLogDirSync();
     const { file, console: consoleLine } = lineFromReq(req);
     console.log("[access]", consoleLine);
     fs.appendFile(accessLogPathForToday(), file, (err) => {
@@ -174,7 +162,7 @@ export function appendServerEventLog(
   eventClientIp = null,
 ) {
   try {
-    ensureDir();
+    ensureServerLogDirSync();
     const ts = new Date().toISOString();
     const safeCat = String(category ?? "server")
       .replace(/[\t\r\n]/g, "_")
