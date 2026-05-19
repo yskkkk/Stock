@@ -1,25 +1,27 @@
----
-description: Stock 개발 대기열(IDE·웹) — 메모리 큐 미러
-alwaysApply: false
----
-
-# 개발 대기열
-
-## SSOT
-
-- **실행·순서**: 메모리 FIFO `ops-agent-job-queue.js`
-- **`ops-dev-queue-display.json`**: 위 큐만 **100ms마다 통째로 미러** (옛 디스크·lease 내용 안 넣음)
-
-## 화면 vs 파일
-
-- **파일** = 메모리 큐와 동일 (서버 재시작 시 메모리 비면 **즉시 `[]`**)
-- **GET 응답** = 파일 + (enqueue 전) `.stock-ops-ide-lease.json` 병합 → 전송 직후 UI만 잠깐 lease 카드 가능
-
-## IDE 턴
-
-1. `beforeSubmit` → enqueue → sync  
-2. 끝 → 훅 `stop`/`sessionEnd` 또는 transcript **12s 유휴 + 텍스트-only** → release → sync `[]`
-
-## 에이전트
-
-- JSON 수동 편집 금지 — sync가 덮어씀
+---
+description: Stock 개발 대기열(IDE·웹) — 메모리 큐 미러
+alwaysApply: false
+---
+
+# 개발 대기열
+
+## SSOT
+
+- **실행·순서**: 메모리 FIFO `ops-agent-job-queue.js`
+- **`ops-dev-queue-display.json`**: 위 큐만 **100ms마다 통째로 미러** (옛 디스크·lease 내용 안 넣음)
+
+## 화면 vs 파일
+
+- **파일** = 메모리 큐와 동일 (서버 재시작 시 메모리 비면 **즉시 `[]`**)
+- **GET 응답** = 파일 + (enqueue 전) `.stock-ops-ide-lease.json` 병합 → 전송 직후 UI만 잠깐 lease 카드 가능
+
+## IDE 턴
+
+1. `beforeSubmit` → enqueue (stdin·transcript에서 prompt 추출)  
+2. 없으면 **첫 `preToolUse`** → enqueue (dev 켜져 있어도 동작)  
+3. 100ms마다 lease만 있으면 메모리 큐로 승격  
+4. 끝 → `stop`/`sessionEnd` 또는 transcript **12s+텍스트-only** → `[]`
+
+## 에이전트
+
+- JSON 수동 편집 금지 — sync가 덮어씀

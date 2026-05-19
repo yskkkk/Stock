@@ -15,6 +15,7 @@ import {
 import { readDevQueueLiveAgentEntriesSync } from "./ops-dev-queue-live-store.js";
 import {
   clearIdeLeaseOnDisk,
+  readIdeLeaseDiskSync,
   writeIdeLeaseDiskImmediate,
 } from "./ops-ide-lease-disk.js";
 
@@ -43,6 +44,7 @@ let activeTranscriptPath = null;
 let lastProcessedUserKey = "";
 let lastFileMtimeMs = 0;
 let lastFileChangeMs = 0;
+let lastTranscriptLineCount = 0;
 
 function resolveTranscriptRoot() {
   const fromEnv = String(process.env.STOCK_AGENT_TRANSCRIPTS_DIR ?? "").trim();
@@ -211,6 +213,32 @@ function sweepStaleDiskLease(snap) {
   }
 }
 
+/** lease만 있고 메모리 큐가 비었을 때(훅 enqueue 실패 보완) */
+function tryPromoteLeaseToMemoryQueue() {
+  const lease = readIdeLeaseDiskSync();
+  if (!lease) return;
+  const preview = String(
+    lease.instructionPreview ?? lease.promptPreview ?? lease.instructionBody ?? "",
+  ).trim();
+  if (!preview) return;
+  if (hasActiveIdeSlotForPrompt(preview)) return;
+  const sessionId = String(lease.sessionId ?? "").trim() || null;
+  try {
+    registerIdeDevQueueSlot({ prompt: preview, sessionId });
+  } catch (e) {
+    const code =
+      e && typeof e === "object" && "code" in e
+        ? String(/** @type {{ code?: string }} */ (e).code)
+        : "";
+    if (code !== "IDE_SESSION_BUSY") {
+      console.warn(
+        "[ops-ide-transcript]",
+        e instanceof Error ? e.message : e,
+      );
+    }
+  }
+}
+
 /**
  * @param {string} filePath
  * @param {string} prompt
@@ -288,8 +316,12 @@ function scanTranscriptFile(filePath) {
 
   const lines = cachedTranscriptLines;
   const snap = getOpsAgentQueueSnapshot();
+  const lineCountChanged = lines.length !== lastTranscriptLineCount;
+  lastTranscriptLineCount = lines.length;
 
-  if (mtimeChanged) {
+  tryPromoteLeaseToMemoryQueue();
+
+  if (mtimeChanged || lineCountChanged) {
   /** @type {{ lineIndex: number; prompt: string } | null} */
   let latestUser = null;
 

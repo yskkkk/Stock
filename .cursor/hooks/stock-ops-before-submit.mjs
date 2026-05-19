@@ -14,6 +14,10 @@ import {
   writeIdeTurnRule,
 } from "./stock-ops-queue-hook-lib.mjs";
 import { writeIdeLeaseDiskImmediate } from "../../server/ops-ide-lease-disk.js";
+import {
+  hookUserPromptFromInput,
+  readLatestUserPromptFromTranscriptsSync,
+} from "./stock-ops-hook-user-prompt.mjs";
 
 const HOOK_WAIT_MS = 12_000;
 const HOOK_WAIT_ROUNDS = 3;
@@ -57,8 +61,9 @@ function cleanupLocal() {
 try {
   const raw = fs.readFileSync(0, "utf8");
   const input = raw ? JSON.parse(raw) : {};
-  const prompt = String(input.prompt ?? "").trim();
   const sessionId = hookSessionId(input);
+  const prompt =
+    hookUserPromptFromInput(input) || readLatestUserPromptFromTranscriptsSync();
 
   if (!prompt) {
     allow();
