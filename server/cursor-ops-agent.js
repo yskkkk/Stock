@@ -114,6 +114,7 @@ function opsAgentInstructionLogSnippet(instruction) {
  * @param {string} requestIp
  */
 function logOpsAgentExecutionStarted(kind, runId, instruction, requestIp) {
+  const eventMs = Date.now();
   const prev = opsAgentInstructionLogSnippet(instruction);
   const ip = normalizeAccessIp(String(requestIp ?? ""));
   const tail = prev ? ` «${prev}»` : "";
@@ -122,6 +123,7 @@ function logOpsAgentExecutionStarted(kind, runId, instruction, requestIp) {
     `${kind} 에이전트 실행 시작 runId=${runId}${tail}`,
     "info",
     ip || null,
+    eventMs,
   );
 }
 

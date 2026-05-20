@@ -189,8 +189,8 @@ export function createApp() {
     });
   }
 
-  app.use(expressAccessLogger);
   app.use(express.json());
+  app.use(expressAccessLogger);
   registerAccessControl(app);
 
   app.get(

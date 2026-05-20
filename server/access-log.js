@@ -19,6 +19,29 @@ function accessLogPathForToday() {
   return dailyServerLogPath("access");
 }
 
+/** @type {unique symbol} */
+const ACCESS_EVENT_AT_MS = Symbol("stockAccessEventAtMs");
+
+/**
+ * 로그에 찍을 “행위 발생” 시각(ms). 핸들러·게이트에서 호출.
+ * @param {import("http").IncomingMessage} req
+ * @param {number} [atMs]
+ */
+export function stampAccessEventNow(req, atMs) {
+  if (!req || typeof req !== "object") return;
+  const ms =
+    typeof atMs === "number" && Number.isFinite(atMs) ? atMs : Date.now();
+  /** @type {Record<symbol, number>} */ (req)[ACCESS_EVENT_AT_MS] = ms;
+}
+
+/** @param {import("http").IncomingMessage} req */
+function accessEventAtIso(req) {
+  const ms = /** @type {Record<symbol, number>} */ (req)?.[ACCESS_EVENT_AT_MS];
+  return typeof ms === "number" && Number.isFinite(ms)
+    ? new Date(ms).toISOString()
+    : new Date().toISOString();
+}
+
 export function clientIp(req) {
   const xff = req.headers?.["x-forwarded-for"];
   if (xff) return String(xff).split(",")[0]?.trim() || "-";
@@ -181,7 +204,8 @@ export function appendAccessLog(req, atIso) {
   if (shouldSkipAccessLog(req)) return;
   try {
     ensureAccessLogReady();
-    const { file, console: consoleLine } = lineFromReq(req, atIso);
+    const ts = atIso ?? accessEventAtIso(req);
+    const { file, console: consoleLine } = lineFromReq(req, ts);
     console.log("[access]", consoleLine);
     fs.appendFile(accessLogPathForToday(), file, (err) => {
       if (err) console.warn("[access-log] 파일 기록 실패:", err.message);
@@ -197,16 +221,21 @@ export function appendAccessLog(req, atIso) {
  * @param {string} message 한 줄
  * @param {"info"|"warn"|"error"} [level]
  * @param {string | null | undefined} [eventClientIp] 에이전트 등 요청자 IP (없으면 `-`)
+ * @param {number} [eventAtMs] 행위 발생 시각(ms). 없으면 호출 시점
  */
 export function appendServerEventLog(
   category,
   message,
   level = "info",
   eventClientIp = null,
+  eventAtMs = null,
 ) {
   try {
     ensureAccessLogReady();
-    const ts = new Date().toISOString();
+    const ts =
+      typeof eventAtMs === "number" && Number.isFinite(eventAtMs)
+        ? new Date(eventAtMs).toISOString()
+        : new Date().toISOString();
     const safeCat = String(category ?? "server")
       .replace(/[\t\r\n]/g, "_")
       .slice(0, 32);
@@ -239,21 +268,28 @@ export function appendAccessLogVite(req) {
   appendAccessLog(req);
 }
 
-/** Express 미들웨어 — 응답이 끝난 시점에 기록(대기열·SSE는 요청 접수 시각이 아닌 처리 시각) */
+/** Express 미들웨어 — GET은 요청 시각, POST는 핸들러 `stampAccessEventNow` 또는 응답 직전 시각 */
 export function expressAccessLogger(req, res, next) {
-  if (shouldSkipAccessLog(req)) {
-    next();
-    return;
+  const skip = shouldSkipAccessLog(req);
+  if (!skip) {
+    const method = String(req.method ?? "GET").toUpperCase();
+    if (method === "GET") stampAccessEventNow(req);
   }
   res.once("finish", () => {
-    appendAccessLog(req, new Date().toISOString());
+    if (skip) return;
+    if (
+      /** @type {Record<symbol, number>} */ (req)[ACCESS_EVENT_AT_MS] == null
+    ) {
+      stampAccessEventNow(req);
+    }
+    appendAccessLog(req, accessEventAtIso(req));
   });
   next();
 }
 
 /**
  * Vite Connect 스택 **최상단**에 삽입.
- * 외부에서 `/` 등으로 들어와도 게이트가 `res.end`로 끊기기 전에 `[access]`가 남는다.
+ * 외부에서 `/` 등으로 들어와도 게이트·문서 요청 시각이 행위 시각으로 남는다.
  * `/api`는 Express `expressAccessLogger`가 기록하므로 여기서는 생략한다.
  * @param {import("vite").ViteDevServer | import("vite").PreviewServer} server
  */
@@ -266,8 +302,9 @@ export function installViteAccessTraceMiddleware(server) {
       if (String(req.url ?? "").startsWith("/api")) return next();
       if (!shouldLogViteUrl(req.url)) return next();
       if (shouldSkipAccessLog(req)) return next();
+      stampAccessEventNow(req);
       res.once("finish", () => {
-        appendAccessLog(req, new Date().toISOString());
+        appendAccessLog(req, accessEventAtIso(req));
       });
       next();
     },

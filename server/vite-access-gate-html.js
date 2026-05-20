@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "fs";
 import path from "path";
-import { appendAccessLog, clientIp } from "./access-log.js";
+import { appendAccessLog, clientIp, stampAccessEventNow } from "./access-log.js";
 import {
   isAccessControlEnabled,
   isClientIpOnAllowlist,
@@ -91,7 +91,8 @@ export function installAccessGateHtmlMiddleware(server) {
     res.statusCode = 200;
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Cache-Control", "no-store");
-    res.once("finish", () => appendAccessLog(req, new Date().toISOString()));
+    stampAccessEventNow(req);
+    appendAccessLog(req);
     res.end(html);
   };
 

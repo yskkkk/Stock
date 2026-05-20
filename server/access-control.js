@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
 import { fileURLToPath } from "url";
-import { clientIp } from "./access-log.js";
+import { clientIp, stampAccessEventNow } from "./access-log.js";
 
 /**
  * Vite가 Express에 넘기는 `IncomingMessage`에는 `path`가 없어 `/`로만 판별되면
@@ -17,9 +17,6 @@ function requestPathname(req) {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const STORE_FILE = path.join(__dirname, ".data", "access-control.json");
-
-/** 브라우저·게이트와 동일 — 문서 요청(GET /)에서도 MAC을 내려면 쿠키로 동기화 */
-export const ACCESS_CLIENT_MAC_COOKIE = "stock_access_client_mac";
 
 const lastRequestAt = new Map();
 const THROTTLE_MS = 45_000;
@@ -49,81 +46,12 @@ export function normalizeAccessIp(ip) {
   return s;
 }
 
-/** Wi-Fi 등에서 사용자가 확인한 MAC(자가 신고). 12 hex → AA:BB:… 대문자 */
-export function normalizeAccessMac(raw) {
-  if (raw == null) return "";
-  const s = String(raw).trim().toLowerCase().replace(/[^0-9a-f]/g, "");
-  if (s.length !== 12 || !/^[0-9a-f]{12}$/.test(s)) return "";
-  const p = s.toUpperCase().match(/.{2}/g);
-  return p ? p.join(":") : "";
+function allowedRowMatchesClient(a, clientIpNorm) {
+  return normalizeAccessIp(a.ip) === clientIpNorm;
 }
 
-function readAccessClientMacCookie(req) {
-  const raw = String(req.headers?.cookie ?? "");
-  const m = raw.match(new RegExp(`(?:^|;\\s*)${ACCESS_CLIENT_MAC_COOKIE}=([^;]+)`, "i"));
-  if (!m) return "";
-  try {
-    return normalizeAccessMac(decodeURIComponent(m[1].trim()));
-  } catch {
-    return normalizeAccessMac(m[1]);
-  }
-}
-
-function headerAccessClientMac(req) {
-  const h = req.headers["x-access-client-mac"] ?? req.headers["X-Access-Client-Mac"];
-  const v = typeof h === "string" ? h : Array.isArray(h) ? h[0] : "";
-  return normalizeAccessMac(v);
-}
-
-/**
- * 헤더 → 쿠키 → JSON body(deviceInfo.clientMac / clientMac)
- * @param {import("http").IncomingMessage} req
- */
-export function clientMacFromReq(req) {
-  const fromHead = headerAccessClientMac(req);
-  if (fromHead) return fromHead;
-  const fromCookie = readAccessClientMacCookie(req);
-  if (fromCookie) return fromCookie;
-  const b = req.body;
-  if (b && typeof b === "object" && !Array.isArray(b)) {
-    const raw =
-      (typeof b.clientMac === "string" && b.clientMac.trim() && b.clientMac) ||
-      (b.deviceInfo &&
-        typeof b.deviceInfo === "object" &&
-        typeof b.deviceInfo.clientMac === "string" &&
-        b.deviceInfo.clientMac.trim() &&
-        b.deviceInfo.clientMac) ||
-      "";
-    if (raw) return normalizeAccessMac(raw);
-  }
-  return "";
-}
-
-function allowedMacOnRow(a) {
-  return normalizeAccessMac(a?.mac ?? "");
-}
-
-function allowedRowMatchesClient(a, clientIpNorm, clientMacNorm) {
-  if (normalizeAccessIp(a.ip) === clientIpNorm) return true;
-  if (clientMacNorm && allowedMacOnRow(a) === clientMacNorm) return true;
-  return false;
-}
-
-function requestClientMacNorm(r) {
-  const top = normalizeAccessMac(r?.clientMac ?? "");
-  if (top) return top;
-  const di = r?.deviceInfo;
-  if (di && typeof di === "object" && typeof di.clientMac === "string") {
-    return normalizeAccessMac(di.clientMac);
-  }
-  return "";
-}
-
-function requestRowMatchesClient(r, clientIpNorm, clientMacNorm) {
-  if (normalizeAccessIp(r.ip) === clientIpNorm) return true;
-  const rm = requestClientMacNorm(r);
-  if (clientMacNorm && rm && rm === clientMacNorm) return true;
-  return false;
+function requestRowMatchesClient(r, clientIpNorm) {
+  return normalizeAccessIp(r.ip) === clientIpNorm;
 }
 
 function isLocalIp(ip) {
@@ -188,10 +116,9 @@ export function isAccessAdminRequest(req) {
   if (isAccessAdminIp(req)) return true;
   const ip = normalizeAccessIp(clientIp(req));
   if (!ip) return false;
-  const mac = clientMacFromReq(req);
   const store = readAccessStore();
   for (const a of store.allowed) {
-    if (a.adminDelegate === true && allowedRowMatchesClient(a, ip, mac)) return true;
+    if (a.adminDelegate === true && allowedRowMatchesClient(a, ip)) return true;
   }
   return false;
 }
@@ -225,6 +152,7 @@ function writeAccessStore(data) {
 }
 
 function isPathPublic(pathname, method) {
+  if (method === "GET" && pathname === "/api/config") return true;
   if (method === "GET" && pathname === "/api/access/status") return true;
   if (method === "POST" && pathname === "/api/access/request") return true;
   if (method === "POST" && pathname === "/api/feedback") return true;
@@ -251,34 +179,56 @@ function isAdminPath(pathname) {
   return pathname.startsWith("/api/access/admin");
 }
 
+/** Cursor IDE 훅이 127.0.0.1 로 호출 — IP 허용제와 무관하게 통과 (라우트에서 loopback 재검증) */
+function isIdeDevQueueHookPath(pathname) {
+  return (
+    pathname === "/api/ops/dev-queue/ide/enqueue" ||
+    pathname === "/api/ops/dev-queue/ide/wait-grant" ||
+    pathname === "/api/ops/dev-queue/ide/acquire" ||
+    pathname === "/api/ops/dev-queue/ide/release" ||
+    pathname === "/api/ops/dev-queue/ide/release-active" ||
+    pathname === "/api/ops/dev-queue/ide/cancel"
+  );
+}
+
+function isLoopbackClient(req) {
+  const ip = normalizeAccessIp(clientIp(req));
+  if (ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1") return true;
+  const ra = String(req.socket?.remoteAddress ?? "");
+  return (
+    ra === "127.0.0.1" ||
+    ra === "::1" ||
+    ra.endsWith("127.0.0.1")
+  );
+}
+
 /**
  * @param {string} ip
- * @param {import("http").IncomingMessage} [req] — 있으면 MAC(헤더·쿠키·body)까지 매칭
+ * @param {import("http").IncomingMessage} [_req] — 호환용(미사용)
  */
-export function isClientIpOnAllowlist(ip, req) {
+export function isClientIpOnAllowlist(ip, _req) {
   const n = normalizeAccessIp(ip);
   if (!n) return false;
   if (allowLocalhost() && isLocalIp(n)) return true;
   for (const b of getBootstrapIps()) {
     if (b === n) return true;
   }
-  const mac = req ? clientMacFromReq(req) : "";
   const store = readAccessStore();
   for (const a of store.allowed) {
-    if (allowedRowMatchesClient(a, n, mac)) return true;
+    if (allowedRowMatchesClient(a, n)) return true;
   }
   return false;
 }
 
 export function getAccessStateForIp(ip, req) {
+  if (req && isAccessAdminRequest(req)) return "allowed";
   const n = normalizeAccessIp(ip);
-  const mac = req ? clientMacFromReq(req) : "";
   if (isClientIpOnAllowlist(ip, req)) return "allowed";
   const store = readAccessStore();
-  if (store.requests.some((r) => r.status === "pending" && requestRowMatchesClient(r, n, mac))) {
+  if (store.requests.some((r) => r.status === "pending" && requestRowMatchesClient(r, n))) {
     return "pending";
   }
-  if (store.requests.some((r) => r.status === "rejected" && requestRowMatchesClient(r, n, mac))) {
+  if (store.requests.some((r) => r.status === "rejected" && requestRowMatchesClient(r, n))) {
     return "rejected";
   }
   return "none";
@@ -291,10 +241,13 @@ export function accessIpGateMiddleware(req, res, next) {
   if (isAdminPath(pathname)) return next();
   if (isPathPublic(pathname, method)) return next();
   if (isBundledFrontendGet(pathname, method)) return next();
+  if (isIdeDevQueueHookPath(pathname) && isLoopbackClient(req)) return next();
+  /** 관리자 IP·Bearer — 허용 목록 없이도 운영·대기열 API 사용 (앱이 게이트로 튕기지 않게) */
+  if (isAccessAdminRequest(req)) return next();
   const ip = clientIp(req);
   if (isClientIpOnAllowlist(ip, req)) return next();
   res.status(403).json({
-    error: "이 IP·단말에서는 API를 사용할 수 없습니다. 접근 게이트에서 접속 신청을 해 주세요.",
+    error: "이 IP에서는 API를 사용할 수 없습니다. 접근 게이트에서 접속 신청을 해 주세요.",
     code: "ACCESS_DENIED",
   });
 }
@@ -333,12 +286,10 @@ export function registerAccessControl(app) {
       });
       return;
     }
-    const mac = clientMacFromReq(req);
     res.json({
       enabled: true,
       state: getAccessStateForIp(ip, req),
       yourIp: ip,
-      ...(mac ? { yourMac: mac } : {}),
     });
   });
 
@@ -349,27 +300,27 @@ export function registerAccessControl(app) {
     }
     const ip = clientIp(req);
     const ipn = normalizeAccessIp(ip);
-    const macn = clientMacFromReq(req);
     if (isClientIpOnAllowlist(ip, req)) {
-      res.json({ ok: true, message: "이미 허용된 IP 또는 단말(MAC)입니다." });
+      res.json({ ok: true, message: "이미 허용된 IP입니다." });
       return;
     }
     const now = Date.now();
-    const throttleKey = macn || ipn;
-    const prev = lastRequestAt.get(throttleKey) ?? 0;
+    const prev = lastRequestAt.get(ipn) ?? 0;
     if (now - prev < THROTTLE_MS) {
+      stampAccessEventNow(req, now);
       res.status(429).json({ error: "잠시 후 다시 신청해 주세요." });
       return;
     }
-    lastRequestAt.set(throttleKey, now);
+    lastRequestAt.set(ipn, now);
     pruneAccessRequestThrottle();
 
     const store = readAccessStore();
     if (
       store.requests.some(
-        (r) => r.status === "pending" && requestRowMatchesClient(r, ipn, macn),
+        (r) => r.status === "pending" && requestRowMatchesClient(r, ipn),
       )
     ) {
+      stampAccessEventNow(req);
       res.json({ ok: true, message: "이미 신청이 접수되어 있습니다." });
       return;
     }
@@ -407,23 +358,18 @@ export function registerAccessControl(app) {
             ? rawDevice.cookieEnabled
             : null,
       };
-      const dm = normalizeAccessMac(rawDevice.clientMac ?? "");
-      if (dm) deviceInfo.clientMac = dm;
     }
-    if (macn) {
-      if (!deviceInfo) deviceInfo = {};
-      if (!deviceInfo.clientMac) deviceInfo.clientMac = macn;
-    }
+    const eventMs = Date.now();
+    stampAccessEventNow(req, eventMs);
     const row = {
       id,
       ip,
       userAgent: String(req.headers["user-agent"] ?? "").slice(0, 400),
       message,
       deviceInfo,
-      requestedAt: new Date().toISOString(),
+      requestedAt: new Date(eventMs).toISOString(),
       status: "pending",
     };
-    if (macn) row.clientMac = macn;
     store.requests.push(row);
     writeAccessStore(store);
     res.json({ ok: true, message: "신청이 접수되었습니다." });
@@ -456,47 +402,25 @@ export function registerAccessControl(app) {
     }
     const ipn = normalizeAccessIp(reqEntry.ip);
     const requestMsg = String(reqEntry.message ?? "").trim().slice(0, 500);
-    const macReq = normalizeAccessMac(
-      reqEntry.clientMac ??
-        (reqEntry.deviceInfo &&
-        typeof reqEntry.deviceInfo === "object" &&
-        reqEntry.deviceInfo.clientMac) ??
-        "",
-    );
-
-    let mergedByMac = false;
-    if (macReq) {
-      const hit = store.allowed.find((a) => allowedMacOnRow(a) === macReq);
-      if (hit) {
-        hit.ip = ipn;
-        hit.mac = macReq;
-        if (adminMemo) hit.memo = adminMemo;
-        if (requestMsg) hit.requestMessage = requestMsg;
-        mergedByMac = true;
-      }
+    const existingIp = store.allowed.find((a) => normalizeAccessIp(a.ip) === ipn);
+    if (!existingIp) {
+      /** @type {{ ip: string; addedAt: string; fromRequestId: string; memo?: string; requestMessage?: string }} */
+      const newRow = {
+        ip: ipn,
+        addedAt: new Date().toISOString(),
+        fromRequestId: id,
+      };
+      if (adminMemo) newRow.memo = adminMemo;
+      if (requestMsg) newRow.requestMessage = requestMsg;
+      store.allowed.push(newRow);
+    } else {
+      if (adminMemo) existingIp.memo = adminMemo;
+      if (requestMsg) existingIp.requestMessage = requestMsg;
     }
-
-    if (!mergedByMac) {
-      const existingIp = store.allowed.find((a) => normalizeAccessIp(a.ip) === ipn);
-      if (!existingIp) {
-        /** @type {{ ip: string; mac?: string; addedAt: string; fromRequestId: string; memo?: string; requestMessage?: string }} */
-        const newRow = {
-          ip: ipn,
-          addedAt: new Date().toISOString(),
-          fromRequestId: id,
-        };
-        if (macReq) newRow.mac = macReq;
-        if (adminMemo) newRow.memo = adminMemo;
-        if (requestMsg) newRow.requestMessage = requestMsg;
-        store.allowed.push(newRow);
-      } else {
-        if (macReq && !existingIp.mac) existingIp.mac = macReq;
-        if (adminMemo) existingIp.memo = adminMemo;
-        if (requestMsg) existingIp.requestMessage = requestMsg;
-      }
-    }
+    const eventMs = Date.now();
+    stampAccessEventNow(req, eventMs);
     reqEntry.status = "approved";
-    reqEntry.resolvedAt = new Date().toISOString();
+    reqEntry.resolvedAt = new Date(eventMs).toISOString();
     writeAccessStore(store);
     res.json({ ok: true });
   });
@@ -515,6 +439,7 @@ export function registerAccessControl(app) {
       res.status(404).json({ error: "허용 목록에 없는 IP입니다." });
       return;
     }
+    stampAccessEventNow(req);
     if (memo) entry.memo = memo;
     else delete entry.memo;
     writeAccessStore(store);
@@ -533,8 +458,10 @@ export function registerAccessControl(app) {
       res.status(404).json({ error: "대기 중인 신청을 찾을 수 없습니다." });
       return;
     }
+    const eventMs = Date.now();
+    stampAccessEventNow(req, eventMs);
     reqEntry.status = "rejected";
-    reqEntry.resolvedAt = new Date().toISOString();
+    reqEntry.resolvedAt = new Date(eventMs).toISOString();
     writeAccessStore(store);
     res.json({ ok: true });
   });
@@ -553,6 +480,7 @@ export function registerAccessControl(app) {
       res.status(404).json({ error: "허용 목록에 없는 IP입니다." });
       return;
     }
+    stampAccessEventNow(req);
     writeAccessStore(store);
     res.json({ ok: true });
   });
@@ -598,7 +526,7 @@ export function registerAccessControl(app) {
   });
 
   if (isAccessControlEnabled()) {
-    console.log("[access-control] IP·MAC 허용제 ON — 등록된 IP 또는 MAC만 /api 사용");
+    console.log("[access-control] IP 허용제 ON — 등록된 IP만 /api 사용");
     const envTok = getAdminToken();
     const ips = parseAccessAdminIps();
     if (!envTok && ips.length === 0) {
