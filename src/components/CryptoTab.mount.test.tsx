@@ -16,8 +16,8 @@ vi.mock("../api", () => ({
   fetchCryptoUniverse: vi.fn(() =>
     Promise.resolve({
       assets: [
-        { symbol: "BTC-USDT", name: "Bitcoin", quoteVolume: 1e9 },
-        { symbol: "ETH-USDT", name: "Ethereum", quoteVolume: 1e8 },
+        { symbol: "BTC-USDT", name: "Bitcoin", quoteTurnoverKrw: 1e12 },
+        { symbol: "ETH-USDT", name: "Ethereum", quoteTurnoverKrw: 1e11 },
       ],
     }),
   ),
@@ -55,7 +55,7 @@ vi.mock("../api", () => ({
         { time: 1704153600, open: 1.5, high: 2, low: 1, close: 1.8 },
       ],
       dailyCandles: [] as { time: number; open: number; high: number; low: number; close: number }[],
-      interval: "1d",
+      interval: "1m",
       candleCount: 2,
     }),
   ),

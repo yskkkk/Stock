@@ -385,8 +385,8 @@ export const ko = {
   crypto: {
     panelTitle: "주요 코인 (Binance USDT · 24h 거래량 순)",
     listAria: "코인 선택",
-    listVolShort: "거래량",
-    listVolTitle: "24h USDT 거래대금 (내림차순 정렬)",
+    listVolShort: "거래대금",
+    listVolTitle: "24h KRW 거래대금 (내림차순 정렬)",
     drawToolbarAria: "차트 드로잉 도구",
     chartDrawDelete: "삭제",
     chartDrawCopy: "복사",

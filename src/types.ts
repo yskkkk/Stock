@@ -81,11 +81,11 @@ export interface CryptoQuotesResponse {
   updatedAt: number;
 }
 
-/** GET /api/crypto-universe — 고정 3 + 거래량 상위 7 (USDT 기준, 거래량 내림차순) */
+/** GET /api/crypto-universe — 고정 3 + 거래대금 상위 7 (KRW, 거래대금 내림차순) */
 export interface CryptoUniverseAsset {
   symbol: string;
   name: string;
-  quoteVolume: number;
+  quoteTurnoverKrw: number;
 }
 
 export interface CryptoUniverseResponse {

@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChartDrawMagnet } from "../hooks/useChartDrawMagnet";
 import { fetchCryptoQuotes, fetchCryptoUniverse, fetchStock } from "../api";
-import { CRYPTO_ASSETS, type CryptoAsset } from "../constants/crypto";
+import {
+  CRYPTO_ASSETS,
+  sortCryptoAssetsByTurnover,
+  type CryptoAsset,
+} from "../constants/crypto";
 import { CHART_TIMEFRAMES } from "../constants/timeframes";
 import { SHOW_PROFIT_MODEL_BUTTON } from "../constants/uiFlags";
 import {
@@ -34,14 +38,14 @@ type CryptoChartEngine = "tradingview" | "app";
 
 /** 좌측 코인 목록 시세 — 배치 API 우선, 실패 시 개별 폴백 (너무 촘촘하면 차트와 겹쳐 메인 스레드 과부하) */
 const CRYPTO_LIST_POLL_MS = 5_000;
-/** 거래량 상위 목록 재요청 (서버 캐시 60초) */
+/** 거래대금 상위 목록 재요청 (서버 캐시 60초) */
 const CRYPTO_UNIVERSE_REFRESH_MS = 180_000;
 
-function formatQuoteVolUsdt(v: number | undefined): string {
+function formatKrwTurnover(v: number | undefined): string {
   if (v == null || !Number.isFinite(v) || v <= 0) return "—";
-  if (v >= 1e9) return `${(v / 1e9).toFixed(2)}B`;
-  if (v >= 1e6) return `${(v / 1e6).toFixed(2)}M`;
-  if (v >= 1e3) return `${(v / 1e3).toFixed(1)}K`;
+  if (v >= 1e12) return `${(v / 1e12).toFixed(2)}조`;
+  if (v >= 1e8) return `${(v / 1e8).toFixed(0)}억`;
+  if (v >= 1e4) return `${(v / 1e4).toFixed(0)}만`;
   return String(Math.round(v));
 }
 
@@ -76,11 +80,11 @@ export default function CryptoTab({
     ...CRYPTO_ASSETS,
   ]);
   const [symbol, setSymbol] = useState(CRYPTO_ASSETS[0]!.symbol);
-  const [timeframe, setTimeframe] = useState<ChartTimeframe>("1d");
+  const [timeframe, setTimeframe] = useState<ChartTimeframe>("1m");
   const [quote, setQuote] = useState<QuoteResponse | null>(null);
   const [candles, setCandles] = useState<Candle[]>([]);
   const [dailyCandles, setDailyCandles] = useState<Candle[]>([]);
-  const [chartInterval, setChartInterval] = useState("1d");
+  const [chartInterval, setChartInterval] = useState("1m");
   const [candleCount, setCandleCount] = useState(0);
   const [chartLoading, setChartLoading] = useState(false);
   const [chartError, setChartError] = useState<string | null>(null);
@@ -170,7 +174,7 @@ export default function CryptoTab({
           name: active.name,
           price: undefined,
           changePercent: undefined,
-          currency: "USDT",
+          currency: "KRW",
         });
         setCandles([]);
         setDailyCandles([]);
@@ -191,7 +195,7 @@ export default function CryptoTab({
       try {
         const res = await fetchCryptoUniverse();
         if (cancelled || !res.assets?.length) return;
-        setCryptoAssets(res.assets);
+        setCryptoAssets(sortCryptoAssetsByTurnover(res.assets));
         setSymbol((prev) =>
           res.assets.some((a) => a.symbol === prev)
             ? prev
@@ -320,7 +324,7 @@ export default function CryptoTab({
   }, [symbol, cryptoAssets, profitModalOpen]);
 
   const quotePx = quote?.price;
-  const quoteCur = quote?.currency ?? "USDT";
+  const quoteCur = quote?.currency ?? "KRW";
   const profitRow = useMemo(
     () => getPersistedProfitRow(symbol),
     [symbol, profitPersistTick],
@@ -374,6 +378,8 @@ export default function CryptoTab({
             const rowQ =
               listQuotes[a.symbol] ??
               (isActive ? (quote ?? undefined) : undefined);
+            const turnoverKrw =
+              rowQ?.turnover ?? a.quoteTurnoverKrw;
             return (
               <li
                 key={a.symbol}
@@ -401,12 +407,13 @@ export default function CryptoTab({
                       className="chart-toolbar__muted crypto-pick-vol"
                       title={ko.crypto.listVolTitle}
                     >
-                      {ko.crypto.listVolShort} {formatQuoteVolUsdt(a.quoteVolume)}
+                      {ko.crypto.listVolShort}{" "}
+                      {formatKrwTurnover(turnoverKrw)}
                     </span>
                     <PickQuoteStrip
                       symbol={a.symbol}
                       price={rowQ?.price}
-                      currency={rowQ?.currency ?? "USDT"}
+                      currency={rowQ?.currency ?? "KRW"}
                       changePercent={rowQ?.changePercent}
                       className="crypto-pick-quote"
                     />
@@ -425,7 +432,7 @@ export default function CryptoTab({
             <PickQuoteStrip
               symbol={symbol}
               price={quote?.price}
-              currency={quote?.currency ?? "USDT"}
+              currency={quote?.currency ?? "KRW"}
               changePercent={quote?.changePercent}
               size="md"
             />
