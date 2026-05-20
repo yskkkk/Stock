@@ -792,7 +792,12 @@ export default function App() {
   const showTopScanStrip = Boolean(picks && appTab === "screener");
 
   return (
-    <div className="app" ref={appScrollRef}>
+    <div
+      className={
+        appTab === "recommendations" ? "app app--rec-tracker" : "app"
+      }
+      ref={appScrollRef}
+    >
       <div
         ref={pullToRefreshHintRef}
         className="app-ptr-hint"

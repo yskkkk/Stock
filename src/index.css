@@ -2974,6 +2974,11 @@ html[data-theme="light"] .access-admin-tab--active {
     overflow-y: visible;
   }
 
+  .workspace:not(.crypto-workspace).workspace--rec-tracker {
+    flex: 0 0 auto;
+    min-height: auto;
+  }
+
   .picks-panel {
     /* 스크리너·종목 검색: 추천 목록이 과도하게 납작해지지 않도록 여유 확보 */
     max-height: min(56dvh, 520px);
@@ -2996,6 +3001,13 @@ html[data-theme="light"] .access-admin-tab--active {
     box-sizing: border-box;
     align-self: stretch;
     overflow: hidden;
+  }
+
+  .workspace:not(.crypto-workspace) .picks-panel.rec-tracker-panel {
+    flex: 0 0 auto;
+    min-height: auto;
+    height: auto;
+    overflow: visible;
   }
 
   /*
@@ -6485,21 +6497,31 @@ body {
 .workspace--rec-tracker {
   grid-template-columns: 1fr;
   max-width: 100%;
-  min-height: 0;
-  flex: 1 1 auto;
+  min-height: auto;
+  flex: 0 0 auto;
   align-self: stretch;
+  width: 100%;
 }
 
-/* 스크리너용 .picks-panel 높이 제한(56dvh)을 받지 않음 */
+/* 스크리너용 .picks-panel 높이 제한(56dvh)을 받지 않음 — 카드가 표 영역만큼 세로로 늘어남 */
 .picks-panel.rec-tracker-panel {
+  --rec-tracker-table-min: clamp(22rem, calc(100dvh - 15.5rem), 84rem);
   max-height: none;
-  min-height: min(calc(100dvh - 6rem), 680px);
+  min-height: auto;
+  height: auto;
   display: flex;
   flex-direction: column;
   overflow: visible;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   padding: 0.9rem 1.05rem 1.05rem;
   gap: 0.2rem;
+  align-self: stretch;
+}
+
+#root > .app.app--rec-tracker {
+  flex: 0 0 auto;
+  min-height: 100dvh;
+  height: auto;
 }
 
 .rec-tracker-panel {
@@ -6707,9 +6729,10 @@ body {
 
 .rec-tracker-table-wrap {
   flex: 0 0 auto;
-  min-height: min(72dvh, 84rem);
-  height: min(72dvh, 84rem);
-  max-height: min(72dvh, 84rem);
+  box-sizing: border-box;
+  min-height: var(--rec-tracker-table-min);
+  height: var(--rec-tracker-table-min);
+  max-height: var(--rec-tracker-table-min);
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   border: 1px solid var(--card-border);
@@ -6887,14 +6910,9 @@ body {
 
 @media (max-width: 720px) {
   .picks-panel.rec-tracker-panel {
-    min-height: min(calc(100dvh - 4.5rem), 560px);
+    --rec-tracker-table-min: clamp(18rem, calc(100dvh - 13rem), 66rem);
+    min-height: auto;
     max-height: none;
-  }
-
-  .rec-tracker-table-wrap {
-    min-height: min(114dvh, 66rem);
-    height: min(114dvh, 66rem);
-    max-height: min(114dvh, 66rem);
   }
 
   .rec-tracker-summary {
@@ -6908,9 +6926,16 @@ body {
 }
 
 /* 스크리너 picks-panel 규칙이 추천 탭에 적용되지 않도록 */
+.app.app--rec-tracker .workspace--rec-tracker {
+  flex: 0 0 auto;
+  min-height: auto;
+}
+
 .workspace:not(.crypto-workspace) .picks-panel.rec-tracker-panel {
   max-height: none;
-  min-height: min(calc(100dvh - 6rem), 680px);
+  min-height: auto;
+  height: auto;
   overflow: visible;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
 }
+
