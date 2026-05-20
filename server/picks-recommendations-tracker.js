@@ -253,11 +253,14 @@ async function buildRecommendationsTrackerPayloadInner(opts = {}) {
     };
   });
 
-  const summary = rollupCounts(items);
+  /** 승률·근거/점수 칩 집계는 텔레그램 알림 발송 건만 */
+  const itemsForWinRate = items.filter((it) => it.telegramNotified);
+
+  const summary = rollupCounts(itemsForWinRate);
 
   /** @type {Map<string, { signalId: string; items: typeof items }>} */
   const bySignal = new Map();
-  for (const it of items) {
+  for (const it of itemsForWinRate) {
     const ids = it.signalIds.length ? it.signalIds : ["__none__"];
     for (const signalId of ids) {
       if (!bySignal.has(signalId)) bySignal.set(signalId, { signalId, items: [] });
@@ -283,7 +286,7 @@ async function buildRecommendationsTrackerPayloadInner(opts = {}) {
 
   /** @type {Map<string, { symbol: string; name: string; market: string; items: typeof items }>} */
   const bySymbol = new Map();
-  for (const it of items) {
+  for (const it of itemsForWinRate) {
     const key = `${it.market}:${it.symbol}`;
     if (!bySymbol.has(key)) {
       bySymbol.set(key, {
@@ -307,7 +310,7 @@ async function buildRecommendationsTrackerPayloadInner(opts = {}) {
 
   /** @type {Map<number, typeof items>} */
   const byScore = new Map();
-  for (const it of items) {
+  for (const it of itemsForWinRate) {
     if (it.score == null || !Number.isFinite(it.score)) continue;
     const key = it.score;
     if (!byScore.has(key)) byScore.set(key, []);

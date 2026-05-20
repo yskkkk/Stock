@@ -30,7 +30,8 @@ export const ko = {
     tabRecommendations: "추천 목록",
     tabOps: "운영",
     recTrackerTitle: "추천 실적 추적",
-    recTrackerSub: "추천 당시가 대비 현재가 · 승(+) · 패(−)",
+    recTrackerSub:
+      "승률·근거 칩은 텔레그램 알림 종목만 · 추천가 대비 현재가 · 승(+) · 패(−)",
     recTrackerLoading: "불러오는 중…",
     recTrackerEmpty: "기록된 추천이 없습니다.",
     recTrackerMarketAll: "전체",
@@ -93,6 +94,8 @@ export const ko = {
       "점수는 추천 당시 기술 조건 가중 합(최대 13점)입니다. 근거 칩이 적으면 이력에 근거가 일부만 저장된 경우입니다.",
     recTrackerTelegramBadge: "알림",
     recTrackerTelegramBadgeTitle: "텔레그램 알림 발송 종목",
+    recTrackerNoTelegramForStats:
+      "선택 조건에 텔레그램 알림 발송 종목이 없어 승률·근거 칩을 표시하지 않습니다.",
     picksStatsStreakLabel: "영업일 연속 추천",
     picksStatsStreakUnit: "일",
     picksStatsSinceFirstLabel: "첫 추천가 대비",

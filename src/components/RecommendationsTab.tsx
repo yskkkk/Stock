@@ -144,15 +144,29 @@ export default function RecommendationsTab({
     });
   }, [data?.items, dateFilter, market, signalFilter, scoreFilter]);
 
-  /** 칩 통계용 — 근거/점수 필터는 제외(칩이 사라지지 않게) */
+  /** 승률·칩 통계 — 텔레그램 알림 종목만(근거/점수 UI 필터는 제외) */
   const itemsForChipStats = useMemo(() => {
     const items = data?.items ?? [];
     return items.filter((it) => {
+      if (!it.telegramNotified) return false;
       if (dateFilter !== "all" && it.date !== dateFilter) return false;
       if (market !== "all" && it.market !== market) return false;
       return true;
     });
   }, [data?.items, dateFilter, market]);
+
+  /** 상단 승률 카드 — 알림 종목 + 목록 필터(근거·점수) 반영 */
+  const itemsForWinRateSummary = useMemo(() => {
+    const items = data?.items ?? [];
+    return items.filter((it) => {
+      if (!it.telegramNotified) return false;
+      if (dateFilter !== "all" && it.date !== dateFilter) return false;
+      if (market !== "all" && it.market !== market) return false;
+      if (signalFilter && !it.signalIds.includes(signalFilter)) return false;
+      if (scoreFilter != null && it.score !== scoreFilter) return false;
+      return true;
+    });
+  }, [data?.items, dateFilter, market, signalFilter, scoreFilter]);
 
   const sortedItems = useMemo(
     () => sortRecTrackerItems(filteredItems, sortKey, sortDir),
@@ -178,7 +192,7 @@ export default function RecommendationsTab({
     let losses = 0;
     let flats = 0;
     let unknown = 0;
-    for (const it of filteredItems) {
+    for (const it of itemsForWinRateSummary) {
       if (it.outcome === "win") wins++;
       else if (it.outcome === "loss") losses++;
       else if (it.outcome === "flat") flats++;
@@ -186,21 +200,17 @@ export default function RecommendationsTab({
     }
     const decided = wins + losses;
     return {
-      total: filteredItems.length,
+      total: itemsForWinRateSummary.length,
       wins,
       losses,
       flats,
       unknown,
       winRatePct: decided > 0 ? (wins / decided) * 100 : null,
     };
-  }, [filteredItems]);
+  }, [itemsForWinRateSummary]);
 
   const signalStats = useMemo(() => {
-    const base = data?.signalStats ?? [];
-    if (!base.length && !itemsForChipStats.length) return [];
-    if (market === "all" && scoreFilter == null && dateFilter === "all" && base.length) {
-      return [...base].sort(compareWinRateDesc);
-    }
+    if (!itemsForChipStats.length) return [];
     const pool =
       scoreFilter == null
         ? itemsForChipStats
@@ -228,14 +238,10 @@ export default function RecommendationsTab({
         };
       })
       .sort(compareWinRateDesc);
-  }, [data?.signalStats, itemsForChipStats, market, scoreFilter, dateFilter]);
+  }, [itemsForChipStats, market, scoreFilter, dateFilter]);
 
   const scoreStats = useMemo(() => {
-    const base = data?.scoreStats ?? [];
-    if (!base.length && !itemsForChipStats.length) return [];
-    if (market === "all" && !signalFilter && dateFilter === "all" && base.length) {
-      return [...base].sort((a, b) => b.score - a.score);
-    }
+    if (!itemsForChipStats.length) return [];
     const pool =
       signalFilter == null
         ? itemsForChipStats
@@ -261,7 +267,7 @@ export default function RecommendationsTab({
         };
       })
       .sort((a, b) => b.score - a.score);
-  }, [data?.scoreStats, itemsForChipStats, market, signalFilter, dateFilter]);
+  }, [itemsForChipStats, market, signalFilter, dateFilter]);
 
   return (
     <div className="workspace workspace--rec-tracker">
@@ -352,12 +358,18 @@ export default function RecommendationsTab({
           <p className="picks-empty">{ko.app.recTrackerEmpty}</p>
         )}
 
-        {!loading && data && filteredSummary.unknown > 0 && (
+        {!loading && data && itemsForChipStats.length === 0 && (data?.items?.length ?? 0) > 0 && (
+          <p className="rec-tracker-warn" role="status">
+            {ko.app.recTrackerNoTelegramForStats}
+          </p>
+        )}
+        {!loading && data && filteredSummary.unknown > 0 && itemsForChipStats.length > 0 && (
           <p className="rec-tracker-warn">{ko.app.recTrackerUnknownHint}</p>
         )}
 
         {data && filteredItems.length > 0 && (
           <>
+            {itemsForChipStats.length > 0 && (
             <div className="rec-tracker-summary">
               <SummaryCard
                 label={ko.app.recTrackerWinRate}
@@ -385,6 +397,7 @@ export default function RecommendationsTab({
                 value={String(filteredSummary.total)}
               />
             </div>
+            )}
 
             {scoreStats.length > 0 && (
               <div className="rec-tracker-signals rec-tracker-scores card">
