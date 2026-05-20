@@ -35,11 +35,26 @@ function pathnameOnly(req) {
   return raw.split("?")[0].split("#")[0] || "/";
 }
 
-/** 폴링·반복 조회로 로그가 과다한 GET 경로는 기록 생략 */
+/** 브라우저·OS가 자동으로 치는 아이콘·매니페스트 — 의미 있는 접근 로그 아님 */
+function isNoiseStaticAssetPath(pathname) {
+  const p = String(pathname ?? "").toLowerCase();
+  if (p === "/favicon.ico" || p === "/robots.txt") return true;
+  if (p.includes("apple-touch-icon")) return true;
+  if (p.endsWith(".webmanifest") || p === "/manifest.json") return true;
+  return false;
+}
+
+/** 폴링·반복 조회로 로그가 과다한 경로는 기록 생략 */
 function shouldSkipAccessLog(req) {
   const method = String(req.method ?? "GET").toUpperCase();
-  if (method !== "GET") return false;
   const path = pathnameOnly(req);
+  if (isNoiseStaticAssetPath(path)) return true;
+  if (method === "POST") {
+    if (path === "/api/ops/cursor-agent-stream") return true;
+    if (path === "/api/ops/cursor-agent") return true;
+    return false;
+  }
+  if (method !== "GET") return false;
   if (path === "/api/picks") return true;
   if (path === "/api/picks/daily-history") return true;
   if (path === "/api/picks/daily-history/quotes") return true;
@@ -49,8 +64,6 @@ function shouldSkipAccessLog(req) {
   if (path === "/api/macro-events") return true;
   if (path === "/api/config") return true;
   if (path === "/api/access/status") return true;
-  if (method === "POST" && path === "/api/ops/cursor-agent-stream") return true;
-  if (method === "POST" && path === "/api/ops/cursor-agent") return true;
   /** 운영 탭 이력·대기열 폴링 — 로그만 과다 */
   if (path === "/api/ops/cursor-agent-history") return true;
   if (path === "/api/ops/cursor-agent-queue") return true;
@@ -113,6 +126,14 @@ function humanAction(req) {
   ) {
     return "에이전트 실행 이력 작업 반영 표시";
   }
+  if (method === "POST" && path === "/api/ops/dev-queue/ide/release")
+    return "IDE 개발 큐 해제";
+  if (method === "POST" && path === "/api/ops/dev-queue/ide/release-active")
+    return "IDE 개발 큐 실행 중 해제";
+  if (method === "POST" && path === "/api/ops/dev-queue/ide/enqueue")
+    return "IDE 개발 큐 등록";
+  if (method === "POST" && path === "/api/ops/dev-queue/ide/acquire")
+    return "IDE 개발 큐 슬롯 획득";
 
   if (path === "/" || path === "/index.html") return "메인 페이지";
   if (path === "/access-gate.html" || path.endsWith("/access-gate.html")) return "접근 게이트 페이지";
@@ -138,6 +159,7 @@ function lineFromReq(req, atIso) {
 export function shouldLogViteUrl(url) {
   if (!url) return true;
   const p = url.split("?")[0] ?? url;
+  if (isNoiseStaticAssetPath(p)) return false;
   if (
     p.startsWith("/@") ||
     p.startsWith("/node_modules/") ||
@@ -240,9 +262,13 @@ export function installViteAccessTraceMiddleware(server) {
   if (!Array.isArray(stack)) return;
   stack.unshift({
     route: "",
-    handle(req, _res, next) {
+    handle(req, res, next) {
       if (String(req.url ?? "").startsWith("/api")) return next();
-      appendAccessLogVite(req);
+      if (!shouldLogViteUrl(req.url)) return next();
+      if (shouldSkipAccessLog(req)) return next();
+      res.once("finish", () => {
+        appendAccessLog(req, new Date().toISOString());
+      });
       next();
     },
   });
