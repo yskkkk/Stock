@@ -40,7 +40,6 @@ function formatDeviceInfoBlock(
   if (d.deviceMemory != null) parts.push(`deviceMemory(GB): ${d.deviceMemory}`);
   if (d.maxTouchPoints != null) parts.push(`maxTouchPoints: ${d.maxTouchPoints}`);
   if (d.cookieEnabled != null) parts.push(`cookieEnabled: ${d.cookieEnabled}`);
-  if (d.clientMac) parts.push(`clientMac: ${d.clientMac}`);
   return parts.join("\n");
 }
 
@@ -175,6 +174,11 @@ export default function AccessAdminModal({
       setSnapshot(null);
     }
   }, [open, adminIpBypassPassword, load]);
+
+  useEffect(() => {
+    if (!open || phase !== "password" || adminIpBypassPassword) return;
+    schedulePasswordFocus();
+  }, [open, phase, adminIpBypassPassword, schedulePasswordFocus]);
 
   /** 폴링으로 스냅샷이 갱신돼도 입력 중인 메모 초기화 방지 — 서버와 같을 때만 동기 */
   useEffect(() => {
@@ -440,7 +444,6 @@ export default function AccessAdminModal({
             {tab === "access" && snapshot && (
               <div className="access-admin-body">
                 <p className="access-admin-intro">{ko.access.adminIntro}</p>
-                <p className="access-admin-muted access-admin-device-note">{ko.access.requestDeviceNote}</p>
                 <section className="access-admin-section">
                   <h3>{ko.access.adminPending}</h3>
                   {snapshot.pending.length === 0 ? (
@@ -455,12 +458,6 @@ export default function AccessAdminModal({
                               {ko.access.adminRequestedAt}: {r.requestedAt}
                             </span>
                           </div>
-                          {r.clientMac || r.deviceInfo?.clientMac ? (
-                            <p className="access-admin-muted access-admin-mac-line">
-                              {ko.access.adminClientMac}:{" "}
-                              <code>{r.clientMac ?? r.deviceInfo?.clientMac}</code>
-                            </p>
-                          ) : null}
                           {r.message ? <p className="access-admin-msg">{r.message}</p> : null}
                           <p className="access-admin-ua">
                             {ko.access.adminUa}: {r.userAgent}
@@ -530,16 +527,11 @@ export default function AccessAdminModal({
                   ) : (
                     <ul className="access-admin-list">
                       {snapshot.allowed.map((a: AccessAllowedEntry, i: number) => (
-                        <li key={`${a.ip}-${a.mac ?? "nomac"}-${i}`} className="access-admin-item">
+                        <li key={`${a.ip}-${i}`} className="access-admin-item">
                           <div className="access-admin-item-head">
                             <code>{a.ip}</code>
                             <span className="access-admin-muted">{a.addedAt}</span>
                           </div>
-                          {a.mac ? (
-                            <p className="access-admin-muted access-admin-mac-line">
-                              {ko.access.adminAllowedMac}: <code>{a.mac}</code>
-                            </p>
-                          ) : null}
                           {a.requestMessage || a.note ? (
                             <p className="access-admin-muted access-admin-request-msg">
                               {ko.access.adminRequestMessage}:{" "}

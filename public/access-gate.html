@@ -120,21 +120,6 @@
         outline: none;
         border-color: var(--accent);
       }
-      input.mac-inp {
-        width: 100%;
-        margin-bottom: 0.35rem;
-        padding: 0.5rem 0.6rem;
-        font-family: ui-monospace, monospace;
-        font-size: 15px;
-        color: var(--text);
-        background: #121820;
-        border: 1px solid var(--border);
-        border-radius: 6px;
-      }
-      input.mac-inp:focus {
-        outline: none;
-        border-color: var(--accent);
-      }
       .row {
         display: flex;
         flex-wrap: wrap;
@@ -300,30 +285,6 @@
 
       <div id="requestBlock">
         <label>
-          <span>Wi-Fi MAC 주소 (선택)</span>
-          <input
-            type="text"
-            id="clientMac"
-            class="mac-inp"
-            maxlength="32"
-            placeholder="예: AA:BB:CC:DD:EE:FF"
-            spellcheck="false"
-            autocomplete="off"
-          />
-        </label>
-        <p
-          class="mac-hint"
-          style="
-            font-size: 0.72rem;
-            color: var(--muted);
-            margin: 0 0 0.75rem;
-            line-height: 1.45;
-          "
-        >
-          휴대폰 Wi-Fi 설정 등에서 확인합니다. 저장하면 IP가 바뀌어도 같은 단말로 인식합니다(브라우저는 MAC을
-          자동으로 읽지 못합니다).
-        </p>
-        <label>
           <span>메모 (선택)</span>
           <textarea
             id="msg"
@@ -343,7 +304,7 @@
       </div>
 
       <div id="adminPanel" class="admin hidden">
-        <h2>IP·MAC 접근 관리</h2>
+        <h2>IP 접근 관리</h2>
         <div id="adminPwdGate">
           <label>
             <span>관리자 비밀번호</span>
@@ -356,7 +317,7 @@
         </div>
         <div id="adminContent" class="hidden">
         <p class="admin-intro" style="margin: 0 0 0.75rem; font-size: 0.78rem; line-height: 1.55; color: var(--muted, #64748b); padding: 0.5rem 0.55rem; border: 1px solid rgba(148,163,184,0.25); border-radius: 8px; background: rgba(148,163,184,0.08)">
-          허용된 <strong>IP</strong> 또는 등록된 <strong>단말 MAC</strong> 중 하나라도 맞으면 API·대시보드를 쓸 수 있습니다. <strong>대기</strong>는 신청만 접수된 상태, <strong>승인</strong>은 허용 목록에 반영, <strong>거절</strong>은 이번 신청만 끝냅니다. <strong>허가 취소</strong>는 해당 IP 행을 제거해 곧바로 차단합니다. MAC은 위 입력란에 저장해 두면 IP가 바뀌어도 동일 단말로 인식됩니다.
+          허용된 <strong>IP</strong>와 일치하면 API·대시보드를 쓸 수 있습니다. <strong>대기</strong>는 신청만 접수된 상태, <strong>승인</strong>은 허용 목록에 반영, <strong>거절</strong>은 이번 신청만 끝냅니다. <strong>허가 취소</strong>는 해당 IP 행을 제거해 곧바로 차단합니다.
         </p>
         <div class="row">
           <button type="button" class="btn-secondary" id="btnAdminLock">관리 종료</button>
@@ -373,89 +334,8 @@
 
     <script type="module">
       const TOKEN_KEY = "stock_access_admin_token";
-      const MAC_KEY = "stock_access_client_mac";
 
       const $ = (id) => document.getElementById(id);
-
-      function normalizeMac(v) {
-        const s = String(v ?? "")
-          .trim()
-          .toLowerCase()
-          .replace(/[^0-9a-f]/g, "");
-        if (s.length !== 12 || !/^[0-9a-f]{12}$/.test(s)) return "";
-        const p = s
-          .toUpperCase()
-          .match(/.{2}/g);
-        return p ? p.join(":") : "";
-      }
-
-      function storedMac() {
-        try {
-          return normalizeMac(localStorage.getItem(MAC_KEY));
-        } catch (_) {
-          return "";
-        }
-      }
-
-      function syncMacCookie(mac) {
-        try {
-          if (mac) {
-            document.cookie =
-              MAC_KEY +
-              "=" +
-              encodeURIComponent(mac) +
-              "; Path=/; Max-Age=31536000; SameSite=Lax";
-          } else {
-            document.cookie = MAC_KEY + "=; Path=/; Max-Age=0";
-          }
-        } catch (_) {}
-      }
-
-      function persistMacField() {
-        const el = $("clientMac");
-        if (!(el instanceof HTMLInputElement)) return;
-        const m = normalizeMac(el.value);
-        if (!m) {
-          try {
-            localStorage.removeItem(MAC_KEY);
-          } catch (_) {}
-          syncMacCookie("");
-          return;
-        }
-        try {
-          localStorage.setItem(MAC_KEY, m);
-        } catch (_) {}
-        el.value = m;
-        syncMacCookie(m);
-      }
-
-      function resolvedClientMac() {
-        const el = $("clientMac");
-        if (el instanceof HTMLInputElement) {
-          const t = normalizeMac(el.value);
-          if (t) return t;
-        }
-        return storedMac();
-      }
-
-      function withClientMac(h) {
-        const out = { ...(h || {}) };
-        const m = resolvedClientMac();
-        if (m && !out["X-Access-Client-Mac"] && !out["x-access-client-mac"]) {
-          out["X-Access-Client-Mac"] = m;
-        }
-        return out;
-      }
-
-      (function initMacFromStorage() {
-        const el = $("clientMac");
-        if (!(el instanceof HTMLInputElement)) return;
-        const sm = storedMac();
-        if (sm) el.value = sm;
-        syncMacCookie(sm);
-      })();
-
-      $("clientMac")?.addEventListener("blur", () => persistMacField());
       const loading = $("loading");
       const main = $("main");
       const requestBlock = $("requestBlock");
@@ -475,7 +355,7 @@
           ...opts,
           headers: {
             Accept: "application/json",
-            ...withClientMac(opts.headers || {}),
+            ...(opts.headers || {}),
           },
           cache: "no-store",
         });
@@ -515,7 +395,6 @@
         const nav = navigator;
         const scr = window.screen;
         const dm = nav.deviceMemory;
-        const rm = resolvedClientMac();
         return {
           userAgent: nav.userAgent,
           platform: nav.platform,
@@ -532,7 +411,6 @@
           maxTouchPoints:
             typeof nav.maxTouchPoints === "number" ? nav.maxTouchPoints : null,
           cookieEnabled: nav.cookieEnabled,
-          ...(rm ? { clientMac: rm } : {}),
         };
       }
 
@@ -602,7 +480,6 @@
         const btn = $("btnReq");
         $("feedback").classList.add("hidden");
         btn.disabled = true;
-        persistMacField();
         try {
           await api("/api/access/request", {
             method: "POST",
@@ -622,11 +499,20 @@
       });
 
       function openAdmin() {
+        stopAdminPoll();
         $("adminPanel").classList.remove("hidden");
+        const savedPwd = token().trim();
         if (lastStatusAdminIp) {
           $("adminPwdGate").classList.add("hidden");
           $("adminContent").classList.remove("hidden");
           $("admPwd").value = "";
+          $("admPwdErr").classList.add("hidden");
+          $("admPwdErr").textContent = "";
+          $("admErr").classList.add("hidden");
+          void loadAdmin();
+        } else if (savedPwd) {
+          $("adminPwdGate").classList.add("hidden");
+          $("adminContent").classList.remove("hidden");
           $("admPwdErr").classList.add("hidden");
           $("admPwdErr").textContent = "";
           $("admErr").classList.add("hidden");
@@ -638,8 +524,12 @@
           $("admPwdErr").classList.add("hidden");
           $("admPwdErr").textContent = "";
           $("admErr").classList.add("hidden");
+          window.setTimeout(() => $("admPwd")?.focus(), 0);
         }
+        $("adminPanel").scrollIntoView({ block: "nearest", behavior: "smooth" });
       }
+
+      $("btnAdmin2").addEventListener("click", () => openAdmin());
 
       /** 앱의 MacroEventsBar와 동일: 제목 연속 탭으로만 관리 패널 */
       const SECRET_ADMIN_TAPS = 10;
@@ -674,9 +564,9 @@
         $("btnAdminUnlock").disabled = true;
         try {
           const res = await fetch("/api/access/admin/requests", {
-            headers: withClientMac({
+            headers: {
               Authorization: "Bearer " + pwd,
-            }),
+            },
             cache: "no-store",
           });
           const data = await parseJson(res);
@@ -759,7 +649,7 @@
           return;
         }
         try {
-          const headers = withClientMac({});
+          const headers = {};
           if (t) headers.Authorization = "Bearer " + t;
           const res = await fetch("/api/access/admin/requests", {
             headers,
@@ -789,13 +679,6 @@
                 document.createTextNode(" · " + (x.requestedAt || "")),
               );
               div.appendChild(head);
-              const xmac = x.clientMac || (x.deviceInfo && x.deviceInfo.clientMac);
-              if (xmac) {
-                const mc = document.createElement("div");
-                mc.className = "sub";
-                mc.textContent = "MAC: " + xmac;
-                div.appendChild(mc);
-              }
               if (x.message) {
                 const sub = document.createElement("div");
                 sub.className = "sub";
@@ -820,7 +703,6 @@
                 if (d.deviceMemory != null) lines.push("deviceMemory(GB): " + d.deviceMemory);
                 if (d.maxTouchPoints != null) lines.push("maxTouchPoints: " + d.maxTouchPoints);
                 if (d.cookieEnabled != null) lines.push("cookieEnabled: " + d.cookieEnabled);
-                if (d.clientMac) lines.push("clientMac: " + d.clientMac);
                 if (lines.length) {
                   const pre = document.createElement("pre");
                   pre.className = "sub";
@@ -883,12 +765,6 @@
                 document.createTextNode(" · " + (a.addedAt || "")),
               );
               div.appendChild(head);
-              if (a.mac) {
-                const mc = document.createElement("div");
-                mc.className = "sub";
-                mc.textContent = "MAC: " + a.mac;
-                div.appendChild(mc);
-              }
               const rq = a.requestMessage || a.note;
               if (rq) {
                 const rp = document.createElement("p");
@@ -950,7 +826,7 @@
             return;
           }
           try {
-            const headers = withClientMac({ "Content-Type": "application/json" });
+            const headers = { "Content-Type": "application/json" };
             if (tk) headers.Authorization = "Bearer " + tk;
             await api("/api/access/admin/approve", {
               method: "POST",
@@ -980,7 +856,7 @@
           const inp = item?.querySelector(".adm-allowed-memo-inp");
           const memo = inp ? String(inp.value || "").trim() : "";
           try {
-            const headers = withClientMac({ "Content-Type": "application/json" });
+            const headers = { "Content-Type": "application/json" };
             if (tk) headers.Authorization = "Bearer " + tk;
             await api("/api/access/admin/allowed-memo", {
               method: "POST",
@@ -1001,7 +877,7 @@
             return;
           }
           try {
-            const headers = withClientMac({ "Content-Type": "application/json" });
+            const headers = { "Content-Type": "application/json" };
             if (tk) headers.Authorization = "Bearer " + tk;
             await api("/api/access/admin/reject", {
               method: "POST",
@@ -1031,7 +907,7 @@
             return;
           }
           try {
-            const headers = withClientMac({ "Content-Type": "application/json" });
+            const headers = { "Content-Type": "application/json" };
             if (tk) headers.Authorization = "Bearer " + tk;
             await api("/api/access/admin/revoke", {
               method: "POST",
