@@ -320,9 +320,15 @@ function writeSentEntry(pick, sent) {
 
 
 
+  const signalIds = Array.isArray(pick.signalIds)
+    ? pick.signalIds.map((x) => String(x ?? "").trim()).filter(Boolean)
+    : [];
+
   sent[key] = {
 
     score: pick.score,
+
+    signalIds: signalIds.length ? signalIds : undefined,
 
     at: Date.now(),
 

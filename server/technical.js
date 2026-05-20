@@ -17,6 +17,34 @@ export const SIGNAL_DEFS = [
 /** 점수 항목 최대치 (가중 합산, UI·참고용) */
 export const MAX_TECH_SCORE = 13;
 
+/** @type {Record<string, number>} */
+export const SIGNAL_SCORE_WEIGHT = {
+  ma_align: 2,
+  ma_golden: 2,
+  ma20: 1,
+  ma50: 1,
+  ma5_align: 1,
+  rsi: 2,
+  volume: 1,
+  volume_surge: 1,
+  macd: 1,
+  high_60: 1,
+  bull_bar: 0,
+};
+
+/**
+ * @param {string[]} signalIds
+ */
+export function weightedScoreFromSignalIds(signalIds) {
+  if (!Array.isArray(signalIds)) return 0;
+  let n = 0;
+  for (const id of signalIds) {
+    const w = SIGNAL_SCORE_WEIGHT[String(id ?? "").trim()];
+    if (typeof w === "number" && Number.isFinite(w)) n += w;
+  }
+  return n;
+}
+
 /** 스크리너 추천: SIGNAL_DEFS 전체 조건 중 이 비율 이상 충족 시 통과 */
 export const MIN_CONDITION_SATISFY_RATIO = 0.8;
 /** 텔레그램 알림: 가중 점수(MAX_TECH_SCORE) 대비 이 비율 초과 시 발송 */

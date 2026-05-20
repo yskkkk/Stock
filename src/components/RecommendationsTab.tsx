@@ -18,6 +18,7 @@ import {
   type RecTrackerSortKey,
   type SortDir,
 } from "../lib/sortRecTracker";
+import { recTrackerScoreSignalMismatch } from "../lib/techScore";
 import RecTrackerSignalAnalysisPanel from "./RecTrackerSignalAnalysisPanel";
 import { ko } from "../i18n/ko";
 import type {
@@ -659,6 +660,7 @@ function RecTrackerRow({
 }) {
   const sym = displayStockSymbol(item.symbol);
   const up = (item.changePct ?? 0) >= 0;
+  const scoreMismatch = recTrackerScoreSignalMismatch(item.score, item.signalIds);
 
   return (
     <tr
@@ -701,7 +703,10 @@ function RecTrackerRow({
       </td>
       <td className="rec-tracker-table__score">
         {item.score != null ? (
-          <span className="rec-tracker-table__score-val">
+          <span
+            className="rec-tracker-table__score-val"
+            title={scoreMismatch ? ko.app.recTrackerScoreMismatchHint : undefined}
+          >
             {item.score}
             {ko.app.recTrackerScoreUnit}
           </span>

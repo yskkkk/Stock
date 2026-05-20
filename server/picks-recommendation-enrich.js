@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { fetchScanCandles } from "./stock-data.js";
-import { analyzeTechnicals } from "./technical.js";
+import { analyzeTechnicals, weightedScoreFromSignalIds } from "./technical.js";
 import { readRecommendationMeta, recommendationMetaKey, upsertRecommendationMeta } from "./picks-recommendation-meta.js";
 import { kstYmd, readHistorySync, writeHistorySync } from "./picks-history-store.js";
 
@@ -13,12 +13,32 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, ".data");
 const SIGNAL_CACHE_FILE = path.join(DATA_DIR, "picks-recommendation-signal-cache.json");
 
-/** @type {Map<string, { score?: number | null; price?: number | null }> | null} */
+/** @type {Map<string, { score?: number | null; price?: number | null; signalIds?: string[]; at: number }> | null} */
 let telegramIndexCache = null;
 
 /**
+ * @param {string[]} ids
+ */
+function pickRicherSignalIds(...ids) {
+  /** @type {string[]} */
+  let best = [];
+  let bestW = -1;
+  for (const raw of ids) {
+    const list = Array.isArray(raw)
+      ? raw.map((x) => String(x ?? "").trim()).filter(Boolean)
+      : [];
+    const w = weightedScoreFromSignalIds(list);
+    if (list.length > best.length || (list.length === best.length && w > bestW)) {
+      best = list;
+      bestW = w;
+    }
+  }
+  return best;
+}
+
+/**
  * @param {Record<string, unknown>} sent
- * @returns {Map<string, { score: number | null; price: number | null; at: number }>}
+ * @returns {Map<string, { score: number | null; price: number | null; signalIds?: string[]; at: number }>}
  */
 function buildTelegramIndexFromSent(sent) {
   const index = new Map();
@@ -45,9 +65,17 @@ function buildTelegramIndexFromSent(sent) {
       typeof entry.price === "number" && Number.isFinite(entry.price) && entry.price > 0
         ? entry.price
         : null;
+    const signalIds = Array.isArray(entry.signalIds)
+      ? entry.signalIds.map((x) => String(x ?? "").trim()).filter(Boolean)
+      : [];
     const prev = index.get(idxKey);
     if (!prev || at < prev.at) {
-      index.set(idxKey, { score, price, at });
+      index.set(idxKey, {
+        score,
+        price,
+        signalIds: signalIds.length ? signalIds : undefined,
+        at,
+      });
     }
   }
   return index;
@@ -133,9 +161,12 @@ export function enrichSlimPickFromBackfill(slim, market, date) {
   if (slim.score == null && meta?.score != null) slim.score = meta.score;
   if (slim.score == null && tg?.score != null) slim.score = tg.score;
 
-  if ((!slim.signalIds || slim.signalIds.length === 0) && meta?.signalIds?.length) {
-    slim.signalIds = [...meta.signalIds];
-  }
+  const mergedIds = pickRicherSignalIds(
+    slim.signalIds,
+    meta?.signalIds,
+    tg?.signalIds,
+  );
+  if (mergedIds.length) slim.signalIds = mergedIds;
 
   if (
     (slim.price == null || !(slim.price > 0)) &&
@@ -204,14 +235,35 @@ export function reconcileRecommendationHistoryEnrichmentSync() {
  * 근거 미기록 건 — 심볼당 1회 기술분석(캐시). 과거 시점 추정이나 새 스캔 반영용.
  * @param {number} [maxSymbols]
  */
+/**
+ * @param {import("./picks-history-store.js").SlimPick} slim
+ * @param {string} date
+ * @param {"kr"|"us"} market
+ */
+function recommendationNeedsSignalRefresh(slim, date, market) {
+  if (!slim?.symbol) return false;
+  const ids = slim.signalIds ?? [];
+  if (!ids.length) return true;
+  const sc = slim.score;
+  if (typeof sc !== "number" || !Number.isFinite(sc) || sc < 8) return false;
+  return weightedScoreFromSignalIds(ids) + 3 <= sc;
+}
+
 export async function backfillMissingSignalIdsFromTechnical(maxSymbols = 80) {
   const data = readHistorySync();
+  const tg = getTelegramBackfillIndex();
   const need = new Set();
   for (const day of data.days) {
-    for (const p of [...(day.kr ?? []), ...(day.us ?? [])]) {
-      if (!p?.symbol) continue;
-      if (p.signalIds?.length) continue;
-      need.add(String(p.symbol).trim().toUpperCase());
+    const date = String(day.date ?? "").trim();
+    if (!date) continue;
+    for (const market of /** @type {const} */ (["kr", "us"])) {
+      const arr = market === "kr" ? day.kr : day.us;
+      for (const p of arr) {
+        if (!p?.symbol) continue;
+        if (recommendationNeedsSignalRefresh(p, date, market)) {
+          need.add(String(p.symbol).trim().toUpperCase());
+        }
+      }
     }
   }
   const list = [...need].slice(0, maxSymbols);
@@ -229,11 +281,28 @@ export async function backfillMissingSignalIdsFromTechnical(maxSymbols = 80) {
       for (const market of /** @type {const} */ (["kr", "us"])) {
         const arr = market === "kr" ? day.kr : day.us;
         for (const slim of arr) {
-          if (slim.signalIds?.length) continue;
+          const sym = String(slim.symbol).trim().toUpperCase();
+          const idxKey = recommendationMetaKey(date, market, sym);
+          const meta = readRecommendationMeta(date, market, sym);
+          const tgHit = tg.get(idxKey);
+          const merged = pickRicherSignalIds(
+            slim.signalIds,
+            meta?.signalIds,
+            tgHit?.signalIds,
+          );
+          if (merged.length) slim.signalIds = merged;
+          if (!recommendationNeedsSignalRefresh(slim, date, market)) {
+            upsertRecommendationMeta(date, market, {
+              symbol: slim.symbol,
+              score: slim.score,
+              signalIds: slim.signalIds,
+            });
+            continue;
+          }
           const cache = readSignalCacheSync();
-          const hit = cache[String(slim.symbol).trim().toUpperCase()];
+          const hit = cache[sym];
           if (hit?.signalIds?.length) {
-            slim.signalIds = [...hit.signalIds];
+            slim.signalIds = pickRicherSignalIds(slim.signalIds, hit.signalIds);
             if (slim.score == null && hit.score != null) slim.score = hit.score;
           }
           upsertRecommendationMeta(date, market, {
