@@ -3794,11 +3794,7 @@ html[data-theme="light"] .access-admin-tab--active {
     background: var(--bg);
     padding-bottom: 0.12rem;
     margin-bottom: 0.08rem;
-    box-shadow: 0 1px 0 var(--card-border);
-  }
-
-  html[data-theme="light"] .app-header-sticky {
-    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.08);
+    box-shadow: none;
   }
 
   .app-header-sticky .top-bar.card {
@@ -4524,7 +4520,7 @@ html[data-theme="light"] .access-admin-tab--active {
   padding-top: max(0.35rem, env(safe-area-inset-top, 0px));
   padding-bottom: 0.42rem;
   margin: 0 0 0.12rem;
-  border-bottom: 1px solid var(--card-border);
+  border-bottom: none;
   /* 본문과 동일 배경 — color-mix 반투명 띠(음영) 제거 */
   background: var(--bg);
 }
@@ -4610,16 +4606,12 @@ html[data-theme="light"] .access-admin-tab--active {
     color-mix(in srgb, var(--surface) 90%, var(--bg)) 0%,
     color-mix(in srgb, var(--card) 85%, var(--bg)) 100%
   );
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.045),
-    0 6px 22px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.2);
 }
 
 html[data-theme="light"] .ops-global-queue-stack {
   background: linear-gradient(168deg, #fffefb 0%, var(--surface) 100%);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.85),
-    0 4px 20px rgba(15, 23, 42, 0.09);
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.09);
 }
 
 .ops-global-queue-stack__empty {

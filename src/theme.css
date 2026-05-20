@@ -352,6 +352,10 @@ html[data-theme="light"] .picks-panel:not(.crypto-panel).card {
     var(--shadow);
 }
 
+html[data-theme="light"] .picks-panel.rec-tracker-panel.card {
+  box-shadow: var(--shadow);
+}
+
 html[data-theme="light"] .picks-panel:not(.crypto-panel) .panel-head {
   border-bottom: 1px solid var(--card-border);
 }
