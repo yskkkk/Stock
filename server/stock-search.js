@@ -7,12 +7,19 @@ import {
   hasHangul,
   resolveDisplayName,
 } from "./names-ko.js";
+import { fetchQuoteSnapshotsForSymbols } from "./picks-live-quotes.js";
 import { yahooGet } from "./yahoo.js";
-import { loadChartQuoteSnapshot } from "./stock-data.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const CACHE_MS = 20_000;
+/** 검색 응답 전 시세 보강 상한 — Yahoo 큐 대기를 줄인다 */
+const SEARCH_QUOTE_ENRICH_MAX = (() => {
+  const n = Number(process.env.STOCK_SEARCH_QUOTE_ENRICH_MAX ?? 10);
+  return Number.isFinite(n) && n >= 0 ? Math.min(24, Math.floor(n)) : 10;
+})();
+/** 한글 국내 검색 시 로컬 유니버스만으로 충분하면 Yahoo 검색 생략 */
+const KR_HANGUL_SKIP_YAHOO_MIN = 12;
 /** 검색 쿼리 캐시 — TTL 경과 후에도 Map에 남지 않도록 정리 */
 const SEARCH_CACHE_MAX_KEYS = 240;
 const SEARCH_CACHE_DEAD_MS = CACHE_MS * 30;
@@ -82,39 +89,48 @@ function mergeHintFromSearchQuote(src, rowOut) {
   if (typeof cur === "string" && cur.trim()) rowOut.currency = cur.trim();
   const ms = src.marketState ?? src.exchangeMarketState;
   if (typeof ms === "string" && ms.trim()) rowOut.marketState = ms.trim();
+  const vol = Number(src.regularMarketVolume);
+  const px = Number(rowOut.price ?? src.regularMarketPrice);
+  if (Number.isFinite(vol) && vol > 0 && Number.isFinite(px) && px > 0) {
+    rowOut.turnover = vol * px;
+  }
 }
 
 /**
  * @param {object[]} rows
  */
-async function fillMissingQuotes(rows) {
-  return Promise.all(
-    rows.map(async (row) => {
-      if (
-        row.price != null &&
-        Number.isFinite(row.price) &&
-        row.price > 0
-      ) {
-        return row;
-      }
-      try {
-        const q = await loadChartQuoteSnapshot(row.symbol);
-        if (!q?.price || !Number.isFinite(q.price)) return row;
-        return {
-          ...row,
-          price: q.price,
-          changePercent:
-            row.changePercent != null && Number.isFinite(row.changePercent)
-              ? row.changePercent
-              : q.changePercent,
-          currency: row.currency ?? q.currency,
-          marketState: row.marketState ?? q.marketState,
-        };
-      } catch {
-        return row;
-      }
-    }),
-  );
+async function enrichSearchQuotePrices(rows) {
+  if (SEARCH_QUOTE_ENRICH_MAX <= 0) return rows;
+  const need = rows
+    .filter(
+      (r) =>
+        r.price == null || !Number.isFinite(r.price) || Number(r.price) <= 0,
+    )
+    .slice(0, SEARCH_QUOTE_ENRICH_MAX)
+    .map((r) => String(r.symbol ?? "").trim().toUpperCase())
+    .filter(Boolean);
+  if (need.length === 0) return rows;
+
+  const snaps = await fetchQuoteSnapshotsForSymbols(need);
+  return rows.map((row) => {
+    const sym = String(row.symbol ?? "")
+      .trim()
+      .toUpperCase();
+    const q = snaps[sym];
+    if (!q?.price || !Number.isFinite(q.price)) return row;
+    const px = q.price;
+    return {
+      ...row,
+      price: px,
+      changePercent:
+        row.changePercent != null && Number.isFinite(row.changePercent)
+          ? row.changePercent
+          : q.changePercent,
+      currency: row.currency ?? q.currency,
+      marketState: row.marketState,
+      turnover: row.turnover,
+    };
+  });
 }
 
 /**
@@ -209,19 +225,31 @@ export async function searchStocks(query, market) {
     return hit.payload;
   }
 
-  let data;
-  try {
-    data = await yahooGet(
-      `/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=40&newsCount=0`,
-    );
-  } catch {
-    data = { quotes: [] };
-  }
-
-  const raw = Array.isArray(data?.quotes) ? data.quotes : [];
+  const qHasHangul = /[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7A3]/.test(q);
   const seen = new Set();
   /** @type {object[]} */
   const quotes = [];
+
+  const localKrHangulFirst = qHasHangul && market === "kr";
+  if (localKrHangulFirst) {
+    appendLocalUniverseMatches(q, market, seen, quotes);
+  }
+
+  const skipYahoo =
+    localKrHangulFirst && quotes.length >= KR_HANGUL_SKIP_YAHOO_MIN;
+
+  let data = { quotes: [] };
+  if (!skipYahoo) {
+    try {
+      data = await yahooGet(
+        `/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=40&newsCount=0`,
+      );
+    } catch {
+      data = { quotes: [] };
+    }
+  }
+
+  const raw = Array.isArray(data?.quotes) ? data.quotes : [];
 
   for (const row of raw) {
     let sym = String(row.symbol ?? "").trim().toUpperCase();
@@ -248,13 +276,12 @@ export async function searchStocks(query, market) {
     if (quotes.length >= 28) break;
   }
 
-  const qHasHangul = /[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7A3]/.test(q);
-  if (quotes.length === 0 || qHasHangul) {
+  if (!localKrHangulFirst && (quotes.length === 0 || qHasHangul)) {
     appendLocalUniverseMatches(q, market, seen, quotes);
   }
 
   const sliced = quotes.slice(0, 24);
-  const enriched = await fillMissingQuotes(sliced);
+  const enriched = await enrichSearchQuotePrices(sliced);
   const payload = { quotes: enriched };
   cache.set(cacheKey, { at: Date.now(), payload });
   pruneStockSearchCache();
