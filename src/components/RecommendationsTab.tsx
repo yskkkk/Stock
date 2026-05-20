@@ -112,6 +112,16 @@ export default function RecommendationsTab({
     });
   }, [data?.items, dateFilter, market, signalFilter, scoreFilter]);
 
+  /** 칩 통계용 — 근거/점수 필터는 제외(칩이 사라지지 않게) */
+  const itemsForChipStats = useMemo(() => {
+    const items = data?.items ?? [];
+    return items.filter((it) => {
+      if (dateFilter !== "all" && it.date !== dateFilter) return false;
+      if (market !== "all" && it.market !== market) return false;
+      return true;
+    });
+  }, [data?.items, dateFilter, market]);
+
   const sortedItems = useMemo(
     () => sortRecTrackerItems(filteredItems, sortKey, sortDir),
     [filteredItems, sortKey, sortDir],
@@ -155,27 +165,26 @@ export default function RecommendationsTab({
 
   const signalStats = useMemo(() => {
     const base = data?.signalStats ?? [];
-    if (!base.length && !filteredItems.length) return [];
-    if (
-      market === "all" &&
-      !signalFilter &&
-      scoreFilter == null &&
-      dateFilter === "all"
-    ) {
+    if (!base.length && !itemsForChipStats.length) return [];
+    if (market === "all" && scoreFilter == null && dateFilter === "all" && base.length) {
       return [...base].sort(compareWinRateDesc);
     }
-    const fromFiltered = new Map<string, { wins: number; losses: number; total: number }>();
-    for (const it of filteredItems) {
+    const pool =
+      scoreFilter == null
+        ? itemsForChipStats
+        : itemsForChipStats.filter((it) => it.score === scoreFilter);
+    const fromPool = new Map<string, { wins: number; losses: number; total: number }>();
+    for (const it of pool) {
       const ids = it.signalIds.length ? it.signalIds : [];
       for (const id of ids) {
-        const cur = fromFiltered.get(id) ?? { wins: 0, losses: 0, total: 0 };
+        const cur = fromPool.get(id) ?? { wins: 0, losses: 0, total: 0 };
         cur.total++;
         if (it.outcome === "win") cur.wins++;
         else if (it.outcome === "loss") cur.losses++;
-        fromFiltered.set(id, cur);
+        fromPool.set(id, cur);
       }
     }
-    return [...fromFiltered.entries()]
+    return [...fromPool.entries()]
       .map(([signalId, c]) => {
         const decided = c.wins + c.losses;
         return {
@@ -187,21 +196,28 @@ export default function RecommendationsTab({
         };
       })
       .sort(compareWinRateDesc);
-  }, [data?.signalStats, filteredItems, market, signalFilter, scoreFilter, dateFilter]);
+  }, [data?.signalStats, itemsForChipStats, market, scoreFilter, dateFilter]);
 
   const scoreStats = useMemo(() => {
     const base = data?.scoreStats ?? [];
-    if (market === "all" && !signalFilter && scoreFilter == null) return base;
-    const fromFiltered = new Map<number, { wins: number; losses: number; total: number }>();
-    for (const it of filteredItems) {
+    if (!base.length && !itemsForChipStats.length) return [];
+    if (market === "all" && !signalFilter && dateFilter === "all" && base.length) {
+      return [...base].sort((a, b) => b.score - a.score);
+    }
+    const pool =
+      signalFilter == null
+        ? itemsForChipStats
+        : itemsForChipStats.filter((it) => it.signalIds.includes(signalFilter));
+    const fromPool = new Map<number, { wins: number; losses: number; total: number }>();
+    for (const it of pool) {
       if (it.score == null || !Number.isFinite(it.score)) continue;
-      const cur = fromFiltered.get(it.score) ?? { wins: 0, losses: 0, total: 0 };
+      const cur = fromPool.get(it.score) ?? { wins: 0, losses: 0, total: 0 };
       cur.total++;
       if (it.outcome === "win") cur.wins++;
       else if (it.outcome === "loss") cur.losses++;
-      fromFiltered.set(it.score, cur);
+      fromPool.set(it.score, cur);
     }
-    return [...fromFiltered.entries()]
+    return [...fromPool.entries()]
       .map(([score, c]) => {
         const decided = c.wins + c.losses;
         return {
@@ -213,7 +229,7 @@ export default function RecommendationsTab({
         };
       })
       .sort((a, b) => b.score - a.score);
-  }, [data?.scoreStats, filteredItems, market, signalFilter, scoreFilter, dateFilter]);
+  }, [data?.scoreStats, itemsForChipStats, market, signalFilter, dateFilter]);
 
   return (
     <div className="workspace workspace--rec-tracker">
@@ -352,7 +368,21 @@ export default function RecommendationsTab({
                     </button>
                   ) : null}
                 </div>
-                <div className="rec-tracker-signals__chips">
+                {scoreFilter != null ? (
+                  <p className="rec-tracker-filter-hint" role="status">
+                    {ko.app.recTrackerScoreFilterOn.replace(
+                      "{score}",
+                      `${scoreFilter}${ko.app.recTrackerScoreUnit}`,
+                    )}
+                  </p>
+                ) : null}
+                <div
+                  className={
+                    scoreFilter != null
+                      ? "rec-tracker-signals__chips rec-tracker-signals__chips--has-filter"
+                      : "rec-tracker-signals__chips"
+                  }
+                >
                   {scoreStats.map((s) => (
                     <button
                       key={s.score}
@@ -362,7 +392,17 @@ export default function RecommendationsTab({
                           ? "rec-tracker-score-chip rec-tracker-score-chip--active"
                           : "rec-tracker-score-chip"
                       }
+                      title={
+                        scoreFilter === s.score
+                          ? `${s.score}${ko.app.recTrackerScoreUnit} — ${ko.app.recTrackerChipSelected}`
+                          : `${s.score}${ko.app.recTrackerScoreUnit} — ${ko.app.recTrackerChipFilterTap}`
+                      }
                       aria-pressed={scoreFilter === s.score}
+                      aria-label={
+                        scoreFilter === s.score
+                          ? `${s.score}${ko.app.recTrackerScoreUnit} ${ko.app.recTrackerChipSelected}`
+                          : `${s.score}${ko.app.recTrackerScoreUnit} ${ko.app.recTrackerChipFilterTap}`
+                      }
                       onClick={() =>
                         setScoreFilter((prev) => (prev === s.score ? null : s.score))
                       }
@@ -397,7 +437,21 @@ export default function RecommendationsTab({
                     </button>
                   ) : null}
                 </div>
-                <div className="rec-tracker-signals__chips">
+                {signalFilter ? (
+                  <p className="rec-tracker-filter-hint" role="status">
+                    {ko.app.recTrackerSignalFilterOn.replace(
+                      "{label}",
+                      signalChipMeta(signalFilter).short,
+                    )}
+                  </p>
+                ) : null}
+                <div
+                  className={
+                    signalFilter
+                      ? "rec-tracker-signals__chips rec-tracker-signals__chips--has-filter"
+                      : "rec-tracker-signals__chips"
+                  }
+                >
                   {signalStats.map((s) => {
                     const chip = signalChipMeta(s.signalId as SignalId);
                     const active = signalFilter === s.signalId;
@@ -410,8 +464,17 @@ export default function RecommendationsTab({
                             ? `${chip.className} rec-tracker-signal-chip rec-tracker-signal-chip--active`
                             : `${chip.className} rec-tracker-signal-chip`
                         }
-                        title={chip.label}
+                        title={
+                          active
+                            ? `${chip.label} — ${ko.app.recTrackerChipSelected}`
+                            : `${chip.label} — ${ko.app.recTrackerChipFilterTap}`
+                        }
                         aria-pressed={active}
+                        aria-label={
+                          active
+                            ? `${chip.label} ${ko.app.recTrackerChipSelected}`
+                            : `${chip.label} ${ko.app.recTrackerChipFilterTap}`
+                        }
                         onClick={() =>
                           setSignalFilter((prev) =>
                             prev === s.signalId ? null : (s.signalId as SignalId),

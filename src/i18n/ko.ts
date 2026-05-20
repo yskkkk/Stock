@@ -57,6 +57,12 @@ export const ko = {
     recTrackerOpenChart: "차트 보기",
     recTrackerFilterSignal: "근거 필터",
     recTrackerClearFilter: "필터 해제",
+    recTrackerSignalFilterOn:
+      "「{label}」 근거만 아래 목록에 표시 중 · 같은 칩을 다시 누르면 해제",
+    recTrackerScoreFilterOn:
+      "「{score}」만 아래 목록에 표시 중 · 같은 칩을 다시 누르면 해제",
+    recTrackerChipFilterTap: "누르면 아래 목록을 이 항목만 보기",
+    recTrackerChipSelected: "선택됨 · 다시 누르면 해제",
     recTrackerNoSignals: "근거 미기록",
     recTrackerRefresh: "새로고침",
     recTrackerDateAll: "전체 일자",
