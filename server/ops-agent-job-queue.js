@@ -181,7 +181,10 @@ function syncIdeHistoryRunning(slot) {
  */
 function syncIdeHistoryFinalize(slot, state, error = null) {
   if (!slot.meta) return;
-  const started = slot.meta.enqueuedAtMs ?? Date.now();
+  const started =
+    typeof slot.runStartedAtMs === "number" && Number.isFinite(slot.runStartedAtMs)
+      ? slot.runStartedAtMs
+      : Date.now();
   void finalizeOpsAgentEntry(slot.id, {
     state,
     instruction: instructionTextFromMeta(slot.meta),
@@ -291,6 +294,7 @@ async function drainQueue() {
   };
 
   try {
+    slot.runStartedAtMs = Date.now();
     syncIdeHistoryRunning(slot);
     const waitedMs = Date.now() - (slot.meta?.enqueuedAtMs ?? Date.now());
     const queueSeq =

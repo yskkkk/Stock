@@ -294,11 +294,16 @@ export function upsertOpsAgentHistoryFromQueueSync(queueEntry) {
   }
 
   const now = Date.now();
+  const wasRunning = prevRow?.state === "running";
+  const startedAtMs =
+    state === "running" && !wasRunning
+      ? now
+      : (prevRow?.startedAtMs ?? enqueuedAtMs);
   const row = {
     id: canonicalId,
     instruction: ins,
     state,
-    startedAtMs: prevRow?.startedAtMs ?? enqueuedAtMs,
+    startedAtMs,
     updatedAtMs: now,
     finishedAtMs: null,
     error: null,
@@ -538,10 +543,12 @@ export function promoteOpsAgentEntryToRunning(id) {
     if (i === -1) return false;
     const cur = list[i];
     if (cur.state !== "waiting" && cur.state !== "running") return false;
+    const runStartedAt = Date.now();
     list[i] = {
       ...cur,
       state: "running",
-      updatedAtMs: Date.now(),
+      startedAtMs: cur.state === "running" ? cur.startedAtMs : runStartedAt,
+      updatedAtMs: runStartedAt,
       finishedAtMs: null,
     };
     await fs.writeFile(HISTORY_FILE, JSON.stringify(list), "utf8");

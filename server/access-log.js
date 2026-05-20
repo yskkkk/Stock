@@ -49,6 +49,8 @@ function shouldSkipAccessLog(req) {
   if (path === "/api/macro-events") return true;
   if (path === "/api/config") return true;
   if (path === "/api/access/status") return true;
+  if (method === "POST" && path === "/api/ops/cursor-agent-stream") return true;
+  if (method === "POST" && path === "/api/ops/cursor-agent") return true;
   /** 운영 탭 이력·대기열 폴링 — 로그만 과다 */
   if (path === "/api/ops/cursor-agent-history") return true;
   if (path === "/api/ops/cursor-agent-queue") return true;
@@ -118,8 +120,12 @@ function humanAction(req) {
   return `${method} ${path}`;
 }
 
-function lineFromReq(req) {
-  const ts = new Date().toISOString();
+/**
+ * @param {import("http").IncomingMessage} req
+ * @param {string} [atIso] 기록 시각(미지정 시 호출 시점)
+ */
+function lineFromReq(req, atIso) {
+  const ts = atIso ?? new Date().toISOString();
   const ip = clientIp(req);
   const method = String(req.method ?? "GET").toUpperCase();
   const action = humanAction(req);
@@ -149,11 +155,11 @@ export function shouldLogViteUrl(url) {
 }
 
 /** Vite `IncomingMessage` / Express `req` 공통 */
-export function appendAccessLog(req) {
+export function appendAccessLog(req, atIso) {
   if (shouldSkipAccessLog(req)) return;
   try {
     ensureAccessLogReady();
-    const { file, console: consoleLine } = lineFromReq(req);
+    const { file, console: consoleLine } = lineFromReq(req, atIso);
     console.log("[access]", consoleLine);
     fs.appendFile(accessLogPathForToday(), file, (err) => {
       if (err) console.warn("[access-log] 파일 기록 실패:", err.message);
@@ -211,9 +217,15 @@ export function appendAccessLogVite(req) {
   appendAccessLog(req);
 }
 
-/** Express 미들웨어 */
-export function expressAccessLogger(req, _res, next) {
-  appendAccessLog(req);
+/** Express 미들웨어 — 응답이 끝난 시점에 기록(대기열·SSE는 요청 접수 시각이 아닌 처리 시각) */
+export function expressAccessLogger(req, res, next) {
+  if (shouldSkipAccessLog(req)) {
+    next();
+    return;
+  }
+  res.once("finish", () => {
+    appendAccessLog(req, new Date().toISOString());
+  });
   next();
 }
 

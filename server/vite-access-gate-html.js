@@ -91,7 +91,7 @@ export function installAccessGateHtmlMiddleware(server) {
     res.statusCode = 200;
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Cache-Control", "no-store");
-    appendAccessLog(req);
+    res.once("finish", () => appendAccessLog(req, new Date().toISOString()));
     res.end(html);
   };
 
