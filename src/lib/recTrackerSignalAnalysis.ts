@@ -8,6 +8,40 @@ import type {
 
 export type SignalAnalysisSeverity = "low" | "watch";
 
+export interface SignalAnalysisMetrics {
+  /** 추천 풀 대비 이 근거 포함 비율 */
+  poolSharePct: number;
+  /** 승패 확정 건 평균 등락 */
+  avgChangePct: number | null;
+  /** 승리 건 평균 등락 */
+  avgWinPct: number | null;
+  /** 패배 건 평균 등락 */
+  avgLossPct: number | null;
+  /** 기대 등락(승률×평균승 − 패률×|평균패|) 근사 */
+  expectancyPct: number | null;
+  /** 함께 붙는 근거 개수 평균 */
+  avgCoSignalCount: number;
+  soloWinRatePct: number | null;
+  soloDecided: number;
+  multiWinRatePct: number | null;
+  multiDecided: number;
+  highScoreWinRatePct: number | null;
+  highScoreDecided: number;
+  lowScoreWinRatePct: number | null;
+  lowScoreDecided: number;
+  krWinRatePct: number | null;
+  krDecided: number;
+  usWinRatePct: number | null;
+  usDecided: number;
+  /** 보합·미확정 비율 */
+  flatUnknownPct: number;
+  /** 패 중 −3% 이하 비율 */
+  bigLossSharePct: number | null;
+  /** 최근 14일(일자 기준) 승률 */
+  recentWinRatePct: number | null;
+  recentDecided: number;
+}
+
 export interface SignalAnalysisInsight {
   signalId: SignalId;
   label: string;
@@ -18,6 +52,7 @@ export interface SignalAnalysisInsight {
   losses: number;
   baselineWinRatePct: number;
   deltaVsBaseline: number;
+  metrics: SignalAnalysisMetrics;
   bullets: string[];
   severity: SignalAnalysisSeverity;
 }
@@ -30,8 +65,11 @@ export interface RecTrackerSignalAnalysisResult {
 const MIN_DECIDED = 8;
 const LOW_DELTA_PP = 5;
 const MAX_INSIGHTS = 5;
+const RECENT_DAYS = 14;
+const HIGH_SCORE = 7;
+const LOW_SCORE = 4;
+const BIG_LOSS_PCT = -3;
 
-/** 근거별 맥락 설명(추가 통계와 함께 표시) */
 const SIGNAL_CONTEXT_HINT: Partial<Record<SignalId, string>> = {
   high_60:
     "60일 고가 근접은 조정·눌림 구간에서 추격 매수가 되기 쉬워, 추천 이후 되돌림(패) 비율이 높아질 수 있습니다.",
@@ -91,6 +129,25 @@ function winRateFromItems(items: RecommendationTrackerItem[]): {
   };
 }
 
+function avgChange(items: RecommendationTrackerItem[]): number | null {
+  const pcts = items
+    .map((it) => it.changePct)
+    .filter((p): p is number => p != null && Number.isFinite(p));
+  if (!pcts.length) return null;
+  return pcts.reduce((a, b) => a + b, 0) / pcts.length;
+}
+
+function avgOutcomeChange(
+  items: RecommendationTrackerItem[],
+  outcome: "win" | "loss",
+): number | null {
+  const pcts = items
+    .filter((it) => it.outcome === outcome && it.changePct != null && Number.isFinite(it.changePct))
+    .map((it) => it.changePct as number);
+  if (!pcts.length) return null;
+  return pcts.reduce((a, b) => a + b, 0) / pcts.length;
+}
+
 function avgScore(items: RecommendationTrackerItem[]): number | null {
   const scores = items
     .map((it) => it.score)
@@ -99,25 +156,10 @@ function avgScore(items: RecommendationTrackerItem[]): number | null {
   return scores.reduce((a, b) => a + b, 0) / scores.length;
 }
 
-function avgLossPct(items: RecommendationTrackerItem[]): number | null {
-  const pcts = items
-    .filter((it) => it.outcome === "loss" && it.changePct != null && Number.isFinite(it.changePct))
-    .map((it) => it.changePct as number);
-  if (!pcts.length) return null;
-  return pcts.reduce((a, b) => a + b, 0) / pcts.length;
-}
-
-function marketWinRate(
-  items: RecommendationTrackerItem[],
-  market: "kr" | "us",
-): number | null {
-  return winRateFromItems(items.filter((it) => it.market === market)).winRatePct;
-}
-
 function topCoSignals(
   items: RecommendationTrackerItem[],
   signalId: SignalId,
-  limit = 2,
+  limit = 3,
 ): { id: SignalId; label: string; winRatePct: number | null; count: number }[] {
   const counts = new Map<SignalId, RecommendationTrackerItem[]>();
   for (const it of items) {
@@ -138,11 +180,104 @@ function topCoSignals(
     .slice(0, limit);
 }
 
+function recentCutoffDate(pool: RecommendationTrackerItem[]): string | null {
+  const dates = [...new Set(pool.map((it) => it.date).filter(Boolean))].sort((a, b) =>
+    b.localeCompare(a),
+  );
+  if (!dates.length) return null;
+  const latest = dates[0];
+  const d = new Date(`${latest}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return latest;
+  d.setDate(d.getDate() - RECENT_DAYS);
+  return d.toISOString().slice(0, 10);
+}
+
+function computeMetrics(
+  pool: RecommendationTrackerItem[],
+  withSignal: RecommendationTrackerItem[],
+): SignalAnalysisMetrics {
+  const solo = withSignal.filter((it) => it.signalIds.length === 1);
+  const multi = withSignal.filter((it) => it.signalIds.length > 1);
+  const soloR = winRateFromItems(solo);
+  const multiR = winRateFromItems(multi);
+  const high = withSignal.filter((it) => it.score != null && it.score >= HIGH_SCORE);
+  const low = withSignal.filter(
+    (it) => it.score != null && it.score <= LOW_SCORE && Number.isFinite(it.score),
+  );
+  const highR = winRateFromItems(high);
+  const lowR = winRateFromItems(low);
+  const kr = withSignal.filter((it) => it.market === "kr");
+  const us = withSignal.filter((it) => it.market === "us");
+  const krR = winRateFromItems(kr);
+  const usR = winRateFromItems(us);
+
+  const decidedItems = withSignal.filter(
+    (it) => it.outcome === "win" || it.outcome === "loss",
+  );
+  const avgWin = avgOutcomeChange(withSignal, "win");
+  const avgLoss = avgOutcomeChange(withSignal, "loss");
+  const wr = winRateFromItems(withSignal);
+  let expectancyPct: number | null = null;
+  if (wr.winRatePct != null && avgWin != null && avgLoss != null) {
+    const lossRate = 1 - wr.winRatePct / 100;
+    expectancyPct = (wr.winRatePct / 100) * avgWin + lossRate * avgLoss;
+  }
+
+  const losses = withSignal.filter((it) => it.outcome === "loss");
+  const bigLosses = losses.filter(
+    (it) => it.changePct != null && it.changePct <= BIG_LOSS_PCT,
+  );
+  const bigLossSharePct =
+    losses.length > 0 ? (bigLosses.length / losses.length) * 100 : null;
+
+  const flatUnknown = withSignal.filter(
+    (it) => it.outcome === "flat" || it.outcome === "unknown",
+  ).length;
+
+  const cutoff = recentCutoffDate(pool);
+  const recent = cutoff
+    ? withSignal.filter((it) => it.date >= cutoff)
+    : [];
+  const recentR = winRateFromItems(recent);
+
+  const coCounts = withSignal.map((it) => it.signalIds.length);
+  const avgCoSignalCount =
+    coCounts.length > 0
+      ? coCounts.reduce((a, b) => a + b, 0) / coCounts.length
+      : 0;
+
+  return {
+    poolSharePct: pool.length > 0 ? (withSignal.length / pool.length) * 100 : 0,
+    avgChangePct: avgChange(decidedItems),
+    avgWinPct: avgWin,
+    avgLossPct: avgLoss,
+    expectancyPct,
+    avgCoSignalCount,
+    soloWinRatePct: soloR.winRatePct,
+    soloDecided: soloR.decided,
+    multiWinRatePct: multiR.winRatePct,
+    multiDecided: multiR.decided,
+    highScoreWinRatePct: highR.winRatePct,
+    highScoreDecided: highR.decided,
+    lowScoreWinRatePct: lowR.winRatePct,
+    lowScoreDecided: lowR.decided,
+    krWinRatePct: krR.winRatePct,
+    krDecided: krR.decided,
+    usWinRatePct: usR.winRatePct,
+    usDecided: usR.decided,
+    flatUnknownPct: withSignal.length > 0 ? (flatUnknown / withSignal.length) * 100 : 0,
+    bigLossSharePct,
+    recentWinRatePct: recentR.winRatePct,
+    recentDecided: recentR.decided,
+  };
+}
+
 function buildBullets(
   signalId: SignalId,
-  pool: RecommendationTrackerItem[],
   baselinePct: number,
-  stat: { winRatePct: number; decided: number; wins: number; losses: number },
+  stat: { winRatePct: number; decided: number },
+  m: SignalAnalysisMetrics,
+  withSignal: RecommendationTrackerItem[],
 ): string[] {
   const bullets: string[] = [];
   const delta = stat.winRatePct - baselinePct;
@@ -151,57 +286,86 @@ function buildBullets(
   );
 
   if (stat.decided < 15) {
-    bullets.push(`승패 확정 ${stat.decided}건으로 표본이 적어 해석은 참고용입니다.`);
+    bullets.push(`승패 확정 ${stat.decided}건 — 표본이 적어 해석은 참고용입니다.`);
   }
 
-  const withSignal = pool.filter((it) => it.signalIds.includes(signalId));
-  const solo = withSignal.filter((it) => it.signalIds.length === 1);
-  const multi = withSignal.filter((it) => it.signalIds.length > 1);
-  const soloR = winRateFromItems(solo);
-  const multiR = winRateFromItems(multi);
+  bullets.push(`추천의 ${m.poolSharePct.toFixed(0)}%에 이 근거가 포함됩니다.`);
 
-  if (soloR.decided >= 4 && multiR.decided >= 4 && soloR.winRatePct != null && multiR.winRatePct != null) {
-    if (soloR.winRatePct < baselinePct - 3 && multiR.winRatePct < baselinePct - 3) {
-      bullets.push(
-        `단독 ${soloR.winRatePct.toFixed(1)}%(${soloR.decided}건)·복합 ${multiR.winRatePct.toFixed(1)}%(${multiR.decided}건) 모두 낮아 이 근거 자체가 약한 편입니다.`,
-      );
-    } else if (multiR.winRatePct < soloR.winRatePct - 8) {
-      bullets.push(
-        `단독 ${soloR.winRatePct.toFixed(1)}%인데 다른 근거와 함께일 때 ${multiR.winRatePct.toFixed(1)}%로 더 낮습니다. 조합을 의심해 보세요.`,
-      );
-    } else if (soloR.winRatePct < multiR.winRatePct - 8) {
-      bullets.push(
-        `다른 근거와 묶일 때 ${multiR.winRatePct.toFixed(1)}%로 상대적으로 나으나, 단독은 ${soloR.winRatePct.toFixed(1)}%입니다.`,
-      );
-    }
-  } else if (soloR.decided >= 4 && soloR.winRatePct != null) {
-    bullets.push(`이 근거만 단독일 때 승률 ${soloR.winRatePct.toFixed(1)}% (${soloR.decided}건).`);
-  } else if (multiR.decided >= 4 && multiR.winRatePct != null) {
-    bullets.push(`다른 근거와 함께일 때 승률 ${multiR.winRatePct.toFixed(1)}% (${multiR.decided}건).`);
+  if (m.expectancyPct != null) {
+    bullets.push(
+      `승패 확정 건 기대 등락 약 ${m.expectancyPct >= 0 ? "+" : ""}${m.expectancyPct.toFixed(2)}%.`,
+    );
   }
 
-  const avg = avgScore(withSignal);
-  if (avg != null) {
-    if (avg < 5) {
-      bullets.push(`평균 점수 ${avg.toFixed(1)}점 — 낮은 점수 추천에 자주 포함됩니다.`);
-    } else if (avg >= 7) {
-      bullets.push(`평균 점수 ${avg.toFixed(1)}점 — 점수는 높은데도 승률이 낮아 조건·시장 환경을 의심할 수 있습니다.`);
+  if (m.avgWinPct != null && m.avgLossPct != null) {
+    bullets.push(
+      `평균 승리 ${m.avgWinPct >= 0 ? "+" : ""}${m.avgWinPct.toFixed(2)}% · 평균 패배 ${m.avgLossPct.toFixed(2)}%.`,
+    );
+  }
+
+  if (
+    m.soloDecided >= 4 &&
+    m.multiDecided >= 4 &&
+    m.soloWinRatePct != null &&
+    m.multiWinRatePct != null
+  ) {
+    if (m.soloWinRatePct < baselinePct - 3 && m.multiWinRatePct < baselinePct - 3) {
+      bullets.push(
+        `단독 ${m.soloWinRatePct.toFixed(1)}%(${m.soloDecided}건)·복합 ${m.multiWinRatePct.toFixed(1)}%(${m.multiDecided}건) 모두 낮습니다.`,
+      );
+    } else if (m.multiWinRatePct < m.soloWinRatePct - 8) {
+      bullets.push(
+        `단독 ${m.soloWinRatePct.toFixed(1)}%보다 복합 ${m.multiWinRatePct.toFixed(1)}%가 더 낮습니다 — 조합 주의.`,
+      );
     }
   }
 
-  const kr = marketWinRate(withSignal, "kr");
-  const us = marketWinRate(withSignal, "us");
-  if (kr != null && us != null) {
-    const krN = withSignal.filter((it) => it.market === "kr").length;
-    const usN = withSignal.filter((it) => it.market === "us").length;
-    if (krN >= 4 && usN >= 4 && Math.abs(kr - us) >= 12) {
-      bullets.push(`시장별 승률 차이: 국내 ${kr.toFixed(1)}% · 미국 ${us.toFixed(1)}%.`);
+  if (m.highScoreDecided >= 4 && m.lowScoreDecided >= 4) {
+    if (m.highScoreWinRatePct != null && m.lowScoreWinRatePct != null) {
+      if (m.lowScoreWinRatePct < m.highScoreWinRatePct - 10) {
+        bullets.push(
+          `저점수(≤${LOW_SCORE}점) ${m.lowScoreWinRatePct.toFixed(1)}% vs 고점수(≥${HIGH_SCORE}점) ${m.highScoreWinRatePct.toFixed(1)}%.`,
+        );
+      }
+    }
+  } else {
+    const avg = avgScore(withSignal);
+    if (avg != null && avg < 5) {
+      bullets.push(`평균 점수 ${avg.toFixed(1)}점 — 낮은 점수 추천에 자주 포함.`);
+    } else if (avg != null && avg >= 7) {
+      bullets.push(`평균 ${avg.toFixed(1)}점인데 승률이 낮아 시장·타이밍 이슈를 의심.`);
     }
   }
 
-  const lossAvg = avgLossPct(withSignal);
-  if (lossAvg != null && lossAvg < -2.5) {
-    bullets.push(`패배 시 평균 ${lossAvg.toFixed(2)}% — 손실 폭이 큰 편입니다.`);
+  if (
+    m.krDecided >= 4 &&
+    m.usDecided >= 4 &&
+    m.krWinRatePct != null &&
+    m.usWinRatePct != null &&
+    Math.abs(m.krWinRatePct - m.usWinRatePct) >= 12
+  ) {
+    bullets.push(`국내 ${m.krWinRatePct.toFixed(1)}%(${m.krDecided}) · 미국 ${m.usWinRatePct.toFixed(1)}%(${m.usDecided}).`);
+  }
+
+  if (m.bigLossSharePct != null && m.bigLossSharePct >= 35) {
+    bullets.push(`패의 ${m.bigLossSharePct.toFixed(0)}%가 ${BIG_LOSS_PCT}% 이하 — 손실 꼬리가 큼.`);
+  }
+
+  if (m.recentDecided >= 4 && m.recentWinRatePct != null) {
+    const recentDelta = m.recentWinRatePct - stat.winRatePct;
+    if (Math.abs(recentDelta) >= 8) {
+      bullets.push(
+        `최근 ${RECENT_DAYS}일 승률 ${m.recentWinRatePct.toFixed(1)}%(${m.recentDecided}건) — 전체와 ${recentDelta > 0 ? "+" : ""}${recentDelta.toFixed(0)}%p 차이.`,
+      );
+    }
+  }
+
+  if (m.flatUnknownPct >= 8) {
+    bullets.push(`보합·미확정 ${m.flatUnknownPct.toFixed(0)}% — 아직 결론 안 난 비중이 큼.`);
+  }
+
+  if (m.avgCoSignalCount >= 4.5) {
+    bullets.push(`평균 ${m.avgCoSignalCount.toFixed(1)}개 근거와 동시 충족 — 단일 조건 효과가 희석될 수 있음.`);
   }
 
   const co = topCoSignals(withSignal, signalId);
@@ -213,13 +377,13 @@ function buildBullets(
           : `${c.label}(${c.count})`,
       )
       .join(", ");
-    bullets.push(`자주 함께 나온 근거: ${parts}.`);
+    bullets.push(`동반 근거: ${parts}.`);
   }
 
   const hint = SIGNAL_CONTEXT_HINT[signalId];
   if (hint) bullets.push(hint);
 
-  return bullets.slice(0, 6);
+  return bullets.slice(0, 8);
 }
 
 /**
@@ -254,6 +418,7 @@ export function analyzeLowSignalWinRates(
     if (delta > -LOW_DELTA_PP) continue;
 
     const meta = signalChipMeta(signalId);
+    const metrics = computeMetrics(pool, group);
     candidates.push({
       signalId,
       label: meta.label,
@@ -264,12 +429,8 @@ export function analyzeLowSignalWinRates(
       losses,
       baselineWinRatePct: baselinePct,
       deltaVsBaseline: delta,
-      bullets: buildBullets(signalId, pool, baselinePct, {
-        winRatePct,
-        decided,
-        wins,
-        losses,
-      }),
+      metrics,
+      bullets: buildBullets(signalId, baselinePct, { winRatePct, decided }, metrics, group),
       severity: delta <= -15 ? "low" : "watch",
     });
   }
