@@ -6540,17 +6540,20 @@ body {
 
 .rec-tracker-panel .filter-clear {
   font-size: 0.78rem;
+  font-weight: 600;
   padding: 0.3rem 0.55rem;
 }
 
 .rec-tracker-panel .market-tab {
   font-size: 0.8rem;
+  font-weight: 600;
   padding: 0.42rem 0.72rem;
   min-width: 5rem;
 }
 
 .rec-tracker-updated {
   font-size: 0.72rem;
+  font-weight: 600;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -6560,6 +6563,7 @@ body {
   margin: 0 0 0.75rem;
   padding: 0 0.15rem;
   font-size: 0.82rem;
+  font-weight: 580;
   line-height: 1.5;
   color: var(--text-muted, #8b95a8);
 }
@@ -6578,6 +6582,7 @@ body {
   margin: 0 0 0.75rem;
   padding: 0 0.15rem;
   font-size: 0.8rem;
+  font-weight: 600;
   color: var(--text-dim);
 }
 
@@ -6598,6 +6603,7 @@ body {
 .rec-tracker-stat__label {
   display: block;
   font-size: 0.74rem;
+  font-weight: 600;
   color: var(--muted);
 }
 
@@ -6653,9 +6659,14 @@ body {
   gap: 0.12rem;
   padding: 0.45rem 0.62rem !important;
   font-size: 0.78rem !important;
+  font-weight: 650 !important;
   line-height: 1.25;
   cursor: pointer;
   border-radius: 7px !important;
+}
+
+.rec-tracker-signal-chip > span:first-child {
+  font-weight: 650;
 }
 
 .rec-tracker-signal-chip--active {
@@ -6670,7 +6681,8 @@ body {
 
 .rec-tracker-signal-chip__n {
   font-size: 0.68rem;
-  opacity: 0.88;
+  font-weight: 600;
+  opacity: 0.92;
 }
 
 .rec-tracker-score-chip {
@@ -6682,7 +6694,7 @@ body {
   min-width: 4.6rem;
   padding: 0.45rem 0.62rem;
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: 650;
   line-height: 1.25;
   cursor: pointer;
   border-radius: 7px;
@@ -6705,6 +6717,7 @@ body {
 }
 
 .rec-tracker-score-chip__rate {
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
 
