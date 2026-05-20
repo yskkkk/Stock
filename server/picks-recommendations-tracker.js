@@ -9,8 +9,24 @@ import {
 import { getPicksDailyHistoryForApi } from "./picks-history-store.js";
 import { fetchQuoteSnapshotsForSymbols } from "./picks-live-quotes.js";
 
-let enrichOnce = false;
-let signalBackfillOnce = false;
+let reconcileOnce = false;
+let backfillScheduled = false;
+
+/** 요청을 막지 않고 백그라운드에서 근거·점수 보강 */
+export function scheduleRecommendationSignalBackfill() {
+  if (backfillScheduled) return;
+  if (process.env.STOCK_REC_SIGNAL_BACKFILL === "0") return;
+  backfillScheduled = true;
+  const max = Number(process.env.STOCK_REC_SIGNAL_BACKFILL_MAX ?? 40);
+  void backfillMissingSignalIdsFromTechnical(max)
+    .catch((e) => {
+      backfillScheduled = false;
+      console.warn(
+        "[recommendations-tracker] signal backfill:",
+        e instanceof Error ? e.message : e,
+      );
+    });
+}
 
 const VALID_SIGNAL = new Set([
   "ma_align",
@@ -142,20 +158,11 @@ function rollupCounts(items) {
 }
 
 export async function buildRecommendationsTrackerPayload() {
-  if (!enrichOnce) {
-    enrichOnce = true;
+  if (!reconcileOnce) {
+    reconcileOnce = true;
     reconcileRecommendationHistoryEnrichmentSync();
   }
-  if (!signalBackfillOnce) {
-    signalBackfillOnce = true;
-    try {
-      await backfillMissingSignalIdsFromTechnical(
-        Number(process.env.STOCK_REC_SIGNAL_BACKFILL_MAX ?? 120),
-      );
-    } catch {
-      /* ignore */
-    }
-  }
+  scheduleRecommendationSignalBackfill();
 
   const { days } = getPicksDailyHistoryForApi();
   /** @type {ReturnType<typeof slimToEvent>[]} */

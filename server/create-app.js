@@ -66,7 +66,10 @@ import {
   enrichPicksStateWithHistory,
   getPicksDailyHistoryForApi,
 } from "./picks-history-store.js";
-import { buildRecommendationsTrackerPayload } from "./picks-recommendations-tracker.js";
+import {
+  buildRecommendationsTrackerPayload,
+  scheduleRecommendationSignalBackfill,
+} from "./picks-recommendations-tracker.js";
 import {
   fetchQuoteSnapshotsForSymbols,
   mergeLiveQuotesIntoPicksState,
@@ -1042,6 +1045,7 @@ export function createApp() {
     /* ignore */
   }
   startOpsFileDevPoller();
+  setTimeout(() => scheduleRecommendationSignalBackfill(), 5000);
 
   app.use((err, _req, res, _next) => {
     const message = err instanceof Error ? err.message : "요청 실패";
