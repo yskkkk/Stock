@@ -1,0 +1,159 @@
+import type { PicksDailyHistoryQuotesMap } from "../api";
+import type {
+  RecommendationOutcome,
+  RecommendationTrackerItem,
+  RecommendationTrackerRollup,
+  RecommendationsTrackerResponse,
+} from "../types";
+
+function outcomeFromPrices(
+  entry: number | null,
+  current: number | null,
+): RecommendationOutcome {
+  if (
+    entry == null ||
+    current == null ||
+    !Number.isFinite(entry) ||
+    !Number.isFinite(current) ||
+    entry <= 0
+  ) {
+    return "unknown";
+  }
+  const pct = ((current - entry) / entry) * 100;
+  if (Math.abs(pct) < 0.005) return "flat";
+  return pct > 0 ? "win" : "loss";
+}
+
+function pctFromPrices(entry: number | null, current: number | null): number | null {
+  if (
+    entry == null ||
+    current == null ||
+    !Number.isFinite(entry) ||
+    !Number.isFinite(current) ||
+    entry <= 0
+  ) {
+    return null;
+  }
+  return ((current - entry) / entry) * 100;
+}
+
+function rollupCounts(
+  items: Array<{ outcome: RecommendationOutcome }>,
+): RecommendationTrackerRollup {
+  let wins = 0;
+  let losses = 0;
+  let flats = 0;
+  let unknown = 0;
+  for (const it of items) {
+    if (it.outcome === "win") wins++;
+    else if (it.outcome === "loss") losses++;
+    else if (it.outcome === "flat") flats++;
+    else unknown++;
+  }
+  const decided = wins + losses;
+  const winRatePct = decided > 0 ? (wins / decided) * 100 : null;
+  return { total: items.length, wins, losses, flats, unknown, winRatePct };
+}
+
+/** 최근 추천일 기준 심볼 우선(시세 배치 상한용) */
+export function prioritizeTrackerSymbols(
+  items: RecommendationTrackerItem[],
+  max: number,
+): string[] {
+  const latest = new Map<string, string>();
+  for (const it of items) {
+    const sym = it.symbol.trim().toUpperCase();
+    const prev = latest.get(sym);
+    if (!prev || it.date > prev) latest.set(sym, it.date);
+  }
+  return [...latest.entries()]
+    .sort((a, b) => b[1].localeCompare(a[1]))
+    .slice(0, Math.max(0, max))
+    .map(([sym]) => sym);
+}
+
+export function mergeQuotesIntoTrackerPayload(
+  base: RecommendationsTrackerResponse,
+  quotes: PicksDailyHistoryQuotesMap,
+): RecommendationsTrackerResponse {
+  const items = base.items.map((ev) => {
+    const sym = ev.symbol.trim().toUpperCase();
+    const q = quotes[sym];
+    const currentPrice =
+      q?.price != null && Number.isFinite(q.price) && q.price > 0 ? q.price : null;
+    const changePct = pctFromPrices(ev.entryPrice, currentPrice);
+    const outcome = outcomeFromPrices(ev.entryPrice, currentPrice);
+    return { ...ev, currentPrice, changePct, outcome };
+  });
+
+  const summary = rollupCounts(items);
+
+  const bySignal = new Map<string, typeof items>();
+  for (const it of items) {
+    const ids = it.signalIds.length ? it.signalIds : ["__none__"];
+    for (const signalId of ids) {
+      if (!bySignal.has(signalId)) bySignal.set(signalId, []);
+      bySignal.get(signalId)!.push(it);
+    }
+  }
+
+  const signalStats = [...bySignal.entries()]
+    .map(([signalId, group]) => ({ signalId, ...rollupCounts(group) }))
+    .filter((s) => s.signalId !== "__none__" || s.total > 0)
+    .sort((a, b) => {
+      const ar = a.winRatePct;
+      const br = b.winRatePct;
+      if (ar == null && br == null) return b.total - a.total;
+      if (ar == null) return 1;
+      if (br == null) return -1;
+      if (br !== ar) return br - ar;
+      return b.total - a.total;
+    });
+
+  const bySymbol = new Map<
+    string,
+    { symbol: string; name: string; market: string; items: typeof items }
+  >();
+  for (const it of items) {
+    const key = `${it.market}:${it.symbol}`;
+    if (!bySymbol.has(key)) {
+      bySymbol.set(key, {
+        symbol: it.symbol,
+        name: it.name,
+        market: it.market,
+        items: [],
+      });
+    }
+    bySymbol.get(key)!.items.push(it);
+  }
+
+  const symbolStats = [...bySymbol.values()]
+    .map(({ symbol, name, market, items: group }) => ({
+      symbol,
+      name,
+      market: market as RecommendationTrackerItem["market"],
+      ...rollupCounts(group),
+    }))
+    .sort((a, b) => b.total - a.total);
+
+  const byScore = new Map<number, typeof items>();
+  for (const it of items) {
+    if (it.score == null || !Number.isFinite(it.score)) continue;
+    if (!byScore.has(it.score)) byScore.set(it.score, []);
+    byScore.get(it.score)!.push(it);
+  }
+
+  const scoreStats = [...byScore.entries()]
+    .map(([score, group]) => ({ score, ...rollupCounts(group) }))
+    .sort((a, b) => b.score - a.score);
+
+  return {
+    ...base,
+    updatedAtMs: Date.now(),
+    summary,
+    signalStats,
+    scoreStats,
+    symbolStats,
+    items,
+  };
+}

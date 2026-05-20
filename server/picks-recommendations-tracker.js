@@ -12,6 +12,38 @@ import { fetchQuoteSnapshotsForSymbols } from "./picks-live-quotes.js";
 let reconcileOnce = false;
 let backfillScheduled = false;
 
+const TRACKER_CACHE_MS = (() => {
+  const n = Number(process.env.STOCK_REC_TRACKER_CACHE_MS ?? 20_000);
+  return Number.isFinite(n) && n >= 0 ? Math.min(120_000, Math.floor(n)) : 20_000;
+})();
+const TRACKER_QUOTE_MAX = (() => {
+  const n = Number(process.env.STOCK_REC_TRACKER_QUOTE_MAX ?? 96);
+  return Number.isFinite(n) && n >= 0 ? Math.min(600, Math.floor(n)) : 96;
+})();
+
+/** @type {{ at: number, payload: object } | null} */
+let trackerCache = null;
+/** @type {Promise<object> | null} */
+let trackerInflight = null;
+
+/**
+ * @param {ReturnType<typeof slimToEvent>[]} events
+ * @returns {string[]}
+ */
+function symbolsByRecency(events) {
+  /** @type {Map<string, string>} */
+  const latest = new Map();
+  for (const e of events) {
+    const sym = String(e.symbol ?? "").trim().toUpperCase();
+    if (!sym) continue;
+    const prev = latest.get(sym);
+    if (!prev || e.date > prev) latest.set(sym, e.date);
+  }
+  return [...latest.entries()]
+    .sort((a, b) => b[1].localeCompare(a[1]))
+    .map(([sym]) => sym);
+}
+
 /** 요청을 막지 않고 백그라운드에서 근거·점수 보강 */
 export function scheduleRecommendationSignalBackfill() {
   if (backfillScheduled) return;
@@ -157,7 +189,12 @@ function rollupCounts(items) {
   };
 }
 
-export async function buildRecommendationsTrackerPayload() {
+/**
+ * @param {{ includeQuotes?: boolean }} [opts]
+ */
+async function buildRecommendationsTrackerPayloadInner(opts = {}) {
+  const includeQuotes = opts.includeQuotes !== false;
+
   if (!reconcileOnce) {
     reconcileOnce = true;
     reconcileRecommendationHistoryEnrichmentSync();
@@ -188,8 +225,12 @@ export async function buildRecommendationsTrackerPayload() {
     return a.symbol.localeCompare(b.symbol, "ko");
   });
 
-  const symbols = [...new Set(baseEvents.map((e) => e.symbol))];
-  const quotes = await fetchQuoteSnapshotsForSymbols(symbols);
+  /** @type {Record<string, { price: number; changePercent?: number }>} */
+  let quotes = {};
+  if (includeQuotes && TRACKER_QUOTE_MAX > 0) {
+    const ordered = symbolsByRecency(baseEvents).slice(0, TRACKER_QUOTE_MAX);
+    quotes = await fetchQuoteSnapshotsForSymbols(ordered);
+  }
 
   const items = baseEvents.map((ev) => {
     const q = quotes[ev.symbol];
@@ -284,4 +325,33 @@ export async function buildRecommendationsTrackerPayload() {
     symbolStats,
     items,
   };
+}
+
+/**
+ * @param {{ includeQuotes?: boolean }} [opts]
+ */
+export async function buildRecommendationsTrackerPayload(opts = {}) {
+  const includeQuotes = opts.includeQuotes !== false;
+  const cacheKey = includeQuotes ? "q" : "nq";
+  const now = Date.now();
+
+  if (TRACKER_CACHE_MS > 0 && trackerCache?.key === cacheKey && now - trackerCache.at < TRACKER_CACHE_MS) {
+    return trackerCache.payload;
+  }
+
+  if (trackerInflight) return trackerInflight;
+
+  trackerInflight = (async () => {
+    try {
+      const payload = await buildRecommendationsTrackerPayloadInner(opts);
+      if (TRACKER_CACHE_MS > 0) {
+        trackerCache = { key: cacheKey, at: Date.now(), payload };
+      }
+      return payload;
+    } finally {
+      trackerInflight = null;
+    }
+  })();
+
+  return trackerInflight;
 }

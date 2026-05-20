@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchRecommendationsTracker } from "../api";
+import { fetchPicksDailyHistoryQuotes, fetchRecommendationsTracker } from "../api";
+import {
+  mergeQuotesIntoTrackerPayload,
+  prioritizeTrackerSymbols,
+} from "../lib/recTrackerQuotes";
 import { signalChipMeta } from "../constants/signalChips";
 import type { SignalId } from "../constants/signals";
 import {
@@ -81,13 +85,29 @@ export default function RecommendationsTab({
   const [sortKey, setSortKey] = useState<RecTrackerSortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
-  const load = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    void fetchRecommendationsTracker()
+  const TRACKER_QUOTE_BATCH = 96;
+
+  const load = useCallback((opts?: { silent?: boolean }) => {
+    if (!opts?.silent) {
+      setLoading(true);
+      setError(null);
+    }
+
+    void fetchRecommendationsTracker({ quotes: false })
+      .then(async (base) => {
+        setData(base);
+        const syms = prioritizeTrackerSymbols(base.items, TRACKER_QUOTE_BATCH);
+        if (!syms.length) return base;
+        try {
+          const { quotes } = await fetchPicksDailyHistoryQuotes(syms);
+          return mergeQuotesIntoTrackerPayload(base, quotes);
+        } catch {
+          return base;
+        }
+      })
       .then(setData)
       .catch((e) => {
-        setData(null);
+        if (!opts?.silent) setData(null);
         setError(e instanceof Error ? e.message : String(e));
       })
       .finally(() => setLoading(false));
@@ -95,7 +115,7 @@ export default function RecommendationsTab({
 
   useEffect(() => {
     load();
-    const t = setInterval(load, 30_000);
+    const t = setInterval(() => load({ silent: true }), 30_000);
     return () => clearInterval(t);
   }, [load]);
 

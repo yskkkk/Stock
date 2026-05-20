@@ -118,8 +118,11 @@ export function fetchPicksDailyHistory() {
   return fetchJson<PicksDailyHistoryResponse>("/api/picks/daily-history");
 }
 
-export function fetchRecommendationsTracker() {
-  return fetchJson<RecommendationsTrackerResponse>("/api/picks/recommendations-tracker");
+export function fetchRecommendationsTracker(opts?: { quotes?: boolean }) {
+  const q = opts?.quotes === false ? "?quotes=0" : "";
+  return fetchJson<RecommendationsTrackerResponse>(
+    `/api/picks/recommendations-tracker${q}`,
+  );
 }
 
 export function fetchPicksDailyHistoryQuotes(symbols: string[]) {

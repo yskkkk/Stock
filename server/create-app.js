@@ -229,8 +229,9 @@ export function createApp() {
 
   app.get(
     "/api/picks/recommendations-tracker",
-    asyncRoute(async (_req, res) => {
-      res.json(await buildRecommendationsTrackerPayload());
+    asyncRoute(async (req, res) => {
+      const includeQuotes = String(req.query.quotes ?? "1").trim() !== "0";
+      res.json(await buildRecommendationsTrackerPayload({ includeQuotes }));
     }),
   );
 
