@@ -6,6 +6,7 @@
 
 import { randomUUID } from "node:crypto";
 import {
+  findCanonicalIdeHistoryIdForPromptSync,
   finalizeOpsAgentEntry,
   trimStoredTextForOpsHistory,
   upsertOpsAgentHistoryFromQueueSync,
@@ -111,10 +112,15 @@ function tooltipInstruction(instruction) {
 /** @param {{ requestIp?: string | null; instruction?: string; historyRunId?: string | null; source?: 'web' | 'ide' }} meta */
 function buildQueueMeta(meta) {
   const source = meta.source === "ide" ? "ide" : "web";
-  const id =
+  let id =
     typeof meta.historyRunId === "string" && meta.historyRunId.trim().length > 0
       ? meta.historyRunId.trim()
-      : randomUUID();
+      : "";
+  if (!id && source === "ide") {
+    const canon = findCanonicalIdeHistoryIdForPromptSync(meta.instruction);
+    if (canon) id = canon;
+  }
+  if (!id) id = randomUUID();
   return {
     id,
     requestIp:
