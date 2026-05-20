@@ -6492,11 +6492,11 @@ body {
 
 /* 스크리너용 .picks-panel 높이 제한(56dvh)을 받지 않음 */
 .picks-panel.rec-tracker-panel {
-  max-height: min(calc(100dvh - 5.25rem), 960px);
+  max-height: none;
   min-height: min(calc(100dvh - 6rem), 680px);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
   flex: 1 1 auto;
   padding: 0.9rem 1.05rem 1.05rem;
   gap: 0.2rem;
@@ -6505,7 +6505,7 @@ body {
 .rec-tracker-panel {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .rec-tracker-panel .panel-head {
@@ -6706,8 +6706,10 @@ body {
 }
 
 .rec-tracker-table-wrap {
-  flex: 1 1 auto;
-  min-height: min(42dvh, 28rem);
+  flex: 0 0 auto;
+  min-height: min(72dvh, 84rem);
+  height: min(72dvh, 84rem);
+  max-height: min(72dvh, 84rem);
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   border: 1px solid var(--card-border);
@@ -6890,7 +6892,9 @@ body {
   }
 
   .rec-tracker-table-wrap {
-    min-height: min(38dvh, 22rem);
+    min-height: min(114dvh, 66rem);
+    height: min(114dvh, 66rem);
+    max-height: min(114dvh, 66rem);
   }
 
   .rec-tracker-summary {
@@ -6905,7 +6909,8 @@ body {
 
 /* 스크리너 picks-panel 규칙이 추천 탭에 적용되지 않도록 */
 .workspace:not(.crypto-workspace) .picks-panel.rec-tracker-panel {
-  max-height: min(calc(100dvh - 5.25rem), 960px);
+  max-height: none;
   min-height: min(calc(100dvh - 6rem), 680px);
+  overflow: visible;
   flex: 1 1 auto;
 }
