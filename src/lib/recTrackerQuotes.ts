@@ -72,6 +72,33 @@ export function prioritizeTrackerSymbols(
     .map(([sym]) => sym);
 }
 
+/** 이전 화면 시세를 유지한 채 새 시세를 덮어씀(새로고침 중 깜빡임 방지) */
+export function applyTrackerQuotes(
+  base: RecommendationsTrackerResponse,
+  freshQuotes: PicksDailyHistoryQuotesMap,
+  prev?: RecommendationsTrackerResponse | null,
+): RecommendationsTrackerResponse {
+  const combined: PicksDailyHistoryQuotesMap = {};
+  if (prev) {
+    for (const it of prev.items) {
+      const sym = it.symbol.trim().toUpperCase();
+      if (
+        it.currentPrice != null &&
+        Number.isFinite(it.currentPrice) &&
+        it.currentPrice > 0
+      ) {
+        combined[sym] = { price: it.currentPrice };
+      }
+    }
+  }
+  for (const [sym, q] of Object.entries(freshQuotes)) {
+    if (q?.price != null && Number.isFinite(q.price) && q.price > 0) {
+      combined[sym] = q;
+    }
+  }
+  return mergeQuotesIntoTrackerPayload(base, combined);
+}
+
 export function mergeQuotesIntoTrackerPayload(
   base: RecommendationsTrackerResponse,
   quotes: PicksDailyHistoryQuotesMap,

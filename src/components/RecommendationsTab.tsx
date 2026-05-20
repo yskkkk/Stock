@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchPicksDailyHistoryQuotes, fetchRecommendationsTracker } from "../api";
 import {
-  mergeQuotesIntoTrackerPayload,
+  applyTrackerQuotes,
   prioritizeTrackerSymbols,
 } from "../lib/recTrackerQuotes";
 import { signalChipMeta } from "../constants/signalChips";
@@ -86,28 +86,38 @@ export default function RecommendationsTab({
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   const TRACKER_QUOTE_BATCH = 96;
+  const dataRef = useRef<RecommendationsTrackerResponse | null>(null);
+  dataRef.current = data;
 
   const load = useCallback((opts?: { silent?: boolean }) => {
-    if (!opts?.silent) {
+    const prev = dataRef.current;
+    const silent = opts?.silent ?? prev != null;
+    if (!silent) {
       setLoading(true);
       setError(null);
     }
 
     void fetchRecommendationsTracker({ quotes: false })
       .then(async (base) => {
-        setData(base);
         const syms = prioritizeTrackerSymbols(base.items, TRACKER_QUOTE_BATCH);
-        if (!syms.length) return base;
-        try {
-          const { quotes } = await fetchPicksDailyHistoryQuotes(syms);
-          return mergeQuotesIntoTrackerPayload(base, quotes);
-        } catch {
-          return base;
+        let freshQuotes: Awaited<
+          ReturnType<typeof fetchPicksDailyHistoryQuotes>
+        >["quotes"] = {};
+        if (syms.length) {
+          try {
+            freshQuotes = (await fetchPicksDailyHistoryQuotes(syms)).quotes;
+          } catch {
+            /* 이전 시세 유지 */
+          }
         }
+        return applyTrackerQuotes(base, freshQuotes, prev);
       })
-      .then(setData)
+      .then((next) => {
+        setData(next);
+        setError(null);
+      })
       .catch((e) => {
-        if (!opts?.silent) setData(null);
+        if (!silent) setData(null);
         setError(e instanceof Error ? e.message : String(e));
       })
       .finally(() => setLoading(false));
@@ -295,8 +305,8 @@ export default function RecommendationsTab({
             <button
               type="button"
               className="btn btn--secondary btn--sm"
-              disabled={loading}
-              onClick={load}
+              disabled={loading && !data}
+              onClick={() => load({ silent: true })}
             >
               {ko.app.recTrackerRefresh}
             </button>
