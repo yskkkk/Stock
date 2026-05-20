@@ -63,6 +63,12 @@ export const ko = {
       "「{score}」만 아래 목록에 표시 중 · 같은 칩을 다시 누르면 해제",
     recTrackerChipFilterTap: "누르면 아래 목록을 이 항목만 보기",
     recTrackerChipSelected: "선택됨 · 다시 누르면 해제",
+    recTrackerAnalysisTitle: "승률 낮은 근거 분석",
+    recTrackerAnalysisIntro:
+      "현재 시장·일자 필터 기준 추천 실적을 자동 분석합니다. 표본이 적으면 참고용입니다.",
+    recTrackerAnalysisBaseline: "전체 승률 {rate} (승패 확정 {decided}건)",
+    recTrackerAnalysisNone: "전체 대비 현저히 낮은 근거는 없습니다.",
+    recTrackerAnalysisViewList: "해당 근거 목록 보기",
     recTrackerNoSignals: "근거 미기록",
     recTrackerRefresh: "새로고침",
     recTrackerDateAll: "전체 일자",

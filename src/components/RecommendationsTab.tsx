@@ -14,6 +14,7 @@ import {
   type RecTrackerSortKey,
   type SortDir,
 } from "../lib/sortRecTracker";
+import RecTrackerSignalAnalysisPanel from "./RecTrackerSignalAnalysisPanel";
 import { ko } from "../i18n/ko";
 import type {
   Market,
@@ -493,6 +494,14 @@ export default function RecommendationsTab({
                   })}
                 </div>
               </div>
+            )}
+
+            {itemsForChipStats.length > 0 && (
+              <RecTrackerSignalAnalysisPanel
+                itemsPool={itemsForChipStats}
+                activeSignalId={signalFilter}
+                onFocusSignal={setSignalFilter}
+              />
             )}
 
             <div className="rec-tracker-table-wrap">

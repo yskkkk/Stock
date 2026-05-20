@@ -6669,6 +6669,172 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
+/* 승률 낮은 근거 분석 — 접이식, 칩·표 레이아웃 유지 */
+.rec-tracker-analysis {
+  margin: 0 0 0.85rem;
+  padding: 0.55rem 0.65rem 0.65rem;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  background: rgba(148, 163, 184, 0.05);
+}
+
+.rec-tracker-analysis__summary {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.rec-tracker-analysis__summary::-webkit-details-marker {
+  display: none;
+}
+
+.rec-tracker-analysis__summary::before {
+  content: "▸";
+  font-size: 0.65rem;
+  color: var(--muted);
+  transition: transform 0.15s ease;
+}
+
+.rec-tracker-analysis[open] .rec-tracker-analysis__summary::before {
+  transform: rotate(90deg);
+}
+
+.rec-tracker-analysis__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--down);
+  background: rgba(248, 113, 113, 0.14);
+}
+
+.rec-tracker-analysis__intro,
+.rec-tracker-analysis__baseline,
+.rec-tracker-analysis__empty {
+  margin: 0.45rem 0 0;
+  font-size: 0.72rem;
+  font-weight: 580;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.rec-tracker-analysis__baseline {
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.rec-tracker-analysis__list {
+  margin: 0.55rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.rec-tracker-analysis__item {
+  padding: 0.5rem 0.55rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(148, 163, 184, 0.04);
+}
+
+.rec-tracker-analysis__item--low {
+  border-color: rgba(248, 113, 113, 0.22);
+  background: rgba(248, 113, 113, 0.05);
+}
+
+.rec-tracker-analysis__item--watch {
+  border-color: rgba(251, 191, 36, 0.22);
+  background: rgba(251, 191, 36, 0.05);
+}
+
+.rec-tracker-analysis__item-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.rec-tracker-analysis__tag {
+  font-size: 0.72rem !important;
+  padding: 0.12rem 0.38rem !important;
+  font-weight: 650 !important;
+}
+
+.rec-tracker-analysis__rate {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--down);
+  font-variant-numeric: tabular-nums;
+}
+
+.rec-tracker-analysis__item--watch .rec-tracker-analysis__rate {
+  color: var(--warn);
+}
+
+.rec-tracker-analysis__delta {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.rec-tracker-analysis__n {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.rec-tracker-analysis__bullets {
+  margin: 0 0 0.4rem;
+  padding-left: 1.05rem;
+  font-size: 0.72rem;
+  font-weight: 580;
+  line-height: 1.48;
+  color: var(--text-dim);
+}
+
+.rec-tracker-analysis__bullets li + li {
+  margin-top: 0.2rem;
+}
+
+.rec-tracker-analysis__link {
+  appearance: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.rec-tracker-analysis__link--active {
+  color: var(--text-dim);
+  text-decoration: none;
+}
+
+.rec-tracker-analysis__link:hover {
+  opacity: 0.88;
+}
+
 .rec-tracker-signal-chip {
   position: relative;
   display: inline-flex;
