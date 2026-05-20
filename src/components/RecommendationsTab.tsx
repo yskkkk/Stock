@@ -8,6 +8,11 @@ import {
   formatPrice,
   formatUpdatedAt,
 } from "../lib/format";
+import {
+  sortRecTrackerItems,
+  type RecTrackerSortKey,
+  type SortDir,
+} from "../lib/sortRecTracker";
 import { ko } from "../i18n/ko";
 import type {
   Market,
@@ -71,6 +76,8 @@ export default function RecommendationsTab({
   const [signalFilter, setSignalFilter] = useState<SignalId | null>(null);
   const [scoreFilter, setScoreFilter] = useState<number | null>(null);
   const [dateFilter, setDateFilter] = useState<string>("all");
+  const [sortKey, setSortKey] = useState<RecTrackerSortKey>("date");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -103,6 +110,25 @@ export default function RecommendationsTab({
       return true;
     });
   }, [data?.items, dateFilter, market, signalFilter, scoreFilter]);
+
+  const sortedItems = useMemo(
+    () => sortRecTrackerItems(filteredItems, sortKey, sortDir),
+    [filteredItems, sortKey, sortDir],
+  );
+
+  const onSortColumn = useCallback(
+    (key: RecTrackerSortKey) => {
+      if (sortKey === key) {
+        setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+        return;
+      }
+      setSortKey(key);
+      setSortDir(
+        key === "date" || key === "score" || key === "change" ? "desc" : "asc",
+      );
+    },
+    [sortKey],
+  );
 
   const filteredSummary = useMemo(() => {
     let wins = 0;
@@ -409,18 +435,64 @@ export default function RecommendationsTab({
               <table className="rec-tracker-table">
                 <thead>
                   <tr>
-                    <th>{ko.app.recTrackerColDate}</th>
-                    <th>{ko.app.recTrackerColName}</th>
-                    <th>{ko.app.recTrackerColScore}</th>
+                    <RecTrackerSortTh
+                      label={ko.app.recTrackerColDate}
+                      column="date"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onSort={onSortColumn}
+                    />
+                    <RecTrackerSortTh
+                      label={ko.app.recTrackerColName}
+                      column="name"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onSort={onSortColumn}
+                    />
+                    <RecTrackerSortTh
+                      label={ko.app.recTrackerColScore}
+                      column="score"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onSort={onSortColumn}
+                      align="center"
+                    />
                     <th>{ko.app.recTrackerColSignals}</th>
-                    <th>{ko.app.recTrackerColEntry}</th>
-                    <th>{ko.app.recTrackerColCurrent}</th>
-                    <th>{ko.app.recTrackerColChange}</th>
-                    <th>{ko.app.recTrackerColResult}</th>
+                    <RecTrackerSortTh
+                      label={ko.app.recTrackerColEntry}
+                      column="entry"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onSort={onSortColumn}
+                      align="num"
+                    />
+                    <RecTrackerSortTh
+                      label={ko.app.recTrackerColCurrent}
+                      column="current"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onSort={onSortColumn}
+                      align="num"
+                    />
+                    <RecTrackerSortTh
+                      label={ko.app.recTrackerColChange}
+                      column="change"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onSort={onSortColumn}
+                      align="num"
+                    />
+                    <RecTrackerSortTh
+                      label={ko.app.recTrackerColResult}
+                      column="outcome"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onSort={onSortColumn}
+                    />
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredItems.map((it) => (
+                  {sortedItems.map((it) => (
                     <RecTrackerRow key={it.id} item={it} onOpenPick={onOpenPick} />
                   ))}
                 </tbody>
@@ -430,6 +502,48 @@ export default function RecommendationsTab({
         )}
       </section>
     </div>
+  );
+}
+
+function RecTrackerSortTh({
+  label,
+  column,
+  sortKey,
+  sortDir,
+  onSort,
+  align,
+}: {
+  label: string;
+  column: RecTrackerSortKey;
+  sortKey: RecTrackerSortKey;
+  sortDir: SortDir;
+  onSort: (key: RecTrackerSortKey) => void;
+  align?: "center" | "num";
+}) {
+  const active = sortKey === column;
+  const thClass =
+    align === "center"
+      ? "rec-tracker-th rec-tracker-th--center"
+      : align === "num"
+        ? "rec-tracker-th rec-tracker-th--num"
+        : "rec-tracker-th";
+
+  return (
+    <th className={thClass}>
+      <button
+        type="button"
+        className={
+          active ? "rec-tracker-th__btn rec-tracker-th__btn--active" : "rec-tracker-th__btn"
+        }
+        onClick={() => onSort(column)}
+        aria-sort={active ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
+      >
+        <span>{label}</span>
+        <span className="rec-tracker-th__icon" aria-hidden>
+          {active ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
+        </span>
+      </button>
+    </th>
   );
 }
 

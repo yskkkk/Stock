@@ -6485,10 +6485,22 @@ body {
 .workspace--rec-tracker {
   grid-template-columns: 1fr;
   max-width: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+  align-self: stretch;
+}
+
+/* 스크리너용 .picks-panel 높이 제한(56dvh)을 받지 않음 */
+.picks-panel.rec-tracker-panel {
+  max-height: min(calc(100dvh - 5.25rem), 960px);
+  min-height: min(calc(100dvh - 6rem), 680px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex: 1 1 auto;
 }
 
 .rec-tracker-panel {
-  max-height: calc(100vh - 7.5rem);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -6657,10 +6669,13 @@ body {
 }
 
 .rec-tracker-table-wrap {
-  flex: 1;
-  min-height: 0;
+  flex: 1 1 auto;
+  min-height: min(42dvh, 28rem);
   overflow: auto;
   -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  background: rgba(148, 163, 184, 0.03);
 }
 
 .rec-tracker-table {
@@ -6670,7 +6685,69 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-.rec-tracker-table th {
+.rec-tracker-th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0;
+  background: var(--card);
+  border-bottom: 1px solid var(--card-border);
+  white-space: nowrap;
+}
+
+.rec-tracker-th--center {
+  text-align: center;
+}
+
+.rec-tracker-th--num {
+  text-align: right;
+}
+
+.rec-tracker-th__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  width: 100%;
+  padding: 0.35rem 0.4rem;
+  margin: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  font-size: inherit;
+  color: var(--muted);
+  cursor: pointer;
+  text-align: inherit;
+}
+
+.rec-tracker-th--num .rec-tracker-th__btn {
+  justify-content: flex-end;
+}
+
+.rec-tracker-th--center .rec-tracker-th__btn {
+  justify-content: center;
+}
+
+.rec-tracker-th__btn:hover {
+  color: var(--text);
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.rec-tracker-th__btn--active {
+  color: var(--accent);
+}
+
+.rec-tracker-th__icon {
+  font-size: 0.55rem;
+  opacity: 0.55;
+  line-height: 1;
+}
+
+.rec-tracker-th__btn--active .rec-tracker-th__icon {
+  opacity: 1;
+}
+
+.rec-tracker-table th:not(.rec-tracker-th) {
   position: sticky;
   top: 0;
   z-index: 1;
@@ -6770,6 +6847,15 @@ body {
 }
 
 @media (max-width: 720px) {
+  .picks-panel.rec-tracker-panel {
+    min-height: min(calc(100dvh - 4.5rem), 560px);
+    max-height: none;
+  }
+
+  .rec-tracker-table-wrap {
+    min-height: min(38dvh, 22rem);
+  }
+
   .rec-tracker-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -6778,4 +6864,11 @@ body {
   .rec-tracker-table td:nth-child(3) {
     display: none;
   }
+}
+
+/* 스크리너 picks-panel 규칙이 추천 탭에 적용되지 않도록 */
+.workspace:not(.crypto-workspace) .picks-panel.rec-tracker-panel {
+  max-height: min(calc(100dvh - 5.25rem), 960px);
+  min-height: min(calc(100dvh - 6rem), 680px);
+  flex: 1 1 auto;
 }
