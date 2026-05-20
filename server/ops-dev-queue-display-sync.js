@@ -5,7 +5,10 @@
  * - enqueue 직전: 메모리 비었을 때만 lease를 1회 미러에 병합(깜빡임 방지)
  */
 import { getOpsAgentQueueMemorySnapshot } from "./ops-agent-job-queue.js";
-import { collapseIdeAgentHistoryDuplicatesSync } from "./ops-agent-history-store.js";
+import {
+  collapseIdeAgentHistoryDuplicatesSync,
+  finalizeOrphanIdeAgentHistoryOnBootSync,
+} from "./ops-agent-history-store.js";
 import {
   clearOrphanDevQueueDisplayOnBootSync,
   reconcilePersistQueueToAgentHistorySync,
@@ -96,6 +99,7 @@ export function reconcileDevQueueDisplayMirrorOnBoot() {
   if (memory.length === 0) {
     clearOrphanDevQueueDisplayOnBootSync();
     clearIdeLeaseOnDisk();
+    finalizeOrphanIdeAgentHistoryOnBootSync();
   }
   reconcilePersistQueueToAgentHistorySync();
   syncDevQueueDisplayFromRuntimeSync();

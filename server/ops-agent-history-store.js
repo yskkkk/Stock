@@ -195,6 +195,79 @@ function mergeIdeHistoryRowsPreferNewerActive(a, b) {
 /**
  * IDE 동일 지시문 중복 이력 행 정리(기동·조회 시).
  */
+/**
+ * 메모리 큐가 비었는데 이력만 running/waiting인 IDE 고아 — 재기동·서버 다운 후 UI 정리.
+ */
+export function finalizeOrphanIdeAgentHistoryOnBootSync() {
+  const prev = readRawListSync()
+    .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))
+    .filter(Boolean);
+  if (!prev.length) return;
+
+  const now = Date.now();
+  let changed = false;
+  const next = prev.map((e) => {
+    if (sanitizeRequestIpForStore(e.requestIp) !== "cursor-ide") return e;
+    if (e.state !== "running" && e.state !== "waiting") return e;
+    changed = true;
+    const started = e.startedAtMs ?? now;
+    return {
+      ...e,
+      state: /** @type {const} */ ("cancelled"),
+      updatedAtMs: now,
+      finishedAtMs: now,
+      error: null,
+      statusText: "서버 재시작·연결 끊김",
+      resultText:
+        "개발 서버가 중단되었거나 IDE release가 호출되지 않아 실행 중 상태를 중단 처리했습니다.",
+      durationMs: Math.max(0, now - started),
+      runtimeLabel: e.runtimeLabel || "ide",
+    };
+  });
+  if (!changed) return;
+  next.sort((a, b) => (b.updatedAtMs ?? 0) - (a.updatedAtMs ?? 0));
+  saveRawListSync(next.slice(0, OPS_AGENT_HISTORY_MAX));
+}
+
+/**
+ * display 큐에서 제거된 running 행에 대응하는 이력 id를 중단 처리.
+ * @param {string[]} ids
+ */
+export function finalizeOrphanIdeAgentHistoryIdsSync(ids) {
+  const want = new Set(
+    (Array.isArray(ids) ? ids : [])
+      .map((x) => String(x ?? "").trim())
+      .filter(Boolean),
+  );
+  if (want.size === 0) return;
+
+  const prev = readRawListSync()
+    .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))
+    .filter(Boolean);
+  const now = Date.now();
+  let changed = false;
+  const next = prev.map((e) => {
+    if (!want.has(e.id)) return e;
+    if (e.state !== "running" && e.state !== "waiting") return e;
+    changed = true;
+    const started = e.startedAtMs ?? now;
+    return {
+      ...e,
+      state: /** @type {const} */ ("cancelled"),
+      updatedAtMs: now,
+      finishedAtMs: now,
+      error: null,
+      statusText: "실행 큐 만료",
+      resultText: "오래 실행 중으로 표시된 항목을 자동으로 중단 처리했습니다.",
+      durationMs: Math.max(0, now - started),
+      runtimeLabel: e.runtimeLabel || "ide",
+    };
+  });
+  if (!changed) return;
+  next.sort((a, b) => (b.updatedAtMs ?? 0) - (a.updatedAtMs ?? 0));
+  saveRawListSync(next.slice(0, OPS_AGENT_HISTORY_MAX));
+}
+
 export function collapseIdeAgentHistoryDuplicatesSync() {
   const prev = readRawListSync()
     .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))

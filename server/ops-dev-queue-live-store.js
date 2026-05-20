@@ -5,7 +5,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { upsertOpsAgentHistoryFromQueueSync } from "./ops-agent-history-store.js";
+import {
+  finalizeOrphanIdeAgentHistoryIdsSync,
+  upsertOpsAgentHistoryFromQueueSync,
+} from "./ops-agent-history-store.js";
 import { enrichAgentEntriesWithUnifiedSeq } from "./ops-unified-queue-seq.js";
 
 const RECORD_MODE_REQUEST_IP = "record-mode";
@@ -196,11 +199,16 @@ export function writeDevQueueDisplayMirrorFromRuntime(runtimeEntries) {
 export function sweepStalePersistedDevQueueSync(maxRunningAgeMs = 45 * 60 * 1000) {
   const live = readLiveRawSync();
   const now = Date.now();
+  /** @type {string[]} */
+  const droppedIds = [];
   const next = live.agentEntries.filter((e) => {
     if (e.status !== "running") return true;
     const at = typeof e.enqueuedAtMs === "number" ? e.enqueuedAtMs : 0;
-    return at <= 0 || now - at < maxRunningAgeMs;
+    const keep = at <= 0 || now - at < maxRunningAgeMs;
+    if (!keep && e.id) droppedIds.push(String(e.id));
+    return keep;
   });
+  if (droppedIds.length) finalizeOrphanIdeAgentHistoryIdsSync(droppedIds);
   if (next.length === live.agentEntries.length) return;
   if (next.length === 0) persistDevQueueClear();
   else {
