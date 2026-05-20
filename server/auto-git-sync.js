@@ -30,6 +30,7 @@ import { execFileSync, execSync, spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { appendServerEventLog } from "./access-log.js";
+import { formatLogTimestampKst } from "./log-kst.js";
 import { respawnNodeProcess } from "./restart-node-process.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -170,10 +171,9 @@ export function startAutoGitSync({ httpServer }) {
       return;
     }
 
-    const ts = new Date().toISOString();
     appendServerEventLog(
       "auto-git",
-      `${ts} compare ${remoteRef} remote=${remoteRev.slice(0, 7)} local HEAD=${localRev.slice(0, 7)} differ → pull --ff-only`,
+      `${formatLogTimestampKst()} compare ${remoteRef} remote=${remoteRev.slice(0, 7)} local HEAD=${localRev.slice(0, 7)} differ → pull --ff-only`,
     );
 
     let stashed = false;

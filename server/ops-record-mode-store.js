@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "path";
 import { fileURLToPath } from "node:url";
+import { formatLogTimestampKst } from "./log-kst.js";
 import {
   RECORD_MODE_ACTIVITY_LOG_FILE,
   ensureServerLogDirSync,
@@ -398,7 +399,7 @@ export function appendRecordModeActivityLog(rec) {
   ensureDirSync();
   ensureServerLogDirSync();
   const payload = {
-    iso: new Date().toISOString(),
+    iso: formatLogTimestampKst(),
     source: "record-mode",
     ...rec,
   };

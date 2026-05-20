@@ -1,4 +1,5 @@
 import fs from "fs";
+import { formatLogTimestampKst } from "./log-kst.js";
 import {
   dailyServerLogPath,
   ensureServerLogDirSync,
@@ -14,7 +15,7 @@ function ensureAccessLogReady() {
   }
 }
 
-/** 서버 로컬 날짜 기준 — 자정이 지나면 다음 파일로 자연 전환 */
+/** KST 일자 기준 — 자정이 지나면 다음 파일로 자연 전환 */
 function accessLogPathForToday() {
   return dailyServerLogPath("access");
 }
@@ -34,12 +35,12 @@ export function stampAccessEventNow(req, atMs) {
   /** @type {Record<symbol, number>} */ (req)[ACCESS_EVENT_AT_MS] = ms;
 }
 
-/** @param {import("http").IncomingMessage} req */
-function accessEventAtIso(req) {
+/** @param {import("http").IncomingMessage} req @returns {string} KST 로그 시각 */
+function accessEventAtLogTs(req) {
   const ms = /** @type {Record<symbol, number>} */ (req)?.[ACCESS_EVENT_AT_MS];
   return typeof ms === "number" && Number.isFinite(ms)
-    ? new Date(ms).toISOString()
-    : new Date().toISOString();
+    ? formatLogTimestampKst(ms)
+    : formatLogTimestampKst();
 }
 
 export function clientIp(req) {
@@ -166,10 +167,10 @@ function humanAction(req) {
 
 /**
  * @param {import("http").IncomingMessage} req
- * @param {string} [atIso] 기록 시각(미지정 시 호출 시점)
+ * @param {string} [atTs] 기록 시각 KST 문자열(미지정 시 호출 시점)
  */
-function lineFromReq(req, atIso) {
-  const ts = atIso ?? new Date().toISOString();
+function lineFromReq(req, atTs) {
+  const ts = atTs ?? formatLogTimestampKst();
   const ip = clientIp(req);
   const method = String(req.method ?? "GET").toUpperCase();
   const action = humanAction(req);
@@ -200,11 +201,11 @@ export function shouldLogViteUrl(url) {
 }
 
 /** Vite `IncomingMessage` / Express `req` 공통 */
-export function appendAccessLog(req, atIso) {
+export function appendAccessLog(req, atTs) {
   if (shouldSkipAccessLog(req)) return;
   try {
     ensureAccessLogReady();
-    const ts = atIso ?? accessEventAtIso(req);
+    const ts = atTs ?? accessEventAtLogTs(req);
     const { file, console: consoleLine } = lineFromReq(req, ts);
     console.log("[access]", consoleLine);
     fs.appendFile(accessLogPathForToday(), file, (err) => {
@@ -234,8 +235,8 @@ export function appendServerEventLog(
     ensureAccessLogReady();
     const ts =
       typeof eventAtMs === "number" && Number.isFinite(eventAtMs)
-        ? new Date(eventAtMs).toISOString()
-        : new Date().toISOString();
+        ? formatLogTimestampKst(eventAtMs)
+        : formatLogTimestampKst();
     const safeCat = String(category ?? "server")
       .replace(/[\t\r\n]/g, "_")
       .slice(0, 32);
@@ -282,7 +283,7 @@ export function expressAccessLogger(req, res, next) {
     ) {
       stampAccessEventNow(req);
     }
-    appendAccessLog(req, accessEventAtIso(req));
+    appendAccessLog(req, accessEventAtLogTs(req));
   });
   next();
 }
@@ -304,7 +305,7 @@ export function installViteAccessTraceMiddleware(server) {
       if (shouldSkipAccessLog(req)) return next();
       stampAccessEventNow(req);
       res.once("finish", () => {
-        appendAccessLog(req, accessEventAtIso(req));
+        appendAccessLog(req, accessEventAtLogTs(req));
       });
       next();
     },

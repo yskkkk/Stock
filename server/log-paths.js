@@ -4,6 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { formatLogTimestampKst, kstYmd } from "./log-kst.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -17,7 +18,7 @@ export function ensureServerLogDirSync() {
 }
 
 /**
- * 일별 로그 파일 경로 (로컬 날짜 기준 자정 전환).
+ * 일별 로그 파일 경로 (KST 자정 기준 전환).
  * @param {string} prefix 예: access, record-mode-activity
  */
 /** 기록 모드 활동 JSONL — 일별이 아닌 단일 파일(조회 API가 끝에서 읽음) */
@@ -27,14 +28,11 @@ export const RECORD_MODE_ACTIVITY_LOG_FILE = path.join(
 );
 
 export function dailyServerLogPath(prefix) {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
+  const ymd = kstYmd();
   const safe = String(prefix ?? "server")
     .replace(/[^\w.-]/g, "_")
     .slice(0, 48);
-  return path.join(SERVER_LOG_DIR, `${safe}-${y}-${m}-${day}.log`);
+  return path.join(SERVER_LOG_DIR, `${safe}-${ymd}.log`);
 }
 
 const LEGACY_LOG_MIGRATE_MARKER = path.join(SERVER_LOG_DIR, ".legacy-data-logs-migrated");
@@ -57,7 +55,7 @@ export function migrateLegacyServerLogsSync() {
       if (!fs.existsSync(legacyPath)) return;
       const content = fs.readFileSync(legacyPath, "utf8");
       if (!content.trim()) return;
-      const header = `\n# migrated from ${label} at ${new Date().toISOString()}\n`;
+      const header = `\n# migrated from ${label} at ${formatLogTimestampKst()}\n`;
       fs.appendFileSync(targetPath, header + content, "utf8");
     } catch {
       /* ignore */
