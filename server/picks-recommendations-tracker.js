@@ -4,6 +4,7 @@
 import {
   backfillMissingSignalIdsFromTechnical,
   enrichSlimPickFromBackfill,
+  lookupTelegramNotifyForRecommendation,
   reconcileRecommendationHistoryEnrichmentSync,
 } from "./picks-recommendation-enrich.js";
 import { getPicksDailyHistoryForApi } from "./picks-history-store.js";
@@ -238,11 +239,17 @@ async function buildRecommendationsTrackerPayloadInner(opts = {}) {
       q?.price != null && Number.isFinite(q.price) && q.price > 0 ? q.price : null;
     const changePct = pctFromPrices(ev.entryPrice, currentPrice);
     const outcome = outcomeFromPrices(ev.entryPrice, currentPrice);
+    const tg =
+      ev.market === "kr" || ev.market === "us"
+        ? lookupTelegramNotifyForRecommendation(ev.date, ev.market, ev.symbol)
+        : null;
     return {
       ...ev,
       currentPrice,
       changePct,
       outcome,
+      telegramNotified: Boolean(tg),
+      telegramNotifiedAtMs: tg?.atMs ?? null,
     };
   });
 

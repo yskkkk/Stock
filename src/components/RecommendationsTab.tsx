@@ -661,6 +661,12 @@ function RecTrackerRow({
   const sym = displayStockSymbol(item.symbol);
   const up = (item.changePct ?? 0) >= 0;
   const scoreMismatch = recTrackerScoreSignalMismatch(item.score, item.signalIds);
+  const tgTitle =
+    item.telegramNotified && item.telegramNotifiedAtMs
+      ? `${ko.app.recTrackerTelegramBadgeTitle} · ${formatUpdatedAt(item.telegramNotifiedAtMs)}`
+      : item.telegramNotified
+        ? ko.app.recTrackerTelegramBadgeTitle
+        : undefined;
 
   return (
     <tr
@@ -698,7 +704,18 @@ function RecTrackerRow({
     >
       <td className="rec-tracker-table__date">{item.date}</td>
       <td className="rec-tracker-table__name">
-        <span className="rec-tracker-table__sym">{sym}</span>
+        <div className="rec-tracker-table__name-inner">
+          <span className="rec-tracker-table__sym">{sym}</span>
+          {item.telegramNotified ? (
+            <span
+              className="rec-tracker-table__tg-badge"
+              title={tgTitle}
+              aria-label={tgTitle ?? ko.app.recTrackerTelegramBadgeTitle}
+            >
+              {ko.app.recTrackerTelegramBadge}
+            </span>
+          ) : null}
+        </div>
         <span className="rec-tracker-table__nm">{item.name}</span>
       </td>
       <td className="rec-tracker-table__score">

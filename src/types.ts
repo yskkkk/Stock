@@ -281,6 +281,10 @@ export interface RecommendationTrackerItem {
   currentPrice: number | null;
   changePct: number | null;
   outcome: RecommendationOutcome;
+  /** 해당 KST 일자에 텔레그램 알림 발송 이력이 있으면 true */
+  telegramNotified?: boolean;
+  /** 알림 발송 시각(ms), KST */
+  telegramNotifiedAtMs?: number | null;
 }
 
 export interface RecommendationSignalStat extends RecommendationTrackerRollup {

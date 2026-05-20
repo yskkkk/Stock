@@ -98,6 +98,23 @@ function getTelegramBackfillIndex() {
   return telegramIndexCache;
 }
 
+/**
+ * 추천 이력 일자(KST)·시장·심볼에 텔레그램 알림이 나갔는지.
+ * @param {string} date YYYY-MM-DD
+ * @param {"kr"|"us"} market
+ * @param {string} symbol
+ * @returns {{ atMs: number } | null}
+ */
+export function lookupTelegramNotifyForRecommendation(date, market, symbol) {
+  const d = String(date ?? "").trim();
+  const m = market === "kr" || market === "us" ? market : null;
+  const sym = String(symbol ?? "").trim().toUpperCase();
+  if (!d || !m || !sym) return null;
+  const hit = getTelegramBackfillIndex().get(recommendationMetaKey(d, m, sym));
+  if (!hit || !(hit.at > 0)) return null;
+  return { atMs: hit.at };
+}
+
 function readSignalCacheSync() {
   try {
     if (!fs.existsSync(SIGNAL_CACHE_FILE)) return {};

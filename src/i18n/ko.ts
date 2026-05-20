@@ -91,6 +91,8 @@ export const ko = {
       "점수·근거는 새로 기록분부터 저장됩니다. 과거 건은 텔레그램·기술분석 캐시로 보강 중일 수 있습니다.",
     recTrackerScoreMismatchHint:
       "점수는 추천 당시 기술 조건 가중 합(최대 13점)입니다. 근거 칩이 적으면 이력에 근거가 일부만 저장된 경우입니다.",
+    recTrackerTelegramBadge: "알림",
+    recTrackerTelegramBadgeTitle: "텔레그램 알림 발송 종목",
     picksStatsStreakLabel: "영업일 연속 추천",
     picksStatsStreakUnit: "일",
     picksStatsSinceFirstLabel: "첫 추천가 대비",
