@@ -9,6 +9,7 @@ import {
   formatUpdatedAt,
 } from "../lib/format";
 import {
+  compareWinRateDesc,
   sortRecTrackerItems,
   type RecTrackerSortKey,
   type SortDir,
@@ -161,7 +162,7 @@ export default function RecommendationsTab({
       scoreFilter == null &&
       dateFilter === "all"
     ) {
-      return base;
+      return [...base].sort(compareWinRateDesc);
     }
     const fromFiltered = new Map<string, { wins: number; losses: number; total: number }>();
     for (const it of filteredItems) {
@@ -185,7 +186,7 @@ export default function RecommendationsTab({
           winRatePct: decided > 0 ? (c.wins / decided) * 100 : null,
         };
       })
-      .sort((a, b) => b.total - a.total);
+      .sort(compareWinRateDesc);
   }, [data?.signalStats, filteredItems, market, signalFilter, scoreFilter, dateFilter]);
 
   const scoreStats = useMemo(() => {

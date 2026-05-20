@@ -223,7 +223,15 @@ export async function buildRecommendationsTrackerPayload() {
       ...rollupCounts(group),
     }))
     .filter((s) => s.signalId !== "__none__" || s.total > 0)
-    .sort((a, b) => b.total - a.total);
+    .sort((a, b) => {
+      const ar = a.winRatePct;
+      const br = b.winRatePct;
+      if (ar == null && br == null) return b.total - a.total;
+      if (ar == null) return 1;
+      if (br == null) return -1;
+      if (br !== ar) return br - ar;
+      return b.total - a.total;
+    });
 
   /** @type {Map<string, { symbol: string; name: string; market: string; items: typeof items }>} */
   const bySymbol = new Map();

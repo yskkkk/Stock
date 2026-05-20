@@ -18,6 +18,22 @@ const OUTCOME_RANK: Record<RecommendationOutcome, number> = {
   unknown: 0,
 };
 
+/** 승률 칩·통계: 높은 승률이 왼쪽(내림차순). 동률이면 표본 수 많은 순. */
+export function compareWinRateDesc(
+  a: { winRatePct: number | null; total?: number },
+  b: { winRatePct: number | null; total?: number },
+): number {
+  const ar = a.winRatePct;
+  const br = b.winRatePct;
+  if (ar == null && br == null) {
+    return (b.total ?? 0) - (a.total ?? 0);
+  }
+  if (ar == null) return 1;
+  if (br == null) return -1;
+  if (br !== ar) return br - ar;
+  return (b.total ?? 0) - (a.total ?? 0);
+}
+
 function compareNullableNum(
   a: number | null,
   b: number | null,
