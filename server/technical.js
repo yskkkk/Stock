@@ -20,7 +20,7 @@ export const MAX_TECH_SCORE = 13;
 /** 스크리너 추천: SIGNAL_DEFS 전체 조건 중 이 비율 이상 충족 시 통과 */
 export const MIN_CONDITION_SATISFY_RATIO = 0.8;
 /** 텔레그램 알림: 가중 점수(MAX_TECH_SCORE) 대비 이 비율 초과 시 발송 */
-export const MIN_TELEGRAM_SCORE_RATIO = 0.7;
+export const MIN_TELEGRAM_SCORE_RATIO = 0.8;
 export const SIGNAL_CONDITION_TOTAL = SIGNAL_DEFS.length;
 
 export function minConditionsRequired(
