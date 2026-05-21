@@ -74,10 +74,18 @@ import {
   applyTechWeights,
   getActiveSignalScoreWeightsSync,
   getDefaultSignalScoreWeights,
-  getMaxTechScoreSync,
   getTechWeightsMetaSync,
   resetTechWeightsSync,
 } from "./picks-tech-weights-store.js";
+import {
+  createTechModelSync,
+  deleteTechModelSync,
+  getMaxTechScoreSync,
+  listTechModelsSync,
+  resetDefaultTechModelWeightsSync,
+  setActiveTechModelIdsSync,
+  updateTechModelSync,
+} from "./picks-tech-models-store.js";
 import {
   fetchQuoteSnapshotsForSymbols,
   mergeLiveQuotesIntoPicksState,
@@ -279,7 +287,9 @@ export function createApp() {
   );
 
   app.post("/api/picks/tech-weights/reset", (_req, res) => {
+    resetDefaultTechModelWeightsSync();
     resetTechWeightsSync();
+    const listed = listTechModelsSync();
     res.json({
       ok: true,
       weights: getActiveSignalScoreWeightsSync(),
@@ -287,8 +297,72 @@ export function createApp() {
       maxTechScore: getMaxTechScoreSync(),
       revision: 0,
       updatedAtMs: null,
+      ...listed,
     });
   });
+
+  app.get("/api/picks/tech-models", (_req, res) => {
+    res.json(listTechModelsSync());
+  });
+
+  app.post(
+    "/api/picks/tech-models",
+    asyncRoute(async (req, res) => {
+      const name = String(req.body?.name ?? "").trim();
+      if (!name) {
+        res.status(400).json({ error: "모델 이름이 필요합니다." });
+        return;
+      }
+      const model = createTechModelSync({
+        name,
+        weights: req.body?.weights,
+        copyFromId: req.body?.copyFromId,
+      });
+      res.json({ ok: true, model, ...listTechModelsSync() });
+    }),
+  );
+
+  app.patch(
+    "/api/picks/tech-models/active",
+    asyncRoute(async (req, res) => {
+      const ids = req.body?.activeModelIds;
+      if (!Array.isArray(ids)) {
+        res.status(400).json({ error: "activeModelIds 배열이 필요합니다." });
+        return;
+      }
+      setActiveTechModelIdsSync(ids);
+      res.json({ ok: true, ...listTechModelsSync() });
+    }),
+  );
+
+  app.patch(
+    "/api/picks/tech-models/:id",
+    asyncRoute(async (req, res) => {
+      const id = String(req.params.id ?? "").trim();
+      try {
+        const model = updateTechModelSync(id, {
+          name: req.body?.name,
+          weights: req.body?.weights,
+        });
+        res.json({ ok: true, model, ...listTechModelsSync() });
+      } catch (e) {
+        res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
+      }
+    }),
+  );
+
+  app.delete(
+    "/api/picks/tech-models/:id",
+    asyncRoute(async (req, res) => {
+      const id = String(req.params.id ?? "").trim();
+      try {
+        deleteTechModelSync(id);
+        res.json({ ok: true, ...listTechModelsSync() });
+      } catch (e) {
+        res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
+      }
+    }),
+  );
 
   app.post("/api/picks/refresh", (_req, res) => {
     res.json(forceRescreen());

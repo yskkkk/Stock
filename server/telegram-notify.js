@@ -52,8 +52,9 @@ function normalizeSymbol(symbol) {
   return String(symbol ?? "").toUpperCase();
 }
 
-function notifyFlightKey(symbol, market) {
-  return `${market}:${normalizeSymbol(symbol)}`;
+function notifyFlightKey(symbol, market, modelId) {
+  const mid = String(modelId ?? "default").trim() || "default";
+  return `${market}:${normalizeSymbol(symbol)}:${mid}`;
 }
 
 /** 알림 발송·저장용 단일 시점 가격(당일 고저 범위 사용 안 함) */
@@ -249,11 +250,18 @@ function parseSentKey(key, entry) {
   }
 
   if (k.includes(":")) {
-
-    const [market, symbol] = k.split(":");
-
-    return { market, symbol: normalizeSymbol(symbol) };
-
+    const parts = k.split(":");
+    const market = parts[0] === "kr" || parts[0] === "us" ? parts[0] : null;
+    if (market && parts.length >= 2) {
+      const symbol = normalizeSymbol(parts[1]);
+      const modelId =
+        parts.length >= 3
+          ? String(parts[2] ?? "").trim() || null
+          : entry?.techModelId != null
+            ? String(entry.techModelId).trim()
+            : null;
+      return { market, symbol, modelId };
+    }
   }
 
   const symbol = normalizeSymbol(k);
@@ -266,21 +274,17 @@ function parseSentKey(key, entry) {
 
 
 
-/** 같은 시장·같은 종목·같은 거래일에 이미 발송했는지 (모든 키 형식 검사) */
+/** 같은 시장·종목·모델·거래일에 이미 발송했는지 */
 
-function wasSentThisSession(symbol, market, session, sent) {
+function wasSentThisSession(symbol, market, session, sent, modelId) {
 
   const sym = normalizeSymbol(symbol);
 
-  const canonical = notifyFlightKey(sym, market);
+  const mid = String(modelId ?? "default").trim() || "default";
 
-
+  const canonical = notifyFlightKey(sym, market, mid);
 
   if (sent[canonical]?.session === session) return true;
-
-  if (sent[`legacy:${sym}`]?.session === session) return true;
-
-
 
   for (const [key, entry] of Object.entries(sent)) {
 
@@ -288,7 +292,10 @@ function wasSentThisSession(symbol, market, session, sent) {
 
     const parsed = parseSentKey(key, entry);
 
-    if (parsed.market === market && parsed.symbol === sym) return true;
+    const em =
+      entry?.techModelId != null ? String(entry.techModelId).trim() : parsed.modelId;
+
+    if (parsed.market === market && parsed.symbol === sym && em === mid) return true;
 
   }
 
@@ -298,9 +305,11 @@ function wasSentThisSession(symbol, market, session, sent) {
 
 
 
-function purgeDuplicateSentKeys(symbol, market, session, sent, keepKey) {
+function purgeDuplicateSentKeys(symbol, market, session, sent, keepKey, modelId) {
 
   const sym = normalizeSymbol(symbol);
+
+  const mid = String(modelId ?? "default").trim() || "default";
 
   for (const key of Object.keys(sent)) {
 
@@ -312,7 +321,10 @@ function purgeDuplicateSentKeys(symbol, market, session, sent, keepKey) {
 
     const parsed = parseSentKey(key, entry);
 
-    if (parsed.market === market && parsed.symbol === sym) {
+    const em =
+      entry?.techModelId != null ? String(entry.techModelId).trim() : parsed.modelId;
+
+    if (parsed.market === market && parsed.symbol === sym && em === mid) {
 
       delete sent[key];
 
@@ -330,7 +342,9 @@ function writeSentEntry(pick, sent) {
 
   const market = pick.market;
 
-  const key = notifyFlightKey(sym, market);
+  const modelId = String(pick.techModelId ?? "default").trim() || "default";
+
+  const key = notifyFlightKey(sym, market, modelId);
 
   const session = getTradingSessionKey(market);
 
@@ -354,6 +368,10 @@ function writeSentEntry(pick, sent) {
 
     market,
 
+    techModelId: modelId,
+
+    techModelName: String(pick.techModelName ?? modelId).trim() || modelId,
+
     name: pick.name ?? sym,
 
     price: snapshotAlertPrice(pick),
@@ -367,7 +385,7 @@ function writeSentEntry(pick, sent) {
 
   };
 
-  purgeDuplicateSentKeys(sym, market, session, sent, key);
+  purgeDuplicateSentKeys(sym, market, session, sent, key, modelId);
 
 }
 
@@ -387,7 +405,9 @@ function tryClaimNotify(pick) {
 
   const market = pick.market;
 
-  const key = notifyFlightKey(sym, market);
+  const modelId = String(pick.techModelId ?? "default").trim() || "default";
+
+  const key = notifyFlightKey(sym, market, modelId);
 
 
 
@@ -407,7 +427,7 @@ function tryClaimNotify(pick) {
 
       const session = getTradingSessionKey(market);
 
-      if (wasSentThisSession(sym, market, session, sent)) {
+      if (wasSentThisSession(sym, market, session, sent, modelId)) {
 
         return false;
 
@@ -695,11 +715,20 @@ function buildMessage(pick) {
       ? reasons.map((r, i) => `  ${i + 1}. ${escHtml(r)}`).join("\n")
       : "  • —";
 
+  const modelName = String(pick.techModelName ?? pick.techModelId ?? "").trim();
+  const weights = pick.techModelWeights;
+  const maxScore = getMaxTechScore(weights);
+  const minScore = minTelegramScoreRequired(weights);
+
   return [
 
     `<b>${flag} ${marketLabel} · 점수 ${Math.round(MIN_TELEGRAM_SCORE_RATIO * 100)}%+ 알림</b>`,
 
     "",
+
+    modelName ? `🧠 <b>모델</b>  ${escHtml(modelName)}` : "",
+
+    modelName ? "" : null,
 
     `<b>${escHtml(pick.name)}</b>`,
 
@@ -711,7 +740,7 @@ function buildMessage(pick) {
 
     `<code>${bar}</code>`,
 
-    `📈 가중 점수  <b>${pick.score}</b> / ${getMaxTechScore()} (알림 기준 ${minTelegramScoreRequired()}점 초과)`,
+    `📈 가중 점수  <b>${pick.score}</b> / ${maxScore} (알림 기준 ${minScore}점 초과)`,
 
     "",
 
@@ -727,7 +756,9 @@ function buildMessage(pick) {
 
     `<i>🕐 ${time} KST</i>`,
 
-  ].join("\n");
+  ]
+    .filter((line) => line != null)
+    .join("\n");
 
 }
 
@@ -799,11 +830,15 @@ export function notifyHighScorePick(pick) {
 
   if (!isTelegramNotifyEnabled()) return;
 
-  if (!meetsTelegramNotifyScore(pick.score)) return;
+  const weights = pick.techModelWeights;
+
+  if (!meetsTelegramNotifyScore(pick.score, weights)) return;
 
   const sym = normalizeSymbol(pick.symbol);
 
-  const key = notifyFlightKey(sym, pick.market);
+  const modelId = String(pick.techModelId ?? "default").trim() || "default";
+
+  const key = notifyFlightKey(sym, pick.market, modelId);
 
   if (!tryClaimNotify(pick)) {
 
@@ -833,7 +868,7 @@ export function notifyHighScorePick(pick) {
 
         console.log(
 
-          `[telegram] sent ${sym} score=${pick.score} session=${session}`,
+          `[telegram] sent ${sym} model=${modelId} score=${pick.score} session=${session}`,
 
         );
 

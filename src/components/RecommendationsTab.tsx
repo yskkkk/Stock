@@ -83,6 +83,7 @@ export default function RecommendationsTab({
   const [market, setMarket] = useState<MarketFilter>("all");
   const [signalFilter, setSignalFilter] = useState<SignalId | null>(null);
   const [scoreFilter, setScoreFilter] = useState<number | null>(null);
+  const [modelFilter, setModelFilter] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [sortKey, setSortKey] = useState<RecTrackerSortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -141,9 +142,10 @@ export default function RecommendationsTab({
       if (market !== "all" && it.market !== market) return false;
       if (signalFilter && !it.signalIds.includes(signalFilter)) return false;
       if (scoreFilter != null && it.score !== scoreFilter) return false;
+      if (modelFilter && it.techModelId !== modelFilter) return false;
       return true;
     });
-  }, [data?.items, dateFilter, market, signalFilter, scoreFilter]);
+  }, [data?.items, dateFilter, market, signalFilter, scoreFilter, modelFilter]);
 
   /** 승률·칩 통계 — 텔레그램 알림 종목만(근거/점수 UI 필터는 제외) */
   const itemsForChipStats = useMemo(() => {
@@ -398,6 +400,53 @@ export default function RecommendationsTab({
                 value={String(filteredSummary.total)}
               />
             </div>
+            )}
+
+            {(data?.modelStats?.length ?? 0) > 0 && (
+              <div className="rec-tracker-signals rec-tracker-models-stats card">
+                <div className="rec-tracker-signals__head">
+                  <span className="filter-title">{ko.app.recTrackerByModel}</span>
+                  {modelFilter ? (
+                    <button
+                      type="button"
+                      className="filter-clear"
+                      onClick={() => setModelFilter(null)}
+                    >
+                      {ko.app.recTrackerClearFilter}
+                    </button>
+                  ) : null}
+                </div>
+                <div className="rec-tracker-signals__chips">
+                  {data!.modelStats.map((s) => {
+                    const active = modelFilter === s.modelId;
+                    return (
+                      <button
+                        key={s.modelId}
+                        type="button"
+                        className={
+                          active
+                            ? "rec-tracker-model-chip rec-tracker-model-chip--active"
+                            : "rec-tracker-model-chip"
+                        }
+                        aria-pressed={active}
+                        onClick={() =>
+                          setModelFilter((prev) =>
+                            prev === s.modelId ? null : s.modelId,
+                          )
+                        }
+                      >
+                        <span className="rec-tracker-model-chip__name">{s.modelName}</span>
+                        <span className="rec-tracker-model-chip__rate">
+                          {formatWinRate(s.winRatePct)}
+                        </span>
+                        <span className="rec-tracker-signal-chip__n">
+                          {s.wins}승/{s.losses}패
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             )}
 
             {scoreStats.length > 0 && (
@@ -724,6 +773,11 @@ function RecTrackerRow({
       <td className="rec-tracker-table__name">
         <div className="rec-tracker-table__name-inner">
           <span className="rec-tracker-table__sym">{sym}</span>
+          {item.techModelName ? (
+            <span className="rec-tracker-table__model-badge" title={ko.app.recTrackerColModel}>
+              {item.techModelName}
+            </span>
+          ) : null}
           {item.telegramNotified ? (
             <span
               className="rec-tracker-table__tg-badge"

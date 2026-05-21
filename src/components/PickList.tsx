@@ -111,6 +111,11 @@ const PickListRow = memo(
               {pick.name}
             </span>
             <span className="pick-score">{pick.score}</span>
+            {pick.techModelName ? (
+              <span className="pick-model" title={pick.techModelName}>
+                {pick.techModelName}
+              </span>
+            ) : null}
           </div>
           <PickQuoteStrip
             symbol={pick.symbol}

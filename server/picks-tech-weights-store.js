@@ -42,6 +42,11 @@ function writeStoreSync(data) {
 }
 
 /** @param {Record<string, unknown>} raw */
+export function sanitizeWeightsRecord(raw) {
+  return sanitizeWeights(raw);
+}
+
+/** @param {Record<string, unknown>} raw */
 function sanitizeWeights(raw) {
   const def = getDefaultSignalScoreWeights();
   const out = { ...def };
@@ -96,6 +101,17 @@ export function sumTechScoreWeights(weights) {
 }
 
 export function getMaxTechScoreSync() {
+  try {
+    const modelsPath = path.join(DATA_DIR, "picks-tech-models.json");
+    if (fs.existsSync(modelsPath)) {
+      const o = JSON.parse(fs.readFileSync(modelsPath, "utf8"));
+      const activeId = o?.activeModelIds?.[0] ?? "default";
+      const m = (o?.models ?? []).find((x) => x?.id === activeId);
+      if (m?.weights) return sumTechScoreWeights(sanitizeWeights(m.weights));
+    }
+  } catch {
+    /* fallback */
+  }
   return sumTechScoreWeights(getActiveSignalScoreWeightsSync());
 }
 

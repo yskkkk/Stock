@@ -1,7 +1,8 @@
 import { SYMBOL_NOT_FOUND } from "./errors.js";
 import { fetchScanCandles } from "./stock-data.js";
 import { resolveDisplayName } from "./names-ko.js";
-import { analyzeTechnicals } from "./technical.js";
+import { getActiveTechModelsSync } from "./picks-tech-models-store.js";
+import { analyzeTechnicals, meetsTelegramNotifyScore } from "./technical.js";
 import { notifyHighScorePick } from "./telegram-notify.js";
 import { recordPicksDailySnapshot } from "./picks-history-store.js";
 import { readLastScanSnapshotSync, writeLastScanSnapshotSync } from "./picks-live-persist.js";
@@ -107,15 +108,64 @@ function sortPicks(list) {
   );
 }
 
+function symKey(symbol) {
+  return String(symbol ?? "").trim().toUpperCase();
+}
+
+function pickKey(pick) {
+  return `${symKey(pick.symbol)}:${String(pick.techModelId ?? "default").trim() || "default"}`;
+}
+
+/**
+ * 스캔 진행 중 UI용 — 이전 목록 유지 + 이번에 새로 잡힌 후보만 추가·갱신.
+ * (스킵만 된 심볼은 스캔 끝날 때까지 목록에서 내리지 않음 → 8분 동안 빈 목록 방지)
+ * @param {object[]} prevList
+ * @param {object[]} draftList
+ */
+function mergeLivePicksWhileRunning(prevList, draftList) {
+  const map = new Map();
+  for (const p of prevList) map.set(pickKey(p), p);
+  for (const p of draftList) map.set(pickKey(p), p);
+  return sortPicks([...map.values()]);
+}
+
+/**
+ * 스캔 완료 후: 이번에 본 심볼은 draft만 반영(스킵=이탈·제거), 아직 큐에 없던 건 prev 유지.
+ * @param {object[]} prevList
+ * @param {object[]} draftList
+ * @param {Set<string>} processed
+ */
+function finalizePicksAfterScan(prevList, draftList, processedSymbols) {
+  /** @type {Map<string, object[]>} */
+  const draftBySymbol = new Map();
+  for (const p of draftList) {
+    const sk = symKey(p.symbol);
+    if (!draftBySymbol.has(sk)) draftBySymbol.set(sk, []);
+    draftBySymbol.get(sk).push(p);
+  }
+  const out = [];
+  for (const p of prevList) {
+    if (!processedSymbols.has(symKey(p.symbol))) out.push(p);
+  }
+  for (const sk of processedSymbols) {
+    const adds = draftBySymbol.get(sk);
+    if (adds?.length) out.push(...adds);
+  }
+  return sortPicks(out);
+}
+
 async function screenSymbol(item, market) {
   try {
     const data = await fetchScanCandles(item.symbol);
-    const analysis = analyzeTechnicals(data.candles);
-    if (!analysis.buy) return { type: "skip" };
+    const models = getActiveTechModelsSync();
+    if (!models.length) return { type: "skip" };
 
-    return {
-      type: "pick",
-      pick: {
+    /** @type {object[]} */
+    const picks = [];
+    for (const model of models) {
+      const analysis = analyzeTechnicals(data.candles, model.weights);
+      if (!analysis.buy) continue;
+      const pick = {
         symbol: data.symbol,
         name: resolveDisplayName(data.symbol, item.name, data.quote.name),
         market,
@@ -125,12 +175,22 @@ async function screenSymbol(item, market) {
         currency: data.quote.currency,
         dayHigh: data.quote.dayHigh,
         dayLow: data.quote.dayLow,
+        turnover: data.quote.turnover,
         score: analysis.score,
         signalIds: analysis.signalIds,
         signals: analysis.signals,
         marketState: data.quote.marketState,
-      },
-    };
+        techModelId: model.id,
+        techModelName: model.name,
+        techModelWeights: model.weights,
+      };
+      picks.push(pick);
+      if (meetsTelegramNotifyScore(pick.score, model.weights)) {
+        notifyHighScorePick(pick);
+      }
+    }
+    if (!picks.length) return { type: "skip" };
+    return { type: "picks", picks };
   } catch (err) {
     if (err?.code === "RATE_LIMIT") clearYahooSession();
     return {
@@ -150,7 +210,14 @@ async function screenSymbol(item, market) {
  * @param {{ kr: object[]; us: object[] }} bucket
  */
 function applyScreenResult(result, bucket) {
-  if (result.type === "pick" && result.pick) {
+  if (result.type === "picks" && Array.isArray(result.picks)) {
+    for (const pick of result.picks) {
+      if (pick.market === "kr") bucket.kr.push(pick);
+      else bucket.us.push(pick);
+    }
+    sortPicks(bucket.kr);
+    sortPicks(bucket.us);
+  } else if (result.type === "pick" && result.pick) {
     if (result.pick.market === "kr") bucket.kr.push(result.pick);
     else bucket.us.push(result.pick);
     sortPicks(bucket.kr);
@@ -181,6 +248,8 @@ async function runScreening() {
   state.progress = 0;
 
   const draft = { kr: [], us: [] };
+  /** 이번 스캔에서 이미 처리한 심볼 (스킵·에러 포함) */
+  const processedSymbols = new Set();
 
   screeningPromise = (async () => {
     try {
@@ -199,14 +268,20 @@ async function runScreening() {
         const results = await Promise.all(
           chunk.map((item) => screenSymbol(item, item.market)),
         );
+        for (const item of chunk) {
+          processedSymbols.add(symKey(item.symbol));
+        }
         for (let j = 0; j < results.length; j++) {
           applyScreenResult(results[j], draft);
         }
         state.progress += chunk.length;
+        state.kr = mergeLivePicksWhileRunning(prevKr, draft.kr);
+        state.us = mergeLivePicksWhileRunning(prevUs, draft.us);
+        state.updatedAt = Date.now();
       }
 
-      state.kr = draft.kr;
-      state.us = draft.us;
+      state.kr = finalizePicksAfterScan(prevKr, draft.kr, processedSymbols);
+      state.us = finalizePicksAfterScan(prevUs, draft.us, processedSymbols);
       state.updatedAt = Date.now();
       recordPicksDailySnapshot([...state.kr], [...state.us], state.updatedAt);
       const failMsg =
@@ -253,9 +328,10 @@ export function forceRescreen() {
 }
 
 export function ensureScreening() {
+  if (state.running) return;
   const stale =
     !state.updatedAt || Date.now() - state.updatedAt > screenIntervalMs();
-  if (!state.running && (stale || state.total === 0)) {
+  if (stale) {
     runScreening().catch(logScreeningError);
   }
 }

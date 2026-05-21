@@ -654,6 +654,68 @@ export function resetTechWeights() {
   });
 }
 
+export interface TechModelRecord {
+  id: string;
+  name: string;
+  weights: Record<string, number>;
+  maxTechScore: number;
+  createdAtMs: number;
+  updatedAtMs?: number;
+}
+
+export interface TechModelsResponse {
+  models: TechModelRecord[];
+  activeModelIds: string[];
+}
+
+export function fetchTechModels() {
+  return fetchJson<TechModelsResponse>("/api/picks/tech-models");
+}
+
+export function setActiveTechModelIds(activeModelIds: string[]) {
+  return fetchJson<TechModelsResponse & { ok: boolean }>("/api/picks/tech-models/active", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ activeModelIds }),
+  });
+}
+
+export function createTechModel(body: {
+  name: string;
+  weights?: Record<string, number>;
+  copyFromId?: string;
+}) {
+  return fetchJson<TechModelsResponse & { ok: boolean; model: TechModelRecord }>(
+    "/api/picks/tech-models",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+}
+
+export function updateTechModel(
+  id: string,
+  body: { name?: string; weights?: Record<string, number> },
+) {
+  return fetchJson<TechModelsResponse & { ok: boolean; model: TechModelRecord }>(
+    `/api/picks/tech-models/${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+}
+
+export function deleteTechModel(id: string) {
+  return fetchJson<TechModelsResponse & { ok: boolean }>(
+    `/api/picks/tech-models/${encodeURIComponent(id)}`,
+    { method: "DELETE" },
+  );
+}
+
 export function fetchNews(
   symbol: string,
   name: string,

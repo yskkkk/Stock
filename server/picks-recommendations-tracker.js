@@ -4,7 +4,7 @@
 import {
   backfillMissingSignalIdsFromTechnical,
   enrichSlimPickFromBackfill,
-  lookupTelegramNotifyForRecommendation,
+  listTelegramNotifiesForRecommendation,
   reconcileRecommendationHistoryEnrichmentSync,
 } from "./picks-recommendation-enrich.js";
 import { getPicksDailyHistoryForApi } from "./picks-history-store.js";
@@ -233,25 +233,49 @@ async function buildRecommendationsTrackerPayloadInner(opts = {}) {
     quotes = await fetchQuoteSnapshotsForSymbols(ordered);
   }
 
-  const items = baseEvents.map((ev) => {
+  /** @type {object[]} */
+  const items = [];
+  for (const ev of baseEvents) {
     const q = quotes[ev.symbol];
     const currentPrice =
       q?.price != null && Number.isFinite(q.price) && q.price > 0 ? q.price : null;
     const changePct = pctFromPrices(ev.entryPrice, currentPrice);
     const outcome = outcomeFromPrices(ev.entryPrice, currentPrice);
-    const tg =
+    const notifies =
       ev.market === "kr" || ev.market === "us"
-        ? lookupTelegramNotifyForRecommendation(ev.date, ev.market, ev.symbol)
-        : null;
-    return {
-      ...ev,
-      currentPrice,
-      changePct,
-      outcome,
-      telegramNotified: Boolean(tg),
-      telegramNotifiedAtMs: tg?.atMs ?? null,
-    };
-  });
+        ? listTelegramNotifiesForRecommendation(ev.date, ev.market, ev.symbol)
+        : [];
+
+    if (notifies.length === 0) {
+      items.push({
+        ...ev,
+        currentPrice,
+        changePct,
+        outcome,
+        telegramNotified: false,
+        telegramNotifiedAtMs: null,
+        techModelId: null,
+        techModelName: null,
+      });
+      continue;
+    }
+
+    for (const tg of notifies) {
+      items.push({
+        ...ev,
+        id: `${ev.date}:${ev.market}:${ev.symbol}:${tg.modelId}`,
+        score: tg.score ?? ev.score,
+        signalIds: tg.signalIds?.length ? tg.signalIds : ev.signalIds,
+        currentPrice,
+        changePct,
+        outcome,
+        telegramNotified: true,
+        telegramNotifiedAtMs: tg.atMs,
+        techModelId: tg.modelId,
+        techModelName: tg.modelName,
+      });
+    }
+  }
 
   /** 승률·근거/점수 칩 집계는 텔레그램 알림 발송 건만 */
   const itemsForWinRate = items.filter((it) => it.telegramNotified);
@@ -324,6 +348,30 @@ async function buildRecommendationsTrackerPayloadInner(opts = {}) {
     }))
     .sort((a, b) => b.score - a.score);
 
+  /** @type {Map<string, { modelId: string; modelName: string; items: typeof itemsForWinRate }>} */
+  const byModel = new Map();
+  for (const it of itemsForWinRate) {
+    const mid = it.techModelId ?? "__unknown__";
+    const name = it.techModelName ?? mid;
+    if (!byModel.has(mid)) byModel.set(mid, { modelId: mid, modelName: name, items: [] });
+    byModel.get(mid).items.push(it);
+  }
+  const modelStats = [...byModel.values()]
+    .map(({ modelId, modelName, items: group }) => ({
+      modelId,
+      modelName,
+      ...rollupCounts(group),
+    }))
+    .sort((a, b) => {
+      const ar = a.winRatePct;
+      const br = b.winRatePct;
+      if (ar == null && br == null) return b.total - a.total;
+      if (ar == null) return 1;
+      if (br == null) return -1;
+      if (br !== ar) return br - ar;
+      return b.total - a.total;
+    });
+
   const dates = [...new Set(items.map((it) => it.date))].sort((a, b) => b.localeCompare(a));
 
   return {
@@ -333,6 +381,7 @@ async function buildRecommendationsTrackerPayloadInner(opts = {}) {
     signalStats,
     scoreStats,
     symbolStats,
+    modelStats,
     items,
   };
 }

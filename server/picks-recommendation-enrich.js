@@ -106,13 +106,75 @@ function getTelegramBackfillIndex() {
  * @returns {{ atMs: number } | null}
  */
 export function lookupTelegramNotifyForRecommendation(date, market, symbol) {
+  const list = listTelegramNotifiesForRecommendation(date, market, symbol);
+  if (!list.length) return null;
+  return { atMs: list[0].atMs };
+}
+
+/**
+ * @param {string} date YYYY-MM-DD
+ * @param {"kr"|"us"} market
+ * @param {string} symbol
+ * @returns {{ modelId: string; modelName: string; atMs: number; score: number | null; signalIds: string[] }[]}
+ */
+export function listTelegramNotifiesForRecommendation(date, market, symbol) {
   const d = String(date ?? "").trim();
   const m = market === "kr" || market === "us" ? market : null;
   const sym = String(symbol ?? "").trim().toUpperCase();
-  if (!d || !m || !sym) return null;
-  const hit = getTelegramBackfillIndex().get(recommendationMetaKey(d, m, sym));
-  if (!hit || !(hit.at > 0)) return null;
-  return { atMs: hit.at };
+  if (!d || !m || !sym) return [];
+
+  const sent = loadTelegramSentRaw();
+  /** @type {{ modelId: string; modelName: string; atMs: number; score: number | null; signalIds: string[] }[]} */
+  const out = [];
+
+  for (const [key, entry] of Object.entries(sent)) {
+    if (!entry || typeof entry !== "object") continue;
+    const at = typeof entry.at === "number" && Number.isFinite(entry.at) ? entry.at : 0;
+    if (at <= 0 || kstYmd(at) !== d) continue;
+
+    let em = entry.market === "kr" || entry.market === "us" ? entry.market : null;
+    let es = String(entry.symbol ?? "").trim().toUpperCase();
+    const k = String(key ?? "");
+    if (k.includes(":")) {
+      const parts = k.split(":");
+      if (!em && (parts[0] === "kr" || parts[0] === "us")) em = parts[0];
+      if (!es && parts[1]) es = normalizeSymbol(parts[1]);
+    }
+    if (em !== m || es !== sym) continue;
+
+    const modelId =
+      entry.techModelId != null
+        ? String(entry.techModelId).trim()
+        : k.split(":").length >= 3
+          ? String(k.split(":")[2]).trim()
+          : "legacy";
+    const modelName =
+      entry.techModelName != null
+        ? String(entry.techModelName).trim()
+        : modelId;
+    const score =
+      typeof entry.score === "number" && Number.isFinite(entry.score)
+        ? Math.round(entry.score)
+        : null;
+    const signalIds = Array.isArray(entry.signalIds)
+      ? entry.signalIds.map((x) => String(x ?? "").trim()).filter(Boolean)
+      : [];
+
+    out.push({
+      modelId: modelId || "legacy",
+      modelName: modelName || modelId,
+      atMs: at,
+      score,
+      signalIds,
+    });
+  }
+
+  out.sort((a, b) => a.atMs - b.atMs);
+  return out;
+}
+
+function normalizeSymbol(symbol) {
+  return String(symbol ?? "").trim().toUpperCase();
 }
 
 function readSignalCacheSync() {

@@ -115,6 +115,8 @@ export interface StockPick {
   nameEn?: string;
   /** 상승 유망 탭용 근거 문장 */
   bullishReasons?: string[];
+  techModelId?: string;
+  techModelName?: string;
   /** 일별 스냅샷 기준 연속 추천·첫 추천가 대비 등(서버) */
   pickStats?: PickRecommendationStats;
 }
@@ -285,6 +287,14 @@ export interface RecommendationTrackerItem {
   telegramNotified?: boolean;
   /** 알림 발송 시각(ms), KST */
   telegramNotifiedAtMs?: number | null;
+  /** 알림을 보낸 기술 분석 모델 */
+  techModelId?: string | null;
+  techModelName?: string | null;
+}
+
+export interface RecommendationModelStat extends RecommendationTrackerRollup {
+  modelId: string;
+  modelName: string;
 }
 
 export interface RecommendationSignalStat extends RecommendationTrackerRollup {
@@ -309,6 +319,7 @@ export interface RecommendationsTrackerResponse {
   signalStats: RecommendationSignalStat[];
   scoreStats: RecommendationScoreStat[];
   symbolStats: RecommendationSymbolStat[];
+  modelStats: RecommendationModelStat[];
   items: RecommendationTrackerItem[];
 }
 

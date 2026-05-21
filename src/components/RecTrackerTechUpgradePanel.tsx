@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { signalChipMeta } from "../constants/signalChips";
 import {
-  applyTechWeights,
-  fetchTechWeights,
-  resetTechWeights,
-  type TechWeightsResponse,
+  createTechModel,
+  fetchTechModels,
+  setActiveTechModelIds,
+  updateTechModel,
+  type TechModelRecord,
+  type TechModelsResponse,
 } from "../api";
 import {
   applyAllTechWeightChanges,
@@ -48,10 +50,6 @@ function ChangeRow({
           {change.from} → {change.to}
         </span>
         <span className="rec-tracker-upgrade__rate">{formatWinRate(change.winRatePct)}</span>
-        <span className="rec-tracker-upgrade__n">
-          {change.deltaVsBaseline >= 0 ? "+" : ""}
-          {change.deltaVsBaseline.toFixed(1)}%p
-        </span>
       </div>
       <p className="rec-tracker-upgrade__reason">
         {changeSummaryLine(change, baselinePct)}
@@ -73,62 +71,84 @@ export default function RecTrackerTechUpgradePanel({
 }: {
   itemsPool: RecommendationTrackerItem[];
 }) {
-  const [weightsState, setWeightsState] = useState<TechWeightsResponse | null>(null);
+  const [modelsState, setModelsState] = useState<TechModelsResponse | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [applying, setApplying] = useState(false);
   const [applyMsg, setApplyMsg] = useState<string | null>(null);
   const [applyErr, setApplyErr] = useState<string | null>(null);
+  const [targetModelId, setTargetModelId] = useState<string>("");
+  const [newModelName, setNewModelName] = useState("");
 
-  const reloadWeights = useCallback(async () => {
+  const reloadModels = useCallback(async () => {
     try {
-      const w = await fetchTechWeights();
-      setWeightsState(w);
-      setTechScoreWeights(w.weights);
+      const m = await fetchTechModels();
+      setModelsState(m);
       setLoadErr(null);
+      const primary = m.activeModelIds[0] ?? m.models[0]?.id ?? "";
+      setTargetModelId((prev) =>
+        prev && m.models.some((x) => x.id === prev) ? prev : primary,
+      );
+      const active = m.models.find((x) => x.id === (m.activeModelIds[0] ?? primary));
+      if (active) setTechScoreWeights(active.weights);
     } catch (e) {
       setLoadErr(e instanceof Error ? e.message : String(e));
     }
   }, []);
 
   useEffect(() => {
-    void reloadWeights();
-  }, [reloadWeights]);
+    void reloadModels();
+  }, [reloadModels]);
 
-  const currentWeights = weightsState?.weights ?? {};
-  const plan = useMemo(
-    () => buildTechUpgradePlan(itemsPool, currentWeights),
-    [itemsPool, currentWeights, weightsState?.revision],
+  const targetModel = useMemo(
+    () => modelsState?.models.find((m) => m.id === targetModelId) ?? null,
+    [modelsState, targetModelId],
   );
 
-  const decided = plan.baselineDecided;
-  const baselinePct = plan.baselineWinRatePct;
+  const plan = useMemo(
+    () =>
+      targetModel
+        ? buildTechUpgradePlan(itemsPool, targetModel.weights)
+        : {
+            baselineWinRatePct: null,
+            baselineDecided: 0,
+            maxTechScore: 0,
+            changes: [],
+            headline: null,
+          },
+    [itemsPool, targetModel],
+  );
 
-  const persistWeights = async (
+  const toggleActive = (id: string) => {
+    if (!modelsState) return;
+    const set = new Set(modelsState.activeModelIds);
+    if (set.has(id)) {
+      if (set.size <= 1) return;
+      set.delete(id);
+    } else {
+      set.add(id);
+    }
+    void setActiveTechModelIds([...set])
+      .then((res) => {
+        setModelsState(res);
+        setApplyMsg(ko.app.recTrackerModelsActiveSaved);
+      })
+      .catch((e) => setApplyErr(e instanceof Error ? e.message : String(e)));
+  };
+
+  const persistTargetWeights = async (
     next: Record<string, number>,
     msg: string,
   ) => {
+    if (!targetModelId) return;
     setApplying(true);
     setApplyErr(null);
     setApplyMsg(null);
     try {
-      const res = await applyTechWeights({
-        weights: next,
-        baselineWinRatePct: baselinePct ?? undefined,
-      });
-      setWeightsState((prev) =>
-        prev
-          ? {
-              ...prev,
-              weights: res.weights,
-              revision: res.revision,
-              maxTechScore: res.maxTechScore,
-              updatedAtMs: res.updatedAtMs,
-            }
-          : null,
-      );
-      setTechScoreWeights(res.weights);
+      const res = await updateTechModel(targetModelId, { weights: next });
+      setModelsState(res);
+      const updated = res.models.find((m) => m.id === targetModelId);
+      if (updated) setTechScoreWeights(updated.weights);
       setApplyMsg(msg);
-      await reloadWeights();
     } catch (e) {
       setApplyErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -137,28 +157,30 @@ export default function RecTrackerTechUpgradePanel({
   };
 
   const onApplyOne = (change: TechWeightChange) => {
-    const next = applySingleTechWeightChange(currentWeights, change);
-    void persistWeights(
+    if (!targetModel) return;
+    const next = applySingleTechWeightChange(targetModel.weights, change);
+    void persistTargetWeights(
       next,
       ko.app.recTrackerUpgradeAppliedOne.replace("{label}", change.short),
     );
   };
 
   const onApplyAll = () => {
-    if (!plan.changes.length) return;
-    const next = applyAllTechWeightChanges(currentWeights, plan.changes);
-    void persistWeights(next, ko.app.recTrackerUpgradeAppliedAll);
+    if (!targetModel || !plan.changes.length) return;
+    const next = applyAllTechWeightChanges(targetModel.weights, plan.changes);
+    void persistTargetWeights(next, ko.app.recTrackerUpgradeAppliedAll);
   };
 
-  const onReset = () => {
+  const onSaveNewModel = () => {
+    const name = newModelName.trim();
+    if (!name || !targetModel) return;
     setApplying(true);
-    setApplyErr(null);
-    setApplyMsg(null);
-    void resetTechWeights()
+    void createTechModel({ name, copyFromId: targetModel.id })
       .then((res) => {
-        setWeightsState(res);
-        setTechScoreWeights(res.weights);
-        setApplyMsg(ko.app.recTrackerUpgradeResetDone);
+        setModelsState(res);
+        setNewModelName("");
+        setTargetModelId(res.model.id);
+        setApplyMsg(ko.app.recTrackerModelsCreated.replace("{name}", res.model.name));
       })
       .catch((e) => setApplyErr(e instanceof Error ? e.message : String(e)))
       .finally(() => setApplying(false));
@@ -172,10 +194,9 @@ export default function RecTrackerTechUpgradePanel({
     );
   }
 
-  if (decided < 5) return null;
+  if (!modelsState || plan.baselineDecided < 5) return null;
 
-  const revision = weightsState?.revision ?? 0;
-  const maxScore = weightsState?.maxTechScore ?? plan.maxTechScore;
+  const activeSet = new Set(modelsState.activeModelIds);
 
   return (
     <section className="rec-tracker-upgrade card" aria-labelledby="rec-tracker-upgrade-title">
@@ -183,20 +204,69 @@ export default function RecTrackerTechUpgradePanel({
         <h3 id="rec-tracker-upgrade-title" className="filter-title">
           {ko.app.recTrackerUpgradeTitle}
         </h3>
-        {revision > 0 ? (
-          <span className="rec-tracker-upgrade__rev">
-            {ko.app.recTrackerUpgradeRevision.replace("{n}", String(revision))}
-          </span>
-        ) : null}
       </div>
       <p className="rec-tracker-upgrade__intro">{ko.app.recTrackerUpgradeIntro}</p>
-      {baselinePct != null ? (
+
+      <div className="rec-tracker-models">
+        <span className="rec-tracker-models__label">{ko.app.recTrackerModelsActive}</span>
+        <ul className="rec-tracker-models__list">
+          {modelsState.models.map((m: TechModelRecord) => (
+            <li key={m.id}>
+              <label className="rec-tracker-models__check">
+                <input
+                  type="checkbox"
+                  checked={activeSet.has(m.id)}
+                  disabled={activeSet.has(m.id) && activeSet.size <= 1}
+                  onChange={() => toggleActive(m.id)}
+                />
+                <span className="rec-tracker-models__name">{m.name}</span>
+                <span className="rec-tracker-models__meta">
+                  {ko.app.recTrackerUpgradeMaxScore.replace("{n}", String(m.maxTechScore))}
+                </span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="rec-tracker-models__target">
+        <label>
+          <span>{ko.app.recTrackerModelsEditTarget}</span>
+          <select
+            value={targetModelId}
+            onChange={(e) => setTargetModelId(e.target.value)}
+          >
+            {modelsState.models.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="rec-tracker-models__new">
+          <input
+            type="text"
+            value={newModelName}
+            placeholder={ko.app.recTrackerModelsNewNamePh}
+            onChange={(e) => setNewModelName(e.target.value)}
+          />
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            disabled={applying || !newModelName.trim()}
+            onClick={onSaveNewModel}
+          >
+            {ko.app.recTrackerModelsSaveAs}
+          </button>
+        </div>
+      </div>
+
+      {plan.baselineWinRatePct != null ? (
         <p className="rec-tracker-upgrade__baseline">
-          {ko.app.recTrackerUpgradeBaseline.replace("{rate}", formatWinRate(baselinePct)).replace(
-            "{decided}",
-            String(decided),
-          )}{" "}
-          · {ko.app.recTrackerUpgradeMaxScore.replace("{n}", String(maxScore))}
+          {ko.app.recTrackerUpgradeBaseline.replace(
+            "{rate}",
+            formatWinRate(plan.baselineWinRatePct),
+          ).replace("{decided}", String(plan.baselineDecided))}
         </p>
       ) : null}
 
@@ -215,7 +285,7 @@ export default function RecTrackerTechUpgradePanel({
               <ChangeRow
                 key={`${c.signalId}-${c.from}-${c.to}`}
                 change={c}
-                baselinePct={baselinePct ?? 0}
+                baselinePct={plan.baselineWinRatePct ?? 0}
                 onApply={onApplyOne}
                 applying={applying}
               />
@@ -225,21 +295,11 @@ export default function RecTrackerTechUpgradePanel({
             <button
               type="button"
               className="btn btn--primary"
-              disabled={applying || !plan.changes.length}
+              disabled={applying}
               onClick={onApplyAll}
             >
               {ko.app.recTrackerUpgradeApplyAll}
             </button>
-            {revision > 0 ? (
-              <button
-                type="button"
-                className="btn btn--secondary btn--sm"
-                disabled={applying}
-                onClick={onReset}
-              >
-                {ko.app.recTrackerUpgradeReset}
-              </button>
-            ) : null}
           </div>
         </>
       ) : null}
