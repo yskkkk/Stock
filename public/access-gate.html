@@ -41,6 +41,14 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        overflow-y: auto;
+      }
+      body.gate-admin-layout {
+        align-items: flex-start;
+        justify-content: flex-start;
+      }
+      body.gate-admin-layout #main.card {
+        max-width: min(1180px, 100%);
       }
       .card {
         width: 100%;
@@ -170,13 +178,48 @@
         border-color: var(--border);
       }
       .admin {
-        margin-top: 1.25rem;
-        padding-top: 1rem;
+        margin-top: 1rem;
+        padding-top: 0.85rem;
         border-top: 1px solid var(--border);
       }
       .admin h2 {
-        margin: 0 0 0.5rem;
+        margin: 0 0 0.4rem;
         font-size: 0.95rem;
+      }
+      .admin-intro-wrap {
+        margin: 0 0 0.55rem;
+      }
+      .admin-intro-wrap summary {
+        cursor: pointer;
+        font-size: 0.76rem;
+        color: var(--muted);
+        user-select: none;
+      }
+      .admin-intro-wrap .admin-intro-body {
+        margin-top: 0.35rem;
+        font-size: 0.74rem;
+        line-height: 1.45;
+        color: var(--muted);
+        padding: 0.4rem 0.5rem;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: rgba(148, 163, 184, 0.06);
+      }
+      .admin-list-section {
+        margin-top: 0.55rem;
+      }
+      .admin-list-section h3 {
+        margin: 0 0 0.35rem;
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: var(--dim);
+      }
+      #admPending,
+      #admAllowed {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 0.45rem;
+        align-items: start;
       }
       .admin input[type="password"] {
         width: 100%;
@@ -190,22 +233,52 @@
         border-radius: 6px;
       }
       .admin .item {
-        font-size: 0.78rem;
-        padding: 0.55rem 0.6rem;
-        margin-bottom: 0.45rem;
+        font-size: 0.76rem;
+        padding: 0.4rem 0.5rem;
+        margin: 0;
         background: #121820;
         border: 1px solid var(--border);
         border-radius: 6px;
         color: var(--dim);
+        line-height: 1.4;
       }
       .admin .item code {
         color: var(--text);
-        font-size: 0.8rem;
+        font-size: 0.78rem;
+      }
+      .admin .item .item-head {
+        margin-bottom: 0.2rem;
+        word-break: break-all;
       }
       .admin .item .sub {
-        font-size: 0.7rem;
-        margin-top: 0.35rem;
-        word-break: break-all;
+        font-size: 0.68rem;
+        margin: 0.15rem 0 0;
+        word-break: break-word;
+      }
+      .admin .item label.adm-memo-allow,
+      .admin .item label.adm-memo-apr {
+        margin-top: 0.25rem;
+      }
+      .admin .item label.adm-memo-allow span,
+      .admin .item label.adm-memo-apr span {
+        margin-bottom: 0.15rem;
+        font-size: 0.68rem;
+      }
+      .admin .item label.adm-memo-allow input,
+      .admin .item label.adm-memo-apr input {
+        margin-bottom: 0;
+        padding: 0.32rem 0.4rem;
+        font-size: 0.78rem;
+      }
+      .admin .item .row {
+        margin-top: 0.3rem;
+        gap: 0.35rem;
+      }
+      .admin .item .row button {
+        flex: 1 1 0;
+        min-width: 0;
+        padding: 0.38rem 0.5rem;
+        font-size: 0.74rem;
       }
       .hidden {
         display: none !important;
@@ -237,6 +310,11 @@
         display: block;
       }
 
+      #admPending > .item:only-child,
+      #admAllowed > .item:only-child {
+        grid-column: 1 / -1;
+      }
+
       @media (max-width: 520px) {
         body {
           align-items: flex-start;
@@ -252,6 +330,16 @@
           max-width: none;
           width: min(440px, 100%);
           margin-inline: auto;
+        }
+
+        body.gate-admin-layout #main.card {
+          max-width: none;
+          width: 100%;
+        }
+
+        #admPending,
+        #admAllowed {
+          grid-template-columns: 1fr;
         }
 
         .card {
@@ -355,18 +443,26 @@
           <p id="admPwdErr" class="err hidden"></p>
         </div>
         <div id="adminContent" class="hidden">
-        <p class="admin-intro" style="margin: 0 0 0.75rem; font-size: 0.78rem; line-height: 1.55; color: var(--muted, #64748b); padding: 0.5rem 0.55rem; border: 1px solid rgba(148,163,184,0.25); border-radius: 8px; background: rgba(148,163,184,0.08)">
-          허용된 <strong>IP</strong> 또는 등록된 <strong>단말 MAC</strong> 중 하나라도 맞으면 API·대시보드를 쓸 수 있습니다. <strong>대기</strong>는 신청만 접수된 상태, <strong>승인</strong>은 허용 목록에 반영, <strong>거절</strong>은 이번 신청만 끝냅니다. <strong>허가 취소</strong>는 해당 IP 행을 제거해 곧바로 차단합니다. MAC은 위 입력란에 저장해 두면 IP가 바뀌어도 동일 단말로 인식됩니다.
-        </p>
+        <details class="admin-intro-wrap">
+          <summary>접근 관리 안내</summary>
+          <p class="admin-intro-body">
+            허용 <strong>IP</strong> 또는 <strong>MAC</strong>이 맞으면 이용 가능합니다.
+            <strong>대기</strong>·<strong>승인</strong>·<strong>거절</strong>·<strong>허가 취소</strong>는 각 버튼대로 동작합니다.
+          </p>
+        </details>
         <div class="row">
           <button type="button" class="btn-secondary" id="btnAdminLock">관리 종료</button>
           <button type="button" class="btn-ghost" id="btnAdmClose">닫기</button>
         </div>
         <p id="admErr" class="err hidden"></p>
-        <h3 style="margin: 0.75rem 0 0.35rem; font-size: 0.82rem">대기 중</h3>
-        <div id="admPending"></div>
-        <h3 style="margin: 0.75rem 0 0.35rem; font-size: 0.82rem">허용 목록</h3>
-        <div id="admAllowed"></div>
+        <section class="admin-list-section">
+          <h3>대기 중</h3>
+          <div id="admPending"></div>
+        </section>
+        <section class="admin-list-section">
+          <h3>허용 목록</h3>
+          <div id="admAllowed"></div>
+        </section>
         </div>
       </div>
     </div>
@@ -376,6 +472,24 @@
       const MAC_KEY = "stock_access_client_mac";
 
       const $ = (id) => document.getElementById(id);
+
+      function setGateAdminLayout(on) {
+        document.body.classList.toggle("gate-admin-layout", Boolean(on));
+      }
+
+      function fmtGateTime(iso) {
+        const s = String(iso ?? "").trim();
+        if (!s) return "";
+        const d = new Date(s);
+        if (!Number.isFinite(d.getTime())) return s;
+        return d.toLocaleString("ko-KR", {
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        });
+      }
 
       function normalizeMac(v) {
         const s = String(v ?? "")
@@ -623,6 +737,7 @@
 
       function openAdmin() {
         stopAdminPoll();
+        setGateAdminLayout(true);
         $("adminPanel").classList.remove("hidden");
         const savedPwd = token().trim();
         if (lastStatusAdminIp) {
@@ -670,6 +785,7 @@
 
       $("btnAdmClose").addEventListener("click", () => {
         stopAdminPoll();
+        setGateAdminLayout(false);
         $("adminPanel").classList.add("hidden");
       });
 
@@ -725,6 +841,7 @@
           localStorage.removeItem(TOKEN_KEY);
         } catch (_) {}
         if (lastStatusAdminIp) {
+          setGateAdminLayout(false);
           $("adminPanel").classList.add("hidden");
           $("adminContent").classList.add("hidden");
           $("adminPwdGate").classList.add("hidden");
@@ -795,11 +912,12 @@
               const div = document.createElement("div");
               div.className = "item";
               const head = document.createElement("div");
+              head.className = "item-head";
               const code = document.createElement("code");
               code.textContent = x.ip || "";
               head.appendChild(code);
               head.appendChild(
-                document.createTextNode(" · " + (x.requestedAt || "")),
+                document.createTextNode(" · " + fmtGateTime(x.requestedAt)),
               );
               div.appendChild(head);
               const xmac = x.clientMac || (x.deviceInfo && x.deviceInfo.clientMac);
@@ -812,38 +930,42 @@
               if (x.message) {
                 const sub = document.createElement("div");
                 sub.className = "sub";
-                sub.textContent = x.message;
+                sub.textContent = "신청: " + x.message;
                 div.appendChild(sub);
               }
-              const uaEl = document.createElement("div");
-              uaEl.className = "sub";
-              uaEl.textContent = "UA: " + (x.userAgent || "-");
-              div.appendChild(uaEl);
-              if (x.deviceInfo && typeof x.deviceInfo === "object") {
-                const d = x.deviceInfo;
-                const lines = [];
-                if (d.platform) lines.push("platform: " + d.platform);
-                if (d.screen) lines.push("screen: " + d.screen);
-                if (d.viewport) lines.push("viewport: " + d.viewport);
-                if (d.timezone) lines.push("timezone: " + d.timezone);
-                if (d.language) lines.push("language: " + d.language);
-                if (d.languages) lines.push("languages: " + d.languages);
-                if (d.hardwareConcurrency != null)
-                  lines.push("hardwareConcurrency: " + d.hardwareConcurrency);
-                if (d.deviceMemory != null) lines.push("deviceMemory(GB): " + d.deviceMemory);
-                if (d.maxTouchPoints != null) lines.push("maxTouchPoints: " + d.maxTouchPoints);
-                if (d.cookieEnabled != null) lines.push("cookieEnabled: " + d.cookieEnabled);
-                if (d.clientMac) lines.push("clientMac: " + d.clientMac);
-                if (lines.length) {
-                  const pre = document.createElement("pre");
-                  pre.className = "sub";
-                  pre.style.whiteSpace = "pre-wrap";
-                  pre.style.wordBreak = "break-word";
-                  pre.style.fontSize = "0.7rem";
-                  pre.style.marginTop = "0.35rem";
-                  pre.textContent = lines.join("\n");
-                  div.appendChild(pre);
+              const uaShort = String(x.userAgent || "").trim();
+              if (uaShort || (x.deviceInfo && typeof x.deviceInfo === "object")) {
+                const det = document.createElement("details");
+                det.className = "sub";
+                const sum = document.createElement("summary");
+                sum.textContent = "단말 정보";
+                det.appendChild(sum);
+                if (uaShort) {
+                  const uaEl = document.createElement("div");
+                  uaEl.className = "sub";
+                  uaEl.textContent = "UA: " + uaShort;
+                  det.appendChild(uaEl);
                 }
+                if (x.deviceInfo && typeof x.deviceInfo === "object") {
+                  const d = x.deviceInfo;
+                  const lines = [];
+                  if (d.platform) lines.push("platform: " + d.platform);
+                  if (d.screen) lines.push("screen: " + d.screen);
+                  if (d.viewport) lines.push("viewport: " + d.viewport);
+                  if (d.timezone) lines.push("timezone: " + d.timezone);
+                  if (d.language) lines.push("language: " + d.language);
+                  if (d.clientMac) lines.push("clientMac: " + d.clientMac);
+                  if (lines.length) {
+                    const pre = document.createElement("pre");
+                    pre.style.whiteSpace = "pre-wrap";
+                    pre.style.wordBreak = "break-word";
+                    pre.style.fontSize = "0.65rem";
+                    pre.style.margin = "0.2rem 0 0";
+                    pre.textContent = lines.join("\n");
+                    det.appendChild(pre);
+                  }
+                }
+                div.appendChild(det);
               }
               const memoLab = document.createElement("label");
               memoLab.className = "adm-memo-apr";
@@ -860,7 +982,6 @@
               div.appendChild(memoLab);
               const row = document.createElement("div");
               row.className = "row";
-              row.style.marginTop = "0.45rem";
               const b1 = document.createElement("button");
               b1.type = "button";
               b1.className = "btn-primary";
@@ -888,12 +1009,12 @@
               const div = document.createElement("div");
               div.className = "item";
               const head = document.createElement("div");
-              head.style.marginBottom = "0.35rem";
+              head.className = "item-head";
               const c = document.createElement("code");
               c.textContent = a.ip || "";
               head.appendChild(c);
               head.appendChild(
-                document.createTextNode(" · " + (a.addedAt || "")),
+                document.createTextNode(" · " + fmtGateTime(a.addedAt)),
               );
               div.appendChild(head);
               if (a.mac) {
@@ -926,7 +1047,6 @@
               div.appendChild(memoLab);
               const row = document.createElement("div");
               row.className = "row";
-              row.style.marginTop = "0.45rem";
               const saveBtn = document.createElement("button");
               saveBtn.type = "button";
               saveBtn.className = "btn-secondary";
