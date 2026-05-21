@@ -16,9 +16,17 @@
         "command": "node .cursor/hooks/stock-ops-pre-tool-visibility.mjs"
       }
     ],
+    "afterAgentResponse": [
+      {
+        "command": "node .cursor/hooks/stock-ops-scroll-agent-bottom.mjs"
+      }
+    ],
     "stop": [
       {
         "command": "node .cursor/hooks/stock-ops-queue-release.mjs"
+      },
+      {
+        "command": "node .cursor/hooks/stock-ops-scroll-agent-bottom.mjs"
       }
     ],
     "sessionEnd": [
