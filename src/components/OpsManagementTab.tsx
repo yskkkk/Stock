@@ -734,7 +734,6 @@ export default function OpsManagementTab({
               >
                 <div className="ops-management__my-ip-bubble-body">
                   <p className="ops-management__my-ip-title">{ko.app.opsMyIpJobsTitle}</p>
-                  <p className="ops-management__my-ip-hint">{ko.app.opsMyIpJobsHint}</p>
                   {viewerIp ? (
                     <p className="ops-management__my-ip-line ops-management__stream-v--mono">
                       <span className="ops-management__my-ip-k">{ko.app.opsHistoryRequestIp}</span>
@@ -760,7 +759,6 @@ export default function OpsManagementTab({
                       <span className="ops-management__my-ip-pending-badge">
                         {ko.app.opsRemotePendingBadge}
                       </span>
-                      <span className="ops-management__my-ip-pending-text">{ko.app.opsRemotePendingHint}</span>
                     </div>
                   ) : null}
 
@@ -887,9 +885,6 @@ export default function OpsManagementTab({
                   {ko.app.opsSubmit}
                 </button>
               </div>
-              <p className="ops-management__muted" style={{ marginTop: "0.65rem" }}>
-                {ko.app.opsAgentServerQueueHint}
-              </p>
             </div>
 
             {error ? (
@@ -1037,11 +1032,7 @@ export default function OpsManagementTab({
                       </button>
                     </summary>
 
-                    {state === "running" || state === "waiting" ? (
-                      <p className="ops-management__history-instruction-muted" role="note">
-                        {ko.app.opsHistoryRunningNoReplayHint}
-                      </p>
-                    ) : (
+                    {state === "running" || state === "waiting" ? null : (
                       <>
                         <p className="ops-management__history-instruction-label">
                           {ko.app.opsHistoryInstructionReplay}

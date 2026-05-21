@@ -240,7 +240,6 @@ export default function LiveTradingTab({
       <header className="live-trading-tab__head card">
         <div>
           <h2 className="live-trading-tab__title">{ko.app.liveTradeTitle}</h2>
-          <p className="live-trading-tab__sub">{ko.app.liveTradeSub}</p>
         </div>
         {onOpenRecommendations ? (
           <button

@@ -1277,11 +1277,6 @@ export default function App() {
                   ? ko.app.stockLookupSelectTitle
                   : ko.app.selectTitle}
               </p>
-              <p className="placeholder-desc">
-                {appTab === "stockLookup"
-                  ? ko.app.stockLookupSelectDesc
-                  : ko.app.selectDesc}
-              </p>
             </div>
           ) : (
             <>

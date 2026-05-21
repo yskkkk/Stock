@@ -207,8 +207,7 @@ function MacroEventCard({
       className={`macro-card macro-card--btn macro-card--${event.importance} macro-card--${urgency}${biasClass}`}
       data-region={event.region}
       onClick={() => onOpen(event)}
-      title={ko.macro.cardHint}
-      aria-label={`${event.name}, ${ko.macro.forecastLabel} ${event.forecast?.trim() || ko.macro.forecastPending}, ${ko.macro.cardHint}`}
+      aria-label={`${event.name}, ${ko.macro.forecastLabel} ${event.forecast?.trim() || ko.macro.forecastPending}`}
     >
       <div className="macro-card__top">
         <span className="macro-card__code">{codeShort}</span>
@@ -222,7 +221,6 @@ function MacroEventCard({
       <p className="macro-card__name">{event.name}</p>
       <p
         className="macro-card__forecast"
-        title={event.forecast?.trim() ? undefined : ko.macro.forecastHelp}
       >
         <span className="macro-card__forecast-k">{ko.macro.forecastLabel}</span>
         <span className="macro-card__forecast-sep" aria-hidden>
@@ -267,7 +265,6 @@ function SectorEarningsCard({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      title={ko.macro.sectorEarningsCardHint}
       aria-label={`${row.name} · ${row.symbol} · ${formatMacroCountdown(msLeft)}`}
     >
       <div className="macro-card__top">
@@ -282,7 +279,7 @@ function SectorEarningsCard({
       <p className="macro-card__name" title={row.name}>
         {row.name}
       </p>
-      <p className="macro-card__forecast" title={ko.macro.sectorEarningsCardHint}>
+      <p className="macro-card__forecast">
         <span className="macro-card__forecast-k">{ko.macro.earningsMetaLabel}</span>
         <span className="macro-card__forecast-sep" aria-hidden>
           {" "}
@@ -514,7 +511,9 @@ export default function MacroEventsBar({
                 />
               ) : null}
             </div>
-            <span className="macro-bar__sub">{ko.macro.subtitle}</span>
+            {ko.macro.subtitle ? (
+              <span className="macro-bar__sub">{ko.macro.subtitle}</span>
+            ) : null}
           </div>
         </div>
         <div

@@ -429,9 +429,6 @@ export default function AccessAdminModal({
                 </button>
               ) : null}
             </div>
-            {!adminIpBypassPassword && phase === "admin" ? (
-              <p className="access-admin-muted access-admin-lock-hint">{ko.access.adminLockHint}</p>
-            ) : null}
             {error && tab === "access" && (
               <p className="access-admin-error" role="alert">
                 {error}
@@ -443,7 +440,6 @@ export default function AccessAdminModal({
 
             {tab === "access" && snapshot && (
               <div className="access-admin-body">
-                <p className="access-admin-intro">{ko.access.adminIntro}</p>
                 <section className="access-admin-section">
                   <h3>{ko.access.adminPending}</h3>
                   {snapshot.pending.length === 0 ? (
@@ -639,7 +635,6 @@ export default function AccessAdminModal({
 
             {tab === "feedback" && (
               <div className="access-admin-body access-admin-body--feedback">
-                <p className="access-admin-muted">{ko.feedback.inboxPublicHint}</p>
                 {feedbackBusy ? (
                   <p className="access-admin-muted">{ko.telegramSent.loading}</p>
                 ) : feedbackErr ? (

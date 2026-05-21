@@ -337,9 +337,6 @@ export default function RecommendationsTab({
           </div>
         </div>
 
-        <p className="rec-tracker-sub">{ko.app.recTrackerSub}</p>
-        <p className="rec-tracker-note">{ko.app.recTrackerBackfillNote}</p>
-
         {availableDates.length > 0 && (
           <div className="rec-tracker-date-tabs market-tabs">
             <button
@@ -477,14 +474,6 @@ export default function RecommendationsTab({
                     </button>
                   ) : null}
                 </div>
-                {scoreFilter != null ? (
-                  <p className="rec-tracker-filter-hint" role="status">
-                    {ko.app.recTrackerScoreFilterOn.replace(
-                      "{score}",
-                      `${scoreFilter}${ko.app.recTrackerScoreUnit}`,
-                    )}
-                  </p>
-                ) : null}
                 <div
                   className={
                     scoreFilter != null
@@ -501,17 +490,8 @@ export default function RecommendationsTab({
                           ? "rec-tracker-score-chip rec-tracker-score-chip--active"
                           : "rec-tracker-score-chip"
                       }
-                      title={
-                        scoreFilter === s.score
-                          ? `${s.score}${ko.app.recTrackerScoreUnit} — ${ko.app.recTrackerChipSelected}`
-                          : `${s.score}${ko.app.recTrackerScoreUnit} — ${ko.app.recTrackerChipFilterTap}`
-                      }
                       aria-pressed={scoreFilter === s.score}
-                      aria-label={
-                        scoreFilter === s.score
-                          ? `${s.score}${ko.app.recTrackerScoreUnit} ${ko.app.recTrackerChipSelected}`
-                          : `${s.score}${ko.app.recTrackerScoreUnit} ${ko.app.recTrackerChipFilterTap}`
-                      }
+                      aria-label={`${s.score}${ko.app.recTrackerScoreUnit}`}
                       onClick={() =>
                         setScoreFilter((prev) => (prev === s.score ? null : s.score))
                       }
@@ -546,14 +526,6 @@ export default function RecommendationsTab({
                     </button>
                   ) : null}
                 </div>
-                {signalFilter ? (
-                  <p className="rec-tracker-filter-hint" role="status">
-                    {ko.app.recTrackerSignalFilterOn.replace(
-                      "{label}",
-                      signalChipMeta(signalFilter).short,
-                    )}
-                  </p>
-                ) : null}
                 <div
                   className={
                     signalFilter
@@ -573,17 +545,8 @@ export default function RecommendationsTab({
                             ? `${chip.className} rec-tracker-signal-chip rec-tracker-signal-chip--active`
                             : `${chip.className} rec-tracker-signal-chip`
                         }
-                        title={
-                          active
-                            ? `${chip.label} — ${ko.app.recTrackerChipSelected}`
-                            : `${chip.label} — ${ko.app.recTrackerChipFilterTap}`
-                        }
                         aria-pressed={active}
-                        aria-label={
-                          active
-                            ? `${chip.label} ${ko.app.recTrackerChipSelected}`
-                            : `${chip.label} ${ko.app.recTrackerChipFilterTap}`
-                        }
+                        aria-label={chip.label}
                         onClick={() =>
                           setSignalFilter((prev) =>
                             prev === s.signalId ? null : (s.signalId as SignalId),

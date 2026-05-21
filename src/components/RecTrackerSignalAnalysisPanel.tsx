@@ -186,7 +186,6 @@ export default function RecTrackerSignalAnalysisPanel({
         {ko.app.recTrackerAnalysisTitle}
         <span className="rec-tracker-analysis__badge">{insights.length}</span>
       </summary>
-      <p className="rec-tracker-analysis__intro">{ko.app.recTrackerAnalysisIntro}</p>
       <p className="rec-tracker-analysis__baseline">
         {ko.app.recTrackerAnalysisBaseline.replace("{rate}", formatWinRate(baseline.winRatePct)).replace(
           "{decided}",

@@ -114,8 +114,6 @@ export default function ProfitModelModal({
         <header className="news-modal-header">
           <div>
             <h2 id="profit-model-title">{ko.app.profitModelTitle}</h2>
-            <p className="news-modal-sub">{ko.app.profitModelHint}</p>
-            <p className="profit-model-persist-hint">{ko.app.profitModelPersistHint}</p>
             <p className="profit-model-browser-id">
               <span className="profit-model-browser-id__label">
                 {ko.app.profitModelBrowserId}

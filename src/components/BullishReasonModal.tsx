@@ -78,9 +78,6 @@ export default function BullishReasonModal({
             </ol>
           )}
 
-          <p className="reason-disclaimer">
-            기술적 분석 기준 추정이며, 투자 판단은 본인 책임입니다.
-          </p>
         </div>
       </div>
     </div>,

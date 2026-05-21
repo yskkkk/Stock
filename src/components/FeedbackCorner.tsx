@@ -231,7 +231,6 @@ export default function FeedbackCorner({ accessAdmin }: { accessAdmin: boolean }
                 </button>
               </div>
             </div>
-            <p className="feedback-modal__muted">{ko.feedback.inboxPublicHint}</p>
             {inboxBusy ? (
               <p className="feedback-modal__muted">{ko.macro.loading}</p>
             ) : inboxErr ? (

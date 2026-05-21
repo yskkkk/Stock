@@ -205,7 +205,6 @@ export default function RecTrackerTechUpgradePanel({
           {ko.app.recTrackerUpgradeTitle}
         </h3>
       </div>
-      <p className="rec-tracker-upgrade__intro">{ko.app.recTrackerUpgradeIntro}</p>
 
       <div className="rec-tracker-models">
         <span className="rec-tracker-models__label">{ko.app.recTrackerModelsActive}</span>
