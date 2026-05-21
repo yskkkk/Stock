@@ -86,6 +86,7 @@ function shouldSkipAccessLog(req) {
   if (path === "/api/crypto-quotes") return true;
   if (path === "/api/crypto-universe") return true;
   if (path === "/api/macro-events") return true;
+  if (path === "/api/sector-earnings") return true;
   if (path === "/api/config") return true;
   if (path === "/api/access/status") return true;
   /** 운영 탭 이력·대기열 폴링 — 로그만 과다 */
@@ -111,6 +112,7 @@ function humanAction(req) {
 
   if (method === "POST" && path === "/api/picks/refresh") return "스크리너 전체 재분석";
   if (method === "GET" && path === "/api/macro-events") return "경제 지표 일정 조회";
+  if (method === "GET" && path === "/api/sector-earnings") return "섹터 실적 스포트라이트 조회";
   if (method === "GET" && path === "/api/config") return "앱 설정 조회";
   if (method === "GET" && path === "/api/telegram/sent") return "텔레그램 오늘 발송 목록";
   if (method === "POST" && path === "/api/telegram/reset-sent") return "텔레그램 발송 이력 초기화";

@@ -4,6 +4,7 @@ import { startAutoGitSync } from "./auto-git-sync.js";
 import { createApp } from "./create-app.js";
 import { loadEnvFile } from "./load-env.js";
 import { installProcessGuards } from "./process-guards.js";
+import { prewarmAppCaches } from "./prewarm-caches.js";
 import { startScreening } from "./screener.js";
 
 installProcessGuards();
@@ -11,6 +12,7 @@ loadEnvFile();
 
 const PORT = Number(process.env.PORT) || 3456;
 const app = createApp();
+prewarmAppCaches();
 startScreening().catch((err) => {
   console.warn("[screener]", err instanceof Error ? err.message : err);
 });

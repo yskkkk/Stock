@@ -104,6 +104,7 @@ const okOr404 = (r) =>
 await expect("picks", "GET", "/api/picks", (r) => okJson(r) && "running" in r.json && Array.isArray(r.json.kr));
 await expect("picks-refresh", "POST", "/api/picks/refresh", okJson);
 await expect("macro-events", "GET", "/api/macro-events", okJson);
+await expect("sector-earnings", "GET", "/api/sector-earnings", okJson);
 await expect(
   "config",
   "GET",

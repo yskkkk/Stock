@@ -8,6 +8,7 @@ import { migrateLegacyServerLogsSync } from "./log-paths.js";
 import { appendServerEventLog } from "./access-log.js";
 import { startDevQueueDisplaySyncPoller } from "./ops-dev-queue-display-sync.js";
 import { startOpsIdeTranscriptPoller } from "./ops-ide-transcript-poller.js";
+import { prewarmAppCaches } from "./prewarm-caches.js";
 import { startScreening } from "./screener.js";
 import { installAccessGateHtmlMiddleware } from "./vite-access-gate-html.js";
 
@@ -110,6 +111,7 @@ export function stockApiPlugin() {
       appendServerEventLog("server", "dev 서버 기동 — 로그는 server/.logs 에 append 유지");
       startDevQueueDisplaySyncPoller();
       startOpsIdeTranscriptPoller();
+      setTimeout(() => prewarmAppCaches(), 400);
       setTimeout(() => {
         startScreening().catch(logScreeningError);
       }, 1500);
@@ -123,6 +125,7 @@ export function stockApiPlugin() {
       appendServerEventLog("server", "preview 서버 기동 — 로그는 server/.logs 에 append 유지");
       startDevQueueDisplaySyncPoller();
       startOpsIdeTranscriptPoller();
+      setTimeout(() => prewarmAppCaches(), 400);
       setTimeout(() => {
         startScreening().catch(logScreeningError);
       }, 1500);

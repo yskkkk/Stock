@@ -145,6 +145,12 @@ export function fetchMacroEvents() {
   return fetchJson<MacroEventsResponse>("/api/macro-events");
 }
 
+export function fetchSectorEarnings() {
+  return fetchJson<{ sectorEarnings: MacroEventsResponse["sectorEarnings"]; updatedAt: number }>(
+    "/api/sector-earnings",
+  );
+}
+
 export function refreshPicks() {
   return fetchJson<RefreshResponse>("/api/picks/refresh", { method: "POST" });
 }

@@ -416,28 +416,55 @@ export function getUpcomingMacroEvents(opts = {}) {
   return dedup.slice(0, limit);
 }
 
-let macroEventsCache = { at: 0, data: null };
-/** @type {Promise<{ events: unknown[]; updatedAt: number }> | null} */
-let macroEventsInflight = null;
+const MACRO_FULL_TTL_MS = 60_000;
+const MACRO_FAST_TTL_MS = 5 * 60_000;
+
+/** @type {{ at: number; data: { events: unknown[]; updatedAt: number; forecastsEnriched?: boolean } | null }} */
+let macroFullCache = { at: 0, data: null };
+/** @type {{ at: number; data: { events: unknown[]; updatedAt: number; forecastsEnriched?: boolean } | null }} */
+let macroFastCache = { at: 0, data: null };
+/** @type {Promise<void> | null} */
+let finnhubEnrichInflight = null;
+
+function buildMacroPayload(enriched = false) {
+  return {
+    events: getUpcomingMacroEvents(),
+    updatedAt: Date.now(),
+    forecastsEnriched: enriched,
+  };
+}
+
+function scheduleFinnhubEnrich() {
+  if (finnhubEnrichInflight) return;
+  finnhubEnrichInflight = (async () => {
+    const events = getUpcomingMacroEvents();
+    await enrichMacroEventsWithFinnhubConsensus(events).catch(() => {});
+    const data = { events, updatedAt: Date.now(), forecastsEnriched: true };
+    const at = Date.now();
+    macroFullCache = { at, data };
+    macroFastCache = { at, data };
+  })().finally(() => {
+    finnhubEnrichInflight = null;
+  });
+}
 
 export async function getMacroEventsCachedAsync() {
   const now = Date.now();
-  if (macroEventsCache.data && now - macroEventsCache.at < 60_000) {
-    return macroEventsCache.data;
+  if (macroFullCache.data && now - macroFullCache.at < MACRO_FULL_TTL_MS) {
+    return macroFullCache.data;
   }
-  if (macroEventsInflight) return macroEventsInflight;
-
-  macroEventsInflight = (async () => {
-    const events = getUpcomingMacroEvents();
-    await enrichMacroEventsWithFinnhubConsensus(events).catch(() => {});
-    const data = { events, updatedAt: Date.now() };
-    macroEventsCache = { at: Date.now(), data };
-    return data;
-  })();
-
-  try {
-    return await macroEventsInflight;
-  } finally {
-    macroEventsInflight = null;
+  if (macroFastCache.data && now - macroFastCache.at < MACRO_FAST_TTL_MS) {
+    scheduleFinnhubEnrich();
+    return macroFastCache.data;
   }
+
+  const fast = buildMacroPayload(false);
+  macroFastCache = { at: now, data: fast };
+  scheduleFinnhubEnrich();
+  return fast;
+}
+
+/** 서버 기동 시 일정·Finnhub 예상치 미리 채움 */
+export function prewarmMacroEventsCache() {
+  void getMacroEventsCachedAsync();
 }

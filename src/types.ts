@@ -22,8 +22,10 @@ export interface MacroEvent {
 
 export interface MacroEventsResponse {
   events: MacroEvent[];
-  sectorEarnings: SectorEarningsSpotlightItem[];
+  /** @deprecated 별도 GET /api/sector-earnings 사용 */
+  sectorEarnings?: SectorEarningsSpotlightItem[];
   updatedAt: number;
+  forecastsEnriched?: boolean;
 }
 
 /** Yahoo calendarEvents 기준 — 주목 섹터(서버 JSON) 예정 실적 */

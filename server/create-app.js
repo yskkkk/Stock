@@ -371,14 +371,20 @@ export function createApp() {
   app.get(
     "/api/macro-events",
     asyncRoute(async (_req, res) => {
-      const base = await getMacroEventsCachedAsync();
+      res.json(await getMacroEventsCachedAsync());
+    }),
+  );
+
+  app.get(
+    "/api/sector-earnings",
+    asyncRoute(async (_req, res) => {
       let sectorEarnings = [];
       try {
         sectorEarnings = await fetchSectorEarningsSpotlight();
       } catch {
         sectorEarnings = [];
       }
-      res.json({ ...base, sectorEarnings });
+      res.json({ sectorEarnings, updatedAt: Date.now() });
     }),
   );
 
