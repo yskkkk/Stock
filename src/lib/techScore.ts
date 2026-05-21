@@ -1,6 +1,6 @@
 import type { SignalId } from "../constants/signals";
 
-const WEIGHT: Record<SignalId, number> = {
+const DEFAULT_WEIGHT: Record<SignalId, number> = {
   ma_align: 2,
   ma_golden: 2,
   ma20: 1,
@@ -16,11 +16,21 @@ const WEIGHT: Record<SignalId, number> = {
 
 export const MAX_TECH_SCORE = 13;
 
+let activeWeights: Record<string, number> | null = null;
+
+export function setTechScoreWeights(weights: Record<string, number>) {
+  activeWeights = { ...weights };
+}
+
+function weightFor(id: string): number {
+  const w = activeWeights?.[id] ?? DEFAULT_WEIGHT[id as SignalId];
+  return typeof w === "number" && Number.isFinite(w) ? w : 0;
+}
+
 export function weightedScoreFromSignalIds(ids: string[]): number {
   let n = 0;
   for (const id of ids) {
-    const w = WEIGHT[id as SignalId];
-    if (typeof w === "number" && Number.isFinite(w)) n += w;
+    n += weightFor(id);
   }
   return n;
 }

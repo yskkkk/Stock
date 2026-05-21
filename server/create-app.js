@@ -71,6 +71,14 @@ import {
   scheduleRecommendationSignalBackfill,
 } from "./picks-recommendations-tracker.js";
 import {
+  applyTechWeights,
+  getActiveSignalScoreWeightsSync,
+  getDefaultSignalScoreWeights,
+  getMaxTechScoreSync,
+  getTechWeightsMetaSync,
+  resetTechWeightsSync,
+} from "./picks-tech-weights-store.js";
+import {
   fetchQuoteSnapshotsForSymbols,
   mergeLiveQuotesIntoPicksState,
 } from "./picks-live-quotes.js";
@@ -234,6 +242,53 @@ export function createApp() {
       res.json(await buildRecommendationsTrackerPayload({ includeQuotes }));
     }),
   );
+
+  app.get("/api/picks/tech-weights", (_req, res) => {
+    const meta = getTechWeightsMetaSync();
+    res.json({
+      weights: getActiveSignalScoreWeightsSync(),
+      defaults: getDefaultSignalScoreWeights(),
+      maxTechScore: getMaxTechScoreSync(),
+      revision: meta.revision,
+      updatedAtMs: meta.updatedAtMs,
+      lastBaselineWinRatePct: meta.lastBaselineWinRatePct,
+    });
+  });
+
+  app.post(
+    "/api/picks/tech-weights/apply",
+    asyncRoute(async (req, res) => {
+      const raw = req.body?.weights;
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+        res.status(400).json({ error: "weights 객체가 필요합니다." });
+        return;
+      }
+      const baseline = req.body?.baselineWinRatePct;
+      const applied = applyTechWeights(raw, {
+        baselineWinRatePct:
+          typeof baseline === "number" && Number.isFinite(baseline) ? baseline : null,
+      });
+      res.json({
+        ok: true,
+        weights: applied.weights,
+        revision: applied.revision,
+        maxTechScore: getMaxTechScoreSync(),
+        updatedAtMs: Date.now(),
+      });
+    }),
+  );
+
+  app.post("/api/picks/tech-weights/reset", (_req, res) => {
+    resetTechWeightsSync();
+    res.json({
+      ok: true,
+      weights: getActiveSignalScoreWeightsSync(),
+      defaults: getDefaultSignalScoreWeights(),
+      maxTechScore: getMaxTechScoreSync(),
+      revision: 0,
+      updatedAtMs: null,
+    });
+  });
 
   app.post("/api/picks/refresh", (_req, res) => {
     res.json(forceRescreen());

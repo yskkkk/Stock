@@ -12,7 +12,7 @@ import { fileURLToPath } from "url";
 import { buildBullishReasons } from "./bullish-reasons.js";
 import { getTradingSessionKey } from "./market-hours.js";
 import {
-  MAX_TECH_SCORE,
+  getMaxTechScore,
   SIGNAL_CONDITION_TOTAL,
   MIN_TELEGRAM_SCORE_RATIO,
   meetsTelegramNotifyScore,
@@ -504,7 +504,7 @@ export function getTelegramNotifyStatus() {
     enabled: isTelegramNotifyEnabled(),
     minConditionsRequired: minMet,
     minAlertScore: minScore,
-    maxTechScore: MAX_TECH_SCORE,
+    maxTechScore: getMaxTechScore(),
     minTelegramScoreRatio: MIN_TELEGRAM_SCORE_RATIO,
     todaySentCount: countTodayTelegramSent(),
   };
@@ -711,7 +711,7 @@ function buildMessage(pick) {
 
     `<code>${bar}</code>`,
 
-    `📈 가중 점수  <b>${pick.score}</b> / ${MAX_TECH_SCORE} (알림 기준 ${minTelegramScoreRequired()}점 초과)`,
+    `📈 가중 점수  <b>${pick.score}</b> / ${getMaxTechScore()} (알림 기준 ${minTelegramScoreRequired()}점 초과)`,
 
     "",
 

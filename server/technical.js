@@ -1,5 +1,16 @@
 /** @typedef {{ id: string, label: string }} SignalHit */
 
+import {
+  getActiveSignalScoreWeightsSync,
+  getMaxTechScoreSync,
+} from "./picks-tech-weights-store.js";
+import {
+  DEFAULT_MAX_TECH_SCORE,
+  SIGNAL_SCORE_WEIGHT,
+} from "./technical-default-weights.js";
+
+export { SIGNAL_SCORE_WEIGHT } from "./technical-default-weights.js";
+
 export const SIGNAL_DEFS = [
   { id: "ma_align", label: "이동평균 정배열" },
   { id: "ma_golden", label: "이평선 골든크로스" },
@@ -14,23 +25,18 @@ export const SIGNAL_DEFS = [
   { id: "bull_bar", label: "양봉" },
 ];
 
-/** 점수 항목 최대치 (가중 합산, UI·참고용) */
-export const MAX_TECH_SCORE = 13;
+/** 기본 최대 가중 점수(오버라이드 없을 때) */
+export const MAX_TECH_SCORE = DEFAULT_MAX_TECH_SCORE;
 
-/** @type {Record<string, number>} */
-export const SIGNAL_SCORE_WEIGHT = {
-  ma_align: 2,
-  ma_golden: 2,
-  ma20: 1,
-  ma50: 1,
-  ma5_align: 1,
-  rsi: 2,
-  volume: 1,
-  volume_surge: 1,
-  macd: 1,
-  high_60: 1,
-  bull_bar: 0,
-};
+export function getMaxTechScore() {
+  return getMaxTechScoreSync();
+}
+
+/** @param {string} id */
+export function getSignalScoreWeight(id) {
+  const w = getActiveSignalScoreWeightsSync()[String(id ?? "").trim()];
+  return typeof w === "number" && Number.isFinite(w) ? w : 0;
+}
 
 /**
  * @param {string[]} signalIds
@@ -39,8 +45,7 @@ export function weightedScoreFromSignalIds(signalIds) {
   if (!Array.isArray(signalIds)) return 0;
   let n = 0;
   for (const id of signalIds) {
-    const w = SIGNAL_SCORE_WEIGHT[String(id ?? "").trim()];
-    if (typeof w === "number" && Number.isFinite(w)) n += w;
+    n += getSignalScoreWeight(id);
   }
   return n;
 }
@@ -69,7 +74,7 @@ export function meetsBuyCondition(
 /** @param {number} score 가중 합산 점수 */
 export function meetsTelegramNotifyScore(
   score,
-  max = MAX_TECH_SCORE,
+  max = getMaxTechScoreSync(),
   ratio = MIN_TELEGRAM_SCORE_RATIO,
 ) {
   if (!Number.isFinite(score)) return false;
@@ -77,7 +82,7 @@ export function meetsTelegramNotifyScore(
 }
 
 export function minTelegramScoreRequired(
-  max = MAX_TECH_SCORE,
+  max = getMaxTechScoreSync(),
   ratio = MIN_TELEGRAM_SCORE_RATIO,
 ) {
   const threshold = max * ratio;
@@ -158,6 +163,18 @@ function macdBullish(closes, i) {
   return m > 0 && m > mPrev;
 }
 
+/**
+ * @param {SignalHit[]} hits
+ * @param {number} score
+ * @param {string} id
+ * @param {string} label
+ */
+function addSignalHit(hits, score, id, label) {
+  const w = getSignalScoreWeight(id);
+  hits.push({ id, label });
+  return score + (w > 0 ? w : 0);
+}
+
 export function analyzeTechnicals(candles) {
   if (candles.length < 55) {
     return { score: 0, signalIds: [], signals: [], buy: false };
@@ -179,28 +196,23 @@ export function analyzeTechnicals(candles) {
   let score = 0;
 
   if (sma20[i] != null && sma50[i] != null && sma20[i] > sma50[i]) {
-    score += 2;
-    hits.push({ id: "ma_align", label: "이동평균 정배열" });
+    score = addSignalHit(hits, score, "ma_align", "이동평균 정배열");
   }
 
   if (recentCrossAbove(sma20, sma50, i, 5)) {
-    score += 2;
-    hits.push({ id: "ma_golden", label: "이평선 골든크로스" });
+    score = addSignalHit(hits, score, "ma_golden", "이평선 골든크로스");
   }
 
   if (sma20[i] != null && closes[i] > sma20[i]) {
-    score += 1;
-    hits.push({ id: "ma20", label: "20봉 위" });
+    score = addSignalHit(hits, score, "ma20", "20봉 위");
   }
 
   if (sma50[i] != null && closes[i] > sma50[i]) {
-    score += 1;
-    hits.push({ id: "ma50", label: "50일선 위" });
+    score = addSignalHit(hits, score, "ma50", "50일선 위");
   }
 
   if (sma5[i] != null && sma20[i] != null && sma5[i] > sma20[i]) {
-    score += 1;
-    hits.push({ id: "ma5_align", label: "5·20 단기 정배열" });
+    score = addSignalHit(hits, score, "ma5_align", "5·20 단기 정배열");
   }
 
   const rsiNow = rsi14[i];
@@ -212,39 +224,34 @@ export function analyzeTechnicals(candles) {
     rsiNow <= 68 &&
     rsiNow > rsiPrev
   ) {
-    score += 2;
-    hits.push({ id: "rsi", label: "RSI 상승" });
+    score = addSignalHit(hits, score, "rsi", "RSI 상승");
   }
 
   const volSlice = volumes.slice(-21, -1).filter((v) => v > 0);
   if (volSlice.length > 0) {
     const avgVol = volSlice.reduce((a, b) => a + b, 0) / volSlice.length;
     if (volumes[i] > avgVol * 1.15) {
-      score += 1;
-      hits.push({ id: "volume", label: "거래량 증가" });
+      score = addSignalHit(hits, score, "volume", "거래량 증가");
     }
     if (volumes[i] > avgVol * 1.5) {
-      score += 1;
-      hits.push({ id: "volume_surge", label: "거래량 급증" });
+      score = addSignalHit(hits, score, "volume_surge", "거래량 급증");
     }
   }
 
   if (macdBullish(closes, i)) {
-    score += 1;
-    hits.push({ id: "macd", label: "MACD 상승" });
+    score = addSignalHit(hits, score, "macd", "MACD 상승");
   }
 
   const highSlice = highs.slice(Math.max(0, i - 59), i + 1);
   if (highSlice.length > 0) {
     const max60 = Math.max(...highSlice);
     if (max60 > 0 && closes[i] >= max60 * 0.97) {
-      score += 1;
-      hits.push({ id: "high_60", label: "60일 고가 근접" });
+      score = addSignalHit(hits, score, "high_60", "60일 고가 근접");
     }
   }
 
   if (last.close > last.open) {
-    hits.push({ id: "bull_bar", label: "양봉" });
+    score = addSignalHit(hits, score, "bull_bar", "양봉");
   }
 
   const conditionsMet = hits.length;

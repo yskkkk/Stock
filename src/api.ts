@@ -618,6 +618,42 @@ export function fetchTelegramSent() {
   return fetchJson<TelegramSentResponse>("/api/telegram/sent");
 }
 
+export interface TechWeightsResponse {
+  weights: Record<string, number>;
+  defaults: Record<string, number>;
+  maxTechScore: number;
+  revision: number;
+  updatedAtMs: number | null;
+  lastBaselineWinRatePct: number | null;
+}
+
+export function fetchTechWeights() {
+  return fetchJson<TechWeightsResponse>("/api/picks/tech-weights");
+}
+
+export function applyTechWeights(body: {
+  weights: Record<string, number>;
+  baselineWinRatePct?: number;
+}) {
+  return fetchJson<{
+    ok: boolean;
+    weights: Record<string, number>;
+    revision: number;
+    maxTechScore: number;
+    updatedAtMs: number;
+  }>("/api/picks/tech-weights/apply", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function resetTechWeights() {
+  return fetchJson<TechWeightsResponse>("/api/picks/tech-weights/reset", {
+    method: "POST",
+  });
+}
+
 export function fetchNews(
   symbol: string,
   name: string,

@@ -6868,6 +6868,125 @@ body {
   opacity: 0.88;
 }
 
+/* 승률 기반 기술 분석 업그레이드 */
+.rec-tracker-upgrade {
+  margin: 0 0 0.85rem;
+  padding: 0.65rem 0.7rem 0.75rem;
+  border: 1px solid rgba(94, 234, 212, 0.28);
+  border-radius: var(--radius-sm);
+  background: var(--accent-dim);
+}
+
+.rec-tracker-upgrade__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+  margin-bottom: 0.35rem;
+}
+
+.rec-tracker-upgrade__rev {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.rec-tracker-upgrade__intro,
+.rec-tracker-upgrade__baseline,
+.rec-tracker-upgrade__empty,
+.rec-tracker-upgrade__headline,
+.rec-tracker-upgrade__ok {
+  margin: 0.35rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+
+.rec-tracker-upgrade__headline {
+  font-weight: 650;
+  color: var(--accent);
+}
+
+.rec-tracker-upgrade__list {
+  margin: 0.55rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.rec-tracker-upgrade__item {
+  padding: 0.5rem 0.55rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(10, 14, 19, 0.35);
+}
+
+.rec-tracker-upgrade__item--boost {
+  border-color: rgba(74, 222, 128, 0.28);
+}
+
+.rec-tracker-upgrade__item--cut {
+  border-color: rgba(248, 113, 113, 0.22);
+}
+
+.rec-tracker-upgrade__item-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.rec-tracker-upgrade__tag {
+  font-size: 0.72rem !important;
+  padding: 0.1rem 0.35rem !important;
+}
+
+.rec-tracker-upgrade__weight {
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.rec-tracker-upgrade__rate {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--up);
+  font-variant-numeric: tabular-nums;
+}
+
+.rec-tracker-upgrade__item--cut .rec-tracker-upgrade__rate {
+  color: var(--down);
+}
+
+.rec-tracker-upgrade__n {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.rec-tracker-upgrade__reason {
+  margin: 0 0 0.45rem;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.rec-tracker-upgrade__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+}
+
+.rec-tracker-upgrade__ok {
+  color: var(--up);
+  font-weight: 600;
+}
+
 .rec-tracker-signal-chip {
   position: relative;
   display: inline-flex;

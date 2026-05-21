@@ -20,6 +20,7 @@ import {
 } from "../lib/sortRecTracker";
 import { recTrackerScoreSignalMismatch } from "../lib/techScore";
 import RecTrackerSignalAnalysisPanel from "./RecTrackerSignalAnalysisPanel";
+import RecTrackerTechUpgradePanel from "./RecTrackerTechUpgradePanel";
 import { ko } from "../i18n/ko";
 import type {
   Market,
@@ -538,6 +539,10 @@ export default function RecommendationsTab({
                   })}
                 </div>
               </div>
+            )}
+
+            {itemsForChipStats.length > 0 && (
+              <RecTrackerTechUpgradePanel itemsPool={itemsForChipStats} />
             )}
 
             {itemsForChipStats.length > 0 && (
