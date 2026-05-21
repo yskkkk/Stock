@@ -121,7 +121,7 @@ function parseLastAssistantTail(lines) {
     } catch {
       continue;
     }
-    if (row?.role !== "assistant") return null;
+    if (row?.role !== "assistant") continue;
     const parts = row?.message?.content;
     if (!Array.isArray(parts)) {
       return { hasToolUse: false, textOnly: true };

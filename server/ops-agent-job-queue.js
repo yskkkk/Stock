@@ -452,6 +452,10 @@ export function registerIdeDevQueueSlot(input) {
   }
 
   const sessionId = String(input.sessionId ?? "").trim() || null;
+
+  /* transcript 턴 종료 감지 실패 시 — 다른 프롬프트면 실행 중 슬롯을 먼저 해제 */
+  releaseRunningIdeDevQueueIfDifferentPrompt(prompt);
+
   const waiting = waitingSlotCount();
   if (waiting >= MAX_WAITING) {
     const err = new Error(
