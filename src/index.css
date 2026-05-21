@@ -3335,7 +3335,7 @@ html[data-theme="light"] .access-admin-tab--active {
     display: flex;
     flex-direction: column;
     flex: 1 1 auto;
-    min-height: min(36dvh, 360px);
+    min-height: min(46dvh, 440px);
     min-width: 0;
     width: 100%;
     max-width: 100%;
@@ -3373,13 +3373,13 @@ html[data-theme="light"] .access-admin-tab--active {
   .workspace:not(.crypto-workspace)
     .tradingview-widget-container.tradingview-embed-mount {
     flex: 1 1 auto;
-    min-height: min(34dvh, 300px);
+    min-height: min(42dvh, 400px);
     min-width: 0;
   }
 
   .workspace:not(.crypto-workspace) .crypto-chart-panel-body > .chart-canvas-wrap {
     flex: 1 1 auto;
-    min-height: min(32dvh, 280px);
+    min-height: min(40dvh, 380px);
     min-width: 0;
   }
 
@@ -4221,17 +4221,17 @@ html[data-theme="light"] .access-admin-tab--active {
  */
 @media (max-width: 900px) and (orientation: portrait) {
   .workspace:not(.crypto-workspace) .chart-section.crypto-chart-section {
-    min-height: min(28dvh, 280px);
+    min-height: min(50dvh, 480px);
     scroll-margin-block: min(4rem, 14dvh);
   }
 
   .workspace:not(.crypto-workspace)
     .tradingview-widget-container.tradingview-embed-mount {
-    min-height: min(26dvh, 260px);
+    min-height: min(46dvh, 440px);
   }
 
   .workspace:not(.crypto-workspace) .crypto-chart-panel-body > .chart-canvas-wrap {
-    min-height: min(24dvh, 240px);
+    min-height: min(44dvh, 420px);
   }
 
   .pick-item .pick-row {
@@ -6653,8 +6653,8 @@ body {
 .rec-tracker-signals__chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: stretch;
+  gap: 0.4rem 0.45rem;
+  align-items: center;
 }
 
 .rec-tracker-signals__chips--has-filter .rec-tracker-signal-chip:not(.rec-tracker-signal-chip--active),
@@ -7058,10 +7058,11 @@ body {
 
 .rec-tracker-model-chip {
   display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.1rem;
-  padding: 0.45rem 0.62rem;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.35rem;
+  padding: 0.38rem 0.55rem;
   border-radius: var(--radius-sm);
   border: 1px solid rgba(94, 234, 212, 0.25);
   background: rgba(94, 234, 212, 0.08);
@@ -7110,11 +7111,12 @@ body {
 .rec-tracker-signal-chip {
   position: relative;
   display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.12rem;
-  padding: 0.45rem 0.62rem !important;
-  padding-right: 0.85rem !important;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.35rem;
+  padding: 0.38rem 0.55rem !important;
+  padding-right: 0.62rem !important;
   font-size: 0.78rem !important;
   font-weight: 650 !important;
   line-height: 1.25;
@@ -7157,16 +7159,23 @@ body {
   opacity: 0.92;
 }
 
+.rec-tracker-signal-chip__rate + .rec-tracker-signal-chip__n::before {
+  content: "·";
+  margin: 0 0.12rem;
+  opacity: 0.65;
+}
+
 .rec-tracker-score-chip {
   position: relative;
   display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.12rem;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.35rem;
   flex: 0 0 auto;
-  min-width: 4.6rem;
-  padding: 0.45rem 0.62rem;
-  padding-right: 0.85rem;
+  min-width: 0;
+  padding: 0.38rem 0.55rem;
+  padding-right: 0.62rem;
   font-size: 0.78rem;
   font-weight: 650;
   line-height: 1.25;

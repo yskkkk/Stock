@@ -718,3 +718,186 @@ body {
   gap: 0.4rem;
   margin-top: 0.55rem;
 }
+
+/* =============================================================================
+   모바일: 목록·차트 비율(차트 세로 확보) + 추천 목록 근거 칩 컴팩트 배치
+   ============================================================================= */
+@media (max-width: 900px) {
+  .workspace:not(.crypto-workspace) .picks-panel:not(.crypto-panel) {
+    max-height: min(44dvh, 400px);
+  }
+
+  .workspace:not(.crypto-workspace) .picks-panel:not(.crypto-panel) .picks-panel-stack .pick-list,
+  .workspace:not(.crypto-workspace) .picks-panel:not(.crypto-panel) > .stock-search-tab .pick-list {
+    --pick-list-slot: 8rem;
+    --pick-list-row-gap: 0.42rem;
+    --pick-list-mobile-h: calc(2 * var(--pick-list-slot) + var(--pick-list-row-gap));
+    height: min(var(--pick-list-mobile-h), min(38dvh, 340px));
+    min-height: min(var(--pick-list-mobile-h), min(26dvh, 240px));
+    max-height: min(var(--pick-list-mobile-h), min(38dvh, 340px));
+  }
+
+  .workspace:not(.crypto-workspace) .chart-section.crypto-chart-section {
+    flex: 1 1 auto;
+    min-height: min(48dvh, 460px);
+  }
+
+  .workspace:not(.crypto-workspace) .tradingview-widget-container.tradingview-embed-mount {
+    min-height: min(44dvh, 420px);
+  }
+
+  .workspace:not(.crypto-workspace) .crypto-chart-panel-body > .chart-canvas-wrap {
+    min-height: min(42dvh, 400px);
+  }
+
+  .chart-section .quote-bar.card {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 0.4rem 0.52rem;
+    gap: 0.35rem 0.48rem;
+  }
+
+  .quote-bar__right {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    width: auto;
+    flex: 1 1 auto;
+    justify-content: flex-end;
+    gap: 0.35rem;
+  }
+
+  .chart-panel.crypto-chart-panel > .chart-toolbar {
+    padding: 0.32rem 0.42rem;
+  }
+
+  /* 추천 목록 — 근거·점수·모델 칩: 한 줄에 여러 개(가로 pill) */
+  .rec-tracker-signals__chips {
+    align-items: center;
+    gap: 0.3rem 0.38rem;
+  }
+
+  .rec-tracker-scores .rec-tracker-signals__chips {
+    flex-wrap: wrap;
+    overflow: visible;
+    padding-bottom: 0;
+  }
+
+  .rec-tracker-signal-chip,
+  .rec-tracker-score-chip,
+  .rec-tracker-model-chip {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    align-self: center;
+    width: auto;
+    max-width: 100%;
+    flex: 0 1 auto;
+    gap: 0.2rem 0.32rem;
+    padding: 0.28rem 0.48rem !important;
+    padding-right: 0.5rem !important;
+    min-height: 0;
+    white-space: nowrap;
+  }
+
+  .rec-tracker-signal-chip--active::after,
+  .rec-tracker-score-chip--active::after {
+    top: 0.1rem;
+    right: 0.18rem;
+  }
+
+  .rec-tracker-signal-chip > span:first-child,
+  .rec-tracker-score-chip__pts {
+    flex-shrink: 0;
+  }
+
+  .rec-tracker-signal-chip__rate,
+  .rec-tracker-signal-chip__n,
+  .rec-tracker-score-chip__rate,
+  .rec-tracker-model-chip__rate {
+    font-size: 0.66rem;
+  }
+
+  .rec-tracker-signal-chip__n::before {
+    content: "·";
+    margin: 0 0.12rem;
+    opacity: 0.65;
+  }
+
+  .rec-tracker-score-chip__pts {
+    font-size: 0.74rem;
+    margin-right: 0.08rem;
+  }
+
+  .rec-tracker-model-chip {
+    padding: 0.32rem 0.5rem;
+  }
+
+  .rec-tracker-model-chip__name {
+    font-size: 0.72rem;
+    margin-right: 0.2rem;
+  }
+
+  .rec-tracker-signals {
+    padding: 0.52rem 0.58rem;
+    margin-bottom: 0.55rem;
+  }
+
+  .rec-tracker-signals__head {
+    margin-bottom: 0.4rem;
+  }
+
+  .rec-tracker-summary {
+    gap: 0.42rem;
+    margin-bottom: 0.55rem;
+  }
+
+  .rec-tracker-stat {
+    padding: 0.48rem 0.52rem;
+  }
+
+  .rec-tracker-stat__value {
+    font-size: 1.02rem;
+    margin-top: 0.12rem;
+  }
+
+  .picks-panel.rec-tracker-panel {
+    padding: 0.62rem 0.72rem 0.8rem;
+    gap: 0.12rem;
+  }
+
+  .rec-tracker-sub,
+  .rec-tracker-note {
+    margin-bottom: 0.5rem;
+  }
+
+  .rec-tracker-analysis__metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.28rem 0.32rem;
+  }
+}
+
+@media (max-width: 900px) and (orientation: portrait) {
+  .workspace:not(.crypto-workspace) .chart-section.crypto-chart-section {
+    min-height: min(52dvh, 500px);
+  }
+
+  .workspace:not(.crypto-workspace) .tradingview-widget-container.tradingview-embed-mount {
+    min-height: min(48dvh, 460px);
+  }
+
+  .workspace:not(.crypto-workspace) .crypto-chart-panel-body > .chart-canvas-wrap {
+    min-height: min(46dvh, 440px);
+  }
+}
+
+@media (max-width: 560px) {
+  .workspace:not(.crypto-workspace) .chart-section.crypto-chart-section {
+    min-height: min(50dvh, 440px);
+  }
+
+  .workspace:not(.crypto-workspace) .crypto-chart-panel-body > .chart-canvas-wrap {
+    min-height: min(44dvh, 400px);
+  }
+}
