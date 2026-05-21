@@ -23,17 +23,18 @@
       * {
         box-sizing: border-box;
       }
-      html,
+      html {
+        margin: 0;
+        min-height: 100%;
+      }
       body {
-        height: 100%;
+        min-height: 100dvh;
+        height: auto;
         margin: 0;
         font-family: "DM Sans", system-ui, sans-serif;
         background: var(--bg);
         color: var(--text);
         -webkit-text-size-adjust: 100%;
-      }
-      body {
-        min-height: 100dvh;
         padding: max(1.25rem, env(safe-area-inset-top, 0px))
           max(1rem, env(safe-area-inset-right, 0px))
           max(1.25rem, env(safe-area-inset-bottom, 0px))
@@ -41,7 +42,6 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        overflow-y: auto;
       }
       body.gate-admin-layout {
         align-items: flex-start;
@@ -49,6 +49,18 @@
       }
       body.gate-admin-layout #main.card {
         max-width: min(1180px, 100%);
+      }
+      body.gate-admin-layout #main > .product,
+      body.gate-admin-layout #main > h1,
+      body.gate-admin-layout #main > #feedback,
+      body.gate-admin-layout #requestBlock,
+      body.gate-admin-layout #pendingBlock {
+        display: none !important;
+      }
+      body.gate-admin-layout #adminPanel.admin {
+        margin-top: 0;
+        padding-top: 0;
+        border-top: none;
       }
       .card {
         width: 100%;
@@ -205,8 +217,38 @@
         border-radius: 6px;
         background: rgba(148, 163, 184, 0.06);
       }
+      #adminContent {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+      }
+      .admin-toolbar-sticky {
+        position: sticky;
+        top: max(0px, env(safe-area-inset-top, 0px));
+        z-index: 5;
+        margin: 0 0 0.15rem;
+        padding: 0.35rem 0 0.5rem;
+        background: var(--card);
+        border-bottom: 1px solid var(--border);
+      }
       .admin-list-section {
-        margin-top: 0.55rem;
+        margin-top: 0;
+      }
+      .admin-list-section--pending {
+        order: -2;
+        padding: 0.5rem 0.55rem;
+        border: 1px solid rgba(94, 234, 212, 0.45);
+        border-radius: 8px;
+        background: var(--accent-dim);
+      }
+      .admin-list-section--pending h3 {
+        color: var(--accent);
+      }
+      .admin-list-section--allowed {
+        order: 1;
+      }
+      .admin-intro-wrap {
+        order: 2;
       }
       .admin-list-section h3 {
         margin: 0 0 0.35rem;
@@ -214,7 +256,12 @@
         font-weight: 700;
         color: var(--dim);
       }
-      #admPending,
+      #admPending {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 0.45rem;
+        align-items: start;
+      }
       #admAllowed {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -443,26 +490,28 @@
           <p id="admPwdErr" class="err hidden"></p>
         </div>
         <div id="adminContent" class="hidden">
-        <details class="admin-intro-wrap">
-          <summary>접근 관리 안내</summary>
-          <p class="admin-intro-body">
-            허용 <strong>IP</strong> 또는 <strong>MAC</strong>이 맞으면 이용 가능합니다.
-            <strong>대기</strong>·<strong>승인</strong>·<strong>거절</strong>·<strong>허가 취소</strong>는 각 버튼대로 동작합니다.
-          </p>
-        </details>
-        <div class="row">
-          <button type="button" class="btn-secondary" id="btnAdminLock">관리 종료</button>
-          <button type="button" class="btn-ghost" id="btnAdmClose">닫기</button>
-        </div>
-        <p id="admErr" class="err hidden"></p>
-        <section class="admin-list-section">
-          <h3>대기 중</h3>
-          <div id="admPending"></div>
-        </section>
-        <section class="admin-list-section">
-          <h3>허용 목록</h3>
-          <div id="admAllowed"></div>
-        </section>
+          <div class="admin-toolbar-sticky">
+            <div class="row">
+              <button type="button" class="btn-secondary" id="btnAdminLock">관리 종료</button>
+              <button type="button" class="btn-ghost" id="btnAdmClose">닫기</button>
+            </div>
+            <p id="admErr" class="err hidden"></p>
+          </div>
+          <section class="admin-list-section admin-list-section--pending">
+            <h3 id="admPendingTitle">대기 중 — 승인·거절</h3>
+            <div id="admPending"></div>
+          </section>
+          <section class="admin-list-section admin-list-section--allowed">
+            <h3>허용 목록</h3>
+            <div id="admAllowed"></div>
+          </section>
+          <details class="admin-intro-wrap">
+            <summary>접근 관리 안내</summary>
+            <p class="admin-intro-body">
+              허용 <strong>IP</strong> 또는 <strong>MAC</strong>이 맞으면 이용 가능합니다.
+              <strong>대기</strong>·<strong>승인</strong>·<strong>거절</strong>·<strong>허가 취소</strong>는 각 버튼대로 동작합니다.
+            </p>
+          </details>
         </div>
       </div>
     </div>
@@ -475,6 +524,15 @@
 
       function setGateAdminLayout(on) {
         document.body.classList.toggle("gate-admin-layout", Boolean(on));
+      }
+
+      function scrollAdminToPending() {
+        window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+        requestAnimationFrame(() => {
+          const target =
+            $("admPending")?.querySelector(".item") || $("admPendingTitle");
+          target?.scrollIntoView({ block: "start", behavior: "smooth" });
+        });
       }
 
       function fmtGateTime(iso) {
@@ -653,6 +711,7 @@
       let pollId = null;
       let adminPollId = null;
       let lastStatusAdminIp = false;
+      let adminFocusPending = false;
 
       function stopPoll() {
         if (pollId) clearInterval(pollId);
@@ -737,6 +796,7 @@
 
       function openAdmin() {
         stopAdminPoll();
+        adminFocusPending = true;
         setGateAdminLayout(true);
         $("adminPanel").classList.remove("hidden");
         const savedPwd = token().trim();
@@ -764,7 +824,6 @@
           $("admErr").classList.add("hidden");
           window.setTimeout(() => $("admPwd")?.focus(), 0);
         }
-        $("adminPanel").scrollIntoView({ block: "nearest", behavior: "smooth" });
       }
 
       $("btnAdmin2").addEventListener("click", () => openAdmin());
@@ -902,6 +961,13 @@
           clearBox(pend);
           clearBox(allow);
           const list = data.pending || [];
+          const pendingTitle = $("admPendingTitle");
+          if (pendingTitle) {
+            pendingTitle.textContent =
+              list.length > 0
+                ? `대기 중 ${list.length}건 — 승인·거절`
+                : "대기 중 — 승인·거절";
+          }
           if (list.length === 0) {
             const p = document.createElement("p");
             p.className = "item";
@@ -1067,6 +1133,10 @@
           $("admErr").textContent = e.message || "목록 실패";
           $("admErr").classList.remove("hidden");
           return;
+        }
+        if (adminFocusPending) {
+          adminFocusPending = false;
+          scrollAdminToPending();
         }
         startAdminPoll();
       }
