@@ -9,6 +9,7 @@ import {
   type SetStateAction,
 } from "react";
 import { fetchMacroEvents, fetchSectorEarnings } from "../api";
+import { peekMacroPrefetch } from "../lib/tabPrefetch";
 import { ko } from "../i18n/ko";
 import {
   formatMacroCountdown,
@@ -352,12 +353,14 @@ type MacroEventsBarProps = {
 export default function MacroEventsBar({
   onSecretAdminOpen,
 }: MacroEventsBarProps) {
-  const cachedInit = readSessionMacroCache();
+  const cachedInit = readSessionMacroCache() ?? peekMacroPrefetch();
   const [events, setEvents] = useState<MacroEvent[]>(() => cachedInit?.events ?? []);
   const [sectorEarnings, setSectorEarnings] = useState<SectorEarningsSpotlightItem[]>(
     () => cachedInit?.sectorEarnings ?? [],
   );
-  const [loading, setLoading] = useState(() => !cachedInit);
+  const [loading, setLoading] = useState(
+    () => !(cachedInit?.events?.length),
+  );
   const [now, setNow] = useState(() => Date.now());
   const [infoEvent, setInfoEvent] = useState<MacroEvent | null>(null);
   const secretTitleTapRef = useRef({ count: 0, at: 0 });

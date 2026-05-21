@@ -5,6 +5,7 @@ import {
   fetchPicksDailyHistoryQuotes,
   type PicksDailyHistoryQuotesMap,
 } from "../api";
+import { peekPicksDailyHistoryPrefetch } from "../lib/tabPrefetch";
 import {
   displayStockSymbol,
   formatPercent,
@@ -246,7 +247,13 @@ export default function PicksHistoryModal({
 
   useEffect(() => {
     if (!open) return;
-    setLoading(true);
+    const warmed = peekPicksDailyHistoryPrefetch();
+    if (warmed?.days?.length) {
+      setDays(Array.isArray(warmed.days) ? warmed.days : []);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
     void fetchPicksDailyHistory()
       .then((d) => {
         const list = Array.isArray(d.days) ? d.days : [];

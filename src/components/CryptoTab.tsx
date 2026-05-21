@@ -2,6 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChartDrawMagnet } from "../hooks/useChartDrawMagnet";
 import { fetchCryptoQuotes, fetchCryptoUniverse, fetchStock } from "../api";
 import {
+  peekCryptoListQuotesPrefetch,
+  peekCryptoUniversePrefetch,
+} from "../lib/tabPrefetch";
+import {
   CRYPTO_ASSETS,
   sortCryptoAssetsByTurnover,
   type CryptoAsset,
@@ -76,9 +80,10 @@ export default function CryptoTab({
   focusSymbol = null,
   onFocusSymbolConsumed,
 }: CryptoTabProps) {
-  const [cryptoAssets, setCryptoAssets] = useState<CryptoAsset[]>(() => [
-    ...CRYPTO_ASSETS,
-  ]);
+  const [cryptoAssets, setCryptoAssets] = useState<CryptoAsset[]>(() => {
+    const uni = peekCryptoUniversePrefetch();
+    return uni?.assets?.length ? uni.assets : [...CRYPTO_ASSETS];
+  });
   const [symbol, setSymbol] = useState(CRYPTO_ASSETS[0]!.symbol);
   const [timeframe, setTimeframe] = useState<ChartTimeframe>("1m");
   const [quote, setQuote] = useState<QuoteResponse | null>(null);
@@ -93,7 +98,9 @@ export default function CryptoTab({
   const [showIchimoku, setShowIchimoku] = useState(false);
   const [showVolume, setShowVolume] = useState(true);
   const [showRsi, setShowRsi] = useState(true);
-  const [listQuotes, setListQuotes] = useState<ListQuoteMap>({});
+  const [listQuotes, setListQuotes] = useState<ListQuoteMap>(
+    () => peekCryptoListQuotesPrefetch() ?? {},
+  );
   const [chartEngine, setChartEngine] = useState<CryptoChartEngine>("app");
   const [chartDrawMode, setChartDrawMode] = useState<ChartDrawMode>("cursor");
   const [chartDrawMagnet, setChartDrawMagnet] = useChartDrawMagnet();

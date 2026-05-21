@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchPicksDailyHistoryQuotes, fetchRecommendationsTracker } from "../api";
 import {
+  peekRecommendationsTracker,
+  subscribeRecommendationsTrackerPrefetch,
+} from "../lib/tabPrefetch";
+import {
   applyTrackerQuotes,
   prioritizeTrackerSymbols,
 } from "../lib/recTrackerQuotes";
@@ -77,8 +81,10 @@ export default function RecommendationsTab({
 }: {
   onOpenPick: (pick: StockPick) => void;
 }) {
-  const [data, setData] = useState<RecommendationsTrackerResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<RecommendationsTrackerResponse | null>(() =>
+    peekRecommendationsTracker(),
+  );
+  const [loading, setLoading] = useState(() => !peekRecommendationsTracker());
   const [error, setError] = useState<string | null>(null);
   const [market, setMarket] = useState<MarketFilter>("all");
   const [signalFilter, setSignalFilter] = useState<SignalId | null>(null);
@@ -124,6 +130,14 @@ export default function RecommendationsTab({
         setError(e instanceof Error ? e.message : String(e));
       })
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    return subscribeRecommendationsTrackerPrefetch((next) => {
+      setData(next);
+      setLoading(false);
+      setError(null);
+    });
   }, []);
 
   useEffect(() => {

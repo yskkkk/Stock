@@ -15,6 +15,7 @@ let lastAgentKey = "";
 let lastViewerIp: string | null | undefined;
 let lastSnap: OpsDevQueueDisplayResponse | null = null;
 let visibilityHandler: (() => void) | null = null;
+let prefetchWarmCount = 0;
 
 function notify(snap: OpsDevQueueDisplayResponse) {
   for (const fn of subscribers) {
@@ -64,7 +65,7 @@ async function pullOnce(includeViewerIp: boolean): Promise<OpsDevQueueDisplayRes
 }
 
 function ensurePolling() {
-  if (intervalId != null || subscribers.size === 0) return;
+  if (intervalId != null || (subscribers.size === 0 && prefetchWarmCount === 0)) return;
   const tick = () => {
     void pullOnce(viewerIpSubscriberCount > 0);
   };
@@ -84,6 +85,17 @@ function stopPolling() {
     document.removeEventListener("visibilitychange", visibilityHandler);
     visibilityHandler = null;
   }
+}
+
+/** 운영 탭·스트립 진입 전 대기열 표시 선로드 */
+export function warmOpsDevQueueDisplay(): () => void {
+  prefetchWarmCount += 1;
+  void pullOnce(false);
+  ensurePolling();
+  return () => {
+    prefetchWarmCount = Math.max(0, prefetchWarmCount - 1);
+    if (subscribers.size === 0 && prefetchWarmCount === 0) stopPolling();
+  };
 }
 
 /**

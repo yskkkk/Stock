@@ -11,6 +11,7 @@ import {
   type LiveTradingStatusResponse,
   type TechModelRecord,
 } from "../api";
+import { peekLiveTradingPrefetch } from "../lib/tabPrefetch";
 import { ko } from "../i18n/ko";
 
 function statusLabel(status: LiveTradeProgram["status"]): string {
@@ -65,8 +66,13 @@ export default function LiveTradingTab({
 }: {
   onOpenRecommendations?: () => void;
 }) {
-  const [status, setStatus] = useState<LiveTradingStatusResponse | null>(null);
-  const [models, setModels] = useState<TechModelRecord[]>([]);
+  const prefetched = peekLiveTradingPrefetch();
+  const [status, setStatus] = useState<LiveTradingStatusResponse | null>(
+    () => prefetched?.status ?? null,
+  );
+  const [models, setModels] = useState<TechModelRecord[]>(
+    () => prefetched?.techModels.models ?? [],
+  );
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);

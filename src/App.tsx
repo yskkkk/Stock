@@ -72,6 +72,8 @@ import {
   persistProfitSell,
 } from "./lib/userPersist";
 import { filterPicksByQuery } from "./lib/searchPicks";
+import { startBackgroundTabPrefetch } from "./lib/tabPrefetch";
+import { warmOpsDevQueueDisplay } from "./lib/opsDevQueueDisplayClient";
 import { sortPicksList, type SortKey } from "./lib/sortPicks";
 import { yahooStockSymbolToTradingView } from "./lib/tradingviewSymbols";
 import { failedCountLabel, ko, nextRescanCountdown } from "./i18n/ko";
@@ -263,6 +265,16 @@ export default function App() {
       if (intervalId != null) window.clearInterval(intervalId);
     };
   }, [configReady, accessAdmin, adminIpConsole]);
+
+  useEffect(() => {
+    if (!configReady) return;
+    startBackgroundTabPrefetch();
+  }, [configReady]);
+
+  useEffect(() => {
+    if (!configReady || !accessAdmin) return;
+    return warmOpsDevQueueDisplay();
+  }, [configReady, accessAdmin]);
 
   useEffect(() => {
     applyTheme(colorMode);
