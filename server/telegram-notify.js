@@ -99,6 +99,22 @@ export function isTelegramNotifyEnabled() {
   );
 }
 
+/** 운영 탭 웹(Cursor) 에이전트 완료 알림 — 종목 추천 봇과 분리 */
+export function resolveOpsTelegramCreds() {
+  return {
+    token: process.env.TELEGRAM_OPS_BOT_TOKEN?.trim() || "",
+    chatId:
+      process.env.TELEGRAM_OPS_CHAT_ID?.trim() ||
+      process.env.TELEGRAM_CHAT_ID?.trim() ||
+      "",
+  };
+}
+
+export function isOpsTelegramNotifyEnabled() {
+  const { token, chatId } = resolveOpsTelegramCreds();
+  return Boolean(token && chatId);
+}
+
 function todaySessionKeys() {
   return new Set([
     getTradingSessionKey("kr"),
@@ -717,12 +733,14 @@ function buildMessage(pick) {
 
 
 
-export async function sendTelegramMessage(text, replyMarkup) {
-
-  const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
-
-  const chatId = process.env.TELEGRAM_CHAT_ID?.trim();
-
+/**
+ * @param {string} text
+ * @param {object} [replyMarkup]
+ * @param {{ token?: string; chatId?: string }} [creds] — 미지정 시 TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID
+ */
+export async function sendTelegramMessage(text, replyMarkup, creds) {
+  const token = (creds?.token ?? process.env.TELEGRAM_BOT_TOKEN)?.trim();
+  const chatId = (creds?.chatId ?? process.env.TELEGRAM_CHAT_ID)?.trim();
   if (!token || !chatId) return false;
 
 
@@ -849,12 +867,13 @@ export function notifyHighScorePick(pick) {
 
 /**
  * 운영(Cursor) 웹 에이전트 작업 종료 시 텔레그램 안내 — 요청자·제목·내용 형식.
- * TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID 가 있을 때만 전송.
+ * TELEGRAM_OPS_BOT_TOKEN (+ TELEGRAM_OPS_CHAT_ID 또는 TELEGRAM_CHAT_ID) 가 있을 때만 전송.
  *
  * @param {{ requester: string; title: string; body: string }} opts
  */
 export function notifyOpsAgentCompleted(opts) {
-  if (!isTelegramNotifyEnabled()) return;
+  if (!isOpsTelegramNotifyEnabled()) return;
+  const opsCreds = resolveOpsTelegramCreds();
 
   const requester = String(opts.requester ?? "").trim() || "—";
   const title = String(opts.title ?? "").trim() || "웹 에이전트";
@@ -875,7 +894,7 @@ export function notifyOpsAgentCompleted(opts) {
     escHtml(body),
   ].join("\n");
 
-  void sendTelegramMessage(text)
+  void sendTelegramMessage(text, undefined, opsCreds)
     .then((ok) => {
       if (ok) {
         console.log("[telegram] ops-agent completion notice sent");
