@@ -3,6 +3,7 @@ import { fetchScanCandles } from "./stock-data.js";
 import { resolveDisplayName } from "./names-ko.js";
 import { getActiveTechModelsSync } from "./picks-tech-models-store.js";
 import { analyzeTechnicals, meetsTelegramNotifyScore } from "./technical.js";
+import { onHighScorePickForLiveTrading } from "./live-trade-runner.js";
 import { notifyHighScorePick } from "./telegram-notify.js";
 import { recordPicksDailySnapshot } from "./picks-history-store.js";
 import { readLastScanSnapshotSync, writeLastScanSnapshotSync } from "./picks-live-persist.js";
@@ -187,6 +188,7 @@ async function screenSymbol(item, market) {
       picks.push(pick);
       if (meetsTelegramNotifyScore(pick.score, model.weights)) {
         notifyHighScorePick(pick);
+        void onHighScorePickForLiveTrading(pick);
       }
     }
     if (!picks.length) return { type: "skip" };
@@ -223,6 +225,7 @@ function applyScreenResult(result, bucket) {
     sortPicks(bucket.kr);
     sortPicks(bucket.us);
     notifyHighScorePick(result.pick);
+    void onHighScorePickForLiveTrading(result.pick);
   } else if (result.type === "error" && result.failure) {
     state.failedCount += 1;
     state.failures.push(result.failure);

@@ -722,6 +722,119 @@ export function deleteTechModel(id: string) {
   );
 }
 
+export type LiveTradeProgramStatus = "draft" | "armed" | "paused" | "error";
+
+export interface LiveTradeProgram {
+  id: string;
+  name: string;
+  modelId: string;
+  markets: { kr: boolean; us: boolean };
+  minScoreRatio: number;
+  maxOpenPositions: number;
+  orderAmountKrw: number | null;
+  orderAmountUsd: number | null;
+  status: LiveTradeProgramStatus;
+  armedAtMs: number | null;
+  lastRunAtMs: number | null;
+  lastError: string | null;
+  createdAtMs: number;
+  updatedAtMs: number;
+}
+
+export interface TossTradingStatus {
+  phase: "unconfigured" | "configured" | "ready";
+  configured: boolean;
+  ready: boolean;
+  messageKo: string;
+  hasSecret: boolean;
+  baseUrl: string | null;
+  docsHint: string;
+}
+
+export interface LiveTradingStatusResponse {
+  toss: TossTradingStatus;
+  programs: LiveTradeProgram[];
+  armedCount: number;
+  simulatedOrders: boolean;
+}
+
+export function fetchLiveTradingStatus() {
+  return fetchJson<LiveTradingStatusResponse>("/api/live-trading/status");
+}
+
+export function createLiveTradeProgram(body: {
+  name: string;
+  modelId: string;
+  markets?: { kr?: boolean; us?: boolean };
+  minScoreRatio?: number;
+  maxOpenPositions?: number;
+  orderAmountKrw?: number | null;
+  orderAmountUsd?: number | null;
+}) {
+  return fetchJson<{
+    ok: boolean;
+    program: LiveTradeProgram;
+    programs: LiveTradeProgram[];
+  }>("/api/live-trading/programs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateLiveTradeProgram(
+  id: string,
+  body: Partial<{
+    name: string;
+    modelId: string;
+    markets: { kr?: boolean; us?: boolean };
+    minScoreRatio: number;
+    maxOpenPositions: number;
+    orderAmountKrw: number | null;
+    orderAmountUsd: number | null;
+  }>,
+) {
+  return fetchJson<{
+    ok: boolean;
+    program: LiveTradeProgram;
+    programs: LiveTradeProgram[];
+  }>(`/api/live-trading/programs/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteLiveTradeProgram(id: string) {
+  return fetchJson<{ ok: boolean; programs: LiveTradeProgram[] }>(
+    `/api/live-trading/programs/${encodeURIComponent(id)}`,
+    { method: "DELETE" },
+  );
+}
+
+export function armLiveTradeProgram(id: string) {
+  return fetchJson<{
+    ok: boolean;
+    program: LiveTradeProgram;
+    toss: TossTradingStatus;
+  }>(`/api/live-trading/programs/${encodeURIComponent(id)}/arm`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  });
+}
+
+export function disarmLiveTradeProgram(id: string) {
+  return fetchJson<{ ok: boolean; program: LiveTradeProgram }>(
+    `/api/live-trading/programs/${encodeURIComponent(id)}/disarm`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    },
+  );
+}
+
 export function fetchNews(
   symbol: string,
   name: string,

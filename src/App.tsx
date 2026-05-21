@@ -31,6 +31,7 @@ import ChartDrawToolbarButtons from "./components/ChartDrawToolbarButtons";
 import CryptoTab from "./components/CryptoTab";
 import OpsGlobalQueueStrip from "./components/OpsGlobalQueueStrip";
 import OpsManagementTab from "./components/OpsManagementTab";
+import LiveTradingTab from "./components/LiveTradingTab";
 import RecommendationsTab from "./components/RecommendationsTab";
 import StockSearchTab from "./components/StockSearchTab";
 import StockChart from "./components/StockChart";
@@ -85,7 +86,13 @@ import type {
   TelegramSentItem,
 } from "./types";
 
-export type AppTab = "screener" | "recommendations" | "stockLookup" | "crypto" | "ops";
+export type AppTab =
+  | "screener"
+  | "recommendations"
+  | "liveTrading"
+  | "stockLookup"
+  | "crypto"
+  | "ops";
 
 type StockChartEngine = "tradingview" | "app";
 
@@ -336,7 +343,7 @@ export default function App() {
       : (picks?.us.length ?? 0);
 
   const workspacePick = useMemo(() => {
-    if (appTab === "crypto" || appTab === "ops") return null;
+    if (appTab === "crypto" || appTab === "ops" || appTab === "liveTrading") return null;
     return appTab === "stockLookup" ? lookupSelected : screenerSelected;
   }, [appTab, lookupSelected, screenerSelected]);
 
@@ -355,7 +362,7 @@ export default function App() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!workspacePick) return;
-    if (appTab === "crypto" || appTab === "ops") return;
+    if (appTab === "crypto" || appTab === "ops" || appTab === "liveTrading") return;
     if (window.innerWidth > 900) return;
     const el = stockChartSectionRef.current;
     if (!el) return;
@@ -611,7 +618,7 @@ export default function App() {
 
   useEffect(() => {
     const pick = workspacePickRef.current;
-    if (!pick || appTab === "crypto" || appTab === "ops") return;
+    if (!pick || appTab === "crypto" || appTab === "ops" || appTab === "liveTrading") return;
     loadChart(pick, timeframe);
     const refreshMs = timeframe === "1m" ? 1_000 : 8_000;
     const id = window.setInterval(() => {
@@ -979,6 +986,15 @@ export default function App() {
               <button
                 type="button"
                 className={
+                  appTab === "liveTrading" ? "main-tab active" : "main-tab"
+                }
+                onClick={() => setAppTab("liveTrading")}
+              >
+                {ko.app.tabLiveTrading}
+              </button>
+              <button
+                type="button"
+                className={
                   appTab === "stockLookup" ? "main-tab active" : "main-tab"
                 }
                 onClick={() => setAppTab("stockLookup")}
@@ -1128,6 +1144,8 @@ export default function App() {
         />
       ) : appTab === "recommendations" ? (
         <RecommendationsTab onOpenPick={handleSelect} />
+      ) : appTab === "liveTrading" ? (
+        <LiveTradingTab onOpenRecommendations={() => setAppTab("recommendations")} />
       ) : appTab === "ops" ? (
         <div className="workspace ops-workspace">
           <section

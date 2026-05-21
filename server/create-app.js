@@ -87,6 +87,15 @@ import {
   updateTechModelSync,
 } from "./picks-tech-models-store.js";
 import {
+  armLiveTradeProgramSync,
+  createLiveTradeProgramSync,
+  deleteLiveTradeProgramSync,
+  disarmLiveTradeProgramSync,
+  listLiveTradeProgramsSync,
+  updateLiveTradeProgramSync,
+} from "./live-trade-programs-store.js";
+import { getTossTradingStatus } from "./toss-trading-adapter.js";
+import {
   fetchQuoteSnapshotsForSymbols,
   mergeLiveQuotesIntoPicksState,
 } from "./picks-live-quotes.js";
@@ -358,6 +367,101 @@ export function createApp() {
       try {
         deleteTechModelSync(id);
         res.json({ ok: true, ...listTechModelsSync() });
+      } catch (e) {
+        res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
+      }
+    }),
+  );
+
+  app.get("/api/live-trading/status", (_req, res) => {
+    const toss = getTossTradingStatus();
+    const programs = listLiveTradeProgramsSync();
+    res.json({
+      toss,
+      programs,
+      armedCount: programs.filter((p) => p.status === "armed").length,
+      simulatedOrders: process.env.TOSS_LIVE_ORDERS_ENABLED !== "1",
+    });
+  });
+
+  app.post(
+    "/api/live-trading/programs",
+    asyncRoute(async (req, res) => {
+      try {
+        const program = createLiveTradeProgramSync({
+          name: String(req.body?.name ?? ""),
+          modelId: String(req.body?.modelId ?? ""),
+          markets: req.body?.markets,
+          minScoreRatio: req.body?.minScoreRatio,
+          maxOpenPositions: req.body?.maxOpenPositions,
+          orderAmountKrw: req.body?.orderAmountKrw,
+          orderAmountUsd: req.body?.orderAmountUsd,
+        });
+        res.json({ ok: true, program, programs: listLiveTradeProgramsSync() });
+      } catch (e) {
+        res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
+      }
+    }),
+  );
+
+  app.patch(
+    "/api/live-trading/programs/:id",
+    asyncRoute(async (req, res) => {
+      const id = String(req.params.id ?? "").trim();
+      try {
+        const program = updateLiveTradeProgramSync(id, {
+          name: req.body?.name,
+          modelId: req.body?.modelId,
+          markets: req.body?.markets,
+          minScoreRatio: req.body?.minScoreRatio,
+          maxOpenPositions: req.body?.maxOpenPositions,
+          orderAmountKrw: req.body?.orderAmountKrw,
+          orderAmountUsd: req.body?.orderAmountUsd,
+        });
+        res.json({ ok: true, program, programs: listLiveTradeProgramsSync() });
+      } catch (e) {
+        res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
+      }
+    }),
+  );
+
+  app.delete(
+    "/api/live-trading/programs/:id",
+    asyncRoute(async (req, res) => {
+      const id = String(req.params.id ?? "").trim();
+      try {
+        deleteLiveTradeProgramSync(id);
+        res.json({ ok: true, programs: listLiveTradeProgramsSync() });
+      } catch (e) {
+        res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
+      }
+    }),
+  );
+
+  app.post(
+    "/api/live-trading/programs/:id/arm",
+    asyncRoute(async (req, res) => {
+      const id = String(req.params.id ?? "").trim();
+      try {
+        const toss = getTossTradingStatus();
+        const program = armLiveTradeProgramSync(id, {
+          tossConfigured: toss.configured,
+          tossMessage: toss.messageKo,
+        });
+        res.json({ ok: true, program, toss });
+      } catch (e) {
+        res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
+      }
+    }),
+  );
+
+  app.post(
+    "/api/live-trading/programs/:id/disarm",
+    asyncRoute(async (req, res) => {
+      const id = String(req.params.id ?? "").trim();
+      try {
+        const program = disarmLiveTradeProgramSync(id);
+        res.json({ ok: true, program });
       } catch (e) {
         res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
       }
