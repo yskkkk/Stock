@@ -31,12 +31,15 @@ body {
   flex-direction: column;
   min-height: 100%;
   min-height: 100dvh;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
   gap: 0.95rem;
   padding: 1.35rem 1.35rem 1.65rem;
   box-sizing: border-box;
 }
 
-/* 본문 영역 — 남는 세로 공간 채움, 푸터는 .app 맨 아래 */
+/* 본문 스크롤 — 푸터는 .app 바깥 형제로 뷰포트 맨 아래 고정 */
 .app__shell {
   flex: 1 1 auto;
   display: flex;
@@ -44,6 +47,10 @@ body {
   min-height: 0;
   width: 100%;
   gap: 0.95rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: auto;
 }
 
 .card {
@@ -2199,7 +2206,7 @@ body {
 /* 하단 사이트 푸터 (네이버형 링크 줄) */
 .app-site-footer {
   flex-shrink: 0;
-  margin-top: 0;
+  margin-top: auto;
   width: 100%;
   padding: 0.85rem 0 0.35rem;
   border-top: 1px solid var(--card-border, rgba(148, 163, 184, 0.14));

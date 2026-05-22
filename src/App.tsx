@@ -919,9 +919,8 @@ export default function App() {
             ? "app app--live-trade"
             : "app"
       }
-      ref={appScrollRef}
     >
-      <div className="app__shell">
+      <div className="app__shell" ref={appScrollRef}>
       <div
         ref={pullToRefreshHintRef}
         className="app-ptr-hint"
