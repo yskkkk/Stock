@@ -10,11 +10,7 @@ import {
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { buildBullishReasons } from "./bullish-reasons.js";
-import {
-  markOpsDevNotifySent,
-  shouldSkipOpsDevNotify,
-} from "./ops-dev-notify-dedup.js";
-import { getRepoHeadRev } from "./ops-agent-git-push.js";
+import { scheduleOpsDevCompletionTelegram } from "./ops-dev-completion-coalesce.js";
 import { getTradingSessionKey } from "./market-hours.js";
 import {
   getMaxTechScore,
@@ -1152,47 +1148,35 @@ export function notifyHighScorePick(pick) {
  * 운영(Cursor) 웹 에이전트 작업 종료 시 텔레그램 안내 — 요청자·제목·내용 형식.
  * TELEGRAM_OPS_BOT_TOKEN + TELEGRAM_OPS_CHAT_ID(주식 채팅과 별도) 가 있을 때만 전송.
  *
- * @param {{ requester: string; title: string; body: string; dedupKey?: string }} opts
+ * @param {{
+ *   requester?: string;
+ *   title: string;
+ *   body?: string;
+ *   userRequest?: string;
+ *   agentResponse?: string;
+ *   state?: "ok" | "error" | "cancelled";
+ *   errorText?: string | null;
+ *   gitSummary?: string | null;
+ * }} opts
  */
 export function notifyOpsAgentCompleted(opts) {
-  if (!isOpsTelegramNotifyEnabled()) return;
-  const dedupKey = String(opts.dedupKey ?? "").trim();
-  if (dedupKey && shouldSkipOpsDevNotify(dedupKey)) return;
-  const opsCreds = resolveOpsTelegramCreds();
-
-  const requester = String(opts.requester ?? "").trim() || "—";
   const title = String(opts.title ?? "").trim() || "웹 에이전트";
-  let body = String(opts.body ?? "").trim() || "—";
-  const max = 3800;
-  if (body.length > max) body = `${body.slice(0, max - 1)}…`;
-
-  const text = [
-    `<b>웹 에이전트 작업 알림</b>`,
-    "",
-    `<b>요청자</b>`,
-    escHtml(requester),
-    "",
-    `<b>제목</b>`,
-    escHtml(title),
-    "",
-    escHtml(body),
-  ].join("\n");
-
-  void sendTelegramMessage(text, undefined, opsCreds)
-    .then((ok) => {
-      if (ok) {
-        if (dedupKey) markOpsDevNotifySent(dedupKey, getRepoHeadRev());
-        console.log("[telegram] ops-agent completion notice sent");
-      } else {
-        console.warn("[telegram] ops-agent completion notice failed");
-      }
-    })
-    .catch((err) => {
-      console.warn(
-        "[telegram] ops-agent notify error:",
-        err instanceof Error ? err.message : err,
-      );
-    });
+  const userRequest =
+    String(opts.userRequest ?? "").trim() ||
+    title;
+  const agentResponse =
+    String(opts.agentResponse ?? "").trim() ||
+    String(opts.body ?? "").trim() ||
+    "—";
+  scheduleOpsDevCompletionTelegram({
+    title: "개발 완료",
+    userRequest,
+    agentResponse,
+    gitSummary: opts.gitSummary,
+    state: opts.state ?? "ok",
+    errorText: opts.errorText,
+    priority: 3,
+  });
 }
 
 

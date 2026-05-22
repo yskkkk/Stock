@@ -1,16 +1,9 @@
-import { getRepoHeadRev } from "./ops-agent-git-push.js";
-import { buildOpsDevChangeTelegramBody } from "./ops-agent-notify-body.js";
 import {
-  markOpsDevNotifySent,
-  shouldSkipAutoGitPullNotify,
-  shouldSkipOpsDevNotify,
-} from "./ops-dev-notify-dedup.js";
-import {
-  escHtml,
-  isOpsTelegramNotifyEnabled,
-  resolveOpsTelegramCreds,
-  sendTelegramMessage,
-} from "./telegram-notify.js";
+  hasOpsDevCompletionPending,
+  scheduleOpsDevCompletionTelegram,
+} from "./ops-dev-completion-coalesce.js";
+import { shouldSkipAutoGitPullNotify } from "./ops-dev-notify-dedup.js";
+import { isOpsTelegramNotifyEnabled } from "./telegram-notify.js";
 
 function autoGitTelegramNotifyEnabled() {
   const v = String(process.env.AUTO_GIT_TELEGRAM_NOTIFY ?? "")
@@ -21,9 +14,8 @@ function autoGitTelegramNotifyEnabled() {
 }
 
 /**
- * 서버·auto-git·IDE 등 개발(Git) 반영 — ops 텔레그램 그룹.
  * @param {{
- *   title: string;
+ *   title?: string;
  *   userRequest?: string;
  *   agentResponse?: string;
  *   gitSummary?: string;
@@ -34,61 +26,34 @@ function autoGitTelegramNotifyEnabled() {
  *   runtimeLabel?: string | null;
  *   durationMs?: number | null;
  *   dedupKey?: string;
+ *   priority?: number;
  * }} opts
- * @returns {Promise<boolean>}
  */
-export async function notifyOpsDevGitReflection(opts) {
-  if (!isOpsTelegramNotifyEnabled()) return false;
-
-  const dedupKey = String(opts.dedupKey ?? "").trim();
-  if (dedupKey && shouldSkipOpsDevNotify(dedupKey)) return false;
-
-  const title = String(opts.title ?? "").trim() || "개발 반영";
+export function notifyOpsDevGitReflection(opts) {
   const detail = String(opts.detail ?? "").trim();
-  const source = String(opts.source ?? "").trim();
-
-  let body = buildOpsDevChangeTelegramBody({
-    state: opts.state ?? "ok",
-    errorText: opts.errorText,
-    userRequest: opts.userRequest ?? (detail || undefined),
+  scheduleOpsDevCompletionTelegram({
+    title: String(opts.title ?? "").trim() || "개발 완료",
+    userRequest: opts.userRequest ?? detail || "(자동 반영)",
     agentResponse: opts.agentResponse,
     gitSummary: opts.gitSummary,
-    runtimeLabel: opts.runtimeLabel,
-    durationMs: opts.durationMs,
+    state: opts.state,
+    errorText: opts.errorText,
+    priority: opts.priority ?? 2,
   });
-  if (!String(opts.userRequest ?? "").trim() && detail) {
-    body = `${detail}\n\n${body}`.trim();
-  }
-
-  const lines = [`<b>${escHtml(title)}</b>`];
-  if (source) lines.push(`<i>${escHtml(source)}</i>`);
-  lines.push("", escHtml(body));
-  const text = lines.join("\n");
-
-  const opsCreds = resolveOpsTelegramCreds();
-  const ok = await sendTelegramMessage(text, undefined, opsCreds);
-  if (ok) {
-    if (dedupKey) markOpsDevNotifySent(dedupKey, getRepoHeadRev());
-    console.log("[telegram:ops] dev git reflection notice sent");
-  } else {
-    console.warn("[telegram:ops] dev git reflection notice failed");
-  }
-  return ok;
 }
 
 /**
- * auto-git pull 성공 후 ops 알림 (기본 켜짐, `AUTO_GIT_TELEGRAM_NOTIFY=0` 으로 끔).
  * @param {{ gitSummary: string; remote: string; branch: string; newRev: string }} opts
  */
 export function notifyOpsAutoGitPulled(opts) {
   if (!autoGitTelegramNotifyEnabled()) return;
   const newRev = String(opts.newRev ?? "").trim();
   if (newRev && shouldSkipAutoGitPullNotify(newRev)) return;
-  void notifyOpsDevGitReflection({
-    dedupKey: newRev ? `autogit:${newRev}` : undefined,
-    title: "서버에 새 개발 내용이 반영됨",
-    source: "auto-git · GitHub → 서버",
-    detail: `${opts.remote}/${opts.branch} 브랜치를 서버가 받아 왔습니다.`,
-    gitSummary: opts.gitSummary,
+  if (hasOpsDevCompletionPending()) return;
+  scheduleOpsDevCompletionTelegram({
+    title: "서버 반영",
+    userRequest: `${opts.remote}/${opts.branch} pull`,
+    agentResponse: opts.gitSummary,
+    priority: 1,
   });
 }

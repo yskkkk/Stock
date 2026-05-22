@@ -231,14 +231,11 @@ function syncIdeHistoryFinalize(slot, state, error = null) {
         "Cursor IDE에서 작업이 끝났습니다. (이 채팅 transcript에서 응답 본문을 찾지 못했습니다.)";
     }
     void notifyOpsDevGitReflection({
-      dedupKey: `ide:${slot.id}`,
-      title: preview || "IDE에서 개발 작업이 끝남",
-      source: "Cursor IDE · 개발 큐",
+      title: "개발 완료",
       userRequest,
       agentResponse,
       gitSummary,
-      runtimeLabel: "ide",
-      durationMs: Math.max(0, Date.now() - started),
+      priority: 3,
     });
   }
 }
