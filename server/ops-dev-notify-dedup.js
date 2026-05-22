@@ -199,7 +199,6 @@ export function shouldSkipOpsDevNotify(dedupKey) {
   const k = String(dedupKey ?? "").trim();
   if (!k) return false;
   if (sentRecently(k)) {
-    console.info(`[telegram:ops] skip duplicate notify (${k.slice(0, 40)}…)`);
     return true;
   }
   return false;
@@ -214,6 +213,7 @@ export function tryAcquireOpsDevNotifySend(dedupKey) {
   hydrateFromDisk();
   const k = String(dedupKey ?? "").trim();
   if (!k) return true;
+
   clearStaleOpsDevNotifyLocks();
 
   const lockName = createHash("sha256").update(k).digest("hex").slice(0, 32);
@@ -250,7 +250,6 @@ export function tryAcquireOpsDevNotifySend(dedupKey) {
   };
 
   if (!tryWriteLock()) {
-    console.info("[telegram:ops] skip duplicate notify (send lock)");
     return false;
   }
 
@@ -296,9 +295,6 @@ export function shouldSkipAutoGitPullNotify(newRev) {
   if (!rev) return false;
   if (shouldSkipOpsDevNotify(`autogit:${rev}`)) return true;
   if (sentRecently(`completion-rev:${rev}`)) {
-    console.info(
-      "[telegram:ops] skip auto-git notify (recent completion same HEAD)",
-    );
     return true;
   }
   const suppress = autogitSuppressMs();
@@ -308,9 +304,6 @@ export function shouldSkipAutoGitPullNotify(newRev) {
     lastCompletionRev === rev &&
     Date.now() - lastCompletionAt < suppress
   ) {
-    console.info(
-      "[telegram:ops] skip auto-git notify (recent agent/IDE completion same HEAD)",
-    );
     return true;
   }
   return false;

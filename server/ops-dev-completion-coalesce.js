@@ -184,9 +184,6 @@ export function scheduleOpsDevCompletionTelegram(opts) {
 
   if (flushTimer) clearTimeout(flushTimer);
   const waitMs = debounceMs(priority);
-  console.info(
-    `[telegram:ops] 개발 완료 알림 ${waitMs}ms 후 발송 예약 (${String(opts.turnId ?? dedupKey).slice(0, 48)})`,
-  );
   flushTimer = setTimeout(() => {
     flushTimer = null;
     void flushPending();

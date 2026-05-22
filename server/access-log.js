@@ -229,7 +229,10 @@ export function appendAccessLog(req, atTs) {
     ensureAccessLogReady();
     const ts = atTs ?? accessEventAtLogTs(req);
     const { file, console: consoleLine } = lineFromReq(req, ts);
-    console.log("[access]", consoleLine);
+    const method = String(req.method ?? "GET").toUpperCase();
+    if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
+      console.log("[access]", consoleLine);
+    }
     fs.appendFile(accessLogPathForToday(), file, (err) => {
       if (err) console.warn("[access-log] 파일 기록 실패:", err.message);
     });
@@ -270,13 +273,8 @@ export function appendServerEventLog(
         : "-";
     const file = `${ts}\tip=${ipField}\tINTERNAL\t${safeCat}\t${safeMsg}\n`;
     const consoleLine = `${ts} ip=${ipField} INTERNAL ${safeCat} ${safeMsg}`;
-    const logFn =
-      level === "error"
-        ? console.error.bind(console)
-        : level === "warn"
-          ? console.warn.bind(console)
-          : console.log.bind(console);
-    logFn("[access]", consoleLine);
+    if (level === "error") console.error("[access]", consoleLine);
+    else if (level === "warn") console.warn("[access]", consoleLine);
     fs.appendFile(accessLogPathForToday(), file, (err) => {
       if (err) console.warn("[access-log] 파일 기록 실패:", err.message);
     });

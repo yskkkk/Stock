@@ -128,8 +128,5 @@ export function notifyIdeDevelopmentCompleted(opts) {
     turnId: turnKey,
   });
 
-  console.info(
-    `[telegram:ops] IDE 개발 완료 알림 예약 (${turnKey.slice(0, 40)}…)`,
-  );
   return true;
 }

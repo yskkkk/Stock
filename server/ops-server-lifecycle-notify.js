@@ -7,6 +7,7 @@ import {
   sendTelegramMessage,
 } from "./telegram-notify.js";
 
+<<<<<<< Updated upstream
 const _lcg = /** @type {typeof globalThis & { __stockLifecycleShutdownInstalled?: boolean; __stockLifecycleStartNotified?: boolean; __stockLifecycleStopNotified?: boolean; __stockLifecycleMeta?: { mode?: string; port?: number | string } }} */ (globalThis);
 
 function isShutdownInstalled() { return _lcg.__stockLifecycleShutdownInstalled === true; }
@@ -17,12 +18,21 @@ function isStopNotified() { return _lcg.__stockLifecycleStopNotified === true; }
 function markStopNotified() { _lcg.__stockLifecycleStopNotified = true; }
 function resetStopNotified() { _lcg.__stockLifecycleStopNotified = false; }
 
+=======
+>>>>>>> Stashed changes
 function serverLifecycleTelegramEnabled() {
   const v = String(process.env.OPS_SERVER_LIFECYCLE_TELEGRAM ?? "0")
     .toLowerCase()
     .trim();
   return v === "1" || v === "true" || v === "yes";
 }
+<<<<<<< Updated upstream
+=======
+
+let shutdownHooksInstalled = false;
+let startNotified = false;
+let stopNotified = false;
+>>>>>>> Stashed changes
 /** @type {{ mode?: string; port?: number | string }} */
 function getLifecycleMeta() { return _lcg.__stockLifecycleMeta ?? { mode: "server" }; }
 function setLifecycleMeta(m) { _lcg.__stockLifecycleMeta = m; }

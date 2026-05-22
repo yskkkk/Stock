@@ -71,7 +71,11 @@ export function isAccessControlEnabled() {
   if (v === "1" || v === "true" || v === "yes") return true;
   if (v === "0" || v === "false" || v === "no") return false;
 
+<<<<<<< Updated upstream
   /** 기본값: 접근 제한 없음(로컬·개인 서버). 공개 서버는 ACCESS_CONTROL_ENABLED=1 */
+=======
+  /** 기본값: 접근 제한 없음(공개). IP 허용제는 ACCESS_CONTROL_ENABLED=1 */
+>>>>>>> Stashed changes
   return false;
 }
 
