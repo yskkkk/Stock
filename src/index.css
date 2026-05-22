@@ -1805,17 +1805,54 @@ html[data-theme="light"] .top-bar__scan {
 }
 
 .quote-currency-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
   font-size: 0.72rem;
-  padding: 0.22rem 0.45rem;
+  padding: 0.22rem 0.5rem;
   min-width: 2rem;
   border-radius: var(--radius-sm);
   line-height: 1;
+  flex-shrink: 0;
 }
 
 .quote-currency-toggle__icon {
   font-size: 1rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+.quote-currency-toggle__label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.quote-currency-toggle--compact {
+  padding: 0.16rem 0.38rem;
+  font-size: 0.66rem;
+}
+
+.quote-currency-toggle--compact .quote-currency-toggle__icon {
+  font-size: 0.88rem;
+}
+
+.quote-currency-toggle--compact .quote-currency-toggle__label {
+  font-size: 0.62rem;
+}
+
+.stock-search-tab__quote-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.32rem 0.45rem;
+  width: 100%;
+}
+
+.stock-search-tab__quote-line .pick-quote {
+  margin-top: 0;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .stock-search-tab__row {

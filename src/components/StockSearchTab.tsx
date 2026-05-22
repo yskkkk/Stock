@@ -12,6 +12,8 @@ import type {
   StockTechnicalResponse,
 } from "../types";
 import PickQuoteStrip from "./PickQuoteStrip";
+import QuoteCurrencyToggle from "./QuoteCurrencyToggle";
+import { resolveUsQuoteDisplay } from "../lib/usQuoteDisplay";
 import StockTechnicalAnalysisPanel, {
   type StockTechnicalAnalysisSlot,
 } from "./StockTechnicalAnalysisPanel";
@@ -53,6 +55,10 @@ export interface StockSearchTabProps {
     signalIds: string[];
     signals: string[];
   }) => void;
+  usQuoteInKrw?: boolean;
+  onToggleUsQuoteKrw?: () => void;
+  usdKrwRate?: number | null;
+  usdKrwValDate?: string | null;
 }
 
 function rowToPick(row: StockSearchQuoteRow): StockPick {
@@ -152,6 +158,10 @@ interface StockSearchPickRowProps {
   onNews: (pick: StockPick) => void;
   onReason: (pick: StockPick) => void;
   onAnalyze: (row: StockSearchQuoteRow) => void;
+  usQuoteInKrw?: boolean;
+  onToggleUsQuoteKrw?: () => void;
+  usdKrwRate?: number | null;
+  usdKrwValDate?: string | null;
 }
 
 const StockSearchPickRow = memo(
@@ -164,10 +174,21 @@ const StockSearchPickRow = memo(
     onNews,
     onReason,
     onAnalyze,
+    usQuoteInKrw = false,
+    onToggleUsQuoteKrw,
+    usdKrwRate = null,
+    usdKrwValDate = null,
   }: StockSearchPickRowProps) {
     const pick = mergeTechnical(rowToPick(row), slot);
     const signalIds = resolvePickSignalIds(pick);
     const hasPrice = row.price != null && Number.isFinite(row.price);
+    const quoteDisplay = resolveUsQuoteDisplay(
+      row.price,
+      row.currency,
+      row.market,
+      usQuoteInKrw,
+      usdKrwRate ?? null,
+    );
 
     return (
       <li className={isActive ? "pick-item active" : "pick-item"}>
@@ -183,13 +204,23 @@ const StockSearchPickRow = memo(
             <span className="pick-score">{scoreDisplay(slot)}</span>
           </div>
           {hasPrice ? (
-            <PickQuoteStrip
-              symbol={row.symbol}
-              price={row.price}
-              currency={row.currency}
-              changePercent={row.changePercent}
-              turnover={pick.turnover}
-            />
+            <div className="stock-search-tab__quote-line">
+              <PickQuoteStrip
+                symbol={row.symbol}
+                price={quoteDisplay.price}
+                currency={quoteDisplay.currency}
+                changePercent={row.changePercent}
+                turnover={pick.turnover}
+              />
+              {quoteDisplay.showToggle && onToggleUsQuoteKrw ? (
+                <QuoteCurrencyToggle
+                  inKrw={usQuoteInKrw}
+                  onToggle={onToggleUsQuoteKrw}
+                  fxValuationDate={usdKrwValDate}
+                  className="quote-currency-toggle--compact"
+                />
+              ) : null}
+            </div>
           ) : (
             <span className="stock-search-tab__quote-pending">
               {ko.app.stockLookupQuotePending}
@@ -272,7 +303,10 @@ const StockSearchPickRow = memo(
     prev.analysisOpen === next.analysisOpen &&
     prev.onNews === next.onNews &&
     prev.onReason === next.onReason &&
-    prev.onAnalyze === next.onAnalyze,
+    prev.onAnalyze === next.onAnalyze &&
+    prev.usQuoteInKrw === next.usQuoteInKrw &&
+    prev.usdKrwRate === next.usdKrwRate &&
+    prev.usdKrwValDate === next.usdKrwValDate,
 );
 
 export default function StockSearchTab({
@@ -284,6 +318,10 @@ export default function StockSearchTab({
   onNews,
   onReason,
   onLookupPickPatch,
+  usQuoteInKrw = false,
+  onToggleUsQuoteKrw,
+  usdKrwRate = null,
+  usdKrwValDate = null,
 }: StockSearchTabProps) {
   const [input, setInput] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -586,6 +624,10 @@ export default function StockSearchTab({
               onNews={onNews}
               onReason={onReason}
               onAnalyze={handleAnalyze}
+              usQuoteInKrw={usQuoteInKrw}
+              onToggleUsQuoteKrw={onToggleUsQuoteKrw}
+              usdKrwRate={usdKrwRate}
+              usdKrwValDate={usdKrwValDate}
             />
           ))}
         </ul>

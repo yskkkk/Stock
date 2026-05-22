@@ -25,6 +25,7 @@ import ScreenFailuresModal from "./components/ScreenFailuresModal";
 import TelegramSentModal from "./components/TelegramSentModal";
 import PickList from "./components/PickList";
 import PickQuoteStrip from "./components/PickQuoteStrip";
+import QuoteCurrencyToggle from "./components/QuoteCurrencyToggle";
 import PickToolbar from "./components/PickToolbar";
 import SignalFilter from "./components/SignalFilter";
 import type { ChartDrawMode, ChartDrawToolbarApi } from "./chartDrawTypes";
@@ -50,6 +51,7 @@ import { MOBILE_BACK_PRIORITY } from "./lib/mobileBackStack";
 import { mergeQuotesIntoPicks } from "./lib/mergePickQuotes";
 import { usePickKeyboard } from "./hooks/usePickKeyboard";
 import { useUsdKrwRate } from "./hooks/useUsdKrwRate";
+import { resolveUsQuoteDisplay } from "./lib/usQuoteDisplay";
 import { enrichBullishPick } from "./lib/bullishPicks";
 import {
   filterPicksBySignals,
@@ -479,7 +481,10 @@ export default function App() {
   }, [workspacePick?.symbol, workspacePick?.market, appTab]);
 
   const usdKrwEnabled =
-    appTab !== "crypto" && appTab !== "ops" && workspacePick?.market === "us";
+    appTab !== "crypto" &&
+    appTab !== "ops" &&
+    (workspacePick?.market === "us" ||
+      (appTab === "stockLookup" && lookupMarketTab === "us"));
   const { rate: usdKrwRate, valuationDate: usdKrwValDate } =
     useUsdKrwRate(usdKrwEnabled);
 
@@ -833,32 +838,39 @@ export default function App() {
   const nativeQuotePx = quote?.price ?? workspacePick?.price;
   const nativeQuoteCur = quote?.currency ?? workspacePick?.currency;
 
-  const usStockAsUsd = useMemo(() => {
-    if (workspacePick?.market !== "us") return false;
-    const c = nativeQuoteCur;
-    return c == null || c === "" || c === "USD";
-  }, [workspacePick?.market, nativeQuoteCur]);
+  const chartQuoteDisplay = useMemo(
+    () =>
+      resolveUsQuoteDisplay(
+        nativeQuotePx,
+        nativeQuoteCur,
+        workspacePick?.market ?? "kr",
+        usQuoteInKrw,
+        usdKrwRate,
+      ),
+    [
+      nativeQuotePx,
+      nativeQuoteCur,
+      workspacePick?.market,
+      usQuoteInKrw,
+      usdKrwRate,
+    ],
+  );
+
+  const stripQuotePx = chartQuoteDisplay.price ?? nativeQuotePx;
+  const stripQuoteCur = chartQuoteDisplay.currency ?? nativeQuoteCur;
+  const showChartKrwToggle = chartQuoteDisplay.showToggle;
 
   const canUsdToKrw = useMemo(
     () =>
-      usStockAsUsd &&
+      showChartKrwToggle &&
       usQuoteInKrw &&
       usdKrwRate != null &&
       usdKrwRate > 0 &&
       nativeQuotePx != null &&
       Number.isFinite(nativeQuotePx) &&
       nativeQuotePx > 0,
-    [usStockAsUsd, usQuoteInKrw, usdKrwRate, nativeQuotePx],
+    [showChartKrwToggle, usQuoteInKrw, usdKrwRate, nativeQuotePx],
   );
-
-  const stripQuotePx = useMemo(() => {
-    if (!canUsdToKrw || nativeQuotePx == null || usdKrwRate == null) {
-      return nativeQuotePx;
-    }
-    return Math.round(nativeQuotePx * usdKrwRate);
-  }, [canUsdToKrw, nativeQuotePx, usdKrwRate]);
-
-  const stripQuoteCur = canUsdToKrw ? "KRW" : nativeQuoteCur;
 
   const toDisplayMoney = useCallback(
     (v: number | null | undefined): number | undefined => {
@@ -1275,6 +1287,10 @@ export default function App() {
               onNews={handleNews}
               onReason={handleReason}
               onLookupPickPatch={handleLookupPickPatch}
+              usQuoteInKrw={usQuoteInKrw}
+              onToggleUsQuoteKrw={toggleUsQuoteKrw}
+              usdKrwRate={usdKrwRate}
+              usdKrwValDate={usdKrwValDate}
             />
           )}
         </aside>
@@ -1317,53 +1333,35 @@ export default function App() {
                     )}
                   </h2>
                   <div className="quote-bar__quote-row">
-                    {chartLoading ? (
+                    {chartLoading &&
+                    (stripQuotePx ?? workspacePick.price) == null ? (
                       <span className="quote-bar__quote-loading">
                         {ko.app.quoteBarLoading}
                       </span>
                     ) : (
-                      <>
-                        <PickQuoteStrip
-                          symbol={workspacePick.symbol}
-                          price={
-                            (stripQuotePx ?? nativeQuotePx) ??
-                            workspacePick.price
-                          }
-                          currency={stripQuoteCur ?? workspacePick.currency}
-                          changePercent={
-                            quote?.changePercent ??
-                            workspacePick.changePercent
-                          }
-                          size="md"
-                        />
-                        {workspacePick.market === "us" ? (
-                          <button
-                            type="button"
-                            className="btn btn--ghost quote-currency-toggle"
-                            onClick={toggleUsQuoteKrw}
-                            title={
-                              usQuoteInKrw
-                                ? usdKrwValDate
-                                  ? ko.app.quoteCurrencyFxBasis.replace(
-                                      "{date}",
-                                      usdKrwValDate,
-                                    )
-                                  : ko.app.quoteCurrencyShowUsd
-                                : ko.app.quoteCurrencyShowKrw
-                            }
-                            aria-label={ko.app.quoteCurrencyToggleAria}
-                            aria-pressed={usQuoteInKrw}
-                          >
-                            <span
-                              className="quote-currency-toggle__icon"
-                              aria-hidden
-                            >
-                              {usQuoteInKrw ? "$" : "₩"}
-                            </span>
-                          </button>
-                        ) : null}
-                      </>
+                      <PickQuoteStrip
+                        symbol={workspacePick.symbol}
+                        price={
+                          (stripQuotePx ?? nativeQuotePx) ??
+                          workspacePick.price
+                        }
+                        currency={
+                          stripQuoteCur ?? workspacePick.currency
+                        }
+                        changePercent={
+                          quote?.changePercent ??
+                          workspacePick.changePercent
+                        }
+                        size="md"
+                      />
                     )}
+                    {showChartKrwToggle ? (
+                      <QuoteCurrencyToggle
+                        inKrw={usQuoteInKrw}
+                        onToggle={toggleUsQuoteKrw}
+                        fxValuationDate={usdKrwValDate}
+                      />
+                    ) : null}
                   </div>
                 </div>
                 <div className="quote-bar__right">
