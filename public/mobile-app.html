@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#c9d4e2" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+    <title>종목 대시보드 — 모바일 앱</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Pretendard, system-ui, sans-serif;
+        background: var(--bg, #e8eef5);
+        color: var(--text, #1a2332);
+        padding: 24px 16px 40px;
+        box-sizing: border-box;
+      }
+      .wrap {
+        max-width: 520px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 1.35rem;
+        margin: 0 0 8px;
+      }
+      .lead {
+        color: var(--muted, #5a6b7d);
+        line-height: 1.55;
+        margin: 0 0 24px;
+      }
+      .card {
+        background: var(--card, #fff);
+        border-radius: 16px;
+        padding: 18px 20px;
+        margin-bottom: 14px;
+        box-shadow: 0 2px 12px rgba(20, 40, 80, 0.08);
+      }
+      .card h2 {
+        font-size: 1rem;
+        margin: 0 0 10px;
+      }
+      .btn-row {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      a.btn {
+        display: block;
+        text-align: center;
+        padding: 14px 16px;
+        border-radius: 12px;
+        font-weight: 600;
+        text-decoration: none;
+        font-size: 0.95rem;
+      }
+      a.btn--primary {
+        background: #2f6fed;
+        color: #fff;
+      }
+      a.btn--secondary {
+        background: #e8eef5;
+        color: #1a2332;
+      }
+      a.btn--disabled {
+        opacity: 0.55;
+        pointer-events: none;
+      }
+      .note {
+        font-size: 0.85rem;
+        color: var(--muted, #5a6b7d);
+        line-height: 1.5;
+        margin: 10px 0 0;
+      }
+      .back {
+        margin-top: 20px;
+        font-size: 0.9rem;
+      }
+      .back a {
+        color: #2f6fed;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>종목 대시보드 모바일 앱</h1>
+      <p class="lead">
+        웹과 동일한 화면·기능입니다. Android(갤럭시 등)와 iPhone용 앱을 설치할 수
+        있습니다.
+      </p>
+
+      <div class="card">
+        <h2>Android (갤럭시 · 기타)</h2>
+        <div class="btn-row">
+          <a
+            id="apk-link"
+            class="btn btn--primary"
+            href="/downloads/stock-dashboard.apk"
+            download
+            >APK 다운로드</a
+          >
+          <a class="btn btn--secondary" href="/">웹에서 열기</a>
+        </div>
+        <p class="note">
+          서버에 APK가 없으면 PC에서 <code>npm run apk:build</code> 실행 후 다시
+          시도하세요. 출처를 신뢰할 때만 설치하세요.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2>iPhone (iOS)</h2>
+        <div class="btn-row">
+          <a id="ios-install" class="btn btn--primary" href="/install-ios.html"
+            >iPhone에 설치 (홈 화면)</a
+          >
+          <a class="btn btn--secondary" href="/">웹에서 열기</a>
+        </div>
+        <p class="note">
+          Safari에서 <strong>공유 → 홈 화면에 추가</strong>로 설치합니다. App
+          Store APK처럼 한 번에 받을 수 없어 이 방식이 iPhone 공식 설치 방법입니다.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2>앱 동작</h2>
+        <p class="note" style="margin: 0">
+          APK는 빌드 시 정해 둔 Stock 서버 주소(예: 이 사이트와 같은 HTTPS)를
+          <strong>그대로 WebView로 엽니다.</strong> 웹에서 쓰는 화면·기능과
+          동일합니다. 서버 관리자가 <code>npm run apk:build</code> 전에
+          <code>.env</code>에 <code>CAPACITOR_SERVER_URL</code>을 넣어 두면
+          사용자는 주소 입력 없이 바로 사용합니다.
+        </p>
+      </div>
+
+      <p class="back"><a href="/">← 대시보드로 돌아가기</a></p>
+    </div>
+    <script>
+      (function () {
+        var apk = document.getElementById("apk-link");
+        fetch("/downloads/stock-dashboard.apk", { method: "HEAD" })
+          .then(function (r) {
+            if (!r.ok) {
+              apk.classList.add("btn--disabled");
+              apk.setAttribute("aria-disabled", "true");
+              apk.title = "APK 파일이 아직 업로드되지 않았습니다.";
+            }
+          })
+          .catch(function () {
+            apk.classList.add("btn--disabled");
+          });
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker.register("/sw.js").catch(function () {});
+        }
+      })();
+    </script>
+  </body>
+</html>
