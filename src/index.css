@@ -7518,6 +7518,49 @@ body {
   font-size: 0.72rem;
 }
 
+.rec-tracker-table__num--with-pct {
+  vertical-align: middle;
+}
+
+.rec-tracker-table__price-line {
+  display: block;
+  white-space: nowrap;
+}
+
+.rec-tracker-table__inline-pct {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.35rem;
+  margin-top: 0.12rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.rec-tracker-table__inline-pct--up {
+  color: var(--up);
+}
+
+.rec-tracker-table__inline-pct--down {
+  color: var(--down);
+}
+
+.rec-tracker-table__fee-tag {
+  font-size: 0.58rem;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: -0.02em;
+}
+
+.picks-history-pick-item__fee-tag {
+  margin-left: 0.2rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
 .rec-tracker-table__num {
   white-space: nowrap;
   text-align: right;

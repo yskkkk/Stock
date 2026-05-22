@@ -12,6 +12,7 @@ import {
   formatPrice,
   formatTimeMsKst,
 } from "../lib/format";
+import { netReturnPctFromPrices } from "../lib/netReturn";
 import { ko } from "../i18n/ko";
 import type { PicksDailyHistoryDay, PicksDailyHistorySlimPick } from "../types";
 
@@ -64,22 +65,6 @@ function formatInitialPrice(
   return formatPrice(p.price ?? undefined, cur);
 }
 
-function pctVsInitial(
-  initial: number | null | undefined,
-  current: number | null | undefined,
-): number | null {
-  if (
-    initial == null ||
-    current == null ||
-    !Number.isFinite(initial) ||
-    !Number.isFinite(current) ||
-    initial <= 0
-  ) {
-    return null;
-  }
-  return ((current - initial) / initial) * 100;
-}
-
 function HistoryPickPriceMeta({
   pick,
   defaultCurrency,
@@ -97,7 +82,7 @@ function HistoryPickPriceMeta({
   const cur = live?.price;
   const curCurrency =
     (live?.currency ?? pick.currency ?? defaultCurrency).trim() || defaultCurrency;
-  const vs = pctVsInitial(initial, cur);
+  const vs = netReturnPctFromPrices(initial, cur);
   const up = (vs ?? 0) >= 0;
 
   return (
@@ -136,6 +121,9 @@ function HistoryPickPriceMeta({
               >
                 {ko.app.picksHistoryVsInitial}{" "}
                 <b>{formatPercent(vs)}</b>
+                <span className="picks-history-pick-item__fee-tag">
+                  {ko.app.recTrackerFeeRoundTrip}
+                </span>
               </span>
             </>
           ) : null}

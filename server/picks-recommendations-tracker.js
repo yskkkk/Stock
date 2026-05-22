@@ -9,6 +9,10 @@ import {
 } from "./picks-recommendation-enrich.js";
 import { getPicksDailyHistoryForApi } from "./picks-history-store.js";
 import { fetchQuoteSnapshotsForSymbols } from "./picks-live-quotes.js";
+import {
+  netReturnPctFromPrices,
+  outcomeFromPricesWithFees,
+} from "./net-return.js";
 
 let reconcileOnce = false;
 let backfillScheduled = false;
@@ -127,44 +131,6 @@ function slimToEvent(p, market, date) {
 }
 
 /**
- * @param {number | null} entry
- * @param {number | null} current
- * @returns {"win"|"loss"|"flat"|"unknown"}
- */
-function outcomeFromPrices(entry, current) {
-  if (
-    entry == null ||
-    current == null ||
-    !Number.isFinite(entry) ||
-    !Number.isFinite(current) ||
-    entry <= 0
-  ) {
-    return "unknown";
-  }
-  const pct = ((current - entry) / entry) * 100;
-  if (Math.abs(pct) < 0.005) return "flat";
-  return pct > 0 ? "win" : "loss";
-}
-
-/**
- * @param {number | null} entry
- * @param {number | null} current
- * @returns {number | null}
- */
-function pctFromPrices(entry, current) {
-  if (
-    entry == null ||
-    current == null ||
-    !Number.isFinite(entry) ||
-    !Number.isFinite(current) ||
-    entry <= 0
-  ) {
-    return null;
-  }
-  return ((current - entry) / entry) * 100;
-}
-
-/**
  * @param {Array<{ outcome: string }>} items
  */
 function rollupCounts(items) {
@@ -239,8 +205,8 @@ async function buildRecommendationsTrackerPayloadInner(opts = {}) {
     const q = quotes[ev.symbol];
     const currentPrice =
       q?.price != null && Number.isFinite(q.price) && q.price > 0 ? q.price : null;
-    const changePct = pctFromPrices(ev.entryPrice, currentPrice);
-    const outcome = outcomeFromPrices(ev.entryPrice, currentPrice);
+    const changePct = netReturnPctFromPrices(ev.entryPrice, currentPrice);
+    const outcome = outcomeFromPricesWithFees(ev.entryPrice, currentPrice);
     const notifies =
       ev.market === "kr" || ev.market === "us"
         ? listTelegramNotifiesForRecommendation(ev.date, ev.market, ev.symbol)

@@ -616,6 +616,7 @@ export default function RecommendationsTab({
                     />
                     <RecTrackerSortTh
                       label={ko.app.recTrackerColCurrent}
+                      title={ko.app.recTrackerColCurrentHint}
                       column="current"
                       sortKey={sortKey}
                       sortDir={sortDir}
@@ -655,6 +656,7 @@ export default function RecommendationsTab({
 
 function RecTrackerSortTh({
   label,
+  title,
   column,
   sortKey,
   sortDir,
@@ -662,6 +664,7 @@ function RecTrackerSortTh({
   align,
 }: {
   label: string;
+  title?: string;
   column: RecTrackerSortKey;
   sortKey: RecTrackerSortKey;
   sortDir: SortDir;
@@ -683,6 +686,7 @@ function RecTrackerSortTh({
         className={
           active ? "rec-tracker-th__btn rec-tracker-th__btn--active" : "rec-tracker-th__btn"
         }
+        title={title}
         onClick={() => onSort(column)}
         aria-sort={active ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
       >
@@ -799,8 +803,23 @@ function RecTrackerRow({
       <td className="rec-tracker-table__num">
         {formatPrice(item.entryPrice ?? undefined, item.currency)}
       </td>
-      <td className="rec-tracker-table__num">
-        {formatPrice(item.currentPrice ?? undefined, item.currency)}
+      <td className="rec-tracker-table__num rec-tracker-table__num--with-pct">
+        <span className="rec-tracker-table__price-line">
+          {formatPrice(item.currentPrice ?? undefined, item.currency)}
+        </span>
+        {item.changePct != null ? (
+          <span
+            className={
+              up
+                ? "rec-tracker-table__inline-pct rec-tracker-table__inline-pct--up"
+                : "rec-tracker-table__inline-pct rec-tracker-table__inline-pct--down"
+            }
+            title={ko.app.recTrackerFeeRoundTrip}
+          >
+            {formatPercent(item.changePct)}
+            <span className="rec-tracker-table__fee-tag">{ko.app.recTrackerFeeRoundTrip}</span>
+          </span>
+        ) : null}
       </td>
       <td
         className={

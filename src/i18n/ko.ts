@@ -93,6 +93,8 @@ export const ko = {
     recTrackerColEntry: "추천가",
     recTrackerColCurrent: "현재가",
     recTrackerColChange: "등락",
+    recTrackerFeeRoundTrip: "왕복0.2%",
+    recTrackerColCurrentHint: "현재가 · 수수료 반영 등락",
     recTrackerColResult: "결과",
     recTrackerWin: "승",
     recTrackerLoss: "패",

@@ -1,41 +1,14 @@
 import type { PicksDailyHistoryQuotesMap } from "../api";
+import {
+  netReturnPctFromPrices,
+  outcomeFromPricesWithFees,
+} from "./netReturn";
 import type {
   RecommendationOutcome,
   RecommendationTrackerItem,
   RecommendationTrackerRollup,
   RecommendationsTrackerResponse,
 } from "../types";
-
-function outcomeFromPrices(
-  entry: number | null,
-  current: number | null,
-): RecommendationOutcome {
-  if (
-    entry == null ||
-    current == null ||
-    !Number.isFinite(entry) ||
-    !Number.isFinite(current) ||
-    entry <= 0
-  ) {
-    return "unknown";
-  }
-  const pct = ((current - entry) / entry) * 100;
-  if (Math.abs(pct) < 0.005) return "flat";
-  return pct > 0 ? "win" : "loss";
-}
-
-function pctFromPrices(entry: number | null, current: number | null): number | null {
-  if (
-    entry == null ||
-    current == null ||
-    !Number.isFinite(entry) ||
-    !Number.isFinite(current) ||
-    entry <= 0
-  ) {
-    return null;
-  }
-  return ((current - entry) / entry) * 100;
-}
 
 function rollupCounts(
   items: Array<{ outcome: RecommendationOutcome }>,
@@ -108,8 +81,8 @@ export function mergeQuotesIntoTrackerPayload(
     const q = quotes[sym];
     const currentPrice =
       q?.price != null && Number.isFinite(q.price) && q.price > 0 ? q.price : null;
-    const changePct = pctFromPrices(ev.entryPrice, currentPrice);
-    const outcome = outcomeFromPrices(ev.entryPrice, currentPrice);
+    const changePct = netReturnPctFromPrices(ev.entryPrice, currentPrice);
+    const outcome = outcomeFromPricesWithFees(ev.entryPrice, currentPrice);
     return { ...ev, currentPrice, changePct, outcome };
   });
 
