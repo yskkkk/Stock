@@ -13,9 +13,11 @@ import {
   type TechModelsResponse,
 } from "../api";
 import {
-  applyTrackerQuotes,
-  prioritizeTrackerSymbols,
-} from "./recTrackerQuotes";
+  isRecTrackerSnapshotStale,
+  TRACKER_QUOTE_BATCH_INITIAL,
+  TRACKER_QUOTE_BATCH_MAX,
+} from "./recTrackerLoad";
+import { applyTrackerQuotes, prioritizeTrackerSymbols } from "./recTrackerQuotes";
 import { sortCryptoAssetsByTurnover, type CryptoAsset } from "../constants/crypto";
 import type {
   MacroEvent,
@@ -25,8 +27,6 @@ import type {
 } from "../types";
 
 const MACRO_SESSION_CACHE_KEY = "stock-macro-bar-v2";
-const TRACKER_QUOTE_BATCH = 96;
-
 const TTL_MS = {
   macro: 5 * 60_000,
   recTracker: 30_000,
@@ -146,8 +146,10 @@ export async function prefetchMacroBundle(): Promise<MacroPrefetchBundle> {
 
 async function mergeRecTrackerQuotes(
   base: RecommendationsTrackerResponse,
+  maxSymbols: number,
+  prev?: RecommendationsTrackerResponse | null,
 ): Promise<RecommendationsTrackerResponse> {
-  const syms = prioritizeTrackerSymbols(base.items, TRACKER_QUOTE_BATCH);
+  const syms = prioritizeTrackerSymbols(base.items, maxSymbols);
   let freshQuotes: Awaited<
     ReturnType<typeof fetchPicksDailyHistoryQuotes>
   >["quotes"] = {};
@@ -158,32 +160,58 @@ async function mergeRecTrackerQuotes(
       /* 시세 없이 기본 payload */
     }
   }
-  const prev = peekRecommendationsTracker();
-  return applyTrackerQuotes(base, freshQuotes, prev);
+  const prior = prev ?? peekRecommendationsTracker();
+  return applyTrackerQuotes(base, freshQuotes, prior);
 }
 
 export async function prefetchRecommendationsTracker(): Promise<RecommendationsTrackerResponse> {
   return dedupe("recTracker", async () => {
+    let snap: RecommendationsTrackerResponse;
     try {
-      const snap = await fetchRecommendationsTracker({ quotes: false });
-      const quick = await mergeRecTrackerQuotes(snap);
-      notifyRecTracker(quick);
+      snap = await fetchRecommendationsTracker({ quotes: false });
+      setCached("recTracker", snap);
+      notifyRecTracker(snap);
     } catch {
-      /* refresh에서 복구 */
+      const fresh = await fetchRecommendationsTracker({
+        quotes: false,
+        refresh: true,
+      });
+      const merged = await mergeRecTrackerQuotes(
+        fresh,
+        TRACKER_QUOTE_BATCH_INITIAL,
+      );
+      notifyRecTracker(merged);
+      return merged;
     }
-    void fetchRecommendationsTracker({ quotes: false, refresh: true })
-      .then((fresh) => mergeRecTrackerQuotes(fresh))
-      .then((merged) => notifyRecTracker(merged))
-      .catch(() => {});
-    const cached = peekRecommendationsTracker();
-    if (cached) return cached;
-    const fresh = await fetchRecommendationsTracker({
-      quotes: false,
-      refresh: true,
-    });
-    const merged = await mergeRecTrackerQuotes(fresh);
-    notifyRecTracker(merged);
-    return merged;
+
+    const quick = await mergeRecTrackerQuotes(
+      snap,
+      TRACKER_QUOTE_BATCH_INITIAL,
+    );
+    notifyRecTracker(quick);
+
+    if (TRACKER_QUOTE_BATCH_MAX > TRACKER_QUOTE_BATCH_INITIAL) {
+      void mergeRecTrackerQuotes(snap, TRACKER_QUOTE_BATCH_MAX, quick)
+        .then((full) => {
+          setCached("recTracker", full);
+          notifyRecTracker(full);
+        })
+        .catch(() => {});
+    }
+
+    if (isRecTrackerSnapshotStale(snap)) {
+      void fetchRecommendationsTracker({ quotes: false, refresh: true })
+        .then((fresh) =>
+          mergeRecTrackerQuotes(fresh, TRACKER_QUOTE_BATCH_MAX, quick),
+        )
+        .then((merged) => {
+          setCached("recTracker", merged);
+          notifyRecTracker(merged);
+        })
+        .catch(() => {});
+    }
+
+    return quick;
   });
 }
 

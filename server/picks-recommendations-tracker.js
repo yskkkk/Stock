@@ -170,7 +170,16 @@ async function buildRecommendationsTrackerPayloadInner(opts = {}) {
 
   if (!reconcileOnce) {
     reconcileOnce = true;
-    reconcileRecommendationHistoryEnrichmentSync();
+    setImmediate(() => {
+      try {
+        reconcileRecommendationHistoryEnrichmentSync();
+      } catch (e) {
+        console.warn(
+          "[recommendations-tracker] reconcile:",
+          e instanceof Error ? e.message : e,
+        );
+      }
+    });
   }
   scheduleRecommendationSignalBackfill();
 

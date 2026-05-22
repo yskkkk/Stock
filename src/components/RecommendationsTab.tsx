@@ -6,6 +6,11 @@ import {
   subscribeRecommendationsTrackerPrefetch,
 } from "../lib/tabPrefetch";
 import {
+  isRecTrackerSnapshotStale,
+  TRACKER_QUOTE_BATCH_INITIAL,
+  TRACKER_QUOTE_BATCH_MAX,
+} from "../lib/recTrackerLoad";
+import {
   applyTrackerQuotes,
   prioritizeTrackerSymbols,
 } from "../lib/recTrackerQuotes";
@@ -103,7 +108,6 @@ export default function RecommendationsTab({
   const [sortKey, setSortKey] = useState<RecTrackerSortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
-  const TRACKER_QUOTE_BATCH = 96;
   const dataRef = useRef<RecommendationsTrackerResponse | null>(null);
   dataRef.current = data;
 
@@ -111,8 +115,9 @@ export default function RecommendationsTab({
     async (
       base: RecommendationsTrackerResponse,
       prev: RecommendationsTrackerResponse | null,
+      maxSymbols = TRACKER_QUOTE_BATCH_MAX,
     ) => {
-      const syms = prioritizeTrackerSymbols(base.items, TRACKER_QUOTE_BATCH);
+      const syms = prioritizeTrackerSymbols(base.items, maxSymbols);
       let freshQuotes: Awaited<
         ReturnType<typeof fetchPicksDailyHistoryQuotes>
       >["quotes"] = {};
@@ -166,22 +171,46 @@ export default function RecommendationsTab({
   useEffect(() => {
     let cancelled = false;
 
+    const pullQuotesInBackground = (
+      base: RecommendationsTrackerResponse,
+      prev: RecommendationsTrackerResponse | null,
+    ) => {
+      void (async () => {
+        const first = await mergeTrackerWithQuotes(
+          base,
+          prev,
+          TRACKER_QUOTE_BATCH_INITIAL,
+        );
+        if (cancelled) return;
+        setData(first);
+        if (TRACKER_QUOTE_BATCH_MAX <= TRACKER_QUOTE_BATCH_INITIAL) return;
+        const full = await mergeTrackerWithQuotes(
+          base,
+          first,
+          TRACKER_QUOTE_BATCH_MAX,
+        );
+        if (!cancelled) setData(full);
+      })();
+    };
+
     void (async () => {
-      setLoading(true);
+      if (!peekRecommendationsTracker()) {
+        setLoading(true);
+      }
       setError(null);
       try {
         const snap = await fetchRecommendationsTracker({ quotes: false });
         if (cancelled) return;
-        const quick = await mergeTrackerWithQuotes(snap, null);
-        if (cancelled) return;
-        setData(quick);
+        setData(snap);
         setLoading(false);
         setError(null);
+        pullQuotesInBackground(snap, dataRef.current);
+
+        if (isRecTrackerSnapshotStale(snap)) {
+          await load({ silent: true, refresh: true });
+        }
       } catch {
-        /* refresh 경로에서 재시도 */
-      }
-      if (!cancelled) {
-        await load({ silent: true, refresh: true });
+        if (!cancelled) await load({ refresh: true });
       }
     })();
 
@@ -195,7 +224,7 @@ export default function RecommendationsTab({
   const refreshTrackerQuotesOnly = useCallback(() => {
     const base = dataRef.current;
     if (!base?.items?.length) return;
-    const syms = prioritizeTrackerSymbols(base.items, TRACKER_QUOTE_BATCH);
+    const syms = prioritizeTrackerSymbols(base.items, TRACKER_QUOTE_BATCH_MAX);
     if (!syms.length) return;
     void fetchPicksDailyHistoryQuotes(syms)
       .then((res) => {
