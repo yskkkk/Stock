@@ -4683,6 +4683,7 @@ html[data-theme="light"] .access-admin-tab--active {
 .app-page-top--queue-only {
   display: block;
   width: 100%;
+  flex-shrink: 0;
 }
 
 .app-page-top--queue-only .app-page-top__queue {
@@ -4690,6 +4691,10 @@ html[data-theme="light"] .access-admin-tab--active {
   width: 100%;
   max-width: 100%;
   padding-inline: 0;
+}
+
+.app-header-sticky > .app-page-top--queue-only {
+  flex-shrink: 0;
 }
 
 .app-page-top__queue--empty {
@@ -4752,7 +4757,7 @@ html[data-theme="light"] .ops-global-queue-stack {
 .ops-global-queue-stack .ops-agent-queue-card.ops-global-queue-card {
   flex: 0 0 auto;
   width: min(288px, 46vw);
-  min-width: 0;
+  min-width: min(220px, 88vw);
   padding: 0.5rem 0.58rem 0.48rem;
   gap: 0.35rem;
   border-radius: calc(var(--radius-sm) + 2px);
@@ -5196,14 +5201,16 @@ html[data-theme="light"] .feedback-inbox-item {
 /* 운영관리 — Cursor 에이전트 연동 */
 /* -------------------------------------------------------------------------- */
 
-.ops-workspace {
+/* 스크리너 .workspace 그리드(좌열 380px)가 운영 탭에 적용되면 본문·대기열이 세로 글자로 붕괴 */
+.workspace.ops-workspace {
+  display: flex;
+  flex-direction: column;
+  grid-template-columns: none;
   width: 100%;
   max-width: 100%;
   min-width: 0;
   min-height: 0;
   flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
   gap: 0.65rem;
   overflow-x: clip;
   align-self: stretch;
@@ -5339,7 +5346,8 @@ html[data-theme="light"] .ops-management__textarea--request {
   margin: 0;
   padding: 0.85rem 1rem 1.1rem;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow-x: clip;
+  overflow-y: visible;
 }
 
 @media (max-width: 640px) {
@@ -5352,7 +5360,7 @@ html[data-theme="light"] .ops-management__textarea--request {
 
 .ops-management--split {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, min(380px, 34vw));
+  grid-template-columns: minmax(0, 1fr) minmax(280px, min(400px, 38vw));
   gap: 0.85rem;
   align-items: start;
   width: 100%;
@@ -5531,6 +5539,7 @@ html[data-theme="light"] .ops-management__my-ip-jobs--inline {
   position: relative;
   flex: 0 0 auto;
   width: min(148px, 42vw);
+  min-width: min(132px, 78vw);
   scroll-snap-align: start;
   display: flex;
   flex-direction: column;
@@ -5992,7 +6001,7 @@ html[data-theme="light"] .ops-management__queue-chip {
   padding: 0.65rem 0.75rem;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1280px) {
   .ops-management--split {
     grid-template-columns: 1fr;
   }
@@ -6094,9 +6103,10 @@ html[data-theme="light"] .ops-management__history-details {
 
 .ops-management__history-snippet {
   color: var(--text-dim);
-  word-break: break-word;
-  overflow-wrap: anywhere;
+  word-break: keep-all;
+  overflow-wrap: break-word;
   flex: 1 1 0;
+  min-width: 8rem;
   min-width: 0;
   max-width: 100%;
 }

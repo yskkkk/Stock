@@ -46,11 +46,19 @@ body {
   flex-direction: column;
   min-height: 0;
   width: 100%;
+  max-width: 100%;
   gap: 0.95rem;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: auto;
+}
+
+.app-header-sticky {
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .card {
