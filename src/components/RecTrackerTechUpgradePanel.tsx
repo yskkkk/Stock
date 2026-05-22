@@ -12,7 +12,6 @@ import {
   applyAllTechWeightChanges,
   applySingleTechWeightChange,
   buildTechUpgradePlan,
-  changeSummaryLine,
   type TechWeightChange,
 } from "../lib/recTrackerTechUpgrade";
 import { setTechScoreWeights } from "../lib/techScore";
@@ -24,14 +23,17 @@ function formatWinRate(pct: number | null): string {
   return `${pct.toFixed(1)}%`;
 }
 
+function formatDeltaPp(delta: number, kind: TechWeightChange["kind"]): string {
+  const sign = kind === "boost" ? "+" : "";
+  return `${sign}${delta.toFixed(1)}%p`;
+}
+
 function ChangeRow({
   change,
-  baselinePct,
   onApply,
   applying,
 }: {
   change: TechWeightChange;
-  baselinePct: number;
   onApply: (c: TechWeightChange) => void;
   applying: boolean;
 }) {
@@ -44,16 +46,16 @@ function ChangeRow({
           : "rec-tracker-upgrade__item rec-tracker-upgrade__item--cut"
       }
     >
-      <div className="rec-tracker-upgrade__item-head">
+      <div className="rec-tracker-upgrade__item-main">
         <span className={`${chip.className} rec-tracker-upgrade__tag`}>{change.short}</span>
         <span className="rec-tracker-upgrade__weight">
-          {change.from} → {change.to}
+          {change.from}→{change.to}
         </span>
         <span className="rec-tracker-upgrade__rate">{formatWinRate(change.winRatePct)}</span>
+        <span className="rec-tracker-upgrade__delta">
+          {formatDeltaPp(Math.abs(change.deltaVsBaseline), change.kind)}
+        </span>
       </div>
-      <p className="rec-tracker-upgrade__reason">
-        {changeSummaryLine(change, baselinePct)}
-      </p>
       <button
         type="button"
         className="btn btn--primary btn--sm rec-tracker-upgrade__apply-one"
@@ -150,7 +152,12 @@ export default function RecTrackerTechUpgradePanel({
       if (updated) setTechScoreWeights(updated.weights);
       setApplyMsg(msg);
     } catch (e) {
-      setApplyErr(e instanceof Error ? e.message : String(e));
+      const raw = e instanceof Error ? e.message : String(e);
+      setApplyErr(
+        raw.includes("기본 가중치로 복원")
+          ? ko.app.recTrackerUpgradeReset
+          : raw,
+      );
     } finally {
       setApplying(false);
     }
@@ -197,6 +204,13 @@ export default function RecTrackerTechUpgradePanel({
   if (!modelsState || plan.baselineDecided < 5) return null;
 
   const activeSet = new Set(modelsState.activeModelIds);
+  const baselineLabel =
+    plan.baselineWinRatePct != null
+      ? ko.app.recTrackerUpgradeBaseline.replace(
+          "{rate}",
+          formatWinRate(plan.baselineWinRatePct),
+        ).replace("{decided}", String(plan.baselineDecided))
+      : null;
 
   return (
     <section className="rec-tracker-upgrade card" aria-labelledby="rec-tracker-upgrade-title">
@@ -204,87 +218,80 @@ export default function RecTrackerTechUpgradePanel({
         <h3 id="rec-tracker-upgrade-title" className="filter-title">
           {ko.app.recTrackerUpgradeTitle}
         </h3>
+        {baselineLabel ? (
+          <span className="rec-tracker-upgrade__stat">{baselineLabel}</span>
+        ) : null}
       </div>
 
-      <div className="rec-tracker-models">
-        <span className="rec-tracker-models__label">{ko.app.recTrackerModelsActive}</span>
-        <ul className="rec-tracker-models__list">
-          {modelsState.models.map((m: TechModelRecord) => (
-            <li key={m.id}>
-              <label className="rec-tracker-models__check">
+      <div className="rec-tracker-upgrade__controls">
+        <div className="rec-tracker-upgrade__active">
+          <span className="rec-tracker-models__label">{ko.app.recTrackerModelsActive}</span>
+          <div className="rec-tracker-upgrade__active-chips">
+            {modelsState.models.map((m: TechModelRecord) => (
+              <label key={m.id} className="rec-tracker-upgrade__active-chip">
                 <input
                   type="checkbox"
                   checked={activeSet.has(m.id)}
                   disabled={activeSet.has(m.id) && activeSet.size <= 1}
                   onChange={() => toggleActive(m.id)}
                 />
-                <span className="rec-tracker-models__name">{m.name}</span>
-                <span className="rec-tracker-models__meta">
+                <span className="rec-tracker-upgrade__active-name">{m.name}</span>
+                <span className="rec-tracker-upgrade__active-meta">
                   {ko.app.recTrackerUpgradeMaxScore.replace("{n}", String(m.maxTechScore))}
                 </span>
               </label>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="rec-tracker-models__target">
-        <label>
-          <span>{ko.app.recTrackerModelsEditTarget}</span>
-          <select
-            value={targetModelId}
-            onChange={(e) => setTargetModelId(e.target.value)}
-          >
-            {modelsState.models.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
             ))}
-          </select>
-        </label>
-        <div className="rec-tracker-models__new">
-          <input
-            type="text"
-            value={newModelName}
-            placeholder={ko.app.recTrackerModelsNewNamePh}
-            onChange={(e) => setNewModelName(e.target.value)}
-          />
-          <button
-            type="button"
-            className="btn btn--secondary btn--sm"
-            disabled={applying || !newModelName.trim()}
-            onClick={onSaveNewModel}
-          >
-            {ko.app.recTrackerModelsSaveAs}
-          </button>
+          </div>
+        </div>
+
+        <div className="rec-tracker-upgrade__target-row">
+          <label className="rec-tracker-upgrade__target-select">
+            <span>{ko.app.recTrackerModelsEditTarget}</span>
+            <select
+              value={targetModelId}
+              onChange={(e) => setTargetModelId(e.target.value)}
+            >
+              {modelsState.models.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="rec-tracker-upgrade__new-model">
+            <input
+              type="text"
+              value={newModelName}
+              placeholder={ko.app.recTrackerModelsNewNamePh}
+              onChange={(e) => setNewModelName(e.target.value)}
+            />
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              disabled={applying || !newModelName.trim()}
+              onClick={onSaveNewModel}
+            >
+              {ko.app.recTrackerModelsSaveAs}
+            </button>
+          </div>
         </div>
       </div>
 
-      {plan.baselineWinRatePct != null ? (
-        <p className="rec-tracker-upgrade__baseline">
-          {ko.app.recTrackerUpgradeBaseline.replace(
-            "{rate}",
-            formatWinRate(plan.baselineWinRatePct),
-          ).replace("{decided}", String(plan.baselineDecided))}
-        </p>
-      ) : null}
-
-      {plan.headline ? (
-        <p className="rec-tracker-upgrade__headline" role="status">
-          {ko.app.recTrackerUpgradeHeadline}: {plan.headline}
-        </p>
-      ) : (
+      {plan.changes.length === 0 ? (
         <p className="rec-tracker-upgrade__empty">{ko.app.recTrackerUpgradeNone}</p>
-      )}
-
-      {plan.changes.length > 0 ? (
+      ) : (
         <>
+          {plan.headline ? (
+            <p className="rec-tracker-upgrade__headline" role="status">
+              <span className="rec-tracker-upgrade__headline-k">{ko.app.recTrackerUpgradeHeadline}</span>
+              {plan.headline}
+            </p>
+          ) : null}
           <ul className="rec-tracker-upgrade__list">
             {plan.changes.slice(0, 6).map((c) => (
               <ChangeRow
                 key={`${c.signalId}-${c.from}-${c.to}`}
                 change={c}
-                baselinePct={plan.baselineWinRatePct ?? 0}
                 onApply={onApplyOne}
                 applying={applying}
               />
@@ -301,7 +308,7 @@ export default function RecTrackerTechUpgradePanel({
             </button>
           </div>
         </>
-      ) : null}
+      )}
 
       {applyMsg ? (
         <p className="rec-tracker-upgrade__ok" role="status">

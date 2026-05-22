@@ -148,7 +148,7 @@ export function buildTechUpgradePlan(
 
   const top = boosts[0] ?? cuts[0] ?? null;
   const headline = top
-    ? `${top.short}: 가중치 ${top.from}→${top.to} (${changeReason(top.kind, Math.abs(top.deltaVsBaseline), top.winRatePct, baselinePct)})`
+    ? `${top.short} ${top.from}→${top.to} · ${top.winRatePct.toFixed(1)}%`
     : null;
 
   return {

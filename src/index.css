@@ -6871,18 +6871,103 @@ body {
 /* 승률 기반 기술 분석 업그레이드 */
 .rec-tracker-upgrade {
   margin: 0 0 0.85rem;
-  padding: 0.65rem 0.7rem 0.75rem;
-  border: 1px solid rgba(94, 234, 212, 0.28);
+  padding: 0.65rem 0.75rem 0.8rem;
+  border: 1px solid rgba(94, 234, 212, 0.22);
   border-radius: var(--radius-sm);
-  background: var(--accent-dim);
+  background: rgba(94, 234, 212, 0.06);
 }
 
 .rec-tracker-upgrade__head {
   display: flex;
   flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  margin-bottom: 0.55rem;
+}
+
+.rec-tracker-upgrade__stat {
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.rec-tracker-upgrade__controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.55rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.rec-tracker-upgrade__active-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.rec-tracker-upgrade__active-chip {
+  display: inline-flex;
   align-items: center;
-  gap: 0.35rem 0.6rem;
-  margin-bottom: 0.35rem;
+  gap: 0.3rem 0.4rem;
+  padding: 0.28rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(10, 14, 19, 0.4);
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+
+.rec-tracker-upgrade__active-name {
+  font-weight: 650;
+  color: var(--text);
+}
+
+.rec-tracker-upgrade__active-meta {
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+
+.rec-tracker-upgrade__target-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.45rem 0.65rem;
+}
+
+.rec-tracker-upgrade__target-select span {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin-bottom: 0.18rem;
+}
+
+.rec-tracker-upgrade__target-select select,
+.rec-tracker-upgrade__new-model input {
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.32rem 0.48rem;
+  border-radius: 6px;
+  border: 1px solid var(--card-border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  min-width: 0;
+}
+
+.rec-tracker-upgrade__new-model {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  flex: 1 1 12rem;
+}
+
+.rec-tracker-upgrade__new-model input {
+  flex: 1 1 8rem;
+  min-width: 6rem;
 }
 
 .rec-tracker-upgrade__rev {
@@ -6903,7 +6988,15 @@ body {
 }
 
 .rec-tracker-upgrade__headline {
-  font-weight: 650;
+  margin: 0 0 0.45rem;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
+
+.rec-tracker-upgrade__headline-k {
+  margin-right: 0.35rem;
+  font-weight: 700;
   color: var(--accent);
 }
 
@@ -6917,10 +7010,24 @@ body {
 }
 
 .rec-tracker-upgrade__item {
-  padding: 0.5rem 0.55rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem 0.65rem;
+  padding: 0.45rem 0.55rem;
   border-radius: var(--radius-sm);
   border: 1px solid rgba(148, 163, 184, 0.16);
   background: rgba(10, 14, 19, 0.35);
+}
+
+.rec-tracker-upgrade__item-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.55rem;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .rec-tracker-upgrade__item--boost {
@@ -6936,7 +7043,6 @@ body {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.35rem 0.5rem;
-  margin-bottom: 0.35rem;
 }
 
 .rec-tracker-upgrade__tag {
@@ -6968,18 +7074,36 @@ body {
   color: var(--muted);
 }
 
-.rec-tracker-upgrade__reason {
-  margin: 0 0 0.45rem;
-  font-size: 0.7rem;
-  line-height: 1.4;
+.rec-tracker-upgrade__delta {
+  font-size: 0.68rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
   color: var(--muted);
+}
+
+.rec-tracker-upgrade__item--boost .rec-tracker-upgrade__delta {
+  color: var(--up);
+}
+
+.rec-tracker-upgrade__item--cut .rec-tracker-upgrade__delta {
+  color: var(--down);
+}
+
+.rec-tracker-upgrade__apply-one {
+  flex-shrink: 0;
+  min-width: 3.25rem;
 }
 
 .rec-tracker-upgrade__actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
-  margin-top: 0.55rem;
+  margin-top: 0.5rem;
+}
+
+.rec-tracker-upgrade__actions .btn--primary {
+  width: 100%;
+  max-width: 100%;
 }
 
 .rec-tracker-upgrade__ok {

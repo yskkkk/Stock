@@ -876,6 +876,36 @@ body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.28rem 0.32rem;
   }
+
+  .rec-tracker-upgrade__head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
+  }
+
+  .rec-tracker-upgrade__target-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .rec-tracker-upgrade__target-select select,
+  .rec-tracker-upgrade__new-model {
+    width: 100%;
+  }
+
+  .rec-tracker-upgrade__new-model input {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+
+  .rec-tracker-upgrade__item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .rec-tracker-upgrade__apply-one {
+    width: 100%;
+  }
 }
 
 @media (max-width: 900px) and (orientation: portrait) {
