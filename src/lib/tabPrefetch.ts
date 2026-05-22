@@ -207,6 +207,10 @@ export async function prefetchLiveTradingTab(): Promise<LiveTradingPrefetch> {
   });
 }
 
+export function prefetchLiveTradingPortfolio(): void {
+  void fetchLiveTradingPortfolio(null).catch(() => {});
+}
+
 export function peekPicksDailyHistoryPrefetch(): PicksDailyHistoryResponse | null {
   return getCached<PicksDailyHistoryResponse>("picksHistory");
 }
@@ -235,6 +239,7 @@ export function startBackgroundTabPrefetch(): void {
     void prefetchRecommendationsTracker();
     void prefetchCryptoTabData();
     void prefetchLiveTradingTab();
+    prefetchLiveTradingPortfolio();
     void prefetchPicksDailyHistory();
   });
 }

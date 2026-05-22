@@ -5,6 +5,7 @@ import {
   listArmedLiveTradeProgramsSync,
   touchLiveTradeProgramRunSync,
 } from "./live-trade-programs-store.js";
+import { recordLiveTradeBuySync } from "./live-trade-portfolio-store.js";
 import {
   executeLiveBuyOrder,
   pickMeetsProgramThreshold,
@@ -53,11 +54,17 @@ export async function onHighScorePickForLiveTrading(pick) {
     if (!sym || shouldSkipDuplicate(program.id, sym)) continue;
 
     const out = await executeLiveBuyOrder(program, pick);
-    touchLiveTradeProgramRunSync(
-      program.id,
-      out.ok ? null : (out.error ?? "주문 실패"),
-    );
+    let runErr = out.ok ? null : (out.error ?? "주문 실패");
     if (out.ok) {
+      try {
+        recordLiveTradeBuySync(program, pick, {
+          simulated: out.simulated,
+          orderId: out.orderId,
+        });
+      } catch (e) {
+        runErr = e instanceof Error ? e.message : String(e);
+        console.warn("[live-trade] portfolio record:", runErr);
+      }
       console.info(
         "[live-trade]",
         program.name,
@@ -68,5 +75,6 @@ export async function onHighScorePickForLiveTrading(pick) {
     } else {
       console.warn("[live-trade]", program.name, sym, out.error);
     }
+    touchLiveTradeProgramRunSync(program.id, runErr);
   }
 }

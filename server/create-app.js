@@ -94,6 +94,10 @@ import {
   listLiveTradeProgramsSync,
   updateLiveTradeProgramSync,
 } from "./live-trade-programs-store.js";
+import {
+  buildLiveTradePortfolioSnapshot,
+  recordLiveTradeSellSync,
+} from "./live-trade-portfolio-store.js";
 import { getTossTradingStatus } from "./toss-trading-adapter.js";
 import {
   fetchQuoteSnapshotsForSymbols,
@@ -462,6 +466,49 @@ export function createApp() {
       try {
         const program = disarmLiveTradeProgramSync(id);
         res.json({ ok: true, program });
+      } catch (e) {
+        res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
+      }
+    }),
+  );
+
+  app.get(
+    "/api/live-trading/portfolio",
+    asyncRoute(async (req, res) => {
+      const programId = String(req.query?.programId ?? "").trim() || null;
+      const snap = await buildLiveTradePortfolioSnapshot({ programId });
+      const programs = listLiveTradeProgramsSync();
+      const nameById = new Map(programs.map((p) => [p.id, p.name]));
+      res.json({
+        ...snap,
+        holdings: snap.holdings.map((h) => ({
+          ...h,
+          programName: nameById.get(h.programId) ?? h.programId,
+        })),
+        trades: snap.trades.map((t) => ({
+          ...t,
+          programName: nameById.get(t.programId) ?? t.programId,
+        })),
+      });
+    }),
+  );
+
+  app.post(
+    "/api/live-trading/trades/sell",
+    asyncRoute(async (req, res) => {
+      try {
+        const trade = recordLiveTradeSellSync({
+          programId: String(req.body?.programId ?? ""),
+          symbol: String(req.body?.symbol ?? ""),
+          market: req.body?.market,
+          quantity: req.body?.quantity,
+          price: Number(req.body?.price),
+          note: req.body?.note,
+        });
+        const snap = await buildLiveTradePortfolioSnapshot({
+          programId: trade.programId,
+        });
+        res.json({ ok: true, trade, portfolio: snap });
       } catch (e) {
         res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
       }

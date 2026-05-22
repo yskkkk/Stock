@@ -835,6 +835,89 @@ export function disarmLiveTradeProgram(id: string) {
   );
 }
 
+export interface LiveTradeHolding {
+  programId: string;
+  programName?: string;
+  symbol: string;
+  name: string;
+  market: "kr" | "us";
+  quantity: number;
+  avgEntryPrice: number;
+  costBasis: number;
+  currentPrice: number | null;
+  marketValue: number | null;
+  unrealizedPnl: number | null;
+  changePct: number | null;
+  grossChangePct: number | null;
+  currency: string;
+  openedAtMs: number;
+  lastAtMs: number;
+}
+
+export interface LiveTradeRecord {
+  id: string;
+  programId: string;
+  programName?: string;
+  side: "buy" | "sell";
+  symbol: string;
+  name: string;
+  market: "kr" | "us";
+  quantity: number;
+  price: number;
+  amount: number;
+  currency: string;
+  feeAmount: number;
+  simulated: boolean;
+  orderId: string | null;
+  note: string | null;
+  atMs: number;
+}
+
+export interface LiveTradePortfolioSummary {
+  holdingCount: number;
+  investedOpen: number;
+  marketValueOpen: number;
+  unrealizedPnl: number;
+  realizedPnl: number;
+  totalPnl: number;
+  totalReturnPct: number | null;
+  tradeCount: number;
+}
+
+export interface LiveTradePortfolioResponse {
+  updatedAtMs: number;
+  programId: string | null;
+  summary: LiveTradePortfolioSummary;
+  holdings: LiveTradeHolding[];
+  trades: LiveTradeRecord[];
+}
+
+export function fetchLiveTradingPortfolio(programId?: string | null) {
+  const q = programId?.trim()
+    ? `?programId=${encodeURIComponent(programId.trim())}`
+    : "";
+  return fetchJson<LiveTradePortfolioResponse>(`/api/live-trading/portfolio${q}`);
+}
+
+export function recordLiveTradeSell(body: {
+  programId: string;
+  symbol: string;
+  market?: "kr" | "us";
+  quantity?: number;
+  price: number;
+  note?: string;
+}) {
+  return fetchJson<{
+    ok: boolean;
+    trade: LiveTradeRecord;
+    portfolio: LiveTradePortfolioResponse;
+  }>("/api/live-trading/trades/sell", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 export function fetchNews(
   symbol: string,
   name: string,

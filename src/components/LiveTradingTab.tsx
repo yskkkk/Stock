@@ -11,6 +11,7 @@ import {
   type LiveTradingStatusResponse,
   type TechModelRecord,
 } from "../api";
+import LiveTradePortfolioPanel from "./LiveTradePortfolioPanel";
 import { peekLiveTradingPrefetch } from "../lib/tabPrefetch";
 import { ko } from "../i18n/ko";
 
@@ -285,6 +286,8 @@ export default function LiveTradingTab({
           </li>
         </ul>
       </section>
+
+      <LiveTradePortfolioPanel programs={programs} />
 
       <div className="live-trading-tab__grid">
         <section className="live-trading-tab__form card" aria-label={ko.app.liveTradeFormTitle}>

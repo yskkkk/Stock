@@ -719,6 +719,232 @@ body {
   margin-top: 0.55rem;
 }
 
+/* 실매매 보유·거래·수익 */
+.live-portfolio {
+  padding: 1rem 1.1rem;
+  margin-bottom: 0.75rem;
+}
+
+.live-portfolio__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  margin-bottom: 0.65rem;
+}
+
+.live-portfolio__head-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.live-portfolio__filter {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+}
+
+.live-portfolio__filter-label {
+  color: var(--text-muted, #6b7280);
+  white-space: nowrap;
+}
+
+.live-portfolio__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.live-portfolio__tab {
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--border, #cbd5e1);
+  background: transparent;
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+  color: var(--text-muted, #6b7280);
+}
+
+.live-portfolio__tab--active {
+  border-color: var(--accent, #5eead4);
+  background: var(--accent-dim, rgba(94, 234, 212, 0.12));
+  color: var(--text, #f1f5f9);
+  font-weight: 650;
+}
+
+.live-portfolio__summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.5rem;
+}
+
+.live-portfolio__tile {
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--card-border, rgba(148, 163, 184, 0.15));
+  background: rgba(10, 14, 19, 0.25);
+}
+
+.live-portfolio__tile-k {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--text-muted, #6b7280);
+  margin-bottom: 0.15rem;
+}
+
+.live-portfolio__tile-v {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.live-portfolio__tile-v--up {
+  color: var(--up, #4ade80);
+}
+
+.live-portfolio__tile-v--down {
+  color: var(--down, #f87171);
+}
+
+.live-portfolio__tile-sub {
+  display: block;
+  margin-top: 0.12rem;
+  font-size: 0.62rem;
+  color: var(--text-muted, #94a3b8);
+}
+
+.live-portfolio__table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.live-portfolio__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.live-portfolio__table th {
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--card-border, rgba(148, 163, 184, 0.2));
+  color: var(--text-muted, #6b7280);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.live-portfolio__table td {
+  padding: 0.5rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+  vertical-align: top;
+}
+
+.live-portfolio__sym {
+  display: block;
+  font-weight: 700;
+}
+
+.live-portfolio__nm,
+.live-portfolio__prog,
+.live-portfolio__note {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--text-muted, #6b7280);
+}
+
+.live-portfolio__num {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.live-portfolio__num--price {
+  white-space: normal;
+}
+
+.live-portfolio__inline-pct {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.live-portfolio__inline-pct--up {
+  color: var(--up, #4ade80);
+}
+
+.live-portfolio__inline-pct--down {
+  color: var(--down, #f87171);
+}
+
+.live-portfolio__num--up {
+  color: var(--up, #4ade80);
+}
+
+.live-portfolio__num--down {
+  color: var(--down, #f87171);
+}
+
+.live-portfolio__side--buy {
+  color: var(--up, #4ade80);
+  font-weight: 650;
+}
+
+.live-portfolio__side--sell {
+  color: var(--down, #f87171);
+  font-weight: 650;
+}
+
+.live-portfolio__sim {
+  margin-left: 0.25rem;
+  font-size: 0.65rem;
+  color: var(--text-muted, #94a3b8);
+}
+
+.live-portfolio__ts {
+  white-space: nowrap;
+  font-size: 0.72rem;
+  color: var(--text-muted, #6b7280);
+}
+
+.live-portfolio__sell-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  min-width: 12rem;
+}
+
+.live-portfolio__sell-form .input {
+  width: 5.5rem;
+  min-width: 0;
+}
+
+.live-portfolio__sell-err {
+  width: 100%;
+  font-size: 0.72rem;
+  color: #b91c1c;
+}
+
+.live-portfolio__muted,
+.live-portfolio__updated {
+  margin: 0.5rem 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted, #6b7280);
+}
+
+.live-portfolio__err {
+  margin: 0.35rem 0;
+  font-size: 0.82rem;
+  color: #b91c1c;
+}
+
 /* =============================================================================
    모바일: 목록·차트 비율(차트 세로 확보) + 추천 목록 근거 칩 컴팩트 배치
    ============================================================================= */
