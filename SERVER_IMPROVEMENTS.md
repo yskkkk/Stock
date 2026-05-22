@@ -14,6 +14,20 @@
 
 ## 열린 항목
 
+### [ERROR] auto-git — 2026-05-23 03:28:46.074 KST
+
+<!-- id:log-auto-git-980b43e036 -->
+
+**문제**: stash pop failed after pull (resolve conflicts manually): Command failed: git stash pop
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+_재발 2회 (최초 2026-05-23 03:18:14.315 KST)_
+
+---
+
 ### [ERROR] auto-git — 2026-05-23 03:18:34.495 KST
 
 <!-- id:log-auto-git-93b2d9dc1e -->
@@ -40,18 +54,6 @@ _재발 5회 (최초 2026-05-22 20:07:19.419 KST)_
 
 ---
 
-### [ERROR] auto-git — 2026-05-23 03:18:14.315 KST
-
-<!-- id:log-auto-git-980b43e036 -->
-
-**문제**: stash pop failed after pull (resolve conflicts manually): Command failed: git stash pop
-
-**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
-
-**근거**: server/.logs 접근 로그 INTERNAL auto-git
-
----
-
 ### [ERROR] process — 2026-05-22 17:38:04.799 KST
 
 <!-- id:process-unhandledRejection -->
@@ -66,21 +68,35 @@ _재발 11회 (최초 2026-05-22 17:38:04.779 KST)_
 
 ---
 
-### [WARN] auto-git — 2026-05-23 03:26:12.308 KST
+### [WARN] auto-git — 2026-05-23 03:46:29.591 KST
 
 <!-- id:logfreq-7d669592b2 -->
 
-**문제**: 오늘 로그에서 반복 오류: npm ci failed, falling back to npm install (4회)
+**문제**: 오늘 로그에서 반복 오류: npm ci failed, falling back to npm install (5회)
 
 **개선 제안**: 해당 영역 코드·설정·로그를 따라가며 재발 방지 패치를 적용하세요.
 
-**근거**: server/.logs 오늘 INTERNAL 4회
+**근거**: server/.logs 오늘 INTERNAL 5회
 
-_재발 611회 (최초 2026-05-22 16:58:17.982 KST)_
+_재발 612회 (최초 2026-05-22 16:58:17.982 KST)_
 
 ---
 
-### [WARN] auto-git — 2026-05-23 03:25:18.960 KST
+### [WARN] auto-git — 2026-05-23 03:29:03.479 KST
+
+<!-- id:log-auto-git-38f5374cb1 -->
+
+**문제**: npm run build failed — will still restart after pull
+
+**개선 제안**: 해당 영역 코드·설정·로그를 따라가며 재발 방지 패치를 적용하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+_재발 2회 (최초 2026-05-23 03:18:31.457 KST)_
+
+---
+
+### [WARN] auto-git — 2026-05-23 03:28:47.955 KST
 
 <!-- id:log-auto-git-7d669592b2 -->
 
@@ -90,7 +106,7 @@ _재발 611회 (최초 2026-05-22 16:58:17.982 KST)_
 
 **근거**: server/.logs 접근 로그 INTERNAL auto-git
 
-_재발 11회 (최초 2026-05-22 20:06:58.902 KST)_
+_재발 12회 (최초 2026-05-22 20:06:58.902 KST)_
 
 ---
 
@@ -105,18 +121,6 @@ _재발 11회 (최초 2026-05-22 20:06:58.902 KST)_
 **근거**: server/.logs 접근 로그 INTERNAL auto-git
 
 _재발 5회 (최초 2026-05-22 20:07:19.421 KST)_
-
----
-
-### [WARN] auto-git — 2026-05-23 03:18:31.457 KST
-
-<!-- id:log-auto-git-38f5374cb1 -->
-
-**문제**: npm run build failed — will still restart after pull
-
-**개선 제안**: 해당 영역 코드·설정·로그를 따라가며 재발 방지 패치를 적용하세요.
-
-**근거**: server/.logs 접근 로그 INTERNAL auto-git
 
 ---
 
@@ -210,4 +214,4 @@ _재발 3회 (최초 2026-05-22 17:39:58.154 KST)_
 
 ## 최근 자동 점검
 
-2026-05-23 03:26:12.314 KST — probes 완료 · 열린 15건 · 이번 기록 1건
+2026-05-23 03:46:29.598 KST — probes 완료 · 열린 15건 · 이번 기록 1건

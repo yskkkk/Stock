@@ -575,7 +575,7 @@ export function registerIdeDevQueueSlot(input) {
 
   const queueMeta = buildQueueMeta({
     instruction: prompt,
-    requestIp: "cursor-ide",
+    requestIp: String(input.requestIp ?? "cursor-ide") || "cursor-ide",
     source: "ide",
   });
 
@@ -793,4 +793,23 @@ export function releaseAnyRunningIdeDevQueueSlot(opts = {}) {
     });
 
   return { ok: true, released };
+}
+
+/**
+ * Claude Code 작업 시작 시 큐 슬롯 등록 (Cursor IDE 슬롯과 동일 직렬 큐).
+ * @param {{ prompt: string; sessionId?: string | null }} input
+ */
+export function registerClaudeCodeQueueSlot(input) {
+  return registerIdeDevQueueSlot({
+    ...input,
+    requestIp: "claude-code",
+  });
+}
+
+/**
+ * Claude Code 작업 완료 시 슬롯 해제.
+ * @param {{ leaseId: string }} input
+ */
+export function releaseClaudeCodeQueueSlot(input) {
+  return releaseIdeDevQueueSlot(input);
 }

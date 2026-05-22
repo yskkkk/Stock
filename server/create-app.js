@@ -43,8 +43,10 @@ import {
   abandonIdeDevQueueSlot,
   acquireIdeDevQueueSlot,
   enqueueOpsAgentJob,
+  registerClaudeCodeQueueSlot,
   registerIdeDevQueueSlot,
   releaseAnyRunningIdeDevQueueSlot,
+  releaseClaudeCodeQueueSlot,
   releaseIdeDevQueueSlot,
   waitIdeDevQueueGrant,
 } from "./ops-agent-job-queue.js";
@@ -1061,6 +1063,45 @@ export function createApp() {
         notify ? { notify } : {},
       );
       clearIdeLeaseOnDisk();
+      res.json(out);
+    }),
+  );
+
+  app.post(
+    "/api/ops/dev-queue/claude-code/acquire",
+    asyncRoute(async (req, res) => {
+      if (!isLoopbackDevQueueRequest(req)) {
+        res.status(403).json({ error: "로컬 요청에서만 사용할 수 있습니다.", code: "FORBIDDEN" });
+        return;
+      }
+      const prompt = String(req.body?.prompt ?? "").trim();
+      if (!prompt) {
+        res.status(400).json({ error: "prompt가 필요합니다.", code: "PROMPT_EMPTY" });
+        return;
+      }
+      try {
+        const reg = registerClaudeCodeQueueSlot({ prompt });
+        const grant = await waitIdeDevQueueGrant(reg.leaseId);
+        res.json({ ok: true, ...grant, queueSeq: reg.queueSeq });
+      } catch (err) {
+        respondIdeDevQueueError(res, err);
+      }
+    }),
+  );
+
+  app.post(
+    "/api/ops/dev-queue/claude-code/release",
+    asyncRoute(async (req, res) => {
+      if (!isLoopbackDevQueueRequest(req)) {
+        res.status(403).json({ error: "로컬 요청에서만 사용할 수 있습니다.", code: "FORBIDDEN" });
+        return;
+      }
+      const leaseId = String(req.body?.leaseId ?? req.body?.lease_id ?? "").trim();
+      const out = releaseClaudeCodeQueueSlot({ leaseId });
+      if (!out.ok) {
+        res.status(404).json(out);
+        return;
+      }
       res.json(out);
     }),
   );
