@@ -1,14 +1,28 @@
 /**
  * 개발 완료 텔레그램 — 짧은 시간에 여러 번 호출돼도 마지막 1통만 발송.
  */
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { getRepoHeadRev } from "./ops-agent-git-push.js";
-import { markOpsDevNotifySent } from "./ops-dev-notify-dedup.js";
+import {
+  buildOpsDevNotifyDedupKey,
+  buildOpsDevNotifyDedupKeyFromSnap,
+  markOpsDevNotifySent,
+  clearStaleOpsDevNotifyLocks,
+  releaseOpsDevNotifySendLock,
+  shouldSkipOpsDevNotify,
+  tryAcquireOpsDevNotifySend,
+} from "./ops-dev-notify-dedup.js";
 import {
   escHtml,
   isOpsTelegramNotifyEnabled,
   resolveOpsTelegramCreds,
   sendTelegramMessage,
 } from "./telegram-notify.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PENDING_FILE = path.join(__dirname, ".data", "ops-dev-notify-pending.json");
 
 const BODY_MAX = 3600;
 const REQUEST_MAX = 1400;
@@ -17,19 +31,42 @@ const COMPLETION_MAX = 2000;
 /** @type {ReturnType<typeof setTimeout> | null} */
 let flushTimer = null;
 
+let flushInFlight = false;
+
 /** @type {{
  *   userRequest: string;
  *   completion: string;
  *   title: string;
  *   priority: number;
+ *   turnId: string | null;
  *   at: number;
  * } | null} */
 let pending = null;
 
-function debounceMs() {
+function debounceMs(priority = 1) {
   const n = Number(process.env.OPS_DEV_NOTIFY_DEBOUNCE_MS);
   if (Number.isFinite(n) && n >= 2000) return Math.min(n, 120_000);
+  if (priority >= 3) return 2_000;
   return 12_000;
+}
+
+function writePendingDisk() {
+  if (!pending) return;
+  try {
+    const dir = path.dirname(PENDING_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(PENDING_FILE, JSON.stringify({ pending }), "utf8");
+  } catch {
+    /* ignore */
+  }
+}
+
+function clearPendingDisk() {
+  try {
+    if (fs.existsSync(PENDING_FILE)) fs.unlinkSync(PENDING_FILE);
+  } catch {
+    /* ignore */
+  }
 }
 
 function trimBlock(text, max) {
@@ -71,6 +108,7 @@ export function normalizeOpsCompletionText(resultText, streamText) {
  *   gitSummary?: string | null;
  *   title?: string;
  *   priority?: number;
+ *   turnId?: string | null;
  * }} opts
  */
 /** 에이전트·IDE 완료가 대기 중이면 auto-git 알림을 붙이지 않음 */
@@ -79,9 +117,18 @@ export function hasOpsDevCompletionPending() {
 }
 
 export function scheduleOpsDevCompletionTelegram(opts) {
-  if (!isOpsTelegramNotifyEnabled()) return;
+  if (!isOpsTelegramNotifyEnabled()) {
+    console.warn(
+      "[telegram:ops] 개발 완료 알림 미설정 — TELEGRAM_OPS_BOT_TOKEN / TELEGRAM_OPS_CHAT_ID",
+    );
+    return;
+  }
+
+  const dedupKey = buildOpsDevNotifyDedupKey(opts);
+  if (shouldSkipOpsDevNotify(dedupKey)) return;
+
   if (process.env.OPS_DEV_NOTIFY_COALESCE === "0") {
-    void flushOpsDevCompletionNow(opts);
+    void flushOpsDevCompletionNow(opts, dedupKey);
     return;
   }
 
@@ -115,6 +162,7 @@ export function scheduleOpsDevCompletionTelegram(opts) {
   }
 
   const title = String(opts.title ?? "").trim() || "개발 완료";
+  const turnId = String(opts.turnId ?? "").trim() || null;
 
   if (!pending || priority >= pending.priority) {
     pending = {
@@ -122,6 +170,7 @@ export function scheduleOpsDevCompletionTelegram(opts) {
       completion: completion || "—",
       title,
       priority,
+      turnId,
       at: Date.now(),
     };
   } else if (git && pending) {
@@ -131,17 +180,24 @@ export function scheduleOpsDevCompletionTelegram(opts) {
     }
   }
 
+  writePendingDisk();
+
   if (flushTimer) clearTimeout(flushTimer);
+  const waitMs = debounceMs(priority);
+  console.info(
+    `[telegram:ops] 개발 완료 알림 ${waitMs}ms 후 발송 예약 (${String(opts.turnId ?? dedupKey).slice(0, 48)})`,
+  );
   flushTimer = setTimeout(() => {
     flushTimer = null;
     void flushPending();
-  }, debounceMs());
+  }, waitMs);
 }
 
 /**
  * @param {Parameters<typeof scheduleOpsDevCompletionTelegram>[0]} opts
  */
-async function flushOpsDevCompletionNow(opts) {
+async function flushOpsDevCompletionNow(opts, dedupKey) {
+  const key = dedupKey ?? buildOpsDevNotifyDedupKey(opts);
   const userRequest = trimBlock(
     opts.userRequest ?? opts.title ?? "",
     REQUEST_MAX,
@@ -157,25 +213,74 @@ async function flushOpsDevCompletionNow(opts) {
     completion =
       trimBlock(opts.agentResponse, COMPLETION_MAX) || "(응답 없음)";
   }
-  await sendCompletionMessage({
-    title: opts.title ?? "개발 완료",
-    userRequest: userRequest || "(요청 없음)",
-    completion,
-  });
+  await sendCompletionMessage(
+    {
+      title: opts.title ?? "개발 완료",
+      userRequest: userRequest || "(요청 없음)",
+      completion,
+    },
+    key,
+  );
 }
 
 async function flushPending() {
-  const snap = pending;
-  pending = null;
-  if (!snap) return;
-  await sendCompletionMessage(snap);
+  if (flushInFlight) return;
+  flushInFlight = true;
+  try {
+    const snap = pending;
+    pending = null;
+    clearPendingDisk();
+    if (!snap) return;
+    const key = buildOpsDevNotifyDedupKeyFromSnap(snap);
+    await sendCompletionMessage(snap, key);
+  } finally {
+    flushInFlight = false;
+  }
+}
+
+/** Vite 재기동 등으로 debounce 타이머가 끊긴 pending 1통 복구 */
+export async function flushOpsDevNotifyPendingFromDisk() {
+  if (!isOpsTelegramNotifyEnabled()) return false;
+  let raw = null;
+  try {
+    if (!fs.existsSync(PENDING_FILE)) return false;
+    raw = JSON.parse(fs.readFileSync(PENDING_FILE, "utf8"));
+  } catch {
+    clearPendingDisk();
+    return false;
+  }
+  const snap = raw?.pending;
+  if (!snap?.at) {
+    clearPendingDisk();
+    return false;
+  }
+  const age = Date.now() - snap.at;
+  const wait = debounceMs(snap.priority ?? 1);
+  if (age < wait - 300) {
+    const delay = Math.max(500, wait - age);
+    setTimeout(() => {
+      void flushOpsDevNotifyPendingFromDisk();
+    }, delay);
+    return false;
+  }
+  if (shouldSkipOpsDevNotify(buildOpsDevNotifyDedupKeyFromSnap(snap))) {
+    clearPendingDisk();
+    return false;
+  }
+  return sendCompletionMessage(snap, buildOpsDevNotifyDedupKeyFromSnap(snap));
 }
 
 /**
  * @param {{ title: string; userRequest: string; completion: string }} snap
  */
-async function sendCompletionMessage(snap) {
+/**
+ * @param {{ title: string; userRequest: string; completion: string }} snap
+ * @param {string} dedupKey
+ */
+async function sendCompletionMessage(snap, dedupKey) {
   if (!isOpsTelegramNotifyEnabled()) return false;
+  if (shouldSkipOpsDevNotify(dedupKey)) return false;
+  if (!tryAcquireOpsDevNotifySend(dedupKey)) return false;
 
   let body = `요청:\n${snap.userRequest}\n\n완료:\n${snap.completion}`;
   if (body.length > BODY_MAX) {
@@ -186,10 +291,16 @@ async function sendCompletionMessage(snap) {
 
   const ok = await sendTelegramMessage(text, undefined, resolveOpsTelegramCreds());
   if (ok) {
-    markOpsDevNotifySent("coalesce:last", getRepoHeadRev());
+    markOpsDevNotifySent(dedupKey, getRepoHeadRev());
     console.info("[telegram:ops] dev completion (coalesced) sent");
   } else {
-    console.warn("[telegram:ops] dev completion (coalesced) failed");
+    releaseOpsDevNotifySendLock(dedupKey);
+    console.warn(
+      "[telegram:ops] dev completion (coalesced) failed — 토큰·chat_id·HTML 본문 확인",
+    );
   }
   return ok;
 }
+
+clearStaleOpsDevNotifyLocks();
+void flushOpsDevNotifyPendingFromDisk();

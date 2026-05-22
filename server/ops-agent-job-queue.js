@@ -8,7 +8,11 @@ import { randomUUID } from "node:crypto";
 import {
   getRepoHeadRev,
 } from "./ops-agent-git-push.js";
-import { notifyIdeDevelopmentCompleted } from "./ops-ide-completion-notify.js";
+import {
+  isIdeCompletionNotified,
+  notifyIdeDevelopmentCompleted,
+} from "./ops-ide-completion-notify.js";
+import { opsIdePromptFingerprint } from "./ops-ide-prompt-match.js";
 import {
   findActiveIdeHistoryIdForPromptSync,
   finalizeOpsAgentEntry,
@@ -55,6 +59,12 @@ import { opsIdePromptsMatch } from "./ops-ide-prompt-match.js";
  *   grantResolve?: (grant: Record<string, unknown>) => void;
  *   grantReject?: (e: unknown) => void;
  *   releaseResolve?: () => void;
+ *   pendingIdeNotify?: {
+ *     userRequest: string;
+ *     sessionId?: string | null;
+ *     transcriptPath?: string | null;
+ *     gitRevAtStart?: string | null;
+ *   };
  * }} QueueSlot
  */
 
@@ -219,13 +229,22 @@ function syncIdeHistoryFinalize(slot, state, error = null) {
   if (state === "ok" && !slot.devNotifySent) {
     slot.devNotifySent = true;
     const preview = String(slot.meta.instructionPreview ?? "").trim();
-    const userRequest = instruction || preview;
+    const baseRequest = instruction || preview;
+    const pending = slot.pendingIdeNotify;
+    const userRequest =
+      pending?.userRequest &&
+      opsIdePromptFingerprint(pending.userRequest) ===
+        opsIdePromptFingerprint(baseRequest)
+        ? pending.userRequest
+        : baseRequest;
     notifyIdeDevelopmentCompleted({
       userRequest,
-      sessionId: slot.sessionId,
-      gitRevAtStart: slot.gitRevAtStart,
+      sessionId: slot.sessionId ?? pending?.sessionId,
+      transcriptPath: pending?.transcriptPath ?? undefined,
+      gitRevAtStart: slot.gitRevAtStart ?? pending?.gitRevAtStart ?? undefined,
       leaseId: slot.id,
     });
+    slot.pendingIdeNotify = undefined;
   }
 }
 
@@ -711,6 +730,9 @@ export function releaseAnyRunningIdeDevQueueSlot(opts = {}) {
   let notifyScheduled = false;
 
   if (active && runningSlot?.source === "ide") {
+    if (opts.notify?.userRequest) {
+      runningSlot.pendingIdeNotify = opts.notify;
+    }
     const out = releaseIdeDevQueueSlot({ leaseId: runningSlot.id });
     released = out.ok;
     notifyScheduled = released;
@@ -742,7 +764,10 @@ export function releaseAnyRunningIdeDevQueueSlot(opts = {}) {
             gitRevAtStart: null,
           };
         })();
-    if (notify?.userRequest) {
+    if (
+      notify?.userRequest &&
+      !isIdeCompletionNotified(notify.sessionId, notify.userRequest)
+    ) {
       notifyIdeDevelopmentCompleted({
         userRequest: notify.userRequest,
         sessionId: notify.sessionId,
