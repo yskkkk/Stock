@@ -4,6 +4,12 @@
  */
 import { loadChartQuoteSnapshot1m } from "./stock-data.js";
 import {
+  fetchKrNaverQuotesBatch,
+  isKrQuoteSymbol,
+  naverQuoteToSnapshot,
+  yahooSymbolToKrCode,
+} from "./kr-naver-quote.js";
+import {
   expandSymbolsForYahooQuotes,
   inferMarketFromSymbol,
   normalizeYahooQuoteSymbol,
@@ -39,6 +45,26 @@ async function quoteSnapshotCached(symbol, opts = {}) {
     .trim()
     .toUpperCase();
   if (!u) return null;
+
+  if (isKrQuoteSymbol(u)) {
+    const code = yahooSymbolToKrCode(u);
+    const hit = cache.get(u);
+    const maxAgeKr =
+      typeof opts.maxAgeMs === "number" && Number.isFinite(opts.maxAgeMs)
+        ? Math.max(0, opts.maxAgeMs)
+        : TTL_MS;
+    const now = Date.now();
+    if (maxAgeKr > 0 && hit && now - hit.at < maxAgeKr && hit.quote) {
+      return hit.quote;
+    }
+    const map = await fetchKrNaverQuotesBatch([u]);
+    const nq = code ? map.get(code) : null;
+    if (nq) {
+      const quote = naverQuoteToSnapshot(nq);
+      cache.set(u, { at: Date.now(), quote });
+      return quote;
+    }
+  }
 
   const maxAge =
     typeof opts.maxAgeMs === "number" && Number.isFinite(opts.maxAgeMs)
@@ -119,6 +145,12 @@ export async function fetchQuoteSnapshotsForSymbols(symbols, opts = {}) {
 
   const storeQuote = (/** @type {string} */ key, /** @type {object} */ q) => {
     if (!key || q.price == null || !Number.isFinite(q.price)) return;
+    const src =
+      typeof q.priceSource === "string" && q.priceSource
+        ? q.priceSource
+        : typeof q.interval === "string" && q.interval
+          ? q.interval
+          : "1m";
     const row = {
       price: q.price,
       changePercent:
@@ -130,12 +162,25 @@ export async function fetchQuoteSnapshotsForSymbols(symbols, opts = {}) {
         typeof q.quotedAtMs === "number" && q.quotedAtMs > 0
           ? q.quotedAtMs
           : Date.now(),
-      interval: "1m",
+      interval: src,
+      priceSource: src,
     };
     out[key] = row;
   };
 
+  const krSymbols = uniq.filter((sym) => isKrQuoteSymbol(sym));
+  const naverByCode =
+    krSymbols.length > 0 ? await fetchKrNaverQuotesBatch(krSymbols) : new Map();
+
   await mapPool(uniq, async (sym) => {
+    if (isKrQuoteSymbol(sym)) {
+      const code = yahooSymbolToKrCode(sym);
+      const nq = code ? naverByCode.get(code) : null;
+      if (nq) {
+        storeQuote(sym, naverQuoteToSnapshot(nq));
+        return;
+      }
+    }
     const q = await quoteSnapshotCached(sym, cacheOpts);
     if (!q || q.price == null || !Number.isFinite(q.price)) return;
     storeQuote(sym, q);

@@ -163,6 +163,7 @@ export type PicksDailyHistoryQuotesMap = Record<
     currency?: string;
     quotedAtMs?: number;
     interval?: string;
+    priceSource?: "1m" | "over" | "regular" | string;
   }
 >;
 
@@ -1036,7 +1037,7 @@ export interface LiveTradeHolding {
   entryIdeal?: boolean;
   /** 1분봉 시세 시각(ms) */
   quoteQuotedAtMs?: number | null;
-  priceSource?: "1m" | null;
+  priceSource?: "1m" | "over" | "regular" | null;
 }
 
 export interface LiveTradeRecord {

@@ -628,6 +628,15 @@ export async function buildLiveTradePortfolioSnapshot(opts = {}) {
       if (t.entryIdeal) entryIdeal = true;
     }
 
+    const quoteSrc =
+      q?.priceSource === "over" || q?.priceSource === "regular" || q?.priceSource === "1m"
+        ? q.priceSource
+        : q?.interval === "over" || q?.interval === "regular"
+          ? q.interval
+          : q?.interval === "1m"
+            ? "1m"
+            : null;
+
     holdings.push({
       programId: pos.programId,
       symbol: pos.symbol,
@@ -649,6 +658,9 @@ export async function buildLiveTradePortfolioSnapshot(opts = {}) {
       currency: pos.market === "kr" ? "KRW" : "USD",
       openedAtMs: pos.openedAtMs,
       lastAtMs: pos.lastAtMs,
+      quoteQuotedAtMs:
+        typeof q?.quotedAtMs === "number" && q.quotedAtMs > 0 ? q.quotedAtMs : null,
+      priceSource: quoteSrc,
     });
   }
 

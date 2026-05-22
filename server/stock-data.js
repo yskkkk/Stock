@@ -7,6 +7,12 @@ import {
 import { chartNotFoundError } from "./errors.js";
 import { resolveDisplayName } from "./names-ko.js";
 import { TIMEFRAME_MAP } from "./timeframes.js";
+import {
+  fetchKrNaverQuoteForSymbol,
+  isKrQuoteSymbol,
+  krNaverQuotesEnabled,
+  naverQuoteToSnapshot,
+} from "./kr-naver-quote.js";
 import { queueYahooRequest } from "./yahoo-queue.js";
 import { clearYahooSession, getYahooSession, yahooGet, YAHOO_UA } from "./yahoo.js";
 
@@ -387,14 +393,7 @@ function metaTimeToMs(t) {
   return t > 1e12 ? Math.floor(t) : Math.floor(t * 1000);
 }
 
-/**
- * @param {string} [symbol]
- */
-function isKrYahooSymbol(symbol) {
-  return /\.(KS|KQ)$/i.test(String(symbol ?? ""));
-}
-
-function resolveSnapshotPriceFromChart(meta, candles, symbol) {
+function resolveSnapshotPriceFromChart(meta, candles) {
   const last = candles.at(-1);
   const lastBar = pickPositivePrice(last?.close);
   const barMs =
@@ -402,29 +401,49 @@ function resolveSnapshotPriceFromChart(meta, candles, symbol) {
       ? Math.floor(last.time * 1000)
       : 0;
 
+  /** @type {{ price: number; quotedAtMs: number; kind: string }[]} */
+  const candidates = [];
+  if (lastBar != null && barMs > 0) {
+    candidates.push({ price: lastBar, quotedAtMs: barMs, kind: "1m" });
+  }
   const post = pickPositivePrice(meta.postMarketPrice);
   const postMs = metaTimeToMs(meta.postMarketTime);
+  if (post != null) {
+    candidates.push({
+      price: post,
+      quotedAtMs: postMs || Date.now(),
+      kind: "post",
+    });
+  }
   const pre = pickPositivePrice(meta.preMarketPrice);
   const preMs = metaTimeToMs(meta.preMarketTime);
+  if (pre != null) {
+    candidates.push({
+      price: pre,
+      quotedAtMs: preMs || Date.now(),
+      kind: "pre",
+    });
+  }
   const regular = pickPositivePrice(meta.regularMarketPrice);
   const regularMs = metaTimeToMs(meta.regularMarketTime);
-
-  /* 분봉 최신 종가 우선(장중 현재가). regularMarketPrice만 쓰면 분봉보다 늦을 수 있음 */
-  if (lastBar != null && barMs > 0) {
-    if (post != null && postMs > barMs) {
-      return { price: post, quotedAtMs: postMs };
-    }
-    if (pre != null && preMs > barMs) {
-      return { price: pre, quotedAtMs: preMs };
-    }
-    return { price: lastBar, quotedAtMs: barMs };
-  }
   if (regular != null) {
-    return { price: regular, quotedAtMs: regularMs || Date.now() };
+    candidates.push({
+      price: regular,
+      quotedAtMs: regularMs || Date.now(),
+      kind: "regular",
+    });
   }
-  if (post != null) return { price: post, quotedAtMs: postMs || Date.now() };
-  if (pre != null) return { price: pre, quotedAtMs: preMs || Date.now() };
-  return { price: null, quotedAtMs: Date.now() };
+
+  if (candidates.length === 0) {
+    return { price: null, quotedAtMs: Date.now(), priceSource: null };
+  }
+  candidates.sort((a, b) => b.quotedAtMs - a.quotedAtMs);
+  const best = candidates[0];
+  return {
+    price: best.price,
+    quotedAtMs: best.quotedAtMs,
+    priceSource: best.kind === "1m" ? "1m" : best.kind,
+  };
 }
 
 function resolveSnapshotChangePercent(meta, price) {
@@ -450,6 +469,10 @@ export async function loadChartQuoteSnapshot1m(symbol) {
   if (isBinanceUsdtSymbol(sym)) {
     return loadBithumbKrwQuoteSnapshot(sym);
   }
+  if (isKrQuoteSymbol(sym) && krNaverQuotesEnabled()) {
+    const kr = await fetchKrNaverQuoteForSymbol(sym);
+    if (kr) return naverQuoteToSnapshot(kr);
+  }
   return queueYahooRequest(async () => {
     const url = buildQuoteSnapshot1mChartUrl(sym);
     const data = await yahooGet(url);
@@ -458,10 +481,9 @@ export async function loadChartQuoteSnapshot1m(symbol) {
     if (!result) return null;
     const meta = result.meta ?? {};
     const parsed = parseChartResult(sym, result, "1m", "1m", 1);
-    const { price, quotedAtMs } = resolveSnapshotPriceFromChart(
+    const { price, quotedAtMs, priceSource } = resolveSnapshotPriceFromChart(
       meta,
       parsed.candles,
-      sym,
     );
     if (price == null || !Number.isFinite(price)) return parsed.quote ?? null;
     const changePercent = resolveSnapshotChangePercent(meta, price);
@@ -477,6 +499,8 @@ export async function loadChartQuoteSnapshot1m(symbol) {
       changePercent: changePercent ?? parsed.quote?.changePercent,
       marketState: meta.marketState ?? parsed.quote?.marketState,
       quotedAtMs,
+      priceSource: priceSource ?? "1m",
+      interval: priceSource ?? "1m",
     };
   });
 }

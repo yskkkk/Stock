@@ -68,7 +68,16 @@ function applyQuoteToHolding(
     grossChangePct: grossPct,
     changePct: netPct,
     quoteQuotedAtMs: quotedAtMs,
-    priceSource: quote?.interval === "1m" ? "1m" : null,
+    priceSource:
+      quote?.priceSource === "over" ||
+      quote?.priceSource === "regular" ||
+      quote?.priceSource === "1m"
+        ? quote.priceSource
+        : quote?.interval === "over" || quote?.interval === "regular"
+          ? (quote.interval as "over" | "regular")
+          : quote?.interval === "1m"
+            ? "1m"
+            : null,
   };
 }
 

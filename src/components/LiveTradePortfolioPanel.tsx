@@ -14,7 +14,12 @@ import {
   mergeLiveQuotesIntoPortfolio,
 } from "../lib/livePortfolioLiveQuotes";
 import LiveTradeSimPanel from "./LiveTradeSimPanel";
-import { formatPercent, formatPrice, formatSignedMoney } from "../lib/format";
+import {
+  formatPercent,
+  formatPrice,
+  formatSignedMoney,
+  formatTimeMsKst,
+} from "../lib/format";
 import { ko } from "../i18n/ko";
 import {
   LiveHoldingChartSymbol,
@@ -171,6 +176,16 @@ function HoldingRow({
         data-label={ko.app.liveTradePfColCurrent}
       >
         <span>{formatPrice(row.currentPrice ?? undefined, row.currency)}</span>
+        {row.quoteQuotedAtMs ? (
+          <span className="live-portfolio__quote-ts">
+            {row.priceSource === "over"
+              ? "시간외"
+              : row.priceSource === "regular"
+                ? "정규"
+                : "분봉"}{" "}
+            {formatTimeMsKst(row.quoteQuotedAtMs)}
+          </span>
+        ) : null}
         {row.changePct != null ? (
           <span
             className={

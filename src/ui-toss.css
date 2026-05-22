@@ -371,6 +371,13 @@ body {
   max-width: none;
 }
 
+.live-portfolio__quote-ts {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin-top: 0.15rem;
+}
+
 
 *::-webkit-scrollbar-thumb {
   border-radius: 999px;

@@ -270,9 +270,14 @@ function SimProgramCard({
                       {h.currentPrice != null ? (
                         <>
                           {formatPrice(h.currentPrice, h.currency)}
-                          {h.priceSource === "1m" && h.quoteQuotedAtMs ? (
+                          {h.quoteQuotedAtMs ? (
                             <span className="live-sim-run__quote-1m">
-                              분봉 {formatTimeMsKst(h.quoteQuotedAtMs)}
+                              {h.priceSource === "over"
+                                ? "시간외"
+                                : h.priceSource === "regular"
+                                  ? "정규"
+                                  : "분봉"}{" "}
+                              {formatTimeMsKst(h.quoteQuotedAtMs)}
                             </span>
                           ) : null}
                         </>
