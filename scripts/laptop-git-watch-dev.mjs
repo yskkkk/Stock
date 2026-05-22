@@ -19,6 +19,7 @@
 import { execSync, spawn } from "node:child_process";
 import process from "node:process";
 import treeKill from "tree-kill";
+import { killProcessOnPort } from "../server/kill-tcp-port.js";
 
 const INTERVAL_MS = Number(process.env.WATCH_INTERVAL_MS) || 30_000;
 const ROOT = process.cwd();
@@ -57,7 +58,20 @@ function stopDev() {
   });
 }
 
+function freeDevPort() {
+  const port = Number(process.env.VITE_DEV_PORT) || 5173;
+  const { killed } = killProcessOnPort(port, {
+    exceptPids: [process.pid, devProc?.pid].filter(Boolean),
+  });
+  if (killed.length) {
+    console.log(
+      `[dev:watch] 포트 ${port} 정리 (pid ${killed.join(", ")}) 후 dev 재시작`,
+    );
+  }
+}
+
 function startDev() {
+  freeDevPort();
   devProc = spawn("npm", ["run", "dev"], {
     cwd: ROOT,
     shell: true,
