@@ -1314,6 +1314,7 @@
   gap: 0.35rem 0.55rem;
   margin: 0.18rem 0 0;
   line-height: 1.35;
+  color: var(--text-dim);
 }
 
 .top-bar__brand-tags__lead {
@@ -1430,6 +1431,7 @@
 .top-bar.card {
   display: block;
   padding: 0.55rem 0.95rem 0.65rem;
+  color: var(--text);
 }
 
 .top-bar__grid {
@@ -1558,8 +1560,10 @@ html[data-theme="light"] .top-bar__scan {
 }
 
 .top-bar__brand h1 {
+  margin: 0;
   font-size: 1.05rem;
   line-height: 1.2;
+  color: var(--text);
 }
 
 .main-tabs {
@@ -4638,17 +4642,27 @@ html[data-theme="light"] .access-admin-tab--active {
     position: sticky;
     top: max(0px, env(safe-area-inset-top, 0px));
     z-index: 40;
-    -webkit-backdrop-filter: blur(18px) saturate(1.15);
-    backdrop-filter: blur(18px) saturate(1.15);
-    background: color-mix(in srgb, var(--card) 76%, transparent);
+    -webkit-backdrop-filter: blur(12px) saturate(1.1);
+    backdrop-filter: blur(12px) saturate(1.1);
+    background: color-mix(in srgb, var(--card) 94%, transparent);
     border-radius: 16px;
     box-shadow: 0 6px 26px rgba(0, 0, 0, 0.2);
     border-color: var(--card-border);
+    color: var(--text);
   }
 
   html[data-theme="light"] .top-bar.card {
-    background: color-mix(in srgb, var(--card) 88%, transparent);
+    background: color-mix(in srgb, var(--card) 96%, transparent);
     box-shadow: 0 8px 30px rgba(15, 23, 42, 0.06);
+  }
+
+  html:not([data-theme="light"]) .top-bar.card,
+  html:not([data-theme="light"]) .top-bar__brand h1 {
+    color: #f1f5f9;
+  }
+
+  html:not([data-theme="light"]) .top-bar__brand-tags {
+    color: #aeb9cc;
   }
 
   .main-tabs {

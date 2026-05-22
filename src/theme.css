@@ -114,6 +114,37 @@ html[data-theme="light"] .main-tab.active {
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
 }
 
+/* 상단 브랜드 — 글자색 명시(반투명 바·테마 변수 꼬임 시 대비 붕괴 방지) */
+.top-bar__brand h1 {
+  margin: 0;
+  color: var(--text);
+}
+
+.top-bar__brand-tags,
+.top-bar__brand-tags__lead {
+  color: var(--text-dim);
+}
+
+html:not([data-theme="light"]) .top-bar.card,
+html:not([data-theme="light"]) .top-bar__brand h1 {
+  color: #f1f5f9;
+}
+
+html:not([data-theme="light"]) .top-bar__brand-tags,
+html:not([data-theme="light"]) .top-bar__brand-tags__lead {
+  color: #aeb9cc;
+}
+
+html[data-theme="light"] .top-bar.card,
+html[data-theme="light"] .top-bar__brand h1 {
+  color: var(--text);
+}
+
+html[data-theme="light"] .top-bar__brand-tags,
+html[data-theme="light"] .top-bar__brand-tags__lead {
+  color: var(--text-dim);
+}
+
 html[data-theme="light"] .top-bar__scan .scan-status__msg {
   color: #334155;
 }
