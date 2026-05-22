@@ -43,6 +43,8 @@ import {
   SHOW_PROFIT_MODEL_BUTTON,
 } from "./constants/uiFlags";
 import { useMobilePullToRefresh } from "./hooks/useMobilePullToRefresh";
+import { usePicksLiveQuotes } from "./hooks/usePicksLiveQuotes";
+import { mergeQuotesIntoPicks } from "./lib/mergePickQuotes";
 import { usePickKeyboard } from "./hooks/usePickKeyboard";
 import { useUsdKrwRate } from "./hooks/useUsdKrwRate";
 import { enrichBullishPick } from "./lib/bullishPicks";
@@ -332,13 +334,21 @@ export default function App() {
 
   const browserUserId = useMemo(() => getBrowserUserId(), []);
 
+  const listLiveQuotes = usePicksLiveQuotes(picks, appTab === "screener");
+  const picksForList = useMemo(
+    () => (picks ? mergeQuotesIntoPicks(picks, listLiveQuotes) : null),
+    [picks, listLiveQuotes],
+  );
+
   const krFiltered = useMemo(
-    () => filterPicksBySignals(picks?.kr ?? [], signalFilters, filterMode),
-    [picks?.kr, signalFilters, filterMode],
+    () =>
+      filterPicksBySignals(picksForList?.kr ?? picks?.kr ?? [], signalFilters, filterMode),
+    [picksForList?.kr, picks?.kr, signalFilters, filterMode],
   );
   const usFiltered = useMemo(
-    () => filterPicksBySignals(picks?.us ?? [], signalFilters, filterMode),
-    [picks?.us, signalFilters, filterMode],
+    () =>
+      filterPicksBySignals(picksForList?.us ?? picks?.us ?? [], signalFilters, filterMode),
+    [picksForList?.us, picks?.us, signalFilters, filterMode],
   );
   const baseListPicks = useMemo(() => {
     return screenerMarketTab === "kr" ? krFiltered : usFiltered;

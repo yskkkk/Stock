@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchPicksDailyHistoryQuotes, fetchRecommendationsTracker } from "../api";
+import { PICKS_LIST_QUOTE_POLL_MS } from "../hooks/usePicksLiveQuotes";
 import {
   peekRecommendationsTracker,
   subscribeRecommendationsTrackerPrefetch,
@@ -152,6 +153,32 @@ export default function RecommendationsTab({
     const t = setInterval(() => load({ silent: true }), 30_000);
     return () => clearInterval(t);
   }, [load]);
+
+  const refreshTrackerQuotesOnly = useCallback(() => {
+    const base = dataRef.current;
+    if (!base?.items?.length) return;
+    const syms = prioritizeTrackerSymbols(base.items, TRACKER_QUOTE_BATCH);
+    if (!syms.length) return;
+    void fetchPicksDailyHistoryQuotes(syms)
+      .then((res) => {
+        setData((prev) =>
+          prev ? applyTrackerQuotes(base, res.quotes ?? {}, prev) : prev,
+        );
+      })
+      .catch(() => {
+        /* 이전 시세 유지 */
+      });
+  }, []);
+
+  useEffect(() => {
+    if (!data?.items?.length) return;
+    void refreshTrackerQuotesOnly();
+    const t = window.setInterval(
+      () => void refreshTrackerQuotesOnly(),
+      PICKS_LIST_QUOTE_POLL_MS,
+    );
+    return () => window.clearInterval(t);
+  }, [data?.items?.length, refreshTrackerQuotesOnly]);
 
   const availableDates = useMemo(() => data?.dates ?? [], [data?.dates]);
 

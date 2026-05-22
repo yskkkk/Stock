@@ -1,9 +1,9 @@
 import { normalizeCandles } from "./candle-utils.js";
+import { isBinanceUsdtSymbol } from "./binance-usdt.js";
 import {
-  fetchBinanceUsdtChart,
-  isBinanceUsdtSymbol,
-  loadBinanceUsdtQuoteSnapshot,
-} from "./binance-usdt.js";
+  fetchBithumbKrwChart,
+  loadBithumbKrwQuoteSnapshot,
+} from "./bithumb-krw.js";
 import { chartNotFoundError } from "./errors.js";
 import { resolveDisplayName } from "./names-ko.js";
 import { TIMEFRAME_MAP } from "./timeframes.js";
@@ -11,7 +11,11 @@ import { queueYahooRequest } from "./yahoo-queue.js";
 import { clearYahooSession, getYahooSession, yahooGet, YAHOO_UA } from "./yahoo.js";
 
 const CACHE_FRESH_MS = 5 * 60_000;
-const SCAN_CACHE_MS = 25 * 60_000;
+/** 스크리너·/technical — 1분봉 기준 분석 시 캐시가 길면 추천 시점과 현재가 괴리가 커짐 */
+const SCAN_CANDLE_CACHE_MS = Math.max(
+  30_000,
+  Number(process.env.SCAN_CANDLE_CACHE_MS) || 120_000,
+);
 const LIVE_CACHE_MS = 8_000;
 const CACHE_STALE_MS = 7 * 24 * 60 * 60_000;
 /** 캔들 캐시 무한 증가 방지 — 장시간 가동 시 메모리·GC 악화 원인 제거 */
@@ -80,6 +84,30 @@ function computeDailyChange(candles, interval, meta) {
 function isDailyChartInterval(interval) {
   return interval === "1d" || interval === "1wk";
 }
+
+/** 당일 거래량(주) — meta 우선, 일봉이면 마지막 봉 volume 폴백 */
+function resolveDayVolume(meta, candles, displayInterval) {
+  const rmv = Number(meta?.regularMarketVolume);
+  if (Number.isFinite(rmv) && rmv > 0) return rmv;
+  if (isDailyChartInterval(displayInterval)) {
+    const v = Number(candles.at(-1)?.volume);
+    if (Number.isFinite(v) && v > 0) return v;
+  }
+  return undefined;
+}
+
+/** 거래대금 ≈ 거래량 × 현재가 */
+function computeTurnover(dayVolume, price) {
+  const vol = Number(dayVolume);
+  const p = Number(price);
+  if (!Number.isFinite(vol) || vol <= 0 || !Number.isFinite(p) || p <= 0) {
+    return undefined;
+  }
+  return vol * p;
+}
+
+/** 스크리너·기술 점수용 캔들 (일봉이 아닐 때는 TIMEFRAME_MAP 그대로) */
+export const SCAN_CHART_TIMEFRAME = "1m";
 
 function chartConfig(timeframe, { scan = false } = {}) {
   const base = TIMEFRAME_MAP[timeframe] ?? TIMEFRAME_MAP["1d"];
@@ -157,6 +185,9 @@ function parseChartResult(symbol, result, displayInterval, yahooInterval, aggreg
     dayLow = cl;
   }
 
+  const dayVolume = resolveDayVolume(meta, candles, displayInterval);
+  const turnover = computeTurnover(dayVolume, price);
+
   return {
     symbol: meta.symbol ?? symbol,
     currency: meta.currency,
@@ -179,6 +210,8 @@ function parseChartResult(symbol, result, displayInterval, yahooInterval, aggreg
       marketState: meta.marketState,
       dayHigh,
       dayLow,
+      dayVolume,
+      turnover,
     },
     stale: false,
   };
@@ -207,16 +240,18 @@ async function fetchYahooChart(symbol, timeframe, options = {}) {
 
 export async function fetchScanCandles(symbol) {
   const sym = symbol.toUpperCase();
-  const cacheKey = `${sym}:1d`;
+  const tf = SCAN_CHART_TIMEFRAME;
+  const cacheKey = `${sym}:scan:${tf}`;
 
-  const cached = readCache(cacheKey, { maxAgeMs: SCAN_CACHE_MS });
+  const cached = readCache(cacheKey, { maxAgeMs: SCAN_CANDLE_CACHE_MS });
   if (cached) return cached.data;
 
-  const inflightKey = `scan:${sym}`;
+  const inflightKey = `scan:${sym}:${tf}`;
   if (inflight.has(inflightKey)) return inflight.get(inflightKey);
 
   const task = queueYahooRequest(async () => {
-    const data = await fetchYahooChart(sym, "1d", { scan: true });
+    const scanOpts = tf === "1d" ? { scan: true } : {};
+    const data = await fetchYahooChart(sym, tf, scanOpts);
     setCacheEntry(cacheKey, data);
     return data;
   });
@@ -235,7 +270,7 @@ async function loadDailyChart(sym) {
   if (cached?.data?.candles?.length) return cached.data;
 
   if (isBinanceUsdtSymbol(sym)) {
-    const fetched = await fetchBinanceUsdtChart(sym, "1d", {
+    const fetched = await fetchBithumbKrwChart(sym, "1d", {
       dailyAttach: true,
     });
     setCacheEntry(cacheKey, fetched);
@@ -271,7 +306,7 @@ async function attachDailyQuote(symbol, data) {
 async function fetchRemote(symbol, timeframe) {
   const sym = symbol.toUpperCase();
   const data = isBinanceUsdtSymbol(sym)
-    ? await fetchBinanceUsdtChart(sym, timeframe)
+    ? await fetchBithumbKrwChart(sym, timeframe)
     : await queueYahooRequest(() => fetchYahooChart(symbol, timeframe));
   if (timeframe !== "1d") {
     const daily = await attachDailyQuote(symbol, data);
@@ -326,14 +361,54 @@ export async function loadStock(symbol, timeframe, options = {}) {
   return task;
 }
 
+/** 목록·스크리너 실시간 시세 — 당일 1분봉 종가 기준 */
+function buildQuoteSnapshot1mChartUrl(symbol) {
+  const base = `/v8/finance/chart/${encodeURIComponent(symbol)}`;
+  const params = new URLSearchParams({
+    range: "1d",
+    interval: "1m",
+    includePrePost: "false",
+    events: "div,splits",
+  });
+  return `${base}?${params.toString()}`;
+}
+
 /**
- * 코인 목록 등 — 캔들 전체 없이 현재가·등락률만 (v8 차트, 소량 봉).
+ * 스크리너·추천 목록용 — 최신 1분봉 종가·전일대비 등락률.
+ */
+export async function loadChartQuoteSnapshot1m(symbol) {
+  const sym = symbol.toUpperCase();
+  if (isBinanceUsdtSymbol(sym)) {
+    return loadBithumbKrwQuoteSnapshot(sym);
+  }
+  return queueYahooRequest(async () => {
+    const url = buildQuoteSnapshot1mChartUrl(sym);
+    const data = await yahooGet(url);
+    if (data.chart?.error) return null;
+    const result = data.chart?.result?.[0];
+    if (!result) return null;
+    const parsed = parseChartResult(sym, result, "1m", "1m", 1);
+    const last = parsed.candles.at(-1);
+    const price =
+      last?.close != null && Number.isFinite(last.close)
+        ? last.close
+        : parsed.quote?.price;
+    if (price == null || !Number.isFinite(price)) return parsed.quote ?? null;
+    return {
+      ...parsed.quote,
+      price,
+    };
+  });
+}
+
+/**
+ * 코인 목록 등 — 캔들 전체 없이 현재가·등락률만 (v8 차트, 일봉 경량).
  * v7 /finance/quote 는 Unauthorized 로 막히는 환경이 많아 차트 API를 사용한다.
  */
 export async function loadChartQuoteSnapshot(symbol) {
   const sym = symbol.toUpperCase();
   if (isBinanceUsdtSymbol(sym)) {
-    return loadBinanceUsdtQuoteSnapshot(sym);
+    return loadBithumbKrwQuoteSnapshot(sym);
   }
   return queueYahooRequest(async () => {
     const url = buildQuoteSnapshotChartUrl(sym);

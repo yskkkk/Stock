@@ -2,9 +2,13 @@
  * 스크리너 목록 시세 — Yahoo v8 경량 스냅샷을 주기적으로 병합.
  * 프로세스 단위 캐시로 동일 심볼·짧은 간격 중복 호출을 줄인다.
  */
-import { loadChartQuoteSnapshot } from "./stock-data.js";
+import { loadChartQuoteSnapshot1m } from "./stock-data.js";
 
-const TTL_MS = Number(process.env.PICKS_LIVE_QUOTE_TTL_MS) || 4500;
+/** 1분봉 시세 — 기본 60초(분봉 갱신 주기) */
+const TTL_MS = (() => {
+  const n = Number(process.env.PICKS_LIVE_QUOTE_TTL_MS ?? 60_000);
+  return Number.isFinite(n) && n >= 15_000 ? Math.min(120_000, Math.floor(n)) : 60_000;
+})();
 const QUOTE_FETCH_CONCURRENCY = (() => {
   const n = Number(process.env.PICKS_QUOTE_FETCH_CONCURRENCY ?? 8);
   return Number.isFinite(n) && n >= 1 ? Math.min(24, Math.floor(n)) : 8;
@@ -33,7 +37,7 @@ async function quoteSnapshotCached(symbol) {
 
   let quote = null;
   try {
-    quote = await loadChartQuoteSnapshot(u);
+    quote = await loadChartQuoteSnapshot1m(u);
   } catch {
     quote = null;
   }
