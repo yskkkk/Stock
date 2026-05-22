@@ -104,7 +104,7 @@ export function buildOpsGlobalQueueRows(agentRaw: unknown[]): OpsGlobalQueueRow[
     const ip = e.requestIp?.trim() ?? "";
     const agentSource: OpsAgentQueueSource | undefined =
       ip === "claude-code"
-        ? "ide"
+        ? "claude-code"
         : e.source === "ide" || e.source === "web"
           ? e.source
           : ip === "cursor-ide"
@@ -171,6 +171,7 @@ export function readOpsDevQueueDisplayCache(): OpsGlobalQueueRow[] | null {
 
 export function sourceLabelForRow(row: OpsGlobalQueueRow): string {
   if (row.kind === "record") return ko.app.opsGlobalQueueSourceRecord;
+  if (row.agentSource === "claude-code") return ko.app.opsGlobalQueueSourceClaudeCode;
   if (row.agentSource === "ide") return ko.app.opsGlobalQueueSourceIde;
   if (row.agentSource === "web") return ko.app.opsGlobalQueueSourceWeb;
   return ko.app.opsGlobalQueueSourceWeb;

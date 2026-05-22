@@ -277,7 +277,7 @@ export type OpsCursorAgentPendingResponse = {
   startedAtMs: number | null;
 };
 
-export type OpsAgentQueueSource = "web" | "ide";
+export type OpsAgentQueueSource = "web" | "ide" | "claude-code";
 
 export type OpsAgentQueueEntry = {
   id: string;
