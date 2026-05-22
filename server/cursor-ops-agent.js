@@ -750,6 +750,7 @@ export async function streamOpsCursorAgentSse(req, res, body) {
           errorText: errorStored,
         });
         notifyOpsAgentCompleted({
+          dedupKey: runId ? `web:${runId}` : undefined,
           requester: requesterLabel,
           title: titleForNotify || "웹 에이전트",
           body: bodyForNotify,
@@ -893,6 +894,7 @@ export async function runOpsCursorAgent(input) {
     outText = (outText ? outText.trimEnd() : "") + pushNote;
 
     notifyOpsAgentCompleted({
+      dedupKey: `web-api:${opsAgentInstructionLogSnippet(instruction)}`,
       requester: reqIpNorm || "알 수 없음",
       title: opsAgentInstructionLogSnippet(instruction) || "웹 에이전트",
       body: buildOpsAgentTelegramBody({
@@ -916,6 +918,7 @@ export async function runOpsCursorAgent(input) {
     };
   } catch (e) {
     notifyOpsAgentCompleted({
+      dedupKey: `web-api-err:${opsAgentInstructionLogSnippet(instruction)}`,
       requester: reqIpNorm || "알 수 없음",
       title: opsAgentInstructionLogSnippet(instruction) || "웹 에이전트",
       body: buildOpsAgentTelegramBody({

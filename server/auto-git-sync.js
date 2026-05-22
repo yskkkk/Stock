@@ -244,6 +244,7 @@ export function startAutoGitSync({ httpServer }) {
     notifyOpsAutoGitPulled({
       remote,
       branch,
+      newRev: headAfterPull,
       gitSummary: summarizeGitPullRangeForNotify(localRev, headAfterPull),
     });
 

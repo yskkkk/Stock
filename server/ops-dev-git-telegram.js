@@ -1,4 +1,10 @@
+import { getRepoHeadRev } from "./ops-agent-git-push.js";
 import { buildOpsDevChangeTelegramBody } from "./ops-agent-notify-body.js";
+import {
+  markOpsDevNotifySent,
+  shouldSkipAutoGitPullNotify,
+  shouldSkipOpsDevNotify,
+} from "./ops-dev-notify-dedup.js";
 import {
   escHtml,
   isOpsTelegramNotifyEnabled,
@@ -27,11 +33,15 @@ function autoGitTelegramNotifyEnabled() {
  *   errorText?: string | null;
  *   runtimeLabel?: string | null;
  *   durationMs?: number | null;
+ *   dedupKey?: string;
  * }} opts
  * @returns {Promise<boolean>}
  */
 export async function notifyOpsDevGitReflection(opts) {
   if (!isOpsTelegramNotifyEnabled()) return false;
+
+  const dedupKey = String(opts.dedupKey ?? "").trim();
+  if (dedupKey && shouldSkipOpsDevNotify(dedupKey)) return false;
 
   const title = String(opts.title ?? "").trim() || "개발 반영";
   const detail = String(opts.detail ?? "").trim();
@@ -58,6 +68,7 @@ export async function notifyOpsDevGitReflection(opts) {
   const opsCreds = resolveOpsTelegramCreds();
   const ok = await sendTelegramMessage(text, undefined, opsCreds);
   if (ok) {
+    if (dedupKey) markOpsDevNotifySent(dedupKey, getRepoHeadRev());
     console.log("[telegram:ops] dev git reflection notice sent");
   } else {
     console.warn("[telegram:ops] dev git reflection notice failed");
@@ -67,11 +78,14 @@ export async function notifyOpsDevGitReflection(opts) {
 
 /**
  * auto-git pull 성공 후 ops 알림 (기본 켜짐, `AUTO_GIT_TELEGRAM_NOTIFY=0` 으로 끔).
- * @param {{ gitSummary: string; remote: string; branch: string }} opts
+ * @param {{ gitSummary: string; remote: string; branch: string; newRev: string }} opts
  */
 export function notifyOpsAutoGitPulled(opts) {
   if (!autoGitTelegramNotifyEnabled()) return;
+  const newRev = String(opts.newRev ?? "").trim();
+  if (newRev && shouldSkipAutoGitPullNotify(newRev)) return;
   void notifyOpsDevGitReflection({
+    dedupKey: newRev ? `autogit:${newRev}` : undefined,
     title: "서버에 새 개발 내용이 반영됨",
     source: "auto-git · GitHub → 서버",
     detail: `${opts.remote}/${opts.branch} 브랜치를 서버가 받아 왔습니다.`,
