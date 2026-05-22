@@ -7,7 +7,11 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { getUpcomingMacroEvents } from "./macro-events.js";
-import { isTelegramNotifyEnabled, sendTelegramMessage } from "./telegram-notify.js";
+import {
+  isTelegramNotifyEnabled,
+  resolveStockTelegramCreds,
+  sendTelegramMessage,
+} from "./telegram-notify.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
@@ -162,7 +166,7 @@ export async function tickMacroReminders() {
       if (sent[key]) continue;
 
       const html = buildMacroReminderHtml(ev, phase);
-      const ok = await sendTelegramMessage(html);
+      const ok = await sendTelegramMessage(html, undefined, resolveStockTelegramCreds());
       if (ok) {
         sent[key] = Date.now();
         sent = pruneSent(sent);

@@ -96,25 +96,30 @@ function sanitizeSentEntry(entry) {
   return out;
 }
 
-export function isTelegramNotifyEnabled() {
-  return Boolean(
-    process.env.TELEGRAM_BOT_TOKEN?.trim() &&
-      process.env.TELEGRAM_CHAT_ID?.trim(),
-  );
+/** 종목 추천·경제지표 예고 — @YSK_STOCK_RECOMMEND_BOT (TELEGRAM_BOT_TOKEN 만) */
+export function resolveStockTelegramCreds() {
+  return {
+    token: process.env.TELEGRAM_BOT_TOKEN?.trim() || "",
+    chatId: process.env.TELEGRAM_CHAT_ID?.trim() || "",
+  };
 }
 
-/** 서버 기동 시 봇·채팅 설정 검증(실패 시 로그에 원인) */
-export async function probeTelegramSetup() {
-  if (!isTelegramNotifyEnabled()) return { ok: false, reason: "disabled" };
-  const token = process.env.TELEGRAM_BOT_TOKEN.trim();
-  const chatId = process.env.TELEGRAM_CHAT_ID.trim();
+export function isTelegramNotifyEnabled() {
+  const { token, chatId } = resolveStockTelegramCreds();
+  return Boolean(token && chatId);
+}
+
+/** @param {{ token: string; chatId: string; label: string }} cfg */
+async function probeTelegramCreds(cfg) {
+  const { token, chatId, label } = cfg;
+  if (!token || !chatId) return { ok: false, reason: "disabled" };
   try {
     const meRes = await fetch(`https://api.telegram.org/bot${token}/getMe`);
     const meBody = await meRes.json();
     if (!meBody?.ok) {
       const msg = humanizeTelegramError(String(meBody?.description ?? ""), "");
       lastTelegramSendError = { atMs: Date.now(), message: msg, status: meRes.status };
-      console.warn("[telegram] getMe failed:", msg);
+      console.warn(`[telegram:${label}] getMe failed:`, msg);
       return { ok: false, reason: msg };
     }
     const chatRes = await fetch(
@@ -124,17 +129,44 @@ export async function probeTelegramSetup() {
     if (!chatBody?.ok) {
       const msg = humanizeTelegramError(String(chatBody?.description ?? ""), "");
       lastTelegramSendError = { atMs: Date.now(), message: msg, status: chatRes.status };
-      console.warn("[telegram] getChat failed:", msg);
+      console.warn(`[telegram:${label}] getChat failed:`, msg);
       return { ok: false, reason: msg };
     }
-    lastTelegramSendError = null;
-    return { ok: true, bot: meBody.result?.username ?? null };
+    const username = meBody.result?.username ?? null;
+    console.info(
+      `[telegram:${label}] ready @${username ?? "?"} → chat ${chatId}`,
+    );
+    return { ok: true, bot: username };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     lastTelegramSendError = { atMs: Date.now(), message: msg, status: null };
-    console.warn("[telegram] probe error:", msg);
+    console.warn(`[telegram:${label}] probe error:`, msg);
     return { ok: false, reason: msg };
   }
+}
+
+/** 종목 추천 봇(@YSK_STOCK_RECOMMEND_BOT) 연결 검증 */
+export async function probeStockTelegramSetup() {
+  const { token, chatId } = resolveStockTelegramCreds();
+  const out = await probeTelegramCreds({
+    token,
+    chatId,
+    label: "stock",
+  });
+  if (out.ok) lastTelegramSendError = null;
+  return out;
+}
+
+/** @deprecated probeStockTelegramSetup 사용 */
+export async function probeTelegramSetup() {
+  return probeStockTelegramSetup();
+}
+
+/** 웹 에이전트·서버 ON/OFF 봇 연결 검증 */
+export async function probeOpsTelegramSetup() {
+  if (!isOpsTelegramNotifyEnabled()) return { ok: false, reason: "disabled" };
+  const { token, chatId } = resolveOpsTelegramCreds();
+  return probeTelegramCreds({ token, chatId, label: "ops" });
 }
 
 /** 운영 탭 웹(Cursor) 에이전트 완료 알림 — 종목 추천 봇과 분리 */
@@ -1014,12 +1046,13 @@ export function notifyHighScorePick(pick) {
     ? { inline_keyboard: [[{ text: "📈 종목 보기", url: openUrl }]] }
     : undefined;
 
-  void sendTelegramMessage(text, replyMarkup)
+  const stockCreds = resolveStockTelegramCreds();
+  void sendTelegramMessage(text, replyMarkup, stockCreds)
     .then((ok) => {
       if (ok) {
         confirmNotifySent(pick);
         console.log(
-          `[telegram] sent ${sym} model=${modelId} score=${pick.score} session=${session}`,
+          `[telegram:stock] sent ${sym} model=${modelId} score=${pick.score} session=${session}`,
         );
         void import("./live-trade-runner.js")
           .then((m) => m.onHighScorePickForLiveTrading(pick))
@@ -1032,7 +1065,7 @@ export function notifyHighScorePick(pick) {
       } else {
         releaseNotifyReserve(pick);
         console.warn(
-          `[telegram] send failed ${sym} score=${pick.score}`,
+          `[telegram:stock] send failed ${sym} score=${pick.score}`,
           lastTelegramSendError?.message ?? "",
         );
       }
@@ -1045,7 +1078,7 @@ export function notifyHighScorePick(pick) {
         "",
       );
       console.warn(
-        "[telegram] send error:",
+        "[telegram:stock] send error:",
         err instanceof Error ? err.message : err,
       );
     });
