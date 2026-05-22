@@ -12,6 +12,7 @@ import {
   fetchTelegramSent,
   refreshPicks,
   resetTelegramAlertHistory,
+  type LiveTradeHolding,
 } from "./api";
 import BullishReasonModal from "./components/BullishReasonModal";
 import AccessAdminModal from "./components/AccessAdminModal";
@@ -30,6 +31,7 @@ import type { ChartDrawMode, ChartDrawToolbarApi } from "./chartDrawTypes";
 import ChartDrawToolbarButtons from "./components/ChartDrawToolbarButtons";
 import CryptoTab from "./components/CryptoTab";
 import OpsGlobalQueueStrip from "./components/OpsGlobalQueueStrip";
+import ServerRestartButton from "./components/ServerRestartButton";
 import OpsManagementTab from "./components/OpsManagementTab";
 import LiveTradingTab from "./components/LiveTradingTab";
 import RecommendationsTab from "./components/RecommendationsTab";
@@ -42,8 +44,10 @@ import {
   ENABLE_THEME_MODE_TOGGLE,
   SHOW_PROFIT_MODEL_BUTTON,
 } from "./constants/uiFlags";
+import { useMobileBackHandler } from "./hooks/useMobileBackHandler";
 import { useMobilePullToRefresh } from "./hooks/useMobilePullToRefresh";
 import { usePicksLiveQuotes } from "./hooks/usePicksLiveQuotes";
+import { MOBILE_BACK_PRIORITY } from "./lib/mobileBackStack";
 import { mergeQuotesIntoPicks } from "./lib/mergePickQuotes";
 import { usePickKeyboard } from "./hooks/usePickKeyboard";
 import { useUsdKrwRate } from "./hooks/useUsdKrwRate";
@@ -74,6 +78,7 @@ import {
   persistProfitSell,
 } from "./lib/userPersist";
 import { filterPicksByQuery } from "./lib/searchPicks";
+import { liveHoldingKey, liveHoldingToStockPick } from "./lib/liveHoldingToPick";
 import { startBackgroundTabPrefetch } from "./lib/tabPrefetch";
 import { warmOpsDevQueueDisplay } from "./lib/opsDevQueueDisplayClient";
 import { sortPicksList, type SortKey } from "./lib/sortPicks";
@@ -136,6 +141,7 @@ export default function App() {
   const [sortKey, setSortKey] = useState<SortKey>("score");
   const [screenerSelected, setScreenerSelected] = useState<StockPick | null>(null);
   const [lookupSelected, setLookupSelected] = useState<StockPick | null>(null);
+  const [liveTradeSelected, setLiveTradeSelected] = useState<StockPick | null>(null);
   const [timeframe, setTimeframe] = useState<ChartTimeframe>("1m");
   const [quote, setQuote] = useState<QuoteResponse | null>(null);
   const [candles, setCandles] = useState<Candle[]>([]);
@@ -205,6 +211,77 @@ export default function App() {
     setNewsError(null);
     setNewsLoading(false);
   }, []);
+
+  const mobileBackPrevTabRef = useRef<AppTab>("screener");
+  const lastTabForBackRef = useRef<AppTab>("screener");
+  useEffect(() => {
+    if (appTab !== lastTabForBackRef.current) {
+      mobileBackPrevTabRef.current = lastTabForBackRef.current;
+      lastTabForBackRef.current = appTab;
+    }
+  }, [appTab]);
+
+  const clearWorkspacePick = useCallback(() => {
+    if (appTab === "screener") setScreenerSelected(null);
+    else if (appTab === "stockLookup") setLookupSelected(null);
+    else if (appTab === "liveTrading") setLiveTradeSelected(null);
+  }, [appTab]);
+
+  const hasWorkspacePickForBack =
+    appTab === "screener"
+      ? Boolean(screenerSelected)
+      : appTab === "stockLookup"
+        ? Boolean(lookupSelected)
+        : appTab === "liveTrading"
+          ? Boolean(liveTradeSelected)
+          : false;
+
+  useMobileBackHandler(
+    showAccessAdmin,
+    MOBILE_BACK_PRIORITY.ACCESS_ADMIN,
+    () => setShowAccessAdmin(false),
+  );
+  useMobileBackHandler(
+    Boolean(SHOW_PROFIT_MODEL_BUTTON && profitModalOpen && hasWorkspacePickForBack),
+    MOBILE_BACK_PRIORITY.PROFIT,
+    () => setProfitModalOpen(false),
+  );
+  useMobileBackHandler(
+    showTelegramSent,
+    MOBILE_BACK_PRIORITY.TELEGRAM_SENT,
+    () => setShowTelegramSent(false),
+  );
+  useMobileBackHandler(
+    showScreenFailures,
+    MOBILE_BACK_PRIORITY.SCREEN_FAILURES,
+    () => setShowScreenFailures(false),
+  );
+  useMobileBackHandler(
+    picksHistoryOpen,
+    MOBILE_BACK_PRIORITY.PICKS_HISTORY,
+    () => setPicksHistoryOpen(false),
+  );
+  useMobileBackHandler(
+    Boolean(reasonPick),
+    MOBILE_BACK_PRIORITY.REASON,
+    () => setReasonPick(null),
+  );
+  useMobileBackHandler(Boolean(newsPick), MOBILE_BACK_PRIORITY.NEWS, closeNews);
+  useMobileBackHandler(
+    chartDrawMode !== "cursor",
+    MOBILE_BACK_PRIORITY.CHART_DRAW,
+    () => setChartDrawMode("cursor"),
+  );
+  useMobileBackHandler(
+    appTab !== "screener",
+    MOBILE_BACK_PRIORITY.TAB,
+    () => setAppTab(mobileBackPrevTabRef.current),
+  );
+  useMobileBackHandler(
+    hasWorkspacePickForBack,
+    MOBILE_BACK_PRIORITY.WORKSPACE_PICK,
+    clearWorkspacePick,
+  );
 
   const pollPicks = useCallback(async () => {
     try {
@@ -365,9 +442,10 @@ export default function App() {
       : (picks?.us.length ?? 0);
 
   const workspacePick = useMemo(() => {
-    if (appTab === "crypto" || appTab === "ops" || appTab === "liveTrading") return null;
+    if (appTab === "crypto" || appTab === "ops") return null;
+    if (appTab === "liveTrading") return liveTradeSelected;
     return appTab === "stockLookup" ? lookupSelected : screenerSelected;
-  }, [appTab, lookupSelected, screenerSelected]);
+  }, [appTab, lookupSelected, screenerSelected, liveTradeSelected]);
 
   const workspacePickRef = useRef<StockPick | null>(null);
   workspacePickRef.current = workspacePick;
@@ -384,7 +462,7 @@ export default function App() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!workspacePick) return;
-    if (appTab === "crypto" || appTab === "ops" || appTab === "liveTrading") return;
+    if (appTab === "crypto" || appTab === "ops") return;
     if (window.innerWidth > 900) return;
     const el = stockChartSectionRef.current;
     if (!el) return;
@@ -492,6 +570,15 @@ export default function App() {
     setScreenerSelected(pick);
     setScreenerMarketTab(pick.market);
   }, []);
+
+  const handleLiveTradeChart = useCallback((h: LiveTradeHolding) => {
+    setLiveTradeSelected(liveHoldingToStockPick(h));
+  }, []);
+
+  const liveTradeChartPickKey = useMemo(
+    () => (liveTradeSelected ? liveHoldingKey(liveTradeSelected) : null),
+    [liveTradeSelected],
+  );
 
   const handleCryptoFocusConsumed = useCallback(() => {
     setCryptoFocusSymbol(null);
@@ -640,7 +727,7 @@ export default function App() {
 
   useEffect(() => {
     const pick = workspacePickRef.current;
-    if (!pick || appTab === "crypto" || appTab === "ops" || appTab === "liveTrading") return;
+    if (!pick || appTab === "crypto" || appTab === "ops") return;
     loadChart(pick, timeframe);
     const refreshMs = timeframe === "1m" ? 1_000 : 8_000;
     const id = window.setInterval(() => {
@@ -819,7 +906,6 @@ export default function App() {
       ? failedCountLabel(picks.failedCount)
       : "";
   const showTopScanStrip = Boolean(picks && appTab === "screener");
-
   return (
     <div
       className={
@@ -835,13 +921,15 @@ export default function App() {
       />
       <div className="app-header-sticky">
       <div className="app-page-top" aria-label={ko.app.pageTopToolsAria}>
-        <div
-          className={
-            colorMode === "light"
-              ? "app-theme-corner"
-              : "app-theme-corner app-theme-corner--empty"
-          }
-        >
+        <div className="app-page-top__left">
+          {accessAdmin ? <ServerRestartButton /> : null}
+          <div
+            className={
+              colorMode === "light"
+                ? "app-theme-corner"
+                : "app-theme-corner app-theme-corner--empty"
+            }
+          >
           {colorMode === "light" ? (
             <div
               className="light-palette-picker light-palette-picker--corner"
@@ -869,6 +957,7 @@ export default function App() {
               ))}
             </div>
           ) : null}
+          </div>
         </div>
         {accessAdmin ? (
           <div className="app-page-top__queue">
@@ -878,21 +967,43 @@ export default function App() {
           <div className="app-page-top__queue app-page-top__queue--empty" aria-hidden />
         )}
         <div className="app-corner-stack">
-          {accessAdmin ? (
-            <button
-              type="button"
-              className={
-                appTab === "ops"
-                  ? "app-corner-stack__ops app-page-top__corner-text app-page-top__corner-text--active"
-                  : "app-corner-stack__ops app-page-top__corner-text"
-              }
-              aria-current={appTab === "ops" ? "page" : undefined}
-              onClick={() => setAppTab("ops")}
+          <div className="app-corner-stack__row">
+            {accessAdmin ? (
+              <button
+                type="button"
+                className={
+                  appTab === "ops"
+                    ? "app-corner-stack__ops app-page-top__corner-text app-page-top__corner-text--active"
+                    : "app-corner-stack__ops app-page-top__corner-text"
+                }
+                aria-current={appTab === "ops" ? "page" : undefined}
+                onClick={() => setAppTab("ops")}
+              >
+                {ko.app.tabOps}
+              </button>
+            ) : null}
+            <FeedbackCorner accessAdmin={accessAdmin} />
+          </div>
+          <div className="app-corner-stack__row app-corner-stack__dl-row">
+            <a
+              href="/downloads/stock-dashboard.apk"
+              download="stock-dashboard.apk"
+              className="app-page-top__corner-text app-corner-stack__app-dl"
+              title={ko.mobile.downloadGalaxyTitle}
             >
-              {ko.app.tabOps}
-            </button>
-          ) : null}
-          <FeedbackCorner accessAdmin={accessAdmin} />
+              {ko.mobile.downloadGalaxy}
+            </a>
+            <span className="app-corner-stack__dl-sep" aria-hidden>
+              ·
+            </span>
+            <a
+              href="/install-ios.html"
+              className="app-page-top__corner-text app-corner-stack__app-dl"
+              title={ko.mobile.downloadIphoneTitle}
+            >
+              {ko.mobile.downloadIphone}
+            </a>
+          </div>
         </div>
       </div>
       <header
@@ -1166,8 +1277,6 @@ export default function App() {
         />
       ) : appTab === "recommendations" ? (
         <RecommendationsTab onOpenPick={handleSelect} />
-      ) : appTab === "liveTrading" ? (
-        <LiveTradingTab onOpenRecommendations={() => setAppTab("recommendations")} />
       ) : appTab === "ops" ? (
         <div className="workspace ops-workspace">
           <section
@@ -1178,8 +1287,28 @@ export default function App() {
           </section>
         </div>
       ) : (
-        <div className="workspace">
-        <aside className="picks-panel card">
+        <div
+          className={
+            appTab === "liveTrading"
+              ? "workspace workspace--live-trade"
+              : "workspace"
+          }
+        >
+        <aside
+          className={
+            appTab === "liveTrading"
+              ? "picks-panel card live-trading-side"
+              : "picks-panel card"
+          }
+        >
+          {appTab === "liveTrading" ? (
+            <LiveTradingTab
+              onOpenRecommendations={() => setAppTab("recommendations")}
+              onOpenHoldingChart={handleLiveTradeChart}
+              chartPickKey={liveTradeChartPickKey}
+            />
+          ) : (
+          <>
           <div className="panel-head">
             <div className="panel-head__filters">
               <div className="market-tabs">
@@ -1271,6 +1400,8 @@ export default function App() {
               onLookupPickPatch={handleLookupPickPatch}
             />
           )}
+          </>
+          )}
         </aside>
 
         <section
@@ -1285,7 +1416,9 @@ export default function App() {
               <p className="placeholder-title">
                 {appTab === "stockLookup"
                   ? ko.app.stockLookupSelectTitle
-                  : ko.app.selectTitle}
+                  : appTab === "liveTrading"
+                    ? ko.app.liveTradeChartSelectTitle
+                    : ko.app.selectTitle}
               </p>
             </div>
           ) : (

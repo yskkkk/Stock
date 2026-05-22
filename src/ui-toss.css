@@ -336,6 +336,41 @@ body {
   font-weight: 600;
 }
 
+.live-holding-chart-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.12rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.live-holding-chart-btn:hover .live-sim-run__sym,
+.live-holding-chart-btn:hover .live-portfolio__sym {
+  color: var(--accent);
+}
+
+.live-holding-chart-btn--selected .live-sim-run__sym,
+.live-holding-chart-btn--selected .live-portfolio__sym {
+  color: var(--accent);
+}
+
+.picks-panel.live-trading-side {
+  overflow-y: auto;
+  max-height: min(72vh, 780px);
+}
+
+.picks-panel.live-trading-side > .live-trading-tab {
+  padding: 0;
+  max-width: none;
+}
+
 
 *::-webkit-scrollbar-thumb {
   border-radius: 999px;

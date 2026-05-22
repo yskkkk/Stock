@@ -17,9 +17,11 @@ import LiveTradeSimPanel from "./LiveTradeSimPanel";
 import { formatPercent, formatPrice, formatSignedMoney } from "../lib/format";
 import { ko } from "../i18n/ko";
 import {
+  LiveHoldingChartSymbol,
   LiveTradeExitPriceCell,
   LiveTradeHoldingRationaleRow,
 } from "./LiveTradeHoldingDisplay";
+import { liveHoldingKey } from "../lib/liveHoldingToPick";
 
 type PanelTab = "summary" | "holdings" | "trades";
 
@@ -109,10 +111,14 @@ function HoldingRow({
   row,
   busy,
   onSold,
+  onOpenHoldingChart,
+  chartPickKey,
 }: {
   row: LiveTradeHolding;
   busy: boolean;
   onSold: () => void;
+  onOpenHoldingChart?: (h: LiveTradeHolding) => void;
+  chartPickKey?: string | null;
 }) {
   const [sellOpen, setSellOpen] = useState(false);
   const [sellQty, setSellQty] = useState(() => String(row.quantity));
@@ -147,9 +153,12 @@ function HoldingRow({
     <Fragment>
     <tr className="live-portfolio__row">
       <td data-label={ko.app.liveTradePfColSymbol}>
-        <span className="live-portfolio__sym">{row.symbol}</span>
-        <span className="live-portfolio__nm">{row.name}</span>
-        <span className="live-portfolio__prog">{row.programName ?? row.programId}</span>
+        <LiveHoldingChartSymbol
+          holding={row}
+          variant="portfolio"
+          selected={chartPickKey != null && chartPickKey === liveHoldingKey(row)}
+          onOpen={onOpenHoldingChart}
+        />
       </td>
       <td className="live-portfolio__num" data-label={ko.app.liveTradePfColQty}>
         {row.quantity.toLocaleString("ko-KR")}
@@ -273,8 +282,12 @@ function HoldingRow({
 
 export default function LiveTradePortfolioPanel({
   programs,
+  onOpenHoldingChart,
+  chartPickKey,
 }: {
   programs: LiveTradeProgram[];
+  onOpenHoldingChart?: (h: LiveTradeHolding) => void;
+  chartPickKey?: string | null;
 }) {
   const [tab, setTab] = useState<PanelTab>("summary");
   const [programId, setProgramId] = useState<string>("");
@@ -435,6 +448,8 @@ export default function LiveTradePortfolioPanel({
                         key={`${h.programId}:${h.market}:${h.symbol}`}
                         row={h}
                         busy={busy}
+                        onOpenHoldingChart={onOpenHoldingChart}
+                        chartPickKey={chartPickKey}
                         onSold={() => {
                           setBusy(true);
                           void load().finally(() => setBusy(false));

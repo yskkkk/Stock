@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { LiveTradeHolding } from "../api";
 import {
   armLiveTradeProgram,
   createLiveTradeProgram,
@@ -14,8 +15,14 @@ import {
   type TechModelRecord,
 } from "../api";
 import LiveSimRunningPanel from "./LiveSimRunningPanel";
+import LiveSimRecommendationsPanel, {
+  type LiveSimDraftPatch,
+} from "./LiveSimRecommendationsPanel";
 import LiveTradePortfolioPanel from "./LiveTradePortfolioPanel";
+import { useMobileBackHandler } from "../hooks/useMobileBackHandler";
+import { MOBILE_BACK_PRIORITY } from "../lib/mobileBackStack";
 import { peekLiveTradingPrefetch } from "../lib/tabPrefetch";
+import { formatPercent } from "../lib/format";
 import { ko } from "../i18n/ko";
 
 function statusLabel(status: LiveTradeProgram["status"]): string {
@@ -56,25 +63,36 @@ function formatTs(ms: number | null): string {
   }
 }
 
+/** @returns {number | null} 1~50 정수, 빈 값·0·비정상이면 null */
+function parseMaxOpenPositionsInput(raw: string): number | null {
+  const t = String(raw ?? "").trim();
+  if (!t) return null;
+  const n = Number(t);
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1 || n > 50) return null;
+  return n;
+}
+
 const emptyDraft = () => ({
   name: "",
   modelId: "",
   marketsKr: true,
   marketsUs: false,
   minScoreRatio: 0.85,
-  maxOpenPositions: 5,
+  maxOpenPositions: "5",
   orderAmountKrw: "100000",
   orderAmountUsd: "",
   simAutoBuy: true,
   autoSellAtTarget: true,
-  takeProfitPct: "5",
-  stopLossPct: "",
 });
 
 export default function LiveTradingTab({
   onOpenRecommendations,
+  onOpenHoldingChart,
+  chartPickKey,
 }: {
   onOpenRecommendations?: () => void;
+  onOpenHoldingChart?: (h: LiveTradeHolding) => void;
+  chartPickKey?: string | null;
 }) {
   const prefetched = peekLiveTradingPrefetch();
   const [status, setStatus] = useState<LiveTradingStatusResponse | null>(
@@ -116,6 +134,18 @@ export default function LiveTradingTab({
     void reload();
   }, [reload]);
 
+  useEffect(() => {
+    if (portfolioRefreshKey > 0) void reload();
+  }, [portfolioRefreshKey, reload]);
+
+  useEffect(() => {
+    const active =
+      (status?.simCount ?? 0) + (status?.armedCount ?? 0) > 0;
+    if (!active) return;
+    const id = window.setInterval(() => void reload(), 20_000);
+    return () => window.clearInterval(id);
+  }, [reload, status?.simCount, status?.armedCount]);
+
   const modelById = useMemo(() => {
     const m = new Map<string, TechModelRecord>();
     for (const x of models) m.set(x.id, x);
@@ -132,6 +162,12 @@ export default function LiveTradingTab({
     setErr(null);
   }, [models]);
 
+  useMobileBackHandler(
+    Boolean(editingId),
+    MOBILE_BACK_PRIORITY.LIVE_TRADE_EDIT,
+    resetForm,
+  );
+
   const loadProgramToForm = useCallback((p: LiveTradeProgram) => {
     setEditingId(p.id);
     setDraft({
@@ -140,17 +176,13 @@ export default function LiveTradingTab({
       marketsKr: p.markets.kr,
       marketsUs: p.markets.us,
       minScoreRatio: p.minScoreRatio,
-      maxOpenPositions: p.maxOpenPositions,
+      maxOpenPositions: String(p.maxOpenPositions),
       orderAmountKrw:
         p.orderAmountKrw != null ? String(Math.round(p.orderAmountKrw)) : "",
       orderAmountUsd:
         p.orderAmountUsd != null ? String(p.orderAmountUsd) : "",
       simAutoBuy: p.simAutoBuy !== false,
       autoSellAtTarget: p.autoSellAtTarget !== false,
-      takeProfitPct:
-        p.takeProfitPct != null ? String(p.takeProfitPct) : "5",
-      stopLossPct:
-        p.stopLossPct != null ? String(p.stopLossPct) : "",
     });
     setMsg(null);
     setErr(null);
@@ -159,29 +191,28 @@ export default function LiveTradingTab({
   const buildBody = useCallback(() => {
     const orderKrw = draft.orderAmountKrw.trim();
     const orderUsd = draft.orderAmountUsd.trim();
+    const maxOpenPositions = parseMaxOpenPositionsInput(draft.maxOpenPositions)!;
     return {
       name: draft.name.trim(),
       modelId: draft.modelId,
       markets: { kr: draft.marketsKr, us: draft.marketsUs },
       minScoreRatio: draft.minScoreRatio,
-      maxOpenPositions: draft.maxOpenPositions,
+      maxOpenPositions,
       orderAmountKrw: orderKrw ? Number(orderKrw) : null,
       orderAmountUsd: orderUsd ? Number(orderUsd) : null,
       simAutoBuy: draft.simAutoBuy,
       autoSellAtTarget: draft.autoSellAtTarget,
-      takeProfitPct: draft.takeProfitPct.trim()
-        ? Number(draft.takeProfitPct)
-        : null,
-      stopLossPct: draft.stopLossPct.trim()
-        ? Number(draft.stopLossPct)
-        : null,
     };
   }, [draft]);
 
   const handleSave = useCallback(async () => {
-    setBusy(true);
     setErr(null);
     setMsg(null);
+    if (parseMaxOpenPositionsInput(draft.maxOpenPositions) == null) {
+      setErr(ko.app.liveTradeFieldMaxPosInvalid);
+      return;
+    }
+    setBusy(true);
     try {
       const body = buildBody();
       if (editingId) {
@@ -198,7 +229,7 @@ export default function LiveTradingTab({
     } finally {
       setBusy(false);
     }
-  }, [buildBody, editingId, reload, resetForm]);
+  }, [buildBody, draft.maxOpenPositions, editingId, reload, resetForm]);
 
   const handleDelete = useCallback(
     async (id: string) => {
@@ -360,9 +391,16 @@ export default function LiveTradingTab({
         busy={busy}
         refreshKey={portfolioRefreshKey}
         onStop={(id) => void handleSimStop(id)}
+        onProgramUpdated={() => void reload()}
+        onOpenHoldingChart={onOpenHoldingChart}
+        chartPickKey={chartPickKey}
       />
 
-      <LiveTradePortfolioPanel programs={programs} />
+      <LiveTradePortfolioPanel
+        programs={programs}
+        onOpenHoldingChart={onOpenHoldingChart}
+        chartPickKey={chartPickKey}
+      />
 
       <div className="live-trading-tab__grid">
         <section className="live-trading-tab__form card" aria-label={ko.app.liveTradeFormTitle}>
@@ -374,6 +412,30 @@ export default function LiveTradingTab({
             <p className="live-trading-tab__hint">{ko.app.liveTradeNoModels}</p>
           ) : (
             <>
+              {!editingId ? (
+                <LiveSimRecommendationsPanel
+                  onApplyPatch={(patch: LiveSimDraftPatch) => {
+                    setDraft((d) => ({
+                      ...d,
+                      modelId: patch.modelId ?? d.modelId,
+                      marketsKr: patch.marketsKr ?? d.marketsKr,
+                      marketsUs: patch.marketsUs ?? d.marketsUs,
+                      minScoreRatio: patch.minScoreRatio ?? d.minScoreRatio,
+                      maxOpenPositions:
+                        patch.maxOpenPositions != null
+                          ? String(patch.maxOpenPositions)
+                          : d.maxOpenPositions,
+                      orderAmountKrw: patch.orderAmountKrw ?? d.orderAmountKrw,
+                      orderAmountUsd: patch.orderAmountUsd ?? d.orderAmountUsd,
+                      simAutoBuy: patch.simAutoBuy ?? d.simAutoBuy,
+                      autoSellAtTarget:
+                        patch.autoSellAtTarget ?? d.autoSellAtTarget,
+                    }));
+                    setMsg(ko.app.liveTradeSimRecApply);
+                  }}
+                />
+              ) : null}
+
               <label className="live-trading-tab__field">
                 <span>{ko.app.liveTradeFieldName}</span>
                 <input
@@ -453,11 +515,12 @@ export default function LiveTradingTab({
                   className="input"
                   min={1}
                   max={50}
+                  inputMode="numeric"
                   value={draft.maxOpenPositions}
                   onChange={(e) =>
                     setDraft((d) => ({
                       ...d,
-                      maxOpenPositions: Number(e.target.value) || 1,
+                      maxOpenPositions: e.target.value,
                     }))
                   }
                 />
@@ -499,36 +562,7 @@ export default function LiveTradingTab({
                 />
                 <span>{ko.app.liveTradeFieldAutoSell}</span>
               </label>
-
-              <label className="live-trading-tab__field">
-                <span>{ko.app.liveTradeFieldTakeProfit}</span>
-                <input
-                  type="number"
-                  className="input"
-                  min={0.5}
-                  max={100}
-                  step={0.5}
-                  value={draft.takeProfitPct}
-                  onChange={(e) =>
-                    setDraft((d) => ({ ...d, takeProfitPct: e.target.value }))
-                  }
-                />
-              </label>
-
-              <label className="live-trading-tab__field">
-                <span>{ko.app.liveTradeFieldStopLoss}</span>
-                <input
-                  type="number"
-                  className="input"
-                  max={-0.5}
-                  step={0.5}
-                  placeholder="-3"
-                  value={draft.stopLossPct}
-                  onChange={(e) =>
-                    setDraft((d) => ({ ...d, stopLossPct: e.target.value }))
-                  }
-                />
-              </label>
+              <p className="live-trading-tab__hint">{ko.app.liveTradeAutoExitHint}</p>
 
               <label className="live-trading-tab__field">
                 <span>{ko.app.liveTradeFieldAmountUsd}</span>
@@ -594,6 +628,14 @@ export default function LiveTradingTab({
             <ul className="live-trading-tab__programs">
               {programs.map((p) => {
                 const model = modelById.get(p.modelId);
+                const ret = status?.programReturns?.[p.id];
+                const returnPct = ret?.totalReturnPct;
+                const returnClass =
+                  returnPct == null
+                    ? "live-trading-tab__program-return-val"
+                    : returnPct >= 0
+                      ? "live-trading-tab__program-return-val live-trading-tab__program-return-val--up"
+                      : "live-trading-tab__program-return-val live-trading-tab__program-return-val--down";
                 return (
                   <li
                     key={p.id}
@@ -622,6 +664,12 @@ export default function LiveTradingTab({
                       {p.markets.us
                         ? ` · ${ko.app.liveTradeFieldAmountUsd}: ${formatMoney(p.orderAmountUsd, "usd")}`
                         : ""}
+                    </p>
+                    <p className="live-trading-tab__program-meta live-trading-tab__program-return">
+                      {ko.app.liveTradeCurrentReturn}:{" "}
+                      <span className={returnClass}>
+                        {formatPercent(returnPct ?? undefined)}
+                      </span>
                     </p>
                     {p.lastError ? (
                       <p className="live-trading-tab__program-err">{p.lastError}</p>
