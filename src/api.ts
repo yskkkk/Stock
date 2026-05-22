@@ -1056,6 +1056,8 @@ export interface LiveTradeRecord {
   simulated: boolean;
   orderId: string | null;
   note: string | null;
+  /** 매도 체결 시점 평균 매입 단가 */
+  entryPrice?: number | null;
   atMs: number;
 }
 

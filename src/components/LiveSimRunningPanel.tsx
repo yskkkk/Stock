@@ -20,6 +20,7 @@ import {
   unrealizedPnlTone,
 } from "../lib/livePortfolioPnl";
 import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
+import { buySellPricesByTradeId } from "../lib/liveTradeBuySellPrices";
 import { showProgramRunError } from "../lib/liveProgramDisplay";
 import { ko } from "../i18n/ko";
 import LiveSimFeedbackBlock from "./LiveSimFeedbackBlock";
@@ -94,6 +95,10 @@ function SimProgramCard({
   const pnlUp = sum.unrealizedUp === true;
   const pnlDown = sum.unrealizedUp === false;
   const recentTrades = trades.slice(0, 12);
+  const tradeBuySell = useMemo(
+    () => buySellPricesByTradeId(trades),
+    [trades],
+  );
 
   const toggleExpanded = () => setExpanded((v) => !v);
 
@@ -370,12 +375,15 @@ function SimProgramCard({
                 <th>{ko.app.liveTradePfColTime}</th>
                 <th>{ko.app.liveTradePfColSide}</th>
                 <th>{ko.app.liveTradePfColSymbol}</th>
-                <th>{ko.app.liveTradePfColPrice}</th>
+                <th>{ko.app.liveTradePfColBuyPrice}</th>
+                <th>{ko.app.liveTradePfColSellPrice}</th>
                 <th>{ko.app.liveTradePfColAmount}</th>
               </tr>
             </thead>
             <tbody>
-              {recentTrades.map((t) => (
+              {recentTrades.map((t) => {
+                const bp = tradeBuySell.get(t.id);
+                return (
                 <tr
                   key={t.id}
                   className={
@@ -393,14 +401,28 @@ function SimProgramCard({
                       : ko.app.liveTradeSideSell}
                   </td>
                   <td data-label={ko.app.liveTradePfColSymbol}>{t.symbol}</td>
-                  <td className="live-sim-run__num" data-label={ko.app.liveTradePfColPrice}>
-                    {formatPrice(t.price, t.currency)}
+                  <td
+                    className="live-sim-run__num"
+                    data-label={ko.app.liveTradePfColBuyPrice}
+                  >
+                    {bp?.buyPrice != null
+                      ? formatPrice(bp.buyPrice, t.currency)
+                      : "—"}
+                  </td>
+                  <td
+                    className="live-sim-run__num"
+                    data-label={ko.app.liveTradePfColSellPrice}
+                  >
+                    {bp?.sellPrice != null
+                      ? formatPrice(bp.sellPrice, t.currency)
+                      : "—"}
                   </td>
                   <td className="live-sim-run__num" data-label={ko.app.liveTradePfColAmount}>
                     {formatPrice(t.amount, t.currency)}
                   </td>
                 </tr>
-              ))}
+              );
+              })}
             </tbody>
           </table>
         </div>

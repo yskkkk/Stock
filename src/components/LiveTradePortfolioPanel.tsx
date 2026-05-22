@@ -27,6 +27,7 @@ import {
   summarizeHoldingsPnl,
   unrealizedPnlTone,
 } from "../lib/livePortfolioPnl";
+import { buySellPricesByTradeId } from "../lib/liveTradeBuySellPrices";
 import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
 import { ko } from "../i18n/ko";
 import {
@@ -374,6 +375,11 @@ export default function LiveTradePortfolioPanel({
     [programs],
   );
 
+  const tradeBuySell = useMemo(
+    () => buySellPricesByTradeId(data?.trades ?? []),
+    [data?.trades],
+  );
+
   return (
     <>
       <LiveTradeSimPanel
@@ -515,13 +521,16 @@ export default function LiveTradePortfolioPanel({
                       <th>{ko.app.liveTradePfColSide}</th>
                       <th>{ko.app.liveTradePfColSymbol}</th>
                       <th>{ko.app.liveTradePfColQty}</th>
-                      <th>{ko.app.liveTradePfColPrice}</th>
+                      <th>{ko.app.liveTradePfColBuyPrice}</th>
+                      <th>{ko.app.liveTradePfColSellPrice}</th>
                       <th>{ko.app.liveTradePfColAmount}</th>
                       <th>{ko.app.liveTradePfColProgram}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {data.trades.map((t) => (
+                    {data.trades.map((t) => {
+                      const bp = tradeBuySell.get(t.id);
+                      return (
                       <tr
                         key={t.id}
                         className={
@@ -554,8 +563,21 @@ export default function LiveTradePortfolioPanel({
                         <td className="live-portfolio__num" data-label={ko.app.liveTradePfColQty}>
                           {t.quantity}
                         </td>
-                        <td className="live-portfolio__num" data-label={ko.app.liveTradePfColPrice}>
-                          {formatPrice(t.price, t.currency)}
+                        <td
+                          className="live-portfolio__num"
+                          data-label={ko.app.liveTradePfColBuyPrice}
+                        >
+                          {bp?.buyPrice != null
+                            ? formatPrice(bp.buyPrice, t.currency)
+                            : "—"}
+                        </td>
+                        <td
+                          className="live-portfolio__num"
+                          data-label={ko.app.liveTradePfColSellPrice}
+                        >
+                          {bp?.sellPrice != null
+                            ? formatPrice(bp.sellPrice, t.currency)
+                            : "—"}
                         </td>
                         <td className="live-portfolio__num" data-label={ko.app.liveTradePfColAmount}>
                           {formatPrice(t.amount, t.currency)}
@@ -572,7 +594,8 @@ export default function LiveTradePortfolioPanel({
                           ) : null}
                         </td>
                       </tr>
-                    ))}
+                    );
+                    })}
                   </tbody>
                 </table>
               </div>

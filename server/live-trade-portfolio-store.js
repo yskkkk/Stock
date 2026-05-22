@@ -43,6 +43,7 @@ const ONE_WAY_FEE_RATE = ROUND_TRIP_FEE_RATE / 2;
  *   entryKind: string;
  *   buyScore: number | null;
  *   buySignalIds: string[];
+ *   entryPrice: number | null;
  *   atMs: number;
  * }} LiveTradeRecord
  */
@@ -156,6 +157,12 @@ function normalizeTrade(raw) {
     buySignalIds: Array.isArray(o.buySignalIds)
       ? o.buySignalIds.map((x) => String(x ?? "").trim()).filter(Boolean)
       : [],
+    entryPrice:
+      typeof o.entryPrice === "number" &&
+      Number.isFinite(o.entryPrice) &&
+      o.entryPrice > 0
+        ? o.entryPrice
+        : null,
     atMs:
       typeof o.atMs === "number" && Number.isFinite(o.atMs) && o.atMs > 0
         ? o.atMs
@@ -419,6 +426,8 @@ export function recordLiveTradeSellSync(input) {
   if (market === "kr") quantity = Math.floor(quantity);
   if (quantity <= 0) throw new Error("매도 수량이 올바르지 않습니다.");
 
+  const avgEntry = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+
   const trade = normalizeTrade({
     id: randomUUID(),
     programId,
@@ -429,6 +438,7 @@ export function recordLiveTradeSellSync(input) {
     quantity,
     price,
     amount: quantity * price,
+    entryPrice: avgEntry > 0 ? avgEntry : null,
     note: input.note ?? null,
     simulated: Boolean(input.simulated),
     atMs: tradeAtMs,

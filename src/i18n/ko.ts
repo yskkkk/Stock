@@ -83,6 +83,7 @@ export const ko = {
     liveTradePfColTime: "시각",
     liveTradePfColSide: "구분",
     liveTradePfColPrice: "단가",
+    liveTradePfColSellPrice: "판매가",
     liveTradePfColAmount: "금액",
     liveTradeSideBuy: "매수",
     liveTradeSideSell: "매도",
