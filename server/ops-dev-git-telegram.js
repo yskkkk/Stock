@@ -33,7 +33,7 @@ export function notifyOpsDevGitReflection(opts) {
   const detail = String(opts.detail ?? "").trim();
   scheduleOpsDevCompletionTelegram({
     title: String(opts.title ?? "").trim() || "개발 완료",
-    userRequest: opts.userRequest ?? detail || "(자동 반영)",
+    userRequest: (opts.userRequest ?? detail) || "(자동 반영)",
     agentResponse: opts.agentResponse,
     gitSummary: opts.gitSummary,
     state: opts.state,
