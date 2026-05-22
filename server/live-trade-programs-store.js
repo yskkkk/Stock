@@ -20,7 +20,7 @@ const PROGRAMS_FILE = path.join(DATA_DIR, "live-trade-programs.json");
  *   id: string;
  *   name: string;
  *   modelId: string;
- *   markets: { kr: boolean; us: boolean };
+ *   markets: { kr: boolean; us: boolean; crypto: boolean };
  *   minScoreRatio: number;
  *   maxOpenPositions: number;
  *   orderAmountKrw: number | null;
@@ -95,6 +95,7 @@ function normalizeProgram(raw) {
     markets: {
       kr: Boolean(mr.kr),
       us: Boolean(mr.us),
+      crypto: Boolean(mr.crypto),
     },
     minScoreRatio: clampNum(o.minScoreRatio, 0.5, 1, 0.85),
     maxOpenPositions: Math.floor(clampNum(o.maxOpenPositions, 1, 50, 5)),
@@ -145,8 +146,10 @@ function validateProgramPatch(patch) {
   if (!getTechModelByIdSync(modelId)) {
     throw new Error("선택한 모델을 찾을 수 없습니다. 추천 목록에서 모델을 먼저 만드세요.");
   }
-  const mk = patch.markets ?? { kr: true, us: false };
-  if (!mk.kr && !mk.us) throw new Error("국내 또는 미국 시장을 하나 이상 선택하세요.");
+  const mk = patch.markets ?? { kr: true, us: false, crypto: false };
+  if (!mk.kr && !mk.us && !mk.crypto) {
+    throw new Error("국내·미국·코인 시장 중 하나 이상 선택하세요.");
+  }
   const name = String(patch.name ?? "").trim();
   if (!name) throw new Error("프로그램 이름이 필요합니다.");
 }
@@ -210,8 +213,12 @@ export function createLiveTradeProgramSync(input) {
     name: input.name,
     modelId: input.modelId,
     markets: {
-      kr: input.markets?.kr !== false,
+      kr:
+        input.markets == null || input.markets.kr === undefined
+          ? true
+          : Boolean(input.markets.kr),
       us: Boolean(input.markets?.us),
+      crypto: Boolean(input.markets?.crypto),
     },
     minScoreRatio: input.minScoreRatio,
     maxOpenPositions: input.maxOpenPositions,

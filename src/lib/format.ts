@@ -1,3 +1,22 @@
+import type { LiveTradeMarket } from "../types";
+
+/** 실매매·시뮬 수량 — 코인은 소수 허용 */
+export function formatLiveTradeQuantity(
+  value: number,
+  market?: LiveTradeMarket,
+): string {
+  if (!Number.isFinite(value)) return "—";
+  if (market === "crypto") {
+    const abs = Math.abs(value);
+    const digits = abs >= 1 ? 4 : abs >= 0.01 ? 6 : 8;
+    return value.toLocaleString("ko-KR", {
+      maximumFractionDigits: digits,
+      minimumFractionDigits: 0,
+    });
+  }
+  return value.toLocaleString("ko-KR", { maximumFractionDigits: 0 });
+}
+
 export function formatPrice(value: number | undefined, currency?: string) {
   if (value == null) return "—";
   if (currency === "KRW") {

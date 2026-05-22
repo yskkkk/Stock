@@ -8,6 +8,7 @@ import {
 } from "./live-trade-programs-store.js";
 import { recordLiveTradeBuyAsync } from "./live-trade-portfolio-store.js";
 import { resolveLiveTradeQuote } from "./live-trade-quote.js";
+import { normalizeLiveTradeMarket, programAllowsMarket } from "./live-trade-market.js";
 import {
   executeLiveBuyOrder,
   pickMeetsProgramThreshold,
@@ -40,9 +41,8 @@ function shouldSkipDuplicate(programId, symbol) {
  * @param {object} pick
  */
 async function simBuyForProgram(program, pick) {
-  const market = pick.market === "us" ? "us" : "kr";
-  if (market === "kr" && !program.markets.kr) return;
-  if (market === "us" && !program.markets.us) return;
+  const market = normalizeLiveTradeMarket(pick.market, pick.symbol);
+  if (!programAllowsMarket(program, market)) return;
   if (!pickMeetsProgramThreshold(program, pick)) return;
   if (program.simAutoBuy === false) return;
 
@@ -81,9 +81,9 @@ async function simBuyForProgram(program, pick) {
  * @param {object} pick
  */
 async function liveBuyForProgram(program, pick) {
-  const market = pick.market === "us" ? "us" : "kr";
-  if (market === "kr" && !program.markets.kr) return;
-  if (market === "us" && !program.markets.us) return;
+  const market = normalizeLiveTradeMarket(pick.market, pick.symbol);
+  if (!programAllowsMarket(program, market)) return;
+  if (market === "crypto") return;
   if (!pickMeetsProgramThreshold(program, pick)) return;
 
   const sym = String(pick.symbol ?? "").trim();

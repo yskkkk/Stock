@@ -9,6 +9,7 @@ import {
 } from "./live-trade-sell-target.js";
 import { analyzeTechnicals } from "./technical.js";
 import { analyzeTradeStructure } from "./trade-structure-analysis.js";
+import { normalizeLiveTradeMarket } from "./live-trade-market.js";
 
 const MIN_STOP_NET_PCT = -15;
 const MAX_STOP_NET_PCT = -1.2;
@@ -96,7 +97,7 @@ function highNDays(candles, days = 60) {
  */
 function roundExitPrice(price, market) {
   if (!Number.isFinite(price) || price <= 0) return null;
-  if (market === "kr") return Math.max(1, Math.round(price));
+  if (market === "kr" || market === "crypto") return Math.max(1, Math.round(price));
   return Math.round(price * 100) / 100;
 }
 
@@ -496,7 +497,7 @@ function finalizeScenario(entry, market, stopNet, tpNet, noteParts, meta = {}) {
  */
 export async function resolveLiveTradeExitTargets(symbol, entryPrice, ctx = {}) {
   const sym = String(symbol ?? "").trim().toUpperCase();
-  const market = ctx.market === "us" ? "us" : "kr";
+  const market = normalizeLiveTradeMarket(ctx.market, sym);
   try {
     const data = await loadStock(sym, "1d");
     const candles =

@@ -2,6 +2,7 @@
  * 토스증권 Open API 어댑터 — 키 등록 시 실매매 러너에서 호출.
  * 공식 스펙 반영 전까지는 연결 검증·주문 스텁.
  */
+import { normalizeLiveTradeMarket, programAllowsMarket } from "./live-trade-market.js";
 import {
   getMaxTechScore,
   meetsTelegramNotifyScore,
@@ -75,9 +76,15 @@ export async function executeLiveBuyOrder(program, pick) {
   }
 
   const symbol = String(pick.symbol ?? "").trim();
-  const market = pick.market === "us" ? "us" : "kr";
-  if (market === "kr" && !program.markets.kr) {
-    return { ok: false, error: "국내 시장이 비활성화된 프로그램입니다." };
+  const market = normalizeLiveTradeMarket(pick.market, symbol);
+  if (market === "crypto") {
+    return {
+      ok: false,
+      error: "코인은 토스 실주문을 지원하지 않습니다. 시뮬레이션을 이용하세요.",
+    };
+  }
+  if (!programAllowsMarket(program, market)) {
+    return { ok: false, error: "이 프로그램에서 허용하지 않는 시장입니다." };
   }
   if (market === "us" && !program.markets.us) {
     return { ok: false, error: "미국 시장은 토스 연동 준비 후 지원 예정입니다." };

@@ -1,13 +1,23 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSymbolLiveQuotes } from "../hooks/useSymbolLiveQuotes";
-import { mergeQuotesIntoStockSearchRows } from "../lib/stockSearchLiveQuotes";
 import {
   fetchStockSearch,
   simulateLiveTradeBuy,
   type LiveTradeProgram,
   type LiveTradeSimQuote,
 } from "../api";
-import type { StockSearchQuoteRow } from "../types";
+import type { LiveTradeMarket } from "../types";
+
+/** 실거래 시뮬 검색 행 (주식 + 코인) */
+export type LiveTradeSearchRow = {
+  symbol: string;
+  name: string;
+  market: LiveTradeMarket;
+  nameKo?: string | null;
+  price?: number;
+  changePercent?: number;
+  currency?: string;
+};
 import { formatPercent, formatPrice } from "../lib/format";
 import { ko } from "../i18n/ko";
 
@@ -32,8 +42,10 @@ function fillLabel(quote: LiveTradeSimQuote, currency: string): string {
     .replace("{time}", formatTs(quote.atMs));
 }
 
-function quoteCurrency(row: StockSearchQuoteRow): string {
-  return row.currency ?? (row.market === "kr" ? "KRW" : "USD");
+function quoteCurrency(row: LiveTradeSearchRow): string {
+  if (row.currency) return row.currency;
+  if (row.market === "us") return "USD";
+  return "KRW";
 }
 
 export default function LiveTradeSimPanel({
@@ -48,10 +60,10 @@ export default function LiveTradeSimPanel({
   const [programId, setProgramId] = useState(
     () => defaultProgramId ?? programs[0]?.id ?? "",
   );
-  const [market, setMarket] = useState<"kr" | "us">("kr");
+  const [market, setMarket] = useState<LiveTradeMarket>("kr");
   const [q, setQ] = useState("");
-  const [hits, setHits] = useState<StockSearchQuoteRow[]>([]);
-  const [selected, setSelected] = useState<StockSearchQuoteRow | null>(null);
+  const [hits, setHits] = useState<LiveTradeSearchRow[]>([]);
+  const [selected, setSelected] = useState<LiveTradeSearchRow | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -69,7 +81,7 @@ export default function LiveTradeSimPanel({
     }
     const t = window.setTimeout(() => {
       void fetchStockSearch(term, market)
-        .then((res) => setHits(res.quotes.slice(0, 8)))
+        .then((res) => setHits(res.quotes.slice(0, 8) as LiveTradeSearchRow[]))
         .catch(() => setHits([]));
     }, 280);
     return () => window.clearTimeout(t);
@@ -84,16 +96,29 @@ export default function LiveTradeSimPanel({
 
   const liveQuotes = useSymbolLiveQuotes(quoteSymbols, quoteSymbols.length > 0);
 
-  const displayHits = useMemo(
-    () => mergeQuotesIntoStockSearchRows(hits, liveQuotes),
-    [hits, liveQuotes],
+  const enrichRow = useCallback(
+    (row: LiveTradeSearchRow): LiveTradeSearchRow => {
+      const q = liveQuotes[row.symbol];
+      if (q?.price == null || !Number.isFinite(q.price)) return row;
+      return {
+        ...row,
+        price: q.price,
+        changePercent: q.changePercent ?? row.changePercent,
+        currency: q.currency ?? row.currency,
+      };
+    },
+    [liveQuotes],
   );
 
-  const displaySelected = useMemo(() => {
-    if (!selected) return null;
-    const [one] = mergeQuotesIntoStockSearchRows([selected], liveQuotes);
-    return one ?? selected;
-  }, [selected, liveQuotes]);
+  const displayHits = useMemo(
+    () => hits.map(enrichRow),
+    [hits, enrichRow],
+  );
+
+  const displaySelected = useMemo(
+    () => (selected ? enrichRow(selected) : null),
+    [selected, enrichRow],
+  );
 
   const onBuy = useCallback(() => {
     if (!programId) {
@@ -114,7 +139,7 @@ export default function LiveTradeSimPanel({
       name: selected.nameKo ?? selected.name,
     })
       .then((res) => {
-        const cur = selected.market === "kr" ? "KRW" : "USD";
+        const cur = quoteCurrency(selected);
         setMsg(fillLabel(res.quote, cur));
         onTraded();
       })
@@ -122,7 +147,33 @@ export default function LiveTradeSimPanel({
       .finally(() => setBusy(false));
   }, [programId, selected, onTraded]);
 
+  const eligiblePrograms = useMemo(
+    () =>
+      programs.filter((p) =>
+        market === "crypto"
+          ? p.markets.crypto
+          : market === "us"
+            ? p.markets.us
+            : p.markets.kr,
+      ),
+    [programs, market],
+  );
+
+  useEffect(() => {
+    if (!eligiblePrograms.some((p) => p.id === programId)) {
+      setProgramId(eligiblePrograms[0]?.id ?? "");
+    }
+  }, [eligiblePrograms, programId]);
+
   if (!programs.length) return null;
+
+  if (!eligiblePrograms.length) {
+    return (
+      <section className="live-sim card" aria-label={ko.app.liveTradeSimTitle}>
+        <p className="live-sim__note">{ko.app.liveTradeCryptoSimNote}</p>
+      </section>
+    );
+  }
 
   const selectedCur = displaySelected ? quoteCurrency(displaySelected) : null;
   const selectedChg = displaySelected?.changePercent;
@@ -146,7 +197,7 @@ export default function LiveTradeSimPanel({
               value={programId}
               onChange={(e) => setProgramId(e.target.value)}
             >
-              {programs.map((p) => (
+              {eligiblePrograms.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                 </option>
@@ -190,6 +241,21 @@ export default function LiveTradeSimPanel({
                 }}
               >
                 {ko.app.liveTradeMarketUs}
+              </button>
+              <button
+                type="button"
+                className={
+                  market === "crypto"
+                    ? "live-sim__segment-btn live-sim__segment-btn--on"
+                    : "live-sim__segment-btn"
+                }
+                aria-pressed={market === "crypto"}
+                onClick={() => {
+                  setMarket("crypto");
+                  setSelected(null);
+                }}
+              >
+                {ko.app.liveTradeMarketCrypto}
               </button>
             </div>
           </div>

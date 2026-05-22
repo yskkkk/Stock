@@ -81,6 +81,7 @@ const emptyDraft = () => ({
   modelId: "",
   marketsKr: true,
   marketsUs: false,
+  marketsCrypto: false,
   minScoreRatio: 0.85,
   maxOpenPositions: "5",
   orderAmountKrw: "100000",
@@ -177,6 +178,7 @@ export default function LiveTradingTab({
       modelId: p.modelId,
       marketsKr: p.markets.kr,
       marketsUs: p.markets.us,
+      marketsCrypto: p.markets.crypto,
       minScoreRatio: p.minScoreRatio,
       maxOpenPositions: String(p.maxOpenPositions),
       orderAmountKrw:
@@ -197,7 +199,11 @@ export default function LiveTradingTab({
     return {
       name: draft.name.trim(),
       modelId: draft.modelId,
-      markets: { kr: draft.marketsKr, us: draft.marketsUs },
+      markets: {
+        kr: draft.marketsKr,
+        us: draft.marketsUs,
+        crypto: draft.marketsCrypto,
+      },
       minScoreRatio: draft.minScoreRatio,
       maxOpenPositions,
       orderAmountKrw: orderKrw ? Number(orderKrw) : null,
@@ -212,6 +218,21 @@ export default function LiveTradingTab({
     setMsg(null);
     if (parseMaxOpenPositionsInput(draft.maxOpenPositions) == null) {
       setErr(ko.app.liveTradeFieldMaxPosInvalid);
+      return;
+    }
+    if (!draft.marketsKr && !draft.marketsUs && !draft.marketsCrypto) {
+      setErr(ko.app.liveTradeFieldMarketsRequired);
+      return;
+    }
+    if (
+      (draft.marketsKr || draft.marketsCrypto) &&
+      !draft.orderAmountKrw.trim()
+    ) {
+      setErr(ko.app.liveTradeFieldAmountKrw);
+      return;
+    }
+    if (draft.marketsUs && !draft.orderAmountUsd.trim()) {
+      setErr(ko.app.liveTradeFieldAmountUsd);
       return;
     }
     setBusy(true);
@@ -424,6 +445,7 @@ export default function LiveTradingTab({
                       modelId: patch.modelId ?? d.modelId,
                       marketsKr: patch.marketsKr ?? d.marketsKr,
                       marketsUs: patch.marketsUs ?? d.marketsUs,
+                      marketsCrypto: patch.marketsCrypto ?? d.marketsCrypto,
                       minScoreRatio: patch.minScoreRatio ?? d.minScoreRatio,
                       maxOpenPositions:
                         patch.maxOpenPositions != null
@@ -512,7 +534,29 @@ export default function LiveTradingTab({
                     >
                       {ko.app.liveTradeMarketUs}
                     </button>
+                    <button
+                      type="button"
+                      className={
+                        draft.marketsCrypto
+                          ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
+                          : "live-trading-tab__segment-btn"
+                      }
+                      aria-pressed={draft.marketsCrypto}
+                      onClick={() =>
+                        setDraft((d) => ({
+                          ...d,
+                          marketsCrypto: !d.marketsCrypto,
+                        }))
+                      }
+                    >
+                      {ko.app.liveTradeMarketCrypto}
+                    </button>
                   </div>
+                  {draft.marketsCrypto ? (
+                    <p className="live-trading-tab__hint live-trading-tab__hint--inline">
+                      {ko.app.liveTradeCryptoSimNote}
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="live-trading-tab__field live-trading-tab__field--range">
@@ -561,7 +605,7 @@ export default function LiveTradingTab({
                 </label>
 
                 <label
-                  className={`live-trading-tab__field${!draft.marketsKr ? " live-trading-tab__field--off" : ""}`}
+                  className={`live-trading-tab__field${!draft.marketsKr && !draft.marketsCrypto ? " live-trading-tab__field--off" : ""}`}
                 >
                   <span className="live-trading-tab__label">
                     {ko.app.liveTradeFieldAmountKrw}
@@ -575,7 +619,7 @@ export default function LiveTradingTab({
                     onChange={(e) =>
                       setDraft((d) => ({ ...d, orderAmountKrw: e.target.value }))
                     }
-                    disabled={!draft.marketsKr}
+                    disabled={!draft.marketsKr && !draft.marketsCrypto}
                   />
                 </label>
 
@@ -729,14 +773,18 @@ export default function LiveTradingTab({
                       {ko.app.liveTradeFieldModel}: {model?.name ?? p.modelId}
                     </p>
                     <p className="live-trading-tab__program-meta">
-                      {p.markets.kr ? ko.app.liveTradeMarketKr : ""}
-                      {p.markets.kr && p.markets.us ? " · " : ""}
-                      {p.markets.us ? ko.app.liveTradeMarketUs : ""}
+                      {[
+                        p.markets.kr ? ko.app.liveTradeMarketKr : "",
+                        p.markets.us ? ko.app.liveTradeMarketUs : "",
+                        p.markets.crypto ? ko.app.liveTradeMarketCrypto : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                       {" · "}
                       {ko.app.liveTradeMinScoreShort}: {Math.round(p.minScoreRatio * 100)}%
                     </p>
                     <p className="live-trading-tab__program-meta">
-                      {p.markets.kr
+                      {p.markets.kr || p.markets.crypto
                         ? `${ko.app.liveTradeFieldAmountKrw}: ${formatMoney(p.orderAmountKrw, "krw")}`
                         : ""}
                       {p.markets.us

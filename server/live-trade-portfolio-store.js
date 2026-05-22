@@ -11,6 +11,14 @@ import { resolveLiveTradeQuote } from "./live-trade-quote.js";
 import { resolveLiveTradeExitTargets } from "./live-trade-exit-scenario.js";
 import { ROUND_TRIP_FEE_RATE } from "./net-return.js";
 import { getLiveTradeProgramSync } from "./live-trade-programs-store.js";
+import {
+  liveTradeCurrency,
+  normalizeLiveTradeMarket,
+  normalizeSellQuantity,
+  orderAmountForMarket,
+  programAllowsMarket,
+  quantityFromOrderAmount,
+} from "./live-trade-market.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, ".data");
@@ -26,7 +34,7 @@ const ONE_WAY_FEE_RATE = ROUND_TRIP_FEE_RATE / 2;
  *   side: "buy" | "sell";
  *   symbol: string;
  *   name: string;
- *   market: "kr" | "us";
+ *   market: "kr" | "us" | "crypto";
  *   quantity: number;
  *   price: number;
  *   amount: number;
@@ -105,7 +113,7 @@ function normalizeTrade(raw) {
   if (!Number.isFinite(qty) || qty <= 0 || !Number.isFinite(price) || price <= 0) {
     return null;
   }
-  const market = o.market === "us" ? "us" : "kr";
+  const market = normalizeLiveTradeMarket(o.market, symbol);
   const amount =
     Number.isFinite(Number(o.amount)) && Number(o.amount) > 0
       ? Number(o.amount)
@@ -120,7 +128,7 @@ function normalizeTrade(raw) {
     quantity: qty,
     price,
     amount,
-    currency: market === "kr" ? "KRW" : "USD",
+    currency: liveTradeCurrency(market),
     feeAmount:
       Number.isFinite(Number(o.feeAmount)) && Number(o.feeAmount) >= 0
         ? Number(o.feeAmount)
@@ -183,7 +191,7 @@ function buildPositionsFromTrades(trades, programIdFilter) {
    *   programId: string;
    *   symbol: string;
    *   name: string;
-   *   market: "kr" | "us";
+   *   market: "kr" | "us" | "crypto";
    *   quantity: number;
    *   costBasis: number;
    *   feesPaid: number;
@@ -250,9 +258,10 @@ function buildPositionsFromTrades(trades, programIdFilter) {
  */
 export function recordLiveTradeBuySync(program, pick, orderMeta = {}, targets = null) {
   const symbol = String(pick.symbol ?? "").trim().toUpperCase();
-  const market = pick.market === "us" ? "us" : "kr";
+  const market = normalizeLiveTradeMarket(pick.market, symbol);
   const price = Number(pick.price);
   if (!symbol || !Number.isFinite(price) || price <= 0) return null;
+  if (!programAllowsMarket(program, market)) return null;
   const tradeAtMs =
     typeof orderMeta.atMs === "number" &&
     Number.isFinite(orderMeta.atMs) &&
@@ -260,14 +269,11 @@ export function recordLiveTradeBuySync(program, pick, orderMeta = {}, targets = 
       ? orderMeta.atMs
       : Date.now();
 
-  const amount =
-    market === "kr"
-      ? program.orderAmountKrw
-      : program.orderAmountUsd;
+  const amount = orderAmountForMarket(program, market);
   if (amount == null || !Number.isFinite(amount) || amount <= 0) return null;
 
-  let quantity = Math.floor(amount / price);
-  if (market === "kr" && quantity < 1) quantity = 1;
+  let quantity = quantityFromOrderAmount(amount, price, market);
+  if (quantity <= 0) return null;
 
   const store = readStoreSync();
   const { positions } = buildPositionsFromTrades(store.trades, program.id);
@@ -331,7 +337,7 @@ export function recordLiveTradeBuySync(program, pick, orderMeta = {}, targets = 
  */
 export async function recordLiveTradeBuyAsync(program, pick, orderMeta = {}) {
   const symbol = String(pick.symbol ?? "").trim().toUpperCase();
-  const market = pick.market === "us" ? "us" : "kr";
+  const market = normalizeLiveTradeMarket(pick.market, symbol);
   const price = Number(pick.price);
   let targets = null;
   if (program.autoSellAtTarget !== false && symbol && Number.isFinite(price) && price > 0) {
@@ -362,9 +368,12 @@ export async function recordLiveTradeSimBuyAsync(input) {
   const programId = String(input.programId ?? "").trim();
   const program = getLiveTradeProgramSync(programId);
   if (!program) throw new Error("프로그램을 찾을 수 없습니다.");
-  const market = input.market === "us" ? "us" : "kr";
   const symbol = String(input.symbol ?? "").trim().toUpperCase();
+  const market = normalizeLiveTradeMarket(input.market, symbol);
   if (!symbol) throw new Error("종목 코드가 필요합니다.");
+  if (!programAllowsMarket(program, market)) {
+    throw new Error("프로그램에서 허용하지 않는 시장입니다.");
+  }
   const quote = await resolveLiveTradeQuote(symbol);
   const trade = await recordLiveTradeBuyAsync(
     program,
@@ -397,7 +406,7 @@ export async function recordLiveTradeSimBuyAsync(input) {
 export function recordLiveTradeSellSync(input) {
   const programId = String(input.programId ?? "").trim();
   const symbol = String(input.symbol ?? "").trim().toUpperCase();
-  const market = input.market === "us" ? "us" : "kr";
+  const market = normalizeLiveTradeMarket(input.market, symbol);
   const price = Number(input.price);
   if (!programId || !symbol || !Number.isFinite(price) || price <= 0) {
     throw new Error("매도 기록에 필요한 값이 없습니다.");
@@ -423,7 +432,7 @@ export function recordLiveTradeSellSync(input) {
   let quantity = Number(input.quantity);
   if (!Number.isFinite(quantity) || quantity <= 0) quantity = pos.quantity;
   quantity = Math.min(quantity, pos.quantity);
-  if (market === "kr") quantity = Math.floor(quantity);
+  quantity = normalizeSellQuantity(quantity, market);
   if (quantity <= 0) throw new Error("매도 수량이 올바르지 않습니다.");
 
   const avgEntry = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
@@ -676,7 +685,7 @@ export async function buildLiveTradePortfolioSnapshot(opts = {}) {
       exitScenarioNote,
       entryStructureNote,
       entryIdeal,
-      currency: pos.market === "kr" ? "KRW" : "USD",
+      currency: liveTradeCurrency(pos.market),
       openedAtMs: pos.openedAtMs,
       lastAtMs: pos.lastAtMs,
       quoteQuotedAtMs:

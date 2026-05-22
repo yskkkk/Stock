@@ -34,6 +34,7 @@ import {
 import { sumTechScoreWeights } from "./picks-tech-weights-store.js";
 import { clearYahooSession } from "./yahoo.js";
 import { getUsdKrwRate } from "./fx-usd-krw.js";
+import { searchCryptoForLiveTrade } from "./crypto-live-search.js";
 import { searchStocks } from "./stock-search.js";
 import { getMacroEventsCachedAsync } from "./macro-events.js";
 import { fetchSectorEarningsSpotlight } from "./sector-earnings-spotlight.js";
@@ -1574,11 +1575,16 @@ export function createApp() {
       try {
         const q = String(req.query.q ?? "").trim();
         const market = String(req.query.market ?? "kr").toLowerCase();
-        if (market !== "kr" && market !== "us") {
-          res.status(400).json({ error: "market은 kr 또는 us여야 합니다." });
+        if (market !== "kr" && market !== "us" && market !== "crypto") {
+          res.status(400).json({
+            error: "market은 kr, us, crypto 중 하나여야 합니다.",
+          });
           return;
         }
-        const data = await searchStocks(q, market);
+        const data =
+          market === "crypto"
+            ? await searchCryptoForLiveTrade(q)
+            : await searchStocks(q, market);
         res.json(data);
       } catch (err) {
         const message = err instanceof Error ? err.message : "요청 실패";

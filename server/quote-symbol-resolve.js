@@ -33,6 +33,14 @@ export function pickQuoteFromMap(quotes, symbol, market) {
   const raw = String(symbol ?? "").trim().toUpperCase();
   if (!raw) return null;
 
+  if (market === "crypto") {
+    const direct = quotes[raw];
+    if (direct?.price != null && Number.isFinite(direct.price) && direct.price > 0) {
+      return direct;
+    }
+    return null;
+  }
+
   const direct = quotes[raw];
   if (direct?.price != null && Number.isFinite(direct.price) && direct.price > 0) {
     return direct;

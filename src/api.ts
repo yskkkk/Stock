@@ -772,7 +772,7 @@ export interface LiveTradeProgram {
   id: string;
   name: string;
   modelId: string;
-  markets: { kr: boolean; us: boolean };
+  markets: { kr: boolean; us: boolean; crypto: boolean };
   minScoreRatio: number;
   maxOpenPositions: number;
   orderAmountKrw: number | null;
@@ -847,7 +847,7 @@ export interface LiveSimFeedbackResponse {
     simAutoBuy: boolean;
     autoSellAtTarget: boolean;
     modelId: string;
-    markets: { kr?: boolean; us?: boolean };
+    markets: { kr?: boolean; us?: boolean; crypto?: boolean };
     orderAmountKrw: number | null;
     orderAmountUsd: number | null;
   }>;
@@ -882,7 +882,7 @@ export interface LiveSimRecommendationItem {
     modelId: string;
     minScoreRatio: number;
     maxOpenPositions: number;
-    markets: { kr?: boolean; us?: boolean };
+    markets: { kr?: boolean; us?: boolean; crypto?: boolean };
     simAutoBuy: boolean;
     autoSellAtTarget: boolean;
     orderAmountKrw: number | null;
@@ -911,7 +911,7 @@ export function fetchLiveSimRecommendations() {
 export function createLiveTradeProgram(body: {
   name: string;
   modelId: string;
-  markets?: { kr?: boolean; us?: boolean };
+  markets?: { kr?: boolean; us?: boolean; crypto?: boolean };
   minScoreRatio?: number;
   maxOpenPositions?: number;
   orderAmountKrw?: number | null;
@@ -937,7 +937,7 @@ export function updateLiveTradeProgram(
   body: Partial<{
     name: string;
     modelId: string;
-    markets: { kr?: boolean; us?: boolean };
+    markets: { kr?: boolean; us?: boolean; crypto?: boolean };
     minScoreRatio: number;
     maxOpenPositions: number;
     orderAmountKrw: number | null;
@@ -1018,7 +1018,7 @@ export interface LiveTradeHolding {
   programName?: string;
   symbol: string;
   name: string;
-  market: "kr" | "us";
+  market: "kr" | "us" | "crypto";
   quantity: number;
   avgEntryPrice: number;
   costBasis: number;
@@ -1047,7 +1047,7 @@ export interface LiveTradeRecord {
   side: "buy" | "sell";
   symbol: string;
   name: string;
-  market: "kr" | "us";
+  market: "kr" | "us" | "crypto";
   quantity: number;
   price: number;
   amount: number;
@@ -1090,7 +1090,7 @@ export function fetchLiveTradingPortfolio(programId?: string | null) {
 export function recordLiveTradeSell(body: {
   programId: string;
   symbol: string;
-  market?: "kr" | "us";
+  market?: "kr" | "us" | "crypto";
   quantity?: number;
   price: number;
   note?: string;
@@ -1117,7 +1117,7 @@ export interface LiveTradeSimQuote {
 export function simulateLiveTradeBuy(body: {
   programId: string;
   symbol: string;
-  market: "kr" | "us";
+  market: "kr" | "us" | "crypto";
   name?: string;
 }) {
   return fetchJson<{
@@ -1135,7 +1135,7 @@ export function simulateLiveTradeBuy(body: {
 export function simulateLiveTradeSell(body: {
   programId: string;
   symbol: string;
-  market?: "kr" | "us";
+  market?: "kr" | "us" | "crypto";
   quantity?: number;
   note?: string;
 }) {
@@ -1191,7 +1191,7 @@ export function fetchStockTechnical(
 
 export function fetchStockSearch(
   query: string,
-  market: Market,
+  market: Market | "crypto",
   signal?: AbortSignal,
 ) {
   const q = query.trim();

@@ -15,6 +15,7 @@ import {
 } from "../lib/livePortfolioLiveQuotes";
 import LiveTradeSimPanel from "./LiveTradeSimPanel";
 import {
+  formatLiveTradeQuantity,
   formatPercent,
   formatPrice,
   formatSignedMoney,
@@ -233,7 +234,7 @@ function HoldingRow({
         />
       </td>
       <td className="live-portfolio__num" data-label={ko.app.liveTradePfColQty}>
-        {row.quantity.toLocaleString("ko-KR")}
+        {formatLiveTradeQuantity(row.quantity, row.market)}
       </td>
       <td className="live-portfolio__num" data-label={ko.app.liveTradePfColBuyPrice}>
         {formatPrice(row.avgEntryPrice, row.currency)}
@@ -614,7 +615,7 @@ export default function LiveTradePortfolioPanel({
                           <span className="live-portfolio__nm">{t.name}</span>
                         </td>
                         <td className="live-portfolio__num" data-label={ko.app.liveTradePfColQty}>
-                          {t.quantity}
+                          {formatLiveTradeQuantity(t.quantity, t.market)}
                         </td>
                         <td
                           className="live-portfolio__num"

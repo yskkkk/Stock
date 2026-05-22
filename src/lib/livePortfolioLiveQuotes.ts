@@ -9,13 +9,14 @@ import { ROUND_TRIP_FEE_RATE } from "./netReturn";
 function pickQuote(
   quotes: PicksDailyHistoryQuotesMap,
   symbol: string,
-  market: "kr" | "us",
+  market: "kr" | "us" | "crypto",
 ) {
   const raw = symbol.trim().toUpperCase();
   const direct = quotes[raw];
   if (direct?.price != null && Number.isFinite(direct.price) && direct.price > 0) {
     return direct;
   }
+  if (market === "crypto") return null;
   const norm =
     market === "kr" && /^\d{6}$/.test(raw) && !/\.(KS|KQ)$/i.test(raw)
       ? `${raw}.KS`

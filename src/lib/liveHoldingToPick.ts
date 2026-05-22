@@ -6,10 +6,11 @@ export function liveHoldingKey(h: { market: string; symbol: string }): string {
 }
 
 export function liveHoldingToStockPick(h: LiveTradeHolding): StockPick {
+  const market = h.market === "crypto" ? "kr" : h.market;
   return {
     symbol: h.symbol,
     name: h.name,
-    market: h.market,
+    market,
     score: 0,
     signals: [],
     price: h.currentPrice ?? undefined,

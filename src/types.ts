@@ -1,6 +1,9 @@
 export type ChartTimeframe = "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
 export type Market = "kr" | "us";
 
+/** 실매매·시뮬 포트폴리오 시장 */
+export type LiveTradeMarket = Market | "crypto";
+
 /** 텔레그램 발송 이력 등 — 코인 알림 확장용 */
 export type TelegramSentMarket = Market | "crypto";
 

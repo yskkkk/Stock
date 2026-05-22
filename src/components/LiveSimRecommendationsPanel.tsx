@@ -10,6 +10,7 @@ export type LiveSimDraftPatch = {
   modelId?: string;
   marketsKr?: boolean;
   marketsUs?: boolean;
+  marketsCrypto?: boolean;
   minScoreRatio?: number;
   maxOpenPositions?: number;
   orderAmountKrw?: string;
@@ -48,6 +49,7 @@ export default function LiveSimRecommendationsPanel({
       modelId: p.modelId,
       marketsKr: p.markets?.kr ?? true,
       marketsUs: p.markets?.us ?? false,
+      marketsCrypto: p.markets?.crypto ?? false,
       minScoreRatio: p.minScoreRatio,
       maxOpenPositions: p.maxOpenPositions,
       orderAmountKrw:

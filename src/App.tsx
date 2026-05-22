@@ -585,6 +585,11 @@ export default function App() {
   }, []);
 
   const handleLiveTradeChart = useCallback((h: LiveTradeHolding) => {
+    if (h.market === "crypto") {
+      setCryptoFocusSymbol(h.symbol);
+      setAppTab("crypto");
+      return;
+    }
     const pick = liveHoldingToStockPick(h);
     skipLookupResetRef.current = true;
     setLookupSeedQuery(pick.symbol);

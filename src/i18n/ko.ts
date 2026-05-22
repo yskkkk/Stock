@@ -120,8 +120,12 @@ export const ko = {
     liveTradeSimTitle: "매수·매도 시뮬레이션",
     liveTradeSimNote: "체결가·시각은 요청 시점 1분봉 시세와 동일합니다.",
     liveTradeFieldMarkets: "시장",
+    liveTradeFieldMarketsRequired: "국내·미국·코인 중 하나 이상 선택하세요.",
     liveTradeMarketKr: "국내",
     liveTradeMarketUs: "미국",
+    liveTradeMarketCrypto: "코인",
+    liveTradeCryptoSimNote:
+      "코인은 시뮬·수동 매매만 지원합니다(토스 실주문·스크리너 자동매수 제외).",
     liveTradeSimSymbol: "종목 검색",
     liveTradeSimSymbolPh: "종목명 또는 코드",
     liveTradeSimBuy: "시뮬 매수",
