@@ -1029,6 +1029,46 @@ export async function sendTelegramMessage(text, replyMarkup, creds) {
 
 
 
+/** @param {object} pick */
+export function buildStockPickTelegramMessage(pick) {
+  return buildMessage(pick);
+}
+
+/**
+ * 주식 추천 알림 1건 즉시 전송 (수동·테스트).
+ * @param {object} pick
+ * @param {{ bypassDedup?: boolean; bypassScore?: boolean; recordSent?: boolean }} [opts]
+ */
+export async function sendStockPickTelegramNow(pick, opts = {}) {
+  if (!isTelegramNotifyEnabled()) return false;
+  const bypassDedup = opts.bypassDedup !== false;
+  const bypassScore = opts.bypassScore !== false;
+  const recordSent = opts.recordSent === true;
+
+  const weights = pick.techModelWeights;
+  if (!bypassScore && !meetsTelegramNotifyScore(pick.score, weights)) {
+    return false;
+  }
+  if (!bypassDedup && !tryReserveNotify(pick)) {
+    return false;
+  }
+
+  const text = buildMessage(pick);
+  const openUrl = buildAppDeepLink(pick);
+  const replyMarkup = openUrl
+    ? { inline_keyboard: [[{ text: "📈 종목 보기", url: openUrl }]] }
+    : undefined;
+  const stockCreds = resolveStockTelegramCreds();
+  const ok = await sendTelegramMessage(text, replyMarkup, stockCreds);
+  if (ok) {
+    if (recordSent) confirmNotifySent(pick);
+    console.log(
+      `[telegram:stock] manual send ${normalizeSymbol(pick.symbol)} score=${pick.score}`,
+    );
+  }
+  return ok;
+}
+
 /** 스캔 중 고득점(임계 초과)이면 텔레그램 알림 — 정규장 여부와 무관 */
 
 export function notifyHighScorePick(pick) {
