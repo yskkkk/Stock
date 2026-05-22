@@ -1,0 +1,144 @@
+/* 진행·상태·짧은 메타 — 단어 중간 줄바꿈 방지(말줄임·가로 스크롤) */
+
+.scan-status--compact,
+.scan-status--bar.scan-status--compact {
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.35rem 0.55rem;
+  min-width: 0;
+}
+
+.scan-status--compact .scan-status__primary,
+.scan-status--bar.scan-status--compact .scan-status__primary {
+  flex-wrap: nowrap;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.scan-status--compact .scan-status__primary::-webkit-scrollbar,
+.scan-status--bar.scan-status--compact .scan-status__primary::-webkit-scrollbar {
+  display: none;
+}
+
+.scan-status--compact .scan-status__secondary,
+.scan-status--bar.scan-status--compact .scan-status__secondary {
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+
+.scan-status__msg,
+.scan-status__eta,
+.scan-status__time,
+.scan-status__next,
+.scan-status__warn.scan-status__fail-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+  word-break: keep-all;
+  overflow-wrap: normal;
+}
+
+.scan-status__msg {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: min(40rem, 70vw);
+}
+
+.top-bar__scan .scan-status--compact {
+  width: 100%;
+  max-width: 100%;
+}
+
+.panel-head__meta {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.live-trading-tab__program-meta,
+.live-trading-tab__program-ts,
+.live-trading-tab__banner,
+.live-portfolio__metric-k,
+.live-portfolio__metric-sub,
+.live-portfolio__metric-line-text,
+.live-sim-run__card-ts,
+.live-sim-run__card-summary,
+.live-sim__note,
+.filter-hint,
+.panel-hint,
+.rec-tracker-filter-hint,
+.macro-card__label,
+.macro-card__countdown,
+.macro-bar__title,
+.chart-toolbar__muted,
+.scan-status--compact .progress-bar {
+  white-space: nowrap;
+}
+
+.live-trading-tab__program-meta,
+.live-portfolio__metric-line-text,
+.live-sim-run__card-summary,
+.panel-hint,
+.rec-tracker-filter-hint,
+.macro-card__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.ops-global-queue-card__field dd,
+.ops-global-queue-card__title-dd,
+.ops-global-queue-stack__heading {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quote-bar__title-line {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.pick-quote__symbol,
+.pick-quote__chg,
+.crypto-pick-ticker {
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .top-bar__scan {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .top-bar__scan::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scan-status--bar.scan-status--compact,
+  .scan-status--compact {
+    flex-wrap: nowrap;
+  }
+
+  .scan-status--bar.scan-status--compact .scan-status__primary,
+  .scan-status--compact .scan-status__primary {
+    flex-wrap: nowrap;
+  }
+
+  .scan-status--bar.scan-status--compact .scan-status__secondary,
+  .scan-status--compact .scan-status__secondary {
+    flex-wrap: nowrap;
+  }
+}
