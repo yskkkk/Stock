@@ -1,6 +1,6 @@
 /**
  * YSTOCK 로고 → PWA·웹·Android·iOS 앱 아이콘 일괄 생성 (Windows System.Drawing)
- * 흰/밝은 배경은 투명 처리해 탭·헤더에 사각 박스가 보이지 않게 함.
+ * 체커보드·흰/회색 매트를 알파 투명으로 제거.
  * Usage: node scripts/gen-pwa-icons.mjs
  */
 import fs from "fs";
@@ -44,6 +44,7 @@ const targets = [
 
 const ps1 = path.join(root, "scripts", "_gen-pwa-icons.ps1");
 const srcEsc = source.replace(/'/g, "''");
+const markOut = path.join(root, "public/branding/ystock-logo-mark.png").replace(/'/g, "''");
 const lines = targets.map(([rel, size]) => {
   const out = path.join(root, rel).replace(/'/g, "''");
   return `Save-Icon ${size} '${out}'`;
@@ -51,6 +52,37 @@ const lines = targets.map(([rel, size]) => {
 
 const psBody = `
 Add-Type -AssemblyName System.Drawing
+
+function Test-LogoGreenPixel([System.Drawing.Color]$c) {
+  if ($c.A -le 12) { return $false }
+  return ($c.G -ge $c.R + 10) -and ($c.G -ge $c.B + 8) -and ($c.G -ge 48)
+}
+
+function Test-MattePixel([System.Drawing.Color]$c) {
+  if ($c.A -le 12) { return $true }
+  if (Test-LogoGreenPixel $c) { return $false }
+  $r = $c.R; $g = $c.G; $b = $c.B
+  $max = [Math]::Max($r, [Math]::Max($g, $b))
+  $min = [Math]::Min($r, [Math]::Min($g, $b))
+  $sat = $max - $min
+  $lum = ($r + $g + $b) / 3.0
+  if ($r -ge 245 -and $g -ge 245 -and $b -ge 245) { return $true }
+  if ($sat -le 32 -and $lum -ge 105) { return $true }
+  return $false
+}
+
+function Clear-MatteBackground([System.Drawing.Bitmap]$bmp) {
+  $w = [int]$bmp.Width
+  $h = [int]$bmp.Height
+  for ($y = 0; $y -lt $h; $y++) {
+    for ($x = 0; $x -lt $w; $x++) {
+      $c = $bmp.GetPixel($x, $y)
+      if (Test-MattePixel $c) {
+        $bmp.SetPixel($x, $y, [System.Drawing.Color]::FromArgb(0, 0, 0, 0))
+      }
+    }
+  }
+}
 
 function New-TransparentLogo([System.Drawing.Image]$src) {
   $bmp = New-Object System.Drawing.Bitmap $src.Width, $src.Height, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
@@ -60,15 +92,7 @@ function New-TransparentLogo([System.Drawing.Image]$src) {
   $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
   $g.DrawImage($src, 0, 0, $src.Width, $src.Height)
   $g.Dispose()
-  $threshold = 235
-  for ($y = 0; $y -lt $bmp.Height; $y++) {
-    for ($x = 0; $x -lt $bmp.Width; $x++) {
-      $c = $bmp.GetPixel($x, $y)
-      if ($c.A -gt 8 -and $c.R -ge $threshold -and $c.G -ge $threshold -and $c.B -ge $threshold) {
-        $bmp.SetPixel($x, $y, [System.Drawing.Color]::FromArgb(0, 0, 0, 0))
-      }
-    }
-  }
+  Clear-MatteBackground $bmp
   return $bmp
 }
 
@@ -77,9 +101,13 @@ $raw = [System.Drawing.Image]::FromFile($srcPath)
 $logo = New-TransparentLogo $raw
 $raw.Dispose()
 
-function Save-Icon([int]$size, [string]$outPath) {
+function Save-Png([System.Drawing.Bitmap]$bmp, [string]$outPath) {
   $dir = Split-Path $outPath -Parent
   if ($dir) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
+  $bmp.Save($outPath, [System.Drawing.Imaging.ImageFormat]::Png)
+}
+
+function Save-Icon([int]$size, [string]$outPath) {
   $bmp = New-Object System.Drawing.Bitmap $size, $size, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
   $g = [System.Drawing.Graphics]::FromImage($bmp)
   $g.SmoothingMode = 'AntiAlias'
@@ -87,16 +115,18 @@ function Save-Icon([int]$size, [string]$outPath) {
   $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
   $g.CompositingQuality = [System.Drawing.Drawing2D.CompositingQuality]::HighQuality
   $g.Clear([System.Drawing.Color]::Transparent)
-  $pad = [Math]::Max(1, [int]($size * 0.06))
+  $pad = [Math]::Max(1, [int]($size * 0.04))
   $dest = $size - 2 * $pad
   $g.DrawImage($logo, $pad, $pad, $dest, $dest)
   $g.Dispose()
-  $bmp.Save($outPath, [System.Drawing.Imaging.ImageFormat]::Png)
+  Save-Png $bmp $outPath
   $bmp.Dispose()
 }
-${lines.join("\n")}
+
+Save-Icon 128 '${markOut}'
+${lines.filter((l) => !l.includes("ystock-logo-mark")).join("\n")}
 $logo.Dispose()
-Write-Host '[icons] ok (${targets.length} files, white matte removed)'
+Write-Host '[icons] ok (${targets.length} files, checkerboard/matte removed)'
 `;
 
 fs.writeFileSync(ps1, psBody.trim() + "\n", "utf8");
