@@ -727,6 +727,125 @@ body {
   margin-top: 0.55rem;
 }
 
+/* 매수·매도 시뮬 */
+.live-sim {
+  padding: 1rem 1.1rem;
+  margin-bottom: 0.75rem;
+}
+
+.live-sim__note {
+  margin: 0 0 0.65rem;
+  font-size: 0.78rem;
+  color: var(--text-muted, #6b7280);
+  line-height: 1.45;
+}
+
+.live-sim__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: flex-end;
+  margin-bottom: 0.55rem;
+}
+
+.live-sim__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+  flex: 1;
+  min-width: 10rem;
+}
+
+.live-sim__markets {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.live-sim__hits {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.live-sim__hit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+  align-items: baseline;
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  border: none;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  background: var(--surface-2, rgba(255, 255, 255, 0.03));
+  font: inherit;
+  font-size: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.live-sim__hit:last-child {
+  border-bottom: none;
+}
+
+.live-sim__hit:hover {
+  background: var(--accent-dim, rgba(94, 234, 212, 0.08));
+}
+
+.live-sim__hit-sym {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.live-sim__hit-name {
+  color: var(--text-muted, #6b7280);
+}
+
+.live-sim__hit-price {
+  margin-left: auto;
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.live-sim__picked {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.live-sim__ok {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  color: #15803d;
+}
+
+.live-sim__err {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  color: #b91c1c;
+}
+
+.live-portfolio__sell-hint {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--text-muted, #6b7280);
+  line-height: 1.35;
+  width: 100%;
+}
+
+.live-portfolio__sell-ok {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.72rem;
+  color: #15803d;
+}
+
 /* 실매매 보유·거래·수익 */
 .live-portfolio {
   padding: 1rem 1.1rem;

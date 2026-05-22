@@ -6,6 +6,7 @@ import {
   touchLiveTradeProgramRunSync,
 } from "./live-trade-programs-store.js";
 import { recordLiveTradeBuySync } from "./live-trade-portfolio-store.js";
+import { resolveLiveTradeQuote } from "./live-trade-quote.js";
 import {
   executeLiveBuyOrder,
   pickMeetsProgramThreshold,
@@ -57,10 +58,16 @@ export async function onHighScorePickForLiveTrading(pick) {
     let runErr = out.ok ? null : (out.error ?? "주문 실패");
     if (out.ok) {
       try {
-        recordLiveTradeBuySync(program, pick, {
-          simulated: out.simulated,
-          orderId: out.orderId,
-        });
+        const quote = await resolveLiveTradeQuote(sym);
+        recordLiveTradeBuySync(
+          program,
+          { ...pick, symbol: sym, price: quote.price },
+          {
+            simulated: out.simulated,
+            orderId: out.orderId,
+            atMs: quote.atMs,
+          },
+        );
       } catch (e) {
         runErr = e instanceof Error ? e.message : String(e);
         console.warn("[live-trade] portfolio record:", runErr);

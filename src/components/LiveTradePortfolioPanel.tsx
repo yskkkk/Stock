@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   fetchLiveTradingPortfolio,
-  recordLiveTradeSell,
+  simulateLiveTradeSell,
   type LiveTradeHolding,
   type LiveTradePortfolioResponse,
   type LiveTradeProgram,
   type LiveTradeRecord,
 } from "../api";
+import LiveTradeSimPanel from "./LiveTradeSimPanel";
 import { formatPercent, formatPrice, formatSignedMoney } from "../lib/format";
 import { ko } from "../i18n/ko";
 
@@ -104,31 +105,29 @@ function HoldingRow({
   onSold: () => void;
 }) {
   const [sellOpen, setSellOpen] = useState(false);
-  const [sellPrice, setSellPrice] = useState(
-    () => String(row.currentPrice ?? row.avgEntryPrice ?? ""),
-  );
   const [sellQty, setSellQty] = useState(() => String(row.quantity));
   const [sellErr, setSellErr] = useState<string | null>(null);
+  const [sellOk, setSellOk] = useState<string | null>(null);
 
   const up = (row.changePct ?? 0) >= 0;
 
   const submitSell = () => {
-    const price = Number(sellPrice);
     const quantity = Number(sellQty);
-    if (!Number.isFinite(price) || price <= 0) {
-      setSellErr(ko.app.liveTradePfSellPriceRequired);
-      return;
-    }
     setSellErr(null);
-    void recordLiveTradeSell({
+    setSellOk(null);
+    void simulateLiveTradeSell({
       programId: row.programId,
       symbol: row.symbol,
       market: row.market,
       quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : undefined,
-      price,
     })
-      .then(() => {
+      .then((res) => {
         setSellOpen(false);
+        setSellOk(
+          ko.app.liveTradeSimFilled
+            .replace("{price}", formatPrice(res.quote.price, row.currency))
+            .replace("{time}", formatTs(res.quote.atMs)),
+        );
         onSold();
       })
       .catch((e) => setSellErr(e instanceof Error ? e.message : String(e)));
@@ -180,22 +179,16 @@ function HoldingRow({
             disabled={busy}
             onClick={() => {
               setSellOpen(true);
-              setSellPrice(String(row.currentPrice ?? row.avgEntryPrice ?? ""));
               setSellQty(String(row.quantity));
               setSellErr(null);
+              setSellOk(null);
             }}
           >
-            {ko.app.liveTradePfSell}
+            {ko.app.liveTradeSimSell}
           </button>
         ) : (
           <div className="live-portfolio__sell-form">
-            <input
-              type="number"
-              className="input"
-              placeholder={ko.app.liveTradePfSellPrice}
-              value={sellPrice}
-              onChange={(e) => setSellPrice(e.target.value)}
-            />
+            <p className="live-portfolio__sell-hint">{ko.app.liveTradeSimSellHint}</p>
             <input
               type="number"
               className="input"
@@ -227,6 +220,11 @@ function HoldingRow({
             ) : null}
           </div>
         )}
+        {sellOk && !sellOpen ? (
+          <span className="live-portfolio__sell-ok" role="status">
+            {sellOk}
+          </span>
+        ) : null}
       </td>
     </tr>
   );
@@ -269,7 +267,16 @@ export default function LiveTradePortfolioPanel({
   );
 
   return (
-    <section className="live-portfolio card" aria-label={ko.app.liveTradePfTitle}>
+    <>
+      <LiveTradeSimPanel
+        programs={programs}
+        defaultProgramId={programId || undefined}
+        onTraded={() => {
+          setBusy(true);
+          void load().finally(() => setBusy(false));
+        }}
+      />
+      <section className="live-portfolio card" aria-label={ko.app.liveTradePfTitle}>
       <div className="live-portfolio__head">
         <h3 className="live-trading-tab__section-title">{ko.app.liveTradePfTitle}</h3>
         <div className="live-portfolio__head-tools">
@@ -450,5 +457,6 @@ export default function LiveTradePortfolioPanel({
         </div>
       ) : null}
     </section>
+    </>
   );
 }

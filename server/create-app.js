@@ -96,6 +96,8 @@ import {
 } from "./live-trade-programs-store.js";
 import {
   buildLiveTradePortfolioSnapshot,
+  recordLiveTradeSimBuyAsync,
+  recordLiveTradeSimSellAsync,
   recordLiveTradeSellSync,
 } from "./live-trade-portfolio-store.js";
 import { getTossTradingStatus } from "./toss-trading-adapter.js";
@@ -504,11 +506,74 @@ export function createApp() {
           quantity: req.body?.quantity,
           price: Number(req.body?.price),
           note: req.body?.note,
+          simulated: Boolean(req.body?.simulated),
+          atMs: req.body?.atMs,
         });
         const snap = await buildLiveTradePortfolioSnapshot({
           programId: trade.programId,
         });
         res.json({ ok: true, trade, portfolio: snap });
+      } catch (e) {
+        res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
+      }
+    }),
+  );
+
+  app.post(
+    "/api/live-trading/simulate/buy",
+    asyncRoute(async (req, res) => {
+      try {
+        const { trade, quote } = await recordLiveTradeSimBuyAsync({
+          programId: String(req.body?.programId ?? ""),
+          symbol: String(req.body?.symbol ?? ""),
+          market: req.body?.market,
+          name: req.body?.name,
+        });
+        const snap = await buildLiveTradePortfolioSnapshot({
+          programId: trade.programId,
+        });
+        const programs = listLiveTradeProgramsSync();
+        const nameById = new Map(programs.map((p) => [p.id, p.name]));
+        res.json({
+          ok: true,
+          trade: {
+            ...trade,
+            programName: nameById.get(trade.programId) ?? trade.programId,
+          },
+          quote,
+          portfolio: snap,
+        });
+      } catch (e) {
+        res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
+      }
+    }),
+  );
+
+  app.post(
+    "/api/live-trading/simulate/sell",
+    asyncRoute(async (req, res) => {
+      try {
+        const { trade, quote } = await recordLiveTradeSimSellAsync({
+          programId: String(req.body?.programId ?? ""),
+          symbol: String(req.body?.symbol ?? ""),
+          market: req.body?.market,
+          quantity: req.body?.quantity,
+          note: req.body?.note,
+        });
+        const snap = await buildLiveTradePortfolioSnapshot({
+          programId: trade.programId,
+        });
+        const programs = listLiveTradeProgramsSync();
+        const nameById = new Map(programs.map((p) => [p.id, p.name]));
+        res.json({
+          ok: true,
+          trade: {
+            ...trade,
+            programName: nameById.get(trade.programId) ?? trade.programId,
+          },
+          quote,
+          portfolio: snap,
+        });
       } catch (e) {
         res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
       }

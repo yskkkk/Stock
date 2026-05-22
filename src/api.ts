@@ -906,12 +906,57 @@ export function recordLiveTradeSell(body: {
   quantity?: number;
   price: number;
   note?: string;
+  simulated?: boolean;
 }) {
   return fetchJson<{
     ok: boolean;
     trade: LiveTradeRecord;
     portfolio: LiveTradePortfolioResponse;
   }>("/api/live-trading/trades/sell", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export interface LiveTradeSimQuote {
+  symbol: string;
+  price: number;
+  atMs: number;
+  changePercent?: number;
+}
+
+export function simulateLiveTradeBuy(body: {
+  programId: string;
+  symbol: string;
+  market: "kr" | "us";
+  name?: string;
+}) {
+  return fetchJson<{
+    ok: boolean;
+    trade: LiveTradeRecord & { programName?: string };
+    quote: LiveTradeSimQuote;
+    portfolio: LiveTradePortfolioResponse;
+  }>("/api/live-trading/simulate/buy", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function simulateLiveTradeSell(body: {
+  programId: string;
+  symbol: string;
+  market?: "kr" | "us";
+  quantity?: number;
+  note?: string;
+}) {
+  return fetchJson<{
+    ok: boolean;
+    trade: LiveTradeRecord & { programName?: string };
+    quote: LiveTradeSimQuote;
+    portfolio: LiveTradePortfolioResponse;
+  }>("/api/live-trading/simulate/sell", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

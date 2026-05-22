@@ -6,6 +6,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { fetchQuoteSnapshotsForSymbols } from "./picks-live-quotes.js";
+import { resolveLiveTradeQuote } from "./live-trade-quote.js";
 import { ROUND_TRIP_FEE_RATE } from "./net-return.js";
 import { getLiveTradeProgramSync } from "./live-trade-programs-store.js";
 
@@ -180,13 +181,19 @@ function buildPositionsFromTrades(trades, programIdFilter) {
 /**
  * @param {import("./live-trade-programs-store.js").LiveTradeProgram} program
  * @param {object} pick
- * @param {{ simulated?: boolean; orderId?: string }} orderMeta
+ * @param {{ simulated?: boolean; orderId?: string; atMs?: number }} orderMeta
  */
 export function recordLiveTradeBuySync(program, pick, orderMeta = {}) {
   const symbol = String(pick.symbol ?? "").trim().toUpperCase();
   const market = pick.market === "us" ? "us" : "kr";
   const price = Number(pick.price);
   if (!symbol || !Number.isFinite(price) || price <= 0) return null;
+  const tradeAtMs =
+    typeof orderMeta.atMs === "number" &&
+    Number.isFinite(orderMeta.atMs) &&
+    orderMeta.atMs > 0
+      ? orderMeta.atMs
+      : Date.now();
 
   const amount =
     market === "kr"
@@ -222,7 +229,7 @@ export function recordLiveTradeBuySync(program, pick, orderMeta = {}) {
     amount: quantity * price,
     simulated: Boolean(orderMeta.simulated),
     orderId: orderMeta.orderId ?? null,
-    atMs: Date.now(),
+    atMs: tradeAtMs,
   });
   if (!trade) return null;
   store.trades.push(trade);
@@ -235,9 +242,41 @@ export function recordLiveTradeBuySync(program, pick, orderMeta = {}) {
  *   programId: string;
  *   symbol: string;
  *   market?: string;
+ *   name?: string;
+ * }} input
+ */
+export async function recordLiveTradeSimBuyAsync(input) {
+  const programId = String(input.programId ?? "").trim();
+  const program = getLiveTradeProgramSync(programId);
+  if (!program) throw new Error("프로그램을 찾을 수 없습니다.");
+  const market = input.market === "us" ? "us" : "kr";
+  const symbol = String(input.symbol ?? "").trim().toUpperCase();
+  if (!symbol) throw new Error("종목 코드가 필요합니다.");
+  const quote = await resolveLiveTradeQuote(symbol);
+  const trade = recordLiveTradeBuySync(
+    program,
+    {
+      symbol: quote.symbol,
+      name: String(input.name ?? symbol).trim() || symbol,
+      market,
+      price: quote.price,
+    },
+    { simulated: true, atMs: quote.atMs },
+  );
+  if (!trade) throw new Error("매수 시뮬레이션을 저장하지 못했습니다.");
+  return { trade, quote };
+}
+
+/**
+ * @param {{
+ *   programId: string;
+ *   symbol: string;
+ *   market?: string;
  *   quantity?: number;
  *   price: number;
  *   note?: string;
+ *   simulated?: boolean;
+ *   atMs?: number;
  * }} input
  */
 export function recordLiveTradeSellSync(input) {
@@ -248,6 +287,10 @@ export function recordLiveTradeSellSync(input) {
   if (!programId || !symbol || !Number.isFinite(price) || price <= 0) {
     throw new Error("매도 기록에 필요한 값이 없습니다.");
   }
+  const tradeAtMs =
+    typeof input.atMs === "number" && Number.isFinite(input.atMs) && input.atMs > 0
+      ? input.atMs
+      : Date.now();
   if (!getLiveTradeProgramSync(programId)) {
     throw new Error("프로그램을 찾을 수 없습니다.");
   }
@@ -279,13 +322,42 @@ export function recordLiveTradeSellSync(input) {
     price,
     amount: quantity * price,
     note: input.note ?? null,
-    simulated: false,
-    atMs: Date.now(),
+    simulated: Boolean(input.simulated),
+    atMs: tradeAtMs,
   });
   if (!trade) throw new Error("매도 기록을 저장하지 못했습니다.");
   store.trades.push(trade);
   writeStoreSync(store);
   return trade;
+}
+
+/**
+ * @param {{
+ *   programId: string;
+ *   symbol: string;
+ *   market?: string;
+ *   quantity?: number;
+ *   note?: string;
+ * }} input
+ */
+export async function recordLiveTradeSimSellAsync(input) {
+  const programId = String(input.programId ?? "").trim();
+  const symbol = String(input.symbol ?? "").trim().toUpperCase();
+  if (!programId || !symbol) {
+    throw new Error("매도 시뮬레이션에 필요한 값이 없습니다.");
+  }
+  const quote = await resolveLiveTradeQuote(symbol);
+  const trade = recordLiveTradeSellSync({
+    programId,
+    symbol: quote.symbol,
+    market: input.market,
+    quantity: input.quantity,
+    price: quote.price,
+    note: input.note,
+    simulated: true,
+    atMs: quote.atMs,
+  });
+  return { trade, quote };
 }
 
 /**

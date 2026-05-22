@@ -394,9 +394,14 @@ export async function loadChartQuoteSnapshot1m(symbol) {
         ? last.close
         : parsed.quote?.price;
     if (price == null || !Number.isFinite(price)) return parsed.quote ?? null;
+    const barMs =
+      last?.time != null && Number.isFinite(last.time) && last.time > 0
+        ? Math.floor(last.time * 1000)
+        : Date.now();
     return {
       ...parsed.quote,
       price,
+      quotedAtMs: barMs,
     };
   });
 }
