@@ -13,6 +13,7 @@ import {
   type LiveTradingStatusResponse,
   type TechModelRecord,
 } from "../api";
+import LiveSimRunningPanel from "./LiveSimRunningPanel";
 import LiveTradePortfolioPanel from "./LiveTradePortfolioPanel";
 import { peekLiveTradingPrefetch } from "../lib/tabPrefetch";
 import { ko } from "../i18n/ko";
@@ -88,6 +89,7 @@ export default function LiveTradingTab({
   const [err, setErr] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState(emptyDraft);
+  const [portfolioRefreshKey, setPortfolioRefreshKey] = useState(0);
 
   const reload = useCallback(async () => {
     try {
@@ -247,6 +249,7 @@ export default function LiveTradingTab({
         await startSimLiveTradeProgram(id);
         setMsg(ko.app.liveTradeSimStartOk);
         await reload();
+        setPortfolioRefreshKey((k) => k + 1);
       } catch (e) {
         setErr(e instanceof Error ? e.message : String(e));
       } finally {
@@ -263,6 +266,7 @@ export default function LiveTradingTab({
       try {
         await stopSimLiveTradeProgram(id);
         await reload();
+        setPortfolioRefreshKey((k) => k + 1);
       } catch (e) {
         setErr(e instanceof Error ? e.message : String(e));
       } finally {
@@ -350,6 +354,13 @@ export default function LiveTradingTab({
           </li>
         </ul>
       </section>
+
+      <LiveSimRunningPanel
+        programs={programs}
+        busy={busy}
+        refreshKey={portfolioRefreshKey}
+        onStop={(id) => void handleSimStop(id)}
+      />
 
       <LiveTradePortfolioPanel programs={programs} />
 
