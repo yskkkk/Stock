@@ -44,6 +44,7 @@ function opsQueueSourceLabel(
   source: OpsAgentQueueEntry["source"] | undefined,
   requestIp: string,
 ): string {
+  if (requestIp.trim() === "claude-code") return ko.app.opsGlobalQueueSourceClaudeCode;
   if (source === "ide") return ko.app.opsGlobalQueueSourceIde;
   if (source === "web") return ko.app.opsGlobalQueueSourceWeb;
   if (requestIp.trim() === "cursor-ide") return ko.app.opsGlobalQueueSourceIde;

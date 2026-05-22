@@ -317,6 +317,7 @@ export const ko = {
     opsGlobalQueueSourceAgent: "Cursor 에이전트",
     opsGlobalQueueSourceRecord: "기록 모드",
     opsGlobalQueueSourceIde: "Cursor IDE",
+    opsGlobalQueueSourceClaudeCode: "Claude Code",
     opsGlobalQueueSourceWeb: "웹",
     opsFileRequestHistoryTitle: "파일·요청 이력",
     opsFileRequestHistoryEmpty: "기록 모드 실행 로그가 없습니다. 큐에 요청을 넣고 서버가 실행하면 여기에 표시됩니다.",

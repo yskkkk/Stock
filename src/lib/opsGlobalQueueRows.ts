@@ -103,11 +103,13 @@ export function buildOpsGlobalQueueRows(agentRaw: unknown[]): OpsGlobalQueueRow[
     const titleSource = String(e.instructionPreview ?? "").trim() || titleFull;
     const ip = e.requestIp?.trim() ?? "";
     const agentSource: OpsAgentQueueSource | undefined =
-      e.source === "ide" || e.source === "web"
-        ? e.source
-        : e.requestIp?.trim() === "cursor-ide"
-          ? "ide"
-          : "web";
+      ip === "claude-code"
+        ? "ide"
+        : e.source === "ide" || e.source === "web"
+          ? e.source
+          : ip === "cursor-ide"
+            ? "ide"
+            : "web";
     out.push({
       key: `a:${sid}`,
       kind: "agent",
@@ -120,7 +122,7 @@ export function buildOpsGlobalQueueRows(agentRaw: unknown[]): OpsGlobalQueueRow[
           ? ko.app.opsHistoryStatusRunning
           : ko.app.opsAgentQueueWaiting,
       ipDisplay: ip || "—",
-      hideIp: ip === "cursor-ide",
+      hideIp: ip === "cursor-ide" || ip === "claude-code",
       requestTitle: summarizeQueueTitle(titleSource),
       requestTitleFull: titleFull || titleSource,
       timeMs: e.enqueuedAtMs ?? 0,
