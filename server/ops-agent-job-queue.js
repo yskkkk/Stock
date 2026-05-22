@@ -143,7 +143,7 @@ function buildQueueMeta(meta) {
     id,
     requestIp:
       source === "ide"
-        ? "cursor-ide"
+        ? String(meta.requestIp ?? "").trim() || "cursor-ide"
         : sanitizeQueueIp(meta.requestIp),
     instructionPreview: previewInstruction(meta.instruction),
     instructionTooltip: tooltipInstruction(meta.instruction),
