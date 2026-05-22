@@ -105,3 +105,24 @@ export function formatUpdatedAt(ts: number | null) {
 export function displayStockSymbol(symbol: string): string {
   return symbol.trim().replace(/\.(KS|KQ)$/i, "");
 }
+
+/** 당일 거래대금 — KRW는 억/조, USD 등은 B/M/K */
+export function formatTurnover(value: number | undefined, currency?: string) {
+  if (value == null || !Number.isFinite(value) || value <= 0) return "—";
+  if (currency === "KRW") {
+    if (value >= 1e12) return `${(value / 1e12).toFixed(2)}조`;
+    if (value >= 1e8) {
+      const eok = value / 1e8;
+      return eok >= 100 ? `${Math.round(eok).toLocaleString("ko-KR")}억` : `${eok.toFixed(1)}억`;
+    }
+    if (value >= 1e4) return `${Math.round(value / 1e4).toLocaleString("ko-KR")}만`;
+    return `${Math.round(value).toLocaleString("ko-KR")}원`;
+  }
+  const cur = currency?.trim().toUpperCase();
+  const prefix = cur === "USD" || !cur ? "$" : "";
+  const suffix = cur && cur !== "USD" ? ` ${cur}` : "";
+  if (value >= 1e9) return `${prefix}${(value / 1e9).toFixed(2)}B${suffix}`;
+  if (value >= 1e6) return `${prefix}${(value / 1e6).toFixed(1)}M${suffix}`;
+  if (value >= 1e3) return `${prefix}${(value / 1e3).toFixed(0)}K${suffix}`;
+  return `${prefix}${Math.round(value).toLocaleString("en-US")}${suffix}`;
+}

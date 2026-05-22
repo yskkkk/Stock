@@ -1,3 +1,5 @@
+import { recordProcessRuntimeIssue } from "./server-self-improvement-log.js";
+
 let installed = false;
 
 function logProcessError(label, err) {
@@ -12,9 +14,11 @@ export function installProcessGuards() {
 
   process.on("unhandledRejection", (reason) => {
     logProcessError("unhandledRejection", reason);
+    recordProcessRuntimeIssue("unhandledRejection", reason);
   });
 
   process.on("uncaughtException", (err) => {
     logProcessError("uncaughtException", err);
+    recordProcessRuntimeIssue("uncaughtException", err);
   });
 }

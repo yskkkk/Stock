@@ -6,7 +6,7 @@ import {
   listSimActiveProgramsSync,
   touchLiveTradeProgramRunSync,
 } from "./live-trade-programs-store.js";
-import { recordLiveTradeBuySync } from "./live-trade-portfolio-store.js";
+import { recordLiveTradeBuyAsync } from "./live-trade-portfolio-store.js";
 import { resolveLiveTradeQuote } from "./live-trade-quote.js";
 import {
   executeLiveBuyOrder,
@@ -52,7 +52,7 @@ async function simBuyForProgram(program, pick) {
   let runErr = null;
   try {
     const quote = await resolveLiveTradeQuote(sym);
-    recordLiveTradeBuySync(
+    await recordLiveTradeBuyAsync(
       program,
       {
         ...pick,
@@ -94,7 +94,7 @@ async function liveBuyForProgram(program, pick) {
   if (out.ok) {
     try {
       const quote = await resolveLiveTradeQuote(sym);
-      recordLiveTradeBuySync(
+      await recordLiveTradeBuyAsync(
         program,
         { ...pick, symbol: sym, price: quote.price },
         {

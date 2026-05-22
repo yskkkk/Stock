@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useModalDrag } from "../hooks/useModalDrag";
 import PickQuoteStrip from "./PickQuoteStrip";
+import { formatPrice } from "../lib/format";
 import {
   ko,
   telegramSentSection,
@@ -16,6 +17,12 @@ interface TelegramSentModalProps {
   onClose: () => void;
   /** 종목 행 클릭 시 차트로 이동 */
   onOpenStock?: (item: TelegramSentItem) => void;
+}
+
+function formatTelegramSentPrice(item: TelegramSentItem): string {
+  const p = item.price;
+  if (p == null || !Number.isFinite(p)) return "—";
+  return formatPrice(p, item.currency ?? undefined);
 }
 
 function formatSentAt(ts: number) {
@@ -193,10 +200,17 @@ function SentSection({
             <div className="telegram-sent-item__body">
               <PickQuoteStrip
                 symbol={item.symbol}
-                price={item.price}
-                currency={item.currency}
                 changePercent={item.changePercent}
               />
+              <p
+                className="telegram-sent-item__price"
+                title={ko.telegramSent.priceAtSendTitle}
+              >
+                <span className="telegram-sent-item__price-label">
+                  {ko.telegramSent.priceAtSendLabel}
+                </span>{" "}
+                {formatTelegramSentPrice(item)}
+              </p>
             </div>
             <footer className="telegram-sent-item__foot">
               <time

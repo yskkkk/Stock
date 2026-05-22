@@ -13,9 +13,10 @@ export function formatMacroCountdown(msLeft: number): string {
   return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
 }
 
-export function formatMacroWhen(at: number, _timezone?: string): string {
+export function formatMacroWhen(at: number, timeZone?: string): string {
+  const tz = timeZone?.trim() || "Asia/Seoul";
   return new Date(at).toLocaleString("ko-KR", {
-    timeZone: "Asia/Seoul",
+    timeZone: tz,
     month: "numeric",
     day: "numeric",
     weekday: "short",

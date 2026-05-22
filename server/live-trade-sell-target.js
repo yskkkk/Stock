@@ -27,10 +27,7 @@ export function stopLossPriceFromPct(entryPrice, stopLossPct) {
   return entry * mult;
 }
 
-/**
- * @param {import("./live-trade-programs-store.js").LiveTradeProgram} program
- * @param {number} entryPrice
- */
+/** @deprecated 고정 % — 신규 매수는 live-trade-exit-scenario 사용 */
 export function sellTargetsForProgram(program, entryPrice) {
   const entry = Number(entryPrice);
   if (!Number.isFinite(entry) || entry <= 0) {
@@ -38,6 +35,9 @@ export function sellTargetsForProgram(program, entryPrice) {
   }
   const tp = program.takeProfitPct;
   const sl = program.stopLossPct;
+  if (tp == null && sl == null) {
+    return { targetSellPrice: null, stopLossPrice: null };
+  }
   return {
     targetSellPrice:
       tp != null && Number.isFinite(Number(tp)) && Number(tp) > 0

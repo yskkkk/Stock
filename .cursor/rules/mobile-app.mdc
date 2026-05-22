@@ -1,0 +1,42 @@
+---
+description: Stock 모바일 앱(Android·iOS) — Capacitor, 웹과 동일 UI·API 동기화
+globs:
+  - src/**
+  - public/**
+  - capacitor.config.ts
+  - android/**
+  - ios/**
+alwaysApply: false
+---
+
+# 모바일 앱 (Galaxy·iPhone)
+
+## 원칙
+
+- **단일 UI**: `src/` React 앱이 웹·Android·iOS 공통. 네이티브 전용 화면을 따로 만들지 않는다.
+- **기능 추가·수정** 시 웹만이 아니라 **모바일 WebView에서도 동작**하는지 확인한다 (상대 API·터치·safe-area).
+- 네이티브 셸 변경은 `android/`·`ios/`·`capacitor.config.ts`·`docs/MOBILE_APP.md` 만.
+
+## API
+
+- 네이티브는 origin이 `capacitor://` 이므로 **`src/lib/apiBase.ts`의 `withApiBase()`** 로 `/api/*` 호출 (이미 `fetchJson`에 연결).
+- 새 `fetch("/api/...")` 를 직접 쓰지 말고 `withApiBase` 또는 `fetchJson` 사용.
+- 정적 페이지 이동(`access-gate.html` 등)은 `getWebBaseUrl()` + 경로.
+
+## 빌드·배포
+
+```bash
+npm run build:mobile    # dist + cap sync
+npm run cap:android     # Android Studio
+npm run cap:ios         # Xcode (macOS)
+```
+
+- 웹 다운로드 안내: `public/mobile-app.html` — APK는 `public/downloads/` 에 배치 후 링크.
+- 사용자 서버 URL: 네이티브 첫 실행 `MobileServerGate` (localStorage `stock-mobile-api-base-v1`).
+
+## 체크리스트 (기능 PR)
+
+- [ ] `src/api.ts` 경유 또는 `withApiBase` 사용
+- [ ] 모바일 좁은 폭(≤900px) 레이아웃 깨짐 없음
+- [ ] 필요 시 `ko.ts` 문구 추가
+- [ ] 대규모 UI 변경 후 `npm run build:mobile` 로 sync 가능 여부
