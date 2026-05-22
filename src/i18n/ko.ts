@@ -396,6 +396,8 @@ export const ko = {
     marketKr: "국내",
     marketUs: "나스닥",
     bullishHint: "골든크로스·일목·정배열 등 상승 신호가 강한 종목",
+    signalHintClose: "닫기",
+    signalHintLongPress: "길게 눌러 설명 보기",
     reason: "이유",
     reasonSuffix: "로 근거 확인",
     selectTitle: "종목을 선택하세요",

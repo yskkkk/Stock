@@ -2160,3 +2160,110 @@ body {
   margin-top: 1rem;
 }
 
+.signal-filter .filter-chips,
+.signal-filter .filter-presets,
+.rec-tracker-signals__chips {
+  overflow: visible;
+}
+
+.signal-hint-wrap {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+.signal-hint-wrap__tip {
+  position: absolute;
+  z-index: 120;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(20rem, 88vw);
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
+  background: var(--bg-elevated, #1a2332);
+  border: 1px solid var(--card-border, rgba(148, 163, 184, 0.22));
+  box-shadow: var(--shadow, 0 8px 28px rgba(0, 0, 0, 0.45));
+  color: var(--text-dim, #aeb9cc);
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.45;
+  text-align: left;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s ease, visibility 0.12s ease;
+}
+
+.signal-hint-wrap__tip-title {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--text, #f1f5f9);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.signal-hint-wrap__tip-body {
+  display: block;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .signal-hint-wrap:hover .signal-hint-wrap__tip,
+  .signal-hint-wrap:focus-within .signal-hint-wrap__tip {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+.signal-hint-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 1rem 1rem max(1.25rem, env(safe-area-inset-bottom, 0px));
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.signal-hint-modal__card {
+  width: min(100%, 22rem);
+  padding: 1rem 1.05rem;
+  border-radius: 14px;
+  background: var(--card, #161d27);
+  border: 1px solid var(--card-border, rgba(148, 163, 184, 0.15));
+  box-shadow: var(--shadow, 0 12px 40px rgba(0, 0, 0, 0.5));
+}
+
+.signal-hint-modal__title {
+  margin: 0 0 0.45rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text, #f1f5f9);
+}
+
+.signal-hint-modal__body {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-dim, #aeb9cc);
+}
+
+.signal-hint-modal__close {
+  width: 100%;
+  margin-top: 0.85rem;
+}
+
+html[data-theme="light"] .signal-hint-wrap__tip {
+  background: #fff;
+  color: #4b5563;
+  border-color: rgba(15, 23, 42, 0.12);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+html[data-theme="light"] .signal-hint-wrap__tip-title {
+  color: #111827;
+}
+

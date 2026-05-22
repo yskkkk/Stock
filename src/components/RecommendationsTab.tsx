@@ -32,6 +32,7 @@ import {
 import { recTrackerScoreSignalMismatch } from "../lib/techScore";
 import RecTrackerSignalAnalysisPanel from "./RecTrackerSignalAnalysisPanel";
 import RecTrackerTechUpgradePanel from "./RecTrackerTechUpgradePanel";
+import SignalHintWrap from "./SignalHintWrap";
 import { ko } from "../i18n/ko";
 import type {
   Market,
@@ -395,6 +396,16 @@ export default function RecommendationsTab({
     setBigGainOnly(false);
   }, []);
 
+  const hasListFilters =
+    signalFilters.length > 0 ||
+    scoreFilter != null ||
+    modelFilter != null ||
+    bigGainOnly;
+
+  const hasScopeFilters = dateFilter !== "all" || market !== "all";
+
+  const hasTrackerData = (data?.items?.length ?? 0) > 0;
+
   return (
     <div className="workspace workspace--rec-tracker">
       <section className="picks-panel card rec-tracker-panel" aria-label={ko.app.recTrackerTitle}>
@@ -477,11 +488,11 @@ export default function RecommendationsTab({
           </p>
         )}
 
-        {!loading && data && filteredItems.length === 0 && (
+        {!loading && data && !hasTrackerData && (
           <p className="picks-empty">{ko.app.recTrackerEmpty}</p>
         )}
 
-        {!loading && data && itemsForChipStats.length === 0 && (data?.items?.length ?? 0) > 0 && (
+        {!loading && data && itemsForChipStats.length === 0 && hasTrackerData && (
           <p className="rec-tracker-warn" role="status">
             {ko.app.recTrackerNoTelegramForStats}
           </p>
@@ -490,9 +501,9 @@ export default function RecommendationsTab({
           <p className="rec-tracker-warn">{ko.app.recTrackerUnknownHint}</p>
         )}
 
-        {data && filteredItems.length > 0 && (
+        {data && hasTrackerData && (
           <>
-            {itemsForChipStats.length > 0 && (
+            {(itemsForChipStats.length > 0 || hasListFilters) && (
             <div className="rec-tracker-summary">
               <SummaryCard
                 label={ko.app.recTrackerWinRate}
@@ -653,28 +664,33 @@ export default function RecommendationsTab({
                       const active =
                         bigGainOnly && signalFilters.includes(s.signalId as SignalId);
                       return (
-                        <button
+                        <SignalHintWrap
                           key={`bg-${s.signalId}`}
-                          type="button"
-                          className={
-                            active
-                              ? `${chip.className} rec-tracker-signal-chip rec-tracker-signal-chip--active rec-tracker-big-gain__chip`
-                              : `${chip.className} rec-tracker-signal-chip rec-tracker-big-gain__chip`
-                          }
-                          aria-pressed={active}
-                          aria-label={chip.label}
-                          onClick={() =>
-                            toggleSignalFilter(s.signalId as SignalId, true)
-                          }
+                          hint={chip.hint}
+                          label={chip.label}
                         >
-                          <span>{chip.short}</span>
-                          <span className="rec-tracker-signal-chip__rate">
-                            {s.avgGainPct != null ? formatPercent(s.avgGainPct) : "—"}
-                          </span>
-                          <span className="rec-tracker-signal-chip__n">
-                            {ko.app.recTrackerBigGainHits.replace("{n}", String(s.hitCount))}
-                          </span>
-                        </button>
+                          <button
+                            type="button"
+                            className={
+                              active
+                                ? `${chip.className} rec-tracker-signal-chip rec-tracker-signal-chip--active rec-tracker-big-gain__chip`
+                                : `${chip.className} rec-tracker-signal-chip rec-tracker-big-gain__chip`
+                            }
+                            aria-pressed={active}
+                            aria-label={chip.label}
+                            onClick={() =>
+                              toggleSignalFilter(s.signalId as SignalId, true)
+                            }
+                          >
+                            <span>{chip.short}</span>
+                            <span className="rec-tracker-signal-chip__rate">
+                              {s.avgGainPct != null ? formatPercent(s.avgGainPct) : "—"}
+                            </span>
+                            <span className="rec-tracker-signal-chip__n">
+                              {ko.app.recTrackerBigGainHits.replace("{n}", String(s.hitCount))}
+                            </span>
+                          </button>
+                        </SignalHintWrap>
                       );
                     })}
                   </div>
@@ -709,28 +725,33 @@ export default function RecommendationsTab({
                     const chip = signalChipMeta(s.signalId as SignalId);
                     const active = signalFilters.includes(s.signalId as SignalId);
                     return (
-                      <button
+                      <SignalHintWrap
                         key={s.signalId}
-                        type="button"
-                        className={
-                          active
-                            ? `${chip.className} rec-tracker-signal-chip rec-tracker-signal-chip--active`
-                            : `${chip.className} rec-tracker-signal-chip`
-                        }
-                        aria-pressed={active}
-                        aria-label={chip.label}
-                        onClick={() =>
-                          toggleSignalFilter(s.signalId as SignalId, false)
-                        }
+                        hint={chip.hint}
+                        label={chip.label}
                       >
-                        <span>{chip.short}</span>
-                        <span className="rec-tracker-signal-chip__rate">
-                          {formatWinRate(s.winRatePct)}
-                        </span>
-                        <span className="rec-tracker-signal-chip__n">
-                          {s.wins}승/{s.losses}패
-                        </span>
-                      </button>
+                        <button
+                          type="button"
+                          className={
+                            active
+                              ? `${chip.className} rec-tracker-signal-chip rec-tracker-signal-chip--active`
+                              : `${chip.className} rec-tracker-signal-chip`
+                          }
+                          aria-pressed={active}
+                          aria-label={chip.label}
+                          onClick={() =>
+                            toggleSignalFilter(s.signalId as SignalId, false)
+                          }
+                        >
+                          <span>{chip.short}</span>
+                          <span className="rec-tracker-signal-chip__rate">
+                            {formatWinRate(s.winRatePct)}
+                          </span>
+                          <span className="rec-tracker-signal-chip__n">
+                            {s.wins}승/{s.losses}패
+                          </span>
+                        </button>
+                      </SignalHintWrap>
                     );
                   })}
                 </div>
@@ -749,74 +770,93 @@ export default function RecommendationsTab({
               />
             )}
 
-            <div className="rec-tracker-table-wrap">
-              <table className="rec-tracker-table">
-                <thead>
-                  <tr>
-                    <RecTrackerSortTh
-                      label={ko.app.recTrackerColDate}
-                      column="date"
-                      sortKey={sortKey}
-                      sortDir={sortDir}
-                      onSort={onSortColumn}
-                    />
-                    <RecTrackerSortTh
-                      label={ko.app.recTrackerColName}
-                      column="name"
-                      sortKey={sortKey}
-                      sortDir={sortDir}
-                      onSort={onSortColumn}
-                    />
-                    <RecTrackerSortTh
-                      label={ko.app.recTrackerColScore}
-                      column="score"
-                      sortKey={sortKey}
-                      sortDir={sortDir}
-                      onSort={onSortColumn}
-                      align="center"
-                    />
-                    <th>{ko.app.recTrackerColSignals}</th>
-                    <RecTrackerSortTh
-                      label={ko.app.recTrackerColEntry}
-                      column="entry"
-                      sortKey={sortKey}
-                      sortDir={sortDir}
-                      onSort={onSortColumn}
-                      align="num"
-                    />
-                    <RecTrackerSortTh
-                      label={ko.app.recTrackerColCurrent}
-                      title={ko.app.recTrackerColCurrentHint}
-                      column="current"
-                      sortKey={sortKey}
-                      sortDir={sortDir}
-                      onSort={onSortColumn}
-                      align="num"
-                    />
-                    <RecTrackerSortTh
-                      label={ko.app.recTrackerColChange}
-                      column="change"
-                      sortKey={sortKey}
-                      sortDir={sortDir}
-                      onSort={onSortColumn}
-                      align="num"
-                    />
-                    <RecTrackerSortTh
-                      label={ko.app.recTrackerColResult}
-                      column="outcome"
-                      sortKey={sortKey}
-                      sortDir={sortDir}
-                      onSort={onSortColumn}
-                    />
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedItems.map((it) => (
-                    <RecTrackerRow key={it.id} item={it} onOpenPick={onOpenPick} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            {filteredItems.length === 0 ? (
+              <div className="rec-tracker-empty-filtered">
+                <p className="picks-empty">
+                  {hasListFilters || hasScopeFilters
+                    ? ko.app.recTrackerFilterNoMatch
+                    : ko.app.recTrackerEmpty}
+                </p>
+                {hasListFilters ? (
+                  <button
+                    type="button"
+                    className="btn btn--secondary btn--sm"
+                    onClick={clearListFilters}
+                  >
+                    {ko.app.recTrackerClearFilter}
+                  </button>
+                ) : null}
+              </div>
+            ) : (
+              <div className="rec-tracker-table-wrap">
+                <table className="rec-tracker-table">
+                  <thead>
+                    <tr>
+                      <RecTrackerSortTh
+                        label={ko.app.recTrackerColDate}
+                        column="date"
+                        sortKey={sortKey}
+                        sortDir={sortDir}
+                        onSort={onSortColumn}
+                      />
+                      <RecTrackerSortTh
+                        label={ko.app.recTrackerColName}
+                        column="name"
+                        sortKey={sortKey}
+                        sortDir={sortDir}
+                        onSort={onSortColumn}
+                      />
+                      <RecTrackerSortTh
+                        label={ko.app.recTrackerColScore}
+                        column="score"
+                        sortKey={sortKey}
+                        sortDir={sortDir}
+                        onSort={onSortColumn}
+                        align="center"
+                      />
+                      <th>{ko.app.recTrackerColSignals}</th>
+                      <RecTrackerSortTh
+                        label={ko.app.recTrackerColEntry}
+                        column="entry"
+                        sortKey={sortKey}
+                        sortDir={sortDir}
+                        onSort={onSortColumn}
+                        align="num"
+                      />
+                      <RecTrackerSortTh
+                        label={ko.app.recTrackerColCurrent}
+                        title={ko.app.recTrackerColCurrentHint}
+                        column="current"
+                        sortKey={sortKey}
+                        sortDir={sortDir}
+                        onSort={onSortColumn}
+                        align="num"
+                      />
+                      <RecTrackerSortTh
+                        label={ko.app.recTrackerColChange}
+                        column="change"
+                        sortKey={sortKey}
+                        sortDir={sortDir}
+                        onSort={onSortColumn}
+                        align="num"
+                      />
+                      <RecTrackerSortTh
+                        label={ko.app.recTrackerColResult}
+                        column="outcome"
+                        sortKey={sortKey}
+                        sortDir={sortDir}
+                        onSort={onSortColumn}
+                      />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedItems.map((it) => (
+                      <RecTrackerRow key={it.id} item={it} onOpenPick={onOpenPick} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </>
         )}
       </section>
@@ -964,9 +1004,11 @@ function RecTrackerRow({
             {item.signalIds.map((id) => {
               const chip = signalChipMeta(id as SignalId);
               return (
-                <span key={id} className={chip.className} title={chip.label}>
-                  {chip.short}
-                </span>
+                <SignalHintWrap key={id} hint={chip.hint} label={chip.label}>
+                  <span className={chip.className} tabIndex={0}>
+                    {chip.short}
+                  </span>
+                </SignalHintWrap>
               );
             })}
           </div>

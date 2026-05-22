@@ -1,6 +1,8 @@
 import { FILTER_PRESETS } from "../constants/filterPresets";
 import { FILTER_OPTIONS, type SignalId } from "../constants/signals";
+import { getSignalHint } from "../constants/signalHints";
 import type { FilterMode } from "../lib/filterPicks";
+import SignalHintWrap from "./SignalHintWrap";
 
 interface SignalFilterProps {
   selected: SignalId[];
@@ -56,29 +58,35 @@ export default function SignalFilter({
       </div>
       <div className="filter-presets">
         {FILTER_PRESETS.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            className="chip preset"
-            onClick={() => applyPreset(p.signalIds)}
-          >
-            {p.label}
-          </button>
+          <SignalHintWrap key={p.id} hint={p.hint} label={p.label}>
+            <button
+              type="button"
+              className="chip preset"
+              onClick={() => applyPreset(p.signalIds)}
+            >
+              {p.label}
+            </button>
+          </SignalHintWrap>
         ))}
       </div>
       <div className="filter-chips">
         {FILTER_OPTIONS.map((opt) => {
           const active = selected.includes(opt.id);
           return (
-            <button
+            <SignalHintWrap
               key={opt.id}
-              type="button"
-              className={active ? "chip active" : "chip"}
-              onClick={() => toggle(opt.id)}
-              aria-pressed={active}
+              hint={getSignalHint(opt.id)}
+              label={opt.label}
             >
-              {opt.label}
-            </button>
+              <button
+                type="button"
+                className={active ? "chip active" : "chip"}
+                onClick={() => toggle(opt.id)}
+                aria-pressed={active}
+              >
+                {opt.label}
+              </button>
+            </SignalHintWrap>
           );
         })}
       </div>

@@ -1,10 +1,12 @@
 import type { SignalId } from "./signals";
 import { FILTER_OPTIONS } from "./signals";
+import { getSignalHint } from "./signalHints";
 
 export interface SignalChipMeta {
   id: SignalId;
   label: string;
   short: string;
+  hint: string;
   className: string;
 }
 
@@ -42,6 +44,7 @@ export const SIGNAL_CHIPS: SignalChipMeta[] = FILTER_OPTIONS.map((o) => ({
   id: o.id,
   label: o.label,
   short: SHORT[o.id],
+  hint: getSignalHint(o.id),
   className: CLASS[o.id],
 }));
 
