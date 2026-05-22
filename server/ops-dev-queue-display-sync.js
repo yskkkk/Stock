@@ -57,6 +57,16 @@ function ensureMemoryQueueRecovered() {
   const lease = readIdeLeaseDiskSync();
   if (!lease) return;
 
+  const { entries: memory } = getOpsAgentQueueMemorySnapshot();
+  const hasMemoryIde = memory.some(
+    (e) => e.source === "ide" || e.requestIp === "cursor-ide",
+  );
+  if (!hasMemoryIde) {
+    recoverIdeDevQueueFromPersistedState();
+    lastRecoverAttemptMs = Date.now();
+    return;
+  }
+
   const now = Date.now();
   if (now - lastRecoverAttemptMs < 1500) return;
   lastRecoverAttemptMs = now;
@@ -85,19 +95,6 @@ function entriesForDisplayMirror() {
       age > 30 * 60 * 1000 || (!hasLeaseId && age > 120_000);
     if (stale) {
       clearIdeLeaseOnDisk();
-    } else {
-      const hasMemoryIde = memory.some(
-        (e) => e.source === "ide" || e.requestIp === "cursor-ide",
-      );
-      const turnIdleMs = (() => {
-        const n = Number(process.env.STOCK_IDE_TURN_END_IDLE_MS);
-        return Number.isFinite(n) && n >= 2000 ? Math.min(n, 30_000) : 4000;
-      })();
-      /* 메모리 큐는 비었는데 lease만 남음 — 훅/release 누락 시 고아 카드 방지 */
-      if (!hasMemoryIde && age > turnIdleMs + 800) {
-        clearIdeLeaseOnDisk();
-        return memory;
-      }
     }
   }
 

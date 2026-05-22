@@ -9,6 +9,7 @@ import {
   finalizeOrphanIdeAgentHistoryIdsSync,
   upsertOpsAgentHistoryFromQueueSync,
 } from "./ops-agent-history-store.js";
+import { mergeIdeLeaseDiskIntoAgentEntries } from "./ops-ide-lease-disk.js";
 import { enrichAgentEntriesWithUnifiedSeq } from "./ops-unified-queue-seq.js";
 
 const RECORD_MODE_REQUEST_IP = "record-mode";
@@ -226,7 +227,8 @@ export function readDevQueueDisplaySnapshotSync() {
   const filtered = live.agentEntries.filter(
     (e) => String(e.requestIp ?? "").trim() !== RECORD_MODE_REQUEST_IP,
   );
-  const agentEntries = enrichAgentEntriesWithUnifiedSeq(filtered);
+  const withLease = mergeIdeLeaseDiskIntoAgentEntries(filtered);
+  const agentEntries = enrichAgentEntriesWithUnifiedSeq(withLease);
   return {
     updatedAtMs: live.updatedAtMs,
     agentEntries,
