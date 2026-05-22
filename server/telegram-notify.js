@@ -1012,9 +1012,7 @@ export async function sendTelegramMessage(text, replyMarkup, creds) {
     const payload = attempts[i];
     const result = await postTelegramSendMessage(payload, auth);
     if (result.ok) {
-      if (i > 0) {
-        console.info("[telegram] send ok after fallback", i + 1);
-      }
+      if (i > 0) { /* fallback 성공 — 로그 생략 */ }
       lastTelegramSendError = null;
       return true;
     }

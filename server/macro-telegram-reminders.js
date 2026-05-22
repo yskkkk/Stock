@@ -180,14 +180,8 @@ export async function tickMacroReminders() {
 }
 
 export function startMacroReminderLoop() {
-  if (!isTelegramNotifyEnabled()) {
-    console.log("[macro-tg] reminders off (no TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID)");
-    return;
-  }
-  if (String(process.env.TELEGRAM_MACRO_REMINDERS ?? "").trim() === "0") {
-    console.log("[macro-tg] reminders disabled (TELEGRAM_MACRO_REMINDERS=0)");
-    return;
-  }
+  if (!isTelegramNotifyEnabled()) return;
+  if (String(process.env.TELEGRAM_MACRO_REMINDERS ?? "").trim() === "0") return;
 
   const interval = Number(process.env.TELEGRAM_MACRO_REMINDER_INTERVAL_MS);
   const ms =
