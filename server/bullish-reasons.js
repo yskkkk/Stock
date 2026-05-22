@@ -2,10 +2,10 @@
  * 텔레그램·API용 상승 이유 문장 — src/lib/bullishPicks.ts 와 동일 로직.
  */
 import {
-  getMaxTechScore,
   MIN_CONDITION_SATISFY_RATIO,
   SIGNAL_CONDITION_TOTAL,
   minConditionsRequired,
+  resolvePickWeightedScoreBreakdown,
 } from "./technical.js";
 
 /** @type {string[]} */
@@ -80,8 +80,9 @@ export function buildBullishReasons(pick) {
     `기술적 조건 ${met}/${SIGNAL_CONDITION_TOTAL}개 충족(${pct}%)으로, 스크리너 기준 ${minMet}개 이상(${Math.round(MIN_CONDITION_SATISFY_RATIO * 100)}%+)을 만족했습니다.`,
   );
 
+  const { score, maxScore, pctLabel } = resolvePickWeightedScoreBreakdown(pick);
   reasons.push(
-    `가중 기술 점수는 ${pick.score}점(최대 ${getMaxTechScore()}점 기준 참고 점수)입니다.`,
+    `가중 기술 점수는 ${score}점 / ${maxScore}점(모델 만점 대비 ${pctLabel}%)입니다.`,
   );
 
   const strong = strongSignalCount(pick);

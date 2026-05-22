@@ -1,7 +1,10 @@
 import { SYMBOL_NOT_FOUND } from "./errors.js";
 import { fetchScanCandles } from "./stock-data.js";
 import { resolveDisplayName } from "./names-ko.js";
-import { getActiveTechModelsSync } from "./picks-tech-models-store.js";
+import {
+  getActiveTechModelsSync,
+  sumTechScoreWeights,
+} from "./picks-tech-models-store.js";
 import { analyzeTechnicals, meetsTelegramNotifyScore } from "./technical.js";
 import { onHighScorePickForLiveTrading } from "./live-trade-runner.js";
 import { scheduleRecommendationsTrackerSnapshotRefresh } from "./picks-recommendations-tracker.js";
@@ -185,6 +188,7 @@ async function screenSymbol(item, market) {
         techModelId: model.id,
         techModelName: model.name,
         techModelWeights: model.weights,
+        techModelMaxScore: sumTechScoreWeights(model.weights),
       };
       picks.push(pick);
       if (meetsTelegramNotifyScore(pick.score, model.weights)) {

@@ -2,6 +2,7 @@
 
 import {
   getPrimaryActiveWeightsSync,
+  getTechModelByIdSync,
   sumTechScoreWeights,
 } from "./picks-tech-models-store.js";
 import {
@@ -94,6 +95,63 @@ export function minTelegramScoreRequired(
   const max = getMaxTechScore(weights);
   const threshold = max * ratio;
   return Math.floor(threshold) + (Number.isInteger(threshold) ? 0 : 1);
+}
+
+/** @param {Record<string, number> | null | undefined} weights */
+function resolveWeightsForPick(weights, techModelId) {
+  if (weights && typeof weights === "object" && Object.keys(weights).length > 0) {
+    return weights;
+  }
+  const id = String(techModelId ?? "").trim();
+  if (id) {
+    const model = getTechModelByIdSync(id);
+    if (model?.weights) return model.weights;
+  }
+  return getPrimaryActiveWeightsSync();
+}
+
+/** @param {number} score @param {number} maxScore */
+export function formatWeightedScorePercentLabel(score, maxScore) {
+  if (!Number.isFinite(maxScore) || maxScore <= 0) return "—";
+  if (!Number.isFinite(score)) return "0.0";
+  const pct = Math.min(100, (score / maxScore) * 100);
+  return (Math.round(pct * 10) / 10).toFixed(1);
+}
+
+/**
+ * 텔레그램·알림용 — 모델 만점 대비 실제 가중 점수·% (signalIds 기준 재계산).
+ * @param {{
+ *   score?: number;
+ *   signalIds?: string[];
+ *   techModelWeights?: Record<string, number>;
+ *   techModelId?: string;
+ *   techModelMaxScore?: number;
+ * }} pick
+ */
+export function resolvePickWeightedScoreBreakdown(pick) {
+  const weights = resolveWeightsForPick(
+    pick?.techModelWeights,
+    pick?.techModelId,
+  );
+  const maxScore =
+    typeof pick?.techModelMaxScore === "number" &&
+    Number.isFinite(pick.techModelMaxScore) &&
+    pick.techModelMaxScore > 0
+      ? pick.techModelMaxScore
+      : getMaxTechScore(weights);
+  let score =
+    typeof pick?.score === "number" && Number.isFinite(pick.score)
+      ? pick.score
+      : 0;
+  const signalIds = Array.isArray(pick?.signalIds) ? pick.signalIds : [];
+  if (signalIds.length > 0) {
+    const fromSignals = weightedScoreFromSignalIds(signalIds, weights);
+    if (Number.isFinite(fromSignals)) score = fromSignals;
+  }
+  const pctLabel = formatWeightedScorePercentLabel(score, maxScore);
+  const pctRaw =
+    maxScore > 0 ? Math.min(100, (score / maxScore) * 100) : 0;
+  return { score, maxScore, weights, pctLabel, pctRaw };
 }
 
 function sma(values, period) {
