@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useState,
+} from "react";
 import { useModalDrag } from "../hooks/useModalDrag";
 import {
   fetchFeedbackInbox,
@@ -10,9 +16,24 @@ import {
 import { ko } from "../i18n/ko";
 import type { FeedbackInboxItem } from "../types";
 
-export default function FeedbackCorner({ accessAdmin }: { accessAdmin: boolean }) {
+export type FeedbackSubmitKind = "issue" | "inquiry";
+
+export type FeedbackCornerHandle = {
+  openSubmit: (kind?: FeedbackSubmitKind) => void;
+  openInbox: () => void;
+};
+
+type FeedbackCornerProps = {
+  accessAdmin: boolean;
+  /** false면 하단 푸터 링크만 사용 */
+  showTrigger?: boolean;
+};
+
+const FeedbackCorner = forwardRef<FeedbackCornerHandle, FeedbackCornerProps>(
+  function FeedbackCorner({ accessAdmin, showTrigger = false }, ref) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [panel, setPanel] = useState<null | "submit" | "inbox">(null);
+  const [submitKind, setSubmitKind] = useState<FeedbackSubmitKind>("issue");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,6 +52,20 @@ export default function FeedbackCorner({ accessAdmin }: { accessAdmin: boolean }
     setSubmitOk(false);
     setInboxErr(null);
   };
+
+  useImperativeHandle(ref, () => ({
+    openSubmit: (kind: FeedbackSubmitKind = "issue") => {
+      setMenuOpen(false);
+      setSubmitKind(kind);
+      setSubmitOk(false);
+      setError(null);
+      setPanel("submit");
+    },
+    openInbox: () => {
+      setMenuOpen(false);
+      setPanel("inbox");
+    },
+  }));
 
   const loadInbox = useCallback(async () => {
     setInboxBusy(true);
@@ -87,51 +122,63 @@ export default function FeedbackCorner({ accessAdmin }: { accessAdmin: boolean }
     }
   };
 
+  const submitTitle =
+    submitKind === "inquiry"
+      ? ko.app.footerInquiryTitle
+      : ko.feedback.submitTitle;
+  const submitPlaceholder =
+    submitKind === "inquiry"
+      ? ko.app.footerInquiryPlaceholder
+      : ko.feedback.submitPlaceholder;
+
   return (
     <>
-      <div className="feedback-corner">
-        <button
-          type="button"
-          className="feedback-corner__fab app-page-top__corner-text"
-          aria-label={ko.feedback.cornerAria}
-          aria-expanded={menuOpen}
-          onClick={() => {
-            setMenuOpen((o) => !o);
-            setSubmitOk(false);
-            setError(null);
-          }}
-        >
-          {ko.feedback.cornerButton}
-        </button>
-        {menuOpen ? (
-          <div className="feedback-corner__menu" role="menu">
-            <button
-              type="button"
-              className="feedback-corner__menu-item"
-              role="menuitem"
-              onClick={() => {
-                setMenuOpen(false);
-                setSubmitOk(false);
-                setError(null);
-                setPanel("submit");
-              }}
-            >
-              {ko.feedback.menuSubmit}
-            </button>
-            <button
-              type="button"
-              className="feedback-corner__menu-item"
-              role="menuitem"
-              onClick={() => {
-                setMenuOpen(false);
-                setPanel("inbox");
-              }}
-            >
-              {ko.feedback.menuInbox}
-            </button>
-          </div>
-        ) : null}
-      </div>
+      {showTrigger ? (
+        <div className="feedback-corner">
+          <button
+            type="button"
+            className="feedback-corner__fab app-page-top__corner-text"
+            aria-label={ko.feedback.cornerAria}
+            aria-expanded={menuOpen}
+            onClick={() => {
+              setMenuOpen((o) => !o);
+              setSubmitOk(false);
+              setError(null);
+            }}
+          >
+            {ko.feedback.cornerButton}
+          </button>
+          {menuOpen ? (
+            <div className="feedback-corner__menu" role="menu">
+              <button
+                type="button"
+                className="feedback-corner__menu-item"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setSubmitKind("issue");
+                  setSubmitOk(false);
+                  setError(null);
+                  setPanel("submit");
+                }}
+              >
+                {ko.feedback.menuSubmit}
+              </button>
+              <button
+                type="button"
+                className="feedback-corner__menu-item"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setPanel("inbox");
+                }}
+              >
+                {ko.feedback.menuInbox}
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {panel === "submit" && (
         <div
@@ -155,14 +202,14 @@ export default function FeedbackCorner({ accessAdmin }: { accessAdmin: boolean }
               aria-hidden
             />
             <h2 id="feedback-submit-title" className="feedback-modal__title">
-              {ko.feedback.submitTitle}
+              {submitTitle}
             </h2>
             <textarea
               className="feedback-modal__textarea"
               rows={5}
               value={message}
               disabled={busy}
-              placeholder={ko.feedback.submitPlaceholder}
+              placeholder={submitPlaceholder}
               onChange={(e) => setMessage(e.target.value)}
             />
             {error && (
@@ -344,4 +391,7 @@ export default function FeedbackCorner({ accessAdmin }: { accessAdmin: boolean }
       )}
     </>
   );
-}
+},
+);
+
+export default FeedbackCorner;

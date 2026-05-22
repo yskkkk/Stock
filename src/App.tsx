@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties } from "react";
 import { useChartDrawMagnet } from "./hooks/useChartDrawMagnet";
 import {
   clearStockOpsInstructionDraft,
@@ -16,7 +15,8 @@ import {
 } from "./api";
 import BullishReasonModal from "./components/BullishReasonModal";
 import AccessAdminModal from "./components/AccessAdminModal";
-import FeedbackCorner from "./components/FeedbackCorner";
+import AppSiteFooter from "./components/AppSiteFooter";
+import FeedbackCorner, { type FeedbackCornerHandle } from "./components/FeedbackCorner";
 import MacroEventsBar from "./components/MacroEventsBar";
 import NewsModal from "./components/NewsModal";
 import PicksHistoryModal from "./components/PicksHistoryModal";
@@ -30,8 +30,6 @@ import SignalFilter from "./components/SignalFilter";
 import type { ChartDrawMode, ChartDrawToolbarApi } from "./chartDrawTypes";
 import ChartDrawToolbarButtons from "./components/ChartDrawToolbarButtons";
 import CryptoTab from "./components/CryptoTab";
-import OpsGlobalQueueStrip from "./components/OpsGlobalQueueStrip";
-import ServerRestartButton from "./components/ServerRestartButton";
 import OpsManagementTab from "./components/OpsManagementTab";
 import LiveTradingTab from "./components/LiveTradingTab";
 import RecommendationsTab from "./components/RecommendationsTab";
@@ -62,8 +60,6 @@ import { findChartTimeNearEntryMs } from "./lib/profitMarker";
 import {
   applyLightPalette,
   applyTheme,
-  LIGHT_PALETTE_IDS,
-  LIGHT_PALETTE_PREVIEW,
   persistLightPalette,
   persistTheme,
   readStoredLightPalette,
@@ -452,6 +448,7 @@ export default function App() {
 
   const stockChartSectionRef = useRef<HTMLElement | null>(null);
   const appScrollRef = useRef<HTMLDivElement>(null);
+  const feedbackRef = useRef<FeedbackCornerHandle>(null);
   const pullToRefreshHintRef = useRef<HTMLDivElement>(null);
   useMobilePullToRefresh(appScrollRef, pullToRefreshHintRef, {
     pullHint: ko.app.pullToRefreshHint,
@@ -924,92 +921,6 @@ export default function App() {
         aria-atomic="true"
       />
       <div className="app-header-sticky">
-      <div className="app-page-top" aria-label={ko.app.pageTopToolsAria}>
-        <div className="app-page-top__left">
-          {accessAdmin ? <ServerRestartButton /> : null}
-          <div
-            className={
-              colorMode === "light"
-                ? "app-theme-corner"
-                : "app-theme-corner app-theme-corner--empty"
-            }
-          >
-          {colorMode === "light" ? (
-            <div
-              className="light-palette-picker light-palette-picker--corner"
-              role="group"
-              aria-label={ko.app.lightPaletteAria}
-            >
-              {LIGHT_PALETTE_IDS.map((id, idx) => (
-                <button
-                  key={id}
-                  type="button"
-                  className={
-                    lightPalette === id
-                      ? "light-palette-swatch light-palette-swatch--active"
-                      : "light-palette-swatch"
-                  }
-                  aria-label={`${idx + 1} / ${LIGHT_PALETTE_IDS.length}`}
-                  aria-pressed={lightPalette === id}
-                  onClick={() => handleLightPalette(id)}
-                  style={
-                    {
-                      "--lp-fill": LIGHT_PALETTE_PREVIEW[id],
-                    } as CSSProperties
-                  }
-                />
-              ))}
-            </div>
-          ) : null}
-          </div>
-        </div>
-        {accessAdmin ? (
-          <div className="app-page-top__queue">
-            <OpsGlobalQueueStrip onOpenOps={() => setAppTab("ops")} />
-          </div>
-        ) : (
-          <div className="app-page-top__queue app-page-top__queue--empty" aria-hidden />
-        )}
-        <div className="app-corner-stack">
-          <div className="app-corner-stack__row">
-            {accessAdmin ? (
-              <button
-                type="button"
-                className={
-                  appTab === "ops"
-                    ? "app-corner-stack__ops app-page-top__corner-text app-page-top__corner-text--active"
-                    : "app-corner-stack__ops app-page-top__corner-text"
-                }
-                aria-current={appTab === "ops" ? "page" : undefined}
-                onClick={() => setAppTab("ops")}
-              >
-                {ko.app.tabOps}
-              </button>
-            ) : null}
-            <FeedbackCorner accessAdmin={accessAdmin} />
-          </div>
-          <div className="app-corner-stack__row app-corner-stack__dl-row">
-            <a
-              href="/downloads/stock-dashboard.apk"
-              download="stock-dashboard.apk"
-              className="app-page-top__corner-text app-corner-stack__app-dl"
-              title={ko.mobile.downloadGalaxyTitle}
-            >
-              {ko.mobile.downloadGalaxy}
-            </a>
-            <span className="app-corner-stack__dl-sep" aria-hidden>
-              ·
-            </span>
-            <a
-              href="/install-ios.html"
-              className="app-page-top__corner-text app-corner-stack__app-dl"
-              title={ko.mobile.downloadIphoneTitle}
-            >
-              {ko.mobile.downloadIphone}
-            </a>
-          </div>
-        </div>
-      </div>
       <header
         className={`top-bar card${showTopScanStrip ? " top-bar--with-scan" : ""}${
           appTab === "screener" ? " top-bar--screener" : ""
@@ -1145,20 +1056,6 @@ export default function App() {
               >
                 {ko.app.tabCrypto}
               </button>
-              {accessAdmin ? (
-                <button
-                  type="button"
-                  className={
-                    appTab === "ops"
-                      ? "main-tab main-tab--ops active"
-                      : "main-tab main-tab--ops"
-                  }
-                  aria-current={appTab === "ops" ? "page" : undefined}
-                  onClick={() => setAppTab("ops")}
-                >
-                  {ko.app.tabOps}
-                </button>
-              ) : null}
             </nav>
 
             <div className="top-bar__tools">
@@ -1171,29 +1068,6 @@ export default function App() {
                   {ko.access.adminToolbarBtn}
                 </button>
               )}
-              <button
-                type="button"
-                className="theme-toggle"
-                disabled={!ENABLE_THEME_MODE_TOGGLE}
-                onClick={() =>
-                  setColorMode((m) => (m === "dark" ? "light" : "dark"))
-                }
-                title={
-                  !ENABLE_THEME_MODE_TOGGLE
-                    ? ko.app.themeToggleDisabledHint
-                    : colorMode === "dark"
-                      ? ko.app.themeUseLight
-                      : ko.app.themeUseDark
-                }
-                aria-label={
-                  !ENABLE_THEME_MODE_TOGGLE
-                    ? ko.app.themeToggleDisabledAria
-                    : ko.app.themeToggleAria
-                }
-                aria-pressed={ENABLE_THEME_MODE_TOGGLE && colorMode === "light"}
-              >
-                {colorMode === "dark" ? "\u2600" : "\u263E"}
-              </button>
               <button
                 type="button"
                 className="btn btn--secondary top-bar__rescan"
@@ -1835,6 +1709,25 @@ export default function App() {
         }}
         onResetTelegram={() => void handleResetTelegramSent()}
         resettingTelegram={resettingTelegram}
+      />
+
+      <FeedbackCorner ref={feedbackRef} accessAdmin={accessAdmin} />
+      <AppSiteFooter
+        accessAdmin={accessAdmin}
+        appTab={appTab}
+        colorMode={colorMode}
+        lightPalette={lightPalette}
+        onToggleColorMode={() => {
+          if (!ENABLE_THEME_MODE_TOGGLE) return;
+          setColorMode((m) => {
+            const next = m === "dark" ? "light" : "dark";
+            persistTheme(next);
+            return next;
+          });
+        }}
+        onLightPalette={handleLightPalette}
+        onOpenOps={() => setAppTab("ops")}
+        feedbackRef={feedbackRef}
       />
     </div>
   );
