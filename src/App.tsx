@@ -1676,7 +1676,11 @@ export default function App() {
               score: item.score,
               signals: [],
             };
-            handleSelect(pick);
+            skipLookupResetRef.current = true;
+            setLookupSeedQuery(item.symbol);
+            setLookupSelected(pick);
+            setLookupMarketTab(pick.market);
+            setAppTab("stockLookup");
           }}
         />
       )}

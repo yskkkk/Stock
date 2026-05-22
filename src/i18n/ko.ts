@@ -546,7 +546,7 @@ export const ko = {
     kr: "국내",
     us: "나스닥",
     crypto: "코인",
-    openStockRowAria: "차트에서 종목 열기",
+    openStockRowAria: "종목 검색에서 열기",
     close: "닫기",
     scoreSuffix: "점",
     priceAtSendLabel: "발송가",

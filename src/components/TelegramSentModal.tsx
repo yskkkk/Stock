@@ -15,7 +15,7 @@ interface TelegramSentModalProps {
   loading: boolean;
   error: string | null;
   onClose: () => void;
-  /** 종목 행 클릭 시 차트로 이동 */
+  /** 종목 행 클릭 시 종목 검색 탭으로 이동 */
   onOpenStock?: (item: TelegramSentItem) => void;
 }
 
