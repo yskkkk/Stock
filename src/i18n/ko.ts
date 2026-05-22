@@ -68,6 +68,7 @@ export const ko = {
     liveTradePfNoHoldings: "보유 종목이 없습니다.",
     liveTradePfColSymbol: "종목",
     liveTradePfColQty: "수량",
+    liveTradePfColBuyPrice: "구매가",
     liveTradePfColCurrent: "현재가",
     liveTradePfColTargetSell: "목표 매도가",
     liveTradePfColStopLoss: "손절가",

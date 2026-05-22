@@ -190,7 +190,7 @@ function HoldingRow({
       <td className="live-portfolio__num" data-label={ko.app.liveTradePfColQty}>
         {row.quantity.toLocaleString("ko-KR")}
       </td>
-      <td className="live-portfolio__num" data-label={ko.app.liveTradePfColAvg}>
+      <td className="live-portfolio__num" data-label={ko.app.liveTradePfColBuyPrice}>
         {formatPrice(row.avgEntryPrice, row.currency)}
       </td>
       <td
@@ -470,7 +470,7 @@ export default function LiveTradePortfolioPanel({
                     <tr>
                       <th>{ko.app.liveTradePfColSymbol}</th>
                       <th>{ko.app.liveTradePfColQty}</th>
-                      <th>{ko.app.liveTradePfColAvg}</th>
+                      <th>{ko.app.liveTradePfColBuyPrice}</th>
                       <th>{ko.app.liveTradePfColCurrent}</th>
                       <th className="live-table__col live-table__col--exit">
                         {ko.app.liveTradePfColTargetSell}

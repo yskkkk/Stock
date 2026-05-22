@@ -254,6 +254,7 @@ function SimProgramCard({
               <tr>
                 <th>{ko.app.liveTradePfColSymbol}</th>
                 <th>{ko.app.liveTradePfColQty}</th>
+                <th>{ko.app.liveTradePfColBuyPrice}</th>
                 <th>{ko.app.liveTradePfColCurrent}</th>
                 <th className="live-table__col live-table__col--exit">
                   {ko.app.liveTradePfColTargetSell}
@@ -280,6 +281,14 @@ function SimProgramCard({
                     </td>
                     <td className="live-sim-run__num" data-label={ko.app.liveTradePfColQty}>
                       {h.quantity}
+                    </td>
+                    <td
+                      className="live-sim-run__num"
+                      data-label={ko.app.liveTradePfColBuyPrice}
+                    >
+                      {h.avgEntryPrice > 0
+                        ? formatPrice(h.avgEntryPrice, h.currency)
+                        : "—"}
                     </td>
                     <td
                       className="live-sim-run__num"
@@ -340,7 +349,7 @@ function SimProgramCard({
                         : "—"}
                     </td>
                   </tr>
-                  <LiveTradeHoldingRationaleRow holding={h} colSpan={6} />
+                  <LiveTradeHoldingRationaleRow holding={h} colSpan={7} />
                   </Fragment>
                 );
               })}
