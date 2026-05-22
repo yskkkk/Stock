@@ -445,6 +445,7 @@ export const ko = {
     quoteCurrencyToggleAria: "시세 통화 표시(달러 ↔ 원화) 전환",
     quoteCurrencyShowKrw: "원화로 보기",
     quoteCurrencyShowUsd: "달러로 보기",
+    quoteCurrencyFxBasis: "원화 표시 · {date} 09:00 KST 환율(공휴·주말·09시 전이면 직전 영업일)",
     chartLoading: "차트 데이터를 불러오는 중",
     quoteBarLoading: "시세 불러오는 중…",
     chartEmpty: "표시할 캔들이 없습니다.",

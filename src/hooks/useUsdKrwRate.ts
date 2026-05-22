@@ -9,11 +9,13 @@ const POLL_MS = 20_000;
 export function useUsdKrwRate(enabled: boolean) {
   const [rate, setRate] = useState<number | null>(null);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
+  const [valuationDate, setValuationDate] = useState<string | null>(null);
 
   useEffect(() => {
     if (!enabled) {
       setRate(null);
       setUpdatedAt(null);
+      setValuationDate(null);
       return;
     }
     let cancelled = false;
@@ -23,10 +25,12 @@ export function useUsdKrwRate(enabled: boolean) {
         if (cancelled) return;
         setRate(d.rate);
         setUpdatedAt(d.updatedAt);
+        setValuationDate(d.valuationDate ?? null);
       } catch {
         if (!cancelled) {
           setRate(null);
           setUpdatedAt(null);
+          setValuationDate(null);
         }
       }
     };
@@ -38,5 +42,5 @@ export function useUsdKrwRate(enabled: boolean) {
     };
   }, [enabled]);
 
-  return { rate, updatedAt };
+  return { rate, updatedAt, valuationDate };
 }

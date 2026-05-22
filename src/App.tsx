@@ -480,7 +480,8 @@ export default function App() {
 
   const usdKrwEnabled =
     appTab !== "crypto" && appTab !== "ops" && workspacePick?.market === "us";
-  const { rate: usdKrwRate } = useUsdKrwRate(usdKrwEnabled);
+  const { rate: usdKrwRate, valuationDate: usdKrwValDate } =
+    useUsdKrwRate(usdKrwEnabled);
 
   const toggleUsQuoteKrw = useCallback(() => {
     setUsQuoteInKrw((prev) => {
@@ -1342,7 +1343,12 @@ export default function App() {
                             onClick={toggleUsQuoteKrw}
                             title={
                               usQuoteInKrw
-                                ? ko.app.quoteCurrencyShowUsd
+                                ? usdKrwValDate
+                                  ? ko.app.quoteCurrencyFxBasis.replace(
+                                      "{date}",
+                                      usdKrwValDate,
+                                    )
+                                  : ko.app.quoteCurrencyShowUsd
                                 : ko.app.quoteCurrencyShowKrw
                             }
                             aria-label={ko.app.quoteCurrencyToggleAria}

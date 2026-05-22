@@ -1199,7 +1199,7 @@ export function fetchStockSearch(
   );
 }
 
-/** USD/KRW (Yahoo KRW=X, 서버 짧은 캐시) */
+/** USD/KRW — KST 영업일 09:00 기준(Yahoo KRW=X 1분봉) */
 export function fetchUsdKrw(signal?: AbortSignal) {
   return fetchJson<UsdKrwRateResponse>(
     "/api/fx/usd-krw",

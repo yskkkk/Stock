@@ -151,6 +151,12 @@ export interface StockSearchQuoteRow {
 export interface UsdKrwRateResponse {
   rate: number;
   updatedAt: number;
+  /** KST 기준 환율 기준일 (YYYY-MM-DD) */
+  valuationDate?: string;
+  /** kst_9am = 해당일 09:00 KST(공휴·주말·09시 전 → 직전 영업일 09:00) */
+  basis?: string;
+  /** 09:00 봉 시각(ms) */
+  asOfMs?: number | null;
 }
 
 export interface StockSearchResponse {
