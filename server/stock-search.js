@@ -9,6 +9,10 @@ import {
 } from "./names-ko.js";
 import { fetchQuoteSnapshotsForSymbols } from "./picks-live-quotes.js";
 import { yahooGet } from "./yahoo.js";
+import {
+  isPrimaryUsSearchSymbol,
+  isUsSearchResultRow,
+} from "./stock-search-us-symbol.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -174,6 +178,7 @@ function appendLocalUniverseMatches(query, market, seen, out) {
     if (market === "kr" && /^\d{6}$/.test(sym)) sym = `${sym}.KS`;
     if (market === "kr" && !/\.(KS|KQ)$/i.test(sym)) continue;
     if (market === "us" && /\.(KS|KQ)$/i.test(sym)) continue;
+    if (market === "us" && !isPrimaryUsSearchSymbol(sym)) continue;
 
     const symBare = sym.replace(/\.(KS|KQ)$/i, "");
     const hit =
@@ -257,6 +262,7 @@ export async function searchStocks(query, market) {
     if (market === "kr" && /^\d{6}$/.test(sym)) sym = `${sym}.KS`;
     const m = inferMarket({ ...row, symbol: sym });
     if (m !== market) continue;
+    if (market === "us" && !isPrimaryUsSearchSymbol(sym)) continue;
     if (seen.has(sym)) continue;
     seen.add(sym);
     const name = resolveDisplayName(sym, row.shortName, row.longName);
@@ -282,7 +288,11 @@ export async function searchStocks(query, market) {
 
   const sliced = quotes.slice(0, 24);
   const enriched = await enrichSearchQuotePrices(sliced);
-  const payload = { quotes: enriched };
+  const finalQuotes =
+    market === "us"
+      ? enriched.filter((row) => isUsSearchResultRow(row))
+      : enriched;
+  const payload = { quotes: finalQuotes };
   cache.set(cacheKey, { at: Date.now(), payload });
   pruneStockSearchCache();
   return payload;
