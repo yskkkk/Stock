@@ -22,6 +22,12 @@ import {
   type RecTrackerSortKey,
   type SortDir,
 } from "../lib/sortRecTracker";
+import {
+  aggregateBigGainSignals,
+  countBigGainStocks,
+  isBigGainItem,
+  REC_TRACKER_BIG_GAIN_PCT,
+} from "../lib/recTrackerBigGainSignals";
 import { recTrackerScoreSignalMismatch } from "../lib/techScore";
 import RecTrackerSignalAnalysisPanel from "./RecTrackerSignalAnalysisPanel";
 import RecTrackerTechUpgradePanel from "./RecTrackerTechUpgradePanel";
@@ -90,6 +96,7 @@ export default function RecommendationsTab({
   const [signalFilter, setSignalFilter] = useState<SignalId | null>(null);
   const [scoreFilter, setScoreFilter] = useState<number | null>(null);
   const [modelFilter, setModelFilter] = useState<string | null>(null);
+  const [bigGainOnly, setBigGainOnly] = useState(false);
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [sortKey, setSortKey] = useState<RecTrackerSortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -157,9 +164,10 @@ export default function RecommendationsTab({
       if (signalFilter && !it.signalIds.includes(signalFilter)) return false;
       if (scoreFilter != null && it.score !== scoreFilter) return false;
       if (modelFilter && it.techModelId !== modelFilter) return false;
+      if (bigGainOnly && !isBigGainItem(it)) return false;
       return true;
     });
-  }, [data?.items, dateFilter, market, signalFilter, scoreFilter, modelFilter]);
+  }, [data?.items, dateFilter, market, signalFilter, scoreFilter, modelFilter, bigGainOnly]);
 
   /** 승률·칩 통계 — 텔레그램 알림 종목만(근거/점수 UI 필터는 제외) */
   const itemsForChipStats = useMemo(() => {
@@ -285,6 +293,23 @@ export default function RecommendationsTab({
       })
       .sort((a, b) => b.score - a.score);
   }, [itemsForChipStats, market, signalFilter, dateFilter]);
+
+  const bigGainSignalStats = useMemo(
+    () => aggregateBigGainSignals(itemsForChipStats),
+    [itemsForChipStats],
+  );
+
+  const bigGainStockCount = useMemo(
+    () => countBigGainStocks(itemsForChipStats),
+    [itemsForChipStats],
+  );
+
+  const clearListFilters = useCallback(() => {
+    setSignalFilter(null);
+    setScoreFilter(null);
+    setModelFilter(null);
+    setBigGainOnly(false);
+  }, []);
 
   return (
     <div className="workspace workspace--rec-tracker">
@@ -512,11 +537,80 @@ export default function RecommendationsTab({
               </div>
             )}
 
+            {itemsForChipStats.length > 0 ? (
+              <div className="rec-tracker-signals rec-tracker-big-gain card">
+                <div className="rec-tracker-signals__head">
+                  <div className="rec-tracker-big-gain__titles">
+                    <span className="filter-title">{ko.app.recTrackerBigGainSignalsTitle}</span>
+                    <span className="rec-tracker-big-gain__sub">
+                      {ko.app.recTrackerBigGainSignalsSub.replace(
+                        "{pct}",
+                        String(REC_TRACKER_BIG_GAIN_PCT),
+                      )}
+                      {bigGainStockCount > 0
+                        ? ` · ${ko.app.recTrackerBigGainStocks.replace("{n}", String(bigGainStockCount))}`
+                        : ""}
+                    </span>
+                  </div>
+                  {bigGainOnly || signalFilter ? (
+                    <button
+                      type="button"
+                      className="filter-clear"
+                      onClick={clearListFilters}
+                    >
+                      {ko.app.recTrackerClearFilter}
+                    </button>
+                  ) : null}
+                </div>
+                {bigGainSignalStats.length > 0 ? (
+                  <div className="rec-tracker-signals__chips rec-tracker-big-gain__chips">
+                    {bigGainSignalStats.map((s) => {
+                      const chip = signalChipMeta(s.signalId as SignalId);
+                      const active = bigGainOnly && signalFilter === s.signalId;
+                      return (
+                        <button
+                          key={`bg-${s.signalId}`}
+                          type="button"
+                          className={
+                            active
+                              ? `${chip.className} rec-tracker-signal-chip rec-tracker-signal-chip--active rec-tracker-big-gain__chip`
+                              : `${chip.className} rec-tracker-signal-chip rec-tracker-big-gain__chip`
+                          }
+                          aria-pressed={active}
+                          aria-label={chip.label}
+                          onClick={() => {
+                            setSignalFilter((prev) => {
+                              if (prev === s.signalId) {
+                                setBigGainOnly(false);
+                                return null;
+                              }
+                              setBigGainOnly(true);
+                              return s.signalId as SignalId;
+                            });
+                          }}
+                        >
+                          <span>{chip.short}</span>
+                          <span className="rec-tracker-signal-chip__rate">
+                            {s.avgGainPct != null ? formatPercent(s.avgGainPct) : "—"}
+                          </span>
+                          <span className="rec-tracker-signal-chip__n">
+                            {ko.app.recTrackerBigGainHits.replace("{n}", String(s.hitCount))}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="rec-tracker-big-gain__empty">{ko.app.recTrackerBigGainEmpty}</p>
+                )}
+              </div>
+            ) : null}
+
             {signalStats.length > 0 && (
               <div className="rec-tracker-signals card">
                 <div className="rec-tracker-signals__head">
                   <span className="filter-title">{ko.app.recTrackerBySignal}</span>
-                  {signalFilter ? (
+                  {signalFilter && !bigGainOnly ? (
                     <button
                       type="button"
                       className="filter-clear"
@@ -547,11 +641,12 @@ export default function RecommendationsTab({
                         }
                         aria-pressed={active}
                         aria-label={chip.label}
-                        onClick={() =>
+                        onClick={() => {
+                          setBigGainOnly(false);
                           setSignalFilter((prev) =>
                             prev === s.signalId ? null : (s.signalId as SignalId),
-                          )
-                        }
+                          );
+                        }}
                       >
                         <span>{chip.short}</span>
                         <span className="rec-tracker-signal-chip__rate">
@@ -718,7 +813,11 @@ function RecTrackerRow({
 
   return (
     <tr
-      className="rec-tracker-row rec-tracker-row--clickable"
+      className={
+        isBigGainItem(item)
+          ? "rec-tracker-row rec-tracker-row--clickable rec-tracker-row--big-gain"
+          : "rec-tracker-row rec-tracker-row--clickable"
+      }
       tabIndex={0}
       role="button"
       aria-label={`${item.name} ${ko.app.recTrackerOpenChart}`}
