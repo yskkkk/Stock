@@ -12,7 +12,9 @@ import {
   type OpsAgentQueueEntry,
   type OpsCursorAgentPendingResponse,
 } from "../api";
+import { useMobileBackHandler } from "../hooks/useMobileBackHandler";
 import { useOpsDevQueueDisplay } from "../hooks/useOpsDevQueueDisplay";
+import { MOBILE_BACK_PRIORITY } from "../lib/mobileBackStack";
 import { parseOpsDevQueueAgentEntries } from "../lib/opsGlobalQueueRows";
 import { ko } from "../i18n/ko";
 
@@ -402,6 +404,12 @@ export default function OpsManagementTab({
     null,
   );
   const [progressModalRunId, setProgressModalRunId] = useState<string | null>(null);
+
+  useMobileBackHandler(
+    Boolean(progressModalRunId),
+    MOBILE_BACK_PRIORITY.OPS_PROGRESS,
+    () => setProgressModalRunId(null),
+  );
 
   const queueSnap = useOpsDevQueueDisplay({
     includeViewerIp: true,
@@ -931,7 +939,7 @@ export default function OpsManagementTab({
 
       </div>
 
-        <aside className="ops-management__aside card" aria-label={ko.app.opsHistoryTitle}>
+      <aside className="ops-management__aside card" aria-label={ko.app.opsHistoryTitle}>
         <div className="ops-management__history-bar">
           <h4 className="ops-management__history-title">{ko.app.opsHistoryTitle}</h4>
           {historyRuns.length > 0 ? (
@@ -1172,7 +1180,8 @@ export default function OpsManagementTab({
             })}
           </ul>
         )}
-        </aside>
+      </aside>
+
       {progressModalRunId ? (
         <OpsAgentQueueProgressModal
           runId={progressModalRunId}

@@ -5221,7 +5221,8 @@ html[data-theme="light"] .feedback-inbox-item {
   min-height: min(72vh, 920px);
   min-width: 0;
   max-width: 100%;
-  overflow: hidden;
+  overflow-x: clip;
+  overflow-y: visible;
 }
 
 .ops-management__head {
@@ -5359,10 +5360,10 @@ html[data-theme="light"] .ops-management__textarea--request {
 }
 
 .ops-management--split {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, min(400px, 38vw));
+  display: flex;
+  flex-direction: column;
   gap: 0.85rem;
-  align-items: start;
+  align-items: stretch;
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -6001,14 +6002,8 @@ html[data-theme="light"] .ops-management__queue-chip {
   padding: 0.65rem 0.75rem;
 }
 
-@media (max-width: 1280px) {
-  .ops-management--split {
-    grid-template-columns: 1fr;
-  }
-
-  .ops-management__aside {
-    max-height: min(58dvh, 560px);
-  }
+.ops-management__aside {
+  max-height: min(58dvh, 560px);
 }
 
 .ops-management__history-bar {
@@ -6469,7 +6464,7 @@ body {
   }
 
   .ops-management--split {
-    grid-template-columns: 1fr;
+    flex-direction: column;
     align-items: stretch;
     width: 100%;
     min-width: 0;
@@ -7973,5 +7968,45 @@ body {
   height: auto;
   overflow: visible;
   flex: 0 0 auto;
+}
+
+/* 운영 탭·상단 대기열 — 스크리너 .workspace 그리드와 분리(최종 우선) */
+.workspace.ops-workspace {
+  display: flex !important;
+  flex-direction: column !important;
+  grid-template-columns: unset !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  align-self: stretch !important;
+}
+
+#root > .app.app--ops .app__shell {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+#root > .app.app--ops .workspace.ops-workspace {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ops-management--split > .ops-management__main,
+.ops-management--split > .ops-management__aside {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.app-page-top--queue-only .ops-global-queue-stack {
+  width: 100%;
+  max-width: 100%;
+}
+
+.app-page-top--queue-only .ops-global-queue-stack__track.ops-agent-queue-track {
+  flex-direction: row;
+  flex-wrap: nowrap;
 }
 

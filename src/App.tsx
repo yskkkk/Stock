@@ -353,9 +353,11 @@ export default function App() {
   }, [configReady]);
 
   useEffect(() => {
-    if (!configReady || !accessAdmin) return;
+    if (!configReady || (!accessAdmin && !adminIpConsole)) return;
     return warmOpsDevQueueDisplay();
-  }, [configReady, accessAdmin]);
+  }, [configReady, accessAdmin, adminIpConsole]);
+
+  const showOpsGlobalQueue = accessAdmin || adminIpConsole;
 
   useEffect(() => {
     applyTheme(colorMode);
@@ -918,7 +920,9 @@ export default function App() {
           ? "app app--rec-tracker"
           : appTab === "liveTrading"
             ? "app app--live-trade"
-            : "app"
+            : appTab === "ops"
+              ? "app app--ops"
+              : "app"
       }
     >
       <div className="app__shell" ref={appScrollRef}>
@@ -929,7 +933,7 @@ export default function App() {
         aria-atomic="true"
       />
       <div className="app-header-sticky">
-      {accessAdmin ? (
+      {showOpsGlobalQueue ? (
         <div
           className="app-page-top app-page-top--queue-only"
           aria-label={ko.app.opsGlobalQueueTitle}
