@@ -27,7 +27,7 @@ import {
   summarizeHoldingsPnl,
   unrealizedPnlTone,
 } from "../lib/livePortfolioPnl";
-import { buySellPricesByTradeId } from "../lib/liveTradeBuySellPrices";
+import { tradeFillDisplayByTradeId } from "../lib/liveTradeBuySellPrices";
 import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
 import { ko } from "../i18n/ko";
 import {
@@ -375,8 +375,8 @@ export default function LiveTradePortfolioPanel({
     [programs],
   );
 
-  const tradeBuySell = useMemo(
-    () => buySellPricesByTradeId(data?.trades ?? []),
+  const tradeFill = useMemo(
+    () => tradeFillDisplayByTradeId(data?.trades ?? []),
     [data?.trades],
   );
 
@@ -523,13 +523,17 @@ export default function LiveTradePortfolioPanel({
                       <th>{ko.app.liveTradePfColQty}</th>
                       <th>{ko.app.liveTradePfColBuyPrice}</th>
                       <th>{ko.app.liveTradePfColSellPrice}</th>
+                      <th>{ko.app.liveTradePfColRealizedPnlPct}</th>
+                      <th>{ko.app.liveTradePfColRealizedPnl}</th>
                       <th>{ko.app.liveTradePfColAmount}</th>
                       <th>{ko.app.liveTradePfColProgram}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.trades.map((t) => {
-                      const bp = tradeBuySell.get(t.id);
+                      const fd = tradeFill.get(t.id);
+                      const pnlUp =
+                        fd?.realizedPnl != null ? fd.realizedPnl >= 0 : null;
                       return (
                       <tr
                         key={t.id}
@@ -567,16 +571,44 @@ export default function LiveTradePortfolioPanel({
                           className="live-portfolio__num"
                           data-label={ko.app.liveTradePfColBuyPrice}
                         >
-                          {bp?.buyPrice != null
-                            ? formatPrice(bp.buyPrice, t.currency)
+                          {fd?.buyPrice != null
+                            ? formatPrice(fd.buyPrice, t.currency)
                             : "—"}
                         </td>
                         <td
                           className="live-portfolio__num"
                           data-label={ko.app.liveTradePfColSellPrice}
                         >
-                          {bp?.sellPrice != null
-                            ? formatPrice(bp.sellPrice, t.currency)
+                          {fd?.sellPrice != null
+                            ? formatPrice(fd.sellPrice, t.currency)
+                            : "—"}
+                        </td>
+                        <td
+                          className={
+                            pnlUp == null
+                              ? "live-portfolio__num"
+                              : pnlUp
+                                ? "live-portfolio__num live-portfolio__num--up"
+                                : "live-portfolio__num live-portfolio__num--down"
+                          }
+                          data-label={ko.app.liveTradePfColRealizedPnlPct}
+                        >
+                          {fd?.realizedPnlPct != null
+                            ? formatPercent(fd.realizedPnlPct)
+                            : "—"}
+                        </td>
+                        <td
+                          className={
+                            pnlUp == null
+                              ? "live-portfolio__num"
+                              : pnlUp
+                                ? "live-portfolio__num live-portfolio__num--up"
+                                : "live-portfolio__num live-portfolio__num--down"
+                          }
+                          data-label={ko.app.liveTradePfColRealizedPnl}
+                        >
+                          {fd?.realizedPnl != null
+                            ? formatSignedMoney(fd.realizedPnl, t.currency)
                             : "—"}
                         </td>
                         <td className="live-portfolio__num" data-label={ko.app.liveTradePfColAmount}>
