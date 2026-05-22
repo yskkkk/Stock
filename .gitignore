@@ -15,3 +15,19 @@ server/.logs
 .stock-ops-ide-lease.json
 .cursor/rules/.stock-ide-queue-turn.mdc
 tsconfig.tsbuildinfo
+
+# Local Android SDK (apk:build)
+.android-sdk/
+
+# Swift native iOS IPA build (ipa:build)
+.ios-build/
+
+# Capacitor native build outputs
+ios-native/**/xcuserdata/
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+ios/App/Pods/
+ios/DerivedData/
+*.xcuserstate

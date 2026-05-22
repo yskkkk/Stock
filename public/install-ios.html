@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#c9d4e2" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="종목 대시보드" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <title>iPhone에 설치 — 종목 대시보드</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Pretendard, system-ui, sans-serif;
+        background: #e8eef5;
+        color: #1a2332;
+        padding: 20px 16px 36px;
+        box-sizing: border-box;
+      }
+      .wrap {
+        max-width: 480px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 1.35rem;
+        margin: 0 0 8px;
+      }
+      .lead {
+        color: #5a6b7d;
+        line-height: 1.55;
+        margin: 0 0 20px;
+      }
+      .card {
+        background: #fff;
+        border-radius: 16px;
+        padding: 18px 20px;
+        margin-bottom: 14px;
+        box-shadow: 0 2px 12px rgba(20, 40, 80, 0.08);
+      }
+      .card h2 {
+        font-size: 1rem;
+        margin: 0 0 12px;
+      }
+      .btn {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+        text-align: center;
+        padding: 14px 16px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      .btn--primary {
+        background: #2f6fed;
+        color: #fff;
+        margin-bottom: 10px;
+      }
+      .btn--secondary {
+        background: #e8eef5;
+        color: #1a2332;
+      }
+      .steps {
+        margin: 0;
+        padding: 0 0 0 1.1rem;
+        line-height: 1.55;
+        color: #1a2332;
+      }
+      .steps li {
+        margin-bottom: 10px;
+      }
+      .steps strong {
+        color: #2f6fed;
+      }
+      .warn {
+        background: #fff8e6;
+        border: 1px solid #f0d78c;
+        border-radius: 12px;
+        padding: 12px 14px;
+        font-size: 0.88rem;
+        line-height: 1.5;
+        margin-bottom: 14px;
+      }
+      .ok {
+        background: #e8f5ec;
+        border: 1px solid #9fd4ad;
+        border-radius: 12px;
+        padding: 14px;
+        margin-bottom: 14px;
+      }
+      .note {
+        font-size: 0.85rem;
+        color: #5a6b7d;
+        line-height: 1.5;
+        margin: 10px 0 0;
+      }
+      .icon-preview {
+        width: 72px;
+        height: 72px;
+        border-radius: 16px;
+        margin-bottom: 12px;
+      }
+      .back {
+        margin-top: 16px;
+        font-size: 0.9rem;
+      }
+      .back a {
+        color: #2f6fed;
+      }
+      #copy-ok {
+        display: none;
+        color: #1a7f4e;
+        font-size: 0.85rem;
+        margin-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <img class="icon-preview" src="/apple-touch-icon.png" width="72" height="72" alt="" />
+      <h1>iPhone에 앱 설치</h1>
+      <p class="lead">
+        App Store 없이 <strong>Safari</strong>에서 「홈 화면에 추가」하면 웹과 같은
+        전체 화면 앱으로 쓸 수 있습니다.
+      </p>
+
+      <div id="state-installed" class="ok" hidden>
+        <strong>이미 설치된 상태입니다.</strong>
+        <p class="note" style="margin: 8px 0 0">
+          홈 화면의 「종목 대시보드」 아이콘을 눌러 실행하세요.
+        </p>
+        <a class="btn btn--primary" href="/" style="margin-top: 12px">앱 열기</a>
+      </div>
+
+      <div id="state-inapp" class="warn" hidden>
+        <strong>카카오·인스타 등 앱 안 브라우저에서는 설치할 수 없습니다.</strong>
+        <p style="margin: 8px 0 0">
+          아래 버튼으로 주소를 복사한 뒤 <strong>Safari</strong>를 열고 주소창에
+          붙여넣으세요.
+        </p>
+        <button type="button" class="btn btn--primary" id="copy-url" style="margin-top: 12px">
+          Safari용 주소 복사
+        </button>
+        <p id="copy-ok">복사했습니다. Safari → 주소창에 붙여넣기</p>
+      </div>
+
+      <div id="state-install" class="card">
+        <h2>설치 방법 (Safari)</h2>
+        <ol class="steps">
+          <li>Safari 하단 <strong>공유</strong> 버튼(□ 위 화살표)을 누릅니다.</li>
+          <li>메뉴를 아래로 스크롤해 <strong>홈 화면에 추가</strong>를 선택합니다.</li>
+          <li>이름 확인 후 오른쪽 위 <strong>추가</strong>를 누릅니다.</li>
+        </ol>
+        <a class="btn btn--primary" href="/">대시보드 열기 (설치 전 미리보기)</a>
+        <p class="note">
+          설치 후 홈 화면 아이콘으로 실행하면 주소창 없이 앱처럼 동작합니다. PC와
+          같은 Wi‑Fi의 서버 주소로 접속하면 됩니다.
+        </p>
+      </div>
+
+      <div class="card" id="card-native-ipa">
+        <h2>네이티브 앱 (Swift · IPA)</h2>
+        <p class="note" style="margin: 0 0 12px">
+          갤럭시 APK와 같이 서버에 올린 웹 주소를 <strong>고정 URL</strong>로 여는
+          iPhone 앱입니다. Mac에서 <code>npm run ipa:build</code> 후 설치할 수
+          있습니다.
+        </p>
+        <a class="btn btn--primary" id="ipa-install" href="#" hidden
+          >앱 설치 (기업·개발 배포)</a
+        >
+        <a
+          class="btn btn--secondary"
+          id="ipa-download"
+          href="/downloads/stock-dashboard.ipa"
+          hidden
+          >IPA 파일 다운로드</a
+        >
+        <p class="note" id="ipa-missing" hidden>
+          아직 IPA가 없습니다. Mac + Xcode + Apple Developer Team ID로 빌드하세요.
+        </p>
+        <p class="note">
+          설치 후 <strong>설정 → 일반 → VPN 및 기기 관리</strong>에서 개발자 앱을
+          신뢰해야 실행됩니다. 등록된 기기(Ad Hoc/Development)에서만 동작합니다.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2>Android (갤럭시)</h2>
+        <a class="btn btn--secondary" href="/downloads/stock-dashboard.apk" download
+          >APK 다운로드</a
+        >
+      </div>
+
+      <p class="back"><a href="/">← 대시보드로</a></p>
+    </div>
+    <script>
+      (function () {
+        var standalone =
+          window.navigator.standalone === true ||
+          window.matchMedia("(display-mode: standalone)").matches;
+        var ua = navigator.userAgent || "";
+        var ios =
+          /iphone|ipad|ipod/i.test(ua) ||
+          (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+        var inApp =
+          ios &&
+          !standalone &&
+          !/Safari/i.test(ua) &&
+          /AppleWebKit/i.test(ua);
+
+        if (standalone) {
+          document.getElementById("state-installed").hidden = false;
+          document.getElementById("state-install").hidden = true;
+          document.getElementById("state-inapp").hidden = true;
+          return;
+        }
+
+        if (inApp) {
+          document.getElementById("state-inapp").hidden = false;
+        }
+
+        var copyBtn = document.getElementById("copy-url");
+        if (copyBtn) {
+          copyBtn.addEventListener("click", function () {
+            var url = location.origin + "/install-ios.html";
+            var done = function () {
+              document.getElementById("copy-ok").style.display = "block";
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(url).then(done).catch(function () {
+                prompt("아래 주소를 복사해 Safari에서 여세요:", url);
+              });
+            } else {
+              prompt("아래 주소를 복사해 Safari에서 여세요:", url);
+            }
+          });
+        }
+
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker.register("/sw.js").catch(function () {});
+        }
+
+        var origin = location.origin;
+        var manifestUrl = origin + "/downloads/ios-manifest.plist";
+        var installBtn = document.getElementById("ipa-install");
+        var dlBtn = document.getElementById("ipa-download");
+        var missing = document.getElementById("ipa-missing");
+
+        function showIpaAvailable() {
+          if (installBtn) {
+            installBtn.hidden = false;
+            installBtn.href =
+              "itms-services://?action=download-manifest&url=" +
+              encodeURIComponent(manifestUrl);
+          }
+          if (dlBtn) dlBtn.hidden = false;
+          if (missing) missing.hidden = true;
+        }
+
+        fetch("/downloads/ios-manifest.plist", { method: "HEAD" })
+          .then(function (r) {
+            if (r.ok) showIpaAvailable();
+            else if (missing) missing.hidden = false;
+          })
+          .catch(function () {
+            fetch("/downloads/stock-dashboard.ipa", { method: "HEAD" })
+              .then(function (r) {
+                if (r.ok) {
+                  if (dlBtn) dlBtn.hidden = false;
+                  if (missing) missing.hidden = true;
+                } else if (missing) missing.hidden = false;
+              })
+              .catch(function () {
+                if (missing) missing.hidden = false;
+              });
+          });
+      })();
+    </script>
+  </body>
+</html>

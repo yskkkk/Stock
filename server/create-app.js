@@ -44,6 +44,13 @@ import {
   waitIdeDevQueueGrant,
 } from "./ops-agent-job-queue.js";
 import { clearIdeLeaseOnDisk } from "./ops-ide-lease-disk.js";
+import { restartNodeOrViteDev } from "./restart-node-process.js";
+import { installMobileApkDownload } from "./mobile-apk-download.js";
+import { installMobileIosDownload } from "./mobile-ios-download.js";
+import {
+  getServerRestartPasswordExpected,
+  verifyServerRestartPassword,
+} from "./server-restart-auth.js";
 import {
   clearOpsAgentHistoryAsync,
   prependPolicyRejectedOpsEntry,
@@ -105,10 +112,16 @@ import {
 import { startLiveTradeAutoSellPoller } from "./live-trade-auto-sell.js";
 import {
   buildLiveTradePortfolioSnapshot,
+  buildProgramPortfolioSummariesMap,
   recordLiveTradeSimBuyAsync,
   recordLiveTradeSimSellAsync,
   recordLiveTradeSellSync,
 } from "./live-trade-portfolio-store.js";
+import {
+  analyzeSimProgramFeedback,
+  applySimProgramFeedbackPatch,
+  buildSimCreationRecommendations,
+} from "./live-trade-sim-feedback.js";
 import { getTossTradingStatus } from "./toss-trading-adapter.js";
 import {
   fetchQuoteSnapshotsForSymbols,
@@ -197,6 +210,8 @@ function respondIdeDevQueueError(res, err) {
 export function createApp() {
   const app = express();
   app.set("trust proxy", 1);
+  installMobileApkDownload(app);
+  installMobileIosDownload(app);
 
   /**
    * @param {import("express").Request} req
@@ -411,17 +426,24 @@ export function createApp() {
     }),
   );
 
-  app.get("/api/live-trading/status", (_req, res) => {
-    const toss = getTossTradingStatus();
-    const programs = listLiveTradeProgramsSync();
-    res.json({
-      toss,
-      programs,
-      armedCount: programs.filter((p) => p.status === "armed").length,
-      simCount: programs.filter((p) => p.status === "sim").length,
-      simulatedOrders: process.env.TOSS_LIVE_ORDERS_ENABLED !== "1",
-    });
-  });
+  app.get(
+    "/api/live-trading/status",
+    asyncRoute(async (_req, res) => {
+      const toss = getTossTradingStatus();
+      const programs = listLiveTradeProgramsSync();
+      const programReturns = await buildProgramPortfolioSummariesMap(
+        programs.map((p) => p.id),
+      );
+      res.json({
+        toss,
+        programs,
+        programReturns,
+        armedCount: programs.filter((p) => p.status === "armed").length,
+        simCount: programs.filter((p) => p.status === "sim").length,
+        simulatedOrders: process.env.TOSS_LIVE_ORDERS_ENABLED !== "1",
+      });
+    }),
+  );
 
   app.post(
     "/api/live-trading/programs",
@@ -535,6 +557,43 @@ export function createApp() {
       try {
         const program = stopSimLiveTradeProgramSync(id);
         res.json({ ok: true, program, programs: listLiveTradeProgramsSync() });
+      } catch (e) {
+        res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
+      }
+    }),
+  );
+
+  app.get(
+    "/api/live-trading/sim-recommendations",
+    asyncRoute(async (_req, res) => {
+      res.json(buildSimCreationRecommendations());
+    }),
+  );
+
+  app.get(
+    "/api/live-trading/programs/:id/sim-feedback",
+    asyncRoute(async (req, res) => {
+      const id = String(req.params.id ?? "").trim();
+      try {
+        res.json(analyzeSimProgramFeedback(id));
+      } catch (e) {
+        res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
+      }
+    }),
+  );
+
+  app.post(
+    "/api/live-trading/programs/:id/sim-feedback/apply",
+    asyncRoute(async (req, res) => {
+      const id = String(req.params.id ?? "").trim();
+      try {
+        const out = applySimProgramFeedbackPatch(id);
+        res.json({
+          ok: true,
+          program: out.program,
+          analysis: out.analysis,
+          programs: listLiveTradeProgramsSync(),
+        });
       } catch (e) {
         res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
       }
@@ -684,6 +743,43 @@ export function createApp() {
       opsCursorAgentAvailable: adminReq && Boolean(cursorKey),
     });
   });
+
+  app.post(
+    "/api/admin/server-restart",
+    asyncRoute(async (req, res) => {
+      if (!isAccessAdminRequest(req)) {
+        res.status(403).json({
+          error: "관리자만 서버를 재기동할 수 있습니다.",
+          code: "FORBIDDEN",
+        });
+        return;
+      }
+      if (!getServerRestartPasswordExpected()) {
+        res.status(503).json({
+          error:
+            "SERVER_RESTART_PASSWORD 또는 ACCESS_ADMIN_TOKEN 이 서버 .env에 필요합니다.",
+          code: "RESTART_PASSWORD_NOT_CONFIGURED",
+        });
+        return;
+      }
+      const password = String(req.body?.password ?? "").trim();
+      if (!verifyServerRestartPassword(password)) {
+        res.status(403).json({
+          error: "재기동 비밀번호가 올바르지 않습니다.",
+          code: "RESTART_PASSWORD_INVALID",
+        });
+        return;
+      }
+      const httpServer = req.socket?.server ?? null;
+      res.json({
+        ok: true,
+        message: "재기동을 시작했습니다. 잠시 후 페이지가 새로고침됩니다.",
+      });
+      setTimeout(() => {
+        void restartNodeOrViteDev(httpServer);
+      }, 280);
+    }),
+  );
 
   app.post(
     "/api/ops/cursor-agent",

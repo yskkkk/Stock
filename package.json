@@ -13,9 +13,25 @@
     "verify:express-spa": "node scripts/verify-express-spa-root.mjs",
     "test": "vitest run",
     "build": "npm run verify && tsc -b && vite build",
+    "build:mobile": "vite build --mode capacitor && npx cap sync",
+    "apk:build": "node scripts/build-android-apk.mjs",
+    "ipa:build": "node scripts/build-ios-ipa.mjs",
+    "ios:build": "node scripts/build-ios-ipa.mjs",
+    "ios:open": "node scripts/open-ios-xcode.mjs",
+    "app:build": "node scripts/build-android-apk.mjs",
+    "icons:gen": "node scripts/gen-pwa-icons.mjs",
+    "cap:sync": "npx cap sync",
+    "cap:android": "npx cap open android",
+    "cap:ios": "npx cap open ios",
     "preview": "concurrently -k \"node server/index.js\" \"vite preview\""
   },
   "dependencies": {
+    "@capacitor/android": "^7.2.0",
+    "@capacitor/app": "^7.0.1",
+    "@capacitor/core": "^7.2.0",
+    "@capacitor/ios": "^7.2.0",
+    "@capacitor/splash-screen": "^7.0.1",
+    "@capacitor/status-bar": "^7.0.1",
     "@cursor/sdk": "^1.0.13",
     "@vscode/ripgrep": "^1.18.0",
     "express": "^5.1.0",
@@ -24,6 +40,7 @@
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.2.0",
     "@types/node": "^22.15.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.3.0",

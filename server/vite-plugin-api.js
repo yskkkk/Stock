@@ -15,7 +15,11 @@ import {
 } from "./ops-server-lifecycle-notify.js";
 import { prewarmAppCaches } from "./prewarm-caches.js";
 import { startScreening } from "./screener.js";
+import { startServerSelfImprovementWatcher } from "./server-self-improvement-log.js";
 import { installAccessGateHtmlMiddleware } from "./vite-access-gate-html.js";
+import { registerViteIntegratedRestart } from "./restart-node-process.js";
+import { installViteMobileApkMiddleware } from "./mobile-apk-download.js";
+import { installViteMobileIosMiddleware } from "./mobile-ios-download.js";
 
 function logScreeningError(err) {
   console.warn(
@@ -109,11 +113,14 @@ export function stockApiPlugin() {
     enforce: "pre",
     configureServer(server) {
       mergeStockProcessEnv(server.config.mode);
+      registerViteIntegratedRestart(() => server.restart());
       const port = server.config.server?.port ?? 5173;
       const notifyStart = () =>
         notifyOpsServerStarted({ mode: "dev (Vite)", port });
       if (server.httpServer?.listening) notifyStart();
       else server.httpServer?.once("listening", notifyStart);
+      installViteMobileApkMiddleware(server.middlewares);
+      installViteMobileIosMiddleware(server.middlewares);
       installAccessGateHtmlMiddleware(server);
       installViteAccessTraceMiddleware(server);
       attachStockApiMiddlewares(server);
@@ -123,6 +130,7 @@ export function stockApiPlugin() {
       startDevQueueDisplaySyncPoller();
       startOpsIdeTranscriptPoller();
       startLiveTradeAutoSellPoller();
+      startServerSelfImprovementWatcher();
       setTimeout(() => prewarmAppCaches(), 400);
       setTimeout(() => {
         startScreening().catch(logScreeningError);
@@ -135,6 +143,8 @@ export function stockApiPlugin() {
         notifyOpsServerStarted({ mode: "preview (Vite)", port });
       if (server.httpServer?.listening) notifyStart();
       else server.httpServer?.once("listening", notifyStart);
+      installViteMobileApkMiddleware(server.middlewares);
+      installViteMobileIosMiddleware(server.middlewares);
       installAccessGateHtmlMiddleware(server);
       installViteAccessTraceMiddleware(server);
       attachStockApiMiddlewares(server);
@@ -143,6 +153,7 @@ export function stockApiPlugin() {
       startDevQueueDisplaySyncPoller();
       startOpsIdeTranscriptPoller();
       startLiveTradeAutoSellPoller();
+      startServerSelfImprovementWatcher();
       setTimeout(() => prewarmAppCaches(), 400);
       setTimeout(() => {
         startScreening().catch(logScreeningError);
