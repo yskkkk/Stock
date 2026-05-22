@@ -9,6 +9,7 @@
   --radius-xl: 22px;
   --shadow: 0 12px 44px rgba(0, 0, 0, 0.38);
   --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.22);
+  --app-page-max-width: 1400px;
 }
 
 html {
@@ -61,7 +62,9 @@ body {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 100%;
+  max-width: var(--app-page-max-width);
+  margin-left: auto;
+  margin-right: auto;
   gap: 0.95rem;
   padding: 1.35rem 1.35rem 1.35rem;
   box-sizing: border-box;
@@ -2230,9 +2233,9 @@ body {
 .app-site-footer {
   flex-shrink: 0;
   width: 100%;
-  max-width: none;
-  margin-left: 0;
-  margin-right: 0;
+  max-width: var(--app-page-max-width);
+  margin-left: auto;
+  margin-right: auto;
   box-sizing: border-box;
   padding: 0.85rem 1.35rem max(0.35rem, env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--card-border, rgba(148, 163, 184, 0.14));

@@ -6410,11 +6410,18 @@ body {
   overflow: hidden;
 }
 
-/* 스크롤은 전폭 .app__scroll — 레거시 .app max-width:1400px 무효 */
+/* 스크롤 레일만 전폭 — 본문·푸터 너비는 .app__shell / .app-site-footer */
 #root > .app > .app__scroll {
   width: 100%;
   max-width: none;
   margin: 0;
+}
+
+#root > .app .app__shell,
+#root > .app > .app-site-footer {
+  max-width: var(--app-page-max-width, 1400px);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 @media (max-width: 900px) {
