@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import {
   fetchLiveTradingPortfolio,
   simulateLiveTradeSell,
@@ -7,9 +7,14 @@ import {
   type LiveTradeProgram,
   type LiveTradeRecord,
 } from "../api";
+import { useLivePortfolioQuotePoll } from "../hooks/useLivePortfolioQuotePoll";
 import LiveTradeSimPanel from "./LiveTradeSimPanel";
 import { formatPercent, formatPrice, formatSignedMoney } from "../lib/format";
 import { ko } from "../i18n/ko";
+import {
+  LiveTradeExitPriceCell,
+  LiveTradeHoldingRationaleRow,
+} from "./LiveTradeHoldingDisplay";
 
 type PanelTab = "summary" | "holdings" | "trades";
 
@@ -134,6 +139,7 @@ function HoldingRow({
   };
 
   return (
+    <Fragment>
     <tr className="live-portfolio__row">
       <td data-label={ko.app.liveTradePfColSymbol}>
         <span className="live-portfolio__sym">{row.symbol}</span>
@@ -164,20 +170,34 @@ function HoldingRow({
         ) : null}
       </td>
       <td
-        className="live-portfolio__num"
+        className="live-portfolio__num live-portfolio__num--exit live-table__col live-table__col--exit"
         data-label={ko.app.liveTradePfColTargetSell}
       >
-        {row.targetSellPrice != null
-          ? formatPrice(row.targetSellPrice, row.currency)
-          : "—"}
+        <LiveTradeExitPriceCell
+          entry={row.avgEntryPrice}
+          exitPrice={row.targetSellPrice}
+          currency={row.currency}
+          variant="success"
+        />
+      </td>
+      <td
+        className="live-portfolio__num live-portfolio__num--exit live-table__col live-table__col--exit"
+        data-label={ko.app.liveTradePfColStopLoss}
+      >
+        <LiveTradeExitPriceCell
+          entry={row.avgEntryPrice}
+          exitPrice={row.stopLossPrice}
+          currency={row.currency}
+          variant="failure"
+        />
       </td>
       <td
         className={
           row.unrealizedPnl == null
-            ? "live-portfolio__num"
+            ? "live-portfolio__num live-table__col live-table__col--num-end"
             : row.unrealizedPnl >= 0
-              ? "live-portfolio__num live-portfolio__num--up"
-              : "live-portfolio__num live-portfolio__num--down"
+              ? "live-portfolio__num live-portfolio__num--up live-table__col live-table__col--num-end"
+              : "live-portfolio__num live-portfolio__num--down live-table__col live-table__col--num-end"
         }
         data-label={ko.app.liveTradePfColPnl}
       >
@@ -241,6 +261,8 @@ function HoldingRow({
         ) : null}
       </td>
     </tr>
+    <LiveTradeHoldingRationaleRow holding={row} colSpan={7} />
+    </Fragment>
   );
 }
 
@@ -274,6 +296,8 @@ export default function LiveTradePortfolioPanel({
     const id = window.setInterval(() => void load(), 30_000);
     return () => window.clearInterval(id);
   }, [load]);
+
+  useLivePortfolioQuotePoll(data, setData, Boolean(data?.holdings.length));
 
   const programOptions = useMemo(
     () => [{ id: "", name: ko.app.liveTradePfAllPrograms }, ...programs],
@@ -372,8 +396,15 @@ export default function LiveTradePortfolioPanel({
                       <th>{ko.app.liveTradePfColQty}</th>
                       <th>{ko.app.liveTradePfColAvg}</th>
                       <th>{ko.app.liveTradePfColCurrent}</th>
-                      <th>{ko.app.liveTradePfColTargetSell}</th>
-                      <th>{ko.app.liveTradePfColPnl}</th>
+                      <th className="live-table__col live-table__col--exit">
+                        {ko.app.liveTradePfColTargetSell}
+                      </th>
+                      <th className="live-table__col live-table__col--exit">
+                        {ko.app.liveTradePfColStopLoss}
+                      </th>
+                      <th className="live-table__col live-table__col--num-end">
+                        {ko.app.liveTradePfColPnl}
+                      </th>
                       <th />
                     </tr>
                   </thead>

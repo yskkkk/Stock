@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import {
   fetchLiveTradingPortfolio,
   type LiveTradeHolding,
@@ -6,8 +6,14 @@ import {
   type LiveTradeProgram,
   type LiveTradeRecord,
 } from "../api";
+import { useLivePortfolioQuotePoll } from "../hooks/useLivePortfolioQuotePoll";
 import { formatPercent, formatPrice, formatSignedMoney } from "../lib/format";
 import { ko } from "../i18n/ko";
+import LiveSimFeedbackBlock from "./LiveSimFeedbackBlock";
+import {
+  LiveTradeExitPriceCell,
+  LiveTradeHoldingRationaleRow,
+} from "./LiveTradeHoldingDisplay";
 
 function formatTs(ms: number | null): string {
   if (ms == null || !Number.isFinite(ms)) return "—";
@@ -44,36 +50,107 @@ function SimProgramCard({
   trades,
   busy,
   onStop,
+  refreshKey,
+  onProgramUpdated,
 }: {
   program: LiveTradeProgram;
   holdings: LiveTradeHolding[];
   trades: LiveTradeRecord[];
   busy: boolean;
   onStop: (id: string) => void;
+  refreshKey?: number;
+  onProgramUpdated?: () => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const sum = programSummary(holdings);
   const retUp = sum.ret != null && sum.ret >= 0;
   const recentTrades = trades.slice(0, 12);
 
+  const toggleExpanded = () => setExpanded((v) => !v);
+
   return (
-    <article className="live-sim-run__card" data-program-id={program.id}>
+    <article
+      className={`live-sim-run__card${expanded ? " live-sim-run__card--open" : ""}`}
+      data-program-id={program.id}
+    >
       <header className="live-sim-run__card-head">
-        <div>
+        <div
+          className="live-sim-run__card-head-main"
+          role="button"
+          tabIndex={0}
+          aria-expanded={expanded}
+          aria-label={
+            expanded
+              ? `${program.name} ${ko.app.liveTradeSimRunCollapse}`
+              : `${program.name} ${ko.app.liveTradeSimRunExpand}`
+          }
+          onClick={toggleExpanded}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              toggleExpanded();
+            }
+          }}
+        >
           <h4 className="live-sim-run__card-title">{program.name}</h4>
           <p className="live-sim-run__card-ts">
             {ko.app.liveTradeSimRunSince} {formatTs(program.armedAtMs)}
           </p>
+          {!expanded ? (
+            <p className="live-sim-run__card-summary" aria-live="polite">
+              <span>
+                {ko.app.liveTradePfHoldings} {sum.holdingCount}
+              </span>
+              <span aria-hidden>·</span>
+              <span
+                className={
+                  sum.ret == null
+                    ? ""
+                    : retUp
+                      ? "live-sim-run__card-summary--up"
+                      : "live-sim-run__card-summary--down"
+                }
+              >
+                {ko.app.liveTradePfReturn}{" "}
+                {sum.ret == null ? "—" : formatPercent(sum.ret)}
+              </span>
+              <span aria-hidden>·</span>
+              <span
+                className={
+                  sum.unrealized >= 0
+                    ? "live-sim-run__card-summary--up"
+                    : "live-sim-run__card-summary--down"
+                }
+              >
+                {formatSignedMoney(sum.unrealized, "KRW")}
+              </span>
+            </p>
+          ) : null}
         </div>
-        <button
-          type="button"
-          className="btn btn--secondary btn--sm"
-          disabled={busy}
-          onClick={() => onStop(program.id)}
+        <div
+          className="live-sim-run__card-head-actions"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
         >
-          {ko.app.liveTradeSimStop}
-        </button>
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            disabled={busy}
+            onClick={() => onStop(program.id)}
+          >
+            {ko.app.liveTradeSimStop}
+          </button>
+        </div>
       </header>
 
+      {program.lastError ? (
+        <p className="live-sim-run__err" role="alert">
+          {program.lastError}
+        </p>
+      ) : null}
+
+      {expanded ? (
+      <>
       <ul className="live-sim-run__chips" aria-label={ko.app.liveTradeSimRunSettings}>
         <li>
           {program.simAutoBuy !== false
@@ -85,15 +162,8 @@ function SimProgramCard({
             ? ko.app.liveTradeSimRunAutoSellOn
             : ko.app.liveTradeSimRunAutoSellOff}
         </li>
-        {program.takeProfitPct != null ? (
-          <li>
-            {ko.app.liveTradeSimRunTakeProfit}: {program.takeProfitPct}%
-          </li>
-        ) : null}
-        {program.stopLossPct != null ? (
-          <li>
-            {ko.app.liveTradeSimRunStopLoss}: {program.stopLossPct}%
-          </li>
+        {program.autoSellAtTarget !== false ? (
+          <li>{ko.app.liveTradeAutoExitHint}</li>
         ) : null}
         <li>
           {ko.app.liveTradeMinScoreShort} {(program.minScoreRatio * 100).toFixed(0)}%
@@ -103,11 +173,11 @@ function SimProgramCard({
         </li>
       </ul>
 
-      {program.lastError ? (
-        <p className="live-sim-run__err" role="alert">
-          {program.lastError}
-        </p>
-      ) : null}
+      <LiveSimFeedbackBlock
+        programId={program.id}
+        refreshKey={(refreshKey ?? 0) + trades.length}
+        onApplied={onProgramUpdated}
+      />
 
       <div className="live-sim-run__tiles">
         <div className="live-sim-run__tile">
@@ -153,16 +223,23 @@ function SimProgramCard({
                 <th>{ko.app.liveTradePfColSymbol}</th>
                 <th>{ko.app.liveTradePfColQty}</th>
                 <th>{ko.app.liveTradePfColCurrent}</th>
-                <th>{ko.app.liveTradePfColTargetSell}</th>
-                <th>{ko.app.liveTradePfColStopLoss}</th>
-                <th>{ko.app.liveTradePfColPnl}</th>
+                <th className="live-table__col live-table__col--exit">
+                  {ko.app.liveTradePfColTargetSell}
+                </th>
+                <th className="live-table__col live-table__col--exit">
+                  {ko.app.liveTradePfColStopLoss}
+                </th>
+                <th className="live-table__col live-table__col--num-end">
+                  {ko.app.liveTradePfColPnl}
+                </th>
               </tr>
             </thead>
             <tbody>
               {holdings.map((h) => {
                 const up = (h.changePct ?? 0) >= 0;
                 return (
-                  <tr key={`${h.market}:${h.symbol}`}>
+                  <Fragment key={`${h.market}:${h.symbol}`}>
+                  <tr>
                     <td data-label={ko.app.liveTradePfColSymbol}>
                       <span className="live-sim-run__sym">{h.symbol}</span>
                       <span className="live-sim-run__name">{h.name}</span>
@@ -179,28 +256,34 @@ function SimProgramCard({
                         : "—"}
                     </td>
                     <td
-                      className="live-sim-run__num"
+                      className="live-sim-run__num live-sim-run__num--exit live-table__col live-table__col--exit"
                       data-label={ko.app.liveTradePfColTargetSell}
                     >
-                      {h.targetSellPrice != null
-                        ? formatPrice(h.targetSellPrice, h.currency)
-                        : "—"}
+                      <LiveTradeExitPriceCell
+                        entry={h.avgEntryPrice}
+                        exitPrice={h.targetSellPrice}
+                        currency={h.currency}
+                        variant="success"
+                      />
                     </td>
                     <td
-                      className="live-sim-run__num"
+                      className="live-sim-run__num live-sim-run__num--exit live-table__col live-table__col--exit"
                       data-label={ko.app.liveTradePfColStopLoss}
                     >
-                      {h.stopLossPrice != null
-                        ? formatPrice(h.stopLossPrice, h.currency)
-                        : "—"}
+                      <LiveTradeExitPriceCell
+                        entry={h.avgEntryPrice}
+                        exitPrice={h.stopLossPrice}
+                        currency={h.currency}
+                        variant="failure"
+                      />
                     </td>
                     <td
                       className={
                         h.unrealizedPnl == null
-                          ? "live-sim-run__num"
+                          ? "live-sim-run__num live-table__col live-table__col--num-end"
                           : up
-                            ? "live-sim-run__num live-sim-run__num--up"
-                            : "live-sim-run__num live-sim-run__num--down"
+                            ? "live-sim-run__num live-sim-run__num--up live-table__col live-table__col--num-end"
+                            : "live-sim-run__num live-sim-run__num--down live-table__col live-table__col--num-end"
                       }
                       data-label={ko.app.liveTradePfColPnl}
                     >
@@ -209,6 +292,8 @@ function SimProgramCard({
                         : "—"}
                     </td>
                   </tr>
+                  <LiveTradeHoldingRationaleRow holding={h} colSpan={6} />
+                  </Fragment>
                 );
               })}
             </tbody>
@@ -262,6 +347,8 @@ function SimProgramCard({
           </table>
         </div>
       )}
+      </>
+      ) : null}
     </article>
   );
 }
@@ -271,12 +358,14 @@ export default function LiveSimRunningPanel({
   busy = false,
   onStop,
   refreshKey = 0,
+  onProgramUpdated,
 }: {
   programs: LiveTradeProgram[];
   busy?: boolean;
   onStop: (id: string) => void;
   /** 부모 reload 시 포트폴리오 재조회 */
   refreshKey?: number;
+  onProgramUpdated?: () => void;
 }) {
   const simPrograms = useMemo(
     () => programs.filter((p) => p.status === "sim"),
@@ -322,6 +411,8 @@ export default function LiveSimRunningPanel({
     const id = window.setInterval(() => void loadPortfolio(), 20_000);
     return () => window.clearInterval(id);
   }, [loadPortfolio, simIds.size]);
+
+  useLivePortfolioQuotePoll(portfolio, setPortfolio, simIds.size > 0);
 
   const byProgram = useMemo(() => {
     const holdings = new Map<string, LiveTradeHolding[]>();
@@ -399,6 +490,8 @@ export default function LiveSimRunningPanel({
               trades={byProgram.trades.get(p.id) ?? []}
               busy={busy}
               onStop={onStop}
+              refreshKey={refreshKey}
+              onProgramUpdated={onProgramUpdated}
             />
           ))}
         </div>
