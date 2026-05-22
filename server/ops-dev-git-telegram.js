@@ -1,3 +1,4 @@
+import { buildOpsDevChangeTelegramBody } from "./ops-agent-notify-body.js";
 import {
   escHtml,
   isOpsTelegramNotifyEnabled,
@@ -17,9 +18,15 @@ function autoGitTelegramNotifyEnabled() {
  * 서버·auto-git·IDE 등 개발(Git) 반영 — ops 텔레그램 그룹.
  * @param {{
  *   title: string;
+ *   userRequest?: string;
+ *   agentResponse?: string;
  *   gitSummary?: string;
  *   detail?: string;
  *   source?: string;
+ *   state?: "ok" | "error" | "cancelled";
+ *   errorText?: string | null;
+ *   runtimeLabel?: string | null;
+ *   durationMs?: number | null;
  * }} opts
  * @returns {Promise<boolean>}
  */
@@ -27,16 +34,21 @@ export async function notifyOpsDevGitReflection(opts) {
   if (!isOpsTelegramNotifyEnabled()) return false;
 
   const title = String(opts.title ?? "").trim() || "개발 반영";
-  const gitSummary = String(opts.gitSummary ?? "").trim();
   const detail = String(opts.detail ?? "").trim();
   const source = String(opts.source ?? "").trim();
 
-  const bodyParts = [];
-  if (detail) bodyParts.push(detail);
-  if (gitSummary) bodyParts.push(gitSummary);
-  let body = bodyParts.join("\n\n").trim() || "—";
-  const max = 3800;
-  if (body.length > max) body = `${body.slice(0, max - 1)}…`;
+  let body = buildOpsDevChangeTelegramBody({
+    state: opts.state ?? "ok",
+    errorText: opts.errorText,
+    userRequest: opts.userRequest ?? (detail || undefined),
+    agentResponse: opts.agentResponse,
+    gitSummary: opts.gitSummary,
+    runtimeLabel: opts.runtimeLabel,
+    durationMs: opts.durationMs,
+  });
+  if (!String(opts.userRequest ?? "").trim() && detail) {
+    body = `${detail}\n\n${body}`.trim();
+  }
 
   const lines = [`<b>${escHtml(title)}</b>`];
   if (source) lines.push(`<i>${escHtml(source)}</i>`);

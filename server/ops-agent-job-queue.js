@@ -10,6 +10,7 @@ import {
   summarizeGitPullRangeForNotify,
   summarizeGitReflectionForNotify,
 } from "./ops-agent-git-push.js";
+import { readAgentResponseForIdeSession } from "./ops-ide-transcript-text.js";
 import { notifyOpsDevGitReflection } from "./ops-dev-git-telegram.js";
 import {
   findCanonicalIdeHistoryIdForPromptSync,
@@ -222,11 +223,20 @@ function syncIdeHistoryFinalize(slot, state, error = null) {
         ? summarizeGitPullRangeForNotify(revStart, revEnd)
         : summarizeGitReflectionForNotify("local");
     const preview = String(slot.meta.instructionPreview ?? "").trim();
+    const userRequest = instruction || preview;
+    let agentResponse = readAgentResponseForIdeSession(slot.sessionId);
+    if (!agentResponse) {
+      agentResponse =
+        "Cursor IDE에서 작업이 끝났습니다. (이 채팅 transcript에서 응답 본문을 찾지 못했습니다.)";
+    }
     void notifyOpsDevGitReflection({
       title: preview || "IDE에서 개발 작업이 끝남",
       source: "Cursor IDE · 개발 큐",
-      detail: "요청이 끝나 저장소에 변경이 쌓였을 수 있습니다.",
+      userRequest,
+      agentResponse,
       gitSummary,
+      runtimeLabel: "ide",
+      durationMs: Math.max(0, Date.now() - started),
     });
   }
 }

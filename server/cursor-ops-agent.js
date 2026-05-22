@@ -898,6 +898,7 @@ export async function runOpsCursorAgent(input) {
       body: buildOpsAgentTelegramBody({
         state: "ok",
         capture: {
+          instruction,
           resultText: outText,
           runtimeLabel: runtime,
           durationMs: result.durationMs,
@@ -919,7 +920,7 @@ export async function runOpsCursorAgent(input) {
       title: opsAgentInstructionLogSnippet(instruction) || "웹 에이전트",
       body: buildOpsAgentTelegramBody({
         state: "error",
-        capture: { resultText: null, gitSummary: "" },
+        capture: { instruction, resultText: null, gitSummary: "" },
         errorText: e instanceof Error ? e.message : String(e),
       }),
     });
