@@ -189,7 +189,6 @@ async function screenSymbol(item, market) {
       picks.push(pick);
       if (meetsTelegramNotifyScore(pick.score, model.weights)) {
         notifyHighScorePick(pick);
-        void onHighScorePickForLiveTrading(pick);
       }
     }
     if (!picks.length) return { type: "skip" };

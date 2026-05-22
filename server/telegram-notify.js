@@ -48,6 +48,9 @@ let sentCache = null;
 /** 전송 완료 전 in-memory 예약 (동일 프로세스 내 즉시 중복 차단) */
 const notifyInFlight = new Set();
 
+/** @type {{ atMs: number; message: string; status?: number } | null} */
+let lastTelegramSendError = null;
+
 function normalizeSymbol(symbol) {
   return String(symbol ?? "").toUpperCase();
 }
@@ -98,6 +101,40 @@ export function isTelegramNotifyEnabled() {
     process.env.TELEGRAM_BOT_TOKEN?.trim() &&
       process.env.TELEGRAM_CHAT_ID?.trim(),
   );
+}
+
+/** 서버 기동 시 봇·채팅 설정 검증(실패 시 로그에 원인) */
+export async function probeTelegramSetup() {
+  if (!isTelegramNotifyEnabled()) return { ok: false, reason: "disabled" };
+  const token = process.env.TELEGRAM_BOT_TOKEN.trim();
+  const chatId = process.env.TELEGRAM_CHAT_ID.trim();
+  try {
+    const meRes = await fetch(`https://api.telegram.org/bot${token}/getMe`);
+    const meBody = await meRes.json();
+    if (!meBody?.ok) {
+      const msg = humanizeTelegramError(String(meBody?.description ?? ""), "");
+      lastTelegramSendError = { atMs: Date.now(), message: msg, status: meRes.status };
+      console.warn("[telegram] getMe failed:", msg);
+      return { ok: false, reason: msg };
+    }
+    const chatRes = await fetch(
+      `https://api.telegram.org/bot${token}/getChat?chat_id=${encodeURIComponent(chatId)}`,
+    );
+    const chatBody = await chatRes.json();
+    if (!chatBody?.ok) {
+      const msg = humanizeTelegramError(String(chatBody?.description ?? ""), "");
+      lastTelegramSendError = { atMs: Date.now(), message: msg, status: chatRes.status };
+      console.warn("[telegram] getChat failed:", msg);
+      return { ok: false, reason: msg };
+    }
+    lastTelegramSendError = null;
+    return { ok: true, bot: meBody.result?.username ?? null };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    lastTelegramSendError = { atMs: Date.now(), message: msg, status: null };
+    console.warn("[telegram] probe error:", msg);
+    return { ok: false, reason: msg };
+  }
 }
 
 /** 운영 탭 웹(Cursor) 에이전트 완료 알림 — 종목 추천 봇과 분리 */
@@ -274,6 +311,10 @@ function parseSentKey(key, entry) {
 
 
 
+function isNotifyPending(symbol, market, modelId) {
+  return notifyInFlight.has(notifyFlightKey(symbol, market, modelId));
+}
+
 /** 같은 시장·종목·모델·거래일에 이미 발송했는지 */
 
 function wasSentThisSession(symbol, market, session, sent, modelId) {
@@ -392,79 +433,160 @@ function writeSentEntry(pick, sent) {
 
 
 /**
-
- * 종목당 1회만 전송 슬롯 확보 (메모리 + 파일 동기화)
-
+ * 전송 슬롯 예약(파일 기록은 전송 성공 후) — API 실패 시 재시도 가능
  * @returns {boolean}
-
  */
-
-function tryClaimNotify(pick) {
-
+function tryReserveNotify(pick) {
   const sym = normalizeSymbol(pick.symbol);
-
   const market = pick.market;
-
   const modelId = String(pick.techModelId ?? "default").trim() || "default";
-
   const key = notifyFlightKey(sym, market, modelId);
-
-
 
   if (notifyInFlight.has(key)) return false;
 
-  notifyInFlight.add(key);
-
-
-
-  let claimed = false;
-
+  let reserved = false;
   try {
-
-    claimed = withSentFileLock(() => {
-
+    reserved = withSentFileLock(() => {
       const sent = loadSentFresh();
-
       const session = getTradingSessionKey(market);
-
       if (wasSentThisSession(sym, market, session, sent, modelId)) {
-
         return false;
-
       }
-
-      writeSentEntry(pick, sent);
-
-      saveSent();
-
+      if (isNotifyPending(sym, market, modelId)) return false;
       return true;
-
     });
-
   } catch (err) {
-
     console.warn(
-
-      "[telegram] claim failed:",
-
+      "[telegram] reserve failed:",
       err instanceof Error ? err.message : err,
-
     );
-
-    claimed = false;
-
+    reserved = false;
   }
 
+  if (!reserved) return false;
+  notifyInFlight.add(key);
+  return true;
+}
 
-
-  if (!claimed) {
-
+/** @param {object} pick */
+function confirmNotifySent(pick) {
+  const sym = normalizeSymbol(pick.symbol);
+  const market = pick.market;
+  const modelId = String(pick.techModelId ?? "default").trim() || "default";
+  const key = notifyFlightKey(sym, market, modelId);
+  try {
+    withSentFileLock(() => {
+      const sent = loadSentFresh();
+      writeSentEntry(pick, sent);
+      saveSent();
+    });
+    lastTelegramSendError = null;
+  } catch (err) {
+    console.warn(
+      "[telegram] confirm sent failed:",
+      err instanceof Error ? err.message : err,
+    );
+  } finally {
     notifyInFlight.delete(key);
-
   }
+}
 
-  return claimed;
+/** @param {object} pick */
+function releaseNotifyReserve(pick) {
+  notifyInFlight.delete(
+    notifyFlightKey(
+      normalizeSymbol(pick.symbol),
+      pick.market,
+      String(pick.techModelId ?? "default").trim() || "default",
+    ),
+  );
+}
 
+function humanizeTelegramError(description, errText) {
+  const raw =
+    description ||
+    (typeof errText === "string" && errText.trim()
+      ? errText.trim().slice(0, 240)
+      : "unknown");
+  const s = raw.toLowerCase();
+  if (s.includes("chat not found")) {
+    return "TELEGRAM_CHAT_ID 오류 또는 봇이 채팅에 없음 — 그룹/채널에 봇 초대 후 /start, chat_id 재확인";
+  }
+  if (s.includes("bot was blocked")) {
+    return "사용자가 봇을 차단함 — 텔레그램에서 봇 차단 해제 필요";
+  }
+  if (s.includes("unauthorized") || s.includes("invalid token")) {
+    return "TELEGRAM_BOT_TOKEN이 잘못됨 — @BotFather 토큰 재확인";
+  }
+  if (s.includes("button_url_invalid") || s.includes("wrong http url")) {
+    return "종목 보기 URL 오류 — APP_PUBLIC_BASE_URL은 HTTPS 공개 주소만";
+  }
+  if (s.includes("can't parse entities") || s.includes("parse entities")) {
+    return "메시지 HTML 파싱 오류(자동 재시도 후에도 실패)";
+  }
+  return raw;
+}
+
+function recordTelegramSendError(status, description, errText) {
+  const message = humanizeTelegramError(description, errText);
+  lastTelegramSendError = { atMs: Date.now(), message, status };
+}
+
+function htmlToPlainText(html) {
+  return String(html)
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function isHtmlEntityParseError(description, errText) {
+  const s = `${description ?? ""} ${errText ?? ""}`.toLowerCase();
+  return (
+    s.includes("can't parse entities") ||
+    s.includes("cant parse entities") ||
+    s.includes("parse entities")
+  );
+}
+
+function isBadReplyMarkupError(description, errText) {
+  const s = `${description ?? ""} ${errText ?? ""}`.toLowerCase();
+  return (
+    s.includes("reply markup") ||
+    s.includes("inline keyboard") ||
+    s.includes("button_url_invalid") ||
+    s.includes("wrong http url") ||
+    s.includes("invalid url")
+  );
+}
+
+/**
+ * @param {Record<string, unknown>} payload
+ * @param {{ token: string; chatId: string }} creds
+ */
+async function postTelegramSendMessage(payload, creds) {
+  const url = `https://api.telegram.org/bot${creds.token}/sendMessage`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const errText = await res.text();
+  let description = "";
+  try {
+    const j = JSON.parse(errText);
+    description = String(j?.description ?? "");
+  } catch {
+    /* raw text */
+  }
+  if (!res.ok) {
+    return { ok: false, status: res.status, description, errText };
+  }
+  return { ok: true, status: res.status, description: "", errText: "" };
 }
 
 
@@ -527,6 +649,13 @@ export function getTelegramNotifyStatus() {
     maxTechScore: getMaxTechScore(),
     minTelegramScoreRatio: MIN_TELEGRAM_SCORE_RATIO,
     todaySentCount: countTodayTelegramSent(),
+    lastError: lastTelegramSendError
+      ? {
+          message: lastTelegramSendError.message,
+          atMs: lastTelegramSendError.atMs,
+          status: lastTelegramSendError.status ?? null,
+        }
+      : null,
   };
 }
 
@@ -597,6 +726,33 @@ export function listTodayTelegramSent() {
 
 
 
+/** 텔레그램 inline URL 버튼 — HTTPS 공개 URL만 허용 (localhost·http 는 API 400) */
+function isValidTelegramInlineUrl(url) {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "https:") return false;
+    const host = u.hostname.toLowerCase();
+    if (
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host === "::1" ||
+      host.endsWith(".local")
+    ) {
+      return false;
+    }
+    if (
+      /^10\./.test(host) ||
+      /^192\.168\./.test(host) ||
+      /^172\.(1[6-9]|2\d|3[0-1])\./.test(host)
+    ) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function buildAppDeepLink(pick) {
   const raw = (process.env.APP_PUBLIC_BASE_URL || process.env.PUBLIC_APP_URL || "")
     .trim()
@@ -607,7 +763,8 @@ function buildAppDeepLink(pick) {
     const u = new URL(base);
     u.searchParams.set("symbol", normalizeSymbol(pick.symbol));
     u.searchParams.set("market", pick.market === "kr" ? "kr" : "us");
-    return u.toString();
+    const href = u.toString();
+    return isValidTelegramInlineUrl(href) ? href : null;
   } catch {
     return null;
   }
@@ -774,52 +931,60 @@ export async function sendTelegramMessage(text, replyMarkup, creds) {
   const chatId = (creds?.chatId ?? process.env.TELEGRAM_CHAT_ID)?.trim();
   if (!token || !chatId) return false;
 
-
-
-  const url = `https://api.telegram.org/bot${token}/sendMessage`;
-
-  const payload = {
-
+  const auth = { token, chatId };
+  const base = {
     chat_id: chatId,
-
-    text: text.slice(0, 4096),
-
-    parse_mode: "HTML",
-
     disable_web_page_preview: true,
-
   };
 
+  /** @type {Record<string, unknown>[]} */
+  const attempts = [];
+  const trimmed = text.slice(0, 4096);
   if (replyMarkup && typeof replyMarkup === "object") {
-
-    payload.reply_markup = replyMarkup;
-
+    attempts.push({
+      ...base,
+      text: trimmed,
+      parse_mode: "HTML",
+      reply_markup: replyMarkup,
+    });
+    attempts.push({ ...base, text: trimmed, parse_mode: "HTML" });
+    attempts.push({ ...base, text: htmlToPlainText(trimmed) });
+  } else {
+    attempts.push({ ...base, text: trimmed, parse_mode: "HTML" });
+    attempts.push({ ...base, text: htmlToPlainText(trimmed) });
   }
 
-  const res = await fetch(url, {
-
-    method: "POST",
-
-    headers: { "Content-Type": "application/json" },
-
-    body: JSON.stringify(payload),
-
-  });
-
-
-
-  if (!res.ok) {
-
-    const errText = await res.text();
-
-    console.error("[telegram] send failed:", res.status, errText);
-
-    return false;
-
+  let lastFail = null;
+  for (let i = 0; i < attempts.length; i += 1) {
+    const payload = attempts[i];
+    const result = await postTelegramSendMessage(payload, auth);
+    if (result.ok) {
+      if (i > 0) {
+        console.info("[telegram] send ok after fallback", i + 1);
+      }
+      lastTelegramSendError = null;
+      return true;
+    }
+    lastFail = result;
+    const htmlErr = isHtmlEntityParseError(result.description, result.errText);
+    const markupErr = isBadReplyMarkupError(result.description, result.errText);
+    if (i === 0 && markupErr && attempts.length > 1) continue;
+    if (payload.parse_mode === "HTML" && htmlErr && i + 1 < attempts.length) continue;
+    if (i + 1 < attempts.length) continue;
+    break;
   }
 
-  return true;
-
+  recordTelegramSendError(
+    lastFail?.status,
+    lastFail?.description,
+    lastFail?.errText,
+  );
+  console.error(
+    "[telegram] send failed:",
+    lastFail?.status,
+    lastFail?.description || lastFail?.errText?.slice(0, 200),
+  );
+  return false;
 }
 
 
@@ -838,73 +1003,52 @@ export function notifyHighScorePick(pick) {
 
   const modelId = String(pick.techModelId ?? "default").trim() || "default";
 
-  const key = notifyFlightKey(sym, pick.market, modelId);
-
-  if (!tryClaimNotify(pick)) {
-
+  if (!tryReserveNotify(pick)) {
     return;
-
   }
 
-  void import("./live-trade-runner.js")
-    .then((m) => m.onHighScorePickForLiveTrading(pick))
-    .catch((err) => {
-      console.warn(
-        "[live-trade:notify]",
-        err instanceof Error ? err.message : err,
-      );
-    });
-
   const text = buildMessage(pick);
-
   const session = getTradingSessionKey(pick.market);
-
   const openUrl = buildAppDeepLink(pick);
-
   const replyMarkup = openUrl
-
     ? { inline_keyboard: [[{ text: "📈 종목 보기", url: openUrl }]] }
-
     : undefined;
 
   void sendTelegramMessage(text, replyMarkup)
-
     .then((ok) => {
-
       if (ok) {
-
+        confirmNotifySent(pick);
         console.log(
-
           `[telegram] sent ${sym} model=${modelId} score=${pick.score} session=${session}`,
-
         );
-
+        void import("./live-trade-runner.js")
+          .then((m) => m.onHighScorePickForLiveTrading(pick))
+          .catch((err) => {
+            console.warn(
+              "[live-trade:notify]",
+              err instanceof Error ? err.message : err,
+            );
+          });
       } else {
-
-        console.warn(`[telegram] send failed ${sym} score=${pick.score}`);
-
+        releaseNotifyReserve(pick);
+        console.warn(
+          `[telegram] send failed ${sym} score=${pick.score}`,
+          lastTelegramSendError?.message ?? "",
+        );
       }
-
     })
-
     .catch((err) => {
-
-      console.warn(
-
-        "[telegram] send error:",
-
-        err instanceof Error ? err.message : err,
-
+      releaseNotifyReserve(pick);
+      recordTelegramSendError(
+        undefined,
+        err instanceof Error ? err.message : String(err),
+        "",
       );
-
-    })
-
-    .finally(() => {
-
-      notifyInFlight.delete(key);
-
+      console.warn(
+        "[telegram] send error:",
+        err instanceof Error ? err.message : err,
+      );
     });
-
 }
 
 /**

@@ -172,6 +172,7 @@ export function fetchConfig() {
       enabled: boolean;
       minAlertScore: number;
       todaySentCount?: number;
+      lastError?: { message: string; atMs: number; status: number | null } | null;
     };
     feedbackInboxEnabled?: boolean;
     telegramResetAllowed?: boolean;
