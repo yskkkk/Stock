@@ -19,8 +19,12 @@ import {
   readLatestUserPromptFromTranscriptsSync,
 } from "./stock-ops-hook-user-prompt.mjs";
 
-const HOOK_WAIT_MS = 12_000;
-const HOOK_WAIT_ROUNDS = 3;
+/** wait-grant는 서버에서 차례까지 HTTP를 붙잡음 — 짧으면 큐 대기 중 오탐 타임아웃 */
+const HOOK_GRANT_WAIT_MS = (() => {
+  const n = Number(process.env.STOCK_IDE_HOOK_GRANT_WAIT_MS);
+  if (Number.isFinite(n) && n >= 15_000) return Math.min(n, 46 * 60 * 1000);
+  return 10 * 60 * 1000;
+})();
 
 function allow() {
   process.stdout.write(JSON.stringify({ continue: true }) + "\n");
@@ -129,39 +133,26 @@ try {
 
   /** @type {Record<string, unknown> | null} */
   let grantBody = null;
-  for (let round = 0; round < HOOK_WAIT_ROUNDS; round++) {
-    let grantRes;
-    try {
-      grantRes = await postDevQueueApi(
-        "/api/ops/dev-queue/ide/wait-grant",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json; charset=utf-8" },
-          body: JSON.stringify({ leaseId }),
-          signal: AbortSignal.timeout(HOOK_WAIT_MS + 2_000),
-        },
-        { timeoutMs: HOOK_WAIT_MS },
-      );
-    } catch {
-      continue;
-    }
-
+  let grantRes;
+  try {
+    grantRes = await postDevQueueApi(
+      "/api/ops/dev-queue/ide/wait-grant",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify({ leaseId }),
+        signal: AbortSignal.timeout(HOOK_GRANT_WAIT_MS + 5_000),
+      },
+      { timeoutMs: HOOK_GRANT_WAIT_MS },
+    );
     const grantText = await grantRes.text();
     try {
       grantBody = grantText ? JSON.parse(grantText) : {};
     } catch {
       grantBody = {};
     }
-
-    if (grantRes.ok && grantBody) break;
-
-    const code =
-      grantBody && typeof grantBody === "object" && "code" in grantBody
-        ? String(/** @type {{ code?: string }} */ (grantBody).code)
-        : "";
-    if (code === "IDE_LEASE_NOT_FOUND") {
-      break;
-    }
+  } catch {
+    grantBody = null;
   }
 
   if (!grantBody || grantBody.ok === false) {

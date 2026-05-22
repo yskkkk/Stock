@@ -18,10 +18,14 @@ import {
 
 const POLL_MS = 100;
 /**
- * 마지막 assistant 줄이 **텍스트만**이고, 도구 호출 직후 짧은 공백(2~5초)과 구분하기 위한 유휴.
- * 답변 본문 스트리밍이 멈춘 뒤에만 release.
+ * 마지막 assistant가 텍스트만·transcript 유휴 N ms 후 턴 종료(release).
+ * `STOCK_IDE_TURN_END_IDLE_MS` (기본 4s, 최소 2s·최대 30s)
  */
-const TURN_END_IDLE_MS = 12_000;
+const TURN_END_IDLE_MS = (() => {
+  const n = Number(process.env.STOCK_IDE_TURN_END_IDLE_MS);
+  if (Number.isFinite(n) && n >= 2000) return Math.min(n, 30_000);
+  return 4000;
+})();
 /** @deprecated */ const IDLE_RELEASE_MS = TURN_END_IDLE_MS;
 const STALE_LEASE_MS = 8_000;
 const TRANSCRIPT_POLLER_MARKER = path.join(

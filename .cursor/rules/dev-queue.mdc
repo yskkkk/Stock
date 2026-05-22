@@ -8,7 +8,7 @@ alwaysApply: false
 ## SSOT
 
 - **실행·순서**: 메모리 FIFO `ops-agent-job-queue.js`
-- **`ops-dev-queue-display.json`**: 위 큐만 **100ms마다 통째로 미러** (옛 디스크·lease 내용 안 넣음)
+- **`ops-dev-queue-display.json`**: 메모리 큐 **100ms마다** 미러 (`STOCK_DEV_QUEUE_SYNC_MS`, 기본 100)
 
 ## 화면 vs 파일
 
@@ -20,7 +20,8 @@ alwaysApply: false
 1. `beforeSubmit` → enqueue (stdin·transcript에서 prompt 추출)  
 2. 없으면 **첫 `preToolUse`** → enqueue (dev 켜져 있어도 동작)  
 3. 100ms마다 lease만 있으면 메모리 큐로 승격  
-4. 끝 → `stop`/`sessionEnd` 또는 transcript **12s+텍스트-only** → `[]`
+4. 끝 → `stop`/`sessionEnd` 또는 transcript **4s+텍스트-only** (`STOCK_IDE_TURN_END_IDLE_MS`) → `[]`
+5. IDE 훅 `wait-grant` — 차례까지 **긴 HTTP 1회**(기본 10분, `STOCK_IDE_HOOK_GRANT_WAIT_MS`)
 
 ## 에이전트
 

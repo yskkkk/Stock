@@ -1,2 +1,5 @@
-/** 개발 대기열 UI — 디스크 스냅샷(`/api/ops/dev-queue-display`) 폴링 주기 */
-export const OPS_DEV_QUEUE_POLL_MS = 1000;
+/** 개발 대기열 UI — `/api/ops/dev-queue-display` 폴링 (Vite `VITE_OPS_DEV_QUEUE_POLL_MS`) */
+export const OPS_DEV_QUEUE_POLL_MS = (() => {
+  const raw = Number(import.meta.env.VITE_OPS_DEV_QUEUE_POLL_MS ?? 250);
+  return Number.isFinite(raw) && raw >= 100 ? Math.min(raw, 5000) : 250;
+})();
