@@ -1,5 +1,5 @@
 /**
- * 서버 기동·종료 시 운영(웹 에이전트) 텔레그램 알림
+ * 서버 기동·종료 훅 (텔레그램 ON/OFF 알림은 기본 비활성 — OPS_SERVER_LIFECYCLE_TELEGRAM=1 일 때만)
  */
 import {
   isOpsTelegramNotifyEnabled,
@@ -17,6 +17,12 @@ function isStopNotified() { return _lcg.__stockLifecycleStopNotified === true; }
 function markStopNotified() { _lcg.__stockLifecycleStopNotified = true; }
 function resetStopNotified() { _lcg.__stockLifecycleStopNotified = false; }
 
+function serverLifecycleTelegramEnabled() {
+  const v = String(process.env.OPS_SERVER_LIFECYCLE_TELEGRAM ?? "0")
+    .toLowerCase()
+    .trim();
+  return v === "1" || v === "true" || v === "yes";
+}
 /** @type {{ mode?: string; port?: number | string }} */
 function getLifecycleMeta() { return _lcg.__stockLifecycleMeta ?? { mode: "server" }; }
 function setLifecycleMeta(m) { _lcg.__stockLifecycleMeta = m; }
@@ -45,6 +51,7 @@ function kstNowLabel() {
  * @param {{ mode?: string; port?: number | string; reason?: string }} [meta]
  */
 export async function notifyOpsServerLifecycle(phase, meta = {}) {
+  if (!serverLifecycleTelegramEnabled()) return false;
   if (!isOpsTelegramNotifyEnabled()) return false;
 
   const mode = String(meta.mode ?? "server").trim() || "server";
@@ -122,6 +129,6 @@ export function installOpsServerLifecycleShutdownHooks() {
   }
 
   process.once("beforeExit", () => {
-    if (!stopNotified) run("beforeExit");
+    if (!isStopNotified()) run("beforeExit");
   });
 }

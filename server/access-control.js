@@ -256,6 +256,10 @@ export function accessIpGateMiddleware(req, res, next) {
 }
 
 function requireAdmin(req, res, next) {
+  if (!isAccessControlEnabled()) {
+    next();
+    return;
+  }
   const token = getAdminToken();
   const hasIps = parseAccessAdminIps().length > 0;
   if (!token && !hasIps) {
@@ -285,7 +289,8 @@ export function registerAccessControl(app) {
         enabled: false,
         state: "allowed",
         yourIp: ip,
-        adminIpConsole: isAccessAdminIp(req),
+        adminIpConsole: true,
+        accessAdmin: true,
       });
       return;
     }

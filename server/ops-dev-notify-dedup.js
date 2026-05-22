@@ -214,7 +214,6 @@ export function tryAcquireOpsDevNotifySend(dedupKey) {
   hydrateFromDisk();
   const k = String(dedupKey ?? "").trim();
   if (!k) return true;
-
   clearStaleOpsDevNotifyLocks();
 
   const lockName = createHash("sha256").update(k).digest("hex").slice(0, 32);

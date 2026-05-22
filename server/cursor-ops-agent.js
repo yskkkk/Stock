@@ -753,6 +753,7 @@ export async function streamOpsCursorAgentSse(req, res, body) {
           gitSummary: capture.gitSummary,
           state,
           errorText: errorStored,
+          turnId: runId,
         });
       } catch {
         /* notify 실패 */

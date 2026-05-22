@@ -27,18 +27,22 @@ function autoGitTelegramNotifyEnabled() {
  *   durationMs?: number | null;
  *   dedupKey?: string;
  *   priority?: number;
+ *   turnId?: string | null;
  * }} opts
  */
 export function notifyOpsDevGitReflection(opts) {
   const detail = String(opts.detail ?? "").trim();
+  const userRequest =
+    String(opts.userRequest ?? "").trim() || detail || "(자동 반영)";
   scheduleOpsDevCompletionTelegram({
     title: String(opts.title ?? "").trim() || "개발 완료",
-    userRequest: (opts.userRequest ?? detail) || "(자동 반영)",
+    userRequest,
     agentResponse: opts.agentResponse,
     gitSummary: opts.gitSummary,
     state: opts.state,
     errorText: opts.errorText,
     priority: opts.priority ?? 2,
+    turnId: opts.turnId,
   });
 }
 
