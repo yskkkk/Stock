@@ -895,11 +895,7 @@ export async function runOpsCursorAgent(input) {
       agentResponse: normalizeOpsCompletionText(outText, null),
       gitSummary: postGit.gitSummary ?? "",
       state: "ok",
-<<<<<<< Updated upstream
       turnId,
-=======
-      turnId: runId,
->>>>>>> Stashed changes
     });
 
     return {
@@ -915,11 +911,7 @@ export async function runOpsCursorAgent(input) {
       userRequest: instruction,
       state: "error",
       errorText: e instanceof Error ? e.message : String(e),
-<<<<<<< Updated upstream
       turnId,
-=======
-      turnId: runId,
->>>>>>> Stashed changes
     });
     throw e;
   }
