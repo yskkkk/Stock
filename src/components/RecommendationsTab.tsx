@@ -94,7 +94,7 @@ export default function RecommendationsTab({
   const [loading, setLoading] = useState(() => !peekRecommendationsTracker());
   const [error, setError] = useState<string | null>(null);
   const [market, setMarket] = useState<MarketFilter>("all");
-  const [signalFilter, setSignalFilter] = useState<SignalId | null>(null);
+  const [signalFilters, setSignalFilters] = useState<SignalId[]>([]);
   const [scoreFilter, setScoreFilter] = useState<number | null>(null);
   const [modelFilter, setModelFilter] = useState<string | null>(null);
   const [bigGainOnly, setBigGainOnly] = useState(false);
@@ -188,13 +188,17 @@ export default function RecommendationsTab({
     return items.filter((it) => {
       if (dateFilter !== "all" && it.date !== dateFilter) return false;
       if (market !== "all" && it.market !== market) return false;
-      if (signalFilter && !it.signalIds.includes(signalFilter)) return false;
+      if (
+        signalFilters.length > 0 &&
+        !signalFilters.every((id) => it.signalIds.includes(id))
+      )
+        return false;
       if (scoreFilter != null && it.score !== scoreFilter) return false;
       if (modelFilter && it.techModelId !== modelFilter) return false;
       if (bigGainOnly && !isBigGainItem(it)) return false;
       return true;
     });
-  }, [data?.items, dateFilter, market, signalFilter, scoreFilter, modelFilter, bigGainOnly]);
+  }, [data?.items, dateFilter, market, signalFilters, scoreFilter, modelFilter, bigGainOnly]);
 
   /** 승률·칩 통계 — 텔레그램 알림 종목만(근거/점수 UI 필터는 제외) */
   const itemsForChipStats = useMemo(() => {
@@ -214,11 +218,15 @@ export default function RecommendationsTab({
       if (!it.telegramNotified) return false;
       if (dateFilter !== "all" && it.date !== dateFilter) return false;
       if (market !== "all" && it.market !== market) return false;
-      if (signalFilter && !it.signalIds.includes(signalFilter)) return false;
+      if (
+        signalFilters.length > 0 &&
+        !signalFilters.every((id) => it.signalIds.includes(id))
+      )
+        return false;
       if (scoreFilter != null && it.score !== scoreFilter) return false;
       return true;
     });
-  }, [data?.items, dateFilter, market, signalFilter, scoreFilter]);
+  }, [data?.items, dateFilter, market, signalFilters, scoreFilter]);
 
   const sortedItems = useMemo(
     () => sortRecTrackerItems(filteredItems, sortKey, sortDir),
@@ -295,9 +303,11 @@ export default function RecommendationsTab({
   const scoreStats = useMemo(() => {
     if (!itemsForChipStats.length) return [];
     const pool =
-      signalFilter == null
+      signalFilters.length === 0
         ? itemsForChipStats
-        : itemsForChipStats.filter((it) => it.signalIds.includes(signalFilter));
+        : itemsForChipStats.filter((it) =>
+            signalFilters.every((id) => it.signalIds.includes(id)),
+          );
     const fromPool = new Map<number, { wins: number; losses: number; total: number }>();
     for (const it of pool) {
       if (it.score == null || !Number.isFinite(it.score)) continue;
@@ -319,7 +329,17 @@ export default function RecommendationsTab({
         };
       })
       .sort((a, b) => b.score - a.score);
-  }, [itemsForChipStats, market, signalFilter, dateFilter]);
+  }, [itemsForChipStats, market, signalFilters, dateFilter]);
+
+  const toggleSignalFilter = useCallback((id: SignalId, bigGain: boolean) => {
+    if (bigGain) setBigGainOnly(true);
+    else setBigGainOnly(false);
+    setSignalFilters((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      if (next.length === 0) setBigGainOnly(false);
+      return next;
+    });
+  }, []);
 
   const bigGainSignalStats = useMemo(
     () => aggregateBigGainSignals(itemsForChipStats),
@@ -332,7 +352,7 @@ export default function RecommendationsTab({
   );
 
   const clearListFilters = useCallback(() => {
-    setSignalFilter(null);
+    setSignalFilters([]);
     setScoreFilter(null);
     setModelFilter(null);
     setBigGainOnly(false);
@@ -579,7 +599,7 @@ export default function RecommendationsTab({
                         : ""}
                     </span>
                   </div>
-                  {bigGainOnly || signalFilter ? (
+                  {bigGainOnly || signalFilters.length > 0 ? (
                     <button
                       type="button"
                       className="filter-clear"
@@ -593,7 +613,8 @@ export default function RecommendationsTab({
                   <div className="rec-tracker-signals__chips rec-tracker-big-gain__chips">
                     {bigGainSignalStats.map((s) => {
                       const chip = signalChipMeta(s.signalId as SignalId);
-                      const active = bigGainOnly && signalFilter === s.signalId;
+                      const active =
+                        bigGainOnly && signalFilters.includes(s.signalId as SignalId);
                       return (
                         <button
                           key={`bg-${s.signalId}`}
@@ -605,16 +626,9 @@ export default function RecommendationsTab({
                           }
                           aria-pressed={active}
                           aria-label={chip.label}
-                          onClick={() => {
-                            setSignalFilter((prev) => {
-                              if (prev === s.signalId) {
-                                setBigGainOnly(false);
-                                return null;
-                              }
-                              setBigGainOnly(true);
-                              return s.signalId as SignalId;
-                            });
-                          }}
+                          onClick={() =>
+                            toggleSignalFilter(s.signalId as SignalId, true)
+                          }
                         >
                           <span>{chip.short}</span>
                           <span className="rec-tracker-signal-chip__rate">
@@ -637,11 +651,11 @@ export default function RecommendationsTab({
               <div className="rec-tracker-signals card">
                 <div className="rec-tracker-signals__head">
                   <span className="filter-title">{ko.app.recTrackerBySignal}</span>
-                  {signalFilter && !bigGainOnly ? (
+                  {signalFilters.length > 0 && !bigGainOnly ? (
                     <button
                       type="button"
                       className="filter-clear"
-                      onClick={() => setSignalFilter(null)}
+                      onClick={() => setSignalFilters([])}
                     >
                       {ko.app.recTrackerClearFilter}
                     </button>
@@ -649,14 +663,14 @@ export default function RecommendationsTab({
                 </div>
                 <div
                   className={
-                    signalFilter
+                    signalFilters.length > 0
                       ? "rec-tracker-signals__chips rec-tracker-signals__chips--has-filter"
                       : "rec-tracker-signals__chips"
                   }
                 >
                   {signalStats.map((s) => {
                     const chip = signalChipMeta(s.signalId as SignalId);
-                    const active = signalFilter === s.signalId;
+                    const active = signalFilters.includes(s.signalId as SignalId);
                     return (
                       <button
                         key={s.signalId}
@@ -668,12 +682,9 @@ export default function RecommendationsTab({
                         }
                         aria-pressed={active}
                         aria-label={chip.label}
-                        onClick={() => {
-                          setBigGainOnly(false);
-                          setSignalFilter((prev) =>
-                            prev === s.signalId ? null : (s.signalId as SignalId),
-                          );
-                        }}
+                        onClick={() =>
+                          toggleSignalFilter(s.signalId as SignalId, false)
+                        }
                       >
                         <span>{chip.short}</span>
                         <span className="rec-tracker-signal-chip__rate">
@@ -696,8 +707,8 @@ export default function RecommendationsTab({
             {itemsForChipStats.length > 0 && (
               <RecTrackerSignalAnalysisPanel
                 itemsPool={itemsForChipStats}
-                activeSignalId={signalFilter}
-                onFocusSignal={setSignalFilter}
+                activeSignalIds={signalFilters}
+                onToggleSignal={(id) => toggleSignalFilter(id, false)}
               />
             )}
 

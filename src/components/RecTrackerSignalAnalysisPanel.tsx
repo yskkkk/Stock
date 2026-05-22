@@ -102,11 +102,11 @@ function metricEntries(m: SignalAnalysisMetrics): { label: string; value: string
 function AnalysisItem({
   ins,
   active,
-  onFocusSignal,
+  onToggleSignal,
 }: {
   ins: SignalAnalysisInsight;
   active: boolean;
-  onFocusSignal: (id: SignalId | null) => void;
+  onToggleSignal: (id: SignalId) => void;
 }) {
   const chip = signalChipMeta(ins.signalId);
   const metrics = metricEntries(ins.metrics);
@@ -148,7 +148,7 @@ function AnalysisItem({
             : "rec-tracker-analysis__link"
         }
         aria-pressed={active}
-        onClick={() => onFocusSignal(active ? null : ins.signalId)}
+        onClick={() => onToggleSignal(ins.signalId)}
       >
         {active ? ko.app.recTrackerChipSelected : ko.app.recTrackerAnalysisViewList}
       </button>
@@ -158,12 +158,12 @@ function AnalysisItem({
 
 export default function RecTrackerSignalAnalysisPanel({
   itemsPool,
-  onFocusSignal,
-  activeSignalId,
+  onToggleSignal,
+  activeSignalIds,
 }: {
   itemsPool: RecommendationTrackerItem[];
-  onFocusSignal: (id: SignalId | null) => void;
-  activeSignalId: SignalId | null;
+  onToggleSignal: (id: SignalId) => void;
+  activeSignalIds: SignalId[];
 }) {
   const { baseline, insights } = analyzeLowSignalWinRates(itemsPool);
   const decided = baseline.wins + baseline.losses;
@@ -197,8 +197,8 @@ export default function RecTrackerSignalAnalysisPanel({
           <AnalysisItem
             key={ins.signalId}
             ins={ins}
-            active={activeSignalId === ins.signalId}
-            onFocusSignal={onFocusSignal}
+            active={activeSignalIds.includes(ins.signalId)}
+            onToggleSignal={onToggleSignal}
           />
         ))}
       </ul>
