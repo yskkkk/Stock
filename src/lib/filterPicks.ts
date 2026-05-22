@@ -4,9 +4,16 @@ import type { StockPick } from "../types";
 const LABEL_TO_ID: Record<SignalId, string> = {
   ma_align: "이동평균 정배열",
   ma_golden: "이평선 골든",
-  ma20: "20일선",
+  ma20: "20봉",
+  ma50: "50일선",
+  ma5_align: "5·20",
   rsi: "RSI",
   volume: "거래량",
+  volume_surge: "거래량 급증",
+  macd: "MACD",
+  high_60: "60일 고가",
+  vp_breakout: "매물대",
+  bull_bar: "양봉",
 };
 
 export type FilterMode = "and" | "or";

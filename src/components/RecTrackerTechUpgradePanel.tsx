@@ -3,6 +3,7 @@ import { signalChipMeta } from "../constants/signalChips";
 import {
   createTechModel,
   fetchTechModels,
+  resetTechWeights,
   setActiveTechModelIds,
   updateTechModel,
   type TechModelRecord,
@@ -17,6 +18,9 @@ import {
 import { setTechScoreWeights } from "../lib/techScore";
 import { ko } from "../i18n/ko";
 import type { RecommendationTrackerItem } from "../types";
+
+const DEFAULT_TECH_MODEL_ID = "default";
+const FORK_MODEL_NAME = "승률 조정";
 
 function formatWinRate(pct: number | null): string {
   if (pct == null || !Number.isFinite(pct)) return "—";
@@ -137,35 +141,57 @@ export default function RecTrackerTechUpgradePanel({
       .catch((e) => setApplyErr(e instanceof Error ? e.message : String(e)));
   };
 
+  const ensureEditableTargetId = useCallback(async (): Promise<string | null> => {
+    if (!modelsState) return null;
+    if (targetModelId && targetModelId !== DEFAULT_TECH_MODEL_ID) {
+      return targetModelId;
+    }
+    const forked = modelsState.models.find(
+      (m) => m.id !== DEFAULT_TECH_MODEL_ID && m.name === FORK_MODEL_NAME,
+    );
+    if (forked) {
+      setTargetModelId(forked.id);
+      return forked.id;
+    }
+    const res = await createTechModel({
+      name: FORK_MODEL_NAME,
+      copyFromId: DEFAULT_TECH_MODEL_ID,
+    });
+    setModelsState(res);
+    setTargetModelId(res.model.id);
+    setApplyMsg(ko.app.recTrackerUpgradeForked);
+    return res.model.id;
+  }, [modelsState, targetModelId]);
+
   const persistTargetWeights = async (
     next: Record<string, number>,
     msg: string,
   ) => {
-    if (!targetModelId) return;
     setApplying(true);
     setApplyErr(null);
     setApplyMsg(null);
     try {
-      const res = await updateTechModel(targetModelId, { weights: next });
+      const editId = await ensureEditableTargetId();
+      if (!editId) return;
+      const res = await updateTechModel(editId, { weights: next });
       setModelsState(res);
-      const updated = res.models.find((m) => m.id === targetModelId);
+      const updated = res.models.find((m) => m.id === editId);
       if (updated) setTechScoreWeights(updated.weights);
       setApplyMsg(msg);
     } catch (e) {
-      const raw = e instanceof Error ? e.message : String(e);
-      setApplyErr(
-        raw.includes("기본 가중치로 복원")
-          ? ko.app.recTrackerUpgradeReset
-          : raw,
-      );
+      setApplyErr(e instanceof Error ? e.message : String(e));
     } finally {
       setApplying(false);
     }
   };
 
   const onApplyOne = (change: TechWeightChange) => {
-    if (!targetModel) return;
-    const next = applySingleTechWeightChange(targetModel.weights, change);
+    const model =
+      targetModel ??
+      modelsState?.models.find((m) => m.id === DEFAULT_TECH_MODEL_ID) ??
+      null;
+    if (!model) return;
+    const next = applySingleTechWeightChange(model.weights, change);
     void persistTargetWeights(
       next,
       ko.app.recTrackerUpgradeAppliedOne.replace("{label}", change.short),
@@ -173,9 +199,24 @@ export default function RecTrackerTechUpgradePanel({
   };
 
   const onApplyAll = () => {
-    if (!targetModel || !plan.changes.length) return;
-    const next = applyAllTechWeightChanges(targetModel.weights, plan.changes);
+    const model =
+      targetModel ??
+      modelsState?.models.find((m) => m.id === DEFAULT_TECH_MODEL_ID) ??
+      null;
+    if (!model || !plan.changes.length) return;
+    const next = applyAllTechWeightChanges(model.weights, plan.changes);
     void persistTargetWeights(next, ko.app.recTrackerUpgradeAppliedAll);
+  };
+
+  const onResetDefaults = () => {
+    setApplying(true);
+    setApplyErr(null);
+    setApplyMsg(null);
+    void resetTechWeights()
+      .then(() => reloadModels())
+      .then(() => setApplyMsg(ko.app.recTrackerUpgradeResetDone))
+      .catch((e) => setApplyErr(e instanceof Error ? e.message : String(e)))
+      .finally(() => setApplying(false));
   };
 
   const onSaveNewModel = () => {
@@ -275,6 +316,9 @@ export default function RecTrackerTechUpgradePanel({
             </button>
           </div>
         </div>
+        {targetModelId === DEFAULT_TECH_MODEL_ID ? (
+          <p className="rec-tracker-upgrade__hint">{ko.app.recTrackerUpgradeDefaultHint}</p>
+        ) : null}
       </div>
 
       {plan.changes.length === 0 ? (
@@ -305,6 +349,14 @@ export default function RecTrackerTechUpgradePanel({
               onClick={onApplyAll}
             >
               {ko.app.recTrackerUpgradeApplyAll}
+            </button>
+            <button
+              type="button"
+              className="btn btn--ghost rec-tracker-upgrade__reset"
+              disabled={applying}
+              onClick={onResetDefaults}
+            >
+              {ko.app.recTrackerUpgradeReset}
             </button>
           </div>
         </>

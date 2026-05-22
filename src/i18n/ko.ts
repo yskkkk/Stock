@@ -188,6 +188,9 @@ export const ko = {
     recTrackerUpgradeResetDone: "기본 가중치로 복원했습니다.",
     recTrackerUpgradeAppliedOne: "「{label}」 가중치를 반영했습니다. 다음 스캔부터 적용됩니다.",
     recTrackerUpgradeAppliedAll: "제안한 가중치를 모두 반영했습니다.",
+    recTrackerUpgradeDefaultHint:
+      "「기본」 모델은 직접 수정할 수 없습니다. 적용 시 「승률 조정」 모델로 자동 저장됩니다.",
+    recTrackerUpgradeForked: "「승률 조정」 모델을 만들었습니다. 여기에 가중치가 저장됩니다.",
     recTrackerUpgradeRevision: "적용 {n}회",
     recTrackerByModel: "모델별 승률",
     recTrackerColModel: "분석 모델",

@@ -10,6 +10,7 @@ export const SIGNAL_SCORE_WEIGHT = {
   volume_surge: 1,
   macd: 1,
   high_60: 1,
+  vp_breakout: 2,
   bull_bar: 0,
 };
 

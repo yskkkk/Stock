@@ -22,6 +22,7 @@ export const SIGNAL_DEFS = [
   { id: "volume_surge", label: "거래량 급증" },
   { id: "macd", label: "MACD 상승" },
   { id: "high_60", label: "60일 고가 근접" },
+  { id: "vp_breakout", label: "매물대 돌파" },
   { id: "bull_bar", label: "양봉" },
 ];
 
@@ -169,6 +170,48 @@ function macdBullish(closes, i) {
   return m > 0 && m > mPrev;
 }
 
+/** 최근 구간 거래량 집중 가격대(매물대) 상단 돌파 */
+function volumeProfileBreakout(candles, i, lookback = 40) {
+  const start = Math.max(0, i - lookback + 1);
+  const slice = candles.slice(start, i + 1);
+  if (slice.length < 20) return false;
+
+  let minP = Infinity;
+  let maxP = -Infinity;
+  for (const c of slice) {
+    minP = Math.min(minP, c.low);
+    maxP = Math.max(maxP, c.high);
+  }
+  if (!Number.isFinite(minP) || !Number.isFinite(maxP) || maxP <= minP) return false;
+
+  const BINS = 10;
+  /** @type {number[]} */
+  const volByBin = new Array(BINS).fill(0);
+  for (const c of slice) {
+    const mid = (c.high + c.low) / 2;
+    const b = Math.min(
+      BINS - 1,
+      Math.floor(((mid - minP) / (maxP - minP)) * BINS),
+    );
+    volByBin[b] += c.volume > 0 ? c.volume : 0;
+  }
+  let pocBin = 0;
+  for (let b = 1; b < BINS; b++) {
+    if (volByBin[b] > volByBin[pocBin]) pocBin = b;
+  }
+  const binSize = (maxP - minP) / BINS;
+  const pocTop = minP + (pocBin + 1) * binSize;
+  const last = slice[slice.length - 1];
+  const prev = slice.length >= 2 ? slice[slice.length - 2] : last;
+  if (prev.close > pocTop || last.close <= pocTop) return false;
+
+  const volumes = candles.map((c) => c.volume);
+  const volHist = volumes.slice(Math.max(0, i - 21), i).filter((v) => v > 0);
+  if (!volHist.length) return true;
+  const avgVol = volHist.reduce((a, b) => a + b, 0) / volHist.length;
+  return (volumes[i] ?? 0) >= avgVol * 1.05;
+}
+
 /**
  * @param {SignalHit[]} hits
  * @param {number} score
@@ -255,6 +298,10 @@ export function analyzeTechnicals(candles, weights) {
     if (max60 > 0 && closes[i] >= max60 * 0.97) {
       score = addSignalHit(hits, score, "high_60", "60일 고가 근접", weights);
     }
+  }
+
+  if (volumeProfileBreakout(candles, i)) {
+    score = addSignalHit(hits, score, "vp_breakout", "매물대 돌파", weights);
   }
 
   if (last.close > last.open) {

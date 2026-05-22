@@ -11,10 +11,11 @@ const DEFAULT_WEIGHT: Record<SignalId, number> = {
   volume_surge: 1,
   macd: 1,
   high_60: 1,
+  vp_breakout: 2,
   bull_bar: 0,
 };
 
-export const MAX_TECH_SCORE = 13;
+export const MAX_TECH_SCORE = 15;
 
 let activeWeights: Record<string, number> | null = null;
 

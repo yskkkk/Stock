@@ -249,7 +249,11 @@ export function getMaxTechScoreSync() {
 }
 
 export function resetDefaultTechModelWeightsSync() {
-  return updateTechModelSync(DEFAULT_TECH_MODEL_ID, {
-    weights: getDefaultSignalScoreWeights(),
-  });
+  const store = readStoreSync();
+  const model = store.models.find((m) => m.id === DEFAULT_TECH_MODEL_ID);
+  if (!model) throw new Error("기본 모델을 찾을 수 없습니다.");
+  model.weights = getDefaultSignalScoreWeights();
+  model.updatedAtMs = Date.now();
+  writeStoreSync(store);
+  return { ...model, maxTechScore: sumTechScoreWeights(model.weights) };
 }

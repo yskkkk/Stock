@@ -11,17 +11,31 @@ export interface SignalChipMeta {
 const SHORT: Record<SignalId, string> = {
   ma_align: "정배열",
   ma_golden: "골든",
-  ma20: "20일선",
+  ma20: "20봉",
+  ma50: "50선",
+  ma5_align: "5·20",
   rsi: "RSI",
   volume: "거래량",
+  volume_surge: "급증",
+  macd: "MACD",
+  high_60: "고가",
+  vp_breakout: "매물대",
+  bull_bar: "양봉",
 };
 
 const CLASS: Record<SignalId, string> = {
   ma_align: "signal-tag signal-tag--align",
   ma_golden: "signal-tag signal-tag--golden",
   ma20: "signal-tag signal-tag--ma20",
+  ma50: "signal-tag signal-tag--ma50",
+  ma5_align: "signal-tag signal-tag--ma5",
   rsi: "signal-tag signal-tag--rsi",
   volume: "signal-tag signal-tag--volume",
+  volume_surge: "signal-tag signal-tag--vol-surge",
+  macd: "signal-tag signal-tag--macd",
+  high_60: "signal-tag signal-tag--high60",
+  vp_breakout: "signal-tag signal-tag--vp",
+  bull_bar: "signal-tag signal-tag--bull",
 };
 
 export const SIGNAL_CHIPS: SignalChipMeta[] = FILTER_OPTIONS.map((o) => ({
@@ -36,9 +50,7 @@ export function resolvePickSignalIds(pick: {
   signals: string[];
 }): SignalId[] {
   if (pick.signalIds?.length) {
-    return pick.signalIds.filter((id): id is SignalId =>
-      id in SHORT,
-    );
+    return pick.signalIds.filter((id): id is SignalId => id in SHORT);
   }
   const ids: SignalId[] = [];
   for (const chip of SIGNAL_CHIPS) {

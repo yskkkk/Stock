@@ -25,6 +25,8 @@ const SIGNAL_REASONS = {
   volume_surge: "거래량이 평균 대비 크게 급증해 관심 집중 구간입니다.",
   macd: "MACD가 시그널선 위에서 상승 중이며 모멘텀이 개선되고 있습니다.",
   high_60: "최근 60일 고가 대비 3% 이내로 신고가 돌파·근접 구간입니다.",
+  vp_breakout:
+    "최근 구간 거래량이 몰린 가격대(매물대) 상단을 종가가 거래량 동반 돌파했습니다.",
   bull_bar: "당일 양봉으로 매수세가 우위에 있습니다.",
 };
 
@@ -36,6 +38,7 @@ const SIGNAL_ORDER = [
   "ma50",
   "ma5_align",
   "high_60",
+  "vp_breakout",
   "macd",
   "rsi",
   "volume",

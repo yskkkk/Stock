@@ -76,6 +76,7 @@ const VALID_SIGNAL = new Set([
   "volume_surge",
   "macd",
   "high_60",
+  "vp_breakout",
   "bull_bar",
 ]);
 

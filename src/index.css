@@ -434,6 +434,11 @@
   color: #fdba74;
   border: 1px solid rgba(251, 146, 60, 0.35);
 }
+.signal-tag--vp {
+  background: rgba(167, 139, 250, 0.16);
+  color: #c4b5fd;
+  border: 1px solid rgba(167, 139, 250, 0.38);
+}
 .signal-tag--bull {
   background: rgba(248, 113, 113, 0.12);
   color: #fca5a5;
@@ -7094,11 +7099,22 @@ body {
   min-width: 3.25rem;
 }
 
+.rec-tracker-upgrade__hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
 .rec-tracker-upgrade__actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
   margin-top: 0.5rem;
+}
+
+.rec-tracker-upgrade__reset {
+  width: 100%;
 }
 
 .rec-tracker-upgrade__actions .btn--primary {
