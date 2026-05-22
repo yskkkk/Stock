@@ -2289,6 +2289,17 @@ body {
   background: color-mix(in srgb, var(--text) 6%, transparent);
 }
 
+.app-site-footer__link:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.app-site-footer__link:disabled:hover {
+  color: var(--muted);
+  background: none;
+}
+
 .app-site-footer__link--active {
   color: var(--text);
   font-weight: 800;

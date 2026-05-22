@@ -36,6 +36,7 @@ function FooterLink({
   href,
   download,
   title,
+  disabled,
 }: {
   children: ReactNode;
   onClick?: () => void;
@@ -43,6 +44,7 @@ function FooterLink({
   href?: string;
   download?: string;
   title?: string;
+  disabled?: boolean;
 }) {
   const cls = active
     ? "app-site-footer__link app-site-footer__link--active"
@@ -55,7 +57,14 @@ function FooterLink({
     );
   }
   return (
-    <button type="button" className={cls} onClick={onClick} title={title}>
+    <button
+      type="button"
+      className={cls}
+      onClick={onClick}
+      title={title}
+      disabled={disabled}
+      aria-disabled={disabled || undefined}
+    >
       {children}
     </button>
   );
@@ -132,6 +141,7 @@ export default function AppSiteFooter({
           onClick={onToggleColorMode}
           title={themeTitle}
           active={colorMode === "light"}
+          disabled={!ENABLE_THEME_MODE_TOGGLE}
         >
           {ko.app.footerTheme}
           <span className="app-site-footer__theme-icon" aria-hidden>
