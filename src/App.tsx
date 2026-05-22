@@ -18,6 +18,7 @@ import AccessAdminModal from "./components/AccessAdminModal";
 import AppSiteFooter from "./components/AppSiteFooter";
 import FeedbackCorner, { type FeedbackCornerHandle } from "./components/FeedbackCorner";
 import MacroEventsBar from "./components/MacroEventsBar";
+import TopBarFxCalculator from "./components/TopBarFxCalculator";
 import TopBarFxStrip from "./components/TopBarFxStrip";
 import NewsModal from "./components/NewsModal";
 import PicksHistoryModal from "./components/PicksHistoryModal";
@@ -979,6 +980,7 @@ export default function App() {
           <div className="top-bar__macro">
             <MacroEventsBar onSecretAdminOpen={() => setShowAccessAdmin(true)} />
           </div>
+          <TopBarFxCalculator rate={usdKrwRate} valuationDate={usdKrwValDate} />
           <div className="top-bar__brand">
             <span className="brand-mark" aria-hidden>
               <img
