@@ -924,8 +924,8 @@ export default function App() {
               ? "app app--ops"
               : "app"
       }
-      ref={appScrollRef}
     >
+      <div className="app__scroll" ref={appScrollRef}>
       <div className="app__shell">
       <div
         ref={pullToRefreshHintRef}
@@ -1736,6 +1736,7 @@ export default function App() {
         onOpenOps={() => setAppTab("ops")}
         feedbackRef={feedbackRef}
       />
+      </div>
     </div>
   );
 }
