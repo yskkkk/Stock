@@ -12,6 +12,10 @@ import {
   releaseAnyRunningIdeDevQueueSlot,
 } from "./ops-agent-job-queue.js";
 import {
+  isIdeCompletionNotified,
+  notifyIdeDevelopmentCompleted,
+} from "./ops-ide-completion-notify.js";
+import {
   clearIdeLeaseOnDisk,
   writeIdeLeaseDiskImmediate,
 } from "./ops-ide-lease-disk.js";
@@ -24,7 +28,7 @@ const POLL_MS = 100;
 const TURN_END_IDLE_MS = (() => {
   const n = Number(process.env.STOCK_IDE_TURN_END_IDLE_MS);
   if (Number.isFinite(n) && n >= 2000) return Math.min(n, 30_000);
-  return 4000;
+  return 12_000;
 })();
 /** @deprecated */ const IDLE_RELEASE_MS = TURN_END_IDLE_MS;
 /** 훅 enqueue 전·서버 재시작 직후 lease 유지 (display-sync 120s와 맞춤) */
@@ -197,10 +201,22 @@ function hasIdeQueueWork(/** @type {ReturnType<typeof getOpsAgentQueueMemorySnap
  * @param {ReturnType<typeof getOpsAgentQueueMemorySnapshot>} snap
  * @param {string} filePath
  */
-function tryReleaseWhenTurnEnded(lines, snap, filePath) {
-  /* 메모리만 비었다고 lease를 지우지 않음 — 훅이 enqueue 전에 쓴 lease가 매 100ms마다 삭제되던 원인 */
-  if (!hasIdeQueueWork(snap)) return;
+function notifyTurnCompletedWithoutQueue(filePath) {
+  const ctx =
+    lastTurnNotifyContext?.filePath === filePath &&
+    lastTurnNotifyContext.prompt
+      ? lastTurnNotifyContext
+      : null;
+  if (!ctx?.prompt) return;
+  if (isIdeCompletionNotified(ctx.sessionId, ctx.prompt)) return;
+  notifyIdeDevelopmentCompleted({
+    userRequest: ctx.prompt,
+    sessionId: ctx.sessionId,
+    transcriptPath: filePath,
+  });
+}
 
+function tryReleaseWhenTurnEnded(lines, snap, filePath) {
   if (!Array.isArray(lines) || lines.length === 0) return;
 
   const tail = parseLastAssistantTail(lines);
@@ -212,7 +228,14 @@ function tryReleaseWhenTurnEnded(lines, snap, filePath) {
   if (idleTurnReleasedForMtime === lastFileMtimeMs) return;
   idleTurnReleasedForMtime = lastFileMtimeMs;
 
-  releaseActiveLease(filePath);
+  if (hasIdeQueueWork(snap)) {
+    releaseActiveLease(filePath);
+    return;
+  }
+
+  /* 큐가 이미 비었어도(transcript·훅 선행) 턴 완료 알림은 보냄 */
+  notifyTurnCompletedWithoutQueue(filePath);
+  lastTurnNotifyContext = null;
 }
 
 /**

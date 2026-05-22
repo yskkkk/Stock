@@ -292,6 +292,12 @@ async function sendCompletionMessage(snap, dedupKey) {
   const ok = await sendTelegramMessage(text, undefined, resolveOpsTelegramCreds());
   if (ok) {
     markOpsDevNotifySent(dedupKey, getRepoHeadRev());
+    const turnId = String(snap.turnId ?? "").trim();
+    if (turnId.startsWith("ide-turn:")) {
+      void import("./ops-ide-completion-notify.js").then((m) =>
+        m.markIdeCompletionTurnNotified(turnId),
+      );
+    }
     console.info("[telegram:ops] dev completion (coalesced) sent");
   } else {
     releaseOpsDevNotifySendLock(dedupKey);

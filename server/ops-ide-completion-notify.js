@@ -8,6 +8,10 @@ import {
   readAgentResponseForIdeSession,
   readAgentResponseFromTranscriptFile,
 } from "./ops-ide-transcript-text.js";
+import {
+  buildOpsDevNotifyDedupKey,
+  shouldSkipOpsDevNotify,
+} from "./ops-dev-notify-dedup.js";
 import { scheduleOpsDevCompletionTelegram } from "./ops-dev-completion-coalesce.js";
 import {
   summarizeGitPullRangeForNotify,
@@ -50,8 +54,11 @@ function alreadyNotifiedThisTurn(turnKey) {
   return notifiedTurnKeys.has(turnKey);
 }
 
-function markTurnNotified(turnKey) {
-  notifiedTurnKeys.set(turnKey, Date.now());
+/** @param {string} turnKey */
+export function markIdeCompletionTurnNotified(turnKey) {
+  const k = String(turnKey ?? "").trim();
+  if (!k) return;
+  notifiedTurnKeys.set(k, Date.now());
 }
 
 /**
@@ -101,7 +108,16 @@ export function notifyIdeDevelopmentCompleted(opts) {
       ? summarizeGitPullRangeForNotify(revStart, revEnd)
       : summarizeGitReflectionForNotify("local");
 
-  markTurnNotified(turnKey);
+  const dedupKey = buildOpsDevNotifyDedupKey({
+    turnId: turnKey,
+    userRequest,
+    agentResponse,
+    gitSummary,
+    state: "ok",
+  });
+  if (!opts.force && shouldSkipOpsDevNotify(dedupKey)) {
+    return false;
+  }
 
   scheduleOpsDevCompletionTelegram({
     title: "개발 완료",

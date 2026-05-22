@@ -1045,7 +1045,21 @@ export function createApp() {
         });
         return;
       }
-      const out = releaseAnyRunningIdeDevQueueSlot();
+      const userRequest = String(
+        req.body?.userRequest ?? req.body?.user_request ?? "",
+      ).trim();
+      const sessionId =
+        String(req.body?.sessionId ?? req.body?.session_id ?? "").trim() ||
+        null;
+      const transcriptPath =
+        String(req.body?.transcriptPath ?? req.body?.transcript_path ?? "").trim() ||
+        null;
+      const notify = userRequest
+        ? { userRequest, sessionId, transcriptPath }
+        : undefined;
+      const out = releaseAnyRunningIdeDevQueueSlot(
+        notify ? { notify } : {},
+      );
       clearIdeLeaseOnDisk();
       res.json(out);
     }),
