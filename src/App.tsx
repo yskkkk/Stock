@@ -30,6 +30,7 @@ import SignalFilter from "./components/SignalFilter";
 import type { ChartDrawMode, ChartDrawToolbarApi } from "./chartDrawTypes";
 import ChartDrawToolbarButtons from "./components/ChartDrawToolbarButtons";
 import CryptoTab from "./components/CryptoTab";
+import OpsGlobalQueueStrip from "./components/OpsGlobalQueueStrip";
 import OpsManagementTab from "./components/OpsManagementTab";
 import LiveTradingTab from "./components/LiveTradingTab";
 import RecommendationsTab from "./components/RecommendationsTab";
@@ -928,6 +929,16 @@ export default function App() {
         aria-atomic="true"
       />
       <div className="app-header-sticky">
+      {accessAdmin ? (
+        <div
+          className="app-page-top app-page-top--queue-only"
+          aria-label={ko.app.opsGlobalQueueTitle}
+        >
+          <div className="app-page-top__queue">
+            <OpsGlobalQueueStrip onOpenOps={() => setAppTab("ops")} />
+          </div>
+        </div>
+      ) : null}
       <header
         className={`top-bar card${showTopScanStrip ? " top-bar--with-scan" : ""}${
           appTab === "screener" ? " top-bar--screener" : ""

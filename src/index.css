@@ -3877,6 +3877,17 @@ html[data-theme="light"] .access-admin-tab--active {
     justify-content: stretch;
   }
 
+  .app-page-top--queue-only {
+    display: block;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+  }
+
+  .app-page-top--queue-only .app-page-top__queue {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
   .app-page-top__queue .ops-global-queue-stack {
     max-width: 100%;
   }
@@ -4666,6 +4677,19 @@ html[data-theme="light"] .access-admin-tab--active {
   justify-content: center;
   align-items: flex-start;
   padding: 0 0.25rem;
+}
+
+/* 푸터 이전 후: 상단에는 개발 대기열만 */
+.app-page-top--queue-only {
+  display: block;
+  width: 100%;
+}
+
+.app-page-top--queue-only .app-page-top__queue {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 100%;
+  padding-inline: 0;
 }
 
 .app-page-top__queue--empty {
