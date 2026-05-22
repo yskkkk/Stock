@@ -846,7 +846,14 @@ export function notifyHighScorePick(pick) {
 
   }
 
-
+  void import("./live-trade-runner.js")
+    .then((m) => m.onHighScorePickForLiveTrading(pick))
+    .catch((err) => {
+      console.warn(
+        "[live-trade:notify]",
+        err instanceof Error ? err.message : err,
+      );
+    });
 
   const text = buildMessage(pick);
 

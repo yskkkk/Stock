@@ -158,6 +158,11 @@ function HoldingRow({
           </span>
         ) : null}
       </td>
+      <td className="live-portfolio__num">
+        {row.targetSellPrice != null
+          ? formatPrice(row.targetSellPrice, row.currency)
+          : "—"}
+      </td>
       <td
         className={
           row.unrealizedPnl == null
@@ -358,6 +363,7 @@ export default function LiveTradePortfolioPanel({
                       <th>{ko.app.liveTradePfColQty}</th>
                       <th>{ko.app.liveTradePfColAvg}</th>
                       <th>{ko.app.liveTradePfColCurrent}</th>
+                      <th>{ko.app.liveTradePfColTargetSell}</th>
                       <th>{ko.app.liveTradePfColPnl}</th>
                       <th />
                     </tr>

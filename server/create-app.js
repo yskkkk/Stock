@@ -92,8 +92,11 @@ import {
   deleteLiveTradeProgramSync,
   disarmLiveTradeProgramSync,
   listLiveTradeProgramsSync,
+  startSimLiveTradeProgramSync,
+  stopSimLiveTradeProgramSync,
   updateLiveTradeProgramSync,
 } from "./live-trade-programs-store.js";
+import { startLiveTradeAutoSellPoller } from "./live-trade-auto-sell.js";
 import {
   buildLiveTradePortfolioSnapshot,
   recordLiveTradeSimBuyAsync,
@@ -386,6 +389,7 @@ export function createApp() {
       toss,
       programs,
       armedCount: programs.filter((p) => p.status === "armed").length,
+      simCount: programs.filter((p) => p.status === "sim").length,
       simulatedOrders: process.env.TOSS_LIVE_ORDERS_ENABLED !== "1",
     });
   });
@@ -402,6 +406,10 @@ export function createApp() {
           maxOpenPositions: req.body?.maxOpenPositions,
           orderAmountKrw: req.body?.orderAmountKrw,
           orderAmountUsd: req.body?.orderAmountUsd,
+          simAutoBuy: req.body?.simAutoBuy,
+          autoSellAtTarget: req.body?.autoSellAtTarget,
+          takeProfitPct: req.body?.takeProfitPct,
+          stopLossPct: req.body?.stopLossPct,
         });
         res.json({ ok: true, program, programs: listLiveTradeProgramsSync() });
       } catch (e) {
@@ -423,6 +431,10 @@ export function createApp() {
           maxOpenPositions: req.body?.maxOpenPositions,
           orderAmountKrw: req.body?.orderAmountKrw,
           orderAmountUsd: req.body?.orderAmountUsd,
+          simAutoBuy: req.body?.simAutoBuy,
+          autoSellAtTarget: req.body?.autoSellAtTarget,
+          takeProfitPct: req.body?.takeProfitPct,
+          stopLossPct: req.body?.stopLossPct,
         });
         res.json({ ok: true, program, programs: listLiveTradeProgramsSync() });
       } catch (e) {
@@ -468,6 +480,32 @@ export function createApp() {
       try {
         const program = disarmLiveTradeProgramSync(id);
         res.json({ ok: true, program });
+      } catch (e) {
+        res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
+      }
+    }),
+  );
+
+  app.post(
+    "/api/live-trading/programs/:id/sim-start",
+    asyncRoute(async (req, res) => {
+      const id = String(req.params.id ?? "").trim();
+      try {
+        const program = startSimLiveTradeProgramSync(id);
+        res.json({ ok: true, program, programs: listLiveTradeProgramsSync() });
+      } catch (e) {
+        res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
+      }
+    }),
+  );
+
+  app.post(
+    "/api/live-trading/programs/:id/sim-stop",
+    asyncRoute(async (req, res) => {
+      const id = String(req.params.id ?? "").trim();
+      try {
+        const program = stopSimLiveTradeProgramSync(id);
+        res.json({ ok: true, program, programs: listLiveTradeProgramsSync() });
       } catch (e) {
         res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
       }
@@ -1393,6 +1431,7 @@ export function createApp() {
 
   try {
     startDevQueueDisplaySyncPoller();
+    startLiveTradeAutoSellPoller();
   } catch {
     /* ignore */
   }

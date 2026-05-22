@@ -12,7 +12,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, ".data");
 const PROGRAMS_FILE = path.join(DATA_DIR, "live-trade-programs.json");
 
-/** @typedef {"draft" | "armed" | "paused" | "error"} LiveTradeStatus */
+/** @typedef {"draft" | "armed" | "sim" | "paused" | "error"} LiveTradeStatus */
 
 /**
  * @typedef {{
@@ -28,6 +28,10 @@ const PROGRAMS_FILE = path.join(DATA_DIR, "live-trade-programs.json");
  *   armedAtMs: number | null;
  *   lastRunAtMs: number | null;
  *   lastError: string | null;
+ *   simAutoBuy: boolean;
+ *   autoSellAtTarget: boolean;
+ *   takeProfitPct: number | null;
+ *   stopLossPct: number | null;
  *   createdAtMs: number;
  *   updatedAtMs: number;
  * }} LiveTradeProgram
@@ -76,7 +80,10 @@ function normalizeProgram(raw) {
   const mr = /** @type {Record<string, unknown>} */ (marketsRaw);
   const statusRaw = String(o.status ?? "draft").toLowerCase();
   const status =
-    statusRaw === "armed" || statusRaw === "paused" || statusRaw === "error"
+    statusRaw === "armed" ||
+    statusRaw === "sim" ||
+    statusRaw === "paused" ||
+    statusRaw === "error"
       ? statusRaw
       : "draft";
   const now = Date.now();
@@ -111,6 +118,18 @@ function normalizeProgram(raw) {
       typeof o.lastError === "string" && o.lastError.trim()
         ? o.lastError.trim().slice(0, 500)
         : null,
+    simAutoBuy: o.simAutoBuy === false ? false : true,
+    autoSellAtTarget: o.autoSellAtTarget === false ? false : true,
+    takeProfitPct:
+      o.takeProfitPct == null || o.takeProfitPct === ""
+        ? 5
+        : clampNum(o.takeProfitPct, 0.5, 100, 5),
+    stopLossPct: (() => {
+      if (o.stopLossPct == null || o.stopLossPct === "") return null;
+      const n = Number(o.stopLossPct);
+      if (!Number.isFinite(n) || n >= 0) return null;
+      return Math.max(-50, Math.min(-0.5, n));
+    })(),
     createdAtMs:
       typeof o.createdAtMs === "number" && o.createdAtMs > 0 ? o.createdAtMs : now,
     updatedAtMs:
@@ -144,6 +163,29 @@ export function listArmedLiveTradeProgramsSync() {
   return listLiveTradeProgramsSync().filter((p) => p.status === "armed");
 }
 
+export function listSimActiveProgramsSync() {
+  return listLiveTradeProgramsSync().filter((p) => p.status === "sim");
+}
+
+export function startSimLiveTradeProgramSync(id) {
+  const prog = getLiveTradeProgramSync(id);
+  if (!prog) throw new Error("프로그램을 찾을 수 없습니다.");
+  return updateLiveTradeProgramSync(id, {
+    status: "sim",
+    armedAtMs: Date.now(),
+    lastError: null,
+  });
+}
+
+export function stopSimLiveTradeProgramSync(id) {
+  const prog = getLiveTradeProgramSync(id);
+  if (!prog) throw new Error("프로그램을 찾을 수 없습니다.");
+  return updateLiveTradeProgramSync(id, {
+    status: "paused",
+    armedAtMs: null,
+  });
+}
+
 /**
  * @param {{
  *   name: string;
@@ -153,6 +195,10 @@ export function listArmedLiveTradeProgramsSync() {
  *   maxOpenPositions?: number;
  *   orderAmountKrw?: number | null;
  *   orderAmountUsd?: number | null;
+ *   simAutoBuy?: boolean;
+ *   autoSellAtTarget?: boolean;
+ *   takeProfitPct?: number | null;
+ *   stopLossPct?: number | null;
  * }} input
  */
 export function createLiveTradeProgramSync(input) {

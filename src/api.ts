@@ -722,7 +722,7 @@ export function deleteTechModel(id: string) {
   );
 }
 
-export type LiveTradeProgramStatus = "draft" | "armed" | "paused" | "error";
+export type LiveTradeProgramStatus = "draft" | "armed" | "sim" | "paused" | "error";
 
 export interface LiveTradeProgram {
   id: string;
@@ -737,6 +737,10 @@ export interface LiveTradeProgram {
   armedAtMs: number | null;
   lastRunAtMs: number | null;
   lastError: string | null;
+  simAutoBuy: boolean;
+  autoSellAtTarget: boolean;
+  takeProfitPct: number | null;
+  stopLossPct: number | null;
   createdAtMs: number;
   updatedAtMs: number;
 }
@@ -755,6 +759,7 @@ export interface LiveTradingStatusResponse {
   toss: TossTradingStatus;
   programs: LiveTradeProgram[];
   armedCount: number;
+  simCount: number;
   simulatedOrders: boolean;
 }
 
@@ -770,6 +775,10 @@ export function createLiveTradeProgram(body: {
   maxOpenPositions?: number;
   orderAmountKrw?: number | null;
   orderAmountUsd?: number | null;
+  simAutoBuy?: boolean;
+  autoSellAtTarget?: boolean;
+  takeProfitPct?: number | null;
+  stopLossPct?: number | null;
 }) {
   return fetchJson<{
     ok: boolean;
@@ -792,6 +801,10 @@ export function updateLiveTradeProgram(
     maxOpenPositions: number;
     orderAmountKrw: number | null;
     orderAmountUsd: number | null;
+    simAutoBuy: boolean;
+    autoSellAtTarget: boolean;
+    takeProfitPct: number | null;
+    stopLossPct: number | null;
   }>,
 ) {
   return fetchJson<{
@@ -835,6 +848,30 @@ export function disarmLiveTradeProgram(id: string) {
   );
 }
 
+export function startSimLiveTradeProgram(id: string) {
+  return fetchJson<{
+    ok: boolean;
+    program: LiveTradeProgram;
+    programs: LiveTradeProgram[];
+  }>(`/api/live-trading/programs/${encodeURIComponent(id)}/sim-start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  });
+}
+
+export function stopSimLiveTradeProgram(id: string) {
+  return fetchJson<{
+    ok: boolean;
+    program: LiveTradeProgram;
+    programs: LiveTradeProgram[];
+  }>(`/api/live-trading/programs/${encodeURIComponent(id)}/sim-stop`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  });
+}
+
 export interface LiveTradeHolding {
   programId: string;
   programName?: string;
@@ -852,6 +889,8 @@ export interface LiveTradeHolding {
   currency: string;
   openedAtMs: number;
   lastAtMs: number;
+  targetSellPrice?: number | null;
+  stopLossPrice?: number | null;
 }
 
 export interface LiveTradeRecord {

@@ -4,6 +4,8 @@ import {
   createLiveTradeProgram,
   deleteLiveTradeProgram,
   disarmLiveTradeProgram,
+  startSimLiveTradeProgram,
+  stopSimLiveTradeProgram,
   fetchLiveTradingStatus,
   fetchTechModels,
   updateLiveTradeProgram,
@@ -19,6 +21,8 @@ function statusLabel(status: LiveTradeProgram["status"]): string {
   switch (status) {
     case "armed":
       return ko.app.liveTradeStatusArmed;
+    case "sim":
+      return ko.app.liveTradeStatusSim;
     case "paused":
       return ko.app.liveTradeStatusPaused;
     case "error":
@@ -60,6 +64,10 @@ const emptyDraft = () => ({
   maxOpenPositions: 5,
   orderAmountKrw: "100000",
   orderAmountUsd: "",
+  simAutoBuy: true,
+  autoSellAtTarget: true,
+  takeProfitPct: "5",
+  stopLossPct: "",
 });
 
 export default function LiveTradingTab({
@@ -135,6 +143,12 @@ export default function LiveTradingTab({
         p.orderAmountKrw != null ? String(Math.round(p.orderAmountKrw)) : "",
       orderAmountUsd:
         p.orderAmountUsd != null ? String(p.orderAmountUsd) : "",
+      simAutoBuy: p.simAutoBuy !== false,
+      autoSellAtTarget: p.autoSellAtTarget !== false,
+      takeProfitPct:
+        p.takeProfitPct != null ? String(p.takeProfitPct) : "5",
+      stopLossPct:
+        p.stopLossPct != null ? String(p.stopLossPct) : "",
     });
     setMsg(null);
     setErr(null);
@@ -151,6 +165,14 @@ export default function LiveTradingTab({
       maxOpenPositions: draft.maxOpenPositions,
       orderAmountKrw: orderKrw ? Number(orderKrw) : null,
       orderAmountUsd: orderUsd ? Number(orderUsd) : null,
+      simAutoBuy: draft.simAutoBuy,
+      autoSellAtTarget: draft.autoSellAtTarget,
+      takeProfitPct: draft.takeProfitPct.trim()
+        ? Number(draft.takeProfitPct)
+        : null,
+      stopLossPct: draft.stopLossPct.trim()
+        ? Number(draft.stopLossPct)
+        : null,
     };
   }, [draft]);
 
@@ -206,6 +228,40 @@ export default function LiveTradingTab({
             ? ko.app.liveTradeArmedOk
             : ko.app.liveTradeArmedWaitToss,
         );
+        await reload();
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : String(e));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [reload],
+  );
+
+  const handleSimStart = useCallback(
+    async (id: string) => {
+      setBusy(true);
+      setErr(null);
+      setMsg(null);
+      try {
+        await startSimLiveTradeProgram(id);
+        setMsg(ko.app.liveTradeSimStartOk);
+        await reload();
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : String(e));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [reload],
+  );
+
+  const handleSimStop = useCallback(
+    async (id: string) => {
+      setBusy(true);
+      setErr(null);
+      try {
+        await stopSimLiveTradeProgram(id);
         await reload();
       } catch (e) {
         setErr(e instanceof Error ? e.message : String(e));
@@ -411,6 +467,58 @@ export default function LiveTradingTab({
                 />
               </label>
 
+              <label className="live-trading-tab__field live-trading-tab__field--check">
+                <input
+                  type="checkbox"
+                  checked={draft.simAutoBuy}
+                  onChange={(e) =>
+                    setDraft((d) => ({ ...d, simAutoBuy: e.target.checked }))
+                  }
+                />
+                <span>{ko.app.liveTradeFieldSimAutoBuy}</span>
+              </label>
+
+              <label className="live-trading-tab__field live-trading-tab__field--check">
+                <input
+                  type="checkbox"
+                  checked={draft.autoSellAtTarget}
+                  onChange={(e) =>
+                    setDraft((d) => ({ ...d, autoSellAtTarget: e.target.checked }))
+                  }
+                />
+                <span>{ko.app.liveTradeFieldAutoSell}</span>
+              </label>
+
+              <label className="live-trading-tab__field">
+                <span>{ko.app.liveTradeFieldTakeProfit}</span>
+                <input
+                  type="number"
+                  className="input"
+                  min={0.5}
+                  max={100}
+                  step={0.5}
+                  value={draft.takeProfitPct}
+                  onChange={(e) =>
+                    setDraft((d) => ({ ...d, takeProfitPct: e.target.value }))
+                  }
+                />
+              </label>
+
+              <label className="live-trading-tab__field">
+                <span>{ko.app.liveTradeFieldStopLoss}</span>
+                <input
+                  type="number"
+                  className="input"
+                  max={-0.5}
+                  step={0.5}
+                  placeholder="-3"
+                  value={draft.stopLossPct}
+                  onChange={(e) =>
+                    setDraft((d) => ({ ...d, stopLossPct: e.target.value }))
+                  }
+                />
+              </label>
+
               <label className="live-trading-tab__field">
                 <span>{ko.app.liveTradeFieldAmountUsd}</span>
                 <input
@@ -516,7 +624,16 @@ export default function LiveTradingTab({
                         : null}
                     </p>
                     <div className="live-trading-tab__program-actions">
-                      {p.status === "armed" ? (
+                      {p.status === "sim" ? (
+                        <button
+                          type="button"
+                          className="btn btn--secondary btn--sm"
+                          disabled={busy}
+                          onClick={() => void handleSimStop(p.id)}
+                        >
+                          {ko.app.liveTradeSimStop}
+                        </button>
+                      ) : p.status === "armed" ? (
                         <button
                           type="button"
                           className="btn btn--secondary btn--sm"
@@ -526,14 +643,24 @@ export default function LiveTradingTab({
                           {ko.app.liveTradeDisarm}
                         </button>
                       ) : (
-                        <button
-                          type="button"
-                          className="btn btn--primary btn--sm"
-                          disabled={busy}
-                          onClick={() => void handleArm(p.id)}
-                        >
-                          {ko.app.liveTradeArm}
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            className="btn btn--primary btn--sm"
+                            disabled={busy}
+                            onClick={() => void handleSimStart(p.id)}
+                          >
+                            {ko.app.liveTradeSimStart}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn--secondary btn--sm"
+                            disabled={busy}
+                            onClick={() => void handleArm(p.id)}
+                          >
+                            {ko.app.liveTradeArm}
+                          </button>
+                        </>
                       )}
                       <button
                         type="button"

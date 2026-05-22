@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { fetchQuoteSnapshotsForSymbols } from "./picks-live-quotes.js";
 import { resolveLiveTradeQuote } from "./live-trade-quote.js";
+import { sellTargetsForProgram } from "./live-trade-sell-target.js";
 import { ROUND_TRIP_FEE_RATE } from "./net-return.js";
 import { getLiveTradeProgramSync } from "./live-trade-programs-store.js";
 
@@ -33,6 +34,8 @@ const ONE_WAY_FEE_RATE = ROUND_TRIP_FEE_RATE / 2;
  *   simulated: boolean;
  *   orderId: string | null;
  *   note: string | null;
+ *   targetSellPrice: number | null;
+ *   stopLossPrice: number | null;
  *   atMs: number;
  * }} LiveTradeRecord
  */
@@ -99,6 +102,14 @@ function normalizeTrade(raw) {
     orderId:
       typeof o.orderId === "string" && o.orderId.trim() ? o.orderId.trim() : null,
     note: typeof o.note === "string" && o.note.trim() ? o.note.trim().slice(0, 300) : null,
+    targetSellPrice:
+      typeof o.targetSellPrice === "number" && Number.isFinite(o.targetSellPrice) && o.targetSellPrice > 0
+        ? o.targetSellPrice
+        : null,
+    stopLossPrice:
+      typeof o.stopLossPrice === "number" && Number.isFinite(o.stopLossPrice) && o.stopLossPrice > 0
+        ? o.stopLossPrice
+        : null,
     atMs:
       typeof o.atMs === "number" && Number.isFinite(o.atMs) && o.atMs > 0
         ? o.atMs
@@ -217,6 +228,7 @@ export function recordLiveTradeBuySync(program, pick, orderMeta = {}) {
     }
   }
 
+  const targets = sellTargetsForProgram(program, price);
   const trade = normalizeTrade({
     id: randomUUID(),
     programId: program.id,
@@ -229,6 +241,8 @@ export function recordLiveTradeBuySync(program, pick, orderMeta = {}) {
     amount: quantity * price,
     simulated: Boolean(orderMeta.simulated),
     orderId: orderMeta.orderId ?? null,
+    targetSellPrice: targets.targetSellPrice,
+    stopLossPrice: targets.stopLossPrice,
     atMs: tradeAtMs,
   });
   if (!trade) return null;
@@ -363,6 +377,37 @@ export async function recordLiveTradeSimSellAsync(input) {
 /**
  * @param {{ programId?: string | null }} [opts]
  */
+/**
+ * 시뮬 자동매도용 — 열린 포지션 + 매수 시 기록된 목표·손절가
+ */
+export function buildOpenPositionsWithSellTargetsSync() {
+  const store = readStoreSync();
+  const { positions } = buildPositionsFromTrades(store.trades, null);
+
+  return positions.map((pos) => {
+    const key = positionKey(pos.programId, pos.market, pos.symbol);
+    const buys = store.trades
+      .filter(
+        (t) =>
+          t.side === "buy" &&
+          positionKey(t.programId, t.market, t.symbol) === key,
+      )
+      .sort((a, b) => a.atMs - b.atMs);
+    const lastBuy = buys[buys.length - 1] ?? null;
+    const avgEntry = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+    return {
+      programId: pos.programId,
+      symbol: pos.symbol,
+      name: pos.name,
+      market: pos.market,
+      quantity: pos.quantity,
+      avgEntryPrice: avgEntry,
+      targetSellPrice: lastBuy?.targetSellPrice ?? null,
+      stopLossPrice: lastBuy?.stopLossPrice ?? null,
+    };
+  });
+}
+
 export async function buildLiveTradePortfolioSnapshot(opts = {}) {
   const programIdFilter = opts.programId
     ? String(opts.programId).trim()
@@ -409,6 +454,16 @@ export async function buildLiveTradePortfolioSnapshot(opts = {}) {
         : null;
     const unrealized =
       mv != null ? mv - pos.costBasis : null;
+    const key = positionKey(pos.programId, pos.market, pos.symbol);
+    let targetSellPrice = null;
+    let stopLossPrice = null;
+    for (const t of store.trades) {
+      if (t.side !== "buy") continue;
+      if (positionKey(t.programId, t.market, t.symbol) !== key) continue;
+      if (t.targetSellPrice != null) targetSellPrice = t.targetSellPrice;
+      if (t.stopLossPrice != null) stopLossPrice = t.stopLossPrice;
+    }
+
     holdings.push({
       programId: pos.programId,
       symbol: pos.symbol,
@@ -422,6 +477,8 @@ export async function buildLiveTradePortfolioSnapshot(opts = {}) {
       unrealizedPnl: unrealized,
       changePct: netPct,
       grossChangePct: grossPct,
+      targetSellPrice,
+      stopLossPrice,
       currency: pos.market === "kr" ? "KRW" : "USD",
       openedAtMs: pos.openedAtMs,
       lastAtMs: pos.lastAtMs,
