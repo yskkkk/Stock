@@ -4,6 +4,7 @@ import { resolveDisplayName } from "./names-ko.js";
 import { getActiveTechModelsSync } from "./picks-tech-models-store.js";
 import { analyzeTechnicals, meetsTelegramNotifyScore } from "./technical.js";
 import { onHighScorePickForLiveTrading } from "./live-trade-runner.js";
+import { scheduleRecommendationsTrackerSnapshotRefresh } from "./picks-recommendations-tracker.js";
 import { notifyHighScorePick } from "./telegram-notify.js";
 import { recordPicksDailySnapshot } from "./picks-history-store.js";
 import { readLastScanSnapshotSync, writeLastScanSnapshotSync } from "./picks-live-persist.js";
@@ -287,6 +288,7 @@ async function runScreening() {
       state.us = finalizePicksAfterScan(prevUs, draft.us, processedSymbols);
       state.updatedAt = Date.now();
       recordPicksDailySnapshot([...state.kr], [...state.us], state.updatedAt);
+      scheduleRecommendationsTrackerSnapshotRefresh();
       const failMsg =
         state.failedCount > 0 ? ` · 조회 실패 ${state.failedCount}건` : "";
       state.message = `분석 완료 · 매수 후보 ${state.kr.length + state.us.length}개${failMsg}`;

@@ -13,6 +13,9 @@ import {
   netReturnPctFromPrices,
   outcomeFromPricesWithFees,
 } from "./net-return.js";
+import {
+  writeRecommendationsTrackerSnapshotSync,
+} from "./picks-recommendations-tracker-snapshot.js";
 
 let reconcileOnce = false;
 let backfillScheduled = false;
@@ -30,6 +33,8 @@ const TRACKER_QUOTE_MAX = (() => {
 let trackerCache = null;
 /** @type {Promise<object> | null} */
 let trackerInflight = null;
+/** @type {Promise<object> | null} */
+let snapshotRefreshInflight = null;
 
 /**
  * @param {ReturnType<typeof slimToEvent>[]} events
@@ -370,6 +375,9 @@ export async function buildRecommendationsTrackerPayload(opts = {}) {
   trackerInflight = (async () => {
     try {
       const payload = await buildRecommendationsTrackerPayloadInner(opts);
+      if (!includeQuotes) {
+        writeRecommendationsTrackerSnapshotSync(payload);
+      }
       if (TRACKER_CACHE_MS > 0) {
         trackerCache = { key: cacheKey, at: Date.now(), payload };
       }
@@ -380,4 +388,21 @@ export async function buildRecommendationsTrackerPayload(opts = {}) {
   })();
 
   return trackerInflight;
+}
+
+/** 디스크 스냅샷 갱신(시세 제외) — API 첫 응답 후 백그라운드 */
+export function scheduleRecommendationsTrackerSnapshotRefresh() {
+  if (snapshotRefreshInflight) return;
+  snapshotRefreshInflight = buildRecommendationsTrackerPayload({
+    includeQuotes: false,
+  })
+    .catch((e) => {
+      console.warn(
+        "[recommendations-tracker] snapshot refresh:",
+        e instanceof Error ? e.message : e,
+      );
+    })
+    .finally(() => {
+      snapshotRefreshInflight = null;
+    });
 }

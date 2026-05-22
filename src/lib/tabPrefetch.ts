@@ -144,22 +144,44 @@ export async function prefetchMacroBundle(): Promise<MacroPrefetchBundle> {
   });
 }
 
+async function mergeRecTrackerQuotes(
+  base: RecommendationsTrackerResponse,
+): Promise<RecommendationsTrackerResponse> {
+  const syms = prioritizeTrackerSymbols(base.items, TRACKER_QUOTE_BATCH);
+  let freshQuotes: Awaited<
+    ReturnType<typeof fetchPicksDailyHistoryQuotes>
+  >["quotes"] = {};
+  if (syms.length) {
+    try {
+      freshQuotes = (await fetchPicksDailyHistoryQuotes(syms)).quotes;
+    } catch {
+      /* 시세 없이 기본 payload */
+    }
+  }
+  const prev = peekRecommendationsTracker();
+  return applyTrackerQuotes(base, freshQuotes, prev);
+}
+
 export async function prefetchRecommendationsTracker(): Promise<RecommendationsTrackerResponse> {
   return dedupe("recTracker", async () => {
-    const base = await fetchRecommendationsTracker({ quotes: false });
-    const syms = prioritizeTrackerSymbols(base.items, TRACKER_QUOTE_BATCH);
-    let freshQuotes: Awaited<
-      ReturnType<typeof fetchPicksDailyHistoryQuotes>
-    >["quotes"] = {};
-    if (syms.length) {
-      try {
-        freshQuotes = (await fetchPicksDailyHistoryQuotes(syms)).quotes;
-      } catch {
-        /* 시세 없이 기본 payload */
-      }
+    try {
+      const snap = await fetchRecommendationsTracker({ quotes: false });
+      const quick = await mergeRecTrackerQuotes(snap);
+      notifyRecTracker(quick);
+    } catch {
+      /* refresh에서 복구 */
     }
-    const prev = peekRecommendationsTracker();
-    const merged = applyTrackerQuotes(base, freshQuotes, prev);
+    void fetchRecommendationsTracker({ quotes: false, refresh: true })
+      .then((fresh) => mergeRecTrackerQuotes(fresh))
+      .then((merged) => notifyRecTracker(merged))
+      .catch(() => {});
+    const cached = peekRecommendationsTracker();
+    if (cached) return cached;
+    const fresh = await fetchRecommendationsTracker({
+      quotes: false,
+      refresh: true,
+    });
+    const merged = await mergeRecTrackerQuotes(fresh);
     notifyRecTracker(merged);
     return merged;
   });

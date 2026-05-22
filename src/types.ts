@@ -315,6 +315,10 @@ export interface RecommendationSymbolStat extends RecommendationTrackerRollup {
 
 export interface RecommendationsTrackerResponse {
   updatedAtMs: number;
+  /** 디스크 스냅샷 시각(서버) */
+  snapshotAtMs?: number | null;
+  /** true면 picks-recommendations-tracker-snapshot.json 기반 */
+  fromSnapshot?: boolean;
   /** KST 일자 목록(최신순) */
   dates: string[];
   summary: RecommendationTrackerRollup;

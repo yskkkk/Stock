@@ -118,8 +118,15 @@ export function fetchPicksDailyHistory() {
   return fetchJson<PicksDailyHistoryResponse>("/api/picks/daily-history");
 }
 
-export function fetchRecommendationsTracker(opts?: { quotes?: boolean }) {
-  const q = opts?.quotes === false ? "?quotes=0" : "";
+export function fetchRecommendationsTracker(opts?: {
+  quotes?: boolean;
+  /** true면 스냅샷 무시하고 전체 재빌드 */
+  refresh?: boolean;
+}) {
+  const params = new URLSearchParams();
+  if (opts?.quotes === false) params.set("quotes", "0");
+  if (opts?.refresh) params.set("refresh", "1");
+  const q = params.toString() ? `?${params}` : "";
   return fetchJson<RecommendationsTrackerResponse>(
     `/api/picks/recommendations-tracker${q}`,
   );

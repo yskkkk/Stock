@@ -106,39 +106,53 @@ export default function RecommendationsTab({
   const dataRef = useRef<RecommendationsTrackerResponse | null>(null);
   dataRef.current = data;
 
-  const load = useCallback((opts?: { silent?: boolean }) => {
-    const prev = dataRef.current;
-    const silent = opts?.silent ?? prev != null;
-    if (!silent) {
-      setLoading(true);
-      setError(null);
-    }
-
-    void fetchRecommendationsTracker({ quotes: false })
-      .then(async (base) => {
-        const syms = prioritizeTrackerSymbols(base.items, TRACKER_QUOTE_BATCH);
-        let freshQuotes: Awaited<
-          ReturnType<typeof fetchPicksDailyHistoryQuotes>
-        >["quotes"] = {};
-        if (syms.length) {
-          try {
-            freshQuotes = (await fetchPicksDailyHistoryQuotes(syms)).quotes;
-          } catch {
-            /* 이전 시세 유지 */
-          }
+  const mergeTrackerWithQuotes = useCallback(
+    async (
+      base: RecommendationsTrackerResponse,
+      prev: RecommendationsTrackerResponse | null,
+    ) => {
+      const syms = prioritizeTrackerSymbols(base.items, TRACKER_QUOTE_BATCH);
+      let freshQuotes: Awaited<
+        ReturnType<typeof fetchPicksDailyHistoryQuotes>
+      >["quotes"] = {};
+      if (syms.length) {
+        try {
+          freshQuotes = (await fetchPicksDailyHistoryQuotes(syms)).quotes;
+        } catch {
+          /* 이전 시세 유지 */
         }
-        return applyTrackerQuotes(base, freshQuotes, prev);
-      })
-      .then((next) => {
+      }
+      return applyTrackerQuotes(base, freshQuotes, prev);
+    },
+    [],
+  );
+
+  const load = useCallback(
+    async (opts?: { silent?: boolean; refresh?: boolean }) => {
+      const prev = dataRef.current;
+      const silent = opts?.silent ?? prev != null;
+      const refresh = opts?.refresh === true;
+      if (!silent) {
+        setLoading(true);
+        setError(null);
+      }
+      try {
+        const base = await fetchRecommendationsTracker({
+          quotes: false,
+          refresh,
+        });
+        const next = await mergeTrackerWithQuotes(base, prev);
         setData(next);
         setError(null);
-      })
-      .catch((e) => {
+      } catch (e) {
         if (!silent) setData(null);
         setError(e instanceof Error ? e.message : String(e));
-      })
-      .finally(() => setLoading(false));
-  }, []);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [mergeTrackerWithQuotes],
+  );
 
   useEffect(() => {
     return subscribeRecommendationsTrackerPrefetch((next) => {
@@ -149,10 +163,33 @@ export default function RecommendationsTab({
   }, []);
 
   useEffect(() => {
-    load();
-    const t = setInterval(() => load({ silent: true }), 30_000);
-    return () => clearInterval(t);
-  }, [load]);
+    let cancelled = false;
+
+    void (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const snap = await fetchRecommendationsTracker({ quotes: false });
+        if (cancelled) return;
+        const quick = await mergeTrackerWithQuotes(snap, null);
+        if (cancelled) return;
+        setData(quick);
+        setLoading(false);
+        setError(null);
+      } catch {
+        /* refresh 경로에서 재시도 */
+      }
+      if (!cancelled) {
+        await load({ silent: true, refresh: true });
+      }
+    })();
+
+    const t = setInterval(() => void load({ silent: true }), 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, [load, mergeTrackerWithQuotes]);
 
   const refreshTrackerQuotesOnly = useCallback(() => {
     const base = dataRef.current;

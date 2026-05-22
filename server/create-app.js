@@ -69,7 +69,13 @@ import {
 import {
   buildRecommendationsTrackerPayload,
   scheduleRecommendationSignalBackfill,
+  scheduleRecommendationsTrackerSnapshotRefresh,
 } from "./picks-recommendations-tracker.js";
+import {
+  decorateRecommendationsTrackerResponse,
+  isRecommendationsTrackerSnapshotStale,
+  readRecommendationsTrackerSnapshotSync,
+} from "./picks-recommendations-tracker-snapshot.js";
 import {
   applyTechWeights,
   getActiveSignalScoreWeightsSync,
@@ -265,7 +271,30 @@ export function createApp() {
     "/api/picks/recommendations-tracker",
     asyncRoute(async (req, res) => {
       const includeQuotes = String(req.query.quotes ?? "1").trim() !== "0";
-      res.json(await buildRecommendationsTrackerPayload({ includeQuotes }));
+      const forceRefresh = String(req.query.refresh ?? "").trim() === "1";
+
+      if (!forceRefresh && !includeQuotes) {
+        const snap = readRecommendationsTrackerSnapshotSync();
+        if (snap) {
+          if (isRecommendationsTrackerSnapshotStale(snap)) {
+            scheduleRecommendationsTrackerSnapshotRefresh();
+          }
+          res.json(
+            decorateRecommendationsTrackerResponse(snap.payload, {
+              writtenAtMs: snap.writtenAtMs,
+              fromSnapshot: true,
+            }),
+          );
+          return;
+        }
+      }
+
+      const payload = await buildRecommendationsTrackerPayload({ includeQuotes });
+      res.json(
+        decorateRecommendationsTrackerResponse(payload, {
+          fromSnapshot: false,
+        }),
+      );
     }),
   );
 
