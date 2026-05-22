@@ -32,7 +32,7 @@ export function getTossTradingStatus() {
   let messageKo = "토스 API 키가 아직 등록되지 않았습니다.";
   if (phase === "configured") {
     messageKo =
-      "TOSS_API_KEY는 설정됐습니다. TOSS_ACCOUNT_ID(계좌)를 .env에 추가하면 실매매를 켤 수 있습니다.";
+      "API 키는 등록됐습니다. 서버 설정에 계좌 정보를 추가하면 실매매를 켤 수 있습니다.";
   } else if (ready) {
     messageKo =
       "토스 API 연동 준비됨. 스크리너 고득점 종목이 프로그램 조건에 맞으면 주문 파이프라인으로 전달됩니다.";
@@ -44,7 +44,7 @@ export function getTossTradingStatus() {
     messageKo,
     hasSecret: Boolean(TOSS_API_SECRET),
     baseUrl: TOSS_API_BASE || null,
-    docsHint: "https://docs.tossinvest.com (공식 문서 출시 후 TOSS_API_BASE_URL 조정)",
+    docsHint: "https://docs.tossinvest.com",
   };
 }
 

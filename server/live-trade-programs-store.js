@@ -220,7 +220,7 @@ export function armLiveTradeProgramSync(id, toss) {
   if (!toss.tossConfigured) {
     throw new Error(
       toss.tossMessage ??
-        "토스 API 키가 설정되지 않았습니다. .env에 TOSS_API_KEY를 등록한 뒤 서버를 재시작하세요.",
+        "토스 API 키가 설정되지 않았습니다. 서버 환경 설정에 API 키를 등록한 뒤 재시작하세요.",
     );
   }
   const prog = getLiveTradeProgramSync(id);

@@ -271,18 +271,26 @@ export default function LiveTradingTab({
       >
         <h3 className="live-trading-tab__section-title">{ko.app.liveTradeTossTitle}</h3>
         <p className="live-trading-tab__toss-msg">{toss?.messageKo ?? "—"}</p>
-        <ul className="live-trading-tab__toss-env">
+        <ul className="live-trading-tab__toss-env" aria-label={ko.app.liveTradeTossChecklist}>
           <li>
-            <code>TOSS_API_KEY</code>
-            {toss?.configured ? " ✓" : " —"}
+            <span>{ko.app.liveTradeTossItemApi}</span>
+            <span className="live-trading-tab__toss-state">
+              {toss?.configured ? ko.app.liveTradeTossOk : ko.app.liveTradeTossNo}
+            </span>
           </li>
           <li>
-            <code>TOSS_ACCOUNT_ID</code>
-            {toss?.ready ? " ✓" : " —"}
+            <span>{ko.app.liveTradeTossItemAccount}</span>
+            <span className="live-trading-tab__toss-state">
+              {toss?.ready ? ko.app.liveTradeTossOk : ko.app.liveTradeTossNo}
+            </span>
           </li>
           <li>
-            <code>TOSS_LIVE_ORDERS_ENABLED=1</code>
-            {status?.simulatedOrders === false ? " ✓" : ko.app.liveTradeSimMode}
+            <span>{ko.app.liveTradeTossItemOrders}</span>
+            <span className="live-trading-tab__toss-state">
+              {status?.simulatedOrders === false
+                ? ko.app.liveTradeTossOk
+                : ko.app.liveTradeTossSim}
+            </span>
           </li>
         </ul>
       </section>

@@ -555,10 +555,18 @@ body {
   padding-left: 1.1rem;
   font-size: 0.78rem;
   color: var(--text-muted, #6b7280);
+  list-style: disc;
 }
 
-.live-trading-tab__toss-env code {
-  font-size: 0.76rem;
+.live-trading-tab__toss-env li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.6rem;
+  align-items: baseline;
+}
+
+.live-trading-tab__toss-state {
+  font-weight: 600;
 }
 
 .live-trading-tab__grid {
