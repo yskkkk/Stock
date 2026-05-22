@@ -590,7 +590,11 @@ export function registerIdeDevQueueSlot(input) {
     ...metaToPersistEntry(queueMeta, "waiting"),
     sessionId,
   };
-  syncIdeHistoryWaiting(slot);
+  try {
+    syncIdeHistoryWaiting(slot);
+  } catch {
+    /* 디스크 오류 — 큐는 계속 */
+  }
   bumpDevQueueDisplayMirror();
   void drainQueue();
 

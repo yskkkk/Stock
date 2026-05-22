@@ -829,12 +829,8 @@ export async function runOpsCursorAgent(input) {
     name: "ops-dashboard",
   };
 
-  logOpsAgentExecutionStarted(
-    "API",
-    randomUUID(),
-    instruction,
-    reqIpNorm,
-  );
+  const turnId = randomUUID();
+  logOpsAgentExecutionStarted("API", turnId, instruction, reqIpNorm);
 
   try {
     let result = await agentPromptDisposeSafe(message, {
@@ -898,6 +894,7 @@ export async function runOpsCursorAgent(input) {
       agentResponse: normalizeOpsCompletionText(outText, null),
       gitSummary: postGit.gitSummary ?? "",
       state: "ok",
+      turnId,
     });
 
     return {
@@ -913,6 +910,7 @@ export async function runOpsCursorAgent(input) {
       userRequest: instruction,
       state: "error",
       errorText: e instanceof Error ? e.message : String(e),
+      turnId,
     });
     throw e;
   }

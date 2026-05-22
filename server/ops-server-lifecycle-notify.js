@@ -7,11 +7,19 @@ import {
   sendTelegramMessage,
 } from "./telegram-notify.js";
 
-let shutdownHooksInstalled = false;
-let startNotified = false;
-let stopNotified = false;
+const _lcg = /** @type {typeof globalThis & { __stockLifecycleShutdownInstalled?: boolean; __stockLifecycleStartNotified?: boolean; __stockLifecycleStopNotified?: boolean; __stockLifecycleMeta?: { mode?: string; port?: number | string } }} */ (globalThis);
+
+function isShutdownInstalled() { return _lcg.__stockLifecycleShutdownInstalled === true; }
+function markShutdownInstalled() { _lcg.__stockLifecycleShutdownInstalled = true; }
+function isStartNotified() { return _lcg.__stockLifecycleStartNotified === true; }
+function markStartNotified() { _lcg.__stockLifecycleStartNotified = true; }
+function isStopNotified() { return _lcg.__stockLifecycleStopNotified === true; }
+function markStopNotified() { _lcg.__stockLifecycleStopNotified = true; }
+function resetStopNotified() { _lcg.__stockLifecycleStopNotified = false; }
+
 /** @type {{ mode?: string; port?: number | string }} */
-let lastLifecycleMeta = { mode: "server" };
+function getLifecycleMeta() { return _lcg.__stockLifecycleMeta ?? { mode: "server" }; }
+function setLifecycleMeta(m) { _lcg.__stockLifecycleMeta = m; }
 
 function escHtml(s) {
   return String(s)
@@ -60,9 +68,10 @@ export async function notifyOpsServerLifecycle(phase, meta = {}) {
  * @param {{ mode?: string; port?: number | string }} [meta]
  */
 export function notifyOpsServerStarted(meta = {}) {
-  if (startNotified) return;
-  startNotified = true;
-  lastLifecycleMeta = { ...meta };
+  if (isStartNotified()) return;
+  markStartNotified();
+  resetStopNotified();
+  setLifecycleMeta({ ...meta });
   void notifyOpsServerLifecycle("on", meta)
     .then((ok) => {
       if (ok) console.info("[ops-lifecycle] telegram ON sent", meta.mode ?? "server");
@@ -79,8 +88,8 @@ export function notifyOpsServerStarted(meta = {}) {
  * @param {{ mode?: string; port?: number | string; reason?: string }} [meta]
  */
 export async function notifyOpsServerStopped(meta = {}) {
-  if (stopNotified) return false;
-  stopNotified = true;
+  if (isStopNotified()) return false;
+  markStopNotified();
   try {
     const ok = await notifyOpsServerLifecycle("off", meta);
     if (ok) console.info("[ops-lifecycle] telegram OFF sent", meta.mode ?? "server");
@@ -96,12 +105,12 @@ export async function notifyOpsServerStopped(meta = {}) {
 
 /** 프로세스당 1회 — SIGINT/SIGTERM/SIGBREAK */
 export function installOpsServerLifecycleShutdownHooks() {
-  if (shutdownHooksInstalled) return;
-  shutdownHooksInstalled = true;
+  if (isShutdownInstalled()) return;
+  markShutdownInstalled();
 
   const run = (reason) => {
     void notifyOpsServerStopped({
-      ...lastLifecycleMeta,
+      ...getLifecycleMeta(),
       reason,
     });
   };

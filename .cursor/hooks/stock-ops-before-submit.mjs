@@ -14,10 +14,7 @@ import {
   writeIdeTurnRule,
 } from "./stock-ops-queue-hook-lib.mjs";
 import { writeIdeLeaseDiskImmediate } from "../../server/ops-ide-lease-disk.js";
-import {
-  hookUserPromptFromInput,
-  readLatestUserPromptFromTranscriptsSync,
-} from "./stock-ops-hook-user-prompt.mjs";
+import { hookUserPromptFromInput } from "./stock-ops-hook-user-prompt.mjs";
 
 /** wait-grant는 서버에서 차례까지 HTTP를 붙잡음 — 짧으면 큐 대기 중 오탐 타임아웃 */
 const HOOK_GRANT_WAIT_MS = (() => {
@@ -48,8 +45,7 @@ try {
   const raw = fs.readFileSync(0, "utf8");
   const input = raw ? JSON.parse(raw) : {};
   const sessionId = hookSessionId(input);
-  const prompt =
-    hookUserPromptFromInput(input) || readLatestUserPromptFromTranscriptsSync();
+  const prompt = hookUserPromptFromInput(input);
 
   if (!prompt) {
     allow();

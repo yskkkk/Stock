@@ -55,7 +55,7 @@ export function formatTimeMsKst(ms: number | null | undefined) {
 export function formatEta(seconds: number | null | undefined) {
   if (seconds == null || seconds <= 0) return "";
   const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
+  const s = Math.floor(seconds % 60);
   if (m > 0) return `약 ${m}분 ${s > 0 ? `${s}초 ` : ""}남음`;
   return `약 ${s}초 남음`;
 }
@@ -93,6 +93,7 @@ export function formatUpdatedAt(ts: number | null) {
   if (sec < 60) return `${sec}초 전`;
   if (sec < 3600) return `${Math.floor(sec / 60)}분 전`;
   return new Date(ts).toLocaleString("ko-KR", {
+    timeZone: "Asia/Seoul",
     month: "short",
     day: "numeric",
     hour: "2-digit",

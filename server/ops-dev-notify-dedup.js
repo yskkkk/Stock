@@ -214,38 +214,54 @@ export function tryAcquireOpsDevNotifySend(dedupKey) {
   hydrateFromDisk();
   const k = String(dedupKey ?? "").trim();
   if (!k) return true;
-  if (shouldSkipOpsDevNotify(k)) return false;
 
   clearStaleOpsDevNotifyLocks();
 
   const lockName = createHash("sha256").update(k).digest("hex").slice(0, 32);
   const lockPath = path.join(LOCK_DIR, `${lockName}.lock`);
-  try {
-    ensureDataDir();
-    if (!fs.existsSync(LOCK_DIR)) fs.mkdirSync(LOCK_DIR, { recursive: true });
-    fs.writeFileSync(lockPath, String(Date.now()), { flag: "wx" });
-    return true;
-  } catch (e) {
-    const code =
-      e && typeof e === "object" && "code" in e
-        ? String(/** @type {{ code?: string }} */ (e).code)
-        : "";
-    if (code === "EEXIST") {
-      try {
-        const st = fs.statSync(lockPath);
-        if (Date.now() - st.mtimeMs > dedupWindowMs()) {
-          fs.unlinkSync(lockPath);
-          fs.writeFileSync(lockPath, String(Date.now()), { flag: "wx" });
-          return true;
+
+  ensureDataDir();
+  if (!fs.existsSync(LOCK_DIR)) fs.mkdirSync(LOCK_DIR, { recursive: true });
+
+  /* lock 먼저 획득 후 dedup 체크 — 반대 순서면 두 프로세스가 동시에 dedup=false 확인 후 둘 다 발송 */
+  const tryWriteLock = () => {
+    try {
+      fs.writeFileSync(lockPath, String(Date.now()), { flag: "wx" });
+      return true;
+    } catch (e) {
+      const code =
+        e && typeof e === "object" && "code" in e
+          ? String(/** @type {{ code?: string }} */ (e).code)
+          : "";
+      if (code === "EEXIST") {
+        try {
+          const st = fs.statSync(lockPath);
+          if (Date.now() - st.mtimeMs > dedupWindowMs()) {
+            fs.unlinkSync(lockPath);
+            fs.writeFileSync(lockPath, String(Date.now()), { flag: "wx" });
+            return true;
+          }
+        } catch {
+          /* ignore */
         }
-      } catch {
-        /* ignore */
+        return false;
       }
-      console.info("[telegram:ops] skip duplicate notify (send lock)");
-      return false;
+      return true;
     }
-    return true;
+  };
+
+  if (!tryWriteLock()) {
+    console.info("[telegram:ops] skip duplicate notify (send lock)");
+    return false;
   }
+
+  /* lock 획득 성공 — dedup 확인 후 이미 발송됐으면 lock 해제 */
+  if (shouldSkipOpsDevNotify(k)) {
+    try { fs.unlinkSync(lockPath); } catch { /* ignore */ }
+    return false;
+  }
+
+  return true;
 }
 
 /**

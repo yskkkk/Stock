@@ -68,10 +68,11 @@ export function isAccessControlEnabled() {
   }
 
   const v = String(process.env.ACCESS_CONTROL_ENABLED ?? "").toLowerCase().trim();
+  if (v === "1" || v === "true" || v === "yes") return true;
   if (v === "0" || v === "false" || v === "no") return false;
 
-  /** 기본값: IP 허용제 ON. 공개 서버만 ACCESS_CONTROL_DISABLED=1 */
-  return true;
+  /** 기본값: 접근 제한 없음(로컬·개인 서버). 공개 서버는 ACCESS_CONTROL_ENABLED=1 */
+  return false;
 }
 
 function allowLocalhost() {
@@ -95,6 +96,7 @@ function parseAccessAdminIps() {
 }
 
 export function isAccessAdminIp(req) {
+  if (!isAccessControlEnabled()) return true;
   const list = parseAccessAdminIps();
   if (!list.length) return false;
   const ip = normalizeAccessIp(clientIp(req));
@@ -110,6 +112,7 @@ function readBearerToken(req) {
 
 /** Bearer ACCESS_ADMIN_TOKEN 또는 관리자 등록 IP 또는 허용 목록의 위임 관리자 */
 export function isAccessAdminRequest(req) {
+  if (!isAccessControlEnabled()) return true;
   const token = getAdminToken();
   const bearer = readBearerToken(req);
   if (token && bearer === token) return true;

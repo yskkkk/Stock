@@ -41,7 +41,10 @@ function pollerAlreadyStarted() {
   return false;
 }
 
-let lastRecoverAttemptMs = 0;
+const _g = /** @type {typeof globalThis & { __stockLastRecoverAttemptMs?: number; __stockLastStaleLeasCheckMs?: number }} */ (globalThis);
+if (_g.__stockLastRecoverAttemptMs == null) _g.__stockLastRecoverAttemptMs = 0;
+if (_g.__stockLastStaleLeasCheckMs == null) _g.__stockLastStaleLeasCheckMs = 0;
+const STALE_LEASE_CHECK_INTERVAL_MS = 1_000;
 
 function isColdDevQueueMirrorBoot() {
   const g = /** @type {typeof globalThis & { __stockDevQueueMirrorBooted?: boolean }} */ (
@@ -63,13 +66,13 @@ function ensureMemoryQueueRecovered() {
   );
   if (!hasMemoryIde) {
     recoverIdeDevQueueFromPersistedState();
-    lastRecoverAttemptMs = Date.now();
+    _g.__stockLastRecoverAttemptMs = Date.now();
     return;
   }
 
   const now = Date.now();
-  if (now - lastRecoverAttemptMs < 1500) return;
-  lastRecoverAttemptMs = now;
+  if (now - (_g.__stockLastRecoverAttemptMs ?? 0) < 1500) return;
+  _g.__stockLastRecoverAttemptMs = now;
   recoverIdeDevQueueFromPersistedState();
 }
 
@@ -81,20 +84,21 @@ function entriesForDisplayMirror() {
   ensureMemoryQueueRecovered();
   const { entries: memory } = getOpsAgentQueueMemorySnapshot();
 
-  const lease = readIdeLeaseDiskSync();
-  if (lease) {
-    const since =
-      typeof lease.sinceMs === "number"
-        ? lease.sinceMs
-        : typeof lease.enqueuedAtMs === "number"
-          ? lease.enqueuedAtMs
-          : 0;
-    const age = since > 0 ? Date.now() - since : 0;
-    const hasLeaseId = Boolean(String(lease.leaseId ?? lease.id ?? "").trim());
-    const stale =
-      age > 30 * 60 * 1000 || (!hasLeaseId && age > 120_000);
-    if (stale) {
-      clearIdeLeaseOnDisk();
+  const now = Date.now();
+  if (now - (_g.__stockLastStaleLeasCheckMs ?? 0) >= STALE_LEASE_CHECK_INTERVAL_MS) {
+    _g.__stockLastStaleLeasCheckMs = now;
+    const lease = readIdeLeaseDiskSync();
+    if (lease) {
+      const since =
+        typeof lease.sinceMs === "number"
+          ? lease.sinceMs
+          : typeof lease.enqueuedAtMs === "number"
+            ? lease.enqueuedAtMs
+            : 0;
+      const age = since > 0 ? now - since : 0;
+      const hasLeaseId = Boolean(String(lease.leaseId ?? lease.id ?? "").trim());
+      const stale = age > 30 * 60 * 1000 || (!hasLeaseId && age > 120_000);
+      if (stale) clearIdeLeaseOnDisk();
     }
   }
 
