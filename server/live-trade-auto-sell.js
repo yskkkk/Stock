@@ -2,6 +2,7 @@
  * 시뮬 보유 — 목표·손절가 도달 시 지정가로 자동 매도
  */
 import { fetchQuoteSnapshotsForSymbols } from "./picks-live-quotes.js";
+import { pickQuoteFromMap } from "./quote-symbol-resolve.js";
 import {
   getLiveTradeProgramSync,
   listSimActiveProgramsSync,
@@ -43,7 +44,7 @@ export async function tickLiveTradeAutoSell() {
   if (!positions.length) return { sold: 0 };
 
   const symbols = [...new Set(positions.map((p) => p.symbol))];
-  const quotes = await fetchQuoteSnapshotsForSymbols(symbols);
+  const quotes = await fetchQuoteSnapshotsForSymbols(symbols, { maxAgeMs: 0 });
   let sold = 0;
 
   for (const pos of positions) {
@@ -51,7 +52,7 @@ export async function tickLiveTradeAutoSell() {
     if (!program || program.status !== "sim") continue;
     if (!program.autoSellAtTarget) continue;
 
-    const q = quotes[pos.symbol];
+    const q = pickQuoteFromMap(quotes, pos.symbol, pos.market);
     const current =
       q?.price != null && Number.isFinite(q.price) && q.price > 0 ? q.price : null;
     const hit = shouldSellAtTarget(pos, current);

@@ -1,4 +1,5 @@
 import { ko } from "./i18n/ko";
+import { withApiBase, getWebBaseUrl } from "./lib/apiBase";
 import type {
   ChartResponse,
   ChartTimeframe,
@@ -25,9 +26,10 @@ export interface StockData extends ChartResponse {
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   const reqInit: RequestInit = init ?? {};
+  const resolved = url.startsWith("/") ? withApiBase(url) : url;
   let res: Response;
   try {
-    res = await fetch(url, reqInit);
+    res = await fetch(resolved, reqInit);
   } catch (err) {
     if (err instanceof TypeError) {
       throw new Error(ko.errors.network);
@@ -55,7 +57,7 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
           /* ignore */
         }
         clearStockOpsInstructionDraft();
-        window.location.replace("/access-gate.html");
+        redirectToAccessGate();
       }
     }
     throw new Error(data.error ?? data.message ?? ko.errors.request);
@@ -67,6 +69,12 @@ const ACCESS_ADMIN_TOKEN_KEY = "stock_access_admin_token";
 
 /** 예전 운영 탭 요청 초안 키(저장 기능 제거 후). stale 값 제거·게이트 전환 시 비우기 용도로만 사용 */
 export const STOCK_OPS_INSTRUCTION_DRAFT_KEY = "stock-app-ops-instruction-draft-v1";
+
+function redirectToAccessGate(): void {
+  if (typeof window === "undefined") return;
+  const base = getWebBaseUrl();
+  window.location.replace(base ? `${base}/access-gate.html` : "/access-gate.html");
+}
 
 export function clearStockOpsInstructionDraft(): void {
   if (typeof sessionStorage === "undefined") return;
@@ -132,14 +140,18 @@ export function fetchRecommendationsTracker(opts?: {
   );
 }
 
-export function fetchPicksDailyHistoryQuotes(symbols: string[]) {
+export function fetchPicksDailyHistoryQuotes(
+  symbols: string[],
+  opts?: { fresh?: boolean },
+) {
   const uniq = [...new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean))];
   if (!uniq.length) {
     return Promise.resolve({ quotes: {} as PicksDailyHistoryQuotesMap });
   }
-  const q = uniq.map(encodeURIComponent).join(",");
+  const params = new URLSearchParams({ symbols: uniq.join(",") });
+  if (opts?.fresh) params.set("fresh", "1");
   return fetchJson<{ quotes: PicksDailyHistoryQuotesMap }>(
-    `/api/picks/daily-history/quotes?symbols=${q}`,
+    `/api/picks/daily-history/quotes?${params}`,
   );
 }
 
@@ -533,7 +545,7 @@ export async function fetchOpsCursorAgentStream(
     Accept: "text/event-stream",
   };
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch("/api/ops/cursor-agent-stream", {
+  const res = await fetch(withApiBase("/api/ops/cursor-agent-stream"), {
     method: "POST",
     headers,
     body: JSON.stringify({ instruction }),
@@ -565,7 +577,7 @@ export async function fetchOpsCursorAgentStream(
           /* ignore */
         }
         clearStockOpsInstructionDraft();
-        window.location.replace("/access-gate.html");
+        redirectToAccessGate();
       }
     }
     throw new Error(msg);
@@ -763,9 +775,15 @@ export interface TossTradingStatus {
   docsHint: string;
 }
 
+export interface LiveTradeProgramReturnSummary {
+  totalReturnPct: number | null;
+  holdingCount: number;
+}
+
 export interface LiveTradingStatusResponse {
   toss: TossTradingStatus;
   programs: LiveTradeProgram[];
+  programReturns: Record<string, LiveTradeProgramReturnSummary>;
   armedCount: number;
   simCount: number;
   simulatedOrders: boolean;
@@ -773,6 +791,97 @@ export interface LiveTradingStatusResponse {
 
 export function fetchLiveTradingStatus() {
   return fetchJson<LiveTradingStatusResponse>("/api/live-trading/status");
+}
+
+export interface LiveSimFeedbackApplyItem {
+  field: string;
+  label: string;
+  reason: string;
+}
+
+export interface LiveSimFeedbackResponse {
+  programId: string;
+  programName: string;
+  ready: boolean;
+  message: string;
+  stats: {
+    closedCount: number;
+    winCount: number;
+    lossCount: number;
+    winRatePct: number | null;
+    avgWinPct?: string;
+    avgLossPct?: string;
+    targetWinCount?: number;
+    stopLossCount?: number;
+    openRoundHint?: number;
+  };
+  winFactors: string[];
+  lossFactors: string[];
+  suggestedPatch: Partial<{
+    minScoreRatio: number;
+    maxOpenPositions: number;
+    simAutoBuy: boolean;
+    autoSellAtTarget: boolean;
+    modelId: string;
+    markets: { kr?: boolean; us?: boolean };
+    orderAmountKrw: number | null;
+    orderAmountUsd: number | null;
+  }>;
+  applyItems: LiveSimFeedbackApplyItem[];
+  signalInsights: { id: string; label: string; winRatePct: number; decided: number }[];
+  generatedAtMs: number;
+}
+
+export function fetchLiveSimFeedback(programId: string) {
+  return fetchJson<LiveSimFeedbackResponse>(
+    `/api/live-trading/programs/${encodeURIComponent(programId)}/sim-feedback`,
+  );
+}
+
+export function applyLiveSimFeedback(programId: string) {
+  return fetchJson<{
+    ok: boolean;
+    program: LiveTradeProgram;
+    analysis: LiveSimFeedbackResponse;
+    programs: LiveTradeProgram[];
+  }>(
+    `/api/live-trading/programs/${encodeURIComponent(programId)}/sim-feedback/apply`,
+    { method: "POST" },
+  );
+}
+
+export interface LiveSimRecommendationItem {
+  id: string;
+  title: string;
+  reason: string;
+  patch: Partial<{
+    modelId: string;
+    minScoreRatio: number;
+    maxOpenPositions: number;
+    markets: { kr?: boolean; us?: boolean };
+    simAutoBuy: boolean;
+    autoSellAtTarget: boolean;
+    orderAmountKrw: number | null;
+    orderAmountUsd: number | null;
+  }>;
+  winRatePct?: number;
+}
+
+export interface LiveSimRecommendationsResponse {
+  items: LiveSimRecommendationItem[];
+  programLeaderboard: {
+    programId: string;
+    name: string;
+    winRatePct: number;
+    decided: number;
+  }[];
+  generatedAtMs: number;
+}
+
+export function fetchLiveSimRecommendations() {
+  return fetchJson<LiveSimRecommendationsResponse>(
+    "/api/live-trading/sim-recommendations",
+  );
 }
 
 export function createLiveTradeProgram(body: {
@@ -899,6 +1008,9 @@ export interface LiveTradeHolding {
   lastAtMs: number;
   targetSellPrice?: number | null;
   stopLossPrice?: number | null;
+  exitScenarioNote?: string | null;
+  entryStructureNote?: string | null;
+  entryIdeal?: boolean;
 }
 
 export interface LiveTradeRecord {
@@ -1201,6 +1313,23 @@ export function postAccessAdminReject(adminToken: string, id: string) {
     headers: accessAdminPostHeaders(adminToken),
     body: JSON.stringify({ id }),
   });
+}
+
+/** 관리자만 — Vite dev 또는 API 프로세스 재기동 (비밀번호 필수) */
+export function postAdminServerRestart(password: string) {
+  const token = getStoredAccessAdminToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return fetchJson<{ ok: boolean; message?: string; mode?: string }>(
+    "/api/admin/server-restart",
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ password: String(password ?? "").trim() }),
+    },
+  );
 }
 
 export function postAccessAdminRevoke(adminToken: string, ip: string) {

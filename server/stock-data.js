@@ -382,7 +382,19 @@ function pickPositivePrice(v) {
  * @param {Record<string, unknown>} meta
  * @param {Array<{ time?: number; close?: number }>} candles
  */
-function resolveSnapshotPriceFromChart(meta, candles) {
+function metaTimeToMs(t) {
+  if (typeof t !== "number" || !Number.isFinite(t) || t <= 0) return 0;
+  return t > 1e12 ? Math.floor(t) : Math.floor(t * 1000);
+}
+
+/**
+ * @param {string} [symbol]
+ */
+function isKrYahooSymbol(symbol) {
+  return /\.(KS|KQ)$/i.test(String(symbol ?? ""));
+}
+
+function resolveSnapshotPriceFromChart(meta, candles, symbol) {
   const last = candles.at(-1);
   const lastBar = pickPositivePrice(last?.close);
   const barMs =
@@ -391,16 +403,19 @@ function resolveSnapshotPriceFromChart(meta, candles) {
       : 0;
 
   const post = pickPositivePrice(meta.postMarketPrice);
-  const postMs =
-    typeof meta.postMarketTime === "number" && meta.postMarketTime > 0
-      ? Math.floor(meta.postMarketTime * 1000)
-      : 0;
+  const postMs = metaTimeToMs(meta.postMarketTime);
   const pre = pickPositivePrice(meta.preMarketPrice);
-  const preMs =
-    typeof meta.preMarketTime === "number" && meta.preMarketTime > 0
-      ? Math.floor(meta.preMarketTime * 1000)
-      : 0;
+  const preMs = metaTimeToMs(meta.preMarketTime);
   const regular = pickPositivePrice(meta.regularMarketPrice);
+  const regularMs = metaTimeToMs(meta.regularMarketTime);
+
+  const kr = isKrYahooSymbol(symbol);
+  if (kr && regular != null) {
+    const refMs = Math.max(barMs, regularMs);
+    if (barMs <= 0 || regularMs >= barMs) {
+      return { price: regular, quotedAtMs: refMs || Date.now() };
+    }
+  }
 
   if (lastBar != null && barMs > 0) {
     if (post != null && postMs > barMs) {
@@ -411,9 +426,11 @@ function resolveSnapshotPriceFromChart(meta, candles) {
     }
     return { price: lastBar, quotedAtMs: barMs };
   }
+  if (regular != null) {
+    return { price: regular, quotedAtMs: regularMs || Date.now() };
+  }
   if (post != null) return { price: post, quotedAtMs: postMs || Date.now() };
   if (pre != null) return { price: pre, quotedAtMs: preMs || Date.now() };
-  if (regular != null) return { price: regular, quotedAtMs: Date.now() };
   return { price: null, quotedAtMs: Date.now() };
 }
 
@@ -448,7 +465,11 @@ export async function loadChartQuoteSnapshot1m(symbol) {
     if (!result) return null;
     const meta = result.meta ?? {};
     const parsed = parseChartResult(sym, result, "1m", "1m", 1);
-    const { price, quotedAtMs } = resolveSnapshotPriceFromChart(meta, parsed.candles);
+    const { price, quotedAtMs } = resolveSnapshotPriceFromChart(
+      meta,
+      parsed.candles,
+      sym,
+    );
     if (price == null || !Number.isFinite(price)) return parsed.quote ?? null;
     const changePercent = resolveSnapshotChangePercent(meta, price);
     const prevClose = meta.chartPreviousClose ?? meta.previousClose;

@@ -277,7 +277,10 @@ export function createApp() {
             .map((s) => s.trim())
             .filter(Boolean)
         : [];
-      const quotes = await fetchQuoteSnapshotsForSymbols(symbols);
+      const fresh = String(req.query.fresh ?? "").trim() === "1";
+      const quotes = await fetchQuoteSnapshotsForSymbols(symbols, {
+        maxAgeMs: fresh ? 0 : undefined,
+      });
       res.json({ quotes });
     }),
   );

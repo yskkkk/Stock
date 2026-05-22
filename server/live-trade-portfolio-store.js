@@ -6,8 +6,9 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { fetchQuoteSnapshotsForSymbols } from "./picks-live-quotes.js";
+import { pickQuoteFromMap } from "./quote-symbol-resolve.js";
 import { resolveLiveTradeQuote } from "./live-trade-quote.js";
-import { sellTargetsForProgram } from "./live-trade-sell-target.js";
+import { resolveLiveTradeExitTargets } from "./live-trade-exit-scenario.js";
 import { ROUND_TRIP_FEE_RATE } from "./net-return.js";
 import { getLiveTradeProgramSync } from "./live-trade-programs-store.js";
 
@@ -36,6 +37,12 @@ const ONE_WAY_FEE_RATE = ROUND_TRIP_FEE_RATE / 2;
  *   note: string | null;
  *   targetSellPrice: number | null;
  *   stopLossPrice: number | null;
+ *   exitScenarioNote: string | null;
+ *   entryStructureNote: string | null;
+ *   entryIdeal: boolean;
+ *   entryKind: string;
+ *   buyScore: number | null;
+ *   buySignalIds: string[];
  *   atMs: number;
  * }} LiveTradeRecord
  */
@@ -46,6 +53,14 @@ function ensureDirSync() {
 
 function defaultStore() {
   return { trades: [] };
+}
+
+/** @param {string | null} [programId] */
+export function listLiveTradeRecordsSync(programId = null) {
+  const store = readStoreSync();
+  const pid = programId ? String(programId).trim() : null;
+  if (!pid) return store.trades;
+  return store.trades.filter((t) => t.programId === pid);
 }
 
 function readStoreSync() {
@@ -110,6 +125,26 @@ function normalizeTrade(raw) {
       typeof o.stopLossPrice === "number" && Number.isFinite(o.stopLossPrice) && o.stopLossPrice > 0
         ? o.stopLossPrice
         : null,
+    exitScenarioNote:
+      typeof o.exitScenarioNote === "string" && o.exitScenarioNote.trim()
+        ? o.exitScenarioNote.trim().slice(0, 400)
+        : null,
+    entryStructureNote:
+      typeof o.entryStructureNote === "string" && o.entryStructureNote.trim()
+        ? o.entryStructureNote.trim().slice(0, 280)
+        : null,
+    entryIdeal: Boolean(o.entryIdeal),
+    entryKind:
+      typeof o.entryKind === "string" && o.entryKind.trim()
+        ? o.entryKind.trim().slice(0, 32)
+        : "none",
+    buyScore:
+      typeof o.buyScore === "number" && Number.isFinite(o.buyScore)
+        ? o.buyScore
+        : null,
+    buySignalIds: Array.isArray(o.buySignalIds)
+      ? o.buySignalIds.map((x) => String(x ?? "").trim()).filter(Boolean)
+      : [],
     atMs:
       typeof o.atMs === "number" && Number.isFinite(o.atMs) && o.atMs > 0
         ? o.atMs
@@ -193,8 +228,9 @@ function buildPositionsFromTrades(trades, programIdFilter) {
  * @param {import("./live-trade-programs-store.js").LiveTradeProgram} program
  * @param {object} pick
  * @param {{ simulated?: boolean; orderId?: string; atMs?: number }} orderMeta
+ * @param {{ targetSellPrice?: number | null; stopLossPrice?: number | null; exitScenarioNote?: string | null; entryStructureNote?: string | null; entryIdeal?: boolean; entryKind?: string }} [targets]
  */
-export function recordLiveTradeBuySync(program, pick, orderMeta = {}) {
+export function recordLiveTradeBuySync(program, pick, orderMeta = {}, targets = null) {
   const symbol = String(pick.symbol ?? "").trim().toUpperCase();
   const market = pick.market === "us" ? "us" : "kr";
   const price = Number(pick.price);
@@ -228,7 +264,15 @@ export function recordLiveTradeBuySync(program, pick, orderMeta = {}) {
     }
   }
 
-  const targets = sellTargetsForProgram(program, price);
+  const exit =
+    targets ??
+    (program.autoSellAtTarget === false
+      ? {
+          targetSellPrice: null,
+          stopLossPrice: null,
+          exitScenarioNote: null,
+        }
+      : null);
   const trade = normalizeTrade({
     id: randomUUID(),
     programId: program.id,
@@ -241,14 +285,51 @@ export function recordLiveTradeBuySync(program, pick, orderMeta = {}) {
     amount: quantity * price,
     simulated: Boolean(orderMeta.simulated),
     orderId: orderMeta.orderId ?? null,
-    targetSellPrice: targets.targetSellPrice,
-    stopLossPrice: targets.stopLossPrice,
+    targetSellPrice: exit?.targetSellPrice ?? null,
+    stopLossPrice: exit?.stopLossPrice ?? null,
+    exitScenarioNote: exit?.exitScenarioNote ?? null,
+    entryStructureNote: exit?.entryStructureNote ?? null,
+    entryIdeal: Boolean(exit?.entryIdeal),
+    entryKind: exit?.entryKind ?? "none",
+    buyScore:
+      typeof pick.score === "number" && Number.isFinite(pick.score)
+        ? pick.score
+        : null,
+    buySignalIds: Array.isArray(pick.signalIds)
+      ? pick.signalIds.map((x) => String(x ?? "").trim()).filter(Boolean)
+      : [],
     atMs: tradeAtMs,
   });
   if (!trade) return null;
   store.trades.push(trade);
   writeStoreSync(store);
   return trade;
+}
+
+/**
+ * @param {import("./live-trade-programs-store.js").LiveTradeProgram} program
+ * @param {object} pick
+ * @param {{ simulated?: boolean; orderId?: string; atMs?: number }} [orderMeta]
+ */
+export async function recordLiveTradeBuyAsync(program, pick, orderMeta = {}) {
+  const symbol = String(pick.symbol ?? "").trim().toUpperCase();
+  const market = pick.market === "us" ? "us" : "kr";
+  const price = Number(pick.price);
+  let targets = null;
+  if (program.autoSellAtTarget !== false && symbol && Number.isFinite(price) && price > 0) {
+    targets = await resolveLiveTradeExitTargets(symbol, price, {
+      market,
+      signalIds: pick.signalIds,
+      score: pick.score,
+    });
+  } else if (program.autoSellAtTarget === false) {
+    targets = {
+      targetSellPrice: null,
+      stopLossPrice: null,
+      exitScenarioNote: null,
+    };
+  }
+  return recordLiveTradeBuySync(program, pick, orderMeta, targets);
 }
 
 /**
@@ -267,13 +348,15 @@ export async function recordLiveTradeSimBuyAsync(input) {
   const symbol = String(input.symbol ?? "").trim().toUpperCase();
   if (!symbol) throw new Error("종목 코드가 필요합니다.");
   const quote = await resolveLiveTradeQuote(symbol);
-  const trade = recordLiveTradeBuySync(
+  const trade = await recordLiveTradeBuyAsync(
     program,
     {
       symbol: quote.symbol,
       name: String(input.name ?? symbol).trim() || symbol,
       market,
       price: quote.price,
+      signalIds: input.signalIds,
+      score: input.score,
     },
     { simulated: true, atMs: quote.atMs },
   );
@@ -408,6 +491,79 @@ export function buildOpenPositionsWithSellTargetsSync() {
   });
 }
 
+/**
+ * 프로그램 카드·상태 API용 — 종목 시세 1회 배치 조회
+ * @param {string[]} programIds
+ * @returns {Promise<Record<string, { totalReturnPct: number | null; holdingCount: number }>>}
+ */
+export async function buildProgramPortfolioSummariesMap(programIds) {
+  const store = readStoreSync();
+  const ids = [...new Set(programIds.map((id) => String(id ?? "").trim()).filter(Boolean))];
+
+  /** @type {Map<string, { positions: object[]; realizedPnl: number; investedOpen: number; closedCost: number }>} */
+  const perProgram = new Map();
+  for (const pid of ids) {
+    const { positions, realizedPnl } = buildPositionsFromTrades(store.trades, pid);
+    const trades = store.trades.filter((t) => t.programId === pid);
+    let investedOpen = 0;
+    for (const pos of positions) investedOpen += pos.costBasis;
+    const closedCost = trades
+      .filter((t) => t.side === "sell")
+      .reduce((s, t) => s + t.amount, 0);
+    perProgram.set(pid, {
+      positions,
+      realizedPnl,
+      investedOpen,
+      closedCost,
+      holdingCount: positions.length,
+    });
+  }
+
+  const symbols = [
+    ...new Set(
+      [...perProgram.values()].flatMap((d) => d.positions.map((p) => p.symbol)),
+    ),
+  ];
+  const quotes =
+    symbols.length > 0
+      ? await fetchQuoteSnapshotsForSymbols(symbols, { maxAgeMs: 0 })
+      : {};
+
+  /** @type {Record<string, { totalReturnPct: number | null; holdingCount: number }>} */
+  const out = {};
+  for (const [pid, data] of perProgram) {
+    let marketValueOpen = 0;
+    for (const pos of data.positions) {
+      const q = pickQuoteFromMap(quotes, pos.symbol, pos.market);
+      const cp =
+        q?.price != null && Number.isFinite(q.price) && q.price > 0
+          ? q.price
+          : null;
+      if (cp != null) marketValueOpen += cp * pos.quantity;
+    }
+    const unrealizedPnl = marketValueOpen - data.investedOpen;
+    const totalPnl = data.realizedPnl + unrealizedPnl;
+    const denom = data.investedOpen + data.closedCost;
+    let totalReturnPct =
+      denom > 0
+        ? (totalPnl / denom) * 100
+        : data.investedOpen > 0
+          ? (unrealizedPnl / data.investedOpen) * 100
+          : null;
+    if (totalReturnPct != null && !Number.isFinite(totalReturnPct)) {
+      totalReturnPct = null;
+    }
+    out[pid] = {
+      totalReturnPct,
+      holdingCount: data.holdingCount,
+    };
+  }
+  for (const pid of ids) {
+    if (!out[pid]) out[pid] = { totalReturnPct: null, holdingCount: 0 };
+  }
+  return out;
+}
+
 export async function buildLiveTradePortfolioSnapshot(opts = {}) {
   const programIdFilter = opts.programId
     ? String(opts.programId).trim()
@@ -426,7 +582,9 @@ export async function buildLiveTradePortfolioSnapshot(opts = {}) {
 
   const symbols = [...new Set(positions.map((p) => p.symbol))];
   const quotes =
-    symbols.length > 0 ? await fetchQuoteSnapshotsForSymbols(symbols) : {};
+    symbols.length > 0
+      ? await fetchQuoteSnapshotsForSymbols(symbols, { maxAgeMs: 0 })
+      : {};
 
   /** @type {object[]} */
   const holdings = [];
@@ -434,7 +592,7 @@ export async function buildLiveTradePortfolioSnapshot(opts = {}) {
   let marketValueOpen = 0;
 
   for (const pos of positions) {
-    const q = quotes[pos.symbol];
+    const q = pickQuoteFromMap(quotes, pos.symbol, pos.market);
     const currentPrice =
       q?.price != null && Number.isFinite(q.price) && q.price > 0
         ? q.price
@@ -457,11 +615,17 @@ export async function buildLiveTradePortfolioSnapshot(opts = {}) {
     const key = positionKey(pos.programId, pos.market, pos.symbol);
     let targetSellPrice = null;
     let stopLossPrice = null;
+    let exitScenarioNote = null;
+    let entryStructureNote = null;
+    let entryIdeal = false;
     for (const t of store.trades) {
       if (t.side !== "buy") continue;
       if (positionKey(t.programId, t.market, t.symbol) !== key) continue;
       if (t.targetSellPrice != null) targetSellPrice = t.targetSellPrice;
       if (t.stopLossPrice != null) stopLossPrice = t.stopLossPrice;
+      if (t.exitScenarioNote) exitScenarioNote = t.exitScenarioNote;
+      if (t.entryStructureNote) entryStructureNote = t.entryStructureNote;
+      if (t.entryIdeal) entryIdeal = true;
     }
 
     holdings.push({
@@ -479,6 +643,9 @@ export async function buildLiveTradePortfolioSnapshot(opts = {}) {
       grossChangePct: grossPct,
       targetSellPrice,
       stopLossPrice,
+      exitScenarioNote,
+      entryStructureNote,
+      entryIdeal,
       currency: pos.market === "kr" ? "KRW" : "USD",
       openedAtMs: pos.openedAtMs,
       lastAtMs: pos.lastAtMs,

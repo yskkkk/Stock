@@ -8,6 +8,10 @@ import {
   type LiveTradeRecord,
 } from "../api";
 import { useLivePortfolioQuotePoll } from "../hooks/useLivePortfolioQuotePoll";
+import {
+  extractQuotesFromPortfolio,
+  mergeLiveQuotesIntoPortfolio,
+} from "../lib/livePortfolioLiveQuotes";
 import LiveTradeSimPanel from "./LiveTradeSimPanel";
 import { formatPercent, formatPrice, formatSignedMoney } from "../lib/format";
 import { ko } from "../i18n/ko";
@@ -281,7 +285,11 @@ export default function LiveTradePortfolioPanel({
   const load = useCallback(async () => {
     try {
       const snap = await fetchLiveTradingPortfolio(programId || null);
-      setData(snap);
+      setData((prev) =>
+        prev?.holdings.length
+          ? mergeLiveQuotesIntoPortfolio(snap, extractQuotesFromPortfolio(prev))
+          : snap,
+      );
       setErr(null);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
