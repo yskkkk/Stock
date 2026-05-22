@@ -34,6 +34,8 @@ type TechnicalSlot =
 
 export interface StockSearchTabProps {
   market: Market;
+  /** 실거래 등 외부에서 넘어온 심볼 — 검색창·결과 목록 자동 조회 */
+  seedQuery?: string | null;
   selectedSymbol: string | null;
   onSelectPick: (pick: StockPick) => void;
   /** 교차 시장 검색으로 탭을 맞출 때 */
@@ -247,6 +249,7 @@ const StockSearchPickRow = memo(
 
 export default function StockSearchTab({
   market,
+  seedQuery = null,
   selectedSymbol,
   onSelectPick,
   onLookupMarketChange,
@@ -263,6 +266,13 @@ export default function StockSearchTab({
   const abortRef = useRef<AbortController | null>(null);
   const selectedSymRef = useRef<string | null>(null);
   selectedSymRef.current = selectedSymbol;
+
+  useEffect(() => {
+    const q = seedQuery?.trim();
+    if (!q) return;
+    setInput(q);
+    setDebounced(q);
+  }, [seedQuery]);
 
   useEffect(() => {
     const id = window.setTimeout(() => setDebounced(input.trim()), 260);
@@ -423,7 +433,10 @@ export default function StockSearchTab({
     const norm = (s: string | null | undefined) => (s ?? "").trim().toUpperCase();
     const sel = norm(selectedSymbol);
     const still = sel && quotes.some((r) => norm(r.symbol) === sel);
-    if (!still) onSelectPick(rowToPick(quotes[0]));
+    if (!still) {
+      if (selectedSymbol) return;
+      onSelectPick(rowToPick(quotes[0]));
+    }
   }, [quotes, selectedSymbol, onSelectPick]);
 
   const tryDirectSubmit = useCallback(() => {

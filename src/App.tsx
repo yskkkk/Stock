@@ -121,6 +121,10 @@ export default function App() {
   const [resettingTelegram, setResettingTelegram] = useState(false);
   const [appTab, setAppTab] = useState<AppTab>("screener");
   const prevAppTabRef = useRef<AppTab>("screener");
+  /** 실거래 보유 → 종목검색: 탭 진입 시 lookupSelected 초기화 effect 건너뜀 */
+  const skipLookupResetRef = useRef(false);
+  /** 실거래에서 넘어온 심볼 — 종목검색 탭에서 자동 검색 */
+  const [lookupSeedQuery, setLookupSeedQuery] = useState<string | null>(null);
   const [colorMode, setColorMode] = useState<ColorMode>(() => readStoredTheme());
   const [lightPalette, setLightPalette] = useState<LightPaletteId>(() =>
     readStoredLightPalette(),
@@ -153,6 +157,11 @@ export default function App() {
     prevAppTabRef.current = appTab;
     if (appTab !== "stockLookup") return;
     if (prev === "stockLookup") return;
+    if (skipLookupResetRef.current) {
+      skipLookupResetRef.current = false;
+      return;
+    }
+    setLookupSeedQuery(null);
     setLookupSelected(null);
     setCandles([]);
     setDailyCandles([]);
@@ -520,6 +529,7 @@ export default function App() {
 
   /** 종목 검색 탭에서 국내 ↔ 나스닥 전환 시 검색·선택·차트를 비움 */
   const resetStockLookupSession = useCallback(() => {
+    setLookupSeedQuery(null);
     setLookupSelected(null);
     setCandles([]);
     setDailyCandles([]);
@@ -567,6 +577,8 @@ export default function App() {
 
   const handleLiveTradeChart = useCallback((h: LiveTradeHolding) => {
     const pick = liveHoldingToStockPick(h);
+    skipLookupResetRef.current = true;
+    setLookupSeedQuery(pick.symbol);
     setLookupSelected(pick);
     setLookupMarketTab(pick.market);
     setAppTab("stockLookup");
@@ -1250,6 +1262,7 @@ export default function App() {
             <StockSearchTab
               key={lookupSearchTabMountKey}
               market={lookupMarketTab}
+              seedQuery={lookupSeedQuery}
               selectedSymbol={lookupSelected?.symbol ?? null}
               onSelectPick={handleLookupSelect}
               onLookupMarketChange={setLookupMarketTab}
