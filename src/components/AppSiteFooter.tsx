@@ -110,19 +110,21 @@ export default function AppSiteFooter({
 
         <Sep />
 
-        <FooterLink
-          href="/downloads/stock-dashboard.apk"
-          download="stock-dashboard.apk"
-          title={ko.mobile.downloadGalaxyTitle}
-        >
-          {ko.mobile.downloadGalaxy}
-        </FooterLink>
-        <span className="app-site-footer__dot" aria-hidden>
-          ·
+        <span className="app-site-footer__pair">
+          <FooterLink
+            href="/downloads/stock-dashboard.apk"
+            download="stock-dashboard.apk"
+            title={ko.mobile.downloadGalaxyTitle}
+          >
+            {ko.mobile.downloadGalaxy}
+          </FooterLink>
+          <span className="app-site-footer__dot" aria-hidden>
+            ·
+          </span>
+          <FooterLink href="/install-ios.html" title={ko.mobile.downloadIphoneTitle}>
+            {ko.mobile.downloadIphone}
+          </FooterLink>
         </span>
-        <FooterLink href="/install-ios.html" title={ko.mobile.downloadIphoneTitle}>
-          {ko.mobile.downloadIphone}
-        </FooterLink>
 
         <Sep />
 

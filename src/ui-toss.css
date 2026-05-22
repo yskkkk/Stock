@@ -2193,20 +2193,35 @@ body {
   row-gap: 0.45rem;
   font-size: 0.78rem;
   font-weight: 600;
+  line-height: 1.25;
   color: var(--muted);
 }
 
+.app-site-footer__pair {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  align-self: center;
+  gap: 0;
+}
+
 .app-site-footer__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   margin: 0;
   padding: 0.2rem 0.55rem;
   border: none;
   background: none;
   font: inherit;
   font-weight: 600;
+  line-height: 1.25;
   color: var(--muted);
   text-decoration: none;
   cursor: pointer;
   border-radius: 6px;
+  vertical-align: middle;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .app-site-footer__link:hover {
@@ -2220,14 +2235,24 @@ body {
 }
 
 .app-site-footer__sep {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
   margin: 0 0.15rem;
+  padding: 0.2rem 0;
+  line-height: 1.25;
   color: color-mix(in srgb, var(--muted) 45%, transparent);
   font-weight: 400;
   user-select: none;
 }
 
 .app-site-footer__dot {
-  margin: 0 0.12rem;
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  margin: 0 0.1rem;
+  padding: 0.2rem 0.06rem;
+  line-height: 1.25;
   color: color-mix(in srgb, var(--muted) 55%, transparent);
   user-select: none;
 }
@@ -2271,8 +2296,15 @@ body {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
+  align-self: center;
   gap: 0.35rem;
   padding: 0.2rem 0;
+}
+
+.app-site-footer .app-server-restart-trigger {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.25;
 }
 
 html[data-theme="light"] .app-site-footer {
@@ -2287,6 +2319,24 @@ html[data-theme="light"] .app-site-footer__link:hover {
   color: #111827;
 }
 
+@media (max-width: 900px) {
+  .app-site-footer__nav {
+    align-items: center;
+    row-gap: 0.35rem;
+  }
+
+  .app-site-footer__pair,
+  .app-site-footer__sep,
+  .app-site-footer__dot {
+    min-height: 36px;
+  }
+
+  .app-site-footer__link {
+    min-height: 36px;
+    padding: 0.28rem 0.42rem;
+  }
+}
+
 @media (max-width: 560px) {
   .app-site-footer__nav {
     font-size: 0.72rem;
@@ -2295,7 +2345,6 @@ html[data-theme="light"] .app-site-footer__link:hover {
 
   .app-site-footer__link {
     padding: 0.28rem 0.4rem;
-    min-height: 36px;
   }
 
   .app-site-footer__palette {
