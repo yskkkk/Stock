@@ -372,6 +372,7 @@ function SimProgramCard({
                 <th>{ko.app.liveTradePfColTime}</th>
                 <th>{ko.app.liveTradePfColSide}</th>
                 <th>{ko.app.liveTradePfColSymbol}</th>
+                <th>{ko.app.liveTradePfColQty}</th>
                 <th>{ko.app.liveTradePfColBuyPrice}</th>
                 <th>{ko.app.liveTradePfColSellPrice}</th>
                 <th>{ko.app.liveTradePfColRealizedPnlPct}</th>
@@ -402,6 +403,9 @@ function SimProgramCard({
                       : ko.app.liveTradeSideSell}
                   </td>
                   <td data-label={ko.app.liveTradePfColSymbol}>{t.symbol}</td>
+                  <td className="live-sim-run__num" data-label={ko.app.liveTradePfColQty}>
+                    {t.quantity.toLocaleString("ko-KR")}
+                  </td>
                   <td
                     className="live-sim-run__num"
                     data-label={ko.app.liveTradePfColBuyPrice}
