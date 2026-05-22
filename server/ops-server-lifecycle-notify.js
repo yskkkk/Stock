@@ -1,0 +1,118 @@
+/**
+ * 서버 기동·종료 시 운영(웹 에이전트) 텔레그램 알림
+ */
+import {
+  isOpsTelegramNotifyEnabled,
+  resolveOpsTelegramCreds,
+  sendTelegramMessage,
+} from "./telegram-notify.js";
+
+let shutdownHooksInstalled = false;
+let startNotified = false;
+let stopNotified = false;
+/** @type {{ mode?: string; port?: number | string }} */
+let lastLifecycleMeta = { mode: "server" };
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function kstNowLabel() {
+  return new Date().toLocaleString("ko-KR", {
+    timeZone: "Asia/Seoul",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+}
+
+/**
+ * @param {"on"|"off"} phase
+ * @param {{ mode?: string; port?: number | string; reason?: string }} [meta]
+ */
+export async function notifyOpsServerLifecycle(phase, meta = {}) {
+  if (!isOpsTelegramNotifyEnabled()) return false;
+
+  const mode = String(meta.mode ?? "server").trim() || "server";
+  const port =
+    meta.port != null && String(meta.port).trim() ? String(meta.port).trim() : null;
+  const reason = String(meta.reason ?? "").trim();
+
+  const lines =
+    phase === "on"
+      ? ["<b>Stock 서버 ON</b>", "", `📌 <b>${escHtml(mode)}</b>`]
+      : ["<b>Stock 서버 OFF</b>", "", `📌 <b>${escHtml(mode)}</b>`];
+
+  if (port) lines.push(`🔌 포트 ${escHtml(port)}`);
+  if (phase === "off" && reason) lines.push(`⚙️ ${escHtml(reason)}`);
+  lines.push("", `<i>🕐 ${kstNowLabel()} KST</i>`);
+
+  return sendTelegramMessage(lines.join("\n"), undefined, resolveOpsTelegramCreds());
+}
+
+/**
+ * @param {{ mode?: string; port?: number | string }} [meta]
+ */
+export function notifyOpsServerStarted(meta = {}) {
+  if (startNotified) return;
+  startNotified = true;
+  lastLifecycleMeta = { ...meta };
+  void notifyOpsServerLifecycle("on", meta)
+    .then((ok) => {
+      if (ok) console.info("[ops-lifecycle] telegram ON sent", meta.mode ?? "server");
+    })
+    .catch((e) => {
+      console.warn(
+        "[ops-lifecycle] telegram ON failed:",
+        e instanceof Error ? e.message : e,
+      );
+    });
+}
+
+/**
+ * @param {{ mode?: string; port?: number | string; reason?: string }} [meta]
+ */
+export async function notifyOpsServerStopped(meta = {}) {
+  if (stopNotified) return false;
+  stopNotified = true;
+  try {
+    const ok = await notifyOpsServerLifecycle("off", meta);
+    if (ok) console.info("[ops-lifecycle] telegram OFF sent", meta.mode ?? "server");
+    return ok;
+  } catch (e) {
+    console.warn(
+      "[ops-lifecycle] telegram OFF failed:",
+      e instanceof Error ? e.message : e,
+    );
+    return false;
+  }
+}
+
+/** 프로세스당 1회 — SIGINT/SIGTERM/SIGBREAK */
+export function installOpsServerLifecycleShutdownHooks() {
+  if (shutdownHooksInstalled) return;
+  shutdownHooksInstalled = true;
+
+  const run = (reason) => {
+    void notifyOpsServerStopped({
+      ...lastLifecycleMeta,
+      reason,
+    });
+  };
+
+  process.once("SIGINT", () => run("SIGINT"));
+  process.once("SIGTERM", () => run("SIGTERM"));
+  if (process.platform === "win32") {
+    process.once("SIGBREAK", () => run("SIGBREAK"));
+  }
+
+  process.once("beforeExit", () => {
+    if (!stopNotified) run("beforeExit");
+  });
+}

@@ -9,6 +9,10 @@ import { appendServerEventLog } from "./access-log.js";
 import { startDevQueueDisplaySyncPoller } from "./ops-dev-queue-display-sync.js";
 import { startOpsIdeTranscriptPoller } from "./ops-ide-transcript-poller.js";
 import { startLiveTradeAutoSellPoller } from "./live-trade-auto-sell.js";
+import {
+  installOpsServerLifecycleShutdownHooks,
+  notifyOpsServerStarted,
+} from "./ops-server-lifecycle-notify.js";
 import { prewarmAppCaches } from "./prewarm-caches.js";
 import { startScreening } from "./screener.js";
 import { installAccessGateHtmlMiddleware } from "./vite-access-gate-html.js";
@@ -98,12 +102,18 @@ function attachAutoGitSyncWhenListening(server) {
 
 export function stockApiPlugin() {
   installProcessGuards();
+  installOpsServerLifecycleShutdownHooks();
 
   return {
     name: "stock-api",
     enforce: "pre",
     configureServer(server) {
       mergeStockProcessEnv(server.config.mode);
+      const port = server.config.server?.port ?? 5173;
+      const notifyStart = () =>
+        notifyOpsServerStarted({ mode: "dev (Vite)", port });
+      if (server.httpServer?.listening) notifyStart();
+      else server.httpServer?.once("listening", notifyStart);
       installAccessGateHtmlMiddleware(server);
       installViteAccessTraceMiddleware(server);
       attachStockApiMiddlewares(server);
@@ -120,6 +130,11 @@ export function stockApiPlugin() {
     },
     configurePreviewServer(server) {
       mergeStockProcessEnv(server.config.mode);
+      const port = server.config.preview?.port ?? server.config.server?.port ?? 4173;
+      const notifyStart = () =>
+        notifyOpsServerStarted({ mode: "preview (Vite)", port });
+      if (server.httpServer?.listening) notifyStart();
+      else server.httpServer?.once("listening", notifyStart);
       installAccessGateHtmlMiddleware(server);
       installViteAccessTraceMiddleware(server);
       attachStockApiMiddlewares(server);

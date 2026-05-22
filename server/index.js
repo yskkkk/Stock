@@ -5,10 +5,15 @@ import { createApp } from "./create-app.js";
 import { loadEnvFile } from "./load-env.js";
 import { installProcessGuards } from "./process-guards.js";
 import { prewarmAppCaches } from "./prewarm-caches.js";
+import {
+  installOpsServerLifecycleShutdownHooks,
+  notifyOpsServerStarted,
+} from "./ops-server-lifecycle-notify.js";
 import { startScreening } from "./screener.js";
 
 installProcessGuards();
 loadEnvFile();
+installOpsServerLifecycleShutdownHooks();
 
 const PORT = Number(process.env.PORT) || 3456;
 const app = createApp();
@@ -21,6 +26,7 @@ startMacroReminderLoop();
 
 const server = app.listen(PORT, () => {
   console.log(`API server http://localhost:${PORT}`);
+  notifyOpsServerStarted({ mode: "API", port: PORT });
   startAutoGitSync({ httpServer: server });
 });
 
