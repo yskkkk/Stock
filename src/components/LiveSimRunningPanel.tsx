@@ -13,6 +13,13 @@ import {
   mergeLiveQuotesIntoPortfolio,
 } from "../lib/livePortfolioLiveQuotes";
 import { formatPercent, formatPrice, formatSignedMoney, formatTimeMsKst } from "../lib/format";
+import {
+  formatUnrealizedPnlLabel,
+  portfolioReturnPct,
+  summarizeHoldingsPnl,
+  unrealizedPnlTone,
+} from "../lib/livePortfolioPnl";
+import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
 import { ko } from "../i18n/ko";
 import LiveSimFeedbackBlock from "./LiveSimFeedbackBlock";
 import {
@@ -36,18 +43,27 @@ function formatTs(ms: number | null): string {
   }
 }
 
-function programSummary(holdings: LiveTradeHolding[]) {
-  let invested = 0;
-  let market = 0;
-  let unrealized = 0;
-  for (const h of holdings) {
-    invested += h.costBasis;
-    if (h.marketValue != null) market += h.marketValue;
-    if (h.unrealizedPnl != null) unrealized += h.unrealizedPnl;
-  }
-  const ret =
-    invested > 0 && market > 0 ? ((market - invested) / invested) * 100 : null;
-  return { holdingCount: holdings.length, invested, market, unrealized, ret };
+function programSummary(
+  holdings: LiveTradeHolding[],
+  usdKrwRate: number | null,
+) {
+  const agg = summarizeHoldingsPnl(holdings);
+  const ret = portfolioReturnPct(
+    agg.investedByCurrency,
+    agg.marketByCurrency,
+    usdKrwRate,
+  );
+  const unrealizedLabel = formatUnrealizedPnlLabel(
+    agg.pnlByCurrency,
+    usdKrwRate,
+  );
+  const unrealizedUp = unrealizedPnlTone(agg.pnlByCurrency, usdKrwRate);
+  return {
+    holdingCount: holdings.length,
+    unrealizedLabel,
+    unrealizedUp,
+    ret,
+  };
 }
 
 function SimProgramCard({
@@ -59,6 +75,7 @@ function SimProgramCard({
   refreshKey,
   onProgramUpdated,
   onOpenHoldingChart,
+  usdKrwRate,
 }: {
   program: LiveTradeProgram;
   holdings: LiveTradeHolding[];
@@ -68,10 +85,13 @@ function SimProgramCard({
   refreshKey?: number;
   onProgramUpdated?: () => void;
   onOpenHoldingChart?: (h: LiveTradeHolding) => void;
+  usdKrwRate: number | null;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const sum = programSummary(holdings);
+  const sum = programSummary(holdings, usdKrwRate);
   const retUp = sum.ret != null && sum.ret >= 0;
+  const pnlUp = sum.unrealizedUp === true;
+  const pnlDown = sum.unrealizedUp === false;
   const recentTrades = trades.slice(0, 12);
 
   const toggleExpanded = () => setExpanded((v) => !v);
@@ -125,12 +145,14 @@ function SimProgramCard({
               <span aria-hidden>·</span>
               <span
                 className={
-                  sum.unrealized >= 0
+                  pnlUp
                     ? "live-sim-run__card-summary--up"
-                    : "live-sim-run__card-summary--down"
+                    : pnlDown
+                      ? "live-sim-run__card-summary--down"
+                      : ""
                 }
               >
-                {formatSignedMoney(sum.unrealized, "KRW")}
+                {sum.unrealizedLabel}
               </span>
             </p>
           ) : null}
@@ -196,12 +218,14 @@ function SimProgramCard({
           <span className="live-sim-run__tile-k">{ko.app.liveTradePfUnrealized}</span>
           <span
             className={
-              sum.unrealized >= 0
+              pnlUp
                 ? "live-sim-run__tile-v live-sim-run__tile-v--up"
-                : "live-sim-run__tile-v live-sim-run__tile-v--down"
+                : pnlDown
+                  ? "live-sim-run__tile-v live-sim-run__tile-v--down"
+                  : "live-sim-run__tile-v"
             }
           >
-            {formatSignedMoney(sum.unrealized, "KRW")}
+            {sum.unrealizedLabel}
           </span>
         </div>
         <div className="live-sim-run__tile">
@@ -401,6 +425,7 @@ export default function LiveSimRunningPanel({
     () => new Set(simPrograms.map((p) => p.id)),
     [simPrograms],
   );
+  const { rate: usdKrwRate } = useUsdKrwRate(simIds.size > 0);
 
   const [portfolio, setPortfolio] = useState<LiveTradePortfolioResponse | null>(
     null,
@@ -535,6 +560,7 @@ export default function LiveSimRunningPanel({
               refreshKey={refreshKey}
               onProgramUpdated={onProgramUpdated}
               onOpenHoldingChart={onOpenHoldingChart}
+              usdKrwRate={usdKrwRate}
             />
           ))}
         </div>

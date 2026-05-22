@@ -20,6 +20,14 @@ import {
   formatSignedMoney,
   formatTimeMsKst,
 } from "../lib/format";
+import {
+  formatInvestedOrMarketLabel,
+  formatUnrealizedPnlLabel,
+  portfolioReturnPct,
+  summarizeHoldingsPnl,
+  unrealizedPnlTone,
+} from "../lib/livePortfolioPnl";
+import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
 import { ko } from "../i18n/ko";
 import {
   LiveHoldingChartSymbol,
@@ -47,9 +55,25 @@ function sideLabel(side: LiveTradeRecord["side"]): string {
   return side === "buy" ? ko.app.liveTradeSideBuy : ko.app.liveTradeSideSell;
 }
 
-function SummaryTiles({ summary }: { summary: LiveTradePortfolioResponse["summary"] }) {
-  const ret = summary.totalReturnPct;
+function SummaryTiles({
+  holdings,
+  summary,
+  usdKrwRate,
+}: {
+  holdings: LiveTradeHolding[];
+  summary: LiveTradePortfolioResponse["summary"];
+  usdKrwRate: number | null;
+}) {
+  const agg = summarizeHoldingsPnl(holdings);
+  const ret =
+    portfolioReturnPct(
+      agg.investedByCurrency,
+      agg.marketByCurrency,
+      usdKrwRate,
+    ) ?? summary.totalReturnPct;
   const retUp = ret != null && ret >= 0;
+  const pnlLabel = formatUnrealizedPnlLabel(agg.pnlByCurrency, usdKrwRate);
+  const pnlUp = unrealizedPnlTone(agg.pnlByCurrency, usdKrwRate);
   return (
     <div className="live-portfolio__summary">
       <div className="live-portfolio__tile">
@@ -59,25 +83,27 @@ function SummaryTiles({ summary }: { summary: LiveTradePortfolioResponse["summar
       <div className="live-portfolio__tile">
         <span className="live-portfolio__tile-k">{ko.app.liveTradePfInvested}</span>
         <span className="live-portfolio__tile-v">
-          {formatPrice(summary.investedOpen, "KRW")}
+          {formatInvestedOrMarketLabel(agg.investedByCurrency, usdKrwRate)}
         </span>
       </div>
       <div className="live-portfolio__tile">
         <span className="live-portfolio__tile-k">{ko.app.liveTradePfEval}</span>
         <span className="live-portfolio__tile-v">
-          {formatPrice(summary.marketValueOpen, "KRW")}
+          {formatInvestedOrMarketLabel(agg.marketByCurrency, usdKrwRate)}
         </span>
       </div>
       <div className="live-portfolio__tile">
         <span className="live-portfolio__tile-k">{ko.app.liveTradePfUnrealized}</span>
         <span
           className={
-            summary.unrealizedPnl >= 0
+            pnlUp === true
               ? "live-portfolio__tile-v live-portfolio__tile-v--up"
-              : "live-portfolio__tile-v live-portfolio__tile-v--down"
+              : pnlUp === false
+                ? "live-portfolio__tile-v live-portfolio__tile-v--down"
+                : "live-portfolio__tile-v"
           }
         >
-          {formatSignedMoney(summary.unrealizedPnl, "KRW")}
+          {pnlLabel}
         </span>
       </div>
       <div className="live-portfolio__tile">
@@ -341,6 +367,7 @@ export default function LiveTradePortfolioPanel({
   }, [load]);
 
   useLivePortfolioQuotePoll(data, setData, Boolean(data?.holdings.length));
+  const { rate: usdKrwRate } = useUsdKrwRate(Boolean(data?.holdings.length));
 
   const programOptions = useMemo(
     () => [{ id: "", name: ko.app.liveTradePfAllPrograms }, ...programs],
@@ -425,7 +452,13 @@ export default function LiveTradePortfolioPanel({
 
       {data ? (
         <div className="live-portfolio__body">
-          {tab === "summary" ? <SummaryTiles summary={data.summary} /> : null}
+          {tab === "summary" ? (
+            <SummaryTiles
+              holdings={data.holdings}
+              summary={data.summary}
+              usdKrwRate={usdKrwRate}
+            />
+          ) : null}
 
           {tab === "holdings" ? (
             data.holdings.length === 0 ? (
