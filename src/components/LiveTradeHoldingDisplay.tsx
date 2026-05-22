@@ -1,4 +1,5 @@
 import type { LiveTradeHolding } from "../api";
+import { SHOW_HOLDING_RATIONALE_ROW } from "../constants/uiFlags";
 import { formatPercent, formatPrice } from "../lib/format";
 import { netReturnPctFromPrices } from "../lib/netReturn";
 import { ko } from "../i18n/ko";
