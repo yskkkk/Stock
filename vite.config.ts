@@ -3,7 +3,9 @@ import react from "@vitejs/plugin-react";
 import { viteDevPortPreemptPlugin } from "./server/vite-dev-port-preempt.js";
 import { stockApiPlugin } from "./server/vite-plugin-api.js";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  /** Capacitor WebView — 상대 경로 번들 */
+  base: mode === "capacitor" ? "./" : "/",
   plugins: [
     viteDevPortPreemptPlugin(),
     react(),
@@ -13,7 +15,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     pool: "forks",
-    include: ["src/**/*.test.{ts,tsx}"],
+    include: ["src/**/*.test.{ts,tsx}", "server/**/*.test.js"],
   },
   /** LAN·공유기 포트포워딩으로 외부 접속 시 0.0.0.0 리슨 필요 */
   server: {
@@ -38,4 +40,4 @@ export default defineConfig({
     host: true,
     strictPort: true,
   },
-});
+}));

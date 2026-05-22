@@ -17,6 +17,7 @@
     "build:mobile": "vite build --mode capacitor && npx cap sync",
     "apk:build": "node scripts/build-android-apk.mjs",
     "ipa:build": "node scripts/build-ios-ipa.mjs",
+    "ios:ota-check": "node scripts/check-ios-ota-ready.mjs",
     "ios:build": "node scripts/build-ios-ipa.mjs",
     "ios:open": "node scripts/open-ios-xcode.mjs",
     "app:build": "node scripts/build-android-apk.mjs",

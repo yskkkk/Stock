@@ -10,6 +10,8 @@ import {
   notifyOpsServerStarted,
 } from "./ops-server-lifecycle-notify.js";
 import { startScreening } from "./screener.js";
+import { startServerSelfImprovementWatcher } from "./server-self-improvement-log.js";
+import { maybeStartHttpsServer } from "./https-listen.js";
 
 installProcessGuards();
 loadEnvFile();
@@ -23,12 +25,15 @@ startScreening().catch((err) => {
 });
 
 startMacroReminderLoop();
+startServerSelfImprovementWatcher();
 
 const server = app.listen(PORT, () => {
   console.log(`API server http://localhost:${PORT}`);
   notifyOpsServerStarted({ mode: "API", port: PORT });
   startAutoGitSync({ httpServer: server });
 });
+
+maybeStartHttpsServer(app, { httpPort: PORT });
 
 server.on("error", (err) => {
   if (err.code === "EADDRINUSE") {

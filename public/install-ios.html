@@ -168,12 +168,30 @@
         </p>
       </div>
 
+      <div id="state-https-required" class="warn" hidden>
+        <strong id="https-required-title">IPA 설치에는 신뢰되는 HTTPS 도메인이 필요합니다</strong>
+        <p id="https-required-body" style="margin: 8px 0 0; line-height: 1.55"></p>
+        <a class="btn btn--primary" id="open-https-install" href="#" hidden
+          >공식 HTTPS 주소로 열기 (Safari)</a
+        >
+        <button
+          type="button"
+          class="btn btn--secondary"
+          id="copy-https-install"
+          hidden
+          style="margin-top: 10px"
+        >
+          HTTPS 설치 주소 복사
+        </button>
+      </div>
+
       <div class="card" id="card-native-ipa">
         <h2>네이티브 앱 (Swift · IPA)</h2>
         <p class="note" style="margin: 0 0 12px">
           갤럭시 APK와 같이 서버에 올린 웹 주소를 <strong>고정 URL</strong>로 여는
           iPhone 앱입니다. Mac에서 <code>npm run ipa:build</code> 후 설치할 수
-          있습니다.
+          있습니다. Apple은 <strong>IP 주소·자가서명 인증서</strong>로는 설치를
+          허용하지 않습니다.
         </p>
         <a class="btn btn--primary" id="ipa-install" href="#" hidden
           >앱 설치 (기업·개발 배포)</a
@@ -250,39 +268,87 @@
           navigator.serviceWorker.register("/sw.js").catch(function () {});
         }
 
-        var origin = location.origin;
-        var manifestUrl = origin + "/downloads/ios-manifest.plist";
         var installBtn = document.getElementById("ipa-install");
         var dlBtn = document.getElementById("ipa-download");
         var missing = document.getElementById("ipa-missing");
+        var httpsWarn = document.getElementById("state-https-required");
+        var httpsBody = document.getElementById("https-required-body");
+        var openHttps = document.getElementById("open-https-install");
+        var copyHttps = document.getElementById("copy-https-install");
 
-        function showIpaAvailable() {
-          if (installBtn) {
-            installBtn.hidden = false;
-            installBtn.href =
-              "itms-services://?action=download-manifest&url=" +
-              encodeURIComponent(manifestUrl);
+        var blockMessages = {
+          cert_ip:
+            "지금처럼 <strong>IP 주소</strong>로 접속하면 인증서 오류로 IPA를 설치할 수 없습니다. 도메인에 <strong>Let's Encrypt 등 공인 인증서</strong>를 붙이고, 서버 <code>.env</code>에 <code>APP_PUBLIC_BASE_URL=https://도메인</code>을 설정한 뒤 <strong>그 HTTPS 주소</strong>로 Safari에서 이 페이지를 여세요.",
+          no_https_origin:
+            "서버에 <code>APP_PUBLIC_BASE_URL=https://브라우저에서-쓰는-도메인</code> 이 없습니다. 관리자가 HTTPS 인증서를 연 뒤 위 값을 설정해야 IPA 설치가 가능합니다.",
+          ip_host:
+            "설정된 공개 URL이 IP 주소입니다. iPhone OTA는 <strong>도메인 + 유효한 HTTPS 인증서</strong>만 지원합니다.",
+          not_https:
+            "공개 URL은 반드시 <code>https://</code> 로 시작해야 합니다.",
+          wrong_host:
+            "지금 주소가 아닌, 서버에 등록된 <strong>공식 HTTPS 주소</strong>로 Safari에서 열어야 합니다.",
+        };
+
+        function showHttpsHelp(s) {
+          if (!httpsWarn || !s) return;
+          var reason =
+            s.ota.blockReason || s.ota.originBlockReason || "no_https_origin";
+          var msg = blockMessages[reason] || blockMessages.no_https_origin;
+          httpsBody.innerHTML = msg;
+          httpsWarn.hidden = false;
+          if (s.httpsInstallPageUrl && openHttps) {
+            openHttps.hidden = false;
+            openHttps.href = s.httpsInstallPageUrl;
           }
-          if (dlBtn) dlBtn.hidden = false;
-          if (missing) missing.hidden = true;
+          if (s.httpsInstallPageUrl && copyHttps) {
+            copyHttps.hidden = false;
+            copyHttps.addEventListener("click", function () {
+              var url = s.httpsInstallPageUrl;
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(url);
+              } else {
+                prompt("복사:", url);
+              }
+            });
+          }
         }
 
-        fetch("/downloads/ios-manifest.plist", { method: "HEAD" })
+        function applyIosStatus(s) {
+          if (!s) {
+            if (missing) missing.hidden = false;
+            return;
+          }
+          if (s.ipaReady && dlBtn) {
+            var ipaHref =
+              (s.httpsOrigin || location.origin) +
+              "/downloads/stock-dashboard.ipa";
+            dlBtn.href = ipaHref;
+            dlBtn.hidden = false;
+          }
+          if (s.ota && s.ota.canInstall && installBtn && s.ota.itmsInstallUrl) {
+            installBtn.hidden = false;
+            installBtn.href = s.ota.itmsInstallUrl;
+            if (missing) missing.hidden = true;
+            if (httpsWarn) httpsWarn.hidden = true;
+            return;
+          }
+          if (missing) missing.hidden = !s.ipaReady;
+          if (
+            s.ota &&
+            (s.ota.blockReason || s.ota.originBlockReason) &&
+            !s.ota.canInstall
+          ) {
+            showHttpsHelp(s);
+          }
+        }
+
+        fetch("/api/mobile/ios-install-status")
           .then(function (r) {
-            if (r.ok) showIpaAvailable();
-            else if (missing) missing.hidden = false;
+            return r.json();
           })
+          .then(applyIosStatus)
           .catch(function () {
-            fetch("/downloads/stock-dashboard.ipa", { method: "HEAD" })
-              .then(function (r) {
-                if (r.ok) {
-                  if (dlBtn) dlBtn.hidden = false;
-                  if (missing) missing.hidden = true;
-                } else if (missing) missing.hidden = false;
-              })
-              .catch(function () {
-                if (missing) missing.hidden = false;
-              });
+            if (missing) missing.hidden = false;
           });
       })();
     </script>

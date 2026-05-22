@@ -10,6 +10,8 @@ import { execSync } from "child_process";
 import { fileURLToPath } from "url";
 import { injectIosNativeServerUrl } from "./inject-ios-native-url.mjs";
 import { resolveMobileServerUrl } from "./resolve-mobile-server-url.mjs";
+import { buildIosOtaManifestXml } from "../server/ios-ota-manifest.js";
+import { normalizeHttpsOrigin } from "../server/public-app-origin.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
@@ -68,41 +70,8 @@ function findExportedIpa() {
   return files[0] ?? null;
 }
 
-function writeOtaManifest(publicOrigin) {
-  const base = publicOrigin.replace(/\/+$/, "");
-  const ipaUrl = `${base}/downloads/stock-dashboard.ipa`;
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>items</key>
-	<array>
-		<dict>
-			<key>assets</key>
-			<array>
-				<dict>
-					<key>kind</key>
-					<string>software-package</string>
-					<key>url</key>
-					<string>${ipaUrl}</string>
-				</dict>
-			</array>
-			<key>metadata</key>
-			<dict>
-				<key>bundle-identifier</key>
-				<string>com.stock.dashboard</string>
-				<key>bundle-version</key>
-				<string>1.0.0</string>
-				<key>kind</key>
-				<string>software</string>
-				<key>title</key>
-				<string>종목 대시보드</string>
-			</dict>
-		</dict>
-	</array>
-</dict>
-</plist>
-`;
+function writeOtaManifest(httpsOrigin) {
+  const xml = buildIosOtaManifestXml(httpsOrigin);
   fs.mkdirSync(path.dirname(MANIFEST_OUT), { recursive: true });
   fs.writeFileSync(MANIFEST_OUT, xml, "utf8");
   const distManifest = path.join(ROOT, "dist", "downloads", "ios-manifest.plist");
@@ -137,8 +106,15 @@ async function main() {
     required: true,
     allowLanFallback: false,
   });
+  const httpsOrigin = normalizeHttpsOrigin(mobileUrl);
+  if (!httpsOrigin) {
+    console.error(
+      "[ipa] .env CAPACITOR_SERVER_URL=https://유효한-도메인 (IP 주소·http 불가)",
+    );
+    process.exit(1);
+  }
   injectIosNativeServerUrl({ required: true, allowLanFallback: false });
-  console.log(`[ipa] WebView 고정 URL: ${mobileUrl}`);
+  console.log(`[ipa] WebView 고정 URL: ${httpsOrigin}`);
 
   const exportMethod =
     String(process.env.IOS_EXPORT_METHOD ?? "development").trim() || "development";
@@ -167,7 +143,7 @@ async function main() {
     fs.copyFileSync(built, distIpa);
   }
 
-  writeOtaManifest(mobileUrl);
+  writeOtaManifest(httpsOrigin);
 
   const mb = (fs.statSync(IPA_OUT).size / (1024 * 1024)).toFixed(2);
   console.log(`[ipa] Published ${IPA_OUT} (${mb} MB)`);
