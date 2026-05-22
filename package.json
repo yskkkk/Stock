@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:guard": "node scripts/dev-server-guard.mjs",
     "dev:watch": "node scripts/laptop-git-watch-dev.mjs",
     "i18n:gen": "node scripts/gen-ko-i18n.mjs",
     "verify": "node scripts/verify-encoding.mjs",
