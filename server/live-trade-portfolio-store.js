@@ -15,7 +15,7 @@ import {
   liveTradeCurrency,
   normalizeLiveTradeMarket,
   normalizeSellQuantity,
-  orderAmountForMarket,
+  resolveOrderAmountForMarket,
   programAllowsMarket,
   quantityFromOrderAmount,
 } from "./live-trade-market.js";
@@ -256,7 +256,13 @@ function buildPositionsFromTrades(trades, programIdFilter) {
  * @param {{ simulated?: boolean; orderId?: string; atMs?: number }} orderMeta
  * @param {{ targetSellPrice?: number | null; stopLossPrice?: number | null; exitScenarioNote?: string | null; entryStructureNote?: string | null; entryIdeal?: boolean; entryKind?: string }} [targets]
  */
-export function recordLiveTradeBuySync(program, pick, orderMeta = {}, targets = null) {
+export function recordLiveTradeBuySync(
+  program,
+  pick,
+  orderMeta = {},
+  targets = null,
+  orderAmountOverride = null,
+) {
   const symbol = String(pick.symbol ?? "").trim().toUpperCase();
   const market = normalizeLiveTradeMarket(pick.market, symbol);
   const price = Number(pick.price);
@@ -269,10 +275,12 @@ export function recordLiveTradeBuySync(program, pick, orderMeta = {}, targets = 
       ? orderMeta.atMs
       : Date.now();
 
-  const amount = orderAmountForMarket(program, market);
+  const amount = orderAmountOverride;
   if (amount == null || !Number.isFinite(amount) || amount <= 0) return null;
+  /** @type {number} */
+  const orderAmount = amount;
 
-  let quantity = quantityFromOrderAmount(amount, price, market);
+  let quantity = quantityFromOrderAmount(orderAmount, price, market);
   if (quantity <= 0) return null;
 
   const store = readStoreSync();
@@ -339,6 +347,7 @@ export async function recordLiveTradeBuyAsync(program, pick, orderMeta = {}) {
   const symbol = String(pick.symbol ?? "").trim().toUpperCase();
   const market = normalizeLiveTradeMarket(pick.market, symbol);
   const price = Number(pick.price);
+  const orderAmount = await resolveOrderAmountForMarket(program, market);
   let targets = null;
   if (program.autoSellAtTarget !== false && symbol && Number.isFinite(price) && price > 0) {
     targets = await resolveLiveTradeExitTargets(symbol, price, {
@@ -353,7 +362,7 @@ export async function recordLiveTradeBuyAsync(program, pick, orderMeta = {}) {
       exitScenarioNote: null,
     };
   }
-  return recordLiveTradeBuySync(program, pick, orderMeta, targets);
+  return recordLiveTradeBuySync(program, pick, orderMeta, targets, orderAmount);
 }
 
 /**

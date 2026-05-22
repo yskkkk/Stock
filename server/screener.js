@@ -36,6 +36,7 @@ let state = {
   startedAt: null,
   kr: [],
   us: [],
+  crypto: [],
   updatedAt: null,
   message: "분석 준비 중…",
 };
@@ -75,6 +76,7 @@ export function getPicksState() {
     ...state,
     kr: [...state.kr],
     us: [...state.us],
+    crypto: [...state.crypto],
     failures: [...state.failures],
     etaSeconds,
     nextScanAt,
@@ -219,15 +221,19 @@ function applyScreenResult(result, bucket) {
   if (result.type === "picks" && Array.isArray(result.picks)) {
     for (const pick of result.picks) {
       if (pick.market === "kr") bucket.kr.push(pick);
+      else if (pick.market === "crypto") bucket.crypto.push(pick);
       else bucket.us.push(pick);
     }
     sortPicks(bucket.kr);
     sortPicks(bucket.us);
+    sortPicks(bucket.crypto);
   } else if (result.type === "pick" && result.pick) {
     if (result.pick.market === "kr") bucket.kr.push(result.pick);
+    else if (result.pick.market === "crypto") bucket.crypto.push(result.pick);
     else bucket.us.push(result.pick);
     sortPicks(bucket.kr);
     sortPicks(bucket.us);
+    sortPicks(bucket.crypto);
     notifyHighScorePick(result.pick);
     void onHighScorePickForLiveTrading(result.pick);
   } else if (result.type === "error" && result.failure) {
@@ -244,6 +250,7 @@ async function runScreening() {
 
   const prevKr = [...state.kr];
   const prevUs = [...state.us];
+  const prevCrypto = [...state.crypto];
   const prevFailures = [...state.failures];
   const prevUpdatedAt = state.updatedAt;
 
@@ -251,10 +258,10 @@ async function runScreening() {
   state.startedAt = Date.now();
   state.failedCount = 0;
   state.failures = [];
-  state.message = "시총 상위 종목 목록 불러오는 중…";
+  state.message = "시총 상위 종목·코인 목록 불러오는 중…";
   state.progress = 0;
 
-  const draft = { kr: [], us: [] };
+  const draft = { kr: [], us: [], crypto: [] };
   /** 이번 스캔에서 이미 처리한 심볼 (스킵·에러 포함) */
   const processedSymbols = new Set();
 
@@ -265,6 +272,7 @@ async function runScreening() {
       const queue = [
         ...universe.kr.map((s) => ({ ...s, market: "kr" })),
         ...universe.us.map((s) => ({ ...s, market: "us" })),
+        ...(universe.crypto ?? []).map((s) => ({ ...s, market: "crypto" })),
       ];
       state.total = queue.length;
       state.message = `${state.total}개 종목 기술적 분석 중…`;
@@ -284,26 +292,37 @@ async function runScreening() {
         state.progress += chunk.length;
         state.kr = mergeLivePicksWhileRunning(prevKr, draft.kr);
         state.us = mergeLivePicksWhileRunning(prevUs, draft.us);
+        state.crypto = mergeLivePicksWhileRunning(prevCrypto, draft.crypto);
         state.updatedAt = Date.now();
       }
 
       state.kr = finalizePicksAfterScan(prevKr, draft.kr, processedSymbols);
       state.us = finalizePicksAfterScan(prevUs, draft.us, processedSymbols);
+      state.crypto = finalizePicksAfterScan(prevCrypto, draft.crypto, processedSymbols);
       state.updatedAt = Date.now();
-      recordPicksDailySnapshot([...state.kr], [...state.us], state.updatedAt);
+      recordPicksDailySnapshot(
+        [...state.kr],
+        [...state.us],
+        state.updatedAt,
+        [...state.crypto],
+      );
       scheduleRecommendationsTrackerSnapshotRefresh();
       const failMsg =
         state.failedCount > 0 ? ` · 조회 실패 ${state.failedCount}건` : "";
-      state.message = `분석 완료 · 매수 후보 ${state.kr.length + state.us.length}개${failMsg}`;
+      const pickCount =
+        state.kr.length + state.us.length + state.crypto.length;
+      state.message = `분석 완료 · 매수 후보 ${pickCount}개${failMsg}`;
       writeLastScanSnapshotSync({
         kr: state.kr,
         us: state.us,
+        crypto: state.crypto,
         updatedAt: state.updatedAt,
         message: state.message,
       });
     } catch (err) {
       state.kr = prevKr;
       state.us = prevUs;
+      state.crypto = prevCrypto;
       state.failures = prevFailures;
       state.failedCount = prevFailures.length;
       state.updatedAt = prevUpdatedAt;
@@ -345,9 +364,10 @@ export function ensureScreening() {
 }
 
 const _snap = readLastScanSnapshotSync();
-if (_snap && (_snap.kr.length > 0 || _snap.us.length > 0)) {
+if (_snap && (_snap.kr.length > 0 || _snap.us.length > 0 || _snap.crypto.length > 0)) {
   state.kr = _snap.kr;
   state.us = _snap.us;
+  state.crypto = _snap.crypto;
   if (_snap.updatedAt > 0) state.updatedAt = _snap.updatedAt;
   if (_snap.message) state.message = _snap.message;
 }

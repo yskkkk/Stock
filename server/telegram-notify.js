@@ -211,6 +211,7 @@ function todaySessionKeys() {
   return new Set([
     getTradingSessionKey("kr"),
     getTradingSessionKey("us"),
+    getTradingSessionKey("crypto"),
   ]);
 }
 
@@ -342,7 +343,10 @@ function parseSentKey(key, entry) {
 
   if (k.includes(":")) {
     const parts = k.split(":");
-    const market = parts[0] === "kr" || parts[0] === "us" ? parts[0] : null;
+    const market =
+      parts[0] === "kr" || parts[0] === "us" || parts[0] === "crypto"
+        ? parts[0]
+        : null;
     if (market && parts.length >= 2) {
       const symbol = normalizeSymbol(parts[1]);
       const modelId =
@@ -816,7 +820,10 @@ function buildAppDeepLink(pick) {
     const base = raw.includes("://") ? raw : `https://${raw}`;
     const u = new URL(base);
     u.searchParams.set("symbol", normalizeSymbol(pick.symbol));
-    u.searchParams.set("market", pick.market === "kr" ? "kr" : "us");
+    u.searchParams.set(
+      "market",
+      pick.market === "kr" ? "kr" : pick.market === "crypto" ? "crypto" : "us",
+    );
     const href = u.toString();
     return isValidTelegramInlineUrl(href) ? href : null;
   } catch {
@@ -885,10 +892,11 @@ function conditionBar(met, total = SIGNAL_CONDITION_TOTAL, width = 10) {
 function buildMessage(pick) {
 
   const isKr = pick.market === "kr";
+  const isCrypto = pick.market === "crypto";
 
-  const flag = isKr ? "🇰🇷" : "🇺🇸";
+  const flag = isKr ? "🇰🇷" : isCrypto ? "🪙" : "🇺🇸";
 
-  const marketLabel = isKr ? "국내" : "미국";
+  const marketLabel = isKr ? "국내" : isCrypto ? "코인" : "미국";
 
   const chg = formatChangeLine(pick);
 

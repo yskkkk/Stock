@@ -21,7 +21,14 @@ function sanitizePick(raw, marketDefault) {
   const symbol = String(o.symbol ?? "").trim();
   if (!symbol) return null;
   const name = String(o.name ?? symbol).trim() || symbol;
-  const market = o.market === "us" ? "us" : o.market === "kr" ? "kr" : marketDefault;
+  const market =
+    o.market === "us"
+      ? "us"
+      : o.market === "crypto"
+        ? "crypto"
+        : o.market === "kr"
+          ? "kr"
+          : marketDefault;
   const score =
     typeof o.score === "number" && Number.isFinite(o.score) ? Math.max(0, o.score) : 0;
   const signals = Array.isArray(o.signals)
@@ -67,7 +74,7 @@ function sanitizePick(raw, marketDefault) {
   };
 }
 
-/** @returns {{ kr: object[]; us: object[]; updatedAt: number; message: string } | null} */
+/** @returns {{ kr: object[]; us: object[]; crypto: object[]; updatedAt: number; message: string } | null} */
 export function readLastScanSnapshotSync() {
   try {
     if (!fs.existsSync(FILE)) return null;
@@ -83,15 +90,20 @@ export function readLastScanSnapshotSync() {
     const us = (Array.isArray(o.us) ? o.us : [])
       .map((p) => sanitizePick(p, "us"))
       .filter(Boolean);
-    if (!updatedAt && kr.length === 0 && us.length === 0) return null;
-    return { kr, us, updatedAt, message };
+    const crypto = (Array.isArray(o.crypto) ? o.crypto : [])
+      .map((p) => sanitizePick(p, "crypto"))
+      .filter(Boolean);
+    if (!updatedAt && kr.length === 0 && us.length === 0 && crypto.length === 0) {
+      return null;
+    }
+    return { kr, us, crypto, updatedAt, message };
   } catch {
     return null;
   }
 }
 
 /**
- * @param {{ kr: object[]; us: object[]; updatedAt: number; message: string }} snapshot
+ * @param {{ kr: object[]; us: object[]; crypto?: object[]; updatedAt: number; message: string }} snapshot
  */
 export function writeLastScanSnapshotSync(snapshot) {
   try {
@@ -104,6 +116,7 @@ export function writeLastScanSnapshotSync(snapshot) {
         message: snapshot.message,
         kr: snapshot.kr,
         us: snapshot.us,
+        crypto: snapshot.crypto ?? [],
       }),
       "utf8",
     );

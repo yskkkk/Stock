@@ -1,4 +1,4 @@
-/** @typedef {"kr" | "us"} Market */
+/** @typedef {"kr" | "us" | "crypto"} Market */
 
 const OPEN_STATES = new Set(["REGULAR"]);
 
@@ -15,6 +15,7 @@ export function isRegularSession(marketState) {
  * @param {Market} market
  */
 export function isMarketOpenBySchedule(market) {
+  if (market === "crypto") return true;
   const tz = market === "kr" ? "Asia/Seoul" : "America/New_York";
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat("en-US", {
@@ -46,6 +47,7 @@ export function isMarketOpenBySchedule(market) {
  * @param {string | undefined} marketState
  */
 export function isMarketOpen(market, marketState) {
+  if (market === "crypto") return true;
   const fromYahoo = isRegularSession(marketState);
   if (fromYahoo === true) return true;
   if (fromYahoo === false) return false;
@@ -54,7 +56,12 @@ export function isMarketOpen(market, marketState) {
 
 /** 시장 현지 달력일 — 알림 발송 이력(세션) 구분용 */
 export function getTradingSessionKey(market) {
-  const tz = market === "kr" ? "Asia/Seoul" : "America/New_York";
+  const tz =
+    market === "crypto"
+      ? "UTC"
+      : market === "kr"
+        ? "Asia/Seoul"
+        : "America/New_York";
   const date = new Intl.DateTimeFormat("en-CA", {
     timeZone: tz,
     year: "numeric",

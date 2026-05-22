@@ -247,7 +247,9 @@ async function fetchYahooChart(symbol, timeframe, options = {}) {
 export async function fetchScanCandles(symbol) {
   const sym = symbol.toUpperCase();
   const tf = SCAN_CHART_TIMEFRAME;
-  const cacheKey = `${sym}:scan:${tf}`;
+  const cacheKey = isBinanceUsdtSymbol(sym)
+    ? `${sym}:scan:bithumb:${tf}`
+    : `${sym}:scan:${tf}`;
 
   const cached = readCache(cacheKey, { maxAgeMs: SCAN_CANDLE_CACHE_MS });
   if (cached) return cached.data;
@@ -255,12 +257,18 @@ export async function fetchScanCandles(symbol) {
   const inflightKey = `scan:${sym}:${tf}`;
   if (inflight.has(inflightKey)) return inflight.get(inflightKey);
 
-  const task = queueYahooRequest(async () => {
-    const scanOpts = tf === "1d" ? { scan: true } : {};
-    const data = await fetchYahooChart(sym, tf, scanOpts);
-    setCacheEntry(cacheKey, data);
-    return data;
-  });
+  const task = isBinanceUsdtSymbol(sym)
+    ? (async () => {
+        const data = await fetchBithumbKrwChart(sym, tf);
+        setCacheEntry(cacheKey, data);
+        return data;
+      })()
+    : queueYahooRequest(async () => {
+        const scanOpts = tf === "1d" ? { scan: true } : {};
+        const data = await fetchYahooChart(sym, tf, scanOpts);
+        setCacheEntry(cacheKey, data);
+        return data;
+      });
 
   inflight.set(inflightKey, task);
   try {

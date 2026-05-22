@@ -217,8 +217,9 @@ export async function mergeLiveQuotesIntoPicksState(state) {
 
   const krIn = Array.isArray(state.kr) ? state.kr : [];
   const usIn = Array.isArray(state.us) ? state.us : [];
+  const cryptoIn = Array.isArray(state.crypto) ? state.crypto : [];
 
-  const [kr, us] = await Promise.all([
+  const [kr, us, crypto] = await Promise.all([
     Promise.all(
       krIn.map(async (p) =>
         mergeQuoteIntoPick(p, await quoteSnapshotCached(p?.symbol)),
@@ -229,7 +230,12 @@ export async function mergeLiveQuotesIntoPicksState(state) {
         mergeQuoteIntoPick(p, await quoteSnapshotCached(p?.symbol)),
       ),
     ),
+    Promise.all(
+      cryptoIn.map(async (p) =>
+        mergeQuoteIntoPick(p, await quoteSnapshotCached(p?.symbol)),
+      ),
+    ),
   ]);
 
-  return { ...state, kr, us };
+  return { ...state, kr, us, crypto };
 }

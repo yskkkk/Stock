@@ -1,4 +1,5 @@
 import { isBinanceUsdtSymbol } from "./binance-usdt.js";
+import { getUsdKrwRate } from "./fx-usd-krw.js";
 
 /** @typedef {"kr" | "us" | "crypto"} LiveTradeMarket */
 
@@ -43,6 +44,24 @@ export function orderAmountForMarket(program, market) {
   if (market === "us") return program.orderAmountUsd;
   if (market === "crypto") {
     if (program.orderAmountUsd != null) return program.orderAmountUsd;
+    return program.orderAmountKrw;
+  }
+  return program.orderAmountKrw;
+}
+
+/**
+ * 체결 수량용 주문 금액(코인·USD 설정은 KRW 시세 기준으로 환산).
+ * @param {import("./live-trade-programs-store.js").LiveTradeProgram} program
+ * @param {LiveTradeMarket} market
+ */
+export async function resolveOrderAmountForMarket(program, market) {
+  if (market === "us") return program.orderAmountUsd;
+  if (market === "crypto") {
+    const usd = program.orderAmountUsd;
+    if (usd != null && Number.isFinite(usd) && usd > 0) {
+      const { rate } = await getUsdKrwRate();
+      if (rate > 0) return Math.round(usd * rate);
+    }
     return program.orderAmountKrw;
   }
   return program.orderAmountKrw;

@@ -33,7 +33,7 @@ function writeMetaSync(meta) {
 
 /**
  * @param {string} date YYYY-MM-DD
- * @param {"kr"|"us"} market
+ * @param {"kr"|"us"|"crypto"} market
  * @param {string} symbol
  */
 export function recommendationMetaKey(date, market, symbol) {
@@ -42,7 +42,7 @@ export function recommendationMetaKey(date, market, symbol) {
 
 /**
  * @param {string} date
- * @param {"kr"|"us"} market
+ * @param {"kr"|"us"|"crypto"} market
  * @param {{ symbol: string; score?: number; signalIds?: string[] }} pick
  */
 export function upsertRecommendationMeta(date, market, pick) {
@@ -65,7 +65,7 @@ export function upsertRecommendationMeta(date, market, pick) {
 
 /**
  * @param {string} date
- * @param {"kr"|"us"} market
+ * @param {"kr"|"us"|"crypto"} market
  * @param {string} symbol
  */
 export function readRecommendationMeta(date, market, symbol) {

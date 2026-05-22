@@ -25,12 +25,13 @@ export function mergeQuotesIntoPicks(
     ...picks,
     kr: picks.kr.map((p) => mergeOnePick(p, quotes)),
     us: picks.us.map((p) => mergeOnePick(p, quotes)),
+    crypto: (picks.crypto ?? []).map((p) => mergeOnePick(p, quotes)),
   };
 }
 
 export function collectPickSymbols(picks: PicksResponse | null): string[] {
   if (!picks) return [];
-  return [...picks.kr, ...picks.us]
+  return [...picks.kr, ...picks.us, ...(picks.crypto ?? [])]
     .map((p) => p.symbol.trim().toUpperCase())
     .filter(Boolean);
 }

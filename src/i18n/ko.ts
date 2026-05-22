@@ -128,7 +128,7 @@ export const ko = {
     liveTradeMarketUs: "미국",
     liveTradeMarketCrypto: "코인",
     liveTradeCryptoSimNote:
-      "코인은 시뮬·수동 매매만 지원합니다(토스 실주문·스크리너 자동매수 제외).",
+      "코인은 24시간 1분봉 스크리너·텔레그램 알림·시뮬 자동매수를 지원합니다(토스 실주문·실매매 자동매수 제외).",
     liveTradeSimSymbol: "종목 검색",
     liveTradeSimSymbolPh: "종목명 또는 코드",
     liveTradeSimBuy: "시뮬 매수",

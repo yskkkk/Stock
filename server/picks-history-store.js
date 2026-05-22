@@ -26,7 +26,7 @@ const MAX_DAYS = 160;
  *   score?: number | null;
  * }} SlimPick
  */
-/** @typedef {{ date: string; scannedAtMs: number; kr: SlimPick[]; us: SlimPick[] }} DailyPicksRow */
+/** @typedef {{ date: string; scannedAtMs: number; kr: SlimPick[]; us: SlimPick[]; crypto?: SlimPick[] }} DailyPicksRow */
 
 /**
  * @param {number} ms
@@ -99,7 +99,10 @@ export function readHistorySync() {
             : 0;
         const kr = Array.isArray(row.kr) ? row.kr.map(slimFrom).filter(Boolean) : [];
         const us = Array.isArray(row.us) ? row.us.map(slimFrom).filter(Boolean) : [];
-        const daily = /** @type {DailyPicksRow} */ ({ date, scannedAtMs, kr, us });
+        const crypto = Array.isArray(row.crypto)
+          ? row.crypto.map(slimFrom).filter(Boolean)
+          : [];
+        const daily = /** @type {DailyPicksRow} */ ({ date, scannedAtMs, kr, us, crypto });
         tightenDayRowAnchors(daily);
         return daily;
       })
@@ -162,7 +165,7 @@ function slimFrom(x) {
  */
 function tightenDayRowAnchors(row) {
   if (!row || typeof row !== "object") return;
-  const all = [...(row.kr ?? []), ...(row.us ?? [])];
+  const all = [...(row.kr ?? []), ...(row.us ?? []), ...(row.crypto ?? [])];
   const pickTimes = all
     .map((p) => p.recordedAtMs)
     .filter((t) => typeof t === "number" && Number.isFinite(t) && t > 0);
@@ -285,14 +288,16 @@ function mergeSlimPicksForDay(existing, incoming, scannedAtMs, rowEarliestMs) {
  * @param {{ symbol: string; name: string; market: string; price?: number; currency?: string; dayHigh?: number; dayLow?: number }[]} kr
  * @param {{ symbol: string; name: string; market: string; price?: number; currency?: string; dayHigh?: number; dayLow?: number }[]} us
  * @param {number} scannedAtMs
+ * @param {{ symbol: string; name: string; market: string; price?: number; currency?: string; dayHigh?: number; dayLow?: number }[]} [crypto]
  */
-export function recordPicksDailySnapshot(kr, us, scannedAtMs) {
+export function recordPicksDailySnapshot(kr, us, scannedAtMs, crypto = []) {
   try {
     const date = kstYmd(scannedAtMs);
     const data = readHistorySync();
     const days = [...data.days];
     const slimKrNew = kr.map((p) => toSlimPick(p, scannedAtMs, "KRW"));
     const slimUsNew = us.map((p) => toSlimPick(p, scannedAtMs, "USD"));
+    const slimCryptoNew = crypto.map((p) => toSlimPick(p, scannedAtMs, "KRW"));
     const idx = days.findIndex((d) => d.date === date);
     if (idx < 0) {
       const row = {
@@ -300,6 +305,7 @@ export function recordPicksDailySnapshot(kr, us, scannedAtMs) {
         scannedAtMs,
         kr: slimKrNew,
         us: slimUsNew,
+        crypto: slimCryptoNew,
       };
       tightenDayRowAnchors(row);
       days.push(row);
@@ -314,6 +320,7 @@ export function recordPicksDailySnapshot(kr, us, scannedAtMs) {
         scannedAtMs: rowEarliestMs,
         kr: mergeSlimPicksForDay(prev.kr, slimKrNew, scannedAtMs, rowEarliestMs),
         us: mergeSlimPicksForDay(prev.us, slimUsNew, scannedAtMs, rowEarliestMs),
+        crypto: mergeSlimPicksForDay(prev.crypto ?? [], slimCryptoNew, scannedAtMs, rowEarliestMs),
       };
       tightenDayRowAnchors(row);
       days[idx] = row;
@@ -337,6 +344,13 @@ export function recordPicksDailySnapshot(kr, us, scannedAtMs) {
           signalIds: p.signalIds,
         });
       }
+      for (const p of row.crypto ?? []) {
+        upsertRecommendationMeta(date, "crypto", {
+          symbol: p.symbol,
+          score: p.score,
+          signalIds: p.signalIds,
+        });
+      }
     }
   } catch {
     /* ignore disk errors */
@@ -351,13 +365,14 @@ export function getPicksDailyHistoryForApi() {
 
 /**
  * @param {string} symbol
- * @param {"kr"|"us"} market
+ * @param {"kr"|"us"|"crypto"} market
  * @param {number | undefined | null} currentPrice
  * @param {DailyPicksRow[]} daysAsc
  */
 function computePickStats(symbol, market, currentPrice, daysAsc) {
   const symU = symbol.trim().toUpperCase();
-  const arrKey = market === "kr" ? "kr" : "us";
+  const arrKey =
+    market === "kr" ? "kr" : market === "crypto" ? "crypto" : "us";
 
   /** @type {{ date: string; price: number | null }[]} */
   const appearances = [];
@@ -440,7 +455,7 @@ function computePickStats(symbol, market, currentPrice, daysAsc) {
 /**
  * 파일 기록 + 방금 스캔된 현재 목록(당일 파일 반영 전에도 지표 일치).
  * @param {DailyPicksRow[]} fileDaysAsc
- * @param {{ kr: unknown[]; us: unknown[]; scannedAtMs: number | null }} live
+ * @param {{ kr: unknown[]; us: unknown[]; crypto?: unknown[]; scannedAtMs: number | null }} live
  * @returns {DailyPicksRow[]}
  */
 function buildDaysAscForMetrics(fileDaysAsc, live) {
@@ -448,7 +463,8 @@ function buildDaysAscForMetrics(fileDaysAsc, live) {
   const date = kstYmd(ms);
   const kr = Array.isArray(live.kr) ? live.kr.map(slimFrom).filter(Boolean) : [];
   const us = Array.isArray(live.us) ? live.us.map(slimFrom).filter(Boolean) : [];
-  const merged = /** @type {DailyPicksRow} */ ({ date, scannedAtMs: ms, kr, us });
+  const crypto = Array.isArray(live.crypto) ? live.crypto.map(slimFrom).filter(Boolean) : [];
+  const merged = /** @type {DailyPicksRow} */ ({ date, scannedAtMs: ms, kr, us, crypto });
   const out = [...fileDaysAsc];
   const idx = out.findIndex((d) => d.date === date);
   if (idx >= 0) out[idx] = merged;
@@ -461,6 +477,7 @@ function buildDaysAscForMetrics(fileDaysAsc, live) {
  * @param {object} state
  * @param {unknown[]} state.kr
  * @param {unknown[]} state.us
+ * @param {unknown[]} [state.crypto]
  * @param {number | null} state.updatedAt
  */
 export function enrichPicksStateWithHistory(state) {
@@ -469,6 +486,7 @@ export function enrichPicksStateWithHistory(state) {
   const daysAsc = buildDaysAscForMetrics(fileAsc, {
     kr: state.kr,
     us: state.us,
+    crypto: state.crypto ?? [],
     scannedAtMs: state.updatedAt,
   });
 
@@ -480,9 +498,11 @@ export function enrichPicksStateWithHistory(state) {
     };
   };
 
+  const crypto = Array.isArray(state.crypto) ? state.crypto : [];
   return {
     ...state,
     kr: state.kr.map((p) => mapPick(p, "kr")),
     us: state.us.map((p) => mapPick(p, "us")),
+    crypto: crypto.map((p) => mapPick(p, "crypto")),
   };
 }

@@ -434,9 +434,20 @@ export default function App() {
       filterPicksBySignals(picksForList?.us ?? picks?.us ?? [], signalFilters, filterMode),
     [picksForList?.us, picks?.us, signalFilters, filterMode],
   );
+  const cryptoFiltered = useMemo(
+    () =>
+      filterPicksBySignals(
+        picksForList?.crypto ?? picks?.crypto ?? [],
+        signalFilters,
+        filterMode,
+      ),
+    [picksForList?.crypto, picks?.crypto, signalFilters, filterMode],
+  );
   const baseListPicks = useMemo(() => {
-    return screenerMarketTab === "kr" ? krFiltered : usFiltered;
-  }, [screenerMarketTab, krFiltered, usFiltered]);
+    if (screenerMarketTab === "kr") return krFiltered;
+    if (screenerMarketTab === "crypto") return cryptoFiltered;
+    return usFiltered;
+  }, [screenerMarketTab, krFiltered, usFiltered, cryptoFiltered]);
 
   const listPicks = useMemo(
     () => sortPicksList(filterPicksByQuery(baseListPicks, searchQuery), sortKey),
@@ -446,7 +457,9 @@ export default function App() {
   const rawCount =
     screenerMarketTab === "kr"
       ? (picks?.kr.length ?? 0)
-      : (picks?.us.length ?? 0);
+      : screenerMarketTab === "crypto"
+        ? (picks?.crypto?.length ?? 0)
+        : (picks?.us.length ?? 0);
 
   const workspacePick = useMemo(() => {
     if (appTab === "crypto" || appTab === "ops" || appTab === "liveTrading") {
@@ -609,13 +622,13 @@ export default function App() {
     const params = new URLSearchParams(q);
     const sym = params.get("symbol")?.trim().toUpperCase();
     const mkt = params.get("market")?.toLowerCase();
-    if (!sym || (mkt !== "kr" && mkt !== "us")) {
+    if (!sym || (mkt !== "kr" && mkt !== "us" && mkt !== "crypto")) {
       deepLinkHandledRef.current = null;
       return;
     }
     const key = `${mkt}:${sym}`;
     if (deepLinkHandledRef.current === key) return;
-    const all = [...(picks.kr ?? []), ...(picks.us ?? [])];
+    const all = [...(picks.kr ?? []), ...(picks.us ?? []), ...(picks.crypto ?? [])];
     const fromList = all.find(
       (p) => p.symbol.toUpperCase() === sym && p.market === mkt,
     );
@@ -663,7 +676,7 @@ export default function App() {
   useEffect(() => {
     if (appTab !== "screener" || !picks || picks.running || !screenerSelected) return;
     const sym = screenerSelected.symbol.trim().toUpperCase();
-    const next = [...(picks.kr ?? []), ...(picks.us ?? [])].find(
+    const next = [...(picks.kr ?? []), ...(picks.us ?? []), ...(picks.crypto ?? [])].find(
       (p) => p.symbol.trim().toUpperCase() === sym,
     );
     if (!next) return;
@@ -1251,6 +1264,20 @@ export default function App() {
                     <span className="market-tab__count">{usFiltered.length}</span>
                   )}
                 </button>
+                {appTab === "screener" ? (
+                  <button
+                    type="button"
+                    className={
+                      screenerMarketTab === "crypto"
+                        ? "market-tab active"
+                        : "market-tab"
+                    }
+                    onClick={() => setScreenerMarketTab("crypto")}
+                  >
+                    {ko.app.liveTradeMarketCrypto}
+                    <span className="market-tab__count">{cryptoFiltered.length}</span>
+                  </button>
+                ) : null}
               </div>
             </div>
           </div>

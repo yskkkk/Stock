@@ -1,5 +1,5 @@
 export type ChartTimeframe = "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
-export type Market = "kr" | "us";
+export type Market = "kr" | "us" | "crypto";
 
 /** 실매매·시뮬 포트폴리오 시장 */
 export type LiveTradeMarket = Market | "crypto";
@@ -272,6 +272,7 @@ export interface PicksResponse {
   scanIntervalMs?: number;
   kr: StockPick[];
   us: StockPick[];
+  crypto: StockPick[];
   updatedAt: number | null;
   message: string;
 }

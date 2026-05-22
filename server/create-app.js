@@ -1467,7 +1467,11 @@ export function createApp() {
     }
     const items = listTodayTelegramSent();
     const pickBySymbol = new Map();
-    for (const p of [...getPicksState().kr, ...getPicksState().us]) {
+    for (const p of [
+      ...getPicksState().kr,
+      ...getPicksState().us,
+      ...getPicksState().crypto,
+    ]) {
       pickBySymbol.set(`${p.market}:${p.symbol}`, p);
     }
     const enriched = items.map((item) => {

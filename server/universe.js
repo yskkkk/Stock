@@ -1,6 +1,7 @@
 import { readFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
+import { loadCryptoWatchlistTen } from "./crypto-universe.js";
 import { resolveDisplayName } from "./names-ko.js";
 import { getYahooSession, yahooPost } from "./yahoo.js";
 
@@ -107,5 +108,16 @@ export async function loadUniverse() {
     })
     .slice(0, US_TARGET);
 
-  return { kr, us };
+  let crypto = [];
+  try {
+    const { assets } = await loadCryptoWatchlistTen();
+    crypto = assets.map((a) => ({
+      symbol: a.symbol,
+      name: a.name ?? a.symbol,
+    }));
+  } catch {
+    crypto = [];
+  }
+
+  return { kr, us, crypto };
 }
