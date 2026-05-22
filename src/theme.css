@@ -2,6 +2,11 @@
  * 라이트 모드 — :root 변수 덮어쓰기 + 일부 하드코딩 보정
  * 다크: data-theme 없음(기본)
  */
+/* 브라우저 탭·폼 네이티브 UI — 앱 테마와 무관하게 라이트(화이트) 스킴 고정 */
+html {
+  color-scheme: light;
+}
+
 html[data-theme="light"] {
   color-scheme: light;
 }

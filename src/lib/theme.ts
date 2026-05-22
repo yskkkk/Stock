@@ -80,6 +80,8 @@ export function persistTheme(mode: ColorMode): void {
 
 export function applyTheme(mode: ColorMode): void {
   const root = document.documentElement;
+  /* 탭·시스템 UI 아이콘 톤 — 사이트 다크/라이트 설정과 무관 */
+  root.style.colorScheme = "light";
   if (mode === "light") {
     root.setAttribute("data-theme", "light");
     applyLightPalette(readStoredLightPalette());
