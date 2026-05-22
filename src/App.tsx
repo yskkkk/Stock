@@ -957,23 +957,14 @@ export default function App() {
           </div>
           <div className="top-bar__brand">
             <span className="brand-mark" aria-hidden>
-              <svg
-                className="brand-mark__glyph"
-                viewBox="0 0 36 34"
-                width="36"
-                height="34"
-                role="img"
-                aria-hidden
-              >
-                <path
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.75"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M 3 8 L 9 17 L 3 26 M 9 17 L 27 17 M 33 8 L 27 17 L 33 26"
-                />
-              </svg>
+              <img
+                className="brand-mark__img"
+                src="/branding/ystock-logo-source.png"
+                alt=""
+                width={46}
+                height={46}
+                decoding="async"
+              />
             </span>
             <div className="top-bar__brand-main">
               <h1>{ko.app.title}</h1>

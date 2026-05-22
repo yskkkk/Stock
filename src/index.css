@@ -333,39 +333,27 @@
   color: #fcd34d;
 }
 
-/* 상단 브랜드 — 좌·우로 열린 Y 두 개가 가운데 줄기로 이어진 글리프 */
+/* 상단 브랜드 — YSTOCK 로고 (public/branding/ystock-logo-source.png) */
 .top-bar__brand .brand-mark {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
   width: 46px;
-  height: 42px;
+  height: 46px;
   border-radius: 22%;
   flex-shrink: 0;
-  background: linear-gradient(
-    148deg,
-    #4a4038 0%,
-    #2a4540 34%,
-    #0d6f63 58%,
-    #14b8a6 82%,
-    #7efce9 100%
-  );
-  color: #f8fafc;
   line-height: 0;
-  box-shadow:
-    0 3px 12px rgba(15, 23, 42, 0.38),
-    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  background: transparent;
+  box-shadow: 0 3px 12px rgba(15, 23, 42, 0.28);
   overflow: hidden;
 }
 
-.top-bar__brand .brand-mark__glyph {
+.top-bar__brand .brand-mark__img {
   display: block;
-  width: 34px;
-  height: auto;
-  max-height: 30px;
-  flex-shrink: 0;
-  filter: drop-shadow(0 1px 1px rgba(15, 23, 42, 0.45));
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 /* Pick signals — color by type */
@@ -3572,13 +3560,8 @@ html[data-theme="light"] .access-admin-tab--active {
 
   .top-bar__brand .brand-mark {
     width: 36px;
-    height: 32px;
+    height: 36px;
     border-radius: 22%;
-  }
-
-  .top-bar__brand .brand-mark__glyph {
-    width: 26px;
-    max-height: 24px;
   }
 
   .top-bar__grid,
