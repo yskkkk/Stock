@@ -74,7 +74,13 @@ export function commitAndPushAfterOpsAgent(opts) {
         requestIp,
       );
     }
-    return { cloudPullOk };
+    return {
+      cloudPullOk,
+      committed: null,
+      pushed: null,
+      branch,
+      gitSummary: summarizeGitReflectionForNotify("cloud"),
+    };
   }
 
   logPhase(
@@ -84,7 +90,9 @@ export function commitAndPushAfterOpsAgent(opts) {
   );
 
   const porcelain = gitOut(["status", "--porcelain"]);
+  let committed = false;
   if (porcelain) {
+    committed = true;
     logPhase(writeSse, "변경 파일 스테이징(git add -A)…", requestIp);
     gitInherit(["add", "-A"]);
     const stamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -115,5 +123,52 @@ export function commitAndPushAfterOpsAgent(opts) {
     }
   }
   logPhase(writeSse, "원격(origin)으로 푸시를 완료했습니다.", requestIp);
-  return { cloudPullOk: null };
+  return {
+    cloudPullOk: null,
+    committed: Boolean(porcelain),
+    pushed: true,
+    branch,
+    gitSummary: summarizeGitReflectionForNotify("local"),
+  };
+}
+
+/**
+ * @param {"local"|"cloud"} mode
+ */
+function summarizeGitReflectionForNotify(mode) {
+  const lines = [];
+  try {
+    const branch = gitOut(["rev-parse", "--abbrev-ref", "HEAD"]);
+    lines.push(`브랜치: ${branch}`);
+    if (mode === "cloud") {
+      lines.push("원격: 에이전트가 GitHub에서 커밋·푸시 후 로컬 pull 동기화");
+    } else {
+      lines.push("원격: origin push 완료(또는 변경 없음)");
+    }
+    const head = gitOut(["log", "-1", "--oneline", "-n", "1"]);
+    lines.push(`최근 커밋: ${head}`);
+    const names = gitOut(["show", "-1", "--name-only", "--pretty=format:"]);
+    const files = names.split("\n").map((s) => s.trim()).filter(Boolean);
+    if (files.length) {
+      lines.push(`반영 파일 (${files.length}):`);
+      for (const f of files.slice(0, 35)) {
+        lines.push(`  • ${f}`);
+      }
+      if (files.length > 35) {
+        lines.push(`  … 외 ${files.length - 35}개`);
+      }
+    } else {
+      lines.push("반영 파일: (이번 커밋에 파일 목록 없음)");
+    }
+    const stat = gitOut(["show", "-1", "--stat", "--pretty=format:"]).trim();
+    if (stat) {
+      const statLines = stat.split("\n").slice(-12);
+      lines.push(statLines.join("\n"));
+    }
+  } catch (e) {
+    lines.push(
+      `Git 요약 실패: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
+  return lines.join("\n");
 }

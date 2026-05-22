@@ -9,6 +9,7 @@ import { rgPath } from "@vscode/ripgrep";
 import { Agent, Cursor } from "@cursor/sdk";
 import { commitAndPushAfterOpsAgent } from "./ops-agent-git-push.js";
 import { appendServerEventLog, clientIp } from "./access-log.js";
+import { buildOpsAgentTelegramBody } from "./ops-agent-notify-body.js";
 import { notifyOpsAgentCompleted } from "./telegram-notify.js";
 import { normalizeAccessIp } from "./access-control.js";
 import {
@@ -504,6 +505,7 @@ export async function streamOpsCursorAgentSse(req, res, body) {
     durationMs: null,
     runtimeLabel: null,
     error: null,
+    gitSummary: "",
   };
 
   let runId = /** @type {string | null} */ (null);
@@ -674,6 +676,7 @@ export async function streamOpsCursorAgentSse(req, res, body) {
           : "\n\n[후처리] 로컬 클론 자동 동기화(git pull --ff-only)는 건너뛰었습니다. 원격/PR에서 변경을 확인하세요."
         : "\n\n[후처리] 이 서버에서 변경분을 커밋(필요 시)하고 origin으로 git push 했습니다.";
     outText = (outText ? outText.trimEnd() : "") + pushNote;
+    capture.gitSummary = postGit.gitSummary ?? "";
 
     writeSse({
       type: "done",
@@ -732,16 +735,11 @@ export async function streamOpsCursorAgentSse(req, res, body) {
 
         const titleForNotify = opsAgentInstructionLogSnippet(capture.instruction);
         const requesterLabel = requestIp || "알 수 없음";
-        const bodyForNotify =
-          state === "ok"
-            ? String(capture.resultText ?? "").trim() || "(요약 없음)"
-            : String(
-                errorStored ??
-                  capture.error ??
-                  (state === "cancelled"
-                    ? "사용자가 요청을 중단했습니다."
-                    : "알 수 없는 오류"),
-              ).trim() || "(내용 없음)";
+        const bodyForNotify = buildOpsAgentTelegramBody({
+          state,
+          capture,
+          errorText: errorStored,
+        });
         notifyOpsAgentCompleted({
           requester: requesterLabel,
           title: titleForNotify || "웹 에이전트",
@@ -889,7 +887,15 @@ export async function runOpsCursorAgent(input) {
     notifyOpsAgentCompleted({
       requester: reqIpNorm || "알 수 없음",
       title: opsAgentInstructionLogSnippet(instruction) || "웹 에이전트",
-      body: outText,
+      body: buildOpsAgentTelegramBody({
+        state: "ok",
+        capture: {
+          resultText: outText,
+          runtimeLabel: runtime,
+          durationMs: result.durationMs,
+          gitSummary: postGit.gitSummary ?? "",
+        },
+      }),
     });
 
     return {
@@ -903,7 +909,11 @@ export async function runOpsCursorAgent(input) {
     notifyOpsAgentCompleted({
       requester: reqIpNorm || "알 수 없음",
       title: opsAgentInstructionLogSnippet(instruction) || "웹 에이전트",
-      body: e instanceof Error ? e.message : String(e),
+      body: buildOpsAgentTelegramBody({
+        state: "error",
+        capture: { resultText: null, gitSummary: "" },
+        errorText: e instanceof Error ? e.message : String(e),
+      }),
     });
     throw e;
   }

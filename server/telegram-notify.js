@@ -1097,7 +1097,7 @@ export function notifyOpsAgentCompleted(opts) {
   const requester = String(opts.requester ?? "").trim() || "—";
   const title = String(opts.title ?? "").trim() || "웹 에이전트";
   let body = String(opts.body ?? "").trim() || "—";
-  const max = 3200;
+  const max = 3800;
   if (body.length > max) body = `${body.slice(0, max - 1)}…`;
 
   const text = [
@@ -1109,7 +1109,6 @@ export function notifyOpsAgentCompleted(opts) {
     `<b>제목</b>`,
     escHtml(title),
     "",
-    `<b>내용</b>`,
     escHtml(body),
   ].join("\n");
 
