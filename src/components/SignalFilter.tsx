@@ -62,6 +62,7 @@ export default function SignalFilter({
             <button
               type="button"
               className="chip preset"
+              title={p.hint}
               onClick={() => applyPreset(p.signalIds)}
             >
               {p.label}
@@ -81,6 +82,7 @@ export default function SignalFilter({
               <button
                 type="button"
                 className={active ? "chip active" : "chip"}
+                title={getSignalHint(opt.id)}
                 onClick={() => toggle(opt.id)}
                 aria-pressed={active}
               >

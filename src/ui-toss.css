@@ -3068,27 +3068,25 @@ html[data-theme="light"] .app-site-footer__link:hover {
   overflow: visible;
 }
 
-/* 조건 칩 호버 설명 — 레이아웃에 끼어 나오지 않게(툴팁만) */
+/* 조건 필터 — 선택 칩만 보이고, 설명은 호버·포커스 툴팁 */
+.signal-filter .filter-presets,
+.signal-filter .filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
 .signal-filter .signal-hint-wrap {
-  display: inline-flex;
+  display: inline-block;
+  position: relative;
   max-width: none;
   vertical-align: middle;
 }
 
-.signal-filter .signal-hint-wrap__tip {
-  white-space: normal;
-  word-break: keep-all;
-}
-
-.signal-filter .signal-hint-wrap__tip-title,
-.signal-filter .signal-hint-wrap__tip-body {
-  display: block;
-  white-space: normal;
-}
-
 .signal-hint-wrap {
   position: relative;
-  display: inline-flex;
+  display: inline-block;
   max-width: 100%;
   vertical-align: middle;
 }
@@ -3099,6 +3097,7 @@ html[data-theme="light"] .app-site-footer__link:hover {
   left: 50%;
   bottom: calc(100% + 8px);
   transform: translateX(-50%);
+  box-sizing: border-box;
   width: max-content;
   max-width: min(20rem, 88vw);
   padding: 0.55rem 0.65rem;
@@ -3114,7 +3113,18 @@ html[data-theme="light"] .app-site-footer__link:hover {
   pointer-events: none;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.12s ease, visibility 0.12s ease;
+  transition:
+    opacity 0.12s ease,
+    visibility 0.12s ease,
+    clip-path 0.12s ease;
+  /* absolute가 깨져도 칩 옆에 설명 줄이 붙지 않게 */
+  clip-path: inset(50%);
+  clip: rect(0, 0, 0, 0);
+  overflow: hidden;
+  white-space: nowrap;
+  margin: 0;
+  min-width: 0;
+  min-height: 0;
 }
 
 .signal-hint-wrap__tip-title {
@@ -3123,10 +3133,14 @@ html[data-theme="light"] .app-site-footer__link:hover {
   color: var(--text, #f1f5f9);
   font-size: 0.76rem;
   font-weight: 700;
+  white-space: normal;
+  word-break: keep-all;
 }
 
 .signal-hint-wrap__tip-body {
   display: block;
+  white-space: normal;
+  word-break: keep-all;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -3134,6 +3148,10 @@ html[data-theme="light"] .app-site-footer__link:hover {
   .signal-hint-wrap:focus-within .signal-hint-wrap__tip {
     opacity: 1;
     visibility: visible;
+    clip-path: none;
+    clip: auto;
+    overflow: visible;
+    white-space: normal;
   }
 }
 
