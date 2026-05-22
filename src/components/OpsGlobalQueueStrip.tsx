@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import { useOpsDevQueueDisplay } from "../hooks/useOpsDevQueueDisplay";
 import { ko } from "../i18n/ko";
 import {
@@ -25,6 +32,19 @@ function formatQueueTime(ms: number): string {
   }
 }
 
+function scrollQueueTrackToEnd(el: HTMLElement | null) {
+  if (!el) return;
+  const go = () => {
+    const max = Math.max(0, el.scrollWidth - el.clientWidth);
+    el.scrollLeft = max;
+  };
+  go();
+  requestAnimationFrame(() => {
+    go();
+    requestAnimationFrame(go);
+  });
+}
+
 function OpsQueueUnifiedSeqBadge({ seq }: { seq?: number | null }) {
   if (typeof seq !== "number" || !Number.isFinite(seq) || seq < 1) return null;
   return (
@@ -38,6 +58,7 @@ export default function OpsGlobalQueueStrip({ onOpenOps }: { onOpenOps: () => vo
   const snap = useOpsDevQueueDisplay();
   const [rows, setRows] = useState<OpsGlobalQueueRow[]>(() => readOpsDevQueueDisplayCache() ?? []);
   const lastSnapKeyRef = useRef("");
+  const trackRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!snap) return;
@@ -47,6 +68,11 @@ export default function OpsGlobalQueueStrip({ onOpenOps }: { onOpenOps: () => vo
     writeOpsDevQueueDisplayCache(snap);
     setRows(rowsFromDevQueueDisplayPayload(snap));
   }, [snap]);
+
+  useLayoutEffect(() => {
+    if (rows.length === 0) return;
+    scrollQueueTrackToEnd(trackRef.current);
+  }, [rows]);
 
   const openCard = useCallback(() => {
     onOpenOps();
@@ -69,6 +95,7 @@ export default function OpsGlobalQueueStrip({ onOpenOps }: { onOpenOps: () => vo
     >
       <h2 className="ops-global-queue-stack__heading">{ko.app.opsGlobalQueueTitle}</h2>
       <div
+        ref={trackRef}
         className="ops-agent-queue-track ops-management__server-queue-track ops-global-queue-stack__track"
         role="list"
       >
