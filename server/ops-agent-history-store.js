@@ -13,9 +13,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const DATA_DIR = path.join(__dirname, ".data");
 const HISTORY_FILE = path.join(DATA_DIR, "ops-cursor-agent-history.json");
-export const OPS_AGENT_HISTORY_MAX = 40;
-/** IDE 동일 지시문 — 완료 후 재등록 시에도 한 이력 행으로 합침 */
-const IDE_HISTORY_DEDUP_FINISHED_MS = 60 * 60 * 1000;
+export const OPS_AGENT_HISTORY_MAX = (() => {
+  const n = Number(process.env.OPS_AGENT_HISTORY_MAX ?? 500);
+  return Number.isFinite(n) && n >= 20 ? Math.min(5000, Math.floor(n)) : 500;
+})();
 const OPS_AGENT_FIELD_MAX_CHARS = 120_000;
 /** read_file / write 등 도구 호출 누적 로그 상한 */
 const OPS_AGENT_TOOL_LOG_MAX_CHARS = 96_000;
@@ -155,7 +156,34 @@ function readRawListSync() {
 
 function saveRawListSync(list) {
   ensureDirSync();
-  fsSync.writeFileSync(HISTORY_FILE, JSON.stringify(list), "utf8");
+  const tmp = `${HISTORY_FILE}.${process.pid}.${Date.now()}.tmp`;
+  fsSync.writeFileSync(tmp, JSON.stringify(list), "utf8");
+  try {
+    fsSync.renameSync(tmp, HISTORY_FILE);
+  } catch {
+    try {
+      fsSync.unlinkSync(tmp);
+    } catch {
+      /* ignore */
+    }
+    fsSync.writeFileSync(HISTORY_FILE, JSON.stringify(list), "utf8");
+  }
+}
+
+async function writeHistoryListAsync(list) {
+  ensureDirSync();
+  const tmp = `${HISTORY_FILE}.${process.pid}.${Date.now()}.tmp`;
+  await fs.writeFile(tmp, JSON.stringify(list), "utf8");
+  try {
+    await fs.rename(tmp, HISTORY_FILE);
+  } catch {
+    try {
+      await fs.unlink(tmp);
+    } catch {
+      /* ignore */
+    }
+    await fs.writeFile(HISTORY_FILE, JSON.stringify(list), "utf8");
+  }
 }
 
 /**
@@ -177,6 +205,41 @@ function mergeIdeHistoryRowsPreferNewerActive(a, b) {
     ),
     updatedAtMs: Math.max(primary.updatedAtMs ?? 0, secondary.updatedAtMs ?? 0),
     finishedAtMs: active(primary) ? null : (primary.finishedAtMs ?? secondary.finishedAtMs),
+    phaseLine: primary.phaseLine || secondary.phaseLine,
+    cursorLine: primary.cursorLine || secondary.cursorLine,
+    thinkingLine: primary.thinkingLine || secondary.thinkingLine,
+    toolLine: primary.toolLine || secondary.toolLine,
+    toolLog: primary.toolLog || secondary.toolLog,
+    streamText: primary.streamText || secondary.streamText,
+    statusText: primary.statusText ?? secondary.statusText,
+    resultText: primary.resultText ?? secondary.resultText,
+    durationMs: primary.durationMs ?? secondary.durationMs,
+    runtimeLabel: primary.runtimeLabel ?? secondary.runtimeLabel ?? "ide",
+    workspaceAppliedAtMs:
+      primary.workspaceAppliedAtMs ?? secondary.workspaceAppliedAtMs,
+  };
+}
+
+/** @param {NonNullable<ReturnType<typeof parseHistoryRecord>>} a @param {NonNullable<ReturnType<typeof parseHistoryRecord>>} b */
+function mergeIdeHistoryRowsAnyState(a, b) {
+  const active = (r) => r.state === "running" || r.state === "waiting";
+  if (active(a) || active(b)) return mergeIdeHistoryRowsPreferNewerActive(a, b);
+  const primary = (a.updatedAtMs ?? 0) >= (b.updatedAtMs ?? 0) ? a : b;
+  const secondary = primary === a ? b : a;
+  return {
+    ...primary,
+    id: primary.id,
+    instruction: primary.instruction || secondary.instruction,
+    startedAtMs: Math.min(
+      primary.startedAtMs ?? Number.POSITIVE_INFINITY,
+      secondary.startedAtMs ?? Number.POSITIVE_INFINITY,
+    ),
+    updatedAtMs: Math.max(primary.updatedAtMs ?? 0, secondary.updatedAtMs ?? 0),
+    finishedAtMs: Math.max(
+      primary.finishedAtMs ?? 0,
+      secondary.finishedAtMs ?? 0,
+    ) || null,
+    error: primary.error ?? secondary.error,
     phaseLine: primary.phaseLine || secondary.phaseLine,
     cursorLine: primary.cursorLine || secondary.cursorLine,
     thinkingLine: primary.thinkingLine || secondary.thinkingLine,
@@ -275,28 +338,24 @@ export function collapseIdeAgentHistoryDuplicatesSync() {
   if (!prev.length) return;
 
   /** @type {Map<string, NonNullable<ReturnType<typeof parseHistoryRecord>>>} */
-  const bestByFp = new Map();
-  const nonIde = [];
+  const ideByFp = new Map();
+  const rest = [];
 
   for (const e of prev) {
     if (sanitizeRequestIpForStore(e.requestIp) !== "cursor-ide") {
-      nonIde.push(e);
+      rest.push(e);
       continue;
     }
     const fp = opsIdePromptFingerprint(e.instruction);
     if (!fp) {
-      nonIde.push(e);
+      rest.push(e);
       continue;
     }
-    const hit = bestByFp.get(fp);
-    if (!hit) {
-      bestByFp.set(fp, e);
-      continue;
-    }
-    bestByFp.set(fp, mergeIdeHistoryRowsPreferNewerActive(hit, e));
+    const hit = ideByFp.get(fp);
+    ideByFp.set(fp, hit ? mergeIdeHistoryRowsAnyState(hit, e) : e);
   }
 
-  const merged = [...bestByFp.values(), ...nonIde];
+  const merged = [...ideByFp.values(), ...rest];
   merged.sort((a, b) => (b.updatedAtMs ?? 0) - (a.updatedAtMs ?? 0));
   saveRawListSync(merged.slice(0, OPS_AGENT_HISTORY_MAX));
 }
@@ -305,7 +364,8 @@ export function collapseIdeAgentHistoryDuplicatesSync() {
  * @param {string} prompt
  * @returns {string | null}
  */
-export function findCanonicalIdeHistoryIdForPromptSync(prompt) {
+/** IDE — 동일 지시문 이력 id 재사용(대기·실행·완료 포함) */
+export function findActiveIdeHistoryIdForPromptSync(prompt) {
   const ins = trimStoredTextForOpsHistory(
     String(prompt ?? "").trim(),
     OPS_AGENT_INSTRUCTION_STORE_MAX,
@@ -314,13 +374,13 @@ export function findCanonicalIdeHistoryIdForPromptSync(prompt) {
   const prev = readRawListSync()
     .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))
     .filter(Boolean);
-  const dup = findRecentIdeHistoryDuplicateIndex(
-    prev,
-    ins,
-    "cursor-ide",
-    IDE_HISTORY_DEDUP_FINISHED_MS,
-  );
+  const dup = findRecentIdeHistoryDuplicateIndex(prev, ins, "cursor-ide");
   return dup >= 0 ? prev[dup].id : null;
+}
+
+/** @deprecated findActiveIdeHistoryIdForPromptSync 사용 */
+export function findCanonicalIdeHistoryIdForPromptSync(prompt) {
+  return findActiveIdeHistoryIdForPromptSync(prompt);
 }
 
 export function upsertOpsAgentHistoryFromQueueSync(queueEntry) {
@@ -349,12 +409,7 @@ export function upsertOpsAgentHistoryFromQueueSync(queueEntry) {
   let canonicalId = proposedId;
   let targetIdx = prev.findIndex((e) => e.id === proposedId);
   if (requestIp === "cursor-ide") {
-    const dup = findRecentIdeHistoryDuplicateIndex(
-      prev,
-      ins,
-      requestIp,
-      IDE_HISTORY_DEDUP_FINISHED_MS,
-    );
+    const dup = findRecentIdeHistoryDuplicateIndex(prev, ins, requestIp);
     if (dup >= 0) {
       canonicalId = prev[dup].id;
       targetIdx = dup;
@@ -362,9 +417,6 @@ export function upsertOpsAgentHistoryFromQueueSync(queueEntry) {
   }
 
   const prevRow = targetIdx >= 0 ? prev[targetIdx] : null;
-  if (prevRow?.finishedAtMs != null && state !== "running" && state !== "waiting") {
-    return;
-  }
 
   const now = Date.now();
   const wasRunning = prevRow?.state === "running";
@@ -394,29 +446,17 @@ export function upsertOpsAgentHistoryFromQueueSync(queueEntry) {
     workspaceAppliedAtMs: prevRow?.workspaceAppliedAtMs ?? null,
   };
 
-  const withoutDupes = prev.filter((e) => {
-    if (e.id === canonicalId) return false;
-    if (
-      requestIp === "cursor-ide" &&
-      sanitizeRequestIpForStore(e.requestIp) === "cursor-ide" &&
-      opsIdePromptsMatch(e.instruction, ins)
-    ) {
-      return false;
-    }
-    return true;
-  });
+  const withoutDupes = prev.filter(
+    (e) => !isDropableIdeInstructionDuplicate(e, ins, canonicalId),
+  );
   const next = [row, ...withoutDupes].slice(0, OPS_AGENT_HISTORY_MAX);
   saveRawListSync(next);
+  collapseIdeAgentHistoryDuplicatesSync();
 }
-
-let ideHistoryCollapsedOnce = false;
 
 /** @returns {object[]} */
 export function readOpsAgentHistorySync() {
-  if (!ideHistoryCollapsedOnce) {
-    ideHistoryCollapsedOnce = true;
-    collapseIdeAgentHistoryDuplicatesSync();
-  }
+  collapseIdeAgentHistoryDuplicatesSync();
   const raw = readRawListSync();
   const rows = raw
     .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))
@@ -487,19 +527,11 @@ export function prependWaitingOpsEntry(id, instruction, requestIp = "") {
       requestIp: rip,
       workspaceAppliedAtMs: null,
     };
-    const withoutDupes = prev.filter((e) => {
-      if (e.id === useId) return false;
-      if (
-        rip === "cursor-ide" &&
-        sanitizeRequestIpForStore(e.requestIp) === rip &&
-        opsIdePromptsMatch(e.instruction, ins)
-      ) {
-        return false;
-      }
-      return true;
-    });
+    const withoutDupes = prev.filter(
+      (e) => !isDropableIdeInstructionDuplicate(e, ins, useId),
+    );
     const next = [entry, ...withoutDupes].slice(0, OPS_AGENT_HISTORY_MAX);
-    await fs.writeFile(HISTORY_FILE, JSON.stringify(next), "utf8");
+    await writeHistoryListAsync(next);
   });
 }
 
@@ -539,19 +571,11 @@ export function prependRunningOpsEntry(id, instruction, requestIp = "") {
       requestIp: rip,
       workspaceAppliedAtMs: null,
     };
-    const withoutDupes = prev.filter((e) => {
-      if (e.id === useId) return false;
-      if (
-        rip === "cursor-ide" &&
-        sanitizeRequestIpForStore(e.requestIp) === rip &&
-        opsIdePromptsMatch(e.instruction, ins)
-      ) {
-        return false;
-      }
-      return true;
-    });
+    const withoutDupes = prev.filter(
+      (e) => !isDropableIdeInstructionDuplicate(e, ins, useId),
+    );
     const next = [entry, ...withoutDupes].slice(0, OPS_AGENT_HISTORY_MAX);
-    await fs.writeFile(HISTORY_FILE, JSON.stringify(next), "utf8");
+    await writeHistoryListAsync(next);
   });
 }
 
@@ -595,7 +619,7 @@ export function prependPolicyRejectedOpsEntry(p) {
       .filter(Boolean)
       .filter((e) => e.id !== p.id);
     const next = [entry, ...prev].slice(0, OPS_AGENT_HISTORY_MAX);
-    await fs.writeFile(HISTORY_FILE, JSON.stringify(next), "utf8");
+    await writeHistoryListAsync(next);
   });
 }
 
@@ -624,7 +648,7 @@ export function promoteOpsAgentEntryToRunning(id) {
       updatedAtMs: runStartedAt,
       finishedAtMs: null,
     };
-    await fs.writeFile(HISTORY_FILE, JSON.stringify(list), "utf8");
+    await writeHistoryListAsync(list);
     return true;
   });
 }
@@ -676,7 +700,7 @@ export function patchOpsAgentEntry(id, patch) {
       finishedAtMs: null,
     };
     list[i] = nextRow;
-    await fs.writeFile(HISTORY_FILE, JSON.stringify(list), "utf8");
+    await writeHistoryListAsync(list);
   });
 }
 
@@ -707,31 +731,36 @@ export function patchOpsAgentEntry(id, patch) {
  * @param {string} requestIp
  * @param {number} [maxAgeMs]
  */
-function findRecentIdeHistoryDuplicateIndex(
-  list,
-  instruction,
-  requestIp,
-  maxAgeMs = IDE_HISTORY_DEDUP_FINISHED_MS,
-) {
+/**
+ * IDE 동일 지시문 — 실행 중·대기 중복만 제거(완료 이력은 유지).
+ * @param {NonNullable<ReturnType<typeof parseHistoryRecord>>} e
+ * @param {string} instruction
+ * @param {string} [keepId]
+ */
+function isDropableIdeInstructionDuplicate(e, instruction, keepId = "") {
+  if (sanitizeRequestIpForStore(e.requestIp) !== "cursor-ide") return false;
+  if (keepId && e.id === keepId) return true;
+  return opsIdePromptsMatch(e.instruction, instruction);
+}
+
+function findRecentIdeHistoryDuplicateIndex(list, instruction, requestIp) {
   const rip = sanitizeRequestIpForStore(requestIp);
   if (rip !== "cursor-ide") return -1;
-  const fp = opsIdePromptFingerprint(instruction);
-  if (!fp) return -1;
-  const now = Date.now();
+  if (!opsIdePromptFingerprint(instruction)) return -1;
+  let finishedIdx = -1;
+  let finishedUpdated = -1;
   for (let j = 0; j < list.length; j++) {
     const e = list[j];
     if (sanitizeRequestIpForStore(e.requestIp) !== rip) continue;
     if (!opsIdePromptsMatch(e.instruction, instruction)) continue;
     if (e.state === "running" || e.state === "waiting") return j;
-    if (
-      e.finishedAtMs != null &&
-      now - e.finishedAtMs < maxAgeMs &&
-      (e.state === "ok" || e.state === "cancelled")
-    ) {
-      return j;
+    const u = e.updatedAtMs ?? 0;
+    if (u >= finishedUpdated) {
+      finishedUpdated = u;
+      finishedIdx = j;
     }
   }
-  return -1;
+  return finishedIdx;
 }
 
 export function finalizeOpsAgentEntry(id, fin) {
@@ -809,31 +838,20 @@ export function finalizeOpsAgentEntry(id, fin) {
         list[dup] = { ...prev, ...row, id: canonicalId };
         const pruned = list.filter((e, idx) => {
           if (idx === dup) return true;
-          if (
-            rip === "cursor-ide" &&
-            sanitizeRequestIpForStore(e.requestIp) === rip &&
-            opsIdePromptsMatch(e.instruction, row.instruction)
-          ) {
+          if (isDropableIdeInstructionDuplicate(e, row.instruction, canonicalId)) {
             return false;
           }
           if (e.id === id && id !== canonicalId) return false;
           return true;
         });
-        await fs.writeFile(HISTORY_FILE, JSON.stringify(pruned), "utf8");
+        await writeHistoryListAsync(pruned);
         return;
       }
-      const prunedNew =
-        rip === "cursor-ide"
-          ? list.filter(
-              (e) =>
-                !(
-                  sanitizeRequestIpForStore(e.requestIp) === rip &&
-                  opsIdePromptsMatch(e.instruction, row.instruction)
-                ),
-            )
-          : list;
+      const prunedNew = list.filter(
+        (e) => e.id !== id && !isDropableIdeInstructionDuplicate(e, row.instruction, id),
+      );
       const next = [row, ...prunedNew].slice(0, OPS_AGENT_HISTORY_MAX);
-      await fs.writeFile(HISTORY_FILE, JSON.stringify(next), "utf8");
+      await writeHistoryListAsync(next);
       return;
     }
 
@@ -848,17 +866,14 @@ export function finalizeOpsAgentEntry(id, fin) {
             .map((e, idx) => (idx === i ? merged : e))
             .filter((e, idx) => {
               if (idx === i) return true;
-              if (
-                sanitizeRequestIpForStore(e.requestIp) === "cursor-ide" &&
-                opsIdePromptsMatch(e.instruction, merged.instruction) &&
-                e.id !== merged.id
-              ) {
+              if (isDropableIdeInstructionDuplicate(e, merged.instruction, merged.id)) {
                 return false;
               }
               return true;
             })
         : list.map((e, idx) => (idx === i ? merged : e));
-    await fs.writeFile(HISTORY_FILE, JSON.stringify(pruned), "utf8");
+    await writeHistoryListAsync(pruned);
+    collapseIdeAgentHistoryDuplicatesSync();
   });
 }
 
@@ -885,7 +900,7 @@ export function setOpsHistoryWorkspaceApplied(id, applied) {
       workspaceAppliedAtMs: applied ? Date.now() : null,
       updatedAtMs: Date.now(),
     };
-    await fs.writeFile(HISTORY_FILE, JSON.stringify(list), "utf8");
+    await writeHistoryListAsync(list);
     return true;
   });
 }
@@ -897,12 +912,21 @@ export function setOpsHistoryWorkspaceApplied(id, applied) {
 export function appendOpsAgentHistoryEntry(entry) {
   return chainWrite(async () => {
     ensureDirSync();
+    const parsed = parseHistoryRecord(entry);
+    if (!parsed) return;
     const prev = readRawListSync()
       .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))
-      .filter(Boolean)
-      .filter((e) => e.id !== entry.id);
-    const next = [entry, ...prev].slice(0, OPS_AGENT_HISTORY_MAX);
-    await fs.writeFile(HISTORY_FILE, JSON.stringify(next), "utf8");
+      .filter(Boolean);
+    let useId = parsed.id;
+    const rip = sanitizeRequestIpForStore(parsed.requestIp);
+    const dup = findRecentIdeHistoryDuplicateIndex(prev, parsed.instruction, rip);
+    if (dup >= 0) useId = prev[dup].id;
+    const row = { ...parsed, id: useId };
+    const withoutDupes = prev.filter(
+      (e) => e.id !== useId && !isDropableIdeInstructionDuplicate(e, row.instruction, useId),
+    );
+    const next = [row, ...withoutDupes].slice(0, OPS_AGENT_HISTORY_MAX);
+    await writeHistoryListAsync(next);
   });
 }
 
@@ -916,7 +940,7 @@ export function clearOpsAgentHistoryAsync() {
     for (const e of list) {
       if (e.state === "running") finalizeSkippedIds.add(e.id);
     }
-    await fs.writeFile(HISTORY_FILE, JSON.stringify([]), "utf8");
+    await writeHistoryListAsync([]);
   });
 }
 
@@ -936,7 +960,7 @@ export function removeOpsAgentHistoryEntryById(id) {
       finalizeSkippedIds.add(id);
     }
     const next = list.filter((e) => e.id !== id);
-    await fs.writeFile(HISTORY_FILE, JSON.stringify(next), "utf8");
+    await writeHistoryListAsync(next);
   });
 }
 
