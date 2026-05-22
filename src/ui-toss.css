@@ -27,19 +27,25 @@ body {
 }
 
 .app {
+  --app-page-inline: 1.35rem;
   display: flex;
   flex-direction: column;
   min-height: 100%;
   min-height: 100dvh;
   height: 100dvh;
   max-height: 100dvh;
-  overflow: hidden;
-  gap: 0.95rem;
-  padding: 1.35rem 1.35rem 1.65rem;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: auto;
+  gap: 0;
+  padding: 1.35rem 0 1.65rem;
   box-sizing: border-box;
 }
 
-/* 본문 스크롤 — 푸터는 .app 바깥 형제로 뷰포트 맨 아래 고정 */
+/* 본문·푸터만 좌우 여백 — 스크롤바는 .app(전폭) 오른쪽 끝 */
 .app__shell {
   flex: 1 1 auto;
   display: flex;
@@ -48,10 +54,10 @@ body {
   width: 100%;
   max-width: 100%;
   gap: 0.95rem;
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: auto;
+  padding-left: max(var(--app-page-inline), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--app-page-inline), env(safe-area-inset-right, 0px));
+  box-sizing: border-box;
+  overflow: visible;
 }
 
 .app-header-sticky {
@@ -593,12 +599,12 @@ body {
   }
 
   .app {
-    gap: 0.42rem;
-    /* 상단 줄(app-page-top)에서 노치(safe-area) 처리 — 본문 패딩과 중복하지 않음 */
+    --app-page-inline: max(0.45rem, env(safe-area-inset-left, 0px));
+    gap: 0;
     padding-top: 0.38rem;
-    padding-right: max(0.45rem, env(safe-area-inset-right, 0px));
+    padding-right: 0;
     padding-bottom: max(0.55rem, env(safe-area-inset-bottom, 0px));
-    padding-left: max(0.45rem, env(safe-area-inset-left, 0px));
+    padding-left: 0;
   }
 
   .app__shell {
@@ -720,11 +726,12 @@ body {
   }
 
   .app {
-    gap: 0.34rem;
+    --app-page-inline: max(0.38rem, env(safe-area-inset-left, 0px));
+    gap: 0;
     padding-top: 0.32rem;
-    padding-right: max(0.38rem, env(safe-area-inset-right, 0px));
+    padding-right: 0;
     padding-bottom: max(0.48rem, env(safe-area-inset-bottom, 0px));
-    padding-left: max(0.38rem, env(safe-area-inset-left, 0px));
+    padding-left: 0;
   }
 
   .app__shell {
@@ -2216,7 +2223,9 @@ body {
   flex-shrink: 0;
   margin-top: auto;
   width: 100%;
-  padding: 0.85rem 0 0.35rem;
+  box-sizing: border-box;
+  padding: 0.85rem max(var(--app-page-inline), env(safe-area-inset-right, 0px)) 0.35rem
+    max(var(--app-page-inline), env(safe-area-inset-left, 0px));
   border-top: 1px solid var(--card-border, rgba(148, 163, 184, 0.14));
 }
 

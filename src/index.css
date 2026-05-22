@@ -2927,32 +2927,29 @@ html[data-theme="light"] .access-admin-tab--active {
       transform 0.14s ease-out;
   }
 
-  /* 스크롤은 .app__shell — 푸터 아래로 차트·목록이 지나가지 않음 */
+  /* 스크롤은 전폭 .app — 스크롤바가 뷰포트 오른쪽 */
   #root > .app {
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .app__shell {
     flex: 1 1 auto;
     min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: auto;
+    overflow: visible;
+    gap: 0.4rem;
   }
 
   .app {
     flex: 1 1 auto;
     min-height: 100dvh;
+    --app-page-inline: max(0.45rem, env(safe-area-inset-left, 0px));
     padding-top: 0.35rem;
-    padding-right: max(0.45rem, env(safe-area-inset-right, 0px));
+    padding-right: 0;
     padding-bottom: max(0.55rem, env(safe-area-inset-bottom, 0px));
-    padding-left: max(0.45rem, env(safe-area-inset-left, 0px));
-    gap: 0.4rem;
-  }
-
-  .app__shell {
-    gap: 0.4rem;
+    padding-left: 0;
+    gap: 0;
   }
 
   .macro-bar {
@@ -6395,10 +6392,13 @@ body {
   height: 100dvh;
   max-height: 100dvh;
   width: 100%;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 @media (max-width: 900px) {
@@ -7984,13 +7984,13 @@ body {
 #root > .app.app--ops .app__shell {
   flex: 1 1 auto;
   min-height: 0;
+  overflow: visible;
 }
 
 #root > .app.app--ops .workspace.ops-workspace {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow: visible;
 }
 
 .ops-management--split > .ops-management__main,

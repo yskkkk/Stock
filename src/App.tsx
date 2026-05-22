@@ -924,8 +924,9 @@ export default function App() {
               ? "app app--ops"
               : "app"
       }
+      ref={appScrollRef}
     >
-      <div className="app__shell" ref={appScrollRef}>
+      <div className="app__shell">
       <div
         ref={pullToRefreshHintRef}
         className="app-ptr-hint"
