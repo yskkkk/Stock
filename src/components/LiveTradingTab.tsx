@@ -76,6 +76,12 @@ function parseMaxOpenPositionsInput(raw: string): number | null {
   return n;
 }
 
+function usdAmountFieldLabel(marketsUs: boolean, marketsCrypto: boolean): string {
+  if (marketsUs && marketsCrypto) return ko.app.liveTradeFieldAmountUsdCrypto;
+  if (marketsCrypto) return ko.app.liveTradeFieldAmountCrypto;
+  return ko.app.liveTradeFieldAmountUsd;
+}
+
 const emptyDraft = () => ({
   name: "",
   modelId: "",
@@ -206,8 +212,12 @@ export default function LiveTradingTab({
       },
       minScoreRatio: draft.minScoreRatio,
       maxOpenPositions,
-      orderAmountKrw: orderKrw ? Number(orderKrw) : null,
-      orderAmountUsd: orderUsd ? Number(orderUsd) : null,
+      orderAmountKrw:
+        draft.marketsKr && orderKrw ? Number(orderKrw) : null,
+      orderAmountUsd:
+        (draft.marketsUs || draft.marketsCrypto) && orderUsd
+          ? Number(orderUsd)
+          : null,
       simAutoBuy: draft.simAutoBuy,
       autoSellAtTarget: draft.autoSellAtTarget,
     };
@@ -224,15 +234,17 @@ export default function LiveTradingTab({
       setErr(ko.app.liveTradeFieldMarketsRequired);
       return;
     }
-    if (
-      (draft.marketsKr || draft.marketsCrypto) &&
-      !draft.orderAmountKrw.trim()
-    ) {
+    if (draft.marketsKr && !draft.orderAmountKrw.trim()) {
       setErr(ko.app.liveTradeFieldAmountKrw);
       return;
     }
-    if (draft.marketsUs && !draft.orderAmountUsd.trim()) {
-      setErr(ko.app.liveTradeFieldAmountUsd);
+    if (
+      (draft.marketsUs || draft.marketsCrypto) &&
+      !draft.orderAmountUsd.trim()
+    ) {
+      setErr(
+        usdAmountFieldLabel(draft.marketsUs, draft.marketsCrypto),
+      );
       return;
     }
     setBusy(true);
@@ -605,7 +617,7 @@ export default function LiveTradingTab({
                 </label>
 
                 <label
-                  className={`live-trading-tab__field${!draft.marketsKr && !draft.marketsCrypto ? " live-trading-tab__field--off" : ""}`}
+                  className={`live-trading-tab__field${!draft.marketsKr ? " live-trading-tab__field--off" : ""}`}
                 >
                   <span className="live-trading-tab__label">
                     {ko.app.liveTradeFieldAmountKrw}
@@ -619,15 +631,18 @@ export default function LiveTradingTab({
                     onChange={(e) =>
                       setDraft((d) => ({ ...d, orderAmountKrw: e.target.value }))
                     }
-                    disabled={!draft.marketsKr && !draft.marketsCrypto}
+                    disabled={!draft.marketsKr}
                   />
                 </label>
 
                 <label
-                  className={`live-trading-tab__field${!draft.marketsUs ? " live-trading-tab__field--off" : ""}`}
+                  className={`live-trading-tab__field${!draft.marketsUs && !draft.marketsCrypto ? " live-trading-tab__field--off" : ""}`}
                 >
                   <span className="live-trading-tab__label">
-                    {ko.app.liveTradeFieldAmountUsd}
+                    {usdAmountFieldLabel(
+                      draft.marketsUs,
+                      draft.marketsCrypto,
+                    )}
                   </span>
                   <input
                     type="number"
@@ -638,7 +653,7 @@ export default function LiveTradingTab({
                     onChange={(e) =>
                       setDraft((d) => ({ ...d, orderAmountUsd: e.target.value }))
                     }
-                    disabled={!draft.marketsUs}
+                    disabled={!draft.marketsUs && !draft.marketsCrypto}
                   />
                 </label>
               </div>
@@ -784,11 +799,16 @@ export default function LiveTradingTab({
                       {ko.app.liveTradeMinScoreShort}: {Math.round(p.minScoreRatio * 100)}%
                     </p>
                     <p className="live-trading-tab__program-meta">
-                      {p.markets.kr || p.markets.crypto
+                      {p.markets.kr
                         ? `${ko.app.liveTradeFieldAmountKrw}: ${formatMoney(p.orderAmountKrw, "krw")}`
                         : ""}
-                      {p.markets.us
-                        ? ` · ${ko.app.liveTradeFieldAmountUsd}: ${formatMoney(p.orderAmountUsd, "usd")}`
+                      {p.markets.us || p.markets.crypto
+                        ? `${p.markets.kr ? " · " : ""}${usdAmountFieldLabel(p.markets.us, p.markets.crypto)}: ${formatMoney(
+                            p.markets.crypto && p.orderAmountUsd == null
+                              ? p.orderAmountKrw
+                              : p.orderAmountUsd,
+                            "usd",
+                          )}`
                         : ""}
                     </p>
                     <p className="live-trading-tab__program-meta live-trading-tab__program-return">

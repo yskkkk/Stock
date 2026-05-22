@@ -21,7 +21,7 @@ export function normalizeLiveTradeMarket(market, symbol) {
 
 /** @param {LiveTradeMarket} market */
 export function liveTradeCurrency(market) {
-  return market === "us" ? "USD" : "KRW";
+  return market === "us" || market === "crypto" ? "USD" : "KRW";
 }
 
 /**
@@ -41,6 +41,10 @@ export function programAllowsMarket(program, market) {
  */
 export function orderAmountForMarket(program, market) {
   if (market === "us") return program.orderAmountUsd;
+  if (market === "crypto") {
+    if (program.orderAmountUsd != null) return program.orderAmountUsd;
+    return program.orderAmountKrw;
+  }
   return program.orderAmountKrw;
 }
 

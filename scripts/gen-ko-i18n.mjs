@@ -163,6 +163,9 @@ const t = {
     liveTradeFieldModel: "\uae30\uc220 \ubd84\uc11d \ubaa8\ub378",
     liveTradeFieldMinScore: "\ucd5c\uc18c \uc810\uc218 (\ud154\ub808\uadf8\ub7a8 \uae30\uc900 \ube44\uc728)",
     liveTradeFieldAmountKrw: "\uad6d\ub0b4 1\ud68c \ub9e4\uc218 \uae08\uc561 (\uc6d0)",
+    liveTradeFieldAmountCrypto: "\ucf54\uc778 1\ud68c \ub9e4\uc218 \uae08\uc561 ($)",
+    liveTradeFieldAmountUsdCrypto:
+      "\ubbf8\uad6d\u00b7\ucf54\uc778 1\ud68c \ub9e4\uc218 \uae08\uc561 ($)",
     liveTradeFieldSimAutoBuy: "\uc54c\ub9bc \uc2dc \uc790\ub3d9 \uc2dc\ubbac \ub9e4\uc218",
     liveTradeFieldAutoSell: "\ubaa9\ud45c\u00b7\uc190\uc808\uac00 \uc790\ub3d9 \ub9e4\ub3c4",
     liveTradeFieldAmountUsd: "\ubbf8\uad6d 1\ud68c \ub9e4\uc218 \uae08\uc561 ($)",

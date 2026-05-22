@@ -163,6 +163,8 @@ export const ko = {
     liveTradeFieldModel: "기술 분석 모델",
     liveTradeFieldMinScore: "최소 점수 (텔레그램 기준 비율)",
     liveTradeFieldAmountKrw: "국내 1회 매수 금액 (원)",
+    liveTradeFieldAmountCrypto: "코인 1회 매수 금액 ($)",
+    liveTradeFieldAmountUsdCrypto: "미국·코인 1회 매수 금액 ($)",
     liveTradeFieldSimAutoBuy: "알림 시 자동 시뮬 매수",
     liveTradeFieldAutoSell: "목표·손절가 자동 매도",
     liveTradeFieldAmountUsd: "미국 1회 매수 금액 ($)",
