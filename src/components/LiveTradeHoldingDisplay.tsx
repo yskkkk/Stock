@@ -117,6 +117,7 @@ export function LiveHoldingChartSymbol({
         className={cls}
         onClick={() => onOpen(holding)}
         aria-pressed={selected}
+        title={ko.app.liveTradeChartOpenLookup}
       >
         <span className="live-portfolio__sym">{holding.symbol}</span>
         <span className="live-portfolio__nm">{holding.name}</span>
@@ -133,6 +134,7 @@ export function LiveHoldingChartSymbol({
       className={cls}
       onClick={() => onOpen(holding)}
       aria-pressed={selected}
+      title={ko.app.liveTradeChartOpenLookup}
     >
       <span className="live-sim-run__sym">{holding.symbol}</span>
       <span className="live-sim-run__name">{holding.name}</span>

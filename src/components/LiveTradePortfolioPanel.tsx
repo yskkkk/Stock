@@ -26,7 +26,6 @@ import {
   LiveTradeExitPriceCell,
   LiveTradeHoldingRationaleRow,
 } from "./LiveTradeHoldingDisplay";
-import { liveHoldingKey } from "../lib/liveHoldingToPick";
 
 type PanelTab = "summary" | "holdings" | "trades";
 
@@ -117,13 +116,11 @@ function HoldingRow({
   busy,
   onSold,
   onOpenHoldingChart,
-  chartPickKey,
 }: {
   row: LiveTradeHolding;
   busy: boolean;
   onSold: () => void;
   onOpenHoldingChart?: (h: LiveTradeHolding) => void;
-  chartPickKey?: string | null;
 }) {
   const [sellOpen, setSellOpen] = useState(false);
   const [sellQty, setSellQty] = useState(() => String(row.quantity));
@@ -161,7 +158,6 @@ function HoldingRow({
         <LiveHoldingChartSymbol
           holding={row}
           variant="portfolio"
-          selected={chartPickKey != null && chartPickKey === liveHoldingKey(row)}
           onOpen={onOpenHoldingChart}
         />
       </td>
@@ -298,11 +294,9 @@ function HoldingRow({
 export default function LiveTradePortfolioPanel({
   programs,
   onOpenHoldingChart,
-  chartPickKey,
 }: {
   programs: LiveTradeProgram[];
   onOpenHoldingChart?: (h: LiveTradeHolding) => void;
-  chartPickKey?: string | null;
 }) {
   const [tab, setTab] = useState<PanelTab>("summary");
   const [programId, setProgramId] = useState<string>("");
@@ -464,7 +458,6 @@ export default function LiveTradePortfolioPanel({
                         row={h}
                         busy={busy}
                         onOpenHoldingChart={onOpenHoldingChart}
-                        chartPickKey={chartPickKey}
                         onSold={() => {
                           setBusy(true);
                           void load().finally(() => setBusy(false));

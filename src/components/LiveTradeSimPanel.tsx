@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSymbolLiveQuotes } from "../hooks/useSymbolLiveQuotes";
+import { mergeQuotesIntoStockSearchRows } from "../lib/stockSearchLiveQuotes";
 import {
   fetchStockSearch,
   simulateLiveTradeBuy,
@@ -68,6 +70,26 @@ export default function LiveTradeSimPanel({
     }, 280);
     return () => window.clearTimeout(t);
   }, [q, market]);
+
+  const quoteSymbols = useMemo(() => {
+    const s = new Set<string>();
+    for (const h of hits) s.add(h.symbol);
+    if (selected?.symbol) s.add(selected.symbol);
+    return [...s];
+  }, [hits, selected?.symbol]);
+
+  const liveQuotes = useSymbolLiveQuotes(quoteSymbols, quoteSymbols.length > 0);
+
+  const displayHits = useMemo(
+    () => mergeQuotesIntoStockSearchRows(hits, liveQuotes),
+    [hits, liveQuotes],
+  );
+
+  const displaySelected = useMemo(() => {
+    if (!selected) return null;
+    const [one] = mergeQuotesIntoStockSearchRows([selected], liveQuotes);
+    return one ?? selected;
+  }, [selected, liveQuotes]);
 
   const onBuy = useCallback(() => {
     if (!programId) {
@@ -156,9 +178,9 @@ export default function LiveTradeSimPanel({
         />
       </label>
 
-      {hits.length > 0 && !selected ? (
+      {displayHits.length > 0 && !selected ? (
         <ul className="live-sim__hits">
-          {hits.map((h) => (
+          {displayHits.map((h) => (
             <li key={h.symbol}>
               <button
                 type="button"
@@ -183,9 +205,23 @@ export default function LiveTradeSimPanel({
         </ul>
       ) : null}
 
-      {selected ? (
+      {displaySelected ? (
         <p className="live-sim__picked">
-          {selected.symbol} · {selected.nameKo ?? selected.name}
+          {displaySelected.symbol} · {displaySelected.nameKo ?? displaySelected.name}
+          {displaySelected.price != null ? (
+            <>
+              {" "}
+              ·{" "}
+              {formatPrice(
+                displaySelected.price,
+                displaySelected.currency ??
+                  (displaySelected.market === "kr" ? "KRW" : "USD"),
+              )}
+              {displaySelected.changePercent != null
+                ? ` · ${formatPercent(displaySelected.changePercent)}`
+                : ""}
+            </>
+          ) : null}
           <button
             type="button"
             className="btn btn--ghost btn--sm"
@@ -202,7 +238,7 @@ export default function LiveTradeSimPanel({
       <button
         type="button"
         className="btn btn--primary"
-        disabled={busy || !selected || !programId}
+        disabled={busy || !displaySelected || !programId}
         onClick={onBuy}
       >
         {ko.app.liveTradeSimBuy}

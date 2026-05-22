@@ -74,7 +74,7 @@ import {
   persistProfitSell,
 } from "./lib/userPersist";
 import { filterPicksByQuery } from "./lib/searchPicks";
-import { liveHoldingKey, liveHoldingToStockPick } from "./lib/liveHoldingToPick";
+import { liveHoldingToStockPick } from "./lib/liveHoldingToPick";
 import { startBackgroundTabPrefetch } from "./lib/tabPrefetch";
 import { warmOpsDevQueueDisplay } from "./lib/opsDevQueueDisplayClient";
 import { sortPicksList, type SortKey } from "./lib/sortPicks";
@@ -137,7 +137,6 @@ export default function App() {
   const [sortKey, setSortKey] = useState<SortKey>("score");
   const [screenerSelected, setScreenerSelected] = useState<StockPick | null>(null);
   const [lookupSelected, setLookupSelected] = useState<StockPick | null>(null);
-  const [liveTradeSelected, setLiveTradeSelected] = useState<StockPick | null>(null);
   const [timeframe, setTimeframe] = useState<ChartTimeframe>("1m");
   const [quote, setQuote] = useState<QuoteResponse | null>(null);
   const [candles, setCandles] = useState<Candle[]>([]);
@@ -220,7 +219,6 @@ export default function App() {
   const clearWorkspacePick = useCallback(() => {
     if (appTab === "screener") setScreenerSelected(null);
     else if (appTab === "stockLookup") setLookupSelected(null);
-    else if (appTab === "liveTrading") setLiveTradeSelected(null);
   }, [appTab]);
 
   const hasWorkspacePickForBack =
@@ -228,9 +226,7 @@ export default function App() {
       ? Boolean(screenerSelected)
       : appTab === "stockLookup"
         ? Boolean(lookupSelected)
-        : appTab === "liveTrading"
-          ? Boolean(liveTradeSelected)
-          : false;
+        : false;
 
   useMobileBackHandler(
     showAccessAdmin,
@@ -438,10 +434,11 @@ export default function App() {
       : (picks?.us.length ?? 0);
 
   const workspacePick = useMemo(() => {
-    if (appTab === "crypto" || appTab === "ops") return null;
-    if (appTab === "liveTrading") return liveTradeSelected;
+    if (appTab === "crypto" || appTab === "ops" || appTab === "liveTrading") {
+      return null;
+    }
     return appTab === "stockLookup" ? lookupSelected : screenerSelected;
-  }, [appTab, lookupSelected, screenerSelected, liveTradeSelected]);
+  }, [appTab, lookupSelected, screenerSelected]);
 
   const workspacePickRef = useRef<StockPick | null>(null);
   workspacePickRef.current = workspacePick;
@@ -569,13 +566,11 @@ export default function App() {
   }, []);
 
   const handleLiveTradeChart = useCallback((h: LiveTradeHolding) => {
-    setLiveTradeSelected(liveHoldingToStockPick(h));
+    const pick = liveHoldingToStockPick(h);
+    setLookupSelected(pick);
+    setLookupMarketTab(pick.market);
+    setAppTab("stockLookup");
   }, []);
-
-  const liveTradeChartPickKey = useMemo(
-    () => (liveTradeSelected ? liveHoldingKey(liveTradeSelected) : null),
-    [liveTradeSelected],
-  );
 
   const handleCryptoFocusConsumed = useCallback(() => {
     setCryptoFocusSymbol(null);
@@ -1155,6 +1150,11 @@ export default function App() {
         />
       ) : appTab === "recommendations" ? (
         <RecommendationsTab onOpenPick={handleSelect} />
+      ) : appTab === "liveTrading" ? (
+        <LiveTradingTab
+          onOpenRecommendations={() => setAppTab("recommendations")}
+          onOpenHoldingChart={handleLiveTradeChart}
+        />
       ) : appTab === "ops" ? (
         <div className="workspace ops-workspace">
           <section
@@ -1165,28 +1165,8 @@ export default function App() {
           </section>
         </div>
       ) : (
-        <div
-          className={
-            appTab === "liveTrading"
-              ? "workspace workspace--live-trade"
-              : "workspace"
-          }
-        >
-        <aside
-          className={
-            appTab === "liveTrading"
-              ? "picks-panel card live-trading-side"
-              : "picks-panel card"
-          }
-        >
-          {appTab === "liveTrading" ? (
-            <LiveTradingTab
-              onOpenRecommendations={() => setAppTab("recommendations")}
-              onOpenHoldingChart={handleLiveTradeChart}
-              chartPickKey={liveTradeChartPickKey}
-            />
-          ) : (
-          <>
+        <div className="workspace">
+        <aside className="picks-panel card">
           <div className="panel-head">
             <div className="panel-head__filters">
               <div className="market-tabs">
@@ -1278,8 +1258,6 @@ export default function App() {
               onLookupPickPatch={handleLookupPickPatch}
             />
           )}
-          </>
-          )}
         </aside>
 
         <section
@@ -1294,9 +1272,7 @@ export default function App() {
               <p className="placeholder-title">
                 {appTab === "stockLookup"
                   ? ko.app.stockLookupSelectTitle
-                  : appTab === "liveTrading"
-                    ? ko.app.liveTradeChartSelectTitle
-                    : ko.app.selectTitle}
+                  : ko.app.selectTitle}
               </p>
             </div>
           ) : (

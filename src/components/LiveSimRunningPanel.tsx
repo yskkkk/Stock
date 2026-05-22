@@ -20,7 +20,6 @@ import {
   LiveTradeExitPriceCell,
   LiveTradeHoldingRationaleRow,
 } from "./LiveTradeHoldingDisplay";
-import { liveHoldingKey } from "../lib/liveHoldingToPick";
 
 function formatTs(ms: number | null): string {
   if (ms == null || !Number.isFinite(ms)) return "—";
@@ -60,7 +59,6 @@ function SimProgramCard({
   refreshKey,
   onProgramUpdated,
   onOpenHoldingChart,
-  chartPickKey,
 }: {
   program: LiveTradeProgram;
   holdings: LiveTradeHolding[];
@@ -70,7 +68,6 @@ function SimProgramCard({
   refreshKey?: number;
   onProgramUpdated?: () => void;
   onOpenHoldingChart?: (h: LiveTradeHolding) => void;
-  chartPickKey?: string | null;
 }) {
   const [expanded, setExpanded] = useState(false);
   const sum = programSummary(holdings);
@@ -254,9 +251,6 @@ function SimProgramCard({
                     <td data-label={ko.app.liveTradePfColSymbol}>
                       <LiveHoldingChartSymbol
                         holding={h}
-                        selected={
-                          chartPickKey != null && chartPickKey === liveHoldingKey(h)
-                        }
                         onOpen={onOpenHoldingChart}
                       />
                     </td>
@@ -390,7 +384,6 @@ export default function LiveSimRunningPanel({
   refreshKey = 0,
   onProgramUpdated,
   onOpenHoldingChart,
-  chartPickKey,
 }: {
   programs: LiveTradeProgram[];
   busy?: boolean;
@@ -399,7 +392,6 @@ export default function LiveSimRunningPanel({
   refreshKey?: number;
   onProgramUpdated?: () => void;
   onOpenHoldingChart?: (h: LiveTradeHolding) => void;
-  chartPickKey?: string | null;
 }) {
   const simPrograms = useMemo(
     () => programs.filter((p) => p.status === "sim"),
@@ -543,7 +535,6 @@ export default function LiveSimRunningPanel({
               refreshKey={refreshKey}
               onProgramUpdated={onProgramUpdated}
               onOpenHoldingChart={onOpenHoldingChart}
-              chartPickKey={chartPickKey}
             />
           ))}
         </div>

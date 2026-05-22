@@ -88,11 +88,9 @@ const emptyDraft = () => ({
 export default function LiveTradingTab({
   onOpenRecommendations,
   onOpenHoldingChart,
-  chartPickKey,
 }: {
   onOpenRecommendations?: () => void;
   onOpenHoldingChart?: (h: LiveTradeHolding) => void;
-  chartPickKey?: string | null;
 }) {
   const prefetched = peekLiveTradingPrefetch();
   const [status, setStatus] = useState<LiveTradingStatusResponse | null>(
@@ -393,13 +391,11 @@ export default function LiveTradingTab({
         onStop={(id) => void handleSimStop(id)}
         onProgramUpdated={() => void reload()}
         onOpenHoldingChart={onOpenHoldingChart}
-        chartPickKey={chartPickKey}
       />
 
       <LiveTradePortfolioPanel
         programs={programs}
         onOpenHoldingChart={onOpenHoldingChart}
-        chartPickKey={chartPickKey}
       />
 
       <div className="live-trading-tab__grid">

@@ -409,7 +409,7 @@ export const ko = {
     reasonSuffix: "로 근거 확인",
     selectTitle: "종목을 선택하세요",
     selectDesc: "왼쪽 목록에서 종목을 누르면 차트가 표시됩니다",
-    liveTradeChartSelectTitle: "보유 종목을 눌러 차트를 보세요",
+    liveTradeChartOpenLookup: "종목 검색 탭에서 차트 보기",
     stockLookupSelectTitle: "종목을 검색하거나 선택하세요",
     stockLookupSelectDesc: "Yahoo Finance 검색 결과에서 종목을 누르면 차트가 열립니다.",
     stockLookupPlaceholder: "이름 또는 심볼 (예: 삼성, AAPL, 005930)",

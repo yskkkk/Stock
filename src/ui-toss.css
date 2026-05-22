@@ -381,19 +381,10 @@ body {
   width: 100%;
 }
 
-/* 실거래: 상단 top-bar와 동일 가로 폭(좁은 picks 열 제한 해제) */
-.workspace.workspace--live-trade {
-  grid-template-columns: 1fr;
+/* 실거래 탭: 전체 폭 단일 패널(차트는 종목 검색 탭) */
+.app--live-trade .live-trading-tab {
   width: 100%;
-  max-width: 100%;
-  align-self: stretch;
-  gap: 0.75rem;
-}
-
-.workspace.workspace--live-trade .chart-section.crypto-chart-section {
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
+  max-width: none;
 }
 
 .live-portfolio__quote-ts {
