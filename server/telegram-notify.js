@@ -868,6 +868,15 @@ function conditionBar(met, total = SIGNAL_CONDITION_TOTAL, width = 10) {
   return "█".repeat(filled) + "░".repeat(width - filled);
 }
 
+/** @param {number} score @param {number} maxScore */
+function formatWeightedScorePercent(score, maxScore) {
+  if (!Number.isFinite(maxScore) || maxScore <= 0) return "—";
+  if (!Number.isFinite(score)) return "0";
+  const pct = (score / maxScore) * 100;
+  const rounded = Math.round(pct * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
 
 
 function buildMessage(pick) {
@@ -916,10 +925,12 @@ function buildMessage(pick) {
   const weights = pick.techModelWeights;
   const maxScore = getMaxTechScore(weights);
   const minScore = minTelegramScoreRequired(weights);
+  const scorePct = formatWeightedScorePercent(pick.score, maxScore);
+  const thresholdPct = Math.round(MIN_TELEGRAM_SCORE_RATIO * 100);
 
   return [
 
-    `<b>${flag} ${marketLabel} · 점수 ${Math.round(MIN_TELEGRAM_SCORE_RATIO * 100)}%+ 알림</b>`,
+    `<b>${flag} ${marketLabel} · 가중 점수 ${scorePct}% 알림</b>`,
 
     "",
 
@@ -937,7 +948,7 @@ function buildMessage(pick) {
 
     `<code>${bar}</code>`,
 
-    `📈 가중 점수  <b>${pick.score}</b> / ${maxScore} (알림 기준 ${minScore}점 초과)`,
+    `📈 가중 점수  <b>${pick.score}</b> / ${maxScore} (<b>${scorePct}%</b>, 발송 기준 ${thresholdPct}% = ${minScore}점 초과)`,
 
     "",
 
