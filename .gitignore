@@ -31,3 +31,4 @@ android/local.properties
 ios/App/Pods/
 ios/DerivedData/
 *.xcuserstate
+.auto-git-sync.pause

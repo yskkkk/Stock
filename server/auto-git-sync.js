@@ -37,6 +37,7 @@ import { respawnNodeProcess } from "./restart-node-process.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
+const PAUSE_FILE = path.join(repoRoot, ".auto-git-sync.pause");
 
 function truthy(v) {
   const s = String(v ?? "").toLowerCase();
@@ -141,6 +142,10 @@ export function startAutoGitSync({ httpServer }) {
     }
 
     const remoteRef = `${remote}/${branch}`;
+
+    if (existsSync(PAUSE_FILE)) {
+      return;
+    }
 
     try {
       execGitQuiet(["fetch", remote, branch]);

@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git restore *)",
+      "Bash(git push *)",
+      "Bash(grep -v \"//.*setInterval\")",
+      "Bash(git stash *)"
+    ]
+  }
+}
