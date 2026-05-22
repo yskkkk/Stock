@@ -211,9 +211,6 @@ export function createTechModelSync(opts) {
  */
 export function updateTechModelSync(id, patch) {
   const sid = String(id ?? "").trim();
-  if (sid === DEFAULT_TECH_MODEL_ID && patch.weights) {
-    throw new Error("기본 모델 가중치는 '기본 가중치로 복원'으로만 초기화할 수 있습니다.");
-  }
   const store = readStoreSync();
   const model = store.models.find((m) => m.id === sid);
   if (!model) throw new Error("모델을 찾을 수 없습니다.");

@@ -7113,8 +7113,37 @@ body {
   margin-top: 0.5rem;
 }
 
-.rec-tracker-upgrade__reset {
-  width: 100%;
+.rec-tracker-upgrade__reset-row {
+  margin: 0.45rem 0 0;
+  text-align: center;
+}
+
+.rec-tracker-upgrade__reset-link {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.rec-tracker-upgrade__reset-link:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.rec-tracker-upgrade__reset-link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.rec-tracker-upgrade__err {
+  margin: 0.5rem 0 0;
+  font-size: 0.82rem;
+  color: var(--down);
+  font-weight: 600;
 }
 
 .rec-tracker-upgrade__actions .btn--primary {
