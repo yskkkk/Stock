@@ -181,7 +181,7 @@ export function cryptoSpotDisplayName(base) {
     const stripped = b.replace(/^[0-9]+/, "");
     row = BY_BASE[stripped];
   }
-  if (!row) return `알트 (${b})`;
+  if (!row) return b;
   if (row.en && row.ko && row.en !== row.ko) return `${row.en} / ${row.ko}`;
   return row.ko;
 }
