@@ -3000,46 +3000,18 @@ html[data-theme="light"] .app-site-footer__link:hover {
 
 @media (max-width: 560px) {
   .app-site-footer__nav {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    justify-items: center;
-    align-items: center;
     font-size: 0.72rem;
-    gap: 0.2rem 0.35rem;
-    row-gap: 0.3rem;
-  }
-
-  .app-site-footer__pair {
-    justify-content: center;
-    width: 100%;
-  }
-
-  .app-site-footer__sep,
-  .app-site-footer__dot {
-    display: none;
+    gap: 0.1rem;
   }
 
   .app-site-footer__link {
-    padding: 0.3rem 0.5rem;
-    min-height: 40px;
-  }
-
-  .app-site-footer__theme {
-    grid-column: 1 / -1;
-    justify-content: center;
-    width: 100%;
-    margin-top: 0.1rem;
+    padding: 0.28rem 0.4rem;
   }
 
   .app-site-footer__palette {
-    width: auto;
+    width: 100%;
     justify-content: center;
-    margin-top: 0;
-  }
-
-  .app-site-footer .app-server-restart-inline {
-    grid-column: 1 / -1;
-    justify-content: center;
+    margin-top: 0.15rem;
   }
 }
 
@@ -3047,6 +3019,24 @@ html[data-theme="light"] .app-site-footer__link:hover {
 .signal-filter .filter-presets,
 .rec-tracker-signals__chips {
   overflow: visible;
+}
+
+/* 조건 칩 호버 설명 — 레이아웃에 끼어 나오지 않게(툴팁만) */
+.signal-filter .signal-hint-wrap {
+  display: inline-flex;
+  max-width: none;
+  vertical-align: middle;
+}
+
+.signal-filter .signal-hint-wrap__tip {
+  white-space: normal;
+  word-break: keep-all;
+}
+
+.signal-filter .signal-hint-wrap__tip-title,
+.signal-filter .signal-hint-wrap__tip-body {
+  display: block;
+  white-space: normal;
 }
 
 .signal-hint-wrap {

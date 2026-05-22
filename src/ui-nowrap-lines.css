@@ -1,4 +1,4 @@
-/* 진행·상태·짧은 메타 — 단어 중간 줄바꿈 방지(말줄임·가로 스크롤) */
+/* 스크리너 상단 진행 줄만 — 단어 중간 줄나눔 방지 */
 
 .scan-status--compact,
 .scan-status--bar.scan-status--compact {
@@ -38,7 +38,6 @@
   white-space: nowrap;
   flex-shrink: 0;
   word-break: keep-all;
-  overflow-wrap: normal;
 }
 
 .scan-status__msg {
@@ -54,67 +53,6 @@
   max-width: 100%;
 }
 
-.panel-head__meta {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-  min-width: 0;
-}
-
-.live-trading-tab__program-meta,
-.live-trading-tab__program-ts,
-.live-trading-tab__banner,
-.live-portfolio__metric-k,
-.live-portfolio__metric-sub,
-.live-portfolio__metric-line-text,
-.live-sim-run__card-ts,
-.live-sim-run__card-summary,
-.live-sim__note,
-.filter-hint,
-.panel-hint,
-.rec-tracker-filter-hint,
-.macro-card__label,
-.macro-card__countdown,
-.macro-bar__title,
-.chart-toolbar__muted,
-.scan-status--compact .progress-bar {
-  white-space: nowrap;
-}
-
-.live-trading-tab__program-meta,
-.live-portfolio__metric-line-text,
-.live-sim-run__card-summary,
-.panel-hint,
-.rec-tracker-filter-hint,
-.macro-card__label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-  min-width: 0;
-}
-
-.ops-global-queue-card__field dd,
-.ops-global-queue-card__title-dd,
-.ops-global-queue-stack__heading {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.quote-bar__title-line {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-}
-
-.pick-quote__symbol,
-.pick-quote__chg,
-.crypto-pick-ticker {
-  white-space: nowrap;
-}
-
 @media (max-width: 900px) {
   .top-bar__scan {
     overflow-x: auto;
@@ -125,20 +63,5 @@
 
   .top-bar__scan::-webkit-scrollbar {
     display: none;
-  }
-
-  .scan-status--bar.scan-status--compact,
-  .scan-status--compact {
-    flex-wrap: nowrap;
-  }
-
-  .scan-status--bar.scan-status--compact .scan-status__primary,
-  .scan-status--compact .scan-status__primary {
-    flex-wrap: nowrap;
-  }
-
-  .scan-status--bar.scan-status--compact .scan-status__secondary,
-  .scan-status--compact .scan-status__secondary {
-    flex-wrap: nowrap;
   }
 }
