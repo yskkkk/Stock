@@ -750,9 +750,7 @@ export default function App() {
 
   const handleReason = useCallback((pick: StockPick) => {
     closeNews();
-    setReasonPick(
-      pick.bullishReasons?.length ? pick : enrichBullishPick(pick),
-    );
+    setReasonPick(enrichBullishPick(pick));
   }, [closeNews]);
 
   async function handleRescan() {

@@ -1,6 +1,5 @@
 import type { SignalId } from "../constants/signals";
 import {
-  FILTER_OPTIONS,
   meetsConditionThreshold,
   minConditionsRequired,
   SIGNAL_CONDITION_TOTAL,
@@ -8,6 +7,8 @@ import {
 import type { Market, StockPick } from "../types";
 import { resolvePickSignalIds } from "../constants/signalChips";
 import { pickHasSignal } from "./filterPicks";
+import { MIN_CONDITION_SATISFY_RATIO } from "../constants/signals";
+import { MAX_TECH_SCORE, weightedScoreFromSignalIds } from "./techScore";
 
 const STRONG_BULLISH: SignalId[] = ["ma_golden", "ma_align"];
 
@@ -65,19 +66,44 @@ export function isBullishCandidate(pick: StockPick) {
   return meetsConditionThreshold(conditionMetCount(pick));
 }
 
+function buildConditionSummaryLine(met: number, minMet: number): string {
+  const pct = Math.round((met / SIGNAL_CONDITION_TOTAL) * 100);
+  const thresholdPct = Math.round(MIN_CONDITION_SATISFY_RATIO * 100);
+  if (met >= minMet) {
+    return `기술적 조건 ${met}/${SIGNAL_CONDITION_TOTAL}개 충족(${pct}%) — 스크리너 추천 기준(${minMet}개 이상, ${thresholdPct}%+)을 만족합니다.`;
+  }
+  const shortfall = minMet - met;
+  return `기술적 조건 ${met}/${SIGNAL_CONDITION_TOTAL}개만 충족(${pct}%) — 스크리너 자동 추천·텔레그램 알림 기준은 ${minMet}개 이상(${thresholdPct}%+)이라 현재 미달입니다. (${shortfall}개 부족)`;
+}
+
+function weightedScoreBreakdown(pick: StockPick) {
+  const ids = resolvePickSignalIds(pick);
+  const score = ids.length > 0 ? weightedScoreFromSignalIds(ids) : pick.score;
+  const maxScore = MAX_TECH_SCORE;
+  const pctLabel =
+    maxScore > 0
+      ? (Math.min(100, (score / maxScore) * 100)).toFixed(1)
+      : "0.0";
+  return { score, maxScore, pctLabel };
+}
+
 export function buildBullishReasons(pick: StockPick): string[] {
   const reasons: string[] = [];
   const met = conditionMetCount(pick);
   const minMet = minConditionsRequired();
-  const pct = Math.round((met / SIGNAL_CONDITION_TOTAL) * 100);
+  const screenerPass = met >= minMet;
 
-  reasons.push(
-    `기술적 조건 ${met}/${SIGNAL_CONDITION_TOTAL}개 충족(${pct}%)으로, 스크리너 기준 ${minMet}개 이상(${Math.round(0.8 * 100)}%+)을 만족했습니다.`,
-  );
+  reasons.push(buildConditionSummaryLine(met, minMet));
 
+  const { score, maxScore, pctLabel } = weightedScoreBreakdown(pick);
   reasons.push(
-    `가중 기술 점수는 ${pick.score}점(최대 ${FILTER_OPTIONS.length}개 조건 기준 참고 점수)입니다.`,
+    `가중 기술 점수는 ${score}점 / ${maxScore}점(모델 만점 대비 ${pctLabel}%)입니다.`,
   );
+  if (!screenerPass) {
+    reasons.push(
+      "아래 항목은 현재 충족된 신호에 대한 설명이며, 전체 조건을 만족했다는 뜻은 아닙니다.",
+    );
+  }
 
   const strong = strongSignalCount(pick);
   if (strong >= 2) {
@@ -96,9 +122,15 @@ export function buildBullishReasons(pick: StockPick): string[] {
       `당일 전일 대비 ${chg >= 0 ? "+" : ""}${chg.toFixed(2)}% 상승하며 단기 모멘텀이 살아 있습니다.`,
     );
   } else if (chg != null && chg < 0) {
-    reasons.push(
-      `당일은 ${chg.toFixed(2)}% 조정 중이나, 기술적 지표는 상승 전환·지속 신호를 보입니다.`,
-    );
+    if (screenerPass) {
+      reasons.push(
+        `당일은 ${chg.toFixed(2)}% 조정 중이나, 충족한 기술 조건 기준으로는 상승 전환·지속 신호가 함께 보입니다.`,
+      );
+    } else {
+      reasons.push(
+        `당일 등락은 ${chg.toFixed(2)}%입니다. 조건 미달 상태에서는 단기 조정과 기술 신호가 함께 나타날 수 있습니다.`,
+      );
+    }
   }
 
   return reasons;
