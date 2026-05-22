@@ -1440,7 +1440,8 @@ body {
   min-width: 5.5rem;
   padding: 0.45rem 0.55rem;
   border-radius: 8px;
-  background: var(--surface-3, rgba(0, 0, 0, 0.04));
+  border: 1px solid var(--card-border, rgba(148, 163, 184, 0.15));
+  background: color-mix(in srgb, var(--card) 78%, var(--surface));
 }
 
 .live-sim-run__tile-k {
@@ -1721,7 +1722,7 @@ body {
   padding: 0.55rem 0.65rem;
   border-radius: var(--radius-sm, 6px);
   border: 1px solid var(--card-border, rgba(148, 163, 184, 0.15));
-  background: rgba(10, 14, 19, 0.25);
+  background: color-mix(in srgb, var(--card) 78%, var(--surface));
 }
 
 .live-portfolio__tile-k {
@@ -1736,6 +1737,7 @@ body {
   font-size: 0.92rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  color: var(--text, #f1f5f9);
 }
 
 .live-portfolio__tile-v--up {
