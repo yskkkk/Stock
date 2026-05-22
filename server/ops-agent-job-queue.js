@@ -7,13 +7,10 @@
 import { randomUUID } from "node:crypto";
 import {
   getRepoHeadRev,
-  summarizeGitPullRangeForNotify,
-  summarizeGitReflectionForNotify,
 } from "./ops-agent-git-push.js";
-import { readAgentResponseForIdeSession } from "./ops-ide-transcript-text.js";
-import { notifyOpsDevGitReflection } from "./ops-dev-git-telegram.js";
+import { notifyIdeDevelopmentCompleted } from "./ops-ide-completion-notify.js";
 import {
-  findCanonicalIdeHistoryIdForPromptSync,
+  findActiveIdeHistoryIdForPromptSync,
   finalizeOpsAgentEntry,
   trimStoredTextForOpsHistory,
   upsertOpsAgentHistoryFromQueueSync,
@@ -26,8 +23,12 @@ import {
 import {
   clearIdeLeaseOnDisk,
   mergeIdeLeaseDiskIntoAgentEntries,
+  readIdeLeaseDiskSync,
 } from "./ops-ide-lease-disk.js";
-import { metaToPersistEntry } from "./ops-dev-queue-live-store.js";
+import {
+  metaToPersistEntry,
+  readDevQueueDisplaySnapshotSync,
+} from "./ops-dev-queue-live-store.js";
 import { opsIdePromptsMatch } from "./ops-ide-prompt-match.js";
 
 /**
@@ -124,8 +125,8 @@ function buildQueueMeta(meta) {
       ? meta.historyRunId.trim()
       : "";
   if (!id && source === "ide") {
-    const canon = findCanonicalIdeHistoryIdForPromptSync(meta.instruction);
-    if (canon) id = canon;
+    const activeId = findActiveIdeHistoryIdForPromptSync(meta.instruction);
+    if (activeId) id = activeId;
   }
   if (!id) id = randomUUID();
   return {
@@ -217,25 +218,13 @@ function syncIdeHistoryFinalize(slot, state, error = null) {
 
   if (state === "ok" && !slot.devNotifySent) {
     slot.devNotifySent = true;
-    const revEnd = getRepoHeadRev();
-    const revStart = String(slot.gitRevAtStart ?? "").trim();
-    const gitSummary =
-      revStart && revEnd && revStart !== revEnd
-        ? summarizeGitPullRangeForNotify(revStart, revEnd)
-        : summarizeGitReflectionForNotify("local");
     const preview = String(slot.meta.instructionPreview ?? "").trim();
     const userRequest = instruction || preview;
-    let agentResponse = readAgentResponseForIdeSession(slot.sessionId);
-    if (!agentResponse) {
-      agentResponse =
-        "Cursor IDE에서 작업이 끝났습니다. (이 채팅 transcript에서 응답 본문을 찾지 못했습니다.)";
-    }
-    void notifyOpsDevGitReflection({
-      title: "개발 완료",
+    notifyIdeDevelopmentCompleted({
       userRequest,
-      agentResponse,
-      gitSummary,
-      priority: 3,
+      sessionId: slot.sessionId,
+      gitRevAtStart: slot.gitRevAtStart,
+      leaseId: slot.id,
     });
   }
 }
@@ -400,6 +389,15 @@ export function enqueueOpsAgentJob(fn, onQueued, meta, onCommittedToQueue) {
       reject,
     });
     slots.push(slot);
+    if (queueMeta) {
+      try {
+        upsertOpsAgentHistoryFromQueueSync(
+          metaToPersistEntry(queueMeta, "waiting"),
+        );
+      } catch {
+        /* 디스크 오류 — 스트림·큐는 계속 */
+      }
+    }
     bumpDevQueueDisplayMirror();
     try {
       onCommittedToQueue?.();
@@ -460,6 +458,65 @@ export function releaseRunningIdeDevQueueIfDifferentPrompt(prompt) {
     return { ok: true, skipped: true, samePrompt: true };
   }
   return releaseIdeDevQueueSlot({ leaseId: runningSlot.id });
+}
+
+/**
+ * Vite·서버 재시작으로 메모리 FIFO가 비었을 때 lease·display 미러에서 IDE 대기 복구.
+ * @returns {{ recovered: number }}
+ */
+export function recoverIdeDevQueueFromPersistedState() {
+  if (active || slots.length > 0) return { recovered: 0 };
+
+  let recovered = 0;
+
+  const tryRecover = (/** @type {string} */ prompt, /** @type {string | null} */ sessionId) => {
+    const p = String(prompt ?? "").trim();
+    if (!p || findActiveIdeSlotByPrompt(p)) return;
+    try {
+      registerIdeDevQueueSlot({ prompt: p, sessionId });
+      recovered += 1;
+    } catch (e) {
+      const code =
+        e && typeof e === "object" && "code" in e
+          ? String(/** @type {{ code?: string }} */ (e).code)
+          : "";
+      if (code !== "OPS_QUEUE_FULL" && code !== "IDE_SESSION_BUSY") {
+        console.warn(
+          "[ops-queue] IDE 큐 복구 실패:",
+          e instanceof Error ? e.message : e,
+        );
+      }
+    }
+  };
+
+  const lease = readIdeLeaseDiskSync();
+  if (lease) {
+    const prompt = String(
+      lease.instructionBody ??
+        lease.instructionPreview ??
+        lease.prompt ??
+        "",
+    ).trim();
+    const sessionId = String(lease.sessionId ?? "").trim() || null;
+    tryRecover(prompt, sessionId);
+  }
+
+  if (recovered === 0) {
+    const snap = readDevQueueDisplaySnapshotSync();
+    for (const e of snap.agentEntries) {
+      if (e.status !== "waiting") continue;
+      if (e.source !== "ide" && e.requestIp !== "cursor-ide") continue;
+      const prompt = String(e.instructionBody ?? e.instructionPreview ?? "").trim();
+      const sessionId = String(e.sessionId ?? "").trim() || null;
+      tryRecover(prompt, sessionId);
+    }
+  }
+
+  if (recovered > 0) {
+    console.info(`[ops-queue] IDE 개발 큐 ${recovered}건 메모리 복구`);
+    bumpDevQueueDisplayMirror();
+  }
+  return { recovered };
 }
 
 export function registerIdeDevQueueSlot(input) {
@@ -646,12 +703,17 @@ export function releaseIdeDevQueueSlot(input) {
  * 에이전트 턴 종료·훅 release — 실행 중 IDE 슬롯 + 고아 lease 정리.
  * @returns {{ ok: boolean; released?: boolean; cleared?: boolean }}
  */
-export function releaseAnyRunningIdeDevQueueSlot() {
+/**
+ * @param {{ notify?: { userRequest: string; sessionId?: string | null; transcriptPath?: string | null; gitRevAtStart?: string | null } }} [opts]
+ */
+export function releaseAnyRunningIdeDevQueueSlot(opts = {}) {
   let released = false;
+  let notifyScheduled = false;
 
   if (active && runningSlot?.source === "ide") {
     const out = releaseIdeDevQueueSlot({ leaseId: runningSlot.id });
     released = out.ok;
+    notifyScheduled = released;
   }
 
   if (!released) {
@@ -661,6 +723,32 @@ export function releaseAnyRunningIdeDevQueueSlot() {
       if (active && runningSlot?.id === s.id) continue;
       const ab = abandonIdeDevQueueSlot(s.id);
       if (ab.ok) released = true;
+    }
+  }
+
+  if (!notifyScheduled) {
+    const notify = opts.notify?.userRequest
+      ? opts.notify
+      : (() => {
+          const lease = readIdeLeaseDiskSync();
+          const prompt = String(
+            lease?.prompt ?? lease?.instructionPreview ?? "",
+          ).trim();
+          if (!prompt) return null;
+          return {
+            userRequest: prompt,
+            sessionId: String(lease?.sessionId ?? "").trim() || null,
+            transcriptPath: null,
+            gitRevAtStart: null,
+          };
+        })();
+    if (notify?.userRequest) {
+      notifyIdeDevelopmentCompleted({
+        userRequest: notify.userRequest,
+        sessionId: notify.sessionId,
+        transcriptPath: notify.transcriptPath ?? undefined,
+        gitRevAtStart: notify.gitRevAtStart ?? undefined,
+      });
     }
   }
 

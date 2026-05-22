@@ -27,7 +27,8 @@ const TURN_END_IDLE_MS = (() => {
   return 4000;
 })();
 /** @deprecated */ const IDLE_RELEASE_MS = TURN_END_IDLE_MS;
-const STALE_LEASE_MS = 8_000;
+/** 훅 enqueue 전·서버 재시작 직후 lease 유지 (display-sync 120s와 맞춤) */
+const STALE_LEASE_MS = 120_000;
 const TRANSCRIPT_POLLER_MARKER = path.join(
   process.cwd(),
   ".stock-ops-transcript-poller.on",
@@ -49,6 +50,9 @@ let lastProcessedUserKey = "";
 let lastFileMtimeMs = 0;
 let lastFileChangeMs = 0;
 let lastTranscriptLineCount = 0;
+
+/** @type {{ filePath: string; sessionId: string; prompt: string; lineIndex: number } | null} */
+let lastTurnNotifyContext = null;
 
 function resolveTranscriptRoot() {
   const fromEnv = String(process.env.STOCK_AGENT_TRANSCRIPTS_DIR ?? "").trim();
@@ -145,16 +149,31 @@ function parseLastAssistantTail(lines) {
   return null;
 }
 
-function releaseActiveLease() {
+/**
+ * @param {string} filePath
+ */
+function releaseActiveLease(filePath) {
+  const notify =
+    lastTurnNotifyContext &&
+    lastTurnNotifyContext.filePath === filePath &&
+    lastTurnNotifyContext.prompt
+      ? {
+          userRequest: lastTurnNotifyContext.prompt,
+          sessionId: lastTurnNotifyContext.sessionId,
+          transcriptPath: filePath,
+        }
+      : undefined;
+
   activeLeaseId = null;
   activeTranscriptPath = null;
   idleTurnReleasedForMtime = lastFileMtimeMs;
   try {
-    releaseAnyRunningIdeDevQueueSlot();
+    releaseAnyRunningIdeDevQueueSlot(notify ? { notify } : {});
   } catch {
     /* ignore */
   }
   clearIdeLeaseOnDisk();
+  lastTurnNotifyContext = null;
 }
 
 /** 메모리 큐·이 transcript 턴에서 등록한 lease만 — 디스크 lease 재승격 없음 */
@@ -170,8 +189,9 @@ function hasIdeQueueWork(/** @type {ReturnType<typeof getOpsAgentQueueMemorySnap
  *
  * @param {string[]} lines
  * @param {ReturnType<typeof getOpsAgentQueueMemorySnapshot>} snap
+ * @param {string} filePath
  */
-function tryReleaseWhenTurnEnded(lines, snap) {
+function tryReleaseWhenTurnEnded(lines, snap, filePath) {
   /* 메모리만 비었다고 lease를 지우지 않음 — 훅이 enqueue 전에 쓴 lease가 매 100ms마다 삭제되던 원인 */
   if (!hasIdeQueueWork(snap)) return;
 
@@ -186,7 +206,7 @@ function tryReleaseWhenTurnEnded(lines, snap) {
   if (idleTurnReleasedForMtime === lastFileMtimeMs) return;
   idleTurnReleasedForMtime = lastFileMtimeMs;
 
-  releaseActiveLease();
+  releaseActiveLease(filePath);
 }
 
 /**
@@ -216,7 +236,11 @@ function sweepStaleDiskLease(snap) {
         : typeof lease.enqueuedAtMs === "number"
           ? lease.enqueuedAtMs
           : 0;
-    if (since > 0 && Date.now() - since >= STALE_LEASE_MS) {
+    const hasLeaseId = Boolean(String(lease.leaseId ?? lease.id ?? "").trim());
+    const age = since > 0 ? Date.now() - since : 0;
+    const stale =
+      age >= STALE_LEASE_MS && (!hasLeaseId || age >= 30 * 60 * 1000);
+    if (stale) {
       clearIdeLeaseOnDisk();
     }
   } catch {
@@ -383,6 +407,12 @@ function scanTranscriptFile(filePath) {
   }
 
   if (latestUser) {
+    lastTurnNotifyContext = {
+      filePath,
+      sessionId: path.basename(filePath, ".jsonl"),
+      prompt: latestUser.prompt.trim(),
+      lineIndex: latestUser.lineIndex,
+    };
     ensureLatestUserInQueue(filePath, latestUser, lines);
     pollerBootstrapped = true;
   }
@@ -391,7 +421,7 @@ function scanTranscriptFile(filePath) {
     /* mtime·줄 수 변경 플래그만 — enqueue는 위에서 매 틱 처리 */
   }
 
-  tryReleaseWhenTurnEnded(lines, snap);
+  tryReleaseWhenTurnEnded(lines, snap, filePath);
   sweepStaleDiskLease(snap);
 }
 

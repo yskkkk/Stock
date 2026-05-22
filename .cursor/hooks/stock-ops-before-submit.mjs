@@ -82,8 +82,12 @@ try {
       },
       { timeoutMs: 12_000 },
     );
-  } catch {
-    /* 디스크 lease 유지 → UI 즉시 표시, dev 미연결 시 fail-open */
+  } catch (err) {
+    /* 디스크 lease 유지 → UI 즉시 표시; dev 미연결 시 fail-open */
+    console.error(
+      "[stock-ops-hook] dev 큐 연결 실패 — npm run dev 실행·5173 포트 확인:",
+      err instanceof Error ? err.message : err,
+    );
     allow();
     process.exit(0);
   }
