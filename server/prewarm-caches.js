@@ -4,12 +4,21 @@ import { buildRecommendationsTrackerPayload } from "./picks-recommendations-trac
 import { prewarmSectorEarningsCache } from "./sector-earnings-spotlight.js";
 import { probeOpsTelegramSetup, probeStockTelegramSetup } from "./telegram-notify.js";
 
+function probeTelegramOnce() {
+  const g = /** @type {typeof globalThis & { __stockTelegramProbed?: boolean }} */ (
+    globalThis
+  );
+  if (g.__stockTelegramProbed) return;
+  g.__stockTelegramProbed = true;
+  void probeStockTelegramSetup();
+  void probeOpsTelegramSetup();
+}
+
 /** API 첫 요청 지연 줄이기 — 주요 탭 데이터 백그라운드 선로드 */
 export function prewarmAppCaches() {
   prewarmMacroEventsCache();
   prewarmSectorEarningsCache();
-  void probeStockTelegramSetup();
-  void probeOpsTelegramSetup();
+  probeTelegramOnce();
   void buildRecommendationsTrackerPayload({ includeQuotes: false }).catch((e) => {
     console.warn("[prewarm] recommendations-tracker:", e instanceof Error ? e.message : e);
   });

@@ -18,7 +18,7 @@ export function killProcessOnPort(port, opts = {}) {
   }
 
   if (killed.length > 0) {
-    sleepBrief(350);
+    sleepBrief(process.platform === "win32" ? 750 : 350);
   }
 
   return { port, killed };

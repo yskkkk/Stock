@@ -126,15 +126,24 @@ export function stockApiPlugin() {
       attachStockApiMiddlewares(server);
       attachAutoGitSyncWhenListening(server);
       migrateLegacyServerLogsSync();
-      appendServerEventLog("server", "dev 서버 기동 — 로그는 server/.logs 에 append 유지");
-      startDevQueueDisplaySyncPoller();
-      startOpsIdeTranscriptPoller();
-      startLiveTradeAutoSellPoller();
-      startServerSelfImprovementWatcher();
-      setTimeout(() => prewarmAppCaches(), 400);
-      setTimeout(() => {
-        startScreening().catch(logScreeningError);
-      }, 1500);
+      const g = /** @type {typeof globalThis & { __stockViteDevSidecars?: boolean }} */ (
+        globalThis
+      );
+      if (!g.__stockViteDevSidecars) {
+        g.__stockViteDevSidecars = true;
+        appendServerEventLog(
+          "server",
+          "dev 서버 기동 — 로그는 server/.logs 에 append 유지",
+        );
+        startDevQueueDisplaySyncPoller();
+        startOpsIdeTranscriptPoller();
+        startLiveTradeAutoSellPoller();
+        startServerSelfImprovementWatcher();
+        setTimeout(() => prewarmAppCaches(), 400);
+        setTimeout(() => {
+          startScreening().catch(logScreeningError);
+        }, 1500);
+      }
     },
     configurePreviewServer(server) {
       mergeStockProcessEnv(server.config.mode);

@@ -465,7 +465,11 @@ let transcriptWatcher = null;
 
 export function startOpsIdeTranscriptPoller() {
   if (process.env.STOCK_IDE_TRANSCRIPT_POLLER === "0") return;
-  if (pollerStarted) return;
+  const g = /** @type {typeof globalThis & { __stockIdeTranscriptPollerStarted?: boolean }} */ (
+    globalThis
+  );
+  if (g.__stockIdeTranscriptPollerStarted || pollerStarted) return;
+  g.__stockIdeTranscriptPollerStarted = true;
   pollerStarted = true;
 
   try {

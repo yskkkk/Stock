@@ -133,10 +133,22 @@ async function probeTelegramCreds(cfg) {
       console.warn(`[telegram:${label}] getChat failed:`, msg);
       return { ok: false, reason: msg };
     }
+    await fetch(
+      `https://api.telegram.org/bot${token}/deleteWebhook?drop_pending_updates=true`,
+    ).catch(() => {});
+
     const username = meBody.result?.username ?? null;
-    console.info(
-      `[telegram:${label}] ready @${username ?? "?"} → chat ${chatId}`,
+    const g = /** @type {typeof globalThis & { __stockTelegramReadyLogged?: Record<string, boolean> }} */ (
+      globalThis
     );
+    const logKey = String(label);
+    if (!g.__stockTelegramReadyLogged?.[logKey]) {
+      if (!g.__stockTelegramReadyLogged) g.__stockTelegramReadyLogged = {};
+      g.__stockTelegramReadyLogged[logKey] = true;
+      console.info(
+        `[telegram:${label}] ready @${username ?? "?"} → chat ${chatId} (send-only, no polling)`,
+      );
+    }
     return { ok: true, bot: username };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -1157,6 +1169,7 @@ export function notifyHighScorePick(pick) {
  *   state?: "ok" | "error" | "cancelled";
  *   errorText?: string | null;
  *   gitSummary?: string | null;
+ *   turnId?: string | null;
  * }} opts
  */
 export function notifyOpsAgentCompleted(opts) {
@@ -1176,6 +1189,7 @@ export function notifyOpsAgentCompleted(opts) {
     state: opts.state ?? "ok",
     errorText: opts.errorText,
     priority: 3,
+    turnId: opts.turnId,
   });
 }
 

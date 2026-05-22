@@ -11,19 +11,27 @@ function devPortPreemptDisabled() {
  * `npm run dev` 시 5173(또는 Vite server.port)이 이미 열려 있으면 점유 프로세스를 종료한 뒤 기동.
  * @returns {import("vite").Plugin}
  */
+function preemptDevPort(port) {
+  if (devPortPreemptDisabled()) return;
+  const p = Number(port) || 5173;
+  const { killed } = killProcessOnPort(p, { exceptPids: [process.pid] });
+  if (killed.length) {
+    console.info(
+      `[dev] 포트 ${p} 사용 중이어서 종료합니다 (pid: ${killed.join(", ")})`,
+    );
+  }
+}
+
 export function viteDevPortPreemptPlugin() {
   return {
     name: "stock-dev-port-preempt",
     apply: "serve",
+    enforce: "pre",
+    configResolved(config) {
+      preemptDevPort(config.server?.port ?? 5173);
+    },
     configureServer(server) {
-      if (devPortPreemptDisabled()) return;
-      const port = Number(server.config.server?.port) || 5173;
-      const { killed } = killProcessOnPort(port, { exceptPids: [process.pid] });
-      if (killed.length) {
-        console.info(
-          `[dev] 포트 ${port} 사용 중이어서 종료 후 재시작합니다 (pid: ${killed.join(", ")})`,
-        );
-      }
+      preemptDevPort(server.config.server?.port ?? 5173);
     },
   };
 }
