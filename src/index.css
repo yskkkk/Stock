@@ -2936,11 +2936,15 @@ html[data-theme="light"] .access-admin-tab--active {
 
   .app {
     flex: 1 1 auto;
-    min-height: 0;
+    min-height: 100dvh;
     padding-top: 0.35rem;
     padding-right: max(0.45rem, env(safe-area-inset-right, 0px));
     padding-bottom: max(0.55rem, env(safe-area-inset-bottom, 0px));
     padding-left: max(0.45rem, env(safe-area-inset-left, 0px));
+    gap: 0.4rem;
+  }
+
+  .app__shell {
     gap: 0.4rem;
   }
 
@@ -6351,8 +6355,11 @@ body {
 
 #root > .app {
   flex: 1 1 auto;
-  min-height: 0;
+  min-height: 100dvh;
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
 }
 
 @media (max-width: 900px) {
@@ -6672,7 +6679,7 @@ body {
 }
 
 #root > .app.app--rec-tracker {
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   min-height: 100dvh;
   height: auto;
 }

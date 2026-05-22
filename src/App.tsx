@@ -921,6 +921,7 @@ export default function App() {
       }
       ref={appScrollRef}
     >
+      <div className="app__shell">
       <div
         ref={pullToRefreshHintRef}
         className="app-ptr-hint"
@@ -1701,6 +1702,8 @@ export default function App() {
       />
 
       <FeedbackCorner ref={feedbackRef} accessAdmin={accessAdmin} />
+      </div>
+
       <AppSiteFooter
         accessAdmin={accessAdmin}
         appTab={appTab}

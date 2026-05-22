@@ -30,8 +30,20 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100%;
+  min-height: 100dvh;
   gap: 0.95rem;
   padding: 1.35rem 1.35rem 1.65rem;
+  box-sizing: border-box;
+}
+
+/* 본문 영역 — 남는 세로 공간 채움, 푸터는 .app 맨 아래 */
+.app__shell {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+  gap: 0.95rem;
 }
 
 .card {
@@ -574,6 +586,10 @@ body {
     padding-left: max(0.45rem, env(safe-area-inset-left, 0px));
   }
 
+  .app__shell {
+    gap: 0.42rem;
+  }
+
   .btn {
     font-size: 0.73rem;
     padding: 0.34rem 0.78rem;
@@ -694,6 +710,10 @@ body {
     padding-right: max(0.38rem, env(safe-area-inset-right, 0px));
     padding-bottom: max(0.48rem, env(safe-area-inset-bottom, 0px));
     padding-left: max(0.38rem, env(safe-area-inset-left, 0px));
+  }
+
+  .app__shell {
+    gap: 0.34rem;
   }
 
   .btn {
@@ -2179,7 +2199,8 @@ body {
 /* 하단 사이트 푸터 (네이버형 링크 줄) */
 .app-site-footer {
   flex-shrink: 0;
-  margin-top: auto;
+  margin-top: 0;
+  width: 100%;
   padding: 0.85rem 0 0.35rem;
   border-top: 1px solid var(--card-border, rgba(148, 163, 184, 0.14));
 }
