@@ -63,6 +63,17 @@ export function listLiveTradeRecordsSync(programId = null) {
   return store.trades.filter((t) => t.programId === pid);
 }
 
+/** 시뮬 전용 프로그램 여부 — 매수 체결이 모두 simulated일 때만 true */
+export function programHasOnlySimulatedBuyTradesSync(programId) {
+  const pid = String(programId ?? "").trim();
+  if (!pid) return false;
+  const buys = readStoreSync().trades.filter(
+    (t) => t.programId === pid && t.side === "buy",
+  );
+  if (buys.length === 0) return false;
+  return buys.every((t) => t.simulated);
+}
+
 function readStoreSync() {
   try {
     if (!fs.existsSync(PORTFOLIO_FILE)) return defaultStore();

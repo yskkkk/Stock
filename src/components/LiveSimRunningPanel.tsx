@@ -20,6 +20,7 @@ import {
   unrealizedPnlTone,
 } from "../lib/livePortfolioPnl";
 import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
+import { showProgramRunError } from "../lib/liveProgramDisplay";
 import { ko } from "../i18n/ko";
 import LiveSimFeedbackBlock from "./LiveSimFeedbackBlock";
 import {
@@ -173,7 +174,7 @@ function SimProgramCard({
         </div>
       </header>
 
-      {program.lastError ? (
+      {showProgramRunError(program, sum.holdingCount) ? (
         <p className="live-sim-run__err" role="alert">
           {program.lastError}
         </p>

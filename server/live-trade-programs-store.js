@@ -7,6 +7,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { getTechModelByIdSync } from "./picks-tech-models-store.js";
+import { programHasOnlySimulatedBuyTradesSync } from "./live-trade-portfolio-store.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, ".data");
@@ -122,7 +123,7 @@ function normalizeProgram(raw) {
     autoSellAtTarget: o.autoSellAtTarget === false ? false : true,
     takeProfitPct:
       o.takeProfitPct == null || o.takeProfitPct === ""
-        ? 5
+        ? null
         : clampNum(o.takeProfitPct, 0.5, 100, 5),
     stopLossPct: (() => {
       if (o.stopLossPct == null || o.stopLossPct === "") return null;
@@ -294,9 +295,36 @@ export function disarmLiveTradeProgramSync(id) {
 export function touchLiveTradeProgramRunSync(id, err = null) {
   const prog = getLiveTradeProgramSync(id);
   if (!prog) return null;
+  const simLane = prog.status === "sim";
   return updateLiveTradeProgramSync(id, {
     lastRunAtMs: Date.now(),
     lastError: err,
-    status: err ? "error" : prog.status,
+    /* 시뮬: 종목별 실패(중복·한도 등)로 전체 상태를 error로 두지 않음 */
+    status: err && !simLane ? "error" : simLane ? "sim" : prog.status,
   });
+}
+
+/**
+ * 시뮬 매수 후 잘못 error로 남은 카드 복구(보유 있음·체결 전부 simulated).
+ * @param {LiveTradeProgram[]} programs
+ * @param {Record<string, { holdingCount?: number }>} programReturns
+ */
+export function healStuckSimProgramErrorsSync(programs, programReturns) {
+  const out = [];
+  for (const p of programs) {
+    if (
+      p.status === "error" &&
+      (programReturns[p.id]?.holdingCount ?? 0) > 0 &&
+      programHasOnlySimulatedBuyTradesSync(p.id)
+    ) {
+      const healed = updateLiveTradeProgramSync(p.id, {
+        status: "sim",
+        lastError: null,
+      });
+      out.push(healed ?? p);
+      continue;
+    }
+    out.push(p);
+  }
+  return out;
 }

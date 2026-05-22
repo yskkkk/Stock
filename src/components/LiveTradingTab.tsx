@@ -23,6 +23,10 @@ import { useMobileBackHandler } from "../hooks/useMobileBackHandler";
 import { MOBILE_BACK_PRIORITY } from "../lib/mobileBackStack";
 import { peekLiveTradingPrefetch } from "../lib/tabPrefetch";
 import { formatPercent } from "../lib/format";
+import {
+  programDisplayStatus,
+  showProgramRunError,
+} from "../lib/liveProgramDisplay";
 import { ko } from "../i18n/ko";
 
 function statusLabel(status: LiveTradeProgram["status"]): string {
@@ -625,6 +629,8 @@ export default function LiveTradingTab({
               {programs.map((p) => {
                 const model = modelById.get(p.modelId);
                 const ret = status?.programReturns?.[p.id];
+                const holdingCount = ret?.holdingCount ?? 0;
+                const displayStatus = programDisplayStatus(p, holdingCount);
                 const returnPct = ret?.totalReturnPct;
                 const returnClass =
                   returnPct == null
@@ -635,12 +641,14 @@ export default function LiveTradingTab({
                 return (
                   <li
                     key={p.id}
-                    className={`live-trading-tab__program live-trading-tab__program--${p.status}`}
+                    className={`live-trading-tab__program live-trading-tab__program--${displayStatus}`}
                   >
                     <div className="live-trading-tab__program-head">
                       <strong>{p.name}</strong>
-                      <span className={`live-trading-tab__badge live-trading-tab__badge--${p.status}`}>
-                        {statusLabel(p.status)}
+                      <span
+                        className={`live-trading-tab__badge live-trading-tab__badge--${displayStatus}`}
+                      >
+                        {statusLabel(displayStatus)}
                       </span>
                     </div>
                     <p className="live-trading-tab__program-meta">
@@ -667,7 +675,7 @@ export default function LiveTradingTab({
                         {formatPercent(returnPct ?? undefined)}
                       </span>
                     </p>
-                    {p.lastError ? (
+                    {showProgramRunError(p, holdingCount) ? (
                       <p className="live-trading-tab__program-err">{p.lastError}</p>
                     ) : null}
                     <p className="live-trading-tab__program-ts">

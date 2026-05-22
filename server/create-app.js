@@ -104,6 +104,7 @@ import {
   createLiveTradeProgramSync,
   deleteLiveTradeProgramSync,
   disarmLiveTradeProgramSync,
+  healStuckSimProgramErrorsSync,
   listLiveTradeProgramsSync,
   startSimLiveTradeProgramSync,
   stopSimLiveTradeProgramSync,
@@ -433,10 +434,11 @@ export function createApp() {
     "/api/live-trading/status",
     asyncRoute(async (_req, res) => {
       const toss = getTossTradingStatus();
-      const programs = listLiveTradeProgramsSync();
+      let programs = listLiveTradeProgramsSync();
       const programReturns = await buildProgramPortfolioSummariesMap(
         programs.map((p) => p.id),
       );
+      programs = healStuckSimProgramErrorsSync(programs, programReturns);
       res.json({
         toss,
         programs,
