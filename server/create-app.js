@@ -604,6 +604,26 @@ export function createApp() {
   );
 
   app.get(
+    "/api/live-trading/quotes",
+    asyncRoute(async (req, res) => {
+      const raw = String(req.query.symbols ?? "").trim();
+      const symbols = raw
+        ? raw
+            .split(/[,\s]+/)
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : [];
+      const { fetchQuoteSnapshotsForSymbols } = await import(
+        "./picks-live-quotes.js"
+      );
+      const quotes = await fetchQuoteSnapshotsForSymbols(symbols, {
+        maxAgeMs: 0,
+      });
+      res.json({ quotes, interval: "1m", updatedAtMs: Date.now() });
+    }),
+  );
+
+  app.get(
     "/api/live-trading/portfolio",
     asyncRoute(async (req, res) => {
       const programId = String(req.query?.programId ?? "").trim() || null;

@@ -409,14 +409,7 @@ function resolveSnapshotPriceFromChart(meta, candles, symbol) {
   const regular = pickPositivePrice(meta.regularMarketPrice);
   const regularMs = metaTimeToMs(meta.regularMarketTime);
 
-  const kr = isKrYahooSymbol(symbol);
-  if (kr && regular != null) {
-    const refMs = Math.max(barMs, regularMs);
-    if (barMs <= 0 || regularMs >= barMs) {
-      return { price: regular, quotedAtMs: refMs || Date.now() };
-    }
-  }
-
+  /* 분봉 최신 종가 우선(장중 현재가). regularMarketPrice만 쓰면 분봉보다 늦을 수 있음 */
   if (lastBar != null && barMs > 0) {
     if (post != null && postMs > barMs) {
       return { price: post, quotedAtMs: postMs };

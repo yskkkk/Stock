@@ -1393,6 +1393,14 @@ body {
   white-space: nowrap;
 }
 
+.live-sim-run__quote-1m {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-muted, #6b7280);
+}
+
 .live-sim-run__num--up {
   color: #15803d;
 }

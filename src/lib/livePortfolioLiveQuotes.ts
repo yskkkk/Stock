@@ -45,6 +45,7 @@ function closedCostFromTrades(trades: LiveTradeRecord[]): number {
 function applyQuoteToHolding(
   h: LiveTradeHolding,
   price: number,
+  quote?: PicksDailyHistoryQuotesMap[string],
 ): LiveTradeHolding {
   const avgEntry = h.avgEntryPrice;
   const mv = price * h.quantity;
@@ -55,6 +56,10 @@ function applyQuoteToHolding(
     avgEntry > 0
       ? (price / avgEntry) * (1 - ROUND_TRIP_FEE_RATE) * 100 - 100
       : null;
+  const quotedAtMs =
+    quote?.quotedAtMs != null && Number.isFinite(quote.quotedAtMs)
+      ? quote.quotedAtMs
+      : null;
   return {
     ...h,
     currentPrice: price,
@@ -62,6 +67,8 @@ function applyQuoteToHolding(
     unrealizedPnl: unrealized,
     grossChangePct: grossPct,
     changePct: netPct,
+    quoteQuotedAtMs: quotedAtMs,
+    priceSource: quote?.interval === "1m" ? "1m" : null,
   };
 }
 
@@ -98,7 +105,7 @@ export function mergeLiveQuotesIntoPortfolio(
     const px = q?.price;
     const next =
       px != null && Number.isFinite(px) && px > 0
-        ? applyQuoteToHolding(h, px)
+        ? applyQuoteToHolding(h, px, q ?? undefined)
         : h;
     investedOpen += next.costBasis;
     if (next.marketValue != null) marketValueOpen += next.marketValue;

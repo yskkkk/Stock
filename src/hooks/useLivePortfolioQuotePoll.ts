@@ -1,11 +1,11 @@
 import { useEffect, useMemo, type Dispatch, type SetStateAction } from "react";
 import {
-  fetchPicksDailyHistoryQuotes,
+  fetchLiveTradingMinuteQuotes,
   type LiveTradePortfolioResponse,
 } from "../api";
 import { mergeLiveQuotesIntoPortfolio } from "../lib/livePortfolioLiveQuotes";
 /** 보유 종목 현재가 — 장중 갱신용(스크리너 목록보다 짧은 주기) */
-export const PORTFOLIO_QUOTE_POLL_MS = 20_000;
+export const PORTFOLIO_QUOTE_POLL_MS = 15_000;
 
 /** 시뮬·포트폴리오 보유 종목 현재가 — 1분봉 폴링으로 실시간 반영 */
 export function useLivePortfolioQuotePoll(
@@ -28,7 +28,7 @@ export function useLivePortfolioQuotePoll(
     let cancelled = false;
 
     const pull = () => {
-      void fetchPicksDailyHistoryQuotes(syms, { fresh: true })
+      void fetchLiveTradingMinuteQuotes(syms)
         .then((res) => {
           if (cancelled) return;
           setPortfolio((prev) =>

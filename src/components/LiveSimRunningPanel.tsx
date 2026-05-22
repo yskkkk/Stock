@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import {
+  fetchLiveTradingMinuteQuotes,
   fetchLiveTradingPortfolio,
   type LiveTradeHolding,
   type LiveTradePortfolioResponse,
@@ -11,7 +12,7 @@ import {
   extractQuotesFromPortfolio,
   mergeLiveQuotesIntoPortfolio,
 } from "../lib/livePortfolioLiveQuotes";
-import { formatPercent, formatPrice, formatSignedMoney } from "../lib/format";
+import { formatPercent, formatPrice, formatSignedMoney, formatTimeMsKst } from "../lib/format";
 import { ko } from "../i18n/ko";
 import LiveSimFeedbackBlock from "./LiveSimFeedbackBlock";
 import {
@@ -255,9 +256,18 @@ function SimProgramCard({
                       className="live-sim-run__num"
                       data-label={ko.app.liveTradePfColCurrent}
                     >
-                      {h.currentPrice != null
-                        ? formatPrice(h.currentPrice, h.currency)
-                        : "—"}
+                      {h.currentPrice != null ? (
+                        <>
+                          {formatPrice(h.currentPrice, h.currency)}
+                          {h.priceSource === "1m" && h.quoteQuotedAtMs ? (
+                            <span className="live-sim-run__quote-1m">
+                              분봉 {formatTimeMsKst(h.quoteQuotedAtMs)}
+                            </span>
+                          ) : null}
+                        </>
+                      ) : (
+                        "—"
+                      )}
                     </td>
                     <td
                       className="live-sim-run__num live-sim-run__num--exit live-table__col live-table__col--exit"
@@ -396,10 +406,22 @@ export default function LiveSimRunningPanel({
     setLoading(true);
     try {
       const snap = await fetchLiveTradingPortfolio(null);
+      const syms = [
+        ...new Set(snap.holdings.map((h) => h.symbol.trim().toUpperCase()).filter(Boolean)),
+      ];
+      let merged = snap;
+      if (syms.length > 0) {
+        try {
+          const q = await fetchLiveTradingMinuteQuotes(syms);
+          merged = mergeLiveQuotesIntoPortfolio(snap, q.quotes ?? {});
+        } catch {
+          merged = snap;
+        }
+      }
       setPortfolio((prev) =>
         prev?.holdings.length
-          ? mergeLiveQuotesIntoPortfolio(snap, extractQuotesFromPortfolio(prev))
-          : snap,
+          ? mergeLiveQuotesIntoPortfolio(merged, extractQuotesFromPortfolio(prev))
+          : merged,
       );
       setUpdatedAt(Date.now());
       setErr(null);

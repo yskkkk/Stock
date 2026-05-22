@@ -157,8 +157,31 @@ export function fetchPicksDailyHistoryQuotes(
 
 export type PicksDailyHistoryQuotesMap = Record<
   string,
-  { price: number; changePercent?: number; currency?: string }
+  {
+    price: number;
+    changePercent?: number;
+    currency?: string;
+    quotedAtMs?: number;
+    interval?: string;
+  }
 >;
+
+export function fetchLiveTradingMinuteQuotes(symbols: string[]) {
+  const uniq = [...new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean))];
+  if (!uniq.length) {
+    return Promise.resolve({
+      quotes: {} as PicksDailyHistoryQuotesMap,
+      interval: "1m" as const,
+      updatedAtMs: Date.now(),
+    });
+  }
+  const params = new URLSearchParams({ symbols: uniq.join(",") });
+  return fetchJson<{
+    quotes: PicksDailyHistoryQuotesMap;
+    interval: "1m";
+    updatedAtMs: number;
+  }>(`/api/live-trading/quotes?${params}`);
+}
 
 export function fetchMacroEvents() {
   return fetchJson<MacroEventsResponse>("/api/macro-events");
@@ -1011,6 +1034,9 @@ export interface LiveTradeHolding {
   exitScenarioNote?: string | null;
   entryStructureNote?: string | null;
   entryIdeal?: boolean;
+  /** 1분봉 시세 시각(ms) */
+  quoteQuotedAtMs?: number | null;
+  priceSource?: "1m" | null;
 }
 
 export interface LiveTradeRecord {

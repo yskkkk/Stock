@@ -130,6 +130,7 @@ export async function fetchQuoteSnapshotsForSymbols(symbols, opts = {}) {
         typeof q.quotedAtMs === "number" && q.quotedAtMs > 0
           ? q.quotedAtMs
           : Date.now(),
+      interval: "1m",
     };
     out[key] = row;
   };

@@ -102,6 +102,7 @@ function shouldSkipAccessLog(req) {
   if (path.startsWith("/api/news/")) return true;
   /** 실거래·시뮬 탭 폴링 */
   if (path === "/api/live-trading/portfolio") return true;
+  if (path === "/api/live-trading/quotes") return true;
   if (path === "/api/live-trading/status") return true;
   if (path === "/api/picks/tech-models") return true;
   if (path.startsWith("/api/live-trading/programs")) return true;

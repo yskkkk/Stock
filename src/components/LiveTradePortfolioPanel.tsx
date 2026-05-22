@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import {
+  fetchLiveTradingMinuteQuotes,
   fetchLiveTradingPortfolio,
   simulateLiveTradeSell,
   type LiveTradeHolding,
@@ -285,10 +286,22 @@ export default function LiveTradePortfolioPanel({
   const load = useCallback(async () => {
     try {
       const snap = await fetchLiveTradingPortfolio(programId || null);
+      const syms = [
+        ...new Set(snap.holdings.map((h) => h.symbol.trim().toUpperCase()).filter(Boolean)),
+      ];
+      let merged = snap;
+      if (syms.length > 0) {
+        try {
+          const q = await fetchLiveTradingMinuteQuotes(syms);
+          merged = mergeLiveQuotesIntoPortfolio(snap, q.quotes ?? {});
+        } catch {
+          merged = snap;
+        }
+      }
       setData((prev) =>
         prev?.holdings.length
-          ? mergeLiveQuotesIntoPortfolio(snap, extractQuotesFromPortfolio(prev))
-          : snap,
+          ? mergeLiveQuotesIntoPortfolio(merged, extractQuotesFromPortfolio(prev))
+          : merged,
       );
       setErr(null);
     } catch (e) {
