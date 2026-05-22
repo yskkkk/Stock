@@ -1,6 +1,7 @@
 import {
   fetchCryptoQuotes,
   fetchCryptoUniverse,
+  fetchLiveTradingPortfolio,
   fetchLiveTradingStatus,
   fetchMacroEvents,
   fetchPicksDailyHistory,
