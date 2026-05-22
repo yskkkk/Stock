@@ -361,20 +361,79 @@ export async function loadStock(symbol, timeframe, options = {}) {
   return task;
 }
 
-/** 목록·스크리너 실시간 시세 — 당일 1분봉 종가 기준 */
+/** 목록·보유종목 실시간 시세 — 당일 1분봉(장전·장후 포함) */
 function buildQuoteSnapshot1mChartUrl(symbol) {
   const base = `/v8/finance/chart/${encodeURIComponent(symbol)}`;
   const params = new URLSearchParams({
     range: "1d",
     interval: "1m",
-    includePrePost: "false",
+    includePrePost: "true",
     events: "div,splits",
   });
   return `${base}?${params.toString()}`;
 }
 
+function pickPositivePrice(v) {
+  return typeof v === "number" && Number.isFinite(v) && v > 0 ? v : null;
+}
+
 /**
- * 스크리너·추천 목록용 — 최신 1분봉 종가·전일대비 등락률.
+ * 장외·프리마켓 meta와 1분봉(프리/포스트 포함) 중 더 최신 가격을 선택.
+ * @param {Record<string, unknown>} meta
+ * @param {Array<{ time?: number; close?: number }>} candles
+ */
+function resolveSnapshotPriceFromChart(meta, candles) {
+  const last = candles.at(-1);
+  const lastBar = pickPositivePrice(last?.close);
+  const barMs =
+    last?.time != null && Number.isFinite(last.time) && last.time > 0
+      ? Math.floor(last.time * 1000)
+      : 0;
+
+  const post = pickPositivePrice(meta.postMarketPrice);
+  const postMs =
+    typeof meta.postMarketTime === "number" && meta.postMarketTime > 0
+      ? Math.floor(meta.postMarketTime * 1000)
+      : 0;
+  const pre = pickPositivePrice(meta.preMarketPrice);
+  const preMs =
+    typeof meta.preMarketTime === "number" && meta.preMarketTime > 0
+      ? Math.floor(meta.preMarketTime * 1000)
+      : 0;
+  const regular = pickPositivePrice(meta.regularMarketPrice);
+
+  if (lastBar != null && barMs > 0) {
+    if (post != null && postMs > barMs) {
+      return { price: post, quotedAtMs: postMs };
+    }
+    if (pre != null && preMs > barMs) {
+      return { price: pre, quotedAtMs: preMs };
+    }
+    return { price: lastBar, quotedAtMs: barMs };
+  }
+  if (post != null) return { price: post, quotedAtMs: postMs || Date.now() };
+  if (pre != null) return { price: pre, quotedAtMs: preMs || Date.now() };
+  if (regular != null) return { price: regular, quotedAtMs: Date.now() };
+  return { price: null, quotedAtMs: Date.now() };
+}
+
+function resolveSnapshotChangePercent(meta, price) {
+  const ms = String(meta.marketState ?? "").toUpperCase();
+  if (ms.includes("POST") && Number.isFinite(meta.postMarketChangePercent)) {
+    return meta.postMarketChangePercent;
+  }
+  if (ms.includes("PRE") && Number.isFinite(meta.preMarketChangePercent)) {
+    return meta.preMarketChangePercent;
+  }
+  const prevClose = meta.chartPreviousClose ?? meta.previousClose;
+  if (price != null && prevClose != null && prevClose > 0) {
+    return ((price - prevClose) / prevClose) * 100;
+  }
+  return undefined;
+}
+
+/**
+ * 스크리너·추천·보유종목용 — 최신 1분봉(장전·장후 포함) 종가·전일대비 등락률.
  */
 export async function loadChartQuoteSnapshot1m(symbol) {
   const sym = symbol.toUpperCase();
@@ -387,21 +446,23 @@ export async function loadChartQuoteSnapshot1m(symbol) {
     if (data.chart?.error) return null;
     const result = data.chart?.result?.[0];
     if (!result) return null;
+    const meta = result.meta ?? {};
     const parsed = parseChartResult(sym, result, "1m", "1m", 1);
-    const last = parsed.candles.at(-1);
-    const price =
-      last?.close != null && Number.isFinite(last.close)
-        ? last.close
-        : parsed.quote?.price;
+    const { price, quotedAtMs } = resolveSnapshotPriceFromChart(meta, parsed.candles);
     if (price == null || !Number.isFinite(price)) return parsed.quote ?? null;
-    const barMs =
-      last?.time != null && Number.isFinite(last.time) && last.time > 0
-        ? Math.floor(last.time * 1000)
-        : Date.now();
+    const changePercent = resolveSnapshotChangePercent(meta, price);
+    const prevClose = meta.chartPreviousClose ?? meta.previousClose;
+    const change =
+      price != null && prevClose != null && prevClose > 0
+        ? price - prevClose
+        : parsed.quote?.change;
     return {
       ...parsed.quote,
       price,
-      quotedAtMs: barMs,
+      change,
+      changePercent: changePercent ?? parsed.quote?.changePercent,
+      marketState: meta.marketState ?? parsed.quote?.marketState,
+      quotedAtMs,
     };
   });
 }
