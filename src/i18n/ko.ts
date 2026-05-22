@@ -94,6 +94,8 @@ export const ko = {
     liveTradePfUpdated: "갱신",
     liveTradeSimRunEmpty: "가동 중인 시뮬이 없습니다. 프로그램에서 «시뮬 자동 시작»으로 켠 뒤, 끌 때는 «시뮬 중지»를 누르세요.",
     liveTradePfLoading: "불러오는 중…",
+    liveTradePfTotalKrw: "합계",
+    liveTradePfFxKrw: "원화 환산",
     liveTradePfInvested: "매입 원가",
     liveTradePfEval: "평가 금액",
     liveTradePfRealized: "실현 손익",

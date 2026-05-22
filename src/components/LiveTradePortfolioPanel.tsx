@@ -21,11 +21,10 @@ import {
   formatTimeMsKst,
 } from "../lib/format";
 import {
-  formatInvestedOrMarketLabel,
-  formatUnrealizedPnlLabel,
+  buildPortfolioMetricLines,
   portfolioReturnPct,
   summarizeHoldingsPnl,
-  unrealizedPnlTone,
+  type PortfolioMetricLine,
 } from "../lib/livePortfolioPnl";
 import { tradeFillDisplayByTradeId } from "../lib/liveTradeBuySellPrices";
 import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
@@ -56,6 +55,65 @@ function sideLabel(side: LiveTradeRecord["side"]): string {
   return side === "buy" ? ko.app.liveTradeSideBuy : ko.app.liveTradeSideSell;
 }
 
+function metricLinePrefix(line: PortfolioMetricLine): string {
+  if (line.id === "total") return `${ko.app.liveTradePfTotalKrw} `;
+  if (line.id === "fx") return `${ko.app.liveTradePfFxKrw} `;
+  return "";
+}
+
+function metricLineClass(up: boolean | null, muted?: boolean): string {
+  if (muted) return "live-portfolio__metric-line live-portfolio__metric-line--muted";
+  if (up === true) return "live-portfolio__metric-line live-portfolio__metric-line--up";
+  if (up === false) return "live-portfolio__metric-line live-portfolio__metric-line--down";
+  return "live-portfolio__metric-line";
+}
+
+function SummaryMetricCard({
+  label,
+  lines,
+  heroValue,
+  heroUp,
+  sub,
+}: {
+  label: string;
+  lines?: PortfolioMetricLine[];
+  heroValue?: string;
+  heroUp?: boolean | null;
+  sub?: string;
+}) {
+  return (
+    <article className="live-portfolio__metric">
+      <span className="live-portfolio__metric-k">{label}</span>
+      {heroValue != null ? (
+        <p
+          className={
+            heroUp === true
+              ? "live-portfolio__metric-hero live-portfolio__metric-hero--up"
+              : heroUp === false
+                ? "live-portfolio__metric-hero live-portfolio__metric-hero--down"
+                : "live-portfolio__metric-hero"
+          }
+        >
+          {heroValue}
+        </p>
+      ) : null}
+      {lines && lines.length > 0 ? (
+        <ul className="live-portfolio__metric-lines">
+          {lines.map((line) => (
+            <li key={line.id} className={metricLineClass(line.up, line.muted)}>
+              <span className="live-portfolio__metric-line-text">
+                {metricLinePrefix(line)}
+                {line.text}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {sub ? <span className="live-portfolio__metric-sub">{sub}</span> : null}
+    </article>
+  );
+}
+
 function SummaryTiles({
   holdings,
   summary,
@@ -72,67 +130,53 @@ function SummaryTiles({
       agg.marketByCurrency,
       usdKrwRate,
     ) ?? summary.totalReturnPct;
-  const retUp = ret != null && ret >= 0;
-  const pnlLabel = formatUnrealizedPnlLabel(agg.pnlByCurrency, usdKrwRate);
-  const pnlUp = unrealizedPnlTone(agg.pnlByCurrency, usdKrwRate);
+  const retUp = ret != null ? ret >= 0 : null;
+  const investedLines = buildPortfolioMetricLines(
+    agg.investedByCurrency,
+    usdKrwRate,
+    "price",
+  );
+  const marketLines = buildPortfolioMetricLines(
+    agg.marketByCurrency,
+    usdKrwRate,
+    "price",
+  );
+  const unrealizedLines = buildPortfolioMetricLines(
+    agg.pnlByCurrency,
+    usdKrwRate,
+    "signed",
+  );
+  const realizedUp = summary.realizedPnl >= 0;
+
   return (
     <div className="live-portfolio__summary">
-      <div className="live-portfolio__tile">
-        <span className="live-portfolio__tile-k">{ko.app.liveTradePfHoldings}</span>
-        <span className="live-portfolio__tile-v">{summary.holdingCount}</span>
+      <div className="live-portfolio__summary-hero">
+        <SummaryMetricCard
+          label={ko.app.liveTradePfHoldings}
+          heroValue={String(summary.holdingCount)}
+        />
+        <SummaryMetricCard
+          label={ko.app.liveTradePfReturn}
+          heroValue={ret == null ? "—" : formatPercent(ret)}
+          heroUp={retUp}
+          sub={ko.app.liveTradePfFeeNote}
+        />
       </div>
-      <div className="live-portfolio__tile">
-        <span className="live-portfolio__tile-k">{ko.app.liveTradePfInvested}</span>
-        <span className="live-portfolio__tile-v">
-          {formatInvestedOrMarketLabel(agg.investedByCurrency, usdKrwRate)}
-        </span>
-      </div>
-      <div className="live-portfolio__tile">
-        <span className="live-portfolio__tile-k">{ko.app.liveTradePfEval}</span>
-        <span className="live-portfolio__tile-v">
-          {formatInvestedOrMarketLabel(agg.marketByCurrency, usdKrwRate)}
-        </span>
-      </div>
-      <div className="live-portfolio__tile">
-        <span className="live-portfolio__tile-k">{ko.app.liveTradePfUnrealized}</span>
-        <span
-          className={
-            pnlUp === true
-              ? "live-portfolio__tile-v live-portfolio__tile-v--up"
-              : pnlUp === false
-                ? "live-portfolio__tile-v live-portfolio__tile-v--down"
-                : "live-portfolio__tile-v"
-          }
-        >
-          {pnlLabel}
-        </span>
-      </div>
-      <div className="live-portfolio__tile">
-        <span className="live-portfolio__tile-k">{ko.app.liveTradePfRealized}</span>
-        <span
-          className={
-            summary.realizedPnl >= 0
-              ? "live-portfolio__tile-v live-portfolio__tile-v--up"
-              : "live-portfolio__tile-v live-portfolio__tile-v--down"
-          }
-        >
-          {formatSignedMoney(summary.realizedPnl, "KRW")}
-        </span>
-      </div>
-      <div className="live-portfolio__tile">
-        <span className="live-portfolio__tile-k">{ko.app.liveTradePfReturn}</span>
-        <span
-          className={
-            ret == null
-              ? "live-portfolio__tile-v"
-              : retUp
-                ? "live-portfolio__tile-v live-portfolio__tile-v--up"
-                : "live-portfolio__tile-v live-portfolio__tile-v--down"
-          }
-        >
-          {ret == null ? "—" : formatPercent(ret)}
-        </span>
-        <span className="live-portfolio__tile-sub">{ko.app.liveTradePfFeeNote}</span>
+      <div className="live-portfolio__summary-grid">
+        <SummaryMetricCard
+          label={ko.app.liveTradePfInvested}
+          lines={investedLines}
+        />
+        <SummaryMetricCard label={ko.app.liveTradePfEval} lines={marketLines} />
+        <SummaryMetricCard
+          label={ko.app.liveTradePfUnrealized}
+          lines={unrealizedLines}
+        />
+        <SummaryMetricCard
+          label={ko.app.liveTradePfRealized}
+          heroValue={formatSignedMoney(summary.realizedPnl, "KRW")}
+          heroUp={realizedUp}
+        />
       </div>
     </div>
   );
@@ -391,13 +435,17 @@ export default function LiveTradePortfolioPanel({
         }}
       />
       <section className="live-portfolio card" aria-label={ko.app.liveTradePfTitle}>
-      <div className="live-portfolio__head">
-        <h3 className="live-trading-tab__section-title">{ko.app.liveTradePfTitle}</h3>
+      <header className="live-portfolio__head">
+        <h3 className="live-trading-tab__section-title live-portfolio__title">
+          {ko.app.liveTradePfTitle}
+        </h3>
         <div className="live-portfolio__head-tools">
           <label className="live-portfolio__filter">
-            <span className="live-portfolio__filter-label">{ko.app.liveTradePfProgramFilter}</span>
+            <span className="live-portfolio__filter-label">
+              {ko.app.liveTradePfProgramFilter}
+            </span>
             <select
-              className="input"
+              className="input live-portfolio__select"
               value={programId}
               onChange={(e) => setProgramId(e.target.value)}
             >
@@ -410,7 +458,7 @@ export default function LiveTradePortfolioPanel({
           </label>
           <button
             type="button"
-            className="btn btn--secondary btn--sm"
+            className="btn btn--secondary btn--sm live-portfolio__refresh"
             disabled={loading}
             onClick={() => {
               setLoading(true);
@@ -420,44 +468,45 @@ export default function LiveTradePortfolioPanel({
             {ko.app.liveTradePfRefresh}
           </button>
         </div>
-      </div>
+      </header>
 
-      <div className="live-portfolio__tabs" role="tablist">
-        {(
-          [
-            ["summary", ko.app.liveTradePfTabSummary],
-            ["holdings", ko.app.liveTradePfTabHoldings],
-            ["trades", ko.app.liveTradePfTabTrades],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            className={
-              tab === id
-                ? "live-portfolio__tab live-portfolio__tab--active"
-                : "live-portfolio__tab"
-            }
-            onClick={() => setTab(id)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <div className="live-portfolio__panel">
+        <div className="live-portfolio__tabs" role="tablist">
+          {(
+            [
+              ["summary", ko.app.liveTradePfTabSummary],
+              ["holdings", ko.app.liveTradePfTabHoldings],
+              ["trades", ko.app.liveTradePfTabTrades],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              className={
+                tab === id
+                  ? "live-portfolio__tab live-portfolio__tab--active"
+                  : "live-portfolio__tab"
+              }
+              onClick={() => setTab(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
-      {loading && !data ? (
-        <p className="live-portfolio__muted">{ko.app.liveTradePfLoading}</p>
-      ) : null}
-      {err ? (
-        <p className="live-portfolio__err" role="alert">
-          {err}
-        </p>
-      ) : null}
+        {loading && !data ? (
+          <p className="live-portfolio__muted">{ko.app.liveTradePfLoading}</p>
+        ) : null}
+        {err ? (
+          <p className="live-portfolio__banner live-portfolio__banner--err" role="alert">
+            {err}
+          </p>
+        ) : null}
 
-      {data ? (
-        <div className="live-portfolio__body">
+        {data ? (
+          <div className="live-portfolio__body">
           {tab === "summary" ? (
             <SummaryTiles
               holdings={data.holdings}
@@ -639,8 +688,9 @@ export default function LiveTradePortfolioPanel({
               {formatTs(data.updatedAtMs)} {ko.app.liveTradePfUpdated}
             </p>
           ) : null}
-        </div>
-      ) : null}
+          </div>
+        ) : null}
+      </div>
     </section>
     </>
   );

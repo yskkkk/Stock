@@ -125,6 +125,69 @@ export function portfolioReturnPct(
   return ((mkt - inv) / inv) * 100;
 }
 
+export type PortfolioMetricLine = {
+  id: string;
+  text: string;
+  /** 합계·환산 줄 */
+  muted?: boolean;
+  up: boolean | null;
+};
+
+function hasAmount(v: number | undefined, signed: boolean): boolean {
+  if (v == null || !Number.isFinite(v)) return false;
+  return signed ? Math.abs(v) > 1e-9 : v > 0;
+}
+
+/** 타일 UI — 통화별 줄 분리(가격·손익) */
+export function buildPortfolioMetricLines(
+  totals: CurrencyTotals,
+  usdKrwRate: number | null,
+  mode: "price" | "signed",
+): PortfolioMetricLine[] {
+  const signed = mode === "signed";
+  const fmt = signed ? formatSignedMoney : formatPrice;
+  const usd = totals.USD;
+  const krw = totals.KRW;
+  const hasUsd = hasAmount(usd, signed);
+  const hasKrw = hasAmount(krw, signed);
+  const lines: PortfolioMetricLine[] = [];
+
+  if (hasUsd) {
+    lines.push({
+      id: "usd",
+      text: fmt(usd!, "USD"),
+      up: signed ? usd! >= 0 : null,
+    });
+  }
+  if (hasKrw) {
+    lines.push({
+      id: "krw",
+      text: fmt(krw!, "KRW"),
+      up: signed ? krw! >= 0 : null,
+    });
+  }
+  if (hasUsd && usdKrwRate != null && usdKrwRate > 0) {
+    const usdKrwPart = Math.round((usd ?? 0) * usdKrwRate);
+    if (hasKrw) {
+      const total = (krw ?? 0) + usdKrwPart;
+      lines.push({
+        id: "total",
+        text: fmt(total, "KRW"),
+        muted: true,
+        up: signed ? total >= 0 : null,
+      });
+    } else {
+      lines.push({
+        id: "fx",
+        text: fmt(usdKrwPart, "KRW"),
+        muted: true,
+        up: signed ? usdKrwPart >= 0 : null,
+      });
+    }
+  }
+  return lines;
+}
+
 export function formatInvestedOrMarketLabel(
   totals: CurrencyTotals,
   usdKrwRate: number | null,
