@@ -28,6 +28,35 @@ html[data-theme="light"] .profit-model-strip__value {
 }
 
 /* 실매매·시뮬 수익 요약 타일 — 라이트: 다크용 반투명 배경이 회색 덩어리로 보임 */
+html[data-theme="light"] .live-sim__panel {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--card) 98%, white) 0%,
+    color-mix(in srgb, var(--surface) 92%, white) 100%
+  );
+}
+
+html[data-theme="light"] .live-sim__segment {
+  background: color-mix(in srgb, var(--surface) 88%, #e2e8f0);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+html[data-theme="light"] .live-sim__segment-btn--on {
+  background: #fff;
+  box-shadow:
+    0 1px 3px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+html[data-theme="light"] .live-sim__selection {
+  border-color: color-mix(in srgb, var(--accent) 28%, rgba(15, 23, 42, 0.1));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent) 8%, #fff) 0%,
+    color-mix(in srgb, var(--card) 96%, white) 100%
+  );
+}
+
 html[data-theme="light"] .live-portfolio__tile,
 html[data-theme="light"] .live-sim-run__tile {
   background: linear-gradient(

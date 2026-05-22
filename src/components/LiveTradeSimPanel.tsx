@@ -32,6 +32,10 @@ function fillLabel(quote: LiveTradeSimQuote, currency: string): string {
     .replace("{time}", formatTs(quote.atMs));
 }
 
+function quoteCurrency(row: StockSearchQuoteRow): string {
+  return row.currency ?? (row.market === "kr" ? "KRW" : "USD");
+}
+
 export default function LiveTradeSimPanel({
   programs,
   defaultProgramId,
@@ -120,140 +124,201 @@ export default function LiveTradeSimPanel({
 
   if (!programs.length) return null;
 
+  const selectedCur = displaySelected ? quoteCurrency(displaySelected) : null;
+  const selectedChg = displaySelected?.changePercent;
+  const selectedChgUp = selectedChg != null && selectedChg >= 0;
+
   return (
     <section className="live-sim card" aria-label={ko.app.liveTradeSimTitle}>
-      <h3 className="live-trading-tab__section-title">{ko.app.liveTradeSimTitle}</h3>
-      <p className="live-sim__note">{ko.app.liveTradeSimNote}</p>
+      <header className="live-sim__head">
+        <h3 className="live-trading-tab__section-title live-sim__title">
+          {ko.app.liveTradeSimTitle}
+        </h3>
+        <p className="live-sim__note">{ko.app.liveTradeSimNote}</p>
+      </header>
 
-      <div className="live-sim__row">
-        <label className="live-sim__field">
-          <span>{ko.app.liveTradePfProgramFilter}</span>
-          <select
-            className="input"
-            value={programId}
-            onChange={(e) => setProgramId(e.target.value)}
-          >
-            {programs.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="live-sim__markets" role="group" aria-label={ko.app.liveTradeFieldMarkets}>
-          <button
-            type="button"
-            className={market === "kr" ? "btn btn--secondary btn--sm active" : "btn btn--secondary btn--sm"}
-            onClick={() => {
-              setMarket("kr");
-              setSelected(null);
-            }}
-          >
-            {ko.app.liveTradeMarketKr}
-          </button>
-          <button
-            type="button"
-            className={market === "us" ? "btn btn--secondary btn--sm active" : "btn btn--secondary btn--sm"}
-            onClick={() => {
-              setMarket("us");
-              setSelected(null);
-            }}
-          >
-            {ko.app.liveTradeMarketUs}
-          </button>
-        </div>
-      </div>
+      <div className="live-sim__panel">
+        <div className="live-sim__grid">
+          <label className="live-sim__field live-sim__field--program">
+            <span className="live-sim__label">{ko.app.liveTradePfProgramFilter}</span>
+            <select
+              className="input live-sim__select"
+              value={programId}
+              onChange={(e) => setProgramId(e.target.value)}
+            >
+              {programs.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
 
-      <label className="live-sim__field">
-        <span>{ko.app.liveTradeSimSymbol}</span>
-        <input
-          type="search"
-          className="input"
-          value={q}
-          placeholder={ko.app.liveTradeSimSymbolPh}
-          onChange={(e) => {
-            setQ(e.target.value);
-            setSelected(null);
-          }}
-        />
-      </label>
-
-      {displayHits.length > 0 && !selected ? (
-        <ul className="live-sim__hits">
-          {displayHits.map((h) => (
-            <li key={h.symbol}>
+          <div className="live-sim__field live-sim__field--market">
+            <span className="live-sim__label">{ko.app.liveTradeFieldMarkets}</span>
+            <div
+              className="live-sim__segment"
+              role="group"
+              aria-label={ko.app.liveTradeFieldMarkets}
+            >
               <button
                 type="button"
-                className="live-sim__hit"
+                className={
+                  market === "kr"
+                    ? "live-sim__segment-btn live-sim__segment-btn--on"
+                    : "live-sim__segment-btn"
+                }
+                aria-pressed={market === "kr"}
                 onClick={() => {
-                  setSelected(h);
-                  setQ(h.symbol);
-                  setHits([]);
+                  setMarket("kr");
+                  setSelected(null);
                 }}
               >
-                <span className="live-sim__hit-sym">{h.symbol}</span>
-                <span className="live-sim__hit-name">{h.nameKo ?? h.name}</span>
-                {h.price != null ? (
-                  <span className="live-sim__hit-price">
-                    {formatPrice(h.price, h.currency ?? (h.market === "kr" ? "KRW" : "USD"))}
-                    {h.changePercent != null ? ` · ${formatPercent(h.changePercent)}` : ""}
-                  </span>
-                ) : null}
+                {ko.app.liveTradeMarketKr}
               </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+              <button
+                type="button"
+                className={
+                  market === "us"
+                    ? "live-sim__segment-btn live-sim__segment-btn--on"
+                    : "live-sim__segment-btn"
+                }
+                aria-pressed={market === "us"}
+                onClick={() => {
+                  setMarket("us");
+                  setSelected(null);
+                }}
+              >
+                {ko.app.liveTradeMarketUs}
+              </button>
+            </div>
+          </div>
+        </div>
 
-      {displaySelected ? (
-        <p className="live-sim__picked">
-          {displaySelected.symbol} · {displaySelected.nameKo ?? displaySelected.name}
-          {displaySelected.price != null ? (
-            <>
-              {" "}
-              ·{" "}
-              {formatPrice(
-                displaySelected.price,
-                displaySelected.currency ??
-                  (displaySelected.market === "kr" ? "KRW" : "USD"),
-              )}
-              {displaySelected.changePercent != null
-                ? ` · ${formatPercent(displaySelected.changePercent)}`
-                : ""}
-            </>
-          ) : null}
+        <label className="live-sim__field live-sim__field--search">
+          <span className="live-sim__label">{ko.app.liveTradeSimSymbol}</span>
+          <div className="live-sim__search-wrap">
+            <input
+              type="search"
+              className="input live-sim__search-input"
+              value={q}
+              placeholder={ko.app.liveTradeSimSymbolPh}
+              autoComplete="off"
+              onChange={(e) => {
+                setQ(e.target.value);
+                setSelected(null);
+              }}
+            />
+          </div>
+        </label>
+
+        {displayHits.length > 0 && !selected ? (
+          <ul className="live-sim__hits" role="listbox" aria-label={ko.app.liveTradeSimSymbol}>
+            {displayHits.map((h) => {
+              const cur = quoteCurrency(h);
+              const chg = h.changePercent;
+              const chgUp = chg != null && chg >= 0;
+              return (
+                <li key={h.symbol} role="option">
+                  <button
+                    type="button"
+                    className="live-sim__hit"
+                    onClick={() => {
+                      setSelected(h);
+                      setQ(h.symbol);
+                      setHits([]);
+                    }}
+                  >
+                    <span className="live-sim__hit-main">
+                      <span className="live-sim__hit-sym">{h.symbol}</span>
+                      <span className="live-sim__hit-name">{h.nameKo ?? h.name}</span>
+                    </span>
+                    {h.price != null ? (
+                      <span className="live-sim__hit-quote">
+                        <span className="live-sim__hit-price">
+                          {formatPrice(h.price, cur)}
+                        </span>
+                        {chg != null ? (
+                          <span
+                            className={
+                              chgUp
+                                ? "live-sim__hit-chg live-sim__hit-chg--up"
+                                : "live-sim__hit-chg live-sim__hit-chg--down"
+                            }
+                          >
+                            {formatPercent(chg)}
+                          </span>
+                        ) : null}
+                      </span>
+                    ) : null}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+
+        {displaySelected ? (
+          <div className="live-sim__selection" aria-live="polite">
+            <div className="live-sim__selection-main">
+              <span className="live-sim__selection-sym">{displaySelected.symbol}</span>
+              <span className="live-sim__selection-name">
+                {displaySelected.nameKo ?? displaySelected.name}
+              </span>
+              {displaySelected.price != null && selectedCur ? (
+                <span className="live-sim__selection-quote">
+                  <span className="live-sim__selection-price">
+                    {formatPrice(displaySelected.price, selectedCur)}
+                  </span>
+                  {selectedChg != null ? (
+                    <span
+                      className={
+                        selectedChgUp
+                          ? "live-sim__selection-chg live-sim__selection-chg--up"
+                          : "live-sim__selection-chg live-sim__selection-chg--down"
+                      }
+                    >
+                      {formatPercent(selectedChg)}
+                    </span>
+                  ) : null}
+                </span>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              className="live-sim__selection-clear"
+              onClick={() => {
+                setSelected(null);
+                setQ("");
+              }}
+            >
+              {ko.app.liveTradeCancelEdit}
+            </button>
+          </div>
+        ) : null}
+
+        <div className="live-sim__actions">
           <button
             type="button"
-            className="btn btn--ghost btn--sm"
-            onClick={() => {
-              setSelected(null);
-              setQ("");
-            }}
+            className="btn btn--primary live-sim__submit"
+            disabled={busy || !displaySelected || !programId}
+            onClick={onBuy}
           >
-            {ko.app.liveTradeCancelEdit}
+            {busy ? ko.app.liveTradeSimBuy + "…" : ko.app.liveTradeSimBuy}
           </button>
-        </p>
-      ) : null}
+        </div>
 
-      <button
-        type="button"
-        className="btn btn--primary"
-        disabled={busy || !displaySelected || !programId}
-        onClick={onBuy}
-      >
-        {ko.app.liveTradeSimBuy}
-      </button>
-
-      {msg ? (
-        <p className="live-sim__ok" role="status">
-          {msg}
-        </p>
-      ) : null}
-      {err ? (
-        <p className="live-sim__err" role="alert">
-          {err}
-        </p>
-      ) : null}
+        {msg ? (
+          <p className="live-sim__banner live-sim__banner--ok" role="status">
+            {msg}
+          </p>
+        ) : null}
+        {err ? (
+          <p className="live-sim__banner live-sim__banner--err" role="alert">
+            {err}
+          </p>
+        ) : null}
+      </div>
     </section>
   );
 }

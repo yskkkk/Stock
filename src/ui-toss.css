@@ -576,9 +576,8 @@ body {
     justify-content: center;
   }
 
-  .live-sim__row {
-    flex-direction: column;
-    align-items: stretch;
+  .live-sim__grid {
+    grid-template-columns: 1fr;
   }
 
   .live-sim__field {
@@ -586,13 +585,26 @@ body {
     width: 100%;
   }
 
-  .live-sim__markets {
+  .live-sim__segment {
     width: 100%;
   }
 
-  .live-sim .btn--primary {
+  .live-sim__submit {
     width: 100%;
     justify-content: center;
+  }
+
+  .live-sim__selection {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .live-sim__selection-quote {
+    margin-left: 0;
+  }
+
+  .live-sim__selection-clear {
+    align-self: flex-end;
   }
 
   .live-sim__hit {
@@ -1537,106 +1549,312 @@ body {
 
 /* 매수·매도 시뮬 */
 .live-sim {
-  padding: 1rem 1.1rem;
+  padding: 0;
   margin-bottom: 0.75rem;
+  overflow: hidden;
+}
+
+.live-sim__head {
+  padding: 1rem 1.1rem 0.65rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border, #e2e8f0) 55%, transparent);
+}
+
+.live-sim__title {
+  margin: 0;
 }
 
 .live-sim__note {
-  margin: 0 0 0.65rem;
-  font-size: 0.78rem;
-  color: var(--text-muted, #6b7280);
-  line-height: 1.45;
+  margin: 0.4rem 0 0;
+  font-size: 0.76rem;
+  color: var(--muted, var(--text-muted, #6b7280));
+  line-height: 1.5;
 }
 
-.live-sim__row {
+.live-sim__panel {
+  padding: 0.85rem 1.1rem 1rem;
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.65rem;
-  align-items: flex-end;
-  margin-bottom: 0.55rem;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: color-mix(in srgb, var(--card) 88%, var(--accent, #5eead4) 4%);
+}
+
+.live-sim__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 0.65rem 0.75rem;
+  align-items: end;
 }
 
 .live-sim__field {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.78rem;
-  flex: 1;
-  min-width: 10rem;
+  gap: 0.35rem;
+  min-width: 0;
 }
 
-.live-sim__markets {
+.live-sim__label {
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: var(--muted, var(--text-muted, #6b7280));
+}
+
+.live-sim__select,
+.live-sim__search-input {
+  width: 100%;
+  min-height: 2.5rem;
+  border-radius: 10px;
+}
+
+.live-sim__search-wrap {
+  position: relative;
+}
+
+.live-sim__search-input {
+  padding-left: 0.75rem;
+}
+
+.live-sim__segment {
   display: flex;
-  gap: 0.35rem;
+  padding: 3px;
+  gap: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface, #0f172a) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border, #e2e8f0) 70%, transparent);
+}
+
+.live-sim__segment-btn {
+  flex: 1;
+  min-height: 2.15rem;
+  padding: 0.35rem 0.65rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--muted, var(--text-muted, #6b7280));
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.live-sim__segment-btn:hover {
+  color: var(--text);
+}
+
+.live-sim__segment-btn--on {
+  color: var(--text);
+  background: var(--card, #fff);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.live-sim__segment-btn:focus-visible {
+  outline: 2px solid var(--accent, #5eead4);
+  outline-offset: 2px;
 }
 
 .live-sim__hits {
   list-style: none;
-  margin: 0 0 0.5rem;
+  margin: 0;
   padding: 0;
-  border: 1px solid var(--border, #e2e8f0);
-  border-radius: 8px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border, #e2e8f0) 80%, transparent);
   overflow: hidden;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
 }
 
 .live-sim__hit {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem 0.5rem;
-  align-items: baseline;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
   width: 100%;
-  padding: 0.45rem 0.6rem;
+  padding: 0.55rem 0.75rem;
   border: none;
-  border-bottom: 1px solid var(--border, #e2e8f0);
-  background: var(--surface-2, rgba(255, 255, 255, 0.03));
+  border-bottom: 1px solid color-mix(in srgb, var(--border, #e2e8f0) 55%, transparent);
+  background: var(--card, rgba(255, 255, 255, 0.04));
   font: inherit;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   text-align: left;
   cursor: pointer;
+  transition: background 0.12s ease;
 }
 
 .live-sim__hit:last-child {
   border-bottom: none;
 }
 
-.live-sim__hit:hover {
-  background: var(--accent-dim, rgba(94, 234, 212, 0.08));
+.live-sim__hit:hover,
+.live-sim__hit:focus-visible {
+  background: color-mix(in srgb, var(--accent, #5eead4) 10%, var(--card));
+  outline: none;
+}
+
+.live-sim__hit-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
 }
 
 .live-sim__hit-sym {
-  font-weight: 700;
+  font-weight: 800;
+  font-size: 0.84rem;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
 .live-sim__hit-name {
-  color: var(--text-muted, #6b7280);
+  font-size: 0.74rem;
+  color: var(--muted, var(--text-muted, #6b7280));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 12rem;
 }
 
-.live-sim__hit-price {
-  margin-left: auto;
-  font-size: 0.76rem;
+.live-sim__hit-quote {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.12rem;
+  flex-shrink: 0;
   font-variant-numeric: tabular-nums;
 }
 
-.live-sim__picked {
-  margin: 0 0 0.5rem;
+.live-sim__hit-price {
   font-size: 0.8rem;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem;
+  font-weight: 650;
 }
 
-.live-sim__ok {
-  margin: 0.5rem 0 0;
-  font-size: 0.8rem;
+.live-sim__hit-chg {
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.live-sim__hit-chg--up {
   color: #15803d;
 }
 
-.live-sim__err {
-  margin: 0.35rem 0 0;
-  font-size: 0.8rem;
+.live-sim__hit-chg--down {
   color: #b91c1c;
+}
+
+.live-sim__selection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent, #5eead4) 35%, var(--border, #e2e8f0));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent, #5eead4) 12%, var(--card)) 0%,
+    var(--card, rgba(255, 255, 255, 0.06)) 100%
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.live-sim__selection-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.55rem;
+  min-width: 0;
+}
+
+.live-sim__selection-sym {
+  font-weight: 800;
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.live-sim__selection-name {
+  font-size: 0.8rem;
+  color: var(--muted, var(--text-muted, #6b7280));
+}
+
+.live-sim__selection-quote {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.live-sim__selection-price {
+  font-weight: 700;
+  font-size: 0.86rem;
+}
+
+.live-sim__selection-chg {
+  font-size: 0.76rem;
+  font-weight: 650;
+}
+
+.live-sim__selection-chg--up {
+  color: #15803d;
+}
+
+.live-sim__selection-chg--down {
+  color: #b91c1c;
+}
+
+.live-sim__selection-clear {
+  flex-shrink: 0;
+  padding: 0.35rem 0.55rem;
+  border: none;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted, var(--text-muted, #6b7280));
+  cursor: pointer;
+}
+
+.live-sim__selection-clear:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+}
+
+.live-sim__actions {
+  margin-top: 0.1rem;
+}
+
+.live-sim__submit {
+  width: 100%;
+  min-height: 2.65rem;
+  border-radius: 12px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.live-sim__banner {
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.live-sim__banner--ok {
+  color: #166534;
+  background: color-mix(in srgb, #22c55e 14%, var(--card));
+  border: 1px solid color-mix(in srgb, #22c55e 28%, transparent);
+}
+
+.live-sim__banner--err {
+  color: #991b1b;
+  background: color-mix(in srgb, #ef4444 12%, var(--card));
+  border: 1px solid color-mix(in srgb, #ef4444 25%, transparent);
 }
 
 .live-portfolio__sell-hint {
