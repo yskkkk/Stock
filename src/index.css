@@ -6591,6 +6591,30 @@ body {
   width: 100%;
 }
 
+/* 실거래 탭 — 상단 바와 양옆 정렬(380px 목록 열 대신 전체 폭, 차트는 아래) */
+.workspace.workspace--live-trade {
+  grid-template-columns: 1fr;
+  max-width: 100%;
+  width: 100%;
+  align-self: stretch;
+  min-height: auto;
+}
+
+.workspace:not(.crypto-workspace) .picks-panel.live-trading-side {
+  max-height: none;
+  min-height: auto;
+  height: auto;
+  overflow: visible;
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 100%;
+}
+
+.app.app--live-trade .workspace.workspace--live-trade {
+  flex: 0 0 auto;
+  min-height: auto;
+}
+
 /* 스크리너용 .picks-panel 높이 제한(56dvh)을 받지 않음 — 카드가 표 영역만큼 세로로 늘어남 */
 .picks-panel.rec-tracker-panel {
   --rec-tracker-table-min: clamp(22rem, calc(100dvh - 15.5rem), 84rem);

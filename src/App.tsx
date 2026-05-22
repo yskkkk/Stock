@@ -909,7 +909,11 @@ export default function App() {
   return (
     <div
       className={
-        appTab === "recommendations" ? "app app--rec-tracker" : "app"
+        appTab === "recommendations"
+          ? "app app--rec-tracker"
+          : appTab === "liveTrading"
+            ? "app app--live-trade"
+            : "app"
       }
       ref={appScrollRef}
     >
