@@ -11,3 +11,5 @@ alwaysApply: true
 - **완료 비프**: 사용자에게 보낼 **최종 답 직전에만** `[Console]::Beep(880,200);[Console]::Beep(1100,250)` (다른 셸 명령 없이). 사용자가 끄라고 하면 생략, push 실패 등 미완료 턴은 생략. 순서·예외는 `@task-complete-sound`.
 - **품질**: 추측 보고 금지, 확인 후 완료라고 말하기. 더 촘촘한 원칙은 `@zero-mistakes`.
 - **단일 개발 큐**: 실행 SSOT=메모리 FIFO, 표시=`ops-dev-queue-display.json`( **100ms 미러** ). 답 끝 → 훅 release 또는 transcript 12s+텍스트-only. 상세 `@dev-queue`.
+- **모바일 앱**: Capacitor(Android·iOS) = 동일 `src/`. 기능 수정 시 `@mobile-app` 체크. 웹 다운로드 `/mobile-app.html`.
+- **아이콘**: 교체 요청 시 `@icon-assets` — 흰·밝은 회색 매트 투명(`npm run icons:gen`), `?v=` bump.

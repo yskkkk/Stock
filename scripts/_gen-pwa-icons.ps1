@@ -1,81 +1,3 @@
-/**
- * YSTOCK 앱 아이콘 → PWA·웹·Android·iOS·스플래시 일괄 생성 (Windows System.Drawing)
- * 항상 흰·밝은 회색·체커보드 매트를 투명 처리(코너 플러드). 로고 내 흰 글자·파란 배경은 유지.
- * STOCK_ICON_FULL_BLEED=1(기본): 완성형 앱 아이콘, 패딩 0
- * STOCK_ICON_FULL_BLEED=0: 로고만, 4% 패딩
- * Usage: node scripts/gen-pwa-icons.mjs
- */
-import fs from "fs";
-import path from "path";
-import { execSync } from "child_process";
-import { fileURLToPath } from "url";
-
-const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
-const defaultSource = path.join(root, "public", "branding", "ystock-logo-source.png");
-const source = process.env.STOCK_ICON_SOURCE?.trim() || defaultSource;
-const fullBleed = process.env.STOCK_ICON_FULL_BLEED !== "0";
-
-if (!fs.existsSync(source)) {
-  console.error(`[icons] source not found: ${source}`);
-  process.exit(1);
-}
-
-const targets = [
-  ["public/branding/ystock-logo-mark.png", 128],
-  ["public/icons/icon-32.png", 32],
-  ["public/icons/apple-touch-icon.png", 180],
-  ["public/icons/icon-192.png", 192],
-  ["public/icons/icon-512.png", 512],
-  ["public/apple-touch-icon.png", 180],
-  ["ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png", 1024],
-  ["android/app/src/main/res/mipmap-mdpi/ic_launcher.png", 48],
-  ["android/app/src/main/res/mipmap-hdpi/ic_launcher.png", 72],
-  ["android/app/src/main/res/mipmap-xhdpi/ic_launcher.png", 96],
-  ["android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png", 144],
-  ["android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png", 192],
-  ["android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png", 48],
-  ["android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png", 72],
-  ["android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png", 96],
-  ["android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png", 144],
-  ["android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png", 192],
-  ["android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png", 108],
-  ["android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png", 162],
-  ["android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png", 216],
-  ["android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png", 324],
-  ["android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png", 432],
-];
-
-const splashTargets = [
-  ["android/app/src/main/res/drawable/splash.png", 480, 800],
-  ["android/app/src/main/res/drawable-port-mdpi/splash.png", 480, 800],
-  ["android/app/src/main/res/drawable-port-hdpi/splash.png", 720, 1280],
-  ["android/app/src/main/res/drawable-port-xhdpi/splash.png", 960, 1600],
-  ["android/app/src/main/res/drawable-port-xxhdpi/splash.png", 1440, 2560],
-  ["android/app/src/main/res/drawable-port-xxxhdpi/splash.png", 1920, 3200],
-  ["android/app/src/main/res/drawable-land-mdpi/splash.png", 800, 480],
-  ["android/app/src/main/res/drawable-land-hdpi/splash.png", 1280, 720],
-  ["android/app/src/main/res/drawable-land-xhdpi/splash.png", 1600, 960],
-  ["android/app/src/main/res/drawable-land-xxhdpi/splash.png", 2560, 1440],
-  ["android/app/src/main/res/drawable-land-xxxhdpi/splash.png", 3200, 1920],
-  ["ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732.png", 2732, 2732],
-  ["ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-1.png", 2732, 2732],
-  ["ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-2.png", 2732, 2732],
-];
-
-const ps1 = path.join(root, "scripts", "_gen-pwa-icons.ps1");
-const srcEsc = source.replace(/'/g, "''");
-const markOut = path.join(root, "public/branding/ystock-logo-mark.png").replace(/'/g, "''");
-const lines = targets.map(([rel, size]) => {
-  const out = path.join(root, rel).replace(/'/g, "''");
-  return `Save-Icon ${size} '${out}'`;
-});
-const splashLines = splashTargets.map(([rel, w, h]) => {
-  const out = path.join(root, rel).replace(/'/g, "''");
-  return `Save-Splash ${w} ${h} '${out}'`;
-});
-const fullBleedPs = fullBleed ? "$true" : "$false";
-
-const psBody = `
 Add-Type -AssemblyName System.Drawing
 
 function Test-LogoGreenPixel([System.Drawing.Color]$c) {
@@ -167,8 +89,8 @@ function Prepare-LogoBitmap([System.Drawing.Image]$src) {
   return $bmp
 }
 
-$fullBleed = ${fullBleedPs}
-$srcPath = '${srcEsc}'
+$fullBleed = $true
+$srcPath = 'C:\Stock\public\branding\ystock-logo-source.png'
 $raw = [System.Drawing.Image]::FromFile($srcPath)
 $logo = Prepare-LogoBitmap $raw
 $raw.Dispose()
@@ -219,14 +141,41 @@ function Save-Splash([int]$w, [int]$h, [string]$outPath) {
   $bmp.Dispose()
 }
 
-Save-Icon 128 '${markOut}'
-${lines.filter((l) => !l.includes("ystock-logo-mark")).join("\n")}
-${splashLines.join("\n")}
+Save-Icon 128 'C:\Stock\public\branding\ystock-logo-mark.png'
+Save-Icon 32 'C:\Stock\public\icons\icon-32.png'
+Save-Icon 180 'C:\Stock\public\icons\apple-touch-icon.png'
+Save-Icon 192 'C:\Stock\public\icons\icon-192.png'
+Save-Icon 512 'C:\Stock\public\icons\icon-512.png'
+Save-Icon 180 'C:\Stock\public\apple-touch-icon.png'
+Save-Icon 1024 'C:\Stock\ios\App\App\Assets.xcassets\AppIcon.appiconset\AppIcon-512@2x.png'
+Save-Icon 48 'C:\Stock\android\app\src\main\res\mipmap-mdpi\ic_launcher.png'
+Save-Icon 72 'C:\Stock\android\app\src\main\res\mipmap-hdpi\ic_launcher.png'
+Save-Icon 96 'C:\Stock\android\app\src\main\res\mipmap-xhdpi\ic_launcher.png'
+Save-Icon 144 'C:\Stock\android\app\src\main\res\mipmap-xxhdpi\ic_launcher.png'
+Save-Icon 192 'C:\Stock\android\app\src\main\res\mipmap-xxxhdpi\ic_launcher.png'
+Save-Icon 48 'C:\Stock\android\app\src\main\res\mipmap-mdpi\ic_launcher_round.png'
+Save-Icon 72 'C:\Stock\android\app\src\main\res\mipmap-hdpi\ic_launcher_round.png'
+Save-Icon 96 'C:\Stock\android\app\src\main\res\mipmap-xhdpi\ic_launcher_round.png'
+Save-Icon 144 'C:\Stock\android\app\src\main\res\mipmap-xxhdpi\ic_launcher_round.png'
+Save-Icon 192 'C:\Stock\android\app\src\main\res\mipmap-xxxhdpi\ic_launcher_round.png'
+Save-Icon 108 'C:\Stock\android\app\src\main\res\mipmap-mdpi\ic_launcher_foreground.png'
+Save-Icon 162 'C:\Stock\android\app\src\main\res\mipmap-hdpi\ic_launcher_foreground.png'
+Save-Icon 216 'C:\Stock\android\app\src\main\res\mipmap-xhdpi\ic_launcher_foreground.png'
+Save-Icon 324 'C:\Stock\android\app\src\main\res\mipmap-xxhdpi\ic_launcher_foreground.png'
+Save-Icon 432 'C:\Stock\android\app\src\main\res\mipmap-xxxhdpi\ic_launcher_foreground.png'
+Save-Splash 480 800 'C:\Stock\android\app\src\main\res\drawable\splash.png'
+Save-Splash 480 800 'C:\Stock\android\app\src\main\res\drawable-port-mdpi\splash.png'
+Save-Splash 720 1280 'C:\Stock\android\app\src\main\res\drawable-port-hdpi\splash.png'
+Save-Splash 960 1600 'C:\Stock\android\app\src\main\res\drawable-port-xhdpi\splash.png'
+Save-Splash 1440 2560 'C:\Stock\android\app\src\main\res\drawable-port-xxhdpi\splash.png'
+Save-Splash 1920 3200 'C:\Stock\android\app\src\main\res\drawable-port-xxxhdpi\splash.png'
+Save-Splash 800 480 'C:\Stock\android\app\src\main\res\drawable-land-mdpi\splash.png'
+Save-Splash 1280 720 'C:\Stock\android\app\src\main\res\drawable-land-hdpi\splash.png'
+Save-Splash 1600 960 'C:\Stock\android\app\src\main\res\drawable-land-xhdpi\splash.png'
+Save-Splash 2560 1440 'C:\Stock\android\app\src\main\res\drawable-land-xxhdpi\splash.png'
+Save-Splash 3200 1920 'C:\Stock\android\app\src\main\res\drawable-land-xxxhdpi\splash.png'
+Save-Splash 2732 2732 'C:\Stock\ios\App\App\Assets.xcassets\Splash.imageset\splash-2732x2732.png'
+Save-Splash 2732 2732 'C:\Stock\ios\App\App\Assets.xcassets\Splash.imageset\splash-2732x2732-1.png'
+Save-Splash 2732 2732 'C:\Stock\ios\App\App\Assets.xcassets\Splash.imageset\splash-2732x2732-2.png'
 $logo.Dispose()
-Write-Host '[icons] ok (${targets.length} icons + ${splashTargets.length} splashes, matte-stripped, fullBleed=${fullBleed})'
-`;
-
-fs.writeFileSync(ps1, psBody.trim() + "\n", "utf8");
-execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${ps1}"`, {
-  stdio: "inherit",
-});
+Write-Host '[icons] ok (22 icons + 14 splashes, matte-stripped, fullBleed=true)'
