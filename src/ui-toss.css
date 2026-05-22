@@ -2868,28 +2868,39 @@ body {
   gap: 0;
 }
 
-.app-site-footer__link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+/* 푸터: index.css 전역 button(칩형) 무시 — 네이버형 텍스트 링크만 */
+.app-site-footer__nav a.app-site-footer__link,
+.app-site-footer__nav button.app-site-footer__link,
+.app-site-footer .app-server-restart-trigger.app-site-footer__link {
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline;
   margin: 0;
-  padding: 0.2rem 0.55rem;
+  padding: 0;
+  min-height: 0;
+  min-width: 0;
+  height: auto;
   border: none;
-  background: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  background-color: transparent;
   font: inherit;
+  font-size: inherit;
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.35;
   color: var(--muted);
   text-decoration: none;
   cursor: pointer;
-  border-radius: 6px;
-  vertical-align: middle;
+  vertical-align: baseline;
   -webkit-tap-highlight-color: transparent;
 }
 
 .app-site-footer__link:hover {
   color: var(--text);
-  background: color-mix(in srgb, var(--text) 6%, transparent);
+  background: transparent;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .app-site-footer__link:disabled {
@@ -2900,12 +2911,31 @@ body {
 
 .app-site-footer__link:disabled:hover {
   color: var(--muted);
-  background: none;
+  background: transparent;
+  text-decoration: none;
 }
 
 .app-site-footer__link--active {
   color: var(--text);
-  font-weight: 800;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.app-site-footer__pair .app-site-footer__link[href*="apk"] {
+  color: #2563eb;
+}
+
+.app-site-footer__pair .app-site-footer__link[href*="install-ios"] {
+  color: #7c3aed;
+}
+
+html[data-theme="light"] .app-site-footer__pair .app-site-footer__link[href*="apk"] {
+  color: #1d4ed8;
+}
+
+html[data-theme="light"] .app-site-footer__pair .app-site-footer__link[href*="install-ios"] {
+  color: #6d28d9;
 }
 
 .app-site-footer__sep {
@@ -2972,13 +3002,31 @@ body {
   align-items: center;
   align-self: center;
   gap: 0.35rem;
-  padding: 0.2rem 0;
+  padding: 0;
+}
+
+.app-site-footer .app-server-restart-inline .app-page-top__corner-text {
+  appearance: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  padding: 0;
+  min-height: 0;
+  font-size: inherit;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.app-site-footer .app-server-restart-inline .app-page-top__corner-text:hover {
+  color: var(--text);
+  text-decoration: underline;
+  opacity: 1;
 }
 
 .app-site-footer .app-server-restart-trigger {
-  display: inline-flex;
-  align-items: center;
-  line-height: 1.25;
+  display: inline;
+  line-height: 1.35;
 }
 
 html[data-theme="light"] .app-site-footer {
@@ -2991,6 +3039,7 @@ html[data-theme="light"] .app-site-footer__link {
 
 html[data-theme="light"] .app-site-footer__link:hover {
   color: #111827;
+  background: transparent;
 }
 
 @media (max-width: 900px) {
@@ -2998,27 +3047,12 @@ html[data-theme="light"] .app-site-footer__link:hover {
     align-items: center;
     row-gap: 0.35rem;
   }
-
-  .app-site-footer__pair,
-  .app-site-footer__sep,
-  .app-site-footer__dot {
-    min-height: 36px;
-  }
-
-  .app-site-footer__link {
-    min-height: 36px;
-    padding: 0.28rem 0.42rem;
-  }
 }
 
 @media (max-width: 560px) {
   .app-site-footer__nav {
     font-size: 0.72rem;
     gap: 0.1rem;
-  }
-
-  .app-site-footer__link {
-    padding: 0.28rem 0.4rem;
   }
 
   .app-site-footer__palette {
