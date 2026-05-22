@@ -6,7 +6,7 @@ import {
 
 export const IOS_OTA_BUNDLE_ID = "com.stock.dashboard";
 export const IOS_OTA_BUNDLE_VERSION = "1.0.0";
-export const IOS_OTA_TITLE = "종목 대시보드";
+export const IOS_OTA_TITLE = "YSTOCK";
 
 /**
  * @param {string} httpsOrigin

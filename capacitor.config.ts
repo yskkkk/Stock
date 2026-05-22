@@ -45,7 +45,7 @@ const remoteUrl = envUrl();
 
 const config: CapacitorConfig = {
   appId: "com.stock.dashboard",
-  appName: "종목 대시보드",
+  appName: "YSTOCK",
   webDir: "dist",
   server: remoteUrl
     ? {

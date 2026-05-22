@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">종목 대시보드</string>
-    <string name="title_activity_main">종목 대시보드</string>
+    <string name="app_name">YSTOCK</string>
+    <string name="title_activity_main">YSTOCK</string>
     <string name="package_name">com.stock.dashboard</string>
     <string name="custom_url_scheme">com.stock.dashboard</string>
 </resources>

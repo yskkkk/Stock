@@ -1,6 +1,6 @@
 {
-  "name": "종목 대시보드",
-  "short_name": "종목",
+  "name": "YSTOCK",
+  "short_name": "YSTOCK",
   "description": "국내·미국 스크리너 · 실매매 · 코인",
   "start_url": "/",
   "scope": "/",
