@@ -1,4 +1,5 @@
 import fs from "fs";
+import { recordServerEventForImprovement } from "./server-self-improvement-log.js";
 import { formatLogTimestampKst } from "./log-kst.js";
 import {
   dailyServerLogPath,
@@ -99,6 +100,11 @@ function shouldSkipAccessLog(req) {
   if (path === "/api/ops/cursor-agent-pending") return true;
   if (path.startsWith("/api/stock/")) return true;
   if (path.startsWith("/api/news/")) return true;
+  /** 실거래·시뮬 탭 폴링 */
+  if (path === "/api/live-trading/portfolio") return true;
+  if (path === "/api/live-trading/status") return true;
+  if (path === "/api/picks/tech-models") return true;
+  if (path.startsWith("/api/live-trading/programs")) return true;
   return false;
 }
 
@@ -161,9 +167,22 @@ function humanAction(req) {
   if (method === "POST" && path === "/api/ops/dev-queue/ide/acquire")
     return "IDE 개발 큐 슬롯 획득";
 
+  if (method === "GET" && path === "/api/live-trading/portfolio")
+    return "실거래 포트폴리오 조회";
+  if (method === "GET" && path === "/api/live-trading/status")
+    return "실거래 프로그램 상태 조회";
+  if (method === "GET" && path === "/api/picks/tech-models")
+    return "기술 모델 목록 조회";
+  if (method === "GET" && path.startsWith("/api/live-trading/programs"))
+    return "실거래 프로그램 조회";
+
   if (path === "/" || path === "/index.html") return "메인 페이지";
   if (path === "/access-gate.html" || path.endsWith("/access-gate.html")) return "접근 게이트 페이지";
 
+  if (method === "GET") return `조회 ${path}`;
+  if (method === "POST") return `요청 ${path}`;
+  if (method === "PUT" || method === "PATCH") return `변경 ${path}`;
+  if (method === "DELETE") return `삭제 ${path}`;
   return `${method} ${path}`;
 }
 
@@ -178,7 +197,7 @@ function lineFromReq(req, atTs) {
   const action = humanAction(req);
   return {
     file: `${ts}\tip=${ip}\t${method}\t${action}\n`,
-    console: `${ts} ip=${ip} ${method} ${action}`,
+    console: `${ts} ip=${ip} ${action}`,
   };
 }
 
@@ -260,6 +279,9 @@ export function appendServerEventLog(
     fs.appendFile(accessLogPathForToday(), file, (err) => {
       if (err) console.warn("[access-log] 파일 기록 실패:", err.message);
     });
+    if (level === "warn" || level === "error") {
+      recordServerEventForImprovement(safeCat, safeMsg, level);
+    }
   } catch (e) {
     console.warn("[access-log]", e instanceof Error ? e.message : e);
   }
