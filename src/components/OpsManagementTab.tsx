@@ -411,20 +411,7 @@ export default function OpsManagementTab({
   useEffect(() => {
     if (!queueSnap) return;
     const entries = parseOpsDevQueueAgentEntries(queueSnap.agentEntries);
-    setServerQueue((prev) => {
-      if (
-        prev.length === entries.length &&
-        prev.every(
-          (q, i) =>
-            q.id === entries[i]?.id &&
-            q.status === entries[i]?.status &&
-            q.instructionPreview === entries[i]?.instructionPreview,
-        )
-      ) {
-        return prev;
-      }
-      return entries;
-    });
+    setServerQueue(entries);
     const rawIp = queueSnap.viewerIp;
     const ip =
       rawIp === null || rawIp === undefined ? null : String(rawIp).trim() || null;

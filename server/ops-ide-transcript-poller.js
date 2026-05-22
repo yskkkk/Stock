@@ -10,7 +10,6 @@ import {
   hasActiveIdeSlotForPrompt,
   registerIdeDevQueueSlot,
   releaseAnyRunningIdeDevQueueSlot,
-  releaseRunningIdeDevQueueIfDifferentPrompt,
 } from "./ops-agent-job-queue.js";
 import {
   clearIdeLeaseOnDisk,
@@ -39,6 +38,9 @@ let idleTurnReleasedForMtime = 0;
 let activeLeaseId = null;
 /** @type {string | null} */
 let activeTranscriptPath = null;
+/** transcript별 마지막 처리 user 키 — 병렬 에이전트·멀티 채팅 */
+/** @type {Map<string, string>} */
+const lastProcessedUserKeyByFile = new Map();
 let lastProcessedUserKey = "";
 let lastFileMtimeMs = 0;
 let lastFileChangeMs = 0;
@@ -55,13 +57,15 @@ function resolveTranscriptRoot() {
   return path.join(os.homedir(), ".cursor", "projects", slug, "agent-transcripts");
 }
 
-/** @returns {string | null} */
-function findNewestTranscriptFile(root) {
-  if (!fs.existsSync(root)) return null;
+const ACTIVE_TRANSCRIPT_MAX_AGE_MS = 45 * 60 * 1000;
 
-  /** @type {string | null} */
-  let best = null;
-  let bestMtime = 0;
+/** @returns {string[]} 최근 수정 순 */
+function findActiveTranscriptFiles(root, maxAgeMs = ACTIVE_TRANSCRIPT_MAX_AGE_MS) {
+  if (!fs.existsSync(root)) return [];
+
+  const now = Date.now();
+  /** @type {{ path: string; mtime: number }[]} */
+  const hits = [];
 
   /** @param {string} dir */
   function walk(dir) {
@@ -74,7 +78,6 @@ function findNewestTranscriptFile(root) {
     for (const ent of entries) {
       const full = path.join(dir, ent.name);
       if (ent.isDirectory()) {
-        if (ent.name === "subagents") continue;
         walk(full);
         continue;
       }
@@ -85,16 +88,20 @@ function findNewestTranscriptFile(root) {
       } catch {
         continue;
       }
-      const m = st.mtimeMs;
-      if (m >= bestMtime) {
-        bestMtime = m;
-        best = full;
-      }
+      if (now - st.mtimeMs > maxAgeMs) continue;
+      hits.push({ path: full, mtime: st.mtimeMs });
     }
   }
 
   walk(root);
-  return best;
+  hits.sort((a, b) => b.mtime - a.mtime);
+  return hits.map((h) => h.path);
+}
+
+/** @returns {string | null} */
+function findNewestTranscriptFile(root) {
+  const files = findActiveTranscriptFiles(root);
+  return files[0] ?? null;
 }
 
 /** @param {string} text */
@@ -227,14 +234,17 @@ function ensureLatestUserInQueue(filePath, latestUser, lines) {
 
   const userKey = `${filePath}:${latestUser.lineIndex}`;
   const sessionId = path.basename(filePath, ".jsonl");
+  const prevKey = lastProcessedUserKeyByFile.get(filePath) ?? "";
 
   if (isTranscriptTurnIdleCompleted(lines)) {
+    lastProcessedUserKeyByFile.set(filePath, userKey);
     lastProcessedUserKey = userKey;
     return;
   }
 
-  if (userKey !== lastProcessedUserKey) {
+  if (userKey !== prevKey) {
     enqueueFromTranscript(filePath, preview, latestUser.lineIndex);
+    lastProcessedUserKeyByFile.set(filePath, userKey);
     return;
   }
 
@@ -242,7 +252,6 @@ function ensureLatestUserInQueue(filePath, latestUser, lines) {
   if (Date.now() - lastFileChangeMs >= TURN_END_IDLE_MS) return;
 
   writeIdeLeaseDiskImmediate({ prompt: preview, sessionId, queueStatus: "waiting" });
-  releaseRunningIdeDevQueueIfDifferentPrompt(preview);
   try {
     const reg = registerIdeDevQueueSlot({ prompt: preview, sessionId });
     activeLeaseId = String(reg.leaseId ?? "").trim() || null;
@@ -280,11 +289,9 @@ function enqueueFromTranscript(filePath, prompt, lineIndex) {
 
   const sessionId = path.basename(filePath, ".jsonl");
   const userKey = `${filePath}:${lineIndex}`;
-  if (userKey === lastProcessedUserKey) return;
+  if (userKey === (lastProcessedUserKeyByFile.get(filePath) ?? "")) return;
+  lastProcessedUserKeyByFile.set(filePath, userKey);
   lastProcessedUserKey = userKey;
-
-  /* 같은 사용자 메시지면 실행 중 슬롯을 내리지 않음(훅 등록과 이중 완료 방지) */
-  releaseRunningIdeDevQueueIfDifferentPrompt(preview);
 
   try {
     const reg = registerIdeDevQueueSlot({
@@ -399,9 +406,18 @@ function resolveTranscriptFileForScan(root) {
 function tick() {
   try {
     const root = resolveTranscriptRoot();
-    const file = resolveTranscriptFileForScan(root);
-    if (!file) return;
-    scanTranscriptFile(file);
+    const files = findActiveTranscriptFiles(root);
+    if (!files.length) return;
+    const primary = resolveTranscriptFileForScan(root);
+    const ordered = primary
+      ? [primary, ...files.filter((f) => f !== primary)]
+      : files;
+    const seen = new Set();
+    for (const file of ordered) {
+      if (seen.has(file)) continue;
+      seen.add(file);
+      scanTranscriptFile(file);
+    }
   } catch (e) {
     console.warn(
       "[ops-ide-transcript]",

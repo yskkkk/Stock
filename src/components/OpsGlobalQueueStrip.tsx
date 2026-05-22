@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useOpsDevQueueDisplay } from "../hooks/useOpsDevQueueDisplay";
 import { ko } from "../i18n/ko";
 import {
+  agentEntriesSnapshotKey,
   readOpsDevQueueDisplayCache,
   rowsFromDevQueueDisplayPayload,
   sourceLabelForRow,
@@ -36,20 +37,15 @@ function OpsQueueUnifiedSeqBadge({ seq }: { seq?: number | null }) {
 export default function OpsGlobalQueueStrip({ onOpenOps }: { onOpenOps: () => void }) {
   const snap = useOpsDevQueueDisplay();
   const [rows, setRows] = useState<OpsGlobalQueueRow[]>(() => readOpsDevQueueDisplayCache() ?? []);
+  const lastSnapKeyRef = useRef("");
 
   useEffect(() => {
     if (!snap) return;
+    const snapKey = agentEntriesSnapshotKey(snap.agentEntries);
+    if (snapKey === lastSnapKeyRef.current) return;
+    lastSnapKeyRef.current = snapKey;
     writeOpsDevQueueDisplayCache(snap);
-    const next = rowsFromDevQueueDisplayPayload(snap);
-    setRows((prev) => {
-      if (
-        prev.length === next.length &&
-        prev.every((r, i) => r.key === next[i]?.key && r.cardClass === next[i]?.cardClass)
-      ) {
-        return prev;
-      }
-      return next;
-    });
+    setRows(rowsFromDevQueueDisplayPayload(snap));
   }, [snap]);
 
   const openCard = useCallback(() => {

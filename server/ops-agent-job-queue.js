@@ -215,6 +215,7 @@ function buildOpsAgentQueueMemoryEntries() {
     if (s.meta) {
       waiting.push({
         ...s.meta,
+        ...(s.sessionId ? { sessionId: s.sessionId } : {}),
         source: s.meta.source === "ide" ? "ide" : "web",
         status: /** @type {const} */ ("waiting"),
       });
@@ -224,6 +225,7 @@ function buildOpsAgentQueueMemoryEntries() {
   if (active && runningMeta) {
     entries.push({
       ...runningMeta,
+      ...(runningSlot?.sessionId ? { sessionId: runningSlot.sessionId } : {}),
       source: runningMeta.source === "ide" ? "ide" : "web",
       status: /** @type {const} */ ("running"),
     });
@@ -453,31 +455,12 @@ export function registerIdeDevQueueSlot(input) {
 
   const sessionId = String(input.sessionId ?? "").trim() || null;
 
-  /* transcript 턴 종료 감지 실패 시 — 다른 프롬프트면 실행 중 슬롯을 먼저 해제 */
-  releaseRunningIdeDevQueueIfDifferentPrompt(prompt);
-
   const waiting = waitingSlotCount();
   if (waiting >= MAX_WAITING) {
     const err = new Error(
       "개발 대기열이 가득 찼습니다. 잠시 후 다시 시도하세요.",
     );
     err.code = "OPS_QUEUE_FULL";
-    throw err;
-  }
-
-  if (
-    sessionId &&
-    slots.some(
-      (s) =>
-        s.source === "ide" &&
-        s.sessionId === sessionId &&
-        (s === slots[0] || slots.indexOf(s) > 0),
-    )
-  ) {
-    const err = new Error(
-      "이 Cursor 세션에 이미 대기·실행 중인 IDE 요청이 있습니다. 끝난 뒤 다시 보내세요.",
-    );
-    err.code = "IDE_SESSION_BUSY";
     throw err;
   }
 
