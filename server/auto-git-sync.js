@@ -31,6 +31,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { appendServerEventLog } from "./access-log.js";
 import { formatLogTimestampKst } from "./log-kst.js";
+import { summarizeGitPullRangeForNotify } from "./ops-agent-git-push.js";
+import { notifyOpsAutoGitPulled } from "./ops-dev-git-telegram.js";
 import { respawnNodeProcess } from "./restart-node-process.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -232,6 +234,18 @@ export function startAutoGitSync({ httpServer }) {
     }
 
     appendServerEventLog("auto-git", "git pull --ff-only completed OK");
+
+    let headAfterPull = localRev;
+    try {
+      headAfterPull = execGitOut(["rev-parse", "HEAD"]);
+    } catch {
+      /* ignore */
+    }
+    notifyOpsAutoGitPulled({
+      remote,
+      branch,
+      gitSummary: summarizeGitPullRangeForNotify(localRev, headAfterPull),
+    });
 
     const restartOnlyIfBuildOk = truthy(
       process.env.AUTO_GIT_RESTART_ONLY_IF_BUILD_OK,

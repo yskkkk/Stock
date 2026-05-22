@@ -698,41 +698,50 @@ export async function streamOpsCursorAgentSse(req, res, body) {
       patchTimer = null;
     }
 
+    let state = /** @type {"ok" | "error" | "cancelled"} */ ("ok");
+    if (userCancelAc.signal.aborted) {
+      state = "cancelled";
+    } else if (capture.error) {
+      state = "error";
+    }
+    const errorStored =
+      state === "cancelled"
+        ? "사용자가 요청을 중단했습니다."
+        : state === "error"
+          ? (capture.error ?? "알 수 없는 오류")
+          : null;
+
     if (runId) {
       try {
-        let state = /** @type {"ok" | "error" | "cancelled"} */ ("ok");
-        if (userCancelAc.signal.aborted) {
-          state = "cancelled";
-        } else if (capture.error) {
-          state = "error";
-        }
-        const errorStored =
-          state === "cancelled"
-            ? "사용자가 요청을 중단했습니다."
-            : state === "error"
-              ? (capture.error ?? "알 수 없는 오류")
-              : null;
-        try {
-          await finalizeOpsAgentEntry(runId, {
-            state,
-            instruction: capture.instruction,
-            requestIp,
-            phaseLine: capture.phaseLine,
-            cursorLine: capture.cursorLine,
-            thinkingLine: capture.thinkingLine,
-            toolLine: capture.toolLine,
-            toolLog: capture.toolLog,
-            streamText: capture.streamText,
-            statusText: capture.statusText,
-            resultText: capture.resultText,
-            durationMs: capture.durationMs,
-            runtimeLabel: capture.runtimeLabel,
-            error: errorStored,
-          });
-        } catch {
-          /* disk full 등 — 이력 저장 실패여도 텔레그램 안내는 시도 */
-        }
+        await finalizeOpsAgentEntry(runId, {
+          state,
+          instruction: capture.instruction,
+          requestIp,
+          phaseLine: capture.phaseLine,
+          cursorLine: capture.cursorLine,
+          thinkingLine: capture.thinkingLine,
+          toolLine: capture.toolLine,
+          toolLog: capture.toolLog,
+          streamText: capture.streamText,
+          statusText: capture.statusText,
+          resultText: capture.resultText,
+          durationMs: capture.durationMs,
+          runtimeLabel: capture.runtimeLabel,
+          error: errorStored,
+        });
+      } catch {
+        /* disk full 등 */
+      }
+      unregisterOpsStreamUserCancel(runId);
+    }
 
+    if (
+      capture.instruction ||
+      capture.resultText ||
+      capture.error ||
+      capture.gitSummary
+    ) {
+      try {
         const titleForNotify = opsAgentInstructionLogSnippet(capture.instruction);
         const requesterLabel = requestIp || "알 수 없음";
         const bodyForNotify = buildOpsAgentTelegramBody({
@@ -746,9 +755,8 @@ export async function streamOpsCursorAgentSse(req, res, body) {
           body: bodyForNotify,
         });
       } catch {
-        /* runId 블록 초기화 실패 등 */
+        /* notify 실패 */
       }
-      unregisterOpsStreamUserCancel(runId);
     }
 
     try {

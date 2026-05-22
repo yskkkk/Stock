@@ -6,6 +6,12 @@
 
 import { randomUUID } from "node:crypto";
 import {
+  getRepoHeadRev,
+  summarizeGitPullRangeForNotify,
+  summarizeGitReflectionForNotify,
+} from "./ops-agent-git-push.js";
+import { notifyOpsDevGitReflection } from "./ops-dev-git-telegram.js";
+import {
   findCanonicalIdeHistoryIdForPromptSync,
   finalizeOpsAgentEntry,
   trimStoredTextForOpsHistory,
@@ -185,9 +191,10 @@ function syncIdeHistoryFinalize(slot, state, error = null) {
     typeof slot.runStartedAtMs === "number" && Number.isFinite(slot.runStartedAtMs)
       ? slot.runStartedAtMs
       : Date.now();
+  const instruction = instructionTextFromMeta(slot.meta);
   void finalizeOpsAgentEntry(slot.id, {
     state,
-    instruction: instructionTextFromMeta(slot.meta),
+    instruction,
     requestIp: "cursor-ide",
     phaseLine: "Cursor IDE (단일 개발 큐)",
     cursorLine: "",
@@ -206,6 +213,22 @@ function syncIdeHistoryFinalize(slot, state, error = null) {
   }).catch(() => {
     /* ignore */
   });
+
+  if (state === "ok") {
+    const revEnd = getRepoHeadRev();
+    const revStart = String(slot.gitRevAtStart ?? "").trim();
+    const gitSummary =
+      revStart && revEnd && revStart !== revEnd
+        ? summarizeGitPullRangeForNotify(revStart, revEnd)
+        : summarizeGitReflectionForNotify("local");
+    const preview = String(slot.meta.instructionPreview ?? "").trim();
+    void notifyOpsDevGitReflection({
+      title: preview || "Cursor IDE 개발 반영",
+      source: "cursor-ide",
+      detail: "단일 개발 큐 세션 완료",
+      gitSummary,
+    });
+  }
 }
 
 function buildOpsAgentQueueMemoryEntries() {
@@ -297,6 +320,7 @@ async function drainQueue() {
 
   try {
     slot.runStartedAtMs = Date.now();
+    slot.gitRevAtStart = getRepoHeadRev();
     syncIdeHistoryRunning(slot);
     const waitedMs = Date.now() - (slot.meta?.enqueuedAtMs ?? Date.now());
     const queueSeq =

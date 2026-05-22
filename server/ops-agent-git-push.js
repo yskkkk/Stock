@@ -11,6 +11,15 @@ import { appendServerEventLog } from "./access-log.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(__dirname, "..");
 
+/** @returns {string} */
+export function getRepoHeadRev() {
+  try {
+    return gitOut(["rev-parse", "HEAD"]);
+  } catch {
+    return "";
+  }
+}
+
 function gitOut(args) {
   return execFileSync("git", args, {
     cwd: REPO,
@@ -133,9 +142,66 @@ export function commitAndPushAfterOpsAgent(opts) {
 }
 
 /**
+ * pull·push 등으로 HEAD가 바뀐 구간 요약 (auto-git·서버 반영 알림용).
+ * @param {string} oldRev
+ * @param {string} newRev
+ */
+export function summarizeGitPullRangeForNotify(oldRev, newRev) {
+  const lines = [];
+  try {
+    const branch = gitOut(["rev-parse", "--abbrev-ref", "HEAD"]);
+    lines.push(`브랜치: ${branch}`);
+    lines.push(
+      `반영: ${String(oldRev).slice(0, 7)} → ${String(newRev).slice(0, 7)}`,
+    );
+    const log = gitOut([
+      "log",
+      "--oneline",
+      `${String(oldRev)}..${String(newRev)}`,
+    ]);
+    const commits = log.split("\n").map((s) => s.trim()).filter(Boolean);
+    if (commits.length) {
+      lines.push(`커밋 (${commits.length}):`);
+      for (const c of commits.slice(0, 25)) {
+        lines.push(`  • ${c}`);
+      }
+      if (commits.length > 25) {
+        lines.push(`  … 외 ${commits.length - 25}개`);
+      }
+    }
+    const names = gitOut([
+      "diff",
+      "--name-only",
+      String(oldRev),
+      String(newRev),
+    ]);
+    const files = names.split("\n").map((s) => s.trim()).filter(Boolean);
+    if (files.length) {
+      lines.push(`변경 파일 (${files.length}):`);
+      for (const f of files.slice(0, 35)) {
+        lines.push(`  • ${f}`);
+      }
+      if (files.length > 35) {
+        lines.push(`  … 외 ${files.length - 35}개`);
+      }
+    }
+    const stat = gitOut(["diff", "--stat", String(oldRev), String(newRev)]).trim();
+    if (stat) {
+      const statLines = stat.split("\n").slice(-12);
+      lines.push(statLines.join("\n"));
+    }
+  } catch (e) {
+    lines.push(
+      `Git 범위 요약 실패: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
+  return lines.join("\n");
+}
+
+/**
  * @param {"local"|"cloud"} mode
  */
-function summarizeGitReflectionForNotify(mode) {
+export function summarizeGitReflectionForNotify(mode) {
   const lines = [];
   try {
     const branch = gitOut(["rev-parse", "--abbrev-ref", "HEAD"]);

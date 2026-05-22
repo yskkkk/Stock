@@ -812,7 +812,7 @@ function buildAppDeepLink(pick) {
 
 
 
-function escHtml(s) {
+export function escHtml(s) {
 
   return String(s)
 
