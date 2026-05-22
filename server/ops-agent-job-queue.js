@@ -223,9 +223,9 @@ function syncIdeHistoryFinalize(slot, state, error = null) {
         : summarizeGitReflectionForNotify("local");
     const preview = String(slot.meta.instructionPreview ?? "").trim();
     void notifyOpsDevGitReflection({
-      title: preview || "Cursor IDE 개발 반영",
-      source: "cursor-ide",
-      detail: "단일 개발 큐 세션 완료",
+      title: preview || "IDE에서 개발 작업이 끝남",
+      source: "Cursor IDE · 개발 큐",
+      detail: "요청이 끝나 저장소에 변경이 쌓였을 수 있습니다.",
       gitSummary,
     });
   }

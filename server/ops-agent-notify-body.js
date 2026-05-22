@@ -35,7 +35,7 @@ export function buildOpsAgentTelegramBody(input) {
 
   const git = String(capture.gitSummary ?? "").trim();
   if (git) {
-    parts.push(`【개발 반영 (Git)】\n${git}`);
+    parts.push(`【반영 요약】\n${git}`);
   }
 
   const meta = [];

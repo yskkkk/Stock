@@ -33,7 +33,7 @@ export async function notifyOpsDevGitReflection(opts) {
 
   const bodyParts = [];
   if (detail) bodyParts.push(detail);
-  if (gitSummary) bodyParts.push(`【개발 반영 (Git)】\n${gitSummary}`);
+  if (gitSummary) bodyParts.push(gitSummary);
   let body = bodyParts.join("\n\n").trim() || "—";
   const max = 3800;
   if (body.length > max) body = `${body.slice(0, max - 1)}…`;
@@ -60,9 +60,9 @@ export async function notifyOpsDevGitReflection(opts) {
 export function notifyOpsAutoGitPulled(opts) {
   if (!autoGitTelegramNotifyEnabled()) return;
   void notifyOpsDevGitReflection({
-    title: "서버 auto-git 반영",
-    source: "auto-git-sync",
-    detail: `원격 ${opts.remote}/${opts.branch} → pull --ff-only 완료`,
+    title: "서버에 새 개발 내용이 반영됨",
+    source: "auto-git · GitHub → 서버",
+    detail: `${opts.remote}/${opts.branch} 브랜치를 서버가 받아 왔습니다.`,
     gitSummary: opts.gitSummary,
   });
 }
