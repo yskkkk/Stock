@@ -32,6 +32,8 @@ import StockChart from "./StockChart";
 import TradingViewCryptoChart from "./TradingViewCryptoChart";
 import PickQuoteStrip from "./PickQuoteStrip";
 import ProfitModelModal from "./ProfitModelModal";
+import { useMobileBackHandler } from "../hooks/useMobileBackHandler";
+import { MOBILE_BACK_PRIORITY } from "../lib/mobileBackStack";
 import { ko } from "../i18n/ko";
 import type { ColorMode } from "../lib/theme";
 import type { Candle, ChartTimeframe, QuoteResponse } from "../types";
@@ -60,6 +62,13 @@ function cryptoShortTicker(symbol: string): string {
   return symbol;
 }
 
+function defaultCryptoSymbol(assets: CryptoAsset[]): string {
+  const sorted = sortCryptoAssetsByTurnover(
+    assets.length ? assets : [...CRYPTO_ASSETS],
+  );
+  return sorted[0]?.symbol ?? CRYPTO_ASSETS[0]!.symbol;
+}
+
 function cryptoSymbolMatchesFocus(focusRaw: string, assetSymbol: string): boolean {
   const norm = (s: string) => s.trim().toUpperCase().replace(/-/g, "").replace(/\./g, "");
   const r = norm(focusRaw);
@@ -82,9 +91,17 @@ export default function CryptoTab({
 }: CryptoTabProps) {
   const [cryptoAssets, setCryptoAssets] = useState<CryptoAsset[]>(() => {
     const uni = peekCryptoUniversePrefetch();
-    return uni?.assets?.length ? uni.assets : [...CRYPTO_ASSETS];
+    return uni?.assets?.length
+      ? sortCryptoAssetsByTurnover(uni.assets)
+      : [...CRYPTO_ASSETS];
   });
-  const [symbol, setSymbol] = useState(CRYPTO_ASSETS[0]!.symbol);
+  const [symbol, setSymbol] = useState(() => {
+    const uni = peekCryptoUniversePrefetch();
+    return defaultCryptoSymbol(
+      uni?.assets?.length ? uni.assets : [...CRYPTO_ASSETS],
+    );
+  });
+  const userPickedSymbolRef = useRef(false);
   const [timeframe, setTimeframe] = useState<ChartTimeframe>("1m");
   const [quote, setQuote] = useState<QuoteResponse | null>(null);
   const [candles, setCandles] = useState<Candle[]>([]);
@@ -108,6 +125,17 @@ export default function CryptoTab({
   const cryptoChartAbortRef = useRef<AbortController | null>(null);
   const [profitPersistTick, setProfitPersistTick] = useState(0);
   const [profitModalOpen, setProfitModalOpen] = useState(false);
+
+  useMobileBackHandler(
+    Boolean(SHOW_PROFIT_MODEL_BUTTON && profitModalOpen),
+    MOBILE_BACK_PRIORITY.PROFIT,
+    () => setProfitModalOpen(false),
+  );
+  useMobileBackHandler(
+    chartDrawMode !== "cursor",
+    MOBILE_BACK_PRIORITY.CHART_DRAW,
+    () => setChartDrawMode("cursor"),
+  );
 
   const chartOverlays = useMemo(
     () => ({
@@ -135,6 +163,7 @@ export default function CryptoTab({
     const want = focusSymbol.trim();
     const hit = cryptoAssets.find((a) => cryptoSymbolMatchesFocus(want, a.symbol));
     if (hit) {
+      userPickedSymbolRef.current = true;
       setSymbol(hit.symbol);
       onFocusSymbolConsumed();
     }
@@ -202,12 +231,17 @@ export default function CryptoTab({
       try {
         const res = await fetchCryptoUniverse();
         if (cancelled || !res.assets?.length) return;
-        setCryptoAssets(sortCryptoAssetsByTurnover(res.assets));
-        setSymbol((prev) =>
-          res.assets.some((a) => a.symbol === prev)
-            ? prev
-            : res.assets[0]!.symbol,
-        );
+        const sorted = sortCryptoAssetsByTurnover(res.assets);
+        setCryptoAssets(sorted);
+        const top = sorted[0]?.symbol;
+        setSymbol((prev) => {
+          if (userPickedSymbolRef.current) {
+            return sorted.some((a) => a.symbol === prev)
+              ? prev
+              : (top ?? prev);
+          }
+          return top ?? prev;
+        });
       } catch {
         /* 기본 3종 유지 */
       }
@@ -324,6 +358,7 @@ export default function CryptoTab({
         e.key === "ArrowDown"
           ? Math.min(cryptoAssets.length - 1, idx < 0 ? 0 : idx + 1)
           : Math.max(0, idx < 0 ? 0 : idx - 1);
+      userPickedSymbolRef.current = true;
       setSymbol(cryptoAssets[next]!.symbol);
     }
     window.addEventListener("keydown", onKey);
@@ -399,7 +434,10 @@ export default function CryptoTab({
                 <button
                   type="button"
                   className="pick-row crypto-pick-row"
-                  onClick={() => setSymbol(a.symbol)}
+                  onClick={() => {
+                    userPickedSymbolRef.current = true;
+                    setSymbol(a.symbol);
+                  }}
                 >
                   <div className="crypto-pick-row__top">
                     <span className="crypto-pick-name" title={a.symbol}>
