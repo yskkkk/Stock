@@ -3077,7 +3077,9 @@ html[data-theme="light"] .app-site-footer__link:hover {
   align-items: center;
 }
 
-.signal-filter .signal-hint-wrap {
+.signal-filter .signal-hint-wrap,
+.rec-tracker-signals__chips .signal-hint-wrap,
+.rec-tracker-table__signal-tags .signal-hint-wrap {
   display: inline-block;
   position: relative;
   max-width: none;
@@ -3092,6 +3094,7 @@ html[data-theme="light"] .app-site-footer__link:hover {
 }
 
 .signal-hint-wrap__tip {
+  display: none;
   position: absolute;
   z-index: 120;
   left: 50%;
@@ -3111,20 +3114,8 @@ html[data-theme="light"] .app-site-footer__link:hover {
   line-height: 1.45;
   text-align: left;
   pointer-events: none;
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    opacity 0.12s ease,
-    visibility 0.12s ease,
-    clip-path 0.12s ease;
-  /* absolute가 깨져도 칩 옆에 설명 줄이 붙지 않게 */
-  clip-path: inset(50%);
-  clip: rect(0, 0, 0, 0);
-  overflow: hidden;
-  white-space: nowrap;
   margin: 0;
-  min-width: 0;
-  min-height: 0;
+  white-space: normal;
 }
 
 .signal-hint-wrap__tip-title {
@@ -3146,13 +3137,21 @@ html[data-theme="light"] .app-site-footer__link:hover {
 @media (hover: hover) and (pointer: fine) {
   .signal-hint-wrap:hover .signal-hint-wrap__tip,
   .signal-hint-wrap:focus-within .signal-hint-wrap__tip {
-    opacity: 1;
-    visibility: visible;
-    clip-path: none;
-    clip: auto;
-    overflow: visible;
-    white-space: normal;
+    display: block;
   }
+}
+
+/* 추천 추적 — 5%↑·근거별: 칩만 가로 배치(설명은 호버 툴팁) */
+.rec-tracker-signals__chips {
+  display: flex;
+  flex-wrap: wrap;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem 0.45rem;
+}
+
+.rec-tracker-big-gain__chips {
+  align-items: center;
 }
 
 .signal-hint-modal {
