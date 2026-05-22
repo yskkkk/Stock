@@ -780,6 +780,7 @@ export function releaseAnyRunningIdeDevQueueSlot(opts = {}) {
   clearIdeLeaseOnDisk();
   void import("./ops-dev-queue-display-sync.js")
     .then((m) => {
+      m.forceClearDevQueueDisplayMirrorSync();
       m.releaseDevQueueDisplayPreserve();
       m.requestDevQueueDisplaySyncNow();
     })

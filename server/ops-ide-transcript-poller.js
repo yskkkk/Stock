@@ -174,6 +174,12 @@ function releaseActiveLease(filePath) {
   }
   clearIdeLeaseOnDisk();
   lastTurnNotifyContext = null;
+  void import("./ops-dev-queue-display-sync.js")
+    .then((m) => {
+      m.forceClearDevQueueDisplayMirrorSync();
+      m.requestDevQueueDisplaySyncNow();
+    })
+    .catch(() => {});
 }
 
 /** 메모리 큐·이 transcript 턴에서 등록한 lease만 — 디스크 lease 재승격 없음 */

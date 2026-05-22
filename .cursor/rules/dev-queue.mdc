@@ -14,6 +14,7 @@ alwaysApply: false
 
 - **파일** = 메모리 큐와 동일 (서버 재시작 시 메모리 비면 **즉시 `[]`**)
 - **GET 응답** = 파일 + (enqueue 전) `.stock-ops-ide-lease.json` 병합 → 전송 직후 UI만 잠깐 lease 카드 가능
+- **표시 JSON만으로 메모리 복구 금지**(release 직후 waiting 재등록 방지) — 복구는 **lease 파일**·콜드 부트만
 
 ## IDE 턴
 

@@ -53,14 +53,9 @@ function isColdDevQueueMirrorBoot() {
 }
 
 function ensureMemoryQueueRecovered() {
+  /* 표시 JSON만으로 복구하면 release 직후 미러에 남은 waiting이 매 틱 재등록됨 — lease 파일만 */
   const lease = readIdeLeaseDiskSync();
-  const snap = readDevQueueDisplaySnapshotSync();
-  const displayIdeWaiting = snap.agentEntries.some(
-    (e) =>
-      e.status === "waiting" &&
-      (e.source === "ide" || e.requestIp === "cursor-ide"),
-  );
-  if (!lease && !displayIdeWaiting) return;
+  if (!lease) return;
 
   const now = Date.now();
   if (now - lastRecoverAttemptMs < 1500) return;
@@ -90,6 +85,19 @@ function entriesForDisplayMirror() {
       age > 30 * 60 * 1000 || (!hasLeaseId && age > 120_000);
     if (stale) {
       clearIdeLeaseOnDisk();
+    } else {
+      const hasMemoryIde = memory.some(
+        (e) => e.source === "ide" || e.requestIp === "cursor-ide",
+      );
+      const turnIdleMs = (() => {
+        const n = Number(process.env.STOCK_IDE_TURN_END_IDLE_MS);
+        return Number.isFinite(n) && n >= 2000 ? Math.min(n, 30_000) : 4000;
+      })();
+      /* 메모리 큐는 비었는데 lease만 남음 — 훅/release 누락 시 고아 카드 방지 */
+      if (!hasMemoryIde && age > turnIdleMs + 800) {
+        clearIdeLeaseOnDisk();
+        return memory;
+      }
     }
   }
 
@@ -111,6 +119,11 @@ export function syncDevQueueDisplayFromRuntimeSync() {
 /** 큐 변경·release 직후 즉시 메모리→파일 */
 export function requestDevQueueDisplaySyncNow() {
   syncDevQueueDisplayFromRuntimeSync();
+}
+
+/** release 직후: 미러를 먼저 비워 display→메모리 재복구 레이스 차단 */
+export function forceClearDevQueueDisplayMirrorSync() {
+  writeDevQueueDisplayMirrorFromRuntime([]);
 }
 
 /** @deprecated no-op — 과거 bootPreserve 해제용, 호출부 호환만 유지 */
