@@ -7,6 +7,7 @@ import type {
   CryptoUniverseResponse,
   FeedbackInboxResponse,
   MacroEventsResponse,
+  MarketIndicesResponse,
   Market,
   NewsResponse,
   PicksDailyHistoryResponse,
@@ -1205,6 +1206,14 @@ export function fetchStockSearch(
 export function fetchUsdKrw(signal?: AbortSignal) {
   return fetchJson<UsdKrwRateResponse>(
     "/api/fx/usd-krw",
+    signal ? { signal } : undefined,
+  );
+}
+
+/** 주요 지수(코스피·나스닥 등) — 약 50초 캐시 */
+export function fetchMarketIndices(signal?: AbortSignal) {
+  return fetchJson<MarketIndicesResponse>(
+    "/api/market-indices",
     signal ? { signal } : undefined,
   );
 }

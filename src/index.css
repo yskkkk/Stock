@@ -6864,11 +6864,212 @@ body {
   margin: 0;
 }
 
-#root > .app .app__shell,
+#root > .app .app__viewport {
+  width: 100%;
+  max-width: calc(var(--app-page-max-width, 1400px) + 12.5rem);
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
+
+#root > .app .app__viewport > .app__shell,
 #root > .app > .app-site-footer {
   max-width: var(--app-page-max-width, 1400px);
   margin-left: auto;
   margin-right: auto;
+}
+
+#root > .app .app__viewport > .app__shell {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.app__viewport {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.55rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.market-indices-rail {
+  box-sizing: border-box;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(148, 163, 184, 0.05);
+  padding: 0.5rem 0.55rem 0.55rem;
+}
+
+html[data-theme="light"] .market-indices-rail {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(15, 23, 42, 0.1);
+}
+
+.market-indices-rail__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin-bottom: 0.38rem;
+}
+
+.market-indices-rail__title {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.market-indices-rail__status {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.market-indices-rail__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.42rem;
+}
+
+.market-indices-rail__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.06rem;
+  padding: 0.32rem 0.38rem;
+  border-radius: 8px;
+  background: rgba(148, 163, 184, 0.06);
+}
+
+html[data-theme="light"] .market-indices-rail__item {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.market-indices-rail__item--sk {
+  min-height: 3.1rem;
+  animation: market-indices-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes market-indices-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.market-indices-rail__label {
+  font-size: 0.72rem;
+  font-weight: 750;
+  color: var(--text-dim);
+}
+
+.market-indices-rail__price {
+  font-size: 0.84rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.market-indices-rail__chg {
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.market-indices-rail__chg--up {
+  color: var(--up);
+}
+
+.market-indices-rail__chg--down {
+  color: var(--down);
+}
+
+.market-indices-rail__chg--muted {
+  color: var(--muted);
+}
+
+.market-indices-rail__empty {
+  margin: 0.2rem 0 0;
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.market-indices-rail--side {
+  display: none;
+  flex: 0 0 11.25rem;
+  width: 11.25rem;
+  position: sticky;
+  top: max(0.35rem, env(safe-area-inset-top, 0px));
+  align-self: flex-start;
+  max-height: calc(100dvh - 1rem);
+  overflow-y: auto;
+}
+
+.market-indices-rail--strip {
+  display: none;
+  width: 100%;
+  margin: 0 0 0.4rem;
+  padding: 0.42rem 0.5rem;
+}
+
+.market-indices-rail--strip .market-indices-rail__list {
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 0.35rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 0.12rem;
+}
+
+.market-indices-rail--strip .market-indices-rail__item {
+  flex: 0 0 auto;
+  min-width: 6.8rem;
+}
+
+@media (min-width: 1180px) {
+  .market-indices-rail--side {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .market-indices-rail--strip {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1179px) {
+  .app__viewport {
+    flex-direction: column;
+    align-items: stretch;
+    max-width: none;
+  }
+
+  .market-indices-rail--side {
+    display: none !important;
+  }
+
+  .market-indices-rail--strip {
+    display: block;
+  }
+
+  #root > .app .app__viewport > .app__shell {
+    width: 100%;
+    max-width: var(--app-page-max-width, 1400px);
+    margin-left: auto;
+    margin-right: auto;
+  }
 }
 
 @media (max-width: 900px) {
@@ -8451,7 +8652,7 @@ body {
   align-self: stretch !important;
 }
 
-#root > .app.app--ops .app__shell {
+#root > .app.app--ops .app__viewport > .app__shell {
   flex: 1 1 auto;
   min-height: 0;
 }

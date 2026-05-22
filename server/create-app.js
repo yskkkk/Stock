@@ -34,6 +34,7 @@ import {
 import { sumTechScoreWeights } from "./picks-tech-weights-store.js";
 import { clearYahooSession } from "./yahoo.js";
 import { getUsdKrwRate } from "./fx-usd-krw.js";
+import { getMarketIndices } from "./market-indices.js";
 import { searchCryptoForLiveTrade } from "./crypto-live-search.js";
 import { searchStocks } from "./stock-search.js";
 import { getMacroEventsCachedAsync } from "./macro-events.js";
@@ -1569,6 +1570,18 @@ export function createApp() {
       } catch (err) {
         const message = err instanceof Error ? err.message : "요청 실패";
         res.status(404).json({ error: message });
+      }
+    }),
+  );
+
+  app.get(
+    "/api/market-indices",
+    asyncRoute(async (_req, res) => {
+      try {
+        res.json(await getMarketIndices());
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "요청 실패";
+        res.status(502).json({ error: message });
       }
     }),
   );

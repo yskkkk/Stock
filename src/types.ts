@@ -162,6 +162,22 @@ export interface UsdKrwRateResponse {
   asOfMs?: number | null;
 }
 
+export interface MarketIndexItem {
+  id: string;
+  symbol: string;
+  label: string;
+  region: "kr" | "us";
+  price: number | null;
+  changePercent: number | null;
+  currency?: string;
+  marketState?: string;
+}
+
+export interface MarketIndicesResponse {
+  items: MarketIndexItem[];
+  updatedAt: number;
+}
+
 export interface StockSearchResponse {
   quotes: StockSearchQuoteRow[];
 }

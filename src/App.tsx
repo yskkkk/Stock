@@ -18,6 +18,7 @@ import AccessAdminModal from "./components/AccessAdminModal";
 import AppSiteFooter from "./components/AppSiteFooter";
 import FeedbackCorner, { type FeedbackCornerHandle } from "./components/FeedbackCorner";
 import MacroEventsBar from "./components/MacroEventsBar";
+import MarketIndicesRail from "./components/MarketIndicesRail";
 import TopBarFxCalculator from "./components/TopBarFxCalculator";
 import TopBarFxStrip from "./components/TopBarFxStrip";
 import NewsModal from "./components/NewsModal";
@@ -52,6 +53,7 @@ import { usePicksLiveQuotes } from "./hooks/usePicksLiveQuotes";
 import { MOBILE_BACK_PRIORITY } from "./lib/mobileBackStack";
 import { mergeQuotesIntoPicks } from "./lib/mergePickQuotes";
 import { usePickKeyboard } from "./hooks/usePickKeyboard";
+import { useMarketIndices } from "./hooks/useMarketIndices";
 import { useUsdKrwRate } from "./hooks/useUsdKrwRate";
 import { resolveUsQuoteDisplay } from "./lib/usQuoteDisplay";
 import { enrichBullishPick } from "./lib/bullishPicks";
@@ -496,6 +498,10 @@ export default function App() {
   }, [workspacePick?.symbol, workspacePick?.market, appTab]);
 
   const { rate: usdKrwRate, valuationDate: usdKrwValDate } = useUsdKrwRate(true);
+  const {
+    items: marketIndices,
+    loading: marketIndicesLoading,
+  } = useMarketIndices(true);
 
   const toggleUsQuoteKrw = useCallback(() => {
     setUsQuoteInKrw((prev) => {
@@ -951,6 +957,12 @@ export default function App() {
       }
     >
       <div className="app__scroll" ref={appScrollRef}>
+      <div className="app__viewport">
+      <MarketIndicesRail
+        items={marketIndices}
+        loading={marketIndicesLoading}
+        layout="rail"
+      />
       <div className="app__shell">
       <div
         ref={pullToRefreshHintRef}
@@ -959,6 +971,11 @@ export default function App() {
         aria-atomic="true"
       />
       <div className="app-header-sticky">
+      <MarketIndicesRail
+        items={marketIndices}
+        loading={marketIndicesLoading}
+        layout="strip"
+      />
       {showOpsGlobalQueue ? (
         <div
           className="app-page-top app-page-top--queue-only"
@@ -1744,6 +1761,7 @@ export default function App() {
       />
 
       <FeedbackCorner ref={feedbackRef} accessAdmin={accessAdmin} />
+      </div>
       </div>
       </div>
 

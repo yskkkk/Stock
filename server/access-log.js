@@ -109,6 +109,7 @@ function shouldSkipAccessLog(req) {
   if (path === "/api/live-trading/sim-recommendations") return true;
   /** FX·텔레그램·기타 주기 폴링 */
   if (path === "/api/fx/usd-krw") return true;
+  if (path === "/api/market-indices") return true;
   if (path === "/api/telegram/sent") return true;
   return false;
 }
