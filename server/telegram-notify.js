@@ -164,19 +164,27 @@ export async function probeTelegramSetup() {
 
 /** 웹 에이전트·서버 ON/OFF 봇 연결 검증 */
 export async function probeOpsTelegramSetup() {
-  if (!isOpsTelegramNotifyEnabled()) return { ok: false, reason: "disabled" };
-  const { token, chatId } = resolveOpsTelegramCreds();
-  return probeTelegramCreds({ token, chatId, label: "ops" });
+  const token = process.env.TELEGRAM_OPS_BOT_TOKEN?.trim() || "";
+  const chatId = process.env.TELEGRAM_OPS_CHAT_ID?.trim() || "";
+  if (!token) {
+    return { ok: false, reason: "TELEGRAM_OPS_BOT_TOKEN 없음" };
+  }
+  if (!chatId) {
+    console.warn(
+      "[telegram:ops] TELEGRAM_OPS_CHAT_ID가 비어 있습니다. @YSK_WEB_AGENT_USE_HISTORY_BOT 전용 채팅 ID를 .env에 넣으세요 (주식 TELEGRAM_CHAT_ID와 별도 — 비워 두면 주식 채팅으로 묶지 않음).",
+    );
+    return { ok: false, reason: "TELEGRAM_OPS_CHAT_ID 필요" };
+  }
+  const out = await probeTelegramCreds({ token, chatId, label: "ops" });
+  if (out.ok) lastTelegramSendError = null;
+  return out;
 }
 
-/** 운영 탭 웹(Cursor) 에이전트 완료 알림 — 종목 추천 봇과 분리 */
+/** 운영 탭 웹(Cursor) 에이전트 완료 알림 — 종목 추천 봇·채팅과 분리 */
 export function resolveOpsTelegramCreds() {
   return {
     token: process.env.TELEGRAM_OPS_BOT_TOKEN?.trim() || "",
-    chatId:
-      process.env.TELEGRAM_OPS_CHAT_ID?.trim() ||
-      process.env.TELEGRAM_CHAT_ID?.trim() ||
-      "",
+    chatId: process.env.TELEGRAM_OPS_CHAT_ID?.trim() || "",
   };
 }
 
@@ -1086,7 +1094,7 @@ export function notifyHighScorePick(pick) {
 
 /**
  * 운영(Cursor) 웹 에이전트 작업 종료 시 텔레그램 안내 — 요청자·제목·내용 형식.
- * TELEGRAM_OPS_BOT_TOKEN (+ TELEGRAM_OPS_CHAT_ID 또는 TELEGRAM_CHAT_ID) 가 있을 때만 전송.
+ * TELEGRAM_OPS_BOT_TOKEN + TELEGRAM_OPS_CHAT_ID(주식 채팅과 별도) 가 있을 때만 전송.
  *
  * @param {{ requester: string; title: string; body: string }} opts
  */
