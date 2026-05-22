@@ -39,11 +39,9 @@ body {
   box-sizing: border-box;
 }
 
-/* 전폭 스크롤 — 스크롤바는 뷰포트 오른쪽, 본문 여백은 shell·푸터 */
+/* 전폭 스크롤(본문만) — 스크롤바 뷰포트 오른쪽, 푸터는 .app 하단 고정 */
 .app__scroll {
   flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
   min-height: 0;
   width: 100%;
   max-width: 100%;
@@ -51,20 +49,16 @@ body {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: auto;
-  gap: 0.95rem;
-  padding-bottom: 1.65rem;
   box-sizing: border-box;
 }
 
 .app__shell {
-  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  min-height: 0;
   width: 100%;
   max-width: 100%;
   gap: 0.95rem;
-  padding: 1.35rem 1.35rem 0;
+  padding: 1.35rem 1.35rem 1.35rem;
   box-sizing: border-box;
   overflow: visible;
 }
@@ -607,16 +601,12 @@ body {
     letter-spacing: -0.015em;
   }
 
-  .app__scroll {
-    gap: 0.42rem;
-    padding-bottom: max(0.55rem, env(safe-area-inset-bottom, 0px));
-  }
-
   .app__shell {
     gap: 0.42rem;
     padding-top: 0.38rem;
     padding-right: max(0.45rem, env(safe-area-inset-right, 0px));
     padding-left: max(0.45rem, env(safe-area-inset-left, 0px));
+    padding-bottom: max(0.55rem, env(safe-area-inset-bottom, 0px));
   }
 
   .app-site-footer {
@@ -738,16 +728,12 @@ body {
     line-height: 1.42;
   }
 
-  .app__scroll {
-    gap: 0.34rem;
-    padding-bottom: max(0.48rem, env(safe-area-inset-bottom, 0px));
-  }
-
   .app__shell {
     gap: 0.34rem;
     padding-top: 0.32rem;
     padding-right: max(0.38rem, env(safe-area-inset-right, 0px));
     padding-left: max(0.38rem, env(safe-area-inset-left, 0px));
+    padding-bottom: max(0.48rem, env(safe-area-inset-bottom, 0px));
   }
 
   .app-site-footer {
@@ -2238,10 +2224,9 @@ body {
 /* 하단 사이트 푸터 (네이버형 링크 줄) */
 .app-site-footer {
   flex-shrink: 0;
-  margin-top: auto;
   width: 100%;
   box-sizing: border-box;
-  padding: 0.85rem 1.35rem 0.35rem;
+  padding: 0.85rem 1.35rem max(0.35rem, env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--card-border, rgba(148, 163, 184, 0.14));
 }
 

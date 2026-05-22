@@ -1718,6 +1718,7 @@ export default function App() {
 
       <FeedbackCorner ref={feedbackRef} accessAdmin={accessAdmin} />
       </div>
+      </div>
 
       <AppSiteFooter
         accessAdmin={accessAdmin}
@@ -1736,7 +1737,6 @@ export default function App() {
         onOpenOps={() => setAppTab("ops")}
         feedbackRef={feedbackRef}
       />
-      </div>
     </div>
   );
 }
