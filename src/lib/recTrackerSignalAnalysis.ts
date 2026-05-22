@@ -42,6 +42,18 @@ export interface SignalAnalysisMetrics {
   recentDecided: number;
 }
 
+export type SignalAnalysisSectionId =
+  | "overview"
+  | "profit"
+  | "pattern"
+  | "together"
+  | "why";
+
+export interface SignalAnalysisSection {
+  id: SignalAnalysisSectionId;
+  lines: string[];
+}
+
 export interface SignalAnalysisInsight {
   signalId: SignalId;
   label: string;
@@ -53,6 +65,11 @@ export interface SignalAnalysisInsight {
   baselineWinRatePct: number;
   deltaVsBaseline: number;
   metrics: SignalAnalysisMetrics;
+  /** 한 줄 요약 */
+  summary: string;
+  /** 주제별 해설 */
+  sections: SignalAnalysisSection[];
+  /** @deprecated sections 사용 */
   bullets: string[];
   severity: SignalAnalysisSeverity;
 }
@@ -83,7 +100,7 @@ const SIGNAL_CONTEXT_HINT: Partial<Record<SignalId, string>> = {
   volume: "거래량 증가만으로는 가격 방향 확인이 부족해 실패 비율이 높을 수 있습니다.",
   volume_surge: "거래량 급증은 뉴스·단타성 장대양봉 직후에 잡혀 되돌림 패가 늘 수 있습니다.",
   vp_breakout:
-    "매물대 돌파는 가짜 돌파·단기 과열 후 되돌림이 잦아, 거래량·추세 확인 없이 추격하면 패가 늘 수 있습니다.",
+    "매물대(많이 팔린 가격대)를 뚫었다고 나와도, 가짜 돌파 뒤 다시 눌리는 경우가 많습니다. 거래량·추세가 같이 좋을 때만 믿는 편이 낫습니다.",
   ma_golden: "골든크로스 직후는 이미 많이 오른 뒤인 경우가 많아 기대 승률이 낮아질 수 있습니다.",
   bull_bar: "양봉 단독은 전일 대비 반등 한 번에 그친 뒤 패로 이어지는 경우가 있습니다.",
 };
@@ -274,37 +291,74 @@ function computeMetrics(
   };
 }
 
-function buildBullets(
+function fmtSignedPct(pct: number): string {
+  return `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`;
+}
+
+const SECTION = {
+  overview: "overview",
+  profit: "profit",
+  pattern: "pattern",
+  together: "together",
+  why: "why",
+} as const satisfies Record<string, SignalAnalysisSectionId>;
+
+function buildReadableAnalysis(
   signalId: SignalId,
+  label: string,
   baselinePct: number,
-  stat: { winRatePct: number; decided: number },
+  stat: { winRatePct: number; decided: number; wins: number; losses: number },
   m: SignalAnalysisMetrics,
   withSignal: RecommendationTrackerItem[],
-): string[] {
-  const bullets: string[] = [];
+): { summary: string; sections: SignalAnalysisSection[] } {
   const delta = stat.winRatePct - baselinePct;
-  bullets.push(
-    `전체 승률 ${baselinePct.toFixed(1)}% 대비 ${Math.abs(delta).toFixed(1)}%p 낮습니다.`,
+  const summary =
+    `「${label}」이 붙은 추천은 승·패가 정해진 ${stat.decided}건 중 ${stat.wins}번만 올랐습니다(승률 ${stat.winRatePct.toFixed(1)}%). ` +
+    `같은 기간 전체 알림 승률 ${baselinePct.toFixed(1)}%보다 약 ${Math.abs(delta).toFixed(0)}%p 낮아요.`;
+
+  const sections: SignalAnalysisSection[] = [];
+
+  const overview: string[] = [];
+  overview.push(
+    `추천 ${m.poolSharePct.toFixed(0)}%에 이 근거가 같이 붙습니다 — 자주 보이지만, 그만큼 믿을 만하다는 뜻은 아닙니다.`,
   );
-
   if (stat.decided < 15) {
-    bullets.push(`승패 확정 ${stat.decided}건 — 표본이 적어 해석은 참고용입니다.`);
-  }
-
-  bullets.push(`추천의 ${m.poolSharePct.toFixed(0)}%에 이 근거가 포함됩니다.`);
-
-  if (m.expectancyPct != null) {
-    bullets.push(
-      `승패 확정 건 기대 등락 약 ${m.expectancyPct >= 0 ? "+" : ""}${m.expectancyPct.toFixed(2)}%.`,
+    overview.push(
+      `승·패가 확정된 건이 ${stat.decided}건뿐이라, 아래 숫자는 방향만 참고하세요.`,
     );
   }
+  if (m.expectancyPct != null) {
+    overview.push(
+      m.expectancyPct >= 0
+        ? `이 근거만 모았을 때 장기 기대값은 약 ${fmtSignedPct(m.expectancyPct)}로, 살짝 플러스에 가깝습니다.`
+        : `이 근거만 모았을 때 장기 기대값은 약 ${fmtSignedPct(m.expectancyPct)} — 평균적으로는 손실 쪽입니다.`,
+    );
+  }
+  if (m.flatUnknownPct >= 8) {
+    overview.push(
+      `아직 오르거나 내리지 않은(보합·미확정) 비중이 ${m.flatUnknownPct.toFixed(0)}%라, 승률 숫자는 더 바뀔 수 있습니다.`,
+    );
+  }
+  sections.push({ id: SECTION.overview, lines: overview });
 
   if (m.avgWinPct != null && m.avgLossPct != null) {
-    bullets.push(
-      `평균 승리 ${m.avgWinPct >= 0 ? "+" : ""}${m.avgWinPct.toFixed(2)}% · 평균 패배 ${m.avgLossPct.toFixed(2)}%.`,
-    );
+    const profit: string[] = [
+      `맞췄을 때 평균 ${fmtSignedPct(m.avgWinPct)}, 틀렸을 때 평균 ${fmtSignedPct(m.avgLossPct)}.`,
+    ];
+    if (Math.abs(m.avgLossPct) > Math.abs(m.avgWinPct) * 0.75) {
+      profit.push(
+        `한 번 틀릴 때 빠지는 폭이 이길 때 오르는 폭에 비해 큽니다. 손익비가 불리할 수 있어요.`,
+      );
+    }
+    if (m.bigLossSharePct != null && m.bigLossSharePct >= 35) {
+      profit.push(
+        `진 거래 중 ${m.bigLossSharePct.toFixed(0)}%는 ${BIG_LOSS_PCT}% 이하로 크게 빠졌습니다 — 작은 이익, 큰 손실 패턴을 조심하세요.`,
+      );
+    }
+    sections.push({ id: SECTION.profit, lines: profit });
   }
 
+  const pattern: string[] = [];
   if (
     m.soloDecided >= 4 &&
     m.multiDecided >= 4 &&
@@ -312,30 +366,30 @@ function buildBullets(
     m.multiWinRatePct != null
   ) {
     if (m.soloWinRatePct < baselinePct - 3 && m.multiWinRatePct < baselinePct - 3) {
-      bullets.push(
-        `단독 ${m.soloWinRatePct.toFixed(1)}%(${m.soloDecided}건)·복합 ${m.multiWinRatePct.toFixed(1)}%(${m.multiDecided}건) 모두 낮습니다.`,
+      pattern.push(
+        `이 근거만 단독일 때 ${m.soloWinRatePct.toFixed(1)}%(${m.soloDecided}건), 다른 근거와 섞이면 ${m.multiWinRatePct.toFixed(1)}%(${m.multiDecided}건) — 둘 다 낮습니다.`,
       );
     } else if (m.multiWinRatePct < m.soloWinRatePct - 8) {
-      bullets.push(
-        `단독 ${m.soloWinRatePct.toFixed(1)}%보다 복합 ${m.multiWinRatePct.toFixed(1)}%가 더 낮습니다 — 조합 주의.`,
+      pattern.push(
+        `단독 ${m.soloWinRatePct.toFixed(1)}%인데, 다른 신호와 겹치면 ${m.multiWinRatePct.toFixed(1)}%로 더 떨어집니다. 조합 필터를 좁혀 보세요.`,
       );
     }
   }
 
-  if (m.highScoreDecided >= 4 && m.lowScoreDecided >= 4) {
-    if (m.highScoreWinRatePct != null && m.lowScoreWinRatePct != null) {
-      if (m.lowScoreWinRatePct < m.highScoreWinRatePct - 10) {
-        bullets.push(
-          `저점수(≤${LOW_SCORE}점) ${m.lowScoreWinRatePct.toFixed(1)}% vs 고점수(≥${HIGH_SCORE}점) ${m.highScoreWinRatePct.toFixed(1)}%.`,
-        );
-      }
+  const avgSc = avgScore(withSignal);
+  if (m.highScoreDecided >= 4 && m.lowScoreDecided >= 4 && m.highScoreWinRatePct != null && m.lowScoreWinRatePct != null) {
+    if (m.lowScoreWinRatePct < m.highScoreWinRatePct - 10) {
+      pattern.push(
+        `점수 ${LOW_SCORE}점 이하 추천에서 ${m.lowScoreWinRatePct.toFixed(1)}%, ${HIGH_SCORE}점 이상에서 ${m.highScoreWinRatePct.toFixed(1)}% — 약한 추천에 더 자주 끼어 있습니다.`,
+      );
     }
-  } else {
-    const avg = avgScore(withSignal);
-    if (avg != null && avg < 5) {
-      bullets.push(`평균 점수 ${avg.toFixed(1)}점 — 낮은 점수 추천에 자주 포함.`);
-    } else if (avg != null && avg >= 7) {
-      bullets.push(`평균 ${avg.toFixed(1)}점인데 승률이 낮아 시장·타이밍 이슈를 의심.`);
+  } else if (avgSc != null) {
+    if (avgSc < 5) {
+      pattern.push(`평균 점수 ${avgSc.toFixed(1)}점 — 전체적으로 낮은 점수 종목에 많이 포함됩니다.`);
+    } else if (avgSc >= 7) {
+      pattern.push(
+        `평균 점수는 ${avgSc.toFixed(1)}점으로 높은 편인데 승률이 낮습니다. 종목 점수보다 시장·진입 타이밍 문제일 수 있어요.`,
+      );
     }
   }
 
@@ -346,46 +400,54 @@ function buildBullets(
     m.usWinRatePct != null &&
     Math.abs(m.krWinRatePct - m.usWinRatePct) >= 12
   ) {
-    bullets.push(`국내 ${m.krWinRatePct.toFixed(1)}%(${m.krDecided}) · 미국 ${m.usWinRatePct.toFixed(1)}%(${m.usDecided}).`);
-  }
-
-  if (m.bigLossSharePct != null && m.bigLossSharePct >= 35) {
-    bullets.push(`패의 ${m.bigLossSharePct.toFixed(0)}%가 ${BIG_LOSS_PCT}% 이하 — 손실 꼬리가 큼.`);
+    pattern.push(
+      `국내 ${m.krWinRatePct.toFixed(1)}%(${m.krDecided}건) · 미국 ${m.usWinRatePct.toFixed(1)}%(${m.usDecided}건) — 시장별로 차이가 큽니다.`,
+    );
   }
 
   if (m.recentDecided >= 4 && m.recentWinRatePct != null) {
     const recentDelta = m.recentWinRatePct - stat.winRatePct;
     if (Math.abs(recentDelta) >= 8) {
-      bullets.push(
-        `최근 ${RECENT_DAYS}일 승률 ${m.recentWinRatePct.toFixed(1)}%(${m.recentDecided}건) — 전체와 ${recentDelta > 0 ? "+" : ""}${recentDelta.toFixed(0)}%p 차이.`,
+      pattern.push(
+        `최근 ${RECENT_DAYS}일 승률은 ${m.recentWinRatePct.toFixed(1)}%(${m.recentDecided}건)로, 전체와 ${recentDelta > 0 ? "+" : ""}${recentDelta.toFixed(0)}%p 차이 납니다.`,
       );
     }
   }
+  if (pattern.length) sections.push({ id: SECTION.pattern, lines: pattern });
 
-  if (m.flatUnknownPct >= 8) {
-    bullets.push(`보합·미확정 ${m.flatUnknownPct.toFixed(0)}% — 아직 결론 안 난 비중이 큼.`);
+  const together: string[] = [];
+  if (m.avgCoSignalCount >= 3.5) {
+    together.push(
+      `한 추천에 평균 ${m.avgCoSignalCount.toFixed(1)}개 근거가 동시에 붙습니다. 「${label}」만의 효과가 희석되거나, 겹치는 조건이 서로 상충할 수 있습니다.`,
+    );
   }
-
-  if (m.avgCoSignalCount >= 4.5) {
-    bullets.push(`평균 ${m.avgCoSignalCount.toFixed(1)}개 근거와 동시 충족 — 단일 조건 효과가 희석될 수 있음.`);
-  }
-
   const co = topCoSignals(withSignal, signalId);
   if (co.length > 0) {
-    const parts = co
-      .map((c) =>
-        c.winRatePct != null
-          ? `${c.label} ${c.winRatePct.toFixed(0)}%(${c.count})`
-          : `${c.label}(${c.count})`,
-      )
-      .join(", ");
-    bullets.push(`동반 근거: ${parts}.`);
+    const parts = co.map((c) => {
+      const wr =
+        c.winRatePct != null ? `승률 ${c.winRatePct.toFixed(0)}%` : "승률 미확정";
+      return `「${c.label}」 ${wr} · ${c.count}건`;
+    });
+    together.push(`자주 함께 나오는 근거: ${parts.join(" / ")}.`);
+    const weakCo = co.filter((c) => c.winRatePct != null && c.winRatePct < baselinePct - 5);
+    if (weakCo.length >= 2) {
+      together.push(
+        `이 중 ${weakCo.map((c) => c.label).join(", ")}도 전체보다 승률이 낮아, 겹칠 때 더 조심하는 편이 좋습니다.`,
+      );
+    }
   }
+  if (together.length) sections.push({ id: SECTION.together, lines: together });
 
   const hint = SIGNAL_CONTEXT_HINT[signalId];
-  if (hint) bullets.push(hint);
+  if (hint) {
+    sections.push({ id: SECTION.why, lines: [hint] });
+  }
 
-  return bullets.slice(0, 8);
+  return { summary, sections };
+}
+
+function flattenSections(sections: SignalAnalysisSection[]): string[] {
+  return sections.flatMap((s) => s.lines);
 }
 
 /**
@@ -421,6 +483,14 @@ export function analyzeLowSignalWinRates(
 
     const meta = signalChipMeta(signalId);
     const metrics = computeMetrics(pool, group);
+    const narrative = buildReadableAnalysis(
+      signalId,
+      meta.label,
+      baselinePct,
+      { winRatePct, decided, wins, losses },
+      metrics,
+      group,
+    );
     candidates.push({
       signalId,
       label: meta.label,
@@ -432,7 +502,9 @@ export function analyzeLowSignalWinRates(
       baselineWinRatePct: baselinePct,
       deltaVsBaseline: delta,
       metrics,
-      bullets: buildBullets(signalId, baselinePct, { winRatePct, decided }, metrics, group),
+      summary: narrative.summary,
+      sections: narrative.sections,
+      bullets: flattenSections(narrative.sections),
       severity: delta <= -15 ? "low" : "watch",
     });
   }

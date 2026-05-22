@@ -4,6 +4,7 @@ import {
   analyzeLowSignalWinRates,
   type SignalAnalysisInsight,
   type SignalAnalysisMetrics,
+  type SignalAnalysisSectionId,
 } from "../lib/recTrackerSignalAnalysis";
 import { ko } from "../i18n/ko";
 import type { RecommendationTrackerItem } from "../types";
@@ -18,6 +19,23 @@ function formatPct(pct: number | null, signed = false): string {
   const n = pct.toFixed(2);
   if (!signed) return `${n}%`;
   return `${pct >= 0 ? "+" : ""}${n}%`;
+}
+
+function sectionTitle(id: SignalAnalysisSectionId): string {
+  switch (id) {
+    case "overview":
+      return ko.app.recTrackerAnalysisSecOverview;
+    case "profit":
+      return ko.app.recTrackerAnalysisSecProfit;
+    case "pattern":
+      return ko.app.recTrackerAnalysisSecPattern;
+    case "together":
+      return ko.app.recTrackerAnalysisSecTogether;
+    case "why":
+      return ko.app.recTrackerAnalysisSecWhy;
+    default:
+      return id;
+  }
 }
 
 function metricEntries(m: SignalAnalysisMetrics): { label: string; value: string }[] {
@@ -127,7 +145,8 @@ function AnalysisItem({
           {ins.wins}승/{ins.losses}패
         </span>
       </div>
-      <dl className="rec-tracker-analysis__metrics">
+      <p className="rec-tracker-analysis__verdict">{ins.summary}</p>
+      <dl className="rec-tracker-analysis__metrics" aria-label={ko.app.recTrackerAnalysisMetricsAria}>
         {metrics.map((row) => (
           <div key={row.label} className="rec-tracker-analysis__metric">
             <dt>{row.label}</dt>
@@ -135,11 +154,18 @@ function AnalysisItem({
           </div>
         ))}
       </dl>
-      <ul className="rec-tracker-analysis__bullets">
-        {ins.bullets.map((b, i) => (
-          <li key={i}>{b}</li>
+      <div className="rec-tracker-analysis__narrative">
+        {ins.sections.map((sec) => (
+          <section key={sec.id} className="rec-tracker-analysis__section">
+            <h4 className="rec-tracker-analysis__section-title">{sectionTitle(sec.id)}</h4>
+            <ul className="rec-tracker-analysis__section-lines">
+              {sec.lines.map((line, i) => (
+                <li key={i}>{line}</li>
+              ))}
+            </ul>
+          </section>
         ))}
-      </ul>
+      </div>
       <button
         type="button"
         className={
