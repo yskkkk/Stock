@@ -1,0 +1,128 @@
+/* 모바일 UI 보정 — ui-toss·index 이후 로드 */
+
+@media (max-width: 900px) {
+  html,
+  body,
+  #root {
+    overflow-x: clip;
+    max-width: 100%;
+  }
+
+  #root > .app,
+  #root > .app > .app__scroll,
+  .app__shell {
+    overflow-x: clip;
+    max-width: 100%;
+  }
+
+  .mobile-server-gate__card {
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+  }
+
+  .mobile-server-gate__card .input {
+    min-height: 44px;
+  }
+
+  .filter-bar.card {
+    padding: 0.55rem max(0.55rem, env(safe-area-inset-left, 0px)) 0.6rem
+      max(0.55rem, env(safe-area-inset-right, 0px));
+  }
+
+  .filter-bar .chip,
+  .filter-bar .filter-presets .btn {
+    min-height: 36px;
+  }
+
+  .live-portfolio__summary-hero .live-portfolio__metric,
+  .live-portfolio__summary-grid .live-portfolio__metric {
+    border-radius: 12px;
+    padding: 0.62rem 0.68rem;
+  }
+
+  .live-sim-run__tile {
+    border-radius: 12px;
+    padding: 0.55rem 0.62rem;
+  }
+
+  .live-sim-run__card {
+    border-radius: 12px;
+  }
+
+  .live-sim__hit {
+    border-radius: 10px;
+  }
+
+  .rec-tracker-panel.card {
+    padding-left: max(0.55rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.55rem, env(safe-area-inset-right, 0px));
+  }
+
+  .top-bar__right {
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(
+      90deg,
+      transparent 0,
+      #000 0.35rem,
+      #000 calc(100% - 0.85rem),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      90deg,
+      transparent 0,
+      #000 0.35rem,
+      #000 calc(100% - 0.85rem),
+      transparent 100%
+    );
+  }
+
+  .top-bar__right::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .live-portfolio__table--stacked tbody tr:last-child,
+  .live-sim-run__table--stacked tbody tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .live-portfolio__table--stacked td,
+  .live-sim-run__table--stacked td {
+    padding: 0.42rem 0;
+  }
+
+  .live-portfolio__table--stacked td:first-child,
+  .live-sim-run__table--stacked td:first-child {
+    padding-top: 0;
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.15rem;
+    border-bottom: 1px solid var(--card-border, rgba(148, 163, 184, 0.14));
+  }
+}
+
+@media (max-width: 560px) {
+  .live-portfolio__summary-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .live-portfolio__summary-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.42rem;
+  }
+
+  .live-sim-run__tiles {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.42rem;
+  }
+
+  .live-trading-tab__program-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .app-site-footer__copy {
+    font-size: 0.68rem;
+    line-height: 1.45;
+    padding: 0 0.25rem;
+  }
+}

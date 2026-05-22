@@ -8,6 +8,7 @@ import "./index.css";
 import "./theme.css";
 import "./theme-light-palettes.css";
 import "./ui-toss.css";
+import "./mobile-polish.css";
 
 const App = lazy(() => import("./App"));
 const MobileServerGate = lazy(() => import("./components/MobileServerGate"));
