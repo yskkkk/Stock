@@ -26,7 +26,12 @@ import { loadNews } from "./news.js";
 import { loadCryptoQuotes } from "./crypto-quotes.js";
 import { loadCryptoWatchlistTen } from "./crypto-universe.js";
 import { fetchScanCandles, loadStock } from "./stock-data.js";
-import { analyzeTechnicals } from "./technical.js";
+import { buildTechnicalStatusReport } from "./technical.js";
+import {
+  getActiveTechModelsSync,
+  getTechModelByIdSync,
+} from "./picks-tech-models-store.js";
+import { sumTechScoreWeights } from "./picks-tech-weights-store.js";
 import { clearYahooSession } from "./yahoo.js";
 import { getUsdKrwRate } from "./fx-usd-krw.js";
 import { searchStocks } from "./stock-search.js";
@@ -1542,14 +1547,26 @@ export function createApp() {
           return;
         }
         const data = await fetchScanCandles(symbol);
-        const analysis = analyzeTechnicals(data.candles);
+        const modelIdQ = String(req.query.modelId ?? "").trim();
+        const model = modelIdQ
+          ? getTechModelByIdSync(modelIdQ)
+          : getActiveTechModelsSync()[0] ??
+            getTechModelByIdSync("default");
+        const weights = model?.weights;
+        const report = buildTechnicalStatusReport(data.candles, weights);
         res.json({
           symbol: data.symbol,
-          score: analysis.score,
-          signalIds: analysis.signalIds,
-          signals: analysis.signals,
-          buy: analysis.buy,
-          candleCount: data.candleCount ?? data.candles?.length ?? 0,
+          techModelId: model?.id ?? "default",
+          techModelName: model?.name ?? "기본",
+          techModelMaxScore: model
+            ? sumTechScoreWeights(model.weights)
+            : report.maxScore,
+          ...report,
+          candleCount:
+            report.candleCount ??
+            data.candleCount ??
+            data.candles?.length ??
+            0,
         });
       } catch (err) {
         if (err && typeof err === "object" && "code" in err && err.code === "RATE_LIMIT") {

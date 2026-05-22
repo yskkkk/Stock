@@ -376,3 +376,74 @@ export function analyzeTechnicals(candles, weights) {
     buy: meetsBuyCondition(conditionsMet),
   };
 }
+
+/**
+ * 종목검색·상세 — 12신호 충족 여부·스크리너/텔레그램 통과 상태
+ * @param {unknown[]} candles
+ * @param {Record<string, number>} [weights]
+ */
+export function buildTechnicalStatusReport(candles, weights) {
+  const w = weights ?? getPrimaryActiveWeightsSync();
+  const maxScore = getMaxTechScore(w);
+  const conditionsRequired = minConditionsRequired();
+  const minTelegramScore = minTelegramScoreRequired(w);
+
+  if (!Array.isArray(candles) || candles.length < 55) {
+    const signalBreakdown = SIGNAL_DEFS.map((def) => ({
+      id: def.id,
+      label: def.label,
+      met: false,
+      weight: getSignalScoreWeight(def.id, w),
+    }));
+    return {
+      score: 0,
+      signalIds: [],
+      signals: [],
+      buy: false,
+      conditionsMet: 0,
+      conditionsTotal: SIGNAL_CONDITION_TOTAL,
+      conditionsRequired,
+      maxScore,
+      scorePct: 0,
+      scorePctLabel: "0.0",
+      telegramEligible: false,
+      minTelegramScore,
+      insufficientData: true,
+      candleCount: Array.isArray(candles) ? candles.length : 0,
+      signalBreakdown,
+    };
+  }
+
+  const analysis = analyzeTechnicals(candles, w);
+  const metSet = new Set(analysis.signalIds);
+  const signalBreakdown = SIGNAL_DEFS.map((def) => ({
+    id: def.id,
+    label: def.label,
+    met: metSet.has(def.id),
+    weight: getSignalScoreWeight(def.id, w),
+  }));
+  const { pctLabel, pctRaw } = resolvePickWeightedScoreBreakdown({
+    score: analysis.score,
+    signalIds: analysis.signalIds,
+    techModelWeights: w,
+    techModelMaxScore: maxScore,
+  });
+
+  return {
+    score: analysis.score,
+    signalIds: analysis.signalIds,
+    signals: analysis.signals,
+    buy: analysis.buy,
+    conditionsMet: analysis.conditionsMet,
+    conditionsTotal: analysis.conditionsTotal,
+    conditionsRequired,
+    maxScore,
+    scorePct: pctRaw,
+    scorePctLabel: pctLabel,
+    telegramEligible: meetsTelegramNotifyScore(analysis.score, w),
+    minTelegramScore,
+    insufficientData: false,
+    candleCount: candles.length,
+    signalBreakdown,
+  };
+}

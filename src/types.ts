@@ -157,6 +157,13 @@ export interface StockSearchResponse {
   quotes: StockSearchQuoteRow[];
 }
 
+export interface StockTechnicalSignalBreakdown {
+  id: string;
+  label: string;
+  met: boolean;
+  weight: number;
+}
+
 /** GET /api/stock/:symbol/technical — 스크리너와 동일 일봉·기술적 분석 */
 export interface StockTechnicalResponse {
   symbol: string;
@@ -165,6 +172,19 @@ export interface StockTechnicalResponse {
   signals: string[];
   buy: boolean;
   candleCount: number;
+  techModelId?: string;
+  techModelName?: string;
+  techModelMaxScore?: number;
+  conditionsMet?: number;
+  conditionsTotal?: number;
+  conditionsRequired?: number;
+  maxScore?: number;
+  scorePct?: number;
+  scorePctLabel?: string;
+  telegramEligible?: boolean;
+  minTelegramScore?: number;
+  insufficientData?: boolean;
+  signalBreakdown?: StockTechnicalSignalBreakdown[];
 }
 
 export type NewsKind = "news" | "disclosure";

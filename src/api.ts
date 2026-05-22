@@ -1174,10 +1174,16 @@ export function fetchStock(
   );
 }
 
-export function fetchStockTechnical(symbol: string, signal?: AbortSignal) {
+export function fetchStockTechnical(
+  symbol: string,
+  opts?: { signal?: AbortSignal; modelId?: string },
+) {
+  const modelQ = opts?.modelId?.trim()
+    ? `?modelId=${encodeURIComponent(opts.modelId.trim())}`
+    : "";
   return fetchJson<StockTechnicalResponse>(
-    `/api/stock/${encodeURIComponent(symbol)}/technical`,
-    signal ? { signal } : undefined,
+    `/api/stock/${encodeURIComponent(symbol)}/technical${modelQ}`,
+    opts?.signal ? { signal: opts.signal } : undefined,
   );
 }
 

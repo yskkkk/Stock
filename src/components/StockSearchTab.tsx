@@ -12,6 +12,9 @@ import type {
   StockTechnicalResponse,
 } from "../types";
 import PickQuoteStrip from "./PickQuoteStrip";
+import StockTechnicalAnalysisPanel, {
+  type StockTechnicalAnalysisSlot,
+} from "./StockTechnicalAnalysisPanel";
 
 const HANGUL_RE = /[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7A3]/;
 /** 검색 직후 기술분석 선로드 상한(나머지는 선택 시) */
@@ -144,9 +147,11 @@ interface StockSearchPickRowProps {
   row: StockSearchQuoteRow;
   slot: TechnicalSlot | undefined;
   isActive: boolean;
+  analysisOpen: boolean;
   onSelectPick: (pick: StockPick) => void;
   onNews: (pick: StockPick) => void;
   onReason: (pick: StockPick) => void;
+  onAnalyze: (row: StockSearchQuoteRow) => void;
 }
 
 const StockSearchPickRow = memo(
@@ -154,9 +159,11 @@ const StockSearchPickRow = memo(
     row,
     slot,
     isActive,
+    analysisOpen,
     onSelectPick,
     onNews,
     onReason,
+    onAnalyze,
   }: StockSearchPickRowProps) {
     const pick = mergeTechnical(rowToPick(row), slot);
     const signalIds = resolvePickSignalIds(pick);
@@ -208,6 +215,25 @@ const StockSearchPickRow = memo(
         <div className="pick-actions">
           <button
             type="button"
+            className={
+              analysisOpen
+                ? "pick-action pick-action--analyze active"
+                : "pick-action pick-action--analyze"
+            }
+            aria-pressed={analysisOpen}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onAnalyze(row);
+            }}
+          >
+            <span className="pick-action__icon" aria-hidden>
+              ◈
+            </span>
+            {ko.app.stockLookupAnalysis}
+          </button>
+          <button
+            type="button"
             className="pick-action pick-action--reason"
             onClick={(e) => {
               e.preventDefault();
@@ -243,8 +269,10 @@ const StockSearchPickRow = memo(
     sameQuoteRow(prev.row, next.row) &&
     technicalSlotDigest(prev.slot) === technicalSlotDigest(next.slot) &&
     prev.onSelectPick === next.onSelectPick &&
+    prev.analysisOpen === next.analysisOpen &&
     prev.onNews === next.onNews &&
-    prev.onReason === next.onReason,
+    prev.onReason === next.onReason &&
+    prev.onAnalyze === next.onAnalyze,
 );
 
 export default function StockSearchTab({
@@ -263,7 +291,14 @@ export default function StockSearchTab({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [techBySym, setTechBySym] = useState<Record<string, TechnicalSlot>>({});
+  const [analysisTarget, setAnalysisTarget] = useState<{
+    symbol: string;
+    name: string;
+  } | null>(null);
+  const [analysisSlot, setAnalysisSlot] =
+    useState<StockTechnicalAnalysisSlot | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const analysisAbortRef = useRef<AbortController | null>(null);
   const selectedSymRef = useRef<string | null>(null);
   selectedSymRef.current = selectedSymbol;
 
@@ -336,7 +371,7 @@ export default function StockSearchTab({
     async (row: StockSearchQuoteRow, signal: AbortSignal) => {
       const sym = row.symbol.trim().toUpperCase();
       try {
-        const data = await fetchStockTechnical(row.symbol, signal);
+        const data = await fetchStockTechnical(row.symbol, { signal });
         if (signal.aborted) return;
         setTechBySym((prev) => ({
           ...prev,
@@ -444,6 +479,62 @@ export default function StockSearchTab({
     if (pick) onSelectPick(pick);
   }, [input, market, onSelectPick]);
 
+  const runAnalysis = useCallback((row: StockSearchQuoteRow) => {
+    analysisAbortRef.current?.abort();
+    const ac = new AbortController();
+    analysisAbortRef.current = ac;
+    setAnalysisTarget({ symbol: row.symbol, name: row.name });
+    setAnalysisSlot({ status: "loading" });
+    onSelectPick(mergeTechnical(rowToPick(row), techBySym[row.symbol]));
+    void (async () => {
+      try {
+        const data = await fetchStockTechnical(row.symbol, { signal: ac.signal });
+        if (ac.signal.aborted) return;
+        setAnalysisSlot({ status: "ok", data });
+        setTechBySym((prev) => ({
+          ...prev,
+          [row.symbol]: { status: "ok", data },
+        }));
+        const sym = row.symbol.trim().toUpperCase();
+        const sel = (selectedSymRef.current ?? "").trim().toUpperCase();
+        if (onLookupPickPatch && sel && sel === sym) {
+          onLookupPickPatch({
+            symbol: data.symbol,
+            market: row.market,
+            score: data.score,
+            signalIds: data.signalIds,
+            signals: data.signals,
+          });
+        }
+      } catch (e: unknown) {
+        if (ac.signal.aborted) return;
+        if (e instanceof DOMException && e.name === "AbortError") return;
+        setAnalysisSlot({
+          status: "err",
+          message: e instanceof Error ? e.message : "",
+        });
+      }
+    })();
+  }, [onLookupPickPatch, techBySym, onSelectPick]);
+
+  const handleAnalyze = useCallback(
+    (row: StockSearchQuoteRow) => {
+      if (
+        analysisTarget?.symbol === row.symbol &&
+        analysisSlot != null
+      ) {
+        setAnalysisTarget(null);
+        setAnalysisSlot(null);
+        analysisAbortRef.current?.abort();
+        return;
+      }
+      runAnalysis(row);
+    },
+    [analysisTarget?.symbol, analysisSlot, runAnalysis],
+  );
+
+  useEffect(() => () => analysisAbortRef.current?.abort(), []);
+
   return (
     <div className="stock-search-tab">
       <div className="pick-toolbar stock-search-tab__toolbar">
@@ -490,12 +581,26 @@ export default function StockSearchTab({
               row={row}
               slot={techBySym[row.symbol]}
               isActive={selectedSymbol === row.symbol}
+              analysisOpen={analysisTarget?.symbol === row.symbol}
               onSelectPick={onSelectPick}
               onNews={onNews}
               onReason={onReason}
+              onAnalyze={handleAnalyze}
             />
           ))}
         </ul>
+      )}
+      {analysisTarget && analysisSlot && (
+        <StockTechnicalAnalysisPanel
+          symbol={analysisTarget.symbol}
+          displayName={analysisTarget.name}
+          slot={analysisSlot}
+          onClose={() => {
+            setAnalysisTarget(null);
+            setAnalysisSlot(null);
+            analysisAbortRef.current?.abort();
+          }}
+        />
       )}
     </div>
   );
