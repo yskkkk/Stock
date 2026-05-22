@@ -158,10 +158,12 @@ function normalizeMirrorEntry(e) {
   if (!id) return null;
   const st = String(e.status ?? "waiting");
   const status = st === "running" ? "running" : "waiting";
+  const requestIp = String(e.requestIp ?? "").trim();
+  const isIde = e.source === "ide" || requestIp === "cursor-ide";
   const out = {
     id,
-    requestIp: String(e.requestIp ?? "").trim() || "—",
-    source: e.source === "ide" ? "ide" : "web",
+    requestIp: requestIp || (isIde ? "cursor-ide" : "—"),
+    source: isIde ? "ide" : "web",
     instructionPreview: String(e.instructionPreview ?? "").trim() || "—",
     instructionTooltip: String(e.instructionTooltip ?? e.instructionPreview ?? "").trim() || "—",
     instructionBody: String(e.instructionBody ?? e.instructionPreview ?? "").slice(0, 16_000),

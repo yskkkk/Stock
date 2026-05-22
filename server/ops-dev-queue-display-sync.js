@@ -52,21 +52,7 @@ function isColdDevQueueMirrorBoot() {
   return true;
 }
 
-/** @param {Array<Record<string, unknown>>} memory */
-function memoryHasIdeWork(memory) {
-  return memory.some(
-    (e) => e.source === "ide" || e.requestIp === "cursor-ide",
-  );
-}
-
-/**
- * 평소: 메모리만. enqueue 직전(메모리에 IDE 없고 lease만 있을 때)만 lease 병합.
- * @returns {Array<Record<string, unknown>>}
- */
 function ensureMemoryQueueRecovered() {
-  const { entries: memory } = getOpsAgentQueueMemorySnapshot();
-  if (memoryHasIdeWork(memory)) return;
-
   const lease = readIdeLeaseDiskSync();
   const snap = readDevQueueDisplaySnapshotSync();
   const displayIdeWaiting = snap.agentEntries.some(
@@ -82,11 +68,14 @@ function ensureMemoryQueueRecovered() {
   recoverIdeDevQueueFromPersistedState();
 }
 
-/** enqueue 직전 lease만 — 오래된 lease는 고아로 제거 */
+/**
+ * 메모리 FIFO + 디스크 lease(훅·transcript 선등록) — 항상 병합.
+ * @returns {Array<Record<string, unknown>>}
+ */
 function entriesForDisplayMirror() {
   ensureMemoryQueueRecovered();
   const { entries: memory } = getOpsAgentQueueMemorySnapshot();
-  if (memoryHasIdeWork(memory)) return memory;
+
   const lease = readIdeLeaseDiskSync();
   if (lease) {
     const since =
@@ -101,9 +90,9 @@ function entriesForDisplayMirror() {
       age > 30 * 60 * 1000 || (!hasLeaseId && age > 120_000);
     if (stale) {
       clearIdeLeaseOnDisk();
-      return memory;
     }
   }
+
   return mergeIdeLeaseDiskIntoAgentEntries(memory);
 }
 
