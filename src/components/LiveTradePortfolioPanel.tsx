@@ -135,16 +135,21 @@ function HoldingRow({
 
   return (
     <tr className="live-portfolio__row">
-      <td>
+      <td data-label={ko.app.liveTradePfColSymbol}>
         <span className="live-portfolio__sym">{row.symbol}</span>
         <span className="live-portfolio__nm">{row.name}</span>
         <span className="live-portfolio__prog">{row.programName ?? row.programId}</span>
       </td>
-      <td className="live-portfolio__num">{row.quantity.toLocaleString("ko-KR")}</td>
-      <td className="live-portfolio__num">
+      <td className="live-portfolio__num" data-label={ko.app.liveTradePfColQty}>
+        {row.quantity.toLocaleString("ko-KR")}
+      </td>
+      <td className="live-portfolio__num" data-label={ko.app.liveTradePfColAvg}>
         {formatPrice(row.avgEntryPrice, row.currency)}
       </td>
-      <td className="live-portfolio__num live-portfolio__num--price">
+      <td
+        className="live-portfolio__num live-portfolio__num--price"
+        data-label={ko.app.liveTradePfColCurrent}
+      >
         <span>{formatPrice(row.currentPrice ?? undefined, row.currency)}</span>
         {row.changePct != null ? (
           <span
@@ -158,7 +163,10 @@ function HoldingRow({
           </span>
         ) : null}
       </td>
-      <td className="live-portfolio__num">
+      <td
+        className="live-portfolio__num"
+        data-label={ko.app.liveTradePfColTargetSell}
+      >
         {row.targetSellPrice != null
           ? formatPrice(row.targetSellPrice, row.currency)
           : "—"}
@@ -171,12 +179,13 @@ function HoldingRow({
               ? "live-portfolio__num live-portfolio__num--up"
               : "live-portfolio__num live-portfolio__num--down"
         }
+        data-label={ko.app.liveTradePfColPnl}
       >
         {row.unrealizedPnl == null
           ? "—"
           : formatSignedMoney(row.unrealizedPnl, row.currency)}
       </td>
-      <td className="live-portfolio__actions">
+      <td className="live-portfolio__actions-cell">
         {!sellOpen ? (
           <button
             type="button"
@@ -356,7 +365,7 @@ export default function LiveTradePortfolioPanel({
               <p className="live-portfolio__muted">{ko.app.liveTradePfNoHoldings}</p>
             ) : (
               <div className="live-portfolio__table-wrap">
-                <table className="live-portfolio__table">
+                <table className="live-portfolio__table live-portfolio__table--stacked live-portfolio__table--holdings">
                   <thead>
                     <tr>
                       <th>{ko.app.liveTradePfColSymbol}</th>
@@ -391,7 +400,7 @@ export default function LiveTradePortfolioPanel({
               <p className="live-portfolio__muted">{ko.app.liveTradePfNoTrades}</p>
             ) : (
               <div className="live-portfolio__table-wrap">
-                <table className="live-portfolio__table">
+                <table className="live-portfolio__table live-portfolio__table--stacked live-portfolio__table--trades">
                   <thead>
                     <tr>
                       <th>{ko.app.liveTradePfColTime}</th>
@@ -413,8 +422,10 @@ export default function LiveTradePortfolioPanel({
                             : "live-portfolio__row live-portfolio__row--sell"
                         }
                       >
-                        <td className="live-portfolio__ts">{formatTs(t.atMs)}</td>
-                        <td>
+                        <td className="live-portfolio__ts" data-label={ko.app.liveTradePfColTime}>
+                          {formatTs(t.atMs)}
+                        </td>
+                        <td data-label={ko.app.liveTradePfColSide}>
                           <span
                             className={
                               t.side === "buy"
@@ -428,18 +439,23 @@ export default function LiveTradePortfolioPanel({
                             ) : null}
                           </span>
                         </td>
-                        <td>
+                        <td data-label={ko.app.liveTradePfColSymbol}>
                           <span className="live-portfolio__sym">{t.symbol}</span>
                           <span className="live-portfolio__nm">{t.name}</span>
                         </td>
-                        <td className="live-portfolio__num">{t.quantity}</td>
-                        <td className="live-portfolio__num">
+                        <td className="live-portfolio__num" data-label={ko.app.liveTradePfColQty}>
+                          {t.quantity}
+                        </td>
+                        <td className="live-portfolio__num" data-label={ko.app.liveTradePfColPrice}>
                           {formatPrice(t.price, t.currency)}
                         </td>
-                        <td className="live-portfolio__num">
+                        <td className="live-portfolio__num" data-label={ko.app.liveTradePfColAmount}>
                           {formatPrice(t.amount, t.currency)}
                         </td>
-                        <td className="live-portfolio__prog">
+                        <td
+                          className="live-portfolio__prog live-portfolio__actions-cell"
+                          data-label={ko.app.liveTradePfColProgram}
+                        >
                           {t.programName ?? t.programId}
                           {t.note ? (
                             <span className="live-portfolio__note" title={t.note}>

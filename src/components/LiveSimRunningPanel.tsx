@@ -147,7 +147,7 @@ function SimProgramCard({
         <p className="live-sim-run__muted">{ko.app.liveTradePfNoHoldings}</p>
       ) : (
         <div className="live-sim-run__table-wrap">
-          <table className="live-sim-run__table">
+          <table className="live-sim-run__table live-sim-run__table--stacked">
             <thead>
               <tr>
                 <th>{ko.app.liveTradePfColSymbol}</th>
@@ -163,22 +163,33 @@ function SimProgramCard({
                 const up = (h.changePct ?? 0) >= 0;
                 return (
                   <tr key={`${h.market}:${h.symbol}`}>
-                    <td>
+                    <td data-label={ko.app.liveTradePfColSymbol}>
                       <span className="live-sim-run__sym">{h.symbol}</span>
                       <span className="live-sim-run__name">{h.name}</span>
                     </td>
-                    <td className="live-sim-run__num">{h.quantity}</td>
-                    <td className="live-sim-run__num">
+                    <td className="live-sim-run__num" data-label={ko.app.liveTradePfColQty}>
+                      {h.quantity}
+                    </td>
+                    <td
+                      className="live-sim-run__num"
+                      data-label={ko.app.liveTradePfColCurrent}
+                    >
                       {h.currentPrice != null
                         ? formatPrice(h.currentPrice, h.currency)
                         : "—"}
                     </td>
-                    <td className="live-sim-run__num">
+                    <td
+                      className="live-sim-run__num"
+                      data-label={ko.app.liveTradePfColTargetSell}
+                    >
                       {h.targetSellPrice != null
                         ? formatPrice(h.targetSellPrice, h.currency)
                         : "—"}
                     </td>
-                    <td className="live-sim-run__num">
+                    <td
+                      className="live-sim-run__num"
+                      data-label={ko.app.liveTradePfColStopLoss}
+                    >
                       {h.stopLossPrice != null
                         ? formatPrice(h.stopLossPrice, h.currency)
                         : "—"}
@@ -191,6 +202,7 @@ function SimProgramCard({
                             ? "live-sim-run__num live-sim-run__num--up"
                             : "live-sim-run__num live-sim-run__num--down"
                       }
+                      data-label={ko.app.liveTradePfColPnl}
                     >
                       {h.unrealizedPnl != null
                         ? formatSignedMoney(h.unrealizedPnl, h.currency)
@@ -209,7 +221,7 @@ function SimProgramCard({
         <p className="live-sim-run__muted">{ko.app.liveTradePfNoTrades}</p>
       ) : (
         <div className="live-sim-run__table-wrap">
-          <table className="live-sim-run__table live-sim-run__table--trades">
+          <table className="live-sim-run__table live-sim-run__table--stacked live-sim-run__table--trades">
             <thead>
               <tr>
                 <th>{ko.app.liveTradePfColTime}</th>
@@ -229,17 +241,19 @@ function SimProgramCard({
                       : "live-sim-run__row--sell"
                   }
                 >
-                  <td className="live-sim-run__ts">{formatTs(t.atMs)}</td>
-                  <td>
+                  <td className="live-sim-run__ts" data-label={ko.app.liveTradePfColTime}>
+                    {formatTs(t.atMs)}
+                  </td>
+                  <td data-label={ko.app.liveTradePfColSide}>
                     {t.side === "buy"
                       ? ko.app.liveTradeSideBuy
                       : ko.app.liveTradeSideSell}
                   </td>
-                  <td>{t.symbol}</td>
-                  <td className="live-sim-run__num">
+                  <td data-label={ko.app.liveTradePfColSymbol}>{t.symbol}</td>
+                  <td className="live-sim-run__num" data-label={ko.app.liveTradePfColPrice}>
                     {formatPrice(t.price, t.currency)}
                   </td>
-                  <td className="live-sim-run__num">
+                  <td className="live-sim-run__num" data-label={ko.app.liveTradePfColAmount}>
                     {formatPrice(t.amount, t.currency)}
                   </td>
                 </tr>

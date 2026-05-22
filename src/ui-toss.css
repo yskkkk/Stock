@@ -342,6 +342,161 @@ body {
 }
 
 @media (max-width: 900px) {
+  .live-trading-tab,
+  .live-trading-panel {
+    max-width: none;
+    padding: 0 0 max(1rem, env(safe-area-inset-bottom, 0px));
+    gap: 0.55rem;
+  }
+
+  .live-trading-tab .card,
+  .live-trading-tab__head,
+  .live-trading-tab__form,
+  .live-trading-tab__list,
+  .live-portfolio,
+  .live-sim,
+  .live-sim-run {
+    padding: 0.75rem 0.8rem;
+    border-radius: 12px;
+  }
+
+  .live-trading-tab__head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .live-trading-tab__head .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .live-trading-tab__title {
+    font-size: 1rem;
+  }
+
+  .live-trading-tab__grid {
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+  }
+
+  .live-trading-tab .input,
+  .live-trading-tab select.input,
+  .live-portfolio__filter .input {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .live-trading-tab__actions {
+    flex-direction: column;
+  }
+
+  .live-trading-tab__actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .live-trading-tab__program-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .live-trading-tab__program-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem;
+    width: 100%;
+  }
+
+  .live-trading-tab__program-actions .btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 40px;
+  }
+
+  .live-portfolio__head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .live-portfolio__head-tools {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .live-portfolio__filter {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .live-portfolio__tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.15rem;
+    scrollbar-width: none;
+  }
+
+  .live-portfolio__tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .live-portfolio__tab {
+    flex-shrink: 0;
+    min-height: 36px;
+  }
+
+  .live-portfolio__summary,
+  .live-sim-run__tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .live-sim-run__head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .live-sim-run__head-tools {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .live-sim-run__card-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .live-sim-run__card-head .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .live-sim__row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .live-sim__field {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .live-sim__markets {
+    width: 100%;
+  }
+
+  .live-sim .btn--primary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .live-sim__hit {
+    min-height: 44px;
+    padding: 0.55rem 0.65rem;
+  }
+
   html {
     font-size: 14px;
   }
@@ -438,6 +593,35 @@ body {
 
 /* 좁은 폰: 한 화면에 헤더·목록·차트가 더 들어가도록 한 단계 더 축소 */
 @media (max-width: 560px) {
+  .live-trading-tab .card,
+  .live-trading-tab__head,
+  .live-trading-tab__form,
+  .live-trading-tab__list,
+  .live-portfolio,
+  .live-sim,
+  .live-sim-run {
+    padding: 0.65rem 0.7rem;
+  }
+
+  .live-trading-tab__program-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .live-portfolio__summary,
+  .live-sim-run__tiles {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem;
+  }
+
+  .live-portfolio__tile,
+  .live-sim-run__tile {
+    min-width: 0;
+  }
+
+  .live-sim-run__chips li {
+    font-size: 0.64rem;
+  }
+
   html {
     font-size: 13px;
   }
@@ -497,6 +681,9 @@ body {
   max-width: 1100px;
   margin: 0 auto;
   padding: 0.25rem 0 1.5rem;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .live-trading-tab__head {
@@ -593,6 +780,24 @@ body {
   gap: 0.3rem;
   margin-bottom: 0.7rem;
   font-size: 0.8rem;
+}
+
+.live-trading-tab__field--check {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.live-trading-tab__field--check input[type="checkbox"] {
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.live-trading-tab__field--check > span {
+  flex: 1;
+  line-height: 1.4;
 }
 
 .live-trading-tab__markets {
@@ -1292,6 +1497,94 @@ body {
   margin: 0.35rem 0;
   font-size: 0.82rem;
   color: #b91c1c;
+}
+
+.live-portfolio__actions-cell .btn {
+  min-height: 40px;
+}
+
+/* 실매매·포트폴리오 — 모바일 카드형 테이블 */
+@media (max-width: 720px) {
+  .live-portfolio__table--stacked thead,
+  .live-sim-run__table--stacked thead {
+    display: none;
+  }
+
+  .live-portfolio__table--stacked tbody tr,
+  .live-sim-run__table--stacked tbody tr {
+    display: block;
+    margin-bottom: 0.65rem;
+    padding: 0.65rem 0.75rem;
+    border-radius: 10px;
+    border: 1px solid var(--card-border, rgba(148, 163, 184, 0.18));
+    background: rgba(10, 14, 19, 0.22);
+  }
+
+  .live-portfolio__table--stacked td,
+  .live-sim-run__table--stacked td {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.65rem;
+    padding: 0.38rem 0;
+    border-bottom: none;
+    text-align: right;
+  }
+
+  .live-portfolio__table--stacked td::before,
+  .live-sim-run__table--stacked td::before {
+    content: attr(data-label);
+    font-size: 0.68rem;
+    font-weight: 650;
+    color: var(--text-muted, #6b7280);
+    text-align: left;
+    flex-shrink: 0;
+    max-width: 42%;
+    line-height: 1.35;
+  }
+
+  .live-portfolio__table--stacked td[data-label=""]::before,
+  .live-portfolio__table--stacked td:not([data-label])::before,
+  .live-portfolio__table--stacked .live-portfolio__actions-cell::before,
+  .live-sim-run__table--stacked td:not([data-label])::before {
+    display: none;
+  }
+
+  .live-portfolio__table--stacked td:first-child,
+  .live-sim-run__table--stacked td:first-child {
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    padding-top: 0;
+  }
+
+  .live-portfolio__table--stacked td:first-child::before,
+  .live-sim-run__table--stacked td:first-child::before {
+    margin-bottom: 0.15rem;
+  }
+
+  .live-portfolio__table--stacked .live-portfolio__actions-cell,
+  .live-portfolio__table--stacked .live-portfolio__prog.live-portfolio__actions-cell {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: left;
+  }
+
+  .live-portfolio__table--stacked .live-portfolio__actions-cell .btn,
+  .live-portfolio__table--stacked .live-portfolio__sell-form .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .live-portfolio__table--stacked .live-portfolio__sell-form {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .live-portfolio__table--stacked .live-portfolio__sell-form .input {
+    width: 100%;
+    flex: 1 1 100%;
+  }
 }
 
 /* =============================================================================

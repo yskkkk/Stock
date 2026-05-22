@@ -297,7 +297,7 @@ export default function LiveTradingTab({
   const toss = status?.toss;
 
   return (
-    <div className="live-trading-tab">
+    <div className="live-trading-tab live-trading-panel">
       <header className="live-trading-tab__head card">
         <div>
           <h2 className="live-trading-tab__title">{ko.app.liveTradeTitle}</h2>
