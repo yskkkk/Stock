@@ -41,13 +41,24 @@ function cleanupLocal() {
   clearIdeTurnRule();
 }
 
+const DEBUG_LOG = new URL("../../server/.logs/cursor-hook-debug.log", import.meta.url).pathname;
+function debugLog(msg) {
+  try {
+    fs.mkdirSync(new URL("../../server/.logs", import.meta.url).pathname, { recursive: true });
+    fs.appendFileSync(DEBUG_LOG, `[${new Date().toISOString()}] ${msg}\n`, "utf8");
+  } catch {}
+}
+
 try {
   const raw = fs.readFileSync(0, "utf8");
   const input = raw ? JSON.parse(raw) : {};
   const sessionId = hookSessionId(input);
   const prompt = hookUserPromptFromInput(input);
 
+  debugLog(`beforeSubmitPrompt triggered. prompt="${(prompt ?? "").slice(0, 60)}"`);
+
   if (!prompt) {
+    debugLog("no prompt — allow");
     allow();
     process.exit(0);
   }
@@ -178,9 +189,11 @@ try {
   });
   writeIdeTurnRule(contextNote);
 
+  debugLog(`grant ok — allow (queueSeq=${grantBody.queueSeq ?? "?"})`);
   allow();
   process.exit(0);
-} catch {
+} catch (e) {
+  debugLog(`CATCH error — fail-open: ${e instanceof Error ? e.message : String(e)}`);
   cleanupLocal();
   allow();
   process.exit(0);

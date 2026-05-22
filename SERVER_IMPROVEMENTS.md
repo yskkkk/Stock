@@ -68,17 +68,31 @@ _재발 11회 (최초 2026-05-22 17:38:04.779 KST)_
 
 ---
 
-### [WARN] auto-git — 2026-05-23 04:30:54.217 KST
+### [WARN] auto-git — 2026-05-23 04:39:57.292 KST
 
 <!-- id:logfreq-7d669592b2 -->
 
-**문제**: 오늘 로그에서 반복 오류: npm ci failed, falling back to npm install (5회)
+**문제**: 오늘 로그에서 반복 오류: npm ci failed, falling back to npm install (6회)
 
 **개선 제안**: 해당 영역 코드·설정·로그를 따라가며 재발 방지 패치를 적용하세요.
 
-**근거**: server/.logs 오늘 INTERNAL 5회
+**근거**: server/.logs 오늘 INTERNAL 6회
 
-_재발 622회 (최초 2026-05-22 16:58:17.982 KST)_
+_재발 624회 (최초 2026-05-22 16:58:17.982 KST)_
+
+---
+
+### [WARN] auto-git — 2026-05-23 04:34:30.078 KST
+
+<!-- id:log-auto-git-7d669592b2 -->
+
+**문제**: npm ci failed, falling back to npm install
+
+**개선 제안**: 해당 영역 코드·설정·로그를 따라가며 재발 방지 패치를 적용하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+_재발 13회 (최초 2026-05-22 20:06:58.902 KST)_
 
 ---
 
@@ -93,20 +107,6 @@ _재발 622회 (최초 2026-05-22 16:58:17.982 KST)_
 **근거**: server/.logs 접근 로그 INTERNAL auto-git
 
 _재발 2회 (최초 2026-05-23 03:18:31.457 KST)_
-
----
-
-### [WARN] auto-git — 2026-05-23 03:28:47.955 KST
-
-<!-- id:log-auto-git-7d669592b2 -->
-
-**문제**: npm ci failed, falling back to npm install
-
-**개선 제안**: 해당 영역 코드·설정·로그를 따라가며 재발 방지 패치를 적용하세요.
-
-**근거**: server/.logs 접근 로그 INTERNAL auto-git
-
-_재발 12회 (최초 2026-05-22 20:06:58.902 KST)_
 
 ---
 
@@ -214,4 +214,4 @@ _재발 3회 (최초 2026-05-22 17:39:58.154 KST)_
 
 ## 최근 자동 점검
 
-2026-05-23 04:30:54.219 KST — probes 완료 · 열린 15건 · 이번 기록 1건
+2026-05-23 04:39:57.294 KST — probes 완료 · 열린 15건 · 이번 기록 1건

@@ -9,6 +9,7 @@ import path from "node:path";
 
 const PORT = Number(process.env.PORT) || 5173;
 const LEASE_FILE = path.join(process.cwd(), ".claude-queue-lease");
+const IDE_LEASE_FILE = path.join(process.cwd(), ".stock-ops-ide-lease.json");
 
 const prompt = process.argv.slice(2).join(" ").trim() || "Claude Code 작업 중";
 
@@ -37,6 +38,20 @@ const req = http.request(
           process.exit(1);
         }
         fs.writeFileSync(LEASE_FILE, data.leaseId, "utf8");
+        // 서버 재시작 후 복구를 위해 ide lease 파일에도 기록
+        fs.writeFileSync(
+          IDE_LEASE_FILE,
+          JSON.stringify({
+            leaseId: data.leaseId,
+            sessionId: null,
+            sinceMs: Date.now(),
+            queueSeq: data.queueSeq ?? null,
+            queueStatus: "running",
+            instructionPreview: prompt.slice(0, 220),
+            requestIp: "claude-code",
+          }, null, 2) + "\n",
+          "utf8",
+        );
         console.log(
           `[claude-queue] 큐 등록 완료 #${data.queueSeq} leaseId=${data.leaseId} 대기=${data.waitedMs}ms`,
         );

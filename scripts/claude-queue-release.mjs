@@ -8,6 +8,7 @@ import path from "node:path";
 
 const PORT = Number(process.env.PORT) || 5173;
 const LEASE_FILE = path.join(process.cwd(), ".claude-queue-lease");
+const IDE_LEASE_FILE = path.join(process.cwd(), ".stock-ops-ide-lease.json");
 
 let leaseId = "";
 try {
@@ -48,6 +49,7 @@ const req = http.request(
       }
       try {
         if (leaseId) fs.unlinkSync(LEASE_FILE);
+        try { fs.unlinkSync(IDE_LEASE_FILE); } catch {}
       } catch {}
     });
   },
