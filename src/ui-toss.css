@@ -33,22 +33,27 @@ body {
   min-height: 100dvh;
   height: 100dvh;
   max-height: 100dvh;
+  width: 100%;
+  max-width: none;
+  margin: 0;
   overflow: hidden;
   gap: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-/* 전폭 스크롤(본문만) — 스크롤바 뷰포트 오른쪽, 푸터는 .app 하단 고정 */
+/* 전폭 스크롤 레일(본문만) — 스크롤바는 브라우저 오른쪽, 푸터는 .app 하단 고정 */
 .app__scroll {
   flex: 1 1 auto;
   min-height: 0;
   width: 100%;
-  max-width: 100%;
+  max-width: none;
+  margin: 0;
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: auto;
+  scrollbar-gutter: stable;
   box-sizing: border-box;
 }
 
@@ -2225,6 +2230,9 @@ body {
 .app-site-footer {
   flex-shrink: 0;
   width: 100%;
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
   box-sizing: border-box;
   padding: 0.85rem 1.35rem max(0.35rem, env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--card-border, rgba(148, 163, 184, 0.14));
