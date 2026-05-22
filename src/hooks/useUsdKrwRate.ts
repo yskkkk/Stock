@@ -4,7 +4,7 @@ import { fetchUsdKrw } from "../api";
 const POLL_MS = 20_000;
 
 /**
- * 미국 주식 원화 표시용 USD/KRW. 비활성화 시 rate는 null.
+ * USD/KRW (KST 09:00 기준). 상단 환율·미국 주식 원화 표시에 사용. 비활성화 시 rate는 null.
  */
 export function useUsdKrwRate(enabled: boolean) {
   const [rate, setRate] = useState<number | null>(null);

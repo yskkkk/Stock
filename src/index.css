@@ -1475,7 +1475,51 @@
 
 .top-bar__brand-main {
   min-width: 0;
-  flex: 1;
+  flex: 0 1 auto;
+}
+
+.top-bar__fx {
+  margin-left: auto;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.04rem;
+  padding-left: 0.55rem;
+  min-width: 0;
+  max-width: min(11rem, 46%);
+  text-align: right;
+}
+
+.top-bar--screener .top-bar__fx {
+  align-self: center;
+}
+
+.top-bar__fx-label {
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  color: var(--muted, var(--text-dim));
+  line-height: 1.2;
+}
+
+.top-bar__fx-value {
+  font-size: 0.94rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.top-bar__fx-meta {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--text-dim, var(--muted));
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .light-palette-picker {
@@ -3855,6 +3899,19 @@ html[data-theme="light"] .access-admin-tab--active {
 
   .top-bar__brand-main {
     text-align: left;
+  }
+
+  .top-bar__fx {
+    max-width: min(9.5rem, 52%);
+    padding-left: 0.35rem;
+  }
+
+  .top-bar__fx-meta {
+    display: none;
+  }
+
+  .top-bar__fx-value {
+    font-size: 0.86rem;
   }
 
   /* 탭(스크리너·종목 검색·코인)과 도구(테마·전체 재분석)를 한 줄에 — 좁으면 가로 스크롤 */

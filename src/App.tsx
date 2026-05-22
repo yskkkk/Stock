@@ -18,6 +18,7 @@ import AccessAdminModal from "./components/AccessAdminModal";
 import AppSiteFooter from "./components/AppSiteFooter";
 import FeedbackCorner, { type FeedbackCornerHandle } from "./components/FeedbackCorner";
 import MacroEventsBar from "./components/MacroEventsBar";
+import TopBarFxStrip from "./components/TopBarFxStrip";
 import NewsModal from "./components/NewsModal";
 import PicksHistoryModal from "./components/PicksHistoryModal";
 import ProfitModelModal from "./components/ProfitModelModal";
@@ -480,13 +481,7 @@ export default function App() {
     return () => window.clearTimeout(t);
   }, [workspacePick?.symbol, workspacePick?.market, appTab]);
 
-  const usdKrwEnabled =
-    appTab !== "crypto" &&
-    appTab !== "ops" &&
-    (workspacePick?.market === "us" ||
-      (appTab === "stockLookup" && lookupMarketTab === "us"));
-  const { rate: usdKrwRate, valuationDate: usdKrwValDate } =
-    useUsdKrwRate(usdKrwEnabled);
+  const { rate: usdKrwRate, valuationDate: usdKrwValDate } = useUsdKrwRate(true);
 
   const toggleUsQuoteKrw = useCallback(() => {
     setUsQuoteInKrw((prev) => {
@@ -1025,6 +1020,7 @@ export default function App() {
                 ) : null}
               </p>
             </div>
+            <TopBarFxStrip rate={usdKrwRate} valuationDate={usdKrwValDate} />
           </div>
 
           <div className="top-bar__right">

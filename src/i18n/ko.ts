@@ -3,6 +3,9 @@ export const ko = {
   app: {
     title: "YSTOCK",
     subtitle: "국내 300 · 나스닥 500",
+    topBarFxLabel: "원/달러",
+    topBarFxAria: "원·달러 환율 (KST 09:00 기준, 약 20초마다 갱신)",
+    topBarFxBasis: "{date} 09:00",
     telegram: "텔레그램",
     telegramResetAria: "오늘 텔레그램 알림 이력 초기화",
     telegramResetLabel: "알림 초기화",

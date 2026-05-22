@@ -10,8 +10,12 @@ const out = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "src",
 
 const t = {
   app: {
-    title: "\uC885\uBAA9 \uB300\uC2DC\uBCF4\uB4DC",
+    title: "YSTOCK",
     subtitle: "\uAD6D\uB0B4 300 \u00B7 \uB098\uC2A4\uB2E5 500",
+    topBarFxLabel: "\uC6D0/\uB2EC\uB7EC",
+    topBarFxAria:
+      "\uC6D0\u00B7\uB2EC\uB7EC \uD658\uC728 (KST 09:00 \uAE30\uC900, \uC57D 20\uCD08\uB9C8\uB2E4 \uAC31\uC2E0)",
+    topBarFxBasis: "{date} 09:00",
     telegram: "\uD154\uB808\uADF8\uB7A8",
     telegramResetAria: "\uC624\uB298 \uD154\uB808\uADF8\uB7A8 \uC54C\uB9BC \uC774\uB825 \uCD08\uAE30\uD654",
     telegramResetLabel: "\uC54C\uB9BC \uCD08\uAE30\uD654",

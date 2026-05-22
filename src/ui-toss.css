@@ -175,6 +175,12 @@ body {
   font-weight: 600;
 }
 
+.top-bar__fx-value {
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
 .panel-head__meta,
 .scan-status {
   font-weight: 600;
