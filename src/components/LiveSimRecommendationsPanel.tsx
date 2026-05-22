@@ -60,10 +60,7 @@ export default function LiveSimRecommendationsPanel({
   };
 
   return (
-    <section
-      className="live-trading-tab__rec card"
-      aria-label={ko.app.liveTradeSimRecTitle}
-    >
+    <section className="live-trading-tab__rec" aria-label={ko.app.liveTradeSimRecTitle}>
       <h4 className="live-trading-tab__rec-title">{ko.app.liveTradeSimRecTitle}</h4>
       <p className="live-trading-tab__rec-sub">{ko.app.liveTradeSimRecSub}</p>
       <ul className="live-trading-tab__rec-list">
@@ -80,7 +77,7 @@ export default function LiveSimRecommendationsPanel({
             <p className="live-trading-tab__rec-reason">{item.reason}</p>
             <button
               type="button"
-              className="btn btn--secondary btn--sm"
+              className="btn btn--secondary btn--sm live-trading-tab__rec-apply"
               onClick={() => onApplyPatch(toDraft(item))}
             >
               {ko.app.liveTradeSimRecApply}

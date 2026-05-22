@@ -490,6 +490,16 @@ body {
     box-sizing: border-box;
   }
 
+  .live-trading-tab__form-grid,
+  .live-trading-tab__form-toggles {
+    grid-template-columns: 1fr;
+  }
+
+  .live-trading-tab__submit {
+    width: 100%;
+    justify-content: center;
+  }
+
   .live-trading-tab__actions {
     flex-direction: column;
   }
@@ -902,62 +912,227 @@ body {
 
 .live-trading-tab__form,
 .live-trading-tab__list {
-  padding: 1rem 1.1rem;
+  padding: 0;
+  overflow: hidden;
+}
+
+.live-trading-tab__form-head,
+.live-trading-tab__list > .live-trading-tab__section-title {
+  padding: 1rem 1.1rem 0.65rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border, #e2e8f0) 55%, transparent);
+}
+
+.live-trading-tab__list > .live-trading-tab__section-title {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.live-trading-tab__form-title {
+  margin: 0;
+}
+
+.live-trading-tab__form-panel,
+.live-trading-tab__list-body {
+  padding: 0.85rem 1.1rem 1rem;
+}
+
+.live-trading-tab__form-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: color-mix(in srgb, var(--card) 88%, var(--accent, #5eead4) 3%);
+}
+
+.live-trading-tab__list-body {
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+}
+
+.live-trading-tab__form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem 0.75rem;
 }
 
 .live-trading-tab__field {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  margin-bottom: 0.7rem;
+  gap: 0.35rem;
+  min-width: 0;
+  margin: 0;
   font-size: 0.8rem;
 }
 
-.live-trading-tab__field--check {
-  flex-direction: row;
-  align-items: flex-start;
+.live-trading-tab__field--full {
+  grid-column: 1 / -1;
+}
+
+.live-trading-tab__field--off {
+  opacity: 0.55;
+}
+
+.live-trading-tab__label {
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: var(--muted, var(--text-muted, #6b7280));
+}
+
+.live-trading-tab__input {
+  width: 100%;
+  min-height: 2.45rem;
+  border-radius: 10px;
+  box-sizing: border-box;
+}
+
+.live-trading-tab__segment {
+  display: flex;
+  padding: 3px;
+  gap: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface, #0f172a) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border, #e2e8f0) 70%, transparent);
+}
+
+.live-trading-tab__segment-btn {
+  flex: 1;
+  min-height: 2.15rem;
+  padding: 0.35rem 0.65rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--muted, var(--text-muted, #6b7280));
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.live-trading-tab__segment-btn:hover {
+  color: var(--text);
+}
+
+.live-trading-tab__segment-btn--on {
+  color: var(--text);
+  background: var(--card, #fff);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.live-trading-tab__field--range {
+  grid-column: 1 / -1;
+}
+
+.live-trading-tab__field-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 0.5rem;
 }
 
-.live-trading-tab__field--check input[type="checkbox"] {
-  margin-top: 0.15rem;
-  flex-shrink: 0;
-  width: 1.1rem;
-  height: 1.1rem;
-}
-
-.live-trading-tab__field--check > span {
-  flex: 1;
-  line-height: 1.4;
-}
-
-.live-trading-tab__markets {
-  border: none;
-  margin: 0 0 0.75rem;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem 1.25rem;
-  font-size: 0.82rem;
-}
-
-.live-trading-tab__markets legend {
+.live-trading-tab__range {
   width: 100%;
-  margin-bottom: 0.25rem;
-  font-size: 0.8rem;
-  font-weight: 600;
+  margin: 0.15rem 0 0;
+  accent-color: var(--accent, #5eead4);
 }
 
 .live-trading-tab__range-val {
+  font-size: 0.88rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent, #5eead4);
+  letter-spacing: -0.02em;
+}
+
+.live-trading-tab__form-toggles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.live-trading-tab__toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.6rem 0.7rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border, #e2e8f0) 65%, transparent);
+  background: var(--card, rgba(255, 255, 255, 0.04));
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.live-trading-tab__toggle--on {
+  border-color: color-mix(in srgb, var(--accent, #5eead4) 40%, var(--border, #e2e8f0));
+  background: color-mix(in srgb, var(--accent, #5eead4) 10%, var(--card));
+}
+
+.live-trading-tab__toggle-input {
+  margin-top: 0.12rem;
+  flex-shrink: 0;
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--accent, #5eead4);
+}
+
+.live-trading-tab__toggle > span {
   font-size: 0.78rem;
-  color: var(--text-muted, #6b7280);
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+.live-trading-tab__form-footnote {
+  margin: 0;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--muted, var(--text-muted, #6b7280));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--text) 4%, transparent);
 }
 
 .live-trading-tab__actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin-top: 0.5rem;
+  margin-top: 0.15rem;
+}
+
+.live-trading-tab__submit {
+  min-height: 2.65rem;
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+.live-trading-tab__banner {
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.live-trading-tab__banner--ok {
+  color: #166534;
+  background: color-mix(in srgb, #22c55e 14%, var(--card));
+  border: 1px solid color-mix(in srgb, #22c55e 28%, transparent);
+}
+
+.live-trading-tab__banner--err {
+  color: #991b1b;
+  background: color-mix(in srgb, #ef4444 12%, var(--card));
+  border: 1px solid color-mix(in srgb, #ef4444 25%, transparent);
 }
 
 .live-trading-tab__ok {
@@ -1279,21 +1454,24 @@ body {
 }
 
 .live-trading-tab__rec {
-  margin-bottom: 0.75rem;
+  margin: 0;
   padding: 0.75rem 0.85rem;
-  border-color: rgba(34, 197, 94, 0.35);
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, #22c55e 32%, var(--border, #e2e8f0));
+  background: color-mix(in srgb, #22c55e 6%, var(--card));
 }
 
 .live-trading-tab__rec-title {
   margin: 0 0 0.25rem;
-  font-size: 0.88rem;
+  font-size: 0.86rem;
   font-weight: 700;
 }
 
 .live-trading-tab__rec-sub {
-  margin: 0 0 0.5rem;
+  margin: 0 0 0.55rem;
   font-size: 0.72rem;
-  color: var(--text-muted, #64748b);
+  line-height: 1.45;
+  color: var(--muted, var(--text-muted, #64748b));
 }
 
 .live-trading-tab__rec-list {
@@ -1302,14 +1480,20 @@ body {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: 0.5rem;
 }
 
 .live-trading-tab__rec-item {
-  padding: 0.5rem 0.55rem;
+  padding: 0.6rem 0.7rem;
+  border-radius: 10px;
+  background: var(--card, rgba(255, 255, 255, 0.05));
+  border: 1px solid color-mix(in srgb, var(--border, #e2e8f0) 55%, transparent);
+}
+
+.live-trading-tab__rec-apply {
+  width: 100%;
+  justify-content: center;
   border-radius: 8px;
-  background: var(--surface-2, rgba(0, 0, 0, 0.03));
-  border: 1px solid rgba(148, 163, 184, 0.2);
 }
 
 .live-trading-tab__rec-head {

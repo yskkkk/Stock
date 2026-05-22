@@ -28,6 +28,37 @@ html[data-theme="light"] .profit-model-strip__value {
 }
 
 /* 실매매·시뮬 수익 요약 타일 — 라이트: 다크용 반투명 배경이 회색 덩어리로 보임 */
+html[data-theme="light"] .live-trading-tab__form-panel,
+html[data-theme="light"] .live-trading-tab__list-body {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--card) 98%, white) 0%,
+    color-mix(in srgb, var(--surface) 92%, white) 100%
+  );
+}
+
+html[data-theme="light"] .live-trading-tab__segment {
+  background: color-mix(in srgb, var(--surface) 88%, #e2e8f0);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+html[data-theme="light"] .live-trading-tab__segment-btn--on {
+  background: #fff;
+  box-shadow:
+    0 1px 3px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+html[data-theme="light"] .live-trading-tab__toggle--on {
+  background: color-mix(in srgb, var(--accent) 8%, #fff);
+  border-color: color-mix(in srgb, var(--accent) 25%, rgba(15, 23, 42, 0.1));
+}
+
+html[data-theme="light"] .live-trading-tab__rec {
+  background: color-mix(in srgb, #22c55e 5%, #fff);
+  border-color: color-mix(in srgb, #22c55e 22%, rgba(15, 23, 42, 0.08));
+}
+
 html[data-theme="light"] .live-portfolio__panel {
   background: linear-gradient(
     180deg,

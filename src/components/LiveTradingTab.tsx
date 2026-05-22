@@ -404,14 +404,18 @@ export default function LiveTradingTab({
 
       <div className="live-trading-tab__grid">
         <section className="live-trading-tab__form card" aria-label={ko.app.liveTradeFormTitle}>
-          <h3 className="live-trading-tab__section-title">
-            {editingId ? ko.app.liveTradeFormEdit : ko.app.liveTradeFormNew}
-          </h3>
+          <header className="live-trading-tab__form-head">
+            <h3 className="live-trading-tab__section-title live-trading-tab__form-title">
+              {editingId ? ko.app.liveTradeFormEdit : ko.app.liveTradeFormNew}
+            </h3>
+          </header>
 
           {models.length === 0 ? (
-            <p className="live-trading-tab__hint">{ko.app.liveTradeNoModels}</p>
+            <p className="live-trading-tab__hint live-trading-tab__form-panel">
+              {ko.app.liveTradeNoModels}
+            </p>
           ) : (
-            <>
+            <div className="live-trading-tab__form-panel">
               {!editingId ? (
                 <LiveSimRecommendationsPanel
                   onApplyPatch={(patch: LiveSimDraftPatch) => {
@@ -436,153 +440,216 @@ export default function LiveTradingTab({
                 />
               ) : null}
 
-              <label className="live-trading-tab__field">
-                <span>{ko.app.liveTradeFieldName}</span>
-                <input
-                  type="text"
-                  className="input"
-                  value={draft.name}
-                  onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
-                  placeholder={ko.app.liveTradeNamePlaceholder}
-                />
-              </label>
+              <div className="live-trading-tab__form-grid">
+                <label className="live-trading-tab__field live-trading-tab__field--full">
+                  <span className="live-trading-tab__label">
+                    {ko.app.liveTradeFieldName}
+                  </span>
+                  <input
+                    type="text"
+                    className="input live-trading-tab__input"
+                    value={draft.name}
+                    onChange={(e) =>
+                      setDraft((d) => ({ ...d, name: e.target.value }))
+                    }
+                    placeholder={ko.app.liveTradeNamePlaceholder}
+                  />
+                </label>
 
-              <label className="live-trading-tab__field">
-                <span>{ko.app.liveTradeFieldModel}</span>
-                <select
-                  className="input"
-                  value={draft.modelId}
-                  onChange={(e) =>
-                    setDraft((d) => ({ ...d, modelId: e.target.value }))
+                <label className="live-trading-tab__field live-trading-tab__field--full">
+                  <span className="live-trading-tab__label">
+                    {ko.app.liveTradeFieldModel}
+                  </span>
+                  <select
+                    className="input live-trading-tab__input"
+                    value={draft.modelId}
+                    onChange={(e) =>
+                      setDraft((d) => ({ ...d, modelId: e.target.value }))
+                    }
+                  >
+                    {models.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} (max {m.maxTechScore}점)
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <div className="live-trading-tab__field live-trading-tab__field--full">
+                  <span className="live-trading-tab__label">
+                    {ko.app.liveTradeFieldMarkets}
+                  </span>
+                  <div
+                    className="live-trading-tab__segment"
+                    role="group"
+                    aria-label={ko.app.liveTradeFieldMarkets}
+                  >
+                    <button
+                      type="button"
+                      className={
+                        draft.marketsKr
+                          ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
+                          : "live-trading-tab__segment-btn"
+                      }
+                      aria-pressed={draft.marketsKr}
+                      onClick={() =>
+                        setDraft((d) => ({ ...d, marketsKr: !d.marketsKr }))
+                      }
+                    >
+                      {ko.app.liveTradeMarketKr}
+                    </button>
+                    <button
+                      type="button"
+                      className={
+                        draft.marketsUs
+                          ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
+                          : "live-trading-tab__segment-btn"
+                      }
+                      aria-pressed={draft.marketsUs}
+                      onClick={() =>
+                        setDraft((d) => ({ ...d, marketsUs: !d.marketsUs }))
+                      }
+                    >
+                      {ko.app.liveTradeMarketUs}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="live-trading-tab__field live-trading-tab__field--range">
+                  <div className="live-trading-tab__field-top">
+                    <span className="live-trading-tab__label">
+                      {ko.app.liveTradeFieldMinScore}
+                    </span>
+                    <span className="live-trading-tab__range-val">
+                      {Math.round(draft.minScoreRatio * 100)}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    className="live-trading-tab__range"
+                    min={0.7}
+                    max={1}
+                    step={0.01}
+                    value={draft.minScoreRatio}
+                    onChange={(e) =>
+                      setDraft((d) => ({
+                        ...d,
+                        minScoreRatio: Number(e.target.value),
+                      }))
+                    }
+                  />
+                </div>
+
+                <label className="live-trading-tab__field">
+                  <span className="live-trading-tab__label">
+                    {ko.app.liveTradeFieldMaxPos}
+                  </span>
+                  <input
+                    type="number"
+                    className="input live-trading-tab__input"
+                    min={1}
+                    max={50}
+                    inputMode="numeric"
+                    value={draft.maxOpenPositions}
+                    onChange={(e) =>
+                      setDraft((d) => ({
+                        ...d,
+                        maxOpenPositions: e.target.value,
+                      }))
+                    }
+                  />
+                </label>
+
+                <label
+                  className={`live-trading-tab__field${!draft.marketsKr ? " live-trading-tab__field--off" : ""}`}
+                >
+                  <span className="live-trading-tab__label">
+                    {ko.app.liveTradeFieldAmountKrw}
+                  </span>
+                  <input
+                    type="number"
+                    className="input live-trading-tab__input"
+                    min={10000}
+                    step={10000}
+                    value={draft.orderAmountKrw}
+                    onChange={(e) =>
+                      setDraft((d) => ({ ...d, orderAmountKrw: e.target.value }))
+                    }
+                    disabled={!draft.marketsKr}
+                  />
+                </label>
+
+                <label
+                  className={`live-trading-tab__field${!draft.marketsUs ? " live-trading-tab__field--off" : ""}`}
+                >
+                  <span className="live-trading-tab__label">
+                    {ko.app.liveTradeFieldAmountUsd}
+                  </span>
+                  <input
+                    type="number"
+                    className="input live-trading-tab__input"
+                    min={10}
+                    step={10}
+                    value={draft.orderAmountUsd}
+                    onChange={(e) =>
+                      setDraft((d) => ({ ...d, orderAmountUsd: e.target.value }))
+                    }
+                    disabled={!draft.marketsUs}
+                  />
+                </label>
+              </div>
+
+              <div className="live-trading-tab__form-toggles">
+                <label
+                  className={
+                    draft.simAutoBuy
+                      ? "live-trading-tab__toggle live-trading-tab__toggle--on"
+                      : "live-trading-tab__toggle"
                   }
                 >
-                  {models.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name} (max {m.maxTechScore}점)
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <fieldset className="live-trading-tab__markets">
-                <legend>{ko.app.liveTradeFieldMarkets}</legend>
-                <label>
                   <input
                     type="checkbox"
-                    checked={draft.marketsKr}
+                    className="live-trading-tab__toggle-input"
+                    checked={draft.simAutoBuy}
                     onChange={(e) =>
-                      setDraft((d) => ({ ...d, marketsKr: e.target.checked }))
+                      setDraft((d) => ({ ...d, simAutoBuy: e.target.checked }))
                     }
                   />
-                  {ko.app.liveTradeMarketKr}
+                  <span>{ko.app.liveTradeFieldSimAutoBuy}</span>
                 </label>
-                <label>
+
+                <label
+                  className={
+                    draft.autoSellAtTarget
+                      ? "live-trading-tab__toggle live-trading-tab__toggle--on"
+                      : "live-trading-tab__toggle"
+                  }
+                >
                   <input
                     type="checkbox"
-                    checked={draft.marketsUs}
+                    className="live-trading-tab__toggle-input"
+                    checked={draft.autoSellAtTarget}
                     onChange={(e) =>
-                      setDraft((d) => ({ ...d, marketsUs: e.target.checked }))
+                      setDraft((d) => ({
+                        ...d,
+                        autoSellAtTarget: e.target.checked,
+                      }))
                     }
                   />
-                  {ko.app.liveTradeMarketUs}
+                  <span>{ko.app.liveTradeFieldAutoSell}</span>
                 </label>
-              </fieldset>
+              </div>
 
-              <label className="live-trading-tab__field">
-                <span>{ko.app.liveTradeFieldMinScore}</span>
-                <input
-                  type="range"
-                  min={0.7}
-                  max={1}
-                  step={0.01}
-                  value={draft.minScoreRatio}
-                  onChange={(e) =>
-                    setDraft((d) => ({
-                      ...d,
-                      minScoreRatio: Number(e.target.value),
-                    }))
-                  }
-                />
-                <span className="live-trading-tab__range-val">
-                  {Math.round(draft.minScoreRatio * 100)}%
-                </span>
-              </label>
-
-              <label className="live-trading-tab__field">
-                <span>{ko.app.liveTradeFieldMaxPos}</span>
-                <input
-                  type="number"
-                  className="input"
-                  min={1}
-                  max={50}
-                  inputMode="numeric"
-                  value={draft.maxOpenPositions}
-                  onChange={(e) =>
-                    setDraft((d) => ({
-                      ...d,
-                      maxOpenPositions: e.target.value,
-                    }))
-                  }
-                />
-              </label>
-
-              <label className="live-trading-tab__field">
-                <span>{ko.app.liveTradeFieldAmountKrw}</span>
-                <input
-                  type="number"
-                  className="input"
-                  min={10000}
-                  step={10000}
-                  value={draft.orderAmountKrw}
-                  onChange={(e) =>
-                    setDraft((d) => ({ ...d, orderAmountKrw: e.target.value }))
-                  }
-                  disabled={!draft.marketsKr}
-                />
-              </label>
-
-              <label className="live-trading-tab__field live-trading-tab__field--check">
-                <input
-                  type="checkbox"
-                  checked={draft.simAutoBuy}
-                  onChange={(e) =>
-                    setDraft((d) => ({ ...d, simAutoBuy: e.target.checked }))
-                  }
-                />
-                <span>{ko.app.liveTradeFieldSimAutoBuy}</span>
-              </label>
-
-              <label className="live-trading-tab__field live-trading-tab__field--check">
-                <input
-                  type="checkbox"
-                  checked={draft.autoSellAtTarget}
-                  onChange={(e) =>
-                    setDraft((d) => ({ ...d, autoSellAtTarget: e.target.checked }))
-                  }
-                />
-                <span>{ko.app.liveTradeFieldAutoSell}</span>
-              </label>
-              <p className="live-trading-tab__hint">{ko.app.liveTradeAutoExitHint}</p>
-
-              <label className="live-trading-tab__field">
-                <span>{ko.app.liveTradeFieldAmountUsd}</span>
-                <input
-                  type="number"
-                  className="input"
-                  min={10}
-                  step={10}
-                  value={draft.orderAmountUsd}
-                  onChange={(e) =>
-                    setDraft((d) => ({ ...d, orderAmountUsd: e.target.value }))
-                  }
-                  disabled={!draft.marketsUs}
-                />
-              </label>
+              {draft.autoSellAtTarget ? (
+                <p className="live-trading-tab__form-footnote">
+                  {ko.app.liveTradeAutoExitHint}
+                </p>
+              ) : null}
 
               <div className="live-trading-tab__actions">
                 <button
                   type="button"
-                  className="btn btn--primary"
+                  className="btn btn--primary live-trading-tab__submit"
                   disabled={busy || !draft.name.trim() || !draft.modelId}
                   onClick={() => void handleSave()}
                 >
@@ -599,19 +666,25 @@ export default function LiveTradingTab({
                   </button>
                 ) : null}
               </div>
-            </>
-          )}
 
-          {msg ? (
-            <p className="live-trading-tab__ok" role="status">
-              {msg}
-            </p>
-          ) : null}
-          {err ? (
-            <p className="live-trading-tab__err" role="alert">
-              {err}
-            </p>
-          ) : null}
+              {msg ? (
+                <p
+                  className="live-trading-tab__banner live-trading-tab__banner--ok"
+                  role="status"
+                >
+                  {msg}
+                </p>
+              ) : null}
+              {err ? (
+                <p
+                  className="live-trading-tab__banner live-trading-tab__banner--err"
+                  role="alert"
+                >
+                  {err}
+                </p>
+              ) : null}
+            </div>
+          )}
         </section>
 
         <section className="live-trading-tab__list card" aria-label={ko.app.liveTradeListTitle}>
@@ -622,6 +695,7 @@ export default function LiveTradingTab({
             ) : null}
           </h3>
 
+          <div className="live-trading-tab__list-body">
           {programs.length === 0 ? (
             <p className="live-trading-tab__empty">{ko.app.liveTradeListEmpty}</p>
           ) : (
@@ -747,6 +821,7 @@ export default function LiveTradingTab({
               })}
             </ul>
           )}
+          </div>
         </section>
       </div>
     </div>
