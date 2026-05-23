@@ -1,6 +1,8 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
+  fetchLiveTradingPortfolio,
   fetchLiveTradingStatus,
+  type LiveTradeHolding,
   type LiveTradeProgram,
   type LiveTradingStatusResponse,
 } from "../api";
@@ -41,6 +43,62 @@ function formatShortTs(ms: number | null): string {
   return `${d.getMonth() + 1}.${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
+function shortSymbol(symbol: string): string {
+  return String(symbol ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/-USDT$/i, "")
+    .slice(0, 8);
+}
+
+/** 좁은 패널용 가격 축약 */
+function formatRailPrice(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return "—";
+  const v = Number(n);
+  if (v >= 100_000_000) return `${(v / 100_000_000).toFixed(1)}억`;
+  if (v >= 10_000) return `${Math.round(v / 10_000)}만`;
+  if (v >= 1) return String(Math.round(v));
+  return v.toFixed(4);
+}
+
+function pickPrimaryHolding(holdings: LiveTradeHolding[]): LiveTradeHolding | null {
+  if (!holdings.length) return null;
+  return holdings.reduce((best, h) => {
+    const mv = h.marketValue ?? 0;
+    const bestMv = best.marketValue ?? 0;
+    return mv > bestMv ? h : best;
+  }, holdings[0]);
+}
+
+function buildHoldingDetail(holdings: LiveTradeHolding[]) {
+  if (!holdings.length) {
+    return {
+      symbols: ko.app.liveTradeLeftRailNoHolding,
+      changeLabel: "—",
+      pricesLabel: "—/—/—",
+      changeUp: null as boolean | null,
+    };
+  }
+  const symbols = holdings
+    .map((h) => shortSymbol(h.symbol))
+    .filter(Boolean)
+    .slice(0, 3)
+    .join(",");
+  const more = holdings.length > 3 ? `+${holdings.length - 3}` : "";
+  const primary = pickPrimaryHolding(holdings);
+  const pct = primary?.changePct ?? null;
+  const changeUp = pct != null && pct >= 0;
+  const pricesLabel = primary
+    ? `${formatRailPrice(primary.avgEntryPrice)}/${formatRailPrice(primary.targetSellPrice)}/${formatRailPrice(primary.stopLossPrice)}`
+    : "—/—/—";
+  return {
+    symbols: more ? `${symbols}${more}` : symbols,
+    changeLabel: pct == null ? "—" : formatPercent(pct),
+    pricesLabel,
+    changeUp: pct == null ? null : changeUp,
+  };
+}
+
 function isArmedLiveProgram(p: LiveTradeProgram): boolean {
   return p.status === "armed";
 }
@@ -54,12 +112,26 @@ function LiveTradingLeftRailPanelInner({
   const [status, setStatus] = useState<LiveTradingStatusResponse | null>(
     prefetched?.status ?? null,
   );
+  const [holdingsByProgram, setHoldingsByProgram] = useState<
+    Record<string, LiveTradeHolding[]>
+  >({});
   const [loading, setLoading] = useState(!prefetched?.status);
 
   const reload = useCallback(async () => {
     try {
-      const next = await fetchLiveTradingStatus();
+      const [next, portfolio] = await Promise.all([
+        fetchLiveTradingStatus(),
+        fetchLiveTradingPortfolio(null).catch(() => null),
+      ]);
       setStatus(next);
+      const map: Record<string, LiveTradeHolding[]> = {};
+      for (const h of portfolio?.holdings ?? []) {
+        const pid = String(h.programId ?? "").trim();
+        if (!pid) continue;
+        if (!map[pid]) map[pid] = [];
+        map[pid].push(h);
+      }
+      setHoldingsByProgram(map);
     } catch {
       /* ignore */
     } finally {
@@ -82,14 +154,16 @@ function LiveTradingLeftRailPanelInner({
         const ret = status?.programReturns?.[p.id];
         const holdingCount = ret?.holdingCount ?? 0;
         const displayStatus = programDisplayStatus(p, holdingCount);
+        const holdings = holdingsByProgram[p.id] ?? [];
         return {
           program: p,
           displayStatus,
           returnPct: ret?.totalReturnPct ?? null,
           holdingCount,
+          detail: buildHoldingDetail(holdings),
         };
       });
-  }, [status]);
+  }, [status, holdingsByProgram]);
 
   if (!loading && rows.length === 0) return null;
 
@@ -122,7 +196,7 @@ function LiveTradingLeftRailPanelInner({
 
       {rows.length > 0 ? (
         <ul className="live-trade-rail__list">
-          {rows.map(({ program: p, displayStatus, returnPct, holdingCount }) => {
+          {rows.map(({ program: p, displayStatus, returnPct, detail }) => {
             const up = returnPct != null && returnPct >= 0;
             const orderMode =
               displayStatus === "armed" && p.armedMarkets?.crypto && bithumbSim
@@ -164,10 +238,27 @@ function LiveTradingLeftRailPanelInner({
                       {returnPct == null ? "—" : formatPercent(returnPct)}
                     </span>
                   </span>
+                  <p className="live-trade-rail__detail" title={detail.symbols}>
+                    <span>{ko.app.liveTradeLeftRailHoldingsShort}</span> {detail.symbols}
+                    <span className="live-trade-rail__detail-sep">·</span>
+                    <span>{ko.app.liveTradeLeftRailChgShort}</span>{" "}
+                    <span
+                      className={
+                        detail.changeUp == null
+                          ? ""
+                          : detail.changeUp
+                            ? "live-trade-rail__detail-pct--up"
+                            : "live-trade-rail__detail-pct--down"
+                      }
+                    >
+                      {detail.changeLabel}
+                    </span>
+                    <span className="live-trade-rail__detail-sep">·</span>
+                    <span>{ko.app.liveTradeLeftRailBuySellShort}</span>{" "}
+                    {detail.pricesLabel}
+                  </p>
                   <span className="live-trade-rail__row live-trade-rail__row--foot">
                     <span className="live-trade-rail__meta">
-                      {ko.app.liveTradeLeftRailHoldings} {holdingCount}
-                      {" · "}
                       {ko.app.liveTradeMinScoreShort}{" "}
                       {Math.round(p.minScoreRatio * 100)}%
                     </span>
@@ -177,11 +268,6 @@ function LiveTradingLeftRailPanelInner({
                       </span>
                     ) : null}
                   </span>
-                  {p.lastError?.trim() && displayStatus === "error" ? (
-                    <span className="live-trade-rail__err" title={p.lastError}>
-                      {p.lastError.trim().slice(0, 48)}
-                    </span>
-                  ) : null}
                 </button>
               </li>
             );

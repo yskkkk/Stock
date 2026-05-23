@@ -6984,6 +6984,30 @@ html[data-theme="light"] .live-trade-rail {
   opacity: 0.92;
 }
 
+.live-trade-rail__detail {
+  margin: 0;
+  font-size: 0.56rem;
+  font-weight: 600;
+  line-height: 1.28;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.live-trade-rail__detail-sep {
+  margin-inline: 0.12rem;
+  opacity: 0.55;
+}
+
+.live-trade-rail__detail-pct--up {
+  color: rgb(34, 197, 94);
+}
+
+.live-trade-rail__detail-pct--down {
+  color: rgb(239, 68, 68);
+}
+
 .live-trade-rail__name {
   font-size: 0.72rem;
   font-weight: 700;
