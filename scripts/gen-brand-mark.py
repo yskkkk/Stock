@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""회색·체커보드 매트 제거 후 3D YS 로고 PNG 생성."""
+"""크로마(초록)·회색·체커보드 매트 제거 후 3D YS 로고 PNG 생성."""
 from __future__ import annotations
 
 import sys
@@ -40,24 +40,28 @@ OUT_SIZES: list[tuple[Path, int]] = [
 ]
 
 
-def is_matte_background(r: int, g: int, b: int, a: int) -> bool:
+def is_chroma_green(r: int, g: int, b: int, a: int) -> bool:
     if a < 20:
         return False
+    return (
+        g >= 85
+        and g >= r + 28
+        and g >= b + 18
+        and r <= 105
+        and b <= 145
+    )
+
+
+def is_matte_background(r: int, g: int, b: int, a: int) -> bool:
+    if is_chroma_green(r, g, b, a):
+        return True
     mx, mn = max(r, g, b), min(r, g, b)
     sat = mx - mn
     lum = (r + g + b) / 3.0
-    # 회색 단색 배경 (~138) · 체커보드 타일
+    # 회색 단색 · 체커보드 타일
     if sat <= 55 and 100 <= lum <= 178:
         return True
     if sat <= 32 and 118 <= lum <= 218:
-        return True
-    return False
-
-
-def is_logo_pixel(r: int, g: int, b: int, a: int) -> bool:
-    if a < 20:
-        return False
-    if not is_matte_background(r, g, b, a):
         return True
     return False
 
