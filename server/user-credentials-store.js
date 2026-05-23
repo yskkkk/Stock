@@ -158,7 +158,7 @@ export function getDecryptedCredentialsSync(userId, exchange) {
  * @param {string} userId
  * @param {ExchangeId} exchange
  * @param {{
- *   apiKey: string;
+ *   apiKey?: string;
  *   secretKey?: string;
  *   liveOrdersEnabled?: boolean;
  * }} input
@@ -179,10 +179,15 @@ export function upsertUserCredentialSync(userId, exchange, input) {
   );
   const prev = idx >= 0 ? store.credentials[idx] : null;
 
-  const keyIn = String(input.apiKey ?? "").trim();
-  const secIn = String(input.secretKey ?? "").trim();
+  const keyProvided = Object.prototype.hasOwnProperty.call(input, "apiKey");
+  const secProvided = Object.prototype.hasOwnProperty.call(input, "secretKey");
+  const keyIn = keyProvided ? String(input.apiKey ?? "").trim() : "";
+  const secIn = secProvided ? String(input.secretKey ?? "").trim() : "";
   const ordersOnly =
-    input.liveOrdersEnabled !== undefined && !keyIn && !secIn && prev?.apiKeyEncrypted;
+    input.liveOrdersEnabled !== undefined &&
+    !keyIn &&
+    !secIn &&
+    Boolean(prev?.apiKeyEncrypted && prev?.secretEncrypted);
 
   let apiKey = keyIn;
   let secretRaw = secIn;

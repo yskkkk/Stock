@@ -829,7 +829,7 @@ export function fetchUserCredentials() {
 export function saveUserCredential(
   exchange: "bithumb" | "toss",
   body: {
-    apiKey: string;
+    apiKey?: string;
     secretKey?: string;
     liveOrdersEnabled?: boolean;
   },

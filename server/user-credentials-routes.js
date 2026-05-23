@@ -60,11 +60,19 @@ export function registerUserCredentialRoutes(app) {
           res.status(400).json({ error: "exchange는 bithumb 또는 toss 입니다." });
           return;
         }
-        const meta = upsertUserCredentialSync(req.user.id, exchange, {
-          apiKey: String(req.body?.apiKey ?? ""),
-          secretKey: req.body?.secretKey,
-          liveOrdersEnabled: req.body?.liveOrdersEnabled,
-        });
+        const body = req.body ?? {};
+        /** @type {{ apiKey?: string; secretKey?: string; liveOrdersEnabled?: boolean }} */
+        const input = {};
+        if (Object.prototype.hasOwnProperty.call(body, "apiKey")) {
+          input.apiKey = String(body.apiKey ?? "");
+        }
+        if (Object.prototype.hasOwnProperty.call(body, "secretKey")) {
+          input.secretKey = body.secretKey;
+        }
+        if (Object.prototype.hasOwnProperty.call(body, "liveOrdersEnabled")) {
+          input.liveOrdersEnabled = Boolean(body.liveOrdersEnabled);
+        }
+        const meta = upsertUserCredentialSync(req.user.id, exchange, input);
         res.json({ ok: true, credential: meta });
       } catch (e) {
         res.status(400).json({

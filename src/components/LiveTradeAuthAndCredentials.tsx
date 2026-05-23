@@ -51,11 +51,14 @@ export function useLiveTradeAuth() {
 function CredentialExchangeForm({
   exchange,
   meta,
+  keysReady,
   cryptoReady,
   onSaved,
 }: {
   exchange: "bithumb" | "toss";
   meta: UserCredentialMeta | undefined;
+  /** 상위 실거래 status(bithumb.ready) — meta 로드 전에도 저장 키 있음을 반영 */
+  keysReady: boolean;
   cryptoReady: boolean;
   onSaved: () => void;
 }) {
@@ -72,13 +75,13 @@ function CredentialExchangeForm({
     setLiveOrders(meta?.liveOrdersEnabled ?? false);
   }, [meta?.liveOrdersEnabled]);
 
+  const keysSaved = Boolean(meta?.configured) || keysReady;
+
   const persistLiveOrders = async (enabled: boolean) => {
     if (!cryptoReady) {
       throw new Error(ko.app.liveTradeCredNoMasterKey);
     }
     await saveUserCredential(exchange, {
-      apiKey: "",
-      secretKey: undefined,
       liveOrdersEnabled: enabled,
     });
     setMsg(ko.app.liveTradeCredOrderModeSaved);
@@ -95,8 +98,14 @@ function CredentialExchangeForm({
       if (!cryptoReady) {
         throw new Error(ko.app.liveTradeCredNoMasterKey);
       }
+      if (!apiKey.trim() && !secretKey.trim()) {
+        if (keysSaved) {
+          await persistLiveOrders(liveOrders);
+          return;
+        }
+      }
       const checked = validateBithumbCredentialPair(apiKey, secretKey, {
-        configured: Boolean(meta?.configured),
+        configured: keysSaved,
       });
       if (!checked.ok) {
         if (checked.field === "API Key") setApiKeyErr(checked.error);
@@ -122,7 +131,7 @@ function CredentialExchangeForm({
 
   const handleOrderMode = (enabled: boolean) => {
     setLiveOrders(enabled);
-    if (!meta?.configured) return;
+    if (!keysSaved) return;
     setBusy(true);
     setErr(null);
     setMsg(null);
@@ -139,8 +148,15 @@ function CredentialExchangeForm({
     setApiKeyErr(null);
     setSecretKeyErr(null);
     try {
+      if (!apiKey.trim() && !secretKey.trim()) {
+        if (keysSaved) {
+          const out = await testUserCredential(exchange);
+          setMsg(out.messageKo);
+          return;
+        }
+      }
       const checked = validateBithumbCredentialPair(apiKey, secretKey, {
-        configured: false,
+        configured: keysSaved,
       });
       if (!checked.ok) {
         if (checked.field === "API Key") setApiKeyErr(checked.error);
@@ -245,10 +261,10 @@ function CredentialExchangeForm({
             className={`live-trading-tab__segment-btn ${
               liveOrders ? "live-trading-tab__segment-btn--on" : ""
             }`}
-            disabled={busy || !meta?.configured}
+            disabled={busy || !keysSaved}
             onClick={() => handleOrderMode(true)}
             title={
-              meta?.configured
+              keysSaved
                 ? undefined
                 : "API Key·Secret 저장 후 실주문을 허용할 수 있습니다."
             }
@@ -256,7 +272,7 @@ function CredentialExchangeForm({
             {ko.app.liveTradeCredOrderModeLive}
           </button>
         </div>
-        {!meta?.configured ? (
+        {!keysSaved ? (
           <label className="live-trading-tab__check live-trading-tab__cred-mode-check">
             <input
               type="checkbox"
@@ -548,6 +564,7 @@ export function LiveTradeBithumbCredentialForm({
     <CredentialExchangeForm
       exchange="bithumb"
       meta={meta}
+      keysReady={bithumbReady}
       cryptoReady={cryptoReady}
       onSaved={() => {
         void reload();
