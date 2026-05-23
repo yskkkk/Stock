@@ -12,6 +12,7 @@ import { formatPercent } from "../lib/format";
 import { peekLiveTradingPrefetch } from "../lib/tabPrefetch";
 
 const POLL_MS = 22_000;
+const MAX_DOTS = 8;
 
 function statusLabel(status: LiveTradeProgram["status"]): string {
   switch (status) {
@@ -51,7 +52,6 @@ function shortSymbol(symbol: string): string {
     .slice(0, 8);
 }
 
-/** 좁은 패널용 가격 축약 */
 function formatRailPrice(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return "—";
   const v = Number(n);
@@ -61,46 +61,175 @@ function formatRailPrice(n: number | null | undefined): string {
   return v.toFixed(4);
 }
 
-function pickPrimaryHolding(holdings: LiveTradeHolding[]): LiveTradeHolding | null {
-  if (!holdings.length) return null;
-  return holdings.reduce((best, h) => {
-    const mv = h.marketValue ?? 0;
-    const bestMv = best.marketValue ?? 0;
-    return mv > bestMv ? h : best;
-  }, holdings[0]);
+function holdingChangeTone(
+  pct: number | null | undefined,
+): "up" | "down" | "flat" {
+  if (pct == null || !Number.isFinite(pct)) return "flat";
+  if (pct > 0) return "up";
+  if (pct < 0) return "down";
+  return "flat";
 }
 
-function buildHoldingDetail(holdings: LiveTradeHolding[]) {
-  if (!holdings.length) {
-    return {
-      symbols: ko.app.liveTradeLeftRailNoHolding,
-      changeLabel: "—",
-      pricesLabel: "—/—/—",
-      changeUp: null as boolean | null,
-    };
-  }
-  const symbols = holdings
-    .map((h) => shortSymbol(h.symbol))
-    .filter(Boolean)
-    .slice(0, 3)
-    .join(",");
-  const more = holdings.length > 3 ? `+${holdings.length - 3}` : "";
-  const primary = pickPrimaryHolding(holdings);
-  const pct = primary?.changePct ?? null;
-  const changeUp = pct != null && pct >= 0;
-  const pricesLabel = primary
-    ? `${formatRailPrice(primary.avgEntryPrice)}/${formatRailPrice(primary.targetSellPrice)}/${formatRailPrice(primary.stopLossPrice)}`
-    : "—/—/—";
-  return {
-    symbols: more ? `${symbols}${more}` : symbols,
-    changeLabel: pct == null ? "—" : formatPercent(pct),
-    pricesLabel,
-    changeUp: pct == null ? null : changeUp,
-  };
+function sortHoldingsByValue(holdings: LiveTradeHolding[]): LiveTradeHolding[] {
+  return [...holdings].sort(
+    (a, b) => (b.marketValue ?? 0) - (a.marketValue ?? 0),
+  );
 }
 
 function isArmedLiveProgram(p: LiveTradeProgram): boolean {
   return p.status === "armed";
+}
+
+function RailProgramCard({
+  program: p,
+  displayStatus,
+  returnPct,
+  holdings,
+  orderMode,
+  onOpenLiveTrading,
+}: {
+  program: LiveTradeProgram;
+  displayStatus: ReturnType<typeof programDisplayStatus>;
+  returnPct: number | null;
+  holdings: LiveTradeHolding[];
+  orderMode: string | null;
+  onOpenLiveTrading?: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const sorted = useMemo(() => sortHoldingsByValue(holdings), [holdings]);
+  const up = returnPct != null && returnPct >= 0;
+  const dotHoldings = sorted.slice(0, MAX_DOTS);
+  const dotMore = sorted.length > MAX_DOTS ? sorted.length - MAX_DOTS : 0;
+
+  return (
+    <article
+      className={`live-trade-rail__card live-trade-rail__card--${displayStatus}${open ? " live-trade-rail__card--open" : ""}`}
+    >
+      <button
+        type="button"
+        className="live-trade-rail__summary"
+        aria-expanded={open}
+        aria-label={
+          open
+            ? `${p.name} ${ko.app.liveTradeLeftRailCollapse}`
+            : `${p.name} ${ko.app.liveTradeLeftRailExpand}`
+        }
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className="live-trade-rail__summary-top">
+          <span className="live-trade-rail__name" title={p.name}>
+            {p.name}
+          </span>
+          <span
+            className={`live-trade-rail__badge live-trade-rail__badge--${displayStatus}`}
+          >
+            {statusLabel(displayStatus)}
+          </span>
+        </span>
+        <span className="live-trade-rail__summary-bottom">
+          <span
+            className="live-trade-rail__dots"
+            aria-label={`${ko.app.liveTradeLeftRailHoldings} ${sorted.length}`}
+          >
+            {sorted.length === 0 ? (
+              <span className="live-trade-rail__dot live-trade-rail__dot--empty" />
+            ) : (
+              dotHoldings.map((h) => {
+                const sym = shortSymbol(h.symbol);
+                const tone = holdingChangeTone(h.changePct);
+                return (
+                  <span
+                    key={`${h.market}:${h.symbol}`}
+                    className={`live-trade-rail__dot live-trade-rail__dot--${tone}`}
+                    title={`${sym} ${h.changePct == null ? "—" : formatPercent(h.changePct)}`}
+                  >
+                    {sym.slice(0, 1)}
+                  </span>
+                );
+              })
+            )}
+            {dotMore > 0 ? (
+              <span className="live-trade-rail__dot-more">+{dotMore}</span>
+            ) : null}
+          </span>
+          <span
+            className={
+              returnPct == null
+                ? "live-trade-rail__ret live-trade-rail__ret--muted"
+                : up
+                  ? "live-trade-rail__ret live-trade-rail__ret--up"
+                  : "live-trade-rail__ret live-trade-rail__ret--down"
+            }
+          >
+            {returnPct == null ? "—" : formatPercent(returnPct)}
+          </span>
+          <span className="live-trade-rail__chevron" aria-hidden>
+            {open ? "▾" : "▸"}
+          </span>
+        </span>
+      </button>
+
+      {open ? (
+        <div className="live-trade-rail__expand">
+          {sorted.length === 0 ? (
+            <p className="live-trade-rail__empty-hold">
+              {ko.app.liveTradeLeftRailNoHolding}
+            </p>
+          ) : (
+            <ul className="live-trade-rail__holdings-list">
+              {sorted.map((h) => {
+                const sym = shortSymbol(h.symbol);
+                const tone = holdingChangeTone(h.changePct);
+                return (
+                  <li key={`${h.market}:${h.symbol}`} className="live-trade-rail__holding-row">
+                    <span className="live-trade-rail__holding-sym" title={h.symbol}>
+                      {sym}
+                    </span>
+                    <span
+                      className={`live-trade-rail__holding-chg live-trade-rail__holding-chg--${tone}`}
+                    >
+                      {h.changePct == null ? "—" : formatPercent(h.changePct)}
+                    </span>
+                    <span className="live-trade-rail__holding-prices">
+                      {formatRailPrice(h.avgEntryPrice)}/
+                      {formatRailPrice(h.targetSellPrice)}/
+                      {formatRailPrice(h.stopLossPrice)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <div className="live-trade-rail__expand-foot">
+            <span className="live-trade-rail__meta">
+              {armedLaneLabel(p)}
+              {orderMode ? ` · ${orderMode}` : ""}
+              <span className="live-trade-rail__detail-sep"> · </span>
+              {ko.app.liveTradeMinScoreShort}{" "}
+              {Math.round(p.minScoreRatio * 100)}%
+              {p.lastRunAtMs ? (
+                <>
+                  <span className="live-trade-rail__detail-sep"> · </span>
+                  <span className="live-trade-rail__meta--ts">
+                    {formatShortTs(p.lastRunAtMs)}
+                  </span>
+                </>
+              ) : null}
+            </span>
+            {onOpenLiveTrading ? (
+              <button
+                type="button"
+                className="live-trade-rail__open-tab"
+                onClick={() => onOpenLiveTrading()}
+              >
+                {ko.app.liveTradeLeftRailOpen}
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </article>
+  );
 }
 
 function LiveTradingLeftRailPanelInner({
@@ -160,7 +289,7 @@ function LiveTradingLeftRailPanelInner({
           displayStatus,
           returnPct: ret?.totalReturnPct ?? null,
           holdingCount,
-          detail: buildHoldingDetail(holdings),
+          holdings,
         };
       });
   }, [status, holdingsByProgram]);
@@ -196,8 +325,7 @@ function LiveTradingLeftRailPanelInner({
 
       {rows.length > 0 ? (
         <ul className="live-trade-rail__list">
-          {rows.map(({ program: p, displayStatus, returnPct, detail }) => {
-            const up = returnPct != null && returnPct >= 0;
+          {rows.map(({ program: p, displayStatus, returnPct, holdings }) => {
             const orderMode =
               displayStatus === "armed" && p.armedMarkets?.crypto && bithumbSim
                 ? ko.app.liveTradeLeftRailSimOrders
@@ -206,77 +334,22 @@ function LiveTradingLeftRailPanelInner({
                   : null;
             return (
               <li key={p.id}>
-                <button
-                  type="button"
-                  className={`live-trade-rail__item live-trade-rail__item--${displayStatus}`}
-                  onClick={() => onOpenLiveTrading?.()}
-                >
-                  <span className="live-trade-rail__row live-trade-rail__row--head">
-                    <span className="live-trade-rail__name" title={p.name}>
-                      {p.name}
-                    </span>
-                    <span
-                      className={`live-trade-rail__badge live-trade-rail__badge--${displayStatus}`}
-                    >
-                      {statusLabel(displayStatus)}
-                    </span>
-                  </span>
-                  <span className="live-trade-rail__row">
-                    <span className="live-trade-rail__meta">
-                      {armedLaneLabel(p)}
-                      {orderMode ? ` · ${orderMode}` : ""}
-                    </span>
-                    <span
-                      className={
-                        returnPct == null
-                          ? "live-trade-rail__ret live-trade-rail__ret--muted"
-                          : up
-                            ? "live-trade-rail__ret live-trade-rail__ret--up"
-                            : "live-trade-rail__ret live-trade-rail__ret--down"
-                      }
-                    >
-                      {returnPct == null ? "—" : formatPercent(returnPct)}
-                    </span>
-                  </span>
-                  <p className="live-trade-rail__detail" title={detail.symbols}>
-                    <span>{ko.app.liveTradeLeftRailHoldingsShort}</span> {detail.symbols}
-                    <span className="live-trade-rail__detail-sep">·</span>
-                    <span>{ko.app.liveTradeLeftRailChgShort}</span>{" "}
-                    <span
-                      className={
-                        detail.changeUp == null
-                          ? ""
-                          : detail.changeUp
-                            ? "live-trade-rail__detail-pct--up"
-                            : "live-trade-rail__detail-pct--down"
-                      }
-                    >
-                      {detail.changeLabel}
-                    </span>
-                    <span className="live-trade-rail__detail-sep">·</span>
-                    <span>{ko.app.liveTradeLeftRailBuySellShort}</span>{" "}
-                    {detail.pricesLabel}
-                  </p>
-                  <span className="live-trade-rail__row live-trade-rail__row--foot">
-                    <span className="live-trade-rail__meta">
-                      {ko.app.liveTradeMinScoreShort}{" "}
-                      {Math.round(p.minScoreRatio * 100)}%
-                    </span>
-                    {p.lastRunAtMs ? (
-                      <span className="live-trade-rail__meta live-trade-rail__meta--ts">
-                        {formatShortTs(p.lastRunAtMs)}
-                      </span>
-                    ) : null}
-                  </span>
-                </button>
+                <RailProgramCard
+                  program={p}
+                  displayStatus={displayStatus}
+                  returnPct={returnPct}
+                  holdings={holdings}
+                  orderMode={orderMode}
+                  onOpenLiveTrading={onOpenLiveTrading}
+                />
               </li>
             );
           })}
         </ul>
       ) : loading ? (
         <ul className="live-trade-rail__list live-trade-rail__list--sk">
-          <li className="live-trade-rail__item live-trade-rail__item--sk" />
-          <li className="live-trade-rail__item live-trade-rail__item--sk" />
+          <li className="live-trade-rail__card live-trade-rail__card--sk" />
+          <li className="live-trade-rail__card live-trade-rail__card--sk" />
         </ul>
       ) : null}
     </aside>
