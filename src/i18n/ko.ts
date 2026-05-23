@@ -191,6 +191,7 @@ export const ko = {
     liveTradeFieldModel: "기술 분석 모델",
     liveTradeFieldMinScore: "최소 점수 (텔레그램 기준 비율)",
     liveTradeFieldAmountKrw: "국내 1회 매수 금액 (원)",
+    liveTradeFieldAmountKrwMin: "1회 매수 금액은 5,000원 이상으로 입력하세요. (빗썸 최소 주문)",
     liveTradeFieldAmountCrypto: "코인 1회 매수 금액 (원)",
     liveTradeFieldAmountKrwCrypto: "국내·코인 1회 매수 금액 (원)",
     liveTradeFieldAmountUsdCrypto: "미국·코인 1회 매수 금액 ($)",

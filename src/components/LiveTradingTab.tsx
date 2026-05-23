@@ -261,6 +261,15 @@ export default function LiveTradingTab({
       setErr(krwAmountFieldLabel(draft.marketsKr, draft.marketsCrypto));
       return;
     }
+    const orderKrwNum = Number(draft.orderAmountKrw.trim());
+    if (
+      (draft.marketsKr || (draft.marketsCrypto && !draft.marketsUs)) &&
+      draft.orderAmountKrw.trim() &&
+      (!Number.isFinite(orderKrwNum) || orderKrwNum < 5000)
+    ) {
+      setErr(ko.app.liveTradeFieldAmountKrwMin);
+      return;
+    }
     if (draft.marketsUs && !draft.orderAmountUsd.trim()) {
       setErr(usdAmountFieldLabel(draft.marketsUs, draft.marketsCrypto));
       return;
@@ -693,8 +702,8 @@ export default function LiveTradingTab({
                   <input
                     type="number"
                     className="input live-trading-tab__input"
-                    min={10000}
-                    step={10000}
+                    min={5000}
+                    step={1000}
                     value={draft.orderAmountKrw}
                     onChange={(e) =>
                       setDraft((d) => ({ ...d, orderAmountKrw: e.target.value }))

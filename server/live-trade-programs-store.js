@@ -107,7 +107,7 @@ function normalizeProgram(raw) {
     orderAmountKrw:
       o.orderAmountKrw == null || o.orderAmountKrw === ""
         ? null
-        : clampNum(o.orderAmountKrw, 10_000, 500_000_000, 100_000),
+        : clampNum(o.orderAmountKrw, 5_000, 500_000_000, 100_000),
     orderAmountUsd:
       o.orderAmountUsd == null || o.orderAmountUsd === ""
         ? null
