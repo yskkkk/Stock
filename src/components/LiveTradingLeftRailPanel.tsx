@@ -8,7 +8,7 @@ import {
 } from "../api";
 import { ko } from "../i18n/ko";
 import { programDisplayStatus } from "../lib/liveProgramDisplay";
-import { formatPercent } from "../lib/format";
+import { formatPercent, formatPrice } from "../lib/format";
 import { peekLiveTradingPrefetch } from "../lib/tabPrefetch";
 
 const POLL_MS = 22_000;
@@ -52,13 +52,17 @@ function shortSymbol(symbol: string): string {
     .slice(0, 8);
 }
 
-function formatRailPrice(n: number | null | undefined): string {
-  if (n == null || !Number.isFinite(n)) return "—";
-  const v = Number(n);
-  if (v >= 100_000_000) return `${(v / 100_000_000).toFixed(1)}억`;
-  if (v >= 10_000) return `${Math.round(v / 10_000)}만`;
-  if (v >= 1) return String(Math.round(v));
-  return v.toFixed(4);
+function formatRailValuation(
+  mv: number | null | undefined,
+  currency: string,
+): string {
+  if (mv == null || !Number.isFinite(mv) || mv <= 0) return "—";
+  return formatPrice(mv, currency === "KRW" ? "KRW" : currency);
+}
+
+function formatWeightPct(part: number, total: number): string {
+  if (!Number.isFinite(part) || !Number.isFinite(total) || total <= 0) return "—";
+  return `${((part / total) * 100).toFixed(1)}%`;
 }
 
 function holdingChangeTone(
@@ -100,6 +104,14 @@ function RailProgramCard({
   const up = returnPct != null && returnPct >= 0;
   const dotHoldings = sorted.slice(0, MAX_DOTS);
   const dotMore = sorted.length > MAX_DOTS ? sorted.length - MAX_DOTS : 0;
+  const totalMarketValue = useMemo(
+    () =>
+      sorted.reduce(
+        (s, h) => s + (h.marketValue != null && h.marketValue > 0 ? h.marketValue : 0),
+        0,
+      ),
+    [sorted],
+  );
 
   return (
     <article
@@ -120,52 +132,57 @@ function RailProgramCard({
           <span className="live-trade-rail__name" title={p.name}>
             {p.name}
           </span>
-          <span
-            className={`live-trade-rail__badge live-trade-rail__badge--${displayStatus}`}
-          >
-            {statusLabel(displayStatus)}
+          <span className="live-trade-rail__summary-top-end">
+            <span
+              className={`live-trade-rail__badge live-trade-rail__badge--${displayStatus}`}
+            >
+              {statusLabel(displayStatus)}
+            </span>
+            <span className="live-trade-rail__chevron" aria-hidden>
+              {open ? "▾" : "▴"}
+            </span>
           </span>
         </span>
-        <span className="live-trade-rail__summary-bottom">
-          <span
-            className="live-trade-rail__dots"
-            aria-label={`${ko.app.liveTradeLeftRailHoldings} ${sorted.length}`}
-          >
-            {sorted.length === 0 ? (
-              <span className="live-trade-rail__dot live-trade-rail__dot--empty" />
-            ) : (
-              dotHoldings.map((h) => {
-                const sym = shortSymbol(h.symbol);
-                const tone = holdingChangeTone(h.changePct);
-                return (
-                  <span
-                    key={`${h.market}:${h.symbol}`}
-                    className={`live-trade-rail__dot live-trade-rail__dot--${tone}`}
-                    title={`${sym} ${h.changePct == null ? "—" : formatPercent(h.changePct)}`}
-                  >
-                    {sym.slice(0, 1)}
-                  </span>
-                );
-              })
-            )}
-            {dotMore > 0 ? (
-              <span className="live-trade-rail__dot-more">+{dotMore}</span>
-            ) : null}
+        <span className="live-trade-rail__summary-hero">
+          <span className="live-trade-rail__summary-hero-k">
+            {ko.app.liveTradeLeftRailTotalReturn}
           </span>
           <span
             className={
               returnPct == null
-                ? "live-trade-rail__ret live-trade-rail__ret--muted"
+                ? "live-trade-rail__ret live-trade-rail__ret--hero live-trade-rail__ret--muted"
                 : up
-                  ? "live-trade-rail__ret live-trade-rail__ret--up"
-                  : "live-trade-rail__ret live-trade-rail__ret--down"
+                  ? "live-trade-rail__ret live-trade-rail__ret--hero live-trade-rail__ret--up"
+                  : "live-trade-rail__ret live-trade-rail__ret--hero live-trade-rail__ret--down"
             }
           >
             {returnPct == null ? "—" : formatPercent(returnPct)}
           </span>
-          <span className="live-trade-rail__chevron" aria-hidden>
-            {open ? "▾" : "▸"}
-          </span>
+        </span>
+        <span
+          className="live-trade-rail__dots"
+          aria-label={`${ko.app.liveTradeLeftRailHoldings} ${sorted.length}`}
+        >
+          {sorted.length === 0 ? (
+            <span className="live-trade-rail__dot live-trade-rail__dot--empty" />
+          ) : (
+            dotHoldings.map((h) => {
+              const sym = shortSymbol(h.symbol);
+              const tone = holdingChangeTone(h.changePct);
+              return (
+                <span
+                  key={`${h.market}:${h.symbol}`}
+                  className={`live-trade-rail__dot live-trade-rail__dot--${tone}`}
+                  title={`${sym} ${h.changePct == null ? "—" : formatPercent(h.changePct)}`}
+                >
+                  {sym.slice(0, 1)}
+                </span>
+              );
+            })
+          )}
+          {dotMore > 0 ? (
+            <span className="live-trade-rail__dot-more">+{dotMore}</span>
+          ) : null}
         </span>
       </button>
 
@@ -176,29 +193,63 @@ function RailProgramCard({
               {ko.app.liveTradeLeftRailNoHolding}
             </p>
           ) : (
-            <ul className="live-trade-rail__holdings-list">
-              {sorted.map((h) => {
-                const sym = shortSymbol(h.symbol);
-                const tone = holdingChangeTone(h.changePct);
-                return (
-                  <li key={`${h.market}:${h.symbol}`} className="live-trade-rail__holding-row">
-                    <span className="live-trade-rail__holding-sym" title={h.symbol}>
-                      {sym}
-                    </span>
-                    <span
-                      className={`live-trade-rail__holding-chg live-trade-rail__holding-chg--${tone}`}
+            <div className="live-trade-rail__table-wrap">
+              <table className="live-trade-rail__table">
+                <thead>
+                  <tr>
+                    <th scope="col">{ko.app.liveTradeLeftRailColCoin}</th>
+                    <th scope="col">{ko.app.liveTradeLeftRailColReturn}</th>
+                    <th scope="col">{ko.app.liveTradeLeftRailColValue}</th>
+                    <th scope="col">{ko.app.liveTradeLeftRailColWeight}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sorted.map((h) => {
+                    const sym = shortSymbol(h.symbol);
+                    const tone = holdingChangeTone(h.changePct);
+                    const mv = h.marketValue ?? 0;
+                    return (
+                      <tr key={`${h.market}:${h.symbol}`}>
+                        <td className="live-trade-rail__table-sym">{sym}</td>
+                        <td
+                          className={`live-trade-rail__table-chg live-trade-rail__table-chg--${tone}`}
+                        >
+                          {h.changePct == null ? "—" : formatPercent(h.changePct)}
+                        </td>
+                        <td className="live-trade-rail__table-val">
+                          {formatRailValuation(h.marketValue, h.currency)}
+                        </td>
+                        <td className="live-trade-rail__table-wt">
+                          {formatWeightPct(mv, totalMarketValue)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="live-trade-rail__table-total">
+                    <th scope="row">{ko.app.liveTradeLeftRailTotal}</th>
+                    <td
+                      className={
+                        returnPct == null
+                          ? ""
+                          : up
+                            ? "live-trade-rail__table-chg--up"
+                            : "live-trade-rail__table-chg--down"
+                      }
                     >
-                      {h.changePct == null ? "—" : formatPercent(h.changePct)}
-                    </span>
-                    <span className="live-trade-rail__holding-prices">
-                      {formatRailPrice(h.avgEntryPrice)}/
-                      {formatRailPrice(h.targetSellPrice)}/
-                      {formatRailPrice(h.stopLossPrice)}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
+                      {returnPct == null ? "—" : formatPercent(returnPct)}
+                    </td>
+                    <td className="live-trade-rail__table-val">
+                      {formatRailValuation(totalMarketValue, sorted[0]?.currency ?? "KRW")}
+                    </td>
+                    <td className="live-trade-rail__table-wt">
+                      {totalMarketValue > 0 ? "100%" : "—"}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           )}
           <div className="live-trade-rail__expand-foot">
             <span className="live-trade-rail__meta">
