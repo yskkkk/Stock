@@ -1,6 +1,7 @@
 /**
  * Stop hook: 큐 슬롯 해제 + auto-git-sync 재개.
  * git push 이후 Stop이 발생하므로 push 완료 후 해제가 보장됨.
+ * leaseId 해제 실패 시 release-active 폴백으로 stale 슬롯 방지.
  */
 import http from "node:http";
 import fs from "node:fs";
@@ -22,40 +23,24 @@ try { fs.unlinkSync(IDE_LEASE_FILE); } catch {}
 
 if (!leaseId) process.exit(0);
 
-const body = JSON.stringify({ leaseId });
+function postJson(pathname, body, cb) {
+  const b = JSON.stringify(body);
+  const req = http.request(
+    { hostname: "127.0.0.1", port: PORT, path: pathname, method: "POST",
+      headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(b) },
+      timeout: 10_000 },
+    (res) => { res.resume(); res.on("end", () => cb(null)); },
+  );
+  req.on("error", cb);
+  req.on("timeout", () => { req.destroy(); cb(new Error("timeout")); });
+  req.write(b);
+  req.end();
+}
 
-const req = http.request(
-  {
-    hostname: "127.0.0.1",
-    port: PORT,
-    path: "/api/ops/dev-queue/claude-code/release",
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Content-Length": Buffer.byteLength(body),
-    },
-    timeout: 15_000,
-  },
-  (res) => {
-    let d = "";
-    res.on("data", (c) => (d += c));
-    res.on("end", () => {
-      try { fs.unlinkSync(LEASE_FILE); } catch {}
-      process.exit(0);
-    });
-  },
-);
-
-req.on("error", () => {
+// 1차: leaseId로 정확한 해제
+postJson("/api/ops/dev-queue/claude-code/release", { leaseId }, (err) => {
   try { fs.unlinkSync(LEASE_FILE); } catch {}
-  process.exit(0);
+  if (!err) { process.exit(0); }
+  // 2차 폴백: 실행 중인 슬롯 전체 해제 (stale 방지)
+  postJson("/api/ops/dev-queue/ide/release-active", {}, () => process.exit(0));
 });
-
-req.on("timeout", () => {
-  try { req.destroy(); } catch {}
-  try { fs.unlinkSync(LEASE_FILE); } catch {}
-  process.exit(0);
-});
-
-req.write(body);
-req.end();
