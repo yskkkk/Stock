@@ -77,11 +77,11 @@ function base64Url(buf) {
 /**
  * @param {Record<string, string | number>} params
  */
+/** 빗썸: body 필드 순서 그대로 `k=v&…` — 알파벳 정렬하면 JWT 검증 실패 */
 function queryHashSha512(params) {
-  const entries = Object.entries(params)
-    .map(([k, v]) => [k, String(v)])
-    .sort(([a], [b]) => a.localeCompare(b));
-  const qs = new URLSearchParams(entries).toString();
+  const qs = Object.entries(params)
+    .map(([k, v]) => `${k}=${String(v)}`)
+    .join("&");
   return crypto.createHash("sha512").update(qs, "utf8").digest("hex");
 }
 
@@ -126,7 +126,7 @@ async function bithumbPrivateRequest(method, path, bodyParams = null) {
     method,
     headers: {
       Accept: "application/json",
-      "Content-Type": "application/json",
+      "Content-Type": "application/json; charset=utf-8",
       Authorization: `Bearer ${token}`,
     },
     signal: AbortSignal.timeout(30_000),
@@ -258,4 +258,89 @@ export async function executeBithumbLiveSellOrder(input) {
  */
 export function estimateBithumbBuyQuantity(yahooSymbol, price, amountKrw) {
   return quantityFromOrderAmount(amountKrw, price, "crypto");
+}
+
+/**
+ * 시장가 매수 (원화 금액). 테스트·수동 확인용.
+ * @param {string} market e.g. KRW-DOGE
+ * @param {number} krw
+ */
+export async function executeBithumbMarketBuyKrw(market, krw) {
+  const status = getBithumbTradingStatus();
+  if (!status.ready) {
+    return { ok: false, error: status.messageKo };
+  }
+  const mk = String(market ?? "").trim();
+  const amount = Math.floor(Number(krw));
+  if (!mk || !Number.isFinite(amount) || amount < 5000) {
+    return {
+      ok: false,
+      error: "빗썸 최소 주문 금액(약 5,000원) 이상이 필요합니다.",
+    };
+  }
+  if (process.env.BITHUMB_LIVE_ORDERS_ENABLED !== "1") {
+    return {
+      ok: false,
+      error: "BITHUMB_LIVE_ORDERS_ENABLED=0 — 실주문이 꺼져 있습니다.",
+    };
+  }
+  try {
+    const body = await bithumbPrivateRequest("POST", "/v1/orders", {
+      market: mk,
+      side: "bid",
+      ord_type: "price",
+      price: String(amount),
+    });
+    return {
+      ok: true,
+      orderId: String(body.uuid ?? body.order_id ?? "") || undefined,
+      market: mk,
+      krw: amount,
+    };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/**
+ * 시장가 매수 (코인 수량). 최소 주문 금액 미만이면 거래소에서 거절될 수 있음.
+ * @param {string} market
+ * @param {number} volume
+ */
+export async function executeBithumbMarketBuyVolume(market, volume) {
+  const status = getBithumbTradingStatus();
+  if (!status.ready) {
+    return { ok: false, error: status.messageKo };
+  }
+  const mk = String(market ?? "").trim();
+  const vol = Number(volume);
+  if (!mk || !Number.isFinite(vol) || vol <= 0) {
+    return { ok: false, error: "수량이 올바르지 않습니다." };
+  }
+  if (process.env.BITHUMB_LIVE_ORDERS_ENABLED !== "1") {
+    return {
+      ok: false,
+      error: "BITHUMB_LIVE_ORDERS_ENABLED=0 — 실주문이 꺼져 있습니다.",
+    };
+  }
+  try {
+    const volStr =
+      Math.round(vol * 1e8) / 1e8 > 0
+        ? String(Math.round(vol * 1e8) / 1e8)
+        : String(vol);
+    const body = await bithumbPrivateRequest("POST", "/v1/orders", {
+      market: mk,
+      side: "bid",
+      ord_type: "market",
+      volume: volStr,
+    });
+    return {
+      ok: true,
+      orderId: String(body.uuid ?? body.order_id ?? "") || undefined,
+      market: mk,
+      volume: volStr,
+    };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
 }
