@@ -294,11 +294,22 @@ export default function LiveTradingTab({
       setMsg(null);
       try {
         const out = await armLiveTradeProgram(id);
-        setMsg(
-          out.toss.ready
-            ? ko.app.liveTradeArmedOk
-            : ko.app.liveTradeArmedWaitToss,
-        );
+        const mk = out.program.markets;
+        if (mk.crypto && !mk.kr && !mk.us) {
+          setMsg(
+            out.bithumb.ready && out.bithumb.liveOrdersEnabled
+              ? ko.app.liveTradeArmedOkBithumb
+              : ko.app.liveTradeArmedWaitBithumb,
+          );
+        } else if (mk.kr && !mk.crypto) {
+          setMsg(
+            out.toss.ready
+              ? ko.app.liveTradeArmedOk
+              : ko.app.liveTradeArmedWaitToss,
+          );
+        } else {
+          setMsg(ko.app.liveTradeArmedOk);
+        }
         await reload();
       } catch (e) {
         setErr(e instanceof Error ? e.message : String(e));
@@ -364,6 +375,7 @@ export default function LiveTradingTab({
 
   const programs = status?.programs ?? [];
   const toss = status?.toss;
+  const bithumb = status?.bithumb;
 
   return (
     <div className="live-trading-tab live-trading-panel">
@@ -416,7 +428,48 @@ export default function LiveTradingTab({
           <li>
             <span>{ko.app.liveTradeTossItemOrders}</span>
             <span className="live-trading-tab__toss-state">
-              {status?.simulatedOrders === false
+              {status?.tossSimulatedOrders === false
+                ? ko.app.liveTradeTossOk
+                : ko.app.liveTradeTossSim}
+            </span>
+          </li>
+        </ul>
+      </section>
+
+      <section
+        className={`live-trading-tab__toss card ${
+          bithumb?.ready
+            ? "live-trading-tab__toss--ready"
+            : bithumb?.configured
+              ? "live-trading-tab__toss--partial"
+              : "live-trading-tab__toss--off"
+        }`}
+        aria-live="polite"
+      >
+        <h3 className="live-trading-tab__section-title">
+          {ko.app.liveTradeBithumbTitle}
+        </h3>
+        <p className="live-trading-tab__toss-msg">{bithumb?.messageKo ?? "—"}</p>
+        <ul
+          className="live-trading-tab__toss-env"
+          aria-label={ko.app.liveTradeBithumbChecklist}
+        >
+          <li>
+            <span>{ko.app.liveTradeBithumbItemKey}</span>
+            <span className="live-trading-tab__toss-state">
+              {bithumb?.configured ? ko.app.liveTradeTossOk : ko.app.liveTradeTossNo}
+            </span>
+          </li>
+          <li>
+            <span>{ko.app.liveTradeBithumbItemSecret}</span>
+            <span className="live-trading-tab__toss-state">
+              {bithumb?.ready ? ko.app.liveTradeTossOk : ko.app.liveTradeTossNo}
+            </span>
+          </li>
+          <li>
+            <span>{ko.app.liveTradeBithumbItemOrders}</span>
+            <span className="live-trading-tab__toss-state">
+              {status?.bithumbSimulatedOrders === false
                 ? ko.app.liveTradeTossOk
                 : ko.app.liveTradeTossSim}
             </span>

@@ -800,6 +800,15 @@ export interface TossTradingStatus {
   docsHint: string;
 }
 
+export interface BithumbTradingStatus {
+  phase: "unconfigured" | "configured" | "ready";
+  configured: boolean;
+  ready: boolean;
+  messageKo: string;
+  liveOrdersEnabled: boolean;
+  docsHint: string;
+}
+
 export interface LiveTradeProgramReturnSummary {
   totalReturnPct: number | null;
   holdingCount: number;
@@ -807,11 +816,14 @@ export interface LiveTradeProgramReturnSummary {
 
 export interface LiveTradingStatusResponse {
   toss: TossTradingStatus;
+  bithumb: BithumbTradingStatus;
   programs: LiveTradeProgram[];
   programReturns: Record<string, LiveTradeProgramReturnSummary>;
   armedCount: number;
   simCount: number;
   simulatedOrders: boolean;
+  tossSimulatedOrders?: boolean;
+  bithumbSimulatedOrders?: boolean;
 }
 
 export function fetchLiveTradingStatus() {
@@ -972,6 +984,7 @@ export function armLiveTradeProgram(id: string) {
     ok: boolean;
     program: LiveTradeProgram;
     toss: TossTradingStatus;
+    bithumb: BithumbTradingStatus;
   }>(`/api/live-trading/programs/${encodeURIComponent(id)}/arm`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

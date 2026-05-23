@@ -113,6 +113,7 @@ import {
   createLiveTradeProgramSync,
   deleteLiveTradeProgramSync,
   disarmLiveTradeProgramSync,
+  getLiveTradeProgramSync,
   healStuckSimProgramErrorsSync,
   listLiveTradeProgramsSync,
   startSimLiveTradeProgramSync,
@@ -132,7 +133,9 @@ import {
   applySimProgramFeedbackPatch,
   buildSimCreationRecommendations,
 } from "./live-trade-sim-feedback.js";
+import { getBithumbTradingStatus } from "./bithumb-trading-adapter.js";
 import { getTossTradingStatus } from "./toss-trading-adapter.js";
+import { validateLiveTradeArmGate } from "./live-trade-arm-gate.js";
 import {
   fetchQuoteSnapshotsForSymbols,
   mergeLiveQuotesIntoPicksState,
@@ -443,6 +446,7 @@ export function createApp() {
     "/api/live-trading/status",
     asyncRoute(async (_req, res) => {
       const toss = getTossTradingStatus();
+      const bithumb = getBithumbTradingStatus();
       let programs = listLiveTradeProgramsSync();
       const programReturns = await buildProgramPortfolioSummariesMap(
         programs.map((p) => p.id),
@@ -450,11 +454,16 @@ export function createApp() {
       programs = healStuckSimProgramErrorsSync(programs, programReturns);
       res.json({
         toss,
+        bithumb,
         programs,
         programReturns,
         armedCount: programs.filter((p) => p.status === "armed").length,
         simCount: programs.filter((p) => p.status === "sim").length,
-        simulatedOrders: process.env.TOSS_LIVE_ORDERS_ENABLED !== "1",
+        simulatedOrders:
+          process.env.TOSS_LIVE_ORDERS_ENABLED !== "1" ||
+          process.env.BITHUMB_LIVE_ORDERS_ENABLED !== "1",
+        tossSimulatedOrders: process.env.TOSS_LIVE_ORDERS_ENABLED !== "1",
+        bithumbSimulatedOrders: process.env.BITHUMB_LIVE_ORDERS_ENABLED !== "1",
       });
     }),
   );
@@ -526,12 +535,16 @@ export function createApp() {
     asyncRoute(async (req, res) => {
       const id = String(req.params.id ?? "").trim();
       try {
-        const toss = getTossTradingStatus();
-        const program = armLiveTradeProgramSync(id, {
-          tossConfigured: toss.configured,
-          tossMessage: toss.messageKo,
+        const gate = validateLiveTradeArmGate(
+          getLiveTradeProgramSync(id) ?? { markets: {} },
+        );
+        const program = armLiveTradeProgramSync(id);
+        res.json({
+          ok: true,
+          program,
+          toss: gate.toss,
+          bithumb: gate.bithumb,
         });
-        res.json({ ok: true, program, toss });
       } catch (e) {
         res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
       }

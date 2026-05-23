@@ -9,6 +9,7 @@ import {
 import { recordLiveTradeBuyAsync } from "./live-trade-portfolio-store.js";
 import { resolveLiveTradeQuote } from "./live-trade-quote.js";
 import { normalizeLiveTradeMarket, programAllowsMarket } from "./live-trade-market.js";
+import { executeBithumbLiveBuyOrder } from "./bithumb-trading-adapter.js";
 import {
   executeLiveBuyOrder,
   pickMeetsProgramThreshold,
@@ -83,13 +84,15 @@ async function simBuyForProgram(program, pick) {
 async function liveBuyForProgram(program, pick) {
   const market = normalizeLiveTradeMarket(pick.market, pick.symbol);
   if (!programAllowsMarket(program, market)) return;
-  if (market === "crypto") return;
   if (!pickMeetsProgramThreshold(program, pick)) return;
 
   const sym = String(pick.symbol ?? "").trim();
   if (!sym || shouldSkipDuplicate(`live:${program.id}`, sym)) return;
 
-  const out = await executeLiveBuyOrder(program, pick);
+  const out =
+    market === "crypto"
+      ? await executeBithumbLiveBuyOrder(program, pick)
+      : await executeLiveBuyOrder(program, pick);
   let runErr = out.ok ? null : (out.error ?? "주문 실패");
   if (out.ok) {
     try {

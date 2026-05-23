@@ -145,7 +145,7 @@ export const ko = {
     liveTradeMarketUs: "미국",
     liveTradeMarketCrypto: "코인",
     liveTradeCryptoSimNote:
-      "코인은 24시간 1분봉 스크리너·텔레그램 알림·시뮬 자동매수를 지원합니다(토스 실주문·실매매 자동매수 제외).",
+      "코인: 빗썸 KRW 시세·시뮬·실매매(빗썸 API). 국내 주식 실매매는 토스 API.",
     liveTradeSimSymbol: "종목 검색",
     liveTradeSimSymbolPh: "종목명 또는 코드",
     liveTradeSimBuy: "시뮬 매수",
@@ -159,6 +159,10 @@ export const ko = {
     liveTradeDeleteConfirm: "이 실매매 프로그램을 삭제할까요?",
     liveTradeArmedOk: "실매매를 시작했습니다. 스크리너 고득점 종목이 조건에 맞으면 주문이 실행됩니다.",
     liveTradeArmedWaitToss: "등록은 완료됐지만 토스 API 계좌 설정 후에 실제 주문이 가능합니다.",
+    liveTradeArmedWaitBithumb:
+      "등록은 완료됐지만 빗썸 Secret·실주문 플래그 설정 후에 실제 주문이 가능합니다.",
+    liveTradeArmedOkBithumb:
+      "코인 실매매를 시작했습니다. 조건 충족 시 빗썸 KRW 시장가 매수가 실행됩니다.",
     liveTradeSimStartOk: "시뮬 자동 매매를 시작했습니다. 텔레그램 알림 시 자동 매수합니다.",
     liveTradeDisarmed: "실매매를 중지했습니다.",
     liveTradeTitle: "실매매 프로그램",
@@ -171,6 +175,11 @@ export const ko = {
     liveTradeTossItemAccount: "계좌",
     liveTradeTossItemOrders: "실주문",
     liveTradeTossSim: "시뮬레이션",
+    liveTradeBithumbTitle: "빗썸 API 연동 (코인)",
+    liveTradeBithumbChecklist: "빗썸 연동 상태",
+    liveTradeBithumbItemKey: "API Key",
+    liveTradeBithumbItemSecret: "Secret Key",
+    liveTradeBithumbItemOrders: "실주문",
     liveTradeFormTitle: "실매매 등록",
     liveTradeFormEdit: "프로그램 수정",
     liveTradeFormNew: "새 프로그램",

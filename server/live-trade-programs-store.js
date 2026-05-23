@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { getTechModelByIdSync } from "./picks-tech-models-store.js";
 import { programHasOnlySimulatedBuyTradesSync } from "./live-trade-portfolio-store.js";
+import { validateLiveTradeArmGate } from "./live-trade-arm-gate.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, ".data");
@@ -268,17 +269,11 @@ export function deleteLiveTradeProgramSync(id) {
 
 /**
  * @param {string} id
- * @param {{ tossConfigured: boolean; tossMessage?: string }} toss
  */
-export function armLiveTradeProgramSync(id, toss) {
-  if (!toss.tossConfigured) {
-    throw new Error(
-      toss.tossMessage ??
-        "토스 API 키가 설정되지 않았습니다. 서버 환경 설정에 API 키를 등록한 뒤 재시작하세요.",
-    );
-  }
+export function armLiveTradeProgramSync(id) {
   const prog = getLiveTradeProgramSync(id);
   if (!prog) throw new Error("프로그램을 찾을 수 없습니다.");
+  validateLiveTradeArmGate(prog);
   return updateLiveTradeProgramSync(id, {
     status: "armed",
     armedAtMs: Date.now(),
