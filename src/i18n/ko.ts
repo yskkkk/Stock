@@ -160,7 +160,9 @@ export const ko = {
     liveTradeArmedOk: "실매매를 시작했습니다. 스크리너 고득점 종목이 조건에 맞으면 주문이 실행됩니다.",
     liveTradeArmedWaitToss: "등록은 완료됐지만 토스 API 계좌 설정 후에 실제 주문이 가능합니다.",
     liveTradeArmedWaitBithumb:
-      "등록은 완료됐지만 빗썸 Secret·실주문 플래그 설정 후에 실제 주문이 가능합니다.",
+      "빗썸 실매매 대기는 켜졌습니다. 거래소 실주문은 .env 에 BITHUMB_LIVE_ORDERS_ENABLED=1 로 바꾼 뒤 서버를 재시작해야 합니다. (0이면 시뮬만)",
+    liveTradeArmedWaitBithumbKeys:
+      "빗썸 API Key·Secret 을 .env 에 넣고 서버를 재시작한 뒤 «빗썸 실매매 시작»을 누르세요.",
     liveTradeArmedOkBithumb:
       "코인 실매매를 시작했습니다. 조건 충족 시 빗썸 KRW 시장가 매수가 실행됩니다.",
     liveTradeSimStartOk: "시뮬 자동 매매를 시작했습니다. 텔레그램 알림 시 자동 매수합니다.",

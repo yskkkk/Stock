@@ -296,11 +296,13 @@ export default function LiveTradingTab({
       try {
         const out = await armLiveTradeProgram(id, lane);
         if (lane === "bithumb") {
-          setMsg(
-            out.bithumb.ready && out.bithumb.liveOrdersEnabled
-              ? ko.app.liveTradeArmedOkBithumb
-              : ko.app.liveTradeArmedWaitBithumb,
-          );
+          if (out.bithumb.ready && out.bithumb.liveOrdersEnabled) {
+            setMsg(ko.app.liveTradeArmedOkBithumb);
+          } else if (!out.bithumb.configured) {
+            setMsg(ko.app.liveTradeArmedWaitBithumbKeys);
+          } else {
+            setMsg(ko.app.liveTradeArmedWaitBithumb);
+          }
         } else {
           setMsg(
             out.toss.ready ? ko.app.liveTradeArmedOk : ko.app.liveTradeArmedWaitToss,
