@@ -110,6 +110,7 @@ async function waitForGitPushSettled(snap) {
 async function settleAndRefreshBeforeSend(snap) {
   await waitForGitPushSettled(snap);
 
+  const gitRevStart = String(snap.gitRevAtStart ?? "").trim();
   const transcriptPath = String(snap.transcriptPath ?? "").trim();
   const sessionId = String(snap.sessionId ?? "").trim();
   let fresh = "";

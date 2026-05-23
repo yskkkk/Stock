@@ -33,7 +33,10 @@ import { appendServerEventLog } from "./access-log.js";
 import { formatLogTimestampKst } from "./log-kst.js";
 import { summarizeGitPullRangeForNotify } from "./ops-agent-git-push.js";
 import { notifyOpsAutoGitPulled } from "./ops-dev-git-telegram.js";
-import { respawnNodeProcess } from "./restart-node-process.js";
+import {
+  restartNodeOrViteDev,
+  respawnNodeProcess,
+} from "./restart-node-process.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
@@ -314,9 +317,11 @@ export function startAutoGitSync({ httpServer }) {
       timer = null;
     }
 
-    appendServerEventLog("auto-git", "restarting Node process…");
+    appendServerEventLog("auto-git", "restarting dev server…");
 
-    const restarted = await respawnNodeProcess(httpServer);
+    const restarted = (await restartNodeOrViteDev(httpServer))
+      ? true
+      : await respawnNodeProcess(httpServer);
     if (!restarted) {
       appendServerEventLog(
         "auto-git",

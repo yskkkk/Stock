@@ -7,8 +7,9 @@
  *
  * 환경변수(선택):
  *   DEV_GUARD_INTERVAL_MS — 헬스체크 주기(ms). 기본 15000
- *   DEV_GUARD_MAX_FAILURES — 연속 실패 횟수 후 재시작. 기본 2
- *   DEV_GUARD_RESTART_COOLDOWN_MS — 재시작 간 최소 대기(ms). 기본 8000
+ *   DEV_GUARD_MAX_FAILURES — 연속 실패 횟수 후 재시작. 기본 4
+ *   DEV_GUARD_RESTART_COOLDOWN_MS — 재시작 간 최소 대기(ms). 기본 15000
+ *   DEV_GUARD_STARTUP_GRACE_MS — 기동·Vite server.restart 직후 헬스체크 생략(ms). 기본 90000
  *   VITE_DEV_PORT — dev 포트. 기본 5173
  */
 import { spawn } from "node:child_process";
@@ -20,15 +21,18 @@ import { killProcessOnPort } from "../server/kill-tcp-port.js";
 const ROOT = process.cwd();
 const INTERVAL_MS = Number(process.env.DEV_GUARD_INTERVAL_MS) || 15_000;
 const PORT = Number(process.env.VITE_DEV_PORT) || 5173;
-const FAIL_THRESHOLD = Math.max(1, Number(process.env.DEV_GUARD_MAX_FAILURES) || 2);
-const COOLDOWN_MS = Number(process.env.DEV_GUARD_RESTART_COOLDOWN_MS) || 8_000;
-const PROBE_TIMEOUT_MS = Number(process.env.DEV_GUARD_PROBE_TIMEOUT_MS) || 5_000;
+const FAIL_THRESHOLD = Math.max(1, Number(process.env.DEV_GUARD_MAX_FAILURES) || 4);
+const COOLDOWN_MS = Number(process.env.DEV_GUARD_RESTART_COOLDOWN_MS) || 15_000;
+const PROBE_TIMEOUT_MS = Number(process.env.DEV_GUARD_PROBE_TIMEOUT_MS) || 8_000;
+const STARTUP_GRACE_MS =
+  Number(process.env.DEV_GUARD_STARTUP_GRACE_MS) || 90_000;
 
 let devProc = null;
 let shuttingDown = false;
 let restarting = false;
 let failStreak = 0;
 let lastRestartAt = 0;
+let devStartedAt = 0;
 
 function stopDev() {
   return new Promise((resolve) => {
@@ -74,7 +78,12 @@ function startDev() {
     scheduleRestart("프로세스 종료");
   });
   failStreak = 0;
+  devStartedAt = Date.now();
   console.log(`[dev:guard] npm run dev 기동 (pid ${devProc.pid})`);
+}
+
+function inStartupGrace() {
+  return devStartedAt > 0 && Date.now() - devStartedAt < STARTUP_GRACE_MS;
 }
 
 function sleep(ms) {
@@ -120,7 +129,7 @@ async function restartDev(reason) {
     await sleep(400);
     freeDevPort();
     startDev();
-    await sleep(2500);
+    await sleep(Math.min(12_000, Math.max(4000, STARTUP_GRACE_MS / 6)));
   } finally {
     restarting = false;
   }
@@ -151,6 +160,11 @@ async function main() {
 
     if (!devProc?.pid) {
       scheduleRestart("dev 프로세스 없음");
+      continue;
+    }
+
+    if (inStartupGrace()) {
+      failStreak = 0;
       continue;
     }
 
