@@ -7120,18 +7120,21 @@ html[data-theme="light"] .fx-calc-rail {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.28rem 0.45rem;
   margin-bottom: 0.38rem;
 }
 
 .fx-calc-rail__title {
+  flex: 0 0 auto;
+  align-self: flex-start;
   font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   color: var(--muted);
   text-transform: uppercase;
+  line-height: 1.2;
 }
 
 .fx-calc-rail__quote {
@@ -7174,7 +7177,7 @@ html[data-theme="light"] .fx-calc-rail {
 .fx-calc-rail--strip .fx-calc-rail__head {
   flex-direction: row;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.28rem 0.45rem;
 }
@@ -7192,20 +7195,58 @@ html[data-theme="light"] .fx-calc-rail {
 
 .fx-calc-rail__mode {
   display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.75rem;
   width: 100%;
-  border-radius: 7px;
-  overflow: hidden;
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  border: none;
+  background: none;
 }
 
-.fx-calc-rail__mode .seg {
-  flex: 1 1 50%;
-  padding: 0.24rem 0.35rem;
-  font-size: 0.64rem;
-  font-weight: 700;
+.fx-calc-rail__mode-btn {
+  flex: 0 1 auto;
+  margin: 0;
+  padding: 0;
   min-height: 0;
+  border: none;
   border-radius: 0;
-  text-align: center;
+  background: transparent;
+  box-shadow: none;
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--muted) 92%, var(--text));
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.12s ease;
+}
+
+.fx-calc-rail__mode-btn:hover {
+  color: var(--text);
+  background: transparent;
+}
+
+.fx-calc-rail__mode-btn--on {
+  color: var(--text);
+  font-weight: 700;
+  background: transparent;
+}
+
+.fx-calc-rail__mode-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-border) 55%, transparent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+html[data-theme="light"] .fx-calc-rail__mode-btn {
+  color: #78716c;
+}
+
+html[data-theme="light"] .fx-calc-rail__mode-btn--on,
+html[data-theme="light"] .fx-calc-rail__mode-btn:hover {
+  color: #44403c;
+  background: transparent;
 }
 
 .fx-calc-rail__field {

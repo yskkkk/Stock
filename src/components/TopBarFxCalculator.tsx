@@ -90,7 +90,11 @@ function TopBarFxCalculatorInner({
         <div className="fx-calc-rail__mode" role="group" aria-label={ko.app.topBarFxCalcModeAria}>
           <button
             type="button"
-            className={dir === "usdToKrw" ? "seg active" : "seg"}
+            className={
+              dir === "usdToKrw"
+                ? "fx-calc-rail__mode-btn fx-calc-rail__mode-btn--on"
+                : "fx-calc-rail__mode-btn"
+            }
             aria-pressed={dir === "usdToKrw"}
             onClick={() => setDir("usdToKrw")}
           >
@@ -98,7 +102,11 @@ function TopBarFxCalculatorInner({
           </button>
           <button
             type="button"
-            className={dir === "krwToUsd" ? "seg active" : "seg"}
+            className={
+              dir === "krwToUsd"
+                ? "fx-calc-rail__mode-btn fx-calc-rail__mode-btn--on"
+                : "fx-calc-rail__mode-btn"
+            }
             aria-pressed={dir === "krwToUsd"}
             onClick={() => setDir("krwToUsd")}
           >
