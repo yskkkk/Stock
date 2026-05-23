@@ -985,6 +985,7 @@ export default function App() {
               : "app"
       }
     >
+      <div className="app__scroll" ref={appScrollRef}>
       <AppThemeCorner
         colorMode={colorMode}
         lightPalette={lightPalette}
@@ -998,7 +999,6 @@ export default function App() {
         }}
         onLightPalette={handleLightPalette}
       />
-      <div className="app__scroll" ref={appScrollRef}>
       <div className="app__viewport">
       <aside ref={leftRailRef} className="app__left-rail" aria-label={ko.app.leftRailAria}>
         <MarketIndicesRail

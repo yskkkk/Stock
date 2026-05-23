@@ -38,7 +38,7 @@ export default function AppThemeCorner({
 
   return (
     <div
-      className="app-theme-corner app-theme-corner--fixed"
+      className="app-theme-corner app-theme-corner--top"
       role="region"
       aria-label={ko.app.themeToggleAria}
     >
