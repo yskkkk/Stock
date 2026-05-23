@@ -16,7 +16,7 @@ import {
   notifyIdeDevelopmentCompleted,
 } from "./ops-ide-completion-notify.js";
 import {
-  clearIdeLeaseOnDisk,
+  clearOrphanIdeLeaseIfNeeded,
   writeIdeLeaseDiskImmediate,
 } from "./ops-ide-lease-disk.js";
 
@@ -267,27 +267,7 @@ function isTranscriptTurnIdleCompleted(lines, filePath) {
  */
 function sweepStaleDiskLease(snap) {
   if (hasIdeQueueWork(snap)) return;
-
-  try {
-    const leasePath = path.join(process.cwd(), ".stock-ops-ide-lease.json");
-    if (!fs.existsSync(leasePath)) return;
-    const lease = JSON.parse(fs.readFileSync(leasePath, "utf8"));
-    const since =
-      typeof lease.sinceMs === "number"
-        ? lease.sinceMs
-        : typeof lease.enqueuedAtMs === "number"
-          ? lease.enqueuedAtMs
-          : 0;
-    const hasLeaseId = Boolean(String(lease.leaseId ?? lease.id ?? "").trim());
-    const age = since > 0 ? Date.now() - since : 0;
-    const stale =
-      age >= STALE_LEASE_MS && (!hasLeaseId || age >= 30 * 60 * 1000);
-    if (stale) {
-      clearIdeLeaseOnDisk();
-    }
-  } catch {
-    clearIdeLeaseOnDisk();
-  }
+  clearOrphanIdeLeaseIfNeeded(snap.entries);
 }
 
 /**

@@ -20,8 +20,8 @@ import {
 } from "./ops-dev-queue-live-store.js";
 import {
   clearIdeLeaseOnDisk,
+  clearOrphanIdeLeaseIfNeeded,
   mergeIdeLeaseDiskIntoAgentEntries,
-  readIdeLeaseDiskSync,
 } from "./ops-ide-lease-disk.js";
 
 /** UI 폴링과 맞춤(기본 100ms) — `STOCK_DEV_QUEUE_SYNC_MS` */
@@ -63,19 +63,7 @@ function entriesForDisplayMirror() {
   const now = Date.now();
   if (now - (_g.__stockLastStaleLeasCheckMs ?? 0) >= STALE_LEASE_CHECK_INTERVAL_MS) {
     _g.__stockLastStaleLeasCheckMs = now;
-    const lease = readIdeLeaseDiskSync();
-    if (lease) {
-      const since =
-        typeof lease.sinceMs === "number"
-          ? lease.sinceMs
-          : typeof lease.enqueuedAtMs === "number"
-            ? lease.enqueuedAtMs
-            : 0;
-      const age = since > 0 ? now - since : 0;
-      const hasLeaseId = Boolean(String(lease.leaseId ?? lease.id ?? "").trim());
-      const stale = age > 30 * 60 * 1000 || (!hasLeaseId && age > 120_000);
-      if (stale) clearIdeLeaseOnDisk();
-    }
+    clearOrphanIdeLeaseIfNeeded(memory);
   }
 
   return mergeIdeLeaseDiskIntoAgentEntries(memory);
