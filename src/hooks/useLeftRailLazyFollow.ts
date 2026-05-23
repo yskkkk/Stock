@@ -6,10 +6,12 @@ const POSITION_LERP = 0.055;
 const SCROLL_SMOOTH = 0.065;
 const SCROLL_DRAG = 0.42;
 const MAX_DRAG_PX = 110;
+/** 스크롤 px 대비 아래로 갈 수 있는 최대 오프셋 비율 (이 이상은 안 내려감) */
+const SCROLL_DOWN_CAP = 0.085;
 
 /**
  * 데스크톱 왼쪽 레일: CSS top 50% + translate -50% 로 세로 중앙,
- * 스크롤 시 중앙에서 살짝 늦게 따라 움직임.
+ * 스크롤 시 중앙에서 살짝 늦게 따라 움직이되, 스크롤량보다 더 아래로는 내려가지 않음.
  */
 export function useLeftRailLazyFollow(
   railRef: RefObject<HTMLElement | null>,
@@ -39,6 +41,12 @@ export function useLeftRailLazyFollow(
       rail.style.removeProperty("--app-left-rail-y");
     };
 
+    const clampOffset = (scrollTop: number, smooth: number, offset: number) => {
+      const maxDown = Math.min(MAX_DRAG_PX, scrollTop * SCROLL_DOWN_CAP);
+      const maxUp = Math.min(MAX_DRAG_PX, Math.max(0, smooth - scrollTop) * SCROLL_DOWN_CAP);
+      return Math.max(-maxUp, Math.min(maxDown, offset));
+    };
+
     const tick = () => {
       if (!active || !mq.matches) {
         rafId = 0;
@@ -48,11 +56,8 @@ export function useLeftRailLazyFollow(
       const scrollTop = scrollEl?.scrollTop ?? 0;
       smoothScroll += (scrollTop - smoothScroll) * scrollSmooth;
 
-      const drag = Math.max(
-        -MAX_DRAG_PX,
-        Math.min(MAX_DRAG_PX, (scrollTop - smoothScroll) * scrollDrag),
-      );
-      const target = drag;
+      const rawDrag = (scrollTop - smoothScroll) * scrollDrag;
+      const target = clampOffset(scrollTop, smoothScroll, rawDrag);
       const diff = target - currentOffset;
 
       if (Math.abs(diff) < 0.35) {
@@ -61,6 +66,7 @@ export function useLeftRailLazyFollow(
         currentOffset += diff * positionLerp;
       }
 
+      currentOffset = clampOffset(scrollTop, smoothScroll, currentOffset);
       applyOffset(currentOffset);
       rafId = requestAnimationFrame(tick);
     };
