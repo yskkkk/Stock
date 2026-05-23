@@ -522,14 +522,19 @@ export default function LiveTradingTab({
               </span>
             </li>
             <li>
-              <span>{ko.app.liveTradeBithumbItemOrders}</span>
+              <span>{ko.app.liveTradeBithumbItemExchangeOrders}</span>
               <span className="live-trading-tab__toss-state">
-                {status?.bithumbSimulatedOrders === false
-                  ? ko.app.liveTradeTossOk
-                  : ko.app.liveTradeTossSim}
+                {bithumb?.liveOrdersEnabled
+                  ? ko.app.liveTradeExchangeOrdersOn
+                  : ko.app.liveTradeExchangeOrdersOff}
               </span>
             </li>
           </ul>
+          {bithumb?.configured ? (
+            <p className="live-trading-tab__hint live-trading-tab__cred-hint">
+              {ko.app.liveTradeBithumbProgramSimHint}
+            </p>
+          ) : null}
           {user ? (
             <LiveTradeBithumbCredentialForm
               bithumbReady={Boolean(bithumb?.ready)}

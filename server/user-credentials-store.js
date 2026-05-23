@@ -105,8 +105,8 @@ export function getCredentialMetaSync(userId, exchange) {
   let messageKo = "API Key만 저장되어 있습니다. Secret Key를 함께 저장하세요.";
   if (ready) {
     messageKo = row.liveOrdersEnabled
-      ? "연동 준비됨 · 실주문 켜짐"
-      : "연동 준비됨 · 실주문은 꺼져 있음(시뮬만 기록)";
+      ? "연동됨 · 거래소 실주문 허용"
+      : "연동됨 · 거래소 실주문 차단(앱 시뮬은 프로그램에서 실행)";
   } else if (!configured) {
     messageKo = "API 키를 저장하세요.";
   }
@@ -173,13 +173,20 @@ export function upsertUserCredentialSync(userId, exchange, input) {
   if (!uid || !ex) throw new Error("잘못된 요청입니다.");
 
   const apiKey = String(input.apiKey ?? "").trim();
-  if (!apiKey) throw new Error("API Key가 필요합니다.");
 
   const store = readStoreSync();
   const idx = store.credentials.findIndex(
     (c) => c.userId === uid && c.exchange === ex,
   );
   const prev = idx >= 0 ? store.credentials[idx] : null;
+
+  const apiKeyEncrypted = apiKey
+    ? encryptSecret(apiKey)
+    : prev?.apiKeyEncrypted ?? "";
+  if (!apiKeyEncrypted) {
+    throw new Error("API Key가 필요합니다.");
+  }
+
   const secretRaw = String(input.secretKey ?? "").trim();
   const secretEncrypted =
     secretRaw.length > 0
@@ -193,7 +200,7 @@ export function upsertUserCredentialSync(userId, exchange, input) {
     id: prev?.id ?? randomUUID(),
     userId: uid,
     exchange: ex,
-    apiKeyEncrypted: encryptSecret(apiKey),
+    apiKeyEncrypted,
     secretEncrypted,
     liveOrdersEnabled:
       input.liveOrdersEnabled === undefined

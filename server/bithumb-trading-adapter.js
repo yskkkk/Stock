@@ -67,8 +67,8 @@ export function getBithumbTradingStatusFromCredentials(credentials) {
     messageKo = "API Key만 있습니다. Secret Key를 함께 저장하세요.";
   } else if (ready) {
     messageKo = credentials?.liveOrdersEnabled
-      ? "빗썸 연동 준비됨 · 실주문 켜짐"
-      : "빗썸 연동 준비됨 · 실주문 꺼짐(체결은 시뮬만 기록)";
+      ? "빗썸 연동됨 · 거래소 실주문 허용"
+      : "빗썸 연동됨 · 거래소 실주문 차단(앱 시뮬은 프로그램 «시뮬 자동 시작»)";
   }
   return {
     phase,

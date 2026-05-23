@@ -66,6 +66,19 @@ function CredentialExchangeForm({
     setLiveOrders(meta?.liveOrdersEnabled ?? false);
   }, [meta?.liveOrdersEnabled]);
 
+  const persistLiveOrders = async (enabled: boolean) => {
+    if (!cryptoReady) {
+      throw new Error(ko.app.liveTradeCredNoMasterKey);
+    }
+    await saveUserCredential(exchange, {
+      apiKey: "",
+      secretKey: undefined,
+      liveOrdersEnabled: enabled,
+    });
+    setMsg(ko.app.liveTradeCredOrderModeSaved);
+    onSaved();
+  };
+
   const handleSave = async () => {
     setBusy(true);
     setErr(null);
@@ -73,6 +86,9 @@ function CredentialExchangeForm({
     try {
       if (!cryptoReady) {
         throw new Error(ko.app.liveTradeCredNoMasterKey);
+      }
+      if (!apiKey.trim() && !meta?.configured) {
+        throw new Error("API Key가 필요합니다.");
       }
       await saveUserCredential(exchange, {
         apiKey: apiKey.trim(),
@@ -88,6 +104,18 @@ function CredentialExchangeForm({
     } finally {
       setBusy(false);
     }
+  };
+
+  const handleOrderMode = (enabled: boolean) => {
+    setLiveOrders(enabled);
+    if (!meta?.configured) return;
+    setBusy(true);
+    setErr(null);
+    setMsg(null);
+    void persistLiveOrders(enabled).catch((e) => {
+      setErr(e instanceof Error ? e.message : String(e));
+      setLiveOrders(meta?.liveOrdersEnabled ?? false);
+    }).finally(() => setBusy(false));
   };
 
   const handleTest = async () => {
@@ -141,14 +169,55 @@ function CredentialExchangeForm({
           onChange={(e) => setSecretKey(e.target.value)}
         />
       </label>
-      <label className="live-trading-tab__check">
-        <input
-          type="checkbox"
-          checked={liveOrders}
-          onChange={(e) => setLiveOrders(e.target.checked)}
-        />
-        <span>{ko.app.liveTradeCredLiveOrders}</span>
-      </label>
+      <fieldset className="live-trading-tab__cred-mode">
+        <legend className="live-trading-tab__label">
+          {ko.app.liveTradeCredOrderModeTitle}
+        </legend>
+        <p className="live-trading-tab__cred-mode-hint">
+          {ko.app.liveTradeCredOrderModeHint}
+        </p>
+        <div
+          className="live-trading-tab__segment live-trading-tab__cred-mode-segment"
+          role="group"
+          aria-label={ko.app.liveTradeCredOrderModeTitle}
+        >
+          <button
+            type="button"
+            className={`live-trading-tab__segment-btn ${
+              !liveOrders ? "live-trading-tab__segment-btn--on" : ""
+            }`}
+            disabled={busy}
+            onClick={() => handleOrderMode(false)}
+          >
+            {ko.app.liveTradeCredOrderModeSim}
+          </button>
+          <button
+            type="button"
+            className={`live-trading-tab__segment-btn ${
+              liveOrders ? "live-trading-tab__segment-btn--on" : ""
+            }`}
+            disabled={busy || !meta?.configured}
+            onClick={() => handleOrderMode(true)}
+            title={
+              meta?.configured
+                ? undefined
+                : "API Key·Secret 저장 후 실주문을 허용할 수 있습니다."
+            }
+          >
+            {ko.app.liveTradeCredOrderModeLive}
+          </button>
+        </div>
+        {!meta?.configured ? (
+          <label className="live-trading-tab__check live-trading-tab__cred-mode-check">
+            <input
+              type="checkbox"
+              checked={liveOrders}
+              onChange={(e) => setLiveOrders(e.target.checked)}
+            />
+            <span>{ko.app.liveTradeCredLiveOrders}</span>
+          </label>
+        ) : null}
+      </fieldset>
       <div className="live-trading-tab__cred-actions">
         <button
           type="button"
