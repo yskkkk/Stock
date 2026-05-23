@@ -10,6 +10,7 @@ import "./theme-light-palettes.css";
 import "./ui-toss.css";
 import "./mobile-polish.css";
 import "./ui-nowrap-lines.css";
+import "./app-site-footer.css";
 
 const App = lazy(() => import("./App"));
 const MobileServerGate = lazy(() => import("./components/MobileServerGate"));

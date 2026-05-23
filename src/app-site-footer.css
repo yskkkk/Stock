@@ -1,0 +1,56 @@
+/**
+ * 푸터 전용 타이포 — main.tsx 에서 마지막 로드.
+ * Pretendard(본문 620)·브라우저 링크 기본 스타일 덮어씀.
+ */
+#root > .app > .app__scroll > .app-site-footer,
+#root > .app > .app__scroll > .app-site-footer .app-site-footer__nav,
+#root > .app > .app__scroll > .app-site-footer .app-site-footer__copy,
+#root > .app > .app__scroll > .app-site-footer .app-site-footer__sep,
+#root > .app > .app__scroll > .app-site-footer .app-site-footer__link,
+#root > .app > .app__scroll > .app-site-footer a.app-site-footer__link,
+#root > .app > .app__scroll > .app-site-footer span.app-site-footer__link,
+#root > .app > .app__scroll > .app-site-footer button.app-site-footer__link {
+  font-family: "Segoe UI", Arial, Helvetica, sans-serif !important;
+  font-weight: 400 !important;
+  font-style: normal !important;
+  font-synthesis: none !important;
+  font-variation-settings: normal !important;
+  text-decoration: none !important;
+  -webkit-text-stroke: 0 !important;
+  text-shadow: none !important;
+}
+
+#root > .app > .app__scroll > .app-site-footer .app-site-footer__nav {
+  font-size: 11px !important;
+  line-height: 1.5 !important;
+  color: #a3a3a3 !important;
+}
+
+#root > .app > .app__scroll > .app-site-footer .app-site-footer__copy {
+  font-size: 10px !important;
+  color: #ababab !important;
+}
+
+#root > .app > .app__scroll > .app-site-footer .app-site-footer__link:hover,
+#root > .app > .app__scroll > .app-site-footer .app-site-footer__link:active,
+#root > .app > .app__scroll > .app-site-footer .app-site-footer__link--active {
+  font-weight: 400 !important;
+  text-decoration: none !important;
+}
+
+html[data-theme="light"] #root > .app > .app__scroll > .app-site-footer .app-site-footer__nav {
+  color: #a8a29e !important;
+}
+
+html[data-theme="light"] #root > .app > .app__scroll > .app-site-footer .app-site-footer__link:hover,
+html[data-theme="light"] #root > .app > .app__scroll > .app-site-footer .app-site-footer__link--active {
+  color: #78716c !important;
+}
+
+html[data-theme="light"] #root > .app > .app__scroll > .app-site-footer a.app-site-footer__link[href*="downloads"] {
+  color: #6b9bd1 !important;
+}
+
+html[data-theme="light"] #root > .app > .app__scroll > .app-site-footer a.app-site-footer__link[href*="install-ios"] {
+  color: #9b87c4 !important;
+}

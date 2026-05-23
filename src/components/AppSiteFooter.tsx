@@ -10,6 +10,17 @@ import { ko } from "../i18n/ko";
 import type { FeedbackCornerHandle } from "./FeedbackCorner";
 import ServerRestartButton from "./ServerRestartButton";
 
+const FOOTER_TEXT: CSSProperties = {
+  fontFamily: '"Segoe UI", Arial, Helvetica, sans-serif',
+  fontWeight: 400,
+  fontStyle: "normal",
+};
+
+const FOOTER_LINK: CSSProperties = {
+  ...FOOTER_TEXT,
+  textDecoration: "none",
+};
+
 type AppSiteFooterProps = {
   accessAdmin: boolean;
   appTab: string;
@@ -53,7 +64,7 @@ function FooterLink({
 
   if (href) {
     return (
-      <a href={href} download={download} className={cls} title={title}>
+      <a href={href} download={download} className={cls} title={title} style={FOOTER_LINK}>
         {children}
       </a>
     );
@@ -72,6 +83,7 @@ function FooterLink({
       role="button"
       tabIndex={disabled ? -1 : 0}
       className={cls}
+      style={FOOTER_LINK}
       title={title}
       aria-disabled={disabled || undefined}
       onClick={disabled ? undefined : onClick}
@@ -101,8 +113,8 @@ export default function AppSiteFooter({
         : ko.app.themeUseDark;
 
   return (
-    <footer className="app-site-footer" aria-label={ko.app.siteFooterAria}>
-      <nav className="app-site-footer__nav">
+    <footer className="app-site-footer" style={FOOTER_TEXT} aria-label={ko.app.siteFooterAria}>
+      <nav className="app-site-footer__nav" style={FOOTER_TEXT}>
         {accessAdmin ? (
           <>
             <FooterLink onClick={onOpenOps} active={appTab === "ops"}>
@@ -191,7 +203,9 @@ export default function AppSiteFooter({
         ) : null}
       </nav>
 
-      <p className="app-site-footer__copy">{ko.app.footerCopyright}</p>
+      <p className="app-site-footer__copy" style={FOOTER_TEXT}>
+        {ko.app.footerCopyright}
+      </p>
     </footer>
   );
 }
