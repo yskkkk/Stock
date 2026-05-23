@@ -11,15 +11,25 @@ function readPadTop(): number {
   return Math.max(6, root * 0.35);
 }
 
-/** sticky 기준 — 뷰포트 세로 중앙에 맞추는 top (scrollTop 미포함) */
-function idealStickTop(railHeight: number): number {
+/** 좌측 패널 상단(테마) 높이 — 레일 겹침 방지 */
+function readLeftPanelHeadReserve(): number {
+  if (!window.matchMedia(DESKTOP_MQ).matches) return 0;
+  const head = document.querySelector<HTMLElement>(".app__left-panel");
+  if (!head) return readPadTop();
+  const h = head.getBoundingClientRect().height;
+  return h > 0 ? h + 10 : readPadTop();
+}
+
+/** 문서 좌표 — 스크롤해도 뷰포트 중앙을 늦게 따라감 */
+function idealDocTop(scrollTop: number, railHeight: number): number {
   const vh = window.innerHeight;
   const padTop = readPadTop();
-  return Math.max(padTop, (vh - railHeight) / 2);
+  const headReserve = scrollTop < 80 ? readLeftPanelHeadReserve() : 0;
+  return scrollTop + Math.max(padTop + headReserve, (vh - railHeight) / 2);
 }
 
 /**
- * 왼쪽 레일: flex 열 + sticky, 스크롤 시 anchor가 늦게 따라와 뷰포트 중앙에 맞춤.
+ * 왼쪽 레일: 문서 좌표 absolute + 지연 보간(기존 따라오기).
  */
 export function useLeftRailLazyFollow(
   railRef: RefObject<HTMLElement | null>,
@@ -53,8 +63,9 @@ export function useLeftRailLazyFollow(
     };
 
     const syncIdeal = () => {
+      const scrollTop = getScrollEl()?.scrollTop ?? 0;
       const h = rail.getBoundingClientRect().height;
-      const ideal = idealStickTop(h);
+      const ideal = idealDocTop(scrollTop, h);
       anchorTop = ideal;
       currentTop = ideal;
       applyTop(currentTop);
@@ -66,8 +77,9 @@ export function useLeftRailLazyFollow(
         return;
       }
 
+      const scrollTop = getScrollEl()?.scrollTop ?? 0;
       const h = rail.getBoundingClientRect().height;
-      const ideal = idealStickTop(h);
+      const ideal = idealDocTop(scrollTop, h);
 
       anchorTop += (ideal - anchorTop) * anchorLerp;
 
@@ -121,8 +133,10 @@ export function useLeftRailLazyFollow(
 
     const ro = new ResizeObserver(() => onResize());
 
+    const head = document.querySelector<HTMLElement>(".app__left-panel");
     start();
     ro.observe(rail);
+    head && ro.observe(head);
     mq.addEventListener("change", onMq);
     getScrollEl()?.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onResize, { passive: true });

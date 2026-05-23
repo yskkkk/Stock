@@ -7031,15 +7031,29 @@ html[data-theme="light"] .market-indices-rail__item {
     box-sizing: border-box;
   }
 
-  .app__left-rail {
-    display: flex;
+  .app__left-panel {
     grid-column: 1;
     grid-row: 1;
     width: var(--app-left-rail-width);
     min-width: 0;
-    position: sticky;
+    align-self: start;
+    display: flex;
+    flex-direction: column;
+    gap: 0.28rem;
+    pointer-events: none;
+  }
+
+  .app__left-panel > * {
+    pointer-events: auto;
+  }
+
+  .app__left-rail {
+    display: flex;
+    position: absolute;
     top: var(--app-left-rail-y, max(0.35rem, env(safe-area-inset-top, 0px)));
-    left: auto;
+    left: 0;
+    width: var(--app-left-rail-width);
+    min-width: 0;
     max-width: none;
     transform: none;
     will-change: top;
@@ -7048,6 +7062,7 @@ html[data-theme="light"] .market-indices-rail__item {
     max-height: calc(100dvh - max(0.35rem, env(safe-area-inset-top, 0px)) - 0.65rem);
     overflow-y: auto;
     z-index: 2;
+    pointer-events: auto;
   }
 
   #root > .app .app__viewport > .app__shell {
@@ -7084,6 +7099,15 @@ html[data-theme="light"] .market-indices-rail__item {
 @media (max-width: 1179px) {
   .app__left-rail {
     display: none !important;
+  }
+
+  .app__left-panel {
+    display: block;
+    width: 100%;
+    max-width: none;
+    padding-inline: var(--app-page-inline-pad-safe, var(--app-page-inline-pad, 1.35rem));
+    padding-bottom: 0.25rem;
+    pointer-events: auto;
   }
 
   .app__right-panel {

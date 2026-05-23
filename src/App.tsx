@@ -986,20 +986,22 @@ export default function App() {
       }
     >
       <div className="app__scroll" ref={appScrollRef}>
-      <AppThemeCorner
-        colorMode={colorMode}
-        lightPalette={lightPalette}
-        onToggleColorMode={() => {
-          if (!ENABLE_THEME_MODE_TOGGLE) return;
-          setColorMode((m) => {
-            const next = m === "dark" ? "light" : "dark";
-            persistTheme(next);
-            return next;
-          });
-        }}
-        onLightPalette={handleLightPalette}
-      />
       <div className="app__viewport">
+      <div className="app__left-panel">
+        <AppThemeCorner
+          colorMode={colorMode}
+          lightPalette={lightPalette}
+          onToggleColorMode={() => {
+            if (!ENABLE_THEME_MODE_TOGGLE) return;
+            setColorMode((m) => {
+              const next = m === "dark" ? "light" : "dark";
+              persistTheme(next);
+              return next;
+            });
+          }}
+          onLightPalette={handleLightPalette}
+        />
+      </div>
       <aside ref={leftRailRef} className="app__left-rail" aria-label={ko.app.leftRailAria}>
         <MarketIndicesRail
           items={marketIndices}
