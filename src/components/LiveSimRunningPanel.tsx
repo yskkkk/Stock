@@ -1,4 +1,11 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   fetchLiveTradingMinuteQuotes,
   fetchLiveTradingPortfolio,
@@ -6,6 +13,7 @@ import {
   type LiveTradePortfolioResponse,
   type LiveTradeProgram,
   type LiveTradeRecord,
+  type LiveTradingStatusResponse,
 } from "../api";
 import { useLivePortfolioQuotePoll } from "../hooks/useLivePortfolioQuotePoll";
 import {
@@ -45,6 +53,17 @@ function formatTs(ms: number | null): string {
   }
 }
 
+function armedLaneLabel(p: LiveTradeProgram): string {
+  const c = Boolean(p.armedMarkets?.crypto);
+  const k = Boolean(p.armedMarkets?.kr);
+  if (c && k) return ko.app.liveTradeLeftRailLaneBoth;
+  if (c) return ko.app.liveTradeLeftRailLaneBithumb;
+  if (k) return ko.app.liveTradeLeftRailLaneToss;
+  if (p.markets.crypto && !p.markets.kr) return ko.app.liveTradeLeftRailLaneBithumb;
+  if (p.markets.kr && !p.markets.crypto) return ko.app.liveTradeLeftRailLaneToss;
+  return ko.app.liveTradeLeftRailLaneLive;
+}
+
 function programSummary(
   holdings: LiveTradeHolding[],
   usdKrwRate: number | null,
@@ -68,27 +87,34 @@ function programSummary(
   };
 }
 
-function SimProgramCard({
+function ProgramRunCard({
   program,
+  mode,
   holdings,
   trades,
   busy,
   onStop,
+  onDisarm,
   refreshKey,
   onProgramUpdated,
   onOpenHoldingChart,
   usdKrwRate,
+  bithumbSimulatedOrders,
 }: {
   program: LiveTradeProgram;
+  mode: "sim" | "armed";
   holdings: LiveTradeHolding[];
   trades: LiveTradeRecord[];
   busy: boolean;
-  onStop: (id: string) => void;
+  onStop?: (id: string) => void;
+  onDisarm?: (id: string) => void;
   refreshKey?: number;
   onProgramUpdated?: () => void;
   onOpenHoldingChart?: (h: LiveTradeHolding) => void;
   usdKrwRate: number | null;
+  bithumbSimulatedOrders?: boolean;
 }) {
+  const isArmed = mode === "armed";
   const [expanded, setExpanded] = useState(false);
   const sum = programSummary(holdings, usdKrwRate);
   const retUp = sum.ret != null && sum.ret >= 0;
@@ -101,7 +127,7 @@ function SimProgramCard({
 
   return (
     <article
-      className={`live-sim-run__card${expanded ? " live-sim-run__card--open" : ""}`}
+      className={`live-sim-run__card${isArmed ? " live-sim-run__card--armed" : ""}${expanded ? " live-sim-run__card--open" : ""}`}
       data-program-id={program.id}
     >
       <header className="live-sim-run__card-head">
@@ -169,9 +195,11 @@ function SimProgramCard({
             type="button"
             className="btn btn--secondary btn--sm"
             disabled={busy}
-            onClick={() => onStop(program.id)}
+            onClick={() =>
+              isArmed ? onDisarm?.(program.id) : onStop?.(program.id)
+            }
           >
-            {ko.app.liveTradeSimStop}
+            {isArmed ? ko.app.liveTradeDisarm : ko.app.liveTradeSimStop}
           </button>
         </div>
       </header>
@@ -184,33 +212,56 @@ function SimProgramCard({
 
       {expanded ? (
       <>
-      <ul className="live-sim-run__chips" aria-label={ko.app.liveTradeSimRunSettings}>
+      <ul
+        className="live-sim-run__chips"
+        aria-label={
+          isArmed ? ko.app.liveTradeLiveRunTitle : ko.app.liveTradeSimRunSettings
+        }
+      >
+        {isArmed ? (
+          <>
+            <li>{armedLaneLabel(program)}</li>
+            {program.armedMarkets?.crypto ? (
+              <li>
+                {bithumbSimulatedOrders === false
+                  ? ko.app.liveTradeLeftRailLiveOrders
+                  : ko.app.liveTradeLeftRailSimOrders}
+              </li>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <li>
+              {program.simAutoBuy !== false
+                ? ko.app.liveTradeSimRunAutoBuyOn
+                : ko.app.liveTradeSimRunAutoBuyOff}
+            </li>
+            <li>
+              {program.autoSellAtTarget !== false
+                ? ko.app.liveTradeSimRunAutoSellOn
+                : ko.app.liveTradeSimRunAutoSellOff}
+            </li>
+            {program.autoSellAtTarget !== false ? (
+              <li>{ko.app.liveTradeAutoExitHint}</li>
+            ) : null}
+          </>
+        )}
         <li>
-          {program.simAutoBuy !== false
-            ? ko.app.liveTradeSimRunAutoBuyOn
-            : ko.app.liveTradeSimRunAutoBuyOff}
-        </li>
-        <li>
-          {program.autoSellAtTarget !== false
-            ? ko.app.liveTradeSimRunAutoSellOn
-            : ko.app.liveTradeSimRunAutoSellOff}
-        </li>
-        {program.autoSellAtTarget !== false ? (
-          <li>{ko.app.liveTradeAutoExitHint}</li>
-        ) : null}
-        <li>
-          {ko.app.liveTradeMinScoreShort} {(program.minScoreRatio * 100).toFixed(0)}%
+          {ko.app.liveTradeMinScoreShort}{" "}
+          {(program.minScoreRatio * 100).toFixed(0)}%
         </li>
         <li>
           {ko.app.liveTradeFieldMaxPos} {program.maxOpenPositions}
         </li>
       </ul>
 
-      <LiveSimFeedbackBlock
-        programId={program.id}
-        refreshKey={(refreshKey ?? 0) + trades.length}
-        onApplied={onProgramUpdated}
-      />
+      {!isArmed ? (
+        <LiveSimFeedbackBlock
+          programId={program.id}
+          refreshKey={(refreshKey ?? 0) + trades.length}
+          onApplied={onProgramUpdated}
+        />
+      ) : null}
 
       <div className="live-sim-run__tiles">
         <div className="live-sim-run__tile">
@@ -466,17 +517,64 @@ function SimProgramCard({
   );
 }
 
+function ActivityLane({
+  title,
+  count,
+  countVariant,
+  empty,
+  loading,
+  hasPortfolio,
+  children,
+}: {
+  title: string;
+  count: number;
+  countVariant: "sim" | "armed";
+  empty: string;
+  loading: boolean;
+  hasPortfolio: boolean;
+  children: ReactNode;
+}) {
+  const countClass =
+    count > 0
+      ? countVariant === "armed"
+        ? "live-sim-run__count live-sim-run__count--on live-sim-run__count--armed"
+        : "live-sim-run__count live-sim-run__count--on"
+      : "live-sim-run__count";
+
+  return (
+    <div
+      className={`live-sim-run__lane live-sim-run__lane--${countVariant === "armed" ? "live" : "sim"}`}
+    >
+      <div className="live-sim-run__lane-head">
+        <h4 className="live-sim-run__lane-title">{title}</h4>
+        <span className={countClass}>{count}</span>
+      </div>
+      {count === 0 ? (
+        <p className="live-sim-run__empty">{empty}</p>
+      ) : loading && !hasPortfolio ? (
+        <p className="live-sim-run__muted">{ko.app.liveTradePfLoading}</p>
+      ) : (
+        <div className="live-sim-run__cards">{children}</div>
+      )}
+    </div>
+  );
+}
+
 export default function LiveSimRunningPanel({
   programs,
+  status,
   busy = false,
   onStop,
+  onDisarm,
   refreshKey = 0,
   onProgramUpdated,
   onOpenHoldingChart,
 }: {
   programs: LiveTradeProgram[];
+  status?: LiveTradingStatusResponse | null;
   busy?: boolean;
   onStop: (id: string) => void;
+  onDisarm: (id: string) => void;
   /** 부모 reload 시 포트폴리오 재조회 */
   refreshKey?: number;
   onProgramUpdated?: () => void;
@@ -486,11 +584,18 @@ export default function LiveSimRunningPanel({
     () => programs.filter((p) => p.status === "sim"),
     [programs],
   );
-  const simIds = useMemo(
-    () => new Set(simPrograms.map((p) => p.id)),
-    [simPrograms],
+  const armedPrograms = useMemo(
+    () => programs.filter((p) => p.status === "armed"),
+    [programs],
   );
-  const { rate: usdKrwRate } = useUsdKrwRate(simIds.size > 0);
+  const activeIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const p of simPrograms) ids.add(p.id);
+    for (const p of armedPrograms) ids.add(p.id);
+    return ids;
+  }, [simPrograms, armedPrograms]);
+  const { rate: usdKrwRate } = useUsdKrwRate(activeIds.size > 0);
+  const bithumbSimulatedOrders = status?.bithumbSimulatedOrders !== false;
 
   const [portfolio, setPortfolio] = useState<LiveTradePortfolioResponse | null>(
     null,
@@ -500,7 +605,7 @@ export default function LiveSimRunningPanel({
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
 
   const loadPortfolio = useCallback(async () => {
-    if (simIds.size === 0) {
+    if (activeIds.size === 0) {
       setPortfolio(null);
       setErr(null);
       return;
@@ -532,51 +637,53 @@ export default function LiveSimRunningPanel({
     } finally {
       setLoading(false);
     }
-  }, [simIds.size]);
+  }, [activeIds.size]);
 
   useEffect(() => {
     void loadPortfolio();
   }, [loadPortfolio, refreshKey]);
 
   useEffect(() => {
-    if (simIds.size === 0) return;
+    if (activeIds.size === 0) return;
     const id = window.setInterval(() => void loadPortfolio(), 20_000);
     return () => window.clearInterval(id);
-  }, [loadPortfolio, simIds.size]);
+  }, [loadPortfolio, activeIds.size]);
 
-  useLivePortfolioQuotePoll(portfolio, setPortfolio, simIds.size > 0);
+  useLivePortfolioQuotePoll(portfolio, setPortfolio, activeIds.size > 0);
 
   const byProgram = useMemo(() => {
     const holdings = new Map<string, LiveTradeHolding[]>();
     const trades = new Map<string, LiveTradeRecord[]>();
-    for (const id of simIds) {
+    for (const id of activeIds) {
       holdings.set(id, []);
       trades.set(id, []);
     }
     if (!portfolio) return { holdings, trades };
     for (const h of portfolio.holdings) {
-      if (!simIds.has(h.programId)) continue;
+      if (!activeIds.has(h.programId)) continue;
       holdings.get(h.programId)?.push(h);
     }
     const sorted = [...portfolio.trades].sort((a, b) => b.atMs - a.atMs);
     for (const t of sorted) {
-      if (!simIds.has(t.programId)) continue;
+      if (!activeIds.has(t.programId)) continue;
       trades.get(t.programId)?.push(t);
     }
     return { holdings, trades };
-  }, [portfolio, simIds]);
+  }, [portfolio, activeIds]);
+
+  const activeCount = simPrograms.length + armedPrograms.length;
 
   return (
-    <section className="live-sim-run card" aria-label={ko.app.liveTradeSimRunTitle}>
+    <section className="live-sim-run card" aria-label={ko.app.liveTradeActivityTitle}>
       <div className="live-sim-run__head">
         <div>
           <h3 className="live-trading-tab__section-title">
-            {ko.app.liveTradeSimRunTitle}
+            {ko.app.liveTradeActivityTitle}
           </h3>
-          <p className="live-sim-run__subhead">{ko.app.liveTradeSimRunSub}</p>
+          <p className="live-sim-run__subhead">{ko.app.liveTradeActivitySub}</p>
         </div>
         <div className="live-sim-run__head-tools">
-          {updatedAt != null && simPrograms.length > 0 ? (
+          {updatedAt != null && activeCount > 0 ? (
             <span className="live-sim-run__updated">
               {ko.app.liveTradePfUpdated}{" "}
               {formatTs(updatedAt)}
@@ -584,17 +691,17 @@ export default function LiveSimRunningPanel({
           ) : null}
           <span
             className={
-              simPrograms.length > 0
+              activeCount > 0
                 ? "live-sim-run__count live-sim-run__count--on"
                 : "live-sim-run__count"
             }
           >
-            {simPrograms.length}
+            {activeCount}
           </span>
           <button
             type="button"
             className="btn btn--secondary btn--sm"
-            disabled={loading || simPrograms.length === 0}
+            disabled={loading || activeCount === 0}
             onClick={() => void loadPortfolio()}
           >
             {ko.app.liveTradePfRefresh}
@@ -608,15 +715,45 @@ export default function LiveSimRunningPanel({
         </p>
       ) : null}
 
-      {simPrograms.length === 0 ? (
-        <p className="live-sim-run__empty">{ko.app.liveTradeSimRunEmpty}</p>
-      ) : loading && !portfolio ? (
-        <p className="live-sim-run__muted">{ko.app.liveTradePfLoading}</p>
-      ) : (
-        <div className="live-sim-run__cards">
-          {simPrograms.map((p) => (
-            <SimProgramCard
+      <div className="live-sim-run__split">
+        <ActivityLane
+          title={ko.app.liveTradeLiveRunTitle}
+          count={armedPrograms.length}
+          countVariant="armed"
+          empty={ko.app.liveTradeLiveRunEmpty}
+          loading={loading}
+          hasPortfolio={portfolio != null}
+        >
+          {armedPrograms.map((p) => (
+            <ProgramRunCard
               key={p.id}
+              mode="armed"
+              program={p}
+              holdings={byProgram.holdings.get(p.id) ?? []}
+              trades={byProgram.trades.get(p.id) ?? []}
+              busy={busy}
+              onDisarm={onDisarm}
+              refreshKey={refreshKey}
+              onProgramUpdated={onProgramUpdated}
+              onOpenHoldingChart={onOpenHoldingChart}
+              usdKrwRate={usdKrwRate}
+              bithumbSimulatedOrders={bithumbSimulatedOrders}
+            />
+          ))}
+        </ActivityLane>
+
+        <ActivityLane
+          title={ko.app.liveTradeSimRunTitle}
+          count={simPrograms.length}
+          countVariant="sim"
+          empty={ko.app.liveTradeSimRunEmpty}
+          loading={loading}
+          hasPortfolio={portfolio != null}
+        >
+          {simPrograms.map((p) => (
+            <ProgramRunCard
+              key={p.id}
+              mode="sim"
               program={p}
               holdings={byProgram.holdings.get(p.id) ?? []}
               trades={byProgram.trades.get(p.id) ?? []}
@@ -628,8 +765,8 @@ export default function LiveSimRunningPanel({
               usdKrwRate={usdKrwRate}
             />
           ))}
-        </div>
-      )}
+        </ActivityLane>
+      </div>
     </section>
   );
 }

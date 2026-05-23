@@ -109,7 +109,13 @@ export const ko = {
     liveTradePfColAmount: "금액",
     liveTradeSideBuy: "매수",
     liveTradeSideSell: "매도",
-    liveTradeSimRunTitle: "가동 중 시뮬레이션",
+    liveTradeActivityTitle: "가동 중 실매매 · 시뮬레이션",
+    liveTradeActivitySub:
+      "실매매·시뮬 프로그램의 보유·목표가·최근 체결을 20초마다 갱신합니다.",
+    liveTradeLiveRunTitle: "실매매",
+    liveTradeLiveRunEmpty:
+      "가동 중인 실매매가 없습니다. «실매매 시작»으로 켠 뒤 «실매매 중지»로 끕니다.",
+    liveTradeSimRunTitle: "시뮬레이션",
     liveTradeSimRunSub: "시뮬 자동 시작된 프로그램의 보유·목표가·최근 체결을 20초마다 갱신합니다.",
     liveTradePfUpdated: "갱신",
     liveTradeSimRunEmpty: "가동 중인 시뮬이 없습니다. 프로그램에서 «시뮬 자동 시작»으로 켠 뒤, 끌 때는 «시뮬 중지»를 누르세요.",

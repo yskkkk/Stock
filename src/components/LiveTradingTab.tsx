@@ -505,9 +505,11 @@ export default function LiveTradingTab({
 
       <LiveSimRunningPanel
         programs={programs}
+        status={status}
         busy={busy}
         refreshKey={portfolioRefreshKey}
         onStop={(id) => void handleSimStop(id)}
+        onDisarm={(id) => void handleDisarm(id)}
         onProgramUpdated={() => void reload()}
         onOpenHoldingChart={onOpenHoldingChart}
       />
