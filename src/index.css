@@ -6790,6 +6790,7 @@ body {
 .app__viewport {
   --app-left-rail-width: 15rem;
   --app-left-rail-gap: 0.65rem;
+  --app-side-panel-min: var(--app-left-rail-width);
   display: flex;
   flex-direction: row;
   align-items: flex-start;
@@ -6986,6 +6987,11 @@ html[data-theme="light"] .market-indices-rail__item {
   min-width: 0;
 }
 
+.app__right-panel {
+  display: none;
+  flex: none;
+}
+
 .market-indices-rail--strip {
   display: none;
   width: 100%;
@@ -7009,14 +7015,13 @@ html[data-theme="light"] .market-indices-rail__item {
 }
 
 @media (min-width: 1180px) {
-  /* 좌 여백 | 주요지수 | 가운데 패널(최대 1680) | 우 여백 */
+  /* 3열: 좌(주요지수) | 가운데(최대 1680) | 우(남는 여백, 좌와 대칭) */
   .app__viewport {
     display: grid;
     grid-template-columns:
-      minmax(0, 1fr)
       var(--app-left-rail-width)
-      minmax(0, min(var(--app-page-max-width, 1680px), 100%))
-      minmax(0, 1fr);
+      minmax(0, min(var(--app-page-max-width, 1680px), 1fr))
+      minmax(var(--app-side-panel-min), 1fr);
     column-gap: var(--app-left-rail-gap);
     align-items: start;
     width: 100%;
@@ -7028,7 +7033,7 @@ html[data-theme="light"] .market-indices-rail__item {
 
   .app__left-rail {
     display: flex;
-    grid-column: 2;
+    grid-column: 1;
     grid-row: 1;
     width: var(--app-left-rail-width);
     min-width: 0;
@@ -7046,7 +7051,7 @@ html[data-theme="light"] .market-indices-rail__item {
   }
 
   #root > .app .app__viewport > .app__shell {
-    grid-column: 3;
+    grid-column: 2;
     grid-row: 1;
     flex: none;
     min-width: 0;
@@ -7054,6 +7059,16 @@ html[data-theme="light"] .market-indices-rail__item {
     max-width: 100%;
     margin-left: 0;
     margin-right: 0;
+  }
+
+  .app__right-panel {
+    display: block;
+    grid-column: 3;
+    grid-row: 1;
+    min-width: 0;
+    min-height: 1px;
+    align-self: stretch;
+    pointer-events: none;
   }
 
   .market-indices-rail--side {
@@ -7068,6 +7083,10 @@ html[data-theme="light"] .market-indices-rail__item {
 
 @media (max-width: 1179px) {
   .app__left-rail {
+    display: none !important;
+  }
+
+  .app__right-panel {
     display: none !important;
   }
 

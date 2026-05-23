@@ -1822,6 +1822,7 @@ export default function App() {
         }
       />
       </div>
+      <div className="app__right-panel" aria-hidden="true" />
       </div>
 
       <AppSiteFooter
