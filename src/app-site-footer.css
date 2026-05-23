@@ -51,9 +51,56 @@
   flex: 0 0 auto !important;
 }
 
+#root > .app > .app__scroll > .app-site-footer {
+  position: relative !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  text-align: center !important;
+}
+
 #root > .app > .app__scroll > .app-site-footer .app-site-footer__copy {
+  position: absolute !important;
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  width: max-content !important;
+  max-width: calc(100% - 1rem) !important;
   font-size: 10.5px !important;
   color: #949494 !important;
+  text-align: center !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+}
+
+#root > .app > .app__scroll > .app-site-footer .app-site-footer__nav {
+  position: relative !important;
+  z-index: 1 !important;
+  flex: 0 1 auto !important;
+  max-width: 100% !important;
+}
+
+@media (max-width: 720px) {
+  #root > .app > .app__scroll > .app-site-footer {
+    flex-direction: column !important;
+    justify-content: center !important;
+    gap: 0.35rem !important;
+    padding-block: 0.75rem max(0.65rem, env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  #root > .app > .app__scroll > .app-site-footer .app-site-footer__copy {
+    position: static !important;
+    transform: none !important;
+    order: -1 !important;
+    pointer-events: auto !important;
+  }
+
+  #root > .app > .app__scroll > .app-site-footer .app-site-footer__nav {
+    justify-content: center !important;
+  }
 }
 
 /* 기본·방문·클릭·포커스 동일 색 */
