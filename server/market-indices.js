@@ -1,7 +1,6 @@
 /**
  * 주요 지수·환율 시세 — Yahoo 차트 스냅샷(일봉·전일대비).
  */
-import { getUsdKrwRate } from "./fx-usd-krw.js";
 import { loadChartQuoteSnapshot } from "./stock-data.js";
 
 const CACHE_MS = 20_000;
@@ -61,16 +60,7 @@ async function buildFxItem() {
   };
   try {
     const snap = await loadChartQuoteSnapshot("KRW=X");
-    let price = snap?.price ?? null;
-    try {
-      const fx = await getUsdKrwRate();
-      if (fx.rate != null && Number.isFinite(fx.rate) && fx.rate > 0) {
-        price = fx.rate;
-      }
-    } catch {
-      /* fx rate optional */
-    }
-    return rowFromSnap(def, { ...snap, price: price ?? snap?.price });
+    return rowFromSnap(def, snap);
   } catch {
     return rowFromSnap(def, null);
   }

@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+import { memo } from "react";
 import { ko } from "../i18n/ko";
 import { formatPercent, formatPrice } from "../lib/format";
 import type { MarketIndexItem } from "../types";
@@ -68,25 +68,13 @@ function MarketIndicesRailInner({
   items,
   loading,
   layout = "rail",
-  liveFxRate,
   onOpenItem,
 }: {
   items: MarketIndexItem[];
   loading: boolean;
   layout?: "rail" | "strip";
-  /** 환율 행 시세 — /api/fx/usd-krw (지수 폴링과 병행) */
-  liveFxRate?: number | null;
   onOpenItem?: (item: MarketIndexItem) => void;
 }) {
-  const displayItems = useMemo(() => {
-    if (liveFxRate == null || !Number.isFinite(liveFxRate) || liveFxRate <= 0) {
-      return items;
-    }
-    return items.map((item) =>
-      item.id === "usdkrw" ? { ...item, price: liveFxRate } : item,
-    );
-  }, [items, liveFxRate]);
-
   const rootClass =
     layout === "strip"
       ? "market-indices-rail market-indices-rail--strip"
@@ -104,9 +92,9 @@ function MarketIndicesRailInner({
           <span className="market-indices-rail__status">{ko.app.marketIndicesLoading}</span>
         ) : null}
       </div>
-      {displayItems.length > 0 ? (
+      {items.length > 0 ? (
         <ul className="market-indices-rail__list">
-          {displayItems.map((item) => (
+          {items.map((item) => (
             <IndexRow key={item.id} item={item} onOpen={onOpenItem} />
           ))}
         </ul>
