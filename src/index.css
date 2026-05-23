@@ -349,6 +349,7 @@
   box-shadow: none;
   overflow: visible;
   isolation: isolate;
+  transform: translateY(2px);
 }
 
 html[data-theme="light"] .top-bar__brand .brand-mark {
@@ -1483,7 +1484,7 @@ html[data-theme="light"] .top-bar__brand .brand-mark__img {
 }
 
 .top-bar--screener .top-bar__brand {
-  align-items: flex-start;
+  align-items: center;
 }
 
 .top-bar__brand-main {
@@ -3880,6 +3881,7 @@ html[data-theme="light"] .access-admin-tab--active {
     width: 36px;
     height: 36px;
     border-radius: 0;
+    transform: translateY(1px);
   }
 
   .top-bar__grid,

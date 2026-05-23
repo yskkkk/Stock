@@ -110,6 +110,22 @@ def crop_opaque(im: Image.Image, margin_ratio: float = 0.04) -> Image.Image:
     return im.crop((x0, y0, x1, y1))
 
 
+def _visual_centroid(im: Image.Image) -> tuple[float, float]:
+    px = im.load()
+    sum_x = sum_y = total = 0.0
+    for y in range(im.height):
+        for x in range(im.width):
+            a = px[x, y][3]
+            if a > 20:
+                w = a / 255.0
+                sum_x += x * w
+                sum_y += y * w
+                total += w
+    if total <= 0:
+        return im.width / 2.0, im.height / 2.0
+    return sum_x / total, sum_y / total
+
+
 def save_square(im: Image.Image, size: int, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
@@ -117,8 +133,9 @@ def save_square(im: Image.Image, size: int, path: Path) -> None:
     inner = size - 2 * pad
     fitted = im.copy()
     fitted.thumbnail((inner, inner), Image.Resampling.LANCZOS)
-    ox = (size - fitted.width) // 2
-    oy = (size - fitted.height) // 2
+    cx, cy = _visual_centroid(fitted)
+    ox = (size - fitted.width) // 2 + int(fitted.width / 2 - cx)
+    oy = (size - fitted.height) // 2 + int(fitted.height / 2 - cy)
     canvas.paste(fitted, (ox, oy), fitted)
     canvas.save(path, "PNG")
 
