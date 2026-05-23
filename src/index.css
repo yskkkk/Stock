@@ -7337,12 +7337,17 @@ html[data-theme="light"] .fx-calc-rail__input-wrap {
 }
 
 .fx-calc-rail__result {
+  display: block;
+  width: 100%;
+  min-height: 1.35em;
+  line-height: 1.35;
   font-size: 0.84rem;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   color: var(--text);
   text-align: right;
   padding: 0.18rem 0 0;
+  box-sizing: content-box;
   word-break: break-all;
 }
 

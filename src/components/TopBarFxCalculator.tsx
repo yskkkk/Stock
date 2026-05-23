@@ -161,11 +161,14 @@ function TopBarFxCalculatorInner({
             </span>
           </div>
         </label>
-        {resultText ? (
-          <output className="fx-calc-rail__result" htmlFor={amountId} aria-live="polite">
-            {resultText}
-          </output>
-        ) : null}
+        <output
+          className="fx-calc-rail__result"
+          htmlFor={amountId}
+          aria-live="polite"
+          aria-hidden={!resultText}
+        >
+          {resultText}
+        </output>
       </div>
     </aside>
   );
