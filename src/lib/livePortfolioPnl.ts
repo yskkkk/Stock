@@ -10,6 +10,8 @@ export type HoldingsPnlAggregate = {
 };
 
 function holdingCurrency(h: LiveTradeHolding): "KRW" | "USD" {
+  // 코인은 빗썸 KRW 시세 기준 — 과거 데이터에 currency="USD"로 잘못 저장된 경우 포함
+  if (h.market === "crypto") return "KRW";
   return h.currency === "USD" || h.market === "us" ? "USD" : "KRW";
 }
 

@@ -22,7 +22,8 @@ export function normalizeLiveTradeMarket(market, symbol) {
 
 /** @param {LiveTradeMarket} market */
 export function liveTradeCurrency(market) {
-  return market === "us" || market === "crypto" ? "USD" : "KRW";
+  // 코인 시세는 빗썸 KRW 기준 → 통화도 KRW
+  return market === "us" ? "USD" : "KRW";
 }
 
 /**
@@ -50,7 +51,9 @@ export function orderAmountForMarket(program, market) {
 }
 
 /**
- * 체결 수량용 주문 금액(코인·USD 설정은 KRW 시세 기준으로 환산).
+ * 체결 수량 계산용 주문 금액(KRW 반환).
+ * 코인: orderAmountUsd → 환율 곱해 KRW 환산(빗썸 KRW 시세로 나눔).
+ *       orderAmountUsd 없으면 orderAmountKrw 그대로.
  * @param {import("./live-trade-programs-store.js").LiveTradeProgram} program
  * @param {LiveTradeMarket} market
  */

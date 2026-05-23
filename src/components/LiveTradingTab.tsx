@@ -803,12 +803,13 @@ export default function LiveTradingTab({
                         ? `${ko.app.liveTradeFieldAmountKrw}: ${formatMoney(p.orderAmountKrw, "krw")}`
                         : ""}
                       {p.markets.us || p.markets.crypto
-                        ? `${p.markets.kr ? " · " : ""}${usdAmountFieldLabel(p.markets.us, p.markets.crypto)}: ${formatMoney(
-                            p.markets.crypto && p.orderAmountUsd == null
-                              ? p.orderAmountKrw
-                              : p.orderAmountUsd,
-                            "usd",
-                          )}`
+                        ? `${p.markets.kr ? " · " : ""}${usdAmountFieldLabel(p.markets.us, p.markets.crypto)}: ${
+                            p.orderAmountUsd != null
+                              ? formatMoney(p.orderAmountUsd, "usd")
+                              : p.orderAmountKrw != null
+                                ? formatMoney(p.orderAmountKrw, "krw")
+                                : "—"
+                          }`
                         : ""}
                     </p>
                     <p className="live-trading-tab__program-meta live-trading-tab__program-return">
