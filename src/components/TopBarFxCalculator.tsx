@@ -37,7 +37,7 @@ function TopBarFxCalculatorInner({
   }, [amount, dir, hasRate, rate]);
 
   const resultText = useMemo(() => {
-    if (result == null) return "—";
+    if (result == null) return "";
     return dir === "usdToKrw"
       ? formatPrice(result, "KRW")
       : formatPrice(result, "USD");
@@ -127,9 +127,11 @@ function TopBarFxCalculatorInner({
             spellCheck={false}
           />
         </label>
-        <output className="fx-calc-rail__result" htmlFor={amountId} aria-live="polite">
-          {resultText}
-        </output>
+        {resultText ? (
+          <output className="fx-calc-rail__result" htmlFor={amountId} aria-live="polite">
+            {resultText}
+          </output>
+        ) : null}
       </div>
     </aside>
   );
