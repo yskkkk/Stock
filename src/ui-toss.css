@@ -10,6 +10,12 @@
   --shadow: 0 12px 44px rgba(0, 0, 0, 0.38);
   --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.22);
   --app-page-max-width: 1400px;
+  --app-page-inline-pad: 1.35rem;
+  --app-page-inline-pad-safe: max(
+    var(--app-page-inline-pad),
+    env(safe-area-inset-left, 0px),
+    env(safe-area-inset-right, 0px)
+  );
 }
 
 html {
@@ -64,7 +70,8 @@ body {
   width: 100%;
   max-width: var(--app-page-max-width);
   gap: 0.95rem;
-  padding: 1.35rem 1.35rem 1.35rem;
+  padding-block: 1.35rem;
+  padding-inline: var(--app-page-inline-pad-safe);
   box-sizing: border-box;
   overflow: visible;
 }
@@ -649,17 +656,19 @@ body {
     letter-spacing: -0.015em;
   }
 
+  :root {
+    --app-page-inline-pad: 0.45rem;
+  }
+
   .app__viewport > .app__shell {
     gap: 0.42rem;
     padding-top: 0.38rem;
-    padding-right: max(0.45rem, env(safe-area-inset-right, 0px));
-    padding-left: max(0.45rem, env(safe-area-inset-left, 0px));
+    padding-inline: var(--app-page-inline-pad-safe);
     padding-bottom: max(0.55rem, env(safe-area-inset-bottom, 0px));
   }
 
   .app-site-footer {
-    padding-left: max(0.45rem, env(safe-area-inset-left, 0px));
-    padding-right: max(0.45rem, env(safe-area-inset-right, 0px));
+    padding-inline: var(--app-page-inline-pad-safe);
   }
 
   .btn {
@@ -787,17 +796,19 @@ body {
     line-height: 1.42;
   }
 
+  :root {
+    --app-page-inline-pad: 0.38rem;
+  }
+
   .app__viewport > .app__shell {
     gap: 0.34rem;
     padding-top: 0.32rem;
-    padding-right: max(0.38rem, env(safe-area-inset-right, 0px));
-    padding-left: max(0.38rem, env(safe-area-inset-left, 0px));
+    padding-inline: var(--app-page-inline-pad-safe);
     padding-bottom: max(0.48rem, env(safe-area-inset-bottom, 0px));
   }
 
   .app-site-footer {
-    padding-left: max(0.38rem, env(safe-area-inset-left, 0px));
-    padding-right: max(0.38rem, env(safe-area-inset-right, 0px));
+    padding-inline: var(--app-page-inline-pad-safe);
   }
 
   .btn {
@@ -2841,7 +2852,8 @@ body {
   margin-left: auto;
   margin-right: auto;
   box-sizing: border-box;
-  padding: 1.1rem 1.35rem max(0.65rem, env(safe-area-inset-bottom, 0px));
+  padding-block: 1.1rem max(0.65rem, env(safe-area-inset-bottom, 0px));
+  padding-inline: var(--app-page-inline-pad-safe);
   border-top: 1px solid var(--card-border, rgba(148, 163, 184, 0.14));
   background: color-mix(in srgb, var(--bg) 94%, var(--muted) 6%);
   text-align: center;

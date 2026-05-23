@@ -6768,6 +6768,7 @@ body {
   max-width: var(--app-page-max-width, 1400px);
   margin-left: auto;
   margin-right: auto;
+  padding-inline: var(--app-page-inline-pad-safe, var(--app-page-inline-pad, 1.35rem));
   text-align: center;
 }
 
@@ -6820,7 +6821,8 @@ body {
   border-radius: var(--radius-sm);
   border: 1px solid rgba(148, 163, 184, 0.14);
   background: rgba(148, 163, 184, 0.05);
-  padding: 0.52rem 0.62rem 0.58rem;
+  padding-block: 0.55rem;
+  padding-inline: 0.62rem;
 }
 
 html[data-theme="light"] .market-indices-rail {
@@ -7002,12 +7004,13 @@ html[data-theme="light"] .market-indices-rail__item {
     display: flex;
     position: absolute;
     top: max(0.35rem, env(safe-area-inset-top, 0px));
-    left: max(0.5rem, env(safe-area-inset-left, 0px));
+    left: var(--app-page-inline-pad-safe, var(--app-page-inline-pad, 1.35rem));
     right: calc(
       50% + min(100%, var(--app-page-max-width, 1400px)) * 0.5 + var(--app-left-rail-gap)
     );
     width: auto;
     z-index: 2;
+    align-items: stretch;
   }
 
   .market-indices-rail--side {
@@ -7060,7 +7063,8 @@ html[data-theme="light"] .market-indices-rail__item {
   border-radius: var(--radius-sm);
   border: 1px solid rgba(148, 163, 184, 0.14);
   background: rgba(148, 163, 184, 0.05);
-  padding: 0.52rem 0.62rem 0.58rem;
+  padding-block: 0.55rem;
+  padding-inline: 0.62rem;
 }
 
 html[data-theme="light"] .fx-calc-rail {
@@ -7070,9 +7074,11 @@ html[data-theme="light"] .fx-calc-rail {
 
 .fx-calc-rail__head {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.12rem;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.28rem 0.45rem;
   margin-bottom: 0.38rem;
 }
 
@@ -7089,7 +7095,8 @@ html[data-theme="light"] .fx-calc-rail {
   flex-direction: column;
   align-items: flex-end;
   gap: 0.04rem;
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
   text-align: right;
 }
 
@@ -7178,7 +7185,7 @@ html[data-theme="light"] .fx-calc-rail {
   font-variant-numeric: tabular-nums;
   color: var(--text);
   text-align: right;
-  padding: 0.18rem 0.05rem 0;
+  padding: 0.18rem 0 0;
   word-break: break-all;
 }
 
@@ -7192,7 +7199,8 @@ html[data-theme="light"] .fx-calc-rail {
   display: none;
   width: 100%;
   margin: 0 0 0.4rem;
-  padding: 0.42rem 0.5rem;
+  padding-block: 0.42rem;
+  padding-inline: 0.5rem;
 }
 
 .fx-calc-rail--strip .fx-calc-rail__body {
