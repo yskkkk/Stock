@@ -16,10 +16,23 @@ export default function ServerRestartButton({
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const wrapRef = useRef<HTMLSpanElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (phase === "password") inputRef.current?.focus();
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase !== "password") return;
+    const onDoc = (e: MouseEvent) => {
+      if (wrapRef.current?.contains(e.target as Node)) return;
+      setPhase("idle");
+      setPassword("");
+      setError(null);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
   }, [phase]);
 
   const cancel = () => {
@@ -52,17 +65,62 @@ export default function ServerRestartButton({
     }
   };
 
-  if (phase === "password") {
-    return (
-      <div className="app-server-restart-inline">
-        <label className="app-server-restart-inline__label">
-          <span className="app-page-top__corner-text app-server-restart-inline__title app-site-footer__link--active">
-            {ko.app.serverRestart}
-          </span>
+  const openPassword = () => {
+    setPhase("password");
+    setError(null);
+  };
+
+  const onTextLinkKeyDown = (e: KeyboardEvent<HTMLElement>) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      openPassword();
+    }
+    if (e.key === "Escape" && phase === "password") cancel();
+  };
+
+  const triggerClass =
+    phase === "password"
+      ? `${linkClassName} app-server-restart-trigger--open`
+      : linkClassName;
+
+  const trigger = textLink ? (
+    <span
+      role="button"
+      tabIndex={0}
+      className={triggerClass}
+      title={ko.app.serverRestartTitle}
+      aria-expanded={phase === "password"}
+      onClick={phase === "password" ? undefined : openPassword}
+      onKeyDown={onTextLinkKeyDown}
+    >
+      {ko.app.serverRestart}
+    </span>
+  ) : (
+    <button
+      type="button"
+      className={triggerClass}
+      title={ko.app.serverRestartTitle}
+      aria-expanded={phase === "password"}
+      onClick={phase === "password" ? undefined : openPassword}
+    >
+      {ko.app.serverRestart}
+    </button>
+  );
+
+  return (
+    <span ref={wrapRef} className="app-server-restart">
+      {trigger}
+      {phase === "password" ? (
+        <div
+          className="app-server-restart-popover"
+          role="dialog"
+          aria-label={ko.app.serverRestart}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
           <input
             ref={inputRef}
             type="password"
-            className="app-server-restart-inline__input"
+            className="app-server-restart-popover__input"
             autoComplete="off"
             placeholder={ko.app.serverRestartPasswordPlaceholder}
             value={password}
@@ -79,69 +137,34 @@ export default function ServerRestartButton({
               if (e.key === "Escape") cancel();
             }}
           />
-        </label>
-        {error ? (
-          <span className="app-server-restart-inline__err" role="alert">
-            {error}
-          </span>
-        ) : null}
-        <div className="app-server-restart-inline__actions">
-          <button
-            type="button"
-            className="app-page-top__corner-text"
-            disabled={busy}
-            onClick={() => void submit()}
-          >
-            {busy ? ko.app.serverRestarting : ko.app.serverRestartSubmit}
-          </button>
-          <button
-            type="button"
-            className="app-page-top__corner-text"
-            disabled={busy}
-            onClick={cancel}
-          >
-            {ko.app.serverRestartCancel}
-          </button>
+          {error ? (
+            <p className="app-server-restart-popover__err" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <div className="app-server-restart-popover__actions">
+            <button
+              type="button"
+              className="app-server-restart-popover__action app-server-restart-popover__action--primary"
+              disabled={busy}
+              onClick={() => void submit()}
+            >
+              {busy ? ko.app.serverRestarting : ko.app.serverRestartSubmit}
+            </button>
+            <span className="app-server-restart-popover__sep" aria-hidden>
+              ·
+            </span>
+            <button
+              type="button"
+              className="app-server-restart-popover__action"
+              disabled={busy}
+              onClick={cancel}
+            >
+              {ko.app.serverRestartCancel}
+            </button>
+          </div>
         </div>
-      </div>
-    );
-  }
-
-  const openPassword = () => {
-    setPhase("password");
-    setError(null);
-  };
-
-  const onTextLinkKeyDown = (e: KeyboardEvent<HTMLSpanElement>) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      openPassword();
-    }
-  };
-
-  if (textLink) {
-    return (
-      <span
-        role="button"
-        tabIndex={0}
-        className={linkClassName}
-        title={ko.app.serverRestartTitle}
-        onClick={openPassword}
-        onKeyDown={onTextLinkKeyDown}
-      >
-        {ko.app.serverRestart}
-      </span>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      className={linkClassName}
-      title={ko.app.serverRestartTitle}
-      onClick={openPassword}
-    >
-      {ko.app.serverRestart}
-    </button>
+      ) : null}
+    </span>
   );
 }

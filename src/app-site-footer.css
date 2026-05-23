@@ -68,3 +68,140 @@ html[data-theme="light"] #root > .app > .app__scroll > .app-site-footer a.app-si
 html[data-theme="light"] #root > .app > .app__scroll > .app-site-footer a.app-site-footer__link[href*="install-ios"] {
   color: #7a62b0 !important;
 }
+
+#root > .app > .app__scroll > .app-site-footer,
+#root > .app > .app__scroll > .app-site-footer .app-site-footer__nav {
+  overflow: visible;
+}
+
+/* 서버 재기동 — 트리거 위 말풍선 */
+.app-server-restart {
+  position: relative;
+  display: inline;
+  vertical-align: baseline;
+}
+
+.app-server-restart-popover {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.42rem);
+  left: auto;
+  z-index: 90;
+  box-sizing: border-box;
+  min-width: 10.5rem;
+  max-width: min(14rem, 88vw);
+  padding: 0.42rem 0.5rem 0.38rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--card-border) 92%, transparent);
+  background: color-mix(in srgb, var(--card) 96%, var(--bg));
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.22),
+    0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  text-align: left;
+}
+
+.app-server-restart-popover::after {
+  content: "";
+  position: absolute;
+  right: 0.65rem;
+  bottom: -5px;
+  width: 9px;
+  height: 9px;
+  background: color-mix(in srgb, var(--card) 96%, var(--bg));
+  border-right: 1px solid color-mix(in srgb, var(--card-border) 92%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 92%, transparent);
+  transform: rotate(45deg);
+}
+
+html[data-theme="light"] .app-server-restart-popover {
+  background: var(--card);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
+}
+
+html[data-theme="light"] .app-server-restart-popover::after {
+  background: var(--card);
+}
+
+.app-server-restart-popover__input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0.26rem 0.38rem;
+  border: 1px solid color-mix(in srgb, var(--card-border) 88%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-elevated) 90%, var(--bg));
+  color: var(--text);
+  font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+.app-server-restart-popover__input::placeholder {
+  color: color-mix(in srgb, var(--muted) 88%, transparent);
+}
+
+.app-server-restart-popover__input:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent-border) 55%, transparent);
+  outline-offset: 1px;
+}
+
+.app-server-restart-popover__err {
+  margin: 0.28rem 0 0;
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--down, #f87171);
+}
+
+.app-server-restart-popover__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.22rem;
+  margin-top: 0.32rem;
+}
+
+.app-server-restart-popover__sep {
+  font-size: 10px;
+  color: color-mix(in srgb, var(--muted) 70%, transparent);
+  user-select: none;
+}
+
+.app-server-restart-popover__action {
+  appearance: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: color-mix(in srgb, var(--muted) 90%, var(--text)) !important;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.app-server-restart-popover__action:hover:not(:disabled) {
+  color: var(--text) !important;
+}
+
+.app-server-restart-popover__action--primary {
+  color: color-mix(in srgb, var(--accent) 55%, var(--muted)) !important;
+}
+
+.app-server-restart-popover__action--primary:hover:not(:disabled) {
+  color: var(--accent) !important;
+}
+
+.app-server-restart-popover__action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.app-site-footer .app-server-restart-trigger--open {
+  color: var(--text) !important;
+}
