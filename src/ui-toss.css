@@ -938,7 +938,7 @@ body {
   display: grid;
   grid-template-columns: minmax(280px, 1fr) minmax(300px, 1.1fr);
   gap: 0.75rem;
-  align-items: start;
+  align-items: stretch;
 }
 
 @media (max-width: 860px) {
@@ -949,6 +949,9 @@ body {
 
 .live-trading-tab__form,
 .live-trading-tab__list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   padding: 0;
   overflow: hidden;
 }
@@ -977,14 +980,17 @@ body {
 
 .live-trading-tab__form-panel {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 0.75rem;
+  min-height: 0;
   background: color-mix(in srgb, var(--card) 88%, var(--accent, #5eead4) 3%);
 }
 
 .live-trading-tab__list-body {
+  flex: 1 1 auto;
+  min-height: 0;
   background: color-mix(in srgb, var(--card) 92%, transparent);
-  max-height: 22.5rem;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
