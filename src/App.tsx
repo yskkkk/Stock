@@ -1006,16 +1006,16 @@ export default function App() {
           <LiveTradingLeftRailPanel
             onOpenLiveTrading={() => setAppTab("liveTrading")}
           />
-          <TopBarFxCalculator
-            rate={usdKrwRate}
-            valuationDate={usdKrwValDate}
-            layout="rail"
-          />
           <MarketIndicesRail
             items={marketIndices}
             loading={marketIndicesLoading}
             layout="rail"
             onOpenItem={handleOpenMarketIndex}
+          />
+          <TopBarFxCalculator
+            rate={usdKrwRate}
+            valuationDate={usdKrwValDate}
+            layout="rail"
           />
         </aside>
       </div>
