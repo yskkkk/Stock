@@ -501,11 +501,20 @@ export function recoverIdeDevQueueFromPersistedState() {
 
   let recovered = 0;
 
-  const tryRecover = (/** @type {string} */ prompt, /** @type {string | null} */ sessionId) => {
+  /**
+   * @param {string} prompt
+   * @param {string | null} sessionId
+   * @param {string} [requestIp]
+   */
+  const tryRecover = (prompt, sessionId, requestIp) => {
     const p = String(prompt ?? "").trim();
     if (!p || findActiveIdeSlotByPrompt(p)) return;
     try {
-      registerIdeDevQueueSlot({ prompt: p, sessionId });
+      registerIdeDevQueueSlot({
+        prompt: p,
+        sessionId,
+        ...(requestIp ? { requestIp } : {}),
+      });
       recovered += 1;
     } catch (e) {
       const code =
@@ -518,14 +527,16 @@ export function recoverIdeDevQueueFromPersistedState() {
     }
   };
 
-  // 1차: persist 파일 (SSOT) — web 슬롯은 SSE 연결이 없으므로 스킵
-  const { slots: persisted } = loadPersistedQueueSlots();
+  // 1차: persist 파일 (SSOT)
+  // runningId 슬롯은 서버 재시작으로 연결이 끊겨 고아 상태 — 복구하지 않음
+  const { slots: persisted, runningId } = loadPersistedQueueSlots();
   for (const ps of persisted) {
-    if (ps.source === "web") continue;
-    tryRecover(ps.prompt, ps.sessionId ?? null);
+    if (ps.source === "web") continue; // SSE 연결 없음
+    if (runningId && ps.id === runningId) continue; // 실행 중이었던 슬롯 = 고아
+    tryRecover(ps.prompt, ps.sessionId ?? null, ps.requestIp);
   }
 
-  // 2차 폴백: persist 파일이 없을 때 lease 파일
+  // 2차 폴백: persist 파일 없을 때 lease 파일
   if (recovered === 0) {
     const lease = readIdeLeaseDiskSync();
     if (lease) {
@@ -593,10 +604,6 @@ export function registerIdeDevQueueSlot(input) {
   });
   slots.push(slot);
   persistSlots();
-  const waitingEntry = {
-    ...metaToPersistEntry(queueMeta, "waiting"),
-    sessionId,
-  };
   try {
     syncIdeHistoryWaiting(slot);
   } catch {
