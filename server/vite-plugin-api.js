@@ -13,6 +13,7 @@ import {
 } from "./ops-server-lifecycle-notify.js";
 import { installAccessGateHtmlMiddleware } from "./vite-access-gate-html.js";
 import { registerViteIntegratedRestart } from "./restart-node-process.js";
+import { clearViteRestartMarker } from "./vite-restart-marker.js";
 import { installViteMobileApkMiddleware } from "./mobile-apk-download.js";
 import { installViteMobileIosMiddleware } from "./mobile-ios-download.js";
 
@@ -118,7 +119,13 @@ export function stockApiPlugin() {
     enforce: "pre",
     configureServer(server) {
       mergeStockProcessEnv(server.config.mode);
-      registerViteIntegratedRestart(() => server.restart());
+      clearViteRestartMarker();
+      registerViteIntegratedRestart(async () => {
+        const { markViteRestartStarting } = await import("./vite-restart-marker.js");
+        markViteRestartStarting();
+        await server.restart();
+        clearViteRestartMarker();
+      });
       const port = server.config.server?.port ?? 5173;
       const notifyStart = () =>
         notifyOpsServerStarted({ mode: "dev (Vite)", port });

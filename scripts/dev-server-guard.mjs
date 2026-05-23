@@ -1,15 +1,19 @@
 /**
- * Stock dev 서버 감시: `npm run dev`가 종료되었거나 HTTP 응답이 없으면 자동 재기동.
+ * Stock dev 서버 감시: `npm run dev`가 죽었거나 장시간 응답 없을 때만 자동 재기동.
+ *
+ * Vite `server.restart()`·짧은 API 끊김에는 프로세스를 건드리지 않는다.
  *
  * [사용]
  *   npm run dev:guard
- *   (이 터미널은 닫지 말고 두기 — 별도로 `npm run dev` 를 켤 필요 없음)
  *
  * 환경변수(선택):
  *   DEV_GUARD_INTERVAL_MS — 헬스체크 주기(ms). 기본 15000
- *   DEV_GUARD_MAX_FAILURES — 연속 실패 횟수 후 재시작. 기본 4
- *   DEV_GUARD_RESTART_COOLDOWN_MS — 재시작 간 최소 대기(ms). 기본 15000
- *   DEV_GUARD_STARTUP_GRACE_MS — 기동·Vite server.restart 직후 헬스체크 생략(ms). 기본 90000
+ *   DEV_GUARD_MAX_FAILURES — 프로세스 없을 때 연속 실패 후 재시작. 기본 3
+ *   DEV_GUARD_MAX_FAILURES_ALIVE — dev 살아 있을 때 연속 실패 후 재시작. 기본 12
+ *   DEV_GUARD_RESTART_COOLDOWN_MS — 재시작 간 최소 대기(ms). 기본 20000
+ *   DEV_GUARD_STARTUP_GRACE_MS — 기동 직후 헬스 생략(ms). 기본 90000
+ *   DEV_GUARD_EXIT_PROBE_MS — 종료 후 포트 확인 대기·간격. 기본 4000
+ *   DEV_GUARD_EXIT_PROBE_TRIES — 종료 후 확인 횟수. 기본 5
  *   VITE_DEV_PORT — dev 포트. 기본 5173
  */
 import { spawn } from "node:child_process";
@@ -17,15 +21,28 @@ import http from "node:http";
 import process from "node:process";
 import treeKill from "tree-kill";
 import { killProcessOnPort } from "../server/kill-tcp-port.js";
+import { isViteRestartRecent } from "../server/vite-restart-marker.js";
 
 const ROOT = process.cwd();
 const INTERVAL_MS = Number(process.env.DEV_GUARD_INTERVAL_MS) || 15_000;
 const PORT = Number(process.env.VITE_DEV_PORT) || 5173;
-const FAIL_THRESHOLD = Math.max(1, Number(process.env.DEV_GUARD_MAX_FAILURES) || 4);
-const COOLDOWN_MS = Number(process.env.DEV_GUARD_RESTART_COOLDOWN_MS) || 15_000;
+const FAIL_THRESHOLD_DEAD = Math.max(
+  1,
+  Number(process.env.DEV_GUARD_MAX_FAILURES) || 3,
+);
+const FAIL_THRESHOLD_ALIVE = Math.max(
+  FAIL_THRESHOLD_DEAD,
+  Number(process.env.DEV_GUARD_MAX_FAILURES_ALIVE) || 12,
+);
+const COOLDOWN_MS = Number(process.env.DEV_GUARD_RESTART_COOLDOWN_MS) || 20_000;
 const PROBE_TIMEOUT_MS = Number(process.env.DEV_GUARD_PROBE_TIMEOUT_MS) || 8_000;
 const STARTUP_GRACE_MS =
   Number(process.env.DEV_GUARD_STARTUP_GRACE_MS) || 90_000;
+const EXIT_PROBE_MS = Number(process.env.DEV_GUARD_EXIT_PROBE_MS) || 4_000;
+const EXIT_PROBE_TRIES = Math.max(
+  1,
+  Number(process.env.DEV_GUARD_EXIT_PROBE_TRIES) || 5,
+);
 
 let devProc = null;
 let shuttingDown = false;
@@ -35,6 +52,7 @@ let lastRestartAt = 0;
 let devStartedAt = 0;
 /** @type {ReturnType<typeof setTimeout> | null} */
 let exitRestartTimer = null;
+let exitRecoveryPending = false;
 
 function stopDev() {
   return new Promise((resolve) => {
@@ -80,12 +98,23 @@ function startDev() {
     scheduleRestartAfterExit(code, signal);
   });
   failStreak = 0;
+  exitRecoveryPending = false;
   devStartedAt = Date.now();
   console.log(`[dev:guard] npm run dev 기동 (pid ${devProc.pid})`);
 }
 
 function inStartupGrace() {
   return devStartedAt > 0 && Date.now() - devStartedAt < STARTUP_GRACE_MS;
+}
+
+function inViteRestartQuietPeriod() {
+  return isViteRestartRecent(
+    Number(process.env.DEV_GUARD_VITE_RESTART_QUIET_MS) || 120_000,
+  );
+}
+
+function failThresholdForCurrentState() {
+  return devProc?.pid ? FAIL_THRESHOLD_ALIVE : FAIL_THRESHOLD_DEAD;
 }
 
 function sleep(ms) {
@@ -114,6 +143,15 @@ function probeDevServer() {
   });
 }
 
+/** @returns {Promise<boolean>} */
+async function probeDevServerWithRetries(tries, gapMs) {
+  for (let i = 0; i < tries; i++) {
+    if (await probeDevServer()) return true;
+    if (i < tries - 1) await sleep(gapMs);
+  }
+  return false;
+}
+
 async function restartDev(reason) {
   if (shuttingDown || restarting) return;
   const since = Date.now() - lastRestartAt;
@@ -121,6 +159,14 @@ async function restartDev(reason) {
     console.log(
       `[dev:guard] 재시작 대기 중 (${Math.ceil((COOLDOWN_MS - since) / 1000)}초 남음) — ${reason}`,
     );
+    return;
+  }
+  if (await probeDevServer()) {
+    console.log(
+      `[dev:guard] 재기동 요청했으나 HTTP 응답 있음 — 생략 (${reason})`,
+    );
+    failStreak = 0;
+    exitRecoveryPending = false;
     return;
   }
   restarting = true;
@@ -141,18 +187,30 @@ function scheduleRestart(reason) {
   void restartDev(reason);
 }
 
-/** Vite server.restart() 등 짧은 종료·즉시 복구 시 불필요한 전체 재기동 방지 */
+/** 종료 직후: 여러 번 포트 확인 후에만 전체 재기동 */
 function scheduleRestartAfterExit(code, signal) {
   if (exitRestartTimer) clearTimeout(exitRestartTimer);
-  const waitMs = inStartupGrace() ? 12_000 : 8_000;
+  exitRecoveryPending = true;
+  const waitMs = inStartupGrace()
+    ? Math.max(EXIT_PROBE_MS * 2, 12_000)
+    : EXIT_PROBE_MS;
+
   exitRestartTimer = setTimeout(() => {
     exitRestartTimer = null;
-    if (shuttingDown || restarting || devProc?.pid) return;
     void (async () => {
-      const ok = await probeDevServer();
+      if (shuttingDown || restarting) return;
+      if (devProc?.pid) {
+        exitRecoveryPending = false;
+        return;
+      }
+      const ok = await probeDevServerWithRetries(
+        EXIT_PROBE_TRIES,
+        EXIT_PROBE_MS,
+      );
+      exitRecoveryPending = false;
       if (ok) {
         console.log(
-          "[dev:guard] 종료 직후에도 HTTP 응답 — Vite 내부 재시작으로 간주, 재기동 생략",
+          "[dev:guard] 프로세스는 종료됐지만 포트 응답 — 다른 인스턴스·복구로 간주, 재기동 생략",
         );
         failStreak = 0;
         return;
@@ -167,6 +225,7 @@ function scheduleRestartAfterExit(code, signal) {
 async function main() {
   const shutdown = async () => {
     shuttingDown = true;
+    if (exitRestartTimer) clearTimeout(exitRestartTimer);
     console.log("\n[dev:guard] 종료 중…");
     await stopDev();
     process.exit(0);
@@ -175,7 +234,8 @@ async function main() {
   process.on("SIGTERM", shutdown);
 
   console.log(
-    `[dev:guard] 포트 ${PORT} 감시 · ${INTERVAL_MS / 1000}초마다 확인 · Ctrl+C 로 종료`,
+    `[dev:guard] 포트 ${PORT} 감시 · ${INTERVAL_MS / 1000}초마다 확인 · ` +
+      `실패 ${FAIL_THRESHOLD_ALIVE}(alive)/${FAIL_THRESHOLD_DEAD}(dead) · Ctrl+C 종료`,
   );
   startDev();
 
@@ -183,8 +243,21 @@ async function main() {
     await sleep(INTERVAL_MS);
     if (shuttingDown || restarting) continue;
 
+    if (inViteRestartQuietPeriod()) {
+      failStreak = 0;
+      continue;
+    }
+
     if (!devProc?.pid) {
-      scheduleRestart("dev 프로세스 없음");
+      if (exitRecoveryPending) continue;
+      const ok = await probeDevServer();
+      if (ok) {
+        console.log(
+          "[dev:guard] child 없음·포트 응답 — 종료 복구 대기 중, 재기동 안 함",
+        );
+        continue;
+      }
+      scheduleRestartAfterExit("?", "no-child");
       continue;
     }
 
@@ -203,11 +276,19 @@ async function main() {
     }
 
     failStreak += 1;
+    const threshold = failThresholdForCurrentState();
     console.warn(
-      `[dev:guard] 헬스체크 실패 (${failStreak}/${FAIL_THRESHOLD}) http://127.0.0.1:${PORT}/api/access/status`,
+      `[dev:guard] 헬스체크 실패 (${failStreak}/${threshold}) ` +
+        `http://127.0.0.1:${PORT}/api/access/status` +
+        (devProc?.pid ? " · dev 프로세스는 살아 있음" : ""),
     );
-    if (failStreak >= FAIL_THRESHOLD) {
+    if (failStreak >= threshold) {
       failStreak = 0;
+      if (devProc?.pid) {
+        console.warn(
+          "[dev:guard] 프로세스는 살아 있으나 API 무응답 — 강제 재기동",
+        );
+      }
       scheduleRestart("연속 헬스체크 실패");
     }
   }

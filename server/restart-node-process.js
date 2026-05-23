@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { appendServerEventLog } from "./access-log.js";
+import { markViteRestartStarting } from "./vite-restart-marker.js";
 
 /** Vite `configureServer`에서 등록. 있으면 http close + process.exit 대신 Vite 재시작만 한다. */
 let viteIntegratedRestart = null;
@@ -25,6 +26,7 @@ export function isViteIntegratedRestartActive() {
 export async function restartNodeOrViteDev(httpServer) {
   if (isViteIntegratedRestartActive()) {
     try {
+      markViteRestartStarting();
       appendServerEventLog(
         "restart",
         "Vite integrated dev — server.restart() (no process exit)",
