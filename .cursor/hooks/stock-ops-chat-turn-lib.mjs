@@ -118,22 +118,24 @@ export function beginChatTurn(sessionId, userRequest) {
   const req = String(userRequest ?? "").trim();
   const prev = readTurnState();
   const sameSession = prev && String(prev.sessionId ?? "") === sid;
+  const prevReq = String(prev?.userRequest ?? "").trim();
+  /** 같은 세션에서도 사용자 메시지가 바뀌면 새 턴 — 이전 커밋·더티 트리로 오판하지 않음 */
+  const freshBaseline = !sameSession || (req && req !== prevReq);
   const state = {
     sessionId: sid,
-    userRequest: req || String(prev?.userRequest ?? ""),
-    gitHeadStart: sameSession
-      ? String(prev?.gitHeadStart ?? getGitHead())
-      : getGitHead(),
-    codeSigStart: sameSession
-      ? String(prev?.codeSigStart ?? getCodeStatusSignature())
-      : getCodeStatusSignature(),
-    hadCodeToolEdit: sameSession ? Boolean(prev?.hadCodeToolEdit) : false,
+    userRequest: req || prevReq,
+    gitHeadStart: freshBaseline
+      ? getGitHead()
+      : String(prev?.gitHeadStart ?? getGitHead()),
+    codeSigStart: freshBaseline
+      ? getCodeStatusSignature()
+      : String(prev?.codeSigStart ?? getCodeStatusSignature()),
+    hadCodeToolEdit: freshBaseline ? false : Boolean(prev?.hadCodeToolEdit),
     notified: false,
-    startedAtMs: sameSession
-      ? Number(prev?.startedAtMs) || Date.now()
-      : Date.now(),
+    startedAtMs: freshBaseline
+      ? Date.now()
+      : Number(prev?.startedAtMs) || Date.now(),
   };
-  if (req) state.userRequest = req;
   writeTurnState(state);
 }
 
@@ -238,14 +240,19 @@ export function evaluateChatNoCodeEnd() {
     return null;
   }
 
-  state.notified = true;
-  writeTurnState(state);
-
   return {
     shouldNotify: true,
     userRequest,
     sessionId: String(state.sessionId ?? ""),
   };
+}
+
+/** 무코드 텔레그램 API 성공 후에만 호출 */
+export function markChatTurnNotified() {
+  const state = readTurnState();
+  if (!state) return;
+  state.notified = true;
+  writeTurnState(state);
 }
 
 export function clearChatTurnState() {

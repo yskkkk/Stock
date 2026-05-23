@@ -6,7 +6,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getRepoHeadRev } from "./ops-agent-git-push.js";
-import { opsIdePromptFingerprint } from "./ops-ide-prompt-match.js";
+import {
+  opsIdePromptFingerprint,
+  opsIdePromptsMatch,
+} from "./ops-ide-prompt-match.js";
 import { readUserPromptForIdeSession } from "./ops-ide-transcript-text.js";
 import {
   escHtml,
@@ -103,10 +106,19 @@ export function shouldSkipIdeCompletionForChatTurn(userRequest) {
   if (process.env.STOCK_CHAT_NO_CODE_TELEGRAM === "0") return false;
   const state = loadChatTurnStateSync();
   if (!state) return false;
-  const req = opsIdePromptFingerprint(userRequest);
-  const turnReq = opsIdePromptFingerprint(String(state.userRequest ?? ""));
-  if (!req || !turnReq || req !== turnReq) return false;
+  if (!opsIdePromptsMatch(userRequest, state.userRequest)) return false;
   return !isCodeReflectedInChatTurn(state);
+}
+
+function markChatTurnNotifiedSync() {
+  const state = loadChatTurnStateSync();
+  if (!state) return;
+  state.notified = true;
+  try {
+    fs.writeFileSync(TURN_STATE_PATH, `${JSON.stringify(state)}\n`, "utf8");
+  } catch {
+    /* ignore */
+  }
 }
 
 /**
@@ -138,6 +150,12 @@ export async function sendChatNoCodeTelegram(opts) {
 
   const state = loadChatTurnStateSync();
   if (state && isCodeReflectedInChatTurn(state)) return false;
+  if (
+    state?.notified &&
+    opsIdePromptsMatch(userRequest, state.userRequest)
+  ) {
+    return false;
+  }
 
   const reqBlock =
     userRequest.length > 3500
@@ -157,6 +175,7 @@ export async function sendChatNoCodeTelegram(opts) {
     resolveOpsTelegramCreds(),
   );
   if (ok) {
+    markChatTurnNotifiedSync();
     console.info("[telegram:ops] chat ended without code changes");
   }
   return ok;

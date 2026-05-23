@@ -17,7 +17,10 @@ import {
   summarizeGitPullRangeForNotify,
   summarizeGitReflectionForNotify,
 } from "./ops-agent-git-push.js";
-import { shouldSkipIdeCompletionForChatTurn } from "./ops-chat-no-code-notify.js";
+import {
+  sendChatNoCodeTelegram,
+  shouldSkipIdeCompletionForChatTurn,
+} from "./ops-chat-no-code-notify.js";
 import { isOpsTelegramNotifyEnabled } from "./telegram-notify.js";
 
 /** @type {Map<string, number>} */
@@ -78,6 +81,10 @@ export function notifyIdeDevelopmentCompleted(opts) {
   if (!userRequest) return false;
 
   if (!opts.force && shouldSkipIdeCompletionForChatTurn(userRequest)) {
+    void sendChatNoCodeTelegram({
+      userRequest,
+      sessionId: opts.sessionId ?? null,
+    });
     return false;
   }
 

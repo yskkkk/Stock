@@ -11,6 +11,7 @@ import {
   beginChatTurn,
   enrichTurnUserRequestBeforeNotify,
   evaluateChatNoCodeEnd,
+  markChatTurnNotified,
 } from "./stock-ops-chat-turn-lib.mjs";
 
 async function notifyNoCodeTurn() {
@@ -35,7 +36,7 @@ async function notifyNoCodeTurn() {
   }
 
   try {
-    await postDevQueueApi(
+    const res = await postDevQueueApi(
       "/api/ops/chat-no-code-notify",
       {
         method: "POST",
@@ -48,8 +49,12 @@ async function notifyNoCodeTurn() {
       },
       { timeoutMs: 12_000 },
     );
+    if (res.ok) {
+      const body = await res.json().catch(() => ({}));
+      if (body?.sent) markChatTurnNotified();
+    }
   } catch {
-    /* dev 미기동 — 알림 생략 */
+    /* dev 미기동 — notified 미설정 → 다음 stop에서 재시도 가능 */
   }
 
   process.stdout.write("{}\n");
