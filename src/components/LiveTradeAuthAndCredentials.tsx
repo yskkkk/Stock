@@ -11,6 +11,10 @@ import {
   type UserCredentialMeta,
 } from "../api";
 import { ko } from "../i18n/ko";
+import {
+  validateAuthCredentials,
+  validateBithumbCredentialPair,
+} from "../lib/stock-input-validation";
 
 export function useLiveTradeAuth() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -61,6 +65,8 @@ function CredentialExchangeForm({
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [apiKeyErr, setApiKeyErr] = useState<string | null>(null);
+  const [secretKeyErr, setSecretKeyErr] = useState<string | null>(null);
 
   useEffect(() => {
     setLiveOrders(meta?.liveOrdersEnabled ?? false);
@@ -83,16 +89,24 @@ function CredentialExchangeForm({
     setBusy(true);
     setErr(null);
     setMsg(null);
+    setApiKeyErr(null);
+    setSecretKeyErr(null);
     try {
       if (!cryptoReady) {
         throw new Error(ko.app.liveTradeCredNoMasterKey);
       }
-      if (!apiKey.trim() && !meta?.configured) {
-        throw new Error("API Key가 필요합니다.");
+      const checked = validateBithumbCredentialPair(apiKey, secretKey, {
+        configured: Boolean(meta?.configured),
+      });
+      if (!checked.ok) {
+        if (checked.field === "API Key") setApiKeyErr(checked.error);
+        else if (checked.field === "Secret Key") setSecretKeyErr(checked.error);
+        else setErr(checked.error);
+        return;
       }
       await saveUserCredential(exchange, {
-        apiKey: apiKey.trim(),
-        secretKey: secretKey.trim() || undefined,
+        apiKey: checked.value.apiKey,
+        secretKey: checked.value.secretKey || undefined,
         liveOrdersEnabled: liveOrders,
       });
       setApiKey("");
@@ -122,10 +136,21 @@ function CredentialExchangeForm({
     setBusy(true);
     setErr(null);
     setMsg(null);
+    setApiKeyErr(null);
+    setSecretKeyErr(null);
     try {
+      const checked = validateBithumbCredentialPair(apiKey, secretKey, {
+        configured: false,
+      });
+      if (!checked.ok) {
+        if (checked.field === "API Key") setApiKeyErr(checked.error);
+        else if (checked.field === "Secret Key") setSecretKeyErr(checked.error);
+        else setErr(checked.error);
+        return;
+      }
       const out = await testUserCredential(exchange, {
-        apiKey: apiKey.trim() || undefined,
-        secretKey: secretKey.trim() || undefined,
+        apiKey: checked.value.apiKey,
+        secretKey: checked.value.secretKey,
       });
       setMsg(out.messageKo);
     } catch (e) {
@@ -153,8 +178,20 @@ function CredentialExchangeForm({
           autoComplete="off"
           placeholder={meta?.configured ? ko.app.liveTradeCredKeyPlaceholder : ""}
           value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
+          onChange={(e) => {
+            setApiKey(e.target.value);
+            if (apiKeyErr) setApiKeyErr(null);
+          }}
+          minLength={32}
+          maxLength={128}
+          spellCheck={false}
+          aria-invalid={apiKeyErr ? true : undefined}
         />
+        {apiKeyErr ? (
+          <p className="live-trading-tab__field-err" role="alert">
+            {apiKeyErr}
+          </p>
+        ) : null}
       </label>
       <label className="live-trading-tab__field live-trading-tab__field--full">
         <span className="live-trading-tab__label">Secret Key</span>
@@ -166,8 +203,20 @@ function CredentialExchangeForm({
             meta?.hasSecret ? ko.app.liveTradeCredSecretPlaceholder : ""
           }
           value={secretKey}
-          onChange={(e) => setSecretKey(e.target.value)}
+          onChange={(e) => {
+            setSecretKey(e.target.value);
+            if (secretKeyErr) setSecretKeyErr(null);
+          }}
+          minLength={32}
+          maxLength={128}
+          spellCheck={false}
+          aria-invalid={secretKeyErr ? true : undefined}
         />
+        {secretKeyErr ? (
+          <p className="live-trading-tab__field-err" role="alert">
+            {secretKeyErr}
+          </p>
+        ) : null}
       </label>
       <fieldset className="live-trading-tab__cred-mode">
         <legend className="live-trading-tab__label">
@@ -264,6 +313,8 @@ export default function LiveTradeAuthPanel({
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [emailErr, setEmailErr] = useState<string | null>(null);
+  const [passwordErr, setPasswordErr] = useState<string | null>(null);
 
   useEffect(() => {
     if (!registrationOpen && mode === "register") {
@@ -280,16 +331,29 @@ export default function LiveTradeAuthPanel({
     setEmail("");
     setPassword("");
     setErr(null);
+    setEmailErr(null);
+    setPasswordErr(null);
   };
 
   const submit = async () => {
     setBusy(true);
     setErr(null);
+    setEmailErr(null);
+    setPasswordErr(null);
     try {
+      const checked = validateAuthCredentials(email, password, {
+        register: mode === "register",
+      });
+      if (!checked.ok) {
+        if (checked.field === "이메일") setEmailErr(checked.error);
+        else if (checked.field === "비밀번호") setPasswordErr(checked.error);
+        else setErr(checked.error);
+        return;
+      }
       if (mode === "register") {
-        await registerAuth(email, password);
+        await registerAuth(checked.value.email, checked.value.password);
       } else {
-        await loginAuth(email, password);
+        await loginAuth(checked.value.email, checked.value.password);
       }
       onAuthChange();
     } catch (e) {
@@ -391,8 +455,19 @@ export default function LiveTradeAuthPanel({
             autoComplete="email"
             placeholder="name@example.com"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              if (emailErr) setEmailErr(null);
+            }}
+            maxLength={254}
+            spellCheck={false}
+            aria-invalid={emailErr ? true : undefined}
           />
+          {emailErr ? (
+            <p className="live-trading-tab__field-err" role="alert">
+              {emailErr}
+            </p>
+          ) : null}
         </label>
         <label className="live-trading-tab__field live-trading-tab__field--full">
           <span className="live-trading-tab__label">
@@ -405,8 +480,19 @@ export default function LiveTradeAuthPanel({
               mode === "register" ? "new-password" : "current-password"
             }
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              if (passwordErr) setPasswordErr(null);
+            }}
+            minLength={8}
+            maxLength={128}
+            aria-invalid={passwordErr ? true : undefined}
           />
+          {passwordErr ? (
+            <p className="live-trading-tab__field-err" role="alert">
+              {passwordErr}
+            </p>
+          ) : null}
         </label>
 
         {err ? (

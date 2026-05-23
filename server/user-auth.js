@@ -15,6 +15,10 @@ import {
   getSessionSync,
 } from "./user-sessions-store.js";
 import { migrateLegacyProgramsToUserSync } from "./live-trade-programs-store.js";
+import {
+  validateAuthCredentials,
+  validateAuthPassword,
+} from "./stock-input-validation.js";
 
 const COOKIE_NAME = "stock_session";
 const SCRYPT_N = 16384;
@@ -50,10 +54,11 @@ function verifyPassword(password, saltHex, expectedHash) {
  * @param {string} password
  */
 export function hashPassword(password) {
-  const pw = String(password ?? "");
-  if (pw.length < 8) {
-    throw new Error("비밀번호는 8자 이상이어야 합니다.");
+  const checked = validateAuthPassword(password, { register: true });
+  if (!checked.ok) {
+    throw new Error(checked.error);
   }
+  const pw = checked.value;
   const salt = crypto.randomBytes(16);
   const derived = crypto.scryptSync(pw, salt, SCRYPT_KEYLEN, {
     N: SCRYPT_N,
@@ -149,9 +154,17 @@ export function registerUserAuthRoutes(app) {
         });
         return;
       }
-      const email = normalizeUserEmail(req.body?.email);
-      const password = String(req.body?.password ?? "");
-      const { passwordHash, passwordSalt } = hashPassword(password);
+      const cred = validateAuthCredentials(
+        req.body?.email,
+        req.body?.password,
+        { register: true },
+      );
+      if (!cred.ok) {
+        res.status(400).json({ error: cred.error });
+        return;
+      }
+      const email = cred.value.email;
+      const { passwordHash, passwordSalt } = hashPassword(cred.value.password);
       const user = createUserSync({ email, passwordHash, passwordSalt });
       const session = createSessionSync(user.id);
       setSessionCookie(res, session.id);
@@ -169,8 +182,13 @@ export function registerUserAuthRoutes(app) {
 
   app.post("/api/auth/login", (req, res) => {
     try {
-      const email = normalizeUserEmail(req.body?.email);
-      const password = String(req.body?.password ?? "");
+      const cred = validateAuthCredentials(req.body?.email, req.body?.password);
+      if (!cred.ok) {
+        res.status(400).json({ error: cred.error });
+        return;
+      }
+      const email = cred.value.email;
+      const password = cred.value.password;
       const user = findUserByEmailSync(email);
       if (
         !user ||

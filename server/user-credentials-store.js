@@ -15,6 +15,7 @@ import {
   getBithumbTradingStatusFromCredentials,
 } from "./bithumb-trading-adapter.js";
 import { getTossTradingStatus } from "./toss-trading-adapter.js";
+import { validateBithumbCredentialPair } from "./stock-input-validation.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, ".data");
@@ -172,13 +173,30 @@ export function upsertUserCredentialSync(userId, exchange, input) {
   const ex = normalizeExchange(exchange);
   if (!uid || !ex) throw new Error("잘못된 요청입니다.");
 
-  const apiKey = String(input.apiKey ?? "").trim();
-
   const store = readStoreSync();
   const idx = store.credentials.findIndex(
     (c) => c.userId === uid && c.exchange === ex,
   );
   const prev = idx >= 0 ? store.credentials[idx] : null;
+
+  const keyIn = String(input.apiKey ?? "").trim();
+  const secIn = String(input.secretKey ?? "").trim();
+  const ordersOnly =
+    input.liveOrdersEnabled !== undefined && !keyIn && !secIn && prev?.apiKeyEncrypted;
+
+  let apiKey = keyIn;
+  let secretRaw = secIn;
+
+  if (!ordersOnly) {
+    const pairCheck = validateBithumbCredentialPair(keyIn, secIn, {
+      configured: Boolean(prev?.apiKeyEncrypted),
+    });
+    if (!pairCheck.ok) {
+      throw new Error(pairCheck.error);
+    }
+    apiKey = pairCheck.value.apiKey;
+    secretRaw = pairCheck.value.secretKey;
+  }
 
   const apiKeyEncrypted = apiKey
     ? encryptSecret(apiKey)
@@ -187,7 +205,6 @@ export function upsertUserCredentialSync(userId, exchange, input) {
     throw new Error("API Key가 필요합니다.");
   }
 
-  const secretRaw = String(input.secretKey ?? "").trim();
   const secretEncrypted =
     secretRaw.length > 0
       ? encryptSecret(secretRaw)
@@ -245,10 +262,18 @@ export async function testUserCredentialAsync(userId, exchange, inline = null) {
 
   if (ex === "bithumb") {
     let creds = null;
-    if (inline?.apiKey && inline?.secretKey) {
+    if (inline?.apiKey || inline?.secretKey) {
+      const pairCheck = validateBithumbCredentialPair(
+        inline?.apiKey ?? "",
+        inline?.secretKey ?? "",
+        { configured: false },
+      );
+      if (!pairCheck.ok) {
+        throw new Error(pairCheck.error);
+      }
       creds = {
-        apiKey: String(inline.apiKey).trim(),
-        secretKey: String(inline.secretKey).trim(),
+        apiKey: pairCheck.value.apiKey,
+        secretKey: pairCheck.value.secretKey,
         liveOrdersEnabled: false,
       };
     } else {

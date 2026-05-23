@@ -1031,6 +1031,17 @@ body {
   gap: 0.65rem;
 }
 
+.live-trading-tab__field-err {
+  margin: 0.15rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: #b91c1c;
+}
+
+.live-trading-tab__input[aria-invalid="true"] {
+  border-color: color-mix(in srgb, #ef4444 65%, var(--border, #e2e8f0));
+}
+
 .live-trading-tab__cred-mode {
   margin: 0.15rem 0 0;
   padding: 0;
