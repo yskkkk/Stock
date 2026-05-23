@@ -167,41 +167,70 @@ function Test-CheckerboardGrayPixel([System.Drawing.Color]$c) {
   return ($sat -le 40) -and ($lum -ge 88) -and ($lum -le 218)
 }
 
-function Test-WhiteMarkForegroundPixel([System.Drawing.Color]$c) {
+function Test-WhiteMarkFloodCell([System.Drawing.Color]$c) {
   if ($c.A -le 12) { return $false }
-  $r = $c.R; $g = $c.G; $b = $c.B
-  $max = [Math]::Max($r, [Math]::Max($g, $b))
-  $min = [Math]::Min($r, [Math]::Min($g, $b))
-  $sat = $max - $min
-  $lum = ($r + $g + $b) / 3.0
-  if ($lum -ge 222) { return $true }
   if (Test-CheckerboardGrayPixel $c) { return $false }
-  if ($sat -le 40 -and $lum -ge 200) { return $false }
-  return $lum -ge 118
+  $lum = ($c.R + $c.G + $c.B) / 3.0
+  if ($lum -lt 65) { return $false }
+  return $lum -ge 108
+}
+
+function Test-WhiteMarkSeedPixel([System.Drawing.Color]$c) {
+  if ($c.A -le 12) { return $false }
+  if (Test-CheckerboardGrayPixel $c) { return $false }
+  $lum = ($c.R + $c.G + $c.B) / 3.0
+  return ($lum -ge 90) -and ($lum -le 235)
 }
 
 function Prepare-WhiteMarkBitmap([System.Drawing.Bitmap]$bmp) {
   $w = [int]$bmp.Width
   $h = [int]$bmp.Height
-  $cx = ($w - 1) / 2.0
-  $cy = ($h - 1) / 2.0
-  $keepR = [Math]::Min($w, $h) * 0.44
-  $keepR2 = $keepR * $keepR
+  $cx = [int]($w / 2)
+  $cy = [int]($h / 2)
+  $seed = $null
+  $maxScan = [int]([Math]::Min($w, $h) * 0.38)
+  for ($rad = 0; $rad -le $maxScan; $rad++) {
+    for ($dy = -$rad; $dy -le $rad; $dy++) {
+      for ($dx = -$rad; $dx -le $rad; $dx++) {
+        if ([Math]::Abs($dx) -ne $rad -and [Math]::Abs($dy) -ne $rad) { continue }
+        $x = $cx + $dx
+        $y = $cy + $dy
+        if ($x -lt 0 -or $y -lt 0 -or $x -ge $w -or $y -ge $h) { continue }
+        if (Test-WhiteMarkSeedPixel ($bmp.GetPixel($x, $y))) {
+          $seed = @($x, $y)
+          break
+        }
+      }
+      if ($seed) { break }
+    }
+    if ($seed) { break }
+  }
+  if (-not $seed) { return }
+  $seen = New-Object 'bool[]' ($w * $h)
+  $q = New-Object System.Collections.Generic.Queue[object]
+  $sx = [int]$seed[0]
+  $sy = [int]$seed[1]
+  $q.Enqueue(@($sx, $sy))
+  $seen[$sy * $w + $sx] = $true
+  while ($q.Count -gt 0) {
+    $p = $q.Dequeue()
+    $x = [int]$p[0]
+    $y = [int]$p[1]
+    foreach ($d in @(@(-1, 0), @(1, 0), @(0, -1), @(0, 1))) {
+      $nx = $x + [int]$d[0]
+      $ny = $y + [int]$d[1]
+      if ($nx -lt 0 -or $ny -lt 0 -or $nx -ge $w -or $ny -ge $h) { continue }
+      $idx = $ny * $w + $nx
+      if ($seen[$idx]) { continue }
+      $nc = $bmp.GetPixel($nx, $ny)
+      if (-not (Test-WhiteMarkFloodCell $nc)) { continue }
+      $seen[$idx] = $true
+      $q.Enqueue(@($nx, $ny))
+    }
+  }
   for ($y = 0; $y -lt $h; $y++) {
     for ($x = 0; $x -lt $w; $x++) {
-      $c = $bmp.GetPixel($x, $y)
-      $dx = $x - $cx
-      $dy = $y - $cy
-      if (($dx * $dx + $dy * $dy) -gt $keepR2) {
-        $bmp.SetPixel($x, $y, [System.Drawing.Color]::FromArgb(0, 0, 0, 0))
-        continue
-      }
-      if (Test-CheckerboardGrayPixel $c) {
-        $bmp.SetPixel($x, $y, [System.Drawing.Color]::FromArgb(0, 0, 0, 0))
-        continue
-      }
-      $lum = ($c.R + $c.G + $c.B) / 3.0
-      if ($lum -lt 72) {
+      if (-not $seen[$y * $w + $x]) {
         $bmp.SetPixel($x, $y, [System.Drawing.Color]::FromArgb(0, 0, 0, 0))
       }
     }
@@ -289,3 +318,10 @@ fs.writeFileSync(ps1, psBody.trim() + "\n", "utf8");
 execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${ps1}"`, {
   stdio: "inherit",
 });
+if (whiteMark) {
+  const markOnly = path.join(root, "scripts", "gen-brand-mark-only.ps1");
+  execSync(
+    `powershell -NoProfile -ExecutionPolicy Bypass -File "${markOnly}"`,
+    { stdio: "inherit" },
+  );
+}

@@ -370,7 +370,7 @@ html[data-theme="light"] .top-bar__brand .brand-mark {
 }
 
 html[data-theme="light"] .top-bar__brand .brand-mark__img {
-  filter: drop-shadow(0 1px 3px rgba(15, 23, 42, 0.42));
+  filter: brightness(0) drop-shadow(0 1px 2px rgba(15, 23, 42, 0.2));
 }
 
 /* Pick signals — color by type */
