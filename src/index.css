@@ -7219,6 +7219,28 @@ html[data-theme="light"] .market-indices-rail__item {
   display: none;
   flex: 0 0 auto;
   width: 100%;
+  min-height: 0;
+}
+
+/* 좌측 열: 지수 목록 높이 절반·휠 스크롤 (환율 계산기 공간 확보) */
+.market-indices-rail--side .market-indices-rail__list {
+  max-height: 11.75rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+  padding-right: 0.12rem;
+}
+
+.market-indices-rail--side .market-indices-rail__list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.market-indices-rail--side .market-indices-rail__list::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: rgba(148, 163, 184, 0.4);
 }
 
 .app__viewport > .app__shell {

@@ -41,8 +41,8 @@ function formatShortTs(ms: number | null): string {
   return `${d.getMonth() + 1}.${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-function isActiveProgram(p: LiveTradeProgram): boolean {
-  return p.status === "armed" || p.status === "sim";
+function isArmedLiveProgram(p: LiveTradeProgram): boolean {
+  return p.status === "armed";
 }
 
 function LiveTradingLeftRailPanelInner({
@@ -76,14 +76,8 @@ function LiveTradingLeftRailPanelInner({
   const rows = useMemo(() => {
     const programs = status?.programs ?? [];
     return programs
-      .filter(isActiveProgram)
-      .sort((a, b) => {
-        const rank = (p: LiveTradeProgram) =>
-          p.status === "armed" ? 0 : p.status === "sim" ? 1 : 2;
-        const d = rank(a) - rank(b);
-        if (d !== 0) return d;
-        return a.name.localeCompare(b.name, "ko");
-      })
+      .filter(isArmedLiveProgram)
+      .sort((a, b) => a.name.localeCompare(b.name, "ko"))
       .map((p) => {
         const ret = status?.programReturns?.[p.id];
         const holdingCount = ret?.holdingCount ?? 0;
@@ -155,7 +149,7 @@ function LiveTradingLeftRailPanelInner({
                   </span>
                   <span className="live-trade-rail__row">
                     <span className="live-trade-rail__meta">
-                      {displayStatus === "armed" ? armedLaneLabel(p) : ko.app.liveTradeSimTag}
+                      {armedLaneLabel(p)}
                       {orderMode ? ` · ${orderMode}` : ""}
                     </span>
                     <span
