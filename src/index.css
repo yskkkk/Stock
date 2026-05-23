@@ -7028,10 +7028,13 @@ html[data-theme="light"] .market-indices-rail__item {
 }
 
 @media (min-width: 1180px) {
-  /* 2열: 좌(지수·환율 레일) | 우(본문) — 100% 줌에서 동일 너비 */
+  /* 3열: 좌 여백(레일) | 가운데 본문(최대 1680) | 우 여백(대칭) */
   .app__viewport {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns:
+      1fr
+      minmax(0, min(var(--app-page-max-width, 1680px), 100%))
+      1fr;
     column-gap: var(--app-left-rail-gap);
     align-items: start;
     justify-items: stretch;
@@ -7045,11 +7048,11 @@ html[data-theme="light"] .market-indices-rail__item {
   .app__left-column {
     grid-column: 1;
     grid-row: 1;
-    justify-self: stretch;
+    justify-self: end;
     position: relative;
-    width: 100%;
+    width: var(--app-left-rail-width);
     min-width: 0;
-    max-width: none;
+    max-width: 100%;
     align-self: start;
     display: flex;
     flex-direction: column;
@@ -7091,7 +7094,13 @@ html[data-theme="light"] .market-indices-rail__item {
   }
 
   .app__right-panel {
-    display: none;
+    display: block;
+    grid-column: 3;
+    grid-row: 1;
+    min-width: 0;
+    min-height: 1px;
+    align-self: stretch;
+    pointer-events: none;
   }
 
   .market-indices-rail--side {
