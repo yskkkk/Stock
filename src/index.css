@@ -7285,17 +7285,22 @@ html[data-theme="light"] .fx-calc-rail__mode-btn:hover {
 }
 
 .fx-calc-rail__input-wrap {
-  --fx-calc-input-h: 2.1rem;
-  display: flex;
-  align-items: stretch;
+  --fx-calc-input-h: 2.125rem;
+  display: block;
   width: 100%;
-  height: var(--fx-calc-input-h);
-  min-height: var(--fx-calc-input-h);
   border-radius: 9px;
   border: 1px solid color-mix(in srgb, var(--card-border) 88%, transparent);
   background: var(--bg-elevated, var(--card));
   box-sizing: border-box;
   overflow: hidden;
+}
+
+.fx-calc-rail__input-row {
+  display: table;
+  table-layout: fixed;
+  width: 100%;
+  height: var(--fx-calc-input-h);
+  border-collapse: collapse;
 }
 
 html[data-theme="light"] .fx-calc-rail__input-wrap {
@@ -7313,38 +7318,42 @@ html[data-theme="light"] .fx-calc-rail__input-wrap {
   text-align: right;
 }
 
-.fx-calc-rail__input-wrap .fx-calc-rail__input--suffixed {
-  flex: 1 1 auto;
-  min-width: 0;
-  width: auto;
-  height: 100%;
-  min-height: 0;
+.fx-calc-rail__input-row .fx-calc-rail__input--suffixed {
+  display: table-cell;
+  width: 100%;
+  height: var(--fx-calc-input-h);
   margin: 0;
-  padding: 0 0.32rem 0 0.42rem;
+  padding: 0 0.15rem 0 0.38rem;
   border: none;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+  outline: none;
+  font-family: "Segoe UI", Arial, Helvetica, sans-serif;
   font-size: 0.82rem;
   font-weight: 650;
-  line-height: var(--fx-calc-input-h);
+  line-height: normal;
   font-variant-numeric: tabular-nums;
   text-align: right;
+  vertical-align: middle;
   box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
-.fx-calc-rail__input-suffix {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  align-self: center;
+.fx-calc-rail__input-row .fx-calc-rail__input-suffix {
+  display: table-cell;
+  width: 1.75rem;
   height: var(--fx-calc-input-h);
-  padding: 0 0.4rem 0 0.14rem;
+  padding: 0 0.4rem 0 0.06rem;
+  font-family: "Segoe UI", Arial, Helvetica, sans-serif;
   font-size: 0.82rem;
-  font-weight: 700;
-  line-height: 1;
+  font-weight: 650;
+  line-height: normal;
   color: color-mix(in srgb, var(--muted) 88%, var(--text));
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
   user-select: none;
   box-sizing: border-box;
 }
