@@ -199,8 +199,19 @@ export default function LiveTradeAuthPanel({
   useEffect(() => {
     if (!registrationOpen && mode === "register") {
       setMode("login");
+      setEmail("");
+      setPassword("");
+      setErr(null);
     }
   }, [registrationOpen, mode]);
+
+  const switchMode = (next: "login" | "register") => {
+    if (next === mode) return;
+    setMode(next);
+    setEmail("");
+    setPassword("");
+    setErr(null);
+  };
 
   const submit = async () => {
     setBusy(true);
@@ -274,10 +285,7 @@ export default function LiveTradeAuthPanel({
             className={`live-trading-tab__segment-btn ${
               mode === "login" ? "live-trading-tab__segment-btn--on" : ""
             }`}
-            onClick={() => {
-              setMode("login");
-              setErr(null);
-            }}
+            onClick={() => switchMode("login")}
           >
             {ko.app.liveTradeAuthLogin}
           </button>
@@ -288,10 +296,7 @@ export default function LiveTradeAuthPanel({
             className={`live-trading-tab__segment-btn ${
               mode === "register" ? "live-trading-tab__segment-btn--on" : ""
             }`}
-            onClick={() => {
-              setMode("register");
-              setErr(null);
-            }}
+            onClick={() => switchMode("register")}
           >
             {ko.app.liveTradeAuthRegister}
           </button>
