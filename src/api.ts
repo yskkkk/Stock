@@ -844,11 +844,34 @@ export function saveUserCredential(
   );
 }
 
+export interface BithumbTestHolding {
+  currency: string;
+  symbol: string;
+  name: string;
+  quantity: number;
+  available: number;
+  locked: number;
+  avgBuyPrice: number | null;
+}
+
+export interface BithumbTestSnapshot {
+  krw: { available: number; locked: number; total: number };
+  holdings: BithumbTestHolding[];
+}
+
+export interface UserCredentialTestResult {
+  ok: boolean;
+  messageKo: string;
+  exchange?: string;
+  accountCount?: number;
+  bithumbSnapshot?: BithumbTestSnapshot;
+}
+
 export function testUserCredential(
   exchange: "bithumb" | "toss",
   body?: { apiKey?: string; secretKey?: string },
 ) {
-  return fetchJson<{ ok: boolean; messageKo: string }>(
+  return fetchJson<UserCredentialTestResult>(
     `/api/user/credentials/${encodeURIComponent(exchange)}/test`,
     {
       method: "POST",

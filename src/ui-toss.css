@@ -1081,6 +1081,103 @@ body {
   margin-top: 0.5rem;
 }
 
+.live-trading-tab__cred-test-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+  align-items: flex-start;
+  margin-top: 0.35rem;
+}
+
+.live-trading-tab__cred-test-msg {
+  flex: 0 1 auto;
+  margin: 0;
+  min-width: 8rem;
+}
+
+.live-trading-tab__cred-snapshot {
+  flex: 1 1 14rem;
+  min-width: 12rem;
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--card-border, rgba(148, 163, 184, 0.18));
+  background: var(--bg-elevated, rgba(15, 23, 42, 0.04));
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.live-trading-tab__cred-snapshot-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-dim, #64748b);
+}
+
+.live-trading-tab__cred-snapshot-title + .live-trading-tab__cred-snapshot-title {
+  margin-top: 0.55rem;
+}
+
+.live-trading-tab__cred-snapshot-krw {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+  gap: 0.35rem 0.75rem;
+  margin: 0;
+}
+
+.live-trading-tab__cred-snapshot-krw div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.live-trading-tab__cred-snapshot-krw dt {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--muted, #94a3b8);
+}
+
+.live-trading-tab__cred-snapshot-krw dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.live-trading-tab__cred-snapshot-empty {
+  margin: 0;
+  color: var(--muted, #94a3b8);
+}
+
+.live-trading-tab__cred-snapshot-holdings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.live-trading-tab__cred-snapshot-holdings li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.55rem;
+}
+
+.live-trading-tab__cred-snapshot-coin {
+  font-weight: 700;
+}
+
+.live-trading-tab__cred-snapshot-qty {
+  font-variant-numeric: tabular-nums;
+}
+
+.live-trading-tab__cred-snapshot-avg {
+  font-size: 0.7rem;
+  color: var(--text-dim, #64748b);
+}
+
 .live-trading-tab__api-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

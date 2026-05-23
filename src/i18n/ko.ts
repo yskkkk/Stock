@@ -199,6 +199,13 @@ export const ko = {
     liveTradeAuthRequired: "실매매 기능을 사용하려면 위에서 로그인하세요.",
     liveTradeCredSave: "API 저장",
     liveTradeCredTest: "연결 테스트",
+    liveTradeCredTestBalance: "계좌 잔액",
+    liveTradeCredTestKrwTotal: "원화 합계",
+    liveTradeCredTestKrwAvailable: "사용 가능",
+    liveTradeCredTestKrwLocked: "주문 중",
+    liveTradeCredTestHoldings: "보유 종목",
+    liveTradeCredTestNoHoldings: "보유 코인 없음",
+    liveTradeCredTestAvgBuy: "평단",
     liveTradeCredLiveOrders: "실주문 허용 (끄면 시뮬만)",
     liveTradeCredOrderModeTitle: "거래소 실주문",
     liveTradeCredOrderModeHint:

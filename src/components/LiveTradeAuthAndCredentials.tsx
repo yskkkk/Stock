@@ -8,13 +8,67 @@ import {
   saveUserCredential,
   testUserCredential,
   type AuthUser,
+  type BithumbTestSnapshot,
   type UserCredentialMeta,
 } from "../api";
 import { ko } from "../i18n/ko";
+import { formatLiveTradeQuantity, formatPrice } from "../lib/format";
 import {
   validateAuthCredentials,
   validateBithumbCredentialPair,
 } from "../lib/stock-input-validation";
+
+function BithumbTestSnapshotPanel({ snapshot }: { snapshot: BithumbTestSnapshot }) {
+  const { krw, holdings } = snapshot;
+  return (
+    <div className="live-trading-tab__cred-snapshot" aria-label={ko.app.liveTradeCredTestBalance}>
+      <p className="live-trading-tab__cred-snapshot-title">
+        {ko.app.liveTradeCredTestBalance}
+      </p>
+      <dl className="live-trading-tab__cred-snapshot-krw">
+        <div>
+          <dt>{ko.app.liveTradeCredTestKrwTotal}</dt>
+          <dd>{formatPrice(krw.total, "KRW")}</dd>
+        </div>
+        <div>
+          <dt>{ko.app.liveTradeCredTestKrwAvailable}</dt>
+          <dd>{formatPrice(krw.available, "KRW")}</dd>
+        </div>
+        {krw.locked > 0 ? (
+          <div>
+            <dt>{ko.app.liveTradeCredTestKrwLocked}</dt>
+            <dd>{formatPrice(krw.locked, "KRW")}</dd>
+          </div>
+        ) : null}
+      </dl>
+      <p className="live-trading-tab__cred-snapshot-title">
+        {ko.app.liveTradeCredTestHoldings}
+      </p>
+      {holdings.length === 0 ? (
+        <p className="live-trading-tab__cred-snapshot-empty">
+          {ko.app.liveTradeCredTestNoHoldings}
+        </p>
+      ) : (
+        <ul className="live-trading-tab__cred-snapshot-holdings">
+          {holdings.map((h) => (
+            <li key={h.currency}>
+              <span className="live-trading-tab__cred-snapshot-coin">{h.name}</span>
+              <span className="live-trading-tab__cred-snapshot-qty">
+                {formatLiveTradeQuantity(h.quantity, "crypto")}
+              </span>
+              {h.avgBuyPrice != null ? (
+                <span className="live-trading-tab__cred-snapshot-avg">
+                  {ko.app.liveTradeCredTestAvgBuy}{" "}
+                  {formatPrice(h.avgBuyPrice, "KRW")}
+                </span>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 export function useLiveTradeAuth() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -70,6 +124,7 @@ function CredentialExchangeForm({
   const [err, setErr] = useState<string | null>(null);
   const [apiKeyErr, setApiKeyErr] = useState<string | null>(null);
   const [secretKeyErr, setSecretKeyErr] = useState<string | null>(null);
+  const [testSnapshot, setTestSnapshot] = useState<BithumbTestSnapshot | null>(null);
 
   useEffect(() => {
     setLiveOrders(meta?.liveOrdersEnabled ?? false);
@@ -145,30 +200,34 @@ function CredentialExchangeForm({
     setBusy(true);
     setErr(null);
     setMsg(null);
+    setTestSnapshot(null);
     setApiKeyErr(null);
     setSecretKeyErr(null);
     try {
-      if (!apiKey.trim() && !secretKey.trim()) {
-        if (keysSaved) {
-          const out = await testUserCredential(exchange);
-          setMsg(out.messageKo);
+      const useStored =
+        !apiKey.trim() && !secretKey.trim() && keysSaved;
+      let out;
+      if (useStored) {
+        out = await testUserCredential(exchange);
+      } else {
+        const checked = validateBithumbCredentialPair(apiKey, secretKey, {
+          configured: keysSaved,
+        });
+        if (!checked.ok) {
+          if (checked.field === "API Key") setApiKeyErr(checked.error);
+          else if (checked.field === "Secret Key") setSecretKeyErr(checked.error);
+          else setErr(checked.error);
           return;
         }
+        out = await testUserCredential(exchange, {
+          apiKey: checked.value.apiKey,
+          secretKey: checked.value.secretKey,
+        });
       }
-      const checked = validateBithumbCredentialPair(apiKey, secretKey, {
-        configured: keysSaved,
-      });
-      if (!checked.ok) {
-        if (checked.field === "API Key") setApiKeyErr(checked.error);
-        else if (checked.field === "Secret Key") setSecretKeyErr(checked.error);
-        else setErr(checked.error);
-        return;
-      }
-      const out = await testUserCredential(exchange, {
-        apiKey: checked.value.apiKey,
-        secretKey: checked.value.secretKey,
-      });
       setMsg(out.messageKo);
+      if (exchange === "bithumb" && out.bithumbSnapshot) {
+        setTestSnapshot(out.bithumbSnapshot);
+      }
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -301,7 +360,16 @@ function CredentialExchangeForm({
           {ko.app.liveTradeCredSave}
         </button>
       </div>
-      {msg ? (
+      {(msg || testSnapshot) && exchange === "bithumb" ? (
+        <div className="live-trading-tab__cred-test-row">
+          {msg ? (
+            <p className="live-trading-tab__hint live-trading-tab__cred-test-msg" role="status">
+              {msg}
+            </p>
+          ) : null}
+          {testSnapshot ? <BithumbTestSnapshotPanel snapshot={testSnapshot} /> : null}
+        </div>
+      ) : msg ? (
         <p className="live-trading-tab__hint" role="status">
           {msg}
         </p>
