@@ -65,7 +65,8 @@ function TopBarFxCalculatorInner({
 
   const basisTitle =
     valuationDate != null && valuationDate !== ""
-      ? ko.app.quoteCurrencyFxBasis.replace("{date}", valuationDate)
+      ? (ko.app.quoteCurrencyFxBasis?.replace("{date}", valuationDate) ??
+        ko.app.topBarFxAria)
       : ko.app.topBarFxAria;
 
   const value =

@@ -55,7 +55,10 @@ function IndexRow({
       <button
         type="button"
         className="market-indices-rail__item market-indices-rail__item--clickable"
-        aria-label={ko.app.marketIndicesOpenChart.replace("{name}", item.label)}
+        aria-label={
+          ko.app.marketIndicesOpenChart?.replace("{name}", item.label) ??
+          item.label
+        }
         onClick={() => onOpen!(item)}
       >
         {body}
