@@ -2868,7 +2868,7 @@ body {
   margin-inline: auto;
   gap: 0;
   row-gap: 0.35rem;
-  font-size: 0.74rem;
+  font-size: 0.66rem;
   font-weight: 500;
   line-height: 1.45;
   color: color-mix(in srgb, var(--muted) 88%, var(--text) 12%);
@@ -2955,9 +2955,9 @@ body {
 }
 
 .app-site-footer__copy {
-  margin: 0.65rem 0 0;
+  margin: 0.55rem 0 0;
   text-align: center;
-  font-size: 0.68rem;
+  font-size: 0.6rem;
   font-weight: 500;
   line-height: 1.5;
   color: color-mix(in srgb, var(--muted) 72%, transparent);
@@ -3030,7 +3030,7 @@ html[data-theme="light"] .app-site-footer__link--active {
 
 @media (max-width: 560px) {
   .app-site-footer__nav {
-    font-size: 0.72rem;
+    font-size: 0.64rem;
     gap: 0.1rem;
   }
 }

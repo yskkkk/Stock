@@ -159,7 +159,7 @@ export default function AppSiteFooter({
         {accessAdmin ? (
           <>
             <Sep />
-            <ServerRestartButton linkClassName="app-site-footer__link" />
+            <ServerRestartButton linkClassName="app-site-footer__link" textLink />
           </>
         ) : null}
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { postAdminServerRestart } from "../api";
 import { ko } from "../i18n/ko";
 
@@ -6,8 +6,11 @@ type Phase = "idle" | "password";
 
 export default function ServerRestartButton({
   linkClassName = "app-page-top__corner-text app-server-restart-trigger",
+  textLink = false,
 }: {
   linkClassName?: string;
+  /** 푸터 등 — 버튼 크롬 없이 텍스트 링크처럼 */
+  textLink?: boolean;
 }) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [password, setPassword] = useState("");
@@ -104,15 +107,39 @@ export default function ServerRestartButton({
     );
   }
 
+  const openPassword = () => {
+    setPhase("password");
+    setError(null);
+  };
+
+  const onTextLinkKeyDown = (e: KeyboardEvent<HTMLSpanElement>) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      openPassword();
+    }
+  };
+
+  if (textLink) {
+    return (
+      <span
+        role="button"
+        tabIndex={0}
+        className={linkClassName}
+        title={ko.app.serverRestartTitle}
+        onClick={openPassword}
+        onKeyDown={onTextLinkKeyDown}
+      >
+        {ko.app.serverRestart}
+      </span>
+    );
+  }
+
   return (
     <button
       type="button"
       className={linkClassName}
       title={ko.app.serverRestartTitle}
-      onClick={() => {
-        setPhase("password");
-        setError(null);
-      }}
+      onClick={openPassword}
     >
       {ko.app.serverRestart}
     </button>
