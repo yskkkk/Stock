@@ -11,6 +11,7 @@ import { resolveLiveTradeQuote } from "./live-trade-quote.js";
 import { resolveLiveTradeExitTargets } from "./live-trade-exit-scenario.js";
 import { ROUND_TRIP_FEE_RATE } from "./net-return.js";
 import { getLiveTradeProgramSync } from "./live-trade-programs-store.js";
+import { listLiveTradeProgramsSync } from "./live-trade-programs-store.js";
 import {
   liveTradeCurrency,
   normalizeLiveTradeMarket,
@@ -83,7 +84,7 @@ export function programHasOnlySimulatedBuyTradesSync(programId) {
   return buys.every((t) => t.simulated);
 }
 
-function readStoreSync() {
+export function readStoreSync() {
   try {
     if (!fs.existsSync(PORTFOLIO_FILE)) return defaultStore();
     const o = JSON.parse(fs.readFileSync(PORTFOLIO_FILE, "utf8"));
@@ -186,7 +187,7 @@ function positionKey(programId, market, symbol) {
  * @param {LiveTradeRecord[]} trades
  * @param {string | null} programIdFilter
  */
-function buildPositionsFromTrades(trades, programIdFilter) {
+export function buildPositionsFromTrades(trades, programIdFilter) {
   /** @type {Map<string, {
    *   programId: string;
    *   symbol: string;
@@ -600,6 +601,11 @@ export async function buildProgramPortfolioSummariesMap(programIds) {
   for (const pid of ids) {
     if (!out[pid]) out[pid] = { totalReturnPct: null, holdingCount: 0 };
   }
+  const programs = listLiveTradeProgramsSync().filter((p) => ids.includes(p.id));
+  const { applyBithumbExchangeToProgramReturns } = await import(
+    "./live-trade-bithumb-holdings.js"
+  );
+  await applyBithumbExchangeToProgramReturns(out, programs);
   return out;
 }
 
@@ -717,7 +723,7 @@ export async function buildLiveTradePortfolioSnapshot(opts = {}) {
         ? (unrealizedPnl / investedOpen) * 100
         : null;
 
-  return {
+  const snap = {
     updatedAtMs: Date.now(),
     programId: programIdFilter,
     summary: {
@@ -733,4 +739,9 @@ export async function buildLiveTradePortfolioSnapshot(opts = {}) {
     holdings,
     trades: trades.slice(0, 200),
   };
+  const programs = listLiveTradeProgramsSync();
+  const { mergeBithumbExchangeHoldings } = await import(
+    "./live-trade-bithumb-holdings.js"
+  );
+  return mergeBithumbExchangeHoldings(snap, programs);
 }

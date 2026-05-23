@@ -155,6 +155,16 @@ async function bithumbPrivateRequest(method, path, bodyParams = null) {
 }
 
 /**
+ * 빗썸 전체 계좌 (보유 코인·원화). Private GET /v1/accounts
+ * @returns {Promise<Array<{ currency?: string; balance?: string; locked?: string; avg_buy_price?: string; unit_currency?: string }>>}
+ */
+export async function fetchBithumbAccounts() {
+  if (!isBithumbTradingReady()) return [];
+  const body = await bithumbPrivateRequest("GET", "/v1/accounts");
+  return Array.isArray(body) ? body : [];
+}
+
+/**
  * @param {import("./live-trade-programs-store.js").LiveTradeProgram} program
  * @param {object} pick
  * @returns {Promise<{ ok: boolean; simulated?: boolean; orderId?: string; error?: string }>}
