@@ -11,7 +11,7 @@
 #root > .app > .app__scroll > .app-site-footer span.app-site-footer__link,
 #root > .app > .app__scroll > .app-site-footer button.app-site-footer__link {
   font-family: "Segoe UI", Arial, Helvetica, sans-serif !important;
-  font-weight: 400 !important;
+  font-weight: 500 !important;
   font-style: normal !important;
   font-synthesis: none !important;
   font-variation-settings: normal !important;
@@ -20,37 +20,51 @@
   text-shadow: none !important;
 }
 
+#root > .app > .app__scroll > .app-site-footer,
+#root > .app > .app__scroll > .app-site-footer .app-site-footer__nav,
+#root > .app > .app__scroll > .app-site-footer .app-site-footer__copy,
+#root > .app > .app__scroll > .app-site-footer .app-site-footer__link,
+#root > .app > .app__scroll > .app-site-footer a.app-site-footer__link,
+#root > .app > .app__scroll > .app-site-footer span.app-site-footer__link {
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+}
+
 #root > .app > .app__scroll > .app-site-footer .app-site-footer__nav {
-  font-size: 11px !important;
-  line-height: 1.5 !important;
-  color: #a3a3a3 !important;
+  font-size: 11.5px !important;
+  line-height: 1.45 !important;
+  color: #8a8a8a !important;
 }
 
 #root > .app > .app__scroll > .app-site-footer .app-site-footer__copy {
-  font-size: 10px !important;
-  color: #ababab !important;
+  font-size: 10.5px !important;
+  color: #949494 !important;
 }
 
 #root > .app > .app__scroll > .app-site-footer .app-site-footer__link:hover,
 #root > .app > .app__scroll > .app-site-footer .app-site-footer__link:active,
 #root > .app > .app__scroll > .app-site-footer .app-site-footer__link--active {
-  font-weight: 400 !important;
+  font-weight: 500 !important;
   text-decoration: none !important;
 }
 
 html[data-theme="light"] #root > .app > .app__scroll > .app-site-footer .app-site-footer__nav {
+  color: #78716c !important;
+}
+
+html[data-theme="light"] #root > .app > .app__scroll > .app-site-footer .app-site-footer__copy {
   color: #a8a29e !important;
 }
 
 html[data-theme="light"] #root > .app > .app__scroll > .app-site-footer .app-site-footer__link:hover,
 html[data-theme="light"] #root > .app > .app__scroll > .app-site-footer .app-site-footer__link--active {
-  color: #78716c !important;
+  color: #57534e !important;
 }
 
 html[data-theme="light"] #root > .app > .app__scroll > .app-site-footer a.app-site-footer__link[href*="downloads"] {
-  color: #6b9bd1 !important;
+  color: #4a7fb8 !important;
 }
 
 html[data-theme="light"] #root > .app > .app__scroll > .app-site-footer a.app-site-footer__link[href*="install-ios"] {
-  color: #9b87c4 !important;
+  color: #7a62b0 !important;
 }

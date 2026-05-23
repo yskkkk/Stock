@@ -16,6 +16,7 @@ import {
 import BullishReasonModal from "./components/BullishReasonModal";
 import AccessAdminModal from "./components/AccessAdminModal";
 import AppSiteFooter from "./components/AppSiteFooter";
+import AppThemeCorner from "./components/AppThemeCorner";
 import FeedbackCorner, {
   type FeedbackCornerHandle,
   type FeedbackSubmitKind,
@@ -984,6 +985,19 @@ export default function App() {
               : "app"
       }
     >
+      <AppThemeCorner
+        colorMode={colorMode}
+        lightPalette={lightPalette}
+        onToggleColorMode={() => {
+          if (!ENABLE_THEME_MODE_TOGGLE) return;
+          setColorMode((m) => {
+            const next = m === "dark" ? "light" : "dark";
+            persistTheme(next);
+            return next;
+          });
+        }}
+        onLightPalette={handleLightPalette}
+      />
       <div className="app__scroll" ref={appScrollRef}>
       <div className="app__viewport">
       <aside ref={leftRailRef} className="app__left-rail" aria-label={ko.app.leftRailAria}>
@@ -1813,17 +1827,6 @@ export default function App() {
       <AppSiteFooter
         accessAdmin={accessAdmin}
         appTab={appTab}
-        colorMode={colorMode}
-        lightPalette={lightPalette}
-        onToggleColorMode={() => {
-          if (!ENABLE_THEME_MODE_TOGGLE) return;
-          setColorMode((m) => {
-            const next = m === "dark" ? "light" : "dark";
-            persistTheme(next);
-            return next;
-          });
-        }}
-        onLightPalette={handleLightPalette}
         onOpenOps={() => setAppTab("ops")}
         feedbackRef={feedbackRef}
         feedbackOpenKind={footerFeedbackKind}

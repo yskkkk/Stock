@@ -11,6 +11,7 @@ import "./ui-toss.css";
 import "./mobile-polish.css";
 import "./ui-nowrap-lines.css";
 import "./app-site-footer.css";
+import "./app-theme-corner.css";
 
 const App = lazy(() => import("./App"));
 const MobileServerGate = lazy(() => import("./components/MobileServerGate"));
