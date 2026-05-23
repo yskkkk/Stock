@@ -183,32 +183,25 @@ function Test-WhiteMarkForegroundPixel([System.Drawing.Color]$c) {
 function Prepare-WhiteMarkBitmap([System.Drawing.Bitmap]$bmp) {
   $w = [int]$bmp.Width
   $h = [int]$bmp.Height
-  $minX = $w; $minY = $h; $maxX = -1; $maxY = -1
+  $cx = ($w - 1) / 2.0
+  $cy = ($h - 1) / 2.0
+  $keepR = [Math]::Min($w, $h) * 0.44
+  $keepR2 = $keepR * $keepR
   for ($y = 0; $y -lt $h; $y++) {
     for ($x = 0; $x -lt $w; $x++) {
       $c = $bmp.GetPixel($x, $y)
-      if (-not (Test-WhiteMarkForegroundPixel $c)) { continue }
-      if ($x -lt $minX) { $minX = $x }
-      if ($y -lt $minY) { $minY = $y }
-      if ($x -gt $maxX) { $maxX = $x }
-      if ($y -gt $maxY) { $maxY = $y }
-    }
-  }
-  if ($maxX -lt $minX) { return }
-  $pad = [Math]::Max(2, [int]([Math]::Min($w, $h) * 0.02))
-  $minX = [Math]::Max(0, $minX - $pad)
-  $minY = [Math]::Max(0, $minY - $pad)
-  $maxX = [Math]::Min($w - 1, $maxX + $pad)
-  $maxY = [Math]::Min($h - 1, $maxY + $pad)
-  for ($y = 0; $y -lt $h; $y++) {
-    for ($x = 0; $x -lt $w; $x++) {
-      $c = $bmp.GetPixel($x, $y)
-      $outside = ($x -lt $minX) -or ($x -gt $maxX) -or ($y -lt $minY) -or ($y -gt $maxY)
-      if ($outside) {
+      $dx = $x - $cx
+      $dy = $y - $cy
+      if (($dx * $dx + $dy * $dy) -gt $keepR2) {
         $bmp.SetPixel($x, $y, [System.Drawing.Color]::FromArgb(0, 0, 0, 0))
         continue
       }
       if (Test-CheckerboardGrayPixel $c) {
+        $bmp.SetPixel($x, $y, [System.Drawing.Color]::FromArgb(0, 0, 0, 0))
+        continue
+      }
+      $lum = ($c.R + $c.G + $c.B) / 3.0
+      if ($lum -lt 72) {
         $bmp.SetPixel($x, $y, [System.Drawing.Color]::FromArgb(0, 0, 0, 0))
       }
     }
