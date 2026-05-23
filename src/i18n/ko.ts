@@ -25,6 +25,8 @@ export const ko = {
     themeToggleAria: "다크 모드와 화이트 모드 전환",
     themeUseLight: "화이트 모드",
     themeUseDark: "다크 모드",
+    themeSwitchToLight: "화이트모드전환",
+    themeSwitchToDark: "다크모드 전환",
     themeToggleDisabledAria: "화면 테마 전환 (일시 비활성화)",
     themeToggleDisabledHint: "테마 전환이 일시적으로 비활성화되었습니다",
     lightPaletteAria: "화이트 모드 색조 선택",

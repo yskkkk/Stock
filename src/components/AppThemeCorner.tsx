@@ -28,6 +28,9 @@ export default function AppThemeCorner({
         ? ko.app.themeUseLight
         : ko.app.themeUseDark;
 
+  const themeLabel =
+    colorMode === "dark" ? ko.app.themeSwitchToLight : ko.app.themeSwitchToDark;
+
   const onModeKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
     if (!ENABLE_THEME_MODE_TOGGLE) return;
     if (e.key === "Enter" || e.key === " ") {
@@ -46,13 +49,13 @@ export default function AppThemeCorner({
         type="button"
         className="app-theme-corner__mode"
         title={themeTitle}
-        aria-label={ko.app.themeToggleAria}
+        aria-label={themeTitle}
         disabled={!ENABLE_THEME_MODE_TOGGLE}
         aria-pressed={colorMode === "light"}
         onClick={onToggleColorMode}
         onKeyDown={onModeKeyDown}
       >
-        {ko.app.footerTheme}
+        {themeLabel}
         <span className="app-theme-corner__mode-icon" aria-hidden>
           {colorMode === "dark" ? "\u2600" : "\u263E"}
         </span>
