@@ -1806,7 +1806,6 @@ export default function App() {
       />
       </div>
       </div>
-      </div>
 
       <AppSiteFooter
         accessAdmin={accessAdmin}
@@ -1826,6 +1825,7 @@ export default function App() {
         feedbackRef={feedbackRef}
         feedbackOpenKind={footerFeedbackKind}
       />
+      </div>
     </div>
   );
 }

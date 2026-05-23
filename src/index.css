@@ -6763,7 +6763,7 @@ body {
 }
 
 #root > .app .app__viewport > .app__shell,
-#root > .app > .app-site-footer {
+#root > .app > .app__scroll > .app-site-footer {
   max-width: var(--app-page-max-width, 1400px);
   margin-left: auto;
   margin-right: auto;
@@ -6776,8 +6776,8 @@ body {
 }
 
 .app__viewport {
-  --app-left-rail-width: 14.5rem;
-  --app-left-rail-gap: 0.55rem;
+  --app-left-rail-width: 15rem;
+  --app-left-rail-gap: 0.25rem;
   display: flex;
   flex-direction: row;
   align-items: flex-start;
@@ -6790,7 +6790,8 @@ body {
 .app__left-rail {
   display: none;
   flex: none;
-  width: var(--app-left-rail-width);
+  width: auto;
+  min-width: var(--app-left-rail-width);
   flex-direction: column;
   gap: 0.45rem;
   order: 1;
@@ -6817,7 +6818,7 @@ body {
   border-radius: var(--radius-sm);
   border: 1px solid rgba(148, 163, 184, 0.14);
   background: rgba(148, 163, 184, 0.05);
-  padding: 0.5rem 0.55rem 0.55rem;
+  padding: 0.52rem 0.62rem 0.58rem;
 }
 
 html[data-theme="light"] .market-indices-rail {
@@ -6999,14 +7000,11 @@ html[data-theme="light"] .market-indices-rail__item {
     display: flex;
     position: absolute;
     top: max(0.35rem, env(safe-area-inset-top, 0px));
-    left: max(
-      0.5rem,
-      calc(
-        (100% - min(100%, var(--app-page-max-width, 1400px))) * 0.5
-        - var(--app-left-rail-gap)
-        - var(--app-left-rail-width)
-      )
+    left: max(0.5rem, env(safe-area-inset-left, 0px));
+    right: calc(
+      50% + min(100%, var(--app-page-max-width, 1400px)) * 0.5 + var(--app-left-rail-gap)
     );
+    width: auto;
     z-index: 2;
   }
 
@@ -7060,7 +7058,7 @@ html[data-theme="light"] .market-indices-rail__item {
   border-radius: var(--radius-sm);
   border: 1px solid rgba(148, 163, 184, 0.14);
   background: rgba(148, 163, 184, 0.05);
-  padding: 0.5rem 0.55rem 0.55rem;
+  padding: 0.52rem 0.62rem 0.58rem;
 }
 
 html[data-theme="light"] .fx-calc-rail {
