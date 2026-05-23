@@ -196,6 +196,12 @@ export default function LiveTradeAuthPanel({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!registrationOpen && mode === "register") {
+      setMode("login");
+    }
+  }, [registrationOpen, mode]);
+
   const submit = async () => {
     setBusy(true);
     setErr(null);
@@ -215,79 +221,141 @@ export default function LiveTradeAuthPanel({
 
   if (user) {
     return (
-      <section className="live-trading-tab__auth card" aria-live="polite">
-        <p className="live-trading-tab__auth-user">
-          {ko.app.liveTradeAuthSignedIn}{" "}
-          <strong>{user.email}</strong>
-        </p>
-        <button
-          type="button"
-          className="btn btn--secondary btn--sm"
-          onClick={() => void logoutAuth().then(onAuthChange)}
-        >
-          {ko.app.liveTradeAuthLogout}
-        </button>
+      <section
+        className="live-trading-tab__auth card live-trading-tab__auth--signed"
+        aria-live="polite"
+      >
+        <div className="live-trading-tab__auth-signed">
+          <div className="live-trading-tab__auth-signed-main">
+            <span className="live-trading-tab__auth-avatar" aria-hidden>
+              {user.email.slice(0, 1).toUpperCase()}
+            </span>
+            <div>
+              <p className="live-trading-tab__auth-signed-label">
+                {ko.app.liveTradeAuthSignedIn}
+              </p>
+              <p className="live-trading-tab__auth-signed-email">{user.email}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm live-trading-tab__auth-logout"
+            onClick={() => void logoutAuth().then(onAuthChange)}
+          >
+            {ko.app.liveTradeAuthLogout}
+          </button>
+        </div>
       </section>
     );
   }
 
+  const showRegister = registrationOpen;
+
   return (
-    <section className="live-trading-tab__auth card" aria-label={ko.app.liveTradeAuthTitle}>
-      <h3 className="live-trading-tab__section-title">{ko.app.liveTradeAuthTitle}</h3>
-      <p className="live-trading-tab__hint">{ko.app.liveTradeAuthHint}</p>
-      <div className="live-trading-tab__auth-tabs">
-        <button
-          type="button"
-          className={`btn btn--sm ${mode === "login" ? "btn--primary" : "btn--secondary"}`}
-          onClick={() => setMode("login")}
+    <section
+      className="live-trading-tab__auth card"
+      aria-label={ko.app.liveTradeAuthTitle}
+    >
+      <header className="live-trading-tab__auth-head">
+        <h3 className="live-trading-tab__auth-title">{ko.app.liveTradeAuthTitle}</h3>
+        <p className="live-trading-tab__auth-lead">{ko.app.liveTradeAuthHint}</p>
+      </header>
+
+      {showRegister ? (
+        <div
+          className="live-trading-tab__segment live-trading-tab__auth-segment"
+          role="tablist"
+          aria-label={ko.app.liveTradeAuthTitle}
         >
-          {ko.app.liveTradeAuthLogin}
-        </button>
-        {registrationOpen ? (
           <button
             type="button"
-            className={`btn btn--sm ${mode === "register" ? "btn--primary" : "btn--secondary"}`}
-            onClick={() => setMode("register")}
+            role="tab"
+            aria-selected={mode === "login"}
+            className={`live-trading-tab__segment-btn ${
+              mode === "login" ? "live-trading-tab__segment-btn--on" : ""
+            }`}
+            onClick={() => {
+              setMode("login");
+              setErr(null);
+            }}
+          >
+            {ko.app.liveTradeAuthLogin}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === "register"}
+            className={`live-trading-tab__segment-btn ${
+              mode === "register" ? "live-trading-tab__segment-btn--on" : ""
+            }`}
+            onClick={() => {
+              setMode("register");
+              setErr(null);
+            }}
           >
             {ko.app.liveTradeAuthRegister}
           </button>
-        ) : null}
-      </div>
-      <label className="live-trading-tab__field live-trading-tab__field--full">
-        <span className="live-trading-tab__label">{ko.app.liveTradeAuthEmail}</span>
-        <input
-          type="email"
-          className="input live-trading-tab__input"
-          autoComplete="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-      </label>
-      <label className="live-trading-tab__field live-trading-tab__field--full">
-        <span className="live-trading-tab__label">{ko.app.liveTradeAuthPassword}</span>
-        <input
-          type="password"
-          className="input live-trading-tab__input"
-          autoComplete={mode === "register" ? "new-password" : "current-password"}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-      </label>
-      <button
-        type="button"
-        className="btn btn--primary"
-        disabled={busy}
-        onClick={() => void submit()}
-      >
-        {mode === "register"
-          ? ko.app.liveTradeAuthRegisterSubmit
-          : ko.app.liveTradeAuthLoginSubmit}
-      </button>
-      {err ? (
-        <div className="alert alert--error" role="alert">
-          {err}
         </div>
-      ) : null}
+      ) : (
+        <p className="live-trading-tab__auth-notice" role="status">
+          {ko.app.liveTradeAuthRegistrationClosed}
+        </p>
+      )}
+
+      <form
+        className="live-trading-tab__auth-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void submit();
+        }}
+      >
+        <label className="live-trading-tab__field live-trading-tab__field--full">
+          <span className="live-trading-tab__label">{ko.app.liveTradeAuthEmail}</span>
+          <input
+            type="email"
+            className="input live-trading-tab__input"
+            autoComplete="email"
+            placeholder="name@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </label>
+        <label className="live-trading-tab__field live-trading-tab__field--full">
+          <span className="live-trading-tab__label">
+            {ko.app.liveTradeAuthPassword}
+          </span>
+          <input
+            type="password"
+            className="input live-trading-tab__input"
+            autoComplete={
+              mode === "register" ? "new-password" : "current-password"
+            }
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </label>
+
+        {err ? (
+          <div
+            className="live-trading-tab__auth-alert"
+            role="alert"
+          >
+            {err}
+          </div>
+        ) : null}
+
+        <button
+          type="submit"
+          className="btn btn--primary live-trading-tab__auth-submit"
+          disabled={busy || (mode === "register" && !showRegister)}
+        >
+          {busy
+            ? "…"
+            : mode === "register"
+              ? ko.app.liveTradeAuthRegisterSubmit
+              : ko.app.liveTradeAuthLoginSubmit}
+        </button>
+      </form>
     </section>
   );
 }

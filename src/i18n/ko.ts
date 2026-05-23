@@ -185,7 +185,9 @@ export const ko = {
     liveTradeTossSim: "시뮬레이션",
     liveTradeAuthTitle: "실매매 로그인",
     liveTradeAuthHint:
-      "개인 빗썸·토스 API로만 주문합니다. 이메일·비밀번으로 계정을 만든 뒤 연동하세요.",
+      "개인 빗썸·토스 API로만 주문합니다. 이메일·비밀번호로 계정을 만든 뒤 연동하세요.",
+    liveTradeAuthRegistrationClosed:
+      "신규 회원가입은 현재 중단되어 있습니다. 계정이 있으면 로그인하세요.",
     liveTradeAuthLogin: "로그인",
     liveTradeAuthRegister: "회원가입",
     liveTradeAuthEmail: "이메일",

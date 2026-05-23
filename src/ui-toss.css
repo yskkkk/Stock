@@ -465,6 +465,7 @@ body {
 
   .live-trading-tab > .card,
   .live-trading-tab__head.card,
+  .live-trading-tab__auth.card,
   .live-trading-tab__form.card,
   .live-trading-tab__list.card,
   .live-trading-tab__toss.card,
@@ -473,6 +474,10 @@ body {
   .live-sim-run.card {
     padding: 0.75rem 0.8rem;
     border-radius: 12px;
+  }
+
+  .live-trading-tab__auth {
+    max-width: none;
   }
 
   .live-sim.card {
@@ -755,6 +760,7 @@ body {
 @media (max-width: 560px) {
   .live-trading-tab > .card,
   .live-trading-tab__head.card,
+  .live-trading-tab__auth.card,
   .live-trading-tab__form.card,
   .live-trading-tab__list.card,
   .live-trading-tab__toss.card,
@@ -894,22 +900,127 @@ body {
 
 .live-trading-tab__auth {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  margin-bottom: 0.75rem;
+  padding: 1rem 1.15rem 1.1rem;
+  max-width: 28rem;
+  border-left: 3px solid color-mix(in srgb, var(--accent, #2563eb) 55%, transparent);
+}
+
+.live-trading-tab__auth-head {
+  margin-bottom: 0.85rem;
+}
+
+.live-trading-tab__auth-title {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.live-trading-tab__auth-lead {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--text-muted, #6b7280);
+}
+
+.live-trading-tab__auth-segment {
+  margin-bottom: 0.85rem;
+  width: 100%;
+}
+
+.live-trading-tab__auth-notice {
+  margin: 0 0 0.85rem;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text-muted, #64748b);
+  background: color-mix(in srgb, var(--surface, #f8fafc) 88%, #f59e0b 12%);
+  border: 1px solid color-mix(in srgb, #f59e0b 35%, var(--border, #e2e8f0));
+  border-radius: 10px;
+}
+
+.live-trading-tab__auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.live-trading-tab__auth-alert {
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: #b91c1c;
+  background: color-mix(in srgb, #fef2f2 92%, transparent);
+  border: 1px solid color-mix(in srgb, #fecaca 80%, transparent);
+  border-radius: 10px;
+}
+
+.live-trading-tab__auth-submit {
+  width: 100%;
+  min-height: 2.55rem;
+  margin-top: 0.15rem;
+  font-weight: 650;
+}
+
+.live-trading-tab__auth--signed {
+  max-width: none;
+  border-left-color: #22c55e;
+}
+
+.live-trading-tab__auth-signed {
+  display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
   gap: 0.75rem 1rem;
-  margin-bottom: 0.75rem;
-}
-
-.live-trading-tab__auth-user {
-  margin: 0;
-  flex: 1 1 auto;
-}
-
-.live-trading-tab__auth-tabs {
-  display: flex;
-  gap: 0.35rem;
-  margin-bottom: 0.5rem;
   width: 100%;
+}
+
+.live-trading-tab__auth-signed-main {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.live-trading-tab__auth-avatar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent, #2563eb);
+  background: color-mix(in srgb, var(--accent, #2563eb) 14%, var(--card, #fff));
+  border: 1px solid color-mix(in srgb, var(--accent, #2563eb) 28%, transparent);
+}
+
+.live-trading-tab__auth-signed-label {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted, #6b7280);
+}
+
+.live-trading-tab__auth-signed-email {
+  margin: 0.1rem 0 0;
+  font-size: 0.92rem;
+  font-weight: 650;
+  word-break: break-all;
+}
+
+.live-trading-tab__auth-logout {
+  flex-shrink: 0;
 }
 
 .live-trading-tab__cred-form {
