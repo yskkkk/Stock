@@ -2844,13 +2844,16 @@ body {
   padding: 1.1rem 1.35rem max(0.65rem, env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--card-border, rgba(148, 163, 184, 0.14));
   background: color-mix(in srgb, var(--bg) 94%, var(--muted) 6%);
+  text-align: center;
 }
 
 .app-site-footer__nav {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
+  max-width: 100%;
+  margin-inline: auto;
   gap: 0;
   row-gap: 0.35rem;
   font-size: 0.74rem;
