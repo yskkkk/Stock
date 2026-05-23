@@ -11,8 +11,8 @@ const dest = path.join(root, ".claude", "hooks", "queue-release.mjs");
 
 const content = `/**
  * Stop hook: 큐 슬롯 해제 + auto-git-sync 재개.
- * git push 이후 Stop이 발생하므로 push 완료 후 해제가 보장됨.
- * leaseId 해제 실패 시 release-active 폴백으로 stale 슬롯 방지.
+ * 1차: leaseId로 정확한 해제
+ * 2차: 항상 release-active 호출 — running·waiting 고아 슬롯 일괄 정리
  */
 import http from "node:http";
 import fs from "node:fs";
@@ -23,16 +23,13 @@ const PAUSE_FILE = path.join(process.cwd(), ".auto-git-sync.pause");
 const IDE_LEASE_FILE = path.join(process.cwd(), ".stock-ops-ide-lease.json");
 const PORT = Number(process.env.PORT) || 5173;
 
-// pause 파일 즉시 제거 (git push 완료 후이므로 pull 허용)
 try { fs.unlinkSync(PAUSE_FILE); } catch {}
 
 let leaseId = "";
 try { leaseId = fs.readFileSync(LEASE_FILE, "utf8").trim(); } catch {}
 
-// IDE lease 파일 정리
 try { fs.unlinkSync(IDE_LEASE_FILE); } catch {}
-
-if (!leaseId) process.exit(0);
+try { fs.unlinkSync(LEASE_FILE); } catch {}
 
 function postJson(pathname, body, cb) {
   const b = JSON.stringify(body);
@@ -48,13 +45,18 @@ function postJson(pathname, body, cb) {
   req.end();
 }
 
-// 1차: leaseId로 정확한 해제
-postJson("/api/ops/dev-queue/claude-code/release", { leaseId }, (err) => {
-  try { fs.unlinkSync(LEASE_FILE); } catch {}
-  if (!err) { process.exit(0); }
-  // 2차 폴백: 실행 중인 슬롯 전체 해제 (stale 방지)
+// 1차: leaseId로 정확한 해제 (pending이면 서버에 슬롯 없으므로 바로 2차로)
+const doReleaseActive = () =>
   postJson("/api/ops/dev-queue/ide/release-active", {}, () => process.exit(0));
-});
+
+if (!leaseId || leaseId === "pending") {
+  doReleaseActive();
+} else {
+  postJson("/api/ops/dev-queue/claude-code/release", { leaseId }, () => {
+    // 성공·실패 무관하게 항상 release-active로 고아 슬롯까지 정리
+    doReleaseActive();
+  });
+}
 `;
 
 fs.writeFileSync(dest, content, "utf8");

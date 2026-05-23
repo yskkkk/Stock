@@ -1,4 +1,15 @@
 /**
+ * 일회성 셋업: .claude/hooks/queue-acquire.mjs 생성
+ * 사용: node scripts/create-queue-acquire-hook.mjs
+ */
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const dest = path.join(root, ".claude", "hooks", "queue-acquire.mjs");
+
+const content = `/**
  * PreToolUse hook: 쓰기 도구 최초 사용 시 개발 큐 등록 후 차례까지 대기.
  * - lease 파일이 있으면 스킵 (동일 턴 재진입 방지)
  * - HTTP 전에 placeholder 기록 → 훅 타임아웃 시에도 중복 등록 없음
@@ -68,7 +79,7 @@ const req = http.request(
               queueStatus: "running",
               instructionPreview: prompt,
               requestIp: "claude-code",
-            }, null, 2) + "\n",
+            }, null, 2) + "\\n",
             "utf8",
           );
         }
@@ -86,3 +97,8 @@ req.on("error", () => {
 req.on("timeout", () => { try { req.destroy(); } catch {} });
 req.write(body);
 req.end();
+`;
+
+fs.mkdirSync(path.join(root, ".claude", "hooks"), { recursive: true });
+fs.writeFileSync(dest, content, "utf8");
+console.log("완료:", dest);
