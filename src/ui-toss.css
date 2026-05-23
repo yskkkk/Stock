@@ -2874,8 +2874,8 @@ body {
   justify-content: center;
   max-width: 100%;
   margin-inline: auto;
-  gap: 0;
-  row-gap: 0.3rem;
+  gap: 0.35rem 0.62rem;
+  row-gap: 0.35rem;
   font-family: inherit;
   font-size: 0.5rem;
   font-weight: 200;
@@ -2923,9 +2923,14 @@ body {
   font-weight: 200;
 }
 
+.app-site-footer__link:visited {
+  color: inherit;
+  font-weight: inherit;
+}
+
 .app-site-footer__link:active {
-  color: var(--text);
-  font-weight: 200;
+  color: inherit;
+  font-weight: inherit;
 }
 
 .app-site-footer__link:focus-visible {
@@ -3014,7 +3019,19 @@ html[data-theme="light"] .app-site-footer__nav a.app-site-footer__link[href*="do
   font-weight: 200;
 }
 
+html[data-theme="light"] .app-site-footer__nav a.app-site-footer__link[href*="downloads"]:visited,
+html[data-theme="light"] .app-site-footer__nav a.app-site-footer__link[href*="downloads"]:active {
+  color: #5b8fd4;
+  font-weight: 200;
+}
+
 html[data-theme="light"] .app-site-footer__nav a.app-site-footer__link[href*="install-ios"] {
+  color: #8b6cc7;
+  font-weight: 200;
+}
+
+html[data-theme="light"] .app-site-footer__nav a.app-site-footer__link[href*="install-ios"]:visited,
+html[data-theme="light"] .app-site-footer__nav a.app-site-footer__link[href*="install-ios"]:active {
   color: #8b6cc7;
   font-weight: 200;
 }

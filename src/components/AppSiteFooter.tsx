@@ -22,14 +22,6 @@ type AppSiteFooterProps = {
   feedbackOpenKind?: "inquiry" | "issue" | null;
 };
 
-function Sep() {
-  return (
-    <span className="app-site-footer__sep" aria-hidden>
-      |
-    </span>
-  );
-}
-
 function FooterLink({
   children,
   onClick,
@@ -94,12 +86,9 @@ export default function AppSiteFooter({
     <footer className="app-site-footer" style={FOOTER_TEXT} aria-label={ko.app.siteFooterAria}>
       <nav className="app-site-footer__nav" style={FOOTER_TEXT}>
         {accessAdmin ? (
-          <>
-            <FooterLink onClick={onOpenOps} active={appTab === "ops"}>
-              {ko.app.footerDevYsk}
-            </FooterLink>
-            <Sep />
-          </>
+          <FooterLink onClick={onOpenOps} active={appTab === "ops"}>
+            {ko.app.footerDevYsk}
+          </FooterLink>
         ) : null}
 
         <FooterLink
@@ -110,15 +99,10 @@ export default function AppSiteFooter({
         </FooterLink>
 
         {accessAdmin ? (
-          <>
-            <Sep />
-            <FooterLink onClick={onOpenOps} active={appTab === "ops"}>
-              {ko.app.tabOps}
-            </FooterLink>
-          </>
+          <FooterLink onClick={onOpenOps} active={appTab === "ops"}>
+            {ko.app.tabOps}
+          </FooterLink>
         ) : null}
-
-        <Sep />
 
         <FooterLink
           href="/downloads/stock-dashboard.apk"
@@ -127,16 +111,13 @@ export default function AppSiteFooter({
         >
           {ko.mobile.downloadGalaxy}
         </FooterLink>
-        <Sep />
+
         <FooterLink href="/install-ios.html" title={ko.mobile.downloadIphoneTitle}>
           {ko.mobile.downloadIphone}
         </FooterLink>
 
         {accessAdmin ? (
-          <>
-            <Sep />
-            <ServerRestartButton linkClassName="app-site-footer__link" textLink />
-          </>
+          <ServerRestartButton linkClassName="app-site-footer__link" textLink />
         ) : null}
       </nav>
 
