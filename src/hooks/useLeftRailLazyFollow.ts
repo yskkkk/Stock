@@ -11,11 +11,20 @@ function readPadTop(): number {
   return Math.max(6, root * 0.35);
 }
 
+/** 좌상단 고정 테마 블록 높이 — 레일과 겹치지 않게 최소 top 여백 */
+function readThemeReserve(): number {
+  if (!window.matchMedia(DESKTOP_MQ).matches) return 0;
+  const corner = document.querySelector<HTMLElement>(".app-theme-corner--fixed");
+  if (!corner) return 0;
+  const h = corner.getBoundingClientRect().height;
+  return h > 0 ? h + 10 : 0;
+}
+
 /** 스크롤 문서 안에서 뷰포트 세로 중앙에 오는 top */
 function idealDocTop(scrollTop: number, railHeight: number): number {
   const vh = window.innerHeight;
-  const padTop = readPadTop();
-  return scrollTop + Math.max(padTop, (vh - railHeight) / 2);
+  const minTop = Math.max(readPadTop(), readThemeReserve());
+  return scrollTop + Math.max(minTop, (vh - railHeight) / 2);
 }
 
 /**
@@ -39,18 +48,22 @@ export function useLeftRailLazyFollow(
     let anchorTop = 0;
     let currentTop = 0;
     let active = false;
-    const scrollEl = scrollRef.current;
+
+    const getScrollEl = () => scrollRef.current;
 
     const applyTop = (px: number) => {
-      rail.style.setProperty("--app-left-rail-y", `${px}px`);
+      const y = `${px}px`;
+      rail.style.setProperty("--app-left-rail-y", y);
+      rail.style.top = y;
     };
 
     const clearTop = () => {
       rail.style.removeProperty("--app-left-rail-y");
+      rail.style.removeProperty("top");
     };
 
     const syncIdeal = () => {
-      const scrollTop = scrollEl?.scrollTop ?? 0;
+      const scrollTop = getScrollEl()?.scrollTop ?? 0;
       const h = rail.getBoundingClientRect().height;
       const ideal = idealDocTop(scrollTop, h);
       anchorTop = ideal;
@@ -64,7 +77,7 @@ export function useLeftRailLazyFollow(
         return;
       }
 
-      const scrollTop = scrollEl?.scrollTop ?? 0;
+      const scrollTop = getScrollEl()?.scrollTop ?? 0;
       const h = rail.getBoundingClientRect().height;
       const ideal = idealDocTop(scrollTop, h);
 
@@ -119,18 +132,20 @@ export function useLeftRailLazyFollow(
     const onMq = () => (mq.matches ? start() : stop());
 
     const ro = new ResizeObserver(() => onResize());
+    const themeCorner = document.querySelector<HTMLElement>(".app-theme-corner--fixed");
 
     start();
     ro.observe(rail);
+    themeCorner && ro.observe(themeCorner);
     mq.addEventListener("change", onMq);
-    scrollEl?.addEventListener("scroll", onScroll, { passive: true });
+    getScrollEl()?.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onResize, { passive: true });
 
     return () => {
       stop();
       ro.disconnect();
       mq.removeEventListener("change", onMq);
-      scrollEl?.removeEventListener("scroll", onScroll);
+      getScrollEl()?.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
     };
   }, [railRef, scrollRef]);
