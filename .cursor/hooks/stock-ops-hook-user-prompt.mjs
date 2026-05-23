@@ -103,6 +103,105 @@ function findNewestTranscriptFile(root) {
   return best;
 }
 
+/**
+ * @param {string[]} lines
+ * @returns {string}
+ */
+export function extractLastUserPromptFromLines(lines) {
+  let latest = "";
+  for (const line of lines) {
+    let row;
+    try {
+      row = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (row?.role !== "user") continue;
+    const parts = row?.message?.content;
+    if (!Array.isArray(parts)) {
+      const p = extractUserPromptText(String(row?.message?.content ?? ""));
+      if (p) latest = p;
+      continue;
+    }
+    for (const part of parts) {
+      if (part?.type !== "text") continue;
+      const p = extractUserPromptText(String(part.text ?? ""));
+      if (p) latest = p;
+    }
+  }
+  return latest;
+}
+
+/**
+ * @param {string} filePath
+ * @returns {string}
+ */
+export function readUserPromptFromTranscriptFile(filePath) {
+  const fp = String(filePath ?? "").trim();
+  if (!fp) return "";
+  try {
+    const raw = fs.readFileSync(fp, "utf8");
+    const lines = raw.split(/\n/).filter((l) => l.trim().length > 0);
+    return extractLastUserPromptFromLines(lines);
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * @param {string | null | undefined} sessionId
+ * @returns {string}
+ */
+export function readUserPromptForSessionSync(sessionId) {
+  const sid = String(sessionId ?? "").trim();
+  const root = resolveTranscriptRoot();
+  if (sid) {
+    const direct = path.join(root, sid, `${sid}.jsonl`);
+    if (fs.existsSync(direct)) {
+      const p = readUserPromptFromTranscriptFile(direct);
+      if (p) return p;
+    }
+    if (fs.existsSync(root)) {
+      /** @type {string | null} */
+      let newest = null;
+      let newestMtime = 0;
+      /** @param {string} dir */
+      function walk(dir) {
+        let entries = [];
+        try {
+          entries = fs.readdirSync(dir, { withFileTypes: true });
+        } catch {
+          return;
+        }
+        for (const ent of entries) {
+          const full = path.join(dir, ent.name);
+          if (ent.isDirectory()) {
+            walk(full);
+            continue;
+          }
+          if (!ent.name.endsWith(".jsonl")) continue;
+          if (path.basename(ent.name, ".jsonl") !== sid) continue;
+          try {
+            const st = fs.statSync(full);
+            if (st.mtimeMs >= newestMtime) {
+              newestMtime = st.mtimeMs;
+              newest = full;
+            }
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+      walk(root);
+      if (newest) {
+        const p = readUserPromptFromTranscriptFile(newest);
+        if (p) return p;
+      }
+    }
+  }
+  return readLatestUserPromptFromTranscriptsSync();
+}
+
 /** transcript에 user 줄이 있으면 최신 프롬프트(훅 stdin에 prompt 없을 때) */
 export function readLatestUserPromptFromTranscriptsSync() {
   const file = findNewestTranscriptFile(resolveTranscriptRoot());
@@ -114,22 +213,5 @@ export function readLatestUserPromptFromTranscriptsSync() {
     return "";
   }
   const lines = raw.split(/\n/).filter((l) => l.trim().length > 0);
-  let latest = "";
-  for (const line of lines) {
-    let row;
-    try {
-      row = JSON.parse(line);
-    } catch {
-      continue;
-    }
-    if (row?.role !== "user") continue;
-    const parts = row?.message?.content;
-    if (!Array.isArray(parts)) continue;
-    for (const part of parts) {
-      if (part?.type !== "text") continue;
-      const p = extractUserPromptText(String(part.text ?? ""));
-      if (p) latest = p;
-    }
-  }
-  return latest;
+  return extractLastUserPromptFromLines(lines);
 }

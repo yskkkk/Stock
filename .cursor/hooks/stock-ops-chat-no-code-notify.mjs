@@ -9,6 +9,7 @@ import {
 import { hookUserPromptFromInput } from "./stock-ops-hook-user-prompt.mjs";
 import {
   beginChatTurn,
+  enrichTurnUserRequestBeforeNotify,
   evaluateChatNoCodeEnd,
 } from "./stock-ops-chat-turn-lib.mjs";
 
@@ -23,6 +24,8 @@ async function notifyNoCodeTurn() {
   if (prompt) {
     beginChatTurn(String(lease?.sessionId ?? "").trim() || null, prompt);
   }
+
+  enrichTurnUserRequestBeforeNotify();
 
   const evalOut = evaluateChatNoCodeEnd();
   if (!evalOut?.shouldNotify) {

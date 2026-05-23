@@ -6,6 +6,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { repoRoot } from "./stock-ops-queue-hook-lib.mjs";
+import {
+  readLatestUserPromptFromTranscriptsSync,
+  readUserPromptForSessionSync,
+} from "./stock-ops-hook-user-prompt.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const CHAT_TURN_STATE_PATH = path.join(repoRoot, ".stock-chat-turn-state.json");
@@ -165,6 +169,47 @@ export function markCodeToolUse(toolName, toolInput) {
 }
 
 /**
+ * @param {Record<string, unknown> | null} [state]
+ * @returns {string}
+ */
+export function resolveTurnUserRequest(state = readTurnState()) {
+  if (!state) return "";
+  const sid = String(state.sessionId ?? "").trim();
+  let req = String(state.userRequest ?? "").trim();
+  const fromTranscript = readUserPromptForSessionSync(sid || null);
+  if (fromTranscript) {
+    if (!req || fromTranscript.length > req.length) req = fromTranscript;
+  }
+  if (!req) req = readLatestUserPromptFromTranscriptsSync();
+  return req.trim();
+}
+
+/** @param {Record<string, unknown> | null | undefined} lease */
+export function enrichTurnUserRequestFromLease(lease) {
+  const prompt = String(
+    lease?.instructionBody ??
+      lease?.instructionPreview ??
+      lease?.prompt ??
+      "",
+  ).trim();
+  if (!prompt) return;
+  beginChatTurn(String(lease?.sessionId ?? "").trim() || null, prompt);
+}
+
+/**
+ * stop/sessionEnd 직전 — transcript·lease로 userRequest 보강
+ */
+export function enrichTurnUserRequestBeforeNotify() {
+  const state = readTurnState();
+  if (!state) return;
+  const resolved = resolveTurnUserRequest(state);
+  if (resolved && resolved !== String(state.userRequest ?? "").trim()) {
+    state.userRequest = resolved;
+    writeTurnState(state);
+  }
+}
+
+/**
  * @returns {{ shouldNotify: boolean; userRequest: string; sessionId: string } | null}
  */
 export function evaluateChatNoCodeEnd() {
@@ -173,7 +218,8 @@ export function evaluateChatNoCodeEnd() {
   const state = readTurnState();
   if (!state || state.notified) return null;
 
-  const userRequest = String(state.userRequest ?? "").trim();
+  enrichTurnUserRequestBeforeNotify();
+  const userRequest = resolveTurnUserRequest(readTurnState());
   if (!userRequest) return null;
 
   const headNow = getGitHead();

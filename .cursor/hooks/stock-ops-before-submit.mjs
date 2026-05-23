@@ -76,6 +76,7 @@ try {
     queueSeq: null,
     queueStatus: "waiting",
     instructionPreview: prompt.slice(0, 220),
+    instructionBody: prompt.slice(0, 16_000),
   });
 
   let enqRes;

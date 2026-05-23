@@ -15,6 +15,62 @@ function resolveTranscriptRoot() {
   return path.join(os.homedir(), ".cursor", "projects", slug, "agent-transcripts");
 }
 
+/** @param {string} text */
+function extractUserPromptText(text) {
+  const t = String(text ?? "");
+  if (!t.trim()) return "";
+  if (t.includes("<system_notification>")) return "";
+  if (/Briefly inform the user about the task result/i.test(t)) return "";
+  const m = t.match(/<user_query>\s*([\s\S]*?)\s*<\/user_query>/i);
+  if (m) return m[1].trim();
+  return t.trim();
+}
+
+/**
+ * @param {string[]} lines
+ * @returns {string}
+ */
+export function extractLastUserPromptFromLines(lines) {
+  let latest = "";
+  for (const line of lines) {
+    let row;
+    try {
+      row = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (row?.role !== "user") continue;
+    const parts = row?.message?.content;
+    if (!Array.isArray(parts)) {
+      const p = extractUserPromptText(String(row?.message?.content ?? ""));
+      if (p) latest = p;
+      continue;
+    }
+    for (const part of parts) {
+      if (part?.type !== "text") continue;
+      const p = extractUserPromptText(String(part.text ?? ""));
+      if (p) latest = p;
+    }
+  }
+  return latest;
+}
+
+/**
+ * @param {string} filePath
+ * @returns {string}
+ */
+export function readUserPromptFromTranscriptFile(filePath) {
+  const fp = String(filePath ?? "").trim();
+  if (!fp) return "";
+  try {
+    const raw = fs.readFileSync(fp, "utf8");
+    const lines = raw.split(/\n/).filter((l) => l.trim().length > 0);
+    return extractLastUserPromptFromLines(lines);
+  } catch {
+    return "";
+  }
+}
+
 /**
  * @param {string[]} lines
  * @returns {string}
@@ -105,4 +161,51 @@ export function readAgentResponseForIdeSession(sessionId) {
   }
   walk(root);
   return newest ? readAgentResponseFromTranscriptFile(newest) : "";
+}
+
+/**
+ * @param {string | null | undefined} sessionId
+ * @returns {string}
+ */
+export function readUserPromptForIdeSession(sessionId) {
+  const sid = String(sessionId ?? "").trim();
+  if (!sid) return "";
+  const root = resolveTranscriptRoot();
+  const direct = path.join(root, sid, `${sid}.jsonl`);
+  if (fs.existsSync(direct)) {
+    return readUserPromptFromTranscriptFile(direct);
+  }
+  if (!fs.existsSync(root)) return "";
+  /** @type {string | null} */
+  let newest = null;
+  let newestMtime = 0;
+  /** @param {string} dir */
+  function walk(dir) {
+    let entries = [];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const ent of entries) {
+      const full = path.join(dir, ent.name);
+      if (ent.isDirectory()) {
+        walk(full);
+        continue;
+      }
+      if (!ent.name.endsWith(".jsonl")) continue;
+      if (path.basename(ent.name, ".jsonl") !== sid) continue;
+      try {
+        const st = fs.statSync(full);
+        if (st.mtimeMs >= newestMtime) {
+          newestMtime = st.mtimeMs;
+          newest = full;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  walk(root);
+  return newest ? readUserPromptFromTranscriptFile(newest) : "";
 }

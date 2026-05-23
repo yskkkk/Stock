@@ -7,6 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getRepoHeadRev } from "./ops-agent-git-push.js";
 import { opsIdePromptFingerprint } from "./ops-ide-prompt-match.js";
+import { readUserPromptForIdeSession } from "./ops-ide-transcript-text.js";
 import {
   escHtml,
   isOpsTelegramNotifyEnabled,
@@ -109,32 +110,46 @@ export function shouldSkipIdeCompletionForChatTurn(userRequest) {
 }
 
 /**
+ * @param {{ userRequest?: string; sessionId?: string | null }} opts
+ * @returns {string}
+ */
+export function resolveChatNotifyUserRequest(opts) {
+  const state = loadChatTurnStateSync();
+  const sid = String(
+    opts.sessionId ?? state?.sessionId ?? "",
+  ).trim();
+  let req = String(opts.userRequest ?? state?.userRequest ?? "").trim();
+  const fromTranscript = readUserPromptForIdeSession(sid || null);
+  if (fromTranscript && (!req || fromTranscript.length > req.length)) {
+    req = fromTranscript;
+  }
+  return req.trim();
+}
+
+/**
  * @param {{ userRequest: string; sessionId?: string | null }} opts
  */
 export async function sendChatNoCodeTelegram(opts) {
   if (process.env.STOCK_CHAT_NO_CODE_TELEGRAM === "0") return false;
   if (!isOpsTelegramNotifyEnabled()) return false;
 
-  const userRequest = String(opts.userRequest ?? "").trim();
+  const userRequest = resolveChatNotifyUserRequest(opts);
   if (!userRequest) return false;
 
   const state = loadChatTurnStateSync();
   if (state && isCodeReflectedInChatTurn(state)) return false;
 
-  const sid = String(opts.sessionId ?? "").trim();
   const reqBlock =
-    userRequest.length > 900
-      ? `${userRequest.slice(0, 899)}…`
+    userRequest.length > 3500
+      ? `${userRequest.slice(0, 3499)}…`
       : userRequest;
 
   const lines = [
-    "<b>💬 코드 변경 없이 대화 종료</b>",
-    "",
+    "<b>요청</b>",
     escHtml(reqBlock),
+    "",
+    "<i>코드 반영 없이 대화 종료</i>",
   ];
-  if (sid) {
-    lines.push("", `<i>세션 ${escHtml(sid.slice(0, 12))}…</i>`);
-  }
 
   const ok = await sendTelegramMessage(
     lines.join("\n"),

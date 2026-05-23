@@ -7,6 +7,7 @@ import {
   postDevQueueApi,
   readIdeLeaseFile,
 } from "./stock-ops-queue-hook-lib.mjs";
+import { enrichTurnUserRequestFromLease } from "./stock-ops-chat-turn-lib.mjs";
 
 async function postReleaseActive() {
   const lease = readIdeLeaseFile();
@@ -40,6 +41,7 @@ async function postReleaseActive() {
 
 try {
   const lease = readIdeLeaseFile();
+  enrichTurnUserRequestFromLease(lease);
   const leaseId = String(lease?.leaseId ?? "").trim();
   if (leaseId) {
     try {
