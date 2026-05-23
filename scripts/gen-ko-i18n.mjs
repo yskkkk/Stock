@@ -170,7 +170,7 @@ const t = {
     liveTradeFieldAutoSell: "\ubaa9\ud45c\u00b7\uc190\uc808\uac00 \uc790\ub3d9 \ub9e4\ub3c4",
     liveTradeFieldAmountUsd: "\ubbf8\uad6d 1\ud68c \ub9e4\uc218 \uae08\uc561 ($)",
     liveTradeSave: "\uc800\uc7a5",
-    liveTradeRegister: "\uc2e4\ub9e4\ub9e4 \ub4f1\ub85d",
+    liveTradeRegister: "\ubaa8\ub378 \ub4f1\ub85d",
     liveTradeListTitle: "\ub4f1\ub85d\ub41c \ud504\ub85c\uadf8\ub7a8",
     liveTradeListEmpty: "\ub4f1\ub85d\ub41c \ud504\ub85c\uadf8\ub7a8\uc774 \uc5c6\uc2b5\ub2c8\ub2e4.",
     liveTradeCurrentReturn: "\ud604\uc7ac \uc218\uc775\ub960",

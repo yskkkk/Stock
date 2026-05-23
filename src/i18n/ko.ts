@@ -198,7 +198,7 @@ export const ko = {
     liveTradeFieldAutoSell: "목표·손절가 자동 매도",
     liveTradeFieldAmountUsd: "미국 1회 매수 금액 ($)",
     liveTradeSave: "저장",
-    liveTradeRegister: "실매매 등록",
+    liveTradeRegister: "모델 등록",
     liveTradeListTitle: "등록된 프로그램",
     liveTradeListEmpty: "등록된 프로그램이 없습니다.",
     liveTradeCurrentReturn: "현재 수익률",
