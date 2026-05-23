@@ -7209,23 +7209,30 @@ html[data-theme="light"] .fx-calc-rail {
 .fx-calc-rail__body {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 0.35rem;
+  padding-inline: 0.42rem;
 }
 
 .fx-calc-rail__mode {
-  display: inline-flex;
+  display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.55rem 0.75rem;
+  justify-content: center;
+  gap: 0.45rem 1.05rem;
   width: 100%;
+  margin-inline: auto;
+  padding-block: 0.28rem;
+  padding-inline: 0.35rem;
   border: none;
   background: none;
+  box-sizing: border-box;
 }
 
 .fx-calc-rail__mode-btn {
   flex: 0 1 auto;
   margin: 0;
-  padding: 0;
+  padding: 0.12rem 0.2rem;
   min-height: 0;
   border: none;
   border-radius: 0;
@@ -7235,7 +7242,7 @@ html[data-theme="light"] .fx-calc-rail {
   font-weight: 600;
   line-height: 1.35;
   color: color-mix(in srgb, var(--muted) 92%, var(--text));
-  text-align: left;
+  text-align: center;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: color 0.12s ease;
@@ -7317,6 +7324,7 @@ html[data-theme="light"] .fx-calc-rail__mode-btn:hover {
 .fx-calc-rail--strip .fx-calc-rail__mode {
   width: auto;
   flex-shrink: 0;
+  justify-content: center;
 }
 
 .fx-calc-rail--strip .fx-calc-rail__field {
