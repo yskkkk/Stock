@@ -859,12 +859,20 @@ export interface BithumbTestSnapshot {
   holdings: BithumbTestHolding[];
 }
 
+export interface BithumbTradingFees {
+  bidFee: number;
+  askFee: number;
+  roundTripFeeRate: number;
+  market?: string;
+}
+
 export interface UserCredentialTestResult {
   ok: boolean;
   messageKo: string;
   exchange?: string;
   accountCount?: number;
   bithumbSnapshot?: BithumbTestSnapshot;
+  tradingFees?: BithumbTradingFees | null;
 }
 
 export function testUserCredential(
@@ -932,6 +940,22 @@ export interface LiveTradeProgramReturnSummary {
   holdingCount: number;
 }
 
+export interface ExchangeTradingFeeRateInfo {
+  roundTripFeeRate: number;
+  bidFee: number | null;
+  askFee: number | null;
+  source: "api" | "default" | "env";
+  labelKo: string;
+  market: string | null;
+  updatedAtMs: number | null;
+}
+
+export interface LiveTradingFeeRates {
+  defaultRoundTripFeeRate: number;
+  bithumb: ExchangeTradingFeeRateInfo | null;
+  toss: ExchangeTradingFeeRateInfo;
+}
+
 export interface LiveTradingStatusResponse {
   toss: TossTradingStatus;
   bithumb: BithumbTradingStatus;
@@ -943,6 +967,7 @@ export interface LiveTradingStatusResponse {
   tossSimulatedOrders?: boolean;
   bithumbSimulatedOrders?: boolean;
   credentialsCryptoReady?: boolean;
+  feeRates?: LiveTradingFeeRates;
 }
 
 export function fetchLiveTradingStatus() {

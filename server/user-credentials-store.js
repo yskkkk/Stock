@@ -11,8 +11,10 @@ import {
   isCredentialsCryptoReady,
 } from "./credentials-crypto.js";
 import { summarizeBithumbAccountsForDisplay } from "./bithumb-accounts-summary.js";
+import { roundTripFeeRateFromOneWay } from "./net-return.js";
 import {
   fetchBithumbAccountsWithCredentials,
+  fetchBithumbOrderChanceWithCredentials,
   getBithumbTradingStatusFromCredentials,
 } from "./bithumb-trading-adapter.js";
 import { getTossTradingStatus } from "./toss-trading-adapter.js";
@@ -68,6 +70,43 @@ function findRowSync(userId, exchange) {
       (c) => c.userId === uid && c.exchange === exchange,
     ) ?? null
   );
+}
+
+/**
+ * @param {string} userId
+ * @param {ExchangeId} exchange
+ */
+export function readCredentialRowSync(userId, exchange) {
+  return findRowSync(userId, exchange);
+}
+
+/**
+ * @param {string} userId
+ * @param {{
+ *   bidFee: number;
+ *   askFee: number;
+ *   roundTripFeeRate: number;
+ *   market?: string;
+ * }} fees
+ */
+export function writeBithumbFeesOnRowSync(userId, fees) {
+  const uid = String(userId ?? "").trim();
+  if (!uid) return;
+  const store = readStoreSync();
+  const idx = store.credentials.findIndex(
+    (c) => c.userId === uid && c.exchange === "bithumb",
+  );
+  if (idx < 0) return;
+  const prev = store.credentials[idx];
+  store.credentials[idx] = {
+    ...prev,
+    bithumbBidFee: fees.bidFee,
+    bithumbAskFee: fees.askFee,
+    bithumbFeeMarket: fees.market ?? prev.bithumbFeeMarket ?? "KRW-BTC",
+    bithumbFeesAtMs: Date.now(),
+    updatedAtMs: Date.now(),
+  };
+  writeStoreSync(store);
 }
 
 /**
@@ -239,6 +278,11 @@ export function upsertUserCredentialSync(userId, exchange, input) {
   if (idx >= 0) store.credentials[idx] = row;
   else store.credentials.push(row);
   writeStoreSync(store);
+  if (ex === "bithumb" && row.apiKeyEncrypted && row.secretEncrypted) {
+    void import("./exchange-trading-fees.js")
+      .then((m) => m.refreshBithumbFeesForUserAsync(uid))
+      .catch(() => {});
+  }
   return getCredentialMetaSync(uid, ex);
 }
 
@@ -300,12 +344,40 @@ export async function testUserCredentialAsync(userId, exchange, inline = null) {
     const accounts = await fetchBithumbAccountsWithCredentials(creds);
     const bithumbSnapshot = summarizeBithumbAccountsForDisplay(accounts);
     const holdingCount = bithumbSnapshot.holdings.length;
+    let tradingFees = null;
+    try {
+      if (inline?.apiKey || inline?.secretKey) {
+        const chance = await fetchBithumbOrderChanceWithCredentials(creds);
+        const roundTrip = roundTripFeeRateFromOneWay(
+          chance?.bid_fee,
+          chance?.ask_fee,
+        );
+        if (roundTrip != null) {
+          tradingFees = {
+            bidFee: Number(chance.bid_fee),
+            askFee: Number(chance.ask_fee),
+            roundTripFeeRate: roundTrip,
+          };
+        }
+      } else {
+        const { refreshBithumbFeesForUserAsync } = await import(
+          "./exchange-trading-fees.js"
+        );
+        tradingFees = await refreshBithumbFeesForUserAsync(userId);
+      }
+    } catch {
+      /* 수수료 조회 실패해도 연결 테스트는 성공 */
+    }
+    const feeNote = tradingFees
+      ? ` · 수수료 왕복 ${(tradingFees.roundTripFeeRate * 100).toFixed(3).replace(/\.?0+$/, "")}%`
+      : "";
     return {
       ok: true,
       exchange: "bithumb",
       accountCount: accounts.length,
       bithumbSnapshot,
-      messageKo: `빗썸 연결 성공 (계좌 ${accounts.length}건 · 보유 코인 ${holdingCount}종)`,
+      tradingFees,
+      messageKo: `빗썸 연결 성공 (계좌 ${accounts.length}건 · 보유 코인 ${holdingCount}종)${feeNote}`,
     };
   }
 

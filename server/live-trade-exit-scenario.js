@@ -2,7 +2,10 @@
  * 매수 시 종목별 일봉·변동성·지지·저항으로 목표·손절가 자동 산정
  */
 import { loadStock } from "./stock-data.js";
-import { netReturnPct } from "./net-return.js";
+import {
+  DEFAULT_ROUND_TRIP_FEE_RATE,
+  netReturnPct,
+} from "./net-return.js";
 import {
   stopLossPriceFromPct,
   targetSellPriceFromTakeProfit,
@@ -105,19 +108,28 @@ function roundExitPrice(price, market) {
  * @param {number} entry
  * @param {number} rawStop
  */
-function stopNetPctFromRaw(entry, rawStop) {
+function stopNetPctFromRaw(
+  entry,
+  rawStop,
+  roundTripFeeRate = DEFAULT_ROUND_TRIP_FEE_RATE,
+) {
   if (!Number.isFinite(rawStop) || rawStop >= entry) return MAX_STOP_NET_PCT;
-  const pct = netReturnPct(entry, rawStop);
+  const pct = netReturnPct(entry, rawStop, roundTripFeeRate);
   return Math.max(MIN_STOP_NET_PCT, Math.min(MAX_STOP_NET_PCT, pct));
 }
 
 /**
  * @param {number} entry
  * @param {number} rawTarget
+ * @param {number} [roundTripFeeRate]
  */
-function targetNetPctFromRaw(entry, rawTarget) {
+function targetNetPctFromRaw(
+  entry,
+  rawTarget,
+  roundTripFeeRate = DEFAULT_ROUND_TRIP_FEE_RATE,
+) {
   if (!Number.isFinite(rawTarget) || rawTarget <= entry) return MIN_TP_NET_PCT;
-  const pct = netReturnPct(entry, rawTarget);
+  const pct = netReturnPct(entry, rawTarget, roundTripFeeRate);
   return Math.max(MIN_TP_NET_PCT, Math.min(MAX_TP_NET_PCT, pct));
 }
 
@@ -257,6 +269,10 @@ function signalAdjustments(signalIds) {
  * @param {{ signalIds?: string[]; score?: number }} [ctx]
  */
 export function computeExitScenarioFromCandles(candles, entryPrice, market, ctx = {}) {
+  const roundTripFeeRate =
+    typeof ctx.roundTripFeeRate === "number" && Number.isFinite(ctx.roundTripFeeRate)
+      ? ctx.roundTripFeeRate
+      : DEFAULT_ROUND_TRIP_FEE_RATE;
   const entry = Number(entryPrice);
   const mkt = market === "us" ? "us" : "kr";
   if (!Number.isFinite(entry) || entry <= 0) {
@@ -284,7 +300,7 @@ export function computeExitScenarioFromCandles(candles, entryPrice, market, ctx 
     return finalizeScenario(entry, mkt, stopNet, tpNet, [
       "차트 데이터 부족 — 보수적 기본 시나리오",
       ...adj.labels,
-    ]);
+    ], { roundTripFeeRate });
   }
 
   const atr = atr14(candles);
@@ -337,7 +353,7 @@ export function computeExitScenarioFromCandles(candles, entryPrice, market, ctx 
   );
   if (!Number.isFinite(stopRaw)) stopRaw = entry * 0.97;
 
-  let stopNet = stopNetPctFromRaw(entry, stopRaw);
+  let stopNet = stopNetPctFromRaw(entry, stopRaw, roundTripFeeRate);
   if (adj.stopTighter) stopNet = Math.min(stopNet, -1.8);
   if (adj.stopWider) stopNet = Math.max(stopNet, -5.5);
 
@@ -391,7 +407,7 @@ export function computeExitScenarioFromCandles(candles, entryPrice, market, ctx 
     targetRaw = entry + risk * MIN_RR;
   }
 
-  let tpNet = targetNetPctFromRaw(entry, targetRaw);
+  let tpNet = targetNetPctFromRaw(entry, targetRaw, roundTripFeeRate);
   if (risk > 0) {
     const impliedTp = (targetRaw / entry - 1) * 100;
     tpNet = Math.max(tpNet, Math.min(MAX_TP_NET_PCT, impliedTp * 0.95));
@@ -438,7 +454,9 @@ export function computeExitScenarioFromCandles(candles, entryPrice, market, ctx 
 
   const rr =
     stopPrice != null && stopPrice < entry
-      ? ((targetSellPriceFromTakeProfit(entry, tpNet) ?? entry) - entry) /
+      ? ((targetSellPriceFromTakeProfit(entry, tpNet, roundTripFeeRate) ??
+          entry) -
+          entry) /
         (entry - stopPrice)
       : null;
 
@@ -452,6 +470,7 @@ export function computeExitScenarioFromCandles(candles, entryPrice, market, ctx 
     entryStructureNote,
     entryIdeal: Boolean(structure.entryIdeal),
     entryKind: structure.entryKind ?? "none",
+    roundTripFeeRate,
   });
 }
 
@@ -467,8 +486,12 @@ export function computeExitScenarioFromCandles(candles, entryPrice, market, ctx 
  * @param {{ entryStructureNote?: string | null; entryIdeal?: boolean; entryKind?: string }} [meta]
  */
 function finalizeScenario(entry, market, stopNet, tpNet, noteParts, meta = {}) {
-  let stopLossPrice = stopLossPriceFromPct(entry, stopNet);
-  let targetSellPrice = targetSellPriceFromTakeProfit(entry, tpNet);
+  const fee =
+    typeof meta.roundTripFeeRate === "number" && Number.isFinite(meta.roundTripFeeRate)
+      ? meta.roundTripFeeRate
+      : DEFAULT_ROUND_TRIP_FEE_RATE;
+  let stopLossPrice = stopLossPriceFromPct(entry, stopNet, fee);
+  let targetSellPrice = targetSellPriceFromTakeProfit(entry, tpNet, fee);
   stopLossPrice = roundExitPrice(stopLossPrice, market);
   targetSellPrice = roundExitPrice(targetSellPrice, market);
   if (

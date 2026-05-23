@@ -4,7 +4,8 @@ import type {
   LiveTradeRecord,
   PicksDailyHistoryQuotesMap,
 } from "../api";
-import { ROUND_TRIP_FEE_RATE } from "./netReturn";
+import { DEFAULT_ROUND_TRIP_FEE_RATE, netReturnPct } from "./netReturn";
+import type { LiveTradeMarket } from "../types";
 
 function pickQuote(
   quotes: PicksDailyHistoryQuotesMap,
@@ -46,7 +47,8 @@ function closedCostFromTrades(trades: LiveTradeRecord[]): number {
 function applyQuoteToHolding(
   h: LiveTradeHolding,
   price: number,
-  quote?: PicksDailyHistoryQuotesMap[string],
+  quote: PicksDailyHistoryQuotesMap[string] | undefined,
+  roundTripFeeRate: number,
 ): LiveTradeHolding {
   const avgEntry = h.avgEntryPrice;
   const mv = price * h.quantity;
@@ -54,9 +56,7 @@ function applyQuoteToHolding(
   const grossPct =
     avgEntry > 0 ? ((price - avgEntry) / avgEntry) * 100 : null;
   const netPct =
-    avgEntry > 0
-      ? (price / avgEntry) * (1 - ROUND_TRIP_FEE_RATE) * 100 - 100
-      : null;
+    avgEntry > 0 ? netReturnPct(avgEntry, price, roundTripFeeRate) : null;
   const quotedAtMs =
     quote?.quotedAtMs != null && Number.isFinite(quote.quotedAtMs)
       ? quote.quotedAtMs
@@ -103,9 +103,21 @@ export function extractQuotesFromPortfolio(
 }
 
 /** 1분봉 스냅샷으로 보유·요약 시세만 갱신 (서버 포트폴리오 재조회 없음) */
+export type LiveTradeFeeRateByMarket = Partial<
+  Record<LiveTradeMarket, number>
+> & { default?: number };
+
+function feeForMarket(
+  map: LiveTradeFeeRateByMarket | undefined,
+  market: LiveTradeMarket,
+): number {
+  return map?.[market] ?? map?.default ?? DEFAULT_ROUND_TRIP_FEE_RATE;
+}
+
 export function mergeLiveQuotesIntoPortfolio(
   snap: LiveTradePortfolioResponse,
   quotes: PicksDailyHistoryQuotesMap,
+  feeByMarket?: LiveTradeFeeRateByMarket,
 ): LiveTradePortfolioResponse {
   let investedOpen = 0;
   let marketValueOpen = 0;
@@ -115,7 +127,12 @@ export function mergeLiveQuotesIntoPortfolio(
     const px = q?.price;
     const next =
       px != null && Number.isFinite(px) && px > 0
-        ? applyQuoteToHolding(h, px, q ?? undefined)
+        ? applyQuoteToHolding(
+            h,
+            px,
+            q ?? undefined,
+            feeForMarket(feeByMarket, h.market),
+          )
         : h;
     investedOpen += next.costBasis;
     if (next.marketValue != null) marketValueOpen += next.marketValue;

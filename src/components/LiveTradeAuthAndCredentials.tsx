@@ -18,10 +18,25 @@ import {
   validateBithumbCredentialPair,
 } from "../lib/stock-input-validation";
 
-function BithumbTestSnapshotPanel({ snapshot }: { snapshot: BithumbTestSnapshot }) {
+function BithumbTestSnapshotPanel({
+  snapshot,
+  tradingFees,
+}: {
+  snapshot: BithumbTestSnapshot;
+  tradingFees?: { bidFee: number; askFee: number; roundTripFeeRate: number } | null;
+}) {
   const { krw, holdings } = snapshot;
+  const feePct = (n: number) =>
+    `${(n * 100).toFixed(3).replace(/\.?0+$/, "")}%`;
+
   return (
     <div className="live-trading-tab__cred-snapshot" aria-label={ko.app.liveTradeCredTestBalance}>
+      {tradingFees ? (
+        <p className="live-trading-tab__cred-snapshot-fees">
+          {ko.app.liveTradeFeeLabel}: 매수 {feePct(tradingFees.bidFee)} · 매도{" "}
+          {feePct(tradingFees.askFee)} (왕복 {feePct(tradingFees.roundTripFeeRate)})
+        </p>
+      ) : null}
       <p className="live-trading-tab__cred-snapshot-title">
         {ko.app.liveTradeCredTestBalance}
       </p>
@@ -125,6 +140,11 @@ function CredentialExchangeForm({
   const [apiKeyErr, setApiKeyErr] = useState<string | null>(null);
   const [secretKeyErr, setSecretKeyErr] = useState<string | null>(null);
   const [testSnapshot, setTestSnapshot] = useState<BithumbTestSnapshot | null>(null);
+  const [testTradingFees, setTestTradingFees] = useState<{
+    bidFee: number;
+    askFee: number;
+    roundTripFeeRate: number;
+  } | null>(null);
 
   useEffect(() => {
     setLiveOrders(meta?.liveOrdersEnabled ?? false);
@@ -201,6 +221,7 @@ function CredentialExchangeForm({
     setErr(null);
     setMsg(null);
     setTestSnapshot(null);
+    setTestTradingFees(null);
     setApiKeyErr(null);
     setSecretKeyErr(null);
     try {
@@ -225,8 +246,9 @@ function CredentialExchangeForm({
         });
       }
       setMsg(out.messageKo);
-      if (exchange === "bithumb" && out.bithumbSnapshot) {
-        setTestSnapshot(out.bithumbSnapshot);
+      if (exchange === "bithumb") {
+        if (out.bithumbSnapshot) setTestSnapshot(out.bithumbSnapshot);
+        if (out.tradingFees) setTestTradingFees(out.tradingFees);
       }
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -360,14 +382,19 @@ function CredentialExchangeForm({
           {ko.app.liveTradeCredSave}
         </button>
       </div>
-      {(msg || testSnapshot) && exchange === "bithumb" ? (
+      {(msg || testSnapshot || testTradingFees) && exchange === "bithumb" ? (
         <div className="live-trading-tab__cred-test-row">
           {msg ? (
             <p className="live-trading-tab__hint live-trading-tab__cred-test-msg" role="status">
               {msg}
             </p>
           ) : null}
-          {testSnapshot ? <BithumbTestSnapshotPanel snapshot={testSnapshot} /> : null}
+          {testSnapshot ? (
+            <BithumbTestSnapshotPanel
+              snapshot={testSnapshot}
+              tradingFees={testTradingFees}
+            />
+          ) : null}
         </div>
       ) : msg ? (
         <p className="live-trading-tab__hint" role="status">

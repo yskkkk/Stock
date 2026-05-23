@@ -1,4 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { useLiveTradeFeeRates } from "../contexts/LiveTradeFeeRatesContext";
+import { feeByMarketFromStatus } from "../lib/liveTradeFeeByMarket";
 import {
   fetchLiveTradingMinuteQuotes,
   fetchLiveTradingPortfolio,
@@ -274,6 +276,7 @@ function HoldingRow({
           entry={row.avgEntryPrice}
           exitPrice={row.targetSellPrice}
           currency={row.currency}
+          market={row.market}
           variant="success"
         />
       </td>
@@ -285,6 +288,7 @@ function HoldingRow({
           entry={row.avgEntryPrice}
           exitPrice={row.stopLossPrice}
           currency={row.currency}
+          market={row.market}
           variant="failure"
         />
       </td>
@@ -376,6 +380,11 @@ export default function LiveTradePortfolioPanel({
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const { feeRates } = useLiveTradeFeeRates();
+  const feeByMarket = useMemo(
+    () => feeByMarketFromStatus(feeRates),
+    [feeRates],
+  );
 
   const load = useCallback(async () => {
     try {
@@ -387,14 +396,18 @@ export default function LiveTradePortfolioPanel({
       if (syms.length > 0) {
         try {
           const q = await fetchLiveTradingMinuteQuotes(syms);
-          merged = mergeLiveQuotesIntoPortfolio(snap, q.quotes ?? {});
+          merged = mergeLiveQuotesIntoPortfolio(snap, q.quotes ?? {}, feeByMarket);
         } catch {
           merged = snap;
         }
       }
       setData((prev) =>
         prev?.holdings.length
-          ? mergeLiveQuotesIntoPortfolio(merged, extractQuotesFromPortfolio(prev))
+          ? mergeLiveQuotesIntoPortfolio(
+              merged,
+              extractQuotesFromPortfolio(prev),
+              feeByMarket,
+            )
           : merged,
       );
       setErr(null);
@@ -403,7 +416,7 @@ export default function LiveTradePortfolioPanel({
     } finally {
       setLoading(false);
     }
-  }, [programId]);
+  }, [programId, feeByMarket]);
 
   useEffect(() => {
     setLoading(true);
@@ -412,7 +425,12 @@ export default function LiveTradePortfolioPanel({
     return () => window.clearInterval(id);
   }, [load]);
 
-  useLivePortfolioQuotePoll(data, setData, Boolean(data?.holdings.length));
+  useLivePortfolioQuotePoll(
+    data,
+    setData,
+    Boolean(data?.holdings.length),
+    feeByMarket,
+  );
   const { rate: usdKrwRate } = useUsdKrwRate(Boolean(data?.holdings.length));
 
   const programOptions = useMemo(

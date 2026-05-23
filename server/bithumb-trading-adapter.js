@@ -158,7 +158,18 @@ async function bithumbPrivateRequestWithCredentials(
     /\/$/,
     "",
   );
-  const url = `${base}${path}`;
+  let url = `${base}${path}`;
+  if (
+    method === "GET" &&
+    bodyParams &&
+    Object.keys(bodyParams).length > 0 &&
+    !path.includes("?")
+  ) {
+    const qs = Object.entries(bodyParams)
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+      .join("&");
+    url = `${url}?${qs}`;
+  }
   const init = {
     method,
     headers: {
@@ -208,6 +219,24 @@ async function bithumbPrivateRequest(method, path, bodyParams = null) {
 /**
  * @param {BithumbCredentials} credentials
  */
+/**
+ * @param {BithumbCredentials} credentials
+ * @param {string} [market] e.g. KRW-BTC
+ */
+export async function fetchBithumbOrderChanceWithCredentials(
+  credentials,
+  market = "KRW-BTC",
+) {
+  const m = String(market ?? "KRW-BTC").trim();
+  const q = { market: m };
+  return bithumbPrivateRequestWithCredentials(
+    "GET",
+    "/v1/orders/chance",
+    q,
+    credentials,
+  );
+}
+
 export async function fetchBithumbAccountsWithCredentials(credentials) {
   const status = getBithumbTradingStatusFromCredentials(credentials);
   if (!status.ready) return [];

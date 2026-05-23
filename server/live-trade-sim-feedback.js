@@ -4,7 +4,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { netReturnPct, outcomeFromPricesWithFees } from "./net-return.js";
 import { SIGNAL_DEFS } from "./technical.js";
 import {
   getLiveTradeProgramSync,
@@ -81,8 +80,15 @@ export function buildSimClosedRounds(trades, programId) {
       const sellFee = (t.feeAmount / t.quantity) * matched;
       const entry = buy.price;
       const exit = t.price;
-      const netPct = netReturnPct(entry, exit);
-      const outcome = outcomeFromPricesWithFees(entry, exit);
+      const cost = entry * matched + buyFee;
+      const proceeds = exit * matched - sellFee;
+      const netPct = cost > 0 ? (proceeds / cost - 1) * 100 : 0;
+      const outcome =
+        Math.abs(netPct) < 0.005
+          ? "flat"
+          : netPct > 0
+            ? "win"
+            : "loss";
       const holdHours = Math.max(0, (t.atMs - buy.atMs) / 3_600_000);
 
       rounds.push({

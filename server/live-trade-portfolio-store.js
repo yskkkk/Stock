@@ -9,7 +9,11 @@ import { fetchQuoteSnapshotsForSymbols } from "./picks-live-quotes.js";
 import { pickQuoteFromMap } from "./quote-symbol-resolve.js";
 import { resolveLiveTradeQuote } from "./live-trade-quote.js";
 import { resolveLiveTradeExitTargets } from "./live-trade-exit-scenario.js";
-import { ROUND_TRIP_FEE_RATE } from "./net-return.js";
+import { DEFAULT_ROUND_TRIP_FEE_RATE, netReturnPct } from "./net-return.js";
+import {
+  getOneWayFeeRateForUserMarketSync,
+  getRoundTripFeeRateForUserMarketSync,
+} from "./exchange-trading-fees.js";
 import { getLiveTradeProgramSync } from "./live-trade-programs-store.js";
 import { listLiveTradeProgramsSync } from "./live-trade-programs-store.js";
 import {
@@ -25,8 +29,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, ".data");
 const PORTFOLIO_FILE = path.join(DATA_DIR, "live-trade-portfolio.json");
 
-/** 매도·매수 각 0.1% (왕복 0.2%) */
-const ONE_WAY_FEE_RATE = ROUND_TRIP_FEE_RATE / 2;
+/** 레거시 기본 편도 수수료 */
+const DEFAULT_ONE_WAY_FEE_RATE = DEFAULT_ROUND_TRIP_FEE_RATE / 2;
 
 /**
  * @typedef {{
@@ -146,7 +150,7 @@ function normalizeTrade(raw) {
     feeAmount:
       Number.isFinite(Number(o.feeAmount)) && Number(o.feeAmount) >= 0
         ? Number(o.feeAmount)
-        : amount * ONE_WAY_FEE_RATE,
+        : amount * DEFAULT_ONE_WAY_FEE_RATE,
     simulated: Boolean(o.simulated),
     orderId:
       typeof o.orderId === "string" && o.orderId.trim() ? o.orderId.trim() : null,
@@ -319,6 +323,9 @@ export function recordLiveTradeBuySync(
           exitScenarioNote: null,
         }
       : null);
+  const uid = String(program.userId ?? "").trim();
+  const oneWayFee = getOneWayFeeRateForUserMarketSync(uid, market);
+  const tradeAmount = quantity * price;
   const trade = normalizeTrade({
     id: randomUUID(),
     programId: program.id,
@@ -328,7 +335,8 @@ export function recordLiveTradeBuySync(
     market,
     quantity,
     price,
-    amount: quantity * price,
+    amount: tradeAmount,
+    feeAmount: tradeAmount * oneWayFee,
     simulated: Boolean(orderMeta.simulated),
     orderId: orderMeta.orderId ?? null,
     targetSellPrice: exit?.targetSellPrice ?? null,
@@ -363,11 +371,14 @@ export async function recordLiveTradeBuyAsync(program, pick, orderMeta = {}) {
   const price = Number(pick.price);
   const orderAmount = await resolveOrderAmountForMarket(program, market);
   let targets = null;
+  const uid = String(program.userId ?? "").trim();
+  const roundTripFeeRate = getRoundTripFeeRateForUserMarketSync(uid, market);
   if (program.autoSellAtTarget !== false && symbol && Number.isFinite(price) && price > 0) {
     targets = await resolveLiveTradeExitTargets(symbol, price, {
       market,
       signalIds: pick.signalIds,
       score: pick.score,
+      roundTripFeeRate,
     });
   } else if (program.autoSellAtTarget === false) {
     targets = {
@@ -459,6 +470,9 @@ export function recordLiveTradeSellSync(input, userId) {
   if (quantity <= 0) throw new Error("매도 수량이 올바르지 않습니다.");
 
   const avgEntry = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+  const uid = String(userId ?? "").trim();
+  const oneWayFee = getOneWayFeeRateForUserMarketSync(uid, market);
+  const sellAmount = quantity * price;
 
   const trade = normalizeTrade({
     id: randomUUID(),
@@ -469,7 +483,8 @@ export function recordLiveTradeSellSync(input, userId) {
     market,
     quantity,
     price,
-    amount: quantity * price,
+    amount: sellAmount,
+    feeAmount: sellAmount * oneWayFee,
     entryPrice: avgEntry > 0 ? avgEntry : null,
     note: input.note ?? null,
     simulated: Boolean(input.simulated),
@@ -673,9 +688,10 @@ export async function buildLiveTradePortfolioSnapshot(opts = {}) {
       currentPrice != null && avgEntry > 0
         ? ((currentPrice - avgEntry) / avgEntry) * 100
         : null;
+    const feeRate = getRoundTripFeeRateForUserMarketSync(userId, pos.market);
     const netPct =
       currentPrice != null && avgEntry > 0
-        ? (currentPrice / avgEntry) * (1 - ROUND_TRIP_FEE_RATE) * 100 - 100
+        ? netReturnPct(avgEntry, currentPrice, feeRate)
         : null;
     const unrealized =
       mv != null ? mv - pos.costBasis : null;

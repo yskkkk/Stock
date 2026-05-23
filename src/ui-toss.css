@@ -1107,6 +1107,18 @@ body {
   line-height: 1.45;
 }
 
+.live-trading-tab__cred-snapshot-fees {
+  margin: 0 0 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--accent, #0d9488);
+}
+
+.live-trading-tab__fee-hint {
+  margin-top: 0.35rem;
+  font-size: 0.76rem;
+}
+
 .live-trading-tab__cred-snapshot-title {
   margin: 0 0 0.35rem;
   font-size: 0.72rem;

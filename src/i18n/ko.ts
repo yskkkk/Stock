@@ -218,6 +218,7 @@ export const ko = {
     liveTradeExchangeOrdersOff: "차단",
     liveTradeBithumbProgramSimHint:
       "프로그램 «시뮬 자동 시작»은 위 «거래소 실주문»과 별개입니다. 키만 연결돼 있으면 시뮬을 켤 수 있습니다.",
+    liveTradeFeeLabel: "거래 수수료",
     liveTradeCredSaved: "저장했습니다.",
     liveTradeCredKeyPlaceholder: "새 키 입력 시 교체",
     liveTradeCredSecretPlaceholder: "비워두면 기존 값 유지",

@@ -33,6 +33,7 @@ import {
   showProgramRunError,
 } from "../lib/liveProgramDisplay";
 import { ko } from "../i18n/ko";
+import { LiveTradeFeeRatesProvider } from "../contexts/LiveTradeFeeRatesContext";
 
 /** 실매매 중 한 채널(빗썸/토스)이 켜져 있으면 다른 «시작» 버튼 숨김 */
 function showArmLaneButton(p: LiveTradeProgram, lane: LiveTradeArmLane): boolean {
@@ -415,6 +416,7 @@ export default function LiveTradingTab({
   const bithumb = status?.bithumb;
 
   return (
+    <LiveTradeFeeRatesProvider feeRates={status?.feeRates}>
     <div className="live-trading-tab live-trading-panel">
       <header className="live-trading-tab__head card">
         <div>
@@ -533,6 +535,11 @@ export default function LiveTradingTab({
           {bithumb?.configured ? (
             <p className="live-trading-tab__hint live-trading-tab__cred-hint">
               {ko.app.liveTradeBithumbProgramSimHint}
+            </p>
+          ) : null}
+          {status?.feeRates?.bithumb?.labelKo ? (
+            <p className="live-trading-tab__hint live-trading-tab__fee-hint">
+              {ko.app.liveTradeFeeLabel}: {status.feeRates.bithumb.labelKo}
             </p>
           ) : null}
           {user ? (
@@ -1065,5 +1072,6 @@ export default function LiveTradingTab({
       </div>
       ) : null}
     </div>
+    </LiveTradeFeeRatesProvider>
   );
 }

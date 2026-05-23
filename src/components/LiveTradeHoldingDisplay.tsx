@@ -1,6 +1,7 @@
 import type { LiveTradeHolding } from "../api";
 import { SHOW_HOLDING_RATIONALE_ROW } from "../constants/uiFlags";
 import { formatPercent, formatPrice } from "../lib/format";
+import { useLiveTradeFeeRates } from "../contexts/LiveTradeFeeRatesContext";
 import { netReturnPctFromPrices } from "../lib/netReturn";
 import { ko } from "../i18n/ko";
 
@@ -10,13 +11,20 @@ export function LiveTradeExitPriceCell({
   exitPrice,
   currency,
   variant,
+  market = "kr",
 }: {
   entry: number;
   exitPrice: number | null | undefined;
   currency: string;
   variant: "success" | "failure";
+  market?: "kr" | "us" | "crypto";
 }) {
-  const pct = netReturnPctFromPrices(entry, exitPrice);
+  const { roundTripForMarket } = useLiveTradeFeeRates();
+  const pct = netReturnPctFromPrices(
+    entry,
+    exitPrice,
+    roundTripForMarket(market ?? "kr"),
+  );
   const label =
     variant === "success"
       ? ko.app.liveTradeExitIfSuccess

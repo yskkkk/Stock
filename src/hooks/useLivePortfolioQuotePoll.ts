@@ -3,7 +3,10 @@ import {
   fetchLiveTradingMinuteQuotes,
   type LiveTradePortfolioResponse,
 } from "../api";
-import { mergeLiveQuotesIntoPortfolio } from "../lib/livePortfolioLiveQuotes";
+import {
+  mergeLiveQuotesIntoPortfolio,
+  type LiveTradeFeeRateByMarket,
+} from "../lib/livePortfolioLiveQuotes";
 /** 보유 종목 현재가 — 장중 갱신용(스크리너 목록보다 짧은 주기) */
 export const PORTFOLIO_QUOTE_POLL_MS = 15_000;
 
@@ -12,6 +15,7 @@ export function useLivePortfolioQuotePoll(
   portfolio: LiveTradePortfolioResponse | null,
   setPortfolio: Dispatch<SetStateAction<LiveTradePortfolioResponse | null>>,
   enabled: boolean,
+  feeByMarket?: LiveTradeFeeRateByMarket,
 ) {
   const symbolsKey = useMemo(
     () =>
@@ -32,7 +36,9 @@ export function useLivePortfolioQuotePoll(
         .then((res) => {
           if (cancelled) return;
           setPortfolio((prev) =>
-            prev ? mergeLiveQuotesIntoPortfolio(prev, res.quotes ?? {}) : prev,
+            prev
+              ? mergeLiveQuotesIntoPortfolio(prev, res.quotes ?? {}, feeByMarket)
+              : prev,
           );
         })
         .catch(() => {
@@ -46,5 +52,5 @@ export function useLivePortfolioQuotePoll(
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [symbolsKey, enabled, setPortfolio]);
+  }, [symbolsKey, enabled, setPortfolio, feeByMarket]);
 }

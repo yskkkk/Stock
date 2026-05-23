@@ -1,29 +1,44 @@
-import { ROUND_TRIP_FEE_RATE } from "./net-return.js";
+import {
+  DEFAULT_ROUND_TRIP_FEE_RATE,
+  normalizeRoundTripFeeRate,
+} from "./net-return.js";
 
 /**
  * 수수료 반영 순수익률이 takeProfitPct에 도달하는 매도가
  * @param {number} entryPrice
  * @param {number} takeProfitPct
+ * @param {number} [roundTripFeeRate]
  */
-export function targetSellPriceFromTakeProfit(entryPrice, takeProfitPct) {
+export function targetSellPriceFromTakeProfit(
+  entryPrice,
+  takeProfitPct,
+  roundTripFeeRate = DEFAULT_ROUND_TRIP_FEE_RATE,
+) {
   const entry = Number(entryPrice);
   const pct = Number(takeProfitPct);
+  const fee = normalizeRoundTripFeeRate(roundTripFeeRate);
   if (!Number.isFinite(entry) || entry <= 0) return null;
   if (!Number.isFinite(pct) || pct <= 0) return null;
-  const mult = (1 + pct / 100) / (1 - ROUND_TRIP_FEE_RATE);
+  const mult = (1 + pct / 100) / (1 - fee);
   return entry * mult;
 }
 
 /**
  * @param {number} entryPrice
  * @param {number} stopLossPct — 음수 예: -3
+ * @param {number} [roundTripFeeRate]
  */
-export function stopLossPriceFromPct(entryPrice, stopLossPct) {
+export function stopLossPriceFromPct(
+  entryPrice,
+  stopLossPct,
+  roundTripFeeRate = DEFAULT_ROUND_TRIP_FEE_RATE,
+) {
   const entry = Number(entryPrice);
   const pct = Number(stopLossPct);
+  const fee = normalizeRoundTripFeeRate(roundTripFeeRate);
   if (!Number.isFinite(entry) || entry <= 0) return null;
   if (!Number.isFinite(pct) || pct >= 0) return null;
-  const mult = (1 + pct / 100) / (1 - ROUND_TRIP_FEE_RATE);
+  const mult = (1 + pct / 100) / (1 - fee);
   return entry * mult;
 }
 

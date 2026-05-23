@@ -10,7 +10,8 @@ import {
 import { getDecryptedCredentialsSync } from "./user-credentials-store.js";
 import { fetchQuoteSnapshotsForSymbols } from "./picks-live-quotes.js";
 import { pickQuoteFromMap } from "./quote-symbol-resolve.js";
-import { ROUND_TRIP_FEE_RATE } from "./net-return.js";
+import { netReturnPct } from "./net-return.js";
+import { getBithumbRoundTripFeeRateSync } from "./exchange-trading-fees.js";
 import { liveTradeCurrency } from "./live-trade-market.js";
 import {
   buildPositionsFromTrades,
@@ -74,12 +75,17 @@ function isArmedCryptoProgram(p) {
  * @param {import("./live-trade-programs-store.js").LiveTradeProgram[]} programs
  * @param {import("./bithumb-trading-adapter.js").BithumbCredentials | null} credentials
  */
-async function listBithumbExchangeOverlayRowsForCredentials(programs, credentials) {
+async function listBithumbExchangeOverlayRowsForCredentials(
+  programs,
+  credentials,
+  userId = "",
+) {
   const status = getBithumbTradingStatusFromCredentials(credentials);
   if (!status.ready) return [];
 
   const armedCrypto = programs.filter(isArmedCryptoProgram);
   if (!armedCrypto.length) return [];
+  const feeRate = getBithumbRoundTripFeeRateSync(userId);
 
   let accounts;
   try {
@@ -158,7 +164,7 @@ async function listBithumbExchangeOverlayRowsForCredentials(programs, credential
         : null;
     const netPct =
       currentPrice != null && avgEntry > 0
-        ? (currentPrice / avgEntry) * (1 - ROUND_TRIP_FEE_RATE) * 100 - 100
+        ? netReturnPct(avgEntry, currentPrice, feeRate)
         : null;
 
     out.push({
@@ -217,6 +223,7 @@ export async function listBithumbExchangeOverlayRows(programs) {
     const rows = await listBithumbExchangeOverlayRowsForCredentials(
       userPrograms,
       creds,
+      userId,
     );
     out.push(...rows);
   }
@@ -281,9 +288,15 @@ export async function applyBithumbExchangeToProgramReturns(out, programs) {
   const symbols = [...new Set(overlay.map((h) => h.symbol))];
   const quotes = await fetchQuoteSnapshotsForSymbols(symbols, { maxAgeMs: 0 });
 
+  /** @type {Map<string, import("./live-trade-programs-store.js").LiveTradeProgram>} */
+  const programById = new Map(programs.map((p) => [p.id, p]));
+
   for (const h of overlay) {
     const pid = h.programId;
     if (!out[pid]) out[pid] = { totalReturnPct: null, holdingCount: 0 };
+
+    const program = programById.get(pid);
+    const feeRate = getBithumbRoundTripFeeRateSync(program?.userId ?? "");
 
     const q = pickQuoteFromMap(quotes, h.symbol, "crypto");
     const cp =
@@ -307,8 +320,8 @@ export async function applyBithumbExchangeToProgramReturns(out, programs) {
   for (const pid of Object.keys(out)) {
     const cost = out[pid]._exchCost ?? 0;
     const pnl = out[pid]._exchPnl ?? 0;
-    if (cost > 0) {
-      out[pid].totalReturnPct = (pnl / cost) * (1 - ROUND_TRIP_FEE_RATE) * 100;
+    if (cost > 0 && cp != null && avg != null && avg > 0) {
+      out[pid].totalReturnPct = netReturnPct(avg, cp, feeRate);
     }
     delete out[pid]._exchPnl;
     delete out[pid]._exchCost;

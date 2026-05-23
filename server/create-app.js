@@ -456,6 +456,10 @@ export function createApp() {
     requireUserAuth,
     asyncRoute(async (req, res) => {
       const userId = req.user.id;
+      const { ensureUserTradingFeesFreshAsync, getUserTradingFeeRatesForApiSync } =
+        await import("./exchange-trading-fees.js");
+      await ensureUserTradingFeesFreshAsync(userId);
+      const feeRates = getUserTradingFeeRatesForApiSync(userId);
       const creds = listCredentialMetaForUserSync(userId);
       const toss =
         creds.toss.source === "user" && creds.toss.ready
@@ -494,6 +498,7 @@ export function createApp() {
             ? !creds.toss.liveOrdersEnabled
             : process.env.TOSS_LIVE_ORDERS_ENABLED !== "1",
         bithumbSimulatedOrders: !bithumb.liveOrdersEnabled,
+        feeRates,
       });
     }),
   );

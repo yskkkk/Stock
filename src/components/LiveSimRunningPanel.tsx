@@ -15,7 +15,9 @@ import {
   type LiveTradeRecord,
   type LiveTradingStatusResponse,
 } from "../api";
+import { useLiveTradeFeeRates } from "../contexts/LiveTradeFeeRatesContext";
 import { useLivePortfolioQuotePoll } from "../hooks/useLivePortfolioQuotePoll";
+import { feeByMarketFromStatus } from "../lib/liveTradeFeeByMarket";
 import {
   extractQuotesFromPortfolio,
   mergeLiveQuotesIntoPortfolio,
@@ -374,6 +376,7 @@ function ProgramRunCard({
                         entry={h.avgEntryPrice}
                         exitPrice={h.targetSellPrice}
                         currency={h.currency}
+                        market={h.market}
                         variant="success"
                       />
                     </td>
@@ -385,6 +388,7 @@ function ProgramRunCard({
                         entry={h.avgEntryPrice}
                         exitPrice={h.stopLossPrice}
                         currency={h.currency}
+                        market={h.market}
                         variant="failure"
                       />
                     </td>
@@ -603,6 +607,11 @@ export default function LiveSimRunningPanel({
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
+  const { feeRates } = useLiveTradeFeeRates();
+  const feeByMarket = useMemo(
+    () => feeByMarketFromStatus(feeRates),
+    [feeRates],
+  );
 
   const loadPortfolio = useCallback(async () => {
     if (activeIds.size === 0) {
@@ -620,14 +629,18 @@ export default function LiveSimRunningPanel({
       if (syms.length > 0) {
         try {
           const q = await fetchLiveTradingMinuteQuotes(syms);
-          merged = mergeLiveQuotesIntoPortfolio(snap, q.quotes ?? {});
+          merged = mergeLiveQuotesIntoPortfolio(snap, q.quotes ?? {}, feeByMarket);
         } catch {
           merged = snap;
         }
       }
       setPortfolio((prev) =>
         prev?.holdings.length
-          ? mergeLiveQuotesIntoPortfolio(merged, extractQuotesFromPortfolio(prev))
+          ? mergeLiveQuotesIntoPortfolio(
+              merged,
+              extractQuotesFromPortfolio(prev),
+              feeByMarket,
+            )
           : merged,
       );
       setUpdatedAt(Date.now());
@@ -637,7 +650,7 @@ export default function LiveSimRunningPanel({
     } finally {
       setLoading(false);
     }
-  }, [activeIds.size]);
+  }, [activeIds.size, feeByMarket]);
 
   useEffect(() => {
     void loadPortfolio();
@@ -649,7 +662,12 @@ export default function LiveSimRunningPanel({
     return () => window.clearInterval(id);
   }, [loadPortfolio, activeIds.size]);
 
-  useLivePortfolioQuotePoll(portfolio, setPortfolio, activeIds.size > 0);
+  useLivePortfolioQuotePoll(
+    portfolio,
+    setPortfolio,
+    activeIds.size > 0,
+    feeByMarket,
+  );
 
   const byProgram = useMemo(() => {
     const holdings = new Map<string, LiveTradeHolding[]>();
