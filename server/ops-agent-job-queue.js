@@ -757,14 +757,13 @@ export function releaseAnyRunningIdeDevQueueSlot(opts = {}) {
     notifyScheduled = released;
   }
 
-  if (!released) {
-    for (let i = slots.length - 1; i >= 0; i--) {
-      const s = slots[i];
-      if (s.source !== "ide") continue;
-      if (active && runningSlot?.id === s.id) continue;
-      const ab = abandonIdeDevQueueSlot(s.id);
-      if (ab.ok) released = true;
-    }
+  // running 해제 여부와 관계없이 waiting IDE 슬롯 전체 제거
+  for (let i = slots.length - 1; i >= 0; i--) {
+    const s = slots[i];
+    if (s.source !== "ide") continue;
+    if (active && runningSlot?.id === s.id) continue;
+    const ab = abandonIdeDevQueueSlot(s.id);
+    if (ab.ok) released = true;
   }
 
   if (!notifyScheduled) {
