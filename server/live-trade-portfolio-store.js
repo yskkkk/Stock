@@ -65,12 +65,25 @@ function defaultStore() {
   return { trades: [] };
 }
 
-/** @param {string | null} [programId] */
-export function listLiveTradeRecordsSync(programId = null) {
-  const store = readStoreSync();
+/** @param {string | null} [programId] @param {string} [userId] */
+function tradesVisibleToUser(trades, userId, programId = null) {
+  const uid = String(userId ?? "").trim();
   const pid = programId ? String(programId).trim() : null;
-  if (!pid) return store.trades;
-  return store.trades.filter((t) => t.programId === pid);
+  let out = trades;
+  if (uid) {
+    const allowed = new Set(
+      listLiveTradeProgramsSync(uid).map((p) => p.id),
+    );
+    out = out.filter((t) => allowed.has(t.programId));
+  }
+  if (pid) out = out.filter((t) => t.programId === pid);
+  return out;
+}
+
+/** @param {string | null} [programId] @param {string} [userId] */
+export function listLiveTradeRecordsSync(programId = null, userId) {
+  const store = readStoreSync();
+  return tradesVisibleToUser(store.trades, userId, programId);
 }
 
 /** 시뮬 전용 프로그램 여부 — 매수 체결이 모두 simulated일 때만 true */
@@ -374,9 +387,9 @@ export async function recordLiveTradeBuyAsync(program, pick, orderMeta = {}) {
  *   name?: string;
  * }} input
  */
-export async function recordLiveTradeSimBuyAsync(input) {
+export async function recordLiveTradeSimBuyAsync(input, userId) {
   const programId = String(input.programId ?? "").trim();
-  const program = getLiveTradeProgramSync(programId);
+  const program = getLiveTradeProgramSync(programId, userId);
   if (!program) throw new Error("프로그램을 찾을 수 없습니다.");
   const symbol = String(input.symbol ?? "").trim().toUpperCase();
   const market = normalizeLiveTradeMarket(input.market, symbol);
@@ -413,7 +426,7 @@ export async function recordLiveTradeSimBuyAsync(input) {
  *   atMs?: number;
  * }} input
  */
-export function recordLiveTradeSellSync(input) {
+export function recordLiveTradeSellSync(input, userId) {
   const programId = String(input.programId ?? "").trim();
   const symbol = String(input.symbol ?? "").trim().toUpperCase();
   const market = normalizeLiveTradeMarket(input.market, symbol);
@@ -425,7 +438,7 @@ export function recordLiveTradeSellSync(input) {
     typeof input.atMs === "number" && Number.isFinite(input.atMs) && input.atMs > 0
       ? input.atMs
       : Date.now();
-  if (!getLiveTradeProgramSync(programId)) {
+  if (!getLiveTradeProgramSync(programId, userId)) {
     throw new Error("프로그램을 찾을 수 없습니다.");
   }
 
@@ -477,23 +490,26 @@ export function recordLiveTradeSellSync(input) {
  *   note?: string;
  * }} input
  */
-export async function recordLiveTradeSimSellAsync(input) {
+export async function recordLiveTradeSimSellAsync(input, userId) {
   const programId = String(input.programId ?? "").trim();
   const symbol = String(input.symbol ?? "").trim().toUpperCase();
   if (!programId || !symbol) {
     throw new Error("매도 시뮬레이션에 필요한 값이 없습니다.");
   }
   const quote = await resolveLiveTradeQuote(symbol);
-  const trade = recordLiveTradeSellSync({
-    programId,
-    symbol: quote.symbol,
-    market: input.market,
-    quantity: input.quantity,
-    price: quote.price,
-    note: input.note,
-    simulated: true,
-    atMs: quote.atMs,
-  });
+  const trade = recordLiveTradeSellSync(
+    {
+      programId,
+      symbol: quote.symbol,
+      market: input.market,
+      quantity: input.quantity,
+      price: quote.price,
+      note: input.note,
+      simulated: true,
+      atMs: quote.atMs,
+    },
+    userId,
+  );
   return { trade, quote };
 }
 
@@ -536,9 +552,14 @@ export function buildOpenPositionsWithSellTargetsSync() {
  * @param {string[]} programIds
  * @returns {Promise<Record<string, { totalReturnPct: number | null; holdingCount: number }>>}
  */
-export async function buildProgramPortfolioSummariesMap(programIds) {
+export async function buildProgramPortfolioSummariesMap(programIds, userId) {
   const store = readStoreSync();
-  const ids = [...new Set(programIds.map((id) => String(id ?? "").trim()).filter(Boolean))];
+  const uid = String(userId ?? "").trim();
+  let ids = [...new Set(programIds.map((id) => String(id ?? "").trim()).filter(Boolean))];
+  if (uid) {
+    const allowed = new Set(listLiveTradeProgramsSync(uid).map((p) => p.id));
+    ids = ids.filter((id) => allowed.has(id));
+  }
 
   /** @type {Map<string, { positions: object[]; realizedPnl: number; investedOpen: number; closedCost: number }>} */
   const perProgram = new Map();
@@ -601,7 +622,9 @@ export async function buildProgramPortfolioSummariesMap(programIds) {
   for (const pid of ids) {
     if (!out[pid]) out[pid] = { totalReturnPct: null, holdingCount: 0 };
   }
-  const programs = listLiveTradeProgramsSync().filter((p) => ids.includes(p.id));
+  const programs = listLiveTradeProgramsSync(uid).filter((p) =>
+    ids.includes(p.id),
+  );
   const { applyBithumbExchangeToProgramReturns } = await import(
     "./live-trade-bithumb-holdings.js"
   );
@@ -613,15 +636,19 @@ export async function buildLiveTradePortfolioSnapshot(opts = {}) {
   const programIdFilter = opts.programId
     ? String(opts.programId).trim()
     : null;
+  const userId = opts.userId ? String(opts.userId).trim() : "";
   const store = readStoreSync();
-  let trades = [...store.trades];
-  if (programIdFilter) {
-    trades = trades.filter((t) => t.programId === programIdFilter);
-  }
+  const scopedTrades = tradesVisibleToUser(
+    store.trades,
+    userId,
+    programIdFilter,
+  );
+  let trades = [...scopedTrades];
   trades.sort((a, b) => b.atMs - a.atMs);
 
+  const visibleAll = tradesVisibleToUser(store.trades, userId, null);
   const { positions, realizedPnl } = buildPositionsFromTrades(
-    store.trades,
+    visibleAll,
     programIdFilter,
   );
 
@@ -663,7 +690,7 @@ export async function buildLiveTradePortfolioSnapshot(opts = {}) {
     let exitScenarioNote = null;
     let entryStructureNote = null;
     let entryIdeal = false;
-    for (const t of store.trades) {
+    for (const t of visibleAll) {
       if (t.side !== "buy") continue;
       if (positionKey(t.programId, t.market, t.symbol) !== key) continue;
       if (t.targetSellPrice != null) targetSellPrice = t.targetSellPrice;
@@ -739,7 +766,7 @@ export async function buildLiveTradePortfolioSnapshot(opts = {}) {
     holdings,
     trades: trades.slice(0, 200),
   };
-  const programs = listLiveTradeProgramsSync();
+  const programs = listLiveTradeProgramsSync(userId || undefined);
   const { mergeBithumbExchangeHoldings } = await import(
     "./live-trade-bithumb-holdings.js"
   );

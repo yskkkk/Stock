@@ -24,6 +24,10 @@ import { useMobileBackHandler } from "../hooks/useMobileBackHandler";
 import { MOBILE_BACK_PRIORITY } from "../lib/mobileBackStack";
 import { peekLiveTradingPrefetch } from "../lib/tabPrefetch";
 import { formatPercent } from "../lib/format";
+import LiveTradeAuthPanel, {
+  LiveTradeBithumbCredentialForm,
+  useLiveTradeAuth,
+} from "./LiveTradeAuthAndCredentials";
 import {
   programDisplayStatus,
   showProgramRunError,
@@ -124,8 +128,10 @@ export default function LiveTradingTab({
   onOpenHoldingChart?: (h: LiveTradeHolding) => void;
 }) {
   const prefetched = peekLiveTradingPrefetch();
+  const { user, registrationOpen, authChecked, refreshAuth } =
+    useLiveTradeAuth();
   const [status, setStatus] = useState<LiveTradingStatusResponse | null>(
-    () => prefetched?.status ?? null,
+    () => (user ? prefetched?.status ?? null : null),
   );
   const [models, setModels] = useState<TechModelRecord[]>(
     () => prefetched?.techModels.models ?? [],
@@ -139,6 +145,10 @@ export default function LiveTradingTab({
   const [portfolioRefreshKey, setPortfolioRefreshKey] = useState(0);
 
   const reload = useCallback(async () => {
+    if (!user) {
+      setStatus(null);
+      return;
+    }
     try {
       const [st, tm] = await Promise.all([
         fetchLiveTradingStatus(),
@@ -155,13 +165,19 @@ export default function LiveTradingTab({
             : tm.models[0]?.id ?? "",
       }));
     } catch (e) {
-      setLoadErr(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      setLoadErr(msg);
+      if (msg.includes("로그인")) setStatus(null);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  useEffect(() => {
+    if (user) void reload();
+  }, [user, reload]);
 
   useEffect(() => {
     if (portfolioRefreshKey > 0) void reload();
@@ -415,10 +431,24 @@ export default function LiveTradingTab({
         ) : null}
       </header>
 
-      {loadErr ? (
+      {loadErr && user ? (
         <div className="alert alert--error" role="alert">
           {loadErr}
         </div>
+      ) : null}
+
+      {authChecked ? (
+        <LiveTradeAuthPanel
+          user={user}
+          registrationOpen={registrationOpen}
+          onAuthChange={() => void refreshAuth().then(() => reload())}
+        />
+      ) : null}
+
+      {!user ? (
+        <p className="live-trading-tab__hint card">
+          {ko.app.liveTradeAuthRequired}
+        </p>
       ) : null}
 
       <div
@@ -500,25 +530,37 @@ export default function LiveTradingTab({
               </span>
             </li>
           </ul>
+          {user ? (
+            <LiveTradeBithumbCredentialForm
+              bithumbReady={Boolean(bithumb?.ready)}
+              cryptoReady={status?.credentialsCryptoReady !== false}
+              onUpdated={() => void reload()}
+            />
+          ) : null}
         </section>
       </div>
 
-      <LiveSimRunningPanel
-        programs={programs}
-        status={status}
-        busy={busy}
-        refreshKey={portfolioRefreshKey}
-        onStop={(id) => void handleSimStop(id)}
-        onDisarm={(id) => void handleDisarm(id)}
-        onProgramUpdated={() => void reload()}
-        onOpenHoldingChart={onOpenHoldingChart}
-      />
+      {user ? (
+        <>
+          <LiveSimRunningPanel
+            programs={programs}
+            status={status}
+            busy={busy}
+            refreshKey={portfolioRefreshKey}
+            onStop={(id) => void handleSimStop(id)}
+            onDisarm={(id) => void handleDisarm(id)}
+            onProgramUpdated={() => void reload()}
+            onOpenHoldingChart={onOpenHoldingChart}
+          />
 
-      <LiveTradePortfolioPanel
-        programs={programs}
-        onOpenHoldingChart={onOpenHoldingChart}
-      />
+          <LiveTradePortfolioPanel
+            programs={programs}
+            onOpenHoldingChart={onOpenHoldingChart}
+          />
+        </>
+      ) : null}
 
+      {user ? (
       <div className="live-trading-tab__grid">
         <section className="live-trading-tab__form card" aria-label={ko.app.liveTradeFormTitle}>
           <header className="live-trading-tab__form-head">
@@ -1016,6 +1058,7 @@ export default function LiveTradingTab({
           </div>
         </section>
       </div>
+      ) : null}
     </div>
   );
 }

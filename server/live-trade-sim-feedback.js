@@ -248,11 +248,11 @@ function buildSuggestedPatch(rounds, program) {
 /**
  * @param {string} programId
  */
-export function analyzeSimProgramFeedback(programId) {
-  const program = getLiveTradeProgramSync(programId);
+export function analyzeSimProgramFeedback(programId, userId) {
+  const program = getLiveTradeProgramSync(programId, userId);
   if (!program) throw new Error("프로그램을 찾을 수 없습니다.");
 
-  const trades = listLiveTradeRecordsSync(programId);
+  const trades = listLiveTradeRecordsSync(programId, userId);
   const rounds = buildSimClosedRounds(trades, programId);
   const decided = rounds.filter(
     (r) => r.outcome === "win" || r.outcome === "loss",
@@ -431,8 +431,8 @@ function cacheFeedback(programId, feedback) {
 /**
  * @param {string} programId
  */
-export function applySimProgramFeedbackPatch(programId) {
-  const analysis = analyzeSimProgramFeedback(programId);
+export function applySimProgramFeedbackPatch(programId, userId) {
+  const analysis = analyzeSimProgramFeedback(programId, userId);
   if (!analysis.ready) {
     throw new Error(analysis.message ?? "분석 데이터가 부족합니다.");
   }
@@ -440,16 +440,17 @@ export function applySimProgramFeedbackPatch(programId) {
     throw new Error("적용할 자동 개선안이 없습니다. 승·패 요인만 참고하세요.");
   }
   const patch = analysis.suggestedPatch ?? {};
-  const program = updateLiveTradeProgramSync(programId, patch);
+  const program = updateLiveTradeProgramSync(programId, patch, userId);
   return { program, analysis };
 }
 
 /**
- * 신규 테스터 등록용 — 전체 시뮬 이력 기반 추천
+ * 신규 테스터 등록용 — 시뮬 이력 기반 추천
+ * @param {string} [userId]
  */
-export function buildSimCreationRecommendations() {
-  const programs = listLiveTradeProgramsSync();
-  const allTrades = listLiveTradeRecordsSync(null);
+export function buildSimCreationRecommendations(userId) {
+  const programs = listLiveTradeProgramsSync(userId);
+  const allTrades = listLiveTradeRecordsSync(null, userId);
 
   /** @type {{ programId: string; name: string; winRatePct: number; decided: number; program: object }[]} */
   const programStats = [];

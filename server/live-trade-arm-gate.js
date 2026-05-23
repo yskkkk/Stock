@@ -1,5 +1,8 @@
-import { getBithumbTradingStatus } from "./bithumb-trading-adapter.js";
+import {
+  getBithumbTradingStatusForUserSync,
+} from "./user-credentials-store.js";
 import { getTossTradingStatus } from "./toss-trading-adapter.js";
+import { getCredentialMetaSync } from "./user-credentials-store.js";
 
 /** @typedef {"bithumb" | "toss"} LiveTradeArmLane */
 
@@ -36,18 +39,19 @@ export function isProgramArmedForMarket(program, market) {
 /**
  * @param {import("./live-trade-programs-store.js").LiveTradeProgram} program
  * @param {LiveTradeArmLane} lane
+ * @param {string} userId
  */
-export function validateLiveTradeArmLane(program, lane) {
+export function validateLiveTradeArmLane(program, lane, userId) {
   const mk = program?.markets ?? {};
   if (lane === "bithumb") {
     if (!mk.crypto) {
       throw new Error("이 프로그램에 코인 시장이 선택되어 있지 않습니다.");
     }
-    const bithumb = getBithumbTradingStatus();
+    const bithumb = getBithumbTradingStatusForUserSync(userId);
     if (!bithumb.configured) {
       throw new Error(
         bithumb.messageKo ??
-          "코인 실매매에는 빗썸 API 키가 필요합니다. 서버 .env를 확인하세요.",
+          "코인 실매매에는 빗썸 API 키가 필요합니다. «내 API 연동»에서 저장하세요.",
       );
     }
     return { lane, bithumb, toss: getTossTradingStatus() };
@@ -59,19 +63,28 @@ export function validateLiveTradeArmLane(program, lane) {
     if (mk.us) {
       throw new Error("미국 주식 실매매는 아직 지원하지 않습니다.");
     }
-    const toss = getTossTradingStatus();
+    const userToss = getCredentialMetaSync(userId, "toss");
+    const toss =
+      userToss.source === "user" && userToss.ready
+        ? {
+            phase: "ready",
+            configured: true,
+            ready: true,
+            messageKo: userToss.messageKo,
+          }
+        : getTossTradingStatus();
     if (!toss.configured) {
       throw new Error(
         toss.messageKo ??
-          "국내 실매매에는 토스 API 키가 필요합니다. 서버 .env를 확인하세요.",
+          "국내 실매매에는 토스 API 키가 필요합니다. «내 API 연동» 또는 서버 설정을 확인하세요.",
       );
     }
-    return { lane, toss, bithumb: getBithumbTradingStatus() };
+    return { lane, toss, bithumb: getBithumbTradingStatusForUserSync(userId) };
   }
   throw new Error("지원하지 않는 실매매 채널입니다.");
 }
 
-/** @deprecated 전체 시장 동시 검사 — 레인별 arm 사용 권장 */
+/** @deprecated */
 export function validateLiveTradeArmGate(program) {
   const mk = program?.markets ?? {};
   if (!mk.kr && !mk.us && !mk.crypto) {
@@ -81,17 +94,17 @@ export function validateLiveTradeArmGate(program) {
     throw new Error("미국 주식 실매매는 아직 지원하지 않습니다.");
   }
   const toss = getTossTradingStatus();
-  const bithumb = getBithumbTradingStatus();
+  const bithumb = getBithumbTradingStatusForUserSync(program?.userId ?? "");
   if (mk.kr && !toss.configured) {
     throw new Error(
       toss.messageKo ??
-        "국내 실매매에는 토스 API 키가 필요합니다. 서버 .env를 확인하세요.",
+        "국내 실매매에는 토스 API 키가 필요합니다.",
     );
   }
   if (mk.crypto && !bithumb.configured) {
     throw new Error(
       bithumb.messageKo ??
-        "코인 실매매에는 빗썸 API 키가 필요합니다. 서버 .env를 확인하세요.",
+        "코인 실매매에는 빗썸 API 키가 필요합니다.",
     );
   }
   return { toss, bithumb, needsKr: Boolean(mk.kr), needsCrypto: Boolean(mk.crypto) };

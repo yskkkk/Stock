@@ -26,7 +26,10 @@ export interface StockData extends ChartResponse {
 }
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const reqInit: RequestInit = init ?? {};
+  const reqInit: RequestInit = {
+    credentials: "include",
+    ...init,
+  };
   const resolved = url.startsWith("/") ? withApiBase(url) : url;
   let res: Response;
   try {
@@ -767,6 +770,94 @@ export function deleteTechModel(id: string) {
   );
 }
 
+export interface AuthUser {
+  id: string;
+  email: string;
+}
+
+export interface AuthMeResponse {
+  user: AuthUser;
+  registrationOpen?: boolean;
+}
+
+export function fetchAuthMe() {
+  return fetchJson<AuthMeResponse>("/api/auth/me");
+}
+
+export function loginAuth(email: string, password: string) {
+  return fetchJson<{ ok: boolean; user: AuthUser }>("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export function registerAuth(email: string, password: string) {
+  return fetchJson<{ ok: boolean; user: AuthUser }>("/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export function logoutAuth() {
+  return fetchJson<{ ok: boolean }>("/api/auth/logout", { method: "POST" });
+}
+
+export interface UserCredentialMeta {
+  exchange: "bithumb" | "toss";
+  configured: boolean;
+  ready: boolean;
+  liveOrdersEnabled: boolean;
+  hasSecret: boolean;
+  messageKo: string;
+  source?: "user" | "env" | "none";
+  updatedAtMs?: number | null;
+}
+
+export interface UserCredentialsResponse {
+  ok: boolean;
+  cryptoReady: boolean;
+  bithumb: UserCredentialMeta;
+  toss: UserCredentialMeta;
+}
+
+export function fetchUserCredentials() {
+  return fetchJson<UserCredentialsResponse>("/api/user/credentials");
+}
+
+export function saveUserCredential(
+  exchange: "bithumb" | "toss",
+  body: {
+    apiKey: string;
+    secretKey?: string;
+    liveOrdersEnabled?: boolean;
+  },
+) {
+  return fetchJson<{ ok: boolean; credential: UserCredentialMeta }>(
+    `/api/user/credentials/${encodeURIComponent(exchange)}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+}
+
+export function testUserCredential(
+  exchange: "bithumb" | "toss",
+  body?: { apiKey?: string; secretKey?: string },
+) {
+  return fetchJson<{ ok: boolean; messageKo: string }>(
+    `/api/user/credentials/${encodeURIComponent(exchange)}/test`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body ?? {}),
+    },
+  );
+}
+
 export type LiveTradeProgramStatus = "draft" | "armed" | "sim" | "paused" | "error";
 
 export interface LiveTradeProgram {
@@ -787,6 +878,7 @@ export interface LiveTradeProgram {
   takeProfitPct: number | null;
   stopLossPct: number | null;
   armedMarkets?: { kr: boolean; crypto: boolean };
+  userId?: string | null;
   createdAtMs: number;
   updatedAtMs: number;
 }
@@ -827,6 +919,7 @@ export interface LiveTradingStatusResponse {
   simulatedOrders: boolean;
   tossSimulatedOrders?: boolean;
   bithumbSimulatedOrders?: boolean;
+  credentialsCryptoReady?: boolean;
 }
 
 export function fetchLiveTradingStatus() {

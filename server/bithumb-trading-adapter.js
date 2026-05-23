@@ -1,5 +1,6 @@
 /**
  * 빗썸 Open API v2 — JWT 인증·시장가 주문 (KRW 마켓).
+ * BYOK: { apiKey, secretKey, liveOrdersEnabled } 주입. 서버 .env 단일키는 테스트 스크립트 전용.
  * @see https://apidocs.bithumb.com
  */
 import crypto from "node:crypto";
@@ -13,11 +14,20 @@ import { pickMeetsProgramThreshold } from "./toss-trading-adapter.js";
 
 /** @typedef {"unconfigured" | "configured" | "ready"} BithumbApiPhase */
 
-function bithumbApiKey() {
+/**
+ * @typedef {{
+ *   apiKey: string;
+ *   secretKey: string;
+ *   liveOrdersEnabled?: boolean;
+ *   apiBaseUrl?: string;
+ * }} BithumbCredentials
+ */
+
+function bithumbApiKeyEnv() {
   return String(process.env.BITHUMB_API_KEY ?? "").trim();
 }
 
-function bithumbSecretKey() {
+function bithumbSecretKeyEnv() {
   return String(process.env.BITHUMB_SECRET_KEY ?? "").trim();
 }
 
@@ -27,37 +37,60 @@ function bithumbApiBase() {
   ).trim();
 }
 
-export function getBithumbApiPhase() {
-  if (!bithumbApiKey()) return "unconfigured";
-  if (!bithumbSecretKey()) return "configured";
-  return "ready";
+/** @returns {BithumbCredentials | null} */
+function envCredentials() {
+  const apiKey = bithumbApiKeyEnv();
+  const secretKey = bithumbSecretKeyEnv();
+  if (!apiKey && !secretKey) return null;
+  return {
+    apiKey,
+    secretKey,
+    liveOrdersEnabled: process.env.BITHUMB_LIVE_ORDERS_ENABLED === "1",
+    apiBaseUrl: bithumbApiBase(),
+  };
 }
 
-export function isBithumbTradingReady() {
-  return getBithumbApiPhase() === "ready";
-}
-
-export function getBithumbTradingStatus() {
-  const phase = getBithumbApiPhase();
+/**
+ * @param {BithumbCredentials | null | undefined} credentials
+ */
+export function getBithumbTradingStatusFromCredentials(credentials) {
+  const apiKey = String(credentials?.apiKey ?? "").trim();
+  const secretKey = String(credentials?.secretKey ?? "").trim();
+  let phase = /** @type {BithumbApiPhase} */ ("unconfigured");
+  if (apiKey && secretKey) phase = "ready";
+  else if (apiKey) phase = "configured";
   const configured = phase !== "unconfigured";
   const ready = phase === "ready";
   let messageKo =
-    "빗썸 API가 없습니다. 프로젝트 루트 .env 에 BITHUMB_API_KEY·BITHUMB_SECRET_KEY 값을 넣고 npm run dev(서버)를 재시작하세요.";
+    "빗썸 API가 없습니다. 실거래 탭 «내 API 연동»에서 API Key·Secret Key를 저장하세요.";
   if (phase === "configured") {
-    messageKo =
-      "API Key만 있습니다. .env 의 BITHUMB_SECRET_KEY 를 채운 뒤 서버를 재시작하세요.";
+    messageKo = "API Key만 있습니다. Secret Key를 함께 저장하세요.";
   } else if (ready) {
-    messageKo =
-      "빗썸 연동 준비됨. 코인 실매매 프로그램이 켜져 있으면 조건 충족 시 KRW 시장가 매수가 전달됩니다.";
+    messageKo = credentials?.liveOrdersEnabled
+      ? "빗썸 연동 준비됨 · 실주문 켜짐"
+      : "빗썸 연동 준비됨 · 실주문 꺼짐(체결은 시뮬만 기록)";
   }
   return {
     phase,
     configured,
     ready,
     messageKo,
-    liveOrdersEnabled: process.env.BITHUMB_LIVE_ORDERS_ENABLED === "1",
+    liveOrdersEnabled: Boolean(credentials?.liveOrdersEnabled),
     docsHint: "https://apidocs.bithumb.com",
   };
+}
+
+export function getBithumbApiPhase() {
+  return getBithumbTradingStatusFromCredentials(envCredentials()).phase;
+}
+
+export function isBithumbTradingReady() {
+  return getBithumbApiPhase() === "ready";
+}
+
+/** @deprecated 테스트·레거시 — UI/러너는 BYOK status 사용 */
+export function getBithumbTradingStatus() {
+  return getBithumbTradingStatusFromCredentials(envCredentials());
 }
 
 /** @param {string} yahooSymbol e.g. BTC-USDT */
@@ -74,10 +107,6 @@ function base64Url(buf) {
     .replace(/=+$/g, "");
 }
 
-/**
- * @param {Record<string, string | number>} params
- */
-/** 빗썸: body 필드 순서 그대로 `k=v&…` — 알파벳 정렬하면 JWT 검증 실패 */
 function queryHashSha512(params) {
   const qs = Object.entries(params)
     .map(([k, v]) => `${k}=${String(v)}`)
@@ -85,9 +114,6 @@ function queryHashSha512(params) {
   return crypto.createHash("sha512").update(qs, "utf8").digest("hex");
 }
 
-/**
- * @param {Record<string, unknown>} claims
- */
 function signJwtHs256(claims, secret) {
   const header = base64Url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
   const body = base64Url(JSON.stringify(claims));
@@ -104,15 +130,22 @@ function signJwtHs256(claims, secret) {
 
 /**
  * @param {"GET"|"POST"|"DELETE"} method
- * @param {string} path e.g. /v1/orders
- * @param {Record<string, string | number> | null} [bodyParams]
+ * @param {string} path
+ * @param {Record<string, string | number> | null} bodyParams
+ * @param {BithumbCredentials} credentials
  */
-async function bithumbPrivateRequest(method, path, bodyParams = null) {
-  if (!isBithumbTradingReady()) {
-    throw new Error(getBithumbTradingStatus().messageKo);
+async function bithumbPrivateRequestWithCredentials(
+  method,
+  path,
+  bodyParams,
+  credentials,
+) {
+  const status = getBithumbTradingStatusFromCredentials(credentials);
+  if (!status.ready) {
+    throw new Error(status.messageKo);
   }
   const claims = {
-    access_key: bithumbApiKey(),
+    access_key: String(credentials.apiKey).trim(),
     nonce: randomUUID(),
     timestamp: Date.now(),
   };
@@ -120,8 +153,12 @@ async function bithumbPrivateRequest(method, path, bodyParams = null) {
     claims.query_hash = queryHashSha512(bodyParams);
     claims.query_hash_alg = "SHA512";
   }
-  const token = signJwtHs256(claims, bithumbSecretKey());
-  const url = `${bithumbApiBase().replace(/\/$/, "")}${path}`;
+  const token = signJwtHs256(claims, String(credentials.secretKey).trim());
+  const base = String(credentials.apiBaseUrl ?? bithumbApiBase()).replace(
+    /\/$/,
+    "",
+  );
+  const url = `${base}${path}`;
   const init = {
     method,
     headers: {
@@ -154,23 +191,49 @@ async function bithumbPrivateRequest(method, path, bodyParams = null) {
   return body;
 }
 
+/** 레거시 env — scripts/bithumb-test-order.mjs */
+async function bithumbPrivateRequest(method, path, bodyParams = null) {
+  const creds = envCredentials();
+  if (!creds?.apiKey || !creds?.secretKey) {
+    throw new Error(getBithumbTradingStatus().messageKo);
+  }
+  return bithumbPrivateRequestWithCredentials(
+    method,
+    path,
+    bodyParams,
+    creds,
+  );
+}
+
 /**
- * 빗썸 전체 계좌 (보유 코인·원화). Private GET /v1/accounts
- * @returns {Promise<Array<{ currency?: string; balance?: string; locked?: string; avg_buy_price?: string; unit_currency?: string }>>}
+ * @param {BithumbCredentials} credentials
  */
-export async function fetchBithumbAccounts() {
-  if (!isBithumbTradingReady()) return [];
-  const body = await bithumbPrivateRequest("GET", "/v1/accounts");
+export async function fetchBithumbAccountsWithCredentials(credentials) {
+  const status = getBithumbTradingStatusFromCredentials(credentials);
+  if (!status.ready) return [];
+  const body = await bithumbPrivateRequestWithCredentials(
+    "GET",
+    "/v1/accounts",
+    null,
+    credentials,
+  );
   return Array.isArray(body) ? body : [];
+}
+
+export async function fetchBithumbAccounts() {
+  const creds = envCredentials();
+  if (!creds) return [];
+  return fetchBithumbAccountsWithCredentials(creds);
 }
 
 /**
  * @param {import("./live-trade-programs-store.js").LiveTradeProgram} program
  * @param {object} pick
- * @returns {Promise<{ ok: boolean; simulated?: boolean; orderId?: string; error?: string }>}
+ * @param {{ credentials?: BithumbCredentials | null }} [options]
  */
-export async function executeBithumbLiveBuyOrder(program, pick) {
-  const status = getBithumbTradingStatus();
+export async function executeBithumbLiveBuyOrder(program, pick, options = {}) {
+  const credentials = options.credentials ?? null;
+  const status = getBithumbTradingStatusFromCredentials(credentials);
   if (!status.ready) {
     return { ok: false, error: status.messageKo };
   }
@@ -193,7 +256,7 @@ export async function executeBithumbLiveBuyOrder(program, pick) {
     return { ok: false, error: "빗썸 최소 주문 금액(약 5,000원) 이상으로 설정하세요." };
   }
 
-  if (process.env.BITHUMB_LIVE_ORDERS_ENABLED !== "1") {
+  if (!credentials?.liveOrdersEnabled) {
     console.info(
       "[bithumb-trading] simulated buy",
       program.name,
@@ -206,12 +269,17 @@ export async function executeBithumbLiveBuyOrder(program, pick) {
   }
 
   try {
-    const body = await bithumbPrivateRequest("POST", "/v1/orders", {
-      market,
-      side: "bid",
-      ord_type: "price",
-      price: String(krw),
-    });
+    const body = await bithumbPrivateRequestWithCredentials(
+      "POST",
+      "/v1/orders",
+      {
+        market,
+        side: "bid",
+        ord_type: "price",
+        price: String(krw),
+      },
+      /** @type {BithumbCredentials} */ (credentials),
+    );
     const orderId = String(body.uuid ?? body.order_id ?? "");
     return { ok: true, orderId: orderId || undefined };
   } catch (e) {
@@ -224,9 +292,11 @@ export async function executeBithumbLiveBuyOrder(program, pick) {
 
 /**
  * @param {{ market: string; volume: number }} input
+ * @param {{ credentials?: BithumbCredentials | null }} [options]
  */
-export async function executeBithumbLiveSellOrder(input) {
-  const status = getBithumbTradingStatus();
+export async function executeBithumbLiveSellOrder(input, options = {}) {
+  const credentials = options.credentials ?? envCredentials();
+  const status = getBithumbTradingStatusFromCredentials(credentials);
   if (!status.ready) {
     return { ok: false, error: status.messageKo };
   }
@@ -236,7 +306,7 @@ export async function executeBithumbLiveSellOrder(input) {
     return { ok: false, error: "매도 수량이 올바르지 않습니다." };
   }
 
-  if (process.env.BITHUMB_LIVE_ORDERS_ENABLED !== "1") {
+  if (!credentials?.liveOrdersEnabled) {
     console.info("[bithumb-trading] simulated sell", market, volume);
     return { ok: true, simulated: true, orderId: `bithumb-sim-sell-${Date.now()}` };
   }
@@ -246,12 +316,17 @@ export async function executeBithumbLiveSellOrder(input) {
       Math.round(volume * 1e8) / 1e8 > 0
         ? String(Math.round(volume * 1e8) / 1e8)
         : String(volume);
-    const body = await bithumbPrivateRequest("POST", "/v1/orders", {
-      market,
-      side: "ask",
-      ord_type: "market",
-      volume: vol,
-    });
+    const body = await bithumbPrivateRequestWithCredentials(
+      "POST",
+      "/v1/orders",
+      {
+        market,
+        side: "ask",
+        ord_type: "market",
+        volume: vol,
+      },
+      /** @type {BithumbCredentials} */ (credentials),
+    );
     return { ok: true, orderId: String(body.uuid ?? "") || undefined };
   } catch (e) {
     return {
@@ -261,20 +336,10 @@ export async function executeBithumbLiveSellOrder(input) {
   }
 }
 
-/**
- * @param {string} yahooSymbol
- * @param {number} price
- * @param {number} amountKrw
- */
 export function estimateBithumbBuyQuantity(yahooSymbol, price, amountKrw) {
   return quantityFromOrderAmount(amountKrw, price, "crypto");
 }
 
-/**
- * 시장가 매수 (원화 금액). 테스트·수동 확인용.
- * @param {string} market e.g. KRW-DOGE
- * @param {number} krw
- */
 export async function executeBithumbMarketBuyKrw(market, krw) {
   const status = getBithumbTradingStatus();
   if (!status.ready) {
@@ -312,11 +377,6 @@ export async function executeBithumbMarketBuyKrw(market, krw) {
   }
 }
 
-/**
- * 시장가 매수 (코인 수량). 최소 주문 금액 미만이면 거래소에서 거절될 수 있음.
- * @param {string} market
- * @param {number} volume
- */
 export async function executeBithumbMarketBuyVolume(market, volume) {
   const status = getBithumbTradingStatus();
   if (!status.ready) {

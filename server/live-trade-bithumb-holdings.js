@@ -3,7 +3,11 @@
  */
 import { isBinanceUsdtSymbol } from "./binance-usdt.js";
 import { cryptoYahooUsdtDisplayName } from "./crypto-display-names.js";
-import { fetchBithumbAccounts, getBithumbTradingStatus } from "./bithumb-trading-adapter.js";
+import {
+  fetchBithumbAccountsWithCredentials,
+  getBithumbTradingStatusFromCredentials,
+} from "./bithumb-trading-adapter.js";
+import { getDecryptedCredentialsSync } from "./user-credentials-store.js";
 import { fetchQuoteSnapshotsForSymbols } from "./picks-live-quotes.js";
 import { pickQuoteFromMap } from "./quote-symbol-resolve.js";
 import { ROUND_TRIP_FEE_RATE } from "./net-return.js";
@@ -66,8 +70,12 @@ function isArmedCryptoProgram(p) {
 /**
  * @param {import("./live-trade-programs-store.js").LiveTradeProgram[]} programs
  */
-export async function listBithumbExchangeOverlayRows(programs) {
-  const status = getBithumbTradingStatus();
+/**
+ * @param {import("./live-trade-programs-store.js").LiveTradeProgram[]} programs
+ * @param {import("./bithumb-trading-adapter.js").BithumbCredentials | null} credentials
+ */
+async function listBithumbExchangeOverlayRowsForCredentials(programs, credentials) {
+  const status = getBithumbTradingStatusFromCredentials(credentials);
   if (!status.ready) return [];
 
   const armedCrypto = programs.filter(isArmedCryptoProgram);
@@ -75,7 +83,11 @@ export async function listBithumbExchangeOverlayRows(programs) {
 
   let accounts;
   try {
-    accounts = await fetchBithumbAccounts();
+    accounts = await fetchBithumbAccountsWithCredentials(
+      /** @type {import("./bithumb-trading-adapter.js").BithumbCredentials} */ (
+        credentials
+      ),
+    );
   } catch {
     return [];
   }
@@ -182,6 +194,31 @@ export async function listBithumbExchangeOverlayRows(programs) {
           : null,
       exchangeSource: "bithumb",
     });
+  }
+  return out;
+}
+
+/**
+ * @param {import("./live-trade-programs-store.js").LiveTradeProgram[]} programs
+ */
+export async function listBithumbExchangeOverlayRows(programs) {
+  /** @type {Map<string, import("./live-trade-programs-store.js").LiveTradeProgram[]>} */
+  const byUser = new Map();
+  for (const p of programs) {
+    const uid = String(p.userId ?? "").trim();
+    if (!uid) continue;
+    if (!byUser.has(uid)) byUser.set(uid, []);
+    byUser.get(uid).push(p);
+  }
+  const out = [];
+  for (const [userId, userPrograms] of byUser) {
+    const creds = getDecryptedCredentialsSync(userId, "bithumb");
+    if (!creds) continue;
+    const rows = await listBithumbExchangeOverlayRowsForCredentials(
+      userPrograms,
+      creds,
+    );
+    out.push(...rows);
   }
   return out;
 }

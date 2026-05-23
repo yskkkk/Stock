@@ -11,6 +11,7 @@ import { resolveLiveTradeQuote } from "./live-trade-quote.js";
 import { isProgramArmedForMarket } from "./live-trade-arm-gate.js";
 import { normalizeLiveTradeMarket, programAllowsMarket } from "./live-trade-market.js";
 import { executeBithumbLiveBuyOrder } from "./bithumb-trading-adapter.js";
+import { getDecryptedCredentialsSync } from "./user-credentials-store.js";
 import {
   executeLiveBuyOrder,
   pickMeetsProgramThreshold,
@@ -91,9 +92,16 @@ async function liveBuyForProgram(program, pick) {
   const sym = String(pick.symbol ?? "").trim();
   if (!sym || shouldSkipDuplicate(`live:${program.id}`, sym)) return;
 
+  const userId = String(program.userId ?? "").trim();
+  if (!userId) {
+    touchLiveTradeProgramRunSync(program.id, "프로그램 소유자가 없습니다.");
+    return;
+  }
   const out =
     market === "crypto"
-      ? await executeBithumbLiveBuyOrder(program, pick)
+      ? await executeBithumbLiveBuyOrder(program, pick, {
+          credentials: getDecryptedCredentialsSync(userId, "bithumb"),
+        })
       : await executeLiveBuyOrder(program, pick);
   let runErr = out.ok ? null : (out.error ?? "주문 실패");
   if (out.ok) {

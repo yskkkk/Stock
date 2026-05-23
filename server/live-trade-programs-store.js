@@ -38,6 +38,7 @@ const PROGRAMS_FILE = path.join(DATA_DIR, "live-trade-programs.json");
  *   takeProfitPct: number | null;
  *   stopLossPct: number | null;
  *   armedMarkets?: { kr: boolean; crypto: boolean };
+ *   userId: string | null;
  *   createdAtMs: number;
  *   updatedAtMs: number;
  * }} LiveTradeProgram
@@ -154,11 +155,30 @@ function normalizeProgram(raw) {
         }),
       );
     })(),
+    userId:
+      typeof o.userId === "string" && o.userId.trim() ? o.userId.trim() : null,
     createdAtMs:
       typeof o.createdAtMs === "number" && o.createdAtMs > 0 ? o.createdAtMs : now,
     updatedAtMs:
       typeof o.updatedAtMs === "number" && o.updatedAtMs > 0 ? o.updatedAtMs : now,
   };
+}
+
+/** @param {string | null | undefined} userId */
+function matchesUser(program, userId) {
+  const uid = String(userId ?? "").trim();
+  if (!uid) return true;
+  return program.userId === uid;
+}
+
+/**
+ * @param {string} programId
+ * @param {string} userId
+ */
+export function assertProgramOwnedByUser(programId, userId) {
+  const prog = getLiveTradeProgramSync(programId, userId);
+  if (!prog) throw new Error("프로그램을 찾을 수 없습니다.");
+  return prog;
 }
 
 /** @param {Partial<LiveTradeProgram>} patch */
@@ -176,13 +196,38 @@ function validateProgramPatch(patch) {
   if (!name) throw new Error("프로그램 이름이 필요합니다.");
 }
 
-export function listLiveTradeProgramsSync() {
-  return readStoreSync().programs;
+/** @param {string} [userId] */
+export function listLiveTradeProgramsSync(userId) {
+  return readStoreSync().programs.filter((p) => matchesUser(p, userId));
 }
 
-export function getLiveTradeProgramSync(id) {
+/**
+ * @param {string} id
+ * @param {string} [userId]
+ */
+export function getLiveTradeProgramSync(id, userId) {
   const sid = String(id ?? "").trim();
-  return readStoreSync().programs.find((p) => p.id === sid) ?? null;
+  const prog = readStoreSync().programs.find((p) => p.id === sid) ?? null;
+  if (!prog) return null;
+  if (!matchesUser(prog, userId)) return null;
+  return prog;
+}
+
+/** @param {string} userId */
+export function migrateLegacyProgramsToUserSync(userId) {
+  const uid = String(userId ?? "").trim();
+  if (!uid) return { migrated: 0 };
+  const store = readStoreSync();
+  let n = 0;
+  for (const p of store.programs) {
+    if (!p.userId) {
+      p.userId = uid;
+      p.updatedAtMs = Date.now();
+      n++;
+    }
+  }
+  if (n > 0) writeStoreSync(store);
+  return { migrated: n };
 }
 
 export function listArmedLiveTradeProgramsSync() {
@@ -197,23 +242,31 @@ export function listSimActiveProgramsSync() {
   return listLiveTradeProgramsSync().filter((p) => p.status === "sim");
 }
 
-export function startSimLiveTradeProgramSync(id) {
-  const prog = getLiveTradeProgramSync(id);
+export function startSimLiveTradeProgramSync(id, userId) {
+  const prog = getLiveTradeProgramSync(id, userId);
   if (!prog) throw new Error("프로그램을 찾을 수 없습니다.");
-  return updateLiveTradeProgramSync(id, {
-    status: "sim",
-    armedAtMs: Date.now(),
-    lastError: null,
-  });
+  return updateLiveTradeProgramSync(
+    id,
+    {
+      status: "sim",
+      armedAtMs: Date.now(),
+      lastError: null,
+    },
+    userId,
+  );
 }
 
-export function stopSimLiveTradeProgramSync(id) {
-  const prog = getLiveTradeProgramSync(id);
+export function stopSimLiveTradeProgramSync(id, userId) {
+  const prog = getLiveTradeProgramSync(id, userId);
   if (!prog) throw new Error("프로그램을 찾을 수 없습니다.");
-  return updateLiveTradeProgramSync(id, {
-    status: "paused",
-    armedAtMs: null,
-  });
+  return updateLiveTradeProgramSync(
+    id,
+    {
+      status: "paused",
+      armedAtMs: null,
+    },
+    userId,
+  );
 }
 
 /**
@@ -231,11 +284,14 @@ export function stopSimLiveTradeProgramSync(id) {
  *   stopLossPct?: number | null;
  * }} input
  */
-export function createLiveTradeProgramSync(input) {
+export function createLiveTradeProgramSync(input, userId) {
+  const uid = String(userId ?? "").trim();
+  if (!uid) throw new Error("로그인이 필요합니다.");
   validateProgramPatch(input);
   const now = Date.now();
   const program = normalizeProgram({
     id: randomUUID(),
+    userId: uid,
     name: input.name,
     modelId: input.modelId,
     markets: {
@@ -264,15 +320,17 @@ export function createLiveTradeProgramSync(input) {
  * @param {string} id
  * @param {Partial<LiveTradeProgram>} patch
  */
-export function updateLiveTradeProgramSync(id, patch) {
+export function updateLiveTradeProgramSync(id, patch, userId) {
   const store = readStoreSync();
   const idx = store.programs.findIndex((p) => p.id === id);
   if (idx < 0) throw new Error("프로그램을 찾을 수 없습니다.");
   const prev = store.programs[idx];
+  if (!matchesUser(prev, userId)) throw new Error("프로그램을 찾을 수 없습니다.");
   const next = normalizeProgram({
     ...prev,
     ...patch,
     id: prev.id,
+    userId: prev.userId,
     createdAtMs: prev.createdAtMs,
     updatedAtMs: Date.now(),
   });
@@ -282,11 +340,13 @@ export function updateLiveTradeProgramSync(id, patch) {
   return next;
 }
 
-export function deleteLiveTradeProgramSync(id) {
+export function deleteLiveTradeProgramSync(id, userId) {
   const sid = String(id ?? "").trim();
   const store = readStoreSync();
   const before = store.programs.length;
-  store.programs = store.programs.filter((p) => p.id !== sid);
+  store.programs = store.programs.filter(
+    (p) => p.id !== sid || !matchesUser(p, userId),
+  );
   if (store.programs.length === before) throw new Error("프로그램을 찾을 수 없습니다.");
   writeStoreSync(store);
   return { ok: true };
@@ -296,31 +356,39 @@ export function deleteLiveTradeProgramSync(id) {
  * @param {string} id
  * @param {"bithumb" | "toss"} lane
  */
-export function armLiveTradeProgramLaneSync(id, lane) {
-  const prog = getLiveTradeProgramSync(id);
+export function armLiveTradeProgramLaneSync(id, lane, userId) {
+  const prog = getLiveTradeProgramSync(id, userId);
   if (!prog) throw new Error("프로그램을 찾을 수 없습니다.");
-  validateLiveTradeArmLane(prog, lane);
+  validateLiveTradeArmLane(prog, lane, userId);
   const prev = getProgramArmedMarkets(prog);
   const armedMarkets =
     lane === "bithumb"
       ? { ...prev, crypto: true }
       : { ...prev, kr: true };
-  return updateLiveTradeProgramSync(id, {
-    status: "armed",
-    armedMarkets,
-    armedAtMs: Date.now(),
-    lastError: null,
-  });
+  return updateLiveTradeProgramSync(
+    id,
+    {
+      status: "armed",
+      armedMarkets,
+      armedAtMs: Date.now(),
+      lastError: null,
+    },
+    userId,
+  );
 }
 
-export function disarmLiveTradeProgramSync(id) {
-  const prog = getLiveTradeProgramSync(id);
+export function disarmLiveTradeProgramSync(id, userId) {
+  const prog = getLiveTradeProgramSync(id, userId);
   if (!prog) throw new Error("프로그램을 찾을 수 없습니다.");
-  return updateLiveTradeProgramSync(id, {
-    status: "paused",
-    armedMarkets: { kr: false, crypto: false },
-    armedAtMs: null,
-  });
+  return updateLiveTradeProgramSync(
+    id,
+    {
+      status: "paused",
+      armedMarkets: { kr: false, crypto: false },
+      armedAtMs: null,
+    },
+    userId,
+  );
 }
 
 /**

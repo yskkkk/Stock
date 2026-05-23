@@ -134,8 +134,17 @@ import {
   applySimProgramFeedbackPatch,
   buildSimCreationRecommendations,
 } from "./live-trade-sim-feedback.js";
-import { getBithumbTradingStatus } from "./bithumb-trading-adapter.js";
 import { getTossTradingStatus } from "./toss-trading-adapter.js";
+import {
+  registerUserAuthRoutes,
+  requireUserAuth,
+} from "./user-auth.js";
+import { registerUserCredentialRoutes } from "./user-credentials-routes.js";
+import {
+  getBithumbTradingStatusForUserSync,
+  listCredentialMetaForUserSync,
+} from "./user-credentials-store.js";
+import { isCredentialsCryptoReady } from "./credentials-crypto.js";
 import {
   fetchQuoteSnapshotsForSymbols,
   mergeLiveQuotesIntoPicksState,
@@ -260,6 +269,8 @@ export function createApp() {
   app.use(express.json());
   app.use(expressAccessLogger);
   registerAccessControl(app);
+  registerUserAuthRoutes(app);
+  registerUserCredentialRoutes(app);
 
   app.get(
     "/api/picks",
@@ -444,12 +455,27 @@ export function createApp() {
 
   app.get(
     "/api/live-trading/status",
-    asyncRoute(async (_req, res) => {
-      const toss = getTossTradingStatus();
-      const bithumb = getBithumbTradingStatus();
-      let programs = listLiveTradeProgramsSync();
+    requireUserAuth,
+    asyncRoute(async (req, res) => {
+      const userId = req.user.id;
+      const creds = listCredentialMetaForUserSync(userId);
+      const toss =
+        creds.toss.source === "user" && creds.toss.ready
+          ? {
+              phase: "ready",
+              configured: true,
+              ready: true,
+              messageKo: creds.toss.messageKo,
+              hasSecret: creds.toss.hasSecret,
+              baseUrl: null,
+              docsHint: "https://docs.tossinvest.com",
+            }
+          : getTossTradingStatus();
+      const bithumb = getBithumbTradingStatusForUserSync(userId);
+      let programs = listLiveTradeProgramsSync(userId);
       const programReturns = await buildProgramPortfolioSummariesMap(
         programs.map((p) => p.id),
+        userId,
       );
       programs = healStuckSimProgramErrorsSync(programs, programReturns);
       res.json({
@@ -459,33 +485,48 @@ export function createApp() {
         programReturns,
         armedCount: programs.filter((p) => p.status === "armed").length,
         simCount: programs.filter((p) => p.status === "sim").length,
+        credentialsCryptoReady: isCredentialsCryptoReady(),
         simulatedOrders:
-          process.env.TOSS_LIVE_ORDERS_ENABLED !== "1" ||
-          process.env.BITHUMB_LIVE_ORDERS_ENABLED !== "1",
-        tossSimulatedOrders: process.env.TOSS_LIVE_ORDERS_ENABLED !== "1",
-        bithumbSimulatedOrders: process.env.BITHUMB_LIVE_ORDERS_ENABLED !== "1",
+          !creds.bithumb.liveOrdersEnabled &&
+          (creds.toss.source === "user"
+            ? !creds.toss.liveOrdersEnabled
+            : process.env.TOSS_LIVE_ORDERS_ENABLED !== "1"),
+        tossSimulatedOrders:
+          creds.toss.source === "user"
+            ? !creds.toss.liveOrdersEnabled
+            : process.env.TOSS_LIVE_ORDERS_ENABLED !== "1",
+        bithumbSimulatedOrders: !bithumb.liveOrdersEnabled,
       });
     }),
   );
 
   app.post(
     "/api/live-trading/programs",
+    requireUserAuth,
     asyncRoute(async (req, res) => {
       try {
-        const program = createLiveTradeProgramSync({
-          name: String(req.body?.name ?? ""),
-          modelId: String(req.body?.modelId ?? ""),
-          markets: req.body?.markets,
-          minScoreRatio: req.body?.minScoreRatio,
-          maxOpenPositions: req.body?.maxOpenPositions,
-          orderAmountKrw: req.body?.orderAmountKrw,
-          orderAmountUsd: req.body?.orderAmountUsd,
-          simAutoBuy: req.body?.simAutoBuy,
-          autoSellAtTarget: req.body?.autoSellAtTarget,
-          takeProfitPct: req.body?.takeProfitPct,
-          stopLossPct: req.body?.stopLossPct,
+        const userId = req.user.id;
+        const program = createLiveTradeProgramSync(
+          {
+            name: String(req.body?.name ?? ""),
+            modelId: String(req.body?.modelId ?? ""),
+            markets: req.body?.markets,
+            minScoreRatio: req.body?.minScoreRatio,
+            maxOpenPositions: req.body?.maxOpenPositions,
+            orderAmountKrw: req.body?.orderAmountKrw,
+            orderAmountUsd: req.body?.orderAmountUsd,
+            simAutoBuy: req.body?.simAutoBuy,
+            autoSellAtTarget: req.body?.autoSellAtTarget,
+            takeProfitPct: req.body?.takeProfitPct,
+            stopLossPct: req.body?.stopLossPct,
+          },
+          userId,
+        );
+        res.json({
+          ok: true,
+          program,
+          programs: listLiveTradeProgramsSync(userId),
         });
-        res.json({ ok: true, program, programs: listLiveTradeProgramsSync() });
       } catch (e) {
         res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
       }
@@ -494,23 +535,33 @@ export function createApp() {
 
   app.patch(
     "/api/live-trading/programs/:id",
+    requireUserAuth,
     asyncRoute(async (req, res) => {
       const id = String(req.params.id ?? "").trim();
+      const userId = req.user.id;
       try {
-        const program = updateLiveTradeProgramSync(id, {
-          name: req.body?.name,
-          modelId: req.body?.modelId,
-          markets: req.body?.markets,
-          minScoreRatio: req.body?.minScoreRatio,
-          maxOpenPositions: req.body?.maxOpenPositions,
-          orderAmountKrw: req.body?.orderAmountKrw,
-          orderAmountUsd: req.body?.orderAmountUsd,
-          simAutoBuy: req.body?.simAutoBuy,
-          autoSellAtTarget: req.body?.autoSellAtTarget,
-          takeProfitPct: req.body?.takeProfitPct,
-          stopLossPct: req.body?.stopLossPct,
+        const program = updateLiveTradeProgramSync(
+          id,
+          {
+            name: req.body?.name,
+            modelId: req.body?.modelId,
+            markets: req.body?.markets,
+            minScoreRatio: req.body?.minScoreRatio,
+            maxOpenPositions: req.body?.maxOpenPositions,
+            orderAmountKrw: req.body?.orderAmountKrw,
+            orderAmountUsd: req.body?.orderAmountUsd,
+            simAutoBuy: req.body?.simAutoBuy,
+            autoSellAtTarget: req.body?.autoSellAtTarget,
+            takeProfitPct: req.body?.takeProfitPct,
+            stopLossPct: req.body?.stopLossPct,
+          },
+          userId,
+        );
+        res.json({
+          ok: true,
+          program,
+          programs: listLiveTradeProgramsSync(userId),
         });
-        res.json({ ok: true, program, programs: listLiveTradeProgramsSync() });
       } catch (e) {
         res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
       }
@@ -519,11 +570,13 @@ export function createApp() {
 
   app.delete(
     "/api/live-trading/programs/:id",
+    requireUserAuth,
     asyncRoute(async (req, res) => {
       const id = String(req.params.id ?? "").trim();
+      const userId = req.user.id;
       try {
-        deleteLiveTradeProgramSync(id);
-        res.json({ ok: true, programs: listLiveTradeProgramsSync() });
+        deleteLiveTradeProgramSync(id, userId);
+        res.json({ ok: true, programs: listLiveTradeProgramsSync(userId) });
       } catch (e) {
         res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
       }
@@ -532,8 +585,10 @@ export function createApp() {
 
   app.post(
     "/api/live-trading/programs/:id/arm",
+    requireUserAuth,
     asyncRoute(async (req, res) => {
       const id = String(req.params.id ?? "").trim();
+      const userId = req.user.id;
       try {
         const lane = String(req.body?.lane ?? "").trim().toLowerCase();
         if (lane !== "bithumb" && lane !== "toss") {
@@ -543,12 +598,14 @@ export function createApp() {
           return;
         }
         const gate = validateLiveTradeArmLane(
-          getLiveTradeProgramSync(id) ?? { markets: {} },
+          getLiveTradeProgramSync(id, userId) ?? { markets: {} },
           /** @type {"bithumb"|"toss"} */ (lane),
+          userId,
         );
         const program = armLiveTradeProgramLaneSync(
           id,
           /** @type {"bithumb"|"toss"} */ (lane),
+          userId,
         );
         res.json({
           ok: true,
@@ -565,10 +622,11 @@ export function createApp() {
 
   app.post(
     "/api/live-trading/programs/:id/disarm",
+    requireUserAuth,
     asyncRoute(async (req, res) => {
       const id = String(req.params.id ?? "").trim();
       try {
-        const program = disarmLiveTradeProgramSync(id);
+        const program = disarmLiveTradeProgramSync(id, req.user.id);
         res.json({ ok: true, program });
       } catch (e) {
         res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
@@ -578,11 +636,17 @@ export function createApp() {
 
   app.post(
     "/api/live-trading/programs/:id/sim-start",
+    requireUserAuth,
     asyncRoute(async (req, res) => {
       const id = String(req.params.id ?? "").trim();
+      const userId = req.user.id;
       try {
-        const program = startSimLiveTradeProgramSync(id);
-        res.json({ ok: true, program, programs: listLiveTradeProgramsSync() });
+        const program = startSimLiveTradeProgramSync(id, userId);
+        res.json({
+          ok: true,
+          program,
+          programs: listLiveTradeProgramsSync(userId),
+        });
       } catch (e) {
         res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
       }
@@ -591,11 +655,17 @@ export function createApp() {
 
   app.post(
     "/api/live-trading/programs/:id/sim-stop",
+    requireUserAuth,
     asyncRoute(async (req, res) => {
       const id = String(req.params.id ?? "").trim();
+      const userId = req.user.id;
       try {
-        const program = stopSimLiveTradeProgramSync(id);
-        res.json({ ok: true, program, programs: listLiveTradeProgramsSync() });
+        const program = stopSimLiveTradeProgramSync(id, userId);
+        res.json({
+          ok: true,
+          program,
+          programs: listLiveTradeProgramsSync(userId),
+        });
       } catch (e) {
         res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
       }
@@ -604,17 +674,19 @@ export function createApp() {
 
   app.get(
     "/api/live-trading/sim-recommendations",
-    asyncRoute(async (_req, res) => {
-      res.json(buildSimCreationRecommendations());
+    requireUserAuth,
+    asyncRoute(async (req, res) => {
+      res.json(buildSimCreationRecommendations(req.user.id));
     }),
   );
 
   app.get(
     "/api/live-trading/programs/:id/sim-feedback",
+    requireUserAuth,
     asyncRoute(async (req, res) => {
       const id = String(req.params.id ?? "").trim();
       try {
-        res.json(analyzeSimProgramFeedback(id));
+        res.json(analyzeSimProgramFeedback(id, req.user.id));
       } catch (e) {
         res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
       }
@@ -623,15 +695,17 @@ export function createApp() {
 
   app.post(
     "/api/live-trading/programs/:id/sim-feedback/apply",
+    requireUserAuth,
     asyncRoute(async (req, res) => {
       const id = String(req.params.id ?? "").trim();
+      const userId = req.user.id;
       try {
-        const out = applySimProgramFeedbackPatch(id);
+        const out = applySimProgramFeedbackPatch(id, userId);
         res.json({
           ok: true,
           program: out.program,
           analysis: out.analysis,
-          programs: listLiveTradeProgramsSync(),
+          programs: listLiveTradeProgramsSync(userId),
         });
       } catch (e) {
         res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
@@ -661,10 +735,15 @@ export function createApp() {
 
   app.get(
     "/api/live-trading/portfolio",
+    requireUserAuth,
     asyncRoute(async (req, res) => {
       const programId = String(req.query?.programId ?? "").trim() || null;
-      const snap = await buildLiveTradePortfolioSnapshot({ programId });
-      const programs = listLiveTradeProgramsSync();
+      const userId = req.user.id;
+      const snap = await buildLiveTradePortfolioSnapshot({
+        programId,
+        userId,
+      });
+      const programs = listLiveTradeProgramsSync(userId);
       const nameById = new Map(programs.map((p) => [p.id, p.name]));
       res.json({
         ...snap,
@@ -682,20 +761,26 @@ export function createApp() {
 
   app.post(
     "/api/live-trading/trades/sell",
+    requireUserAuth,
     asyncRoute(async (req, res) => {
       try {
-        const trade = recordLiveTradeSellSync({
-          programId: String(req.body?.programId ?? ""),
-          symbol: String(req.body?.symbol ?? ""),
-          market: req.body?.market,
-          quantity: req.body?.quantity,
-          price: Number(req.body?.price),
-          note: req.body?.note,
-          simulated: Boolean(req.body?.simulated),
-          atMs: req.body?.atMs,
-        });
+        const userId = req.user.id;
+        const trade = recordLiveTradeSellSync(
+          {
+            programId: String(req.body?.programId ?? ""),
+            symbol: String(req.body?.symbol ?? ""),
+            market: req.body?.market,
+            quantity: req.body?.quantity,
+            price: Number(req.body?.price),
+            note: req.body?.note,
+            simulated: Boolean(req.body?.simulated),
+            atMs: req.body?.atMs,
+          },
+          userId,
+        );
         const snap = await buildLiveTradePortfolioSnapshot({
           programId: trade.programId,
+          userId,
         });
         res.json({ ok: true, trade, portfolio: snap });
       } catch (e) {
@@ -706,18 +791,24 @@ export function createApp() {
 
   app.post(
     "/api/live-trading/simulate/buy",
+    requireUserAuth,
     asyncRoute(async (req, res) => {
       try {
-        const { trade, quote } = await recordLiveTradeSimBuyAsync({
-          programId: String(req.body?.programId ?? ""),
-          symbol: String(req.body?.symbol ?? ""),
-          market: req.body?.market,
-          name: req.body?.name,
-        });
+        const userId = req.user.id;
+        const { trade, quote } = await recordLiveTradeSimBuyAsync(
+          {
+            programId: String(req.body?.programId ?? ""),
+            symbol: String(req.body?.symbol ?? ""),
+            market: req.body?.market,
+            name: req.body?.name,
+          },
+          userId,
+        );
         const snap = await buildLiveTradePortfolioSnapshot({
           programId: trade.programId,
+          userId,
         });
-        const programs = listLiveTradeProgramsSync();
+        const programs = listLiveTradeProgramsSync(userId);
         const nameById = new Map(programs.map((p) => [p.id, p.name]));
         res.json({
           ok: true,
@@ -736,19 +827,25 @@ export function createApp() {
 
   app.post(
     "/api/live-trading/simulate/sell",
+    requireUserAuth,
     asyncRoute(async (req, res) => {
       try {
-        const { trade, quote } = await recordLiveTradeSimSellAsync({
-          programId: String(req.body?.programId ?? ""),
-          symbol: String(req.body?.symbol ?? ""),
-          market: req.body?.market,
-          quantity: req.body?.quantity,
-          note: req.body?.note,
-        });
+        const userId = req.user.id;
+        const { trade, quote } = await recordLiveTradeSimSellAsync(
+          {
+            programId: String(req.body?.programId ?? ""),
+            symbol: String(req.body?.symbol ?? ""),
+            market: req.body?.market,
+            quantity: req.body?.quantity,
+            note: req.body?.note,
+          },
+          userId,
+        );
         const snap = await buildLiveTradePortfolioSnapshot({
           programId: trade.programId,
+          userId,
         });
-        const programs = listLiveTradeProgramsSync();
+        const programs = listLiveTradeProgramsSync(userId);
         const nameById = new Map(programs.map((p) => [p.id, p.name]));
         res.json({
           ok: true,
