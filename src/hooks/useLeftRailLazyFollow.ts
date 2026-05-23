@@ -1,9 +1,13 @@
 import { useEffect, type RefObject } from "react";
 
 const DESKTOP_MQ = "(min-width: 1180px)";
-const LERP = 0.1;
-const SCROLL_LAG = 2.4;
-const VELOCITY_DECAY = 0.82;
+/** 현재 Y → 목표 Y (낮을수록 더 늦게 따라옴) */
+const POSITION_LERP = 0.055;
+/** 스크롤 위치 스무딩 (낮을수록 스크롤 대비 더 지연) */
+const SCROLL_SMOOTH = 0.065;
+/** 지연된 스크롤 차이를 세로 이동으로 반영 */
+const SCROLL_DRAG = 0.42;
+const MAX_DRAG_PX = 110;
 
 function readPadPx(): { top: number; bottom: number } {
   const root = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
@@ -18,7 +22,7 @@ function centerTop(railHeight: number): number {
 }
 
 /**
- * 데스크톱 왼쪽 레일: 뷰포트 세로 중앙 + 스크롤 시 살짝 늦게 따라옴.
+ * 데스크톱 왼쪽 레일: 뷰포트 세로 중앙 기준 + 스크롤 이동 시 느리게 따라옴.
  */
 export function useLeftRailLazyFollow(
   railRef: RefObject<HTMLElement | null>,
@@ -30,11 +34,13 @@ export function useLeftRailLazyFollow(
 
     const mq = window.matchMedia(DESKTOP_MQ);
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const lerp = reduceMotion ? 0.35 : LERP;
+    const positionLerp = reduceMotion ? 0.28 : POSITION_LERP;
+    const scrollSmooth = reduceMotion ? 0.22 : SCROLL_SMOOTH;
+    const scrollDrag = reduceMotion ? 0.2 : SCROLL_DRAG;
+
     let rafId = 0;
     let currentY = 0;
-    let scrollVel = 0;
-    let lastScrollTop = 0;
+    let smoothScroll = 0;
     let active = false;
     const scrollEl = scrollRef.current;
 
@@ -52,16 +58,21 @@ export function useLeftRailLazyFollow(
         return;
       }
 
-      scrollVel *= VELOCITY_DECAY;
+      const scrollTop = scrollEl?.scrollTop ?? 0;
+      smoothScroll += (scrollTop - smoothScroll) * scrollSmooth;
+
       const h = rail.getBoundingClientRect().height;
-      const lag = Math.max(-48, Math.min(48, scrollVel * SCROLL_LAG));
-      const target = centerTop(h) + lag;
+      const drag = Math.max(
+        -MAX_DRAG_PX,
+        Math.min(MAX_DRAG_PX, (scrollTop - smoothScroll) * scrollDrag),
+      );
+      const target = centerTop(h) + drag;
       const diff = target - currentY;
 
-      if (Math.abs(diff) < 0.4) {
+      if (Math.abs(diff) < 0.35) {
         currentY = target;
       } else {
-        currentY += diff * lerp;
+        currentY += diff * positionLerp;
       }
 
       applyY(currentY);
@@ -74,17 +85,15 @@ export function useLeftRailLazyFollow(
     };
 
     const onScroll = () => {
-      if (!scrollEl) return;
-      const st = scrollEl.scrollTop;
-      scrollVel += st - lastScrollTop;
-      lastScrollTop = st;
       ensureLoop();
     };
 
     const onResize = () => {
       if (!mq.matches) return;
       const h = rail.getBoundingClientRect().height;
+      smoothScroll = scrollEl?.scrollTop ?? 0;
       currentY = centerTop(h);
+      applyY(currentY);
       ensureLoop();
     };
 
@@ -97,8 +106,7 @@ export function useLeftRailLazyFollow(
         return;
       }
       active = true;
-      lastScrollTop = scrollEl?.scrollTop ?? 0;
-      scrollVel = 0;
+      smoothScroll = scrollEl?.scrollTop ?? 0;
       currentY = centerTop(rail.getBoundingClientRect().height);
       applyY(currentY);
       ensureLoop();
