@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { fetchMarketIndices } from "../api";
 import type { MarketIndexItem } from "../types";
 
-const POLL_MS = 50_000;
+/** 환율·환율 계산과 동일 주기 */
+const POLL_MS = 20_000;
 
 export function useMarketIndices(enabled = true) {
   const [items, setItems] = useState<MarketIndexItem[]>([]);

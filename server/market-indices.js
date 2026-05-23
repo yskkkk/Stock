@@ -4,7 +4,7 @@
 import { getUsdKrwRate } from "./fx-usd-krw.js";
 import { loadChartQuoteSnapshot } from "./stock-data.js";
 
-const CACHE_MS = 50_000;
+const CACHE_MS = 20_000;
 const FETCH_CONCURRENCY = 4;
 
 /** @type {{ items: object[]; updatedAt: number; at: number } | null} */

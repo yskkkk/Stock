@@ -1210,7 +1210,7 @@ export function fetchUsdKrw(signal?: AbortSignal) {
   );
 }
 
-/** 주요 지수(코스피·나스닥 등) — 약 50초 캐시 */
+/** 주요 지수(코스피·나스닥·환율 등) — 약 20초마다 갱신 */
 export function fetchMarketIndices(signal?: AbortSignal) {
   return fetchJson<MarketIndicesResponse>(
     "/api/market-indices",
