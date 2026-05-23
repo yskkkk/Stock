@@ -2844,7 +2844,8 @@ body {
   margin-top: 1rem;
 }
 
-/* 하단 사이트 푸터 — 토스증권형 텍스트 링크 줄 */
+/* 하단 사이트 푸터 — Pretendard(본문 620) 미적용, 얇은 UI 폰트만 */
+#root > .app > .app__scroll > .app-site-footer,
 .app-site-footer {
   flex-shrink: 0;
   width: 100%;
@@ -2857,11 +2858,13 @@ body {
   border-top: 1px solid var(--card-border, rgba(148, 163, 184, 0.14));
   background: color-mix(in srgb, var(--bg) 94%, var(--muted) 6%);
   text-align: center;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-weight: 300;
+  font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-weight: 200;
   font-synthesis: none;
-  letter-spacing: 0.01em;
+  font-variation-settings: normal;
+  letter-spacing: 0.02em;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .app-site-footer__nav {
@@ -2873,10 +2876,11 @@ body {
   margin-inline: auto;
   gap: 0;
   row-gap: 0.3rem;
-  font-size: 0.52rem;
-  font-weight: 300;
+  font-family: inherit;
+  font-size: 0.5rem;
+  font-weight: 200;
   line-height: 1.5;
-  color: color-mix(in srgb, var(--muted) 88%, var(--text) 12%);
+  color: color-mix(in srgb, var(--muted) 92%, var(--text) 8%);
 }
 
 .app-site-footer__extras {
@@ -2901,8 +2905,9 @@ body {
   background: none;
   font-family: inherit;
   font-size: inherit;
-  font-weight: 300;
+  font-weight: 200;
   font-synthesis: none;
+  font-variation-settings: normal;
   line-height: inherit;
   letter-spacing: inherit;
   color: inherit;
@@ -2915,12 +2920,12 @@ body {
 
 .app-site-footer__link:hover {
   color: var(--text);
-  font-weight: 300;
+  font-weight: 200;
 }
 
 .app-site-footer__link:active {
   color: var(--text);
-  font-weight: 300;
+  font-weight: 200;
 }
 
 .app-site-footer__link:focus-visible {
@@ -2937,14 +2942,18 @@ body {
 
 .app-site-footer__link--active {
   color: var(--text);
-  font-weight: 300;
+  font-weight: 200;
+}
+
+.app-site-footer__nav a.app-site-footer__link[href] {
+  font-weight: 200;
 }
 
 .app-site-footer__sep {
   display: inline-block;
   margin: 0 0.42rem;
   color: color-mix(in srgb, var(--muted) 38%, transparent);
-  font-weight: 300;
+  font-weight: 200;
   user-select: none;
   line-height: 1;
 }
@@ -2966,11 +2975,12 @@ body {
 .app-site-footer__copy {
   margin: 0.5rem 0 0;
   text-align: center;
-  font-size: 0.48rem;
-  font-weight: 300;
+  font-family: inherit;
+  font-size: 0.46rem;
+  font-weight: 200;
   font-synthesis: none;
   line-height: 1.5;
-  color: color-mix(in srgb, var(--muted) 72%, transparent);
+  color: color-mix(in srgb, var(--muted) 78%, transparent);
 }
 
 .app-site-footer .app-server-restart-inline {
@@ -3002,7 +3012,7 @@ body {
 }
 
 .app-site-footer .app-server-restart-inline .app-page-top__corner-text:active {
-  font-weight: 300;
+  font-weight: 200;
 }
 
 .app-site-footer .app-server-restart-trigger {
@@ -3023,12 +3033,22 @@ html[data-theme="light"] .app-site-footer {
 }
 
 html[data-theme="light"] .app-site-footer__nav {
-  color: #6b7280;
+  color: #9ca3af;
 }
 
 html[data-theme="light"] .app-site-footer__link:hover,
 html[data-theme="light"] .app-site-footer__link--active {
-  color: #374151;
+  color: #6b7280;
+}
+
+html[data-theme="light"] .app-site-footer__nav a.app-site-footer__link[href*="downloads"] {
+  color: #5b8fd4;
+  font-weight: 200;
+}
+
+html[data-theme="light"] .app-site-footer__nav a.app-site-footer__link[href*="install-ios"] {
+  color: #8b6cc7;
+  font-weight: 200;
 }
 
 @media (max-width: 900px) {
@@ -3040,7 +3060,7 @@ html[data-theme="light"] .app-site-footer__link--active {
 
 @media (max-width: 560px) {
   .app-site-footer__nav {
-    font-size: 0.5rem;
+    font-size: 0.48rem;
     gap: 0.1rem;
   }
 }
