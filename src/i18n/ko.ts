@@ -18,6 +18,8 @@ export const ko = {
     marketIndicesLoading: "불러오는 중…",
     marketIndicesEmpty: "지수 시세를 불러오지 못했습니다.",
     marketIndicesOpenChart: "{name} — 종목 검색에서 차트 열기",
+    marketIndicesLiveFxBadge: "실시간",
+    marketIndicesLiveFxAria: "원·달러 환율 실시간 (약 20초마다 갱신)",
     telegram: "텔레그램",
     telegramResetAria: "오늘 텔레그램 알림 이력 초기화",
     telegramResetLabel: "알림 초기화",

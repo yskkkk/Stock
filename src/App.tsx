@@ -1006,6 +1006,7 @@ export default function App() {
             items={marketIndices}
             loading={marketIndicesLoading}
             layout="rail"
+            liveFxRate={usdKrwRate}
             onOpenItem={handleOpenMarketIndex}
           />
           <TopBarFxCalculator
@@ -1037,6 +1038,7 @@ export default function App() {
         items={marketIndices}
         loading={marketIndicesLoading}
         layout="strip"
+        liveFxRate={usdKrwRate}
         onOpenItem={handleOpenMarketIndex}
       />
       <TopBarFxCalculator

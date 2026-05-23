@@ -6873,6 +6873,57 @@ html[data-theme="light"] .market-indices-rail {
   color: var(--muted);
 }
 
+.market-indices-rail__live-fx {
+  display: flex;
+  flex-direction: column;
+  gap: 0.06rem;
+  width: 100%;
+  margin: 0 0 0.42rem;
+  padding: 0.34rem 0.4rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  text-align: left;
+}
+
+.market-indices-rail__live-fx--clickable {
+  font: inherit;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.market-indices-rail__live-fx--clickable:hover {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 48%, transparent);
+}
+
+.market-indices-rail__live-fx--clickable:focus-visible {
+  outline: 2px solid var(--accent-border);
+  outline-offset: 2px;
+}
+
+html[data-theme="light"] .market-indices-rail__live-fx {
+  background: color-mix(in srgb, var(--accent) 7%, rgba(255, 255, 255, 0.9));
+  border-color: color-mix(in srgb, var(--accent) 28%, rgba(15, 23, 42, 0.12));
+}
+
+.market-indices-rail__live-fx-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
+.market-indices-rail__live-badge {
+  flex-shrink: 0;
+  font-size: 0.58rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+
 .market-indices-rail__list {
   list-style: none;
   margin: 0;
@@ -7008,6 +7059,10 @@ html[data-theme="light"] .market-indices-rail__item {
   width: 100%;
   margin: 0 0 0.4rem;
   padding: 0.42rem 0.5rem;
+}
+
+.market-indices-rail--strip .market-indices-rail__live-fx {
+  margin-bottom: 0.35rem;
 }
 
 .market-indices-rail--strip .market-indices-rail__list {

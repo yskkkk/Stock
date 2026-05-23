@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { ko } from "../i18n/ko";
 import { formatPercent, formatPrice } from "../lib/format";
 import type { MarketIndexItem } from "../types";
@@ -13,6 +13,68 @@ function formatIndexPrice(item: MarketIndexItem): string {
     maximumFractionDigits: 2,
     minimumFractionDigits: 0,
   }).format(value);
+}
+
+function LiveFxRow({
+  rate,
+  changePercent,
+  onOpen,
+}: {
+  rate: number | null;
+  changePercent: number | null;
+  onOpen?: () => void;
+}) {
+  const hasRate = rate != null && Number.isFinite(rate) && rate > 0;
+  const up = (changePercent ?? 0) >= 0;
+  const hasChg = changePercent != null && Number.isFinite(changePercent);
+
+  const body = (
+    <>
+      <div className="market-indices-rail__live-fx-head">
+        <span className="market-indices-rail__label">{ko.app.topBarFxLabel}</span>
+        <span className="market-indices-rail__live-badge">{ko.app.marketIndicesLiveFxBadge}</span>
+      </div>
+      <span className="market-indices-rail__price">
+        {hasRate ? formatPrice(rate, "KRW") : "—"}
+      </span>
+      {hasChg ? (
+        <span
+          className={
+            up
+              ? "market-indices-rail__chg market-indices-rail__chg--up"
+              : "market-indices-rail__chg market-indices-rail__chg--down"
+          }
+        >
+          {formatPercent(changePercent!)}
+        </span>
+      ) : (
+        <span className="market-indices-rail__chg market-indices-rail__chg--muted">—</span>
+      )}
+    </>
+  );
+
+  if (!onOpen) {
+    return (
+      <div
+        className="market-indices-rail__live-fx"
+        role="group"
+        aria-label={ko.app.marketIndicesLiveFxAria}
+      >
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className="market-indices-rail__live-fx market-indices-rail__live-fx--clickable"
+      aria-label={ko.app.marketIndicesOpenChart.replace("{name}", ko.app.topBarFxLabel)}
+      onClick={onOpen}
+    >
+      {body}
+    </button>
+  );
 }
 
 function IndexRow({
@@ -68,13 +130,25 @@ function MarketIndicesRailInner({
   items,
   loading,
   layout = "rail",
+  liveFxRate,
   onOpenItem,
 }: {
   items: MarketIndexItem[];
   loading: boolean;
   layout?: "rail" | "strip";
+  /** /api/fx/usd-krw — 약 20초마다 갱신(환율 계산과 동일) */
+  liveFxRate?: number | null;
   onOpenItem?: (item: MarketIndexItem) => void;
 }) {
+  const { indexItems, fxChangePercent, fxOpen } = useMemo(() => {
+    const fx = items.find((i) => i.id === "usdkrw");
+    return {
+      indexItems: items.filter((i) => i.id !== "usdkrw"),
+      fxChangePercent: fx?.changePercent ?? null,
+      fxOpen: fx && onOpenItem ? () => onOpenItem(fx) : undefined,
+    };
+  }, [items, onOpenItem]);
+
   const rootClass =
     layout === "strip"
       ? "market-indices-rail market-indices-rail--strip"
@@ -92,9 +166,14 @@ function MarketIndicesRailInner({
           <span className="market-indices-rail__status">{ko.app.marketIndicesLoading}</span>
         ) : null}
       </div>
-      {items.length > 0 ? (
+      <LiveFxRow
+        rate={liveFxRate ?? null}
+        changePercent={fxChangePercent}
+        onOpen={fxOpen}
+      />
+      {indexItems.length > 0 ? (
         <ul className="market-indices-rail__list">
-          {items.map((item) => (
+          {indexItems.map((item) => (
             <IndexRow key={item.id} item={item} onOpen={onOpenItem} />
           ))}
         </ul>
