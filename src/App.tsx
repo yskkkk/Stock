@@ -1137,10 +1137,12 @@ export default function App() {
             <nav className="main-tabs" aria-label={ko.app.mainNav}>
               <button
                 type="button"
-                className={appTab === "screener" ? "main-tab active" : "main-tab"}
-                onClick={() => setAppTab("screener")}
+                className={
+                  appTab === "stockLookup" ? "main-tab active" : "main-tab"
+                }
+                onClick={() => setAppTab("stockLookup")}
               >
-                {ko.app.tabScreener}
+                {ko.app.tabStockLookup}
               </button>
               <button
                 type="button"
@@ -1162,12 +1164,10 @@ export default function App() {
               </button>
               <button
                 type="button"
-                className={
-                  appTab === "stockLookup" ? "main-tab active" : "main-tab"
-                }
-                onClick={() => setAppTab("stockLookup")}
+                className={appTab === "screener" ? "main-tab active" : "main-tab"}
+                onClick={() => setAppTab("screener")}
               >
-                {ko.app.tabStockLookup}
+                {ko.app.tabScreener}
               </button>
               <button
                 type="button"
