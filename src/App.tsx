@@ -1056,18 +1056,20 @@ export default function App() {
             <MacroEventsBar onSecretAdminOpen={() => setShowAccessAdmin(true)} />
           </div>
           <div className="top-bar__brand">
-            <span className="brand-mark" aria-hidden>
-              <img
-                className="brand-mark__img"
-                src="/branding/ystock-logo-mark.png?v=18"
-                alt=""
-                width={46}
-                height={46}
-                decoding="async"
-              />
-            </span>
-            <div className="top-bar__brand-main">
+            <div className="top-bar__brand-lockup">
+              <span className="brand-mark" aria-hidden>
+                <img
+                  className="brand-mark__img"
+                  src="/branding/ystock-logo-mark.png?v=19"
+                  alt=""
+                  width={40}
+                  height={40}
+                  decoding="async"
+                />
+              </span>
               <h1>{ko.app.title}</h1>
+            </div>
+            <div className="top-bar__brand-main">
               <p className="top-bar__brand-tags">
                 <span className="top-bar__brand-tags__lead">{ko.app.subtitle}</span>
                 {appTab === "screener" && (
