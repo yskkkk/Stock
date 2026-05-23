@@ -1,28 +1,15 @@
 import { useEffect, type RefObject } from "react";
 
 const DESKTOP_MQ = "(min-width: 1180px)";
-/** 현재 Y → 목표 Y (낮을수록 더 늦게 따라옴) */
+/** 중앙 기준 추가 오프셋 보간 (낮을수록 더 늦게) */
 const POSITION_LERP = 0.055;
-/** 스크롤 위치 스무딩 (낮을수록 스크롤 대비 더 지연) */
 const SCROLL_SMOOTH = 0.065;
-/** 지연된 스크롤 차이를 세로 이동으로 반영 */
 const SCROLL_DRAG = 0.42;
 const MAX_DRAG_PX = 110;
 
-function readPadPx(): { top: number; bottom: number } {
-  const root = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-  return { top: Math.max(6, root * 0.35), bottom: 10 };
-}
-
-function centerTop(railHeight: number): number {
-  const vh = window.innerHeight;
-  const { top: padTop, bottom: padBottom } = readPadPx();
-  const ideal = (vh - railHeight) / 2;
-  return Math.max(padTop, Math.min(ideal, vh - railHeight - padBottom));
-}
-
 /**
- * 데스크톱 왼쪽 레일: 뷰포트 세로 중앙 기준 + 스크롤 이동 시 느리게 따라옴.
+ * 데스크톱 왼쪽 레일: CSS top 50% + translate -50% 로 세로 중앙,
+ * 스크롤 시 중앙에서 살짝 늦게 따라 움직임.
  */
 export function useLeftRailLazyFollow(
   railRef: RefObject<HTMLElement | null>,
@@ -39,16 +26,16 @@ export function useLeftRailLazyFollow(
     const scrollDrag = reduceMotion ? 0.2 : SCROLL_DRAG;
 
     let rafId = 0;
-    let currentY = 0;
+    let currentOffset = 0;
     let smoothScroll = 0;
     let active = false;
     const scrollEl = scrollRef.current;
 
-    const applyY = (y: number) => {
-      rail.style.setProperty("--app-left-rail-y", `${y}px`);
+    const applyOffset = (px: number) => {
+      rail.style.setProperty("--app-left-rail-y", `${px}px`);
     };
 
-    const clearY = () => {
+    const clearOffset = () => {
       rail.style.removeProperty("--app-left-rail-y");
     };
 
@@ -61,21 +48,20 @@ export function useLeftRailLazyFollow(
       const scrollTop = scrollEl?.scrollTop ?? 0;
       smoothScroll += (scrollTop - smoothScroll) * scrollSmooth;
 
-      const h = rail.getBoundingClientRect().height;
       const drag = Math.max(
         -MAX_DRAG_PX,
         Math.min(MAX_DRAG_PX, (scrollTop - smoothScroll) * scrollDrag),
       );
-      const target = centerTop(h) + drag;
-      const diff = target - currentY;
+      const target = drag;
+      const diff = target - currentOffset;
 
       if (Math.abs(diff) < 0.35) {
-        currentY = target;
+        currentOffset = target;
       } else {
-        currentY += diff * positionLerp;
+        currentOffset += diff * positionLerp;
       }
 
-      applyY(currentY);
+      applyOffset(currentOffset);
       rafId = requestAnimationFrame(tick);
     };
 
@@ -90,25 +76,24 @@ export function useLeftRailLazyFollow(
 
     const onResize = () => {
       if (!mq.matches) return;
-      const h = rail.getBoundingClientRect().height;
       smoothScroll = scrollEl?.scrollTop ?? 0;
-      currentY = centerTop(h);
-      applyY(currentY);
+      currentOffset = 0;
+      applyOffset(0);
       ensureLoop();
     };
 
     const start = () => {
       if (!mq.matches) {
         active = false;
-        clearY();
+        clearOffset();
         if (rafId) cancelAnimationFrame(rafId);
         rafId = 0;
         return;
       }
       active = true;
       smoothScroll = scrollEl?.scrollTop ?? 0;
-      currentY = centerTop(rail.getBoundingClientRect().height);
-      applyY(currentY);
+      currentOffset = 0;
+      applyOffset(0);
       ensureLoop();
     };
 
@@ -116,7 +101,7 @@ export function useLeftRailLazyFollow(
       active = false;
       if (rafId) cancelAnimationFrame(rafId);
       rafId = 0;
-      clearY();
+      clearOffset();
     };
 
     const onMq = () => (mq.matches ? start() : stop());
