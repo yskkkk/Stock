@@ -48,7 +48,14 @@ for ($y = 0; $y -lt $h; $y++) {
 function Test-FloodPass([System.Drawing.Color]$c) {
   if ($c.A -le 12) { return $false }
   if (Test-CheckerboardGray $c) { return $false }
-  return (Lum $c) -ge 108
+  $r = $c.R; $g = $c.G; $b = $c.B
+  $max = [Math]::Max($r, [Math]::Max($g, $b))
+  $min = [Math]::Min($r, [Math]::Min($g, $b))
+  $sat = $max - $min
+  $lum = ($r + $g + $b) / 3.0
+  if ($lum -lt 108 -or $lum -gt 232) { return $false }
+  if ($lum -ge 218 -and $sat -le 14) { return $false }
+  return $true
 }
 
 function Test-Seed([System.Drawing.Color]$c) {
@@ -110,20 +117,60 @@ for ($y = 0; $y -lt $h; $y++) {
   }
 }
 
-# 3) scale to mark size
-$out = New-Object System.Drawing.Bitmap $size, $size, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
-$og = [System.Drawing.Graphics]::FromImage($out)
-$og.SmoothingMode = 'AntiAlias'
-$og.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-$og.Clear([System.Drawing.Color]::Transparent)
-$padPx = [Math]::Max(1, [int]($size * 0.06))
-$dest = $size - 2 * $padPx
-$og.DrawImage($bmp, $padPx, $padPx, $dest, $dest)
-$og.Dispose()
-$bmp.Dispose()
+# 3) inside logo island: drop flat checker whites (keep bevel/shadow)
+for ($y = 1; $y -lt ($h - 1); $y++) {
+  for ($x = 1; $x -lt ($w - 1); $x++) {
+    $idx = $y * $w + $x
+    if (-not $seen[$idx]) { continue }
+    $c = $bmp.GetPixel($x, $y)
+    if ($c.A -le 12) { continue }
+    $lum = Lum $c
+    $sat = [Math]::Max($c.R, [Math]::Max($c.G, $c.B)) - [Math]::Min($c.R, [Math]::Min($c.G, $c.B))
+    if (-not ($lum -ge 236 -and $sat -le 22)) { continue }
+    $nearBevel = $false
+    foreach ($d in @(@(-1,0),@(1,0),@(0,-1),@(0,1))) {
+      $nc = $bmp.GetPixel($x + $d[0], $y + $d[1])
+      if ($nc.A -le 12) { continue }
+      $nl = Lum $nc
+      if ($nl -ge 68 -and $nl -le 228) { $nearBevel = $true; break }
+    }
+    if (-not $nearBevel) {
+      $bmp.SetPixel($x, $y, [System.Drawing.Color]::FromArgb(0, 0, 0, 0))
+      $seen[$idx] = $false
+    }
+  }
+}
 
-$dir = Split-Path $outPath -Parent
-if ($dir) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
-$out.Save($outPath, [System.Drawing.Imaging.ImageFormat]::Png)
-$out.Dispose()
-Write-Host "[brand-mark] ok $outPath"
+function Save-LogoPng([System.Drawing.Bitmap]$logo, [int]$size, [string]$outPath, [int]$darkR, [int]$darkG, [int]$darkB) {
+  $out = New-Object System.Drawing.Bitmap $size, $size, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+  $og = [System.Drawing.Graphics]::FromImage($out)
+  $og.SmoothingMode = 'AntiAlias'
+  $og.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+  $og.Clear([System.Drawing.Color]::FromArgb(0, 0, 0, 0))
+  $padPx = [Math]::Max(1, [int]($size * 0.06))
+  $dest = $size - 2 * $padPx
+  $og.DrawImage($logo, $padPx, $padPx, $dest, $dest)
+  $og.Dispose()
+  if ($darkR -ge 0) {
+    for ($y = 0; $y -lt $size; $y++) {
+      for ($x = 0; $x -lt $size; $x++) {
+        $c = $out.GetPixel($x, $y)
+        if ($c.A -le 12) { continue }
+        $out.SetPixel($x, $y, [System.Drawing.Color]::FromArgb($c.A, $darkR, $darkG, $darkB))
+      }
+    }
+  }
+  $dir = Split-Path $outPath -Parent
+  if ($dir) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
+  $out.Save($outPath, [System.Drawing.Imaging.ImageFormat]::Png)
+  $out.Dispose()
+}
+
+Save-LogoPng $bmp 128 $outPath -1 -1 -1
+Save-LogoPng $bmp 32 (Join-Path $root "public\icons\icon-32.png") -1 -1 -1
+Save-LogoPng $bmp 192 (Join-Path $root "public\icons\icon-192.png") -1 -1 -1
+Save-LogoPng $bmp 180 (Join-Path $root "public\icons\apple-touch-icon.png") -1 -1 -1
+Save-LogoPng $bmp 180 (Join-Path $root "public\apple-touch-icon.png") -1 -1 -1
+Save-LogoPng $bmp 512 (Join-Path $root "public\icons\icon-512.png") -1 -1 -1
+$bmp.Dispose()
+Write-Host "[brand-mark] ok mark + web icons"

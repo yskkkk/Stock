@@ -318,10 +318,7 @@ fs.writeFileSync(ps1, psBody.trim() + "\n", "utf8");
 execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${ps1}"`, {
   stdio: "inherit",
 });
-if (whiteMark) {
-  const markOnly = path.join(root, "scripts", "gen-brand-mark-only.ps1");
-  execSync(
-    `powershell -NoProfile -ExecutionPolicy Bypass -File "${markOnly}"`,
-    { stdio: "inherit" },
-  );
-}
+execSync(
+  `powershell -NoProfile -ExecutionPolicy Bypass -File "${path.join(root, "scripts", "gen-brand-mark-only.ps1")}"`,
+  { stdio: "inherit" },
+);
