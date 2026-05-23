@@ -11,16 +11,15 @@ function readPadTop(): number {
   return Math.max(6, root * 0.35);
 }
 
-/** 스크롤 문서 안에서 뷰포트 세로 중앙에 오는 top */
-function idealDocTop(scrollTop: number, railHeight: number): number {
+/** sticky 기준 — 뷰포트 세로 중앙에 맞추는 top (scrollTop 미포함) */
+function idealStickTop(railHeight: number): number {
   const vh = window.innerHeight;
   const padTop = readPadTop();
-  return scrollTop + Math.max(padTop, (vh - railHeight) / 2);
+  return Math.max(padTop, (vh - railHeight) / 2);
 }
 
 /**
- * 왼쪽 레일: fixed가 아니라 문서 좌표로 두고,
- * 스크롤해도 anchor가 늦게 따라온 뒤 천천히 제자리(뷰포트 중앙)로 맞춤.
+ * 왼쪽 레일: flex 열 + sticky, 스크롤 시 anchor가 늦게 따라와 뷰포트 중앙에 맞춤.
  */
 export function useLeftRailLazyFollow(
   railRef: RefObject<HTMLElement | null>,
@@ -54,9 +53,8 @@ export function useLeftRailLazyFollow(
     };
 
     const syncIdeal = () => {
-      const scrollTop = getScrollEl()?.scrollTop ?? 0;
       const h = rail.getBoundingClientRect().height;
-      const ideal = idealDocTop(scrollTop, h);
+      const ideal = idealStickTop(h);
       anchorTop = ideal;
       currentTop = ideal;
       applyTop(currentTop);
@@ -68,9 +66,8 @@ export function useLeftRailLazyFollow(
         return;
       }
 
-      const scrollTop = getScrollEl()?.scrollTop ?? 0;
       const h = rail.getBoundingClientRect().height;
-      const ideal = idealDocTop(scrollTop, h);
+      const ideal = idealStickTop(h);
 
       anchorTop += (ideal - anchorTop) * anchorLerp;
 

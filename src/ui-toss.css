@@ -68,7 +68,7 @@ body {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: var(--app-page-max-width);
+  max-width: var(--app-shell-fluid-max, var(--app-page-max-width));
   gap: 0.95rem;
   padding-block: 1.35rem;
   padding-inline: var(--app-page-inline-pad-safe);
