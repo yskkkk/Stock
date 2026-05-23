@@ -421,82 +421,87 @@ export default function LiveTradingTab({
         </div>
       ) : null}
 
-      <section
-        className={`live-trading-tab__toss card ${
-          toss?.ready
-            ? "live-trading-tab__toss--ready"
-            : toss?.configured
-              ? "live-trading-tab__toss--partial"
-              : "live-trading-tab__toss--off"
-        }`}
-        aria-live="polite"
+      <div
+        className="live-trading-tab__api-row"
+        aria-label={ko.app.liveTradeApiRowAria}
       >
-        <h3 className="live-trading-tab__section-title">{ko.app.liveTradeTossTitle}</h3>
-        <p className="live-trading-tab__toss-msg">{toss?.messageKo ?? "—"}</p>
-        <ul className="live-trading-tab__toss-env" aria-label={ko.app.liveTradeTossChecklist}>
-          <li>
-            <span>{ko.app.liveTradeTossItemApi}</span>
-            <span className="live-trading-tab__toss-state">
-              {toss?.configured ? ko.app.liveTradeTossOk : ko.app.liveTradeTossNo}
-            </span>
-          </li>
-          <li>
-            <span>{ko.app.liveTradeTossItemAccount}</span>
-            <span className="live-trading-tab__toss-state">
-              {toss?.ready ? ko.app.liveTradeTossOk : ko.app.liveTradeTossNo}
-            </span>
-          </li>
-          <li>
-            <span>{ko.app.liveTradeTossItemOrders}</span>
-            <span className="live-trading-tab__toss-state">
-              {status?.tossSimulatedOrders === false
-                ? ko.app.liveTradeTossOk
-                : ko.app.liveTradeTossSim}
-            </span>
-          </li>
-        </ul>
-      </section>
-
-      <section
-        className={`live-trading-tab__toss card ${
-          bithumb?.ready
-            ? "live-trading-tab__toss--ready"
-            : bithumb?.configured
-              ? "live-trading-tab__toss--partial"
-              : "live-trading-tab__toss--off"
-        }`}
-        aria-live="polite"
-      >
-        <h3 className="live-trading-tab__section-title">
-          {ko.app.liveTradeBithumbTitle}
-        </h3>
-        <p className="live-trading-tab__toss-msg">{bithumb?.messageKo ?? "—"}</p>
-        <ul
-          className="live-trading-tab__toss-env"
-          aria-label={ko.app.liveTradeBithumbChecklist}
+        <section
+          className={`live-trading-tab__toss card ${
+            toss?.ready
+              ? "live-trading-tab__toss--ready"
+              : toss?.configured
+                ? "live-trading-tab__toss--partial"
+                : "live-trading-tab__toss--off"
+          }`}
+          aria-live="polite"
         >
-          <li>
-            <span>{ko.app.liveTradeBithumbItemKey}</span>
-            <span className="live-trading-tab__toss-state">
-              {bithumb?.configured ? ko.app.liveTradeTossOk : ko.app.liveTradeTossNo}
-            </span>
-          </li>
-          <li>
-            <span>{ko.app.liveTradeBithumbItemSecret}</span>
-            <span className="live-trading-tab__toss-state">
-              {bithumb?.ready ? ko.app.liveTradeTossOk : ko.app.liveTradeTossNo}
-            </span>
-          </li>
-          <li>
-            <span>{ko.app.liveTradeBithumbItemOrders}</span>
-            <span className="live-trading-tab__toss-state">
-              {status?.bithumbSimulatedOrders === false
-                ? ko.app.liveTradeTossOk
-                : ko.app.liveTradeTossSim}
-            </span>
-          </li>
-        </ul>
-      </section>
+          <h3 className="live-trading-tab__section-title">{ko.app.liveTradeTossTitle}</h3>
+          <p className="live-trading-tab__toss-msg">{toss?.messageKo ?? "—"}</p>
+          <ul className="live-trading-tab__toss-env" aria-label={ko.app.liveTradeTossChecklist}>
+            <li>
+              <span>{ko.app.liveTradeTossItemApi}</span>
+              <span className="live-trading-tab__toss-state">
+                {toss?.configured ? ko.app.liveTradeTossOk : ko.app.liveTradeTossNo}
+              </span>
+            </li>
+            <li>
+              <span>{ko.app.liveTradeTossItemAccount}</span>
+              <span className="live-trading-tab__toss-state">
+                {toss?.ready ? ko.app.liveTradeTossOk : ko.app.liveTradeTossNo}
+              </span>
+            </li>
+            <li>
+              <span>{ko.app.liveTradeTossItemOrders}</span>
+              <span className="live-trading-tab__toss-state">
+                {status?.tossSimulatedOrders === false
+                  ? ko.app.liveTradeTossOk
+                  : ko.app.liveTradeTossSim}
+              </span>
+            </li>
+          </ul>
+        </section>
+
+        <section
+          className={`live-trading-tab__toss card ${
+            bithumb?.ready
+              ? "live-trading-tab__toss--ready"
+              : bithumb?.configured
+                ? "live-trading-tab__toss--partial"
+                : "live-trading-tab__toss--off"
+          }`}
+          aria-live="polite"
+        >
+          <h3 className="live-trading-tab__section-title">
+            {ko.app.liveTradeBithumbTitle}
+          </h3>
+          <p className="live-trading-tab__toss-msg">{bithumb?.messageKo ?? "—"}</p>
+          <ul
+            className="live-trading-tab__toss-env"
+            aria-label={ko.app.liveTradeBithumbChecklist}
+          >
+            <li>
+              <span>{ko.app.liveTradeBithumbItemKey}</span>
+              <span className="live-trading-tab__toss-state">
+                {bithumb?.configured ? ko.app.liveTradeTossOk : ko.app.liveTradeTossNo}
+              </span>
+            </li>
+            <li>
+              <span>{ko.app.liveTradeBithumbItemSecret}</span>
+              <span className="live-trading-tab__toss-state">
+                {bithumb?.ready ? ko.app.liveTradeTossOk : ko.app.liveTradeTossNo}
+              </span>
+            </li>
+            <li>
+              <span>{ko.app.liveTradeBithumbItemOrders}</span>
+              <span className="live-trading-tab__toss-state">
+                {status?.bithumbSimulatedOrders === false
+                  ? ko.app.liveTradeTossOk
+                  : ko.app.liveTradeTossSim}
+              </span>
+            </li>
+          </ul>
+        </section>
+      </div>
 
       <LiveSimRunningPanel
         programs={programs}

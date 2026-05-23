@@ -892,6 +892,24 @@ body {
   font-weight: 650;
 }
 
+.live-trading-tab__api-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+@media (max-width: 720px) {
+  .live-trading-tab__api-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.live-trading-tab__api-row > .live-trading-tab__toss {
+  min-width: 0;
+  height: 100%;
+}
+
 .live-trading-tab__toss {
   padding: 0.9rem 1.1rem;
   border-left: 3px solid var(--border, #cbd5e1);

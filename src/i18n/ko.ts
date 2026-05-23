@@ -177,6 +177,7 @@ export const ko = {
     liveTradeTossItemAccount: "계좌",
     liveTradeTossItemOrders: "실주문",
     liveTradeTossSim: "시뮬레이션",
+    liveTradeApiRowAria: "증권·코인 API 연동",
     liveTradeBithumbTitle: "빗썸 API 연동 (코인)",
     liveTradeBithumbChecklist: "빗썸 연동 상태",
     liveTradeBithumbItemKey: "API Key",
