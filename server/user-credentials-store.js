@@ -10,7 +10,10 @@ import {
   encryptSecret,
   isCredentialsCryptoReady,
 } from "./credentials-crypto.js";
-import { summarizeBithumbAccountsForDisplay } from "./bithumb-accounts-summary.js";
+import {
+  enrichBithumbSnapshotWithMarketQuotes,
+  summarizeBithumbAccountsForDisplay,
+} from "./bithumb-accounts-summary.js";
 import { roundTripFeeRateFromOneWay } from "./net-return.js";
 import {
   fetchBithumbAccountsWithCredentials,
@@ -342,7 +345,9 @@ export async function testUserCredentialAsync(userId, exchange, inline = null) {
       throw new Error(status.messageKo);
     }
     const accounts = await fetchBithumbAccountsWithCredentials(creds);
-    const bithumbSnapshot = summarizeBithumbAccountsForDisplay(accounts);
+    const bithumbSnapshot = await enrichBithumbSnapshotWithMarketQuotes(
+      summarizeBithumbAccountsForDisplay(accounts),
+    );
     const holdingCount = bithumbSnapshot.holdings.length;
     let tradingFees = null;
     try {
@@ -448,7 +453,9 @@ export async function getBithumbAccountSnapshotForUserAsync(userId) {
     return { ready: false, messageKo: "빗썸 API 키를 저장하세요." };
   }
   const accounts = await fetchBithumbAccountsWithCredentials(creds);
-  const snapshot = summarizeBithumbAccountsForDisplay(accounts);
+  const snapshot = await enrichBithumbSnapshotWithMarketQuotes(
+    summarizeBithumbAccountsForDisplay(accounts),
+  );
   let feeLabelKo = null;
   try {
     const { ensureUserTradingFeesFreshAsync, getUserTradingFeeRatesForApiSync } =

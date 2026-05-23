@@ -1130,6 +1130,10 @@ body {
   margin: 0;
 }
 
+.live-trading-tab__cred-snapshot-krw--pair {
+  grid-template-columns: 1fr 1fr;
+}
+
 .live-trading-tab__cred-snapshot-krw div {
   display: flex;
   flex-direction: column;
@@ -1165,22 +1169,62 @@ body {
 
 .live-trading-tab__cred-snapshot-holdings li {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.live-trading-tab__cred-snapshot-holding-row {
+  display: flex;
   align-items: baseline;
-  gap: 0.35rem 0.55rem;
+  justify-content: space-between;
+  gap: 0.35rem;
 }
 
 .live-trading-tab__cred-snapshot-coin {
   font-weight: 700;
+  min-width: 0;
 }
 
 .live-trading-tab__cred-snapshot-qty {
   font-variant-numeric: tabular-nums;
+  color: var(--text-dim, #64748b);
+  font-size: 0.72rem;
 }
 
-.live-trading-tab__cred-snapshot-avg {
-  font-size: 0.7rem;
-  color: var(--text-dim, #64748b);
+.live-trading-tab__cred-snapshot-chg {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.live-trading-tab__cred-snapshot-chg--up {
+  color: var(--up, #ef4444);
+}
+
+.live-trading-tab__cred-snapshot-chg--down {
+  color: var(--down, #3b82f6);
+}
+
+.live-trading-tab__cred-snapshot-chg--flat {
+  color: var(--muted, #94a3b8);
+}
+
+.live-trading-tab__cred-snapshot-val {
+  flex-shrink: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.live-trading-tab__cred-snapshot-val-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--muted, #94a3b8);
+}
+
+.live-trading-tab__cred-snapshot-krw-locked {
+  grid-column: 1 / -1;
 }
 
 .live-trading-tab__api-row {

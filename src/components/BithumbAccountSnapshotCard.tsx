@@ -1,6 +1,6 @@
 import type { BithumbTestSnapshot } from "../api";
 import { ko } from "../i18n/ko";
-import { formatLiveTradeQuantity, formatPrice } from "../lib/format";
+import { formatLiveTradeQuantity, formatPercent, formatPrice } from "../lib/format";
 
 export type BithumbTradingFeesDisplay = {
   bidFee: number;
@@ -10,6 +10,15 @@ export type BithumbTradingFeesDisplay = {
 
 function feePct(n: number) {
   return `${(n * 100).toFixed(3).replace(/\.?0+$/, "")}%`;
+}
+
+function holdingChangeTone(
+  pct: number | null | undefined,
+): "up" | "down" | "flat" {
+  if (pct == null || !Number.isFinite(pct)) return "flat";
+  if (pct > 0) return "up";
+  if (pct < 0) return "down";
+  return "flat";
 }
 
 export default function BithumbAccountSnapshotCard({
@@ -58,7 +67,7 @@ export default function BithumbAccountSnapshotCard({
       >
         {ko.app.liveTradeCredTestBalance}
       </p>
-      <dl className="live-trading-tab__cred-snapshot-krw bithumb-account-rail__krw">
+      <dl className="live-trading-tab__cred-snapshot-krw live-trading-tab__cred-snapshot-krw--pair bithumb-account-rail__krw">
         <div>
           <dt>{ko.app.liveTradeCredTestKrwTotal}</dt>
           <dd>{formatPrice(krw.total, "KRW")}</dd>
@@ -68,7 +77,7 @@ export default function BithumbAccountSnapshotCard({
           <dd>{formatPrice(krw.available, "KRW")}</dd>
         </div>
         {krw.locked > 0 ? (
-          <div>
+          <div className="live-trading-tab__cred-snapshot-krw-locked">
             <dt>{ko.app.liveTradeCredTestKrwLocked}</dt>
             <dd>{formatPrice(krw.locked, "KRW")}</dd>
           </div>
@@ -89,20 +98,36 @@ export default function BithumbAccountSnapshotCard({
         </p>
       ) : (
         <ul className="live-trading-tab__cred-snapshot-holdings bithumb-account-rail__holdings">
-          {holdings.map((h) => (
-            <li key={h.currency}>
-              <span className="live-trading-tab__cred-snapshot-coin">{h.name}</span>
-              <span className="live-trading-tab__cred-snapshot-qty">
-                {formatLiveTradeQuantity(h.quantity, "crypto")}
-              </span>
-              {h.avgBuyPrice != null ? (
-                <span className="live-trading-tab__cred-snapshot-avg">
-                  {ko.app.liveTradeCredTestAvgBuy}{" "}
-                  {formatPrice(h.avgBuyPrice, "KRW")}
-                </span>
-              ) : null}
-            </li>
-          ))}
+          {holdings.map((h) => {
+            const tone = holdingChangeTone(h.changePercent);
+            return (
+              <li key={h.currency}>
+                <div className="live-trading-tab__cred-snapshot-holding-row">
+                  <span className="live-trading-tab__cred-snapshot-coin">{h.name}</span>
+                  {h.changePercent != null ? (
+                    <span
+                      className={`live-trading-tab__cred-snapshot-chg live-trading-tab__cred-snapshot-chg--${tone}`}
+                    >
+                      {formatPercent(h.changePercent)}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="live-trading-tab__cred-snapshot-holding-row">
+                  <span className="live-trading-tab__cred-snapshot-qty">
+                    {formatLiveTradeQuantity(h.quantity, "crypto")}
+                  </span>
+                  {h.marketValue != null ? (
+                    <span className="live-trading-tab__cred-snapshot-val">
+                      <span className="live-trading-tab__cred-snapshot-val-label">
+                        {ko.app.liveTradePfEval}
+                      </span>{" "}
+                      {formatPrice(h.marketValue, "KRW")}
+                    </span>
+                  ) : null}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

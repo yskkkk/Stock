@@ -3,6 +3,7 @@
  */
 import { isBinanceUsdtSymbol } from "./binance-usdt.js";
 import { cryptoYahooUsdtDisplayName } from "./crypto-display-names.js";
+import { fetchBithumbAllKrwTickers } from "./bithumb-krw.js";
 
 /** @param {string} base */
 export function bithumbBaseToUsdtSymbol(base) {
@@ -65,6 +66,48 @@ export function summarizeBithumbAccountsForDisplay(accounts) {
 }
 
 /**
+ * 보유 코인에 빗썸 KRW 시세·평가금액·24h 등락률 부착
+ * @param {ReturnType<typeof summarizeBithumbAccountsForDisplay>} snapshot
+ */
+export async function enrichBithumbSnapshotWithMarketQuotes(snapshot) {
+  if (!snapshot?.holdings?.length) return snapshot;
+  let all;
+  try {
+    all = await fetchBithumbAllKrwTickers();
+  } catch {
+    return snapshot;
+  }
+  const holdings = snapshot.holdings.map((h) => {
+    const t = all[h.currency];
+    if (!t) {
+      return {
+        ...h,
+        currentPrice: null,
+        marketValue: null,
+        changePercent: null,
+      };
+    }
+    const price = Number(t.closing_price);
+    const changePercent = Number(t.fluctate_rate_24H);
+    if (!Number.isFinite(price) || price <= 0) {
+      return {
+        ...h,
+        currentPrice: null,
+        marketValue: null,
+        changePercent: null,
+      };
+    }
+    return {
+      ...h,
+      currentPrice: price,
+      marketValue: h.quantity * price,
+      changePercent: Number.isFinite(changePercent) ? changePercent : null,
+    };
+  });
+  return { ...snapshot, holdings };
+}
+
+/**
  * @typedef {{
  *   currency: string;
  *   symbol: string;
@@ -73,5 +116,8 @@ export function summarizeBithumbAccountsForDisplay(accounts) {
  *   available: number;
  *   locked: number;
  *   avgBuyPrice: number | null;
+ *   currentPrice?: number | null;
+ *   marketValue?: number | null;
+ *   changePercent?: number | null;
  * }} BithumbAccountHoldingSummary
  */

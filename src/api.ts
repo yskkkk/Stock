@@ -863,6 +863,9 @@ export interface BithumbTestHolding {
   available: number;
   locked: number;
   avgBuyPrice: number | null;
+  currentPrice?: number | null;
+  marketValue?: number | null;
+  changePercent?: number | null;
 }
 
 export interface BithumbTestSnapshot {
