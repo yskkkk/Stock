@@ -16,7 +16,7 @@ alwaysApply: false
 사용자가 **아이콘 변경**을 요청하면:
 
 1. 원본을 `public/branding/ystock-logo-source.png`(또는 `STOCK_ICON_SOURCE`)에 둔다.
-2. **`npm run icons:gen`** 으로 일괄 생성 — 스크립트가 **흰·밝은 회색·체커보드 매트를 투명 처리**(코너 플러드 + 매트 픽셀). 파란 그라데이션·로고 내 흰 글자는 유지.
+2. **`npm run icons:gen`** 으로 일괄 생성 — 스크립트가 **흰·밝은 회색·체커보드 매트를 투명 처리**(코너 플러드 + 매트 픽셀). 파란 그라데이션·로고 내 흰 글자는 유지. **흰 ys·체커보드 JPEG** 원본은 `STOCK_ICON_WHITE_MARK=1` `STOCK_ICON_FULL_BLEED=0` 로 생성.
 3. 웹 캐시: `index.html`·`App.tsx`의 `?v=` 버전 bump.
 4. `STOCK_ICON_FULL_BLEED=0` 으로 흰 사각 배경만 있는 로고일 때만 — 기본은 완성형 앱 아이콘도 **외곽 흰 테두리 제거** 적용.
 

@@ -76,6 +76,64 @@ function Flood-ClearOuterMatte([System.Drawing.Bitmap]$bmp) {
   }
 }
 
+function Test-CheckerboardGrayPixel([System.Drawing.Color]$c) {
+  if ($c.A -le 12) { return $false }
+  $r = $c.R; $g = $c.G; $b = $c.B
+  $max = [Math]::Max($r, [Math]::Max($g, $b))
+  $min = [Math]::Min($r, [Math]::Min($g, $b))
+  $sat = $max - $min
+  $lum = ($r + $g + $b) / 3.0
+  return ($sat -le 40) -and ($lum -ge 88) -and ($lum -le 218)
+}
+
+function Test-WhiteMarkForegroundPixel([System.Drawing.Color]$c) {
+  if ($c.A -le 12) { return $false }
+  $r = $c.R; $g = $c.G; $b = $c.B
+  $max = [Math]::Max($r, [Math]::Max($g, $b))
+  $min = [Math]::Min($r, [Math]::Min($g, $b))
+  $sat = $max - $min
+  $lum = ($r + $g + $b) / 3.0
+  if ($lum -ge 222) { return $true }
+  if (Test-CheckerboardGrayPixel $c) { return $false }
+  if ($sat -le 40 -and $lum -ge 200) { return $false }
+  return $lum -ge 118
+}
+
+function Prepare-WhiteMarkBitmap([System.Drawing.Bitmap]$bmp) {
+  $w = [int]$bmp.Width
+  $h = [int]$bmp.Height
+  $minX = $w; $minY = $h; $maxX = -1; $maxY = -1
+  for ($y = 0; $y -lt $h; $y++) {
+    for ($x = 0; $x -lt $w; $x++) {
+      $c = $bmp.GetPixel($x, $y)
+      if (-not (Test-WhiteMarkForegroundPixel $c)) { continue }
+      if ($x -lt $minX) { $minX = $x }
+      if ($y -lt $minY) { $minY = $y }
+      if ($x -gt $maxX) { $maxX = $x }
+      if ($y -gt $maxY) { $maxY = $y }
+    }
+  }
+  if ($maxX -lt $minX) { return }
+  $pad = [Math]::Max(2, [int]([Math]::Min($w, $h) * 0.02))
+  $minX = [Math]::Max(0, $minX - $pad)
+  $minY = [Math]::Max(0, $minY - $pad)
+  $maxX = [Math]::Min($w - 1, $maxX + $pad)
+  $maxY = [Math]::Min($h - 1, $maxY + $pad)
+  for ($y = 0; $y -lt $h; $y++) {
+    for ($x = 0; $x -lt $w; $x++) {
+      $c = $bmp.GetPixel($x, $y)
+      $outside = ($x -lt $minX) -or ($x -gt $maxX) -or ($y -lt $minY) -or ($y -gt $maxY)
+      if ($outside) {
+        $bmp.SetPixel($x, $y, [System.Drawing.Color]::FromArgb(0, 0, 0, 0))
+        continue
+      }
+      if (Test-CheckerboardGrayPixel $c) {
+        $bmp.SetPixel($x, $y, [System.Drawing.Color]::FromArgb(0, 0, 0, 0))
+      }
+    }
+  }
+}
+
 function Prepare-LogoBitmap([System.Drawing.Image]$src) {
   $bmp = New-Object System.Drawing.Bitmap $src.Width, $src.Height, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
   $g = [System.Drawing.Graphics]::FromImage($bmp)
@@ -84,12 +142,17 @@ function Prepare-LogoBitmap([System.Drawing.Image]$src) {
   $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
   $g.DrawImage($src, 0, 0, $src.Width, $src.Height)
   $g.Dispose()
+  if ($whiteMark) {
+    Prepare-WhiteMarkBitmap $bmp
+    return $bmp
+  }
   Flood-ClearOuterMatte $bmp
   Clear-MatteBackground $bmp
   return $bmp
 }
 
-$fullBleed = $true
+$fullBleed = $false
+$whiteMark = $true
 $srcPath = 'C:\Stock\public\branding\ystock-logo-source.png'
 $raw = [System.Drawing.Image]::FromFile($srcPath)
 $logo = Prepare-LogoBitmap $raw
@@ -113,7 +176,7 @@ function Save-Icon([int]$size, [string]$outPath) {
   $dest = $size - 2 * $pad
   $g.DrawImage($logo, $pad, $pad, $dest, $dest)
   $g.Dispose()
-  Flood-ClearOuterMatte $bmp
+  if (-not $whiteMark) { Flood-ClearOuterMatte $bmp }
   Save-Png $bmp $outPath
   $bmp.Dispose()
 }
@@ -178,4 +241,4 @@ Save-Splash 2732 2732 'C:\Stock\ios\App\App\Assets.xcassets\Splash.imageset\spla
 Save-Splash 2732 2732 'C:\Stock\ios\App\App\Assets.xcassets\Splash.imageset\splash-2732x2732-1.png'
 Save-Splash 2732 2732 'C:\Stock\ios\App\App\Assets.xcassets\Splash.imageset\splash-2732x2732-2.png'
 $logo.Dispose()
-Write-Host '[icons] ok (22 icons + 14 splashes, matte-stripped, fullBleed=true)'
+Write-Host '[icons] ok (22 icons + 14 splashes, whiteMark=true, fullBleed=false)'
