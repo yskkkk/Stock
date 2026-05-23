@@ -19,6 +19,7 @@ import {
 } from "./ops-dev-notify-dedup.js";
 import {
   getRepoHeadRev,
+  getRepoPushSyncState,
   summarizeGitPullRangeForNotify,
   summarizeGitReflectionForNotify,
 } from "./ops-agent-git-push.js";
@@ -62,27 +63,52 @@ function postWorkSettleMs(priority = 1) {
   return 2_000;
 }
 
+/** git push 완료 대기 상한 (settle 이후 추가) */
+function pushWaitMaxMs(priority = 1) {
+  const n = Number(process.env.OPS_DEV_NOTIFY_PUSH_WAIT_MS);
+  if (Number.isFinite(n) && n >= 5_000) return Math.min(n, 300_000);
+  if (priority >= 3) return 120_000;
+  if (priority >= 2) return 90_000;
+  return 60_000;
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** git push·transcript flush 후 발송 — 작업 중 조기 알림 방지 */
-async function settleAndRefreshBeforeSend(snap) {
+/** git push·transcript flush 후 발송 — push 전 조기 알림 방지 */
+async function waitForGitPushSettled(snap) {
   const priority = Number(snap.priority) || 1;
   const settleMs = postWorkSettleMs(priority);
   const scheduledAt = typeof snap.at === "number" ? snap.at : Date.now();
   const gitRevStart = String(snap.gitRevAtStart ?? "").trim();
-  const maxWaitMs = Math.max(settleMs + 12_000, 15_000);
-  const deadline = scheduledAt + maxWaitMs;
+  const deadline = scheduledAt + settleMs + pushWaitMaxMs(priority);
 
   while (Date.now() < deadline) {
     const elapsed = Date.now() - scheduledAt;
-    const revNow = getRepoHeadRev();
-    const gitMoved = Boolean(gitRevStart && revNow && gitRevStart !== revNow);
-    const minWaitDone = elapsed >= settleMs;
-    if (minWaitDone && (gitMoved || !gitRevStart)) break;
+    if (elapsed < settleMs) {
+      await sleep(400);
+      continue;
+    }
+    if (!gitRevStart) break;
+
+    const st = getRepoPushSyncState();
+    const revMoved = Boolean(gitRevStart && st.head && gitRevStart !== st.head);
+
+    if (st.dirty) {
+      await sleep(400);
+      continue;
+    }
+    if (!revMoved && st.ahead === 0) break;
+    if (revMoved && st.ahead === 0) break;
+
     await sleep(400);
   }
+}
+
+/** git push·transcript flush 후 발송 */
+async function settleAndRefreshBeforeSend(snap) {
+  await waitForGitPushSettled(snap);
 
   const transcriptPath = String(snap.transcriptPath ?? "").trim();
   const sessionId = String(snap.sessionId ?? "").trim();
@@ -343,8 +369,9 @@ export async function flushOpsDevNotifyPendingFromDisk() {
     return false;
   }
   const age = Date.now() - snap.at;
+  const pri = snap.priority ?? 1;
   const wait =
-    debounceMs(snap.priority ?? 1) + postWorkSettleMs(snap.priority ?? 1);
+    debounceMs(pri) + postWorkSettleMs(pri) + pushWaitMaxMs(pri);
   if (age < wait - 300) {
     const delay = Math.max(500, wait - age);
     setTimeout(() => {

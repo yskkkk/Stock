@@ -20,6 +20,34 @@ export function getRepoHeadRev() {
   }
 }
 
+/**
+ * @returns {{ head: string; dirty: boolean; ahead: number }}
+ * ahead: @{u}..HEAD 커밋 수. upstream 없으면 status -sb [ahead N] 파싱.
+ */
+export function getRepoPushSyncState() {
+  const head = getRepoHeadRev();
+  let dirty = false;
+  try {
+    dirty = Boolean(gitOut(["status", "--porcelain"]).trim());
+  } catch {
+    /* ignore */
+  }
+  let ahead = 0;
+  try {
+    const n = Number(gitOut(["rev-list", "--count", "@{u}..HEAD"]));
+    ahead = Number.isFinite(n) ? Math.max(0, n) : 0;
+  } catch {
+    try {
+      const sb = gitOut(["status", "-sb"]);
+      const m = sb.match(/\[ahead (\d+)\]/);
+      ahead = m ? Number(m[1]) : 0;
+    } catch {
+      ahead = 0;
+    }
+  }
+  return { head, dirty, ahead };
+}
+
 function gitOut(args) {
   return execFileSync("git", args, {
     cwd: REPO,
