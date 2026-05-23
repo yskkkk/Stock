@@ -17,6 +17,7 @@ import {
   summarizeGitPullRangeForNotify,
   summarizeGitReflectionForNotify,
 } from "./ops-agent-git-push.js";
+import { shouldSkipIdeCompletionForChatTurn } from "./ops-chat-no-code-notify.js";
 import { isOpsTelegramNotifyEnabled } from "./telegram-notify.js";
 
 /** @type {Map<string, number>} */
@@ -75,6 +76,10 @@ export function markIdeCompletionTurnNotified(turnKey) {
 export function notifyIdeDevelopmentCompleted(opts) {
   const userRequest = String(opts.userRequest ?? "").trim();
   if (!userRequest) return false;
+
+  if (!opts.force && shouldSkipIdeCompletionForChatTurn(userRequest)) {
+    return false;
+  }
 
   if (!isOpsTelegramNotifyEnabled()) {
     console.warn(

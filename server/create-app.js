@@ -139,6 +139,7 @@ import {
   registerUserAuthRoutes,
   requireUserAuth,
 } from "./user-auth.js";
+import { sendChatNoCodeTelegram } from "./ops-chat-no-code-notify.js";
 import { registerUserCredentialRoutes } from "./user-credentials-routes.js";
 import {
   getBithumbTradingStatusForUserSync,
@@ -1158,6 +1159,31 @@ export function createApp() {
       }
       clearIdeLeaseOnDisk();
       res.json(out);
+    }),
+  );
+
+  app.post(
+    "/api/ops/chat-no-code-notify",
+    asyncRoute(async (req, res) => {
+      if (!isLoopbackDevQueueRequest(req)) {
+        res.status(403).json({
+          error: "로컬 요청에서만 사용할 수 있습니다.",
+          code: "FORBIDDEN",
+        });
+        return;
+      }
+      const userRequest = String(
+        req.body?.userRequest ?? req.body?.user_request ?? "",
+      ).trim();
+      const sessionId =
+        String(req.body?.sessionId ?? req.body?.session_id ?? "").trim() ||
+        null;
+      if (!userRequest) {
+        res.status(400).json({ error: "userRequest가 필요합니다." });
+        return;
+      }
+      const sent = await sendChatNoCodeTelegram({ userRequest, sessionId });
+      res.json({ ok: true, sent });
     }),
   );
 

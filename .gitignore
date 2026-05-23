@@ -13,6 +13,7 @@ server/.logs
 !.cursor/hooks/**
 .stock-ops-web-agent-busy.json
 .stock-ops-ide-lease.json
+.stock-chat-turn-state.json
 .cursor/rules/.stock-ide-queue-turn.mdc
 tsconfig.tsbuildinfo
 

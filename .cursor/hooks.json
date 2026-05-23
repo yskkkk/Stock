@@ -27,11 +27,17 @@
       },
       {
         "command": "node .cursor/hooks/stock-ops-scroll-agent-bottom.mjs"
+      },
+      {
+        "command": "node .cursor/hooks/stock-ops-chat-no-code-notify.mjs"
       }
     ],
     "sessionEnd": [
       {
         "command": "node .cursor/hooks/stock-ops-queue-release.mjs"
+      },
+      {
+        "command": "node .cursor/hooks/stock-ops-chat-no-code-notify.mjs"
       }
     ]
   }

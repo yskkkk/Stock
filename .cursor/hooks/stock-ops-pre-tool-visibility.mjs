@@ -12,6 +12,7 @@ import {
   readLatestUserPromptFromTranscriptsSync,
 } from "./stock-ops-hook-user-prompt.mjs";
 import { writeIdeLeaseDiskImmediate } from "../../server/ops-ide-lease-disk.js";
+import { markCodeToolUse } from "./stock-ops-chat-turn-lib.mjs";
 
 function allow() {
   process.stdout.write(JSON.stringify({ permission: "allow" }) + "\n");
@@ -83,6 +84,11 @@ try {
   if (prompt) {
     await ensureIdeQueueEnqueued(prompt, sessionId);
   }
+
+  markCodeToolUse(
+    String(input.tool_name ?? input.tool ?? ""),
+    input.tool_input ?? input.arguments ?? input,
+  );
 
   allow();
   process.exit(0);

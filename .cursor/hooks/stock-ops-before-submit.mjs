@@ -15,6 +15,7 @@ import {
 } from "./stock-ops-queue-hook-lib.mjs";
 import { writeIdeLeaseDiskImmediate } from "../../server/ops-ide-lease-disk.js";
 import { hookUserPromptFromInput } from "./stock-ops-hook-user-prompt.mjs";
+import { beginChatTurn } from "./stock-ops-chat-turn-lib.mjs";
 
 /** wait-grant는 서버에서 차례까지 HTTP를 붙잡음 — 짧으면 큐 대기 중 오탐 타임아웃 */
 const HOOK_GRANT_WAIT_MS = (() => {
@@ -63,6 +64,8 @@ try {
     allow();
     process.exit(0);
   }
+
+  beginChatTurn(sessionId, prompt);
 
   /* 전송 직후 웹 UI(0.1s 폴링)에 먼저 표시 — transcript(jsonl)는 10~30초 늦게 기록됨 */
   writeIdeLeaseDiskImmediate({ prompt, sessionId, queueStatus: "waiting" });
