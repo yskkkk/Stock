@@ -987,7 +987,7 @@ export default function App() {
     >
       <div className="app__scroll" ref={appScrollRef}>
       <div className="app__viewport">
-      <div className="app__left-panel">
+      <div className="app__left-column">
         <AppThemeCorner
           colorMode={colorMode}
           lightPalette={lightPalette}
@@ -1001,20 +1001,20 @@ export default function App() {
           }}
           onLightPalette={handleLightPalette}
         />
+        <aside ref={leftRailRef} className="app__left-rail" aria-label={ko.app.leftRailAria}>
+          <MarketIndicesRail
+            items={marketIndices}
+            loading={marketIndicesLoading}
+            layout="rail"
+            onOpenItem={handleOpenMarketIndex}
+          />
+          <TopBarFxCalculator
+            rate={usdKrwRate}
+            valuationDate={usdKrwValDate}
+            layout="rail"
+          />
+        </aside>
       </div>
-      <aside ref={leftRailRef} className="app__left-rail" aria-label={ko.app.leftRailAria}>
-        <MarketIndicesRail
-          items={marketIndices}
-          loading={marketIndicesLoading}
-          layout="rail"
-          onOpenItem={handleOpenMarketIndex}
-        />
-        <TopBarFxCalculator
-          rate={usdKrwRate}
-          valuationDate={usdKrwValDate}
-          layout="rail"
-        />
-      </aside>
       <div className="app__shell">
       <div
         ref={pullToRefreshHintRef}

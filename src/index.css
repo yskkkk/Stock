@@ -6794,7 +6794,7 @@ body {
   display: flex;
   flex-direction: row;
   align-items: flex-start;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0;
   width: 100%;
   box-sizing: border-box;
@@ -7031,19 +7031,21 @@ html[data-theme="light"] .market-indices-rail__item {
     box-sizing: border-box;
   }
 
-  .app__left-panel {
+  .app__left-column {
     grid-column: 1;
     grid-row: 1;
+    position: relative;
     width: var(--app-left-rail-width);
     min-width: 0;
-    align-self: start;
+    align-self: stretch;
     display: flex;
     flex-direction: column;
     gap: 0.28rem;
+    min-height: 0;
     pointer-events: none;
   }
 
-  .app__left-panel > * {
+  .app__left-column > * {
     pointer-events: auto;
   }
 
@@ -7052,17 +7054,16 @@ html[data-theme="light"] .market-indices-rail__item {
     position: absolute;
     top: var(--app-left-rail-y, max(0.35rem, env(safe-area-inset-top, 0px)));
     left: 0;
-    width: var(--app-left-rail-width);
+    width: 100%;
     min-width: 0;
     max-width: none;
     transform: none;
     will-change: top;
+    flex-direction: column;
     align-items: stretch;
-    align-self: start;
     max-height: calc(100dvh - max(0.35rem, env(safe-area-inset-top, 0px)) - 0.65rem);
     overflow-y: auto;
-    z-index: 2;
-    pointer-events: auto;
+    z-index: 1;
   }
 
   #root > .app .app__viewport > .app__shell {
@@ -7072,8 +7073,8 @@ html[data-theme="light"] .market-indices-rail__item {
     min-width: 0;
     width: 100%;
     max-width: 100%;
-    margin-left: 0;
-    margin-right: 0;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
   }
 
   .app__right-panel {
@@ -7101,7 +7102,7 @@ html[data-theme="light"] .market-indices-rail__item {
     display: none !important;
   }
 
-  .app__left-panel {
+  .app__left-column {
     display: block;
     width: 100%;
     max-width: none;

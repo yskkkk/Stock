@@ -11,25 +11,39 @@ function readPadTop(): number {
   return Math.max(6, root * 0.35);
 }
 
-/** 좌측 패널 상단(테마) 높이 — 레일 겹침 방지 */
-function readLeftPanelHeadReserve(): number {
-  if (!window.matchMedia(DESKTOP_MQ).matches) return 0;
-  const head = document.querySelector<HTMLElement>(".app__left-panel");
-  if (!head) return readPadTop();
-  const h = head.getBoundingClientRect().height;
+function readThemeReserve(column: HTMLElement | null): number {
+  if (!column) return readPadTop();
+  const theme = column.querySelector<HTMLElement>(".app-theme-corner");
+  if (!theme) return readPadTop();
+  const h = theme.getBoundingClientRect().height;
   return h > 0 ? h + 10 : readPadTop();
 }
 
-/** 문서 좌표 — 스크롤해도 뷰포트 중앙을 늦게 따라감 */
-function idealDocTop(scrollTop: number, railHeight: number): number {
+/** 스크롤 문서 좌표 — 뷰포트 세로 중앙(테마 아래) */
+function idealDocTop(
+  scrollTop: number,
+  railHeight: number,
+  column: HTMLElement | null,
+): number {
   const vh = window.innerHeight;
   const padTop = readPadTop();
-  const headReserve = scrollTop < 80 ? readLeftPanelHeadReserve() : 0;
+  const headReserve = scrollTop < 80 ? readThemeReserve(column) : 0;
   return scrollTop + Math.max(padTop + headReserve, (vh - railHeight) / 2);
 }
 
+function docTopToColumnTop(
+  docTop: number,
+  column: HTMLElement,
+  scrollEl: HTMLElement,
+): number {
+  const colRect = column.getBoundingClientRect();
+  const scrollRect = scrollEl.getBoundingClientRect();
+  const colTopDoc = scrollEl.scrollTop + (colRect.top - scrollRect.top);
+  return docTop - colTopDoc;
+}
+
 /**
- * 왼쪽 레일: 문서 좌표 absolute + 지연 보간(기존 따라오기).
+ * 왼쪽 레일: 좌측 열 안 absolute + 문서 좌표 지연 보간.
  */
 export function useLeftRailLazyFollow(
   railRef: RefObject<HTMLElement | null>,
@@ -51,6 +65,8 @@ export function useLeftRailLazyFollow(
 
     const getScrollEl = () => scrollRef.current;
 
+    const getColumn = () => rail.closest<HTMLElement>(".app__left-column");
+
     const applyTop = (px: number) => {
       const y = `${px}px`;
       rail.style.setProperty("--app-left-rail-y", y);
@@ -63,9 +79,12 @@ export function useLeftRailLazyFollow(
     };
 
     const syncIdeal = () => {
-      const scrollTop = getScrollEl()?.scrollTop ?? 0;
+      const scrollEl = getScrollEl();
+      const column = getColumn();
+      if (!scrollEl || !column) return;
+      const scrollTop = scrollEl.scrollTop;
       const h = rail.getBoundingClientRect().height;
-      const ideal = idealDocTop(scrollTop, h);
+      const ideal = docTopToColumnTop(idealDocTop(scrollTop, h, column), column, scrollEl);
       anchorTop = ideal;
       currentTop = ideal;
       applyTop(currentTop);
@@ -77,9 +96,16 @@ export function useLeftRailLazyFollow(
         return;
       }
 
-      const scrollTop = getScrollEl()?.scrollTop ?? 0;
+      const scrollEl = getScrollEl();
+      const column = getColumn();
+      if (!scrollEl || !column) {
+        rafId = 0;
+        return;
+      }
+
+      const scrollTop = scrollEl.scrollTop;
       const h = rail.getBoundingClientRect().height;
-      const ideal = idealDocTop(scrollTop, h);
+      const ideal = docTopToColumnTop(idealDocTop(scrollTop, h, column), column, scrollEl);
 
       anchorTop += (ideal - anchorTop) * anchorLerp;
 
@@ -133,10 +159,10 @@ export function useLeftRailLazyFollow(
 
     const ro = new ResizeObserver(() => onResize());
 
-    const head = document.querySelector<HTMLElement>(".app__left-panel");
+    const column = getColumn();
     start();
     ro.observe(rail);
-    head && ro.observe(head);
+    column && ro.observe(column);
     mq.addEventListener("change", onMq);
     getScrollEl()?.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onResize, { passive: true });
