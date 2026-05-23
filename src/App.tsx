@@ -1003,12 +1003,6 @@ export default function App() {
           onLightPalette={handleLightPalette}
         />
         <aside ref={leftRailRef} className="app__left-rail" aria-label={ko.app.leftRailAria}>
-          <MarketIndicesRail
-            items={marketIndices}
-            loading={marketIndicesLoading}
-            layout="rail"
-            onOpenItem={handleOpenMarketIndex}
-          />
           <LiveTradingLeftRailPanel
             onOpenLiveTrading={() => setAppTab("liveTrading")}
           />
@@ -1016,6 +1010,12 @@ export default function App() {
             rate={usdKrwRate}
             valuationDate={usdKrwValDate}
             layout="rail"
+          />
+          <MarketIndicesRail
+            items={marketIndices}
+            loading={marketIndicesLoading}
+            layout="rail"
+            onOpenItem={handleOpenMarketIndex}
           />
         </aside>
       </div>
