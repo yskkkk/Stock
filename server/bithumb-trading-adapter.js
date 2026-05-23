@@ -41,10 +41,11 @@ export function getBithumbTradingStatus() {
   const phase = getBithumbApiPhase();
   const configured = phase !== "unconfigured";
   const ready = phase === "ready";
-  let messageKo = "빗썸 API 키가 아직 등록되지 않았습니다.";
+  let messageKo =
+    "빗썸 API가 없습니다. 프로젝트 루트 .env 에 BITHUMB_API_KEY·BITHUMB_SECRET_KEY 값을 넣고 npm run dev(서버)를 재시작하세요.";
   if (phase === "configured") {
     messageKo =
-      "API Key는 등록됐습니다. Secret Key를 서버 .env에 추가한 뒤 재시작하세요.";
+      "API Key만 있습니다. .env 의 BITHUMB_SECRET_KEY 를 채운 뒤 서버를 재시작하세요.";
   } else if (ready) {
     messageKo =
       "빗썸 연동 준비됨. 코인 실매매 프로그램이 켜져 있으면 조건 충족 시 KRW 시장가 매수가 전달됩니다.";
