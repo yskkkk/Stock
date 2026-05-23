@@ -424,3 +424,39 @@ export function getBithumbTradingStatusForUserSync(userId) {
   }
   return getBithumbTradingStatusFromCredentials(null);
 }
+
+/**
+ * 좌측 레일·계좌 요약 — 빗썸 /v1/accounts
+ * @param {string} userId
+ */
+export async function getBithumbAccountSnapshotForUserAsync(userId) {
+  const uid = String(userId ?? "").trim();
+  if (!uid) {
+    return { ready: false, messageKo: "로그인이 필요합니다." };
+  }
+  const meta = getCredentialMetaSync(uid, "bithumb");
+  if (!meta.ready) {
+    return {
+      ready: false,
+      messageKo:
+        meta.messageKo ??
+        "빗썸 API Key·Secret을 실거래 탭에서 저장하세요.",
+    };
+  }
+  const creds = getDecryptedCredentialsSync(uid, "bithumb");
+  if (!creds?.apiKey || !creds?.secretKey) {
+    return { ready: false, messageKo: "빗썸 API 키를 저장하세요." };
+  }
+  const accounts = await fetchBithumbAccountsWithCredentials(creds);
+  const snapshot = summarizeBithumbAccountsForDisplay(accounts);
+  let feeLabelKo = null;
+  try {
+    const { ensureUserTradingFeesFreshAsync, getUserTradingFeeRatesForApiSync } =
+      await import("./exchange-trading-fees.js");
+    await ensureUserTradingFeesFreshAsync(uid);
+    feeLabelKo = getUserTradingFeeRatesForApiSync(uid).bithumb?.labelKo ?? null;
+  } catch {
+    /* 수수료 라벨 없어도 잔고·보유는 표시 */
+  }
+  return { ready: true, snapshot, feeLabelKo };
+}

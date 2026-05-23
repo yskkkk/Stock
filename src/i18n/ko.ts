@@ -260,6 +260,10 @@ export const ko = {
     liveTradeArm: "실매매 시작",
     liveTradeArmBithumb: "빗썸 실매매 시작",
     liveTradeArmToss: "토스 실매매 시작",
+    leftRailBithumbAccountAria: "빗썸 계좌 잔고·보유",
+    leftRailBithumbAccountTitle: "빗썸 계좌",
+    leftRailBithumbAccountNeedKeys:
+      "실거래 탭에서 빗썸 API를 저장하면 잔고·보유가 표시됩니다.",
     liveTradeLeftRailAria: "실매매 현황",
     liveTradeLeftRailTitle: "실매매",
     liveTradeLeftRailOpen: "자세히",

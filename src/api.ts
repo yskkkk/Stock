@@ -826,6 +826,17 @@ export function fetchUserCredentials() {
   return fetchJson<UserCredentialsResponse>("/api/user/credentials");
 }
 
+export function fetchBithumbAccountSnapshot() {
+  return fetchJson<{
+    ok: boolean;
+    ready: boolean;
+    snapshot?: BithumbTestSnapshot;
+    feeLabelKo?: string | null;
+    messageKo?: string;
+    error?: string;
+  }>("/api/user/bithumb/account-snapshot");
+}
+
 export function saveUserCredential(
   exchange: "bithumb" | "toss",
   body: {

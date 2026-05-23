@@ -6860,6 +6860,7 @@ body {
 
 .app__left-rail > .market-indices-rail--side,
 .app__left-rail > .live-trade-rail--side,
+.app__left-rail > .bithumb-account-rail-wrap--side,
 .app__left-rail > .fx-calc-rail--side {
   flex: 0 0 auto;
   width: 100%;
@@ -6867,6 +6868,108 @@ body {
   top: auto;
   max-height: none;
   overflow: visible;
+}
+
+.bithumb-account-rail-wrap--side {
+  box-sizing: border-box;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(94, 234, 212, 0.28);
+  background: rgba(94, 234, 212, 0.06);
+  padding: 0.5rem 0.62rem;
+}
+
+html[data-theme="light"] .bithumb-account-rail-wrap--side {
+  background: rgba(240, 253, 250, 0.95);
+  border-color: rgba(13, 148, 136, 0.22);
+}
+
+.bithumb-account-rail-wrap__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin-bottom: 0.35rem;
+}
+
+.bithumb-account-rail-wrap__title-btn {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+
+.bithumb-account-rail-wrap__title-btn:hover .bithumb-account-rail-wrap__title {
+  color: var(--accent, #5eead4);
+}
+
+.bithumb-account-rail-wrap__title {
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.bithumb-account-rail-wrap__status {
+  font-size: 0.68rem;
+  color: var(--muted, #94a3b8);
+}
+
+.bithumb-account-rail-wrap__hint {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--text-dim, #94a3b8);
+}
+
+.bithumb-account-rail-wrap__sk {
+  min-height: 4.5rem;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 0.08) 0%,
+    rgba(148, 163, 184, 0.16) 50%,
+    rgba(148, 163, 184, 0.08) 100%
+  );
+  background-size: 200% 100%;
+  animation: live-trade-rail-shimmer 1.2s ease-in-out infinite;
+}
+
+.bithumb-account-rail {
+  font-size: 0.74rem;
+  line-height: 1.42;
+}
+
+.bithumb-account-rail__fees {
+  margin: 0 0 0.4rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: var(--accent, #5eead4);
+}
+
+.bithumb-account-rail__section-title {
+  margin: 0.35rem 0 0.28rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-dim, #94a3b8);
+}
+
+.bithumb-account-rail__section-title:first-child {
+  margin-top: 0;
+}
+
+.bithumb-account-rail__holdings {
+  max-height: 9rem;
+  overflow-y: auto;
+}
+
+.bithumb-account-rail__empty {
+  margin: 0;
 }
 
 .live-trade-rail {

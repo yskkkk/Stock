@@ -310,7 +310,12 @@ export async function executeBithumbLiveBuyOrder(program, pick, options = {}) {
       /** @type {BithumbCredentials} */ (credentials),
     );
     const orderId = String(body.uuid ?? body.order_id ?? "");
-    return { ok: true, orderId: orderId || undefined };
+    if (!orderId) return { ok: true };
+    const fill = await pollBithumbOrderFill(
+      orderId,
+      /** @type {BithumbCredentials} */ (credentials),
+    );
+    return { ok: true, orderId, fillPrice: fill?.price ?? null };
   } catch (e) {
     return {
       ok: false,
@@ -356,13 +361,52 @@ export async function executeBithumbLiveSellOrder(input, options = {}) {
       },
       /** @type {BithumbCredentials} */ (credentials),
     );
-    return { ok: true, orderId: String(body.uuid ?? "") || undefined };
+    const orderId = String(body.uuid ?? "") || undefined;
+    if (!orderId) return { ok: true };
+    const fill = await pollBithumbOrderFill(
+      orderId,
+      /** @type {BithumbCredentials} */ (credentials),
+    );
+    return { ok: true, orderId, fillPrice: fill?.price ?? null };
   } catch (e) {
     return {
       ok: false,
       error: e instanceof Error ? e.message : String(e),
     };
   }
+}
+
+/**
+ * @param {string} orderId
+ * @param {BithumbCredentials} credentials
+ */
+export async function fetchBithumbOrderWithCredentials(orderId, credentials) {
+  const qs = { uuid: orderId };
+  return bithumbPrivateRequestWithCredentials("GET", "/v1/orders", qs, credentials);
+}
+
+/**
+ * 주문 후 체결가·체결량 조회 (1회, 2초 대기).
+ * @param {string} orderId
+ * @param {BithumbCredentials} credentials
+ * @returns {Promise<{ price: number; volume: number; funds: number } | null>}
+ */
+export async function pollBithumbOrderFill(orderId, credentials) {
+  await new Promise((r) => setTimeout(r, 2_000));
+  try {
+    const body = await fetchBithumbOrderWithCredentials(orderId, credentials);
+    const execVolume = Number(body?.executed_volume ?? 0);
+    const execFunds = Number(body?.executed_funds ?? 0);
+    if (execVolume > 0 && execFunds > 0) {
+      return { price: execFunds / execVolume, volume: execVolume, funds: execFunds };
+    }
+  } catch (e) {
+    console.warn(
+      "[bithumb-trading] 체결가 조회 실패:",
+      e instanceof Error ? e.message : e,
+    );
+  }
+  return null;
 }
 
 export function estimateBithumbBuyQuantity(yahooSymbol, price, amountKrw) {

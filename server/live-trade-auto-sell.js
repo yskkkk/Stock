@@ -1,16 +1,22 @@
 /**
- * 시뮬 보유 — 목표·손절가 도달 시 지정가로 자동 매도
+ * 시뮬·실매매 보유 — 목표·손절가 도달 시 자동 매도
  */
 import { fetchQuoteSnapshotsForSymbols } from "./picks-live-quotes.js";
 import { pickQuoteFromMap } from "./quote-symbol-resolve.js";
 import {
   getLiveTradeProgramSync,
+  listArmedLiveTradeProgramsSync,
   listSimActiveProgramsSync,
 } from "./live-trade-programs-store.js";
 import {
   buildOpenPositionsWithSellTargetsSync,
   recordLiveTradeSellSync,
 } from "./live-trade-portfolio-store.js";
+import {
+  executeBithumbLiveSellOrder,
+  yahooSymbolToBithumbMarket,
+} from "./bithumb-trading-adapter.js";
+import { getDecryptedCredentialsSync } from "./user-credentials-store.js";
 
 const POLL_MS = (() => {
   const n = Number(process.env.STOCK_LIVE_TRADE_AUTO_SELL_MS ?? 45_000);
@@ -36,9 +42,14 @@ function shouldSellAtTarget(pos, currentPrice) {
 
 export async function tickLiveTradeAutoSell() {
   const simPrograms = listSimActiveProgramsSync();
-  if (!simPrograms.length) return { sold: 0 };
+  const armedPrograms = listArmedLiveTradeProgramsSync();
+  const activePrograms = [...simPrograms, ...armedPrograms];
+  if (!activePrograms.length) return { sold: 0 };
 
-  const positions = buildOpenPositionsWithSellTargetsSync();
+  const activePids = new Set(activePrograms.map((p) => p.id));
+  const positions = buildOpenPositionsWithSellTargetsSync().filter((p) =>
+    activePids.has(p.programId),
+  );
   if (!positions.length) return { sold: 0 };
 
   const symbols = [...new Set(positions.map((p) => p.symbol))];
@@ -47,8 +58,12 @@ export async function tickLiveTradeAutoSell() {
 
   for (const pos of positions) {
     const program = getLiveTradeProgramSync(pos.programId);
-    if (!program || program.status !== "sim") continue;
+    if (!program) continue;
     if (!program.autoSellAtTarget) continue;
+
+    const isArmed = program.status === "armed";
+    const isSim = program.status === "sim";
+    if (!isArmed && !isSim) continue;
 
     const q = pickQuoteFromMap(quotes, pos.symbol, pos.market);
     const current =
@@ -57,23 +72,60 @@ export async function tickLiveTradeAutoSell() {
     if (!hit) continue;
 
     try {
-      recordLiveTradeSellSync({
-        programId: pos.programId,
-        symbol: pos.symbol,
-        market: pos.market,
-        quantity: pos.quantity,
-        price: hit.price,
-        note: hit.note,
-        simulated: true,
-        atMs: Date.now(),
-      });
+      if (isArmed && pos.market === "crypto") {
+        const bithumbMarket = yahooSymbolToBithumbMarket(pos.symbol);
+        if (!bithumbMarket) {
+          console.warn("[live-trade:auto-sell] 빗썸 마켓 변환 실패:", pos.symbol);
+          continue;
+        }
+        const userId = String(program.userId ?? "").trim();
+        const credentials = userId ? getDecryptedCredentialsSync(userId, "bithumb") : null;
+        const sellResult = await executeBithumbLiveSellOrder(
+          { market: bithumbMarket, volume: pos.quantity },
+          { credentials },
+        );
+        if (!sellResult.ok) {
+          console.warn("[live-trade:auto-sell] 빗썸 매도 실패:", pos.symbol, sellResult.error);
+          continue;
+        }
+        const fillPrice = sellResult.fillPrice ?? hit.price;
+        recordLiveTradeSellSync({
+          programId: pos.programId,
+          symbol: pos.symbol,
+          market: pos.market,
+          quantity: pos.quantity,
+          price: fillPrice,
+          note: hit.note,
+          simulated: Boolean(sellResult.simulated),
+          orderId: sellResult.orderId ?? null,
+          atMs: Date.now(),
+        });
+        console.info(
+          "[live-trade:auto-sell:armed]",
+          pos.symbol,
+          hit.note,
+          fillPrice,
+          sellResult.simulated ? "(simulated)" : "",
+        );
+      } else {
+        recordLiveTradeSellSync({
+          programId: pos.programId,
+          symbol: pos.symbol,
+          market: pos.market,
+          quantity: pos.quantity,
+          price: hit.price,
+          note: hit.note,
+          simulated: true,
+          atMs: Date.now(),
+        });
+        console.info(
+          "[live-trade:auto-sell]",
+          pos.symbol,
+          hit.note,
+          hit.price,
+        );
+      }
       sold++;
-      console.info(
-        "[live-trade:auto-sell]",
-        pos.symbol,
-        hit.note,
-        hit.price,
-      );
     } catch (e) {
       console.warn(
         "[live-trade:auto-sell]",

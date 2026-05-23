@@ -1,6 +1,9 @@
 /**
  * 실매매·시뮬 — 스크리너/텔레그램 알림 고득점 픽
  */
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   listArmedLiveTradeProgramsSync,
   listSimActiveProgramsSync,
@@ -17,9 +20,37 @@ import {
   pickMeetsProgramThreshold,
 } from "./toss-trading-adapter.js";
 
-/** programId:symbol -> atMs */
-const recentOrderKeys = new Map();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DEDUP_FILE = path.join(__dirname, ".data", "live-trade-dedup.json");
+
 const DEDUPE_MS = 6 * 60 * 60 * 1000;
+
+function loadDedupState() {
+  try {
+    if (!fs.existsSync(DEDUP_FILE)) return new Map();
+    const data = JSON.parse(fs.readFileSync(DEDUP_FILE, "utf8"));
+    const cutoff = Date.now() - DEDUPE_MS;
+    const map = new Map();
+    for (const [k, t] of Object.entries(data)) {
+      if (typeof t === "number" && t >= cutoff) map.set(k, t);
+    }
+    return map;
+  } catch {
+    return new Map();
+  }
+}
+
+function saveDedupState(map) {
+  try {
+    if (!fs.existsSync(path.dirname(DEDUP_FILE))) {
+      fs.mkdirSync(path.dirname(DEDUP_FILE), { recursive: true });
+    }
+    fs.writeFileSync(DEDUP_FILE, JSON.stringify(Object.fromEntries(map)), "utf8");
+  } catch {}
+}
+
+/** programId:symbol -> atMs */
+const recentOrderKeys = loadDedupState();
 
 function orderDedupeKey(programId, symbol) {
   return `${programId}:${String(symbol ?? "").trim().toUpperCase()}`;
@@ -36,6 +67,7 @@ function shouldSkipDuplicate(programId, symbol) {
       if (t < cutoff) recentOrderKeys.delete(k);
     }
   }
+  saveDedupState(recentOrderKeys);
   return false;
 }
 
@@ -107,9 +139,10 @@ async function liveBuyForProgram(program, pick) {
   if (out.ok) {
     try {
       const quote = await resolveLiveTradeQuote(sym);
+      const priceForRecord = out.fillPrice ?? quote.price;
       await recordLiveTradeBuyAsync(
         program,
-        { ...pick, symbol: sym, price: quote.price },
+        { ...pick, symbol: sym, price: priceForRecord },
         {
           simulated: out.simulated,
           orderId: out.orderId,

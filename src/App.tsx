@@ -22,6 +22,7 @@ import FeedbackCorner, {
   type FeedbackSubmitKind,
 } from "./components/FeedbackCorner";
 import MacroEventsBar from "./components/MacroEventsBar";
+import LeftRailBithumbAccountPanel from "./components/LeftRailBithumbAccountPanel";
 import LiveTradingLeftRailPanel from "./components/LiveTradingLeftRailPanel";
 import MarketIndicesRail from "./components/MarketIndicesRail";
 import TopBarFxCalculator from "./components/TopBarFxCalculator";
@@ -1003,6 +1004,9 @@ export default function App() {
           onLightPalette={handleLightPalette}
         />
         <aside ref={leftRailRef} className="app__left-rail" aria-label={ko.app.leftRailAria}>
+          <LeftRailBithumbAccountPanel
+            onOpenLiveTrading={() => setAppTab("liveTrading")}
+          />
           <LiveTradingLeftRailPanel
             onOpenLiveTrading={() => setAppTab("liveTrading")}
           />

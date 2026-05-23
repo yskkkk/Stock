@@ -488,6 +488,7 @@ export function recordLiveTradeSellSync(input, userId) {
     entryPrice: avgEntry > 0 ? avgEntry : null,
     note: input.note ?? null,
     simulated: Boolean(input.simulated),
+    orderId: input.orderId ?? null,
     atMs: tradeAtMs,
   });
   if (!trade) throw new Error("매도 기록을 저장하지 못했습니다.");

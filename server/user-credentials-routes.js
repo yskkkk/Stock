@@ -3,6 +3,7 @@
  */
 import {
   deleteUserCredentialSync,
+  getBithumbAccountSnapshotForUserAsync,
   getCredentialMetaSync,
   listCredentialMetaForUserSync,
   testUserCredentialAsync,
@@ -21,6 +22,23 @@ function asyncRoute(handler) {
  * @param {import("express").Application} app
  */
 export function registerUserCredentialRoutes(app) {
+  app.get(
+    "/api/user/bithumb/account-snapshot",
+    requireUserAuth,
+    asyncRoute(async (req, res) => {
+      try {
+        const out = await getBithumbAccountSnapshotForUserAsync(req.user.id);
+        res.json({ ok: true, ...out });
+      } catch (e) {
+        res.status(400).json({
+          ok: false,
+          ready: false,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }),
+  );
+
   app.get(
     "/api/user/credentials",
     requireUserAuth,

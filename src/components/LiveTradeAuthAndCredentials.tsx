@@ -11,79 +11,12 @@ import {
   type BithumbTestSnapshot,
   type UserCredentialMeta,
 } from "../api";
+import BithumbAccountSnapshotCard from "./BithumbAccountSnapshotCard";
 import { ko } from "../i18n/ko";
-import { formatLiveTradeQuantity, formatPrice } from "../lib/format";
 import {
   validateAuthCredentials,
   validateBithumbCredentialPair,
 } from "../lib/stock-input-validation";
-
-function BithumbTestSnapshotPanel({
-  snapshot,
-  tradingFees,
-}: {
-  snapshot: BithumbTestSnapshot;
-  tradingFees?: { bidFee: number; askFee: number; roundTripFeeRate: number } | null;
-}) {
-  const { krw, holdings } = snapshot;
-  const feePct = (n: number) =>
-    `${(n * 100).toFixed(3).replace(/\.?0+$/, "")}%`;
-
-  return (
-    <div className="live-trading-tab__cred-snapshot" aria-label={ko.app.liveTradeCredTestBalance}>
-      {tradingFees ? (
-        <p className="live-trading-tab__cred-snapshot-fees">
-          {ko.app.liveTradeFeeLabel}: 매수 {feePct(tradingFees.bidFee)} · 매도{" "}
-          {feePct(tradingFees.askFee)} (왕복 {feePct(tradingFees.roundTripFeeRate)})
-        </p>
-      ) : null}
-      <p className="live-trading-tab__cred-snapshot-title">
-        {ko.app.liveTradeCredTestBalance}
-      </p>
-      <dl className="live-trading-tab__cred-snapshot-krw">
-        <div>
-          <dt>{ko.app.liveTradeCredTestKrwTotal}</dt>
-          <dd>{formatPrice(krw.total, "KRW")}</dd>
-        </div>
-        <div>
-          <dt>{ko.app.liveTradeCredTestKrwAvailable}</dt>
-          <dd>{formatPrice(krw.available, "KRW")}</dd>
-        </div>
-        {krw.locked > 0 ? (
-          <div>
-            <dt>{ko.app.liveTradeCredTestKrwLocked}</dt>
-            <dd>{formatPrice(krw.locked, "KRW")}</dd>
-          </div>
-        ) : null}
-      </dl>
-      <p className="live-trading-tab__cred-snapshot-title">
-        {ko.app.liveTradeCredTestHoldings}
-      </p>
-      {holdings.length === 0 ? (
-        <p className="live-trading-tab__cred-snapshot-empty">
-          {ko.app.liveTradeCredTestNoHoldings}
-        </p>
-      ) : (
-        <ul className="live-trading-tab__cred-snapshot-holdings">
-          {holdings.map((h) => (
-            <li key={h.currency}>
-              <span className="live-trading-tab__cred-snapshot-coin">{h.name}</span>
-              <span className="live-trading-tab__cred-snapshot-qty">
-                {formatLiveTradeQuantity(h.quantity, "crypto")}
-              </span>
-              {h.avgBuyPrice != null ? (
-                <span className="live-trading-tab__cred-snapshot-avg">
-                  {ko.app.liveTradeCredTestAvgBuy}{" "}
-                  {formatPrice(h.avgBuyPrice, "KRW")}
-                </span>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
 
 export function useLiveTradeAuth() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -390,9 +323,10 @@ function CredentialExchangeForm({
             </p>
           ) : null}
           {testSnapshot ? (
-            <BithumbTestSnapshotPanel
+            <BithumbAccountSnapshotCard
               snapshot={testSnapshot}
               tradingFees={testTradingFees}
+              variant="inline"
             />
           ) : null}
         </div>
