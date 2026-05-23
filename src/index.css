@@ -6774,7 +6774,7 @@ body {
 #root > .app .app__viewport > .app__shell,
 #root > .app > .app__scroll > .app-site-footer {
   width: 100%;
-  max-width: var(--app-shell-fluid-max, var(--app-page-max-width, 1680px));
+  max-width: var(--app-page-max-width, 1680px);
   margin-left: auto;
   margin-right: auto;
   padding-inline: var(--app-page-inline-pad-safe, var(--app-page-inline-pad, 1.35rem));
@@ -7009,19 +7009,16 @@ html[data-theme="light"] .market-indices-rail__item {
 }
 
 @media (min-width: 1180px) {
+  /* 좌 여백 | 주요지수 | 가운데 패널(최대 1680) | 우 여백 */
   .app__viewport {
-    --app-shell-fluid-max: min(
-      var(--app-page-max-width, 1680px),
-      calc(
-        100vw - 2 * var(--app-page-inline-pad-safe, var(--app-page-inline-pad, 1.35rem))
-          - var(--app-left-rail-width) - var(--app-left-rail-gap)
-      )
-    );
-    display: flex;
-    flex-direction: row;
-    align-items: flex-start;
-    justify-content: center;
-    gap: var(--app-left-rail-gap);
+    display: grid;
+    grid-template-columns:
+      minmax(0, 1fr)
+      var(--app-left-rail-width)
+      minmax(0, min(var(--app-page-max-width, 1680px), 100%))
+      minmax(0, 1fr);
+    column-gap: var(--app-left-rail-gap);
+    align-items: start;
     width: 100%;
     max-width: none;
     margin-inline: auto;
@@ -7031,7 +7028,8 @@ html[data-theme="light"] .market-indices-rail__item {
 
   .app__left-rail {
     display: flex;
-    flex: 0 0 var(--app-left-rail-width);
+    grid-column: 2;
+    grid-row: 1;
     width: var(--app-left-rail-width);
     min-width: 0;
     position: sticky;
@@ -7041,17 +7039,19 @@ html[data-theme="light"] .market-indices-rail__item {
     transform: none;
     will-change: top;
     align-items: stretch;
-    align-self: flex-start;
+    align-self: start;
     max-height: calc(100dvh - max(0.35rem, env(safe-area-inset-top, 0px)) - 0.65rem);
     overflow-y: auto;
     z-index: 2;
   }
 
   #root > .app .app__viewport > .app__shell {
-    flex: 1 1 auto;
+    grid-column: 3;
+    grid-row: 1;
+    flex: none;
     min-width: 0;
-    width: auto;
-    max-width: var(--app-shell-fluid-max, var(--app-page-max-width, 1680px));
+    width: 100%;
+    max-width: 100%;
     margin-left: 0;
     margin-right: 0;
   }
@@ -7072,7 +7072,7 @@ html[data-theme="light"] .market-indices-rail__item {
   }
 
   .app__viewport {
-    --app-shell-fluid-max: var(--app-page-max-width, 1680px);
+    display: flex;
     flex-direction: column;
     align-items: stretch;
     max-width: none;
