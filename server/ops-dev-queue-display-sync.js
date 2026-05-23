@@ -40,7 +40,7 @@ function pollerAlreadyStarted() {
   return false;
 }
 
-const _g = /** @type {typeof globalThis & { __stockLastStaleLeasCheckMs?: number }} */ (globalThis);
+const _g = /** @type {typeof globalThis & { __stockLastStaleLeasCheckMs?: number; __stockDevQueueSyncFn?: () => void }} */ (globalThis);
 if (_g.__stockLastStaleLeasCheckMs == null) _g.__stockLastStaleLeasCheckMs = 0;
 const STALE_LEASE_CHECK_INTERVAL_MS = 1_000;
 
@@ -133,10 +133,14 @@ export function resetDevQueueDisplayMirrorOnBoot() {
 
 export function startDevQueueDisplaySyncPoller() {
   if (process.env.STOCK_DEV_QUEUE_SYNC === "0") return;
+  // HMR 리로드 시에도 항상 최신 함수로 교체 — 기존 setInterval이 이걸 통해 호출
+  _g.__stockDevQueueSyncFn = syncDevQueueDisplayFromRuntimeSync;
   if (pollerAlreadyStarted()) return;
   if (isColdDevQueueMirrorBoot()) {
     reconcileDevQueueDisplayMirrorOnBoot();
   }
   syncDevQueueDisplayFromRuntimeSync();
-  setInterval(syncDevQueueDisplayFromRuntimeSync, DEV_QUEUE_DISPLAY_SYNC_MS);
+  setInterval(() => {
+    try { _g.__stockDevQueueSyncFn?.(); } catch {}
+  }, DEV_QUEUE_DISPLAY_SYNC_MS);
 }
