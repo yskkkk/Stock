@@ -8,6 +8,7 @@ import {
 } from "./live-trade-programs-store.js";
 import { recordLiveTradeBuyAsync } from "./live-trade-portfolio-store.js";
 import { resolveLiveTradeQuote } from "./live-trade-quote.js";
+import { isProgramArmedForMarket } from "./live-trade-arm-gate.js";
 import { normalizeLiveTradeMarket, programAllowsMarket } from "./live-trade-market.js";
 import { executeBithumbLiveBuyOrder } from "./bithumb-trading-adapter.js";
 import {
@@ -84,6 +85,7 @@ async function simBuyForProgram(program, pick) {
 async function liveBuyForProgram(program, pick) {
   const market = normalizeLiveTradeMarket(pick.market, pick.symbol);
   if (!programAllowsMarket(program, market)) return;
+  if (!isProgramArmedForMarket(program, market)) return;
   if (!pickMeetsProgramThreshold(program, pick)) return;
 
   const sym = String(pick.symbol ?? "").trim();

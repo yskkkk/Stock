@@ -10,6 +10,7 @@ import {
   fetchLiveTradingStatus,
   fetchTechModels,
   updateLiveTradeProgram,
+  type LiveTradeArmLane,
   type LiveTradeProgram,
   type LiveTradingStatusResponse,
   type TechModelRecord,
@@ -287,28 +288,23 @@ export default function LiveTradingTab({
     [editingId, reload, resetForm],
   );
 
-  const handleArm = useCallback(
-    async (id: string) => {
+  const handleArmLane = useCallback(
+    async (id: string, lane: LiveTradeArmLane) => {
       setBusy(true);
       setErr(null);
       setMsg(null);
       try {
-        const out = await armLiveTradeProgram(id);
-        const mk = out.program.markets;
-        if (mk.crypto && !mk.kr && !mk.us) {
+        const out = await armLiveTradeProgram(id, lane);
+        if (lane === "bithumb") {
           setMsg(
             out.bithumb.ready && out.bithumb.liveOrdersEnabled
               ? ko.app.liveTradeArmedOkBithumb
               : ko.app.liveTradeArmedWaitBithumb,
           );
-        } else if (mk.kr && !mk.crypto) {
-          setMsg(
-            out.toss.ready
-              ? ko.app.liveTradeArmedOk
-              : ko.app.liveTradeArmedWaitToss,
-          );
         } else {
-          setMsg(ko.app.liveTradeArmedOk);
+          setMsg(
+            out.toss.ready ? ko.app.liveTradeArmedOk : ko.app.liveTradeArmedWaitToss,
+          );
         }
         await reload();
       } catch (e) {
@@ -901,14 +897,37 @@ export default function LiveTradingTab({
                           {ko.app.liveTradeSimStop}
                         </button>
                       ) : p.status === "armed" ? (
-                        <button
-                          type="button"
-                          className="btn btn--secondary btn--sm"
-                          disabled={busy}
-                          onClick={() => void handleDisarm(p.id)}
-                        >
-                          {ko.app.liveTradeDisarm}
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            className="btn btn--secondary btn--sm"
+                            disabled={busy}
+                            onClick={() => void handleDisarm(p.id)}
+                          >
+                            {ko.app.liveTradeDisarm}
+                          </button>
+                          {p.markets.crypto &&
+                          !p.armedMarkets?.crypto ? (
+                            <button
+                              type="button"
+                              className="btn btn--secondary btn--sm"
+                              disabled={busy}
+                              onClick={() => void handleArmLane(p.id, "bithumb")}
+                            >
+                              {ko.app.liveTradeArmBithumb}
+                            </button>
+                          ) : null}
+                          {p.markets.kr && !p.markets.us && !p.armedMarkets?.kr ? (
+                            <button
+                              type="button"
+                              className="btn btn--secondary btn--sm"
+                              disabled={busy}
+                              onClick={() => void handleArmLane(p.id, "toss")}
+                            >
+                              {ko.app.liveTradeArmToss}
+                            </button>
+                          ) : null}
+                        </>
                       ) : (
                         <>
                           <button
@@ -919,14 +938,26 @@ export default function LiveTradingTab({
                           >
                             {ko.app.liveTradeSimStart}
                           </button>
-                          <button
-                            type="button"
-                            className="btn btn--secondary btn--sm"
-                            disabled={busy}
-                            onClick={() => void handleArm(p.id)}
-                          >
-                            {ko.app.liveTradeArm}
-                          </button>
+                          {p.markets.crypto ? (
+                            <button
+                              type="button"
+                              className="btn btn--secondary btn--sm"
+                              disabled={busy}
+                              onClick={() => void handleArmLane(p.id, "bithumb")}
+                            >
+                              {ko.app.liveTradeArmBithumb}
+                            </button>
+                          ) : null}
+                          {p.markets.kr && !p.markets.us ? (
+                            <button
+                              type="button"
+                              className="btn btn--secondary btn--sm"
+                              disabled={busy}
+                              onClick={() => void handleArmLane(p.id, "toss")}
+                            >
+                              {ko.app.liveTradeArmToss}
+                            </button>
+                          ) : null}
                         </>
                       )}
                       <button

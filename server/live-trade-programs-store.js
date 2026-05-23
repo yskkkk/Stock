@@ -8,7 +8,10 @@ import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { getTechModelByIdSync } from "./picks-tech-models-store.js";
 import { programHasOnlySimulatedBuyTradesSync } from "./live-trade-portfolio-store.js";
-import { validateLiveTradeArmGate } from "./live-trade-arm-gate.js";
+import {
+  getProgramArmedMarkets,
+  validateLiveTradeArmLane,
+} from "./live-trade-arm-gate.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, ".data");
@@ -34,6 +37,7 @@ const PROGRAMS_FILE = path.join(DATA_DIR, "live-trade-programs.json");
  *   autoSellAtTarget: boolean;
  *   takeProfitPct: number | null;
  *   stopLossPct: number | null;
+ *   armedMarkets?: { kr: boolean; crypto: boolean };
  *   createdAtMs: number;
  *   updatedAtMs: number;
  * }} LiveTradeProgram
@@ -133,6 +137,23 @@ function normalizeProgram(raw) {
       if (!Number.isFinite(n) || n >= 0) return null;
       return Math.max(-50, Math.min(-0.5, n));
     })(),
+    armedMarkets: (() => {
+      const markets = {
+        kr: Boolean(mr.kr),
+        us: Boolean(mr.us),
+        crypto: Boolean(mr.crypto),
+      };
+      return getProgramArmedMarkets(
+        /** @type {LiveTradeProgram} */ ({
+          status,
+          markets,
+          armedMarkets:
+            o.armedMarkets && typeof o.armedMarkets === "object"
+              ? o.armedMarkets
+              : undefined,
+        }),
+      );
+    })(),
     createdAtMs:
       typeof o.createdAtMs === "number" && o.createdAtMs > 0 ? o.createdAtMs : now,
     updatedAtMs:
@@ -165,7 +186,11 @@ export function getLiveTradeProgramSync(id) {
 }
 
 export function listArmedLiveTradeProgramsSync() {
-  return listLiveTradeProgramsSync().filter((p) => p.status === "armed");
+  return listLiveTradeProgramsSync().filter((p) => {
+    if (p.status !== "armed") return false;
+    const am = getProgramArmedMarkets(p);
+    return am.kr || am.crypto;
+  });
 }
 
 export function listSimActiveProgramsSync() {
@@ -269,13 +294,20 @@ export function deleteLiveTradeProgramSync(id) {
 
 /**
  * @param {string} id
+ * @param {"bithumb" | "toss"} lane
  */
-export function armLiveTradeProgramSync(id) {
+export function armLiveTradeProgramLaneSync(id, lane) {
   const prog = getLiveTradeProgramSync(id);
   if (!prog) throw new Error("프로그램을 찾을 수 없습니다.");
-  validateLiveTradeArmGate(prog);
+  validateLiveTradeArmLane(prog, lane);
+  const prev = getProgramArmedMarkets(prog);
+  const armedMarkets =
+    lane === "bithumb"
+      ? { ...prev, crypto: true }
+      : { ...prev, kr: true };
   return updateLiveTradeProgramSync(id, {
     status: "armed",
+    armedMarkets,
     armedAtMs: Date.now(),
     lastError: null,
   });
@@ -286,6 +318,7 @@ export function disarmLiveTradeProgramSync(id) {
   if (!prog) throw new Error("프로그램을 찾을 수 없습니다.");
   return updateLiveTradeProgramSync(id, {
     status: "paused",
+    armedMarkets: { kr: false, crypto: false },
     armedAtMs: null,
   });
 }

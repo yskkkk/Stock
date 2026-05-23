@@ -179,6 +179,8 @@ const t = {
     liveTradeDisarm: "\uc2e4\ub9e4\ub9e4 \uc911\uc9c0",
     liveTradeSimStart: "\uc2dc\ubbac \uc790\ub3d9 \uc2dc\uc791",
     liveTradeArm: "\uc2e4\ub9e4\ub9e4 \uc2dc\uc791",
+    liveTradeArmBithumb: "\ube57\uc378 \uc2e4\ub9e4\ub9e4 \uc2dc\uc791",
+    liveTradeArmToss: "\ud1a0\uc2a4 \uc2e4\ub9e4\ub9e4 \uc2dc\uc791",
     liveTradeEdit: "\uc218\uc815",
     liveTradeDelete: "\uc0ad\uc81c",
     opsGlobalQueueEmpty: "\uc9c4\ud589 \uc911\uc778 \uc791\uc5c5\uc774 \uc5c6\uc2b5\ub2c8\ub2e4.",

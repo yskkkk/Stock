@@ -786,9 +786,12 @@ export interface LiveTradeProgram {
   autoSellAtTarget: boolean;
   takeProfitPct: number | null;
   stopLossPct: number | null;
+  armedMarkets?: { kr: boolean; crypto: boolean };
   createdAtMs: number;
   updatedAtMs: number;
 }
+
+export type LiveTradeArmLane = "bithumb" | "toss";
 
 export interface TossTradingStatus {
   phase: "unconfigured" | "configured" | "ready";
@@ -979,16 +982,17 @@ export function deleteLiveTradeProgram(id: string) {
   );
 }
 
-export function armLiveTradeProgram(id: string) {
+export function armLiveTradeProgram(id: string, lane: LiveTradeArmLane) {
   return fetchJson<{
     ok: boolean;
     program: LiveTradeProgram;
+    lane: LiveTradeArmLane;
     toss: TossTradingStatus;
     bithumb: BithumbTradingStatus;
   }>(`/api/live-trading/programs/${encodeURIComponent(id)}/arm`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: "{}",
+    body: JSON.stringify({ lane }),
   });
 }
 

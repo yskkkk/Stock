@@ -205,6 +205,8 @@ export const ko = {
     liveTradeDisarm: "실매매 중지",
     liveTradeSimStart: "시뮬 자동 시작",
     liveTradeArm: "실매매 시작",
+    liveTradeArmBithumb: "빗썸 실매매 시작",
+    liveTradeArmToss: "토스 실매매 시작",
     liveTradeEdit: "수정",
     liveTradeDelete: "삭제",
     opsGlobalQueueEmpty: "진행 중인 작업이 없습니다.",

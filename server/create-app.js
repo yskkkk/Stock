@@ -108,8 +108,9 @@ import {
   setActiveTechModelIdsSync,
   updateTechModelSync,
 } from "./picks-tech-models-store.js";
+import { validateLiveTradeArmLane } from "./live-trade-arm-gate.js";
 import {
-  armLiveTradeProgramSync,
+  armLiveTradeProgramLaneSync,
   createLiveTradeProgramSync,
   deleteLiveTradeProgramSync,
   disarmLiveTradeProgramSync,
@@ -135,7 +136,6 @@ import {
 } from "./live-trade-sim-feedback.js";
 import { getBithumbTradingStatus } from "./bithumb-trading-adapter.js";
 import { getTossTradingStatus } from "./toss-trading-adapter.js";
-import { validateLiveTradeArmGate } from "./live-trade-arm-gate.js";
 import {
   fetchQuoteSnapshotsForSymbols,
   mergeLiveQuotesIntoPicksState,
@@ -535,13 +535,25 @@ export function createApp() {
     asyncRoute(async (req, res) => {
       const id = String(req.params.id ?? "").trim();
       try {
-        const gate = validateLiveTradeArmGate(
+        const lane = String(req.body?.lane ?? "").trim().toLowerCase();
+        if (lane !== "bithumb" && lane !== "toss") {
+          res.status(400).json({
+            error: "lane 값이 필요합니다. (bithumb | toss)",
+          });
+          return;
+        }
+        const gate = validateLiveTradeArmLane(
           getLiveTradeProgramSync(id) ?? { markets: {} },
+          /** @type {"bithumb"|"toss"} */ (lane),
         );
-        const program = armLiveTradeProgramSync(id);
+        const program = armLiveTradeProgramLaneSync(
+          id,
+          /** @type {"bithumb"|"toss"} */ (lane),
+        );
         res.json({
           ok: true,
           program,
+          lane: gate.lane,
           toss: gate.toss,
           bithumb: gate.bithumb,
         });

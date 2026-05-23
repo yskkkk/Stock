@@ -1,38 +1,98 @@
 import { getBithumbTradingStatus } from "./bithumb-trading-adapter.js";
 import { getTossTradingStatus } from "./toss-trading-adapter.js";
 
+/** @typedef {"bithumb" | "toss"} LiveTradeArmLane */
+
 /**
- * 실매매 시작 전 시장별 연동 요건 검사.
  * @param {import("./live-trade-programs-store.js").LiveTradeProgram} program
  */
+export function getProgramArmedMarkets(program) {
+  const mk = program?.markets ?? {};
+  const raw = program?.armedMarkets;
+  if (raw && typeof raw === "object") {
+    return {
+      kr: Boolean(raw.kr),
+      crypto: Boolean(raw.crypto),
+    };
+  }
+  if (program?.status === "armed") {
+    return { kr: Boolean(mk.kr), crypto: Boolean(mk.crypto) };
+  }
+  return { kr: false, crypto: false };
+}
+
+/**
+ * @param {import("./live-trade-programs-store.js").LiveTradeProgram} program
+ * @param {"kr" | "crypto"} market
+ */
+export function isProgramArmedForMarket(program, market) {
+  if (program?.status !== "armed") return false;
+  const armed = getProgramArmedMarkets(program);
+  if (market === "crypto") return Boolean(armed.crypto);
+  if (market === "kr") return Boolean(armed.kr);
+  return false;
+}
+
+/**
+ * @param {import("./live-trade-programs-store.js").LiveTradeProgram} program
+ * @param {LiveTradeArmLane} lane
+ */
+export function validateLiveTradeArmLane(program, lane) {
+  const mk = program?.markets ?? {};
+  if (lane === "bithumb") {
+    if (!mk.crypto) {
+      throw new Error("이 프로그램에 코인 시장이 선택되어 있지 않습니다.");
+    }
+    const bithumb = getBithumbTradingStatus();
+    if (!bithumb.configured) {
+      throw new Error(
+        bithumb.messageKo ??
+          "코인 실매매에는 빗썸 API 키가 필요합니다. 서버 .env를 확인하세요.",
+      );
+    }
+    return { lane, bithumb, toss: getTossTradingStatus() };
+  }
+  if (lane === "toss") {
+    if (!mk.kr) {
+      throw new Error("이 프로그램에 국내 시장이 선택되어 있지 않습니다.");
+    }
+    if (mk.us) {
+      throw new Error("미국 주식 실매매는 아직 지원하지 않습니다.");
+    }
+    const toss = getTossTradingStatus();
+    if (!toss.configured) {
+      throw new Error(
+        toss.messageKo ??
+          "국내 실매매에는 토스 API 키가 필요합니다. 서버 .env를 확인하세요.",
+      );
+    }
+    return { lane, toss, bithumb: getBithumbTradingStatus() };
+  }
+  throw new Error("지원하지 않는 실매매 채널입니다.");
+}
+
+/** @deprecated 전체 시장 동시 검사 — 레인별 arm 사용 권장 */
 export function validateLiveTradeArmGate(program) {
   const mk = program?.markets ?? {};
-  const needsKr = Boolean(mk.kr);
-  const needsUs = Boolean(mk.us);
-  const needsCrypto = Boolean(mk.crypto);
-
-  if (!needsKr && !needsUs && !needsCrypto) {
+  if (!mk.kr && !mk.us && !mk.crypto) {
     throw new Error("국내·미국·코인 중 하나 이상을 선택하세요.");
   }
-  if (needsUs) {
+  if (mk.us) {
     throw new Error("미국 주식 실매매는 아직 지원하지 않습니다.");
   }
-
   const toss = getTossTradingStatus();
   const bithumb = getBithumbTradingStatus();
-
-  if (needsKr && !toss.configured) {
+  if (mk.kr && !toss.configured) {
     throw new Error(
       toss.messageKo ??
         "국내 실매매에는 토스 API 키가 필요합니다. 서버 .env를 확인하세요.",
     );
   }
-  if (needsCrypto && !bithumb.configured) {
+  if (mk.crypto && !bithumb.configured) {
     throw new Error(
       bithumb.messageKo ??
         "코인 실매매에는 빗썸 API 키가 필요합니다. 서버 .env를 확인하세요.",
     );
   }
-
-  return { toss, bithumb, needsKr, needsCrypto };
+  return { toss, bithumb, needsKr: Boolean(mk.kr), needsCrypto: Boolean(mk.crypto) };
 }
