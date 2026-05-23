@@ -14,10 +14,15 @@ const DEDUP_FILE = path.join(DATA_DIR, "ops-dev-notify-dedup.json");
 const LOCK_DIR = path.join(DATA_DIR, "ops-notify-locks");
 
 const DEFAULT_DEDUP_MS = 5 * 60 * 1000;
+/** ide-turn:* 키 — 동일 턴 재알림 방지(기본 7일) */
+const DEFAULT_TURN_DEDUP_MS = 7 * 24 * 60 * 60 * 1000;
 const DEFAULT_AUTOGIT_SUPPRESS_MS = 8 * 60 * 1000;
 
 /** @type {Map<string, number>} */
 const sentAtByKey = new Map();
+
+/** debounce 대기 중 동일 dedup 재스케줄 방지 */
+const scheduledDedupKeys = new Set();
 
 let lastCompletionRev = "";
 let lastCompletionAt = 0;
@@ -27,6 +32,20 @@ function dedupWindowMs() {
   const n = Number(process.env.OPS_DEV_NOTIFY_DEDUP_MS);
   if (Number.isFinite(n) && n >= 0) return Math.min(n, 60 * 60 * 1000);
   return DEFAULT_DEDUP_MS;
+}
+
+function turnDedupWindowMs() {
+  const n = Number(process.env.OPS_DEV_NOTIFY_TURN_DEDUP_MS);
+  if (Number.isFinite(n) && n >= 0) {
+    return Math.min(n, 30 * 24 * 60 * 60 * 1000);
+  }
+  return DEFAULT_TURN_DEDUP_MS;
+}
+
+/** @param {string} k */
+function dedupWindowForKey(k) {
+  if (k.startsWith("dev-complete:turn:")) return turnDedupWindowMs();
+  return dedupWindowMs();
 }
 
 function autogitSuppressMs() {
@@ -76,9 +95,9 @@ function readDiskEntries() {
 function writeDiskEntries(entries) {
   ensureDataDir();
   const now = Date.now();
-  const window = dedupWindowMs();
   const pruned = {};
   for (const [k, at] of Object.entries(entries)) {
+    const window = dedupWindowForKey(k);
     if (typeof at === "number" && now - at <= window * 2) pruned[k] = at;
   }
   fs.writeFileSync(
@@ -91,9 +110,9 @@ function writeDiskEntries(entries) {
 function hydrateFromDisk() {
   if (diskHydrated) return;
   diskHydrated = true;
-  const window = dedupWindowMs();
   const now = Date.now();
   for (const [k, at] of Object.entries(readDiskEntries())) {
+    const window = dedupWindowForKey(k);
     if (typeof at === "number" && now - at < window) {
       sentAtByKey.set(k, at);
       if (k.startsWith("dev-complete:")) {
@@ -108,15 +127,14 @@ function hydrateFromDisk() {
 }
 
 function pruneSentKeys() {
-  const window = dedupWindowMs();
   const now = Date.now();
   for (const [k, at] of sentAtByKey) {
-    if (now - at > window * 2) sentAtByKey.delete(k);
+    if (now - at > dedupWindowForKey(k) * 2) sentAtByKey.delete(k);
   }
 }
 
 function sentRecently(k) {
-  const window = dedupWindowMs();
+  const window = dedupWindowForKey(k);
   if (window === 0) return false;
   const now = Date.now();
   const mem = sentAtByKey.get(k);
@@ -127,6 +145,46 @@ function sentRecently(k) {
     return true;
   }
   return false;
+}
+
+/**
+ * @param {string | null | undefined} dedupKey
+ */
+/**
+ * @param {string | null | undefined} dedupKey
+ * @returns {boolean}
+ */
+export function tryReserveOpsDevNotifySchedule(dedupKey) {
+  hydrateFromDisk();
+  const k = String(dedupKey ?? "").trim();
+  if (!k) return true;
+  if (shouldSkipOpsDevNotify(k)) return false;
+  if (scheduledDedupKeys.has(k)) return false;
+  scheduledDedupKeys.add(k);
+  return true;
+}
+
+/**
+ * @param {string | null | undefined} dedupKey
+ */
+export function releaseOpsDevNotifySchedule(dedupKey) {
+  scheduledDedupKeys.delete(String(dedupKey ?? "").trim());
+}
+
+export function unmarkOpsDevNotifySent(dedupKey) {
+  hydrateFromDisk();
+  const k = String(dedupKey ?? "").trim();
+  if (!k) return;
+  sentAtByKey.delete(k);
+  try {
+    const disk = readDiskEntries();
+    if (disk[k] != null) {
+      delete disk[k];
+      writeDiskEntries(disk);
+    }
+  } catch {
+    /* ignore */
+  }
 }
 
 /**

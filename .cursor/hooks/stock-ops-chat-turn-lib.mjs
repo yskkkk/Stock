@@ -121,6 +121,9 @@ export function beginChatTurn(sessionId, userRequest) {
   const prevReq = String(prev?.userRequest ?? "").trim();
   /** 같은 세션에서도 사용자 메시지가 바뀌면 새 턴 — 이전 커밋·더티 트리로 오판하지 않음 */
   const freshBaseline = !sameSession || (req && req !== prevReq);
+  if (freshBaseline) {
+    clearOpsDevNotifyPendingForNewTurn();
+  }
   const state = {
     sessionId: sid,
     userRequest: req || prevReq,
@@ -195,7 +198,34 @@ export function enrichTurnUserRequestFromLease(lease) {
       "",
   ).trim();
   if (!prompt) return;
-  beginChatTurn(String(lease?.sessionId ?? "").trim() || null, prompt);
+  const state = readTurnState();
+  const sid = String(lease?.sessionId ?? "").trim() || "no-session";
+  if (!state || String(state.sessionId ?? "") !== sid) return;
+  const cur = String(state.userRequest ?? "").trim();
+  if (!cur || prompt.length <= cur.length) return;
+  if (
+    cur !== prompt &&
+    !cur.startsWith(prompt.slice(0, Math.min(80, prompt.length))) &&
+    !prompt.startsWith(cur.slice(0, Math.min(80, cur.length)))
+  ) {
+    return;
+  }
+  state.userRequest = prompt;
+  writeTurnState(state);
+}
+
+function clearOpsDevNotifyPendingForNewTurn() {
+  try {
+    const pendingPath = path.join(
+      repoRoot,
+      "server",
+      ".data",
+      "ops-dev-notify-pending.json",
+    );
+    if (fs.existsSync(pendingPath)) fs.unlinkSync(pendingPath);
+  } catch {
+    /* ignore */
+  }
 }
 
 /**
