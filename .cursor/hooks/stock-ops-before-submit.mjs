@@ -51,6 +51,7 @@ function debugLog(msg) {
 
 try {
   const raw = fs.readFileSync(0, "utf8");
+  debugLog(`beforeSubmitPrompt RAW stdin keys=${Object.keys(raw ? JSON.parse(raw) : {}).join(",")}`);
   const input = raw ? JSON.parse(raw) : {};
   const sessionId = hookSessionId(input);
   const prompt = hookUserPromptFromInput(input);

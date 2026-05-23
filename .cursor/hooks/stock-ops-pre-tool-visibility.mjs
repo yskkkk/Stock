@@ -63,12 +63,22 @@ async function ensureIdeQueueEnqueued(prompt, sessionId) {
   }
 }
 
+const _debugLog2 = (msg) => {
+  try {
+    const p = new URL("../../server/.logs/cursor-hook-debug.log", import.meta.url).pathname;
+    fs.appendFileSync(p, `[${new Date().toISOString()}] [preToolUse] ${msg}\n`, "utf8");
+  } catch {}
+};
+
 try {
   const raw = fs.readFileSync(0, "utf8");
   const input = raw ? JSON.parse(raw) : {};
+  _debugLog2(`fired. tool=${input.tool_name ?? "?"} keys=${Object.keys(input).join(",")}`);
   const sessionId = hookSessionId(input);
   const prompt =
     hookUserPromptFromInput(input) || readLatestUserPromptFromTranscriptsSync();
+
+  _debugLog2(`prompt="${(prompt ?? "").slice(0, 60)}"`);
 
   if (prompt) {
     await ensureIdeQueueEnqueued(prompt, sessionId);
@@ -76,7 +86,8 @@ try {
 
   allow();
   process.exit(0);
-} catch {
+} catch (e) {
+  _debugLog2(`CATCH: ${e instanceof Error ? e.message : String(e)}`);
   allow();
   process.exit(0);
 }
