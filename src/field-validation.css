@@ -1,0 +1,57 @@
+/* 필드 검증 — 네이티브 말풍선 대신 테마 맞춤 콜아웃 */
+.field-validation-callout {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  margin: 0.35rem 0 0;
+  padding: 0.45rem 0.55rem;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid color-mix(in srgb, #f87171 45%, var(--card-border, rgba(148, 163, 184, 0.2)));
+  background: color-mix(in srgb, #f87171 10%, var(--card, #161d27));
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--text, #f1f5f9);
+}
+
+.field-validation-callout::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: 1rem;
+  width: 9px;
+  height: 9px;
+  background: inherit;
+  border-left: 1px solid color-mix(in srgb, #f87171 45%, var(--card-border, rgba(148, 163, 184, 0.2)));
+  border-top: 1px solid color-mix(in srgb, #f87171 45%, var(--card-border, rgba(148, 163, 184, 0.2)));
+  transform: rotate(45deg);
+}
+
+html[data-theme="light"] .field-validation-callout {
+  background: color-mix(in srgb, #fef2f2 92%, var(--card, #fff));
+  border-color: color-mix(in srgb, #f87171 35%, var(--card-border, #e2e8f0));
+  color: #7f1d1d;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.field-validation-callout__icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-top: 0.05rem;
+  border-radius: 4px;
+  background: color-mix(in srgb, #f87171 85%, #dc2626);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.field-validation-callout__text {
+  flex: 1;
+  min-width: 0;
+}

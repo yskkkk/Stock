@@ -12,6 +12,7 @@ import {
   type UserCredentialMeta,
 } from "../api";
 import BithumbAccountSnapshotCard from "./BithumbAccountSnapshotCard";
+import FieldValidationCallout from "./FieldValidationCallout";
 import { ko } from "../i18n/ko";
 import {
   validateAuthCredentials,
@@ -212,15 +213,13 @@ function CredentialExchangeForm({
             setApiKey(e.target.value);
             if (apiKeyErr) setApiKeyErr(null);
           }}
-          minLength={32}
           maxLength={128}
           spellCheck={false}
           aria-invalid={apiKeyErr ? true : undefined}
+          aria-describedby={apiKeyErr ? "cred-api-key-err" : undefined}
         />
         {apiKeyErr ? (
-          <p className="live-trading-tab__field-err" role="alert">
-            {apiKeyErr}
-          </p>
+          <FieldValidationCallout id="cred-api-key-err" message={apiKeyErr} />
         ) : null}
       </label>
       <label className="live-trading-tab__field live-trading-tab__field--full">
@@ -237,15 +236,13 @@ function CredentialExchangeForm({
             setSecretKey(e.target.value);
             if (secretKeyErr) setSecretKeyErr(null);
           }}
-          minLength={32}
           maxLength={128}
           spellCheck={false}
           aria-invalid={secretKeyErr ? true : undefined}
+          aria-describedby={secretKeyErr ? "cred-secret-key-err" : undefined}
         />
         {secretKeyErr ? (
-          <p className="live-trading-tab__field-err" role="alert">
-            {secretKeyErr}
-          </p>
+          <FieldValidationCallout id="cred-secret-key-err" message={secretKeyErr} />
         ) : null}
       </label>
       <fieldset className="live-trading-tab__cred-mode">
@@ -487,6 +484,7 @@ export default function LiveTradeAuthPanel({
 
       <form
         className="live-trading-tab__auth-form"
+        noValidate
         onSubmit={(e) => {
           e.preventDefault();
           void submit();
@@ -495,7 +493,10 @@ export default function LiveTradeAuthPanel({
         <label className="live-trading-tab__field live-trading-tab__field--full">
           <span className="live-trading-tab__label">{ko.app.liveTradeAuthEmail}</span>
           <input
-            type="email"
+            type="text"
+            inputMode="email"
+            autoCapitalize="off"
+            autoCorrect="off"
             className="input live-trading-tab__input"
             autoComplete="email"
             placeholder="name@example.com"
@@ -507,11 +508,10 @@ export default function LiveTradeAuthPanel({
             maxLength={254}
             spellCheck={false}
             aria-invalid={emailErr ? true : undefined}
+            aria-describedby={emailErr ? "auth-email-err" : undefined}
           />
           {emailErr ? (
-            <p className="live-trading-tab__field-err" role="alert">
-              {emailErr}
-            </p>
+            <FieldValidationCallout id="auth-email-err" message={emailErr} />
           ) : null}
         </label>
         <label className="live-trading-tab__field live-trading-tab__field--full">
@@ -529,14 +529,12 @@ export default function LiveTradeAuthPanel({
               setPassword(e.target.value);
               if (passwordErr) setPasswordErr(null);
             }}
-            minLength={8}
             maxLength={128}
             aria-invalid={passwordErr ? true : undefined}
+            aria-describedby={passwordErr ? "auth-password-err" : undefined}
           />
           {passwordErr ? (
-            <p className="live-trading-tab__field-err" role="alert">
-              {passwordErr}
-            </p>
+            <FieldValidationCallout id="auth-password-err" message={passwordErr} />
           ) : null}
         </label>
 
