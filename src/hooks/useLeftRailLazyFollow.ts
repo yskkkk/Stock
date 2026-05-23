@@ -1,17 +1,18 @@
 import { useEffect, type RefObject } from "react";
 
 const DESKTOP_MQ = "(min-width: 1180px)";
-/** 중앙 기준 추가 오프셋 보간 (낮을수록 더 늦게) */
-const POSITION_LERP = 0.055;
-const SCROLL_SMOOTH = 0.065;
-const SCROLL_DRAG = 0.42;
-const MAX_DRAG_PX = 110;
-/** 스크롤 px 대비 아래로 갈 수 있는 최대 오프셋 비율 (이 이상은 안 내려감) */
+/** 스크롤 위치가 따라잡는 속도 (낮을수록 더 늦게 출발) */
+const SCROLL_SMOOTH = 0.038;
+/** 목표 오프셋으로 수렴 */
+const TARGET_LERP = 0.048;
+/** 화면에 실제로 그려지는 오프셋 수렴 (가장 느림 → 제자리 복귀도 부드럽게) */
+const POSITION_LERP = 0.036;
+const SCROLL_DRAG = 0.38;
+const MAX_DRAG_PX = 100;
 const SCROLL_DOWN_CAP = 0.085;
 
 /**
- * 데스크톱 왼쪽 레일: CSS top 50% + translate -50% 로 세로 중앙,
- * 스크롤 시 중앙에서 살짝 늦게 따라 움직이되, 스크롤량보다 더 아래로는 내려가지 않음.
+ * 데스크톱 왼쪽 레일: 세로 중앙 + 스크롤 후 늦게 따라와 천천히 제자리(중앙)로 복귀.
  */
 export function useLeftRailLazyFollow(
   railRef: RefObject<HTMLElement | null>,
@@ -23,12 +24,14 @@ export function useLeftRailLazyFollow(
 
     const mq = window.matchMedia(DESKTOP_MQ);
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const positionLerp = reduceMotion ? 0.28 : POSITION_LERP;
-    const scrollSmooth = reduceMotion ? 0.22 : SCROLL_SMOOTH;
+    const scrollSmooth = reduceMotion ? 0.2 : SCROLL_SMOOTH;
+    const targetLerp = reduceMotion ? 0.22 : TARGET_LERP;
+    const positionLerp = reduceMotion ? 0.26 : POSITION_LERP;
     const scrollDrag = reduceMotion ? 0.2 : SCROLL_DRAG;
 
     let rafId = 0;
     let currentOffset = 0;
+    let targetOffset = 0;
     let smoothScroll = 0;
     let active = false;
     const scrollEl = scrollRef.current;
@@ -56,17 +59,28 @@ export function useLeftRailLazyFollow(
       const scrollTop = scrollEl?.scrollTop ?? 0;
       smoothScroll += (scrollTop - smoothScroll) * scrollSmooth;
 
-      const rawDrag = (scrollTop - smoothScroll) * scrollDrag;
-      const target = clampOffset(scrollTop, smoothScroll, rawDrag);
-      const diff = target - currentOffset;
+      const rawTarget = clampOffset(
+        scrollTop,
+        smoothScroll,
+        (scrollTop - smoothScroll) * scrollDrag,
+      );
 
-      if (Math.abs(diff) < 0.35) {
-        currentOffset = target;
+      const targetDiff = rawTarget - targetOffset;
+      if (Math.abs(targetDiff) < 0.25) {
+        targetOffset = rawTarget;
       } else {
-        currentOffset += diff * positionLerp;
+        targetOffset += targetDiff * targetLerp;
       }
+      targetOffset = clampOffset(scrollTop, smoothScroll, targetOffset);
 
+      const posDiff = targetOffset - currentOffset;
+      if (Math.abs(posDiff) < 0.25) {
+        currentOffset = targetOffset;
+      } else {
+        currentOffset += posDiff * positionLerp;
+      }
       currentOffset = clampOffset(scrollTop, smoothScroll, currentOffset);
+
       applyOffset(currentOffset);
       rafId = requestAnimationFrame(tick);
     };
@@ -83,6 +97,7 @@ export function useLeftRailLazyFollow(
     const onResize = () => {
       if (!mq.matches) return;
       smoothScroll = scrollEl?.scrollTop ?? 0;
+      targetOffset = 0;
       currentOffset = 0;
       applyOffset(0);
       ensureLoop();
@@ -98,6 +113,7 @@ export function useLeftRailLazyFollow(
       }
       active = true;
       smoothScroll = scrollEl?.scrollTop ?? 0;
+      targetOffset = 0;
       currentOffset = 0;
       applyOffset(0);
       ensureLoop();
