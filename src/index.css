@@ -361,18 +361,12 @@ html[data-theme="light"] .top-bar__brand .brand-mark {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  color: #f8fafc;
   background: transparent;
   border: none;
   outline: none;
   border-radius: inherit;
   box-shadow: none;
   vertical-align: top;
-}
-
-html[data-theme="light"] .top-bar__brand .brand-mark__img {
-  color: #1e293b;
-  filter: none;
 }
 
 /* Pick signals — color by type */
