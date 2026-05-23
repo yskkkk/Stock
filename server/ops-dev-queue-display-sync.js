@@ -14,7 +14,6 @@ import {
 } from "./ops-agent-history-store.js";
 import {
   clearOrphanDevQueueDisplayOnBootSync,
-  readDevQueueDisplaySnapshotSync,
   reconcilePersistQueueToAgentHistorySync,
   sweepStalePersistedDevQueueSync,
   writeDevQueueDisplayMirrorFromRuntime,
@@ -41,8 +40,7 @@ function pollerAlreadyStarted() {
   return false;
 }
 
-const _g = /** @type {typeof globalThis & { __stockLastRecoverAttemptMs?: number; __stockLastStaleLeasCheckMs?: number }} */ (globalThis);
-if (_g.__stockLastRecoverAttemptMs == null) _g.__stockLastRecoverAttemptMs = 0;
+const _g = /** @type {typeof globalThis & { __stockLastStaleLeasCheckMs?: number }} */ (globalThis);
 if (_g.__stockLastStaleLeasCheckMs == null) _g.__stockLastStaleLeasCheckMs = 0;
 const STALE_LEASE_CHECK_INTERVAL_MS = 1_000;
 
@@ -55,33 +53,11 @@ function isColdDevQueueMirrorBoot() {
   return true;
 }
 
-function ensureMemoryQueueRecovered() {
-  /* 표시 JSON만으로 복구하면 release 직후 미러에 남은 waiting이 매 틱 재등록됨 — lease 파일만 */
-  const lease = readIdeLeaseDiskSync();
-  if (!lease) return;
-
-  const { entries: memory } = getOpsAgentQueueMemorySnapshot();
-  const hasMemoryIde = memory.some(
-    (e) => e.source === "ide" || e.requestIp === "cursor-ide",
-  );
-  if (!hasMemoryIde) {
-    recoverIdeDevQueueFromPersistedState();
-    _g.__stockLastRecoverAttemptMs = Date.now();
-    return;
-  }
-
-  const now = Date.now();
-  if (now - (_g.__stockLastRecoverAttemptMs ?? 0) < 1500) return;
-  _g.__stockLastRecoverAttemptMs = now;
-  recoverIdeDevQueueFromPersistedState();
-}
-
 /**
  * 메모리 FIFO + 디스크 lease(훅·transcript 선등록) — 항상 병합.
  * @returns {Array<Record<string, unknown>>}
  */
 function entriesForDisplayMirror() {
-  ensureMemoryQueueRecovered();
   const { entries: memory } = getOpsAgentQueueMemorySnapshot();
 
   const now = Date.now();
@@ -138,24 +114,9 @@ export function reconcileDevQueueDisplayMirrorOnBoot() {
   collapseIdeAgentHistoryDuplicatesSync();
   const { entries: memory } = getOpsAgentQueueMemorySnapshot();
   if (memory.length === 0) {
-    const lease = readIdeLeaseDiskSync();
-    const since =
-      lease && typeof lease.sinceMs === "number"
-        ? lease.sinceMs
-        : typeof lease?.enqueuedAtMs === "number"
-          ? lease.enqueuedAtMs
-          : 0;
-    const leaseRecent = since > 0 && Date.now() - since < 15 * 60 * 1000;
-    const snap = readDevQueueDisplaySnapshotSync();
-    const displayIdeWaiting = snap.agentEntries.some(
-      (e) =>
-        e.status === "waiting" &&
-        (e.source === "ide" || e.requestIp === "cursor-ide"),
-    );
-
-    if (leaseRecent || displayIdeWaiting) {
-      recoverIdeDevQueueFromPersistedState();
-    } else {
+    // persist 파일(SSOT) 우선 복구, 없으면 lease·display 파일 폴백
+    const { recovered } = recoverIdeDevQueueFromPersistedState();
+    if (recovered === 0) {
       clearOrphanDevQueueDisplayOnBootSync();
       clearIdeLeaseOnDisk();
       finalizeOrphanIdeAgentHistoryOnBootSync();

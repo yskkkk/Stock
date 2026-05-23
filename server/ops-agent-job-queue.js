@@ -31,9 +31,12 @@ import {
 } from "./ops-ide-lease-disk.js";
 import {
   metaToPersistEntry,
-  readDevQueueDisplaySnapshotSync,
 } from "./ops-dev-queue-live-store.js";
 import { opsIdePromptsMatch } from "./ops-ide-prompt-match.js";
+import {
+  loadPersistedQueueSlots,
+  persistQueueSlots,
+} from "./ops-queue-persist.js";
 
 /**
  * @typedef {{
@@ -96,6 +99,10 @@ function bumpDevQueueDisplayMirror() {
   void import("./ops-dev-queue-display-sync.js")
     .then((m) => m.requestDevQueueDisplaySyncNow())
     .catch(() => {});
+}
+
+function persistSlots() {
+  persistQueueSlots(slots, runningSlot?.id ?? null);
 }
 
 /** @param {unknown} ip */
@@ -307,6 +314,7 @@ async function drainQueue() {
   runningSlot = slot;
   runningMeta = slot.meta;
   writeRunningBusyMarker();
+  persistSlots();
   bumpDevQueueDisplayMirror();
 
   if (slot.source === "web") {
@@ -321,6 +329,7 @@ async function drainQueue() {
       active = false;
       runningSlot = null;
       runningMeta = null;
+      persistSlots();
       clearOpsWebAgentBusyMarkerSync();
       bumpDevQueueDisplayMirror();
       void drainQueue();
@@ -371,6 +380,7 @@ async function drainQueue() {
     active = false;
     runningSlot = null;
     runningMeta = null;
+    persistSlots();
     clearOpsWebAgentBusyMarkerSync();
     bumpDevQueueDisplayMirror();
     void drainQueue();
@@ -408,6 +418,7 @@ export function enqueueOpsAgentJob(fn, onQueued, meta, onCommittedToQueue) {
       reject,
     });
     slots.push(slot);
+    persistSlots();
     if (queueMeta) {
       try {
         upsertOpsAgentHistoryFromQueueSync(
@@ -480,7 +491,9 @@ export function releaseRunningIdeDevQueueIfDifferentPrompt(prompt) {
 }
 
 /**
- * Vite·서버 재시작으로 메모리 FIFO가 비었을 때 lease·display 미러에서 IDE 대기 복구.
+ * 서버 재시작 후 persist 파일 → 메모리 FIFO 복구.
+ * 1차: server/.data/ops-dev-queue-slots.json (SSOT)
+ * 2차 폴백: IDE lease 파일 (persist 파일이 없을 때)
  * @returns {{ recovered: number }}
  */
 export function recoverIdeDevQueueFromPersistedState() {
@@ -500,39 +513,32 @@ export function recoverIdeDevQueueFromPersistedState() {
           ? String(/** @type {{ code?: string }} */ (e).code)
           : "";
       if (code !== "OPS_QUEUE_FULL" && code !== "IDE_SESSION_BUSY") {
-        console.warn(
-          "[ops-queue] IDE 큐 복구 실패:",
-          e instanceof Error ? e.message : e,
-        );
+        console.warn("[ops-queue] IDE 큐 복구 실패:", e instanceof Error ? e.message : e);
       }
     }
   };
 
-  const lease = readIdeLeaseDiskSync();
-  if (lease) {
-    const prompt = String(
-      lease.instructionBody ??
-        lease.instructionPreview ??
-        lease.prompt ??
-        "",
-    ).trim();
-    const sessionId = String(lease.sessionId ?? "").trim() || null;
-    tryRecover(prompt, sessionId);
+  // 1차: persist 파일 (SSOT) — web 슬롯은 SSE 연결이 없으므로 스킵
+  const { slots: persisted } = loadPersistedQueueSlots();
+  for (const ps of persisted) {
+    if (ps.source === "web") continue;
+    tryRecover(ps.prompt, ps.sessionId ?? null);
   }
 
+  // 2차 폴백: persist 파일이 없을 때 lease 파일
   if (recovered === 0) {
-    const snap = readDevQueueDisplaySnapshotSync();
-    for (const e of snap.agentEntries) {
-      if (e.status !== "waiting") continue;
-      if (e.source !== "ide" && e.requestIp !== "cursor-ide") continue;
-      const prompt = String(e.instructionBody ?? e.instructionPreview ?? "").trim();
-      const sessionId = String(e.sessionId ?? "").trim() || null;
+    const lease = readIdeLeaseDiskSync();
+    if (lease) {
+      const prompt = String(
+        lease.instructionBody ?? lease.instructionPreview ?? lease.prompt ?? "",
+      ).trim();
+      const sessionId = String(lease.sessionId ?? "").trim() || null;
       tryRecover(prompt, sessionId);
     }
   }
 
   if (recovered > 0) {
-    console.info(`[ops-queue] IDE 개발 큐 ${recovered}건 메모리 복구`);
+    console.info(`[ops-queue] 개발 큐 ${recovered}건 파일에서 메모리 복구`);
     bumpDevQueueDisplayMirror();
   }
   return { recovered };
@@ -586,6 +592,7 @@ export function registerIdeDevQueueSlot(input) {
     sessionId,
   });
   slots.push(slot);
+  persistSlots();
   const waitingEntry = {
     ...metaToPersistEntry(queueMeta, "waiting"),
     sessionId,
@@ -679,6 +686,7 @@ export function abandonIdeDevQueueSlot(leaseId) {
   }
 
   slots.splice(idx, 1);
+  persistSlots();
   const err = new Error("IDE 개발 큐 요청이 취소되었습니다.");
   err.code = "IDE_QUEUE_CANCELLED";
   try {
