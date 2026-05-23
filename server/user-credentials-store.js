@@ -10,6 +10,7 @@ import {
   encryptSecret,
   isCredentialsCryptoReady,
 } from "./credentials-crypto.js";
+import { summarizeBithumbAccountsForDisplay } from "./bithumb-accounts-summary.js";
 import {
   fetchBithumbAccountsWithCredentials,
   getBithumbTradingStatusFromCredentials,
@@ -149,7 +150,12 @@ export function getDecryptedCredentialsSync(userId, exchange) {
       secretKey: decryptSecret(row.secretEncrypted),
       liveOrdersEnabled: Boolean(row.liveOrdersEnabled),
     };
-  } catch {
+  } catch (e) {
+    console.error(
+      `[credentials] ${exchange} API 키 복호화 실패 (userId=${userId}):`,
+      e instanceof Error ? e.message : e,
+      "— CREDENTIALS_MASTER_KEY가 변경되었거나 데이터가 손상되었습니다.",
+    );
     return null;
   }
 }
@@ -292,11 +298,14 @@ export async function testUserCredentialAsync(userId, exchange, inline = null) {
       throw new Error(status.messageKo);
     }
     const accounts = await fetchBithumbAccountsWithCredentials(creds);
+    const bithumbSnapshot = summarizeBithumbAccountsForDisplay(accounts);
+    const holdingCount = bithumbSnapshot.holdings.length;
     return {
       ok: true,
       exchange: "bithumb",
       accountCount: accounts.length,
-      messageKo: `빗썸 연결 성공 (계좌 항목 ${accounts.length}건)`,
+      bithumbSnapshot,
+      messageKo: `빗썸 연결 성공 (계좌 ${accounts.length}건 · 보유 코인 ${holdingCount}종)`,
     };
   }
 

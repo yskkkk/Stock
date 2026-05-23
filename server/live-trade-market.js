@@ -43,10 +43,7 @@ export function programAllowsMarket(program, market) {
  */
 export function orderAmountForMarket(program, market) {
   if (market === "us") return program.orderAmountUsd;
-  if (market === "crypto") {
-    if (program.orderAmountUsd != null) return program.orderAmountUsd;
-    return program.orderAmountKrw;
-  }
+  // crypto: KRW 기준. orderAmountUsd가 있으면 별도 환산 필요(resolveOrderAmountForMarket 사용 권장)
   return program.orderAmountKrw;
 }
 

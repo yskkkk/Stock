@@ -48,10 +48,10 @@ export function validateLiveTradeArmLane(program, lane, userId) {
       throw new Error("이 프로그램에 코인 시장이 선택되어 있지 않습니다.");
     }
     const bithumb = getBithumbTradingStatusForUserSync(userId);
-    if (!bithumb.configured) {
+    if (!bithumb.ready) {
       throw new Error(
         bithumb.messageKo ??
-          "코인 실매매에는 빗썸 API 키가 필요합니다. «내 API 연동»에서 저장하세요.",
+          "코인 실매매에는 빗썸 API Key와 Secret Key가 모두 필요합니다. «내 API 연동»에서 저장하세요.",
       );
     }
     return { lane, bithumb, toss: getTossTradingStatus() };

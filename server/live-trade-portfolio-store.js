@@ -568,14 +568,14 @@ export async function buildProgramPortfolioSummariesMap(programIds, userId) {
     const trades = store.trades.filter((t) => t.programId === pid);
     let investedOpen = 0;
     for (const pos of positions) investedOpen += pos.costBasis;
-    const closedCost = trades
-      .filter((t) => t.side === "sell")
-      .reduce((s, t) => s + t.amount, 0);
+    const totalBuyCost = trades
+      .filter((t) => t.side === "buy")
+      .reduce((s, t) => s + t.amount + t.feeAmount, 0);
     perProgram.set(pid, {
       positions,
       realizedPnl,
       investedOpen,
-      closedCost,
+      totalBuyCost,
       holdingCount: positions.length,
     });
   }
@@ -604,13 +604,8 @@ export async function buildProgramPortfolioSummariesMap(programIds, userId) {
     }
     const unrealizedPnl = marketValueOpen - data.investedOpen;
     const totalPnl = data.realizedPnl + unrealizedPnl;
-    const denom = data.investedOpen + data.closedCost;
     let totalReturnPct =
-      denom > 0
-        ? (totalPnl / denom) * 100
-        : data.investedOpen > 0
-          ? (unrealizedPnl / data.investedOpen) * 100
-          : null;
+      data.totalBuyCost > 0 ? (totalPnl / data.totalBuyCost) * 100 : null;
     if (totalReturnPct != null && !Number.isFinite(totalReturnPct)) {
       totalReturnPct = null;
     }
@@ -740,15 +735,11 @@ export async function buildLiveTradePortfolioSnapshot(opts = {}) {
 
   const unrealizedPnl = marketValueOpen - investedOpen;
   const totalPnl = realizedPnl + unrealizedPnl;
-  const closedCost = trades
-    .filter((t) => t.side === "sell")
-    .reduce((s, t) => s + t.amount, 0);
+  const totalBuyCost = visibleAll
+    .filter((t) => (programIdFilter ? t.programId === programIdFilter : true) && t.side === "buy")
+    .reduce((s, t) => s + t.amount + t.feeAmount, 0);
   const totalReturnPct =
-    investedOpen + closedCost > 0
-      ? (totalPnl / (investedOpen + closedCost)) * 100
-      : investedOpen > 0
-        ? (unrealizedPnl / investedOpen) * 100
-        : null;
+    totalBuyCost > 0 ? (totalPnl / totalBuyCost) * 100 : null;
 
   const snap = {
     updatedAtMs: Date.now(),

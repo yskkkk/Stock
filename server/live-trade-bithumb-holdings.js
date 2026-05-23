@@ -296,16 +296,22 @@ export async function applyBithumbExchangeToProgramReturns(out, programs) {
 
     out[pid].holdingCount += 1;
 
-    if (cp != null && avg != null && avg > 0 && cost > 0) {
-      const unrealized = (mv ?? 0) - cost;
-      const netPct = (cp / avg) * (1 - ROUND_TRIP_FEE_RATE) * 100 - 100;
-      if (out[pid].holdingCount === 1) {
-        out[pid].totalReturnPct = netPct;
-      } else if (out[pid].totalReturnPct == null) {
-        out[pid].totalReturnPct = netPct;
-      }
-      void unrealized;
+    if (cp != null && avg != null && avg > 0 && cost > 0 && mv != null) {
+      const pnl = mv - cost;
+      if (!out[pid]._exchPnl) out[pid]._exchPnl = 0;
+      if (!out[pid]._exchCost) out[pid]._exchCost = 0;
+      out[pid]._exchPnl += pnl;
+      out[pid]._exchCost += cost;
     }
+  }
+  for (const pid of Object.keys(out)) {
+    const cost = out[pid]._exchCost ?? 0;
+    const pnl = out[pid]._exchPnl ?? 0;
+    if (cost > 0) {
+      out[pid].totalReturnPct = (pnl / cost) * (1 - ROUND_TRIP_FEE_RATE) * 100;
+    }
+    delete out[pid]._exchPnl;
+    delete out[pid]._exchCost;
   }
   return out;
 }
