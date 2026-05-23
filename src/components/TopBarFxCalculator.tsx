@@ -18,6 +18,26 @@ function parseAmountInput(raw: string): number | null {
   return n;
 }
 
+function formatAmountInput(value: string, currency: "USD" | "KRW"): string {
+  const isUsd = currency === "USD";
+  let s = value.replace(/,/g, "");
+  if (isUsd) {
+    s = s.replace(/[^\d.]/g, "");
+    const dot = s.indexOf(".");
+    if (dot >= 0) {
+      const int = s.slice(0, dot).replace(/\D/g, "");
+      const dec = s.slice(dot + 1).replace(/\D/g, "").slice(0, 2);
+      const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      if (value.endsWith(".") && dec.length === 0) return `${grouped}.`;
+      return dec.length > 0 ? `${grouped}.${dec}` : grouped;
+    }
+    const int = s.replace(/\D/g, "");
+    return int.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
+  const int = s.replace(/\D/g, "");
+  return int.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
 function TopBarFxCalculatorInner({
   rate,
   valuationDate,
@@ -63,6 +83,9 @@ function TopBarFxCalculatorInner({
       ? "fx-calc-rail fx-calc-rail--strip"
       : "fx-calc-rail fx-calc-rail--side";
 
+  const inputCurrency = dir === "usdToKrw" ? "USD" : "KRW";
+  const inputPrefix = dir === "usdToKrw" ? "$" : "원";
+
   return (
     <aside
       className={rootClass}
@@ -96,7 +119,10 @@ function TopBarFxCalculatorInner({
                 : "fx-calc-rail__mode-btn"
             }
             aria-pressed={dir === "usdToKrw"}
-            onClick={() => setDir("usdToKrw")}
+            onClick={() => {
+              setDir("usdToKrw");
+              setRaw("");
+            }}
           >
             {ko.app.topBarFxCalcUsdToKrw}
           </button>
@@ -108,24 +134,32 @@ function TopBarFxCalculatorInner({
                 : "fx-calc-rail__mode-btn"
             }
             aria-pressed={dir === "krwToUsd"}
-            onClick={() => setDir("krwToUsd")}
+            onClick={() => {
+              setDir("krwToUsd");
+              setRaw("");
+            }}
           >
             {ko.app.topBarFxCalcKrwToUsd}
           </button>
         </div>
-        <label className="fx-calc-rail__field">
-          <input
-            id={amountId}
-            type="text"
-            inputMode="decimal"
-            className="input fx-calc-rail__input"
-            placeholder={dir === "usdToKrw" ? "USD" : "KRW"}
-            aria-label={ko.app.topBarFxCalcAmountAria}
-            value={raw}
-            onChange={(e) => setRaw(e.target.value)}
-            autoComplete="off"
-            spellCheck={false}
-          />
+        <label className="fx-calc-rail__field fx-calc-rail__field--amount">
+          <div className="fx-calc-rail__input-wrap">
+            <span className="fx-calc-rail__input-prefix" aria-hidden>
+              {inputPrefix}
+            </span>
+            <input
+              id={amountId}
+              type="text"
+              inputMode={dir === "usdToKrw" ? "decimal" : "numeric"}
+              className="input fx-calc-rail__input fx-calc-rail__input--prefixed"
+              placeholder="0"
+              aria-label={ko.app.topBarFxCalcAmountAria}
+              value={raw}
+              onChange={(e) => setRaw(formatAmountInput(e.target.value, inputCurrency))}
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </div>
         </label>
         {resultText ? (
           <output className="fx-calc-rail__result" htmlFor={amountId} aria-live="polite">

@@ -7280,6 +7280,38 @@ html[data-theme="light"] .fx-calc-rail__mode-btn:hover {
   margin: 0;
 }
 
+.fx-calc-rail__field--amount {
+  width: 100%;
+}
+
+.fx-calc-rail__input-wrap {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 2.1rem;
+  border-radius: 9px;
+  border: 1px solid color-mix(in srgb, var(--card-border) 88%, transparent);
+  background: var(--bg-elevated, var(--card));
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+html[data-theme="light"] .fx-calc-rail__input-wrap {
+  background: #fff;
+  border-color: rgba(15, 23, 42, 0.14);
+}
+
+.fx-calc-rail__input-prefix {
+  flex: none;
+  padding-left: 0.42rem;
+  padding-right: 0.12rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1;
+  color: color-mix(in srgb, var(--muted) 88%, var(--text));
+  user-select: none;
+}
+
 .fx-calc-rail__input {
   width: 100%;
   min-height: 1.85rem;
@@ -7287,6 +7319,20 @@ html[data-theme="light"] .fx-calc-rail__mode-btn:hover {
   font-size: 0.78rem;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.fx-calc-rail__input--prefixed {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  min-height: 0;
+  padding: 0.22rem 0.42rem 0.22rem 0.15rem;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: 0.82rem;
   text-align: right;
 }
 
