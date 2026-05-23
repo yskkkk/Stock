@@ -9,7 +9,7 @@
   --radius-xl: 22px;
   --shadow: 0 12px 44px rgba(0, 0, 0, 0.38);
   --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.22);
-  --app-page-max-width: 1400px;
+  --app-page-max-width: 1680px;
   --app-page-inline-pad: 1.35rem;
   --app-page-inline-pad-safe: max(
     var(--app-page-inline-pad),

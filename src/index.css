@@ -6774,7 +6774,7 @@ body {
 #root > .app .app__viewport > .app__shell,
 #root > .app > .app__scroll > .app-site-footer {
   width: 100%;
-  max-width: var(--app-page-max-width, 1400px);
+  max-width: var(--app-page-max-width, 1680px);
   margin-left: auto;
   margin-right: auto;
   padding-inline: var(--app-page-inline-pad-safe, var(--app-page-inline-pad, 1.35rem));
@@ -7024,7 +7024,7 @@ html[data-theme="light"] .market-indices-rail__item {
     max-width: max(
       0px,
       calc(
-        (100vw - min(100vw, var(--app-page-max-width, 1400px))) / 2
+        (100vw - min(100vw, var(--app-page-max-width, 1680px))) / 2
         - var(--app-left-rail-gap)
         - var(--app-page-inline-pad-safe, var(--app-page-inline-pad, 1.35rem))
       )
@@ -7041,7 +7041,7 @@ html[data-theme="light"] .market-indices-rail__item {
     margin-left: auto;
     margin-right: auto;
     width: 100%;
-    max-width: var(--app-page-max-width, 1400px);
+    max-width: var(--app-page-max-width, 1680px);
     min-width: 0;
   }
 
@@ -7084,7 +7084,7 @@ html[data-theme="light"] .market-indices-rail__item {
 
   #root > .app .app__viewport > .app__shell {
     width: 100%;
-    max-width: var(--app-page-max-width, 1400px);
+    max-width: var(--app-page-max-width, 1680px);
     margin-left: auto;
     margin-right: auto;
   }
