@@ -5,6 +5,7 @@ import { formatPrice } from "../lib/format";
 export interface TopBarFxCalculatorProps {
   rate: number | null;
   valuationDate?: string | null;
+  layout?: "rail" | "strip";
 }
 
 type FxDir = "usdToKrw" | "krwToUsd";
@@ -17,7 +18,11 @@ function parseAmountInput(raw: string): number | null {
   return n;
 }
 
-function TopBarFxCalculatorInner({ rate, valuationDate }: TopBarFxCalculatorProps) {
+function TopBarFxCalculatorInner({
+  rate,
+  valuationDate,
+  layout = "rail",
+}: TopBarFxCalculatorProps) {
   const amountId = useId();
   const [dir, setDir] = useState<FxDir>("usdToKrw");
   const [raw, setRaw] = useState("");
@@ -47,23 +52,28 @@ function TopBarFxCalculatorInner({ rate, valuationDate }: TopBarFxCalculatorProp
     ? ko.app.topBarFxCalcRateLine.replace("{rate}", formatPrice(rate!, "KRW"))
     : "—";
 
+  const rootClass =
+    layout === "strip"
+      ? "fx-calc-rail fx-calc-rail--strip"
+      : "fx-calc-rail fx-calc-rail--side";
+
   return (
-    <div
-      className="top-bar__fx-calc"
-      role="group"
+    <aside
+      className={rootClass}
+      role="complementary"
       aria-labelledby={`${amountId}-title`}
       title={basisTitle}
     >
-      <div className="top-bar__fx-calc-head">
-        <span id={`${amountId}-title`} className="top-bar__fx-calc-title">
+      <div className="fx-calc-rail__head">
+        <span id={`${amountId}-title`} className="fx-calc-rail__title">
           {ko.app.topBarFxCalcTitle}
         </span>
-        <span className="top-bar__fx-calc-rate" aria-live="polite">
+        <span className="fx-calc-rail__rate" aria-live="polite">
           {rateLine}
         </span>
       </div>
-      <div className="top-bar__fx-calc-body">
-        <div className="top-bar__fx-calc-mode" role="group" aria-label={ko.app.topBarFxCalcModeAria}>
+      <div className="fx-calc-rail__body">
+        <div className="fx-calc-rail__mode" role="group" aria-label={ko.app.topBarFxCalcModeAria}>
           <button
             type="button"
             className={dir === "usdToKrw" ? "seg active" : "seg"}
@@ -81,12 +91,12 @@ function TopBarFxCalculatorInner({ rate, valuationDate }: TopBarFxCalculatorProp
             {ko.app.topBarFxCalcKrwToUsd}
           </button>
         </div>
-        <label className="top-bar__fx-calc-field">
+        <label className="fx-calc-rail__field">
           <input
             id={amountId}
             type="text"
             inputMode="decimal"
-            className="input top-bar__fx-calc-input"
+            className="input fx-calc-rail__input"
             placeholder={dir === "usdToKrw" ? "USD" : "KRW"}
             aria-label={ko.app.topBarFxCalcAmountAria}
             value={raw}
@@ -95,14 +105,11 @@ function TopBarFxCalculatorInner({ rate, valuationDate }: TopBarFxCalculatorProp
             spellCheck={false}
           />
         </label>
-        <span className="top-bar__fx-calc-eq" aria-hidden>
-          =
-        </span>
-        <output className="top-bar__fx-calc-result" htmlFor={amountId} aria-live="polite">
+        <output className="fx-calc-rail__result" htmlFor={amountId} aria-live="polite">
           {resultText}
         </output>
       </div>
-    </div>
+    </aside>
   );
 }
 

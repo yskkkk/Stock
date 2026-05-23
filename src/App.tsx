@@ -976,6 +976,11 @@ export default function App() {
         loading={marketIndicesLoading}
         layout="strip"
       />
+      <TopBarFxCalculator
+        rate={usdKrwRate}
+        valuationDate={usdKrwValDate}
+        layout="strip"
+      />
       {showOpsGlobalQueue ? (
         <div
           className="app-page-top app-page-top--queue-only"
@@ -997,7 +1002,6 @@ export default function App() {
           <div className="top-bar__macro">
             <MacroEventsBar onSecretAdminOpen={() => setShowAccessAdmin(true)} />
           </div>
-          <TopBarFxCalculator rate={usdKrwRate} valuationDate={usdKrwValDate} />
           <div className="top-bar__brand">
             <span className="brand-mark" aria-hidden>
               <img
@@ -1762,6 +1766,11 @@ export default function App() {
 
       <FeedbackCorner ref={feedbackRef} accessAdmin={accessAdmin} />
       </div>
+      <TopBarFxCalculator
+        rate={usdKrwRate}
+        valuationDate={usdKrwValDate}
+        layout="rail"
+      />
       </div>
       </div>
 
