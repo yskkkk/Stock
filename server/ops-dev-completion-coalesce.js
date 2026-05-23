@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   readAgentResponseForIdeSession,
-  readAgentResponseFromTranscriptFile,
+  readIdeTurnNotifyPair,
 } from "./ops-ide-transcript-text.js";
 import {
   buildOpsDevNotifyDedupKey,
@@ -59,6 +59,7 @@ let flushInFlight = false;
  *   sessionId?: string | null;
  *   transcriptPath?: string | null;
  *   gitRevAtStart?: string | null;
+ *   userLineIndex?: number;
  * } | null} */
 let pending = null;
 
@@ -120,14 +121,33 @@ async function settleAndRefreshBeforeSend(snap) {
   const gitRevStart = String(snap.gitRevAtStart ?? "").trim();
   const transcriptPath = String(snap.transcriptPath ?? "").trim();
   const sessionId = String(snap.sessionId ?? "").trim();
-  let fresh = "";
+  const userLineIndex =
+    typeof snap.userLineIndex === "number" ? snap.userLineIndex : -1;
+
   if (transcriptPath) {
-    fresh = readAgentResponseFromTranscriptFile(transcriptPath);
+    const pair = readIdeTurnNotifyPair(
+      transcriptPath,
+      snap.userRequest,
+      userLineIndex >= 0 ? userLineIndex : undefined,
+    );
+    if (pair.userRequest) {
+      snap.userRequest = trimBlock(pair.userRequest, REQUEST_MAX);
+    }
+    if (pair.agentResponse) {
+      snap.completion = trimBlock(
+        normalizeOpsCompletionText(pair.agentResponse, ""),
+        COMPLETION_MAX,
+      );
+    }
+    if (pair.userLineIndex >= 0) snap.userLineIndex = pair.userLineIndex;
   } else if (sessionId) {
-    fresh = readAgentResponseForIdeSession(sessionId);
-  }
-  if (fresh) {
-    snap.completion = trimBlock(fresh, COMPLETION_MAX);
+    const fresh = readAgentResponseForIdeSession(sessionId);
+    if (fresh) {
+      snap.completion = trimBlock(
+        normalizeOpsCompletionText(fresh, ""),
+        COMPLETION_MAX,
+      );
+    }
   }
 
   const revEnd = getRepoHeadRev();
@@ -225,6 +245,7 @@ export function normalizeOpsCompletionText(resultText, streamText) {
  *   sessionId?: string | null;
  *   transcriptPath?: string | null;
  *   gitRevAtStart?: string | null;
+ *   userLineIndex?: number;
  * }} opts
  */
 /** 에이전트·IDE 완료가 대기 중이면 auto-git 알림을 붙이지 않음 */
@@ -282,6 +303,23 @@ export function scheduleOpsDevCompletionTelegram(opts) {
   const sessionId = String(opts.sessionId ?? "").trim() || null;
   const transcriptPath = String(opts.transcriptPath ?? "").trim() || null;
   const gitRevAtStart = String(opts.gitRevAtStart ?? "").trim() || null;
+  const userLineIndex =
+    typeof opts.userLineIndex === "number" ? opts.userLineIndex : -1;
+
+  if (
+    pending &&
+    turnId &&
+    pending.turnId &&
+    turnId !== pending.turnId
+  ) {
+    if (flushTimer) {
+      clearTimeout(flushTimer);
+      flushTimer = null;
+    }
+    const prev = pending;
+    pending = null;
+    void flushSnapNow(prev);
+  }
 
   if (!pending || priority >= pending.priority) {
     pending = {
@@ -293,6 +331,7 @@ export function scheduleOpsDevCompletionTelegram(opts) {
       sessionId,
       transcriptPath,
       gitRevAtStart,
+      userLineIndex,
       at: Date.now(),
     };
   } else if (git && pending) {
@@ -334,25 +373,37 @@ async function flushOpsDevCompletionNow(opts, dedupKey) {
       trimBlock(opts.agentResponse, COMPLETION_MAX) || "(응답 없음)";
   }
   const snap = {
+    userRequest: userRequest || "(요청 없음)",
     completion,
+    title: String(opts.title ?? "").trim() || "개발 완료",
     priority: Number(opts.priority) || 1,
     at: Date.now(),
     turnId: String(opts.turnId ?? "").trim() || null,
     sessionId: String(opts.sessionId ?? "").trim() || null,
     transcriptPath: String(opts.transcriptPath ?? "").trim() || null,
     gitRevAtStart: String(opts.gitRevAtStart ?? "").trim() || null,
+    userLineIndex:
+      typeof opts.userLineIndex === "number" ? opts.userLineIndex : -1,
   };
   if ((opts.state ?? "ok") === "ok") {
     await settleAndRefreshBeforeSend(snap);
   }
-  await sendCompletionMessage(
-    {
-      title: opts.title ?? "개발 완료",
-      userRequest: userRequest || "(요청 없음)",
-      completion: snap.completion,
-    },
-    key,
-  );
+  await sendCompletionMessage(snap, key);
+}
+
+/**
+ * @param {NonNullable<typeof pending>} snap
+ * @returns {Promise<boolean>}
+ */
+async function flushSnapNow(snap) {
+  const key = buildOpsDevNotifyDedupKeyFromSnap(snap);
+  if (shouldSkipOpsDevNotify(key)) {
+    releaseOpsDevNotifySchedule(key);
+    return false;
+  }
+  if (!tryAcquireOpsDevNotifySend(key)) return false;
+  await settleAndRefreshBeforeSend(snap);
+  return sendCompletionMessage(snap, key);
 }
 
 async function flushPending() {
@@ -363,13 +414,7 @@ async function flushPending() {
     pending = null;
     clearPendingDisk();
     if (!snap) return;
-    const key = buildOpsDevNotifyDedupKeyFromSnap(snap);
-    if (shouldSkipOpsDevNotify(key)) {
-      releaseOpsDevNotifySchedule(key);
-      return;
-    }
-    await settleAndRefreshBeforeSend(snap);
-    await sendCompletionMessage(snap, key);
+    await flushSnapNow(snap);
   } finally {
     flushInFlight = false;
   }

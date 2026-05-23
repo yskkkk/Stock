@@ -216,6 +216,7 @@ function notifyTurnCompletedWithoutQueue(filePath) {
     userRequest: ctx.prompt,
     sessionId: ctx.sessionId,
     transcriptPath: filePath,
+    userLineIndex: ctx.lineIndex,
   });
 }
 

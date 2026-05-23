@@ -9,7 +9,7 @@ import { opsIdePromptFingerprint } from "./ops-ide-prompt-match.js";
 import { getRepoHeadRev } from "./ops-agent-git-push.js";
 import {
   readAgentResponseForIdeSession,
-  readAgentResponseFromTranscriptFile,
+  readIdeTurnNotifyPair,
 } from "./ops-ide-transcript-text.js";
 import {
   buildOpsDevNotifyDedupKey,
@@ -142,6 +142,7 @@ export function unmarkIdeCompletionTurnNotified(turnKey) {
  *   sessionId?: string | null;
  *   transcriptPath?: string | null;
  *   gitRevAtStart?: string | null;
+ *   userLineIndex?: number;
  *   leaseId?: string | null;
  *   force?: boolean;
  * }} opts
@@ -174,9 +175,22 @@ export function notifyIdeDevelopmentCompleted(opts) {
   }
 
   const transcriptPath = String(opts.transcriptPath ?? "").trim();
-  let agentResponse = transcriptPath
-    ? readAgentResponseFromTranscriptFile(transcriptPath)
-    : "";
+  let pairedRequest = userRequest;
+  let agentResponse = "";
+  let userLineIndex =
+    typeof opts.userLineIndex === "number" ? opts.userLineIndex : -1;
+
+  if (transcriptPath) {
+    const pair = readIdeTurnNotifyPair(
+      transcriptPath,
+      userRequest,
+      userLineIndex >= 0 ? userLineIndex : undefined,
+    );
+    pairedRequest = String(pair.userRequest ?? userRequest).trim() || userRequest;
+    agentResponse = String(pair.agentResponse ?? "").trim();
+    userLineIndex = pair.userLineIndex;
+  }
+
   if (!agentResponse) {
     agentResponse = readAgentResponseForIdeSession(sessionId);
   }
@@ -194,7 +208,7 @@ export function notifyIdeDevelopmentCompleted(opts) {
 
   const dedupKey = buildOpsDevNotifyDedupKey({
     turnId: turnKey,
-    userRequest,
+    userRequest: pairedRequest,
     agentResponse,
     gitSummary,
     state: "ok",
@@ -207,7 +221,7 @@ export function notifyIdeDevelopmentCompleted(opts) {
 
   scheduleOpsDevCompletionTelegram({
     title: "개발 완료",
-    userRequest,
+    userRequest: pairedRequest,
     agentResponse,
     gitSummary,
     priority: 3,
@@ -215,6 +229,7 @@ export function notifyIdeDevelopmentCompleted(opts) {
     sessionId,
     transcriptPath: transcriptPath || undefined,
     gitRevAtStart: revStart || undefined,
+    userLineIndex: userLineIndex >= 0 ? userLineIndex : undefined,
   });
 
   return true;
