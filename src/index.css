@@ -7301,10 +7301,10 @@ html[data-theme="light"] .fx-calc-rail__input-wrap {
   border-color: rgba(15, 23, 42, 0.14);
 }
 
-.fx-calc-rail__input-prefix {
+.fx-calc-rail__input-suffix {
   flex: none;
-  padding-left: 0.42rem;
-  padding-right: 0.12rem;
+  padding-right: 0.42rem;
+  padding-left: 0.12rem;
   font-size: 0.82rem;
   font-weight: 700;
   line-height: 1;
@@ -7322,12 +7322,12 @@ html[data-theme="light"] .fx-calc-rail__input-wrap {
   text-align: right;
 }
 
-.fx-calc-rail__input--prefixed {
+.fx-calc-rail__input--suffixed {
   flex: 1 1 auto;
   min-width: 0;
   width: auto;
   min-height: 0;
-  padding: 0.22rem 0.42rem 0.22rem 0.15rem;
+  padding: 0.22rem 0.15rem 0.22rem 0.42rem;
   border: none;
   border-radius: 0;
   background: transparent;

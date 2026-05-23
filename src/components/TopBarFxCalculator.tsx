@@ -144,14 +144,11 @@ function TopBarFxCalculatorInner({
         </div>
         <label className="fx-calc-rail__field fx-calc-rail__field--amount">
           <div className="fx-calc-rail__input-wrap">
-            <span className="fx-calc-rail__input-prefix" aria-hidden>
-              {inputPrefix}
-            </span>
             <input
               id={amountId}
               type="text"
               inputMode={dir === "usdToKrw" ? "decimal" : "numeric"}
-              className="input fx-calc-rail__input fx-calc-rail__input--prefixed"
+              className="input fx-calc-rail__input fx-calc-rail__input--suffixed"
               placeholder="0"
               aria-label={ko.app.topBarFxCalcAmountAria}
               value={raw}
@@ -159,6 +156,9 @@ function TopBarFxCalculatorInner({
               autoComplete="off"
               spellCheck={false}
             />
+            <span className="fx-calc-rail__input-suffix" aria-hidden>
+              {inputPrefix}
+            </span>
           </div>
         </label>
         {resultText ? (
