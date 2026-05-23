@@ -50,10 +50,12 @@ export function mergeIdeLeaseIntoDisplayEntries(entries) {
     return entries;
   }
 
+  const leaseRequestIp = String(lease.requestIp ?? "cursor-ide").trim() || "cursor-ide";
+
   if (
     entries.some(
       (e) =>
-        (e.source === "ide" || e.requestIp === "cursor-ide") &&
+        (e.source === "ide" || e.requestIp === "cursor-ide" || e.requestIp === "claude-code") &&
         (String(e.instructionPreview ?? "").trim() === preview ||
           (preview &&
             String(e.instructionBody ?? "")
@@ -71,7 +73,7 @@ export function mergeIdeLeaseIntoDisplayEntries(entries) {
     ...entries,
     {
       id,
-      requestIp: "cursor-ide",
+      requestIp: leaseRequestIp,
       instructionPreview: preview || "—",
       instructionTooltip: preview || "—",
       instructionBody: String(lease.instructionBody ?? preview ?? "").slice(0, 16_000),
