@@ -342,7 +342,7 @@
   width: 46px;
   height: 46px;
   border: none;
-  border-radius: 22%;
+  border-radius: 0;
   flex-shrink: 0;
   line-height: 0;
   background: transparent;
@@ -361,12 +361,18 @@ html[data-theme="light"] .top-bar__brand .brand-mark {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  object-position: center;
   background: transparent;
   border: none;
   outline: none;
-  border-radius: inherit;
+  border-radius: 0;
   box-shadow: none;
   vertical-align: top;
+}
+
+html[data-theme="light"] .top-bar__brand .brand-mark__img {
+  filter: drop-shadow(0 1px 2px rgba(15, 23, 42, 0.42))
+    drop-shadow(0 0 1px rgba(15, 23, 42, 0.28));
 }
 
 /* Pick signals — color by type */
@@ -3873,7 +3879,7 @@ html[data-theme="light"] .access-admin-tab--active {
   .top-bar__brand .brand-mark {
     width: 36px;
     height: 36px;
-    border-radius: 22%;
+    border-radius: 0;
   }
 
   .top-bar__grid,

@@ -54,6 +54,9 @@ def is_chroma_green(r: int, g: int, b: int, a: int) -> bool:
 
 def is_matte_background(r: int, g: int, b: int, a: int) -> bool:
     if is_chroma_green(r, g, b, a):
+        # 초록 스필이 묻은 밝은 글자·하이라이트는 유지
+        if (r + g + b) / 3.0 > 168:
+            return False
         return True
     mx, mn = max(r, g, b), min(r, g, b)
     sat = mx - mn
@@ -100,15 +103,24 @@ def clear_matte(im: Image.Image) -> Image.Image:
     return im
 
 
-def crop_opaque(im: Image.Image) -> Image.Image:
+def crop_opaque(im: Image.Image, margin_ratio: float = 0.04) -> Image.Image:
     bbox = im.getbbox()
-    return im.crop(bbox) if bbox else im
+    if not bbox:
+        return im
+    x0, y0, x1, y1 = bbox
+    w, h = im.size
+    pad = max(4, int(max(x1 - x0, y1 - y0) * margin_ratio))
+    x0 = max(0, x0 - pad)
+    y0 = max(0, y0 - pad)
+    x1 = min(w, x1 + pad)
+    y1 = min(h, y1 + pad)
+    return im.crop((x0, y0, x1, y1))
 
 
 def save_square(im: Image.Image, size: int, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    pad = max(2, int(size * 0.08))
+    pad = max(2, int(size * 0.04))
     inner = size - 2 * pad
     fitted = im.copy()
     fitted.thumbnail((inner, inner), Image.Resampling.LANCZOS)
