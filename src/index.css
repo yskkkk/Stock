@@ -7000,17 +7000,31 @@ html[data-theme="light"] .market-indices-rail__item {
 }
 
 @media (min-width: 1180px) {
+  .app__viewport {
+    gap: var(--app-left-rail-gap);
+  }
+
   .app__left-rail {
     display: flex;
-    position: absolute;
+    position: sticky;
     top: max(0.35rem, env(safe-area-inset-top, 0px));
-    left: var(--app-page-inline-pad-safe, var(--app-page-inline-pad, 1.35rem));
-    right: calc(
-      50% + min(100%, var(--app-page-max-width, 1400px)) * 0.5 + var(--app-left-rail-gap)
-    );
-    width: auto;
-    z-index: 2;
+    flex: 0 0 var(--app-left-rail-width);
+    width: var(--app-left-rail-width);
+    min-width: var(--app-left-rail-width);
+    max-width: var(--app-left-rail-width);
+    align-self: flex-start;
     align-items: stretch;
+    max-height: calc(100dvh - max(0.35rem, env(safe-area-inset-top, 0px)) - 0.65rem);
+    overflow-y: auto;
+    z-index: 2;
+  }
+
+  #root > .app .app__viewport > .app__shell {
+    margin-left: 0;
+    margin-right: 0;
+    flex: 0 1 auto;
+    width: min(100%, var(--app-page-max-width, 1400px));
+    max-width: var(--app-page-max-width, 1400px);
   }
 
   .market-indices-rail--side {
