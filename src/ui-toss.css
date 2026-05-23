@@ -984,6 +984,22 @@ body {
 
 .live-trading-tab__list-body {
   background: color-mix(in srgb, var(--card) 92%, transparent);
+  max-height: 22.5rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+}
+
+.live-trading-tab__list-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.live-trading-tab__list-body::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: rgba(148, 163, 184, 0.4);
 }
 
 .live-trading-tab__form-grid {
