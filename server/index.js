@@ -1,21 +1,24 @@
 import "./symbol-dispose-polyfill.js";
-import { startMacroReminderLoop } from "./macro-telegram-reminders.js";
-import { startAutoGitSync } from "./auto-git-sync.js";
-import { createApp } from "./create-app.js";
 import { loadEnvFile } from "./load-env.js";
 import { installProcessGuards } from "./process-guards.js";
-import { prewarmAppCaches } from "./prewarm-caches.js";
 import {
   installOpsServerLifecycleShutdownHooks,
   notifyOpsServerStarted,
 } from "./ops-server-lifecycle-notify.js";
-import { startScreening } from "./screener.js";
-import { startServerSelfImprovementWatcher } from "./server-self-improvement-log.js";
-import { maybeStartHttpsServer } from "./https-listen.js";
 
 installProcessGuards();
 loadEnvFile();
 installOpsServerLifecycleShutdownHooks();
+
+const { startMacroReminderLoop } = await import("./macro-telegram-reminders.js");
+const { startAutoGitSync } = await import("./auto-git-sync.js");
+const { createApp } = await import("./create-app.js");
+const { prewarmAppCaches } = await import("./prewarm-caches.js");
+const { startScreening } = await import("./screener.js");
+const { startServerSelfImprovementWatcher } = await import(
+  "./server-self-improvement-log.js"
+);
+const { maybeStartHttpsServer } = await import("./https-listen.js");
 
 const PORT = Number(process.env.PORT) || 3456;
 const app = createApp();

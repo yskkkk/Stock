@@ -63,6 +63,14 @@ function mergeStockProcessEnv(mode) {
     "AUTO_GIT_BRANCH",
     "AUTO_GIT_SKIP_NPM_REFRESH",
     "AUTO_GIT_POST_PULL_CMD",
+    "BITHUMB_API_KEY",
+    "BITHUMB_SECRET_KEY",
+    "BITHUMB_LIVE_ORDERS_ENABLED",
+    "BITHUMB_API_BASE_URL",
+    "TOSS_API_KEY",
+    "TOSS_API_SECRET",
+    "TOSS_ACCOUNT_ID",
+    "TOSS_LIVE_ORDERS_ENABLED",
   ]) {
     if (env[key]) process.env[key] = env[key];
   }

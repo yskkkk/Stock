@@ -9,16 +9,27 @@ import {
   minTelegramScoreRequired,
 } from "./technical.js";
 
-const TOSS_API_KEY = String(process.env.TOSS_API_KEY ?? "").trim();
-const TOSS_API_SECRET = String(process.env.TOSS_API_SECRET ?? "").trim();
-const TOSS_ACCOUNT_ID = String(process.env.TOSS_ACCOUNT_ID ?? "").trim();
-const TOSS_API_BASE = String(process.env.TOSS_API_BASE_URL ?? "").trim();
-
 /** @typedef {"unconfigured" | "configured" | "ready"} TossApiPhase */
 
+function tossApiKey() {
+  return String(process.env.TOSS_API_KEY ?? "").trim();
+}
+
+function tossApiSecret() {
+  return String(process.env.TOSS_API_SECRET ?? "").trim();
+}
+
+function tossAccountId() {
+  return String(process.env.TOSS_ACCOUNT_ID ?? "").trim();
+}
+
+function tossApiBase() {
+  return String(process.env.TOSS_API_BASE_URL ?? "").trim();
+}
+
 export function getTossApiPhase() {
-  if (!TOSS_API_KEY) return "unconfigured";
-  if (!TOSS_ACCOUNT_ID) return "configured";
+  if (!tossApiKey()) return "unconfigured";
+  if (!tossAccountId()) return "configured";
   return "ready";
 }
 
@@ -43,8 +54,8 @@ export function getTossTradingStatus() {
     configured,
     ready,
     messageKo,
-    hasSecret: Boolean(TOSS_API_SECRET),
-    baseUrl: TOSS_API_BASE || null,
+    hasSecret: Boolean(tossApiSecret()),
+    baseUrl: tossApiBase() || null,
     docsHint: "https://docs.tossinvest.com",
   };
 }
@@ -117,16 +128,17 @@ export async function executeLiveBuyOrder(program, pick) {
   }
 
   try {
-    const base = TOSS_API_BASE || "https://api.tossinvest.com";
+    const secret = tossApiSecret();
+    const base = tossApiBase() || "https://api.tossinvest.com";
     const res = await fetch(`${base}/v1/orders`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${TOSS_API_KEY}`,
+        Authorization: `Bearer ${tossApiKey()}`,
         "Content-Type": "application/json",
-        ...(TOSS_API_SECRET ? { "X-Toss-Secret": TOSS_API_SECRET } : {}),
+        ...(secret ? { "X-Toss-Secret": secret } : {}),
       },
       body: JSON.stringify({
-        accountId: TOSS_ACCOUNT_ID,
+        accountId: tossAccountId(),
         symbol,
         market,
         side: "buy",

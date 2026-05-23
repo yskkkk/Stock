@@ -11,17 +11,25 @@ import {
 import { usdtSymbolToBithumbBase } from "./bithumb-krw.js";
 import { pickMeetsProgramThreshold } from "./toss-trading-adapter.js";
 
-const BITHUMB_API_KEY = String(process.env.BITHUMB_API_KEY ?? "").trim();
-const BITHUMB_SECRET_KEY = String(process.env.BITHUMB_SECRET_KEY ?? "").trim();
-const BITHUMB_API_BASE = String(
-  process.env.BITHUMB_API_BASE_URL ?? "https://api.bithumb.com",
-).trim();
-
 /** @typedef {"unconfigured" | "configured" | "ready"} BithumbApiPhase */
 
+function bithumbApiKey() {
+  return String(process.env.BITHUMB_API_KEY ?? "").trim();
+}
+
+function bithumbSecretKey() {
+  return String(process.env.BITHUMB_SECRET_KEY ?? "").trim();
+}
+
+function bithumbApiBase() {
+  return String(
+    process.env.BITHUMB_API_BASE_URL ?? "https://api.bithumb.com",
+  ).trim();
+}
+
 export function getBithumbApiPhase() {
-  if (!BITHUMB_API_KEY) return "unconfigured";
-  if (!BITHUMB_SECRET_KEY) return "configured";
+  if (!bithumbApiKey()) return "unconfigured";
+  if (!bithumbSecretKey()) return "configured";
   return "ready";
 }
 
@@ -103,7 +111,7 @@ async function bithumbPrivateRequest(method, path, bodyParams = null) {
     throw new Error(getBithumbTradingStatus().messageKo);
   }
   const claims = {
-    access_key: BITHUMB_API_KEY,
+    access_key: bithumbApiKey(),
     nonce: randomUUID(),
     timestamp: Date.now(),
   };
@@ -111,8 +119,8 @@ async function bithumbPrivateRequest(method, path, bodyParams = null) {
     claims.query_hash = queryHashSha512(bodyParams);
     claims.query_hash_alg = "SHA512";
   }
-  const token = signJwtHs256(claims, BITHUMB_SECRET_KEY);
-  const url = `${BITHUMB_API_BASE.replace(/\/$/, "")}${path}`;
+  const token = signJwtHs256(claims, bithumbSecretKey());
+  const url = `${bithumbApiBase().replace(/\/$/, "")}${path}`;
   const init = {
     method,
     headers: {

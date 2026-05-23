@@ -22,6 +22,9 @@ export function loadEnvFile() {
     ) {
       val = val.slice(1, -1);
     }
-    if (!(key in process.env)) process.env[key] = val;
+    const prev = process.env[key];
+    if (prev == null || String(prev).trim() === "") {
+      process.env[key] = val;
+    }
   }
 }
