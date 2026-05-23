@@ -30,6 +30,20 @@ import {
 } from "../lib/liveProgramDisplay";
 import { ko } from "../i18n/ko";
 
+/** 실매매 중 한 채널(빗썸/토스)이 켜져 있으면 다른 «시작» 버튼 숨김 */
+function showArmLaneButton(p: LiveTradeProgram, lane: LiveTradeArmLane): boolean {
+  const cryptoArmed = Boolean(p.armedMarkets?.crypto);
+  const krArmed = Boolean(p.armedMarkets?.kr);
+  if (lane === "bithumb") {
+    if (!p.markets.crypto || cryptoArmed) return false;
+    if (p.status === "armed" && krArmed) return false;
+    return true;
+  }
+  if (!p.markets.kr || p.markets.us || krArmed) return false;
+  if (p.status === "armed" && cryptoArmed) return false;
+  return true;
+}
+
 function statusLabel(status: LiveTradeProgram["status"]): string {
   switch (status) {
     case "armed":
@@ -908,8 +922,7 @@ export default function LiveTradingTab({
                           >
                             {ko.app.liveTradeDisarm}
                           </button>
-                          {p.markets.crypto &&
-                          !p.armedMarkets?.crypto ? (
+                          {showArmLaneButton(p, "bithumb") ? (
                             <button
                               type="button"
                               className="btn btn--secondary btn--sm"
@@ -919,7 +932,7 @@ export default function LiveTradingTab({
                               {ko.app.liveTradeArmBithumb}
                             </button>
                           ) : null}
-                          {p.markets.kr && !p.markets.us && !p.armedMarkets?.kr ? (
+                          {showArmLaneButton(p, "toss") ? (
                             <button
                               type="button"
                               className="btn btn--secondary btn--sm"
@@ -940,7 +953,7 @@ export default function LiveTradingTab({
                           >
                             {ko.app.liveTradeSimStart}
                           </button>
-                          {p.markets.crypto ? (
+                          {showArmLaneButton(p, "bithumb") ? (
                             <button
                               type="button"
                               className="btn btn--secondary btn--sm"
@@ -950,7 +963,7 @@ export default function LiveTradingTab({
                               {ko.app.liveTradeArmBithumb}
                             </button>
                           ) : null}
-                          {p.markets.kr && !p.markets.us ? (
+                          {showArmLaneButton(p, "toss") ? (
                             <button
                               type="button"
                               className="btn btn--secondary btn--sm"
