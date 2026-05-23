@@ -126,6 +126,9 @@ export function notifyIdeDevelopmentCompleted(opts) {
     gitSummary,
     priority: 3,
     turnId: turnKey,
+    sessionId,
+    transcriptPath: transcriptPath || undefined,
+    gitRevAtStart: revStart || undefined,
   });
 
   return true;

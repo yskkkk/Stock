@@ -4,7 +4,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { getRepoHeadRev } from "./ops-agent-git-push.js";
+import {
+  readAgentResponseForIdeSession,
+  readAgentResponseFromTranscriptFile,
+} from "./ops-ide-transcript-text.js";
 import {
   buildOpsDevNotifyDedupKey,
   buildOpsDevNotifyDedupKeyFromSnap,
@@ -14,6 +17,11 @@ import {
   shouldSkipOpsDevNotify,
   tryAcquireOpsDevNotifySend,
 } from "./ops-dev-notify-dedup.js";
+import {
+  getRepoHeadRev,
+  summarizeGitPullRangeForNotify,
+  summarizeGitReflectionForNotify,
+} from "./ops-agent-git-push.js";
 import {
   escHtml,
   isOpsTelegramNotifyEnabled,
@@ -40,13 +48,74 @@ let flushInFlight = false;
  *   priority: number;
  *   turnId: string | null;
  *   at: number;
+ *   sessionId?: string | null;
+ *   transcriptPath?: string | null;
+ *   gitRevAtStart?: string | null;
  * } | null} */
 let pending = null;
+
+function postWorkSettleMs(priority = 1) {
+  const n = Number(process.env.OPS_DEV_NOTIFY_POST_WORK_MS);
+  if (Number.isFinite(n) && n >= 0) return Math.min(n, 120_000);
+  if (priority >= 3) return 8_000;
+  if (priority >= 2) return 5_000;
+  return 2_000;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** git push·transcript flush 후 발송 — 작업 중 조기 알림 방지 */
+async function settleAndRefreshBeforeSend(snap) {
+  const priority = Number(snap.priority) || 1;
+  const settleMs = postWorkSettleMs(priority);
+  const scheduledAt = typeof snap.at === "number" ? snap.at : Date.now();
+  const gitRevStart = String(snap.gitRevAtStart ?? "").trim();
+  const maxWaitMs = Math.max(settleMs + 12_000, 15_000);
+  const deadline = scheduledAt + maxWaitMs;
+
+  while (Date.now() < deadline) {
+    const elapsed = Date.now() - scheduledAt;
+    const revNow = getRepoHeadRev();
+    const gitMoved = Boolean(gitRevStart && revNow && gitRevStart !== revNow);
+    const minWaitDone = elapsed >= settleMs;
+    if (minWaitDone && (gitMoved || !gitRevStart)) break;
+    await sleep(400);
+  }
+
+  const transcriptPath = String(snap.transcriptPath ?? "").trim();
+  const sessionId = String(snap.sessionId ?? "").trim();
+  let fresh = "";
+  if (transcriptPath) {
+    fresh = readAgentResponseFromTranscriptFile(transcriptPath);
+  } else if (sessionId) {
+    fresh = readAgentResponseForIdeSession(sessionId);
+  }
+  if (fresh) {
+    snap.completion = trimBlock(fresh, COMPLETION_MAX);
+  }
+
+  const revEnd = getRepoHeadRev();
+  let gitSummary = "";
+  if (gitRevStart && revEnd && gitRevStart !== revEnd) {
+    gitSummary = summarizeGitPullRangeForNotify(gitRevStart, revEnd);
+  } else if (gitRevStart || snap.turnId?.startsWith("ide-turn:")) {
+    gitSummary = summarizeGitReflectionForNotify("local");
+  }
+  if (gitSummary) {
+    const gitShort = trimBlock(gitSummary.split("\n").slice(0, 6).join("\n"), 600);
+    const base = String(snap.completion ?? "")
+      .replace(/\n\n\[반영\][\s\S]*$/u, "")
+      .trim();
+    snap.completion = base ? `${base}\n\n[반영] ${gitShort}` : gitShort;
+  }
+}
 
 function debounceMs(priority = 1) {
   const n = Number(process.env.OPS_DEV_NOTIFY_DEBOUNCE_MS);
   if (Number.isFinite(n) && n >= 2000) return Math.min(n, 120_000);
-  if (priority >= 3) return 2_000;
+  if (priority >= 3) return 3_000;
   return 12_000;
 }
 
@@ -109,6 +178,9 @@ export function normalizeOpsCompletionText(resultText, streamText) {
  *   title?: string;
  *   priority?: number;
  *   turnId?: string | null;
+ *   sessionId?: string | null;
+ *   transcriptPath?: string | null;
+ *   gitRevAtStart?: string | null;
  * }} opts
  */
 /** 에이전트·IDE 완료가 대기 중이면 auto-git 알림을 붙이지 않음 */
@@ -163,6 +235,9 @@ export function scheduleOpsDevCompletionTelegram(opts) {
 
   const title = String(opts.title ?? "").trim() || "개발 완료";
   const turnId = String(opts.turnId ?? "").trim() || null;
+  const sessionId = String(opts.sessionId ?? "").trim() || null;
+  const transcriptPath = String(opts.transcriptPath ?? "").trim() || null;
+  const gitRevAtStart = String(opts.gitRevAtStart ?? "").trim() || null;
 
   if (!pending || priority >= pending.priority) {
     pending = {
@@ -171,6 +246,9 @@ export function scheduleOpsDevCompletionTelegram(opts) {
       title,
       priority,
       turnId,
+      sessionId,
+      transcriptPath,
+      gitRevAtStart,
       at: Date.now(),
     };
   } else if (git && pending) {
@@ -210,11 +288,23 @@ async function flushOpsDevCompletionNow(opts, dedupKey) {
     completion =
       trimBlock(opts.agentResponse, COMPLETION_MAX) || "(응답 없음)";
   }
+  const snap = {
+    completion,
+    priority: Number(opts.priority) || 1,
+    at: Date.now(),
+    turnId: String(opts.turnId ?? "").trim() || null,
+    sessionId: String(opts.sessionId ?? "").trim() || null,
+    transcriptPath: String(opts.transcriptPath ?? "").trim() || null,
+    gitRevAtStart: String(opts.gitRevAtStart ?? "").trim() || null,
+  };
+  if ((opts.state ?? "ok") === "ok") {
+    await settleAndRefreshBeforeSend(snap);
+  }
   await sendCompletionMessage(
     {
       title: opts.title ?? "개발 완료",
       userRequest: userRequest || "(요청 없음)",
-      completion,
+      completion: snap.completion,
     },
     key,
   );
@@ -228,6 +318,7 @@ async function flushPending() {
     pending = null;
     clearPendingDisk();
     if (!snap) return;
+    await settleAndRefreshBeforeSend(snap);
     const key = buildOpsDevNotifyDedupKeyFromSnap(snap);
     await sendCompletionMessage(snap, key);
   } finally {
@@ -252,7 +343,8 @@ export async function flushOpsDevNotifyPendingFromDisk() {
     return false;
   }
   const age = Date.now() - snap.at;
-  const wait = debounceMs(snap.priority ?? 1);
+  const wait =
+    debounceMs(snap.priority ?? 1) + postWorkSettleMs(snap.priority ?? 1);
   if (age < wait - 300) {
     const delay = Math.max(500, wait - age);
     setTimeout(() => {
@@ -264,6 +356,7 @@ export async function flushOpsDevNotifyPendingFromDisk() {
     clearPendingDisk();
     return false;
   }
+  await settleAndRefreshBeforeSend(snap);
   return sendCompletionMessage(snap, buildOpsDevNotifyDedupKeyFromSnap(snap));
 }
 
