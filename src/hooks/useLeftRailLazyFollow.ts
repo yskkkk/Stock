@@ -2,9 +2,9 @@ import { useEffect, type RefObject } from "react";
 
 const DESKTOP_MQ = "(min-width: 1180px)";
 /** 목표 문서 top이 실제 스크롤 위치를 따라잡는 속도 */
-const ANCHOR_LERP = 0.014;
+const ANCHOR_LERP = 0.0182;
 /** 화면에 그려지는 top */
-const POSITION_LERP = 0.022;
+const POSITION_LERP = 0.0286;
 
 function readPadTop(): number {
   const root = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
@@ -32,8 +32,8 @@ export function useLeftRailLazyFollow(
 
     const mq = window.matchMedia(DESKTOP_MQ);
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const anchorLerp = reduceMotion ? 0.22 : ANCHOR_LERP;
-    const positionLerp = reduceMotion ? 0.26 : POSITION_LERP;
+    const anchorLerp = reduceMotion ? 0.286 : ANCHOR_LERP;
+    const positionLerp = reduceMotion ? 0.338 : POSITION_LERP;
 
     let rafId = 0;
     let anchorTop = 0;
