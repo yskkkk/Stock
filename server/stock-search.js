@@ -51,7 +51,7 @@ const KR_EX = new Set([
   "KQ",
 ]);
 
-const ALLOW_QUOTE_TYPES = new Set(["EQUITY", "ETF"]);
+const ALLOW_QUOTE_TYPES = new Set(["EQUITY", "ETF", "INDEX"]);
 
 /** @type {Array<{ symbol: string; name: string }> | null} */
 let universeKrCache = null;
@@ -141,10 +141,19 @@ async function enrichSearchQuotePrices(rows) {
  * @param {{ symbol?: string; exchange?: string; quoteType?: string }} q
  * @returns {"kr" | "us" | null}
  */
+function isYahooIndexSymbol(symbol) {
+  return /^\^[A-Z][A-Z0-9.-]{0,23}$/.test(String(symbol ?? "").trim().toUpperCase());
+}
+
 function inferMarket(q) {
   const symbol = String(q.symbol ?? "").trim().toUpperCase();
   const exchange = String(q.exchange ?? "").toUpperCase();
   const qt = String(q.quoteType ?? "").toUpperCase();
+
+  if (isYahooIndexSymbol(symbol)) {
+    if (KR_EX.has(exchange) || /^\^K[QS]/.test(symbol)) return "kr";
+    return "us";
+  }
 
   if (/\.(KS|KQ)$/.test(symbol)) return "kr";
   if (KR_EX.has(exchange)) {

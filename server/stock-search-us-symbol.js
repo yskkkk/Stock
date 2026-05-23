@@ -66,6 +66,7 @@ export function isPrimaryUsSearchSymbol(symbol) {
   if (/\.(KS|KQ)$/i.test(sym) || sym.includes("=F") || /-USD(T)?$/i.test(sym)) {
     return false;
   }
+  if (/^\^[A-Z][A-Z0-9.-]{0,23}$/.test(sym)) return true;
 
   const dot = sym.lastIndexOf(".");
   if (dot < 0) {
@@ -84,6 +85,9 @@ export function isPrimaryUsSearchSymbol(symbol) {
  */
 export function isUsSearchResultRow(row) {
   if (!isPrimaryUsSearchSymbol(row?.symbol)) return false;
+  const sym = String(row?.symbol ?? "").trim().toUpperCase();
+  const qt = String(row?.quoteType ?? "").toUpperCase();
+  if (qt === "INDEX" || sym.startsWith("^")) return true;
   const cur = String(row?.currency ?? "")
     .trim()
     .toUpperCase();

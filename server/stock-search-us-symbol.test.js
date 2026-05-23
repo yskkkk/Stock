@@ -24,6 +24,11 @@ describe("isPrimaryUsSearchSymbol", () => {
   it("blocks KR suffixes", () => {
     assert.equal(isPrimaryUsSearchSymbol("005930.KS"), false);
   });
+
+  it("allows Yahoo index tickers", () => {
+    assert.equal(isPrimaryUsSearchSymbol("^GSPC"), true);
+    assert.equal(isPrimaryUsSearchSymbol("^KS11"), true);
+  });
 });
 
 describe("isUsSearchResultRow", () => {
@@ -34,6 +39,25 @@ describe("isUsSearchResultRow", () => {
     );
     assert.equal(
       isUsSearchResultRow({ symbol: "RGTI", currency: "USD" }),
+      true,
+    );
+  });
+
+  it("allows index rows without USD currency", () => {
+    assert.equal(
+      isUsSearchResultRow({
+        symbol: "^IXIC",
+        quoteType: "INDEX",
+        currency: "USD",
+      }),
+      true,
+    );
+    assert.equal(
+      isUsSearchResultRow({
+        symbol: "^KS11",
+        quoteType: "INDEX",
+        currency: "KRW",
+      }),
       true,
     );
   });
