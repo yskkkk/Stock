@@ -7009,7 +7009,7 @@ html[data-theme="light"] .market-indices-rail__item {
   .app__left-rail {
     display: flex;
     position: fixed;
-    top: max(0.35rem, env(safe-area-inset-top, 0px));
+    top: 0;
     left: var(--app-page-inline-pad-safe, var(--app-page-inline-pad, 1.35rem));
     width: var(--app-left-rail-width);
     max-width: max(
@@ -7020,6 +7020,8 @@ html[data-theme="light"] .market-indices-rail__item {
         - var(--app-page-inline-pad-safe, var(--app-page-inline-pad, 1.35rem))
       )
     );
+    transform: translate3d(0, var(--app-left-rail-y, 0px), 0);
+    will-change: transform;
     align-items: stretch;
     max-height: calc(100dvh - max(0.35rem, env(safe-area-inset-top, 0px)) - 0.65rem);
     overflow-y: auto;

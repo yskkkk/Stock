@@ -50,6 +50,7 @@ import {
   SHOW_PROFIT_MODEL_BUTTON,
 } from "./constants/uiFlags";
 import { useMobileBackHandler } from "./hooks/useMobileBackHandler";
+import { useLeftRailLazyFollow } from "./hooks/useLeftRailLazyFollow";
 import { useMobilePullToRefresh } from "./hooks/useMobilePullToRefresh";
 import { usePicksLiveQuotes } from "./hooks/usePicksLiveQuotes";
 import { MOBILE_BACK_PRIORITY } from "./lib/mobileBackStack";
@@ -479,6 +480,8 @@ export default function App() {
 
   const stockChartSectionRef = useRef<HTMLElement | null>(null);
   const appScrollRef = useRef<HTMLDivElement>(null);
+  const leftRailRef = useRef<HTMLElement>(null);
+  useLeftRailLazyFollow(leftRailRef, appScrollRef);
   const feedbackRef = useRef<FeedbackCornerHandle>(null);
   const [footerFeedbackKind, setFooterFeedbackKind] = useState<FeedbackSubmitKind | null>(
     null,
@@ -983,7 +986,7 @@ export default function App() {
     >
       <div className="app__scroll" ref={appScrollRef}>
       <div className="app__viewport">
-      <aside className="app__left-rail" aria-label={ko.app.leftRailAria}>
+      <aside ref={leftRailRef} className="app__left-rail" aria-label={ko.app.leftRailAria}>
         <MarketIndicesRail
           items={marketIndices}
           loading={marketIndicesLoading}
