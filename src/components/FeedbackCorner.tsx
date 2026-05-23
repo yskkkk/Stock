@@ -199,11 +199,6 @@ const FeedbackCorner = forwardRef<FeedbackCornerHandle, FeedbackCornerProps>(
             style={drag.modalStyle}
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div
-              className="modal-drag-bar modal-drag-handle"
-              onPointerDown={drag.onDragHandlePointerDown}
-              aria-hidden
-            />
             <h2 id="feedback-submit-title" className="feedback-modal__title">
               {submitTitle}
             </h2>
@@ -258,11 +253,6 @@ const FeedbackCorner = forwardRef<FeedbackCornerHandle, FeedbackCornerProps>(
             style={drag.modalStyle}
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div
-              className="modal-drag-bar modal-drag-handle"
-              onPointerDown={drag.onDragHandlePointerDown}
-              aria-hidden
-            />
             <div className="feedback-modal__head">
               <h2 id="feedback-inbox-title" className="feedback-modal__title">
                 {ko.feedback.inboxTitle}
