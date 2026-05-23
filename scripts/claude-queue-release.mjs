@@ -50,6 +50,7 @@ const req = http.request(
       try {
         if (leaseId) fs.unlinkSync(LEASE_FILE);
         try { fs.unlinkSync(IDE_LEASE_FILE); } catch {}
+        try { fs.unlinkSync(path.join(process.cwd(), ".auto-git-sync.pause")); } catch {}
       } catch {}
     });
   },
@@ -59,6 +60,8 @@ req.on("error", (e) => {
   console.warn("[claude-queue] release 연결 실패:", e.message);
   try {
     if (leaseId) fs.unlinkSync(LEASE_FILE);
+    try { fs.unlinkSync(IDE_LEASE_FILE); } catch {}
+    try { fs.unlinkSync(path.join(process.cwd(), ".auto-git-sync.pause")); } catch {}
   } catch {}
 });
 
