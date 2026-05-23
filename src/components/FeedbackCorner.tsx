@@ -27,10 +27,11 @@ type FeedbackCornerProps = {
   accessAdmin: boolean;
   /** false면 하단 푸터 링크만 사용 */
   showTrigger?: boolean;
+  onSubmitPanelChange?: (state: { kind: FeedbackSubmitKind } | null) => void;
 };
 
 const FeedbackCorner = forwardRef<FeedbackCornerHandle, FeedbackCornerProps>(
-  function FeedbackCorner({ accessAdmin, showTrigger = false }, ref) {
+  function FeedbackCorner({ accessAdmin, showTrigger = false, onSubmitPanelChange }, ref) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [panel, setPanel] = useState<null | "submit" | "inbox">(null);
   const [submitKind, setSubmitKind] = useState<FeedbackSubmitKind>("issue");
@@ -52,6 +53,14 @@ const FeedbackCorner = forwardRef<FeedbackCornerHandle, FeedbackCornerProps>(
     setSubmitOk(false);
     setInboxErr(null);
   };
+
+  useEffect(() => {
+    if (panel === "submit") {
+      onSubmitPanelChange?.({ kind: submitKind });
+      return;
+    }
+    onSubmitPanelChange?.(null);
+  }, [panel, submitKind, onSubmitPanelChange]);
 
   useImperativeHandle(ref, () => ({
     openSubmit: (kind: FeedbackSubmitKind = "issue") => {
@@ -122,14 +131,8 @@ const FeedbackCorner = forwardRef<FeedbackCornerHandle, FeedbackCornerProps>(
     }
   };
 
-  const submitTitle =
-    submitKind === "inquiry"
-      ? ko.app.footerInquiryTitle
-      : ko.feedback.submitTitle;
-  const submitPlaceholder =
-    submitKind === "inquiry"
-      ? ko.app.footerInquiryPlaceholder
-      : ko.feedback.submitPlaceholder;
+  const submitTitle = ko.app.footerFeedbackTitle;
+  const submitPlaceholder = ko.app.footerFeedbackPlaceholder;
 
   return (
     <>

@@ -2833,7 +2833,7 @@ body {
   margin-top: 1rem;
 }
 
-/* 하단 사이트 푸터 (네이버형 링크 줄) */
+/* 하단 사이트 푸터 — 토스증권형 텍스트 링크 줄 */
 .app-site-footer {
   flex-shrink: 0;
   width: 100%;
@@ -2841,8 +2841,9 @@ body {
   margin-left: auto;
   margin-right: auto;
   box-sizing: border-box;
-  padding: 0.85rem 1.35rem max(0.35rem, env(safe-area-inset-bottom, 0px));
+  padding: 1.1rem 1.35rem max(0.65rem, env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--card-border, rgba(148, 163, 184, 0.14));
+  background: color-mix(in srgb, var(--bg) 94%, var(--muted) 6%);
 }
 
 .app-site-footer__nav {
@@ -2850,148 +2851,101 @@ body {
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 0.15rem 0;
-  row-gap: 0.45rem;
-  font-size: 0.78rem;
-  font-weight: 600;
-  line-height: 1.25;
-  color: var(--muted);
+  gap: 0;
+  row-gap: 0.35rem;
+  font-size: 0.74rem;
+  font-weight: 500;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--muted) 88%, var(--text) 12%);
 }
 
-.app-site-footer__pair {
+.app-site-footer__extras {
   display: inline-flex;
   flex-wrap: nowrap;
   align-items: center;
-  align-self: center;
-  gap: 0;
+  gap: 0.28rem;
+  margin: 0;
+  vertical-align: middle;
 }
 
-/* 푸터: index.css 전역 button(칩형) 무시 — 네이버형 텍스트 링크만 */
-.app-site-footer__nav a.app-site-footer__link,
-.app-site-footer__nav button.app-site-footer__link,
+.app-site-footer__nav .app-site-footer__link,
+.app-site-footer button.app-site-footer__link,
 .app-site-footer .app-server-restart-trigger.app-site-footer__link {
-  appearance: none;
-  -webkit-appearance: none;
   display: inline;
   margin: 0;
   padding: 0;
-  min-height: 0;
-  min-width: 0;
-  height: auto;
   border: none;
   border-radius: 0;
   box-shadow: none;
-  background: transparent;
-  background-color: transparent;
+  outline: none;
+  background: none;
   font: inherit;
   font-size: inherit;
-  font-weight: 600;
-  line-height: 1.35;
-  color: var(--muted);
+  font-weight: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  color: inherit;
   text-decoration: none;
   cursor: pointer;
   vertical-align: baseline;
   -webkit-tap-highlight-color: transparent;
+  transition: color 0.12s ease;
 }
 
 .app-site-footer__link:hover {
   color: var(--text);
-  background: transparent;
-  text-decoration: underline;
-  text-underline-offset: 2px;
 }
 
-.app-site-footer__link:disabled {
-  opacity: 0.45;
+.app-site-footer__link:active {
+  color: var(--text);
+}
+
+.app-site-footer__link:focus-visible {
+  outline: 1px solid color-mix(in srgb, var(--muted) 55%, transparent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.app-site-footer__link[aria-disabled="true"] {
+  opacity: 0.42;
   cursor: not-allowed;
   pointer-events: none;
 }
 
-.app-site-footer__link:disabled:hover {
-  color: var(--muted);
-  background: transparent;
-  text-decoration: none;
-}
-
 .app-site-footer__link--active {
   color: var(--text);
-  font-weight: 700;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.app-site-footer__pair .app-site-footer__link[href*="apk"] {
-  color: #2563eb;
-}
-
-.app-site-footer__pair .app-site-footer__link[href*="install-ios"] {
-  color: #7c3aed;
-}
-
-html[data-theme="light"] .app-site-footer__pair .app-site-footer__link[href*="apk"] {
-  color: #1d4ed8;
-}
-
-html[data-theme="light"] .app-site-footer__pair .app-site-footer__link[href*="install-ios"] {
-  color: #6d28d9;
 }
 
 .app-site-footer__sep {
-  display: inline-flex;
-  align-items: center;
-  align-self: center;
-  margin: 0 0.15rem;
-  padding: 0.2rem 0;
-  line-height: 1.25;
-  color: color-mix(in srgb, var(--muted) 45%, transparent);
+  display: inline-block;
+  margin: 0 0.42rem;
+  color: color-mix(in srgb, var(--muted) 38%, transparent);
   font-weight: 400;
   user-select: none;
-}
-
-.app-site-footer__dot {
-  display: inline-flex;
-  align-items: center;
-  align-self: center;
-  margin: 0 0.1rem;
-  padding: 0.2rem 0.06rem;
-  line-height: 1.25;
-  color: color-mix(in srgb, var(--muted) 55%, transparent);
-  user-select: none;
-}
-
-.app-site-footer__theme {
-  display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.35rem;
+  line-height: 1;
 }
 
 .app-site-footer__theme-icon {
-  margin-left: 0.2rem;
-  font-size: 0.9em;
-}
-
-.app-site-footer__palette {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.22rem;
-  margin-left: 0.15rem;
+  margin-left: 0.18rem;
+  font-size: 0.92em;
+  opacity: 0.85;
 }
 
 .app-site-footer__swatch {
-  width: 1.05rem;
-  height: 1.05rem;
+  width: 1rem;
+  height: 1rem;
   padding: 0;
   min-width: 0;
   min-height: 0;
 }
 
 .app-site-footer__copy {
-  margin: 0.55rem 0 0;
+  margin: 0.65rem 0 0;
   text-align: center;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: color-mix(in srgb, var(--muted) 80%, transparent);
+  font-size: 0.68rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--muted) 72%, transparent);
 }
 
 .app-site-footer .app-server-restart-inline {
@@ -3012,32 +2966,44 @@ html[data-theme="light"] .app-site-footer__pair .app-site-footer__link[href*="in
   padding: 0;
   min-height: 0;
   font-size: inherit;
-  font-weight: 600;
+  font-weight: inherit;
   color: var(--muted);
 }
 
 .app-site-footer .app-server-restart-inline .app-page-top__corner-text:hover {
   color: var(--text);
-  text-decoration: underline;
+  text-decoration: none;
   opacity: 1;
+}
+
+.app-site-footer .app-server-restart-inline .app-page-top__corner-text:active {
+  font-weight: 800;
 }
 
 .app-site-footer .app-server-restart-trigger {
   display: inline;
-  line-height: 1.35;
+  line-height: inherit;
+  border: none;
+  background: none;
+  box-shadow: none;
+  padding: 0;
+  min-height: 0;
+  font: inherit;
+  color: inherit;
 }
 
 html[data-theme="light"] .app-site-footer {
   border-top-color: rgba(15, 23, 42, 0.08);
+  background: color-mix(in srgb, var(--bg) 96%, var(--muted) 4%);
 }
 
-html[data-theme="light"] .app-site-footer__link {
+html[data-theme="light"] .app-site-footer__nav {
   color: #6b7280;
 }
 
-html[data-theme="light"] .app-site-footer__link:hover {
-  color: #111827;
-  background: transparent;
+html[data-theme="light"] .app-site-footer__link:hover,
+html[data-theme="light"] .app-site-footer__link--active {
+  color: #374151;
 }
 
 @media (max-width: 900px) {
@@ -3051,12 +3017,6 @@ html[data-theme="light"] .app-site-footer__link:hover {
   .app-site-footer__nav {
     font-size: 0.72rem;
     gap: 0.1rem;
-  }
-
-  .app-site-footer__palette {
-    width: 100%;
-    justify-content: center;
-    margin-top: 0.15rem;
   }
 }
 
@@ -3075,6 +3035,18 @@ html[data-theme="light"] .app-site-footer__link:hover {
   align-items: center;
 }
 
+.signal-filter .chip,
+.signal-filter .chip.preset {
+  border-width: 1px;
+  border-style: solid;
+  box-sizing: border-box;
+}
+
+.signal-filter .chip:not(.active):hover,
+.signal-filter .chip.preset:hover {
+  transform: none;
+}
+
 .signal-filter .signal-hint-wrap,
 .rec-tracker-signals__chips .signal-hint-wrap,
 .rec-tracker-table__signal-tags .signal-hint-wrap {
@@ -3091,52 +3063,64 @@ html[data-theme="light"] .app-site-footer__link:hover {
   vertical-align: middle;
 }
 
-.signal-hint-wrap__tip {
-  display: none;
-  position: absolute;
-  z-index: 120;
-  left: 50%;
-  bottom: calc(100% + 8px);
-  transform: translateX(-50%);
+/* 포털 말풍선 — 칩 옆 인라인 텍스트 없음, 테마 변수 사용 */
+.signal-hint-bubble {
+  position: fixed;
+  z-index: 10050;
   box-sizing: border-box;
   width: max-content;
   max-width: min(20rem, 88vw);
-  padding: 0.55rem 0.65rem;
+  padding: 0.52rem 0.65rem;
   border-radius: 10px;
-  background: var(--bg-elevated, #1a2332);
-  border: 1px solid var(--card-border, rgba(148, 163, 184, 0.22));
-  box-shadow: var(--shadow, 0 8px 28px rgba(0, 0, 0, 0.45));
-  color: var(--text-dim, #aeb9cc);
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow-card, var(--shadow));
+  color: var(--text-dim);
   font-size: 0.72rem;
   font-weight: 500;
-  line-height: 1.45;
+  line-height: 1.48;
   text-align: left;
-  pointer-events: none;
+  pointer-events: auto;
   margin: 0;
   white-space: normal;
-}
-
-.signal-hint-wrap__tip-title {
-  display: block;
-  margin-bottom: 0.25rem;
-  color: var(--text, #f1f5f9);
-  font-size: 0.76rem;
-  font-weight: 700;
-  white-space: normal;
   word-break: keep-all;
+  transform: translate(-50%, -100%);
 }
 
-.signal-hint-wrap__tip-body {
-  display: block;
-  white-space: normal;
-  word-break: keep-all;
+.signal-hint-bubble--below::after {
+  top: -5px;
+  bottom: auto;
+  border-right: none;
+  border-bottom: none;
+  border-left: 1px solid var(--card-border);
+  border-top: 1px solid var(--card-border);
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .signal-hint-wrap:hover .signal-hint-wrap__tip,
-  .signal-hint-wrap:focus-within .signal-hint-wrap__tip {
-    display: block;
-  }
+.signal-hint-bubble::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 9px;
+  height: 9px;
+  margin-left: -4.5px;
+  background: var(--card);
+  border-right: 1px solid var(--card-border);
+  border-bottom: 1px solid var(--card-border);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+.signal-hint-bubble--sheet {
+  position: static;
+  transform: none;
+  width: 100%;
+  max-width: none;
+  pointer-events: auto;
+}
+
+.signal-hint-bubble--sheet::after {
+  display: none;
 }
 
 /* 추천 추적 — 5%↑·근거별: 칩만 가로 배치(설명은 호버 툴팁) */
@@ -3174,16 +3158,17 @@ html[data-theme="light"] .app-site-footer__link:hover {
 
 .signal-hint-modal__title {
   margin: 0 0 0.45rem;
-  font-size: 0.95rem;
-  font-weight: 800;
-  color: var(--text, #f1f5f9);
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text);
 }
 
 .signal-hint-modal__body {
   margin: 0;
   font-size: 0.85rem;
+  font-weight: 500;
   line-height: 1.5;
-  color: var(--text-dim, #aeb9cc);
+  color: var(--text-dim);
 }
 
 .signal-hint-modal__close {
@@ -3191,14 +3176,7 @@ html[data-theme="light"] .app-site-footer__link:hover {
   margin-top: 0.85rem;
 }
 
-html[data-theme="light"] .signal-hint-wrap__tip {
-  background: #fff;
-  color: #4b5563;
-  border-color: rgba(15, 23, 42, 0.12);
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
-}
-
-html[data-theme="light"] .signal-hint-wrap__tip-title {
-  color: #111827;
+.filter-bar.card {
+  overflow: visible;
 }
 

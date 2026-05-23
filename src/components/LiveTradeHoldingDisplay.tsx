@@ -52,6 +52,8 @@ export function LiveTradeHoldingRationaleRow({
   holding: LiveTradeHolding;
   colSpan?: number;
 }) {
+  if (!SHOW_HOLDING_RATIONALE_ROW) return null;
+
   const entryNote = h.entryStructureNote?.trim();
   const exitNote = h.exitScenarioNote?.trim();
   if (!entryNote && !exitNote) return null;

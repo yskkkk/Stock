@@ -167,6 +167,8 @@ export interface MarketIndexItem {
   symbol: string;
   label: string;
   region: "kr" | "us";
+  kind?: "index" | "fx";
+  lookupMarket?: "kr" | "us";
   price: number | null;
   changePercent: number | null;
   currency?: string;

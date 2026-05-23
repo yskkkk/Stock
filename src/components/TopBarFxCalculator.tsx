@@ -48,9 +48,15 @@ function TopBarFxCalculatorInner({
       ? ko.app.quoteCurrencyFxBasis.replace("{date}", valuationDate)
       : ko.app.topBarFxAria;
 
-  const rateLine = hasRate
-    ? ko.app.topBarFxCalcRateLine.replace("{rate}", formatPrice(rate!, "KRW"))
-    : "—";
+  const value =
+    rate != null && Number.isFinite(rate) && rate > 0
+      ? formatPrice(rate, "KRW")
+      : "—";
+
+  const meta =
+    valuationDate != null && valuationDate !== ""
+      ? ko.app.topBarFxBasis.replace("{date}", valuationDate)
+      : null;
 
   const rootClass =
     layout === "strip"
@@ -68,9 +74,17 @@ function TopBarFxCalculatorInner({
         <span id={`${amountId}-title`} className="fx-calc-rail__title">
           {ko.app.topBarFxCalcTitle}
         </span>
-        <span className="fx-calc-rail__rate" aria-live="polite">
-          {rateLine}
-        </span>
+        <div
+          className="fx-calc-rail__quote"
+          role="status"
+          aria-live="polite"
+          aria-label={ko.app.topBarFxAria}
+          title={basisTitle}
+        >
+          <span className="fx-calc-rail__quote-label">{ko.app.topBarFxLabel}</span>
+          <span className="fx-calc-rail__quote-value">{value}</span>
+          {meta ? <span className="fx-calc-rail__quote-meta">{meta}</span> : null}
+        </div>
       </div>
       <div className="fx-calc-rail__body">
         <div className="fx-calc-rail__mode" role="group" aria-label={ko.app.topBarFxCalcModeAria}>

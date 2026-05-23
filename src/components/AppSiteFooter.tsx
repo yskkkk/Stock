@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode, RefObject } from "react";
+import type { CSSProperties, KeyboardEvent, ReactNode, RefObject } from "react";
 import { ENABLE_THEME_MODE_TOGGLE } from "../constants/uiFlags";
 import {
   LIGHT_PALETTE_IDS,
@@ -19,6 +19,7 @@ type AppSiteFooterProps = {
   onLightPalette: (id: LightPaletteId) => void;
   onOpenOps: () => void;
   feedbackRef: RefObject<FeedbackCornerHandle | null>;
+  feedbackOpenKind?: "inquiry" | "issue" | null;
 };
 
 function Sep() {
@@ -49,6 +50,7 @@ function FooterLink({
   const cls = active
     ? "app-site-footer__link app-site-footer__link--active"
     : "app-site-footer__link";
+
   if (href) {
     return (
       <a href={href} download={download} className={cls} title={title}>
@@ -56,17 +58,27 @@ function FooterLink({
       </a>
     );
   }
+
+  const onKeyDown = (e: KeyboardEvent<HTMLSpanElement>) => {
+    if (disabled) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onClick?.();
+    }
+  };
+
   return (
-    <button
-      type="button"
+    <span
+      role="button"
+      tabIndex={disabled ? -1 : 0}
       className={cls}
-      onClick={onClick}
       title={title}
-      disabled={disabled}
       aria-disabled={disabled || undefined}
+      onClick={disabled ? undefined : onClick}
+      onKeyDown={onKeyDown}
     >
       {children}
-    </button>
+    </span>
   );
 }
 
@@ -79,6 +91,7 @@ export default function AppSiteFooter({
   onLightPalette,
   onOpenOps,
   feedbackRef,
+  feedbackOpenKind = null,
 }: AppSiteFooterProps) {
   const themeTitle =
     !ENABLE_THEME_MODE_TOGGLE
@@ -99,13 +112,11 @@ export default function AppSiteFooter({
           </>
         ) : null}
 
-        <FooterLink onClick={() => feedbackRef.current?.openSubmit("inquiry")}>
-          {ko.app.footerInquiry}
-        </FooterLink>
-        <Sep />
-
-        <FooterLink onClick={() => feedbackRef.current?.openSubmit("issue")}>
-          {ko.feedback.cornerButton}
+        <FooterLink
+          onClick={() => feedbackRef.current?.openSubmit()}
+          active={feedbackOpenKind != null}
+        >
+          {ko.app.footerFeedback}
         </FooterLink>
 
         {accessAdmin ? (
@@ -119,21 +130,17 @@ export default function AppSiteFooter({
 
         <Sep />
 
-        <span className="app-site-footer__pair">
-          <FooterLink
-            href="/downloads/stock-dashboard.apk"
-            download="stock-dashboard.apk"
-            title={ko.mobile.downloadGalaxyTitle}
-          >
-            {ko.mobile.downloadGalaxy}
-          </FooterLink>
-          <span className="app-site-footer__dot" aria-hidden>
-            ·
-          </span>
-          <FooterLink href="/install-ios.html" title={ko.mobile.downloadIphoneTitle}>
-            {ko.mobile.downloadIphone}
-          </FooterLink>
-        </span>
+        <FooterLink
+          href="/downloads/stock-dashboard.apk"
+          download="stock-dashboard.apk"
+          title={ko.mobile.downloadGalaxyTitle}
+        >
+          {ko.mobile.downloadGalaxy}
+        </FooterLink>
+        <Sep />
+        <FooterLink href="/install-ios.html" title={ko.mobile.downloadIphoneTitle}>
+          {ko.mobile.downloadIphone}
+        </FooterLink>
 
         <Sep />
 
@@ -149,39 +156,41 @@ export default function AppSiteFooter({
           </span>
         </FooterLink>
 
-        {colorMode === "light" ? (
-          <span
-            className="app-site-footer__palette"
-            role="group"
-            aria-label={ko.app.lightPaletteAria}
-          >
-            {LIGHT_PALETTE_IDS.map((id, idx) => (
-              <button
-                key={id}
-                type="button"
-                className={
-                  lightPalette === id
-                    ? "light-palette-swatch light-palette-swatch--active app-site-footer__swatch"
-                    : "light-palette-swatch app-site-footer__swatch"
-                }
-                aria-label={`${idx + 1} / ${LIGHT_PALETTE_IDS.length}`}
-                aria-pressed={lightPalette === id}
-                onClick={() => onLightPalette(id)}
-                style={
-                  { "--lp-fill": LIGHT_PALETTE_PREVIEW[id] } as CSSProperties
-                }
-              />
-            ))}
-          </span>
-        ) : null}
-
         {accessAdmin ? (
           <>
             <Sep />
             <ServerRestartButton linkClassName="app-site-footer__link" />
           </>
         ) : null}
+
+        {colorMode === "light" ? (
+          <>
+            <Sep />
+            <span
+              className="app-site-footer__extras"
+              role="group"
+              aria-label={ko.app.lightPaletteAria}
+            >
+              {LIGHT_PALETTE_IDS.map((id, idx) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={
+                    lightPalette === id
+                      ? "light-palette-swatch light-palette-swatch--active app-site-footer__swatch"
+                      : "light-palette-swatch app-site-footer__swatch"
+                  }
+                  aria-label={`${idx + 1} / ${LIGHT_PALETTE_IDS.length}`}
+                  aria-pressed={lightPalette === id}
+                  onClick={() => onLightPalette(id)}
+                  style={{ "--lp-fill": LIGHT_PALETTE_PREVIEW[id] } as CSSProperties}
+                />
+              ))}
+            </span>
+          </>
+        ) : null}
       </nav>
+
       <p className="app-site-footer__copy">{ko.app.footerCopyright}</p>
     </footer>
   );

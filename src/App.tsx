@@ -16,11 +16,13 @@ import {
 import BullishReasonModal from "./components/BullishReasonModal";
 import AccessAdminModal from "./components/AccessAdminModal";
 import AppSiteFooter from "./components/AppSiteFooter";
-import FeedbackCorner, { type FeedbackCornerHandle } from "./components/FeedbackCorner";
+import FeedbackCorner, {
+  type FeedbackCornerHandle,
+  type FeedbackSubmitKind,
+} from "./components/FeedbackCorner";
 import MacroEventsBar from "./components/MacroEventsBar";
 import MarketIndicesRail from "./components/MarketIndicesRail";
 import TopBarFxCalculator from "./components/TopBarFxCalculator";
-import TopBarFxStrip from "./components/TopBarFxStrip";
 import NewsModal from "./components/NewsModal";
 import PicksHistoryModal from "./components/PicksHistoryModal";
 import ProfitModelModal from "./components/ProfitModelModal";
@@ -95,6 +97,7 @@ import type {
   PicksResponse,
   QuoteResponse,
   StockPick,
+  MarketIndexItem,
   TelegramSentItem,
 } from "./types";
 
@@ -477,6 +480,9 @@ export default function App() {
   const stockChartSectionRef = useRef<HTMLElement | null>(null);
   const appScrollRef = useRef<HTMLDivElement>(null);
   const feedbackRef = useRef<FeedbackCornerHandle>(null);
+  const [footerFeedbackKind, setFooterFeedbackKind] = useState<FeedbackSubmitKind | null>(
+    null,
+  );
   const pullToRefreshHintRef = useRef<HTMLDivElement>(null);
   useMobilePullToRefresh(appScrollRef, pullToRefreshHintRef, {
     pullHint: ko.app.pullToRefreshHint,
@@ -610,6 +616,25 @@ export default function App() {
     setLookupSeedQuery(pick.symbol);
     setLookupSelected(pick);
     setLookupMarketTab(pick.market);
+    setAppTab("stockLookup");
+  }, []);
+
+  const handleOpenMarketIndex = useCallback((item: MarketIndexItem) => {
+    const market = item.lookupMarket ?? item.region;
+    const pick: StockPick = {
+      symbol: item.symbol,
+      name: item.label,
+      market,
+      score: 0,
+      signals: [],
+      price: item.price ?? undefined,
+      changePercent: item.changePercent ?? undefined,
+      currency: item.currency,
+    };
+    skipLookupResetRef.current = true;
+    setLookupSeedQuery(item.symbol);
+    setLookupSelected(pick);
+    setLookupMarketTab(market);
     setAppTab("stockLookup");
   }, []);
 
@@ -958,28 +983,25 @@ export default function App() {
     >
       <div className="app__scroll" ref={appScrollRef}>
       <div className="app__viewport">
-      <MarketIndicesRail
-        items={marketIndices}
-        loading={marketIndicesLoading}
-        layout="rail"
-      />
+      <aside className="app__left-rail" aria-label={ko.app.leftRailAria}>
+        <MarketIndicesRail
+          items={marketIndices}
+          loading={marketIndicesLoading}
+          layout="rail"
+          onOpenItem={handleOpenMarketIndex}
+        />
+        <TopBarFxCalculator
+          rate={usdKrwRate}
+          valuationDate={usdKrwValDate}
+          layout="rail"
+        />
+      </aside>
       <div className="app__shell">
       <div
         ref={pullToRefreshHintRef}
         className="app-ptr-hint"
         aria-live="polite"
         aria-atomic="true"
-      />
-      <div className="app-header-sticky">
-      <MarketIndicesRail
-        items={marketIndices}
-        loading={marketIndicesLoading}
-        layout="strip"
-      />
-      <TopBarFxCalculator
-        rate={usdKrwRate}
-        valuationDate={usdKrwValDate}
-        layout="strip"
       />
       {showOpsGlobalQueue ? (
         <div
@@ -991,6 +1013,18 @@ export default function App() {
           </div>
         </div>
       ) : null}
+      <div className="app-header-sticky">
+      <MarketIndicesRail
+        items={marketIndices}
+        loading={marketIndicesLoading}
+        layout="strip"
+        onOpenItem={handleOpenMarketIndex}
+      />
+      <TopBarFxCalculator
+        rate={usdKrwRate}
+        valuationDate={usdKrwValDate}
+        layout="strip"
+      />
       <header
         className={`top-bar card${showTopScanStrip ? " top-bar--with-scan" : ""}${
           appTab === "screener" ? " top-bar--screener" : ""
@@ -1056,7 +1090,6 @@ export default function App() {
                 ) : null}
               </p>
             </div>
-            <TopBarFxStrip rate={usdKrwRate} valuationDate={usdKrwValDate} />
           </div>
 
           <div className="top-bar__right">
@@ -1764,13 +1797,14 @@ export default function App() {
         resettingTelegram={resettingTelegram}
       />
 
-      <FeedbackCorner ref={feedbackRef} accessAdmin={accessAdmin} />
-      </div>
-      <TopBarFxCalculator
-        rate={usdKrwRate}
-        valuationDate={usdKrwValDate}
-        layout="rail"
+      <FeedbackCorner
+        ref={feedbackRef}
+        accessAdmin={accessAdmin}
+        onSubmitPanelChange={(state) =>
+          setFooterFeedbackKind(state?.kind ?? null)
+        }
       />
+      </div>
       </div>
       </div>
 
@@ -1790,6 +1824,7 @@ export default function App() {
         onLightPalette={handleLightPalette}
         onOpenOps={() => setAppTab("ops")}
         feedbackRef={feedbackRef}
+        feedbackOpenKind={footerFeedbackKind}
       />
     </div>
   );

@@ -53,7 +53,7 @@ export default function ServerRestartButton({
     return (
       <div className="app-server-restart-inline">
         <label className="app-server-restart-inline__label">
-          <span className="app-page-top__corner-text app-server-restart-inline__title">
+          <span className="app-page-top__corner-text app-server-restart-inline__title app-site-footer__link--active">
             {ko.app.serverRestart}
           </span>
           <input

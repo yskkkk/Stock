@@ -1,6 +1,7 @@
 /**
- * 주요 지수 시세 — Yahoo 차트 스냅샷(일봉·전일대비).
+ * 주요 지수·환율 시세 — Yahoo 차트 스냅샷(일봉·전일대비).
  */
+import { getUsdKrwRate } from "./fx-usd-krw.js";
 import { loadChartQuoteSnapshot } from "./stock-data.js";
 
 const CACHE_MS = 50_000;
@@ -9,7 +10,7 @@ const FETCH_CONCURRENCY = 4;
 /** @type {{ items: object[]; updatedAt: number; at: number } | null} */
 let cached = null;
 
-/** @typedef {{ id: string; symbol: string; label: string; region: "kr" | "us" }} MarketIndexDef */
+/** @typedef {{ id: string; symbol: string; label: string; region: "kr" | "us"; kind?: "index" | "fx"; lookupMarket?: "kr" | "us" }} MarketIndexDef */
 
 /** @type {MarketIndexDef[]} */
 export const MARKET_INDEX_DEFS = [
@@ -39,11 +40,40 @@ function rowFromSnap(def, snap) {
     symbol: def.symbol,
     label: def.label,
     region: def.region,
+    kind: def.kind ?? "index",
+    lookupMarket: def.lookupMarket ?? def.region,
     price,
     changePercent,
-    currency: snap?.currency ?? (def.region === "kr" ? "KRW" : "USD"),
+    currency: snap?.currency ?? (def.kind === "fx" || def.region === "kr" ? "KRW" : "USD"),
     marketState: typeof snap?.marketState === "string" ? snap.marketState : undefined,
   };
+}
+
+async function buildFxItem() {
+  /** @type {MarketIndexDef} */
+  const def = {
+    id: "usdkrw",
+    symbol: "KRW=X",
+    label: "원/달러",
+    region: "us",
+    kind: "fx",
+    lookupMarket: "us",
+  };
+  try {
+    const snap = await loadChartQuoteSnapshot("KRW=X");
+    let price = snap?.price ?? null;
+    try {
+      const fx = await getUsdKrwRate();
+      if (fx.rate != null && Number.isFinite(fx.rate) && fx.rate > 0) {
+        price = fx.rate;
+      }
+    } catch {
+      /* fx rate optional */
+    }
+    return rowFromSnap(def, { ...snap, price: price ?? snap?.price });
+  } catch {
+    return rowFromSnap(def, null);
+  }
 }
 
 /**
@@ -80,9 +110,26 @@ export async function getMarketIndices() {
     return { items: cached.items, updatedAt: cached.updatedAt };
   }
 
-  const items = await mapPool(MARKET_INDEX_DEFS, (def) =>
+  const indexItems = await mapPool(MARKET_INDEX_DEFS, (def) =>
     loadChartQuoteSnapshot(def.symbol),
   );
+  let fxItem;
+  try {
+    fxItem = await buildFxItem();
+  } catch {
+    fxItem = rowFromSnap(
+      {
+        id: "usdkrw",
+        symbol: "KRW=X",
+        label: "원/달러",
+        region: "us",
+        kind: "fx",
+        lookupMarket: "us",
+      },
+      null,
+    );
+  }
+  const items = [fxItem, ...indexItems];
   const updatedAt = now;
   cached = { items, updatedAt, at: now };
   return { items, updatedAt };
