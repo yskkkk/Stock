@@ -6859,6 +6859,7 @@ body {
 }
 
 .app__left-rail > .market-indices-rail--side,
+.app__left-rail > .live-trade-rail--side,
 .app__left-rail > .fx-calc-rail--side {
   flex: 0 0 auto;
   width: 100%;
@@ -6866,6 +6867,203 @@ body {
   top: auto;
   max-height: none;
   overflow: visible;
+}
+
+.live-trade-rail {
+  box-sizing: border-box;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(34, 197, 94, 0.22);
+  background: rgba(34, 197, 94, 0.06);
+  padding-block: 0.5rem;
+  padding-inline: 0.62rem;
+}
+
+html[data-theme="light"] .live-trade-rail {
+  background: rgba(240, 253, 244, 0.92);
+  border-color: rgba(22, 163, 74, 0.2);
+}
+
+.live-trade-rail__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin-bottom: 0.35rem;
+}
+
+.live-trade-rail__title-btn {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.live-trade-rail__title-btn:hover .live-trade-rail__title {
+  color: var(--text);
+}
+
+.live-trade-rail__title {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.live-trade-rail__count {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: rgb(34, 197, 94);
+}
+
+.live-trade-rail__status {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.live-trade-rail__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 11.5rem;
+  overflow-y: auto;
+}
+
+.live-trade-rail__list > li {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.live-trade-rail__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  width: 100%;
+  padding: 0.34rem 0.38rem;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(148, 163, 184, 0.06);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.live-trade-rail__item:hover {
+  border-color: rgba(34, 197, 94, 0.35);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.live-trade-rail__item--armed {
+  border-color: rgba(34, 197, 94, 0.28);
+}
+
+.live-trade-rail__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
+.live-trade-rail__row--head {
+  align-items: flex-start;
+}
+
+.live-trade-rail__row--foot {
+  opacity: 0.92;
+}
+
+.live-trade-rail__name {
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.live-trade-rail__badge {
+  flex: none;
+  font-size: 0.58rem;
+  font-weight: 800;
+  padding: 0.1rem 0.32rem;
+  border-radius: 4px;
+  letter-spacing: 0.02em;
+}
+
+.live-trade-rail__badge--armed {
+  background: rgba(34, 197, 94, 0.2);
+  color: rgb(22, 163, 74);
+}
+
+.live-trade-rail__badge--sim {
+  background: rgba(59, 130, 246, 0.18);
+  color: rgb(37, 99, 235);
+}
+
+.live-trade-rail__badge--error {
+  background: rgba(239, 68, 68, 0.15);
+  color: rgb(220, 38, 38);
+}
+
+.live-trade-rail__meta {
+  font-size: 0.62rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.live-trade-rail__meta--ts {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.live-trade-rail__ret {
+  flex: none;
+  font-size: 0.72rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.live-trade-rail__ret--up {
+  color: rgb(34, 197, 94);
+}
+
+.live-trade-rail__ret--down {
+  color: rgb(239, 68, 68);
+}
+
+.live-trade-rail__ret--muted {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.live-trade-rail__err {
+  font-size: 0.58rem;
+  color: rgb(220, 38, 38);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-trade-rail__list--sk .live-trade-rail__item--sk {
+  min-height: 2.6rem;
+  animation: pulse 1.2s ease-in-out infinite;
+  border: none;
+  background: rgba(148, 163, 184, 0.1);
+  cursor: default;
 }
 
 .market-indices-rail {

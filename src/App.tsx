@@ -22,6 +22,7 @@ import FeedbackCorner, {
   type FeedbackSubmitKind,
 } from "./components/FeedbackCorner";
 import MacroEventsBar from "./components/MacroEventsBar";
+import LiveTradingLeftRailPanel from "./components/LiveTradingLeftRailPanel";
 import MarketIndicesRail from "./components/MarketIndicesRail";
 import TopBarFxCalculator from "./components/TopBarFxCalculator";
 import NewsModal from "./components/NewsModal";
@@ -1007,6 +1008,9 @@ export default function App() {
             loading={marketIndicesLoading}
             layout="rail"
             onOpenItem={handleOpenMarketIndex}
+          />
+          <LiveTradingLeftRailPanel
+            onOpenLiveTrading={() => setAppTab("liveTrading")}
           />
           <TopBarFxCalculator
             rate={usdKrwRate}
