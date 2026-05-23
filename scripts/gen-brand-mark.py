@@ -41,32 +41,25 @@ OUT_SIZES: list[tuple[Path, int]] = [
 
 
 def is_chroma_green(r: int, g: int, b: int, a: int) -> bool:
+    """크로마 초록 스크린 — 글자·드롭섀도는 제외."""
     if a < 20:
         return False
+    lum = (r + g + b) / 3.0
+    if lum < 48:
+        return False
+    if lum > 205:
+        return False
     return (
-        g >= 85
-        and g >= r + 28
-        and g >= b + 18
-        and r <= 105
-        and b <= 145
+        g >= 80
+        and g >= r + 24
+        and g >= b + 16
+        and r <= 110
+        and b <= 150
     )
 
 
 def is_matte_background(r: int, g: int, b: int, a: int) -> bool:
-    if is_chroma_green(r, g, b, a):
-        # 초록 스필이 묻은 밝은 글자·하이라이트는 유지
-        if (r + g + b) / 3.0 > 168:
-            return False
-        return True
-    mx, mn = max(r, g, b), min(r, g, b)
-    sat = mx - mn
-    lum = (r + g + b) / 3.0
-    # 회색 단색 · 체커보드 타일
-    if sat <= 55 and 100 <= lum <= 178:
-        return True
-    if sat <= 32 and 118 <= lum <= 218:
-        return True
-    return False
+    return is_chroma_green(r, g, b, a)
 
 
 def clear_matte(im: Image.Image) -> Image.Image:
@@ -120,7 +113,7 @@ def crop_opaque(im: Image.Image, margin_ratio: float = 0.04) -> Image.Image:
 def save_square(im: Image.Image, size: int, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    pad = max(2, int(size * 0.04))
+    pad = max(2, int(size * 0.06))
     inner = size - 2 * pad
     fitted = im.copy()
     fitted.thumbnail((inner, inner), Image.Resampling.LANCZOS)
