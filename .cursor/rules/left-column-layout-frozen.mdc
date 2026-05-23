@@ -1,0 +1,26 @@
+---
+description: 좌측 열(테마·주요지수·환율) 레이아웃·따라오기 — 무단 수정 금지, 변경 시 사전 영향 판단
+alwaysApply: true
+---
+
+# 좌측 열 UI — 수정 금지(기본)
+
+사용자가 **명시적으로** 이 영역 UI/레이아웃 수정을 요청하지 않는 한, 아래를 **수정·리팩터·재배치하지 않는다**.
+
+## 보호 대상(현재 동작·모양 유지)
+
+- **구조**: `.app__scroll` → `.app__viewport` 3열 그리드 — `app__left-column` | `app__shell`(최대 1680px) | `app__right-panel`
+- **좌측 열 한 덩어리**: `AppThemeCorner` + `app__left-rail`(주요지수 `MarketIndicesRail` + `TopBarFxCalculator` 환율 계산) — **분리된 상단 띠·빈 열·본문과의 큰 간격 금지**
+- **지수 따라오기**: `useLeftRailLazyFollow` — 문서 좌표 + `scrollTop` + 지연 보간(lerp); `position: absolute`는 **`.app__left-column` 안**만
+- **테마**: 좌측 열 상단, 다크/라이트 라벨·팔레트; 본문 위 별도 전폭 패널로 빼지 않음
+- **관련 파일**: `src/App.tsx`(left-column 마크업), `src/hooks/useLeftRailLazyFollow.ts`, `src/index.css`(`.app__left-column` / `.app__left-rail` / `@media (min-width: 1180px)` 그리드), `src/app-theme-corner.css`, `src/components/AppThemeCorner.tsx`, `src/components/MarketIndicesRail.tsx`, `src/components/TopBarFxCalculator.tsx`(rail 레이아웃)
+
+## 다른 작업 시
+
+- 전역 CSS·`App.tsx` 레이아웃·그리드·sticky/absolute 변경이 위 파일/클래스에 닿으면 **기본적으로 손대지 않는다**.
+- 부득이히 인접 코드를 건드릴 때는 좌측 열·3열 그리드·lazy follow를 **깨지 않게** 최소 diff.
+
+## 사용자가 이 부분 UI 수정을 **명시 요청**한 경우만
+
+1. **먼저** 현재 UI·기능 훼손 여부를 판단해 사용자에게 짧게 알린다(간격 재발, 테마 분리, 따라오기 상실, 그리드 4칸화 등).
+2. 요청 범위만 최소 수정; 위 보호 동작을 **의도적으로 바꾸지 않는다** unless 사용자가 그 변경까지 요청.
