@@ -1815,14 +1815,49 @@ body {
 .live-sim-run__table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.76rem;
+  font-size: 0.7rem;
 }
 
 .live-sim-run__table th,
 .live-sim-run__table td {
-  padding: 0.35rem 0.45rem;
+  padding: 0.28rem 0.38rem;
   text-align: left;
   border-bottom: 1px solid var(--border, #e2e8f0);
+  vertical-align: top;
+}
+
+.live-sim-run__table th:first-child,
+.live-sim-run__table td:first-child {
+  min-width: 4.75rem;
+  max-width: 6.25rem;
+  width: 6.25rem;
+}
+
+.live-sim-run__table .live-holding-chart-btn {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.live-sim-run__table .live-sim-run__sym {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 650;
+  line-height: 1.2;
+  margin-right: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.live-sim-run__table .live-sim-run__name {
+  display: block;
+  color: var(--text-muted, #6b7280);
+  font-size: 0.62rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .live-sim-run__sym {
@@ -1842,10 +1877,21 @@ body {
 
 .live-sim-run__quote-1m {
   display: block;
-  margin-top: 0.2rem;
-  font-size: 0.72rem;
+  margin-top: 0.15rem;
+  font-size: 0.6rem;
   font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
   color: var(--text-muted, #6b7280);
+}
+
+.live-sim-run__lane .live-sim-run__table {
+  font-size: 0.66rem;
+}
+
+.live-sim-run__lane .live-sim-run__table th,
+.live-sim-run__lane .live-sim-run__table td {
+  padding: 0.24rem 0.32rem;
 }
 
 .live-sim-run__num--up {
