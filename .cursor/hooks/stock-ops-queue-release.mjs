@@ -79,5 +79,11 @@ try {
   clearIdeTurnRule();
 }
 
+// auto-git-sync 재개 (Cursor 작업 종료 후 push 완료 시점)
+try {
+  const { unlinkSync } = await import("node:fs");
+  unlinkSync(new URL("../../.auto-git-sync.pause", import.meta.url).pathname);
+} catch {}
+
 process.stdout.write("{}\n");
 process.exit(0);

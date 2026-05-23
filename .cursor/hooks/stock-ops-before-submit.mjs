@@ -189,6 +189,12 @@ try {
   });
   writeIdeTurnRule(contextNote);
 
+  // auto-git-sync 일시 정지 (Cursor 작업 중 서버 pull 방지)
+  try {
+    const { writeFileSync } = await import("node:fs");
+    writeFileSync(new URL("../../.auto-git-sync.pause", import.meta.url).pathname, new Date().toISOString(), "utf8");
+  } catch {}
+
   debugLog(`grant ok — allow (queueSeq=${grantBody.queueSeq ?? "?"})`);
   allow();
   process.exit(0);
