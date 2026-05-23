@@ -121,7 +121,6 @@ import {
   stopSimLiveTradeProgramSync,
   updateLiveTradeProgramSync,
 } from "./live-trade-programs-store.js";
-import { startLiveTradeAutoSellPoller } from "./live-trade-auto-sell.js";
 import {
   buildLiveTradePortfolioSnapshot,
   buildProgramPortfolioSummariesMap,
@@ -152,14 +151,12 @@ import {
 } from "./picks-live-quotes.js";
 import { enrichUnifiedQueueAgentAndRecord } from "./ops-unified-queue-seq.js";
 import { readDevQueueDisplaySnapshotSync } from "./ops-dev-queue-live-store.js";
-import { startDevQueueDisplaySyncPoller } from "./ops-dev-queue-display-sync.js";
 import {
   FILE_DEV_POLL_MS,
   appendFileDevPendingJob,
   mergeFileDevQueueFromClient,
   readFileDevQueueSync,
 } from "./ops-file-dev-store.js";
-import { startOpsFileDevPoller } from "./ops-file-dev-poller.js";
 
 function asyncRoute(handler) {
   return (req, res, next) => {
@@ -1822,13 +1819,6 @@ export function createApp() {
 
   installDistSpaIfPresent(app);
 
-  try {
-    startDevQueueDisplaySyncPoller();
-    startLiveTradeAutoSellPoller();
-  } catch {
-    /* ignore */
-  }
-  startOpsFileDevPoller();
   setTimeout(() => scheduleRecommendationSignalBackfill(), 5000);
 
   app.use((err, _req, res, _next) => {

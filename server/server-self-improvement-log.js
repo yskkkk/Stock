@@ -28,7 +28,6 @@ const REWRITE_MIN_INTERVAL_MS = 45_000;
 
 /** @type {ReturnType<typeof setInterval> | null} */
 let probeTimer = null;
-let probeStarted = false;
 let lastMdRewriteAt = 0;
 let processIssueCount = 0;
 
@@ -512,8 +511,11 @@ export async function runServerSelfImprovementProbes() {
 
 export function startServerSelfImprovementWatcher() {
   if (process.env.STOCK_SELF_IMPROVEMENT === "0") return;
-  if (probeStarted) return;
-  probeStarted = true;
+  const g = /** @type {typeof globalThis & { __stockSelfImprovementStarted?: boolean }} */ (
+    globalThis
+  );
+  if (g.__stockSelfImprovementStarted) return;
+  g.__stockSelfImprovementStarted = true;
 
   const store = readStore();
   rewriteImprovementsMarkdown(store);

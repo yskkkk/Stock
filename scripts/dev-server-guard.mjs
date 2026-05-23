@@ -33,6 +33,8 @@ let restarting = false;
 let failStreak = 0;
 let lastRestartAt = 0;
 let devStartedAt = 0;
+/** @type {ReturnType<typeof setTimeout> | null} */
+let exitRestartTimer = null;
 
 function stopDev() {
   return new Promise((resolve) => {
@@ -75,7 +77,7 @@ function startDev() {
     );
     devProc = null;
     if (shuttingDown || restarting) return;
-    scheduleRestart("프로세스 종료");
+    scheduleRestartAfterExit(code, signal);
   });
   failStreak = 0;
   devStartedAt = Date.now();
@@ -137,6 +139,29 @@ async function restartDev(reason) {
 
 function scheduleRestart(reason) {
   void restartDev(reason);
+}
+
+/** Vite server.restart() 등 짧은 종료·즉시 복구 시 불필요한 전체 재기동 방지 */
+function scheduleRestartAfterExit(code, signal) {
+  if (exitRestartTimer) clearTimeout(exitRestartTimer);
+  const waitMs = inStartupGrace() ? 12_000 : 8_000;
+  exitRestartTimer = setTimeout(() => {
+    exitRestartTimer = null;
+    if (shuttingDown || restarting || devProc?.pid) return;
+    void (async () => {
+      const ok = await probeDevServer();
+      if (ok) {
+        console.log(
+          "[dev:guard] 종료 직후에도 HTTP 응답 — Vite 내부 재시작으로 간주, 재기동 생략",
+        );
+        failStreak = 0;
+        return;
+      }
+      scheduleRestart(
+        `프로세스 종료 code=${code ?? ""} signal=${signal ?? ""}`,
+      );
+    })();
+  }, waitMs);
 }
 
 async function main() {

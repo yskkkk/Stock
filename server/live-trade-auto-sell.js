@@ -17,8 +17,6 @@ const POLL_MS = (() => {
   return Number.isFinite(n) && n >= 15_000 ? Math.min(n, 120_000) : 45_000;
 })();
 
-let started = false;
-
 /**
  * @param {ReturnType<typeof buildOpenPositionsWithSellTargetsSync>[number]} pos
  * @param {number | null} currentPrice
@@ -90,8 +88,11 @@ export async function tickLiveTradeAutoSell() {
 
 export function startLiveTradeAutoSellPoller() {
   if (process.env.STOCK_LIVE_TRADE_AUTO_SELL === "0") return;
-  if (started) return;
-  started = true;
+  const g = /** @type {typeof globalThis & { __stockLiveTradeAutoSellStarted?: boolean }} */ (
+    globalThis
+  );
+  if (g.__stockLiveTradeAutoSellStarted) return;
+  g.__stockLiveTradeAutoSellStarted = true;
   const run = () => {
     void tickLiveTradeAutoSell().catch((e) => {
       console.warn(

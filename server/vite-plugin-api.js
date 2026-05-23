@@ -6,27 +6,15 @@ import { loadEnvFile } from "./load-env.js";
 import { installProcessGuards } from "./process-guards.js";
 import { migrateLegacyServerLogsSync } from "./log-paths.js";
 import { appendServerEventLog } from "./access-log.js";
-import { startDevQueueDisplaySyncPoller } from "./ops-dev-queue-display-sync.js";
-import { startOpsIdeTranscriptPoller } from "./ops-ide-transcript-poller.js";
-import { startLiveTradeAutoSellPoller } from "./live-trade-auto-sell.js";
+import { startStockDevSidecarsOnce } from "./dev-sidecars.js";
 import {
   installOpsServerLifecycleShutdownHooks,
   notifyOpsServerStarted,
 } from "./ops-server-lifecycle-notify.js";
-import { prewarmAppCaches } from "./prewarm-caches.js";
-import { startScreening } from "./screener.js";
-import { startServerSelfImprovementWatcher } from "./server-self-improvement-log.js";
 import { installAccessGateHtmlMiddleware } from "./vite-access-gate-html.js";
 import { registerViteIntegratedRestart } from "./restart-node-process.js";
 import { installViteMobileApkMiddleware } from "./mobile-apk-download.js";
 import { installViteMobileIosMiddleware } from "./mobile-ios-download.js";
-
-function logScreeningError(err) {
-  console.warn(
-    "[screener]",
-    err instanceof Error ? err.message : err,
-  );
-}
 
 function mergeStockProcessEnv(mode) {
   if (!process.env.NODE_ENV) {
@@ -81,7 +69,16 @@ function mergeStockProcessEnv(mode) {
  * @param {import("vite").ViteDevServer | import("vite").PreviewServer} server
  */
 function attachStockApiMiddlewares(server) {
-  const app = createApp();
+  const g = /** @type {typeof globalThis & {
+    __stockExpressApp?: ReturnType<typeof createApp>;
+    __stockViteApiMiddlewareAttached?: boolean;
+  }} */ (globalThis);
+  if (!g.__stockExpressApp) {
+    g.__stockExpressApp = createApp();
+  }
+  if (g.__stockViteApiMiddlewareAttached) return;
+  g.__stockViteApiMiddlewareAttached = true;
+  const app = g.__stockExpressApp;
 
   server.middlewares.use((req, res, next) => {
     if (!req.url?.startsWith("/api")) return next();
@@ -134,24 +131,7 @@ export function stockApiPlugin() {
       attachStockApiMiddlewares(server);
       attachAutoGitSyncWhenListening(server);
       migrateLegacyServerLogsSync();
-      const g = /** @type {typeof globalThis & { __stockViteDevSidecars?: boolean }} */ (
-        globalThis
-      );
-      if (!g.__stockViteDevSidecars) {
-        g.__stockViteDevSidecars = true;
-        appendServerEventLog(
-          "server",
-          "dev 서버 기동 — 로그는 server/.logs 에 append 유지",
-        );
-        startDevQueueDisplaySyncPoller();
-        startOpsIdeTranscriptPoller();
-        startLiveTradeAutoSellPoller();
-        startServerSelfImprovementWatcher();
-        setTimeout(() => prewarmAppCaches(), 400);
-        setTimeout(() => {
-          startScreening().catch(logScreeningError);
-        }, 1500);
-      }
+      startStockDevSidecarsOnce("dev 서버 기동");
     },
     configurePreviewServer(server) {
       mergeStockProcessEnv(server.config.mode);
@@ -166,15 +146,7 @@ export function stockApiPlugin() {
       installViteAccessTraceMiddleware(server);
       attachStockApiMiddlewares(server);
       migrateLegacyServerLogsSync();
-      appendServerEventLog("server", "preview 서버 기동 — 로그는 server/.logs 에 append 유지");
-      startDevQueueDisplaySyncPoller();
-      startOpsIdeTranscriptPoller();
-      startLiveTradeAutoSellPoller();
-      startServerSelfImprovementWatcher();
-      setTimeout(() => prewarmAppCaches(), 400);
-      setTimeout(() => {
-        startScreening().catch(logScreeningError);
-      }, 1500);
+      startStockDevSidecarsOnce("preview 서버 기동");
     },
   };
 }

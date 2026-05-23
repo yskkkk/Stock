@@ -9,7 +9,6 @@ import {
   finalizeFileDevError,
 } from "./ops-file-dev-store.js";
 
-let started = false;
 /** @type {Promise<void>} */
 let tickChain = Promise.resolve();
 
@@ -38,8 +37,11 @@ function tickOnce() {
 }
 
 export function startOpsFileDevPoller() {
-  if (started) return;
-  started = true;
+  const g = /** @type {typeof globalThis & { __stockOpsFileDevPollerStarted?: boolean }} */ (
+    globalThis
+  );
+  if (g.__stockOpsFileDevPollerStarted) return;
+  g.__stockOpsFileDevPollerStarted = true;
   setInterval(() => {
     void tickOnce();
   }, FILE_DEV_POLL_MS);

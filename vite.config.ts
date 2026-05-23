@@ -25,6 +25,8 @@ export default defineConfig(({ mode }) => ({
     /** lease·이력·트랜스크립트 등 런타임 파일 변경으로 dev 서버가 재시작되지 않게 */
     watch: {
       ignored: [
+        /** API·폴러 런타임 기록 — 변경 시 Vite server.restart 연쇄 방지(서버 코드 수정 후에는 dev 프로세스 재시작) */
+        "**/server/**",
         "**/.git/**",
         "**/.cursor/**",
         "**/server/.data/**",

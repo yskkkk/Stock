@@ -13,22 +13,14 @@ installOpsServerLifecycleShutdownHooks();
 const { startMacroReminderLoop } = await import("./macro-telegram-reminders.js");
 const { startAutoGitSync } = await import("./auto-git-sync.js");
 const { createApp } = await import("./create-app.js");
-const { prewarmAppCaches } = await import("./prewarm-caches.js");
-const { startScreening } = await import("./screener.js");
-const { startServerSelfImprovementWatcher } = await import(
-  "./server-self-improvement-log.js"
-);
+const { startStockDevSidecarsOnce } = await import("./dev-sidecars.js");
 const { maybeStartHttpsServer } = await import("./https-listen.js");
 
 const PORT = Number(process.env.PORT) || 3456;
 const app = createApp();
-prewarmAppCaches();
-startScreening().catch((err) => {
-  console.warn("[screener]", err instanceof Error ? err.message : err);
-});
+startStockDevSidecarsOnce("API 서버 기동");
 
 startMacroReminderLoop();
-startServerSelfImprovementWatcher();
 
 const server = app.listen(PORT, () => {
   console.log(`API server http://localhost:${PORT}`);
