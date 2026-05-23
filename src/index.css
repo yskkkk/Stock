@@ -333,7 +333,7 @@
   color: #fcd34d;
 }
 
-/* 상단 브랜드 — YSTOCK 로고 (public/branding/ystock-logo-source.png) */
+/* 상단 브랜드 — YSTOCK 로고 (public/branding/ystock-logo-mark.png) */
 .top-bar__brand .brand-mark {
   display: inline-flex;
   align-items: center;
@@ -341,15 +341,21 @@
   box-sizing: border-box;
   width: 46px;
   height: 46px;
+  border: none;
   border-radius: 22%;
   flex-shrink: 0;
   line-height: 0;
-  /* 앱 다크/라이트 무관 — 항상 라이트(화이트) 모드 아이콘 톤 */
+  background: transparent;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+html[data-theme="light"] .top-bar__brand .brand-mark {
   background: #ffffff;
   box-shadow:
-    0 0 0 1px rgba(15, 23, 42, 0.08),
+    0 0 0 1px rgba(15, 23, 42, 0.05),
     0 2px 8px rgba(15, 23, 42, 0.06);
-  overflow: hidden;
 }
 
 .top-bar__brand .brand-mark__img {
@@ -359,7 +365,10 @@
   object-fit: cover;
   background: transparent;
   border: none;
-  border-radius: 22%;
+  outline: none;
+  border-radius: inherit;
+  box-shadow: none;
+  vertical-align: top;
 }
 
 /* Pick signals — color by type */
