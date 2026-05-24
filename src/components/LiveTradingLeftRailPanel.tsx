@@ -8,7 +8,7 @@ import { useLiveTradingStatusPoll } from "../hooks/useLiveTradingStatusPoll";
 import { ko } from "../i18n/ko";
 import { programDisplayStatus } from "../lib/liveProgramDisplay";
 import { formatPercent, formatPrice } from "../lib/format";
-import { openHoldingsReturnPct } from "../lib/livePortfolioPnl";
+import { openHoldingsReturnPct, summarizeHoldingsPnl, formatInvestedOrMarketLabel } from "../lib/livePortfolioPnl";
 import { peekLiveTradingPrefetch } from "../lib/tabPrefetch";
 
 const POLL_MS = 22_000;
@@ -112,6 +112,12 @@ function RailProgramCard({
       ),
     [sorted],
   );
+  const pnlAgg = useMemo(() => summarizeHoldingsPnl(sorted), [sorted]);
+  const investedLabel = formatInvestedOrMarketLabel(
+    pnlAgg.investedByCurrency,
+    null,
+  );
+  const evalLabel = formatInvestedOrMarketLabel(pnlAgg.marketByCurrency, null);
 
   return (
     <article
@@ -157,6 +163,20 @@ function RailProgramCard({
             }
           >
             {returnPct == null ? "—" : formatPercent(returnPct)}
+          </span>
+        </span>
+        <span className="live-trade-rail__summary-metrics">
+          <span className="live-trade-rail__summary-metric">
+            <span className="live-trade-rail__summary-metric-k">
+              {ko.app.liveTradeLeftRailTotalInvested}
+            </span>
+            <span className="live-trade-rail__summary-metric-v">{investedLabel}</span>
+          </span>
+          <span className="live-trade-rail__summary-metric">
+            <span className="live-trade-rail__summary-metric-k">
+              {ko.app.liveTradeLeftRailTotalEval}
+            </span>
+            <span className="live-trade-rail__summary-metric-v">{evalLabel}</span>
           </span>
         </span>
         <span

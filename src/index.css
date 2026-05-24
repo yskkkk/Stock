@@ -7328,6 +7328,36 @@ html[data-theme="light"] .live-trade-rail {
   line-height: 1.1;
 }
 
+.live-trade-rail__summary-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 0.14rem;
+}
+
+.live-trade-rail__summary-metric {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.live-trade-rail__summary-metric-k {
+  flex: none;
+  font-size: 0.58rem;
+  font-weight: 650;
+  color: var(--muted);
+}
+
+.live-trade-rail__summary-metric-v {
+  min-width: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  word-break: break-all;
+}
+
 .live-trade-rail__dots {
   display: flex;
   flex-wrap: wrap;

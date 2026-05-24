@@ -252,6 +252,8 @@ const t = {
     liveTradeLeftRailExpand: "\ud3bc\uce58\uae30",
     liveTradeLeftRailCollapse: "\uc811\uae30",
     liveTradeLeftRailTotalReturn: "\ucd1d \uc218\uc775\ub960",
+    liveTradeLeftRailTotalInvested: "\ub9e4\uc218\ucd1d\uae08\uc561",
+    liveTradeLeftRailTotalEval: "\ud3c9\uac00\uae08\uc561",
     liveTradeLeftRailColCoin: "\ucf54\uc778",
     liveTradeLeftRailColReturn: "\uc218\uc775\ub960",
     liveTradeLeftRailColValue: "\ud3c9\uac00\uae08",
