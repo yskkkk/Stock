@@ -83,21 +83,17 @@ export default function BithumbAccountSnapshotCard({
           </div>
         ) : null}
       </dl>
-      <p
-        className={
-          variant === "rail"
-            ? "bithumb-account-rail__section-title"
-            : "live-trading-tab__cred-snapshot-title"
-        }
-      >
-        {ko.app.liveTradeCredTestHoldings}
-      </p>
+      {variant !== "rail" ? (
+        <>
+          <p className="live-trading-tab__cred-snapshot-title">
+            {ko.app.liveTradeCredTestHoldings}
+          </p>
       {holdings.length === 0 ? (
-        <p className="live-trading-tab__cred-snapshot-empty bithumb-account-rail__empty">
+        <p className="live-trading-tab__cred-snapshot-empty">
           {ko.app.liveTradeCredTestNoHoldings}
         </p>
       ) : (
-        <ul className="live-trading-tab__cred-snapshot-holdings bithumb-account-rail__holdings">
+        <ul className="live-trading-tab__cred-snapshot-holdings">
           {holdings.map((h) => {
             const tone = holdingChangeTone(h.changePercent);
             return (
@@ -130,6 +126,8 @@ export default function BithumbAccountSnapshotCard({
           })}
         </ul>
       )}
+        </>
+      ) : null}
     </div>
   );
 }
