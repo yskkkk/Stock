@@ -5,8 +5,6 @@
 import { writeFileSync } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { loadEnvFile } from "../server/load-env.js";
-import { resolveServerOpenClientTelegramCreds } from "../server/server-open-request-notify.js";
 
 const out = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -203,21 +201,5 @@ const html = `<!DOCTYPE html>
   </body>
 </html>`;
 
-loadEnvFile();
-
-function buildConfigInject() {
-  const creds = resolveServerOpenClientTelegramCreds();
-  if (!creds) return "<!-- server-open: client telegram disabled -->";
-  const payload = JSON.stringify({
-    token: creds.token,
-    chatId: creds.chatId,
-  });
-  return `<script>window.__STOCK_SERVER_OPEN__=${payload};</script>`;
-}
-
-writeFileSync(
-  out,
-  html.replace("<!--STOCK_SERVER_OPEN_CONFIG-->", buildConfigInject()),
-  "utf8",
-);
+writeFileSync(out, html, "utf8");
 console.log("gen server-offline.html ok");
