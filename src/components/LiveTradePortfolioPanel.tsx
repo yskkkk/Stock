@@ -32,8 +32,10 @@ import {
 } from "../lib/livePortfolioMoneyDisplay";
 import {
   buildPortfolioMetricLines,
+  openHoldingsNetReturnPct,
   portfolioReturnPct,
   summarizeHoldingsPnl,
+  summarizeNetMarketByCurrency,
   type PortfolioMetricLine,
 } from "../lib/livePortfolioPnl";
 import { tradeFillDisplayByTradeId } from "../lib/liveTradeBuySellPrices";
@@ -139,12 +141,18 @@ function SummaryTiles({
     [holdings, roundTripForMarket],
   );
   const agg = summarizeHoldingsPnl(holdings);
+  const netMarketByCurrency = useMemo(
+    () => summarizeNetMarketByCurrency(holdings, roundTripForMarket),
+    [holdings, roundTripForMarket],
+  );
   const ret =
+    openHoldingsNetReturnPct(holdings, roundTripForMarket, usdKrwRate) ??
     portfolioReturnPct(
       agg.investedByCurrency,
-      agg.marketByCurrency,
+      netMarketByCurrency,
       usdKrwRate,
-    ) ?? summary.totalReturnPct;
+    ) ??
+    summary.totalReturnPct;
   const retUp = ret != null ? ret >= 0 : null;
   const investedLines = buildPortfolioMetricLines(
     agg.investedByCurrency,

@@ -169,6 +169,25 @@ export function openHoldingsReturnPct(
   );
 }
 
+/** 보유 종목 수익률 — 매도 수수료(왕복의 절반) 반영 순평가 기준 */
+export function openHoldingsNetReturnPct(
+  holdings: LiveTradeHolding[],
+  roundTripForMarket: (market: LiveTradeMarket) => number,
+  usdKrwRate: number | null = null,
+): number | null {
+  if (holdings.length === 0) return null;
+  const { investedByCurrency } = summarizeHoldingsPnl(holdings);
+  const netMarketByCurrency = summarizeNetMarketByCurrency(
+    holdings,
+    roundTripForMarket,
+  );
+  return portfolioReturnPct(
+    investedByCurrency,
+    netMarketByCurrency,
+    usdKrwRate,
+  );
+}
+
 export type PortfolioMetricLine = {
   id: string;
   text: string;

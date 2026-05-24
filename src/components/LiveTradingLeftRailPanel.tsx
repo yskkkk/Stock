@@ -8,7 +8,7 @@ import { useLiveTradingStatusPoll } from "../hooks/useLiveTradingStatusPoll";
 import { ko } from "../i18n/ko";
 import { programDisplayStatus } from "../lib/liveProgramDisplay";
 import { formatPercent, formatPrice } from "../lib/format";
-import { openHoldingsReturnPct, summarizeHoldingsPnl, summarizeNetMarketByCurrency, holdingNetMarketValue, formatInvestedOrMarketLabel } from "../lib/livePortfolioPnl";
+import { openHoldingsNetReturnPct, summarizeHoldingsPnl, summarizeNetMarketByCurrency, holdingNetMarketValue, formatInvestedOrMarketLabel } from "../lib/livePortfolioPnl";
 import { feeByMarketFromStatus } from "../lib/liveTradeFeeByMarket";
 import { DEFAULT_ROUND_TRIP_FEE_RATE } from "../lib/netReturn";
 import type { LiveTradeMarket } from "../types";
@@ -372,6 +372,16 @@ function LiveTradingLeftRailPanelInner({
     void reloadPortfolio();
   }, [status?.armedCount, status?.simCount, reloadPortfolio]);
 
+  const feeByMarket = useMemo(
+    () => feeByMarketFromStatus(status?.feeRates),
+    [status?.feeRates],
+  );
+  const roundTripForMarket = useCallback(
+    (market: LiveTradeMarket) =>
+      feeByMarket[market] ?? feeByMarket.default ?? DEFAULT_ROUND_TRIP_FEE_RATE,
+    [feeByMarket],
+  );
+
   const rows = useMemo(() => {
     const programs = status?.programs ?? [];
     return programs
@@ -387,7 +397,10 @@ function LiveTradingLeftRailPanelInner({
         const holdingCount = ret?.holdingCount ?? 0;
         const displayStatus = programDisplayStatus(p, holdingCount);
         const holdings = holdingsByProgram[p.id] ?? [];
-        const fromHoldings = openHoldingsReturnPct(holdings);
+        const fromHoldings = openHoldingsNetReturnPct(
+          holdings,
+          roundTripForMarket,
+        );
         return {
           program: p,
           displayStatus,
@@ -396,17 +409,7 @@ function LiveTradingLeftRailPanelInner({
           holdings,
         };
       });
-  }, [status, holdingsByProgram]);
-
-  const feeByMarket = useMemo(
-    () => feeByMarketFromStatus(status?.feeRates),
-    [status?.feeRates],
-  );
-  const roundTripForMarket = useCallback(
-    (market: LiveTradeMarket) =>
-      feeByMarket[market] ?? feeByMarket.default ?? DEFAULT_ROUND_TRIP_FEE_RATE,
-    [feeByMarket],
-  );
+  }, [status, holdingsByProgram, roundTripForMarket]);
 
   if (!authChecked || !user) return null;
 
