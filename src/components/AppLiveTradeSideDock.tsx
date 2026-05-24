@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   LIVE_TRADE_RIGHT_PANEL_HOST_ID,
   LiveTradeCardSidePanel,
+  defaultLiveTradeSideTabTitles,
   useLiveTradeAuth,
   useLiveTradeCardSidePanelOptional,
 } from "./LiveTradeAuthAndCredentials";
@@ -40,7 +41,13 @@ function railTabShort(id: string, title: string): { glyph: string; label: string
 export default function AppLiveTradeSideDock() {
   const { user } = useLiveTradeAuth();
   const ctx = useLiveTradeCardSidePanelOptional();
-  const sideTabs = ctx?.sideTabs ?? [];
+  const sideTabs =
+    (ctx?.sideTabs?.length ?? 0) > 0
+      ? ctx!.sideTabs
+      : Object.entries(defaultLiveTradeSideTabTitles()).map(([id, title]) => ({
+          id,
+          title,
+        }));
   const panel = ctx?.panel ?? null;
   const openPanel = ctx?.openPanel;
   const closePanel = ctx?.closePanel;
@@ -86,7 +93,7 @@ export default function AppLiveTradeSideDock() {
     [openPanel, closePanel, panel?.id, open, persistOpen],
   );
 
-  if (!user || !wide || sideTabs.length === 0) return null;
+  if (!user || !wide) return null;
 
   const activeId = panel?.id ?? null;
 

@@ -8301,6 +8301,18 @@ html[data-theme="light"] .market-indices-rail__item {
   }
 }
 
+/* 실매매 탭 — 다른 메인 탭에서도 포털·레일용으로 DOM 유지 */
+.live-trade-tab-root--persist {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* 실매매 — 토스형 우측 레일 + 슬라이드 패널(그리드 비점유) */
 .app-live-trade-side-dock {
   position: fixed;

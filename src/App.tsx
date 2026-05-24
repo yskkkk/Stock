@@ -1300,10 +1300,12 @@ export default function App() {
       ) : appTab === "recommendations" ? (
         <RecommendationsTab onOpenPick={handleSelect} />
       ) : appTab === "liveTrading" ? (
-        <LiveTradingTab
-          onOpenRecommendations={() => setAppTab("recommendations")}
-          onOpenHoldingChart={handleLiveTradeChart}
-        />
+        <div className="live-trade-tab-root">
+          <LiveTradingTab
+            onOpenRecommendations={() => setAppTab("recommendations")}
+            onOpenHoldingChart={handleLiveTradeChart}
+          />
+        </div>
       ) : appTab === "ops" ? (
         <div className="workspace ops-workspace">
           <section
@@ -1885,6 +1887,19 @@ export default function App() {
       </div>
       <div className="app__right-panel" aria-hidden="true" />
       </div>
+
+      {appTab !== "ops" && appTab !== "liveTrading" ? (
+        <div
+          className="live-trade-tab-root live-trade-tab-root--persist"
+          hidden
+          aria-hidden
+        >
+          <LiveTradingTab
+            onOpenRecommendations={() => setAppTab("recommendations")}
+            onOpenHoldingChart={handleLiveTradeChart}
+          />
+        </div>
+      ) : null}
 
       {appTab !== "ops" ? <AppLiveTradeSideDock /> : null}
 

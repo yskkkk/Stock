@@ -162,6 +162,14 @@ type LiveTradeSidePanelState = { id: string; title: string } | null;
 
 const LIVE_TRADE_CARD_TAB_ORDER = ["portfolio", "form", "programs"] as const;
 
+export function defaultLiveTradeSideTabTitles(): Record<string, string> {
+  return {
+    portfolio: ko.app.liveTradePfTitle,
+    form: ko.app.liveTradeFormNew,
+    programs: ko.app.liveTradeListTitle,
+  };
+}
+
 export const LIVE_TRADE_RIGHT_PANEL_HOST_ID = "app-live-trade-right-panel";
 
 const LIVE_TRADE_RIGHT_PANEL_MQ = "(min-width: 1180px)";
@@ -222,18 +230,21 @@ export function LiveTradeCardSidePanelProvider({
   }, []);
 
   useEffect(() => {
+    const applyAuth = (hasUser: boolean) => {
+      if (hasUser) {
+        setTabTitles((prev) => ({ ...defaultLiveTradeSideTabTitles(), ...prev }));
+      } else {
+        setTabTitles({});
+        setPanel(null);
+      }
+    };
+    void fetchAuthMe()
+      .then((me) => applyAuth(Boolean(me.user)))
+      .catch(() => applyAuth(false));
     const onAuth = () => {
       void fetchAuthMe()
-        .then((me) => {
-          if (!me.user) {
-            setTabTitles({});
-            setPanel(null);
-          }
-        })
-        .catch(() => {
-          setTabTitles({});
-          setPanel(null);
-        });
+        .then((me) => applyAuth(Boolean(me.user)))
+        .catch(() => applyAuth(false));
     };
     window.addEventListener(LIVE_TRADE_AUTH_CHANGE, onAuth);
     return () => window.removeEventListener(LIVE_TRADE_AUTH_CHANGE, onAuth);
