@@ -234,6 +234,7 @@ export const ko = {
     liveTradeAuthSendCode: "인증번호 받기",
     liveTradeAuthSendCodeAgain: "다시 받기",
     liveTradeAuthSendCodeDone: "인증번호를 보냈습니다. 메일함을 확인하세요.",
+    liveTradeAuthVerifyDone: "이메일 인증이 완료되었습니다.",
     liveTradeAuthSendCodeCooldown: "초 후 다시 요청",
     liveTradeAuthVerificationRequired: "가입 전에 이메일 인증번호를 받아 입력하세요.",
     liveTradeAuthLogout: "로그아웃",

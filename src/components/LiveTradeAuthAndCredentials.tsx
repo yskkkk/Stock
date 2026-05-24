@@ -16,6 +16,7 @@ import {
   loginAuth,
   registerAuth,
   sendAuthEmailVerificationCode,
+  verifyAuthEmailCode,
   deleteUserCredential,
   saveUserCredential,
   testUserCredential,
@@ -1233,6 +1234,105 @@ function CredentialExchangeForm({
   );
 }
 
+function AuthEmailCodeCells({
+  value,
+  onChange,
+  disabled,
+  invalid,
+  describedBy,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  disabled: boolean;
+  invalid?: boolean;
+  describedBy?: string;
+}) {
+  const refs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const focusAt = (index: number) => {
+    const el = refs.current[Math.max(0, Math.min(5, index))];
+    el?.focus();
+    el?.select();
+  };
+
+  const applyDigits = (raw: string, startIndex = 0) => {
+    const digits = raw.replace(/\D/g, "").slice(0, 6);
+    onChange(digits);
+    if (digits.length > 0) focusAt(Math.min(5, startIndex + digits.length));
+  };
+
+  const setAt = (index: number, char: string) => {
+    const digit = char.replace(/\D/g, "").slice(-1);
+    const chars = Array.from({ length: 6 }, (_, i) => value[i] ?? "");
+    if (digit) {
+      chars[index] = digit;
+      const next = chars.join("").replace(/\s/g, "").slice(0, 6);
+      onChange(next);
+      if (index < 5) focusAt(index + 1);
+      return;
+    }
+    chars[index] = "";
+    onChange(chars.join("").replace(/\s/g, "").slice(0, 6));
+  };
+
+  return (
+    <div
+      className="live-trading-tab__auth-code-cells"
+      role="group"
+      aria-label={ko.app.liveTradeAuthVerificationCode}
+    >
+      {Array.from({ length: 6 }, (_, index) => (
+        <input
+          key={index}
+          ref={(el) => {
+            refs.current[index] = el;
+          }}
+          type="text"
+          inputMode="numeric"
+          autoComplete={index === 0 ? "one-time-code" : "off"}
+          className="input live-trading-tab__input live-trading-tab__auth-code-cell"
+          value={value[index] ?? ""}
+          disabled={disabled}
+          maxLength={1}
+          aria-invalid={invalid ? true : undefined}
+          aria-describedby={describedBy}
+          onFocus={(e) => e.currentTarget.select()}
+          onChange={(e) => setAt(index, e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Backspace" && !(value[index] ?? "")) {
+              if (index > 0) {
+                e.preventDefault();
+                setAt(index - 1, "");
+                focusAt(index - 1);
+              }
+              return;
+            }
+            if (e.key === "ArrowLeft" && index > 0) {
+              e.preventDefault();
+              focusAt(index - 1);
+            }
+            if (e.key === "ArrowRight" && index < 5) {
+              e.preventDefault();
+              focusAt(index + 1);
+            }
+          }}
+          onPaste={(e) => {
+            e.preventDefault();
+            const text = e.clipboardData.getData("text");
+            applyDigits(
+              (value.slice(0, index) + text + value.slice(index + 1)).replace(
+                /\D/g,
+                "",
+              ),
+              index,
+            );
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function LiveTradeAuthPanel({
   user,
   registrationOpen,
@@ -1250,9 +1350,12 @@ export default function LiveTradeAuthPanel({
   const [password, setPassword] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [codeSent, setCodeSent] = useState(false);
+  const [codeVerified, setCodeVerified] = useState(false);
   const [codeMsg, setCodeMsg] = useState<string | null>(null);
   const [sendCodeBusy, setSendCodeBusy] = useState(false);
+  const [verifyCodeBusy, setVerifyCodeBusy] = useState(false);
   const [sendCooldownSec, setSendCooldownSec] = useState(0);
+  const verifyInFlight = useRef(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [emailErr, setEmailErr] = useState<string | null>(null);
@@ -1266,6 +1369,7 @@ export default function LiveTradeAuthPanel({
       setPassword("");
       setVerificationCode("");
       setCodeSent(false);
+      setCodeVerified(false);
       setCodeMsg(null);
       setErr(null);
     }
@@ -1286,6 +1390,7 @@ export default function LiveTradeAuthPanel({
     setPassword("");
     setVerificationCode("");
     setCodeSent(false);
+    setCodeVerified(false);
     setCodeMsg(null);
     setSendCooldownSec(0);
     setErr(null);
@@ -1293,6 +1398,38 @@ export default function LiveTradeAuthPanel({
     setPasswordErr(null);
     setCodeErr(null);
   };
+
+  useEffect(() => {
+    if (mode !== "register" || !codeSent || codeVerified) return;
+    const code = verificationCode.replace(/\D/g, "");
+    if (code.length !== 6 || verifyInFlight.current) return;
+
+    let cancelled = false;
+    void (async () => {
+      verifyInFlight.current = true;
+      setVerifyCodeBusy(true);
+      setCodeErr(null);
+      try {
+        const checked = validateAuthEmail(email);
+        if (!checked.ok) return;
+        await verifyAuthEmailCode(checked.value, code);
+        if (cancelled) return;
+        setCodeVerified(true);
+        setCodeMsg(ko.app.liveTradeAuthVerifyDone);
+      } catch (e) {
+        if (cancelled) return;
+        setCodeVerified(false);
+        setCodeErr(e instanceof Error ? e.message : String(e));
+      } finally {
+        verifyInFlight.current = false;
+        if (!cancelled) setVerifyCodeBusy(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [verificationCode, codeSent, codeVerified, mode, email]);
 
   const sendVerificationCode = async () => {
     setSendCodeBusy(true);
@@ -1307,6 +1444,8 @@ export default function LiveTradeAuthPanel({
         return;
       }
       const res = await sendAuthEmailVerificationCode(checked.value);
+      setVerificationCode("");
+      setCodeVerified(false);
       setCodeSent(true);
       setSendCooldownSec(60);
       setCodeMsg(
@@ -1346,6 +1485,10 @@ export default function LiveTradeAuthPanel({
           return;
         }
         if (!codeSent) {
+          setCodeErr(ko.app.liveTradeAuthVerificationRequired);
+          return;
+        }
+        if (!codeVerified) {
           setCodeErr(ko.app.liveTradeAuthVerificationRequired);
           return;
         }
@@ -1448,6 +1591,8 @@ export default function LiveTradeAuthPanel({
               setEmail(e.target.value);
               if (emailErr) setEmailErr(null);
               setCodeSent(false);
+              setCodeVerified(false);
+              setVerificationCode("");
               setCodeMsg(null);
             }}
             maxLength={254}
@@ -1485,33 +1630,24 @@ export default function LiveTradeAuthPanel({
 
         {mode === "register" ? (
           <>
-            <div className="live-trading-tab__auth-code-row">
-              <label className="live-trading-tab__field live-trading-tab__field--code">
-                <span className="live-trading-tab__label">
-                  {ko.app.liveTradeAuthVerificationCode}
-                </span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  className="input live-trading-tab__input live-trading-tab__input--code"
-                  placeholder="000000"
+            <div className="live-trading-tab__auth-code-block">
+              <span className="live-trading-tab__label">
+                {ko.app.liveTradeAuthVerificationCode}
+              </span>
+              <div className="live-trading-tab__auth-code-row">
+                <AuthEmailCodeCells
                   value={verificationCode}
-                  onChange={(e) => {
-                    setVerificationCode(
-                      e.target.value.replace(/\D/g, "").slice(0, 6),
-                    );
+                  disabled={!codeSent || verifyCodeBusy || codeVerified}
+                  invalid={!!codeErr}
+                  describedBy={codeErr ? "auth-code-err" : undefined}
+                  onChange={(next) => {
+                    setVerificationCode(next);
+                    setCodeVerified(false);
                     if (codeErr) setCodeErr(null);
+                    if (codeVerified) setCodeMsg(null);
                   }}
-                  maxLength={6}
-                  aria-invalid={codeErr ? true : undefined}
-                  aria-describedby={codeErr ? "auth-code-err" : undefined}
                 />
-                {codeErr ? (
-                  <FieldValidationCallout id="auth-code-err" message={codeErr} />
-                ) : null}
-              </label>
-              <button
+                <button
                 type="button"
                 className="btn btn--secondary btn--sm live-trading-tab__auth-send-code"
                 disabled={
@@ -1528,7 +1664,11 @@ export default function LiveTradeAuthPanel({
                     : codeSent
                       ? ko.app.liveTradeAuthSendCodeAgain
                       : ko.app.liveTradeAuthSendCode}
-              </button>
+                </button>
+              </div>
+              {codeErr ? (
+                <FieldValidationCallout id="auth-code-err" message={codeErr} />
+              ) : null}
             </div>
             {codeMsg ? (
               <p className="live-trading-tab__auth-code-msg" role="status">
@@ -1550,7 +1690,11 @@ export default function LiveTradeAuthPanel({
         <button
           type="submit"
           className="btn btn--primary live-trading-tab__auth-submit"
-          disabled={busy || (mode === "register" && !showRegister)}
+          disabled={
+            busy ||
+            (mode === "register" &&
+              (!showRegister || !codeVerified || verifyCodeBusy))
+          }
         >
           {busy
             ? "…"

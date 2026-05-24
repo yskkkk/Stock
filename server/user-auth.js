@@ -7,6 +7,8 @@ import {
   createUserSync,
   findUserByEmailSync,
   findUserByIdSync,
+  isUserEmailVerifiedSync,
+  migrateLegacyUsersEmailVerifiedSync,
   normalizeUserEmail,
 } from "./users-store.js";
 import {
@@ -19,6 +21,13 @@ import {
   validateAuthCredentials,
   validateAuthPassword,
 } from "./stock-input-validation.js";
+import {
+  assertRegistrationVerificationCode,
+  checkRegistrationVerificationCode,
+  sendRegistrationVerificationCode,
+} from "./email-verification.js";
+import { isEmailSendingConfigured } from "./email-sender.js";
+import { liveTradeLogInfo } from "./live-trade-log.js";
 
 const COOKIE_NAME = "stock_session";
 const SCRYPT_N = 16384;
@@ -36,6 +45,33 @@ function isRegistrationOpen() {
  * @param {string} password
  * @param {string} saltHex
  */
+export function verifyUserAccountPasswordSync(userId, password) {
+  const user = findUserByIdSync(userId);
+  if (!user?.passwordSalt || !user?.passwordHash) return false;
+  const checked = validateAuthPassword(password);
+  if (!checked.ok) return false;
+  return verifyPassword(checked.value, user.passwordSalt, user.passwordHash);
+}
+
+/**
+ * @param {string} userId
+ * @param {unknown} password
+ */
+export function assertUserAccountPassword(userId, password) {
+  const pw = String(password ?? "").trim();
+  if (!pw) {
+    const err = new Error("계정 비밀번호를 입력하세요.");
+    err.code = "ACCOUNT_PASSWORD_REQUIRED";
+    throw err;
+  }
+  if (!verifyUserAccountPasswordSync(userId, pw)) {
+    const err = new Error("계정 비밀번호가 올바르지 않습니다.");
+    err.code = "INVALID_ACCOUNT_PASSWORD";
+    throw err;
+  }
+  return pw;
+}
+
 function verifyPassword(password, saltHex, expectedHash) {
   const salt = Buffer.from(saltHex, "hex");
   const derived = crypto.scryptSync(password, salt, SCRYPT_KEYLEN, {
@@ -145,6 +181,76 @@ function clearSessionCookie(res) {
  * @param {import("express").Application} app
  */
 export function registerUserAuthRoutes(app) {
+  const legacyEmail = migrateLegacyUsersEmailVerifiedSync();
+  if (legacyEmail.updated > 0) {
+    liveTradeLogInfo(
+      `[auth] 기존 계정 ${legacyEmail.updated}건 이메일 인증 완료 처리`,
+    );
+  }
+
+  app.post("/api/auth/email/send-code", async (req, res) => {
+    try {
+      if (!isRegistrationOpen()) {
+        res.status(403).json({
+          error: "회원가입이 닫혀 있습니다. 관리자에게 문의하세요.",
+          code: "REGISTRATION_CLOSED",
+        });
+        return;
+      }
+      if (!isEmailSendingConfigured()) {
+        res.status(503).json({
+          error:
+            "이메일 발송이 설정되지 않았습니다. 관리자에게 SMTP 설정을 요청하세요.",
+          code: "EMAIL_NOT_CONFIGURED",
+        });
+        return;
+      }
+      const result = await sendRegistrationVerificationCode(req.body?.email);
+      res.json(result);
+    } catch (e) {
+      const code =
+        e && typeof e === "object" && "code" in e ? String(e.code) : undefined;
+      let status = 400;
+      if (code === "EMAIL_ALREADY_REGISTERED") status = 409;
+      if (code === "SEND_COOLDOWN") status = 429;
+      if (code === "EMAIL_NOT_CONFIGURED") status = 503;
+      res.status(status).json({
+        error: e instanceof Error ? e.message : String(e),
+        code,
+        retryAfterSec:
+          e && typeof e === "object" && "retryAfterSec" in e
+            ? Number(e.retryAfterSec)
+            : undefined,
+      });
+    }
+  });
+
+  app.post("/api/auth/email/verify-code", (req, res) => {
+    try {
+      if (!isRegistrationOpen()) {
+        res.status(403).json({
+          error: "회원가입이 닫혀 있습니다. 관리자에게 문의하세요.",
+          code: "REGISTRATION_CLOSED",
+        });
+        return;
+      }
+      checkRegistrationVerificationCode(
+        req.body?.email,
+        req.body?.verificationCode ?? req.body?.code,
+      );
+      res.json({ ok: true });
+    } catch (e) {
+      const code =
+        e && typeof e === "object" && "code" in e ? String(e.code) : undefined;
+      const status =
+        code === "CODE_MISMATCH" || code === "VERIFY_LOCKED" ? 401 : 400;
+      res.status(status).json({
+        error: e instanceof Error ? e.message : String(e),
+        code,
+      });
+    }
+  });
+
   app.post("/api/auth/register", (req, res) => {
     try {
       if (!isRegistrationOpen()) {
@@ -163,9 +269,35 @@ export function registerUserAuthRoutes(app) {
         res.status(400).json({ error: cred.error });
         return;
       }
+      let verifiedEmail;
+      try {
+        verifiedEmail = assertRegistrationVerificationCode(
+          cred.value.email,
+          req.body?.verificationCode ?? req.body?.code,
+        );
+      } catch (e) {
+        const code =
+          e && typeof e === "object" && "code" in e ? String(e.code) : undefined;
+        const status =
+          code === "CODE_MISMATCH" || code === "VERIFY_LOCKED" ? 401 : 400;
+        res.status(status).json({
+          error: e instanceof Error ? e.message : String(e),
+          code,
+        });
+        return;
+      }
+      if (verifiedEmail !== cred.value.email) {
+        res.status(400).json({ error: "이메일이 인증 정보와 일치하지 않습니다." });
+        return;
+      }
       const email = cred.value.email;
       const { passwordHash, passwordSalt } = hashPassword(cred.value.password);
-      const user = createUserSync({ email, passwordHash, passwordSalt });
+      const user = createUserSync({
+        email,
+        passwordHash,
+        passwordSalt,
+        emailVerifiedAtMs: Date.now(),
+      });
       const session = createSessionSync(user.id);
       setSessionCookie(res, session.id);
       maybeMigrateLegacyLiveTradeDataSync(user.id);
@@ -221,6 +353,21 @@ export function registerUserAuthRoutes(app) {
     res.json({ ok: true });
   });
 
+  app.post("/api/auth/verify-password", requireUserAuth, (req, res) => {
+    try {
+      assertUserAccountPassword(req.user.id, req.body?.password);
+      res.json({ ok: true });
+    } catch (e) {
+      const code =
+        e && typeof e === "object" && "code" in e ? String(e.code) : undefined;
+      const status = code === "INVALID_ACCOUNT_PASSWORD" ? 401 : 400;
+      res.status(status).json({
+        error: e instanceof Error ? e.message : String(e),
+        code,
+      });
+    }
+  });
+
   app.get("/api/auth/me", (req, res) => {
     const user = resolveUserFromRequest(req);
     if (!user) {
@@ -230,9 +377,15 @@ export function registerUserAuthRoutes(app) {
       });
       return;
     }
+    const row = findUserByIdSync(user.id);
     res.json({
-      user: { id: user.id, email: user.email },
+      user: {
+        id: user.id,
+        email: user.email,
+        emailVerified: isUserEmailVerifiedSync(row),
+      },
       registrationOpen: isRegistrationOpen(),
+      emailVerificationRequired: isRegistrationOpen(),
     });
   });
 }

@@ -1040,6 +1040,7 @@ body {
   gap: 0.65rem;
   width: 100%;
   min-width: 0;
+  overflow-x: hidden;
 }
 
 .live-trading-tab__auth-alert {
@@ -1053,21 +1054,37 @@ body {
   border-radius: 10px;
 }
 
-.live-trading-tab__auth-code-row {
+.live-trading-tab__auth-code-block {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 0.45rem 0.55rem;
-}
-
-.live-trading-tab__field--code {
-  flex: 1 1 8rem;
+  flex-direction: column;
+  gap: 0.35rem;
   min-width: 0;
 }
 
-.live-trading-tab__input--code {
+.live-trading-tab__auth-code-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: 0.4rem;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.live-trading-tab__auth-code-cells {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.live-trading-tab__auth-code-cell {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 2.1rem;
+  padding-left: 0;
+  padding-right: 0;
+  text-align: center;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.12em;
 }
 
 .live-trading-tab__auth-send-code {
@@ -1101,7 +1118,8 @@ html[data-theme="dark"] .live-trading-tab__auth-code-msg {
   border: none;
   background: transparent;
   box-shadow: none;
-  max-width: none;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .live-trading-tab__auth--popover .live-trading-tab__auth-tabs {
@@ -1135,6 +1153,18 @@ html[data-theme="dark"] .live-trading-tab__auth-code-msg {
 .live-trading-tab__auth--popover .live-trading-tab__auth-send-code {
   min-height: 2.2rem;
   font-size: 0.76rem;
+  max-width: 5.4rem;
+  padding-left: 0.45rem;
+  padding-right: 0.45rem;
+  line-height: 1.2;
+  white-space: normal;
+  text-align: center;
+}
+
+.live-trading-tab__auth--popover .live-trading-tab__auth-code-cell {
+  max-width: 1.85rem;
+  min-height: 2.2rem;
+  font-size: 0.82rem;
 }
 
 .live-trading-tab__auth--popover .live-trading-tab__auth-submit {

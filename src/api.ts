@@ -774,11 +774,13 @@ export function deleteTechModel(id: string) {
 export interface AuthUser {
   id: string;
   email: string;
+  emailVerified?: boolean;
 }
 
 export interface AuthMeResponse {
   user: AuthUser;
   registrationOpen?: boolean;
+  emailVerificationRequired?: boolean;
 }
 
 export function fetchAuthMe() {
@@ -793,16 +795,48 @@ export function loginAuth(email: string, password: string) {
   });
 }
 
-export function registerAuth(email: string, password: string) {
+export function sendAuthEmailVerificationCode(email: string) {
+  return fetchJson<{
+    ok: boolean;
+    expiresInSec: number;
+    devCode?: string;
+  }>("/api/auth/email/send-code", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+}
+
+export function verifyAuthEmailCode(email: string, verificationCode: string) {
+  return fetchJson<{ ok: boolean }>("/api/auth/email/verify-code", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, verificationCode }),
+  });
+}
+
+export function registerAuth(
+  email: string,
+  password: string,
+  verificationCode: string,
+) {
   return fetchJson<{ ok: boolean; user: AuthUser }>("/api/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, verificationCode }),
   });
 }
 
 export function logoutAuth() {
   return fetchJson<{ ok: boolean }>("/api/auth/logout", { method: "POST" });
+}
+
+export function verifyAccountPassword(password: string) {
+  return fetchJson<{ ok: boolean }>("/api/auth/verify-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password }),
+  });
 }
 
 export interface UserCredentialMeta {
@@ -811,6 +845,7 @@ export interface UserCredentialMeta {
   ready: boolean;
   liveOrdersEnabled: boolean;
   hasSecret: boolean;
+  hasAccount?: boolean;
   messageKo: string;
   source?: "user" | "env" | "none";
   updatedAtMs?: number | null;
@@ -843,7 +878,11 @@ export function saveUserCredential(
   body: {
     apiKey?: string;
     secretKey?: string;
+    /** 토스 — TOSS_ACCOUNT_ID */
+    accountId?: string;
     liveOrdersEnabled?: boolean;
+    /** 기존 API 변경 시 로그인 계정 비밀번호 */
+    accountPassword?: string;
   },
 ) {
   return fetchJson<{ ok: boolean; credential: UserCredentialMeta }>(
@@ -852,6 +891,20 @@ export function saveUserCredential(
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+    },
+  );
+}
+
+export function deleteUserCredential(
+  exchange: "bithumb" | "toss",
+  accountPassword: string,
+) {
+  return fetchJson<{ ok: boolean }>(
+    `/api/user/credentials/${encodeURIComponent(exchange)}`,
+    {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accountPassword }),
     },
   );
 }
@@ -894,7 +947,7 @@ export interface UserCredentialTestResult {
 
 export function testUserCredential(
   exchange: "bithumb" | "toss",
-  body?: { apiKey?: string; secretKey?: string },
+  body?: { apiKey?: string; secretKey?: string; accountId?: string },
 ) {
   return fetchJson<UserCredentialTestResult>(
     `/api/user/credentials/${encodeURIComponent(exchange)}/test`,
@@ -1222,6 +1275,10 @@ export interface LiveTradeHolding {
   /** 1분봉 시세 시각(ms) */
   quoteQuotedAtMs?: number | null;
   priceSource?: "1m" | "over" | "regular" | null;
+  /** 텔레그램 첫 알림 시각·가격 대비 수익률(코인) */
+  notifyBaselineAtMs?: number | null;
+  notifyBaselinePrice?: number | null;
+  sinceNotifyReturnPct?: number | null;
 }
 
 export interface LiveTradeRecord {
@@ -1243,6 +1300,8 @@ export interface LiveTradeRecord {
   /** 매도 체결 시점 평균 매입 단가 */
   entryPrice?: number | null;
   atMs: number;
+  /** 빗썸 체결·텔레그램 첫 알림 이후 가져온 거래 */
+  exchangeImport?: boolean;
 }
 
 export interface LiveTradePortfolioSummary {
@@ -1264,10 +1323,14 @@ export interface LiveTradePortfolioResponse {
   trades: LiveTradeRecord[];
 }
 
-export function fetchLiveTradingPortfolio(programId?: string | null) {
-  const q = programId?.trim()
-    ? `?programId=${encodeURIComponent(programId.trim())}`
-    : "";
+export function fetchLiveTradingPortfolio(
+  programId?: string | null,
+  opts?: { exchangeSync?: boolean },
+) {
+  const params = new URLSearchParams();
+  if (programId?.trim()) params.set("programId", programId.trim());
+  if (opts?.exchangeSync) params.set("exchangeSync", "1");
+  const q = params.toString() ? `?${params}` : "";
   return fetchJson<LiveTradePortfolioResponse>(`/api/live-trading/portfolio${q}`);
 }
 
@@ -1303,6 +1366,8 @@ export function simulateLiveTradeBuy(body: {
   symbol: string;
   market: "kr" | "us" | "crypto";
   name?: string;
+  /** 미입력 시 서버가 1분봉 시세로 체결 */
+  price?: number;
 }) {
   return fetchJson<{
     ok: boolean;
@@ -1321,7 +1386,11 @@ export function simulateLiveTradeSell(body: {
   symbol: string;
   market?: "kr" | "us" | "crypto";
   quantity?: number;
+  /** 미입력 시 서버가 1분봉 시세로 체결 */
+  price?: number;
   note?: string;
+  /** UI 필터와 동일한 포트폴리오 스냅샷(빈 값=전체 프로그램) */
+  portfolioProgramId?: string | null;
 }) {
   return fetchJson<{
     ok: boolean;
@@ -1333,6 +1402,46 @@ export function simulateLiveTradeSell(body: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+}
+
+export interface BithumbOpenOrder {
+  orderId: string;
+  market: string;
+  symbol: string;
+  name: string;
+  side: "buy" | "sell" | string;
+  ordType: string;
+  state: string;
+  price: number | null;
+  volume: number | null;
+  remainingVolume: number | null;
+  executedVolume: number | null;
+  createdAtMs: number;
+  currentPrice: number | null;
+  changePercent: number | null;
+  currency: string;
+}
+
+export interface BithumbOpenOrdersResponse {
+  ok: boolean;
+  ready: boolean;
+  configured?: boolean;
+  liveOrdersEnabled: boolean;
+  messageKo?: string;
+  fetchError?: string;
+  orders: BithumbOpenOrder[];
+  updatedAtMs: number;
+}
+
+export function fetchBithumbOpenOrders() {
+  return fetchJson<BithumbOpenOrdersResponse>("/api/live-trading/bithumb/open-orders");
+}
+
+export function cancelBithumbOpenOrder(orderId: string) {
+  return fetchJson<BithumbOpenOrdersResponse & { ok: boolean }>(
+    `/api/live-trading/bithumb/orders/${encodeURIComponent(orderId)}`,
+    { method: "DELETE" },
+  );
 }
 
 export function fetchNews(

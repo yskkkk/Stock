@@ -9168,7 +9168,8 @@ html:not([data-theme="light"]) {
   box-sizing: border-box;
   width: min(18.75rem, calc(100vw - 5.5rem));
   max-height: min(78vh, 34rem);
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   overscroll-behavior: contain;
   padding: 0.72rem 0.8rem 0.75rem;
   border-radius: 12px;
