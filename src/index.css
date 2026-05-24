@@ -8452,12 +8452,14 @@ html[data-theme="light"] .market-indices-rail__item {
       1fr
       minmax(0, min(var(--app-page-max-width, 1680px), 100%))
       auto;
+    padding-right: env(safe-area-inset-right, 0px);
+    padding-left: var(--app-page-inline-pad-safe, var(--app-page-inline-pad, 1.35rem));
   }
 
   .app__right-panel--dock {
     display: flex;
     flex-direction: column;
-    align-items: stretch;
+    align-items: flex-end;
     justify-self: end;
     align-self: start;
     position: sticky;
@@ -8467,6 +8469,8 @@ html[data-theme="light"] .market-indices-rail__item {
     height: 100dvh;
     max-height: 100dvh;
     min-height: 0;
+    margin-right: 0;
+    padding-right: 0;
     pointer-events: auto;
     z-index: 12;
   }
@@ -8540,9 +8544,13 @@ html[data-theme="light"] .market-indices-rail__item {
   width: 3.35rem;
   height: 100%;
   min-height: 100dvh;
-  padding: max(0.35rem, env(safe-area-inset-top, 0px)) 0.2rem
-    max(0.35rem, env(safe-area-inset-bottom, 0px));
+  padding-top: max(0.35rem, env(safe-area-inset-top, 0px));
+  padding-bottom: max(0.35rem, env(safe-area-inset-bottom, 0px));
+  padding-left: 0.2rem;
+  padding-right: max(0px, env(safe-area-inset-right, 0px));
   border-left: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 75%, transparent);
+  border-right: none;
+  border-radius: 0;
   background: color-mix(in srgb, var(--bg-elevated, #121820) 88%, var(--card-bg, #fff));
   box-shadow: -6px 0 24px rgba(0, 0, 0, 0.18);
 }
