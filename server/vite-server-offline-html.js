@@ -48,7 +48,7 @@ export function installServerOfflineHtmlMiddleware(server) {
   const filePath = resolveOfflineHtmlPath(root);
   if (!filePath) return;
 
-  server.middlewares.use((req, res, next) => {
+  const offlineHtmlMiddleware = (req, res, next) => {
     if (req.method !== "GET" && req.method !== "HEAD") return next();
     const raw = String(req.originalUrl ?? req.url ?? "/");
     const pathname = raw.split("?")[0].split("#")[0] || "/";
@@ -63,7 +63,14 @@ export function installServerOfflineHtmlMiddleware(server) {
       return;
     }
     res.end(html);
-  });
+  };
+
+  const stack = server.middlewares?.stack;
+  if (Array.isArray(stack)) {
+    stack.unshift({ route: "", handle: offlineHtmlMiddleware });
+  } else {
+    server.middlewares.use(offlineHtmlMiddleware);
+  }
 }
 
 /**

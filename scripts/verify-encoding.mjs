@@ -33,4 +33,18 @@ if (bad.length) {
   for (const line of bad) console.error(" ", line);
   process.exit(1);
 }
+
+const publicHtml = path.join(root, "..", "public", "server-offline.html");
+if (fs.existsSync(publicHtml)) {
+  const h = fs.readFileSync(publicHtml, "utf8");
+  if (/\?\?/.test(h) && /badge|lead|retry/.test(h)) {
+    console.error("public/server-offline.html looks corrupted — run: node scripts/gen-server-offline-html.mjs");
+    process.exit(1);
+  }
+  if (!h.includes("charset=\"UTF-8\"")) {
+    console.error("public/server-offline.html missing UTF-8 charset meta");
+    process.exit(1);
+  }
+}
+
 console.log("encoding check ok");

@@ -8,7 +8,7 @@
     "dev:guard": "node scripts/dev-server-guard.mjs",
     "dev:watch": "node scripts/laptop-git-watch-dev.mjs",
     "i18n:gen": "node scripts/gen-ko-i18n.mjs",
-    "verify": "node scripts/verify-encoding.mjs",
+    "verify": "node scripts/gen-server-offline-html.mjs && node scripts/verify-encoding.mjs",
     "verify:entry": "node scripts/verify-entry-http.mjs",
     "verify:api-smoke": "node scripts/verify-api-smoke.mjs",
     "verify:express-spa": "node scripts/verify-express-spa-root.mjs",

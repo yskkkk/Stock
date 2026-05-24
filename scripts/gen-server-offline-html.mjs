@@ -1,11 +1,26 @@
-<!DOCTYPE html>
+/**
+ * public/server-offline.html — UTF-8 SSOT (Windows/에디터 깨짐 방지)
+ * HTML 본문·스크립트 문자열은 \\uXXXX 이스케이프만 사용(파일 ASCII-safe).
+ */
+import { writeFileSync } from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const out = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "public",
+  "server-offline.html",
+);
+
+const html = `<!DOCTYPE html>
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0e13" />
     <meta name="robots" content="noindex" />
-    <title>서버 연결 대기 — YSTOCK</title>
+    <title>\uC11C\uBC84 \uC5F0\uACB0 \uB300\uAE30 \u2014 YSTOCK</title>
     <!--STOCK_SERVER_OPEN_CONFIG-->
     <style>
       :root { --bg:#0a0e13; --card:#161d27; --border:rgba(148,163,184,.14); --text:#eef2f7; --dim:#9aa8bc; --muted:#6d7d92; --accent:#5eead4; --warn:#fbbf24; }
@@ -29,12 +44,12 @@
   </head>
   <body>
     <main class="card" aria-live="polite">
-      <p class="badge">서버 응답 없음</p>
-      <h1>Stock 서버가 깉져 있습니다</h1>
-      <p id="lead">테레그램으로 서버 오픈 요청을 보냅니다…</p>
+      <p class="badge">\uC11C\uBC84 \uC751\uB2F5 \uC5C6\uC74C</p>
+      <h1>Stock \uC11C\uBC84\uAC00 \uAE49\uC838 \uC788\uC2B5\uB2C8\uB2E4</h1>
+      <p id="lead">\uD14C\uB808\uADF8\uB7A8\uC73C\uB85C \uC11C\uBC84 \uC624\uD508 \uC694\uCCAD\uC744 \uBCF4\uB0C5\uB2C8\uB2E4\u2026</p>
       <div class="actions">
-        <button type="button" class="btn btn--primary" id="retry">다시 연결</button>
-        <button type="button" class="btn btn--ghost" id="reload">새로고침</button>
+        <button type="button" class="btn btn--primary" id="retry">\uB2E4\uC2DC \uC5F0\uACB0</button>
+        <button type="button" class="btn btn--ghost" id="reload">\uC0C8\uB85C\uACE0\uCE68</button>
       </div>
       <p id="status" role="status"></p>
     </main>
@@ -69,18 +84,18 @@
 
         function buildTelegramText() {
           var lines = [
-            "<b>Stock \uC11C\uBC84 \uC624\uD508 \uC694\uCCAD</b>",
+            "<b>Stock \\uC11C\\uBC84 \\uC624\\uD508 \\uC694\\uCCAD</b>",
             "",
-            "\uD83C\uDF10 " + (location.origin || location.hostname || "\u2014"),
-            "\uD83D\uDCE1 client",
+            "\\uD83C\\uDF10 " + (location.origin || location.hostname || "\\u2014"),
+            "\\uD83D\\uDCE1 client",
           ];
           if (navigator.userAgent) {
             var ua = navigator.userAgent;
-            if (ua.length > 120) ua = ua.slice(0, 117) + "\u2026";
-            lines.push("\uD83D\uDCF1 " + ua);
+            if (ua.length > 120) ua = ua.slice(0, 117) + "\\u2026";
+            lines.push("\\uD83D\\uDCF1 " + ua);
           }
-          lines.push("", "<i>\uD83D\uDD50 " + kstLabel() + " KST</i>");
-          return lines.join("\n");
+          lines.push("", "<i>\\uD83D\\uDD50 " + kstLabel() + " KST</i>");
+          return lines.join("\\n");
         }
 
         async function sendViaApi() {
@@ -134,16 +149,16 @@
           if (ok) {
             sessionStorage.setItem(SENT_KEY, "1");
             leadEl.textContent =
-              "\uD14C\uB808\uADF8\uB7A8\uC73C\uB85C \uC11C\uBC84 \uC624\uD508 \uC694\uCCAD\uC744 \uBCF4\uB0C5\uB2C8\uB2E4. \uC7A0\uC2DC \uD6C4 \uB2E4\uC2DC \uC5F0\uACB0\uD574 \uC8FC\uC138\uC694.";
+              "\\uD14C\\uB808\\uADF8\\uB7A8\\uC73C\\uB85C \\uC11C\\uBC84 \\uC624\\uD508 \\uC694\\uCCAD\\uC744 \\uBCF4\\uB0C5\\uB2C8\\uB2E4. \\uC7A0\\uC2DC \\uD6C4 \\uB2E4\\uC2DC \\uC5F0\\uACB0\\uD574 \\uC8FC\\uC138\\uC694.";
           } else {
             leadEl.textContent =
-              "\uC11C\uBC84 \uC624\uD508 \uC694\uCCAD\uC744 \uBCF4\uB0B4\uC9C0 \uBAB8\uC2B5\uB2C8\uB2E4. \uB2E4\uC2DC \uC5F0\uACB0\uC744 \uB20C\uB7EC \uC8FC\uC138\uC694.";
+              "\\uC11C\\uBC84 \\uC624\\uD508 \\uC694\\uCCAD\\uC744 \\uBCF4\\uB0B4\\uC9C0 \\uBAB8\\uC2B5\\uB2C8\\uB2E4. \\uB2E4\\uC2DC \\uC5F0\\uACB0\\uC744 \\uB20C\\uB7EC \\uC8FC\\uC138\\uC694.";
           }
         }
 
         async function probe() {
           retryBtn.disabled = true;
-          setStatus("\uC5F0\uACB0 \uD655\uC778 \uC911\u2026");
+          setStatus("\\uC5F0\\uACB0 \\uD655\\uC778 \\uC911\\u2026");
           try {
             var ctrl = new AbortController();
             var timer = setTimeout(function () { ctrl.abort(); }, 8000);
@@ -156,10 +171,10 @@
             if (!res.ok) throw new Error("bad");
             var body = await res.json();
             if (!body || !body.ok) throw new Error("bad");
-            setStatus("\uC5F0\uACB0\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uC571\uC73C\uB85C \uC774\uB3D9\uD569\uB2C8\uB2E4.");
+            setStatus("\\uC5F0\\uACB0\\uB418\\uC5C8\\uC2B5\\uB2C8\\uB2E4. \\uC571\\uC73C\\uB85C \\uC774\\uB3D9\\uD569\\uB2C8\\uB2E4.");
             location.replace("/");
           } catch (e) {
-            setStatus("\uC544\uC9C1 \uC11C\uBC84\uC5D0 \uC5F0\uACB0\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.", true);
+            setStatus("\\uC544\\uC9C1 \\uC11C\\uBC84\\uC5D0 \\uC5F0\\uACB0\\uD560 \\uC218 \\uC5C6\\uC2B5\\uB2C8\\uB2E4.", true);
             sessionStorage.removeItem(SENT_KEY);
             void requestServerOpen();
           } finally {
@@ -173,4 +188,7 @@
       })();
     </script>
   </body>
-</html>
+</html>`;
+
+writeFileSync(out, html, "utf8");
+console.log("gen server-offline.html ok");
