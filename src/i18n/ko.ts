@@ -191,6 +191,7 @@ export const ko = {
     liveTradeSideDockCollapse: "패널 접기",
     liveTradeSideDockRailAria: "계정·실매매 우측 메뉴",
     liveTradeSideDockRailAuth: "로그인",
+    liveTradeDockRailAccount: "계정",
     liveTradeSideDockRailPortfolio: "보유·수익",
     liveTradeLeftRailEmpty: "실행 중인 실매매·시뮬 프로그램이 없습니다.",
     liveTradeSideDockRailForm: "프로그램",

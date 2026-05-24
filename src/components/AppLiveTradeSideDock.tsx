@@ -6,6 +6,7 @@ import {
   LIVE_TRADE_RIGHT_PANEL_HOST_ID,
   LiveTradeCardSidePanel,
   defaultLiveTradeSideTabTitles,
+  notifyLiveTradeAuthChange,
   useLiveTradeAuth,
   useLiveTradeCardSidePanelOptional,
 } from "./LiveTradeAuthAndCredentials";
@@ -43,9 +44,16 @@ function DockFoldChevron({ open }: { open: boolean }) {
   );
 }
 
-function railTabShort(id: string, title: string): { glyph: string; label: string } {
+function railTabShort(
+  id: string,
+  title: string,
+  loggedIn: boolean,
+): { glyph: string; label: string } {
   if (id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth) {
-    return { glyph: "◎", label: ko.app.liveTradeSideDockRailAuth };
+    return {
+      glyph: "◎",
+      label: loggedIn ? ko.app.liveTradeDockRailAccount : ko.app.liveTradeSideDockRailAuth,
+    };
   }
   if (id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb) {
     return { glyph: "B", label: ko.app.leftRailBithumbAccountTitle };
@@ -76,6 +84,7 @@ export default function AppLiveTradeSideDock({
 }) {
   const { user, authChecked } = useLiveTradeAuth();
   const ctx = useLiveTradeCardSidePanelOptional();
+  const closePanel = ctx?.closePanel;
   const allSideTabs =
     (ctx?.sideTabs?.length ?? 0) > 0
       ? ctx!.sideTabs
@@ -128,6 +137,16 @@ export default function AppLiveTradeSideDock({
     [openPanel, persistOpen, activeId],
   );
 
+  const handleLogout = useCallback(() => {
+    void logoutAuth().then(() => {
+      invalidateLiveTradingPrefetch();
+      refreshLiveTradingStatusNow();
+      notifyLiveTradeAuthChange();
+      closePanel?.();
+      persistOpen(false);
+    });
+  }, [closePanel, persistOpen]);
+
   if (!wide || !authChecked || sideTabs.length === 0) return null;
 
   return (
@@ -176,7 +195,7 @@ export default function AppLiveTradeSideDock({
         <div className="app-live-trade-side-dock__rail-tabs">
         {sideTabs.map((tab) => {
           const selected = open && activeId === tab.id;
-          const { glyph, label } = railTabShort(tab.id, tab.title);
+          const { glyph, label } = railTabShort(tab.id, tab.title, Boolean(user));
           return (
             <button
               key={tab.id}
@@ -199,12 +218,29 @@ export default function AppLiveTradeSideDock({
           );
         })}
         </div>
-        {feedbackRef ? (
-          <FeedbackDockRailButton
-            active={feedbackActive}
-            onClick={() => feedbackRef.current?.openSubmit()}
-          />
-        ) : null}
+        <div className="app-live-trade-side-dock__rail-footer">
+          {user ? (
+            <button
+              type="button"
+              className="app-live-trade-side-dock__rail-btn app-live-trade-side-dock__rail-btn--logout"
+              title={ko.app.liveTradeAuthLogout}
+              onClick={() => handleLogout()}
+            >
+              <span className="app-live-trade-side-dock__rail-glyph" aria-hidden>
+                ⎋
+              </span>
+              <span className="app-live-trade-side-dock__rail-label">
+                {ko.app.liveTradeAuthLogout}
+              </span>
+            </button>
+          ) : null}
+          {feedbackRef ? (
+            <FeedbackDockRailButton
+              active={feedbackActive}
+              onClick={() => feedbackRef.current?.openSubmit()}
+            />
+          ) : null}
+        </div>
       </nav>
     </div>
   );

@@ -8732,10 +8732,27 @@ html[data-theme="light"] .market-indices-rail__item {
   box-sizing: border-box;
 }
 
-.app-live-trade-side-dock__rail-btn--feedback {
+.app-live-trade-side-dock__rail-footer {
   flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.2rem;
   margin-top: auto;
   margin-bottom: max(0.35rem, env(safe-area-inset-bottom, 0px));
+}
+
+.app-live-trade-side-dock__rail-btn--logout {
+  flex: none;
+}
+
+.app-live-trade-side-dock__rail-btn--logout:hover {
+  color: var(--down, #f87171);
+  background: color-mix(in srgb, var(--down, #f87171) 12%, transparent);
+}
+
+.app-live-trade-side-dock__rail-btn--feedback {
+  flex: none;
 }
 
 .app-live-trade-side-dock__rail-glyph--feedback {
