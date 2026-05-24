@@ -202,8 +202,6 @@ export const ko = {
     liveTradeBithumbItemExchangeOrders: "거래소 실주문",
     liveTradeExchangeOrdersOn: "허용",
     liveTradeExchangeOrdersOff: "차단(시뮬만)",
-    liveTradeBithumbProgramSimHint:
-      "«시뮬 자동 시작»은 앱 시뮬만, 동시에 켜도 됩니다.",
     liveTradeFeeLabel: "수수류",
     liveTradeAuthTitle: "실매매 로그인",
     liveTradeAuthHint:

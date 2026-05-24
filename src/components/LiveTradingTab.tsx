@@ -656,11 +656,6 @@ export default function LiveTradingTab({
               </span>
             </li>
           </ul>
-          {bithumb?.configured ? (
-            <p className="live-trading-tab__hint live-trading-tab__cred-hint">
-              {ko.app.liveTradeBithumbProgramSimHint}
-            </p>
-          ) : null}
           {status?.feeRates?.bithumb?.labelKo ? (
             <p className="live-trading-tab__hint live-trading-tab__fee-hint">
               {ko.app.liveTradeFeeLabel}: {status.feeRates.bithumb.labelKo}
