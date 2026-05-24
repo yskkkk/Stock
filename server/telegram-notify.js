@@ -933,6 +933,8 @@ function buildMessage(pick) {
       : "  • —";
 
   const modelName = String(pick.techModelName ?? pick.techModelId ?? "").trim();
+  const displayName =
+    String(pick.name ?? "").trim() || String(pick.symbol ?? "").trim() || "—";
   const { score, maxScore, weights, pctLabel: scorePct } =
     resolvePickWeightedScoreBreakdown(pick);
   const minScore = minTelegramScoreRequired(weights);
@@ -940,7 +942,7 @@ function buildMessage(pick) {
 
   return [
 
-    `<b>${flag} ${marketLabel} · 가중 점수 ${scorePct}% 알림</b>`,
+    `<b>${flag} ${marketLabel} · ${escHtml(displayName)} · 가중 점수 ${scorePct}% 알림</b>`,
 
     "",
 
