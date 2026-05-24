@@ -28,6 +28,20 @@ function readDockOpenPref(): boolean {
   return false;
 }
 
+/** 접힘=왼쪽, 펼침=오른쪽 — 텍스트 `<` `>` 대신 stroke chevron */
+function DockFoldChevron({ open }: { open: boolean }) {
+  return (
+    <span
+      className={
+        open
+          ? "app-live-trade-side-dock__chevron app-live-trade-side-dock__chevron--open"
+          : "app-live-trade-side-dock__chevron"
+      }
+      aria-hidden
+    />
+  );
+}
+
 function railTabShort(id: string, title: string): { glyph: string; label: string } {
   if (id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth) {
     return { glyph: "◎", label: ko.app.liveTradeSideDockRailAuth };
@@ -126,7 +140,7 @@ export default function AppLiveTradeSideDock() {
           aria-controls="app-live-trade-side-dock-panel"
           title={open ? ko.app.liveTradeSideDockCollapse : ko.app.liveTradeSideDockExpand}
         >
-          <span aria-hidden>{open ? ">" : "<"}</span>
+          <DockFoldChevron open={open} />
         </button>
         <div
           id={LIVE_TRADE_RIGHT_PANEL_HOST_ID}
@@ -147,9 +161,7 @@ export default function AppLiveTradeSideDock() {
           aria-controls="app-live-trade-side-dock-panel"
           title={open ? ko.app.liveTradeSideDockCollapse : ko.app.liveTradeSideDockExpand}
         >
-          <span className="app-live-trade-side-dock__fold-icon" aria-hidden>
-            {open ? ">" : "<"}
-          </span>
+          <DockFoldChevron open={open} />
         </button>
         <div className="app-live-trade-side-dock__rail-tabs">
         {sideTabs.map((tab) => {

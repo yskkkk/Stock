@@ -8655,10 +8655,28 @@ html[data-theme="light"] .market-indices-rail__item {
   background: color-mix(in srgb, var(--card-border, #334155) 40%, transparent);
 }
 
-.app-live-trade-side-dock__fold-icon {
-  font-size: 1.15rem;
-  font-weight: 700;
-  line-height: 1;
+.app-live-trade-side-dock__chevron {
+  display: block;
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin: 0 auto;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  border-radius: 0 0 1px 0;
+  transform: rotate(135deg);
+  transition: transform 0.18s ease, color 0.15s ease;
+}
+
+.app-live-trade-side-dock__chevron--open {
+  transform: rotate(-45deg);
+}
+
+.app-live-trade-side-dock__panel-edge .app-live-trade-side-dock__chevron {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-right-width: 1.75px;
+  border-bottom-width: 1.75px;
 }
 
 .app-live-trade-side-dock__rail-tabs {
