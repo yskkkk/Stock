@@ -1897,6 +1897,53 @@ html[data-theme="dark"] .live-trade-api-card__body .live-trading-tab__cred-form 
   padding: 1.5rem 1rem;
 }
 
+.live-trading-tab__card-tabs-rail-head {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0.65rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 80%, transparent);
+  background: color-mix(in srgb, var(--card-bg, #fff) 94%, var(--surface-2, #f1f5f9));
+}
+
+.live-trading-tab__card-tabs-rail-title {
+  margin: 0;
+  min-width: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--text, #0f172a);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-trading-tab__card-tabs-rail-close {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  margin: 0;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 85%, transparent);
+  border-radius: var(--radius-sm, 6px);
+  background: transparent;
+  color: var(--muted, #64748b);
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.live-trading-tab__card-tabs-rail-close:hover {
+  color: var(--text, #0f172a);
+  border-color: color-mix(in srgb, var(--accent, #2563eb) 35%, transparent);
+}
+
 .live-trading-tab__card-tabs {
   display: flex;
   flex-wrap: wrap;

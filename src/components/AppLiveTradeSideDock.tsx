@@ -9,6 +9,7 @@ import {
   useLiveTradeCardSidePanelOptional,
 } from "./LiveTradeAuthAndCredentials";
 import { ko } from "../i18n/ko";
+import { LIVE_TRADE_DOCK_TOGGLE_EVENT } from "../lib/liveTradeDockEvents";
 
 const OPEN_PREF_KEY = "ystock-live-trade-side-dock-open";
 
@@ -80,6 +81,12 @@ export default function AppLiveTradeSideDock() {
     persistOpen(!open);
   }, [open, persistOpen]);
 
+  useEffect(() => {
+    const onToggle = () => toggleFold();
+    window.addEventListener(LIVE_TRADE_DOCK_TOGGLE_EVENT, onToggle);
+    return () => window.removeEventListener(LIVE_TRADE_DOCK_TOGGLE_EVENT, onToggle);
+  }, [toggleFold]);
+
   const onRailTab = useCallback(
     (id: string, title: string) => {
       if (!openPanel) return;
@@ -105,11 +112,21 @@ export default function AppLiveTradeSideDock() {
         className="app-live-trade-side-dock__panel"
         aria-hidden={!open}
       >
+        <button
+          type="button"
+          className="app-live-trade-side-dock__panel-edge"
+          onClick={toggleFold}
+          aria-expanded={open}
+          aria-controls="app-live-trade-side-dock-panel"
+          title={open ? ko.app.liveTradeSideDockCollapse : ko.app.liveTradeSideDockExpand}
+        >
+          <span aria-hidden>{open ? "›" : "‹"}</span>
+        </button>
         <div
           id={LIVE_TRADE_RIGHT_PANEL_HOST_ID}
           className="app-live-trade-side-dock__host"
         >
-          <LiveTradeCardSidePanel forceDocked railMode />
+          <LiveTradeCardSidePanel forceDocked railMode onRequestDockCollapse={toggleFold} />
         </div>
       </div>
       <nav

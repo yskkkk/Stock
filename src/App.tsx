@@ -46,7 +46,10 @@ import OpsManagementTab from "./components/OpsManagementTab";
 import LiveTradingTab from "./components/LiveTradingTab";
 import AppLiveTradeSideDock from "./components/AppLiveTradeSideDock";
 import AppRightDockRailPanels from "./components/AppRightDockRailPanels";
-import { LiveTradeCardSidePanelProvider } from "./components/LiveTradeAuthAndCredentials";
+import {
+  LiveTradeCardSidePanelProvider,
+  useLiveTradeAuth,
+} from "./components/LiveTradeAuthAndCredentials";
 import RecommendationsTab from "./components/RecommendationsTab";
 import StockSearchTab from "./components/StockSearchTab";
 import StockChart from "./components/StockChart";
@@ -998,6 +1001,8 @@ export default function App() {
   const liveTradingStatus = useLiveTradingStatusPoll();
   const liveRunningCount =
     (liveTradingStatus?.armedCount ?? 0) + (liveTradingStatus?.simCount ?? 0);
+  const { user: liveTradeUser } = useLiveTradeAuth();
+  const showDesktopSideDock = desktopDockLayout && appTab !== "ops" && Boolean(liveTradeUser);
   return (
     <LiveTradeCardSidePanelProvider>
     <div
@@ -1900,7 +1905,23 @@ export default function App() {
         }
       />
       </div>
-      <div className="app__right-panel" aria-hidden="true" />
+      <div
+        className={
+          showDesktopSideDock
+            ? "app__right-panel app__right-panel--dock"
+            : "app__right-panel"
+        }
+        aria-hidden={showDesktopSideDock ? undefined : true}
+      >
+        {showDesktopSideDock ? (
+          <>
+            <AppRightDockRailPanels
+              onOpenLiveTrading={() => setAppTab("liveTrading")}
+            />
+            <AppLiveTradeSideDock />
+          </>
+        ) : null}
+      </div>
       </div>
 
       {appTab !== "ops" && appTab !== "liveTrading" ? (
@@ -1914,13 +1935,6 @@ export default function App() {
             onOpenHoldingChart={handleLiveTradeChart}
           />
         </div>
-      ) : null}
-
-      {appTab !== "ops" ? (
-        <>
-          <AppRightDockRailPanels onOpenLiveTrading={() => setAppTab("liveTrading")} />
-          <AppLiveTradeSideDock />
-        </>
       ) : null}
 
       <AppSiteFooter
