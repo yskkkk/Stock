@@ -27,6 +27,7 @@ import { invalidateLiveTradingPrefetch, peekLiveTradingPrefetch } from "../lib/t
 import { formatPercent } from "../lib/format";
 import LiveTradeAuthPanel, {
   LiveTradeBithumbCredentialForm,
+  notifyLiveTradeAuthChange,
   useLiveTradeAuth,
 } from "./LiveTradeAuthAndCredentials";
 import {
@@ -520,6 +521,7 @@ export default function LiveTradingTab({
             invalidateLiveTradingPrefetch();
             refreshLiveTradingStatusNow();
             setPortfolioRefreshKey((k) => k + 1);
+            notifyLiveTradeAuthChange();
             void refreshAuth().then((nextUser) => reload(nextUser));
           }}
         />

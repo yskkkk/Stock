@@ -3,7 +3,6 @@ import {
   fetchAuthMe,
   fetchUserCredentials,
   loginAuth,
-  logoutAuth,
   registerAuth,
   saveUserCredential,
   testUserCredential,
@@ -18,6 +17,12 @@ import {
   validateAuthCredentials,
   validateBithumbCredentialPair,
 } from "../lib/stock-input-validation";
+
+export const LIVE_TRADE_AUTH_CHANGE = "stock:live-trade-auth-change";
+
+export function notifyLiveTradeAuthChange() {
+  window.dispatchEvent(new Event(LIVE_TRADE_AUTH_CHANGE));
+}
 
 export function useLiveTradeAuth() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -42,6 +47,14 @@ export function useLiveTradeAuth() {
     void refreshAuth();
   }, [refreshAuth]);
 
+  useEffect(() => {
+    const onChange = () => {
+      void refreshAuth();
+    };
+    window.addEventListener(LIVE_TRADE_AUTH_CHANGE, onChange);
+    return () => window.removeEventListener(LIVE_TRADE_AUTH_CHANGE, onChange);
+  }, [refreshAuth]);
+
   return {
     user,
     setUser,
@@ -49,6 +62,46 @@ export function useLiveTradeAuth() {
     authChecked,
     refreshAuth,
   };
+}
+
+export function LiveTradeAuthSignedInCard({
+  user,
+  onLogout,
+  variant = "inline",
+}: {
+  user: AuthUser;
+  onLogout: () => void;
+  variant?: "inline" | "rail";
+}) {
+  const rootClass =
+    variant === "rail"
+      ? "left-rail-auth left-rail-auth--signed"
+      : "live-trading-tab__auth card live-trading-tab__auth--signed";
+
+  return (
+    <section className={rootClass} aria-live="polite">
+      <div className="live-trading-tab__auth-signed">
+        <div className="live-trading-tab__auth-signed-main">
+          <span className="live-trading-tab__auth-avatar" aria-hidden>
+            {user.email.slice(0, 1).toUpperCase()}
+          </span>
+          <div>
+            <p className="live-trading-tab__auth-signed-label">
+              {ko.app.liveTradeAuthSignedIn}
+            </p>
+            <p className="live-trading-tab__auth-signed-email">{user.email}</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          className="btn btn--secondary btn--sm live-trading-tab__auth-logout"
+          onClick={onLogout}
+        >
+          {ko.app.liveTradeAuthLogout}
+        </button>
+      </div>
+    </section>
+  );
 }
 
 function CredentialExchangeForm({
@@ -405,35 +458,7 @@ export default function LiveTradeAuthPanel({
     }
   };
 
-  if (user) {
-    return (
-      <section
-        className="live-trading-tab__auth card live-trading-tab__auth--signed"
-        aria-live="polite"
-      >
-        <div className="live-trading-tab__auth-signed">
-          <div className="live-trading-tab__auth-signed-main">
-            <span className="live-trading-tab__auth-avatar" aria-hidden>
-              {user.email.slice(0, 1).toUpperCase()}
-            </span>
-            <div>
-              <p className="live-trading-tab__auth-signed-label">
-                {ko.app.liveTradeAuthSignedIn}
-              </p>
-              <p className="live-trading-tab__auth-signed-email">{user.email}</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            className="btn btn--secondary btn--sm live-trading-tab__auth-logout"
-            onClick={() => void logoutAuth().then(onAuthChange)}
-          >
-            {ko.app.liveTradeAuthLogout}
-          </button>
-        </div>
-      </section>
-    );
-  }
+  if (user) return null;
 
   const showRegister = registrationOpen;
 

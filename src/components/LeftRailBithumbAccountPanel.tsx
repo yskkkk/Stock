@@ -7,6 +7,7 @@ import {
 } from "../api";
 import BithumbAccountSnapshotCard from "./BithumbAccountSnapshotCard";
 import { ko } from "../i18n/ko";
+import { LIVE_TRADE_AUTH_CHANGE } from "./LiveTradeAuthAndCredentials";
 
 const POLL_MS = 45_000;
 
@@ -54,7 +55,14 @@ function LeftRailBithumbAccountPanelInner({
   useEffect(() => {
     void reload();
     const id = window.setInterval(() => void reload(), POLL_MS);
-    return () => window.clearInterval(id);
+    const onAuthChange = () => {
+      void reload();
+    };
+    window.addEventListener(LIVE_TRADE_AUTH_CHANGE, onAuthChange);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener(LIVE_TRADE_AUTH_CHANGE, onAuthChange);
+    };
   }, [reload]);
 
   if (!authChecked) {
