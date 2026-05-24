@@ -11,7 +11,6 @@ import {
   type LiveTradeHolding,
   type LiveTradePortfolioResponse,
   type LiveTradeProgram,
-  type LiveTradeRecord,
 } from "../api";
 import { useLivePortfolioQuotePoll } from "../hooks/useLivePortfolioQuotePoll";
 import {
@@ -316,12 +315,17 @@ function HoldingRow({
     <Fragment>
     <tr>
       <td data-label={ko.app.liveTradePfColSymbol}>
-        <LiveHoldingChartSymbol holding={row} onOpen={onOpenHoldingChart} />
-        {!portfolioProgramId && (row.programName ?? row.programId) ? (
-          <span className="live-sim-run__name live-portfolio__row-prog">
-            {row.programName ?? row.programId}
-          </span>
-        ) : null}
+        <LiveHoldingChartSymbol
+          holding={row}
+          onOpen={onOpenHoldingChart}
+          footer={
+            !portfolioProgramId && (row.programName ?? row.programId) ? (
+              <span className="live-sim-run__name live-portfolio__row-prog">
+                {row.programName ?? row.programId}
+              </span>
+            ) : null
+          }
+        />
       </td>
       <td className="live-sim-run__num" data-label={ko.app.liveTradePfColQty}>
         {formatLiveTradeQuantity(row.quantity, row.market)}
