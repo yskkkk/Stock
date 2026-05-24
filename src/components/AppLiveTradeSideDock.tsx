@@ -136,8 +136,26 @@ function readDockOpenPref(): boolean {
 function DockResizeArrows() {
   return (
     <span className="app-live-trade-side-dock__resize-arrows" aria-hidden>
-      <span className="app-live-trade-side-dock__resize-arrow">‹</span>
-      <span className="app-live-trade-side-dock__resize-arrow">›</span>
+      <svg className="app-live-trade-side-dock__resize-arrow" viewBox="0 0 8 12">
+        <path
+          d="M6.5 1.5 2.5 6l4 4.5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+      <svg className="app-live-trade-side-dock__resize-arrow" viewBox="0 0 8 12">
+        <path
+          d="M1.5 1.5 5.5 6l-4 4.5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
     </span>
   );
 }
