@@ -94,6 +94,7 @@ import {
 import { filterPicksByQuery } from "./lib/searchPicks";
 import { liveHoldingToStockPick } from "./lib/liveHoldingToPick";
 import { startBackgroundTabPrefetch } from "./lib/tabPrefetch";
+import { SHOW_OPS_GLOBAL_DEV_QUEUE_UI } from "./constants/opsDevQueuePoll";
 import { warmOpsDevQueueDisplay } from "./lib/opsDevQueueDisplayClient";
 import { sortPicksList, type SortKey } from "./lib/sortPicks";
 import { yahooStockSymbolToTradingView } from "./lib/tradingviewSymbols";
@@ -375,11 +376,18 @@ export default function App() {
   }, [configReady]);
 
   useEffect(() => {
-    if (!configReady || (!accessAdmin && !adminIpConsole)) return;
+    if (
+      !SHOW_OPS_GLOBAL_DEV_QUEUE_UI ||
+      !configReady ||
+      (!accessAdmin && !adminIpConsole)
+    ) {
+      return;
+    }
     return warmOpsDevQueueDisplay();
   }, [configReady, accessAdmin, adminIpConsole]);
 
-  const showOpsGlobalQueue = accessAdmin || adminIpConsole;
+  const showOpsGlobalQueue =
+    SHOW_OPS_GLOBAL_DEV_QUEUE_UI && (accessAdmin || adminIpConsole);
 
   useEffect(() => {
     applyTheme(colorMode);
