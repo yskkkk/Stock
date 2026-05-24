@@ -33,6 +33,13 @@ const t = {
       "\uB2E4\uD06C\u00B7\uD654\uC774\uD2B8 \uBAA8\uB4DC \u00B7 \uC6B4\uC601 \u00B7 \uBD88\uD3B8 \uC811\uC218 \uB3C4\uAD6C \uC601\uC5ED",
     footerTheme:
       "\uB2E4\uD06C\u00B7\uD654\uC774\uD2B8 \uBAA8\uB4DC \uC804\uD658",
+    siteFooterAria: "\uc0ac\uc774\ud2b8 \ud558\ub2e8 \ub9c1\ud06c",
+    footerDevYsk: "ysk \uac1c\ubc1c\uc911",
+    footerFeedback: "\ubd88\ud3b8/\ubb38\uc758",
+    footerFeedbackTitle: "\ubd88\ud3b8\u00b7\ubb38\uc758",
+    footerFeedbackPlaceholder:
+      "\ubd88\ud3b8\u00b7\ubb38\uc758 \ub0b4\uc6a9\uc744 \uc801\uc5b4 \uc8fc\uc138\uc694\u2026",
+    footerCopyright: "@ysk \uc5b4\ub514\uac14\uc5b4",
     pullToRefreshHint: "\uC544\uB798\uB85C \uB2F9\uACA8 \uC0C8\uB85C\uACE0\uCE68",
     pullToRefreshRelease: "\uB193\uC73C\uBA74 \uC0C8\uB85C\uACE0\uCE68",
     lightPaletteHint: "\uB208\uC5D0 \uD3B8\uD55C \uD1A4",
