@@ -4,7 +4,8 @@ export const LIVE_TRADE_DOCK_PANEL_WIDTH_PREF =
 
 const RAIL_REM = 3.35;
 const DEFAULT_PANEL_REM = 26;
-const MIN_PANEL_REM = 14;
+/** 드래그·저장 하한 — 이보다 좁으면 패널 본문이 거의 보이지 않음 */
+const MIN_PANEL_REM = 20;
 const MAX_DOCK_TOTAL_REM = 30;
 
 function rootFontPx(): number {
@@ -32,14 +33,28 @@ export function clampDockPanelWidthPx(
   return Math.round(Math.min(max, Math.max(min, px)));
 }
 
-export function readDockPanelWidthPref(): number | null {
+/** 저장값이 기본 대비 지나치게 좁으면 무시(과거 최소 14rem·오동작 저장 복구) */
+export function isDockPanelWidthPrefUsable(
+  px: number,
+  viewportWidth?: number,
+): boolean {
+  const def = defaultDockPanelWidthPx(viewportWidth);
+  const floor = Math.max(def * 0.72, MIN_PANEL_REM * rootFontPx());
+  return px >= floor;
+}
+
+export function readDockPanelWidthPref(viewportWidth?: number): number | null {
   if (typeof localStorage === "undefined") return null;
   try {
     const raw = localStorage.getItem(LIVE_TRADE_DOCK_PANEL_WIDTH_PREF);
     if (!raw) return null;
     const n = Number(raw);
     if (!Number.isFinite(n) || n <= 0) return null;
-    return clampDockPanelWidthPx(n);
+    if (!isDockPanelWidthPrefUsable(n, viewportWidth)) {
+      localStorage.removeItem(LIVE_TRADE_DOCK_PANEL_WIDTH_PREF);
+      return null;
+    }
+    return clampDockPanelWidthPx(n, viewportWidth);
   } catch {
     return null;
   }

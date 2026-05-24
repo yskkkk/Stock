@@ -28,6 +28,7 @@ import {
   dispatchLiveTradeDockOpenForm,
 } from "../lib/liveTradeDockEvents";
 import {
+  LIVE_TRADE_DOCK_PANEL_WIDTH_PREF,
   applyDockPanelWidthCss,
   clampDockPanelWidthPx,
   clearDockPanelWidthCss,
@@ -333,6 +334,13 @@ export default function AppLiveTradeSideDock({
   }, [panelWidthPx]);
 
   useEffect(() => {
+    const saved = readDockPanelWidthPref();
+    if (saved != null) return;
+    const def = defaultDockPanelWidthPx();
+    setPanelWidthPx((w) => (w < def * 0.72 ? def : w));
+  }, []);
+
+  useEffect(() => {
     const onResize = () => {
       setPanelWidthPx((w) => clampDockPanelWidthPx(w));
     };
@@ -365,7 +373,15 @@ export default function AppLiveTradeSideDock({
     setResizing(false);
     setPanelWidthPx((w) => {
       const clamped = clampDockPanelWidthPx(w);
-      persistDockPanelWidthPref(clamped);
+      if (clamped >= defaultDockPanelWidthPx() * 0.72) {
+        persistDockPanelWidthPref(clamped);
+      } else {
+        try {
+          localStorage.removeItem(LIVE_TRADE_DOCK_PANEL_WIDTH_PREF);
+        } catch {
+          /* ignore */
+        }
+      }
       return clamped;
     });
     if (e.currentTarget.hasPointerCapture(e.pointerId)) {

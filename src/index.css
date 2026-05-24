@@ -9068,9 +9068,10 @@ html:not([data-theme="light"]) {
   position: relative;
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   align-self: stretch;
   width: var(--live-trade-dock-panel-width, min(26rem, calc(42vw - 3.5rem)));
+  min-width: var(--live-trade-dock-panel-width, min(26rem, calc(42vw - 3.5rem)));
   max-width: var(--live-trade-dock-panel-width, 26rem);
   height: auto;
   min-height: 100%;
