@@ -8903,7 +8903,7 @@ html:not([data-theme="light"]) {
   padding-right: max(0px, env(safe-area-inset-right, 0px));
   border-left: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 75%, transparent);
   border-right: none;
-  border-radius: 0;
+  border-radius: 3px 0 0 3px;
   background: color-mix(in srgb, var(--bg-elevated) 88%, var(--card-bg));
   box-shadow: -6px 0 24px rgba(0, 0, 0, 0.18);
 }
