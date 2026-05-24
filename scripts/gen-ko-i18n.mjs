@@ -224,6 +224,7 @@ const t = {
     liveTradeFieldSimAutoBuy: "\uc54c\ub9bc \uc2dc \uc790\ub3d9 \uc2dc\ubbac \ub9e4\uc218",
     liveTradeFieldAutoSell: "\ubaa9\ud45c\u00b7\uc190\uc808\uac00 \uc790\ub3d9 \ub9e4\ub3c4",
     liveTradeFieldAmountUsd: "\ubbf8\uad6d 1\ud68c \ub9e4\uc218 \uae08\uc561 ($)",
+    liveTradeFieldAmountKrwMin: "\ucd5c\uc18c {n}\uc6d0 \uc774\uc0c1",
     liveTradeSave: "\uc800\uc7a5",
     liveTradeRegister: "\ubaa8\ub378 \ub4f1\ub85d",
     liveTradeListTitle: "\ub4f1\ub85d\ub41c \ud504\ub85c\uadf8\ub7a8",

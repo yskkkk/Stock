@@ -209,8 +209,12 @@ function validateProgramPatch(patch) {
   const name = String(patch.name ?? "").trim();
   if (!name) throw new Error("프로그램 이름이 필요합니다.");
   const needsKrw = mk.kr || (mk.crypto && !mk.us);
-  if (needsKrw && patch.orderAmountKrw != null && patch.orderAmountKrw !== "") {
-    const n = Number(patch.orderAmountKrw);
+  if (needsKrw) {
+    const raw = patch.orderAmountKrw;
+    if (raw == null || raw === "") {
+      throw new Error("1회 매수 금액을 입력하세요.");
+    }
+    const n = Number(raw);
     const minKrw = minOrderAmountKrwForMarkets(mk);
     if (!Number.isFinite(n) || n < minKrw) {
       throw new Error(
@@ -314,7 +318,15 @@ export function stopSimLiveTradeProgramSync(id, userId) {
 export function createLiveTradeProgramSync(input, userId) {
   const uid = String(userId ?? "").trim();
   if (!uid) throw new Error("로그인이 필요합니다.");
-  validateProgramPatch(input);
+  const markets = {
+    kr:
+      input.markets == null || input.markets.kr === undefined
+        ? true
+        : Boolean(input.markets.kr),
+    us: Boolean(input.markets?.us),
+    crypto: Boolean(input.markets?.crypto),
+  };
+  validateProgramPatch({ ...input, markets });
   const now = Date.now();
   const program = normalizeProgram({
     id: randomUUID(),
@@ -356,6 +368,25 @@ export function updateLiveTradeProgramSync(id, patch, userId) {
   if (idx < 0) throw new Error("프로그램을 찾을 수 없습니다.");
   const prev = store.programs[idx];
   if (!matchesUser(prev, userId)) throw new Error("프로그램을 찾을 수 없습니다.");
+  const markets = {
+    kr:
+      patch.markets?.kr !== undefined ? Boolean(patch.markets.kr) : prev.markets.kr,
+    us:
+      patch.markets?.us !== undefined ? Boolean(patch.markets.us) : prev.markets.us,
+    crypto:
+      patch.markets?.crypto !== undefined
+        ? Boolean(patch.markets.crypto)
+        : prev.markets.crypto,
+  };
+  validateProgramPatch({
+    ...prev,
+    ...patch,
+    markets,
+    orderAmountKrw:
+      patch.orderAmountKrw !== undefined ? patch.orderAmountKrw : prev.orderAmountKrw,
+    orderAmountUsd:
+      patch.orderAmountUsd !== undefined ? patch.orderAmountUsd : prev.orderAmountUsd,
+  });
   const next = normalizeProgram({
     ...prev,
     ...patch,
@@ -364,7 +395,6 @@ export function updateLiveTradeProgramSync(id, patch, userId) {
     createdAtMs: prev.createdAtMs,
     updatedAtMs: Date.now(),
   });
-  validateProgramPatch(next);
   store.programs[idx] = next;
   writeStoreSync(store);
   return next;

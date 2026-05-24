@@ -35,7 +35,11 @@ import {
 } from "../lib/liveProgramDisplay";
 import { ko } from "../i18n/ko";
 import { LiveTradeFeeRatesProvider } from "../contexts/LiveTradeFeeRatesContext";
-import { minOrderAmountKrwForMarkets } from "../constants/liveTradeOrder";
+import {
+  filterOrderAmountKrwInput,
+  isOrderAmountKrwValid,
+  minOrderAmountKrwForMarkets,
+} from "../constants/liveTradeOrder";
 
 /** 실매매 중 한 채널(빗썸/토스)이 켜져 있으면 다른 «시작» 버튼 숨김 */
 function showArmLaneButton(p: LiveTradeProgram, lane: LiveTradeArmLane): boolean {
@@ -201,6 +205,37 @@ export default function LiveTradingTab({
     for (const x of models) m.set(x.id, x);
     return m;
   }, [models]);
+
+  const draftMarkets = useMemo(
+    () => ({
+      kr: draft.marketsKr,
+      us: draft.marketsUs,
+      crypto: draft.marketsCrypto,
+    }),
+    [draft.marketsKr, draft.marketsUs, draft.marketsCrypto],
+  );
+
+  const needsKrwAmount =
+    draft.marketsKr || (draft.marketsCrypto && !draft.marketsUs);
+  const minOrderKrw = minOrderAmountKrwForMarkets(draftMarkets);
+  const krwAmountValid =
+    !needsKrwAmount || isOrderAmountKrwValid(draft.orderAmountKrw, draftMarkets);
+  const canSaveForm =
+    Boolean(draft.name.trim() && draft.modelId) &&
+    parseMaxOpenPositionsInput(draft.maxOpenPositions) != null &&
+    (draft.marketsKr || draft.marketsUs || draft.marketsCrypto) &&
+    krwAmountValid &&
+    (!draft.marketsUs || draft.orderAmountUsd.trim() !== "");
+
+  useEffect(() => {
+    if (!needsKrwAmount) return;
+    const t = draft.orderAmountKrw.trim();
+    if (!t) return;
+    const n = Number(t);
+    if (Number.isFinite(n) && n < minOrderKrw) {
+      setDraft((d) => ({ ...d, orderAmountKrw: String(minOrderKrw) }));
+    }
+  }, [needsKrwAmount, minOrderKrw, draft.orderAmountKrw]);
 
   const resetForm = useCallback(() => {
     setEditingId(null);
@@ -806,18 +841,26 @@ export default function LiveTradingTab({
                   <input
                     type="number"
                     className="input live-trading-tab__input"
-                    min={minOrderAmountKrwForMarkets({
-                      kr: draft.marketsKr,
-                      us: draft.marketsUs,
-                      crypto: draft.marketsCrypto,
-                    })}
+                    min={minOrderKrw}
                     step={1000}
                     value={draft.orderAmountKrw}
-                    onChange={(e) =>
-                      setDraft((d) => ({ ...d, orderAmountKrw: e.target.value }))
-                    }
-                    disabled={!draft.marketsKr && !(draft.marketsCrypto && !draft.marketsUs)}
+                    onChange={(e) => {
+                      const next = filterOrderAmountKrwInput(
+                        e.target.value,
+                        draftMarkets,
+                      );
+                      setDraft((d) => ({ ...d, orderAmountKrw: next }));
+                    }}
+                    disabled={!needsKrwAmount}
                   />
+                  {needsKrwAmount ? (
+                    <span className="live-trading-tab__hint live-trading-tab__hint--inline">
+                      {ko.app.liveTradeFieldAmountKrwMin.replace(
+                        "{n}",
+                        minOrderKrw.toLocaleString("ko-KR"),
+                      )}
+                    </span>
+                  ) : null}
                 </label>
 
                 <label
@@ -915,7 +958,7 @@ export default function LiveTradingTab({
                 <button
                   type="button"
                   className="btn btn--primary live-trading-tab__submit"
-                  disabled={busy || !draft.name.trim() || !draft.modelId}
+                  disabled={busy || !canSaveForm}
                   onClick={() => void handleSave()}
                 >
                   {editingId ? ko.app.liveTradeSave : ko.app.liveTradeRegister}

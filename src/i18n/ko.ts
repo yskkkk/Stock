@@ -194,6 +194,7 @@ export const ko = {
     liveTradeFieldSimAutoBuy: "알림 시 자동 시뮬 매수",
     liveTradeFieldAutoSell: "목표·손절가 자동 매도",
     liveTradeFieldAmountUsd: "미국 1회 매수 금액 ($)",
+    liveTradeFieldAmountKrwMin: "최소 {n}원 이상",
     liveTradeSave: "저장",
     liveTradeRegister: "모델 등록",
     liveTradeListTitle: "등록된 프로그램",
