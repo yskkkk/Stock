@@ -447,13 +447,18 @@ export default function AppLiveTradeSideDock({
       >
         <button
           type="button"
-          className="app-live-trade-side-dock__fold"
+          className="app-live-trade-side-dock__fold app-live-trade-side-dock__rail-btn"
           onClick={toggleFold}
           aria-expanded={open}
           aria-controls="app-live-trade-side-dock-panel"
           title={open ? ko.app.liveTradeSideDockCollapse : ko.app.liveTradeSideDockExpand}
         >
-          <DockFoldChevron open={open} />
+          <span
+            className="app-live-trade-side-dock__rail-glyph app-live-trade-side-dock__rail-glyph--fold"
+            aria-hidden
+          >
+            <DockFoldChevron open={open} />
+          </span>
         </button>
         <div className="app-live-trade-side-dock__rail-tabs">
         {railTabs.map((tab) => {

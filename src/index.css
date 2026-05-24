@@ -8910,16 +8910,14 @@ html:not([data-theme="light"]) {
 
 .app-live-trade-side-dock__fold {
   flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: 100%;
-  min-height: 2.35rem;
-  margin: 0 0 0.35rem;
-  padding: 0.35rem 0.1rem;
+  min-height: 3.35rem;
+  margin: 0 0 0.2rem;
+  padding: 0.4rem 0.15rem;
+  gap: 0;
   border: none;
   border-radius: var(--radius-sm, 6px);
-  background: color-mix(in srgb, var(--surface, #161d27) 55%, transparent);
+  background: transparent;
   color: var(--muted, #94a3b8);
   cursor: pointer;
   font: inherit;
@@ -8927,17 +8925,30 @@ html:not([data-theme="light"]) {
 
 .app-live-trade-side-dock__fold:hover {
   color: var(--text, #f1f5f9);
-  background: color-mix(in srgb, var(--card-border, #334155) 40%, transparent);
+  background: color-mix(in srgb, var(--card-border, #334155) 35%, transparent);
+}
+
+.app-live-trade-side-dock__rail-glyph--fold {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app-live-trade-side-dock__rail-glyph--fold .app-live-trade-side-dock__chevron {
+  width: 0.36rem;
+  height: 0.36rem;
+  border-right-width: 1.5px;
+  border-bottom-width: 1.5px;
 }
 
 .app-live-trade-side-dock__chevron {
   display: block;
   flex: none;
-  width: 0.5rem;
-  height: 0.5rem;
-  margin: 0 auto;
-  border-right: 2px solid currentColor;
-  border-bottom: 2px solid currentColor;
+  width: 0.36rem;
+  height: 0.36rem;
+  margin: 0;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
   border-radius: 0 0 1px 0;
   transform: rotate(135deg);
   transition: transform 0.18s ease, color 0.15s ease;
@@ -8945,13 +8956,6 @@ html:not([data-theme="light"]) {
 
 .app-live-trade-side-dock__chevron--open {
   transform: rotate(-45deg);
-}
-
-.app-live-trade-side-dock__panel-edge .app-live-trade-side-dock__chevron {
-  width: 0.45rem;
-  height: 0.45rem;
-  border-right-width: 1.75px;
-  border-bottom-width: 1.75px;
 }
 
 .app-live-trade-side-dock__rail-tabs {
@@ -9135,8 +9139,8 @@ html:not([data-theme="light"]) {
 .app-live-trade-side-dock__resize-arrow {
   display: block;
   flex: none;
-  width: 0.5rem;
-  height: 0.75rem;
+  width: 0.4rem;
+  height: 0.58rem;
   opacity: 0.9;
 }
 
