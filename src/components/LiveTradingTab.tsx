@@ -156,8 +156,8 @@ function LiveTradeCardWorkspace({
 
   return (
     <div
-      className={`live-trading-tab__card-workspace${
-        panel ? " live-trading-tab__card-workspace--open" : ""
+      className={`live-trading-tab__card-workspace live-trading-tab__card-workspace--tabs${
+        panel ? " live-trading-tab__card-workspace--tab-active" : ""
       }`}
     >
       {children}

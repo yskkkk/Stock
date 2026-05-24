@@ -160,11 +160,15 @@ function LiveTradeCardModal({
 
 type LiveTradeSidePanelState = { id: string; title: string } | null;
 
+const LIVE_TRADE_CARD_TAB_ORDER = ["portfolio", "form", "programs"] as const;
+
 type LiveTradeSidePanelContextValue = {
   panel: LiveTradeSidePanelState;
   openPanel: (id: string, title: string) => void;
   closePanel: () => void;
   bodyHostRef: RefObject<HTMLDivElement | null>;
+  registerSideTab: (id: string, title: string) => () => void;
+  sideTabs: Array<{ id: string; title: string }>;
 };
 
 const LiveTradeSidePanelContext =
@@ -176,14 +180,42 @@ export function LiveTradeCardSidePanelProvider({
   children: ReactNode;
 }) {
   const [panel, setPanel] = useState<LiveTradeSidePanelState>(null);
+  const [tabTitles, setTabTitles] = useState<Record<string, string>>({});
   const bodyHostRef = useRef<HTMLDivElement>(null);
   const openPanel = useCallback((id: string, title: string) => {
     setPanel({ id, title });
   }, []);
   const closePanel = useCallback(() => setPanel(null), []);
+  const registerSideTab = useCallback((id: string, title: string) => {
+    setTabTitles((prev) => ({ ...prev, [id]: title }));
+    return () => {
+      setTabTitles((prev) => {
+        if (!(id in prev)) return prev;
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      setPanel((active) => (active?.id === id ? null : active));
+    };
+  }, []);
+  const sideTabs = useMemo(
+    () =>
+      LIVE_TRADE_CARD_TAB_ORDER.filter((id) => tabTitles[id]).map((id) => ({
+        id,
+        title: tabTitles[id]!,
+      })),
+    [tabTitles],
+  );
   const value = useMemo(
-    () => ({ panel, openPanel, closePanel, bodyHostRef }),
-    [panel, openPanel, closePanel],
+    () => ({
+      panel,
+      openPanel,
+      closePanel,
+      bodyHostRef,
+      registerSideTab,
+      sideTabs,
+    }),
+    [panel, openPanel, closePanel, registerSideTab, sideTabs],
   );
 
   return (
@@ -206,7 +238,8 @@ function useLiveTradeCardSidePanelOptional(): LiveTradeSidePanelContextValue | n
 }
 
 export function LiveTradeCardSidePanel() {
-  const { panel, closePanel, bodyHostRef } = useLiveTradeCardSidePanel();
+  const { panel, openPanel, closePanel, bodyHostRef, sideTabs } =
+    useLiveTradeCardSidePanel();
 
   useEffect(() => {
     if (!panel) return;
@@ -217,43 +250,73 @@ export function LiveTradeCardSidePanel() {
     return () => document.removeEventListener("keydown", onKey);
   }, [panel, closePanel]);
 
-  const open = Boolean(panel);
+  if (sideTabs.length === 0) return null;
+
+  const activeId = panel?.id ?? null;
 
   return (
-    <>
-      {open ? (
-        <button
-          type="button"
-          className="live-trading-tab__detail-panel-backdrop"
-          aria-label={ko.app.liveTradeCardModalClose}
-          onClick={closePanel}
-        />
-      ) : null}
-      <aside
-        className={`live-trading-tab__detail-panel${
-          open ? " live-trading-tab__detail-panel--open" : ""
-        }`}
-        aria-hidden={!open}
+    <aside
+      className={`live-trading-tab__card-tabs-pane${
+        activeId ? " live-trading-tab__card-tabs-pane--active" : ""
+      }`}
+      aria-label={ko.app.liveTradeCardTabPaneAria}
+    >
+      <div
+        className="live-trading-tab__card-tabs"
+        role="tablist"
+        aria-label={ko.app.liveTradeCardTabPaneAria}
       >
-        {panel ? (
-          <header className="live-trading-tab__detail-panel-head">
-            <h2 className="live-trading-tab__detail-panel-title">{panel.title}</h2>
+        {sideTabs.map((tab) => {
+          const selected = activeId === tab.id;
+          return (
             <button
+              key={tab.id}
               type="button"
-              className="live-trading-tab__detail-panel-close"
-              onClick={closePanel}
-              aria-label={ko.app.liveTradeCardModalClose}
+              role="tab"
+              id={`live-trade-card-tab-${tab.id}`}
+              aria-selected={selected}
+              aria-controls={`live-trade-card-tabpanel-${tab.id}`}
+              className={
+                selected
+                  ? "live-trading-tab__card-tab live-trading-tab__card-tab--on"
+                  : "live-trading-tab__card-tab"
+              }
+              onClick={() => {
+                if (selected) closePanel();
+                else openPanel(tab.id, tab.title);
+              }}
             >
-              ×
+              {tab.title}
             </button>
-          </header>
+          );
+        })}
+      </div>
+      <div
+        id={
+          activeId
+            ? `live-trade-card-tabpanel-${activeId}`
+            : "live-trade-card-tabpanel-empty"
+        }
+        role="tabpanel"
+        aria-labelledby={
+          activeId ? `live-trade-card-tab-${activeId}` : undefined
+        }
+        className="live-trading-tab__card-tabs-body live-trade-api-card__body"
+      >
+        {!activeId ? (
+          <p className="live-trading-tab__card-tabs-hint" role="status">
+            {ko.app.liveTradeCardTabHint}
+          </p>
         ) : null}
         <div
           ref={bodyHostRef}
-          className="live-trading-tab__detail-panel-body live-trade-api-card__body"
+          className={`live-trading-tab__card-tabs-host${
+            activeId ? "" : " live-trading-tab__card-tabs-host--idle"
+          }`}
+          hidden={!activeId}
         />
-      </aside>
-    </>
+      </div>
+    </aside>
   );
 }
 
@@ -315,6 +378,11 @@ export function LiveTradeCollapsibleCard({
   const isSideActive =
     useSidePanel && sidePanel!.panel?.id === sidePanelId;
   const variantClass = variant ? apiCardVariantClass(variant) : "";
+
+  useEffect(() => {
+    if (!useSidePanel || !sidePanelId || !sidePanel) return;
+    return sidePanel.registerSideTab(sidePanelId, title);
+  }, [useSidePanel, sidePanelId, title, sidePanel]);
 
   useEffect(() => {
     if (!defaultOpen) return;

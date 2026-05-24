@@ -185,6 +185,8 @@ export const ko = {
     liveTradeApiExpand: "보기",
     liveTradeApiCollapse: "닫기",
     liveTradeCardModalClose: "닫기",
+    liveTradeCardTabHint: "왼쪽 카드의 보기를 누르거나 우측 탭을 선택하세요.",
+    liveTradeCardTabPaneAria: "실매매 카드 상세",
     liveTradeApiEncryptedNote:
       "API Key·Secret Key는 암호화되어 저장되며, 서버에서 평문을 알 수 없습니다.",
     liveTradeTossTitle: "토스 API 연동",
