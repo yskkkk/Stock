@@ -8,7 +8,10 @@ import { useLiveTradingStatusPoll } from "../hooks/useLiveTradingStatusPoll";
 import { ko } from "../i18n/ko";
 import { programDisplayStatus } from "../lib/liveProgramDisplay";
 import { formatPercent, formatPrice } from "../lib/format";
-import { openHoldingsReturnPct, summarizeHoldingsPnl, formatInvestedOrMarketLabel } from "../lib/livePortfolioPnl";
+import { openHoldingsReturnPct, summarizeHoldingsPnl, summarizeNetMarketByCurrency, holdingNetMarketValue, formatInvestedOrMarketLabel } from "../lib/livePortfolioPnl";
+import { feeByMarketFromStatus } from "../lib/liveTradeFeeByMarket";
+import { DEFAULT_ROUND_TRIP_FEE_RATE } from "../lib/netReturn";
+import type { LiveTradeMarket } from "../types";
 import { peekLiveTradingPrefetch } from "../lib/tabPrefetch";
 import { useLiveTradeAuth } from "./LiveTradeAuthAndCredentials";
 
@@ -61,6 +64,14 @@ function formatRailValuation(
   return formatPrice(mv, currency === "KRW" ? "KRW" : currency);
 }
 
+function formatRailNetValuation(
+  h: LiveTradeHolding,
+  roundTripForMarket: (market: LiveTradeMarket) => number,
+): string {
+  const net = holdingNetMarketValue(h, roundTripForMarket(h.market));
+  return formatRailValuation(net, h.currency);
+}
+
 function formatWeightPct(part: number, total: number): string {
   if (!Number.isFinite(part) || !Number.isFinite(total) || total <= 0) return "—";
   return `${((part / total) * 100).toFixed(1)}%`;
@@ -92,6 +103,7 @@ function RailProgramCard({
   holdings,
   orderMode,
   onOpenLiveTrading,
+  roundTripForMarket,
 }: {
   program: LiveTradeProgram;
   displayStatus: ReturnType<typeof programDisplayStatus>;
@@ -99,26 +111,31 @@ function RailProgramCard({
   holdings: LiveTradeHolding[];
   orderMode: string | null;
   onOpenLiveTrading?: () => void;
+  roundTripForMarket: (market: LiveTradeMarket) => number;
 }) {
   const [open, setOpen] = useState(false);
   const sorted = useMemo(() => sortHoldingsByValue(holdings), [holdings]);
   const up = returnPct != null && returnPct >= 0;
   const dotHoldings = sorted.slice(0, MAX_DOTS);
   const dotMore = sorted.length > MAX_DOTS ? sorted.length - MAX_DOTS : 0;
-  const totalMarketValue = useMemo(
+  const totalNetMarketValue = useMemo(
     () =>
-      sorted.reduce(
-        (s, h) => s + (h.marketValue != null && h.marketValue > 0 ? h.marketValue : 0),
-        0,
-      ),
-    [sorted],
+      sorted.reduce((s, h) => {
+        const net = holdingNetMarketValue(h, roundTripForMarket(h.market));
+        return s + (net != null && net > 0 ? net : 0);
+      }, 0),
+    [sorted, roundTripForMarket],
   );
   const pnlAgg = useMemo(() => summarizeHoldingsPnl(sorted), [sorted]);
+  const netMarketByCurrency = useMemo(
+    () => summarizeNetMarketByCurrency(sorted, roundTripForMarket),
+    [sorted, roundTripForMarket],
+  );
   const investedLabel = formatInvestedOrMarketLabel(
     pnlAgg.investedByCurrency,
     null,
   );
-  const evalLabel = formatInvestedOrMarketLabel(pnlAgg.marketByCurrency, null);
+  const evalLabel = formatInvestedOrMarketLabel(netMarketByCurrency, null);
 
   return (
     <article
@@ -228,7 +245,8 @@ function RailProgramCard({
                   {sorted.map((h) => {
                     const sym = shortSymbol(h.symbol);
                     const tone = holdingChangeTone(h.changePct);
-                    const mv = h.marketValue ?? 0;
+                    const mv =
+                      holdingNetMarketValue(h, roundTripForMarket(h.market)) ?? 0;
                     return (
                       <tr key={`${h.market}:${h.symbol}`}>
                         <td className="live-trade-rail__table-sym">{sym}</td>
@@ -238,10 +256,10 @@ function RailProgramCard({
                           {h.changePct == null ? "—" : formatPercent(h.changePct)}
                         </td>
                         <td className="live-trade-rail__table-val">
-                          {formatRailValuation(h.marketValue, h.currency)}
+                          {formatRailNetValuation(h, roundTripForMarket)}
                         </td>
                         <td className="live-trade-rail__table-wt">
-                          {formatWeightPct(mv, totalMarketValue)}
+                          {formatWeightPct(mv, totalNetMarketValue)}
                         </td>
                       </tr>
                     );
@@ -262,10 +280,13 @@ function RailProgramCard({
                       {returnPct == null ? "—" : formatPercent(returnPct)}
                     </td>
                     <td className="live-trade-rail__table-val">
-                      {formatRailValuation(totalMarketValue, sorted[0]?.currency ?? "KRW")}
+                      {formatRailValuation(
+                        totalNetMarketValue,
+                        sorted[0]?.currency ?? "KRW",
+                      )}
                     </td>
                     <td className="live-trade-rail__table-wt">
-                      {totalMarketValue > 0 ? "100%" : "—"}
+                      {totalNetMarketValue > 0 ? "100%" : "—"}
                     </td>
                   </tr>
                 </tfoot>
@@ -377,6 +398,16 @@ function LiveTradingLeftRailPanelInner({
       });
   }, [status, holdingsByProgram]);
 
+  const feeByMarket = useMemo(
+    () => feeByMarketFromStatus(status?.feeRates),
+    [status?.feeRates],
+  );
+  const roundTripForMarket = useCallback(
+    (market: LiveTradeMarket) =>
+      feeByMarket[market] ?? feeByMarket.default ?? DEFAULT_ROUND_TRIP_FEE_RATE,
+    [feeByMarket],
+  );
+
   if (!authChecked || !user) return null;
 
   if (!loading && rows.length === 0) return null;
@@ -426,6 +457,7 @@ function LiveTradingLeftRailPanelInner({
                   holdings={holdings}
                   orderMode={orderMode}
                   onOpenLiveTrading={onOpenLiveTrading}
+                  roundTripForMarket={roundTripForMarket}
                 />
               </li>
             );

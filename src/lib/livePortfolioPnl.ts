@@ -1,5 +1,7 @@
 import type { LiveTradeHolding } from "../api";
+import type { LiveTradeMarket } from "../types";
 import { formatPrice, formatSignedMoney } from "./format";
+import { normalizeRoundTripFeeRate } from "./netReturn";
 
 export type CurrencyTotals = Partial<Record<"KRW" | "USD", number>>;
 
@@ -34,6 +36,31 @@ export function summarizeHoldingsPnl(
   }
 
   return { pnlByCurrency, investedByCurrency, marketByCurrency };
+}
+
+/** 현재가×수량 평가액에서 매도 수수료(왕복의 절반)를 뺀 순평가액 */
+export function holdingNetMarketValue(
+  h: LiveTradeHolding,
+  roundTripFeeRate: number,
+): number | null {
+  const mv = h.marketValue;
+  if (mv == null || !Number.isFinite(mv) || mv <= 0) return null;
+  const askFee = normalizeRoundTripFeeRate(roundTripFeeRate) / 2;
+  return Math.round(mv * (1 - askFee));
+}
+
+export function summarizeNetMarketByCurrency(
+  holdings: LiveTradeHolding[],
+  roundTripForMarket: (market: LiveTradeMarket) => number,
+): CurrencyTotals {
+  const marketByCurrency: CurrencyTotals = {};
+  for (const h of holdings) {
+    const net = holdingNetMarketValue(h, roundTripForMarket(h.market));
+    if (net == null) continue;
+    const cur = holdingCurrency(h);
+    marketByCurrency[cur] = (marketByCurrency[cur] ?? 0) + net;
+  }
+  return marketByCurrency;
 }
 
 function usdToKrw(usd: number, usdKrwRate: number | null): number | null {
