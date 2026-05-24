@@ -20,7 +20,25 @@ import {
 
 const QTY_EPS = 1e-8;
 /** 거래소 수량이 앱 대비 이 비율 미만이면 '보유 없음' */
-const EXCHANGE_ZERO_RATIO = 0.02;
+export const EXCHANGE_ZERO_RATIO = 0.02;
+
+/**
+ * @param {import("./bithumb-trading-adapter.js").BithumbCredentials} credentials
+ * @returns {Promise<Map<string, number>>} base currency → qty
+ */
+export async function getBithumbExchangeBaseQtyMap(credentials) {
+  const accounts = await fetchBithumbAccountsWithCredentials(credentials);
+  /** @type {Map<string, number>} */
+  const exchangeQty = new Map();
+  for (const a of accounts) {
+    const base = String(a.currency ?? "").trim().toUpperCase();
+    const qty = Number(a.balance ?? 0) + Number(a.locked ?? 0);
+    if (base && base !== "KRW" && Number.isFinite(qty) && qty > 0) {
+      exchangeQty.set(base, qty);
+    }
+  }
+  return exchangeQty;
+}
 
 /**
  * @param {BithumbCredentials} credentials
@@ -56,13 +74,13 @@ function parseDoneOrderFill(order) {
  * @param {object[]} orders newest first
  * @param {number} openedAtMs
  */
-function findAskFillAfter(orders, openedAtMs) {
+export function findAskFillAfter(orders, openedAtMs) {
   for (const o of orders) {
     if (String(o?.side ?? "").toLowerCase() !== "ask") continue;
     const fill = parseDoneOrderFill(o);
     if (!fill) continue;
-    if (fill.atMs + 60_000 < openedAtMs) break;
-    if (fill.atMs >= openedAtMs - 60_000) return fill;
+    if (fill.atMs < openedAtMs) break;
+    if (fill.atMs >= openedAtMs) return fill;
   }
   return null;
 }
@@ -90,16 +108,7 @@ export async function reconcileBithumbHoldingsForUser(userId, opts = {}) {
       (!filterPid || p.id === filterPid),
   );
 
-  const accounts = await fetchBithumbAccountsWithCredentials(credentials);
-  /** @type {Map<string, number>} base -> qty */
-  const exchangeQty = new Map();
-  for (const a of accounts) {
-    const base = String(a.currency ?? "").trim().toUpperCase();
-    const qty = Number(a.balance ?? 0) + Number(a.locked ?? 0);
-    if (base && base !== "KRW" && Number.isFinite(qty) && qty > 0) {
-      exchangeQty.set(base, qty);
-    }
-  }
+  const exchangeQty = await getBithumbExchangeBaseQtyMap(credentials);
 
   const store = readStoreSync();
   /** @type {Array<object>} */
@@ -130,7 +139,7 @@ export async function reconcileBithumbHoldingsForUser(userId, opts = {}) {
       let orders = [];
       try {
         orders = await listBithumbDoneOrdersWithCredentials(credentials, market, {
-          limit: 40,
+          limit: 100,
         });
       } catch (e) {
         actions.push({
