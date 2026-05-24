@@ -1577,6 +1577,10 @@ body {
   line-height: 1.5;
 }
 
+.live-trading-tab__hint--warn {
+  color: #b45309;
+}
+
 .live-trading-tab__count {
   margin-left: 0.35rem;
   font-size: 0.78rem;

@@ -37,7 +37,6 @@ import {
 import { ko } from "../i18n/ko";
 import { LiveTradeFeeRatesProvider } from "../contexts/LiveTradeFeeRatesContext";
 import {
-  filterOrderAmountKrwInput,
   isOrderAmountKrwValid,
   minOrderAmountKrwForMarkets,
 } from "../constants/liveTradeOrder";
@@ -219,24 +218,11 @@ export default function LiveTradingTab({
   const needsKrwAmount =
     draft.marketsKr || (draft.marketsCrypto && !draft.marketsUs);
   const minOrderKrw = minOrderAmountKrwForMarkets(draftMarkets);
-  const krwAmountValid =
-    !needsKrwAmount || isOrderAmountKrwValid(draft.orderAmountKrw, draftMarkets);
   const canSaveForm =
     Boolean(draft.name.trim() && draft.modelId) &&
     parseMaxOpenPositionsInput(draft.maxOpenPositions) != null &&
     (draft.marketsKr || draft.marketsUs || draft.marketsCrypto) &&
-    krwAmountValid &&
     (!draft.marketsUs || draft.orderAmountUsd.trim() !== "");
-
-  useEffect(() => {
-    if (!needsKrwAmount) return;
-    const t = draft.orderAmountKrw.trim();
-    if (!t) return;
-    const n = Number(t);
-    if (Number.isFinite(n) && n < minOrderKrw) {
-      setDraft((d) => ({ ...d, orderAmountKrw: String(minOrderKrw) }));
-    }
-  }, [needsKrwAmount, minOrderKrw, draft.orderAmountKrw]);
 
   const resetForm = useCallback(() => {
     setEditingId(null);
@@ -838,19 +824,25 @@ export default function LiveTradingTab({
                   <input
                     type="number"
                     className="input live-trading-tab__input"
-                    min={minOrderKrw}
                     step={1000}
                     value={draft.orderAmountKrw}
-                    onChange={(e) => {
-                      const next = filterOrderAmountKrwInput(
-                        e.target.value,
-                        draftMarkets,
-                      );
-                      setDraft((d) => ({ ...d, orderAmountKrw: next }));
-                    }}
+                    onChange={(e) =>
+                      setDraft((d) => ({
+                        ...d,
+                        orderAmountKrw: e.target.value,
+                      }))
+                    }
                     disabled={!needsKrwAmount}
                   />
-                  {needsKrwAmount ? (
+                  {needsKrwAmount &&
+                  draft.orderAmountKrw.trim() &&
+                  !isOrderAmountKrwValid(draft.orderAmountKrw, draftMarkets) ? (
+                    <span className="live-trading-tab__hint live-trading-tab__hint--inline live-trading-tab__hint--warn">
+                      {draft.marketsCrypto
+                        ? `코인 1회 매수 금액은 ${minOrderKrw.toLocaleString("ko-KR")}원 이상이어야 합니다.`
+                        : `1회 매수 금액은 ${minOrderKrw.toLocaleString("ko-KR")}원 이상이어야 합니다.`}
+                    </span>
+                  ) : needsKrwAmount ? (
                     <span className="live-trading-tab__hint live-trading-tab__hint--inline">
                       {ko.app.liveTradeFieldAmountKrwMin.replace(
                         "{n}",
