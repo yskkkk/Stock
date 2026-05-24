@@ -17,12 +17,12 @@ import {
   validateAuthCredentials,
   validateBithumbCredentialPair,
 } from "../lib/stock-input-validation";
+import {
+  LIVE_TRADE_AUTH_CHANGE,
+  notifyLiveTradeAuthChange,
+} from "../lib/liveTradeAuthEvents";
 
-export const LIVE_TRADE_AUTH_CHANGE = "stock:live-trade-auth-change";
-
-export function notifyLiveTradeAuthChange() {
-  window.dispatchEvent(new Event(LIVE_TRADE_AUTH_CHANGE));
-}
+export { LIVE_TRADE_AUTH_CHANGE, notifyLiveTradeAuthChange };
 
 export function useLiveTradeAuth() {
   const [user, setUser] = useState<AuthUser | null>(null);

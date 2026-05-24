@@ -10,6 +10,7 @@ import { programDisplayStatus } from "../lib/liveProgramDisplay";
 import { formatPercent, formatPrice } from "../lib/format";
 import { openHoldingsReturnPct, summarizeHoldingsPnl, formatInvestedOrMarketLabel } from "../lib/livePortfolioPnl";
 import { peekLiveTradingPrefetch } from "../lib/tabPrefetch";
+import { useLiveTradeAuth } from "./LiveTradeAuthAndCredentials";
 
 const POLL_MS = 22_000;
 const MAX_DOTS = 8;
@@ -309,6 +310,7 @@ function LiveTradingLeftRailPanelInner({
   onOpenLiveTrading?: () => void;
 }) {
   const prefetched = peekLiveTradingPrefetch();
+  const { user, authChecked } = useLiveTradeAuth();
   const status = useLiveTradingStatusPoll();
   const [holdingsByProgram, setHoldingsByProgram] = useState<
     Record<string, LiveTradeHolding[]>
@@ -316,6 +318,11 @@ function LiveTradingLeftRailPanelInner({
   const [loading, setLoading] = useState(!prefetched?.status);
 
   const reloadPortfolio = useCallback(async () => {
+    if (!user) {
+      setHoldingsByProgram({});
+      setLoading(false);
+      return;
+    }
     try {
       const portfolio = await fetchLiveTradingPortfolio(null).catch(() => null);
       const map: Record<string, LiveTradeHolding[]> = {};
@@ -331,7 +338,7 @@ function LiveTradingLeftRailPanelInner({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     void reloadPortfolio();
@@ -369,6 +376,8 @@ function LiveTradingLeftRailPanelInner({
         };
       });
   }, [status, holdingsByProgram]);
+
+  if (!authChecked || !user) return null;
 
   if (!loading && rows.length === 0) return null;
 

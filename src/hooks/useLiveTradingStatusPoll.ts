@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
-import {
-  fetchLiveTradingStatus,
-  type LiveTradingStatusResponse,
-} from "../api";
+import { fetchAuthMe, fetchLiveTradingStatus, type LiveTradingStatusResponse } from "../api";
+import { LIVE_TRADE_AUTH_CHANGE } from "../lib/liveTradeAuthEvents";
 import { writeLiveTradingHeaderSnapshot } from "../lib/liveTradingHeaderSnapshot";
 import { invalidateLiveTradingPrefetch, peekLiveTradingPrefetch } from "../lib/tabPrefetch";
 
@@ -24,11 +22,23 @@ function notify(status: LiveTradingStatusResponse | null) {
   for (const fn of listeners) fn(status);
 }
 
+function clearLiveTradingStatus() {
+  sharedStatus = null;
+  invalidateLiveTradingPrefetch();
+  notify(null);
+}
+
 function pollTick() {
   void fetchLiveTradingStatus()
     .then(notify)
     .catch(() => {
-      /* ignore — 로그인 전·일시 오류 */
+      void fetchAuthMe()
+        .then((me) => {
+          if (!me.user) clearLiveTradingStatus();
+        })
+        .catch(() => {
+          clearLiveTradingStatus();
+        });
     });
 }
 
@@ -57,8 +67,20 @@ export function useLiveTradingStatusPoll(): LiveTradingStatusResponse | null {
     const onUpdate = (next: LiveTradingStatusResponse | null) => setStatus(next);
     listeners.add(onUpdate);
     if (sharedStatus) setStatus(sharedStatus);
+    const onAuthChange = () => {
+      void fetchAuthMe()
+        .then((me) => {
+          if (!me.user) clearLiveTradingStatus();
+          else pollTick();
+        })
+        .catch(() => {
+          clearLiveTradingStatus();
+        });
+    };
+    window.addEventListener(LIVE_TRADE_AUTH_CHANGE, onAuthChange);
     return () => {
       listeners.delete(onUpdate);
+      window.removeEventListener(LIVE_TRADE_AUTH_CHANGE, onAuthChange);
     };
   }, []);
 
