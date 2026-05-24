@@ -1045,12 +1045,6 @@ export default function App() {
               />
             </>
           ) : null}
-          <MarketIndicesBelt
-            items={marketIndices}
-            loading={marketIndicesLoading}
-            layout="rail"
-            onOpenItem={handleOpenMarketIndex}
-          />
           <MarketIndicesRail
             items={marketIndices}
             loading={marketIndicesLoading}
@@ -1085,13 +1079,7 @@ export default function App() {
       <MarketIndicesBelt
         items={marketIndices}
         loading={marketIndicesLoading}
-        layout="strip"
-        onOpenItem={handleOpenMarketIndex}
-      />
-      <MarketIndicesRail
-        items={marketIndices}
-        loading={marketIndicesLoading}
-        layout="strip"
+        layout="top"
         onOpenItem={handleOpenMarketIndex}
       />
       <TopBarFxCalculator

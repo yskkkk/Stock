@@ -59,7 +59,7 @@ function MarketIndicesBeltInner({
 }: {
   items: MarketIndexItem[];
   loading: boolean;
-  layout?: "rail" | "strip";
+  layout?: "rail" | "strip" | "top";
   onOpenItem?: (item: MarketIndexItem) => void;
 }) {
   const loopItems = useMemo(() => {
@@ -70,9 +70,11 @@ function MarketIndicesBeltInner({
   const durationSec = Math.max(18, Math.min(48, items.length * 5));
 
   const rootClass =
-    layout === "strip"
-      ? "market-indices-belt market-indices-belt--strip"
-      : "market-indices-belt market-indices-belt--side";
+    layout === "top"
+      ? "market-indices-belt market-indices-belt--top"
+      : layout === "strip"
+        ? "market-indices-belt market-indices-belt--strip"
+        : "market-indices-belt market-indices-belt--side";
 
   return (
     <div

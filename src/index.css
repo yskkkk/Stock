@@ -7276,7 +7276,6 @@ body {
   box-sizing: border-box;
 }
 
-  .app__left-rail > .market-indices-belt--side,
   .app__left-rail > .market-indices-rail--side,
   .app__left-rail > .fx-calc-rail--side {
   flex: 0 0 auto;
@@ -8024,10 +8023,26 @@ html[data-theme="light"] .market-indices-belt {
   width: 100%;
 }
 
+.market-indices-belt--top {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 0 0.42rem;
+  box-sizing: border-box;
+}
+
 .market-indices-belt--strip {
   display: none;
   width: 100%;
   margin: 0 0 0.35rem;
+}
+
+.app-header-sticky > .market-indices-belt--top {
+  flex-shrink: 0;
+}
+
+.app-header-sticky .market-indices-rail--strip {
+  display: none !important;
 }
 
 .market-indices-belt__viewport {
@@ -8483,10 +8498,6 @@ html[data-theme="light"] .market-indices-rail__item {
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
   }
 
-  .market-indices-belt--side {
-    display: block;
-  }
-
   .market-indices-rail--side {
     display: flex;
     flex-direction: column;
@@ -8827,11 +8838,7 @@ html[data-theme="light"] .market-indices-rail__item {
     display: none !important;
   }
 
-  .market-indices-belt--strip {
-    display: block;
-  }
-
-  .market-indices-rail--strip {
+  .market-indices-belt--top {
     display: block;
   }
 
