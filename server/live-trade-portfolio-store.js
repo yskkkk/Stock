@@ -559,6 +559,8 @@ export function buildOpenPositionsWithSellTargetsSync() {
       avgEntryPrice: avgEntry,
       targetSellPrice: lastBuy?.targetSellPrice ?? null,
       stopLossPrice: lastBuy?.stopLossPrice ?? null,
+      boughtAtMs: lastBuy?.atMs ?? null,
+      buySignalIds: Array.isArray(lastBuy?.buySignalIds) ? lastBuy.buySignalIds : [],
     };
   });
 }

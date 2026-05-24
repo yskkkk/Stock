@@ -548,6 +548,7 @@ export function createApp() {
             autoSellAtTarget: req.body?.autoSellAtTarget,
             takeProfitPct: req.body?.takeProfitPct,
             stopLossPct: req.body?.stopLossPct,
+            sellHorizon: req.body?.sellHorizon,
           },
           userId,
         );
@@ -583,6 +584,7 @@ export function createApp() {
             autoSellAtTarget: req.body?.autoSellAtTarget,
             takeProfitPct: req.body?.takeProfitPct,
             stopLossPct: req.body?.stopLossPct,
+            sellHorizon: req.body?.sellHorizon,
           },
           userId,
         );

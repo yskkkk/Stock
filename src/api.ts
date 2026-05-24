@@ -923,6 +923,7 @@ export interface LiveTradeProgram {
   autoSellAtTarget: boolean;
   takeProfitPct: number | null;
   stopLossPct: number | null;
+  sellHorizon?: "short" | "medium" | "long";
   armedMarkets?: { kr: boolean; crypto: boolean };
   userId?: string | null;
   createdAtMs: number;
@@ -1092,6 +1093,7 @@ export function createLiveTradeProgram(body: {
   autoSellAtTarget?: boolean;
   takeProfitPct?: number | null;
   stopLossPct?: number | null;
+  sellHorizon?: "short" | "medium" | "long";
 }) {
   return fetchJson<{
     ok: boolean;
@@ -1118,6 +1120,7 @@ export function updateLiveTradeProgram(
     autoSellAtTarget: boolean;
     takeProfitPct: number | null;
     stopLossPct: number | null;
+    sellHorizon?: "short" | "medium" | "long";
   }>,
 ) {
   return fetchJson<{

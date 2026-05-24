@@ -119,6 +119,7 @@ const emptyDraft = () => ({
   orderAmountUsd: "",
   simAutoBuy: true,
   autoSellAtTarget: true,
+  sellHorizon: "short" as "short" | "medium" | "long",
 });
 
 export default function LiveTradingTab({
@@ -230,6 +231,7 @@ export default function LiveTradingTab({
         p.orderAmountUsd != null ? String(p.orderAmountUsd) : "",
       simAutoBuy: p.simAutoBuy !== false,
       autoSellAtTarget: p.autoSellAtTarget !== false,
+      sellHorizon: p.sellHorizon ?? "short",
     });
     setMsg(null);
     setErr(null);
@@ -257,6 +259,7 @@ export default function LiveTradingTab({
         draft.marketsUs && orderUsd ? Number(orderUsd) : null,
       simAutoBuy: draft.simAutoBuy,
       autoSellAtTarget: draft.autoSellAtTarget,
+      sellHorizon: draft.sellHorizon,
     };
   }, [draft]);
 
@@ -838,9 +841,30 @@ export default function LiveTradingTab({
               </div>
 
               {draft.autoSellAtTarget ? (
-                <p className="live-trading-tab__form-footnote">
-                  {ko.app.liveTradeAutoExitHint}
-                </p>
+                <>
+                  <label className="live-trading-tab__field">
+                    <span className="live-trading-tab__label">
+                      {ko.app.liveTradeFieldSellHorizon}
+                    </span>
+                    <select
+                      className="input live-trading-tab__input"
+                      value={draft.sellHorizon}
+                      onChange={(e) =>
+                        setDraft((d) => ({
+                          ...d,
+                          sellHorizon: e.target.value as "short" | "medium" | "long",
+                        }))
+                      }
+                    >
+                      <option value="short">{ko.app.liveTradeSellHorizonShort}</option>
+                      <option value="medium">{ko.app.liveTradeSellHorizonMedium}</option>
+                      <option value="long">{ko.app.liveTradeSellHorizonLong}</option>
+                    </select>
+                  </label>
+                  <p className="live-trading-tab__form-footnote">
+                    {ko.app.liveTradeAutoExitHint}
+                  </p>
+                </>
               ) : null}
 
               <div className="live-trading-tab__actions">

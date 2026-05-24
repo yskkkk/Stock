@@ -37,6 +37,7 @@ const PROGRAMS_FILE = path.join(DATA_DIR, "live-trade-programs.json");
  *   autoSellAtTarget: boolean;
  *   takeProfitPct: number | null;
  *   stopLossPct: number | null;
+ *   sellHorizon?: "short" | "medium" | "long";
  *   armedMarkets?: { kr: boolean; crypto: boolean };
  *   userId: string | null;
  *   createdAtMs: number;
@@ -137,6 +138,11 @@ function normalizeProgram(raw) {
       const n = Number(o.stopLossPct);
       if (!Number.isFinite(n) || n >= 0) return null;
       return Math.max(-50, Math.min(-0.5, n));
+    })(),
+    sellHorizon: (() => {
+      const s = String(o.sellHorizon ?? "").toLowerCase().trim();
+      if (s === "medium" || s === "long") return s;
+      return "short";
     })(),
     armedMarkets: (() => {
       const markets = {
@@ -282,6 +288,7 @@ export function stopSimLiveTradeProgramSync(id, userId) {
  *   autoSellAtTarget?: boolean;
  *   takeProfitPct?: number | null;
  *   stopLossPct?: number | null;
+ *   sellHorizon?: "short" | "medium" | "long";
  * }} input
  */
 export function createLiveTradeProgramSync(input, userId) {
@@ -306,6 +313,9 @@ export function createLiveTradeProgramSync(input, userId) {
     maxOpenPositions: input.maxOpenPositions,
     orderAmountKrw: input.orderAmountKrw,
     orderAmountUsd: input.orderAmountUsd,
+    simAutoBuy: input.simAutoBuy,
+    autoSellAtTarget: input.autoSellAtTarget,
+    sellHorizon: input.sellHorizon,
     status: "draft",
     createdAtMs: now,
     updatedAtMs: now,

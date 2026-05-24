@@ -1,5 +1,14 @@
-import {
-  Fragment,
+function sellHorizonLabel(h?: LiveTradeProgram["sellHorizon"]): string {
+  switch (h) {
+    case "medium":
+      return ko.app.liveTradeSellHorizonMedium;
+    case "long":
+      return ko.app.liveTradeSellHorizonLong;
+    default:
+      return ko.app.liveTradeSellHorizonShort;
+  }
+}
+
   useCallback,
   useEffect,
   useMemo,
@@ -230,6 +239,11 @@ function ProgramRunCard({
                   : ko.app.liveTradeLeftRailSimOrders}
               </li>
             ) : null}
+            {program.autoSellAtTarget !== false ? (
+              <li>
+                {ko.app.liveTradeFieldSellHorizon}: {sellHorizonLabel(program.sellHorizon)}
+              </li>
+            ) : null}
           </>
         ) : (
           <>
@@ -244,7 +258,9 @@ function ProgramRunCard({
                 : ko.app.liveTradeSimRunAutoSellOff}
             </li>
             {program.autoSellAtTarget !== false ? (
-              <li>{ko.app.liveTradeAutoExitHint}</li>
+              <li>
+                {ko.app.liveTradeFieldSellHorizon}: {sellHorizonLabel(program.sellHorizon)}
+              </li>
             ) : null}
           </>
         )}
