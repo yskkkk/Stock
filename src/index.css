@@ -8501,24 +8501,29 @@ html[data-theme="light"] .market-indices-rail__item {
     pointer-events: none;
   }
 
-  .app__viewport--no-left-rail {
-    grid-template-columns:
-      minmax(0, min(var(--app-page-max-width, 1680px), 100%))
-      1fr;
+  /* 데스크톱: 좌측 빈 1fr 제거 — 본문 1열(왼쪽부터) · 우측 도크 */
+  #root > .app .app__viewport.app__viewport--no-left-rail {
+    grid-template-columns: minmax(0, 1fr) 1fr;
+    justify-items: stretch;
   }
 
-  .app__viewport--no-left-rail > .app__shell {
+  #root > .app .app__viewport.app__viewport--no-left-rail > .app__shell {
     grid-column: 1;
+    grid-row: 1;
+    justify-self: stretch;
+    width: 100%;
+    max-width: min(var(--app-page-max-width, 1680px), 100%);
+    margin-left: 0 !important;
+    margin-right: 0 !important;
   }
 
-  .app__viewport--no-left-rail > .app__right-panel {
+  #root > .app .app__viewport.app__viewport--no-left-rail > .app__right-panel {
     grid-column: 2;
+    grid-row: 1;
   }
 
-  .app__viewport--no-left-rail:has(.app-live-trade-side-dock) {
-    grid-template-columns:
-      minmax(0, min(var(--app-page-max-width, 1680px), 100%))
-      auto;
+  #root > .app .app__viewport.app__viewport--no-left-rail:has(.app-live-trade-side-dock) {
+    grid-template-columns: minmax(0, 1fr) auto;
     padding-right: env(safe-area-inset-right, 0px);
     padding-left: var(--app-page-inline-pad-safe, var(--app-page-inline-pad, 1.35rem));
   }
