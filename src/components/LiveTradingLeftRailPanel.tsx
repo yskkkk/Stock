@@ -1,4 +1,5 @@
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNestedVerticalScroll } from "../hooks/useNestedVerticalScroll";
 import {
   fetchLiveTradingPortfolio,
   type LiveTradeHolding,
@@ -114,7 +115,13 @@ function RailProgramCard({
   roundTripForMarket: (market: LiveTradeMarket) => number;
 }) {
   const [open, setOpen] = useState(false);
+  const tableWrapRef = useRef<HTMLDivElement>(null);
   const sorted = useMemo(() => sortHoldingsByValue(holdings), [holdings]);
+  useNestedVerticalScroll(
+    tableWrapRef,
+    open && sorted.length > 0,
+    "live-trade-rail__table-wrap--dragging",
+  );
   const up = returnPct != null && returnPct >= 0;
   const dotHoldings = sorted.slice(0, MAX_DOTS);
   const dotMore = sorted.length > MAX_DOTS ? sorted.length - MAX_DOTS : 0;
@@ -231,7 +238,7 @@ function RailProgramCard({
               {ko.app.liveTradeLeftRailNoHolding}
             </p>
           ) : (
-            <div className="live-trade-rail__table-wrap">
+            <div ref={tableWrapRef} className="live-trade-rail__table-wrap">
               <table className="live-trade-rail__table">
                 <thead>
                   <tr>

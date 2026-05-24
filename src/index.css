@@ -7423,8 +7423,27 @@ html[data-theme="light"] .live-trade-rail {
   max-height: 7.75rem;
   overflow: auto;
   overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+  padding-right: 0.12rem;
   margin-top: 0.22rem;
+  cursor: grab;
+}
+
+.live-trade-rail__table-wrap--dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.live-trade-rail__table-wrap::-webkit-scrollbar {
+  width: 6px;
+}
+
+.live-trade-rail__table-wrap::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: rgba(148, 163, 184, 0.4);
 }
 
 .live-trade-rail__table {
