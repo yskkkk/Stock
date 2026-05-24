@@ -86,7 +86,7 @@ body {
 .app__shell > .app__viewport-top {
   flex: none;
   margin: 0;
-  padding: 0 0 0.04rem;
+  padding-bottom: 0.04rem;
 }
 
 .app__shell > .app-header-sticky {

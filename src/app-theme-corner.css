@@ -36,7 +36,7 @@
 }
 
 .app-theme-corner__mode-toggle-track {
-  --mode-toggle-pad-top: calc(0.1rem + 3px);
+  --mode-toggle-pad-top: calc(0.1rem + 2px);
   --mode-toggle-pad-bottom: calc(0.1rem + 2px);
   --mode-toggle-pad-x: calc(0.1rem + 2px);
   --mode-toggle-radius: 0.5rem;
@@ -152,14 +152,6 @@ html[data-theme="light"] .app-theme-corner__mode-toggle-track {
 }
 
 @media (min-width: 1180px) {
-  .app__viewport-top .app-theme-corner--top {
-    flex-direction: row;
-    flex-wrap: nowrap;
-    align-items: center;
-    gap: 0.28rem 0.34rem;
-    padding: max(0.48rem, calc(0.32rem + env(safe-area-inset-top, 0px))) 0 0;
-  }
-
   .app-theme-corner--top {
     flex-direction: row;
     flex-wrap: wrap;

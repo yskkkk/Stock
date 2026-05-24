@@ -8330,26 +8330,57 @@ html[data-theme="light"] .market-indices-belt {
 }
 
 .app__viewport-top {
+  --viewport-top-pad: max(0.4rem, calc(0.26rem + env(safe-area-inset-top, 0px)));
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 0.4rem 0.55rem;
+  gap: 0.38rem 0.5rem;
   width: 100%;
   min-width: 0;
+  padding: var(--viewport-top-pad) 0 0.14rem;
   box-sizing: border-box;
 }
 
 .app__viewport-top .app-theme-corner--top {
   flex: 0 0 auto;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
   width: auto;
   max-width: none;
-  padding-top: max(0.48rem, calc(0.32rem + env(safe-area-inset-top, 0px)));
+  padding: 0;
+  gap: 0.28rem 0.34rem;
+}
+
+.app__viewport-top .app-theme-corner--top .light-palette-picker--corner {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.28rem;
 }
 
 .app__viewport-top .market-indices-belt--top {
+  display: flex;
   flex: 1 1 auto;
+  align-items: center;
+  align-self: center;
   min-width: 0;
+  padding: 0;
+}
+
+.app__viewport-top .market-indices-belt__viewport {
+  display: flex;
+  align-items: center;
+  min-height: calc(1.22rem + 5px + 0.2rem);
+}
+
+.app__viewport-top .market-indices-belt__track {
+  align-items: center;
+}
+
+.app__viewport-top .market-indices-belt__item {
+  align-items: center;
 }
 
 .market-indices-belt--strip {
