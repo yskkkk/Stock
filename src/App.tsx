@@ -1890,6 +1890,8 @@ export default function App() {
       <FeedbackCorner
         ref={feedbackRef}
         accessAdmin={accessAdmin}
+        showTrigger={desktopDockLayout}
+        triggerLayout="edge"
         onSubmitPanelChange={(state) =>
           setFooterFeedbackKind(state?.kind ?? null)
         }
@@ -1934,6 +1936,7 @@ export default function App() {
         onOpenOps={() => setAppTab("ops")}
         feedbackRef={feedbackRef}
         feedbackOpenKind={footerFeedbackKind}
+        hideFeedbackLink={desktopDockLayout}
       />
       </div>
     </div>

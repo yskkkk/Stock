@@ -20,6 +20,8 @@ type AppSiteFooterProps = {
   onOpenOps: () => void;
   feedbackRef: RefObject<FeedbackCornerHandle | null>;
   feedbackOpenKind?: "inquiry" | "issue" | null;
+  /** 데스크톱 우측 고정 버튼 사용 시 푸터 링크 숨김 */
+  hideFeedbackLink?: boolean;
 };
 
 function FooterLink({
@@ -81,6 +83,7 @@ export default function AppSiteFooter({
   onOpenOps,
   feedbackRef,
   feedbackOpenKind = null,
+  hideFeedbackLink = false,
 }: AppSiteFooterProps) {
   return (
     <footer className="app-site-footer" style={FOOTER_TEXT} aria-label={ko.app.siteFooterAria}>
@@ -91,12 +94,14 @@ export default function AppSiteFooter({
           </FooterLink>
         ) : null}
 
-        <FooterLink
-          onClick={() => feedbackRef.current?.openSubmit()}
-          active={feedbackOpenKind != null}
-        >
-          {ko.app.footerFeedback}
-        </FooterLink>
+        {!hideFeedbackLink ? (
+          <FooterLink
+            onClick={() => feedbackRef.current?.openSubmit()}
+            active={feedbackOpenKind != null}
+          >
+            {ko.app.footerFeedback}
+          </FooterLink>
+        ) : null}
 
         {accessAdmin ? (
           <FooterLink onClick={onOpenOps} active={appTab === "ops"}>
