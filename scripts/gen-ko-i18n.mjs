@@ -292,7 +292,7 @@ const t = {
     liveTradeCredTestAvgBuy: "\ud3c9\ub2e8",
     liveTradeCredTestBalance: "\uacc4\uc88c \uc794\uc561",
     liveTradeCredTestHoldings: "\ubcf4\uc720 \uc885\ubaa9",
-    liveTradeCredTestKrwAvailable: "\uc0ac\uc6a9 \uac00\ub2a5",
+    liveTradeCredTestKrwAvailable: "\uc8fc\ubb38 \uac00\ub2a5",
     liveTradeCredTestKrwLocked: "\uc8fc\ubb38 \uc911",
     liveTradeCredTestKrwTotal: "\uc6d0\ud654 \ud569\uacc4",
     liveTradeCredTestNoHoldings: "\ubcf4\uc720 \ucf54\uc778 \uc5c6\uc74c",

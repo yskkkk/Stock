@@ -261,7 +261,7 @@ export const ko = {
     liveTradeCredTestAvgBuy: "평단",
     liveTradeCredTestBalance: "계좌 잔액",
     liveTradeCredTestHoldings: "보유 종목",
-    liveTradeCredTestKrwAvailable: "사용 가능",
+    liveTradeCredTestKrwAvailable: "주문 가능",
     liveTradeCredTestKrwLocked: "주문 중",
     liveTradeCredTestKrwTotal: "원화 합계",
     liveTradeCredTestNoHoldings: "보유 코인 없음",
