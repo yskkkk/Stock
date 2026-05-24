@@ -8920,6 +8920,14 @@ html[data-theme="light"] .market-indices-rail__item {
   gap: 0.5rem;
 }
 
+.app-dock-rail-panel--auth .live-trading-tab__auth.card {
+  margin: 0;
+  padding: 0;
+  border: none;
+  box-shadow: none;
+  background: transparent;
+}
+
 .app-dock-rail-panel__api-status {
   margin: 0;
   padding: 0;

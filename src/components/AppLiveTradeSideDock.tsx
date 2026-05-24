@@ -74,15 +74,18 @@ export default function AppLiveTradeSideDock({
   feedbackRef?: RefObject<FeedbackCornerHandle | null>;
   feedbackActive?: boolean;
 }) {
-  const { user } = useLiveTradeAuth();
+  const { user, authChecked } = useLiveTradeAuth();
   const ctx = useLiveTradeCardSidePanelOptional();
-  const sideTabs =
+  const allSideTabs =
     (ctx?.sideTabs?.length ?? 0) > 0
       ? ctx!.sideTabs
       : Object.entries(defaultLiveTradeSideTabTitles()).map(([id, title]) => ({
           id,
           title,
         }));
+  const sideTabs = user
+    ? allSideTabs
+    : allSideTabs.filter((t) => t.id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth);
   const panel = ctx?.panel ?? null;
   const openPanel = ctx?.openPanel;
   const wide = useDesktopDockLayout();
@@ -125,7 +128,7 @@ export default function AppLiveTradeSideDock({
     [openPanel, persistOpen, activeId],
   );
 
-  if (!user || !wide) return null;
+  if (!wide || !authChecked || sideTabs.length === 0) return null;
 
   return (
     <div

@@ -250,7 +250,9 @@ export function LiveTradeCardSidePanelProvider({
       if (hasUser) {
         setTabTitles((prev) => ({ ...defaultLiveTradeSideTabTitles(), ...prev }));
       } else {
-        setTabTitles({});
+        setTabTitles({
+          [LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth]: ko.app.liveTradeSideDockRailAuth,
+        });
         setPanel(null);
       }
     };

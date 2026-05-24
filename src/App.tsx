@@ -1001,7 +1001,8 @@ export default function App() {
   const liveRunningCount =
     (liveTradingStatus?.armedCount ?? 0) + (liveTradingStatus?.simCount ?? 0);
   const { user: liveTradeUser } = useLiveTradeAuth();
-  const showDesktopSideDock = desktopDockLayout && appTab !== "ops" && Boolean(liveTradeUser);
+  const showDesktopSideDock = desktopDockLayout && appTab !== "ops";
+  const showLiveTradeDockPortals = showDesktopSideDock && Boolean(liveTradeUser);
   return (
     <LiveTradeCardSidePanelProvider>
     <div
@@ -1311,7 +1312,7 @@ export default function App() {
       ) : appTab === "liveTrading" ? (
         <div className="live-trade-tab-root">
           <LiveTradingTab
-            hideCardDock={showDesktopSideDock}
+            hideCardDock={showLiveTradeDockPortals}
             onOpenRecommendations={() => setAppTab("recommendations")}
             onOpenHoldingChart={handleLiveTradeChart}
           />
@@ -1917,7 +1918,7 @@ export default function App() {
       </div>
       </div>
 
-      {showDesktopSideDock ? (
+      {showLiveTradeDockPortals ? (
         <div
           className="live-trade-tab-root live-trade-tab-root--persist"
           hidden={appTab === "liveTrading"}
