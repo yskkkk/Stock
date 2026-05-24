@@ -8540,7 +8540,9 @@ html[data-theme="light"] .market-indices-rail__item {
   #root > .app
     .app__viewport.app__viewport--no-left-rail:has(.app-live-trade-side-dock--open)
     > .app__shell {
-    padding-right: calc(3.35rem + min(26rem, calc(100vw - 4rem)) + 0.2rem);
+    padding-right: calc(
+      3.35rem + var(--live-trade-dock-panel-width, min(26rem, calc(100vw - 4rem))) + 0.2rem
+    );
   }
 
   #root > .app:has(.app__viewport--no-left-rail) > .app__scroll > .app-site-footer {
@@ -8561,7 +8563,8 @@ html[data-theme="light"] .market-indices-rail__item {
     > .app__scroll
     > .app-site-footer {
     padding-right: calc(
-      3.35rem + min(26rem, calc(100vw - 4rem)) + 0.2rem + env(safe-area-inset-right, 0px)
+      3.35rem + var(--live-trade-dock-panel-width, min(26rem, calc(100vw - 4rem))) + 0.2rem +
+        env(safe-area-inset-right, 0px)
     );
   }
 
@@ -8593,7 +8596,7 @@ html[data-theme="light"] .market-indices-rail__item {
     bottom: 0;
     left: auto;
     width: max-content;
-    max-width: min(30rem, 42vw);
+    max-width: calc(3.35rem + var(--live-trade-dock-panel-width, 26rem));
     height: auto;
     min-height: 100dvh;
     max-height: none;
@@ -8624,6 +8627,21 @@ html[data-theme="light"] .market-indices-rail__item {
   }
 }
 
+/* 카드/도크 — 미정의 시 #fff 폴백 방지(다크·라이트 공통) */
+:root {
+  --card-bg: var(--card);
+  --surface-2: var(--surface);
+}
+
+/* 다크 — 기본 배경·카드 톤 약간 상향 */
+html:not([data-theme="light"]) {
+  --bg: #0e1319;
+  --bg-elevated: #151b24;
+  --surface: #1a222d;
+  --card: #1c2532;
+  --scrollbar-track: #151b24;
+}
+
 /* 실매매 탭 — 다른 메인 탭에서도 포털·레일용으로 DOM 유지 */
 .live-trade-tab-root--persist {
   position: fixed;
@@ -8644,9 +8662,13 @@ html[data-theme="light"] .market-indices-rail__item {
   align-items: stretch;
   align-self: stretch;
   width: max-content;
-  max-width: min(30rem, 42vw);
+  max-width: calc(3.35rem + var(--live-trade-dock-panel-width, 26rem));
   height: 100%;
   min-height: 100%;
+}
+
+.app-live-trade-side-dock--resizing .app-live-trade-side-dock__panel {
+  transition: none;
 }
 
 .app-live-trade-side-dock__panel,
@@ -8671,7 +8693,7 @@ html[data-theme="light"] .market-indices-rail__item {
   border-left: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 75%, transparent);
   border-right: none;
   border-radius: 0;
-  background: color-mix(in srgb, var(--bg-elevated, #121820) 88%, var(--card-bg, #fff));
+  background: color-mix(in srgb, var(--bg-elevated) 88%, var(--card-bg));
   box-shadow: -6px 0 24px rgba(0, 0, 0, 0.18);
 }
 
@@ -8742,8 +8764,13 @@ html[data-theme="light"] .market-indices-rail__item {
   margin-bottom: max(0.35rem, env(safe-area-inset-bottom, 0px));
 }
 
+.app-live-trade-side-dock__rail-btn--auth,
 .app-live-trade-side-dock__rail-btn--logout {
   flex: none;
+}
+
+.app-live-trade-side-dock__rail-tabs:empty {
+  display: none;
 }
 
 .app-live-trade-side-dock__rail-btn--logout:hover {
@@ -8828,8 +8855,8 @@ html[data-theme="light"] .market-indices-rail__item {
   flex-direction: column;
   flex: 1 1 auto;
   align-self: stretch;
-  width: min(26rem, calc(42vw - 3.5rem));
-  max-width: 26rem;
+  width: var(--live-trade-dock-panel-width, min(26rem, calc(42vw - 3.5rem)));
+  max-width: var(--live-trade-dock-panel-width, 26rem);
   height: auto;
   min-height: 100%;
   overflow: hidden;
@@ -8846,36 +8873,64 @@ html[data-theme="light"] .market-indices-rail__item {
   opacity: 0;
   transform: translateX(0.35rem);
   pointer-events: none;
+  visibility: hidden;
+}
+
+.app-live-trade-side-dock--open .app-live-trade-side-dock__panel {
+  visibility: visible;
 }
 
 .app-live-trade-side-dock__panel-edge {
   position: absolute;
   left: 0;
-  top: max(0.5rem, env(safe-area-inset-top, 0px));
+  top: 50%;
   z-index: 3;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 1.35rem;
-  min-height: 2.5rem;
+  width: 0.72rem;
+  min-height: 2.85rem;
   margin: 0;
-  padding: 0.35rem 0;
+  padding: 0.28rem 0;
   border: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 80%, transparent);
   border-right: none;
   border-radius: var(--radius-sm, 6px) 0 0 var(--radius-sm, 6px);
-  background: var(--card-bg, #fff);
-  color: var(--muted, #64748b);
-  cursor: pointer;
-  font-size: 1rem;
-  font-weight: 700;
+  background: var(--card-bg);
+  color: var(--muted);
+  cursor: col-resize;
+  touch-action: none;
+  font: inherit;
   line-height: 1;
-  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.08);
-  transform: translateX(-100%);
+  box-shadow: var(--shadow);
+  transform: translate(-100%, -50%);
 }
 
 .app-live-trade-side-dock__panel-edge:hover {
-  color: var(--text, #0f172a);
-  background: color-mix(in srgb, var(--card-bg, #fff) 92%, var(--surface-2, #f1f5f9));
+  color: var(--text);
+  background: color-mix(in srgb, var(--card-bg) 92%, var(--surface-2));
+  border-color: color-mix(in srgb, var(--accent, #5eead4) 35%, var(--card-border, #e2e8f0));
+}
+
+.app-live-trade-side-dock__resize-arrows {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 0.02rem;
+  pointer-events: none;
+  user-select: none;
+}
+
+.app-live-trade-side-dock__resize-arrow {
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0.85;
+}
+
+.app-live-trade-side-dock--resizing .app-live-trade-side-dock__panel-edge {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent, #5eead4) 45%, var(--card-border, #e2e8f0));
 }
 
 .app-live-trade-side-dock--collapsed .app-live-trade-side-dock__panel-edge {
@@ -8905,10 +8960,42 @@ html[data-theme="light"] .market-indices-rail__item {
   height: 100% !important;
   max-height: none !important;
   border: none;
-  border-left: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 80%, transparent);
+  border-left: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
   border-radius: 0 !important;
   box-shadow: -8px 0 32px rgba(0, 0, 0, 0.22);
-  background: var(--card-bg, #fff);
+  background: var(--card-bg);
+  color: var(--text);
+}
+
+.app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail .live-trading-tab__card-tabs-rail-head {
+  background: color-mix(in srgb, var(--card-bg) 94%, var(--surface-2));
+}
+
+.app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail .live-trading-tab__card-tabs-rail-title {
+  color: var(--text);
+}
+
+.app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail .live-trading-tab__card-tabs-rail-close {
+  color: var(--muted);
+  border-color: color-mix(in srgb, var(--card-border) 85%, transparent);
+}
+
+.app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail .live-trading-tab__card-tabs-rail-close:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail .live-trading-tab__card-tabs-body {
+  background: var(--card-bg);
+}
+
+.app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail .live-trading-tab__card-tabs-host {
+  background: var(--card-bg);
+  color: var(--text);
+}
+
+.app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail .live-trading-tab__card-tabs-hint {
+  color: var(--muted);
 }
 
 .app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail .live-trading-tab__card-tabs-body {
@@ -8925,11 +9012,16 @@ html[data-theme="light"] .market-indices-rail__item {
   overflow: auto;
 }
 
+.app-live-trade-side-dock__host .live-trading-tab__card-tabs-host:not(.live-trading-tab__card-tabs-host--idle) {
+  display: block;
+}
+
 .app-dock-rail-panel {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
   min-height: 0;
+  color: var(--text);
 }
 
 .app-dock-rail-panel--auth .live-trading-tab__auth-signed {

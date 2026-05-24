@@ -189,6 +189,8 @@ export const ko = {
       "오른쪽 아이콘을 눌러 보유·프로그램·계좌 정보를 확인하세요.",
     liveTradeSideDockExpand: "패널 펼치기",
     liveTradeSideDockCollapse: "패널 접기",
+    liveTradeSideDockResize: "패널 너비 조절",
+    liveTradeSideDockResizeHint: "드래그하여 좌우로 너비를 조절합니다",
     liveTradeSideDockRailAria: "계정·실매매 우측 메뉴",
     liveTradeSideDockRailAuth: "로그인",
     liveTradeDockRailAccount: "계정",
