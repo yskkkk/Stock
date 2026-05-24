@@ -45,9 +45,6 @@ function normalizeLive(parsed) {
 
 function loadLiveFromDiskSync() {
   try {
-    if (!fs.existsSync(DEV_QUEUE_LIVE_FILE)) {
-      return { updatedAtMs: 0, agentEntries: [] };
-    }
     return normalizeLive(JSON.parse(fs.readFileSync(DEV_QUEUE_LIVE_FILE, "utf8")));
   } catch {
     return { updatedAtMs: 0, agentEntries: [] };

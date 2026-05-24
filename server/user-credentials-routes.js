@@ -85,7 +85,7 @@ export function registerUserCredentialRoutes(app) {
           input.apiKey = String(body.apiKey ?? "");
         }
         if (Object.prototype.hasOwnProperty.call(body, "secretKey")) {
-          input.secretKey = body.secretKey;
+          input.secretKey = String(body.secretKey ?? "").trim();
         }
         if (Object.prototype.hasOwnProperty.call(body, "liveOrdersEnabled")) {
           input.liveOrdersEnabled = Boolean(body.liveOrdersEnabled);

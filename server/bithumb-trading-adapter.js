@@ -310,7 +310,7 @@ export async function executeBithumbLiveBuyOrder(program, pick, options = {}) {
       /** @type {BithumbCredentials} */ (credentials),
     );
     const orderId = String(body.uuid ?? body.order_id ?? "");
-    if (!orderId) return { ok: true };
+    if (!orderId) return { ok: false, error: "주문 ID를 받지 못했습니다." };
     const fill = await pollBithumbOrderFill(
       orderId,
       /** @type {BithumbCredentials} */ (credentials),
@@ -361,8 +361,8 @@ export async function executeBithumbLiveSellOrder(input, options = {}) {
       },
       /** @type {BithumbCredentials} */ (credentials),
     );
-    const orderId = String(body.uuid ?? "") || undefined;
-    if (!orderId) return { ok: true };
+    const orderId = String(body.uuid ?? "").trim();
+    if (!orderId) return { ok: false, error: "매도 주문 ID를 받지 못했습니다." };
     const fill = await pollBithumbOrderFill(
       orderId,
       /** @type {BithumbCredentials} */ (credentials),

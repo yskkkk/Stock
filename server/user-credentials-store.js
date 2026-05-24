@@ -284,7 +284,9 @@ export function upsertUserCredentialSync(userId, exchange, input) {
   if (ex === "bithumb" && row.apiKeyEncrypted && row.secretEncrypted) {
     void import("./exchange-trading-fees.js")
       .then((m) => m.refreshBithumbFeesForUserAsync(uid))
-      .catch(() => {});
+      .catch((e) => {
+        console.warn("[credentials] 빗썸 수수료 갱신 실패:", e instanceof Error ? e.message : e);
+      });
   }
   return getCredentialMetaSync(uid, ex);
 }

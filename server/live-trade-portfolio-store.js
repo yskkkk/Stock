@@ -114,7 +114,9 @@ export function readStoreSync() {
 
 function writeStoreSync(store) {
   ensureDirSync();
-  fs.writeFileSync(PORTFOLIO_FILE, JSON.stringify(store, null, 0), "utf8");
+  const tmp = `${PORTFOLIO_FILE}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(store, null, 0), "utf8");
+  fs.renameSync(tmp, PORTFOLIO_FILE);
 }
 
 /** @param {unknown} raw @returns {LiveTradeRecord | null} */

@@ -10,23 +10,33 @@ const PORT = Number(process.env.PORT) || 5173;
 const LEASE_FILE = path.join(process.cwd(), ".claude-queue-lease");
 const IDE_LEASE_FILE = path.join(process.cwd(), ".stock-ops-ide-lease.json");
 
+function cleanupLocalFiles() {
+  try { fs.unlinkSync(LEASE_FILE); } catch {}
+  try { fs.unlinkSync(IDE_LEASE_FILE); } catch {}
+  try { fs.unlinkSync(path.join(process.cwd(), ".auto-git-sync.pause")); } catch {}
+}
+
 let leaseId = "";
 try {
   leaseId = fs.readFileSync(LEASE_FILE, "utf8").trim();
 } catch {
-  // lease 파일 없으면 release-active로 폴백
+  // lease 파일 없음
 }
 
-const endpoint = leaseId
-  ? "/api/ops/dev-queue/claude-code/release"
-  : "/api/ops/dev-queue/ide/release-active";
-const body = leaseId ? JSON.stringify({ leaseId }) : "{}";
+if (!leaseId) {
+  // leaseId 없으면 로컬 파일만 정리하고 종료 — IDE 슬롯 건드리지 않음
+  cleanupLocalFiles();
+  console.log("[claude-queue] lease 없음 — 로컬 파일만 정리");
+  process.exit(0);
+}
+
+const body = JSON.stringify({ leaseId });
 
 const req = http.request(
   {
     hostname: "127.0.0.1",
     port: PORT,
-    path: endpoint,
+    path: "/api/ops/dev-queue/claude-code/release",
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -47,22 +57,14 @@ const req = http.request(
       } catch {
         console.warn("[claude-queue] 해제 응답 파싱 실패:", d);
       }
-      try {
-        if (leaseId) fs.unlinkSync(LEASE_FILE);
-        try { fs.unlinkSync(IDE_LEASE_FILE); } catch {}
-        try { fs.unlinkSync(path.join(process.cwd(), ".auto-git-sync.pause")); } catch {}
-      } catch {}
+      cleanupLocalFiles();
     });
   },
 );
 
 req.on("error", (e) => {
   console.warn("[claude-queue] release 연결 실패:", e.message);
-  try {
-    if (leaseId) fs.unlinkSync(LEASE_FILE);
-    try { fs.unlinkSync(IDE_LEASE_FILE); } catch {}
-    try { fs.unlinkSync(path.join(process.cwd(), ".auto-git-sync.pause")); } catch {}
-  } catch {}
+  cleanupLocalFiles();
 });
 
 req.write(body);

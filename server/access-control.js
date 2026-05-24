@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { randomUUID } from "crypto";
+import crypto, { randomUUID } from "crypto";
 import { fileURLToPath } from "url";
 import { clientIp, stampAccessEventNow } from "./access-log.js";
 
@@ -115,7 +115,7 @@ export function isAccessAdminRequest(req) {
   if (!isAccessControlEnabled()) return true;
   const token = getAdminToken();
   const bearer = readBearerToken(req);
-  if (token && bearer === token) return true;
+  if (token && bearer && crypto.timingSafeEqual(Buffer.from(bearer), Buffer.from(token))) return true;
   if (isAccessAdminIp(req)) return true;
   const ip = normalizeAccessIp(clientIp(req));
   if (!ip) return false;
