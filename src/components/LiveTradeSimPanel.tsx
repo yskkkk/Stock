@@ -167,13 +167,7 @@ export default function LiveTradeSimPanel({
 
   if (!programs.length) return null;
 
-  if (!eligiblePrograms.length) {
-    return (
-      <section className="live-sim card" aria-label={ko.app.liveTradeSimTitle}>
-        <p className="live-sim__note">{ko.app.liveTradeCryptoSimNote}</p>
-      </section>
-    );
-  }
+  if (!eligiblePrograms.length) return null;
 
   const selectedCur = displaySelected ? quoteCurrency(displaySelected) : null;
   const selectedChg = displaySelected?.changePercent;

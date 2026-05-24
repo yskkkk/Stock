@@ -780,11 +780,6 @@ export default function LiveTradingTab({
                       {ko.app.liveTradeMarketCrypto}
                     </button>
                   </div>
-                  {draft.marketsCrypto ? (
-                    <p className="live-trading-tab__hint live-trading-tab__hint--inline">
-                      {ko.app.liveTradeCryptoSimNote}
-                    </p>
-                  ) : null}
                 </div>
 
                 <div className="live-trading-tab__field live-trading-tab__field--range">
