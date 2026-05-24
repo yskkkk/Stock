@@ -77,6 +77,12 @@ body {
   overflow: visible;
 }
 
+@media (min-width: 1180px) {
+  #root > .app .app__viewport.app__viewport--no-left-rail > .app__shell {
+    max-width: none;
+  }
+}
+
 .app__shell > .app__viewport-top {
   flex: none;
   margin: 0;

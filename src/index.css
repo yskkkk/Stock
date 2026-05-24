@@ -8567,10 +8567,12 @@ html[data-theme="light"] .market-indices-rail__item {
     pointer-events: none;
   }
 
-  /* 데스크톱: 좌측 빈 1fr 제거 — 본문 1열(왼쪽부터) · 우측 도크 */
+  /* 데스크톱: 본문 전폭(좌·우 빈 1fr 없음) — 도크는 fixed, shell만 우측 여백 */
   #root > .app .app__viewport.app__viewport--no-left-rail {
-    grid-template-columns: minmax(0, 1fr) 1fr;
+    grid-template-columns: minmax(0, 1fr);
     justify-items: stretch;
+    padding-inline: var(--app-page-inline-pad-safe, var(--app-page-inline-pad, 1.35rem));
+    padding-right: env(safe-area-inset-right, 0px);
   }
 
   #root > .app .app__viewport.app__viewport--no-left-rail > .app__shell {
@@ -8578,20 +8580,55 @@ html[data-theme="light"] .market-indices-rail__item {
     grid-row: 1;
     justify-self: stretch;
     width: 100%;
-    max-width: min(var(--app-page-max-width, 1680px), 100%);
+    max-width: none !important;
     margin-left: 0 !important;
     margin-right: 0 !important;
+    padding-inline: 0;
+    box-sizing: border-box;
   }
 
   #root > .app .app__viewport.app__viewport--no-left-rail > .app__right-panel {
-    grid-column: 2;
+    grid-column: 1;
     grid-row: 1;
+    width: 0;
+    min-width: 0;
+    max-width: 0;
+    overflow: visible;
+    padding: 0;
+    margin: 0;
+    justify-self: end;
   }
 
-  #root > .app .app__viewport.app__viewport--no-left-rail:has(.app-live-trade-side-dock) {
-    grid-template-columns: minmax(0, 1fr) auto;
+  #root > .app .app__viewport.app__viewport--no-left-rail:has(.app-live-trade-side-dock) > .app__shell {
+    padding-right: calc(3.35rem + 0.2rem);
+  }
+
+  #root > .app
+    .app__viewport.app__viewport--no-left-rail:has(.app-live-trade-side-dock--open)
+    > .app__shell {
+    padding-right: calc(3.35rem + min(26rem, calc(100vw - 4rem)) + 0.2rem);
+  }
+
+  #root > .app:has(.app__viewport--no-left-rail) > .app__scroll > .app-site-footer {
+    max-width: none;
+    width: 100%;
+    margin-inline: 0;
+    padding-inline: var(--app-page-inline-pad-safe, var(--app-page-inline-pad, 1.35rem));
     padding-right: env(safe-area-inset-right, 0px);
-    padding-left: var(--app-page-inline-pad-safe, var(--app-page-inline-pad, 1.35rem));
+    box-sizing: border-box;
+  }
+
+  #root > .app:has(.app-live-trade-side-dock) > .app__scroll > .app-site-footer {
+    padding-right: calc(3.35rem + 0.2rem + env(safe-area-inset-right, 0px));
+  }
+
+  #root
+    > .app:has(.app-live-trade-side-dock--open)
+    > .app__scroll
+    > .app-site-footer {
+    padding-right: calc(
+      3.35rem + min(26rem, calc(100vw - 4rem)) + 0.2rem + env(safe-area-inset-right, 0px)
+    );
   }
 
   .app__right-panel--dock {
@@ -8599,8 +8636,8 @@ html[data-theme="light"] .market-indices-rail__item {
     justify-self: end;
     align-self: start;
     flex: none;
-    width: 3.35rem;
-    max-width: min(30rem, 42vw);
+    width: 0 !important;
+    max-width: 0 !important;
     min-height: 100dvh;
     margin-right: 0;
     padding: 0;
@@ -8609,8 +8646,8 @@ html[data-theme="light"] .market-indices-rail__item {
   }
 
   .app__viewport:has(.app-live-trade-side-dock--open) .app__right-panel--dock {
-    width: calc(3.35rem + min(26rem, calc(100vw - 4rem)));
-    max-width: calc(3.35rem + 28rem);
+    width: 0 !important;
+    max-width: 0 !important;
   }
 
   .app__right-panel--dock .app-live-trade-side-dock {
