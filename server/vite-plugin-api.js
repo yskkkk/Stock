@@ -16,6 +16,7 @@ import { installAccessGateHtmlMiddleware } from "./vite-access-gate-html.js";
 import { registerViteIntegratedRestart } from "./restart-node-process.js";
 import { clearViteRestartMarker } from "./vite-restart-marker.js";
 import { installViteMobileApkMiddleware } from "./mobile-apk-download.js";
+import { installViteMobileIosMiddleware } from "./mobile-ios-download.js";
 import { installServerOfflineHtmlMiddleware, writeServerOfflineHtmlForBuild } from "./vite-server-offline-html.js";
 
 function mergeStockProcessEnv(mode) {
