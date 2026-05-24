@@ -8497,9 +8497,13 @@ html[data-theme="light"] .market-indices-rail__item {
     top: 0;
     right: env(safe-area-inset-right, 0px);
     bottom: 0;
-    height: 100dvh;
-    max-height: 100dvh;
-    z-index: 45;
+    left: auto;
+    width: max-content;
+    max-width: min(30rem, 42vw);
+    height: auto;
+    min-height: 100dvh;
+    max-height: none;
+    z-index: 50;
   }
 
   .app__viewport:has(.app-live-trade-side-dock--open) .live-trading-tab__card-row {
@@ -8544,11 +8548,11 @@ html[data-theme="light"] .market-indices-rail__item {
   display: flex;
   flex-direction: row;
   align-items: stretch;
+  align-self: stretch;
   width: max-content;
   max-width: min(30rem, 42vw);
   height: 100%;
-  min-height: 100dvh;
-  max-height: 100dvh;
+  min-height: 100%;
 }
 
 .app-live-trade-side-dock__panel,
@@ -8557,16 +8561,17 @@ html[data-theme="light"] .market-indices-rail__item {
 }
 
 .app-live-trade-side-dock__rail {
-  flex: none;
+  flex: 1 0 auto;
+  align-self: stretch;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: 0;
   width: 3.35rem;
-  height: 100%;
-  min-height: 100dvh;
+  min-height: 100%;
+  height: auto;
   padding-top: max(0.35rem, env(safe-area-inset-top, 0px));
-  padding-bottom: max(0.35rem, env(safe-area-inset-bottom, 0px));
+  padding-bottom: 0;
   padding-left: 0.2rem;
   padding-right: max(0px, env(safe-area-inset-right, 0px));
   border-left: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 75%, transparent);
@@ -8612,6 +8617,8 @@ html[data-theme="light"] .market-indices-rail__item {
   gap: 0.2rem;
   min-height: 0;
   overflow-y: auto;
+  box-sizing: border-box;
+  padding-bottom: max(0.35rem, env(safe-area-inset-bottom, 0px));
 }
 
 .app-live-trade-side-dock__rail-btn {
@@ -8673,11 +8680,12 @@ html[data-theme="light"] .market-indices-rail__item {
   position: relative;
   display: flex;
   flex-direction: column;
-  flex: none;
+  flex: 1 1 auto;
+  align-self: stretch;
   width: min(26rem, calc(42vw - 3.5rem));
   max-width: 26rem;
-  height: 100%;
-  min-height: 100dvh;
+  height: auto;
+  min-height: 100%;
   overflow: hidden;
   transition:
     width 0.22s ease,
@@ -8735,7 +8743,7 @@ html[data-theme="light"] .market-indices-rail__item {
   width: 100%;
   min-width: 0;
   height: 100%;
-  min-height: 0;
+  min-height: 100%;
 }
 
 .app-live-trade-side-dock--collapsed .app-live-trade-side-dock__host {
@@ -8747,13 +8755,14 @@ html[data-theme="light"] .market-indices-rail__item {
   display: flex;
   flex: 1;
   flex-direction: column;
-  min-height: 0;
-  height: 100%;
-  max-height: none;
+  min-height: 100% !important;
+  height: 100% !important;
+  max-height: none !important;
   border: none;
   border-left: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 80%, transparent);
-  border-radius: 0;
+  border-radius: 0 !important;
   box-shadow: -8px 0 32px rgba(0, 0, 0, 0.22);
+  background: var(--card-bg, #fff);
 }
 
 .app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail .live-trading-tab__card-tabs-body {
