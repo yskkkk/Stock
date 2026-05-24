@@ -298,6 +298,7 @@ export function createApp() {
   );
 
   app.get(
+    "/api/picks",
     asyncRoute(async (_req, res) => {
       ensureScreening();
       const base = getPicksState();
