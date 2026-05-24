@@ -33,6 +33,13 @@ import TradingViewCryptoChart from "./TradingViewCryptoChart";
 import PickQuoteStrip from "./PickQuoteStrip";
 import ProfitModelModal from "./ProfitModelModal";
 import { useMobileBackHandler } from "../hooks/useMobileBackHandler";
+import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
+import {
+  applyCryptoPriceDisplay,
+  persistCryptoPriceDisplay,
+  readCryptoPriceDisplay,
+  type CryptoPriceDisplay,
+} from "../lib/cryptoDisplayQuote";
 import { MOBILE_BACK_PRIORITY } from "../lib/mobileBackStack";
 import { ko } from "../i18n/ko";
 import type { ColorMode } from "../lib/theme";
@@ -53,6 +60,26 @@ function formatKrwTurnover(v: number | undefined): string {
   if (v >= 1e8) return `${(v / 1e8).toFixed(0)}억`;
   if (v >= 1e4) return `${(v / 1e4).toFixed(0)}만`;
   return String(Math.round(v));
+}
+
+function formatUsdtTurnover(v: number | undefined): string {
+  if (v == null || !Number.isFinite(v) || v <= 0) return "—";
+  if (v >= 1e9) return `$${(v / 1e9).toFixed(2)}B`;
+  if (v >= 1e6) return `$${(v / 1e6).toFixed(1)}M`;
+  if (v >= 1e3) return `$${(v / 1e3).toFixed(0)}K`;
+  return `$${v.toFixed(0)}`;
+}
+
+function formatCryptoTurnover(
+  v: number | undefined,
+  mode: CryptoPriceDisplay,
+  usdKrwRate: number | null,
+): string {
+  if (v == null || !Number.isFinite(v) || v <= 0) return "—";
+  if (mode === "usdt" && usdKrwRate != null && usdKrwRate > 0) {
+    return formatUsdtTurnover(v / usdKrwRate);
+  }
+  return formatKrwTurnover(v);
 }
 
 /** BTC-USDT → BTC */
@@ -125,6 +152,11 @@ export default function CryptoTab({
   const cryptoChartAbortRef = useRef<AbortController | null>(null);
   const [profitPersistTick, setProfitPersistTick] = useState(0);
   const [profitModalOpen, setProfitModalOpen] = useState(false);
+  const [priceDisplay, setPriceDisplay] = useState<CryptoPriceDisplay>(
+    readCryptoPriceDisplay,
+  );
+  const { rate: usdKrwRate, valuationDate: usdKrwValDate } =
+    useUsdKrwRate(true);
 
   useMobileBackHandler(
     Boolean(SHOW_PROFIT_MODEL_BUTTON && profitModalOpen),
@@ -158,6 +190,19 @@ export default function CryptoTab({
     [cryptoAssets],
   );
 
+  /** 유니버스 고정 종목 — 시세의 24h 거래대금으로 목록 순서 갱신 */
+  const sortedCryptoAssets = useMemo(() => {
+    const withTurnover = cryptoAssets.map((a) => {
+      const live = listQuotes[a.symbol]?.turnover;
+      const tv =
+        live != null && Number.isFinite(live) && live > 0
+          ? live
+          : (a.quoteTurnoverKrw ?? 0);
+      return { ...a, quoteTurnoverKrw: tv };
+    });
+    return sortCryptoAssetsByTurnover(withTurnover);
+  }, [cryptoAssets, listQuotes]);
+
   useEffect(() => {
     if (!focusSymbol?.trim() || !onFocusSymbolConsumed) return;
     const want = focusSymbol.trim();
@@ -173,6 +218,22 @@ export default function CryptoTab({
     () => cryptoAssets.find((a) => a.symbol === symbol) ?? cryptoAssets[0]!,
     [symbol, cryptoAssets],
   );
+
+  const displayListQuote = useCallback(
+    (q: QuoteResponse | undefined) =>
+      applyCryptoPriceDisplay(q, priceDisplay, usdKrwRate),
+    [priceDisplay, usdKrwRate],
+  );
+
+  const headerQuote = useMemo(
+    () => displayListQuote(quote ?? undefined),
+    [displayListQuote, quote],
+  );
+
+  const setPriceDisplayMode = useCallback((mode: CryptoPriceDisplay) => {
+    setPriceDisplay(mode);
+    persistCryptoPriceDisplay(mode);
+  }, []);
 
   const loadChart = useCallback(
     async (sym: string, tf: ChartTimeframe, live = false) => {
@@ -365,8 +426,9 @@ export default function CryptoTab({
     return () => window.removeEventListener("keydown", onKey);
   }, [symbol, cryptoAssets, profitModalOpen]);
 
-  const quotePx = quote?.price;
-  const quoteCur = quote?.currency ?? "KRW";
+  const quotePx = headerQuote?.price ?? quote?.price;
+  const quoteCur =
+    headerQuote?.currency ?? quote?.currency ?? (priceDisplay === "krw" ? "KRW" : "USDT");
   const profitRow = useMemo(
     () => getPersistedProfitRow(symbol),
     [symbol, profitPersistTick],
@@ -411,17 +473,52 @@ export default function CryptoTab({
         className="picks-panel card crypto-panel"
         aria-label={ko.crypto.listAria}
       >
-        <div className="panel-head">
+        <div className="panel-head crypto-panel__head">
           <span className="panel-head__title">{ko.crypto.panelTitle}</span>
+          <div
+            className="crypto-panel__fx-seg"
+            role="group"
+            aria-label={ko.crypto.priceDisplayAria}
+          >
+            <button
+              type="button"
+              className={
+                priceDisplay === "krw"
+                  ? "crypto-panel__fx-btn crypto-panel__fx-btn--on"
+                  : "crypto-panel__fx-btn"
+              }
+              aria-pressed={priceDisplay === "krw"}
+              onClick={() => setPriceDisplayMode("krw")}
+            >
+              {ko.crypto.priceKrw}
+            </button>
+            <button
+              type="button"
+              className={
+                priceDisplay === "usdt"
+                  ? "crypto-panel__fx-btn crypto-panel__fx-btn--on"
+                  : "crypto-panel__fx-btn"
+              }
+              aria-pressed={priceDisplay === "usdt"}
+              title={
+                usdKrwValDate
+                  ? ko.app.quoteCurrencyFxBasis.replace("{date}", usdKrwValDate)
+                  : undefined
+              }
+              onClick={() => setPriceDisplayMode("usdt")}
+            >
+              {ko.crypto.priceUsdt}
+            </button>
+          </div>
         </div>
         <ul className="pick-list crypto-pick-list">
-          {cryptoAssets.map((a) => {
+          {sortedCryptoAssets.map((a) => {
             const isActive = a.symbol === symbol;
-            const rowQ =
+            const rawQ =
               listQuotes[a.symbol] ??
               (isActive ? (quote ?? undefined) : undefined);
-            const turnoverKrw =
-              rowQ?.turnover ?? a.quoteTurnoverKrw;
+            const rowQ = displayListQuote(rawQ ?? undefined);
+            const turnoverRaw = rawQ?.turnover ?? a.quoteTurnoverKrw;
             return (
               <li
                 key={a.symbol}
@@ -453,12 +550,12 @@ export default function CryptoTab({
                       title={ko.crypto.listVolTitle}
                     >
                       {ko.crypto.listVolShort}{" "}
-                      {formatKrwTurnover(turnoverKrw)}
+                      {formatCryptoTurnover(turnoverRaw, priceDisplay, usdKrwRate)}
                     </span>
                     <PickQuoteStrip
                       symbol={a.symbol}
                       price={rowQ?.price}
-                      currency={rowQ?.currency ?? "KRW"}
+                      currency={rowQ?.currency ?? (priceDisplay === "krw" ? "KRW" : "USDT")}
                       changePercent={rowQ?.changePercent}
                       className="crypto-pick-quote"
                     />
@@ -476,9 +573,11 @@ export default function CryptoTab({
             <h2>{quote?.name ?? active.name}</h2>
             <PickQuoteStrip
               symbol={symbol}
-              price={quote?.price}
-              currency={quote?.currency ?? "KRW"}
-              changePercent={quote?.changePercent}
+              price={headerQuote?.price}
+              currency={
+                headerQuote?.currency ?? (priceDisplay === "krw" ? "KRW" : "USDT")
+              }
+              changePercent={headerQuote?.changePercent ?? quote?.changePercent}
               size="md"
             />
           </div>

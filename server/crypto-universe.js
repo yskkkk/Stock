@@ -17,7 +17,7 @@ const FIXED_CORE = [
 const FIXED_BASES = new Set(FIXED_CORE.map((f) => f.base));
 
 /** 스테이블·법정화 페어 등 — 거래대금 상위 7종 후보에서 제외 */
-const VOLUME_EXTRA_EXCLUDE = new Set([
+const TURNOVER_EXTRA_EXCLUDE = new Set([
   "USDC",
   "USDT",
   "DAI",
@@ -49,7 +49,7 @@ export async function loadCryptoWatchlistTen() {
   const ranked = [];
   for (const [base, row] of Object.entries(all)) {
     if (!base || base === "date") continue;
-    if (VOLUME_EXTRA_EXCLUDE.has(base)) continue;
+    if (TURNOVER_EXTRA_EXCLUDE.has(base)) continue;
     const tv = bithumbTickerTurnoverKrw(row);
     if (tv <= 0) continue;
     ranked.push({ base, quoteTurnoverKrw: tv });
