@@ -15,6 +15,7 @@ import {
   readStoreSync,
   recordLiveTradeSellSync,
 } from "./live-trade-portfolio-store.js";
+import { normalizeSellQuantity } from "./live-trade-market.js";
 
 /** @typedef {import("./bithumb-trading-adapter.js").BithumbCredentials} BithumbCredentials */
 
@@ -23,21 +24,59 @@ const QTY_EPS = 1e-8;
 export const EXCHANGE_ZERO_RATIO = 0.02;
 
 /**
+ * @param {unknown[]} accounts
+ * @returns {{ total: Map<string, number>; available: Map<string, number> }}
+ */
+export function bithumbAccountQtyMapsFromAccounts(accounts) {
+  /** @type {Map<string, number>} */
+  const total = new Map();
+  /** @type {Map<string, number>} */
+  const available = new Map();
+  const list = Array.isArray(accounts) ? accounts : [];
+  for (const a of list) {
+    const base = String(a?.currency ?? "").trim().toUpperCase();
+    if (!base || base === "KRW") continue;
+    const avail = Number(a?.balance ?? 0);
+    const locked = Number(a?.locked ?? 0);
+    if (!Number.isFinite(avail) || !Number.isFinite(locked)) continue;
+    const qty = avail + locked;
+    if (qty > 0) total.set(base, qty);
+    if (avail > 0) available.set(base, avail);
+  }
+  return { total, available };
+}
+
+/**
  * @param {import("./bithumb-trading-adapter.js").BithumbCredentials} credentials
- * @returns {Promise<Map<string, number>>} base currency → qty
+ * @returns {Promise<{ total: Map<string, number>; available: Map<string, number> }>}
+ */
+export async function getBithumbExchangeQtyMaps(credentials) {
+  const accounts = await fetchBithumbAccountsWithCredentials(credentials);
+  return bithumbAccountQtyMapsFromAccounts(accounts);
+}
+
+/**
+ * @param {import("./bithumb-trading-adapter.js").BithumbCredentials} credentials
+ * @returns {Promise<Map<string, number>>} base currency → total qty (balance + locked)
  */
 export async function getBithumbExchangeBaseQtyMap(credentials) {
-  const accounts = await fetchBithumbAccountsWithCredentials(credentials);
-  /** @type {Map<string, number>} */
-  const exchangeQty = new Map();
-  for (const a of accounts) {
-    const base = String(a.currency ?? "").trim().toUpperCase();
-    const qty = Number(a.balance ?? 0) + Number(a.locked ?? 0);
-    if (base && base !== "KRW" && Number.isFinite(qty) && qty > 0) {
-      exchangeQty.set(base, qty);
-    }
-  }
-  return exchangeQty;
+  return (await getBithumbExchangeQtyMaps(credentials)).total;
+}
+
+/**
+ * 앱 보유 수량을 빗썸 주문 가능(balance) 수량 이하로 맞춤.
+ * @param {number} appQuantity
+ * @param {number} availableQuantity
+ * @returns {{ volume: number; clamped: boolean }}
+ */
+export function clampBithumbSellVolumeToAvailable(appQuantity, availableQuantity) {
+  const app = Number(appQuantity);
+  const avail = Number(availableQuantity);
+  if (!Number.isFinite(app) || app <= 0) return { volume: 0, clamped: false };
+  if (!Number.isFinite(avail) || avail <= 0) return { volume: 0, clamped: false };
+  const volume = normalizeSellQuantity(Math.min(app, avail), "crypto");
+  if (volume <= 0) return { volume: 0, clamped: false };
+  return { volume, clamped: volume + 1e-8 < app };
 }
 
 /**

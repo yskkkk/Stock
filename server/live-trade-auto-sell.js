@@ -42,7 +42,8 @@ import { usdtSymbolToBithumbBase } from "./bithumb-krw.js";
 
 import {
   EXCHANGE_ZERO_RATIO,
-  getBithumbExchangeBaseQtyMap,
+  clampBithumbSellVolumeToAvailable,
+  getBithumbExchangeQtyMaps,
   findAskFillAfter,
   listBithumbDoneOrdersForMarket,
 } from "./live-trade-bithumb-reconcile.js";
@@ -214,8 +215,10 @@ export async function tickLiveTradeAutoSell() {
 
 
   // ── 빗썸 실잔고 체크: armed crypto 포지션이 거래소에 없으면 수동매도로 처리 ──
-  /** @type {Map<string, Map<string, number>>} userId → (base → qty) */
-  const userExchangeQtyMap = new Map();
+  /** @type {Map<string, Map<string, number>>} userId → (base → total qty) */
+  const userExchangeTotalMap = new Map();
+  /** @type {Map<string, Map<string, number>>} userId → (base → orderable qty) */
+  const userExchangeAvailableMap = new Map();
   {
     /** @type {Map<string, import("./bithumb-trading-adapter.js").BithumbCredentials>} */
     const uidCredMap = new Map();
@@ -229,7 +232,9 @@ export async function tickLiveTradeAutoSell() {
     await Promise.all(
       [...uidCredMap.entries()].map(async ([uid, creds]) => {
         try {
-          userExchangeQtyMap.set(uid, await getBithumbExchangeBaseQtyMap(creds));
+          const { total, available } = await getBithumbExchangeQtyMaps(creds);
+          userExchangeTotalMap.set(uid, total);
+          userExchangeAvailableMap.set(uid, available);
         } catch (e) {
           liveTradeLogWarn(
             "[live-trade:auto-sell] 잔고 조회 실패:",
@@ -249,7 +254,7 @@ export async function tickLiveTradeAutoSell() {
     if (prog?.status !== "armed" || pos.market !== "crypto") continue;
 
     const uid = String(prog.userId ?? "").trim();
-    const qtyMap = userExchangeQtyMap.get(uid);
+    const qtyMap = userExchangeTotalMap.get(uid);
     if (!qtyMap) continue; // 잔고 조회 실패 → 이번 틱 건너뜀
 
     const base = usdtSymbolToBithumbBase(pos.symbol);
@@ -410,9 +415,36 @@ export async function tickLiveTradeAutoSell() {
 
         const credentials = userId ? getDecryptedCredentialsSync(userId, "bithumb") : null;
 
+        const base = usdtSymbolToBithumbBase(pos.symbol);
+        const available =
+          base && userId
+            ? (userExchangeAvailableMap.get(userId)?.get(base) ?? 0)
+            : 0;
+        const { volume: sellVolume, clamped } = clampBithumbSellVolumeToAvailable(
+          pos.quantity,
+          available,
+        );
+        if (sellVolume <= 0) {
+          liveTradeLogWarn(
+            "[live-trade:auto-sell] 빗썸 주문가능 수량 없음 — 매도 건너뜀:",
+            pos.symbol,
+            { appQty: pos.quantity, available },
+          );
+          continue;
+        }
+        if (clamped) {
+          liveTradeLogInfo(
+            "[live-trade:auto-sell] 매도 수량 조정(주문가능 한도):",
+            pos.symbol,
+            sellVolume,
+            "/",
+            pos.quantity,
+          );
+        }
+
         const sellResult = await executeBithumbLiveSellOrder(
 
-          { market: bithumbMarket, volume: pos.quantity },
+          { market: bithumbMarket, volume: sellVolume },
 
           { credentials },
 
@@ -436,7 +468,7 @@ export async function tickLiveTradeAutoSell() {
 
           market: pos.market,
 
-          quantity: pos.quantity,
+          quantity: sellVolume,
 
           price: fillPrice,
 
