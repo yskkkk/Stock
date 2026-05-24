@@ -2,7 +2,10 @@ import { useCallback, useEffect, type ReactNode } from "react";
 import { useDesktopDockLayout } from "../hooks/useDesktopDockLayout";
 import { logoutAuth } from "../api";
 import { invalidateLiveTradingPrefetch } from "../lib/tabPrefetch";
-import { refreshLiveTradingStatusNow } from "../hooks/useLiveTradingStatusPoll";
+import {
+  refreshLiveTradingStatusNow,
+  useLiveTradingStatusPoll,
+} from "../hooks/useLiveTradingStatusPoll";
 import { ko } from "../i18n/ko";
 import { BithumbAccountRailCore } from "./LeftRailBithumbAccountPanel";
 import { LiveTradingRailCore } from "./LiveTradingLeftRailPanel";
@@ -41,6 +44,7 @@ export default function AppRightDockRailPanels({
   const wide = useDesktopDockLayout();
   const { user, authChecked } = useLiveTradeAuth();
   const ctx = useLiveTradeCardSidePanelOptional();
+  const liveStatus = useLiveTradingStatusPoll();
 
   useEffect(() => {
     if (!ctx || !user) return;
@@ -74,6 +78,37 @@ export default function AppRightDockRailPanels({
             variant="dock"
             onLogout={() => void logoutAuth().then(onAuthChange)}
           />
+          <ul className="app-dock-rail-panel__api-status" aria-label={ko.app.liveTradeApiRowAria}>
+            <li>
+              <span>{ko.app.liveTradeTossTitle}</span>
+              <span>
+                {liveStatus?.toss?.ready
+                  ? ko.app.liveTradeTossOk
+                  : liveStatus?.toss?.configured
+                    ? ko.app.liveTradeApiStatusPartial
+                    : ko.app.liveTradeTossNo}
+              </span>
+            </li>
+            <li>
+              <span>{ko.app.liveTradeBithumbTitle}</span>
+              <span>
+                {liveStatus?.bithumb?.ready
+                  ? ko.app.liveTradeTossOk
+                  : liveStatus?.bithumb?.configured
+                    ? ko.app.liveTradeApiStatusPartial
+                    : ko.app.liveTradeTossNo}
+              </span>
+            </li>
+          </ul>
+          {onOpenLiveTrading ? (
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm app-dock-rail-panel__cta"
+              onClick={onOpenLiveTrading}
+            >
+              {ko.app.liveTradeSideDockOpenApi}
+            </button>
+          ) : null}
         </div>
       </DockRailPanelPortal>
       <DockRailPanelPortal tabId={ids.bithumb}>

@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import type { AuthUser, LiveTradeHolding } from "../api";
 import {
   armLiveTradeProgram,
@@ -22,7 +28,11 @@ import LiveSimRecommendationsPanel, {
 import LiveTradePortfolioPanel from "./LiveTradePortfolioPanel";
 import { useMobileBackHandler } from "../hooks/useMobileBackHandler";
 import { MOBILE_BACK_PRIORITY } from "../lib/mobileBackStack";
-import { refreshLiveTradingStatusNow } from "../hooks/useLiveTradingStatusPoll";
+import {
+  refreshLiveTradingStatusNow,
+  useLiveTradingStatusPoll,
+} from "../hooks/useLiveTradingStatusPoll";
+import { LIVE_TRADE_DOCK_OPEN_FORM_EVENT } from "../lib/liveTradeDockEvents";
 import { invalidateLiveTradingPrefetch, peekLiveTradingPrefetch } from "../lib/tabPrefetch";
 import { formatPercent } from "../lib/format";
 import LiveTradeAuthPanel, {
@@ -34,6 +44,7 @@ import LiveTradeAuthPanel, {
   notifyLiveTradeAuthChange,
   useLiveTradeAuth,
   useLiveTradeCardSidePanel,
+  useLiveTradeCardSidePanelOptional,
 } from "./LiveTradeAuthAndCredentials";
 import {
   programDisplayStatus,
@@ -167,9 +178,15 @@ function LiveTradeCardWorkspace({
 export default function LiveTradingTab({
   onOpenRecommendations,
   onOpenHoldingChart,
+  /** 데스크톱 도크 포털 전용(카드 본문만 DOM 유지) */
+  portalSourceOnly = false,
+  /** 실매매 탭 본문 — 카드 행은 도크 포털 인스턴스에만 */
+  hideCardDock = false,
 }: {
   onOpenRecommendations?: () => void;
   onOpenHoldingChart?: (h: LiveTradeHolding) => void;
+  portalSourceOnly?: boolean;
+  hideCardDock?: boolean;
 }) {
   const prefetched = peekLiveTradingPrefetch();
   const { user, registrationOpen, authChecked, refreshAuth } =
@@ -187,6 +204,8 @@ export default function LiveTradingTab({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState(emptyDraft);
   const [portfolioRefreshKey, setPortfolioRefreshKey] = useState(0);
+  const sidePanel = useLiveTradeCardSidePanelOptional();
+  const polledStatus = useLiveTradingStatusPoll();
 
   const reload = useCallback(async (userOverride?: AuthUser | null) => {
     const activeUser = userOverride !== undefined ? userOverride : user;
@@ -243,6 +262,8 @@ export default function LiveTradingTab({
   }, [models]);
 
   const programs = status?.programs ?? [];
+  const simPrograms =
+    hideCardDock && polledStatus?.programs ? polledStatus.programs : programs;
 
   const draftMarkets = useMemo(
     () => ({
@@ -316,27 +337,40 @@ export default function LiveTradingTab({
     resetForm,
   );
 
-  const loadProgramToForm = useCallback((p: LiveTradeProgram) => {
-    setEditingId(p.id);
-    setDraft({
-      name: p.name,
-      modelId: p.modelId,
-      marketsKr: p.markets.kr,
-      marketsUs: p.markets.us,
-      marketsCrypto: p.markets.crypto,
-      minScoreRatio: p.minScoreRatio,
-      maxOpenPositions: String(p.maxOpenPositions),
-      orderAmountKrw:
-        p.orderAmountKrw != null ? String(Math.round(p.orderAmountKrw)) : "",
-      orderAmountUsd:
-        p.orderAmountUsd != null ? String(p.orderAmountUsd) : "",
-      simAutoBuy: p.simAutoBuy !== false,
-      autoSellAtTarget: p.autoSellAtTarget !== false,
-      sellHorizon: p.sellHorizon ?? "short",
-    });
-    setMsg(null);
-    setErr(null);
-  }, []);
+  const loadProgramToForm = useCallback(
+    (p: LiveTradeProgram) => {
+      setEditingId(p.id);
+      setDraft({
+        name: p.name,
+        modelId: p.modelId,
+        marketsKr: p.markets.kr,
+        marketsUs: p.markets.us,
+        marketsCrypto: p.markets.crypto,
+        minScoreRatio: p.minScoreRatio,
+        maxOpenPositions: String(p.maxOpenPositions),
+        orderAmountKrw:
+          p.orderAmountKrw != null ? String(Math.round(p.orderAmountKrw)) : "",
+        orderAmountUsd:
+          p.orderAmountUsd != null ? String(p.orderAmountUsd) : "",
+        simAutoBuy: p.simAutoBuy !== false,
+        autoSellAtTarget: p.autoSellAtTarget !== false,
+        sellHorizon: p.sellHorizon ?? "short",
+      });
+      setMsg(null);
+      setErr(null);
+      sidePanel?.openPanel("form", ko.app.liveTradeFormEdit);
+    },
+    [sidePanel],
+  );
+
+  useEffect(() => {
+    const onDockNewForm = () => {
+      resetForm();
+    };
+    window.addEventListener(LIVE_TRADE_DOCK_OPEN_FORM_EVENT, onDockNewForm);
+    return () =>
+      window.removeEventListener(LIVE_TRADE_DOCK_OPEN_FORM_EVENT, onDockNewForm);
+  }, [resetForm]);
 
   const buildBody = useCallback(() => {
     const orderKrw = draft.orderAmountKrw.trim();
@@ -549,10 +583,18 @@ export default function LiveTradingTab({
 
   const toss = status?.toss;
   const bithumb = status?.bithumb;
+  const showCardDock = portalSourceOnly || !hideCardDock;
 
   return (
     <LiveTradeFeeRatesProvider feeRates={status?.feeRates}>
-    <div className="live-trading-tab live-trading-panel">
+    <div
+      className={
+        portalSourceOnly
+          ? "live-trading-tab live-trading-panel live-trading-panel--dock-portals"
+          : "live-trading-tab live-trading-panel"
+      }
+    >
+      {!portalSourceOnly ? (
       <header className="live-trading-tab__head card">
         <div>
           <h2 className="live-trading-tab__title">{ko.app.liveTradeTitle}</h2>
@@ -567,14 +609,15 @@ export default function LiveTradingTab({
           </button>
         ) : null}
       </header>
+      ) : null}
 
-      {loadErr && user ? (
+      {!portalSourceOnly && loadErr && user ? (
         <div className="alert alert--error" role="alert">
           {loadErr}
         </div>
       ) : null}
 
-      {authChecked ? (
+      {!portalSourceOnly && authChecked ? (
         <LiveTradeAuthPanel
           user={user}
           registrationOpen={registrationOpen}
@@ -588,6 +631,7 @@ export default function LiveTradingTab({
         />
       ) : null}
 
+      {!portalSourceOnly ? (
       <div
         className="live-trading-tab__api-row"
         aria-label={ko.app.liveTradeApiRowAria}
@@ -670,11 +714,13 @@ export default function LiveTradingTab({
           ) : null}
         </LiveTradeApiCollapsibleCard>
       </div>
+      ) : null}
 
       {user ? (
         <>
+          {!portalSourceOnly ? (
           <LiveSimRunningPanel
-            programs={programs}
+            programs={simPrograms}
             busy={busy}
             refreshKey={portfolioRefreshKey}
             onStop={(id) => void handleSimStop(id)}
@@ -682,7 +728,9 @@ export default function LiveTradingTab({
             onProgramUpdated={() => void reload()}
             onOpenHoldingChart={onOpenHoldingChart}
           />
+          ) : null}
 
+          {showCardDock ? (
             <div className="live-trading-tab__card-dock">
             <LiveTradeCardWorkspace
               editingId={editingId}
@@ -1225,8 +1273,9 @@ export default function LiveTradingTab({
         </LiveTradeCollapsibleCard>
               </div>
             </LiveTradeCardWorkspace>
-            <LiveTradeCardSidePanelInline />
+            {!portalSourceOnly ? <LiveTradeCardSidePanelInline /> : null}
             </div>
+          ) : null}
         </>
       ) : null}
     </div>

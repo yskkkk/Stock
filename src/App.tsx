@@ -1318,6 +1318,7 @@ export default function App() {
       ) : appTab === "liveTrading" ? (
         <div className="live-trade-tab-root">
           <LiveTradingTab
+            hideCardDock={showDesktopSideDock}
             onOpenRecommendations={() => setAppTab("recommendations")}
             onOpenHoldingChart={handleLiveTradeChart}
           />
@@ -1920,13 +1921,14 @@ export default function App() {
       </div>
       </div>
 
-      {appTab !== "ops" && appTab !== "liveTrading" ? (
+      {showDesktopSideDock ? (
         <div
           className="live-trade-tab-root live-trade-tab-root--persist"
-          hidden
-          aria-hidden
+          hidden={appTab === "liveTrading"}
+          aria-hidden={appTab === "liveTrading"}
         >
           <LiveTradingTab
+            portalSourceOnly
             onOpenRecommendations={() => setAppTab("recommendations")}
             onOpenHoldingChart={handleLiveTradeChart}
           />

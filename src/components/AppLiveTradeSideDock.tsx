@@ -9,7 +9,10 @@ import {
   useLiveTradeCardSidePanelOptional,
 } from "./LiveTradeAuthAndCredentials";
 import { ko } from "../i18n/ko";
-import { LIVE_TRADE_DOCK_TOGGLE_EVENT } from "../lib/liveTradeDockEvents";
+import {
+  LIVE_TRADE_DOCK_TOGGLE_EVENT,
+  dispatchLiveTradeDockOpenForm,
+} from "../lib/liveTradeDockEvents";
 
 const OPEN_PREF_KEY = "ystock-live-trade-side-dock-open";
 
@@ -52,6 +55,7 @@ function railTabShort(id: string, title: string): { glyph: string; label: string
 export default function AppLiveTradeSideDock() {
   const { user } = useLiveTradeAuth();
   const ctx = useLiveTradeCardSidePanelOptional();
+  const closePanel = ctx?.closePanel;
   const sideTabs =
     (ctx?.sideTabs?.length ?? 0) > 0
       ? ctx!.sideTabs
@@ -87,18 +91,21 @@ export default function AppLiveTradeSideDock() {
     return () => window.removeEventListener(LIVE_TRADE_DOCK_TOGGLE_EVENT, onToggle);
   }, [toggleFold]);
 
+  const activeId = panel?.id ?? null;
+
   const onRailTab = useCallback(
     (id: string, title: string) => {
       if (!openPanel) return;
+      if (id === "form" && activeId !== "form") {
+        dispatchLiveTradeDockOpenForm();
+      }
       openPanel(id, title);
       persistOpen(true);
     },
-    [openPanel, persistOpen],
+    [openPanel, persistOpen, activeId],
   );
 
   if (!user || !wide) return null;
-
-  const activeId = panel?.id ?? null;
 
   return (
     <div
@@ -133,6 +140,18 @@ export default function AppLiveTradeSideDock() {
         className="app-live-trade-side-dock__rail"
         aria-label={ko.app.liveTradeSideDockRailAria}
       >
+        <button
+          type="button"
+          className="app-live-trade-side-dock__back"
+          onClick={() => {
+            if (panel?.id) closePanel?.();
+            else if (open) persistOpen(false);
+          }}
+          aria-label={ko.app.liveTradeSideDockBack}
+          title={ko.app.liveTradeSideDockBack}
+        >
+          <span aria-hidden>‹</span>
+        </button>
         <button
           type="button"
           className="app-live-trade-side-dock__fold"

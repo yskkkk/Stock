@@ -8627,6 +8627,7 @@ html[data-theme="light"] .market-indices-rail__item {
   box-shadow: -6px 0 24px rgba(0, 0, 0, 0.18);
 }
 
+.app-live-trade-side-dock__back,
 .app-live-trade-side-dock__fold {
   flex: none;
   display: flex;
@@ -8644,6 +8645,7 @@ html[data-theme="light"] .market-indices-rail__item {
   font: inherit;
 }
 
+.app-live-trade-side-dock__back:hover,
 .app-live-trade-side-dock__fold:hover {
   color: var(--text, #f1f5f9);
   background: color-mix(in srgb, var(--card-border, #334155) 40%, transparent);
@@ -8835,6 +8837,36 @@ html[data-theme="light"] .market-indices-rail__item {
 .app-dock-rail-panel--auth .live-trading-tab__auth-signed {
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.app-dock-rail-panel__api-status {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+}
+
+.app-dock-rail-panel__api-status li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: var(--muted, #94a3b8);
+}
+
+.app-dock-rail-panel__api-status li span:last-child {
+  color: var(--text, #f1f5f9);
+  font-weight: 600;
+}
+
+.app-dock-rail-panel__cta {
+  align-self: flex-start;
+}
+
+.live-trading-panel--dock-portals {
+  display: none;
 }
 
 .app-dock-rail-panel--bithumb .bithumb-account-rail-wrap__head,

@@ -186,7 +186,7 @@ export const ko = {
     liveTradeApiCollapse: "닫기",
     liveTradeCardModalClose: "닫기",
     liveTradeCardTabHint:
-      "오른쪽 아이콘을 누르거나 실매매 카드의 보기를 선택하세요.",
+      "오른쪽 아이콘을 눌러 보유·프로그램·계좌 정보를 확인하세요.",
     liveTradeSideDockExpand: "패널 펼치기",
     liveTradeSideDockCollapse: "패널 접기",
     liveTradeSideDockRailAria: "계정·실매매 우측 메뉴",
@@ -195,6 +195,9 @@ export const ko = {
     liveTradeLeftRailEmpty: "실행 중인 실매매·시뮬 프로그램이 없습니다.",
     liveTradeSideDockRailForm: "프로그램",
     liveTradeSideDockRailPrograms: "목록",
+    liveTradeSideDockBack: "패널 닫기",
+    liveTradeSideDockOpenApi: "실매매 탭에서 API 연동",
+    liveTradeApiStatusPartial: "설정 중",
     liveTradeCardTabPaneAria: "실매매 카드 상세",
     liveTradeApiEncryptedNote:
       "API Key·Secret Key는 암호화되어 저장되며, 서버에서 평문을 알 수 없습니다.",
