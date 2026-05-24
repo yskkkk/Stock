@@ -1017,6 +1017,22 @@ export default function App() {
     >
       <div className="app__scroll" ref={appScrollRef}>
       <div className="app__viewport">
+      <div className="app__left-column">
+        <aside ref={leftRailRef} className="app__left-rail" aria-label={ko.app.leftRailAria}>
+          {!desktopDockLayout ? (
+            <>
+              <LeftRailLiveTradeAuthPanel />
+              <LeftRailBithumbAccountPanel
+                onOpenLiveTrading={() => setAppTab("liveTrading")}
+              />
+              <LiveTradingLeftRailPanel
+                onOpenLiveTrading={() => setAppTab("liveTrading")}
+              />
+            </>
+          ) : null}
+        </aside>
+      </div>
+      <div className="app__shell">
       <div className="app__viewport-top">
         <AppThemeCorner
           colorMode={colorMode}
@@ -1038,22 +1054,6 @@ export default function App() {
           onOpenItem={handleOpenMarketIndex}
         />
       </div>
-      <div className="app__left-column">
-        <aside ref={leftRailRef} className="app__left-rail" aria-label={ko.app.leftRailAria}>
-          {!desktopDockLayout ? (
-            <>
-              <LeftRailLiveTradeAuthPanel />
-              <LeftRailBithumbAccountPanel
-                onOpenLiveTrading={() => setAppTab("liveTrading")}
-              />
-              <LiveTradingLeftRailPanel
-                onOpenLiveTrading={() => setAppTab("liveTrading")}
-              />
-            </>
-          ) : null}
-        </aside>
-      </div>
-      <div className="app__shell">
       <div
         ref={pullToRefreshHintRef}
         className="app-ptr-hint"
@@ -1071,11 +1071,6 @@ export default function App() {
         </div>
       ) : null}
       <div className="app-header-sticky">
-      <TopBarFxCalculator
-        rate={usdKrwRate}
-        valuationDate={usdKrwValDate}
-        layout="strip"
-      />
       <header
         className={`top-bar card${showTopScanStrip ? " top-bar--with-scan" : ""}${
           appTab === "screener" ? " top-bar--screener" : ""
