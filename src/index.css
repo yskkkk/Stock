@@ -8501,9 +8501,22 @@ html[data-theme="light"] .market-indices-rail__item {
     pointer-events: none;
   }
 
-  .app__viewport:has(.app-live-trade-side-dock) {
+  .app__viewport--no-left-rail {
     grid-template-columns:
-      1fr
+      minmax(0, min(var(--app-page-max-width, 1680px), 100%))
+      1fr;
+  }
+
+  .app__viewport--no-left-rail > .app__shell {
+    grid-column: 1;
+  }
+
+  .app__viewport--no-left-rail > .app__right-panel {
+    grid-column: 2;
+  }
+
+  .app__viewport--no-left-rail:has(.app-live-trade-side-dock) {
+    grid-template-columns:
       minmax(0, min(var(--app-page-max-width, 1680px), 100%))
       auto;
     padding-right: env(safe-area-inset-right, 0px);

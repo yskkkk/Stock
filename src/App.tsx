@@ -1016,22 +1016,26 @@ export default function App() {
       }
     >
       <div className="app__scroll" ref={appScrollRef}>
-      <div className="app__viewport">
-      <div className="app__left-column">
-        <aside ref={leftRailRef} className="app__left-rail" aria-label={ko.app.leftRailAria}>
-          {!desktopDockLayout ? (
-            <>
-              <LeftRailLiveTradeAuthPanel />
-              <LeftRailBithumbAccountPanel
-                onOpenLiveTrading={() => setAppTab("liveTrading")}
-              />
-              <LiveTradingLeftRailPanel
-                onOpenLiveTrading={() => setAppTab("liveTrading")}
-              />
-            </>
-          ) : null}
-        </aside>
-      </div>
+      <div
+        className={
+          desktopDockLayout
+            ? "app__viewport app__viewport--no-left-rail"
+            : "app__viewport"
+        }
+      >
+      {!desktopDockLayout ? (
+        <div className="app__left-column">
+          <aside ref={leftRailRef} className="app__left-rail" aria-label={ko.app.leftRailAria}>
+            <LeftRailLiveTradeAuthPanel />
+            <LeftRailBithumbAccountPanel
+              onOpenLiveTrading={() => setAppTab("liveTrading")}
+            />
+            <LiveTradingLeftRailPanel
+              onOpenLiveTrading={() => setAppTab("liveTrading")}
+            />
+          </aside>
+        </div>
+      ) : null}
       <div className="app__shell">
       <div className="app__viewport-top">
         <AppThemeCorner
