@@ -336,6 +336,7 @@ export function LiveTradeCardSidePanel({
 } = {}) {
   const { panel, openPanel, closePanel, setBodyHostEl, sideTabs } =
     useLiveTradeCardSidePanel();
+  const { user, authChecked } = useLiveTradeAuth();
   const { docked, host } = useLiveTradeRightPanelDock();
 
   useEffect(() => {
@@ -427,9 +428,11 @@ export function LiveTradeCardSidePanel({
         }
         className="live-trading-tab__card-tabs-body live-trade-api-card__body"
       >
-        {!activeId ? (
+        {!activeId && authChecked ? (
           <p className="live-trading-tab__card-tabs-hint" role="status">
-            {ko.app.liveTradeCardTabHint}
+            {user
+              ? ko.app.liveTradeCardTabHint
+              : ko.app.liveTradeCardTabHintLoggedOut}
           </p>
         ) : null}
         <div

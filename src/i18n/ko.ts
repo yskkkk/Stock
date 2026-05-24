@@ -187,6 +187,7 @@ export const ko = {
     liveTradeCardModalClose: "닫기",
     liveTradeCardTabHint:
       "오른쪽 아이콘을 눌러 보유·프로그램·계좌 정보를 확인하세요.",
+    liveTradeCardTabHintLoggedOut: "로그인 후 이용해주세요.",
     liveTradeSideDockExpand: "패널 펼치기",
     liveTradeSideDockCollapse: "패널 접기",
     liveTradeSideDockResize: "패널 너비 조절",
