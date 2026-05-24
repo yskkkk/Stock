@@ -6005,8 +6005,98 @@ html[data-theme="light"] .feedback-inbox-item {
 /* 실적 발표 예정 — 종목 목록 좌측 아이콘 레일 */
 /* -------------------------------------------------------------------------- */
 
-.workspace--with-earnings-rail {
-  grid-template-columns: auto minmax(280px, 380px) 1fr;
+/* 실적 아이콘 — 앱 본문 최좌측 얇은 레일 */
+.app__shell--with-edge-rail {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0;
+}
+
+.app__shell-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+.app-edge-rail {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  width: 2.05rem;
+  min-width: 2.05rem;
+  box-sizing: border-box;
+}
+
+.app-edge-rail:empty {
+  display: none;
+  width: 0;
+  min-width: 0;
+}
+
+.app__shell--with-edge-rail:not(:has(.earnings-icon-rail--edge)) {
+  display: block;
+}
+
+.app__shell--with-edge-rail:not(:has(.earnings-icon-rail--edge)) .app__shell-body {
+  width: 100%;
+}
+
+.earnings-icon-rail--edge {
+  flex: 1 1 auto;
+  align-self: stretch;
+  width: 100%;
+  min-width: 0;
+  padding: max(0.45rem, calc(0.28rem + env(safe-area-inset-top, 0px))) 0.1rem
+    0.35rem 0.06rem;
+  border-right: 1px solid color-mix(in srgb, var(--card-border) 55%, transparent);
+  background: color-mix(in srgb, var(--card-bg, var(--card)) 94%, var(--bg-elevated));
+}
+
+.earnings-icon-rail--edge .earnings-icon-rail__list {
+  max-height: min(72dvh, 640px);
+}
+
+.earnings-icon-rail--edge .earnings-icon-rail__btn {
+  width: 1.72rem;
+  height: 1.72rem;
+  border-radius: 0.42rem;
+}
+
+.earnings-icon-rail--edge .earnings-icon-rail__img {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.earnings-icon-rail--edge .earnings-icon-rail__fallback {
+  width: 1.2rem;
+  height: 1.2rem;
+  font-size: 0.72rem;
+}
+
+.earnings-icon-rail--edge .earnings-icon-rail__market {
+  width: 0.72rem;
+  height: 0.72rem;
+  font-size: 0.44rem;
+}
+
+@media (max-width: 900px) {
+  .earnings-icon-rail--edge {
+    width: 100%;
+    min-width: 0;
+    padding: max(0.4rem, env(safe-area-inset-top, 0px)) 0.08rem 0.3rem 0.04rem;
+    border-right: 1px solid color-mix(in srgb, var(--card-border) 55%, transparent);
+    border-bottom: none;
+  }
+
+  .earnings-icon-rail--edge .earnings-icon-rail__list {
+    flex-direction: column;
+    align-items: center;
+    max-height: min(68dvh, 560px);
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
 }
 
 .earnings-icon-rail {
@@ -6189,11 +6279,7 @@ html[data-theme="light"] .earnings-icon-rail__btn {
 }
 
 @media (max-width: 900px) {
-  .workspace--with-earnings-rail {
-    grid-template-columns: 1fr;
-  }
-
-  .earnings-icon-rail {
+  .earnings-icon-rail:not(.earnings-icon-rail--edge) {
     width: 100%;
     min-width: 0;
     padding: 0.28rem 0.55rem;

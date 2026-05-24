@@ -88,7 +88,12 @@ function EarningsIconButton({
   );
 }
 
-export default function EarningsUpcomingIconRail() {
+export default function EarningsUpcomingIconRail({
+  variant = "workspace",
+}: {
+  /** workspace=종목 목록 그리드 열, edge=앱 본문 최좌측 얇은 레일 */
+  variant?: "workspace" | "edge";
+}) {
   const tipId = useId();
   const [rows, setRows] = useState<SectorEarningsSpotlightItem[]>(() => {
     const cached = peekMacroPrefetch();
@@ -189,7 +194,11 @@ export default function EarningsUpcomingIconRail() {
   return (
     <>
       <aside
-        className="earnings-icon-rail"
+        className={
+          variant === "edge"
+            ? "earnings-icon-rail earnings-icon-rail--edge"
+            : "earnings-icon-rail"
+        }
         aria-label={ko.macro.earningsIconRailAria}
       >
         <ul className="earnings-icon-rail__list">

@@ -1004,6 +1004,8 @@ export default function App() {
   const { user: liveTradeUser } = useLiveTradeAuth();
   const showDesktopSideDock = desktopDockLayout && appTab !== "ops";
   const showLiveTradeDockPortals = showDesktopSideDock && Boolean(liveTradeUser);
+  const showEarningsEdgeRail =
+    appTab === "screener" || appTab === "stockLookup";
   return (
     <LiveTradeCardSidePanelProvider>
     <div
@@ -1038,7 +1040,19 @@ export default function App() {
           </aside>
         </div>
       ) : null}
-      <div className="app__shell">
+      <div
+        className={
+          showEarningsEdgeRail
+            ? "app__shell app__shell--with-edge-rail"
+            : "app__shell"
+        }
+      >
+      {showEarningsEdgeRail ? (
+        <div className="app-edge-rail">
+          <EarningsUpcomingIconRail variant="edge" />
+        </div>
+      ) : null}
+      <div className="app__shell-body">
       <div className="app__viewport-top">
         <AppThemeCorner
           colorMode={colorMode}
@@ -1328,8 +1342,7 @@ export default function App() {
           </section>
         </div>
       ) : (
-        <div className="workspace workspace--with-earnings-rail">
-        <EarningsUpcomingIconRail />
+        <div className="workspace">
         <aside className="picks-panel card">
           <div className="panel-head">
             <div
@@ -1897,6 +1910,7 @@ export default function App() {
           setFooterFeedbackKind(state?.kind ?? null)
         }
       />
+      </div>
       </div>
       <div
         className={
