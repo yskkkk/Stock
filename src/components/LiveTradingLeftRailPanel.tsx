@@ -1,11 +1,10 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
   fetchLiveTradingPortfolio,
-  fetchLiveTradingStatus,
   type LiveTradeHolding,
   type LiveTradeProgram,
-  type LiveTradingStatusResponse,
 } from "../api";
+import { useLiveTradingStatusPoll } from "../hooks/useLiveTradingStatusPoll";
 import { ko } from "../i18n/ko";
 import { programDisplayStatus } from "../lib/liveProgramDisplay";
 import { formatPercent, formatPrice } from "../lib/format";
@@ -80,8 +79,8 @@ function sortHoldingsByValue(holdings: LiveTradeHolding[]): LiveTradeHolding[] {
   );
 }
 
-function isArmedLiveProgram(p: LiveTradeProgram): boolean {
-  return p.status === "armed";
+function isRunningLiveProgram(p: LiveTradeProgram): boolean {
+  return p.status === "armed" || p.status === "sim";
 }
 
 function RailProgramCard({
@@ -289,21 +288,15 @@ function LiveTradingLeftRailPanelInner({
   onOpenLiveTrading?: () => void;
 }) {
   const prefetched = peekLiveTradingPrefetch();
-  const [status, setStatus] = useState<LiveTradingStatusResponse | null>(
-    prefetched?.status ?? null,
-  );
+  const status = useLiveTradingStatusPoll();
   const [holdingsByProgram, setHoldingsByProgram] = useState<
     Record<string, LiveTradeHolding[]>
   >({});
   const [loading, setLoading] = useState(!prefetched?.status);
 
-  const reload = useCallback(async () => {
+  const reloadPortfolio = useCallback(async () => {
     try {
-      const [next, portfolio] = await Promise.all([
-        fetchLiveTradingStatus(),
-        fetchLiveTradingPortfolio(null).catch(() => null),
-      ]);
-      setStatus(next);
+      const portfolio = await fetchLiveTradingPortfolio(null).catch(() => null);
       const map: Record<string, LiveTradeHolding[]> = {};
       for (const h of portfolio?.holdings ?? []) {
         const pid = String(h.programId ?? "").trim();
@@ -320,16 +313,21 @@ function LiveTradingLeftRailPanelInner({
   }, []);
 
   useEffect(() => {
-    void reload();
-    const id = window.setInterval(() => void reload(), POLL_MS);
+    void reloadPortfolio();
+    const id = window.setInterval(() => void reloadPortfolio(), POLL_MS);
     return () => window.clearInterval(id);
-  }, [reload]);
+  }, [reloadPortfolio]);
 
   const rows = useMemo(() => {
     const programs = status?.programs ?? [];
     return programs
-      .filter(isArmedLiveProgram)
-      .sort((a, b) => a.name.localeCompare(b.name, "ko"))
+      .filter(isRunningLiveProgram)
+      .sort((a, b) => {
+        const rank = (s: LiveTradeProgram["status"]) =>
+          s === "armed" ? 0 : s === "sim" ? 1 : 2;
+        const d = rank(a.status) - rank(b.status);
+        return d !== 0 ? d : a.name.localeCompare(b.name, "ko");
+      })
       .map((p) => {
         const ret = status?.programReturns?.[p.id];
         const holdingCount = ret?.holdingCount ?? 0;

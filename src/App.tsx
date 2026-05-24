@@ -23,6 +23,7 @@ import FeedbackCorner, {
 } from "./components/FeedbackCorner";
 import MacroEventsBar from "./components/MacroEventsBar";
 import LeftRailBithumbAccountPanel from "./components/LeftRailBithumbAccountPanel";
+import LiveTradingHeaderStrip from "./components/LiveTradingHeaderStrip";
 import LiveTradingLeftRailPanel from "./components/LiveTradingLeftRailPanel";
 import MarketIndicesRail from "./components/MarketIndicesRail";
 import TopBarFxCalculator from "./components/TopBarFxCalculator";
@@ -54,6 +55,7 @@ import {
 } from "./constants/uiFlags";
 import { useMobileBackHandler } from "./hooks/useMobileBackHandler";
 import { useLeftRailLazyFollow } from "./hooks/useLeftRailLazyFollow";
+import { useLiveTradingStatusPoll } from "./hooks/useLiveTradingStatusPoll";
 import { useMobilePullToRefresh } from "./hooks/useMobilePullToRefresh";
 import { usePicksLiveQuotes } from "./hooks/usePicksLiveQuotes";
 import { MOBILE_BACK_PRIORITY } from "./lib/mobileBackStack";
@@ -975,6 +977,9 @@ export default function App() {
       ? failedCountLabel(picks.failedCount)
       : "";
   const showTopScanStrip = Boolean(picks && appTab === "screener");
+  const liveTradingStatus = useLiveTradingStatusPoll();
+  const liveRunningCount =
+    (liveTradingStatus?.armedCount ?? 0) + (liveTradingStatus?.simCount ?? 0);
   return (
     <div
       className={
@@ -1165,6 +1170,9 @@ export default function App() {
                 onClick={() => setAppTab("liveTrading")}
               >
                 {ko.app.tabLiveTrading}
+                {liveRunningCount > 0 ? (
+                  <span className="main-tab__live-badge">{liveRunningCount}</span>
+                ) : null}
               </button>
               <button
                 type="button"
@@ -1247,6 +1255,9 @@ export default function App() {
               </div>
             </div>
           ) : null}
+          <LiveTradingHeaderStrip
+            onOpenLiveTrading={() => setAppTab("liveTrading")}
+          />
         </div>
       </header>
       </div>

@@ -486,6 +486,8 @@ const t = {
     stockLookupPlaceholder: "\uC774\uB984 \uB610\uB294 \uC2EC\uBCFC (\uC608: \uC0BC\uC131, AAPL, 005930)",
     stockLookupAria: "\uC885\uBAA9 \uAC80\uC0C9",
     stockLookupIdle: "\uAC80\uC0C9\uC5B4\uB97C \uC785\uB825\uD558\uC138\uC694.",
+    stockLookupHotTitle: "\uAC70\uB798\uB300\uAE08 \uC0C1\uC704",
+    stockLookupHotLoading: "\uC778\uAE30 \uC885\uBAA9 \uBD88\uB7EC\uC624\uB294 \uC911\u2026",
     stockLookupNoHits: "\uAC80\uC0C9 \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.",
     stockLookupQuotePending: "\uC2DC\uC138 \uBD88\uB7EC\uC624\uB294 \uC911",
     stockLookupMktRegular: "\uC7A5\uC911",
@@ -839,6 +841,14 @@ export function telegramSentSection(market: "kr" | "us" | "crypto", n: number) {
 
 export function nextRescanCountdown(time: string) {
   return \`\uB2E4\uC74C \uC7AC\uBD84\uC11D \${time}\`;
+}
+
+export function liveTradeHeaderStripArmed(n: number) {
+  return \`\uC2E4\uB9E4\uB9E4 \${n}\uAC1C \uC2E4\uD589 \uC911\`;
+}
+
+export function liveTradeHeaderStripSim(n: number) {
+  return \`\uC2DC\uBAE4 \${n}\uAC1C\`;
 }
 `;
 

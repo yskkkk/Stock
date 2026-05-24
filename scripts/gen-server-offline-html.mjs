@@ -41,6 +41,13 @@ const html = `<!DOCTYPE html>
       .btn:disabled { opacity:.55; cursor:wait; }
       #status { min-height:1.2rem; margin-top:.75rem; font-size:.8rem; color:var(--muted); }
       #status.err { color:#f87171; }
+      .live-panel { margin:0 0 .85rem; padding:.65rem .75rem; border-radius:8px; border:1px solid rgba(94,234,212,.22); background:rgba(94,234,212,.06); }
+      .live-panel__title { margin:0 0 .45rem; font-size:.82rem; font-weight:700; color:var(--accent); }
+      .live-panel__list { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:.35rem; }
+      .live-panel__item { font-size:.82rem; color:var(--text); display:flex; align-items:center; gap:.4rem; }
+      .live-panel__tag { font-size:.68rem; font-weight:700; padding:.12rem .4rem; border-radius:999px; background:rgba(94,234,212,.14); color:var(--accent); }
+      .live-panel__tag--sim { background:rgba(148,163,184,.12); color:var(--dim); }
+      .live-panel__note { margin:.45rem 0 0; font-size:.72rem; color:var(--muted); }
     </style>
   </head>
   <body>
@@ -48,6 +55,11 @@ const html = `<!DOCTYPE html>
       <p class="badge">\uC11C\uBC84 \uC751\uB2F5 \uC5C6\uC74C</p>
       <h1>Stock \uC11C\uBC84\uAC00 \uAE49\uC838 \uC788\uC2B5\uB2C8\uB2E4</h1>
       <p id="lead">\uC11C\uBC84\uC5D0 \uC5F0\uACB0\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uC544\uB798 \uBC84\uD2BC\uC73C\uB85C \uAD00\uB9AC\uC790\uC5D0\uAC8C \uC624\uD508 \uC694\uCCAD \uC54C\uB9BC\uC744 \uBCF4\uB0BC \uC218 \uC788\uC2B5\uB2C8\uB2E4.</p>
+      <div id="live-panel" class="live-panel" hidden>
+        <p class="live-panel__title">\uC2E4\uB9E4\uB9E4 \u00B7 \uC2DC\uBAE4 \uC2E4\uD589 \uC911</p>
+        <ul id="live-list" class="live-panel__list"></ul>
+        <p id="live-note" class="live-panel__note"></p>
+      </div>
       <div class="actions">
         <button type="button" class="btn btn--notify" id="notify">\uD14C\uB808\uADF8\uB7A8 \uC54C\uB9BC \uBCF4\uB0B4\uAE30</button>
         <button type="button" class="btn btn--primary" id="retry">\uB2E4\uC2DC \uC5F0\uACB0</button>
@@ -59,6 +71,10 @@ const html = `<!DOCTYPE html>
       (function () {
         var statusEl = document.getElementById("status");
         var notifyBtn = document.getElementById("notify");
+        var livePanel = document.getElementById("live-panel");
+        var liveList = document.getElementById("live-list");
+        var liveNote = document.getElementById("live-note");
+        var LIVE_SNAP_KEY = "stock-live-trading-header-snapshot";
         var retryBtn = document.getElementById("retry");
         var reloadBtn = document.getElementById("reload");
 
@@ -196,6 +212,85 @@ const html = `<!DOCTYPE html>
         notifyBtn.addEventListener("click", function () { void sendNotify(); });
         retryBtn.addEventListener("click", function () { void probe(); });
         reloadBtn.addEventListener("click", function () { location.reload(); });
+
+        function statusTag(status) {
+          return status === "armed"
+            ? "\\uC2E4\\uB9E4\\uB9E4"
+            : status === "sim"
+              ? "\\uC2DC\\uBAE4"
+              : status;
+        }
+
+        function renderLivePanel(programs, note) {
+          if (!livePanel || !liveList) return;
+          if (!programs || !programs.length) {
+            livePanel.hidden = true;
+            liveList.innerHTML = "";
+            if (liveNote) liveNote.textContent = "";
+            return;
+          }
+          livePanel.hidden = false;
+          liveList.innerHTML = programs
+            .map(function (p) {
+              var tagClass =
+                p.status === "sim"
+                  ? "live-panel__tag live-panel__tag--sim"
+                  : "live-panel__tag";
+              return (
+                '<li class="live-panel__item"><span class="' +
+                tagClass +
+                '">' +
+                statusTag(p.status) +
+                "</span><span>" +
+                String(p.name || "") +
+                "</span></li>"
+              );
+            })
+            .join("");
+          if (liveNote) liveNote.textContent = note || "";
+        }
+
+        function readLiveSnapshot() {
+          try {
+            var raw = sessionStorage.getItem(LIVE_SNAP_KEY);
+            if (!raw) return null;
+            var parsed = JSON.parse(raw);
+            if (!parsed || !Array.isArray(parsed.programs)) return null;
+            return parsed;
+          } catch (e) {
+            return null;
+          }
+        }
+
+        async function loadLivePanel() {
+          var snap = readLiveSnapshot();
+          if (snap && snap.programs && snap.programs.length) {
+            renderLivePanel(
+              snap.programs,
+              "\\uB9C8\\uC9C0\\uB9C9 \\uC811\\uC18D \\uAE30\\uC900 (\\uC11C\\uBC84 \\uBCF5\\uAD6C \\uD6C4 \\uAC31\\uC2E0)",
+            );
+          }
+          try {
+            var ctrl = new AbortController();
+            var timer = setTimeout(function () { ctrl.abort(); }, 4000);
+            var res = await fetch("/api/live-trading/status", {
+              credentials: "same-origin",
+              cache: "no-store",
+              signal: ctrl.signal,
+            });
+            clearTimeout(timer);
+            if (!res.ok) return;
+            var body = await res.json();
+            var programs = (body.programs || []).filter(function (p) {
+              return p && (p.status === "armed" || p.status === "sim");
+            });
+            renderLivePanel(programs, "");
+          } catch (e) {
+            /* ignore */
+          }
+        }
+
+        void loadLivePanel();
       })();
     </script>
   </body>
