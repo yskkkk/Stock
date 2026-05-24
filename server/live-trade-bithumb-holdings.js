@@ -318,13 +318,19 @@ export async function applyBithumbExchangeToProgramReturns(out, programs) {
     }
   }
   for (const pid of Object.keys(out)) {
-    const cost = out[pid]._exchCost ?? 0;
-    const pnl = out[pid]._exchPnl ?? 0;
-    if (cost > 0 && cp != null && avg != null && avg > 0) {
-      out[pid].totalReturnPct = netReturnPct(avg, cp, feeRate);
-    }
+    const exchCost = out[pid]._exchCost ?? 0;
+    const exchPnl = out[pid]._exchPnl ?? 0;
     delete out[pid]._exchPnl;
     delete out[pid]._exchCost;
+    if (!(exchCost > 0)) continue;
+
+    const program = programById.get(pid);
+    const feeRate = getBithumbRoundTripFeeRateSync(program?.userId ?? "");
+    const overlayPct = netReturnPct(1, 1 + exchPnl / exchCost, feeRate);
+    const prev = out[pid].totalReturnPct;
+    if (prev == null || !Number.isFinite(prev)) {
+      out[pid].totalReturnPct = overlayPct;
+    }
   }
   return out;
 }
