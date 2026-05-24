@@ -72,18 +72,6 @@ html[data-theme="light"] .live-portfolio__panel {
   );
 }
 
-html[data-theme="light"] .live-portfolio__tabs {
-  background: color-mix(in srgb, var(--surface) 88%, #e2e8f0);
-  border-color: rgba(15, 23, 42, 0.08);
-}
-
-html[data-theme="light"] .live-portfolio__tab--active {
-  background: #fff;
-  box-shadow:
-    0 1px 3px rgba(15, 23, 42, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
-}
-
 html[data-theme="light"] .live-portfolio__metric,
 html[data-theme="light"] .live-portfolio__summary-hero .live-portfolio__metric {
   background: linear-gradient(

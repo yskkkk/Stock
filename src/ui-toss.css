@@ -631,20 +631,7 @@ body {
     width: 100%;
   }
 
-  .live-portfolio__tabs {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 0.15rem;
-    scrollbar-width: none;
-  }
-
-  .live-portfolio__tabs::-webkit-scrollbar {
-    display: none;
-  }
-
   .live-portfolio__tab {
-    flex-shrink: 0;
     min-height: 36px;
   }
 
@@ -988,9 +975,52 @@ body {
   color: var(--text-muted, #6b7280);
 }
 
-.live-trading-tab__auth-segment {
-  margin-bottom: 0.85rem;
+.live-trading-tab__auth-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1.35rem;
   width: 100%;
+  min-height: 2rem;
+  margin: 0 0 0.85rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.live-trading-tab__auth-tab {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0.2rem 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--muted, var(--text-muted, #6b7280));
+  cursor: pointer;
+  transition: color 0.12s ease;
+}
+
+.live-trading-tab__auth-tab:hover {
+  color: var(--text);
+  background: transparent;
+}
+
+.live-trading-tab__auth-tab--on {
+  font-weight: 700;
+  color: var(--text);
+  background: transparent;
+  box-shadow: none;
+}
+
+.app-dock-rail-panel--auth .live-trading-tab__auth-tabs {
+  justify-content: center;
 }
 
 .live-trading-tab__auth-notice {
@@ -1903,7 +1933,8 @@ html[data-theme="dark"] .live-trade-api-card__body .live-trading-tab__cred-form 
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 88%, transparent);
   border-radius: var(--radius-md, 10px);
-  background: var(--card-bg, #fff);
+  background: var(--card-bg);
+  color: var(--text);
 }
 
 .live-trading-tab__card-tabs-pane--docked {
@@ -1922,7 +1953,7 @@ html[data-theme="dark"] .live-trade-api-card__body .live-trading-tab__cred-form 
   gap: 0.5rem;
   padding: 0.55rem 0.65rem;
   border-bottom: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 80%, transparent);
-  background: color-mix(in srgb, var(--card-bg, #fff) 94%, var(--surface-2, #f1f5f9));
+  background: color-mix(in srgb, var(--card-bg) 94%, var(--surface-2));
 }
 
 .live-trading-tab__card-tabs-rail-title {
@@ -1931,7 +1962,7 @@ html[data-theme="dark"] .live-trade-api-card__body .live-trading-tab__cred-form 
   font-size: 0.82rem;
   font-weight: 700;
   line-height: 1.35;
-  color: var(--text, #0f172a);
+  color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1949,7 +1980,7 @@ html[data-theme="dark"] .live-trade-api-card__body .live-trading-tab__cred-form 
   border: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 85%, transparent);
   border-radius: var(--radius-sm, 6px);
   background: transparent;
-  color: var(--muted, #64748b);
+  color: var(--muted);
   cursor: pointer;
   font-size: 1rem;
   font-weight: 700;
@@ -1957,8 +1988,8 @@ html[data-theme="dark"] .live-trade-api-card__body .live-trading-tab__cred-form 
 }
 
 .live-trading-tab__card-tabs-rail-close:hover {
-  color: var(--text, #0f172a);
-  border-color: color-mix(in srgb, var(--accent, #2563eb) 35%, transparent);
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
 .live-trading-tab__card-tabs {
@@ -1967,8 +1998,8 @@ html[data-theme="dark"] .live-trade-api-card__body .live-trading-tab__cred-form 
   flex-shrink: 0;
   gap: 0.35rem;
   padding: 0.5rem 0.55rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 80%, transparent);
-  background: color-mix(in srgb, var(--card-bg, #fff) 92%, var(--surface-2, #f1f5f9));
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
+  background: color-mix(in srgb, var(--card-bg) 92%, var(--surface-2));
 }
 
 .live-trading-tab__card-tab {
@@ -1980,9 +2011,9 @@ html[data-theme="dark"] .live-trade-api-card__body .live-trading-tab__cred-form 
   font-weight: 600;
   line-height: 1.3;
   text-align: center;
-  color: var(--muted, #64748b);
+  color: var(--muted);
   background: transparent;
-  border: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 85%, transparent);
+  border: 1px solid color-mix(in srgb, var(--card-border) 85%, transparent);
   border-radius: var(--radius-sm, 6px);
   cursor: pointer;
   transition:
@@ -1992,8 +2023,8 @@ html[data-theme="dark"] .live-trade-api-card__body .live-trading-tab__cred-form 
 }
 
 .live-trading-tab__card-tab:hover {
-  color: var(--text, #0f172a);
-  border-color: color-mix(in srgb, var(--card-border) 55%, var(--accent, #2563eb));
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--card-border) 55%, var(--accent));
 }
 
 .live-trading-tab__card-tab--on {
@@ -2022,7 +2053,7 @@ html[data-theme="dark"] .live-trade-api-card__body .live-trading-tab__cred-form 
   font-size: 0.82rem;
   line-height: 1.45;
   text-align: center;
-  color: var(--muted, #64748b);
+  color: var(--muted);
 }
 
 .live-trading-tab__card-tabs-host {
@@ -3486,19 +3517,6 @@ html[data-theme="dark"] .live-trade-api-card__body .live-trading-tab__cred-form 
   margin-bottom: 0.65rem;
 }
 
-.live-portfolio--sim-like .live-portfolio__tabs {
-  background: color-mix(in srgb, var(--card) 88%, var(--accent, #5eead4) 4%);
-  border-color: color-mix(in srgb, var(--border, #e2e8f0) 55%, var(--accent-border, #5eead4) 25%);
-}
-
-.live-portfolio--sim-like .live-portfolio__tab--active {
-  background: color-mix(in srgb, #fff 92%, var(--accent, #5eead4) 8%);
-}
-
-html[data-theme="light"] .live-portfolio--sim-like .live-portfolio__tab--active {
-  background: #fff;
-}
-
 .live-portfolio--sim-like .live-portfolio__refresh {
   background: color-mix(in srgb, var(--card) 90%, var(--accent, #5eead4) 10%);
   border-color: color-mix(in srgb, var(--card-border) 70%, var(--accent-border) 30%);
@@ -4000,45 +4018,58 @@ html[data-theme="light"] .live-portfolio__trade-quote-strip {
 
 .live-portfolio__tabs {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  padding: 3px;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.35rem 1.1rem;
   margin-bottom: 0.85rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--surface, #0f172a) 72%, transparent);
-  border: 1px solid color-mix(in srgb, var(--border, #e2e8f0) 70%, transparent);
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.live-portfolio__tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .live-portfolio__tab {
-  flex: 1 1 auto;
-  min-width: 4rem;
-  min-height: 2.1rem;
-  padding: 0.35rem 0.75rem;
-  border-radius: 999px;
+  flex: 0 0 auto;
+  min-width: 0;
+  min-height: 2rem;
+  padding: 0.2rem 0;
   border: none;
+  border-radius: 0;
   background: transparent;
+  box-shadow: none;
   font: inherit;
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: 500;
+  line-height: 1.35;
   cursor: pointer;
   color: var(--muted, var(--text-muted, #6b7280));
-  transition:
-    background 0.15s ease,
-    color 0.15s ease,
-    box-shadow 0.15s ease;
+  transition: color 0.12s ease;
+  white-space: nowrap;
 }
 
 .live-portfolio__tab:hover {
   color: var(--text);
+  background: transparent;
 }
 
-.live-portfolio__tab--active {
+.live-portfolio__tab--active,
+.live-portfolio__tab--preview {
   color: var(--text);
-  background: var(--card, #fff);
-  box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  background: transparent;
+  box-shadow: none;
   font-weight: 700;
+}
+
+.live-portfolio__tab--preview {
+  font-weight: 600;
 }
 
 .live-portfolio__tab:focus-visible {

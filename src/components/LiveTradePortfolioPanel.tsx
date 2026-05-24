@@ -84,28 +84,33 @@ function SummaryMetricCard({
   heroValue,
   heroUp,
   sub,
+  trail,
 }: {
   label: string;
   lines?: PortfolioMetricLine[];
   heroValue?: string;
   heroUp?: boolean | null;
   sub?: string;
+  /** 금액 오른쪽 작은 보조 텍스트(갱신 시각 등) */
+  trail?: string;
 }) {
+  const heroClass =
+    heroUp === true
+      ? "live-portfolio__metric-hero live-portfolio__metric-hero--up"
+      : heroUp === false
+        ? "live-portfolio__metric-hero live-portfolio__metric-hero--down"
+        : "live-portfolio__metric-hero";
+
   return (
     <article className="live-portfolio__metric">
       <span className="live-portfolio__metric-k">{label}</span>
       {heroValue != null ? (
-        <p
-          className={
-            heroUp === true
-              ? "live-portfolio__metric-hero live-portfolio__metric-hero--up"
-              : heroUp === false
-                ? "live-portfolio__metric-hero live-portfolio__metric-hero--down"
-                : "live-portfolio__metric-hero"
-          }
-        >
-          {heroValue}
-        </p>
+        <div className="live-portfolio__metric-hero-row">
+          <p className={heroClass}>{heroValue}</p>
+          {trail ? (
+            <span className="live-portfolio__metric-trail">{trail}</span>
+          ) : null}
+        </div>
       ) : null}
       {lines && lines.length > 0 ? (
         <ul className="live-portfolio__metric-lines">
@@ -191,10 +196,12 @@ function SummaryTiles({
   holdings,
   summary,
   usdKrwRate,
+  updatedAtMs,
 }: {
   holdings: LiveTradeHolding[];
   summary: LiveTradePortfolioResponse["summary"];
   usdKrwRate: number | null;
+  updatedAtMs?: number | null;
 }) {
   const { roundTripForMarket } = useLiveTradeFeeRates();
   const feeNote = useMemo(
@@ -231,6 +238,10 @@ function SummaryTiles({
     "signed",
   );
   const realizedUp = summary.realizedPnl >= 0;
+  const updatedTrail =
+    updatedAtMs != null && Number.isFinite(updatedAtMs)
+      ? `${formatTs(updatedAtMs)} ${ko.app.liveTradePfUpdated}`
+      : undefined;
 
   return (
     <div className="live-portfolio__summary">
@@ -260,6 +271,7 @@ function SummaryTiles({
           label={ko.app.liveTradePfRealized}
           heroValue={formatSignedMoney(summary.realizedPnl, "KRW")}
           heroUp={realizedUp}
+          trail={updatedTrail}
         />
       </div>
     </div>
@@ -384,7 +396,9 @@ export default function LiveTradePortfolioPanel({
   programs: LiveTradeProgram[];
   onOpenHoldingChart?: (h: LiveTradeHolding) => void;
 }) {
-  const [tab, setTab] = useState<PanelTab>("holdings");
+  const [pinnedTab, setPinnedTab] = useState<PanelTab>("holdings");
+  const [hoverTab, setHoverTab] = useState<PanelTab | null>(null);
+  const viewTab = hoverTab ?? pinnedTab;
   const [programId, setProgramId] = useState<string>("");
   const [data, setData] = useState<LiveTradePortfolioResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -518,6 +532,7 @@ export default function LiveTradePortfolioPanel({
         summary={collapsedSummary}
         className="live-portfolio live-portfolio--collapsible live-portfolio--sim-like"
         ariaLabel={ko.app.liveTradePfTitle}
+        sidePanelId="portfolio"
       >
       <header className="live-portfolio__head live-portfolio__head--in-card">
         <div className="live-portfolio__head-tools">
@@ -552,7 +567,11 @@ export default function LiveTradePortfolioPanel({
       </header>
 
       <div className="live-portfolio__panel live-portfolio__panel--in-card">
-        <div className="live-portfolio__tabs" role="tablist">
+        <div
+          className="live-portfolio__tabs"
+          role="tablist"
+          onMouseLeave={() => setHoverTab(null)}
+        >
           {(
             [
               ["summary", ko.app.liveTradePfTabSummary],
@@ -561,22 +580,42 @@ export default function LiveTradePortfolioPanel({
               ["trades", ko.app.liveTradePfTabTrades],
               ["openOrders", ko.app.liveTradePfTabOpenOrders],
             ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={tab === id}
-              className={
-                tab === id
-                  ? "live-portfolio__tab live-portfolio__tab--active"
-                  : "live-portfolio__tab"
-              }
-              onClick={() => setTab(id)}
-            >
-              {label}
-            </button>
-          ))}
+          ).map(([id, label]) => {
+            const isView = viewTab === id;
+            const isPinned = pinnedTab === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={isPinned}
+                className={[
+                  "live-portfolio__tab",
+                  isView && isPinned ? "live-portfolio__tab--active" : "",
+                  isView && !isPinned ? "live-portfolio__tab--preview" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                onMouseEnter={() => setHoverTab(id)}
+                onFocus={() => setHoverTab(id)}
+                onBlur={(e) => {
+                  if (
+                    !e.currentTarget.parentElement?.contains(
+                      e.relatedTarget as Node | null,
+                    )
+                  ) {
+                    setHoverTab(null);
+                  }
+                }}
+                onClick={() => {
+                  setPinnedTab(id);
+                  setHoverTab(null);
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
 
         {loading && !data ? (
@@ -597,15 +636,16 @@ export default function LiveTradePortfolioPanel({
             roundTripForMarket={roundTripForMarket}
           />
 
-          {tab === "summary" ? (
+          {viewTab === "summary" ? (
             <SummaryTiles
               holdings={data.holdings}
               summary={data.summary}
               usdKrwRate={usdKrwRate}
+              updatedAtMs={data.updatedAtMs}
             />
           ) : null}
 
-          {tab === "holdings" ? (
+          {viewTab === "holdings" ? (
             data.holdings.length === 0 ? (
               <p className="live-sim-run__muted">{ko.app.liveTradePfNoHoldings}</p>
             ) : (
@@ -646,7 +686,7 @@ export default function LiveTradePortfolioPanel({
             )
           ) : null}
 
-          {tab === "trade" ? (
+          {viewTab === "trade" ? (
             <LiveTradePortfolioTradeTab
               programs={programs}
               holdings={data.holdings}
@@ -660,7 +700,7 @@ export default function LiveTradePortfolioPanel({
             />
           ) : null}
 
-          {tab === "openOrders" ? (
+          {viewTab === "openOrders" ? (
             <LiveTradeOpenOrdersPanel
               onChanged={() => {
                 void load({ keepQuoteMerge: false });
@@ -669,7 +709,7 @@ export default function LiveTradePortfolioPanel({
             />
           ) : null}
 
-          {tab === "trades" ? (
+          {viewTab === "trades" ? (
             data.trades.length === 0 ? (
               <>
                 <p className="live-portfolio__exchange-note">
@@ -716,7 +756,10 @@ export default function LiveTradePortfolioPanel({
                         <td className="live-sim-run__ts" data-label={ko.app.liveTradePfColTime}>
                           {formatTs(t.atMs)}
                         </td>
-                        <td data-label={ko.app.liveTradePfColSide}>
+                        <td
+                          className="live-sim-run__side"
+                          data-label={ko.app.liveTradePfColSide}
+                        >
                           {formatTradeSideLabel(t)}
                         </td>
                         <td data-label={ko.app.liveTradePfColSymbol}>
@@ -793,7 +836,7 @@ export default function LiveTradePortfolioPanel({
             )
           ) : null}
 
-          {data.updatedAtMs ? (
+          {data.updatedAtMs && viewTab !== "summary" ? (
             <p className="live-portfolio__updated">
               {formatTs(data.updatedAtMs)} {ko.app.liveTradePfUpdated}
             </p>
