@@ -1,22 +1,27 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNestedVerticalScroll } from "../hooks/useNestedVerticalScroll";
 import {
+  fetchLiveTradingMinuteQuotes,
   fetchLiveTradingPortfolio,
   type LiveTradeHolding,
+  type LiveTradePortfolioResponse,
   type LiveTradeProgram,
 } from "../api";
+import { useLivePortfolioQuotePoll } from "../hooks/useLivePortfolioQuotePoll";
 import { useLiveTradingStatusPoll } from "../hooks/useLiveTradingStatusPoll";
 import { ko } from "../i18n/ko";
 import { programDisplayStatus } from "../lib/liveProgramDisplay";
 import { formatPercent, formatPrice } from "../lib/format";
 import { openHoldingsNetReturnPct, summarizeHoldingsPnl, summarizeNetMarketByCurrency, holdingNetMarketValue, formatInvestedOrMarketLabel } from "../lib/livePortfolioPnl";
+import { mergeLiveQuotesIntoPortfolio } from "../lib/livePortfolioLiveQuotes";
 import { feeByMarketFromStatus } from "../lib/liveTradeFeeByMarket";
 import { DEFAULT_ROUND_TRIP_FEE_RATE } from "../lib/netReturn";
 import type { LiveTradeMarket } from "../types";
 import { peekLiveTradingPrefetch } from "../lib/tabPrefetch";
 import { useLiveTradeAuth } from "./LiveTradeAuthAndCredentials";
 
-const POLL_MS = 22_000;
+/** 좌측 실매매 카드 — 보유·수익률 갱신 */
+const POLL_MS = 500;
 const MAX_DOTS = 8;
 
 function statusLabel(status: LiveTradeProgram["status"]): string {
@@ -105,6 +110,7 @@ function RailProgramCard({
   orderMode,
   onOpenLiveTrading,
   roundTripForMarket,
+  dataUpdatedAtMs,
 }: {
   program: LiveTradeProgram;
   displayStatus: ReturnType<typeof programDisplayStatus>;
@@ -113,6 +119,8 @@ function RailProgramCard({
   orderMode: string | null;
   onOpenLiveTrading?: () => void;
   roundTripForMarket: (market: LiveTradeMarket) => number;
+  /** 보유·시세가 마지막으로 반영된 시각 */
+  dataUpdatedAtMs: number | null;
 }) {
   const [open, setOpen] = useState(false);
   const tableWrapRef = useRef<HTMLDivElement>(null);
@@ -307,11 +315,14 @@ function RailProgramCard({
               <span className="live-trade-rail__detail-sep"> · </span>
               {ko.app.liveTradeMinScoreShort}{" "}
               {Math.round(p.minScoreRatio * 100)}%
-              {p.lastRunAtMs ? (
+              {dataUpdatedAtMs != null ? (
                 <>
                   <span className="live-trade-rail__detail-sep"> · </span>
-                  <span className="live-trade-rail__meta--ts">
-                    {formatShortTs(p.lastRunAtMs)}
+                  <span
+                    className="live-trade-rail__meta--ts"
+                    title={ko.app.liveTradePfUpdated}
+                  >
+                    {formatShortTs(dataUpdatedAtMs)}
                   </span>
                 </>
               ) : null}
@@ -340,33 +351,50 @@ function LiveTradingLeftRailPanelInner({
   const prefetched = peekLiveTradingPrefetch();
   const { user, authChecked } = useLiveTradeAuth();
   const status = useLiveTradingStatusPoll();
-  const [holdingsByProgram, setHoldingsByProgram] = useState<
-    Record<string, LiveTradeHolding[]>
-  >({});
+  const [portfolio, setPortfolio] = useState<LiveTradePortfolioResponse | null>(
+    null,
+  );
   const [loading, setLoading] = useState(!prefetched?.status);
+
+  const feeByMarket = useMemo(
+    () => feeByMarketFromStatus(status?.feeRates),
+    [status?.feeRates],
+  );
 
   const reloadPortfolio = useCallback(async () => {
     if (!user) {
-      setHoldingsByProgram({});
+      setPortfolio(null);
       setLoading(false);
       return;
     }
     try {
-      const portfolio = await fetchLiveTradingPortfolio(null).catch(() => null);
-      const map: Record<string, LiveTradeHolding[]> = {};
-      for (const h of portfolio?.holdings ?? []) {
-        const pid = String(h.programId ?? "").trim();
-        if (!pid) continue;
-        if (!map[pid]) map[pid] = [];
-        map[pid].push(h);
+      let snap = await fetchLiveTradingPortfolio(null).catch(() => null);
+      if (snap) {
+        const syms = [
+          ...new Set(
+            snap.holdings
+              .map((h) => h.symbol.trim().toUpperCase())
+              .filter(Boolean),
+          ),
+        ];
+        if (syms.length > 0) {
+          try {
+            const q = await fetchLiveTradingMinuteQuotes(syms);
+            snap = mergeLiveQuotesIntoPortfolio(snap, q.quotes ?? {}, feeByMarket);
+          } catch {
+            /* 서버 스냅샷만 사용 */
+          }
+        }
+        setPortfolio(snap);
+      } else {
+        setPortfolio(null);
       }
-      setHoldingsByProgram(map);
     } catch {
       /* ignore */
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, feeByMarket]);
 
   useEffect(() => {
     void reloadPortfolio();
@@ -379,10 +407,27 @@ function LiveTradingLeftRailPanelInner({
     void reloadPortfolio();
   }, [status?.armedCount, status?.simCount, reloadPortfolio]);
 
-  const feeByMarket = useMemo(
-    () => feeByMarketFromStatus(status?.feeRates),
-    [status?.feeRates],
+  const holdingsByProgram = useMemo(() => {
+    const map: Record<string, LiveTradeHolding[]> = {};
+    for (const h of portfolio?.holdings ?? []) {
+      const pid = String(h.programId ?? "").trim();
+      if (!pid) continue;
+      if (!map[pid]) map[pid] = [];
+      map[pid].push(h);
+    }
+    return map;
+  }, [portfolio?.holdings]);
+
+  const dataUpdatedAtMs = portfolio?.updatedAtMs ?? null;
+
+  useLivePortfolioQuotePoll(
+    portfolio,
+    setPortfolio,
+    Boolean(user) && (status?.armedCount ?? 0) + (status?.simCount ?? 0) > 0,
+    feeByMarket,
+    POLL_MS,
   );
+
   const roundTripForMarket = useCallback(
     (market: LiveTradeMarket) =>
       feeByMarket[market] ?? feeByMarket.default ?? DEFAULT_ROUND_TRIP_FEE_RATE,
@@ -422,10 +467,6 @@ function LiveTradingLeftRailPanelInner({
 
   if (!loading && rows.length === 0) return null;
 
-  const bithumbSim =
-    status?.bithumbSimulatedOrders !== false &&
-    status?.bithumb?.liveOrdersEnabled === false;
-
   return (
     <aside
       className="live-trade-rail live-trade-rail--side"
@@ -453,10 +494,10 @@ function LiveTradingLeftRailPanelInner({
         <ul className="live-trade-rail__list">
           {rows.map(({ program: p, displayStatus, returnPct, holdings }) => {
             const orderMode =
-              displayStatus === "armed" && p.armedMarkets?.crypto && bithumbSim
-                ? ko.app.liveTradeLeftRailSimOrders
-                : displayStatus === "armed" && p.armedMarkets?.crypto
-                  ? ko.app.liveTradeLeftRailLiveOrders
+              displayStatus === "armed" && p.armedMarkets?.crypto
+                ? ko.app.liveTradeLeftRailLiveOrders
+                : displayStatus === "sim"
+                  ? ko.app.liveTradeLeftRailSimOrders
                   : null;
             return (
               <li key={p.id}>
@@ -468,6 +509,7 @@ function LiveTradingLeftRailPanelInner({
                   orderMode={orderMode}
                   onOpenLiveTrading={onOpenLiveTrading}
                   roundTripForMarket={roundTripForMarket}
+                  dataUpdatedAtMs={dataUpdatedAtMs}
                 />
               </li>
             );

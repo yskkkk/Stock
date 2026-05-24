@@ -16,6 +16,7 @@ export function useLivePortfolioQuotePoll(
   setPortfolio: Dispatch<SetStateAction<LiveTradePortfolioResponse | null>>,
   enabled: boolean,
   feeByMarket?: LiveTradeFeeRateByMarket,
+  pollMs: number = PORTFOLIO_QUOTE_POLL_MS,
 ) {
   const symbolsKey = useMemo(
     () =>
@@ -47,10 +48,10 @@ export function useLivePortfolioQuotePoll(
     };
 
     pull();
-    const id = window.setInterval(pull, PORTFOLIO_QUOTE_POLL_MS);
+    const id = window.setInterval(pull, pollMs);
     return () => {
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [symbolsKey, enabled, setPortfolio, feeByMarket]);
+  }, [symbolsKey, enabled, setPortfolio, feeByMarket, pollMs]);
 }
