@@ -1,5 +1,6 @@
 import type { BithumbTestSnapshot } from "../api";
 import { ko } from "../i18n/ko";
+import { useBithumbBalanceHidden } from "../hooks/useBithumbBalanceHidden";
 import { formatLiveTradeQuantity, formatPercent, formatPrice } from "../lib/format";
 
 export type BithumbTradingFeesDisplay = {
@@ -48,6 +49,7 @@ export default function BithumbAccountSnapshotCard({
   variant?: "inline" | "rail";
 }) {
   const { krw, holdings } = snapshot;
+  const [balanceHidden, toggleBalanceHidden] = useBithumbBalanceHidden();
   const rootClass =
     variant === "rail"
       ? "bithumb-account-rail"
@@ -72,28 +74,50 @@ export default function BithumbAccountSnapshotCard({
           {feesLine}
         </p>
       ) : null}
-      <p
+      <div
         className={
           variant === "rail"
-            ? "bithumb-account-rail__section-title"
-            : "live-trading-tab__cred-snapshot-title"
+            ? "bithumb-account-rail__balance-head"
+            : "live-trading-tab__cred-snapshot-balance-head"
         }
       >
-        {ko.app.liveTradeCredTestBalance}
-      </p>
-      <dl className="live-trading-tab__cred-snapshot-krw live-trading-tab__cred-snapshot-krw--pair bithumb-account-rail__krw">
+        <p
+          className={
+            variant === "rail"
+              ? "bithumb-account-rail__section-title bithumb-account-rail__section-title--inline"
+              : "live-trading-tab__cred-snapshot-title live-trading-tab__cred-snapshot-title--inline"
+          }
+        >
+          {ko.app.liveTradeCredTestBalance}
+        </p>
+        <button
+          type="button"
+          className="bithumb-balance-hide-btn"
+          onClick={toggleBalanceHidden}
+          aria-pressed={balanceHidden}
+        >
+          {balanceHidden
+            ? ko.app.leftRailBithumbBalanceShow
+            : ko.app.leftRailBithumbBalanceHide}
+        </button>
+      </div>
+      <dl
+        className={`live-trading-tab__cred-snapshot-krw live-trading-tab__cred-snapshot-krw--pair bithumb-account-rail__krw${
+          balanceHidden ? " bithumb-balance-values--hidden" : ""
+        }`}
+      >
         <div>
           <dt>{ko.app.liveTradeCredTestKrwTotal}</dt>
-          <dd>{formatPrice(krw.total, "KRW")}</dd>
+          <dd aria-hidden={balanceHidden || undefined}>{formatPrice(krw.total, "KRW")}</dd>
         </div>
         <div>
           <dt>{ko.app.liveTradeCredTestKrwAvailable}</dt>
-          <dd>{formatPrice(krw.available, "KRW")}</dd>
+          <dd aria-hidden={balanceHidden || undefined}>{formatPrice(krw.available, "KRW")}</dd>
         </div>
         {krw.locked > 0 ? (
           <div className="live-trading-tab__cred-snapshot-krw-locked">
             <dt>{ko.app.liveTradeCredTestKrwLocked}</dt>
-            <dd>{formatPrice(krw.locked, "KRW")}</dd>
+            <dd aria-hidden={balanceHidden || undefined}>{formatPrice(krw.locked, "KRW")}</dd>
           </div>
         ) : null}
       </dl>

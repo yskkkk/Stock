@@ -244,6 +244,8 @@ export const ko = {
     leftRailBithumbAccountAria: "빗썸 계좌 잔고·보유",
     leftRailBithumbAccountNeedKeys: "실거래 탭에서 빗썸 API를 저장하면 잔고·보유가 표시됩니다.",
     leftRailBithumbAccountTitle: "빗썸 계좌",
+    leftRailBithumbBalanceHide: "잔액 가리기",
+    leftRailBithumbBalanceShow: "잔액 보기",
     liveTradeActivitySub: "실매매·시뮬 프로그램의 보유·목표가·최근 체결을 20초마다 갱신합니다.",
     liveTradeActivityTitle: "가동 중 실매매 · 시뮬레이션",
     liveTradeAuthRegistrationClosed: "신규 회원가입은 현재 중단되어 있습니다. 계정이 있으면 로그인하세요.",

@@ -1119,6 +1119,10 @@ body {
   color: var(--text-dim, #64748b);
 }
 
+.live-trading-tab__cred-snapshot-balance-head .live-trading-tab__cred-snapshot-title--inline {
+  margin: 0;
+}
+
 .live-trading-tab__cred-snapshot-title + .live-trading-tab__cred-snapshot-title {
   margin-top: 0.55rem;
 }
