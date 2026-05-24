@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { AuthUser, LiveTradeHolding } from "../api";
 import {
   armLiveTradeProgram,
@@ -28,9 +28,13 @@ import { formatPercent } from "../lib/format";
 import LiveTradeAuthPanel, {
   LiveTradeApiCollapsibleCard,
   LiveTradeBithumbCredentialForm,
+  LiveTradeCardSidePanel,
+  LiveTradeCardSidePanelProvider,
+  LiveTradeTossCredentialForm,
   LiveTradeCollapsibleCard,
   notifyLiveTradeAuthChange,
   useLiveTradeAuth,
+  useLiveTradeCardSidePanel,
 } from "./LiveTradeAuthAndCredentials";
 import {
   programDisplayStatus,
@@ -129,6 +133,37 @@ const emptyDraft = () => ({
   autoSellAtTarget: true,
   sellHorizon: "short" as "short" | "medium" | "long",
 });
+
+function LiveTradeCardWorkspace({
+  editingId,
+  onCloseEdit,
+  children,
+}: {
+  editingId: string | null;
+  onCloseEdit: () => void;
+  children: ReactNode;
+}) {
+  const { panel, closePanel } = useLiveTradeCardSidePanel();
+
+  useMobileBackHandler(
+    Boolean(panel),
+    MOBILE_BACK_PRIORITY.LIVE_TRADE_CARD_PANEL,
+    () => {
+      if (panel?.id === "form" && editingId) onCloseEdit();
+      else closePanel();
+    },
+  );
+
+  return (
+    <div
+      className={`live-trading-tab__card-workspace${
+        panel ? " live-trading-tab__card-workspace--open" : ""
+      }`}
+    >
+      {children}
+    </div>
+  );
+}
 
 export default function LiveTradingTab({
   onOpenRecommendations,
@@ -587,6 +622,14 @@ export default function LiveTradingTab({
               </span>
             </li>
           </ul>
+          {user ? (
+            <LiveTradeTossCredentialForm
+              userId={user.id}
+              tossReady={Boolean(toss?.ready)}
+              cryptoReady={status?.credentialsCryptoReady !== false}
+              onUpdated={() => void reload()}
+            />
+          ) : null}
         </LiveTradeApiCollapsibleCard>
 
         <LiveTradeApiCollapsibleCard
@@ -625,6 +668,7 @@ export default function LiveTradingTab({
           ) : null}
           {user ? (
             <LiveTradeBithumbCredentialForm
+              userId={user.id}
               bithumbReady={Boolean(bithumb?.ready)}
               cryptoReady={status?.credentialsCryptoReady !== false}
               onUpdated={() => void reload()}
@@ -645,22 +689,24 @@ export default function LiveTradingTab({
             onOpenHoldingChart={onOpenHoldingChart}
           />
 
-          <LiveTradePortfolioPanel
-            programs={programs}
-            onOpenHoldingChart={onOpenHoldingChart}
-          />
-        </>
-      ) : null}
-
-      {user ? (
-      <div className="live-trading-tab__grid live-trading-tab__grid--collapse">
-        <LiveTradeCollapsibleCard
+          <LiveTradeCardSidePanelProvider>
+            <LiveTradeCardWorkspace
+              editingId={editingId}
+              onCloseEdit={resetForm}
+            >
+              <div className="live-trading-tab__card-row">
+                <LiveTradePortfolioPanel
+                  programs={programs}
+                  onOpenHoldingChart={onOpenHoldingChart}
+                />
+                <LiveTradeCollapsibleCard
           key={editingId ? `edit-${editingId}` : "new-form"}
           title={editingId ? ko.app.liveTradeFormEdit : ko.app.liveTradeFormNew}
           summary={formCardSummary}
           defaultOpen={Boolean(editingId)}
           className="live-trading-tab__form"
           ariaLabel={ko.app.liveTradeFormTitle}
+          sidePanelId="form"
         >
           {models.length === 0 ? (
             <p className="live-trading-tab__hint live-trading-tab__form-panel">
@@ -1004,6 +1050,7 @@ export default function LiveTradingTab({
           summary={programsListSummary}
           className="live-trading-tab__list"
           ariaLabel={ko.app.liveTradeListTitle}
+          sidePanelId="programs"
         >
           <div className="live-trading-tab__list-body">
           {programs.length === 0 ? (
@@ -1182,7 +1229,11 @@ export default function LiveTradingTab({
           )}
           </div>
         </LiveTradeCollapsibleCard>
-      </div>
+              </div>
+              <LiveTradeCardSidePanel />
+            </LiveTradeCardWorkspace>
+          </LiveTradeCardSidePanelProvider>
+        </>
       ) : null}
     </div>
     </LiveTradeFeeRatesProvider>
