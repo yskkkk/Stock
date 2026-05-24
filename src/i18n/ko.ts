@@ -208,6 +208,28 @@ export const ko = {
     liveTradeArmToss: "토스 실매매 시작",
     liveTradeEdit: "수정",
     liveTradeDelete: "삭제",
+    liveTradeLeftRailAria: "실매매 현황",
+    liveTradeLeftRailTitle: "실매매",
+    liveTradeLeftRailOpen: "자세히",
+    liveTradeLeftRailExpand: "펼치기",
+    liveTradeLeftRailCollapse: "접기",
+    liveTradeLeftRailTotalReturn: "총 수익률",
+    liveTradeLeftRailColCoin: "코인",
+    liveTradeLeftRailColReturn: "수익률",
+    liveTradeLeftRailColValue: "평가금",
+    liveTradeLeftRailColWeight: "비중",
+    liveTradeLeftRailTotal: "합계",
+    liveTradeLeftRailHoldings: "보유",
+    liveTradeLeftRailHoldingsShort: "보유",
+    liveTradeLeftRailChgShort: "등락",
+    liveTradeLeftRailBuySellShort: "매·목·손",
+    liveTradeLeftRailNoHolding: "없을",
+    liveTradeLeftRailLaneBithumb: "빗썸",
+    liveTradeLeftRailLaneToss: "토스",
+    liveTradeLeftRailLaneBoth: "빗썸·토스",
+    liveTradeLeftRailLaneLive: "실매매",
+    liveTradeLeftRailSimOrders: "시뮬 주문",
+    liveTradeLeftRailLiveOrders: "실주문",
     opsGlobalQueueEmpty: "진행 중인 작업이 없습니다.",
     picksHistoryInitialPrice: "최초",
     picksHistoryQuotesLoading: "시세 조회 중…",
@@ -818,5 +840,5 @@ export function liveTradeHeaderStripArmed(n: number) {
 }
 
 export function liveTradeHeaderStripSim(n: number) {
-  return `시뫤 ${n}개`;
+  return `시뮬 ${n}개`;
 }

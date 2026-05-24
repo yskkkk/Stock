@@ -238,6 +238,28 @@ const t = {
     liveTradeArmToss: "\ud1a0\uc2a4 \uc2e4\ub9e4\ub9e4 \uc2dc\uc791",
     liveTradeEdit: "\uc218\uc815",
     liveTradeDelete: "\uc0ad\uc81c",
+    liveTradeLeftRailAria: "\uc2e4\ub9e4\ub9e4 \ud604\ud669",
+    liveTradeLeftRailTitle: "\uc2e4\ub9e4\ub9e4",
+    liveTradeLeftRailOpen: "\uc790\uc138\ud788",
+    liveTradeLeftRailExpand: "\ud3bc\uce58\uae30",
+    liveTradeLeftRailCollapse: "\uc811\uae30",
+    liveTradeLeftRailTotalReturn: "\ucd1d \uc218\uc775\ub960",
+    liveTradeLeftRailColCoin: "\ucf54\uc778",
+    liveTradeLeftRailColReturn: "\uc218\uc775\ub960",
+    liveTradeLeftRailColValue: "\ud3c9\uac00\uae08",
+    liveTradeLeftRailColWeight: "\ube44\uc911",
+    liveTradeLeftRailTotal: "\ud569\uacc4",
+    liveTradeLeftRailHoldings: "\ubcf4\uc720",
+    liveTradeLeftRailHoldingsShort: "\ubcf4\uc720",
+    liveTradeLeftRailChgShort: "\ub4f1\ub77d",
+    liveTradeLeftRailBuySellShort: "\ub9e4\u00b7\ubaa9\u00b7\uc190",
+    liveTradeLeftRailNoHolding: "\uc5c6\uc744",
+    liveTradeLeftRailLaneBithumb: "\ube57\uc378",
+    liveTradeLeftRailLaneToss: "\ud1a0\uc2a4",
+    liveTradeLeftRailLaneBoth: "\ube57\uc378\u00b7\ud1a0\uc2a4",
+    liveTradeLeftRailLaneLive: "\uc2e4\ub9e4\ub9e4",
+    liveTradeLeftRailSimOrders: "\uc2dc\ubbac \uc8fc\ubb38",
+    liveTradeLeftRailLiveOrders: "\uc2e4\uc8fc\ubb38",
     opsGlobalQueueEmpty: "\uc9c4\ud589 \uc911\uc778 \uc791\uc5c5\uc774 \uc5c6\uc2b5\ub2c8\ub2e4.",
     picksHistoryInitialPrice: "\ucd5c\ucd08",
     picksHistoryQuotesLoading: "\uc2dc\uc138 \uc870\ud68c \uc911\u2026",
@@ -880,7 +902,7 @@ export function liveTradeHeaderStripArmed(n: number) {
 }
 
 export function liveTradeHeaderStripSim(n: number) {
-  return \`\uC2DC\uBAE4 \${n}\uAC1C\`;
+  return \`\uC2DC\uBBAC \${n}\uAC1C\`;
 }
 `;
 
