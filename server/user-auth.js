@@ -256,10 +256,9 @@ export function requireUserAuth(req, res, next) {
 }
 
 /**
- * 기존 live-trade-programs.json (userId 없음) → 로그인 계정 귀속(1회)
+ * userId 없는 실매매·시뮬 프로그램 → 로그인 계정 귀속(멱등)
  * @param {string} userId
  */
 export function maybeMigrateLegacyLiveTradeDataSync(userId) {
-  if (process.env.LIVE_TRADE_LEGACY_MIGRATE !== "1") return;
   migrateLegacyProgramsToUserSync(userId);
 }

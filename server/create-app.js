@@ -117,8 +117,10 @@ import {
   deleteLiveTradeProgramSync,
   disarmLiveTradeProgramSync,
   getLiveTradeProgramSync,
+  healOwnerMissingProgramErrorsSync,
   healStuckSimProgramErrorsSync,
   listLiveTradeProgramsSync,
+  migrateLegacyProgramsToUserSync,
   startSimLiveTradeProgramSync,
   stopSimLiveTradeProgramSync,
   updateLiveTradeProgramSync,
@@ -501,12 +503,14 @@ export function createApp() {
             }
           : getTossTradingStatus();
       const bithumb = getBithumbTradingStatusForUserSync(userId);
+      migrateLegacyProgramsToUserSync(userId);
       let programs = listLiveTradeProgramsSync(userId);
       const programReturns = await buildProgramPortfolioSummariesMap(
         programs.map((p) => p.id),
         userId,
       );
       programs = healStuckSimProgramErrorsSync(programs, programReturns);
+      programs = healOwnerMissingProgramErrorsSync(programs);
       res.json({
         toss,
         bithumb,

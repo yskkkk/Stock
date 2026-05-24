@@ -4,7 +4,7 @@ import {
   type LiveTradingStatusResponse,
 } from "../api";
 import { writeLiveTradingHeaderSnapshot } from "../lib/liveTradingHeaderSnapshot";
-import { peekLiveTradingPrefetch } from "../lib/tabPrefetch";
+import { invalidateLiveTradingPrefetch, peekLiveTradingPrefetch } from "../lib/tabPrefetch";
 
 const POLL_MS = 22_000;
 
@@ -24,19 +24,24 @@ function notify(status: LiveTradingStatusResponse | null) {
   for (const fn of listeners) fn(status);
 }
 
+function pollTick() {
+  void fetchLiveTradingStatus()
+    .then(notify)
+    .catch(() => {
+      /* ignore — 로그인 전·일시 오류 */
+    });
+}
+
 function ensurePoll() {
   if (pollStarted) return;
   pollStarted = true;
-  const tick = async () => {
-    try {
-      const next = await fetchLiveTradingStatus();
-      notify(next);
-    } catch {
-      /* ignore — 로그인 전·일시 오류 */
-    }
-  };
-  void tick();
-  window.setInterval(() => void tick(), POLL_MS);
+  window.setInterval(pollTick, POLL_MS);
+}
+
+/** 로그인·로그아웃 직후 — 캐시 무효화 후 즉시 재조회 */
+export function refreshLiveTradingStatusNow(): void {
+  invalidateLiveTradingPrefetch();
+  pollTick();
 }
 
 /** 실매매 상태 — 앱 전역 단일 폴링(헤더·좌측 레일 공유) */
@@ -48,6 +53,7 @@ export function useLiveTradingStatusPoll(): LiveTradingStatusResponse | null {
 
   useEffect(() => {
     ensurePoll();
+    void refreshLiveTradingStatusNow();
     const onUpdate = (next: LiveTradingStatusResponse | null) => setStatus(next);
     listeners.add(onUpdate);
     if (sharedStatus) setStatus(sharedStatus);

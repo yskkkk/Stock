@@ -318,6 +318,11 @@ function LiveTradingLeftRailPanelInner({
     return () => window.clearInterval(id);
   }, [reloadPortfolio]);
 
+  useEffect(() => {
+    if (!status) return;
+    void reloadPortfolio();
+  }, [status?.armedCount, status?.simCount, reloadPortfolio]);
+
   const rows = useMemo(() => {
     const programs = status?.programs ?? [];
     return programs

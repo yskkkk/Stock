@@ -430,10 +430,43 @@ export function healStuckSimProgramErrorsSync(programs, programReturns) {
       (programReturns[p.id]?.holdingCount ?? 0) > 0 &&
       programHasOnlySimulatedBuyTradesSync(p.id)
     ) {
-      const healed = updateLiveTradeProgramSync(p.id, {
-        status: "sim",
-        lastError: null,
-      });
+      const healed = updateLiveTradeProgramSync(
+        p.id,
+        {
+          status: "sim",
+          lastError: null,
+        },
+        p.userId ?? undefined,
+      );
+      out.push(healed ?? p);
+      continue;
+    }
+    out.push(p);
+  }
+  return out;
+}
+
+const OWNER_MISSING_ERR = "프로그램 소유자가 없습니다.";
+
+/** userId 귀속 후에도 error로 남은 실매매 카드 복구 */
+export function healOwnerMissingProgramErrorsSync(programs) {
+  const out = [];
+  for (const p of programs) {
+    if (
+      p.status === "error" &&
+      p.userId &&
+      p.lastError === OWNER_MISSING_ERR
+    ) {
+      const am = getProgramArmedMarkets(p);
+      const nextStatus = am.kr || am.crypto ? "armed" : "paused";
+      const healed = updateLiveTradeProgramSync(
+        p.id,
+        {
+          status: nextStatus,
+          lastError: null,
+        },
+        p.userId,
+      );
       out.push(healed ?? p);
       continue;
     }

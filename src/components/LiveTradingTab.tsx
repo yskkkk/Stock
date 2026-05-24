@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { LiveTradeHolding } from "../api";
+import type { AuthUser, LiveTradeHolding } from "../api";
 import {
   armLiveTradeProgram,
   createLiveTradeProgram,
@@ -22,7 +22,8 @@ import LiveSimRecommendationsPanel, {
 import LiveTradePortfolioPanel from "./LiveTradePortfolioPanel";
 import { useMobileBackHandler } from "../hooks/useMobileBackHandler";
 import { MOBILE_BACK_PRIORITY } from "../lib/mobileBackStack";
-import { peekLiveTradingPrefetch } from "../lib/tabPrefetch";
+import { refreshLiveTradingStatusNow } from "../hooks/useLiveTradingStatusPoll";
+import { invalidateLiveTradingPrefetch, peekLiveTradingPrefetch } from "../lib/tabPrefetch";
 import { formatPercent } from "../lib/format";
 import LiveTradeAuthPanel, {
   LiveTradeBithumbCredentialForm,
@@ -146,8 +147,9 @@ export default function LiveTradingTab({
   const [draft, setDraft] = useState(emptyDraft);
   const [portfolioRefreshKey, setPortfolioRefreshKey] = useState(0);
 
-  const reload = useCallback(async () => {
-    if (!user) {
+  const reload = useCallback(async (userOverride?: AuthUser | null) => {
+    const activeUser = userOverride !== undefined ? userOverride : user;
+    if (!activeUser) {
       setStatus(null);
       return;
     }
@@ -446,7 +448,12 @@ export default function LiveTradingTab({
         <LiveTradeAuthPanel
           user={user}
           registrationOpen={registrationOpen}
-          onAuthChange={() => void refreshAuth().then(() => reload())}
+          onAuthChange={() => {
+            invalidateLiveTradingPrefetch();
+            refreshLiveTradingStatusNow();
+            setPortfolioRefreshKey((k) => k + 1);
+            void refreshAuth().then((nextUser) => reload(nextUser));
+          }}
         />
       ) : null}
 

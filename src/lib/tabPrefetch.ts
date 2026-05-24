@@ -248,6 +248,11 @@ export function peekLiveTradingPrefetch(): LiveTradingPrefetch | null {
   return getCached<LiveTradingPrefetch>("liveTrading");
 }
 
+export function invalidateLiveTradingPrefetch(): void {
+  cache.delete("liveTrading");
+  inflight.delete("liveTrading");
+}
+
 export async function prefetchLiveTradingTab(): Promise<LiveTradingPrefetch> {
   return dedupe("liveTrading", async () => {
     const [status, techModels] = await Promise.all([
