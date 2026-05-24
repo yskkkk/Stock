@@ -90,6 +90,20 @@ export function listLiveTradeRecordsSync(programId = null, userId) {
   return tradesVisibleToUser(store.trades, userId, programId);
 }
 
+/**
+ * 프로그램 삭제 시 해당 programId 체결만 제거(다른 시뮬·실매매 보존)
+ * @param {string} programId
+ */
+export function purgeLiveTradeRecordsForProgramSync(programId) {
+  const pid = String(programId ?? "").trim();
+  if (!pid) return { removed: 0 };
+  const store = readStoreSync();
+  const before = store.trades.length;
+  store.trades = store.trades.filter((t) => t.programId !== pid);
+  if (store.trades.length !== before) writeStoreSync(store);
+  return { removed: before - store.trades.length };
+}
+
 /** 시뮬 전용 프로그램 여부 — 매수 체결이 모두 simulated일 때만 true */
 export function programHasOnlySimulatedBuyTradesSync(programId) {
   const pid = String(programId ?? "").trim();

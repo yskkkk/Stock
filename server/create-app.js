@@ -128,6 +128,7 @@ import {
 import {
   buildLiveTradePortfolioSnapshot,
   buildProgramPortfolioSummariesMap,
+  purgeLiveTradeRecordsForProgramSync,
   recordLiveTradeSimBuyAsync,
   recordLiveTradeSimSellAsync,
   recordLiveTradeSellSync,
@@ -612,7 +613,13 @@ export function createApp() {
       const userId = req.user.id;
       try {
         deleteLiveTradeProgramSync(id, userId);
-        res.json({ ok: true, programs: listLiveTradeProgramsSync(userId) });
+        const purged = purgeLiveTradeRecordsForProgramSync(id);
+        res.json({
+          ok: true,
+          deletedId: id,
+          purgedTrades: purged.removed,
+          programs: listLiveTradeProgramsSync(userId),
+        });
       } catch (e) {
         res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
       }

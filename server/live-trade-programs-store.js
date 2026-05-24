@@ -68,7 +68,9 @@ function readStoreSync() {
 
 function writeStoreSync(store) {
   ensureDirSync();
-  fs.writeFileSync(PROGRAMS_FILE, JSON.stringify(store, null, 0), "utf8");
+  const tmp = `${PROGRAMS_FILE}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(store, null, 0), "utf8");
+  fs.renameSync(tmp, PROGRAMS_FILE);
 }
 
 /** @param {unknown} v @param {number} min @param {number} max @param {number} fallback */
@@ -352,14 +354,15 @@ export function updateLiveTradeProgramSync(id, patch, userId) {
 
 export function deleteLiveTradeProgramSync(id, userId) {
   const sid = String(id ?? "").trim();
+  if (!sid) throw new Error("프로그램 id가 필요합니다.");
   const store = readStoreSync();
-  const before = store.programs.length;
-  store.programs = store.programs.filter(
-    (p) => p.id !== sid || !matchesUser(p, userId),
+  const idx = store.programs.findIndex(
+    (p) => p.id === sid && matchesUser(p, userId),
   );
-  if (store.programs.length === before) throw new Error("프로그램을 찾을 수 없습니다.");
+  if (idx < 0) throw new Error("프로그램을 찾을 수 없습니다.");
+  store.programs.splice(idx, 1);
   writeStoreSync(store);
-  return { ok: true };
+  return { ok: true, deletedId: sid };
 }
 
 /**

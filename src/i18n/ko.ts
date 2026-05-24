@@ -124,6 +124,8 @@ export const ko = {
     liveTradeSaved: "저장했습니다.",
     liveTradeRegistered: "실매매 프로그램을 등록했습니다.",
     liveTradeDeleteConfirm: "이 실매매 프로그램을 삭제할까요?",
+    liveTradeDeleteConfirmNamed: "「{name}」 프로그램만 삭제합니다. 다른 시뮬·실매매는 유지됩니다. 계속할까요?",
+    liveTradeDeleteRunningConfirm: "「{name}」은(는) 실행 중입니다. 이 프로그램만 중지·삭제합니다. 계속할까요?",
     liveTradeArmedOk: "실매매를 시작했습니다. 스크리너 고득점 종목이 조건에 맞으면 주문이 실행됩니다.",
     liveTradeArmedWaitToss: "등록은 완료됐지만 토스 API 계좌 설정 후에 실제 주문이 가능합니다.",
     liveTradeSimStartOk: "시뮬 자동 매매를 시작했습니다. 텔레그램 알림 시 자동 매수합니다.",

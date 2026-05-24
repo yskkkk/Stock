@@ -316,21 +316,44 @@ export default function LiveTradingTab({
   }, [buildBody, draft.maxOpenPositions, editingId, reload, resetForm]);
 
   const handleDelete = useCallback(
-    async (id: string) => {
-      if (!window.confirm(ko.app.liveTradeDeleteConfirm)) return;
+    async (id: string, name: string) => {
+      const target = status?.programs.find((p) => p.id === id);
+      const running = target?.status === "sim" || target?.status === "armed";
+      const confirmMsg = running
+        ? ko.app.liveTradeDeleteRunningConfirm.replace("{name}", name)
+        : ko.app.liveTradeDeleteConfirmNamed.replace("{name}", name);
+      if (!window.confirm(confirmMsg)) return;
       setBusy(true);
       setErr(null);
       try {
-        await deleteLiveTradeProgram(id);
+        if (target?.status === "sim") {
+          await stopSimLiveTradeProgram(id);
+        } else if (target?.status === "armed") {
+          await disarmLiveTradeProgram(id);
+        }
+        const res = await deleteLiveTradeProgram(id);
         if (editingId === id) resetForm();
-        await reload();
+        setStatus((prev) => {
+          if (!prev) return prev;
+          const programs = res.programs;
+          return {
+            ...prev,
+            programs,
+            armedCount: programs.filter((p) => p.status === "armed").length,
+            simCount: programs.filter((p) => p.status === "sim").length,
+          };
+        });
+        invalidateLiveTradingPrefetch();
+        refreshLiveTradingStatusNow();
+        setPortfolioRefreshKey((k) => k + 1);
+        void reload();
       } catch (e) {
         setErr(e instanceof Error ? e.message : String(e));
       } finally {
         setBusy(false);
       }
     },
-    [editingId, reload, resetForm],
+    [editingId, reload, resetForm, status?.programs],
   );
 
   const handleArmLane = useCallback(
@@ -1088,7 +1111,7 @@ export default function LiveTradingTab({
                         type="button"
                         className="btn btn--ghost btn--sm"
                         disabled={busy}
-                        onClick={() => void handleDelete(p.id)}
+                        onClick={() => void handleDelete(p.id, p.name)}
                       >
                         {ko.app.liveTradeDelete}
                       </button>

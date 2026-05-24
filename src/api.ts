@@ -1137,7 +1137,12 @@ export function updateLiveTradeProgram(
 }
 
 export function deleteLiveTradeProgram(id: string) {
-  return fetchJson<{ ok: boolean; programs: LiveTradeProgram[] }>(
+  return fetchJson<{
+    ok: boolean;
+    deletedId: string;
+    purgedTrades?: number;
+    programs: LiveTradeProgram[];
+  }>(
     `/api/live-trading/programs/${encodeURIComponent(id)}`,
     { method: "DELETE" },
   );
