@@ -78,19 +78,17 @@ export default function AppLiveTradeSideDock() {
     }
   }, []);
 
+  const toggleFold = useCallback(() => {
+    persistOpen(!open);
+  }, [open, persistOpen]);
+
   const onRailTab = useCallback(
     (id: string, title: string) => {
-      if (!openPanel || !closePanel) return;
-      const selected = panel?.id === id && open;
-      if (selected) {
-        persistOpen(false);
-        closePanel();
-        return;
-      }
+      if (!openPanel) return;
       openPanel(id, title);
       persistOpen(true);
     },
-    [openPanel, closePanel, panel?.id, open, persistOpen],
+    [openPanel, persistOpen],
   );
 
   if (!user || !wide) return null;
@@ -120,6 +118,19 @@ export default function AppLiveTradeSideDock() {
         className="app-live-trade-side-dock__rail"
         aria-label={ko.app.liveTradeSideDockRailAria}
       >
+        <button
+          type="button"
+          className="app-live-trade-side-dock__fold"
+          onClick={toggleFold}
+          aria-expanded={open}
+          aria-controls="app-live-trade-side-dock-panel"
+          title={open ? ko.app.liveTradeSideDockCollapse : ko.app.liveTradeSideDockExpand}
+        >
+          <span className="app-live-trade-side-dock__fold-icon" aria-hidden>
+            {open ? "›" : "‹"}
+          </span>
+        </button>
+        <div className="app-live-trade-side-dock__rail-tabs">
         {sideTabs.map((tab) => {
           const selected = open && activeId === tab.id;
           const { glyph, label } = railTabShort(tab.id, tab.title);
@@ -144,6 +155,7 @@ export default function AppLiveTradeSideDock() {
             </button>
           );
         })}
+        </div>
       </nav>
     </div>
   );

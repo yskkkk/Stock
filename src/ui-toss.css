@@ -1894,7 +1894,7 @@ html[data-theme="dark"] .live-trade-api-card__body .live-trading-tab__cred-form 
 }
 
 .live-trading-tab__card-tabs-pane--rail .live-trading-tab__card-tabs-hint {
-  padding-top: 1.5rem;
+  padding: 1.5rem 1rem;
 }
 
 .live-trading-tab__card-tabs {
