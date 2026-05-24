@@ -1893,6 +1893,10 @@ html[data-theme="dark"] .live-trade-api-card__body .live-trading-tab__cred-form 
   min-height: min(72vh, 640px);
 }
 
+.live-trading-tab__card-tabs-pane--rail .live-trading-tab__card-tabs-hint {
+  padding-top: 1.5rem;
+}
+
 .live-trading-tab__card-tabs {
   display: flex;
   flex-wrap: wrap;

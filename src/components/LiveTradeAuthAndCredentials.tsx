@@ -279,9 +279,12 @@ export function useLiveTradeCardSidePanelOptional(): LiveTradeSidePanelContextVa
 
 export function LiveTradeCardSidePanel({
   forceDocked = false,
+  railMode = false,
 }: {
   /** App 고정 오버레이 안에서 직접 렌더 */
   forceDocked?: boolean;
+  /** 우측 아이콘 레일 — 상단 가로 탭 숨김 */
+  railMode?: boolean;
 } = {}) {
   const { panel, openPanel, closePanel, bodyHostRef, sideTabs } =
     useLiveTradeCardSidePanel();
@@ -304,39 +307,43 @@ export function LiveTradeCardSidePanel({
     <aside
       className={`live-trading-tab__card-tabs-pane${
         activeId ? " live-trading-tab__card-tabs-pane--active" : ""
-      }${docked ? " live-trading-tab__card-tabs-pane--docked" : ""}`}
+      }${docked ? " live-trading-tab__card-tabs-pane--docked" : ""}${
+        railMode ? " live-trading-tab__card-tabs-pane--rail" : ""
+      }`}
       aria-label={ko.app.liveTradeCardTabPaneAria}
     >
-      <div
-        className="live-trading-tab__card-tabs"
-        role="tablist"
-        aria-label={ko.app.liveTradeCardTabPaneAria}
-      >
-        {sideTabs.map((tab) => {
-          const selected = activeId === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              id={`live-trade-card-tab-${tab.id}`}
-              aria-selected={selected}
-              aria-controls={`live-trade-card-tabpanel-${tab.id}`}
-              className={
-                selected
-                  ? "live-trading-tab__card-tab live-trading-tab__card-tab--on"
-                  : "live-trading-tab__card-tab"
-              }
-              onClick={() => {
-                if (selected) closePanel();
-                else openPanel(tab.id, tab.title);
-              }}
-            >
-              {tab.title}
-            </button>
-          );
-        })}
-      </div>
+      {!railMode ? (
+        <div
+          className="live-trading-tab__card-tabs"
+          role="tablist"
+          aria-label={ko.app.liveTradeCardTabPaneAria}
+        >
+          {sideTabs.map((tab) => {
+            const selected = activeId === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                id={`live-trade-card-tab-${tab.id}`}
+                aria-selected={selected}
+                aria-controls={`live-trade-card-tabpanel-${tab.id}`}
+                className={
+                  selected
+                    ? "live-trading-tab__card-tab live-trading-tab__card-tab--on"
+                    : "live-trading-tab__card-tab"
+                }
+                onClick={() => {
+                  if (selected) closePanel();
+                  else openPanel(tab.id, tab.title);
+                }}
+              >
+                {tab.title}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
       <div
         id={
           activeId

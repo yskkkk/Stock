@@ -189,6 +189,10 @@ export const ko = {
       "왼쪽 카드의 보기를 누르거나 오른쪽 패널 탭을 선택하세요.",
     liveTradeSideDockExpand: "패널 펼치기",
     liveTradeSideDockCollapse: "패널 접기",
+    liveTradeSideDockRailAria: "실매매 우측 메뉴",
+    liveTradeSideDockRailPortfolio: "보유·수익",
+    liveTradeSideDockRailForm: "프로그램",
+    liveTradeSideDockRailPrograms: "목록",
     liveTradeCardTabPaneAria: "실매매 카드 상세",
     liveTradeApiEncryptedNote:
       "API Key·Secret Key는 암호화되어 저장되며, 서버에서 평문을 알 수 없습니다.",
