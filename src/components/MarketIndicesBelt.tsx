@@ -15,32 +15,29 @@ function BeltChip({
   onOpen?: (item: MarketIndexItem) => void;
 }) {
   const tone = marketIndexChangeTone(item);
+  const chgClass =
+    tone === "up"
+      ? "market-indices-belt__chg market-indices-belt__chg--up"
+      : tone === "down"
+        ? "market-indices-belt__chg market-indices-belt__chg--down"
+        : "market-indices-belt__chg market-indices-belt__chg--muted";
+
   const body = (
     <>
       <span className="market-indices-belt__label">{item.label}</span>
       <span className="market-indices-belt__price">{formatMarketIndexPrice(item)}</span>
-      <span
-        className={
-          tone === "up"
-            ? "market-indices-belt__chg market-indices-belt__chg--up"
-            : tone === "down"
-              ? "market-indices-belt__chg market-indices-belt__chg--down"
-              : "market-indices-belt__chg market-indices-belt__chg--muted"
-        }
-      >
-        {formatMarketIndexChange(item)}
-      </span>
+      <span className={chgClass}>{formatMarketIndexChange(item)}</span>
     </>
   );
 
   if (!onOpen) {
-    return <span className="market-indices-belt__chip">{body}</span>;
+    return <span className="market-indices-belt__item">{body}</span>;
   }
 
   return (
     <button
       type="button"
-      className="market-indices-belt__chip market-indices-belt__chip--btn"
+      className="market-indices-belt__item market-indices-belt__item--btn"
       aria-label={
         ko.app.marketIndicesOpenChart?.replace("{name}", item.label) ?? item.label
       }
@@ -86,8 +83,8 @@ function MarketIndicesBeltInner({
       <div className="market-indices-belt__viewport">
         {loading && items.length === 0 ? (
           <div className="market-indices-belt__track market-indices-belt__track--sk">
-            {Array.from({ length: 4 }, (_, i) => (
-              <span key={i} className="market-indices-belt__chip market-indices-belt__chip--sk" />
+            {Array.from({ length: 6 }, (_, i) => (
+              <span key={i} className="market-indices-belt__item market-indices-belt__item--sk" />
             ))}
           </div>
         ) : loopItems.length > 0 ? (
@@ -100,11 +97,12 @@ function MarketIndicesBeltInner({
             }
           >
             {loopItems.map((item, i) => (
-              <BeltChip
-                key={`${item.id}-${i}`}
-                item={item}
-                onOpen={onOpenItem}
-              />
+              <span key={`${item.id}-${i}`} className="market-indices-belt__unit">
+                <BeltChip item={item} onOpen={onOpenItem} />
+                <span className="market-indices-belt__sep" aria-hidden>
+                  ·
+                </span>
+              </span>
             ))}
           </div>
         ) : (

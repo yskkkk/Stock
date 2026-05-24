@@ -8002,19 +8002,18 @@ html[data-theme="light"] .live-trade-rail {
   cursor: default;
 }
 
-/* 주요 지수 — 수평 벨트(무한 스크롤) */
+/* 주요 지수 — 수평 벨트(무한 스크롤, 한 줄·배경 없음) */
 .market-indices-belt {
   box-sizing: border-box;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  background: rgba(148, 163, 184, 0.05);
-  padding: 0.42rem 0;
+  border: none;
+  background: transparent;
+  padding: 0.2rem 0;
   overflow: hidden;
 }
 
 html[data-theme="light"] .market-indices-belt {
-  background: rgba(255, 255, 255, 0.88);
-  border-color: rgba(15, 23, 42, 0.1);
+  background: transparent;
+  border: none;
 }
 
 .market-indices-belt--side {
@@ -8027,7 +8026,7 @@ html[data-theme="light"] .market-indices-belt {
   display: block;
   width: 100%;
   max-width: 100%;
-  margin: 0 0 0.42rem;
+  margin: 0 0 0.28rem;
   box-sizing: border-box;
 }
 
@@ -8059,13 +8058,20 @@ html[data-theme="light"] .market-indices-belt {
 .market-indices-belt__track {
   display: flex;
   flex-wrap: nowrap;
-  align-items: stretch;
-  gap: 0.38rem;
+  align-items: center;
+  gap: 0;
   width: max-content;
-  padding-inline: 0.45rem;
+  padding-inline: 0.15rem;
   animation: market-indices-belt-scroll var(--market-indices-belt-duration, 28s) linear
     infinite;
   will-change: transform;
+}
+
+.market-indices-belt__unit {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  white-space: nowrap;
 }
 
 .market-indices-belt:hover .market-indices-belt__track {
@@ -8095,39 +8101,52 @@ html[data-theme="light"] .market-indices-belt {
   }
 }
 
-.market-indices-belt__chip {
+.market-indices-belt__item {
   display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.04rem;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.32rem;
   flex: 0 0 auto;
-  min-width: 6.75rem;
-  padding: 0.28rem 0.45rem;
-  border-radius: 8px;
-  background: rgba(148, 163, 184, 0.08);
-  font: inherit;
-  text-align: left;
-}
-
-.market-indices-belt__chip--btn {
-  margin: 0;
+  padding: 0;
   border: none;
+  background: transparent;
+  font: inherit;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.market-indices-belt__item--btn {
+  margin: 0;
   cursor: pointer;
-  transition: background 0.12s ease;
+  border-radius: 4px;
+  transition: opacity 0.12s ease;
 }
 
-.market-indices-belt__chip--btn:hover {
-  background: rgba(94, 234, 212, 0.12);
+.market-indices-belt__item--btn:hover {
+  opacity: 0.82;
 }
 
-.market-indices-belt__chip--btn:focus-visible {
+.market-indices-belt__item--btn:focus-visible {
   outline: 2px solid var(--accent-border);
   outline-offset: 2px;
 }
 
-.market-indices-belt__chip--sk {
-  min-height: 2.65rem;
-  min-width: 6.5rem;
+.market-indices-belt__sep {
+  flex: none;
+  margin: 0 0.55rem 0 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  opacity: 0.55;
+  user-select: none;
+}
+
+.market-indices-belt__item--sk {
+  display: inline-block;
+  width: 5.5rem;
+  height: 0.82rem;
+  border-radius: 4px;
+  background: rgba(148, 163, 184, 0.14);
   animation: market-indices-pulse 1.2s ease-in-out infinite;
 }
 
@@ -8136,25 +8155,22 @@ html[data-theme="light"] .market-indices-belt {
 }
 
 .market-indices-belt__label {
-  font-size: 0.66rem;
-  font-weight: 750;
+  font-size: 0.74rem;
+  font-weight: 700;
   color: var(--text-dim);
-  white-space: nowrap;
 }
 
 .market-indices-belt__price {
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   color: var(--text);
-  white-space: nowrap;
 }
 
 .market-indices-belt__chg {
-  font-size: 0.66rem;
+  font-size: 0.74rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
 .market-indices-belt__chg--up {
