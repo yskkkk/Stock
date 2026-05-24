@@ -39,6 +39,7 @@ import {
   type PortfolioMetricLine,
 } from "../lib/livePortfolioPnl";
 import { tradeFillDisplayByTradeId } from "../lib/liveTradeBuySellPrices";
+import { formatTradeSideLabel } from "../lib/liveTradeSideDisplay";
 import { notifyLiveTradeAuthChange } from "../lib/liveTradeAuthEvents";
 import { refreshLiveTradingStatusNow } from "../hooks/useLiveTradingStatusPoll";
 import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
@@ -64,10 +65,6 @@ function formatTs(ms: number): string {
   } catch {
     return "—";
   }
-}
-
-function sideLabel(side: LiveTradeRecord["side"]): string {
-  return side === "buy" ? ko.app.liveTradeSideBuy : ko.app.liveTradeSideSell;
 }
 
 function metricLinePrefix(line: PortfolioMetricLine): string {
@@ -804,16 +801,7 @@ export default function LiveTradePortfolioPanel({
                           {formatTs(t.atMs)}
                         </td>
                         <td data-label={ko.app.liveTradePfColSide}>
-                          {sideLabel(t.side)}
-                          {t.simulated ? (
-                            <span className="live-portfolio__sim"> {ko.app.liveTradeSimTag}</span>
-                          ) : null}
-                          {t.exchangeImport ? (
-                            <span className="live-portfolio__sim live-portfolio__sim--exchange">
-                              {" "}
-                              {ko.app.liveTradeExchangeTag}
-                            </span>
-                          ) : null}
+                          {formatTradeSideLabel(t)}
                         </td>
                         <td data-label={ko.app.liveTradePfColSymbol}>
                           <TradeSymbolCell t={t} />

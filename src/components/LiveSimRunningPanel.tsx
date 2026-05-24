@@ -12,7 +12,6 @@ import {
   type LiveTradePortfolioResponse,
   type LiveTradeProgram,
   type LiveTradeRecord,
-  type LiveTradingStatusResponse,
 } from "../api";
 import { useLiveTradeFeeRates } from "../contexts/LiveTradeFeeRatesContext";
 import { useLivePortfolioQuotePoll } from "../hooks/useLivePortfolioQuotePoll";
@@ -30,6 +29,7 @@ import {
 } from "../lib/livePortfolioPnl";
 import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
 import { tradeFillDisplayByTradeId } from "../lib/liveTradeBuySellPrices";
+import { formatTradeSideLabel } from "../lib/liveTradeSideDisplay";
 import { showProgramRunError } from "../lib/liveProgramDisplay";
 import { ko } from "../i18n/ko";
 import LiveSimFeedbackBlock from "./LiveSimFeedbackBlock";
@@ -38,6 +38,7 @@ import {
   LiveTradeExitPriceCell,
   LiveTradeHoldingRationaleRow,
 } from "./LiveTradeHoldingDisplay";
+import { LiveTradeSymbolCellFromRecord } from "./LiveTradeSymbolCell";
 
 function sellHorizonLabel(h?: LiveTradeProgram["sellHorizon"]): string {
   switch (h) {
@@ -111,7 +112,6 @@ function ProgramRunCard({
   onProgramUpdated,
   onOpenHoldingChart,
   usdKrwRate,
-  bithumbSimulatedOrders,
 }: {
   program: LiveTradeProgram;
   mode: "sim" | "armed";
@@ -124,7 +124,6 @@ function ProgramRunCard({
   onProgramUpdated?: () => void;
   onOpenHoldingChart?: (h: LiveTradeHolding) => void;
   usdKrwRate: number | null;
-  bithumbSimulatedOrders?: boolean;
 }) {
   const isArmed = mode === "armed";
   const [expanded, setExpanded] = useState(false);
@@ -134,6 +133,18 @@ function ProgramRunCard({
   const pnlDown = sum.unrealizedUp === false;
   const recentTrades = trades.slice(0, 12);
   const tradeFill = useMemo(() => tradeFillDisplayByTradeId(trades), [trades]);
+  const nameBySymbol = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const h of holdings) {
+      const nm = String(h.name ?? "").trim();
+      if (nm) m.set(h.symbol.toUpperCase(), nm);
+    }
+    for (const t of trades) {
+      const nm = String(t.name ?? "").trim();
+      if (nm) m.set(t.symbol.toUpperCase(), nm);
+    }
+    return m;
+  }, [holdings, trades]);
 
   const toggleExpanded = () => setExpanded((v) => !v);
 
@@ -234,11 +245,7 @@ function ProgramRunCard({
           <>
             <li>{armedLaneLabel(program)}</li>
             {program.armedMarkets?.crypto ? (
-              <li>
-                {bithumbSimulatedOrders === false
-                  ? ko.app.liveTradeLeftRailLiveOrders
-                  : ko.app.liveTradeLeftRailSimOrders}
-              </li>
+              <li>{ko.app.liveTradeLeftRailLiveOrders}</li>
             ) : null}
             {program.autoSellAtTarget !== false ? (
               <li>
@@ -470,11 +477,16 @@ function ProgramRunCard({
                     {formatTs(t.atMs)}
                   </td>
                   <td data-label={ko.app.liveTradePfColSide}>
-                    {t.side === "buy"
-                      ? ko.app.liveTradeSideBuy
-                      : ko.app.liveTradeSideSell}
+                    {formatTradeSideLabel(t)}
                   </td>
-                  <td data-label={ko.app.liveTradePfColSymbol}>{t.symbol}</td>
+                  <td data-label={ko.app.liveTradePfColSymbol}>
+                    <LiveTradeSymbolCellFromRecord
+                      t={{
+                        ...t,
+                        name: nameBySymbol.get(t.symbol.toUpperCase()) ?? t.name,
+                      }}
+                    />
+                  </td>
                   <td className="live-sim-run__num" data-label={ko.app.liveTradePfColQty}>
                     {t.quantity.toLocaleString("ko-KR")}
                   </td>
@@ -540,7 +552,6 @@ function ProgramRunCard({
 
 export default function LiveSimRunningPanel({
   programs,
-  status,
   busy = false,
   onStop,
   onDisarm,
@@ -549,7 +560,6 @@ export default function LiveSimRunningPanel({
   onOpenHoldingChart,
 }: {
   programs: LiveTradeProgram[];
-  status?: LiveTradingStatusResponse | null;
   busy?: boolean;
   onStop: (id: string) => void;
   onDisarm: (id: string) => void;
@@ -575,8 +585,6 @@ export default function LiveSimRunningPanel({
     [activePrograms],
   );
   const { rate: usdKrwRate } = useUsdKrwRate(activeIds.size > 0);
-  const bithumbSimulatedOrders = status?.bithumbSimulatedOrders !== false;
-
   const [portfolio, setPortfolio] = useState<LiveTradePortfolioResponse | null>(
     null,
   );
@@ -729,7 +737,6 @@ export default function LiveSimRunningPanel({
               onProgramUpdated={onProgramUpdated}
               onOpenHoldingChart={onOpenHoldingChart}
               usdKrwRate={usdKrwRate}
-              bithumbSimulatedOrders={bithumbSimulatedOrders}
             />
           ))}
         </div>

@@ -130,6 +130,8 @@ export const ko = {
     liveTradePfOrderSideSell: "매도",
     liveTradePfColProgram: "프로그램",
     liveTradeSimTag: "시뮬",
+    liveTradeSideSourceProgram: "프로그램",
+    liveTradeSideSourceSim: "시뮬",
     liveTradeExchangeTag: "거래소",
     liveTradePfSinceNotify: "알림 후",
     liveTradePfExchangeTradesNote:
