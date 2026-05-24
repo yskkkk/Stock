@@ -19,6 +19,8 @@ import {
   mergeLiveQuotesIntoPortfolio,
 } from "../lib/livePortfolioLiveQuotes";
 import LiveTradeSimPanel from "./LiveTradeSimPanel";
+import LiveTradeOpenOrdersPanel from "./LiveTradeOpenOrdersPanel";
+import { LiveTradeCollapsibleCard } from "./LiveTradeAuthAndCredentials";
 import {
   formatLiveTradeQuantity,
   formatPercent,
@@ -27,18 +29,18 @@ import {
   formatTimeMsKst,
 } from "../lib/format";
 import {
-  LivePortfolioMoney,
-  LivePortfolioSignedMoney,
-} from "../lib/livePortfolioMoneyDisplay";
-import {
   buildPortfolioMetricLines,
+  formatUnrealizedPnlLabel,
   openHoldingsNetReturnPct,
   portfolioReturnPct,
   summarizeHoldingsPnl,
   summarizeNetMarketByCurrency,
+  unrealizedPnlTone,
   type PortfolioMetricLine,
 } from "../lib/livePortfolioPnl";
 import { tradeFillDisplayByTradeId } from "../lib/liveTradeBuySellPrices";
+import { notifyLiveTradeAuthChange } from "../lib/liveTradeAuthEvents";
+import { refreshLiveTradingStatusNow } from "../hooks/useLiveTradingStatusPoll";
 import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
 import { ko } from "../i18n/ko";
 import {
@@ -46,8 +48,9 @@ import {
   LiveTradeExitPriceCell,
   LiveTradeHoldingRationaleRow,
 } from "./LiveTradeHoldingDisplay";
+import { LiveTradeSymbolCellFromRecord as TradeSymbolCell } from "./LiveTradeSymbolCell";
 
-type PanelTab = "summary" | "holdings" | "trades";
+type PanelTab = "summary" | "holdings" | "trades" | "openOrders";
 
 function formatTs(ms: number): string {
   try {
@@ -123,6 +126,69 @@ function SummaryMetricCard({
       ) : null}
       {sub ? <span className="live-portfolio__metric-sub">{sub}</span> : null}
     </article>
+  );
+}
+
+function PortfolioHeroTiles({
+  holdings,
+  summary,
+  usdKrwRate,
+  roundTripForMarket,
+}: {
+  holdings: LiveTradeHolding[];
+  summary: LiveTradePortfolioResponse["summary"];
+  usdKrwRate: number | null;
+  roundTripForMarket: (market: LiveTradeHolding["market"]) => number;
+}) {
+  const agg = summarizeHoldingsPnl(holdings);
+  const netMarketByCurrency = summarizeNetMarketByCurrency(
+    holdings,
+    roundTripForMarket,
+  );
+  const ret =
+    openHoldingsNetReturnPct(holdings, roundTripForMarket, usdKrwRate) ??
+    portfolioReturnPct(agg.investedByCurrency, netMarketByCurrency, usdKrwRate) ??
+    summary.totalReturnPct;
+  const retUp = ret != null && ret >= 0;
+  const pnlUp = unrealizedPnlTone(agg.pnlByCurrency, usdKrwRate);
+  const pnlDown = pnlUp === false;
+  const unrealizedLabel = formatUnrealizedPnlLabel(agg.pnlByCurrency, usdKrwRate);
+
+  return (
+    <div className="live-sim-run__tiles live-portfolio__hero-tiles">
+      <div className="live-sim-run__tile">
+        <span className="live-sim-run__tile-k">{ko.app.liveTradePfHoldings}</span>
+        <span className="live-sim-run__tile-v">{summary.holdingCount}</span>
+      </div>
+      <div className="live-sim-run__tile">
+        <span className="live-sim-run__tile-k">{ko.app.liveTradePfUnrealized}</span>
+        <span
+          className={
+            pnlUp
+              ? "live-sim-run__tile-v live-sim-run__tile-v--up"
+              : pnlDown
+                ? "live-sim-run__tile-v live-sim-run__tile-v--down"
+                : "live-sim-run__tile-v"
+          }
+        >
+          {unrealizedLabel}
+        </span>
+      </div>
+      <div className="live-sim-run__tile">
+        <span className="live-sim-run__tile-k">{ko.app.liveTradePfReturn}</span>
+        <span
+          className={
+            ret == null
+              ? "live-sim-run__tile-v"
+              : retUp
+                ? "live-sim-run__tile-v live-sim-run__tile-v--up"
+                : "live-sim-run__tile-v live-sim-run__tile-v--down"
+          }
+        >
+          {ret == null ? "—" : formatPercent(ret)}
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -208,14 +274,14 @@ function SummaryTiles({
 function HoldingRow({
   row,
   busy,
-  usdKrwRate,
+  portfolioProgramId,
   onSold,
   onOpenHoldingChart,
 }: {
   row: LiveTradeHolding;
   busy: boolean;
-  usdKrwRate: number | null;
-  onSold: () => void;
+  portfolioProgramId: string;
+  onSold: (portfolio: LiveTradePortfolioResponse) => void;
   onOpenHoldingChart?: (h: LiveTradeHolding) => void;
 }) {
   const [sellOpen, setSellOpen] = useState(false);
@@ -223,7 +289,8 @@ function HoldingRow({
   const [sellErr, setSellErr] = useState<string | null>(null);
   const [sellOk, setSellOk] = useState<string | null>(null);
 
-  const up = (row.changePct ?? 0) >= 0;
+  const up = (row.unrealizedPnl ?? 0) >= 0;
+  const chgUp = (row.changePct ?? 0) >= 0;
 
   const submitSell = () => {
     const quantity = Number(sellQty);
@@ -234,6 +301,7 @@ function HoldingRow({
       symbol: row.symbol,
       market: row.market,
       quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : undefined,
+      portfolioProgramId: portfolioProgramId || null,
     })
       .then((res) => {
         setSellOpen(false);
@@ -242,66 +310,63 @@ function HoldingRow({
             .replace("{price}", formatPrice(res.quote.price, row.currency))
             .replace("{time}", formatTs(res.quote.atMs)),
         );
-        onSold();
+        onSold(res.portfolio);
       })
       .catch((e) => setSellErr(e instanceof Error ? e.message : String(e)));
   };
 
   return (
     <Fragment>
-    <tr className="live-portfolio__row">
+    <tr>
       <td data-label={ko.app.liveTradePfColSymbol}>
-        <LiveHoldingChartSymbol
-          holding={row}
-          variant="portfolio"
-          onOpen={onOpenHoldingChart}
-        />
+        <LiveHoldingChartSymbol holding={row} onOpen={onOpenHoldingChart} />
+        {!portfolioProgramId && (row.programName ?? row.programId) ? (
+          <span className="live-sim-run__name live-portfolio__row-prog">
+            {row.programName ?? row.programId}
+          </span>
+        ) : null}
       </td>
-      <td className="live-portfolio__num live-table__col live-table__col--num-end" data-label={ko.app.liveTradePfColQty}>
+      <td className="live-sim-run__num" data-label={ko.app.liveTradePfColQty}>
         {formatLiveTradeQuantity(row.quantity, row.market)}
       </td>
-      <td className="live-portfolio__num live-table__col live-table__col--num-end" data-label={ko.app.liveTradePfColBuyPrice}>
-        <LivePortfolioMoney
-          amount={row.avgEntryPrice}
-          currency={row.currency}
-          usdKrwRate={usdKrwRate}
-        />
+      <td className="live-sim-run__num" data-label={ko.app.liveTradePfColBuyPrice}>
+        {row.avgEntryPrice > 0 ? formatPrice(row.avgEntryPrice, row.currency) : "—"}
+      </td>
+      <td className="live-sim-run__num" data-label={ko.app.liveTradePfColCurrent}>
+        {row.currentPrice != null ? (
+          <>
+            {formatPrice(row.currentPrice, row.currency)}
+            {row.changePct != null ? (
+              <span
+                className={
+                  chgUp
+                    ? "live-sim-run__quote-1m live-sim-run__num--up"
+                    : "live-sim-run__quote-1m live-sim-run__num--down"
+                }
+              >
+                {formatPercent(row.changePct)}
+                {row.sinceNotifyReturnPct != null
+                  ? ` · ${ko.app.liveTradePfSinceNotifyShort} ${formatPercent(row.sinceNotifyReturnPct)}`
+                  : ""}
+              </span>
+            ) : null}
+            {row.quoteQuotedAtMs ? (
+              <span className="live-sim-run__quote-1m">
+                {row.priceSource === "over"
+                  ? "시간외"
+                  : row.priceSource === "regular"
+                    ? "정규"
+                    : "분봉"}{" "}
+                {formatTimeMsKst(row.quoteQuotedAtMs)}
+              </span>
+            ) : null}
+          </>
+        ) : (
+          "—"
+        )}
       </td>
       <td
-        className="live-portfolio__num live-portfolio__num--price live-table__col live-table__col--num-end"
-        data-label={ko.app.liveTradePfColCurrent}
-      >
-        <span className="live-portfolio__price-cell">
-          <LivePortfolioMoney
-            amount={row.currentPrice}
-            currency={row.currency}
-            usdKrwRate={usdKrwRate}
-          />
-          {row.quoteQuotedAtMs ? (
-            <span className="live-portfolio__quote-ts">
-              {row.priceSource === "over"
-                ? "시간외"
-                : row.priceSource === "regular"
-                  ? "정규"
-                  : "분봉"}{" "}
-              {formatTimeMsKst(row.quoteQuotedAtMs)}
-            </span>
-          ) : null}
-          {row.changePct != null ? (
-            <span
-              className={
-                up
-                  ? "live-portfolio__inline-pct live-portfolio__inline-pct--up"
-                  : "live-portfolio__inline-pct live-portfolio__inline-pct--down"
-              }
-            >
-              {formatPercent(row.changePct)}
-            </span>
-          ) : null}
-        </span>
-      </td>
-      <td
-        className="live-portfolio__num live-portfolio__num--exit live-table__col live-table__col--exit"
+        className="live-sim-run__num live-sim-run__num--exit live-table__col live-table__col--exit"
         data-label={ko.app.liveTradePfColTargetSell}
       >
         <LiveTradeExitPriceCell
@@ -310,11 +375,10 @@ function HoldingRow({
           currency={row.currency}
           market={row.market}
           variant="success"
-          usdKrwRate={usdKrwRate}
         />
       </td>
       <td
-        className="live-portfolio__num live-portfolio__num--exit live-table__col live-table__col--exit"
+        className="live-sim-run__num live-sim-run__num--exit live-table__col live-table__col--exit"
         data-label={ko.app.liveTradePfColStopLoss}
       >
         <LiveTradeExitPriceCell
@@ -323,34 +387,27 @@ function HoldingRow({
           currency={row.currency}
           market={row.market}
           variant="failure"
-          usdKrwRate={usdKrwRate}
         />
       </td>
       <td
         className={
           row.unrealizedPnl == null
-            ? "live-portfolio__num live-table__col live-table__col--num-end"
-            : row.unrealizedPnl >= 0
-              ? "live-portfolio__num live-portfolio__num--up live-table__col live-table__col--num-end"
-              : "live-portfolio__num live-portfolio__num--down live-table__col live-table__col--num-end"
+            ? "live-sim-run__num live-table__col live-table__col--num-end"
+            : up
+              ? "live-sim-run__num live-sim-run__num--up live-table__col live-table__col--num-end"
+              : "live-sim-run__num live-sim-run__num--down live-table__col live-table__col--num-end"
         }
         data-label={ko.app.liveTradePfColPnl}
       >
-        {row.unrealizedPnl == null ? (
-          "—"
-        ) : (
-          <LivePortfolioSignedMoney
-            amount={row.unrealizedPnl}
-            currency={row.currency}
-            usdKrwRate={usdKrwRate}
-          />
-        )}
+        {row.unrealizedPnl != null
+          ? formatSignedMoney(row.unrealizedPnl, row.currency)
+          : "—"}
       </td>
-      <td className="live-portfolio__actions-cell">
+      <td className="live-portfolio__actions-cell" data-label={ko.app.liveTradeSimSell}>
         {!sellOpen ? (
           <button
             type="button"
-            className="btn btn--secondary btn--sm"
+            className="btn btn--secondary btn--sm live-portfolio__sell-btn"
             disabled={busy}
             onClick={() => {
               setSellOpen(true);
@@ -402,7 +459,7 @@ function HoldingRow({
         ) : null}
       </td>
     </tr>
-    <LiveTradeHoldingRationaleRow holding={row} colSpan={7} />
+    <LiveTradeHoldingRationaleRow holding={row} colSpan={8} />
     </Fragment>
   );
 }
@@ -414,23 +471,24 @@ export default function LiveTradePortfolioPanel({
   programs: LiveTradeProgram[];
   onOpenHoldingChart?: (h: LiveTradeHolding) => void;
 }) {
-  const [tab, setTab] = useState<PanelTab>("summary");
+  const [tab, setTab] = useState<PanelTab>("holdings");
   const [programId, setProgramId] = useState<string>("");
   const [data, setData] = useState<LiveTradePortfolioResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const { feeRates } = useLiveTradeFeeRates();
+  const { feeRates, roundTripForMarket } = useLiveTradeFeeRates();
   const feeByMarket = useMemo(
     () => feeByMarketFromStatus(feeRates),
     [feeRates],
   );
 
-  const load = useCallback(async () => {
-    try {
-      const snap = await fetchLiveTradingPortfolio(programId || null);
+  const applyPortfolioSnapshot = useCallback(
+    async (snap: LiveTradePortfolioResponse) => {
       const syms = [
-        ...new Set(snap.holdings.map((h) => h.symbol.trim().toUpperCase()).filter(Boolean)),
+        ...new Set(
+          snap.holdings.map((h) => h.symbol.trim().toUpperCase()).filter(Boolean),
+        ),
       ];
       let merged = snap;
       if (syms.length > 0) {
@@ -441,22 +499,47 @@ export default function LiveTradePortfolioPanel({
           merged = snap;
         }
       }
-      setData((prev) =>
-        prev?.holdings.length
-          ? mergeLiveQuotesIntoPortfolio(
-              merged,
-              extractQuotesFromPortfolio(prev),
-              feeByMarket,
-            )
-          : merged,
-      );
+      setData(merged);
       setErr(null);
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
-  }, [programId, feeByMarket]);
+    },
+    [feeByMarket],
+  );
+
+  const load = useCallback(
+    async (opts?: { keepQuoteMerge?: boolean }) => {
+      try {
+        const snap = await fetchLiveTradingPortfolio(programId || null);
+        if (opts?.keepQuoteMerge) {
+          setData((prev) =>
+            prev?.holdings.length
+              ? mergeLiveQuotesIntoPortfolio(
+                  snap,
+                  extractQuotesFromPortfolio(prev),
+                  feeByMarket,
+                )
+              : snap,
+          );
+        } else {
+          await applyPortfolioSnapshot(snap);
+        }
+        setErr(null);
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : String(e));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [programId, feeByMarket, applyPortfolioSnapshot],
+  );
+
+  const onPortfolioAfterTrade = useCallback(
+    (snap: LiveTradePortfolioResponse) => {
+      void applyPortfolioSnapshot(snap);
+      refreshLiveTradingStatusNow();
+      notifyLiveTradeAuthChange();
+    },
+    [applyPortfolioSnapshot],
+  );
 
   useEffect(() => {
     setLoading(true);
@@ -490,6 +573,31 @@ export default function LiveTradePortfolioPanel({
     [data?.trades],
   );
 
+  const collapsedSummary = useMemo(() => {
+    if (loading && !data) return ko.app.liveTradePfLoading;
+    if (err && !data) {
+      const s = String(err);
+      return s.length > 72 ? `${s.slice(0, 69)}…` : s;
+    }
+    if (!data) return "—";
+    const agg = summarizeHoldingsPnl(data.holdings);
+    const netMarketByCurrency = summarizeNetMarketByCurrency(
+      data.holdings,
+      roundTripForMarket,
+    );
+    const ret =
+      openHoldingsNetReturnPct(data.holdings, roundTripForMarket, usdKrwRate) ??
+      portfolioReturnPct(agg.investedByCurrency, netMarketByCurrency, usdKrwRate) ??
+      data.summary.totalReturnPct;
+    const retStr = ret == null ? "—" : formatPercent(ret);
+    const unrealKrw = agg.pnlByCurrency.KRW;
+    const unrealStr =
+      unrealKrw != null && Number.isFinite(unrealKrw)
+        ? formatSignedMoney(unrealKrw, "KRW")
+        : "—";
+    return `${ko.app.liveTradePfHoldings} ${data.summary.holdingCount} · ${ko.app.liveTradePfReturn} ${retStr} · ${ko.app.liveTradePfUnrealized} ${unrealStr}`;
+  }, [data, loading, err, usdKrwRate, roundTripForMarket]);
+
   return (
     <>
       <LiveTradeSimPanel
@@ -497,14 +605,16 @@ export default function LiveTradePortfolioPanel({
         defaultProgramId={programId || undefined}
         onTraded={() => {
           setBusy(true);
-          void load().finally(() => setBusy(false));
+          void load({ keepQuoteMerge: false }).finally(() => setBusy(false));
         }}
       />
-      <section className="live-portfolio card" aria-label={ko.app.liveTradePfTitle}>
-      <header className="live-portfolio__head">
-        <h3 className="live-trading-tab__section-title live-portfolio__title">
-          {ko.app.liveTradePfTitle}
-        </h3>
+      <LiveTradeCollapsibleCard
+        title={ko.app.liveTradePfTitle}
+        summary={collapsedSummary}
+        className="live-portfolio live-portfolio--collapsible live-portfolio--sim-like"
+        ariaLabel={ko.app.liveTradePfTitle}
+      >
+      <header className="live-portfolio__head live-portfolio__head--in-card">
         <div className="live-portfolio__head-tools">
           <label className="live-portfolio__filter">
             <span className="live-portfolio__filter-label">
@@ -536,13 +646,14 @@ export default function LiveTradePortfolioPanel({
         </div>
       </header>
 
-      <div className="live-portfolio__panel">
+      <div className="live-portfolio__panel live-portfolio__panel--in-card">
         <div className="live-portfolio__tabs" role="tablist">
           {(
             [
               ["summary", ko.app.liveTradePfTabSummary],
               ["holdings", ko.app.liveTradePfTabHoldings],
               ["trades", ko.app.liveTradePfTabTrades],
+              ["openOrders", ko.app.liveTradePfTabOpenOrders],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -573,6 +684,13 @@ export default function LiveTradePortfolioPanel({
 
         {data ? (
           <div className="live-portfolio__body">
+          <PortfolioHeroTiles
+            holdings={data.holdings}
+            summary={data.summary}
+            usdKrwRate={usdKrwRate}
+            roundTripForMarket={roundTripForMarket}
+          />
+
           {tab === "summary" ? (
             <SummaryTiles
               holdings={data.holdings}
@@ -583,22 +701,18 @@ export default function LiveTradePortfolioPanel({
 
           {tab === "holdings" ? (
             data.holdings.length === 0 ? (
-              <p className="live-portfolio__muted">{ko.app.liveTradePfNoHoldings}</p>
+              <p className="live-sim-run__muted">{ko.app.liveTradePfNoHoldings}</p>
             ) : (
-              <div className="live-portfolio__table-wrap">
-                <table className="live-portfolio__table live-portfolio__table--stacked live-portfolio__table--holdings">
+              <>
+              <h5 className="live-sim-run__sub">{ko.app.liveTradeSimRunHoldings}</h5>
+              <div className="live-sim-run__table-wrap">
+                <table className="live-sim-run__table live-sim-run__table--stacked">
                   <thead>
                     <tr>
                       <th>{ko.app.liveTradePfColSymbol}</th>
-                      <th className="live-table__col live-table__col--num-end">
-                        {ko.app.liveTradePfColQty}
-                      </th>
-                      <th className="live-table__col live-table__col--num-end">
-                        {ko.app.liveTradePfColBuyPrice}
-                      </th>
-                      <th className="live-table__col live-table__col--num-end">
-                        {ko.app.liveTradePfColCurrent}
-                      </th>
+                      <th>{ko.app.liveTradePfColQty}</th>
+                      <th>{ko.app.liveTradePfColBuyPrice}</th>
+                      <th>{ko.app.liveTradePfColCurrent}</th>
                       <th className="live-table__col live-table__col--exit">
                         {ko.app.liveTradePfColTargetSell}
                       </th>
@@ -617,26 +731,47 @@ export default function LiveTradePortfolioPanel({
                         key={`${h.programId}:${h.market}:${h.symbol}`}
                         row={h}
                         busy={busy}
-                        usdKrwRate={usdKrwRate}
                         onOpenHoldingChart={onOpenHoldingChart}
-                        onSold={() => {
+                        portfolioProgramId={programId}
+                        onSold={(snap) => {
                           setBusy(true);
-                          void load().finally(() => setBusy(false));
+                          onPortfolioAfterTrade(snap);
+                          setBusy(false);
                         }}
                       />
                     ))}
                   </tbody>
                 </table>
               </div>
+              </>
             )
+          ) : null}
+
+          {tab === "openOrders" ? (
+            <LiveTradeOpenOrdersPanel
+              onChanged={() => {
+                void load({ keepQuoteMerge: false });
+                notifyLiveTradeAuthChange();
+              }}
+            />
           ) : null}
 
           {tab === "trades" ? (
             data.trades.length === 0 ? (
-              <p className="live-portfolio__muted">{ko.app.liveTradePfNoTrades}</p>
+              <>
+                <p className="live-portfolio__exchange-note">
+                  {ko.app.liveTradePfExchangeTradesNote}
+                </p>
+                <p className="live-portfolio__muted">{ko.app.liveTradePfNoTrades}</p>
+              </>
             ) : (
-              <div className="live-portfolio__table-wrap">
-                <table className="live-portfolio__table live-portfolio__table--stacked live-portfolio__table--trades">
+              <>
+              <p className="live-portfolio__exchange-note">
+                {ko.app.liveTradePfExchangeTradesNote}
+              </p>
+              <h5 className="live-sim-run__sub">{ko.app.liveTradeSimRunRecentTrades}</h5>
+              <div className="live-sim-run__table-wrap">
+                <table className="live-sim-run__table live-sim-run__table--stacked live-sim-run__table--trades">
                   <thead>
                     <tr>
                       <th>{ko.app.liveTradePfColTime}</th>
@@ -661,36 +796,33 @@ export default function LiveTradePortfolioPanel({
                         key={t.id}
                         className={
                           t.side === "buy"
-                            ? "live-portfolio__row live-portfolio__row--buy"
-                            : "live-portfolio__row live-portfolio__row--sell"
+                            ? "live-sim-run__row--buy"
+                            : "live-sim-run__row--sell"
                         }
                       >
-                        <td className="live-portfolio__ts" data-label={ko.app.liveTradePfColTime}>
+                        <td className="live-sim-run__ts" data-label={ko.app.liveTradePfColTime}>
                           {formatTs(t.atMs)}
                         </td>
                         <td data-label={ko.app.liveTradePfColSide}>
-                          <span
-                            className={
-                              t.side === "buy"
-                                ? "live-portfolio__side live-portfolio__side--buy"
-                                : "live-portfolio__side live-portfolio__side--sell"
-                            }
-                          >
-                            {sideLabel(t.side)}
-                            {t.simulated ? (
-                              <span className="live-portfolio__sim">{ko.app.liveTradeSimTag}</span>
-                            ) : null}
-                          </span>
+                          {sideLabel(t.side)}
+                          {t.simulated ? (
+                            <span className="live-portfolio__sim"> {ko.app.liveTradeSimTag}</span>
+                          ) : null}
+                          {t.exchangeImport ? (
+                            <span className="live-portfolio__sim live-portfolio__sim--exchange">
+                              {" "}
+                              {ko.app.liveTradeExchangeTag}
+                            </span>
+                          ) : null}
                         </td>
                         <td data-label={ko.app.liveTradePfColSymbol}>
-                          <span className="live-portfolio__sym">{t.symbol}</span>
-                          <span className="live-portfolio__nm">{t.name}</span>
+                          <TradeSymbolCell t={t} />
                         </td>
-                        <td className="live-portfolio__num" data-label={ko.app.liveTradePfColQty}>
+                        <td className="live-sim-run__num" data-label={ko.app.liveTradePfColQty}>
                           {formatLiveTradeQuantity(t.quantity, t.market)}
                         </td>
                         <td
-                          className="live-portfolio__num"
+                          className="live-sim-run__num"
                           data-label={ko.app.liveTradePfColBuyPrice}
                         >
                           {fd?.buyPrice != null
@@ -698,7 +830,7 @@ export default function LiveTradePortfolioPanel({
                             : "—"}
                         </td>
                         <td
-                          className="live-portfolio__num"
+                          className="live-sim-run__num"
                           data-label={ko.app.liveTradePfColSellPrice}
                         >
                           {fd?.sellPrice != null
@@ -708,10 +840,10 @@ export default function LiveTradePortfolioPanel({
                         <td
                           className={
                             pnlUp == null
-                              ? "live-portfolio__num"
+                              ? "live-sim-run__num"
                               : pnlUp
-                                ? "live-portfolio__num live-portfolio__num--up"
-                                : "live-portfolio__num live-portfolio__num--down"
+                                ? "live-sim-run__num live-sim-run__num--up"
+                                : "live-sim-run__num live-sim-run__num--down"
                           }
                           data-label={ko.app.liveTradePfColRealizedPnlPct}
                         >
@@ -722,10 +854,10 @@ export default function LiveTradePortfolioPanel({
                         <td
                           className={
                             pnlUp == null
-                              ? "live-portfolio__num"
+                              ? "live-sim-run__num"
                               : pnlUp
-                                ? "live-portfolio__num live-portfolio__num--up"
-                                : "live-portfolio__num live-portfolio__num--down"
+                                ? "live-sim-run__num live-sim-run__num--up"
+                                : "live-sim-run__num live-sim-run__num--down"
                           }
                           data-label={ko.app.liveTradePfColRealizedPnl}
                         >
@@ -733,17 +865,17 @@ export default function LiveTradePortfolioPanel({
                             ? formatSignedMoney(fd.realizedPnl, t.currency)
                             : "—"}
                         </td>
-                        <td className="live-portfolio__num" data-label={ko.app.liveTradePfColAmount}>
+                        <td className="live-sim-run__num" data-label={ko.app.liveTradePfColAmount}>
                           {formatPrice(t.amount, t.currency)}
                         </td>
                         <td
-                          className="live-portfolio__prog live-portfolio__actions-cell"
+                          className="live-sim-run__num live-portfolio__prog"
                           data-label={ko.app.liveTradePfColProgram}
                         >
-                          {t.programName ?? t.programId}
+                          <span className="live-sim-run__sym">{t.programName ?? t.programId}</span>
                           {t.note ? (
-                            <span className="live-portfolio__note" title={t.note}>
-                              · {t.note}
+                            <span className="live-sim-run__name" title={t.note}>
+                              {t.note}
                             </span>
                           ) : null}
                         </td>
@@ -753,6 +885,7 @@ export default function LiveTradePortfolioPanel({
                   </tbody>
                 </table>
               </div>
+              </>
             )
           ) : null}
 
@@ -764,7 +897,7 @@ export default function LiveTradePortfolioPanel({
           </div>
         ) : null}
       </div>
-    </section>
+      </LiveTradeCollapsibleCard>
     </>
   );
 }
