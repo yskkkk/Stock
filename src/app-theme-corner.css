@@ -8,7 +8,7 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 0.28rem;
-  padding: max(0.2rem, env(safe-area-inset-top, 0px)) 0 0;
+  padding: max(0.48rem, calc(0.32rem + env(safe-area-inset-top, 0px))) 0 0.12rem;
   box-sizing: border-box;
   z-index: 1;
 }
@@ -119,7 +119,7 @@
 }
 
 .app-theme-corner__mode-toggle--dark .app-theme-corner__mode-toggle-icon--moon {
-  color: #f8fafc;
+  color: #f97316;
 }
 
 .app-theme-corner__mode-toggle-svg {
@@ -157,7 +157,7 @@ html[data-theme="light"] .app-theme-corner__mode-toggle-track {
     flex-wrap: nowrap;
     align-items: center;
     gap: 0.28rem 0.34rem;
-    padding: 0;
+    padding: max(0.48rem, calc(0.32rem + env(safe-area-inset-top, 0px))) 0 0;
   }
 
   .app-theme-corner--top {

@@ -8258,7 +8258,7 @@ html[data-theme="light"] .market-indices-belt {
   flex: 0 0 auto;
   width: auto;
   max-width: none;
-  padding-top: 0;
+  padding-top: max(0.48rem, calc(0.32rem + env(safe-area-inset-top, 0px)));
 }
 
 .app__viewport-top .market-indices-belt--top {
