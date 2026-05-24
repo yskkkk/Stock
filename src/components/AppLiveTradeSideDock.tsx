@@ -427,14 +427,10 @@ export default function AppLiveTradeSideDock({
       }${resizing ? " app-live-trade-side-dock--resizing" : ""}`}
       data-live-trade-side-dock
     >
-      <div
-        id="app-live-trade-side-dock-panel"
-        className="app-live-trade-side-dock__panel"
-        aria-hidden={!open}
-      >
+      {open ? (
         <button
           type="button"
-          className="app-live-trade-side-dock__panel-edge"
+          className="app-live-trade-side-dock__resize-handle"
           onPointerDown={onResizePointerDown}
           onPointerMove={onResizePointerMove}
           onPointerUp={finishResize}
@@ -449,6 +445,12 @@ export default function AppLiveTradeSideDock({
         >
           <DockResizeArrows />
         </button>
+      ) : null}
+      <div
+        id="app-live-trade-side-dock-panel"
+        className="app-live-trade-side-dock__panel"
+        aria-hidden={!open}
+      >
         <div
           id={LIVE_TRADE_RIGHT_PANEL_HOST_ID}
           className="app-live-trade-side-dock__host"

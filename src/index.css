@@ -9232,19 +9232,19 @@ html:not([data-theme="light"]) {
   visibility: visible;
 }
 
+.app-live-trade-side-dock__resize-handle,
 .app-live-trade-side-dock__panel-edge {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  z-index: 3;
+  flex: 0 0 auto;
+  align-self: center;
+  z-index: 12;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 0.95rem;
-  min-height: 3.65rem;
+  width: 0.72rem;
+  min-height: 4.1rem;
   margin: 0;
-  padding: 0.42rem 0.06rem;
-  border: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 80%, transparent);
+  padding: 0.5rem 0.04rem;
+  border: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 88%, transparent);
   border-right: none;
   border-radius: var(--radius-sm, 6px) 0 0 var(--radius-sm, 6px);
   background: var(--card-bg);
@@ -9253,14 +9253,16 @@ html:not([data-theme="light"]) {
   touch-action: none;
   font: inherit;
   line-height: 1;
-  box-shadow: var(--shadow);
-  transform: translate(-100%, -50%);
+  box-shadow:
+    -2px 0 10px rgba(15, 23, 42, 0.12),
+    0 1px 0 rgba(255, 255, 255, 0.06) inset;
 }
 
+.app-live-trade-side-dock__resize-handle:hover,
 .app-live-trade-side-dock__panel-edge:hover {
   color: var(--text);
-  background: color-mix(in srgb, var(--card-bg) 92%, var(--surface-2));
-  border-color: color-mix(in srgb, var(--accent, #5eead4) 35%, var(--card-border, #e2e8f0));
+  background: color-mix(in srgb, var(--card-bg) 90%, var(--surface-2));
+  border-color: color-mix(in srgb, var(--accent, #5eead4) 40%, var(--card-border, #e2e8f0));
 }
 
 .app-live-trade-side-dock__resize-arrows {
@@ -9276,18 +9278,16 @@ html:not([data-theme="light"]) {
 .app-live-trade-side-dock__resize-arrow {
   display: block;
   flex: none;
-  width: 0.4rem;
-  height: 0.58rem;
-  opacity: 0.9;
+  width: 0.44rem;
+  height: 0.62rem;
+  opacity: 0.92;
 }
 
+.app-live-trade-side-dock--resizing .app-live-trade-side-dock__resize-handle,
 .app-live-trade-side-dock--resizing .app-live-trade-side-dock__panel-edge {
   color: var(--text);
-  border-color: color-mix(in srgb, var(--accent, #5eead4) 45%, var(--card-border, #e2e8f0));
-}
-
-.app-live-trade-side-dock--collapsed .app-live-trade-side-dock__panel-edge {
-  display: none;
+  border-color: color-mix(in srgb, var(--accent, #5eead4) 50%, var(--card-border, #e2e8f0));
+  background: color-mix(in srgb, var(--card-bg) 88%, var(--accent-dim));
 }
 
 .app-live-trade-side-dock__auth-anchor {
@@ -9351,12 +9351,13 @@ html[data-theme="light"] .app-live-trade-side-dock__auth-popover::after {
 
 .app-live-trade-side-dock__host {
   display: flex;
-  flex: 1;
+  flex: 1 1 auto;
   flex-direction: column;
   width: 100%;
   min-width: 0;
   height: 100%;
   min-height: 100%;
+  overflow: hidden;
 }
 
 .app-live-trade-side-dock--collapsed .app-live-trade-side-dock__host {
