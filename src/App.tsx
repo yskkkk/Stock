@@ -26,6 +26,7 @@ import LeftRailBithumbAccountPanel from "./components/LeftRailBithumbAccountPane
 import LeftRailLiveTradeAuthPanel from "./components/LeftRailLiveTradeAuthPanel";
 import LiveTradingHeaderStrip from "./components/LiveTradingHeaderStrip";
 import LiveTradingLeftRailPanel from "./components/LiveTradingLeftRailPanel";
+import MarketIndicesBelt from "./components/MarketIndicesBelt";
 import MarketIndicesRail from "./components/MarketIndicesRail";
 import TopBarFxCalculator from "./components/TopBarFxCalculator";
 import NewsModal from "./components/NewsModal";
@@ -1044,6 +1045,12 @@ export default function App() {
               />
             </>
           ) : null}
+          <MarketIndicesBelt
+            items={marketIndices}
+            loading={marketIndicesLoading}
+            layout="rail"
+            onOpenItem={handleOpenMarketIndex}
+          />
           <MarketIndicesRail
             items={marketIndices}
             loading={marketIndicesLoading}
@@ -1075,6 +1082,12 @@ export default function App() {
         </div>
       ) : null}
       <div className="app-header-sticky">
+      <MarketIndicesBelt
+        items={marketIndices}
+        loading={marketIndicesLoading}
+        layout="strip"
+        onOpenItem={handleOpenMarketIndex}
+      />
       <MarketIndicesRail
         items={marketIndices}
         loading={marketIndicesLoading}

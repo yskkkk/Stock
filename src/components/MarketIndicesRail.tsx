@@ -1,19 +1,11 @@
 import { memo } from "react";
 import { ko } from "../i18n/ko";
-import { formatPercent, formatPrice } from "../lib/format";
+import { formatPercent } from "../lib/format";
+import {
+  formatMarketIndexPrice,
+  marketIndexChangeTone,
+} from "../lib/marketIndexFormat";
 import type { MarketIndexItem } from "../types";
-
-function formatIndexPrice(item: MarketIndexItem): string {
-  const value = item.price;
-  if (value == null || !Number.isFinite(value)) return "—";
-  if (item.kind === "fx") {
-    return formatPrice(value, "KRW");
-  }
-  return new Intl.NumberFormat("ko-KR", {
-    maximumFractionDigits: 2,
-    minimumFractionDigits: 0,
-  }).format(value);
-}
 
 function IndexRow({
   item,
@@ -22,18 +14,18 @@ function IndexRow({
   item: MarketIndexItem;
   onOpen?: (item: MarketIndexItem) => void;
 }) {
-  const up = (item.changePercent ?? 0) >= 0;
-  const hasChg = item.changePercent != null && Number.isFinite(item.changePercent);
+  const tone = marketIndexChangeTone(item);
+  const hasChg = tone !== "muted";
   const clickable = Boolean(onOpen);
 
   const body = (
     <>
       <span className="market-indices-rail__label">{item.label}</span>
-      <span className="market-indices-rail__price">{formatIndexPrice(item)}</span>
+      <span className="market-indices-rail__price">{formatMarketIndexPrice(item)}</span>
       {hasChg ? (
         <span
           className={
-            up
+            tone === "up"
               ? "market-indices-rail__chg market-indices-rail__chg--up"
               : "market-indices-rail__chg market-indices-rail__chg--down"
           }

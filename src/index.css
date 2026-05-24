@@ -7276,6 +7276,7 @@ body {
   box-sizing: border-box;
 }
 
+  .app__left-rail > .market-indices-belt--side,
   .app__left-rail > .market-indices-rail--side,
   .app__left-rail > .fx-calc-rail--side {
   flex: 0 0 auto;
@@ -8002,6 +8003,164 @@ html[data-theme="light"] .live-trade-rail {
   cursor: default;
 }
 
+/* 주요 지수 — 수평 벨트(무한 스크롤) */
+.market-indices-belt {
+  box-sizing: border-box;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(148, 163, 184, 0.05);
+  padding: 0.42rem 0;
+  overflow: hidden;
+}
+
+html[data-theme="light"] .market-indices-belt {
+  background: rgba(255, 255, 255, 0.88);
+  border-color: rgba(15, 23, 42, 0.1);
+}
+
+.market-indices-belt--side {
+  display: none;
+  flex: 0 0 auto;
+  width: 100%;
+}
+
+.market-indices-belt--strip {
+  display: none;
+  width: 100%;
+  margin: 0 0 0.35rem;
+}
+
+.market-indices-belt__viewport {
+  overflow: hidden;
+  mask-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    #000 10%,
+    #000 90%,
+    transparent 100%
+  );
+}
+
+.market-indices-belt__track {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0.38rem;
+  width: max-content;
+  padding-inline: 0.45rem;
+  animation: market-indices-belt-scroll var(--market-indices-belt-duration, 28s) linear
+    infinite;
+  will-change: transform;
+}
+
+.market-indices-belt:hover .market-indices-belt__track {
+  animation-play-state: paused;
+}
+
+@keyframes market-indices-belt-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .market-indices-belt__track {
+    animation: none;
+    overflow-x: auto;
+    max-width: 100%;
+    padding-bottom: 0.15rem;
+    scrollbar-width: thin;
+  }
+
+  .market-indices-belt__viewport {
+    mask-image: none;
+  }
+}
+
+.market-indices-belt__chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.04rem;
+  flex: 0 0 auto;
+  min-width: 6.75rem;
+  padding: 0.28rem 0.45rem;
+  border-radius: 8px;
+  background: rgba(148, 163, 184, 0.08);
+  font: inherit;
+  text-align: left;
+}
+
+.market-indices-belt__chip--btn {
+  margin: 0;
+  border: none;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.market-indices-belt__chip--btn:hover {
+  background: rgba(94, 234, 212, 0.12);
+}
+
+.market-indices-belt__chip--btn:focus-visible {
+  outline: 2px solid var(--accent-border);
+  outline-offset: 2px;
+}
+
+.market-indices-belt__chip--sk {
+  min-height: 2.65rem;
+  min-width: 6.5rem;
+  animation: market-indices-pulse 1.2s ease-in-out infinite;
+}
+
+.market-indices-belt__track--sk {
+  animation: none;
+}
+
+.market-indices-belt__label {
+  font-size: 0.66rem;
+  font-weight: 750;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.market-indices-belt__price {
+  font-size: 0.78rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.market-indices-belt__chg {
+  font-size: 0.66rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.market-indices-belt__chg--up {
+  color: var(--up);
+}
+
+.market-indices-belt__chg--down {
+  color: var(--down);
+}
+
+.market-indices-belt__chg--muted {
+  color: var(--muted);
+}
+
+.market-indices-belt__empty {
+  margin: 0;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
 .market-indices-rail {
   box-sizing: border-box;
   border-radius: var(--radius-sm);
@@ -8318,6 +8477,10 @@ html[data-theme="light"] .market-indices-rail__item {
 
   .app__viewport:has(.app-live-trade-side-dock--open) .live-trading-tab__grid {
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  }
+
+  .market-indices-belt--side {
+    display: block;
   }
 
   .market-indices-rail--side {
@@ -8648,8 +8811,16 @@ html[data-theme="light"] .market-indices-rail__item {
     box-sizing: border-box;
   }
 
+  .market-indices-belt--side {
+    display: none !important;
+  }
+
   .market-indices-rail--side {
     display: none !important;
+  }
+
+  .market-indices-belt--strip {
+    display: block;
   }
 
   .market-indices-rail--strip {

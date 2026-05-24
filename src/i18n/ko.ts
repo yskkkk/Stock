@@ -350,6 +350,7 @@ export const ko = {
     marketIndicesLoading: "불러오는 중…",
     marketIndicesOpenChart: "{name} — 종목 검색에서 차트 열기",
     marketIndicesTitle: "주요 지수",
+    marketIndicesBeltAria: "주요 지수 흐름 (자동 스크롤)",
     opsGlobalQueueSourceClaudeCode: "Claude Code",
     quoteCurrencyFxBasis: "원화 표시 · {date} 09:00 KST 환율(공휴·주말·09시 전이면 직전 영업일)",
     signalHintClose: "닫기",
