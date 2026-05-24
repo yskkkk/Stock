@@ -343,10 +343,15 @@ function RailProgramCard({
   );
 }
 
-function LiveTradingLeftRailPanelInner({
+export function LiveTradingRailCore({
   onOpenLiveTrading,
+  layout = "rail-aside",
+  showWhenEmpty = false,
 }: {
   onOpenLiveTrading?: () => void;
+  layout?: "rail-aside" | "dock";
+  /** 우측 도크 — 프로그램 없을 때도 안내 문구 표시 */
+  showWhenEmpty?: boolean;
 }) {
   const prefetched = peekLiveTradingPrefetch();
   const { user, authChecked } = useLiveTradeAuth();
@@ -465,7 +470,70 @@ function LiveTradingLeftRailPanelInner({
 
   if (!authChecked || !user) return null;
 
-  if (!loading && rows.length === 0) return null;
+  if (!loading && rows.length === 0 && !showWhenEmpty) return null;
+
+  const head = (
+    <div className="live-trade-rail__head">
+      <button
+        type="button"
+        className="live-trade-rail__title-btn"
+        onClick={() => onOpenLiveTrading?.()}
+        title={layout === "rail-aside" ? ko.app.liveTradeLeftRailOpen : undefined}
+      >
+        <span className="live-trade-rail__title">{ko.app.liveTradeLeftRailTitle}</span>
+        {rows.length > 0 ? (
+          <span className="live-trade-rail__count">{rows.length}</span>
+        ) : null}
+      </button>
+      {loading ? (
+        <span className="live-trade-rail__status">{ko.app.marketIndicesLoading}</span>
+      ) : null}
+    </div>
+  );
+
+  const list =
+    rows.length > 0 ? (
+      <ul className="live-trade-rail__list">
+        {rows.map(({ program: p, displayStatus, returnPct, holdings }) => {
+          const orderMode =
+            displayStatus === "armed" && p.armedMarkets?.crypto
+              ? ko.app.liveTradeLeftRailLiveOrders
+              : displayStatus === "sim"
+                ? ko.app.liveTradeLeftRailSimOrders
+                : null;
+          return (
+            <li key={p.id}>
+              <RailProgramCard
+                program={p}
+                displayStatus={displayStatus}
+                returnPct={returnPct}
+                holdings={holdings}
+                orderMode={orderMode}
+                onOpenLiveTrading={onOpenLiveTrading}
+                roundTripForMarket={roundTripForMarket}
+                dataUpdatedAtMs={dataUpdatedAtMs}
+              />
+            </li>
+          );
+        })}
+      </ul>
+    ) : loading ? (
+      <ul className="live-trade-rail__list live-trade-rail__list--sk">
+        <li className="live-trade-rail__card live-trade-rail__card--sk" />
+        <li className="live-trade-rail__card live-trade-rail__card--sk" />
+      </ul>
+    ) : showWhenEmpty ? (
+      <p className="live-trade-rail__empty-hint">{ko.app.liveTradeLeftRailEmpty}</p>
+    ) : null;
+
+  if (layout === "dock") {
+    return (
+      <div className="app-dock-rail-panel app-dock-rail-panel--live">
+        {head}
+        {list}
+      </div>
+    );
+  }
 
   return (
     <aside
@@ -473,55 +541,19 @@ function LiveTradingLeftRailPanelInner({
       role="complementary"
       aria-label={ko.app.liveTradeLeftRailAria}
     >
-      <div className="live-trade-rail__head">
-        <button
-          type="button"
-          className="live-trade-rail__title-btn"
-          onClick={() => onOpenLiveTrading?.()}
-          title={ko.app.liveTradeLeftRailOpen}
-        >
-          <span className="live-trade-rail__title">{ko.app.liveTradeLeftRailTitle}</span>
-          {rows.length > 0 ? (
-            <span className="live-trade-rail__count">{rows.length}</span>
-          ) : null}
-        </button>
-        {loading ? (
-          <span className="live-trade-rail__status">{ko.app.marketIndicesLoading}</span>
-        ) : null}
-      </div>
-
-      {rows.length > 0 ? (
-        <ul className="live-trade-rail__list">
-          {rows.map(({ program: p, displayStatus, returnPct, holdings }) => {
-            const orderMode =
-              displayStatus === "armed" && p.armedMarkets?.crypto
-                ? ko.app.liveTradeLeftRailLiveOrders
-                : displayStatus === "sim"
-                  ? ko.app.liveTradeLeftRailSimOrders
-                  : null;
-            return (
-              <li key={p.id}>
-                <RailProgramCard
-                  program={p}
-                  displayStatus={displayStatus}
-                  returnPct={returnPct}
-                  holdings={holdings}
-                  orderMode={orderMode}
-                  onOpenLiveTrading={onOpenLiveTrading}
-                  roundTripForMarket={roundTripForMarket}
-                  dataUpdatedAtMs={dataUpdatedAtMs}
-                />
-              </li>
-            );
-          })}
-        </ul>
-      ) : loading ? (
-        <ul className="live-trade-rail__list live-trade-rail__list--sk">
-          <li className="live-trade-rail__card live-trade-rail__card--sk" />
-          <li className="live-trade-rail__card live-trade-rail__card--sk" />
-        </ul>
-      ) : null}
+      {head}
+      {list}
     </aside>
+  );
+}
+
+function LiveTradingLeftRailPanelInner({
+  onOpenLiveTrading,
+}: {
+  onOpenLiveTrading?: () => void;
+}) {
+  return (
+    <LiveTradingRailCore onOpenLiveTrading={onOpenLiveTrading} layout="rail-aside" />
   );
 }
 

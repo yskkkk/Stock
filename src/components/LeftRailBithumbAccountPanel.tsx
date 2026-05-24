@@ -12,15 +12,18 @@ import { LIVE_TRADE_AUTH_CHANGE } from "./LiveTradeAuthAndCredentials";
 
 const POLL_MS = 45_000;
 
-function LeftRailBithumbAccountPanelInner({
+export function BithumbAccountRailCore({
   onOpenLiveTrading,
+  layout = "rail-aside",
 }: {
   onOpenLiveTrading?: () => void;
+  layout?: "rail-aside" | "dock";
 }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [snapshot, setSnapshot] = useState<BithumbTestSnapshot | null>(null);
   const [feeLabelKo, setFeeLabelKo] = useState<string | null>(null);
+  const [updatedAtMs, setUpdatedAtMs] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
@@ -31,6 +34,7 @@ function LeftRailBithumbAccountPanelInner({
       if (!me.user) {
         setSnapshot(null);
         setFeeLabelKo(null);
+        setUpdatedAtMs(null);
         setErr(null);
         return;
       }
@@ -38,14 +42,17 @@ function LeftRailBithumbAccountPanelInner({
       if (out.ready && out.snapshot) {
         setSnapshot(out.snapshot);
         setFeeLabelKo(out.feeLabelKo ?? null);
+        setUpdatedAtMs(Date.now());
         setErr(null);
       } else {
         setSnapshot(null);
         setFeeLabelKo(null);
+        setUpdatedAtMs(null);
         setErr(out.messageKo ?? null);
       }
     } catch (e) {
       setSnapshot(null);
+      setUpdatedAtMs(null);
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
       setAuthChecked(true);
@@ -66,6 +73,77 @@ function LeftRailBithumbAccountPanelInner({
     };
   }, [reload]);
 
+  if (!authChecked || !user) return null;
+
+  const head = (
+    <div className="bithumb-account-rail-wrap__head">
+      <button
+        type="button"
+        className="bithumb-account-rail-wrap__title-btn"
+        onClick={() => onOpenLiveTrading?.()}
+        title={layout === "rail-aside" ? ko.app.liveTradeLeftRailOpen : undefined}
+      >
+        <BithumbAccountTitle />
+      </button>
+      {loading ? (
+        <span className="bithumb-account-rail-wrap__status">
+          {ko.app.marketIndicesLoading}
+        </span>
+      ) : null}
+    </div>
+  );
+
+  const body =
+    !loading && !snapshot ? (
+      <p className="bithumb-account-rail-wrap__hint">
+        {err ?? ko.app.leftRailBithumbAccountNeedKeys}
+      </p>
+    ) : !snapshot ? null : (
+      <BithumbAccountSnapshotCard
+        snapshot={snapshot}
+        feeLabelKo={feeLabelKo}
+        updatedAtMs={updatedAtMs}
+        variant={layout === "dock" ? "inline" : "rail"}
+      />
+    );
+
+  const inner = (
+    <>
+      {head}
+      {body}
+    </>
+  );
+
+  if (layout === "dock") {
+    return (
+      <div className="app-dock-rail-panel app-dock-rail-panel--bithumb">{inner}</div>
+    );
+  }
+
+  return (
+    <aside
+      className="bithumb-account-rail-wrap bithumb-account-rail-wrap--side"
+      role="complementary"
+      aria-label={ko.app.leftRailBithumbAccountAria}
+    >
+      {inner}
+    </aside>
+  );
+}
+
+function LeftRailBithumbAccountPanelInner({
+  onOpenLiveTrading,
+}: {
+  onOpenLiveTrading?: () => void;
+}) {
+  const [authChecked, setAuthChecked] = useState(false);
+
+  useEffect(() => {
+    void fetchAuthMe()
+      .then(() => setAuthChecked(true))
+      .catch(() => setAuthChecked(true));
+  }, []);
+
   if (!authChecked) {
     return (
       <aside
@@ -77,60 +155,8 @@ function LeftRailBithumbAccountPanelInner({
     );
   }
 
-  if (!user) return null;
-
-  if (!loading && !snapshot) {
-    return (
-      <aside
-        className="bithumb-account-rail-wrap bithumb-account-rail-wrap--side"
-        role="complementary"
-        aria-label={ko.app.leftRailBithumbAccountAria}
-      >
-        <div className="bithumb-account-rail-wrap__head">
-          <button
-            type="button"
-            className="bithumb-account-rail-wrap__title-btn"
-            onClick={() => onOpenLiveTrading?.()}
-          >
-            <BithumbAccountTitle />
-          </button>
-        </div>
-        <p className="bithumb-account-rail-wrap__hint">
-          {err ?? ko.app.leftRailBithumbAccountNeedKeys}
-        </p>
-      </aside>
-    );
-  }
-
-  if (!snapshot) return null;
-
   return (
-    <aside
-      className="bithumb-account-rail-wrap bithumb-account-rail-wrap--side"
-      role="complementary"
-      aria-label={ko.app.leftRailBithumbAccountAria}
-    >
-      <div className="bithumb-account-rail-wrap__head">
-        <button
-          type="button"
-          className="bithumb-account-rail-wrap__title-btn"
-          onClick={() => onOpenLiveTrading?.()}
-          title={ko.app.liveTradeLeftRailOpen}
-        >
-          <BithumbAccountTitle />
-        </button>
-        {loading ? (
-          <span className="bithumb-account-rail-wrap__status">
-            {ko.app.marketIndicesLoading}
-          </span>
-        ) : null}
-      </div>
-      <BithumbAccountSnapshotCard
-        snapshot={snapshot}
-        feeLabelKo={feeLabelKo}
-        variant="rail"
-      />
-    </aside>
+    <BithumbAccountRailCore onOpenLiveTrading={onOpenLiveTrading} layout="rail-aside" />
   );
 }
 

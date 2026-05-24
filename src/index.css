@@ -7276,11 +7276,8 @@ body {
   box-sizing: border-box;
 }
 
-.app__left-rail > .market-indices-rail--side,
-.app__left-rail > .live-trade-rail--side,
-.app__left-rail > .bithumb-account-rail-wrap--side,
-.app__left-rail > .left-rail-auth-wrap--side,
-.app__left-rail > .fx-calc-rail--side {
+  .app__left-rail > .market-indices-rail--side,
+  .app__left-rail > .fx-calc-rail--side {
   flex: 0 0 auto;
   width: 100%;
   position: static;
@@ -8296,6 +8293,12 @@ html[data-theme="light"] .market-indices-rail__item {
     flex-direction: column;
   }
 
+  .app__left-rail > .left-rail-auth-wrap--side,
+  .app__left-rail > .bithumb-account-rail-wrap--side,
+  .app__left-rail > .live-trade-rail--side {
+    display: none !important;
+  }
+
   .market-indices-rail--strip {
     display: none !important;
   }
@@ -8500,6 +8503,35 @@ html[data-theme="light"] .market-indices-rail__item {
   flex: 1;
   min-height: 0;
   overflow: auto;
+}
+
+.app-dock-rail-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-height: 0;
+}
+
+.app-dock-rail-panel--auth .live-trading-tab__auth-signed {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.app-dock-rail-panel--bithumb .bithumb-account-rail-wrap__head,
+.app-dock-rail-panel--live .live-trade-rail__head {
+  flex-shrink: 0;
+}
+
+.app-dock-rail-panel--live .live-trade-rail__list {
+  max-height: none;
+}
+
+.live-trade-rail__empty-hint {
+  margin: 0;
+  padding: 0.35rem 0.15rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--muted, #64748b);
 }
 
 .app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail .live-trading-tab__card-tabs-hint {

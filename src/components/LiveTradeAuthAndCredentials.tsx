@@ -160,10 +160,26 @@ function LiveTradeCardModal({
 
 type LiveTradeSidePanelState = { id: string; title: string } | null;
 
-const LIVE_TRADE_CARD_TAB_ORDER = ["portfolio", "form", "programs"] as const;
+export const LIVE_TRADE_DOCK_RAIL_TAB_IDS = {
+  auth: "dock-auth",
+  bithumb: "dock-bithumb",
+  liveRail: "dock-live-rail",
+} as const;
+
+const LIVE_TRADE_CARD_TAB_ORDER = [
+  LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth,
+  LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb,
+  LIVE_TRADE_DOCK_RAIL_TAB_IDS.liveRail,
+  "portfolio",
+  "form",
+  "programs",
+] as const;
 
 export function defaultLiveTradeSideTabTitles(): Record<string, string> {
   return {
+    [LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth]: ko.app.liveTradeSideDockRailAuth,
+    [LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb]: ko.app.leftRailBithumbAccountTitle,
+    [LIVE_TRADE_DOCK_RAIL_TAB_IDS.liveRail]: ko.app.liveTradeLeftRailTitle,
     portfolio: ko.app.liveTradePfTitle,
     form: ko.app.liveTradeFormNew,
     programs: ko.app.liveTradeListTitle,
@@ -395,7 +411,7 @@ export function LiveTradeCardSidePanelInline() {
   return <LiveTradeCardSidePanel />;
 }
 
-function LiveTradeSidePanelPortal({
+export function LiveTradeSidePanelPortal({
   active,
   hostRef,
   children,
@@ -565,12 +581,14 @@ export function LiveTradeAuthSignedInCard({
 }: {
   user: AuthUser;
   onLogout: () => void;
-  variant?: "inline" | "rail";
+  variant?: "inline" | "rail" | "dock";
 }) {
   const rootClass =
     variant === "rail"
       ? "left-rail-auth left-rail-auth--signed"
-      : "live-trading-tab__auth card live-trading-tab__auth--signed";
+      : variant === "dock"
+        ? "app-dock-rail-panel__auth live-trading-tab__auth live-trading-tab__auth--signed"
+        : "live-trading-tab__auth card live-trading-tab__auth--signed";
 
   return (
     <section className={rootClass} aria-live="polite">

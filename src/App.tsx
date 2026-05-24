@@ -45,6 +45,7 @@ import OpsGlobalQueueStrip from "./components/OpsGlobalQueueStrip";
 import OpsManagementTab from "./components/OpsManagementTab";
 import LiveTradingTab from "./components/LiveTradingTab";
 import AppLiveTradeSideDock from "./components/AppLiveTradeSideDock";
+import AppRightDockRailPanels from "./components/AppRightDockRailPanels";
 import { LiveTradeCardSidePanelProvider } from "./components/LiveTradeAuthAndCredentials";
 import RecommendationsTab from "./components/RecommendationsTab";
 import StockSearchTab from "./components/StockSearchTab";
@@ -57,6 +58,7 @@ import {
   SHOW_PROFIT_MODEL_BUTTON,
 } from "./constants/uiFlags";
 import { useMobileBackHandler } from "./hooks/useMobileBackHandler";
+import { useDesktopDockLayout } from "./hooks/useDesktopDockLayout";
 import { useLeftRailLazyFollow } from "./hooks/useLeftRailLazyFollow";
 import { useLiveTradingStatusPoll } from "./hooks/useLiveTradingStatusPoll";
 import { useMobilePullToRefresh } from "./hooks/useMobilePullToRefresh";
@@ -502,6 +504,7 @@ export default function App() {
   const appScrollRef = useRef<HTMLDivElement>(null);
   const leftRailRef = useRef<HTMLElement>(null);
   useLeftRailLazyFollow(leftRailRef, appScrollRef);
+  const desktopDockLayout = useDesktopDockLayout();
   const feedbackRef = useRef<FeedbackCornerHandle>(null);
   const [footerFeedbackKind, setFooterFeedbackKind] = useState<FeedbackSubmitKind | null>(
     null,
@@ -1025,13 +1028,17 @@ export default function App() {
           onLightPalette={handleLightPalette}
         />
         <aside ref={leftRailRef} className="app__left-rail" aria-label={ko.app.leftRailAria}>
-          <LeftRailLiveTradeAuthPanel />
-          <LeftRailBithumbAccountPanel
-            onOpenLiveTrading={() => setAppTab("liveTrading")}
-          />
-          <LiveTradingLeftRailPanel
-            onOpenLiveTrading={() => setAppTab("liveTrading")}
-          />
+          {!desktopDockLayout ? (
+            <>
+              <LeftRailLiveTradeAuthPanel />
+              <LeftRailBithumbAccountPanel
+                onOpenLiveTrading={() => setAppTab("liveTrading")}
+              />
+              <LiveTradingLeftRailPanel
+                onOpenLiveTrading={() => setAppTab("liveTrading")}
+              />
+            </>
+          ) : null}
           <MarketIndicesRail
             items={marketIndices}
             loading={marketIndicesLoading}
@@ -1909,7 +1916,12 @@ export default function App() {
         </div>
       ) : null}
 
-      {appTab !== "ops" ? <AppLiveTradeSideDock /> : null}
+      {appTab !== "ops" ? (
+        <>
+          <AppRightDockRailPanels onOpenLiveTrading={() => setAppTab("liveTrading")} />
+          <AppLiveTradeSideDock />
+        </>
+      ) : null}
 
       <AppSiteFooter
         accessAdmin={accessAdmin}

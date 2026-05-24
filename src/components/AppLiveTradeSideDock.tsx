@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import { useDesktopDockLayout } from "../hooks/useDesktopDockLayout";
 import {
+  LIVE_TRADE_DOCK_RAIL_TAB_IDS,
   LIVE_TRADE_RIGHT_PANEL_HOST_ID,
   LiveTradeCardSidePanel,
   defaultLiveTradeSideTabTitles,
@@ -9,7 +11,6 @@ import {
 import { ko } from "../i18n/ko";
 
 const OPEN_PREF_KEY = "ystock-live-trade-side-dock-open";
-const DOCK_MQ = "(min-width: 1180px)";
 
 function readDockOpenPref(): boolean {
   if (typeof localStorage === "undefined") return false;
@@ -24,6 +25,15 @@ function readDockOpenPref(): boolean {
 }
 
 function railTabShort(id: string, title: string): { glyph: string; label: string } {
+  if (id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth) {
+    return { glyph: "◎", label: ko.app.liveTradeSideDockRailAuth };
+  }
+  if (id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb) {
+    return { glyph: "B", label: ko.app.leftRailBithumbAccountTitle };
+  }
+  if (id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.liveRail) {
+    return { glyph: "실", label: ko.app.liveTradeLeftRailTitle };
+  }
   if (id === "portfolio") {
     return { glyph: "₩", label: ko.app.liveTradeSideDockRailPortfolio };
   }
@@ -50,20 +60,8 @@ export default function AppLiveTradeSideDock() {
         }));
   const panel = ctx?.panel ?? null;
   const openPanel = ctx?.openPanel;
-  const closePanel = ctx?.closePanel;
+  const wide = useDesktopDockLayout();
   const [open, setOpen] = useState(readDockOpenPref);
-  const [wide, setWide] = useState(
-    () => typeof window !== "undefined" && window.matchMedia(DOCK_MQ).matches,
-  );
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const mq = window.matchMedia(DOCK_MQ);
-    const onChange = () => setWide(mq.matches);
-    onChange();
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
 
   useEffect(() => {
     if (panel?.id) setOpen(true);
