@@ -27,7 +27,6 @@ import LeftRailLiveTradeAuthPanel from "./components/LeftRailLiveTradeAuthPanel"
 import LiveTradingHeaderStrip from "./components/LiveTradingHeaderStrip";
 import LiveTradingLeftRailPanel from "./components/LiveTradingLeftRailPanel";
 import MarketIndicesBelt from "./components/MarketIndicesBelt";
-import MarketIndicesRail from "./components/MarketIndicesRail";
 import TopBarFxCalculator from "./components/TopBarFxCalculator";
 import NewsModal from "./components/NewsModal";
 import PicksHistoryModal from "./components/PicksHistoryModal";
@@ -1045,12 +1044,6 @@ export default function App() {
               />
             </>
           ) : null}
-          <MarketIndicesRail
-            items={marketIndices}
-            loading={marketIndicesLoading}
-            layout="rail"
-            onOpenItem={handleOpenMarketIndex}
-          />
           <TopBarFxCalculator
             rate={usdKrwRate}
             valuationDate={usdKrwValDate}
