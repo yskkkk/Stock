@@ -27,15 +27,46 @@ type FeedbackCornerProps = {
   accessAdmin: boolean;
   /** false면 하단 푸터 링크만 사용 */
   showTrigger?: boolean;
-  /** 우측 고정 레일형 트리거(데스크톱) */
-  triggerLayout?: "inline" | "edge";
+  /** 상단 인라인 메뉴 트리거 */
+  triggerLayout?: "inline";
   onSubmitPanelChange?: (state: { kind: FeedbackSubmitKind } | null) => void;
 };
 
-function FeedbackEdgeIcon() {
+/** 우측 도크 레일 최하단 */
+export function FeedbackDockRailButton({
+  active,
+  onClick,
+}: {
+  active?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={
+        active
+          ? "app-live-trade-side-dock__rail-btn app-live-trade-side-dock__rail-btn--on app-live-trade-side-dock__rail-btn--feedback"
+          : "app-live-trade-side-dock__rail-btn app-live-trade-side-dock__rail-btn--feedback"
+      }
+      aria-label={ko.app.footerFeedback}
+      title={ko.app.footerFeedback}
+      onClick={onClick}
+    >
+      <span
+        className="app-live-trade-side-dock__rail-glyph app-live-trade-side-dock__rail-glyph--feedback"
+        aria-hidden
+      >
+        <FeedbackEdgeIcon />
+      </span>
+      <span className="app-live-trade-side-dock__rail-label">{ko.app.footerFeedback}</span>
+    </button>
+  );
+}
+
+export function FeedbackEdgeIcon() {
   return (
     <svg
-      className="feedback-edge-fab__icon"
+      className="app-live-trade-side-dock__feedback-icon"
       viewBox="0 0 24 24"
       width="20"
       height="20"
@@ -168,30 +199,6 @@ const FeedbackCorner = forwardRef<FeedbackCornerHandle, FeedbackCornerProps>(
 
   return (
     <>
-      {showTrigger && triggerLayout === "edge" ? (
-        <div className="feedback-corner feedback-corner--edge">
-          <button
-            type="button"
-            className={
-              panel === "submit"
-                ? "feedback-edge-fab feedback-edge-fab--on"
-                : "feedback-edge-fab"
-            }
-            aria-label={ko.app.footerFeedback}
-            title={ko.app.footerFeedback}
-            onClick={() => {
-              setMenuOpen(false);
-              setSubmitKind("issue");
-              setSubmitOk(false);
-              setError(null);
-              setPanel("submit");
-            }}
-          >
-            <FeedbackEdgeIcon />
-            <span className="feedback-edge-fab__label">{ko.app.footerFeedback}</span>
-          </button>
-        </div>
-      ) : null}
       {showTrigger && triggerLayout === "inline" ? (
         <div className="feedback-corner">
           <button

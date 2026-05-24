@@ -1890,8 +1890,6 @@ export default function App() {
       <FeedbackCorner
         ref={feedbackRef}
         accessAdmin={accessAdmin}
-        showTrigger={desktopDockLayout}
-        triggerLayout="edge"
         onSubmitPanelChange={(state) =>
           setFooterFeedbackKind(state?.kind ?? null)
         }
@@ -1910,7 +1908,10 @@ export default function App() {
             <AppRightDockRailPanels
               onOpenLiveTrading={() => setAppTab("liveTrading")}
             />
-            <AppLiveTradeSideDock />
+            <AppLiveTradeSideDock
+              feedbackRef={feedbackRef}
+              feedbackActive={footerFeedbackKind != null}
+            />
           </>
         ) : null}
       </div>

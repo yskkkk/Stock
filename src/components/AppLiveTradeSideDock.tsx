@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type RefObject } from "react";
+import { FeedbackDockRailButton, type FeedbackCornerHandle } from "./FeedbackCorner";
 import { useDesktopDockLayout } from "../hooks/useDesktopDockLayout";
 import {
   LIVE_TRADE_DOCK_RAIL_TAB_IDS,
@@ -66,7 +67,13 @@ function railTabShort(id: string, title: string): { glyph: string; label: string
 }
 
 /** 운영 제외 전 탭 — 토스형 우측 레일 + 슬라이드 패널(레이아웃 비점유) */
-export default function AppLiveTradeSideDock() {
+export default function AppLiveTradeSideDock({
+  feedbackRef,
+  feedbackActive = false,
+}: {
+  feedbackRef?: RefObject<FeedbackCornerHandle | null>;
+  feedbackActive?: boolean;
+}) {
   const { user } = useLiveTradeAuth();
   const ctx = useLiveTradeCardSidePanelOptional();
   const sideTabs =
@@ -189,6 +196,12 @@ export default function AppLiveTradeSideDock() {
           );
         })}
         </div>
+        {feedbackRef ? (
+          <FeedbackDockRailButton
+            active={feedbackActive}
+            onClick={() => feedbackRef.current?.openSubmit()}
+          />
+        ) : null}
       </nav>
     </div>
   );
