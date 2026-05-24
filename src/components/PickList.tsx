@@ -218,7 +218,12 @@ export default function PickList({
   onReason,
 }: PickListProps) {
   if (picks.length === 0) {
-    const marketLabel = market === "kr" ? "국내" : "나스닥";
+    const marketLabel =
+      market === "kr"
+        ? ko.app.marketKr
+        : market === "crypto"
+          ? ko.app.marketCrypto
+          : ko.app.marketUs;
     let emptyMsg = "선택한 조건에 맞는 종목이 없습니다. 필터를 줄여 보세요.";
     if (scanning) {
       const prog =
