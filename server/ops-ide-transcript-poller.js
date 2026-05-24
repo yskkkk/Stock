@@ -16,6 +16,7 @@ import {
   notifyIdeDevelopmentCompleted,
 } from "./ops-ide-completion-notify.js";
 import {
+  clearIdeLeaseOnDisk,
   clearOrphanIdeLeaseIfNeeded,
   writeIdeLeaseDiskImmediate,
 } from "./ops-ide-lease-disk.js";

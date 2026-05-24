@@ -75,13 +75,10 @@ function mergeStockProcessEnv(mode) {
 function attachStockApiMiddlewares(server) {
   const g = /** @type {typeof globalThis & {
     __stockExpressApp?: ReturnType<typeof createApp>;
-    __stockViteApiMiddlewareAttached?: boolean;
   }} */ (globalThis);
   if (!g.__stockExpressApp) {
     g.__stockExpressApp = createApp();
   }
-  if (g.__stockViteApiMiddlewareAttached) return;
-  g.__stockViteApiMiddlewareAttached = true;
   const app = g.__stockExpressApp;
 
   server.middlewares.use((req, res, next) => {

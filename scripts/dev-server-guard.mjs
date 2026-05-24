@@ -129,10 +129,33 @@ function probeDevServer() {
         port: PORT,
         path: "/api/access/status",
         timeout: PROBE_TIMEOUT_MS,
+        headers: { Accept: "application/json" },
       },
       (res) => {
-        res.resume();
-        resolve(res.statusCode >= 200 && res.statusCode < 500);
+        let body = "";
+        res.setEncoding("utf8");
+        res.on("data", (chunk) => {
+          body += chunk;
+          if (body.length > 8192) res.destroy();
+        });
+        res.on("end", () => {
+          const statusOk =
+            res.statusCode >= 200 && res.statusCode < 500;
+          if (!statusOk) {
+            resolve(false);
+            return;
+          }
+          try {
+            const data = JSON.parse(body);
+            resolve(
+              typeof data === "object" &&
+                data !== null &&
+                ("enabled" in data || "state" in data),
+            );
+          } catch {
+            resolve(false);
+          }
+        });
       },
     );
     req.on("timeout", () => {
