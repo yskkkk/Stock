@@ -124,7 +124,7 @@ const emptyDraft = () => ({
   marketsKr: true,
   marketsUs: false,
   marketsCrypto: false,
-  minScoreRatio: 0.85,
+  minScoreRatio: 0.8,
   maxOpenPositions: "5",
   orderAmountKrw: "10000",
   orderAmountUsd: "",

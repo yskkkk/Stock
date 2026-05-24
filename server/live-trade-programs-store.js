@@ -18,6 +18,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, ".data");
 const PROGRAMS_FILE = path.join(DATA_DIR, "live-trade-programs.json");
 
+/** 실매매·시뮬 — 모델 가중 점수 최소 비율(만점 대비) 기본값 */
+export const LIVE_TRADE_DEFAULT_MIN_SCORE_RATIO = 0.8;
+
 /** @typedef {"draft" | "armed" | "sim" | "paused" | "error"} LiveTradeStatus */
 
 /**
@@ -107,7 +110,12 @@ function normalizeProgram(raw) {
       us: Boolean(mr.us),
       crypto: Boolean(mr.crypto),
     },
-    minScoreRatio: clampNum(o.minScoreRatio, 0.5, 1, 0.85),
+    minScoreRatio: clampNum(
+      o.minScoreRatio,
+      0.5,
+      1,
+      LIVE_TRADE_DEFAULT_MIN_SCORE_RATIO,
+    ),
     maxOpenPositions: Math.floor(clampNum(o.maxOpenPositions, 1, 50, 5)),
     orderAmountKrw:
       o.orderAmountKrw == null || o.orderAmountKrw === ""
@@ -208,7 +216,7 @@ function validateProgramPatch(patch) {
   }
   const name = String(patch.name ?? "").trim();
   if (!name) throw new Error("프로그램 이름이 필요합니다.");
-  const needsKrw = mk.kr || (mk.crypto && !mk.us);
+  const needsKrw = mk.kr || mk.crypto;
   if (needsKrw) {
     const raw = patch.orderAmountKrw;
     if (raw == null || raw === "") {
@@ -524,4 +532,22 @@ export function healOwnerMissingProgramErrorsSync(programs) {
     out.push(p);
   }
   return out;
+}
+
+/** 등록된 모든 프로그램 가중 점수 비율을 동일 값으로 맞춤 */
+export function setAllLiveTradeProgramsMinScoreRatioSync(
+  ratio = LIVE_TRADE_DEFAULT_MIN_SCORE_RATIO,
+) {
+  const target = clampNum(ratio, 0.5, 1, LIVE_TRADE_DEFAULT_MIN_SCORE_RATIO);
+  const store = readStoreSync();
+  const now = Date.now();
+  let changed = 0;
+  for (const p of store.programs) {
+    if (p.minScoreRatio === target) continue;
+    p.minScoreRatio = target;
+    p.updatedAtMs = now;
+    changed += 1;
+  }
+  if (changed > 0) writeStoreSync(store);
+  return changed;
 }

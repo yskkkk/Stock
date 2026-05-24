@@ -4,9 +4,8 @@
  */
 import { normalizeLiveTradeMarket, programAllowsMarket } from "./live-trade-market.js";
 import {
-  getMaxTechScore,
   meetsTelegramNotifyScore,
-  minTelegramScoreRequired,
+  resolvePickWeightedScoreBreakdown,
 } from "./technical.js";
 
 /** @typedef {"unconfigured" | "configured" | "ready"} TossApiPhase */
@@ -55,6 +54,7 @@ export function getTossTradingStatus() {
     ready,
     messageKo,
     hasSecret: Boolean(tossApiSecret()),
+    hasAccount: Boolean(tossAccountId()),
     baseUrl: tossApiBase() || null,
     docsHint: "https://docs.tossinvest.com",
   };
@@ -65,14 +65,22 @@ export function getTossTradingStatus() {
  * @param {{ score: number; signalIds?: string[]; techModelWeights?: Record<string, number> }} pick
  */
 export function pickMeetsProgramThreshold(program, pick) {
-  const weights = pick.techModelWeights;
-  if (!weights || typeof weights !== "object") return false;
-  const minScore = minTelegramScoreRequired(weights) * program.minScoreRatio;
-  if (pick.score < minScore) return false;
-  if (program.minScoreRatio >= 0.999) {
-    return meetsTelegramNotifyScore(pick.score, weights);
+  const ratio =
+    typeof program.minScoreRatio === "number" && Number.isFinite(program.minScoreRatio)
+      ? Math.min(1, Math.max(0.5, program.minScoreRatio))
+      : 0.8;
+  const { score, maxScore, weights } = resolvePickWeightedScoreBreakdown({
+    ...pick,
+    techModelId: pick.techModelId ?? program.modelId,
+  });
+  if (!weights || typeof weights !== "object" || Object.keys(weights).length === 0) {
+    return false;
   }
-  return pick.score <= getMaxTechScore(weights);
+  if (!Number.isFinite(score) || !Number.isFinite(maxScore) || maxScore <= 0) {
+    return false;
+  }
+  if (score > maxScore) return false;
+  return meetsTelegramNotifyScore(score, weights, ratio);
 }
 
 /**

@@ -531,10 +531,10 @@ export function buildSimCreationRecommendations(userId) {
             modelId: topProg.modelId,
             minScoreRatio: Math.min(
               0.92,
-              Math.max(topProg.minScoreRatio, 0.85),
+              Math.max(topProg.minScoreRatio, 0.8),
             ),
           }
-        : { minScoreRatio: 0.88 },
+        : { minScoreRatio: 0.8 },
       winRatePct: bestSignals[0]?.winRatePct,
     });
   }
@@ -544,9 +544,9 @@ export function buildSimCreationRecommendations(userId) {
       id: "default-conservative",
       title: "기본 보수 설정",
       reason:
-        "아직 분석할 시뮬 청산이 부족합니다. 최소 점수 85%, 자동 매도 켜기, 보유 5종으로 시작하세요.",
+        "아직 분석할 시뮬 청산이 부족합니다. 최소 점수 80%, 자동 매도 켜기, 보유 5종으로 시작하세요.",
       patch: {
-        minScoreRatio: 0.85,
+        minScoreRatio: 0.8,
         maxOpenPositions: 5,
         simAutoBuy: true,
         autoSellAtTarget: true,
