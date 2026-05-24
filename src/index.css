@@ -8620,7 +8620,6 @@ html[data-theme="light"] .market-indices-rail__item {
   box-shadow: -6px 0 24px rgba(0, 0, 0, 0.18);
 }
 
-.app-live-trade-side-dock__back,
 .app-live-trade-side-dock__fold {
   flex: none;
   display: flex;
@@ -8638,7 +8637,6 @@ html[data-theme="light"] .market-indices-rail__item {
   font: inherit;
 }
 
-.app-live-trade-side-dock__back:hover,
 .app-live-trade-side-dock__fold:hover {
   color: var(--text, #f1f5f9);
   background: color-mix(in srgb, var(--card-border, #334155) 40%, transparent);

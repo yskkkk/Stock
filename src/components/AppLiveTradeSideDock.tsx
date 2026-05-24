@@ -55,7 +55,6 @@ function railTabShort(id: string, title: string): { glyph: string; label: string
 export default function AppLiveTradeSideDock() {
   const { user } = useLiveTradeAuth();
   const ctx = useLiveTradeCardSidePanelOptional();
-  const closePanel = ctx?.closePanel;
   const sideTabs =
     (ctx?.sideTabs?.length ?? 0) > 0
       ? ctx!.sideTabs
@@ -127,7 +126,7 @@ export default function AppLiveTradeSideDock() {
           aria-controls="app-live-trade-side-dock-panel"
           title={open ? ko.app.liveTradeSideDockCollapse : ko.app.liveTradeSideDockExpand}
         >
-          <span aria-hidden>{open ? "›" : "‹"}</span>
+          <span aria-hidden>{open ? ">" : "<"}</span>
         </button>
         <div
           id={LIVE_TRADE_RIGHT_PANEL_HOST_ID}
@@ -142,18 +141,6 @@ export default function AppLiveTradeSideDock() {
       >
         <button
           type="button"
-          className="app-live-trade-side-dock__back"
-          onClick={() => {
-            if (panel?.id) closePanel?.();
-            else if (open) persistOpen(false);
-          }}
-          aria-label={ko.app.liveTradeSideDockBack}
-          title={ko.app.liveTradeSideDockBack}
-        >
-          <span aria-hidden>‹</span>
-        </button>
-        <button
-          type="button"
           className="app-live-trade-side-dock__fold"
           onClick={toggleFold}
           aria-expanded={open}
@@ -161,7 +148,7 @@ export default function AppLiveTradeSideDock() {
           title={open ? ko.app.liveTradeSideDockCollapse : ko.app.liveTradeSideDockExpand}
         >
           <span className="app-live-trade-side-dock__fold-icon" aria-hidden>
-            {open ? "›" : "‹"}
+            {open ? ">" : "<"}
           </span>
         </button>
         <div className="app-live-trade-side-dock__rail-tabs">
