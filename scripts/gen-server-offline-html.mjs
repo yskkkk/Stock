@@ -5,6 +5,8 @@
 import { writeFileSync } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { loadEnvFile } from "../server/load-env.js";
+import { resolveServerOpenClientTelegramCreds } from "../server/server-open-request-notify.js";
 
 const out = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -36,6 +38,7 @@ const html = `<!DOCTYPE html>
       button { appearance:none; border:none; cursor:pointer; font:inherit; }
       .btn { padding:.55rem .95rem; border-radius:8px; font-size:.88rem; font-weight:700; }
       .btn--primary { background:var(--accent); color:#0a0e13; }
+      .btn--notify { background:rgba(94,234,212,.14); color:var(--accent); border:1px solid rgba(94,234,212,.35); }
       .btn--ghost { background:transparent; color:var(--dim); border:1px solid var(--border); }
       .btn:disabled { opacity:.55; cursor:wait; }
       #status { min-height:1.2rem; margin-top:.75rem; font-size:.8rem; color:var(--muted); }
@@ -46,8 +49,9 @@ const html = `<!DOCTYPE html>
     <main class="card" aria-live="polite">
       <p class="badge">\uC11C\uBC84 \uC751\uB2F5 \uC5C6\uC74C</p>
       <h1>Stock \uC11C\uBC84\uAC00 \uAE49\uC838 \uC788\uC2B5\uB2C8\uB2E4</h1>
-      <p id="lead">\uD14C\uB808\uADF8\uB7A8\uC73C\uB85C \uC11C\uBC84 \uC624\uD508 \uC694\uCCAD\uC744 \uBCF4\uB0C5\uB2C8\uB2E4\u2026</p>
+      <p id="lead">\uC11C\uBC84\uC5D0 \uC5F0\uACB0\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uC544\uB798 \uBC84\uD2BC\uC73C\uB85C \uAD00\uB9AC\uC790\uC5D0\uAC8C \uC624\uD508 \uC694\uCCAD \uC54C\uB9BC\uC744 \uBCF4\uB0BC \uC218 \uC788\uC2B5\uB2C8\uB2E4.</p>
       <div class="actions">
+        <button type="button" class="btn btn--notify" id="notify">\uD14C\uB808\uADF8\uB7A8 \uC54C\uB9BC \uBCF4\uB0B4\uAE30</button>
         <button type="button" class="btn btn--primary" id="retry">\uB2E4\uC2DC \uC5F0\uACB0</button>
         <button type="button" class="btn btn--ghost" id="reload">\uC0C8\uB85C\uACE0\uCE68</button>
       </div>
@@ -55,9 +59,8 @@ const html = `<!DOCTYPE html>
     </main>
     <script>
       (function () {
-        var SENT_KEY = "stock-server-open-request-sent";
         var statusEl = document.getElementById("status");
-        var leadEl = document.getElementById("lead");
+        var notifyBtn = document.getElementById("notify");
         var retryBtn = document.getElementById("retry");
         var reloadBtn = document.getElementById("reload");
 
@@ -109,12 +112,12 @@ const html = `<!DOCTYPE html>
               signal: ctrl.signal,
             });
             clearTimeout(timer);
-            if (!res.ok) return false;
+            if (!res.ok) return null;
             var body = await res.json();
-            return body && body.ok;
+            return body && body.ok ? body : null;
           } catch (e) {
             clearTimeout(timer);
-            return false;
+            return null;
           }
         }
 
@@ -143,17 +146,29 @@ const html = `<!DOCTYPE html>
           }
         }
 
-        async function requestServerOpen() {
-          if (sessionStorage.getItem(SENT_KEY) === "1") return;
-          var ok = (await sendViaApi()) || (await sendViaClientTelegram());
+        async function sendNotify() {
+          notifyBtn.disabled = true;
+          setStatus("\\uC54C\\uB9BC \\uC804\\uC1A1 \\uC911\\u2026");
+          var apiResult = await sendViaApi();
+          var ok = !!(apiResult && apiResult.ok);
+          var skipped = !!(apiResult && apiResult.skipped);
+          if (!ok) ok = await sendViaClientTelegram();
           if (ok) {
-            sessionStorage.setItem(SENT_KEY, "1");
-            leadEl.textContent =
-              "\\uD14C\\uB808\\uADF8\\uB7A8\\uC73C\\uB85C \\uC11C\\uBC84 \\uC624\\uD508 \\uC694\\uCCAD\\uC744 \\uBCF4\\uB0C5\\uB2C8\\uB2E4. \\uC7A0\\uC2DC \\uD6C4 \\uB2E4\\uC2DC \\uC5F0\\uACB0\\uD574 \\uC8FC\\uC138\\uC694.";
+            setStatus(
+              skipped
+                ? "\\uCD5C\\uADFC\\uC5D0 \\uC774\\uBBF8 \\uC694\\uCCAD\\uC744 \\uBCF4\\uB0C8\\uC2B5\\uB2C8\\uB2E4."
+                : "\\uD14C\\uB808\\uADF8\\uB7A8\\uC73C\\uB85C \\uC11C\\uBC84 \\uC624\\uD508 \\uC694\\uCCAD\\uC744 \\uBCF4\\uB0C4\\uC2B5\\uB2C8\\uB2E4.",
+            );
           } else {
-            leadEl.textContent =
-              "\\uC11C\\uBC84 \\uC624\\uD508 \\uC694\\uCCAD\\uC744 \\uBCF4\\uB0B4\\uC9C0 \\uBAB8\\uC2B5\\uB2C8\\uB2E4. \\uB2E4\\uC2DC \\uC5F0\\uACB0\\uC744 \\uB20C\\uB7EC \\uC8FC\\uC138\\uC694.";
+            var cfg = window.__STOCK_SERVER_OPEN__;
+            setStatus(
+              cfg && cfg.token && cfg.chatId
+                ? "\\uC54C\\uB9BC \\uC804\\uC1A1\\uC5D0 \\uC2E4\\uD328\\uD588\\uC2B5\\uB2C8\\uB2E4. \\uC7A0\\uC2DC \\uD6C4 \\uB2E4\\uC2DC \\uC2DC\\uB3C4\\uD574 \\uC8FC\\uC138\\uC694."
+                : "\\uC11C\\uBC84\\uAC00 \\uAF2E\\uC838 \\uC788\\uC5B4 \\uC54C\\uB9BC\\uC744 \\uBCF4\\uB0BC \\uC218 \\uC5C6\\uC2B5\\uB2C8\\uB2E4. \\uAC1C\\uBC1C PC\\uC5D0\\uC11C \\uC11C\\uBC84\\uB97C \\uAE30\\uB3D9\\uD574 \\uC8FC\\uC138\\uC694.",
+              true,
+            );
           }
+          notifyBtn.disabled = false;
         }
 
         async function probe() {
@@ -175,20 +190,34 @@ const html = `<!DOCTYPE html>
             location.replace("/");
           } catch (e) {
             setStatus("\\uC544\\uC9C1 \\uC11C\\uBC84\\uC5D0 \\uC5F0\\uACB0\\uD560 \\uC218 \\uC5C6\\uC2B5\\uB2C8\\uB2E4.", true);
-            sessionStorage.removeItem(SENT_KEY);
-            void requestServerOpen();
           } finally {
             retryBtn.disabled = false;
           }
         }
 
+        notifyBtn.addEventListener("click", function () { void sendNotify(); });
         retryBtn.addEventListener("click", function () { void probe(); });
         reloadBtn.addEventListener("click", function () { location.reload(); });
-        void requestServerOpen();
       })();
     </script>
   </body>
 </html>`;
 
-writeFileSync(out, html, "utf8");
+loadEnvFile();
+
+function buildConfigInject() {
+  const creds = resolveServerOpenClientTelegramCreds();
+  if (!creds) return "<!-- server-open: client telegram disabled -->";
+  const payload = JSON.stringify({
+    token: creds.token,
+    chatId: creds.chatId,
+  });
+  return `<script>window.__STOCK_SERVER_OPEN__=${payload};</script>`;
+}
+
+writeFileSync(
+  out,
+  html.replace("<!--STOCK_SERVER_OPEN_CONFIG-->", buildConfigInject()),
+  "utf8",
+);
 console.log("gen server-offline.html ok");
