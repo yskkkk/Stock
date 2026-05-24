@@ -17,16 +17,38 @@ export function formatLiveTradeQuantity(
   return value.toLocaleString("ko-KR", { maximumFractionDigits: 0 });
 }
 
+function isUsdtLikeCurrency(currency?: string): boolean {
+  const c = String(currency ?? "").toUpperCase();
+  return c === "USDT" || c === "USDC";
+}
+
+/** 저가 코인 USDT 표시 — 0.00으로 뭉개지지 않게 자릿수 확장 */
+export function usdtPriceFractionDigits(value: number): {
+  minimumFractionDigits: number;
+  maximumFractionDigits: number;
+} {
+  const abs = Math.abs(value);
+  if (!Number.isFinite(abs) || abs === 0) {
+    return { minimumFractionDigits: 2, maximumFractionDigits: 6 };
+  }
+  if (abs >= 1000) return { minimumFractionDigits: 0, maximumFractionDigits: 2 };
+  if (abs >= 1) return { minimumFractionDigits: 2, maximumFractionDigits: 4 };
+  if (abs >= 0.01) return { minimumFractionDigits: 2, maximumFractionDigits: 6 };
+  if (abs >= 0.0001) return { minimumFractionDigits: 4, maximumFractionDigits: 8 };
+  return { minimumFractionDigits: 6, maximumFractionDigits: 10 };
+}
+
 export function formatPrice(value: number | undefined, currency?: string) {
   if (value == null) return "—";
   if (currency === "KRW") {
     return `${new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 0 }).format(value)}원`;
   }
+  const frac = isUsdtLikeCurrency(currency)
+    ? usdtPriceFractionDigits(value)
+    : { minimumFractionDigits: 2, maximumFractionDigits: 2 };
   return (
-    new Intl.NumberFormat("ko-KR", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value) + (currency ? ` ${currency}` : "")
+    new Intl.NumberFormat("ko-KR", frac).format(value) +
+    (currency ? ` ${currency}` : "")
   );
 }
 
@@ -43,7 +65,15 @@ export function formatSignedMoney(value: number, currency?: string) {
   if (currency === "KRW") {
     return `${sign}${new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 0 }).format(v)}원`;
   }
-  return `${sign}${new Intl.NumberFormat("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v)}${currency ? ` ${currency}` : ""}`;
+  const frac = isUsdtLikeCurrency(currency)
+    ? usdtPriceFractionDigits(v)
+    : { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+  return (
+    `${sign}${new Intl.NumberFormat("ko-KR", {
+      minimumFractionDigits: frac.minimumFractionDigits,
+      maximumFractionDigits: frac.maximumFractionDigits,
+    }).format(v)}${currency ? ` ${currency}` : ""}`
+  );
 }
 
 export function formatNewsDate(ts: number) {
