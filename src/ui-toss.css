@@ -1283,8 +1283,27 @@ body {
 
 .live-trading-tab__api-row {
   display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.live-trading-tab__api-row > .live-trade-api-card {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.live-trading-tab__api-row > .live-trade-api-card .live-trade-api-card__summary {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+@media (max-width: 720px) {
+  .live-trading-tab__api-row {
+    flex-direction: column;
+  }
 }
 
 .live-trade-api-card {
