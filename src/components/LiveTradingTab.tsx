@@ -156,7 +156,7 @@ function LiveTradeCardWorkspace({
 
   return (
     <div
-      className={`live-trading-tab__card-workspace live-trading-tab__card-workspace--tabs${
+      className={`live-trading-tab__card-workspace${
         panel ? " live-trading-tab__card-workspace--tab-active" : ""
       }`}
     >
@@ -685,6 +685,7 @@ export default function LiveTradingTab({
           />
 
           <LiveTradeCardSidePanelProvider>
+            <div className="live-trading-tab__card-dock">
             <LiveTradeCardWorkspace
               editingId={editingId}
               onCloseEdit={resetForm}
@@ -1225,8 +1226,9 @@ export default function LiveTradingTab({
           </div>
         </LiveTradeCollapsibleCard>
               </div>
-              <LiveTradeCardSidePanel />
             </LiveTradeCardWorkspace>
+            <LiveTradeCardSidePanel />
+            </div>
           </LiveTradeCardSidePanelProvider>
         </>
       ) : null}

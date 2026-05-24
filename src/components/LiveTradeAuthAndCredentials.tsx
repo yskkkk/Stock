@@ -162,6 +162,34 @@ type LiveTradeSidePanelState = { id: string; title: string } | null;
 
 const LIVE_TRADE_CARD_TAB_ORDER = ["portfolio", "form", "programs"] as const;
 
+export const LIVE_TRADE_RIGHT_PANEL_HOST_ID = "app-live-trade-right-panel";
+
+const LIVE_TRADE_RIGHT_PANEL_MQ = "(min-width: 1180px)";
+
+function useLiveTradeRightPanelDock() {
+  const [docked, setDocked] = useState(false);
+  const [host, setHost] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia(LIVE_TRADE_RIGHT_PANEL_MQ);
+    const sync = () => {
+      const nextDocked = mq.matches;
+      setDocked(nextDocked);
+      setHost(
+        nextDocked
+          ? document.getElementById(LIVE_TRADE_RIGHT_PANEL_HOST_ID)
+          : null,
+      );
+    };
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  return { docked: docked && Boolean(host), host };
+}
+
 type LiveTradeSidePanelContextValue = {
   panel: LiveTradeSidePanelState;
   openPanel: (id: string, title: string) => void;
@@ -240,6 +268,7 @@ function useLiveTradeCardSidePanelOptional(): LiveTradeSidePanelContextValue | n
 export function LiveTradeCardSidePanel() {
   const { panel, openPanel, closePanel, bodyHostRef, sideTabs } =
     useLiveTradeCardSidePanel();
+  const { docked, host } = useLiveTradeRightPanelDock();
 
   useEffect(() => {
     if (!panel) return;
@@ -254,11 +283,11 @@ export function LiveTradeCardSidePanel() {
 
   const activeId = panel?.id ?? null;
 
-  return (
+  const pane = (
     <aside
       className={`live-trading-tab__card-tabs-pane${
         activeId ? " live-trading-tab__card-tabs-pane--active" : ""
-      }`}
+      }${docked ? " live-trading-tab__card-tabs-pane--docked" : ""}`}
       aria-label={ko.app.liveTradeCardTabPaneAria}
     >
       <div
@@ -318,6 +347,11 @@ export function LiveTradeCardSidePanel() {
       </div>
     </aside>
   );
+
+  if (docked && host) {
+    return createPortal(pane, host);
+  }
+  return pane;
 }
 
 function LiveTradeSidePanelPortal({

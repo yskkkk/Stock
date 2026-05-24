@@ -136,8 +136,8 @@ export default function App() {
   const [telegramNotify, setTelegramNotify] = useState(false);
   const [telegramSentCount, setTelegramSentCount] = useState(0);
   const [resettingTelegram, setResettingTelegram] = useState(false);
-  const [appTab, setAppTab] = useState<AppTab>("screener");
-  const prevAppTabRef = useRef<AppTab>("screener");
+  const [appTab, setAppTab] = useState<AppTab>("stockLookup");
+  const prevAppTabRef = useRef<AppTab>("stockLookup");
   /** 실거래 보유 → 종목검색: 탭 진입 시 lookupSelected 초기화 effect 건너뜀 */
   const skipLookupResetRef = useRef(false);
   /** 실거래에서 넘어온 심볼 — 종목검색 탭에서 자동 검색 */
@@ -150,6 +150,10 @@ export default function App() {
   const [lookupMarketTab, setLookupMarketTab] = useState<Market>("kr");
   /** 수동 국내↔나스닥 탭 전환 시에만 증가 — 자동 교차 시장 검색 시 검색창·조건 유지 */
   const [lookupSearchTabMountKey, setLookupSearchTabMountKey] = useState(0);
+  const [lookupHotToolbar, setLookupHotToolbar] = useState({
+    visible: false,
+    showUsToggle: false,
+  });
   const [usQuoteInKrw, setUsQuoteInKrw] = useState(readUsQuoteKrwPref);
   const [cryptoFocusSymbol, setCryptoFocusSymbol] = useState<string | null>(null);
   const [signalFilters, setSignalFilters] = useState<SignalId[]>([]);
@@ -233,8 +237,8 @@ export default function App() {
     setNewsLoading(false);
   }, []);
 
-  const mobileBackPrevTabRef = useRef<AppTab>("screener");
-  const lastTabForBackRef = useRef<AppTab>("screener");
+  const mobileBackPrevTabRef = useRef<AppTab>("stockLookup");
+  const lastTabForBackRef = useRef<AppTab>("stockLookup");
   useEffect(() => {
     if (appTab !== lastTabForBackRef.current) {
       mobileBackPrevTabRef.current = lastTabForBackRef.current;
@@ -291,7 +295,7 @@ export default function App() {
     () => setChartDrawMode("cursor"),
   );
   useMobileBackHandler(
-    appTab !== "screener",
+    appTab !== "stockLookup",
     MOBILE_BACK_PRIORITY.TAB,
     () => setAppTab(mobileBackPrevTabRef.current),
   );
@@ -1310,7 +1314,16 @@ export default function App() {
         <div className="workspace">
         <aside className="picks-panel card">
           <div className="panel-head">
-            <div className="panel-head__filters">
+            <div
+              className={[
+                "panel-head__filters",
+                appTab === "stockLookup" && lookupHotToolbar.visible
+                  ? "panel-head__filters--lookup-hot"
+                  : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            >
               <div className="market-tabs">
                 <button
                   type="button"
@@ -1377,6 +1390,25 @@ export default function App() {
                   </button>
                 ) : null}
               </div>
+              {appTab === "stockLookup" && lookupHotToolbar.visible ? (
+                <div
+                  className="stock-search-tab__tab-hot-caption"
+                  aria-live="polite"
+                >
+                  <span className="stock-search-tab__hot-badge stock-search-tab__tab-hot-badge">
+                    {ko.app.stockLookupHotTitle}
+                  </span>
+                  {lookupHotToolbar.showUsToggle ? (
+                    <QuoteCurrencyToggle
+                      iconOnly
+                      inKrw={usQuoteInKrw}
+                      onToggle={toggleUsQuoteKrw}
+                      fxValuationDate={usdKrwValDate}
+                      className="quote-currency-toggle--hot-head"
+                    />
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -1417,6 +1449,7 @@ export default function App() {
               onToggleUsQuoteKrw={toggleUsQuoteKrw}
               usdKrwRate={usdKrwRate}
               usdKrwValDate={usdKrwValDate}
+              onHotToolbarStateChange={setLookupHotToolbar}
             />
           )}
         </aside>
@@ -1847,7 +1880,15 @@ export default function App() {
         }
       />
       </div>
-      <div className="app__right-panel" aria-hidden="true" />
+      <div
+        id="app-live-trade-right-panel"
+        className={
+          appTab === "liveTrading"
+            ? "app__right-panel app__right-panel--live-trade"
+            : "app__right-panel"
+        }
+        aria-hidden={appTab !== "liveTrading"}
+      />
       </div>
 
       <AppSiteFooter

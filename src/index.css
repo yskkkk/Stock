@@ -1714,11 +1714,28 @@ html[data-theme="light"] .top-bar__live-trade {
   text-overflow: ellipsis;
   white-space: nowrap;
   padding: 0.1rem 0.45rem;
+  border: 0;
   border-radius: 999px;
+  font-family: inherit;
   font-size: 0.72rem;
   font-weight: 600;
+  line-height: 1.35;
   background: rgba(94, 234, 212, 0.12);
   color: var(--accent);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.live-trade-header-strip__chip:hover {
+  background: rgba(94, 234, 212, 0.22);
+}
+
+.live-trade-header-strip__chip:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-dim);
 }
 
 .live-trade-header-strip__chip--sim {
@@ -1726,8 +1743,8 @@ html[data-theme="light"] .top-bar__live-trade {
   color: var(--dim);
 }
 
-.live-trade-header-strip__open {
-  white-space: nowrap;
+.live-trade-header-strip__chip--sim:hover {
+  background: rgba(148, 163, 184, 0.2);
 }
 
 .top-bar__brand h1 {
@@ -2105,15 +2122,244 @@ html[data-theme="light"] .top-bar__live-trade {
   white-space: nowrap;
 }
 
-.stock-search-tab__hot-title {
-  margin: 0.35rem 0 0.45rem;
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--text-dim, #64748b);
+.stock-search-tab__toolbar {
+  position: relative;
+}
+
+/* 종목검색: 거래대금 상위 — 나스닥 탭 아래 */
+.picks-panel:not(.crypto-panel) .panel-head__filters--lookup-hot {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: 0.85rem;
+  row-gap: 0.06rem;
+  justify-items: center;
+  align-items: end;
+  width: auto;
+  max-width: 100%;
+}
+
+.picks-panel:not(.crypto-panel) .panel-head__filters--lookup-hot .market-tabs {
+  display: contents;
+}
+
+.picks-panel:not(.crypto-panel) .panel-head__filters--lookup-hot .market-tab:nth-child(1) {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.picks-panel:not(.crypto-panel) .panel-head__filters--lookup-hot .market-tab:nth-child(2) {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.stock-search-tab__tab-hot-caption {
+  grid-column: 2;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.32rem;
+  margin-top: 0.02rem;
+  min-height: 0;
+}
+
+.stock-search-tab__hot-badge,
+.stock-search-tab__tab-hot-badge {
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--muted, #8b9aac) 48%, var(--text, #f1f5f9));
+  opacity: 0.58;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.stock-search-tab__tab-hot-caption .quote-currency-toggle {
+  flex-shrink: 0;
+}
+
+.quote-currency-toggle--icon-only {
+  min-width: 0;
+  width: 1.65rem;
+  height: 1.65rem;
+  padding: 0;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 80%, transparent);
+  background: color-mix(in srgb, var(--card, #161d27) 92%, var(--surface));
+}
+
+.quote-currency-toggle--icon-only .quote-currency-toggle__icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.quote-currency-toggle--hot-head.quote-currency-toggle--icon-only[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--accent, #5eead4) 45%, transparent);
+  background: color-mix(in srgb, var(--accent-dim, rgba(94, 234, 212, 0.12)) 70%, var(--card));
+}
+
+.stock-search-tab__hot-list {
+  gap: 0.32rem !important;
+  padding-top: 0.15rem !important;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.stock-search-tab__hot-list::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .stock-search-tab__hot-list .pick-actions {
   display: none;
+}
+
+/* 거래대금 상위 — 토스형 가로 행 카드 */
+.stock-hot-item {
+  border-radius: 10px !important;
+  border: 1px solid color-mix(in srgb, var(--card-border, rgba(148, 163, 184, 0.12)) 88%, transparent) !important;
+  background: color-mix(in srgb, var(--card, #161d27) 96%, var(--bg-elevated, #121820)) !important;
+  box-shadow: none !important;
+  overflow: hidden;
+}
+
+html[data-theme="light"] .stock-hot-item {
+  background: var(--card, #fff) !important;
+  border-color: color-mix(in srgb, var(--border, #e2e8f0) 90%, transparent) !important;
+  box-shadow: 0 1px 0 color-mix(in srgb, #fff 80%, transparent) !important;
+}
+
+.stock-hot-item--active,
+.stock-hot-item.active {
+  border-color: color-mix(in srgb, var(--accent, #5eead4) 42%, var(--card-border)) !important;
+  background: color-mix(in srgb, var(--accent-dim, rgba(94, 234, 212, 0.12)) 55%, var(--card)) !important;
+  box-shadow: none !important;
+}
+
+.stock-hot-item__btn {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.45rem 0.65rem;
+  width: 100%;
+  min-height: 3.1rem;
+  margin: 0;
+  padding: 0.62rem 0.72rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.stock-hot-item__identity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.stock-hot-item__name {
+  font-size: 0.92rem;
+  font-weight: 650;
+  line-height: 1.25;
+  color: var(--text, #f1f5f9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stock-hot-item__code {
+  font-size: 0.68rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted, #8b9aac);
+  letter-spacing: 0.02em;
+}
+
+.stock-hot-item__quote {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+  flex-shrink: 0;
+}
+
+.stock-hot-item__price {
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--text, #f1f5f9);
+  white-space: nowrap;
+}
+
+.stock-hot-item__chg {
+  font-size: 0.74rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.stock-hot-item__chg--up {
+  color: #f04452;
+}
+
+.stock-hot-item__chg--down {
+  color: #4b96f3;
+}
+
+html[data-theme="light"] .stock-hot-item__chg--up {
+  color: #e42939;
+}
+
+html[data-theme="light"] .stock-hot-item__chg--down {
+  color: #1b64da;
+}
+
+.stock-hot-item__turnover {
+  flex-shrink: 0;
+  min-width: 3.2rem;
+  max-width: 5.5rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim, #aeb9cc);
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stock-hot-item__turnover--empty {
+  visibility: hidden;
+}
+
+.stock-hot-item__pending {
+  grid-column: 2 / -1;
+  justify-self: end;
+  font-size: 0.72rem;
+  color: var(--muted, #8b9aac);
+}
+
+@media (max-width: 480px) {
+  .stock-hot-item__btn {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.35rem 0.5rem;
+    padding: 0.55rem 0.62rem;
+    min-height: 2.85rem;
+  }
+
+  .stock-hot-item__name {
+    font-size: 0.86rem;
+  }
+
+  .stock-hot-item__turnover {
+    display: none;
+  }
 }
 
 .pick-score--dim {
@@ -7191,10 +7437,24 @@ html[data-theme="light"] .bithumb-account-rail-wrap--side {
 }
 
 .bithumb-account-rail__fees {
-  margin: 0 0 0.4rem;
+  margin: 0 0 0.22rem;
   font-size: 0.66rem;
   font-weight: 700;
   color: var(--accent, #5eead4);
+}
+
+.bithumb-account-rail__updated {
+  margin: 0 0 0.48rem;
+  font-size: 0.62rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--muted, #8b9aac);
+  font-variant-numeric: tabular-nums;
+}
+
+.bithumb-account-rail__updated time {
+  font-weight: 600;
+  color: color-mix(in srgb, var(--text-dim, #aeb9cc) 88%, var(--muted, #8b9aac));
 }
 
 .bithumb-account-rail__section-title {
@@ -7511,25 +7771,21 @@ html[data-theme="light"] .live-trade-rail {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
-  padding-right: 0.12rem;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   margin-top: 0.22rem;
   cursor: grab;
+}
+
+.live-trade-rail__table-wrap::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .live-trade-rail__table-wrap--dragging {
   cursor: grabbing;
   user-select: none;
-}
-
-.live-trade-rail__table-wrap::-webkit-scrollbar {
-  width: 6px;
-}
-
-.live-trade-rail__table-wrap::-webkit-scrollbar-thumb {
-  border-radius: 4px;
-  background: rgba(148, 163, 184, 0.4);
 }
 
 .live-trade-rail__table {
@@ -8032,6 +8288,22 @@ html[data-theme="light"] .market-indices-rail__item {
     min-width: 0;
     min-height: 1px;
     align-self: stretch;
+    pointer-events: none;
+  }
+
+  .app__right-panel--live-trade {
+    justify-self: start;
+    width: min(22rem, 100%);
+    max-width: 24rem;
+    pointer-events: auto;
+    position: sticky;
+    top: max(0.35rem, env(safe-area-inset-top, 0px));
+    align-self: start;
+    max-height: calc(100dvh - max(0.35rem, env(safe-area-inset-top, 0px)) - 0.65rem);
+    overflow: hidden;
+  }
+
+  .app__right-panel--live-trade:empty {
     pointer-events: none;
   }
 

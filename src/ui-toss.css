@@ -1864,33 +1864,34 @@ html[data-theme="dark"] .live-trade-api-card__body .live-trading-tab__cred-form 
   gap: 0.45rem;
 }
 
-/* 보유·거래·수익 · 새 프로그램 · 등록 프로그램 — 카드 + 우측 탭 패널 */
-.live-trading-tab__card-workspace {
+/* 보유·거래·수익 · 새 프로그램 · 등록 프로그램 — 카드 행(본문 전폭) */
+.live-trading-tab__card-dock {
   display: flex;
-  flex-direction: row;
-  align-items: stretch;
+  flex-direction: column;
   gap: 0.45rem;
   min-width: 0;
-  margin-bottom: 0.45rem;
 }
 
-.live-trading-tab__card-workspace--tabs .live-trading-tab__card-row {
-  flex: 1 1 42%;
+.live-trading-tab__card-workspace {
   min-width: 0;
   margin-bottom: 0;
 }
 
 .live-trading-tab__card-tabs-pane {
   display: flex;
-  flex: 1 1 58%;
   flex-direction: column;
   min-width: 0;
-  min-height: min(72vh, 640px);
+  min-height: min(52vh, 480px);
   max-height: min(88vh, 920px);
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 88%, transparent);
   border-radius: var(--radius-md, 10px);
   background: var(--card-bg, #fff);
+}
+
+.live-trading-tab__card-tabs-pane--docked {
+  min-height: min(88vh, 920px);
+  max-height: calc(100dvh - max(0.35rem, env(safe-area-inset-top, 0px)) - 0.65rem);
 }
 
 .live-trading-tab__card-tabs {
@@ -1987,20 +1988,9 @@ html[data-theme="dark"] .live-trade-api-card__body .live-trading-tab__cred-form 
   border-color: color-mix(in srgb, var(--accent, #2563eb) 45%, transparent);
 }
 
-@media (max-width: 960px) {
-  .live-trading-tab__card-workspace--tabs {
-    flex-direction: column;
-  }
-
-  .live-trading-tab__card-workspace--tabs .live-trading-tab__card-row {
-    flex: none;
-    width: 100%;
-  }
-
+@media (max-width: 1179px) {
   .live-trading-tab__card-tabs-pane {
-    flex: none;
     width: 100%;
-    min-height: min(52vh, 480px);
     max-height: none;
   }
 }
