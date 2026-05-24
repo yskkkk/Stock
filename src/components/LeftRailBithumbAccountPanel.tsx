@@ -6,6 +6,7 @@ import {
   type BithumbTestSnapshot,
 } from "../api";
 import BithumbAccountSnapshotCard from "./BithumbAccountSnapshotCard";
+import BithumbAccountTitle from "./BithumbAccountTitle";
 import { ko } from "../i18n/ko";
 import { LIVE_TRADE_AUTH_CHANGE } from "./LiveTradeAuthAndCredentials";
 
@@ -91,9 +92,7 @@ function LeftRailBithumbAccountPanelInner({
             className="bithumb-account-rail-wrap__title-btn"
             onClick={() => onOpenLiveTrading?.()}
           >
-            <span className="bithumb-account-rail-wrap__title">
-              {ko.app.leftRailBithumbAccountTitle}
-            </span>
+            <BithumbAccountTitle />
           </button>
         </div>
         <p className="bithumb-account-rail-wrap__hint">
@@ -118,9 +117,7 @@ function LeftRailBithumbAccountPanelInner({
           onClick={() => onOpenLiveTrading?.()}
           title={ko.app.liveTradeLeftRailOpen}
         >
-          <span className="bithumb-account-rail-wrap__title">
-            {ko.app.leftRailBithumbAccountTitle}
-          </span>
+          <BithumbAccountTitle />
         </button>
         {loading ? (
           <span className="bithumb-account-rail-wrap__status">

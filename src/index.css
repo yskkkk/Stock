@@ -7112,7 +7112,7 @@ html[data-theme="light"] .bithumb-account-rail-wrap--side {
 
 .bithumb-account-rail-wrap__title-btn {
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   gap: 0.25rem;
   margin: 0;
   padding: 0;
@@ -7132,6 +7132,32 @@ html[data-theme="light"] .bithumb-account-rail-wrap--side {
   font-size: 0.8rem;
   font-weight: 800;
   letter-spacing: -0.02em;
+}
+
+.bithumb-account-rail-wrap__title--brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.bithumb-account-rail-wrap__mark {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  display: block;
+}
+
+.bithumb-account-rail-wrap__title-text,
+.bithumb-account-rail-wrap__title-suffix {
+  font: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
 }
 
 .bithumb-account-rail-wrap__status {
