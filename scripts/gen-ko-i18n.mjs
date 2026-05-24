@@ -142,7 +142,7 @@ const t = {
     liveTradeFieldAmountKrwCrypto:
       "\uad6d\ub0b4\u00b7\ucf54\uc778 1\ud68c \ub9e4\uc218 \uae08\uc561 (\uc6d0)",
     liveTradeFieldMarketsRequired:
-      "\uad6d\ub0b4\u00b7\ubbf8\uad6d\u00b7\ucf54\uc778 \uc911 \ud558\ub098 \uc774\uc0c1 \uc120\ud0dd\ud558\uc138\uc694.",
+      "\uad6d\ub0b4\u00b7\ubbf8\uad6d\u00b7\ucf54\uc778 \uc911 \ud558\ub098\ub97c \uc120\ud0dd\ud558\uc138\uc694.",
     liveTradeFieldSellHorizon: "\ub9e4\ub3c4 \uad00\uc810 (\ubcf4\uc720 \uae30\uac04 \uac00\uc815)",
     liveTradeSellHorizonShort: "\ub2e8\uae30",
     liveTradeSellHorizonMedium: "\uc911\uae30",
