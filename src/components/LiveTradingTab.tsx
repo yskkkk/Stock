@@ -26,7 +26,9 @@ import { refreshLiveTradingStatusNow } from "../hooks/useLiveTradingStatusPoll";
 import { invalidateLiveTradingPrefetch, peekLiveTradingPrefetch } from "../lib/tabPrefetch";
 import { formatPercent } from "../lib/format";
 import LiveTradeAuthPanel, {
+  LiveTradeApiCollapsibleCard,
   LiveTradeBithumbCredentialForm,
+  LiveTradeCollapsibleCard,
   notifyLiveTradeAuthChange,
   useLiveTradeAuth,
 } from "./LiveTradeAuthAndCredentials";
@@ -121,7 +123,7 @@ const emptyDraft = () => ({
   marketsCrypto: false,
   minScoreRatio: 0.85,
   maxOpenPositions: "5",
-  orderAmountKrw: "100000",
+  orderAmountKrw: "10000",
   orderAmountUsd: "",
   simAutoBuy: true,
   autoSellAtTarget: true,
@@ -206,6 +208,8 @@ export default function LiveTradingTab({
     return m;
   }, [models]);
 
+  const programs = status?.programs ?? [];
+
   const draftMarkets = useMemo(
     () => ({
       kr: draft.marketsKr,
@@ -223,6 +227,44 @@ export default function LiveTradingTab({
     parseMaxOpenPositionsInput(draft.maxOpenPositions) != null &&
     (draft.marketsKr || draft.marketsUs || draft.marketsCrypto) &&
     (!draft.marketsUs || draft.orderAmountUsd.trim() !== "");
+
+  const formCardSummary = useMemo(() => {
+    if (editingId) {
+      const p = programs.find((x) => x.id === editingId);
+      return p
+        ? `${p.name} · ${ko.app.liveTradeFormEdit}`
+        : ko.app.liveTradeFormEdit;
+    }
+    const markets = [
+      draft.marketsKr ? ko.app.liveTradeMarketKr : "",
+      draft.marketsUs ? ko.app.liveTradeMarketUs : "",
+      draft.marketsCrypto ? ko.app.liveTradeMarketCrypto : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    const label = draft.name.trim() || ko.app.liveTradeNamePlaceholder;
+    return `${label} · ${markets || "—"} · ${Math.round(draft.minScoreRatio * 100)}%`;
+  }, [draft, editingId, programs]);
+
+  const programsListSummary = useMemo(() => {
+    if (programs.length === 0) return ko.app.liveTradeListEmpty;
+    const running = programs
+      .map((p) => {
+        const hc = status?.programReturns?.[p.id]?.holdingCount ?? 0;
+        const st = programDisplayStatus(p, hc);
+        if (st === "armed" || st === "sim") {
+          return `${p.name} ${statusLabel(st)}`;
+        }
+        return null;
+      })
+      .filter(Boolean);
+    if (running.length > 0) {
+      const head = running.slice(0, 2).join(" · ");
+      const more = running.length > 2 ? ` · +${running.length - 2}` : "";
+      return `${programs.length}개 · ${head}${more}`;
+    }
+    return `${programs.length}개`;
+  }, [programs, status?.programReturns]);
 
   const resetForm = useCallback(() => {
     setEditingId(null);
@@ -396,7 +438,7 @@ export default function LiveTradingTab({
       try {
         const out = await armLiveTradeProgram(id, lane);
         if (lane === "bithumb") {
-          if (out.bithumb.ready && out.bithumb.liveOrdersEnabled) {
+          if (out.bithumb.ready) {
             setMsg(ko.app.liveTradeArmedOkBithumb);
           } else if (!out.bithumb.configured) {
             setMsg(ko.app.liveTradeArmedWaitBithumbKeys);
@@ -471,7 +513,6 @@ export default function LiveTradingTab({
     [reload],
   );
 
-  const programs = status?.programs ?? [];
   const toss = status?.toss;
   const bithumb = status?.bithumb;
 
@@ -513,28 +554,17 @@ export default function LiveTradingTab({
         />
       ) : null}
 
-      {!user ? (
-        <p className="live-trading-tab__hint card">
-          {ko.app.liveTradeAuthRequired}
-        </p>
-      ) : null}
-
       <div
         className="live-trading-tab__api-row"
         aria-label={ko.app.liveTradeApiRowAria}
       >
-        <section
-          className={`live-trading-tab__toss card ${
-            toss?.ready
-              ? "live-trading-tab__toss--ready"
-              : toss?.configured
-                ? "live-trading-tab__toss--partial"
-                : "live-trading-tab__toss--off"
-          }`}
-          aria-live="polite"
+        <LiveTradeApiCollapsibleCard
+          title={ko.app.liveTradeTossTitle}
+          variant={
+            toss?.ready ? "ready" : toss?.configured ? "partial" : "off"
+          }
+          summary={toss?.messageKo ?? "—"}
         >
-          <h3 className="live-trading-tab__section-title">{ko.app.liveTradeTossTitle}</h3>
-          <p className="live-trading-tab__toss-msg">{toss?.messageKo ?? "—"}</p>
           <ul className="live-trading-tab__toss-env" aria-label={ko.app.liveTradeTossChecklist}>
             <li>
               <span>{ko.app.liveTradeTossItemApi}</span>
@@ -557,22 +587,15 @@ export default function LiveTradingTab({
               </span>
             </li>
           </ul>
-        </section>
+        </LiveTradeApiCollapsibleCard>
 
-        <section
-          className={`live-trading-tab__toss card ${
-            bithumb?.ready
-              ? "live-trading-tab__toss--ready"
-              : bithumb?.configured
-                ? "live-trading-tab__toss--partial"
-                : "live-trading-tab__toss--off"
-          }`}
-          aria-live="polite"
+        <LiveTradeApiCollapsibleCard
+          title={ko.app.liveTradeBithumbTitle}
+          variant={
+            bithumb?.ready ? "ready" : bithumb?.configured ? "partial" : "off"
+          }
+          summary={bithumb?.messageKo ?? "—"}
         >
-          <h3 className="live-trading-tab__section-title">
-            {ko.app.liveTradeBithumbTitle}
-          </h3>
-          <p className="live-trading-tab__toss-msg">{bithumb?.messageKo ?? "—"}</p>
           <ul
             className="live-trading-tab__toss-env"
             aria-label={ko.app.liveTradeBithumbChecklist}
@@ -587,14 +610,6 @@ export default function LiveTradingTab({
               <span>{ko.app.liveTradeBithumbItemSecret}</span>
               <span className="live-trading-tab__toss-state">
                 {bithumb?.ready ? ko.app.liveTradeTossOk : ko.app.liveTradeTossNo}
-              </span>
-            </li>
-            <li>
-              <span>{ko.app.liveTradeBithumbItemExchangeOrders}</span>
-              <span className="live-trading-tab__toss-state">
-                {bithumb?.liveOrdersEnabled
-                  ? ko.app.liveTradeExchangeOrdersOn
-                  : ko.app.liveTradeExchangeOrdersOff}
               </span>
             </li>
           </ul>
@@ -615,14 +630,13 @@ export default function LiveTradingTab({
               onUpdated={() => void reload()}
             />
           ) : null}
-        </section>
+        </LiveTradeApiCollapsibleCard>
       </div>
 
       {user ? (
         <>
           <LiveSimRunningPanel
             programs={programs}
-            status={status}
             busy={busy}
             refreshKey={portfolioRefreshKey}
             onStop={(id) => void handleSimStop(id)}
@@ -639,14 +653,15 @@ export default function LiveTradingTab({
       ) : null}
 
       {user ? (
-      <div className="live-trading-tab__grid">
-        <section className="live-trading-tab__form card" aria-label={ko.app.liveTradeFormTitle}>
-          <header className="live-trading-tab__form-head">
-            <h3 className="live-trading-tab__section-title live-trading-tab__form-title">
-              {editingId ? ko.app.liveTradeFormEdit : ko.app.liveTradeFormNew}
-            </h3>
-          </header>
-
+      <div className="live-trading-tab__grid live-trading-tab__grid--collapse">
+        <LiveTradeCollapsibleCard
+          key={editingId ? `edit-${editingId}` : "new-form"}
+          title={editingId ? ko.app.liveTradeFormEdit : ko.app.liveTradeFormNew}
+          summary={formCardSummary}
+          defaultOpen={Boolean(editingId)}
+          className="live-trading-tab__form"
+          ariaLabel={ko.app.liveTradeFormTitle}
+        >
           {models.length === 0 ? (
             <p className="live-trading-tab__hint live-trading-tab__form-panel">
               {ko.app.liveTradeNoModels}
@@ -982,16 +997,14 @@ export default function LiveTradingTab({
               ) : null}
             </div>
           )}
-        </section>
+        </LiveTradeCollapsibleCard>
 
-        <section className="live-trading-tab__list card" aria-label={ko.app.liveTradeListTitle}>
-          <h3 className="live-trading-tab__section-title">
-            {ko.app.liveTradeListTitle}
-            {programs.length > 0 ? (
-              <span className="live-trading-tab__count">{programs.length}</span>
-            ) : null}
-          </h3>
-
+        <LiveTradeCollapsibleCard
+          title={ko.app.liveTradeListTitle}
+          summary={programsListSummary}
+          className="live-trading-tab__list"
+          ariaLabel={ko.app.liveTradeListTitle}
+        >
           <div className="live-trading-tab__list-body">
           {programs.length === 0 ? (
             <p className="live-trading-tab__empty">{ko.app.liveTradeListEmpty}</p>
@@ -1168,7 +1181,7 @@ export default function LiveTradingTab({
             </ul>
           )}
           </div>
-        </section>
+        </LiveTradeCollapsibleCard>
       </div>
       ) : null}
     </div>
