@@ -133,7 +133,7 @@ export default function AppLiveTradeSideDock() {
           id={LIVE_TRADE_RIGHT_PANEL_HOST_ID}
           className="app-live-trade-side-dock__host"
         >
-          <LiveTradeCardSidePanel forceDocked railMode onRequestDockCollapse={toggleFold} />
+          <LiveTradeCardSidePanel forceDocked railMode />
         </div>
       </div>
       <nav

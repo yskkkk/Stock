@@ -28,7 +28,6 @@ import {
 import BithumbAccountSnapshotCard from "./BithumbAccountSnapshotCard";
 import FieldValidationCallout from "./FieldValidationCallout";
 import { ko } from "../i18n/ko";
-import { dispatchLiveTradeDockToggle } from "../lib/liveTradeDockEvents";
 import {
   validateAuthCredentials,
   validateAuthEmail,
@@ -308,20 +307,15 @@ export function useLiveTradeCardSidePanelOptional(): LiveTradeSidePanelContextVa
 export function LiveTradeCardSidePanel({
   forceDocked = false,
   railMode = false,
-  onRequestDockCollapse,
 }: {
   /** App 고정 오버레이 안에서 직접 렌더 */
   forceDocked?: boolean;
   /** 우측 아이콘 레일 — 상단 가로 탭 숨김 */
   railMode?: boolean;
-  /** 우측 도크 접기(패널 헤더 버튼) */
-  onRequestDockCollapse?: () => void;
 } = {}) {
   const { panel, openPanel, closePanel, bodyHostRef, sideTabs } =
     useLiveTradeCardSidePanel();
-  const { user } = useLiveTradeAuth();
   const { docked, host } = useLiveTradeRightPanelDock();
-  const railHeadLabel = user?.email?.trim() || "YSTOCK";
 
   useEffect(() => {
     if (!panel) return;
@@ -343,26 +337,8 @@ export function LiveTradeCardSidePanel({
       }${docked ? " live-trading-tab__card-tabs-pane--docked" : ""}${
         railMode ? " live-trading-tab__card-tabs-pane--rail" : ""
       }`}
-      aria-label={railMode ? railHeadLabel : ko.app.liveTradeCardTabPaneAria}
+      aria-label={ko.app.liveTradeCardTabPaneAria}
     >
-      {railMode ? (
-        <header className="live-trading-tab__card-tabs-rail-head">
-          <p className="live-trading-tab__card-tabs-rail-title">{railHeadLabel}</p>
-          <button
-            type="button"
-            className="live-trading-tab__card-tabs-rail-close"
-            onClick={() => {
-              if (activeId) closePanel();
-              if (onRequestDockCollapse) onRequestDockCollapse();
-              else dispatchLiveTradeDockToggle();
-            }}
-            aria-label={ko.app.liveTradeSideDockCollapse}
-            title={ko.app.liveTradeSideDockCollapse}
-          >
-            <span aria-hidden>›</span>
-          </button>
-        </header>
-      ) : null}
       {!railMode ? (
         <div
           className="live-trading-tab__card-tabs"
