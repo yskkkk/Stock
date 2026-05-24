@@ -2,7 +2,7 @@ export const LIVE_TRADE_DOCK_PANEL_WIDTH_VAR = "--live-trade-dock-panel-width";
 export const LIVE_TRADE_DOCK_PANEL_WIDTH_PREF =
   "ystock-live-trade-side-dock-panel-width-px";
 
-const RAIL_REM = 3.35;
+const RAIL_REM = 2.68;
 const DEFAULT_PANEL_REM = 26;
 /** 드래그·저장 하한 — 이보다 좁으면 패널 본문이 거의 보이지 않음 */
 const MIN_PANEL_REM = 20;
