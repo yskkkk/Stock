@@ -2224,12 +2224,12 @@ body {
   color: var(--text-muted, #6b7280);
 }
 
-.live-sim-run__lane .live-sim-run__table {
+.live-sim-run__cards .live-sim-run__table {
   font-size: 0.66rem;
 }
 
-.live-sim-run__lane .live-sim-run__table th,
-.live-sim-run__lane .live-sim-run__table td {
+.live-sim-run__cards .live-sim-run__table th,
+.live-sim-run__cards .live-sim-run__table td {
   padding: 0.24rem 0.32rem;
 }
 

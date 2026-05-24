@@ -250,6 +250,7 @@ export const ko = {
     leftRailBithumbBalanceShow: "잔액 보기",
     liveTradeActivitySub: "실매매·시뮬 프로그램의 보유·목표가·최근 체결을 20초마다 갱신합니다.",
     liveTradeActivityTitle: "가동 중 실매매 · 시뮬레이션",
+    liveTradeActivityEmpty: "가동 중인 실매매·시뮬이 없습니다. «실매매 시작» 또는 «시뮬 자동 시작»으로 켠 뒤 각각 «중지»로 끕세요.",
     liveTradeAuthRegistrationClosed: "신규 회원가입은 현재 중단되어 있습니다. 계정이 있으면 로그인하세요.",
     liveTradeBithumbItemOrders: "거래소 실주문",
     liveTradeChartOpenLookup: "종목 검색 탭에서 차트 보기",
