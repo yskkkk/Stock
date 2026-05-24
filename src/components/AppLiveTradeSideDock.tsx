@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState, type RefObject } from "react";
+import { logoutAuth } from "../api";
 import { FeedbackDockRailButton, type FeedbackCornerHandle } from "./FeedbackCorner";
 import { useDesktopDockLayout } from "../hooks/useDesktopDockLayout";
+import { refreshLiveTradingStatusNow } from "../hooks/useLiveTradingStatusPoll";
+import { invalidateLiveTradingPrefetch } from "../lib/tabPrefetch";
 import {
   LIVE_TRADE_DOCK_RAIL_TAB_IDS,
   LIVE_TRADE_RIGHT_PANEL_HOST_ID,
