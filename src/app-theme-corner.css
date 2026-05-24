@@ -77,6 +77,14 @@ html[data-theme="light"] .app-theme-corner--top .app-theme-corner__mode:hover:no
 }
 
 @media (min-width: 1180px) {
+  .app__viewport-top .app-theme-corner--top {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.28rem 0.34rem;
+    padding: 0;
+  }
+
   .app-theme-corner--top {
     flex-direction: row;
     flex-wrap: wrap;

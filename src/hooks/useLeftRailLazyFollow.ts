@@ -12,8 +12,9 @@ function readPadTop(): number {
 }
 
 function readThemeReserve(column: HTMLElement | null): number {
-  if (!column) return readPadTop();
-  const theme = column.querySelector<HTMLElement>(".app-theme-corner");
+  const theme =
+    document.querySelector<HTMLElement>(".app__viewport-top .app-theme-corner") ??
+    column?.querySelector<HTMLElement>(".app-theme-corner");
   if (!theme) return readPadTop();
   const h = theme.getBoundingClientRect().height;
   return h > 0 ? h + 10 : readPadTop();

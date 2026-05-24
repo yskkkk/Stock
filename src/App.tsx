@@ -1018,7 +1018,7 @@ export default function App() {
     >
       <div className="app__scroll" ref={appScrollRef}>
       <div className="app__viewport">
-      <div className="app__left-column">
+      <div className="app__viewport-top">
         <AppThemeCorner
           colorMode={colorMode}
           lightPalette={lightPalette}
@@ -1032,6 +1032,14 @@ export default function App() {
           }}
           onLightPalette={handleLightPalette}
         />
+        <MarketIndicesBelt
+          items={marketIndices}
+          loading={marketIndicesLoading}
+          layout="top"
+          onOpenItem={handleOpenMarketIndex}
+        />
+      </div>
+      <div className="app__left-column">
         <aside ref={leftRailRef} className="app__left-rail" aria-label={ko.app.leftRailAria}>
           {!desktopDockLayout ? (
             <>
@@ -1069,12 +1077,6 @@ export default function App() {
         </div>
       ) : null}
       <div className="app-header-sticky">
-      <MarketIndicesBelt
-        items={marketIndices}
-        loading={marketIndicesLoading}
-        layout="top"
-        onOpenItem={handleOpenMarketIndex}
-      />
       <TopBarFxCalculator
         rate={usdKrwRate}
         valuationDate={usdKrwValDate}

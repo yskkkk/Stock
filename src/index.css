@@ -8024,20 +8024,41 @@ html[data-theme="light"] .market-indices-belt {
 
 .market-indices-belt--top {
   display: block;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
+  width: auto;
   max-width: 100%;
-  margin: 0 0 0.28rem;
+  margin: 0;
   box-sizing: border-box;
+}
+
+.app__viewport-top {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.4rem 0.55rem;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.app__viewport-top .app-theme-corner--top {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: none;
+  padding-top: 0;
+}
+
+.app__viewport-top .market-indices-belt--top {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .market-indices-belt--strip {
   display: none;
   width: 100%;
   margin: 0 0 0.35rem;
-}
-
-.app-header-sticky > .market-indices-belt--top {
-  flex-shrink: 0;
 }
 
 .app-header-sticky .market-indices-rail--strip {
@@ -8410,6 +8431,7 @@ html[data-theme="light"] .market-indices-rail__item {
       1fr
       minmax(0, min(var(--app-page-max-width, 1680px), 100%))
       1fr;
+    grid-template-rows: auto auto;
     column-gap: var(--app-left-rail-gap);
     align-items: start;
     justify-items: stretch;
@@ -8420,9 +8442,17 @@ html[data-theme="light"] .market-indices-rail__item {
     box-sizing: border-box;
   }
 
+  .app__viewport-top {
+    grid-column: 1 / 3;
+    grid-row: 1;
+    align-self: stretch;
+    padding-top: max(0.15rem, env(safe-area-inset-top, 0px));
+    padding-bottom: 0.06rem;
+  }
+
   .app__left-column {
     grid-column: 1;
-    grid-row: 1;
+    grid-row: 2;
     justify-self: end;
     position: relative;
     width: var(--app-left-rail-width);
@@ -8459,7 +8489,7 @@ html[data-theme="light"] .market-indices-rail__item {
 
   #root > .app .app__viewport > .app__shell {
     grid-column: 2;
-    grid-row: 1;
+    grid-row: 2;
     flex: none;
     min-width: 0;
     width: 100%;
@@ -8471,7 +8501,7 @@ html[data-theme="light"] .market-indices-rail__item {
   .app__right-panel {
     display: block;
     grid-column: 3;
-    grid-row: 1;
+    grid-row: 1 / -1;
     min-width: 0;
     min-height: 1px;
     align-self: stretch;
@@ -8840,14 +8870,14 @@ html[data-theme="light"] .market-indices-rail__item {
   }
 
   .app__left-column {
-    display: block;
-    width: 100%;
-    max-width: min(var(--app-page-max-width, 1680px), 100%);
-    margin-inline: auto;
+    display: none;
+  }
+
+  .app__viewport-top {
+    order: -1;
     padding-inline: var(--app-page-inline-pad-safe, var(--app-page-inline-pad, 1.35rem));
-    padding-bottom: 0.25rem;
-    pointer-events: auto;
-    box-sizing: border-box;
+    padding-top: max(0.2rem, env(safe-area-inset-top, 0px));
+    padding-bottom: 0.12rem;
   }
 
   .app__right-panel {
