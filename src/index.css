@@ -2010,6 +2010,23 @@ html[data-theme="light"] .top-bar__scan {
   white-space: nowrap;
 }
 
+.stock-search-tab__hot-title {
+  margin: 0.35rem 0 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-dim, #64748b);
+}
+
+.stock-search-tab__hot-list .pick-actions {
+  display: none;
+}
+
+.pick-score--dim {
+  font-weight: 600;
+  color: var(--muted, #94a3b8);
+  font-size: 0.68rem;
+}
+
 .stock-search-tab__row-foot {
   display: flex;
   flex-wrap: wrap;

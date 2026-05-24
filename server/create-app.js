@@ -37,6 +37,7 @@ import { getUsdKrwRate } from "./fx-usd-krw.js";
 import { getMarketIndices } from "./market-indices.js";
 import { searchCryptoForLiveTrade } from "./crypto-live-search.js";
 import { searchStocks } from "./stock-search.js";
+import { loadHotStocksByTurnover } from "./stock-search-hot.js";
 import { getMacroEventsCachedAsync } from "./macro-events.js";
 import { fetchSectorEarningsSpotlight } from "./sector-earnings-spotlight.js";
 import { postFeedback, getFeedbackInbox, postFeedbackAdminReply, deleteFeedbackAdmin } from "./feedback-inbox.js";
@@ -270,8 +271,11 @@ export function createApp() {
   registerUserAuthRoutes(app);
   registerUserCredentialRoutes(app);
 
+  app.get("/api/health", (_req, res) => {
+    res.json({ ok: true, atMs: Date.now() });
+  });
+
   app.get(
-    "/api/picks",
     asyncRoute(async (_req, res) => {
       ensureScreening();
       const base = getPicksState();
@@ -1729,6 +1733,25 @@ export function createApp() {
     asyncRoute(async (_req, res) => {
       try {
         res.json(await getMarketIndices());
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "요청 실패";
+        res.status(502).json({ error: message });
+      }
+    }),
+  );
+
+  app.get(
+    "/api/stock-search/hot",
+    asyncRoute(async (req, res) => {
+      try {
+        const market = String(req.query.market ?? "kr").toLowerCase();
+        if (market !== "kr" && market !== "us") {
+          res.status(400).json({
+            error: "market은 kr 또는 us 여야 합니다.",
+          });
+          return;
+        }
+        res.json(await loadHotStocksByTurnover(market));
       } catch (err) {
         const message = err instanceof Error ? err.message : "요청 실패";
         res.status(502).json({ error: message });

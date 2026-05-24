@@ -80,7 +80,7 @@ export interface QuoteResponse {
   turnover?: number;
 }
 
-/** GET /api/crypto-quotes — USDT 키는 빗썸 KRW 공개 API, 그 외 Yahoo 차트 스냅샷 */
+/** GET /api/crypto-quotes — USDT 키는 Binance USDT, 그 외 Yahoo 차트 스냅샷 */
 export interface CryptoQuotesResponse {
   quotes: Record<string, QuoteResponse>;
   updatedAt: number;
@@ -182,6 +182,11 @@ export interface MarketIndicesResponse {
 
 export interface StockSearchResponse {
   quotes: StockSearchQuoteRow[];
+}
+
+export interface StockSearchHotResponse {
+  quotes: StockSearchQuoteRow[];
+  updatedAt: number;
 }
 
 export interface StockTechnicalSignalBreakdown {

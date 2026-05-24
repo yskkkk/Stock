@@ -16,6 +16,7 @@ import type {
   QuoteResponse,
   RefreshResponse,
   StockSearchResponse,
+  StockSearchHotResponse,
   StockTechnicalResponse,
   TelegramSentResponse,
   UsdKrwRateResponse,
@@ -1370,6 +1371,13 @@ export function fetchStockSearch(
   const q = query.trim();
   return fetchJson<StockSearchResponse>(
     `/api/stock-search?q=${encodeURIComponent(q)}&market=${market}`,
+    signal ? { signal } : undefined,
+  );
+}
+
+export function fetchStockSearchHot(market: Market, signal?: AbortSignal) {
+  return fetchJson<StockSearchHotResponse>(
+    `/api/stock-search/hot?market=${market}`,
     signal ? { signal } : undefined,
   );
 }

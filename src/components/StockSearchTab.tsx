@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { fetchStockSearch, fetchStockTechnical } from "../api";
+import { fetchStockSearch, fetchStockSearchHot, fetchStockTechnical } from "../api";
 import {
   resolvePickSignalIds,
   signalChipMeta,
@@ -21,6 +21,7 @@ import StockTechnicalAnalysisPanel, {
 const HANGUL_RE = /[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7A3]/;
 /** 검색 직후 기술분석 선로드 상한(나머지는 선택 시) */
 const TECH_SEARCH_PREFETCH = 6;
+const HOT_REFRESH_MS = 120_000;
 
 function looksUsAlternateQuery(q: string) {
   return /[A-Za-z]/.test(q);
@@ -146,6 +147,74 @@ function sameQuoteRow(a: StockSearchQuoteRow, b: StockSearchQuoteRow): boolean {
     a.changePercent === b.changePercent &&
     (a.currency ?? "") === (b.currency ?? "") &&
     a.turnover === b.turnover
+  );
+}
+
+function StockSearchHotRow({
+  row,
+  isActive,
+  onSelectPick,
+  usQuoteInKrw = false,
+  onToggleUsQuoteKrw,
+  usdKrwRate = null,
+  usdKrwValDate = null,
+}: {
+  row: StockSearchQuoteRow;
+  isActive: boolean;
+  onSelectPick: (pick: StockPick) => void;
+  usQuoteInKrw?: boolean;
+  onToggleUsQuoteKrw?: () => void;
+  usdKrwRate?: number | null;
+  usdKrwValDate?: string | null;
+}) {
+  const pick = rowToPick(row);
+  const hasPrice = row.price != null && Number.isFinite(row.price);
+  const quoteDisplay = resolveUsQuoteDisplay(
+    row.price,
+    row.currency,
+    row.market,
+    usQuoteInKrw,
+    usdKrwRate ?? null,
+  );
+
+  return (
+    <li className={isActive ? "pick-item active" : "pick-item"}>
+      <button
+        type="button"
+        className="pick-row stock-search-tab__hot-row"
+        onClick={() => onSelectPick(pick)}
+      >
+        <div className="pick-head">
+          <span className="pick-name" title={row.name}>
+            {row.name}
+          </span>
+          <span className="pick-score pick-score--dim">{row.symbol.replace(/\.(KS|KQ)$/i, "")}</span>
+        </div>
+        {hasPrice ? (
+          <div className="stock-search-tab__quote-line">
+            <PickQuoteStrip
+              symbol={row.symbol}
+              price={quoteDisplay.price}
+              currency={quoteDisplay.currency}
+              changePercent={row.changePercent}
+              turnover={row.turnover}
+            />
+            {quoteDisplay.showToggle && onToggleUsQuoteKrw ? (
+              <QuoteCurrencyToggle
+                inKrw={usQuoteInKrw}
+                onToggle={onToggleUsQuoteKrw}
+                fxValuationDate={usdKrwValDate}
+                className="quote-currency-toggle--compact"
+              />
+            ) : null}
+          </div>
+        ) : (
+          <span className="stock-search-tab__quote-pending">
+            {ko.app.stockLookupQuotePending}
+          </span>
+        )}
+      </button>
+    </li>
   );
 }
 
@@ -326,6 +395,8 @@ export default function StockSearchTab({
   const [input, setInput] = useState("");
   const [debounced, setDebounced] = useState("");
   const [quotes, setQuotes] = useState<StockSearchQuoteRow[]>([]);
+  const [hotQuotes, setHotQuotes] = useState<StockSearchQuoteRow[]>([]);
+  const [hotLoading, setHotLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [techBySym, setTechBySym] = useState<Record<string, TechnicalSlot>>({});
@@ -351,6 +422,42 @@ export default function StockSearchTab({
     const id = window.setTimeout(() => setDebounced(input.trim()), 260);
     return () => window.clearTimeout(id);
   }, [input]);
+
+  useEffect(() => {
+    if (debounced.length >= 1) {
+      setHotQuotes([]);
+      setHotLoading(false);
+      return;
+    }
+
+    const ac = new AbortController();
+    setHotLoading(true);
+
+    void (async () => {
+      try {
+        const data = await fetchStockSearchHot(market, ac.signal);
+        if (ac.signal.aborted) return;
+        setHotQuotes(data.quotes);
+      } catch (err: unknown) {
+        if (ac.signal.aborted) return;
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setHotQuotes([]);
+      } finally {
+        if (!ac.signal.aborted) setHotLoading(false);
+      }
+    })();
+
+    const refreshId = window.setInterval(() => {
+      void fetchStockSearchHot(market)
+        .then((data) => setHotQuotes(data.quotes))
+        .catch(() => {});
+    }, HOT_REFRESH_MS);
+
+    return () => {
+      ac.abort();
+      window.clearInterval(refreshId);
+    };
+  }, [debounced, market]);
 
   useEffect(() => {
     if (debounced.length < 1) {
@@ -606,7 +713,33 @@ export default function StockSearchTab({
         </p>
       )}
       {!loading && !error && debounced.length < 1 && (
-        <p className="picks-empty">{ko.app.stockLookupIdle}</p>
+        <>
+          {hotLoading && hotQuotes.length === 0 ? (
+            <p className="picks-empty picks-empty--muted">
+              {ko.app.stockLookupHotLoading}
+            </p>
+          ) : hotQuotes.length > 0 ? (
+            <>
+              <p className="stock-search-tab__hot-title">{ko.app.stockLookupHotTitle}</p>
+              <ul className="pick-list stock-search-tab__list stock-search-tab__hot-list">
+                {hotQuotes.map((row) => (
+                  <StockSearchHotRow
+                    key={row.symbol}
+                    row={row}
+                    isActive={selectedSymbol === row.symbol}
+                    onSelectPick={onSelectPick}
+                    usQuoteInKrw={usQuoteInKrw}
+                    onToggleUsQuoteKrw={onToggleUsQuoteKrw}
+                    usdKrwRate={usdKrwRate}
+                    usdKrwValDate={usdKrwValDate}
+                  />
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="picks-empty">{ko.app.stockLookupIdle}</p>
+          )}
+        </>
       )}
       {!loading && !error && debounced.length >= 1 && quotes.length === 0 && (
         <p className="picks-empty">{ko.app.stockLookupNoHits}</p>
