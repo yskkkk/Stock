@@ -3,7 +3,7 @@
  * — TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID 필요
  * — TELEGRAM_MACRO_REMINDERS=0 이면 비활성
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { getUpcomingMacroEvents } from "./macro-events.js";
@@ -71,7 +71,9 @@ function loadSent() {
 /** @param {Record<string, number>} obj */
 function saveSent(obj) {
   mkdirSync(DATA_DIR, { recursive: true });
-  writeFileSync(SENT_PATH, JSON.stringify(obj, null, 2), "utf8");
+  const tmp = `${SENT_PATH}.tmp`;
+  writeFileSync(tmp, JSON.stringify(obj, null, 2), "utf8");
+  renameSync(tmp, SENT_PATH);
 }
 
 /** @param {Record<string, number>} o */

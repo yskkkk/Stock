@@ -100,11 +100,9 @@ function writeDiskEntries(entries) {
     const window = dedupWindowForKey(k);
     if (typeof at === "number" && now - at <= window * 2) pruned[k] = at;
   }
-  fs.writeFileSync(
-    DEDUP_FILE,
-    JSON.stringify({ entries: pruned, updatedAtMs: now }, null, 0),
-    "utf8",
-  );
+  const tmp = `${DEDUP_FILE}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify({ entries: pruned, updatedAtMs: now }, null, 0), "utf8");
+  fs.renameSync(tmp, DEDUP_FILE);
 }
 
 function hydrateFromDisk() {
@@ -147,9 +145,6 @@ function sentRecently(k) {
   return false;
 }
 
-/**
- * @param {string | null | undefined} dedupKey
- */
 /**
  * @param {string | null | undefined} dedupKey
  * @returns {boolean}
@@ -293,7 +288,7 @@ export function tryAcquireOpsDevNotifySend(dedupKey) {
       if (code === "EEXIST") {
         try {
           const st = fs.statSync(lockPath);
-          if (Date.now() - st.mtimeMs > dedupWindowMs()) {
+          if (Date.now() - st.mtimeMs > dedupWindowForKey(k)) {
             fs.unlinkSync(lockPath);
             fs.writeFileSync(lockPath, String(Date.now()), { flag: "wx" });
             return true;

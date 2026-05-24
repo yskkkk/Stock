@@ -289,10 +289,15 @@ export function buildPositionsFromTrades(trades, programIdFilter) {
     pos.lastAtMs = Math.max(pos.lastAtMs, t.atMs);
 
     if (t.side === "buy") {
+      const wasZero = pos.quantity <= 1e-9;
       pos.quantity += t.quantity;
       pos.costBasis += t.amount + t.feeAmount;
       pos.feesPaid += t.feeAmount;
-      if (pos.quantity > 0 && pos.openedAtMs > t.atMs) pos.openedAtMs = t.atMs;
+      if (wasZero) {
+        pos.openedAtMs = t.atMs;  // 완전 청산 후 재매수 — openedAtMs 리셋
+      } else if (pos.openedAtMs > t.atMs) {
+        pos.openedAtMs = t.atMs;
+      }
     } else {
       const sellQty = Math.min(t.quantity, pos.quantity);
       if (sellQty <= 0) continue;

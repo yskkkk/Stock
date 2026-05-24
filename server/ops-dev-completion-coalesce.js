@@ -178,7 +178,9 @@ function writePendingDisk() {
   try {
     const dir = path.dirname(PENDING_FILE);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(PENDING_FILE, JSON.stringify({ pending }), "utf8");
+    const tmp = `${PENDING_FILE}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify({ pending }), "utf8");
+    fs.renameSync(tmp, PENDING_FILE);
   } catch {
     /* ignore */
   }
@@ -356,7 +358,8 @@ export function scheduleOpsDevCompletionTelegram(opts) {
  */
 async function flushOpsDevCompletionNow(opts, dedupKey) {
   const key = dedupKey ?? buildOpsDevNotifyDedupKey(opts);
-  if (!tryReserveOpsDevNotifySchedule(key)) return;
+  // dedupKey가 전달된 경우 호출자(scheduleOpsDevCompletionTelegram)가 이미 예약 완료
+  if (!dedupKey && !tryReserveOpsDevNotifySchedule(key)) return;
   const userRequest = trimBlock(
     opts.userRequest ?? opts.title ?? "",
     REQUEST_MAX,
@@ -401,7 +404,7 @@ async function flushSnapNow(snap) {
     releaseOpsDevNotifySchedule(key);
     return false;
   }
-  if (!tryAcquireOpsDevNotifySend(key)) return false;
+  // 락 획득은 sendCompletionMessage에서만 수행 — 여기서 먼저 획득하면 settle 대기 중 이중 락 발생
   await settleAndRefreshBeforeSend(snap);
   return sendCompletionMessage(snap, key);
 }
@@ -411,9 +414,9 @@ async function flushPending() {
   flushInFlight = true;
   try {
     const snap = pending;
+    if (!snap) return;
     pending = null;
     clearPendingDisk();
-    if (!snap) return;
     await flushSnapNow(snap);
   } finally {
     flushInFlight = false;
@@ -468,9 +471,6 @@ export async function flushOpsDevNotifyPendingFromDisk(opts = {}) {
   return sendCompletionMessage(snap, key);
 }
 
-/**
- * @param {{ title: string; userRequest: string; completion: string }} snap
- */
 /**
  * @param {{ title: string; userRequest: string; completion: string }} snap
  * @param {string} dedupKey

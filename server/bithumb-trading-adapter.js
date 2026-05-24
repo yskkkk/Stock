@@ -372,12 +372,7 @@ export async function fetchBithumbOrderWithCredentials(orderId, credentials) {
 
 /**
  * @param {BithumbCredentials} credentials
- * @param {string} market e.g. KRW-BTC
- * @param {{ limit?: number; orderBy?: "asc" | "desc" }} [opts]
- */
-/**
- * @param {BithumbCredentials} credentials
- * @param {{ market?: string; state?: "wait"|"watch"|"done"|"cancel"; limit?: number }} [opts]
+ * @param {{ market?: string; state?: "wait"|"watch"|"done"|"cancel"; limit?: number; orderBy?: "asc"|"desc" }} [opts]
  */
 export async function listBithumbOrdersWithCredentials(credentials, opts = {}) {
   const limit = Math.min(100, Math.max(1, Number(opts.limit) || 50));
@@ -458,25 +453,29 @@ export async function listBithumbDoneOrdersWithCredentials(
 }
 
 /**
- * 주문 후 체결가·체결량 조회 (1회, 2초 대기).
+ * 주문 후 체결가·체결량 조회 (최대 3회, 2초 간격).
  * @param {string} orderId
  * @param {BithumbCredentials} credentials
  * @returns {Promise<{ price: number; volume: number; funds: number } | null>}
  */
 export async function pollBithumbOrderFill(orderId, credentials) {
-  await new Promise((r) => setTimeout(r, 2_000));
-  try {
-    const body = await fetchBithumbOrderWithCredentials(orderId, credentials);
-    const execVolume = Number(body?.executed_volume ?? 0);
-    const execFunds = Number(body?.executed_funds ?? 0);
-    if (execVolume > 0 && execFunds > 0) {
-      return { price: execFunds / execVolume, volume: execVolume, funds: execFunds };
+  const MAX_ATTEMPTS = 3;
+  const DELAY_MS = 2_000;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    await new Promise((r) => setTimeout(r, DELAY_MS));
+    try {
+      const body = await fetchBithumbOrderWithCredentials(orderId, credentials);
+      const execVolume = Number(body?.executed_volume ?? 0);
+      const execFunds = Number(body?.executed_funds ?? 0);
+      if (execVolume > 0 && execFunds > 0) {
+        return { price: execFunds / execVolume, volume: execVolume, funds: execFunds };
+      }
+    } catch (e) {
+      console.warn(
+        "[bithumb-trading] 체결가 조회 실패:",
+        e instanceof Error ? e.message : e,
+      );
     }
-  } catch (e) {
-    console.warn(
-      "[bithumb-trading] 체결가 조회 실패:",
-      e instanceof Error ? e.message : e,
-    );
   }
   return null;
 }

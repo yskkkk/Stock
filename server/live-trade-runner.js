@@ -44,10 +44,11 @@ function loadDedupState() {
 
 function saveDedupState(map) {
   try {
-    if (!fs.existsSync(path.dirname(DEDUP_FILE))) {
-      fs.mkdirSync(path.dirname(DEDUP_FILE), { recursive: true });
-    }
-    fs.writeFileSync(DEDUP_FILE, JSON.stringify(Object.fromEntries(map)), "utf8");
+    const dir = path.dirname(DEDUP_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const tmp = `${DEDUP_FILE}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(Object.fromEntries(map)), "utf8");
+    fs.renameSync(tmp, DEDUP_FILE);
   } catch {}
 }
 
@@ -167,6 +168,8 @@ async function liveBuyForProgram(program, pick) {
       runErr = e instanceof Error ? e.message : String(e);
       liveTradeLogWarn("[live-trade] portfolio record:", runErr);
       logOrphanOrder(out.orderId ?? null, sym, program.id);
+      // 포트폴리오 기록 실패해도 dedup 등록 — 재시도 주문 방지
+      markDedupKey(`live:${program.id}`, sym);
     }
     liveTradeLogInfo(
       "[live-trade]",

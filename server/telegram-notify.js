@@ -4,6 +4,8 @@ import {
   mkdirSync,
   openSync,
   readFileSync,
+  renameSync,
+  statSync,
   unlinkSync,
   writeFileSync,
 } from "fs";
@@ -231,10 +233,7 @@ function kstTodayYmd() {
 }
 
 function sleepMs(ms) {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    /* spin */
-  }
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, Math.max(0, ms | 0));
 }
 
 function withSentFileLock(fn) {
@@ -251,8 +250,8 @@ function withSentFileLock(fn) {
     }
   }
   if (fd == null) {
-    console.warn("[telegram] sent lock timeout");
-    return fn();
+    console.warn("[telegram] sent lock timeout — 잠금 획득 실패, 작업 건너뜀");
+    return null;
   }
   try {
     return fn();
@@ -302,19 +301,22 @@ function loadSent() {
 
 
 function saveSent() {
-
   try {
-
     mkdirSync(DATA_DIR, { recursive: true });
-
-    writeFileSync(SENT_PATH, JSON.stringify(sentCache, null, 2), "utf8");
-
+    const tmp = `${SENT_PATH}.tmp`;
+    writeFileSync(tmp, JSON.stringify(sentCache, null, 2), "utf8");
+    renameSync(tmp, SENT_PATH);
   } catch (err) {
-
     console.warn("[telegram] sent cache save failed:", err?.message ?? err);
-
   }
+}
 
+function clearStaleSentLock(maxAgeMs = 30_000) {
+  try {
+    if (!existsSync(SENT_LOCK_PATH)) return;
+    const st = statSync(SENT_LOCK_PATH);
+    if (Date.now() - st.mtimeMs > maxAgeMs) unlinkSync(SENT_LOCK_PATH);
+  } catch { /* ignore */ }
 }
 
 
@@ -1003,7 +1005,7 @@ function buildMessage(pick) {
 
     modelName ? "" : null,
 
-    `<b>${escHtml(pick.name)}</b>`,
+    `<b>${escHtml(displayName)}</b>`,
 
     `<code>${escHtml(pick.symbol)}</code>`,
 
@@ -1144,22 +1146,23 @@ export async function sendStockPickTelegramNow(pick, opts = {}) {
 }
 
 /** 스캔 중 고득점(임계 초과)이면 텔레그램 알림 — 정규장 여부와 무관 */
-
 export function notifyHighScorePick(pick) {
+  const weights = pick.techModelWeights;
+  if (!meetsTelegramNotifyScore(pick.score, weights)) return;
+
+  // 라이브 트레이딩: 텔레그램 활성·성공 여부와 독립적으로 트리거
+  void import("./live-trade-runner.js")
+    .then((m) => m.onHighScorePickForLiveTrading(pick))
+    .catch((err) => {
+      console.warn("[live-trade:notify]", err instanceof Error ? err.message : err);
+    });
 
   if (!isTelegramNotifyEnabled()) return;
 
-  const weights = pick.techModelWeights;
-
-  if (!meetsTelegramNotifyScore(pick.score, weights)) return;
-
   const sym = normalizeSymbol(pick.symbol);
-
   const modelId = String(pick.techModelId ?? "default").trim() || "default";
 
-  if (!tryReserveNotify(pick)) {
-    return;
-  }
+  if (!tryReserveNotify(pick)) return;
 
   const text = buildMessage(pick);
   const session = getTradingSessionKey(pick.market);
@@ -1176,14 +1179,6 @@ export function notifyHighScorePick(pick) {
         console.log(
           `[telegram:stock] sent ${sym} model=${modelId} score=${pick.score} session=${session}`,
         );
-        void import("./live-trade-runner.js")
-          .then((m) => m.onHighScorePickForLiveTrading(pick))
-          .catch((err) => {
-            console.warn(
-              "[live-trade:notify]",
-              err instanceof Error ? err.message : err,
-            );
-          });
       } else {
         releaseNotifyReserve(pick);
         console.warn(
@@ -1243,4 +1238,5 @@ export function notifyOpsAgentCompleted(opts) {
   });
 }
 
+clearStaleSentLock();
 
