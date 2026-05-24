@@ -85,6 +85,7 @@ export async function enrichBithumbSnapshotWithMarketQuotes(snapshot) {
         currentPrice: null,
         marketValue: null,
         changePercent: null,
+        returnPercent: null,
       };
     }
     const price = Number(t.closing_price);
@@ -95,13 +96,20 @@ export async function enrichBithumbSnapshotWithMarketQuotes(snapshot) {
         currentPrice: null,
         marketValue: null,
         changePercent: null,
+        returnPercent: null,
       };
+    }
+    let returnPercent = null;
+    if (h.avgBuyPrice != null && h.avgBuyPrice > 0) {
+      returnPercent = ((price - h.avgBuyPrice) / h.avgBuyPrice) * 100;
+      if (!Number.isFinite(returnPercent)) returnPercent = null;
     }
     return {
       ...h,
       currentPrice: price,
       marketValue: h.quantity * price,
       changePercent: Number.isFinite(changePercent) ? changePercent : null,
+      returnPercent,
     };
   });
   return { ...snapshot, holdings };
@@ -119,5 +127,6 @@ export async function enrichBithumbSnapshotWithMarketQuotes(snapshot) {
  *   currentPrice?: number | null;
  *   marketValue?: number | null;
  *   changePercent?: number | null;
+ *   returnPercent?: number | null;
  * }} BithumbAccountHoldingSummary
  */

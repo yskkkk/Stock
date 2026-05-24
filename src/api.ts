@@ -867,6 +867,8 @@ export interface BithumbTestHolding {
   currentPrice?: number | null;
   marketValue?: number | null;
   changePercent?: number | null;
+  /** 평단 대비 수익률(%) */
+  returnPercent?: number | null;
 }
 
 export interface BithumbTestSnapshot {

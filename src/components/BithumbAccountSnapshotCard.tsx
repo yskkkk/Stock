@@ -12,6 +12,20 @@ function feePct(n: number) {
   return `${(n * 100).toFixed(3).replace(/\.?0+$/, "")}%`;
 }
 
+function holdingReturnPercent(h: {
+  returnPercent?: number | null;
+  avgBuyPrice?: number | null;
+  currentPrice?: number | null;
+}): number | null {
+  if (h.returnPercent != null && Number.isFinite(h.returnPercent)) {
+    return h.returnPercent;
+  }
+  const avg = h.avgBuyPrice;
+  const cur = h.currentPrice;
+  if (avg == null || !(avg > 0) || cur == null || !(cur > 0)) return null;
+  const pct = ((cur - avg) / avg) * 100;
+  return Number.isFinite(pct) ? pct : null;
+}
 function holdingChangeTone(
   pct: number | null | undefined,
 ): "up" | "down" | "flat" {
@@ -95,16 +109,17 @@ export default function BithumbAccountSnapshotCard({
       ) : (
         <ul className="live-trading-tab__cred-snapshot-holdings">
           {holdings.map((h) => {
-            const tone = holdingChangeTone(h.changePercent);
+            const retPct = holdingReturnPercent(h);
+            const tone = holdingChangeTone(retPct);
             return (
               <li key={h.currency}>
                 <div className="live-trading-tab__cred-snapshot-holding-row">
                   <span className="live-trading-tab__cred-snapshot-coin">{h.name}</span>
-                  {h.changePercent != null ? (
+                  {retPct != null ? (
                     <span
                       className={`live-trading-tab__cred-snapshot-chg live-trading-tab__cred-snapshot-chg--${tone}`}
                     >
-                      {formatPercent(h.changePercent)}
+                      {formatPercent(retPct)}
                     </span>
                   ) : null}
                 </div>
