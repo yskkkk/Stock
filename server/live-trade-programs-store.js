@@ -12,6 +12,7 @@ import {
   getProgramArmedMarkets,
   validateLiveTradeArmLane,
 } from "./live-trade-arm-gate.js";
+import { minOrderAmountKrwForMarkets } from "./live-trade-market.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, ".data");
@@ -111,7 +112,12 @@ function normalizeProgram(raw) {
     orderAmountKrw:
       o.orderAmountKrw == null || o.orderAmountKrw === ""
         ? null
-        : clampNum(o.orderAmountKrw, 5_000, 500_000_000, 100_000),
+        : clampNum(
+            o.orderAmountKrw,
+            minOrderAmountKrwForMarkets(mr),
+            500_000_000,
+            100_000,
+          ),
     orderAmountUsd:
       o.orderAmountUsd == null || o.orderAmountUsd === ""
         ? null
@@ -202,6 +208,18 @@ function validateProgramPatch(patch) {
   }
   const name = String(patch.name ?? "").trim();
   if (!name) throw new Error("프로그램 이름이 필요합니다.");
+  const needsKrw = mk.kr || (mk.crypto && !mk.us);
+  if (needsKrw && patch.orderAmountKrw != null && patch.orderAmountKrw !== "") {
+    const n = Number(patch.orderAmountKrw);
+    const minKrw = minOrderAmountKrwForMarkets(mk);
+    if (!Number.isFinite(n) || n < minKrw) {
+      throw new Error(
+        mk.crypto
+          ? `코인 1회 매수 금액은 ${minKrw.toLocaleString("ko-KR")}원 이상이어야 합니다.`
+          : `1회 매수 금액은 ${minKrw.toLocaleString("ko-KR")}원 이상이어야 합니다.`,
+      );
+    }
+  }
 }
 
 /** @param {string} [userId] */

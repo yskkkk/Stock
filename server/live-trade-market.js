@@ -3,6 +3,33 @@ import { getUsdKrwRate } from "./fx-usd-krw.js";
 
 /** @typedef {"kr" | "us" | "crypto"} LiveTradeMarket */
 
+/** 국내 주식 1회 매수 금액 하한(원) */
+export const KR_MIN_ORDER_KRW = 5_000;
+/** 코인(빗썸 KRW) 1회 매수 금액 하한(원) */
+export const CRYPTO_MIN_ORDER_KRW = 10_000;
+
+/**
+ * @param {{ kr?: boolean; us?: boolean; crypto?: boolean } | null | undefined} markets
+ */
+export function minOrderAmountKrwForMarkets(markets) {
+  if (markets?.crypto) return CRYPTO_MIN_ORDER_KRW;
+  return KR_MIN_ORDER_KRW;
+}
+
+/**
+ * @param {LiveTradeMarket} market
+ * @param {number | null | undefined} amountKrw
+ */
+export function assertMinCryptoOrderAmountKrw(market, amountKrw) {
+  if (market !== "crypto") return;
+  const n = Number(amountKrw);
+  if (!Number.isFinite(n) || n < CRYPTO_MIN_ORDER_KRW) {
+    throw new Error(
+      `코인 1회 매수 금액은 ${CRYPTO_MIN_ORDER_KRW.toLocaleString("ko-KR")}원 이상이어야 합니다.`,
+    );
+  }
+}
+
 /** @param {string} symbol */
 export function isCryptoSymbol(symbol) {
   return isBinanceUsdtSymbol(symbol);

@@ -23,6 +23,7 @@ import {
   resolveOrderAmountForMarket,
   programAllowsMarket,
   quantityFromOrderAmount,
+  assertMinCryptoOrderAmountKrw,
 } from "./live-trade-market.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -386,6 +387,7 @@ export async function recordLiveTradeBuyAsync(program, pick, orderMeta = {}) {
   const market = normalizeLiveTradeMarket(pick.market, symbol);
   const price = Number(pick.price);
   const orderAmount = await resolveOrderAmountForMarket(program, market);
+  assertMinCryptoOrderAmountKrw(market, orderAmount);
   let targets = null;
   const uid = String(program.userId ?? "").trim();
   const roundTripFeeRate = getRoundTripFeeRateForUserMarketSync(uid, market);

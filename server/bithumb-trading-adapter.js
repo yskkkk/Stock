@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
 import {
   resolveOrderAmountForMarket,
   quantityFromOrderAmount,
+  CRYPTO_MIN_ORDER_KRW,
 } from "./live-trade-market.js";
 import { usdtSymbolToBithumbBase } from "./bithumb-krw.js";
 import { pickMeetsProgramThreshold } from "./toss-trading-adapter.js";
@@ -281,8 +282,11 @@ export async function executeBithumbLiveBuyOrder(program, pick, options = {}) {
     return { ok: false, error: "코인 1회 매수 금액(원)을 설정하세요." };
   }
   const krw = Math.floor(amountKrw);
-  if (krw < 5000) {
-    return { ok: false, error: "빗썸 최소 주문 금액(약 5,000원) 이상으로 설정하세요." };
+  if (krw < CRYPTO_MIN_ORDER_KRW) {
+    return {
+      ok: false,
+      error: `코인 1회 매수 금액은 ${CRYPTO_MIN_ORDER_KRW.toLocaleString("ko-KR")}원 이상이어야 합니다.`,
+    };
   }
 
   if (!credentials?.liveOrdersEnabled) {
@@ -420,10 +424,10 @@ export async function executeBithumbMarketBuyKrw(market, krw) {
   }
   const mk = String(market ?? "").trim();
   const amount = Math.floor(Number(krw));
-  if (!mk || !Number.isFinite(amount) || amount < 5000) {
+  if (!mk || !Number.isFinite(amount) || amount < CRYPTO_MIN_ORDER_KRW) {
     return {
       ok: false,
-      error: "빗썸 최소 주문 금액(약 5,000원) 이상이 필요합니다.",
+      error: `코인 1회 매수 금액은 ${CRYPTO_MIN_ORDER_KRW.toLocaleString("ko-KR")}원 이상이 필요합니다.`,
     };
   }
   if (process.env.BITHUMB_LIVE_ORDERS_ENABLED !== "1") {

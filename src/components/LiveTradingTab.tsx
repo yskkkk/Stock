@@ -35,6 +35,7 @@ import {
 } from "../lib/liveProgramDisplay";
 import { ko } from "../i18n/ko";
 import { LiveTradeFeeRatesProvider } from "../contexts/LiveTradeFeeRatesContext";
+import { minOrderAmountKrwForMarkets } from "../constants/liveTradeOrder";
 
 /** 실매매 중 한 채널(빗썸/토스)이 켜져 있으면 다른 «시작» 버튼 숨김 */
 function showArmLaneButton(p: LiveTradeProgram, lane: LiveTradeArmLane): boolean {
@@ -284,12 +285,21 @@ export default function LiveTradingTab({
       return;
     }
     const orderKrwNum = Number(draft.orderAmountKrw.trim());
+    const minOrderKrw = minOrderAmountKrwForMarkets({
+      kr: draft.marketsKr,
+      us: draft.marketsUs,
+      crypto: draft.marketsCrypto,
+    });
     if (
       (draft.marketsKr || (draft.marketsCrypto && !draft.marketsUs)) &&
       draft.orderAmountKrw.trim() &&
-      (!Number.isFinite(orderKrwNum) || orderKrwNum < 5000)
+      (!Number.isFinite(orderKrwNum) || orderKrwNum < minOrderKrw)
     ) {
-      setErr(ko.app.liveTradeFieldAmountKrwMin);
+      setErr(
+        draft.marketsCrypto
+          ? `코인 1회 매수 금액은 ${minOrderKrw.toLocaleString("ko-KR")}원 이상이어야 합니다.`
+          : `1회 매수 금액은 ${minOrderKrw.toLocaleString("ko-KR")}원 이상이어야 합니다.`,
+      );
       return;
     }
     if (draft.marketsUs && !draft.orderAmountUsd.trim()) {
@@ -796,7 +806,11 @@ export default function LiveTradingTab({
                   <input
                     type="number"
                     className="input live-trading-tab__input"
-                    min={5000}
+                    min={minOrderAmountKrwForMarkets({
+                      kr: draft.marketsKr,
+                      us: draft.marketsUs,
+                      crypto: draft.marketsCrypto,
+                    })}
                     step={1000}
                     value={draft.orderAmountKrw}
                     onChange={(e) =>
