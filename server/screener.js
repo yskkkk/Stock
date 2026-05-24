@@ -12,6 +12,8 @@ import { notifyHighScorePick } from "./telegram-notify.js";
 import { recordPicksDailySnapshot } from "./picks-history-store.js";
 import { readLastScanSnapshotSync, writeLastScanSnapshotSync } from "./picks-live-persist.js";
 import { loadUniverse } from "./universe.js";
+import { buildScreeningQueue, scanScopeLabel } from "./screening-queue.js";
+import { isMarketOpenBySchedule } from "./market-hours.js";
 import { clearYahooSession, getYahooSession } from "./yahoo.js";
 
 function screenConcurrency() {
@@ -39,6 +41,8 @@ let state = {
   crypto: [],
   updatedAt: null,
   message: "분석 준비 중…",
+  scanIncludeKr: true,
+  scanScopeLabel: scanScopeLabel(true),
 };
 
 let screeningPromise = null;
@@ -72,6 +76,7 @@ function scheduleNextScan() {
 
 export function getPicksState() {
   const etaSeconds = computeEtaSeconds();
+  const includeKrLive = isMarketOpenBySchedule("kr");
   return {
     ...state,
     kr: [...state.kr],
@@ -81,6 +86,10 @@ export function getPicksState() {
     etaSeconds,
     nextScanAt,
     scanIntervalMs: screenIntervalMs(),
+    scanIncludeKr: state.running ? state.scanIncludeKr : includeKrLive,
+    scanScopeLabel: state.running
+      ? state.scanScopeLabel
+      : scanScopeLabel(includeKrLive),
   };
 }
 
@@ -223,6 +232,9 @@ function applyScreenResult(result, bucket) {
       if (pick.market === "kr") bucket.kr.push(pick);
       else if (pick.market === "crypto") bucket.crypto.push(pick);
       else bucket.us.push(pick);
+      if (meetsTelegramNotifyScore(pick.score, pick.techModelWeights)) {
+        void onHighScorePickForLiveTrading(pick);
+      }
     }
     sortPicks(bucket.kr);
     sortPicks(bucket.us);
@@ -269,11 +281,10 @@ async function runScreening() {
     try {
       await getYahooSession();
       const universe = await loadUniverse();
-      const queue = [
-        ...universe.kr.map((s) => ({ ...s, market: "kr" })),
-        ...universe.us.map((s) => ({ ...s, market: "us" })),
-        ...(universe.crypto ?? []).map((s) => ({ ...s, market: "crypto" })),
-      ];
+      const { queue, includeKr, scanScopeLabel: scopeLabel } =
+        buildScreeningQueue(universe);
+      state.scanIncludeKr = includeKr;
+      state.scanScopeLabel = scopeLabel;
       state.total = queue.length;
       state.message = `${state.total}개 종목 기술적 분석 중…`;
 

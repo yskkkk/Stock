@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   cancelBithumbOpenOrder,
   fetchBithumbOpenOrders,
@@ -62,6 +62,12 @@ export default function LiveTradeOpenOrdersPanel({
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [cancelId, setCancelId] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -88,11 +94,12 @@ export default function LiveTradeOpenOrdersPanel({
     setErr(null);
     void cancelBithumbOpenOrder(orderId)
       .then((res) => {
+        if (!mountedRef.current) return;
         setData(res);
         onChanged?.();
       })
-      .catch((e) => setErr(e instanceof Error ? e.message : String(e)))
-      .finally(() => setCancelId(null));
+      .catch((e) => { if (mountedRef.current) setErr(e instanceof Error ? e.message : String(e)); })
+      .finally(() => { if (mountedRef.current) setCancelId(null); });
   };
 
   if (loading && !data) {

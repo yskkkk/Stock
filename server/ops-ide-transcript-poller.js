@@ -441,6 +441,38 @@ function scanTranscriptFile(filePath) {
   sweepStaleDiskLease(snap);
 }
 
+const MAP_CLEANUP_INTERVAL_MS = 10 * 60 * 1000;
+let lastMapCleanupMs = 0;
+
+function cleanupStaleMaps() {
+  const now = Date.now();
+  if (now - lastMapCleanupMs < MAP_CLEANUP_INTERVAL_MS) return;
+  lastMapCleanupMs = now;
+  const root = resolveTranscriptRoot();
+  const activeFiles = new Set(findActiveTranscriptFiles(root, ACTIVE_TRANSCRIPT_MAX_AGE_MS));
+  for (const key of lastProcessedUserKeyByFile.keys()) {
+    if (!activeFiles.has(key)) lastProcessedUserKeyByFile.delete(key);
+  }
+  for (const key of lastFileMtimeMsByFile.keys()) {
+    if (!activeFiles.has(key)) lastFileMtimeMsByFile.delete(key);
+  }
+  for (const key of lastFileChangeMsByFile.keys()) {
+    if (!activeFiles.has(key)) lastFileChangeMsByFile.delete(key);
+  }
+  for (const key of lastTranscriptLineCountByFile.keys()) {
+    if (!activeFiles.has(key)) lastTranscriptLineCountByFile.delete(key);
+  }
+  for (const key of idleTurnReleasedForMtimeByFile.keys()) {
+    if (!activeFiles.has(key)) idleTurnReleasedForMtimeByFile.delete(key);
+  }
+  for (const key of cachedTranscriptLinesByFile.keys()) {
+    if (!activeFiles.has(key)) cachedTranscriptLinesByFile.delete(key);
+  }
+  for (const key of lastTurnNotifyContextByFile.keys()) {
+    if (!activeFiles.has(key)) lastTurnNotifyContextByFile.delete(key);
+  }
+}
+
 /** @param {string} root */
 function resolveTranscriptFileForScan(root) {
   if (activeTranscriptPath) {
@@ -455,6 +487,7 @@ function resolveTranscriptFileForScan(root) {
 
 function tick() {
   try {
+    cleanupStaleMaps();
     const root = resolveTranscriptRoot();
     const files = findActiveTranscriptFiles(root);
     if (!files.length) return;

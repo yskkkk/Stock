@@ -20,7 +20,8 @@ import {
   extractQuotesFromPortfolio,
   mergeLiveQuotesIntoPortfolio,
 } from "../lib/livePortfolioLiveQuotes";
-import { formatPercent, formatPrice, formatSignedMoney, formatTimeMsKst } from "../lib/format";
+import { RefreshIconButton } from "./RefreshIconButton";
+import { formatLiveTradeQuantity, formatPercent, formatPrice, formatSignedMoney, formatTimeMsKst } from "../lib/format";
 import {
   formatUnrealizedPnlLabel,
   portfolioReturnPct,
@@ -360,7 +361,7 @@ function ProgramRunCard({
                       />
                     </td>
                     <td className="live-sim-run__num" data-label={ko.app.liveTradePfColQty}>
-                      {h.quantity}
+                      {formatLiveTradeQuantity(h.quantity, h.market)}
                     </td>
                     <td
                       className="live-sim-run__num"
@@ -707,14 +708,12 @@ export default function LiveSimRunningPanel({
           >
             {activeCount}
           </span>
-          <button
-            type="button"
+          <RefreshIconButton
+            label={ko.app.liveTradePfRefresh}
             className="btn btn--secondary btn--sm"
             disabled={loading || activeCount === 0}
             onClick={() => void loadPortfolio()}
-          >
-            {ko.app.liveTradePfRefresh}
-          </button>
+          />
         </div>
       </div>
 

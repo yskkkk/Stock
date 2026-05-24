@@ -2,6 +2,7 @@ import type { BithumbTestSnapshot } from "../api";
 import { ko } from "../i18n/ko";
 import { useBithumbBalanceHidden } from "../hooks/useBithumbBalanceHidden";
 import { formatLiveTradeQuantity, formatPercent, formatPrice } from "../lib/format";
+import CryptoCoinIcon from "./CryptoCoinIcon";
 
 export type BithumbTradingFeesDisplay = {
   bidFee: number;
@@ -37,6 +38,7 @@ function holdingChangeTone(
 }
 
 function formatUpdatedHmSs(ms: number): string {
+  if (!ms || !Number.isFinite(ms)) return "—";
   return new Date(ms).toLocaleTimeString("ko-KR", {
     timeZone: "Asia/Seoul",
     hour: "2-digit",
@@ -44,6 +46,29 @@ function formatUpdatedHmSs(ms: number): string {
     second: "2-digit",
     hour12: false,
   });
+}
+
+/** 평가·시세 없는 소액 잔고(예: P 7개)는 목록에서 제외 */
+const MIN_BITHUMB_HOLDING_DISPLAY_KRW = 1_000;
+
+function bithumbHoldingValueKrw(h: {
+  quantity: number;
+  marketValue?: number | null;
+  currentPrice?: number | null;
+}): number | null {
+  if (h.marketValue != null && Number.isFinite(h.marketValue)) return h.marketValue;
+  const px = h.currentPrice;
+  if (px != null && px > 0 && h.quantity > 0) return h.quantity * px;
+  return null;
+}
+
+function isMeaningfulBithumbHolding(h: {
+  quantity: number;
+  marketValue?: number | null;
+  currentPrice?: number | null;
+}): boolean {
+  const v = bithumbHoldingValueKrw(h);
+  return v != null && v >= MIN_BITHUMB_HOLDING_DISPLAY_KRW;
 }
 
 export default function BithumbAccountSnapshotCard({
@@ -62,6 +87,7 @@ export default function BithumbAccountSnapshotCard({
   variant?: "inline" | "rail";
 }) {
   const { krw, holdings } = snapshot;
+  const visibleHoldings = holdings.filter(isMeaningfulBithumbHolding);
   const [balanceHidden, toggleBalanceHidden] = useBithumbBalanceHidden();
   const rootClass =
     variant === "rail"
@@ -147,19 +173,27 @@ export default function BithumbAccountSnapshotCard({
           <p className="live-trading-tab__cred-snapshot-title">
             {ko.app.liveTradeCredTestHoldings}
           </p>
-      {holdings.length === 0 ? (
+      {visibleHoldings.length === 0 ? (
         <p className="live-trading-tab__cred-snapshot-empty">
           {ko.app.liveTradeCredTestNoHoldings}
         </p>
       ) : (
         <ul className="live-trading-tab__cred-snapshot-holdings">
-          {holdings.map((h) => {
+          {visibleHoldings.map((h) => {
             const retPct = holdingReturnPercent(h);
             const tone = holdingChangeTone(retPct);
             return (
               <li key={h.currency}>
                 <div className="live-trading-tab__cred-snapshot-holding-row">
-                  <span className="live-trading-tab__cred-snapshot-coin">{h.name}</span>
+                  <span className="live-trading-tab__cred-snapshot-coin">
+                    <CryptoCoinIcon
+                      symbol={h.symbol || `${h.currency}-USDT`}
+                      market="crypto"
+                      size={20}
+                      className="live-trading-tab__cred-snapshot-coin-icon"
+                    />
+                    {h.name}
+                  </span>
                   {retPct != null ? (
                     <span
                       className={`live-trading-tab__cred-snapshot-chg live-trading-tab__cred-snapshot-chg--${tone}`}

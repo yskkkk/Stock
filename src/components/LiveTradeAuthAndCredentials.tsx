@@ -3,9 +3,11 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
   type RefObject,
 } from "react";
@@ -31,6 +33,7 @@ import { ko } from "../i18n/ko";
 import {
   validateAuthCredentials,
   validateAuthEmail,
+  validateAuthPassword,
   validateBithumbCredentialPair,
   validateTossCredentialSet,
 } from "../lib/stock-input-validation";
@@ -261,7 +264,9 @@ export function LiveTradeCardSidePanelProvider({
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     const applyAuth = (hasUser: boolean) => {
+      if (cancelled) return;
       if (hasUser) {
         setTabTitles((prev) => ({ ...defaultLiveTradeSideTabTitles(), ...prev }));
       } else {
@@ -283,7 +288,10 @@ export function LiveTradeCardSidePanelProvider({
         .catch(() => applyAuth(false));
     };
     window.addEventListener(LIVE_TRADE_AUTH_CHANGE, onAuth);
-    return () => window.removeEventListener(LIVE_TRADE_AUTH_CHANGE, onAuth);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(LIVE_TRADE_AUTH_CHANGE, onAuth);
+    };
   }, []);
   const sideTabs = useMemo(
     () =>
@@ -362,6 +370,14 @@ export function LiveTradeCardSidePanel({
   if (tabsForPane.length === 0) return null;
 
   const activeId = panel?.id ?? null;
+  const showDockBodyHint =
+    authChecked &&
+    (!activeId ||
+      (!user && activeId !== LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth));
+  const bodyHostActive =
+    Boolean(activeId) &&
+    authChecked &&
+    (Boolean(user) || activeId === LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth);
 
   const pane = (
     <aside
@@ -373,16 +389,27 @@ export function LiveTradeCardSidePanel({
       aria-label={ko.app.liveTradeCardTabPaneAria}
     >
       {railMode && activeId ? (
-        <header className="live-trading-tab__card-tabs-rail-head">
-          <p className="live-trading-tab__card-tabs-rail-title">{panel?.title}</p>
-          <button
-            type="button"
-            className="live-trading-tab__card-tabs-rail-close"
-            onClick={closePanel}
-            aria-label={ko.app.liveTradeCardModalClose}
-          >
-            ×
-          </button>
+        <header
+          className="live-trading-tab__card-tabs-rail-head"
+          aria-label={panel?.title}
+        >
+          {activeId === LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb ? (
+            <span
+              className="live-trading-tab__card-tabs-rail-brand brand-mark"
+              aria-hidden
+            >
+              <img
+                className="brand-mark__img"
+                src="/branding/ystock-logo-mark.png?v=19"
+                alt=""
+                width={22}
+                height={22}
+                decoding="async"
+              />
+            </span>
+          ) : (
+            <p className="live-trading-tab__card-tabs-rail-title">{panel?.title}</p>
+          )}
         </header>
       ) : null}
       {!railMode ? (
@@ -429,7 +456,7 @@ export function LiveTradeCardSidePanel({
         }
         className="live-trading-tab__card-tabs-body live-trade-api-card__body"
       >
-        {!activeId && authChecked ? (
+        {showDockBodyHint ? (
           <p className="live-trading-tab__card-tabs-hint" role="status">
             {user
               ? ko.app.liveTradeCardTabHint
@@ -439,7 +466,7 @@ export function LiveTradeCardSidePanel({
         <div
           ref={setBodyHostEl}
           className={`live-trading-tab__card-tabs-host${
-            activeId ? "" : " live-trading-tab__card-tabs-host--idle"
+            bodyHostActive ? "" : " live-trading-tab__card-tabs-host--idle"
           }`}
         />
       </div>
@@ -649,6 +676,71 @@ export function LiveTradeAuthSignedInCard({
 
 type CredPasswordGate = "edit" | "delete";
 
+const YSTOCK_OVERLAY_BUBBLE_Z = 10050;
+const CRED_PASSWORD_POP_GAP_PX = 7;
+
+function credPasswordPopoverPortalStyle(anchor: HTMLElement): CSSProperties {
+  const r = anchor.getBoundingClientRect();
+  const pad = 8;
+  const maxW = Math.min(232, window.innerWidth * 0.88);
+  const minW = 172;
+  const w = Math.min(maxW, Math.max(minW, r.width));
+  let left = r.right - w;
+  left = Math.min(Math.max(pad, left), window.innerWidth - w - pad);
+  const top = Math.max(pad, r.top - CRED_PASSWORD_POP_GAP_PX);
+  return {
+    position: "fixed",
+    left,
+    top,
+    transform: "translateY(-100%)",
+    zIndex: YSTOCK_OVERLAY_BUBBLE_Z,
+    width: w,
+    minWidth: minW,
+    maxWidth: maxW,
+  };
+}
+
+function CredPasswordPopoverPortal({
+  anchor,
+  children,
+}: {
+  anchor: HTMLElement;
+  children: ReactNode;
+}) {
+  const [style, setStyle] = useState<CSSProperties>(() => ({
+    position: "fixed",
+    visibility: "hidden",
+    zIndex: YSTOCK_OVERLAY_BUBBLE_Z,
+  }));
+
+  const sync = useCallback(() => {
+    setStyle(credPasswordPopoverPortalStyle(anchor));
+  }, [anchor]);
+
+  useLayoutEffect(() => {
+    sync();
+    window.addEventListener("resize", sync);
+    window.addEventListener("scroll", sync, true);
+    return () => {
+      window.removeEventListener("resize", sync);
+      window.removeEventListener("scroll", sync, true);
+    };
+  }, [sync]);
+
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      className="live-trade-cred-password-popover-host"
+      style={style}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      {children}
+    </div>,
+    document.body,
+  );
+}
+
 function CredAccountPasswordPopover({
   password,
   onPasswordChange,
@@ -760,6 +852,7 @@ function CredentialExchangeForm({
   const [pwdGateValue, setPwdGateValue] = useState("");
   const [pwdGateErr, setPwdGateErr] = useState<string | null>(null);
   const [pwdGateBusy, setPwdGateBusy] = useState(false);
+  const [pwdAnchorEl, setPwdAnchorEl] = useState<HTMLElement | null>(null);
   const [verifiedAccountPassword, setVerifiedAccountPassword] = useState<
     string | null
   >(null);
@@ -794,6 +887,7 @@ function CredentialExchangeForm({
 
   const closePwdGate = useCallback(() => {
     setPwdGate(null);
+    setPwdAnchorEl(null);
     setPwdGateValue("");
     setPwdGateErr(null);
     setPwdGateBusy(false);
@@ -809,6 +903,7 @@ function CredentialExchangeForm({
     const onDoc = (e: MouseEvent) => {
       const t = e.target as Node;
       if ((t as Element).closest?.(".live-trade-cred-password-popover")) return;
+      if ((t as Element).closest?.(".live-trade-cred-password-popover-host")) return;
       if ((t as Element).closest?.(".live-trading-tab__cred-btn--edit")) return;
       if ((t as Element).closest?.(".live-trading-tab__cred-btn--danger")) return;
       closePwdGate();
@@ -829,7 +924,8 @@ function CredentialExchangeForm({
     setAccountIdErr(null);
   };
 
-  const openPwdGate = (gate: CredPasswordGate) => {
+  const openPwdGate = (gate: CredPasswordGate, anchor: HTMLElement) => {
+    setPwdAnchorEl(anchor);
     setPwdGate(gate);
     setPwdGateValue("");
     setPwdGateErr(null);
@@ -878,21 +974,24 @@ function CredentialExchangeForm({
     }
   };
 
-  const pwdPopover = pwdGate ? (
-    <CredAccountPasswordPopover
-      password={pwdGateValue}
-      onPasswordChange={(v) => {
-        setPwdGateValue(v);
-        setPwdGateErr(null);
-      }}
-      error={pwdGateErr}
-      busy={pwdGateBusy || busy}
-      onConfirm={() => void confirmPwdGate()}
-      onCancel={closePwdGate}
-      inputRef={pwdInputRef}
-      danger={pwdGate === "delete"}
-    />
-  ) : null;
+  const pwdPopover =
+    pwdGate && pwdAnchorEl ? (
+      <CredPasswordPopoverPortal anchor={pwdAnchorEl}>
+        <CredAccountPasswordPopover
+          password={pwdGateValue}
+          onPasswordChange={(v) => {
+            setPwdGateValue(v);
+            setPwdGateErr(null);
+          }}
+          error={pwdGateErr}
+          busy={pwdGateBusy || busy}
+          onConfirm={() => void confirmPwdGate()}
+          onCancel={closePwdGate}
+          inputRef={pwdInputRef}
+          danger={pwdGate === "delete"}
+        />
+      </CredPasswordPopoverPortal>
+    ) : null;
 
   const applyValidationError = (
     checked: { ok: false; error: string; field?: string } | { ok: true },
@@ -1020,6 +1119,7 @@ function CredentialExchangeForm({
   };
 
   return (
+    <>
     <div className="live-trading-tab__cred-form">
       {envConfigured ? (
         <p className="live-trading-tab__hint live-trading-tab__cred-hint live-trading-tab__cred-env-banner">
@@ -1038,11 +1138,10 @@ function CredentialExchangeForm({
               className="live-trading-tab__cred-btn live-trading-tab__cred-btn--edit"
               disabled={busy || pwdGateBusy}
               aria-expanded={pwdGate === "edit"}
-              onClick={() => openPwdGate("edit")}
+              onClick={(e) => openPwdGate("edit", e.currentTarget)}
             >
               {ko.app.liveTradeCredChangeApi}
             </button>
-            {pwdGate === "edit" ? pwdPopover : null}
           </span>
           <button
             type="button"
@@ -1058,11 +1157,10 @@ function CredentialExchangeForm({
               className="live-trading-tab__cred-btn live-trading-tab__cred-btn--danger"
               disabled={busy || pwdGateBusy}
               aria-expanded={pwdGate === "delete"}
-              onClick={() => openPwdGate("delete")}
+              onClick={(e) => openPwdGate("delete", e.currentTarget)}
             >
               {ko.app.liveTradeCredDelete}
             </button>
-            {pwdGate === "delete" ? pwdPopover : null}
           </span>
         </div>
       ) : null}
@@ -1196,11 +1294,10 @@ function CredentialExchangeForm({
                 className="live-trading-tab__cred-btn live-trading-tab__cred-btn--danger"
                 disabled={busy || pwdGateBusy}
                 aria-expanded={pwdGate === "delete"}
-                onClick={() => openPwdGate("delete")}
+                onClick={(e) => openPwdGate("delete", e.currentTarget)}
               >
                 {ko.app.liveTradeCredDelete}
               </button>
-              {pwdGate === "delete" ? pwdPopover : null}
             </span>
           ) : null}
         </div>
@@ -1231,6 +1328,8 @@ function CredentialExchangeForm({
         </p>
       ) : null}
     </div>
+    {pwdPopover}
+    </>
   );
 }
 
@@ -1363,16 +1462,27 @@ export default function LiveTradeAuthPanel({
   const [codeErr, setCodeErr] = useState<string | null>(null);
 
   const emailValidation = useMemo(() => validateAuthEmail(email), [email]);
-  const passwordValidation = useMemo(
-    () => validateAuthPassword(password, { register: mode === "register" }),
-    [password, mode],
-  );
+  const passwordValidation = useMemo(() => {
+    if (mode === "login") {
+      const v = String(password ?? "");
+      return v
+        ? { ok: true as const, value: v }
+        : {
+            ok: false as const,
+            field: "비밀번호" as const,
+            error: "비밀번호를 입력하세요.",
+          };
+    }
+    return validateAuthPassword(password, { register: true });
+  }, [password, mode]);
   const emailValid = emailValidation.ok;
   const passwordValid = passwordValidation.ok;
   const liveEmailErr =
     email.length > 0 && !emailValidation.ok ? emailValidation.error : null;
   const livePasswordErr =
-    password.length > 0 && !passwordValidation.ok
+    mode === "register" &&
+    password.length > 0 &&
+    !passwordValidation.ok
       ? passwordValidation.error
       : null;
   const displayEmailErr = emailErr ?? liveEmailErr;
@@ -1393,10 +1503,10 @@ export default function LiveTradeAuthPanel({
 
   useEffect(() => {
     if (sendCooldownSec <= 0) return;
-    const id = window.setInterval(() => {
+    const id = window.setTimeout(() => {
       setSendCooldownSec((s) => (s <= 1 ? 0 : s - 1));
     }, 1000);
-    return () => window.clearInterval(id);
+    return () => window.clearTimeout(id);
   }, [sendCooldownSec]);
 
   const switchMode = (next: "login" | "register") => {
@@ -1479,22 +1589,34 @@ export default function LiveTradeAuthPanel({
   };
 
   const submit = async () => {
+    if (busy) return;
     setBusy(true);
     setErr(null);
     setEmailErr(null);
     setPasswordErr(null);
     setCodeErr(null);
     try {
-      const checked = validateAuthCredentials(email, password, {
-        register: mode === "register",
-      });
-      if (!checked.ok) {
-        if (checked.field === "이메일") setEmailErr(checked.error);
-        else if (checked.field === "비밀번호") setPasswordErr(checked.error);
-        else setErr(checked.error);
-        return;
-      }
-      if (mode === "register") {
+      if (mode === "login") {
+        const checkedEmail = validateAuthEmail(email);
+        if (!checkedEmail.ok) {
+          setEmailErr(checkedEmail.error);
+          return;
+        }
+        if (!String(password ?? "")) {
+          setPasswordErr("비밀번호를 입력하세요.");
+          return;
+        }
+        await loginAuth(checkedEmail.value, password);
+      } else {
+        const checked = validateAuthCredentials(email, password, {
+          register: true,
+        });
+        if (!checked.ok) {
+          if (checked.field === "이메일") setEmailErr(checked.error);
+          else if (checked.field === "비밀번호") setPasswordErr(checked.error);
+          else setErr(checked.error);
+          return;
+        }
         const code = verificationCode.trim().replace(/\s/g, "");
         if (!/^\d{6}$/.test(code)) {
           setCodeErr(ko.app.liveTradeAuthVerificationRequired);
@@ -1513,8 +1635,6 @@ export default function LiveTradeAuthPanel({
           checked.value.password,
           code,
         );
-      } else {
-        await loginAuth(checked.value.email, checked.value.password);
       }
       onAuthChange();
     } catch (e) {
@@ -1630,7 +1750,9 @@ export default function LiveTradeAuthPanel({
         </label>
         <label className="live-trading-tab__field live-trading-tab__field--full">
           <span className="live-trading-tab__label">
-            {ko.app.liveTradeAuthPassword}
+            {mode === "register"
+              ? ko.app.liveTradeAuthPasswordRegister
+              : ko.app.liveTradeAuthPassword}
           </span>
           <input
             type="password"
@@ -1674,24 +1796,20 @@ export default function LiveTradeAuthPanel({
                     if (codeVerified) setCodeMsg(null);
                   }}
                 />
-                <button
-                type="button"
-                className="btn btn--secondary btn--sm live-trading-tab__auth-send-code"
-                disabled={
-                  sendCodeBusy ||
-                  sendCooldownSec > 0 ||
-                  !emailValid
-                }
-                onClick={() => void sendVerificationCode()}
-              >
-                {sendCodeBusy
-                  ? "…"
-                  : sendCooldownSec > 0
-                    ? `${sendCooldownSec}${ko.app.liveTradeAuthSendCodeCooldown}`
-                    : codeSent
-                      ? ko.app.liveTradeAuthSendCodeAgain
-                      : ko.app.liveTradeAuthSendCode}
-                </button>
+                {!codeVerified && !sendCodeBusy ? (
+                  <button
+                    type="button"
+                    className="btn btn--sm live-trading-tab__auth-send-code"
+                    disabled={sendCooldownSec > 0 || !emailValid}
+                    onClick={() => void sendVerificationCode()}
+                  >
+                    {sendCooldownSec > 0
+                      ? `${sendCooldownSec}${ko.app.liveTradeAuthSendCodeCooldown}`
+                      : codeSent
+                        ? ko.app.liveTradeAuthSendCodeAgain
+                        : ko.app.liveTradeAuthSendCode}
+                  </button>
+                ) : null}
               </div>
               {codeErr ? (
                 <FieldValidationCallout id="auth-code-err" message={codeErr} />

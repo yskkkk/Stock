@@ -1,13 +1,16 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type PointerEvent,
   type ReactNode,
   type RefObject,
 } from "react";
+import { createPortal } from "react-dom";
 import { logoutAuth } from "../api";
 import { FeedbackDockRailButton, type FeedbackCornerHandle } from "./FeedbackCorner";
 import { useDesktopDockLayout } from "../hooks/useDesktopDockLayout";
@@ -33,11 +36,38 @@ import {
   clampDockPanelWidthPx,
   clearDockPanelWidthCss,
   defaultDockPanelWidthPx,
+  dockPanelWidthDragPx,
+  dockPanelWidthFromExpandPointer,
+  dockPanelWidthFromExpandPointerRaw,
+  dockRailWidthPx,
   persistDockPanelWidthPref,
   readDockPanelWidthPref,
 } from "../lib/liveTradeDockPanelWidth";
 
-const OPEN_PREF_KEY = "ystock-live-trade-side-dock-open";
+const AUTH_POPOVER_GAP_PX = 9;
+
+function isUsablePointerClientX(clientX: number): boolean {
+  if (!Number.isFinite(clientX)) return false;
+  if (typeof window === "undefined") return true;
+  return clientX >= -32 && clientX <= window.innerWidth + 32;
+}
+
+function dockPanelWidthFromOpenDrag(
+  startW: number,
+  startX: number,
+  clientX: number,
+  viewportWidth?: number,
+): number {
+  return dockPanelWidthDragPx(startW + (startX - clientX), viewportWidth);
+}
+
+function authPopoverPortalStyle(anchor: HTMLElement): CSSProperties {
+  const r = anchor.getBoundingClientRect();
+  return {
+    right: Math.max(8, window.innerWidth - r.left + AUTH_POPOVER_GAP_PX),
+    bottom: Math.max(8, window.innerHeight - r.bottom),
+  };
+}
 
 function wheelDeltaY(e: WheelEvent): number {
   let delta = e.deltaY;
@@ -84,54 +114,25 @@ function findDockPanelScrollEl(root: HTMLElement): HTMLElement | null {
   return host ?? body;
 }
 
-function findMainAppScrollEl(dock: HTMLElement): HTMLElement | null {
-  return (
-    dock.closest(".app__scroll") ??
-    dock.closest(".app")?.querySelector<HTMLElement>(".app__scroll") ??
-    null
-  );
-}
-
-function wheelScrollTargets(dock: HTMLElement, panelOpen: boolean): HTMLElement[] {
-  const targets: HTMLElement[] = [];
-  if (panelOpen) {
-    const panel = findDockPanelScrollEl(dock);
-    if (panel) targets.push(panel);
-  }
-  const main = findMainAppScrollEl(dock);
-  if (main && !targets.includes(main)) targets.push(main);
-  return targets;
-}
-
-/** 패널 → 메인 순, 끝에 닿으면 다음 대상으로 넘김 */
-function applyWheelScrollChain(targets: HTMLElement[], e: WheelEvent): boolean {
+/** 도크 패널 내부만 스크롤 — 끝에 닿아도 메인으로 체인하지 않음 */
+function applyDockPanelWheel(scrollEl: HTMLElement, e: WheelEvent): void {
   const delta = wheelDeltaY(e);
-  if (delta === 0) return false;
+  if (delta === 0) return;
 
-  for (const el of targets) {
-    const max = el.scrollHeight - el.clientHeight;
-    if (max <= 0) continue;
+  const max = scrollEl.scrollHeight - scrollEl.clientHeight;
+  if (max <= 0) return;
 
-    const top = el.scrollTop;
-    if (delta > 0 && top >= max - 0.5) continue;
-    if (delta < 0 && top <= 0.5) continue;
+  const top = scrollEl.scrollTop;
+  if (delta > 0 && top >= max - 0.5) return;
+  if (delta < 0 && top <= 0.5) return;
 
-    el.scrollTop = Math.max(0, Math.min(max, top + delta));
-    return true;
-  }
-  return false;
+  scrollEl.scrollTop = Math.max(0, Math.min(max, top + delta));
 }
 
-function readDockOpenPref(): boolean {
-  if (typeof localStorage === "undefined") return false;
-  try {
-    const v = localStorage.getItem(OPEN_PREF_KEY);
-    if (v === "0") return false;
-    if (v === "1") return true;
-  } catch {
-    /* ignore */
-  }
-  return false;
+function isWheelInDockPanel(dock: HTMLElement, target: EventTarget | null): boolean {
+  const host = dock.querySelector<HTMLElement>(".app-live-trade-side-dock__host");
+  if (!host || !target || !(target instanceof Node)) return false;
+  return host.contains(target);
 }
 
 /** 접힘=왼쪽, 펼침=오른쪽 */
@@ -156,11 +157,82 @@ function DockFoldChevron({ open }: { open: boolean }) {
   );
 }
 
+function DockRailBanknoteIcon() {
+  return (
+    <svg
+      className="app-live-trade-side-dock__rail-icon"
+      viewBox="0 0 24 24"
+      width={16}
+      height={16}
+      aria-hidden
+    >
+      <rect
+        x="3"
+        y="6"
+        width="18"
+        height="12"
+        rx="2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <circle
+        cx="12"
+        cy="12"
+        r="2.75"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.75"
+      />
+      <path
+        d="M6 9.5h2M6 14.5h2M16 9.5h2M16 14.5h2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function DockRailWebsiteIcon() {
+  return (
+    <svg
+      className="app-live-trade-side-dock__rail-icon"
+      viewBox="0 0 24 24"
+      width={16}
+      height={16}
+      aria-hidden
+    >
+      <rect
+        x="4"
+        y="5"
+        width="16"
+        height="14"
+        rx="2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path d="M4 9h16" stroke="currentColor" strokeWidth="2" />
+      <circle cx="7" cy="7" r="0.85" fill="currentColor" />
+      <circle cx="9.75" cy="7" r="0.85" fill="currentColor" />
+      <path
+        d="M8 13h8M8 16h5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 function railTabShort(
   id: string,
   title: string,
   loggedIn: boolean,
-): { glyph: string; label: string } {
+): { glyph: ReactNode; label: string } {
   if (id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth) {
     return {
       glyph: "◎",
@@ -171,13 +243,13 @@ function railTabShort(
     return { glyph: "B", label: ko.app.leftRailBithumbAccountTitle };
   }
   if (id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.liveRail) {
-    return { glyph: "실", label: ko.app.liveTradeLeftRailTitle };
+    return { glyph: <DockRailBanknoteIcon />, label: ko.app.liveTradeLeftRailTitle };
   }
   if (id === "portfolio") {
     return { glyph: "₩", label: ko.app.liveTradeSideDockRailPortfolio };
   }
   if (id === "form") {
-    return { glyph: "+", label: ko.app.liveTradeSideDockRailForm };
+    return { glyph: <DockRailWebsiteIcon />, label: ko.app.liveTradeSideDockRailForm };
   }
   if (id === "programs") {
     return { glyph: "≡", label: ko.app.liveTradeSideDockRailPrograms };
@@ -199,6 +271,7 @@ export default function AppLiveTradeSideDock({
 }) {
   const { user, authChecked, registrationOpen } = useLiveTradeAuth();
   const [authPopoverOpen, setAuthPopoverOpen] = useState(false);
+  const [authPopoverStyle, setAuthPopoverStyle] = useState<CSSProperties>({});
   const authAnchorRef = useRef<HTMLSpanElement>(null);
   const ctx = useLiveTradeCardSidePanelOptional();
   const closePanel = ctx?.closePanel;
@@ -215,7 +288,7 @@ export default function AppLiveTradeSideDock({
   const panel = ctx?.panel ?? null;
   const openPanel = ctx?.openPanel;
   const wide = useDesktopDockLayout();
-  const [open, setOpen] = useState(readDockOpenPref);
+  const [open, setOpen] = useState(false);
   const [panelWidthPx, setPanelWidthPx] = useState(() => {
     const saved = readDockPanelWidthPref();
     return saved ?? defaultDockPanelWidthPx();
@@ -237,22 +310,40 @@ export default function AppLiveTradeSideDock({
     [],
   );
 
+  const syncDockPanelWidth = useCallback((px: number) => {
+    const w = clampDockPanelWidthPx(px);
+    applyDockPanelWidthCss(w);
+    setPanelWidthPx(w);
+    return w;
+  }, []);
+
   useEffect(() => {
     if (panel?.id) setOpen(true);
   }, [panel?.id]);
 
   const persistOpen = useCallback((next: boolean) => {
     setOpen(next);
-    try {
-      localStorage.setItem(OPEN_PREF_KEY, next ? "1" : "0");
-    } catch {
-      /* ignore */
-    }
   }, []);
 
+  const openDefaultBithumbPanel = useCallback(() => {
+    if (!openPanel) return;
+    const titles = defaultLiveTradeSideTabTitles();
+    openPanel(
+      LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb,
+      titles[LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb] ?? ko.app.leftRailBithumbAccountTitle,
+    );
+  }, [openPanel]);
+
   const toggleFold = useCallback(() => {
-    persistOpen(!open);
-  }, [open, persistOpen]);
+    const next = !open;
+    persistOpen(next);
+    if (next) {
+      openDefaultBithumbPanel();
+      applyDockPanelWidthCss(panelWidthPx);
+    } else {
+      clearDockPanelWidthCss();
+    }
+  }, [open, persistOpen, openDefaultBithumbPanel, panelWidthPx]);
 
   useEffect(() => {
     const onToggle = () => toggleFold();
@@ -275,14 +366,17 @@ export default function AppLiveTradeSideDock({
   );
 
   const handleLogout = useCallback(() => {
-    void logoutAuth().then(() => {
-      invalidateLiveTradingPrefetch();
-      refreshLiveTradingStatusNow();
-      notifyLiveTradeAuthChange();
-      setAuthPopoverOpen(false);
-      closePanel?.();
-      persistOpen(false);
-    });
+    void logoutAuth()
+      .then(() => {
+        invalidateLiveTradingPrefetch();
+        refreshLiveTradingStatusNow();
+        notifyLiveTradeAuthChange();
+        setAuthPopoverOpen(false);
+        closePanel?.();
+        persistOpen(false);
+        clearDockPanelWidthCss();
+      })
+      .catch(() => {});
   }, [closePanel, persistOpen]);
 
   const onDockAuthChange = useCallback(() => {
@@ -292,10 +386,35 @@ export default function AppLiveTradeSideDock({
     setAuthPopoverOpen(false);
   }, []);
 
+  const syncAuthPopoverPosition = useCallback(() => {
+    const anchor = authAnchorRef.current;
+    if (!anchor) return;
+    setAuthPopoverStyle(authPopoverPortalStyle(anchor));
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!authPopoverOpen) return;
+    syncAuthPopoverPosition();
+    window.addEventListener("resize", syncAuthPopoverPosition);
+    window.addEventListener("scroll", syncAuthPopoverPosition, true);
+    return () => {
+      window.removeEventListener("resize", syncAuthPopoverPosition);
+      window.removeEventListener("scroll", syncAuthPopoverPosition, true);
+    };
+  }, [authPopoverOpen, open, resizing, syncAuthPopoverPosition]);
+
   useEffect(() => {
     if (!authPopoverOpen) return;
     const onDoc = (e: MouseEvent) => {
-      if (authAnchorRef.current?.contains(e.target as Node)) return;
+      const t = e.target as Node;
+      if (authAnchorRef.current?.contains(t)) return;
+      if (
+        document
+          .getElementById("app-live-trade-side-dock-auth-popover")
+          ?.contains(t)
+      ) {
+        return;
+      }
       setAuthPopoverOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
@@ -313,10 +432,14 @@ export default function AppLiveTradeSideDock({
     if (user) setAuthPopoverOpen(false);
   }, [user]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    if (!open && !resizing) {
+      clearDockPanelWidthCss();
+      return;
+    }
+    if (resizing) return;
     applyDockPanelWidthCss(panelWidthPx);
-    return () => clearDockPanelWidthCss();
-  }, [panelWidthPx]);
+  }, [open, resizing, panelWidthPx]);
 
   useEffect(() => {
     const saved = readDockPanelWidthPref();
@@ -340,45 +463,96 @@ export default function AppLiveTradeSideDock({
       e.stopPropagation();
       e.currentTarget.setPointerCapture(e.pointerId);
       const wasOpen = open;
-      if (!wasOpen) persistOpen(true);
+      const startW = wasOpen ? panelWidthPx : 0;
       resizeDragRef.current = {
         startX: e.clientX,
-        startW: panelWidthPx,
+        startW,
         wasOpen,
       };
+      if (wasOpen) {
+        applyDockPanelWidthCss(startW);
+      } else {
+        applyDockPanelWidthCss(0);
+        setPanelWidthPx(0);
+      }
       setResizing(true);
     },
-    [open, panelWidthPx, persistOpen],
+    [open, panelWidthPx],
   );
 
-  const onResizePointerMove = useCallback((e: PointerEvent<HTMLButtonElement>) => {
-    const drag = resizeDragRef.current;
-    if (!drag) return;
-    const next = clampDockPanelWidthPx(drag.startW + (drag.startX - e.clientX));
-    setPanelWidthPx(next);
-  }, []);
+  const onResizePointerMove = useCallback(
+    (e: PointerEvent<HTMLButtonElement>) => {
+      const drag = resizeDragRef.current;
+      if (!drag || !isUsablePointerClientX(e.clientX)) return;
+      const vw = window.innerWidth;
+      const next = drag.wasOpen
+        ? dockPanelWidthFromOpenDrag(drag.startW, drag.startX, e.clientX, vw)
+        : dockPanelWidthDragPx(dockPanelWidthFromExpandPointerRaw(e.clientX, vw), vw);
+      applyDockPanelWidthCss(next);
+      setPanelWidthPx(next);
+    },
+    [],
+  );
 
-  const finishResize = useCallback((e: PointerEvent<HTMLButtonElement>) => {
-    if (!resizeDragRef.current) return;
-    resizeDragRef.current = null;
-    setResizing(false);
-    setPanelWidthPx((w) => {
-      const clamped = clampDockPanelWidthPx(w);
-      if (clamped >= defaultDockPanelWidthPx() * 0.72) {
-        persistDockPanelWidthPref(clamped);
+  const finishResize = useCallback(
+    (e: PointerEvent<HTMLButtonElement>) => {
+      const drag = resizeDragRef.current;
+      if (!drag) return;
+      resizeDragRef.current = null;
+
+      const min = clampDockPanelWidthPx(0);
+      const clientX = isUsablePointerClientX(e.clientX) ? e.clientX : drag.startX;
+      const w = drag.wasOpen
+        ? dockPanelWidthFromOpenDrag(drag.startW, drag.startX, clientX)
+        : dockPanelWidthFromExpandPointer(clientX);
+
+      const restoreWidth = () =>
+        readDockPanelWidthPref() ?? defaultDockPanelWidthPx();
+
+      if (w < min) {
+        if (w <= 0) {
+          persistOpen(false);
+          clearDockPanelWidthCss();
+          setPanelWidthPx(restoreWidth());
+        } else {
+          const railInnerX = window.innerWidth - dockRailWidthPx();
+          const minPanelLeftX = railInnerX - min;
+          const distToRail = Math.abs(e.clientX - railInnerX);
+          const distToMin = Math.abs(e.clientX - minPanelLeftX);
+          if (distToRail <= distToMin) {
+            persistOpen(false);
+            clearDockPanelWidthCss();
+            setPanelWidthPx(restoreWidth());
+          } else {
+            const snapped = syncDockPanelWidth(min);
+            persistOpen(true);
+            openDefaultBithumbPanel();
+            persistDockPanelWidthPref(snapped);
+          }
+        }
       } else {
-        try {
-          localStorage.removeItem(LIVE_TRADE_DOCK_PANEL_WIDTH_PREF);
-        } catch {
-          /* ignore */
+        const finalW = syncDockPanelWidth(w);
+        persistOpen(true);
+        openDefaultBithumbPanel();
+        if (finalW >= defaultDockPanelWidthPx() * 0.72) {
+          persistDockPanelWidthPref(finalW);
+        } else {
+          try {
+            localStorage.removeItem(LIVE_TRADE_DOCK_PANEL_WIDTH_PREF);
+          } catch {
+            /* ignore */
+          }
         }
       }
-      return clamped;
-    });
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    }
-  }, []);
+
+      setResizing(false);
+
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    },
+    [persistOpen, openDefaultBithumbPanel, syncDockPanelWidth],
+  );
 
   useEffect(() => {
     const dock = dockRef.current;
@@ -387,12 +561,13 @@ export default function AppLiveTradeSideDock({
     const onWheel = (e: WheelEvent) => {
       if (!dock.contains(e.target as Node)) return;
 
-      const targets = wheelScrollTargets(dock, openRef.current);
-      if (targets.length === 0) return;
-
-      if (applyWheelScrollChain(targets, e)) {
+      const panelOpen = openRef.current;
+      if (panelOpen && isWheelInDockPanel(dock, e.target)) {
+        const scrollEl = findDockPanelScrollEl(dock);
+        if (scrollEl) applyDockPanelWheel(scrollEl, e);
         e.preventDefault();
         e.stopPropagation();
+        return;
       }
     };
 
@@ -537,23 +712,27 @@ export default function AppLiveTradeSideDock({
                 {user ? ko.app.liveTradeAuthLogout : ko.app.liveTradeSideDockRailAuth}
               </span>
             </button>
-            {!user && authPopoverOpen ? (
-              <div
-                id="app-live-trade-side-dock-auth-popover"
-                className="app-live-trade-side-dock__auth-popover"
-                role="dialog"
-                aria-label={ko.app.liveTradeAuthTitle}
-                onMouseDown={(e) => e.stopPropagation()}
-              >
-                <LiveTradeAuthPanel
-                  user={null}
-                  registrationOpen={registrationOpen}
-                  variant="popover"
-                  onAuthChange={onDockAuthChange}
-                />
-              </div>
-            ) : null}
           </span>
+          {!user && authPopoverOpen
+            ? createPortal(
+                <div
+                  id="app-live-trade-side-dock-auth-popover"
+                  className="app-live-trade-side-dock__auth-popover app-live-trade-side-dock__auth-popover--portal"
+                  style={authPopoverStyle}
+                  role="dialog"
+                  aria-label={ko.app.liveTradeAuthTitle}
+                  onMouseDown={(ev) => ev.stopPropagation()}
+                >
+                  <LiveTradeAuthPanel
+                    user={null}
+                    registrationOpen={registrationOpen}
+                    variant="popover"
+                    onAuthChange={onDockAuthChange}
+                  />
+                </div>,
+                document.body,
+              )
+            : null}
           {feedbackRef ? (
             <FeedbackDockRailButton
               active={feedbackActive}

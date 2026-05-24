@@ -772,6 +772,7 @@ export function createApp() {
 
   app.get(
     "/api/live-trading/quotes",
+    requireUserAuth,
     asyncRoute(async (req, res) => {
       const raw = String(req.query.symbols ?? "").trim();
       const symbols = raw
@@ -977,7 +978,7 @@ export function createApp() {
     }),
   );
 
-  app.post("/api/picks/refresh", (_req, res) => {
+  app.post("/api/picks/refresh", requireUserAuth, (_req, res) => {
     res.json(forceRescreen());
   });
 
@@ -1778,6 +1779,10 @@ export function createApp() {
   app.get(
     "/api/news/:symbol",
     asyncRoute(async (req, res) => {
+      if (!/^[A-Z0-9.\-^]{1,20}$/i.test(req.params.symbol)) {
+        res.status(400).json({ error: "올바르지 않은 심볼 형식입니다." });
+        return;
+      }
       try {
         const symbol = req.params.symbol.toUpperCase();
         const name = String(req.query.name ?? "");
@@ -1940,6 +1945,10 @@ export function createApp() {
   app.get(
     "/api/stock/:symbol",
     asyncRoute(async (req, res) => {
+      if (!/^[A-Z0-9.\-^]{1,20}$/i.test(req.params.symbol)) {
+        res.status(400).json({ error: "올바르지 않은 심볼 형식입니다." });
+        return;
+      }
       try {
         const symbol = req.params.symbol.toUpperCase();
         const timeframe = String(req.query.timeframe ?? req.query.period ?? "1d");
@@ -1955,7 +1964,7 @@ export function createApp() {
 
   installDistSpaIfPresent(app);
 
-  setTimeout(() => scheduleRecommendationSignalBackfill(), 5000);
+  const _backfillTimer = setTimeout(() => scheduleRecommendationSignalBackfill(), 5000);
 
   app.use((err, _req, res, _next) => {
     const message = err instanceof Error ? err.message : "요청 실패";

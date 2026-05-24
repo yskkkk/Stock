@@ -42,8 +42,8 @@ function isRegistrationOpen() {
 }
 
 /**
+ * @param {string} userId
  * @param {string} password
- * @param {string} saltHex
  */
 export function verifyUserAccountPasswordSync(userId, password) {
   const user = findUserByIdSync(userId);

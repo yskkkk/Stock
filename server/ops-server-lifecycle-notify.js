@@ -116,10 +116,9 @@ export function installOpsServerLifecycleShutdownHooks() {
   markShutdownInstalled();
 
   const run = (reason) => {
-    void notifyOpsServerStopped({
-      ...getLifecycleMeta(),
-      reason,
-    });
+    notifyOpsServerStopped({ ...getLifecycleMeta(), reason })
+      .catch(() => {})
+      .finally(() => process.exit(0));
   };
 
   process.once("SIGINT", () => run("SIGINT"));

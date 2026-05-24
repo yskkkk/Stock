@@ -99,6 +99,7 @@ export function LivePortfolioSignedMoney({
   align?: "start" | "end";
   compact?: boolean;
 }) {
+  if (amount == null || !Number.isFinite(amount)) return <span>—</span>;
   const sub =
     compact || currency === "KRW"
       ? null

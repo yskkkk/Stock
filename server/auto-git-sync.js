@@ -291,6 +291,8 @@ export function startAutoGitSync({ httpServer }) {
       );
     }
 
+    // AUTO_GIT_POST_PULL_CMD is a trusted operator-controlled env var (e.g., "npm run build").
+    // Do not source this value from user input.
     const hook = String(process.env.AUTO_GIT_POST_PULL_CMD || "").trim();
     if (hook) {
       try {

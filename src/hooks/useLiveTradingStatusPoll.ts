@@ -8,6 +8,7 @@ const POLL_MS = 22_000;
 
 let sharedStatus: LiveTradingStatusResponse | null = null;
 let pollStarted = false;
+let pollIntervalId: number | null = null;
 const listeners = new Set<(status: LiveTradingStatusResponse | null) => void>();
 
 function notify(status: LiveTradingStatusResponse | null) {
@@ -45,7 +46,7 @@ function pollTick() {
 function ensurePoll() {
   if (pollStarted) return;
   pollStarted = true;
-  window.setInterval(pollTick, POLL_MS);
+  pollIntervalId = window.setInterval(pollTick, POLL_MS);
 }
 
 /** 로그인·로그아웃 직후 — 캐시 무효화 후 즉시 재조회 */
@@ -62,8 +63,9 @@ export function useLiveTradingStatusPoll(): LiveTradingStatusResponse | null {
   );
 
   useEffect(() => {
+    const isFirstMount = !pollStarted;
     ensurePoll();
-    void refreshLiveTradingStatusNow();
+    if (isFirstMount) void refreshLiveTradingStatusNow();
     const onUpdate = (next: LiveTradingStatusResponse | null) => setStatus(next);
     listeners.add(onUpdate);
     if (sharedStatus) setStatus(sharedStatus);

@@ -42,6 +42,7 @@ import { notifyLiveTradeAuthChange } from "../lib/liveTradeAuthEvents";
 import { refreshLiveTradingStatusNow } from "../hooks/useLiveTradingStatusPoll";
 import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
 import { ko } from "../i18n/ko";
+import { RefreshIconButton } from "./RefreshIconButton";
 import {
   LiveHoldingChartSymbol,
   LiveTradeExitPriceCell,
@@ -469,10 +470,14 @@ export default function LiveTradePortfolioPanel({
   );
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
     void load();
-    const id = window.setInterval(() => void load(), 30_000);
-    return () => window.clearInterval(id);
+    const id = window.setInterval(() => { if (!cancelled) void load(); }, 30_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
   }, [load]);
 
   useLivePortfolioQuotePoll(
@@ -552,17 +557,15 @@ export default function LiveTradePortfolioPanel({
               ))}
             </select>
           </label>
-          <button
-            type="button"
+          <RefreshIconButton
+            label={ko.app.liveTradePfRefresh}
             className="btn btn--secondary btn--sm live-portfolio__refresh"
             disabled={loading}
             onClick={() => {
               setLoading(true);
               void load();
             }}
-          >
-            {ko.app.liveTradePfRefresh}
-          </button>
+          />
         </div>
       </header>
 

@@ -837,8 +837,8 @@ export default function App() {
     try {
       await refreshPicks();
       await pollPicks();
-    } catch {
-      /* poll shows state */
+    } catch (e) {
+      setPicksError(e instanceof Error ? e.message : String(e));
     } finally {
       setRescanning(false);
     }
@@ -1000,8 +1000,7 @@ export default function App() {
   const { user: liveTradeUser } = useLiveTradeAuth();
   const showDesktopSideDock = desktopDockLayout && appTab !== "ops";
   const showLiveTradeDockPortals = showDesktopSideDock && Boolean(liveTradeUser);
-  const showEarningsEdgeRail =
-    appTab === "screener" || appTab === "stockLookup";
+  const showEarningsViewportRail = desktopDockLayout && appTab !== "ops";
   return (
     <LiveTradeCardSidePanelProvider>
     <div
@@ -1017,12 +1016,20 @@ export default function App() {
     >
       <div className="app__scroll" ref={appScrollRef}>
       <div
-        className={
+        className={[
           desktopDockLayout
             ? "app__viewport app__viewport--no-left-rail"
-            : "app__viewport"
-        }
+            : "app__viewport",
+          showEarningsViewportRail ? " app__viewport--earnings-rail" : "",
+        ]
+          .join("")
+          .trim()}
       >
+      {showEarningsViewportRail ? (
+        <div className="app__viewport-earnings-rail">
+          <EarningsUpcomingIconRail variant="edge" />
+        </div>
+      ) : null}
       {!desktopDockLayout ? (
         <div className="app__left-column">
           <aside ref={leftRailRef} className="app__left-rail" aria-label={ko.app.leftRailAria}>
@@ -1036,18 +1043,7 @@ export default function App() {
           </aside>
         </div>
       ) : null}
-      <div
-        className={
-          showEarningsEdgeRail
-            ? "app__shell app__shell--with-edge-rail"
-            : "app__shell"
-        }
-      >
-      {showEarningsEdgeRail ? (
-        <div className="app-edge-rail">
-          <EarningsUpcomingIconRail variant="edge" />
-        </div>
-      ) : null}
+      <div className="app__shell">
       <div className="app__shell-body">
       <div className="app__viewport-top">
         <AppThemeCorner
@@ -1116,7 +1112,9 @@ export default function App() {
             </div>
             <div className="top-bar__brand-main">
               <p className="top-bar__brand-tags">
-                <span className="top-bar__brand-tags__lead">{ko.app.subtitle}</span>
+                <span className="top-bar__brand-tags__lead">
+                  {picks?.scanScopeLabel ?? ko.app.subtitle}
+                </span>
                 {appTab === "screener" && (
                   <span className="tag-group">
                     <button
@@ -1282,14 +1280,14 @@ export default function App() {
       </header>
       </div>
 
-      {picksError && (
+      {picksError && !/npm\s+run\s+dev/i.test(picksError) ? (
         <div className="alert alert--error" role="alert">
           <span>{picksError}</span>
           <button type="button" className="btn btn--ghost" onClick={pollPicks}>
             {ko.app.retry}
           </button>
         </div>
-      )}
+      ) : null}
 
       {appTab === "screener" && (
         <section className="filter-bar card">
