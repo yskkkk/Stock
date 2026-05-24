@@ -707,6 +707,7 @@ export const ko = {
     sectorEarningsCardHint: "실적 일정 · Yahoo 종목 페이지로 열기",
     earningsMetaLabel: "실적",
     earningsMetaPending: "일정만 확인",
+    earningsIconRailAria: "다가오는 실적 발표",
   },
   errors: {
     picksLoad: "종목 목록을 불러올 수 없습니다.",

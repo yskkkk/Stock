@@ -21,6 +21,7 @@ import FeedbackCorner, {
   type FeedbackCornerHandle,
   type FeedbackSubmitKind,
 } from "./components/FeedbackCorner";
+import EarningsUpcomingIconRail from "./components/EarningsUpcomingIconRail";
 import MacroEventsBar from "./components/MacroEventsBar";
 import LeftRailBithumbAccountPanel from "./components/LeftRailBithumbAccountPanel";
 import LeftRailLiveTradeAuthPanel from "./components/LeftRailLiveTradeAuthPanel";
@@ -1327,7 +1328,8 @@ export default function App() {
           </section>
         </div>
       ) : (
-        <div className="workspace">
+        <div className="workspace workspace--with-earnings-rail">
+        <EarningsUpcomingIconRail />
         <aside className="picks-panel card">
           <div className="panel-head">
             <div
@@ -1912,25 +1914,20 @@ export default function App() {
             <AppLiveTradeSideDock
               feedbackRef={feedbackRef}
               feedbackActive={footerFeedbackKind != null}
+              portalSource={
+                showLiveTradeDockPortals ? (
+                  <LiveTradingTab
+                    portalSourceOnly
+                    onOpenRecommendations={() => setAppTab("recommendations")}
+                    onOpenHoldingChart={handleLiveTradeChart}
+                  />
+                ) : null
+              }
             />
           </>
         ) : null}
       </div>
       </div>
-
-      {showLiveTradeDockPortals ? (
-        <div
-          className="live-trade-tab-root live-trade-tab-root--persist"
-          hidden={appTab === "liveTrading"}
-          aria-hidden={appTab === "liveTrading"}
-        >
-          <LiveTradingTab
-            portalSourceOnly
-            onOpenRecommendations={() => setAppTab("recommendations")}
-            onOpenHoldingChart={handleLiveTradeChart}
-          />
-        </div>
-      ) : null}
 
       <AppSiteFooter
         accessAdmin={accessAdmin}

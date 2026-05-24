@@ -6002,6 +6002,217 @@ html[data-theme="light"] .feedback-inbox-item {
 }
 
 /* -------------------------------------------------------------------------- */
+/* 실적 발표 예정 — 종목 목록 좌측 아이콘 레일 */
+/* -------------------------------------------------------------------------- */
+
+.workspace--with-earnings-rail {
+  grid-template-columns: auto minmax(280px, 380px) 1fr;
+}
+
+.earnings-icon-rail {
+  align-self: stretch;
+  flex: none;
+  width: 2.85rem;
+  min-width: 2.85rem;
+  padding: 0.35rem 0.2rem 0.35rem 0;
+  border-right: 1px solid color-mix(in srgb, var(--card-border) 55%, transparent);
+  box-sizing: border-box;
+}
+
+.earnings-icon-rail__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.38rem;
+  max-height: min(56dvh, 520px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.earnings-icon-rail__list::-webkit-scrollbar {
+  display: none;
+}
+
+.earnings-icon-rail__item {
+  flex: none;
+  margin: 0;
+  padding: 0;
+}
+
+.earnings-icon-rail__btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
+  border-radius: 0.55rem;
+  background: color-mix(in srgb, var(--card-bg, var(--card)) 92%, var(--surface));
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    border-color 0.12s ease,
+    box-shadow 0.12s ease,
+    transform 0.12s ease;
+}
+
+.earnings-icon-rail__btn:hover,
+.earnings-icon-rail__btn--on {
+  border-color: color-mix(in srgb, var(--accent-border) 55%, var(--card-border));
+  box-shadow:
+    0 0 0 2px var(--accent-dim),
+    0 2px 8px rgba(0, 0, 0, 0.14);
+  transform: translateY(-1px);
+}
+
+.earnings-icon-rail__img {
+  display: block;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 0.35rem;
+  object-fit: contain;
+}
+
+.earnings-icon-rail__fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent-dim) 65%, var(--surface));
+}
+
+.earnings-icon-rail__market {
+  position: absolute;
+  right: -0.12rem;
+  bottom: -0.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.82rem;
+  height: 0.82rem;
+  border-radius: 999px;
+  font-size: 0.48rem;
+  font-weight: 800;
+  line-height: 1;
+  border: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
+  background: var(--card-bg, var(--card));
+  color: var(--muted);
+}
+
+.earnings-icon-rail__market--kr {
+  color: var(--accent);
+}
+
+.earnings-icon-rail__bubble {
+  position: fixed;
+  z-index: 10050;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(16.5rem, 88vw);
+  padding: 0.55rem 0.68rem;
+  border-radius: 10px;
+  background: var(--card-bg, var(--card));
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow-card, var(--shadow));
+  color: var(--text-dim);
+  font-size: 0.74rem;
+  font-weight: 500;
+  line-height: 1.45;
+  text-align: left;
+  pointer-events: auto;
+}
+
+.earnings-icon-rail__bubble::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  margin-top: -4.5px;
+  background: var(--card-bg, var(--card));
+  border-left: 1px solid var(--card-border);
+  border-bottom: 1px solid var(--card-border);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+.earnings-icon-rail__bubble-name {
+  margin: 0 0 0.2rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.earnings-icon-rail__bubble-code {
+  margin: 0 0 0.28rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.earnings-icon-rail__bubble-when {
+  margin: 0 0 0.22rem;
+  font-size: 0.74rem;
+  color: var(--text-dim);
+}
+
+.earnings-icon-rail__bubble-countdown {
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+.earnings-icon-rail__bubble-sep {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+html[data-theme="light"] .earnings-icon-rail__btn {
+  background: var(--card-bg, #fff);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+}
+
+@media (max-width: 900px) {
+  .workspace--with-earnings-rail {
+    grid-template-columns: 1fr;
+  }
+
+  .earnings-icon-rail {
+    width: 100%;
+    min-width: 0;
+    padding: 0.28rem 0.55rem;
+    border-right: none;
+    border-bottom: 1px solid color-mix(in srgb, var(--card-border) 55%, transparent);
+  }
+
+  .earnings-icon-rail__list {
+    flex-direction: row;
+    justify-content: flex-start;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 0.12rem;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 /* 운영관리 — Cursor 에이전트 연동 */
 /* -------------------------------------------------------------------------- */
 
