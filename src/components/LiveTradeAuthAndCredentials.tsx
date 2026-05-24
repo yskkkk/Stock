@@ -132,12 +132,26 @@ function CredentialExchangeForm({
     askFee: number;
     roundTripFeeRate: number;
   } | null>(null);
+  const [editingKeys, setEditingKeys] = useState(false);
 
   useEffect(() => {
     setLiveOrders(meta?.liveOrdersEnabled ?? false);
   }, [meta?.liveOrdersEnabled]);
 
   const keysSaved = Boolean(meta?.configured) || keysReady;
+  const showKeyFields = !keysSaved || editingKeys;
+
+  useEffect(() => {
+    if (!keysSaved) setEditingKeys(true);
+  }, [keysSaved]);
+
+  const closeKeyEdit = () => {
+    setEditingKeys(false);
+    setApiKey("");
+    setSecretKey("");
+    setApiKeyErr(null);
+    setSecretKeyErr(null);
+  };
 
   const persistLiveOrders = async (enabled: boolean) => {
     if (!cryptoReady) {
@@ -182,6 +196,7 @@ function CredentialExchangeForm({
       });
       setApiKey("");
       setSecretKey("");
+      setEditingKeys(false);
       setMsg(ko.app.liveTradeCredSaved);
       onSaved();
     } catch (e) {
@@ -254,50 +269,83 @@ function CredentialExchangeForm({
 
   return (
     <div className="live-trading-tab__cred-form">
-      <label className="live-trading-tab__field live-trading-tab__field--full">
-        <span className="live-trading-tab__label">API Key</span>
-        <input
-          type="password"
-          className="input live-trading-tab__input"
-          autoComplete="off"
-          placeholder={meta?.configured ? ko.app.liveTradeCredKeyPlaceholder : ""}
-          value={apiKey}
-          onChange={(e) => {
-            setApiKey(e.target.value);
-            if (apiKeyErr) setApiKeyErr(null);
-          }}
-          maxLength={128}
-          spellCheck={false}
-          aria-invalid={apiKeyErr ? true : undefined}
-          aria-describedby={apiKeyErr ? "cred-api-key-err" : undefined}
-        />
-        {apiKeyErr ? (
-          <FieldValidationCallout id="cred-api-key-err" message={apiKeyErr} />
-        ) : null}
-      </label>
-      <label className="live-trading-tab__field live-trading-tab__field--full">
-        <span className="live-trading-tab__label">Secret Key</span>
-        <input
-          type="password"
-          className="input live-trading-tab__input"
-          autoComplete="off"
-          placeholder={
-            meta?.hasSecret ? ko.app.liveTradeCredSecretPlaceholder : ""
-          }
-          value={secretKey}
-          onChange={(e) => {
-            setSecretKey(e.target.value);
-            if (secretKeyErr) setSecretKeyErr(null);
-          }}
-          maxLength={128}
-          spellCheck={false}
-          aria-invalid={secretKeyErr ? true : undefined}
-          aria-describedby={secretKeyErr ? "cred-secret-key-err" : undefined}
-        />
-        {secretKeyErr ? (
-          <FieldValidationCallout id="cred-secret-key-err" message={secretKeyErr} />
-        ) : null}
-      </label>
+      {keysSaved && !editingKeys ? (
+        <div className="live-trading-tab__cred-keys-bar">
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            disabled={busy}
+            onClick={() => setEditingKeys(true)}
+          >
+            {ko.app.liveTradeCredChangeApi}
+          </button>
+        </div>
+      ) : null}
+      {showKeyFields ? (
+        <>
+          {keysSaved ? (
+            <div className="live-trading-tab__cred-keys-edit-head">
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                disabled={busy}
+                onClick={closeKeyEdit}
+              >
+                {ko.app.liveTradeCancelEdit}
+              </button>
+            </div>
+          ) : null}
+          <label className="live-trading-tab__field live-trading-tab__field--full">
+            <span className="live-trading-tab__label">API Key</span>
+            <input
+              type="password"
+              className="input live-trading-tab__input"
+              autoComplete="off"
+              placeholder={
+                meta?.configured ? ko.app.liveTradeCredKeyPlaceholder : ""
+              }
+              value={apiKey}
+              onChange={(e) => {
+                setApiKey(e.target.value);
+                if (apiKeyErr) setApiKeyErr(null);
+              }}
+              maxLength={128}
+              spellCheck={false}
+              aria-invalid={apiKeyErr ? true : undefined}
+              aria-describedby={apiKeyErr ? "cred-api-key-err" : undefined}
+            />
+            {apiKeyErr ? (
+              <FieldValidationCallout id="cred-api-key-err" message={apiKeyErr} />
+            ) : null}
+          </label>
+          <label className="live-trading-tab__field live-trading-tab__field--full">
+            <span className="live-trading-tab__label">Secret Key</span>
+            <input
+              type="password"
+              className="input live-trading-tab__input"
+              autoComplete="off"
+              placeholder={
+                meta?.hasSecret ? ko.app.liveTradeCredSecretPlaceholder : ""
+              }
+              value={secretKey}
+              onChange={(e) => {
+                setSecretKey(e.target.value);
+                if (secretKeyErr) setSecretKeyErr(null);
+              }}
+              maxLength={128}
+              spellCheck={false}
+              aria-invalid={secretKeyErr ? true : undefined}
+              aria-describedby={secretKeyErr ? "cred-secret-key-err" : undefined}
+            />
+            {secretKeyErr ? (
+              <FieldValidationCallout
+                id="cred-secret-key-err"
+                message={secretKeyErr}
+              />
+            ) : null}
+          </label>
+        </>
+      ) : null}
       <fieldset className="live-trading-tab__cred-mode">
         <legend className="live-trading-tab__label">
           {ko.app.liveTradeCredOrderModeTitle}
@@ -356,14 +404,16 @@ function CredentialExchangeForm({
         >
           {ko.app.liveTradeCredTest}
         </button>
-        <button
-          type="button"
-          className="btn btn--primary btn--sm"
-          disabled={busy || !cryptoReady}
-          onClick={() => void handleSave()}
-        >
-          {ko.app.liveTradeCredSave}
-        </button>
+        {showKeyFields ? (
+          <button
+            type="button"
+            className="btn btn--primary btn--sm"
+            disabled={busy || !cryptoReady}
+            onClick={() => void handleSave()}
+          >
+            {ko.app.liveTradeCredSave}
+          </button>
+        ) : null}
       </div>
       {(msg || testSnapshot || testTradingFees) && exchange === "bithumb" ? (
         <div className="live-trading-tab__cred-test-row">

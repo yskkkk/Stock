@@ -179,6 +179,7 @@ export const ko = {
     liveTradeAuthSignedIn: "로그인:",
     liveTradeAuthRequired: "실매매 기능을 사용하려면 위에서 로그인하세요.",
     liveTradeCredSave: "API 저장",
+    liveTradeCredChangeApi: "API 변경",
     liveTradeCredTest: "연결 테스트",
     liveTradeCredLiveOrders: "실주문 허용 (끄면 시뮬만)",
     liveTradeCredSaved: "저장했습니다.",

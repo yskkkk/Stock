@@ -207,6 +207,7 @@ const t = {
     liveTradeAuthRequired:
       "\uc2e4\ub9e4\ub9e4 \uae30\ub2a5\uc744 \uc0ac\uc6a9\ud558\ub824\uba74 \uc704\uc5d0\uc11c \ub85c\uadf8\uc778\ud558\uc138\uc694.",
     liveTradeCredSave: "API \uc800\uc7a5",
+    liveTradeCredChangeApi: "API \ubcc0\uacbd",
     liveTradeCredTest: "\uc5f0\uacb0 \ud14c\uc2a4\ud2b8",
     liveTradeCredLiveOrders: "\uc2e4\uc8fc\ubb38 \ud5c8\uc6a9 (\ub044\uba74 \uc2dc\ubbac\ub9cc)",
     liveTradeCredSaved: "\uc800\uc7a5\ud588\uc2b5\ub2c8\ub2e4.",
