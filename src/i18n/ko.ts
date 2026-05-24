@@ -112,8 +112,10 @@ export const ko = {
     liveTradePfProgramFilter: "프로그램",
     liveTradePfTabSummary: "수익 요약",
     liveTradePfTabHoldings: "보유 종목",
+    liveTradePfTabTrade: "매수·매도",
     liveTradePfTabTrades: "거래 내역",
     liveTradePfTabOpenOrders: "미체결",
+    liveTradePfTabSellSection: "보유 종목 매도",
     liveTradePfOpenOrdersNote:
       "빗썸 거래소에 접수된 미체결·예약 주문입니다. 현재가는 빗썸 KRW 시세 기준입니다.",
     liveTradePfOpenOrdersEmpty: "미체결 주문이 없습니다.",

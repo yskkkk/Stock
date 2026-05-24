@@ -52,10 +52,13 @@ export default function LiveTradeSimPanel({
   programs,
   defaultProgramId,
   onTraded,
+  embedded = false,
 }: {
   programs: LiveTradeProgram[];
   defaultProgramId?: string;
   onTraded: () => void;
+  /** 보유·거래 패널 매매 탭 안 — 바깥 카드·제목 생략 */
+  embedded?: boolean;
 }) {
   const [programId, setProgramId] = useState(
     () => defaultProgramId ?? programs[0]?.id ?? "",
@@ -173,16 +176,12 @@ export default function LiveTradeSimPanel({
   const selectedChg = displaySelected?.changePercent;
   const selectedChgUp = selectedChg != null && selectedChg >= 0;
 
-  return (
-    <section className="live-sim card" aria-label={ko.app.liveTradeSimTitle}>
-      <header className="live-sim__head">
-        <h3 className="live-trading-tab__section-title live-sim__title">
-          {ko.app.liveTradeSimTitle}
-        </h3>
-        <p className="live-sim__note">{ko.app.liveTradeSimNote}</p>
-      </header>
-
-      <div className="live-sim__panel">
+  const panel = (
+      <div
+        className={
+          embedded ? "live-sim__panel live-sim__panel--embedded" : "live-sim__panel"
+        }
+      >
         <div className="live-sim__grid">
           <label className="live-sim__field live-sim__field--program">
             <span className="live-sim__label">{ko.app.liveTradePfProgramFilter}</span>
@@ -379,6 +378,25 @@ export default function LiveTradeSimPanel({
           </p>
         ) : null}
       </div>
+  );
+
+  if (embedded) {
+    return (
+      <div className="live-portfolio__trade-buy" aria-label={ko.app.liveTradeSimTitle}>
+        {panel}
+      </div>
+    );
+  }
+
+  return (
+    <section className="live-sim card" aria-label={ko.app.liveTradeSimTitle}>
+      <header className="live-sim__head">
+        <h3 className="live-trading-tab__section-title live-sim__title">
+          {ko.app.liveTradeSimTitle}
+        </h3>
+        <p className="live-sim__note">{ko.app.liveTradeSimNote}</p>
+      </header>
+      {panel}
     </section>
   );
 }

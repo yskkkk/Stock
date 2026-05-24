@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLiveTradeFeeRates } from "../contexts/LiveTradeFeeRatesContext";
 import {
   buildPortfolioFeeNote,
@@ -7,7 +7,6 @@ import {
 import {
   fetchLiveTradingMinuteQuotes,
   fetchLiveTradingPortfolio,
-  simulateLiveTradeSell,
   type LiveTradeHolding,
   type LiveTradePortfolioResponse,
   type LiveTradeProgram,
@@ -17,7 +16,7 @@ import {
   extractQuotesFromPortfolio,
   mergeLiveQuotesIntoPortfolio,
 } from "../lib/livePortfolioLiveQuotes";
-import LiveTradeSimPanel from "./LiveTradeSimPanel";
+import LiveTradePortfolioTradeTab from "./LiveTradePortfolioTradeTab";
 import LiveTradeOpenOrdersPanel from "./LiveTradeOpenOrdersPanel";
 import { LiveTradeCollapsibleCard } from "./LiveTradeAuthAndCredentials";
 import {
@@ -50,7 +49,7 @@ import {
 } from "./LiveTradeHoldingDisplay";
 import { LiveTradeSymbolCellFromRecord as TradeSymbolCell } from "./LiveTradeSymbolCell";
 
-type PanelTab = "summary" | "holdings" | "trades" | "openOrders";
+type PanelTab = "summary" | "holdings" | "trade" | "trades" | "openOrders";
 
 function formatTs(ms: number): string {
   try {
@@ -269,50 +268,18 @@ function SummaryTiles({
 
 function HoldingRow({
   row,
-  busy,
   portfolioProgramId,
-  onSold,
   onOpenHoldingChart,
 }: {
   row: LiveTradeHolding;
-  busy: boolean;
   portfolioProgramId: string;
-  onSold: (portfolio: LiveTradePortfolioResponse) => void;
   onOpenHoldingChart?: (h: LiveTradeHolding) => void;
 }) {
-  const [sellOpen, setSellOpen] = useState(false);
-  const [sellQty, setSellQty] = useState(() => String(row.quantity));
-  const [sellErr, setSellErr] = useState<string | null>(null);
-  const [sellOk, setSellOk] = useState<string | null>(null);
-
   const up = (row.unrealizedPnl ?? 0) >= 0;
   const chgUp = (row.changePct ?? 0) >= 0;
 
-  const submitSell = () => {
-    const quantity = Number(sellQty);
-    setSellErr(null);
-    setSellOk(null);
-    void simulateLiveTradeSell({
-      programId: row.programId,
-      symbol: row.symbol,
-      market: row.market,
-      quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : undefined,
-      portfolioProgramId: portfolioProgramId || null,
-    })
-      .then((res) => {
-        setSellOpen(false);
-        setSellOk(
-          ko.app.liveTradeSimFilled
-            .replace("{price}", formatPrice(res.quote.price, row.currency))
-            .replace("{time}", formatTs(res.quote.atMs)),
-        );
-        onSold(res.portfolio);
-      })
-      .catch((e) => setSellErr(e instanceof Error ? e.message : String(e)));
-  };
-
   return (
-    <Fragment>
+    <>
     <tr>
       <td data-label={ko.app.liveTradePfColSymbol}>
         <LiveHoldingChartSymbol
@@ -404,64 +371,9 @@ function HoldingRow({
           ? formatSignedMoney(row.unrealizedPnl, row.currency)
           : "—"}
       </td>
-      <td className="live-portfolio__actions-cell" data-label={ko.app.liveTradeSimSell}>
-        {!sellOpen ? (
-          <button
-            type="button"
-            className="btn btn--secondary btn--sm live-portfolio__sell-btn"
-            disabled={busy}
-            onClick={() => {
-              setSellOpen(true);
-              setSellQty(String(row.quantity));
-              setSellErr(null);
-              setSellOk(null);
-            }}
-          >
-            {ko.app.liveTradeSimSell}
-          </button>
-        ) : (
-          <div className="live-portfolio__sell-form">
-            <p className="live-portfolio__sell-hint">{ko.app.liveTradeSimSellHint}</p>
-            <input
-              type="number"
-              className="input"
-              min={1}
-              max={row.quantity}
-              placeholder={ko.app.liveTradePfSellQty}
-              value={sellQty}
-              onChange={(e) => setSellQty(e.target.value)}
-            />
-            <button
-              type="button"
-              className="btn btn--primary btn--sm"
-              disabled={busy}
-              onClick={submitSell}
-            >
-              {ko.app.liveTradePfSellConfirm}
-            </button>
-            <button
-              type="button"
-              className="btn btn--ghost btn--sm"
-              onClick={() => setSellOpen(false)}
-            >
-              {ko.app.liveTradeCancelEdit}
-            </button>
-            {sellErr ? (
-              <span className="live-portfolio__sell-err" role="alert">
-                {sellErr}
-              </span>
-            ) : null}
-          </div>
-        )}
-        {sellOk && !sellOpen ? (
-          <span className="live-portfolio__sell-ok" role="status">
-            {sellOk}
-          </span>
-        ) : null}
-      </td>
     </tr>
-    <LiveTradeHoldingRationaleRow holding={row} colSpan={8} />
-    </Fragment>
+    <LiveTradeHoldingRationaleRow holding={row} colSpan={7} />
+    </>
   );
 }
 
@@ -601,14 +513,6 @@ export default function LiveTradePortfolioPanel({
 
   return (
     <>
-      <LiveTradeSimPanel
-        programs={programs}
-        defaultProgramId={programId || undefined}
-        onTraded={() => {
-          setBusy(true);
-          void load({ keepQuoteMerge: false }).finally(() => setBusy(false));
-        }}
-      />
       <LiveTradeCollapsibleCard
         title={ko.app.liveTradePfTitle}
         summary={collapsedSummary}
@@ -653,6 +557,7 @@ export default function LiveTradePortfolioPanel({
             [
               ["summary", ko.app.liveTradePfTabSummary],
               ["holdings", ko.app.liveTradePfTabHoldings],
+              ["trade", ko.app.liveTradePfTabTrade],
               ["trades", ko.app.liveTradePfTabTrades],
               ["openOrders", ko.app.liveTradePfTabOpenOrders],
             ] as const
@@ -723,7 +628,6 @@ export default function LiveTradePortfolioPanel({
                       <th className="live-table__col live-table__col--num-end">
                         {ko.app.liveTradePfColPnl}
                       </th>
-                      <th />
                     </tr>
                   </thead>
                   <tbody>
@@ -731,14 +635,8 @@ export default function LiveTradePortfolioPanel({
                       <HoldingRow
                         key={`${h.programId}:${h.market}:${h.symbol}`}
                         row={h}
-                        busy={busy}
                         onOpenHoldingChart={onOpenHoldingChart}
                         portfolioProgramId={programId}
-                        onSold={(snap) => {
-                          setBusy(true);
-                          onPortfolioAfterTrade(snap);
-                          setBusy(false);
-                        }}
                       />
                     ))}
                   </tbody>
@@ -746,6 +644,20 @@ export default function LiveTradePortfolioPanel({
               </div>
               </>
             )
+          ) : null}
+
+          {tab === "trade" ? (
+            <LiveTradePortfolioTradeTab
+              programs={programs}
+              holdings={data.holdings}
+              portfolioProgramId={programId}
+              busy={busy}
+              onTraded={(snap) => {
+                setBusy(true);
+                if (snap) onPortfolioAfterTrade(snap);
+                else void load({ keepQuoteMerge: false }).finally(() => setBusy(false));
+              }}
+            />
           ) : null}
 
           {tab === "openOrders" ? (

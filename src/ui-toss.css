@@ -2852,6 +2852,75 @@ html[data-theme="light"] .live-portfolio--sim-like .live-portfolio__tab--active 
   color: var(--text-muted, #64748b);
 }
 
+.live-portfolio__trade-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.live-sim__panel--embedded {
+  padding: 0;
+  background: transparent;
+}
+
+.live-portfolio__trade-sell-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.live-portfolio__trade-sell-item {
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 70%, transparent);
+  background: color-mix(in srgb, var(--card) 94%, var(--surface));
+}
+
+.live-portfolio__trade-sell-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  gap: 0.35rem 0.55rem;
+  align-items: start;
+  margin-bottom: 0.45rem;
+}
+
+.live-portfolio__trade-sell-sym {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.live-portfolio__trade-sell-qty,
+.live-portfolio__trade-sell-px {
+  font-size: 0.72rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.live-portfolio__trade-sell-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.4rem 0.55rem;
+}
+
+.live-portfolio__trade-sell-qty-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.68rem;
+  color: var(--muted, #64748b);
+}
+
+.live-portfolio__trade-sell-qty-label input {
+  width: 6.5rem;
+  min-height: 2rem;
+}
+
 .live-portfolio__head--in-card {
   display: flex;
   flex-wrap: wrap;
@@ -2930,7 +2999,7 @@ html[data-theme="light"] .live-portfolio--sim-like .live-portfolio__tab--active 
 
 .live-portfolio__tab {
   flex: 1 1 auto;
-  min-width: 5.5rem;
+  min-width: 4rem;
   min-height: 2.1rem;
   padding: 0.35rem 0.75rem;
   border-radius: 999px;
