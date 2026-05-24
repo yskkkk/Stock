@@ -29,7 +29,7 @@ function DockRailPanelPortal({
   const active = ctx?.panel?.id === tabId;
   if (!ctx) return null;
   return (
-    <LiveTradeSidePanelPortal active={active} hostRef={ctx.bodyHostRef}>
+    <LiveTradeSidePanelPortal active={active} hostEl={ctx.bodyHostEl}>
       {children}
     </LiveTradeSidePanelPortal>
   );
@@ -44,23 +44,24 @@ export default function AppRightDockRailPanels({
   const wide = useDesktopDockLayout();
   const { user, authChecked, registrationOpen } = useLiveTradeAuth();
   const ctx = useLiveTradeCardSidePanelOptional();
+  const registerSideTab = ctx?.registerSideTab;
   const liveStatus = useLiveTradingStatusPoll();
 
   useEffect(() => {
-    if (!ctx || !authChecked) return;
+    if (!registerSideTab || !authChecked) return;
     const ids = LIVE_TRADE_DOCK_RAIL_TAB_IDS;
     if (!user) {
-      return ctx.registerSideTab(ids.auth, ko.app.liveTradeSideDockRailAuth);
+      return;
     }
     const cleanups = [
-      ctx.registerSideTab(ids.auth, ko.app.liveTradeSideDockRailAuth),
-      ctx.registerSideTab(ids.bithumb, ko.app.leftRailBithumbAccountTitle),
-      ctx.registerSideTab(ids.liveRail, ko.app.liveTradeLeftRailTitle),
+      registerSideTab(ids.auth, ko.app.liveTradeSideDockRailAuth),
+      registerSideTab(ids.bithumb, ko.app.leftRailBithumbAccountTitle),
+      registerSideTab(ids.liveRail, ko.app.liveTradeLeftRailTitle),
     ];
     return () => {
       for (const fn of cleanups) fn();
     };
-  }, [ctx, user, authChecked]);
+  }, [registerSideTab, user, authChecked]);
 
   const onAuthChange = useCallback(() => {
     invalidateLiveTradingPrefetch();

@@ -3,7 +3,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -219,6 +218,9 @@ type LiveTradeSidePanelContextValue = {
   openPanel: (id: string, title: string) => void;
   closePanel: () => void;
   bodyHostRef: RefObject<HTMLDivElement | null>;
+  /** 패널 본문 div — 포털 타깃(마운트 시 갱신) */
+  bodyHostEl: HTMLDivElement | null;
+  setBodyHostEl: (el: HTMLDivElement | null) => void;
   registerSideTab: (id: string, title: string) => () => void;
   sideTabs: Array<{ id: string; title: string }>;
 };
@@ -232,8 +234,15 @@ export function LiveTradeCardSidePanelProvider({
   children: ReactNode;
 }) {
   const [panel, setPanel] = useState<LiveTradeSidePanelState>(null);
-  const [tabTitles, setTabTitles] = useState<Record<string, string>>({});
-  const bodyHostRef = useRef<HTMLDivElement>(null);
+  const [tabTitles, setTabTitles] = useState<Record<string, string>>(() => ({
+    [LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth]: ko.app.liveTradeSideDockRailAuth,
+  }));
+  const bodyHostRef = useRef<HTMLDivElement | null>(null);
+  const [bodyHostEl, setBodyHostElState] = useState<HTMLDivElement | null>(null);
+  const setBodyHostEl = useCallback((el: HTMLDivElement | null) => {
+    bodyHostRef.current = el;
+    setBodyHostElState(el);
+  }, []);
   const openPanel = useCallback((id: string, title: string) => {
     setPanel({ id, title });
   }, []);
@@ -241,7 +250,12 @@ export function LiveTradeCardSidePanelProvider({
   const registerSideTab = useCallback((id: string, title: string) => {
     setTabTitles((prev) => ({ ...prev, [id]: title }));
     return () => {
-      setPanel((active) => (active?.id === id ? null : active));
+      setTabTitles((prev) => {
+        if (!(id in prev)) return prev;
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
     };
   }, []);
 
@@ -253,7 +267,10 @@ export function LiveTradeCardSidePanelProvider({
         setTabTitles({
           [LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth]: ko.app.liveTradeSideDockRailAuth,
         });
-        setPanel(null);
+        setPanel((active) => {
+          if (!active) return null;
+          return active.id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth ? active : null;
+        });
       }
     };
     void fetchAuthMe()
@@ -281,10 +298,12 @@ export function LiveTradeCardSidePanelProvider({
       openPanel,
       closePanel,
       bodyHostRef,
+      bodyHostEl,
+      setBodyHostEl,
       registerSideTab,
       sideTabs,
     }),
-    [panel, openPanel, closePanel, registerSideTab, sideTabs],
+    [panel, openPanel, closePanel, bodyHostEl, setBodyHostEl, registerSideTab, sideTabs],
   );
 
   return (
@@ -312,10 +331,10 @@ export function LiveTradeCardSidePanel({
 }: {
   /** App 고정 오버레이 안에서 직접 렌더 */
   forceDocked?: boolean;
-  /** 우측 아이콘 레일 — 상단 가로 탭 숨김 */
+  /** 우측 아이콘 레일 — 가로 탭 숨김, 레일만으로 전환 */
   railMode?: boolean;
 } = {}) {
-  const { panel, openPanel, closePanel, bodyHostRef, sideTabs } =
+  const { panel, openPanel, closePanel, setBodyHostEl, sideTabs } =
     useLiveTradeCardSidePanel();
   const { docked, host } = useLiveTradeRightPanelDock();
 
@@ -328,7 +347,17 @@ export function LiveTradeCardSidePanel({
     return () => document.removeEventListener("keydown", onKey);
   }, [panel, closePanel]);
 
-  if (sideTabs.length === 0) return null;
+  const tabsForPane =
+    sideTabs.length > 0
+      ? sideTabs
+      : forceDocked
+        ? Object.entries(defaultLiveTradeSideTabTitles()).map(([id, title]) => ({
+            id,
+            title,
+          }))
+        : [];
+
+  if (tabsForPane.length === 0) return null;
 
   const activeId = panel?.id ?? null;
 
@@ -341,13 +370,26 @@ export function LiveTradeCardSidePanel({
       }`}
       aria-label={ko.app.liveTradeCardTabPaneAria}
     >
+      {railMode && activeId ? (
+        <header className="live-trading-tab__card-tabs-rail-head">
+          <p className="live-trading-tab__card-tabs-rail-title">{panel?.title}</p>
+          <button
+            type="button"
+            className="live-trading-tab__card-tabs-rail-close"
+            onClick={closePanel}
+            aria-label={ko.app.liveTradeCardModalClose}
+          >
+            ×
+          </button>
+        </header>
+      ) : null}
       {!railMode ? (
         <div
           className="live-trading-tab__card-tabs"
           role="tablist"
           aria-label={ko.app.liveTradeCardTabPaneAria}
         >
-          {sideTabs.map((tab) => {
+          {tabsForPane.map((tab) => {
             const selected = activeId === tab.id;
             return (
               <button
@@ -391,11 +433,10 @@ export function LiveTradeCardSidePanel({
           </p>
         ) : null}
         <div
-          ref={bodyHostRef}
+          ref={setBodyHostEl}
           className={`live-trading-tab__card-tabs-host${
             activeId ? "" : " live-trading-tab__card-tabs-host--idle"
           }`}
-          hidden={!activeId}
         />
       </div>
     </aside>
@@ -415,32 +456,15 @@ export function LiveTradeCardSidePanelInline() {
 
 export function LiveTradeSidePanelPortal({
   active,
-  hostRef,
+  hostEl,
   children,
 }: {
   active: boolean;
-  hostRef: RefObject<HTMLDivElement | null>;
+  hostEl: HTMLDivElement | null;
   children: ReactNode;
 }) {
-  const [target, setTarget] = useState<HTMLElement | null>(null);
-
-  useLayoutEffect(() => {
-    if (!active) {
-      setTarget(null);
-      return;
-    }
-    const el = hostRef.current;
-    if (el) setTarget(el);
-    else {
-      const id = requestAnimationFrame(() => {
-        setTarget(hostRef.current);
-      });
-      return () => cancelAnimationFrame(id);
-    }
-  }, [active, hostRef]);
-
-  if (!active || !target) return null;
-  return createPortal(children, target);
+  if (!active || !hostEl) return null;
+  return createPortal(children, hostEl);
 }
 
 export function LiveTradeCollapsibleCard({
@@ -472,10 +496,11 @@ export function LiveTradeCollapsibleCard({
     useSidePanel && sidePanel!.panel?.id === sidePanelId;
   const variantClass = variant ? apiCardVariantClass(variant) : "";
 
+  const registerSideTab = sidePanel?.registerSideTab;
   useEffect(() => {
-    if (!useSidePanel || !sidePanelId || !sidePanel) return;
-    return sidePanel.registerSideTab(sidePanelId, title);
-  }, [useSidePanel, sidePanelId, title, sidePanel]);
+    if (!useSidePanel || !sidePanelId || !registerSideTab) return;
+    return registerSideTab(sidePanelId, title);
+  }, [useSidePanel, sidePanelId, title, registerSideTab]);
 
   useEffect(() => {
     if (!defaultOpen) return;
@@ -527,7 +552,7 @@ export function LiveTradeCollapsibleCard({
       {useSidePanel ? (
         <LiveTradeSidePanelPortal
           active={isSideActive}
-          hostRef={sidePanel!.bodyHostRef}
+          hostEl={sidePanel!.bodyHostEl}
         >
           {encryptNote ? (
             <p className="live-trade-api-card__encrypt-note">
@@ -1209,10 +1234,13 @@ export default function LiveTradeAuthPanel({
   user,
   registrationOpen,
   onAuthChange,
+  variant = "card",
 }: {
   user: AuthUser | null;
   registrationOpen: boolean;
   onAuthChange: () => void;
+  /** card=패널·탭, popover=도크 레일 말풍선 */
+  variant?: "card" | "popover";
 }) {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
@@ -1337,20 +1365,27 @@ export default function LiveTradeAuthPanel({
   if (user) return null;
 
   const showRegister = registrationOpen;
+  const isPopover = variant === "popover";
 
   return (
     <section
-      className="live-trading-tab__auth card"
+      className={
+        isPopover
+          ? "live-trading-tab__auth live-trading-tab__auth--popover"
+          : "live-trading-tab__auth card"
+      }
       aria-label={ko.app.liveTradeAuthTitle}
     >
-      <header className="live-trading-tab__auth-head">
-        <h3 className="live-trading-tab__auth-title">{ko.app.liveTradeAuthTitle}</h3>
-        <p className="live-trading-tab__auth-lead">{ko.app.liveTradeAuthHint}</p>
-      </header>
+      {isPopover ? null : (
+        <header className="live-trading-tab__auth-head">
+          <h3 className="live-trading-tab__auth-title">{ko.app.liveTradeAuthTitle}</h3>
+          <p className="live-trading-tab__auth-lead">{ko.app.liveTradeAuthHint}</p>
+        </header>
+      )}
 
       {showRegister ? (
         <div
-          className="live-trading-tab__segment live-trading-tab__auth-segment"
+          className="live-trading-tab__auth-tabs"
           role="tablist"
           aria-label={ko.app.liveTradeAuthTitle}
         >
@@ -1358,9 +1393,11 @@ export default function LiveTradeAuthPanel({
             type="button"
             role="tab"
             aria-selected={mode === "login"}
-            className={`live-trading-tab__segment-btn ${
-              mode === "login" ? "live-trading-tab__segment-btn--on" : ""
-            }`}
+            className={
+              mode === "login"
+                ? "live-trading-tab__auth-tab live-trading-tab__auth-tab--on"
+                : "live-trading-tab__auth-tab"
+            }
             onClick={() => switchMode("login")}
           >
             {ko.app.liveTradeAuthLogin}
@@ -1369,9 +1406,11 @@ export default function LiveTradeAuthPanel({
             type="button"
             role="tab"
             aria-selected={mode === "register"}
-            className={`live-trading-tab__segment-btn ${
-              mode === "register" ? "live-trading-tab__segment-btn--on" : ""
-            }`}
+            className={
+              mode === "register"
+                ? "live-trading-tab__auth-tab live-trading-tab__auth-tab--on"
+                : "live-trading-tab__auth-tab"
+            }
             onClick={() => switchMode("register")}
           >
             {ko.app.liveTradeAuthRegister}

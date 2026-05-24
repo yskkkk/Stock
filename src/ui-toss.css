@@ -1095,6 +1095,57 @@ html[data-theme="dark"] .live-trading-tab__auth-code-msg {
   font-weight: 650;
 }
 
+.live-trading-tab__auth--popover {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  max-width: none;
+}
+
+.live-trading-tab__auth--popover .live-trading-tab__auth-tabs {
+  justify-content: center;
+  gap: 1.1rem;
+  margin-bottom: 0.65rem;
+}
+
+.live-trading-tab__auth--popover .live-trading-tab__auth-tab {
+  font-size: 0.84rem;
+}
+
+.live-trading-tab__auth--popover .live-trading-tab__auth-notice {
+  margin-bottom: 0.55rem;
+  font-size: 0.74rem;
+}
+
+.live-trading-tab__auth--popover .live-trading-tab__auth-form {
+  gap: 0.5rem;
+}
+
+.live-trading-tab__auth--popover .live-trading-tab__label {
+  font-size: 0.72rem;
+}
+
+.live-trading-tab__auth--popover .live-trading-tab__input {
+  min-height: 2.2rem;
+  font-size: 0.82rem;
+}
+
+.live-trading-tab__auth--popover .live-trading-tab__auth-send-code {
+  min-height: 2.2rem;
+  font-size: 0.76rem;
+}
+
+.live-trading-tab__auth--popover .live-trading-tab__auth-submit {
+  min-height: 2.35rem;
+  font-size: 0.84rem;
+}
+
+.live-trading-tab__auth--popover .live-trading-tab__auth-alert {
+  font-size: 0.74rem;
+}
+
 .live-trading-tab__auth--signed {
   max-width: none;
   border-left-color: #22c55e;

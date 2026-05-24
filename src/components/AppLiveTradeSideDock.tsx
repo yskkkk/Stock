@@ -13,7 +13,7 @@ import { FeedbackDockRailButton, type FeedbackCornerHandle } from "./FeedbackCor
 import { useDesktopDockLayout } from "../hooks/useDesktopDockLayout";
 import { refreshLiveTradingStatusNow } from "../hooks/useLiveTradingStatusPoll";
 import { invalidateLiveTradingPrefetch } from "../lib/tabPrefetch";
-import {
+import LiveTradeAuthPanel, {
   LIVE_TRADE_DOCK_RAIL_TAB_IDS,
   LIVE_TRADE_RIGHT_PANEL_HOST_ID,
   LiveTradeCardSidePanel,
@@ -215,7 +215,9 @@ export default function AppLiveTradeSideDock({
   /** 보유·주문·프로그램 — 도크 본문 포털 소스 */
   portalSource?: ReactNode;
 }) {
-  const { user, authChecked } = useLiveTradeAuth();
+  const { user, authChecked, registrationOpen } = useLiveTradeAuth();
+  const [authPopoverOpen, setAuthPopoverOpen] = useState(false);
+  const authAnchorRef = useRef<HTMLSpanElement>(null);
   const ctx = useLiveTradeCardSidePanelOptional();
   const closePanel = ctx?.closePanel;
   const allSideTabs =
@@ -228,11 +230,6 @@ export default function AppLiveTradeSideDock({
   const railTabs = allSideTabs.filter(
     (t) => t.id !== LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth,
   );
-  const authRailTab =
-    allSideTabs.find((t) => t.id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth) ?? {
-      id: LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth,
-      title: ko.app.liveTradeSideDockRailAuth,
-    };
   const panel = ctx?.panel ?? null;
   const openPanel = ctx?.openPanel;
   const wide = useDesktopDockLayout();
@@ -296,10 +293,39 @@ export default function AppLiveTradeSideDock({
       invalidateLiveTradingPrefetch();
       refreshLiveTradingStatusNow();
       notifyLiveTradeAuthChange();
+      setAuthPopoverOpen(false);
       closePanel?.();
       persistOpen(false);
     });
   }, [closePanel, persistOpen]);
+
+  const onDockAuthChange = useCallback(() => {
+    invalidateLiveTradingPrefetch();
+    refreshLiveTradingStatusNow();
+    notifyLiveTradeAuthChange();
+    setAuthPopoverOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (!authPopoverOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      if (authAnchorRef.current?.contains(e.target as Node)) return;
+      setAuthPopoverOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setAuthPopoverOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [authPopoverOpen]);
+
+  useEffect(() => {
+    if (user) setAuthPopoverOpen(false);
+  }, [user]);
 
   useEffect(() => {
     applyDockPanelWidthCss(panelWidthPx);
@@ -369,11 +395,12 @@ export default function AppLiveTradeSideDock({
 
   if (!wide || !authChecked) return null;
 
-  const authRailSelected =
-    open && activeId === LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth;
+  const authRailSelected = user
+    ? open && activeId === LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth
+    : authPopoverOpen;
   const onAuthRailClick = () => {
     if (user) handleLogout();
-    else onRailTab(authRailTab.id, authRailTab.title);
+    else setAuthPopoverOpen((v) => !v);
   };
 
   return (
@@ -455,29 +482,58 @@ export default function AppLiveTradeSideDock({
         })}
         </div>
         <div className="app-live-trade-side-dock__rail-footer">
-          <button
-            type="button"
-            className={
-              authRailSelected
-                ? "app-live-trade-side-dock__rail-btn app-live-trade-side-dock__rail-btn--on app-live-trade-side-dock__rail-btn--auth"
-                : user
-                  ? "app-live-trade-side-dock__rail-btn app-live-trade-side-dock__rail-btn--auth app-live-trade-side-dock__rail-btn--logout"
-                  : "app-live-trade-side-dock__rail-btn app-live-trade-side-dock__rail-btn--auth"
-            }
-            aria-selected={authRailSelected}
-            aria-controls="app-live-trade-side-dock-panel"
-            title={
-              user ? ko.app.liveTradeAuthLogout : ko.app.liveTradeSideDockRailAuth
-            }
-            onClick={onAuthRailClick}
+          <span
+            ref={authAnchorRef}
+            className="app-live-trade-side-dock__auth-anchor"
           >
-            <span className="app-live-trade-side-dock__rail-glyph" aria-hidden>
-              {user ? "⎋" : "◎"}
-            </span>
-            <span className="app-live-trade-side-dock__rail-label">
-              {user ? ko.app.liveTradeAuthLogout : ko.app.liveTradeSideDockRailAuth}
-            </span>
-          </button>
+            <button
+              type="button"
+              className={
+                authRailSelected
+                  ? "app-live-trade-side-dock__rail-btn app-live-trade-side-dock__rail-btn--on app-live-trade-side-dock__rail-btn--auth"
+                  : user
+                    ? "app-live-trade-side-dock__rail-btn app-live-trade-side-dock__rail-btn--auth app-live-trade-side-dock__rail-btn--logout"
+                    : "app-live-trade-side-dock__rail-btn app-live-trade-side-dock__rail-btn--auth"
+              }
+              aria-selected={authRailSelected}
+              aria-expanded={!user ? authPopoverOpen : undefined}
+              aria-haspopup={!user ? "dialog" : undefined}
+              aria-controls={
+                !user && authPopoverOpen
+                  ? "app-live-trade-side-dock-auth-popover"
+                  : user
+                    ? "app-live-trade-side-dock-panel"
+                    : undefined
+              }
+              title={
+                user ? ko.app.liveTradeAuthLogout : ko.app.liveTradeSideDockRailAuth
+              }
+              onClick={onAuthRailClick}
+            >
+              <span className="app-live-trade-side-dock__rail-glyph" aria-hidden>
+                {user ? "⎋" : "◎"}
+              </span>
+              <span className="app-live-trade-side-dock__rail-label">
+                {user ? ko.app.liveTradeAuthLogout : ko.app.liveTradeSideDockRailAuth}
+              </span>
+            </button>
+            {!user && authPopoverOpen ? (
+              <div
+                id="app-live-trade-side-dock-auth-popover"
+                className="app-live-trade-side-dock__auth-popover"
+                role="dialog"
+                aria-label={ko.app.liveTradeAuthTitle}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <LiveTradeAuthPanel
+                  user={null}
+                  registrationOpen={registrationOpen}
+                  variant="popover"
+                  onAuthChange={onDockAuthChange}
+                />
+              </div>
+            ) : null}
+          </span>
           {feedbackRef ? (
             <FeedbackDockRailButton
               active={feedbackActive}
