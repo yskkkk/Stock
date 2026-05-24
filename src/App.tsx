@@ -44,6 +44,8 @@ import CryptoTab from "./components/CryptoTab";
 import OpsGlobalQueueStrip from "./components/OpsGlobalQueueStrip";
 import OpsManagementTab from "./components/OpsManagementTab";
 import LiveTradingTab from "./components/LiveTradingTab";
+import AppLiveTradeSideDock from "./components/AppLiveTradeSideDock";
+import { LiveTradeCardSidePanelProvider } from "./components/LiveTradeAuthAndCredentials";
 import RecommendationsTab from "./components/RecommendationsTab";
 import StockSearchTab from "./components/StockSearchTab";
 import StockChart from "./components/StockChart";
@@ -986,6 +988,7 @@ export default function App() {
   const liveRunningCount =
     (liveTradingStatus?.armedCount ?? 0) + (liveTradingStatus?.simCount ?? 0);
   return (
+    <LiveTradeCardSidePanelProvider>
     <div
       className={
         appTab === "recommendations"
@@ -1880,16 +1883,10 @@ export default function App() {
         }
       />
       </div>
-      <div
-        id="app-live-trade-right-panel"
-        className={
-          appTab === "liveTrading"
-            ? "app__right-panel app__right-panel--live-trade"
-            : "app__right-panel"
-        }
-        aria-hidden={appTab !== "liveTrading"}
-      />
+      <div className="app__right-panel" aria-hidden="true" />
       </div>
+
+      {appTab !== "ops" ? <AppLiveTradeSideDock /> : null}
 
       <AppSiteFooter
         accessAdmin={accessAdmin}
@@ -1900,5 +1897,6 @@ export default function App() {
       />
       </div>
     </div>
+    </LiveTradeCardSidePanelProvider>
   );
 }

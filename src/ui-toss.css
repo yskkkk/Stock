@@ -1890,8 +1890,7 @@ html[data-theme="dark"] .live-trade-api-card__body .live-trading-tab__cred-form 
 }
 
 .live-trading-tab__card-tabs-pane--docked {
-  min-height: min(88vh, 920px);
-  max-height: calc(100dvh - max(0.35rem, env(safe-area-inset-top, 0px)) - 0.65rem);
+  min-height: min(72vh, 640px);
 }
 
 .live-trading-tab__card-tabs {

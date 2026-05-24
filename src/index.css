@@ -8291,22 +8291,6 @@ html[data-theme="light"] .market-indices-rail__item {
     pointer-events: none;
   }
 
-  .app__right-panel--live-trade {
-    justify-self: start;
-    width: min(22rem, 100%);
-    max-width: 24rem;
-    pointer-events: auto;
-    position: sticky;
-    top: max(0.35rem, env(safe-area-inset-top, 0px));
-    align-self: start;
-    max-height: calc(100dvh - max(0.35rem, env(safe-area-inset-top, 0px)) - 0.65rem);
-    overflow: hidden;
-  }
-
-  .app__right-panel--live-trade:empty {
-    pointer-events: none;
-  }
-
   .market-indices-rail--side {
     display: flex;
     flex-direction: column;
@@ -8317,7 +8301,106 @@ html[data-theme="light"] .market-indices-rail__item {
   }
 }
 
+/* 실매매 카드 상세 — 그리드 밖 고정 오버레이(접기·펼치기) */
+.app-live-trade-side-dock {
+  position: fixed;
+  top: max(0.35rem, env(safe-area-inset-top, 0px));
+  right: 0;
+  z-index: 45;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  max-height: calc(100dvh - max(0.35rem, env(safe-area-inset-top, 0px)) - 0.65rem);
+  pointer-events: none;
+}
+
+.app-live-trade-side-dock__toggle,
+.app-live-trade-side-dock__panel {
+  pointer-events: auto;
+}
+
+.app-live-trade-side-dock__toggle {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 2.1rem;
+  margin: 0;
+  padding: 0.55rem 0.25rem;
+  border: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 88%, transparent);
+  border-right: none;
+  border-radius: var(--radius-md, 10px) 0 0 var(--radius-md, 10px);
+  background: var(--card-bg, #fff);
+  color: var(--muted, #64748b);
+  box-shadow: -4px 0 20px rgba(15, 23, 42, 0.08);
+  cursor: pointer;
+  font: inherit;
+}
+
+.app-live-trade-side-dock__toggle:hover {
+  color: var(--accent, #2563eb);
+  border-color: color-mix(in srgb, var(--accent, #2563eb) 35%, transparent);
+}
+
+.app-live-trade-side-dock__toggle-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.app-live-trade-side-dock__toggle-label {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  max-height: 6.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-live-trade-side-dock__panel {
+  width: min(22rem, calc(100vw - 2.5rem));
+  max-width: 24rem;
+  overflow: hidden;
+  transition:
+    width 0.2s ease,
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.app-live-trade-side-dock--collapsed .app-live-trade-side-dock__panel {
+  width: 0;
+  max-width: 0;
+  opacity: 0;
+  transform: translateX(100%);
+  pointer-events: none;
+}
+
+.app-live-trade-side-dock__host {
+  display: flex;
+  flex-direction: column;
+  min-width: min(22rem, calc(100vw - 2.5rem));
+  max-width: 24rem;
+  height: 100%;
+  max-height: inherit;
+}
+
+.app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane {
+  flex: 1;
+  min-height: min(88vh, 920px);
+  max-height: inherit;
+  border-radius: var(--radius-md, 10px) 0 0 var(--radius-md, 10px);
+  box-shadow: -6px 0 28px rgba(15, 23, 42, 0.12);
+}
+
 @media (max-width: 1179px) {
+  .app-live-trade-side-dock {
+    display: none !important;
+  }
+
   .app__left-rail {
     display: none !important;
   }

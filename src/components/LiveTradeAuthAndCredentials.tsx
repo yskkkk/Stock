@@ -217,14 +217,26 @@ export function LiveTradeCardSidePanelProvider({
   const registerSideTab = useCallback((id: string, title: string) => {
     setTabTitles((prev) => ({ ...prev, [id]: title }));
     return () => {
-      setTabTitles((prev) => {
-        if (!(id in prev)) return prev;
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      });
       setPanel((active) => (active?.id === id ? null : active));
     };
+  }, []);
+
+  useEffect(() => {
+    const onAuth = () => {
+      void fetchAuthMe()
+        .then((me) => {
+          if (!me.user) {
+            setTabTitles({});
+            setPanel(null);
+          }
+        })
+        .catch(() => {
+          setTabTitles({});
+          setPanel(null);
+        });
+    };
+    window.addEventListener(LIVE_TRADE_AUTH_CHANGE, onAuth);
+    return () => window.removeEventListener(LIVE_TRADE_AUTH_CHANGE, onAuth);
   }, []);
   const sideTabs = useMemo(
     () =>
@@ -261,11 +273,16 @@ export function useLiveTradeCardSidePanel(): LiveTradeSidePanelContextValue {
   return ctx;
 }
 
-function useLiveTradeCardSidePanelOptional(): LiveTradeSidePanelContextValue | null {
+export function useLiveTradeCardSidePanelOptional(): LiveTradeSidePanelContextValue | null {
   return useContext(LiveTradeSidePanelContext);
 }
 
-export function LiveTradeCardSidePanel() {
+export function LiveTradeCardSidePanel({
+  forceDocked = false,
+}: {
+  /** App 고정 오버레이 안에서 직접 렌더 */
+  forceDocked?: boolean;
+} = {}) {
   const { panel, openPanel, closePanel, bodyHostRef, sideTabs } =
     useLiveTradeCardSidePanel();
   const { docked, host } = useLiveTradeRightPanelDock();
@@ -348,10 +365,16 @@ export function LiveTradeCardSidePanel() {
     </aside>
   );
 
-  if (docked && host) {
-    return createPortal(pane, host);
-  }
+  if (forceDocked) return pane;
+  if (docked && host) return createPortal(pane, host);
   return pane;
+}
+
+/** 1180px 미만 — 실매매 탭 카드 아래 인라인 패널 */
+export function LiveTradeCardSidePanelInline() {
+  const { docked } = useLiveTradeRightPanelDock();
+  if (docked) return null;
+  return <LiveTradeCardSidePanel />;
 }
 
 function LiveTradeSidePanelPortal({

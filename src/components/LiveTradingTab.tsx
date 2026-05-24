@@ -28,8 +28,7 @@ import { formatPercent } from "../lib/format";
 import LiveTradeAuthPanel, {
   LiveTradeApiCollapsibleCard,
   LiveTradeBithumbCredentialForm,
-  LiveTradeCardSidePanel,
-  LiveTradeCardSidePanelProvider,
+  LiveTradeCardSidePanelInline,
   LiveTradeTossCredentialForm,
   LiveTradeCollapsibleCard,
   notifyLiveTradeAuthChange,
@@ -684,7 +683,6 @@ export default function LiveTradingTab({
             onOpenHoldingChart={onOpenHoldingChart}
           />
 
-          <LiveTradeCardSidePanelProvider>
             <div className="live-trading-tab__card-dock">
             <LiveTradeCardWorkspace
               editingId={editingId}
@@ -1227,9 +1225,8 @@ export default function LiveTradingTab({
         </LiveTradeCollapsibleCard>
               </div>
             </LiveTradeCardWorkspace>
-            <LiveTradeCardSidePanel />
+            <LiveTradeCardSidePanelInline />
             </div>
-          </LiveTradeCardSidePanelProvider>
         </>
       ) : null}
     </div>
