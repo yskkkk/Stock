@@ -63,7 +63,6 @@ import {
 import { useMobileBackHandler } from "./hooks/useMobileBackHandler";
 import { useDesktopDockLayout } from "./hooks/useDesktopDockLayout";
 import { useLeftRailLazyFollow } from "./hooks/useLeftRailLazyFollow";
-import { useLiveTradingStatusPoll } from "./hooks/useLiveTradingStatusPoll";
 import { useMobilePullToRefresh } from "./hooks/useMobilePullToRefresh";
 import { usePicksLiveQuotes } from "./hooks/usePicksLiveQuotes";
 import { MOBILE_BACK_PRIORITY } from "./lib/mobileBackStack";
@@ -998,9 +997,6 @@ export default function App() {
       ? failedCountLabel(picks.failedCount)
       : "";
   const showTopScanStrip = Boolean(picks && appTab === "screener");
-  const liveTradingStatus = useLiveTradingStatusPoll();
-  const liveRunningCount =
-    (liveTradingStatus?.armedCount ?? 0) + (liveTradingStatus?.simCount ?? 0);
   const { user: liveTradeUser } = useLiveTradeAuth();
   const showDesktopSideDock = desktopDockLayout && appTab !== "ops";
   const showLiveTradeDockPortals = showDesktopSideDock && Boolean(liveTradeUser);
@@ -1189,24 +1185,10 @@ export default function App() {
               </button>
               <button
                 type="button"
-                className={
-                  appTab === "recommendations" ? "main-tab active" : "main-tab"
-                }
-                onClick={() => setAppTab("recommendations")}
+                className={appTab === "crypto" ? "main-tab active" : "main-tab"}
+                onClick={() => setAppTab("crypto")}
               >
-                {ko.app.tabRecommendations}
-              </button>
-              <button
-                type="button"
-                className={
-                  appTab === "liveTrading" ? "main-tab active" : "main-tab"
-                }
-                onClick={() => setAppTab("liveTrading")}
-              >
-                {ko.app.tabLiveTrading}
-                {liveRunningCount > 0 ? (
-                  <span className="main-tab__live-badge">{liveRunningCount}</span>
-                ) : null}
+                {ko.app.tabCrypto}
               </button>
               <button
                 type="button"
@@ -1217,10 +1199,12 @@ export default function App() {
               </button>
               <button
                 type="button"
-                className={appTab === "crypto" ? "main-tab active" : "main-tab"}
-                onClick={() => setAppTab("crypto")}
+                className={
+                  appTab === "recommendations" ? "main-tab active" : "main-tab"
+                }
+                onClick={() => setAppTab("recommendations")}
               >
-                {ko.app.tabCrypto}
+                {ko.app.tabRecommendations}
               </button>
             </nav>
 
