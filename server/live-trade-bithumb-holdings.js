@@ -29,7 +29,7 @@ export function bithumbBaseToUsdtSymbol(base) {
 }
 
 /** @param {import("./live-trade-programs-store.js").LiveTradeProgram[]} armedCrypto */
-function pickArmedProgramForSymbol(armedCrypto, symbol, store) {
+export function pickArmedProgramForSymbol(armedCrypto, symbol, store) {
   const withTrade = armedCrypto.filter((p) =>
     store.trades.some(
       (t) =>
@@ -79,7 +79,9 @@ async function listBithumbExchangeOverlayRowsForCredentials(
   programs,
   credentials,
   userId = "",
+  opts = {},
 ) {
+  const overlayOnly = opts.overlayOnly !== false;
   const status = getBithumbTradingStatusFromCredentials(credentials);
   if (!status.ready) return [];
 
@@ -119,6 +121,7 @@ async function listBithumbExchangeOverlayRowsForCredentials(
       program.id,
     );
     if (
+      overlayOnly &&
       programOpen.some(
         (p) => p.market === "crypto" && p.symbol === symbol,
       )
@@ -207,6 +210,88 @@ async function listBithumbExchangeOverlayRowsForCredentials(
 /**
  * @param {import("./live-trade-programs-store.js").LiveTradeProgram[]} programs
  */
+/** 거래소 잔고 전체 → 보유 행(앱 기록과 무관, 실매매 동기화용) */
+export async function listBithumbExchangeBalanceHoldings(programs) {
+  /** @type {Map<string, import("./live-trade-programs-store.js").LiveTradeProgram[]>} */
+  const byUser = new Map();
+  for (const p of programs) {
+    const uid = String(p.userId ?? "").trim();
+    if (!uid) continue;
+    if (!byUser.has(uid)) byUser.set(uid, []);
+    byUser.get(uid).push(p);
+  }
+  const out = [];
+  for (const [userId, userPrograms] of byUser) {
+    const creds = getDecryptedCredentialsSync(userId, "bithumb");
+    if (!creds) continue;
+    const rows = await listBithumbExchangeOverlayRowsForCredentials(
+      userPrograms,
+      creds,
+      userId,
+      { overlayOnly: false },
+    );
+    out.push(...rows);
+  }
+  return out;
+}
+
+/**
+ * 가동 중 실매매 카드 — 빗썸 잔고 API 기준으로 crypto 보유를 덮어씀
+ * @param {object} snap
+ * @param {import("./live-trade-programs-store.js").LiveTradeProgram[]} programs
+ */
+export async function refreshCryptoHoldingsFromExchange(snap, programs) {
+  const armedCrypto = programs.filter(isArmedCryptoProgram);
+  if (!armedCrypto.length || !snap) return snap;
+
+  const armedIds = new Set(armedCrypto.map((p) => p.id));
+  const filterPid = snap.programId ? String(snap.programId).trim() : null;
+
+  let fromExchange = await listBithumbExchangeBalanceHoldings(programs);
+  if (filterPid) {
+    fromExchange = fromExchange.filter((h) => h.programId === filterPid);
+  }
+
+  const kept = (snap.holdings ?? []).filter((h) => {
+    if (h.market !== "crypto") return true;
+    if (filterPid && h.programId !== filterPid) return true;
+    return !armedIds.has(h.programId);
+  });
+
+  snap.holdings = [...kept, ...fromExchange].sort(
+    (a, b) => (b.marketValue ?? 0) - (a.marketValue ?? 0),
+  );
+  snap.summary.holdingCount = snap.holdings.length;
+
+  let investedOpen = 0;
+  let marketValueOpen = 0;
+  for (const h of snap.holdings) {
+    if (h.costBasis != null && Number.isFinite(h.costBasis)) {
+      investedOpen += h.costBasis;
+    }
+    if (h.marketValue != null && Number.isFinite(h.marketValue)) {
+      marketValueOpen += h.marketValue;
+    }
+  }
+  const unrealizedPnl = marketValueOpen - investedOpen;
+  snap.summary.investedOpen = investedOpen;
+  snap.summary.marketValueOpen = marketValueOpen;
+  snap.summary.unrealizedPnl = unrealizedPnl;
+  snap.summary.totalPnl = snap.summary.realizedPnl + unrealizedPnl;
+  const closedCost = (snap.trades ?? [])
+    .filter((t) => t.side === "sell")
+    .reduce((s, t) => s + t.amount, 0);
+  const denom = investedOpen + closedCost;
+  snap.summary.totalReturnPct =
+    denom > 0
+      ? (snap.summary.totalPnl / denom) * 100
+      : investedOpen > 0
+        ? (unrealizedPnl / investedOpen) * 100
+        : null;
+
+  return snap;
+}
+
 export async function listBithumbExchangeOverlayRows(programs) {
   /** @type {Map<string, import("./live-trade-programs-store.js").LiveTradeProgram[]>} */
   const byUser = new Map();

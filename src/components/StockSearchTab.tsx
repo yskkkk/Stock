@@ -13,6 +13,7 @@ import type {
 } from "../types";
 import PickQuoteStrip from "./PickQuoteStrip";
 import QuoteCurrencyToggle from "./QuoteCurrencyToggle";
+import { formatPercent, formatPrice, formatTurnover } from "../lib/format";
 import { resolveUsQuoteDisplay } from "../lib/usQuoteDisplay";
 import StockTechnicalAnalysisPanel, {
   type StockTechnicalAnalysisSlot,
@@ -60,6 +61,11 @@ export interface StockSearchTabProps {
   onToggleUsQuoteKrw?: () => void;
   usdKrwRate?: number | null;
   usdKrwValDate?: string | null;
+  /** 거래대금 상위 — 상단 시장 탭(나스닥) 아래 표시 */
+  onHotToolbarStateChange?: (state: {
+    visible: boolean;
+    showUsToggle: boolean;
+  }) => void;
 }
 
 function rowToPick(row: StockSearchQuoteRow): StockPick {
@@ -155,17 +161,13 @@ function StockSearchHotRow({
   isActive,
   onSelectPick,
   usQuoteInKrw = false,
-  onToggleUsQuoteKrw,
   usdKrwRate = null,
-  usdKrwValDate = null,
 }: {
   row: StockSearchQuoteRow;
   isActive: boolean;
   onSelectPick: (pick: StockPick) => void;
   usQuoteInKrw?: boolean;
-  onToggleUsQuoteKrw?: () => void;
   usdKrwRate?: number | null;
-  usdKrwValDate?: string | null;
 }) {
   const pick = rowToPick(row);
   const hasPrice = row.price != null && Number.isFinite(row.price);
@@ -176,42 +178,58 @@ function StockSearchHotRow({
     usQuoteInKrw,
     usdKrwRate ?? null,
   );
+  const chg = row.changePercent;
+  const chgUp = chg != null && chg >= 0;
+  const code = row.symbol.replace(/\.(KS|KQ)$/i, "");
+  const cur = quoteDisplay.currency ?? row.currency ?? undefined;
 
   return (
-    <li className={isActive ? "pick-item active" : "pick-item"}>
+    <li
+      className={
+        isActive ? "pick-item stock-hot-item stock-hot-item--active" : "pick-item stock-hot-item"
+      }
+    >
       <button
         type="button"
-        className="pick-row stock-search-tab__hot-row"
+        className="stock-hot-item__btn"
         onClick={() => onSelectPick(pick)}
       >
-        <div className="pick-head">
-          <span className="pick-name" title={row.name}>
+        <span className="stock-hot-item__identity">
+          <span className="stock-hot-item__name" title={row.name}>
             {row.name}
           </span>
-          <span className="pick-score pick-score--dim">{row.symbol.replace(/\.(KS|KQ)$/i, "")}</span>
-        </div>
+          <span className="stock-hot-item__code">{code}</span>
+        </span>
         {hasPrice ? (
-          <div className="stock-search-tab__quote-line">
-            <PickQuoteStrip
-              symbol={row.symbol}
-              price={quoteDisplay.price}
-              currency={quoteDisplay.currency}
-              changePercent={row.changePercent}
-              turnover={row.turnover}
-            />
-            {quoteDisplay.showToggle && onToggleUsQuoteKrw ? (
-              <QuoteCurrencyToggle
-                inKrw={usQuoteInKrw}
-                onToggle={onToggleUsQuoteKrw}
-                fxValuationDate={usdKrwValDate}
-                className="quote-currency-toggle--compact"
-              />
-            ) : null}
-          </div>
+          <>
+            <span className="stock-hot-item__quote">
+              <span className="stock-hot-item__price">
+                {formatPrice(quoteDisplay.price ?? undefined, cur)}
+              </span>
+              {chg != null && Number.isFinite(chg) ? (
+                <span
+                  className={
+                    chgUp
+                      ? "stock-hot-item__chg stock-hot-item__chg--up"
+                      : "stock-hot-item__chg stock-hot-item__chg--down"
+                  }
+                >
+                  {formatPercent(chg)}
+                </span>
+              ) : null}
+            </span>
+            {row.turnover != null &&
+            Number.isFinite(row.turnover) &&
+            row.turnover > 0 ? (
+              <span className="stock-hot-item__turnover" title={ko.app.pickTurnoverTitle}>
+                {formatTurnover(row.turnover, cur)}
+              </span>
+            ) : (
+              <span className="stock-hot-item__turnover stock-hot-item__turnover--empty" />
+            )}
+          </>
         ) : (
-          <span className="stock-search-tab__quote-pending">
-            {ko.app.stockLookupQuotePending}
-          </span>
+          <span className="stock-hot-item__pending">{ko.app.stockLookupQuotePending}</span>
         )}
       </button>
     </li>
@@ -391,6 +409,7 @@ export default function StockSearchTab({
   onToggleUsQuoteKrw,
   usdKrwRate = null,
   usdKrwValDate = null,
+  onHotToolbarStateChange,
 }: StockSearchTabProps) {
   const [input, setInput] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -680,6 +699,25 @@ export default function StockSearchTab({
 
   useEffect(() => () => analysisAbortRef.current?.abort(), []);
 
+  const showHotToolbarBadge =
+    !loading && !error && debounced.length < 1 && hotQuotes.length > 0;
+  const showHotUsToggle =
+    showHotToolbarBadge && market === "us" && Boolean(onToggleUsQuoteKrw);
+
+  useEffect(() => {
+    onHotToolbarStateChange?.({
+      visible: showHotToolbarBadge,
+      showUsToggle: showHotUsToggle,
+    });
+  }, [showHotToolbarBadge, showHotUsToggle, onHotToolbarStateChange]);
+
+  useEffect(
+    () => () => {
+      onHotToolbarStateChange?.({ visible: false, showUsToggle: false });
+    },
+    [onHotToolbarStateChange],
+  );
+
   return (
     <div className="stock-search-tab">
       <div className="pick-toolbar stock-search-tab__toolbar">
@@ -720,7 +758,6 @@ export default function StockSearchTab({
             </p>
           ) : hotQuotes.length > 0 ? (
             <>
-              <p className="stock-search-tab__hot-title">{ko.app.stockLookupHotTitle}</p>
               <ul className="pick-list stock-search-tab__list stock-search-tab__hot-list">
                 {hotQuotes.map((row) => (
                   <StockSearchHotRow
@@ -729,9 +766,7 @@ export default function StockSearchTab({
                     isActive={selectedSymbol === row.symbol}
                     onSelectPick={onSelectPick}
                     usQuoteInKrw={usQuoteInKrw}
-                    onToggleUsQuoteKrw={onToggleUsQuoteKrw}
                     usdKrwRate={usdKrwRate}
-                    usdKrwValDate={usdKrwValDate}
                   />
                 ))}
               </ul>

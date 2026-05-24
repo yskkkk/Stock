@@ -87,6 +87,7 @@ export default function AppSiteFooter({
 }: AppSiteFooterProps) {
   return (
     <footer className="app-site-footer" style={FOOTER_TEXT} aria-label={ko.app.siteFooterAria}>
+      <div className="app-site-footer__center">
       <nav className="app-site-footer__nav" style={FOOTER_TEXT}>
         {accessAdmin ? (
           <FooterLink onClick={onOpenOps} active={appTab === "ops"}>
@@ -129,6 +130,7 @@ export default function AppSiteFooter({
       <p className="app-site-footer__copy" style={FOOTER_TEXT}>
         {ko.app.footerCopyright}
       </p>
+      </div>
     </footer>
   );
 }

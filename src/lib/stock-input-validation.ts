@@ -4,7 +4,6 @@
 
 const API_TOKEN_MIN = 32;
 const API_TOKEN_MAX = 128;
-const API_TOKEN_RE = /^[A-Za-z0-9_-]+$/;
 
 const EMAIL_MAX = 254;
 const EMAIL_RE =
@@ -38,16 +37,13 @@ export function validateExchangeApiToken(
   if (!v) {
     return opts?.allowEmpty ? ok("") : bad(label, `${label}를 입력하세요.`);
   }
+  if (/\s/.test(v) || hasControlChars(v)) {
+    return bad(label, `${label}에 공백·제어문자를 넣을 수 없습니다.`);
+  }
   if (v.length < API_TOKEN_MIN || v.length > API_TOKEN_MAX) {
     return bad(
       label,
       `${label}는 ${API_TOKEN_MIN}~${API_TOKEN_MAX}자여야 합니다. (현재 ${v.length}자)`,
-    );
-  }
-  if (!API_TOKEN_RE.test(v)) {
-    return bad(
-      label,
-      `${label}는 영문·숫자와 - _ 만 사용할 수 있습니다. 공백·한글·특수문자는 허용되지 않습니다.`,
     );
   }
   if (/^(.)\1{8,}$/.test(v)) {
@@ -87,6 +83,75 @@ export function validateBithumbCredentialPair(
   }
 
   return ok({ apiKey: keyIn, secretKey: secIn });
+}
+
+const TOSS_ACCOUNT_MIN = 4;
+const TOSS_ACCOUNT_MAX = 64;
+const TOSS_ACCOUNT_RE = /^[A-Za-z0-9-]+$/;
+
+export function validateTossAccountId(
+  value: string,
+  opts?: { allowEmpty?: boolean },
+): ValidationResult<string> {
+  const label = "계좌 번호";
+  const v = String(value ?? "").trim();
+  if (!v) {
+    return opts?.allowEmpty ? ok("") : bad(label, `${label}를 입력하세요.`);
+  }
+  if (v.length < TOSS_ACCOUNT_MIN || v.length > TOSS_ACCOUNT_MAX) {
+    return bad(
+      label,
+      `${label}는 ${TOSS_ACCOUNT_MIN}~${TOSS_ACCOUNT_MAX}자여야 합니다.`,
+    );
+  }
+  if (!TOSS_ACCOUNT_RE.test(v)) {
+    return bad(label, `${label}는 영문·숫자와 -(하이픈)만 사용할 수 있습니다.`);
+  }
+  return ok(v);
+}
+
+export function validateTossCredentialSet(
+  apiKey: string,
+  secretKey: string,
+  accountId: string,
+  opts?: { configured?: boolean },
+): ValidationResult<{ apiKey: string; secretKey: string; accountId: string }> {
+  const configured = Boolean(opts?.configured);
+  const keyIn = apiKey.trim();
+  const secIn = secretKey.trim();
+  const acctIn = accountId.trim();
+
+  if (!configured) {
+    const k = validateExchangeApiToken(keyIn, { label: "API Key" });
+    if (!k.ok) return k;
+    const s = validateExchangeApiToken(secIn, { label: "Secret Key" });
+    if (!s.ok) return s;
+    const a = validateTossAccountId(acctIn);
+    if (!a.ok) return a;
+    return ok({ apiKey: k.value, secretKey: s.value, accountId: a.value });
+  }
+
+  if (!keyIn && !secIn && !acctIn) {
+    return bad(
+      "API Key",
+      "변경할 API Key·Secret Key·계좌 번호 중 하나 이상을 입력하세요.",
+    );
+  }
+
+  if (keyIn) {
+    const k = validateExchangeApiToken(keyIn, { label: "API Key" });
+    if (!k.ok) return k;
+  }
+  if (secIn) {
+    const s = validateExchangeApiToken(secIn, { label: "Secret Key" });
+    if (!s.ok) return s;
+  }
+  if (acctIn) {
+    const a = validateTossAccountId(acctIn);
+    if (!a.ok) return a;
+  }
+
+  return ok({ apiKey: keyIn, secretKey: secIn, accountId: acctIn });
 }
 
 export function validateAuthEmail(email: string): ValidationResult<string> {

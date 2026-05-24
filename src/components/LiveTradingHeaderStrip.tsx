@@ -1,5 +1,5 @@
 ﻿import { memo } from "react";
-import { ko, liveTradeHeaderStripArmed, liveTradeHeaderStripSim } from "../i18n/ko";
+import { liveTradeHeaderStripArmed, liveTradeHeaderStripSim } from "../i18n/ko";
 import {
   pickRunningLivePrograms,
   useLiveTradingStatusPoll,
@@ -37,25 +37,18 @@ function LiveTradingHeaderStripInner({
             ) : null}
             <span className="live-trade-header-strip__names">
               {rows.map(({ program, kind }) => (
-                <span
+                <button
                   key={program.id}
+                  type="button"
                   className={`live-trade-header-strip__chip live-trade-header-strip__chip--${kind}`}
                   title={program.name}
+                  onClick={onOpenLiveTrading}
                 >
                   {program.name}
-                </span>
+                </button>
               ))}
             </span>
           </span>
-        </div>
-        <div className="scan-status__secondary">
-          <button
-            type="button"
-            className="btn btn--ghost live-trade-header-strip__open"
-            onClick={onOpenLiveTrading}
-          >
-            {ko.app.liveTradeLeftRailOpen}
-          </button>
         </div>
       </div>
     </div>

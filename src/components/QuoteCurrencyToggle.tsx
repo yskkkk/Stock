@@ -6,6 +6,8 @@ export interface QuoteCurrencyToggleProps {
   onToggle: () => void;
   fxValuationDate?: string | null;
   className?: string;
+  /** ₩/$ 만 표시 — 거래대금 상위 제목 옆 */
+  iconOnly?: boolean;
 }
 
 function QuoteCurrencyToggleInner({
@@ -13,6 +15,7 @@ function QuoteCurrencyToggleInner({
   onToggle,
   fxValuationDate,
   className = "",
+  iconOnly = false,
 }: QuoteCurrencyToggleProps) {
   const title = inKrw
     ? fxValuationDate
@@ -23,7 +26,11 @@ function QuoteCurrencyToggleInner({
   return (
     <button
       type="button"
-      className={["btn btn--secondary quote-currency-toggle", className]
+      className={[
+        "btn btn--secondary quote-currency-toggle",
+        iconOnly ? "quote-currency-toggle--icon-only" : "",
+        className,
+      ]
         .filter(Boolean)
         .join(" ")}
       onClick={(e) => {
@@ -38,9 +45,11 @@ function QuoteCurrencyToggleInner({
       <span className="quote-currency-toggle__icon" aria-hidden>
         {inKrw ? "$" : "₩"}
       </span>
-      <span className="quote-currency-toggle__label">
-        {inKrw ? "USD" : "원화"}
-      </span>
+      {iconOnly ? null : (
+        <span className="quote-currency-toggle__label">
+          {inKrw ? "USD" : "원화"}
+        </span>
+      )}
     </button>
   );
 }

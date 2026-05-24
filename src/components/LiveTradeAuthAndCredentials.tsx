@@ -1362,6 +1362,22 @@ export default function LiveTradeAuthPanel({
   const [passwordErr, setPasswordErr] = useState<string | null>(null);
   const [codeErr, setCodeErr] = useState<string | null>(null);
 
+  const emailValidation = useMemo(() => validateAuthEmail(email), [email]);
+  const passwordValidation = useMemo(
+    () => validateAuthPassword(password, { register: mode === "register" }),
+    [password, mode],
+  );
+  const emailValid = emailValidation.ok;
+  const passwordValid = passwordValidation.ok;
+  const liveEmailErr =
+    email.length > 0 && !emailValidation.ok ? emailValidation.error : null;
+  const livePasswordErr =
+    password.length > 0 && !passwordValidation.ok
+      ? passwordValidation.error
+      : null;
+  const displayEmailErr = emailErr ?? liveEmailErr;
+  const displayPasswordErr = passwordErr ?? livePasswordErr;
+
   useEffect(() => {
     if (!registrationOpen && mode === "register") {
       setMode("login");
@@ -1511,6 +1527,14 @@ export default function LiveTradeAuthPanel({
   if (user) return null;
 
   const showRegister = registrationOpen;
+  const canSubmit =
+    mode === "register"
+      ? showRegister &&
+        codeVerified &&
+        emailValid &&
+        passwordValid &&
+        !verifyCodeBusy
+      : emailValid && passwordValid;
   const isPopover = variant === "popover";
 
   return (
@@ -1597,11 +1621,11 @@ export default function LiveTradeAuthPanel({
             }}
             maxLength={254}
             spellCheck={false}
-            aria-invalid={emailErr ? true : undefined}
-            aria-describedby={emailErr ? "auth-email-err" : undefined}
+            aria-invalid={displayEmailErr ? true : undefined}
+            aria-describedby={displayEmailErr ? "auth-email-err" : undefined}
           />
-          {emailErr ? (
-            <FieldValidationCallout id="auth-email-err" message={emailErr} />
+          {displayEmailErr ? (
+            <FieldValidationCallout id="auth-email-err" message={displayEmailErr} />
           ) : null}
         </label>
         <label className="live-trading-tab__field live-trading-tab__field--full">
@@ -1620,11 +1644,14 @@ export default function LiveTradeAuthPanel({
               if (passwordErr) setPasswordErr(null);
             }}
             maxLength={128}
-            aria-invalid={passwordErr ? true : undefined}
-            aria-describedby={passwordErr ? "auth-password-err" : undefined}
+            aria-invalid={displayPasswordErr ? true : undefined}
+            aria-describedby={displayPasswordErr ? "auth-password-err" : undefined}
           />
-          {passwordErr ? (
-            <FieldValidationCallout id="auth-password-err" message={passwordErr} />
+          {displayPasswordErr ? (
+            <FieldValidationCallout
+              id="auth-password-err"
+              message={displayPasswordErr}
+            />
           ) : null}
         </label>
 
@@ -1653,7 +1680,7 @@ export default function LiveTradeAuthPanel({
                 disabled={
                   sendCodeBusy ||
                   sendCooldownSec > 0 ||
-                  !email.trim()
+                  !emailValid
                 }
                 onClick={() => void sendVerificationCode()}
               >
@@ -1690,11 +1717,7 @@ export default function LiveTradeAuthPanel({
         <button
           type="submit"
           className="btn btn--primary live-trading-tab__auth-submit"
-          disabled={
-            busy ||
-            (mode === "register" &&
-              (!showRegister || !codeVerified || verifyCodeBusy))
-          }
+          disabled={busy || !canSubmit}
         >
           {busy
             ? "…"

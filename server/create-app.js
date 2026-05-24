@@ -136,6 +136,10 @@ import {
 } from "./live-trade-portfolio-store.js";
 import { reconcileBithumbHoldingsForUser } from "./live-trade-bithumb-reconcile.js";
 import {
+  buildBithumbOpenOrdersForUser,
+  cancelBithumbOpenOrderForUser,
+} from "./live-trade-bithumb-open-orders.js";
+import {
   analyzeSimProgramFeedback,
   applySimProgramFeedbackPatch,
   buildSimCreationRecommendations,
@@ -494,13 +498,18 @@ export function createApp() {
       const feeRates = getUserTradingFeeRatesForApiSync(userId);
       const creds = listCredentialMetaForUserSync(userId);
       const toss =
-        creds.toss.source === "user" && creds.toss.ready
+        creds.toss.source === "user"
           ? {
-              phase: "ready",
-              configured: true,
-              ready: true,
+              phase: creds.toss.ready
+                ? "ready"
+                : creds.toss.configured
+                  ? "configured"
+                  : "unconfigured",
+              configured: creds.toss.configured,
+              ready: creds.toss.ready,
               messageKo: creds.toss.messageKo,
               hasSecret: creds.toss.hasSecret,
+              hasAccount: Boolean(creds.toss.hasAccount),
               baseUrl: null,
               docsHint: "https://docs.tossinvest.com",
             }
@@ -527,15 +536,14 @@ export function createApp() {
         simCount: programs.filter((p) => p.status === "sim").length,
         credentialsCryptoReady: isCredentialsCryptoReady(),
         simulatedOrders:
-          !creds.bithumb.liveOrdersEnabled &&
-          (creds.toss.source === "user"
+          creds.toss.source === "user"
             ? !creds.toss.liveOrdersEnabled
-            : process.env.TOSS_LIVE_ORDERS_ENABLED !== "1"),
+            : process.env.TOSS_LIVE_ORDERS_ENABLED !== "1",
         tossSimulatedOrders:
           creds.toss.source === "user"
             ? !creds.toss.liveOrdersEnabled
             : process.env.TOSS_LIVE_ORDERS_ENABLED !== "1",
-        bithumbSimulatedOrders: !bithumb.liveOrdersEnabled,
+        bithumbSimulatedOrders: false,
         feeRates,
       });
     }),
@@ -788,9 +796,12 @@ export function createApp() {
     asyncRoute(async (req, res) => {
       const programId = String(req.query?.programId ?? "").trim() || null;
       const userId = req.user.id;
+      const exchangeSyncLive =
+        req.query?.exchangeSync === "1" || req.query?.exchangeSync === "true";
       const snap = await buildLiveTradePortfolioSnapshot({
         programId,
         userId,
+        exchangeSyncLive,
       });
       const programs = listLiveTradeProgramsSync(userId);
       const nameById = new Map(programs.map((p) => [p.id, p.name]));
@@ -820,6 +831,32 @@ export function createApp() {
         programId,
       });
       res.json(result);
+    }),
+  );
+
+  app.get(
+    "/api/live-trading/bithumb/open-orders",
+    requireUserAuth,
+    asyncRoute(async (req, res) => {
+      const payload = await buildBithumbOpenOrdersForUser(req.user.id);
+      res.json(payload);
+    }),
+  );
+
+  app.delete(
+    "/api/live-trading/bithumb/orders/:orderId",
+    requireUserAuth,
+    asyncRoute(async (req, res) => {
+      try {
+        const orderId = String(req.params.orderId ?? "").trim();
+        const payload = await cancelBithumbOpenOrderForUser(req.user.id, orderId);
+        res.json({ ok: true, ...payload });
+      } catch (e) {
+        res.status(400).json({
+          ok: false,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
     }),
   );
 
@@ -859,17 +896,24 @@ export function createApp() {
     asyncRoute(async (req, res) => {
       try {
         const userId = req.user.id;
+        const bodyPrice = Number(req.body?.price);
         const { trade, quote } = await recordLiveTradeSimBuyAsync(
           {
             programId: String(req.body?.programId ?? ""),
             symbol: String(req.body?.symbol ?? ""),
             market: req.body?.market,
             name: req.body?.name,
+            price:
+              Number.isFinite(bodyPrice) && bodyPrice > 0 ? bodyPrice : undefined,
           },
           userId,
         );
+        const pfFilter = req.body?.portfolioProgramId;
         const snap = await buildLiveTradePortfolioSnapshot({
-          programId: trade.programId,
+          programId:
+            pfFilter != null && String(pfFilter).trim()
+              ? String(pfFilter).trim()
+              : null,
           userId,
         });
         const programs = listLiveTradeProgramsSync(userId);
@@ -895,18 +939,25 @@ export function createApp() {
     asyncRoute(async (req, res) => {
       try {
         const userId = req.user.id;
+        const bodyPrice = Number(req.body?.price);
         const { trade, quote } = await recordLiveTradeSimSellAsync(
           {
             programId: String(req.body?.programId ?? ""),
             symbol: String(req.body?.symbol ?? ""),
             market: req.body?.market,
             quantity: req.body?.quantity,
+            price:
+              Number.isFinite(bodyPrice) && bodyPrice > 0 ? bodyPrice : undefined,
             note: req.body?.note,
           },
           userId,
         );
+        const pfFilter = req.body?.portfolioProgramId;
         const snap = await buildLiveTradePortfolioSnapshot({
-          programId: trade.programId,
+          programId:
+            pfFilter != null && String(pfFilter).trim()
+              ? String(pfFilter).trim()
+              : null,
           userId,
         });
         const programs = listLiveTradeProgramsSync(userId);

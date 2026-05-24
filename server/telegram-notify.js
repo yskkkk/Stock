@@ -697,6 +697,59 @@ export function clearTodayTelegramSent() {
 
 
 
+/**
+ * 종목별 텔레그램 첫 알림 시각(ms). 동일 심볼·시장의 모든 모델 중 가장 이른 `at`.
+ * @param {string} symbol
+ * @param {"kr"|"us"|"crypto"} [market]
+ * @returns {number | null}
+ */
+export function getEarliestTelegramNotifyAtMs(symbol, market = "crypto") {
+  const sym = normalizeSymbol(symbol);
+  const m = market === "kr" || market === "us" || market === "crypto" ? market : "crypto";
+  const sent = loadSent();
+  let earliest = null;
+  for (const [key, entry] of Object.entries(sent)) {
+    if (!entry || typeof entry !== "object") continue;
+    const parsed = parseSentKey(key, entry);
+    if (parsed.market !== m || parsed.symbol !== sym) continue;
+    const at =
+      typeof entry.at === "number" && Number.isFinite(entry.at) && entry.at > 0
+        ? entry.at
+        : null;
+    if (at == null) continue;
+    if (earliest == null || at < earliest) earliest = at;
+  }
+  return earliest;
+}
+
+/**
+ * 첫 알림 시각·당시 알림 가격(있을 때).
+ * @param {string} symbol
+ * @param {"kr"|"us"|"crypto"} [market]
+ * @returns {{ atMs: number; price: number | null } | null}
+ */
+export function getTelegramNotifyBaseline(symbol, market = "crypto") {
+  const sym = normalizeSymbol(symbol);
+  const m = market === "kr" || market === "us" || market === "crypto" ? market : "crypto";
+  const sent = loadSent();
+  let best = null;
+  for (const [key, entry] of Object.entries(sent)) {
+    if (!entry || typeof entry !== "object") continue;
+    const parsed = parseSentKey(key, entry);
+    if (parsed.market !== m || parsed.symbol !== sym) continue;
+    const at =
+      typeof entry.at === "number" && Number.isFinite(entry.at) && entry.at > 0
+        ? entry.at
+        : null;
+    if (at == null) continue;
+    const price = snapshotAlertPrice(entry);
+    if (!best || at < best.atMs) {
+      best = { atMs: at, price: price ?? null };
+    }
+  }
+  return best;
+}
+
 export function getTelegramNotifyStatus() {
   const minMet = minConditionsRequired();
   const minScore = minTelegramScoreRequired();

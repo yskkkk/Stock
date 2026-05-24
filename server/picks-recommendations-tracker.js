@@ -98,7 +98,7 @@ function normalizeSignalIds(raw) {
 
 /**
  * @param {import("./picks-history-store.js").SlimPick | Record<string, unknown>} p
- * @param {"kr"|"us"} market
+ * @param {"kr"|"us"|"crypto"} market
  * @param {string} date
  */
 function slimToEvent(p, market, date) {
@@ -110,7 +110,7 @@ function slimToEvent(p, market, date) {
   const currency =
     typeof p.currency === "string" && p.currency.trim()
       ? p.currency.trim()
-      : market === "kr"
+      : market === "kr" || market === "crypto"
         ? "KRW"
         : "USD";
   const recordedAtMs =
@@ -199,6 +199,11 @@ async function buildRecommendationsTrackerPayloadInner(opts = {}) {
       const ev = slimToEvent(p, "us", date);
       if (ev) baseEvents.push(ev);
     }
+    for (const p of day.crypto ?? []) {
+      enrichSlimPickFromBackfill(p, "crypto", date);
+      const ev = slimToEvent(p, "crypto", date);
+      if (ev) baseEvents.push(ev);
+    }
   }
 
   baseEvents.sort((a, b) => {
@@ -222,10 +227,11 @@ async function buildRecommendationsTrackerPayloadInner(opts = {}) {
       q?.price != null && Number.isFinite(q.price) && q.price > 0 ? q.price : null;
     const changePct = netReturnPctFromPrices(ev.entryPrice, currentPrice);
     const outcome = outcomeFromPricesWithFees(ev.entryPrice, currentPrice);
-    const notifies =
-      ev.market === "kr" || ev.market === "us"
-        ? listTelegramNotifiesForRecommendation(ev.date, ev.market, ev.symbol)
-        : [];
+    const notifies = listTelegramNotifiesForRecommendation(
+      ev.date,
+      ev.market,
+      ev.symbol,
+    );
 
     if (notifies.length === 0) {
       items.push({

@@ -1,4 +1,5 @@
 import { loadCryptoWatchlistTen } from "./crypto-universe.js";
+import { warmUniverseCache } from "./universe.js";
 import { prewarmMacroEventsCache } from "./macro-events.js";
 import { buildRecommendationsTrackerPayload } from "./picks-recommendations-tracker.js";
 import { prewarmSectorEarningsCache } from "./sector-earnings-spotlight.js";
@@ -25,4 +26,5 @@ export function prewarmAppCaches() {
   void loadCryptoWatchlistTen().catch((e) => {
     console.warn("[prewarm] crypto-universe:", e instanceof Error ? e.message : e);
   });
+  void warmUniverseCache();
 }

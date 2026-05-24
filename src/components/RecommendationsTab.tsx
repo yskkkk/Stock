@@ -469,6 +469,16 @@ export default function RecommendationsTab({
                   {data?.items.filter((i) => i.market === "us").length ?? 0}
                 </span>
               </button>
+              <button
+                type="button"
+                className={market === "crypto" ? "market-tab active" : "market-tab"}
+                onClick={() => setMarket("crypto")}
+              >
+                {ko.app.marketCrypto}
+                <span className="market-tab__count">
+                  {data?.items.filter((i) => i.market === "crypto").length ?? 0}
+                </span>
+              </button>
             </div>
           </div>
           <div className="panel-head__tail">

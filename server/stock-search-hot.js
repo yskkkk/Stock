@@ -1,6 +1,6 @@
 /**
  * 종목 검색 빈 화면 — 거래대금 상위(핫) 목록
- * KR: Naver sise_quant, US: Yahoo predefined most_actives (Nasdaq)
+ * KR: Naver sise_quant, US: Yahoo predefined most_actives (미국 활성 종목)
  */
 import { resolveDisplayName } from "./names-ko.js";
 import { fetchKrNaverQuotesBatch } from "./kr-naver-quote.js";

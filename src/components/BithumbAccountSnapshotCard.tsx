@@ -36,16 +36,29 @@ function holdingChangeTone(
   return "flat";
 }
 
+function formatUpdatedHmSs(ms: number): string {
+  return new Date(ms).toLocaleTimeString("ko-KR", {
+    timeZone: "Asia/Seoul",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+}
+
 export default function BithumbAccountSnapshotCard({
   snapshot,
   tradingFees,
   feeLabelKo,
+  updatedAtMs = null,
   variant = "inline",
 }: {
   snapshot: BithumbTestSnapshot;
   tradingFees?: BithumbTradingFeesDisplay | null;
   /** API에서 조회한 수수료 라벨(저장된 fee 캐시) */
   feeLabelKo?: string | null;
+  /** 잔고·시세 마지막 반영 시각(ms) */
+  updatedAtMs?: number | null;
   variant?: "inline" | "rail";
 }) {
   const { krw, holdings } = snapshot;
@@ -72,6 +85,14 @@ export default function BithumbAccountSnapshotCard({
           }
         >
           {feesLine}
+        </p>
+      ) : null}
+      {variant === "rail" && updatedAtMs != null && Number.isFinite(updatedAtMs) ? (
+        <p className="bithumb-account-rail__updated">
+          {ko.app.leftRailBithumbUpdated}{" "}
+          <time dateTime={new Date(updatedAtMs).toISOString()}>
+            {formatUpdatedHmSs(updatedAtMs)}
+          </time>
         </p>
       ) : null}
       <div

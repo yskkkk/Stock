@@ -476,7 +476,10 @@ function ProgramRunCard({
                   <td className="live-sim-run__ts" data-label={ko.app.liveTradePfColTime}>
                     {formatTs(t.atMs)}
                   </td>
-                  <td data-label={ko.app.liveTradePfColSide}>
+                  <td
+                    className="live-sim-run__side"
+                    data-label={ko.app.liveTradePfColSide}
+                  >
                     {formatTradeSideLabel(t)}
                   </td>
                   <td data-label={ko.app.liveTradePfColSymbol}>
@@ -605,7 +608,7 @@ export default function LiveSimRunningPanel({
     }
     setLoading(true);
     try {
-      const snap = await fetchLiveTradingPortfolio(null);
+      const snap = await fetchLiveTradingPortfolio(null, { exchangeSync: true });
       const syms = [
         ...new Set(snap.holdings.map((h) => h.symbol.trim().toUpperCase()).filter(Boolean)),
       ];
@@ -627,7 +630,11 @@ export default function LiveSimRunningPanel({
             )
           : merged,
       );
-      setUpdatedAt(Date.now());
+      setUpdatedAt(
+        typeof merged.updatedAtMs === "number" && merged.updatedAtMs > 0
+          ? merged.updatedAtMs
+          : Date.now(),
+      );
       setErr(null);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));

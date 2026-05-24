@@ -221,7 +221,7 @@ function evaluateShortTermSell(pos, currentPrice, candles, ctx) {
     m2 != null &&
     m1 > 0 &&
     m0 < m1 &&
-    m1 < m2 &&
+    m1 > m2 &&
     netPct > -0.5
   ) {
     return finalizeHit(
@@ -410,7 +410,7 @@ function evaluateLongTermSell(pos, currentPrice, candles, ctx) {
   const fee = ctx.roundTripFeeRate ?? DEFAULT_ROUND_TRIP_FEE_RATE;
   const netPct = netReturnPct(entry, currentPrice, fee);
   const target = pos.targetSellPrice;
-  if (target != null && currentPrice >= target && netPct >= 8) {
+  if (target != null && currentPrice >= target) {
     return finalizeHit(
       { price: target, note: `가치 목표 도달 (순수익 ${netPct.toFixed(1)}%)` },
       "long",

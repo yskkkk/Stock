@@ -10,12 +10,23 @@ import {
   upsertUserCredentialSync,
 } from "./user-credentials-store.js";
 import { isCredentialsCryptoReady } from "./credentials-crypto.js";
-import { requireUserAuth } from "./user-auth.js";
+import { assertUserAccountPassword, requireUserAuth } from "./user-auth.js";
 
 function asyncRoute(handler) {
   return (req, res, next) => {
     Promise.resolve(handler(req, res, next)).catch(next);
   };
+}
+
+/**
+ * @param {string} userId
+ * @param {string} exchange
+ * @param {unknown} accountPassword
+ */
+function requireAccountPasswordForExistingCredential(userId, exchange, accountPassword) {
+  const meta = getCredentialMetaSync(userId, exchange);
+  if (meta.source !== "user" || !meta.configured) return;
+  assertUserAccountPassword(userId, accountPassword);
 }
 
 /**
@@ -87,14 +98,29 @@ export function registerUserCredentialRoutes(app) {
         if (Object.prototype.hasOwnProperty.call(body, "secretKey")) {
           input.secretKey = String(body.secretKey ?? "").trim();
         }
+        if (Object.prototype.hasOwnProperty.call(body, "accountId")) {
+          input.accountId = String(body.accountId ?? "").trim();
+        }
         if (Object.prototype.hasOwnProperty.call(body, "liveOrdersEnabled")) {
           input.liveOrdersEnabled = Boolean(body.liveOrdersEnabled);
         }
+        requireAccountPasswordForExistingCredential(
+          req.user.id,
+          exchange,
+          body.accountPassword,
+        );
         const meta = upsertUserCredentialSync(req.user.id, exchange, input);
         res.json({ ok: true, credential: meta });
       } catch (e) {
-        res.status(400).json({
+        const code =
+          e && typeof e === "object" && "code" in e ? String(e.code) : undefined;
+        const status =
+          code === "INVALID_ACCOUNT_PASSWORD" || code === "ACCOUNT_PASSWORD_REQUIRED"
+            ? 401
+            : 400;
+        res.status(status).json({
           error: e instanceof Error ? e.message : String(e),
+          code,
         });
       }
     },
@@ -106,11 +132,27 @@ export function registerUserCredentialRoutes(app) {
     (req, res) => {
       try {
         const exchange = String(req.params.exchange ?? "").trim().toLowerCase();
+        if (exchange !== "bithumb" && exchange !== "toss") {
+          res.status(400).json({ error: "exchange는 bithumb 또는 toss 입니다." });
+          return;
+        }
+        requireAccountPasswordForExistingCredential(
+          req.user.id,
+          exchange,
+          req.body?.accountPassword,
+        );
         deleteUserCredentialSync(req.user.id, exchange);
         res.json({ ok: true });
       } catch (e) {
-        res.status(400).json({
+        const code =
+          e && typeof e === "object" && "code" in e ? String(e.code) : undefined;
+        const status =
+          code === "INVALID_ACCOUNT_PASSWORD" || code === "ACCOUNT_PASSWORD_REQUIRED"
+            ? 401
+            : 400;
+        res.status(status).json({
           error: e instanceof Error ? e.message : String(e),
+          code,
         });
       }
     },
@@ -125,6 +167,7 @@ export function registerUserCredentialRoutes(app) {
         const result = await testUserCredentialAsync(req.user.id, exchange, {
           apiKey: req.body?.apiKey,
           secretKey: req.body?.secretKey,
+          accountId: req.body?.accountId,
         });
         res.json(result);
       } catch (e) {

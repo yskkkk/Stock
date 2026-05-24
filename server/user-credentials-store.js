@@ -21,7 +21,10 @@ import {
   getBithumbTradingStatusFromCredentials,
 } from "./bithumb-trading-adapter.js";
 import { getTossTradingStatus } from "./toss-trading-adapter.js";
-import { validateBithumbCredentialPair } from "./stock-input-validation.js";
+import {
+  validateBithumbCredentialPair,
+  validateTossCredentialSet,
+} from "./stock-input-validation.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, ".data");
@@ -52,7 +55,9 @@ function readStoreSync() {
 
 function writeStoreSync(store) {
   ensureDirSync();
-  fs.writeFileSync(CREDS_FILE, JSON.stringify(store, null, 0), "utf8");
+  const tmp = CREDS_FILE + ".tmp";
+  fs.writeFileSync(tmp, JSON.stringify(store, null, 0), "utf8");
+  fs.renameSync(tmp, CREDS_FILE);
 }
 
 /** @param {unknown} ex */
@@ -144,13 +149,23 @@ export function getCredentialMetaSync(userId, exchange) {
   }
   const hasKey = Boolean(row.apiKeyEncrypted);
   const hasSecret = Boolean(row.secretEncrypted);
+  const hasAccount = Boolean(row.accountIdEncrypted);
   const configured = hasKey;
-  const ready = configured && hasSecret;
+  const ready =
+    exchange === "toss"
+      ? configured && hasSecret && hasAccount
+      : configured && hasSecret;
   let messageKo = "API Key만 저장되어 있습니다. Secret Key를 함께 저장하세요.";
-  if (ready) {
-    messageKo = row.liveOrdersEnabled
-      ? "연동됨 · 거래소 실주문 허용"
-      : "연동됨 · 거래소 실주문 차단(앱 시뮬은 프로그램에서 실행)";
+  if (exchange === "toss") {
+    if (ready) {
+      messageKo = "토스 연동됨 · 실주문은 «토스 실매매 시작» 프로그램에서 실행";
+    } else if (configured && hasSecret && !hasAccount) {
+      messageKo = "API Key·Secret은 저장됐습니다. 계좌 번호를 저장하세요.";
+    } else if (!configured) {
+      messageKo = "토스 API Key·Secret Key·계좌 번호를 저장하세요.";
+    }
+  } else if (ready) {
+    messageKo = "연동됨 · 실주문은 «빗썸 실매매 시작» 프로그램에서 실행";
   } else if (!configured) {
     messageKo = "API 키를 저장하세요.";
   }
@@ -160,6 +175,7 @@ export function getCredentialMetaSync(userId, exchange) {
     ready,
     liveOrdersEnabled: Boolean(row.liveOrdersEnabled),
     hasSecret,
+    hasAccount,
     messageKo,
     source: "user",
     updatedAtMs: row.updatedAtMs ?? null,
@@ -187,11 +203,16 @@ export function getDecryptedCredentialsSync(userId, exchange) {
   const row = findRowSync(userId, exchange);
   if (!row?.apiKeyEncrypted || !row?.secretEncrypted) return null;
   try {
-    return {
+    /** @type {{ apiKey: string; secretKey: string; liveOrdersEnabled: boolean; accountId?: string }} */
+    const out = {
       apiKey: decryptSecret(row.apiKeyEncrypted),
       secretKey: decryptSecret(row.secretEncrypted),
-      liveOrdersEnabled: Boolean(row.liveOrdersEnabled),
+      liveOrdersEnabled: true,
     };
+    if (row.accountIdEncrypted) {
+      out.accountId = decryptSecret(row.accountIdEncrypted);
+    }
+    return out;
   } catch (e) {
     console.error(
       `[credentials] ${exchange} API 키 복호화 실패 (userId=${userId}):`,
@@ -208,6 +229,7 @@ export function getDecryptedCredentialsSync(userId, exchange) {
  * @param {{
  *   apiKey?: string;
  *   secretKey?: string;
+ *   accountId?: string;
  *   liveOrdersEnabled?: boolean;
  * }} input
  */
@@ -229,26 +251,42 @@ export function upsertUserCredentialSync(userId, exchange, input) {
 
   const keyProvided = Object.prototype.hasOwnProperty.call(input, "apiKey");
   const secProvided = Object.prototype.hasOwnProperty.call(input, "secretKey");
+  const acctProvided = Object.prototype.hasOwnProperty.call(input, "accountId");
   const keyIn = keyProvided ? String(input.apiKey ?? "").trim() : "";
   const secIn = secProvided ? String(input.secretKey ?? "").trim() : "";
+  const acctIn = acctProvided ? String(input.accountId ?? "").trim() : "";
   const ordersOnly =
     input.liveOrdersEnabled !== undefined &&
     !keyIn &&
     !secIn &&
+    !acctIn &&
     Boolean(prev?.apiKeyEncrypted && prev?.secretEncrypted);
 
   let apiKey = keyIn;
   let secretRaw = secIn;
+  let accountRaw = acctIn;
 
   if (!ordersOnly) {
-    const pairCheck = validateBithumbCredentialPair(keyIn, secIn, {
-      configured: Boolean(prev?.apiKeyEncrypted),
-    });
-    if (!pairCheck.ok) {
-      throw new Error(pairCheck.error);
+    if (ex === "toss") {
+      const tossCheck = validateTossCredentialSet(keyIn, secIn, acctIn, {
+        configured: Boolean(prev?.apiKeyEncrypted),
+      });
+      if (!tossCheck.ok) {
+        throw new Error(tossCheck.error);
+      }
+      apiKey = tossCheck.value.apiKey;
+      secretRaw = tossCheck.value.secretKey;
+      accountRaw = tossCheck.value.accountId;
+    } else {
+      const pairCheck = validateBithumbCredentialPair(keyIn, secIn, {
+        configured: Boolean(prev?.apiKeyEncrypted),
+      });
+      if (!pairCheck.ok) {
+        throw new Error(pairCheck.error);
+      }
+      apiKey = pairCheck.value.apiKey;
+      secretRaw = pairCheck.value.secretKey;
     }
-    apiKey = pairCheck.value.apiKey;
-    secretRaw = pairCheck.value.secretKey;
   }
 
   const apiKeyEncrypted = apiKey
@@ -266,16 +304,22 @@ export function upsertUserCredentialSync(userId, exchange, input) {
     throw new Error("Secret Key가 필요합니다.");
   }
 
+  const accountIdEncrypted =
+    accountRaw.length > 0
+      ? encryptSecret(accountRaw)
+      : prev?.accountIdEncrypted ?? "";
+  if (ex === "toss" && !accountIdEncrypted) {
+    throw new Error("계좌 번호가 필요합니다.");
+  }
+
   const row = {
     id: prev?.id ?? randomUUID(),
     userId: uid,
     exchange: ex,
     apiKeyEncrypted,
     secretEncrypted,
-    liveOrdersEnabled:
-      input.liveOrdersEnabled === undefined
-        ? Boolean(prev?.liveOrdersEnabled)
-        : Boolean(input.liveOrdersEnabled),
+    accountIdEncrypted: ex === "toss" ? accountIdEncrypted : prev?.accountIdEncrypted ?? "",
+    liveOrdersEnabled: true,
     updatedAtMs: Date.now(),
   };
   if (idx >= 0) store.credentials[idx] = row;
@@ -314,7 +358,7 @@ export function deleteUserCredentialSync(userId, exchange) {
 /**
  * @param {string} userId
  * @param {ExchangeId} exchange
- * @param {{ apiKey?: string; secretKey?: string } | null} [inline]
+ * @param {{ apiKey?: string; secretKey?: string; accountId?: string } | null} [inline]
  */
 export async function testUserCredentialAsync(userId, exchange, inline = null) {
   const ex = normalizeExchange(exchange);
@@ -389,21 +433,36 @@ export async function testUserCredentialAsync(userId, exchange, inline = null) {
   }
 
   if (ex === "toss") {
-    const meta = getCredentialMetaSync(userId, "toss");
-    if (inline?.apiKey) {
+    let creds = null;
+    if (inline?.apiKey || inline?.secretKey || inline?.accountId) {
+      const tossCheck = validateTossCredentialSet(
+        inline?.apiKey ?? "",
+        inline?.secretKey ?? "",
+        inline?.accountId ?? "",
+        { configured: false },
+      );
+      if (!tossCheck.ok) {
+        throw new Error(tossCheck.error);
+      }
+      creds = {
+        apiKey: tossCheck.value.apiKey,
+        secretKey: tossCheck.value.secretKey,
+        accountId: tossCheck.value.accountId,
+        liveOrdersEnabled: false,
+      };
+    } else {
+      creds = getDecryptedCredentialsSync(userId, "toss");
+    }
+    if (creds?.apiKey && creds?.secretKey && creds?.accountId) {
       return {
         ok: true,
         exchange: "toss",
-        messageKo:
-          "토스 BYOK 주문 연동은 다음 단계에서 제공됩니다. 키 저장은 가능합니다.",
+        messageKo: `토스 API 저장 확인 (계좌 ${creds.accountId.slice(0, 4)}···)`,
       };
     }
-    if (meta.source === "user" && meta.ready) {
-      return {
-        ok: true,
-        exchange: "toss",
-        messageKo: "저장된 토스 키가 있습니다. (주문 BYOK는 추후)",
-      };
+    const meta = getCredentialMetaSync(userId, "toss");
+    if (meta.source === "user" && meta.configured && !meta.ready) {
+      throw new Error(meta.messageKo);
     }
     const env = getTossTradingStatus();
     if (env.ready) {
@@ -414,7 +473,7 @@ export async function testUserCredentialAsync(userId, exchange, inline = null) {
       };
     }
     throw new Error(
-      meta.messageKo ?? "토스 API 키를 저장하거나 서버 .env를 설정하세요.",
+      meta.messageKo ?? "토스 API Key·Secret Key·계좌 번호를 입력하거나 저장하세요.",
     );
   }
 

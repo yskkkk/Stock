@@ -19,9 +19,11 @@ import {
   executeLiveBuyOrder,
   pickMeetsProgramThreshold,
 } from "./toss-trading-adapter.js";
+import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEDUP_FILE = path.join(__dirname, ".data", "live-trade-dedup.json");
+const ORPHAN_LOG_FILE = path.join(__dirname, ".data", "live-trade-orphan-orders.ndjson");
 
 const DEDUPE_MS = 6 * 60 * 60 * 1000;
 
@@ -56,10 +58,14 @@ function orderDedupeKey(programId, symbol) {
   return `${programId}:${String(symbol ?? "").trim().toUpperCase()}`;
 }
 
-function shouldSkipDuplicate(programId, symbol) {
+function isDuplicate(programId, symbol) {
   const key = orderDedupeKey(programId, symbol);
   const prev = recentOrderKeys.get(key);
-  if (prev && Date.now() - prev < DEDUPE_MS) return true;
+  return Boolean(prev && Date.now() - prev < DEDUPE_MS);
+}
+
+function markDedupKey(programId, symbol) {
+  const key = orderDedupeKey(programId, symbol);
   recentOrderKeys.set(key, Date.now());
   if (recentOrderKeys.size > 800) {
     const cutoff = Date.now() - DEDUPE_MS;
@@ -68,7 +74,13 @@ function shouldSkipDuplicate(programId, symbol) {
     }
   }
   saveDedupState(recentOrderKeys);
-  return false;
+}
+
+function logOrphanOrder(orderId, symbol, programId) {
+  try {
+    const entry = JSON.stringify({ orderId, symbol, programId, atMs: Date.now() });
+    fs.appendFileSync(ORPHAN_LOG_FILE, entry + "\n", "utf8");
+  } catch {}
 }
 
 /**
@@ -82,7 +94,7 @@ async function simBuyForProgram(program, pick) {
   if (program.simAutoBuy === false) return;
 
   const sym = String(pick.symbol ?? "").trim();
-  if (!sym || shouldSkipDuplicate(program.id, sym)) return;
+  if (!sym || isDuplicate(program.id, sym)) return;
 
   let runErr = null;
   try {
@@ -97,7 +109,8 @@ async function simBuyForProgram(program, pick) {
       },
       { simulated: true, atMs: quote.atMs },
     );
-    console.info(
+    markDedupKey(program.id, sym);
+    liveTradeLogInfo(
       "[live-trade:sim]",
       program.name,
       sym,
@@ -106,7 +119,7 @@ async function simBuyForProgram(program, pick) {
     );
   } catch (e) {
     runErr = e instanceof Error ? e.message : String(e);
-    console.warn("[live-trade:sim]", program.name, sym, runErr);
+    liveTradeLogWarn("[live-trade:sim]", program.name, sym, runErr);
   }
   touchLiveTradeProgramRunSync(program.id, runErr);
 }
@@ -122,7 +135,7 @@ async function liveBuyForProgram(program, pick) {
   if (!pickMeetsProgramThreshold(program, pick)) return;
 
   const sym = String(pick.symbol ?? "").trim();
-  if (!sym || shouldSkipDuplicate(`live:${program.id}`, sym)) return;
+  if (!sym || isDuplicate(`live:${program.id}`, sym)) return;
 
   const userId = String(program.userId ?? "").trim();
   if (!userId) {
@@ -149,11 +162,13 @@ async function liveBuyForProgram(program, pick) {
           atMs: quote.atMs,
         },
       );
+      markDedupKey(`live:${program.id}`, sym);
     } catch (e) {
       runErr = e instanceof Error ? e.message : String(e);
-      console.warn("[live-trade] portfolio record:", runErr);
+      liveTradeLogWarn("[live-trade] portfolio record:", runErr);
+      logOrphanOrder(out.orderId ?? null, sym, program.id);
     }
-    console.info(
+    liveTradeLogInfo(
       "[live-trade]",
       program.name,
       out.simulated ? "(simulated)" : "",
@@ -161,7 +176,7 @@ async function liveBuyForProgram(program, pick) {
       pick.score,
     );
   } else {
-    console.warn("[live-trade]", program.name, sym, out.error);
+    liveTradeLogWarn("[live-trade]", program.name, sym, out.error);
   }
   touchLiveTradeProgramRunSync(program.id, runErr);
 }

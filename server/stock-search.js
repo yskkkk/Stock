@@ -53,12 +53,9 @@ const KR_EX = new Set([
 
 const ALLOW_QUOTE_TYPES = new Set(["EQUITY", "ETF", "INDEX"]);
 
-/** @type {Array<{ symbol: string; name: string }> | null} */
-let universeKrCache = null;
-/** @type {Array<{ symbol: string; name: string }> | null} */
-let universeUsCache = null;
+import { getCachedUniverse, warmUniverseCache } from "./universe.js";
 
-function loadUniverseJson(name) {
+function loadUniverseJsonFallback(name) {
   try {
     const raw = readFileSync(join(__dirname, "data", name), "utf8");
     const arr = JSON.parse(raw);
@@ -68,14 +65,16 @@ function loadUniverseJson(name) {
   }
 }
 
-function getUniverseKr() {
-  if (!universeKrCache) universeKrCache = loadUniverseJson("universe-kr.json");
-  return universeKrCache;
+function getUniverseKrRows() {
+  const cached = getCachedUniverse();
+  if (cached?.kr?.length) return cached.kr;
+  return loadUniverseJsonFallback("universe-kr.json");
 }
 
-function getUniverseUs() {
-  if (!universeUsCache) universeUsCache = loadUniverseJson("universe-us.json");
-  return universeUsCache;
+function getUniverseUsRows() {
+  const cached = getCachedUniverse();
+  if (cached?.us?.length) return cached.us;
+  return loadUniverseJsonFallback("universe-us.json");
 }
 
 /**
@@ -178,7 +177,7 @@ function appendLocalUniverseMatches(query, market, seen, out) {
   const t = String(query ?? "").trim();
   if (!t) return;
   const qLower = t.toLowerCase();
-  const rows = market === "kr" ? getUniverseKr() : getUniverseUs();
+  const rows = market === "kr" ? getUniverseKrRows() : getUniverseUsRows();
   for (const row of rows) {
     if (out.length >= 28) break;
     let sym = String(row.symbol ?? "").trim().toUpperCase();
@@ -225,6 +224,7 @@ function appendLocalUniverseMatches(query, market, seen, out) {
  * @param {"kr" | "us"} market
  */
 export async function searchStocks(query, market) {
+  await warmUniverseCache();
   const q = String(query ?? "").trim();
   if (q.length < 1) return { quotes: [] };
   if (q.length > 80) {

@@ -67,9 +67,7 @@ export function getBithumbTradingStatusFromCredentials(credentials) {
   if (phase === "configured") {
     messageKo = "API Key만 있습니다. Secret Key를 함께 저장하세요.";
   } else if (ready) {
-    messageKo = credentials?.liveOrdersEnabled
-      ? "빗썸 연동됨 · 거래소 실주문 허용"
-      : "빗썸 연동됨 · 거래소 실주문 차단(앱 시뮬은 프로그램 «시뮬 자동 시작»)";
+    messageKo = "빗썸 연동됨 · 실주문은 «빗썸 실매매 시작» 프로그램에서 실행";
   }
   return {
     phase,
@@ -161,7 +159,7 @@ async function bithumbPrivateRequestWithCredentials(
   );
   let url = `${base}${path}`;
   if (
-    method === "GET" &&
+    (method === "GET" || method === "DELETE") &&
     bodyParams &&
     Object.keys(bodyParams).length > 0 &&
     !path.includes("?")
@@ -180,7 +178,7 @@ async function bithumbPrivateRequestWithCredentials(
     },
     signal: AbortSignal.timeout(30_000),
   };
-  if (bodyParams && method !== "GET") {
+  if (bodyParams && method !== "GET" && method !== "DELETE") {
     init.body = JSON.stringify(bodyParams);
   }
   const res = await fetch(url, init);
@@ -289,18 +287,6 @@ export async function executeBithumbLiveBuyOrder(program, pick, options = {}) {
     };
   }
 
-  if (!credentials?.liveOrdersEnabled) {
-    console.info(
-      "[bithumb-trading] simulated buy",
-      program.name,
-      market,
-      krw,
-      "score",
-      pick.score,
-    );
-    return { ok: true, simulated: true, orderId: `bithumb-sim-${Date.now()}` };
-  }
-
   try {
     const body = await bithumbPrivateRequestWithCredentials(
       "POST",
@@ -342,11 +328,6 @@ export async function executeBithumbLiveSellOrder(input, options = {}) {
   const volume = Number(input.volume);
   if (!market || !Number.isFinite(volume) || volume <= 0) {
     return { ok: false, error: "매도 수량이 올바르지 않습니다." };
-  }
-
-  if (!credentials?.liveOrdersEnabled) {
-    console.info("[bithumb-trading] simulated sell", market, volume);
-    return { ok: true, simulated: true, orderId: `bithumb-sim-sell-${Date.now()}` };
   }
 
   try {
@@ -394,6 +375,67 @@ export async function fetchBithumbOrderWithCredentials(orderId, credentials) {
  * @param {string} market e.g. KRW-BTC
  * @param {{ limit?: number; orderBy?: "asc" | "desc" }} [opts]
  */
+/**
+ * @param {BithumbCredentials} credentials
+ * @param {{ market?: string; state?: "wait"|"watch"|"done"|"cancel"; limit?: number }} [opts]
+ */
+export async function listBithumbOrdersWithCredentials(credentials, opts = {}) {
+  const limit = Math.min(100, Math.max(1, Number(opts.limit) || 50));
+  const orderBy = opts.orderBy === "asc" ? "asc" : "desc";
+  const state = opts.state ?? "wait";
+  const params = {
+    state,
+    limit,
+    order_by: orderBy,
+  };
+  if (opts.market) params.market = String(opts.market).trim();
+  const body = await bithumbPrivateRequestWithCredentials(
+    "GET",
+    "/v1/orders",
+    params,
+    credentials,
+  );
+  return Array.isArray(body) ? body : [];
+}
+
+/** @param {BithumbCredentials} credentials */
+export async function listBithumbOpenOrdersWithCredentials(credentials) {
+  const [wait, watch] = await Promise.all([
+    listBithumbOrdersWithCredentials(credentials, { state: "wait", limit: 100 }),
+    listBithumbOrdersWithCredentials(credentials, { state: "watch", limit: 100 }),
+  ]);
+  const seen = new Set();
+  /** @type {object[]} */
+  const out = [];
+  for (const o of [...wait, ...watch]) {
+    const id = String(o?.uuid ?? o?.order_id ?? "").trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(o);
+  }
+  out.sort((a, b) => {
+    const ta = Date.parse(String(a?.created_at ?? ""));
+    const tb = Date.parse(String(b?.created_at ?? ""));
+    return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
+  });
+  return out;
+}
+
+/**
+ * @param {string} orderId uuid
+ * @param {BithumbCredentials} credentials
+ */
+export async function cancelBithumbOrderWithCredentials(orderId, credentials) {
+  const uuid = String(orderId ?? "").trim();
+  if (!uuid) throw new Error("주문 ID가 없습니다.");
+  return bithumbPrivateRequestWithCredentials(
+    "DELETE",
+    "/v1/order",
+    { uuid },
+    credentials,
+  );
+}
+
 export async function listBithumbDoneOrdersWithCredentials(
   credentials,
   market,

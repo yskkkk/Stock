@@ -47,12 +47,15 @@ function buildTelegramIndexFromSent(sent) {
     const at = typeof entry.at === "number" && Number.isFinite(entry.at) ? entry.at : 0;
     if (at <= 0) continue;
     const date = kstYmd(at);
-    let market = entry.market === "kr" || entry.market === "us" ? entry.market : null;
+    let market =
+      entry.market === "kr" || entry.market === "us" || entry.market === "crypto"
+        ? entry.market
+        : null;
     let symbol = String(entry.symbol ?? "").trim().toUpperCase();
     const k = String(key ?? "");
     if (k.includes(":")) {
       const [m, s] = k.split(":");
-      if (!market && (m === "kr" || m === "us")) market = m;
+      if (!market && (m === "kr" || m === "us" || m === "crypto")) market = m;
       if (!symbol) symbol = String(s ?? "").trim().toUpperCase();
     }
     if (!market || !symbol) continue;
@@ -101,7 +104,7 @@ function getTelegramBackfillIndex() {
 /**
  * 추천 이력 일자(KST)·시장·심볼에 텔레그램 알림이 나갔는지.
  * @param {string} date YYYY-MM-DD
- * @param {"kr"|"us"} market
+ * @param {"kr"|"us"|"crypto"} market
  * @param {string} symbol
  * @returns {{ atMs: number } | null}
  */
@@ -113,13 +116,14 @@ export function lookupTelegramNotifyForRecommendation(date, market, symbol) {
 
 /**
  * @param {string} date YYYY-MM-DD
- * @param {"kr"|"us"} market
+ * @param {"kr"|"us"|"crypto"} market
  * @param {string} symbol
  * @returns {{ modelId: string; modelName: string; atMs: number; score: number | null; signalIds: string[] }[]}
  */
 export function listTelegramNotifiesForRecommendation(date, market, symbol) {
   const d = String(date ?? "").trim();
-  const m = market === "kr" || market === "us" ? market : null;
+  const m =
+    market === "kr" || market === "us" || market === "crypto" ? market : null;
   const sym = String(symbol ?? "").trim().toUpperCase();
   if (!d || !m || !sym) return [];
 
@@ -132,12 +136,16 @@ export function listTelegramNotifiesForRecommendation(date, market, symbol) {
     const at = typeof entry.at === "number" && Number.isFinite(entry.at) ? entry.at : 0;
     if (at <= 0 || kstYmd(at) !== d) continue;
 
-    let em = entry.market === "kr" || entry.market === "us" ? entry.market : null;
+    let em =
+      entry.market === "kr" || entry.market === "us" || entry.market === "crypto"
+        ? entry.market
+        : null;
     let es = String(entry.symbol ?? "").trim().toUpperCase();
     const k = String(key ?? "");
     if (k.includes(":")) {
       const parts = k.split(":");
-      if (!em && (parts[0] === "kr" || parts[0] === "us")) em = parts[0];
+      if (!em && (parts[0] === "kr" || parts[0] === "us" || parts[0] === "crypto"))
+        em = parts[0];
       if (!es && parts[1]) es = normalizeSymbol(parts[1]);
     }
     if (em !== m || es !== sym) continue;
@@ -268,8 +276,9 @@ export function reconcileRecommendationHistoryEnrichmentSync() {
   for (const day of data.days) {
     const date = String(day.date ?? "").trim();
     if (!date) continue;
-    for (const market of /** @type {const} */ (["kr", "us"])) {
-      const arr = market === "kr" ? day.kr : day.us;
+    for (const market of /** @type {const} */ (["kr", "us", "crypto"])) {
+      const arr =
+        market === "kr" ? day.kr : market === "us" ? day.us : (day.crypto ?? []);
       for (const slim of arr) {
         if (!slim?.symbol) continue;
         const key = recommendationMetaKey(date, market, slim.symbol);

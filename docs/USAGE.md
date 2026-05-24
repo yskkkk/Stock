@@ -24,7 +24,8 @@ npm install
 ```
 
 `.env`에 최소 **`CREDENTIALS_MASTER_KEY`**(실매매·API 키 암호화용)를 넣습니다.  
-선택: `OPENDART_API_KEY`, `TELEGRAM_*`, 접근 제어 등 — [.env.example](../.env.example) 주석 참고.
+회원가입 이메일 인증·알림용 **`SMTP_*`**(또는 로컬만 `EMAIL_VERIFY_MOCK=1`) — [.env.example](../.env.example) 참고.  
+선택: `OPENDART_API_KEY`, `TELEGRAM_*`, 접근 제어 등.
 
 ### 1.2 실행
 
@@ -77,7 +78,7 @@ npm run dev
 
 ### 3.1 자동 스캔
 
-- 서버가 약 **60초** 간격으로 유니버스(국내 약 300 · 미국 나스닥 약 500 · 코인)를 재분석합니다.
+- 서버가 약 **60초** 간격으로 유니버스(국내 시총 상위 약 300 · 미국 **S&P 500** · 코인)를 재분석합니다.
 - **전체 재분석** 버튼으로 즉시 스캔을 돌릴 수 있습니다.
 - Yahoo 등 시세 + 기술 모델(가중치·신호)로 점수를 매깁니다.
 

@@ -15,6 +15,11 @@ describe("validateExchangeApiToken", () => {
     expect(r.ok).toBe(true);
   });
 
+  it("accepts special characters like '='", () => {
+    const r = validateExchangeApiToken(`${SAMPLE_KEY}=`, { label: "API Key" });
+    expect(r.ok).toBe(true);
+  });
+
   it("rejects korean", () => {
     const r = validateExchangeApiToken("가나다라", { label: "API Key" });
     expect(r.ok).toBe(false);

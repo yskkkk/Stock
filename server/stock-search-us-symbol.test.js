@@ -1,5 +1,4 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import {
   isPrimaryUsSearchSymbol,
   isUsSearchResultRow,
@@ -7,58 +6,42 @@ import {
 
 describe("isPrimaryUsSearchSymbol", () => {
   it("allows plain US tickers", () => {
-    assert.equal(isPrimaryUsSearchSymbol("RGTI"), true);
-    assert.equal(isPrimaryUsSearchSymbol("BRK-A"), true);
+    expect(isPrimaryUsSearchSymbol("RGTI")).toBe(true);
+    expect(isPrimaryUsSearchSymbol("BRK-A")).toBe(true);
   });
 
   it("allows US share-class dots", () => {
-    assert.equal(isPrimaryUsSearchSymbol("BRK.B"), true);
+    expect(isPrimaryUsSearchSymbol("BRK.B")).toBe(true);
   });
 
   it("blocks foreign cross-listings", () => {
-    assert.equal(isPrimaryUsSearchSymbol("RGTI.MX"), false);
-    assert.equal(isPrimaryUsSearchSymbol("RGTID.BA"), false);
-    assert.equal(isPrimaryUsSearchSymbol("AAPL.TO"), false);
+    expect(isPrimaryUsSearchSymbol("RGTI.MX")).toBe(false);
+    expect(isPrimaryUsSearchSymbol("RGTID.BA")).toBe(false);
+    expect(isPrimaryUsSearchSymbol("AAPL.TO")).toBe(false);
   });
 
   it("blocks KR suffixes", () => {
-    assert.equal(isPrimaryUsSearchSymbol("005930.KS"), false);
+    expect(isPrimaryUsSearchSymbol("005930.KS")).toBe(false);
   });
 
   it("allows Yahoo index tickers", () => {
-    assert.equal(isPrimaryUsSearchSymbol("^GSPC"), true);
-    assert.equal(isPrimaryUsSearchSymbol("^KS11"), true);
+    expect(isPrimaryUsSearchSymbol("^GSPC")).toBe(true);
+    expect(isPrimaryUsSearchSymbol("^KS11")).toBe(true);
   });
 });
 
 describe("isUsSearchResultRow", () => {
   it("blocks non-USD currency", () => {
-    assert.equal(
-      isUsSearchResultRow({ symbol: "RGTI.MX", currency: "MXN" }),
-      false,
-    );
-    assert.equal(
-      isUsSearchResultRow({ symbol: "RGTI", currency: "USD" }),
-      true,
-    );
+    expect(isUsSearchResultRow({ symbol: "RGTI.MX", currency: "MXN" })).toBe(false);
+    expect(isUsSearchResultRow({ symbol: "RGTI", currency: "USD" })).toBe(true);
   });
 
   it("allows index rows without USD currency", () => {
-    assert.equal(
-      isUsSearchResultRow({
-        symbol: "^IXIC",
-        quoteType: "INDEX",
-        currency: "USD",
-      }),
-      true,
-    );
-    assert.equal(
-      isUsSearchResultRow({
-        symbol: "^KS11",
-        quoteType: "INDEX",
-        currency: "KRW",
-      }),
-      true,
-    );
+    expect(
+      isUsSearchResultRow({ symbol: "^IXIC", quoteType: "INDEX", currency: "USD" }),
+    ).toBe(true);
+    expect(
+      isUsSearchResultRow({ symbol: "^KS11", quoteType: "INDEX", currency: "KRW" }),
+    ).toBe(true);
   });
 });

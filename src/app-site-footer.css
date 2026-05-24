@@ -255,3 +255,39 @@ html[data-theme="light"] .app-server-restart-popover::after {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* 우측 도크·좌측 레일·max-width와 무관 — 뷰포트(100vw) 정중앙 */
+#root > .app > .app__scroll > .app-site-footer {
+  overflow: visible !important;
+}
+
+#root > .app > .app__scroll > .app-site-footer .app-site-footer__center {
+  box-sizing: border-box;
+  width: 100vw;
+  max-width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  padding-inline: var(--app-page-inline-pad-safe, max(1.35rem, env(safe-area-inset-left, 0px)));
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+#root > .app > .app__scroll > .app-site-footer .app-site-footer__center .app-site-footer__nav {
+  width: auto !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  transform: none !important;
+  justify-content: center !important;
+}
+
+#root > .app > .app__scroll > .app-site-footer .app-site-footer__center .app-site-footer__copy {
+  position: static !important;
+  transform: none !important;
+  width: auto !important;
+  max-width: 100% !important;
+  margin: 0.45rem 0 0 !important;
+  text-align: center !important;
+}

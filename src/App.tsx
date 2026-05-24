@@ -1053,12 +1053,14 @@ export default function App() {
         <AppThemeCorner
           colorMode={colorMode}
           lightPalette={lightPalette}
-          onToggleColorMode={() => {
+          onColorModeChange={(mode) => {
             if (!ENABLE_THEME_MODE_TOGGLE) return;
             setColorMode((m) => {
-              const next = m === "dark" ? "light" : "dark";
-              persistTheme(next);
-              return next;
+              if (m === mode) return m;
+              persistTheme(mode);
+              applyTheme(mode);
+              if (mode === "light") applyLightPalette(readStoredLightPalette());
+              return mode;
             });
           }}
           onLightPalette={handleLightPalette}
@@ -1365,31 +1367,73 @@ export default function App() {
                     <span className="market-tab__count">{krFiltered.length}</span>
                   )}
                 </button>
-                <button
-                  type="button"
-                  className={
-                    (appTab === "stockLookup" ? lookupMarketTab : screenerMarketTab) ===
-                    "us"
-                      ? "market-tab active"
-                      : "market-tab"
-                  }
-                  onClick={() => {
-                    if (appTab === "stockLookup") {
-                      if (lookupMarketTab !== "us") {
-                        resetStockLookupSession();
-                        setLookupSearchTabMountKey((k) => k + 1);
-                        setLookupMarketTab("us");
+                {appTab === "stockLookup" && lookupHotToolbar.visible ? (
+                  <div className="market-tab-group market-tab-group--us-hot">
+                    <span className="stock-search-tab__tab-hot-inline">
+                      <span className="stock-search-tab__hot-badge stock-search-tab__tab-hot-badge">
+                        {ko.app.pickTurnoverShort}
+                      </span>
+                      {lookupHotToolbar.showUsToggle ? (
+                        <span
+                          className="stock-search-tab__quote-currency-text"
+                          title={
+                            usQuoteInKrw
+                              ? usdKrwValDate
+                                ? ko.app.quoteCurrencyFxBasis.replace(
+                                    "{date}",
+                                    usdKrwValDate,
+                                  )
+                                : ko.app.quoteCurrencyShowUsd
+                              : ko.app.quoteCurrencyShowKrw
+                          }
+                        >
+                          {usQuoteInKrw ? "원화" : "$"}
+                        </span>
+                      ) : null}
+                    </span>
+                    <button
+                      type="button"
+                      className={
+                        lookupMarketTab === "us" ? "market-tab active" : "market-tab"
                       }
-                      return;
+                      onClick={() => {
+                        if (lookupMarketTab !== "us") {
+                          resetStockLookupSession();
+                          setLookupSearchTabMountKey((k) => k + 1);
+                          setLookupMarketTab("us");
+                        }
+                      }}
+                    >
+                      {ko.app.marketUs}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className={
+                      (appTab === "stockLookup" ? lookupMarketTab : screenerMarketTab) ===
+                      "us"
+                        ? "market-tab active"
+                        : "market-tab"
                     }
-                    setScreenerMarketTab("us");
-                  }}
-                >
-                  {ko.app.marketUs}
-                  {appTab === "screener" && (
-                    <span className="market-tab__count">{usFiltered.length}</span>
-                  )}
-                </button>
+                    onClick={() => {
+                      if (appTab === "stockLookup") {
+                        if (lookupMarketTab !== "us") {
+                          resetStockLookupSession();
+                          setLookupSearchTabMountKey((k) => k + 1);
+                          setLookupMarketTab("us");
+                        }
+                        return;
+                      }
+                      setScreenerMarketTab("us");
+                    }}
+                  >
+                    {ko.app.marketUs}
+                    {appTab === "screener" && (
+                      <span className="market-tab__count">{usFiltered.length}</span>
+                    )}
+                  </button>
+                )}
                 {appTab === "screener" ? (
                   <button
                     type="button"
@@ -1405,25 +1449,6 @@ export default function App() {
                   </button>
                 ) : null}
               </div>
-              {appTab === "stockLookup" && lookupHotToolbar.visible ? (
-                <div
-                  className="stock-search-tab__tab-hot-caption"
-                  aria-live="polite"
-                >
-                  <span className="stock-search-tab__hot-badge stock-search-tab__tab-hot-badge">
-                    {ko.app.stockLookupHotTitle}
-                  </span>
-                  {lookupHotToolbar.showUsToggle ? (
-                    <QuoteCurrencyToggle
-                      iconOnly
-                      inKrw={usQuoteInKrw}
-                      onToggle={toggleUsQuoteKrw}
-                      fxValuationDate={usdKrwValDate}
-                      className="quote-currency-toggle--hot-head"
-                    />
-                  ) : null}
-                </div>
-              ) : null}
             </div>
           </div>
 

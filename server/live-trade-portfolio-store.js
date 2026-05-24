@@ -14,6 +14,7 @@ import {
   getOneWayFeeRateForUserMarketSync,
   getRoundTripFeeRateForUserMarketSync,
 } from "./exchange-trading-fees.js";
+import { cryptoYahooUsdtDisplayName } from "./crypto-display-names.js";
 import { getLiveTradeProgramSync } from "./live-trade-programs-store.js";
 import { listLiveTradeProgramsSync } from "./live-trade-programs-store.js";
 import {
@@ -132,6 +133,35 @@ function writeStoreSync(store) {
   const tmp = `${PORTFOLIO_FILE}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(store, null, 0), "utf8");
   fs.renameSync(tmp, PORTFOLIO_FILE);
+}
+
+/**
+ * @param {string} symbol
+ * @param {string} name
+ * @param {"kr" | "us" | "crypto"} market
+ */
+function enrichCryptoDisplayName(symbol, name, market) {
+  if (market !== "crypto") return name;
+  const nm = String(name ?? "").trim();
+  if (/[가-힣]/.test(nm) && nm.includes("/")) return nm;
+  const display = cryptoYahooUsdtDisplayName(symbol);
+  return display || nm || symbol;
+}
+
+/** @param {LiveTradeRecord[]} trades */
+function enrichPortfolioTradeNames(trades) {
+  return trades.map((t) => ({
+    ...t,
+    name: enrichCryptoDisplayName(t.symbol, t.name, t.market),
+  }));
+}
+
+/** @param {object[]} holdings */
+function enrichPortfolioHoldingNames(holdings) {
+  return holdings.map((h) => ({
+    ...h,
+    name: enrichCryptoDisplayName(h.symbol, h.name, h.market),
+  }));
 }
 
 /** @param {unknown} raw @returns {LiveTradeRecord | null} */
@@ -267,7 +297,8 @@ export function buildPositionsFromTrades(trades, programIdFilter) {
       const sellQty = Math.min(t.quantity, pos.quantity);
       if (sellQty <= 0) continue;
       const avgCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
-      const proceeds = (t.amount / t.quantity) * sellQty - t.feeAmount;
+      const proportionalFee = t.quantity > 0 ? (t.feeAmount / t.quantity) * sellQty : 0;
+      const proceeds = (t.amount / t.quantity) * sellQty - proportionalFee;
       const costPortion = avgCost * sellQty;
       realizedPnl += proceeds - costPortion;
       pos.quantity -= sellQty;
@@ -414,6 +445,7 @@ export async function recordLiveTradeBuyAsync(program, pick, orderMeta = {}) {
  *   symbol: string;
  *   market?: string;
  *   name?: string;
+ *   price?: number;
  * }} input
  */
 export async function recordLiveTradeSimBuyAsync(input, userId) {
@@ -427,20 +459,23 @@ export async function recordLiveTradeSimBuyAsync(input, userId) {
     throw new Error("프로그램에서 허용하지 않는 시장입니다.");
   }
   const quote = await resolveLiveTradeQuote(symbol);
+  const customPrice = Number(input.price);
+  const fillPrice =
+    Number.isFinite(customPrice) && customPrice > 0 ? customPrice : quote.price;
   const trade = await recordLiveTradeBuyAsync(
     program,
     {
       symbol: quote.symbol,
       name: String(input.name ?? symbol).trim() || symbol,
       market,
-      price: quote.price,
+      price: fillPrice,
       signalIds: input.signalIds,
       score: input.score,
     },
     { simulated: true, atMs: quote.atMs },
   );
   if (!trade) throw new Error("매수 시뮬레이션을 저장하지 못했습니다.");
-  return { trade, quote };
+  return { trade, quote: { ...quote, price: fillPrice } };
 }
 
 /**
@@ -521,6 +556,7 @@ export function recordLiveTradeSellSync(input, userId) {
  *   symbol: string;
  *   market?: string;
  *   quantity?: number;
+ *   price?: number;
  *   note?: string;
  * }} input
  */
@@ -531,20 +567,23 @@ export async function recordLiveTradeSimSellAsync(input, userId) {
     throw new Error("매도 시뮬레이션에 필요한 값이 없습니다.");
   }
   const quote = await resolveLiveTradeQuote(symbol);
+  const customPrice = Number(input.price);
+  const fillPrice =
+    Number.isFinite(customPrice) && customPrice > 0 ? customPrice : quote.price;
   const trade = recordLiveTradeSellSync(
     {
       programId,
       symbol: quote.symbol,
       market: input.market,
       quantity: input.quantity,
-      price: quote.price,
+      price: fillPrice,
       note: input.note,
       simulated: true,
       atMs: quote.atMs,
     },
     userId,
   );
-  return { trade, quote };
+  return { trade, quote: { ...quote, price: fillPrice } };
 }
 
 /**
@@ -855,9 +894,40 @@ export async function buildLiveTradePortfolioSnapshot(opts = {}) {
     "./live-trade-bithumb-holdings.js"
   );
   const merged = await mergeBithumbExchangeHoldings(snap, programs);
-  const openPct = openReturnPctFromHoldings(merged.holdings);
-  if (openPct != null && Number.isFinite(openPct)) {
-    merged.summary.totalReturnPct = openPct;
+  let withExchangeTrades = merged;
+  if (opts.exchangeSyncLive) {
+    const { refreshCryptoHoldingsFromExchange } = await import(
+      "./live-trade-bithumb-holdings.js"
+    );
+    const { mergeBithumbExchangeTradesLive } = await import(
+      "./live-trade-bithumb-exchange-trades.js"
+    );
+    const fromExchange = await refreshCryptoHoldingsFromExchange(
+      merged,
+      programs,
+    );
+    withExchangeTrades = await mergeBithumbExchangeTradesLive(
+      fromExchange,
+      userId,
+      programs,
+    );
+  } else {
+    const { mergeBithumbExchangeTradesAfterNotify } = await import(
+      "./live-trade-bithumb-exchange-trades.js"
+    );
+    withExchangeTrades = await mergeBithumbExchangeTradesAfterNotify(
+      merged,
+      userId,
+      programs,
+    );
   }
-  return merged;
+  const openPct = openReturnPctFromHoldings(withExchangeTrades.holdings);
+  if (openPct != null && Number.isFinite(openPct)) {
+    withExchangeTrades.summary.totalReturnPct = openPct;
+  }
+  return {
+    ...withExchangeTrades,
+    holdings: enrichPortfolioHoldingNames(withExchangeTrades.holdings),
+    trades: enrichPortfolioTradeNames(withExchangeTrades.trades),
+  };
 }

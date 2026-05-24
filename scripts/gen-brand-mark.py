@@ -41,25 +41,64 @@ OUT_SIZES: list[tuple[Path, int]] = [
 
 
 def is_chroma_green(r: int, g: int, b: int, a: int) -> bool:
-    """크로마 초록 스크린 — 글자·드롭섀도는 제외."""
-    if a < 20:
+    """크로마 초록 스크린(가장자리 플러드 시드)."""
+    if a < 12:
         return False
     lum = (r + g + b) / 3.0
-    if lum < 48:
+    if lum < 36:
         return False
-    if lum > 205:
+    if lum > 218:
         return False
     return (
-        g >= 80
-        and g >= r + 24
-        and g >= b + 16
-        and r <= 110
-        and b <= 150
+        g >= 64
+        and g >= r + 18
+        and g >= b + 12
+        and r <= 125
+        and b <= 165
     )
 
 
 def is_matte_background(r: int, g: int, b: int, a: int) -> bool:
     return is_chroma_green(r, g, b, a)
+
+
+def remove_corner_sparkle(im: Image.Image) -> Image.Image:
+    """우하단 + 스파클 — 로고 본체(중심) 밖 밝은 픽셀 제거."""
+    px = im.load()
+    w, h = im.size
+    cx, cy = _visual_centroid(im)
+    radius_keep = min(w, h) * 0.37
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a < 14:
+                continue
+            if x < w * 0.46 or y < h * 0.46:
+                continue
+            dist = ((x - cx) ** 2 + (y - cy) ** 2) ** 0.5
+            if dist < radius_keep:
+                continue
+            lum = (r + g + b) / 3.0
+            chroma = max(r, g, b) - min(r, g, b)
+            if lum >= 118 and chroma <= 58:
+                px[x, y] = (0, 0, 0, 0)
+    return im
+
+
+def despill_green(im: Image.Image) -> Image.Image:
+    """반투명 가장자리 G 채널만 은색 톤으로 보정."""
+    px = im.load()
+    w, h = im.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a < 12:
+                continue
+            if g <= max(r, b) + 6:
+                continue
+            g2 = int(0.42 * g + 0.29 * r + 0.29 * b)
+            px[x, y] = (r, min(g, g2), b, a)
+    return im
 
 
 def clear_matte(im: Image.Image) -> Image.Image:
@@ -149,7 +188,7 @@ def main() -> None:
         base = base.resize((1024, 1024), Image.Resampling.LANCZOS)
     elif max(base.size) > 1024:
         base.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
-    logo = crop_opaque(clear_matte(base))
+    logo = crop_opaque(remove_corner_sparkle(despill_green(clear_matte(base))))
     for path, sz in OUT_SIZES:
         save_square(logo, sz, path)
     print(f"[brand-mark] ok: {len(OUT_SIZES)} files")

@@ -31,12 +31,29 @@ type SignalHintWrapProps = {
   children: ReactNode;
 };
 
+const TIP_VIEWPORT_PAD_PX = 12;
+/** 말풍선 max-width(min(20rem, calc(100vw - 24px))) 상한의 절반 — 가로 overflow·도크 흔들림 방지 */
+const TIP_CENTER_CLAMP_HALF_PX = 168;
+
+function clampTipCenterX(centerX: number): number {
+  if (typeof window === "undefined") return centerX;
+  const vw = window.innerWidth;
+  const half = Math.min(
+    TIP_CENTER_CLAMP_HALF_PX,
+    Math.max(80, (vw - TIP_VIEWPORT_PAD_PX * 2) / 2),
+  );
+  const minX = TIP_VIEWPORT_PAD_PX + half;
+  const maxX = vw - TIP_VIEWPORT_PAD_PX - half;
+  if (minX >= maxX) return vw / 2;
+  return Math.min(maxX, Math.max(minX, centerX));
+}
+
 function measureTipPos(el: HTMLElement): TipPos {
   const r = el.getBoundingClientRect();
   const aboveTop = r.top - 10;
   const placement = aboveTop < 72 ? "below" : "above";
   return {
-    left: r.left + r.width / 2,
+    left: clampTipCenterX(r.left + r.width / 2),
     top: placement === "above" ? r.top - 10 : r.bottom + 10,
     placement,
   };

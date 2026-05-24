@@ -134,44 +134,25 @@ function readDockOpenPref(): boolean {
   return false;
 }
 
-function DockResizeArrows() {
-  return (
-    <span className="app-live-trade-side-dock__resize-arrows" aria-hidden>
-      <svg className="app-live-trade-side-dock__resize-arrow" viewBox="0 0 8 12">
-        <path
-          d="M6.5 1.5 2.5 6l4 4.5"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.75"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-      <svg className="app-live-trade-side-dock__resize-arrow" viewBox="0 0 8 12">
-        <path
-          d="M1.5 1.5 5.5 6l-4 4.5"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.75"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </span>
-  );
-}
-
-/** 접힘=왼쪽, 펼침=오른쪽 — 텍스트 `<` `>` 대신 stroke chevron */
+/** 접힘=왼쪽, 펼침=오른쪽 */
 function DockFoldChevron({ open }: { open: boolean }) {
   return (
-    <span
-      className={
-        open
-          ? "app-live-trade-side-dock__chevron app-live-trade-side-dock__chevron--open"
-          : "app-live-trade-side-dock__chevron"
-      }
+    <svg
+      className="app-live-trade-side-dock__chevron-svg"
+      viewBox="0 0 24 24"
+      width={14}
+      height={14}
       aria-hidden
-    />
+    >
+      <path
+        d={open ? "M10 7l5 5-5 5" : "M14 7l-5 5 5 5"}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -243,7 +224,11 @@ export default function AppLiveTradeSideDock({
   const dockRef = useRef<HTMLDivElement>(null);
   const openRef = useRef(open);
   openRef.current = open;
-  const resizeDragRef = useRef<{ startX: number; startW: number } | null>(null);
+  const resizeDragRef = useRef<{
+    startX: number;
+    startW: number;
+    wasOpen: boolean;
+  } | null>(null);
   const panelWidthBounds = useMemo(
     () => ({
       min: clampDockPanelWidthPx(0),
@@ -350,14 +335,20 @@ export default function AppLiveTradeSideDock({
 
   const onResizePointerDown = useCallback(
     (e: PointerEvent<HTMLButtonElement>) => {
-      if (!open) return;
+      if (e.button !== 0) return;
       e.preventDefault();
       e.stopPropagation();
       e.currentTarget.setPointerCapture(e.pointerId);
-      resizeDragRef.current = { startX: e.clientX, startW: panelWidthPx };
+      const wasOpen = open;
+      if (!wasOpen) persistOpen(true);
+      resizeDragRef.current = {
+        startX: e.clientX,
+        startW: panelWidthPx,
+        wasOpen,
+      };
       setResizing(true);
     },
-    [open, panelWidthPx],
+    [open, panelWidthPx, persistOpen],
   );
 
   const onResizePointerMove = useCallback((e: PointerEvent<HTMLButtonElement>) => {
@@ -427,25 +418,31 @@ export default function AppLiveTradeSideDock({
       }${resizing ? " app-live-trade-side-dock--resizing" : ""}`}
       data-live-trade-side-dock
     >
-      {open ? (
-        <button
-          type="button"
-          className="app-live-trade-side-dock__resize-handle"
-          onPointerDown={onResizePointerDown}
-          onPointerMove={onResizePointerMove}
-          onPointerUp={finishResize}
-          onPointerCancel={finishResize}
-          aria-label={ko.app.liveTradeSideDockResize}
-          role="separator"
-          aria-orientation="vertical"
-          aria-valuemin={panelWidthBounds.min}
-          aria-valuemax={panelWidthBounds.max}
-          aria-valuenow={panelWidthPx}
-          title={ko.app.liveTradeSideDockResizeHint}
-        >
-          <DockResizeArrows />
-        </button>
-      ) : null}
+      <button
+        type="button"
+        className={[
+          "app-live-trade-side-dock__resize-handle",
+          open ? "" : "app-live-trade-side-dock__resize-handle--collapsed",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        onPointerDown={onResizePointerDown}
+        onPointerMove={onResizePointerMove}
+        onPointerUp={finishResize}
+        onPointerCancel={finishResize}
+        aria-label={
+          open ? ko.app.liveTradeSideDockResize : ko.app.liveTradeSideDockExpand
+        }
+        role={open ? "separator" : "button"}
+        aria-orientation={open ? "vertical" : undefined}
+        aria-valuemin={open ? panelWidthBounds.min : undefined}
+        aria-valuemax={open ? panelWidthBounds.max : undefined}
+        aria-valuenow={open ? panelWidthPx : undefined}
+        aria-expanded={open ? undefined : false}
+        title={
+          open ? ko.app.liveTradeSideDockResizeHint : ko.app.liveTradeSideDockExpand
+        }
+      />
       <div
         id="app-live-trade-side-dock-panel"
         className="app-live-trade-side-dock__panel"

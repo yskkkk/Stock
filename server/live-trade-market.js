@@ -4,7 +4,7 @@ import { getUsdKrwRate } from "./fx-usd-krw.js";
 /** @typedef {"kr" | "us" | "crypto"} LiveTradeMarket */
 
 /** 국내 주식 1회 매수 금액 하한(원) */
-export const KR_MIN_ORDER_KRW = 5_000;
+export const KR_MIN_ORDER_KRW = 10_000;
 /** 코인(빗썸 KRW) 1회 매수 금액 하한(원) */
 export const CRYPTO_MIN_ORDER_KRW = 10_000;
 
@@ -86,8 +86,12 @@ export async function resolveOrderAmountForMarket(program, market) {
   if (market === "crypto") {
     const usd = program.orderAmountUsd;
     if (usd != null && Number.isFinite(usd) && usd > 0) {
-      const { rate } = await getUsdKrwRate();
-      if (rate > 0) return Math.round(usd * rate);
+      try {
+        const { rate } = await getUsdKrwRate();
+        if (rate > 0) return Math.round(usd * rate);
+      } catch (e) {
+        console.warn("[live-trade:market] FX 조회 실패, KRW 금액으로 폴백:", e instanceof Error ? e.message : e);
+      }
     }
     return program.orderAmountKrw;
   }
