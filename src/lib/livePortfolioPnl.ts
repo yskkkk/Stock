@@ -127,6 +127,21 @@ export function portfolioReturnPct(
   return ((mkt - inv) / inv) * 100;
 }
 
+/** 보유 종목만 기준 현재 수익률(평가·매입 원가) */
+export function openHoldingsReturnPct(
+  holdings: LiveTradeHolding[],
+  usdKrwRate: number | null = null,
+): number | null {
+  if (holdings.length === 0) return null;
+  const { investedByCurrency, marketByCurrency } =
+    summarizeHoldingsPnl(holdings);
+  return portfolioReturnPct(
+    investedByCurrency,
+    marketByCurrency,
+    usdKrwRate,
+  );
+}
+
 export type PortfolioMetricLine = {
   id: string;
   text: string;

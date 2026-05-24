@@ -8,6 +8,7 @@ import { useLiveTradingStatusPoll } from "../hooks/useLiveTradingStatusPoll";
 import { ko } from "../i18n/ko";
 import { programDisplayStatus } from "../lib/liveProgramDisplay";
 import { formatPercent, formatPrice } from "../lib/format";
+import { openHoldingsReturnPct } from "../lib/livePortfolioPnl";
 import { peekLiveTradingPrefetch } from "../lib/tabPrefetch";
 
 const POLL_MS = 22_000;
@@ -338,10 +339,11 @@ function LiveTradingLeftRailPanelInner({
         const holdingCount = ret?.holdingCount ?? 0;
         const displayStatus = programDisplayStatus(p, holdingCount);
         const holdings = holdingsByProgram[p.id] ?? [];
+        const fromHoldings = openHoldingsReturnPct(holdings);
         return {
           program: p,
           displayStatus,
-          returnPct: ret?.totalReturnPct ?? null,
+          returnPct: fromHoldings ?? ret?.totalReturnPct ?? null,
           holdingCount,
           holdings,
         };

@@ -128,6 +128,7 @@ import {
 import {
   buildLiveTradePortfolioSnapshot,
   buildProgramPortfolioSummariesMap,
+  enrichProgramReturnsFromHoldings,
   purgeLiveTradeRecordsForProgramSync,
   recordLiveTradeSimBuyAsync,
   recordLiveTradeSimSellAsync,
@@ -506,8 +507,12 @@ export function createApp() {
       const bithumb = getBithumbTradingStatusForUserSync(userId);
       migrateLegacyProgramsToUserSync(userId);
       let programs = listLiveTradeProgramsSync(userId);
-      const programReturns = await buildProgramPortfolioSummariesMap(
+      let programReturns = await buildProgramPortfolioSummariesMap(
         programs.map((p) => p.id),
+        userId,
+      );
+      programReturns = await enrichProgramReturnsFromHoldings(
+        programReturns,
         userId,
       );
       programs = healStuckSimProgramErrorsSync(programs, programReturns);

@@ -584,6 +584,61 @@ export function buildOpenPositionsWithSellTargetsSync() {
 }
 
 /**
+ * 보유 종목(평가·매입) 기준 현재 수익률 — 실현손익·과거 체결 제외
+ * @param {object[]} holdings
+ */
+export function openReturnPctFromHoldings(holdings) {
+  let invested = 0;
+  let market = 0;
+  for (const h of holdings) {
+    const cost = Number(h.costBasis);
+    const mv = h.marketValue;
+    if (Number.isFinite(cost) && cost > 0) invested += cost;
+    if (mv != null && Number.isFinite(mv) && mv > 0) market += mv;
+  }
+  if (invested > 0 && market > 0) {
+    return ((market - invested) / invested) * 100;
+  }
+  let totalMv = 0;
+  let weighted = 0;
+  for (const h of holdings) {
+    const mv = h.marketValue;
+    const pct = h.changePct;
+    if (mv != null && mv > 0 && pct != null && Number.isFinite(pct)) {
+      totalMv += mv;
+      weighted += pct * mv;
+    }
+  }
+  if (totalMv > 0) return weighted / totalMv;
+  return null;
+}
+
+/**
+ * programReturns — portfolio 스냅샷 보유와 동일 기준으로 totalReturnPct 동기화
+ * @param {Record<string, { totalReturnPct: number | null; holdingCount: number }>} out
+ * @param {string} userId
+ */
+export async function enrichProgramReturnsFromHoldings(out, userId) {
+  const snap = await buildLiveTradePortfolioSnapshot({ userId });
+  /** @type {Map<string, object[]>} */
+  const byProgram = new Map();
+  for (const h of snap.holdings) {
+    const pid = String(h.programId ?? "").trim();
+    if (!pid) continue;
+    if (!byProgram.has(pid)) byProgram.set(pid, []);
+    byProgram.get(pid).push(h);
+  }
+  for (const [pid, holdings] of byProgram) {
+    const pct = openReturnPctFromHoldings(holdings);
+    if (pct == null || !Number.isFinite(pct)) continue;
+    if (!out[pid]) out[pid] = { totalReturnPct: null, holdingCount: 0 };
+    out[pid].totalReturnPct = pct;
+    out[pid].holdingCount = holdings.length;
+  }
+  return out;
+}
+
+/**
  * 프로그램 카드·상태 API용 — 종목 시세 1회 배치 조회
  * @param {string[]} programIds
  * @returns {Promise<Record<string, { totalReturnPct: number | null; holdingCount: number }>>}
@@ -639,9 +694,10 @@ export async function buildProgramPortfolioSummariesMap(programIds, userId) {
       if (cp != null) marketValueOpen += cp * pos.quantity;
     }
     const unrealizedPnl = marketValueOpen - data.investedOpen;
-    const totalPnl = data.realizedPnl + unrealizedPnl;
     let totalReturnPct =
-      data.totalBuyCost > 0 ? (totalPnl / data.totalBuyCost) * 100 : null;
+      data.investedOpen > 0
+        ? (unrealizedPnl / data.investedOpen) * 100
+        : null;
     if (totalReturnPct != null && !Number.isFinite(totalReturnPct)) {
       totalReturnPct = null;
     }
@@ -798,5 +854,10 @@ export async function buildLiveTradePortfolioSnapshot(opts = {}) {
   const { mergeBithumbExchangeHoldings } = await import(
     "./live-trade-bithumb-holdings.js"
   );
-  return mergeBithumbExchangeHoldings(snap, programs);
+  const merged = await mergeBithumbExchangeHoldings(snap, programs);
+  const openPct = openReturnPctFromHoldings(merged.holdings);
+  if (openPct != null && Number.isFinite(openPct)) {
+    merged.summary.totalReturnPct = openPct;
+  }
+  return merged;
 }
