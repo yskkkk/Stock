@@ -319,7 +319,9 @@ export function LiveTradeCardSidePanel({
 } = {}) {
   const { panel, openPanel, closePanel, bodyHostRef, sideTabs } =
     useLiveTradeCardSidePanel();
+  const { user } = useLiveTradeAuth();
   const { docked, host } = useLiveTradeRightPanelDock();
+  const railHeadLabel = user?.email?.trim() || "YSTOCK";
 
   useEffect(() => {
     if (!panel) return;
@@ -341,13 +343,11 @@ export function LiveTradeCardSidePanel({
       }${docked ? " live-trading-tab__card-tabs-pane--docked" : ""}${
         railMode ? " live-trading-tab__card-tabs-pane--rail" : ""
       }`}
-      aria-label={ko.app.liveTradeCardTabPaneAria}
+      aria-label={railMode ? railHeadLabel : ko.app.liveTradeCardTabPaneAria}
     >
       {railMode ? (
         <header className="live-trading-tab__card-tabs-rail-head">
-          <p className="live-trading-tab__card-tabs-rail-title">
-            {panel?.title ?? ko.app.liveTradeCardTabPaneAria}
-          </p>
+          <p className="live-trading-tab__card-tabs-rail-title">{railHeadLabel}</p>
           <button
             type="button"
             className="live-trading-tab__card-tabs-rail-close"
