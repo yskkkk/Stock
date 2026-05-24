@@ -1,4 +1,5 @@
 import { loadEnv } from "vite";
+import path from "path";
 import { installViteAccessTraceMiddleware } from "./access-log.js";
 import { startAutoGitSync } from "./auto-git-sync.js";
 import { createApp } from "./create-app.js";
@@ -15,7 +16,7 @@ import { installAccessGateHtmlMiddleware } from "./vite-access-gate-html.js";
 import { registerViteIntegratedRestart } from "./restart-node-process.js";
 import { clearViteRestartMarker } from "./vite-restart-marker.js";
 import { installViteMobileApkMiddleware } from "./mobile-apk-download.js";
-import { installViteMobileIosMiddleware } from "./mobile-ios-download.js";
+import { installServerOfflineHtmlMiddleware, writeServerOfflineHtmlForBuild } from "./vite-server-offline-html.js";
 
 function mergeStockProcessEnv(mode) {
   if (!process.env.NODE_ENV) {
@@ -34,6 +35,7 @@ function mergeStockProcessEnv(mode) {
     "TELEGRAM_CHAT_ID",
     "TELEGRAM_OPS_BOT_TOKEN",
     "TELEGRAM_OPS_CHAT_ID",
+    "SERVER_OPEN_CLIENT_TELEGRAM",
     "TELEGRAM_MIN_SCORE",
     "TELEGRAM_RESET_ADMIN_IPS",
     "ACCESS_ADMIN_IPS",
@@ -134,6 +136,7 @@ export function stockApiPlugin() {
       installViteMobileApkMiddleware(server.middlewares);
       installViteMobileIosMiddleware(server.middlewares);
       installAccessGateHtmlMiddleware(server);
+      installServerOfflineHtmlMiddleware(server);
       installViteAccessTraceMiddleware(server);
       attachStockApiMiddlewares(server);
       attachAutoGitSyncWhenListening(server);
@@ -150,10 +153,18 @@ export function stockApiPlugin() {
       installViteMobileApkMiddleware(server.middlewares);
       installViteMobileIosMiddleware(server.middlewares);
       installAccessGateHtmlMiddleware(server);
+      installServerOfflineHtmlMiddleware(server);
       installViteAccessTraceMiddleware(server);
       attachStockApiMiddlewares(server);
       migrateLegacyServerLogsSync();
       startStockDevSidecarsOnce("preview 서버 기동");
+    },
+    closeBundle() {
+      if (process.env.VITEST) return;
+      mergeStockProcessEnv(process.env.NODE_ENV === "production" ? "production" : "development");
+      const root = process.cwd();
+      const outDir = path.join(root, "dist");
+      writeServerOfflineHtmlForBuild(root, outDir);
     },
   };
 }

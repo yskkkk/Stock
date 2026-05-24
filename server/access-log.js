@@ -88,6 +88,8 @@ function shouldSkipAccessLog(req) {
   if (path === "/api/crypto-universe") return true;
   if (path === "/api/macro-events") return true;
   if (path === "/api/sector-earnings") return true;
+  if (path === "/api/health") return true;
+  if (path === "/api/server-open-request") return true;
   if (path === "/api/config") return true;
   if (path === "/api/access/status") return true;
   /** 운영 탭 이력·대기열 폴링 — 로그만 과다 */

@@ -38,6 +38,7 @@ import { getMarketIndices } from "./market-indices.js";
 import { searchCryptoForLiveTrade } from "./crypto-live-search.js";
 import { searchStocks } from "./stock-search.js";
 import { loadHotStocksByTurnover } from "./stock-search-hot.js";
+import { notifyServerOpenRequest } from "./server-open-request-notify.js";
 import { getMacroEventsCachedAsync } from "./macro-events.js";
 import { fetchSectorEarningsSpotlight } from "./sector-earnings-spotlight.js";
 import { postFeedback, getFeedbackInbox, postFeedbackAdminReply, deleteFeedbackAdmin } from "./feedback-inbox.js";
@@ -274,6 +275,27 @@ export function createApp() {
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true, atMs: Date.now() });
   });
+
+  app.post(
+    "/api/server-open-request",
+    asyncRoute(async (req, res) => {
+      try {
+        const origin =
+          String(req.headers.origin ?? "").trim() ||
+          String(req.headers.referer ?? "").trim() ||
+          String(req.get?.("host") ?? "").trim();
+        const result = await notifyServerOpenRequest({
+          origin,
+          userAgent: String(req.headers["user-agent"] ?? ""),
+          via: "api",
+        });
+        res.json(result);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "요청 실패";
+        res.status(502).json({ ok: false, error: message });
+      }
+    }),
+  );
 
   app.get(
     asyncRoute(async (_req, res) => {
