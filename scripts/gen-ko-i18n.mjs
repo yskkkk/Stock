@@ -11,7 +11,7 @@ const out = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "src",
 const t = {
   app: {
     title: "YSTOCK",
-    subtitle: "\uAD6D\uB0B4 300 \u00B7 \uB098\uC2A4\uB2E5 500",
+    subtitle: "\uAD6D\uB0B4 300 \u00B7 S&P 500",
     topBarFxLabel: "\uC6D0/\uB2EC\uB7EC",
     topBarFxAria:
       "\uC6D0\u00B7\uB2EC\uB7EC \uD658\uC728 (KST 09:00 \uAE30\uC900, \uC57D 20\uCD08\uB9C8\uB2E4 \uAC31\uC2E0)",
@@ -190,8 +190,6 @@ const t = {
     liveTradeBithumbItemExchangeOrders: "\uac70\ub798\uc18c \uc2e4\uc8fc\ubb38",
     liveTradeExchangeOrdersOn: "\ud5c8\uc6a9",
     liveTradeExchangeOrdersOff: "\ucc28\ub2e8(\uc2dc\ubbac\ub9cc)",
-    liveTradeBithumbProgramSimHint:
-      "\uac70\ub798\uc18c \uc2e4\uc8fc\ubb38\uc774 \uae30\uae30 \ucc28\ub2e8\ub418\uc5b4 \uc788\uc73c\uba74 \uc774 \ud504\ub85c\uadf8\ub7a8\ub3c4 \uc2dc\ubbac \uccb4\uacb0\ub9cc \uae30\ub85d\ud569\ub2c8\ub2e4.",
     liveTradeFeeLabel: "\uc218\uc218\ub958",
     liveTradeAuthTitle: "\uc2e4\ub9e4\ub9e4 \ub85c\uadf8\uc778",
     liveTradeAuthHint:
