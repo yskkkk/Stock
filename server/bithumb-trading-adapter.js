@@ -390,6 +390,32 @@ export async function fetchBithumbOrderWithCredentials(orderId, credentials) {
 }
 
 /**
+ * @param {BithumbCredentials} credentials
+ * @param {string} market e.g. KRW-BTC
+ * @param {{ limit?: number; orderBy?: "asc" | "desc" }} [opts]
+ */
+export async function listBithumbDoneOrdersWithCredentials(
+  credentials,
+  market,
+  opts = {},
+) {
+  const limit = Math.min(100, Math.max(1, Number(opts.limit) || 30));
+  const orderBy = opts.orderBy === "asc" ? "asc" : "desc";
+  const body = await bithumbPrivateRequestWithCredentials(
+    "GET",
+    "/v1/orders",
+    {
+      market: String(market ?? "").trim(),
+      state: "done",
+      limit,
+      order_by: orderBy,
+    },
+    credentials,
+  );
+  return Array.isArray(body) ? body : [];
+}
+
+/**
  * 주문 후 체결가·체결량 조회 (1회, 2초 대기).
  * @param {string} orderId
  * @param {BithumbCredentials} credentials

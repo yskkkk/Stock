@@ -134,6 +134,7 @@ import {
   recordLiveTradeSimSellAsync,
   recordLiveTradeSellSync,
 } from "./live-trade-portfolio-store.js";
+import { reconcileBithumbHoldingsForUser } from "./live-trade-bithumb-reconcile.js";
 import {
   analyzeSimProgramFeedback,
   applySimProgramFeedbackPatch,
@@ -804,6 +805,21 @@ export function createApp() {
           programName: nameById.get(t.programId) ?? t.programId,
         })),
       });
+    }),
+  );
+
+  app.post(
+    "/api/live-trading/reconcile-holdings",
+    requireUserAuth,
+    asyncRoute(async (req, res) => {
+      const userId = req.user.id;
+      const dryRun = req.body?.dryRun === true || req.query?.dryRun === "1";
+      const programId = String(req.body?.programId ?? req.query?.programId ?? "").trim() || undefined;
+      const result = await reconcileBithumbHoldingsForUser(userId, {
+        dryRun,
+        programId,
+      });
+      res.json(result);
     }),
   );
 
