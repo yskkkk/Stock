@@ -479,12 +479,24 @@ export async function listBithumbTradesFromExchangeApiForHistory(userId) {
   const seenOrder = new Set();
 
   for (const { sym, market } of marketByKey.values()) {
+    /** @type {object[]} */
     let orders = [];
     try {
-      orders = await listBithumbDoneOrdersWithCredentials(credentials, market, {
-        limit: 100,
-        orderBy: "desc",
-      });
+      for (let page = 1; page <= 8; page++) {
+        const batch = await listBithumbDoneOrdersWithCredentials(
+          credentials,
+          market,
+          { limit: 100, orderBy: "desc", page },
+        );
+        if (!batch.length) break;
+        orders.push(...batch);
+        if (batch.length < 100) break;
+        const last = batch[batch.length - 1];
+        const lastMs = Date.parse(
+          String(last?.created_at ?? last?.createdAt ?? ""),
+        );
+        if (Number.isFinite(lastMs) && lastMs < sinceMs) break;
+      }
     } catch (e) {
       liveTradeLogWarn(
         "[live-trade:history-api]",

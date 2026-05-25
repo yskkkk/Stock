@@ -540,15 +540,18 @@ export async function listBithumbDoneOrdersWithCredentials(
 ) {
   const limit = Math.min(100, Math.max(1, Number(opts.limit) || 30));
   const orderBy = opts.orderBy === "asc" ? "asc" : "desc";
+  const page = Math.max(1, Math.floor(Number(opts.page) || 1));
+  const params = {
+    market: String(market ?? "").trim(),
+    state: "done",
+    limit,
+    order_by: orderBy,
+  };
+  if (page > 1) params.page = page;
   const body = await bithumbPrivateRequestWithCredentials(
     "GET",
     "/v1/orders",
-    {
-      market: String(market ?? "").trim(),
-      state: "done",
-      limit,
-      order_by: orderBy,
-    },
+    params,
     credentials,
   );
   return Array.isArray(body) ? body : [];

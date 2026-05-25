@@ -202,18 +202,26 @@ export default function App() {
     useState<LiveTradeTradesExchange | null>(null);
 
   useEffect(() => {
+    if (appTab === "tradeHistory") {
+      setAccountTradesExchange(null);
+    }
+  }, [appTab]);
+
+  useEffect(() => {
     const onTradesWorkspace = (e: Event) => {
       const state = readLiveTradeTradesWorkspaceEvent(e);
       if (!state || state.mode !== "history") {
         setAccountTradesExchange(null);
         return;
       }
+      setAppTab((tab) => {
+        if (tab === "tradeHistory") return tab;
+        if (tab === "liveTrading" || tab === "ops" || tab === "crypto") {
+          return "stockLookup";
+        }
+        return tab;
+      });
       setAccountTradesExchange(state.exchange);
-      setAppTab((tab) =>
-        tab === "liveTrading" || tab === "ops" || tab === "crypto"
-          ? "stockLookup"
-          : tab,
-      );
     };
     window.addEventListener(LIVE_TRADE_TRADES_WORKSPACE_EVENT, onTradesWorkspace);
     return () =>
@@ -1422,7 +1430,7 @@ export default function App() {
       ) : appTab === "recommendations" ? (
         <RecommendationsTab onOpenPick={handleSelect} />
       ) : appTab === "tradeHistory" ? (
-        <TradeHistoryTab />
+        <TradeHistoryTab onOpenHoldingChart={handleLiveTradeChart} />
       ) : appTab === "liveTrading" ? (
         <div className="live-trade-tab-root">
           <LiveTradingTab
@@ -1596,7 +1604,10 @@ export default function App() {
           className="chart-section crypto-chart-section"
         >
           {accountTradesExchange ? (
-            <LiveAccountTradesMainPanel exchange={accountTradesExchange} />
+            <LiveAccountTradesMainPanel
+              exchange={accountTradesExchange}
+              onOpenHoldingChart={handleLiveTradeChart}
+            />
           ) : !workspacePick ? (
             <div className="chart-placeholder card">
               <div className="placeholder-icon" aria-hidden>

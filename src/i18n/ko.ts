@@ -376,6 +376,7 @@ export const ko = {
     liveTradeLiveRunEmpty: "가동 중인 실매매가 없습니다. «실매매 시작»으로 켠 뒤 «실매매 중지»로 끕니다.",
     liveTradeLiveRunTitle: "실매매",
     liveTradePfColBuyPrice: "구매가",
+    liveTradePfColCostBasis: "매수금액",
     liveTradePfColRealizedPnl: "실현 손익",
     liveTradePfColRealizedPnlPct: "손익률",
     liveTradePfColSellPrice: "판매가",

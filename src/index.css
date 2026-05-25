@@ -10432,27 +10432,35 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   align-self: flex-start;
 }
 
-/* 거래내역 탭·계좌 체결 — 스크리너 380px 좌열 그리드 대신 전폭 */
-.trade-history-workspace,
-.workspace.workspace--account-trades {
-  grid-template-columns: 1fr !important;
+/* 거래내역 탭 — 스크리너 380px 좌열 그리드 대신 전폭 */
+.trade-history-workspace {
+  display: flex !important;
+  flex-direction: column;
+  grid-template-columns: none !important;
   width: 100%;
   max-width: 100%;
   align-self: stretch;
-  min-height: min(78dvh, 720px);
+  min-height: min(72dvh, 680px);
+}
+
+/* 종목검색·스크리너에서 계좌 체결 — 목록은 유지, 아래 체결 패널 확장 */
+.workspace.workspace--account-trades {
+  display: flex !important;
+  flex-direction: column;
+  grid-template-columns: none !important;
+  width: 100%;
+  max-width: 100%;
 }
 
 .workspace.workspace--account-trades .picks-panel:not(.crypto-panel) {
-  display: none;
+  flex: 0 1 auto;
+  max-height: min(36dvh, 320px);
 }
 
 .workspace.workspace--account-trades .chart-section.crypto-chart-section {
-  grid-column: 1;
-  min-height: min(76dvh, 700px);
-}
-
-.trade-history-workspace {
-  min-height: min(78dvh, 720px);
+  flex: 1 1 auto;
+  min-height: min(58dvh, 560px);
+  width: 100%;
 }
 
 .trade-history-workspace__panel {
