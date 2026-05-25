@@ -466,7 +466,12 @@ export default function AccessAdminModal({
                 role="tab"
                 aria-selected={tab === "liveTrade"}
                 className={`access-admin-tab${tab === "liveTrade" ? " access-admin-tab--active" : ""}`}
-                onClick={() => setTab("liveTrade")}
+                onClick={() => {
+                  setLiveTradeErr(null);
+                  setLiveTradeData(null);
+                  setTab("liveTrade");
+                  setLiveTradeRefreshKey((k) => k + 1);
+                }}
               >
                 {ko.access.adminTabLiveTrade}
               </button>
