@@ -22,7 +22,7 @@ import { ko } from "../i18n/ko";
 const LIGHT_PALETTE_ARIA: Record<LightPaletteId, string> = {
   amber: ko.app.lightPaletteAmber,
   ocean: ko.app.lightPaletteOcean,
-  slate: ko.app.lightPaletteSlate,
+  forest: ko.app.lightPaletteForest,
 };
 
 type AppThemeCornerProps = {
