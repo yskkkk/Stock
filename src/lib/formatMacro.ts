@@ -36,14 +36,20 @@ const MACRO_CARD_GRADIENT_MAX_DAYS = 10;
 const MS_PER_DAY = 86_400_000;
 
 /**
- * 지표 카드 배경 농도 0~1.
- * 10일 초과: 0(기본). 10일~당일: 하루 가까울수록 +10%(10일=0.1 … 당일=1).
+ * 지표 카드 배경 농도 0~1 (CSS `--macro-near`).
+ * 10일 초과: 0. 10일~당일: 일수당 +10% 선형(10일=0.1 … 당일=1)을
+ * 0.34~1로 재매핑 — 10% 구간에서도 배경 차이가 보이게.
  */
 export function macroCardNearness(msLeft: number): number {
   if (msLeft <= 0) return 1;
   const days = Math.floor(msLeft / MS_PER_DAY);
   if (days > MACRO_CARD_GRADIENT_MAX_DAYS) return 0;
-  return Math.min(1, (MACRO_CARD_GRADIENT_MAX_DAYS + 1 - days) * 0.1);
+  const linear = Math.min(
+    1,
+    (MACRO_CARD_GRADIENT_MAX_DAYS + 1 - days) * 0.1,
+  );
+  const VISUAL_FLOOR = 0.34;
+  return VISUAL_FLOOR + ((linear - 0.1) / 0.9) * (1 - VISUAL_FLOOR);
 }
 
 function calendarDateKeyInTz(ms: number, timeZone: string): string {

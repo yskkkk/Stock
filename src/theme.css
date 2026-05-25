@@ -195,16 +195,16 @@ html[data-theme="light"] .top-bar__macro::after {
 }
 
 html[data-theme="light"] .macro-card {
-  --macro-card-fill: color-mix(in srgb, #334155 10%, var(--surface));
+  --macro-card-fill: color-mix(in srgb, #334155 32%, var(--surface));
   background: color-mix(
     in srgb,
-    var(--macro-card-fill) calc(var(--macro-near) * 82%),
-    transparent
+    var(--macro-card-fill) calc(var(--macro-near) * 100%),
+    var(--surface)
   );
   border: 1px solid color-mix(
     in srgb,
-    rgba(15, 23, 42, 0.14) calc(var(--macro-near) * 50%),
-    transparent
+    rgba(15, 23, 42, 0.32) calc(var(--macro-near) * 78%),
+    var(--card-border)
   );
   box-shadow: none;
 }

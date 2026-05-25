@@ -128,7 +128,7 @@
 }
 .macro-card {
   --macro-near: 0;
-  --macro-card-fill: color-mix(in srgb, var(--warn) 22%, var(--surface));
+  --macro-card-fill: color-mix(in srgb, var(--warn) 42%, var(--surface));
   position: relative;
   flex: 0 0 auto;
   width: min(148px, 42vw);
@@ -136,13 +136,13 @@
   scroll-snap-align: start;
   background: color-mix(
     in srgb,
-    var(--macro-card-fill) calc(var(--macro-near) * 78%),
-    transparent
+    var(--macro-card-fill) calc(var(--macro-near) * 100%),
+    var(--surface)
   );
   border: 1px solid color-mix(
     in srgb,
-    var(--card-border) calc(var(--macro-near) * 55%),
-    transparent
+    var(--warn) calc(var(--macro-near) * 52%),
+    var(--card-border)
   );
   border-radius: var(--radius-sm);
   transition:
