@@ -9689,6 +9689,7 @@ html:not([data-theme="light"]) {
   overflow: visible;
 }
 
+.app-live-trade-side-dock__rail-label--stacked,
 .app-live-trade-side-dock__rail-label--bithumb {
   display: flex;
   flex-direction: column;

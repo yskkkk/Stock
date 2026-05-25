@@ -58,7 +58,7 @@ function DockApiRailButton({
   anchorRef: RefObject<HTMLSpanElement | null>;
   onClick: () => void;
 }) {
-  const label =
+  const labelMain =
     exchange === "toss"
       ? ko.app.liveTradeSideDockRailTossApi
       : ko.app.liveTradeSideDockRailBithumbApi;
@@ -93,21 +93,9 @@ function DockApiRailButton({
         >
           <ExchangeBrandMark exchange={exchange} ready={ready} />
         </span>
-        <span
-          className={
-            exchange === "bithumb"
-              ? "app-live-trade-side-dock__rail-label app-live-trade-side-dock__rail-label--bithumb"
-              : "app-live-trade-side-dock__rail-label"
-          }
-        >
-          {exchange === "bithumb" ? (
-            <>
-              <span className="app-live-trade-side-dock__rail-label-main">빗썸</span>
-              <span className="app-live-trade-side-dock__rail-label-sub">API</span>
-            </>
-          ) : (
-            label
-          )}
+        <span className="app-live-trade-side-dock__rail-label app-live-trade-side-dock__rail-label--stacked">
+          <span className="app-live-trade-side-dock__rail-label-main">{labelMain}</span>
+          <span className="app-live-trade-side-dock__rail-label-sub">API</span>
         </span>
       </button>
     </span>
