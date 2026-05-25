@@ -611,6 +611,7 @@ export const ko = {
     retry: "다시 시도",
     marketKr: "국내",
     marketUs: "나스닥",
+    marketCrypto: "코인",
     bullishHint: "골든크로스·일목·정배열 등 상승 신호가 강한 종목",
     reason: "이유",
     reasonSuffix: "로 근거 확인",
