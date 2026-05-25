@@ -247,6 +247,8 @@ export const ko = {
     liveTradeSideDockResize: "패널 너비",
     liveTradeSideDockResizeHint: "드래그하여 너비 조절",
     liveTradeSideDockOpenApi: "API·키 설정",
+    liveTradeSideDockRailTossApi: "토스",
+    liveTradeSideDockRailBithumbApi: "빗썸",
     footerInquiry: "문의",
     footerInquiryPlaceholder: "문의 내용을 적어 주세요…",
     footerInquiryTitle: "문의하기",

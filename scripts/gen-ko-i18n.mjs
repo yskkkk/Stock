@@ -277,6 +277,8 @@ const t = {
     liveTradeSideDockResize: "\ud328\ub110 \ub108\ube44",
     liveTradeSideDockResizeHint: "\ub4dc\ub798\uadf8\ud558\uc5ec \ub108\ube44 \uc870\uc808",
     liveTradeSideDockOpenApi: "API\u00b7\ud0a4 \uc124\uc815",
+    liveTradeSideDockRailTossApi: "\ud1a0\uc2a4",
+    liveTradeSideDockRailBithumbApi: "\ube57\uc378",
     footerInquiry: "\ubb38\uc758",
     footerInquiryPlaceholder: "\ubb38\uc758 \ub0b4\uc6a9\uc744 \uc801\uc5b4 \uc8fc\uc138\uc694\u2026",
     footerInquiryTitle: "\ubb38\uc758\ud558\uae30",

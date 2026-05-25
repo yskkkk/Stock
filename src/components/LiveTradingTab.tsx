@@ -22,6 +22,7 @@ import {
   type TechModelRecord,
 } from "../api";
 import LiveSimRunningPanel from "./LiveSimRunningPanel";
+import LiveTradeRegisteredProgramCard from "./LiveTradeRegisteredProgramCard";
 import LiveSimRecommendationsPanel, {
   type LiveSimDraftPatch,
 } from "./LiveSimRecommendationsPanel";
@@ -36,10 +37,7 @@ import { LIVE_TRADE_DOCK_OPEN_FORM_EVENT } from "../lib/liveTradeDockEvents";
 import { invalidateLiveTradingPrefetch, peekLiveTradingPrefetch } from "../lib/tabPrefetch";
 import { formatPercent } from "../lib/format";
 import LiveTradeAuthPanel, {
-  LiveTradeApiCollapsibleCard,
-  LiveTradeBithumbCredentialForm,
   LiveTradeCardSidePanelInline,
-  LiveTradeTossCredentialForm,
   LiveTradeCollapsibleCard,
   notifyLiveTradeAuthChange,
   useLiveTradeAuth,
@@ -611,8 +609,6 @@ export default function LiveTradingTab({
     [reload],
   );
 
-  const toss = status?.toss;
-  const bithumb = status?.bithumb;
   const showCardDock = portalSourceOnly || !hideCardDock;
 
   return (
@@ -659,91 +655,6 @@ export default function LiveTradingTab({
             void refreshAuth().then((nextUser) => reload(nextUser));
           }}
         />
-      ) : null}
-
-      {!portalSourceOnly ? (
-      <div
-        className="live-trading-tab__api-row"
-        aria-label={ko.app.liveTradeApiRowAria}
-      >
-        <LiveTradeApiCollapsibleCard
-          title={ko.app.liveTradeTossTitle}
-          variant={
-            toss?.ready ? "ready" : toss?.configured ? "partial" : "off"
-          }
-          summary={toss?.messageKo ?? "—"}
-        >
-          <ul className="live-trading-tab__toss-env" aria-label={ko.app.liveTradeTossChecklist}>
-            <li>
-              <span>{ko.app.liveTradeTossItemApi}</span>
-              <span className="live-trading-tab__toss-state">
-                {toss?.configured ? ko.app.liveTradeTossOk : ko.app.liveTradeTossNo}
-              </span>
-            </li>
-            <li>
-              <span>{ko.app.liveTradeTossItemAccount}</span>
-              <span className="live-trading-tab__toss-state">
-                {toss?.ready ? ko.app.liveTradeTossOk : ko.app.liveTradeTossNo}
-              </span>
-            </li>
-            <li>
-              <span>{ko.app.liveTradeTossItemOrders}</span>
-              <span className="live-trading-tab__toss-state">
-                {status?.tossSimulatedOrders === false
-                  ? ko.app.liveTradeTossOk
-                  : ko.app.liveTradeTossSim}
-              </span>
-            </li>
-          </ul>
-          {user ? (
-            <LiveTradeTossCredentialForm
-              userId={user.id}
-              tossReady={Boolean(toss?.ready)}
-              cryptoReady={status?.credentialsCryptoReady !== false}
-              onUpdated={() => void reload()}
-            />
-          ) : null}
-        </LiveTradeApiCollapsibleCard>
-
-        <LiveTradeApiCollapsibleCard
-          title={ko.app.liveTradeBithumbTitle}
-          variant={
-            bithumb?.ready ? "ready" : bithumb?.configured ? "partial" : "off"
-          }
-          summary={bithumb?.messageKo ?? "—"}
-        >
-          <ul
-            className="live-trading-tab__toss-env"
-            aria-label={ko.app.liveTradeBithumbChecklist}
-          >
-            <li>
-              <span>{ko.app.liveTradeBithumbItemKey}</span>
-              <span className="live-trading-tab__toss-state">
-                {bithumb?.configured ? ko.app.liveTradeTossOk : ko.app.liveTradeTossNo}
-              </span>
-            </li>
-            <li>
-              <span>{ko.app.liveTradeBithumbItemSecret}</span>
-              <span className="live-trading-tab__toss-state">
-                {bithumb?.ready ? ko.app.liveTradeTossOk : ko.app.liveTradeTossNo}
-              </span>
-            </li>
-          </ul>
-          {status?.feeRates?.bithumb?.labelKo ? (
-            <p className="live-trading-tab__hint live-trading-tab__fee-hint">
-              {ko.app.liveTradeFeeLabel}: {status.feeRates.bithumb.labelKo}
-            </p>
-          ) : null}
-          {user ? (
-            <LiveTradeBithumbCredentialForm
-              userId={user.id}
-              bithumbReady={Boolean(bithumb?.ready)}
-              cryptoReady={status?.credentialsCryptoReady !== false}
-              onUpdated={() => void reload()}
-            />
-          ) : null}
-        </LiveTradeApiCollapsibleCard>
-      </div>
       ) : null}
 
       {user ? (
@@ -1147,165 +1058,23 @@ export default function LiveTradingTab({
                 const holdingCount = ret?.holdingCount ?? 0;
                 const displayStatus = programDisplayStatus(p, holdingCount);
                 const returnPct = ret?.totalReturnPct;
-                const returnClass =
-                  returnPct == null
-                    ? "live-trading-tab__program-return-val"
-                    : returnPct >= 0
-                      ? "live-trading-tab__program-return-val live-trading-tab__program-return-val--up"
-                      : "live-trading-tab__program-return-val live-trading-tab__program-return-val--down";
                 return (
-                  <li
-                    key={p.id}
-                    className={`live-trading-tab__program live-trading-tab__program--${displayStatus}`}
-                  >
-                    <div className="live-trading-tab__program-head">
-                      <strong>{p.name}</strong>
-                      <span
-                        className={`live-trading-tab__badge live-trading-tab__badge--${displayStatus}`}
-                      >
-                        {statusLabel(displayStatus)}
-                      </span>
-                    </div>
-                    <p className="live-trading-tab__program-meta">
-                      {ko.app.liveTradeFieldModel}: {model?.name ?? p.modelId}
-                    </p>
-                    <p className="live-trading-tab__program-meta">
-                      {[
-                        p.markets.kr ? ko.app.liveTradeMarketKr : "",
-                        p.markets.us ? ko.app.liveTradeMarketUs : "",
-                        p.markets.crypto ? ko.app.liveTradeMarketCrypto : "",
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                      {" · "}
-                      {ko.app.liveTradeMinScoreShort}: {Math.round(p.minScoreRatio * 100)}%
-                    </p>
-                    <p className="live-trading-tab__program-meta">
-                      {p.markets.kr
-                        ? `${krwAmountFieldLabel(p.markets.crypto && !p.markets.us)}: ${formatMoney(p.orderAmountKrw, "krw")}`
-                        : ""}
-                      {p.markets.crypto && !p.markets.us && !p.markets.kr
-                        ? `${ko.app.liveTradeFieldAmountCrypto}: ${
-                            p.orderAmountKrw != null
-                              ? formatMoney(p.orderAmountKrw, "krw")
-                              : p.orderAmountUsd != null
-                                ? formatMoney(p.orderAmountUsd, "usd")
-                                : "—"
-                          }`
-                        : ""}
-                      {p.markets.us
-                        ? `${p.markets.kr ? " · " : ""}${usdAmountFieldLabel(p.markets.us, p.markets.crypto)}: ${
-                            formatMoney(p.orderAmountUsd, "usd")
-                          }`
-                        : ""}
-                    </p>
-                    <p className="live-trading-tab__program-meta live-trading-tab__program-return">
-                      {ko.app.liveTradeCurrentReturn}:{" "}
-                      <span className={returnClass}>
-                        {formatPercent(returnPct ?? undefined)}
-                      </span>
-                    </p>
-                    {showProgramRunError(p, holdingCount) ? (
-                      <p className="live-trading-tab__program-err">{p.lastError}</p>
-                    ) : null}
-                    <p className="live-trading-tab__program-ts">
-                      {p.status === "armed" && p.armedAtMs
-                        ? `${ko.app.liveTradeArmedAt}: ${formatTs(p.armedAtMs)}`
-                        : null}
-                      {p.lastRunAtMs
-                        ? ` · ${ko.app.liveTradeLastRun}: ${formatTs(p.lastRunAtMs)}`
-                        : null}
-                    </p>
-                    <div className="live-trading-tab__program-actions">
-                      {p.status === "sim" ? (
-                        <button
-                          type="button"
-                          className="btn btn--secondary btn--sm"
-                          disabled={busy}
-                          onClick={() => void handleSimStop(p.id)}
-                        >
-                          {ko.app.liveTradeSimStop}
-                        </button>
-                      ) : p.status === "armed" ? (
-                        <>
-                          <button
-                            type="button"
-                            className="btn btn--secondary btn--sm"
-                            disabled={busy}
-                            onClick={() => void handleDisarm(p.id)}
-                          >
-                            {ko.app.liveTradeDisarm}
-                          </button>
-                          {showArmLaneButton(p, "bithumb") ? (
-                            <button
-                              type="button"
-                              className="btn btn--secondary btn--sm"
-                              disabled={busy}
-                              onClick={() => void handleArmLane(p.id, "bithumb")}
-                            >
-                              {ko.app.liveTradeArmBithumb}
-                            </button>
-                          ) : null}
-                          {showArmLaneButton(p, "toss") ? (
-                            <button
-                              type="button"
-                              className="btn btn--secondary btn--sm"
-                              disabled={busy}
-                              onClick={() => void handleArmLane(p.id, "toss")}
-                            >
-                              {ko.app.liveTradeArmToss}
-                            </button>
-                          ) : null}
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            className="btn btn--primary btn--sm"
-                            disabled={busy}
-                            onClick={() => void handleSimStart(p.id)}
-                          >
-                            {ko.app.liveTradeSimStart}
-                          </button>
-                          {showArmLaneButton(p, "bithumb") ? (
-                            <button
-                              type="button"
-                              className="btn btn--secondary btn--sm"
-                              disabled={busy}
-                              onClick={() => void handleArmLane(p.id, "bithumb")}
-                            >
-                              {ko.app.liveTradeArmBithumb}
-                            </button>
-                          ) : null}
-                          {showArmLaneButton(p, "toss") ? (
-                            <button
-                              type="button"
-                              className="btn btn--secondary btn--sm"
-                              disabled={busy}
-                              onClick={() => void handleArmLane(p.id, "toss")}
-                            >
-                              {ko.app.liveTradeArmToss}
-                            </button>
-                          ) : null}
-                        </>
-                      )}
-                      <button
-                        type="button"
-                        className="btn btn--ghost btn--sm"
-                        disabled={busy}
-                        onClick={() => loadProgramToForm(p)}
-                      >
-                        {ko.app.liveTradeEdit}
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn--ghost btn--sm"
-                        disabled={busy}
-                        onClick={() => void handleDelete(p.id, p.name)}
-                      >
-                        {ko.app.liveTradeDelete}
-                      </button>
-                    </div>
+                  <li key={p.id}>
+                    <LiveTradeRegisteredProgramCard
+                      program={p}
+                      model={model}
+                      displayStatus={displayStatus}
+                      returnPct={returnPct}
+                      holdingCount={holdingCount}
+                      busy={busy}
+                      showArmLaneButton={(lane) => showArmLaneButton(p, lane)}
+                      onSimStop={() => void handleSimStop(p.id)}
+                      onDisarm={() => void handleDisarm(p.id)}
+                      onSimStart={() => void handleSimStart(p.id)}
+                      onArmLane={(lane) => void handleArmLane(p.id, lane)}
+                      onEdit={() => loadProgramToForm(p)}
+                      onDelete={() => void handleDelete(p.id, p.name)}
+                    />
                   </li>
                 );
               })}

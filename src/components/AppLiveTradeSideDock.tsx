@@ -13,6 +13,7 @@ import {
 import { createPortal } from "react-dom";
 import { logoutAuth } from "../api";
 import { FeedbackDockRailButton, type FeedbackCornerHandle } from "./FeedbackCorner";
+import LiveTradeDockApiRail from "./LiveTradeDockApiRail";
 import { useDesktopDockLayout } from "../hooks/useDesktopDockLayout";
 import { refreshLiveTradingStatusNow } from "../hooks/useLiveTradingStatusPoll";
 import { invalidateLiveTradingPrefetch } from "../lib/tabPrefetch";
@@ -672,7 +673,10 @@ export default function AppLiveTradeSideDock({
     : authPopoverOpen;
   const onAuthRailClick = () => {
     if (user) handleLogout();
-    else setAuthPopoverOpen((v) => !v);
+    else {
+      setAuthPopoverOpen((v) => !v);
+      window.dispatchEvent(new CustomEvent("live-trade-dock-close-api-popover"));
+    }
   };
 
   return (
@@ -767,6 +771,13 @@ export default function AppLiveTradeSideDock({
         })}
         </div>
         <div className="app-live-trade-side-dock__rail-footer">
+          {user ? (
+            <LiveTradeDockApiRail
+              user={user}
+              onCredentialsUpdated={onDockAuthChange}
+              onPopoverOpen={() => setAuthPopoverOpen(false)}
+            />
+          ) : null}
           <span
             ref={authAnchorRef}
             className="app-live-trade-side-dock__auth-anchor"
