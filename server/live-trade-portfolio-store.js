@@ -15,6 +15,8 @@ import {
 } from "./exchange-trading-fees.js";
 import { cryptoYahooUsdtDisplayName } from "./crypto-display-names.js";
 import { getLiveTradeProgramSync } from "./live-trade-programs-store.js";
+import { isBoxRangeProgram } from "./box-range/constants.js";
+import { countOpenBoxLotsSync } from "./box-range/store.js";
 import { listLiveTradeProgramsSync } from "./live-trade-programs-store.js";
 import {
   liveTradeCurrency,
@@ -60,6 +62,8 @@ const DEFAULT_ONE_WAY_FEE_RATE = DEFAULT_ROUND_TRIP_FEE_RATE / 2;
  *   buyScore: number | null;
  *   buySignalIds: string[];
  *   entryPrice: number | null;
+ *   boxId: string | null;
+ *   boxTimeframe: string | null;
  *   atMs: number;
  * }} LiveTradeRecord
  */
@@ -249,6 +253,14 @@ function normalizeTrade(raw) {
       Number.isFinite(o.entryPrice) &&
       o.entryPrice > 0
         ? o.entryPrice
+        : null,
+    boxId:
+      typeof o.boxId === "string" && o.boxId.trim()
+        ? o.boxId.trim().slice(0, 64)
+        : null,
+    boxTimeframe:
+      typeof o.boxTimeframe === "string" && o.boxTimeframe.trim()
+        ? o.boxTimeframe.trim().slice(0, 8)
         : null,
     atMs:
       typeof o.atMs === "number" && Number.isFinite(o.atMs) && o.atMs > 0
@@ -445,15 +457,23 @@ export function recordLiveTradeBuySync(
   if (quantity <= 0) return null;
 
   const store = readStoreSync();
-  const { positions } = buildPositionsFromTrades(store.trades, program.id);
-  if (positions.length >= program.maxOpenPositions) {
-    const already = positions.some(
-      (p) => p.symbol === symbol && p.market === market,
-    );
-    if (!already) {
+  if (isBoxRangeProgram(program)) {
+    if (countOpenBoxLotsSync(program.id) >= program.maxOpenPositions) {
       throw new Error(
-        `최대 보유 종목 수(${program.maxOpenPositions})에 도달했습니다.`,
+        `최대 동시 박스 포지션(${program.maxOpenPositions})에 도달했습니다.`,
       );
+    }
+  } else {
+    const { positions } = buildPositionsFromTrades(store.trades, program.id);
+    if (positions.length >= program.maxOpenPositions) {
+      const already = positions.some(
+        (p) => p.symbol === symbol && p.market === market,
+      );
+      if (!already) {
+        throw new Error(
+          `최대 보유 종목 수(${program.maxOpenPositions})에 도달했습니다.`,
+        );
+      }
     }
   }
 
@@ -495,6 +515,18 @@ export function recordLiveTradeBuySync(
     buySignalIds: Array.isArray(pick.signalIds)
       ? pick.signalIds.map((x) => String(x ?? "").trim()).filter(Boolean)
       : [],
+    boxId:
+      typeof pick.boxId === "string" && pick.boxId.trim()
+        ? pick.boxId.trim()
+        : typeof orderMeta.boxId === "string" && orderMeta.boxId.trim()
+          ? orderMeta.boxId.trim()
+          : null,
+    boxTimeframe:
+      typeof pick.boxTimeframe === "string" && pick.boxTimeframe.trim()
+        ? pick.boxTimeframe.trim()
+        : typeof orderMeta.boxTimeframe === "string" && orderMeta.boxTimeframe.trim()
+          ? orderMeta.boxTimeframe.trim()
+          : null,
     atMs: tradeAtMs,
   });
   if (!trade) return null;
@@ -506,7 +538,7 @@ export function recordLiveTradeBuySync(
 /**
  * @param {import("./live-trade-programs-store.js").LiveTradeProgram} program
  * @param {object} pick
- * @param {{ simulated?: boolean; orderId?: string; atMs?: number }} [orderMeta]
+ * @param {{ simulated?: boolean; orderId?: string; atMs?: number; boxId?: string; boxTimeframe?: string }} [orderMeta]
  */
 export async function recordLiveTradeBuyAsync(program, pick, orderMeta = {}) {
   const symbol = String(pick.symbol ?? "").trim().toUpperCase();
@@ -517,7 +549,21 @@ export async function recordLiveTradeBuyAsync(program, pick, orderMeta = {}) {
   let targets = null;
   const uid = String(program.userId ?? "").trim();
   const roundTripFeeRate = getRoundTripFeeRateForUserMarketSync(uid, market);
-  if (program.autoSellAtTarget !== false && symbol && Number.isFinite(price) && price > 0) {
+  const boxId = String(orderMeta.boxId ?? pick.boxId ?? "").trim();
+  if (boxId) {
+    targets = {
+      targetSellPrice: null,
+      stopLossPrice: null,
+      exitScenarioNote: `box:${boxId}`,
+      entryKind: `box:${orderMeta.boxTimeframe ?? pick.boxTimeframe ?? "?"}`,
+      entryStructureNote: "박스권",
+    };
+  } else if (
+    program.autoSellAtTarget !== false &&
+    symbol &&
+    Number.isFinite(price) &&
+    price > 0
+  ) {
     targets = await resolveLiveTradeExitTargets(symbol, price, {
       market,
       signalIds: pick.signalIds,
@@ -619,6 +665,9 @@ export function recordLiveTradeSellSync(input, userId) {
   if (quantity <= 0) throw new Error("매도 수량이 올바르지 않습니다.");
 
   const avgEntry = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+  const customEntry = Number(input.entryPrice);
+  const entryForSell =
+    Number.isFinite(customEntry) && customEntry > 0 ? customEntry : avgEntry;
   const uid = String(userId ?? "").trim();
   const oneWayFee = getOneWayFeeRateForUserMarketSync(uid, market);
   const sellAmount = quantity * price;
@@ -634,7 +683,15 @@ export function recordLiveTradeSellSync(input, userId) {
     price,
     amount: sellAmount,
     feeAmount: sellAmount * oneWayFee,
-    entryPrice: avgEntry > 0 ? avgEntry : null,
+    entryPrice: entryForSell > 0 ? entryForSell : null,
+    boxId:
+      typeof input.boxId === "string" && input.boxId.trim()
+        ? input.boxId.trim()
+        : null,
+    boxTimeframe:
+      typeof input.boxTimeframe === "string" && input.boxTimeframe.trim()
+        ? input.boxTimeframe.trim()
+        : null,
     note: input.note ?? null,
     simulated: Boolean(input.simulated),
     orderId: input.orderId ?? null,

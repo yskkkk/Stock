@@ -1042,6 +1042,24 @@ export interface LiveTradingStatusResponse {
   feeRates?: LiveTradingFeeRates;
 }
 
+export interface BoxRangeOverlayBox {
+  boxId: string;
+  top: number;
+  bottom: number;
+  mid: number;
+  timeframe: string;
+  state: string;
+  leftTime: number;
+  rightTime: number;
+}
+
+export function fetchBoxRangeOverlay(symbol: string) {
+  const q = new URLSearchParams({ symbol: symbol.trim().toUpperCase() });
+  return fetchJson<{ symbol: string; boxes: BoxRangeOverlayBox[] }>(
+    `/api/box-range/overlay?${q}`,
+  );
+}
+
 export function fetchLiveTradingStatus() {
   return fetchJson<LiveTradingStatusResponse>("/api/live-trading/status");
 }
@@ -1300,6 +1318,8 @@ export interface LiveTradeRecord {
   note: string | null;
   /** 매도 체결 시점 평균 매입 단가 */
   entryPrice?: number | null;
+  boxId?: string | null;
+  boxTimeframe?: string | null;
   atMs: number;
   /** 빗썸 체결·텔레그램 첫 알림 이후 가져온 거래 */
   exchangeImport?: boolean;

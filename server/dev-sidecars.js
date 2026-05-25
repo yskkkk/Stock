@@ -5,6 +5,7 @@ import { appendServerEventLog } from "./access-log.js";
 import { startDevQueueDisplaySyncPoller } from "./ops-dev-queue-display-sync.js";
 import { startOpsIdeTranscriptPoller } from "./ops-ide-transcript-poller.js";
 import { startLiveTradeAutoSellPoller } from "./live-trade-auto-sell.js";
+import { startBoxRangeRunnerPoller } from "./box-range/runner.js";
 import { startLiveTradeExchangeSyncPoller } from "./live-trade-exchange-sync.js";
 import { startOpsFileDevPoller } from "./ops-file-dev-poller.js";
 import { startServerSelfImprovementWatcher } from "./server-self-improvement-log.js";
@@ -29,6 +30,7 @@ export function startStockDevSidecarsOnce(modeLabel) {
   startOpsIdeTranscriptPoller();
   startLiveTradeExchangeSyncPoller();
   startLiveTradeAutoSellPoller();
+  startBoxRangeRunnerPoller();
   startOpsFileDevPoller();
   startServerSelfImprovementWatcher();
   setTimeout(() => prewarmAppCaches(), 400);

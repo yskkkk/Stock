@@ -257,6 +257,27 @@ export default function LiveTradingTab({
   const [err, setErr] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState(emptyDraft);
+  useEffect(() => {
+    if (draft.modelId !== "box-range") return;
+    setDraft((d) => {
+      if (d.modelId !== "box-range") return d;
+      if (
+        d.markets.crypto &&
+        !d.markets.kr &&
+        !d.markets.us &&
+        !d.autoSellAtTarget &&
+        d.minScoreRatio === 0
+      ) {
+        return d;
+      }
+      return {
+        ...d,
+        markets: { kr: false, us: false, crypto: true },
+        autoSellAtTarget: false,
+        minScoreRatio: 0,
+      };
+    });
+  }, [draft.modelId]);
   const [portfolioRefreshKey, setPortfolioRefreshKey] = useState(0);
   const [dockTradeHistoryInPrograms, setDockTradeHistoryInPrograms] =
     useState(false);
@@ -309,7 +330,8 @@ export default function LiveTradingTab({
     }
     try {
       const tm = await fetchTechModels();
-      setModels(tm.models);
+      const { withBoxRangeTechModel } = await import("../lib/boxRangeTechModel");
+      setModels(withBoxRangeTechModel(tm.models));
       if (
         !dockSelfOnly &&
         adminViewUserId &&

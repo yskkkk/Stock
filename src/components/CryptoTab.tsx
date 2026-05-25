@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChartDrawMagnet } from "../hooks/useChartDrawMagnet";
-import { fetchCryptoQuotes, fetchCryptoUniverse, fetchStock } from "../api";
+import {
+  fetchBoxRangeOverlay,
+  fetchCryptoQuotes,
+  fetchCryptoUniverse,
+  fetchStock,
+} from "../api";
 import {
   peekCryptoListQuotesPrefetch,
   peekCryptoUniversePrefetch,
@@ -143,6 +148,10 @@ export default function CryptoTab({
   const [showIchimoku, setShowIchimoku] = useState(false);
   const [showVolume, setShowVolume] = useState(true);
   const [showRsi, setShowRsi] = useState(true);
+  const [showBoxRange, setShowBoxRange] = useState(false);
+  const [boxRangeOverlays, setBoxRangeOverlays] = useState<
+    import("../api").BoxRangeOverlayBox[]
+  >([]);
   const [listQuotes, setListQuotes] = useState<ListQuoteMap>(
     () => peekCryptoListQuotesPrefetch() ?? {},
   );
@@ -407,6 +416,29 @@ export default function CryptoTab({
     setProfitModalOpen(false);
     setProfitPersistTick((t) => t + 1);
   }, [symbol]);
+
+  useEffect(() => {
+    if (!showBoxRange || chartEngine !== "app") {
+      setBoxRangeOverlays([]);
+      return;
+    }
+    let cancelled = false;
+    const load = () => {
+      fetchBoxRangeOverlay(symbol)
+        .then((r) => {
+          if (!cancelled) setBoxRangeOverlays(r.boxes ?? []);
+        })
+        .catch(() => {
+          if (!cancelled) setBoxRangeOverlays([]);
+        });
+    };
+    load();
+    const id = window.setInterval(load, 5_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [showBoxRange, chartEngine, symbol]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -682,6 +714,12 @@ export default function CryptoTab({
                     ["ich", ko.app.chipIch, showIchimoku, setShowIchimoku],
                     ["vol", ko.app.chipVol, showVolume, setShowVolume],
                     ["rsi", ko.app.chipRsi, showRsi, setShowRsi],
+                    [
+                      "box",
+                      ko.app.chipBoxRange,
+                      showBoxRange,
+                      setShowBoxRange,
+                    ],
                   ] as const
                 ).map(([key, label, on, setOn]) => (
                   <button
@@ -749,6 +787,7 @@ export default function CryptoTab({
                 registerDrawApi={registerDrawApiStable}
                 overlays={chartOverlays}
                 profitMarker={profitMarker}
+                boxRangeOverlays={showBoxRange ? boxRangeOverlays : []}
               />
             )}
           </div>

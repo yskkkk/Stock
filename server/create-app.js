@@ -111,6 +111,7 @@ import {
   setActiveTechModelIdsSync,
   updateTechModelSync,
 } from "./picks-tech-models-store.js";
+import { listBoxesForChartOverlaySync } from "./box-range/store.js";
 import { validateLiveTradeArmLane } from "./live-trade-arm-gate.js";
 import {
   armLiveTradeProgramLaneSync,
@@ -824,6 +825,29 @@ export function createApp() {
         all,
       });
       res.json(payload);
+    }),
+  );
+
+  app.get(
+    "/api/box-range/overlay",
+    requireUserAuth,
+    asyncRoute(async (req, res) => {
+      const symbol = String(req.query?.symbol ?? "").trim().toUpperCase();
+      if (!symbol) {
+        res.status(400).json({ error: "symbol required" });
+        return;
+      }
+      const boxes = listBoxesForChartOverlaySync(req.user.id, symbol).map((b) => ({
+        boxId: b.boxId,
+        top: b.top,
+        bottom: b.bottom,
+        mid: b.mid,
+        timeframe: b.timeframe,
+        state: b.state,
+        leftTime: b.leftTime,
+        rightTime: b.rightTime,
+      }));
+      res.json({ symbol, boxes });
     }),
   );
 

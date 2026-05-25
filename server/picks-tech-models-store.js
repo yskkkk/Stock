@@ -11,6 +11,7 @@ import {
   sanitizeWeightsRecord,
   sumTechScoreWeights,
 } from "./picks-tech-weights-store.js";
+import { BOX_RANGE_MODEL_ID, getBoxRangeTechModelStub } from "./box-range/constants.js";
 
 export { getDefaultSignalScoreWeights };
 export { sumTechScoreWeights };
@@ -164,6 +165,7 @@ export function getActiveTechModelsSync() {
 
 export function getTechModelByIdSync(id) {
   const sid = String(id ?? "").trim();
+  if (sid === BOX_RANGE_MODEL_ID) return getBoxRangeTechModelStub();
   return readStoreSync().models.find((m) => m.id === sid) ?? null;
 }
 

@@ -169,6 +169,15 @@ interface StockChartProps {
   onChartDrawMagnetChange?: (next: boolean) => void;
   /** 수익 모델 매수 시점·가격 마커(없으면 표시 안 함) */
   profitMarker?: { time: ChartTime; price: number } | null;
+  /** 박스권 전략 — 상·하·중심 가격선(최대 8박스) */
+  boxRangeOverlays?: Array<{
+    boxId: string;
+    top: number;
+    bottom: number;
+    mid: number;
+    timeframe: string;
+    state: string;
+  }>;
 }
 
 type ChartUiPalette = {
@@ -1766,6 +1775,7 @@ export default function StockChart({
   chartDrawMagnet: chartDrawMagnetProp,
   onChartDrawMagnetChange,
   profitMarker = null,
+  boxRangeOverlays = [],
 }: StockChartProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1855,6 +1865,8 @@ export default function StockChart({
   const drawingHoverIdRef = useRef<string | null>(null);
   const drawingRayDotsHoverIdRef = useRef<string | null>(null);
   const drawingSelectedIdRef = useRef<string | null>(null);
+  /** @type {import("lightweight-charts").IPriceLine[]} */
+  const boxRangePriceLinesRef = useRef([]);
   const chartDrawAreaPointerInsideRef = useRef(false);
   const drawPersistKeyRef = useRef(drawingPersistKey);
   const drawLegacyKeyRef = useRef(structureKey);
@@ -2427,6 +2439,43 @@ export default function StockChart({
     };
     b.markers.setMarkers([m]);
   }, [profitMarker, structureKey]);
+
+  useEffect(() => {
+    const b = bundleRef.current;
+    if (!b?.candle || b.structureKey !== structureKey) return;
+    for (const pl of boxRangePriceLinesRef.current) {
+      try {
+        b.candle.removePriceLine(pl);
+      } catch {
+        /* ignore */
+      }
+    }
+    boxRangePriceLinesRef.current = [];
+    const list = boxRangeOverlays ?? [];
+    if (!list.length) return;
+    const tfColor = (tf: string) =>
+      tf === "1d" ? "#60a5fa" : tf === "4h" ? "#a78bfa" : "#38bdf8";
+    for (const box of list.slice(0, 8)) {
+      const col = tfColor(box.timeframe);
+      const titleBase = `${box.timeframe} ${box.state}`;
+      const lines = [
+        { price: box.top, title: `${titleBase} 상`, color: col },
+        { price: box.bottom, title: `${titleBase} 하`, color: col },
+        { price: box.mid, title: `${titleBase} 중`, color: "#fb923c" },
+      ];
+      for (const ln of lines) {
+        const pl = b.candle.createPriceLine({
+          price: ln.price,
+          color: ln.color,
+          lineWidth: 1,
+          lineStyle: 2,
+          axisLabelVisible: true,
+          title: ln.title,
+        });
+        boxRangePriceLinesRef.current.push(pl);
+      }
+    }
+  }, [boxRangeOverlays, structureKey]);
 
   useEffect(() => {
     if (!drawingsEnabled || drawModeForChart !== "cursor") return;
