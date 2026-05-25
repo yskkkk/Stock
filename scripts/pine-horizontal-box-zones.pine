@@ -1,5 +1,6 @@
 // This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
 // © standalone — TradingView Pine Editor 붙여넣기용 · 1H / 4H / 1D
+// 차트 TF 횡보 박스만(흰 사각형·추세선 없음) → pine-box-consolidation-zones.pine
 
 //@version=6
 indicator("수평 매물대 · 박스권 MTF", shorttitle="박스권 MTF", overlay=true, max_boxes_count=500, max_lines_count=500, max_bars_back=5000)
