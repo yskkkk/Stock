@@ -45,7 +45,7 @@ const t = {
     lightPaletteHint: "\uB208\uC5D0 \uD3B8\uD55C \uD1A4",
     lightPaletteAmber: "\uC8FC\uD669 \uC6CC\uC984",
     lightPaletteOcean: "\uD30C\uB780 \uC624\uC158",
-    lightPaletteForest: "\uCD08\uB85D",
+    lightPaletteGlass: "\uc720\ub9ac",
     tabScreener: "\uC2A4\uD06C\uB9AC\uB108",
     tabBullish: "\uC0C1\uC2B9 \uC720\uB9DD",
     tabStockLookup: "\uC885\uBAA9 \uAC80\uC0C9",

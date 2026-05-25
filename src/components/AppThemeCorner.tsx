@@ -22,7 +22,7 @@ import { ko } from "../i18n/ko";
 const LIGHT_PALETTE_ARIA: Record<LightPaletteId, string> = {
   amber: ko.app.lightPaletteAmber,
   ocean: ko.app.lightPaletteOcean,
-  forest: ko.app.lightPaletteForest,
+  glass: ko.app.lightPaletteGlass,
 };
 
 type AppThemeCornerProps = {
@@ -370,6 +370,7 @@ export default function AppThemeCorner({
               onPointerEnter={() => previewPalette(id)}
               onFocus={() => previewPalette(id)}
               onClick={() => commitPalette(id)}
+              data-lp={id}
               style={{ "--lp-fill": LIGHT_PALETTE_PREVIEW[id] } as CSSProperties}
             />
           ))}

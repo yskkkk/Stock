@@ -7,6 +7,7 @@ import { registerPwaServiceWorker } from "./lib/registerPwa";
 import "./index.css";
 import "./theme.css";
 import "./theme-light-palettes.css";
+import "./theme-glass.css";
 import "./ui-toss.css";
 import "./field-validation.css";
 import "./mobile-polish.css";

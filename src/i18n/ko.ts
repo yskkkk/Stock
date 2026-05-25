@@ -29,7 +29,7 @@ export const ko = {
     lightPaletteHint: "눈에 편한 톤",
     lightPaletteAmber: "주황 워즄",
     lightPaletteOcean: "파란 오션",
-    lightPaletteForest: "초록",
+    lightPaletteGlass: "유리",
     tabScreener: "스크리너",
     tabBullish: "상승 유망",
     tabStockLookup: "종목 검색",

@@ -4,7 +4,7 @@ export type ColorMode = "light" | "dark";
 
 export const LIGHT_PALETTE_STORAGE_KEY = "stock-app-light-palette";
 
-export const LIGHT_PALETTE_IDS = ["amber", "ocean", "forest"] as const;
+export const LIGHT_PALETTE_IDS = ["amber", "ocean", "glass"] as const;
 
 export type LightPaletteId = (typeof LIGHT_PALETTE_IDS)[number];
 
@@ -14,9 +14,10 @@ const LEGACY_LIGHT_PALETTE_MAP: Record<string, LightPaletteId> = {
   paper: "amber",
   mist: "ocean",
   dusk: "ocean",
-  sage: "forest",
-  lavender: "forest",
-  slate: "forest",
+  sage: "glass",
+  lavender: "glass",
+  slate: "glass",
+  forest: "glass",
 };
 
 export function isLightPaletteId(v: string): v is LightPaletteId {
@@ -27,7 +28,7 @@ export function isLightPaletteId(v: string): v is LightPaletteId {
 export const LIGHT_PALETTE_PREVIEW: Record<LightPaletteId, string> = {
   amber: "#f97316",
   ocean: "#1d4ed8",
-  forest: "#16a34a",
+  glass: "#94a3b8",
 };
 
 /** 로컬에 저장된 테마가 없을 때 — 라이트(화이트) 모드 */
