@@ -1,4 +1,6 @@
-/** 토스·빗썸 브랜드 아이콘 (도크 레일·계좌 제목) — 벡터 SVG, 작은 크기에서도 선명 */
+/** 토스·빗썸 브랜드 아이콘 (도크 레일·계좌 제목) */
+
+const BITHUMB_APP_ICON_SRC = "/branding/bithumb-app-icon.png?v=1";
 
 /** 토스 앱 아이콘 — #0064FF + 흰색 곡선 워드마크 */
 export function TossBrandMark({ className }: { className?: string }) {
@@ -23,21 +25,17 @@ export function TossBrandMark({ className }: { className?: string }) {
   );
 }
 
-/** 빗썸 공식 앱 마크 — 오렌지 원 + 흰 B (public/branding/bithumb-mark.svg 와 동일) */
+/** 빗썸 — Google Play 앱 아이콘(공식 마크) */
 export function BithumbBrandMark({ className }: { className?: string }) {
   return (
-    <svg
+    <img
       className={className}
-      viewBox="0 0 24 24"
+      src={BITHUMB_APP_ICON_SRC}
+      alt=""
       width={20}
       height={20}
-      aria-hidden
-    >
-      <circle cx="12" cy="12" r="12" fill="#FF6C00" />
-      <path
-        fill="#fff"
-        d="M8.35 17.1V6.65h2.05c3.05 0 4.95 1.55 4.95 4.05 0 1.75-.95 3.05-2.55 3.55 1.65.55 2.65 1.75 2.65 3.45 0 2.35-1.95 3.9-5.05 3.9H8.35zm1.55-7.55h1.25c1.25 0 1.95-.65 1.95-1.6 0-.95-.7-1.6-1.95-1.6H9.9v3.2zm0 4.85h1.55c1.55 0 2.4-.75 2.4-1.85 0-1.1-.85-1.85-2.4-1.85H9.9v3.7z"
-      />
-    </svg>
+      decoding="async"
+      draggable={false}
+    />
   );
 }

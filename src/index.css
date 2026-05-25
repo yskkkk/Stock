@@ -8008,10 +8008,12 @@ html[data-theme="light"] .bithumb-account-rail-wrap--side {
   display: block;
 }
 
-.bithumb-account-rail-wrap__mark svg {
+.bithumb-account-rail-wrap__mark svg,
+.bithumb-account-rail-wrap__mark img {
   display: block;
   width: 100%;
   height: 100%;
+  object-fit: contain;
 }
 
 .bithumb-account-rail-wrap__title-copy {
@@ -9659,10 +9661,12 @@ html[data-theme="light"]
   display: block;
 }
 
-.app-live-trade-side-dock__rail-bithumb-mark svg {
+.app-live-trade-side-dock__rail-bithumb-mark svg,
+.app-live-trade-side-dock__rail-bithumb-mark img {
   display: block;
   width: 100%;
   height: 100%;
+  object-fit: contain;
 }
 
 .app-live-trade-side-dock__panel {
