@@ -5,8 +5,8 @@ import {
   recordLiveTradeBuyAsync,
   recordLiveTradeBuySync,
   recordLiveTradeSellSync,
-  resolveOrderAmountForMarket,
 } from "../live-trade-portfolio-store.js";
+import { resolveOrderAmountForMarket } from "../live-trade-market.js";
 import {
   executeBithumbLiveBuyOrder,
   executeBithumbLiveSellOrder,
