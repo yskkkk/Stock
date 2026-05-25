@@ -5,14 +5,14 @@
 html[data-theme="light"][data-light-palette="glass"] body {
   background: linear-gradient(
     165deg,
-    #b8c9d9 0%,
-    #d4dfe9 42%,
-    #e6edf4 100%
+    #d4dae0 0%,
+    #e2e7ec 48%,
+    #eceff2 100%
   );
 }
 
 html[data-theme="light"][data-light-palette="glass"] body::before {
-  opacity: 0.22;
+  opacity: 0.1;
 }
 
 html[data-theme="light"][data-light-palette="glass"] .card,
@@ -51,9 +51,9 @@ html[data-theme="light"][data-light-palette="glass"] .light-palette-swatch[data-
   --lp-fill: transparent;
   background: linear-gradient(
     145deg,
-    rgba(255, 255, 255, 0.95) 0%,
-    rgba(148, 163, 184, 0.55) 55%,
-    rgba(91, 143, 185, 0.45) 100%
+    rgba(255, 255, 255, 0.92) 0%,
+    rgba(180, 188, 198, 0.5) 55%,
+    rgba(130, 148, 162, 0.38) 100%
   );
   border-color: rgba(255, 255, 255, 0.85);
   box-shadow:

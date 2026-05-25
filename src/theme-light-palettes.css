@@ -1,77 +1,77 @@
 /**
  * 라이트 모드 색조 — html[data-theme="light"][data-light-palette="…"]
- * (theme.css 다음에 로드; JS가 data-light-palette를 항상 설정)
+ * 낮은 채도·중간 대비(눈 피로 완화)
  */
 
 html[data-theme="light"][data-light-palette="amber"] {
-  --bg: #ffe4cc;
-  --bg-elevated: #ffd4ad;
-  --surface: #fff0e0;
-  --card: #fff8f0;
-  --card-border: rgba(124, 45, 18, 0.12);
-  --text: #2a1408;
-  --text-dim: #6b3d1f;
-  --muted: #8f5230;
-  --accent: #f97316;
-  --accent-ink: #ea580c;
-  --accent-press: #c2410c;
-  --accent-dim: rgb(from var(--accent) r g b / 0.18);
-  --accent-border: rgb(from var(--accent) r g b / 0.45);
-  --up: #15803d;
-  --down: #dc2626;
-  --warn: #b45309;
-  --shadow: 0 4px 22px rgba(180, 83, 9, 0.1);
-  --scrollbar-track: #ffd9b8;
-  --scrollbar-thumb: rgba(180, 83, 9, 0.32);
-  --scrollbar-thumb-hover: rgba(180, 83, 9, 0.48);
+  --bg: #ebe7e1;
+  --bg-elevated: #e2ddd5;
+  --surface: #f3f0eb;
+  --card: #f9f7f4;
+  --card-border: rgba(58, 52, 46, 0.09);
+  --text: #2c2925;
+  --text-dim: #524e47;
+  --muted: #6f6a63;
+  --accent: #9a7d62;
+  --accent-ink: #7d6550;
+  --accent-press: #6b5745;
+  --accent-dim: rgb(from var(--accent) r g b / 0.12);
+  --accent-border: rgb(from var(--accent) r g b / 0.32);
+  --up: #4a7a5c;
+  --down: #b06868;
+  --warn: #9a8250;
+  --shadow: 0 4px 22px rgba(44, 38, 32, 0.07);
+  --scrollbar-track: #e4dfd7;
+  --scrollbar-thumb: rgba(90, 78, 66, 0.22);
+  --scrollbar-thumb-hover: rgba(90, 78, 66, 0.36);
 }
 
 html[data-theme="light"][data-light-palette="ocean"] {
-  --bg: #cfe3ff;
-  --bg-elevated: #b8d4ff;
-  --surface: #e3efff;
-  --card: #f0f7ff;
-  --card-border: rgba(30, 64, 175, 0.12);
-  --text: #0c1a3d;
-  --text-dim: #1e3a8a;
-  --muted: #3b5cb8;
-  --accent: #1d4ed8;
-  --accent-ink: #1e3a8a;
-  --accent-press: #1e40af;
-  --accent-dim: rgb(from var(--accent) r g b / 0.16);
-  --accent-border: rgb(from var(--accent) r g b / 0.45);
-  --up: #15803d;
-  --down: #dc2626;
-  --warn: #b45309;
-  --shadow: 0 4px 22px rgba(30, 64, 175, 0.1);
-  --scrollbar-track: #b8d4ff;
-  --scrollbar-thumb: rgba(37, 99, 235, 0.32);
-  --scrollbar-thumb-hover: rgba(37, 99, 235, 0.48);
+  --bg: #e5ebf0;
+  --bg-elevated: #d8e2e9;
+  --surface: #eff3f7;
+  --card: #f6f8fa;
+  --card-border: rgba(45, 58, 72, 0.09);
+  --text: #232d36;
+  --text-dim: #4a5a68;
+  --muted: #647484;
+  --accent: #5d7f96;
+  --accent-ink: #4d6b80;
+  --accent-press: #425c6e;
+  --accent-dim: rgb(from var(--accent) r g b / 0.11);
+  --accent-border: rgb(from var(--accent) r g b / 0.3);
+  --up: #4a7a5c;
+  --down: #b06868;
+  --warn: #9a8250;
+  --shadow: 0 4px 22px rgba(35, 45, 58, 0.07);
+  --scrollbar-track: #d8e2e9;
+  --scrollbar-thumb: rgba(70, 90, 108, 0.22);
+  --scrollbar-thumb-hover: rgba(70, 90, 108, 0.36);
 }
 
 html[data-theme="light"][data-light-palette="glass"] {
-  --bg: #d8e2ec;
-  --bg-elevated: rgba(255, 255, 255, 0.52);
-  --surface: rgba(255, 255, 255, 0.58);
-  --card: rgba(255, 255, 255, 0.68);
-  --card-border: rgba(255, 255, 255, 0.78);
-  --text: #1e293b;
-  --text-dim: #475569;
-  --muted: #64748b;
-  --accent: #5b8fb9;
-  --accent-ink: #4a7a9e;
-  --accent-press: #3d6a8a;
-  --accent-dim: rgb(from var(--accent) r g b / 0.14);
-  --accent-border: rgb(from var(--accent) r g b / 0.38);
-  --up: #15803d;
-  --down: #dc2626;
-  --warn: #b45309;
+  --bg: #e6e9ec;
+  --bg-elevated: rgba(255, 255, 255, 0.5);
+  --surface: rgba(255, 255, 255, 0.6);
+  --card: rgba(255, 255, 255, 0.76);
+  --card-border: rgba(255, 255, 255, 0.72);
+  --text: #2a3038;
+  --text-dim: #525b66;
+  --muted: #6b7580;
+  --accent: #6d8494;
+  --accent-ink: #5c7282;
+  --accent-press: #4f6372;
+  --accent-dim: rgb(from var(--accent) r g b / 0.1);
+  --accent-border: rgb(from var(--accent) r g b / 0.28);
+  --up: #4a7a5c;
+  --down: #b06868;
+  --warn: #9a8250;
   --shadow:
-    0 8px 32px rgba(30, 41, 59, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.65);
-  --scrollbar-track: #dce4ed;
-  --scrollbar-thumb: rgba(100, 116, 139, 0.35);
-  --scrollbar-thumb-hover: rgba(71, 85, 105, 0.5);
-  --glass-blur: 14px;
-  --glass-saturate: 1.18;
+    0 6px 28px rgba(38, 46, 56, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  --scrollbar-track: #dce1e6;
+  --scrollbar-thumb: rgba(90, 100, 112, 0.24);
+  --scrollbar-thumb-hover: rgba(70, 82, 94, 0.38);
+  --glass-blur: 12px;
+  --glass-saturate: 1.05;
 }

@@ -4,6 +4,28 @@
  */
 html:not([data-theme="light"]) {
   color-scheme: dark;
+  --bg: #15181d;
+  --bg-elevated: #1c2128;
+  --surface: #222830;
+  --card: #262e38;
+  --card-border: rgba(148, 163, 184, 0.12);
+  --text: #dce1e8;
+  --text-dim: #a8b0bc;
+  --muted: #8a929e;
+  --accent: #8fb5aa;
+  --accent-dim: rgba(143, 181, 170, 0.14);
+  --accent-border: rgba(143, 181, 170, 0.32);
+  --up: #72a883;
+  --down: #c48686;
+  --warn: #c9a86a;
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+  --scrollbar-track: #1c2128;
+  --scrollbar-thumb: rgba(148, 163, 184, 0.2);
+  --scrollbar-thumb-hover: rgba(148, 163, 184, 0.34);
+}
+
+html:not([data-theme="light"]) body::before {
+  opacity: 0.35;
 }
 
 html[data-theme="light"] {
@@ -11,7 +33,7 @@ html[data-theme="light"] {
 }
 
 html[data-theme="light"] body::before {
-  opacity: 0.14;
+  opacity: 0.06;
 }
 
 /* 수익 모델 스트립 — 라이트: 다크용 반투명 배경이 회색 덩어리로 보임 → 카드 톤에 맞춤 */
@@ -225,12 +247,12 @@ html[data-theme="light"] .main-tab.active {
 
 html:not([data-theme="light"]) .top-bar.card,
 html:not([data-theme="light"]) .top-bar__brand h1 {
-  color: #f1f5f9;
+  color: var(--text);
 }
 
 html:not([data-theme="light"]) .top-bar__brand-tags,
 html:not([data-theme="light"]) .top-bar__brand-tags__lead {
-  color: #aeb9cc;
+  color: var(--text-dim);
 }
 
 html[data-theme="light"] .top-bar.card,

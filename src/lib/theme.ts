@@ -26,9 +26,9 @@ export function isLightPaletteId(v: string): v is LightPaletteId {
 
 /** 스와치 미리보기(대표 액센트) */
 export const LIGHT_PALETTE_PREVIEW: Record<LightPaletteId, string> = {
-  amber: "#f97316",
-  ocean: "#1d4ed8",
-  glass: "#94a3b8",
+  amber: "#9a7d62",
+  ocean: "#5d7f96",
+  glass: "#8a96a0",
 };
 
 /** 로컬에 저장된 테마가 없을 때 — 라이트(화이트) 모드 */
@@ -57,7 +57,7 @@ export function readStoredLightPalette(): LightPaletteId {
   } catch {
     /* ignore */
   }
-  return "ocean";
+  return "glass";
 }
 
 export function applyLightPalette(id: LightPaletteId): void {
