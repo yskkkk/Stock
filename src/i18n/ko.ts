@@ -287,7 +287,10 @@ export const ko = {
     boxRangeCatalogTradeOn: "사용",
     boxRangeCatalogTradeOff: "미사용",
     boxRangeTabHint:
-      "S&P500 박스권 — 로고를 누르면 현재 매매 가능한 박스 가격을 카드로 봅니다.",
+      "상단 박스권 탭 — S&P500·국내 중 선택 후 로고를 누르면 매매 가능한 박스 가격을 카드로 봅니다.",
+    boxRangeTabMarketLabel: "시장",
+    boxRangeTabMarketUs: "S&P500",
+    boxRangeTabMarketKr: "국내",
     boxRangeTabPickSymbol: "종목 로고를 선택하세요.",
     boxRangeTabNoValid: "이 종목에 유효한 박스가 없습니다.",
     boxRangeTabNoSymbols: "유효 박스가 있는 종목이 없습니다. 스캔 후 다시 확인하세요.",

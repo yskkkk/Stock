@@ -36,16 +36,18 @@ ensureLiveTradeExitScenarioMigratedOnce().catch((e) => {
 const { ensureBoxRangeScenarioRolloutOnce } = await import(
   "./box-range/migrate-active-programs.js"
 );
-ensureBoxRangeScenarioRolloutOnce({
-  force: process.env.STOCK_BOX_RANGE_ROLLOUT_FORCE === "1",
-  sendEmail: process.env.STOCK_BOX_RANGE_ROLLOUT_EMAIL === "1",
-  emailForce: process.env.STOCK_BOX_RANGE_ROLLOUT_EMAIL_FORCE === "1",
-}).catch((e) => {
-  console.warn(
-    "[box-range:rollout] scenario v2 failed:",
-    e instanceof Error ? e.message : e,
-  );
-});
+if (process.env.STOCK_BOX_RANGE_ROLLOUT_FORCE === "1") {
+  ensureBoxRangeScenarioRolloutOnce({
+    force: true,
+    sendEmail: process.env.STOCK_BOX_RANGE_ROLLOUT_EMAIL === "1",
+    emailForce: process.env.STOCK_BOX_RANGE_ROLLOUT_EMAIL_FORCE === "1",
+  }).catch((e) => {
+    console.warn(
+      "[box-range:rollout] scenario v2 failed:",
+      e instanceof Error ? e.message : e,
+    );
+  });
+}
 const app = createApp();
 startStockDevSidecarsOnce("API 서버 기동");
 

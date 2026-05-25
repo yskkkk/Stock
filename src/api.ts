@@ -1441,7 +1441,10 @@ export interface BoxRangeCatalogIndexRow {
   boxCount: number;
 }
 
+export type BoxRangeCatalogMarket = "us" | "kr";
+
 export interface BoxRangeCatalogIndex {
+  market?: BoxRangeCatalogMarket;
   updatedAtMs: number;
   count: number;
   symbols: BoxRangeCatalogIndexRow[];
@@ -1470,16 +1473,21 @@ export interface BoxRangeSymbolCatalog {
   boxes: BoxRangeCatalogBox[];
 }
 
-export function fetchBoxRangeCatalog() {
-  return fetchJson<BoxRangeCatalogIndex>("/api/box-range/catalog", {
+export function fetchBoxRangeCatalog(market: BoxRangeCatalogMarket = "us") {
+  const q = market === "kr" ? "?market=kr" : "";
+  return fetchJson<BoxRangeCatalogIndex>(`/api/box-range/catalog${q}`, {
     cache: "no-store",
   });
 }
 
-export function fetchBoxRangeCatalogSymbol(symbol: string) {
+export function fetchBoxRangeCatalogSymbol(
+  symbol: string,
+  market: BoxRangeCatalogMarket = "us",
+) {
   const sym = symbol.trim().toUpperCase();
+  const q = market === "kr" ? "?market=kr" : "";
   return fetchJson<BoxRangeSymbolCatalog>(
-    `/api/box-range/catalog/${encodeURIComponent(sym)}`,
+    `/api/box-range/catalog/${encodeURIComponent(sym)}${q}`,
     { cache: "no-store" },
   );
 }
@@ -1488,11 +1496,13 @@ export function patchBoxRangeCatalogBox(
   symbol: string,
   catalogBoxId: string,
   body: { tradeEligible: boolean; consumedReason?: string },
+  market: BoxRangeCatalogMarket = "us",
 ) {
   const sym = symbol.trim().toUpperCase();
   const id = catalogBoxId.trim();
+  const q = market === "kr" ? "?market=kr" : "";
   return fetchJson<{ ok: boolean; box: BoxRangeCatalogBox }>(
-    `/api/box-range/catalog/${encodeURIComponent(sym)}/boxes/${encodeURIComponent(id)}`,
+    `/api/box-range/catalog/${encodeURIComponent(sym)}/boxes/${encodeURIComponent(id)}${q}`,
     {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },

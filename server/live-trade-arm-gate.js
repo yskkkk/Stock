@@ -59,11 +59,8 @@ export function validateLiveTradeArmLane(program, lane, userId) {
     return { lane, bithumb, toss: getTossTradingStatus() };
   }
   if (lane === "toss") {
-    if (!mk.kr) {
-      throw new Error("이 프로그램에 국내 시장이 선택되어 있지 않습니다.");
-    }
-    if (mk.us) {
-      throw new Error("미국 주식 실매매는 아직 지원하지 않습니다.");
+    if (!mk.kr && !mk.us) {
+      throw new Error("이 프로그램에 국내·미국 시장이 선택되어 있지 않습니다.");
     }
     const userToss = getCredentialMetaSync(userId, "toss");
     const toss =
@@ -78,7 +75,7 @@ export function validateLiveTradeArmLane(program, lane, userId) {
     if (!toss.configured) {
       throw new Error(
         toss.messageKo ??
-          "국내 실매매에는 토스 API 키가 필요합니다. «내 API 연동» 또는 서버 설정을 확인하세요.",
+          "국내·미국 실매매에는 토스 API 키가 필요합니다. «내 API 연동» 또는 서버 설정을 확인하세요.",
       );
     }
     return { lane, toss, bithumb: getBithumbTradingStatusForUserSync(userId) };

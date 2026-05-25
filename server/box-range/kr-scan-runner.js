@@ -1,18 +1,18 @@
 import { loadUniverse } from "../universe.js";
 import { loadStock } from "../stock-data.js";
-import { BOX_RANGE_SP500_SCAN_MS, BOX_RANGE_TIMEFRAMES } from "./constants.js";
+import { BOX_RANGE_KR_SCAN_MS, BOX_RANGE_TIMEFRAMES } from "./constants.js";
 import { detectBoxRangesProOnCandles } from "./detect-pro.js";
 import { upsertSymbolCatalogDetectionsSync } from "./catalog-store.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "../live-trade-log.js";
 
 const BATCH_SIZE = (() => {
-  const n = Number(process.env.STOCK_BOX_RANGE_SP500_BATCH ?? 4);
-  return Number.isFinite(n) && n >= 1 ? Math.min(n, 12) : 4;
+  const n = Number(process.env.STOCK_BOX_RANGE_KR_BATCH ?? 6);
+  return Number.isFinite(n) && n >= 1 ? Math.min(n, 16) : 6;
 })();
 
 const BATCH_DELAY_MS = (() => {
-  const n = Number(process.env.STOCK_BOX_RANGE_SP500_BATCH_DELAY_MS ?? 400);
-  return Number.isFinite(n) && n >= 0 ? Math.min(n, 5_000) : 400;
+  const n = Number(process.env.STOCK_BOX_RANGE_KR_BATCH_DELAY_MS ?? 300);
+  return Number.isFinite(n) && n >= 0 ? Math.min(n, 5_000) : 300;
 })();
 
 function normalizeTime(t) {
@@ -60,7 +60,7 @@ async function scanOneSymbol(item) {
       }
       byTf[tf] = detectBoxRangesProOnCandles(candles, tf, 5);
     }
-    upsertSymbolCatalogDetectionsSync(sym, item.name ?? sym, byTf, null, "us");
+    upsertSymbolCatalogDetectionsSync(sym, item.name ?? sym, byTf, null, "kr");
     return { ok: true, symbol: sym };
   } catch (e) {
     scanError = e instanceof Error ? e.message : String(e);
@@ -69,7 +69,7 @@ async function scanOneSymbol(item) {
       item.name ?? sym,
       {},
       scanError,
-      "us",
+      "kr",
     );
     return { ok: false, symbol: sym, error: scanError };
   }
@@ -79,17 +79,17 @@ function delay(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-export async function runSp500BoxRangeCatalogScan() {
+export async function runKrBoxRangeCatalogScan() {
   const uni = await loadUniverse();
-  const list = Array.isArray(uni?.us) ? uni.us : [];
+  const list = Array.isArray(uni?.kr) ? uni.kr : [];
   if (!list.length) {
-    liveTradeLogWarn("[box-range:sp500-scan] universe.us empty");
+    liveTradeLogWarn("[box-range:kr-scan] universe.kr empty");
     return { scanned: 0, errors: 0 };
   }
 
   let ok = 0;
   let errors = 0;
-  liveTradeLogInfo("[box-range:sp500-scan] start", list.length, "symbols");
+  liveTradeLogInfo("[box-range:kr-scan] start", list.length, "symbols");
 
   for (let i = 0; i < list.length; i += BATCH_SIZE) {
     const batch = list.slice(i, i + BATCH_SIZE);
@@ -103,26 +103,26 @@ export async function runSp500BoxRangeCatalogScan() {
     }
   }
 
-  liveTradeLogInfo("[box-range:sp500-scan] done", { ok, errors, total: list.length });
+  liveTradeLogInfo("[box-range:kr-scan] done", { ok, errors, total: list.length });
   return { scanned: list.length, ok, errors };
 }
 
-export function startSp500BoxRangeCatalogPoller() {
-  if (process.env.STOCK_BOX_RANGE_SP500_SCAN === "0") return;
-  const g = /** @type {typeof globalThis & { __stockBoxRangeSp500Scan?: boolean }} */ (
+export function startKrBoxRangeCatalogPoller() {
+  if (process.env.STOCK_BOX_RANGE_KR_SCAN === "0") return;
+  const g = /** @type {typeof globalThis & { __stockBoxRangeKrScan?: boolean }} */ (
     globalThis
   );
-  if (g.__stockBoxRangeSp500Scan) return;
-  g.__stockBoxRangeSp500Scan = true;
+  if (g.__stockBoxRangeKrScan) return;
+  g.__stockBoxRangeKrScan = true;
 
   let running = false;
   const loop = () => {
     if (running) return;
     running = true;
-    runSp500BoxRangeCatalogScan()
+    runKrBoxRangeCatalogScan()
       .catch((e) => {
         liveTradeLogWarn(
-          "[box-range:sp500-scan]",
+          "[box-range:kr-scan]",
           e instanceof Error ? e.message : e,
         );
       })
@@ -132,5 +132,5 @@ export function startSp500BoxRangeCatalogPoller() {
   };
 
   loop();
-  setInterval(loop, BOX_RANGE_SP500_SCAN_MS);
+  setInterval(loop, BOX_RANGE_KR_SCAN_MS);
 }

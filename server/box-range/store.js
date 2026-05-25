@@ -30,6 +30,7 @@ function stateFilePath() {
  *   buyAtMs: number | null;
  *   updatedAtMs: number;
  *   catalogBoxId: string | null;
+ *   catalogMarket: "us" | "kr" | null;
  *   tradeEligible: boolean;
  *   midNotifiedAtMs: number | null;
  * }} BoxRangeRecord
@@ -109,6 +110,12 @@ function normalizeBox(raw) {
       typeof o.catalogBoxId === "string" && o.catalogBoxId.trim()
         ? o.catalogBoxId.trim()
         : null,
+    catalogMarket:
+      o.catalogMarket === "kr"
+        ? "kr"
+        : o.catalogMarket === "us"
+          ? "us"
+          : null,
     tradeEligible: o.tradeEligible !== false,
     midNotifiedAtMs:
       typeof o.midNotifiedAtMs === "number" && o.midNotifiedAtMs > 0
@@ -188,6 +195,7 @@ function barSecondsForTf(timeframe) {
  *   leftTime: number;
  *   rightTime: number;
  *   catalogBoxId?: string | null;
+ *   catalogMarket?: "us" | "kr" | null;
  *   tradeEligible?: boolean;
  * }} detected
  */
@@ -257,7 +265,13 @@ export function upsertDetectedBoxSync(detected) {
     entryPrice: null,
     buyAtMs: null,
     updatedAtMs: now,
-    catalogBoxId,
+    catalogBoxId: catalogId,
+    catalogMarket:
+      detected.catalogMarket === "kr"
+        ? "kr"
+        : detected.catalogMarket === "us"
+          ? "us"
+          : null,
     tradeEligible: detected.tradeEligible !== false,
     midNotifiedAtMs: null,
   };

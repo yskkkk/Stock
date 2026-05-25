@@ -89,14 +89,13 @@ export function buildBoxRangeStrategyEmailContent() {
   · 매도: 해당 박스 lot 기준 — 상단=익절, 하단 재이탈=손절
   · 동시 보유: 「최대 동시 보유」= 동시에 열 수 있는 박스(포지션) 개수
 
-【B】 미국 주식(S&P500) — 미국 시장이 켜진 프로그램
-  · 탐지: 30분마다 S&P500 전 종목을 스캔해 박스권 후보를 서버에 저장
-  · 매매: 실매매(armed) 프로그램만 자동 매매 (시뮬은 미국 박스 자동매매 없음)
-  · 매수: 유효 박스의 중심가 도달 시 텔레그램 알림 후, 중심가에 매수 요청
-  · 매도: 매수 시점에 정해진 익절(박스 상단)·손절(박스 하단) 가격으로 체결 기록
-  · 종목별·박스별 수량 분리: 같은 종목이라도 박스마다 별도 lot (수동 매도 시 비율 반영)
-  · 앱: 실매매 탭 「박스권(S&P500)」에서 종목별 박스 확인·「매매 사용」 체크 가능
-  · 실주문: 토스 Open API 연동 설정(TOSS_LIVE_ORDERS_ENABLED) 및 계좌 준비 시 실주문, 미설정 시 체결 기록만
+【B】 미국·국내 주식(S&P500 / KOSPI·KOSDAQ) — 미국·국내 시장이 켜진 프로그램
+  · 탐지: 30분마다 S&P500·국내 전 종목을 스캔해 박스권 후보를 서버 파일에 저장
+  · 매매: 실매매(armed)·시뮬 모두 카탈로그 박스 자동매매 (코인과 동시 선택 가능)
+  · 매수: 박스 하단 이탈 후, 가격이 박스 중심(중앙)선을 다시 돌파할 때
+  · 매도: 해당 박스 lot 기준 — 상단=익절, 하단 재이탈=손절
+  · 앱: 상단 「박스권」 탭에서 S&P500 / 국내 선택·종목별 박스 확인
+  · 실주문: 회원별 토스 API(«내 API 연동») + TOSS_LIVE_ORDERS_ENABLED 시 실주문
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -115,7 +114,7 @@ export function buildBoxRangeStrategyEmailContent() {
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 · 거래내역 탭: 빗썸/토스 보유 종목에 「등락」「목표 매도가」「손절가」 표시, 거래 목록 스크롤
-· 실매매 → 박스권(S&P500): S&P500 종목별 탐지 박스·매매 사용 여부
+· 상단 「박스권」 탭: S&P500 / 국내 선택·종목별 탐지 박스·가격 카드
 · 보유·거래: 프로그램별 박스 상태(idle/armed/보유), 익절·손절 예상가
 
 
@@ -125,7 +124,7 @@ export function buildBoxRangeStrategyEmailContent() {
 
 · 박스와 무관하게 이미 매수한 종목은 그대로 남을 수 있습니다. 필요 시 직접 정리해 주세요.
 · 프로그램별 「1회 매수 금액」「최대 동시 보유」「시뮬 자동 매수」 설정은 유지됩니다.
-· 코인 프로그램은 계속 빗썸, 미국 프로그램은 S&P500 카탈로그와 연동됩니다.
+· 코인 프로그램은 빗썸, 미국·국내는 카탈로그 파일·토스 API(회원별 키)와 연동됩니다. 시장은 프로그램에서 복수 선택 가능합니다.
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -133,7 +132,7 @@ export function buildBoxRangeStrategyEmailContent() {
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 · 거래내역·보유 화면 스크롤·가독성 개선 (반영됨)
-· 박스권 S&P500 카탈로그·30분 스캔·종목별 파일 저장 (반영됨)
+· 박스권 S&P500·국내 카탈로그·30분 스캔·종목별 파일 저장 (반영됨)
 · 박스별 lot 익절/손절·텔레그램 중심가 알림 (반영됨)
 · 토스 미국 주식 실주문 API — 공식 스펙 확정 후 단계적 연동 예정
 · 서버 안정성: 자동 배포·로그 모니터링 지속 개선
@@ -161,12 +160,12 @@ YSTOCK · 시나리오 v${BOX_RANGE_SCENARIO_VERSION}`;
 
 <h2 style="font-size:1.15em;border-bottom:2px solid #2563eb;padding-bottom:8px;color:#1e40af;">2. 매매 트랙</h2>
 <table style="width:100%;border-collapse:collapse;font-size:0.92em;margin:12px 0;" cellpadding="8">
-<tr style="background:#f1f5f9;"><th align="left">구분</th><th align="left">코인(빗썸)</th><th align="left">미국(S&P500)</th></tr>
-<tr><td><strong>대상</strong></td><td>코인 시장 프로그램</td><td>미국 시장 프로그램</td></tr>
-<tr><td><strong>탐지</strong></td><td>실시간 1h/4h/1d</td><td>30분마다 S&P500 전 종목 스캔·저장</td></tr>
-<tr><td><strong>매수</strong></td><td>하단 이탈 → 중심선 재돌파</td><td>유효 박스 중심가 + 텔레그램 알림</td></tr>
-<tr><td><strong>매도</strong></td><td>박스 상단 익절 / 하단 손절 (lot별)</td><td>동일 (박스별 수량)</td></tr>
-<tr><td><strong>실매매</strong></td><td>빗썸 App 연동</td><td>armed만 · 토스 연동 시 실주문</td></tr>
+<tr style="background:#f1f5f9;"><th align="left">구분</th><th align="left">코인(빗썸)</th><th align="left">미국·국내(S&P500/KR)</th></tr>
+<tr><td><strong>대상</strong></td><td>코인 시장 프로그램</td><td>미국·국내 시장 (코인과 동시 가능)</td></tr>
+<tr><td><strong>탐지</strong></td><td>실시간 1h/4h/1d</td><td>30분마다 전 종목 스캔·파일 저장</td></tr>
+<tr><td><strong>매수</strong></td><td>하단 이탈 → 중심선 재돌파</td><td>동일</td></tr>
+<tr><td><strong>매도</strong></td><td>박스 상단 익절 / 하단 손절 (lot별)</td><td>동일</td></tr>
+<tr><td><strong>실매매</strong></td><td>빗썸 App 연동</td><td>토스(회원 API) · sim/armed 모두</td></tr>
 </table>
 
 <h2 style="font-size:1.15em;border-bottom:2px solid #2563eb;padding-bottom:8px;color:#1e40af;">3. Pine PRO 탐지 (공통)</h2>
@@ -179,7 +178,7 @@ YSTOCK · 시나리오 v${BOX_RANGE_SCENARIO_VERSION}`;
 <h2 style="font-size:1.15em;border-bottom:2px solid #2563eb;padding-bottom:8px;color:#1e40af;">4. 앱 확인</h2>
 <ul>
 <li><strong>거래내역</strong>: 등락·목표 매도가·손절가·목록 스크롤</li>
-<li><strong>실매매 → 박스권(S&P500)</strong>: 종목별 박스·매매 사용 체크</li>
+<li><strong>상단 「박스권」 탭</strong>: S&P500 / 국내 · 종목별 박스 카드</li>
 <li><strong>보유</strong>: 박스 상태·익절/손절 예상가</li>
 </ul>
 

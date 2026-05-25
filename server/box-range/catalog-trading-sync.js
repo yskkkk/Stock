@@ -2,6 +2,7 @@ import {
   readCatalogIndexSync,
   listTradeEligibleCatalogBoxesSync,
   markCatalogBoxConsumedSync,
+  resolveCatalogMarket,
 } from "./catalog-store.js";
 import {
   listBoxesForProgramSync,
@@ -12,17 +13,21 @@ import {
 import { isBoxRangeProgram } from "./constants.js";
 
 const MAX_NEW_SLOTS_PER_TICK = (() => {
-  const n = Number(process.env.STOCK_BOX_RANGE_US_SLOTS_PER_TICK ?? 20);
+  const n = Number(process.env.STOCK_BOX_RANGE_CATALOG_SLOTS_PER_TICK ?? 20);
   return Number.isFinite(n) && n >= 1 ? Math.min(n, 100) : 20;
 })();
 
 /**
  * @param {import("../live-trade-programs-store.js").LiveTradeProgram} program
+ * @param {"us"|"kr"} catalogMarket
  */
-export function syncUsTradingBoxesFromCatalogSync(program) {
-  if (!isBoxRangeProgram(program) || !program.markets?.us) return { linked: 0 };
+export function syncCatalogTradingBoxesFromCatalogSync(program, catalogMarket) {
+  const market = resolveCatalogMarket(catalogMarket);
+  if (!isBoxRangeProgram(program)) return { linked: 0 };
+  if (market === "us" && !program.markets?.us) return { linked: 0 };
+  if (market === "kr" && !program.markets?.kr) return { linked: 0 };
 
-  const index = readCatalogIndexSync();
+  const index = readCatalogIndexSync(market);
   const symbols = Array.isArray(index?.symbols) ? index.symbols : [];
   const existing = listBoxesForProgramSync(program.id);
   const linkedIds = new Set(
@@ -37,7 +42,7 @@ export function syncUsTradingBoxesFromCatalogSync(program) {
     if (linked >= MAX_NEW_SLOTS_PER_TICK) break;
     const sym = String(row.symbol ?? "").trim().toUpperCase();
     if (!sym) continue;
-    const eligible = listTradeEligibleCatalogBoxesSync(sym);
+    const eligible = listTradeEligibleCatalogBoxesSync(sym, market);
     for (const cb of eligible) {
       if (linked >= MAX_NEW_SLOTS_PER_TICK) break;
       if (linkedIds.has(cb.catalogBoxId)) continue;
@@ -53,6 +58,7 @@ export function syncUsTradingBoxesFromCatalogSync(program) {
         leftTime: cb.leftTime,
         rightTime: cb.rightTime,
         catalogBoxId: cb.catalogBoxId,
+        catalogMarket: market,
         tradeEligible: true,
       });
       linkedIds.add(cb.catalogBoxId);
@@ -60,6 +66,11 @@ export function syncUsTradingBoxesFromCatalogSync(program) {
     }
   }
   return { linked };
+}
+
+/** @deprecated — use syncCatalogTradingBoxesFromCatalogSync(program, "us") */
+export function syncUsTradingBoxesFromCatalogSync(program) {
+  return syncCatalogTradingBoxesFromCatalogSync(program, "us");
 }
 
 /**

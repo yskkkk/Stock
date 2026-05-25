@@ -21,6 +21,8 @@ export const BOX_RANGE_EXPAND_EDGE_PCT = 12;
 export const BOX_RANGE_EXPAND_GAP_BARS = 2;
 /** S&P500 카탈로그 전체 스캔 주기 */
 export const BOX_RANGE_SP500_SCAN_MS = 30 * 60 * 1000;
+/** 국내(KOSPI/KOSDAQ) 카탈로그 전체 스캔 주기 */
+export const BOX_RANGE_KR_SCAN_MS = 30 * 60 * 1000;
 /** 탐지 창 1개당 최대 봉 수 — lookback과 별개로 다중 창 스캔 간격에 사용 */
 export const BOX_RANGE_MAX_DETECTED = 5;
 export const BOX_RANGE_MIN_TOUCHES = 2;

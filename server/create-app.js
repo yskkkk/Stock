@@ -879,11 +879,12 @@ export function createApp() {
   app.get(
     "/api/box-range/catalog",
     requireUserAuth,
-    asyncRoute(async (_req, res) => {
-      const { readCatalogIndexSync } = await import(
+    asyncRoute(async (req, res) => {
+      const { readCatalogIndexSync, resolveCatalogMarket } = await import(
         "./box-range/catalog-store.js"
       );
-      res.json(readCatalogIndexSync());
+      const market = resolveCatalogMarket(req.query?.market);
+      res.json(readCatalogIndexSync(market));
     }),
   );
 
@@ -892,10 +893,11 @@ export function createApp() {
     requireUserAuth,
     asyncRoute(async (req, res) => {
       const symbol = String(req.params?.symbol ?? "").trim().toUpperCase();
-      const { readSymbolCatalogSync } = await import(
+      const { readSymbolCatalogSync, resolveCatalogMarket } = await import(
         "./box-range/catalog-store.js"
       );
-      const cat = readSymbolCatalogSync(symbol);
+      const market = resolveCatalogMarket(req.query?.market);
+      const cat = readSymbolCatalogSync(symbol, market);
       if (!cat) {
         res.status(404).json({ error: "not found" });
         return;
@@ -911,17 +913,23 @@ export function createApp() {
       const symbol = String(req.params?.symbol ?? "").trim().toUpperCase();
       const catalogBoxId = String(req.params?.catalogBoxId ?? "").trim();
       const tradeEligible = req.body?.tradeEligible;
-      const { patchCatalogBoxSync } = await import(
+      const { patchCatalogBoxSync, resolveCatalogMarket } = await import(
         "./box-range/catalog-store.js"
       );
+      const market = resolveCatalogMarket(req.query?.market ?? req.body?.market);
       const reason =
         tradeEligible === false
           ? String(req.body?.consumedReason ?? "manual").trim() || "manual"
           : undefined;
-      const box = patchCatalogBoxSync(symbol, catalogBoxId, {
-        tradeEligible: tradeEligible === true ? true : false,
-        consumedReason: reason,
-      });
+      const box = patchCatalogBoxSync(
+        symbol,
+        catalogBoxId,
+        {
+          tradeEligible: tradeEligible === true ? true : false,
+          consumedReason: reason,
+        },
+        market,
+      );
       if (!box) {
         res.status(404).json({ error: "not found" });
         return;

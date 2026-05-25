@@ -142,38 +142,16 @@ function krwAmountFieldLabel(crypto: boolean): string {
   return ko.app.liveTradeFieldAmountKrw;
 }
 
-type LiveTradeMarketChoice = "kr" | "us" | "crypto";
-
-function draftMarketChoice(d: {
-  marketsKr: boolean;
-  marketsUs: boolean;
-  marketsCrypto: boolean;
-}): LiveTradeMarketChoice {
-  if (d.marketsUs) return "us";
-  if (d.marketsCrypto) return "crypto";
-  return "kr";
-}
-
-function marketsFromChoice(c: LiveTradeMarketChoice): {
-  marketsKr: boolean;
-  marketsUs: boolean;
-  marketsCrypto: boolean;
-} {
-  return {
-    marketsKr: c === "kr",
-    marketsUs: c === "us",
-    marketsCrypto: c === "crypto",
-  };
-}
-
 function marketsFromProgram(m: {
   kr: boolean;
   us: boolean;
   crypto: boolean;
-}): ReturnType<typeof marketsFromChoice> {
-  if (m.us) return marketsFromChoice("us");
-  if (m.crypto) return marketsFromChoice("crypto");
-  return marketsFromChoice("kr");
+}) {
+  return {
+    marketsKr: Boolean(m.kr),
+    marketsUs: Boolean(m.us),
+    marketsCrypto: Boolean(m.crypto),
+  };
 }
 
 const emptyDraft = () => ({
@@ -267,21 +245,8 @@ export default function LiveTradingTab({
     if (draft.modelId !== BOX_RANGE_MODEL_ID) return;
     setDraft((d) => {
       if (d.modelId !== BOX_RANGE_MODEL_ID) return d;
-      if (
-        d.marketsUs &&
-        !d.marketsKr &&
-        !d.marketsCrypto &&
-        d.autoSellAtTarget === false
-      ) {
-        return d;
-      }
-      return {
-        ...d,
-        marketsKr: false,
-        marketsUs: true,
-        marketsCrypto: false,
-        autoSellAtTarget: false,
-      };
+      if (d.autoSellAtTarget === false) return d;
+      return { ...d, autoSellAtTarget: false };
     });
   }, [draft.modelId]);
   const [portfolioRefreshKey, setPortfolioRefreshKey] = useState(0);
@@ -453,17 +418,18 @@ export default function LiveTradingTab({
     [draft.marketsKr, draft.marketsUs, draft.marketsCrypto],
   );
 
-  const marketChoice = draftMarketChoice(draft);
   const isBoxRangeDraft = draft.modelId === BOX_RANGE_MODEL_ID;
-  const needsKrwAmount = marketChoice === "kr" || marketChoice === "crypto";
-  const needsUsdAmount = marketChoice === "us";
+  const needsKrwAmount = draft.marketsKr || draft.marketsCrypto;
+  const needsUsdAmount = draft.marketsUs;
+  const hasAnyMarket =
+    draft.marketsKr || draft.marketsUs || draft.marketsCrypto;
   const minScoreSliderValue = Math.min(
     1,
     Math.max(0.7, Number(draft.minScoreRatio) || 0.8),
   );
   const minOrderKrw = minOrderAmountKrwForMarkets(draftMarkets);
   const canSaveForm =
-    Boolean(draft.name.trim() && draft.modelId) &&
+    Boolean(draft.name.trim() && draft.modelId && hasAnyMarket) &&
     parseMaxOpenPositionsInput(draft.maxOpenPositions) != null &&
     (!needsKrwAmount || draft.orderAmountKrw.trim() !== "") &&
     (!needsUsdAmount || draft.orderAmountUsd.trim() !== "");
@@ -559,27 +525,24 @@ export default function LiveTradingTab({
     const orderKrw = draft.orderAmountKrw.trim();
     const orderUsd = draft.orderAmountUsd.trim();
     const maxOpenPositions = parseMaxOpenPositionsInput(draft.maxOpenPositions)!;
-    const choice = draftMarketChoice(draft);
-    const bodyNeedsKrw = choice === "kr" || choice === "crypto";
-    const bodyNeedsUsd = choice === "us";
     return {
       name: draft.name.trim(),
       modelId: draft.modelId,
       markets: {
-        kr: choice === "kr",
-        us: choice === "us",
-        crypto: choice === "crypto",
+        kr: draft.marketsKr,
+        us: draft.marketsUs,
+        crypto: draft.marketsCrypto,
       },
       minScoreRatio: draft.minScoreRatio,
       maxOpenPositions,
-      orderAmountKrw: bodyNeedsKrw && orderKrw ? Number(orderKrw) : null,
-      orderAmountUsd: bodyNeedsUsd && orderUsd ? Number(orderUsd) : null,
+      orderAmountKrw: needsKrwAmount && orderKrw ? Number(orderKrw) : null,
+      orderAmountUsd: needsUsdAmount && orderUsd ? Number(orderUsd) : null,
       simAutoBuy: draft.simAutoBuy,
       autoSellAtTarget:
         draft.modelId === BOX_RANGE_MODEL_ID ? false : draft.autoSellAtTarget,
       sellHorizon: draft.sellHorizon,
     };
-  }, [draft]);
+  }, [draft, needsKrwAmount, needsUsdAmount]);
 
   const handleSave = useCallback(async () => {
     setErr(null);
@@ -588,35 +551,36 @@ export default function LiveTradingTab({
       setErr(ko.app.liveTradeFieldMaxPosInvalid);
       return;
     }
-    const choice = draftMarketChoice(draft);
-    const saveNeedsKrw = choice === "kr" || choice === "crypto";
-    const saveNeedsUsd = choice === "us";
+    if (!hasAnyMarket) {
+      setErr(ko.app.liveTradeFieldMarkets);
+      return;
+    }
     if (
-      saveNeedsKrw &&
+      needsKrwAmount &&
       !draft.orderAmountKrw.trim()
     ) {
-      setErr(krwAmountFieldLabel(choice === "crypto"));
+      setErr(
+        krwAmountFieldLabel(
+          draft.marketsCrypto && !draft.marketsKr,
+        ),
+      );
       return;
     }
     const orderKrwNum = Number(draft.orderAmountKrw.trim());
-    const minOrderKrw = minOrderAmountKrwForMarkets({
-      kr: choice === "kr",
-      us: false,
-      crypto: choice === "crypto",
-    });
+    const minOrderKrw = minOrderAmountKrwForMarkets(draftMarkets);
     if (
-      saveNeedsKrw &&
+      needsKrwAmount &&
       draft.orderAmountKrw.trim() &&
       (!Number.isFinite(orderKrwNum) || orderKrwNum < minOrderKrw)
     ) {
       setErr(
-        choice === "crypto"
+        draft.marketsCrypto
           ? `코인 1회 매수 금액은 ${minOrderKrw.toLocaleString("ko-KR")}원 이상이어야 합니다.`
           : `1회 매수 금액은 ${minOrderKrw.toLocaleString("ko-KR")}원 이상이어야 합니다.`,
       );
       return;
     }
-    if (saveNeedsUsd && !draft.orderAmountUsd.trim()) {
+    if (needsUsdAmount && !draft.orderAmountUsd.trim()) {
       setErr(usdAmountFieldLabel(false, false));
       return;
     }
@@ -1025,11 +989,11 @@ export default function LiveTradingTab({
                   onApplyPatch={(patch: LiveSimDraftPatch) => {
                     const patchMarkets =
                       patch.marketsUs === true
-                        ? marketsFromChoice("us")
+                        ? { marketsUs: true }
                         : patch.marketsCrypto === true
-                          ? marketsFromChoice("crypto")
+                          ? { marketsCrypto: true }
                           : patch.marketsKr === true
-                            ? marketsFromChoice("kr")
+                            ? { marketsKr: true }
                             : null;
                     setDraft((d) => ({
                       ...d,
@@ -1094,59 +1058,77 @@ export default function LiveTradingTab({
                   </span>
                   <div
                     className="live-trading-tab__segment"
-                    role="radiogroup"
+                    role="group"
                     aria-label={ko.app.liveTradeFieldMarkets}
                   >
                     <button
                       type="button"
-                      role="radio"
                       className={
-                        marketChoice === "kr"
+                        draft.marketsKr
                           ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
                           : "live-trading-tab__segment-btn"
                       }
-                      aria-checked={marketChoice === "kr"}
+                      aria-pressed={draft.marketsKr}
                       onClick={() =>
-                        setDraft((d) => ({
-                          ...d,
-                          ...marketsFromChoice("kr"),
-                        }))
+                        setDraft((d) => {
+                          const next = { ...d, marketsKr: !d.marketsKr };
+                          if (
+                            !next.marketsKr &&
+                            !next.marketsUs &&
+                            !next.marketsCrypto
+                          ) {
+                            return d;
+                          }
+                          return next;
+                        })
                       }
                     >
                       {ko.app.liveTradeMarketKr}
                     </button>
                     <button
                       type="button"
-                      role="radio"
                       className={
-                        marketChoice === "us"
+                        draft.marketsUs
                           ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
                           : "live-trading-tab__segment-btn"
                       }
-                      aria-checked={marketChoice === "us"}
+                      aria-pressed={draft.marketsUs}
                       onClick={() =>
-                        setDraft((d) => ({
-                          ...d,
-                          ...marketsFromChoice("us"),
-                        }))
+                        setDraft((d) => {
+                          const next = { ...d, marketsUs: !d.marketsUs };
+                          if (
+                            !next.marketsKr &&
+                            !next.marketsUs &&
+                            !next.marketsCrypto
+                          ) {
+                            return d;
+                          }
+                          return next;
+                        })
                       }
                     >
                       {ko.app.liveTradeMarketUs}
                     </button>
                     <button
                       type="button"
-                      role="radio"
                       className={
-                        marketChoice === "crypto"
+                        draft.marketsCrypto
                           ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
                           : "live-trading-tab__segment-btn"
                       }
-                      aria-checked={marketChoice === "crypto"}
+                      aria-pressed={draft.marketsCrypto}
                       onClick={() =>
-                        setDraft((d) => ({
-                          ...d,
-                          ...marketsFromChoice("crypto"),
-                        }))
+                        setDraft((d) => {
+                          const next = { ...d, marketsCrypto: !d.marketsCrypto };
+                          if (
+                            !next.marketsKr &&
+                            !next.marketsUs &&
+                            !next.marketsCrypto
+                          ) {
+                            return d;
+                          }
+                          return next;
+                        })
                       }
                     >
                       {ko.app.liveTradeMarketCrypto}
@@ -1209,7 +1191,9 @@ export default function LiveTradingTab({
                   className={`live-trading-tab__field${!needsKrwAmount ? " live-trading-tab__field--off" : ""}`}
                 >
                   <span className="live-trading-tab__label">
-                    {krwAmountFieldLabel(marketChoice === "crypto")}
+                    {krwAmountFieldLabel(
+                      draft.marketsCrypto && !draft.marketsKr,
+                    )}
                   </span>
                   <input
                     type="number"
@@ -1228,7 +1212,7 @@ export default function LiveTradingTab({
                   draft.orderAmountKrw.trim() &&
                   !isOrderAmountKrwValid(draft.orderAmountKrw, draftMarkets) ? (
                     <span className="live-trading-tab__hint live-trading-tab__hint--inline live-trading-tab__hint--warn">
-                      {marketChoice === "crypto"
+                      {draft.marketsCrypto
                         ? `코인 1회 매수 금액은 ${minOrderKrw.toLocaleString("ko-KR")}원 이상이어야 합니다.`
                         : `1회 매수 금액은 ${minOrderKrw.toLocaleString("ko-KR")}원 이상이어야 합니다.`}
                     </span>

@@ -4,26 +4,33 @@ import {
   fetchBoxRangeCatalogSymbol,
   type BoxRangeCatalogBox,
   type BoxRangeCatalogIndex,
+  type BoxRangeCatalogMarket,
   type BoxRangeSymbolCatalog,
 } from "../api";
 import { formatPrice } from "../lib/format";
-import { usStockLogoUrl } from "../lib/stockLogoUrl";
+import { krStockLogoUrl, usStockLogoUrl } from "../lib/stockLogoUrl";
 import { ko } from "../i18n/ko";
 import DockPanelCenterLoading from "./DockPanelCenterLoading";
 import LiveTradeAuthPanel, {
   useLiveTradeAuth,
 } from "./LiveTradeAuthAndCredentials";
 
-function fmtUsd(n: number | null | undefined): string {
+function fmtPrice(
+  n: number | null | undefined,
+  market: BoxRangeCatalogMarket,
+): string {
   if (n == null || !Number.isFinite(n)) return "—";
-  return formatPrice(n, "USD");
+  return formatPrice(n, market === "kr" ? "KRW" : "USD");
 }
 
 function isValidCatalogBox(b: BoxRangeCatalogBox): boolean {
   return b.tradeEligible && !b.consumedAtMs;
 }
 
-function displayTicker(symbol: string): string {
+function displayTicker(symbol: string, market: BoxRangeCatalogMarket): string {
+  if (market === "kr") {
+    return symbol.replace(/^KR_/i, "").trim();
+  }
   return symbol.replace(/^US_/i, "").trim().toUpperCase();
 }
 
@@ -32,17 +39,20 @@ function BoxRangeLogoButton({
   name,
   eligibleCount,
   selected,
+  market,
   onSelect,
 }: {
   symbol: string;
   name: string;
   eligibleCount: number;
   selected: boolean;
+  market: BoxRangeCatalogMarket;
   onSelect: () => void;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
-  const logo = usStockLogoUrl(symbol);
-  const ticker = displayTicker(symbol);
+  const logo =
+    market === "kr" ? krStockLogoUrl(symbol) : usStockLogoUrl(symbol);
+  const ticker = displayTicker(symbol, market);
   const showImg = Boolean(logo) && !imgFailed;
 
   return (
@@ -85,7 +95,13 @@ function BoxRangeLogoButton({
   );
 }
 
-function BoxRangePriceCard({ box }: { box: BoxRangeCatalogBox }) {
+function BoxRangePriceCard({
+  box,
+  market,
+}: {
+  box: BoxRangeCatalogBox;
+  market: BoxRangeCatalogMarket;
+}) {
   return (
     <article className="box-range-tab__price-card">
       <header className="box-range-tab__price-card-head">
@@ -97,18 +113,18 @@ function BoxRangePriceCard({ box }: { box: BoxRangeCatalogBox }) {
       <dl className="box-range-tab__price-card-metrics">
         <div className="box-range-tab__price-card-row">
           <dt>{ko.app.liveTradeBoxColMid}</dt>
-          <dd className="box-range-tab__price-card-val">{fmtUsd(box.mid)}</dd>
+          <dd className="box-range-tab__price-card-val">{fmtPrice(box.mid, market)}</dd>
         </div>
         <div className="box-range-tab__price-card-row">
           <dt>{ko.app.liveTradeBoxColTp}</dt>
           <dd className="box-range-tab__price-card-val box-range-tab__price-card-val--up">
-            {fmtUsd(box.top)}
+            {fmtPrice(box.top, market)}
           </dd>
         </div>
         <div className="box-range-tab__price-card-row">
           <dt>{ko.app.liveTradeBoxColSl}</dt>
           <dd className="box-range-tab__price-card-val box-range-tab__price-card-val--down">
-            {fmtUsd(box.bottom)}
+            {fmtPrice(box.bottom, market)}
           </dd>
         </div>
       </dl>
@@ -118,6 +134,8 @@ function BoxRangePriceCard({ box }: { box: BoxRangeCatalogBox }) {
 
 export default function BoxRangeTab() {
   const { user, authChecked, registrationOpen } = useLiveTradeAuth();
+  const [catalogMarket, setCatalogMarket] =
+    useState<BoxRangeCatalogMarket>("us");
   const [index, setIndex] = useState<BoxRangeCatalogIndex | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState<BoxRangeSymbolCatalog | null>(null);
@@ -127,13 +145,13 @@ export default function BoxRangeTab() {
   const loadIndex = useCallback(async () => {
     setLoadErr(null);
     try {
-      const data = await fetchBoxRangeCatalog();
+      const data = await fetchBoxRangeCatalog(catalogMarket);
       setIndex(data);
     } catch (e) {
       setLoadErr(e instanceof Error ? e.message : String(e));
       setIndex(null);
     }
-  }, []);
+  }, [catalogMarket]);
 
   useEffect(() => {
     if (!user) {
@@ -142,6 +160,8 @@ export default function BoxRangeTab() {
       setDetail(null);
       return;
     }
+    setSelected(null);
+    setDetail(null);
     void loadIndex();
   }, [user, loadIndex]);
 
@@ -151,7 +171,7 @@ export default function BoxRangeTab() {
       return;
     }
     let cancelled = false;
-    void fetchBoxRangeCatalogSymbol(selected)
+    void fetchBoxRangeCatalogSymbol(selected, catalogMarket)
       .then((d) => {
         if (!cancelled) setDetail(d);
       })
@@ -164,7 +184,7 @@ export default function BoxRangeTab() {
     return () => {
       cancelled = true;
     };
-  }, [selected, user]);
+  }, [selected, user, catalogMarket]);
 
   const logoRows = useMemo(() => {
     const list = (index?.symbols ?? []).filter((r) => r.eligibleCount > 0);
@@ -173,12 +193,12 @@ export default function BoxRangeTab() {
     return list.filter(
       (r) =>
         r.symbol.includes(q) ||
-        displayTicker(r.symbol).includes(q) ||
+        displayTicker(r.symbol, catalogMarket).includes(q) ||
         String(r.name ?? "")
           .toUpperCase()
           .includes(q),
     );
-  }, [index, filter]);
+  }, [index, filter, catalogMarket]);
 
   const validBoxes = useMemo(
     () => (detail?.boxes ?? []).filter(isValidCatalogBox),
@@ -210,6 +230,36 @@ export default function BoxRangeTab() {
     <div className="workspace box-range-tab">
       <header className="box-range-tab__head card">
         <p className="box-range-tab__hint">{ko.app.boxRangeTabHint}</p>
+        <div
+          className="box-range-tab__market-segment live-trading-tab__segment"
+          role="group"
+          aria-label={ko.app.boxRangeTabMarketLabel}
+        >
+          <button
+            type="button"
+            className={
+              catalogMarket === "us"
+                ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
+                : "live-trading-tab__segment-btn"
+            }
+            aria-pressed={catalogMarket === "us"}
+            onClick={() => setCatalogMarket("us")}
+          >
+            {ko.app.boxRangeTabMarketUs}
+          </button>
+          <button
+            type="button"
+            className={
+              catalogMarket === "kr"
+                ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
+                : "live-trading-tab__segment-btn"
+            }
+            aria-pressed={catalogMarket === "kr"}
+            onClick={() => setCatalogMarket("kr")}
+          >
+            {ko.app.boxRangeTabMarketKr}
+          </button>
+        </div>
         <input
           type="search"
           className="box-range-tab__search"
@@ -240,6 +290,7 @@ export default function BoxRangeTab() {
                   name={r.name}
                   eligibleCount={r.eligibleCount}
                   selected={selected === r.symbol}
+                  market={catalogMarket}
                   onSelect={() => setSelected(r.symbol)}
                 />
               ))}
@@ -257,7 +308,7 @@ export default function BoxRangeTab() {
               <h2 className="box-range-tab__title">
                 {detail.name}{" "}
                 <span className="box-range-tab__title-sym">
-                  ({displayTicker(detail.symbol)})
+                  ({displayTicker(detail.symbol, catalogMarket)})
                 </span>
               </h2>
               {detail.scanError ? (
@@ -268,7 +319,11 @@ export default function BoxRangeTab() {
               ) : (
                 <div className="box-range-tab__card-grid">
                   {validBoxes.map((b) => (
-                    <BoxRangePriceCard key={b.catalogBoxId} box={b} />
+                    <BoxRangePriceCard
+                      key={b.catalogBoxId}
+                      box={b}
+                      market={catalogMarket}
+                    />
                   ))}
                 </div>
               )}

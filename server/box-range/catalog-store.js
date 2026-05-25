@@ -15,16 +15,45 @@ import {
   timesNearOverlap,
 } from "./merge.js";
 
-function catalogDir() {
-  return path.join(resolveServerDataDir(), "box-range-catalog", "us");
+/** @typedef {"us"|"kr"} CatalogMarket */
+
+export const CATALOG_MARKETS = /** @type {const} */ (["us", "kr"]);
+
+/**
+ * @param {unknown} raw
+ * @returns {CatalogMarket}
+ */
+export function resolveCatalogMarket(raw) {
+  return String(raw ?? "").trim().toLowerCase() === "kr" ? "kr" : "us";
 }
 
-function symbolFilePath(symbol) {
-  return path.join(catalogDir(), `${String(symbol).trim().toUpperCase()}.json`);
+/**
+ * @param {CatalogMarket} [market]
+ */
+function catalogDir(market = "us") {
+  return path.join(
+    resolveServerDataDir(),
+    "box-range-catalog",
+    resolveCatalogMarket(market),
+  );
 }
 
-function indexFilePath() {
-  return path.join(catalogDir(), "_index.json");
+/**
+ * @param {string} symbol
+ * @param {CatalogMarket} [market]
+ */
+function symbolFilePath(symbol, market = "us") {
+  return path.join(
+    catalogDir(market),
+    `${String(symbol).trim().toUpperCase()}.json`,
+  );
+}
+
+/**
+ * @param {CatalogMarket} [market]
+ */
+function indexFilePath(market = "us") {
+  return path.join(catalogDir(market), "_index.json");
 }
 
 /**
@@ -101,12 +130,14 @@ function normalizeCatalogBox(raw) {
 
 /**
  * @param {string} symbol
+ * @param {CatalogMarket} [market]
  */
-export function readSymbolCatalogSync(symbol) {
+export function readSymbolCatalogSync(symbol, market = "us") {
   const sym = String(symbol ?? "").trim().toUpperCase();
   if (!sym) return null;
+  const m = resolveCatalogMarket(market);
   try {
-    const file = symbolFilePath(sym);
+    const file = symbolFilePath(sym, m);
     if (!fs.existsSync(file)) return null;
     const o = JSON.parse(fs.readFileSync(file, "utf8"));
     if (!o || typeof o !== "object") return null;
@@ -130,13 +161,15 @@ export function readSymbolCatalogSync(symbol) {
 
 /**
  * @param {SymbolCatalogFile} payload
+ * @param {CatalogMarket} [market]
  */
-export function writeSymbolCatalogSync(payload) {
+export function writeSymbolCatalogSync(payload, market = "us") {
   const sym = String(payload.symbol ?? "").trim().toUpperCase();
   if (!sym) return;
-  const dir = catalogDir();
+  const m = resolveCatalogMarket(market);
+  const dir = catalogDir(m);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  const file = symbolFilePath(sym);
+  const file = symbolFilePath(sym, m);
   const tmp = `${file}.tmp`;
   const body = {
     symbol: sym,
@@ -147,7 +180,7 @@ export function writeSymbolCatalogSync(payload) {
   };
   fs.writeFileSync(tmp, JSON.stringify(body, null, 0), "utf8");
   fs.renameSync(tmp, file);
-  refreshCatalogIndexSync();
+  refreshCatalogIndexSync(m);
 }
 
 /**
@@ -215,10 +248,18 @@ function mergeCatalogDetected(detected, timeframe, existing) {
  * @param {string} name
  * @param {Partial<Record<"1h"|"4h"|"1d", import("./detect-pro.js").DetectedBox[]>>} byTf
  * @param {string | null} scanError
+ * @param {CatalogMarket} [market]
  */
-export function upsertSymbolCatalogDetectionsSync(symbol, name, byTf, scanError = null) {
+export function upsertSymbolCatalogDetectionsSync(
+  symbol,
+  name,
+  byTf,
+  scanError = null,
+  market = "us",
+) {
   const sym = String(symbol).trim().toUpperCase();
-  const prev = readSymbolCatalogSync(sym);
+  const m = resolveCatalogMarket(market);
+  const prev = readSymbolCatalogSync(sym, m);
   /** @type {CatalogBox[]} */
   const boxes = prev ? [...prev.boxes] : [];
   const now = Date.now();
@@ -229,26 +270,35 @@ export function upsertSymbolCatalogDetectionsSync(symbol, name, byTf, scanError 
       mergeCatalogDetected(d, tf, boxes);
     }
   }
-  writeSymbolCatalogSync({
-    symbol: sym,
-    name: name || prev?.name || sym,
-    updatedAtMs: now,
-    scanError,
-    boxes,
-  });
+  writeSymbolCatalogSync(
+    {
+      symbol: sym,
+      name: name || prev?.name || sym,
+      updatedAtMs: now,
+      scanError,
+      boxes,
+    },
+    m,
+  );
 }
 
-export function refreshCatalogIndexSync() {
-  const dir = catalogDir();
+/**
+ * @param {CatalogMarket} [market]
+ */
+export function refreshCatalogIndexSync(market = "us") {
+  const m = resolveCatalogMarket(market);
+  const dir = catalogDir(m);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  const files = fs.readdirSync(dir).filter((f) => f.endsWith(".json") && f !== "_index.json");
+  const files = fs
+    .readdirSync(dir)
+    .filter((f) => f.endsWith(".json") && f !== "_index.json");
   /** @type {{ symbol: string; name: string; updatedAtMs: number; eligibleCount: number; boxCount: number }[]} */
   const entries = [];
   for (const f of files) {
     const sym = f.replace(/\.json$/i, "");
-    const cat = readSymbolCatalogSync(sym);
+    const cat = readSymbolCatalogSync(sym, m);
     if (!cat) continue;
     const eligible = cat.boxes.filter((b) => b.tradeEligible && !b.consumedAtMs);
     entries.push({
@@ -261,24 +311,29 @@ export function refreshCatalogIndexSync() {
   }
   entries.sort((a, b) => a.symbol.localeCompare(b.symbol));
   const idx = {
+    market: m,
     updatedAtMs: Date.now(),
     count: entries.length,
     symbols: entries,
   };
-  const file = indexFilePath();
+  const file = indexFilePath(m);
   const tmp = `${file}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(idx, null, 0), "utf8");
   fs.renameSync(tmp, file);
   return idx;
 }
 
-export function readCatalogIndexSync() {
+/**
+ * @param {CatalogMarket} [market]
+ */
+export function readCatalogIndexSync(market = "us") {
+  const m = resolveCatalogMarket(market);
   try {
-    const file = indexFilePath();
-    if (!fs.existsSync(file)) return refreshCatalogIndexSync();
+    const file = indexFilePath(m);
+    if (!fs.existsSync(file)) return refreshCatalogIndexSync(m);
     return JSON.parse(fs.readFileSync(file, "utf8"));
   } catch {
-    return refreshCatalogIndexSync();
+    return refreshCatalogIndexSync(m);
   }
 }
 
@@ -286,9 +341,10 @@ export function readCatalogIndexSync() {
  * @param {string} symbol
  * @param {string} catalogBoxId
  * @param {{ tradeEligible?: boolean; consumedReason?: string }} patch
+ * @param {CatalogMarket} [market]
  */
-export function patchCatalogBoxSync(symbol, catalogBoxId, patch) {
-  const cat = readSymbolCatalogSync(symbol);
+export function patchCatalogBoxSync(symbol, catalogBoxId, patch, market = "us") {
+  const cat = readSymbolCatalogSync(symbol, market);
   if (!cat) return null;
   const id = String(catalogBoxId ?? "").trim();
   const i = cat.boxes.findIndex((b) => b.catalogBoxId === id);
@@ -309,7 +365,7 @@ export function patchCatalogBoxSync(symbol, catalogBoxId, patch) {
       consumedReason: null,
     };
   }
-  writeSymbolCatalogSync(cat);
+  writeSymbolCatalogSync(cat, market);
 
   const tstore = readBoxRangeStoreSync();
   let tChanged = 0;
@@ -345,31 +401,34 @@ export function patchCatalogBoxSync(symbol, catalogBoxId, patch) {
  * @param {string} [reason]
  */
 export function markCatalogBoxConsumedSync(catalogBoxId, reason = "closed") {
-  const dir = catalogDir();
-  if (!fs.existsSync(dir)) return;
-  for (const f of fs.readdirSync(dir)) {
-    if (!f.endsWith(".json") || f === "_index.json") continue;
-    const sym = f.replace(/\.json$/i, "");
-    const cat = readSymbolCatalogSync(sym);
-    if (!cat) continue;
-    const i = cat.boxes.findIndex((b) => b.catalogBoxId === catalogBoxId);
-    if (i < 0) continue;
-    cat.boxes[i] = {
-      ...cat.boxes[i],
-      tradeEligible: false,
-      consumedAtMs: Date.now(),
-      consumedReason: reason,
-    };
-    writeSymbolCatalogSync(cat);
-    return;
+  for (const market of CATALOG_MARKETS) {
+    const dir = catalogDir(market);
+    if (!fs.existsSync(dir)) continue;
+    for (const f of fs.readdirSync(dir)) {
+      if (!f.endsWith(".json") || f === "_index.json") continue;
+      const sym = f.replace(/\.json$/i, "");
+      const cat = readSymbolCatalogSync(sym, market);
+      if (!cat) continue;
+      const i = cat.boxes.findIndex((b) => b.catalogBoxId === catalogBoxId);
+      if (i < 0) continue;
+      cat.boxes[i] = {
+        ...cat.boxes[i],
+        tradeEligible: false,
+        consumedAtMs: Date.now(),
+        consumedReason: reason,
+      };
+      writeSymbolCatalogSync(cat, market);
+      return;
+    }
   }
 }
 
 /**
  * @param {string} symbol
+ * @param {CatalogMarket} [market]
  */
-export function listTradeEligibleCatalogBoxesSync(symbol) {
-  const cat = readSymbolCatalogSync(symbol);
+export function listTradeEligibleCatalogBoxesSync(symbol, market = "us") {
+  const cat = readSymbolCatalogSync(symbol, market);
   if (!cat) return [];
   return cat.boxes.filter((b) => b.tradeEligible && !b.consumedAtMs);
 }

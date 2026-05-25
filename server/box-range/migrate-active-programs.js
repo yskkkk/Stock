@@ -42,13 +42,11 @@ function writeFlagSync(payload) {
  */
 export function resolveBoxRangeMarketsForProgram(program) {
   const mk = program.markets ?? {};
-  const cryptoFirst =
-    Boolean(mk.crypto) &&
-    (program.modelId !== BOX_RANGE_MODEL_ID || !mk.us || mk.crypto);
-  if (cryptoFirst) {
-    return { kr: false, us: false, crypto: true };
-  }
-  return { kr: false, us: true, crypto: false };
+  return {
+    kr: Boolean(mk.kr),
+    us: Boolean(mk.us),
+    crypto: Boolean(mk.crypto),
+  };
 }
 
 /**
@@ -67,7 +65,7 @@ export function buildBoxRangeScenarioPatch(program) {
   if (program.status === "armed") {
     const am = getProgramArmedMarkets(program);
     patch.armedMarkets = {
-      kr: false,
+      kr: markets.kr && (am.kr || Boolean(program.markets?.kr)),
       crypto: markets.crypto && (am.crypto || Boolean(program.markets?.crypto)),
     };
   }
