@@ -27,6 +27,7 @@ function stateFilePath() {
  *   buyTradeId: string | null;
  *   lotQty: number;
  *   entryPrice: number | null;
+ *   buyAtMs: number | null;
  *   updatedAtMs: number;
  * }} BoxRangeRecord
  */
@@ -95,6 +96,8 @@ function normalizeBox(raw) {
       o.entryPrice > 0
         ? o.entryPrice
         : null,
+    buyAtMs:
+      typeof o.buyAtMs === "number" && o.buyAtMs > 0 ? o.buyAtMs : null,
     updatedAtMs:
       typeof o.updatedAtMs === "number" && o.updatedAtMs > 0
         ? o.updatedAtMs
@@ -116,7 +119,7 @@ export function readBoxRangeStoreSync() {
   }
 }
 
-function writeBoxRangeStoreSync(store) {
+export function writeBoxRangeStoreSync(store) {
   const dir = resolveServerDataDir();
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const file = stateFilePath();
@@ -227,6 +230,7 @@ export function upsertDetectedBoxSync(detected) {
     buyTradeId: null,
     lotQty: 0,
     entryPrice: null,
+    buyAtMs: null,
     updatedAtMs: now,
   };
   store.boxes.push(box);

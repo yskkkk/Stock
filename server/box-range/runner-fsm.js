@@ -18,6 +18,7 @@ import {
   patchBoxSync,
 } from "./store.js";
 import { boxRangeBuyDedupeKey } from "./buy-guard.js";
+import { resolveBoxSellQuantitySync } from "./lot-reconcile.js";
 
 /** @type {Set<string>} */
 const boxBuyInFlight = new Set();
@@ -87,6 +88,7 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
               buyTradeId: trade.id,
               lotQty: trade.quantity,
               entryPrice: trade.price,
+              buyAtMs: trade.atMs,
             });
             liveTradeLogInfo(
               "[box-range:buy]",
@@ -108,6 +110,7 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
               buyTradeId: trade.id,
               lotQty: trade.quantity,
               entryPrice: trade.price,
+              buyAtMs: trade.atMs,
             });
             liveTradeLogInfo(
               "[box-range:sim-buy]",
@@ -128,9 +131,21 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
     return;
   }
 
-  if (box.state === "in_position" && box.lotQty > 0) {
-    const qty = box.lotQty;
-    const entry = box.entryPrice ?? box.mid;
+  if (box.state === "in_position") {
+    const lot = resolveBoxSellQuantitySync(box);
+    if (lot.closed) {
+      patchBoxSync(box.boxId, {
+        state: "closed",
+        lotQty: 0,
+        buyTradeId: null,
+        entryPrice: null,
+        buyAtMs: null,
+      });
+      return;
+    }
+    const qty = lot.quantity;
+    if (qty <= 0) return;
+    const entry = lot.entryPrice ?? box.entryPrice ?? box.mid;
     let exitSide = null;
     let fillPrice = lastPrice;
     if (lastPrice >= box.top) {
@@ -192,6 +207,7 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
         lotQty: 0,
         buyTradeId: null,
         entryPrice: null,
+        buyAtMs: null,
       });
       liveTradeLogInfo(
         "[box-range:sell]",

@@ -62,7 +62,7 @@ export function findMergeBoxIndex(candidate, existing, barSec) {
   for (let j = 0; j < existing.length; j++) {
     const e = existing[j];
     if (String(e.timeframe ?? "").trim() !== tf) continue;
-    if (e.state === "closed") continue;
+    if (e.state === "closed" || e.state === "in_position") continue;
     const priceOk =
       priceOverlapPct(
         candidate.top,

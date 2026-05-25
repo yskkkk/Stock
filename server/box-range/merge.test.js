@@ -27,6 +27,27 @@ test("findMergeBoxIndex never merges across 1h / 4h / 1d", () => {
   );
 });
 
+test("findMergeBoxIndex skips in_position boxes", () => {
+  const existing = [
+    {
+      top: 100,
+      bottom: 90,
+      leftTime: 1_000,
+      rightTime: 5_000,
+      timeframe: "1h",
+      state: "in_position",
+    },
+  ];
+  const candidate = {
+    top: 99,
+    bottom: 91,
+    leftTime: 2_000,
+    rightTime: 4_000,
+    timeframe: "1h",
+  };
+  assert.equal(findMergeBoxIndex(candidate, existing, 3600), -1);
+});
+
 test("findMergeBoxIndex merges only same timeframe when overlap", () => {
   const existing = [
     {

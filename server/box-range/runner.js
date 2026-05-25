@@ -18,6 +18,7 @@ import {
 } from "./store.js";
 import { processBoxFsmForProgram } from "./runner-fsm.js";
 import { syncBoxRangeWsSubscriptions } from "./ws-sync.js";
+import { reconcileBoxRangeLotsFromPortfolioSync } from "./lot-reconcile.js";
 
 const TICK_MS = (() => {
   const n = Number(process.env.STOCK_BOX_RANGE_TICK_MS ?? 3_000);
@@ -115,6 +116,8 @@ async function tickProgram(program) {
 }
 
 export async function tickBoxRangeTrading() {
+  reconcileBoxRangeLotsFromPortfolioSync();
+
   const programs = [
     ...listSimActiveProgramsSync().filter(isBoxRangeProgram),
     ...listArmedLiveTradeProgramsSync().filter(isBoxRangeProgram),
@@ -147,6 +150,7 @@ export function startBoxRangeRunnerPoller() {
   );
   if (g.__stockBoxRangeRunner) return;
   g.__stockBoxRangeRunner = true;
+  reconcileBoxRangeLotsFromPortfolioSync();
   let running = false;
   const loop = () => {
     if (running) return;
