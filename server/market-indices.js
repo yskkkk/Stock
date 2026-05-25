@@ -16,6 +16,7 @@ export const MARKET_INDEX_DEFS = [
   { id: "kospi", symbol: "^KS11", label: "코스피", region: "kr" },
   { id: "kosdaq", symbol: "^KQ11", label: "코스닥", region: "kr" },
   { id: "nasdaq", symbol: "^IXIC", label: "나스닥", region: "us" },
+  { id: "nasdaq-futures", symbol: "NQ=F", label: "나스닥선물", region: "us" },
   { id: "ndx", symbol: "^NDX", label: "나스닥100", region: "us" },
   { id: "sp500", symbol: "^GSPC", label: "S&P500", region: "us" },
   { id: "dow", symbol: "^DJI", label: "다우", region: "us" },
