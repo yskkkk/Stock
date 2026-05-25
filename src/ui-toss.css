@@ -644,7 +644,8 @@ html {
   .live-trading-tab__program-actions .btn {
     width: 100%;
     justify-content: center;
-    min-height: 40px;
+    min-height: 1.75rem;
+    font-size: 0.66rem;
   }
 
   .live-portfolio__head {
@@ -2914,8 +2915,49 @@ html[data-theme="light"]
 .live-trading-tab__program-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: 0.28rem 0.35rem;
   margin-top: 0.55rem;
+}
+
+.live-trading-tab__program-actions .btn {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.18rem 0.42rem;
+  min-height: 0;
+  line-height: 1.35;
+  border-radius: 5px;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 55%, transparent);
+  color: var(--text-muted, #94a3b8);
+}
+
+.live-trading-tab__program-actions .btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent-dim, rgba(143, 181, 170, 0.14)) 65%, transparent) !important;
+  border-color: var(--accent-border, rgba(143, 181, 170, 0.32));
+  color: var(--text, #dce1e8);
+}
+
+.live-trading-tab__program-actions .btn--primary {
+  color: var(--accent, #8fb5aa);
+  border-color: color-mix(in srgb, var(--accent-border) 80%, transparent);
+}
+
+.live-trading-tab__program-actions .btn--primary:hover:not(:disabled) {
+  color: var(--text, #dce1e8);
+}
+
+.live-trading-tab__program-actions .btn:disabled {
+  opacity: 0.42;
+}
+
+html[data-theme="light"] .live-trading-tab__program-actions .btn {
+  border-color: color-mix(in srgb, var(--card-border) 70%, transparent);
+  color: var(--text-muted, #64748b);
+}
+
+html[data-theme="light"] .live-trading-tab__program-actions .btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent-dim) 40%, transparent) !important;
 }
 
 /* 가동 중 시뮬 */
