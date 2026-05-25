@@ -2,6 +2,7 @@ import { memo, useEffect, useState } from "react";
 import { fetchAuthMe } from "../api";
 import BithumbAccountSnapshotCard from "./BithumbAccountSnapshotCard";
 import BithumbAccountTitle from "./BithumbAccountTitle";
+import DockPanelCenterLoading from "./DockPanelCenterLoading";
 import { useBithumbAccountSnapshot } from "../hooks/useBithumbAccountSnapshot";
 import { ko } from "../i18n/ko";
 
@@ -15,7 +16,9 @@ export function BithumbAccountRailCore({
   const { user, authChecked, snapshot, feeLabelKo, updatedAtMs, loading, err } =
     useBithumbAccountSnapshot();
 
-  if (!authChecked || !user) return null;
+  if (authChecked && !user) return null;
+
+  const pending = !authChecked || loading;
 
   const head = (
     <div className="bithumb-account-rail-wrap__head">
@@ -27,27 +30,23 @@ export function BithumbAccountRailCore({
       >
         <BithumbAccountTitle />
       </button>
-      {loading ? (
-        <span className="bithumb-account-rail-wrap__status">
-          {ko.app.marketIndicesLoading}
-        </span>
-      ) : null}
     </div>
   );
 
-  const body =
-    !loading && !snapshot ? (
-      <p className="bithumb-account-rail-wrap__hint">
-        {err ?? ko.app.leftRailBithumbAccountNeedKeys}
-      </p>
-    ) : !snapshot ? null : (
-      <BithumbAccountSnapshotCard
-        snapshot={snapshot}
-        feeLabelKo={feeLabelKo}
-        updatedAtMs={updatedAtMs}
-        variant={layout === "dock" ? "inline" : "rail"}
-      />
-    );
+  const body = pending ? (
+    <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
+  ) : !snapshot ? (
+    <p className="bithumb-account-rail-wrap__hint">
+      {err ?? ko.app.leftRailBithumbAccountNeedKeys}
+    </p>
+  ) : (
+    <BithumbAccountSnapshotCard
+      snapshot={snapshot}
+      feeLabelKo={feeLabelKo}
+      updatedAtMs={updatedAtMs}
+      variant={layout === "dock" ? "inline" : "rail"}
+    />
+  );
 
   const inner = (
     <>
@@ -58,13 +57,21 @@ export function BithumbAccountRailCore({
 
   if (layout === "dock") {
     return (
-      <div className="app-dock-rail-panel app-dock-rail-panel--bithumb">{inner}</div>
+      <div
+        className={`app-dock-rail-panel app-dock-rail-panel--bithumb${
+          pending ? " app-dock-rail-panel--pending" : ""
+        }`}
+      >
+        {inner}
+      </div>
     );
   }
 
   return (
     <aside
-      className="bithumb-account-rail-wrap bithumb-account-rail-wrap--side"
+      className={`bithumb-account-rail-wrap bithumb-account-rail-wrap--side${
+        pending ? " bithumb-account-rail-wrap--pending" : ""
+      }`}
       role="complementary"
       aria-label={ko.app.leftRailBithumbAccountAria}
     >

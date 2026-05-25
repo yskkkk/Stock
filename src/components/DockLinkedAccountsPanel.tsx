@@ -4,6 +4,7 @@ import { useBithumbAccountSnapshot } from "../hooks/useBithumbAccountSnapshot";
 import { useLiveTradingStatusPoll } from "../hooks/useLiveTradingStatusPoll";
 import BithumbAccountSnapshotCard from "./BithumbAccountSnapshotCard";
 import BithumbAccountTitle from "./BithumbAccountTitle";
+import DockPanelCenterLoading from "./DockPanelCenterLoading";
 import { TossBrandMark } from "./ExchangeBrandMarks";
 import { ko } from "../i18n/ko";
 
@@ -15,11 +16,15 @@ function BithumbLinkedAccountSection({
   const { authChecked, user, snapshot, feeLabelKo, updatedAtMs, loading, err } =
     useBithumbAccountSnapshot();
 
-  if (!authChecked || !user) return null;
+  if (authChecked && !user) return null;
+
+  const pending = !authChecked || loading;
 
   return (
     <section
-      className="dock-linked-accounts__block dock-linked-accounts__block--bithumb"
+      className={`dock-linked-accounts__block dock-linked-accounts__block--bithumb${
+        pending ? " dock-linked-accounts__block--pending" : ""
+      }`}
       aria-label={ko.app.leftRailBithumbAccountAria}
     >
       <div className="dock-linked-accounts__head bithumb-account-rail-wrap__head">
@@ -31,17 +36,14 @@ function BithumbLinkedAccountSection({
         >
           <BithumbAccountTitle />
         </button>
-        {loading ? (
-          <span className="bithumb-account-rail-wrap__status">
-            {ko.app.marketIndicesLoading}
-          </span>
-        ) : null}
       </div>
-      {!loading && !snapshot ? (
+      {pending ? (
+        <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
+      ) : !snapshot ? (
         <p className="dock-linked-accounts__hint">
           {err ?? ko.app.leftRailBithumbAccountNeedKeys}
         </p>
-      ) : !snapshot ? null : (
+      ) : (
         <BithumbAccountSnapshotCard
           snapshot={snapshot}
           feeLabelKo={feeLabelKo}
