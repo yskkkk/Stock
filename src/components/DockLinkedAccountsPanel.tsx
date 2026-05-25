@@ -15,9 +15,7 @@ import {
   readDockAccountViewEvent,
   type LiveTradeDockAccountView,
 } from "../lib/liveTradeDockAccount";
-import {
-  dispatchLiveTradeTradesWorkspace,
-} from "../lib/liveTradeTradesWorkspace";
+import { navigateToTradeHistoryTab } from "../lib/liveTradeDockAccount";
 import type { LiveTradeTradesExchange } from "../lib/liveTradeTradesWorkspace";
 import { ko } from "../i18n/ko";
 
@@ -48,7 +46,7 @@ function applyAccountView(
       view.provider === "toss" || view.provider === "bithumb"
         ? view.provider
         : readDockAccountProvider();
-    dispatchLiveTradeTradesWorkspace({ mode: "history", exchange: ex });
+    navigateToTradeHistoryTab(ex);
   }
 }
 

@@ -3696,10 +3696,6 @@ html[data-theme="light"]
   min-height: min(72dvh, 680px);
 }
 
-.workspace--account-trades .trade-history-main-workspace {
-  min-height: min(58dvh, 540px);
-}
-
 .trade-history-main-workspace__head {
   padding: 0.65rem 0.85rem 0.35rem;
   border-bottom: 1px solid var(--border, rgba(15, 23, 42, 0.08));

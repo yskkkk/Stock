@@ -1,7 +1,8 @@
-import {
-  dispatchLiveTradeTradesWorkspace,
-  type LiveTradeTradesExchange,
-} from "./liveTradeTradesWorkspace";
+import type { LiveTradeTradesExchange } from "./liveTradeTradesWorkspace";
+
+/** 상단 «거래내역» 탭으로 전환 */
+export const LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT =
+  "ystock-navigate-trade-history-tab";
 
 /** @deprecated 거래내역은 메인 영역; `openAccountTrades` 사용 */
 export type LiveTradeDockAccountSubTab = "balance" | "trades";
@@ -56,12 +57,24 @@ export function readDockAccountProviderEvent(
   return (e as CustomEvent<LiveTradeTradesExchange>).detail;
 }
 
+export function navigateToTradeHistoryTab(
+  exchange: LiveTradeTradesExchange = readDockAccountProvider(),
+): void {
+  if (typeof window === "undefined") return;
+  dispatchDockAccountProvider(exchange);
+  window.dispatchEvent(
+    new CustomEvent<LiveTradeTradesExchange>(
+      LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT,
+      { detail: exchange },
+    ),
+  );
+}
+
+/** 거래내역 탭 열기(계좌·포트폴리오 등) */
 export function openAccountTrades(
   exchange: LiveTradeTradesExchange = readDockAccountProvider(),
 ): void {
-  dispatchDockAccountProvider(exchange);
-  dispatchLiveTradeTradesWorkspace({ mode: "history", exchange });
-  dispatchLiveTradeDockOpenAccount({ provider: exchange });
+  navigateToTradeHistoryTab(exchange);
 }
 
 export const LIVE_TRADE_DOCK_OPEN_ACCOUNT_EVENT =

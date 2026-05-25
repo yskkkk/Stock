@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { LiveTradeHolding } from "../api";
 import LiveAccountTradesMainPanel from "./LiveAccountTradesMainPanel";
+import { LiveTradeExchangePicker } from "./LiveTradeExchangePicker";
 import {
+  dispatchDockAccountProvider,
   LIVE_TRADE_DOCK_ACCOUNT_PROVIDER_EVENT,
   readDockAccountProvider,
   readDockAccountProviderEvent,
@@ -18,6 +20,11 @@ export default function TradeHistoryTab({
     readDockAccountProvider,
   );
 
+  const selectExchange = useCallback((next: LiveTradeTradesExchange) => {
+    setExchange(next);
+    dispatchDockAccountProvider(next);
+  }, []);
+
   useEffect(() => {
     const onProvider = (e: Event) => {
       const p = readDockAccountProviderEvent(e);
@@ -33,6 +40,13 @@ export default function TradeHistoryTab({
 
   return (
     <div className="workspace trade-history-workspace">
+      <div className="trade-history-workspace__picker card">
+        <LiveTradeExchangePicker
+          compact
+          selected={exchange}
+          onSelect={selectExchange}
+        />
+      </div>
       <LiveAccountTradesMainPanel
         exchange={exchange}
         onOpenHoldingChart={onOpenHoldingChart}

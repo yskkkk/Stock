@@ -10441,26 +10441,12 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   max-width: 100%;
   align-self: stretch;
   min-height: min(72dvh, 680px);
+  gap: 0.65rem;
 }
 
-/* 종목검색·스크리너에서 계좌 체결 — 목록은 유지, 아래 체결 패널 확장 */
-.workspace.workspace--account-trades {
-  display: flex !important;
-  flex-direction: column;
-  grid-template-columns: none !important;
-  width: 100%;
-  max-width: 100%;
-}
-
-.workspace.workspace--account-trades .picks-panel:not(.crypto-panel) {
-  flex: 0 1 auto;
-  max-height: min(36dvh, 320px);
-}
-
-.workspace.workspace--account-trades .chart-section.crypto-chart-section {
-  flex: 1 1 auto;
-  min-height: min(58dvh, 560px);
-  width: 100%;
+.trade-history-workspace__picker {
+  flex: 0 0 auto;
+  padding: 0.75rem 0.85rem;
 }
 
 .trade-history-workspace__panel {

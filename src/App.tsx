@@ -55,16 +55,7 @@ import {
 } from "./components/LiveTradeAuthAndCredentials";
 import RecommendationsTab from "./components/RecommendationsTab";
 import TradeHistoryTab from "./components/TradeHistoryTab";
-import LiveAccountTradesMainPanel from "./components/LiveAccountTradesMainPanel";
-import {
-  LIVE_TRADE_DOCK_ACCOUNT_PROVIDER_EVENT,
-  readDockAccountProviderEvent,
-} from "./lib/liveTradeDockAccount";
-import {
-  LIVE_TRADE_TRADES_WORKSPACE_EVENT,
-  readLiveTradeTradesWorkspaceEvent,
-  type LiveTradeTradesExchange,
-} from "./lib/liveTradeTradesWorkspace";
+import { LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT } from "./lib/liveTradeDockAccount";
 import StockSearchTab from "./components/StockSearchTab";
 import StockChart from "./components/StockChart";
 import TradingViewAdvancedChart from "./components/TradingViewAdvancedChart";
@@ -198,53 +189,16 @@ export default function App() {
   const [chartError, setChartError] = useState<string | null>(null);
   const [chartStale, setChartStale] = useState(false);
   const [chartEngine, setChartEngine] = useState<StockChartEngine>("app");
-  const [accountTradesExchange, setAccountTradesExchange] =
-    useState<LiveTradeTradesExchange | null>(null);
-
   useEffect(() => {
-    if (appTab === "tradeHistory") {
-      setAccountTradesExchange(null);
-    }
-  }, [appTab]);
-
-  useEffect(() => {
-    const onTradesWorkspace = (e: Event) => {
-      const state = readLiveTradeTradesWorkspaceEvent(e);
-      if (!state || state.mode !== "history") {
-        setAccountTradesExchange(null);
-        return;
-      }
-      setAppTab((tab) => {
-        if (tab === "tradeHistory") return tab;
-        if (tab === "liveTrading" || tab === "ops" || tab === "crypto") {
-          return "stockLookup";
-        }
-        return tab;
-      });
-      setAccountTradesExchange(state.exchange);
-    };
-    window.addEventListener(LIVE_TRADE_TRADES_WORKSPACE_EVENT, onTradesWorkspace);
-    return () =>
-      window.removeEventListener(
-        LIVE_TRADE_TRADES_WORKSPACE_EVENT,
-        onTradesWorkspace,
-      );
-  }, []);
-
-  useEffect(() => {
-    const onAccountProvider = (e: Event) => {
-      const p = readDockAccountProviderEvent(e);
-      if (p !== "bithumb" && p !== "toss") return;
-      setAccountTradesExchange((cur) => (cur != null ? p : cur));
-    };
+    const onTradeHistoryTab = () => setAppTab("tradeHistory");
     window.addEventListener(
-      LIVE_TRADE_DOCK_ACCOUNT_PROVIDER_EVENT,
-      onAccountProvider,
+      LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT,
+      onTradeHistoryTab,
     );
     return () =>
       window.removeEventListener(
-        LIVE_TRADE_DOCK_ACCOUNT_PROVIDER_EVENT,
-        onAccountProvider,
+        LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT,
+        onTradeHistoryTab,
       );
   }, []);
 
@@ -1452,14 +1406,7 @@ export default function App() {
           </section>
         </div>
       ) : (
-        <div
-          className={[
-            "workspace",
-            accountTradesExchange ? "workspace--account-trades" : "",
-          ]
-            .filter(Boolean)
-            .join(" ")}
-        >
+        <div className="workspace">
         <aside className="picks-panel card">
           <div
             className={[
@@ -1603,12 +1550,7 @@ export default function App() {
           ref={stockChartSectionRef}
           className="chart-section crypto-chart-section"
         >
-          {accountTradesExchange ? (
-            <LiveAccountTradesMainPanel
-              exchange={accountTradesExchange}
-              onOpenHoldingChart={handleLiveTradeChart}
-            />
-          ) : !workspacePick ? (
+          {!workspacePick ? (
             <div className="chart-placeholder card">
               <div className="placeholder-icon" aria-hidden>
                 ?
