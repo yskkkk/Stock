@@ -1,7 +1,6 @@
 import { BithumbBrandMark, TossBrandMark } from "./ExchangeBrandMarks";
 import { ko } from "../i18n/ko";
 import type { LiveTradeTradesExchange } from "../lib/liveTradeTradesWorkspace";
-import { dispatchLiveTradeTradesWorkspace } from "../lib/liveTradeTradesWorkspace";
 
 export function LiveTradeExchangePicker({
   onSelect,
@@ -13,7 +12,6 @@ export function LiveTradeExchangePicker({
 }) {
   const pick = (exchange: LiveTradeTradesExchange) => {
     onSelect?.(exchange);
-    dispatchLiveTradeTradesWorkspace({ mode: "history", exchange });
   };
 
   return (

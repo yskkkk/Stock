@@ -82,13 +82,6 @@ import {
   dispatchLiveTradePortfolioFocus,
   setPendingLiveTradePortfolioFocus,
 } from "./lib/liveTradePortfolioFocus";
-import LiveTradeTradesWorkspaceShell from "./components/LiveTradeTradesWorkspaceShell";
-import {
-  LIVE_TRADE_TRADES_WORKSPACE_EVENT,
-  dispatchLiveTradeTradesWorkspace,
-  readLiveTradeTradesWorkspaceEvent,
-  type LiveTradeTradesWorkspaceState,
-} from "./lib/liveTradeTradesWorkspace";
 import { enrichBullishPick } from "./lib/bullishPicks";
 import {
   filterPicksBySignals,
@@ -183,9 +176,6 @@ export default function App() {
   const [sortKey, setSortKey] = useState<SortKey>("score");
   const [screenerSelected, setScreenerSelected] = useState<StockPick | null>(null);
   const [lookupSelected, setLookupSelected] = useState<StockPick | null>(null);
-  /** 도크·상단 «거래내역» — 가운데 차트 영역에 토스·빗썸 체결 표시 */
-  const [tradesWorkspace, setTradesWorkspace] =
-    useState<LiveTradeTradesWorkspaceState | null>(null);
   const [timeframe, setTimeframe] = useState<ChartTimeframe>("1m");
   const [quote, setQuote] = useState<QuoteResponse | null>(null);
   const [candles, setCandles] = useState<Candle[]>([]);
@@ -692,31 +682,6 @@ export default function App() {
     },
     [],
   );
-
-  useEffect(() => {
-    const onTradesWorkspace = (e: Event) => {
-      const next = readLiveTradeTradesWorkspaceEvent(e);
-      setTradesWorkspace(next);
-      if (next) {
-        setAppTab((tab) =>
-          tab === "liveTrading" || tab === "ops" ? "stockLookup" : tab,
-        );
-      }
-    };
-    window.addEventListener(LIVE_TRADE_TRADES_WORKSPACE_EVENT, onTradesWorkspace);
-    return () =>
-      window.removeEventListener(
-        LIVE_TRADE_TRADES_WORKSPACE_EVENT,
-        onTradesWorkspace,
-      );
-  }, []);
-
-  const openTradeHistoryWorkspace = useCallback(() => {
-    dispatchLiveTradeTradesWorkspace({ mode: "picker" });
-    setAppTab((tab) =>
-      tab === "liveTrading" || tab === "ops" ? "stockLookup" : tab,
-    );
-  }, []);
 
   const handleOpenMarketIndex = useCallback((item: MarketIndexItem) => {
     const market = item.lookupMarket ?? item.region;
@@ -1316,30 +1281,21 @@ export default function App() {
                 className={
                   appTab === "stockLookup" ? "main-tab active" : "main-tab"
                 }
-                onClick={() => {
-                  setTradesWorkspace(null);
-                  setAppTab("stockLookup");
-                }}
+                onClick={() => setAppTab("stockLookup")}
               >
                 {ko.app.tabStockLookup}
               </button>
               <button
                 type="button"
                 className={appTab === "crypto" ? "main-tab active" : "main-tab"}
-                onClick={() => {
-                  setTradesWorkspace(null);
-                  setAppTab("crypto");
-                }}
+                onClick={() => setAppTab("crypto")}
               >
                 {ko.app.tabCrypto}
               </button>
               <button
                 type="button"
                 className={appTab === "screener" ? "main-tab active" : "main-tab"}
-                onClick={() => {
-                  setTradesWorkspace(null);
-                  setAppTab("screener");
-                }}
+                onClick={() => setAppTab("screener")}
               >
                 {ko.app.tabScreener}
               </button>
@@ -1348,24 +1304,10 @@ export default function App() {
                 className={
                   appTab === "recommendations" ? "main-tab active" : "main-tab"
                 }
-                onClick={() => {
-                  setTradesWorkspace(null);
-                  setAppTab("recommendations");
-                }}
+                onClick={() => setAppTab("recommendations")}
               >
                 {ko.app.tabRecommendations}
               </button>
-              {liveTradeUser ? (
-                <button
-                  type="button"
-                  className={
-                    tradesWorkspace != null ? "main-tab active" : "main-tab"
-                  }
-                  onClick={openTradeHistoryWorkspace}
-                >
-                  {ko.app.tabTradeHistory}
-                </button>
-              ) : null}
             </nav>
 
             <div className="top-bar__tools">
@@ -1578,9 +1520,7 @@ export default function App() {
           ref={stockChartSectionRef}
           className="chart-section crypto-chart-section"
         >
-          {tradesWorkspace ? (
-            <LiveTradeTradesWorkspaceShell state={tradesWorkspace} />
-          ) : !workspacePick ? (
+          {!workspacePick ? (
             <div className="chart-placeholder card">
               <div className="placeholder-icon" aria-hidden>
                 ?

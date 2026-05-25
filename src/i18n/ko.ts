@@ -120,7 +120,8 @@ export const ko = {
     liveTradePfTabTrades: "거래 내역",
     liveTradePfTabTradesDock: "거래내역",
     liveTradePfTradesDockHint:
-      "토스·빗썸을 선택하면 가운데 영역에 체결 내역이 표시됩니다.",
+      "«계좌» 패널에서 거래소를 선택해 거래내역을 확인하세요.",
+    liveTradeApiNotConnected: "API 연동되어 있지 않습니다.",
     liveTradeSideDockRailTrades: "거래내역",
     liveTradeTradesPickExchange: "거래소를 선택하세요",
     liveTradeTradesWorkspaceBack: "거래소 선택",

@@ -10422,6 +10422,16 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   line-height: 1.4;
 }
 
+.dock-linked-accounts__hint--api {
+  margin: 0.5rem 0;
+  font-weight: 600;
+}
+
+.dock-linked-accounts__trades-back {
+  margin: 0 0 0.45rem;
+  align-self: flex-start;
+}
+
 .toss-account-balance__unreal {
   margin: 0 0 0.45rem;
   font-size: 0.78rem;

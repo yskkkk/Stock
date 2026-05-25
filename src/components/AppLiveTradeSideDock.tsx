@@ -13,7 +13,7 @@ import {
 import { createPortal } from "react-dom";
 import { logoutAuth } from "../api";
 import { FeedbackDockRailButton, type FeedbackCornerHandle } from "./FeedbackCorner";
-import { BithumbBrandMark, TossBrandMark } from "./ExchangeBrandMarks";
+import { BithumbBrandMark } from "./ExchangeBrandMarks";
 import LiveTradeDockApiRail from "./LiveTradeDockApiRail";
 import LiveTradeDockYsHead from "./LiveTradeDockYsHead";
 import { useDesktopDockLayout } from "../hooks/useDesktopDockLayout";
@@ -39,7 +39,11 @@ import {
   dispatchLiveTradePortfolioPanelTab,
   LIVE_TRADE_DOCK_OPEN_PORTFOLIO_EVENT,
 } from "../lib/liveTradePortfolioFocus";
-import { dispatchLiveTradeTradesWorkspace } from "../lib/liveTradeTradesWorkspace";
+import {
+  LIVE_TRADE_DOCK_ACCOUNT_VIEW_EVENT,
+  LIVE_TRADE_DOCK_OPEN_ACCOUNT_EVENT,
+  readDockAccountViewEvent,
+} from "../lib/liveTradeDockAccount";
 import {
   LIVE_TRADE_DOCK_PANEL_WIDTH_PREF,
   applyDockPanelWidthCss,
@@ -320,18 +324,8 @@ function railTabShort(
     return {
       glyph: "₩",
       label: ko.app.liveTradeSideDockRailPortfolio,
+      subLabel: ko.app.liveTradeDockRailPortfolioTrades,
       stacked: true,
-    };
-  }
-  if (id === "trades") {
-    return {
-      glyph: (
-        <span className="app-live-trade-side-dock__rail-trades-glyphs" aria-hidden>
-          <TossBrandMark className="app-live-trade-side-dock__rail-trades-mark" />
-          <BithumbBrandMark className="app-live-trade-side-dock__rail-trades-mark" />
-        </span>
-      ),
-      label: ko.app.liveTradeSideDockRailTrades,
     };
   }
   if (id === "form") {
@@ -475,6 +469,36 @@ export default function AppLiveTradeSideDock({
       );
   }, [openPanel, persistOpen, beginDockPanelOpenAnimation]);
 
+  useEffect(() => {
+    const onOpenAccount = (e: Event) => {
+      if (!openPanel) return;
+      const view = readDockAccountViewEvent(e);
+      const titles = defaultLiveTradeSideTabTitles();
+      openPanel(
+        LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb,
+        titles[LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb] ??
+          ko.app.liveTradeDockRailAccountTab,
+      );
+      requestAnimationFrame(() => {
+        const v = readDockAccountViewEvent(e) ?? view;
+        if (v) {
+          window.dispatchEvent(
+            new CustomEvent(LIVE_TRADE_DOCK_ACCOUNT_VIEW_EVENT, { detail: v }),
+          );
+        }
+      });
+      if (!openRef.current) {
+        persistOpen(true);
+        beginDockPanelOpenAnimation();
+      } else {
+        applyDockPanelWidthCss(panelWidthPx);
+      }
+    };
+    window.addEventListener(LIVE_TRADE_DOCK_OPEN_ACCOUNT_EVENT, onOpenAccount);
+    return () =>
+      window.removeEventListener(LIVE_TRADE_DOCK_OPEN_ACCOUNT_EVENT, onOpenAccount);
+  }, [openPanel, persistOpen, beginDockPanelOpenAnimation, panelWidthPx]);
+
   const activeId = panel?.id ?? null;
 
   const onRailTab = useCallback(
@@ -483,10 +507,14 @@ export default function AppLiveTradeSideDock({
       if (id === "form" && activeId !== "form") {
         dispatchLiveTradeDockOpenForm();
       }
-      if (id === "portfolio") {
+      if (id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb) {
+        window.dispatchEvent(
+          new CustomEvent(LIVE_TRADE_DOCK_ACCOUNT_VIEW_EVENT, {
+            detail: { subTab: "balance" as const },
+          }),
+        );
+      } else if (id === "portfolio") {
         dispatchLiveTradePortfolioPanelTab("trade");
-      } else if (id === "trades") {
-        dispatchLiveTradeTradesWorkspace({ mode: "picker" });
       } else if (id === "programs") {
         dispatchLiveTradeDockProgramsPlain();
       }

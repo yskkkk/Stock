@@ -28,8 +28,6 @@ import {
 } from "../api";
 import LiveSimRunningPanel from "./LiveSimRunningPanel";
 import LiveTradeTradesHistoryPanel from "./LiveTradeTradesHistoryPanel";
-import LiveTradeTradesDockPanel from "./LiveTradeTradesDockPanel";
-import { LiveTradeExchangePicker } from "./LiveTradeExchangePicker";
 import LiveTradeRegisteredProgramCard from "./LiveTradeRegisteredProgramCard";
 import LiveSimRecommendationsPanel, {
   type LiveSimDraftPatch,
@@ -42,7 +40,7 @@ import {
   useLiveTradingStatusPoll,
 } from "../hooks/useLiveTradingStatusPoll";
 import { LIVE_TRADE_DOCK_OPEN_FORM_EVENT } from "../lib/liveTradeDockEvents";
-import { dispatchLiveTradeTradesWorkspace } from "../lib/liveTradeTradesWorkspace";
+import { dispatchLiveTradeDockOpenAccount } from "../lib/liveTradeDockAccount";
 import {
   LIVE_TRADE_DOCK_PROGRAMS_PLAIN_EVENT,
   LIVE_TRADE_PORTFOLIO_PANEL_TAB_EVENT,
@@ -820,7 +818,7 @@ export default function LiveTradingTab({
               onClick={() => {
                 setProgramsPanelTab("trades");
                 if (hideCardDock) {
-                  dispatchLiveTradeTradesWorkspace({ mode: "picker" });
+                  dispatchLiveTradeDockOpenAccount({ subTab: "trades" });
                 }
               }}
             >
@@ -829,7 +827,9 @@ export default function LiveTradingTab({
           </div>
           {programsPanelTab === "trades" ? (
             hideCardDock ? (
-              <LiveTradeExchangePicker compact />
+              <p className="live-trading-tab__hint">
+                {ko.app.liveTradePfTradesDockHint}
+              </p>
             ) : (
               <LiveTradeTradesHistoryPanel
                 embedded
@@ -1006,11 +1006,6 @@ export default function LiveTradingTab({
                   initialAdminView={portfolioAdminView}
                   selfOnly={dockSelfOnly}
                 />
-                {dockSelfOnly ? (
-                  <LiveTradeTradesDockPanel selfOnly />
-                ) : (
-                  <LiveTradeTradesDockPanel />
-                )}
                 {!adminReadOnly ? (
                 <LiveTradeCollapsibleCard
           key={editingId ? `edit-${editingId}` : "new-form"}
