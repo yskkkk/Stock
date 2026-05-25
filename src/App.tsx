@@ -1336,7 +1336,16 @@ export default function App() {
       ) : (
         <div className="workspace">
         <aside className="picks-panel card">
-          <div className="panel-head">
+          <div
+            className={[
+              "panel-head",
+              appTab === "stockLookup" && lookupHotToolbar.visible
+                ? "panel-head--lookup-hot"
+                : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
             <div
               className={[
                 "panel-head__filters",
@@ -1373,73 +1382,31 @@ export default function App() {
                     <span className="market-tab__count">{krFiltered.length}</span>
                   )}
                 </button>
-                {appTab === "stockLookup" && lookupHotToolbar.visible ? (
-                  <div className="market-tab-group market-tab-group--us-hot">
-                    <span className="stock-search-tab__tab-hot-inline">
-                      <span className="stock-search-tab__hot-badge stock-search-tab__tab-hot-badge">
-                        {ko.app.pickTurnoverShort}
-                      </span>
-                      {lookupHotToolbar.showUsToggle ? (
-                        <span
-                          className="stock-search-tab__quote-currency-text"
-                          title={
-                            usQuoteInKrw
-                              ? usdKrwValDate
-                                ? ko.app.quoteCurrencyFxBasis.replace(
-                                    "{date}",
-                                    usdKrwValDate,
-                                  )
-                                : ko.app.quoteCurrencyShowUsd
-                              : ko.app.quoteCurrencyShowKrw
-                          }
-                        >
-                          {usQuoteInKrw ? "원화" : "$"}
-                        </span>
-                      ) : null}
-                    </span>
-                    <button
-                      type="button"
-                      className={
-                        lookupMarketTab === "us" ? "market-tab active" : "market-tab"
+                <button
+                  type="button"
+                  className={
+                    (appTab === "stockLookup" ? lookupMarketTab : screenerMarketTab) ===
+                    "us"
+                      ? "market-tab active"
+                      : "market-tab"
+                  }
+                  onClick={() => {
+                    if (appTab === "stockLookup") {
+                      if (lookupMarketTab !== "us") {
+                        resetStockLookupSession();
+                        setLookupSearchTabMountKey((k) => k + 1);
+                        setLookupMarketTab("us");
                       }
-                      onClick={() => {
-                        if (lookupMarketTab !== "us") {
-                          resetStockLookupSession();
-                          setLookupSearchTabMountKey((k) => k + 1);
-                          setLookupMarketTab("us");
-                        }
-                      }}
-                    >
-                      {ko.app.marketUs}
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    className={
-                      (appTab === "stockLookup" ? lookupMarketTab : screenerMarketTab) ===
-                      "us"
-                        ? "market-tab active"
-                        : "market-tab"
+                      return;
                     }
-                    onClick={() => {
-                      if (appTab === "stockLookup") {
-                        if (lookupMarketTab !== "us") {
-                          resetStockLookupSession();
-                          setLookupSearchTabMountKey((k) => k + 1);
-                          setLookupMarketTab("us");
-                        }
-                        return;
-                      }
-                      setScreenerMarketTab("us");
-                    }}
-                  >
-                    {ko.app.marketUs}
-                    {appTab === "screener" && (
-                      <span className="market-tab__count">{usFiltered.length}</span>
-                    )}
-                  </button>
-                )}
+                    setScreenerMarketTab("us");
+                  }}
+                >
+                  {ko.app.marketUs}
+                  {appTab === "screener" && (
+                    <span className="market-tab__count">{usFiltered.length}</span>
+                  )}
+                </button>
                 {appTab === "screener" ? (
                   <button
                     type="button"
@@ -1456,6 +1423,35 @@ export default function App() {
                 ) : null}
               </div>
             </div>
+            {appTab === "stockLookup" && lookupHotToolbar.visible ? (
+              <div className="panel-head__tail panel-head__tail--lookup-hot">
+                <span
+                  className="stock-search-tab__tab-hot-inline"
+                  title={ko.app.pickTurnoverTitle}
+                >
+                  <span className="stock-search-tab__hot-badge stock-search-tab__tab-hot-badge">
+                    {ko.app.pickTurnoverShort}
+                  </span>
+                  {lookupHotToolbar.showUsToggle ? (
+                    <span
+                      className="stock-search-tab__quote-currency-text"
+                      title={
+                        usQuoteInKrw
+                          ? usdKrwValDate
+                            ? ko.app.quoteCurrencyFxBasis.replace(
+                                "{date}",
+                                usdKrwValDate,
+                              )
+                            : ko.app.quoteCurrencyShowUsd
+                          : ko.app.quoteCurrencyShowKrw
+                      }
+                    >
+                      {usQuoteInKrw ? "원화" : "$"}
+                    </span>
+                  ) : null}
+                </span>
+              </div>
+            ) : null}
           </div>
 
           {appTab === "screener" ? (

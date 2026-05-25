@@ -2252,34 +2252,35 @@ html[data-theme="light"] .live-trade-header-strip__telegram-count {
   position: relative;
 }
 
-/* 종목검색: 거래대금 — 나스닥 탭 왼쪽 */
-.picks-panel:not(.crypto-panel) .panel-head__filters--lookup-hot {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  column-gap: 0.85rem;
-  justify-items: center;
-  align-items: center;
-  width: auto;
-  max-width: 100%;
-}
-
-.picks-panel:not(.crypto-panel) .panel-head__filters--lookup-hot .market-tabs {
-  display: contents;
-}
-
-.picks-panel:not(.crypto-panel) .panel-head__filters--lookup-hot .market-tab:nth-child(1) {
-  grid-column: 1;
-  grid-row: 1;
-}
-
-.picks-panel:not(.crypto-panel) .panel-head__filters--lookup-hot .market-tab-group--us-hot {
-  grid-column: 2;
-  grid-row: 1;
-  display: inline-flex;
-  align-items: center;
+/* 종목검색: 거래대금 — 패널 헤더 우측 */
+.picks-panel:not(.crypto-panel) > .panel-head--lookup-hot {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
   justify-content: center;
-  gap: 0.28rem;
+  column-gap: 0.35rem;
+  row-gap: 0.28rem;
+}
+
+.picks-panel:not(.crypto-panel) > .panel-head--lookup-hot .panel-head__filters--lookup-hot {
+  flex: 1 1 auto;
   min-width: 0;
+  justify-content: center;
+}
+
+.picks-panel:not(.crypto-panel) > .panel-head--lookup-hot .panel-head__filters--lookup-hot .market-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.picks-panel:not(.crypto-panel) .panel-head__tail--lookup-hot {
+  flex: 0 0 auto;
+  margin-left: auto;
+  align-self: flex-start;
+  padding-top: 0.06rem;
 }
 
 .stock-search-tab__tab-hot-inline {
@@ -5322,13 +5323,24 @@ html[data-theme="light"] .access-admin-tab--active {
   .workspace:not(.crypto-workspace)
     .picks-panel:not(.crypto-panel)
     > .panel-head
-    > .panel-head__tail {
+    > .panel-head__tail:not(.panel-head__tail--lookup-hot) {
     flex: 1 1 100%;
     width: 100%;
     max-width: 100%;
     min-width: 0;
     justify-content: flex-end;
     padding: 0.12rem 0 0;
+  }
+
+  .workspace:not(.crypto-workspace)
+    .picks-panel:not(.crypto-panel)
+    > .panel-head--lookup-hot
+    > .panel-head__tail--lookup-hot {
+    flex: 0 0 auto;
+    width: auto;
+    max-width: none;
+    margin-left: auto;
+    padding: 0.06rem 0 0;
   }
 
   .workspace:not(.crypto-workspace)
