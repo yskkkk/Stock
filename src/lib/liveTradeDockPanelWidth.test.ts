@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   clampDockPanelWidthPx,
   defaultDockPanelWidthPx,
+  dockPanelOpenSnapThresholdPx,
   isDockPanelWidthPrefUsable,
+  minDockPanelWidthPx,
 } from "./liveTradeDockPanelWidth";
 
 describe("liveTradeDockPanelWidth", () => {
@@ -16,6 +18,11 @@ describe("liveTradeDockPanelWidth", () => {
 
   it("clamps below minimum to 20rem", () => {
     expect(clampDockPanelWidthPx(80, vw)).toBe(320);
+  });
+
+  it("snap threshold is half of minimum panel width", () => {
+    const min = minDockPanelWidthPx(vw);
+    expect(dockPanelOpenSnapThresholdPx(vw)).toBe(Math.round(min / 2));
   });
 
   it("rejects prefs much narrower than default", () => {

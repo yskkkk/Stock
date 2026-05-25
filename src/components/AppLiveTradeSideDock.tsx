@@ -37,10 +37,12 @@ import {
   clampDockPanelWidthPx,
   clearDockPanelWidthCss,
   defaultDockPanelWidthPx,
+  dockPanelOpenSnapThresholdPx,
   dockPanelWidthDragPx,
   dockPanelWidthFromExpandPointer,
   dockPanelWidthFromExpandPointerRaw,
   dockRailWidthPx,
+  minDockPanelWidthPx,
   persistDockPanelWidthPref,
   readDockPanelWidthPref,
 } from "../lib/liveTradeDockPanelWidth";
@@ -541,7 +543,8 @@ export default function AppLiveTradeSideDock({
       if (!drag) return;
       resizeDragRef.current = null;
 
-      const min = clampDockPanelWidthPx(0);
+      const snapHalf = dockPanelOpenSnapThresholdPx();
+      const min = minDockPanelWidthPx();
       const clientX = isUsablePointerClientX(e.clientX) ? e.clientX : drag.startX;
       const w = drag.wasOpen
         ? dockPanelWidthFromOpenDrag(drag.startW, drag.startX, clientX)
@@ -550,29 +553,14 @@ export default function AppLiveTradeSideDock({
       const restoreWidth = () =>
         readDockPanelWidthPref() ?? defaultDockPanelWidthPx();
 
-      if (w < min) {
-        if (w <= 0) {
-          persistOpen(false);
-          clearDockPanelWidthCss();
-          setPanelWidthPx(restoreWidth());
-        } else {
-          const railInnerX = window.innerWidth - dockRailWidthPx();
-          const minPanelLeftX = railInnerX - min;
-          const distToRail = Math.abs(e.clientX - railInnerX);
-          const distToMin = Math.abs(e.clientX - minPanelLeftX);
-          if (distToRail <= distToMin) {
-            persistOpen(false);
-            clearDockPanelWidthCss();
-            setPanelWidthPx(restoreWidth());
-          } else {
-            const snapped = syncDockPanelWidth(min);
-            persistOpen(true);
-            openDefaultBithumbPanel();
-            persistDockPanelWidthPref(snapped);
-          }
-        }
+      if (w <= snapHalf) {
+        persistOpen(false);
+        clearDockPanelWidthCss();
+        setPanelWidthPx(restoreWidth());
       } else {
-        const finalW = syncDockPanelWidth(w);
+        const finalW = drag.wasOpen
+          ? syncDockPanelWidth(Math.max(w, min))
+          : syncDockPanelWidth(restoreWidth());
         persistOpen(true);
         openDefaultBithumbPanel();
         if (finalW >= defaultDockPanelWidthPx() * 0.72) {

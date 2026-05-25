@@ -21,6 +21,16 @@ export function defaultDockPanelWidthPx(viewportWidth?: number): number {
   return Math.round(Math.min(DEFAULT_PANEL_REM * root, fromVw));
 }
 
+/** 패널 최소 너비(px) — `clampDockPanelWidthPx` 하한과 동일 */
+export function minDockPanelWidthPx(viewportWidth?: number): number {
+  return clampDockPanelWidthPx(0, viewportWidth);
+}
+
+/** 이 너비를 넘기면 도크 열림, 이하면 닫힘(드래그 스냅) */
+export function dockPanelOpenSnapThresholdPx(viewportWidth?: number): number {
+  return Math.round(minDockPanelWidthPx(viewportWidth) / 2);
+}
+
 export function clampDockPanelWidthPx(
   px: number,
   viewportWidth?: number,
