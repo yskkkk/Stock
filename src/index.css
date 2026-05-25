@@ -8234,6 +8234,42 @@ html[data-theme="light"] .live-trade-rail {
   color: var(--muted);
 }
 
+.live-trade-rail__sections {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  max-height: min(52dvh, 420px);
+  overflow-y: auto;
+}
+
+.live-trade-rail__section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin: 0 0 0.3rem;
+  padding: 0 0.1rem;
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  color: var(--text-muted, #64748b);
+  text-transform: none;
+}
+
+.live-trade-rail__section--armed .live-trade-rail__section-title {
+  color: var(--up, #16a34a);
+}
+
+.live-trade-rail__section--sim .live-trade-rail__section-title {
+  color: var(--accent, #2563eb);
+}
+
+.live-trade-rail__section-count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
 .live-trade-rail__list {
   list-style: none;
   margin: 0;
@@ -8241,8 +8277,8 @@ html[data-theme="light"] .live-trade-rail {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  max-height: 11.5rem;
-  overflow-y: auto;
+  max-height: none;
+  overflow: visible;
 }
 
 .live-trade-rail__list > li {

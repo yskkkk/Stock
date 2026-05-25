@@ -521,35 +521,71 @@ export function LiveTradingRailCore({
     </div>
   );
 
+  const { armedRows, simRows } = useMemo(() => {
+    const armed: typeof rows = [];
+    const sim: typeof rows = [];
+    for (const row of rows) {
+      if (row.program.status === "armed") armed.push(row);
+      else if (row.program.status === "sim") sim.push(row);
+    }
+    return { armedRows: armed, simRows: sim };
+  }, [rows]);
+
+  const renderRailRow = (row: (typeof rows)[number]) => {
+    const { program: p, displayStatus, returnPct, holdings } = row;
+    const orderMode =
+      displayStatus === "armed" && p.armedMarkets?.crypto
+        ? ko.app.liveTradeLeftRailLiveOrders
+        : displayStatus === "sim"
+          ? ko.app.liveTradeLeftRailSimOrders
+          : null;
+    return (
+      <li key={p.id}>
+        <RailProgramCard
+          program={p}
+          displayStatus={displayStatus}
+          returnPct={returnPct}
+          holdings={holdings}
+          orderMode={orderMode}
+          onOpenLiveTrading={onOpenLiveTrading}
+          roundTripForMarket={roundTripForMarket}
+          dataUpdatedAtMs={dataUpdatedAtMs}
+          usdKrwRate={usdKrwRate}
+        />
+      </li>
+    );
+  };
+
   const list =
     panelBusy ? (
       <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
     ) : rows.length > 0 ? (
-      <ul className="live-trade-rail__list">
-        {rows.map(({ program: p, displayStatus, returnPct, holdings }) => {
-          const orderMode =
-            displayStatus === "armed" && p.armedMarkets?.crypto
-              ? ko.app.liveTradeLeftRailLiveOrders
-              : displayStatus === "sim"
-                ? ko.app.liveTradeLeftRailSimOrders
-                : null;
-          return (
-            <li key={p.id}>
-              <RailProgramCard
-                program={p}
-                displayStatus={displayStatus}
-                returnPct={returnPct}
-                holdings={holdings}
-                orderMode={orderMode}
-                onOpenLiveTrading={onOpenLiveTrading}
-                roundTripForMarket={roundTripForMarket}
-                dataUpdatedAtMs={dataUpdatedAtMs}
-                usdKrwRate={usdKrwRate}
-              />
-            </li>
-          );
-        })}
-      </ul>
+      <div className="live-trade-rail__sections">
+        {armedRows.length > 0 ? (
+          <section
+            className="live-trade-rail__section live-trade-rail__section--armed"
+            aria-label={ko.app.liveTradeDockArmedSection}
+          >
+            <h4 className="live-trade-rail__section-title">
+              {ko.app.liveTradeDockArmedSection}
+              <span className="live-trade-rail__section-count">{armedRows.length}</span>
+            </h4>
+            <ul className="live-trade-rail__list">{armedRows.map(renderRailRow)}</ul>
+          </section>
+        ) : null}
+        {simRows.length > 0 ? (
+          <section
+            className="live-trade-rail__section live-trade-rail__section--sim"
+            aria-label={ko.app.liveTradeDockSimSection}
+          >
+            <h4 className="live-trade-rail__section-title">
+              {ko.app.liveTradeDockSimSection}
+              <span className="live-trade-rail__section-count">{simRows.length}</span>
+            </h4>
+            <ul className="live-trade-rail__list">{simRows.map(renderRailRow)}</ul>
+          </section>
+        ) : null}
+      </div>
     ) : showWhenEmpty ? (
       <p className="live-trade-rail__empty-hint">{ko.app.liveTradeLeftRailEmpty}</p>
     ) : null;

@@ -699,6 +699,31 @@ export default function LiveSimRunningPanel({
   }, [portfolio, activeIds]);
 
   const activeCount = activePrograms.length;
+  const armedPrograms = useMemo(
+    () => activePrograms.filter((p) => p.status === "armed"),
+    [activePrograms],
+  );
+  const simPrograms = useMemo(
+    () => activePrograms.filter((p) => p.status === "sim"),
+    [activePrograms],
+  );
+
+  const renderProgramCard = (p: LiveTradeProgram) => (
+    <ProgramRunCard
+      mode={p.status === "armed" ? "armed" : "sim"}
+      program={p}
+      holdings={byProgram.holdings.get(p.id) ?? []}
+      trades={byProgram.trades.get(p.id) ?? []}
+      busy={busy}
+      onStop={onStop}
+      onDisarm={onDisarm}
+      refreshKey={refreshKey}
+      onProgramUpdated={onProgramUpdated}
+      onOpenHoldingChart={onOpenHoldingChart}
+      usdKrwRate={usdKrwRate}
+      readOnly={readOnly}
+    />
+  );
 
   return (
     <section className="live-sim-run card" aria-label={ko.app.liveTradeActivityTitle}>
@@ -745,24 +770,31 @@ export default function LiveSimRunningPanel({
       ) : loading && portfolio == null ? (
         <p className="live-sim-run__muted">{ko.app.liveTradePfLoading}</p>
       ) : (
-        <div className="live-sim-run__cards">
-          {activePrograms.map((p) => (
-            <ProgramRunCard
-              key={p.id}
-              mode={p.status === "armed" ? "armed" : "sim"}
-              program={p}
-              holdings={byProgram.holdings.get(p.id) ?? []}
-              trades={byProgram.trades.get(p.id) ?? []}
-              busy={busy}
-              onStop={onStop}
-              onDisarm={onDisarm}
-              refreshKey={refreshKey}
-              onProgramUpdated={onProgramUpdated}
-              onOpenHoldingChart={onOpenHoldingChart}
-              usdKrwRate={usdKrwRate}
-              readOnly={readOnly}
-            />
-          ))}
+        <div className="live-sim-run__groups">
+          {armedPrograms.length > 0 ? (
+            <section
+              className="live-sim-run__group live-sim-run__group--armed"
+              aria-label={ko.app.liveTradeDockArmedSection}
+            >
+              <h4 className="live-sim-run__group-title">
+                {ko.app.liveTradeDockArmedSection}
+                <span className="live-sim-run__group-count">{armedPrograms.length}</span>
+              </h4>
+              <div className="live-sim-run__cards">{armedPrograms.map(renderProgramCard)}</div>
+            </section>
+          ) : null}
+          {simPrograms.length > 0 ? (
+            <section
+              className="live-sim-run__group live-sim-run__group--sim"
+              aria-label={ko.app.liveTradeDockSimSection}
+            >
+              <h4 className="live-sim-run__group-title">
+                {ko.app.liveTradeDockSimSection}
+                <span className="live-sim-run__group-count">{simPrograms.length}</span>
+              </h4>
+              <div className="live-sim-run__cards">{simPrograms.map(renderProgramCard)}</div>
+            </section>
+          ) : null}
         </div>
       )}
     </section>
