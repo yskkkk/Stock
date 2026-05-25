@@ -3631,16 +3631,37 @@ html[data-theme="light"]
 
 .live-trade-history--workspace .live-trade-history__scroll {
   flex: 1 1 auto;
-  min-height: 12rem;
+  min-height: min(58dvh, 540px);
   max-height: none;
+}
+
+.trade-history-main-workspace .live-trade-history--workspace {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.trade-history-main-workspace .live-trade-history--workspace .live-trade-history__scroll {
+  min-height: min(62dvh, 580px);
 }
 
 .trade-history-main-workspace {
   display: flex;
   flex-direction: column;
-  min-height: min(72vh, 520px);
+  width: 100%;
+  max-width: 100%;
+  min-height: min(76dvh, 700px);
   height: 100%;
+  flex: 1 1 auto;
   overflow: hidden;
+  box-sizing: border-box;
+}
+
+.trade-history-workspace .trade-history-main-workspace {
+  min-height: min(78dvh, 720px);
+}
+
+.workspace--account-trades .trade-history-main-workspace {
+  min-height: min(76dvh, 700px);
 }
 
 .trade-history-main-workspace__head {

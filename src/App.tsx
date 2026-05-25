@@ -1117,11 +1117,13 @@ export default function App() {
           ? "app app--rec-tracker"
           : appTab === "screener"
             ? "app app--screener"
-            : appTab === "liveTrading"
-              ? "app app--live-trade"
-              : appTab === "ops"
-                ? "app app--ops"
-                : "app"
+            : appTab === "tradeHistory"
+              ? "app app--trade-history"
+              : appTab === "liveTrading"
+                ? "app app--live-trade"
+                : appTab === "ops"
+                  ? "app app--ops"
+                  : "app"
       }
     >
       <div className="app__scroll" ref={appScrollRef}>
@@ -1442,7 +1444,14 @@ export default function App() {
           </section>
         </div>
       ) : (
-        <div className="workspace">
+        <div
+          className={[
+            "workspace",
+            accountTradesExchange ? "workspace--account-trades" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
         <aside className="picks-panel card">
           <div
             className={[
