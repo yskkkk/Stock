@@ -5508,9 +5508,17 @@ html:not([data-theme="light"]) .top-bar.card {
   box-shadow: none;
 }
 
+html:not([data-theme="light"]) .macro-bar,
+html:not([data-theme="light"]) .macro-bar.card {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
 html:not([data-theme="light"]) .macro-bar .macro-card {
-  background: color-mix(in srgb, var(--bg) 62%, var(--surface));
-  border-color: color-mix(in srgb, var(--card-border) 80%, transparent);
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 html:not([data-theme="light"]) .main-tabs {

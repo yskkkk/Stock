@@ -171,30 +171,21 @@ html[data-theme="light"] .error-overlay button {
   color: #ffffff;
 }
 
-html[data-theme="light"] .macro-bar {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--surface) 92%, white) 0%,
-    color-mix(in srgb, var(--card) 78%, var(--surface)) 54%,
-    color-mix(in srgb, var(--card) 18%, transparent) 88%,
-    transparent 100%
-  );
-  border-color: color-mix(in srgb, var(--card-border) 70%, transparent);
-  border-bottom-color: transparent;
+html[data-theme="light"] .macro-bar,
+html[data-theme="light"] .macro-bar.card {
+  background: transparent;
+  border: none;
   box-shadow: none;
 }
 
 html[data-theme="light"] .top-bar__macro::after {
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    color-mix(in srgb, var(--card) 28%, transparent) 45%,
-    color-mix(in srgb, var(--card) 88%, white) 100%
-  );
+  content: none;
 }
 
 html[data-theme="light"] .macro-card {
-  background: color-mix(in srgb, var(--card) 90%, transparent);
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 html[data-theme="light"] .macro-bar__track-wrap::before {

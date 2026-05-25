@@ -19,17 +19,11 @@
 }
 
 /* Macro events bar */
-.macro-bar {
+.macro-bar,
+.macro-bar.card {
   padding: 0.75rem 1rem 1rem;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--surface) 78%, var(--bg-elevated)) 0%,
-    color-mix(in srgb, var(--card) 52%, var(--surface)) 52%,
-    color-mix(in srgb, var(--card) 14%, transparent) 86%,
-    transparent 100%
-  );
-  border: 1px solid color-mix(in srgb, var(--card-border) 65%, transparent);
-  border-bottom-color: transparent;
+  background: transparent;
+  border: none;
   box-shadow: none;
 }
 .macro-bar__head { margin-bottom: 0.65rem; }
@@ -138,24 +132,35 @@
   width: min(148px, 42vw);
   padding: 0.55rem 0.65rem 0.5rem;
   scroll-snap-align: start;
-  background: color-mix(in srgb, var(--card) 58%, transparent);
-  border: 1px solid var(--card-border);
-  border-radius: var(--radius-sm);
-  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  transition: color 0.15s, opacity 0.15s;
 }
 .macro-card:hover {
-  border-color: rgba(148, 163, 184, 0.22);
-  transform: translateY(-1px);
+  transform: none;
 }
-.macro-card--high { border-left: 3px solid var(--warn); }
-.macro-card--medium { border-left: 3px solid rgba(148, 163, 184, 0.35); }
+.macro-card--high {
+  border: none;
+  border-left: 3px solid color-mix(in srgb, var(--warn) 55%, transparent);
+}
+.macro-card--medium {
+  border: none;
+  border-left: 3px solid color-mix(in srgb, var(--muted) 35%, transparent);
+}
 .macro-card--soon {
-  border-color: rgba(251, 191, 36, 0.45);
-  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.12);
+  border: none;
+  box-shadow: none;
+}
+.macro-card--soon .macro-card__countdown {
+  color: var(--warn);
 }
 .macro-card--live {
-  border-color: rgba(94, 234, 212, 0.5);
-  box-shadow: 0 0 12px rgba(94, 234, 212, 0.15);
+  border: none;
+  box-shadow: none;
+}
+.macro-card--live .macro-card__countdown {
+  color: var(--accent);
 }
 .macro-card__top {
   display: flex;
@@ -219,8 +224,6 @@
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }
-.macro-card--soon .macro-card__countdown { color: var(--warn); }
-.macro-card--live .macro-card__countdown { color: var(--accent); }
 .macro-card__when {
   margin: 0.2rem 0 0;
   font-size: 0.65rem;
@@ -247,14 +250,10 @@
 }
 .macro-card--bias-up-positive.macro-card--live,
 .macro-card--bias-up-negative.macro-card--live {
-  box-shadow:
-    0 0 12px rgba(94, 234, 212, 0.15),
-    inset 0 3px 0 0 rgba(74, 222, 128, 0.45);
+  box-shadow: inset 0 3px 0 0 rgba(114, 168, 131, 0.45);
 }
 .macro-card--bias-up-negative.macro-card--live {
-  box-shadow:
-    0 0 12px rgba(94, 234, 212, 0.15),
-    inset 0 3px 0 0 rgba(248, 113, 113, 0.45);
+  box-shadow: inset 0 3px 0 0 rgba(196, 134, 134, 0.45);
 }
 
 .macro-bar__sector-block {
@@ -754,8 +753,9 @@ html[data-theme="light"] .top-bar__brand .brand-mark__img {
   color: inherit;
 }
 .macro-card--btn:hover {
-  border-color: rgba(94, 234, 212, 0.35);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  border: none;
+  box-shadow: none;
+  opacity: 0.92;
 }
 .macro-card--btn:focus-visible {
   outline: 2px solid var(--accent);
@@ -1485,19 +1485,7 @@ html[data-theme="light"] .top-bar__brand .brand-mark__img {
 
 /* 매크로 띠 → 브랜드/탭 행: 하단 색 단절 완화 */
 .top-bar__macro::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -0.35rem;
-  height: 1.35rem;
-  pointer-events: none;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    color-mix(in srgb, var(--card) 22%, transparent) 42%,
-    color-mix(in srgb, var(--card) 72%, var(--bg)) 100%
-  );
+  content: none;
 }
 
 .top-bar.card .macro-bar {
@@ -5396,11 +5384,11 @@ html[data-theme="light"] .access-admin-tab--active {
   }
 
   .macro-bar.card {
-    border-radius: 16px 16px 12px 12px;
+    border-radius: 0;
     padding: 0.5rem 0.6rem 0.72rem;
     box-shadow: none;
-    border-color: color-mix(in srgb, var(--card-border) 60%, transparent);
-    border-bottom-color: transparent;
+    background: transparent;
+    border: none;
   }
 
   .macro-bar__track {
