@@ -19,6 +19,7 @@ import {
 import { processBoxFsmForProgram } from "./runner-fsm.js";
 import { syncBoxRangeWsSubscriptions } from "./ws-sync.js";
 import { reconcileBoxRangeLotsFromPortfolioSync } from "./lot-reconcile.js";
+import { syncUsTradingBoxesFromCatalogSync } from "./catalog-trading-sync.js";
 
 const TICK_MS = (() => {
   const n = Number(process.env.STOCK_BOX_RANGE_TICK_MS ?? 3_000);
@@ -44,7 +45,9 @@ async function loadCandlesForBoxTf(symbol, timeframe) {
     .map((c) => {
       if (!c) return null;
       const time = normalizeTime(c.time);
-      if (time == null || !Number.isFinite(c.high) || !Number.isFinite(c.low)) return null;
+      if (time == null || !Number.isFinite(c.high) || !Number.isFinite(c.low)) {
+        return null;
+      }
       return { ...c, time };
     })
     .filter(Boolean);
@@ -79,8 +82,7 @@ async function runDetectionForTf(program, symbol, timeframe) {
 /**
  * @param {import("../live-trade-programs-store.js").LiveTradeProgram} program
  */
-async function tickProgram(program) {
-  if (!program.markets?.crypto) return;
+async function tickCryptoProgram(program) {
   const symbols = await collectWatchSymbolsForProgram(program);
   const live = program.status === "armed";
   const sim = program.status === "sim";
@@ -105,6 +107,7 @@ async function tickProgram(program) {
   const boxes = listBoxesForProgramSync(program.id);
 
   for (const box of boxes) {
+    if (box.tradeEligible === false) continue;
     const q = pickQuoteFromMap(quotes, box.symbol, "crypto");
     if (!isBoxRangeQuoteFresh(q)) continue;
     const lastPrice = Number(q?.price);
@@ -113,6 +116,42 @@ async function tickProgram(program) {
       await processBoxFsmForProgram(program, box, lastPrice, live);
     }
   }
+}
+
+/**
+ * @param {import("../live-trade-programs-store.js").LiveTradeProgram} program
+ */
+async function tickUsProgram(program) {
+  syncUsTradingBoxesFromCatalogSync(program);
+  const live = program.status === "armed";
+  if (!live) return;
+
+  const boxes = listBoxesForProgramSync(program.id).filter(
+    (b) => b.tradeEligible !== false && b.state !== "closed",
+  );
+  const symbols = [...new Set(boxes.map((b) => b.symbol))];
+  if (!symbols.length) return;
+
+  const quotes = await fetchBoxRangeLastPrices(symbols);
+  for (const box of boxes) {
+    const q = pickQuoteFromMap(quotes, box.symbol, "us");
+    if (!isBoxRangeQuoteFresh(q)) continue;
+    const lastPrice = Number(q?.price);
+    if (!Number.isFinite(lastPrice) || lastPrice <= 0) continue;
+    await processBoxFsmForProgram(program, box, lastPrice, true);
+  }
+}
+
+/**
+ * @param {import("../live-trade-programs-store.js").LiveTradeProgram} program
+ */
+async function tickProgram(program) {
+  if (program.markets?.us && isBoxRangeProgram(program)) {
+    await tickUsProgram(program);
+    return;
+  }
+  if (!program.markets?.crypto) return;
+  await tickCryptoProgram(program);
 }
 
 export async function tickBoxRangeTrading() {

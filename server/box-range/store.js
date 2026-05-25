@@ -29,6 +29,9 @@ function stateFilePath() {
  *   entryPrice: number | null;
  *   buyAtMs: number | null;
  *   updatedAtMs: number;
+ *   catalogBoxId: string | null;
+ *   tradeEligible: boolean;
+ *   midNotifiedAtMs: number | null;
  * }} BoxRangeRecord
  */
 
@@ -102,6 +105,15 @@ function normalizeBox(raw) {
       typeof o.updatedAtMs === "number" && o.updatedAtMs > 0
         ? o.updatedAtMs
         : Date.now(),
+    catalogBoxId:
+      typeof o.catalogBoxId === "string" && o.catalogBoxId.trim()
+        ? o.catalogBoxId.trim()
+        : null,
+    tradeEligible: o.tradeEligible !== false,
+    midNotifiedAtMs:
+      typeof o.midNotifiedAtMs === "number" && o.midNotifiedAtMs > 0
+        ? o.midNotifiedAtMs
+        : null,
   };
 }
 
@@ -175,17 +187,30 @@ function barSecondsForTf(timeframe) {
  *   mid: number;
  *   leftTime: number;
  *   rightTime: number;
+ *   catalogBoxId?: string | null;
+ *   tradeEligible?: boolean;
  * }} detected
  */
 /** 탐지·병합·매매는 timeframe 단위로 완전 분리(1h/4h/1d 겹쳐도 각각 독립 박스). */
 export function upsertDetectedBoxSync(detected) {
   const store = readBoxRangeStoreSync();
+  const catalogId = String(detected.catalogBoxId ?? "").trim() || null;
+  if (catalogId) {
+    const dup = store.boxes.find(
+      (b) =>
+        b.programId === detected.programId &&
+        b.catalogBoxId === catalogId &&
+        b.state !== "closed",
+    );
+    if (dup) return dup;
+  }
   const same = store.boxes.filter(
     (b) =>
       b.programId === detected.programId &&
       b.symbol === detected.symbol &&
       b.timeframe === detected.timeframe &&
-      b.state !== "closed",
+      b.state !== "closed" &&
+      !b.catalogBoxId,
   );
   const barSec = barSecondsForTf(detected.timeframe);
   const idx = findMergeBoxIndex(
@@ -232,6 +257,9 @@ export function upsertDetectedBoxSync(detected) {
     entryPrice: null,
     buyAtMs: null,
     updatedAtMs: now,
+    catalogBoxId,
+    tradeEligible: detected.tradeEligible !== false,
+    midNotifiedAtMs: null,
   };
   store.boxes.push(box);
   if (store.boxes.length > 800) {

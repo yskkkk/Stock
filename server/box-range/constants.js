@@ -5,7 +5,7 @@ export const BOX_RANGE_MODEL_ID = "box-range";
 /** @type {readonly ("1h"|"4h"|"1d")[]} */
 export const BOX_RANGE_TIMEFRAMES = ["1h", "4h", "1d"];
 
-/** TF별 최대 박스 폭(%) — chart-overlay 참고용으로만 유지, 탐지 로직에서는 미사용 */
+/** TF별 최대 박스 폭(%) — Pine PRO 시드 끊김 */
 export const BOX_RANGE_MAX_PCT = {
   "1h": 3,
   "4h": 5,
@@ -14,7 +14,13 @@ export const BOX_RANGE_MAX_PCT = {
 
 export const BOX_RANGE_MIN_BARS = 14;
 export const BOX_RANGE_LOOKBACK = 100;
-export const BOX_RANGE_TOUCH_THRESHOLD = 0.20;
+/** 박스 높이 대비 상·하단 터치 허용 (Pine 12%) */
+export const BOX_RANGE_TOUCH_THRESHOLD = 0.12;
+export const BOX_RANGE_MAX_EXPAND_BARS = 120;
+export const BOX_RANGE_EXPAND_EDGE_PCT = 12;
+export const BOX_RANGE_EXPAND_GAP_BARS = 2;
+/** S&P500 카탈로그 전체 스캔 주기 */
+export const BOX_RANGE_SP500_SCAN_MS = 30 * 60 * 1000;
 /** 탐지 창 1개당 최대 봉 수 — lookback과 별개로 다중 창 스캔 간격에 사용 */
 export const BOX_RANGE_MAX_DETECTED = 5;
 export const BOX_RANGE_MIN_TOUCHES = 2;

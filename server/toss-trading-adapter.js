@@ -8,6 +8,7 @@ import {
   meetsTelegramNotifyScore,
   resolvePickWeightedScoreBreakdown,
 } from "./technical.js";
+import { isBoxRangePickSignal } from "./box-range/buy-guard.js";
 
 /** 국내 주식 실매매 자동매도 파이프라인 지원 여부 */
 export const KR_LIVE_AUTO_SELL_SUPPORTED = false;
@@ -127,6 +128,13 @@ export async function executeLiveBuyOrder(program, pick) {
   const status = getTossTradingStatus();
   if (!status.ready) {
     return { ok: false, error: status.messageKo };
+  }
+
+  if (
+    !isBoxRangePickSignal(pick) &&
+    !pickMeetsProgramThreshold(program, pick)
+  ) {
+    return { ok: false, error: "점수 조건을 충족하지 않습니다." };
   }
 
   const interlock = assertKrLiveBuyAutoSellInterlock(program);

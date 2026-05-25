@@ -1429,6 +1429,74 @@ export function fetchLiveTradingBoxRangeStatus() {
   );
 }
 
+export interface BoxRangeCatalogIndexRow {
+  symbol: string;
+  name: string;
+  updatedAtMs: number;
+  eligibleCount: number;
+  boxCount: number;
+}
+
+export interface BoxRangeCatalogIndex {
+  updatedAtMs: number;
+  count: number;
+  symbols: BoxRangeCatalogIndexRow[];
+}
+
+export interface BoxRangeCatalogBox {
+  catalogBoxId: string;
+  timeframe: "1h" | "4h" | "1d";
+  top: number;
+  bottom: number;
+  mid: number;
+  leftTime: number;
+  rightTime: number;
+  validBars: number;
+  detectedAtMs: number;
+  tradeEligible: boolean;
+  consumedAtMs: number | null;
+  consumedReason: string | null;
+}
+
+export interface BoxRangeSymbolCatalog {
+  symbol: string;
+  name: string;
+  updatedAtMs: number;
+  scanError: string | null;
+  boxes: BoxRangeCatalogBox[];
+}
+
+export function fetchBoxRangeCatalog() {
+  return fetchJson<BoxRangeCatalogIndex>("/api/box-range/catalog", {
+    cache: "no-store",
+  });
+}
+
+export function fetchBoxRangeCatalogSymbol(symbol: string) {
+  const sym = symbol.trim().toUpperCase();
+  return fetchJson<BoxRangeSymbolCatalog>(
+    `/api/box-range/catalog/${encodeURIComponent(sym)}`,
+    { cache: "no-store" },
+  );
+}
+
+export function patchBoxRangeCatalogBox(
+  symbol: string,
+  catalogBoxId: string,
+  body: { tradeEligible: boolean; consumedReason?: string },
+) {
+  const sym = symbol.trim().toUpperCase();
+  const id = catalogBoxId.trim();
+  return fetchJson<{ ok: boolean; box: BoxRangeCatalogBox }>(
+    `/api/box-range/catalog/${encodeURIComponent(sym)}/boxes/${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+}
+
 export function fetchAccessAdminLiveTradingTradeHistory(
   adminToken: string,
   userId: string,

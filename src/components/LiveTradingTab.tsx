@@ -29,6 +29,7 @@ import {
 import LiveSimRunningPanel from "./LiveSimRunningPanel";
 import LiveTradeTradesHistoryPanel from "./LiveTradeTradesHistoryPanel";
 import LiveTradeRegisteredProgramCard from "./LiveTradeRegisteredProgramCard";
+import BoxRangeSp500CatalogPanel from "./BoxRangeSp500CatalogPanel";
 import LiveSimRecommendationsPanel, {
   type LiveSimDraftPatch,
 } from "./LiveSimRecommendationsPanel";
@@ -268,9 +269,9 @@ export default function LiveTradingTab({
     setDraft((d) => {
       if (d.modelId !== BOX_RANGE_MODEL_ID) return d;
       if (
-        d.marketsCrypto &&
+        d.marketsUs &&
         !d.marketsKr &&
-        !d.marketsUs &&
+        !d.marketsCrypto &&
         d.autoSellAtTarget === false
       ) {
         return d;
@@ -278,15 +279,15 @@ export default function LiveTradingTab({
       return {
         ...d,
         marketsKr: false,
-        marketsUs: false,
-        marketsCrypto: true,
+        marketsUs: true,
+        marketsCrypto: false,
         autoSellAtTarget: false,
       };
     });
   }, [draft.modelId]);
   const [portfolioRefreshKey, setPortfolioRefreshKey] = useState(0);
   const [programsPanelTab, setProgramsPanelTab] = useState<
-    "programs" | "trades"
+    "programs" | "trades" | "boxCatalog"
   >("programs");
   const [boxRangeStatus, setBoxRangeStatus] =
     useState<LiveTradeBoxRangeStatusResponse | null>(null);
@@ -821,9 +822,24 @@ export default function LiveTradingTab({
               >
                 {ko.app.liveTradeProgramsTabTrades}
               </button>
+              <button
+                type="button"
+                role="tab"
+                className={
+                  programsPanelTab === "boxCatalog"
+                    ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
+                    : "live-trading-tab__segment-btn"
+                }
+                aria-selected={programsPanelTab === "boxCatalog"}
+                onClick={() => setProgramsPanelTab("boxCatalog")}
+              >
+                {ko.app.liveTradeProgramsTabBoxCatalog}
+              </button>
             </div>
           ) : null}
-          {showProgramsTradesSubTab && programsPanelTab === "trades" ? (
+          {showProgramsTradesSubTab && programsPanelTab === "boxCatalog" ? (
+            <BoxRangeSp500CatalogPanel />
+          ) : showProgramsTradesSubTab && programsPanelTab === "trades" ? (
             hideCardDock ? (
               <p className="live-trading-tab__hint">
                 {ko.app.liveTradePfTradesDockHint}

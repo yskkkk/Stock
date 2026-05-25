@@ -4,3 +4,11 @@ import { orderDedupeKey } from "../live-trade-buy-guard.js";
 export function boxRangeBuyDedupeKey(programId, boxId, symbol) {
   return orderDedupeKey(`${programId}:box:${boxId}`, symbol);
 }
+
+/** @param {{ signalIds?: string[] }} pick */
+export function isBoxRangePickSignal(pick) {
+  return (
+    Array.isArray(pick?.signalIds) &&
+    pick.signalIds.some((s) => String(s ?? "").startsWith("box-range:"))
+  );
+}

@@ -12,6 +12,7 @@ import {
 } from "./live-trade-market.js";
 import { usdtSymbolToBithumbBase } from "./bithumb-krw.js";
 import { pickMeetsProgramThreshold } from "./toss-trading-adapter.js";
+import { isBoxRangePickSignal } from "./box-range/buy-guard.js";
 import {
   collectBidLevelsFromOrderbookUnits,
   estimateMarketSellAvgFillPrice,
@@ -274,7 +275,10 @@ export async function executeBithumbLiveBuyOrder(program, pick, options = {}) {
   if (!status.ready) {
     return { ok: false, error: status.messageKo };
   }
-  if (!pickMeetsProgramThreshold(program, pick)) {
+  if (
+    !isBoxRangePickSignal(pick) &&
+    !pickMeetsProgramThreshold(program, pick)
+  ) {
     return { ok: false, error: "점수 조건을 충족하지 않습니다." };
   }
 

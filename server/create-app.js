@@ -877,6 +877,60 @@ export function createApp() {
   );
 
   app.get(
+    "/api/box-range/catalog",
+    requireUserAuth,
+    asyncRoute(async (_req, res) => {
+      const { readCatalogIndexSync } = await import(
+        "./box-range/catalog-store.js"
+      );
+      res.json(readCatalogIndexSync());
+    }),
+  );
+
+  app.get(
+    "/api/box-range/catalog/:symbol",
+    requireUserAuth,
+    asyncRoute(async (req, res) => {
+      const symbol = String(req.params?.symbol ?? "").trim().toUpperCase();
+      const { readSymbolCatalogSync } = await import(
+        "./box-range/catalog-store.js"
+      );
+      const cat = readSymbolCatalogSync(symbol);
+      if (!cat) {
+        res.status(404).json({ error: "not found" });
+        return;
+      }
+      res.json(cat);
+    }),
+  );
+
+  app.patch(
+    "/api/box-range/catalog/:symbol/boxes/:catalogBoxId",
+    requireUserAuth,
+    asyncRoute(async (req, res) => {
+      const symbol = String(req.params?.symbol ?? "").trim().toUpperCase();
+      const catalogBoxId = String(req.params?.catalogBoxId ?? "").trim();
+      const tradeEligible = req.body?.tradeEligible;
+      const { patchCatalogBoxSync } = await import(
+        "./box-range/catalog-store.js"
+      );
+      const reason =
+        tradeEligible === false
+          ? String(req.body?.consumedReason ?? "manual").trim() || "manual"
+          : undefined;
+      const box = patchCatalogBoxSync(symbol, catalogBoxId, {
+        tradeEligible: tradeEligible === true ? true : false,
+        consumedReason: reason,
+      });
+      if (!box) {
+        res.status(404).json({ error: "not found" });
+        return;
+      }
+      res.json({ ok: true, box });
+    }),
+  );
+
+  app.get(
     "/api/live-trading/portfolio",
     requireUserAuth,
     asyncRoute(async (req, res) => {

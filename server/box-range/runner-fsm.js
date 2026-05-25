@@ -3,13 +3,16 @@ import {
 } from "../live-trade-programs-store.js";
 import {
   recordLiveTradeBuyAsync,
+  recordLiveTradeBuySync,
   recordLiveTradeSellSync,
+  resolveOrderAmountForMarket,
 } from "../live-trade-portfolio-store.js";
 import {
   executeBithumbLiveBuyOrder,
   executeBithumbLiveSellOrder,
   yahooSymbolToBithumbMarket,
 } from "../bithumb-trading-adapter.js";
+import { executeLiveBuyOrder } from "../toss-trading-adapter.js";
 import { getDecryptedCredentialsSync } from "../user-credentials-store.js";
 import { isProgramArmedForMarket } from "../live-trade-arm-gate.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "../live-trade-log.js";
@@ -19,20 +22,51 @@ import {
 } from "./store.js";
 import { boxRangeBuyDedupeKey } from "./buy-guard.js";
 import { resolveBoxSellQuantitySync } from "./lot-reconcile.js";
+import { markCatalogBoxConsumedSync } from "./catalog-store.js";
+import { notifyBoxRangeMidEntry } from "./box-range-telegram.js";
 
 /** @type {Set<string>} */
 const boxBuyInFlight = new Set();
 
 /**
+ * @param {import("./store.js").BoxRangeRecord} box
+ * @param {string} [reason]
+ */
+function closeTradingBox(box, reason = "closed") {
+  patchBoxSync(box.boxId, {
+    state: "closed",
+    tradeEligible: false,
+    lotQty: 0,
+    buyTradeId: null,
+    entryPrice: null,
+    buyAtMs: null,
+  });
+  const cid = String(box.catalogBoxId ?? "").trim();
+  if (cid) markCatalogBoxConsumedSync(cid, reason);
+}
+
+/**
+ * @param {import("../live-trade-programs-store.js").LiveTradeProgram} program
+ */
+function boxMarketForProgram(program) {
+  if (program.markets?.us) return "us";
+  if (program.markets?.crypto) return "crypto";
+  return "us";
+}
+
+/**
  * @param {import("../live-trade-programs-store.js").LiveTradeProgram} program
  * @param {import("./store.js").BoxRangeRecord} box
  * @param {number} lastPrice
- * @param {boolean} live
+ * @param {boolean} live — armed 실매매
  */
 export async function processBoxFsmForProgram(program, box, lastPrice, live) {
-  if (box.state === "closed") return;
+  if (box.state === "closed" || box.tradeEligible === false) return;
   const sym = box.symbol;
+  const market = boxMarketForProgram(program);
   const now = Date.now();
+
+  if (market === "us" && !live) return;
 
   if (box.state === "idle") {
     if (lastPrice <= box.bottom) {
@@ -57,31 +91,61 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
 
       let runErr = null;
       try {
+        if (!box.midNotifiedAtMs) {
+          await notifyBoxRangeMidEntry(box, program, lastPrice);
+          patchBoxSync(box.boxId, { midNotifiedAtMs: now });
+        }
+
         const pick = {
           symbol: sym,
-          market: "crypto",
+          market,
           price: box.mid,
           name: sym,
           score: 1,
           signalIds: [`box-range:${box.timeframe}`],
         };
         const boxMeta = { boxId: box.boxId, boxTimeframe: box.timeframe };
+        const targets = {
+          targetSellPrice: box.top,
+          stopLossPrice: box.bottom,
+          exitScenarioNote: `box:${box.boxId}`,
+          entryKind: `box:${box.timeframe}`,
+          entryStructureNote: "박스권",
+        };
 
-        if (live && isProgramArmedForMarket(program, "crypto")) {
+        if (live && isProgramArmedForMarket(program, market)) {
           const userId = String(program.userId ?? "").trim();
-          const out = await executeBithumbLiveBuyOrder(program, pick, {
-            credentials: getDecryptedCredentialsSync(userId, "bithumb"),
-          });
-          if (!out.ok) throw new Error(out.error ?? "매수 실패");
-          const trade = await recordLiveTradeBuyAsync(
-            program,
-            { ...pick, price: out.fillPrice ?? box.mid },
-            {
-              simulated: out.simulated,
-              orderId: out.orderId,
-              ...boxMeta,
-            },
-          );
+          let trade = null;
+          if (market === "crypto") {
+            const out = await executeBithumbLiveBuyOrder(program, pick, {
+              credentials: getDecryptedCredentialsSync(userId, "bithumb"),
+            });
+            if (!out.ok) throw new Error(out.error ?? "매수 실패");
+            trade = await recordLiveTradeBuyAsync(
+              program,
+              { ...pick, price: out.fillPrice ?? box.mid },
+              {
+                simulated: out.simulated,
+                orderId: out.orderId,
+                ...boxMeta,
+              },
+            );
+          } else {
+            const out = await executeLiveBuyOrder(program, pick);
+            if (!out.ok) throw new Error(out.error ?? "매수 실패");
+            const orderAmount = await resolveOrderAmountForMarket(program, "us");
+            trade = recordLiveTradeBuySync(
+              program,
+              { ...pick, price: box.mid },
+              {
+                simulated: out.simulated,
+                orderId: out.orderId,
+                ...boxMeta,
+              },
+              targets,
+              orderAmount,
+            );
+          }
           if (trade) {
             patchBoxSync(box.boxId, {
               state: "in_position",
@@ -98,7 +162,7 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
               trade.quantity,
             );
           }
-        } else if (!live && program.simAutoBuy !== false) {
+        } else if (!live && market === "crypto" && program.simAutoBuy !== false) {
           const trade = await recordLiveTradeBuyAsync(
             program,
             pick,
@@ -134,13 +198,7 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
   if (box.state === "in_position") {
     const lot = resolveBoxSellQuantitySync(box);
     if (lot.closed) {
-      patchBoxSync(box.boxId, {
-        state: "closed",
-        lotQty: 0,
-        buyTradeId: null,
-        entryPrice: null,
-        buyAtMs: null,
-      });
+      closeTradingBox(box, "reconciled");
       return;
     }
     const qty = lot.quantity;
@@ -158,39 +216,41 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
     if (!exitSide) return;
 
     try {
-      if (live && isProgramArmedForMarket(program, "crypto")) {
+      if (live && isProgramArmedForMarket(program, market)) {
         const userId = String(program.userId ?? "").trim();
-        const bithumbMarket = yahooSymbolToBithumbMarket(sym);
-        if (!bithumbMarket) throw new Error("빗썸 마켓을 찾을 수 없습니다.");
-        const out = await executeBithumbLiveSellOrder(
-          { market: bithumbMarket, volume: qty },
-          {
-            credentials: getDecryptedCredentialsSync(userId, "bithumb"),
-          },
-        );
-        if (!out.ok) throw new Error(out.error ?? "매도 실패");
+        if (market === "crypto") {
+          const bithumbMarket = yahooSymbolToBithumbMarket(sym);
+          if (!bithumbMarket) throw new Error("빗썸 마켓을 찾을 수 없습니다.");
+          const out = await executeBithumbLiveSellOrder(
+            { market: bithumbMarket, volume: qty },
+            {
+              credentials: getDecryptedCredentialsSync(userId, "bithumb"),
+            },
+          );
+          if (!out.ok) throw new Error(out.error ?? "매도 실패");
+          fillPrice = out.fillPrice ?? fillPrice;
+        }
         recordLiveTradeSellSync(
           {
             programId: program.id,
             symbol: sym,
-            market: "crypto",
+            market,
             quantity: qty,
-            price: out.fillPrice ?? fillPrice,
+            price: fillPrice,
             note: `box:${box.boxId}:${exitSide}`,
-            orderId: out.orderId,
-            simulated: out.simulated,
+            simulated: market === "us",
             boxId: box.boxId,
             boxTimeframe: box.timeframe,
             entryPrice: entry,
           },
           userId,
         );
-      } else if (!live) {
+      } else if (!live && market === "crypto") {
         recordLiveTradeSellSync(
           {
             programId: program.id,
             symbol: sym,
-            market: "crypto",
+            market,
             quantity: qty,
             price: fillPrice,
             note: `box:${box.boxId}:${exitSide}`,
@@ -202,13 +262,7 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
           String(program.userId ?? "").trim(),
         );
       }
-      patchBoxSync(box.boxId, {
-        state: "closed",
-        lotQty: 0,
-        buyTradeId: null,
-        entryPrice: null,
-        buyAtMs: null,
-      });
+      closeTradingBox(box, exitSide);
       liveTradeLogInfo(
         "[box-range:sell]",
         program.name,
