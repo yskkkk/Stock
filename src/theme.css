@@ -635,18 +635,18 @@ html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-item.active {
 }
 
 html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-toolbar {
-  background: color-mix(in srgb, var(--card) 42%, transparent);
-  -webkit-backdrop-filter: blur(10px) saturate(1.1);
-  backdrop-filter: blur(10px) saturate(1.1);
-  border-top-color: var(--card-border);
-  border-bottom-color: var(--card-border);
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-top: none;
+  border-bottom: 1px solid var(--card-border);
 }
 
 html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-search,
 html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-sort {
-  background: color-mix(in srgb, var(--bg) 90%, var(--surface));
-  border: 1px solid var(--card-border);
-  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  color: var(--text);
   box-shadow: none;
 }
 
@@ -656,9 +656,10 @@ html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-search::placehold
 
 html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-search:focus,
 html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-sort:focus {
-  border-color: color-mix(in srgb, var(--muted) 38%, var(--card-border));
+  border: none;
   box-shadow: none;
   outline: none;
+  background: transparent;
 }
 
 html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-action {
