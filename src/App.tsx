@@ -1369,7 +1369,7 @@ export default function App() {
               className={[
                 "panel-head__filters",
                 appTab === "stockLookup" && lookupMarketTab === "us"
-                  ? "panel-head__filters--lookup-hot"
+                  ? "panel-head__filters--lookup-hot panel-head__filters--lookup-us"
                   : "",
               ]
                 .filter(Boolean)
@@ -1441,19 +1441,17 @@ export default function App() {
                   </button>
                 ) : null}
               </div>
-            </div>
-            {appTab === "stockLookup" && lookupMarketTab === "us" ? (
-              <div className="panel-head__tail panel-head__tail--lookup-hot">
+              {appTab === "stockLookup" && lookupMarketTab === "us" ? (
                 <QuoteCurrencyToggle
                   inKrw={usQuoteInKrw}
                   onToggle={toggleUsQuoteKrw}
                   fxValuationDate={usdKrwValDate}
                   iconOnly
                   iconShowsActive
-                  className="quote-currency-toggle--compact"
+                  className="quote-currency-toggle--compact panel-head__quote-toggle"
                 />
-              </div>
-            ) : null}
+              ) : null}
+            </div>
           </div>
 
           {appTab === "screener" ? (

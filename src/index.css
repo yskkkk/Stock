@@ -2348,35 +2348,26 @@ html[data-theme="light"] .live-trade-header-strip__telegram-count {
   position: relative;
 }
 
-/* 종목검색: 거래대금 — 패널 헤더 우측 */
+/* 종목검색 나스닥 — 시장 탭 + ₩/$ 같은 행 */
 .picks-panel:not(.crypto-panel) > .panel-head--lookup-hot {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: center;
-  column-gap: 0.35rem;
-  row-gap: 0.28rem;
+  align-items: center;
 }
 
-.picks-panel:not(.crypto-panel) > .panel-head--lookup-hot .panel-head__filters--lookup-hot {
-  flex: 1 1 auto;
-  min-width: 0;
-  justify-content: center;
+.picks-panel:not(.crypto-panel) .panel-head__filters--lookup-us {
+  justify-content: space-between;
+  gap: 0.35rem;
 }
 
-.picks-panel:not(.crypto-panel) > .panel-head--lookup-hot .panel-head__filters--lookup-hot .market-tabs {
-  display: flex;
-  flex-wrap: nowrap;
-  justify-content: center;
+.picks-panel:not(.crypto-panel) .panel-head__filters--lookup-us .market-tabs {
+  margin-inline: 0;
+  justify-content: flex-start;
+  flex: 0 1 auto;
   gap: 0.75rem;
 }
 
-.picks-panel:not(.crypto-panel) .panel-head__tail--lookup-hot {
+.picks-panel:not(.crypto-panel) .panel-head__filters--lookup-us .panel-head__quote-toggle {
   flex: 0 0 auto;
   margin-left: auto;
-  align-self: flex-start;
-  padding-top: 0.06rem;
 }
 
 .stock-search-tab__tab-hot-inline {
