@@ -13,7 +13,7 @@ import {
 import { createPortal } from "react-dom";
 import { logoutAuth } from "../api";
 import { FeedbackDockRailButton, type FeedbackCornerHandle } from "./FeedbackCorner";
-import { BithumbBrandMark } from "./ExchangeBrandMarks";
+import { BithumbBrandMark, TossBrandMark } from "./ExchangeBrandMarks";
 import LiveTradeDockApiRail from "./LiveTradeDockApiRail";
 import LiveTradeDockYsHead from "./LiveTradeDockYsHead";
 import { useDesktopDockLayout } from "../hooks/useDesktopDockLayout";
@@ -39,6 +39,7 @@ import {
   dispatchLiveTradePortfolioPanelTab,
   LIVE_TRADE_DOCK_OPEN_PORTFOLIO_EVENT,
 } from "../lib/liveTradePortfolioFocus";
+import { dispatchLiveTradeTradesWorkspace } from "../lib/liveTradeTradesWorkspace";
 import {
   LIVE_TRADE_DOCK_PANEL_WIDTH_PREF,
   applyDockPanelWidthCss,
@@ -319,8 +320,18 @@ function railTabShort(
     return {
       glyph: "₩",
       label: ko.app.liveTradeSideDockRailPortfolio,
-      subLabel: ko.app.liveTradeDockRailPortfolioTrades,
       stacked: true,
+    };
+  }
+  if (id === "trades") {
+    return {
+      glyph: (
+        <span className="app-live-trade-side-dock__rail-trades-glyphs" aria-hidden>
+          <TossBrandMark className="app-live-trade-side-dock__rail-trades-mark" />
+          <BithumbBrandMark className="app-live-trade-side-dock__rail-trades-mark" />
+        </span>
+      ),
+      label: ko.app.liveTradeSideDockRailTrades,
     };
   }
   if (id === "form") {
@@ -473,7 +484,9 @@ export default function AppLiveTradeSideDock({
         dispatchLiveTradeDockOpenForm();
       }
       if (id === "portfolio") {
-        dispatchLiveTradePortfolioPanelTab("trades");
+        dispatchLiveTradePortfolioPanelTab("trade");
+      } else if (id === "trades") {
+        dispatchLiveTradeTradesWorkspace({ mode: "picker" });
       } else if (id === "programs") {
         dispatchLiveTradeDockProgramsPlain();
       }

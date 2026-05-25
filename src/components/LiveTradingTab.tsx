@@ -28,6 +28,8 @@ import {
 } from "../api";
 import LiveSimRunningPanel from "./LiveSimRunningPanel";
 import LiveTradeTradesHistoryPanel from "./LiveTradeTradesHistoryPanel";
+import LiveTradeTradesDockPanel from "./LiveTradeTradesDockPanel";
+import { LiveTradeExchangePicker } from "./LiveTradeExchangePicker";
 import LiveTradeRegisteredProgramCard from "./LiveTradeRegisteredProgramCard";
 import LiveSimRecommendationsPanel, {
   type LiveSimDraftPatch,
@@ -40,6 +42,7 @@ import {
   useLiveTradingStatusPoll,
 } from "../hooks/useLiveTradingStatusPoll";
 import { LIVE_TRADE_DOCK_OPEN_FORM_EVENT } from "../lib/liveTradeDockEvents";
+import { dispatchLiveTradeTradesWorkspace } from "../lib/liveTradeTradesWorkspace";
 import {
   LIVE_TRADE_DOCK_PROGRAMS_PLAIN_EVENT,
   LIVE_TRADE_PORTFOLIO_PANEL_TAB_EVENT,
@@ -814,16 +817,25 @@ export default function LiveTradingTab({
                   : "live-trading-tab__segment-btn"
               }
               aria-selected={programsPanelTab === "trades"}
-              onClick={() => setProgramsPanelTab("trades")}
+              onClick={() => {
+                setProgramsPanelTab("trades");
+                if (hideCardDock) {
+                  dispatchLiveTradeTradesWorkspace({ mode: "picker" });
+                }
+              }}
             >
               {ko.app.liveTradeProgramsTabTrades}
             </button>
           </div>
           {programsPanelTab === "trades" ? (
-            <LiveTradeTradesHistoryPanel
-              embedded
-              adminViewUserId={adminReadOnly ? adminViewUserId : null}
-            />
+            hideCardDock ? (
+              <LiveTradeExchangePicker compact />
+            ) : (
+              <LiveTradeTradesHistoryPanel
+                embedded
+                adminViewUserId={adminReadOnly ? adminViewUserId : null}
+              />
+            )
           ) : programs.length === 0 ? (
             <p className="live-trading-tab__empty">{ko.app.liveTradeListEmpty}</p>
           ) : (
@@ -994,6 +1006,11 @@ export default function LiveTradingTab({
                   initialAdminView={portfolioAdminView}
                   selfOnly={dockSelfOnly}
                 />
+                {dockSelfOnly ? (
+                  <LiveTradeTradesDockPanel selfOnly />
+                ) : (
+                  <LiveTradeTradesDockPanel />
+                )}
                 {!adminReadOnly ? (
                 <LiveTradeCollapsibleCard
           key={editingId ? `edit-${editingId}` : "new-form"}

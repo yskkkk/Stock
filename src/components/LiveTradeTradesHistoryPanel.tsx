@@ -13,6 +13,8 @@ import {
 } from "../lib/format";
 import { tradeFillDisplayByTradeId } from "../lib/liveTradeBuySellPrices";
 import { formatTradeSideLabel } from "../lib/liveTradeSideDisplay";
+import { liveTradeRecordMatchesExchange } from "../lib/liveTradeTradesExchangeFilter";
+import type { LiveTradeTradesExchange } from "../lib/liveTradeTradesWorkspace";
 import { ko } from "../i18n/ko";
 import { LiveTradeSymbolCellFromRecord } from "./LiveTradeSymbolCell";
 
@@ -46,17 +48,28 @@ function mergeTrades(
 export default function LiveTradeTradesHistoryPanel({
   adminViewUserId = null,
   embedded = false,
+  workspaceMode = false,
   programId = null,
   programName = null,
+  exchange = null,
+  loadAll: loadAllProp,
 }: {
   adminViewUserId?: string | null;
   /** 도크 «등록 프로그램» 패널 안에 삽입 */
   embedded?: boolean;
+  /** 본문 워크스페이스(차트 영역) 전체 높이 */
+  workspaceMode?: boolean;
   /** 지정 시 해당 프로그램 체결만 */
   programId?: string | null;
   programName?: string | null;
+  /** 토스(kr·us) / 빗썸(crypto) 필터 */
+  exchange?: LiveTradeTradesExchange | null;
+  /** true면 전체 일자·최신순(거래소 필터와 함께 사용) */
+  loadAll?: boolean;
 }) {
-  const loadAll = embedded || Boolean(programId?.trim());
+  const loadAll =
+    loadAllProp ??
+    (embedded || Boolean(programId?.trim()) || Boolean(exchange));
   const [trades, setTrades] = useState<LiveTradeRecord[]>([]);
   const [nextOlderEndDay, setNextOlderEndDay] = useState<string | null>(null);
   const [hasOlder, setHasOlder] = useState(false);
@@ -129,38 +142,62 @@ export default function LiveTradeTradesHistoryPanel({
     return () => obs.disconnect();
   }, [hasOlder, nextOlderEndDay, fetchPage, loadAll]);
 
-  const tradeFill = useMemo(() => tradeFillDisplayByTradeId(trades), [trades]);
+  const filteredTrades = useMemo(() => {
+    if (!exchange) return trades;
+    return trades.filter((t) => liveTradeRecordMatchesExchange(t, exchange));
+  }, [trades, exchange]);
+
+  const tradeFill = useMemo(
+    () => tradeFillDisplayByTradeId(filteredTrades),
+    [filteredTrades],
+  );
+
+  const exchangeTitle =
+    exchange === "toss"
+      ? ko.app.liveTradeTossShort
+      : exchange === "bithumb"
+        ? ko.app.liveTradeBithumbShort
+        : null;
 
   const nameBySymbol = useMemo(() => {
     const m = new Map<string, string>();
-    for (const t of trades) {
+    for (const t of filteredTrades) {
       const nm = String(t.name ?? "").trim();
       if (nm) m.set(t.symbol.toUpperCase(), nm);
     }
     return m;
-  }, [trades]);
+  }, [filteredTrades]);
 
   return (
     <section
-      className={
-        embedded
-          ? "live-trade-history live-trade-history--embedded"
-          : "live-trade-history card"
+      className={[
+        "live-trade-history",
+        embedded ? "live-trade-history--embedded" : "",
+        workspaceMode ? "live-trade-history--workspace" : "",
+        !embedded && !workspaceMode ? "card" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      aria-labelledby={
+        workspaceMode ? undefined : "live-trade-history-title"
       }
-      aria-labelledby="live-trade-history-title"
     >
+      {!workspaceMode ? (
       <header className="live-trade-history__head">
         <h3 id="live-trade-history-title" className="live-trade-history__title">
           {programName?.trim()
             ? `${programName.trim()} · ${ko.app.liveTradePfTabTrades}`
-            : embedded
-              ? ko.app.liveTradePfTabTradesDock
-              : ko.app.liveTradeAllTradesTitle}
+            : exchangeTitle
+              ? `${exchangeTitle} · ${ko.app.liveTradePfTabTrades}`
+              : embedded
+                ? ko.app.liveTradePfTabTradesDock
+                : ko.app.liveTradeAllTradesTitle}
         </h3>
         <p className="live-trade-history__sub">
           {loadAll ? ko.app.liveTradeAllTradesDockSub : ko.app.liveTradeAllTradesSub}
         </p>
       </header>
+      ) : null}
 
       {err ? (
         <p className="live-trade-history__err" role="alert">
@@ -168,9 +205,9 @@ export default function LiveTradeTradesHistoryPanel({
         </p>
       ) : null}
 
-      {loading && trades.length === 0 ? (
+      {loading && filteredTrades.length === 0 ? (
         <p className="live-trade-history__muted">{ko.app.liveTradePfLoading}</p>
-      ) : trades.length === 0 ? (
+      ) : filteredTrades.length === 0 ? (
         <p className="live-trade-history__muted">{ko.app.liveTradePfNoTrades}</p>
       ) : (
         <div className="live-trade-history__scroll">
@@ -191,7 +228,7 @@ export default function LiveTradeTradesHistoryPanel({
                 </tr>
               </thead>
               <tbody>
-                {trades.map((t) => {
+                {filteredTrades.map((t) => {
                   const fd = tradeFill.get(t.id);
                   const pnlUp =
                     fd?.realizedPnl != null ? fd.realizedPnl >= 0 : null;

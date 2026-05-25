@@ -54,6 +54,8 @@ import { refreshLiveTradingStatusNow } from "../hooks/useLiveTradingStatusPoll";
 import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
 import { ko } from "../i18n/ko";
 import { RefreshIconButton } from "./RefreshIconButton";
+import { LiveTradeExchangePicker } from "./LiveTradeExchangePicker";
+import { dispatchLiveTradeTradesWorkspace } from "../lib/liveTradeTradesWorkspace";
 import {
   LiveHoldingChartSymbol,
   LiveTradeExitPriceCell,
@@ -775,6 +777,9 @@ export default function LiveTradePortfolioPanel({
                   setHoverTab(null);
                   if (selfOnly && (id === "trade" || id === "trades")) {
                     dispatchLiveTradePortfolioPanelTab(id);
+                    if (id === "trades") {
+                      dispatchLiveTradeTradesWorkspace({ mode: "picker" });
+                    }
                   }
                 }}
               >
@@ -1003,9 +1008,7 @@ export default function LiveTradePortfolioPanel({
           ) : null}
 
           {viewTab === "trades" && selfOnly ? (
-            <p className="live-portfolio__dock-trades-hint" role="status">
-              {ko.app.liveTradePfTradesDockHint}
-            </p>
+            <LiveTradeExchangePicker compact />
           ) : null}
 
           {data.updatedAtMs && viewTab !== "summary" ? (
