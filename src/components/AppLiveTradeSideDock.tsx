@@ -13,6 +13,7 @@ import {
 import { createPortal } from "react-dom";
 import { logoutAuth } from "../api";
 import { FeedbackDockRailButton, type FeedbackCornerHandle } from "./FeedbackCorner";
+import { BithumbBrandMark } from "./ExchangeBrandMarks";
 import LiveTradeDockApiRail from "./LiveTradeDockApiRail";
 import { useDesktopDockLayout } from "../hooks/useDesktopDockLayout";
 import { refreshLiveTradingStatusNow } from "../hooks/useLiveTradingStatusPoll";
@@ -298,7 +299,12 @@ function railTabShort(
     };
   }
   if (id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb) {
-    return { glyph: "B", label: ko.app.leftRailBithumbAccountTitle };
+    return {
+      glyph: (
+        <BithumbBrandMark className="app-live-trade-side-dock__rail-bithumb-mark" />
+      ),
+      label: ko.app.leftRailBithumbAccountTitle,
+    };
   }
   if (id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.liveRail) {
     return { glyph: <DockRailBanknoteIcon />, label: ko.app.liveTradeLeftRailTitle };
@@ -747,25 +753,46 @@ export default function AppLiveTradeSideDock({
         <div className="app-live-trade-side-dock__rail-tabs">
         {railTabs.map((tab) => {
           const selected = open && activeId === tab.id;
+          const isBithumb = tab.id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb;
           const { glyph, label } = railTabShort(tab.id, tab.title, Boolean(user));
           return (
             <button
               key={tab.id}
               type="button"
-              className={
-                selected
-                  ? "app-live-trade-side-dock__rail-btn app-live-trade-side-dock__rail-btn--on"
-                  : "app-live-trade-side-dock__rail-btn"
-              }
+              className={[
+                "app-live-trade-side-dock__rail-btn",
+                selected ? "app-live-trade-side-dock__rail-btn--on" : "",
+                isBithumb ? "app-live-trade-side-dock__rail-btn--bithumb" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
               aria-selected={selected}
               aria-controls="app-live-trade-side-dock-panel"
               title={tab.title}
               onClick={() => onRailTab(tab.id, tab.title)}
             >
-              <span className="app-live-trade-side-dock__rail-glyph" aria-hidden>
+              <span
+                className={
+                  isBithumb
+                    ? "app-live-trade-side-dock__rail-glyph app-live-trade-side-dock__rail-glyph--bithumb"
+                    : "app-live-trade-side-dock__rail-glyph"
+                }
+                aria-hidden
+              >
                 {glyph}
               </span>
-              <span className="app-live-trade-side-dock__rail-label">{label}</span>
+              {isBithumb ? (
+                <span className="app-live-trade-side-dock__rail-label app-live-trade-side-dock__rail-label--bithumb">
+                  <span className="app-live-trade-side-dock__rail-label-main">
+                    빗썸
+                  </span>
+                  <span className="app-live-trade-side-dock__rail-label-sub">
+                    계좌
+                  </span>
+                </span>
+              ) : (
+                <span className="app-live-trade-side-dock__rail-label">{label}</span>
+              )}
             </button>
           );
         })}

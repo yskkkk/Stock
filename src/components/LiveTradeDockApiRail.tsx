@@ -90,7 +90,22 @@ function DockApiRailButton({
         >
           <ExchangeBrandMark exchange={exchange} ready={ready} />
         </span>
-        <span className="app-live-trade-side-dock__rail-label">{label}</span>
+        <span
+          className={
+            exchange === "bithumb"
+              ? "app-live-trade-side-dock__rail-label app-live-trade-side-dock__rail-label--bithumb"
+              : "app-live-trade-side-dock__rail-label"
+          }
+        >
+          {exchange === "bithumb" ? (
+            <>
+              <span className="app-live-trade-side-dock__rail-label-main">빗썸</span>
+              <span className="app-live-trade-side-dock__rail-label-sub">API</span>
+            </>
+          ) : (
+            label
+          )}
+        </span>
       </button>
     </span>
   );

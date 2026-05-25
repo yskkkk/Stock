@@ -23,7 +23,7 @@ export function TossBrandMark({ className }: { className?: string }) {
   );
 }
 
-/** 빗썸 CI — 오렌지 원 + 소문자 b */
+/** 빗썸 — 라운드 스퀘어 + 거래량 막대(도크·계좌, B 로고 미사용) */
 export function BithumbBrandMark({ className }: { className?: string }) {
   return (
     <svg
@@ -33,11 +33,21 @@ export function BithumbBrandMark({ className }: { className?: string }) {
       height={20}
       aria-hidden
     >
-      <circle cx="12" cy="12" r="12" fill="#FF6C00" />
-      <path
-        fill="#fff"
-        d="M8.35 17.1V6.65h2.05c3.05 0 4.95 1.55 4.95 4.05 0 1.75-.95 3.05-2.55 3.55 1.65.55 2.65 1.75 2.65 3.45 0 2.35-1.95 3.9-5.05 3.9H8.35zm1.55-7.55h1.25c1.25 0 1.95-.65 1.95-1.6 0-.95-.7-1.6-1.95-1.6H9.9v3.2zm0 4.85h1.55c1.55 0 2.4-.75 2.4-1.85 0-1.1-.85-1.85-2.4-1.85H9.9v3.7z"
+      <rect x="2" y="2" width="20" height="20" rx="6.5" fill="#FF6C00" fillOpacity="0.14" />
+      <rect
+        x="2"
+        y="2"
+        width="20"
+        height="20"
+        rx="6.5"
+        fill="none"
+        stroke="#E85D00"
+        strokeOpacity="0.55"
+        strokeWidth="1.25"
       />
+      <rect x="6" y="13.5" width="3" height="5" rx="1.1" fill="#E85D00" />
+      <rect x="10.5" y="10.5" width="3" height="8" rx="1.1" fill="#FF8533" />
+      <rect x="15" y="7.5" width="3" height="11" rx="1.1" fill="#FF6C00" />
     </svg>
   );
 }

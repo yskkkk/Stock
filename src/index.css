@@ -7855,8 +7855,8 @@ html[data-theme="light"] .left-rail-auth-wrap--side {
 }
 
 html[data-theme="light"] .bithumb-account-rail-wrap--side {
-  background: rgba(240, 253, 250, 0.95);
-  border-color: rgba(13, 148, 136, 0.22);
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  border-color: color-mix(in srgb, var(--card-border) 85%, transparent);
 }
 
 .bithumb-account-rail-wrap__head {
@@ -7903,8 +7903,8 @@ html[data-theme="light"] .bithumb-account-rail-wrap--side {
 }
 
 .bithumb-account-rail-wrap__mark {
-  width: 1rem;
-  height: 1rem;
+  width: 1.12rem;
+  height: 1.12rem;
   flex-shrink: 0;
   display: block;
 }
@@ -7915,12 +7915,25 @@ html[data-theme="light"] .bithumb-account-rail-wrap--side {
   height: 100%;
 }
 
-.bithumb-account-rail-wrap__title-text,
-.bithumb-account-rail-wrap__title-suffix {
-  font: inherit;
+.bithumb-account-rail-wrap__title-copy {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.bithumb-account-rail-wrap__title-text {
   font-size: inherit;
-  font-weight: inherit;
-  letter-spacing: inherit;
+  font-weight: 850;
+  letter-spacing: -0.05em;
+  color: var(--text);
+}
+
+.bithumb-account-rail-wrap__title-suffix {
+  font-size: 0.72em;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--muted);
 }
 
 .bithumb-account-rail-wrap__status {
@@ -9495,13 +9508,62 @@ html:not([data-theme="light"]) {
   min-width: 0;
   max-width: 100%;
   margin-inline: auto;
-  font-size: 0.625rem;
-  font-weight: 600;
-  line-height: 1.25;
+  font-size: 0.64rem;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
   text-align: center;
   word-break: keep-all;
   overflow-wrap: anywhere;
   overflow: visible;
+}
+
+.app-live-trade-side-dock__rail-label--bithumb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.04rem;
+  line-height: 1.05;
+}
+
+.app-live-trade-side-dock__rail-label-main {
+  font-size: 0.66rem;
+  font-weight: 780;
+  letter-spacing: -0.04em;
+}
+
+.app-live-trade-side-dock__rail-label-sub {
+  font-size: 0.56rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  opacity: 0.78;
+}
+
+.app-live-trade-side-dock__rail-btn--bithumb.app-live-trade-side-dock__rail-btn--on
+  .app-live-trade-side-dock__rail-label-main {
+  color: #e85d00;
+}
+
+html[data-theme="light"]
+  .app-live-trade-side-dock__rail-btn--bithumb.app-live-trade-side-dock__rail-btn--on
+  .app-live-trade-side-dock__rail-label-main {
+  color: #c45a12;
+}
+
+.app-live-trade-side-dock__rail-glyph--bithumb,
+.app-live-trade-side-dock__rail-bithumb-mark {
+  width: 1.38rem;
+  height: 1.38rem;
+}
+
+.app-live-trade-side-dock__rail-bithumb-mark {
+  display: block;
+}
+
+.app-live-trade-side-dock__rail-bithumb-mark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .app-live-trade-side-dock__panel {
