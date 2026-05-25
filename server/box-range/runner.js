@@ -61,8 +61,7 @@ async function loadCandlesForBoxTf(symbol, timeframe) {
 async function runDetectionForTf(program, symbol, timeframe) {
   const candles = await loadCandlesForBoxTf(symbol, timeframe);
   if (candles.length < 20) return;
-  const confirmed = candles.slice(0, -1);
-  const boxes = detectBoxRangesOnCandles(confirmed, timeframe);
+  const boxes = detectBoxRangesOnCandles(candles, timeframe);
   const userId = String(program.userId ?? "").trim();
   for (const detected of boxes) {
     upsertDetectedBoxSync({

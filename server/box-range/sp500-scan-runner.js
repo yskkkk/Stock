@@ -58,8 +58,7 @@ async function scanOneSymbol(item) {
         byTf[tf] = [];
         continue;
       }
-      const confirmed = candles.slice(0, -1);
-      byTf[tf] = detectBoxRangesProOnCandles(confirmed, tf, 5);
+      byTf[tf] = detectBoxRangesProOnCandles(candles, tf, 5);
     }
     upsertSymbolCatalogDetectionsSync(sym, item.name ?? sym, byTf, null);
     return { ok: true, symbol: sym };

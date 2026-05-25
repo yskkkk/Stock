@@ -26,7 +26,10 @@ export function syncUsTradingBoxesFromCatalogSync(program) {
   const symbols = Array.isArray(index?.symbols) ? index.symbols : [];
   const existing = listBoxesForProgramSync(program.id);
   const linkedIds = new Set(
-    existing.map((b) => String(b.catalogBoxId ?? "").trim()).filter(Boolean),
+    existing
+      .filter((b) => b.state !== "closed")
+      .map((b) => String(b.catalogBoxId ?? "").trim())
+      .filter(Boolean),
   );
 
   let linked = 0;
@@ -38,14 +41,6 @@ export function syncUsTradingBoxesFromCatalogSync(program) {
     for (const cb of eligible) {
       if (linked >= MAX_NEW_SLOTS_PER_TICK) break;
       if (linkedIds.has(cb.catalogBoxId)) continue;
-      const hasTf = existing.some(
-        (b) =>
-          b.symbol === sym &&
-          b.timeframe === cb.timeframe &&
-          b.state !== "closed" &&
-          b.catalogBoxId === cb.catalogBoxId,
-      );
-      if (hasTf) continue;
 
       upsertDetectedBoxSync({
         programId: program.id,

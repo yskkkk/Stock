@@ -128,7 +128,7 @@ export async function fetchBoxRangeLastPrices(symbols) {
 export function isBoxRangeQuoteFresh(q) {
   if (!q || !Number.isFinite(q.price) || q.price <= 0) return false;
   const at = q.quotedAtMs;
-  if (!Number.isFinite(at) || at <= 0) return true;
+  if (!Number.isFinite(at) || at <= 0) return false;
   const maxStale =
     q.priceSource === "bithumb-ws"
       ? BOX_RANGE_WS_MAX_STALE_MS
