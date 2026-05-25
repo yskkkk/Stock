@@ -1,0 +1,165 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// 박스권(횡보) 탐지 — 기존 pine-* 스크립트와 무관 · 새 알고리즘
+// TradingView Pine v6 · 차트 타임프레임
+
+//@version=6
+indicator("박스권 Finder", shorttitle="박스Finder", overlay=true, max_boxes_count=500, max_lines_count=500, max_bars_back=5000)
+
+// ═══════════════════════════════════════════════════════════════════
+// 입력
+// ═══════════════════════════════════════════════════════════════════
+grpCore = "핵심"
+boxLen      = input.int(12, "박스 길이(봉)", minval=4, maxval=40, group=grpCore, tooltip="한 박스 안에서 고저를 잰 창 길이")
+minBoxBars  = input.int(5, "최소 봉 수", minval=3, maxval=50, group=grpCore)
+maxBoxPct   = input.float(3.0, "박스 최대 높이(%)", minval=0.5, maxval=15.0, step=0.1, group=grpCore)
+breakAtr    = input.float(0.35, "이탈 ATR 배수", minval=0.1, maxval=2.0, step=0.05, group=grpCore, tooltip="종가가 박스 밖으로 ATR×배수만큼 나가면 종료")
+cooldown    = input.int(2, "박스 사이 쿨다운(봉)", minval=0, maxval=20, group=grpCore)
+enterBars   = input.int(2, "시작 확인(봉)", minval=1, maxval=5, group=grpCore, tooltip="연속 N봉 횡보 조건 충족 시 박스 시작")
+
+grpFilt = "횡보 필터"
+adxLen      = input.int(14, "ADX", minval=5, group=grpFilt)
+maxAdx      = input.float(22.0, "ADX 상한", minval=5.0, maxval=50.0, step=0.5, group=grpFilt, tooltip="낮을수록 추세 구간 제외")
+maxEr       = input.float(0.38, "효율비(ER) 상한", minval=0.05, maxval=0.9, step=0.02, group=grpFilt, tooltip="낮을수록 왔다갔다 횡보만 (Kaufman ER)")
+rankLen     = input.int(80, "폭 순위 기간", minval=20, maxval=300, group=grpFilt)
+maxRank     = input.int(28, "폭 순위 상한(%)", minval=5, maxval=50, group=grpFilt, tooltip="최근 대비 좁은 구간만 — 낮을수록 더 좁은 박스만")
+
+grpVis = "표시"
+onlyDone    = input.bool(true, "완성 박스만", group=grpVis)
+showLive    = input.bool(false, "진행 중", group=grpVis)
+extendR     = input.int(1, "우측 연장(봉)", minval=0, maxval=20, group=grpVis)
+maxBoxes    = input.int(0, "최대 개수(0=전체)", minval=0, maxval=250, group=grpVis)
+showMid     = input.bool(false, "중심선", group=grpVis)
+
+grpCol = "색"
+cFill  = input.color(color.new(#FFFFFF, 88), "채움", group=grpCol)
+cBrd   = input.color(color.new(#FFFFFF, 15), "테두리", group=grpCol)
+cMid   = input.color(color.new(#FFFFFF, 35), "중심", group=grpCol)
+cLive  = input.color(color.new(#FFFFFF, 93), "진행", group=grpCol)
+
+// ═══════════════════════════════════════════════════════════════════
+// 지표 — 횡보 여부 (매 봉)
+// ═══════════════════════════════════════════════════════════════════
+float boxMid = (ta.highest(high, boxLen) + ta.lowest(low, boxLen)) * 0.5
+float boxH   = ta.highest(high, boxLen) - ta.lowest(low, boxLen)
+float boxPct = boxMid > 0 ? boxH / boxMid * 100.0 : 100.0
+
+float path = ta.sum(math.abs(ta.change(close)), boxLen)
+float er   = path > 0 ? math.abs(close - close[boxLen]) / path : 1.0
+
+[_, _, adx] = ta.dmi(adxLen, adxLen)
+
+float rank = ta.percentrank(boxPct, rankLen)
+
+bool isFlat = boxPct <= maxBoxPct
+bool isChop = er <= maxEr
+bool isWeakTrend = adx <= maxAdx
+bool isNarrowHist = rank <= maxRank
+
+bool canRange = isFlat and isChop and isWeakTrend and isNarrowHist
+
+// ═══════════════════════════════════════════════════════════════════
+// 상태: 박스 추적 (실제 고저로 박스 확장)
+// ═══════════════════════════════════════════════════════════════════
+var int   bStart = na
+var int   bCount = 0
+var float bTop   = na
+var float bBot   = na
+var int   coolLeft = 0
+var int   flatRun = 0
+
+var float[] doneTop = array.new_float()
+var float[] doneBot = array.new_float()
+var int[]   doneT0  = array.new_int()
+var int[]   doneT1  = array.new_int()
+
+float atr = ta.atr(14)
+int extMs = extendR * timeframe.in_seconds() * 1000
+
+f_boxPct(float t, float b) =>
+    float m = (t + b) * 0.5
+    m > 0 ? (t - b) / m * 100.0 : 100.0
+
+f_closeOutside(float t, float b, float mult) =>
+    float buf = atr * mult
+    close > t + buf or close < b - buf
+
+if coolLeft > 0
+    coolLeft -= 1
+
+bool inTrack = bCount > 0
+float livePct = inTrack ? f_boxPct(bTop, bBot) : boxPct
+bool tooWide = inTrack and livePct > maxBoxPct * 1.15
+bool broke = inTrack and f_closeOutside(bTop, bBot, breakAtr)
+bool lostFlat = inTrack and not canRange
+
+// 종료
+if inTrack and (tooWide or broke or lostFlat)
+    if bCount >= minBoxBars
+        array.unshift(doneTop, bTop)
+        array.unshift(doneBot, bBot)
+        array.unshift(doneT0, bStart)
+        array.unshift(doneT1, time[1])
+    bStart := na
+    bCount := 0
+    bTop := na
+    bBot := na
+    coolLeft := cooldown
+
+// 시작
+if bCount == 0 and coolLeft <= 0 and canRange
+    bStart := time
+    bCount := 1
+    bTop := high
+    bBot := low
+
+// 확장
+else if inTrack and not (tooWide or broke or lostFlat)
+    bCount += 1
+    bTop := math.max(bTop, high)
+    bBot := math.min(bBot, low)
+
+bool liveOn = bCount >= minBoxBars and inTrack
+float liveTop = liveOn ? bTop : na
+float liveBot = liveOn ? bBot : na
+int liveT0 = liveOn ? bStart : na
+int liveT1 = liveOn ? time + extMs : na
+
+// ═══════════════════════════════════════════════════════════════════
+// 그리기
+// ═══════════════════════════════════════════════════════════════════
+var box[]  gBox = array.new_box()
+var line[] gLn  = array.new_line()
+
+f_wipe() =>
+    while array.size(gBox) > 0
+        box.delete(array.pop(gBox))
+    while array.size(gLn) > 0
+        line.delete(array.pop(gLn))
+
+f_paint(int t0, int t1, float top, float bot, color fill, color brd, bool dash) =>
+    if not na(t0) and not na(t1) and not na(top) and not na(bot) and top > bot
+        int tL = math.min(t0, t1)
+        int tR = math.max(t0, t1)
+        array.push(gBox, box.new(tL, top, tR, bot, xloc=xloc.bar_time, bgcolor=fill, border_color=brd, border_width=1, border_style=dash ? line.style_dashed : line.style_solid))
+        if showMid
+            float mid = (top + bot) * 0.5
+            array.push(gLn, line.new(tL, mid, tR, mid, xloc=xloc.bar_time, color=cMid, width=1))
+
+if barstate.isconfirmed
+    f_wipe()
+    if liveOn and showLive and not onlyDone
+        f_paint(liveT0, liveT1, liveTop, liveBot, cLive, cBrd, true)
+    int n = array.size(doneTop)
+    if n > 0
+        int lim = maxBoxes <= 0 ? n : math.min(maxBoxes, n)
+        for i = 0 to lim - 1
+            f_paint(array.get(doneT0, i), array.get(doneT1, i) + extMs, array.get(doneTop, i), array.get(doneBot, i), cFill, cBrd, false)
+
+// ═══════════════════════════════════════════════════════════════════
+// 디버그 (데이터 창)
+// ═══════════════════════════════════════════════════════════════════
+plot(boxPct, "창 폭%", display=display.data_window)
+plot(er, "ER", display=display.data_window)
+plot(adx, "ADX", display=display.data_window)
+plot(rank, "폭순위", display=display.data_window)
+plot(canRange ? 1 : 0, "횡보OK", display=display.data_window)
