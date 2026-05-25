@@ -9948,6 +9948,16 @@ html[data-theme="light"] .app-live-trade-side-dock__auth-popover::after {
   color: var(--text);
 }
 
+.app-live-trade-side-dock__host .live-trading-tab__list.live-trade-api-card.card {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.app-live-trade-side-dock__host .live-trading-tab__list-body {
+  background: transparent;
+}
+
 .app-dock-rail-panel--auth .live-trading-tab__auth-signed {
   flex-wrap: wrap;
   gap: 0.5rem;

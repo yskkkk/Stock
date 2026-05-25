@@ -2291,9 +2291,15 @@ html[data-theme="light"]
   }
 }
 
-.live-trading-tab__form.live-trade-api-card,
-.live-trading-tab__list.live-trade-api-card {
+.live-trading-tab__form.live-trade-api-card {
   border-left: 3px solid color-mix(in srgb, var(--accent, #5eead4) 28%, var(--border, #cbd5e1));
+}
+
+.live-trading-tab__list.live-trade-api-card {
+  border: none;
+  border-left: none;
+  background: transparent;
+  box-shadow: none;
 }
 
 .live-trading-tab__form.live-trade-api-card .live-trade-api-card__body,
@@ -2345,7 +2351,7 @@ html[data-theme="light"]
 .live-trading-tab__list-body {
   flex: 1 1 auto;
   min-height: 0;
-  background: color-mix(in srgb, var(--card) 92%, transparent);
+  background: transparent;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -2590,22 +2596,37 @@ html[data-theme="light"]
 }
 
 .live-trading-tab__program {
-  padding: 0.75rem 0.85rem;
-  border-radius: 10px;
-  border: 1px solid var(--border, #e2e8f0);
-  background: var(--surface-2, rgba(255, 255, 255, 0.04));
+  padding: 0.6rem 0 0.65rem;
+  border-radius: 0;
+  border: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 45%, transparent);
+  background: transparent;
+}
+
+.live-trading-tab__programs > li:last-child .live-trading-tab__program {
+  border-bottom: none;
+  padding-bottom: 0.35rem;
 }
 
 .live-trading-tab__program--armed {
-  border-color: rgba(34, 197, 94, 0.45);
+  border: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 45%, transparent);
+  border-left: 3px solid color-mix(in srgb, var(--up, #72a883) 52%, transparent);
+  padding-left: 0.5rem;
 }
 
 .live-trading-tab__program--sim {
-  border-color: rgba(59, 130, 246, 0.45);
+  border: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 45%, transparent);
+  border-left: 3px solid color-mix(in srgb, var(--accent, #8fb5aa) 48%, transparent);
+  padding-left: 0.5rem;
 }
 
 .live-trading-tab__program--error {
-  border-color: rgba(239, 68, 68, 0.45);
+  border: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 45%, transparent);
+  border-left: 3px solid color-mix(in srgb, var(--down, #c48686) 52%, transparent);
+  padding-left: 0.5rem;
 }
 
 .live-trading-tab__program-head {

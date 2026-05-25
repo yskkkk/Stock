@@ -54,13 +54,25 @@ html[data-theme="light"] .profit-model-strip__value {
 }
 
 /* 실매매·시뮬 수익 요약 타일 — 라이트: 다크용 반투명 배경이 회색 덩어리로 보임 */
-html[data-theme="light"] .live-trading-tab__form-panel,
-html[data-theme="light"] .live-trading-tab__list-body {
+html[data-theme="light"] .live-trading-tab__form-panel {
   background: linear-gradient(
     180deg,
     color-mix(in srgb, var(--card) 98%, white) 0%,
     color-mix(in srgb, var(--surface) 92%, white) 100%
   );
+}
+
+html[data-theme="light"] .live-trading-tab__list-body {
+  background: transparent;
+}
+
+html[data-theme="light"] .live-trading-tab__list.live-trade-api-card {
+  background: transparent;
+  box-shadow: none;
+}
+
+html[data-theme="light"] .live-trading-tab__program {
+  background: transparent;
 }
 
 html[data-theme="light"] .live-trading-tab__segment {
