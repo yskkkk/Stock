@@ -3,7 +3,7 @@
 // 차트 TF 횡보 박스만(흰 사각형·추세선 없음) → pine-box-consolidation-zones.pine
 
 //@version=6
-indicator("수평 매물대 · 박스권 MTF", shorttitle="박스권 MTF", overlay=true, max_boxes_count=500, max_lines_count=500, max_bars_back=5000)
+indicator("수평 매물대 · 박스권 MTF", shorttitle="박스권 MTF", overlay=true, max_boxes_count=128, max_lines_count=128, max_bars_back=3000)
 
 // ── 1H / 4H / 1D 프리셋 ─────────────────────────────────────────────
 H1_LB       = 16
@@ -49,7 +49,8 @@ bool vis4H = chartTfSec == TF_SEC_4H
 bool vis1D = timeframe.isdaily or chartTfSec == TF_SEC_1D
 completedOnly = input.bool(true, "완성 박스만", group=grpVis, tooltip="실시간 봉에서 진행 중(점선) 박스 미표시 · 리페인트 완화")
 showActive  = input.bool(false, "진행 중 박스", group=grpVis, tooltip="완성 박스만=켜도 점선은 안 그림")
-zonesPerTf  = input.int(0, "TF당 표시 개수 (0=전체)", minval=0, maxval=500, group=grpVis)
+zonesPerTf  = input.int(35, "표시 박스 개수", minval=5, maxval=80, group=grpVis, tooltip="최근 N개만 그림 · 0은 메모리 부담 큼")
+maxStoreZones = input.int(40, "저장 상한(개)", minval=12, maxval=80, group=grpVis, tooltip="완성 박스 배열 최대 길이 — 초과 시 오래된 것 삭제")
 showDash    = input.bool(true, "대시보드", group=grpVis)
 dashPos     = input.string("우상단", "대시보드 위치", options=["우상단", "우하단", "좌상단", "좌하단"], group=grpVis)
 
@@ -77,6 +78,12 @@ cMergeMidPct = input.float(1.0, "병합 중심 허용(%)", minval=0.1, maxval=8.
 cMergeBars  = input.int(0, "병합 시간(봉, 0=시간무시)", minval=0, group=grpAdv)
 
 float NO_PCT = 99999.0
+int MERGE_SCAN = 6
+
+var float[] EMPTY_TOP = array.new_float()
+var float[] EMPTY_BOT = array.new_float()
+var int[]   EMPTY_T0  = array.new_int()
+var int[]   EMPTY_T1  = array.new_int()
 
 f_pos(string p) =>
     p == "우하단" ? position.bottom_right : p == "좌상단" ? position.top_left : p == "좌하단" ? position.bottom_left : position.top_right
@@ -103,46 +110,46 @@ f_shouldMerge(float tN, float bN, int t0N, int t1N, float tO, float bO, int t0O,
 f_mergePair(float tN, float bN, int t0N, int t1N, float tO, float bO, int t0O, int t1O) =>
     [math.max(tN, tO), math.min(bN, bO), math.min(t0N, t0O), math.max(t1N, t1O)]
 
-f_pushMerged(float[] tops, float[] bots, int[] t0s, int[] t1s, float tN, float bN, int t0N, int t1N, float mPct, int mBars, int tfSec) =>
+f_trimZoneStore(float[] tops, float[] bots, int[] t0s, int[] t1s, int maxN) =>
+    while array.size(tops) > maxN
+        array.pop(tops)
+        array.pop(bots)
+        array.pop(t0s)
+        array.pop(t1s)
+
+f_pushMerged(float[] tops, float[] bots, int[] t0s, int[] t1s, float tN, float bN, int t0N, int t1N, float mPct, int mBars, int tfSec, int maxN) =>
     array.unshift(tops, tN)
     array.unshift(bots, bN)
     array.unshift(t0s, t0N)
     array.unshift(t1s, t1N)
-    bool did = true
-    while did
-        did := false
-        int i = 0
-        while i < array.size(tops)
-            float mt = array.get(tops, i)
-            float mb = array.get(bots, i)
-            int ma = array.get(t0s, i)
-            int me = array.get(t1s, i)
-            int j = i + 1
-            while j < array.size(tops)
-                float tO = array.get(tops, j)
-                float bO = array.get(bots, j)
-                int t0O = array.get(t0s, j)
-                int t1O = array.get(t1s, j)
-                if f_shouldMerge(mt, mb, ma, me, tO, bO, t0O, t1O, mPct, mBars, tfSec)
-                    [mt, mb, ma, me] = f_mergePair(mt, mb, ma, me, tO, bO, t0O, t1O)
-                    array.set(tops, i, mt)
-                    array.set(bots, i, mb)
-                    array.set(t0s, i, ma)
-                    array.set(t1s, i, me)
-                    array.remove(tops, j)
-                    array.remove(bots, j)
-                    array.remove(t0s, j)
-                    array.remove(t1s, j)
-                    did := true
-                else
-                    j += 1
-            i += 1
+    int scan = math.min(MERGE_SCAN, array.size(tops) - 1)
+    if scan > 0
+        for j = 1 to scan
+            float tO = array.get(tops, j)
+            float bO = array.get(bots, j)
+            int t0O = array.get(t0s, j)
+            int t1O = array.get(t1s, j)
+            if f_shouldMerge(tN, bN, t0N, t1N, tO, bO, t0O, t1O, mPct, mBars, tfSec)
+                float mt = math.max(tN, tO)
+                float mb = math.min(bN, bO)
+                int ma = math.min(t0N, t0O)
+                int me = math.max(t1N, t1O)
+                array.set(tops, 0, mt)
+                array.set(bots, 0, mb)
+                array.set(t0s, 0, ma)
+                array.set(t1s, 0, me)
+                array.remove(tops, j)
+                array.remove(bots, j)
+                array.remove(t0s, j)
+                array.remove(t1s, j)
+                break
+    f_trimZoneStore(tops, bots, t0s, t1s, maxN)
 
-// ── 박스 엔진 (HTF · 배열 저장 무제한) ───────────────────────────────
+// ── 박스 엔진 (HTF · 저장 개수 상한) ─────────────────────────────────
 f_zoneEngine(
      int lb, int minB, float maxPct, bool useAtr, int atrL, float atrM,
      float mPct, int mBars, int tfSec, int extBars, int exitBars,
-     bool pctLimit, float brkAtr) =>
+     bool pctLimit, float brkAtr, int maxStore) =>
     rngHi = ta.highest(high, lb)
     rngLo = ta.lowest(low, lb)
     midPx = (rngHi + rngLo) * 0.5
@@ -176,7 +183,7 @@ f_zoneEngine(
         looseCnt := (pctLimit and not rollTight) ? looseCnt + 1 : 0
         if wideBreak or (pctLimit and looseCnt >= exitBars)
             if stCnt >= minB and not na(stTop)
-                f_pushMerged(zTop, zBot, zT0, zT1, stTop, stBot, stT0, time, mPct, mBars, tfSec)
+                f_pushMerged(zTop, zBot, zT0, zT1, stTop, stBot, stT0, time, mPct, mBars, tfSec, maxStore)
             stT0 := na
             stCnt := 0
             looseCnt := 0
@@ -214,14 +221,16 @@ sym = syminfo.tickerid
 bool atrOn = usePctLimit and useAtrCap
 bool pctLim = usePctLimit
 
+int storeCap = maxStoreZones
+
 [h1_in, h1_rp, h1_act, h1_at, h1_ab, h1_am, h1_a0, h1_a1, h1_zn, h1_zTop, h1_zBot, h1_zT0, h1_zT1] =
-     request.security(sym, "60", f_zoneEngine(h1_lb, h1_min, h1_pct, atrOn, H1_ATR_LEN, H1_ATR_MULT, h1_mp, h1_mb, TF_SEC_1H, H1_EXT_B, H1_EXIT_B, pctLim, breakAtrMult), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+     vis1H ? request.security(sym, "60", f_zoneEngine(h1_lb, h1_min, h1_pct, atrOn, H1_ATR_LEN, H1_ATR_MULT, h1_mp, h1_mb, TF_SEC_1H, H1_EXT_B, H1_EXIT_B, pctLim, breakAtrMult, storeCap), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off) : [false, 0.0, false, float(na), float(na), float(na), int(na), int(na), 0, EMPTY_TOP, EMPTY_BOT, EMPTY_T0, EMPTY_T1]
 
 [h4_in, h4_rp, h4_act, h4_at, h4_ab, h4_am, h4_a0, h4_a1, h4_zn, h4_zTop, h4_zBot, h4_zT0, h4_zT1] =
-     request.security(sym, "240", f_zoneEngine(useCustom ? cLookback : H4_LB, useCustom ? cMinBars : H4_MIN, useCustom ? cMaxPct : H4_MAX_PCT, atrOn, H4_ATR_LEN, H4_ATR_MULT, useCustom ? cMergePct : H4_MERGE_P, useCustom ? cMergeBars : H4_MERGE_B, TF_SEC_4H, H4_EXT_B, H4_EXIT_B, pctLim, breakAtrMult), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+     vis4H ? request.security(sym, "240", f_zoneEngine(useCustom ? cLookback : H4_LB, useCustom ? cMinBars : H4_MIN, useCustom ? cMaxPct : H4_MAX_PCT, atrOn, H4_ATR_LEN, H4_ATR_MULT, useCustom ? cMergeMidPct : H4_MERGE_P, useCustom ? cMergeBars : H4_MERGE_B, TF_SEC_4H, H4_EXT_B, H4_EXIT_B, pctLim, breakAtrMult, storeCap), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off) : [false, 0.0, false, float(na), float(na), float(na), int(na), int(na), 0, EMPTY_TOP, EMPTY_BOT, EMPTY_T0, EMPTY_T1]
 
 [d_in, d_rp, d_act, d_at, d_ab, d_am, d_a0, d_a1, d_zn, d_zTop, d_zBot, d_zT0, d_zT1] =
-     request.security(sym, "D", f_zoneEngine(useCustom ? cLookback : D1_LB, useCustom ? cMinBars : D1_MIN, useCustom ? cMaxPct : D1_MAX_PCT, atrOn, D1_ATR_LEN, D1_ATR_MULT, useCustom ? cMergePct : D1_MERGE_P, useCustom ? cMergeBars : D1_MERGE_B, TF_SEC_1D, D1_EXT_B, D1_EXIT_B, pctLim, breakAtrMult), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+     vis1D ? request.security(sym, "D", f_zoneEngine(useCustom ? cLookback : D1_LB, useCustom ? cMinBars : D1_MIN, useCustom ? cMaxPct : D1_MAX_PCT, atrOn, D1_ATR_LEN, D1_ATR_MULT, useCustom ? cMergeMidPct : D1_MERGE_P, useCustom ? cMergeBars : D1_MERGE_B, TF_SEC_1D, D1_EXT_B, D1_EXIT_B, pctLim, breakAtrMult, storeCap), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off) : [false, 0.0, false, float(na), float(na), float(na), int(na), int(na), 0, EMPTY_TOP, EMPTY_BOT, EMPTY_T0, EMPTY_T1]
 
 // ── 그리기 ─────────────────────────────────────────────────────────
 var box[]  b1h = array.new_box()
@@ -248,11 +257,12 @@ f_drawZone(box[] bx, line[] ln, int t0, int t1, float top, float bot, color fill
     if not na(top) and not na(bot) and not na(t0) and not na(t1) and top > bot
         int tL = math.min(t0, t1)
         int tR = math.max(t0, t1)
-        float avg = (top + bot) * 0.5
         box nb = box.new(tL, top, tR, bot, xloc = xloc.bar_time, bgcolor = fill, border_color = brd, border_width = 1, border_style = dashed ? line.style_dashed : line.style_solid)
-        line nl = line.new(tL, avg, tR, avg, xloc = xloc.bar_time, color = mid, width = midWidth, style = line.style_solid)
         array.push(bx, nb)
-        array.push(ln, nl)
+        if showMid
+            float avg = (top + bot) * 0.5
+            line nl = line.new(tL, avg, tR, avg, xloc = xloc.bar_time, color = mid, width = midWidth, style = line.style_solid)
+            array.push(ln, nl)
 
 f_drawTfArrays(bool en, box[] bx, line[] ln, bool actOn, int a0, int a1, float at, float ab, color fill, color brd, color mid, int nCap, float[] tops, float[] bots, int[] t0s, int[] t1s, int extMs) =>
     if en and barstate.isconfirmed
@@ -261,7 +271,7 @@ f_drawTfArrays(bool en, box[] bx, line[] ln, bool actOn, int a0, int a1, float a
             f_drawZone(bx, ln, a0, a1, at, ab, color.new(fill, 88), brd, mid, true)
         int total = math.min(array.size(tops), array.size(bots), array.size(t0s), array.size(t1s))
         if total > 0
-            int n = nCap <= 0 ? total : math.min(nCap, total)
+            int n = math.min(nCap <= 0 ? 35 : nCap, total, 80)
             for i = 0 to n - 1
                 float top = array.get(tops, i)
                 float bot = array.get(bots, i)
@@ -330,7 +340,7 @@ if showDash and barstate.isconfirmed
         f_dashRow(dash, dRow, "1D", col1D_mid, d_in, dashAct1D, d_dt, d_db, d_dm, d_rp, d_zn)
         dRow += 1
 
-    string capTxt = zonesPerTf <= 0 ? "전체" : str.tostring(zonesPerTf)
+    string capTxt = str.tostring(zonesPerTf) + "·저장" + str.tostring(maxStoreZones)
     string tfNote = vis1H ? "1H" : vis4H ? "4H" : vis1D ? "1D" : "—"
     string preset = tfNote + " 차트만 · " + (usePctLimit ? "폭%제한" : "폭%없음") + " · " + capTxt + (completedOnly ? " · 완성만" : "")
     table.cell(dash, 0, 4, preset, text_color = color.new(#78909C, 0), text_size = size.tiny)
