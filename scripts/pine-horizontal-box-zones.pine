@@ -4,14 +4,14 @@
 //@version=6
 indicator("수평 매물대 · 박스권 MTF", shorttitle="박스권 MTF", overlay=true, max_boxes_count=500, max_lines_count=500, max_bars_back=5000)
 
-// ── 1H / 4H / 1D 프리셋 (완화 — 실제 횡보가 잡히도록) ───────────────
+// ── 1H / 4H / 1D 프리셋 ─────────────────────────────────────────────
 H1_LB       = 16
 H1_MIN      = 6
 H1_MAX_PCT  = 3.2
 H1_ATR_LEN  = 14
 H1_ATR_MULT = 2.0
-H1_MERGE_P  = 0.18
-H1_MERGE_B  = 36
+H1_MERGE_P  = 0.55
+H1_MERGE_B  = 0
 H1_EXT_B    = 10
 H1_EXIT_B   = 2
 
@@ -20,8 +20,8 @@ H4_MIN      = 5
 H4_MAX_PCT  = 4.5
 H4_ATR_LEN  = 14
 H4_ATR_MULT = 2.0
-H4_MERGE_P  = 0.2
-H4_MERGE_B  = 18
+H4_MERGE_P  = 0.65
+H4_MERGE_B  = 0
 H4_EXT_B    = 8
 H4_EXIT_B   = 2
 
@@ -30,15 +30,14 @@ D1_MIN      = 4
 D1_MAX_PCT  = 7.0
 D1_ATR_LEN  = 14
 D1_ATR_MULT = 2.0
-D1_MERGE_P  = 0.22
-D1_MERGE_B  = 8
+D1_MERGE_P  = 0.75
+D1_MERGE_B  = 0
 D1_EXT_B    = 6
 D1_EXIT_B   = 2
 
 TF_SEC_1H = 3600
 TF_SEC_4H = 14400
 TF_SEC_1D = 86400
-MAX_STORED = 8
 
 // ── 표시 · 대시보드 ─────────────────────────────────────────────────
 grpVis = "표시"
@@ -47,7 +46,7 @@ show4H      = input.bool(true, "4H", group=grpVis, inline="tf")
 show1D      = input.bool(true, "1D", group=grpVis, inline="tf2")
 completedOnly = input.bool(true, "완성 박스만", group=grpVis, tooltip="실시간 봉에서 진행 중(점선) 박스 미표시 · 리페인트 완화")
 showActive  = input.bool(false, "진행 중 박스", group=grpVis, tooltip="완성 박스만=켜도 점선은 안 그림")
-zonesPerTf  = input.int(8, "TF당 표시 박스(최근)", minval=1, maxval=MAX_STORED, group=grpVis)
+zonesPerTf  = input.int(0, "TF당 표시 개수 (0=전체)", minval=0, maxval=500, group=grpVis)
 showDash    = input.bool(true, "대시보드", group=grpVis)
 dashPos     = input.string("우상단", "대시보드 위치", options=["우상단", "우하단", "좌상단", "좌하단"], group=grpVis)
 
@@ -69,32 +68,73 @@ useAtrCap   = input.bool(false, "ATR로 폭 상한", group=grpAdv, tooltip="켜�
 cLookback   = input.int(16, "구간(봉)", minval=5, group=grpAdv)
 cMinBars    = input.int(6, "최소 박스 봉", minval=3, group=grpAdv)
 cMaxPct     = input.float(3.5, "최대 폭(%)", minval=0.5, step=0.1, group=grpAdv)
-cMergePct   = input.float(0.18, "병합 겹침(%)", minval=0, step=0.05, group=grpAdv)
-cMergeBars  = input.int(24, "병합 인접(봉)", minval=0, group=grpAdv)
+cMergePct   = input.float(0.55, "병합 겹침(%)", minval=0, step=0.05, group=grpAdv, tooltip="클수록 가격·중심이 가까운 박스를 더 많이 합침")
+cMergeBars  = input.int(0, "병합 시간(봉, 0=시간무시)", minval=0, group=grpAdv)
 
 f_pos(string p) =>
     p == "우하단" ? position.bottom_right : p == "좌상단" ? position.top_left : p == "좌하단" ? position.bottom_left : position.top_right
 
-// ── 박스 엔진 (HTF에서 실행 → security로 스냅샷) ───────────────────
-f_priceOverlap(float t1, float b1, float t2, float b2, float mPct) =>
-    tol = mPct * 0.01
-    pad1 = (t1 - b1) * tol
-    pad2 = (t2 - b2) * tol
-    not (t1 + pad1 < b2 - pad2 or t2 + pad2 < b1 - pad1)
-
+// ── 러프 병합 (가격 겹침 · 중심 근접 · 시간 선택) ───────────────────
 f_timeNear(int tEnd, int tStart, int mBars, int tfSec) =>
     int gap = mBars * tfSec * 1000
     mBars <= 0 ? true : math.abs(tStart - tEnd) <= gap
 
-f_mergeInto(float tNew, float bNew, int t0New, int t1New, float t1, float b1, int a1, int e1, float mPct, int mBars, int tfSec) =>
-    if na(t1)
-        [tNew, bNew, t0New, t1New]
-    else if f_priceOverlap(tNew, bNew, t1, b1, mPct) and f_timeNear(t1New, a1, mBars, tfSec)
-        [math.max(tNew, t1), math.min(bNew, b1), math.min(t0New, a1), math.max(t1New, e1)]
-    else
-        [tNew, bNew, t0New, t1New]
+f_priceOverlapRough(float t1, float b1, float t2, float b2, float mPct) =>
+    float h1 = t1 - b1
+    float h2 = t2 - b2
+    float tol = mPct * 0.05
+    float pad = math.max(h1, h2) * tol + (h1 + h2) * 0.5 * tol
+    not (t1 + pad < b2 - pad or t2 + pad < b1 - pad)
 
-// security 호환: 스칼라 MAX_STORED구간 + 히스테리시스(박스 유지)
+f_midNear(float t1, float b1, float t2, float b2, float mPct) =>
+    float m1 = (t1 + b1) * 0.5
+    float m2 = (t2 + b2) * 0.5
+    float ref = math.max(m1, m2)
+    ref > 0 and math.abs(m1 - m2) <= ref * mPct * 0.025
+
+f_shouldMerge(float tN, float bN, int t0N, int t1N, float tO, float bO, int t0O, int t1O, float mPct, int mBars, int tfSec) =>
+    bool price = f_priceOverlapRough(tN, bN, tO, bO, mPct) or f_midNear(tN, bN, tO, bO, mPct)
+    price and (f_timeNear(t1N, t0O, mBars, tfSec) or f_timeNear(t1O, t0N, mBars, tfSec))
+
+f_mergePair(float tN, float bN, int t0N, int t1N, float tO, float bO, int t0O, int t1O) =>
+    [math.max(tN, tO), math.min(bN, bO), math.min(t0N, t0O), math.max(t1N, t1O)]
+
+f_pushMerged(float[] tops, float[] bots, int[] t0s, int[] t1s, float tN, float bN, int t0N, int t1N, float mPct, int mBars, int tfSec) =>
+    array.unshift(tops, tN)
+    array.unshift(bots, bN)
+    array.unshift(t0s, t0N)
+    array.unshift(t1s, t1N)
+    bool did = true
+    while did
+        did := false
+        int i = 0
+        while i < array.size(tops)
+            float mt = array.get(tops, i)
+            float mb = array.get(bots, i)
+            int ma = array.get(t0s, i)
+            int me = array.get(t1s, i)
+            int j = i + 1
+            while j < array.size(tops)
+                float tO = array.get(tops, j)
+                float bO = array.get(bots, j)
+                int t0O = array.get(t0s, j)
+                int t1O = array.get(t1s, j)
+                if f_shouldMerge(mt, mb, ma, me, tO, bO, t0O, t1O, mPct, mBars, tfSec)
+                    [mt, mb, ma, me] = f_mergePair(mt, mb, ma, me, tO, bO, t0O, t1O)
+                    array.set(tops, i, mt)
+                    array.set(bots, i, mb)
+                    array.set(t0s, i, ma)
+                    array.set(t1s, i, me)
+                    array.remove(tops, j)
+                    array.remove(bots, j)
+                    array.remove(t0s, j)
+                    array.remove(t1s, j)
+                    did := true
+                else
+                    j += 1
+            i += 1
+
+// ── 박스 엔진 (HTF · 배열 저장 무제한) ───────────────────────────────
 f_zoneEngine(
      int lb, int minB, float maxPct, bool useAtr, int atrL, float atrM,
      float mPct, int mBars, int tfSec, int extBars, int exitBars) =>
@@ -112,39 +152,10 @@ f_zoneEngine(
     var int   looseCnt = 0
     var float stTop = na
     var float stBot = na
-    var float s1t = na
-    var float s1b = na
-    var int   s1a = na
-    var int   s1e = na
-    var float s2t = na
-    var float s2b = na
-    var int   s2a = na
-    var int   s2e = na
-    var float s3t = na
-    var float s3b = na
-    var int   s3a = na
-    var int   s3e = na
-    var float s4t = na
-    var float s4b = na
-    var int   s4a = na
-    var int   s4e = na
-    var float s5t = na
-    var float s5b = na
-    var int   s5a = na
-    var int   s5e = na
-    var float s6t = na
-    var float s6b = na
-    var int   s6a = na
-    var int   s6e = na
-    var float s7t = na
-    var float s7b = na
-    var int   s7a = na
-    var int   s7e = na
-    var float s8t = na
-    var float s8b = na
-    var int   s8a = na
-    var int   s8e = na
-    var int   zn = 0
+    var float[] zTop = array.new_float()
+    var float[] zBot = array.new_float()
+    var int[]   zT0 = array.new_int()
+    var int[]   zT1 = array.new_int()
 
     int extMs = extBars * tfSec * 1000
 
@@ -157,39 +168,7 @@ f_zoneEngine(
         looseCnt := rollTight ? 0 : looseCnt + 1
         if wideBreak or looseCnt >= exitBars
             if stCnt >= minB and not na(stTop)
-                [mt, mb, ma, me] = f_mergeInto(stTop, stBot, stT0, time, s1t, s1b, s1a, s1e, mPct, mBars, tfSec)
-                s8t := s7t
-                s8b := s7b
-                s8a := s7a
-                s8e := s7e
-                s7t := s6t
-                s7b := s6b
-                s7a := s6a
-                s7e := s6e
-                s6t := s5t
-                s6b := s5b
-                s6a := s5a
-                s6e := s5e
-                s5t := s4t
-                s5b := s4b
-                s5a := s4a
-                s5e := s4e
-                s4t := s3t
-                s4b := s3b
-                s4a := s3a
-                s4e := s3e
-                s3t := s2t
-                s3b := s2b
-                s3a := s2a
-                s3e := s2e
-                s2t := s1t
-                s2b := s1b
-                s2a := s1a
-                s2e := s1e
-                s1t := mt
-                s1b := mb
-                s1a := ma
-                s1e := me
+                f_pushMerged(zTop, zBot, zT0, zT1, stTop, stBot, stT0, time, mPct, mBars, tfSec)
             stT0 := na
             stCnt := 0
             looseCnt := 0
@@ -213,21 +192,10 @@ f_zoneEngine(
     float actMid = actOn ? (stTop + stBot) * 0.5 : na
     int actT0 = actOn ? stT0 : na
     int actT1 = actOn ? time + extMs : na
-
-    int l1e = na(s1e) ? na : s1e + extMs
-    int l2e = na(s2e) ? na : s2e + extMs
-    int l3e = na(s3e) ? na : s3e + extMs
-    int l4e = na(s4e) ? na : s4e + extMs
-    int l5e = na(s5e) ? na : s5e + extMs
-    int l6e = na(s6e) ? na : s6e + extMs
-    int l7e = na(s7e) ? na : s7e + extMs
-    int l8e = na(s8e) ? na : s8e + extMs
-    zn := (na(s1t) ? 0 : 1) + (na(s2t) ? 0 : 1) + (na(s3t) ? 0 : 1) + (na(s4t) ? 0 : 1) + (na(s5t) ? 0 : 1) + (na(s6t) ? 0 : 1) + (na(s7t) ? 0 : 1) + (na(s8t) ? 0 : 1)
-
+    int zn = array.size(zTop)
     bool inR = rollTight or actOn
-    [inR, rangePct, actOn, actTop, actBot, actMid, actT0, actT1, zn, s1t, s1b, s1a, l1e, s2t, s2b, s2a, l2e, s3t, s3b, s3a, l3e, s4t, s4b, s4a, l4e, s5t, s5b, s5a, l5e, s6t, s6b, s6a, l6e, s7t, s7b, s7a, l7e, s8t, s8b, s8a, l8e]
+    [inR, rangePct, actOn, actTop, actBot, actMid, actT0, actT1, zn, zTop, zBot, zT0, zT1]
 
-// 커스텀 시 세 TF 동일 파라미터 (프리셋 대체)
 h1_lb = useCustom ? cLookback : H1_LB
 h1_min = useCustom ? cMinBars : H1_MIN
 h1_pct = useCustom ? cMaxPct : H1_MAX_PCT
@@ -235,17 +203,16 @@ h1_mp = useCustom ? cMergePct : H1_MERGE_P
 h1_mb = useCustom ? cMergeBars : H1_MERGE_B
 
 sym = syminfo.tickerid
-
 bool atrOn = useAtrCap
 
-[h1_in, h1_rp, h1_act, h1_at, h1_ab, h1_am, h1_a0, h1_a1, h1_zn, h1_1t, h1_1b, h1_1a, h1_1e, h1_2t, h1_2b, h1_2a, h1_2e, h1_3t, h1_3b, h1_3a, h1_3e, h1_4t, h1_4b, h1_4a, h1_4e, h1_5t, h1_5b, h1_5a, h1_5e, h1_6t, h1_6b, h1_6a, h1_6e, h1_7t, h1_7b, h1_7a, h1_7e, h1_8t, h1_8b, h1_8a, h1_8e] =
-     request.security(sym, "60", f_zoneEngine(h1_lb, h1_min, h1_pct, atrOn, H1_ATR_LEN, H1_ATR_MULT, h1_mp, h1_mb, TF_SEC_1H, H1_EXT_B, H1_EXIT_B), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+[h1_in, h1_rp, h1_act, h1_at, h1_ab, h1_am, h1_a0, h1_a1, h1_zn, h1_zTop, h1_zBot, h1_zT0, h1_zT1] =
+     request.security(sym, "60", f_zoneEngine(h1_lb, h1_min, h1_pct, atrOn, H1_ATR_LEN, H1_ATR_MULT, h1_mp, h1_mb, TF_SEC_1H, H1_EXT_B, H1_EXIT_B), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
 
-[h4_in, h4_rp, h4_act, h4_at, h4_ab, h4_am, h4_a0, h4_a1, h4_zn, h4_1t, h4_1b, h4_1a, h4_1e, h4_2t, h4_2b, h4_2a, h4_2e, h4_3t, h4_3b, h4_3a, h4_3e, h4_4t, h4_4b, h4_4a, h4_4e, h4_5t, h4_5b, h4_5a, h4_5e, h4_6t, h4_6b, h4_6a, h4_6e, h4_7t, h4_7b, h4_7a, h4_7e, h4_8t, h4_8b, h4_8a, h4_8e] =
-     request.security(sym, "240", f_zoneEngine(useCustom ? cLookback : H4_LB, useCustom ? cMinBars : H4_MIN, useCustom ? cMaxPct : H4_MAX_PCT, atrOn, H4_ATR_LEN, H4_ATR_MULT, useCustom ? cMergePct : H4_MERGE_P, useCustom ? cMergeBars : H4_MERGE_B, TF_SEC_4H, H4_EXT_B, H4_EXIT_B), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+[h4_in, h4_rp, h4_act, h4_at, h4_ab, h4_am, h4_a0, h4_a1, h4_zn, h4_zTop, h4_zBot, h4_zT0, h4_zT1] =
+     request.security(sym, "240", f_zoneEngine(useCustom ? cLookback : H4_LB, useCustom ? cMinBars : H4_MIN, useCustom ? cMaxPct : H4_MAX_PCT, atrOn, H4_ATR_LEN, H4_ATR_MULT, useCustom ? cMergePct : H4_MERGE_P, useCustom ? cMergeBars : H4_MERGE_B, TF_SEC_4H, H4_EXT_B, H4_EXIT_B), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
 
-[d_in, d_rp, d_act, d_at, d_ab, d_am, d_a0, d_a1, d_zn, d_1t, d_1b, d_1a, d_1e, d_2t, d_2b, d_2a, d_2e, d_3t, d_3b, d_3a, d_3e, d_4t, d_4b, d_4a, d_4e, d_5t, d_5b, d_5a, d_5e, d_6t, d_6b, d_6a, d_6e, d_7t, d_7b, d_7a, d_7e, d_8t, d_8b, d_8a, d_8e] =
-     request.security(sym, "D", f_zoneEngine(useCustom ? cLookback : D1_LB, useCustom ? cMinBars : D1_MIN, useCustom ? cMaxPct : D1_MAX_PCT, atrOn, D1_ATR_LEN, D1_ATR_MULT, useCustom ? cMergePct : D1_MERGE_P, useCustom ? cMergeBars : D1_MERGE_B, TF_SEC_1D, D1_EXT_B, D1_EXIT_B), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+[d_in, d_rp, d_act, d_at, d_ab, d_am, d_a0, d_a1, d_zn, d_zTop, d_zBot, d_zT0, d_zT1] =
+     request.security(sym, "D", f_zoneEngine(useCustom ? cLookback : D1_LB, useCustom ? cMinBars : D1_MIN, useCustom ? cMaxPct : D1_MAX_PCT, atrOn, D1_ATR_LEN, D1_ATR_MULT, useCustom ? cMergePct : D1_MERGE_P, useCustom ? cMergeBars : D1_MERGE_B, TF_SEC_1D, D1_EXT_B, D1_EXIT_B), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
 
 // ── 그리기 ─────────────────────────────────────────────────────────
 var box[]  b1h = array.new_box()
@@ -273,23 +240,34 @@ f_drawZone(box[] bx, line[] ln, int t0, int t1, float top, float bot, color fill
         int tL = math.min(t0, t1)
         int tR = math.max(t0, t1)
         float avg = (top + bot) * 0.5
-        box nb = box.new(tL, top, tR, bot, xloc=xloc.bar_time, bgcolor=fill, border_color=brd, border_width=1, border_style=dashed ? line.style_dashed : line.style_solid)
-        line nl = line.new(tL, avg, tR, avg, xloc=xloc.bar_time, color=mid, width=midWidth, style=line.style_solid)
+        box nb = box.new(tL, top, tR, bot, xloc = xloc.bar_time, bgcolor = fill, border_color = brd, border_width = 1, border_style = dashed ? line.style_dashed : line.style_solid)
+        line nl = line.new(tL, avg, tR, avg, xloc = xloc.bar_time, color = mid, width = midWidth, style = line.style_solid)
         array.push(bx, nb)
         array.push(ln, nl)
 
-f_drawTf(bool en, box[] bx, line[] ln, bool actOn, int a0, int a1, float at, float ab, color fill, color brd, color mid, int nShow, float t1, float b1, int ta1, int te1, float t2, float b2, int ta2, int te2, float t3, float b3, int ta3, int te3, float t4, float b4, int ta4, int te4, float t5, float b5, int ta5, int te5, float t6, float b6, int ta6, int te6, float t7, float b7, int ta7, int te7, float t8, float b8, int ta8, int te8) =>
+f_drawTfArrays(bool en, box[] bx, line[] ln, bool actOn, int a0, int a1, float at, float ab, color fill, color brd, color mid, int nCap, float[] tops, float[] bots, int[] t0s, int[] t1s, int extMs) =>
     if en and barstate.isconfirmed
         bool drawAct = actOn and showActive and not completedOnly
         if drawAct
             f_drawZone(bx, ln, a0, a1, at, ab, color.new(fill, 88), brd, mid, true)
-        int n = math.min(nShow, MAX_STORED)
-        float[] tops = array.from(t1, t2, t3, t4, t5, t6, t7, t8)
-        float[] bots = array.from(b1, b2, b3, b4, b5, b6, b7, b8)
-        int[] t0s = array.from(ta1, ta2, ta3, ta4, ta5, ta6, ta7, ta8)
-        int[] t1s = array.from(te1, te2, te3, te4, te5, te6, te7, te8)
+        int total = array.size(tops)
+        int n = nCap <= 0 ? total : math.min(nCap, total)
         for i = 0 to n - 1
-            f_drawZone(bx, ln, array.get(t0s, i), array.get(t1s, i), array.get(tops, i), array.get(bots, i), fill, brd, mid, false)
+            float top = array.get(tops, i)
+            float bot = array.get(bots, i)
+            int t0 = array.get(t0s, i)
+            int t1 = array.get(t1s, i) + extMs
+            f_drawZone(bx, ln, t0, t1, top, bot, fill, brd, mid, false)
+
+f_dashFromZones(bool actOn, float at, float ab, float am, float[] tops, float[] bots) =>
+    if actOn
+        [at, ab, am]
+    else if array.size(tops) > 0
+        float t = array.get(tops, 0)
+        float b = array.get(bots, 0)
+        [t, b, (t + b) * 0.5]
+    else
+        [na, na, na]
 
 f_status(bool inR, bool actOn) =>
     actOn ? "박스중" : inR ? "형성" : "—"
@@ -298,51 +276,46 @@ if barstate.isconfirmed
     f_clearTf(b1h, l1h)
     f_clearTf(b4h, l4h)
     f_clearTf(b1d, l1d)
-    f_drawTf(show1H, b1h, l1h, h1_act, h1_a0, h1_a1, h1_at, h1_ab, col1H_fill, col1H_brd, col1H_mid, zonesPerTf, h1_1t, h1_1b, h1_1a, h1_1e, h1_2t, h1_2b, h1_2a, h1_2e, h1_3t, h1_3b, h1_3a, h1_3e, h1_4t, h1_4b, h1_4a, h1_4e, h1_5t, h1_5b, h1_5a, h1_5e, h1_6t, h1_6b, h1_6a, h1_6e, h1_7t, h1_7b, h1_7a, h1_7e, h1_8t, h1_8b, h1_8a, h1_8e)
-    f_drawTf(show4H, b4h, l4h, h4_act, h4_a0, h4_a1, h4_at, h4_ab, col4H_fill, col4H_brd, col4H_mid, zonesPerTf, h4_1t, h4_1b, h4_1a, h4_1e, h4_2t, h4_2b, h4_2a, h4_2e, h4_3t, h4_3b, h4_3a, h4_3e, h4_4t, h4_4b, h4_4a, h4_4e, h4_5t, h4_5b, h4_5a, h4_5e, h4_6t, h4_6b, h4_6a, h4_6e, h4_7t, h4_7b, h4_7a, h4_7e, h4_8t, h4_8b, h4_8a, h4_8e)
-    f_drawTf(show1D, b1d, l1d, d_act, d_a0, d_a1, d_at, d_ab, col1D_fill, col1D_brd, col1D_mid, zonesPerTf, d_1t, d_1b, d_1a, d_1e, d_2t, d_2b, d_2a, d_2e, d_3t, d_3b, d_3a, d_3e, d_4t, d_4b, d_4a, d_4e, d_5t, d_5b, d_5a, d_5e, d_6t, d_6b, d_6a, d_6e, d_7t, d_7b, d_7a, d_7e, d_8t, d_8b, d_8a, d_8e)
+    f_drawTfArrays(show1H, b1h, l1h, h1_act, h1_a0, h1_a1, h1_at, h1_ab, col1H_fill, col1H_brd, col1H_mid, zonesPerTf, h1_zTop, h1_zBot, h1_zT0, h1_zT1, H1_EXT_B * TF_SEC_1H * 1000)
+    f_drawTfArrays(show4H, b4h, l4h, h4_act, h4_a0, h4_a1, h4_at, h4_ab, col4H_fill, col4H_brd, col4H_mid, zonesPerTf, h4_zTop, h4_zBot, h4_zT0, h4_zT1, H4_EXT_B * TF_SEC_4H * 1000)
+    f_drawTfArrays(show1D, b1d, l1d, d_act, d_a0, d_a1, d_at, d_ab, col1D_fill, col1D_brd, col1D_mid, zonesPerTf, d_zTop, d_zBot, d_zT0, d_zT1, D1_EXT_B * TF_SEC_1D * 1000)
 
 // ── 대시보드 ───────────────────────────────────────────────────────
-var table dash = table.new(f_pos(dashPos), 6, 5, bgcolor=color.new(#1E1E1E, 8), border_width=1, border_color=color.new(#ffffff, 75))
+var table dash = table.new(f_pos(dashPos), 6, 5, bgcolor = color.new(#1E1E1E, 8), border_width = 1, border_color = color.new(#ffffff, 75))
 
 f_dashRow(table tb, int row, string tf, color tc, bool inR, bool actOn, float top, float bot, float mid, float rp, int zn) =>
     string st = f_status(inR, actOn)
     color stCol = actOn ? color.new(#66BB6A, 0) : inR ? color.new(#FFA726, 0) : color.new(#9E9E9E, 30)
-    table.cell(tb, 0, row, tf, text_color=tc, text_size=size.small)
-    table.cell(tb, 1, row, st, text_color=stCol, text_size=size.small)
-    table.cell(tb, 2, row, f_fmt(top), text_color=color.white, text_size=size.small)
-    table.cell(tb, 3, row, f_fmt(bot), text_color=color.white, text_size=size.small)
-    table.cell(tb, 4, row, f_fmt(mid), text_color=color.white, text_size=size.small)
+    table.cell(tb, 0, row, tf, text_color = tc, text_size = size.small)
+    table.cell(tb, 1, row, st, text_color = stCol, text_size = size.small)
+    table.cell(tb, 2, row, f_fmt(top), text_color = color.white, text_size = size.small)
+    table.cell(tb, 3, row, f_fmt(bot), text_color = color.white, text_size = size.small)
+    table.cell(tb, 4, row, f_fmt(mid), text_color = color.white, text_size = size.small)
     string w = (actOn or not na(top)) and not na(bot) ? f_widthPct(top, bot) : str.tostring(rp, "#.##") + "%"
-    table.cell(tb, 5, row, w + " · " + str.tostring(zn), text_color=color.new(#B0BEC5, 0), text_size=size.tiny)
+    table.cell(tb, 5, row, w + " · " + str.tostring(zn), text_color = color.new(#B0BEC5, 0), text_size = size.tiny)
 
 bool dashAct1H = completedOnly ? false : h1_act
 bool dashAct4H = completedOnly ? false : h4_act
 bool dashAct1D = completedOnly ? false : d_act
 
 if showDash and barstate.isconfirmed
-    table.cell(dash, 0, 0, "TF", text_color=color.gray, text_size=size.tiny)
-    table.cell(dash, 1, 0, "상태", text_color=color.gray, text_size=size.tiny)
-    table.cell(dash, 2, 0, "상단", text_color=color.gray, text_size=size.tiny)
-    table.cell(dash, 3, 0, "하단", text_color=color.gray, text_size=size.tiny)
-    table.cell(dash, 4, 0, "중심", text_color=color.gray, text_size=size.tiny)
-    table.cell(dash, 5, 0, "폭/저장", text_color=color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 0, "TF", text_color = color.gray, text_size = size.tiny)
+    table.cell(dash, 1, 0, "상태", text_color = color.gray, text_size = size.tiny)
+    table.cell(dash, 2, 0, "상단", text_color = color.gray, text_size = size.tiny)
+    table.cell(dash, 3, 0, "하단", text_color = color.gray, text_size = size.tiny)
+    table.cell(dash, 4, 0, "중심", text_color = color.gray, text_size = size.tiny)
+    table.cell(dash, 5, 0, "폭/저장", text_color = color.gray, text_size = size.tiny)
 
-    float h1_disp_t = dashAct1H ? h1_at : h1_1t
-    float h1_disp_b = dashAct1H ? h1_ab : h1_1b
-    float h1_disp_m = dashAct1H ? h1_am : (na(h1_1t) ? na : (h1_1t + h1_1b) * 0.5)
-    f_dashRow(dash, 1, "1H", col1H_mid, h1_in, dashAct1H, h1_disp_t, h1_disp_b, h1_disp_m, h1_rp, h1_zn)
+    [h1_dt, h1_db, h1_dm] = f_dashFromZones(dashAct1H, h1_at, h1_ab, h1_am, h1_zTop, h1_zBot)
+    f_dashRow(dash, 1, "1H", col1H_mid, h1_in, dashAct1H, h1_dt, h1_db, h1_dm, h1_rp, h1_zn)
 
-    float h4_disp_t = dashAct4H ? h4_at : h4_1t
-    float h4_disp_b = dashAct4H ? h4_ab : h4_1b
-    float h4_disp_m = dashAct4H ? h4_am : (na(h4_1t) ? na : (h4_1t + h4_1b) * 0.5)
-    f_dashRow(dash, 2, "4H", col4H_mid, h4_in, dashAct4H, h4_disp_t, h4_disp_b, h4_disp_m, h4_rp, h4_zn)
+    [h4_dt, h4_db, h4_dm] = f_dashFromZones(dashAct4H, h4_at, h4_ab, h4_am, h4_zTop, h4_zBot)
+    f_dashRow(dash, 2, "4H", col4H_mid, h4_in, dashAct4H, h4_dt, h4_db, h4_dm, h4_rp, h4_zn)
 
-    float d_disp_t = dashAct1D ? d_at : d_1t
-    float d_disp_b = dashAct1D ? d_ab : d_1b
-    float d_disp_m = dashAct1D ? d_am : (na(d_1t) ? na : (d_1t + d_1b) * 0.5)
-    f_dashRow(dash, 3, "1D", col1D_mid, d_in, dashAct1D, d_disp_t, d_disp_b, d_disp_m, d_rp, d_zn)
+    [d_dt, d_db, d_dm] = f_dashFromZones(dashAct1D, d_at, d_ab, d_am, d_zTop, d_zBot)
+    f_dashRow(dash, 3, "1D", col1D_mid, d_in, dashAct1D, d_dt, d_db, d_dm, d_rp, d_zn)
 
-    string preset = (useCustom ? "수동" : "1H·4H·1D") + " · 저장" + str.tostring(MAX_STORED) + (completedOnly ? " · 완성만" : "")
-    table.cell(dash, 0, 4, preset, text_color=color.new(#78909C, 0), text_size=size.tiny)
+    string capTxt = zonesPerTf <= 0 ? "전체" : str.tostring(zonesPerTf)
+    string preset = (useCustom ? "수동" : "1H·4H·1D") + " · 표시" + capTxt + (completedOnly ? " · 완성만" : "")
+    table.cell(dash, 0, 4, preset, text_color = color.new(#78909C, 0), text_size = size.tiny)
     table.merge_cells(dash, 0, 4, 5, 4)
