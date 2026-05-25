@@ -2108,6 +2108,13 @@ html[data-theme="light"]
   background: transparent;
 }
 
+/* 도크 패널 — YS·거래소 로고 왼쪽 끝 */
+.app-live-trade-side-dock__host .live-trade-dock-ys-head {
+  justify-content: flex-start;
+  padding-left: 0.72rem;
+  padding-right: 0.65rem;
+}
+
 .live-trade-dock-ys-head--exchange {
   justify-content: flex-start;
 }

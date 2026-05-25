@@ -9374,31 +9374,6 @@ html[data-theme="light"] .market-indices-rail__item {
       10px 10px 0 0 var(--dock-joint-fill, var(--card));
   }
 
-  #root
-    > .app
-    .app__viewport.app__viewport--no-left-rail:has(.app-live-trade-side-dock--open)
-    .app-live-trade-side-dock__host
-    .live-trading-tab__card-tabs-pane--rail {
-    box-shadow:
-      -8px 0 32px rgba(0, 0, 0, 0.22),
-      -10px 0 0 0 var(--card-bg, var(--card)),
-      0 10px 0 0 var(--card-bg, var(--card)),
-      -10px 10px 0 0 var(--card-bg, var(--card));
-  }
-
-  html[data-theme="light"]
-    #root
-    > .app
-    .app__viewport.app__viewport--no-left-rail:has(.app-live-trade-side-dock--open)
-    .app-live-trade-side-dock__host
-    .live-trading-tab__card-tabs-pane--rail {
-    box-shadow:
-      -6px 0 24px rgba(15, 23, 42, 0.06),
-      -10px 0 0 0 var(--card-bg, var(--card)),
-      0 10px 0 0 var(--card-bg, var(--card)),
-      -10px 10px 0 0 var(--card-bg, var(--card));
-  }
-
   .market-indices-rail--side {
     display: flex;
     flex-direction: column;
@@ -9792,8 +9767,9 @@ html[data-theme="light"]
 
 .app-live-trade-side-dock--open .app-live-trade-side-dock__panel {
   visibility: visible;
-  border-top-left-radius: var(--radius-md, 10px);
-  border-bottom-left-radius: var(--radius-md, 10px);
+  border-top-left-radius: var(--radius-xl, 22px);
+  border-bottom-left-radius: var(--radius-xl, 22px);
+  overflow: hidden;
 }
 
 .app-live-trade-side-dock__resize-handle,
@@ -10020,6 +9996,7 @@ html[data-theme="light"] .app-live-trade-side-dock__auth-popover::after {
 }
 
 .app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane {
+  position: relative;
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -10028,10 +10005,40 @@ html[data-theme="light"] .app-live-trade-side-dock__auth-popover::after {
   max-height: none !important;
   border: none;
   border-left: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
-  border-radius: var(--radius-md, 10px) 0 0 var(--radius-md, 10px) !important;
+  border-radius: var(--radius-xl, 22px) 0 var(--radius-xl, 22px) 0 !important;
   box-shadow: -8px 0 32px rgba(0, 0, 0, 0.22);
   background: var(--card-bg);
   color: var(--text);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* 좌측 상·하 둥근 모서리 — 배경 비침만 테마(--bg)색으로 메움 */
+.app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    -5px 0 0 0 var(--dock-pane-outer-fill, var(--bg)),
+    0 -5px 0 0 var(--dock-pane-outer-fill, var(--bg)),
+    0 5px 0 0 var(--dock-pane-outer-fill, var(--bg));
+  pointer-events: none;
+  z-index: 0;
+}
+
+html[data-theme="light"] .app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail {
+  --dock-pane-outer-fill: var(--bg, #eef1f4);
+  box-shadow: -6px 0 24px rgba(15, 23, 42, 0.06);
+}
+
+html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail {
+  --dock-pane-outer-fill: var(--bg, #15181d);
+}
+
+.app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail > * {
+  position: relative;
+  z-index: 1;
 }
 
 .app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail .live-trading-tab__card-tabs-rail-head,
