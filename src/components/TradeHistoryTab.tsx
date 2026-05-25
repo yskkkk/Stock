@@ -1,16 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { LiveTradeHolding } from "../api";
 import LiveAccountTradesMainPanel from "./LiveAccountTradesMainPanel";
-import { LiveTradeExchangePicker } from "./LiveTradeExchangePicker";
 import {
-  dispatchDockAccountProvider,
   LIVE_TRADE_DOCK_ACCOUNT_PROVIDER_EVENT,
   readDockAccountProvider,
   readDockAccountProviderEvent,
 } from "../lib/liveTradeDockAccount";
 import type { LiveTradeTradesExchange } from "../lib/liveTradeTradesWorkspace";
 
-/** 상단 «거래내역» — 우측 계좌에서 선택한 거래소 체결 */
+/** 상단 «거래내역» — 우측 도크 «계좌»에서 고른 거래소만 반영 */
 export default function TradeHistoryTab({
   onOpenHoldingChart,
 }: {
@@ -19,11 +17,6 @@ export default function TradeHistoryTab({
   const [exchange, setExchange] = useState<LiveTradeTradesExchange>(
     readDockAccountProvider,
   );
-
-  const selectExchange = useCallback((next: LiveTradeTradesExchange) => {
-    setExchange(next);
-    dispatchDockAccountProvider(next);
-  }, []);
 
   useEffect(() => {
     const onProvider = (e: Event) => {
@@ -40,13 +33,6 @@ export default function TradeHistoryTab({
 
   return (
     <div className="workspace trade-history-workspace">
-      <div className="trade-history-workspace__picker card">
-        <LiveTradeExchangePicker
-          compact
-          selected={exchange}
-          onSelect={selectExchange}
-        />
-      </div>
       <LiveAccountTradesMainPanel
         exchange={exchange}
         onOpenHoldingChart={onOpenHoldingChart}

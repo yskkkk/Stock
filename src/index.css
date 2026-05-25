@@ -10441,12 +10441,6 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   max-width: 100%;
   align-self: stretch;
   min-height: min(72dvh, 680px);
-  gap: 0.65rem;
-}
-
-.trade-history-workspace__picker {
-  flex: 0 0 auto;
-  padding: 0.75rem 0.85rem;
 }
 
 .trade-history-workspace__panel {
