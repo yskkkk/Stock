@@ -36,4 +36,4 @@ export function isBoxRangeProgram(program) {
   return String(program?.modelId ?? "").trim() === BOX_RANGE_MODEL_ID;
 }
 
-/** 시세: STOCK_BOX_RANGE_QUOTE_TTL_MS(기본 1s), STOCK_BOX_RANGE_QUOTE_MAX_STALE_MS(기본 5s), BITHUMB_ALL_TICKER_CACHE_MS */
+/** 시세: STOCK_BOX_RANGE_QUOTE_* · WS: STOCK_BOX_RANGE_WS(0=off), STOCK_BITHUMB_WS_TICKER, STOCK_BOX_RANGE_WS_MAX_STALE_MS, BITHUMB_WS_* */

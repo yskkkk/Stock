@@ -2,6 +2,7 @@
  * 박스권 FSM용 체결가 — 빗썸 KRW 티커(매매 거래소와 동일) 우선, 짧은 TTL.
  */
 import { isCryptoUsdtSymbol, loadBithumbKrwQuotesBatch } from "../bithumb-krw.js";
+import { getBithumbWsTickerQuote } from "../bithumb-ws-ticker.js";
 import { fetchQuoteSnapshotsForSymbols } from "../picks-live-quotes.js";
 
 /** 박스 틱마다 허용하는 시세 캐시(기본 1초, 0=매 틱 빗썸 재조회) */
@@ -14,6 +15,12 @@ export const BOX_RANGE_QUOTE_TTL_MS = (() => {
 export const BOX_RANGE_QUOTE_MAX_STALE_MS = (() => {
   const n = Number(process.env.STOCK_BOX_RANGE_QUOTE_MAX_STALE_MS ?? 5_000);
   return Number.isFinite(n) && n >= 1_000 ? Math.min(60_000, Math.floor(n)) : 5_000;
+})();
+
+/** WebSocket trade_price 신선도 (기본 3초) */
+export const BOX_RANGE_WS_MAX_STALE_MS = (() => {
+  const n = Number(process.env.STOCK_BOX_RANGE_WS_MAX_STALE_MS ?? 3_000);
+  return Number.isFinite(n) && n >= 500 ? Math.min(30_000, Math.floor(n)) : 3_000;
 })();
 
 /**
@@ -44,24 +51,47 @@ export async function fetchBoxRangeLastPrices(symbols) {
   const other = uniq.filter((s) => !isCryptoUsdtSymbol(s));
 
   if (usdt.length > 0) {
-    const { quotes, updatedAt } = await loadBithumbKrwQuotesBatch(usdt, {
-      maxAgeMs: BOX_RANGE_QUOTE_TTL_MS,
-    });
+    const restNeeded = [];
     for (const sym of usdt) {
-      const q = quotes[sym];
-      const price = Number(q?.price);
-      if (!Number.isFinite(price) || price <= 0) continue;
-      out[sym] = {
-        price,
-        quotedAtMs: updatedAt,
-        priceSource: "bithumb-ticker",
-        interval: "bithumb",
-        changePercent:
-          typeof q.changePercent === "number" && Number.isFinite(q.changePercent)
-            ? q.changePercent
-            : undefined,
-        currency: "KRW",
-      };
+      const ws = getBithumbWsTickerQuote(sym);
+      if (
+        ws &&
+        Number.isFinite(ws.price) &&
+        ws.price > 0 &&
+        Date.now() - ws.quotedAtMs <= BOX_RANGE_WS_MAX_STALE_MS
+      ) {
+        out[sym] = {
+          price: ws.price,
+          quotedAtMs: ws.quotedAtMs,
+          priceSource: "bithumb-ws",
+          interval: "bithumb-ws",
+          currency: "KRW",
+        };
+      } else {
+        restNeeded.push(sym);
+      }
+    }
+    if (restNeeded.length > 0) {
+      const { quotes, updatedAt } = await loadBithumbKrwQuotesBatch(restNeeded, {
+        maxAgeMs: BOX_RANGE_QUOTE_TTL_MS,
+      });
+      for (const sym of restNeeded) {
+        const q = quotes[sym];
+        const price = Number(q?.price);
+        if (!Number.isFinite(price) || price <= 0) continue;
+        out[sym] = {
+          price,
+          quotedAtMs: updatedAt,
+          priceSource: "bithumb-ticker",
+          interval: "bithumb",
+          changePercent:
+            typeof q.changePercent === "number" &&
+            Number.isFinite(q.changePercent)
+              ? q.changePercent
+              : undefined,
+          currency: "KRW",
+        };
+      }
     }
   }
 
@@ -99,5 +129,9 @@ export function isBoxRangeQuoteFresh(q) {
   if (!q || !Number.isFinite(q.price) || q.price <= 0) return false;
   const at = q.quotedAtMs;
   if (!Number.isFinite(at) || at <= 0) return true;
-  return Date.now() - at <= BOX_RANGE_QUOTE_MAX_STALE_MS;
+  const maxStale =
+    q.priceSource === "bithumb-ws"
+      ? BOX_RANGE_WS_MAX_STALE_MS
+      : BOX_RANGE_QUOTE_MAX_STALE_MS;
+  return Date.now() - at <= maxStale;
 }
