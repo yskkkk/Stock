@@ -9297,14 +9297,36 @@ html[data-theme="light"] .market-indices-rail__item {
     position: fixed;
     top: 0;
     right: calc(var(--live-trade-dock-rail-width, 3.25rem) + env(safe-area-inset-right, 0px));
-    bottom: 0;
+    bottom: auto;
     left: auto;
     width: max-content;
     max-width: calc(var(--live-trade-dock-panel-width, 26rem) + 0.72rem);
     height: auto;
-    min-height: 100dvh;
+    min-height: 0;
     max-height: none;
     z-index: 50;
+  }
+
+  /* 펼침 — 본문 높이만큼, 화면 아래로 넘치면 스크롤(스크롤바 숨김) */
+  .app__right-panel--dock .app-live-trade-side-dock--open {
+    max-height: 100dvh;
+    overflow-x: visible;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .app__right-panel--dock .app-live-trade-side-dock--open::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  .app__right-panel--dock .app-live-trade-side-dock--open .app-live-trade-side-dock__panel {
+    min-height: 0;
+    height: auto;
   }
 
   .app__right-panel--dock .app-live-trade-side-dock--collapsed {
@@ -9830,7 +9852,10 @@ html[data-theme="light"]
 }
 
 .app-live-trade-side-dock--open .app-live-trade-side-dock__host {
-  overflow: hidden;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
   border-top-left-radius: inherit;
   border-bottom-left-radius: inherit;
 }
@@ -10159,10 +10184,10 @@ html[data-theme="light"][data-light-palette="glass"]
 .app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane {
   position: relative;
   display: flex;
-  flex: 1;
+  flex: 0 1 auto;
   flex-direction: column;
-  min-height: 100% !important;
-  height: 100% !important;
+  min-height: 0 !important;
+  height: auto !important;
   max-height: none !important;
   border: none;
   border-left: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
@@ -10249,9 +10274,19 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
 }
 
 .app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail .live-trading-tab__card-tabs-host {
-  flex: 1;
+  flex: 0 1 auto;
   min-height: 0;
-  overflow: auto;
+  overflow: visible;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.app-live-trade-side-dock__host
+  .live-trading-tab__card-tabs-pane--rail
+  .live-trading-tab__card-tabs-host::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .app-live-trade-side-dock__host .live-trading-tab__card-tabs-host:not(.live-trading-tab__card-tabs-host--idle) {
@@ -10685,6 +10720,16 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
 
 .app-dock-rail-panel--live .live-trade-rail__list {
   max-height: none;
+}
+
+.app-dock-rail-panel--live .live-trade-rail__sections {
+  max-height: none;
+  overflow: visible;
+}
+
+.app-dock-rail-panel--live {
+  flex: 0 1 auto;
+  min-height: 0;
 }
 
 .live-trade-rail__empty-hint {
