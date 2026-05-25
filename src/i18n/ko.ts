@@ -295,6 +295,7 @@ export const ko = {
     liveTradeLeftRailTotalReturn: "총 수익률",
     liveTradeLeftRailTotalInvested: "매수총금액",
     liveTradeLeftRailTotalEval: "평가금액",
+    liveTradeLeftRailTotalHoldingsKrw: "원화 총 보유액",
     liveTradeLeftRailColCoin: "코인",
     liveTradeLeftRailColReturn: "수익률",
     liveTradeLeftRailColValue: "평가금",

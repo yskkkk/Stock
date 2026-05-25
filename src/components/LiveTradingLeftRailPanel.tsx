@@ -12,6 +12,7 @@ import { useLiveTradingStatusPoll } from "../hooks/useLiveTradingStatusPoll";
 import { ko } from "../i18n/ko";
 import { programDisplayStatus } from "../lib/liveProgramDisplay";
 import { formatPercent, formatPrice } from "../lib/format";
+import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
 import { openHoldingsNetReturnPct, summarizeHoldingsPnl, summarizeNetMarketByCurrency, holdingNetMarketValue, formatInvestedOrMarketLabel } from "../lib/livePortfolioPnl";
 import { mergeLiveQuotesIntoPortfolio } from "../lib/livePortfolioLiveQuotes";
 import { feeByMarketFromStatus } from "../lib/liveTradeFeeByMarket";
@@ -112,6 +113,7 @@ function RailProgramCard({
   onOpenLiveTrading,
   roundTripForMarket,
   dataUpdatedAtMs,
+  usdKrwRate,
 }: {
   program: LiveTradeProgram;
   displayStatus: ReturnType<typeof programDisplayStatus>;
@@ -122,6 +124,7 @@ function RailProgramCard({
   roundTripForMarket: (market: LiveTradeMarket) => number;
   /** 보유·시세가 마지막으로 반영된 시각 */
   dataUpdatedAtMs: number | null;
+  usdKrwRate: number | null;
 }) {
   const [open, setOpen] = useState(false);
   const tableWrapRef = useRef<HTMLDivElement>(null);
@@ -149,9 +152,13 @@ function RailProgramCard({
   );
   const investedLabel = formatInvestedOrMarketLabel(
     pnlAgg.investedByCurrency,
-    null,
+    usdKrwRate,
   );
-  const evalLabel = formatInvestedOrMarketLabel(netMarketByCurrency, null);
+  const grossHoldingsLabel = formatInvestedOrMarketLabel(
+    pnlAgg.marketByCurrency,
+    usdKrwRate,
+  );
+  const evalLabel = formatInvestedOrMarketLabel(netMarketByCurrency, usdKrwRate);
 
   return (
     <article
@@ -205,6 +212,14 @@ function RailProgramCard({
               {ko.app.liveTradeLeftRailTotalInvested}
             </span>
             <span className="live-trade-rail__summary-metric-v">{investedLabel}</span>
+          </span>
+          <span className="live-trade-rail__summary-metric">
+            <span className="live-trade-rail__summary-metric-k">
+              {ko.app.liveTradeLeftRailTotalHoldingsKrw}
+            </span>
+            <span className="live-trade-rail__summary-metric-v">
+              {grossHoldingsLabel}
+            </span>
           </span>
           <span className="live-trade-rail__summary-metric">
             <span className="live-trade-rail__summary-metric-k">
@@ -367,6 +382,7 @@ export function LiveTradingRailCore({
     () => feeByMarketFromStatus(status?.feeRates),
     [status?.feeRates],
   );
+  const usdKrwRate = useUsdKrwRate();
 
   const reloadPortfolio = useCallback(async () => {
     if (!user) {
@@ -528,6 +544,7 @@ export function LiveTradingRailCore({
                 onOpenLiveTrading={onOpenLiveTrading}
                 roundTripForMarket={roundTripForMarket}
                 dataUpdatedAtMs={dataUpdatedAtMs}
+                usdKrwRate={usdKrwRate}
               />
             </li>
           );
