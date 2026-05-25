@@ -287,6 +287,8 @@ export const ko = {
     liveTradeLeftRailLaneLive: "실매매",
     liveTradeLeftRailSimOrders: "시뮬 주문",
     liveTradeLeftRailLiveOrders: "실주문",
+    liveTradeLeftRailEmpty:
+      "등록된 프로그램이 없습니다. 실매매 탭 또는 도크 «등록»·«프로그램»에서 추가하세요.",
     liveTradeSideDockRailAria: "실매매 우측 메뉴",
     liveTradeSideDockRailAuth: "로그인",
     liveTradeDockRailAccount: "계정",

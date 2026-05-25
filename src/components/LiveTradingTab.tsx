@@ -337,9 +337,14 @@ export default function LiveTradingTab({
     return m;
   }, [models]);
 
-  /** 헤더·도크 레일과 동일 — 전역 폴링 우선, 탭 로컬 reload 보조 */
-  const effectiveStatus: LiveTradingStatusResponse | null =
-    polledStatus ?? status;
+  /** 헤더·도크 레일과 동일 — 전역 폴링·탭 reload 중 더 많은 programs 쪽 우선 */
+  const effectiveStatus: LiveTradingStatusResponse | null = useMemo(() => {
+    if (!polledStatus) return status;
+    if (!status) return polledStatus;
+    const pn = polledStatus.programs?.length ?? 0;
+    const ln = status.programs?.length ?? 0;
+    return ln >= pn ? status : polledStatus;
+  }, [polledStatus, status]);
   const programs = effectiveStatus?.programs ?? [];
   const showRunningPanel = portalSourceOnly || !hideCardDock;
 
@@ -675,8 +680,8 @@ export default function LiveTradingTab({
   );
 
   const showCardDock = portalSourceOnly || !hideCardDock;
-  /** 도크가 카드 행을 가져가도 실매매 탭 본문에 등록 프로그램 전체 목록 유지 */
-  const showMainProgramsList = Boolean(user && !portalSourceOnly && hideCardDock);
+  /** 실매매 탭 본문 — 로그인 시 등록 프로그램 전체 목록(도크 사용 중에도 표시) */
+  const showMainProgramsList = Boolean(user && !portalSourceOnly);
   const statusPending = Boolean(
     user && authChecked && effectiveStatus == null && !loadErr,
   );
@@ -752,7 +757,7 @@ export default function LiveTradingTab({
       </header>
       ) : null}
 
-      {!portalSourceOnly && loadErr && user ? (
+      {loadErr && user ? (
         <div className="alert alert--error" role="alert">
           {loadErr}
         </div>

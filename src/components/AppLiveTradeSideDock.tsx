@@ -19,6 +19,7 @@ import LiveTradeDockYsHead from "./LiveTradeDockYsHead";
 import { useDesktopDockLayout } from "../hooks/useDesktopDockLayout";
 import { refreshLiveTradingStatusNow } from "../hooks/useLiveTradingStatusPoll";
 import { invalidateLiveTradingPrefetch } from "../lib/tabPrefetch";
+import { useLiveTradingStatusPoll } from "../hooks/useLiveTradingStatusPoll";
 import LiveTradeAuthPanel, {
   LIVE_TRADE_DOCK_RAIL_TAB_IDS,
   LIVE_TRADE_RIGHT_PANEL_HOST_ID,
@@ -339,6 +340,7 @@ export default function AppLiveTradeSideDock({
   const [authPopoverStyle, setAuthPopoverStyle] = useState<CSSProperties>({});
   const authAnchorRef = useRef<HTMLSpanElement>(null);
   const ctx = useLiveTradeCardSidePanelOptional();
+  const liveStatus = useLiveTradingStatusPoll();
   const closePanel = ctx?.closePanel;
   const allSideTabs =
     (ctx?.sideTabs?.length ?? 0) > 0
@@ -401,20 +403,25 @@ export default function AppLiveTradeSideDock({
     beginDockPanelOpenAnimation();
   }, [panel?.id, persistOpen, beginDockPanelOpenAnimation]);
 
-  const openDefaultBithumbPanel = useCallback(() => {
+  const openDefaultDockPanel = useCallback(() => {
     if (!openPanel) return;
     const titles = defaultLiveTradeSideTabTitles();
+    const programCount = liveStatus?.programs?.length ?? 0;
+    if (programCount > 0) {
+      openPanel("programs", titles.programs ?? ko.app.liveTradeListTitle);
+      return;
+    }
     openPanel(
       LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb,
       titles[LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb] ?? ko.app.liveTradeDockRailAccountTab,
     );
-  }, [openPanel]);
+  }, [openPanel, liveStatus?.programs?.length]);
 
   const toggleFold = useCallback(() => {
     const next = !open;
     if (next) {
       persistOpen(true);
-      openDefaultBithumbPanel();
+      openDefaultDockPanel();
       beginDockPanelOpenAnimation();
       return;
     }
@@ -423,7 +430,7 @@ export default function AppLiveTradeSideDock({
     window.setTimeout(() => {
       if (!openRef.current) clearDockPanelWidthCss();
     }, 240);
-  }, [open, persistOpen, openDefaultBithumbPanel, beginDockPanelOpenAnimation]);
+  }, [open, persistOpen, openDefaultDockPanel, beginDockPanelOpenAnimation]);
 
   useEffect(() => {
     const onToggle = () => toggleFold();
@@ -622,7 +629,7 @@ export default function AppLiveTradeSideDock({
       } else {
         const finalW = syncDockPanelWidth(Math.max(w, min));
         persistOpen(true);
-        openDefaultBithumbPanel();
+        openDefaultDockPanel();
         if (finalW >= defaultDockPanelWidthPx() * 0.72) {
           persistDockPanelWidthPref(finalW);
         } else {
@@ -640,7 +647,7 @@ export default function AppLiveTradeSideDock({
         e.currentTarget.releasePointerCapture(e.pointerId);
       }
     },
-    [persistOpen, openDefaultBithumbPanel, syncDockPanelWidth],
+    [persistOpen, openDefaultDockPanel, syncDockPanelWidth],
   );
 
   useEffect(() => {

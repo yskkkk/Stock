@@ -262,7 +262,9 @@ function validateProgramPatch(patch) {
 
 /** @param {string} [userId] */
 export function listLiveTradeProgramsSync(userId) {
-  return readStoreSync().programs.filter((p) => matchesUser(p, userId));
+  const uid = String(userId ?? "").trim();
+  if (uid) migrateLegacyProgramsToUserSync(uid);
+  return readStoreSync().programs.filter((p) => matchesUser(p, uid));
 }
 
 /**
