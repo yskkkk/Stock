@@ -11,7 +11,7 @@ H1_MIN      = 6
 H1_MAX_PCT  = 3.2
 H1_ATR_LEN  = 14
 H1_ATR_MULT = 2.0
-H1_MERGE_P  = 0.55
+H1_MERGE_P  = 1.0
 H1_MERGE_B  = 0
 H1_EXT_B    = 10
 H1_EXIT_B   = 2
@@ -21,7 +21,7 @@ H4_MIN      = 5
 H4_MAX_PCT  = 4.5
 H4_ATR_LEN  = 14
 H4_ATR_MULT = 2.0
-H4_MERGE_P  = 0.65
+H4_MERGE_P  = 1.2
 H4_MERGE_B  = 0
 H4_EXT_B    = 8
 H4_EXIT_B   = 2
@@ -31,7 +31,7 @@ D1_MIN      = 4
 D1_MAX_PCT  = 7.0
 D1_ATR_LEN  = 14
 D1_ATR_MULT = 2.0
-D1_MERGE_P  = 0.75
+D1_MERGE_P  = 1.5
 D1_MERGE_B  = 0
 D1_EXT_B    = 6
 D1_EXIT_B   = 2
@@ -73,7 +73,7 @@ breakAtrMult = input.float(0.45, "이탈 ATR 배수", minval=0.1, maxval=3.0, st
 cLookback   = input.int(16, "구간(봉)", minval=5, group=grpAdv)
 cMinBars    = input.int(6, "최소 박스 봉", minval=3, group=grpAdv)
 cMaxPct     = input.float(3.5, "최대 폭(%)", minval=0.5, step=0.1, group=grpAdv, tooltip="폭 % 제한 켤 때만")
-cMergePct   = input.float(0.55, "병합 겹침(%)", minval=0, step=0.05, group=grpAdv, tooltip="클수록 가격·중심이 가까운 박스를 더 많이 합침")
+cMergeMidPct = input.float(1.0, "병합 중심 허용(%)", minval=0.1, maxval=8.0, step=0.1, group=grpAdv, tooltip="두 박스 중심가 차이가 이 값(중간가 대비 %) 이하일 때만 병합 · 겹침만으로는 합치지 않음")
 cMergeBars  = input.int(0, "병합 시간(봉, 0=시간무시)", minval=0, group=grpAdv)
 
 float NO_PCT = 99999.0
@@ -81,27 +81,24 @@ float NO_PCT = 99999.0
 f_pos(string p) =>
     p == "우하단" ? position.bottom_right : p == "좌상단" ? position.top_left : p == "좌하단" ? position.bottom_left : position.top_right
 
-// ── 러프 병합 (가격 겹침 · 중심 근접 · 시간 선택) ───────────────────
+// ── 병합: 중심가(평균) 근접 + 시간만 — 가격대만 겹치면 합치지 않음 ─────
 f_timeNear(int tEnd, int tStart, int mBars, int tfSec) =>
     int gap = mBars * tfSec * 1000
     mBars <= 0 ? true : math.abs(tStart - tEnd) <= gap
 
-f_priceOverlapRough(float t1, float b1, float t2, float b2, float mPct) =>
-    float h1 = t1 - b1
-    float h2 = t2 - b2
-    float tol = mPct * 0.05
-    float pad = math.max(h1, h2) * tol + (h1 + h2) * 0.5 * tol
-    not (t1 + pad < b2 - pad or t2 + pad < b1 - pad)
-
-f_midNear(float t1, float b1, float t2, float b2, float mPct) =>
+f_midDistancePct(float t1, float b1, float t2, float b2) =>
     float m1 = (t1 + b1) * 0.5
     float m2 = (t2 + b2) * 0.5
-    float ref = math.max(m1, m2)
-    ref > 0 and math.abs(m1 - m2) <= ref * mPct * 0.025
+    float ref = (m1 + m2) * 0.5
+    ref > 0 ? math.abs(m1 - m2) / ref * 100.0 : 100.0
 
-f_shouldMerge(float tN, float bN, int t0N, int t1N, float tO, float bO, int t0O, int t1O, float mPct, int mBars, int tfSec) =>
-    bool price = f_priceOverlapRough(tN, bN, tO, bO, mPct) or f_midNear(tN, bN, tO, bO, mPct)
-    price and (f_timeNear(t1N, t0O, mBars, tfSec) or f_timeNear(t1O, t0N, mBars, tfSec))
+f_midNear(float t1, float b1, float t2, float b2, float maxMidPct) =>
+    f_midDistancePct(t1, b1, t2, b2) <= maxMidPct
+
+f_shouldMerge(float tN, float bN, int t0N, int t1N, float tO, float bO, int t0O, int t1O, float maxMidPct, int mBars, int tfSec) =>
+    bool midOk = f_midNear(tN, bN, tO, bO, maxMidPct)
+    bool timeOk = f_timeNear(t1N, t0O, mBars, tfSec) or f_timeNear(t1O, t0N, mBars, tfSec)
+    midOk and timeOk
 
 f_mergePair(float tN, float bN, int t0N, int t1N, float tO, float bO, int t0O, int t1O) =>
     [math.max(tN, tO), math.min(bN, bO), math.min(t0N, t0O), math.max(t1N, t1O)]
@@ -210,7 +207,7 @@ f_zoneEngine(
 h1_lb = useCustom ? cLookback : H1_LB
 h1_min = useCustom ? cMinBars : H1_MIN
 h1_pct = useCustom ? cMaxPct : H1_MAX_PCT
-h1_mp = useCustom ? cMergePct : H1_MERGE_P
+h1_mp = useCustom ? cMergeMidPct : H1_MERGE_P
 h1_mb = useCustom ? cMergeBars : H1_MERGE_B
 
 sym = syminfo.tickerid
