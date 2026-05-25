@@ -15,8 +15,11 @@ import { getBithumbRoundTripFeeRateSync } from "./exchange-trading-fees.js";
 import { liveTradeCurrency } from "./live-trade-market.js";
 import {
   buildPositionsFromTrades,
+  getLastBuyExitTargetsSync,
+  patchLastBuyExitTargetsSync,
   readStoreSync,
 } from "./live-trade-portfolio-store.js";
+import { resolveLiveTradeExitTargets } from "./live-trade-exit-scenario.js";
 
 const MIN_DISPLAY_KRW = 1_000;
 
@@ -66,6 +69,84 @@ function isArmedCryptoProgram(p) {
   if (p.status !== "armed") return false;
   if (p.armedMarkets?.crypto) return true;
   return Boolean(p.markets?.crypto && !p.markets?.kr);
+}
+
+/**
+ * 앱 매수 기록 → 없으면 일봉 exit-scenario로 목표·손절 산정(테스터 표시·자동매도용)
+ * @param {string} programId
+ * @param {string} symbol
+ * @param {number | null} avgEntry
+ * @param {string} userId
+ * @param {{ trades: import("./live-trade-portfolio-store.js").LiveTradeRecord[] }} store
+ */
+async function resolveCryptoHoldingExitTargets(programId, symbol, avgEntry, userId, store) {
+  const fromTrade = getLastBuyExitTargetsSync(programId, "crypto", symbol, store);
+  const entry = Number(avgEntry);
+  const hasPrices =
+    fromTrade?.targetSellPrice != null &&
+    fromTrade?.stopLossPrice != null &&
+    Number.isFinite(fromTrade.targetSellPrice) &&
+    Number.isFinite(fromTrade.stopLossPrice);
+
+  if (hasPrices) return fromTrade;
+
+  if (!Number.isFinite(entry) || entry <= 0) {
+    return (
+      fromTrade ?? {
+        targetSellPrice: null,
+        stopLossPrice: null,
+        exitScenarioNote: null,
+        entryStructureNote: null,
+        entryIdeal: false,
+        buySignalIds: [],
+      }
+    );
+  }
+
+  const feeRate = getBithumbRoundTripFeeRateSync(userId);
+  let computed;
+  try {
+    computed = await resolveLiveTradeExitTargets(symbol, entry, {
+      market: "crypto",
+      signalIds: fromTrade?.buySignalIds ?? [],
+      roundTripFeeRate: feeRate,
+    });
+  } catch (e) {
+    console.warn(
+      "[bithumb-holdings] exit targets:",
+      symbol,
+      e instanceof Error ? e.message : e,
+    );
+    return fromTrade ?? {
+      targetSellPrice: null,
+      stopLossPrice: null,
+      exitScenarioNote: null,
+      entryStructureNote: null,
+      entryIdeal: false,
+      buySignalIds: [],
+    };
+  }
+
+  const merged = {
+    targetSellPrice:
+      fromTrade?.targetSellPrice ?? computed.targetSellPrice ?? null,
+    stopLossPrice: fromTrade?.stopLossPrice ?? computed.stopLossPrice ?? null,
+    exitScenarioNote: fromTrade?.exitScenarioNote ?? computed.exitScenarioNote ?? null,
+    entryStructureNote:
+      fromTrade?.entryStructureNote ?? computed.entryStructureNote ?? null,
+    entryIdeal: fromTrade?.entryIdeal ?? Boolean(computed.entryIdeal),
+    buySignalIds: fromTrade?.buySignalIds ?? [],
+  };
+
+  if (
+    merged.targetSellPrice != null &&
+    merged.stopLossPrice != null &&
+    getLastBuyExitTargetsSync(programId, "crypto", symbol, store) != null
+  ) {
+    patchLastBuyExitTargetsSync(programId, "crypto", symbol, merged);
+  }
+
+  return merged;
 }
 
 /**
@@ -170,6 +251,14 @@ async function listBithumbExchangeOverlayRowsForCredentials(
         ? netReturnPct(avgEntry, currentPrice, feeRate)
         : null;
 
+    const exit = await resolveCryptoHoldingExitTargets(
+      row.programId,
+      row.symbol,
+      avgEntry > 0 ? avgEntry : currentPrice,
+      userId,
+      store,
+    );
+
     out.push({
       programId: row.programId,
       symbol: row.symbol,
@@ -183,11 +272,11 @@ async function listBithumbExchangeOverlayRowsForCredentials(
       unrealizedPnl: mv != null && costBasis > 0 ? mv - costBasis : null,
       changePct: netPct,
       grossChangePct: grossPct,
-      targetSellPrice: null,
-      stopLossPrice: null,
-      exitScenarioNote: null,
-      entryStructureNote: null,
-      entryIdeal: false,
+      targetSellPrice: exit.targetSellPrice,
+      stopLossPrice: exit.stopLossPrice,
+      exitScenarioNote: exit.exitScenarioNote,
+      entryStructureNote: exit.entryStructureNote,
+      entryIdeal: exit.entryIdeal,
       currency: liveTradeCurrency("crypto"),
       openedAtMs: Date.now(),
       lastAtMs: Date.now(),

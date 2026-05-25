@@ -256,6 +256,82 @@ function positionKey(programId, market, symbol) {
 }
 
 /**
+ * 마지막 매수 체결에 기록된 목표·손절·시나리오
+ * @param {string} programId
+ * @param {"kr"|"us"|"crypto"} market
+ * @param {string} symbol
+ * @param {{ trades: LiveTradeRecord[] }} [storeIn]
+ */
+export function getLastBuyExitTargetsSync(programId, market, symbol, storeIn) {
+  const store = storeIn ?? readStoreSync();
+  const key = positionKey(programId, market, symbol);
+  /** @type {LiveTradeRecord | null} */
+  let lastBuy = null;
+  for (const t of store.trades) {
+    if (t.side !== "buy") continue;
+    if (positionKey(t.programId, t.market, t.symbol) !== key) continue;
+    if (!lastBuy || t.atMs > lastBuy.atMs) lastBuy = t;
+  }
+  if (!lastBuy) return null;
+  return {
+    targetSellPrice: lastBuy.targetSellPrice ?? null,
+    stopLossPrice: lastBuy.stopLossPrice ?? null,
+    exitScenarioNote: lastBuy.exitScenarioNote ?? null,
+    entryStructureNote: lastBuy.entryStructureNote ?? null,
+    entryIdeal: Boolean(lastBuy.entryIdeal),
+    buySignalIds: Array.isArray(lastBuy.buySignalIds) ? lastBuy.buySignalIds : [],
+  };
+}
+
+/**
+ * @param {string} programId
+ * @param {"kr"|"us"|"crypto"} market
+ * @param {string} symbol
+ * @param {{ targetSellPrice?: number | null; stopLossPrice?: number | null; exitScenarioNote?: string | null; entryStructureNote?: string | null; entryIdeal?: boolean }} targets
+ */
+export function patchLastBuyExitTargetsSync(programId, market, symbol, targets) {
+  const store = readStoreSync();
+  const key = positionKey(programId, market, symbol);
+  let buyIdx = -1;
+  let lastAt = -1;
+  for (let i = 0; i < store.trades.length; i++) {
+    const t = store.trades[i];
+    if (t.side !== "buy" || positionKey(t.programId, t.market, t.symbol) !== key) continue;
+    if (t.atMs >= lastAt) {
+      lastAt = t.atMs;
+      buyIdx = i;
+    }
+  }
+  if (buyIdx < 0) return false;
+  const prev = store.trades[buyIdx];
+  store.trades[buyIdx] = {
+    ...prev,
+    targetSellPrice:
+      targets.targetSellPrice !== undefined
+        ? targets.targetSellPrice
+        : prev.targetSellPrice,
+    stopLossPrice:
+      targets.stopLossPrice !== undefined
+        ? targets.stopLossPrice
+        : prev.stopLossPrice,
+    exitScenarioNote:
+      targets.exitScenarioNote !== undefined
+        ? targets.exitScenarioNote
+        : prev.exitScenarioNote,
+    entryStructureNote:
+      targets.entryStructureNote !== undefined
+        ? targets.entryStructureNote
+        : prev.entryStructureNote,
+    entryIdeal:
+      targets.entryIdeal !== undefined
+        ? Boolean(targets.entryIdeal)
+        : prev.entryIdeal,
+  };
+  writeStoreSync(store);
+  return true;
+}
+
+/**
  * @param {LiveTradeRecord[]} trades
  * @param {string | null} programIdFilter
  */
