@@ -9009,7 +9009,7 @@ html[data-theme="light"] .market-indices-rail__item {
   }
 
   .app__right-panel--dock .app-live-trade-side-dock--open {
-    width: max-content;
+    width: auto;
     max-width: calc(var(--live-trade-dock-panel-width, 26rem) + 0.72rem);
     pointer-events: none;
   }
@@ -9017,21 +9017,6 @@ html[data-theme="light"] .market-indices-rail__item {
   .app__right-panel--dock .app-live-trade-side-dock__panel,
   .app__right-panel--dock .app-live-trade-side-dock__resize-handle {
     pointer-events: auto;
-  }
-
-  /* 접힘 — 패널 리사이즈 탭(②) 레일 왼쪽 고정 */
-  .app__right-panel--dock
-    .app-live-trade-side-dock--collapsed
-    .app-live-trade-side-dock__resize-handle {
-    position: fixed;
-    top: 50%;
-    right: calc(
-      var(--live-trade-dock-rail-width, 2.5rem) + env(safe-area-inset-right, 0px)
-    );
-    left: auto;
-    transform: translateY(-50%);
-    z-index: 54;
-    flex: none;
   }
 
   /* 레일은 flex 밖 — 펼침·접힘과 무관하게 동일 폭·위치 */
@@ -9358,9 +9343,10 @@ html:not([data-theme="light"]) {
   max-width: var(--live-trade-dock-panel-width, 26rem);
   height: auto;
   min-height: 100%;
-  overflow: hidden;
+  overflow: visible;
   transition:
     width 0.22s ease,
+    min-width 0.22s ease,
     max-width 0.22s ease,
     opacity 0.22s ease,
     transform 0.22s ease;
@@ -9371,10 +9357,10 @@ html:not([data-theme="light"]) {
   width: 0;
   min-width: 0;
   max-width: 0;
-  opacity: 0;
-  transform: translateX(0.35rem);
+  opacity: 1;
+  transform: none;
   pointer-events: none;
-  visibility: hidden;
+  visibility: visible;
 }
 
 .app-live-trade-side-dock--open .app-live-trade-side-dock__panel {
@@ -9385,8 +9371,9 @@ html:not([data-theme="light"]) {
 
 .app-live-trade-side-dock__resize-handle,
 .app-live-trade-side-dock__panel-edge {
-  flex: 0 0 auto;
-  align-self: center;
+  position: absolute;
+  left: 0;
+  top: 50%;
   z-index: 12;
   display: block;
   width: 0.36rem;
@@ -9401,12 +9388,19 @@ html:not([data-theme="light"]) {
   font: inherit;
   line-height: 0;
   overflow: hidden;
+  transform: translate(-100%, -50%);
+  pointer-events: auto;
   box-shadow:
     -2px 0 14px color-mix(in srgb, var(--accent, #5eead4) 22%, transparent),
     0 0 0 1px color-mix(in srgb, var(--accent, #5eead4) 35%, transparent) inset;
   transition:
     background 0.15s ease,
-    box-shadow 0.15s ease;
+    box-shadow 0.15s ease,
+    transform 0.22s ease;
+}
+
+.app-live-trade-side-dock--collapsed .app-live-trade-side-dock__resize-handle {
+  pointer-events: auto;
 }
 
 .app-live-trade-side-dock__resize-handle--collapsed {
@@ -9503,6 +9497,9 @@ html[data-theme="light"] .app-live-trade-side-dock__auth-popover::after {
 .app-live-trade-side-dock--collapsed .app-live-trade-side-dock__host {
   min-width: 0;
   width: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane {

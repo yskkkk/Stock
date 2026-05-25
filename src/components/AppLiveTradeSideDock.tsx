@@ -317,13 +317,24 @@ export default function AppLiveTradeSideDock({
     return w;
   }, []);
 
-  useEffect(() => {
-    if (panel?.id) setOpen(true);
-  }, [panel?.id]);
-
   const persistOpen = useCallback((next: boolean) => {
     setOpen(next);
   }, []);
+
+  const beginDockPanelOpenAnimation = useCallback(() => {
+    applyDockPanelWidthCss(0);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        applyDockPanelWidthCss(panelWidthPx);
+      });
+    });
+  }, [panelWidthPx]);
+
+  useEffect(() => {
+    if (!panel?.id || openRef.current) return;
+    persistOpen(true);
+    beginDockPanelOpenAnimation();
+  }, [panel?.id, persistOpen, beginDockPanelOpenAnimation]);
 
   const openDefaultBithumbPanel = useCallback(() => {
     if (!openPanel) return;
@@ -336,14 +347,18 @@ export default function AppLiveTradeSideDock({
 
   const toggleFold = useCallback(() => {
     const next = !open;
-    persistOpen(next);
     if (next) {
+      persistOpen(true);
       openDefaultBithumbPanel();
-      applyDockPanelWidthCss(panelWidthPx);
-    } else {
-      clearDockPanelWidthCss();
+      beginDockPanelOpenAnimation();
+      return;
     }
-  }, [open, persistOpen, openDefaultBithumbPanel, panelWidthPx]);
+    applyDockPanelWidthCss(0);
+    persistOpen(false);
+    window.setTimeout(() => {
+      if (!openRef.current) clearDockPanelWidthCss();
+    }, 240);
+  }, [open, persistOpen, openDefaultBithumbPanel, beginDockPanelOpenAnimation]);
 
   useEffect(() => {
     const onToggle = () => toggleFold();
@@ -360,9 +375,14 @@ export default function AppLiveTradeSideDock({
         dispatchLiveTradeDockOpenForm();
       }
       openPanel(id, title);
-      persistOpen(true);
+      if (!openRef.current) {
+        persistOpen(true);
+        beginDockPanelOpenAnimation();
+      } else {
+        applyDockPanelWidthCss(panelWidthPx);
+      }
     },
-    [openPanel, persistOpen, activeId],
+    [openPanel, persistOpen, activeId, beginDockPanelOpenAnimation, panelWidthPx],
   );
 
   const handleLogout = useCallback(() => {
@@ -438,6 +458,10 @@ export default function AppLiveTradeSideDock({
       return;
     }
     if (resizing) return;
+    const w = getComputedStyle(document.documentElement).getPropertyValue(
+      "--live-trade-dock-panel-width",
+    );
+    if (open && (w === "0px" || w === "0")) return;
     applyDockPanelWidthCss(panelWidthPx);
   }, [open, resizing, panelWidthPx]);
 
@@ -593,36 +617,36 @@ export default function AppLiveTradeSideDock({
       }${resizing ? " app-live-trade-side-dock--resizing" : ""}`}
       data-live-trade-side-dock
     >
-      <button
-        type="button"
-        className={[
-          "app-live-trade-side-dock__resize-handle",
-          open ? "" : "app-live-trade-side-dock__resize-handle--collapsed",
-        ]
-          .filter(Boolean)
-          .join(" ")}
-        onPointerDown={onResizePointerDown}
-        onPointerMove={onResizePointerMove}
-        onPointerUp={finishResize}
-        onPointerCancel={finishResize}
-        aria-label={
-          open ? ko.app.liveTradeSideDockResize : ko.app.liveTradeSideDockExpand
-        }
-        role={open ? "separator" : "button"}
-        aria-orientation={open ? "vertical" : undefined}
-        aria-valuemin={open ? panelWidthBounds.min : undefined}
-        aria-valuemax={open ? panelWidthBounds.max : undefined}
-        aria-valuenow={open ? panelWidthPx : undefined}
-        aria-expanded={open ? undefined : false}
-        title={
-          open ? ko.app.liveTradeSideDockResizeHint : ko.app.liveTradeSideDockExpand
-        }
-      />
       <div
         id="app-live-trade-side-dock-panel"
         className="app-live-trade-side-dock__panel"
         aria-hidden={!open}
       >
+        <button
+          type="button"
+          className={[
+            "app-live-trade-side-dock__resize-handle",
+            open ? "" : "app-live-trade-side-dock__resize-handle--collapsed",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          onPointerDown={onResizePointerDown}
+          onPointerMove={onResizePointerMove}
+          onPointerUp={finishResize}
+          onPointerCancel={finishResize}
+          aria-label={
+            open ? ko.app.liveTradeSideDockResize : ko.app.liveTradeSideDockExpand
+          }
+          role={open ? "separator" : "button"}
+          aria-orientation={open ? "vertical" : undefined}
+          aria-valuemin={open ? panelWidthBounds.min : undefined}
+          aria-valuemax={open ? panelWidthBounds.max : undefined}
+          aria-valuenow={open ? panelWidthPx : undefined}
+          aria-expanded={open ? undefined : false}
+          title={
+            open ? ko.app.liveTradeSideDockResizeHint : ko.app.liveTradeSideDockExpand
+          }
+        />
         <div
           id={LIVE_TRADE_RIGHT_PANEL_HOST_ID}
           className="app-live-trade-side-dock__host"
