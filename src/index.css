@@ -9320,6 +9320,82 @@ html[data-theme="light"] .market-indices-rail__item {
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
   }
 
+  /* 도크 열림: 둥근 모서리 안티앨리어싱 틈만 카드색으로 메움(모서리 유지·상단 클립 없음) */
+  #root > .app
+    .app__viewport.app__viewport--no-left-rail:has(.app-live-trade-side-dock--open)
+    .workspace:not(.crypto-workspace)
+    .picks-panel.card:not(.crypto-panel),
+  #root > .app
+    .app__viewport.app__viewport--no-left-rail:has(.app-live-trade-side-dock--open)
+    .workspace:not(.crypto-workspace)
+    .chart-panel.crypto-chart-panel.card {
+    --dock-joint-fill: var(--card);
+    box-shadow:
+      var(--shadow),
+      10px 0 0 0 var(--dock-joint-fill),
+      0 10px 0 0 var(--dock-joint-fill),
+      10px 10px 0 0 var(--dock-joint-fill);
+  }
+
+  html:not([data-theme="light"])
+    #root
+    > .app
+    .app__viewport.app__viewport--no-left-rail:has(.app-live-trade-side-dock--open)
+    .workspace:not(.crypto-workspace)
+    .picks-panel.card:not(.crypto-panel) {
+    --dock-joint-fill: var(--bg);
+    box-shadow:
+      10px 0 0 0 var(--dock-joint-fill),
+      0 10px 0 0 var(--dock-joint-fill),
+      10px 10px 0 0 var(--dock-joint-fill);
+  }
+
+  html[data-theme="light"][data-light-palette="glass"]
+    #root
+    > .app
+    .app__viewport.app__viewport--no-left-rail:has(.app-live-trade-side-dock--open)
+    .workspace:not(.crypto-workspace)
+    .picks-panel.card:not(.crypto-panel),
+  html[data-theme="light"][data-light-palette="glass"]
+    #root
+    > .app
+    .app__viewport.app__viewport--no-left-rail:has(.app-live-trade-side-dock--open)
+    .workspace:not(.crypto-workspace)
+    .chart-panel.crypto-chart-panel.card {
+    box-shadow:
+      var(--shadow),
+      inset 0 1px 0 rgba(255, 255, 255, 0.82),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.18),
+      10px 0 0 0 var(--dock-joint-fill, var(--card)),
+      0 10px 0 0 var(--dock-joint-fill, var(--card)),
+      10px 10px 0 0 var(--dock-joint-fill, var(--card));
+  }
+
+  #root
+    > .app
+    .app__viewport.app__viewport--no-left-rail:has(.app-live-trade-side-dock--open)
+    .app-live-trade-side-dock__host
+    .live-trading-tab__card-tabs-pane--rail {
+    box-shadow:
+      -8px 0 32px rgba(0, 0, 0, 0.22),
+      -10px 0 0 0 var(--card-bg, var(--card)),
+      0 10px 0 0 var(--card-bg, var(--card)),
+      -10px 10px 0 0 var(--card-bg, var(--card));
+  }
+
+  html[data-theme="light"]
+    #root
+    > .app
+    .app__viewport.app__viewport--no-left-rail:has(.app-live-trade-side-dock--open)
+    .app-live-trade-side-dock__host
+    .live-trading-tab__card-tabs-pane--rail {
+    box-shadow:
+      -6px 0 24px rgba(15, 23, 42, 0.06),
+      -10px 0 0 0 var(--card-bg, var(--card)),
+      0 10px 0 0 var(--card-bg, var(--card)),
+      -10px 10px 0 0 var(--card-bg, var(--card));
+  }
+
   .market-indices-rail--side {
     display: flex;
     flex-direction: column;
