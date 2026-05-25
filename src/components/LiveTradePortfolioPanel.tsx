@@ -893,7 +893,7 @@ export default function LiveTradePortfolioPanel({
                 {ko.app.liveTradePfExchangeTradesNote}
               </p>
               <h5 className="live-sim-run__sub">{ko.app.liveTradeSimRunRecentTrades}</h5>
-              <div className="live-sim-run__table-wrap">
+              <div className="live-portfolio__trades-scroll live-sim-run__table-wrap">
                 <table className="live-sim-run__table live-sim-run__table--stacked live-sim-run__table--trades">
                   <thead>
                     <tr>

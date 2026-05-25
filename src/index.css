@@ -10534,6 +10534,15 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   flex: 1 1 auto;
   min-height: 12rem;
   max-height: min(52vh, 420px);
+  overflow: hidden;
+}
+
+.dock-linked-accounts__body .live-trade-history--embedded .live-trade-history__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
 }
 
 .dock-linked-accounts__title--brand {
