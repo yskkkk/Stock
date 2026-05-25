@@ -183,7 +183,7 @@ const LIVE_TRADE_CARD_TAB_ORDER = [
 export function defaultLiveTradeSideTabTitles(): Record<string, string> {
   return {
     [LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth]: ko.app.liveTradeSideDockRailAuth,
-    [LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb]: ko.app.leftRailBithumbAccountTitle,
+    [LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb]: ko.app.liveTradeDockRailAccountTab,
     [LIVE_TRADE_DOCK_RAIL_TAB_IDS.liveRail]: ko.app.liveTradeLeftRailTitle,
     portfolio: ko.app.liveTradePfTitle,
     form: ko.app.liveTradeFormNew,

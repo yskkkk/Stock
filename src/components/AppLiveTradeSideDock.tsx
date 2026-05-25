@@ -304,7 +304,7 @@ function railTabShort(
       glyph: (
         <BithumbBrandMark className="app-live-trade-side-dock__rail-bithumb-mark" />
       ),
-      label: ko.app.leftRailBithumbAccountTitle,
+      label: ko.app.liveTradeDockRailAccountTab,
     };
   }
   if (id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.liveRail) {
@@ -406,7 +406,7 @@ export default function AppLiveTradeSideDock({
     const titles = defaultLiveTradeSideTabTitles();
     openPanel(
       LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb,
-      titles[LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb] ?? ko.app.leftRailBithumbAccountTitle,
+      titles[LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb] ?? ko.app.liveTradeDockRailAccountTab,
     );
   }, [openPanel]);
 
@@ -782,18 +782,15 @@ export default function AppLiveTradeSideDock({
               >
                 {glyph}
               </span>
-              {isBithumb ? (
-                <span className="app-live-trade-side-dock__rail-label app-live-trade-side-dock__rail-label--bithumb">
-                  <span className="app-live-trade-side-dock__rail-label-main">
-                    빗썸
-                  </span>
-                  <span className="app-live-trade-side-dock__rail-label-sub">
-                    계좌
-                  </span>
-                </span>
-              ) : (
-                <span className="app-live-trade-side-dock__rail-label">{label}</span>
-              )}
+              <span
+                className={
+                  isBithumb
+                    ? "app-live-trade-side-dock__rail-label app-live-trade-side-dock__rail-label--accounts"
+                    : "app-live-trade-side-dock__rail-label"
+                }
+              >
+                {label}
+              </span>
             </button>
           );
         })}

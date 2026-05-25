@@ -4,7 +4,7 @@ import { logoutAuth } from "../api";
 import { invalidateLiveTradingPrefetch } from "../lib/tabPrefetch";
 import { refreshLiveTradingStatusNow } from "../hooks/useLiveTradingStatusPoll";
 import { ko } from "../i18n/ko";
-import { BithumbAccountRailCore } from "./LeftRailBithumbAccountPanel";
+import DockLinkedAccountsPanel from "./DockLinkedAccountsPanel";
 import { LiveTradingRailCore } from "./LiveTradingLeftRailPanel";
 import LiveTradeAuthPanel, {
   LIVE_TRADE_DOCK_RAIL_TAB_IDS,
@@ -51,7 +51,7 @@ export default function AppRightDockRailPanels({
     }
     const cleanups = [
       registerSideTab(ids.auth, ko.app.liveTradeSideDockRailAuth),
-      registerSideTab(ids.bithumb, ko.app.leftRailBithumbAccountTitle),
+      registerSideTab(ids.bithumb, ko.app.liveTradeDockRailAccountTab),
       registerSideTab(ids.liveRail, ko.app.liveTradeLeftRailTitle),
     ];
     return () => {
@@ -93,10 +93,7 @@ export default function AppRightDockRailPanels({
       {user ? (
         <>
           <DockRailPanelPortal tabId={ids.bithumb}>
-            <BithumbAccountRailCore
-              onOpenLiveTrading={onOpenLiveTrading}
-              layout="dock"
-            />
+            <DockLinkedAccountsPanel onOpenLiveTrading={onOpenLiveTrading} />
           </DockRailPanelPortal>
           <DockRailPanelPortal tabId={ids.liveRail}>
             <LiveTradingRailCore
