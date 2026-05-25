@@ -4,8 +4,11 @@ import {
   touchLiveTradeProgramRunSync,
 } from "../live-trade-programs-store.js";
 import { loadStock } from "../stock-data.js";
-import { fetchQuoteSnapshotsForSymbols } from "../picks-live-quotes.js";
 import { pickQuoteFromMap } from "../quote-symbol-resolve.js";
+import {
+  fetchBoxRangeLastPrices,
+  isBoxRangeQuoteFresh,
+} from "./quotes.js";
 import { loadCryptoWatchlistTen } from "../crypto-universe.js";
 import {
   recordLiveTradeBuyAsync,
@@ -305,11 +308,12 @@ async function tickProgram(program) {
     }
   }
 
-  const quotes = await fetchQuoteSnapshotsForSymbols(symbols);
+  const quotes = await fetchBoxRangeLastPrices(symbols);
   const boxes = listBoxesForProgramSync(program.id);
 
   for (const box of boxes) {
-    const q = pickQuoteFromMap(quotes, box.symbol);
+    const q = pickQuoteFromMap(quotes, box.symbol, "crypto");
+    if (!isBoxRangeQuoteFresh(q)) continue;
     const lastPrice = Number(q?.price);
     if (!Number.isFinite(lastPrice) || lastPrice <= 0) continue;
     if (live || sim) {

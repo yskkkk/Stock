@@ -7,7 +7,14 @@ const BITHUMB_API = "https://api.bithumb.com/public";
 
 /** @type {{ data: Record<string, Record<string, string>> | null; at: number }} */
 let allTickerCache = { data: null, at: 0 };
-const ALL_TICKER_CACHE_MS = 2_500;
+const ALL_TICKER_CACHE_MS = (() => {
+  const n = Number(process.env.BITHUMB_ALL_TICKER_CACHE_MS ?? 2_500);
+  return Number.isFinite(n) && n >= 0 ? Math.min(30_000, Math.floor(n)) : 2_500;
+})();
+
+export function invalidateBithumbAllTickerCache() {
+  allTickerCache = { data: null, at: 0 };
+}
 
 export { isBinanceUsdtSymbol as isCryptoUsdtSymbol };
 
@@ -49,9 +56,16 @@ async function bithumbPublic(path) {
  * KRW 마켓 전 종목 24h 티커 (짧은 메모리 캐시)
  * @returns {Promise<Record<string, Record<string, string>>>}
  */
-export async function fetchBithumbAllKrwTickers() {
+/**
+ * @param {{ maxAgeMs?: number }} [opts] — 0이면 캐시 무시(박스권·실시간 체결용)
+ */
+export async function fetchBithumbAllKrwTickers(opts = {}) {
+  const maxAge =
+    typeof opts.maxAgeMs === "number" && Number.isFinite(opts.maxAgeMs)
+      ? Math.max(0, opts.maxAgeMs)
+      : ALL_TICKER_CACHE_MS;
   const now = Date.now();
-  if (allTickerCache.data && now - allTickerCache.at < ALL_TICKER_CACHE_MS) {
+  if (maxAge > 0 && allTickerCache.data && now - allTickerCache.at < maxAge) {
     return allTickerCache.data;
   }
   const data = await bithumbPublic("/ticker/ALL_KRW");
@@ -133,8 +147,13 @@ function quoteFromBithumbTicker(sym, ticker) {
 /**
  * @param {string[]} yahooSymbols e.g. ["BTC-USDT"]
  */
-export async function loadBithumbKrwQuotesBatch(yahooSymbols) {
-  const all = await fetchBithumbAllKrwTickers();
+/**
+ * @param {string[]} yahooSymbols
+ * @param {{ maxAgeMs?: number }} [opts]
+ */
+export async function loadBithumbKrwQuotesBatch(yahooSymbols, opts = {}) {
+  const fetchedAt = Date.now();
+  const all = await fetchBithumbAllKrwTickers(opts);
   const quotes = {};
   for (const sym of yahooSymbols) {
     const up = sym.trim().toUpperCase();
@@ -144,7 +163,7 @@ export async function loadBithumbKrwQuotesBatch(yahooSymbols) {
     if (!t) continue;
     quotes[up] = quoteFromBithumbTicker(up, t);
   }
-  return { quotes, updatedAt: Date.now() };
+  return { quotes, updatedAt: fetchedAt };
 }
 
 /** @param {string} yahooSymbol */
