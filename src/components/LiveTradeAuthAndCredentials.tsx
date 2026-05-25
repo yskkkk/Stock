@@ -708,6 +708,7 @@ function credPasswordPopoverPortalStyle(anchor: HTMLElement): CSSProperties {
     left,
     top,
     transform: "translateY(-100%)",
+    visibility: "visible",
     zIndex: YSTOCK_OVERLAY_BUBBLE_Z,
     width: w,
     minWidth: minW,
@@ -782,6 +783,9 @@ function CredAccountPasswordPopover({
       aria-label={ko.app.liveTradeCredAccountPasswordAria}
       onMouseDown={(e) => e.stopPropagation()}
     >
+      <p className="live-trade-cred-password-popover__lead">
+        {ko.app.liveTradeCredAccountPasswordAria}
+      </p>
       <input
         ref={inputRef}
         type="password"

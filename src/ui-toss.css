@@ -1332,6 +1332,14 @@ html[data-theme="light"] .live-trade-cred-password-popover::after {
   background: var(--card);
 }
 
+.live-trade-cred-password-popover__lead {
+  margin: 0 0 0.32rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text);
+}
+
 .live-trade-cred-password-popover__input {
   display: block;
   width: 100%;
