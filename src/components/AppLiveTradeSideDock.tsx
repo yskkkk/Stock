@@ -99,90 +99,10 @@ function wheelDeltaY(e: WheelEvent): number {
   return delta;
 }
 
-function isScrollable(el: HTMLElement): boolean {
-  return el.scrollHeight > el.clientHeight + 1;
-}
-
-function findNestedScrollable(root: HTMLElement): HTMLElement | null {
-  let best: HTMLElement | null = null;
-  for (const el of root.querySelectorAll<HTMLElement>("*")) {
-    const oy = getComputedStyle(el).overflowY;
-    if (
-      (oy === "auto" || oy === "scroll" || oy === "overlay") &&
-      isScrollable(el)
-    ) {
-      best = el;
-    }
-  }
-  return best;
-}
-
 function findAppScrollEl(): HTMLElement | null {
   return document.querySelector<HTMLElement>(".app__scroll");
 }
 
-function findDockPanelScrollEl(dock: HTMLElement): HTMLElement | null {
-  const host = dock.querySelector<HTMLElement>(".app-live-trade-side-dock__host");
-  if (!host) return null;
-
-  const tabsHost = host.querySelector<HTMLElement>(
-    ".live-trading-tab__card-tabs-host:not(.live-trading-tab__card-tabs-host--idle)",
-  );
-  if (tabsHost) {
-    if (isScrollable(tabsHost)) return tabsHost;
-    const nested = findNestedScrollable(tabsHost);
-    if (nested) return nested;
-  }
-
-  const body = host.querySelector<HTMLElement>(
-    ".live-trading-tab__card-tabs-pane--active .live-trading-tab__card-tabs-body",
-  );
-  if (body && isScrollable(body)) return body;
-
-  const nestedInHost = findNestedScrollable(host);
-  if (nestedInHost) return nestedInHost;
-
-  const panel = dock.querySelector<HTMLElement>(".app-live-trade-side-dock__panel");
-  if (panel) {
-    const nestedInPanel = findNestedScrollable(panel);
-    if (nestedInPanel) return nestedInPanel;
-  }
-
-  return tabsHost ?? body ?? null;
-}
-
-/** 메인 `.app__scroll` — 레일·접힌 보색 핸들 */
-function applyPageScrollWheel(scrollEl: HTMLElement, e: WheelEvent): boolean {
-  const delta = wheelDeltaY(e);
-  if (delta === 0) return false;
-
-  const max = scrollEl.scrollHeight - scrollEl.clientHeight;
-  if (max <= 0) return false;
-
-  const top = scrollEl.scrollTop;
-  if (delta > 0 && top >= max - 0.5) return false;
-  if (delta < 0 && top <= 0.5) return false;
-
-  scrollEl.scrollTop = Math.max(0, Math.min(max, top + delta));
-  return true;
-}
-
-/** 도크 패널 내부만 스크롤 — 끝에 닿아도 메인으로 체인하지 않음 */
-function applyDockPanelWheel(scrollEl: HTMLElement, e: WheelEvent): void {
-  const delta = wheelDeltaY(e);
-  if (delta === 0) return;
-
-  const max = scrollEl.scrollHeight - scrollEl.clientHeight;
-  if (max <= 0) return;
-
-  const top = scrollEl.scrollTop;
-  if (delta > 0 && top >= max - 0.5) return;
-  if (delta < 0 && top <= 0.5) return;
-
-  scrollEl.scrollTop = Math.max(0, Math.min(max, top + delta));
-}
-
-/** 우측 아이콘 레일(빨간 마킹 구간) — 페이지 스크롤 */
 function queryDockRailEl(): HTMLElement | null {
   return (
     document.querySelector<HTMLElement>("[data-live-trade-side-dock-rail]") ??
@@ -190,32 +110,29 @@ function queryDockRailEl(): HTMLElement | null {
   );
 }
 
-function isWheelOnDockRailZone(
-  dock: HTMLElement,
-  target: EventTarget | null,
-  panelOpen: boolean,
-): boolean {
-  if (!target || !(target instanceof Node)) return false;
-  const rail = queryDockRailEl();
-  if (rail?.contains(target)) return true;
-  if (!panelOpen) {
-    const handle = dock.querySelector<HTMLElement>(
-      ".app-live-trade-side-dock__resize-handle",
-    );
-    if (handle?.contains(target)) return true;
-  }
-  return false;
+/** 우측 도크(패널·레일·리사이즈 핸들) 휠 → 메인 `.app__scroll` */
+function applyPageScrollWheel(scrollEl: HTMLElement, e: WheelEvent): boolean {
+  const delta = wheelDeltaY(e);
+  if (delta === 0) return false;
+
+  const max = scrollEl.scrollHeight - scrollEl.clientHeight;
+  if (max <= 0) return false;
+
+  scrollEl.scrollTop = Math.max(
+    0,
+    Math.min(max, scrollEl.scrollTop + delta),
+  );
+  return true;
 }
 
-/** 펼친 패널 본문·헤더·보색 핸들 — 패널만 스크롤 */
-function isWheelInOpenDockPanel(
-  dock: HTMLElement,
+function isWheelInLiveTradeDockZone(
+  dock: HTMLElement | null,
   target: EventTarget | null,
-  panelOpen: boolean,
 ): boolean {
-  if (!panelOpen || !target || !(target instanceof Node)) return false;
-  const panel = dock.querySelector<HTMLElement>(".app-live-trade-side-dock__panel");
-  return Boolean(panel?.contains(target));
+  if (!target || !(target instanceof Node)) return false;
+  if (dock?.contains(target)) return true;
+  const rail = queryDockRailEl();
+  return Boolean(rail?.contains(target));
 }
 
 /** 접힘=왼쪽, 펼침=오른쪽 */
@@ -785,33 +702,18 @@ export default function AppLiveTradeSideDock({
   );
 
   useEffect(() => {
-    const dock = dockRef.current;
-    if (!dock) return;
-
     const onWheel = (e: WheelEvent) => {
-      if (!dock.contains(e.target as Node)) return;
+      if (!isWheelInLiveTradeDockZone(dockRef.current, e.target)) return;
 
-      const panelOpen = openRef.current;
-
-      if (isWheelOnDockRailZone(dock, e.target, panelOpen)) {
-        const pageScroll = findAppScrollEl();
-        if (pageScroll && applyPageScrollWheel(pageScroll, e)) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        return;
-      }
-
-      if (isWheelInOpenDockPanel(dock, e.target, panelOpen)) {
-        const scrollEl = findDockPanelScrollEl(dock);
-        if (scrollEl) applyDockPanelWheel(scrollEl, e);
+      const pageScroll = findAppScrollEl();
+      if (pageScroll && applyPageScrollWheel(pageScroll, e)) {
         e.preventDefault();
         e.stopPropagation();
       }
     };
 
-    dock.addEventListener("wheel", onWheel, { passive: false, capture: true });
-    return () => dock.removeEventListener("wheel", onWheel, { capture: true });
+    document.addEventListener("wheel", onWheel, { passive: false, capture: true });
+    return () => document.removeEventListener("wheel", onWheel, { capture: true });
   }, [wide, authChecked]);
 
   if (!wide || !authChecked) return null;
