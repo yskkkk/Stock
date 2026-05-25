@@ -6,7 +6,6 @@ import {
   sumTechScoreWeights,
 } from "./picks-tech-models-store.js";
 import { analyzeTechnicals, meetsTelegramNotifyScore } from "./technical.js";
-import { onHighScorePickForLiveTrading } from "./live-trade-runner.js";
 import { scheduleRecommendationsTrackerSnapshotRefresh } from "./picks-recommendations-tracker.js";
 import { notifyHighScorePick } from "./telegram-notify.js";
 import { recordPicksDailySnapshot } from "./picks-history-store.js";
@@ -178,6 +177,8 @@ async function screenSymbol(item, market) {
 
     /** @type {object[]} */
     const picks = [];
+    /** @type {Map<string, object>} */
+    const bestNotifyBySymbol = new Map();
     for (const model of models) {
       const analysis = analyzeTechnicals(data.candles, model.weights);
       if (!analysis.buy) continue;
@@ -202,9 +203,15 @@ async function screenSymbol(item, market) {
         techModelMaxScore: sumTechScoreWeights(model.weights),
       };
       picks.push(pick);
-      if (meetsTelegramNotifyScore(pick.score, model.weights)) {
-        notifyHighScorePick(pick);
+      if (!meetsTelegramNotifyScore(pick.score, model.weights)) continue;
+      const sk = String(pick.symbol ?? "").trim().toUpperCase();
+      const prev = bestNotifyBySymbol.get(sk);
+      if (!prev || pick.score > prev.score) {
+        bestNotifyBySymbol.set(sk, pick);
       }
+    }
+    for (const pick of bestNotifyBySymbol.values()) {
+      notifyHighScorePick(pick);
     }
     if (!picks.length) return { type: "skip" };
     return { type: "picks", picks };
@@ -232,9 +239,6 @@ function applyScreenResult(result, bucket) {
       if (pick.market === "kr") bucket.kr.push(pick);
       else if (pick.market === "crypto") bucket.crypto.push(pick);
       else bucket.us.push(pick);
-      if (meetsTelegramNotifyScore(pick.score, pick.techModelWeights)) {
-        void onHighScorePickForLiveTrading(pick);
-      }
     }
     sortPicks(bucket.kr);
     sortPicks(bucket.us);
@@ -247,7 +251,6 @@ function applyScreenResult(result, bucket) {
     sortPicks(bucket.us);
     sortPicks(bucket.crypto);
     notifyHighScorePick(result.pick);
-    void onHighScorePickForLiveTrading(result.pick);
   } else if (result.type === "error" && result.failure) {
     state.failedCount += 1;
     state.failures.push(result.failure);
