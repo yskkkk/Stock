@@ -45,6 +45,7 @@ export function similarRange(tA, bA, tB, bB, tolPct) {
 }
 
 /**
+ * 같은 TF(1h·4h·1d) 안에서만 겹치면 병합. TF가 다르면 가격이 겹쳐도 항상 별도 boxId·FSM·lot.
  * @param {{
  *   top: number;
  *   bottom: number;
@@ -52,14 +53,15 @@ export function similarRange(tA, bA, tB, bB, tolPct) {
  *   rightTime: number;
  *   timeframe: string;
  * }} candidate
- * @param {typeof candidate[]} existing — 동일 program·symbol·tf
+ * @param {typeof candidate[]} existing — 동일 program·symbol·동일 timeframe 만
  * @param {number} barSec — 봉 간격(초)
  */
 export function findMergeBoxIndex(candidate, existing, barSec) {
   const gap = BOX_RANGE_MERGE_BARS_GAP * barSec;
+  const tf = String(candidate.timeframe ?? "").trim();
   for (let j = 0; j < existing.length; j++) {
     const e = existing[j];
-    if (e.timeframe !== candidate.timeframe) continue;
+    if (String(e.timeframe ?? "").trim() !== tf) continue;
     if (e.state === "closed") continue;
     const priceOk =
       priceOverlapPct(

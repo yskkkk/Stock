@@ -174,6 +174,7 @@ function barSecondsForTf(timeframe) {
  *   rightTime: number;
  * }} detected
  */
+/** 탐지·병합·매매는 timeframe 단위로 완전 분리(1h/4h/1d 겹쳐도 각각 독립 박스). */
 export function upsertDetectedBoxSync(detected) {
   const store = readBoxRangeStoreSync();
   const same = store.boxes.filter(

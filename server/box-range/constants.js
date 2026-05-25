@@ -17,6 +17,7 @@ export const BOX_RANGE_LOOKBACK = 100;
 export const BOX_RANGE_TOUCH_THRESHOLD = 0.12;
 export const BOX_RANGE_MIN_TOUCHES = 2;
 
+/** 동일 TF·동일 종목 내 겹침만 병합 — 1h/4h/1d 간 겹침은 병합하지 않음(각각 매매). */
 export const BOX_RANGE_MERGE_PCT = 35;
 export const BOX_RANGE_MERGE_BARS_GAP = 5;
 export const BOX_RANGE_SIMILAR_RANGE_PCT = 8;
