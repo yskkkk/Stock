@@ -9908,7 +9908,8 @@ html[data-theme="light"]
   padding: 0.72rem 0.8rem 0.75rem;
   border-radius: 12px;
   border: 1px solid var(--card-border, rgba(148, 163, 184, 0.22));
-  background: var(--card, #262e38);
+  background-color: #262e38;
+  background-image: none;
   opacity: 1;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -9927,19 +9928,47 @@ html[data-theme="light"]
   bottom: 1.15rem;
   width: 9px;
   height: 9px;
-  background: var(--card, #262e38);
+  background-color: #262e38;
   border-right: 1px solid var(--card-border, rgba(148, 163, 184, 0.22));
   border-bottom: 1px solid var(--card-border, rgba(148, 163, 184, 0.22));
   transform: rotate(-45deg);
 }
 
 html[data-theme="light"] .app-live-trade-side-dock__auth-popover {
-  background: var(--card, #f9f7f4);
+  background-color: #f6f8fa;
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
 }
 
 html[data-theme="light"] .app-live-trade-side-dock__auth-popover::after {
-  background: var(--card, #f9f7f4);
+  background-color: #f6f8fa;
+}
+
+/* 토스·빗썸 API 팝오버 — 글래스 테마에서도 불투명(뒤 도크 비침 방지) */
+html[data-theme="light"][data-light-palette="glass"] .app-live-trade-side-dock__auth-popover {
+  background-color: #f2f5f9 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html[data-theme="light"][data-light-palette="glass"] .app-live-trade-side-dock__auth-popover::after {
+  background-color: #f2f5f9 !important;
+}
+
+.app-live-trade-side-dock__auth-popover .input,
+.app-live-trade-side-dock__auth-popover textarea {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+html[data-theme="light"] .app-live-trade-side-dock__auth-popover .input,
+html[data-theme="light"] .app-live-trade-side-dock__auth-popover textarea,
+html[data-theme="light"][data-light-palette="glass"]
+  .app-live-trade-side-dock__auth-popover
+  .input,
+html[data-theme="light"][data-light-palette="glass"]
+  .app-live-trade-side-dock__auth-popover
+  textarea {
+  background-color: #fff !important;
 }
 
 .app-live-trade-side-dock__exchange-mark--muted {

@@ -72,6 +72,13 @@
 }
 
 /* 공통 글래스 표면 */
+html[data-theme="light"][data-light-palette="glass"] .app-live-trade-side-dock__auth-popover,
+html[data-theme="light"][data-light-palette="glass"]
+  .app-live-trade-side-dock__api-popover.app-live-trade-side-dock__auth-popover--portal {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
 html[data-theme="light"][data-light-palette="glass"] .card,
 html[data-theme="light"][data-light-palette="glass"] .top-bar.card,
 html[data-theme="light"][data-light-palette="glass"] .live-trading-tab__head.card,
