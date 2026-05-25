@@ -1058,6 +1058,10 @@ export interface BoxRangeOverlayBox {
   rightTime: number;
 }
 
+export type BoxRangeOverlayScan = Partial<
+  Record<"1h" | "4h" | "1d", "found" | "none" | "error">
+>;
+
 export function fetchBoxRangeOverlay(symbol: string, chartTimeframe?: string) {
   const q = new URLSearchParams({ symbol: symbol.trim().toUpperCase() });
   const tf = String(chartTimeframe ?? "").trim();
@@ -1066,6 +1070,7 @@ export function fetchBoxRangeOverlay(symbol: string, chartTimeframe?: string) {
     symbol: string;
     timeframe?: string;
     boxes: BoxRangeOverlayBox[];
+    scan?: BoxRangeOverlayScan;
   }>(`/api/box-range/overlay?${q}`);
 }
 

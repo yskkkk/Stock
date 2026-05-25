@@ -858,12 +858,12 @@ export function createApp() {
       const { buildChartBoxRangeOverlayAsync } = await import(
         "./box-range/chart-overlay.js"
       );
-      const boxes = await buildChartBoxRangeOverlayAsync(
+      const { boxes, scan } = await buildChartBoxRangeOverlayAsync(
         symbol,
         chartTimeframe,
         req.user.id,
       );
-      res.json({ symbol, timeframe: chartTimeframe, boxes });
+      res.json({ symbol, timeframe: chartTimeframe, boxes, scan });
     }),
   );
 

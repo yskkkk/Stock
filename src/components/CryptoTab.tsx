@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChartDrawMagnet } from "../hooks/useChartDrawMagnet";
-import {
-  fetchBoxRangeOverlay,
-  fetchCryptoQuotes,
-  fetchCryptoUniverse,
-  fetchStock,
-} from "../api";
+import { fetchCryptoQuotes, fetchCryptoUniverse, fetchStock } from "../api";
+import { useBoxRangeChartOverlay } from "../hooks/useBoxRangeChartOverlay";
+import BoxRangeChartHint from "./BoxRangeChartHint";
+import { shouldDrawBoxOnChart } from "../lib/boxRangeChartPrimitive";
 import {
   peekCryptoListQuotesPrefetch,
   peekCryptoUniversePrefetch,
@@ -149,10 +147,6 @@ export default function CryptoTab({
   const [showVolume, setShowVolume] = useState(true);
   const [showRsi, setShowRsi] = useState(true);
   const [showBoxRange, setShowBoxRange] = useState(false);
-  const [boxRangeOverlays, setBoxRangeOverlays] = useState<
-    import("../api").BoxRangeOverlayBox[]
-  >([]);
-  const [boxRangeLoading, setBoxRangeLoading] = useState(false);
   const [listQuotes, setListQuotes] = useState<ListQuoteMap>(
     () => peekCryptoListQuotesPrefetch() ?? {},
   );
@@ -418,33 +412,25 @@ export default function CryptoTab({
     setProfitPersistTick((t) => t + 1);
   }, [symbol]);
 
-  useEffect(() => {
-    if (!showBoxRange || chartEngine !== "app") {
-      setBoxRangeOverlays([]);
-      setBoxRangeLoading(false);
-      return;
-    }
-    let cancelled = false;
-    const load = () => {
-      setBoxRangeLoading(true);
-      fetchBoxRangeOverlay(symbol, timeframe)
-        .then((r) => {
-          if (!cancelled) setBoxRangeOverlays(r.boxes ?? []);
-        })
-        .catch(() => {
-          if (!cancelled) setBoxRangeOverlays([]);
-        })
-        .finally(() => {
-          if (!cancelled) setBoxRangeLoading(false);
-        });
-    };
-    load();
-    const id = window.setInterval(load, 15_000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-    };
-  }, [showBoxRange, chartEngine, symbol, timeframe, candleCount]);
+  const {
+    overlays: boxRangeOverlays,
+    scan: boxRangeScan,
+    loading: boxRangeLoading,
+    needsLogin: boxRangeNeedsLogin,
+  } = useBoxRangeChartOverlay({
+    symbol,
+    chartTimeframe: timeframe,
+    chartEngine,
+    enabled: showBoxRange,
+    refreshKey: candleCount,
+  });
+  const visibleBoxCount = useMemo(
+    () =>
+      boxRangeOverlays.filter((b) =>
+        shouldDrawBoxOnChart(b.timeframe, chartInterval),
+      ).length,
+    [boxRangeOverlays, chartInterval],
+  );
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -751,16 +737,14 @@ export default function CryptoTab({
                   />
                 )}
             </div>
-            {chartEngine === "app" && showBoxRange && boxRangeLoading ? (
-              <p className="crypto-chart-box-hint">{ko.app.boxRangeChartLoading}</p>
-            ) : chartEngine === "app" &&
-              showBoxRange &&
-              !chartLoading &&
-              candles.length > 0 &&
-              boxRangeOverlays.length === 0 ? (
-              <p className="crypto-chart-box-hint crypto-chart-box-hint--empty">
-                {ko.app.boxRangeChartEmpty}
-              </p>
+            {chartEngine === "app" && showBoxRange ? (
+              <BoxRangeChartHint
+                loading={boxRangeLoading}
+                needsLogin={boxRangeNeedsLogin}
+                scan={boxRangeScan}
+                chartInterval={chartInterval}
+                overlayCount={visibleBoxCount}
+              />
             ) : null}
           </div>
 

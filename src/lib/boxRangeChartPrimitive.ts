@@ -46,7 +46,10 @@ function chartBarSeconds(interval: string): number {
   return m[interval] ?? 3600;
 }
 
-/** 차트 봉보다 굵은 TF 박스는 그리지 않음(1d 박스가 1h 차트 좌측 전체를 덮는 문제 방지) */
+/**
+ * 15분 이하 차트: 1h·4h·1d 박스 모두 표시.
+ * 1h 이상 차트: 차트 봉보다 굵거나 같은 TF만(1h 차트에 1d 박스 표시, 1d 박스를 1h에 숨기지 않음).
+ */
 export function shouldDrawBoxOnChart(
   boxTimeframe: string,
   chartInterval: string,
@@ -55,7 +58,7 @@ export function shouldDrawBoxOnChart(
   if (!boxSec) return false;
   const chartSec = chartBarSeconds(chartInterval);
   if (chartSec <= 900) return true;
-  return boxSec <= chartSec;
+  return boxSec >= chartSec;
 }
 
 function timeSortKey(t: Time): number {
@@ -71,6 +74,7 @@ function resolveTimeX(
   chart: IChartApi,
   series: ISeriesApi<SeriesType>,
   unixSec: number,
+  chartInterval: string,
 ): number | null {
   const direct = chart.timeScale().timeToCoordinate(unixSec as Time);
   if (direct != null && Number.isFinite(direct)) return direct;
@@ -88,7 +92,8 @@ function resolveTimeX(
     }
   }
 
-  const maxSlop = chartBarSeconds("1h") * 2;
+  const chartSec = chartBarSeconds(chartInterval);
+  const maxSlop = Math.max(chartSec * 2, chartBarSeconds("1h") * 2);
   if (bestD > maxSlop) return null;
 
   const x = chart.timeScale().timeToCoordinate(best.time);
@@ -121,8 +126,18 @@ function boxGeom(
 
   const leftUnix = Math.min(box.leftTime, box.rightTime);
   const rightUnix = Math.max(box.leftTime, box.rightTime);
-  const x1 = resolveTimeX(data.chart, data.series, leftUnix);
-  const x2 = resolveTimeX(data.chart, data.series, rightUnix);
+  const x1 = resolveTimeX(
+    data.chart,
+    data.series,
+    leftUnix,
+    data.chartInterval,
+  );
+  const x2 = resolveTimeX(
+    data.chart,
+    data.series,
+    rightUnix,
+    data.chartInterval,
+  );
   const yTop = data.series.priceToCoordinate(box.top);
   const yBot = data.series.priceToCoordinate(box.bottom);
   const yMid = data.series.priceToCoordinate(box.mid);

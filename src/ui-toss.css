@@ -3647,6 +3647,15 @@ html[data-theme="light"]
   padding: 0.35rem 0 0.5rem;
 }
 
+.crypto-chart-box-hint__scan,
+.crypto-chart-box-hint__cond {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  opacity: 0.92;
+}
+
 .live-trade-history__sentinel {
   height: 1px;
   pointer-events: none;

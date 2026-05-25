@@ -44,13 +44,18 @@ const STATE_RANK = { in_position: 0, armed: 1, idle: 2, closed: 9 };
  * @param {string} chartTimeframe
  * @param {string | null} userId
  */
+/**
+ * @returns {{ boxes: object[]; scan: Record<string, "found"|"none"|"error"> }}
+ */
 export async function buildChartBoxRangeOverlayAsync(
   symbol,
   chartTimeframe,
   userId,
 ) {
   const sym = String(symbol ?? "").trim().toUpperCase();
-  if (!sym) return [];
+  /** @type {Record<string, "found"|"none"|"error">} */
+  const scan = { "1h": "none", "4h": "none", "1d": "none" };
+  if (!sym) return { boxes: [], scan };
 
   const tfs = boxRangeTfsForChartTimeframe(chartTimeframe);
   /** @type {Map<string, object>} */
@@ -70,13 +75,18 @@ export async function buildChartBoxRangeOverlayAsync(
         leftTime: b.leftTime,
         rightTime: b.rightTime,
       });
+      scan[b.timeframe] = "found";
     }
   }
 
   for (const tf of tfs) {
     try {
       const live = await detectBoxForTf(sym, tf);
-      if (!live) continue;
+      if (!live) {
+        if (scan[tf] !== "found") scan[tf] = "none";
+        continue;
+      }
+      scan[tf] = "found";
       const prev = byTf.get(tf);
       if (!prev) {
         byTf.set(tf, live);
@@ -85,11 +95,12 @@ export async function buildChartBoxRangeOverlayAsync(
       const prevRank = STATE_RANK[prev.state] ?? 5;
       const liveRank = STATE_RANK[live.state] ?? 5;
       if (liveRank < prevRank) byTf.set(tf, live);
-      else if (prevRank >= STATE_RANK.idle) byTf.set(tf, { ...prev, ...live, boxId: prev.boxId, state: prev.state });
+      else if (prevRank >= STATE_RANK.idle)
+        byTf.set(tf, { ...prev, ...live, boxId: prev.boxId, state: prev.state });
     } catch {
-      /* skip tf */
+      scan[tf] = "error";
     }
   }
 
-  return [...byTf.values()].slice(0, 8);
+  return { boxes: [...byTf.values()].slice(0, 8), scan };
 }

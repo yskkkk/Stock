@@ -66,6 +66,9 @@ import {
 import { useMobileBackHandler } from "./hooks/useMobileBackHandler";
 import { useDesktopDockLayout } from "./hooks/useDesktopDockLayout";
 import { useLeftRailLazyFollow } from "./hooks/useLeftRailLazyFollow";
+import { useBoxRangeChartOverlay } from "./hooks/useBoxRangeChartOverlay";
+import BoxRangeChartHint from "./components/BoxRangeChartHint";
+import { shouldDrawBoxOnChart } from "./lib/boxRangeChartPrimitive";
 import { useMobilePullToRefresh } from "./hooks/useMobilePullToRefresh";
 import { usePicksLiveQuotes } from "./hooks/usePicksLiveQuotes";
 import { MOBILE_BACK_PRIORITY } from "./lib/mobileBackStack";
@@ -222,6 +225,7 @@ export default function App() {
   const [showIchimoku, setShowIchimoku] = useState(false);
   const [showVolume, setShowVolume] = useState(true);
   const [showRsi, setShowRsi] = useState(true);
+  const [showBoxRange, setShowBoxRange] = useState(false);
   const [newsPick, setNewsPick] = useState<StockPick | null>(null);
   const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
   const [newsLoading, setNewsLoading] = useState(false);
@@ -953,6 +957,25 @@ export default function App() {
       rsi: showRsi,
     }),
     [showMa, showIchimoku, showVolume, showRsi],
+  );
+  const {
+    overlays: boxRangeOverlays,
+    scan: boxRangeScan,
+    loading: boxRangeLoading,
+    needsLogin: boxRangeNeedsLogin,
+  } = useBoxRangeChartOverlay({
+    symbol: workspacePick?.symbol,
+    chartTimeframe: timeframe,
+    chartEngine,
+    enabled: showBoxRange && Boolean(workspacePick),
+    refreshKey: candleCount,
+  });
+  const visibleBoxCount = useMemo(
+    () =>
+      boxRangeOverlays.filter((b) =>
+        shouldDrawBoxOnChart(b.timeframe, chartInterval),
+      ).length,
+    [boxRangeOverlays, chartInterval],
   );
   const registerStockDrawApi = useCallback((api: ChartDrawToolbarApi | null) => {
     chartDrawApiRef.current = api;
@@ -1763,6 +1786,12 @@ export default function App() {
                           ["ich", ko.app.chipIch, showIchimoku, setShowIchimoku],
                           ["vol", ko.app.chipVol, showVolume, setShowVolume],
                           ["rsi", ko.app.chipRsi, showRsi, setShowRsi],
+                          [
+                            "box",
+                            ko.app.chipBoxRange,
+                            showBoxRange,
+                            setShowBoxRange,
+                          ],
                         ] as const
                       ).map(([key, label, on, setOn]) => (
                         <button
@@ -1788,6 +1817,15 @@ export default function App() {
                         />
                       )}
                   </div>
+                  {chartEngine === "app" && showBoxRange ? (
+                    <BoxRangeChartHint
+                      loading={boxRangeLoading}
+                      needsLogin={boxRangeNeedsLogin}
+                      scan={boxRangeScan}
+                      chartInterval={chartInterval}
+                      overlayCount={visibleBoxCount}
+                    />
+                  ) : null}
                 </div>
 
                 <div className="crypto-chart-panel-body">
@@ -1839,6 +1877,9 @@ export default function App() {
                         showBuiltInDrawToolbar={false}
                         registerDrawApi={registerStockDrawApi}
                         overlays={stockChartOverlays}
+                        boxRangeOverlays={
+                          showBoxRange ? boxRangeOverlays : []
+                        }
                         profitMarker={profitMarker}
                       />
                     )}
