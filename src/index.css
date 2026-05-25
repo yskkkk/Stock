@@ -9752,9 +9752,17 @@ html[data-theme="light"]
 
 .app-live-trade-side-dock--open .app-live-trade-side-dock__panel {
   visibility: visible;
+  overflow: visible;
+}
+
+.app-live-trade-side-dock--open .app-live-trade-side-dock__host {
   border-top-left-radius: var(--radius-xl, 22px);
   border-bottom-left-radius: var(--radius-xl, 22px);
   overflow: hidden;
+}
+
+.app-live-trade-side-dock--open .app-live-trade-side-dock__resize-handle {
+  z-index: 20;
 }
 
 .app-live-trade-side-dock__resize-handle,
@@ -10018,10 +10026,10 @@ html[data-theme="light"][data-light-palette="glass"]
   height: 100% !important;
   max-height: none !important;
   border: none;
-  border-left: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
+  border-left: none;
   border-radius: var(--radius-xl, 22px) 0 var(--radius-xl, 22px) 0 !important;
-  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.22);
-  background: var(--card-bg);
+  box-shadow: none;
+  background: transparent;
   color: var(--text);
   overflow: hidden;
   isolation: isolate;
@@ -10043,7 +10051,7 @@ html[data-theme="light"][data-light-palette="glass"]
 
 html[data-theme="light"] .app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail {
   --dock-pane-outer-fill: var(--bg, #eef1f4);
-  box-shadow: -6px 0 24px rgba(15, 23, 42, 0.06);
+  box-shadow: none;
 }
 
 html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail {
@@ -10057,7 +10065,7 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
 
 .app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail .live-trading-tab__card-tabs-rail-head,
 .app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail .live-trade-dock-ys-head {
-  background: color-mix(in srgb, var(--card-bg) 94%, var(--surface-2));
+  background: transparent;
 }
 
 .app-live-trade-side-dock__api-popover--portal > .live-trade-dock-ys-head,
@@ -10081,12 +10089,29 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
 }
 
 .app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail .live-trading-tab__card-tabs-body {
-  background: var(--card-bg);
+  background: transparent;
 }
 
 .app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail .live-trading-tab__card-tabs-host {
-  background: var(--card-bg);
+  background: transparent;
   color: var(--text);
+}
+
+html[data-theme="light"]
+  .app-live-trade-side-dock__host
+  .live-portfolio--sim-like.live-portfolio--collapsible.live-trade-api-card {
+  background: transparent;
+  box-shadow: none;
+}
+
+html[data-theme="light"] .app-live-trade-side-dock__host .live-portfolio__panel {
+  background: transparent;
+}
+
+.app-live-trade-side-dock__host .live-sim-run.card {
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 .app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail .live-trading-tab__card-tabs-hint {

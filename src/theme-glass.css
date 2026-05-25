@@ -229,7 +229,9 @@ html[data-theme="light"][data-light-palette="glass"] .app-live-trade-side-dock__
 html[data-theme="light"][data-light-palette="glass"]
   .app-live-trade-side-dock__host
   .live-trading-tab__card-tabs-pane--rail {
-  background: rgba(255, 255, 255, 0.48) !important;
+  background: transparent !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
   --dock-pane-outer-fill: #dce2e8;
 }
 
