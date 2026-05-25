@@ -219,10 +219,59 @@ html[data-theme="light"][data-light-palette="glass"] .app-live-trade-side-dock__
   --live-trade-dock-rail-bg: rgba(255, 255, 255, 0.34);
 }
 
+/* 우측 도크 패널 — 둥근 모서리 불투명 캡 제거(직각·투명 셸 + 내부만 유리) */
+html[data-theme="light"][data-light-palette="glass"] .app-live-trade-side-dock--open
+  .app-live-trade-side-dock__panel {
+  border-radius: 0;
+  background: transparent;
+}
+
+html[data-theme="light"][data-light-palette="glass"] .app-live-trade-side-dock__host {
+  background: transparent;
+}
+
+html[data-theme="light"][data-light-palette="glass"] .app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane,
 html[data-theme="light"][data-light-palette="glass"]
   .app-live-trade-side-dock__host
-  .live-trading-tab__card-tabs-pane--rail {
-  background: rgba(255, 255, 255, 0.44) !important;
+  .live-trading-tab__card-tabs-pane--rail,
+html[data-theme="light"][data-light-palette="glass"]
+  .app-live-trade-side-dock__host
+  .live-trading-tab__card-tabs-pane--active {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+html[data-theme="light"][data-light-palette="glass"] .live-trade-dock-ys-head,
+html[data-theme="light"][data-light-palette="glass"]
+  .app-live-trade-side-dock__host
+  .live-trading-tab__card-tabs-pane--rail
+  .live-trade-dock-ys-head {
+  background: transparent !important;
+}
+
+html[data-theme="light"][data-light-palette="glass"]
+  .app-live-trade-side-dock__host
+  .live-trading-tab__card-tabs-pane--rail
+  .live-trading-tab__card-tabs-body,
+html[data-theme="light"][data-light-palette="glass"]
+  .app-live-trade-side-dock__host
+  .live-trading-tab__card-tabs-pane--rail
+  .live-trading-tab__card-tabs-host,
+html[data-theme="light"][data-light-palette="glass"] .app-live-trade-side-dock__host .app-dock-rail-panel,
+html[data-theme="light"][data-light-palette="glass"]
+  .app-live-trade-side-dock__host
+  .app-dock-rail-panel--accounts,
+html[data-theme="light"][data-light-palette="glass"]
+  .app-live-trade-side-dock__host
+  .app-dock-rail-panel--auth,
+html[data-theme="light"][data-light-palette="glass"]
+  .app-live-trade-side-dock__host
+  .app-dock-rail-panel--bithumb {
+  background: rgba(255, 255, 255, 0.36) !important;
+  border: none !important;
+  box-shadow: 0 6px 24px rgba(38, 46, 56, 0.04) !important;
 }
 
 html[data-theme="light"][data-light-palette="glass"] .light-palette-swatch[data-lp="glass"] {
