@@ -1373,6 +1373,8 @@ export function fetchLiveTradingTradeHistory(opts?: {
   /** true — 전체 일자·최신순(도크 거래내역) */
   all?: boolean;
   programId?: string | null;
+  /** bithumb — 빗썸 API·crypto, toss — kr·us */
+  exchange?: "bithumb" | "toss" | null;
 }) {
   const params = new URLSearchParams();
   const endDay = String(opts?.endDay ?? "").trim();
@@ -1381,6 +1383,10 @@ export function fetchLiveTradingTradeHistory(opts?: {
   else if (opts?.days != null) params.set("days", String(opts.days));
   const programId = String(opts?.programId ?? "").trim();
   if (programId) params.set("programId", programId);
+  const exchange = String(opts?.exchange ?? "").trim();
+  if (exchange === "bithumb" || exchange === "toss") {
+    params.set("exchange", exchange);
+  }
   const q = params.toString() ? `?${params}` : "";
   return fetchJson<LiveTradeHistoryResponse>(
     `/api/live-trading/trades/history${q}`,

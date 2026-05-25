@@ -686,6 +686,9 @@ export const ko = {
     chipBoxRange: "박스권",
     boxRangeChartEmpty: "이 차트에 표시할 박스가 없습니다.",
     boxRangeChartLoading: "박스권 탐지 중…",
+    liveTradeTradesFetching: "거래소 API에서 체결 내역을 불러오는 중…",
+    liveTradeTradesEmptyExchange:
+      "체결 내역이 없습니다. API 키·연동 상태를 확인하세요.",
     boxRangeChartLogin: "박스권 표시는 로그인 후 이용할 수 있습니다.",
     boxRangeConditions:
       "조건: 확정봉 기준 연속 14봉 이상 횡보(1h 폭≤3%, 4h≤5%, 일봉≤15%), 상·하단 각 2회 이상 터치(12% 이내).",

@@ -54,6 +54,7 @@ import {
   useLiveTradeAuth,
 } from "./components/LiveTradeAuthAndCredentials";
 import RecommendationsTab from "./components/RecommendationsTab";
+import TradeHistoryTab from "./components/TradeHistoryTab";
 import StockSearchTab from "./components/StockSearchTab";
 import StockChart from "./components/StockChart";
 import TradingViewAdvancedChart from "./components/TradingViewAdvancedChart";
@@ -132,6 +133,7 @@ export type AppTab =
   | "liveTrading"
   | "stockLookup"
   | "crypto"
+  | "tradeHistory"
   | "ops";
 
 type StockChartEngine = "tradingview" | "app";
@@ -1308,6 +1310,17 @@ export default function App() {
               >
                 {ko.app.tabRecommendations}
               </button>
+              {liveTradeUser ? (
+                <button
+                  type="button"
+                  className={
+                    appTab === "tradeHistory" ? "main-tab active" : "main-tab"
+                  }
+                  onClick={() => setAppTab("tradeHistory")}
+                >
+                  {ko.app.tabTradeHistory}
+                </button>
+              ) : null}
             </nav>
 
             <div className="top-bar__tools">
@@ -1355,6 +1368,8 @@ export default function App() {
         />
       ) : appTab === "recommendations" ? (
         <RecommendationsTab onOpenPick={handleSelect} />
+      ) : appTab === "tradeHistory" ? (
+        <TradeHistoryTab />
       ) : appTab === "liveTrading" ? (
         <div className="live-trade-tab-root">
           <LiveTradingTab

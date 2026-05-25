@@ -824,11 +824,20 @@ export function createApp() {
         String(req.query?.all ?? "").trim() === "1" ||
         String(req.query?.all ?? "").trim() === "true";
       const programId = String(req.query?.programId ?? "").trim() || undefined;
-      const payload = buildLiveTradeHistoryPayload(req.user.id, {
+      const exchangeRaw = String(req.query?.exchange ?? "").trim().toLowerCase();
+      const exchange =
+        exchangeRaw === "bithumb" || exchangeRaw === "toss"
+          ? exchangeRaw
+          : undefined;
+      const { buildLiveTradeHistoryPayloadAsync } = await import(
+        "./live-trade-history.js"
+      );
+      const payload = await buildLiveTradeHistoryPayloadAsync(req.user.id, {
         endDay,
         days: days != null ? Number(days) : 1,
         all,
         programId,
+        exchange,
       });
       res.json(payload);
     }),

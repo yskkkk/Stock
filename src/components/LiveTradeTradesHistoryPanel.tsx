@@ -91,8 +91,17 @@ export default function LiveTradeTradesHistoryPanel({
       try {
         const pid = programId?.trim() || undefined;
         const fetchOpts = loadAll
-          ? { all: true as const, programId: pid }
-          : { endDay: endDay ?? undefined, days: 1, programId: pid };
+          ? {
+              all: true as const,
+              programId: pid,
+              exchange: exchange ?? undefined,
+            }
+          : {
+              endDay: endDay ?? undefined,
+              days: 1,
+              programId: pid,
+              exchange: exchange ?? undefined,
+            };
         const data = adminId
           ? await fetchAccessAdminLiveTradingTradeHistory(
               getStoredAccessAdminToken(),
@@ -114,7 +123,7 @@ export default function LiveTradeTradesHistoryPanel({
         loadingMoreRef.current = false;
       }
     },
-    [adminViewUserId, loadAll, programId],
+    [adminViewUserId, loadAll, programId, exchange],
   );
 
   useEffect(() => {
@@ -206,9 +215,15 @@ export default function LiveTradeTradesHistoryPanel({
       ) : null}
 
       {loading && filteredTrades.length === 0 ? (
-        <p className="live-trade-history__muted">{ko.app.liveTradePfLoading}</p>
+        <p className="live-trade-history__muted">
+          {exchange ? ko.app.liveTradeTradesFetching : ko.app.liveTradePfLoading}
+        </p>
       ) : filteredTrades.length === 0 ? (
-        <p className="live-trade-history__muted">{ko.app.liveTradePfNoTrades}</p>
+        <p className="live-trade-history__muted">
+          {exchange
+            ? ko.app.liveTradeTradesEmptyExchange
+            : ko.app.liveTradePfNoTrades}
+        </p>
       ) : (
         <div className="live-trade-history__scroll">
           <div className="live-sim-run__table-wrap">

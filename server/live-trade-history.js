@@ -106,3 +106,82 @@ export function buildLiveTradeHistoryPayload(userId, opts = {}) {
     fetchedAtMs: Date.now(),
   };
 }
+
+/** @param {"bithumb"|"toss"} exchange @param {object[]} trades */
+export function filterTradesByExchange(trades, exchange) {
+  if (exchange === "bithumb") {
+    return trades.filter((t) => t.market === "crypto");
+  }
+  if (exchange === "toss") {
+    return trades.filter((t) => t.market === "kr" || t.market === "us");
+  }
+  return trades;
+}
+
+/**
+ * @param {object[]} storeTrades
+ * @param {object[]} apiTrades
+ */
+function mergeHistoryTrades(storeTrades, apiTrades) {
+  /** @type {Map<string, object>} */
+  const byKey = new Map();
+  for (const t of storeTrades) {
+    const k = String(t.orderId ?? "").trim() || String(t.id ?? "");
+    if (k) byKey.set(k, t);
+  }
+  for (const t of apiTrades) {
+    const k = String(t.orderId ?? "").trim() || String(t.id ?? "");
+    if (!k || byKey.has(k)) continue;
+    byKey.set(k, t);
+  }
+  return [...byKey.values()].sort((a, b) => b.atMs - a.atMs);
+}
+
+/**
+ * @param {string} userId
+ * @param {{ endDay?: string, days?: number, all?: boolean, programId?: string, exchange?: "bithumb"|"toss" }} [opts]
+ */
+export async function buildLiveTradeHistoryPayloadAsync(userId, opts = {}) {
+  const uid = String(userId ?? "").trim();
+  if (!uid) throw new Error("userId required");
+
+  const exchange = opts.exchange;
+
+  if (exchange === "bithumb") {
+    try {
+      const { syncLiveTradeExchangeForUser } = await import(
+        "./live-trade-exchange-sync.js"
+      );
+      const programs = listLiveTradeProgramsSync(uid);
+      await syncLiveTradeExchangeForUser(uid, programs);
+    } catch {
+      /* 동기화 실패해도 API 조회 시도 */
+    }
+  }
+
+  const payload = buildLiveTradeHistoryPayload(userId, opts);
+
+  if (exchange === "bithumb") {
+    const { listBithumbTradesFromExchangeApiForHistory } = await import(
+      "./live-trade-bithumb-exchange-trades.js"
+    );
+    let apiTrades = [];
+    try {
+      apiTrades = await listBithumbTradesFromExchangeApiForHistory(uid);
+    } catch {
+      apiTrades = [];
+    }
+    let merged = mergeHistoryTrades(payload.trades, apiTrades);
+    merged = enrichPortfolioTradeNames(merged);
+    merged = attachProgramNames(merged, uid);
+    merged = filterTradesByExchange(merged, "bithumb");
+    return { ...payload, trades: merged, fetchedAtMs: Date.now() };
+  }
+
+  if (exchange === "toss") {
+    const filtered = filterTradesByExchange(payload.trades, "toss");
+    return { ...payload, trades: filtered, fetchedAtMs: Date.now() };
+  }
+
+  return payload;
+}

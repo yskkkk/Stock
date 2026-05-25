@@ -22,9 +22,11 @@ import { getDecryptedCredentialsSync } from "./user-credentials-store.js";
 import { pickArmedProgramForSymbol } from "./live-trade-bithumb-holdings.js";
 import {
   buildPositionsFromTrades,
+  listLiveTradeRecordsSync,
   readStoreSync,
   recordLiveTradeSellSync,
 } from "./live-trade-portfolio-store.js";
+import { listLiveTradeProgramsSync } from "./live-trade-programs-store.js";
 import { liveTradeLogWarn } from "./live-trade-log.js";
 
 /**
@@ -419,6 +421,112 @@ export async function mergeBithumbExchangeTradesAfterNotify(snap, userId, progra
  * @param {object} snap
  * @param {string} userId
  */
+const HISTORY_LOOKBACK_MS = 90 * 24 * 60 * 60 * 1000;
+
+/**
+ * 거래내역 UI — 빗썸 체결 API 직접 조회(armed·텔레그램 조건 없음)
+ * @param {string} userId
+ */
+export async function listBithumbTradesFromExchangeApiForHistory(userId) {
+  const uid = String(userId ?? "").trim();
+  if (!uid) return [];
+
+  const credentials = getDecryptedCredentialsSync(uid, "bithumb");
+  if (!credentials?.apiKey || !credentials?.secretKey) return [];
+
+  const programs = listLiveTradeProgramsSync(uid);
+  const program =
+    programs.find((p) => p.markets?.crypto) ?? programs[0] ?? null;
+  const programId = program?.id ?? "bithumb-exchange";
+  const programName = program?.name ?? "빗썸";
+
+  const sinceMs = Date.now() - HISTORY_LOOKBACK_MS;
+  const oneWayFee = getOneWayFeeRateForUserMarketSync(uid, "crypto");
+  /** @type {Map<string, { sym: string; market: string }>} */
+  const marketByKey = new Map();
+
+  try {
+    const accounts = await fetchBithumbAccountsWithCredentials(credentials);
+    for (const acc of accounts) {
+      const cur = String(acc.currency ?? "").trim().toUpperCase();
+      if (!cur || cur === "KRW") continue;
+      const sym = bithumbBaseToUsdtSymbol(cur);
+      if (!sym) continue;
+      const base = usdtSymbolToBithumbBase(sym);
+      if (!base) continue;
+      marketByKey.set(`KRW-${base}`, { sym, market: `KRW-${base}` });
+    }
+  } catch (e) {
+    liveTradeLogWarn(
+      "[live-trade:history-api]",
+      "accounts",
+      e instanceof Error ? e.message : e,
+    );
+  }
+
+  for (const t of listLiveTradeRecordsSync(null, uid)) {
+    if (t.market !== "crypto") continue;
+    const base = usdtSymbolToBithumbBase(t.symbol);
+    if (!base) continue;
+    marketByKey.set(`KRW-${base}`, {
+      sym: String(t.symbol).trim().toUpperCase(),
+      market: `KRW-${base}`,
+    });
+  }
+
+  /** @type {object[]} */
+  const out = [];
+  const seenOrder = new Set();
+
+  for (const { sym, market } of marketByKey.values()) {
+    let orders = [];
+    try {
+      orders = await listBithumbDoneOrdersWithCredentials(credentials, market, {
+        limit: 100,
+        orderBy: "desc",
+      });
+    } catch (e) {
+      liveTradeLogWarn(
+        "[live-trade:history-api]",
+        market,
+        e instanceof Error ? e.message : e,
+      );
+      continue;
+    }
+
+    for (const o of orders) {
+      const fill = parseDoneOrderFill(o);
+      if (!fill || fill.atMs < sinceMs) continue;
+      if (seenOrder.has(fill.orderId)) continue;
+      seenOrder.add(fill.orderId);
+
+      const amount = fill.funds > 0 ? fill.funds : fill.price * fill.volume;
+      out.push({
+        id: `bithumb:${fill.orderId}`,
+        programId,
+        programName,
+        side: fill.side,
+        symbol: sym,
+        name: cryptoYahooUsdtDisplayName(sym) ?? sym,
+        market: "crypto",
+        quantity: fill.volume,
+        price: fill.price,
+        amount,
+        currency: liveTradeCurrency("crypto"),
+        feeAmount: amount * oneWayFee,
+        simulated: false,
+        orderId: fill.orderId,
+        note: "빗썸 체결·API",
+        exchangeImport: true,
+        entryPrice: null,
+        atMs: fill.atMs,
+      });
+    }
+  }
+
+  return out.sort((a, b) => b.atMs - a.atMs);
+}
+
 function enrichHoldingsNotifyReturn(snap, userId = "") {
   const feeRate = userId
     ? getRoundTripFeeRateForUserMarketSync(userId, "crypto")

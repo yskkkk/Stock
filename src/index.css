@@ -10432,6 +10432,18 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   align-self: flex-start;
 }
 
+.trade-history-workspace {
+  min-height: min(72vh, 560px);
+}
+
+.trade-history-workspace__panel {
+  display: flex;
+  flex-direction: column;
+  min-height: min(68vh, 520px);
+  padding: 1rem;
+  overflow: hidden;
+}
+
 .toss-account-balance__unreal {
   margin: 0 0 0.45rem;
   font-size: 0.78rem;
