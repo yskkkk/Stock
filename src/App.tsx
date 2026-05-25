@@ -26,6 +26,7 @@ import MacroEventsBar from "./components/MacroEventsBar";
 import LeftRailBithumbAccountPanel from "./components/LeftRailBithumbAccountPanel";
 import LeftRailLiveTradeAuthPanel from "./components/LeftRailLiveTradeAuthPanel";
 import LiveTradingHeaderStrip from "./components/LiveTradingHeaderStrip";
+import TelegramNotifyIconButton from "./components/TelegramNotifyIconButton";
 import LiveTradingLeftRailPanel from "./components/LiveTradingLeftRailPanel";
 import MarketIndicesBelt from "./components/MarketIndicesBelt";
 import NewsModal from "./components/NewsModal";
@@ -1148,8 +1149,17 @@ export default function App() {
               </div>
               <div className="top-bar__brand-main">
                 <p className="top-bar__brand-tags">
-                  <span className="top-bar__brand-tags__lead">
-                    {picks?.scanScopeLabel ?? ko.app.subtitle}
+                  <span className="top-bar__brand-tags__row">
+                    <span className="top-bar__brand-tags__lead">
+                      {picks?.scanScopeLabel ?? ko.app.subtitle}
+                    </span>
+                    {telegramNotify ? (
+                      <TelegramNotifyIconButton
+                        sentCount={telegramSentCount}
+                        onClick={handleOpenTelegramSent}
+                        className="top-bar__brand-tags__telegram"
+                      />
+                    ) : null}
                   </span>
                   {appTab === "screener" && (
                     <span className="tag-group">
@@ -1220,9 +1230,6 @@ export default function App() {
             ) : null}
             <LiveTradingHeaderStrip
               onOpenLiveTrading={() => setAppTab("liveTrading")}
-              telegramNotify={telegramNotify}
-              telegramSentCount={telegramSentCount}
-              onOpenTelegramSent={handleOpenTelegramSent}
             />
           </div>
 

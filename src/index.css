@@ -1353,10 +1353,22 @@ html[data-theme="light"] .top-bar__brand .brand-mark__img {
   color: var(--text-dim);
 }
 
+.top-bar__brand-tags__row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: 100%;
+  min-width: 0;
+}
+
 .top-bar__brand-tags__lead {
-  flex: 1 1 12rem;
+  flex: 0 1 auto;
   min-width: 0;
   font-size: inherit;
+}
+
+.top-bar__brand-tags__telegram {
+  flex: 0 0 auto;
 }
 
 .telegram-sent-modal {

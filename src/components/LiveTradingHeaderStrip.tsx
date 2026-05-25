@@ -4,24 +4,14 @@ import {
   pickRunningLivePrograms,
   useLiveTradingStatusPoll,
 } from "../hooks/useLiveTradingStatusPoll";
-import TelegramNotifyIconButton from "./TelegramNotifyIconButton";
-
 function LiveTradingHeaderStripInner({
   onOpenLiveTrading,
-  telegramNotify = false,
-  telegramSentCount = 0,
-  onOpenTelegramSent,
 }: {
   onOpenLiveTrading: () => void;
-  telegramNotify?: boolean;
-  telegramSentCount?: number;
-  onOpenTelegramSent?: () => void;
 }) {
   const status = useLiveTradingStatusPoll();
   const rows = pickRunningLivePrograms(status);
-  const showTelegram =
-    telegramNotify && typeof onOpenTelegramSent === "function";
-  if (rows.length === 0 && !showTelegram) return null;
+  if (rows.length === 0) return null;
 
   const armedN = status?.armedCount ?? rows.filter((r) => r.kind === "armed").length;
   const simN = status?.simCount ?? rows.filter((r) => r.kind === "sim").length;
@@ -46,12 +36,6 @@ function LiveTradingHeaderStripInner({
             ) : null}
             {simN > 0 ? (
               <span>{liveTradeHeaderStripSim(simN)}</span>
-            ) : null}
-            {showTelegram ? (
-              <TelegramNotifyIconButton
-                sentCount={telegramSentCount}
-                onClick={onOpenTelegramSent}
-              />
             ) : null}
             {rows.length > 0 ? (
               <span className="live-trade-header-strip__names">
