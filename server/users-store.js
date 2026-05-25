@@ -149,10 +149,11 @@ export function isUserEmailVerifiedSync(user) {
  * @returns {{ updated: number }}
  */
 export function migrateLegacyUsersEmailVerifiedSync() {
-  if (!fs.existsSync(USERS_FILE)) return { updated: 0 };
+  const file = usersFilePath();
+  if (!fs.existsSync(file)) return { updated: 0 };
   let raw;
   try {
-    raw = JSON.parse(fs.readFileSync(USERS_FILE, "utf8"));
+    raw = JSON.parse(fs.readFileSync(file, "utf8"));
   } catch {
     return { updated: 0 };
   }
@@ -179,7 +180,7 @@ export function migrateLegacyUsersEmailVerifiedSync() {
   }
   if (updated > 0) {
     ensureDirSync();
-    fs.writeFileSync(USERS_FILE, JSON.stringify(raw, null, 0), "utf8");
+    fs.writeFileSync(file, JSON.stringify(raw, null, 0), "utf8");
   }
   return { updated };
 }
