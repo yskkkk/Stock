@@ -981,6 +981,7 @@ export interface LiveTradeProgram {
   sellHorizon?: "short" | "medium" | "long";
   armedMarkets?: { kr: boolean; crypto: boolean };
   userId?: string | null;
+  ownerEmail?: string | null;
   createdAtMs: number;
   updatedAtMs: number;
 }

@@ -13,6 +13,12 @@ import {
   validateLiveTradeArmLane,
 } from "./live-trade-arm-gate.js";
 import { minOrderAmountKrwForMarkets } from "./live-trade-market.js";
+import {
+  findUserByIdSync,
+  listUsersSync,
+  normalizeUserEmail,
+} from "./users-store.js";
+import { getCredentialMetaSync } from "./user-credentials-store.js";
 
 /** 신규 매도 전략 반영 버전 — migrate가 올림 */
 export const LIVE_TRADE_SELL_SETTINGS_VERSION = 2;
@@ -56,10 +62,17 @@ export const LIVE_TRADE_DEFAULT_MIN_SCORE_RATIO = 0.8;
  *   sellSettingsVersion?: number;
  *   armedMarkets?: { kr: boolean; crypto: boolean };
  *   userId: string | null;
+ *   ownerEmail: string | null;
  *   createdAtMs: number;
  *   updatedAtMs: number;
  * }} LiveTradeProgram
  */
+
+/** @param {string | null | undefined} email */
+export function normalizeProgramOwnerEmail(email) {
+  const e = normalizeUserEmail(email);
+  return e && e.includes("@") ? e : null;
+}
 
 function ensureDirSync() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -205,6 +218,9 @@ function normalizeProgram(raw) {
     })(),
     userId:
       typeof o.userId === "string" && o.userId.trim() ? o.userId.trim() : null,
+    ownerEmail: normalizeProgramOwnerEmail(
+      typeof o.ownerEmail === "string" ? o.ownerEmail : null,
+    ),
     createdAtMs:
       typeof o.createdAtMs === "number" && o.createdAtMs > 0 ? o.createdAtMs : now,
     updatedAtMs:
@@ -260,10 +276,15 @@ function validateProgramPatch(patch) {
   }
 }
 
-/** @param {string} [userId] */
-export function listLiveTradeProgramsSync(userId) {
+/** @param {string} [userId] @param {string} [ownerEmail] */
+export function listLiveTradeProgramsSync(userId, ownerEmail) {
   const uid = String(userId ?? "").trim();
-  if (uid) migrateLegacyProgramsToUserSync(uid);
+  if (uid) {
+    const email =
+      normalizeProgramOwnerEmail(ownerEmail) ??
+      normalizeProgramOwnerEmail(findUserByIdSync(uid)?.email);
+    migrateProgramsForAccountSync(uid, email);
+  }
   return readStoreSync().programs.filter((p) => matchesUser(p, uid));
 }
 
@@ -279,21 +300,102 @@ export function getLiveTradeProgramSync(id, userId) {
   return prog;
 }
 
-/** @param {string} userId */
-export function migrateLegacyProgramsToUserSync(userId) {
-  const uid = String(userId ?? "").trim();
-  if (!uid) return { migrated: 0 };
-  const store = readStoreSync();
-  let n = 0;
-  for (const p of store.programs) {
-    if (!p.userId) {
-      p.userId = uid;
-      p.updatedAtMs = Date.now();
-      n++;
-    }
+/**
+ * @param {LiveTradeProgram} program
+ * @param {{
+ *   userId: string;
+ *   email: string;
+ *   users: ReturnType<typeof listUsersSync>;
+ *   soleBithumbUserId: string | null;
+ * }} ctx
+ * @returns {{ userId: string; ownerEmail: string } | null}
+ */
+export function resolveProgramAccountMigrationPatch(program, ctx) {
+  const uid = ctx.userId;
+  const email = ctx.email;
+  const pe = normalizeProgramOwnerEmail(program.ownerEmail);
+  const ownerUser = program.userId ? findUserByIdSync(program.userId) : null;
+
+  if (!program.userId) {
+    if (pe === email) return { userId: uid, ownerEmail: email };
+    if (!pe && ctx.users.length === 1) return { userId: uid, ownerEmail: email };
+    return null;
   }
-  if (n > 0) writeStoreSync(store);
-  return { migrated: n };
+
+  if (!ownerUser) {
+    if (pe === email) return { userId: uid, ownerEmail: email };
+    if (
+      !pe &&
+      program.markets.crypto &&
+      ctx.soleBithumbUserId === uid
+    ) {
+      return { userId: uid, ownerEmail: email };
+    }
+    return null;
+  }
+
+  if (pe === email && program.userId !== uid) {
+    return { userId: uid, ownerEmail: email };
+  }
+
+  return null;
+}
+
+/** @param {string} userId @param {string | null | undefined} ownerEmail */
+export function migrateProgramsForAccountSync(userId, ownerEmail) {
+  const uid = String(userId ?? "").trim();
+  const email = normalizeProgramOwnerEmail(ownerEmail);
+  if (!uid || !email) return { migrated: 0, reclaimed: 0 };
+
+  const users = listUsersSync();
+  const bithumbUserIds = users
+    .filter((u) => getCredentialMetaSync(u.id, "bithumb").configured)
+    .map((u) => u.id);
+  const soleBithumbUserId =
+    bithumbUserIds.length === 1 ? bithumbUserIds[0] : null;
+
+  const store = readStoreSync();
+  let migrated = 0;
+  let reclaimed = 0;
+  let dirty = false;
+
+  for (const p of store.programs) {
+    if (!p.ownerEmail && p.userId) {
+      const u = findUserByIdSync(p.userId);
+      if (u?.email) {
+        p.ownerEmail = normalizeProgramOwnerEmail(u.email);
+        dirty = true;
+      }
+    }
+
+    const patch = resolveProgramAccountMigrationPatch(p, {
+      userId: uid,
+      email,
+      users,
+      soleBithumbUserId,
+    });
+    if (!patch) continue;
+
+    const hadUser = Boolean(p.userId);
+    p.userId = patch.userId;
+    p.ownerEmail = patch.ownerEmail;
+    p.updatedAtMs = Date.now();
+    dirty = true;
+    if (!hadUser) migrated++;
+    else reclaimed++;
+  }
+
+  if (dirty) writeStoreSync(store);
+  return { migrated, reclaimed };
+}
+
+/** @param {string} userId @param {string} [ownerEmail] */
+export function migrateLegacyProgramsToUserSync(userId, ownerEmail) {
+  const email =
+    normalizeProgramOwnerEmail(ownerEmail) ??
+    normalizeProgramOwnerEmail(findUserByIdSync(userId)?.email);
+  const { migrated, reclaimed } = migrateProgramsForAccountSync(userId, email);
+  return { migrated: migrated + reclaimed };
 }
 
 export function listArmedLiveTradeProgramsSync() {
@@ -351,9 +453,12 @@ export function stopSimLiveTradeProgramSync(id, userId) {
  *   sellHorizon?: "short" | "medium" | "long";
  * }} input
  */
-export function createLiveTradeProgramSync(input, userId) {
+export function createLiveTradeProgramSync(input, userId, ownerEmail) {
   const uid = String(userId ?? "").trim();
   if (!uid) throw new Error("로그인이 필요합니다.");
+  const owner =
+    normalizeProgramOwnerEmail(ownerEmail) ??
+    normalizeProgramOwnerEmail(findUserByIdSync(uid)?.email);
   const markets = {
     kr:
       input.markets == null || input.markets.kr === undefined
@@ -367,6 +472,7 @@ export function createLiveTradeProgramSync(input, userId) {
   const program = normalizeProgram({
     id: randomUUID(),
     userId: uid,
+    ownerEmail: owner,
     name: input.name,
     modelId: input.modelId,
     markets: {

@@ -413,5 +413,6 @@ export function requireUserAuth(req, res, next) {
  * @param {string} userId
  */
 export function maybeMigrateLegacyLiveTradeDataSync(userId) {
-  migrateLegacyProgramsToUserSync(userId);
+  const user = findUserByIdSync(userId);
+  migrateLegacyProgramsToUserSync(userId, user?.email);
 }

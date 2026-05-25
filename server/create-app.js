@@ -520,10 +520,10 @@ export function createApp() {
             }
           : getTossTradingStatus();
       const bithumb = getBithumbTradingStatusForUserSync(userId);
-      migrateLegacyProgramsToUserSync(userId);
+      migrateLegacyProgramsToUserSync(userId, req.user.email);
       await ensureLiveTradeSellSettingsMigratedOnce();
       await ensureLiveTradeExitScenarioMigratedOnce();
-      let programs = listLiveTradeProgramsSync(userId);
+      let programs = listLiveTradeProgramsSync(userId, req.user.email);
       let programReturns = await buildProgramPortfolioSummariesMap(
         programs.map((p) => p.id),
         userId,
@@ -578,6 +578,7 @@ export function createApp() {
             sellHorizon: req.body?.sellHorizon,
           },
           userId,
+          req.user.email,
         );
         res.json({
           ok: true,
