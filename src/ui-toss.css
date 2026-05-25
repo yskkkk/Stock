@@ -16,6 +16,11 @@
     env(safe-area-inset-left, 0px),
     env(safe-area-inset-right, 0px)
   );
+  /* 탭 본문 — top-bar·필터·카드 좌우·상하 여백 SSOT */
+  --tab-stack-gap: 0.55rem;
+  --tab-card-pad-x: 0.95rem;
+  --tab-card-pad-y-top: 0.9rem;
+  --tab-card-pad-y-bottom: 1.05rem;
 }
 
 html {
@@ -73,7 +78,7 @@ html {
   flex-direction: column;
   width: 100%;
   max-width: var(--app-page-max-width);
-  gap: 0.28rem;
+  gap: var(--tab-stack-gap);
   padding-top: max(0px, env(safe-area-inset-top, 0px));
   padding-bottom: 1.35rem;
   padding-inline: var(--app-page-inline-pad-safe);
@@ -97,6 +102,25 @@ html {
   margin-top: 0;
 }
 
+/* 탭 본문 카드·필터 — top-bar와 동일 좌우, shell·워크스페이스 세로 gap 통일 */
+.app__shell > .workspace,
+.app__shell > .trade-history-workspace,
+.app__shell > .live-trade-tab-root,
+.app__shell > .crypto-workspace {
+  gap: var(--tab-stack-gap);
+}
+
+.app__shell > .filter-bar.card,
+.app__shell > .workspace > .picks-panel.card,
+.app__shell > .workspace.workspace--rec-tracker > .picks-panel.card,
+.app__shell > .workspace.ops-workspace > .card,
+.app__shell .trade-history-main-workspace.card,
+.app__shell > .picks-panel.live-trading-side,
+.app__shell .crypto-workspace > .picks-panel.crypto-panel.card,
+.app__shell .workspace .chart-section .quote-bar.card {
+  padding: var(--tab-card-pad-y-top) var(--tab-card-pad-x) var(--tab-card-pad-y-bottom);
+}
+
 .app-header-sticky {
   flex-shrink: 0;
   width: 100%;
@@ -108,6 +132,11 @@ html {
 .card {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
+}
+
+/* 상단 바 — 본문 카드와 동일 좌우 inset */
+.top-bar.card {
+  padding: 0.55rem var(--tab-card-pad-x) 0.65rem;
 }
 
 /* 상단·패널 카드는 조금 더 둥글게 */
@@ -492,7 +521,6 @@ html {
   align-self: stretch;
   max-height: none;
   overflow: visible;
-  padding: 0.9rem 1.05rem 1.05rem;
   gap: 0.2rem;
 }
 
@@ -721,10 +749,14 @@ html {
 
   :root {
     --app-page-inline-pad: 0.45rem;
+    --tab-stack-gap: 0.45rem;
+    --tab-card-pad-x: 0.55rem;
+    --tab-card-pad-y-top: 0.62rem;
+    --tab-card-pad-y-bottom: 0.75rem;
   }
 
   .app__viewport > .app__shell {
-    gap: 0.22rem;
+    gap: var(--tab-stack-gap);
     padding-top: max(0px, env(safe-area-inset-top, 0px));
     padding-inline: var(--app-page-inline-pad-safe);
     padding-bottom: max(0.55rem, env(safe-area-inset-bottom, 0px));
@@ -862,10 +894,14 @@ html {
 
   :root {
     --app-page-inline-pad: 0.38rem;
+    --tab-stack-gap: 0.4rem;
+    --tab-card-pad-x: 0.52rem;
+    --tab-card-pad-y-top: 0.58rem;
+    --tab-card-pad-y-bottom: 0.68rem;
   }
 
   .app__viewport > .app__shell {
-    gap: 0.2rem;
+    gap: var(--tab-stack-gap);
     padding-top: max(0px, env(safe-area-inset-top, 0px));
     padding-inline: var(--app-page-inline-pad-safe);
     padding-bottom: max(0.48rem, env(safe-area-inset-bottom, 0px));
@@ -3661,15 +3697,8 @@ html[data-theme="light"]
 .trade-history-main-workspace__body {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
   min-height: 0;
   flex: 1 1 auto;
-}
-
-.trade-history-main-workspace__subhead {
-  margin: 0.25rem 0 0;
-  padding-top: 0.65rem;
-  border-top: 1px solid var(--border, rgba(148, 163, 184, 0.12));
 }
 
 .live-trade-trades-workspace__title--sub {
@@ -3697,38 +3726,27 @@ html[data-theme="light"]
 }
 
 .trade-history-main-workspace__head {
-  padding: 0.65rem 0.85rem 0.35rem;
+  padding: 0 0 0.45rem;
+  margin: 0;
   border-bottom: 1px solid var(--border, rgba(15, 23, 42, 0.08));
 }
 
-/* 거래내역 탭 — 좌측 타이트 붙음 완화, 컴팩트 타이포 */
+.trade-history-main-workspace__body {
+  gap: var(--tab-stack-gap);
+  padding: 0;
+}
+
+.trade-history-main-workspace__subhead {
+  padding: 0.65rem 0 0;
+  margin: 0.15rem 0 0;
+  border-top: 1px solid var(--border, rgba(148, 163, 184, 0.12));
+}
+
+/* 거래내역 탭 — shell·top-bar와 좌우 정렬(바깥 여백은 .trade-history-main-workspace.card) */
 .trade-history-workspace {
-  padding: clamp(0.75rem, 2vw, 1.25rem) clamp(1rem, 3vw, 1.65rem)
-    clamp(0.85rem, 2vw, 1.35rem);
+  padding: 0;
+  margin: 0;
   box-sizing: border-box;
-}
-
-.trade-history-workspace .trade-history-main-workspace__head,
-.trade-history-workspace .trade-history-main-workspace__body,
-.trade-history-workspace .trade-history-main-workspace__subhead {
-  padding-left: clamp(0.85rem, 2.2vw, 1.35rem);
-  padding-right: clamp(0.85rem, 2.2vw, 1.35rem);
-}
-
-.trade-history-workspace .trade-history-main-workspace__head {
-  padding-top: clamp(0.7rem, 1.8vw, 0.95rem);
-  padding-bottom: 0.45rem;
-}
-
-.trade-history-workspace .trade-history-main-workspace__body {
-  gap: 0.85rem;
-  padding-top: 0.3rem;
-  padding-bottom: clamp(0.75rem, 1.8vw, 1.1rem);
-}
-
-.trade-history-workspace .trade-history-main-workspace__subhead {
-  padding-top: 0.7rem;
-  margin-top: 0.15rem;
 }
 
 .trade-history-workspace .live-trade-trades-workspace__title {
@@ -3746,20 +3764,20 @@ html[data-theme="light"]
 
 .trade-history-workspace .live-account-holdings__title {
   font-size: 0.76rem;
-  margin: 0 0 0.35rem 0.2rem;
+  margin: 0 0 0.35rem;
 }
 
 .trade-history-workspace .live-account-holdings__empty,
 .trade-history-workspace .live-trade-history__muted,
 .trade-history-workspace .live-trade-history__err {
   font-size: 0.72rem;
-  margin-left: 0.2rem;
+  margin: 0;
 }
 
 .trade-history-workspace .live-sim-run__table-wrap,
 .trade-history-workspace .live-account-holdings__table-wrap {
-  margin: 0 0.15rem 0.45rem;
-  padding: 0.2rem 0.35rem 0.4rem;
+  margin: 0 0 0.45rem;
+  padding: 0;
   border-radius: var(--radius-sm);
 }
 
@@ -3784,12 +3802,12 @@ html[data-theme="light"]
 
 .trade-history-workspace .live-sim-run__table th:first-child,
 .trade-history-workspace .live-sim-run__table td:first-child {
-  padding-left: 0.5rem;
+  padding-left: 0.15rem;
 }
 
 .trade-history-workspace .live-sim-run__table th:last-child,
 .trade-history-workspace .live-sim-run__table td:last-child {
-  padding-right: 0.5rem;
+  padding-right: 0.15rem;
 }
 
 .trade-history-workspace .live-sim-run__table .live-sim-run__sym {
@@ -3810,13 +3828,13 @@ html[data-theme="light"]
 }
 
 .trade-history-workspace .live-trade-history--workspace .live-trade-history__scroll {
-  padding: 0.15rem 0.3rem 0.45rem;
+  padding: 0.1rem 0 0.35rem;
 }
 
 .trade-history-workspace .live-trade-history__foot,
 .trade-history-workspace .live-trade-history__foot--end {
   font-size: 0.66rem;
-  padding: 0.3rem 0.5rem 0.45rem;
+  padding: 0.3rem 0 0.45rem;
 }
 
 .app-live-trade-side-dock__rail-trades-glyphs {
@@ -5643,7 +5661,6 @@ html[data-theme="light"] .live-portfolio__trade-quote-strip {
   }
 
   .picks-panel.rec-tracker-panel {
-    padding: 0.62rem 0.72rem 0.8rem;
     gap: 0.12rem;
   }
 
@@ -6128,7 +6145,7 @@ html[data-theme="light"] .app-site-footer__link--active {
 
 /* 스크리너: 신호 필터 패널 ↔ 목록·차트 패널 사이 */
 .app--screener .filter-bar.card {
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--tab-stack-gap);
 }
 
 .filter-bar.card,
