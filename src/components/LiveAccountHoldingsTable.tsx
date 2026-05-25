@@ -4,7 +4,10 @@ import { formatLiveTradeQuantity, formatPercent, formatPrice, formatSignedMoney 
 import { liveTradeHoldingMatchesExchange } from "../lib/liveTradeTradesExchangeFilter";
 import type { LiveTradeTradesExchange } from "../lib/liveTradeTradesWorkspace";
 import { ko } from "../i18n/ko";
-import { LiveHoldingChartSymbol } from "./LiveTradeHoldingDisplay";
+import {
+  LiveHoldingChartSymbol,
+  LiveTradeExitPriceCell,
+} from "./LiveTradeHoldingDisplay";
 
 export default function LiveAccountHoldingsTable({
   exchange,
@@ -39,6 +42,13 @@ export default function LiveAccountHoldingsTable({
               <th>{ko.app.liveTradePfColQty}</th>
               <th>{ko.app.liveTradePfColBuyPrice}</th>
               <th>{ko.app.liveTradePfColCurrent}</th>
+              <th>{ko.app.recTrackerColChange}</th>
+              <th className="live-table__col live-table__col--exit">
+                {ko.app.liveTradePfColTargetSell}
+              </th>
+              <th className="live-table__col live-table__col--exit">
+                {ko.app.liveTradePfColStopLoss}
+              </th>
               <th>{ko.app.liveTradePfColCostBasis}</th>
               <th>{ko.app.liveTradePfEval}</th>
               <th>{ko.app.liveTradePfColPnl}</th>
@@ -65,24 +75,45 @@ export default function LiveAccountHoldingsTable({
                       : "—"}
                   </td>
                   <td className="live-sim-run__num" data-label={ko.app.liveTradePfColCurrent}>
-                    {h.currentPrice != null ? (
-                      <>
-                        {formatPrice(h.currentPrice, h.currency)}
-                        {h.changePct != null ? (
-                          <span
-                            className={
-                              chgUp
-                                ? "live-sim-run__quote-1m live-sim-run__num--up"
-                                : "live-sim-run__quote-1m live-sim-run__num--down"
-                            }
-                          >
-                            {formatPercent(h.changePct)}
-                          </span>
-                        ) : null}
-                      </>
-                    ) : (
-                      "—"
-                    )}
+                    {h.currentPrice != null
+                      ? formatPrice(h.currentPrice, h.currency)
+                      : "—"}
+                  </td>
+                  <td
+                    className={
+                      h.changePct == null
+                        ? "live-sim-run__num"
+                        : chgUp
+                          ? "live-sim-run__num live-sim-run__num--up"
+                          : "live-sim-run__num live-sim-run__num--down"
+                    }
+                    data-label={ko.app.recTrackerColChange}
+                  >
+                    {h.changePct != null ? formatPercent(h.changePct) : "—"}
+                  </td>
+                  <td
+                    className="live-sim-run__num live-sim-run__num--exit live-table__col live-table__col--exit"
+                    data-label={ko.app.liveTradePfColTargetSell}
+                  >
+                    <LiveTradeExitPriceCell
+                      entry={h.avgEntryPrice}
+                      exitPrice={h.targetSellPrice}
+                      currency={h.currency}
+                      market={h.market}
+                      variant="success"
+                    />
+                  </td>
+                  <td
+                    className="live-sim-run__num live-sim-run__num--exit live-table__col live-table__col--exit"
+                    data-label={ko.app.liveTradePfColStopLoss}
+                  >
+                    <LiveTradeExitPriceCell
+                      entry={h.avgEntryPrice}
+                      exitPrice={h.stopLossPrice}
+                      currency={h.currency}
+                      market={h.market}
+                      variant="failure"
+                    />
                   </td>
                   <td className="live-sim-run__num" data-label={ko.app.liveTradePfColCostBasis}>
                     {h.costBasis > 0

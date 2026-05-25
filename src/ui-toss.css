@@ -3864,7 +3864,7 @@ html[data-theme="light"]
 }
 
 .trade-history-workspace .live-account-holdings__table {
-  min-width: 44rem;
+  min-width: 58rem;
 }
 
 .trade-history-workspace .live-trade-history__table.live-sim-run__table--trades {
