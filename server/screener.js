@@ -11,7 +11,11 @@ import { notifyHighScorePick } from "./telegram-notify.js";
 import { recordPicksDailySnapshot } from "./picks-history-store.js";
 import { readLastScanSnapshotSync, writeLastScanSnapshotSync } from "./picks-live-persist.js";
 import { loadUniverse } from "./universe.js";
-import { buildScreeningQueue, scanScopeLabel } from "./screening-queue.js";
+import {
+  buildScreeningQueue,
+  scanScopeLabel,
+  scanScopeMarketFlags,
+} from "./screening-queue.js";
 import { isMarketOpenBySchedule } from "./market-hours.js";
 import { clearYahooSession, getYahooSession } from "./yahoo.js";
 
@@ -41,7 +45,9 @@ let state = {
   updatedAt: null,
   message: "분석 준비 중…",
   scanIncludeKr: true,
-  scanScopeLabel: scanScopeLabel(true),
+  scanScopeKrActive: true,
+  scanScopeUsActive: true,
+  scanScopeLabel: scanScopeLabel(),
 };
 
 let screeningPromise = null;
@@ -75,7 +81,7 @@ function scheduleNextScan() {
 
 export function getPicksState() {
   const etaSeconds = computeEtaSeconds();
-  const includeKrLive = isMarketOpenBySchedule("kr");
+  const { krActive: krLive, usActive: usLive } = scanScopeMarketFlags();
   return {
     ...state,
     kr: [...state.kr],
@@ -85,10 +91,10 @@ export function getPicksState() {
     etaSeconds,
     nextScanAt,
     scanIntervalMs: screenIntervalMs(),
-    scanIncludeKr: state.running ? state.scanIncludeKr : includeKrLive,
-    scanScopeLabel: state.running
-      ? state.scanScopeLabel
-      : scanScopeLabel(includeKrLive),
+    scanIncludeKr: state.running ? state.scanIncludeKr : krLive,
+    scanScopeKrActive: state.running ? state.scanIncludeKr : krLive,
+    scanScopeUsActive: usLive,
+    scanScopeLabel: scanScopeLabel(),
   };
 }
 
@@ -284,9 +290,16 @@ async function runScreening() {
     try {
       await getYahooSession();
       const universe = await loadUniverse();
-      const { queue, includeKr, scanScopeLabel: scopeLabel } =
-        buildScreeningQueue(universe);
+      const {
+        queue,
+        includeKr,
+        scanScopeKrActive,
+        scanScopeUsActive,
+        scanScopeLabel: scopeLabel,
+      } = buildScreeningQueue(universe);
       state.scanIncludeKr = includeKr;
+      state.scanScopeKrActive = scanScopeKrActive;
+      state.scanScopeUsActive = scanScopeUsActive;
       state.scanScopeLabel = scopeLabel;
       state.total = queue.length;
       state.message = `${state.total}개 종목 기술적 분석 중…`;

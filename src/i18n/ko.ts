@@ -3,6 +3,9 @@ export const ko = {
   app: {
     title: "YSTOCK",
     subtitle: "국내 300 · S&P 500",
+    scanScopeKr: "국내 300",
+    scanScopeUs: "S&P 500",
+    scanScopeSep: " · ",
     topBarFxLabel: "원/달러",
     topBarFxAria: "원·달러 환율 (KST 09:00 기준, 약 20초마다 갱신)",
     topBarFxBasis: "{date} 09:00",

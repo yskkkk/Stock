@@ -1362,9 +1362,23 @@ html[data-theme="light"] .top-bar__brand .brand-mark__img {
 }
 
 .top-bar__brand-tags__lead {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0;
   flex: 0 1 auto;
   min-width: 0;
   font-size: inherit;
+}
+
+.top-bar__brand-tags__scope--off {
+  opacity: 0.38;
+  color: var(--muted);
+}
+
+html[data-theme="light"] .top-bar__brand-tags__scope--off {
+  opacity: 0.42;
+  color: color-mix(in srgb, var(--text-dim) 72%, var(--muted));
 }
 
 .top-bar__brand-tags__telegram {

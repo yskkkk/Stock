@@ -298,6 +298,12 @@ export interface PicksResponse {
   crypto: StockPick[];
   updatedAt: number | null;
   message: string;
+  /** 스캔 범위 표시(항상 전체 문구) */
+  scanScopeLabel?: string;
+  /** false면 UI에서 해당 구간만 비활성(투명) 표시 */
+  scanScopeKrActive?: boolean;
+  scanScopeUsActive?: boolean;
+  scanIncludeKr?: boolean;
 }
 
 export interface PicksDailyHistorySlimPick {

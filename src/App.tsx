@@ -1151,7 +1151,27 @@ export default function App() {
                 <p className="top-bar__brand-tags">
                   <span className="top-bar__brand-tags__row">
                     <span className="top-bar__brand-tags__lead">
-                      {picks?.scanScopeLabel ?? ko.app.subtitle}
+                      <span
+                        className={
+                          picks && picks.scanScopeKrActive === false
+                            ? "top-bar__brand-tags__scope top-bar__brand-tags__scope--off"
+                            : "top-bar__brand-tags__scope"
+                        }
+                      >
+                        {ko.app.scanScopeKr}
+                      </span>
+                      <span className="top-bar__brand-tags__sep" aria-hidden>
+                        {ko.app.scanScopeSep}
+                      </span>
+                      <span
+                        className={
+                          picks && picks.scanScopeUsActive === false
+                            ? "top-bar__brand-tags__scope top-bar__brand-tags__scope--off"
+                            : "top-bar__brand-tags__scope"
+                        }
+                      >
+                        {ko.app.scanScopeUs}
+                      </span>
                     </span>
                     {telegramNotify ? (
                       <TelegramNotifyIconButton
