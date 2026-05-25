@@ -40,7 +40,7 @@ import {
   useLiveTradingStatusPoll,
 } from "../hooks/useLiveTradingStatusPoll";
 import { LIVE_TRADE_DOCK_OPEN_FORM_EVENT } from "../lib/liveTradeDockEvents";
-import { dispatchLiveTradeDockOpenAccount } from "../lib/liveTradeDockAccount";
+import { openAccountTrades } from "../lib/liveTradeDockAccount";
 import {
   LIVE_TRADE_DOCK_PROGRAMS_PLAIN_EVENT,
   LIVE_TRADE_PORTFOLIO_PANEL_TAB_EVENT,
@@ -818,7 +818,7 @@ export default function LiveTradingTab({
               onClick={() => {
                 setProgramsPanelTab("trades");
                 if (hideCardDock) {
-                  dispatchLiveTradeDockOpenAccount({ subTab: "trades" });
+                  openAccountTrades();
                 }
               }}
             >

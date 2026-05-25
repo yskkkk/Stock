@@ -3543,6 +3543,12 @@ html[data-theme="light"]
   box-shadow: 0 2px 10px rgba(37, 99, 235, 0.12);
 }
 
+.live-trade-exchange-picker__card--on {
+  border-color: var(--accent, #2563eb);
+  box-shadow: 0 0 0 1px var(--accent, #2563eb);
+  background: color-mix(in srgb, var(--accent, #2563eb) 6%, var(--card-bg, #fff));
+}
+
 .live-trade-exchange-picker__mark {
   width: 2.25rem;
   height: 2.25rem;

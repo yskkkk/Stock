@@ -54,7 +54,7 @@ import { refreshLiveTradingStatusNow } from "../hooks/useLiveTradingStatusPoll";
 import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
 import { ko } from "../i18n/ko";
 import { RefreshIconButton } from "./RefreshIconButton";
-import { dispatchLiveTradeDockOpenAccount } from "../lib/liveTradeDockAccount";
+import { openAccountTrades } from "../lib/liveTradeDockAccount";
 import {
   LiveHoldingChartSymbol,
   LiveTradeExitPriceCell,
@@ -777,7 +777,7 @@ export default function LiveTradePortfolioPanel({
                   if (selfOnly && (id === "trade" || id === "trades")) {
                     dispatchLiveTradePortfolioPanelTab(id);
                     if (id === "trades") {
-                      dispatchLiveTradeDockOpenAccount({ subTab: "trades" });
+                      openAccountTrades();
                     }
                   }
                 }}

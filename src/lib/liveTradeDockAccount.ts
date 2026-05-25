@@ -1,11 +1,68 @@
-import type { LiveTradeTradesExchange } from "./liveTradeTradesWorkspace";
+import {
+  dispatchLiveTradeTradesWorkspace,
+  type LiveTradeTradesExchange,
+} from "./liveTradeTradesWorkspace";
 
+/** @deprecated 거래내역은 메인 영역; `openAccountTrades` 사용 */
 export type LiveTradeDockAccountSubTab = "balance" | "trades";
 
 export type LiveTradeDockAccountView = {
-  subTab?: LiveTradeDockAccountSubTab;
   provider?: LiveTradeTradesExchange;
+  /** @deprecated `openAccountTrades` 또는 `provider`만 사용 */
+  subTab?: LiveTradeDockAccountSubTab;
 };
+
+const PROVIDER_KEY = "ystock-dock-account-provider";
+
+export const LIVE_TRADE_DOCK_ACCOUNT_PROVIDER_EVENT =
+  "ystock-dock-account-provider";
+
+export function readDockAccountProvider(): LiveTradeTradesExchange {
+  try {
+    const v = sessionStorage.getItem(PROVIDER_KEY);
+    if (v === "toss" || v === "bithumb") return v;
+  } catch {
+    /* ignore */
+  }
+  return "bithumb";
+}
+
+export function persistDockAccountProvider(
+  provider: LiveTradeTradesExchange,
+): void {
+  try {
+    sessionStorage.setItem(PROVIDER_KEY, provider);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function dispatchDockAccountProvider(
+  provider: LiveTradeTradesExchange,
+): void {
+  if (typeof window === "undefined") return;
+  persistDockAccountProvider(provider);
+  window.dispatchEvent(
+    new CustomEvent<LiveTradeTradesExchange>(
+      LIVE_TRADE_DOCK_ACCOUNT_PROVIDER_EVENT,
+      { detail: provider },
+    ),
+  );
+}
+
+export function readDockAccountProviderEvent(
+  e: Event,
+): LiveTradeTradesExchange | undefined {
+  return (e as CustomEvent<LiveTradeTradesExchange>).detail;
+}
+
+export function openAccountTrades(
+  exchange: LiveTradeTradesExchange = readDockAccountProvider(),
+): void {
+  dispatchDockAccountProvider(exchange);
+  dispatchLiveTradeTradesWorkspace({ mode: "history", exchange });
+  dispatchLiveTradeDockOpenAccount({ provider: exchange });
+}
 
 export const LIVE_TRADE_DOCK_OPEN_ACCOUNT_EVENT =
   "ystock-live-trade-dock-open-account";

@@ -5,10 +5,13 @@ import type { LiveTradeTradesExchange } from "../lib/liveTradeTradesWorkspace";
 export function LiveTradeExchangePicker({
   onSelect,
   compact = false,
+  selected = null,
 }: {
   onSelect?: (exchange: LiveTradeTradesExchange) => void;
   /** 도크 패널 등 좁은 영역 */
   compact?: boolean;
+  /** 선택된 거래소(도크 계좌 등) */
+  selected?: LiveTradeTradesExchange | null;
 }) {
   const pick = (exchange: LiveTradeTradesExchange) => {
     onSelect?.(exchange);
@@ -31,7 +34,13 @@ export function LiveTradeExchangePicker({
       <div className="live-trade-exchange-picker__grid">
         <button
           type="button"
-          className="live-trade-exchange-picker__card"
+          className={[
+            "live-trade-exchange-picker__card",
+            selected === "toss" ? "live-trade-exchange-picker__card--on" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          aria-pressed={selected === "toss"}
           onClick={() => pick("toss")}
         >
           <TossBrandMark className="live-trade-exchange-picker__mark" />
@@ -41,7 +50,13 @@ export function LiveTradeExchangePicker({
         </button>
         <button
           type="button"
-          className="live-trade-exchange-picker__card"
+          className={[
+            "live-trade-exchange-picker__card",
+            selected === "bithumb" ? "live-trade-exchange-picker__card--on" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          aria-pressed={selected === "bithumb"}
           onClick={() => pick("bithumb")}
         >
           <BithumbBrandMark className="live-trade-exchange-picker__mark" />

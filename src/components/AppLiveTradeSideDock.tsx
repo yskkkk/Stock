@@ -13,7 +13,7 @@ import {
 import { createPortal } from "react-dom";
 import { logoutAuth } from "../api";
 import { FeedbackDockRailButton, type FeedbackCornerHandle } from "./FeedbackCorner";
-import { BithumbBrandMark } from "./ExchangeBrandMarks";
+import { BithumbBrandMark, TossBrandMark } from "./ExchangeBrandMarks";
 import LiveTradeDockApiRail from "./LiveTradeDockApiRail";
 import LiveTradeDockYsHead from "./LiveTradeDockYsHead";
 import { useDesktopDockLayout } from "../hooks/useDesktopDockLayout";
@@ -40,9 +40,14 @@ import {
   LIVE_TRADE_DOCK_OPEN_PORTFOLIO_EVENT,
 } from "../lib/liveTradePortfolioFocus";
 import {
+  LIVE_TRADE_DOCK_ACCOUNT_PROVIDER_EVENT,
   LIVE_TRADE_DOCK_ACCOUNT_VIEW_EVENT,
   LIVE_TRADE_DOCK_OPEN_ACCOUNT_EVENT,
+  dispatchDockAccountProvider,
+  readDockAccountProvider,
+  readDockAccountProviderEvent,
   readDockAccountViewEvent,
+  type LiveTradeTradesExchange,
 } from "../lib/liveTradeDockAccount";
 import {
   LIVE_TRADE_DOCK_PANEL_WIDTH_PREF,
@@ -302,6 +307,7 @@ function railTabShort(
   id: string,
   title: string,
   loggedIn: boolean,
+  accountProvider: LiveTradeTradesExchange,
 ): { glyph: ReactNode; label: string; subLabel?: string; stacked?: boolean } {
   if (id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth) {
     return {
@@ -310,10 +316,10 @@ function railTabShort(
     };
   }
   if (id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb) {
+    const Mark =
+      accountProvider === "toss" ? TossBrandMark : BithumbBrandMark;
     return {
-      glyph: (
-        <BithumbBrandMark className="app-live-trade-side-dock__rail-bithumb-mark" />
-      ),
+      glyph: <Mark className="app-live-trade-side-dock__rail-bithumb-mark" />,
       label: ko.app.liveTradeDockRailAccountTab,
     };
   }
@@ -375,6 +381,8 @@ export default function AppLiveTradeSideDock({
     return saved ?? defaultDockPanelWidthPx();
   });
   const [resizing, setResizing] = useState(false);
+  const [accountRailProvider, setAccountRailProvider] =
+    useState<LiveTradeTradesExchange>(readDockAccountProvider);
   const dockRef = useRef<HTMLDivElement>(null);
   const openRef = useRef(open);
   openRef.current = open;
@@ -470,9 +478,25 @@ export default function AppLiveTradeSideDock({
   }, [openPanel, persistOpen, beginDockPanelOpenAnimation]);
 
   useEffect(() => {
+    const onProvider = (e: Event) => {
+      const p = readDockAccountProviderEvent(e);
+      if (p === "bithumb" || p === "toss") setAccountRailProvider(p);
+    };
+    window.addEventListener(LIVE_TRADE_DOCK_ACCOUNT_PROVIDER_EVENT, onProvider);
+    return () =>
+      window.removeEventListener(
+        LIVE_TRADE_DOCK_ACCOUNT_PROVIDER_EVENT,
+        onProvider,
+      );
+  }, []);
+
+  useEffect(() => {
     const onOpenAccount = (e: Event) => {
       if (!openPanel) return;
       const view = readDockAccountViewEvent(e);
+      if (view?.provider === "bithumb" || view?.provider === "toss") {
+        setAccountRailProvider(view.provider);
+      }
       const titles = defaultLiveTradeSideTabTitles();
       openPanel(
         LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb,
@@ -508,9 +532,18 @@ export default function AppLiveTradeSideDock({
         dispatchLiveTradeDockOpenForm();
       }
       if (id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb) {
+        const togglingAccount =
+          openRef.current && activeId === LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb;
+        const next: LiveTradeTradesExchange = togglingAccount
+          ? accountRailProvider === "bithumb"
+            ? "toss"
+            : "bithumb"
+          : accountRailProvider;
+        dispatchDockAccountProvider(next);
+        setAccountRailProvider(next);
         window.dispatchEvent(
           new CustomEvent(LIVE_TRADE_DOCK_ACCOUNT_VIEW_EVENT, {
-            detail: { subTab: "balance" as const },
+            detail: { provider: next },
           }),
         );
       } else if (id === "portfolio") {
@@ -526,7 +559,14 @@ export default function AppLiveTradeSideDock({
         applyDockPanelWidthCss(panelWidthPx);
       }
     },
-    [openPanel, persistOpen, activeId, beginDockPanelOpenAnimation, panelWidthPx],
+    [
+      openPanel,
+      persistOpen,
+      activeId,
+      beginDockPanelOpenAnimation,
+      panelWidthPx,
+      accountRailProvider,
+    ],
   );
 
   const handleLogout = useCallback(() => {
@@ -817,11 +857,12 @@ export default function AppLiveTradeSideDock({
         <div className="app-live-trade-side-dock__rail-tabs">
         {railTabs.map((tab) => {
           const selected = open && activeId === tab.id;
-          const isBithumb = tab.id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb;
+          const isAccountTab = tab.id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb;
           const { glyph, label, subLabel, stacked } = railTabShort(
             tab.id,
             tab.title,
             Boolean(user),
+            accountRailProvider,
           );
           return (
             <button
@@ -830,7 +871,7 @@ export default function AppLiveTradeSideDock({
               className={[
                 "app-live-trade-side-dock__rail-btn",
                 selected ? "app-live-trade-side-dock__rail-btn--on" : "",
-                isBithumb ? "app-live-trade-side-dock__rail-btn--bithumb" : "",
+                isAccountTab ? "app-live-trade-side-dock__rail-btn--bithumb" : "",
               ]
                 .filter(Boolean)
                 .join(" ")}
@@ -841,7 +882,7 @@ export default function AppLiveTradeSideDock({
             >
               <span
                 className={
-                  isBithumb
+                  isAccountTab
                     ? "app-live-trade-side-dock__rail-glyph app-live-trade-side-dock__rail-glyph--bithumb"
                     : "app-live-trade-side-dock__rail-glyph"
                 }
@@ -852,7 +893,7 @@ export default function AppLiveTradeSideDock({
               <span
                 className={[
                   "app-live-trade-side-dock__rail-label",
-                  isBithumb
+                  isAccountTab
                     ? "app-live-trade-side-dock__rail-label--accounts"
                     : "",
                   stacked ? "app-live-trade-side-dock__rail-label--stacked" : "",
