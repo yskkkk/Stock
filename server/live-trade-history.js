@@ -31,12 +31,49 @@ function dayEndMsKst(dateKey) {
 }
 
 /**
+ * @param {LiveTradeRecord[]} trades
  * @param {string} userId
- * @param {{ endDay?: string, days?: number }} [opts]
+ */
+function attachProgramNames(trades, userId) {
+  const programs = listLiveTradeProgramsSync(userId);
+  const nameById = new Map(programs.map((p) => [p.id, p.name]));
+  return trades.map((t) => ({
+    ...t,
+    programName: nameById.get(t.programId) ?? t.programId,
+  }));
+}
+
+/**
+ * @param {string} userId
+ * @param {{ endDay?: string, days?: number, all?: boolean }} [opts]
  */
 export function buildLiveTradeHistoryPayload(userId, opts = {}) {
   const uid = String(userId ?? "").trim();
   if (!uid) throw new Error("userId required");
+
+  const allRecords = listLiveTradeRecordsSync(null, uid);
+
+  if (opts.all === true) {
+    let trades = [...allRecords].sort((a, b) => b.atMs - a.atMs);
+    trades = enrichPortfolioTradeNames(trades);
+    trades = attachProgramNames(trades, uid);
+    const rangeEndDay =
+      trades.length > 0
+        ? kstDateKeyFromMs(trades[0].atMs)
+        : kstDateKeyFromMs(Date.now());
+    const rangeStartDay =
+      trades.length > 0
+        ? kstDateKeyFromMs(trades[trades.length - 1].atMs)
+        : rangeEndDay;
+    return {
+      trades,
+      rangeStartDay,
+      rangeEndDay,
+      hasOlder: false,
+      nextOlderEndDay: null,
+      fetchedAtMs: Date.now(),
+    };
+  }
 
   const endDay =
     String(opts.endDay ?? "").trim() || kstDateKeyFromMs(Date.now());
@@ -48,19 +85,12 @@ export function buildLiveTradeHistoryPayload(userId, opts = {}) {
   const startMs = dayStartMsKst(startDay);
   const endMs = dayEndMsKst(endDay);
 
-  const all = listLiveTradeRecordsSync(null, uid);
-  let trades = all.filter((t) => t.atMs >= startMs && t.atMs <= endMs);
+  let trades = allRecords.filter((t) => t.atMs >= startMs && t.atMs <= endMs);
   trades.sort((a, b) => b.atMs - a.atMs);
   trades = enrichPortfolioTradeNames(trades);
+  trades = attachProgramNames(trades, uid);
 
-  const programs = listLiveTradeProgramsSync(uid);
-  const nameById = new Map(programs.map((p) => [p.id, p.name]));
-  trades = trades.map((t) => ({
-    ...t,
-    programName: nameById.get(t.programId) ?? t.programId,
-  }));
-
-  const hasOlder = all.some((t) => t.atMs < startMs);
+  const hasOlder = allRecords.some((t) => t.atMs < startMs);
   const nextOlderEndDay = hasOlder ? shiftKstDateKey(startDay, -1) : null;
 
   return {

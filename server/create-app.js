@@ -815,9 +815,13 @@ export function createApp() {
     asyncRoute(async (req, res) => {
       const endDay = String(req.query?.endDay ?? "").trim() || undefined;
       const days = req.query?.days;
+      const all =
+        String(req.query?.all ?? "").trim() === "1" ||
+        String(req.query?.all ?? "").trim() === "true";
       const payload = buildLiveTradeHistoryPayload(req.user.id, {
         endDay,
         days: days != null ? Number(days) : 1,
+        all,
       });
       res.json(payload);
     }),

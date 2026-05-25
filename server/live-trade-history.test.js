@@ -101,6 +101,13 @@ test("buildLiveTradeHistoryPayload filters by KST day range", () => {
     });
     assert.equal(twoDays.trades.length, 2);
     assert.equal(twoDays.rangeStartDay, dayA);
+
+    const allTrades = buildLiveTradeHistoryPayload(userId, { all: true });
+    assert.equal(allTrades.trades.length, 2);
+    assert.equal(allTrades.trades[0].id, "t-new");
+    assert.equal(allTrades.trades[1].id, "t-old");
+    assert.equal(allTrades.hasOlder, false);
+    assert.equal(allTrades.nextOlderEndDay, null);
   } finally {
     if (prevData === undefined) delete process.env.STOCK_DATA_DIR;
     else process.env.STOCK_DATA_DIR = prevData;

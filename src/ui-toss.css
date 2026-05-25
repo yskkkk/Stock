@@ -3411,6 +3411,16 @@ html[data-theme="light"]
   flex-direction: column;
   gap: 0.65rem;
   min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.live-trading-tab__list-body--dock .live-trade-history--embedded {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .live-trade-history--embedded {
@@ -3420,7 +3430,9 @@ html[data-theme="light"]
 }
 
 .live-trade-history--embedded .live-trade-history__scroll {
-  max-height: min(52vh, 28rem);
+  max-height: min(62vh, 36rem);
+  flex: 1 1 auto;
+  min-height: 12rem;
 }
 
 .live-trade-history--embedded .live-trade-history__title {

@@ -16,10 +16,11 @@ import { formatTradeSideLabel } from "../lib/liveTradeSideDisplay";
 import { ko } from "../i18n/ko";
 import { LiveTradeSymbolCellFromRecord } from "./LiveTradeSymbolCell";
 
-function formatTs(ms: number): string {
+function formatTs(ms: number, withYear = false): string {
   if (!Number.isFinite(ms)) return "—";
   try {
     return new Date(ms).toLocaleString("ko-KR", {
+      year: withYear ? "numeric" : undefined,
       month: "numeric",
       day: "numeric",
       hour: "2-digit",
@@ -50,6 +51,7 @@ export default function LiveTradeTradesHistoryPanel({
   /** 도크 «등록 프로그램» 패널 안에 삽입 */
   embedded?: boolean;
 }) {
+  const loadAll = embedded;
   const [trades, setTrades] = useState<LiveTradeRecord[]>([]);
   const [nextOlderEndDay, setNextOlderEndDay] = useState<string | null>(null);
   const [hasOlder, setHasOlder] = useState(false);
@@ -69,17 +71,19 @@ export default function LiveTradeTradesHistoryPanel({
         setLoading(true);
       }
       try {
+        const fetchOpts = loadAll
+          ? { all: true as const }
+          : { endDay: endDay ?? undefined, days: 1 };
         const data = adminId
           ? await fetchAccessAdminLiveTradingTradeHistory(
               getStoredAccessAdminToken(),
               adminId,
-              { endDay: endDay ?? undefined, days: 1 },
+              fetchOpts,
             )
-          : await fetchLiveTradingTradeHistory({
-              endDay: endDay ?? undefined,
-              days: 1,
-            });
-        setTrades((prev) => mergeTrades(prev, data.trades, append));
+          : await fetchLiveTradingTradeHistory(fetchOpts);
+        setTrades((prev) =>
+          loadAll ? data.trades : mergeTrades(prev, data.trades, append),
+        );
         setHasOlder(data.hasOlder);
         setNextOlderEndDay(data.nextOlderEndDay);
         setErr(null);
@@ -91,7 +95,7 @@ export default function LiveTradeTradesHistoryPanel({
         loadingMoreRef.current = false;
       }
     },
-    [adminViewUserId],
+    [adminViewUserId, loadAll],
   );
 
   useEffect(() => {
@@ -102,6 +106,7 @@ export default function LiveTradeTradesHistoryPanel({
   }, [fetchPage]);
 
   useEffect(() => {
+    if (loadAll) return;
     const el = sentinelRef.current;
     if (!el || !hasOlder || !nextOlderEndDay) return;
     const root = el.closest(".live-trade-history__scroll");
@@ -116,7 +121,7 @@ export default function LiveTradeTradesHistoryPanel({
     );
     obs.observe(el);
     return () => obs.disconnect();
-  }, [hasOlder, nextOlderEndDay, fetchPage]);
+  }, [hasOlder, nextOlderEndDay, fetchPage, loadAll]);
 
   const tradeFill = useMemo(() => tradeFillDisplayByTradeId(trades), [trades]);
 
@@ -142,7 +147,9 @@ export default function LiveTradeTradesHistoryPanel({
         <h3 id="live-trade-history-title" className="live-trade-history__title">
           {embedded ? ko.app.liveTradePfTabTradesDock : ko.app.liveTradeAllTradesTitle}
         </h3>
-        <p className="live-trade-history__sub">{ko.app.liveTradeAllTradesSub}</p>
+        <p className="live-trade-history__sub">
+          {loadAll ? ko.app.liveTradeAllTradesDockSub : ko.app.liveTradeAllTradesSub}
+        </p>
       </header>
 
       {err ? (
@@ -196,7 +203,7 @@ export default function LiveTradeTradesHistoryPanel({
                         className="live-sim-run__ts"
                         data-label={ko.app.liveTradePfColTime}
                       >
-                        {formatTs(t.atMs)}
+                        {formatTs(t.atMs, loadAll)}
                       </td>
                       <td
                         className="live-sim-run__side"
@@ -282,18 +289,26 @@ export default function LiveTradeTradesHistoryPanel({
               </tbody>
             </table>
           </div>
-          {hasOlder && nextOlderEndDay ? (
+          {!loadAll && hasOlder && nextOlderEndDay ? (
             <div
               ref={sentinelRef}
               className="live-trade-history__sentinel"
               aria-hidden
             />
           ) : null}
-          {loadingMore ? (
+          {!loadAll && loadingMore ? (
             <p className="live-trade-history__foot" aria-live="polite">
               {ko.app.liveTradeAllTradesLoadingMore}
             </p>
-          ) : !hasOlder && trades.length > 0 ? (
+          ) : null}
+          {loadAll && trades.length > 0 ? (
+            <p className="live-trade-history__foot live-trade-history__foot--end">
+              {ko.app.liveTradeAllTradesDockCount.replace(
+                "{count}",
+                String(trades.length),
+              )}
+            </p>
+          ) : !loadAll && !hasOlder && trades.length > 0 ? (
             <p className="live-trade-history__foot live-trade-history__foot--end">
               {ko.app.liveTradeAllTradesEnd}
             </p>
