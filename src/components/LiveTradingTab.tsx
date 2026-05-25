@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import type { AuthUser, LiveTradeHolding } from "../api";
+import { BOX_RANGE_MODEL_ID } from "../lib/boxRangeTechModel";
 import {
   armLiveTradeProgram,
   createLiveTradeProgram,
@@ -258,23 +259,23 @@ export default function LiveTradingTab({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState(emptyDraft);
   useEffect(() => {
-    if (draft.modelId !== "box-range") return;
+    if (draft.modelId !== BOX_RANGE_MODEL_ID) return;
     setDraft((d) => {
-      if (d.modelId !== "box-range") return d;
+      if (d.modelId !== BOX_RANGE_MODEL_ID) return d;
       if (
-        d.markets.crypto &&
-        !d.markets.kr &&
-        !d.markets.us &&
-        !d.autoSellAtTarget &&
-        d.minScoreRatio === 0
+        d.marketsCrypto &&
+        !d.marketsKr &&
+        !d.marketsUs &&
+        d.autoSellAtTarget === false
       ) {
         return d;
       }
       return {
         ...d,
-        markets: { kr: false, us: false, crypto: true },
+        marketsKr: false,
+        marketsUs: false,
+        marketsCrypto: true,
         autoSellAtTarget: false,
-        minScoreRatio: 0,
       };
     });
   }, [draft.modelId]);
@@ -436,8 +437,13 @@ export default function LiveTradingTab({
   );
 
   const marketChoice = draftMarketChoice(draft);
+  const isBoxRangeDraft = draft.modelId === BOX_RANGE_MODEL_ID;
   const needsKrwAmount = marketChoice === "kr" || marketChoice === "crypto";
   const needsUsdAmount = marketChoice === "us";
+  const minScoreSliderValue = Math.min(
+    1,
+    Math.max(0.7, Number(draft.minScoreRatio) || 0.8),
+  );
   const minOrderKrw = minOrderAmountKrwForMarkets(draftMarkets);
   const canSaveForm =
     Boolean(draft.name.trim() && draft.modelId) &&
@@ -990,7 +996,9 @@ export default function LiveTradingTab({
                   >
                     {models.map((m) => (
                       <option key={m.id} value={m.id}>
-                        {m.name} (max {m.maxTechScore}점)
+                        {m.id === BOX_RANGE_MODEL_ID
+                          ? m.name
+                          : `${m.name} (max ${m.maxTechScore}점)`}
                       </option>
                     ))}
                   </select>
@@ -1062,30 +1070,36 @@ export default function LiveTradingTab({
                   </div>
                 </div>
 
-                <div className="live-trading-tab__field live-trading-tab__field--range">
-                  <div className="live-trading-tab__field-top">
-                    <span className="live-trading-tab__label">
-                      {ko.app.liveTradeFieldMinScore}
-                    </span>
-                    <span className="live-trading-tab__range-val">
-                      {Math.round(draft.minScoreRatio * 100)}%
-                    </span>
+                {isBoxRangeDraft ? (
+                  <p className="live-trading-tab__hint live-trading-tab__field--full">
+                    {ko.app.liveTradeBoxRangeMinScoreHint}
+                  </p>
+                ) : (
+                  <div className="live-trading-tab__field live-trading-tab__field--range">
+                    <div className="live-trading-tab__field-top">
+                      <span className="live-trading-tab__label">
+                        {ko.app.liveTradeFieldMinScore}
+                      </span>
+                      <span className="live-trading-tab__range-val">
+                        {Math.round(minScoreSliderValue * 100)}%
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      className="live-trading-tab__range"
+                      min={0.7}
+                      max={1}
+                      step={0.01}
+                      value={minScoreSliderValue}
+                      onChange={(e) =>
+                        setDraft((d) => ({
+                          ...d,
+                          minScoreRatio: Number(e.target.value),
+                        }))
+                      }
+                    />
                   </div>
-                  <input
-                    type="range"
-                    className="live-trading-tab__range"
-                    min={0.7}
-                    max={1}
-                    step={0.01}
-                    value={draft.minScoreRatio}
-                    onChange={(e) =>
-                      setDraft((d) => ({
-                        ...d,
-                        minScoreRatio: Number(e.target.value),
-                      }))
-                    }
-                  />
-                </div>
+                )}
 
                 <label className="live-trading-tab__field">
                   <span className="live-trading-tab__label">

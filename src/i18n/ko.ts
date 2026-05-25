@@ -247,6 +247,8 @@ export const ko = {
     liveTradeNamePlaceholder: "예: 기본 모델 실매매",
     liveTradeFieldModel: "기술 분석 모델",
     liveTradeFieldMinScore: "최소 점수 (텔레그램 기준 비율)",
+    liveTradeBoxRangeMinScoreHint:
+      "박스권 모델은 스크리너 점수 대신 박스권 규칙(1h·4h·일)으로 매매합니다.",
     liveTradeFieldAmountKrw: "국내 1회 매수 금액 (원)",
     liveTradeFieldAmountCrypto: "코인 1회 매수 금액 ($)",
     liveTradeFieldAmountUsdCrypto: "미국·코인 1회 매수 금액 ($)",
