@@ -21,8 +21,8 @@ export default function TelegramNotifyIconButton({
       <svg
         className="live-trade-header-strip__telegram-icon"
         viewBox="0 0 24 24"
-        width={16}
-        height={16}
+        width={14}
+        height={14}
         aria-hidden
       >
         <circle cx="12" cy="12" r="12" fill="#229ED9" />

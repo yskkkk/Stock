@@ -1641,17 +1641,37 @@ html[data-theme="light"] .light-palette-swatch--active {
   min-width: 0;
 }
 
-/* 실매매 스트립과 탭·도구를 같은 그리드 행 — 세로 구분선·텍스트 중앙 정렬 */
+/* 실매매 스트립·탭 — 같은 행·전폭 가로선(세로선 없음) */
 @media (min-width: 901px) {
+  .top-bar__grid:has(.top-bar__live-trade)::before {
+    content: "";
+    grid-column: 1 / -1;
+    grid-row: 3;
+    align-self: start;
+    height: 0;
+    border-top: 1px solid rgba(148, 163, 184, 0.14);
+    pointer-events: none;
+  }
+
+  .top-bar__grid--with-scan:has(.top-bar__live-trade)::before {
+    grid-row: 4;
+  }
+
+  html[data-theme="light"] .top-bar__grid:has(.top-bar__live-trade)::before {
+    border-top-color: rgba(15, 23, 42, 0.1);
+  }
+
+  .top-bar__grid:has(.top-bar__live-trade) .top-bar__live-trade,
   .top-bar__grid:has(.top-bar__live-trade) .top-bar__right {
     grid-row: 3;
     align-self: stretch;
-    align-items: center;
-    border-left: 1px solid rgba(148, 163, 184, 0.14);
-    padding-left: 0.8rem;
-    margin-left: 0.05rem;
+    border-top: none;
+    padding-top: 0.32rem;
+    padding-bottom: 0.28rem;
+    box-sizing: border-box;
   }
 
+  .top-bar__grid--with-scan:has(.top-bar__live-trade) .top-bar__live-trade,
   .top-bar__grid--with-scan:has(.top-bar__live-trade) .top-bar__right {
     grid-row: 4;
   }
@@ -1659,19 +1679,25 @@ html[data-theme="light"] .light-palette-swatch--active {
   .top-bar__grid:has(.top-bar__live-trade) .top-bar__live-trade {
     display: flex;
     align-items: center;
-    padding-top: 0.28rem;
-    padding-bottom: 0.28rem;
+    overflow: visible;
   }
 
   .top-bar__grid:has(.top-bar__live-trade) .top-bar__live-trade .live-trade-header-strip {
     width: 100%;
-    min-height: 1.65rem;
+    min-height: 1.5rem;
   }
 
-  html[data-theme="light"]
-    .top-bar__grid:has(.top-bar__live-trade)
-    .top-bar__right {
-    border-left-color: rgba(15, 23, 42, 0.1);
+  .top-bar__grid:has(.top-bar__live-trade) .top-bar__right {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
+  .top-bar__grid:has(.top-bar__live-trade)
+    .top-bar__live-trade
+    .scan-status--compact
+    .scan-status__primary {
+    overflow: visible;
   }
 }
 
@@ -1710,6 +1736,12 @@ html[data-theme="light"] .top-bar__scan {
   padding-top: 0.35rem;
   border-top: 1px solid rgba(148, 163, 184, 0.14);
   overflow: visible;
+}
+
+@media (min-width: 901px) {
+  .top-bar__grid:has(.top-bar__live-trade) .top-bar__live-trade {
+    padding-top: 0.32rem;
+  }
 }
 
 .top-bar__grid--with-scan .top-bar__live-trade {
@@ -1785,10 +1817,10 @@ html[data-theme="light"] .top-bar__live-trade {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 1.28rem;
-  height: 1.28rem;
-  margin: 0 0.12rem 0 0.08rem;
-  padding: 0.06rem 0.05rem 0 0;
+  width: 1.12rem;
+  height: 1.12rem;
+  margin: 0 0.1rem 0 0.06rem;
+  padding: 0;
   border: none;
   border-radius: 50%;
   background: transparent;
@@ -1805,22 +1837,22 @@ html[data-theme="light"] .top-bar__live-trade {
 
 .live-trade-header-strip__telegram-icon {
   display: block;
-  width: 1.08rem;
-  height: 1.08rem;
+  width: 0.92rem;
+  height: 0.92rem;
 }
 
 .live-trade-header-strip__telegram-count {
   position: absolute;
-  top: -0.06rem;
-  right: -0.28rem;
+  top: 0;
+  right: -0.2rem;
   z-index: 1;
-  min-width: 0.8rem;
-  height: 0.8rem;
-  padding: 0 0.16rem;
+  min-width: 0.7rem;
+  height: 0.7rem;
+  padding: 0 0.14rem;
   border-radius: 999px;
-  font-size: 0.5rem;
+  font-size: 0.46rem;
   font-weight: 800;
-  line-height: 0.8rem;
+  line-height: 0.7rem;
   text-align: center;
   background: #229ed9;
   color: #fff;
