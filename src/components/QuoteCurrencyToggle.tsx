@@ -8,6 +8,8 @@ export interface QuoteCurrencyToggleProps {
   className?: string;
   /** ₩/$ 만 표시 — 거래대금 상위 제목 옆 */
   iconOnly?: boolean;
+  /** true면 현재 표시 통화 아이콘(원→₩, 달러→$). 기본은 누르면 전환될 통화 */
+  iconShowsActive?: boolean;
 }
 
 function QuoteCurrencyToggleInner({
@@ -16,6 +18,7 @@ function QuoteCurrencyToggleInner({
   fxValuationDate,
   className = "",
   iconOnly = false,
+  iconShowsActive = false,
 }: QuoteCurrencyToggleProps) {
   const title = inKrw
     ? fxValuationDate
@@ -43,7 +46,7 @@ function QuoteCurrencyToggleInner({
       aria-pressed={inKrw}
     >
       <span className="quote-currency-toggle__icon" aria-hidden>
-        {inKrw ? "$" : "₩"}
+        {iconShowsActive ? (inKrw ? "₩" : "$") : inKrw ? "$" : "₩"}
       </span>
       {iconOnly ? null : (
         <span className="quote-currency-toggle__label">

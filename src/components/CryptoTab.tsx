@@ -31,6 +31,7 @@ import ChartDrawToolbarButtons from "./ChartDrawToolbarButtons";
 import StockChart from "./StockChart";
 import TradingViewCryptoChart from "./TradingViewCryptoChart";
 import PickQuoteStrip from "./PickQuoteStrip";
+import QuoteCurrencyToggle from "./QuoteCurrencyToggle";
 import ProfitModelModal from "./ProfitModelModal";
 import { useMobileBackHandler } from "../hooks/useMobileBackHandler";
 import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
@@ -475,41 +476,16 @@ export default function CryptoTab({
       >
         <div className="panel-head crypto-panel__head">
           <span className="panel-head__title">{ko.crypto.panelTitle}</span>
-          <div
-            className="crypto-panel__fx-seg"
-            role="group"
-            aria-label={ko.crypto.priceDisplayAria}
-          >
-            <button
-              type="button"
-              className={
-                priceDisplay === "krw"
-                  ? "crypto-panel__fx-btn crypto-panel__fx-btn--on"
-                  : "crypto-panel__fx-btn"
-              }
-              aria-pressed={priceDisplay === "krw"}
-              onClick={() => setPriceDisplayMode("krw")}
-            >
-              {ko.crypto.priceKrw}
-            </button>
-            <button
-              type="button"
-              className={
-                priceDisplay === "usdt"
-                  ? "crypto-panel__fx-btn crypto-panel__fx-btn--on"
-                  : "crypto-panel__fx-btn"
-              }
-              aria-pressed={priceDisplay === "usdt"}
-              title={
-                usdKrwValDate
-                  ? ko.app.quoteCurrencyFxBasis.replace("{date}", usdKrwValDate)
-                  : undefined
-              }
-              onClick={() => setPriceDisplayMode("usdt")}
-            >
-              {ko.crypto.priceUsdt}
-            </button>
-          </div>
+          <QuoteCurrencyToggle
+            inKrw={priceDisplay === "krw"}
+            onToggle={() =>
+              setPriceDisplayMode(priceDisplay === "krw" ? "usdt" : "krw")
+            }
+            fxValuationDate={usdKrwValDate}
+            iconOnly
+            iconShowsActive
+            className="quote-currency-toggle--compact"
+          />
         </div>
         <ul className="pick-list crypto-pick-list">
           {sortedCryptoAssets.map((a) => {
