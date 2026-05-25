@@ -1883,12 +1883,17 @@ html[data-theme="dark"] .live-trading-tab__cred-toolbar {
   white-space: nowrap;
 }
 
-.live-trade-api-card__body .live-trade-api-card__encrypt-note {
-  margin: 0 0 0.55rem;
+.live-trade-api-card__encrypt-note {
+  margin: 0 0 0.5rem;
   padding: 0;
   font-size: 0.62rem;
+  font-weight: 400;
   line-height: 1.45;
   color: var(--text-muted, #64748b);
+}
+
+.live-trade-api-card__body .live-trade-api-card__encrypt-note {
+  margin-bottom: 0.55rem;
 }
 
 .live-trade-api-card__body {
@@ -1927,9 +1932,12 @@ html[data-theme="dark"] .live-trade-api-card__body {
   border-top: none;
 }
 
+html[data-theme="dark"] .live-trade-api-card__encrypt-note {
+  color: color-mix(in srgb, var(--muted, #8b9aac) 92%, var(--text-dim, #aeb9cc));
+}
+
 html[data-theme="dark"] .live-trade-api-card__body .live-trade-api-card__encrypt-note {
   margin-bottom: 0.65rem;
-  color: color-mix(in srgb, var(--muted, #8b9aac) 92%, var(--text-dim, #aeb9cc));
 }
 
 html[data-theme="dark"] .live-trade-api-card__body .live-trading-tab__toss-env {

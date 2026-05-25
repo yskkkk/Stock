@@ -9940,6 +9940,32 @@ html[data-theme="light"]
   color: var(--muted, #94a3b8);
 }
 
+.app-live-trade-side-dock__api-popover .live-trade-dock-api-panel__title {
+  font-size: 0.8rem;
+  margin-bottom: 0.28rem;
+}
+
+.app-live-trade-side-dock__api-popover .live-trade-dock-api-panel__summary {
+  font-size: 0.66rem;
+  margin-bottom: 0.4rem;
+}
+
+.app-live-trade-side-dock__api-popover .live-trading-tab__toss-env {
+  font-size: 0.66rem;
+  margin-bottom: 0.45rem;
+}
+
+.app-live-trade-side-dock__api-popover .live-trading-tab__fee-hint,
+.app-live-trade-side-dock__api-popover .live-trading-tab__hint {
+  font-size: 0.64rem;
+  line-height: 1.4;
+}
+
+.app-live-trade-side-dock__api-popover .live-trade-api-card__encrypt-note {
+  font-size: 0.58rem;
+  margin-bottom: 0.42rem;
+}
+
 .app-live-trade-side-dock__auth-popover {
   position: absolute;
   right: calc(100% + 0.55rem);
