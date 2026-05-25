@@ -2,41 +2,38 @@
 // © standalone — TradingView Pine Editor 붙여넣기용 · 1H / 4H / 1D
 
 //@version=5
-indicator("수평 매물대 · 박스권 MTF", shorttitle="박스권 MTF", overlay=true, max_boxes_count=500, max_lines_count=500)
+indicator("수평 매물대 · 박스권 MTF", shorttitle="박스권 MTF", overlay=true, max_boxes_count=500, max_lines_count=500, max_bars_back=5000)
 
-// ── 1H / 4H / 1D 프리셋 (타임프레임별 기본값) ───────────────────────
-// 1H — 짧은 횡보·좁은 폭
-H1_LB       = 24
-H1_MIN      = 12
-H1_MAX_PCT  = 1.6
+// ── 1H / 4H / 1D 프리셋 (완화 — 실제 횡보가 잡히도록) ───────────────
+H1_LB       = 16
+H1_MIN      = 6
+H1_MAX_PCT  = 3.2
 H1_ATR_LEN  = 14
-H1_ATR_MULT = 1.15
-H1_MERGE_P  = 0.12
-H1_MERGE_B  = 48
-H1_EXT_B    = 8
-H1_MAX_Z    = 6
+H1_ATR_MULT = 2.0
+H1_MERGE_P  = 0.18
+H1_MERGE_B  = 36
+H1_EXT_B    = 10
+H1_EXIT_B   = 2
 
-// 4H — 중간 박스
-H4_LB       = 18
-H4_MIN      = 8
-H4_MAX_PCT  = 2.2
+H4_LB       = 14
+H4_MIN      = 5
+H4_MAX_PCT  = 4.5
 H4_ATR_LEN  = 14
-H4_ATR_MULT = 1.25
-H4_MERGE_P  = 0.14
-H4_MERGE_B  = 24
-H4_EXT_B    = 6
-H4_MAX_Z    = 5
+H4_ATR_MULT = 2.0
+H4_MERGE_P  = 0.2
+H4_MERGE_B  = 18
+H4_EXT_B    = 8
+H4_EXIT_B   = 2
 
-// 1D — 넓은 박스·긴 봉
-D1_LB       = 14
-D1_MIN      = 6
-D1_MAX_PCT  = 3.6
+D1_LB       = 12
+D1_MIN      = 4
+D1_MAX_PCT  = 7.0
 D1_ATR_LEN  = 14
-D1_ATR_MULT = 1.35
-D1_MERGE_P  = 0.16
-D1_MERGE_B  = 12
-D1_EXT_B    = 5
-D1_MAX_Z    = 4
+D1_ATR_MULT = 2.0
+D1_MERGE_P  = 0.22
+D1_MERGE_B  = 8
+D1_EXT_B    = 6
+D1_EXIT_B   = 2
 
 TF_SEC_1H = 3600
 TF_SEC_4H = 14400
@@ -66,11 +63,12 @@ midWidth    = input.int(2, "중심선 두께", minval=1, maxval=4, group=grpCol)
 
 grpAdv = "고급 (프리셋 덮어쓰기)"
 useCustom   = input.bool(false, "수동 인풋 사용", group=grpAdv, tooltip="끄면 1H/4H/1D 프리셋 고정. 켜면 아래 값이 세 TF 공통 적용")
-cLookback   = input.int(20, "구간(봉)", minval=5, group=grpAdv)
-cMinBars    = input.int(10, "최소 박스 봉", minval=3, group=grpAdv)
-cMaxPct     = input.float(2.5, "최대 폭(%)", minval=0.2, step=0.1, group=grpAdv)
-cMergePct   = input.float(0.15, "병합 겹침(%)", minval=0, step=0.05, group=grpAdv)
-cMergeBars  = input.int(30, "병합 인접(봉)", minval=0, group=grpAdv)
+useAtrCap   = input.bool(false, "ATR로 폭 상한", group=grpAdv, tooltip="켜면 변동성 큰 종목에서 폭이 더 좁아질 수 있음")
+cLookback   = input.int(16, "구간(봉)", minval=5, group=grpAdv)
+cMinBars    = input.int(6, "최소 박스 봉", minval=3, group=grpAdv)
+cMaxPct     = input.float(3.5, "최대 폭(%)", minval=0.5, step=0.1, group=grpAdv)
+cMergePct   = input.float(0.18, "병합 겹침(%)", minval=0, step=0.05, group=grpAdv)
+cMergeBars  = input.int(24, "병합 인접(봉)", minval=0, group=grpAdv)
 
 f_pos(string p) =>
     p == "우하단" ? position.bottom_right : p == "좌상단" ? position.top_left : p == "좌하단" ? position.bottom_left : position.top_right
@@ -82,121 +80,105 @@ f_priceOverlap(float t1, float b1, float t2, float b2, float mPct) =>
     pad2 = (t2 - b2) * tol
     not (t1 + pad1 < b2 - pad2 or t2 + pad2 < b1 - pad1)
 
-f_timeNear(int r1, int l2, int mBars) =>
-    mBars <= 0 ? true : math.abs(l2 - r1) <= mBars
+f_timeNear(int tEnd, int tStart, int mBars, int tfSec) =>
+    int gap = mBars * tfSec * 1000
+    mBars <= 0 ? true : math.abs(tStart - tEnd) <= gap
 
-f_mergeAll(float[] tops, float[] bots, int[] t0, int[] t1, float mPct, int mBars) =>
-    int n = array.size(tops)
-    if n >= 2
-        bool changed = true
-        int guard = 0
-        while changed and guard < 200
-            changed := false
-            guard += 1
-            int i = 0
-            while i < array.size(tops) - 1
-                float tt1 = array.get(tops, i)
-                float bb1 = array.get(bots, i)
-                int l1 = array.get(t0, i)
-                int r1 = array.get(t1, i)
-                int j = i + 1
-                while j < array.size(tops)
-                    float tt2 = array.get(tops, j)
-                    float bb2 = array.get(bots, j)
-                    int l2 = array.get(t0, j)
-                    int r2 = array.get(t1, j)
-                    if f_priceOverlap(tt1, bb1, tt2, bb2, mPct) and (f_timeNear(r1, l2, mBars) or f_timeNear(r2, l1, mBars))
-                        array.set(tops, i, math.max(tt1, tt2))
-                        array.set(bots, i, math.min(bb1, bb2))
-                        array.set(t0, i, math.min(l1, l2))
-                        array.set(t1, i, math.max(r1, r2))
-                        array.remove(tops, j)
-                        array.remove(bots, j)
-                        array.remove(t0, j)
-                        array.remove(t1, j)
-                        changed := true
-                    else
-                        j += 1
-                i += 1
-    array.size(tops)
+f_mergeInto(float tNew, float bNew, int t0New, int t1New, float t1, float b1, int a1, int e1, float mPct, int mBars, int tfSec) =>
+    if na(t1)
+        [tNew, bNew, t0New, t1New]
+    else if f_priceOverlap(tNew, bNew, t1, b1, mPct) and f_timeNear(t1New, a1, mBars, tfSec)
+        [math.max(tNew, t1), math.min(bNew, b1), math.min(t0New, a1), math.max(t1New, e1)]
+    else
+        [tNew, bNew, t0New, t1New]
 
+// security 호환: 배열 대신 스칼라 3구간 + 히스테리시스(박스 유지)
 f_zoneEngine(
      int lb, int minB, float maxPct, bool useAtr, int atrL, float atrM,
-     float mPct, int mBars, int tfSec, int extBars, int maxStore) =>
+     float mPct, int mBars, int tfSec, int extBars, int exitBars) =>
     rngHi = ta.highest(high, lb)
     rngLo = ta.lowest(low, lb)
     midPx = (rngHi + rngLo) * 0.5
     rangePct = midPx > 0 ? (rngHi - rngLo) / midPx * 100.0 : 100.0
     atrVal = ta.atr(atrL)
     atrPct = close > 0 ? atrVal / close * 100.0 * atrM : rangePct
-    capPct = useAtr ? math.min(maxPct, atrPct) : maxPct
-    inR = rangePct <= capPct
+    capPct = useAtr ? math.min(maxPct, math.max(maxPct * 0.5, atrPct)) : maxPct
+    bool rollTight = rangePct <= capPct
 
     var int   stT0 = na
     var int   stCnt = 0
+    var int   looseCnt = 0
     var float stTop = na
     var float stBot = na
-    var float[] zTop = array.new_float()
-    var float[] zBot = array.new_float()
-    var int[]   zT0  = array.new_int()
-    var int[]   zT1  = array.new_int()
+    var float s1t = na
+    var float s1b = na
+    var int   s1a = na
+    var int   s1e = na
+    var float s2t = na
+    var float s2b = na
+    var int   s2a = na
+    var int   s2e = na
+    var float s3t = na
+    var float s3b = na
+    var int   s3a = na
+    var int   s3e = na
+    var int   zn = 0
 
     int extMs = extBars * tfSec * 1000
 
-    if not inR and inR[1] and stCnt >= minB and not na(stTop)
-        array.push(zTop, stTop)
-        array.push(zBot, stBot)
-        array.push(zT0, stT0)
-        array.push(zT1, time[1])
-        f_mergeAll(zTop, zBot, zT0, zT1, mPct, mBars)
-        while array.size(zTop) > maxStore
-            array.shift(zTop)
-            array.shift(zBot)
-            array.shift(zT0)
-            array.shift(zT1)
-        stT0 := na
-        stCnt := 0
-        stTop := na
-        stBot := na
+    float trkMid = not na(stTop) and not na(stBot) ? (stTop + stBot) * 0.5 : midPx
+    float trkPct = not na(stTop) and not na(stBot) and trkMid > 0 ? (stTop - stBot) / trkMid * 100.0 : rangePct
+    bool wideBreak = stCnt > 0 and trkPct > capPct * 1.25
+    bool inBox = stCnt > 0 and not wideBreak
 
-    if inR
-        if not inR[1]
-            stT0 := time
-            stCnt := 1
-            stTop := high
-            stBot := low
-        else
-            stCnt += 1
-            stTop := math.max(stTop, high)
-            stBot := math.min(stBot, low)
-    else if inR[1]
-        stT0 := na
-        stCnt := 0
-        stTop := na
-        stBot := na
+    if stCnt > 0
+        looseCnt := rollTight ? 0 : looseCnt + 1
+        if wideBreak or looseCnt >= exitBars
+            if stCnt >= minB and not na(stTop)
+                [mt, mb, ma, me] = f_mergeInto(stTop, stBot, stT0, time, s1t, s1b, s1a, s1e, mPct, mBars, tfSec)
+                s3t := s2t
+                s3b := s2b
+                s3a := s2a
+                s3e := s2e
+                s2t := s1t
+                s2b := s1b
+                s2a := s1a
+                s2e := s1e
+                s1t := mt
+                s1b := mb
+                s1a := ma
+                s1e := me
+            stT0 := na
+            stCnt := 0
+            looseCnt := 0
+            stTop := na
+            stBot := na
 
-    int zn = array.size(zTop)
-    float l1t = zn >= 1 ? array.get(zTop, zn - 1) : na
-    float l1b = zn >= 1 ? array.get(zBot, zn - 1) : na
-    int   l1a = zn >= 1 ? array.get(zT0, zn - 1) : na
-    int   l1e = zn >= 1 ? array.get(zT1, zn - 1) + extMs : na
-    float l2t = zn >= 2 ? array.get(zTop, zn - 2) : na
-    float l2b = zn >= 2 ? array.get(zBot, zn - 2) : na
-    int   l2a = zn >= 2 ? array.get(zT0, zn - 2) : na
-    int   l2e = zn >= 2 ? array.get(zT1, zn - 2) + extMs : na
-    float l3t = zn >= 3 ? array.get(zTop, zn - 3) : na
-    float l3b = zn >= 3 ? array.get(zBot, zn - 3) : na
-    int   l3a = zn >= 3 ? array.get(zT0, zn - 3) : na
-    int   l3e = zn >= 3 ? array.get(zT1, zn - 3) + extMs : na
+    if stCnt == 0 and rollTight
+        stT0 := time
+        stCnt := 1
+        looseCnt := 0
+        stTop := high
+        stBot := low
+    else if stCnt > 0 and inBox
+        stCnt += 1
+        stTop := math.max(stTop, high)
+        stBot := math.min(stBot, low)
 
-    float actTop = inR and stCnt >= minB ? stTop : na
-    float actBot = inR and stCnt >= minB ? stBot : na
-    float actMid = not na(actTop) ? (actTop + actBot) * 0.5 : na
-    int   actT0  = inR and stCnt >= minB ? stT0 : na
-    int   actT1  = inR and stCnt >= minB ? time + extMs : na
-    bool  actOn  = not na(actTop)
+    bool actOn = stCnt >= minB and inBox
+    float actTop = actOn ? stTop : na
+    float actBot = actOn ? stBot : na
+    float actMid = actOn ? (stTop + stBot) * 0.5 : na
+    int actT0 = actOn ? stT0 : na
+    int actT1 = actOn ? time + extMs : na
 
-    [inR, rangePct, actOn, actTop, actBot, actMid, actT0, actT1, zn, l1t, l1b, l1a, l1e, l2t, l2b, l2a, l2e, l3t, l3b, l3a, l3e]
+    int l1e = na(s1e) ? na : s1e + extMs
+    int l2e = na(s2e) ? na : s2e + extMs
+    int l3e = na(s3e) ? na : s3e + extMs
+    zn := (na(s1t) ? 0 : 1) + (na(s2t) ? 0 : 1) + (na(s3t) ? 0 : 1)
+
+    bool inR = rollTight or actOn
+    [inR, rangePct, actOn, actTop, actBot, actMid, actT0, actT1, zn, s1t, s1b, s1a, l1e, s2t, s2b, s2a, l2e, s3t, s3b, s3a, l3e]
 
 // 커스텀 시 세 TF 동일 파라미터 (프리셋 대체)
 h1_lb = useCustom ? cLookback : H1_LB
@@ -207,14 +189,16 @@ h1_mb = useCustom ? cMergeBars : H1_MERGE_B
 
 sym = syminfo.tickerid
 
+bool atrOn = useAtrCap
+
 [h1_in, h1_rp, h1_act, h1_at, h1_ab, h1_am, h1_a0, h1_a1, h1_zn, h1_1t, h1_1b, h1_1a, h1_1e, h1_2t, h1_2b, h1_2a, h1_2e, h1_3t, h1_3b, h1_3a, h1_3e] =
-     request.security(sym, "60", f_zoneEngine(h1_lb, h1_min, h1_pct, true, H1_ATR_LEN, H1_ATR_MULT, h1_mp, h1_mb, TF_SEC_1H, H1_EXT_B, H1_MAX_Z), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+     request.security(sym, "60", f_zoneEngine(h1_lb, h1_min, h1_pct, atrOn, H1_ATR_LEN, H1_ATR_MULT, h1_mp, h1_mb, TF_SEC_1H, H1_EXT_B, H1_EXIT_B), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
 
 [h4_in, h4_rp, h4_act, h4_at, h4_ab, h4_am, h4_a0, h4_a1, h4_zn, h4_1t, h4_1b, h4_1a, h4_1e, h4_2t, h4_2b, h4_2a, h4_2e, h4_3t, h4_3b, h4_3a, h4_3e] =
-     request.security(sym, "240", f_zoneEngine(useCustom ? cLookback : H4_LB, useCustom ? cMinBars : H4_MIN, useCustom ? cMaxPct : H4_MAX_PCT, true, H4_ATR_LEN, H4_ATR_MULT, useCustom ? cMergePct : H4_MERGE_P, useCustom ? cMergeBars : H4_MERGE_B, TF_SEC_4H, H4_EXT_B, H4_MAX_Z), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+     request.security(sym, "240", f_zoneEngine(useCustom ? cLookback : H4_LB, useCustom ? cMinBars : H4_MIN, useCustom ? cMaxPct : H4_MAX_PCT, atrOn, H4_ATR_LEN, H4_ATR_MULT, useCustom ? cMergePct : H4_MERGE_P, useCustom ? cMergeBars : H4_MERGE_B, TF_SEC_4H, H4_EXT_B, H4_EXIT_B), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
 
 [d_in, d_rp, d_act, d_at, d_ab, d_am, d_a0, d_a1, d_zn, d_1t, d_1b, d_1a, d_1e, d_2t, d_2b, d_2a, d_2e, d_3t, d_3b, d_3a, d_3e] =
-     request.security(sym, "D", f_zoneEngine(useCustom ? cLookback : D1_LB, useCustom ? cMinBars : D1_MIN, useCustom ? cMaxPct : D1_MAX_PCT, true, D1_ATR_LEN, D1_ATR_MULT, useCustom ? cMergePct : D1_MERGE_P, useCustom ? cMergeBars : D1_MERGE_B, TF_SEC_1D, D1_EXT_B, D1_MAX_Z), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+     request.security(sym, "D", f_zoneEngine(useCustom ? cLookback : D1_LB, useCustom ? cMinBars : D1_MIN, useCustom ? cMaxPct : D1_MAX_PCT, atrOn, D1_ATR_LEN, D1_ATR_MULT, useCustom ? cMergePct : D1_MERGE_P, useCustom ? cMergeBars : D1_MERGE_B, TF_SEC_1D, D1_EXT_B, D1_EXIT_B), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
 
 // ── 그리기 ─────────────────────────────────────────────────────────
 var box[]  b1h = array.new_box()
@@ -238,10 +222,12 @@ f_widthPct(float t, float b) =>
     m > 0 ? str.tostring((t - b) / m * 100, "#.##") + "%" : "—"
 
 f_drawZone(box[] bx, line[] ln, int t0, int t1, float top, float bot, color fill, color brd, color mid, bool dashed) =>
-    if not na(top) and not na(t0) and not na(t1)
+    if not na(top) and not na(bot) and not na(t0) and not na(t1) and top > bot
+        int tL = math.min(t0, t1)
+        int tR = math.max(t0, t1)
         float avg = (top + bot) * 0.5
-        box nb = box.new(t0, top, t1, bot, xloc=xloc.bar_time, bgcolor=fill, border_color=brd, border_width=1, border_style=dashed ? line.style_dashed : line.style_solid)
-        line nl = line.new(t0, avg, t1, avg, xloc=xloc.bar_time, color=mid, width=midWidth, style=line.style_solid)
+        box nb = box.new(tL, top, tR, bot, xloc=xloc.bar_time, bgcolor=fill, border_color=brd, border_width=1, border_style=dashed ? line.style_dashed : line.style_solid)
+        line nl = line.new(tL, avg, tR, avg, xloc=xloc.bar_time, color=mid, width=midWidth, style=line.style_solid)
         array.push(bx, nb)
         array.push(ln, nl)
 
