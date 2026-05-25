@@ -1480,7 +1480,6 @@ html[data-theme="light"] .top-bar__brand .brand-mark__img {
 }
 
 .top-bar__grid--with-scan {
-  grid-template-rows: auto auto auto;
   row-gap: 0.28rem;
 }
 
@@ -1507,9 +1506,18 @@ html[data-theme="light"] .top-bar__brand .brand-mark__img {
   margin-bottom: 0;
 }
 
-.top-bar__brand {
+.top-bar__header-left {
   grid-column: 1;
   grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.top-bar__brand {
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -1632,54 +1640,44 @@ html[data-theme="light"] .light-palette-swatch--active {
 
 .top-bar__right {
   grid-column: 2;
-  grid-row: 2 / -1;
+  grid-row: 2;
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
+  align-self: center;
   gap: 0.45rem 0.55rem;
   min-width: 0;
 }
 
-/* 실매매 스트립·탭 — 같은 행·전폭 가로선(세로선 없음) */
+/* 실매매 스트립·탭 — 좌측 상태열과 같은 행(가로선 아래 별도 줄 없음) */
 @media (min-width: 901px) {
-  .top-bar__grid:has(.top-bar__live-trade)::before {
-    content: "";
-    grid-column: 1 / -1;
-    grid-row: 3;
-    align-self: start;
-    height: 0;
-    border-top: 1px solid rgba(148, 163, 184, 0.14);
-    pointer-events: none;
+  .top-bar__header-left {
+    padding-top: 0.06rem;
+    padding-bottom: 0.04rem;
   }
 
-  .top-bar__grid--with-scan:has(.top-bar__live-trade)::before {
-    grid-row: 4;
-  }
-
-  html[data-theme="light"] .top-bar__grid:has(.top-bar__live-trade)::before {
-    border-top-color: rgba(15, 23, 42, 0.1);
-  }
-
-  .top-bar__grid:has(.top-bar__live-trade) .top-bar__live-trade,
-  .top-bar__grid:has(.top-bar__live-trade) .top-bar__right {
-    grid-row: 3;
-    align-self: stretch;
-    border-top: none;
-    padding-top: 0.32rem;
+  .top-bar__grid:has(.top-bar__live-trade) .top-bar__header-left,
+  .top-bar__grid:has(.top-bar__scan) .top-bar__header-left {
+    border-bottom: 1px solid rgba(148, 163, 184, 0.14);
     padding-bottom: 0.28rem;
-    box-sizing: border-box;
   }
 
-  .top-bar__grid--with-scan:has(.top-bar__live-trade) .top-bar__live-trade,
-  .top-bar__grid--with-scan:has(.top-bar__live-trade) .top-bar__right {
-    grid-row: 4;
+  html[data-theme="light"] .top-bar__grid:has(.top-bar__live-trade) .top-bar__header-left,
+  html[data-theme="light"] .top-bar__grid:has(.top-bar__scan) .top-bar__header-left {
+    border-bottom-color: rgba(15, 23, 42, 0.1);
+  }
+
+  .top-bar__live-trade {
+    border-top: none;
+    padding-top: 0;
+    margin: 0;
+    overflow: visible;
   }
 
   .top-bar__grid:has(.top-bar__live-trade) .top-bar__live-trade {
     display: flex;
     align-items: center;
-    overflow: visible;
   }
 
   .top-bar__grid:has(.top-bar__live-trade) .top-bar__live-trade .live-trade-header-strip {
@@ -1691,6 +1689,9 @@ html[data-theme="light"] .light-palette-swatch--active {
     display: inline-flex;
     align-items: center;
     justify-content: flex-end;
+    border-top: none;
+    padding-top: 0;
+    padding-bottom: 0;
   }
 
   .top-bar__grid:has(.top-bar__live-trade)
@@ -1698,6 +1699,12 @@ html[data-theme="light"] .light-palette-swatch--active {
     .scan-status--compact
     .scan-status__primary {
     overflow: visible;
+  }
+
+  .top-bar__scan {
+    border-top: none;
+    padding-top: 0.2rem;
+    margin-top: 0;
   }
 }
 
@@ -1716,11 +1723,9 @@ html[data-theme="light"] .light-palette-swatch--active {
 }
 
 .top-bar__scan {
-  grid-column: 1;
-  grid-row: 3;
   min-width: 0;
   margin: 0;
-  padding-top: 0.35rem;
+  padding-top: 0.28rem;
   border-top: 1px solid rgba(148, 163, 184, 0.14);
 }
 
@@ -1729,23 +1734,11 @@ html[data-theme="light"] .top-bar__scan {
 }
 
 .top-bar__live-trade {
-  grid-column: 1;
-  grid-row: 3;
   min-width: 0;
   margin: 0;
-  padding-top: 0.35rem;
+  padding-top: 0.28rem;
   border-top: 1px solid rgba(148, 163, 184, 0.14);
   overflow: visible;
-}
-
-@media (min-width: 901px) {
-  .top-bar__grid:has(.top-bar__live-trade) .top-bar__live-trade {
-    padding-top: 0.32rem;
-  }
-}
-
-.top-bar__grid--with-scan .top-bar__live-trade {
-  grid-row: 4;
 }
 
 html[data-theme="light"] .top-bar__live-trade {
@@ -4641,12 +4634,15 @@ html[data-theme="light"] .access-admin-tab--active {
     display: block;
   }
 
-  .top-bar__brand {
+  .top-bar__header-left {
     grid-column: 1;
     grid-row: auto;
     justify-self: start;
     width: 100%;
     max-width: 100%;
+  }
+
+  .top-bar__brand {
     text-align: left;
   }
 
@@ -4703,8 +4699,6 @@ html[data-theme="light"] .access-admin-tab--active {
   }
 
   .top-bar__scan {
-    grid-column: 1;
-    grid-row: auto;
     padding-top: 0.32rem;
     margin-top: 0;
     border-top: 1px solid rgba(148, 163, 184, 0.12);

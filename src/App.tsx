@@ -1131,48 +1131,99 @@ export default function App() {
           <div className="top-bar__macro">
             <MacroEventsBar onSecretAdminOpen={() => setShowAccessAdmin(true)} />
           </div>
-          <div className="top-bar__brand">
-            <div className="top-bar__brand-lockup">
-              <span className="brand-mark" aria-hidden>
-                <img
-                  className="brand-mark__img"
-                  src="/branding/ystock-logo-mark.png?v=19"
-                  alt=""
-                  width={40}
-                  height={40}
-                  decoding="async"
-                />
-              </span>
-              <h1>{ko.app.title}</h1>
-            </div>
-            <div className="top-bar__brand-main">
-              <p className="top-bar__brand-tags">
-                <span className="top-bar__brand-tags__lead">
-                  {picks?.scanScopeLabel ?? ko.app.subtitle}
+          <div className="top-bar__header-left">
+            <div className="top-bar__brand">
+              <div className="top-bar__brand-lockup">
+                <span className="brand-mark" aria-hidden>
+                  <img
+                    className="brand-mark__img"
+                    src="/branding/ystock-logo-mark.png?v=19"
+                    alt=""
+                    width={40}
+                    height={40}
+                    decoding="async"
+                  />
                 </span>
-                {appTab === "screener" && (
-                  <span className="tag-group">
-                    <button
-                      type="button"
-                      className={
-                        picksHistoryOpen
-                          ? "tag tag--picks-history tag--picks-history-btn tag--picks-history-btn--active"
-                          : "tag tag--picks-history tag--picks-history-btn"
-                      }
-                      title={ko.app.picksHistoryButtonAria}
-                      aria-label={ko.app.picksHistoryButtonAria}
-                      aria-expanded={picksHistoryOpen}
-                      aria-controls={
-                        picksHistoryOpen ? "picks-history-dialog" : undefined
-                      }
-                      onClick={() => setPicksHistoryOpen(true)}
-                    >
-                      {ko.app.picksHistoryButton}
-                    </button>
+                <h1>{ko.app.title}</h1>
+              </div>
+              <div className="top-bar__brand-main">
+                <p className="top-bar__brand-tags">
+                  <span className="top-bar__brand-tags__lead">
+                    {picks?.scanScopeLabel ?? ko.app.subtitle}
                   </span>
-                )}
-              </p>
+                  {appTab === "screener" && (
+                    <span className="tag-group">
+                      <button
+                        type="button"
+                        className={
+                          picksHistoryOpen
+                            ? "tag tag--picks-history tag--picks-history-btn tag--picks-history-btn--active"
+                            : "tag tag--picks-history tag--picks-history-btn"
+                        }
+                        title={ko.app.picksHistoryButtonAria}
+                        aria-label={ko.app.picksHistoryButtonAria}
+                        aria-expanded={picksHistoryOpen}
+                        aria-controls={
+                          picksHistoryOpen ? "picks-history-dialog" : undefined
+                        }
+                        onClick={() => setPicksHistoryOpen(true)}
+                      >
+                        {ko.app.picksHistoryButton}
+                      </button>
+                    </span>
+                  )}
+                </p>
+              </div>
             </div>
+
+            {showTopScanStrip && picks ? (
+              <div className="top-bar__scan">
+                <div className="scan-status scan-status--compact scan-status--bar">
+                  <div className="scan-status__primary">
+                    {picks.running && (
+                      <div className="progress-bar" aria-hidden>
+                        <div
+                          className="progress-fill"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                    )}
+                    <span className="scan-status__msg">{picks.message}</span>
+                    {etaLabel && (
+                      <span className="scan-status__eta">{etaLabel}</span>
+                    )}
+                  </div>
+                  <div className="scan-status__secondary">
+                    {failedLabel && (
+                      <button
+                        type="button"
+                        className="scan-status__warn scan-status__fail-btn"
+                        onClick={() => setShowScreenFailures(true)}
+                        title={ko.app.failBtnTitle}
+                      >
+                        {failedLabel}
+                      </button>
+                    )}
+                    {picks.updatedAt && !picks.running && (
+                      <span className="scan-status__time">
+                        {formatUpdatedAt(picks.updatedAt)}
+                      </span>
+                    )}
+                    {nextRescanLabel && (
+                      <span className="scan-status__next" title={nextRescanLabel}>
+                        {nextRescanLabel}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+            <LiveTradingHeaderStrip
+              onOpenLiveTrading={() => setAppTab("liveTrading")}
+              telegramNotify={telegramNotify}
+              telegramSentCount={telegramSentCount}
+              onOpenTelegramSent={handleOpenTelegramSent}
+            />
           </div>
 
           <div className="top-bar__right">
@@ -1224,55 +1275,6 @@ export default function App() {
               </button>
             </div>
           </div>
-
-          {showTopScanStrip && picks ? (
-            <div className="top-bar__scan">
-              <div className="scan-status scan-status--compact scan-status--bar">
-                <div className="scan-status__primary">
-                  {picks.running && (
-                    <div className="progress-bar" aria-hidden>
-                      <div
-                        className="progress-fill"
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                  )}
-                  <span className="scan-status__msg">{picks.message}</span>
-                  {etaLabel && (
-                    <span className="scan-status__eta">{etaLabel}</span>
-                  )}
-                </div>
-                <div className="scan-status__secondary">
-                  {failedLabel && (
-                    <button
-                      type="button"
-                      className="scan-status__warn scan-status__fail-btn"
-                      onClick={() => setShowScreenFailures(true)}
-                      title={ko.app.failBtnTitle}
-                    >
-                      {failedLabel}
-                    </button>
-                  )}
-                  {picks.updatedAt && !picks.running && (
-                    <span className="scan-status__time">
-                      {formatUpdatedAt(picks.updatedAt)}
-                    </span>
-                  )}
-                  {nextRescanLabel && (
-                    <span className="scan-status__next" title={nextRescanLabel}>
-                      {nextRescanLabel}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : null}
-          <LiveTradingHeaderStrip
-            onOpenLiveTrading={() => setAppTab("liveTrading")}
-            telegramNotify={telegramNotify}
-            telegramSentCount={telegramSentCount}
-            onOpenTelegramSent={handleOpenTelegramSent}
-          />
         </div>
       </header>
       </div>
