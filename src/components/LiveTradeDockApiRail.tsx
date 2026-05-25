@@ -68,13 +68,15 @@ function DockApiRailButton({
     <span ref={anchorRef} className="app-live-trade-side-dock__api-anchor">
       <button
         type="button"
-        className={
-          selected
-            ? "app-live-trade-side-dock__rail-btn app-live-trade-side-dock__rail-btn--on app-live-trade-side-dock__rail-btn--exchange"
-            : ready
-              ? "app-live-trade-side-dock__rail-btn app-live-trade-side-dock__rail-btn--exchange app-live-trade-side-dock__rail-btn--exchange-ready"
-              : "app-live-trade-side-dock__rail-btn app-live-trade-side-dock__rail-btn--exchange"
-        }
+        className={[
+          "app-live-trade-side-dock__rail-btn",
+          "app-live-trade-side-dock__rail-btn--exchange",
+          selected ? "app-live-trade-side-dock__rail-btn--on" : "",
+          ready ? "app-live-trade-side-dock__rail-btn--exchange-ready" : "",
+          !ready && !selected ? "app-live-trade-side-dock__rail-btn--exchange-off" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
         aria-selected={selected}
         aria-expanded={selected}
         aria-haspopup="dialog"

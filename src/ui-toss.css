@@ -1992,6 +1992,53 @@ html[data-theme="dark"] .live-trade-api-card__body .live-trading-tab__cred-form 
   font-weight: 600;
 }
 
+.live-trading-tab__toss-state--ok {
+  color: var(--up, #4a7a5c);
+}
+
+.live-trading-tab__toss-state--no {
+  color: var(--muted, #8a929e);
+}
+
+.live-trade-dock-api-panel--off .live-trade-dock-api-panel__summary {
+  color: var(--muted, #8a929e);
+}
+
+.live-trade-dock-api-panel--off .live-trading-tab__cred-snapshot-fees,
+.live-trading-tab__cred-snapshot-fees--muted {
+  color: var(--muted, #8a929e);
+}
+
+.live-trading-tab__cred-snapshot--unauth .live-trading-tab__cred-snapshot-coin,
+.live-trading-tab__cred-snapshot--unauth .live-trading-tab__cred-snapshot-val,
+.live-trading-tab__cred-snapshot--unauth .live-trading-tab__cred-snapshot-krw dd {
+  color: var(--muted, #8a929e);
+}
+
+.live-trading-tab__cred-snapshot--unauth .live-trading-tab__cred-snapshot-coin-icon {
+  filter: grayscale(1);
+  opacity: 0.5;
+}
+
+.live-trading-tab__cred-snapshot--unauth .live-trading-tab__cred-snapshot-chg--up,
+.live-trading-tab__cred-snapshot--unauth .live-trading-tab__cred-snapshot-chg--down,
+.live-trading-tab__cred-snapshot--unauth .live-trading-tab__cred-snapshot-chg--flat {
+  color: var(--muted, #8a929e);
+}
+
+.app-live-trade-side-dock__api-popover .live-trading-tab__cred-snapshot {
+  margin-top: 0.35rem;
+  padding: 0.5rem 0.55rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface, #222830) 55%, var(--card));
+}
+
+html[data-theme="light"]
+  .app-live-trade-side-dock__api-popover
+  .live-trading-tab__cred-snapshot {
+  background: color-mix(in srgb, var(--surface, #f3f0eb) 70%, var(--card));
+}
+
 .live-trading-tab__grid {
   display: grid;
   grid-template-columns: minmax(280px, 1fr) minmax(300px, 1.1fr);

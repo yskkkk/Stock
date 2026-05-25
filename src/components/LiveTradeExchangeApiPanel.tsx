@@ -7,6 +7,12 @@ import {
 
 export type LiveTradeExchangeApiKind = "toss" | "bithumb";
 
+function checklistStateClass(ok: boolean): string {
+  return ok
+    ? "live-trading-tab__toss-state live-trading-tab__toss-state--ok"
+    : "live-trading-tab__toss-state live-trading-tab__toss-state--no";
+}
+
 export function LiveTradeExchangeApiPanel({
   exchange,
   status,
@@ -20,26 +26,35 @@ export function LiveTradeExchangeApiPanel({
 }) {
   if (exchange === "toss") {
     const toss = status?.toss;
+    const tossReady = Boolean(toss?.ready);
     return (
-      <div className="live-trade-dock-api-panel">
+      <div
+        className={
+          tossReady
+            ? "live-trade-dock-api-panel live-trade-dock-api-panel--ready"
+            : "live-trade-dock-api-panel live-trade-dock-api-panel--off"
+        }
+      >
         <h3 className="live-trade-dock-api-panel__title">{ko.app.liveTradeTossTitle}</h3>
         <p className="live-trade-dock-api-panel__summary">{toss?.messageKo ?? "—"}</p>
         <ul className="live-trading-tab__toss-env" aria-label={ko.app.liveTradeTossChecklist}>
           <li>
             <span>{ko.app.liveTradeTossItemApi}</span>
-            <span className="live-trading-tab__toss-state">
+            <span className={checklistStateClass(Boolean(toss?.configured))}>
               {toss?.configured ? ko.app.liveTradeTossOk : ko.app.liveTradeTossNo}
             </span>
           </li>
           <li>
             <span>{ko.app.liveTradeTossItemAccount}</span>
-            <span className="live-trading-tab__toss-state">
+            <span className={checklistStateClass(Boolean(toss?.ready))}>
               {toss?.ready ? ko.app.liveTradeTossOk : ko.app.liveTradeTossNo}
             </span>
           </li>
           <li>
             <span>{ko.app.liveTradeTossItemOrders}</span>
-            <span className="live-trading-tab__toss-state">
+            <span
+              className={checklistStateClass(status?.tossSimulatedOrders === false)}
+            >
               {status?.tossSimulatedOrders === false
                 ? ko.app.liveTradeTossOk
                 : ko.app.liveTradeTossSim}
@@ -58,8 +73,15 @@ export function LiveTradeExchangeApiPanel({
   }
 
   const bithumb = status?.bithumb;
+  const bithumbReady = Boolean(bithumb?.ready);
   return (
-    <div className="live-trade-dock-api-panel">
+    <div
+      className={
+        bithumbReady
+          ? "live-trade-dock-api-panel live-trade-dock-api-panel--ready"
+          : "live-trade-dock-api-panel live-trade-dock-api-panel--off"
+      }
+    >
       <h3 className="live-trade-dock-api-panel__title">{ko.app.liveTradeBithumbTitle}</h3>
       <p className="live-trade-dock-api-panel__summary">{bithumb?.messageKo ?? "—"}</p>
       <ul
@@ -68,13 +90,13 @@ export function LiveTradeExchangeApiPanel({
       >
         <li>
           <span>{ko.app.liveTradeBithumbItemKey}</span>
-          <span className="live-trading-tab__toss-state">
+          <span className={checklistStateClass(Boolean(bithumb?.configured))}>
             {bithumb?.configured ? ko.app.liveTradeTossOk : ko.app.liveTradeTossNo}
           </span>
         </li>
         <li>
           <span>{ko.app.liveTradeBithumbItemSecret}</span>
-          <span className="live-trading-tab__toss-state">
+          <span className={checklistStateClass(Boolean(bithumb?.ready))}>
             {bithumb?.ready ? ko.app.liveTradeTossOk : ko.app.liveTradeTossNo}
           </span>
         </li>

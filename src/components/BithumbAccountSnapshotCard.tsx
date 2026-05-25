@@ -77,6 +77,7 @@ export default function BithumbAccountSnapshotCard({
   feeLabelKo,
   updatedAtMs = null,
   variant = "inline",
+  authenticated = true,
 }: {
   snapshot: BithumbTestSnapshot;
   tradingFees?: BithumbTradingFeesDisplay | null;
@@ -85,14 +86,18 @@ export default function BithumbAccountSnapshotCard({
   /** 잔고·시세 마지막 반영 시각(ms) */
   updatedAtMs?: number | null;
   variant?: "inline" | "rail";
+  /** false면 보유·등락·아이콘 회색(미인증) */
+  authenticated?: boolean;
 }) {
   const { krw, holdings } = snapshot;
   const visibleHoldings = holdings.filter(isMeaningfulBithumbHolding);
   const [balanceHidden, toggleBalanceHidden] = useBithumbBalanceHidden();
-  const rootClass =
-    variant === "rail"
-      ? "bithumb-account-rail"
-      : "live-trading-tab__cred-snapshot";
+  const rootClass = [
+    variant === "rail" ? "bithumb-account-rail" : "live-trading-tab__cred-snapshot",
+    authenticated ? "" : "live-trading-tab__cred-snapshot--unauth",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const feesLine =
     feeLabelKo ??
@@ -104,11 +109,14 @@ export default function BithumbAccountSnapshotCard({
     <div className={rootClass} aria-label={ko.app.liveTradeCredTestBalance}>
       {feesLine ? (
         <p
-          className={
+          className={[
             variant === "rail"
               ? "bithumb-account-rail__fees"
-              : "live-trading-tab__cred-snapshot-fees"
-          }
+              : "live-trading-tab__cred-snapshot-fees",
+            authenticated ? "" : "live-trading-tab__cred-snapshot-fees--muted",
+          ]
+            .filter(Boolean)
+            .join(" ")}
         >
           {feesLine}
         </p>

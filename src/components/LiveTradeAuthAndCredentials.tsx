@@ -1333,6 +1333,7 @@ function CredentialExchangeForm({
               snapshot={testSnapshot}
               tradingFees={testTradingFees}
               variant="inline"
+              authenticated={keysReady}
             />
           ) : null}
         </div>
