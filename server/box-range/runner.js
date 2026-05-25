@@ -29,16 +29,25 @@ const TICK_MS = (() => {
  * @param {string} symbol
  * @param {"1h"|"4h"|"1d"} timeframe
  */
+function normalizeTime(t) {
+  if (Number.isFinite(t)) return t;
+  if (t && typeof t === "object" && t.year) {
+    return Math.floor(Date.UTC(t.year, t.month - 1, t.day) / 1000) - 9 * 3600;
+  }
+  return null;
+}
+
 async function loadCandlesForBoxTf(symbol, timeframe) {
   const data = await loadStock(symbol, timeframe, { live: true });
   const candles = Array.isArray(data?.candles) ? data.candles : [];
-  return candles.filter(
-    (c) =>
-      c &&
-      Number.isFinite(c.time) &&
-      Number.isFinite(c.high) &&
-      Number.isFinite(c.low),
-  );
+  return candles
+    .map((c) => {
+      if (!c) return null;
+      const time = normalizeTime(c.time);
+      if (time == null || !Number.isFinite(c.high) || !Number.isFinite(c.low)) return null;
+      return { ...c, time };
+    })
+    .filter(Boolean);
 }
 
 /**
