@@ -152,9 +152,9 @@ export default function LiveTradeTradesHistoryPanel({
   }, [hasOlder, nextOlderEndDay, fetchPage, loadAll]);
 
   const filteredTrades = useMemo(() => {
-    if (!exchange) return trades;
+    if (!exchange || loadAll) return trades;
     return trades.filter((t) => liveTradeRecordMatchesExchange(t, exchange));
-  }, [trades, exchange]);
+  }, [trades, exchange, loadAll]);
 
   const tradeFill = useMemo(
     () => tradeFillDisplayByTradeId(filteredTrades),

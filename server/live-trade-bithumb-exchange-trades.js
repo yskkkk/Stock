@@ -421,7 +421,30 @@ export async function mergeBithumbExchangeTradesAfterNotify(snap, userId, progra
  * @param {object} snap
  * @param {string} userId
  */
-const HISTORY_LOOKBACK_MS = 90 * 24 * 60 * 60 * 1000;
+/** 거래내역 UI — 최대 5년·마켓당 50페이지(5,000건)까지 */
+const HISTORY_LOOKBACK_MS = 5 * 365 * 24 * 60 * 60 * 1000;
+const HISTORY_MAX_PAGES_PER_MARKET = 50;
+const HISTORY_MARKET_FETCH_CONCURRENCY = 6;
+
+/** @param {string} userId */
+function collectHistoryMarkets(userId) {
+  /** @type {Map<string, { sym: string; market: string }>} */
+  const marketByKey = new Map();
+
+  const addSymbol = (symbolRaw) => {
+    const sym = String(symbolRaw ?? "").trim().toUpperCase();
+    if (!sym) return;
+    const base = usdtSymbolToBithumbBase(sym);
+    if (!base) return;
+    marketByKey.set(`KRW-${base}`, { sym, market: `KRW-${base}` });
+  };
+
+  for (const t of listLiveTradeRecordsSync(null, userId)) {
+    if (t.market === "crypto") addSymbol(t.symbol);
+  }
+
+  return { marketByKey, addSymbol };
+}
 
 /**
  * 거래내역 UI — 빗썸 체결 API 직접 조회(armed·텔레그램 조건 없음)
@@ -442,19 +465,14 @@ export async function listBithumbTradesFromExchangeApiForHistory(userId) {
 
   const sinceMs = Date.now() - HISTORY_LOOKBACK_MS;
   const oneWayFee = getOneWayFeeRateForUserMarketSync(uid, "crypto");
-  /** @type {Map<string, { sym: string; market: string }>} */
-  const marketByKey = new Map();
+  const { marketByKey, addSymbol } = collectHistoryMarkets(uid);
 
   try {
     const accounts = await fetchBithumbAccountsWithCredentials(credentials);
     for (const acc of accounts) {
       const cur = String(acc.currency ?? "").trim().toUpperCase();
       if (!cur || cur === "KRW") continue;
-      const sym = bithumbBaseToUsdtSymbol(cur);
-      if (!sym) continue;
-      const base = usdtSymbolToBithumbBase(sym);
-      if (!base) continue;
-      marketByKey.set(`KRW-${base}`, { sym, market: `KRW-${base}` });
+      addSymbol(bithumbBaseToUsdtSymbol(cur));
     }
   } catch (e) {
     liveTradeLogWarn(
@@ -464,25 +482,20 @@ export async function listBithumbTradesFromExchangeApiForHistory(userId) {
     );
   }
 
-  for (const t of listLiveTradeRecordsSync(null, uid)) {
-    if (t.market !== "crypto") continue;
-    const base = usdtSymbolToBithumbBase(t.symbol);
-    if (!base) continue;
-    marketByKey.set(`KRW-${base}`, {
-      sym: String(t.symbol).trim().toUpperCase(),
-      market: `KRW-${base}`,
-    });
-  }
-
+  const markets = [...marketByKey.values()];
   /** @type {object[]} */
   const out = [];
   const seenOrder = new Set();
 
-  for (const { sym, market } of marketByKey.values()) {
+  /**
+   * @param {{ sym: string; market: string }} item
+   */
+  const fetchOneMarket = async (item) => {
+    const { sym, market } = item;
     /** @type {object[]} */
-    let orders = [];
+    const orders = [];
     try {
-      for (let page = 1; page <= 8; page++) {
+      for (let page = 1; page <= HISTORY_MAX_PAGES_PER_MARKET; page++) {
         const batch = await listBithumbDoneOrdersWithCredentials(
           credentials,
           market,
@@ -503,7 +516,7 @@ export async function listBithumbTradesFromExchangeApiForHistory(userId) {
         market,
         e instanceof Error ? e.message : e,
       );
-      continue;
+      return;
     }
 
     for (const o of orders) {
@@ -534,6 +547,11 @@ export async function listBithumbTradesFromExchangeApiForHistory(userId) {
         atMs: fill.atMs,
       });
     }
+  };
+
+  for (let i = 0; i < markets.length; i += HISTORY_MARKET_FETCH_CONCURRENCY) {
+    const chunk = markets.slice(i, i + HISTORY_MARKET_FETCH_CONCURRENCY);
+    await Promise.all(chunk.map((m) => fetchOneMarket(m)));
   }
 
   return out.sort((a, b) => b.atMs - a.atMs);

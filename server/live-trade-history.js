@@ -171,7 +171,11 @@ export async function buildLiveTradeHistoryPayloadAsync(userId, opts = {}) {
     } catch {
       apiTrades = [];
     }
-    let merged = mergeHistoryTrades(payload.trades, apiTrades);
+    const storeCrypto = filterTradesByExchange(payload.trades, "bithumb");
+    let merged =
+      opts.all === true
+        ? mergeHistoryTrades(storeCrypto, apiTrades)
+        : mergeHistoryTrades(payload.trades, apiTrades);
     merged = enrichPortfolioTradeNames(merged);
     merged = attachProgramNames(merged, uid);
     merged = filterTradesByExchange(merged, "bithumb");
