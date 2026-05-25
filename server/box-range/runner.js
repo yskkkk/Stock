@@ -11,7 +11,7 @@ import {
 import { liveTradeLogWarn } from "../live-trade-log.js";
 import { collectWatchSymbolsForProgram } from "./watch-symbols.js";
 import { BOX_RANGE_TIMEFRAMES, isBoxRangeProgram } from "./constants.js";
-import { detectBoxRangeOnCandles } from "./detect.js";
+import { detectBoxRangesOnCandles } from "./detect.js";
 import {
   listBoxesForProgramSync,
   upsertDetectedBoxSync,
@@ -24,13 +24,6 @@ const TICK_MS = (() => {
   const n = Number(process.env.STOCK_BOX_RANGE_TICK_MS ?? 3_000);
   return Number.isFinite(n) && n >= 1_000 ? Math.min(n, 30_000) : 3_000;
 })();
-
-/** @type {Map<string, number>} */
-const lastDetectRightTime = new Map();
-
-function detectKey(programId, symbol, tf) {
-  return `${programId}:${symbol}:${tf}`;
-}
 
 /**
  * @param {string} symbol
@@ -57,23 +50,21 @@ async function runDetectionForTf(program, symbol, timeframe) {
   const candles = await loadCandlesForBoxTf(symbol, timeframe);
   if (candles.length < 20) return;
   const confirmed = candles.slice(0, -1);
-  const detected = detectBoxRangeOnCandles(confirmed, timeframe);
-  if (!detected) return;
-  const dk = detectKey(program.id, symbol, timeframe);
-  const prev = lastDetectRightTime.get(dk) ?? 0;
-  if (detected.rightTime <= prev) return;
-  lastDetectRightTime.set(dk, detected.rightTime);
-  upsertDetectedBoxSync({
-    programId: program.id,
-    userId: String(program.userId ?? "").trim(),
-    symbol,
-    timeframe,
-    top: detected.top,
-    bottom: detected.bottom,
-    mid: detected.mid,
-    leftTime: detected.leftTime,
-    rightTime: detected.rightTime,
-  });
+  const boxes = detectBoxRangesOnCandles(confirmed, timeframe);
+  const userId = String(program.userId ?? "").trim();
+  for (const detected of boxes) {
+    upsertDetectedBoxSync({
+      programId: program.id,
+      userId,
+      symbol,
+      timeframe,
+      top: detected.top,
+      bottom: detected.bottom,
+      mid: detected.mid,
+      leftTime: detected.leftTime,
+      rightTime: detected.rightTime,
+    });
+  }
 }
 
 /**

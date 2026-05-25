@@ -5,7 +5,7 @@ export const BOX_RANGE_MODEL_ID = "box-range";
 /** @type {readonly ("1h"|"4h"|"1d")[]} */
 export const BOX_RANGE_TIMEFRAMES = ["1h", "4h", "1d"];
 
-/** Pine 동일: TF별 최대 박스 폭(%) */
+/** TF별 최대 박스 폭(%) — chart-overlay 참고용으로만 유지, 탐지 로직에서는 미사용 */
 export const BOX_RANGE_MAX_PCT = {
   "1h": 3,
   "4h": 5,
@@ -14,7 +14,9 @@ export const BOX_RANGE_MAX_PCT = {
 
 export const BOX_RANGE_MIN_BARS = 14;
 export const BOX_RANGE_LOOKBACK = 100;
-export const BOX_RANGE_TOUCH_THRESHOLD = 0.12;
+export const BOX_RANGE_TOUCH_THRESHOLD = 0.20;
+/** 탐지 창 1개당 최대 봉 수 — lookback과 별개로 다중 창 스캔 간격에 사용 */
+export const BOX_RANGE_MAX_DETECTED = 5;
 export const BOX_RANGE_MIN_TOUCHES = 2;
 
 /** 동일 TF·동일 종목 내 겹침만 병합 — 1h/4h/1d 간 겹침은 병합하지 않음(각각 매매). */
