@@ -19,9 +19,10 @@ function flatBoxCandles(n = 30, base = 100, width = 2) {
 }
 
 describe("boxRangeTfsForChartTimeframe", () => {
-  it("maps intraday chart to all strategy TFs", () => {
+  it("always detects all strategy TFs", () => {
     expect(boxRangeTfsForChartTimeframe("1m")).toEqual(["1h", "4h", "1d"]);
-    expect(boxRangeTfsForChartTimeframe("1h")).toEqual(["1h"]);
+    expect(boxRangeTfsForChartTimeframe("1h")).toEqual(["1h", "4h", "1d"]);
+    expect(boxRangeTfsForChartTimeframe("4h")).toEqual(["1h", "4h", "1d"]);
   });
 });
 

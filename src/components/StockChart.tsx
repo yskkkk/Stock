@@ -45,7 +45,6 @@ import {
   createBoxRangeChartPrimitive,
   type BoxRangeChartPrimitive,
 } from "../lib/boxRangeChartPrimitive";
-import { chartTimeToUnixSec } from "../lib/profitMarker";
 import { ko } from "../i18n/ko";
 import type { ColorMode } from "../lib/theme";
 import type { Candle, ChartTime } from "../types";
@@ -2462,14 +2461,11 @@ export default function StockChart({
     const list = (boxRangeOverlays ?? []).slice(0, 8);
     if (!list.length) return;
 
-    const last = candles[candles.length - 1];
-    const extendRightTo = last ? chartTimeToUnixSec(last.time) : null;
-
     const prim = createBoxRangeChartPrimitive();
-    prim.setData(list, extendRightTo);
+    prim.setData(list, interval);
     b.candle.attachPrimitive(prim);
     boxRangePrimitiveRef.current = prim;
-  }, [boxRangeOverlays, structureKey, candles]);
+  }, [boxRangeOverlays, structureKey, interval]);
 
   useEffect(() => {
     if (!drawingsEnabled || drawModeForChart !== "cursor") return;

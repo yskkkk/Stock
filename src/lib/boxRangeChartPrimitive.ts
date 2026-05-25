@@ -25,9 +25,75 @@ type BoxRangePaneData = {
   chart: IChartApi;
   series: ISeriesApi<SeriesType>;
   boxes: BoxRangeChartBox[];
-  /** 박스 우측을 최신 봉 시각까지 연장(Pine 박스권) */
-  extendRightTo: number | null;
+  chartInterval: string;
 };
+
+const STRATEGY_TF_SEC: Record<string, number> = {
+  "1h": 3600,
+  "4h": 14400,
+  "1d": 86400,
+};
+
+function chartBarSeconds(interval: string): number {
+  const m: Record<string, number> = {
+    "1m": 60,
+    "5m": 300,
+    "15m": 900,
+    "1h": 3600,
+    "4h": 14400,
+    "1d": 86400,
+  };
+  return m[interval] ?? 3600;
+}
+
+/** 차트 봉보다 굵은 TF 박스는 그리지 않음(1d 박스가 1h 차트 좌측 전체를 덮는 문제 방지) */
+export function shouldDrawBoxOnChart(
+  boxTimeframe: string,
+  chartInterval: string,
+): boolean {
+  const boxSec = STRATEGY_TF_SEC[boxTimeframe];
+  if (!boxSec) return false;
+  const chartSec = chartBarSeconds(chartInterval);
+  if (chartSec <= 900) return true;
+  return boxSec <= chartSec;
+}
+
+function timeSortKey(t: Time): number {
+  if (typeof t === "number") return t;
+  if (typeof t === "string") {
+    const ms = Date.parse(t);
+    return Number.isFinite(ms) ? Math.floor(ms / 1000) : 0;
+  }
+  return Math.floor(Date.UTC(t.year, t.month - 1, t.day) / 1000);
+}
+
+function resolveTimeX(
+  chart: IChartApi,
+  series: ISeriesApi<SeriesType>,
+  unixSec: number,
+): number | null {
+  const direct = chart.timeScale().timeToCoordinate(unixSec as Time);
+  if (direct != null && Number.isFinite(direct)) return direct;
+
+  const bars = series.data() as { time: Time }[];
+  if (!bars.length) return null;
+
+  let best = bars[0]!;
+  let bestD = Math.abs(timeSortKey(best.time) - unixSec);
+  for (const b of bars) {
+    const d = Math.abs(timeSortKey(b.time) - unixSec);
+    if (d < bestD) {
+      bestD = d;
+      best = b;
+    }
+  }
+
+  const maxSlop = chartBarSeconds("1h") * 2;
+  if (bestD > maxSlop) return null;
+
+  const x = chart.timeScale().timeToCoordinate(best.time);
+  return x != null && Number.isFinite(x) ? x : null;
+}
 
 function tfStyle(tf: string): { stroke: string; fill: string } {
   if (tf === "1d") {
@@ -37,14 +103,6 @@ function tfStyle(tf: string): { stroke: string; fill: string } {
     return { stroke: "#a78bfa", fill: "rgba(167, 139, 250, 0.14)" };
   }
   return { stroke: "#38bdf8", fill: "rgba(56, 189, 248, 0.14)" };
-}
-
-function coordX(
-  chart: IChartApi,
-  unixSec: number,
-): number | null {
-  const x = chart.timeScale().timeToCoordinate(unixSec as Time);
-  return x ?? null;
 }
 
 function boxGeom(
@@ -59,16 +117,19 @@ function boxGeom(
   stroke: string;
   fill: string;
 } | null {
-  const { chart, series, extendRightTo } = data;
-  const rightUnix = Math.max(box.rightTime, extendRightTo ?? box.rightTime);
-  const x1 = coordX(chart, box.leftTime);
-  const x2 = coordX(chart, rightUnix);
-  const yTop = series.priceToCoordinate(box.top);
-  const yBot = series.priceToCoordinate(box.bottom);
-  const yMid = series.priceToCoordinate(box.mid);
+  if (!shouldDrawBoxOnChart(box.timeframe, data.chartInterval)) return null;
+
+  const leftUnix = Math.min(box.leftTime, box.rightTime);
+  const rightUnix = Math.max(box.leftTime, box.rightTime);
+  const x1 = resolveTimeX(data.chart, data.series, leftUnix);
+  const x2 = resolveTimeX(data.chart, data.series, rightUnix);
+  const yTop = data.series.priceToCoordinate(box.top);
+  const yBot = data.series.priceToCoordinate(box.bottom);
+  const yMid = data.series.priceToCoordinate(box.mid);
   if (x1 == null || x2 == null || yTop == null || yBot == null || yMid == null) {
     return null;
   }
+
   const left = Math.min(x1, x2);
   const right = Math.max(x1, x2);
   const top = Math.min(yTop, yBot);
@@ -76,6 +137,7 @@ function boxGeom(
   const w = right - left;
   const h = bottom - top;
   if (!(w > 2 && h > 2)) return null;
+
   const { stroke, fill } = tfStyle(box.timeframe);
   return { left, right, top, bottom, yMid, stroke, fill };
 }
@@ -202,7 +264,7 @@ class BoxRangeLinePaneView implements IPrimitivePaneView {
 
 export class BoxRangeChartPrimitive implements ISeriesPrimitive<Time> {
   private _boxes: BoxRangeChartBox[] = [];
-  private _extendRightTo: number | null = null;
+  private _chartInterval = "1h";
   private _chart: IChartApi | null = null;
   private _series: ISeriesApi<SeriesType> | null = null;
   private _requestUpdate: (() => void) | undefined;
@@ -221,13 +283,13 @@ export class BoxRangeChartPrimitive implements ISeriesPrimitive<Time> {
       chart: this._chart,
       series: this._series,
       boxes: this._boxes,
-      extendRightTo: this._extendRightTo,
+      chartInterval: this._chartInterval,
     };
   }
 
-  setData(boxes: BoxRangeChartBox[], extendRightTo: number | null) {
+  setData(boxes: BoxRangeChartBox[], chartInterval: string) {
     this._boxes = boxes;
-    this._extendRightTo = extendRightTo;
+    this._chartInterval = chartInterval;
     this.updateAllViews();
     this._requestUpdate?.();
   }

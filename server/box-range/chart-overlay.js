@@ -9,9 +9,8 @@ const BOX_TFS = ["1h", "4h", "1d"];
  * @param {string} chartTimeframe — 차트 UI 봉(1m·5m·15m·1h·4h·1d)
  * @returns {("1h"|"4h"|"1d")[]}
  */
-export function boxRangeTfsForChartTimeframe(chartTimeframe) {
-  const tf = String(chartTimeframe ?? "").trim();
-  if (tf === "1h" || tf === "4h" || tf === "1d") return [tf];
+/** 차트 봉과 무관하게 1h·4h·1d 박스 모두 탐지 — 표시 여부는 클라이언트에서 차트 봉에 맞게 필터 */
+export function boxRangeTfsForChartTimeframe(_chartTimeframe) {
   return [...BOX_TFS];
 }
 
