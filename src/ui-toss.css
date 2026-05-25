@@ -1431,16 +1431,16 @@ html[data-theme="light"] .live-trade-cred-password-popover::after {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.45rem 0.5rem;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--accent, #5eead4) 7%, var(--card, #fff));
-  border: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 75%, transparent);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 35%, transparent);
+  padding: 0.45rem 0 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 html[data-theme="dark"] .live-trading-tab__cred-toolbar {
-  background: color-mix(in srgb, var(--accent, #5eead4) 9%, var(--card, #161d27));
-  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 6%, transparent);
+  background: transparent;
+  box-shadow: none;
 }
 
 .live-trading-tab__cred-toolbar--form {
