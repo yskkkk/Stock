@@ -30,6 +30,7 @@ import {
   LIVE_TRADE_DOCK_TOGGLE_EVENT,
   dispatchLiveTradeDockOpenForm,
 } from "../lib/liveTradeDockEvents";
+import { LIVE_TRADE_DOCK_OPEN_PORTFOLIO_EVENT } from "../lib/liveTradePortfolioFocus";
 import {
   LIVE_TRADE_DOCK_PANEL_WIDTH_PREF,
   applyDockPanelWidthCss,
@@ -365,6 +366,22 @@ export default function AppLiveTradeSideDock({
     window.addEventListener(LIVE_TRADE_DOCK_TOGGLE_EVENT, onToggle);
     return () => window.removeEventListener(LIVE_TRADE_DOCK_TOGGLE_EVENT, onToggle);
   }, [toggleFold]);
+
+  useEffect(() => {
+    const onOpenPortfolio = () => {
+      if (!openPanel) return;
+      const titles = defaultLiveTradeSideTabTitles();
+      openPanel("portfolio", titles.portfolio ?? ko.app.liveTradePfTitle);
+      persistOpen(true);
+      beginDockPanelOpenAnimation();
+    };
+    window.addEventListener(LIVE_TRADE_DOCK_OPEN_PORTFOLIO_EVENT, onOpenPortfolio);
+    return () =>
+      window.removeEventListener(
+        LIVE_TRADE_DOCK_OPEN_PORTFOLIO_EVENT,
+        onOpenPortfolio,
+      );
+  }, [openPanel, persistOpen, beginDockPanelOpenAnimation]);
 
   const activeId = panel?.id ?? null;
 

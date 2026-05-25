@@ -5,12 +5,20 @@ import {
   feeByMarketFromStatus,
 } from "../lib/liveTradeFeeByMarket";
 import {
+  fetchAccessAdminLiveTradingPortfolio,
   fetchLiveTradingMinuteQuotes,
   fetchLiveTradingPortfolio,
+  getStoredAccessAdminToken,
   type LiveTradeHolding,
   type LiveTradePortfolioResponse,
   type LiveTradeProgram,
 } from "../api";
+import {
+  consumePendingLiveTradePortfolioFocus,
+  LIVE_TRADE_PORTFOLIO_FOCUS_EVENT,
+  type LiveTradePortfolioFocus,
+} from "../lib/liveTradePortfolioFocus";
+import { useLiveTradeAuth } from "./LiveTradeAuthAndCredentials";
 import { useLivePortfolioQuotePoll } from "../hooks/useLivePortfolioQuotePoll";
 import {
   extractQuotesFromPortfolio,
@@ -400,7 +408,12 @@ export default function LiveTradePortfolioPanel({
   const [pinnedTab, setPinnedTab] = useState<PanelTab>("holdings");
   const [hoverTab, setHoverTab] = useState<PanelTab | null>(null);
   const viewTab = hoverTab ?? pinnedTab;
+  const { user } = useLiveTradeAuth();
   const [programId, setProgramId] = useState<string>("");
+  const [adminViewUserId, setAdminViewUserId] = useState<string | null>(null);
+  const [adminViewProgramName, setAdminViewProgramName] = useState<string | null>(
+    null,
+  );
   const [data, setData] = useState<LiveTradePortfolioResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -435,10 +448,51 @@ export default function LiveTradePortfolioPanel({
     [feeByMarket],
   );
 
+  const applyPortfolioFocus = useCallback((focus: LiveTradePortfolioFocus) => {
+    setProgramId(focus.programId);
+    if (focus.userId) {
+      setAdminViewUserId(focus.userId);
+      setAdminViewProgramName(focus.programName ?? null);
+    } else {
+      setAdminViewUserId(null);
+      setAdminViewProgramName(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    const pending = consumePendingLiveTradePortfolioFocus();
+    if (pending) applyPortfolioFocus(pending);
+    const onFocus = (e: Event) => {
+      const detail = (e as CustomEvent<LiveTradePortfolioFocus>).detail;
+      if (detail?.programId) applyPortfolioFocus(detail);
+    };
+    window.addEventListener(LIVE_TRADE_PORTFOLIO_FOCUS_EVENT, onFocus);
+    return () =>
+      window.removeEventListener(LIVE_TRADE_PORTFOLIO_FOCUS_EVENT, onFocus);
+  }, [applyPortfolioFocus]);
+
+  const adminReadOnly = Boolean(
+    adminViewUserId && user?.id && user.id !== adminViewUserId,
+  );
+
   const load = useCallback(
     async (opts?: { keepQuoteMerge?: boolean }) => {
       try {
-        const snap = await fetchLiveTradingPortfolio(programId || null);
+        let snap: LiveTradePortfolioResponse;
+        const useAdminPortfolio = Boolean(
+          adminViewUserId && user?.id && user.id !== adminViewUserId,
+        );
+        if (useAdminPortfolio) {
+          const token = getStoredAccessAdminToken();
+          if (!token) throw new Error(ko.access.adminPasswordLabel);
+          snap = await fetchAccessAdminLiveTradingPortfolio(
+            token,
+            adminViewUserId!,
+            programId,
+          );
+        } else {
+          snap = await fetchLiveTradingPortfolio(programId || null);
+        }
         if (opts?.keepQuoteMerge) {
           setData((prev) =>
             prev?.holdings.length
@@ -459,7 +513,7 @@ export default function LiveTradePortfolioPanel({
         setLoading(false);
       }
     },
-    [programId, feeByMarket, applyPortfolioSnapshot],
+    [programId, adminViewUserId, user?.id, feeByMarket, applyPortfolioSnapshot],
   );
 
   const onPortfolioAfterTrade = useCallback(
@@ -490,17 +544,33 @@ export default function LiveTradePortfolioPanel({
   );
   const { rate: usdKrwRate } = useUsdKrwRate(Boolean(data?.holdings.length));
 
-  const programOptions = useMemo(
-    () => [{ id: "", name: ko.app.liveTradePfAllPrograms }, ...programs],
-    [programs],
-  );
+  useEffect(() => {
+    if (
+      adminReadOnly &&
+      (pinnedTab === "trade" || pinnedTab === "openOrders")
+    ) {
+      setPinnedTab("holdings");
+      setHoverTab(null);
+    }
+  }, [adminReadOnly, pinnedTab]);
+
+  const programOptions = useMemo(() => {
+    if (adminReadOnly && programId) {
+      const name =
+        adminViewProgramName ??
+        programs.find((p) => p.id === programId)?.name ??
+        programId;
+      return [{ id: programId, name }];
+    }
+    return [{ id: "", name: ko.app.liveTradePfAllPrograms }, ...programs];
+  }, [programs, adminReadOnly, programId, adminViewProgramName]);
 
   useEffect(() => {
-    if (!programId) return;
+    if (!programId || adminReadOnly) return;
     if (!programs.some((p) => p.id === programId)) {
       setProgramId("");
     }
-  }, [programs, programId]);
+  }, [programs, programId, adminReadOnly]);
 
   const tradeFill = useMemo(
     () => tradeFillDisplayByTradeId(data?.trades ?? []),
@@ -542,6 +612,14 @@ export default function LiveTradePortfolioPanel({
         sidePanelId="portfolio"
       >
       <header className="live-portfolio__head live-portfolio__head--in-card">
+        {adminReadOnly ? (
+          <p className="live-portfolio__admin-view-note" role="status">
+            {ko.access.liveTradePfAdminView.replace(
+              "{name}",
+              adminViewProgramName ?? programId,
+            )}
+          </p>
+        ) : null}
         <div className="live-portfolio__head-tools">
           <label className="live-portfolio__filter">
             <span className="live-portfolio__filter-label">
@@ -550,6 +628,7 @@ export default function LiveTradePortfolioPanel({
             <select
               className="input live-portfolio__select"
               value={programId}
+              disabled={adminReadOnly}
               onChange={(e) => setProgramId(e.target.value)}
             >
               {programOptions.map((p) => (
@@ -581,9 +660,13 @@ export default function LiveTradePortfolioPanel({
             [
               ["summary", ko.app.liveTradePfTabSummary],
               ["holdings", ko.app.liveTradePfTabHoldings],
-              ["trade", ko.app.liveTradePfTabTrade],
+              ...(adminReadOnly
+                ? ([] as const)
+                : ([["trade", ko.app.liveTradePfTabTrade]] as const)),
               ["trades", ko.app.liveTradePfTabTrades],
-              ["openOrders", ko.app.liveTradePfTabOpenOrders],
+              ...(adminReadOnly
+                ? ([] as const)
+                : ([["openOrders", ko.app.liveTradePfTabOpenOrders]] as const)),
             ] as const
           ).map(([id, label]) => {
             const isView = viewTab === id;

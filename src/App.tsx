@@ -71,6 +71,11 @@ import { usePickKeyboard } from "./hooks/usePickKeyboard";
 import { useMarketIndices } from "./hooks/useMarketIndices";
 import { useUsdKrwRate } from "./hooks/useUsdKrwRate";
 import { resolveUsQuoteDisplay } from "./lib/usQuoteDisplay";
+import {
+  dispatchLiveTradeDockOpenPortfolio,
+  dispatchLiveTradePortfolioFocus,
+  setPendingLiveTradePortfolioFocus,
+} from "./lib/liveTradePortfolioFocus";
 import { enrichBullishPick } from "./lib/bullishPicks";
 import {
   filterPicksBySignals,
@@ -1880,6 +1885,20 @@ export default function App() {
 
       <AccessAdminModal
         open={showAccessAdmin}
+        onViewLiveTradePortfolio={(p) => {
+          setShowAccessAdmin(false);
+          const focus = {
+            programId: p.programId,
+            userId: p.userId,
+            programName: p.name,
+          };
+          setPendingLiveTradePortfolioFocus(focus);
+          setAppTab("liveTrading");
+          requestAnimationFrame(() => {
+            dispatchLiveTradeDockOpenPortfolio();
+            dispatchLiveTradePortfolioFocus(focus);
+          });
+        }}
         onClose={() => {
           setShowAccessAdmin(false);
           void fetchConfig()

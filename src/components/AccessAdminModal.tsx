@@ -77,9 +77,16 @@ export default function AccessAdminModal({
   onOpenTelegramSent,
   onResetTelegram,
   resettingTelegram,
+  onViewLiveTradePortfolio,
 }: {
   open: boolean;
   onClose: () => void;
+  /** 실매매 탭 — 수익률 포트폴리오로 이동 */
+  onViewLiveTradePortfolio?: (p: {
+    programId: string;
+    userId?: string;
+    name: string;
+  }) => void;
   /** ACCESS_ADMIN_IPS 에 등록된 IP — 비밀번호 없이 전체 탭 이용 */
   adminIpBypassPassword?: boolean;
   telegramNotify: boolean;
@@ -847,6 +854,18 @@ export default function AccessAdminModal({
                   <ul className="access-admin-list access-admin-live-trade-list">
                     {(liveTradeData?.programs ?? []).map((p) => (
                       <li key={p.id} className="access-admin-item access-admin-live-trade-item">
+                        <button
+                          type="button"
+                          className="access-admin-live-trade-open"
+                          title={ko.access.adminLiveTradeOpenPortfolioHint}
+                          onClick={() =>
+                            onViewLiveTradePortfolio?.({
+                              programId: p.id,
+                              userId: p.userId,
+                              name: p.name,
+                            })
+                          }
+                        >
                         <div className="access-admin-item-head">
                           <strong>{p.name}</strong>
                           <span
@@ -904,6 +923,10 @@ export default function AccessAdminModal({
                             {p.lastError}
                           </p>
                         ) : null}
+                        <span className="access-admin-live-trade-open-cta">
+                          {ko.access.adminLiveTradeOpenPortfolio}
+                        </span>
+                        </button>
                       </li>
                     ))}
                   </ul>

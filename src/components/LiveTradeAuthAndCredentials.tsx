@@ -30,6 +30,7 @@ import {
 import BithumbAccountSnapshotCard from "./BithumbAccountSnapshotCard";
 import FieldValidationCallout from "./FieldValidationCallout";
 import { ko } from "../i18n/ko";
+import { LIVE_TRADE_DOCK_OPEN_PORTFOLIO_EVENT } from "../lib/liveTradePortfolioFocus";
 import {
   validateAuthCredentials,
   validateAuthEmail,
@@ -293,6 +294,20 @@ export function LiveTradeCardSidePanelProvider({
       window.removeEventListener(LIVE_TRADE_AUTH_CHANGE, onAuth);
     };
   }, []);
+
+  useEffect(() => {
+    const onOpenPortfolio = () => {
+      const titles = defaultLiveTradeSideTabTitles();
+      openPanel("portfolio", titles.portfolio ?? ko.app.liveTradePfTitle);
+    };
+    window.addEventListener(LIVE_TRADE_DOCK_OPEN_PORTFOLIO_EVENT, onOpenPortfolio);
+    return () =>
+      window.removeEventListener(
+        LIVE_TRADE_DOCK_OPEN_PORTFOLIO_EVENT,
+        onOpenPortfolio,
+      );
+  }, [openPanel]);
+
   const sideTabs = useMemo(
     () =>
       LIVE_TRADE_CARD_TAB_ORDER.filter((id) => tabTitles[id]).map((id) => ({

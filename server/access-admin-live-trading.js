@@ -1,5 +1,28 @@
 import { getProgramArmedMarkets } from "./live-trade-arm-gate.js";
+import { buildLiveTradePortfolioSnapshot } from "./live-trade-portfolio-store.js";
 import { listLiveTradeProgramsSync } from "./live-trade-programs-store.js";
+
+async function portfolioPayloadForUser(userId, programId) {
+  const uid = String(userId ?? "").trim();
+  const pid = programId ? String(programId).trim() : null;
+  const snap = await buildLiveTradePortfolioSnapshot({
+    userId: uid,
+    programId: pid,
+  });
+  const programs = listLiveTradeProgramsSync(uid);
+  const nameById = new Map(programs.map((p) => [p.id, p.name]));
+  return {
+    ...snap,
+    holdings: snap.holdings.map((h) => ({
+      ...h,
+      programName: nameById.get(h.programId) ?? h.programId,
+    })),
+    trades: snap.trades.map((t) => ({
+      ...t,
+      programName: nameById.get(t.programId) ?? t.programId,
+    })),
+  };
+}
 
 export function buildAdminLiveTradingRunningPayload() {
   const all = listLiveTradeProgramsSync();
@@ -51,4 +74,24 @@ export function registerAccessAdminLiveTradingRoute(app, requireAdmin) {
       res.status(500).json({ error: msg });
     }
   });
+
+  app.get(
+    "/api/access/admin/live-trading/portfolio",
+    requireAdmin,
+    async (req, res) => {
+      try {
+        const userId = String(req.query?.userId ?? "").trim();
+        const programId = String(req.query?.programId ?? "").trim() || null;
+        if (!userId) {
+          res.status(400).json({ error: "userId required" });
+          return;
+        }
+        const snap = await portfolioPayloadForUser(userId, programId);
+        res.json(snap);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        res.status(500).json({ error: msg });
+      }
+    },
+  );
 }

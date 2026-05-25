@@ -3315,6 +3315,44 @@ button.chip.chip--on,
   flex-direction: column;
   gap: 0.35rem;
 }
+
+.access-admin-live-trade-open {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.access-admin-live-trade-open:hover {
+  background: color-mix(in srgb, var(--accent-dim, rgba(94, 234, 212, 0.12)) 55%, transparent);
+}
+
+.access-admin-live-trade-open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.access-admin-live-trade-open-cta {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--accent, #5eead4);
+}
+
+.live-portfolio__admin-view-note {
+  margin: 0 0 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+}
 .access-admin-live-trade-badge {
   font-size: 0.75rem;
   font-weight: 600;

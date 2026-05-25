@@ -1655,6 +1655,26 @@ export function fetchAccessAdminLiveTradingRunning(adminToken: string) {
   );
 }
 
+export function fetchAccessAdminLiveTradingPortfolio(
+  adminToken: string,
+  userId: string,
+  programId: string,
+) {
+  const params = new URLSearchParams();
+  params.set("userId", userId.trim());
+  params.set("programId", programId.trim());
+  const headers: Record<string, string> = {};
+  const t = adminToken.trim();
+  if (t) headers.Authorization = `Bearer ${t}`;
+  return fetchJson<LiveTradePortfolioResponse>(
+    `/api/access/admin/live-trading/portfolio?${params}`,
+    {
+      headers: Object.keys(headers).length ? headers : undefined,
+      cache: "no-store",
+    },
+  );
+}
+
 function accessAdminPostHeaders(adminToken: string): Record<string, string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   const t = adminToken.trim();
