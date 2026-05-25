@@ -155,9 +155,19 @@ export function displayStockSymbol(symbol: string): string {
   return symbol.trim().replace(/\.(KS|KQ)$/i, "");
 }
 
+export type FormatTurnoverOptions = {
+  /** $·원·통화 접미사 없이 숫자+단위만 (예: 36.45B, 1.2조) */
+  plainSymbols?: boolean;
+};
+
 /** 당일 거래대금 — KRW는 억/조, USD 등은 B/M/K */
-export function formatTurnover(value: number | undefined, currency?: string) {
+export function formatTurnover(
+  value: number | undefined,
+  currency?: string,
+  options?: FormatTurnoverOptions,
+) {
   if (value == null || !Number.isFinite(value) || value <= 0) return "—";
+  const plain = options?.plainSymbols === true;
   if (currency === "KRW") {
     if (value >= 1e12) return `${(value / 1e12).toFixed(2)}조`;
     if (value >= 1e8) {
@@ -165,11 +175,13 @@ export function formatTurnover(value: number | undefined, currency?: string) {
       return eok >= 100 ? `${Math.round(eok).toLocaleString("ko-KR")}억` : `${eok.toFixed(1)}억`;
     }
     if (value >= 1e4) return `${Math.round(value / 1e4).toLocaleString("ko-KR")}만`;
-    return `${Math.round(value).toLocaleString("ko-KR")}원`;
+    return plain
+      ? `${Math.round(value).toLocaleString("ko-KR")}`
+      : `${Math.round(value).toLocaleString("ko-KR")}원`;
   }
   const cur = currency?.trim().toUpperCase();
-  const prefix = cur === "USD" || !cur ? "$" : "";
-  const suffix = cur && cur !== "USD" ? ` ${cur}` : "";
+  const prefix = plain ? "" : cur === "USD" || !cur ? "$" : "";
+  const suffix = plain ? "" : cur && cur !== "USD" ? ` ${cur}` : "";
   if (value >= 1e9) return `${prefix}${(value / 1e9).toFixed(2)}B${suffix}`;
   if (value >= 1e6) return `${prefix}${(value / 1e6).toFixed(1)}M${suffix}`;
   if (value >= 1e3) return `${prefix}${(value / 1e3).toFixed(0)}K${suffix}`;

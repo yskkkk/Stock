@@ -1415,32 +1415,24 @@ export default function App() {
                 ) : null}
               </div>
             </div>
-            {appTab === "stockLookup" && lookupHotToolbar.visible ? (
+            {appTab === "stockLookup" && lookupHotToolbar.showUsToggle ? (
               <div className="panel-head__tail panel-head__tail--lookup-hot">
                 <span
                   className="stock-search-tab__tab-hot-inline"
-                  title={ko.app.pickTurnoverTitle}
+                  title={
+                    usQuoteInKrw
+                      ? usdKrwValDate
+                        ? ko.app.quoteCurrencyFxBasis.replace(
+                            "{date}",
+                            usdKrwValDate,
+                          )
+                        : ko.app.quoteCurrencyShowUsd
+                      : ko.app.quoteCurrencyShowKrw
+                  }
                 >
-                  <span className="stock-search-tab__hot-badge stock-search-tab__tab-hot-badge">
-                    {ko.app.pickTurnoverShort}
+                  <span className="stock-search-tab__quote-currency-text">
+                    {usQuoteInKrw ? "원화" : "$"}
                   </span>
-                  {lookupHotToolbar.showUsToggle ? (
-                    <span
-                      className="stock-search-tab__quote-currency-text"
-                      title={
-                        usQuoteInKrw
-                          ? usdKrwValDate
-                            ? ko.app.quoteCurrencyFxBasis.replace(
-                                "{date}",
-                                usdKrwValDate,
-                              )
-                            : ko.app.quoteCurrencyShowUsd
-                          : ko.app.quoteCurrencyShowKrw
-                      }
-                    >
-                      {usQuoteInKrw ? "원화" : "$"}
-                    </span>
-                  ) : null}
                 </span>
               </div>
             ) : null}

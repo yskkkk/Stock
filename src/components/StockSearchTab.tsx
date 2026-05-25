@@ -202,6 +202,13 @@ function StockSearchHotRow({
         </span>
         {hasPrice ? (
           <>
+            {row.turnover != null &&
+            Number.isFinite(row.turnover) &&
+            row.turnover > 0 ? (
+              <span className="stock-hot-item__turnover" title={ko.app.pickTurnoverTitle}>
+                {formatTurnover(row.turnover, cur, { plainSymbols: true })}
+              </span>
+            ) : null}
             <span className="stock-hot-item__quote">
               <span className="stock-hot-item__price">
                 {formatPrice(quoteDisplay.price ?? undefined, cur)}
@@ -218,15 +225,6 @@ function StockSearchHotRow({
                 </span>
               ) : null}
             </span>
-            {row.turnover != null &&
-            Number.isFinite(row.turnover) &&
-            row.turnover > 0 ? (
-              <span className="stock-hot-item__turnover" title={ko.app.pickTurnoverTitle}>
-                {formatTurnover(row.turnover, cur)}
-              </span>
-            ) : (
-              <span className="stock-hot-item__turnover stock-hot-item__turnover--empty" />
-            )}
           </>
         ) : (
           <span className="stock-hot-item__pending">{ko.app.stockLookupQuotePending}</span>
