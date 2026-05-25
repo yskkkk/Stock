@@ -95,6 +95,18 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
   if (box.state === "armed") {
     const broke = box.breakAtMs != null;
     if (broke && lastPrice >= box.mid) {
+      if (!box.midNotifiedAtMs) {
+        const sent = await notifyBoxRangeMidEntry(
+          box,
+          program,
+          lastPrice,
+          market,
+        );
+        if (sent) {
+          patchBoxSync(box.boxId, { midNotifiedAtMs: now });
+        }
+      }
+
       const openLots = countOpenBoxLotsSync(program.id);
       if (openLots >= program.maxOpenPositions) return;
 
@@ -104,11 +116,6 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
 
       let runErr = null;
       try {
-        if (!box.midNotifiedAtMs) {
-          await notifyBoxRangeMidEntry(box, program, lastPrice);
-          patchBoxSync(box.boxId, { midNotifiedAtMs: now });
-        }
-
         const pick = {
           symbol: sym,
           market,

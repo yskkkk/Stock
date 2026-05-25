@@ -1,27 +1,64 @@
+import { liveTradeCurrency } from "../live-trade-market.js";
 import {
   isTelegramNotifyEnabled,
   sendTelegramMessage,
   resolveStockTelegramCreds,
 } from "../telegram-notify.js";
+import { liveTradeLogInfo, liveTradeLogWarn } from "../live-trade-log.js";
 
 /**
+ * @param {number} n
+ * @param {"kr"|"us"|"crypto"} market
+ */
+function fmtBoxPrice(n, market) {
+  const v = Number(n);
+  if (!Number.isFinite(v)) return "—";
+  const cur = liveTradeCurrency(market);
+  if (cur === "USD") {
+    return `$${v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+  if (v >= 1000) {
+    return `${Math.round(v).toLocaleString("ko-KR")}원`;
+  }
+  return `${v.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}원`;
+}
+
+/**
+ * 박스권 매수가(중심선) 재돌파 — 텔레그램 1회 알림
  * @param {import("./store.js").BoxRangeRecord} box
  * @param {import("../live-trade-programs-store.js").LiveTradeProgram} program
  * @param {number} lastPrice
+ * @param {"kr"|"us"|"crypto"} market
  */
-export async function notifyBoxRangeMidEntry(box, program, lastPrice) {
-  if (!isTelegramNotifyEnabled()) return false;
+export async function notifyBoxRangeMidEntry(box, program, lastPrice, market) {
+  if (!isTelegramNotifyEnabled()) {
+    liveTradeLogWarn(
+      "[box-range:telegram]",
+      "TELEGRAM_BOT_TOKEN·TELEGRAM_CHAT_ID 미설정 — 알림 생략",
+      box.symbol,
+    );
+    return false;
+  }
   const sym = box.symbol;
   const tf = box.timeframe;
+  const st = program.status === "armed" ? "실매매" : "시뮬";
   const text = [
-    "<b>📦 박스권 매수 신호</b>",
+    "<b>📦 박스권 매수가 도달</b>",
     "",
-    `종목: <b>${sym}</b> (${tf})`,
-    `프로그램: ${program.name ?? program.id}`,
-    `현재가: ${lastPrice.toFixed(2)}`,
-    `매수(중심): ${box.mid.toFixed(2)}`,
-    `익절: ${box.top.toFixed(2)}`,
-    `손절: ${box.bottom.toFixed(2)}`,
+    `종목: <b>${sym}</b> · ${tf}`,
+    `프로그램: ${program.name ?? program.id} (${st})`,
+    `현재가: ${fmtBoxPrice(lastPrice, market)}`,
+    `매수가(중심): <b>${fmtBoxPrice(box.mid, market)}</b>`,
+    `익절(상단): ${fmtBoxPrice(box.top, market)}`,
+    `손절(하단): ${fmtBoxPrice(box.bottom, market)}`,
+    "",
+    "조건: 하단 이탈 후 중심선 재돌파",
   ].join("\n");
-  return sendTelegramMessage(text, undefined, resolveStockTelegramCreds());
+  const ok = await sendTelegramMessage(text, undefined, resolveStockTelegramCreds());
+  if (ok) {
+    liveTradeLogInfo("[box-range:telegram]", "sent", program.name, sym, tf, box.mid);
+  } else {
+    liveTradeLogWarn("[box-range:telegram]", "send failed", program.name, sym, tf);
+  }
+  return ok;
 }
