@@ -29,6 +29,7 @@ import {
 } from "../api";
 import BithumbAccountSnapshotCard from "./BithumbAccountSnapshotCard";
 import FieldValidationCallout from "./FieldValidationCallout";
+import LiveTradeDockYsHead from "./LiveTradeDockYsHead";
 import { ko } from "../i18n/ko";
 import { LIVE_TRADE_DOCK_OPEN_PORTFOLIO_EVENT } from "../lib/liveTradePortfolioFocus";
 import {
@@ -404,28 +405,7 @@ export function LiveTradeCardSidePanel({
       aria-label={ko.app.liveTradeCardTabPaneAria}
     >
       {railMode && activeId ? (
-        <header
-          className="live-trading-tab__card-tabs-rail-head"
-          aria-label={panel?.title}
-        >
-          {activeId === LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb ? (
-            <span
-              className="live-trading-tab__card-tabs-rail-brand brand-mark"
-              aria-hidden
-            >
-              <img
-                className="brand-mark__img"
-                src="/branding/ystock-logo-alpha.png?v=24"
-                alt=""
-                width={22}
-                height={22}
-                decoding="async"
-              />
-            </span>
-          ) : (
-            <p className="live-trading-tab__card-tabs-rail-title">{panel?.title}</p>
-          )}
-        </header>
+        <LiveTradeDockYsHead ariaLabel={panel?.title} />
       ) : null}
       {!railMode ? (
         <div

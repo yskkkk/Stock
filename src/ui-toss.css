@@ -2097,6 +2097,32 @@ html[data-theme="light"]
   background: transparent;
 }
 
+.live-trade-dock-ys-head {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0.5rem 0.65rem 0.42rem;
+  border-bottom: none;
+  background: transparent;
+}
+
+.live-trade-dock-ys-head__brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  box-shadow: none;
+}
+
+.live-trade-dock-ys-head__brand .brand-mark__img {
+  display: block;
+  width: 1.5rem;
+  height: 1.5rem;
+  object-fit: contain;
+}
+
 .live-trading-tab__card-tabs-rail-brand.brand-mark {
   background: transparent;
   box-shadow: none;

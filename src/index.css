@@ -9958,8 +9958,15 @@ html[data-theme="light"] .app-live-trade-side-dock__auth-popover::after {
   color: var(--text);
 }
 
-.app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail .live-trading-tab__card-tabs-rail-head {
+.app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail .live-trading-tab__card-tabs-rail-head,
+.app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail .live-trade-dock-ys-head {
   background: color-mix(in srgb, var(--card-bg) 94%, var(--surface-2));
+}
+
+.app-live-trade-side-dock__api-popover--portal > .live-trade-dock-ys-head,
+.app-live-trade-side-dock__auth-popover--portal > .live-trade-dock-ys-head {
+  background: color-mix(in srgb, var(--card-bg, var(--card)) 94%, var(--surface-2, var(--surface)));
+  border-radius: var(--radius-md, 10px) var(--radius-md, 10px) 0 0;
 }
 
 .app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail .live-trading-tab__card-tabs-rail-title {

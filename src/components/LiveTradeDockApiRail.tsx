@@ -16,6 +16,7 @@ import {
   type LiveTradeExchangeApiKind,
 } from "./LiveTradeExchangeApiPanel";
 import { BithumbBrandMark, TossBrandMark } from "./ExchangeBrandMarks";
+import LiveTradeDockYsHead from "./LiveTradeDockYsHead";
 
 const API_POPOVER_GAP_PX = 9;
 
@@ -202,6 +203,9 @@ export default function LiveTradeDockApiRail({
         aria-label={open === "toss" ? ko.app.liveTradeTossTitle : ko.app.liveTradeBithumbTitle}
         onMouseDown={(ev) => ev.stopPropagation()}
       >
+        <LiveTradeDockYsHead
+          ariaLabel={open === "toss" ? ko.app.liveTradeTossTitle : ko.app.liveTradeBithumbTitle}
+        />
         <LiveTradeExchangeApiPanel
           exchange={open}
           status={status}

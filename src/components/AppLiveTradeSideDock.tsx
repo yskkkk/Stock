@@ -15,6 +15,7 @@ import { logoutAuth } from "../api";
 import { FeedbackDockRailButton, type FeedbackCornerHandle } from "./FeedbackCorner";
 import { BithumbBrandMark } from "./ExchangeBrandMarks";
 import LiveTradeDockApiRail from "./LiveTradeDockApiRail";
+import LiveTradeDockYsHead from "./LiveTradeDockYsHead";
 import { useDesktopDockLayout } from "../hooks/useDesktopDockLayout";
 import { refreshLiveTradingStatusNow } from "../hooks/useLiveTradingStatusPoll";
 import { invalidateLiveTradingPrefetch } from "../lib/tabPrefetch";
@@ -851,6 +852,7 @@ export default function AppLiveTradeSideDock({
                   aria-label={ko.app.liveTradeAuthTitle}
                   onMouseDown={(ev) => ev.stopPropagation()}
                 >
+                  <LiveTradeDockYsHead ariaLabel={ko.app.liveTradeAuthTitle} />
                   <LiveTradeAuthPanel
                     user={null}
                     registrationOpen={registrationOpen}
