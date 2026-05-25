@@ -677,6 +677,9 @@ export default function LiveTradingTab({
   const showCardDock = portalSourceOnly || !hideCardDock;
   /** 도크가 카드 행을 가져가도 실매매 탭 본문에 등록 프로그램 전체 목록 유지 */
   const showMainProgramsList = Boolean(user && !portalSourceOnly && hideCardDock);
+  const statusPending = Boolean(
+    user && authChecked && effectiveStatus == null && !loadErr,
+  );
 
   const programsListContent = (
     <>
@@ -723,10 +726,15 @@ export default function LiveTradingTab({
     <div
       className={
         portalSourceOnly
-          ? "live-trading-tab live-trading-panel live-trading-panel--dock-portals"
+          ? `live-trading-tab live-trading-panel live-trading-panel--dock-portals${
+              statusPending ? " live-trading-panel--dock-portals--boot" : ""
+            }`
           : "live-trading-tab live-trading-panel"
       }
     >
+      {portalSourceOnly && user && statusPending ? (
+        <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
+      ) : null}
       {!portalSourceOnly ? (
       <header className="live-trading-tab__head card">
         <div>
@@ -750,9 +758,13 @@ export default function LiveTradingTab({
         </div>
       ) : null}
 
-      {!portalSourceOnly && authChecked ? (
+      {!portalSourceOnly && !authChecked ? (
+        <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
+      ) : null}
+
+      {!portalSourceOnly && authChecked && !user ? (
         <LiveTradeAuthPanel
-          user={user}
+          user={null}
           registrationOpen={registrationOpen}
           onAuthChange={() => {
             invalidateLiveTradingPrefetch();
@@ -765,6 +777,9 @@ export default function LiveTradingTab({
       ) : null}
 
       {user ? (
+        statusPending && !portalSourceOnly ? (
+          <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
+        ) : (
         <>
           {!portalSourceOnly && adminReadOnly ? (
             <div className="live-trading-tab__admin-banner card" role="status">
@@ -1209,6 +1224,7 @@ export default function LiveTradingTab({
             </div>
           ) : null}
         </>
+        )
       ) : null}
     </div>
     </LiveTradeFeeRatesProvider>

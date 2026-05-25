@@ -10213,6 +10213,35 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   flex: 1 1 auto;
 }
 
+.live-trading-panel--dock-portals--boot {
+  flex: 1 1 auto;
+  min-height: min(14rem, 42dvh);
+}
+
+.live-trading-panel--dock-portals--boot > .dock-panel-center-loading {
+  flex: 1 1 auto;
+  min-height: min(12rem, 38dvh);
+}
+
+.app-dock-rail-panel--pending {
+  flex: 1 1 auto;
+  min-height: min(12rem, 40dvh);
+  display: flex;
+  flex-direction: column;
+}
+
+.app-dock-rail-panel--pending > .dock-panel-center-loading {
+  flex: 1 1 auto;
+}
+
+.live-trade-tab-root {
+  min-height: min(12rem, 36dvh);
+}
+
+.live-trade-tab-root > .live-trading-tab > .dock-panel-center-loading {
+  min-height: min(14rem, 40dvh);
+}
+
 .live-trading-panel--dock-portals .live-trading-tab__card-dock {
   position: absolute;
   width: 1px;

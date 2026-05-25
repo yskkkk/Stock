@@ -18,6 +18,7 @@ import { feeByMarketFromStatus } from "../lib/liveTradeFeeByMarket";
 import { DEFAULT_ROUND_TRIP_FEE_RATE } from "../lib/netReturn";
 import type { LiveTradeMarket } from "../types";
 import { peekLiveTradingPrefetch } from "../lib/tabPrefetch";
+import DockPanelCenterLoading from "./DockPanelCenterLoading";
 import { useLiveTradeAuth } from "./LiveTradeAuthAndCredentials";
 
 /** 좌측 실매매 카드 — 보유·수익률 갱신 */
@@ -356,6 +357,7 @@ export function LiveTradingRailCore({
   const prefetched = peekLiveTradingPrefetch();
   const { user, authChecked } = useLiveTradeAuth();
   const status = useLiveTradingStatusPoll();
+  const statusPending = Boolean(user && authChecked && status == null);
   const [portfolio, setPortfolio] = useState<LiveTradePortfolioResponse | null>(
     null,
   );
@@ -402,15 +404,19 @@ export function LiveTradingRailCore({
   }, [user, feeByMarket]);
 
   useEffect(() => {
+    if (statusPending) {
+      setLoading(true);
+      return;
+    }
     void reloadPortfolio();
     const id = window.setInterval(() => void reloadPortfolio(), POLL_MS);
     return () => window.clearInterval(id);
-  }, [reloadPortfolio]);
+  }, [reloadPortfolio, statusPending]);
 
   useEffect(() => {
     if (!status) return;
     void reloadPortfolio();
-  }, [status?.armedCount, status?.simCount, reloadPortfolio]);
+  }, [status?.armedCount, status?.simCount, reloadPortfolio, status]);
 
   const holdingsByProgram = useMemo(() => {
     const map: Record<string, LiveTradeHolding[]> = {};
@@ -469,9 +475,19 @@ export function LiveTradingRailCore({
       });
   }, [status, holdingsByProgram, roundTripForMarket, layout]);
 
-  if (!authChecked || !user) return null;
+  if (!authChecked) {
+    return layout === "dock" ? (
+      <div className="app-dock-rail-panel app-dock-rail-panel--live app-dock-rail-panel--pending">
+        <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
+      </div>
+    ) : null;
+  }
+
+  if (!user) return null;
 
   if (!loading && rows.length === 0 && !showWhenEmpty) return null;
+
+  const panelBusy = statusPending || loading;
 
   const head = (
     <div className="live-trade-rail__head">
@@ -486,14 +502,13 @@ export function LiveTradingRailCore({
           <span className="live-trade-rail__count">{rows.length}</span>
         ) : null}
       </button>
-      {loading ? (
-        <span className="live-trade-rail__status">{ko.app.marketIndicesLoading}</span>
-      ) : null}
     </div>
   );
 
   const list =
-    rows.length > 0 ? (
+    panelBusy ? (
+      <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
+    ) : rows.length > 0 ? (
       <ul className="live-trade-rail__list">
         {rows.map(({ program: p, displayStatus, returnPct, holdings }) => {
           const orderMode =
@@ -518,18 +533,17 @@ export function LiveTradingRailCore({
           );
         })}
       </ul>
-    ) : loading ? (
-      <ul className="live-trade-rail__list live-trade-rail__list--sk">
-        <li className="live-trade-rail__card live-trade-rail__card--sk" />
-        <li className="live-trade-rail__card live-trade-rail__card--sk" />
-      </ul>
     ) : showWhenEmpty ? (
       <p className="live-trade-rail__empty-hint">{ko.app.liveTradeLeftRailEmpty}</p>
     ) : null;
 
   if (layout === "dock") {
     return (
-      <div className="app-dock-rail-panel app-dock-rail-panel--live">
+      <div
+        className={`app-dock-rail-panel app-dock-rail-panel--live${
+          panelBusy ? " app-dock-rail-panel--pending" : ""
+        }`}
+      >
         {head}
         {list}
       </div>
