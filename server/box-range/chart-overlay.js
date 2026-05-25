@@ -1,5 +1,6 @@
 import { loadStock } from "../stock-data.js";
-import { detectBoxRangeOnCandles } from "./detect.js";
+import { detectBoxRangesProOnCandles } from "./detect-pro.js";
+import { BOX_RANGE_MAX_DETECTED } from "./constants.js";
 import { listBoxesForChartOverlaySync } from "./store.js";
 
 /** @type {readonly ("1h"|"4h"|"1d")[]} */
@@ -15,37 +16,39 @@ export function boxRangeTfsForChartTimeframe(_chartTimeframe) {
 }
 
 /**
+ * Pine PRO 다중 탐지(최대 N개) — 마지막 봉 1개만 보던 단일 앵커 탐지는 4h·1d에서
+ * 최근 봉에 박스가 없으면 none으로 잘못 표시되던 원인.
  * @param {"1h"|"4h"|"1d"} timeframe
  * @param {string} symbol
+ * @returns {Promise<object[]>}
  */
-async function detectBoxForTf(symbol, timeframe) {
+async function detectBoxesForTf(symbol, timeframe) {
   const data = await loadStock(symbol, timeframe, { live: true });
   const candles = Array.isArray(data?.candles) ? data.candles : [];
-  if (candles.length < 20) return null;
+  if (candles.length < 20) return [];
   const confirmed = candles.slice(0, -1);
-  const detected = detectBoxRangeOnCandles(confirmed, timeframe);
-  if (!detected) return null;
-  return {
-    boxId: `chart-detect-${timeframe}`,
-    top: detected.top,
-    bottom: detected.bottom,
-    mid: detected.mid,
+  const detected = detectBoxRangesProOnCandles(
+    confirmed,
+    timeframe,
+    BOX_RANGE_MAX_DETECTED,
+  );
+  return detected.map((b, i) => ({
+    boxId: `chart-detect-${timeframe}-${i}`,
+    top: b.top,
+    bottom: b.bottom,
+    mid: b.mid,
     timeframe,
     state: "idle",
-    leftTime: detected.leftTime,
-    rightTime: detected.rightTime,
-  };
+    leftTime: b.leftTime,
+    rightTime: b.rightTime,
+  }));
 }
-
-const STATE_RANK = { in_position: 0, armed: 1, idle: 2, closed: 9 };
 
 /**
  * @param {string} symbol
  * @param {string} chartTimeframe
  * @param {string | null} userId
- */
-/**
- * @returns {{ boxes: object[]; scan: Record<string, "found"|"none"|"error"> }}
+ * @returns {Promise<{ boxes: object[]; scan: Record<string, "found"|"none"|"error"> }>}
  */
 export async function buildChartBoxRangeOverlayAsync(
   symbol,
@@ -58,14 +61,14 @@ export async function buildChartBoxRangeOverlayAsync(
   if (!sym) return { boxes: [], scan };
 
   const tfs = boxRangeTfsForChartTimeframe(chartTimeframe);
-  /** @type {Map<string, object>} */
-  const byTf = new Map();
+  /** @type {object[]} */
+  const chartBoxes = [];
 
   const uid = String(userId ?? "").trim();
   if (uid) {
     for (const b of listBoxesForChartOverlaySync(uid, sym)) {
       if (!tfs.includes(b.timeframe)) continue;
-      byTf.set(b.timeframe, {
+      chartBoxes.push({
         boxId: b.boxId,
         top: b.top,
         bottom: b.bottom,
@@ -81,26 +84,19 @@ export async function buildChartBoxRangeOverlayAsync(
 
   for (const tf of tfs) {
     try {
-      const live = await detectBoxForTf(sym, tf);
-      if (!live) {
+      const liveList = await detectBoxesForTf(sym, tf);
+      if (!liveList.length) {
         if (scan[tf] !== "found") scan[tf] = "none";
         continue;
       }
       scan[tf] = "found";
-      const prev = byTf.get(tf);
-      if (!prev) {
-        byTf.set(tf, live);
-        continue;
+      for (const live of liveList) {
+        chartBoxes.push(live);
       }
-      const prevRank = STATE_RANK[prev.state] ?? 5;
-      const liveRank = STATE_RANK[live.state] ?? 5;
-      if (liveRank < prevRank) byTf.set(tf, live);
-      else if (prevRank >= STATE_RANK.idle)
-        byTf.set(tf, { ...prev, ...live, boxId: prev.boxId, state: prev.state });
     } catch {
       scan[tf] = "error";
     }
   }
 
-  return { boxes: [...byTf.values()].slice(0, 8), scan };
+  return { boxes: chartBoxes.slice(0, 24), scan };
 }
