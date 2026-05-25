@@ -2,6 +2,7 @@
 
 const TOSS_MARK_SRC = "/branding/toss-mark-alpha.png?v=2";
 const BITHUMB_MARK_SRC = "/branding/bithumb-mark-alpha.png?v=2";
+const TELEGRAM_MARK_SRC = "/branding/telegram-app-icon.png?v=1";
 
 function ExchangeBrandMarkImg({
   src,
@@ -31,4 +32,9 @@ export function TossBrandMark({ className }: { className?: string }) {
 /** 빗썸 앱 아이콘 (Play 스토어 마크, 흰 배경 제거) */
 export function BithumbBrandMark({ className }: { className?: string }) {
   return <ExchangeBrandMarkImg src={BITHUMB_MARK_SRC} className={className} />;
+}
+
+/** 텔레그램 공식 앱 아이콘 (telegram.org) */
+export function TelegramBrandMark({ className }: { className?: string }) {
+  return <ExchangeBrandMarkImg src={TELEGRAM_MARK_SRC} className={className} />;
 }
