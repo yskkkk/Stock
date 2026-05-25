@@ -76,9 +76,8 @@ function attachStockApiMiddlewares(server) {
   const g = /** @type {typeof globalThis & {
     __stockExpressApp?: ReturnType<typeof createApp>;
   }} */ (globalThis);
-  if (!g.__stockExpressApp) {
-    g.__stockExpressApp = createApp();
-  }
+  /* server/** 는 Vite watch 제외 — 라우트 추가 후에도 Express는 configureServer 때마다 갱신 */
+  g.__stockExpressApp = createApp();
   const app = g.__stockExpressApp;
 
   server.middlewares.use((req, res, next) => {

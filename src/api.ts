@@ -46,6 +46,10 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   try {
     data = text ? JSON.parse(text) : {};
   } catch {
+    const head = text.trimStart().slice(0, 32).toLowerCase();
+    if (head.startsWith("<!doctype") || head.startsWith("<html")) {
+      throw new Error(ko.errors.parseHtml);
+    }
     throw new Error(ko.errors.parse);
   }
   if (!res.ok) {

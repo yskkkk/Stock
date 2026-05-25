@@ -777,6 +777,8 @@ export const ko = {
     newsLoad: "뉴스를 불러올 수 없습니다.",
     network: "서버에 연결할 수 없습니다. 터미널에서 npm run dev 가 실행 중인지 확인하세요.",
     parse: "서버 응답을 읽을 수 없습니다.",
+    parseHtml:
+      "API가 JSON 대신 웹 페이지(HTML)를 돌려줬습니다. 개발 서버를 한 번 재시작(npm run dev)해 보세요.",
     request: "요청에 실패했습니다.",
   },
   screenFailures: {
