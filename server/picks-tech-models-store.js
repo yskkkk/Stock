@@ -157,6 +157,17 @@ export function listTechModelsSync() {
   };
 }
 
+/** 실매매 등록 UI — 저장된 모델 + 가상 박스권 모델 */
+export function listTechModelsForLiveTradingSync() {
+  const listed = listTechModelsSync();
+  if (listed.models.some((m) => m.id === BOX_RANGE_MODEL_ID)) return listed;
+  const stub = getBoxRangeTechModelStub();
+  return {
+    models: [...listed.models, { ...stub, maxTechScore: 0 }],
+    activeModelIds: [...listed.activeModelIds],
+  };
+}
+
 export function getActiveTechModelsSync() {
   const { models, activeModelIds } = readStoreSync();
   const active = new Set(activeModelIds);

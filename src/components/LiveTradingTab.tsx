@@ -16,7 +16,7 @@ import {
   stopSimLiveTradeProgram,
   fetchAccessAdminLiveTradingUserStatus,
   fetchLiveTradingStatus,
-  fetchTechModels,
+  fetchLiveTradeTechModels,
   getStoredAccessAdminToken,
   updateLiveTradeProgram,
   type LiveTradeArmLane,
@@ -330,9 +330,9 @@ export default function LiveTradingTab({
       return;
     }
     try {
-      const tm = await fetchTechModels();
-      const { withBoxRangeTechModel } = await import("../lib/boxRangeTechModel");
-      setModels(withBoxRangeTechModel(tm.models));
+      const tm = await fetchLiveTradeTechModels();
+      const merged = tm.models;
+      setModels(merged);
       if (
         !dockSelfOnly &&
         adminViewUserId &&
@@ -361,9 +361,9 @@ export default function LiveTradingTab({
       setDraft((d) => ({
         ...d,
         modelId:
-          d.modelId && tm.models.some((m) => m.id === d.modelId)
+          d.modelId && merged.some((m) => m.id === d.modelId)
             ? d.modelId
-            : tm.models[0]?.id ?? "",
+            : merged[0]?.id ?? "",
       }));
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

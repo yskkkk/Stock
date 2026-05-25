@@ -727,6 +727,11 @@ export function fetchTechModels() {
   return fetchJson<TechModelsResponse>("/api/picks/tech-models");
 }
 
+/** 실매매 프로그램 등록 — 로그인 사용자, 박스권 가상 모델 포함 */
+export function fetchLiveTradeTechModels() {
+  return fetchJson<TechModelsResponse>("/api/live-trading/tech-models");
+}
+
 export function setActiveTechModelIds(activeModelIds: string[]) {
   return fetchJson<TechModelsResponse & { ok: boolean }>("/api/picks/tech-models/active", {
     method: "PATCH",

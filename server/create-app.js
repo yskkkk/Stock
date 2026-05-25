@@ -107,6 +107,7 @@ import {
   deleteTechModelSync,
   getMaxTechScoreSync,
   listTechModelsSync,
+  listTechModelsForLiveTradingSync,
   resetDefaultTechModelWeightsSync,
   setActiveTechModelIdsSync,
   updateTechModelSync,
@@ -502,6 +503,10 @@ export function createApp() {
       }
     }),
   );
+
+  app.get("/api/live-trading/tech-models", requireUserAuth, (_req, res) => {
+    res.json(listTechModelsForLiveTradingSync());
+  });
 
   app.get(
     "/api/live-trading/status",
