@@ -2348,26 +2348,31 @@ html[data-theme="light"] .live-trade-header-strip__telegram-count {
   position: relative;
 }
 
-/* 종목검색 나스닥 — 시장 탭 + ₩/$ 같은 행 */
+/* 종목검색 — 국내·나스닥 탭 항상 중앙, ₩/$는 우측 */
 .picks-panel:not(.crypto-panel) > .panel-head--lookup-hot {
   align-items: center;
 }
 
-.picks-panel:not(.crypto-panel) .panel-head__filters--lookup-us {
-  justify-content: space-between;
+.picks-panel:not(.crypto-panel) .panel-head__filters--lookup-center {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  width: 100%;
   gap: 0.35rem;
 }
 
-.picks-panel:not(.crypto-panel) .panel-head__filters--lookup-us .market-tabs {
+.picks-panel:not(.crypto-panel) .panel-head__filters--lookup-center .market-tabs {
+  grid-column: 2;
+  justify-self: center;
   margin-inline: 0;
-  justify-content: flex-start;
-  flex: 0 1 auto;
+  flex: none;
   gap: 0.75rem;
 }
 
-.picks-panel:not(.crypto-panel) .panel-head__filters--lookup-us .panel-head__quote-toggle {
-  flex: 0 0 auto;
-  margin-left: auto;
+.picks-panel:not(.crypto-panel) .panel-head__filters--lookup-center .panel-head__quote-toggle {
+  grid-column: 3;
+  justify-self: end;
+  flex: none;
 }
 
 .stock-search-tab__tab-hot-inline {

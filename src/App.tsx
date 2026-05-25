@@ -1358,9 +1358,7 @@ export default function App() {
           <div
             className={[
               "panel-head",
-              appTab === "stockLookup" && lookupMarketTab === "us"
-                ? "panel-head--lookup-hot"
-                : "",
+              appTab === "stockLookup" ? "panel-head--lookup-hot" : "",
             ]
               .filter(Boolean)
               .join(" ")}
@@ -1368,8 +1366,8 @@ export default function App() {
             <div
               className={[
                 "panel-head__filters",
-                appTab === "stockLookup" && lookupMarketTab === "us"
-                  ? "panel-head__filters--lookup-hot panel-head__filters--lookup-us"
+                appTab === "stockLookup"
+                  ? "panel-head__filters--lookup-hot panel-head__filters--lookup-center"
                   : "",
               ]
                 .filter(Boolean)
