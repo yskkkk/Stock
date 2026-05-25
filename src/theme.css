@@ -199,15 +199,16 @@ html[data-theme="light"] .main-tab:not(.active) {
 }
 
 html[data-theme="light"] .main-tabs {
-  background: color-mix(in srgb, var(--bg) 94%, var(--surface));
-  border: 1px solid var(--card-border);
+  background: transparent;
+  border: none;
   box-shadow: none;
 }
 
 html[data-theme="light"] .main-tab.active {
-  color: var(--text-dim);
-  background: color-mix(in srgb, var(--surface) 65%, var(--bg));
-  border: 1px solid var(--card-border);
+  color: var(--accent-ink, var(--accent));
+  font-weight: 800;
+  background: transparent;
+  border: none;
   box-shadow: none;
 }
 

@@ -233,24 +233,56 @@
   }
 }
 
-/* 상단 탭·검색 — 라이트/다크 공통, YS만 눈에 띄게(최종 로드) */
+/* 상단 메인 탭·재분석 — 배경·테두리 없이(텍스트형, 최종 로드) */
 html[data-theme="light"] .top-bar .main-tabs,
 html:not([data-theme="light"]) .top-bar .main-tabs {
-  background: var(--bg) !important;
-  border-color: color-mix(in srgb, var(--card-border) 75%, transparent) !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  gap: 0.2rem 0.5rem !important;
 }
 
 html[data-theme="light"] .top-bar .main-tab,
 html:not([data-theme="light"]) .top-bar .main-tab {
   color: var(--muted) !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 html[data-theme="light"] .top-bar .main-tab.active,
 html:not([data-theme="light"]) .top-bar .main-tab.active {
-  color: var(--muted) !important;
-  background: color-mix(in srgb, var(--bg-elevated) 55%, var(--bg)) !important;
-  border: 1px solid color-mix(in srgb, var(--card-border) 90%, transparent) !important;
+  color: var(--text) !important;
+  font-weight: 800 !important;
+  background: transparent !important;
+  border: none !important;
   box-shadow: none !important;
+}
+
+html[data-theme="light"] .top-bar .main-tab.active {
+  color: var(--accent-ink, var(--accent)) !important;
+}
+
+html[data-theme="light"] .top-bar .top-bar__rescan.btn,
+html[data-theme="light"] .top-bar .top-bar__rescan.btn--secondary,
+html:not([data-theme="light"]) .top-bar .top-bar__rescan.btn,
+html:not([data-theme="light"]) .top-bar .top-bar__rescan.btn--secondary {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--muted) !important;
+  font-weight: 700 !important;
+}
+
+html[data-theme="light"] .top-bar .top-bar__rescan.btn:hover:not(:disabled),
+html[data-theme="light"] .top-bar .top-bar__rescan.btn--secondary:hover:not(:disabled),
+html:not([data-theme="light"]) .top-bar .top-bar__rescan.btn:hover:not(:disabled),
+html:not([data-theme="light"]) .top-bar .top-bar__rescan.btn--secondary:hover:not(:disabled) {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--text) !important;
 }
 
 html[data-theme="light"] .picks-panel:not(.crypto-panel) .pick-search,

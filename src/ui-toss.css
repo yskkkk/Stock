@@ -178,7 +178,7 @@ html {
 }
 
 .main-tabs {
-  padding: 4px;
+  padding: 0;
 }
 
 .main-tab {
@@ -5514,8 +5514,8 @@ html:not([data-theme="light"]) .macro-bar .macro-card {
 }
 
 html:not([data-theme="light"]) .main-tabs {
-  background: color-mix(in srgb, var(--bg) 88%, var(--surface));
-  border-color: color-mix(in srgb, var(--card-border) 70%, transparent);
+  background: transparent;
+  border: none;
 }
 
 html:not([data-theme="light"]) .main-tab {
@@ -5523,9 +5523,10 @@ html:not([data-theme="light"]) .main-tab {
 }
 
 html:not([data-theme="light"]) nav.main-tabs button.main-tab.active {
-  color: var(--text-dim);
-  background: color-mix(in srgb, var(--surface) 55%, var(--bg));
-  border: 1px solid color-mix(in srgb, var(--card-border) 85%, transparent);
+  color: var(--text);
+  font-weight: 800;
+  background: transparent;
+  border: none;
   box-shadow: none;
 }
 
@@ -5649,8 +5650,9 @@ html:not([data-theme="light"]) .tag--telegram-btn .tag-count {
   }
 
   html:not([data-theme="light"]) .main-tab.active {
-    background: color-mix(in srgb, var(--surface) 50%, var(--bg));
+    background: transparent;
     box-shadow: none;
+    border: none;
   }
 
   html:not([data-theme="light"]) .top-bar__brand h1,

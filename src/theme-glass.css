@@ -35,10 +35,11 @@ html[data-theme="light"][data-light-palette="glass"] .card {
 }
 
 html[data-theme="light"][data-light-palette="glass"] .top-bar .main-tabs {
-  background: rgba(255, 255, 255, 0.45) !important;
-  -webkit-backdrop-filter: blur(12px) saturate(1.12);
-  backdrop-filter: blur(12px) saturate(1.12);
-  border-color: rgba(255, 255, 255, 0.7) !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 html[data-theme="light"][data-light-palette="glass"] .app__left-column,
