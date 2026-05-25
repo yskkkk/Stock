@@ -1313,15 +1313,7 @@ export default function App() {
             onOpenHoldingChart={handleLiveTradeChart}
             adminView={liveTradeAdminView}
             onClearAdminView={() => setLiveTradeAdminView(null)}
-            canAdminLiveTrade={accessAdmin || adminIpConsole}
             adminIpBypass={adminIpConsole}
-            onAdminViewUser={(p) =>
-              openAdminLiveTradeView({
-                programId: p.programId,
-                userId: p.userId,
-                name: p.name,
-              })
-            }
           />
         </div>
       ) : appTab === "ops" ? (
@@ -1949,15 +1941,7 @@ export default function App() {
                     onOpenHoldingChart={handleLiveTradeChart}
                     adminView={liveTradeAdminView}
                     onClearAdminView={() => setLiveTradeAdminView(null)}
-                    canAdminLiveTrade={accessAdmin || adminIpConsole}
                     adminIpBypass={adminIpConsole}
-                    onAdminViewUser={(p) =>
-                      openAdminLiveTradeView({
-                        programId: p.programId,
-                        userId: p.userId,
-                        name: p.name,
-                      })
-                    }
                   />
                 ) : null
               }

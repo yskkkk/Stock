@@ -24,7 +24,6 @@ import {
   type TechModelRecord,
 } from "../api";
 import LiveSimRunningPanel from "./LiveSimRunningPanel";
-import LiveTradeAdminServerRunning from "./LiveTradeAdminServerRunning";
 import LiveTradeRegisteredProgramCard from "./LiveTradeRegisteredProgramCard";
 import LiveSimRecommendationsPanel, {
   type LiveSimDraftPatch,
@@ -225,9 +224,7 @@ export default function LiveTradingTab({
   hideCardDock = false,
   adminView = null,
   onClearAdminView,
-  canAdminLiveTrade = false,
   adminIpBypass = false,
-  onAdminViewUser,
 }: {
   onOpenRecommendations?: () => void;
   onOpenHoldingChart?: (h: LiveTradeHolding) => void;
@@ -235,13 +232,7 @@ export default function LiveTradingTab({
   hideCardDock?: boolean;
   adminView?: LiveTradeAdminViewState | null;
   onClearAdminView?: () => void;
-  canAdminLiveTrade?: boolean;
   adminIpBypass?: boolean;
-  onAdminViewUser?: (p: {
-    userId: string;
-    programId: string;
-    name: string;
-  }) => void;
 }) {
   const prefetched = peekLiveTradingPrefetch();
   const { user, registrationOpen, authChecked, refreshAuth } =
@@ -750,13 +741,6 @@ export default function LiveTradingTab({
                 </button>
               ) : null}
             </div>
-          ) : null}
-          {!portalSourceOnly && canAdminLiveTrade && !adminReadOnly ? (
-            <LiveTradeAdminServerRunning
-              enabled
-              adminIpBypass={adminIpBypass}
-              onViewUser={(p) => onAdminViewUser?.(p)}
-            />
           ) : null}
           {!portalSourceOnly ? (
           <LiveSimRunningPanel
