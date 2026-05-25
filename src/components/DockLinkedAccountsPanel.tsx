@@ -1,52 +1,141 @@
-import { memo, useState } from "react";
-import type { TossTradingStatus } from "../api";
+import { memo, useEffect, useState } from "react";
 import { useBithumbAccountSnapshot } from "../hooks/useBithumbAccountSnapshot";
 import { useLiveTradingStatusPoll } from "../hooks/useLiveTradingStatusPoll";
 import BithumbAccountSnapshotCard from "./BithumbAccountSnapshotCard";
-import BithumbAccountTitle from "./BithumbAccountTitle";
+import TossAccountBalancePanel from "./TossAccountBalancePanel";
 import DockPanelCenterLoading from "./DockPanelCenterLoading";
 import LiveTradeTradesHistoryPanel from "./LiveTradeTradesHistoryPanel";
-import { TossBrandMark } from "./ExchangeBrandMarks";
+import { BithumbBrandMark, TossBrandMark } from "./ExchangeBrandMarks";
 import { ko } from "../i18n/ko";
 
-type BithumbAccountSubTab = "balance" | "trades";
+type LinkedProvider = "bithumb" | "toss";
+type AccountSubTab = "balance" | "trades";
 
-function BithumbLinkedAccountSection({
+function DockLinkedAccountsPanelInner({
   onOpenLiveTrading,
 }: {
   onOpenLiveTrading?: () => void;
 }) {
-  const { authChecked, user, snapshot, feeLabelKo, updatedAtMs, loading, err } =
-    useBithumbAccountSnapshot();
-  const [subTab, setSubTab] = useState<BithumbAccountSubTab>("balance");
+  const status = useLiveTradingStatusPoll();
+  const bithumbLinked = Boolean(status?.bithumb?.ready);
+  const tossLinked = Boolean(status?.toss?.ready);
+  const tossFeeLabel = status?.feeRates?.toss?.labelKo?.trim() || null;
 
-  if (authChecked && !user) return null;
+  const [provider, setProvider] = useState<LinkedProvider>("bithumb");
+  const [subTab, setSubTab] = useState<AccountSubTab>("balance");
 
-  const pending = !authChecked || loading;
-  const canShowTrades = Boolean(user) && !pending;
+  useEffect(() => {
+    if (provider === "bithumb" && !bithumbLinked && tossLinked) {
+      setProvider("toss");
+    } else if (provider === "toss" && !tossLinked && bithumbLinked) {
+      setProvider("bithumb");
+    }
+  }, [bithumbLinked, tossLinked, provider]);
+
+  const {
+    authChecked,
+    user,
+    snapshot,
+    feeLabelKo: bithumbFeeLabel,
+    updatedAtMs,
+    loading: bithumbLoading,
+    err: bithumbErr,
+  } = useBithumbAccountSnapshot();
+
+  if (!bithumbLinked && !tossLinked) {
+    return (
+      <div className="app-dock-rail-panel app-dock-rail-panel--accounts">
+        <p className="dock-linked-accounts__empty" role="status">
+          {ko.app.liveTradeDockNoLinkedAccounts}
+        </p>
+      </div>
+    );
+  }
+
+  const showExchangePicker = bithumbLinked && tossLinked;
+  const pending =
+    provider === "bithumb" &&
+    (!authChecked || bithumbLoading || (authChecked && !user));
+  const canShowSubTabs =
+    (provider === "bithumb" && Boolean(user) && !pending) ||
+    (provider === "toss" && tossLinked);
 
   return (
-    <section
-      className={`dock-linked-accounts__block dock-linked-accounts__block--bithumb${
-        pending ? " dock-linked-accounts__block--pending" : ""
-      }`}
-      aria-label={ko.app.leftRailBithumbAccountAria}
-    >
-      <div className="dock-linked-accounts__head bithumb-account-rail-wrap__head">
-        <button
-          type="button"
-          className="bithumb-account-rail-wrap__title-btn"
-          onClick={() => onOpenLiveTrading?.()}
-          title={onOpenLiveTrading ? ko.app.liveTradeLeftRailOpen : undefined}
+    <div className="app-dock-rail-panel app-dock-rail-panel--accounts dock-linked-accounts">
+      {showExchangePicker ? (
+        <div
+          className="dock-linked-accounts__exchange-row"
+          role="tablist"
+          aria-label={ko.app.liveTradeDockAccountExchangeAria}
         >
-          <BithumbAccountTitle />
-        </button>
-      </div>
-      {canShowTrades ? (
+          {bithumbLinked ? (
+            <button
+              type="button"
+              role="tab"
+              className={
+                provider === "bithumb"
+                  ? "dock-linked-accounts__exchange-btn dock-linked-accounts__exchange-btn--on"
+                  : "dock-linked-accounts__exchange-btn"
+              }
+              aria-selected={provider === "bithumb"}
+              onClick={() => {
+                setProvider("bithumb");
+                setSubTab("balance");
+              }}
+            >
+              <BithumbBrandMark className="dock-linked-accounts__exchange-mark" />
+              <span>{ko.app.liveTradeBithumbShort}</span>
+            </button>
+          ) : null}
+          {tossLinked ? (
+            <button
+              type="button"
+              role="tab"
+              className={
+                provider === "toss"
+                  ? "dock-linked-accounts__exchange-btn dock-linked-accounts__exchange-btn--on"
+                  : "dock-linked-accounts__exchange-btn"
+              }
+              aria-selected={provider === "toss"}
+              onClick={() => {
+                setProvider("toss");
+                setSubTab("balance");
+              }}
+            >
+              <TossBrandMark className="dock-linked-accounts__exchange-mark" />
+              <span>{ko.app.liveTradeTossShort}</span>
+            </button>
+          ) : null}
+        </div>
+      ) : (
+        <div className="dock-linked-accounts__head dock-linked-accounts__head--solo">
+          {provider === "bithumb" ? (
+            <button
+              type="button"
+              className="dock-linked-accounts__solo-title"
+              onClick={() => onOpenLiveTrading?.()}
+              title={onOpenLiveTrading ? ko.app.liveTradeLeftRailOpen : undefined}
+            >
+              <BithumbBrandMark className="dock-linked-accounts__mark" />
+              <span>{ko.app.leftRailBithumbAccountTitle}</span>
+            </button>
+          ) : (
+            <span className="dock-linked-accounts__title dock-linked-accounts__title--brand">
+              <TossBrandMark className="dock-linked-accounts__mark" />
+              <span className="dock-linked-accounts__title-copy">
+                <span className="dock-linked-accounts__title-text">토스</span>
+                <span className="dock-linked-accounts__title-suffix">계좌</span>
+              </span>
+            </span>
+          )}
+        </div>
+      )}
+
+      {canShowSubTabs ? (
         <div
           className="dock-linked-accounts__subtabs"
           role="tablist"
-          aria-label={ko.app.leftRailBithumbAccountAria}
+          aria-label={ko.app.liveTradeDockAccountSubTabsAria}
         >
           <button
             type="button"
@@ -76,6 +165,7 @@ function BithumbLinkedAccountSection({
           </button>
         </div>
       ) : null}
+
       <div
         className="dock-linked-accounts__body"
         role="tabpanel"
@@ -85,89 +175,29 @@ function BithumbLinkedAccountSection({
             : ko.app.liveTradeDockAccountTabBalance
         }
       >
-        {pending ? (
-          <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
+        {provider === "bithumb" ? (
+          pending ? (
+            <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
+          ) : subTab === "trades" ? (
+            <LiveTradeTradesHistoryPanel embedded exchange="bithumb" />
+          ) : !snapshot ? (
+            <p className="dock-linked-accounts__hint">
+              {bithumbErr ?? ko.app.leftRailBithumbAccountNeedKeys}
+            </p>
+          ) : (
+            <BithumbAccountSnapshotCard
+              snapshot={snapshot}
+              feeLabelKo={bithumbFeeLabel}
+              updatedAtMs={updatedAtMs}
+              variant="inline"
+            />
+          )
         ) : subTab === "trades" ? (
-          <LiveTradeTradesHistoryPanel embedded />
-        ) : !snapshot ? (
-          <p className="dock-linked-accounts__hint">
-            {err ?? ko.app.leftRailBithumbAccountNeedKeys}
-          </p>
+          <LiveTradeTradesHistoryPanel embedded exchange="toss" />
         ) : (
-          <BithumbAccountSnapshotCard
-            snapshot={snapshot}
-            feeLabelKo={feeLabelKo}
-            updatedAtMs={updatedAtMs}
-            variant="inline"
-          />
+          <TossAccountBalancePanel feeLabelKo={tossFeeLabel} />
         )}
       </div>
-    </section>
-  );
-}
-
-function TossLinkedAccountSection({
-  toss,
-  feeLabelKo,
-}: {
-  toss: TossTradingStatus;
-  feeLabelKo?: string | null;
-}) {
-  return (
-    <section
-      className="dock-linked-accounts__block dock-linked-accounts__block--toss"
-      aria-label={ko.app.liveTradeTossAccountSectionAria}
-    >
-      <div className="dock-linked-accounts__head">
-        <span className="dock-linked-accounts__title dock-linked-accounts__title--brand">
-          <TossBrandMark className="dock-linked-accounts__mark" />
-          <span className="dock-linked-accounts__title-copy">
-            <span className="dock-linked-accounts__title-text">토스</span>
-            <span className="dock-linked-accounts__title-suffix">계좌</span>
-          </span>
-        </span>
-      </div>
-      <p className="dock-linked-accounts__summary">{toss.messageKo}</p>
-      {feeLabelKo ? (
-        <p className="dock-linked-accounts__fee">
-          {ko.app.liveTradeFeeLabel}: {feeLabelKo}
-        </p>
-      ) : null}
-    </section>
-  );
-}
-
-function DockLinkedAccountsPanelInner({
-  onOpenLiveTrading,
-}: {
-  onOpenLiveTrading?: () => void;
-}) {
-  const status = useLiveTradingStatusPoll();
-  const bithumbLinked = Boolean(status?.bithumb?.ready);
-  const tossLinked = Boolean(status?.toss?.ready);
-  const tossFeeLabel = status?.feeRates?.toss?.labelKo?.trim() || null;
-
-  if (!bithumbLinked && !tossLinked) {
-    return (
-      <div className="app-dock-rail-panel app-dock-rail-panel--accounts">
-        <p className="dock-linked-accounts__empty" role="status">
-          {ko.app.liveTradeDockNoLinkedAccounts}
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="app-dock-rail-panel app-dock-rail-panel--accounts dock-linked-accounts">
-      {bithumbLinked ? (
-        <BithumbLinkedAccountSection onOpenLiveTrading={onOpenLiveTrading} />
-      ) : null}
-      {tossLinked ? (
-        <TossLinkedAccountSection
-          toss={status!.toss}
-          feeLabelKo={tossFeeLabel}
-        />
-      ) : null}
     </div>
   );
 }

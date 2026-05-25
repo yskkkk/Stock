@@ -10360,6 +10360,84 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   border-bottom: none;
 }
 
+.dock-linked-accounts__exchange-row {
+  display: flex;
+  gap: 0.35rem;
+  margin: 0 0 0.5rem;
+  padding: 0.22rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--card-border) 28%, transparent);
+}
+
+.dock-linked-accounts__exchange-btn {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-width: 0;
+  padding: 0.45rem 0.35rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.dock-linked-accounts__exchange-btn--on {
+  background: var(--card-bg);
+  color: var(--text);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.1);
+}
+
+.dock-linked-accounts__exchange-mark {
+  width: 1.35rem;
+  height: 1.35rem;
+  flex-shrink: 0;
+  display: block;
+}
+
+.dock-linked-accounts__head--solo {
+  margin-bottom: 0.35rem;
+}
+
+.dock-linked-accounts__solo-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.dock-linked-accounts__hint--note {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.toss-account-balance__unreal {
+  margin: 0 0 0.45rem;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+
+.toss-account-balance__unreal--up {
+  color: var(--up, #16a34a);
+  font-weight: 700;
+}
+
+.toss-account-balance__unreal--down {
+  color: var(--down, #dc2626);
+  font-weight: 700;
+}
+
 .dock-linked-accounts__head {
   display: flex;
   align-items: center;

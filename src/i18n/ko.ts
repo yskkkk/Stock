@@ -326,6 +326,10 @@ export const ko = {
     liveTradeDockRailAccountTab: "계좌",
     liveTradeDockAccountTabBalance: "잔고",
     liveTradeDockAccountTabTrades: "거래내역",
+    liveTradeDockAccountExchangeAria: "거래소 선택",
+    liveTradeDockAccountSubTabsAria: "잔고·거래내역",
+    liveTradeTossBalanceNote:
+      "토스증권 API 잔고 연동 전 — 앱 실매매 프로그램의 국내·미국 보유 종목 기준입니다.",
     liveTradeDockRailPortfolioTrades: "거래내역",
     liveTradeDockNoLinkedAccounts: "연동된 거래소 계좌가 없습니다. 토스·빗썸 API를 연결하세요.",
     liveTradeTossAccountSectionAria: "토스 연동 계좌",
