@@ -225,12 +225,10 @@ var box[]  b1d = array.new_box()
 var line[] l1d = array.new_line()
 
 f_clearTf(box[] bx, line[] ln) =>
-    for i = 0 to array.size(bx) - 1
-        box.delete(array.get(bx, i))
-    array.clear(bx)
-    for i = 0 to array.size(ln) - 1
-        line.delete(array.get(ln, i))
-    array.clear(ln)
+    while array.size(bx) > 0
+        box.delete(array.pop(bx))
+    while array.size(ln) > 0
+        line.delete(array.pop(ln))
 
 f_fmt(float v) =>
     na(v) ? "—" : str.tostring(v, format.mintick)
