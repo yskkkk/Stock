@@ -13,8 +13,10 @@ import {
   disarmLiveTradeProgram,
   startSimLiveTradeProgram,
   stopSimLiveTradeProgram,
+  fetchAccessAdminLiveTradingUserStatus,
   fetchLiveTradingStatus,
   fetchTechModels,
+  getStoredAccessAdminToken,
   updateLiveTradeProgram,
   type LiveTradeArmLane,
   type LiveTradeProgram,
@@ -22,6 +24,7 @@ import {
   type TechModelRecord,
 } from "../api";
 import LiveSimRunningPanel from "./LiveSimRunningPanel";
+import LiveTradeAdminServerRunning from "./LiveTradeAdminServerRunning";
 import LiveTradeRegisteredProgramCard from "./LiveTradeRegisteredProgramCard";
 import LiveSimRecommendationsPanel, {
   type LiveSimDraftPatch,
@@ -206,6 +209,13 @@ function LiveTradeCardWorkspace({
   );
 }
 
+export type LiveTradeAdminViewState = {
+  userId: string;
+  label: string;
+  programId?: string;
+  programName?: string;
+};
+
 export default function LiveTradingTab({
   onOpenRecommendations,
   onOpenHoldingChart,
@@ -213,11 +223,25 @@ export default function LiveTradingTab({
   portalSourceOnly = false,
   /** 실매매 탭 본문 — 카드 행은 도크 포털 인스턴스에만 */
   hideCardDock = false,
+  adminView = null,
+  onClearAdminView,
+  canAdminLiveTrade = false,
+  adminIpBypass = false,
+  onAdminViewUser,
 }: {
   onOpenRecommendations?: () => void;
   onOpenHoldingChart?: (h: LiveTradeHolding) => void;
   portalSourceOnly?: boolean;
   hideCardDock?: boolean;
+  adminView?: LiveTradeAdminViewState | null;
+  onClearAdminView?: () => void;
+  canAdminLiveTrade?: boolean;
+  adminIpBypass?: boolean;
+  onAdminViewUser?: (p: {
+    userId: string;
+    programId: string;
+    name: string;
+  }) => void;
 }) {
   const prefetched = peekLiveTradingPrefetch();
   const { user, registrationOpen, authChecked, refreshAuth } =
@@ -237,6 +261,10 @@ export default function LiveTradingTab({
   const [portfolioRefreshKey, setPortfolioRefreshKey] = useState(0);
   const sidePanel = useLiveTradeCardSidePanelOptional();
   const polledStatus = useLiveTradingStatusPoll();
+  const adminViewUserId = adminView?.userId?.trim() || null;
+  const adminReadOnly = Boolean(
+    adminViewUserId && user?.id && user.id !== adminViewUserId,
+  );
 
   const reload = useCallback(async (userOverride?: AuthUser | null) => {
     const activeUser = userOverride !== undefined ? userOverride : user;
@@ -245,12 +273,28 @@ export default function LiveTradingTab({
       return;
     }
     try {
-      const [st, tm] = await Promise.all([
-        fetchLiveTradingStatus(),
-        fetchTechModels(),
-      ]);
-      setStatus(st);
+      const tm = await fetchTechModels();
       setModels(tm.models);
+      if (adminViewUserId && activeUser.id !== adminViewUserId) {
+        const token = getStoredAccessAdminToken() ?? "";
+        if (!token.trim() && !adminIpBypass) {
+          throw new Error(ko.access.adminPasswordLabel);
+        }
+        const [baseSt, adminSt] = await Promise.all([
+          fetchLiveTradingStatus(),
+          fetchAccessAdminLiveTradingUserStatus(token, adminViewUserId),
+        ]);
+        setStatus({
+          ...baseSt,
+          programs: adminSt.programs,
+          programReturns: adminSt.programReturns,
+          armedCount: adminSt.armedCount,
+          simCount: adminSt.simCount,
+        });
+      } else {
+        const st = await fetchLiveTradingStatus();
+        setStatus(st);
+      }
       setLoadErr(null);
       setDraft((d) => ({
         ...d,
@@ -264,7 +308,7 @@ export default function LiveTradingTab({
       setLoadErr(msg);
       if (msg.includes("로그인")) setStatus(null);
     }
-  }, [user]);
+  }, [user, adminViewUserId, adminIpBypass]);
 
   useEffect(() => {
     void reload();
@@ -272,7 +316,7 @@ export default function LiveTradingTab({
 
   useEffect(() => {
     if (user) void reload();
-  }, [user, reload]);
+  }, [user, reload, adminViewUserId]);
 
   useEffect(() => {
     if (portfolioRefreshKey > 0) void reload();
@@ -293,8 +337,28 @@ export default function LiveTradingTab({
   }, [models]);
 
   const programs = status?.programs ?? [];
-  const simPrograms =
-    hideCardDock && polledStatus?.programs ? polledStatus.programs : programs;
+  const simPrograms = adminReadOnly
+    ? programs
+    : hideCardDock && polledStatus?.programs
+      ? polledStatus.programs
+      : programs;
+
+  const portfolioAdminView = useMemo(
+    () =>
+      adminReadOnly && adminViewUserId
+        ? {
+            userId: adminViewUserId,
+            programId: adminView?.programId,
+            programName: adminView?.programName,
+          }
+        : null,
+    [
+      adminReadOnly,
+      adminViewUserId,
+      adminView?.programId,
+      adminView?.programName,
+    ],
+  );
 
   const draftMarkets = useMemo(
     () => ({
@@ -659,11 +723,39 @@ export default function LiveTradingTab({
 
       {user ? (
         <>
+          {!portalSourceOnly && adminReadOnly ? (
+            <div className="live-trading-tab__admin-banner card" role="status">
+              <p>
+                {ko.access.liveTradeAdminViewBanner.replace(
+                  "{user}",
+                  adminView?.label ?? adminViewUserId ?? "",
+                )}
+              </p>
+              {onClearAdminView ? (
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--sm"
+                  onClick={onClearAdminView}
+                >
+                  {ko.access.liveTradeAdminViewExit}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {!portalSourceOnly && canAdminLiveTrade && !adminReadOnly ? (
+            <LiveTradeAdminServerRunning
+              enabled
+              adminIpBypass={adminIpBypass}
+              onViewUser={(p) => onAdminViewUser?.(p)}
+            />
+          ) : null}
           {!portalSourceOnly ? (
           <LiveSimRunningPanel
             programs={simPrograms}
             busy={busy}
             refreshKey={portfolioRefreshKey}
+            adminViewUserId={adminReadOnly ? adminViewUserId : null}
+            readOnly={adminReadOnly}
             onStop={(id) => void handleSimStop(id)}
             onDisarm={(id) => void handleDisarm(id)}
             onProgramUpdated={() => void reload()}
@@ -681,7 +773,9 @@ export default function LiveTradingTab({
                 <LiveTradePortfolioPanel
                   programs={programs}
                   onOpenHoldingChart={onOpenHoldingChart}
+                  initialAdminView={portfolioAdminView}
                 />
+                {!adminReadOnly ? (
                 <LiveTradeCollapsibleCard
           key={editingId ? `edit-${editingId}` : "new-form"}
           title={editingId ? ko.app.liveTradeFormEdit : ko.app.liveTradeFormNew}
@@ -1039,6 +1133,7 @@ export default function LiveTradingTab({
             </div>
           )}
         </LiveTradeCollapsibleCard>
+                ) : null}
 
         <LiveTradeCollapsibleCard
           title={ko.app.liveTradeListTitle}
@@ -1074,6 +1169,7 @@ export default function LiveTradingTab({
                       onArmLane={(lane) => void handleArmLane(p.id, lane)}
                       onEdit={() => loadProgramToForm(p)}
                       onDelete={() => void handleDelete(p.id, p.name)}
+                      readOnly={adminReadOnly}
                     />
                   </li>
                 );

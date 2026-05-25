@@ -73,6 +73,7 @@ export default function LiveTradeRegisteredProgramCard({
   onArmLane,
   onEdit,
   onDelete,
+  readOnly = false,
 }: {
   program: LiveTradeProgram;
   model?: TechModelRecord;
@@ -87,6 +88,7 @@ export default function LiveTradeRegisteredProgramCard({
   onArmLane: (lane: LiveTradeArmLane) => void;
   onEdit: () => void;
   onDelete: () => void;
+  readOnly?: boolean;
 }) {
   const markets = [
     p.markets.kr ? ko.app.liveTradeMarketKr : "",
@@ -157,6 +159,7 @@ export default function LiveTradeRegisteredProgramCard({
           ? `${p.status === "armed" && p.armedAtMs ? " · " : ""}${ko.app.liveTradeLastRun}: ${formatTs(p.lastRunAtMs)}`
           : null}
       </p>
+      {!readOnly ? (
       <div className="live-trading-tab__program-actions">
         {p.status === "sim" ? (
           <button
@@ -247,6 +250,7 @@ export default function LiveTradeRegisteredProgramCard({
           {ko.app.liveTradeDelete}
         </button>
       </div>
+      ) : null}
     </article>
   );
 }

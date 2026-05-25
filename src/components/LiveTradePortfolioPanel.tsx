@@ -401,9 +401,15 @@ function HoldingRow({
 export default function LiveTradePortfolioPanel({
   programs,
   onOpenHoldingChart,
+  initialAdminView = null,
 }: {
   programs: LiveTradeProgram[];
   onOpenHoldingChart?: (h: LiveTradeHolding) => void;
+  initialAdminView?: {
+    userId: string;
+    programId?: string;
+    programName?: string;
+  } | null;
 }) {
   const [pinnedTab, setPinnedTab] = useState<PanelTab>("holdings");
   const [hoverTab, setHoverTab] = useState<PanelTab | null>(null);
@@ -460,6 +466,14 @@ export default function LiveTradePortfolioPanel({
   }, []);
 
   useEffect(() => {
+    if (initialAdminView?.userId) {
+      applyPortfolioFocus({
+        programId: initialAdminView.programId ?? "",
+        userId: initialAdminView.userId,
+        programName: initialAdminView.programName,
+      });
+      return;
+    }
     const pending = consumePendingLiveTradePortfolioFocus();
     if (pending) applyPortfolioFocus(pending);
     const onFocus = (e: Event) => {
@@ -469,7 +483,7 @@ export default function LiveTradePortfolioPanel({
     window.addEventListener(LIVE_TRADE_PORTFOLIO_FOCUS_EVENT, onFocus);
     return () =>
       window.removeEventListener(LIVE_TRADE_PORTFOLIO_FOCUS_EVENT, onFocus);
-  }, [applyPortfolioFocus]);
+  }, [applyPortfolioFocus, initialAdminView]);
 
   const adminReadOnly = Boolean(
     adminViewUserId && user?.id && user.id !== adminViewUserId,

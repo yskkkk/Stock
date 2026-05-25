@@ -78,11 +78,18 @@ export default function AccessAdminModal({
   onResetTelegram,
   resettingTelegram,
   onViewLiveTradePortfolio,
+  onViewLiveTradeTab,
 }: {
   open: boolean;
   onClose: () => void;
   /** 실매매 탭 — 수익률 포트폴리오로 이동 */
   onViewLiveTradePortfolio?: (p: {
+    programId: string;
+    userId?: string;
+    name: string;
+  }) => void;
+  /** 실매매 탭 — 해당 사용자 프로그램 전체(읽기 전용) */
+  onViewLiveTradeTab?: (p: {
     programId: string;
     userId?: string;
     name: string;
@@ -854,18 +861,6 @@ export default function AccessAdminModal({
                   <ul className="access-admin-list access-admin-live-trade-list">
                     {(liveTradeData?.programs ?? []).map((p) => (
                       <li key={p.id} className="access-admin-item access-admin-live-trade-item">
-                        <button
-                          type="button"
-                          className="access-admin-live-trade-open"
-                          title={ko.access.adminLiveTradeOpenPortfolioHint}
-                          onClick={() =>
-                            onViewLiveTradePortfolio?.({
-                              programId: p.id,
-                              userId: p.userId,
-                              name: p.name,
-                            })
-                          }
-                        >
                         <div className="access-admin-item-head">
                           <strong>{p.name}</strong>
                           <span
@@ -923,10 +918,38 @@ export default function AccessAdminModal({
                             {p.lastError}
                           </p>
                         ) : null}
-                        <span className="access-admin-live-trade-open-cta">
-                          {ko.access.adminLiveTradeOpenPortfolio}
-                        </span>
-                        </button>
+                        <div className="access-admin-item-actions access-admin-live-trade-actions">
+                          <button
+                            type="button"
+                            className="btn btn--primary btn--sm"
+                            title={ko.access.adminLiveTradeOpenTabHint}
+                            disabled={!p.userId}
+                            onClick={() =>
+                              onViewLiveTradeTab?.({
+                                programId: p.id,
+                                userId: p.userId ?? undefined,
+                                name: p.name,
+                              })
+                            }
+                          >
+                            {ko.access.adminLiveTradeOpenTab}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn--secondary btn--sm"
+                            title={ko.access.adminLiveTradeOpenPortfolioHint}
+                            disabled={!p.userId}
+                            onClick={() =>
+                              onViewLiveTradePortfolio?.({
+                                programId: p.id,
+                                userId: p.userId ?? undefined,
+                                name: p.name,
+                              })
+                            }
+                          >
+                            {ko.access.adminLiveTradeOpenPortfolio}
+                          </button>
+                        </div>
                       </li>
                     ))}
                   </ul>

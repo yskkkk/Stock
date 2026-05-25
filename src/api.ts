@@ -1655,14 +1655,42 @@ export function fetchAccessAdminLiveTradingRunning(adminToken: string) {
   );
 }
 
-export function fetchAccessAdminLiveTradingPortfolio(
+export interface AccessAdminLiveTradingUserStatusResponse {
+  programs: LiveTradeProgram[];
+  programReturns: LiveTradingStatusResponse["programReturns"];
+  armedCount: number;
+  simCount: number;
+  userId: string;
+  fetchedAtMs: number;
+}
+
+export function fetchAccessAdminLiveTradingUserStatus(
   adminToken: string,
   userId: string,
-  programId: string,
 ) {
   const params = new URLSearchParams();
   params.set("userId", userId.trim());
-  params.set("programId", programId.trim());
+  const headers: Record<string, string> = {};
+  const t = adminToken.trim();
+  if (t) headers.Authorization = `Bearer ${t}`;
+  return fetchJson<AccessAdminLiveTradingUserStatusResponse>(
+    `/api/access/admin/live-trading/user-status?${params}`,
+    {
+      headers: Object.keys(headers).length ? headers : undefined,
+      cache: "no-store",
+    },
+  );
+}
+
+export function fetchAccessAdminLiveTradingPortfolio(
+  adminToken: string,
+  userId: string,
+  programId?: string | null,
+) {
+  const params = new URLSearchParams();
+  params.set("userId", userId.trim());
+  const pid = String(programId ?? "").trim();
+  if (pid) params.set("programId", pid);
   const headers: Record<string, string> = {};
   const t = adminToken.trim();
   if (t) headers.Authorization = `Bearer ${t}`;

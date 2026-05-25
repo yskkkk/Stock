@@ -6,8 +6,10 @@ import {
   useState,
 } from "react";
 import {
+  fetchAccessAdminLiveTradingPortfolio,
   fetchLiveTradingMinuteQuotes,
   fetchLiveTradingPortfolio,
+  getStoredAccessAdminToken,
   type LiveTradeHolding,
   type LiveTradePortfolioResponse,
   type LiveTradeProgram,
@@ -113,12 +115,14 @@ function ProgramRunCard({
   onProgramUpdated,
   onOpenHoldingChart,
   usdKrwRate,
+  readOnly = false,
 }: {
   program: LiveTradeProgram;
   mode: "sim" | "armed";
   holdings: LiveTradeHolding[];
   trades: LiveTradeRecord[];
   busy: boolean;
+  readOnly?: boolean;
   onStop?: (id: string) => void;
   onDisarm?: (id: string) => void;
   refreshKey?: number;
@@ -210,22 +214,24 @@ function ProgramRunCard({
             </p>
           ) : null}
         </div>
-        <div
-          className="live-sim-run__card-head-actions"
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => e.stopPropagation()}
-        >
-          <button
-            type="button"
-            className="btn btn--secondary btn--sm"
-            disabled={busy}
-            onClick={() =>
-              isArmed ? onDisarm?.(program.id) : onStop?.(program.id)
-            }
+        {!readOnly ? (
+          <div
+            className="live-sim-run__card-head-actions"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
           >
-            {isArmed ? ko.app.liveTradeDisarm : ko.app.liveTradeSimStop}
-          </button>
-        </div>
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              disabled={busy}
+              onClick={() =>
+                isArmed ? onDisarm?.(program.id) : onStop?.(program.id)
+              }
+            >
+              {isArmed ? ko.app.liveTradeDisarm : ko.app.liveTradeSimStop}
+            </button>
+          </div>
+        ) : null}
       </header>
 
       {showProgramRunError(program, sum.holdingCount) ? (
@@ -562,6 +568,8 @@ export default function LiveSimRunningPanel({
   refreshKey = 0,
   onProgramUpdated,
   onOpenHoldingChart,
+  adminViewUserId = null,
+  readOnly = false,
 }: {
   programs: LiveTradeProgram[];
   busy?: boolean;
@@ -571,6 +579,8 @@ export default function LiveSimRunningPanel({
   refreshKey?: number;
   onProgramUpdated?: () => void;
   onOpenHoldingChart?: (h: LiveTradeHolding) => void;
+  adminViewUserId?: string | null;
+  readOnly?: boolean;
 }) {
   const activePrograms = useMemo(
     () =>
@@ -609,7 +619,14 @@ export default function LiveSimRunningPanel({
     }
     setLoading(true);
     try {
-      const snap = await fetchLiveTradingPortfolio(null, { exchangeSync: true });
+      let snap: LiveTradePortfolioResponse;
+      const viewUid = String(adminViewUserId ?? "").trim();
+      if (readOnly && viewUid) {
+        const token = getStoredAccessAdminToken() ?? "";
+        snap = await fetchAccessAdminLiveTradingPortfolio(token, viewUid, null);
+      } else {
+        snap = await fetchLiveTradingPortfolio(null, { exchangeSync: true });
+      }
       const syms = [
         ...new Set(snap.holdings.map((h) => h.symbol.trim().toUpperCase()).filter(Boolean)),
       ];
@@ -642,7 +659,7 @@ export default function LiveSimRunningPanel({
     } finally {
       setLoading(false);
     }
-  }, [activeIds.size, feeByMarket]);
+  }, [activeIds.size, feeByMarket, adminViewUserId, readOnly]);
 
   useEffect(() => {
     void loadPortfolio();
@@ -743,6 +760,7 @@ export default function LiveSimRunningPanel({
               onProgramUpdated={onProgramUpdated}
               onOpenHoldingChart={onOpenHoldingChart}
               usdKrwRate={usdKrwRate}
+              readOnly={readOnly}
             />
           ))}
         </div>

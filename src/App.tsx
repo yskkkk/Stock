@@ -43,7 +43,9 @@ import ChartDrawToolbarButtons from "./components/ChartDrawToolbarButtons";
 import CryptoTab from "./components/CryptoTab";
 import OpsGlobalQueueStrip from "./components/OpsGlobalQueueStrip";
 import OpsManagementTab from "./components/OpsManagementTab";
-import LiveTradingTab from "./components/LiveTradingTab";
+import LiveTradingTab, {
+  type LiveTradeAdminViewState,
+} from "./components/LiveTradingTab";
 import AppLiveTradeSideDock from "./components/AppLiveTradeSideDock";
 import AppRightDockRailPanels from "./components/AppRightDockRailPanels";
 import {
@@ -235,6 +237,8 @@ export default function App() {
   const [showAccessAdmin, setShowAccessAdmin] = useState(false);
   const [adminIpConsole, setAdminIpConsole] = useState(false);
   const [accessAdmin, setAccessAdmin] = useState(false);
+  const [liveTradeAdminView, setLiveTradeAdminView] =
+    useState<LiveTradeAdminViewState | null>(null);
   const [opsCursorAgentAvailable, setOpsCursorAgentAvailable] = useState(false);
   /** /api/config 완료 전에는 IP 게이트 리다이렉트 금지(관리자 대기열 깜빡임 방지) */
   const [configReady, setConfigReady] = useState(false);
@@ -651,6 +655,32 @@ export default function App() {
     setLookupMarketTab(pick.market);
     setAppTab("stockLookup");
   }, []);
+
+  const openAdminLiveTradeView = useCallback(
+    (p: { programId: string; userId?: string; name: string }) => {
+      const uid = String(p.userId ?? "").trim();
+      if (!uid) return;
+      setShowAccessAdmin(false);
+      setLiveTradeAdminView({
+        userId: uid,
+        label: uid,
+        programId: p.programId,
+        programName: p.name,
+      });
+      setAppTab("liveTrading");
+      const focus = {
+        programId: p.programId,
+        userId: uid,
+        programName: p.name,
+      };
+      setPendingLiveTradePortfolioFocus(focus);
+      requestAnimationFrame(() => {
+        dispatchLiveTradeDockOpenPortfolio();
+        dispatchLiveTradePortfolioFocus(focus);
+      });
+    },
+    [],
+  );
 
   const handleOpenMarketIndex = useCallback((item: MarketIndexItem) => {
     const market = item.lookupMarket ?? item.region;
@@ -1310,6 +1340,17 @@ export default function App() {
             hideCardDock={showLiveTradeDockPortals}
             onOpenRecommendations={() => setAppTab("recommendations")}
             onOpenHoldingChart={handleLiveTradeChart}
+            adminView={liveTradeAdminView}
+            onClearAdminView={() => setLiveTradeAdminView(null)}
+            canAdminLiveTrade={accessAdmin || adminIpConsole}
+            adminIpBypass={adminIpConsole}
+            onAdminViewUser={(p) =>
+              openAdminLiveTradeView({
+                programId: p.programId,
+                userId: p.userId,
+                name: p.name,
+              })
+            }
           />
         </div>
       ) : appTab === "ops" ? (
@@ -1885,20 +1926,8 @@ export default function App() {
 
       <AccessAdminModal
         open={showAccessAdmin}
-        onViewLiveTradePortfolio={(p) => {
-          setShowAccessAdmin(false);
-          const focus = {
-            programId: p.programId,
-            userId: p.userId,
-            programName: p.name,
-          };
-          setPendingLiveTradePortfolioFocus(focus);
-          setAppTab("liveTrading");
-          requestAnimationFrame(() => {
-            dispatchLiveTradeDockOpenPortfolio();
-            dispatchLiveTradePortfolioFocus(focus);
-          });
-        }}
+        onViewLiveTradePortfolio={(p) => openAdminLiveTradeView(p)}
+        onViewLiveTradeTab={(p) => openAdminLiveTradeView(p)}
         onClose={() => {
           setShowAccessAdmin(false);
           void fetchConfig()
@@ -1909,7 +1938,7 @@ export default function App() {
             })
             .catch(() => {});
         }}
-        adminIpBypassPassword={false}
+        adminIpBypassPassword={adminIpConsole}
         telegramNotify={telegramNotify}
         telegramSentCount={telegramSentCount}
         onOpenTelegramSent={() => {
@@ -1951,6 +1980,17 @@ export default function App() {
                     portalSourceOnly
                     onOpenRecommendations={() => setAppTab("recommendations")}
                     onOpenHoldingChart={handleLiveTradeChart}
+                    adminView={liveTradeAdminView}
+                    onClearAdminView={() => setLiveTradeAdminView(null)}
+                    canAdminLiveTrade={accessAdmin || adminIpConsole}
+                    adminIpBypass={adminIpConsole}
+                    onAdminViewUser={(p) =>
+                      openAdminLiveTradeView({
+                        programId: p.programId,
+                        userId: p.userId,
+                        name: p.name,
+                      })
+                    }
                   />
                 ) : null
               }

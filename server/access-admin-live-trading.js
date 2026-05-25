@@ -1,6 +1,14 @@
 import { getProgramArmedMarkets } from "./live-trade-arm-gate.js";
-import { buildLiveTradePortfolioSnapshot } from "./live-trade-portfolio-store.js";
-import { listLiveTradeProgramsSync } from "./live-trade-programs-store.js";
+import {
+  buildLiveTradePortfolioSnapshot,
+  buildProgramPortfolioSummariesMap,
+  enrichProgramReturnsFromHoldings,
+} from "./live-trade-portfolio-store.js";
+import {
+  healOwnerMissingProgramErrorsSync,
+  healStuckSimProgramErrorsSync,
+  listLiveTradeProgramsSync,
+} from "./live-trade-programs-store.js";
 
 async function portfolioPayloadForUser(userId, programId) {
   const uid = String(userId ?? "").trim();
@@ -21,6 +29,28 @@ async function portfolioPayloadForUser(userId, programId) {
       ...t,
       programName: nameById.get(t.programId) ?? t.programId,
     })),
+  };
+}
+
+/** @param {string} userId */
+export async function buildAdminLiveTradingUserStatusPayload(userId) {
+  const uid = String(userId ?? "").trim();
+  if (!uid) throw new Error("userId required");
+  let programs = listLiveTradeProgramsSync(uid);
+  let programReturns = await buildProgramPortfolioSummariesMap(
+    programs.map((p) => p.id),
+    uid,
+  );
+  programReturns = await enrichProgramReturnsFromHoldings(programReturns, uid);
+  programs = healStuckSimProgramErrorsSync(programs, programReturns);
+  programs = healOwnerMissingProgramErrorsSync(programs);
+  return {
+    programs,
+    programReturns,
+    armedCount: programs.filter((p) => p.status === "armed").length,
+    simCount: programs.filter((p) => p.status === "sim").length,
+    userId: uid,
+    fetchedAtMs: Date.now(),
   };
 }
 
@@ -74,6 +104,25 @@ export function registerAccessAdminLiveTradingRoute(app, requireAdmin) {
       res.status(500).json({ error: msg });
     }
   });
+
+  app.get(
+    "/api/access/admin/live-trading/user-status",
+    requireAdmin,
+    async (req, res) => {
+      try {
+        const userId = String(req.query?.userId ?? "").trim();
+        if (!userId) {
+          res.status(400).json({ error: "userId required" });
+          return;
+        }
+        const payload = await buildAdminLiveTradingUserStatusPayload(userId);
+        res.json(payload);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        res.status(500).json({ error: msg });
+      }
+    },
+  );
 
   app.get(
     "/api/access/admin/live-trading/portfolio",
