@@ -4,18 +4,28 @@ import {
   pickRunningLivePrograms,
   useLiveTradingStatusPoll,
 } from "../hooks/useLiveTradingStatusPoll";
+import TelegramNotifyIconButton from "./TelegramNotifyIconButton";
 
 function LiveTradingHeaderStripInner({
   onOpenLiveTrading,
+  telegramNotify = false,
+  telegramSentCount = 0,
+  onOpenTelegramSent,
 }: {
   onOpenLiveTrading: () => void;
+  telegramNotify?: boolean;
+  telegramSentCount?: number;
+  onOpenTelegramSent?: () => void;
 }) {
   const status = useLiveTradingStatusPoll();
   const rows = pickRunningLivePrograms(status);
-  if (rows.length === 0) return null;
+  const showTelegram =
+    telegramNotify && typeof onOpenTelegramSent === "function";
+  if (rows.length === 0 && !showTelegram) return null;
 
   const armedN = status?.armedCount ?? rows.filter((r) => r.kind === "armed").length;
   const simN = status?.simCount ?? rows.filter((r) => r.kind === "sim").length;
+  const hasStatus = armedN > 0 || simN > 0;
 
   return (
     <div className="top-bar__live-trade">
@@ -24,7 +34,9 @@ function LiveTradingHeaderStripInner({
         role="status"
       >
         <div className="scan-status__primary live-trade-header-strip__primary">
-          <span className="live-trade-header-strip__pulse" aria-hidden />
+          {hasStatus ? (
+            <span className="live-trade-header-strip__pulse" aria-hidden />
+          ) : null}
           <span className="scan-status__msg live-trade-header-strip__msg">
             {armedN > 0 ? (
               <strong>{liveTradeHeaderStripArmed(armedN)}</strong>
@@ -35,19 +47,27 @@ function LiveTradingHeaderStripInner({
             {simN > 0 ? (
               <span>{liveTradeHeaderStripSim(simN)}</span>
             ) : null}
-            <span className="live-trade-header-strip__names">
-              {rows.map(({ program, kind }) => (
-                <button
-                  key={program.id}
-                  type="button"
-                  className={`live-trade-header-strip__chip live-trade-header-strip__chip--${kind}`}
-                  title={program.name}
-                  onClick={onOpenLiveTrading}
-                >
-                  {program.name}
-                </button>
-              ))}
-            </span>
+            {showTelegram ? (
+              <TelegramNotifyIconButton
+                sentCount={telegramSentCount}
+                onClick={onOpenTelegramSent}
+              />
+            ) : null}
+            {rows.length > 0 ? (
+              <span className="live-trade-header-strip__names">
+                {rows.map(({ program, kind }) => (
+                  <button
+                    key={program.id}
+                    type="button"
+                    className={`live-trade-header-strip__chip live-trade-header-strip__chip--${kind}`}
+                    title={program.name}
+                    onClick={onOpenLiveTrading}
+                  >
+                    {program.name}
+                  </button>
+                ))}
+              </span>
+            ) : null}
           </span>
         </div>
       </div>

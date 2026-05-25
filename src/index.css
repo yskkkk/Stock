@@ -1734,6 +1734,57 @@ html[data-theme="light"] .top-bar__live-trade {
   min-width: 0;
 }
 
+.live-trade-header-strip__telegram-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.55rem;
+  height: 1.55rem;
+  margin: 0 0.1rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.live-trade-header-strip__telegram-btn:hover {
+  background: rgba(34, 158, 217, 0.12);
+  box-shadow: none;
+}
+
+.live-trade-header-strip__telegram-icon {
+  display: block;
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.live-trade-header-strip__telegram-count {
+  position: absolute;
+  top: -0.2rem;
+  right: -0.35rem;
+  min-width: 0.95rem;
+  height: 0.95rem;
+  padding: 0 0.2rem;
+  border-radius: 999px;
+  font-size: 0.58rem;
+  font-weight: 800;
+  line-height: 0.95rem;
+  text-align: center;
+  background: #229ed9;
+  color: #fff;
+  border: 1px solid var(--card, #161d27);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+html[data-theme="light"] .live-trade-header-strip__telegram-count {
+  border-color: var(--card, #fff);
+}
+
 .live-trade-header-strip__names {
   display: inline-flex;
   flex-wrap: wrap;

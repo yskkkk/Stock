@@ -1171,43 +1171,11 @@ export default function App() {
                     </button>
                   </span>
                 )}
-                {appTab === "screener" && telegramNotify ? (
-                  <span className="tag-group">
-                    <button
-                      type="button"
-                      className="tag tag--telegram tag--telegram-btn"
-                      title={ko.app.telegramListAria}
-                      aria-label={ko.app.telegramListAria}
-                      onClick={handleOpenTelegramSent}
-                    >
-                      {ko.app.telegram}
-                      {telegramSentCount > 0 ? (
-                        <span className="tag-count">{telegramSentCount}</span>
-                      ) : null}
-                    </button>
-                  </span>
-                ) : null}
               </p>
             </div>
           </div>
 
           <div className="top-bar__right">
-            {(appTab === "stockLookup" || appTab === "crypto") && telegramNotify ? (
-              <span className="tag-group top-bar__telegram">
-                <button
-                  type="button"
-                  className="tag tag--telegram tag--telegram-btn"
-                  title={ko.app.telegramListAria}
-                  aria-label={ko.app.telegramListAria}
-                  onClick={handleOpenTelegramSent}
-                >
-                  {ko.app.telegram}
-                  {telegramSentCount > 0 ? (
-                    <span className="tag-count">{telegramSentCount}</span>
-                  ) : null}
-                </button>
-              </span>
-            ) : null}
             <nav className="main-tabs" aria-label={ko.app.mainNav}>
               <button
                 type="button"
@@ -1301,6 +1269,9 @@ export default function App() {
           ) : null}
           <LiveTradingHeaderStrip
             onOpenLiveTrading={() => setAppTab("liveTrading")}
+            telegramNotify={telegramNotify}
+            telegramSentCount={telegramSentCount}
+            onOpenTelegramSent={handleOpenTelegramSent}
           />
         </div>
       </header>
