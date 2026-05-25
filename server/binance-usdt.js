@@ -137,7 +137,7 @@ function historyStartMs(tf) {
       return now - 60 * DAY;
     case "1h":
     case "4h":
-      return now - 730 * DAY;
+      return now - 729 * DAY;
     case "1d":
       return now - 50 * 365 * DAY;
     default:

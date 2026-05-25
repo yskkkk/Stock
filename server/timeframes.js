@@ -23,13 +23,14 @@ export const TIMEFRAME_MAP = {
   "1h": {
     label: "1시간",
     interval: "60m",
-    days: 730,
+    // Yahoo 60m: range must be strictly within last 730 days (730 fails)
+    days: 729,
     displayInterval: "1h",
   },
   "4h": {
     label: "4시간",
     interval: "60m",
-    days: 730,
+    days: 729,
     aggregate: 4,
     displayInterval: "4h",
   },

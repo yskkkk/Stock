@@ -342,7 +342,7 @@ export async function loadStock(symbol, timeframe, options = {}) {
   const { live = false } = options;
   const sym = symbol.toUpperCase();
   /** v2: 일봉 요청이 range=max일 때 Yahoo가 월봉으로 다운샘플링하던 캐시 무효화 */
-  const cacheKey = `${sym}:${tf}:v2`;
+  const cacheKey = `${sym}:${tf}:v3`;
   const inflightKey = `${cacheKey}:${live ? "live" : "cached"}`;
 
   if (!live) {
