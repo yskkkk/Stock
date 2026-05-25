@@ -382,7 +382,8 @@ export function LiveTradingRailCore({
     () => feeByMarketFromStatus(status?.feeRates),
     [status?.feeRates],
   );
-  const usdKrwRate = useUsdKrwRate();
+  const programCount = status?.programs?.length ?? 0;
+  const { rate: usdKrwRate } = useUsdKrwRate(Boolean(user && programCount > 0));
 
   const reloadPortfolio = useCallback(async () => {
     if (!user) {
@@ -491,6 +492,16 @@ export function LiveTradingRailCore({
       });
   }, [status, holdingsByProgram, roundTripForMarket, layout]);
 
+  const { armedRows, simRows } = useMemo(() => {
+    const armed: typeof rows = [];
+    const sim: typeof rows = [];
+    for (const row of rows) {
+      if (row.program.status === "armed") armed.push(row);
+      else if (row.program.status === "sim") sim.push(row);
+    }
+    return { armedRows: armed, simRows: sim };
+  }, [rows]);
+
   if (!authChecked) {
     return layout === "dock" ? (
       <div className="app-dock-rail-panel app-dock-rail-panel--live app-dock-rail-panel--pending">
@@ -520,16 +531,6 @@ export function LiveTradingRailCore({
       </button>
     </div>
   );
-
-  const { armedRows, simRows } = useMemo(() => {
-    const armed: typeof rows = [];
-    const sim: typeof rows = [];
-    for (const row of rows) {
-      if (row.program.status === "armed") armed.push(row);
-      else if (row.program.status === "sim") sim.push(row);
-    }
-    return { armedRows: armed, simRows: sim };
-  }, [rows]);
 
   const renderRailRow = (row: (typeof rows)[number]) => {
     const { program: p, displayStatus, returnPct, holdings } = row;
