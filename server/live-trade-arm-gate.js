@@ -30,6 +30,8 @@ export function getProgramArmedMarkets(program) {
  */
 export function isProgramArmedForMarket(program, market) {
   if (program?.status !== "armed") return false;
+  const mk = program?.markets ?? {};
+  if (market === "us") return Boolean(mk.us);
   const armed = getProgramArmedMarkets(program);
   if (market === "crypto") return Boolean(armed.crypto);
   if (market === "kr") return Boolean(armed.kr);

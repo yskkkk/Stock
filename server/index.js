@@ -33,12 +33,16 @@ ensureLiveTradeExitScenarioMigratedOnce().catch((e) => {
     e instanceof Error ? e.message : e,
   );
 });
-const { ensureRunningProgramsBoxRangeMigratedOnce } = await import(
+const { ensureBoxRangeScenarioRolloutOnce } = await import(
   "./box-range/migrate-active-programs.js"
 );
-ensureRunningProgramsBoxRangeMigratedOnce().catch((e) => {
+ensureBoxRangeScenarioRolloutOnce({
+  force: process.env.STOCK_BOX_RANGE_ROLLOUT_FORCE === "1",
+  sendEmail: process.env.STOCK_BOX_RANGE_ROLLOUT_EMAIL === "1",
+  emailForce: process.env.STOCK_BOX_RANGE_ROLLOUT_EMAIL_FORCE === "1",
+}).catch((e) => {
   console.warn(
-    "[box-range:migrate] active programs failed:",
+    "[box-range:rollout] scenario v2 failed:",
     e instanceof Error ? e.message : e,
   );
 });

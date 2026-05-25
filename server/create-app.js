@@ -1159,16 +1159,33 @@ export function createApp() {
     "/api/admin/broadcast/box-range-strategy-email",
     requireAccessAdmin,
     asyncRoute(async (req, res) => {
-      const { sendBoxRangeStrategyEmailToAllMembers } = await import(
+      const { ensureBoxRangeScenarioRolloutOnce } = await import(
+        "./box-range/migrate-active-programs.js"
+      );
+      const { sendBoxRangeStrategyEmailToLiveTradeUsers } = await import(
         "./notifications/box-range-strategy-email.js"
       );
       const force = Boolean(req.body?.force);
       const dryRun = Boolean(req.body?.dryRun);
+      const migrateOnly = Boolean(req.body?.migrateOnly);
+      const emailOnly = Boolean(req.body?.emailOnly);
       try {
-        const result = await sendBoxRangeStrategyEmailToAllMembers({
-          force,
-          dryRun,
-        });
+        let migrate = null;
+        if (!emailOnly) {
+          migrate = await ensureBoxRangeScenarioRolloutOnce({
+            force: true,
+            sendEmail: false,
+          });
+        }
+        let email = null;
+        if (!migrateOnly) {
+          email = await sendBoxRangeStrategyEmailToLiveTradeUsers({
+            force,
+            dryRun,
+            allMembers: req.body?.allMembers !== false,
+          });
+        }
+        const result = { migrate, email };
         res.json({ ok: true, ...result });
       } catch (e) {
         const code =

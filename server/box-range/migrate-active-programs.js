@@ -1,5 +1,5 @@
 /**
- * 실행 중(armed·sim) 실매매 프로그램 → 박스권(1h·4h·1d) 모델 일괄 전환
+ * 실매매 프로그램 → 박스권(1h·4h·1d) 시나리오 일괄 적용
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -13,7 +13,11 @@ import {
 import { liveTradeLogInfo } from "../live-trade-log.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const FLAG_FILE = path.join(__dirname, "../.data/.box-range-active-programs-migrated.json");
+const FLAG_FILE = path.join(
+  __dirname,
+  "../.data/.box-range-scenario-rollout-v2.json",
+);
+export const BOX_RANGE_SCENARIO_VERSION = 2;
 
 function readFlagSync() {
   try {
@@ -27,74 +31,157 @@ function readFlagSync() {
 function writeFlagSync(payload) {
   const dir = path.dirname(FLAG_FILE);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(FLAG_FILE, JSON.stringify(payload, null, 0), "utf8");
+  const tmp = `${FLAG_FILE}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(payload, null, 0), "utf8");
+  fs.renameSync(tmp, FLAG_FILE);
 }
 
-/** @param {import("../live-trade-programs-store.js").LiveTradeProgram} program */
-export function buildBoxRangeActiveProgramPatch(program) {
-  if (isBoxRangeProgram(program)) return null;
+/**
+ * 코인 전용 vs 미국(S&P500) 박스권 트랙
+ * @param {import("../live-trade-programs-store.js").LiveTradeProgram} program
+ */
+export function resolveBoxRangeMarketsForProgram(program) {
+  const mk = program.markets ?? {};
+  const cryptoFirst =
+    Boolean(mk.crypto) &&
+    (program.modelId !== BOX_RANGE_MODEL_ID || !mk.us || mk.crypto);
+  if (cryptoFirst) {
+    return { kr: false, us: false, crypto: true };
+  }
+  return { kr: false, us: true, crypto: false };
+}
+
+/**
+ * @param {import("../live-trade-programs-store.js").LiveTradeProgram} program
+ */
+export function buildBoxRangeScenarioPatch(program) {
+  const markets = resolveBoxRangeMarketsForProgram(program);
+  /** @type {Record<string, unknown>} */
   const patch = {
     modelId: BOX_RANGE_MODEL_ID,
-    markets: { kr: false, us: false, crypto: true },
+    markets,
     autoSellAtTarget: false,
     lastError: null,
     updatedAtMs: Date.now(),
   };
   if (program.status === "armed") {
     const am = getProgramArmedMarkets(program);
-    return {
-      ...patch,
-      armedMarkets: { kr: false, crypto: am.crypto || program.markets?.crypto },
+    patch.armedMarkets = {
+      kr: false,
+      crypto: markets.crypto && (am.crypto || Boolean(program.markets?.crypto)),
     };
   }
   return patch;
 }
 
+/** @deprecated — 실행 중만; v2는 전체 프로그램 */
+export function buildBoxRangeActiveProgramPatch(program) {
+  if (isBoxRangeProgram(program)) {
+    return buildBoxRangeScenarioPatch(program);
+  }
+  return buildBoxRangeScenarioPatch(program);
+}
+
 /**
- * @returns {{ migrated: number; programIds: string[]; skipped: string[] }}
+ * 저장소의 모든 실매매 프로그램에 박스권 시나리오 적용
+ * @returns {{ migrated: number; programIds: string[]; skipped: string[]; details: object[] }}
  */
-export function migrateRunningProgramsToBoxRangeSync() {
+export function migrateAllLiveTradeProgramsToBoxRangeSync() {
   const store = readProgramsStoreSync();
   /** @type {string[]} */
   const programIds = [];
   /** @type {string[]} */
   const skipped = [];
+  /** @type {object[]} */
+  const details = [];
   let migrated = 0;
 
   for (const p of store.programs) {
-    if (p.status !== "armed" && p.status !== "sim") continue;
-    const patch = buildBoxRangeActiveProgramPatch(p);
-    if (!patch) {
+    const patch = buildBoxRangeScenarioPatch(p);
+    const sameModel =
+      p.modelId === patch.modelId &&
+      p.autoSellAtTarget === patch.autoSellAtTarget &&
+      p.markets?.kr === patch.markets.kr &&
+      p.markets?.us === patch.markets.us &&
+      p.markets?.crypto === patch.markets.crypto;
+    if (sameModel && isBoxRangeProgram(p)) {
       skipped.push(p.id);
       continue;
     }
     updateLiveTradeProgramForRunnerSync(p.id, patch);
     programIds.push(p.id);
     migrated++;
-    liveTradeLogInfo("[box-range:migrate] active program → box-range", p.name ?? p.id, {
+    details.push({
+      id: p.id,
+      name: p.name,
       status: p.status,
       fromModel: p.modelId,
+      markets: patch.markets,
+    });
+    liveTradeLogInfo("[box-range:rollout] program → box-range v2", p.name ?? p.id, {
+      status: p.status,
+      markets: patch.markets,
     });
   }
 
+  return { migrated, programIds, skipped, details };
+}
+
+/** @param {{ force?: boolean }} [opts] */
+export function migrateRunningProgramsToBoxRangeSync() {
+  const store = readProgramsStoreSync();
+  let migrated = 0;
+  const programIds = [];
+  const skipped = [];
+  for (const p of store.programs) {
+    if (p.status !== "armed" && p.status !== "sim") continue;
+    const patch = buildBoxRangeScenarioPatch(p);
+    updateLiveTradeProgramForRunnerSync(p.id, patch);
+    programIds.push(p.id);
+    migrated++;
+  }
   return { migrated, programIds, skipped };
 }
 
 /**
- * @param {{ force?: boolean }} [opts]
+ * @param {{ force?: boolean; sendEmail?: boolean; emailDryRun?: boolean; emailForce?: boolean }} [opts]
  */
-export function ensureRunningProgramsBoxRangeMigratedOnce(opts = {}) {
+export async function ensureBoxRangeScenarioRolloutOnce(opts = {}) {
   const force = Boolean(opts.force);
   const flag = readFlagSync();
-  if (!force && flag?.done) {
-    return Promise.resolve({ ...flag, skippedRun: true });
+  if (!force && flag?.version >= BOX_RANGE_SCENARIO_VERSION && flag?.done) {
+    return { ...flag, skippedRun: true };
   }
-  const result = migrateRunningProgramsToBoxRangeSync();
+
+  const migrate = migrateAllLiveTradeProgramsToBoxRangeSync();
+  /** @type {Record<string, unknown>} */
   const payload = {
     done: true,
+    version: BOX_RANGE_SCENARIO_VERSION,
     atMs: Date.now(),
-    ...result,
+    ...migrate,
   };
+
+  let emailResult = null;
+  if (opts.sendEmail) {
+    const { sendBoxRangeStrategyEmailToLiveTradeUsers } = await import(
+      "../notifications/box-range-strategy-email.js"
+    );
+    emailResult = await sendBoxRangeStrategyEmailToLiveTradeUsers({
+      dryRun: Boolean(opts.emailDryRun),
+      force: Boolean(opts.emailForce),
+    });
+    payload.email = emailResult;
+  }
+
   writeFlagSync(payload);
-  return Promise.resolve(payload);
+  return payload;
+}
+
+/** @param {{ force?: boolean }} [opts] */
+export function ensureRunningProgramsBoxRangeMigratedOnce(opts = {}) {
+  return ensureBoxRangeScenarioRolloutOnce({
+    force: opts.force,
+    sendEmail: false,
+  });
 }
