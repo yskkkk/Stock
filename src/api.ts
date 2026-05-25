@@ -1363,15 +1363,53 @@ export function fetchLiveTradingTradeHistory(opts?: {
   days?: number;
   /** true — 전체 일자·최신순(도크 거래내역) */
   all?: boolean;
+  programId?: string | null;
 }) {
   const params = new URLSearchParams();
   const endDay = String(opts?.endDay ?? "").trim();
   if (endDay) params.set("endDay", endDay);
   if (opts?.all) params.set("all", "1");
   else if (opts?.days != null) params.set("days", String(opts.days));
+  const programId = String(opts?.programId ?? "").trim();
+  if (programId) params.set("programId", programId);
   const q = params.toString() ? `?${params}` : "";
   return fetchJson<LiveTradeHistoryResponse>(
     `/api/live-trading/trades/history${q}`,
+    { cache: "no-store" },
+  );
+}
+
+export interface LiveTradeBoxRangePublicBox {
+  boxId: string;
+  symbol: string;
+  timeframe: "1h" | "4h" | "1d";
+  top: number;
+  bottom: number;
+  mid: number;
+  state: "idle" | "armed" | "in_position" | "closed";
+  entryPrice: number | null;
+  takeProfitPrice: number;
+  stopLossPrice: number;
+  lotQty: number | null;
+  buyAtMs: number | null;
+}
+
+export interface LiveTradeBoxRangeStatusResponse {
+  programs: Record<
+    string,
+    {
+      programId: string;
+      programName: string;
+      status: string;
+      boxes: LiveTradeBoxRangePublicBox[];
+    }
+  >;
+  fetchedAtMs: number;
+}
+
+export function fetchLiveTradingBoxRangeStatus() {
+  return fetchJson<LiveTradeBoxRangeStatusResponse>(
+    "/api/live-trading/box-range/status",
     { cache: "no-store" },
   );
 }

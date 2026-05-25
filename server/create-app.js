@@ -824,12 +824,25 @@ export function createApp() {
       const all =
         String(req.query?.all ?? "").trim() === "1" ||
         String(req.query?.all ?? "").trim() === "true";
+      const programId = String(req.query?.programId ?? "").trim() || undefined;
       const payload = buildLiveTradeHistoryPayload(req.user.id, {
         endDay,
         days: days != null ? Number(days) : 1,
         all,
+        programId,
       });
       res.json(payload);
+    }),
+  );
+
+  app.get(
+    "/api/live-trading/box-range/status",
+    requireUserAuth,
+    asyncRoute(async (req, res) => {
+      const { buildBoxRangeStatusForUserSync } = await import(
+        "./box-range/program-snapshot.js"
+      );
+      res.json(buildBoxRangeStatusForUserSync(req.user.id));
     }),
   );
 

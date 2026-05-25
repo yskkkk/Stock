@@ -46,12 +46,17 @@ function mergeTrades(
 export default function LiveTradeTradesHistoryPanel({
   adminViewUserId = null,
   embedded = false,
+  programId = null,
+  programName = null,
 }: {
   adminViewUserId?: string | null;
   /** 도크 «등록 프로그램» 패널 안에 삽입 */
   embedded?: boolean;
+  /** 지정 시 해당 프로그램 체결만 */
+  programId?: string | null;
+  programName?: string | null;
 }) {
-  const loadAll = embedded;
+  const loadAll = embedded || Boolean(programId?.trim());
   const [trades, setTrades] = useState<LiveTradeRecord[]>([]);
   const [nextOlderEndDay, setNextOlderEndDay] = useState<string | null>(null);
   const [hasOlder, setHasOlder] = useState(false);
@@ -71,9 +76,10 @@ export default function LiveTradeTradesHistoryPanel({
         setLoading(true);
       }
       try {
+        const pid = programId?.trim() || undefined;
         const fetchOpts = loadAll
-          ? { all: true as const }
-          : { endDay: endDay ?? undefined, days: 1 };
+          ? { all: true as const, programId: pid }
+          : { endDay: endDay ?? undefined, days: 1, programId: pid };
         const data = adminId
           ? await fetchAccessAdminLiveTradingTradeHistory(
               getStoredAccessAdminToken(),
@@ -95,7 +101,7 @@ export default function LiveTradeTradesHistoryPanel({
         loadingMoreRef.current = false;
       }
     },
-    [adminViewUserId, loadAll],
+    [adminViewUserId, loadAll, programId],
   );
 
   useEffect(() => {
@@ -145,7 +151,11 @@ export default function LiveTradeTradesHistoryPanel({
     >
       <header className="live-trade-history__head">
         <h3 id="live-trade-history-title" className="live-trade-history__title">
-          {embedded ? ko.app.liveTradePfTabTradesDock : ko.app.liveTradeAllTradesTitle}
+          {programName?.trim()
+            ? `${programName.trim()} · ${ko.app.liveTradePfTabTrades}`
+            : embedded
+              ? ko.app.liveTradePfTabTradesDock
+              : ko.app.liveTradeAllTradesTitle}
         </h3>
         <p className="live-trade-history__sub">
           {loadAll ? ko.app.liveTradeAllTradesDockSub : ko.app.liveTradeAllTradesSub}

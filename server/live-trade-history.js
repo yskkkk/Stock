@@ -45,13 +45,17 @@ function attachProgramNames(trades, userId) {
 
 /**
  * @param {string} userId
- * @param {{ endDay?: string, days?: number, all?: boolean }} [opts]
+ * @param {{ endDay?: string, days?: number, all?: boolean, programId?: string }} [opts]
  */
 export function buildLiveTradeHistoryPayload(userId, opts = {}) {
   const uid = String(userId ?? "").trim();
   if (!uid) throw new Error("userId required");
 
-  const allRecords = listLiveTradeRecordsSync(null, uid);
+  const programId = String(opts.programId ?? "").trim();
+  let allRecords = listLiveTradeRecordsSync(null, uid);
+  if (programId) {
+    allRecords = allRecords.filter((t) => t.programId === programId);
+  }
 
   if (opts.all === true) {
     let trades = [...allRecords].sort((a, b) => b.atMs - a.atMs);

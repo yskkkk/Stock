@@ -16,7 +16,9 @@ import {
   stopSimLiveTradeProgram,
   fetchAccessAdminLiveTradingUserStatus,
   fetchLiveTradingStatus,
+  fetchLiveTradingBoxRangeStatus,
   fetchLiveTradeTechModels,
+  type LiveTradeBoxRangeStatusResponse,
   getStoredAccessAdminToken,
   updateLiveTradeProgram,
   type LiveTradeArmLane,
@@ -280,6 +282,11 @@ export default function LiveTradingTab({
     });
   }, [draft.modelId]);
   const [portfolioRefreshKey, setPortfolioRefreshKey] = useState(0);
+  const [programsPanelTab, setProgramsPanelTab] = useState<
+    "programs" | "trades"
+  >("programs");
+  const [boxRangeStatus, setBoxRangeStatus] =
+    useState<LiveTradeBoxRangeStatusResponse | null>(null);
   const [dockTradeHistoryInPrograms, setDockTradeHistoryInPrograms] =
     useState(false);
   const sidePanel = useLiveTradeCardSidePanelOptional();
@@ -407,6 +414,27 @@ export default function LiveTradingTab({
     return ln >= pn ? status : polledStatus;
   }, [polledStatus, status]);
   const programs = effectiveStatus?.programs ?? [];
+  const loadBoxRangeStatus = useCallback(async () => {
+    if (!user) {
+      setBoxRangeStatus(null);
+      return;
+    }
+    try {
+      setBoxRangeStatus(await fetchLiveTradingBoxRangeStatus());
+    } catch {
+      setBoxRangeStatus(null);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    void loadBoxRangeStatus();
+  }, [
+    loadBoxRangeStatus,
+    portfolioRefreshKey,
+    effectiveStatus?.armedCount,
+    effectiveStatus?.simCount,
+  ]);
+
   const showRunningPanel = portalSourceOnly || !hideCardDock;
 
   const portfolioAdminView = useMemo(
@@ -757,38 +785,81 @@ export default function LiveTradingTab({
     <>
       {!effectiveStatus && user ? (
         <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
-      ) : programs.length === 0 ? (
-        <p className="live-trading-tab__empty">{ko.app.liveTradeListEmpty}</p>
       ) : (
-        <ul className="live-trading-tab__programs">
-          {programs.map((p) => {
-            const model = modelById.get(p.modelId);
-            const ret = effectiveStatus?.programReturns?.[p.id];
-            const holdingCount = ret?.holdingCount ?? 0;
-            const displayStatus = programDisplayStatus(p, holdingCount);
-            const returnPct = ret?.totalReturnPct;
-            return (
-              <li key={p.id}>
-                <LiveTradeRegisteredProgramCard
-                  program={p}
-                  model={model}
-                  displayStatus={displayStatus}
-                  returnPct={returnPct}
-                  holdingCount={holdingCount}
-                  busy={busy}
-                  showArmLaneButton={(lane) => showArmLaneButton(p, lane)}
-                  onSimStop={() => void handleSimStop(p.id)}
-                  onDisarm={() => void handleDisarm(p.id)}
-                  onSimStart={() => void handleSimStart(p.id)}
-                  onArmLane={(lane) => void handleArmLane(p.id, lane)}
-                  onEdit={() => loadProgramToForm(p)}
-                  onDelete={() => void handleDelete(p.id, p.name)}
-                  readOnly={adminReadOnly}
-                />
-              </li>
-            );
-          })}
-        </ul>
+        <>
+          <div
+            className="live-trading-tab__list-segment"
+            role="tablist"
+            aria-label={ko.app.liveTradeListTitle}
+          >
+            <button
+              type="button"
+              role="tab"
+              className={
+                programsPanelTab === "programs"
+                  ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
+                  : "live-trading-tab__segment-btn"
+              }
+              aria-selected={programsPanelTab === "programs"}
+              onClick={() => setProgramsPanelTab("programs")}
+            >
+              {ko.app.liveTradeProgramsTabPrograms}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              className={
+                programsPanelTab === "trades"
+                  ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
+                  : "live-trading-tab__segment-btn"
+              }
+              aria-selected={programsPanelTab === "trades"}
+              onClick={() => setProgramsPanelTab("trades")}
+            >
+              {ko.app.liveTradeProgramsTabTrades}
+            </button>
+          </div>
+          {programsPanelTab === "trades" ? (
+            <LiveTradeTradesHistoryPanel
+              embedded
+              adminViewUserId={adminReadOnly ? adminViewUserId : null}
+            />
+          ) : programs.length === 0 ? (
+            <p className="live-trading-tab__empty">{ko.app.liveTradeListEmpty}</p>
+          ) : (
+            <ul className="live-trading-tab__programs">
+              {programs.map((p) => {
+                const model = modelById.get(p.modelId);
+                const ret = effectiveStatus?.programReturns?.[p.id];
+                const holdingCount = ret?.holdingCount ?? 0;
+                const displayStatus = programDisplayStatus(p, holdingCount);
+                const returnPct = ret?.totalReturnPct;
+                const boxEntry = boxRangeStatus?.programs[p.id];
+                return (
+                  <li key={p.id}>
+                    <LiveTradeRegisteredProgramCard
+                      program={p}
+                      model={model}
+                      displayStatus={displayStatus}
+                      returnPct={returnPct}
+                      holdingCount={holdingCount}
+                      busy={busy}
+                      showArmLaneButton={(lane) => showArmLaneButton(p, lane)}
+                      onSimStop={() => void handleSimStop(p.id)}
+                      onDisarm={() => void handleDisarm(p.id)}
+                      onSimStart={() => void handleSimStart(p.id)}
+                      onArmLane={(lane) => void handleArmLane(p.id, lane)}
+                      onEdit={() => loadProgramToForm(p)}
+                      onDelete={() => void handleDelete(p.id, p.name)}
+                      readOnly={adminReadOnly}
+                      boxRangeBoxes={boxEntry?.boxes}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </>
       )}
     </>
   );
@@ -885,9 +956,11 @@ export default function LiveTradingTab({
                 onProgramUpdated={() => void reload()}
                 onOpenHoldingChart={onOpenHoldingChart}
               />
-              <LiveTradeTradesHistoryPanel
-                adminViewUserId={adminReadOnly ? adminViewUserId : null}
-              />
+              {!showMainProgramsList ? (
+                <LiveTradeTradesHistoryPanel
+                  adminViewUserId={adminReadOnly ? adminViewUserId : null}
+                />
+              ) : null}
             </>
           ) : null}
 
@@ -1342,12 +1415,6 @@ export default function LiveTradingTab({
         >
           <div className="live-trading-tab__list-body live-trading-tab__list-body--dock">
             {programsListContent}
-            {portalSourceOnly && dockTradeHistoryInPrograms ? (
-              <LiveTradeTradesHistoryPanel
-                embedded
-                adminViewUserId={adminReadOnly ? adminViewUserId : null}
-              />
-            ) : null}
           </div>
         </LiveTradeCollapsibleCard>
               </div>

@@ -2432,6 +2432,51 @@ html[data-theme="light"]
   max-height: min(48vh, 560px);
 }
 
+.live-trading-tab__list-segment {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.55rem 0.85rem 0.45rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 55%, transparent);
+}
+
+.live-trading-tab__list-body .live-trade-history--embedded {
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.live-trading-tab__box-range {
+  margin-top: 0.45rem;
+}
+
+.live-trading-tab__box-range-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.live-trading-tab__box-range-empty {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.live-trading-tab__box-range-table {
+  font-size: 0.76rem;
+}
+
+.live-trading-tab__box-state--in_position {
+  color: var(--up, #16a34a);
+  font-weight: 600;
+}
+
+.live-trading-tab__box-state--armed {
+  color: var(--accent, #2563eb);
+  font-weight: 600;
+}
+
 .live-trading-tab__list-body::-webkit-scrollbar {
   width: 6px;
 }

@@ -1,7 +1,14 @@
-import type { LiveTradeArmLane, LiveTradeProgram, TechModelRecord } from "../api";
+import type {
+  LiveTradeArmLane,
+  LiveTradeBoxRangePublicBox,
+  LiveTradeProgram,
+  TechModelRecord,
+} from "../api";
+import { BOX_RANGE_MODEL_ID } from "../lib/boxRangeTechModel";
 import { ko } from "../i18n/ko";
 import { formatPercent } from "../lib/format";
 import { showProgramRunError } from "../lib/liveProgramDisplay";
+import LiveTradeProgramBoxRangeSection from "./LiveTradeProgramBoxRangeSection";
 
 function formatMoney(
   n: number | null | undefined,
@@ -74,6 +81,7 @@ export default function LiveTradeRegisteredProgramCard({
   onEdit,
   onDelete,
   readOnly = false,
+  boxRangeBoxes,
 }: {
   program: LiveTradeProgram;
   model?: TechModelRecord;
@@ -89,7 +97,10 @@ export default function LiveTradeRegisteredProgramCard({
   onEdit: () => void;
   onDelete: () => void;
   readOnly?: boolean;
+  /** 박스권 프로그램 — 감시·보유 박스 */
+  boxRangeBoxes?: LiveTradeBoxRangePublicBox[];
 }) {
+  const isBoxRange = p.modelId === BOX_RANGE_MODEL_ID;
   const markets = [
     p.markets.kr ? ko.app.liveTradeMarketKr : "",
     p.markets.us ? ko.app.liveTradeMarketUs : "",
@@ -135,17 +146,29 @@ export default function LiveTradeRegisteredProgramCard({
       </p>
       {markets ? (
         <p className="live-trading-tab__program-meta">
-          {ko.app.liveTradeFieldMarkets}: {markets} · {ko.app.liveTradeMinScoreShort}{" "}
-          {Math.round(p.minScoreRatio * 100)}%
+          {ko.app.liveTradeFieldMarkets}: {markets}
+          {!isBoxRange ? (
+            <>
+              {" "}
+              · {ko.app.liveTradeMinScoreShort}{" "}
+              {Math.round(p.minScoreRatio * 100)}%
+            </>
+          ) : null}
         </p>
       ) : null}
       {amountLine ? (
         <p className="live-trading-tab__program-meta">{amountLine}</p>
       ) : null}
       <p className="live-trading-tab__program-meta">
-        {ko.app.liveTradeCurrentReturn}:{" "}
+        {isBoxRange
+          ? ko.app.liveTradeCumulativeReturn
+          : ko.app.liveTradeCurrentReturn}
+        :{" "}
         <span className={returnClass}>{formatPercent(returnPct ?? undefined)}</span>
       </p>
+      {isBoxRange && boxRangeBoxes ? (
+        <LiveTradeProgramBoxRangeSection boxes={boxRangeBoxes} />
+      ) : null}
       {showProgramRunError(p, holdingCount) ? (
         <p className="live-trading-tab__program-err" role="alert">
           {p.lastError}
