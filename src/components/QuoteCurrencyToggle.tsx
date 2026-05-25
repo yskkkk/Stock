@@ -12,6 +12,63 @@ export interface QuoteCurrencyToggleProps {
   iconShowsActive?: boolean;
 }
 
+function QuoteCurrencyKrwIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 20 20"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      <path
+        d="M6.2 5.2 10 13.4l3.8-8.2"
+        stroke="currentColor"
+        strokeWidth="1.45"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M5 8.6h10M5 11.8h10"
+        stroke="currentColor"
+        strokeWidth="1.45"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function QuoteCurrencyUsdIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 20 20"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      <circle cx="10" cy="10" r="7.1" stroke="currentColor" strokeWidth="1.35" />
+      <path
+        d="M10 5.1v9.8M8.35 6.4c0-.95.77-1.72 1.72-1.72s1.72.77 1.72 1.72-.77 1.72-1.72 1.72H8.35M8.35 13.6c0 .95.77 1.72 1.72 1.72s1.72-.77 1.72-1.72"
+        stroke="currentColor"
+        strokeWidth="1.35"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function currencyIcon(iconShowsActive: boolean, inKrw: boolean) {
+  const showKrw = iconShowsActive ? inKrw : !inKrw;
+  const cls = "quote-currency-toggle__svg";
+  return showKrw ? (
+    <QuoteCurrencyKrwIcon className={cls} />
+  ) : (
+    <QuoteCurrencyUsdIcon className={cls} />
+  );
+}
+
 function QuoteCurrencyToggleInner({
   inKrw,
   onToggle,
@@ -30,8 +87,8 @@ function QuoteCurrencyToggleInner({
     <button
       type="button"
       className={[
-        "btn btn--secondary quote-currency-toggle",
-        iconOnly ? "quote-currency-toggle--icon-only" : "",
+        "quote-currency-toggle",
+        iconOnly ? "quote-currency-toggle--icon-only" : "quote-currency-toggle--labeled",
         className,
       ]
         .filter(Boolean)
@@ -46,7 +103,7 @@ function QuoteCurrencyToggleInner({
       aria-pressed={inKrw}
     >
       <span className="quote-currency-toggle__icon" aria-hidden>
-        {iconShowsActive ? (inKrw ? "₩" : "$") : inKrw ? "$" : "₩"}
+        {currencyIcon(iconShowsActive, inKrw)}
       </span>
       {iconOnly ? null : (
         <span className="quote-currency-toggle__label">
