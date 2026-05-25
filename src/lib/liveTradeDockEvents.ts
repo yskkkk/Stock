@@ -13,3 +13,15 @@ export function dispatchLiveTradeDockOpenForm() {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent(LIVE_TRADE_DOCK_OPEN_FORM_EVENT));
 }
+
+/** 프로그램 폼 저장 후 — 도크 레일 클릭·리사이즈 상태 복구 */
+export const LIVE_TRADE_DOCK_AFTER_FORM_SAVE_EVENT =
+  "ystock-live-trade-dock-after-form-save";
+
+export function dispatchLiveTradeDockAfterFormSave() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent(LIVE_TRADE_DOCK_AFTER_FORM_SAVE_EVENT),
+  );
+  window.dispatchEvent(new CustomEvent("live-trade-dock-close-api-popover"));
+}

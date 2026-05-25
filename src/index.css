@@ -9313,7 +9313,11 @@ html[data-theme="light"] .market-indices-rail__item {
     pointer-events: none;
   }
 
-  .app__right-panel--dock .app-live-trade-side-dock__panel,
+  .app__right-panel--dock .app-live-trade-side-dock__panel {
+    pointer-events: none;
+  }
+
+  .app__right-panel--dock .app-live-trade-side-dock__host,
   .app__right-panel--dock .app-live-trade-side-dock__resize-handle {
     pointer-events: auto;
   }
@@ -10284,6 +10288,22 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   gap: 0.65rem;
   min-height: 0;
   flex: 1 1 auto;
+}
+
+/* host 안 포털 소스 — 레이아웃·포인터 차단(본문은 card-tabs-host 포털로만 표시) */
+.app-live-trade-side-dock__host > .live-trading-panel--dock-portals {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  flex: none;
+  pointer-events: none;
+  opacity: 0;
 }
 
 .live-trading-panel--dock-portals--boot {

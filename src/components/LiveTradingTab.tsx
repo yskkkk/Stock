@@ -39,7 +39,10 @@ import {
   refreshLiveTradingStatusNow,
   useLiveTradingStatusPoll,
 } from "../hooks/useLiveTradingStatusPoll";
-import { LIVE_TRADE_DOCK_OPEN_FORM_EVENT } from "../lib/liveTradeDockEvents";
+import {
+  LIVE_TRADE_DOCK_OPEN_FORM_EVENT,
+  dispatchLiveTradeDockAfterFormSave,
+} from "../lib/liveTradeDockEvents";
 import { openAccountTrades } from "../lib/liveTradeDockAccount";
 import {
   LIVE_TRADE_PORTFOLIO_PANEL_TAB_EVENT,
@@ -633,6 +636,11 @@ export default function LiveTradingTab({
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
+      if (typeof document !== "undefined") {
+        const el = document.activeElement;
+        if (el instanceof HTMLElement) el.blur();
+      }
+      dispatchLiveTradeDockAfterFormSave();
     }
   }, [buildBody, draft.maxOpenPositions, editingId, reload, resetForm]);
 
