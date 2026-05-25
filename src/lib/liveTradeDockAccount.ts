@@ -5,8 +5,6 @@ export type LiveTradeDockAccountSubTab = "balance" | "trades";
 export type LiveTradeDockAccountView = {
   subTab?: LiveTradeDockAccountSubTab;
   provider?: LiveTradeTradesExchange;
-  /** 거래내역: null이면 토스·빗썸 카드, 지정 시 해당 거래소 체결 */
-  tradesExchange?: LiveTradeTradesExchange | null;
 };
 
 export const LIVE_TRADE_DOCK_OPEN_ACCOUNT_EVENT =

@@ -55,6 +55,12 @@ import {
 } from "./components/LiveTradeAuthAndCredentials";
 import RecommendationsTab from "./components/RecommendationsTab";
 import TradeHistoryTab from "./components/TradeHistoryTab";
+import LiveAccountTradesMainPanel from "./components/LiveAccountTradesMainPanel";
+import {
+  LIVE_TRADE_TRADES_WORKSPACE_EVENT,
+  readLiveTradeTradesWorkspaceEvent,
+  type LiveTradeTradesExchange,
+} from "./lib/liveTradeTradesWorkspace";
 import StockSearchTab from "./components/StockSearchTab";
 import StockChart from "./components/StockChart";
 import TradingViewAdvancedChart from "./components/TradingViewAdvancedChart";
@@ -188,6 +194,30 @@ export default function App() {
   const [chartError, setChartError] = useState<string | null>(null);
   const [chartStale, setChartStale] = useState(false);
   const [chartEngine, setChartEngine] = useState<StockChartEngine>("app");
+  const [accountTradesExchange, setAccountTradesExchange] =
+    useState<LiveTradeTradesExchange | null>(null);
+
+  useEffect(() => {
+    const onTradesWorkspace = (e: Event) => {
+      const state = readLiveTradeTradesWorkspaceEvent(e);
+      if (!state || state.mode !== "history") {
+        setAccountTradesExchange(null);
+        return;
+      }
+      setAccountTradesExchange(state.exchange);
+      setAppTab((tab) =>
+        tab === "liveTrading" || tab === "ops" || tab === "crypto"
+          ? "stockLookup"
+          : tab,
+      );
+    };
+    window.addEventListener(LIVE_TRADE_TRADES_WORKSPACE_EVENT, onTradesWorkspace);
+    return () =>
+      window.removeEventListener(
+        LIVE_TRADE_TRADES_WORKSPACE_EVENT,
+        onTradesWorkspace,
+      );
+  }, []);
 
   useEffect(() => {
     const prev = prevAppTabRef.current;
@@ -1535,7 +1565,9 @@ export default function App() {
           ref={stockChartSectionRef}
           className="chart-section crypto-chart-section"
         >
-          {!workspacePick ? (
+          {accountTradesExchange ? (
+            <LiveAccountTradesMainPanel exchange={accountTradesExchange} />
+          ) : !workspacePick ? (
             <div className="chart-placeholder card">
               <div className="placeholder-icon" aria-hidden>
                 ?

@@ -3629,6 +3629,19 @@ html[data-theme="light"]
   max-height: none;
 }
 
+.trade-history-main-workspace {
+  display: flex;
+  flex-direction: column;
+  min-height: min(72vh, 520px);
+  height: 100%;
+  overflow: hidden;
+}
+
+.trade-history-main-workspace__head {
+  padding: 0.65rem 0.85rem 0.35rem;
+  border-bottom: 1px solid var(--border, rgba(15, 23, 42, 0.08));
+}
+
 .app-live-trade-side-dock__rail-trades-glyphs {
   display: inline-flex;
   flex-direction: column;
