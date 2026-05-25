@@ -483,17 +483,6 @@ export default function MacroEventsBar({
     return items;
   }, [visible, visibleEarnings]);
 
-  const barAtBounds = useMemo(() => {
-    if (barItems.length === 0) return null;
-    let minAt = barItems[0].at;
-    let maxAt = barItems[0].at;
-    for (const item of barItems) {
-      if (item.at < minAt) minAt = item.at;
-      if (item.at > maxAt) maxAt = item.at;
-    }
-    return { minAt, maxAt };
-  }, [barItems]);
-
   const eventsTrackRef = useRef<HTMLDivElement>(null);
   const [eventsTrackEdge, setEventsTrackEdge] = useState<MacroTrackEdge>({
     side: "none",
@@ -551,14 +540,7 @@ export default function MacroEventsBar({
             )}
             {!loading &&
               barItems.map((item) => {
-                const nearness = barAtBounds
-                  ? macroCardNearness(
-                      item.at,
-                      barAtBounds.minAt,
-                      barAtBounds.maxAt,
-                      item.at - now,
-                    )
-                  : 0;
+                const nearness = macroCardNearness(item.at - now);
                 return item.kind === "macro" ? (
                   <MacroEventCard
                     key={item.event.id}

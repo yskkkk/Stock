@@ -32,24 +32,18 @@ export function macroUrgency(msLeft: number): "live" | "soon" | "normal" {
   return "normal";
 }
 
-/** 트랙 내 발표 시각 기준 0(멀음)~1(가까움) — 카드 배경 농도 */
-export function macroNearness(at: number, minAt: number, maxAt: number): number {
-  const span = maxAt - minAt;
-  if (span <= 0) return 1;
-  return Math.max(0, Math.min(1, 1 - (at - minAt) / span));
-}
+const MACRO_CARD_GRADIENT_MAX_DAYS = 10;
+const MS_PER_DAY = 86_400_000;
 
-export function macroCardNearness(
-  at: number,
-  minAt: number,
-  maxAt: number,
-  msLeft: number,
-): number {
-  const base = macroNearness(at, minAt, maxAt);
-  const u = macroUrgency(msLeft);
-  if (u === "live") return Math.max(base, 1);
-  if (u === "soon") return Math.max(base, 0.72);
-  return base;
+/**
+ * 지표 카드 배경 농도 0~1.
+ * 10일 초과: 0(기본). 10일~당일: 하루 가까울수록 +10%(10일=0.1 … 당일=1).
+ */
+export function macroCardNearness(msLeft: number): number {
+  if (msLeft <= 0) return 1;
+  const days = Math.floor(msLeft / MS_PER_DAY);
+  if (days > MACRO_CARD_GRADIENT_MAX_DAYS) return 0;
+  return Math.min(1, (MACRO_CARD_GRADIENT_MAX_DAYS + 1 - days) * 0.1);
 }
 
 function calendarDateKeyInTz(ms: number, timeZone: string): string {
