@@ -7,9 +7,17 @@ export function krStockLogoUrl(symbol: string): string | null {
   return `https://ssl.pstatic.net/imgstock/item_logo/${code}.png`;
 }
 
+/** 미국 티커 로고(FMP). 실패 시 UI 이니셜 폴백. */
+export function usStockLogoUrl(symbol: string): string | null {
+  const ticker = symbol.replace(/^US_/i, "").trim().toUpperCase();
+  if (!ticker || !/^[A-Z.\-]{1,10}$/.test(ticker)) return null;
+  return `https://financialmodelingprep.com/image-stock/${encodeURIComponent(ticker)}.png`;
+}
+
 export function stockLogoUrl(symbol: string, market: Market): string | null {
   if (market === "kr") return krStockLogoUrl(symbol);
+  if (market === "us") return usStockLogoUrl(symbol);
   const ticker = symbol.replace(/^US_/i, "").trim().toUpperCase();
   if (!ticker || ticker.length > 8) return null;
-  return null;
+  return usStockLogoUrl(ticker);
 }

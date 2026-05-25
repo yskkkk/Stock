@@ -2570,6 +2570,231 @@ html[data-theme="light"]
   cursor: pointer;
 }
 
+/* 상단 «박스권» 탭 — 로고 그리드 + 유효 박스 가격 카드 */
+.box-range-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.5rem 0 1rem;
+  max-width: 1680px;
+  margin: 0 auto;
+}
+
+.box-range-tab__head {
+  padding: 0.65rem 0.85rem;
+}
+
+.box-range-tab__hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.box-range-tab__search {
+  width: 100%;
+  max-width: 280px;
+  font-size: 0.85rem;
+}
+
+.box-range-tab__layout {
+  display: grid;
+  grid-template-columns: minmax(200px, 280px) 1fr;
+  gap: 0.85rem;
+  min-height: 360px;
+  padding: 0.65rem;
+}
+
+.box-range-tab__logos {
+  min-height: 200px;
+  max-height: min(72vh, 640px);
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.box-range-tab__logo-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 0.45rem;
+}
+
+.box-range-tab__logo-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  width: 100%;
+  padding: 0.4rem 0.25rem 0.35rem;
+  border: 1px solid var(--card-border, rgba(148, 163, 184, 0.18));
+  border-radius: 10px;
+  background: var(--surface, #fff);
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.box-range-tab__logo-btn:hover {
+  border-color: color-mix(in srgb, var(--accent, #2563eb) 40%, transparent);
+}
+
+.box-range-tab__logo-btn--on {
+  border-color: var(--accent, #2563eb);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #2563eb) 22%, transparent);
+}
+
+.box-range-tab__logo-img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.box-range-tab__logo-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--accent, #2563eb) 14%, transparent);
+  color: var(--text);
+}
+
+.box-range-tab__logo-ticker {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-dim, var(--muted));
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.box-range-tab__logo-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 1.1rem;
+  padding: 0 0.2rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.2;
+  background: var(--accent, #2563eb);
+  color: #fff;
+}
+
+.box-range-tab__detail {
+  min-width: 0;
+  padding: 0.15rem 0.25rem;
+}
+
+.box-range-tab__title {
+  margin: 0 0 0.65rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.box-range-tab__title-sym {
+  font-weight: 500;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.box-range-tab__empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.box-range-tab__card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: 0.65rem;
+}
+
+.box-range-tab__price-card {
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--card-border, rgba(148, 163, 184, 0.16));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--card, #fff) 92%, var(--accent, #2563eb) 4%);
+}
+
+.box-range-tab__price-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.box-range-tab__price-card-tf {
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.box-range-tab__price-card-tag {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--up, #16a34a);
+}
+
+.box-range-tab__price-card-metrics {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.box-range-tab__price-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.box-range-tab__price-card-row dt {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.box-range-tab__price-card-val {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.box-range-tab__price-card-val--up {
+  color: var(--up, #16a34a);
+}
+
+.box-range-tab__price-card-val--down {
+  color: var(--down, #dc2626);
+}
+
+.box-range-tab--guest {
+  max-width: 420px;
+  padding: 1rem;
+}
+
+@media (max-width: 720px) {
+  .box-range-tab__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .box-range-tab__logos {
+    max-height: 220px;
+  }
+}
+
 .live-trading-tab__box-state--in_position {
   color: var(--up, #16a34a);
   font-weight: 600;

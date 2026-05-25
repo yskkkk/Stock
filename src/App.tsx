@@ -55,6 +55,7 @@ import {
 } from "./components/LiveTradeAuthAndCredentials";
 import RecommendationsTab from "./components/RecommendationsTab";
 import TradeHistoryTab from "./components/TradeHistoryTab";
+import BoxRangeTab from "./components/BoxRangeTab";
 import { LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT } from "./lib/liveTradeDockAccount";
 import StockSearchTab from "./components/StockSearchTab";
 import StockChart from "./components/StockChart";
@@ -135,6 +136,7 @@ export type AppTab =
   | "stockLookup"
   | "crypto"
   | "tradeHistory"
+  | "boxRange"
   | "ops";
 
 type StockChartEngine = "tradingview" | "app";
@@ -518,7 +520,12 @@ export default function App() {
         : (picks?.us.length ?? 0);
 
   const workspacePick = useMemo(() => {
-    if (appTab === "crypto" || appTab === "ops" || appTab === "liveTrading") {
+    if (
+      appTab === "crypto" ||
+      appTab === "ops" ||
+      appTab === "liveTrading" ||
+      appTab === "boxRange"
+    ) {
       return null;
     }
     return appTab === "stockLookup" ? lookupSelected : screenerSelected;
@@ -1081,7 +1088,9 @@ export default function App() {
             ? "app app--screener"
             : appTab === "tradeHistory"
               ? "app app--trade-history"
-              : appTab === "liveTrading"
+              : appTab === "boxRange"
+                ? "app app--box-range"
+                : appTab === "liveTrading"
                 ? "app app--live-trade"
                 : appTab === "ops"
                   ? "app app--ops"
@@ -1336,6 +1345,13 @@ export default function App() {
                   {ko.app.tabTradeHistory}
                 </button>
               ) : null}
+              <button
+                type="button"
+                className={appTab === "boxRange" ? "main-tab active" : "main-tab"}
+                onClick={() => setAppTab("boxRange")}
+              >
+                {ko.app.tabBoxRange}
+              </button>
             </nav>
 
             <div className="top-bar__tools">
@@ -1385,6 +1401,8 @@ export default function App() {
         <RecommendationsTab onOpenPick={handleSelect} />
       ) : appTab === "tradeHistory" ? (
         <TradeHistoryTab onOpenHoldingChart={handleLiveTradeChart} />
+      ) : appTab === "boxRange" ? (
+        <BoxRangeTab />
       ) : appTab === "liveTrading" ? (
         <div className="live-trade-tab-root">
           <LiveTradingTab
