@@ -12,7 +12,6 @@ import type {
   StockTechnicalResponse,
 } from "../types";
 import PickQuoteStrip from "./PickQuoteStrip";
-import QuoteCurrencyToggle from "./QuoteCurrencyToggle";
 import { formatPercent, formatPrice, formatTurnover } from "../lib/format";
 import { resolveUsQuoteDisplay } from "../lib/usQuoteDisplay";
 import StockTechnicalAnalysisPanel, {
@@ -61,11 +60,6 @@ export interface StockSearchTabProps {
   onToggleUsQuoteKrw?: () => void;
   usdKrwRate?: number | null;
   usdKrwValDate?: string | null;
-  /** 거래대금 상위 — 상단 시장 탭(나스닥) 아래 표시 */
-  onHotToolbarStateChange?: (state: {
-    visible: boolean;
-    showUsToggle: boolean;
-  }) => void;
 }
 
 function rowToPick(row: StockSearchQuoteRow): StockPick {
@@ -182,6 +176,13 @@ function StockSearchHotRow({
   const chgUp = chg != null && chg >= 0;
   const code = row.symbol.replace(/\.(KS|KQ)$/i, "");
   const cur = quoteDisplay.currency ?? row.currency ?? undefined;
+  const turnoverDisplay = resolveUsQuoteDisplay(
+    row.turnover,
+    row.currency,
+    row.market,
+    usQuoteInKrw,
+    usdKrwRate ?? null,
+  );
 
   return (
     <li
@@ -206,7 +207,11 @@ function StockSearchHotRow({
             Number.isFinite(row.turnover) &&
             row.turnover > 0 ? (
               <span className="stock-hot-item__turnover" title={ko.app.pickTurnoverTitle}>
-                {formatTurnover(row.turnover, cur, { plainSymbols: true })}
+                {formatTurnover(
+                  turnoverDisplay.price ?? undefined,
+                  turnoverDisplay.currency ?? cur,
+                  { plainSymbols: true },
+                )}
               </span>
             ) : null}
             <span className="stock-hot-item__quote">
@@ -244,9 +249,7 @@ interface StockSearchPickRowProps {
   onReason: (pick: StockPick) => void;
   onAnalyze: (row: StockSearchQuoteRow) => void;
   usQuoteInKrw?: boolean;
-  onToggleUsQuoteKrw?: () => void;
   usdKrwRate?: number | null;
-  usdKrwValDate?: string | null;
 }
 
 const StockSearchPickRow = memo(
@@ -260,15 +263,20 @@ const StockSearchPickRow = memo(
     onReason,
     onAnalyze,
     usQuoteInKrw = false,
-    onToggleUsQuoteKrw,
     usdKrwRate = null,
-    usdKrwValDate = null,
   }: StockSearchPickRowProps) {
     const pick = mergeTechnical(rowToPick(row), slot);
     const signalIds = resolvePickSignalIds(pick);
     const hasPrice = row.price != null && Number.isFinite(row.price);
     const quoteDisplay = resolveUsQuoteDisplay(
       row.price,
+      row.currency,
+      row.market,
+      usQuoteInKrw,
+      usdKrwRate ?? null,
+    );
+    const turnoverDisplay = resolveUsQuoteDisplay(
+      pick.turnover,
       row.currency,
       row.market,
       usQuoteInKrw,
@@ -295,16 +303,8 @@ const StockSearchPickRow = memo(
                 price={quoteDisplay.price}
                 currency={quoteDisplay.currency}
                 changePercent={row.changePercent}
-                turnover={pick.turnover}
+                turnover={turnoverDisplay.price ?? pick.turnover}
               />
-              {quoteDisplay.showToggle && onToggleUsQuoteKrw ? (
-                <QuoteCurrencyToggle
-                  inKrw={usQuoteInKrw}
-                  onToggle={onToggleUsQuoteKrw}
-                  fxValuationDate={usdKrwValDate}
-                  className="quote-currency-toggle--compact"
-                />
-              ) : null}
             </div>
           ) : (
             <span className="stock-search-tab__quote-pending">
@@ -407,7 +407,6 @@ export default function StockSearchTab({
   onToggleUsQuoteKrw,
   usdKrwRate = null,
   usdKrwValDate = null,
-  onHotToolbarStateChange,
 }: StockSearchTabProps) {
   const [input, setInput] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -697,25 +696,6 @@ export default function StockSearchTab({
 
   useEffect(() => () => analysisAbortRef.current?.abort(), []);
 
-  const showHotToolbarBadge =
-    !loading && !error && debounced.length < 1 && hotQuotes.length > 0;
-  const showHotUsToggle =
-    showHotToolbarBadge && market === "us" && Boolean(onToggleUsQuoteKrw);
-
-  useEffect(() => {
-    onHotToolbarStateChange?.({
-      visible: showHotToolbarBadge,
-      showUsToggle: showHotUsToggle,
-    });
-  }, [showHotToolbarBadge, showHotUsToggle, onHotToolbarStateChange]);
-
-  useEffect(
-    () => () => {
-      onHotToolbarStateChange?.({ visible: false, showUsToggle: false });
-    },
-    [onHotToolbarStateChange],
-  );
-
   return (
     <div className="stock-search-tab">
       <div className="pick-toolbar stock-search-tab__toolbar">
@@ -791,9 +771,7 @@ export default function StockSearchTab({
               onReason={onReason}
               onAnalyze={handleAnalyze}
               usQuoteInKrw={usQuoteInKrw}
-              onToggleUsQuoteKrw={onToggleUsQuoteKrw}
               usdKrwRate={usdKrwRate}
-              usdKrwValDate={usdKrwValDate}
             />
           ))}
         </ul>

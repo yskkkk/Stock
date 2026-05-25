@@ -165,10 +165,6 @@ export default function App() {
   const [lookupMarketTab, setLookupMarketTab] = useState<Market>("kr");
   /** 수동 국내↔나스닥 탭 전환 시에만 증가 — 자동 교차 시장 검색 시 검색창·조건 유지 */
   const [lookupSearchTabMountKey, setLookupSearchTabMountKey] = useState(0);
-  const [lookupHotToolbar, setLookupHotToolbar] = useState({
-    visible: false,
-    showUsToggle: false,
-  });
   const [usQuoteInKrw, setUsQuoteInKrw] = useState(readUsQuoteKrwPref);
   const [cryptoFocusSymbol, setCryptoFocusSymbol] = useState<string | null>(null);
   const [signalFilters, setSignalFilters] = useState<SignalId[]>([]);
@@ -1362,7 +1358,7 @@ export default function App() {
           <div
             className={[
               "panel-head",
-              appTab === "stockLookup" && lookupHotToolbar.visible
+              appTab === "stockLookup" && lookupMarketTab === "us"
                 ? "panel-head--lookup-hot"
                 : "",
             ]
@@ -1372,7 +1368,7 @@ export default function App() {
             <div
               className={[
                 "panel-head__filters",
-                appTab === "stockLookup" && lookupHotToolbar.visible
+                appTab === "stockLookup" && lookupMarketTab === "us"
                   ? "panel-head__filters--lookup-hot"
                   : "",
               ]
@@ -1446,25 +1442,16 @@ export default function App() {
                 ) : null}
               </div>
             </div>
-            {appTab === "stockLookup" && lookupHotToolbar.showUsToggle ? (
+            {appTab === "stockLookup" && lookupMarketTab === "us" ? (
               <div className="panel-head__tail panel-head__tail--lookup-hot">
-                <span
-                  className="stock-search-tab__tab-hot-inline"
-                  title={
-                    usQuoteInKrw
-                      ? usdKrwValDate
-                        ? ko.app.quoteCurrencyFxBasis.replace(
-                            "{date}",
-                            usdKrwValDate,
-                          )
-                        : ko.app.quoteCurrencyShowUsd
-                      : ko.app.quoteCurrencyShowKrw
-                  }
-                >
-                  <span className="stock-search-tab__quote-currency-text">
-                    {usQuoteInKrw ? "원화" : "$"}
-                  </span>
-                </span>
+                <QuoteCurrencyToggle
+                  inKrw={usQuoteInKrw}
+                  onToggle={toggleUsQuoteKrw}
+                  fxValuationDate={usdKrwValDate}
+                  iconOnly
+                  iconShowsActive
+                  className="quote-currency-toggle--compact"
+                />
               </div>
             ) : null}
           </div>
@@ -1506,7 +1493,6 @@ export default function App() {
               onToggleUsQuoteKrw={toggleUsQuoteKrw}
               usdKrwRate={usdKrwRate}
               usdKrwValDate={usdKrwValDate}
-              onHotToolbarStateChange={setLookupHotToolbar}
             />
           )}
         </aside>
