@@ -1082,6 +1082,32 @@ export function createApp() {
   });
 
   app.post(
+    "/api/admin/broadcast/box-range-strategy-email",
+    requireAccessAdmin,
+    asyncRoute(async (req, res) => {
+      const { sendBoxRangeStrategyEmailToAllMembers } = await import(
+        "./notifications/box-range-strategy-email.js"
+      );
+      const force = Boolean(req.body?.force);
+      const dryRun = Boolean(req.body?.dryRun);
+      try {
+        const result = await sendBoxRangeStrategyEmailToAllMembers({
+          force,
+          dryRun,
+        });
+        res.json({ ok: true, ...result });
+      } catch (e) {
+        const code =
+          e && typeof e === "object" && "code" in e ? String(e.code) : undefined;
+        res.status(code === "EMAIL_NOT_CONFIGURED" ? 503 : 500).json({
+          error: e instanceof Error ? e.message : String(e),
+          code,
+        });
+      }
+    }),
+  );
+
+  app.post(
     "/api/admin/server-restart",
     asyncRoute(async (req, res) => {
       if (!isAccessAdminRequest(req)) {
