@@ -9966,6 +9966,45 @@ html[data-theme="light"]
   margin-bottom: 0.42rem;
 }
 
+.app-live-trade-side-dock__api-popover .live-trading-tab__cred-form {
+  margin-top: 0.4rem;
+  gap: 0.48rem;
+}
+
+.app-live-trade-side-dock__api-popover .live-trading-tab__cred-toolbar {
+  padding-top: 0.2rem;
+  gap: 0.32rem;
+}
+
+.app-live-trade-side-dock__api-popover .live-trading-tab__field {
+  font-size: 0.72rem;
+  gap: 0.26rem;
+}
+
+.app-live-trade-side-dock__api-popover .live-trading-tab__label {
+  font-size: 0.66rem;
+  font-weight: 600;
+}
+
+.app-live-trade-side-dock__api-popover .live-trading-tab__input {
+  min-height: 1.95rem;
+  font-size: 0.74rem;
+  border-radius: 8px;
+}
+
+.app-live-trade-side-dock__api-popover .live-trading-tab__cred-btn {
+  min-height: 1.82rem;
+  padding: 0.3rem 0.68rem;
+  font-size: 0.68rem;
+}
+
+.app-live-trade-side-dock__api-popover .live-trading-tab__cred-test-msg,
+.app-live-trade-side-dock__api-popover .live-trading-tab__cred-env-banner,
+.app-live-trade-side-dock__api-popover .live-trading-tab__err {
+  font-size: 0.64rem;
+  line-height: 1.4;
+}
+
 .app-live-trade-side-dock__auth-popover {
   position: absolute;
   right: calc(100% + 0.55rem);
