@@ -558,6 +558,33 @@ export async function listBithumbDoneOrdersWithCredentials(
 }
 
 /**
+ * 마켓 미지정 — 계정 전체 체결(거래내역 UI)
+ * @param {BithumbCredentials} credentials
+ * @param {{ limit?: number; orderBy?: "asc"|"desc"; page?: number }} [opts]
+ */
+export async function listBithumbDoneOrdersAllMarketsWithCredentials(
+  credentials,
+  opts = {},
+) {
+  const limit = Math.min(100, Math.max(1, Number(opts.limit) || 100));
+  const orderBy = opts.orderBy === "asc" ? "asc" : "desc";
+  const page = Math.max(1, Math.floor(Number(opts.page) || 1));
+  const params = {
+    state: "done",
+    limit,
+    order_by: orderBy,
+  };
+  if (page > 1) params.page = page;
+  const body = await bithumbPrivateRequestWithCredentials(
+    "GET",
+    "/v1/orders",
+    params,
+    credentials,
+  );
+  return Array.isArray(body) ? body : [];
+}
+
+/**
  * 주문 후 체결가·체결량 조회 (최대 3회, 2초 간격).
  * @param {string} orderId
  * @param {BithumbCredentials} credentials

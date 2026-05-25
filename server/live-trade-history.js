@@ -119,22 +119,41 @@ export function filterTradesByExchange(trades, exchange) {
 }
 
 /**
- * @param {object[]} storeTrades
+ * 빗썸 API 체결 우선 — 앱 기록은 orderId 일치 시 메타(진입가·프로그램명)만 보강
  * @param {object[]} apiTrades
+ * @param {object[]} storeTrades
  */
-function mergeHistoryTrades(storeTrades, apiTrades) {
-  /** @type {Map<string, object>} */
-  const byKey = new Map();
+function enrichBithumbApiHistoryTrades(apiTrades, storeTrades) {
+  const byOrder = new Map();
   for (const t of storeTrades) {
-    const k = String(t.orderId ?? "").trim() || String(t.id ?? "");
-    if (k) byKey.set(k, t);
+    const oid = String(t.orderId ?? "").trim();
+    if (oid) byOrder.set(oid, t);
   }
-  for (const t of apiTrades) {
-    const k = String(t.orderId ?? "").trim() || String(t.id ?? "");
-    if (!k || byKey.has(k)) continue;
-    byKey.set(k, t);
-  }
-  return [...byKey.values()].sort((a, b) => b.atMs - a.atMs);
+  return apiTrades.map((t) => {
+    const s = byOrder.get(String(t.orderId ?? "").trim());
+    if (!s) return t;
+    return {
+      ...t,
+      entryPrice:
+        t.entryPrice != null && Number.isFinite(t.entryPrice)
+          ? t.entryPrice
+          : s.entryPrice ?? null,
+      programId: s.programId || t.programId,
+      programName: s.programName || t.programName,
+    };
+  });
+}
+
+function historyRangeFromTrades(trades) {
+  const rangeEndDay =
+    trades.length > 0
+      ? kstDateKeyFromMs(trades[0].atMs)
+      : kstDateKeyFromMs(Date.now());
+  const rangeStartDay =
+    trades.length > 0
+      ? kstDateKeyFromMs(trades[trades.length - 1].atMs)
+      : rangeEndDay;
+  return { rangeStartDay, rangeEndDay };
 }
 
 /**
@@ -148,20 +167,6 @@ export async function buildLiveTradeHistoryPayloadAsync(userId, opts = {}) {
   const exchange = opts.exchange;
 
   if (exchange === "bithumb") {
-    try {
-      const { syncLiveTradeExchangeForUser } = await import(
-        "./live-trade-exchange-sync.js"
-      );
-      const programs = listLiveTradeProgramsSync(uid);
-      await syncLiveTradeExchangeForUser(uid, programs);
-    } catch {
-      /* 동기화 실패해도 API 조회 시도 */
-    }
-  }
-
-  const payload = buildLiveTradeHistoryPayload(userId, opts);
-
-  if (exchange === "bithumb") {
     const { listBithumbTradesFromExchangeApiForHistory } = await import(
       "./live-trade-bithumb-exchange-trades.js"
     );
@@ -171,16 +176,29 @@ export async function buildLiveTradeHistoryPayloadAsync(userId, opts = {}) {
     } catch {
       apiTrades = [];
     }
-    const storeCrypto = filterTradesByExchange(payload.trades, "bithumb");
-    let merged =
-      opts.all === true
-        ? mergeHistoryTrades(storeCrypto, apiTrades)
-        : mergeHistoryTrades(payload.trades, apiTrades);
-    merged = enrichPortfolioTradeNames(merged);
-    merged = attachProgramNames(merged, uid);
-    merged = filterTradesByExchange(merged, "bithumb");
-    return { ...payload, trades: merged, fetchedAtMs: Date.now() };
+    const storeCrypto = filterTradesByExchange(
+      listLiveTradeRecordsSync(null, uid),
+      "bithumb",
+    );
+    /** API 키·체결 있으면 거래소 응답만 표시(앱 기록 교차검증·병합 없음) */
+    let trades =
+      apiTrades.length > 0
+        ? enrichBithumbApiHistoryTrades(apiTrades, storeCrypto)
+        : storeCrypto;
+    trades = enrichPortfolioTradeNames(trades);
+    trades = attachProgramNames(trades, uid);
+    const { rangeStartDay, rangeEndDay } = historyRangeFromTrades(trades);
+    return {
+      trades,
+      rangeStartDay,
+      rangeEndDay,
+      hasOlder: false,
+      nextOlderEndDay: null,
+      fetchedAtMs: Date.now(),
+    };
   }
+
+  const payload = buildLiveTradeHistoryPayload(userId, opts);
 
   if (exchange === "toss") {
     const filtered = filterTradesByExchange(payload.trades, "toss");

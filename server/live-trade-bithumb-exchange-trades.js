@@ -4,6 +4,7 @@
 import { usdtSymbolToBithumbBase } from "./bithumb-krw.js";
 import {
   fetchBithumbAccountsWithCredentials,
+  listBithumbDoneOrdersAllMarketsWithCredentials,
   listBithumbDoneOrdersWithCredentials,
 } from "./bithumb-trading-adapter.js";
 import { bithumbBaseToUsdtSymbol } from "./live-trade-bithumb-holdings.js";
@@ -426,8 +427,18 @@ const HISTORY_LOOKBACK_MS = 5 * 365 * 24 * 60 * 60 * 1000;
 const HISTORY_MAX_PAGES_PER_MARKET = 50;
 const HISTORY_MARKET_FETCH_CONCURRENCY = 6;
 
-/** @param {string} userId */
-function collectHistoryMarkets(userId) {
+/**
+ * @param {object} order
+ * @returns {string | null} USDT 심볼
+ */
+function symbolFromBithumbOrderMarket(order) {
+  const market = String(order?.market ?? "").trim();
+  const m = /^KRW-(.+)$/i.exec(market);
+  if (!m) return null;
+  return bithumbBaseToUsdtSymbol(m[1]);
+}
+
+function collectHistoryMarketsFromAccounts() {
   /** @type {Map<string, { sym: string; market: string }>} */
   const marketByKey = new Map();
 
@@ -439,11 +450,67 @@ function collectHistoryMarkets(userId) {
     marketByKey.set(`KRW-${base}`, { sym, market: `KRW-${base}` });
   };
 
-  for (const t of listLiveTradeRecordsSync(null, userId)) {
-    if (t.market === "crypto") addSymbol(t.symbol);
-  }
-
   return { marketByKey, addSymbol };
+}
+
+/**
+ * @param {object} order
+ * @param {string} [fallbackSym]
+ */
+function resolveHistoryTradeSymbol(order, fallbackSym = "") {
+  return symbolFromBithumbOrderMarket(order) ?? fallbackSym;
+}
+
+/**
+ * @param {number} sinceMs
+ * @param {Set<string>} seenOrder
+ * @param {string} programId
+ * @param {string} programName
+ * @param {number} oneWayFee
+ * @param {object[]} orders
+ * @param {string} [fallbackSym]
+ */
+function appendHistoryTradesFromOrders(
+  sinceMs,
+  seenOrder,
+  programId,
+  programName,
+  oneWayFee,
+  orders,
+  fallbackSym = "",
+) {
+  /** @type {object[]} */
+  const rows = [];
+  for (const o of orders) {
+    const fill = parseDoneOrderFill(o);
+    if (!fill || fill.atMs < sinceMs) continue;
+    if (seenOrder.has(fill.orderId)) continue;
+    seenOrder.add(fill.orderId);
+    const sym = resolveHistoryTradeSymbol(o, fallbackSym);
+    if (!sym) continue;
+    const amount = fill.funds > 0 ? fill.funds : fill.price * fill.volume;
+    rows.push({
+      id: `bithumb:${fill.orderId}`,
+      programId,
+      programName,
+      side: fill.side,
+      symbol: sym,
+      name: cryptoYahooUsdtDisplayName(sym) ?? sym,
+      market: "crypto",
+      quantity: fill.volume,
+      price: fill.price,
+      amount,
+      currency: liveTradeCurrency("crypto"),
+      feeAmount: amount * oneWayFee,
+      simulated: false,
+      orderId: fill.orderId,
+      note: "빗썸 체결·API",
+      exchangeImport: true,
+      entryPrice: null,
+      atMs: fill.atMs,
+    });
+  }
+  return rows;
 }
 
 /**
@@ -465,8 +532,52 @@ export async function listBithumbTradesFromExchangeApiForHistory(userId) {
 
   const sinceMs = Date.now() - HISTORY_LOOKBACK_MS;
   const oneWayFee = getOneWayFeeRateForUserMarketSync(uid, "crypto");
-  const { marketByKey, addSymbol } = collectHistoryMarkets(uid);
+  const seenOrder = new Set();
+  /** @type {object[]} */
+  let out = [];
 
+  /** 계정 전체 체결(마켓 미지정) — 앱 기록·보유 종목에 묶이지 않음 */
+  try {
+    /** @type {object[]} */
+    const globalOrders = [];
+    for (let page = 1; page <= HISTORY_MAX_PAGES_PER_MARKET; page++) {
+      const batch = await listBithumbDoneOrdersAllMarketsWithCredentials(
+        credentials,
+        { limit: 100, orderBy: "desc", page },
+      );
+      if (!batch.length) break;
+      globalOrders.push(...batch);
+      if (batch.length < 100) break;
+      const last = batch[batch.length - 1];
+      const lastMs = Date.parse(
+        String(last?.created_at ?? last?.createdAt ?? ""),
+      );
+      if (Number.isFinite(lastMs) && lastMs < sinceMs) break;
+    }
+    if (globalOrders.length > 0) {
+      out = appendHistoryTradesFromOrders(
+        sinceMs,
+        seenOrder,
+        programId,
+        programName,
+        oneWayFee,
+        globalOrders,
+        "",
+      );
+    }
+  } catch (e) {
+    liveTradeLogWarn(
+      "[live-trade:history-api]",
+      "all-markets",
+      e instanceof Error ? e.message : e,
+    );
+  }
+
+  if (out.length > 0) {
+    return out.sort((a, b) => b.atMs - a.atMs);
+  }
+
+  const { marketByKey, addSymbol } = collectHistoryMarketsFromAccounts();
   try {
     const accounts = await fetchBithumbAccountsWithCredentials(credentials);
     for (const acc of accounts) {
@@ -483,9 +594,6 @@ export async function listBithumbTradesFromExchangeApiForHistory(userId) {
   }
 
   const markets = [...marketByKey.values()];
-  /** @type {object[]} */
-  const out = [];
-  const seenOrder = new Set();
 
   /**
    * @param {{ sym: string; market: string }} item
@@ -516,42 +624,23 @@ export async function listBithumbTradesFromExchangeApiForHistory(userId) {
         market,
         e instanceof Error ? e.message : e,
       );
-      return;
+      return [];
     }
-
-    for (const o of orders) {
-      const fill = parseDoneOrderFill(o);
-      if (!fill || fill.atMs < sinceMs) continue;
-      if (seenOrder.has(fill.orderId)) continue;
-      seenOrder.add(fill.orderId);
-
-      const amount = fill.funds > 0 ? fill.funds : fill.price * fill.volume;
-      out.push({
-        id: `bithumb:${fill.orderId}`,
-        programId,
-        programName,
-        side: fill.side,
-        symbol: sym,
-        name: cryptoYahooUsdtDisplayName(sym) ?? sym,
-        market: "crypto",
-        quantity: fill.volume,
-        price: fill.price,
-        amount,
-        currency: liveTradeCurrency("crypto"),
-        feeAmount: amount * oneWayFee,
-        simulated: false,
-        orderId: fill.orderId,
-        note: "빗썸 체결·API",
-        exchangeImport: true,
-        entryPrice: null,
-        atMs: fill.atMs,
-      });
-    }
+    return appendHistoryTradesFromOrders(
+      sinceMs,
+      seenOrder,
+      programId,
+      programName,
+      oneWayFee,
+      orders,
+      sym,
+    );
   };
 
   for (let i = 0; i < markets.length; i += HISTORY_MARKET_FETCH_CONCURRENCY) {
     const chunk = markets.slice(i, i + HISTORY_MARKET_FETCH_CONCURRENCY);
-    await Promise.all(chunk.map((m) => fetchOneMarket(m)));
+    const parts = await Promise.all(chunk.map((m) => fetchOneMarket(m)));
+    for (const rows of parts) out.push(...rows);
   }
 
   return out.sort((a, b) => b.atMs - a.atMs);

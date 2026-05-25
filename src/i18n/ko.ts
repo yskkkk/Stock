@@ -243,7 +243,7 @@ export const ko = {
     liveTradePfLiveQuote: "빗썸 시세",
     liveTradePfPriceRequired: "단가를 입력하세요.",
     liveTradePfSinceNotifyShort: "알림",
-    liveTradePfExchangeTradesNote: "거래소 체결 내역과 앱 기록이 다를 수 있습니다.",
+    liveTradePfExchangeTradesNote: "거래 내역은 빗썸·토스 API 체결 기준입니다.",
     liveTradeExchangeTag: "거래소",
     liveTradeSideSourceSim: "시뮬",
     liveTradeSideSourceProgram: "프로그램",
