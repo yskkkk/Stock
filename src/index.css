@@ -1812,7 +1812,7 @@ html[data-theme="light"] .top-bar__live-trade {
   flex-shrink: 0;
   width: 1.42rem;
   height: 1.42rem;
-  margin: 0 0.12rem 0 0.08rem;
+  margin: 0 0.28rem 0 0.08rem;
   padding: 0;
   border: none;
   border-radius: 50%;
@@ -1838,21 +1838,24 @@ html[data-theme="light"] .top-bar__live-trade {
 
 .live-trade-header-strip__telegram-count {
   position: absolute;
-  top: -0.04rem;
-  right: -0.18rem;
-  z-index: 1;
-  min-width: 0.85rem;
-  height: 0.85rem;
-  padding: 0 0.16rem;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  min-width: 0.78rem;
+  height: 0.78rem;
+  padding: 0 0.14rem;
   border-radius: 999px;
-  font-size: 0.52rem;
+  font-size: 0.48rem;
   font-weight: 800;
-  line-height: 0.85rem;
+  line-height: 0.78rem;
   text-align: center;
+  white-space: nowrap;
+  transform: translate(46%, -46%);
   background: #229ed9;
   color: #fff;
-  border: 1px solid var(--card, #161d27);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  border: 1.5px solid var(--card, #161d27);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
 }
 
 html[data-theme="light"] .live-trade-header-strip__telegram-count {
