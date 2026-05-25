@@ -34,7 +34,10 @@ import {
   LIVE_TRADE_DOCK_TOGGLE_EVENT,
   dispatchLiveTradeDockOpenForm,
 } from "../lib/liveTradeDockEvents";
-import { LIVE_TRADE_DOCK_OPEN_PORTFOLIO_EVENT } from "../lib/liveTradePortfolioFocus";
+import {
+  dispatchLiveTradePortfolioPanelTab,
+  LIVE_TRADE_DOCK_OPEN_PORTFOLIO_EVENT,
+} from "../lib/liveTradePortfolioFocus";
 import {
   LIVE_TRADE_DOCK_PANEL_WIDTH_PREF,
   applyDockPanelWidthCss,
@@ -441,6 +444,7 @@ export default function AppLiveTradeSideDock({
   useEffect(() => {
     const onOpenPortfolio = () => {
       if (!openPanel) return;
+      dispatchLiveTradePortfolioPanelTab("trade");
       const titles = defaultLiveTradeSideTabTitles();
       openPanel("portfolio", titles.portfolio ?? ko.app.liveTradePfTitle);
       persistOpen(true);
@@ -461,6 +465,9 @@ export default function AppLiveTradeSideDock({
       if (!openPanel) return;
       if (id === "form" && activeId !== "form") {
         dispatchLiveTradeDockOpenForm();
+      }
+      if (id === "portfolio") {
+        dispatchLiveTradePortfolioPanelTab("trade");
       }
       openPanel(id, title);
       if (!openRef.current) {

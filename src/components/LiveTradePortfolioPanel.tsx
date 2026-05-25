@@ -16,7 +16,9 @@ import {
 import {
   consumePendingLiveTradePortfolioFocus,
   LIVE_TRADE_PORTFOLIO_FOCUS_EVENT,
+  LIVE_TRADE_PORTFOLIO_PANEL_TAB_EVENT,
   type LiveTradePortfolioFocus,
+  type LiveTradePortfolioPanelTab,
 } from "../lib/liveTradePortfolioFocus";
 import { useLiveTradeAuth } from "./LiveTradeAuthAndCredentials";
 import { useLivePortfolioQuotePoll } from "../hooks/useLivePortfolioQuotePoll";
@@ -414,7 +416,9 @@ export default function LiveTradePortfolioPanel({
   } | null;
   selfOnly?: boolean;
 }) {
-  const [pinnedTab, setPinnedTab] = useState<PanelTab>("holdings");
+  const [pinnedTab, setPinnedTab] = useState<PanelTab>(
+    selfOnly ? "trade" : "holdings",
+  );
   const [hoverTab, setHoverTab] = useState<PanelTab | null>(null);
   const viewTab = hoverTab ?? pinnedTab;
   const { user } = useLiveTradeAuth();
@@ -606,6 +610,19 @@ export default function LiveTradePortfolioPanel({
     }
   }, [adminReadOnly, pinnedTab]);
 
+  useEffect(() => {
+    if (!selfOnly) return;
+    const onPanelTab = (e: Event) => {
+      const tab = (e as CustomEvent<LiveTradePortfolioPanelTab>).detail;
+      if (tab !== "trade" && tab !== "trades") return;
+      setPinnedTab(tab);
+      setHoverTab(null);
+    };
+    window.addEventListener(LIVE_TRADE_PORTFOLIO_PANEL_TAB_EVENT, onPanelTab);
+    return () =>
+      window.removeEventListener(LIVE_TRADE_PORTFOLIO_PANEL_TAB_EVENT, onPanelTab);
+  }, [selfOnly]);
+
   const programOptions = useMemo(() => {
     if (adminReadOnly && programId) {
       const name =
@@ -709,17 +726,22 @@ export default function LiveTradePortfolioPanel({
           onMouseLeave={() => setHoverTab(null)}
         >
           {(
-            [
-              ["summary", ko.app.liveTradePfTabSummary],
-              ["holdings", ko.app.liveTradePfTabHoldings],
-              ...(adminReadOnly
-                ? ([] as const)
-                : ([["trade", ko.app.liveTradePfTabTrade]] as const)),
-              ["trades", ko.app.liveTradePfTabTrades],
-              ...(adminReadOnly
-                ? ([] as const)
-                : ([["openOrders", ko.app.liveTradePfTabOpenOrders]] as const)),
-            ] as const
+            selfOnly
+              ? ([
+                  ["trade", ko.app.tabLiveTrading],
+                  ["trades", ko.app.liveTradePfTabTradesDock],
+                ] as const)
+              : ([
+                  ["summary", ko.app.liveTradePfTabSummary],
+                  ["holdings", ko.app.liveTradePfTabHoldings],
+                  ...(adminReadOnly
+                    ? ([] as const)
+                    : ([["trade", ko.app.liveTradePfTabTrade]] as const)),
+                  ["trades", ko.app.liveTradePfTabTrades],
+                  ...(adminReadOnly
+                    ? ([] as const)
+                    : ([["openOrders", ko.app.liveTradePfTabOpenOrders]] as const)),
+                ] as const)
           ).map(([id, label]) => {
             const isView = viewTab === id;
             const isPinned = pinnedTab === id;

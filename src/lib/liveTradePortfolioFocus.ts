@@ -1,8 +1,18 @@
+export type LiveTradePortfolioPanelTab =
+  | "summary"
+  | "holdings"
+  | "trade"
+  | "trades"
+  | "openOrders";
+
 export type LiveTradePortfolioFocus = {
   programId: string;
   userId?: string;
   programName?: string;
 };
+
+export const LIVE_TRADE_PORTFOLIO_PANEL_TAB_EVENT =
+  "ystock-live-trade-portfolio-panel-tab";
 
 const PENDING_KEY = "ystock-live-trade-portfolio-focus";
 
@@ -52,4 +62,17 @@ export function dispatchLiveTradePortfolioFocus(
 export function dispatchLiveTradeDockOpenPortfolio(): void {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent(LIVE_TRADE_DOCK_OPEN_PORTFOLIO_EVENT));
+}
+
+/** 우측 도크 «보유·거래» — 패널 내부 탭(실거래·거래내역) */
+export function dispatchLiveTradePortfolioPanelTab(
+  tab: LiveTradePortfolioPanelTab,
+): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent<LiveTradePortfolioPanelTab>(
+      LIVE_TRADE_PORTFOLIO_PANEL_TAB_EVENT,
+      { detail: tab },
+    ),
+  );
 }

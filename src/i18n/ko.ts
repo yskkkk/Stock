@@ -115,6 +115,7 @@ export const ko = {
     liveTradePfTabSummary: "수익 요약",
     liveTradePfTabHoldings: "보유 종목",
     liveTradePfTabTrades: "거래 내역",
+    liveTradePfTabTradesDock: "거래내역",
     liveTradePfColProgram: "프로그램",
     liveTradeSimTag: "시뮬",
     liveTradeSimNoProgram: "프로그램을 선택하세요.",
