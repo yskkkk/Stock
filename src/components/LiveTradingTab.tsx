@@ -558,7 +558,8 @@ export default function LiveTradingTab({
       orderAmountKrw: bodyNeedsKrw && orderKrw ? Number(orderKrw) : null,
       orderAmountUsd: bodyNeedsUsd && orderUsd ? Number(orderUsd) : null,
       simAutoBuy: draft.simAutoBuy,
-      autoSellAtTarget: draft.autoSellAtTarget,
+      autoSellAtTarget:
+        draft.modelId === BOX_RANGE_MODEL_ID ? false : draft.autoSellAtTarget,
       sellHorizon: draft.sellHorizon,
     };
   }, [draft]);
@@ -1178,73 +1179,117 @@ export default function LiveTradingTab({
                 </label>
               </div>
 
-              <div className="live-trading-tab__form-toggles">
-                <label
-                  className={
-                    draft.simAutoBuy
-                      ? "live-trading-tab__toggle live-trading-tab__toggle--on"
-                      : "live-trading-tab__toggle"
-                  }
-                >
-                  <input
-                    type="checkbox"
-                    className="live-trading-tab__toggle-input"
-                    checked={draft.simAutoBuy}
-                    onChange={(e) =>
-                      setDraft((d) => ({ ...d, simAutoBuy: e.target.checked }))
-                    }
-                  />
-                  <span>{ko.app.liveTradeFieldSimAutoBuy}</span>
-                </label>
-
-                <label
-                  className={
-                    draft.autoSellAtTarget
-                      ? "live-trading-tab__toggle live-trading-tab__toggle--on"
-                      : "live-trading-tab__toggle"
-                  }
-                >
-                  <input
-                    type="checkbox"
-                    className="live-trading-tab__toggle-input"
-                    checked={draft.autoSellAtTarget}
-                    onChange={(e) =>
-                      setDraft((d) => ({
-                        ...d,
-                        autoSellAtTarget: e.target.checked,
-                      }))
-                    }
-                  />
-                  <span>{ko.app.liveTradeFieldAutoSell}</span>
-                </label>
-              </div>
-
-              {draft.autoSellAtTarget ? (
+              {isBoxRangeDraft ? (
                 <>
-                  <label className="live-trading-tab__field">
-                    <span className="live-trading-tab__label">
-                      {ko.app.liveTradeFieldSellHorizon}
-                    </span>
-                    <select
-                      className="input live-trading-tab__input"
-                      value={draft.sellHorizon}
-                      onChange={(e) =>
-                        setDraft((d) => ({
-                          ...d,
-                          sellHorizon: e.target.value as "short" | "medium" | "long",
-                        }))
+                  <div className="live-trading-tab__form-toggles">
+                    <label
+                      className={
+                        draft.simAutoBuy
+                          ? "live-trading-tab__toggle live-trading-tab__toggle--on"
+                          : "live-trading-tab__toggle"
                       }
                     >
-                      <option value="short">{ko.app.liveTradeSellHorizonShort}</option>
-                      <option value="medium">{ko.app.liveTradeSellHorizonMedium}</option>
-                      <option value="long">{ko.app.liveTradeSellHorizonLong}</option>
-                    </select>
-                  </label>
+                      <input
+                        type="checkbox"
+                        className="live-trading-tab__toggle-input"
+                        checked={draft.simAutoBuy}
+                        onChange={(e) =>
+                          setDraft((d) => ({
+                            ...d,
+                            simAutoBuy: e.target.checked,
+                          }))
+                        }
+                      />
+                      <span>{ko.app.liveTradeFieldSimAutoBuy}</span>
+                    </label>
+                  </div>
                   <p className="live-trading-tab__form-footnote">
-                    {ko.app.liveTradeAutoExitHint}
+                    {ko.app.liveTradeBoxRangeExitHint}
                   </p>
                 </>
-              ) : null}
+              ) : (
+                <>
+                  <div className="live-trading-tab__form-toggles">
+                    <label
+                      className={
+                        draft.simAutoBuy
+                          ? "live-trading-tab__toggle live-trading-tab__toggle--on"
+                          : "live-trading-tab__toggle"
+                      }
+                    >
+                      <input
+                        type="checkbox"
+                        className="live-trading-tab__toggle-input"
+                        checked={draft.simAutoBuy}
+                        onChange={(e) =>
+                          setDraft((d) => ({
+                            ...d,
+                            simAutoBuy: e.target.checked,
+                          }))
+                        }
+                      />
+                      <span>{ko.app.liveTradeFieldSimAutoBuy}</span>
+                    </label>
+
+                    <label
+                      className={
+                        draft.autoSellAtTarget
+                          ? "live-trading-tab__toggle live-trading-tab__toggle--on"
+                          : "live-trading-tab__toggle"
+                      }
+                    >
+                      <input
+                        type="checkbox"
+                        className="live-trading-tab__toggle-input"
+                        checked={draft.autoSellAtTarget}
+                        onChange={(e) =>
+                          setDraft((d) => ({
+                            ...d,
+                            autoSellAtTarget: e.target.checked,
+                          }))
+                        }
+                      />
+                      <span>{ko.app.liveTradeFieldAutoSell}</span>
+                    </label>
+                  </div>
+
+                  {draft.autoSellAtTarget ? (
+                    <>
+                      <label className="live-trading-tab__field">
+                        <span className="live-trading-tab__label">
+                          {ko.app.liveTradeFieldSellHorizon}
+                        </span>
+                        <select
+                          className="input live-trading-tab__input"
+                          value={draft.sellHorizon}
+                          onChange={(e) =>
+                            setDraft((d) => ({
+                              ...d,
+                              sellHorizon: e.target.value as
+                                | "short"
+                                | "medium"
+                                | "long",
+                            }))
+                          }
+                        >
+                          <option value="short">
+                            {ko.app.liveTradeSellHorizonShort}
+                          </option>
+                          <option value="medium">
+                            {ko.app.liveTradeSellHorizonMedium}
+                          </option>
+                          <option value="long">
+                            {ko.app.liveTradeSellHorizonLong}
+                          </option>
+                        </select>
+                      </label>
+                      <p className="live-trading-tab__form-footnote">
+                        {ko.app.liveTradeAutoExitHint}
+                      </p>
+                    </>
+                  ) : null}
+                </>
+              )}
 
               <div className="live-trading-tab__actions">
                 <button

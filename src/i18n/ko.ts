@@ -249,6 +249,8 @@ export const ko = {
     liveTradeFieldMinScore: "최소 점수 (텔레그램 기준 비율)",
     liveTradeBoxRangeMinScoreHint:
       "박스권 모델은 스크리너 점수 대신 박스권 규칙(1h·4h·일)으로 매매합니다.",
+    liveTradeBoxRangeExitHint:
+      "청산은 박스 상단·하단 도달 시 박스별로 처리합니다. 목표·손절 자동 매도·매도 관점(단기 등)은 이 모델에 적용되지 않습니다.",
     liveTradeFieldAmountKrw: "국내 1회 매수 금액 (원)",
     liveTradeFieldAmountCrypto: "코인 1회 매수 금액 ($)",
     liveTradeFieldAmountUsdCrypto: "미국·코인 1회 매수 금액 ($)",

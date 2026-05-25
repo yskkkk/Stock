@@ -48,6 +48,7 @@ import {
   listBithumbDoneOrdersForMarket,
 } from "./live-trade-bithumb-reconcile.js";
 
+import { isBoxRangeProgram } from "./box-range/constants.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 
 import {
@@ -190,7 +191,7 @@ export async function tickLiveTradeAutoSell() {
 
     const program = getLiveTradeProgramForRunnerSync(pos.programId);
 
-    if (!program?.autoSellAtTarget) continue;
+    if (!program?.autoSellAtTarget || isBoxRangeProgram(program)) continue;
 
     const horizon = resolveProgramSellHorizon(program);
 
@@ -356,7 +357,7 @@ export async function tickLiveTradeAutoSell() {
 
     if (!program) continue;
 
-    if (!program.autoSellAtTarget) continue;
+    if (!program.autoSellAtTarget || isBoxRangeProgram(program)) continue;
 
 
 
