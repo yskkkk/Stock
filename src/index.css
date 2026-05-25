@@ -1657,17 +1657,6 @@ html[data-theme="light"] .light-palette-swatch--active {
     padding-bottom: 0.04rem;
   }
 
-  .top-bar__grid:has(.top-bar__live-trade) .top-bar__header-left,
-  .top-bar__grid:has(.top-bar__scan) .top-bar__header-left {
-    border-bottom: 1px solid rgba(148, 163, 184, 0.14);
-    padding-bottom: 0.28rem;
-  }
-
-  html[data-theme="light"] .top-bar__grid:has(.top-bar__live-trade) .top-bar__header-left,
-  html[data-theme="light"] .top-bar__grid:has(.top-bar__scan) .top-bar__header-left {
-    border-bottom-color: rgba(15, 23, 42, 0.1);
-  }
-
   .top-bar__live-trade {
     border-top: none;
     padding-top: 0;
@@ -1736,13 +1725,9 @@ html[data-theme="light"] .top-bar__scan {
 .top-bar__live-trade {
   min-width: 0;
   margin: 0;
-  padding-top: 0.28rem;
-  border-top: 1px solid rgba(148, 163, 184, 0.14);
+  padding-top: 0;
+  border-top: none;
   overflow: visible;
-}
-
-html[data-theme="light"] .top-bar__live-trade {
-  border-top-color: rgba(15, 23, 42, 0.1);
 }
 
 .main-tab__live-badge {
