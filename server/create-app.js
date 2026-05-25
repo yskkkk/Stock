@@ -125,6 +125,7 @@ import {
   stopSimLiveTradeProgramSync,
   updateLiveTradeProgramSync,
 } from "./live-trade-programs-store.js";
+import { ensureLiveTradeSellSettingsMigratedOnce } from "./live-trade-settings-migrate.js";
 import {
   buildLiveTradePortfolioSnapshot,
   buildProgramPortfolioSummariesMap,
@@ -516,6 +517,7 @@ export function createApp() {
           : getTossTradingStatus();
       const bithumb = getBithumbTradingStatusForUserSync(userId);
       migrateLegacyProgramsToUserSync(userId);
+      await ensureLiveTradeSellSettingsMigratedOnce();
       let programs = listLiveTradeProgramsSync(userId);
       let programReturns = await buildProgramPortfolioSummariesMap(
         programs.map((p) => p.id),

@@ -14,6 +14,17 @@ import {
 } from "./live-trade-arm-gate.js";
 import { minOrderAmountKrwForMarkets } from "./live-trade-market.js";
 
+/** 신규 매도 전략 반영 버전 — migrate가 올림 */
+export const LIVE_TRADE_SELL_SETTINGS_VERSION = 2;
+
+/** @type {{ sellHorizon: "short"; autoSellAtTarget: boolean; takeProfitPct: number; stopLossPct: number }} */
+export const LIVE_TRADE_CANONICAL_SELL_SETTINGS = {
+  sellHorizon: "short",
+  autoSellAtTarget: true,
+  takeProfitPct: 5,
+  stopLossPct: -3,
+};
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, ".data");
 const PROGRAMS_FILE = path.join(DATA_DIR, "live-trade-programs.json");
@@ -42,6 +53,7 @@ export const LIVE_TRADE_DEFAULT_MIN_SCORE_RATIO = 0.8;
  *   takeProfitPct: number | null;
  *   stopLossPct: number | null;
  *   sellHorizon?: "short" | "medium" | "long";
+ *   sellSettingsVersion?: number;
  *   armedMarkets?: { kr: boolean; crypto: boolean };
  *   userId: string | null;
  *   createdAtMs: number;
@@ -68,6 +80,14 @@ function readStoreSync() {
   } catch {
     return defaultStore();
   }
+}
+
+export function readProgramsStoreSync() {
+  return readStoreSync();
+}
+
+export function writeProgramsStoreSync(store) {
+  writeStoreSync(store);
 }
 
 function writeStoreSync(store) {
@@ -159,6 +179,12 @@ function normalizeProgram(raw) {
       const s = String(o.sellHorizon ?? "").toLowerCase().trim();
       if (s === "medium" || s === "long") return s;
       return "short";
+    })(),
+    sellSettingsVersion: (() => {
+      const v = Number(o.sellSettingsVersion);
+      return Number.isFinite(v) && v >= 0
+        ? Math.floor(v)
+        : 0;
     })(),
     armedMarkets: (() => {
       const markets = {
@@ -356,6 +382,7 @@ export function createLiveTradeProgramSync(input, userId) {
     simAutoBuy: input.simAutoBuy,
     autoSellAtTarget: input.autoSellAtTarget,
     sellHorizon: input.sellHorizon,
+    sellSettingsVersion: LIVE_TRADE_SELL_SETTINGS_VERSION,
     status: "draft",
     createdAtMs: now,
     updatedAtMs: now,

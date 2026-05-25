@@ -128,6 +128,14 @@ export function readStoreSync() {
   }
 }
 
+export function readPortfolioStoreSync() {
+  return readStoreSync();
+}
+
+export function writePortfolioStoreSync(store) {
+  writeStoreSync(store);
+}
+
 function writeStoreSync(store) {
   ensureDirSync();
   const tmp = `${PORTFOLIO_FILE}.tmp`;
