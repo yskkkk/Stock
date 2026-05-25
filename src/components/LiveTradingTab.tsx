@@ -42,7 +42,6 @@ import {
 import { LIVE_TRADE_DOCK_OPEN_FORM_EVENT } from "../lib/liveTradeDockEvents";
 import { openAccountTrades } from "../lib/liveTradeDockAccount";
 import {
-  LIVE_TRADE_DOCK_PROGRAMS_PLAIN_EVENT,
   LIVE_TRADE_PORTFOLIO_PANEL_TAB_EVENT,
   type LiveTradePortfolioPanelTab,
 } from "../lib/liveTradePortfolioFocus";
@@ -288,8 +287,6 @@ export default function LiveTradingTab({
   >("programs");
   const [boxRangeStatus, setBoxRangeStatus] =
     useState<LiveTradeBoxRangeStatusResponse | null>(null);
-  const [dockTradeHistoryInPrograms, setDockTradeHistoryInPrograms] =
-    useState(false);
   const sidePanel = useLiveTradeCardSidePanelOptional();
   const polledStatus = useLiveTradingStatusPoll();
   const adminViewUserId = adminView?.userId?.trim() || null;
@@ -306,28 +303,16 @@ export default function LiveTradingTab({
     const titles = defaultLiveTradeSideTabTitles();
     const onPanelTab = (e: Event) => {
       const tab = (e as CustomEvent<LiveTradePortfolioPanelTab>).detail;
-      if (tab === "trades") {
-        setDockTradeHistoryInPrograms(true);
-        sidePanel.openPanel(
-          "programs",
-          titles.programs ?? ko.app.liveTradeListTitle,
-        );
-        return;
-      }
       if (tab === "trade") {
-        setDockTradeHistoryInPrograms(false);
         sidePanel.openPanel(
           "portfolio",
           titles.portfolio ?? ko.app.liveTradePfTitle,
         );
       }
     };
-    const onProgramsPlain = () => setDockTradeHistoryInPrograms(false);
     window.addEventListener(LIVE_TRADE_PORTFOLIO_PANEL_TAB_EVENT, onPanelTab);
-    window.addEventListener(LIVE_TRADE_DOCK_PROGRAMS_PLAIN_EVENT, onProgramsPlain);
     return () => {
       window.removeEventListener(LIVE_TRADE_PORTFOLIO_PANEL_TAB_EVENT, onPanelTab);
-      window.removeEventListener(LIVE_TRADE_DOCK_PROGRAMS_PLAIN_EVENT, onProgramsPlain);
     };
   }, [portalSourceOnly, sidePanel]);
 
@@ -782,50 +767,55 @@ export default function LiveTradingTab({
     user && authChecked && effectiveStatus == null && !loadErr,
   );
 
+  /** 도크 «프로그램» — 거래내역 서브탭 없음(상단 «거래내역» 탭·보유·거래 레일 사용) */
+  const showProgramsTradesSubTab = !portalSourceOnly;
+
   const programsListContent = (
     <>
       {!effectiveStatus && user ? (
         <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
       ) : (
         <>
-          <div
-            className="live-trading-tab__list-segment"
-            role="tablist"
-            aria-label={ko.app.liveTradeListTitle}
-          >
-            <button
-              type="button"
-              role="tab"
-              className={
-                programsPanelTab === "programs"
-                  ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
-                  : "live-trading-tab__segment-btn"
-              }
-              aria-selected={programsPanelTab === "programs"}
-              onClick={() => setProgramsPanelTab("programs")}
+          {showProgramsTradesSubTab ? (
+            <div
+              className="live-trading-tab__list-segment"
+              role="tablist"
+              aria-label={ko.app.liveTradeListTitle}
             >
-              {ko.app.liveTradeProgramsTabPrograms}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              className={
-                programsPanelTab === "trades"
-                  ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
-                  : "live-trading-tab__segment-btn"
-              }
-              aria-selected={programsPanelTab === "trades"}
-              onClick={() => {
-                setProgramsPanelTab("trades");
-                if (hideCardDock) {
-                  openAccountTrades();
+              <button
+                type="button"
+                role="tab"
+                className={
+                  programsPanelTab === "programs"
+                    ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
+                    : "live-trading-tab__segment-btn"
                 }
-              }}
-            >
-              {ko.app.liveTradeProgramsTabTrades}
-            </button>
-          </div>
-          {programsPanelTab === "trades" ? (
+                aria-selected={programsPanelTab === "programs"}
+                onClick={() => setProgramsPanelTab("programs")}
+              >
+                {ko.app.liveTradeProgramsTabPrograms}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                className={
+                  programsPanelTab === "trades"
+                    ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
+                    : "live-trading-tab__segment-btn"
+                }
+                aria-selected={programsPanelTab === "trades"}
+                onClick={() => {
+                  setProgramsPanelTab("trades");
+                  if (hideCardDock) {
+                    openAccountTrades();
+                  }
+                }}
+              >
+                {ko.app.liveTradeProgramsTabTrades}
+              </button>
+            </div>
+          ) : null}
+          {showProgramsTradesSubTab && programsPanelTab === "trades" ? (
             hideCardDock ? (
               <p className="live-trading-tab__hint">
                 {ko.app.liveTradePfTradesDockHint}
