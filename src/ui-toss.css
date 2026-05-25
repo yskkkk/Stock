@@ -5686,6 +5686,11 @@ html[data-theme="light"] .app-site-footer__link--active {
   contain: layout;
 }
 
+/* 스크리너: 신호 필터 패널 ↔ 목록·차트 패널 사이 */
+.app--screener .filter-bar.card {
+  margin-bottom: 0.75rem;
+}
+
 .filter-bar.card,
 .filter-bar.card .signal-filter,
 .signal-filter .filter-chips,

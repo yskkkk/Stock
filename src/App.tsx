@@ -1040,14 +1040,16 @@ export default function App() {
   return (
     <LiveTradeCardSidePanelProvider>
     <div
-      className={
+        className={
         appTab === "recommendations"
           ? "app app--rec-tracker"
-          : appTab === "liveTrading"
-            ? "app app--live-trade"
-            : appTab === "ops"
-              ? "app app--ops"
-              : "app"
+          : appTab === "screener"
+            ? "app app--screener"
+            : appTab === "liveTrading"
+              ? "app app--live-trade"
+              : appTab === "ops"
+                ? "app app--ops"
+                : "app"
       }
     >
       <div className="app__scroll" ref={appScrollRef}>
