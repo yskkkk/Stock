@@ -9823,10 +9823,12 @@ html[data-theme="light"]
   flex-shrink: 0;
 }
 
-.app-live-trade-side-dock__exchange-mark svg {
+.app-live-trade-side-dock__exchange-mark svg,
+.app-live-trade-side-dock__exchange-mark img {
   display: block;
   width: 100%;
   height: 100%;
+  object-fit: contain;
 }
 
 .app-live-trade-side-dock__rail-btn--exchange-ready .app-live-trade-side-dock__exchange-mark {
