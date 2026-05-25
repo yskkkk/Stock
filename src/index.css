@@ -3386,6 +3386,17 @@ html[data-theme="light"] .stock-search-analysis {
   flex-direction: column;
 }
 
+.crypto-chart-box-hint {
+  margin: 0 0.65rem 0.35rem;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.crypto-chart-box-hint--empty {
+  color: color-mix(in srgb, var(--muted) 88%, var(--warn, #b45309));
+}
+
 .tradingview-widget-container.tradingview-embed-mount {
   flex: 1 1 auto;
   min-height: 420px;

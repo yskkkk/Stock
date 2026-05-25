@@ -670,6 +670,9 @@ export const ko = {
     chipVol: "거래량",
     chipRsi: "RSI",
     chipBoxRange: "박스권",
+    boxRangeChartEmpty:
+      "이 봉에서 박스권 조건(횡보·터치)을 만족하는 구간이 없습니다. 1시간·4시간·일봉은 각각 탐지합니다.",
+    boxRangeChartLoading: "박스권 탐지 중…",
     failBtnTitle: "조회 실패 종목 목록",
     telegramConfirm: "오늘 발송한 텔레그램 알림 이력을 초기화할까요?\n같은 종목이 다시 점수 조건을 만족하면 알림이 재전송됩니다.",
     telegramResetFail: "알림 이력 초기화에 실패했습니다.",

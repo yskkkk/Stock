@@ -112,7 +112,6 @@ import {
   setActiveTechModelIdsSync,
   updateTechModelSync,
 } from "./picks-tech-models-store.js";
-import { listBoxesForChartOverlaySync } from "./box-range/store.js";
 import { validateLiveTradeArmLane } from "./live-trade-arm-gate.js";
 import {
   armLiveTradeProgramLaneSync,
@@ -855,17 +854,16 @@ export function createApp() {
         res.status(400).json({ error: "symbol required" });
         return;
       }
-      const boxes = listBoxesForChartOverlaySync(req.user.id, symbol).map((b) => ({
-        boxId: b.boxId,
-        top: b.top,
-        bottom: b.bottom,
-        mid: b.mid,
-        timeframe: b.timeframe,
-        state: b.state,
-        leftTime: b.leftTime,
-        rightTime: b.rightTime,
-      }));
-      res.json({ symbol, boxes });
+      const chartTimeframe = String(req.query?.timeframe ?? "").trim() || "1h";
+      const { buildChartBoxRangeOverlayAsync } = await import(
+        "./box-range/chart-overlay.js"
+      );
+      const boxes = await buildChartBoxRangeOverlayAsync(
+        symbol,
+        chartTimeframe,
+        req.user.id,
+      );
+      res.json({ symbol, timeframe: chartTimeframe, boxes });
     }),
   );
 

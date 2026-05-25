@@ -1058,11 +1058,15 @@ export interface BoxRangeOverlayBox {
   rightTime: number;
 }
 
-export function fetchBoxRangeOverlay(symbol: string) {
+export function fetchBoxRangeOverlay(symbol: string, chartTimeframe?: string) {
   const q = new URLSearchParams({ symbol: symbol.trim().toUpperCase() });
-  return fetchJson<{ symbol: string; boxes: BoxRangeOverlayBox[] }>(
-    `/api/box-range/overlay?${q}`,
-  );
+  const tf = String(chartTimeframe ?? "").trim();
+  if (tf) q.set("timeframe", tf);
+  return fetchJson<{
+    symbol: string;
+    timeframe?: string;
+    boxes: BoxRangeOverlayBox[];
+  }>(`/api/box-range/overlay?${q}`);
 }
 
 export function fetchLiveTradingStatus() {

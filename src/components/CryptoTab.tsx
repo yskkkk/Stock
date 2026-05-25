@@ -152,6 +152,7 @@ export default function CryptoTab({
   const [boxRangeOverlays, setBoxRangeOverlays] = useState<
     import("../api").BoxRangeOverlayBox[]
   >([]);
+  const [boxRangeLoading, setBoxRangeLoading] = useState(false);
   const [listQuotes, setListQuotes] = useState<ListQuoteMap>(
     () => peekCryptoListQuotesPrefetch() ?? {},
   );
@@ -420,25 +421,30 @@ export default function CryptoTab({
   useEffect(() => {
     if (!showBoxRange || chartEngine !== "app") {
       setBoxRangeOverlays([]);
+      setBoxRangeLoading(false);
       return;
     }
     let cancelled = false;
     const load = () => {
-      fetchBoxRangeOverlay(symbol)
+      setBoxRangeLoading(true);
+      fetchBoxRangeOverlay(symbol, timeframe)
         .then((r) => {
           if (!cancelled) setBoxRangeOverlays(r.boxes ?? []);
         })
         .catch(() => {
           if (!cancelled) setBoxRangeOverlays([]);
+        })
+        .finally(() => {
+          if (!cancelled) setBoxRangeLoading(false);
         });
     };
     load();
-    const id = window.setInterval(load, 5_000);
+    const id = window.setInterval(load, 15_000);
     return () => {
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [showBoxRange, chartEngine, symbol]);
+  }, [showBoxRange, chartEngine, symbol, timeframe, candleCount]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -745,6 +751,17 @@ export default function CryptoTab({
                   />
                 )}
             </div>
+            {chartEngine === "app" && showBoxRange && boxRangeLoading ? (
+              <p className="crypto-chart-box-hint">{ko.app.boxRangeChartLoading}</p>
+            ) : chartEngine === "app" &&
+              showBoxRange &&
+              !chartLoading &&
+              candles.length > 0 &&
+              boxRangeOverlays.length === 0 ? (
+              <p className="crypto-chart-box-hint crypto-chart-box-hint--empty">
+                {ko.app.boxRangeChartEmpty}
+              </p>
+            ) : null}
           </div>
 
           <div className="crypto-chart-panel-body">
