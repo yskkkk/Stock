@@ -18,7 +18,10 @@ import {
   writePortfolioStoreSync,
   buildOpenPositionsWithSellTargetsSync,
 } from "./live-trade-portfolio-store.js";
-import { resolveLiveTradeExitTargets } from "./live-trade-exit-scenario.js";
+import {
+  LIVE_TRADE_EXIT_SCENARIO_VERSION,
+  resolveLiveTradeExitTargets,
+} from "./live-trade-exit-scenario.js";
 import { getRoundTripFeeRateForUserMarketSync } from "./exchange-trading-fees.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 
@@ -132,6 +135,7 @@ export async function refreshOpenTradeExitTargetsSync(onlyProgramIds = null) {
         market: pos.market,
         signalIds: pos.buySignalIds,
         roundTripFeeRate,
+        sellHorizon: program.sellHorizon,
       });
     } catch (e) {
       liveTradeLogWarn(
@@ -183,6 +187,46 @@ export async function refreshOpenTradeExitTargetsSync(onlyProgramIds = null) {
 }
 
 let migrateOncePromise = null;
+let exitScenarioMigrateOncePromise = null;
+
+/**
+ * exit-scenario v3 — 단타/스윙 분리 후 열린 포지션 목표·손절 재산정(1회)
+ */
+export function ensureLiveTradeExitScenarioMigratedOnce() {
+  if (!exitScenarioMigrateOncePromise) {
+    exitScenarioMigrateOncePromise = (async () => {
+      try {
+        const marker = path.join(
+          DATA_DIR,
+          `.live-trade-exit-scenario-v${LIVE_TRADE_EXIT_SCENARIO_VERSION}.json`,
+        );
+        if (fs.existsSync(marker)) {
+          return { skipped: true, updated: 0 };
+        }
+        const { updated, skipped } = await refreshOpenTradeExitTargetsSync(null);
+        try {
+          if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+          fs.writeFileSync(
+            marker,
+            JSON.stringify({ updated, skipped, atMs: Date.now() }),
+            "utf8",
+          );
+        } catch {
+          /* ignore */
+        }
+        liveTradeLogInfo("[live-trade:migrate] exit scenario v3 done", {
+          updated,
+          skipped,
+        });
+        return { updated, skipped };
+      } catch (e) {
+        exitScenarioMigrateOncePromise = null;
+        throw e;
+      }
+    })();
+  }
+  return exitScenarioMigrateOncePromise;
+}
 
 /**
  * 서버 기동·API 조회 시 1회 — 프로그램 설정 + 열린 포지션 목표/손절 재산정

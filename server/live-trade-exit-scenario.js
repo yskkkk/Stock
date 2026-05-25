@@ -1,5 +1,7 @@
 /**
- * 매수 시 종목별 일봉·변동성·지지·저항으로 목표·손절가 자동 산정
+ * 매수 시 목표·손절가 자동 산정
+ * - 단타(short): 5분봉 + 일봉 매물대 상한
+ * - 스윙(medium/long): 일봉 구조·매물대·일목
  */
 import { loadStock } from "./stock-data.js";
 import {
@@ -13,12 +15,32 @@ import {
 import { analyzeTechnicals } from "./technical.js";
 import { analyzeTradeStructure } from "./trade-structure-analysis.js";
 import { normalizeLiveTradeMarket } from "./live-trade-market.js";
+import { normalizeSellHorizon } from "./live-trade-sell-strategy.js";
 
 const MIN_STOP_NET_PCT = -15;
 const MAX_STOP_NET_PCT = -1.2;
-const MIN_TP_NET_PCT = 2;
-const MAX_TP_NET_PCT = 28;
-const MIN_RR = 1.25;
+
+/** 단타 — 몇 시간~하루 내 현실적 범위 */
+export const SHORT_EXIT_LIMITS = {
+  minTpNetPct: 0.9,
+  maxTpNetPctKr: 3,
+  maxTpNetPctUs: 3.2,
+  maxTpNetPctCrypto: 4.2,
+  minStopNetPct: -2.8,
+  maxStopNetPct: -1,
+  minRr: 1.08,
+};
+
+/** 스윙 — 일봉 매물대·구조 (중기/장기 상한 분리) */
+export const SWING_EXIT_LIMITS = {
+  minTpNetPct: 2,
+  maxTpNetPctMedium: 12,
+  maxTpNetPctLong: 22,
+  minRrMedium: 1.2,
+  minRrLong: 1.25,
+};
+
+export const LIVE_TRADE_EXIT_SCENARIO_VERSION = 3;
 const ICHI_SHIFT = 26;
 const VP_LOOKBACK = 40;
 const VP_BINS = 10;
@@ -127,10 +149,38 @@ function targetNetPctFromRaw(
   entry,
   rawTarget,
   roundTripFeeRate = DEFAULT_ROUND_TRIP_FEE_RATE,
+  minTp = SWING_EXIT_LIMITS.minTpNetPct,
+  maxTp = SWING_EXIT_LIMITS.maxTpNetPctLong,
 ) {
-  if (!Number.isFinite(rawTarget) || rawTarget <= entry) return MIN_TP_NET_PCT;
+  if (!Number.isFinite(rawTarget) || rawTarget <= entry) return minTp;
   const pct = netReturnPct(entry, rawTarget, roundTripFeeRate);
-  return Math.max(MIN_TP_NET_PCT, Math.min(MAX_TP_NET_PCT, pct));
+  return Math.max(minTp, Math.min(maxTp, pct));
+}
+
+function clampNetPct(pct, min, max) {
+  return Math.max(min, Math.min(max, pct));
+}
+
+/**
+ * @param {"kr"|"us"|"crypto"} market
+ */
+function maxShortTpNetPct(market) {
+  if (market === "crypto") return SHORT_EXIT_LIMITS.maxTpNetPctCrypto;
+  if (market === "us") return SHORT_EXIT_LIMITS.maxTpNetPctUs;
+  return SHORT_EXIT_LIMITS.maxTpNetPctKr;
+}
+
+function emptyExitScenario() {
+  return {
+    targetSellPrice: null,
+    stopLossPrice: null,
+    exitScenarioNote: null,
+    entryStructureNote: null,
+    entryIdeal: false,
+    entryKind: "none",
+    takeProfitNetPct: null,
+    stopLossNetPct: null,
+  };
 }
 
 /**
@@ -263,30 +313,193 @@ function signalAdjustments(signalIds) {
 }
 
 /**
+ * 단타 — 5분봉 기준, 일봉 매물대는 익절 상한만
+ * @param {{
+ *   dailyCandles?: unknown[];
+ *   intradayCandles?: unknown[];
+ *   entryPrice: number;
+ *   market?: string;
+ *   signalIds?: string[];
+ *   roundTripFeeRate?: number;
+ * }} input
+ */
+export function computeShortTermExitScenario(input) {
+  const roundTripFeeRate =
+    typeof input.roundTripFeeRate === "number" &&
+    Number.isFinite(input.roundTripFeeRate)
+      ? input.roundTripFeeRate
+      : DEFAULT_ROUND_TRIP_FEE_RATE;
+  const entry = Number(input.entryPrice);
+  const symMarket = normalizeLiveTradeMarket(input.market, "");
+  const mkt =
+    symMarket === "us" ? "us" : symMarket === "crypto" ? "crypto" : "kr";
+  if (!Number.isFinite(entry) || entry <= 0) return emptyExitScenario();
+
+  const daily = input.dailyCandles ?? [];
+  const intra = input.intradayCandles ?? [];
+  const maxTpNet = maxShortTpNetPct(mkt);
+  const vpDaily =
+    daily.length >= 20 ? volumeProfileAtLastBar(daily, VP_LOOKBACK) : null;
+
+  let dailyCapRaw = entry * (1 + (maxTpNet / 100) * 1.08);
+  if (vpDaily != null && vpDaily.pocTop > entry) {
+    dailyCapRaw = Math.min(dailyCapRaw, vpDaily.pocTop * 0.996);
+  }
+
+  const fmt = (p) =>
+    mkt === "kr" || mkt === "crypto"
+      ? `${Math.round(p).toLocaleString("ko-KR")}원`
+      : `$${p.toFixed(2)}`;
+
+  /** @type {string[]} */
+  const reasons = ["단타(5분)"];
+  if (vpDaily != null) {
+    reasons.push(`일봉 매물대 상단 ${fmt(vpDaily.pocTop)} 캡`);
+  }
+
+  if (intra.length < 20) {
+    const atrD = daily.length >= 15 ? atr14(daily) : null;
+    const high5 = daily.length >= 6 ? swingHigh(daily, 5) : null;
+    let tpRaw = entry + (atrD != null ? atrD * 0.35 : entry * 0.008);
+    if (high5 != null && high5 > entry) tpRaw = Math.min(tpRaw, high5 * 0.998);
+    tpRaw = Math.min(tpRaw, dailyCapRaw);
+    const low5 = daily.length >= 6 ? swingLow(daily, 5) : null;
+    let stopRaw = entry * 0.988;
+    if (low5 != null && low5 < entry) stopRaw = Math.max(stopRaw, low5 * 0.997);
+    if (atrD != null) stopRaw = Math.max(stopRaw, entry - atrD * 0.45);
+
+    let stopNet = clampNetPct(
+      stopNetPctFromRaw(entry, stopRaw, roundTripFeeRate),
+      SHORT_EXIT_LIMITS.minStopNetPct,
+      SHORT_EXIT_LIMITS.maxStopNetPct,
+    );
+    let tpNet = targetNetPctFromRaw(
+      entry,
+      tpRaw,
+      roundTripFeeRate,
+      SHORT_EXIT_LIMITS.minTpNetPct,
+      maxTpNet,
+    );
+    reasons.push("5분 데이터 부족 — 일봉 보조");
+    return finalizeScenario(entry, mkt, stopNet, tpNet, [
+      ...reasons,
+      `목표 순수익 ${tpNet.toFixed(1)}% · 손절 ${stopNet.toFixed(1)}%`,
+    ], { roundTripFeeRate, entryKind: "short_intraday_fallback" });
+  }
+
+  const atr5 = atr14(intra);
+  const atrPct5 = atr5 != null && atr5 > 0 ? (atr5 / entry) * 100 : null;
+  const high18 = swingHigh(intra, 18);
+  const high36 = swingHigh(intra, 36);
+  const low12 = swingLow(intra, 12);
+
+  const tpCandidates = [];
+  if (atr5 != null) {
+    tpCandidates.push(entry + atr5 * 0.72);
+    tpCandidates.push(entry + atr5 * 1.02);
+  }
+  if (high18 != null && high18 > entry * 1.0015) {
+    tpCandidates.push(high18 * 0.998);
+  }
+  if (
+    high36 != null &&
+    high36 > entry * 1.002 &&
+    high36 <= dailyCapRaw * 1.008
+  ) {
+    tpCandidates.push(high36 * 0.997);
+  }
+  tpCandidates.push(
+    entry * (1 + Math.min(0.022, ((atrPct5 ?? 1.1) / 100) * 0.62)),
+  );
+
+  let targetRaw = Math.min(
+    ...tpCandidates.filter(
+      (x) => Number.isFinite(x) && x > entry * 1.0012 && x <= dailyCapRaw,
+    ),
+  );
+  if (!Number.isFinite(targetRaw)) {
+    targetRaw = Math.min(dailyCapRaw, entry * (1 + maxTpNet / 100));
+  }
+
+  const stopCandidates = [];
+  if (low12 != null && low12 < entry) stopCandidates.push(low12 * 0.997);
+  if (atr5 != null) stopCandidates.push(entry - atr5 * 1.12);
+  stopCandidates.push(entry * 0.988);
+
+  let stopRaw = Math.max(
+    ...stopCandidates.filter((x) => Number.isFinite(x) && x > 0 && x < entry * 0.999),
+  );
+  if (!Number.isFinite(stopRaw)) stopRaw = entry * 0.985;
+
+  let stopNet = clampNetPct(
+    stopNetPctFromRaw(entry, stopRaw, roundTripFeeRate),
+    SHORT_EXIT_LIMITS.minStopNetPct,
+    SHORT_EXIT_LIMITS.maxStopNetPct,
+  );
+  let tpNet = targetNetPctFromRaw(
+    entry,
+    targetRaw,
+    roundTripFeeRate,
+    SHORT_EXIT_LIMITS.minTpNetPct,
+    maxTpNet,
+  );
+
+  const stopPrice = stopLossPriceFromPct(entry, stopNet, roundTripFeeRate);
+  const risk =
+    stopPrice != null && stopPrice < entry ? entry - stopPrice : entry * 0.012;
+  if (risk > 0) {
+    const minTarget = entry + risk * SHORT_EXIT_LIMITS.minRr;
+    if (targetRaw > minTarget) targetRaw = minTarget;
+    tpNet = targetNetPctFromRaw(
+      entry,
+      targetRaw,
+      roundTripFeeRate,
+      SHORT_EXIT_LIMITS.minTpNetPct,
+      maxTpNet,
+    );
+  }
+
+  if (atrPct5 != null) reasons.push(`5분 ATR ${atrPct5.toFixed(2)}%`);
+  if (high18 != null && high18 > entry) {
+    reasons.push(`근접 고점 ${fmt(high18)}`);
+  }
+
+  return finalizeScenario(entry, mkt, stopNet, tpNet, [
+    reasons.join(" · "),
+    `목표 순수익 ${tpNet.toFixed(1)}% · 손절 ${stopNet.toFixed(1)}%`,
+  ], { roundTripFeeRate, entryKind: "short_intraday" });
+}
+
+/**
+ * 스윙 — 일봉·매물대·구조 (medium/long)
  * @param {unknown[]} candles
  * @param {number} entryPrice
- * @param {"kr"|"us"} market
- * @param {{ signalIds?: string[]; score?: number }} [ctx]
+ * @param {"kr"|"us"|"crypto"} market
+ * @param {{ signalIds?: string[]; score?: number; sellHorizon?: string; roundTripFeeRate?: number }} [ctx]
  */
-export function computeExitScenarioFromCandles(candles, entryPrice, market, ctx = {}) {
+export function computeSwingExitScenarioFromDailyCandles(
+  candles,
+  entryPrice,
+  market,
+  ctx = {},
+) {
   const roundTripFeeRate =
     typeof ctx.roundTripFeeRate === "number" && Number.isFinite(ctx.roundTripFeeRate)
       ? ctx.roundTripFeeRate
       : DEFAULT_ROUND_TRIP_FEE_RATE;
   const entry = Number(entryPrice);
-  const mkt = market === "us" ? "us" : "kr";
-  if (!Number.isFinite(entry) || entry <= 0) {
-    return {
-      targetSellPrice: null,
-      stopLossPrice: null,
-      exitScenarioNote: null,
-      entryStructureNote: null,
-      entryIdeal: false,
-      entryKind: "none",
-      takeProfitNetPct: null,
-      stopLossNetPct: null,
-    };
-  }
+  const mkt =
+    market === "us" ? "us" : market === "crypto" ? "crypto" : "kr";
+  const horizon = normalizeSellHorizon(ctx.sellHorizon ?? "medium");
+  const maxTpNet =
+    horizon === "long"
+      ? SWING_EXIT_LIMITS.maxTpNetPctLong
+      : SWING_EXIT_LIMITS.maxTpNetPctMedium;
+  const minRr =
+    horizon === "long"
+      ? SWING_EXIT_LIMITS.minRrLong
+      : SWING_EXIT_LIMITS.minRrMedium;
+  if (!Number.isFinite(entry) || entry <= 0) return emptyExitScenario();
 
   let signalIds = Array.isArray(ctx.signalIds) ? ctx.signalIds : [];
   if (!signalIds.length && candles.length >= 55) {
@@ -296,9 +509,13 @@ export function computeExitScenarioFromCandles(candles, entryPrice, market, ctx 
 
   if (!candles || candles.length < 25) {
     const stopNet = adj.stopTighter ? -2.5 : adj.stopWider ? -4 : -3;
-    const tpNet = adj.targetBoost > 1 ? 6.5 : 5;
+    const tpNet = clampNetPct(
+      adj.targetBoost > 1 ? 5.5 : 4,
+      SWING_EXIT_LIMITS.minTpNetPct,
+      maxTpNet,
+    );
     return finalizeScenario(entry, mkt, stopNet, tpNet, [
-      "차트 데이터 부족 — 보수적 기본 시나리오",
+      `스윙(일봉·${horizon === "long" ? "장기" : "중기"}) — 데이터 부족`,
       ...adj.labels,
     ], { roundTripFeeRate });
   }
@@ -384,33 +601,49 @@ export function computeExitScenarioFromCandles(candles, entryPrice, market, ctx 
     }
   }
   if (high20 != null && high20 > entry) tpCandidates.push(high20 * 0.997);
-  if (high60 != null && high60 > entry * 1.01) {
+  if (horizon === "long" && high60 != null && high60 > entry * 1.01) {
     tpCandidates.push(high60 * (adj.targetBoost > 1.03 ? 0.998 : 0.992));
   }
   if (atr != null) {
-    tpCandidates.push(entry + atr * (2 + (adj.targetBoost - 1) * 4));
-    tpCandidates.push(entry + atr * 2.8);
+    const atrMult =
+      horizon === "long" ? 2 + (adj.targetBoost - 1) * 3 : 1.35 + (adj.targetBoost - 1) * 1.5;
+    tpCandidates.push(entry + atr * atrMult);
+    if (horizon === "long") tpCandidates.push(entry + atr * 2.2);
   }
-  tpCandidates.push(entry * (1 + (atrPct != null ? Math.min(0.12, atrPct / 100 * 2.5) : 0.05)));
+  const swingTpCapPct =
+    horizon === "long" ? 0.1 : 0.065;
+  tpCandidates.push(
+    entry * (1 + (atrPct != null ? Math.min(swingTpCapPct, atrPct / 100 * 1.6) : 0.04)),
+  );
 
   let targetRaw = Math.min(
     ...tpCandidates.filter((x) => Number.isFinite(x) && x > entry * 1.004),
   );
-  if (!Number.isFinite(targetRaw)) targetRaw = entry * 1.05;
-  targetRaw *= adj.targetBoost;
+  if (!Number.isFinite(targetRaw)) targetRaw = entry * (1 + maxTpNet / 100 * 0.45);
+  targetRaw = Math.min(targetRaw * adj.targetBoost, entry * (1 + maxTpNet / 100 * 1.06));
 
   const stopPrice = stopLossPriceFromPct(entry, stopNet);
   const risk =
     stopPrice != null && stopPrice < entry ? entry - stopPrice : entry * 0.03;
   let reward = targetRaw - entry;
-  if (risk > 0 && reward / risk < MIN_RR) {
-    targetRaw = entry + risk * MIN_RR;
+  if (risk > 0 && reward / risk < minRr) {
+    targetRaw = entry + risk * minRr;
   }
+  targetRaw = Math.min(targetRaw, entry * (1 + maxTpNet / 100 * 1.06));
 
-  let tpNet = targetNetPctFromRaw(entry, targetRaw, roundTripFeeRate);
+  let tpNet = targetNetPctFromRaw(
+    entry,
+    targetRaw,
+    roundTripFeeRate,
+    SWING_EXIT_LIMITS.minTpNetPct,
+    maxTpNet,
+  );
   if (risk > 0) {
     const impliedTp = (targetRaw / entry - 1) * 100;
-    tpNet = Math.max(tpNet, Math.min(MAX_TP_NET_PCT, impliedTp * 0.95));
+    tpNet = clampNetPct(impliedTp * 0.95, SWING_EXIT_LIMITS.minTpNetPct, maxTpNet);
+    if (netReturnPct(entry, targetRaw, roundTripFeeRate) < SWING_EXIT_LIMITS.minTpNetPct) {
+      tpNet = SWING_EXIT_LIMITS.minTpNetPct;
+    }
   }
 
   const fmt = (p) =>
@@ -439,7 +672,9 @@ export function computeExitScenarioFromCandles(candles, entryPrice, market, ctx 
   if (high20 != null && high20 > entry) {
     reasons.push(`20일 고점 ${fmt(high20)} 저항`);
   }
-  if (high60 != null && high60 > entry * 1.02) reasons.push("60일 고점권");
+  if (horizon === "long" && high60 != null && high60 > entry * 1.02) {
+    reasons.push("60일 고점권");
+  }
   if (adj.labels.length) reasons.push(adj.labels.join("·"));
   if (structure.labels?.length) {
     reasons.push(structure.labels.slice(0, 4).join(" · "));
@@ -461,7 +696,9 @@ export function computeExitScenarioFromCandles(candles, entryPrice, market, ctx 
       : null;
 
   const noteParts = [
-    reasons.length ? reasons.join(" · ") : "일봉 기준 자동 산정",
+    reasons.length
+      ? `스윙(일봉·${horizon === "long" ? "장기" : "중기"}) — ${reasons.join(" · ")}`
+      : `스윙(일봉·${horizon === "long" ? "장기" : "중기"})`,
     `손익비 약 ${rr != null && Number.isFinite(rr) ? rr.toFixed(1) : "—"}:1`,
     `목표 순수익 ${tpNet.toFixed(1)}% · 손절 ${stopNet.toFixed(1)}%`,
   ];
@@ -514,21 +751,76 @@ function finalizeScenario(entry, market, stopNet, tpNet, noteParts, meta = {}) {
 }
 
 /**
+ * @param {unknown[]} candles
+ * @param {number} entryPrice
+ * @param {"kr"|"us"|"crypto"} market
+ * @param {{ signalIds?: string[]; sellHorizon?: string }} [ctx]
+ */
+export function computeExitScenarioFromCandles(candles, entryPrice, market, ctx = {}) {
+  const horizon = normalizeSellHorizon(ctx.sellHorizon ?? "short");
+  if (horizon === "short") {
+    return computeShortTermExitScenario({
+      dailyCandles: candles,
+      intradayCandles: ctx.intradayCandles ?? [],
+      entryPrice,
+      market,
+      signalIds: ctx.signalIds,
+      roundTripFeeRate: ctx.roundTripFeeRate,
+    });
+  }
+  return computeSwingExitScenarioFromDailyCandles(candles, entryPrice, market, ctx);
+}
+
+/**
  * @param {string} symbol
  * @param {number} entryPrice
- * @param {{ market?: string; signalIds?: string[]; score?: number }} [ctx]
+ * @param {{ market?: string; signalIds?: string[]; score?: number; sellHorizon?: string; roundTripFeeRate?: number }} [ctx]
  */
 export async function resolveLiveTradeExitTargets(symbol, entryPrice, ctx = {}) {
   const sym = String(symbol ?? "").trim().toUpperCase();
   const market = normalizeLiveTradeMarket(ctx.market, sym);
+  const horizon = normalizeSellHorizon(ctx.sellHorizon ?? "short");
+
+  let dailyCandles = [];
   try {
     const data = await loadStock(sym, "1d");
-    const candles =
+    dailyCandles =
       (data?.candles?.length ? data.candles : null) ??
       (data?.dailyCandles?.length ? data.dailyCandles : null) ??
       [];
-    return computeExitScenarioFromCandles(candles, entryPrice, market, ctx);
   } catch {
-    return computeExitScenarioFromCandles([], entryPrice, market, ctx);
+    dailyCandles = [];
+  }
+
+  if (horizon === "short") {
+    let intradayCandles = [];
+    try {
+      const intra = await loadStock(sym, "5m", { live: true });
+      intradayCandles = intra?.candles ?? [];
+    } catch {
+      intradayCandles = [];
+    }
+    return computeShortTermExitScenario({
+      dailyCandles,
+      intradayCandles,
+      entryPrice,
+      market,
+      signalIds: ctx.signalIds,
+      roundTripFeeRate: ctx.roundTripFeeRate,
+    });
+  }
+
+  try {
+    return computeSwingExitScenarioFromDailyCandles(
+      dailyCandles,
+      entryPrice,
+      market,
+      { ...ctx, sellHorizon: horizon },
+    );
+  } catch {
+    return computeSwingExitScenarioFromDailyCandles([], entryPrice, market, {
+      ...ctx,
+      sellHorizon: horizon,
+    });
   }
 }

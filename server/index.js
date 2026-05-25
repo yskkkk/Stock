@@ -15,14 +15,21 @@ const { startAutoGitSync } = await import("./auto-git-sync.js");
 const { createApp } = await import("./create-app.js");
 const { startStockDevSidecarsOnce } = await import("./dev-sidecars.js");
 const { maybeStartHttpsServer } = await import("./https-listen.js");
-const { ensureLiveTradeSellSettingsMigratedOnce } = await import(
-  "./live-trade-settings-migrate.js"
-);
+const {
+  ensureLiveTradeSellSettingsMigratedOnce,
+  ensureLiveTradeExitScenarioMigratedOnce,
+} = await import("./live-trade-settings-migrate.js");
 
 const PORT = Number(process.env.PORT) || 3456;
 ensureLiveTradeSellSettingsMigratedOnce().catch((e) => {
   console.warn(
     "[live-trade:migrate] startup apply failed:",
+    e instanceof Error ? e.message : e,
+  );
+});
+ensureLiveTradeExitScenarioMigratedOnce().catch((e) => {
+  console.warn(
+    "[live-trade:migrate] exit scenario v3 failed:",
     e instanceof Error ? e.message : e,
   );
 });

@@ -110,6 +110,7 @@ async function resolveCryptoHoldingExitTargets(programId, symbol, avgEntry, user
       market: "crypto",
       signalIds: fromTrade?.buySignalIds ?? [],
       roundTripFeeRate: feeRate,
+      sellHorizon: "short",
     });
   } catch (e) {
     console.warn(

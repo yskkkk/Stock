@@ -517,6 +517,7 @@ export async function recordLiveTradeBuyAsync(program, pick, orderMeta = {}) {
       signalIds: pick.signalIds,
       score: pick.score,
       roundTripFeeRate,
+      sellHorizon: program.sellHorizon,
     });
   } else if (program.autoSellAtTarget === false) {
     targets = {
