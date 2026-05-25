@@ -925,21 +925,29 @@ html[data-theme="light"] .chart-section .timeframe-seg .seg.active {
 }
 
 html[data-theme="light"] .crypto-chart-panel.card {
-  background: linear-gradient(180deg, #e9eef6 0%, #e2e9f2 100%);
+  background: var(--card, #f9f7f4);
   border: 1px solid rgba(15, 23, 42, 0.1);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.45) inset,
-    0 8px 32px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--shadow, 0 6px 24px rgba(15, 23, 42, 0.06));
 }
 
 html[data-theme="light"] .crypto-chart-panel > .chart-toolbar {
   flex-wrap: wrap;
   gap: 0.4rem 0.55rem;
   padding: 0.55rem 0.65rem 0.5rem;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.07);
-  background: rgba(255, 255, 255, 0.42);
-  -webkit-backdrop-filter: blur(10px) saturate(1.08);
-  backdrop-filter: blur(10px) saturate(1.08);
+  border-bottom: none;
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+html[data-theme="light"][data-light-palette="glass"] .crypto-chart-panel.card {
+  background: rgba(255, 255, 255, 0.46) !important;
+}
+
+html[data-theme="light"][data-light-palette="glass"] .crypto-chart-panel > .chart-toolbar {
+  background: transparent !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
 }
 
 html[data-theme="light"] .crypto-chart-panel .chart-toolbar__toggles {
