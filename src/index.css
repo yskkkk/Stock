@@ -9247,7 +9247,7 @@ html[data-theme="light"] .market-indices-rail__item {
     margin-right: 0;
     padding: 0;
     pointer-events: none;
-    visibility: hidden;
+    /* visibility:hidden 제거 — fixed 레일·도크 클릭 차단 방지 */
   }
 
   .app__viewport:has(.app-live-trade-side-dock--open) .app__right-panel--dock {
@@ -9257,7 +9257,7 @@ html[data-theme="light"] .market-indices-rail__item {
 
   .app__right-panel--dock .app-live-trade-side-dock {
     visibility: visible;
-    pointer-events: none;
+    pointer-events: auto;
     position: fixed;
     top: 0;
     right: calc(var(--live-trade-dock-rail-width, 3.25rem) + env(safe-area-inset-right, 0px));
@@ -9310,32 +9310,30 @@ html[data-theme="light"] .market-indices-rail__item {
   .app__right-panel--dock .app-live-trade-side-dock--open {
     width: auto;
     max-width: calc(var(--live-trade-dock-panel-width, 26rem) + 0.72rem);
-    pointer-events: none;
+    pointer-events: auto;
   }
 
-  .app__right-panel--dock .app-live-trade-side-dock__panel {
-    pointer-events: none;
-  }
-
+  .app__right-panel--dock .app-live-trade-side-dock__panel,
   .app__right-panel--dock .app-live-trade-side-dock__host,
   .app__right-panel--dock .app-live-trade-side-dock__resize-handle {
     pointer-events: auto;
   }
 
-  /* 레일은 flex 밖 — 펼침·접힘과 무관하게 동일 폭·위치 */
-  .app__right-panel--dock .app-live-trade-side-dock__rail {
+  /* 레일 — body 포털(fixed), 그리드 셀 visibility/pointer 상속과 분리 */
+  .app__right-panel--dock .app-live-trade-side-dock__rail,
+  [data-live-trade-side-dock-rail] {
     position: fixed;
     top: 0;
     right: env(safe-area-inset-right, 0px);
     bottom: 0;
     left: auto;
-    z-index: 55;
+    z-index: 120;
     width: var(--live-trade-dock-rail-width, 3.25rem) !important;
     min-width: var(--live-trade-dock-rail-width, 3.25rem) !important;
     max-width: var(--live-trade-dock-rail-width, 3.25rem) !important;
     flex: none !important;
     padding-right: 0;
-    pointer-events: auto;
+    pointer-events: auto !important;
   }
 
   .app__viewport:has(.app-live-trade-side-dock--open) .live-trading-tab__card-row {

@@ -183,13 +183,20 @@ function applyDockPanelWheel(scrollEl: HTMLElement, e: WheelEvent): void {
 }
 
 /** 우측 아이콘 레일(빨간 마킹 구간) — 페이지 스크롤 */
+function queryDockRailEl(): HTMLElement | null {
+  return (
+    document.querySelector<HTMLElement>("[data-live-trade-side-dock-rail]") ??
+    document.querySelector<HTMLElement>(".app-live-trade-side-dock__rail")
+  );
+}
+
 function isWheelOnDockRailZone(
   dock: HTMLElement,
   target: EventTarget | null,
   panelOpen: boolean,
 ): boolean {
   if (!target || !(target instanceof Node)) return false;
-  const rail = dock.querySelector<HTMLElement>(".app-live-trade-side-dock__rail");
+  const rail = queryDockRailEl();
   if (rail?.contains(target)) return true;
   if (!panelOpen) {
     const handle = dock.querySelector<HTMLElement>(
@@ -387,11 +394,29 @@ export default function AppLiveTradeSideDock({
   const dockRef = useRef<HTMLDivElement>(null);
   const openRef = useRef(open);
   openRef.current = open;
+  const resizeHandleRef = useRef<HTMLButtonElement>(null);
   const resizeDragRef = useRef<{
     startX: number;
     startW: number;
     wasOpen: boolean;
+    pointerId?: number;
   } | null>(null);
+
+  const releaseResizeDrag = useCallback(() => {
+    const drag = resizeDragRef.current;
+    resizeDragRef.current = null;
+    setResizing(false);
+    const el = resizeHandleRef.current;
+    const pid = drag?.pointerId;
+    if (el == null || pid == null) return;
+    try {
+      if (el.hasPointerCapture(pid)) {
+        el.releasePointerCapture(pid);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
   const panelWidthBounds = useMemo(
     () => ({
       min: clampDockPanelWidthPx(0),
@@ -463,8 +488,7 @@ export default function AppLiveTradeSideDock({
 
   useEffect(() => {
     const onAfterFormSave = () => {
-      resizeDragRef.current = null;
-      setResizing(false);
+      releaseResizeDrag();
     };
     window.addEventListener(LIVE_TRADE_DOCK_AFTER_FORM_SAVE_EVENT, onAfterFormSave);
     return () =>
@@ -472,7 +496,7 @@ export default function AppLiveTradeSideDock({
         LIVE_TRADE_DOCK_AFTER_FORM_SAVE_EVENT,
         onAfterFormSave,
       );
-  }, []);
+  }, [releaseResizeDrag]);
 
   useEffect(() => {
     const onOpenPortfolio = () => {
@@ -690,6 +714,7 @@ export default function AppLiveTradeSideDock({
         startX: e.clientX,
         startW,
         wasOpen,
+        pointerId: e.pointerId,
       };
       if (wasOpen) {
         applyDockPanelWidthCss(startW);
@@ -720,7 +745,6 @@ export default function AppLiveTradeSideDock({
     (e: PointerEvent<HTMLButtonElement>) => {
       const drag = resizeDragRef.current;
       if (!drag) return;
-      resizeDragRef.current = null;
 
       const snapHalf = dockPanelOpenSnapThresholdPx();
       const min = minDockPanelWidthPx();
@@ -751,11 +775,11 @@ export default function AppLiveTradeSideDock({
         }
       }
 
-      setResizing(false);
-
       if (e.currentTarget.hasPointerCapture(e.pointerId)) {
         e.currentTarget.releasePointerCapture(e.pointerId);
       }
+      resizeDragRef.current = null;
+      setResizing(false);
     },
     [persistOpen, openDefaultDockPanel, syncDockPanelWidth],
   );
@@ -803,72 +827,28 @@ export default function AppLiveTradeSideDock({
     }
   };
 
-  return (
-    <div
-      ref={dockRef}
-      className={`app-live-trade-side-dock${
-        open ? " app-live-trade-side-dock--open" : " app-live-trade-side-dock--collapsed"
-      }${resizing ? " app-live-trade-side-dock--resizing" : ""}`}
-      data-live-trade-side-dock
+  const dockRail = (
+    <nav
+      className="app-live-trade-side-dock__rail app-live-trade-side-dock__rail--portal"
+      data-live-trade-side-dock-rail
+      aria-label={ko.app.liveTradeSideDockRailAria}
     >
-      <div
-        id="app-live-trade-side-dock-panel"
-        className="app-live-trade-side-dock__panel"
-        aria-hidden={!open}
+      <button
+        type="button"
+        className="app-live-trade-side-dock__fold app-live-trade-side-dock__rail-btn"
+        onClick={toggleFold}
+        aria-expanded={open}
+        aria-controls="app-live-trade-side-dock-panel"
+        title={open ? ko.app.liveTradeSideDockCollapse : ko.app.liveTradeSideDockExpand}
       >
-        <button
-          type="button"
-          className={[
-            "app-live-trade-side-dock__resize-handle",
-            open ? "" : "app-live-trade-side-dock__resize-handle--collapsed",
-          ]
-            .filter(Boolean)
-            .join(" ")}
-          onPointerDown={onResizePointerDown}
-          onPointerMove={onResizePointerMove}
-          onPointerUp={finishResize}
-          onPointerCancel={finishResize}
-          aria-label={
-            open ? ko.app.liveTradeSideDockResize : ko.app.liveTradeSideDockExpand
-          }
-          role={open ? "separator" : "button"}
-          aria-orientation={open ? "vertical" : undefined}
-          aria-valuemin={open ? panelWidthBounds.min : undefined}
-          aria-valuemax={open ? panelWidthBounds.max : undefined}
-          aria-valuenow={open ? panelWidthPx : undefined}
-          aria-expanded={open ? undefined : false}
-          title={
-            open ? ko.app.liveTradeSideDockResizeHint : ko.app.liveTradeSideDockExpand
-          }
-        />
-        <div
-          id={LIVE_TRADE_RIGHT_PANEL_HOST_ID}
-          className="app-live-trade-side-dock__host"
+        <span
+          className="app-live-trade-side-dock__rail-glyph app-live-trade-side-dock__rail-glyph--fold"
+          aria-hidden
         >
-          <LiveTradeCardSidePanel forceDocked railMode />
-          {portalSource}
-        </div>
-      </div>
-      <nav
-        className="app-live-trade-side-dock__rail"
-        aria-label={ko.app.liveTradeSideDockRailAria}
-      >
-        <button
-          type="button"
-          className="app-live-trade-side-dock__fold app-live-trade-side-dock__rail-btn"
-          onClick={toggleFold}
-          aria-expanded={open}
-          aria-controls="app-live-trade-side-dock-panel"
-          title={open ? ko.app.liveTradeSideDockCollapse : ko.app.liveTradeSideDockExpand}
-        >
-          <span
-            className="app-live-trade-side-dock__rail-glyph app-live-trade-side-dock__rail-glyph--fold"
-            aria-hidden
-          >
-            <DockFoldChevron open={open} />
-          </span>
-        </button>
-        <div className="app-live-trade-side-dock__rail-tabs">
+          <DockFoldChevron open={open} />
+        </span>
+      </button>
+      <div className="app-live-trade-side-dock__rail-tabs">
         {railTabs.map((tab) => {
           const selected = open && activeId === tab.id;
           const isAccountTab = tab.id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb;
@@ -931,80 +911,131 @@ export default function AppLiveTradeSideDock({
             </button>
           );
         })}
-        </div>
-        <div className="app-live-trade-side-dock__rail-footer">
-          {user ? (
-            <LiveTradeDockApiRail
-              user={user}
-              onCredentialsUpdated={onDockAuthChange}
-              onPopoverOpen={() => setAuthPopoverOpen(false)}
-            />
-          ) : null}
-          <span
-            ref={authAnchorRef}
-            className="app-live-trade-side-dock__auth-anchor"
+      </div>
+      <div className="app-live-trade-side-dock__rail-footer">
+        {user ? (
+          <LiveTradeDockApiRail
+            user={user}
+            onCredentialsUpdated={onDockAuthChange}
+            onPopoverOpen={() => setAuthPopoverOpen(false)}
+          />
+        ) : null}
+        <span ref={authAnchorRef} className="app-live-trade-side-dock__auth-anchor">
+          <button
+            type="button"
+            className={
+              authRailSelected
+                ? "app-live-trade-side-dock__rail-btn app-live-trade-side-dock__rail-btn--on app-live-trade-side-dock__rail-btn--auth"
+                : user
+                  ? "app-live-trade-side-dock__rail-btn app-live-trade-side-dock__rail-btn--auth app-live-trade-side-dock__rail-btn--logout"
+                  : "app-live-trade-side-dock__rail-btn app-live-trade-side-dock__rail-btn--auth"
+            }
+            aria-selected={authRailSelected}
+            aria-expanded={!user ? authPopoverOpen : undefined}
+            aria-haspopup={!user ? "dialog" : undefined}
+            aria-controls={
+              !user && authPopoverOpen
+                ? "app-live-trade-side-dock-auth-popover"
+                : user
+                  ? "app-live-trade-side-dock-panel"
+                  : undefined
+            }
+            title={
+              user ? ko.app.liveTradeAuthLogout : ko.app.liveTradeSideDockRailAuth
+            }
+            onClick={onAuthRailClick}
           >
-            <button
-              type="button"
-              className={
-                authRailSelected
-                  ? "app-live-trade-side-dock__rail-btn app-live-trade-side-dock__rail-btn--on app-live-trade-side-dock__rail-btn--auth"
-                  : user
-                    ? "app-live-trade-side-dock__rail-btn app-live-trade-side-dock__rail-btn--auth app-live-trade-side-dock__rail-btn--logout"
-                    : "app-live-trade-side-dock__rail-btn app-live-trade-side-dock__rail-btn--auth"
-              }
-              aria-selected={authRailSelected}
-              aria-expanded={!user ? authPopoverOpen : undefined}
-              aria-haspopup={!user ? "dialog" : undefined}
-              aria-controls={
-                !user && authPopoverOpen
-                  ? "app-live-trade-side-dock-auth-popover"
-                  : user
-                    ? "app-live-trade-side-dock-panel"
-                    : undefined
-              }
-              title={
-                user ? ko.app.liveTradeAuthLogout : ko.app.liveTradeSideDockRailAuth
-              }
-              onClick={onAuthRailClick}
-            >
-              <span className="app-live-trade-side-dock__rail-glyph" aria-hidden>
-                {user ? "⎋" : "◎"}
-              </span>
-              <span className="app-live-trade-side-dock__rail-label">
-                {user ? ko.app.liveTradeAuthLogout : ko.app.liveTradeSideDockRailAuth}
-              </span>
-            </button>
-          </span>
-          {!user && authPopoverOpen
-            ? createPortal(
-                <div
-                  id="app-live-trade-side-dock-auth-popover"
-                  className="app-live-trade-side-dock__auth-popover app-live-trade-side-dock__auth-popover--portal"
-                  style={authPopoverStyle}
-                  role="dialog"
-                  aria-label={ko.app.liveTradeAuthTitle}
-                  onMouseDown={(ev) => ev.stopPropagation()}
-                >
-                  <LiveTradeDockYsHead ariaLabel={ko.app.liveTradeAuthTitle} />
-                  <LiveTradeAuthPanel
-                    user={null}
-                    registrationOpen={registrationOpen}
-                    variant="popover"
-                    onAuthChange={onDockAuthChange}
-                  />
-                </div>,
-                document.body,
-              )
-            : null}
-          {feedbackRef ? (
-            <FeedbackDockRailButton
-              active={feedbackActive}
-              onClick={() => feedbackRef.current?.openSubmit()}
-            />
-          ) : null}
+            <span className="app-live-trade-side-dock__rail-glyph" aria-hidden>
+              {user ? "⎋" : "◎"}
+            </span>
+            <span className="app-live-trade-side-dock__rail-label">
+              {user ? ko.app.liveTradeAuthLogout : ko.app.liveTradeSideDockRailAuth}
+            </span>
+          </button>
+        </span>
+        {!user && authPopoverOpen
+          ? createPortal(
+              <div
+                id="app-live-trade-side-dock-auth-popover"
+                className="app-live-trade-side-dock__auth-popover app-live-trade-side-dock__auth-popover--portal"
+                style={authPopoverStyle}
+                role="dialog"
+                aria-label={ko.app.liveTradeAuthTitle}
+                onMouseDown={(ev) => ev.stopPropagation()}
+              >
+                <LiveTradeDockYsHead ariaLabel={ko.app.liveTradeAuthTitle} />
+                <LiveTradeAuthPanel
+                  user={null}
+                  registrationOpen={registrationOpen}
+                  variant="popover"
+                  onAuthChange={onDockAuthChange}
+                />
+              </div>,
+              document.body,
+            )
+          : null}
+        {feedbackRef ? (
+          <FeedbackDockRailButton
+            active={feedbackActive}
+            onClick={() => feedbackRef.current?.openSubmit()}
+          />
+        ) : null}
+      </div>
+    </nav>
+  );
+
+  return (
+    <>
+    <div
+      ref={dockRef}
+      className={`app-live-trade-side-dock${
+        open ? " app-live-trade-side-dock--open" : " app-live-trade-side-dock--collapsed"
+      }${resizing ? " app-live-trade-side-dock--resizing" : ""}`}
+      data-live-trade-side-dock
+    >
+      <div
+        id="app-live-trade-side-dock-panel"
+        className="app-live-trade-side-dock__panel"
+        aria-hidden={!open}
+      >
+        <button
+          ref={resizeHandleRef}
+          type="button"
+          className={[
+            "app-live-trade-side-dock__resize-handle",
+            open ? "" : "app-live-trade-side-dock__resize-handle--collapsed",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          onPointerDown={onResizePointerDown}
+          onPointerMove={onResizePointerMove}
+          onPointerUp={finishResize}
+          onPointerCancel={finishResize}
+          aria-label={
+            open ? ko.app.liveTradeSideDockResize : ko.app.liveTradeSideDockExpand
+          }
+          role={open ? "separator" : "button"}
+          aria-orientation={open ? "vertical" : undefined}
+          aria-valuemin={open ? panelWidthBounds.min : undefined}
+          aria-valuemax={open ? panelWidthBounds.max : undefined}
+          aria-valuenow={open ? panelWidthPx : undefined}
+          aria-expanded={open ? undefined : false}
+          title={
+            open ? ko.app.liveTradeSideDockResizeHint : ko.app.liveTradeSideDockExpand
+          }
+        />
+        <div
+          id={LIVE_TRADE_RIGHT_PANEL_HOST_ID}
+          className="app-live-trade-side-dock__host"
+        >
+          <LiveTradeCardSidePanel forceDocked railMode />
+          {portalSource}
         </div>
-      </nav>
+      </div>
     </div>
+    {typeof document !== "undefined"
+      ? createPortal(dockRail, document.body)
+      : dockRail}
+    </>
   );
 }
