@@ -2083,10 +2083,18 @@ html[data-theme="light"] .top-bar__live-trade {
   line-height: 0;
 }
 
-.quote-currency-toggle__svg {
-  display: block;
-  width: 1.2rem;
-  height: 1.2rem;
+.quote-currency-toggle__glyph {
+  display: inline-block;
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+.quote-currency-toggle--compact .quote-currency-toggle__glyph {
+  font-size: 1rem;
 }
 
 .quote-currency-toggle--labeled {
@@ -2116,10 +2124,6 @@ html[data-theme="light"] .top-bar__live-trade {
   min-width: 0;
 }
 
-.quote-currency-toggle--compact .quote-currency-toggle__svg {
-  width: 1.1rem;
-  height: 1.1rem;
-}
 
 .stock-search-tab__quote-line {
   display: flex;
