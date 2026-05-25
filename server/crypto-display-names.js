@@ -169,6 +169,9 @@ const BY_BASE = {
   ALT: { en: "Altlayer", ko: "알트레이어" },
   JTO: { en: "Jito", ko: "지토" },
   LAYER: { en: "Solayer", ko: "솔레이어" },
+  WNCG: { en: "Wrapped NCG", ko: "나인크로니클 골드" },
+  ONDO: { en: "Ondo", ko: "온도" },
+  EDEN: { en: "OpenEden", ko: "에덴" },
 };
 
 /**
