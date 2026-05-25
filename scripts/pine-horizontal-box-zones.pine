@@ -1,0 +1,173 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © standalone — Stock 프로젝트와 무관, TradingView에 붙여넣기용
+
+//@version=5
+indicator("수평 매물대 · 박스권", shorttitle="박스권", overlay=true, max_boxes_count=500, max_lines_count=500)
+
+// ── 입력 ─────────────────────────────────────────────────────────────
+grpDet = "박스 탐지"
+lookback     = input.int(20, "구간(봉)", minval=5, group=grpDet)
+minBars      = input.int(10, "최소 박스 봉 수", minval=3, group=grpDet)
+maxRangePct  = input.float(2.8, "최대 박스 폭(%)", minval=0.2, step=0.1, group=grpDet)
+useAtrFilter = input.bool(true, "ATR 대비 폭 필터", group=grpDet)
+atrLen       = input.int(14, "ATR", minval=1, group=grpDet)
+atrMult      = input.float(1.35, "ATR × (최대 폭)", minval=0.5, step=0.05, group=grpDet)
+
+grpMerge = "병합"
+mergePct     = input.float(0.15, "가격 겹침 허용(%)", minval=0, step=0.05, group=grpMerge, tooltip="박스 상·하단이 이 비율 안에서 겹치면 하나로 합침")
+mergeBars    = input.int(80, "시간 인접(봉)", minval=0, group=grpMerge, tooltip="끝·시작 bar_index 차이가 이 값 이하면 인접으로 보고 병합 후보")
+
+grpVis = "표시"
+showActive   = input.bool(true, "진행 중 박스", group=grpVis)
+boxColor     = input.color(color.new(#2962FF, 82), "박스 채움", group=grpVis)
+boxBorder    = input.color(color.new(#2962FF, 35), "박스 테두리", group=grpVis)
+midColor     = input.color(color.new(#FF6D00, 0), "중심 실선", group=grpVis)
+midWidth     = input.int(2, "중심선 두께", minval=1, maxval=4, group=grpVis)
+extendRight  = input.int(8, "박스 우측 연장(봉)", minval=0, group=grpVis)
+maxZones     = input.int(24, "최대 표시 박스", minval=1, maxval=80, group=grpVis)
+
+// ── 횡보(박스) 감지 ─────────────────────────────────────────────────
+rngHi = ta.highest(high, lookback)
+rngLo = ta.lowest(low, lookback)
+mid   = (rngHi + rngLo) * 0.5
+rangePct = mid > 0 ? (rngHi - rngLo) / mid * 100.0 : 100.0
+atrVal = ta.atr(atrLen)
+atrPct = close > 0 ? atrVal / close * 100.0 * atrMult : rangePct
+capPct = useAtrFilter ? math.min(maxRangePct, atrPct) : maxRangePct
+inRange = rangePct <= capPct
+
+var int   stBar = na
+var int   stCnt = 0
+var float stTop = na
+var float stBot = na
+
+var float[] zTop = array.new_float()
+var float[] zBot = array.new_float()
+var int[]   zL   = array.new_int()
+var int[]   zR   = array.new_int()
+
+f_pushZone(float t, float b, int l, int r) =>
+    array.push(zTop, t)
+    array.push(zBot, b)
+    array.push(zL, l)
+    array.push(zR, r)
+
+// 가격대 겹침 (mergePct 허용)
+f_priceOverlap(float t1, float b1, float t2, float b2) =>
+    tol = mergePct * 0.01
+    pad1 = (t1 - b1) * tol
+    pad2 = (t2 - b2) * tol
+    not (t1 + pad1 < b2 - pad2 or t2 + pad2 < b1 - pad1)
+
+f_timeNear(int r1, int l2) =>
+    mergeBars <= 0 ? true : math.abs(l2 - r1) <= mergeBars
+
+// 배열 전체 병합 (겹치는 박스 합침)
+f_mergeAll() =>
+    int n = array.size(zTop)
+    if n < 2
+        n
+    else
+        bool changed = true
+        int guard = 0
+        while changed and guard < 200
+            changed := false
+            guard += 1
+            int i = 0
+            while i < array.size(zTop) - 1
+                float t1 = array.get(zTop, i)
+                float b1 = array.get(zBot, i)
+                int l1 = array.get(zL, i)
+                int r1 = array.get(zR, i)
+                int j = i + 1
+                while j < array.size(zTop)
+                    float t2 = array.get(zTop, j)
+                    float b2 = array.get(zBot, j)
+                    int l2 = array.get(zL, j)
+                    int r2 = array.get(zR, j)
+                    if f_priceOverlap(t1, b1, t2, b2) and (f_timeNear(r1, l2) or f_timeNear(r2, l1))
+                        array.set(zTop, i, math.max(t1, t2))
+                        array.set(zBot, i, math.min(b1, b2))
+                        array.set(zL, i, math.min(l1, l2))
+                        array.set(zR, i, math.max(r1, r2))
+                        array.remove(zTop, j)
+                        array.remove(zBot, j)
+                        array.remove(zL, j)
+                        array.remove(zR, j)
+                        changed := true
+                    else
+                        j += 1
+                i += 1
+        array.size(zTop)
+
+// 박스 종료 시 확정
+if not inRange and inRange[1] and stCnt >= minBars and not na(stTop)
+    f_pushZone(stTop, stBot, stBar, bar_index - 1)
+    f_mergeAll()
+    stBar := na
+    stCnt := 0
+    stTop := na
+    stBot := na
+
+if inRange
+    if not inRange[1]
+        stBar := bar_index
+        stCnt := 1
+        stTop := high
+        stBot := low
+    else
+        stCnt += 1
+        stTop := math.max(stTop, high)
+        stBot := math.min(stBot, low)
+else
+    if inRange[1]
+        stBar := na
+        stCnt := 0
+        stTop := na
+        stBot := na
+
+// ── 그리기 (마지막 봉에서 일괄 갱신) ───────────────────────────────
+var box[]  drawnBoxes = array.new_box()
+var line[] drawnMids  = array.new_line()
+
+var box activeBox = na
+var line activeMid  = na
+
+f_clearDrawings() =>
+    for i = 0 to array.size(drawnBoxes) - 1
+        box.delete(array.get(drawnBoxes, i))
+    array.clear(drawnBoxes)
+    for i = 0 to array.size(drawnMids) - 1
+        line.delete(array.get(drawnMids, i))
+    array.clear(drawnMids)
+
+if barstate.islast
+    f_clearDrawings()
+    if not na(activeBox)
+        box.delete(activeBox)
+        activeBox := na
+    if not na(activeMid)
+        line.delete(activeMid)
+        activeMid := na
+
+    int n = array.size(zTop)
+    int start = math.max(0, n - maxZones)
+    for k = start to n - 1
+        float t = array.get(zTop, k)
+        float b = array.get(zBot, k)
+        int l = array.get(zL, k)
+        int r = array.get(zR, k) + extendRight
+        float avg = (t + b) * 0.5
+        box bx = box.new(l, t, r, b, bgcolor=boxColor, border_color=boxBorder, border_width=1, xloc=xloc.bar_index)
+        line ln = line.new(l, avg, r, avg, color=midColor, width=midWidth, style=line.style_solid, xloc=xloc.bar_index)
+        array.push(drawnBoxes, bx)
+        array.push(drawnMids, ln)
+
+    if showActive and inRange and stCnt >= minBars and not na(stTop)
+        int rAct = bar_index + extendRight
+        float avgAct = (stTop + stBot) * 0.5
+        activeBox := box.new(stBar, stTop, rAct, stBot, bgcolor=color.new(boxColor, 88), border_color=boxBorder, border_style=line.style_dashed, xloc=xloc.bar_index)
+        activeMid := line.new(stBar, avgAct, rAct, avgAct, color=midColor, width=midWidth, style=line.style_solid, xloc=xloc.bar_index)
+
+// 디버그: 현재 구간 폭%
+plot(inRange ? rangePct : na, "구간폭%", display=display.none)
