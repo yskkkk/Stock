@@ -250,14 +250,15 @@ f_drawTfArrays(bool en, box[] bx, line[] ln, bool actOn, int a0, int a1, float a
         bool drawAct = actOn and showActive and not completedOnly
         if drawAct
             f_drawZone(bx, ln, a0, a1, at, ab, color.new(fill, 88), brd, mid, true)
-        int total = array.size(tops)
-        int n = nCap <= 0 ? total : math.min(nCap, total)
-        for i = 0 to n - 1
-            float top = array.get(tops, i)
-            float bot = array.get(bots, i)
-            int t0 = array.get(t0s, i)
-            int t1 = array.get(t1s, i) + extMs
-            f_drawZone(bx, ln, t0, t1, top, bot, fill, brd, mid, false)
+        int total = math.min(array.size(tops), array.size(bots), array.size(t0s), array.size(t1s))
+        if total > 0
+            int n = nCap <= 0 ? total : math.min(nCap, total)
+            for i = 0 to n - 1
+                float top = array.get(tops, i)
+                float bot = array.get(bots, i)
+                int t0 = array.get(t0s, i)
+                int t1 = array.get(t1s, i) + extMs
+                f_drawZone(bx, ln, t0, t1, top, bot, fill, brd, mid, false)
 
 f_dashFromZones(bool actOn, float at, float ab, float am, float[] tops, float[] bots) =>
     if actOn
