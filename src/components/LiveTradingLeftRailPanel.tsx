@@ -441,8 +441,9 @@ export function LiveTradingRailCore({
 
   const rows = useMemo(() => {
     const programs = status?.programs ?? [];
-    return programs
-      .filter(isRunningLiveProgram)
+    const visible =
+      layout === "dock" ? programs : programs.filter(isRunningLiveProgram);
+    return visible
       .sort((a, b) => {
         const rank = (s: LiveTradeProgram["status"]) =>
           s === "armed" ? 0 : s === "sim" ? 1 : 2;
@@ -466,7 +467,7 @@ export function LiveTradingRailCore({
           holdings,
         };
       });
-  }, [status, holdingsByProgram, roundTripForMarket]);
+  }, [status, holdingsByProgram, roundTripForMarket, layout]);
 
   if (!authChecked || !user) return null;
 

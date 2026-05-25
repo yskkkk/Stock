@@ -39,6 +39,7 @@ import {
 import { LIVE_TRADE_DOCK_OPEN_FORM_EVENT } from "../lib/liveTradeDockEvents";
 import { invalidateLiveTradingPrefetch, peekLiveTradingPrefetch } from "../lib/tabPrefetch";
 import { formatPercent } from "../lib/format";
+import DockPanelCenterLoading from "./DockPanelCenterLoading";
 import LiveTradeAuthPanel, {
   LiveTradeCardSidePanelInline,
   LiveTradeCollapsibleCard,
@@ -336,12 +337,11 @@ export default function LiveTradingTab({
     return m;
   }, [models]);
 
-  const programs = status?.programs ?? [];
-  const simPrograms = adminReadOnly
-    ? programs
-    : hideCardDock && polledStatus?.programs
-      ? polledStatus.programs
-      : programs;
+  /** 헤더·도크 레일과 동일 — 전역 폴링 우선, 탭 로컬 reload 보조 */
+  const effectiveStatus: LiveTradingStatusResponse | null =
+    polledStatus ?? status;
+  const programs = effectiveStatus?.programs ?? [];
+  const showRunningPanel = portalSourceOnly || !hideCardDock;
 
   const portfolioAdminView = useMemo(
     () =>
@@ -402,7 +402,7 @@ export default function LiveTradingTab({
     if (programs.length === 0) return ko.app.liveTradeListEmpty;
     const running = programs
       .map((p) => {
-        const hc = status?.programReturns?.[p.id]?.holdingCount ?? 0;
+        const hc = effectiveStatus?.programReturns?.[p.id]?.holdingCount ?? 0;
         const st = programDisplayStatus(p, hc);
         if (st === "armed" || st === "sim") {
           return `${p.name} ${statusLabel(st)}`;
@@ -416,7 +416,7 @@ export default function LiveTradingTab({
       return `${programs.length}개 · ${head}${more}`;
     }
     return `${programs.length}개`;
-  }, [programs, status?.programReturns]);
+  }, [programs, effectiveStatus?.programReturns]);
 
   const resetForm = useCallback(() => {
     setEditingId(null);
@@ -677,7 +677,7 @@ export default function LiveTradingTab({
   const showCardDock = portalSourceOnly || !hideCardDock;
 
   return (
-    <LiveTradeFeeRatesProvider feeRates={status?.feeRates}>
+    <LiveTradeFeeRatesProvider feeRates={effectiveStatus?.feeRates}>
     <div
       className={
         portalSourceOnly
@@ -743,10 +743,10 @@ export default function LiveTradingTab({
               ) : null}
             </div>
           ) : null}
-          {!portalSourceOnly ? (
+          {showRunningPanel ? (
             <>
               <LiveSimRunningPanel
-                programs={simPrograms}
+                programs={programs}
                 busy={busy}
                 refreshKey={portfolioRefreshKey}
                 adminViewUserId={adminReadOnly ? adminViewUserId : null}
@@ -756,9 +756,11 @@ export default function LiveTradingTab({
                 onProgramUpdated={() => void reload()}
                 onOpenHoldingChart={onOpenHoldingChart}
               />
-              <LiveTradeTradesHistoryPanel
-                adminViewUserId={adminReadOnly ? adminViewUserId : null}
-              />
+              {!portalSourceOnly ? (
+                <LiveTradeTradesHistoryPanel
+                  adminViewUserId={adminReadOnly ? adminViewUserId : null}
+                />
+              ) : null}
             </>
           ) : null}
 
@@ -1143,13 +1145,15 @@ export default function LiveTradingTab({
           sidePanelId="programs"
         >
           <div className="live-trading-tab__list-body">
-          {programs.length === 0 ? (
+          {!effectiveStatus && user ? (
+            <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
+          ) : programs.length === 0 ? (
             <p className="live-trading-tab__empty">{ko.app.liveTradeListEmpty}</p>
           ) : (
             <ul className="live-trading-tab__programs">
               {programs.map((p) => {
                 const model = modelById.get(p.modelId);
-                const ret = status?.programReturns?.[p.id];
+                const ret = effectiveStatus?.programReturns?.[p.id];
                 const holdingCount = ret?.holdingCount ?? 0;
                 const displayStatus = programDisplayStatus(p, holdingCount);
                 const returnPct = ret?.totalReturnPct;

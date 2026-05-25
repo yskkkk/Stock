@@ -10147,8 +10147,32 @@ html[data-theme="light"] .app-live-trade-side-dock__auth-popover::after {
   align-self: flex-start;
 }
 
+/* 도크 포털: 카드 헤더(레일과 중복)만 숨기고 본문·실행 패널은 유지 */
 .live-trading-panel--dock-portals {
-  display: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.live-trading-panel--dock-portals .live-trading-tab__card-dock {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.app-live-trade-side-dock__host
+  .live-trading-tab__card-tabs-host
+  .live-trading-tab__list-body {
+  flex: 1 1 auto;
+  min-height: min(10rem, 38dvh);
 }
 
 .app-dock-rail-panel--bithumb .bithumb-account-rail-wrap__head,
