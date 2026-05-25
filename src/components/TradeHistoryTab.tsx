@@ -1,50 +1,34 @@
-import { useState } from "react";
-import { LiveTradeExchangePicker } from "./LiveTradeExchangePicker";
-import LiveTradeTradesHistoryPanel from "./LiveTradeTradesHistoryPanel";
-import { BithumbBrandMark, TossBrandMark } from "./ExchangeBrandMarks";
-import { ko } from "../i18n/ko";
+import { useEffect, useState } from "react";
+import LiveAccountTradesMainPanel from "./LiveAccountTradesMainPanel";
+import {
+  LIVE_TRADE_DOCK_ACCOUNT_PROVIDER_EVENT,
+  readDockAccountProvider,
+  readDockAccountProviderEvent,
+} from "../lib/liveTradeDockAccount";
 import type { LiveTradeTradesExchange } from "../lib/liveTradeTradesWorkspace";
 
+/** 상단 «거래내역» — 우측 계좌에서 선택한 거래소 체결 */
 export default function TradeHistoryTab() {
-  const [exchange, setExchange] = useState<LiveTradeTradesExchange | null>(null);
+  const [exchange, setExchange] = useState<LiveTradeTradesExchange>(
+    readDockAccountProvider,
+  );
+
+  useEffect(() => {
+    const onProvider = (e: Event) => {
+      const p = readDockAccountProviderEvent(e);
+      if (p === "bithumb" || p === "toss") setExchange(p);
+    };
+    window.addEventListener(LIVE_TRADE_DOCK_ACCOUNT_PROVIDER_EVENT, onProvider);
+    return () =>
+      window.removeEventListener(
+        LIVE_TRADE_DOCK_ACCOUNT_PROVIDER_EVENT,
+        onProvider,
+      );
+  }, []);
 
   return (
     <div className="workspace trade-history-workspace">
-      <section className="trade-history-workspace__panel card">
-        {exchange == null ? (
-          <LiveTradeExchangePicker onSelect={setExchange} />
-        ) : (
-          <>
-            <header className="trade-history-workspace__head">
-              <button
-                type="button"
-                className="live-trade-trades-workspace__back"
-                onClick={() => setExchange(null)}
-              >
-                {ko.app.liveTradeTradesWorkspaceBack}
-              </button>
-              <div className="live-trade-trades-workspace__title-row">
-                {exchange === "toss" ? (
-                  <TossBrandMark className="live-trade-trades-workspace__mark" />
-                ) : (
-                  <BithumbBrandMark className="live-trade-trades-workspace__mark" />
-                )}
-                <h2 className="live-trade-trades-workspace__title">
-                  {exchange === "toss"
-                    ? ko.app.liveTradeTossShort
-                    : ko.app.liveTradeBithumbShort}{" "}
-                  · {ko.app.liveTradePfTabTrades}
-                </h2>
-              </div>
-            </header>
-            <LiveTradeTradesHistoryPanel
-              exchange={exchange}
-              loadAll
-              workspaceMode
-            />
-          </>
-        )}
-      </section>
+      <LiveAccountTradesMainPanel exchange={exchange} />
     </div>
   );
 }

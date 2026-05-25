@@ -57,6 +57,10 @@ import RecommendationsTab from "./components/RecommendationsTab";
 import TradeHistoryTab from "./components/TradeHistoryTab";
 import LiveAccountTradesMainPanel from "./components/LiveAccountTradesMainPanel";
 import {
+  LIVE_TRADE_DOCK_ACCOUNT_PROVIDER_EVENT,
+  readDockAccountProviderEvent,
+} from "./lib/liveTradeDockAccount";
+import {
   LIVE_TRADE_TRADES_WORKSPACE_EVENT,
   readLiveTradeTradesWorkspaceEvent,
   type LiveTradeTradesExchange,
@@ -216,6 +220,23 @@ export default function App() {
       window.removeEventListener(
         LIVE_TRADE_TRADES_WORKSPACE_EVENT,
         onTradesWorkspace,
+      );
+  }, []);
+
+  useEffect(() => {
+    const onAccountProvider = (e: Event) => {
+      const p = readDockAccountProviderEvent(e);
+      if (p !== "bithumb" && p !== "toss") return;
+      setAccountTradesExchange((cur) => (cur != null ? p : cur));
+    };
+    window.addEventListener(
+      LIVE_TRADE_DOCK_ACCOUNT_PROVIDER_EVENT,
+      onAccountProvider,
+    );
+    return () =>
+      window.removeEventListener(
+        LIVE_TRADE_DOCK_ACCOUNT_PROVIDER_EVENT,
+        onAccountProvider,
       );
   }, []);
 

@@ -64,7 +64,6 @@ function DockLinkedAccountsPanelInner() {
   const selectProvider = useCallback((next: LinkedProvider) => {
     setProvider(next);
     dispatchDockAccountProvider(next);
-    dispatchLiveTradeTradesWorkspace(null);
   }, []);
 
   const applyView = useCallback((view?: LiveTradeDockAccountView) => {
