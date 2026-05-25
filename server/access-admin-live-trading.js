@@ -1,3 +1,4 @@
+import { buildLiveTradeHistoryPayload } from "./live-trade-history.js";
 import { getProgramArmedMarkets } from "./live-trade-arm-gate.js";
 import {
   buildLiveTradePortfolioSnapshot,
@@ -116,6 +117,30 @@ export function registerAccessAdminLiveTradingRoute(app, requireAdmin) {
           return;
         }
         const payload = await buildAdminLiveTradingUserStatusPayload(userId);
+        res.json(payload);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        res.status(500).json({ error: msg });
+      }
+    },
+  );
+
+  app.get(
+    "/api/access/admin/live-trading/trades/history",
+    requireAdmin,
+    async (req, res) => {
+      try {
+        const userId = String(req.query?.userId ?? "").trim();
+        if (!userId) {
+          res.status(400).json({ error: "userId required" });
+          return;
+        }
+        const endDay = String(req.query?.endDay ?? "").trim() || undefined;
+        const days = req.query?.days;
+        const payload = buildLiveTradeHistoryPayload(userId, {
+          endDay,
+          days: days != null ? Number(days) : 1,
+        });
         res.json(payload);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);

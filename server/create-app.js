@@ -129,6 +129,7 @@ import {
   ensureLiveTradeExitScenarioMigratedOnce,
   ensureLiveTradeSellSettingsMigratedOnce,
 } from "./live-trade-settings-migrate.js";
+import { buildLiveTradeHistoryPayload } from "./live-trade-history.js";
 import {
   buildLiveTradePortfolioSnapshot,
   buildProgramPortfolioSummariesMap,
@@ -794,6 +795,20 @@ export function createApp() {
         maxAgeMs: 0,
       });
       res.json({ quotes, interval: "1m", updatedAtMs: Date.now() });
+    }),
+  );
+
+  app.get(
+    "/api/live-trading/trades/history",
+    requireUserAuth,
+    asyncRoute(async (req, res) => {
+      const endDay = String(req.query?.endDay ?? "").trim() || undefined;
+      const days = req.query?.days;
+      const payload = buildLiveTradeHistoryPayload(req.user.id, {
+        endDay,
+        days: days != null ? Number(days) : 1,
+      });
+      res.json(payload);
     }),
   );
 

@@ -78,6 +78,11 @@ export const ko = {
     liveTradeExitIfFailure: "실패 시",
     liveTradeExitWhy: "가격 설정 근거",
     liveTradeSimRunRecentTrades: "최근 체결",
+    liveTradeAllTradesTitle: "체결 내역",
+    liveTradeAllTradesSub:
+      "오늘(KST) 체결부터 표시합니다. 아래로 스크롤하면 이전 일자를 이어서 불러옵니다.",
+    liveTradeAllTradesLoadingMore: "이전 일자 불러오는 중…",
+    liveTradeAllTradesEnd: "더 이전 내역이 없습니다.",
     liveTradePfNoTrades: "거래 내역이 없습니다.",
     liveTradePfColTime: "시각",
     liveTradePfColSide: "구분",

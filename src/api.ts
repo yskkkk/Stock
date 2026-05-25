@@ -1323,6 +1323,52 @@ export interface LiveTradePortfolioResponse {
   trades: LiveTradeRecord[];
 }
 
+export interface LiveTradeHistoryResponse {
+  trades: LiveTradeRecord[];
+  rangeStartDay: string;
+  rangeEndDay: string;
+  hasOlder: boolean;
+  nextOlderEndDay: string | null;
+  fetchedAtMs: number;
+}
+
+export function fetchLiveTradingTradeHistory(opts?: {
+  endDay?: string | null;
+  days?: number;
+}) {
+  const params = new URLSearchParams();
+  const endDay = String(opts?.endDay ?? "").trim();
+  if (endDay) params.set("endDay", endDay);
+  if (opts?.days != null) params.set("days", String(opts.days));
+  const q = params.toString() ? `?${params}` : "";
+  return fetchJson<LiveTradeHistoryResponse>(
+    `/api/live-trading/trades/history${q}`,
+    { cache: "no-store" },
+  );
+}
+
+export function fetchAccessAdminLiveTradingTradeHistory(
+  adminToken: string,
+  userId: string,
+  opts?: { endDay?: string | null; days?: number },
+) {
+  const params = new URLSearchParams();
+  params.set("userId", userId.trim());
+  const endDay = String(opts?.endDay ?? "").trim();
+  if (endDay) params.set("endDay", endDay);
+  if (opts?.days != null) params.set("days", String(opts.days));
+  const headers: Record<string, string> = {};
+  const t = adminToken.trim();
+  if (t) headers.Authorization = `Bearer ${t}`;
+  return fetchJson<LiveTradeHistoryResponse>(
+    `/api/access/admin/live-trading/trades/history?${params}`,
+    {
+      headers: Object.keys(headers).length ? headers : undefined,
+      cache: "no-store",
+    },
+  );
+}
+
 export function fetchLiveTradingPortfolio(
   programId?: string | null,
   opts?: { exchangeSync?: boolean },

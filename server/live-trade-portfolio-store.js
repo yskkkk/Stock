@@ -157,7 +157,7 @@ function enrichCryptoDisplayName(symbol, name, market) {
 }
 
 /** @param {LiveTradeRecord[]} trades */
-function enrichPortfolioTradeNames(trades) {
+export function enrichPortfolioTradeNames(trades) {
   return trades.map((t) => ({
     ...t,
     name: enrichCryptoDisplayName(t.symbol, t.name, t.market),

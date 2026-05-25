@@ -24,6 +24,7 @@ import {
   type TechModelRecord,
 } from "../api";
 import LiveSimRunningPanel from "./LiveSimRunningPanel";
+import LiveTradeTradesHistoryPanel from "./LiveTradeTradesHistoryPanel";
 import LiveTradeRegisteredProgramCard from "./LiveTradeRegisteredProgramCard";
 import LiveSimRecommendationsPanel, {
   type LiveSimDraftPatch,
@@ -743,17 +744,22 @@ export default function LiveTradingTab({
             </div>
           ) : null}
           {!portalSourceOnly ? (
-          <LiveSimRunningPanel
-            programs={simPrograms}
-            busy={busy}
-            refreshKey={portfolioRefreshKey}
-            adminViewUserId={adminReadOnly ? adminViewUserId : null}
-            readOnly={adminReadOnly}
-            onStop={(id) => void handleSimStop(id)}
-            onDisarm={(id) => void handleDisarm(id)}
-            onProgramUpdated={() => void reload()}
-            onOpenHoldingChart={onOpenHoldingChart}
-          />
+            <>
+              <LiveSimRunningPanel
+                programs={simPrograms}
+                busy={busy}
+                refreshKey={portfolioRefreshKey}
+                adminViewUserId={adminReadOnly ? adminViewUserId : null}
+                readOnly={adminReadOnly}
+                onStop={(id) => void handleSimStop(id)}
+                onDisarm={(id) => void handleDisarm(id)}
+                onProgramUpdated={() => void reload()}
+                onOpenHoldingChart={onOpenHoldingChart}
+              />
+              <LiveTradeTradesHistoryPanel
+                adminViewUserId={adminReadOnly ? adminViewUserId : null}
+              />
+            </>
           ) : null}
 
           {showCardDock ? (
