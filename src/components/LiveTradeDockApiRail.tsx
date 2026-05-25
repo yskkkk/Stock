@@ -15,6 +15,7 @@ import {
   LiveTradeExchangeApiPanel,
   type LiveTradeExchangeApiKind,
 } from "./LiveTradeExchangeApiPanel";
+import { BithumbBrandMark, TossBrandMark } from "./ExchangeBrandMarks";
 
 const API_POPOVER_GAP_PX = 9;
 
@@ -33,27 +34,13 @@ function ExchangeBrandMark({
   exchange: LiveTradeExchangeApiKind;
   ready: boolean;
 }) {
-  const src =
-    exchange === "toss" ? "/branding/toss-mark.svg" : "/branding/bithumb-mark.svg";
-  const label =
-    exchange === "toss"
-      ? ko.app.liveTradeSideDockRailTossApi
-      : ko.app.liveTradeSideDockRailBithumbApi;
-  return (
-    <img
-      className={
-        ready
-          ? "app-live-trade-side-dock__exchange-mark"
-          : "app-live-trade-side-dock__exchange-mark app-live-trade-side-dock__exchange-mark--muted"
-      }
-      src={src}
-      alt=""
-      width={20}
-      height={20}
-      decoding="async"
-      aria-hidden
-      title={label}
-    />
+  const className = ready
+    ? "app-live-trade-side-dock__exchange-mark"
+    : "app-live-trade-side-dock__exchange-mark app-live-trade-side-dock__exchange-mark--muted";
+  return exchange === "toss" ? (
+    <TossBrandMark className={className} />
+  ) : (
+    <BithumbBrandMark className={className} />
   );
 }
 
