@@ -675,6 +675,48 @@ export default function LiveTradingTab({
   );
 
   const showCardDock = portalSourceOnly || !hideCardDock;
+  /** 도크가 카드 행을 가져가도 실매매 탭 본문에 등록 프로그램 전체 목록 유지 */
+  const showMainProgramsList = Boolean(user && !portalSourceOnly && hideCardDock);
+
+  const programsListContent = (
+    <>
+      {!effectiveStatus && user ? (
+        <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
+      ) : programs.length === 0 ? (
+        <p className="live-trading-tab__empty">{ko.app.liveTradeListEmpty}</p>
+      ) : (
+        <ul className="live-trading-tab__programs">
+          {programs.map((p) => {
+            const model = modelById.get(p.modelId);
+            const ret = effectiveStatus?.programReturns?.[p.id];
+            const holdingCount = ret?.holdingCount ?? 0;
+            const displayStatus = programDisplayStatus(p, holdingCount);
+            const returnPct = ret?.totalReturnPct;
+            return (
+              <li key={p.id}>
+                <LiveTradeRegisteredProgramCard
+                  program={p}
+                  model={model}
+                  displayStatus={displayStatus}
+                  returnPct={returnPct}
+                  holdingCount={holdingCount}
+                  busy={busy}
+                  showArmLaneButton={(lane) => showArmLaneButton(p, lane)}
+                  onSimStop={() => void handleSimStop(p.id)}
+                  onDisarm={() => void handleDisarm(p.id)}
+                  onSimStart={() => void handleSimStart(p.id)}
+                  onArmLane={(lane) => void handleArmLane(p.id, lane)}
+                  onEdit={() => loadProgramToForm(p)}
+                  onDelete={() => void handleDelete(p.id, p.name)}
+                  readOnly={adminReadOnly}
+                />
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </>
+  );
 
   return (
     <LiveTradeFeeRatesProvider feeRates={effectiveStatus?.feeRates}>
@@ -743,7 +785,7 @@ export default function LiveTradingTab({
               ) : null}
             </div>
           ) : null}
-          {showRunningPanel ? (
+          {showRunningPanel && !portalSourceOnly ? (
             <>
               <LiveSimRunningPanel
                 programs={programs}
@@ -756,12 +798,27 @@ export default function LiveTradingTab({
                 onProgramUpdated={() => void reload()}
                 onOpenHoldingChart={onOpenHoldingChart}
               />
-              {!portalSourceOnly ? (
-                <LiveTradeTradesHistoryPanel
-                  adminViewUserId={adminReadOnly ? adminViewUserId : null}
-                />
-              ) : null}
+              <LiveTradeTradesHistoryPanel
+                adminViewUserId={adminReadOnly ? adminViewUserId : null}
+              />
             </>
+          ) : null}
+
+          {showMainProgramsList ? (
+            <section
+              className="live-trading-tab__list live-trading-tab__list--main-expanded card"
+              aria-label={ko.app.liveTradeListTitle}
+            >
+              <header className="live-trading-tab__list-main-head">
+                <h3 className="live-trading-tab__section-title">
+                  {ko.app.liveTradeListTitle}
+                </h3>
+                <p className="live-trading-tab__list-main-summary">
+                  {programsListSummary}
+                </p>
+              </header>
+              <div className="live-trading-tab__list-body">{programsListContent}</div>
+            </section>
           ) : null}
 
           {showCardDock ? (
@@ -1144,43 +1201,7 @@ export default function LiveTradingTab({
           ariaLabel={ko.app.liveTradeListTitle}
           sidePanelId="programs"
         >
-          <div className="live-trading-tab__list-body">
-          {!effectiveStatus && user ? (
-            <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
-          ) : programs.length === 0 ? (
-            <p className="live-trading-tab__empty">{ko.app.liveTradeListEmpty}</p>
-          ) : (
-            <ul className="live-trading-tab__programs">
-              {programs.map((p) => {
-                const model = modelById.get(p.modelId);
-                const ret = effectiveStatus?.programReturns?.[p.id];
-                const holdingCount = ret?.holdingCount ?? 0;
-                const displayStatus = programDisplayStatus(p, holdingCount);
-                const returnPct = ret?.totalReturnPct;
-                return (
-                  <li key={p.id}>
-                    <LiveTradeRegisteredProgramCard
-                      program={p}
-                      model={model}
-                      displayStatus={displayStatus}
-                      returnPct={returnPct}
-                      holdingCount={holdingCount}
-                      busy={busy}
-                      showArmLaneButton={(lane) => showArmLaneButton(p, lane)}
-                      onSimStop={() => void handleSimStop(p.id)}
-                      onDisarm={() => void handleDisarm(p.id)}
-                      onSimStart={() => void handleSimStart(p.id)}
-                      onArmLane={(lane) => void handleArmLane(p.id, lane)}
-                      onEdit={() => loadProgramToForm(p)}
-                      onDelete={() => void handleDelete(p.id, p.name)}
-                      readOnly={adminReadOnly}
-                    />
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          </div>
+          <div className="live-trading-tab__list-body">{programsListContent}</div>
         </LiveTradeCollapsibleCard>
               </div>
             </LiveTradeCardWorkspace>

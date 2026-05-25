@@ -2404,6 +2404,34 @@ html[data-theme="light"]
   scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
 }
 
+/* 데스크톱 도크 사용 시 실매매 탭 본문 — 등록 프로그램 전체 목록 */
+.live-trading-tab__list--main-expanded {
+  margin-top: 0.5rem;
+  overflow: visible;
+}
+
+.live-trading-tab__list-main-head {
+  padding: 0.85rem 1rem 0.55rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
+}
+
+.live-trading-tab__list-main-head .live-trading-tab__section-title {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.live-trading-tab__list-main-summary {
+  margin: 0.28rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.live-trading-tab__list--main-expanded .live-trading-tab__list-body {
+  max-height: min(48vh, 560px);
+}
+
 .live-trading-tab__list-body::-webkit-scrollbar {
   width: 6px;
 }
