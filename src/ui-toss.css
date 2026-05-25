@@ -2108,6 +2108,17 @@ html[data-theme="light"]
   background: transparent;
 }
 
+.live-trade-dock-ys-head--exchange {
+  justify-content: flex-start;
+}
+
+.live-trade-dock-ys-head__exchange-mark {
+  display: block;
+  width: 1.5rem;
+  height: 1.5rem;
+  object-fit: contain;
+}
+
 .live-trade-dock-ys-head__brand {
   display: flex;
   align-items: center;

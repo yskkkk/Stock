@@ -204,6 +204,7 @@ export default function LiveTradeDockApiRail({
         onMouseDown={(ev) => ev.stopPropagation()}
       >
         <LiveTradeDockYsHead
+          exchange={open}
           ariaLabel={open === "toss" ? ko.app.liveTradeTossTitle : ko.app.liveTradeBithumbTitle}
         />
         <LiveTradeExchangeApiPanel
