@@ -44,8 +44,11 @@ function mergeTrades(
 
 export default function LiveTradeTradesHistoryPanel({
   adminViewUserId = null,
+  embedded = false,
 }: {
   adminViewUserId?: string | null;
+  /** 도크 «등록 프로그램» 패널 안에 삽입 */
+  embedded?: boolean;
 }) {
   const [trades, setTrades] = useState<LiveTradeRecord[]>([]);
   const [nextOlderEndDay, setNextOlderEndDay] = useState<string | null>(null);
@@ -127,10 +130,17 @@ export default function LiveTradeTradesHistoryPanel({
   }, [trades]);
 
   return (
-    <section className="live-trade-history card" aria-labelledby="live-trade-history-title">
+    <section
+      className={
+        embedded
+          ? "live-trade-history live-trade-history--embedded"
+          : "live-trade-history card"
+      }
+      aria-labelledby="live-trade-history-title"
+    >
       <header className="live-trade-history__head">
         <h3 id="live-trade-history-title" className="live-trade-history__title">
-          {ko.app.liveTradeAllTradesTitle}
+          {embedded ? ko.app.liveTradePfTabTradesDock : ko.app.liveTradeAllTradesTitle}
         </h3>
         <p className="live-trade-history__sub">{ko.app.liveTradeAllTradesSub}</p>
       </header>

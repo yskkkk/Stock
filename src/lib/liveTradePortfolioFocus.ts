@@ -14,6 +14,10 @@ export type LiveTradePortfolioFocus = {
 export const LIVE_TRADE_PORTFOLIO_PANEL_TAB_EVENT =
   "ystock-live-trade-portfolio-panel-tab";
 
+/** 우측 레일 «프로그램» — 거래내역 없이 목록만 */
+export const LIVE_TRADE_DOCK_PROGRAMS_PLAIN_EVENT =
+  "ystock-live-trade-dock-programs-plain";
+
 const PENDING_KEY = "ystock-live-trade-portfolio-focus";
 
 export const LIVE_TRADE_PORTFOLIO_FOCUS_EVENT = "ystock-live-trade-portfolio-focus";
@@ -75,4 +79,9 @@ export function dispatchLiveTradePortfolioPanelTab(
       { detail: tab },
     ),
   );
+}
+
+export function dispatchLiveTradeDockProgramsPlain(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(LIVE_TRADE_DOCK_PROGRAMS_PLAIN_EVENT));
 }

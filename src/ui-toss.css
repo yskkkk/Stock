@@ -3406,6 +3406,34 @@ html[data-theme="light"]
   overscroll-behavior: contain;
 }
 
+.live-trading-tab__list-body--dock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-height: 0;
+}
+
+.live-trade-history--embedded {
+  margin-top: 0.35rem;
+  padding: 0.65rem 0 0;
+  border-top: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
+}
+
+.live-trade-history--embedded .live-trade-history__scroll {
+  max-height: min(52vh, 28rem);
+}
+
+.live-trade-history--embedded .live-trade-history__title {
+  font-size: 0.95rem;
+}
+
+.live-portfolio__dock-trades-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+
 .live-trade-history__sentinel {
   height: 1px;
   pointer-events: none;

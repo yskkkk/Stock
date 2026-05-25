@@ -37,10 +37,16 @@ import {
   useLiveTradingStatusPoll,
 } from "../hooks/useLiveTradingStatusPoll";
 import { LIVE_TRADE_DOCK_OPEN_FORM_EVENT } from "../lib/liveTradeDockEvents";
+import {
+  LIVE_TRADE_DOCK_PROGRAMS_PLAIN_EVENT,
+  LIVE_TRADE_PORTFOLIO_PANEL_TAB_EVENT,
+  type LiveTradePortfolioPanelTab,
+} from "../lib/liveTradePortfolioFocus";
 import { invalidateLiveTradingPrefetch, peekLiveTradingPrefetch } from "../lib/tabPrefetch";
 import { formatPercent } from "../lib/format";
 import DockPanelCenterLoading from "./DockPanelCenterLoading";
 import LiveTradeAuthPanel, {
+  defaultLiveTradeSideTabTitles,
   LiveTradeCardSidePanelInline,
   LiveTradeCollapsibleCard,
   notifyLiveTradeAuthChange,
@@ -252,6 +258,8 @@ export default function LiveTradingTab({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState(emptyDraft);
   const [portfolioRefreshKey, setPortfolioRefreshKey] = useState(0);
+  const [dockTradeHistoryInPrograms, setDockTradeHistoryInPrograms] =
+    useState(false);
   const sidePanel = useLiveTradeCardSidePanelOptional();
   const polledStatus = useLiveTradingStatusPoll();
   const adminViewUserId = adminView?.userId?.trim() || null;
@@ -262,6 +270,36 @@ export default function LiveTradingTab({
       user?.id &&
       user.id !== adminViewUserId,
   );
+
+  useEffect(() => {
+    if (!portalSourceOnly || !sidePanel?.openPanel) return;
+    const titles = defaultLiveTradeSideTabTitles();
+    const onPanelTab = (e: Event) => {
+      const tab = (e as CustomEvent<LiveTradePortfolioPanelTab>).detail;
+      if (tab === "trades") {
+        setDockTradeHistoryInPrograms(true);
+        sidePanel.openPanel(
+          "programs",
+          titles.programs ?? ko.app.liveTradeListTitle,
+        );
+        return;
+      }
+      if (tab === "trade") {
+        setDockTradeHistoryInPrograms(false);
+        sidePanel.openPanel(
+          "portfolio",
+          titles.portfolio ?? ko.app.liveTradePfTitle,
+        );
+      }
+    };
+    const onProgramsPlain = () => setDockTradeHistoryInPrograms(false);
+    window.addEventListener(LIVE_TRADE_PORTFOLIO_PANEL_TAB_EVENT, onPanelTab);
+    window.addEventListener(LIVE_TRADE_DOCK_PROGRAMS_PLAIN_EVENT, onProgramsPlain);
+    return () => {
+      window.removeEventListener(LIVE_TRADE_PORTFOLIO_PANEL_TAB_EVENT, onPanelTab);
+      window.removeEventListener(LIVE_TRADE_DOCK_PROGRAMS_PLAIN_EVENT, onProgramsPlain);
+    };
+  }, [portalSourceOnly, sidePanel]);
 
   const reload = useCallback(async (userOverride?: AuthUser | null) => {
     const activeUser = userOverride !== undefined ? userOverride : user;
@@ -1221,7 +1259,15 @@ export default function LiveTradingTab({
           ariaLabel={ko.app.liveTradeListTitle}
           sidePanelId="programs"
         >
-          <div className="live-trading-tab__list-body">{programsListContent}</div>
+          <div className="live-trading-tab__list-body live-trading-tab__list-body--dock">
+            {programsListContent}
+            {portalSourceOnly && dockTradeHistoryInPrograms ? (
+              <LiveTradeTradesHistoryPanel
+                embedded
+                adminViewUserId={adminReadOnly ? adminViewUserId : null}
+              />
+            ) : null}
+          </div>
         </LiveTradeCollapsibleCard>
               </div>
             </LiveTradeCardWorkspace>

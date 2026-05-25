@@ -16,6 +16,7 @@ import {
 import {
   consumePendingLiveTradePortfolioFocus,
   LIVE_TRADE_PORTFOLIO_FOCUS_EVENT,
+  dispatchLiveTradePortfolioPanelTab,
   LIVE_TRADE_PORTFOLIO_PANEL_TAB_EVENT,
   type LiveTradePortfolioFocus,
   type LiveTradePortfolioPanelTab,
@@ -772,6 +773,9 @@ export default function LiveTradePortfolioPanel({
                 onClick={() => {
                   setPinnedTab(id);
                   setHoverTab(null);
+                  if (selfOnly && (id === "trade" || id === "trades")) {
+                    dispatchLiveTradePortfolioPanelTab(id);
+                  }
                 }}
               >
                 {label}
@@ -871,7 +875,7 @@ export default function LiveTradePortfolioPanel({
             />
           ) : null}
 
-          {viewTab === "trades" ? (
+          {viewTab === "trades" && !selfOnly ? (
             data.trades.length === 0 ? (
               <>
                 <p className="live-portfolio__exchange-note">
@@ -996,6 +1000,12 @@ export default function LiveTradePortfolioPanel({
               </div>
               </>
             )
+          ) : null}
+
+          {viewTab === "trades" && selfOnly ? (
+            <p className="live-portfolio__dock-trades-hint" role="status">
+              {ko.app.liveTradePfTradesDockHint}
+            </p>
           ) : null}
 
           {data.updatedAtMs && viewTab !== "summary" ? (

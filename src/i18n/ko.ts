@@ -116,6 +116,8 @@ export const ko = {
     liveTradePfTabHoldings: "보유 종목",
     liveTradePfTabTrades: "거래 내역",
     liveTradePfTabTradesDock: "거래내역",
+    liveTradePfTradesDockHint:
+      "거래내역은 왼쪽 «등록 프로그램» 패널에 표시됩니다.",
     liveTradePfColProgram: "프로그램",
     liveTradeSimTag: "시뮬",
     liveTradeSimNoProgram: "프로그램을 선택하세요.",

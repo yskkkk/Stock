@@ -35,6 +35,7 @@ import {
   dispatchLiveTradeDockOpenForm,
 } from "../lib/liveTradeDockEvents";
 import {
+  dispatchLiveTradeDockProgramsPlain,
   dispatchLiveTradePortfolioPanelTab,
   LIVE_TRADE_DOCK_OPEN_PORTFOLIO_EVENT,
 } from "../lib/liveTradePortfolioFocus";
@@ -468,6 +469,8 @@ export default function AppLiveTradeSideDock({
       }
       if (id === "portfolio") {
         dispatchLiveTradePortfolioPanelTab("trade");
+      } else if (id === "programs") {
+        dispatchLiveTradeDockProgramsPlain();
       }
       openPanel(id, title);
       if (!openRef.current) {
