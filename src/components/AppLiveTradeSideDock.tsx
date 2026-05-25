@@ -297,7 +297,7 @@ function railTabShort(
   id: string,
   title: string,
   loggedIn: boolean,
-): { glyph: ReactNode; label: string } {
+): { glyph: ReactNode; label: string; subLabel?: string; stacked?: boolean } {
   if (id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth) {
     return {
       glyph: "◎",
@@ -316,7 +316,12 @@ function railTabShort(
     return { glyph: <DockRailBanknoteIcon />, label: ko.app.liveTradeLeftRailTitle };
   }
   if (id === "portfolio") {
-    return { glyph: "₩", label: ko.app.liveTradeSideDockRailPortfolio };
+    return {
+      glyph: "₩",
+      label: ko.app.liveTradeSideDockRailPortfolio,
+      subLabel: ko.app.liveTradeDockRailPortfolioTrades,
+      stacked: true,
+    };
   }
   if (id === "form") {
     return { glyph: <DockRailWebsiteIcon />, label: ko.app.liveTradeSideDockRailForm };
@@ -468,7 +473,7 @@ export default function AppLiveTradeSideDock({
         dispatchLiveTradeDockOpenForm();
       }
       if (id === "portfolio") {
-        dispatchLiveTradePortfolioPanelTab("trade");
+        dispatchLiveTradePortfolioPanelTab("trades");
       } else if (id === "programs") {
         dispatchLiveTradeDockProgramsPlain();
       }
@@ -772,7 +777,11 @@ export default function AppLiveTradeSideDock({
         {railTabs.map((tab) => {
           const selected = open && activeId === tab.id;
           const isBithumb = tab.id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb;
-          const { glyph, label } = railTabShort(tab.id, tab.title, Boolean(user));
+          const { glyph, label, subLabel, stacked } = railTabShort(
+            tab.id,
+            tab.title,
+            Boolean(user),
+          );
           return (
             <button
               key={tab.id}
@@ -800,13 +809,28 @@ export default function AppLiveTradeSideDock({
                 {glyph}
               </span>
               <span
-                className={
+                className={[
+                  "app-live-trade-side-dock__rail-label",
                   isBithumb
-                    ? "app-live-trade-side-dock__rail-label app-live-trade-side-dock__rail-label--accounts"
-                    : "app-live-trade-side-dock__rail-label"
-                }
+                    ? "app-live-trade-side-dock__rail-label--accounts"
+                    : "",
+                  stacked ? "app-live-trade-side-dock__rail-label--stacked" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
               >
-                {label}
+                {stacked && subLabel ? (
+                  <>
+                    <span className="app-live-trade-side-dock__rail-label-main">
+                      {label}
+                    </span>
+                    <span className="app-live-trade-side-dock__rail-label-sub">
+                      {subLabel}
+                    </span>
+                  </>
+                ) : (
+                  label
+                )}
               </span>
             </button>
           );

@@ -1,12 +1,15 @@
-import { memo } from "react";
+import { memo, useState } from "react";
 import type { TossTradingStatus } from "../api";
 import { useBithumbAccountSnapshot } from "../hooks/useBithumbAccountSnapshot";
 import { useLiveTradingStatusPoll } from "../hooks/useLiveTradingStatusPoll";
 import BithumbAccountSnapshotCard from "./BithumbAccountSnapshotCard";
 import BithumbAccountTitle from "./BithumbAccountTitle";
 import DockPanelCenterLoading from "./DockPanelCenterLoading";
+import LiveTradeTradesHistoryPanel from "./LiveTradeTradesHistoryPanel";
 import { TossBrandMark } from "./ExchangeBrandMarks";
 import { ko } from "../i18n/ko";
+
+type BithumbAccountSubTab = "balance" | "trades";
 
 function BithumbLinkedAccountSection({
   onOpenLiveTrading,
@@ -15,10 +18,12 @@ function BithumbLinkedAccountSection({
 }) {
   const { authChecked, user, snapshot, feeLabelKo, updatedAtMs, loading, err } =
     useBithumbAccountSnapshot();
+  const [subTab, setSubTab] = useState<BithumbAccountSubTab>("balance");
 
   if (authChecked && !user) return null;
 
   const pending = !authChecked || loading;
+  const canShowTrades = Boolean(user) && !pending;
 
   return (
     <section
@@ -37,20 +42,66 @@ function BithumbLinkedAccountSection({
           <BithumbAccountTitle />
         </button>
       </div>
-      {pending ? (
-        <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
-      ) : !snapshot ? (
-        <p className="dock-linked-accounts__hint">
-          {err ?? ko.app.leftRailBithumbAccountNeedKeys}
-        </p>
-      ) : (
-        <BithumbAccountSnapshotCard
-          snapshot={snapshot}
-          feeLabelKo={feeLabelKo}
-          updatedAtMs={updatedAtMs}
-          variant="inline"
-        />
-      )}
+      {canShowTrades ? (
+        <div
+          className="dock-linked-accounts__subtabs"
+          role="tablist"
+          aria-label={ko.app.leftRailBithumbAccountAria}
+        >
+          <button
+            type="button"
+            role="tab"
+            className={
+              subTab === "balance"
+                ? "dock-linked-accounts__subtab dock-linked-accounts__subtab--on"
+                : "dock-linked-accounts__subtab"
+            }
+            aria-selected={subTab === "balance"}
+            onClick={() => setSubTab("balance")}
+          >
+            {ko.app.liveTradeDockAccountTabBalance}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className={
+              subTab === "trades"
+                ? "dock-linked-accounts__subtab dock-linked-accounts__subtab--on"
+                : "dock-linked-accounts__subtab"
+            }
+            aria-selected={subTab === "trades"}
+            onClick={() => setSubTab("trades")}
+          >
+            {ko.app.liveTradeDockAccountTabTrades}
+          </button>
+        </div>
+      ) : null}
+      <div
+        className="dock-linked-accounts__body"
+        role="tabpanel"
+        aria-label={
+          subTab === "trades"
+            ? ko.app.liveTradeDockAccountTabTrades
+            : ko.app.liveTradeDockAccountTabBalance
+        }
+      >
+        {pending ? (
+          <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
+        ) : subTab === "trades" ? (
+          <LiveTradeTradesHistoryPanel embedded />
+        ) : !snapshot ? (
+          <p className="dock-linked-accounts__hint">
+            {err ?? ko.app.leftRailBithumbAccountNeedKeys}
+          </p>
+        ) : (
+          <BithumbAccountSnapshotCard
+            snapshot={snapshot}
+            feeLabelKo={feeLabelKo}
+            updatedAtMs={updatedAtMs}
+            variant="inline"
+          />
+        )}
+      </div>
     </section>
   );
 }

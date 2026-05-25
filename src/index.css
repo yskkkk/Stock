@@ -10307,6 +10307,47 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   min-width: 0;
 }
 
+.dock-linked-accounts__subtabs {
+  display: flex;
+  gap: 0.28rem;
+  margin: 0 0 0.45rem;
+  padding: 0.2rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--card-border) 28%, transparent);
+}
+
+.dock-linked-accounts__subtab {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0.32rem 0.45rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.dock-linked-accounts__subtab--on {
+  background: var(--card-bg);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.dock-linked-accounts__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dock-linked-accounts__body .live-trade-history--embedded {
+  flex: 1 1 auto;
+  min-height: 12rem;
+  max-height: min(52vh, 420px);
+}
+
 .dock-linked-accounts__title--brand {
   display: inline-flex;
   align-items: center;
