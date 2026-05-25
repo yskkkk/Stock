@@ -4281,6 +4281,15 @@ html[data-theme="light"] .live-portfolio__trade-quote-strip {
   background: color-mix(in srgb, var(--card) 88%, var(--accent, #5eead4) 3%);
 }
 
+.live-trading-tab__card-tabs-host .live-portfolio__panel,
+.live-trading-tab__card-tabs-host .live-portfolio__panel--in-card {
+  background: transparent;
+}
+
+.live-trading-tab__card-tabs-host .live-portfolio--sim-like.live-portfolio--collapsible {
+  background: transparent;
+}
+
 .live-portfolio__tabs {
   display: flex;
   flex-wrap: nowrap;

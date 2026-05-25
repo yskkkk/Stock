@@ -97,12 +97,17 @@ html[data-theme="light"] .live-trading-tab__rec {
   border-color: color-mix(in srgb, #22c55e 22%, rgba(15, 23, 42, 0.08));
 }
 
-html[data-theme="light"] .live-portfolio__panel {
+html[data-theme="light"] .live-portfolio__panel:not(.live-portfolio__panel--in-card) {
   background: linear-gradient(
     180deg,
     color-mix(in srgb, var(--card) 98%, white) 0%,
     color-mix(in srgb, var(--surface) 92%, white) 100%
   );
+}
+
+/* 도크·카드 탭 안 보유·프로그램 필터 — 본문 띠만 투명(도크 패널 카드색 유지) */
+html[data-theme="light"] .live-portfolio__panel--in-card {
+  background: transparent;
 }
 
 html[data-theme="light"] .live-portfolio__metric,
