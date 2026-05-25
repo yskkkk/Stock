@@ -115,11 +115,31 @@ export function collectBoxRangeDetectedListSync() {
   };
 }
 
-export function buildBoxRangeCatalogListEmailContent() {
+export function buildBoxRangeCatalogListEmailContent(scanMeta = null) {
   const data = collectBoxRangeDetectedListSync();
   const now = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
   const subject = `[YSTOCK] 박스권 탐지 목록 — ${data.stats.catalogBoxes}개 박스 · ${now}`;
 
+  let scanBlock = "";
+  if (scanMeta?.universe) {
+    const u = scanMeta.universe;
+    const s = scanMeta.scan ?? {};
+    const elapsed =
+      typeof s.elapsedMs === "number"
+        ? `${Math.round(s.elapsedMs / 1000)}초`
+        : "—";
+    scanBlock = `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+전체 스캔
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+· 스캔 범위: 국내 ${u.kr}종목 · S&P500 ${u.us}종목
+· KR 스캔: ${s.kr ? `ok ${s.kr.ok} / err ${s.kr.errors} / 박스있음 ${s.kr.withBoxes ?? "?"} / total ${s.kr.scanned}` : "—"}
+· US 스캔: ${s.us ? `ok ${s.us.ok} / err ${s.us.errors} / 박스있음 ${s.us.withBoxes ?? "?"} / total ${s.us.scanned}` : "—"}
+· 소요: ${elapsed}
+· 참고: Yahoo KR 스크리너 미응답 시 universe-kr.json(${u.kr}종)만 사용 — 앱 표기 「국내 300」과 차이 가능
+
+`;
+  }
   const catalogLines = [];
   for (const row of data.catalog) {
     const mkt = row.market === "kr" ? "국내" : "S&P500";
@@ -142,7 +162,7 @@ export function buildBoxRangeCatalogListEmailContent() {
           .join("\n");
 
   const text = `YSTOCK 박스권 탐지 목록 (${now})
-
+${scanBlock}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 요약
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -228,7 +248,9 @@ export async function sendBoxRangeCatalogListEmail(opts = {}) {
     err.code = "EMAIL_NOT_CONFIGURED";
     throw err;
   }
-  const { subject, text, html, data } = buildBoxRangeCatalogListEmailContent();
+  const { subject, text, html, data } = buildBoxRangeCatalogListEmailContent(
+    opts.scanMeta ?? null,
+  );
   if (dryRun) {
     return { to, dryRun: true, subject, stats: data.stats };
   }

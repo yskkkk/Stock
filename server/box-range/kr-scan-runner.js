@@ -1,8 +1,6 @@
 import { loadUniverse } from "../universe.js";
-import { loadStock } from "../stock-data.js";
-import { BOX_RANGE_KR_SCAN_MS, BOX_RANGE_TIMEFRAMES } from "./constants.js";
-import { detectBoxRangesProOnCandles } from "./detect-pro.js";
-import { upsertSymbolCatalogDetectionsSync } from "./catalog-store.js";
+import { BOX_RANGE_KR_SCAN_MS } from "./constants.js";
+import { scanOneSymbolCatalog } from "./catalog-scan-shared.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "../live-trade-log.js";
 
 const BATCH_SIZE = (() => {
@@ -15,66 +13,6 @@ const BATCH_DELAY_MS = (() => {
   return Number.isFinite(n) && n >= 0 ? Math.min(n, 5_000) : 300;
 })();
 
-function normalizeTime(t) {
-  if (Number.isFinite(t)) return t;
-  if (t && typeof t === "object" && t.year) {
-    return Math.floor(Date.UTC(t.year, t.month - 1, t.day) / 1000) - 9 * 3600;
-  }
-  return null;
-}
-
-/**
- * @param {string} symbol
- * @param {"1h"|"4h"|"1d"} timeframe
- */
-async function loadCandles(symbol, timeframe) {
-  const data = await loadStock(symbol, timeframe, { live: true });
-  const candles = Array.isArray(data?.candles) ? data.candles : [];
-  return candles
-    .map((c) => {
-      if (!c) return null;
-      const time = normalizeTime(c.time);
-      if (time == null || !Number.isFinite(c.high) || !Number.isFinite(c.low)) {
-        return null;
-      }
-      return { ...c, time };
-    })
-    .filter(Boolean);
-}
-
-/**
- * @param {{ symbol: string; name: string }} item
- */
-async function scanOneSymbol(item) {
-  const sym = String(item.symbol ?? "").trim().toUpperCase();
-  if (!sym) return { ok: false };
-  /** @type {Partial<Record<"1h"|"4h"|"1d", import("./detect-pro.js").DetectedBox[]>>} */
-  const byTf = {};
-  let scanError = null;
-  try {
-    for (const tf of BOX_RANGE_TIMEFRAMES) {
-      const candles = await loadCandles(sym, tf);
-      if (candles.length < 20) {
-        byTf[tf] = [];
-        continue;
-      }
-      byTf[tf] = detectBoxRangesProOnCandles(candles, tf, 5);
-    }
-    upsertSymbolCatalogDetectionsSync(sym, item.name ?? sym, byTf, null, "kr");
-    return { ok: true, symbol: sym };
-  } catch (e) {
-    scanError = e instanceof Error ? e.message : String(e);
-    upsertSymbolCatalogDetectionsSync(
-      sym,
-      item.name ?? sym,
-      {},
-      scanError,
-      "kr",
-    );
-    return { ok: false, symbol: sym, error: scanError };
-  }
-}
-
 function delay(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -84,27 +22,36 @@ export async function runKrBoxRangeCatalogScan() {
   const list = Array.isArray(uni?.kr) ? uni.kr : [];
   if (!list.length) {
     liveTradeLogWarn("[box-range:kr-scan] universe.kr empty");
-    return { scanned: 0, errors: 0 };
+    return { scanned: 0, errors: 0, ok: 0, withBoxes: 0 };
   }
 
   let ok = 0;
   let errors = 0;
+  let withBoxes = 0;
   liveTradeLogInfo("[box-range:kr-scan] start", list.length, "symbols");
 
   for (let i = 0; i < list.length; i += BATCH_SIZE) {
     const batch = list.slice(i, i + BATCH_SIZE);
-    const results = await Promise.all(batch.map((item) => scanOneSymbol(item)));
+    const results = await Promise.all(
+      batch.map((item) => scanOneSymbolCatalog(item, "kr")),
+    );
     for (const r of results) {
       if (r.ok) ok += 1;
       else errors += 1;
+      if (r.boxes > 0) withBoxes += 1;
     }
     if (i + BATCH_SIZE < list.length && BATCH_DELAY_MS > 0) {
       await delay(BATCH_DELAY_MS);
     }
   }
 
-  liveTradeLogInfo("[box-range:kr-scan] done", { ok, errors, total: list.length });
-  return { scanned: list.length, ok, errors };
+  liveTradeLogInfo("[box-range:kr-scan] done", {
+    ok,
+    errors,
+    withBoxes,
+    total: list.length,
+  });
+  return { scanned: list.length, ok, errors, withBoxes };
 }
 
 export function startKrBoxRangeCatalogPoller() {
