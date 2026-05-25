@@ -5,7 +5,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { fileURLToPath } from "node:url";
 import { getTechModelByIdSync } from "./picks-tech-models-store.js";
 import { programHasOnlySimulatedBuyTradesSync } from "./live-trade-portfolio-store.js";
 import {
@@ -31,9 +30,11 @@ export const LIVE_TRADE_CANONICAL_SELL_SETTINGS = {
   stopLossPct: -3,
 };
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = path.join(__dirname, ".data");
-const PROGRAMS_FILE = path.join(DATA_DIR, "live-trade-programs.json");
+import { resolveServerDataDir } from "./data-path.js";
+
+function programsFilePath() {
+  return path.join(resolveServerDataDir(), "live-trade-programs.json");
+}
 
 /** 실매매·시뮬 — 모델 가중 점수 최소 비율(만점 대비) 기본값 */
 export const LIVE_TRADE_DEFAULT_MIN_SCORE_RATIO = 0.8;
@@ -75,7 +76,8 @@ export function normalizeProgramOwnerEmail(email) {
 }
 
 function ensureDirSync() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  const dir = resolveServerDataDir();
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
 
 /** @returns {{ programs: LiveTradeProgram[] }} */
@@ -86,8 +88,9 @@ function defaultStore() {
 /** @returns {{ programs: LiveTradeProgram[] }} */
 function readStoreSync() {
   try {
-    if (!fs.existsSync(PROGRAMS_FILE)) return defaultStore();
-    const o = JSON.parse(fs.readFileSync(PROGRAMS_FILE, "utf8"));
+    const file = programsFilePath();
+    if (!fs.existsSync(file)) return defaultStore();
+    const o = JSON.parse(fs.readFileSync(file, "utf8"));
     if (!o || typeof o !== "object" || !Array.isArray(o.programs)) return defaultStore();
     return { programs: o.programs.map(normalizeProgram).filter(Boolean) };
   } catch {
@@ -105,9 +108,10 @@ export function writeProgramsStoreSync(store) {
 
 function writeStoreSync(store) {
   ensureDirSync();
-  const tmp = `${PROGRAMS_FILE}.tmp`;
+  const file = programsFilePath();
+  const tmp = `${file}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(store, null, 0), "utf8");
-  fs.renameSync(tmp, PROGRAMS_FILE);
+  fs.renameSync(tmp, file);
 }
 
 /** @param {unknown} v @param {number} min @param {number} max @param {number} fallback */

@@ -4,7 +4,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { fileURLToPath } from "node:url";
 import { fetchQuoteSnapshotsForSymbols } from "./picks-live-quotes.js";
 import { pickQuoteFromMap } from "./quote-symbol-resolve.js";
 import { resolveLiveTradeQuote } from "./live-trade-quote.js";
@@ -27,9 +26,11 @@ import {
   assertMinCryptoOrderAmountKrw,
 } from "./live-trade-market.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = path.join(__dirname, ".data");
-const PORTFOLIO_FILE = path.join(DATA_DIR, "live-trade-portfolio.json");
+import { resolveServerDataDir } from "./data-path.js";
+
+function portfolioFilePath() {
+  return path.join(resolveServerDataDir(), "live-trade-portfolio.json");
+}
 
 /** 레거시 기본 편도 수수료 */
 const DEFAULT_ONE_WAY_FEE_RATE = DEFAULT_ROUND_TRIP_FEE_RATE / 2;
@@ -64,7 +65,8 @@ const DEFAULT_ONE_WAY_FEE_RATE = DEFAULT_ROUND_TRIP_FEE_RATE / 2;
  */
 
 function ensureDirSync() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  const dir = resolveServerDataDir();
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
 
 function defaultStore() {
@@ -119,8 +121,9 @@ export function programHasOnlySimulatedBuyTradesSync(programId) {
 
 export function readStoreSync() {
   try {
-    if (!fs.existsSync(PORTFOLIO_FILE)) return defaultStore();
-    const o = JSON.parse(fs.readFileSync(PORTFOLIO_FILE, "utf8"));
+    const file = portfolioFilePath();
+    if (!fs.existsSync(file)) return defaultStore();
+    const o = JSON.parse(fs.readFileSync(file, "utf8"));
     if (!o || typeof o !== "object" || !Array.isArray(o.trades)) return defaultStore();
     return { trades: o.trades.map(normalizeTrade).filter(Boolean) };
   } catch {
@@ -138,9 +141,10 @@ export function writePortfolioStoreSync(store) {
 
 function writeStoreSync(store) {
   ensureDirSync();
-  const tmp = `${PORTFOLIO_FILE}.tmp`;
+  const file = portfolioFilePath();
+  const tmp = `${file}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(store, null, 0), "utf8");
-  fs.renameSync(tmp, PORTFOLIO_FILE);
+  fs.renameSync(tmp, file);
 }
 
 /**
