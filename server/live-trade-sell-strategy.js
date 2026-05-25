@@ -12,6 +12,16 @@ export const SELL_HORIZON_LABELS = {
   long: "장기",
 };
 
+/** 5분봉 RSI·MACD 등 기술 청산 최소 순수익(%, 왕복 수수료 반영) */
+export const SHORT_MIN_TECH_EXIT_NET_PCT = 1.0;
+
+/** 순수익 구간별 고점 대비 트레일링 허용 하락(%) — 높은 순수익일수록 여유 */
+export const SHORT_TRAILING_STEPS = [
+  { minNetPct: 10, dropFromHighPct: 3 },
+  { minNetPct: 6, dropFromHighPct: 2 },
+  { minNetPct: 3, dropFromHighPct: 1.2 },
+];
+
 /**
  * @param {unknown} v
  * @returns {LiveTradeSellHorizon}
@@ -80,6 +90,77 @@ function macdLine(closes) {
  * @param {unknown[]} candles
  * @param {number} lookback
  */
+/**
+ * @param {unknown[]} candles
+ * @param {number} period
+ */
+function atr14FromCandles(candles, period = 14) {
+  if (!candles?.length || candles.length < period + 1) return null;
+  const trs = [];
+  for (let i = 1; i < candles.length; i++) {
+    const c = candles[i];
+    const prev = candles[i - 1];
+    const h = Number(c?.high ?? c?.close);
+    const l = Number(c?.low ?? c?.close);
+    const pc = Number(prev?.close);
+    if (!Number.isFinite(h) || !Number.isFinite(l) || !Number.isFinite(pc)) continue;
+    trs.push(Math.max(h - l, Math.abs(h - pc), Math.abs(l - pc)));
+  }
+  if (trs.length < period) return null;
+  const slice = trs.slice(-period);
+  return slice.reduce((a, b) => a + b, 0) / slice.length;
+}
+
+/**
+ * @param {number} netPct
+ * @returns {{ minNetPct: number; dropFromHighPct: number } | null}
+ */
+export function resolveShortTrailingStep(netPct) {
+  for (const step of SHORT_TRAILING_STEPS) {
+    if (netPct >= step.minNetPct) return step;
+  }
+  return null;
+}
+
+/**
+ * @param {{
+ *   avgEntryPrice: number;
+ *   stopLossPrice?: number | null;
+ * }} pos
+ * @param {unknown[]} candles
+ * @param {{ roundTripFeeRate?: number }} ctx
+ */
+export function computeShortTermTechnicalStopLoss(pos, candles, ctx = {}) {
+  if (pos.stopLossPrice != null && Number.isFinite(pos.stopLossPrice)) {
+    return pos.stopLossPrice;
+  }
+  const entry = Number(pos.avgEntryPrice);
+  if (!Number.isFinite(entry) || entry <= 0) return null;
+
+  const fee = ctx.roundTripFeeRate ?? DEFAULT_ROUND_TRIP_FEE_RATE;
+  const swing = recentSwingLow(candles, 12);
+  const atr = atr14FromCandles(candles, 14);
+
+  /** @type {number[]} */
+  const candidates = [];
+  if (swing != null && swing < entry) candidates.push(swing * 0.996);
+  if (atr != null && atr > 0) {
+    const atrStop = entry - atr * 1.35;
+    if (atrStop > 0 && atrStop < entry) candidates.push(atrStop);
+  }
+  if (!candidates.length) {
+    const fallbackNetPct = -2.5;
+    const mult = (1 + fallbackNetPct / 100) / (1 - fee);
+    const px = entry * mult;
+    return px > 0 ? px : null;
+  }
+  return Math.max(...candidates);
+}
+
+function passesShortTechnicalExitNetGate(netPct) {
+  return netPct >= SHORT_MIN_TECH_EXIT_NET_PCT;
+}
+
 function recentSwingLow(candles, lookback = 12) {
   if (!candles?.length) return null;
   const slice = candles.slice(-lookback - 1, -1);
@@ -158,9 +239,21 @@ function buildStaticTargetHit(pos, currentPrice) {
  * @param {{ roundTripFeeRate?: number }} ctx
  */
 function evaluateShortTermSell(pos, currentPrice, candles, ctx) {
-  const staticHit = buildStaticTargetHit(pos, currentPrice);
+  const technicalStop = computeShortTermTechnicalStopLoss(pos, candles, ctx);
+  const posForExit = {
+    ...pos,
+    stopLossPrice: technicalStop ?? pos.stopLossPrice ?? null,
+  };
+  const staticHit = buildStaticTargetHit(posForExit, currentPrice);
   if (staticHit) {
-    return finalizeHit(staticHit, "short", staticHit.note.includes("손절") ? "stop_loss" : "take_profit");
+    const signal = staticHit.note.includes("손절") ? "stop_loss" : "take_profit";
+    if (signal === "stop_loss") {
+      console.warn(
+        "[live-trade-sell:short] 손절 발동",
+        { price: currentPrice, stop: posForExit.stopLossPrice, note: staticHit.note },
+      );
+    }
+    return finalizeHit(staticHit, "short", signal);
   }
 
   const entry = Number(pos.avgEntryPrice);
@@ -188,6 +281,22 @@ function evaluateShortTermSell(pos, currentPrice, candles, ctx) {
   const i = closes.length - 1;
   if (i < 20) return null;
 
+  const sessionHighEarly = maxHighSince(candles, boughtAtMs);
+  const trailStepEarly = resolveShortTrailingStep(netPct);
+  if (sessionHighEarly != null && trailStepEarly) {
+    const dropPctEarly = ((sessionHighEarly - currentPrice) / sessionHighEarly) * 100;
+    if (dropPctEarly >= trailStepEarly.dropFromHighPct) {
+      return finalizeHit(
+        {
+          price: currentPrice,
+          note: `익절 트레일링 (순수익 ${netPct.toFixed(1)}%≥${trailStepEarly.minNetPct}% · 고점 대비 -${dropPctEarly.toFixed(1)}%≥${trailStepEarly.dropFromHighPct}%)`,
+        },
+        "short",
+        "trailing_take",
+      );
+    }
+  }
+
   const rsi14 = rsi(closes, 14);
   const r0 = rsi14[i];
   const r1 = rsi14[i - 1];
@@ -199,12 +308,12 @@ function evaluateShortTermSell(pos, currentPrice, candles, ctx) {
     r2 >= 68 &&
     r1 > r0 &&
     r1 >= 65 &&
-    netPct > 0.2
+    passesShortTechnicalExitNetGate(netPct)
   ) {
     return finalizeHit(
       {
         price: currentPrice,
-        note: `RSI 과매수 후 하락 (5분 RSI ${r2.toFixed(0)}→${r0.toFixed(0)}, 수익 ${netPct.toFixed(1)}%)`,
+        note: `RSI 과매수 후 하락 (5분 RSI ${r2.toFixed(0)}→${r0.toFixed(0)}, 순수익 ${netPct.toFixed(1)}%)`,
       },
       "short",
       "rsi_exhaustion",
@@ -222,12 +331,12 @@ function evaluateShortTermSell(pos, currentPrice, candles, ctx) {
     m1 > 0 &&
     m0 < m1 &&
     m1 > m2 &&
-    netPct > -0.5
+    passesShortTechnicalExitNetGate(netPct)
   ) {
     return finalizeHit(
       {
         price: currentPrice,
-        note: `MACD 하락 전환 (5분, 수익 ${netPct.toFixed(1)}%)`,
+        note: `MACD 하락 전환 (5분, 순수익 ${netPct.toFixed(1)}%)`,
       },
       "short",
       "macd_roll",
@@ -235,34 +344,19 @@ function evaluateShortTermSell(pos, currentPrice, candles, ctx) {
   }
 
   const swingLow = recentSwingLow(candles, 12);
-  if (swingLow != null && currentPrice < swingLow * 0.998 && netPct < 1.5) {
+  if (
+    swingLow != null &&
+    currentPrice < swingLow * 0.998 &&
+    (passesShortTechnicalExitNetGate(netPct) || netPct < 0)
+  ) {
     return finalizeHit(
       {
         price: currentPrice,
-        note: `5분봉 단기 지지 이탈 (저점 ${Math.round(swingLow).toLocaleString("ko-KR")})`,
+        note: `5분봉 단기 지지 이탈 (저점 ${Math.round(swingLow).toLocaleString("ko-KR")}, 순수익 ${netPct.toFixed(1)}%)`,
       },
       "short",
       "swing_low_break",
     );
-  }
-
-  const sessionHigh = maxHighSince(candles, boughtAtMs);
-  if (
-    sessionHigh != null &&
-    netPct >= 1.5 &&
-    currentPrice <= sessionHigh * 0.99
-  ) {
-    const trailPct = ((sessionHigh - currentPrice) / sessionHigh) * 100;
-    if (trailPct >= 1) {
-      return finalizeHit(
-        {
-          price: currentPrice,
-          note: `익절 트레일링 (고점 대비 -${trailPct.toFixed(1)}%, 순수익 ${netPct.toFixed(1)}%)`,
-        },
-        "short",
-        "trailing_take",
-      );
-    }
   }
 
   const last = candles[candles.length - 1];
@@ -274,7 +368,7 @@ function evaluateShortTermSell(pos, currentPrice, candles, ctx) {
     Number(prev?.close) < Number(prev?.open);
   if (
     red2 &&
-    netPct > 0.5 &&
+    passesShortTechnicalExitNetGate(netPct) &&
     Number.isFinite(vol) &&
     Number.isFinite(prevVol) &&
     vol > prevVol * 1.3

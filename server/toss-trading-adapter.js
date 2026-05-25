@@ -3,10 +3,45 @@
  * 공식 스펙 반영 전까지는 연결 검증·주문 스텁.
  */
 import { normalizeLiveTradeMarket, programAllowsMarket } from "./live-trade-market.js";
+import { getProgramArmedMarkets } from "./live-trade-arm-gate.js";
 import {
   meetsTelegramNotifyScore,
   resolvePickWeightedScoreBreakdown,
 } from "./technical.js";
+
+/** 국내 주식 실매매 자동매도 파이프라인 지원 여부 */
+export const KR_LIVE_AUTO_SELL_SUPPORTED = false;
+
+/**
+ * 국내 실매매 매수·매도 상호 잠금 — 자동매도 미지원/비활성 시 armed KR 매수 차단
+ * @param {import("./live-trade-programs-store.js").LiveTradeProgram} program
+ */
+export function assertKrLiveBuyAutoSellInterlock(program) {
+  const armed = getProgramArmedMarkets(program);
+  if (!armed.kr || program?.status !== "armed") return null;
+
+  const autoSellOn = program.autoSellAtTarget !== false;
+  if (!autoSellOn) {
+    const reason = "자동 매도가 꺼져 있어 국내 실매매 매수를 차단했습니다.";
+    console.warn("[toss-trading] KR live buy interlock:", program.name ?? program.id, {
+      armedKr: true,
+      autoSellOn: false,
+      krAutoSellSupported: KR_LIVE_AUTO_SELL_SUPPORTED,
+    });
+    return { code: "KR_AUTO_SELL_INTERLOCK", message: reason };
+  }
+  if (!KR_LIVE_AUTO_SELL_SUPPORTED) {
+    const reason =
+      "국내 주식 실매매 자동매도가 아직 지원되지 않아 매수를 차단했습니다. (운영 실수 방지 인터록)";
+    console.warn("[toss-trading] KR live buy interlock:", program.name ?? program.id, {
+      armedKr: true,
+      autoSellOn: true,
+      krAutoSellSupported: false,
+    });
+    return { code: "KR_AUTO_SELL_INTERLOCK", message: reason };
+  }
+  return null;
+}
 
 /** @typedef {"unconfigured" | "configured" | "ready"} TossApiPhase */
 
@@ -92,6 +127,11 @@ export async function executeLiveBuyOrder(program, pick) {
   const status = getTossTradingStatus();
   if (!status.ready) {
     return { ok: false, error: status.messageKo };
+  }
+
+  const interlock = assertKrLiveBuyAutoSellInterlock(program);
+  if (interlock) {
+    return { ok: false, success: false, error: interlock.message, code: interlock.code };
   }
 
   const symbol = String(pick.symbol ?? "").trim();

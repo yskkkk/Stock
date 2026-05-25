@@ -12,6 +12,15 @@ import {
 } from "./live-trade-market.js";
 import { usdtSymbolToBithumbBase } from "./bithumb-krw.js";
 import { pickMeetsProgramThreshold } from "./toss-trading-adapter.js";
+import {
+  collectBidLevelsFromOrderbookUnits,
+  estimateMarketSellAvgFillPrice,
+  fetchBithumbOrderbook,
+  sellSlippagePctFromBestBid,
+} from "./bithumb-orderbook.js";
+
+/** 시장가 매도 허용 최대 슬리피지(최우선 매수호가 대비, %) */
+export const BITHUMB_MARKET_SELL_MAX_SLIPPAGE_PCT = 2.0;
 
 /** @typedef {"unconfigured" | "configured" | "ready"} BithumbApiPhase */
 
@@ -318,16 +327,109 @@ export async function executeBithumbLiveBuyOrder(program, pick, options = {}) {
  * @param {{ market: string; volume: number }} input
  * @param {{ credentials?: BithumbCredentials | null }} [options]
  */
+/**
+ * 시장가 매도 전 호가 깊이·슬리피지 검사
+ * @param {string} market
+ * @param {number} volume
+ * @param {BithumbCredentials | null | undefined} credentials
+ */
+export async function checkBithumbMarketSellSlippage(market, volume, credentials) {
+  const mk = String(market ?? "").trim();
+  const vol = Number(volume);
+  if (!mk || !Number.isFinite(vol) || vol <= 0) {
+    return { ok: false, error: "매도 수량이 올바르지 않습니다." };
+  }
+  try {
+    const apiBase = String(credentials?.apiBaseUrl ?? bithumbApiBase()).replace(/\/$/, "");
+    const book = await fetchBithumbOrderbook(mk, apiBase);
+    const bidLevels = collectBidLevelsFromOrderbookUnits(book.orderbook_units);
+    const est = estimateMarketSellAvgFillPrice(bidLevels, vol);
+    if (!est.ok || est.avgPrice == null || est.bestBid == null) {
+      console.warn("[bithumb-trading] 매도 호가 깊이 부족:", mk, {
+        volume: vol,
+        reason: est.reason,
+        filled: est.filled,
+        remaining: est.remaining,
+        levels: bidLevels.length,
+      });
+      return {
+        ok: false,
+        success: false,
+        error: "INSUFFICIENT_ORDERBOOK_DEPTH",
+        slippagePct: null,
+        bestBid: est.bestBid,
+        expectedAvgPrice: est.avgPrice,
+      };
+    }
+    const slippagePct = sellSlippagePctFromBestBid(est.bestBid, est.avgPrice);
+    if (slippagePct == null) {
+      return {
+        ok: false,
+        success: false,
+        error: "SLIPPAGE_CHECK_FAILED",
+        slippagePct: null,
+        bestBid: est.bestBid,
+        expectedAvgPrice: est.avgPrice,
+      };
+    }
+    if (slippagePct > BITHUMB_MARKET_SELL_MAX_SLIPPAGE_PCT) {
+      console.warn("[bithumb-trading] 시장가 매도 슬리피지 초과 — 주문 보류:", mk, {
+        volume: vol,
+        bestBid: est.bestBid,
+        expectedAvgPrice: est.avgPrice,
+        slippagePct: slippagePct.toFixed(3),
+        maxPct: BITHUMB_MARKET_SELL_MAX_SLIPPAGE_PCT,
+      });
+      return {
+        ok: false,
+        success: false,
+        error: "SLIPPAGE_TOO_HIGH",
+        slippagePct,
+        bestBid: est.bestBid,
+        expectedAvgPrice: est.avgPrice,
+      };
+    }
+    console.info("[bithumb-trading] 시장가 매도 슬리피지 OK:", mk, {
+      volume: vol,
+      bestBid: est.bestBid,
+      expectedAvgPrice: est.avgPrice,
+      slippagePct: slippagePct.toFixed(3),
+    });
+    return {
+      ok: true,
+      slippagePct,
+      bestBid: est.bestBid,
+      expectedAvgPrice: est.avgPrice,
+    };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.warn("[bithumb-trading] 호가 조회 실패 — 매도 보류:", mk, msg);
+    return { ok: false, success: false, error: "ORDERBOOK_FETCH_FAILED", detail: msg };
+  }
+}
+
 export async function executeBithumbLiveSellOrder(input, options = {}) {
   const credentials = options.credentials ?? envCredentials();
   const status = getBithumbTradingStatusFromCredentials(credentials);
   if (!status.ready) {
-    return { ok: false, error: status.messageKo };
+    return { ok: false, success: false, error: status.messageKo };
   }
   const market = String(input.market ?? "").trim();
   const volume = Number(input.volume);
   if (!market || !Number.isFinite(volume) || volume <= 0) {
-    return { ok: false, error: "매도 수량이 올바르지 않습니다." };
+    return { ok: false, success: false, error: "매도 수량이 올바르지 않습니다." };
+  }
+
+  const slip = await checkBithumbMarketSellSlippage(market, volume, credentials);
+  if (!slip.ok) {
+    return {
+      ok: false,
+      success: false,
+      error: slip.error ?? "SLIPPAGE_TOO_HIGH",
+      slippagePct: slip.slippagePct ?? null,
+      bestBid: slip.bestBid ?? null,
+      expectedAvgPrice: slip.expectedAvgPrice ?? null,
+    };
   }
 
   try {
