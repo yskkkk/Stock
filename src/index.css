@@ -3322,9 +3322,58 @@ button.chip.chip--on,
   background: rgba(148, 163, 184, 0.14);
 }
 .access-admin-body--feedback,
-.access-admin-body--telegram {
+.access-admin-body--telegram,
+.access-admin-body--live-trade {
   max-height: min(70vh, 520px);
   overflow: auto;
+}
+.access-admin-live-trade-summary {
+  margin: 0 0 0.75rem;
+}
+.access-admin-live-trade-list {
+  max-height: min(52vh, 420px);
+}
+.access-admin-live-trade-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.access-admin-live-trade-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+}
+.access-admin-live-trade-badge--armed {
+  background: color-mix(in srgb, var(--accent, #0d9488) 22%, transparent);
+  color: var(--text, #e2e8f0);
+}
+.access-admin-live-trade-badge--sim {
+  background: color-mix(in srgb, var(--warn, #f59e0b) 22%, transparent);
+  color: var(--text, #e2e8f0);
+}
+.access-admin-live-trade-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 0.35rem 0.75rem;
+  margin: 0;
+  font-size: 0.8rem;
+}
+.access-admin-live-trade-meta dt {
+  margin: 0;
+  color: var(--text-muted, #94a3b8);
+  font-weight: 500;
+}
+.access-admin-live-trade-meta dd {
+  margin: 0.1rem 0 0;
+}
+.access-admin-live-trade-lanes {
+  margin: 0;
+  font-size: 0.78rem;
+}
+.access-admin-live-trade-error {
+  margin: 0;
+  font-size: 0.8rem;
 }
 .access-admin-feedback-list {
   list-style: none;

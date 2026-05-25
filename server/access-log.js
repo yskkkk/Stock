@@ -146,6 +146,8 @@ function humanAction(req) {
   if (method === "GET" && path === "/api/access/status") return "IP 접근 상태 조회";
   if (method === "POST" && path === "/api/access/request") return "IP 접근 신청";
   if (method === "GET" && path === "/api/access/admin/requests") return "접근 관리 목록 조회";
+  if (method === "GET" && path === "/api/access/admin/live-trading/running")
+    return "실매매·시뮬 가동 프로그램 조회(관리자)";
   if (method === "POST" && path === "/api/access/admin/approve") return "접근 신청 승인";
   if (method === "POST" && path === "/api/access/admin/reject") return "접근 신청 거절";
   if (method === "POST" && path === "/api/access/admin/revoke") return "허용 IP 취소";

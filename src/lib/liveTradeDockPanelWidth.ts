@@ -33,6 +33,36 @@ export function clampDockPanelWidthPx(
   return Math.round(Math.min(max, Math.max(min, px)));
 }
 
+/** 우측 레일 너비(px) — 드래그·닫기 판별과 CSS `--live-trade-dock-rail-width`와 맞춤 */
+export function dockRailWidthPx(): number {
+  return Math.round(RAIL_REM * rootFontPx());
+}
+
+/** 드래그 중 너비 — 0~max(최소 rem 클램프 없음, 닫기·스냅 판별용) */
+export function dockPanelWidthDragPx(
+  px: number,
+  viewportWidth?: number,
+): number {
+  const root = rootFontPx();
+  const vw = viewportWidth ?? (typeof window !== "undefined" ? window.innerWidth : 1280);
+  const totalCap = Math.min(MAX_DOCK_TOTAL_REM * root, 0.42 * vw);
+  const max = Math.max(0, totalCap - RAIL_REM * root);
+  return Math.round(Math.min(max, Math.max(0, px)));
+}
+
+/** 닫힌 상태에서 핸들 드래그 — 포인터 X ~ 뷰포트 오른(레일 제외) */
+export function dockPanelWidthFromExpandPointerRaw(
+  clientX: number,
+  viewportWidth?: number,
+): number {
+  const vw = viewportWidth ?? (typeof window !== "undefined" ? window.innerWidth : 1280);
+  return vw - clientX - dockRailWidthPx();
+}
+
+export function dockPanelWidthFromExpandPointer(clientX: number): number {
+  return dockPanelWidthDragPx(dockPanelWidthFromExpandPointerRaw(clientX));
+}
+
 /** 저장값이 기본 대비 지나치게 좁으면 무시(과거 최소 14rem·오동작 저장 복구) */
 export function isDockPanelWidthPrefUsable(
   px: number,

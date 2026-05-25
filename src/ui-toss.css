@@ -1561,9 +1561,9 @@ html[data-theme="dark"] .live-trading-tab__cred-toolbar {
   min-width: 12rem;
   margin: 0;
   padding: 0.55rem 0.7rem;
-  border-radius: var(--radius-sm, 6px);
-  border: 1px solid var(--card-border, rgba(148, 163, 184, 0.18));
-  background: var(--bg-elevated, rgba(15, 23, 42, 0.04));
+  border-radius: 0;
+  border: none;
+  background: transparent;
   font-size: 0.76rem;
   line-height: 1.45;
 }
@@ -2038,8 +2038,13 @@ html[data-theme="dark"] .live-trade-api-card__body .live-trading-tab__cred-form 
   justify-content: space-between;
   gap: 0.5rem;
   padding: 0.55rem 0.65rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 80%, transparent);
-  background: color-mix(in srgb, var(--card-bg) 94%, var(--surface-2));
+  border-bottom: none;
+  background: transparent;
+}
+
+.live-trading-tab__card-tabs-rail-brand.brand-mark {
+  background: transparent;
+  box-shadow: none;
 }
 
 .live-trading-tab__card-tabs-rail-title {

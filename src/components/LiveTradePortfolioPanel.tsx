@@ -415,7 +415,9 @@ export default function LiveTradePortfolioPanel({
     async (snap: LiveTradePortfolioResponse) => {
       const syms = [
         ...new Set(
-          snap.holdings.map((h) => h.symbol.trim().toUpperCase()).filter(Boolean),
+          snap.holdings
+            .map((h) => String(h.symbol ?? "").trim().toUpperCase())
+            .filter(Boolean),
         ),
       ];
       let merged = snap;

@@ -1616,6 +1616,45 @@ export function fetchAccessAdminRequests(adminToken: string) {
   });
 }
 
+export interface AccessAdminLiveTradeProgram {
+  id: string;
+  name: string;
+  status: "armed" | "sim";
+  userId: string | null;
+  modelId: string;
+  markets: { kr: boolean; us: boolean; crypto: boolean };
+  armedMarkets: { kr: boolean; crypto: boolean };
+  minScoreRatio: number;
+  maxOpenPositions: number;
+  orderAmountKrw: number | null;
+  orderAmountUsd: number | null;
+  armedAtMs: number | null;
+  lastRunAtMs: number | null;
+  lastError: string | null;
+  updatedAtMs: number;
+}
+
+export interface AccessAdminLiveTradingRunningResponse {
+  programs: AccessAdminLiveTradeProgram[];
+  armedCount: number;
+  simCount: number;
+  totalPrograms: number;
+  fetchedAtMs: number;
+}
+
+export function fetchAccessAdminLiveTradingRunning(adminToken: string) {
+  const headers: Record<string, string> = {};
+  const t = adminToken.trim();
+  if (t) headers.Authorization = `Bearer ${t}`;
+  return fetchJson<AccessAdminLiveTradingRunningResponse>(
+    "/api/access/admin/live-trading/running",
+    {
+      headers: Object.keys(headers).length ? headers : undefined,
+      cache: "no-store",
+    },
+  );
+}
+
 function accessAdminPostHeaders(adminToken: string): Record<string, string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   const t = adminToken.trim();

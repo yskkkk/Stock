@@ -21,7 +21,7 @@ export function useLivePortfolioQuotePoll(
   const symbolsKey = useMemo(
     () =>
       portfolio?.holdings
-        .map((h) => h.symbol.trim().toUpperCase())
+        .map((h) => String(h.symbol ?? "").trim().toUpperCase())
         .sort()
         .join(",") ?? "",
     [portfolio?.holdings],

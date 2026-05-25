@@ -1209,15 +1209,6 @@ export default function App() {
             </nav>
 
             <div className="top-bar__tools">
-              {adminIpConsole && (
-                <button
-                  type="button"
-                  className="btn btn--secondary top-bar__admin"
-                  onClick={() => setShowAccessAdmin(true)}
-                >
-                  {ko.access.adminToolbarBtn}
-                </button>
-              )}
               <button
                 type="button"
                 className="btn btn--secondary top-bar__rescan"
@@ -1899,7 +1890,7 @@ export default function App() {
             })
             .catch(() => {});
         }}
-        adminIpBypassPassword={adminIpConsole}
+        adminIpBypassPassword={false}
         telegramNotify={telegramNotify}
         telegramSentCount={telegramSentCount}
         onOpenTelegramSent={() => {

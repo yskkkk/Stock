@@ -400,7 +400,7 @@ export function LiveTradeCardSidePanel({
             >
               <img
                 className="brand-mark__img"
-                src="/branding/ystock-logo-mark.png?v=19"
+                src="/branding/ystock-logo-alpha.png?v=24"
                 alt=""
                 width={22}
                 height={22}

@@ -348,14 +348,17 @@ export default function LiveTradePortfolioTradeTab({
     const list = portfolioProgramId
       ? holdings.filter((h) => h.programId === portfolioProgramId)
       : holdings;
-    return [...list].sort((a, b) => a.symbol.localeCompare(b.symbol, "ko"));
+    return [...list].sort((a, b) =>
+      String(a.symbol ?? "").localeCompare(String(b.symbol ?? ""), "ko"),
+    );
   }, [holdings, portfolioProgramId]);
 
   const cryptoSymbols = useMemo(
     () =>
       sellHoldings
         .filter((h) => h.market === "crypto")
-        .map((h) => h.symbol),
+        .map((h) => String(h.symbol ?? "").trim().toUpperCase())
+        .filter(Boolean),
     [sellHoldings],
   );
 
@@ -414,7 +417,9 @@ export default function LiveTradePortfolioTradeTab({
                 expanded={expandedKey === key}
                 portfolioProgramId={portfolioProgramId}
                 bithumbQuote={
-                  h.market === "crypto" ? bithumbQuotes[h.symbol.toUpperCase()] : undefined
+                  h.market === "crypto"
+                    ? bithumbQuotes[String(h.symbol ?? "").trim().toUpperCase()]
+                    : undefined
                 }
                 onToggle={() => toggleHolding(key)}
                 onSold={onTraded}

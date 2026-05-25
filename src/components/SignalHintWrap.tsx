@@ -10,9 +10,13 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { ko } from "../i18n/ko";
+import {
+  claimSignalHint,
+  releaseSignalHint,
+} from "../lib/signalHintCoordinator";
 
 const LONG_PRESS_MS = 480;
-const HIDE_DELAY_MS = 140;
+const HIDE_DELAY_MS = 80;
 
 function prefersTouchHints() {
   if (typeof window === "undefined") return false;
@@ -94,21 +98,35 @@ export default function SignalHintWrap({
     setTipPos(measureTipPos(el));
   }, []);
 
+  const closeTip = useCallback(() => {
+    clearHideTimer();
+    setHoverTip(false);
+    setTipPos(null);
+  }, [clearHideTimer]);
+
   const openTip = useCallback(() => {
     if (touchModeRef.current) return;
     clearHideTimer();
     const el = anchorRef.current;
     if (el) setTipPos(measureTipPos(el));
     setHoverTip(true);
-  }, [clearHideTimer]);
+    claimSignalHint(closeTip);
+  }, [clearHideTimer, closeTip]);
 
   const scheduleHideTip = useCallback(() => {
     clearHideTimer();
     hideTimerRef.current = setTimeout(() => {
-      setHoverTip(false);
-      setTipPos(null);
+      closeTip();
+      releaseSignalHint(closeTip);
     }, HIDE_DELAY_MS);
-  }, [clearHideTimer]);
+  }, [clearHideTimer, closeTip]);
+
+  useEffect(
+    () => () => {
+      releaseSignalHint(closeTip);
+    },
+    [closeTip],
+  );
 
   const showDesktopTip = hoverTip && !touchModeRef.current && tipPos != null;
 

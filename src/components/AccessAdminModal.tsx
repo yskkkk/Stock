@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useModalDrag } from "../hooks/useModalDrag";
 import {
   clearStoredAccessAdminToken,
+  fetchAccessAdminLiveTradingRunning,
   fetchAccessAdminRequests,
   fetchFeedbackInbox,
   getStoredAccessAdminToken,
@@ -14,6 +15,8 @@ import {
   postAccessAdminRevokeDelegate,
   postFeedbackAdminDelete,
   postFeedbackAdminReply,
+  type AccessAdminLiveTradeProgram,
+  type AccessAdminLiveTradingRunningResponse,
   type AccessAdminSnapshot,
   type AccessAllowedEntry,
   type AccessDeviceInfoPayload,
@@ -22,7 +25,29 @@ import {
 import type { FeedbackInboxItem } from "../types";
 import { ko } from "../i18n/ko";
 
-type AdminTab = "access" | "feedback" | "telegram";
+type AdminTab = "access" | "feedback" | "telegram" | "liveTrade";
+
+function liveTradeStatusLabel(status: AccessAdminLiveTradeProgram["status"]): string {
+  if (status === "armed") return ko.app.liveTradeStatusArmed;
+  if (status === "sim") return ko.app.liveTradeStatusSim;
+  return status;
+}
+
+function formatAdminProgramMarkets(
+  m: { kr?: boolean; us?: boolean; crypto?: boolean } | null | undefined,
+): string {
+  if (!m) return "—";
+  const parts: string[] = [];
+  if (m.kr) parts.push(ko.app.liveTradeMarketKr);
+  if (m.us) parts.push(ko.app.liveTradeMarketUs);
+  if (m.crypto) parts.push(ko.app.liveTradeMarketCrypto);
+  return parts.length ? parts.join(" · ") : "—";
+}
+
+function formatAdminMs(ms: number | null): string {
+  if (ms == null || !Number.isFinite(ms) || ms <= 0) return "—";
+  return new Date(ms).toLocaleString("ko-KR");
+}
 
 function formatDeviceInfoBlock(
   d: AccessDeviceInfoPayload | null | undefined,
@@ -78,6 +103,11 @@ export default function AccessAdminModal({
   const [feedbackErr, setFeedbackErr] = useState<string | null>(null);
   const [feedbackRefreshKey, setFeedbackRefreshKey] = useState(0);
   const [feedbackReplyDrafts, setFeedbackReplyDrafts] = useState<Record<string, string>>({});
+  const [liveTradeData, setLiveTradeData] =
+    useState<AccessAdminLiveTradingRunningResponse | null>(null);
+  const [liveTradeBusy, setLiveTradeBusy] = useState(false);
+  const [liveTradeErr, setLiveTradeErr] = useState<string | null>(null);
+  const [liveTradeRefreshKey, setLiveTradeRefreshKey] = useState(0);
   const passwordFieldRef = useRef<HTMLInputElement>(null);
   const passwordFocusTimerRef = useRef<number | null>(null);
   const { modalStyle, onDragHandlePointerDown } = useModalDrag([open, phase]);
@@ -142,6 +172,9 @@ export default function AccessAdminModal({
     setFeedbackItems([]);
     setFeedbackErr(null);
     setFeedbackRefreshKey(0);
+    setLiveTradeData(null);
+    setLiveTradeErr(null);
+    setLiveTradeRefreshKey(0);
     if (adminIpBypassPassword) {
       setPhase("admin");
       setPasswordInput("");
@@ -230,6 +263,7 @@ export default function AccessAdminModal({
   }, [open, phase, tab, feedbackRefreshKey]);
 
   const reloadFeedback = () => setFeedbackRefreshKey((k) => k + 1);
+  const reloadLiveTrade = () => setLiveTradeRefreshKey((k) => k + 1);
 
   const unlock = async () => {
     const p = passwordInput.trim();
@@ -304,6 +338,34 @@ export default function AccessAdminModal({
       setActionId(null);
     }
   };
+
+  const loadLiveTradeRunning = useCallback(async () => {
+    if (!canUseAccessApi()) return;
+    setLiveTradeBusy(true);
+    setLiveTradeErr(null);
+    try {
+      const data = await fetchAccessAdminLiveTradingRunning(authForApi());
+      setLiveTradeData(data);
+    } catch (e) {
+      setLiveTradeData(null);
+      setLiveTradeErr(e instanceof Error ? e.message : ko.errors.request);
+    } finally {
+      setLiveTradeBusy(false);
+    }
+  }, [authForApi, adminIpBypassPassword]);
+
+  useEffect(() => {
+    if (!open || phase !== "admin" || tab !== "liveTrade") return;
+    void loadLiveTradeRunning();
+  }, [open, phase, tab, liveTradeRefreshKey, loadLiveTradeRunning]);
+
+  useEffect(() => {
+    if (!open || phase !== "admin" || tab !== "liveTrade") return;
+    const id = window.setInterval(() => {
+      void loadLiveTradeRunning();
+    }, 5000);
+    return () => window.clearInterval(id);
+  }, [open, phase, tab, loadLiveTradeRunning]);
 
   if (!open) return null;
 
@@ -399,6 +461,15 @@ export default function AccessAdminModal({
               >
                 {ko.access.adminTabFeedback}
               </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === "liveTrade"}
+                className={`access-admin-tab${tab === "liveTrade" ? " access-admin-tab--active" : ""}`}
+                onClick={() => setTab("liveTrade")}
+              >
+                {ko.access.adminTabLiveTrade}
+              </button>
               {telegramNotify ? (
                 <button
                   type="button"
@@ -421,6 +492,16 @@ export default function AccessAdminModal({
                   onClick={() => reloadFeedback()}
                 >
                   {ko.feedback.inboxReload}
+                </button>
+              ) : null}
+              {tab === "liveTrade" ? (
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  disabled={liveTradeBusy}
+                  onClick={() => reloadLiveTrade()}
+                >
+                  {ko.access.adminLiveTradeReload}
                 </button>
               ) : null}
               {!adminIpBypassPassword ? (
@@ -730,6 +811,94 @@ export default function AccessAdminModal({
                             {ko.feedback.inboxDelete}
                           </button>
                         </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {tab === "liveTrade" && (
+              <div className="access-admin-body access-admin-body--live-trade">
+                {liveTradeData ? (
+                  <p className="access-admin-muted access-admin-live-trade-summary">
+                    {ko.access.adminLiveTradeSummary
+                      .replace("{armed}", String(liveTradeData.armedCount))
+                      .replace("{sim}", String(liveTradeData.simCount))}
+                    {liveTradeData.totalPrograms > liveTradeData.programs.length
+                      ? ` · 전체 등록 ${liveTradeData.totalPrograms}`
+                      : null}
+                  </p>
+                ) : null}
+                {liveTradeBusy && !liveTradeData ? (
+                  <p className="access-admin-muted">{ko.macro.loading}</p>
+                ) : liveTradeErr ? (
+                  <p className="access-admin-error" role="alert">
+                    {liveTradeErr}
+                  </p>
+                ) : !(liveTradeData?.programs?.length) ? (
+                  <p className="access-admin-muted">{ko.access.adminLiveTradeEmpty}</p>
+                ) : (
+                  <ul className="access-admin-list access-admin-live-trade-list">
+                    {(liveTradeData?.programs ?? []).map((p) => (
+                      <li key={p.id} className="access-admin-item access-admin-live-trade-item">
+                        <div className="access-admin-item-head">
+                          <strong>{p.name}</strong>
+                          <span
+                            className={
+                              p.status === "armed"
+                                ? "access-admin-live-trade-badge access-admin-live-trade-badge--armed"
+                                : "access-admin-live-trade-badge access-admin-live-trade-badge--sim"
+                            }
+                          >
+                            {liveTradeStatusLabel(p.status)}
+                          </span>
+                        </div>
+                        <dl className="access-admin-live-trade-meta">
+                          <div>
+                            <dt>{ko.access.adminLiveTradeUser}</dt>
+                            <dd>
+                              <code>{p.userId ?? "—"}</code>
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>{ko.access.adminLiveTradeMarkets}</dt>
+                            <dd>{formatAdminProgramMarkets(p.markets)}</dd>
+                          </div>
+                          <div>
+                            <dt>{ko.access.adminLiveTradeModel}</dt>
+                            <dd>
+                              <code>{p.modelId}</code>
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>{ko.access.adminLiveTradeProgramId}</dt>
+                            <dd>
+                              <code>{p.id}</code>
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>{ko.access.adminLiveTradeArmedAt}</dt>
+                            <dd>{formatAdminMs(p.armedAtMs)}</dd>
+                          </div>
+                          <div>
+                            <dt>{ko.access.adminLiveTradeLastRun}</dt>
+                            <dd>{formatAdminMs(p.lastRunAtMs)}</dd>
+                          </div>
+                        </dl>
+                        {p.status === "armed" &&
+                        (p.armedMarkets?.kr || p.armedMarkets?.crypto) ? (
+                          <p className="access-admin-muted access-admin-live-trade-lanes">
+                            {p.armedMarkets?.kr ? ko.app.liveTradeMarketKr : null}
+                            {p.armedMarkets?.kr && p.armedMarkets?.crypto ? " · " : null}
+                            {p.armedMarkets?.crypto ? ko.app.liveTradeMarketCrypto : null}
+                          </p>
+                        ) : null}
+                        {p.lastError ? (
+                          <p className="access-admin-error access-admin-live-trade-error">
+                            {p.lastError}
+                          </p>
+                        ) : null}
                       </li>
                     ))}
                   </ul>

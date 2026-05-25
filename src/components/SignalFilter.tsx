@@ -2,6 +2,7 @@ import { FILTER_PRESETS } from "../constants/filterPresets";
 import { FILTER_OPTIONS, type SignalId } from "../constants/signals";
 import { getSignalHint } from "../constants/signalHints";
 import type { FilterMode } from "../lib/filterPicks";
+import { clearActiveSignalHint } from "../lib/signalHintCoordinator";
 import SignalHintWrap from "./SignalHintWrap";
 
 interface SignalFilterProps {
@@ -31,7 +32,7 @@ export default function SignalFilter({
   }
 
   return (
-    <div className="signal-filter">
+    <div className="signal-filter" onMouseLeave={() => clearActiveSignalHint()}>
       <div className="filter-header">
         <span className="filter-title">조건 필터</span>
         <div className="filter-mode-seg">

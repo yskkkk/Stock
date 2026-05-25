@@ -4,10 +4,10 @@
  *
  * 켜기: 환경변수 `AUTO_GIT_SYNC=1` (또는 true/yes/on)
  *
- * pull 직후 항상 (백·프론트 구분 없이):
- *   1) `package-lock.json` 있으면 `npm ci`, 실패 시 `npm install` 한 번 재시도
- *   2) 없으면 `npm install`
- *   3) `npm run build` (verify + tsc + Vite 번들)
+ * pull 직후 (Vite `npm run dev` 통합 서버가 아닐 때):
+ *   1) `package.json` / lock 변경 시에만 `npm ci` 또는 `npm install`
+ *   2) `npm run build` (verify + tsc + Vite 번들)
+ * Vite dev(`registerViteIntegratedRestart`)에서는 esbuild.exe 잠금(EPERM) 방지를 위해 npm·build 생략 후 `server.restart()`만.
  *
  * 선택:
  *   AUTO_GIT_SYNC_INTERVAL_MS — 기본 60000 (1분), 최소 10000
@@ -34,6 +34,7 @@ import { formatLogTimestampKst } from "./log-kst.js";
 import { summarizeGitPullRangeForNotify } from "./ops-agent-git-push.js";
 import { notifyOpsAutoGitPulled } from "./ops-dev-git-telegram.js";
 import {
+  isViteIntegratedRestartActive,
   restartNodeOrViteDev,
   respawnNodeProcess,
 } from "./restart-node-process.js";
@@ -61,6 +62,18 @@ function execGitQuiet(args) {
 
 function execGitInherit(args) {
   execFileSync("git", args, { cwd: repoRoot, stdio: "inherit" });
+}
+
+/** @param {string} remoteRef */
+function commitsBehindRemote(remoteRef) {
+  try {
+    const n = Number(
+      execGitOut(["rev-list", "--count", `HEAD..${remoteRef}`]),
+    );
+    return Number.isFinite(n) && n > 0;
+  } catch {
+    return false;
+  }
 }
 
 function npmShell() {
@@ -100,6 +113,25 @@ function runNpmBuild() {
     shell: npmShell(),
   });
   return r.status === 0;
+}
+
+/** @param {string} baseRev pull 직전 HEAD */
+function packageManifestChangedSince(baseRev) {
+  try {
+    const names = execGitOut([
+      "diff",
+      "--name-only",
+      baseRev,
+      "HEAD",
+      "--",
+      "package.json",
+      "package-lock.json",
+      "npm-shrinkwrap.json",
+    ]);
+    return Boolean(names.trim());
+  } catch {
+    return true;
+  }
 }
 
 /**
@@ -181,9 +213,13 @@ export function startAutoGitSync({ httpServer }) {
       return;
     }
 
+    if (!commitsBehindRemote(remoteRef)) {
+      return;
+    }
+
     appendServerEventLog(
       "auto-git",
-      `${formatLogTimestampKst()} compare ${remoteRef} remote=${remoteRev.slice(0, 7)} local HEAD=${localRev.slice(0, 7)} differ → pull --ff-only`,
+      `${formatLogTimestampKst()} ${remoteRef} ahead of HEAD → pull --ff-only`,
     );
 
     let stashed = false;
@@ -192,10 +228,10 @@ export function startAutoGitSync({ httpServer }) {
       if (dirty) {
         appendServerEventLog(
           "auto-git",
-          "AUTO_GIT_STASH_BEFORE_PULL: stashing local changes before pull…",
+          "stashing local changes before pull…",
         );
         try {
-          execGitInherit(["stash", "push", "-m", "auto-git-sync pre-pull"]);
+          execGitQuiet(["stash", "push", "-m", "auto-git-sync pre-pull"]);
           stashed = true;
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
@@ -206,13 +242,14 @@ export function startAutoGitSync({ httpServer }) {
     }
 
     try {
-      execGitInherit(["pull", "--ff-only", remote, branch]);
+      execGitQuiet(["pull", "--ff-only", remote, branch]);
+      appendServerEventLog("auto-git", `pulled ${remote} ${branch}`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       appendServerEventLog("auto-git", `pull failed: ${msg}`, "error");
       if (stashed) {
         try {
-          execGitInherit(["stash", "pop"]);
+          execGitQuiet(["stash", "pop"]);
         } catch {
           appendServerEventLog(
             "auto-git",
@@ -230,7 +267,8 @@ export function startAutoGitSync({ httpServer }) {
           "auto-git",
           "pull OK — restoring stashed local changes (stash pop)…",
         );
-        execGitInherit(["stash", "pop"]);
+        execGitQuiet(["stash", "pop"]);
+        appendServerEventLog("auto-git", "restored stashed changes after pull");
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         appendServerEventLog(
@@ -259,29 +297,42 @@ export function startAutoGitSync({ httpServer }) {
     const restartOnlyIfBuildOk = truthy(
       process.env.AUTO_GIT_RESTART_ONLY_IF_BUILD_OK,
     );
+    const viteDev = isViteIntegratedRestartActive();
+    const depsChanged = packageManifestChangedSince(localRev);
 
-    if (!truthy(process.env.AUTO_GIT_SKIP_NPM_REFRESH)) {
+    if (viteDev) {
       appendServerEventLog(
         "auto-git",
-        "refreshing dependencies (npm ci / npm install)…",
+        "Vite dev — skipping npm ci/install/build (esbuild in use, EPERM 방지)",
       );
-      if (!runNpmInstallRefresh()) {
+    } else if (!truthy(process.env.AUTO_GIT_SKIP_NPM_REFRESH)) {
+      if (depsChanged) {
         appendServerEventLog(
           "auto-git",
-          "npm install refresh failed — will still restart after pull",
-          "warn",
+          "refreshing dependencies (npm ci / npm install)…",
         );
-        if (restartOnlyIfBuildOk) return;
-      } else {
-        appendServerEventLog("auto-git", "npm run build (verify + tsc + Vite)…");
-        if (!runNpmBuild()) {
+        if (!runNpmInstallRefresh()) {
           appendServerEventLog(
             "auto-git",
-            "npm run build failed — will still restart after pull",
+            "npm install refresh failed — will still restart after pull",
             "warn",
           );
           if (restartOnlyIfBuildOk) return;
         }
+      } else {
+        appendServerEventLog(
+          "auto-git",
+          "package.json/lock unchanged — skipping npm ci/install",
+        );
+      }
+      appendServerEventLog("auto-git", "npm run build (verify + tsc + Vite)…");
+      if (!runNpmBuild()) {
+        appendServerEventLog(
+          "auto-git",
+          "npm run build failed — will still restart after pull",
+          "warn",
+        );
+        if (restartOnlyIfBuildOk) return;
       }
     } else {
       appendServerEventLog(
