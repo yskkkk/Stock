@@ -127,36 +127,48 @@
   color: var(--muted);
 }
 .macro-card {
+  --macro-near: 0;
+  --macro-card-fill: color-mix(in srgb, var(--warn) 22%, var(--surface));
   position: relative;
   flex: 0 0 auto;
   width: min(148px, 42vw);
   padding: 0.55rem 0.65rem 0.5rem;
   scroll-snap-align: start;
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  transition: color 0.15s, opacity 0.15s;
+  background: color-mix(
+    in srgb,
+    var(--macro-card-fill) calc(var(--macro-near) * 78%),
+    transparent
+  );
+  border: 1px solid color-mix(
+    in srgb,
+    var(--card-border) calc(var(--macro-near) * 55%),
+    transparent
+  );
+  border-radius: var(--radius-sm);
+  transition:
+    color 0.15s,
+    opacity 0.15s,
+    background 0.35s ease,
+    border-color 0.35s ease;
 }
 .macro-card:hover {
   transform: none;
 }
 .macro-card--high {
-  border: none;
-  border-left: 3px solid color-mix(in srgb, var(--warn) 55%, transparent);
+  border-left-width: 3px;
+  border-left-color: color-mix(in srgb, var(--warn) 55%, transparent);
 }
 .macro-card--medium {
-  border: none;
-  border-left: 3px solid color-mix(in srgb, var(--muted) 35%, transparent);
+  border-left-width: 3px;
+  border-left-color: color-mix(in srgb, var(--muted) 35%, transparent);
 }
 .macro-card--soon {
-  border: none;
   box-shadow: none;
 }
 .macro-card--soon .macro-card__countdown {
   color: var(--warn);
 }
 .macro-card--live {
-  border: none;
   box-shadow: none;
 }
 .macro-card--live .macro-card__countdown {
@@ -9747,10 +9759,6 @@ html[data-theme="light"]
   height: 100%;
 }
 
-.app-live-trade-side-dock__exchange-mark--muted {
-  opacity: 0.5;
-}
-
 .app-live-trade-side-dock__rail-btn--exchange-ready .app-live-trade-side-dock__exchange-mark {
   filter: none;
   opacity: 1;
@@ -9759,6 +9767,11 @@ html[data-theme="light"]
 .app-live-trade-side-dock__api-popover {
   width: min(22rem, calc(100vw - 5.5rem));
   max-height: min(82vh, 38rem);
+}
+
+.app-live-trade-side-dock__api-popover--portal {
+  position: fixed;
+  z-index: 120;
 }
 
 .live-trade-dock-api-panel__title {
@@ -9790,13 +9803,17 @@ html[data-theme="light"]
   overscroll-behavior: contain;
   padding: 0.72rem 0.8rem 0.75rem;
   border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 88%, transparent);
-  background: color-mix(in srgb, var(--card-bg, var(--card)) 97%, var(--bg-elevated));
+  border: 1px solid var(--card-border, rgba(148, 163, 184, 0.22));
+  background: var(--card, #262e38);
+  opacity: 1;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   box-shadow:
-    0 10px 28px rgba(0, 0, 0, 0.24),
-    0 1px 0 rgba(255, 255, 255, 0.05) inset;
+    0 12px 32px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(0, 0, 0, 0.06);
   text-align: left;
   -webkit-overflow-scrolling: touch;
+  isolation: isolate;
 }
 
 .app-live-trade-side-dock__auth-popover::after {
@@ -9806,19 +9823,38 @@ html[data-theme="light"]
   bottom: 1.15rem;
   width: 9px;
   height: 9px;
-  background: color-mix(in srgb, var(--card-bg, var(--card)) 97%, var(--bg-elevated));
-  border-right: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 88%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 88%, transparent);
+  background: var(--card, #262e38);
+  border-right: 1px solid var(--card-border, rgba(148, 163, 184, 0.22));
+  border-bottom: 1px solid var(--card-border, rgba(148, 163, 184, 0.22));
   transform: rotate(-45deg);
 }
 
 html[data-theme="light"] .app-live-trade-side-dock__auth-popover {
-  background: var(--card-bg, var(--card));
-  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.14);
+  background: var(--card, #f9f7f4);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
 }
 
 html[data-theme="light"] .app-live-trade-side-dock__auth-popover::after {
-  background: var(--card-bg, var(--card));
+  background: var(--card, #f9f7f4);
+}
+
+.app-live-trade-side-dock__exchange-mark--muted {
+  opacity: 0.42;
+  filter: grayscale(1) saturate(0.15);
+}
+
+.app-live-trade-side-dock__rail-btn--exchange-off {
+  color: var(--muted, #8a929e);
+}
+
+.app-live-trade-side-dock__rail-btn--exchange-off .app-live-trade-side-dock__rail-label,
+.app-live-trade-side-dock__rail-btn--exchange-off .app-live-trade-side-dock__rail-label-main,
+.app-live-trade-side-dock__rail-btn--exchange-off .app-live-trade-side-dock__rail-label-sub {
+  color: var(--muted, #8a929e);
+}
+
+.app-live-trade-side-dock__rail-btn--exchange-ready:not(.app-live-trade-side-dock__rail-btn--on) {
+  color: var(--text-dim, #a8b0bc);
 }
 
 .app-live-trade-side-dock__host {

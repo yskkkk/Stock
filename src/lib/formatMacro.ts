@@ -32,6 +32,26 @@ export function macroUrgency(msLeft: number): "live" | "soon" | "normal" {
   return "normal";
 }
 
+/** 트랙 내 발표 시각 기준 0(멀음)~1(가까움) — 카드 배경 농도 */
+export function macroNearness(at: number, minAt: number, maxAt: number): number {
+  const span = maxAt - minAt;
+  if (span <= 0) return 1;
+  return Math.max(0, Math.min(1, 1 - (at - minAt) / span));
+}
+
+export function macroCardNearness(
+  at: number,
+  minAt: number,
+  maxAt: number,
+  msLeft: number,
+): number {
+  const base = macroNearness(at, minAt, maxAt);
+  const u = macroUrgency(msLeft);
+  if (u === "live") return Math.max(base, 1);
+  if (u === "soon") return Math.max(base, 0.72);
+  return base;
+}
+
 function calendarDateKeyInTz(ms: number, timeZone: string): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone,

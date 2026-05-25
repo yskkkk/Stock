@@ -14,6 +14,7 @@ import { ko } from "../i18n/ko";
 import {
   formatMacroCountdown,
   formatMacroWhen,
+  macroCardNearness,
   macroUrgency,
 } from "../lib/formatMacro";
 import { getMacroSurpriseUpBias } from "../lib/macroSentiment";
@@ -185,10 +186,12 @@ function MacroEventCard({
   event,
   now,
   onOpen,
+  nearness,
 }: {
   event: MacroEvent;
   now: number;
   onOpen: (event: MacroEvent) => void;
+  nearness: number;
 }) {
   const msLeft = event.at - now;
   const urgency = macroUrgency(msLeft);
@@ -205,6 +208,7 @@ function MacroEventCard({
     <button
       type="button"
       className={`macro-card macro-card--btn macro-card--${event.importance} macro-card--${urgency}${biasClass}`}
+      style={{ "--macro-near": String(nearness) } as CSSProperties}
       data-region={event.region}
       onClick={() => onOpen(event)}
       aria-label={`${event.name}, ${ko.macro.forecastLabel} ${event.forecast?.trim() || ko.macro.forecastPending}`}
@@ -248,9 +252,11 @@ function MacroEventCard({
 function SectorEarningsCard({
   row,
   now,
+  nearness,
 }: {
   row: SectorEarningsSpotlightItem;
   now: number;
+  nearness: number;
 }) {
   const msLeft = row.at - now;
   const urgency = macroUrgency(msLeft);
@@ -262,6 +268,7 @@ function SectorEarningsCard({
   return (
     <a
       className={`macro-card macro-card--btn macro-card--medium macro-card--${urgency} macro-card--earnings`}
+      style={{ "--macro-near": String(nearness) } as CSSProperties}
       href={href}
       target="_blank"
       rel="noopener noreferrer"
@@ -476,6 +483,17 @@ export default function MacroEventsBar({
     return items;
   }, [visible, visibleEarnings]);
 
+  const barAtBounds = useMemo(() => {
+    if (barItems.length === 0) return null;
+    let minAt = barItems[0].at;
+    let maxAt = barItems[0].at;
+    for (const item of barItems) {
+      if (item.at < minAt) minAt = item.at;
+      if (item.at > maxAt) maxAt = item.at;
+    }
+    return { minAt, maxAt };
+  }, [barItems]);
+
   const eventsTrackRef = useRef<HTMLDivElement>(null);
   const [eventsTrackEdge, setEventsTrackEdge] = useState<MacroTrackEdge>({
     side: "none",
@@ -532,18 +550,32 @@ export default function MacroEventsBar({
               <p className="macro-bar__status">{ko.macro.empty}</p>
             )}
             {!loading &&
-              barItems.map((item) =>
-                item.kind === "macro" ? (
+              barItems.map((item) => {
+                const nearness = barAtBounds
+                  ? macroCardNearness(
+                      item.at,
+                      barAtBounds.minAt,
+                      barAtBounds.maxAt,
+                      item.at - now,
+                    )
+                  : 0;
+                return item.kind === "macro" ? (
                   <MacroEventCard
                     key={item.event.id}
                     event={item.event}
                     now={now}
                     onOpen={setInfoEvent}
+                    nearness={nearness}
                   />
                 ) : (
-                  <SectorEarningsCard key={item.row.id} row={item.row} now={now} />
-                ),
-              )}
+                  <SectorEarningsCard
+                    key={item.row.id}
+                    row={item.row}
+                    now={now}
+                    nearness={nearness}
+                  />
+                );
+              })}
           </div>
         </div>
 

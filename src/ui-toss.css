@@ -5516,8 +5516,6 @@ html:not([data-theme="light"]) .macro-bar.card {
 }
 
 html:not([data-theme="light"]) .macro-bar .macro-card {
-  background: transparent;
-  border: none;
   box-shadow: none;
 }
 
