@@ -1629,6 +1629,14 @@ html[data-theme="light"] .light-palette-swatch--active {
   min-width: 0;
 }
 
+/* 실매매 스트립 있을 때 탭·도구를 좌측 상태 줄과 같은 높이(하단)에 */
+@media (min-width: 901px) {
+  .top-bar__grid:has(.top-bar__live-trade) .top-bar__right {
+    align-self: end;
+    align-items: center;
+  }
+}
+
 .top-bar__telegram {
   flex: 0 0 auto;
   display: inline-flex;
@@ -1658,11 +1666,16 @@ html[data-theme="light"] .top-bar__scan {
 
 .top-bar__live-trade {
   grid-column: 1;
-  grid-row: 4;
+  grid-row: 3;
   min-width: 0;
   margin: 0;
   padding-top: 0.35rem;
   border-top: 1px solid rgba(148, 163, 184, 0.14);
+  overflow: visible;
+}
+
+.top-bar__grid--with-scan .top-bar__live-trade {
+  grid-row: 4;
 }
 
 html[data-theme="light"] .top-bar__live-trade {
@@ -1720,6 +1733,12 @@ html[data-theme="light"] .top-bar__live-trade {
   align-items: center;
   gap: 0.25rem 0.45rem;
   min-width: 0;
+  overflow: visible;
+}
+
+.top-bar__live-trade .scan-status__msg.live-trade-header-strip__msg {
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .live-trade-header-strip__telegram-btn {
@@ -1730,14 +1749,15 @@ html[data-theme="light"] .top-bar__live-trade {
   flex-shrink: 0;
   width: 1.55rem;
   height: 1.55rem;
-  margin: 0 0.1rem;
-  padding: 0;
+  margin: 0 0.15rem 0 0.1rem;
+  padding: 0.12rem 0.1rem 0 0;
   border: none;
   border-radius: 50%;
   background: transparent;
   box-shadow: none;
   vertical-align: middle;
   cursor: pointer;
+  overflow: visible;
 }
 
 .live-trade-header-strip__telegram-btn:hover {
@@ -1753,8 +1773,9 @@ html[data-theme="light"] .top-bar__live-trade {
 
 .live-trade-header-strip__telegram-count {
   position: absolute;
-  top: -0.2rem;
+  top: -0.12rem;
   right: -0.35rem;
+  z-index: 1;
   min-width: 0.95rem;
   height: 0.95rem;
   padding: 0 0.2rem;
