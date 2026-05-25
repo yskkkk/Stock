@@ -3701,6 +3701,124 @@ html[data-theme="light"]
   border-bottom: 1px solid var(--border, rgba(15, 23, 42, 0.08));
 }
 
+/* 거래내역 탭 — 좌측 타이트 붙음 완화, 컴팩트 타이포 */
+.trade-history-workspace {
+  padding: clamp(0.75rem, 2vw, 1.25rem) clamp(1rem, 3vw, 1.65rem)
+    clamp(0.85rem, 2vw, 1.35rem);
+  box-sizing: border-box;
+}
+
+.trade-history-workspace .trade-history-main-workspace__head,
+.trade-history-workspace .trade-history-main-workspace__body,
+.trade-history-workspace .trade-history-main-workspace__subhead {
+  padding-left: clamp(0.85rem, 2.2vw, 1.35rem);
+  padding-right: clamp(0.85rem, 2.2vw, 1.35rem);
+}
+
+.trade-history-workspace .trade-history-main-workspace__head {
+  padding-top: clamp(0.7rem, 1.8vw, 0.95rem);
+  padding-bottom: 0.45rem;
+}
+
+.trade-history-workspace .trade-history-main-workspace__body {
+  gap: 0.85rem;
+  padding-top: 0.3rem;
+  padding-bottom: clamp(0.75rem, 1.8vw, 1.1rem);
+}
+
+.trade-history-workspace .trade-history-main-workspace__subhead {
+  padding-top: 0.7rem;
+  margin-top: 0.15rem;
+}
+
+.trade-history-workspace .live-trade-trades-workspace__title {
+  font-size: 0.88rem;
+}
+
+.trade-history-workspace .live-trade-trades-workspace__title--sub {
+  font-size: 0.8rem;
+}
+
+.trade-history-workspace .live-trade-trades-workspace__mark {
+  width: 1.12rem;
+  height: 1.12rem;
+}
+
+.trade-history-workspace .live-account-holdings__title {
+  font-size: 0.76rem;
+  margin: 0 0 0.35rem 0.2rem;
+}
+
+.trade-history-workspace .live-account-holdings__empty,
+.trade-history-workspace .live-trade-history__muted,
+.trade-history-workspace .live-trade-history__err {
+  font-size: 0.72rem;
+  margin-left: 0.2rem;
+}
+
+.trade-history-workspace .live-sim-run__table-wrap,
+.trade-history-workspace .live-account-holdings__table-wrap {
+  margin: 0 0.15rem 0.45rem;
+  padding: 0.2rem 0.35rem 0.4rem;
+  border-radius: var(--radius-sm);
+}
+
+.trade-history-workspace .live-sim-run__table,
+.trade-history-workspace .live-account-holdings__table,
+.trade-history-workspace .live-trade-history__table {
+  font-size: 0.62rem;
+}
+
+.trade-history-workspace .live-account-holdings__table {
+  min-width: 44rem;
+}
+
+.trade-history-workspace .live-trade-history__table.live-sim-run__table--trades {
+  min-width: 52rem;
+}
+
+.trade-history-workspace .live-sim-run__table th,
+.trade-history-workspace .live-sim-run__table td {
+  padding: 0.2rem 0.4rem;
+}
+
+.trade-history-workspace .live-sim-run__table th:first-child,
+.trade-history-workspace .live-sim-run__table td:first-child {
+  padding-left: 0.5rem;
+}
+
+.trade-history-workspace .live-sim-run__table th:last-child,
+.trade-history-workspace .live-sim-run__table td:last-child {
+  padding-right: 0.5rem;
+}
+
+.trade-history-workspace .live-sim-run__table .live-sim-run__sym {
+  font-size: 0.58rem;
+}
+
+.trade-history-workspace .live-sim-run__table .live-sim-run__name,
+.trade-history-workspace
+  .live-sim-run__table
+  .live-portfolio__sym-cell
+  .live-portfolio__nm {
+  font-size: 0.54rem;
+}
+
+.trade-history-workspace .live-trade-history--workspace {
+  padding: 0;
+  margin-top: 0;
+}
+
+.trade-history-workspace .live-trade-history--workspace .live-trade-history__scroll {
+  padding: 0.15rem 0.3rem 0.45rem;
+}
+
+.trade-history-workspace .live-trade-history__foot,
+.trade-history-workspace .live-trade-history__foot--end {
+  font-size: 0.66rem;
+  padding: 0.3rem 0.5rem 0.45rem;
+}
+
 .app-live-trade-side-dock__rail-trades-glyphs {
   display: inline-flex;
   flex-direction: column;
