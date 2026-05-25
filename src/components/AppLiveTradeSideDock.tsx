@@ -99,22 +99,54 @@ function findNestedScrollable(root: HTMLElement): HTMLElement | null {
   return best;
 }
 
-function findDockPanelScrollEl(root: HTMLElement): HTMLElement | null {
-  const host = root.querySelector<HTMLElement>(
+function findAppScrollEl(): HTMLElement | null {
+  return document.querySelector<HTMLElement>(".app__scroll");
+}
+
+function findDockPanelScrollEl(dock: HTMLElement): HTMLElement | null {
+  const host = dock.querySelector<HTMLElement>(".app-live-trade-side-dock__host");
+  if (!host) return null;
+
+  const tabsHost = host.querySelector<HTMLElement>(
     ".live-trading-tab__card-tabs-host:not(.live-trading-tab__card-tabs-host--idle)",
   );
-  if (host) {
-    if (isScrollable(host)) return host;
-    const nested = findNestedScrollable(host);
+  if (tabsHost) {
+    if (isScrollable(tabsHost)) return tabsHost;
+    const nested = findNestedScrollable(tabsHost);
     if (nested) return nested;
   }
 
-  const body = root.querySelector<HTMLElement>(
+  const body = host.querySelector<HTMLElement>(
     ".live-trading-tab__card-tabs-pane--active .live-trading-tab__card-tabs-body",
   );
   if (body && isScrollable(body)) return body;
 
-  return host ?? body;
+  const nestedInHost = findNestedScrollable(host);
+  if (nestedInHost) return nestedInHost;
+
+  const panel = dock.querySelector<HTMLElement>(".app-live-trade-side-dock__panel");
+  if (panel) {
+    const nestedInPanel = findNestedScrollable(panel);
+    if (nestedInPanel) return nestedInPanel;
+  }
+
+  return tabsHost ?? body ?? null;
+}
+
+/** 메인 `.app__scroll` — 레일·접힌 보색 핸들 */
+function applyPageScrollWheel(scrollEl: HTMLElement, e: WheelEvent): boolean {
+  const delta = wheelDeltaY(e);
+  if (delta === 0) return false;
+
+  const max = scrollEl.scrollHeight - scrollEl.clientHeight;
+  if (max <= 0) return false;
+
+  const top = scrollEl.scrollTop;
+  if (delta > 0 && top >= max - 0.5) return false;
+  if (delta < 0 && top <= 0.5) return false;
+
+  scrollEl.scrollTop = Math.max(0, Math.min(max, top + delta));
+  return true;
 }
 
 /** 도크 패널 내부만 스크롤 — 끝에 닿아도 메인으로 체인하지 않음 */
@@ -132,10 +164,33 @@ function applyDockPanelWheel(scrollEl: HTMLElement, e: WheelEvent): void {
   scrollEl.scrollTop = Math.max(0, Math.min(max, top + delta));
 }
 
-function isWheelInDockPanel(dock: HTMLElement, target: EventTarget | null): boolean {
-  const host = dock.querySelector<HTMLElement>(".app-live-trade-side-dock__host");
-  if (!host || !target || !(target instanceof Node)) return false;
-  return host.contains(target);
+/** 우측 아이콘 레일(빨간 마킹 구간) — 페이지 스크롤 */
+function isWheelOnDockRailZone(
+  dock: HTMLElement,
+  target: EventTarget | null,
+  panelOpen: boolean,
+): boolean {
+  if (!target || !(target instanceof Node)) return false;
+  const rail = dock.querySelector<HTMLElement>(".app-live-trade-side-dock__rail");
+  if (rail?.contains(target)) return true;
+  if (!panelOpen) {
+    const handle = dock.querySelector<HTMLElement>(
+      ".app-live-trade-side-dock__resize-handle",
+    );
+    if (handle?.contains(target)) return true;
+  }
+  return false;
+}
+
+/** 펼친 패널 본문·헤더·보색 핸들 — 패널만 스크롤 */
+function isWheelInOpenDockPanel(
+  dock: HTMLElement,
+  target: EventTarget | null,
+  panelOpen: boolean,
+): boolean {
+  if (!panelOpen || !target || !(target instanceof Node)) return false;
+  const panel = dock.querySelector<HTMLElement>(".app-live-trade-side-dock__panel");
+  return Boolean(panel?.contains(target));
 }
 
 /** 접힘=왼쪽, 펼침=오른쪽 */
@@ -591,12 +646,21 @@ export default function AppLiveTradeSideDock({
       if (!dock.contains(e.target as Node)) return;
 
       const panelOpen = openRef.current;
-      if (panelOpen && isWheelInDockPanel(dock, e.target)) {
+
+      if (isWheelOnDockRailZone(dock, e.target, panelOpen)) {
+        const pageScroll = findAppScrollEl();
+        if (pageScroll && applyPageScrollWheel(pageScroll, e)) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        return;
+      }
+
+      if (isWheelInOpenDockPanel(dock, e.target, panelOpen)) {
         const scrollEl = findDockPanelScrollEl(dock);
         if (scrollEl) applyDockPanelWheel(scrollEl, e);
         e.preventDefault();
         e.stopPropagation();
-        return;
       }
     };
 
