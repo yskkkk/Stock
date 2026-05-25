@@ -50,11 +50,11 @@ html[data-theme="light"][data-light-palette="ocean"] {
 }
 
 html[data-theme="light"][data-light-palette="glass"] {
-  --bg: #e6e9ec;
-  --bg-elevated: rgba(255, 255, 255, 0.5);
-  --surface: rgba(255, 255, 255, 0.6);
-  --card: rgba(255, 255, 255, 0.76);
-  --card-border: rgba(255, 255, 255, 0.72);
+  --bg: #dfe4e9;
+  --bg-elevated: rgba(255, 255, 255, 0.38);
+  --surface: rgba(255, 255, 255, 0.48);
+  --card: rgba(255, 255, 255, 0.52);
+  --card-border: rgba(255, 255, 255, 0.58);
   --text: #2a3038;
   --text-dim: #525b66;
   --muted: #6b7580;
@@ -67,11 +67,11 @@ html[data-theme="light"][data-light-palette="glass"] {
   --down: #b06868;
   --warn: #9a8250;
   --shadow:
-    0 6px 28px rgba(38, 46, 56, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  --scrollbar-track: #dce1e6;
-  --scrollbar-thumb: rgba(90, 100, 112, 0.24);
-  --scrollbar-thumb-hover: rgba(70, 82, 94, 0.38);
-  --glass-blur: 12px;
-  --glass-saturate: 1.05;
+    0 8px 32px rgba(38, 46, 56, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  --scrollbar-track: rgba(220, 225, 230, 0.65);
+  --scrollbar-thumb: rgba(90, 100, 112, 0.22);
+  --scrollbar-thumb-hover: rgba(70, 82, 94, 0.34);
+  --glass-blur: 18px;
+  --glass-saturate: 1.14;
 }
