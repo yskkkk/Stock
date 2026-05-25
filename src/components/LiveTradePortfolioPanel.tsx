@@ -402,6 +402,8 @@ export default function LiveTradePortfolioPanel({
   programs,
   onOpenHoldingChart,
   initialAdminView = null,
+  /** 우측 도크 — 관리자 조회와 무관하게 로그인 본인만 */
+  selfOnly = false,
 }: {
   programs: LiveTradeProgram[];
   onOpenHoldingChart?: (h: LiveTradeHolding) => void;
@@ -410,6 +412,7 @@ export default function LiveTradePortfolioPanel({
     programId?: string;
     programName?: string;
   } | null;
+  selfOnly?: boolean;
 }) {
   const [pinnedTab, setPinnedTab] = useState<PanelTab>("holdings");
   const [hoverTab, setHoverTab] = useState<PanelTab | null>(null);
@@ -454,22 +457,47 @@ export default function LiveTradePortfolioPanel({
     [feeByMarket],
   );
 
-  const applyPortfolioFocus = useCallback((focus: LiveTradePortfolioFocus) => {
-    setProgramId(focus.programId);
-    if (focus.userId) {
-      setAdminViewUserId(focus.userId);
-      setAdminViewProgramName(focus.programName ?? null);
-    } else {
+  const applyPortfolioFocus = useCallback(
+    (focus: LiveTradePortfolioFocus) => {
+      if (
+        selfOnly &&
+        focus.userId &&
+        user?.id &&
+        focus.userId !== user.id
+      ) {
+        return;
+      }
+      setProgramId(focus.programId);
+      if (
+        !selfOnly &&
+        focus.userId &&
+        user?.id &&
+        focus.userId !== user.id
+      ) {
+        setAdminViewUserId(focus.userId);
+        setAdminViewProgramName(focus.programName ?? null);
+      } else {
+        setAdminViewUserId(null);
+        setAdminViewProgramName(null);
+      }
+    },
+    [selfOnly, user?.id],
+  );
+
+  useEffect(() => {
+    if (selfOnly) {
       setAdminViewUserId(null);
       setAdminViewProgramName(null);
     }
-  }, []);
-
-  useEffect(() => {
-    if (initialAdminView?.userId) {
+    if (
+      initialAdminView?.userId &&
+      (!selfOnly ||
+        !user?.id ||
+        initialAdminView.userId === user.id)
+    ) {
       applyPortfolioFocus({
         programId: initialAdminView.programId ?? "",
-        userId: initialAdminView.userId,
+        userId: selfOnly ? undefined : initialAdminView.userId,
         programName: initialAdminView.programName,
       });
       return;
@@ -483,10 +511,10 @@ export default function LiveTradePortfolioPanel({
     window.addEventListener(LIVE_TRADE_PORTFOLIO_FOCUS_EVENT, onFocus);
     return () =>
       window.removeEventListener(LIVE_TRADE_PORTFOLIO_FOCUS_EVENT, onFocus);
-  }, [applyPortfolioFocus, initialAdminView]);
+  }, [applyPortfolioFocus, initialAdminView, selfOnly, user?.id]);
 
   const adminReadOnly = Boolean(
-    adminViewUserId && user?.id && user.id !== adminViewUserId,
+    !selfOnly && adminViewUserId && user?.id && user.id !== adminViewUserId,
   );
 
   const load = useCallback(
@@ -494,7 +522,10 @@ export default function LiveTradePortfolioPanel({
       try {
         let snap: LiveTradePortfolioResponse;
         const useAdminPortfolio = Boolean(
-          adminViewUserId && user?.id && user.id !== adminViewUserId,
+          !selfOnly &&
+            adminViewUserId &&
+            user?.id &&
+            user.id !== adminViewUserId,
         );
         if (useAdminPortfolio) {
           const token = getStoredAccessAdminToken();
@@ -527,7 +558,14 @@ export default function LiveTradePortfolioPanel({
         setLoading(false);
       }
     },
-    [programId, adminViewUserId, user?.id, feeByMarket, applyPortfolioSnapshot],
+    [
+      programId,
+      adminViewUserId,
+      user?.id,
+      selfOnly,
+      feeByMarket,
+      applyPortfolioSnapshot,
+    ],
   );
 
   const onPortfolioAfterTrade = useCallback(

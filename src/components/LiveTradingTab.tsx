@@ -262,8 +262,12 @@ export default function LiveTradingTab({
   const sidePanel = useLiveTradeCardSidePanelOptional();
   const polledStatus = useLiveTradingStatusPoll();
   const adminViewUserId = adminView?.userId?.trim() || null;
+  const dockSelfOnly = portalSourceOnly;
   const adminReadOnly = Boolean(
-    adminViewUserId && user?.id && user.id !== adminViewUserId,
+    !dockSelfOnly &&
+      adminViewUserId &&
+      user?.id &&
+      user.id !== adminViewUserId,
   );
 
   const reload = useCallback(async (userOverride?: AuthUser | null) => {
@@ -275,7 +279,11 @@ export default function LiveTradingTab({
     try {
       const tm = await fetchTechModels();
       setModels(tm.models);
-      if (adminViewUserId && activeUser.id !== adminViewUserId) {
+      if (
+        !dockSelfOnly &&
+        adminViewUserId &&
+        activeUser.id !== adminViewUserId
+      ) {
         const token = getStoredAccessAdminToken() ?? "";
         if (!token.trim() && !adminIpBypass) {
           throw new Error(ko.access.adminPasswordLabel);
@@ -308,7 +316,7 @@ export default function LiveTradingTab({
       setLoadErr(msg);
       if (msg.includes("로그인")) setStatus(null);
     }
-  }, [user, adminViewUserId, adminIpBypass]);
+  }, [user, adminViewUserId, adminIpBypass, dockSelfOnly]);
 
   useEffect(() => {
     void reload();
@@ -345,7 +353,7 @@ export default function LiveTradingTab({
 
   const portfolioAdminView = useMemo(
     () =>
-      adminReadOnly && adminViewUserId
+      !dockSelfOnly && adminReadOnly && adminViewUserId
         ? {
             userId: adminViewUserId,
             programId: adminView?.programId,
@@ -353,6 +361,7 @@ export default function LiveTradingTab({
           }
         : null,
     [
+      dockSelfOnly,
       adminReadOnly,
       adminViewUserId,
       adminView?.programId,
@@ -774,6 +783,7 @@ export default function LiveTradingTab({
                   programs={programs}
                   onOpenHoldingChart={onOpenHoldingChart}
                   initialAdminView={portfolioAdminView}
+                  selfOnly={dockSelfOnly}
                 />
                 {!adminReadOnly ? (
                 <LiveTradeCollapsibleCard
