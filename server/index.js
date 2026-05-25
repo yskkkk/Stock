@@ -33,6 +33,15 @@ ensureLiveTradeExitScenarioMigratedOnce().catch((e) => {
     e instanceof Error ? e.message : e,
   );
 });
+const { ensureRunningProgramsBoxRangeMigratedOnce } = await import(
+  "./box-range/migrate-active-programs.js"
+);
+ensureRunningProgramsBoxRangeMigratedOnce().catch((e) => {
+  console.warn(
+    "[box-range:migrate] active programs failed:",
+    e instanceof Error ? e.message : e,
+  );
+});
 const app = createApp();
 startStockDevSidecarsOnce("API 서버 기동");
 
