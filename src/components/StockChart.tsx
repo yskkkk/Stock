@@ -41,6 +41,11 @@ import {
 } from "../lib/userPersist";
 import type { ChartDrawMode, ChartDrawToolbarApi } from "../chartDrawTypes";
 import { CHART_DRAW_RAY_TOOL_ENABLED } from "../chartDrawTypes";
+import {
+  createBoxRangeChartPrimitive,
+  type BoxRangeChartPrimitive,
+} from "../lib/boxRangeChartPrimitive";
+import { chartTimeToUnixSec } from "../lib/profitMarker";
 import { ko } from "../i18n/ko";
 import type { ColorMode } from "../lib/theme";
 import type { Candle, ChartTime } from "../types";
@@ -169,7 +174,7 @@ interface StockChartProps {
   onChartDrawMagnetChange?: (next: boolean) => void;
   /** 수익 모델 매수 시점·가격 마커(없으면 표시 안 함) */
   profitMarker?: { time: ChartTime; price: number } | null;
-  /** 박스권 전략 — 상·하·중심 가격선(최대 8박스) */
+  /** 박스권 — 박스 채움·상·하·중 수평선(최대 8) */
   boxRangeOverlays?: Array<{
     boxId: string;
     top: number;
@@ -177,6 +182,8 @@ interface StockChartProps {
     mid: number;
     timeframe: string;
     state: string;
+    leftTime: number;
+    rightTime: number;
   }>;
 }
 
@@ -1865,8 +1872,7 @@ export default function StockChart({
   const drawingHoverIdRef = useRef<string | null>(null);
   const drawingRayDotsHoverIdRef = useRef<string | null>(null);
   const drawingSelectedIdRef = useRef<string | null>(null);
-  /** @type {import("lightweight-charts").IPriceLine[]} */
-  const boxRangePriceLinesRef = useRef([]);
+  const boxRangePrimitiveRef = useRef<BoxRangeChartPrimitive | null>(null);
   const chartDrawAreaPointerInsideRef = useRef(false);
   const drawPersistKeyRef = useRef(drawingPersistKey);
   const drawLegacyKeyRef = useRef(structureKey);
@@ -2443,39 +2449,27 @@ export default function StockChart({
   useEffect(() => {
     const b = bundleRef.current;
     if (!b?.candle || b.structureKey !== structureKey) return;
-    for (const pl of boxRangePriceLinesRef.current) {
+
+    if (boxRangePrimitiveRef.current) {
       try {
-        b.candle.removePriceLine(pl);
+        b.candle.detachPrimitive(boxRangePrimitiveRef.current);
       } catch {
         /* ignore */
       }
+      boxRangePrimitiveRef.current = null;
     }
-    boxRangePriceLinesRef.current = [];
-    const list = boxRangeOverlays ?? [];
+
+    const list = (boxRangeOverlays ?? []).slice(0, 8);
     if (!list.length) return;
-    const tfColor = (tf: string) =>
-      tf === "1d" ? "#60a5fa" : tf === "4h" ? "#a78bfa" : "#38bdf8";
-    for (const box of list.slice(0, 8)) {
-      const col = tfColor(box.timeframe);
-      const titleBase = `${box.timeframe} ${box.state}`;
-      const lines = [
-        { price: box.top, title: `${titleBase} 상`, color: col },
-        { price: box.bottom, title: `${titleBase} 하`, color: col },
-        { price: box.mid, title: `${titleBase} 중`, color: "#fb923c" },
-      ];
-      for (const ln of lines) {
-        const pl = b.candle.createPriceLine({
-          price: ln.price,
-          color: ln.color,
-          lineWidth: 1,
-          lineStyle: 2,
-          axisLabelVisible: true,
-          title: ln.title,
-        });
-        boxRangePriceLinesRef.current.push(pl);
-      }
-    }
-  }, [boxRangeOverlays, structureKey]);
+
+    const last = candles[candles.length - 1];
+    const extendRightTo = last ? chartTimeToUnixSec(last.time) : null;
+
+    const prim = createBoxRangeChartPrimitive();
+    prim.setData(list, extendRightTo);
+    b.candle.attachPrimitive(prim);
+    boxRangePrimitiveRef.current = prim;
+  }, [boxRangeOverlays, structureKey, candles]);
 
   useEffect(() => {
     if (!drawingsEnabled || drawModeForChart !== "cursor") return;
