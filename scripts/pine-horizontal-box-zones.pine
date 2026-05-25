@@ -223,14 +223,56 @@ bool pctLim = usePctLimit
 
 int storeCap = maxStoreZones
 
-[h1_in, h1_rp, h1_act, h1_at, h1_ab, h1_am, h1_a0, h1_a1, h1_zn, h1_zTop, h1_zBot, h1_zT0, h1_zT1] =
-     vis1H ? request.security(sym, "60", f_zoneEngine(h1_lb, h1_min, h1_pct, atrOn, H1_ATR_LEN, H1_ATR_MULT, h1_mp, h1_mb, TF_SEC_1H, H1_EXT_B, H1_EXIT_B, pctLim, breakAtrMult, storeCap), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off) : [false, 0.0, false, float(na), float(na), float(na), int(na), int(na), 0, EMPTY_TOP, EMPTY_BOT, EMPTY_T0, EMPTY_T1]
+bool h1_in = false
+float h1_rp = 0.0
+bool h1_act = false
+float h1_at = na
+float h1_ab = na
+float h1_am = na
+int h1_a0 = na
+int h1_a1 = na
+int h1_zn = 0
+float[] h1_zTop = EMPTY_TOP
+float[] h1_zBot = EMPTY_BOT
+int[] h1_zT0 = EMPTY_T0
+int[] h1_zT1 = EMPTY_T1
 
-[h4_in, h4_rp, h4_act, h4_at, h4_ab, h4_am, h4_a0, h4_a1, h4_zn, h4_zTop, h4_zBot, h4_zT0, h4_zT1] =
-     vis4H ? request.security(sym, "240", f_zoneEngine(useCustom ? cLookback : H4_LB, useCustom ? cMinBars : H4_MIN, useCustom ? cMaxPct : H4_MAX_PCT, atrOn, H4_ATR_LEN, H4_ATR_MULT, useCustom ? cMergeMidPct : H4_MERGE_P, useCustom ? cMergeBars : H4_MERGE_B, TF_SEC_4H, H4_EXT_B, H4_EXIT_B, pctLim, breakAtrMult, storeCap), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off) : [false, 0.0, false, float(na), float(na), float(na), int(na), int(na), 0, EMPTY_TOP, EMPTY_BOT, EMPTY_T0, EMPTY_T1]
+bool h4_in = false
+float h4_rp = 0.0
+bool h4_act = false
+float h4_at = na
+float h4_ab = na
+float h4_am = na
+int h4_a0 = na
+int h4_a1 = na
+int h4_zn = 0
+float[] h4_zTop = EMPTY_TOP
+float[] h4_zBot = EMPTY_BOT
+int[] h4_zT0 = EMPTY_T0
+int[] h4_zT1 = EMPTY_T1
 
-[d_in, d_rp, d_act, d_at, d_ab, d_am, d_a0, d_a1, d_zn, d_zTop, d_zBot, d_zT0, d_zT1] =
-     vis1D ? request.security(sym, "D", f_zoneEngine(useCustom ? cLookback : D1_LB, useCustom ? cMinBars : D1_MIN, useCustom ? cMaxPct : D1_MAX_PCT, atrOn, D1_ATR_LEN, D1_ATR_MULT, useCustom ? cMergeMidPct : D1_MERGE_P, useCustom ? cMergeBars : D1_MERGE_B, TF_SEC_1D, D1_EXT_B, D1_EXIT_B, pctLim, breakAtrMult, storeCap), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off) : [false, 0.0, false, float(na), float(na), float(na), int(na), int(na), 0, EMPTY_TOP, EMPTY_BOT, EMPTY_T0, EMPTY_T1]
+bool d_in = false
+float d_rp = 0.0
+bool d_act = false
+float d_at = na
+float d_ab = na
+float d_am = na
+int d_a0 = na
+int d_a1 = na
+int d_zn = 0
+float[] d_zTop = EMPTY_TOP
+float[] d_zBot = EMPTY_BOT
+int[] d_zT0 = EMPTY_T0
+int[] d_zT1 = EMPTY_T1
+
+if vis1H
+    [h1_in, h1_rp, h1_act, h1_at, h1_ab, h1_am, h1_a0, h1_a1, h1_zn, h1_zTop, h1_zBot, h1_zT0, h1_zT1] := request.security(sym, "60", f_zoneEngine(h1_lb, h1_min, h1_pct, atrOn, H1_ATR_LEN, H1_ATR_MULT, h1_mp, h1_mb, TF_SEC_1H, H1_EXT_B, H1_EXIT_B, pctLim, breakAtrMult, storeCap), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+
+if vis4H
+    [h4_in, h4_rp, h4_act, h4_at, h4_ab, h4_am, h4_a0, h4_a1, h4_zn, h4_zTop, h4_zBot, h4_zT0, h4_zT1] := request.security(sym, "240", f_zoneEngine(useCustom ? cLookback : H4_LB, useCustom ? cMinBars : H4_MIN, useCustom ? cMaxPct : H4_MAX_PCT, atrOn, H4_ATR_LEN, H4_ATR_MULT, useCustom ? cMergeMidPct : H4_MERGE_P, useCustom ? cMergeBars : H4_MERGE_B, TF_SEC_4H, H4_EXT_B, H4_EXIT_B, pctLim, breakAtrMult, storeCap), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+
+if vis1D
+    [d_in, d_rp, d_act, d_at, d_ab, d_am, d_a0, d_a1, d_zn, d_zTop, d_zBot, d_zT0, d_zT1] := request.security(sym, "D", f_zoneEngine(useCustom ? cLookback : D1_LB, useCustom ? cMinBars : D1_MIN, useCustom ? cMaxPct : D1_MAX_PCT, atrOn, D1_ATR_LEN, D1_ATR_MULT, useCustom ? cMergeMidPct : D1_MERGE_P, useCustom ? cMergeBars : D1_MERGE_B, TF_SEC_1D, D1_EXT_B, D1_EXIT_B, pctLim, breakAtrMult, storeCap), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
 
 // ── 그리기 ─────────────────────────────────────────────────────────
 var box[]  b1h = array.new_box()
