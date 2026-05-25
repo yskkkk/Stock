@@ -2,16 +2,14 @@
  * 실매매·시뮬 매수 중복 방지 — 스크리너 이중 호출·동시 틱·재알림
  */
 import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { normalizeLiveTradeMarket } from "./live-trade-market.js";
 import {
   buildPositionsFromTrades,
   readStoreSync,
 } from "./live-trade-portfolio-store.js";
+import { dataFilePath } from "./store-json.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DEDUP_FILE = path.join(__dirname, ".data", "live-trade-dedup.json");
+const DEDUP_FILE = dataFilePath("live-trade-dedup.json");
 export const LIVE_TRADE_BUY_DEDUPE_MS = 6 * 60 * 60 * 1000;
 
 /** @type {Set<string>} */

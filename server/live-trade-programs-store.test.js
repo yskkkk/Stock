@@ -84,11 +84,11 @@ describe("resolveProgramAccountMigrationPatch", () => {
     expect(patch).toEqual({ userId: "u-a", ownerEmail: "a@test.com" });
   });
 
-  it("reassigns when ownerEmail matches but userId is another account", () => {
+  it("does not reassign when userId belongs to another account", () => {
     const patch = resolveProgramAccountMigrationPatch(
       prog({ userId: "u-b", ownerEmail: "a@test.com" }),
       { userId: "u-a", email: "a@test.com", users, soleBithumbUserId: null },
     );
-    expect(patch).toEqual({ userId: "u-a", ownerEmail: "a@test.com" });
+    expect(patch).toBeNull();
   });
 });

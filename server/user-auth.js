@@ -16,7 +16,7 @@ import {
   deleteSessionSync,
   getSessionSync,
 } from "./user-sessions-store.js";
-import { migrateLegacyProgramsToUserSync } from "./live-trade-programs-store.js";
+import { migrateProgramsForAccountOnceSync } from "./live-trade-programs-store.js";
 import {
   validateAuthCredentials,
   validateAuthPassword,
@@ -414,5 +414,5 @@ export function requireUserAuth(req, res, next) {
  */
 export function maybeMigrateLegacyLiveTradeDataSync(userId) {
   const user = findUserByIdSync(userId);
-  migrateLegacyProgramsToUserSync(userId, user?.email);
+  migrateProgramsForAccountOnceSync(userId, user?.email);
 }

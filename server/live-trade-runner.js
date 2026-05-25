@@ -3,8 +3,7 @@
  * 매수 트리거 SSOT: telegram-notify.notifyHighScorePick (screener는 여기만 호출)
  */
 import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { dataFilePath } from "./store-json.js";
 import {
   listArmedLiveTradeProgramsSync,
   listSimActiveProgramsSync,
@@ -27,8 +26,7 @@ import {
   tryAcquireLiveBuySlot,
 } from "./live-trade-buy-guard.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ORPHAN_LOG_FILE = path.join(__dirname, ".data", "live-trade-orphan-orders.ndjson");
+const ORPHAN_LOG_FILE = dataFilePath("live-trade-orphan-orders.ndjson");
 
 function logOrphanOrder(orderId, symbol, programId) {
   try {

@@ -8,7 +8,8 @@ import {
 import {
   healOwnerMissingProgramErrorsSync,
   healStuckSimProgramErrorsSync,
-  listLiveTradeProgramsSync,
+  listLiveTradeProgramsForUserSync,
+  readProgramsStoreSync,
 } from "./live-trade-programs-store.js";
 
 async function portfolioPayloadForUser(userId, programId) {
@@ -37,7 +38,7 @@ async function portfolioPayloadForUser(userId, programId) {
 export async function buildAdminLiveTradingUserStatusPayload(userId) {
   const uid = String(userId ?? "").trim();
   if (!uid) throw new Error("userId required");
-  let programs = listLiveTradeProgramsSync(uid);
+  let programs = listLiveTradeProgramsForUserSync(uid);
   let programReturns = await buildProgramPortfolioSummariesMap(
     programs.map((p) => p.id),
     uid,
@@ -56,7 +57,7 @@ export async function buildAdminLiveTradingUserStatusPayload(userId) {
 }
 
 export function buildAdminLiveTradingRunningPayload() {
-  const all = listLiveTradeProgramsSync();
+  const all = readProgramsStoreSync().programs;
   const programs = all
     .filter((p) => p.status === "armed" || p.status === "sim")
     .sort((a, b) => {

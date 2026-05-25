@@ -83,6 +83,8 @@ function tradesVisibleToUser(trades, userId, programId = null) {
       listLiveTradeProgramsSync(uid).map((p) => p.id),
     );
     out = out.filter((t) => allowed.has(t.programId));
+  } else {
+    out = [];
   }
   if (pid) out = out.filter((t) => t.programId === pid);
   return out;

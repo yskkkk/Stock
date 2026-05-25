@@ -4,14 +4,15 @@
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { fileURLToPath } from "node:url";
+import { resolveServerDataDir } from "./data-path.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = path.join(__dirname, ".data");
-const USERS_FILE = path.join(DATA_DIR, "users.json");
+function usersFilePath() {
+  return path.join(resolveServerDataDir(), "users.json");
+}
 
 function ensureDirSync() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  const dir = resolveServerDataDir();
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
 
 function defaultStore() {
@@ -20,8 +21,9 @@ function defaultStore() {
 
 function readStoreSync() {
   try {
-    if (!fs.existsSync(USERS_FILE)) return defaultStore();
-    const o = JSON.parse(fs.readFileSync(USERS_FILE, "utf8"));
+    const file = usersFilePath();
+    if (!fs.existsSync(file)) return defaultStore();
+    const o = JSON.parse(fs.readFileSync(file, "utf8"));
     if (!o || typeof o !== "object" || !Array.isArray(o.users)) return defaultStore();
     return {
       users: o.users
@@ -35,7 +37,7 @@ function readStoreSync() {
 
 function writeStoreSync(store) {
   ensureDirSync();
-  fs.writeFileSync(USERS_FILE, JSON.stringify(store, null, 0), "utf8");
+  fs.writeFileSync(usersFilePath(), JSON.stringify(store, null, 0), "utf8");
 }
 
 /** @param {unknown} raw */

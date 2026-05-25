@@ -9,6 +9,7 @@ import {
   normalizeAccessIp,
   registerAccessControl,
 } from "./access-control.js";
+import { requireAccessAdmin } from "./route-guards.js";
 import { appendServerEventLog, expressAccessLogger, clientIp as expressClientIp } from "./access-log.js";
 import { isDartEnabled } from "./dart.js";
 import {
@@ -119,8 +120,9 @@ import {
   getLiveTradeProgramSync,
   healOwnerMissingProgramErrorsSync,
   healStuckSimProgramErrorsSync,
-  listLiveTradeProgramsSync,
-  migrateLegacyProgramsToUserSync,
+  listLiveTradeProgramsForUserSync,
+  migrateProgramsForAccountOnceSync,
+  StoreCorruptError,
   startSimLiveTradeProgramSync,
   stopSimLiveTradeProgramSync,
   updateLiveTradeProgramSync,
@@ -313,6 +315,7 @@ export function createApp() {
 
   app.get(
     "/api/picks",
+    requireAccessAdmin,
     asyncRoute(async (_req, res) => {
       ensureScreening();
       const base = getPicksState();
@@ -326,12 +329,13 @@ export function createApp() {
     }),
   );
 
-  app.get("/api/picks/daily-history", (_req, res) => {
+  app.get("/api/picks/daily-history", requireAccessAdmin, (_req, res) => {
     res.json(getPicksDailyHistoryForApi());
   });
 
   app.get(
     "/api/picks/daily-history/quotes",
+    requireAccessAdmin,
     asyncRoute(async (req, res) => {
       const raw = String(req.query.symbols ?? "").trim();
       const symbols = raw
@@ -350,6 +354,7 @@ export function createApp() {
 
   app.get(
     "/api/picks/recommendations-tracker",
+    requireAccessAdmin,
     asyncRoute(async (req, res) => {
       const includeQuotes = String(req.query.quotes ?? "1").trim() !== "0";
       const forceRefresh = String(req.query.refresh ?? "").trim() === "1";
@@ -379,7 +384,7 @@ export function createApp() {
     }),
   );
 
-  app.get("/api/picks/tech-weights", (_req, res) => {
+  app.get("/api/picks/tech-weights", requireAccessAdmin, (_req, res) => {
     const meta = getTechWeightsMetaSync();
     res.json({
       weights: getActiveSignalScoreWeightsSync(),
@@ -393,6 +398,7 @@ export function createApp() {
 
   app.post(
     "/api/picks/tech-weights/apply",
+    requireAccessAdmin,
     asyncRoute(async (req, res) => {
       const raw = req.body?.weights;
       if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
@@ -414,7 +420,7 @@ export function createApp() {
     }),
   );
 
-  app.post("/api/picks/tech-weights/reset", (_req, res) => {
+  app.post("/api/picks/tech-weights/reset", requireAccessAdmin, (_req, res) => {
     resetDefaultTechModelWeightsSync();
     resetTechWeightsSync();
     const listed = listTechModelsSync();
@@ -429,12 +435,13 @@ export function createApp() {
     });
   });
 
-  app.get("/api/picks/tech-models", (_req, res) => {
+  app.get("/api/picks/tech-models", requireAccessAdmin, (_req, res) => {
     res.json(listTechModelsSync());
   });
 
   app.post(
     "/api/picks/tech-models",
+    requireAccessAdmin,
     asyncRoute(async (req, res) => {
       const name = String(req.body?.name ?? "").trim();
       if (!name) {
@@ -452,6 +459,7 @@ export function createApp() {
 
   app.patch(
     "/api/picks/tech-models/active",
+    requireAccessAdmin,
     asyncRoute(async (req, res) => {
       const ids = req.body?.activeModelIds;
       if (!Array.isArray(ids)) {
@@ -465,6 +473,7 @@ export function createApp() {
 
   app.patch(
     "/api/picks/tech-models/:id",
+    requireAccessAdmin,
     asyncRoute(async (req, res) => {
       const id = String(req.params.id ?? "").trim();
       try {
@@ -481,6 +490,7 @@ export function createApp() {
 
   app.delete(
     "/api/picks/tech-models/:id",
+    requireAccessAdmin,
     asyncRoute(async (req, res) => {
       const id = String(req.params.id ?? "").trim();
       try {
@@ -520,10 +530,10 @@ export function createApp() {
             }
           : getTossTradingStatus();
       const bithumb = getBithumbTradingStatusForUserSync(userId);
-      migrateLegacyProgramsToUserSync(userId, req.user.email);
+      migrateProgramsForAccountOnceSync(userId, req.user.email);
       await ensureLiveTradeSellSettingsMigratedOnce();
       await ensureLiveTradeExitScenarioMigratedOnce();
-      let programs = listLiveTradeProgramsSync(userId, req.user.email);
+      let programs = listLiveTradeProgramsForUserSync(userId, req.user.email);
       let programReturns = await buildProgramPortfolioSummariesMap(
         programs.map((p) => p.id),
         userId,
@@ -583,7 +593,7 @@ export function createApp() {
         res.json({
           ok: true,
           program,
-          programs: listLiveTradeProgramsSync(userId),
+          programs: listLiveTradeProgramsForUserSync(userId),
         });
       } catch (e) {
         res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
@@ -619,7 +629,7 @@ export function createApp() {
         res.json({
           ok: true,
           program,
-          programs: listLiveTradeProgramsSync(userId),
+          programs: listLiveTradeProgramsForUserSync(userId),
         });
       } catch (e) {
         res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
@@ -640,7 +650,7 @@ export function createApp() {
           ok: true,
           deletedId: id,
           purgedTrades: purged.removed,
-          programs: listLiveTradeProgramsSync(userId),
+          programs: listLiveTradeProgramsForUserSync(userId),
         });
       } catch (e) {
         res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
@@ -710,7 +720,7 @@ export function createApp() {
         res.json({
           ok: true,
           program,
-          programs: listLiveTradeProgramsSync(userId),
+          programs: listLiveTradeProgramsForUserSync(userId),
         });
       } catch (e) {
         res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
@@ -729,7 +739,7 @@ export function createApp() {
         res.json({
           ok: true,
           program,
-          programs: listLiveTradeProgramsSync(userId),
+          programs: listLiveTradeProgramsForUserSync(userId),
         });
       } catch (e) {
         res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
@@ -770,7 +780,7 @@ export function createApp() {
           ok: true,
           program: out.program,
           analysis: out.analysis,
-          programs: listLiveTradeProgramsSync(userId),
+          programs: listLiveTradeProgramsForUserSync(userId),
         });
       } catch (e) {
         res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
@@ -826,7 +836,7 @@ export function createApp() {
         userId,
         exchangeSyncLive,
       });
-      const programs = listLiveTradeProgramsSync(userId);
+      const programs = listLiveTradeProgramsForUserSync(userId);
       const nameById = new Map(programs.map((p) => [p.id, p.name]));
       res.json({
         ...snap,
@@ -939,7 +949,7 @@ export function createApp() {
               : null,
           userId,
         });
-        const programs = listLiveTradeProgramsSync(userId);
+        const programs = listLiveTradeProgramsForUserSync(userId);
         const nameById = new Map(programs.map((p) => [p.id, p.name]));
         res.json({
           ok: true,
@@ -983,7 +993,7 @@ export function createApp() {
               : null,
           userId,
         });
-        const programs = listLiveTradeProgramsSync(userId);
+        const programs = listLiveTradeProgramsForUserSync(userId);
         const nameById = new Map(programs.map((p) => [p.id, p.name]));
         res.json({
           ok: true,
@@ -1455,11 +1465,10 @@ export function createApp() {
   /** 허용 IP — 개발 대기열: display 미러 파일(주기 sync) */
   app.get(
     "/api/ops/dev-queue-display",
+    requireAccessAdmin,
     asyncRoute(async (req, res) => {
       const snap = readDevQueueDisplaySnapshotSync();
-      const viewerIp = isAccessAdminRequest(req)
-        ? normalizeAccessIp(expressClientIp(req)) || null
-        : null;
+      const viewerIp = normalizeAccessIp(expressClientIp(req)) || null;
       res.json({
         ...snap,
         viewerIp,
@@ -1732,7 +1741,7 @@ export function createApp() {
     postFeedback(req, res);
   });
 
-  app.get("/api/feedback/inbox", (req, res) => {
+  app.get("/api/feedback/inbox", requireAccessAdmin, (req, res) => {
     getFeedbackInbox(req, res);
   });
 
@@ -1744,7 +1753,7 @@ export function createApp() {
     deleteFeedbackAdmin(req, res);
   });
 
-  app.get("/api/telegram/sent", (_req, res) => {
+  app.get("/api/telegram/sent", requireAccessAdmin, (_req, res) => {
     if (!isTelegramNotifyEnabled()) {
       res.status(400).json({
         error: "텔레그램 알림이 설정되지 않았습니다.",
@@ -1989,6 +1998,14 @@ export function createApp() {
   const _backfillTimer = setTimeout(() => scheduleRecommendationSignalBackfill(), 5000);
 
   app.use((err, _req, res, _next) => {
+    if (err instanceof StoreCorruptError && !res.headersSent) {
+      res.status(503).json({
+        error: err.message,
+        code: err.code,
+        filePath: err.filePath,
+      });
+      return;
+    }
     const message = err instanceof Error ? err.message : "요청 실패";
     if (!res.headersSent) {
       res.status(500).json({ error: message });

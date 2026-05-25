@@ -72,8 +72,16 @@ export function isAccessControlEnabled() {
   if (v === "1" || v === "true" || v === "yes") return true;
   if (v === "0" || v === "false" || v === "no") return false;
 
-  /** 기본값: 접근 제한 없음(로컬·개인 서버). 공개 서버는 ACCESS_CONTROL_ENABLED=1 */
-  return false;
+  /** 프로덕션 기본 ON. 로컬은 ACCESS_CONTROL_DISABLED=1 */
+  return process.env.NODE_ENV === "production";
+}
+
+function safeEqualBearer(bearer, token) {
+  if (!token || !bearer) return false;
+  const a = Buffer.from(bearer);
+  const b = Buffer.from(token);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
 }
 
 function allowLocalhost() {
@@ -116,7 +124,7 @@ export function isAccessAdminRequest(req) {
   if (!isAccessControlEnabled()) return true;
   const token = getAdminToken();
   const bearer = readBearerToken(req);
-  if (token && bearer && crypto.timingSafeEqual(Buffer.from(bearer), Buffer.from(token))) return true;
+  if (safeEqualBearer(bearer, token)) return true;
   if (isAccessAdminIp(req)) return true;
   const ip = normalizeAccessIp(clientIp(req));
   if (!ip) return false;
@@ -162,7 +170,6 @@ function isPathPublic(pathname, method) {
   if (method === "POST" && pathname === "/api/server-open-request") return true;
   if (method === "POST" && pathname === "/api/access/request") return true;
   if (method === "POST" && pathname === "/api/feedback") return true;
-  if (method === "GET" && pathname === "/api/feedback/inbox") return true;
   return false;
 }
 

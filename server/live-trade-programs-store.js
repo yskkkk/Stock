@@ -2,7 +2,6 @@
  * 실매매 프로그램 등록 — 추천 기술 모델과 매매 규칙 연결
  * server/.data/live-trade-programs.json
  */
-import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { getTechModelByIdSync } from "./picks-tech-models-store.js";
@@ -30,11 +29,16 @@ export const LIVE_TRADE_CANONICAL_SELL_SETTINGS = {
   stopLossPct: -3,
 };
 
-import { resolveServerDataDir } from "./data-path.js";
+import {
+  readJsonStoreSync,
+  writeJsonStoreSync,
+  StoreCorruptError,
+} from "./store-json.js";
 
-function programsFilePath() {
-  return path.join(resolveServerDataDir(), "live-trade-programs.json");
-}
+export { StoreCorruptError };
+
+const PROGRAMS_FILE = "live-trade-programs.json";
+const MIGRATE_V2_FILE = ".live-trade-account-migrate-v2.json";
 
 /** 실매매·시뮬 — 모델 가중 점수 최소 비율(만점 대비) 기본값 */
 export const LIVE_TRADE_DEFAULT_MIN_SCORE_RATIO = 0.8;
@@ -75,11 +79,6 @@ export function normalizeProgramOwnerEmail(email) {
   return e && e.includes("@") ? e : null;
 }
 
-function ensureDirSync() {
-  const dir = resolveServerDataDir();
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-}
-
 /** @returns {{ programs: LiveTradeProgram[] }} */
 function defaultStore() {
   return { programs: [] };
@@ -87,15 +86,18 @@ function defaultStore() {
 
 /** @returns {{ programs: LiveTradeProgram[] }} */
 function readStoreSync() {
-  try {
-    const file = programsFilePath();
-    if (!fs.existsSync(file)) return defaultStore();
-    const o = JSON.parse(fs.readFileSync(file, "utf8"));
-    if (!o || typeof o !== "object" || !Array.isArray(o.programs)) return defaultStore();
-    return { programs: o.programs.map(normalizeProgram).filter(Boolean) };
-  } catch {
-    return defaultStore();
-  }
+  return readJsonStoreSync(
+    PROGRAMS_FILE,
+    (o) => {
+      if (!o || typeof o !== "object" || !Array.isArray(o.programs)) {
+        return defaultStore();
+      }
+      return {
+        programs: o.programs.map(normalizeProgram).filter(Boolean),
+      };
+    },
+    defaultStore,
+  );
 }
 
 export function readProgramsStoreSync() {
@@ -107,11 +109,32 @@ export function writeProgramsStoreSync(store) {
 }
 
 function writeStoreSync(store) {
-  ensureDirSync();
-  const file = programsFilePath();
-  const tmp = `${file}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(store, null, 0), "utf8");
-  fs.renameSync(tmp, file);
+  writeJsonStoreSync(PROGRAMS_FILE, store);
+}
+
+/** @returns {{ doneUserIds: string[] }} */
+function readMigrateV2FlagsSync() {
+  return readJsonStoreSync(
+    MIGRATE_V2_FILE,
+    (o) => {
+      if (!o || typeof o !== "object") return { doneUserIds: [] };
+      const ids = Array.isArray(o.doneUserIds) ? o.doneUserIds : [];
+      return {
+        doneUserIds: ids.map((x) => String(x).trim()).filter(Boolean),
+      };
+    },
+    () => ({ doneUserIds: [] }),
+  );
+}
+
+/** @param {string} userId */
+function markMigrateV2DoneSync(userId) {
+  const uid = String(userId ?? "").trim();
+  if (!uid) return;
+  const flags = readMigrateV2FlagsSync();
+  if (flags.doneUserIds.includes(uid)) return;
+  flags.doneUserIds.push(uid);
+  writeJsonStoreSync(MIGRATE_V2_FILE, flags);
 }
 
 /** @param {unknown} v @param {number} min @param {number} max @param {number} fallback */
@@ -232,10 +255,10 @@ function normalizeProgram(raw) {
   };
 }
 
-/** @param {string | null | undefined} userId */
-function matchesUser(program, userId) {
+/** @param {LiveTradeProgram} program @param {string} userId */
+function matchesUserForUser(program, userId) {
   const uid = String(userId ?? "").trim();
-  if (!uid) return true;
+  if (!uid) return false;
   return program.userId === uid;
 }
 
@@ -280,27 +303,34 @@ function validateProgramPatch(patch) {
   }
 }
 
+/** @param {string} userId @param {string} [ownerEmail] */
+export function listLiveTradeProgramsForUserSync(userId, ownerEmail) {
+  const uid = String(userId ?? "").trim();
+  if (!uid) return [];
+  return readStoreSync().programs.filter((p) => matchesUserForUser(p, uid));
+}
+
 /** @param {string} [userId] @param {string} [ownerEmail] */
 export function listLiveTradeProgramsSync(userId, ownerEmail) {
-  const uid = String(userId ?? "").trim();
-  if (uid) {
-    const email =
-      normalizeProgramOwnerEmail(ownerEmail) ??
-      normalizeProgramOwnerEmail(findUserByIdSync(uid)?.email);
-    migrateProgramsForAccountSync(uid, email);
-  }
-  return readStoreSync().programs.filter((p) => matchesUser(p, uid));
+  return listLiveTradeProgramsForUserSync(userId, ownerEmail);
 }
 
 /**
  * @param {string} id
  * @param {string} [userId]
  */
-export function getLiveTradeProgramSync(id, userId) {
+/** @param {string} id */
+export function getLiveTradeProgramForRunnerSync(id) {
   const sid = String(id ?? "").trim();
-  const prog = readStoreSync().programs.find((p) => p.id === sid) ?? null;
+  return readStoreSync().programs.find((p) => p.id === sid) ?? null;
+}
+
+export function getLiveTradeProgramSync(id, userId) {
+  const prog = getLiveTradeProgramForRunnerSync(id);
   if (!prog) return null;
-  if (!matchesUser(prog, userId)) return null;
+  const uid = String(userId ?? "").trim();
+  if (!uid) return null;
+  if (!matchesUserForUser(prog, uid)) return null;
   return prog;
 }
 
@@ -318,15 +348,19 @@ export function resolveProgramAccountMigrationPatch(program, ctx) {
   const uid = ctx.userId;
   const email = ctx.email;
   const pe = normalizeProgramOwnerEmail(program.ownerEmail);
-  const ownerUser = program.userId ? findUserByIdSync(program.userId) : null;
+  const pid = String(program.userId ?? "").trim();
 
-  if (!program.userId) {
+  if (!pid) {
     if (pe === email) return { userId: uid, ownerEmail: email };
     if (!pe && ctx.users.length === 1) return { userId: uid, ownerEmail: email };
     return null;
   }
 
-  if (!ownerUser) {
+  if (pid !== uid && ctx.users.some((u) => u.id === pid)) {
+    return null;
+  }
+
+  if (!ctx.users.some((u) => u.id === pid)) {
     if (pe === email) return { userId: uid, ownerEmail: email };
     if (
       !pe &&
@@ -335,11 +369,6 @@ export function resolveProgramAccountMigrationPatch(program, ctx) {
     ) {
       return { userId: uid, ownerEmail: email };
     }
-    return null;
-  }
-
-  if (pe === email && program.userId !== uid) {
-    return { userId: uid, ownerEmail: email };
   }
 
   return null;
@@ -394,24 +423,44 @@ export function migrateProgramsForAccountSync(userId, ownerEmail) {
 }
 
 /** @param {string} userId @param {string} [ownerEmail] */
-export function migrateLegacyProgramsToUserSync(userId, ownerEmail) {
+export function migrateProgramsForAccountOnceSync(userId, ownerEmail) {
+  const uid = String(userId ?? "").trim();
+  if (!uid) return { migrated: 0, reclaimed: 0, skipped: true };
+  const flags = readMigrateV2FlagsSync();
+  if (flags.doneUserIds.includes(uid)) {
+    return { migrated: 0, reclaimed: 0, skipped: true };
+  }
   const email =
     normalizeProgramOwnerEmail(ownerEmail) ??
-    normalizeProgramOwnerEmail(findUserByIdSync(userId)?.email);
-  const { migrated, reclaimed } = migrateProgramsForAccountSync(userId, email);
-  return { migrated: migrated + reclaimed };
+    normalizeProgramOwnerEmail(findUserByIdSync(uid)?.email);
+  const { migrated, reclaimed } = migrateProgramsForAccountSync(uid, email);
+  markMigrateV2DoneSync(uid);
+  return { migrated, reclaimed, skipped: false };
 }
 
-export function listArmedLiveTradeProgramsSync() {
-  return listLiveTradeProgramsSync().filter((p) => {
+/** @param {string} userId @param {string} [ownerEmail] */
+export function migrateLegacyProgramsToUserSync(userId, ownerEmail) {
+  return migrateProgramsForAccountOnceSync(userId, ownerEmail);
+}
+
+export function listArmedLiveTradeProgramsForRunnerSync() {
+  return readStoreSync().programs.filter((p) => {
     if (p.status !== "armed") return false;
     const am = getProgramArmedMarkets(p);
     return am.kr || am.crypto;
   });
 }
 
+export function listSimActiveProgramsForRunnerSync() {
+  return readStoreSync().programs.filter((p) => p.status === "sim");
+}
+
+export function listArmedLiveTradeProgramsSync() {
+  return listArmedLiveTradeProgramsForRunnerSync();
+}
+
 export function listSimActiveProgramsSync() {
-  return listLiveTradeProgramsSync().filter((p) => p.status === "sim");
+  return listSimActiveProgramsForRunnerSync();
 }
 
 export function startSimLiveTradeProgramSync(id, userId) {
@@ -505,16 +554,12 @@ export function createLiveTradeProgramSync(input, userId, ownerEmail) {
   return program;
 }
 
-/**
- * @param {string} id
- * @param {Partial<LiveTradeProgram>} patch
- */
-export function updateLiveTradeProgramSync(id, patch, userId) {
+/** @param {string} id @param {Partial<LiveTradeProgram>} patch */
+export function updateLiveTradeProgramForRunnerSync(id, patch) {
   const store = readStoreSync();
   const idx = store.programs.findIndex((p) => p.id === id);
   if (idx < 0) throw new Error("프로그램을 찾을 수 없습니다.");
   const prev = store.programs[idx];
-  if (!matchesUser(prev, userId)) throw new Error("프로그램을 찾을 수 없습니다.");
   const markets = {
     kr:
       patch.markets?.kr !== undefined ? Boolean(patch.markets.kr) : prev.markets.kr,
@@ -547,12 +592,21 @@ export function updateLiveTradeProgramSync(id, patch, userId) {
   return next;
 }
 
+export function updateLiveTradeProgramSync(id, patch, userId) {
+  const sid = String(id ?? "").trim();
+  const uid = String(userId ?? "").trim();
+  if (!uid || !getLiveTradeProgramSync(sid, uid)) {
+    throw new Error("프로그램을 찾을 수 없습니다.");
+  }
+  return updateLiveTradeProgramForRunnerSync(sid, patch);
+}
+
 export function deleteLiveTradeProgramSync(id, userId) {
   const sid = String(id ?? "").trim();
   if (!sid) throw new Error("프로그램 id가 필요합니다.");
   const store = readStoreSync();
   const idx = store.programs.findIndex(
-    (p) => p.id === sid && matchesUser(p, userId),
+    (p) => p.id === sid && matchesUserForUser(p, userId),
   );
   if (idx < 0) throw new Error("프로그램을 찾을 수 없습니다.");
   store.programs.splice(idx, 1);
@@ -604,10 +658,10 @@ export function disarmLiveTradeProgramSync(id, userId) {
  * @param {string | null} err
  */
 export function touchLiveTradeProgramRunSync(id, err = null) {
-  const prog = getLiveTradeProgramSync(id);
+  const prog = getLiveTradeProgramForRunnerSync(id);
   if (!prog) return null;
   const simLane = prog.status === "sim";
-  return updateLiveTradeProgramSync(id, {
+  return updateLiveTradeProgramForRunnerSync(id, {
     lastRunAtMs: Date.now(),
     lastError: err,
     /* 시뮬: 종목별 실패(중복·한도 등)로 전체 상태를 error로 두지 않음 */
@@ -628,14 +682,13 @@ export function healStuckSimProgramErrorsSync(programs, programReturns) {
       (programReturns[p.id]?.holdingCount ?? 0) > 0 &&
       programHasOnlySimulatedBuyTradesSync(p.id)
     ) {
-      const healed = updateLiveTradeProgramSync(
-        p.id,
-        {
-          status: "sim",
-          lastError: null,
-        },
-        p.userId ?? undefined,
-      );
+      const healed = p.userId
+        ? updateLiveTradeProgramSync(
+            p.id,
+            { status: "sim", lastError: null },
+            p.userId,
+          )
+        : null;
       out.push(healed ?? p);
       continue;
     }

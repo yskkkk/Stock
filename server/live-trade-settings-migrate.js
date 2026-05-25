@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import {
   readProgramsStoreSync,
   writeProgramsStoreSync,
-  getLiveTradeProgramSync,
+  getLiveTradeProgramForRunnerSync,
   LIVE_TRADE_SELL_SETTINGS_VERSION,
   LIVE_TRADE_CANONICAL_SELL_SETTINGS,
 } from "./live-trade-programs-store.js";
@@ -109,7 +109,7 @@ export async function refreshOpenTradeExitTargetsSync(onlyProgramIds = null) {
       skipped++;
       continue;
     }
-    const program = getLiveTradeProgramSync(pos.programId);
+    const program = getLiveTradeProgramForRunnerSync(pos.programId);
     if (!program) {
       skipped++;
       continue;

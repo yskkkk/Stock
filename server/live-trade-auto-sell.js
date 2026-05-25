@@ -10,7 +10,7 @@ import { pickQuoteFromMap } from "./quote-symbol-resolve.js";
 
 import {
 
-  getLiveTradeProgramSync,
+  getLiveTradeProgramForRunnerSync,
 
   listArmedLiveTradeProgramsSync,
 
@@ -188,7 +188,7 @@ export async function tickLiveTradeAutoSell() {
 
   for (const pos of positions) {
 
-    const program = getLiveTradeProgramSync(pos.programId);
+    const program = getLiveTradeProgramForRunnerSync(pos.programId);
 
     if (!program?.autoSellAtTarget) continue;
 
@@ -250,7 +250,7 @@ export async function tickLiveTradeAutoSell() {
   const manuallyClosedKeys = new Set();
 
   for (const pos of positions) {
-    const prog = getLiveTradeProgramSync(pos.programId);
+    const prog = getLiveTradeProgramForRunnerSync(pos.programId);
     if (prog?.status !== "armed" || pos.market !== "crypto") continue;
 
     const uid = String(prog.userId ?? "").trim();
@@ -310,19 +310,24 @@ export async function tickLiveTradeAutoSell() {
     }
 
     try {
-      recordLiveTradeSellSync({
-        programId: pos.programId,
-        symbol: pos.symbol,
-        market: pos.market,
-        quantity: pos.quantity,
-        price: sellPrice,
-        orderId: orderId ?? null,
-        atMs,
-        simulated: false,
-        note: orderId
-          ? `빗썸 수동매도 감지·체결 ${orderId}`
-          : "빗썸 수동매도 감지 (현재가 기준)",
-      });
+      const progForSell = getLiveTradeProgramForRunnerSync(pos.programId);
+      if (!progForSell?.userId) continue;
+      recordLiveTradeSellSync(
+        {
+          programId: pos.programId,
+          symbol: pos.symbol,
+          market: pos.market,
+          quantity: pos.quantity,
+          price: sellPrice,
+          orderId: orderId ?? null,
+          atMs,
+          simulated: false,
+          note: orderId
+            ? `빗썸 수동매도 감지·체결 ${orderId}`
+            : "빗썸 수동매도 감지 (현재가 기준)",
+        },
+        progForSell.userId,
+      );
       manuallyClosedKeys.add(posKey);
       liveTradeLogInfo(
         "[live-trade:auto-sell] 수동매도 감지·기록:",
@@ -347,7 +352,7 @@ export async function tickLiveTradeAutoSell() {
 
   for (const pos of positions) {
 
-    const program = getLiveTradeProgramSync(pos.programId);
+    const program = getLiveTradeProgramForRunnerSync(pos.programId);
 
     if (!program) continue;
 
@@ -460,27 +465,20 @@ export async function tickLiveTradeAutoSell() {
 
         const fillPrice = sellResult.fillPrice ?? hit.price ?? current;
 
-        recordLiveTradeSellSync({
-
-          programId: pos.programId,
-
-          symbol: pos.symbol,
-
-          market: pos.market,
-
-          quantity: sellVolume,
-
-          price: fillPrice,
-
-          note: hit.note,
-
-          simulated: Boolean(sellResult.simulated),
-
-          orderId: sellResult.orderId ?? null,
-
-          atMs: Date.now(),
-
-        });
+        recordLiveTradeSellSync(
+          {
+            programId: pos.programId,
+            symbol: pos.symbol,
+            market: pos.market,
+            quantity: sellVolume,
+            price: fillPrice,
+            note: hit.note,
+            simulated: Boolean(sellResult.simulated),
+            orderId: sellResult.orderId ?? null,
+            atMs: Date.now(),
+          },
+          program.userId,
+        );
 
         liveTradeLogInfo(
 
@@ -498,25 +496,19 @@ export async function tickLiveTradeAutoSell() {
 
       } else {
 
-        recordLiveTradeSellSync({
-
-          programId: pos.programId,
-
-          symbol: pos.symbol,
-
-          market: pos.market,
-
-          quantity: pos.quantity,
-
-          price: hit.price ?? current,
-
-          note: hit.note,
-
-          simulated: true,
-
-          atMs: Date.now(),
-
-        });
+        recordLiveTradeSellSync(
+          {
+            programId: pos.programId,
+            symbol: pos.symbol,
+            market: pos.market,
+            quantity: pos.quantity,
+            price: hit.price ?? current,
+            note: hit.note,
+            simulated: true,
+            atMs: Date.now(),
+          },
+          program.userId,
+        );
 
         liveTradeLogInfo(
 
