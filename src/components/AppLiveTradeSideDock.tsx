@@ -39,8 +39,7 @@ import {
   defaultDockPanelWidthPx,
   dockPanelOpenSnapThresholdPx,
   dockPanelWidthDragPx,
-  dockPanelWidthFromExpandPointer,
-  dockPanelWidthFromExpandPointerRaw,
+  dockPanelWidthFromCollapsedDrag,
   dockRailWidthPx,
   minDockPanelWidthPx,
   persistDockPanelWidthPref,
@@ -585,7 +584,7 @@ export default function AppLiveTradeSideDock({
       const vw = window.innerWidth;
       const next = drag.wasOpen
         ? dockPanelWidthFromOpenDrag(drag.startW, drag.startX, e.clientX, vw)
-        : dockPanelWidthDragPx(dockPanelWidthFromExpandPointerRaw(e.clientX, vw), vw);
+        : dockPanelWidthFromCollapsedDrag(drag.startX, e.clientX, vw);
       applyDockPanelWidthCss(next);
       setPanelWidthPx(next);
     },
@@ -603,7 +602,7 @@ export default function AppLiveTradeSideDock({
       const clientX = isUsablePointerClientX(e.clientX) ? e.clientX : drag.startX;
       const w = drag.wasOpen
         ? dockPanelWidthFromOpenDrag(drag.startW, drag.startX, clientX)
-        : dockPanelWidthFromExpandPointer(clientX);
+        : dockPanelWidthFromCollapsedDrag(drag.startX, clientX);
 
       const restoreWidth = () =>
         readDockPanelWidthPref() ?? defaultDockPanelWidthPx();
@@ -613,9 +612,7 @@ export default function AppLiveTradeSideDock({
         clearDockPanelWidthCss();
         setPanelWidthPx(restoreWidth());
       } else {
-        const finalW = drag.wasOpen
-          ? syncDockPanelWidth(Math.max(w, min))
-          : syncDockPanelWidth(restoreWidth());
+        const finalW = syncDockPanelWidth(Math.max(w, min));
         persistOpen(true);
         openDefaultBithumbPanel();
         if (finalW >= defaultDockPanelWidthPx() * 0.72) {

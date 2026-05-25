@@ -8980,6 +8980,11 @@ html[data-theme="light"] .market-indices-rail__item {
 
   #root > .app
     .app__viewport.app__viewport--no-left-rail:has(.app-live-trade-side-dock--open)
+    > .app__shell,
+  #root > .app
+    .app__viewport.app__viewport--no-left-rail:has(
+      .app-live-trade-side-dock--collapsed.app-live-trade-side-dock--resizing
+    )
     > .app__shell {
     padding-right: calc(
       var(--live-trade-dock-rail-width, 2.68rem) + var(--live-trade-dock-panel-width, min(26rem, calc(100dvw - 4rem))) + 0.2rem
@@ -9046,7 +9051,22 @@ html[data-theme="light"] .market-indices-rail__item {
   .app__right-panel--dock
     .app-live-trade-side-dock--collapsed.app-live-trade-side-dock--resizing
     .app-live-trade-side-dock__panel {
+    flex: 0 0 auto;
+    width: var(--live-trade-dock-panel-width, 0px);
+    min-width: var(--live-trade-dock-panel-width, 0px);
+    max-width: var(--live-trade-dock-panel-width, 26rem);
     visibility: visible;
+    pointer-events: auto;
+    transition: none;
+  }
+
+  .app__right-panel--dock
+    .app-live-trade-side-dock--collapsed.app-live-trade-side-dock--resizing
+    .app-live-trade-side-dock__host {
+    opacity: 1;
+    visibility: visible;
+    width: 100%;
+    min-width: 0;
     pointer-events: auto;
   }
 
@@ -9403,6 +9423,25 @@ html:not([data-theme="light"]) {
   transform: none;
   pointer-events: none;
   visibility: visible;
+}
+
+.app-live-trade-side-dock--collapsed.app-live-trade-side-dock--resizing
+  .app-live-trade-side-dock__panel {
+  flex: 0 0 auto;
+  width: var(--live-trade-dock-panel-width, 0px);
+  min-width: var(--live-trade-dock-panel-width, 0px);
+  max-width: var(--live-trade-dock-panel-width, 26rem);
+  pointer-events: auto;
+  transition: none;
+}
+
+.app-live-trade-side-dock--collapsed.app-live-trade-side-dock--resizing
+  .app-live-trade-side-dock__host {
+  opacity: 1;
+  visibility: visible;
+  width: 100%;
+  min-width: 0;
+  pointer-events: auto;
 }
 
 .app-live-trade-side-dock--open .app-live-trade-side-dock__panel {

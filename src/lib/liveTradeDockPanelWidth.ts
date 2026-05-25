@@ -73,6 +73,15 @@ export function dockPanelWidthFromExpandPointer(clientX: number): number {
   return dockPanelWidthDragPx(dockPanelWidthFromExpandPointerRaw(clientX));
 }
 
+/** 접힘 상태 — 핸들 잡은 X에서 왼쪽으로 끌어당긴 px만큼 패널 너비 */
+export function dockPanelWidthFromCollapsedDrag(
+  startX: number,
+  clientX: number,
+  viewportWidth?: number,
+): number {
+  return dockPanelWidthDragPx(Math.max(0, startX - clientX), viewportWidth);
+}
+
 /** 저장값이 기본 대비 지나치게 좁으면 무시(과거 최소 14rem·오동작 저장 복구) */
 export function isDockPanelWidthPrefUsable(
   px: number,
