@@ -4,16 +4,19 @@ export type ColorMode = "light" | "dark";
 
 export const LIGHT_PALETTE_STORAGE_KEY = "stock-app-light-palette";
 
-export const LIGHT_PALETTE_IDS = [
-  "mist",
-  "paper",
-  "sage",
-  "lavender",
-  "sand",
-  "dusk",
-] as const;
+export const LIGHT_PALETTE_IDS = ["amber", "ocean", "slate"] as const;
 
 export type LightPaletteId = (typeof LIGHT_PALETTE_IDS)[number];
+
+/** 예전 6종 팔레트 id → 신규 3종 */
+const LEGACY_LIGHT_PALETTE_MAP: Record<string, LightPaletteId> = {
+  sand: "amber",
+  paper: "amber",
+  mist: "ocean",
+  dusk: "ocean",
+  sage: "slate",
+  lavender: "slate",
+};
 
 export function isLightPaletteId(v: string): v is LightPaletteId {
   return (LIGHT_PALETTE_IDS as readonly string[]).includes(v);
@@ -21,12 +24,9 @@ export function isLightPaletteId(v: string): v is LightPaletteId {
 
 /** 스와치 미리보기(대표 액센트) */
 export const LIGHT_PALETTE_PREVIEW: Record<LightPaletteId, string> = {
-  mist: "#0d9488",
-  paper: "#5a6bb5",
-  sage: "#2f6f55",
-  lavender: "#5f4bb0",
-  sand: "#8b5f3a",
-  dusk: "#3d6ea8",
+  amber: "#ea580c",
+  ocean: "#2563eb",
+  slate: "#475569",
 };
 
 /** 로컬에 저장된 테마가 없을 때 — 라이트(화이트) 모드 */
@@ -47,11 +47,15 @@ export function readStoredTheme(): ColorMode {
 export function readStoredLightPalette(): LightPaletteId {
   try {
     const v = localStorage.getItem(LIGHT_PALETTE_STORAGE_KEY);
-    if (v && isLightPaletteId(v)) return v;
+    if (v) {
+      if (isLightPaletteId(v)) return v;
+      const mapped = LEGACY_LIGHT_PALETTE_MAP[v];
+      if (mapped) return mapped;
+    }
   } catch {
     /* ignore */
   }
-  return "mist";
+  return "ocean";
 }
 
 export function applyLightPalette(id: LightPaletteId): void {

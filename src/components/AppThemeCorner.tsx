@@ -19,6 +19,12 @@ import {
 } from "../lib/theme";
 import { ko } from "../i18n/ko";
 
+const LIGHT_PALETTE_ARIA: Record<LightPaletteId, string> = {
+  amber: ko.app.lightPaletteAmber,
+  ocean: ko.app.lightPaletteOcean,
+  slate: ko.app.lightPaletteSlate,
+};
+
 type AppThemeCornerProps = {
   colorMode: ColorMode;
   lightPalette: LightPaletteId;
@@ -347,7 +353,7 @@ export default function AppThemeCorner({
             restoreCommittedPalette();
           }}
         >
-          {LIGHT_PALETTE_IDS.map((id, idx) => (
+          {LIGHT_PALETTE_IDS.map((id) => (
             <button
               key={id}
               type="button"
@@ -358,7 +364,8 @@ export default function AppThemeCorner({
               ]
                 .filter(Boolean)
                 .join(" ")}
-              aria-label={`${idx + 1} / ${LIGHT_PALETTE_IDS.length}`}
+              aria-label={LIGHT_PALETTE_ARIA[id]}
+              title={LIGHT_PALETTE_ARIA[id]}
               aria-pressed={lightPalette === id}
               onPointerEnter={() => previewPalette(id)}
               onFocus={() => previewPalette(id)}
