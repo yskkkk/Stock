@@ -1,173 +1,311 @@
 // This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
-// © standalone — Stock 프로젝트와 무관, TradingView에 붙여넣기용
+// © standalone — TradingView Pine Editor 붙여넣기용 · 1H / 4H / 1D
 
 //@version=5
-indicator("수평 매물대 · 박스권", shorttitle="박스권", overlay=true, max_boxes_count=500, max_lines_count=500)
+indicator("수평 매물대 · 박스권 MTF", shorttitle="박스권 MTF", overlay=true, max_boxes_count=500, max_lines_count=500)
 
-// ── 입력 ─────────────────────────────────────────────────────────────
-grpDet = "박스 탐지"
-lookback     = input.int(20, "구간(봉)", minval=5, group=grpDet)
-minBars      = input.int(10, "최소 박스 봉 수", minval=3, group=grpDet)
-maxRangePct  = input.float(2.8, "최대 박스 폭(%)", minval=0.2, step=0.1, group=grpDet)
-useAtrFilter = input.bool(true, "ATR 대비 폭 필터", group=grpDet)
-atrLen       = input.int(14, "ATR", minval=1, group=grpDet)
-atrMult      = input.float(1.35, "ATR × (최대 폭)", minval=0.5, step=0.05, group=grpDet)
+// ── 1H / 4H / 1D 프리셋 (타임프레임별 기본값) ───────────────────────
+// 1H — 짧은 횡보·좁은 폭
+H1_LB       = 24
+H1_MIN      = 12
+H1_MAX_PCT  = 1.6
+H1_ATR_LEN  = 14
+H1_ATR_MULT = 1.15
+H1_MERGE_P  = 0.12
+H1_MERGE_B  = 48
+H1_EXT_B    = 8
+H1_MAX_Z    = 6
 
-grpMerge = "병합"
-mergePct     = input.float(0.15, "가격 겹침 허용(%)", minval=0, step=0.05, group=grpMerge, tooltip="박스 상·하단이 이 비율 안에서 겹치면 하나로 합침")
-mergeBars    = input.int(80, "시간 인접(봉)", minval=0, group=grpMerge, tooltip="끝·시작 bar_index 차이가 이 값 이하면 인접으로 보고 병합 후보")
+// 4H — 중간 박스
+H4_LB       = 18
+H4_MIN      = 8
+H4_MAX_PCT  = 2.2
+H4_ATR_LEN  = 14
+H4_ATR_MULT = 1.25
+H4_MERGE_P  = 0.14
+H4_MERGE_B  = 24
+H4_EXT_B    = 6
+H4_MAX_Z    = 5
 
+// 1D — 넓은 박스·긴 봉
+D1_LB       = 14
+D1_MIN      = 6
+D1_MAX_PCT  = 3.6
+D1_ATR_LEN  = 14
+D1_ATR_MULT = 1.35
+D1_MERGE_P  = 0.16
+D1_MERGE_B  = 12
+D1_EXT_B    = 5
+D1_MAX_Z    = 4
+
+TF_SEC_1H = 3600
+TF_SEC_4H = 14400
+TF_SEC_1D = 86400
+
+// ── 표시 · 대시보드 ─────────────────────────────────────────────────
 grpVis = "표시"
-showActive   = input.bool(true, "진행 중 박스", group=grpVis)
-boxColor     = input.color(color.new(#2962FF, 82), "박스 채움", group=grpVis)
-boxBorder    = input.color(color.new(#2962FF, 35), "박스 테두리", group=grpVis)
-midColor     = input.color(color.new(#FF6D00, 0), "중심 실선", group=grpVis)
-midWidth     = input.int(2, "중심선 두께", minval=1, maxval=4, group=grpVis)
-extendRight  = input.int(8, "박스 우측 연장(봉)", minval=0, group=grpVis)
-maxZones     = input.int(24, "최대 표시 박스", minval=1, maxval=80, group=grpVis)
+show1H      = input.bool(true, "1H 박스·중심선", group=grpVis, inline="tf")
+show4H      = input.bool(true, "4H", group=grpVis, inline="tf")
+show1D      = input.bool(true, "1D", group=grpVis, inline="tf2")
+showActive  = input.bool(true, "진행 중 박스", group=grpVis)
+zonesPerTf  = input.int(3, "TF당 표시 박스(최근)", minval=1, maxval=8, group=grpVis)
+showDash    = input.bool(true, "대시보드", group=grpVis)
+dashPos     = input.string("우상단", "대시보드 위치", options=["우상단", "우하단", "좌상단", "좌하단"], group=grpVis)
 
-// ── 횡보(박스) 감지 ─────────────────────────────────────────────────
-rngHi = ta.highest(high, lookback)
-rngLo = ta.lowest(low, lookback)
-mid   = (rngHi + rngLo) * 0.5
-rangePct = mid > 0 ? (rngHi - rngLo) / mid * 100.0 : 100.0
-atrVal = ta.atr(atrLen)
-atrPct = close > 0 ? atrVal / close * 100.0 * atrMult : rangePct
-capPct = useAtrFilter ? math.min(maxRangePct, atrPct) : maxRangePct
-inRange = rangePct <= capPct
+grpCol = "색상"
+col1H_fill  = input.color(color.new(#2962FF, 84), "1H 채움", group=grpCol)
+col1H_brd   = input.color(color.new(#2962FF, 40), "1H 테두리", group=grpCol)
+col1H_mid   = input.color(color.new(#2962FF, 0), "1H 중심", group=grpCol)
+col4H_fill  = input.color(color.new(#7B1FA2, 86), "4H 채움", group=grpCol)
+col4H_brd   = input.color(color.new(#7B1FA2, 42), "4H 테두리", group=grpCol)
+col4H_mid   = input.color(color.new(#CE93D8, 0), "4H 중심", group=grpCol)
+col1D_fill  = input.color(color.new(#FF6D00, 88), "1D 채움", group=grpCol)
+col1D_brd   = input.color(color.new(#FF6D00, 45), "1D 테두리", group=grpCol)
+col1D_mid   = input.color(color.new(#FF6D00, 0), "1D 중심", group=grpCol)
+midWidth    = input.int(2, "중심선 두께", minval=1, maxval=4, group=grpCol)
 
-var int   stBar = na
-var int   stCnt = 0
-var float stTop = na
-var float stBot = na
+grpAdv = "고급 (프리셋 덮어쓰기)"
+useCustom   = input.bool(false, "수동 인풋 사용", group=grpAdv, tooltip="끄면 1H/4H/1D 프리셋 고정. 켜면 아래 값이 세 TF 공통 적용")
+cLookback   = input.int(20, "구간(봉)", minval=5, group=grpAdv)
+cMinBars    = input.int(10, "최소 박스 봉", minval=3, group=grpAdv)
+cMaxPct     = input.float(2.5, "최대 폭(%)", minval=0.2, step=0.1, group=grpAdv)
+cMergePct   = input.float(0.15, "병합 겹침(%)", minval=0, step=0.05, group=grpAdv)
+cMergeBars  = input.int(30, "병합 인접(봉)", minval=0, group=grpAdv)
 
-var float[] zTop = array.new_float()
-var float[] zBot = array.new_float()
-var int[]   zL   = array.new_int()
-var int[]   zR   = array.new_int()
+f_pos(string p) =>
+    p == "우하단" ? position.bottom_right : p == "좌상단" ? position.top_left : p == "좌하단" ? position.bottom_left : position.top_right
 
-f_pushZone(float t, float b, int l, int r) =>
-    array.push(zTop, t)
-    array.push(zBot, b)
-    array.push(zL, l)
-    array.push(zR, r)
-
-// 가격대 겹침 (mergePct 허용)
-f_priceOverlap(float t1, float b1, float t2, float b2) =>
-    tol = mergePct * 0.01
+// ── 박스 엔진 (HTF에서 실행 → security로 스냅샷) ───────────────────
+f_priceOverlap(float t1, float b1, float t2, float b2, float mPct) =>
+    tol = mPct * 0.01
     pad1 = (t1 - b1) * tol
     pad2 = (t2 - b2) * tol
     not (t1 + pad1 < b2 - pad2 or t2 + pad2 < b1 - pad1)
 
-f_timeNear(int r1, int l2) =>
-    mergeBars <= 0 ? true : math.abs(l2 - r1) <= mergeBars
+f_timeNear(int r1, int l2, int mBars) =>
+    mBars <= 0 ? true : math.abs(l2 - r1) <= mBars
 
-// 배열 전체 병합 (겹치는 박스 합침)
-f_mergeAll() =>
-    int n = array.size(zTop)
-    if n < 2
-        n
-    else
+f_mergeAll(float[] tops, float[] bots, int[] t0, int[] t1, float mPct, int mBars) =>
+    int n = array.size(tops)
+    if n >= 2
         bool changed = true
         int guard = 0
         while changed and guard < 200
             changed := false
             guard += 1
             int i = 0
-            while i < array.size(zTop) - 1
-                float t1 = array.get(zTop, i)
-                float b1 = array.get(zBot, i)
-                int l1 = array.get(zL, i)
-                int r1 = array.get(zR, i)
+            while i < array.size(tops) - 1
+                float tt1 = array.get(tops, i)
+                float bb1 = array.get(bots, i)
+                int l1 = array.get(t0, i)
+                int r1 = array.get(t1, i)
                 int j = i + 1
-                while j < array.size(zTop)
-                    float t2 = array.get(zTop, j)
-                    float b2 = array.get(zBot, j)
-                    int l2 = array.get(zL, j)
-                    int r2 = array.get(zR, j)
-                    if f_priceOverlap(t1, b1, t2, b2) and (f_timeNear(r1, l2) or f_timeNear(r2, l1))
-                        array.set(zTop, i, math.max(t1, t2))
-                        array.set(zBot, i, math.min(b1, b2))
-                        array.set(zL, i, math.min(l1, l2))
-                        array.set(zR, i, math.max(r1, r2))
-                        array.remove(zTop, j)
-                        array.remove(zBot, j)
-                        array.remove(zL, j)
-                        array.remove(zR, j)
+                while j < array.size(tops)
+                    float tt2 = array.get(tops, j)
+                    float bb2 = array.get(bots, j)
+                    int l2 = array.get(t0, j)
+                    int r2 = array.get(t1, j)
+                    if f_priceOverlap(tt1, bb1, tt2, bb2, mPct) and (f_timeNear(r1, l2, mBars) or f_timeNear(r2, l1, mBars))
+                        array.set(tops, i, math.max(tt1, tt2))
+                        array.set(bots, i, math.min(bb1, bb2))
+                        array.set(t0, i, math.min(l1, l2))
+                        array.set(t1, i, math.max(r1, r2))
+                        array.remove(tops, j)
+                        array.remove(bots, j)
+                        array.remove(t0, j)
+                        array.remove(t1, j)
                         changed := true
                     else
                         j += 1
                 i += 1
-        array.size(zTop)
+    array.size(tops)
 
-// 박스 종료 시 확정
-if not inRange and inRange[1] and stCnt >= minBars and not na(stTop)
-    f_pushZone(stTop, stBot, stBar, bar_index - 1)
-    f_mergeAll()
-    stBar := na
-    stCnt := 0
-    stTop := na
-    stBot := na
+f_zoneEngine(
+     int lb, int minB, float maxPct, bool useAtr, int atrL, float atrM,
+     float mPct, int mBars, int tfSec, int extBars, int maxStore) =>
+    rngHi = ta.highest(high, lb)
+    rngLo = ta.lowest(low, lb)
+    midPx = (rngHi + rngLo) * 0.5
+    rangePct = midPx > 0 ? (rngHi - rngLo) / midPx * 100.0 : 100.0
+    atrVal = ta.atr(atrL)
+    atrPct = close > 0 ? atrVal / close * 100.0 * atrM : rangePct
+    capPct = useAtr ? math.min(maxPct, atrPct) : maxPct
+    inR = rangePct <= capPct
 
-if inRange
-    if not inRange[1]
-        stBar := bar_index
-        stCnt := 1
-        stTop := high
-        stBot := low
-    else
-        stCnt += 1
-        stTop := math.max(stTop, high)
-        stBot := math.min(stBot, low)
-else
-    if inRange[1]
-        stBar := na
+    var int   stT0 = na
+    var int   stCnt = 0
+    var float stTop = na
+    var float stBot = na
+    var float[] zTop = array.new_float()
+    var float[] zBot = array.new_float()
+    var int[]   zT0  = array.new_int()
+    var int[]   zT1  = array.new_int()
+
+    int extMs = extBars * tfSec * 1000
+
+    if not inR and inR[1] and stCnt >= minB and not na(stTop)
+        array.push(zTop, stTop)
+        array.push(zBot, stBot)
+        array.push(zT0, stT0)
+        array.push(zT1, time[1])
+        f_mergeAll(zTop, zBot, zT0, zT1, mPct, mBars)
+        while array.size(zTop) > maxStore
+            array.shift(zTop)
+            array.shift(zBot)
+            array.shift(zT0)
+            array.shift(zT1)
+        stT0 := na
         stCnt := 0
         stTop := na
         stBot := na
 
-// ── 그리기 (마지막 봉에서 일괄 갱신) ───────────────────────────────
-var box[]  drawnBoxes = array.new_box()
-var line[] drawnMids  = array.new_line()
+    if inR
+        if not inR[1]
+            stT0 := time
+            stCnt := 1
+            stTop := high
+            stBot := low
+        else
+            stCnt += 1
+            stTop := math.max(stTop, high)
+            stBot := math.min(stBot, low)
+    else if inR[1]
+        stT0 := na
+        stCnt := 0
+        stTop := na
+        stBot := na
 
-var box activeBox = na
-var line activeMid  = na
+    int zn = array.size(zTop)
+    float l1t = zn >= 1 ? array.get(zTop, zn - 1) : na
+    float l1b = zn >= 1 ? array.get(zBot, zn - 1) : na
+    int   l1a = zn >= 1 ? array.get(zT0, zn - 1) : na
+    int   l1e = zn >= 1 ? array.get(zT1, zn - 1) + extMs : na
+    float l2t = zn >= 2 ? array.get(zTop, zn - 2) : na
+    float l2b = zn >= 2 ? array.get(zBot, zn - 2) : na
+    int   l2a = zn >= 2 ? array.get(zT0, zn - 2) : na
+    int   l2e = zn >= 2 ? array.get(zT1, zn - 2) + extMs : na
+    float l3t = zn >= 3 ? array.get(zTop, zn - 3) : na
+    float l3b = zn >= 3 ? array.get(zBot, zn - 3) : na
+    int   l3a = zn >= 3 ? array.get(zT0, zn - 3) : na
+    int   l3e = zn >= 3 ? array.get(zT1, zn - 3) + extMs : na
 
-f_clearDrawings() =>
-    for i = 0 to array.size(drawnBoxes) - 1
-        box.delete(array.get(drawnBoxes, i))
-    array.clear(drawnBoxes)
-    for i = 0 to array.size(drawnMids) - 1
-        line.delete(array.get(drawnMids, i))
-    array.clear(drawnMids)
+    float actTop = inR and stCnt >= minB ? stTop : na
+    float actBot = inR and stCnt >= minB ? stBot : na
+    float actMid = not na(actTop) ? (actTop + actBot) * 0.5 : na
+    int   actT0  = inR and stCnt >= minB ? stT0 : na
+    int   actT1  = inR and stCnt >= minB ? time + extMs : na
+    bool  actOn  = not na(actTop)
+
+    [inR, rangePct, actOn, actTop, actBot, actMid, actT0, actT1, zn, l1t, l1b, l1a, l1e, l2t, l2b, l2a, l2e, l3t, l3b, l3a, l3e]
+
+// 커스텀 시 세 TF 동일 파라미터 (프리셋 대체)
+h1_lb = useCustom ? cLookback : H1_LB
+h1_min = useCustom ? cMinBars : H1_MIN
+h1_pct = useCustom ? cMaxPct : H1_MAX_PCT
+h1_mp = useCustom ? cMergePct : H1_MERGE_P
+h1_mb = useCustom ? cMergeBars : H1_MERGE_B
+
+sym = syminfo.tickerid
+
+[h1_in, h1_rp, h1_act, h1_at, h1_ab, h1_am, h1_a0, h1_a1, h1_zn, h1_1t, h1_1b, h1_1a, h1_1e, h1_2t, h1_2b, h1_2a, h1_2e, h1_3t, h1_3b, h1_3a, h1_3e] =
+     request.security(sym, "60", f_zoneEngine(h1_lb, h1_min, h1_pct, true, H1_ATR_LEN, H1_ATR_MULT, h1_mp, h1_mb, TF_SEC_1H, H1_EXT_B, H1_MAX_Z), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+
+[h4_in, h4_rp, h4_act, h4_at, h4_ab, h4_am, h4_a0, h4_a1, h4_zn, h4_1t, h4_1b, h4_1a, h4_1e, h4_2t, h4_2b, h4_2a, h4_2e, h4_3t, h4_3b, h4_3a, h4_3e] =
+     request.security(sym, "240", f_zoneEngine(useCustom ? cLookback : H4_LB, useCustom ? cMinBars : H4_MIN, useCustom ? cMaxPct : H4_MAX_PCT, true, H4_ATR_LEN, H4_ATR_MULT, useCustom ? cMergePct : H4_MERGE_P, useCustom ? cMergeBars : H4_MERGE_B, TF_SEC_4H, H4_EXT_B, H4_MAX_Z), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+
+[d_in, d_rp, d_act, d_at, d_ab, d_am, d_a0, d_a1, d_zn, d_1t, d_1b, d_1a, d_1e, d_2t, d_2b, d_2a, d_2e, d_3t, d_3b, d_3a, d_3e] =
+     request.security(sym, "D", f_zoneEngine(useCustom ? cLookback : D1_LB, useCustom ? cMinBars : D1_MIN, useCustom ? cMaxPct : D1_MAX_PCT, true, D1_ATR_LEN, D1_ATR_MULT, useCustom ? cMergePct : D1_MERGE_P, useCustom ? cMergeBars : D1_MERGE_B, TF_SEC_1D, D1_EXT_B, D1_MAX_Z), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+
+// ── 그리기 ─────────────────────────────────────────────────────────
+var box[]  b1h = array.new_box()
+var line[] l1h = array.new_line()
+var box[]  b4h = array.new_box()
+var line[] l4h = array.new_line()
+var box[]  b1d = array.new_box()
+var line[] l1d = array.new_line()
+
+f_clearTf(box[] bx, line[] ln) =>
+    for i = 0 to array.size(bx) - 1
+        box.delete(array.get(bx, i))
+    array.clear(bx)
+    for i = 0 to array.size(ln) - 1
+        line.delete(array.get(ln, i))
+    array.clear(ln)
+
+f_fmt(float v) =>
+    na(v) ? "—" : str.tostring(v, format.mintick)
+
+f_widthPct(float t, float b) =>
+    float m = (t + b) * 0.5
+    m > 0 ? str.tostring((t - b) / m * 100, "#.##") + "%" : "—"
+
+f_drawZone(box[] bx, line[] ln, int t0, int t1, float top, float bot, color fill, color brd, color mid, bool dashed) =>
+    if not na(top) and not na(t0) and not na(t1)
+        float avg = (top + bot) * 0.5
+        box nb = box.new(t0, top, t1, bot, xloc=xloc.bar_time, bgcolor=fill, border_color=brd, border_width=1, border_style=dashed ? line.style_dashed : line.style_solid)
+        line nl = line.new(t0, avg, t1, avg, xloc=xloc.bar_time, color=mid, width=midWidth, style=line.style_solid)
+        array.push(bx, nb)
+        array.push(ln, nl)
+
+f_drawTf(bool en, box[] bx, line[] ln, bool actOn, int a0, int a1, float at, float ab, color fill, color brd, color mid, int nShow, float t1, float b1, int ta1, int te1, float t2, float b2, int ta2, int te2, float t3, float b3, int ta3, int te3) =>
+    if en and barstate.islast
+        if actOn and showActive
+            f_drawZone(bx, ln, a0, a1, at, ab, color.new(fill, 88), brd, mid, true)
+        if nShow >= 1
+            f_drawZone(bx, ln, ta1, te1, t1, b1, fill, brd, mid, false)
+        if nShow >= 2
+            f_drawZone(bx, ln, ta2, te2, t2, b2, fill, brd, mid, false)
+        if nShow >= 3
+            f_drawZone(bx, ln, ta3, te3, t3, b3, fill, brd, mid, false)
+
+f_status(bool inR, bool actOn) =>
+    actOn ? "박스중" : inR ? "형성" : "—"
 
 if barstate.islast
-    f_clearDrawings()
-    if not na(activeBox)
-        box.delete(activeBox)
-        activeBox := na
-    if not na(activeMid)
-        line.delete(activeMid)
-        activeMid := na
+    f_clearTf(b1h, l1h)
+    f_clearTf(b4h, l4h)
+    f_clearTf(b1d, l1d)
+    f_drawTf(show1H, b1h, l1h, h1_act, h1_a0, h1_a1, h1_at, h1_ab, col1H_fill, col1H_brd, col1H_mid, zonesPerTf, h1_1t, h1_1b, h1_1a, h1_1e, h1_2t, h1_2b, h1_2a, h1_2e, h1_3t, h1_3b, h1_3a, h1_3e)
+    f_drawTf(show4H, b4h, l4h, h4_act, h4_a0, h4_a1, h4_at, h4_ab, col4H_fill, col4H_brd, col4H_mid, zonesPerTf, h4_1t, h4_1b, h4_1a, h4_1e, h4_2t, h4_2b, h4_2a, h4_2e, h4_3t, h4_3b, h4_3a, h4_3e)
+    f_drawTf(show1D, b1d, l1d, d_act, d_a0, d_a1, d_at, d_ab, col1D_fill, col1D_brd, col1D_mid, zonesPerTf, d_1t, d_1b, d_1a, d_1e, d_2t, d_2b, d_2a, d_2e, d_3t, d_3b, d_3a, d_3e)
 
-    int n = array.size(zTop)
-    int start = math.max(0, n - maxZones)
-    for k = start to n - 1
-        float t = array.get(zTop, k)
-        float b = array.get(zBot, k)
-        int l = array.get(zL, k)
-        int r = array.get(zR, k) + extendRight
-        float avg = (t + b) * 0.5
-        box bx = box.new(l, t, r, b, bgcolor=boxColor, border_color=boxBorder, border_width=1, xloc=xloc.bar_index)
-        line ln = line.new(l, avg, r, avg, color=midColor, width=midWidth, style=line.style_solid, xloc=xloc.bar_index)
-        array.push(drawnBoxes, bx)
-        array.push(drawnMids, ln)
+// ── 대시보드 ───────────────────────────────────────────────────────
+var table dash = table.new(f_pos(dashPos), 6, 5, bgcolor=color.new(#1E1E1E, 8), border_width=1, border_color=color.new(#ffffff, 75))
 
-    if showActive and inRange and stCnt >= minBars and not na(stTop)
-        int rAct = bar_index + extendRight
-        float avgAct = (stTop + stBot) * 0.5
-        activeBox := box.new(stBar, stTop, rAct, stBot, bgcolor=color.new(boxColor, 88), border_color=boxBorder, border_style=line.style_dashed, xloc=xloc.bar_index)
-        activeMid := line.new(stBar, avgAct, rAct, avgAct, color=midColor, width=midWidth, style=line.style_solid, xloc=xloc.bar_index)
+f_dashRow(table tb, int row, string tf, color tc, bool inR, bool actOn, float top, float bot, float mid, float rp, int zn) =>
+    string st = f_status(inR, actOn)
+    color stCol = actOn ? color.new(#66BB6A, 0) : inR ? color.new(#FFA726, 0) : color.new(#9E9E9E, 30)
+    table.cell(tb, 0, row, tf, text_color=tc, text_size=size.small)
+    table.cell(tb, 1, row, st, text_color=stCol, text_size=size.small)
+    table.cell(tb, 2, row, f_fmt(top), text_color=color.white, text_size=size.small)
+    table.cell(tb, 3, row, f_fmt(bot), text_color=color.white, text_size=size.small)
+    table.cell(tb, 4, row, f_fmt(mid), text_color=color.white, text_size=size.small)
+    string w = (actOn or not na(top)) and not na(bot) ? f_widthPct(top, bot) : str.tostring(rp, "#.##") + "%"
+    table.cell(tb, 5, row, w + " · " + str.tostring(zn), text_color=color.new(#B0BEC5, 0), text_size=size.tiny)
 
-// 디버그: 현재 구간 폭%
-plot(inRange ? rangePct : na, "구간폭%", display=display.none)
+if showDash and barstate.islast
+    table.cell(dash, 0, 0, "TF", text_color=color.gray, text_size=size.tiny)
+    table.cell(dash, 1, 0, "상태", text_color=color.gray, text_size=size.tiny)
+    table.cell(dash, 2, 0, "상단", text_color=color.gray, text_size=size.tiny)
+    table.cell(dash, 3, 0, "하단", text_color=color.gray, text_size=size.tiny)
+    table.cell(dash, 4, 0, "중심", text_color=color.gray, text_size=size.tiny)
+    table.cell(dash, 5, 0, "폭/저장", text_color=color.gray, text_size=size.tiny)
+
+    float h1_disp_t = h1_act ? h1_at : h1_1t
+    float h1_disp_b = h1_act ? h1_ab : h1_1b
+    float h1_disp_m = h1_act ? h1_am : (na(h1_1t) ? na : (h1_1t + h1_1b) * 0.5)
+    f_dashRow(dash, 1, "1H", col1H_mid, h1_in, h1_act, h1_disp_t, h1_disp_b, h1_disp_m, h1_rp, h1_zn)
+
+    float h4_disp_t = h4_act ? h4_at : h4_1t
+    float h4_disp_b = h4_act ? h4_ab : h4_1b
+    float h4_disp_m = h4_act ? h4_am : (na(h4_1t) ? na : (h4_1t + h4_1b) * 0.5)
+    f_dashRow(dash, 2, "4H", col4H_mid, h4_in, h4_act, h4_disp_t, h4_disp_b, h4_disp_m, h4_rp, h4_zn)
+
+    float d_disp_t = d_act ? d_at : d_1t
+    float d_disp_b = d_act ? d_ab : d_1b
+    float d_disp_m = d_act ? d_am : (na(d_1t) ? na : (d_1t + d_1b) * 0.5)
+    f_dashRow(dash, 3, "1D", col1D_mid, d_in, d_act, d_disp_t, d_disp_b, d_disp_m, d_rp, d_zn)
+
+    string preset = useCustom ? "수동" : "1H·4H·1D 프리셋"
+    table.cell(dash, 0, 4, preset, text_color=color.new(#78909C, 0), text_size=size.tiny)
+    table.merge_cells(dash, 0, 4, 5, 4)
