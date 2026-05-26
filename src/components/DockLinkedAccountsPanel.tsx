@@ -84,8 +84,6 @@ function DockLinkedAccountsPanelInner() {
     };
   }, [applyView]);
 
-  const providerReady = provider === "bithumb" ? bithumbReady : tossReady;
-
   const {
     snapshot,
     feeLabelKo: bithumbFeeLabel,
@@ -93,6 +91,16 @@ function DockLinkedAccountsPanelInner() {
     loading: bithumbLoading,
     err: bithumbErr,
   } = useBithumbAccountSnapshot({ poll: provider === "bithumb" });
+
+  const statusPending = status == null;
+
+  if (!authChecked) {
+    return (
+      <div className="app-dock-rail-panel app-dock-rail-panel--accounts dock-linked-accounts">
+        <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
+      </div>
+    );
+  }
 
   if (!user) {
     return (
@@ -106,9 +114,20 @@ function DockLinkedAccountsPanelInner() {
 
   const balanceBody =
     provider === "bithumb" ? (
-      !bithumbReady ? (
+      statusPending ? (
+        snapshot ? (
+          <BithumbAccountSnapshotCard
+            snapshot={snapshot}
+            feeLabelKo={bithumbFeeLabel}
+            updatedAtMs={updatedAtMs}
+            variant="inline"
+          />
+        ) : (
+          <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
+        )
+      ) : !bithumbReady ? (
         <ApiNotConnectedMessage exchange="bithumb" />
-      ) : bithumbLoading ? (
+      ) : bithumbLoading && !snapshot ? (
         <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
       ) : !snapshot ? (
         <p className="dock-linked-accounts__hint">
@@ -122,6 +141,8 @@ function DockLinkedAccountsPanelInner() {
           variant="inline"
         />
       )
+    ) : statusPending ? (
+      <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
     ) : !tossReady ? (
       <ApiNotConnectedMessage exchange="toss" />
     ) : (
@@ -140,11 +161,7 @@ function DockLinkedAccountsPanelInner() {
         role="region"
         aria-label={ko.app.liveTradeDockAccountTabBalance}
       >
-        {!authChecked ? (
-          <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
-        ) : (
-          balanceBody
-        )}
+        {balanceBody}
       </div>
     </div>
   );
