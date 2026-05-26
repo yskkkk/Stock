@@ -47,6 +47,7 @@ var bool[] triggered = array.new_bool()
 var int[] breakBars = array.new_int()
 var int[] entryBars = array.new_int()
 var float[] entryPrices = array.new_float()
+var bool[] tradeClosed = array.new_bool()
 
 var int total_trades = 0
 var int win_trades = 0
@@ -260,6 +261,7 @@ if is_selected_tf and barstate.isconfirmed
                 array.push(breakBars, na)
                 array.push(entryBars, na)
                 array.push(entryPrices, na)
+                array.push(tradeClosed, false)
 
 int sz = array.size(boxes)
 if sz > 0
@@ -270,34 +272,38 @@ if sz > 0
         bool trig = array.get(triggered, i)
         int brk = array.get(breakBars, i)
         float entry = array.get(entryPrices, i)
-        if na(entry)
-            if not trig and low <= bottom
-                array.set(triggered, i, true)
-                array.set(breakBars, i, bar_index)
-            if trig and bar_index > brk and high >= mid
-                array.set(entryPrices, i, mid)
-                array.set(entryBars, i, bar_index)
-                array.set(firstBuyTimes, i, time)
-                total_trades += 1
-                sig_buy := true
-                label.new(bar_index, mid, "매수 #" + str.tostring(i), style=label.style_label_up, color=color.green, textcolor=color.white, size=size.small)
-        else
-            if high >= top
-                float ret = entry > 0 ? ((top - entry) / entry) * 100.0 : 0.0
-                total_return += ret
-                win_trades += 1
-                sig_selltp := true
-                label.new(bar_index, top, "익절 " + str.tostring(ret, "#.##") + "%", style=label.style_label_down, color=color.lime, textcolor=color.black, size=size.small)
-                array.set(entryPrices, i, na)
-                array.set(triggered, i, false)
-            else if low <= bottom
-                float ret = entry > 0 ? ((bottom - entry) / entry) * 100.0 : 0.0
-                total_return += ret
-                loss_trades += 1
-                sig_sellsl := true
-                label.new(bar_index, bottom, "손절 " + str.tostring(ret, "#.##") + "%", style=label.style_label_down, color=color.red, textcolor=color.white, size=size.small)
-                array.set(entryPrices, i, na)
-                array.set(triggered, i, false)
+        bool closed = array.get(tradeClosed, i)
+        if not closed
+            if na(entry)
+                if not trig and low <= bottom
+                    array.set(triggered, i, true)
+                    array.set(breakBars, i, bar_index)
+                if trig and bar_index > brk and high >= mid
+                    array.set(entryPrices, i, mid)
+                    array.set(entryBars, i, bar_index)
+                    array.set(firstBuyTimes, i, time)
+                    total_trades += 1
+                    sig_buy := true
+                    label.new(bar_index, mid, "매수 #" + str.tostring(i), style=label.style_label_up, color=color.green, textcolor=color.white, size=size.small)
+            else
+                if high >= top
+                    float ret = entry > 0 ? ((top - entry) / entry) * 100.0 : 0.0
+                    total_return += ret
+                    win_trades += 1
+                    sig_selltp := true
+                    label.new(bar_index, top, "익절 " + str.tostring(ret, "#.##") + "%", style=label.style_label_down, color=color.lime, textcolor=color.black, size=size.small)
+                    array.set(entryPrices, i, na)
+                    array.set(triggered, i, false)
+                    array.set(tradeClosed, i, true)
+                else if low <= bottom
+                    float ret = entry > 0 ? ((bottom - entry) / entry) * 100.0 : 0.0
+                    total_return += ret
+                    loss_trades += 1
+                    sig_sellsl := true
+                    label.new(bar_index, bottom, "손절 " + str.tostring(ret, "#.##") + "%", style=label.style_label_down, color=color.red, textcolor=color.white, size=size.small)
+                    array.set(entryPrices, i, na)
+                    array.set(triggered, i, false)
+                    array.set(tradeClosed, i, true)
 
 int liveSz = array.size(boxes)
 if liveSz > 0
