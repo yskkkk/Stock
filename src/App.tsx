@@ -545,7 +545,7 @@ export default function App() {
   useLeftRailLazyFollow(leftRailRef, appScrollRef);
   const desktopDockLayout = useDesktopDockLayout();
   const openLiveTradingProgram = useCallback(
-    (programId: string) => {
+    (programId?: string) => {
       const id = String(programId ?? "").trim();
       if (!id) {
         setAppTab("liveTrading");

@@ -1,5 +1,7 @@
 import type { LiveTradeTradesExchange } from "./liveTradeTradesWorkspace";
 
+export type { LiveTradeTradesExchange };
+
 /** 상단 «거래내역» 탭으로 전환 */
 export const LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT =
   "ystock-navigate-trade-history-tab";

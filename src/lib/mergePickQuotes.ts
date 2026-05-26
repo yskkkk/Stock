@@ -31,7 +31,10 @@ export function mergeQuotesIntoPicks(
 
 export function collectPickSymbols(picks: PicksResponse | null): string[] {
   if (!picks) return [];
-  return [...picks.kr, ...picks.us, ...(picks.crypto ?? [])]
+  const kr = Array.isArray(picks.kr) ? picks.kr : [];
+  const us = Array.isArray(picks.us) ? picks.us : [];
+  const crypto = Array.isArray(picks.crypto) ? picks.crypto : [];
+  return [...kr, ...us, ...crypto]
     .map((p) => p.symbol.trim().toUpperCase())
     .filter(Boolean);
 }

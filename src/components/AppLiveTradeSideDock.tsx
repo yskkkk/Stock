@@ -60,7 +60,6 @@ import {
   dockPanelOpenSnapThresholdPx,
   dockPanelWidthDragPx,
   dockPanelWidthFromCollapsedDrag,
-  dockRailWidthPx,
   minDockPanelWidthPx,
   persistDockPanelWidthPref,
   readDockPanelWidthPref,

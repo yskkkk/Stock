@@ -427,6 +427,7 @@ export const ko = {
     liveTradePfFxKrw: "원화 환산",
     liveTradePfTotalKrw: "합계",
     marketIndicesAria: "주요 시장 지수·환율 (약 20초마다 갱신)",
+    marketIndicesBeltAria: "주요 시장 지수·환율 (가로 스크롤)",
     marketIndicesEmpty: "지수 시세를 불러오지 못했습니다.",
     marketIndicesLoading: "불러오는 중…",
     marketIndicesOpenChart: "{name} — 종목 검색에서 차트 열기",
@@ -794,6 +795,7 @@ export const ko = {
     sectorEarningsCardHint: "실적 일정 · Yahoo 종목 페이지로 열기",
     earningsMetaLabel: "실적",
     earningsMetaPending: "일정만 확인",
+    earningsIconRailAria: "예정 실적 발표 (아이콘)",
   },
   errors: {
     picksLoad: "종목 목록을 불러올 수 없습니다.",

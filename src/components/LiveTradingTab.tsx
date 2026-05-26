@@ -70,7 +70,10 @@ import {
 } from "../lib/liveProgramDisplay";
 import { ko } from "../i18n/ko";
 import { LiveTradeFeeRatesProvider } from "../contexts/LiveTradeFeeRatesContext";
-import { minOrderAmountKrwForMarkets } from "../constants/liveTradeOrder";
+import {
+  isOrderAmountKrwValid,
+  minOrderAmountKrwForMarkets,
+} from "../constants/liveTradeOrder";
 import {
   liveTradeProgramDraftCanSave,
   parseMaxOpenPositionsInput,

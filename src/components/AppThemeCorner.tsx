@@ -348,7 +348,7 @@ export default function AppThemeCorner({
           role="group"
           aria-label={ko.app.lightPaletteAria}
           onPointerLeave={() => restoreCommittedPalette()}
-          onFocusOut={(e) => {
+          onBlur={(e) => {
             if (pickerRef.current?.contains(e.relatedTarget as Node)) return;
             restoreCommittedPalette();
           }}

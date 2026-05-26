@@ -5709,7 +5709,7 @@ html[data-theme="light"] .live-portfolio__trade-quote-strip {
   display: block;
   margin-top: 0.35rem;
   font-size: 0.68rem;
-  color: var(--muted, var(--text-muted, #94a3b8);
+  color: var(--muted, var(--text-muted, #94a3b8));
 }
 
 .live-portfolio__banner {
@@ -5762,7 +5762,7 @@ html[data-theme="light"] .live-portfolio__trade-quote-strip {
   display: block;
   margin-top: 0.35rem;
   font-size: 0.68rem;
-  color: var(--muted, var(--text-muted, #94a3b8);
+  color: var(--muted, var(--text-muted, #94a3b8));
 }
 
 .live-portfolio__table-wrap {

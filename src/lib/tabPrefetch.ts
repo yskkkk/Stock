@@ -294,7 +294,7 @@ export function startBackgroundTabPrefetch(): void {
     void prefetchMacroBundle();
     void prefetchRecommendationsTracker();
     void prefetchCryptoTabData();
-    void prefetchLiveTradingTab();
+    void prefetchLiveTradingTab().catch(() => {});
     prefetchLiveTradingPortfolio();
     void prefetchPicksDailyHistory();
   });
