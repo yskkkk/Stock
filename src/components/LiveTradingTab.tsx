@@ -382,7 +382,7 @@ export default function LiveTradingTab({
   }, [polledStatus, status]);
   const programs = effectiveStatus?.programs ?? [];
   const loadBoxRangeStatus = useCallback(async () => {
-    if (!user) {
+    if (!user || portalSourceOnly) {
       setBoxRangeStatus(null);
       return;
     }
@@ -391,7 +391,7 @@ export default function LiveTradingTab({
     } catch {
       setBoxRangeStatus(null);
     }
-  }, [user]);
+  }, [user, portalSourceOnly]);
 
   useEffect(() => {
     void loadBoxRangeStatus();
@@ -828,7 +828,9 @@ export default function LiveTradingTab({
                       onEdit={() => loadProgramToForm(p)}
                       onDelete={() => void handleDelete(p.id, p.name)}
                       readOnly={adminReadOnly}
-                      boxRangeBoxes={boxEntry?.boxes}
+                      boxRangeBoxes={
+                        portalSourceOnly ? undefined : boxEntry?.boxes
+                      }
                     />
                   </li>
                 );
