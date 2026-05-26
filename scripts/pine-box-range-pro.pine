@@ -16,15 +16,14 @@ bool show_buy = input.bool(true, "매수 신호")
 bool show_sell = input.bool(true, "매도 신호")
 
 float max_box_pct = 15.0
-float split_mid_pct = 48.0
 if active_tf == "60"
     max_box_pct := 3.0
-    split_mid_pct := 28.0
 else if active_tf == "240"
     max_box_pct := 5.0
-    split_mid_pct := 38.0
 
-split_mid_pct := input.float(split_mid_pct, "중심 이탈 한계(반높이 %)", minval=10, maxval=80, step=1.0, tooltip="종가가 박스 중심에서 이 비율×반높이 이상 벗어나면 좌·우·우측 연장 중단. 프리셋: 1H 28 / 4H 38 / 1D 48")
+bool split_tf_preset = input.bool(true, "TF별 중심 이탈 % 프리셋", tooltip="1H 28 / 4H 38 / 1D 48. 끄면 아래 수동 값 사용")
+float split_mid_manual = input.float(48.0, "중심 이탈 한계(반높이 %)", minval=10, maxval=80, step=1.0, tooltip="종가가 중심에서 반높이×이 % 이상 벗어나면 가로 확장 중단")
+float split_mid_pct = split_tf_preset ? (active_tf == "60" ? 28.0 : active_tf == "240" ? 38.0 : 48.0) : split_mid_manual
 
 bool is_selected_tf = timeframe.period == active_tf
 int tfMs = timeframe.in_seconds() * 1000
