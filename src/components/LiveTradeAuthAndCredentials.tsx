@@ -525,19 +525,28 @@ export function LiveTradeCollapsibleCard({
   const variantClass = variant ? apiCardVariantClass(variant) : "";
 
   const registerSideTab = sidePanel?.registerSideTab;
+  const openSidePanel = sidePanel?.openPanel;
+  const autoOpenedRef = useRef(false);
+
   useEffect(() => {
     if (!useSidePanel || !sidePanelId || !registerSideTab) return;
     return registerSideTab(sidePanelId, title);
   }, [useSidePanel, sidePanelId, title, registerSideTab]);
 
   useEffect(() => {
-    if (!defaultOpen) return;
-    if (useSidePanel && sidePanelId && sidePanel) {
-      sidePanel.openPanel(sidePanelId, title);
-    } else {
-      setModalOpen(true);
+    if (!defaultOpen) {
+      autoOpenedRef.current = false;
+      return;
     }
-  }, [defaultOpen, useSidePanel, sidePanelId, title, sidePanel]);
+    if (autoOpenedRef.current) return;
+    if (useSidePanel && sidePanelId && openSidePanel) {
+      openSidePanel(sidePanelId, title);
+      autoOpenedRef.current = true;
+    } else if (!useSidePanel) {
+      setModalOpen(true);
+      autoOpenedRef.current = true;
+    }
+  }, [defaultOpen, useSidePanel, sidePanelId, title, openSidePanel]);
 
   const onHeadClick = () => {
     if (useSidePanel && sidePanelId) {

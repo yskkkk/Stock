@@ -544,6 +544,13 @@ export default function AppLiveTradeSideDock({
   const onRailTab = useCallback(
     (id: string, title: string) => {
       if (!openPanel) return;
+      openPanel(id, title);
+      if (!openRef.current) {
+        persistOpen(true);
+        beginDockPanelOpenAnimation();
+      } else {
+        applyDockPanelWidthCss(panelWidthPx);
+      }
       if (id === "form" && activeId !== "form") {
         dispatchLiveTradeDockOpenForm();
       }
@@ -566,13 +573,6 @@ export default function AppLiveTradeSideDock({
         dispatchLiveTradePortfolioPanelTab("trade");
       } else if (id === "programs") {
         dispatchLiveTradeDockProgramsPlain();
-      }
-      openPanel(id, title);
-      if (!openRef.current) {
-        persistOpen(true);
-        beginDockPanelOpenAnimation();
-      } else {
-        applyDockPanelWidthCss(panelWidthPx);
       }
     },
     [
