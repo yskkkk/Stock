@@ -99,40 +99,76 @@ function wheelDeltaY(e: WheelEvent): number {
   return delta;
 }
 
-function findAppScrollEl(): HTMLElement | null {
-  return document.querySelector<HTMLElement>(".app__scroll");
-}
-
-function queryDockRailEl(): HTMLElement | null {
+function resolvePageScrollEl(
+  pageScrollRef?: RefObject<HTMLDivElement | null>,
+): HTMLElement | null {
   return (
-    document.querySelector<HTMLElement>("[data-live-trade-side-dock-rail]") ??
-    document.querySelector<HTMLElement>(".app-live-trade-side-dock__rail")
+    pageScrollRef?.current ??
+    document.querySelector<HTMLElement>(".app__scroll")
   );
 }
 
-/** 펼친 패널·레일 위 휠 → 메인 `.app__scroll`(전체 웹 페이지) */
-function applyPageScrollWheel(scrollEl: HTMLElement, e: WheelEvent): boolean {
-  const delta = wheelDeltaY(e);
-  if (delta === 0) return false;
-
-  const max = scrollEl.scrollHeight - scrollEl.clientHeight;
-  if (max <= 0) return false;
-
-  scrollEl.scrollTop = Math.max(
-    0,
-    Math.min(max, scrollEl.scrollTop + delta),
+function findDockInnerScrollHost(from: EventTarget | null): HTMLElement | null {
+  if (!from || !(from instanceof Element)) return null;
+  const host = from.closest<HTMLElement>(
+    ".app-live-trade-side-dock__host .live-trading-tab__card-tabs-host",
   );
-  return true;
+  if (!host || host.classList.contains("live-trading-tab__card-tabs-host--idle")) {
+    return null;
+  }
+  if (host.scrollHeight <= host.clientHeight + 2) return null;
+  return host;
+}
+
+/** 펼친 패널·레일 위 휠 → `.app__scroll` 우선, 페이지 끝이면 패널 본문 */
+function applyDockWheelScroll(
+  pageScroll: HTMLElement,
+  e: WheelEvent,
+  allowInnerFallback: boolean,
+): void {
+  const delta = wheelDeltaY(e);
+  if (delta === 0) return;
+
+  const pageMax = pageScroll.scrollHeight - pageScroll.clientHeight;
+  let remaining = delta;
+
+  if (pageMax > 0) {
+    const before = pageScroll.scrollTop;
+    pageScroll.scrollTop = Math.max(0, Math.min(pageMax, before + delta));
+    remaining = delta - (pageScroll.scrollTop - before);
+  }
+
+  if (!allowInnerFallback || Math.abs(remaining) < 1) return;
+
+  const inner = findDockInnerScrollHost(e.target);
+  if (!inner) return;
+
+  const innerMax = inner.scrollHeight - inner.clientHeight;
+  inner.scrollTop = Math.max(
+    0,
+    Math.min(innerMax, inner.scrollTop + remaining),
+  );
 }
 
 function isWheelInLiveTradeDockZone(
   dock: HTMLElement | null,
-  target: EventTarget | null,
+  e: WheelEvent,
+  panelOpen: boolean,
 ): boolean {
-  if (!target || !(target instanceof Node)) return false;
-  if (dock?.contains(target)) return true;
-  const rail = queryDockRailEl();
-  return Boolean(rail?.contains(target));
+  for (const node of e.composedPath()) {
+    if (!(node instanceof Element)) continue;
+    if (
+      node.matches(
+        "[data-live-trade-side-dock-rail], .app-live-trade-side-dock__rail--portal",
+      ) ||
+      node.closest("[data-live-trade-side-dock-rail]") ||
+      node.closest(".app-live-trade-side-dock__rail--portal")
+    ) {
+      return true;
+    }
+    if (panelOpen && dock && dock.contains(node)) return true;
+  }
+  return false;
 }
 
 /** 접힘=왼쪽, 펼침=오른쪽 */
@@ -277,11 +313,14 @@ export default function AppLiveTradeSideDock({
   feedbackRef,
   feedbackActive = false,
   portalSource = null,
+  pageScrollRef = null,
 }: {
   feedbackRef?: RefObject<FeedbackCornerHandle | null>;
   feedbackActive?: boolean;
   /** 보유·주문·프로그램 — 도크 본문 포털 소스 */
   portalSource?: ReactNode;
+  /** 메인 페이지 스크롤(`.app__scroll`) — fixed 도크 휠 연동 */
+  pageScrollRef?: RefObject<HTMLDivElement | null> | null;
 }) {
   const { user, authChecked, registrationOpen } = useLiveTradeAuth();
   const [authPopoverOpen, setAuthPopoverOpen] = useState(false);
@@ -724,19 +763,22 @@ export default function AppLiveTradeSideDock({
   );
 
   useEffect(() => {
-    const onWheel = (e: WheelEvent) => {
-      if (!isWheelInLiveTradeDockZone(dockRef.current, e.target)) return;
+    if (!wide || !authChecked) return;
 
-      const pageScroll = findAppScrollEl();
-      if (pageScroll && applyPageScrollWheel(pageScroll, e)) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
+    const onWheel = (e: WheelEvent) => {
+      if (!isWheelInLiveTradeDockZone(dockRef.current, e, openRef.current)) return;
+
+      const pageScroll = resolvePageScrollEl(pageScrollRef ?? undefined);
+      if (!pageScroll) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      applyDockWheelScroll(pageScroll, e, openRef.current);
     };
 
-    document.addEventListener("wheel", onWheel, { passive: false, capture: true });
-    return () => document.removeEventListener("wheel", onWheel, { capture: true });
-  }, [wide, authChecked]);
+    window.addEventListener("wheel", onWheel, { passive: false, capture: true });
+    return () => window.removeEventListener("wheel", onWheel, { capture: true });
+  }, [wide, authChecked, pageScrollRef]);
 
   if (!wide || !authChecked) return null;
 

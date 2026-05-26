@@ -2053,6 +2053,7 @@ export default function App() {
               onOpenLiveTrading={openLiveTradingProgram}
             />
             <AppLiveTradeSideDock
+              pageScrollRef={appScrollRef}
               feedbackRef={feedbackRef}
               feedbackActive={footerFeedbackKind != null}
               portalSource={
