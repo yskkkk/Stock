@@ -1,4 +1,4 @@
-/** 프로그램 등록 폼 — 시장(국내·미국·코인) 선택 */
+/** 프로그램 등록 폼 — 시장(국내·미국·코인) 선택 (단일 선택) */
 
 export type ProgramMarketDraft = {
   marketsKr: boolean;
@@ -13,15 +13,15 @@ export type ProgramMarkets = {
 };
 
 export function programMarketsFromDraft(d: ProgramMarketDraft): ProgramMarkets {
-  return {
+  return normalizeSingleProgramMarkets({
     kr: d.marketsKr,
     us: d.marketsUs,
     crypto: d.marketsCrypto,
-  };
+  });
 }
 
 export function programMarketDraftFromMarkets(m: ProgramMarkets): ProgramMarketDraft {
-  const n = normalizeExclusiveProgramMarkets(m);
+  const n = normalizeSingleProgramMarkets(m);
   return {
     marketsKr: n.kr,
     marketsUs: n.us,
@@ -29,43 +29,41 @@ export function programMarketDraftFromMarkets(m: ProgramMarkets): ProgramMarketD
   };
 }
 
-/** 코인(빗썸)과 주식(토스·국내·미국)은 동시에 선택 불가 */
-export function hasStockCryptoMarketConflict(m: ProgramMarkets): boolean {
-  return Boolean(m.crypto && (m.kr || m.us));
+export function countProgramMarketsSelected(m: ProgramMarkets): number {
+  return [m.kr, m.us, m.crypto].filter(Boolean).length;
 }
 
-/** 저장·표시용: 코인·주식이 겹치면 코인만 유지 */
+/** 저장·표시용: 정확히 하나만 유지 (코인 > 국내 > 미국, 없으면 국내) */
+export function normalizeSingleProgramMarkets(m: ProgramMarkets): ProgramMarkets {
+  if (m.crypto) return { kr: false, us: false, crypto: true };
+  if (m.kr) return { kr: true, us: false, crypto: false };
+  if (m.us) return { kr: false, us: true, crypto: false };
+  return { kr: true, us: false, crypto: false };
+}
+
+/** @deprecated use normalizeSingleProgramMarkets */
 export function normalizeExclusiveProgramMarkets(m: ProgramMarkets): ProgramMarkets {
-  const kr = Boolean(m.kr);
-  const us = Boolean(m.us);
-  const crypto = Boolean(m.crypto);
-  if (crypto && (kr || us)) {
-    return { kr: false, us: false, crypto: true };
-  }
-  return { kr, us, crypto };
+  return normalizeSingleProgramMarkets(m);
 }
 
 export type ProgramMarketDraftKey = keyof ProgramMarketDraft;
 
-/** 시장 토글. 모두 해제되면 null */
+/** 시장 단일 선택 (라디오) */
+export function selectProgramMarketDraft(
+  _draft: ProgramMarketDraft,
+  key: ProgramMarketDraftKey,
+): ProgramMarketDraft {
+  return {
+    marketsKr: key === "marketsKr",
+    marketsUs: key === "marketsUs",
+    marketsCrypto: key === "marketsCrypto",
+  };
+}
+
+/** @deprecated use selectProgramMarketDraft */
 export function toggleProgramMarketDraft(
   draft: ProgramMarketDraft,
   key: ProgramMarketDraftKey,
-): ProgramMarketDraft | null {
-  const turningOn = !draft[key];
-  if (!turningOn) {
-    const next = { ...draft, [key]: false };
-    if (!next.marketsKr && !next.marketsUs && !next.marketsCrypto) {
-      return null;
-    }
-    return next;
-  }
-  if (key === "marketsCrypto") {
-    return { marketsKr: false, marketsUs: false, marketsCrypto: true };
-  }
-  return {
-    ...draft,
-    [key]: true,
-    marketsCrypto: false,
-  };
+): ProgramMarketDraft {
+  return selectProgramMarketDraft(draft, key);
 }

@@ -30,15 +30,15 @@ describe("validateLiveTradeProgramDraft", () => {
     if (!v.ok) expect(v.message.length).toBeGreaterThan(0);
   });
 
-  it("rejects crypto with stock markets", () => {
+  it("rejects multiple markets", () => {
     const v = validateLiveTradeProgramDraft({
       ...base,
       marketsKr: true,
-      marketsCrypto: true,
+      marketsUs: true,
     });
     expect(v.ok).toBe(false);
     if (!v.ok) {
-      expect(v.message).toBe(ko.app.liveTradeMarketsStockCryptoExclusive);
+      expect(v.message).toBe(ko.app.liveTradeFieldMarketsRequired);
     }
   });
 

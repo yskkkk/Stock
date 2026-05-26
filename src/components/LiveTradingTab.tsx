@@ -82,7 +82,7 @@ import {
 } from "../lib/liveTradeProgramFormValidate";
 import {
   programMarketDraftFromMarkets,
-  toggleProgramMarketDraft,
+  selectProgramMarketDraft,
 } from "../lib/liveTradeProgramMarkets";
 
 /** 실매매 중 한 채널(빗썸/토스)이 켜져 있으면 다른 «시작» 버튼 숨김 */
@@ -1091,8 +1091,8 @@ export default function LiveTradingTab({
                     {ko.app.liveTradeFieldMarkets}
                   </span>
                   <div
-                    className="live-trading-tab__segment"
-                    role="group"
+                    className="live-trading-tab__segment live-trading-tab__segment--market"
+                    role="radiogroup"
                     aria-label={ko.app.liveTradeFieldMarkets}
                   >
                     <button
@@ -1102,12 +1102,10 @@ export default function LiveTradingTab({
                           ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
                           : "live-trading-tab__segment-btn"
                       }
-                      aria-pressed={draft.marketsKr}
+                      role="radio"
+                      aria-checked={draft.marketsKr}
                       onClick={() =>
-                        setDraft((d) => {
-                          const next = toggleProgramMarketDraft(d, "marketsKr");
-                          return next ?? d;
-                        })
+                        setDraft((d) => selectProgramMarketDraft(d, "marketsKr"))
                       }
                     >
                       {ko.app.liveTradeMarketKr}
@@ -1119,12 +1117,10 @@ export default function LiveTradingTab({
                           ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
                           : "live-trading-tab__segment-btn"
                       }
-                      aria-pressed={draft.marketsUs}
+                      role="radio"
+                      aria-checked={draft.marketsUs}
                       onClick={() =>
-                        setDraft((d) => {
-                          const next = toggleProgramMarketDraft(d, "marketsUs");
-                          return next ?? d;
-                        })
+                        setDraft((d) => selectProgramMarketDraft(d, "marketsUs"))
                       }
                     >
                       {ko.app.liveTradeMarketUs}
@@ -1136,12 +1132,12 @@ export default function LiveTradingTab({
                           ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
                           : "live-trading-tab__segment-btn"
                       }
-                      aria-pressed={draft.marketsCrypto}
+                      role="radio"
+                      aria-checked={draft.marketsCrypto}
                       onClick={() =>
-                        setDraft((d) => {
-                          const next = toggleProgramMarketDraft(d, "marketsCrypto");
-                          return next ?? d;
-                        })
+                        setDraft((d) =>
+                          selectProgramMarketDraft(d, "marketsCrypto"),
+                        )
                       }
                     >
                       {ko.app.liveTradeMarketCrypto}

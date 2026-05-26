@@ -112,7 +112,7 @@ html {
 }
 
 .app__shell > .filter-bar.card,
-.app__shell > .workspace > .picks-panel.card,
+.app__shell > .workspace:not(.workspace--stock-lookup) > .picks-panel.card,
 .app__shell > .workspace.workspace--rec-tracker > .picks-panel.card,
 .app__shell > .workspace.ops-workspace > .card,
 .app__shell .trade-history-main-workspace.card,
@@ -3138,10 +3138,16 @@ html[data-theme="light"]
 
 .live-trading-tab__segment-btn--on {
   color: var(--text);
-  background: var(--card, #fff);
+  font-weight: 800;
+  background: color-mix(in srgb, var(--accent, #3b82f6) 24%, var(--card, #fff));
   box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.08),
+    0 0 0 2px color-mix(in srgb, var(--accent, #3b82f6) 52%, transparent),
+    0 2px 8px rgba(15, 23, 42, 0.14),
     inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.live-trading-tab__segment--market .live-trading-tab__segment-btn:not(.live-trading-tab__segment-btn--on) {
+  opacity: 0.72;
 }
 
 .live-trading-tab__field--range {
