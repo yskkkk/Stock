@@ -128,6 +128,11 @@ export function mergeLiveQuotesIntoPortfolio(
   let marketValueOpen = 0;
 
   const holdings = snap.holdings.map((h) => {
+    if (h.exchangeSource === "bithumb") {
+      investedOpen += h.costBasis;
+      if (h.marketValue != null) marketValueOpen += h.marketValue;
+      return h;
+    }
     const q = pickQuote(quotes, h.symbol, h.market);
     const px = q?.price;
     const next =

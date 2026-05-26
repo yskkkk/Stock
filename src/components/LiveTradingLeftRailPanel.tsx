@@ -126,6 +126,7 @@ function RailProgramCard({
   dataUpdatedAtMs,
   usdKrwRate,
   trades,
+  bithumbKrwTotal,
 }: {
   program: LiveTradeProgram;
   displayStatus: ReturnType<typeof programDisplayStatus>;
@@ -138,6 +139,7 @@ function RailProgramCard({
   dataUpdatedAtMs: number | null;
   usdKrwRate: number | null;
   trades: LiveTradeRecord[];
+  bithumbKrwTotal?: number | null;
 }) {
   const [open, setOpen] = useState(false);
   const tableWrapRef = useRef<HTMLDivElement>(null);
@@ -180,8 +182,8 @@ function RailProgramCard({
     usdKrwRate,
   );
   const cashKrw = useMemo(
-    () => programCashKrwBalance(p, trades),
-    [p, trades],
+    () => programCashKrwBalance(p, trades, bithumbKrwTotal),
+    [p, trades, bithumbKrwTotal],
   );
   const cashKrwLabel =
     cashKrw == null ? "—" : formatPrice(cashKrw, "KRW");
@@ -601,6 +603,11 @@ export function LiveTradingRailCore({
           dataUpdatedAtMs={dataUpdatedAtMs}
           usdKrwRate={usdKrwRate}
           trades={tradesByProgram[p.id] ?? []}
+          bithumbKrwTotal={
+            displayStatus === "armed" && p.armedMarkets?.crypto
+              ? portfolio?.summary?.bithumbKrwTotal
+              : undefined
+          }
         />
       </li>
     );

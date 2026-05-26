@@ -51,9 +51,26 @@ export function holdingNetMarketValue(
 
 /** 시뮬·체결 원장 — 프로그램 예산에서 매수·매도 반영한 원화 현금 */
 export function programCashKrwBalance(
-  program: Pick<LiveTradeProgram, "id" | "orderAmountKrw" | "status">,
+  program: Pick<
+    LiveTradeProgram,
+    "id" | "orderAmountKrw" | "status" | "armedMarkets" | "markets"
+  >,
   trades: LiveTradeRecord[],
+  bithumbKrwTotal?: number | null,
 ): number | null {
+  const cryptoArmed =
+    program.status === "armed" &&
+    (Boolean(program.armedMarkets?.crypto) ||
+      Boolean(program.markets?.crypto && !program.markets?.kr));
+  if (
+    cryptoArmed &&
+    bithumbKrwTotal != null &&
+    Number.isFinite(bithumbKrwTotal) &&
+    bithumbKrwTotal >= 0
+  ) {
+    return Math.round(bithumbKrwTotal);
+  }
+
   const budget = program.orderAmountKrw;
   if (budget == null || !Number.isFinite(budget) || budget < 0) return null;
 

@@ -1321,6 +1321,8 @@ export interface LiveTradeHolding {
   /** 1분봉 시세 시각(ms) */
   quoteQuotedAtMs?: number | null;
   priceSource?: "1m" | "over" | "regular" | null;
+  /** 실매매 — 빗썸 잔고 API 기준 행(클라 시세 덮어쓰기 제외) */
+  exchangeSource?: "bithumb" | null;
   /** 텔레그램 첫 알림 시각·가격 대비 수익률(코인) */
   notifyBaselineAtMs?: number | null;
   notifyBaselinePrice?: number | null;
@@ -1361,6 +1363,8 @@ export interface LiveTradePortfolioSummary {
   totalPnl: number;
   totalReturnPct: number | null;
   tradeCount: number;
+  /** 실매매 — 빗썸 GET /v1/accounts 원화 합계 */
+  bithumbKrwTotal?: number | null;
 }
 
 export interface LiveTradePortfolioResponse {

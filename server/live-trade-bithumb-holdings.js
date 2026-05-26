@@ -11,6 +11,11 @@ import { getDecryptedCredentialsSync } from "./user-credentials-store.js";
 import { fetchQuoteSnapshotsForSymbols } from "./picks-live-quotes.js";
 import { pickQuoteFromMap } from "./quote-symbol-resolve.js";
 import {
+  fetchBithumbAllKrwTickers,
+  usdtSymbolToBithumbBase,
+} from "./bithumb-krw.js";
+import { summarizeBithumbAccountsForDisplay } from "./bithumb-accounts-summary.js";
+import {
   holdingGrossReturnPctFromCost,
   holdingNetReturnPctFromCost,
   netReturnPct,
@@ -200,6 +205,7 @@ async function listBithumbExchangeOverlayRowsForCredentials(
   opts = {},
 ) {
   const overlayOnly = opts.overlayOnly !== false;
+  const exchangeBalance = opts.exchangeBalance === true;
   const status = getBithumbTradingStatusFromCredentials(credentials);
   if (!status.ready) return [];
 
@@ -207,20 +213,22 @@ async function listBithumbExchangeOverlayRowsForCredentials(
   if (!armedCrypto.length) return [];
   const feeRate = getBithumbRoundTripFeeRateSync(userId);
 
-  let accounts;
-  try {
-    accounts = await fetchBithumbAccountsWithCredentials(
-      /** @type {import("./bithumb-trading-adapter.js").BithumbCredentials} */ (
-        credentials
-      ),
-    );
-  } catch {
-    return [];
+  let accounts = opts.accounts;
+  if (!accounts) {
+    try {
+      accounts = await fetchBithumbAccountsWithCredentials(
+        /** @type {import("./bithumb-trading-adapter.js").BithumbCredentials} */ (
+          credentials
+        ),
+      );
+    } catch {
+      return [];
+    }
   }
 
   const store = readStoreSync();
 
-  /** @type {{ programId: string; symbol: string; name: string; quantity: number; avgEntryPrice: number }[]} */
+  /** @type {{ programId: string; symbol: string; name: string; quantity: number; avgEntryPrice: number | null; ledgerPos: object | null }[]} */
   const rows = [];
   for (const acc of accounts) {
     const base = String(acc.currency ?? "").trim().toUpperCase();
@@ -231,7 +239,10 @@ async function listBithumbExchangeOverlayRowsForCredentials(
     const symbol = bithumbBaseToUsdtSymbol(base);
     if (!symbol) continue;
 
-    const program = pickArmedProgramForSymbol(armedCrypto, symbol, store);
+    let program = pickArmedProgramForSymbol(armedCrypto, symbol, store);
+    if (!program && exchangeBalance && armedCrypto.length === 1) {
+      program = armedCrypto[0];
+    }
     if (!program) continue;
 
     const { positions: programOpen } = buildPositionsFromTrades(
@@ -241,6 +252,22 @@ async function listBithumbExchangeOverlayRowsForCredentials(
     const ledgerPos = programOpen.find(
       (p) => p.market === "crypto" && p.symbol === symbol,
     );
+
+    if (exchangeBalance) {
+      const avgRaw = Number(acc.avg_buy_price);
+      const avgEntry =
+        Number.isFinite(avgRaw) && avgRaw > 0 ? avgRaw : null;
+      rows.push({
+        programId: program.id,
+        symbol,
+        name: cryptoYahooUsdtDisplayName(symbol),
+        quantity: qty,
+        avgEntryPrice: avgEntry,
+        ledgerPos: null,
+      });
+      continue;
+    }
+
     if (overlayOnly && ledgerPos) {
       continue;
     }
@@ -264,28 +291,64 @@ async function listBithumbExchangeOverlayRowsForCredentials(
 
   if (!rows.length) return [];
 
+  /** @type {Record<string, { closing_price?: string }> | null} */
+  let bithumbTickers = null;
+  if (exchangeBalance) {
+    try {
+      bithumbTickers = await fetchBithumbAllKrwTickers();
+    } catch {
+      bithumbTickers = null;
+    }
+  }
+
   const symbols = [...new Set(rows.map((r) => r.symbol))];
-  const quotes = await fetchQuoteSnapshotsForSymbols(symbols, { maxAgeMs: 0 });
+  const quotes =
+    exchangeBalance && bithumbTickers
+      ? {}
+      : await fetchQuoteSnapshotsForSymbols(symbols, { maxAgeMs: 0 });
 
   /** @type {object[]} */
   const out = [];
   for (const row of rows) {
-    const q = pickQuoteFromMap(quotes, row.symbol, "crypto");
-    const currentPrice =
-      q?.price != null && Number.isFinite(q.price) && q.price > 0
-        ? q.price
-        : null;
-    const metrics = applyProgramLedgerToBithumbHoldingMetrics(
-      row.quantity,
-      row.avgEntryPrice,
-      row.ledgerPos,
-    );
-    if (!(metrics.quantity > 1e-9)) continue;
+    let currentPrice = null;
+    /** @type {ReturnType<typeof pickQuoteFromMap> | null} */
+    let q = null;
+    if (exchangeBalance && bithumbTickers) {
+      const base = usdtSymbolToBithumbBase(row.symbol);
+      const t = base ? bithumbTickers[base] : null;
+      const px = Number(t?.closing_price);
+      if (Number.isFinite(px) && px > 0) currentPrice = px;
+    } else {
+      q = pickQuoteFromMap(quotes, row.symbol, "crypto");
+      currentPrice =
+        q?.price != null && Number.isFinite(q.price) && q.price > 0
+          ? q.price
+          : null;
+    }
 
-    const avgEntry =
-      metrics.avgEntry > 0 ? metrics.avgEntry : (currentPrice ?? 0);
-    const costBasis = metrics.costBasis;
-    const quantity = metrics.quantity;
+    let avgEntry;
+    let costBasis;
+    let quantity;
+    if (exchangeBalance) {
+      quantity = row.quantity;
+      avgEntry =
+        row.avgEntryPrice != null && row.avgEntryPrice > 0
+          ? row.avgEntryPrice
+          : currentPrice ?? 0;
+      costBasis = avgEntry > 0 && quantity > 0 ? avgEntry * quantity : 0;
+    } else {
+      const metrics = applyProgramLedgerToBithumbHoldingMetrics(
+        row.quantity,
+        row.avgEntryPrice,
+        row.ledgerPos,
+      );
+      if (!(metrics.quantity > 1e-9)) continue;
+      avgEntry =
+        metrics.avgEntry > 0 ? metrics.avgEntry : (currentPrice ?? 0);
+      costBasis = metrics.costBasis;
+      quantity = metrics.quantity;
+    }
+    if (!(quantity > 1e-9)) continue;
     const mv =
       currentPrice != null ? currentPrice * quantity : null;
     if (mv != null && mv < MIN_DISPLAY_KRW) continue;
@@ -327,13 +390,16 @@ async function listBithumbExchangeOverlayRowsForCredentials(
       openedAtMs: Date.now(),
       lastAtMs: Date.now(),
       quoteQuotedAtMs:
-        typeof q?.quotedAtMs === "number" && q.quotedAtMs > 0
-          ? q.quotedAtMs
-          : null,
-      priceSource:
-        q?.priceSource === "over" ||
-        q?.priceSource === "regular" ||
-        q?.priceSource === "1m"
+        exchangeBalance
+          ? Date.now()
+          : typeof q?.quotedAtMs === "number" && q.quotedAtMs > 0
+            ? q.quotedAtMs
+            : null,
+      priceSource: exchangeBalance
+        ? "regular"
+        : q?.priceSource === "over" ||
+            q?.priceSource === "regular" ||
+            q?.priceSource === "1m"
           ? q.priceSource
           : null,
       exchangeSource: "bithumb",
@@ -345,7 +411,16 @@ async function listBithumbExchangeOverlayRowsForCredentials(
 /**
  * @param {import("./live-trade-programs-store.js").LiveTradeProgram[]} programs
  */
-/** 거래소 잔고 전체 → 보유 행(앱 기록과 무관, 실매매 동기화용) */
+/**
+ * 빗썸 GET /v1/accounts — 보유 원화 합계
+ * @param {unknown[]} accounts
+ */
+export function bithumbKrwTotalFromAccounts(accounts) {
+  const sum = summarizeBithumbAccountsForDisplay(accounts);
+  return sum.krw.total;
+}
+
+/** 거래소 잔고 전체 → 실제 보유·평가(원장 수량 한도 없음) */
 export async function listBithumbExchangeBalanceHoldings(programs) {
   /** @type {Map<string, import("./live-trade-programs-store.js").LiveTradeProgram[]>} */
   const byUser = new Map();
@@ -359,15 +434,49 @@ export async function listBithumbExchangeBalanceHoldings(programs) {
   for (const [userId, userPrograms] of byUser) {
     const creds = getDecryptedCredentialsSync(userId, "bithumb");
     if (!creds) continue;
+    let accounts;
+    try {
+      accounts = await fetchBithumbAccountsWithCredentials(creds);
+    } catch {
+      continue;
+    }
     const rows = await listBithumbExchangeOverlayRowsForCredentials(
       userPrograms,
       creds,
       userId,
-      { overlayOnly: false },
+      { overlayOnly: false, exchangeBalance: true, accounts },
     );
     out.push(...rows);
   }
   return out;
+}
+
+/**
+ * @param {import("./live-trade-programs-store.js").LiveTradeProgram[]} programs
+ * @returns {Promise<number | null>}
+ */
+export async function fetchBithumbKrwTotalForPrograms(programs) {
+  const byUser = new Map();
+  for (const p of programs) {
+    const uid = String(p.userId ?? "").trim();
+    if (!uid) continue;
+    if (!byUser.has(uid)) byUser.set(uid, []);
+    byUser.get(uid).push(p);
+  }
+  let total = 0;
+  let any = false;
+  for (const userId of byUser.keys()) {
+    const creds = getDecryptedCredentialsSync(userId, "bithumb");
+    if (!creds) continue;
+    try {
+      const accounts = await fetchBithumbAccountsWithCredentials(creds);
+      total += bithumbKrwTotalFromAccounts(accounts);
+      any = true;
+    } catch {
+      /* skip */
+    }
+  }
+  return any ? total : null;
 }
 
 /**

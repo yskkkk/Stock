@@ -1106,6 +1106,15 @@ export async function buildLiveTradePortfolioSnapshot(opts = {}) {
   if (openPct != null && Number.isFinite(openPct)) {
     withExchangeTrades.summary.totalReturnPct = openPct;
   }
+  if (opts.exchangeSyncLive) {
+    const { fetchBithumbKrwTotalForPrograms } = await import(
+      "./live-trade-bithumb-holdings.js"
+    );
+    const krwTotal = await fetchBithumbKrwTotalForPrograms(programs);
+    if (krwTotal != null && Number.isFinite(krwTotal)) {
+      withExchangeTrades.summary.bithumbKrwTotal = krwTotal;
+    }
+  }
   return {
     ...withExchangeTrades,
     holdings: enrichPortfolioHoldingNames(withExchangeTrades.holdings),
