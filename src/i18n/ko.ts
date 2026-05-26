@@ -383,6 +383,7 @@ export const ko = {
     liveTradeSideDockRailPortfolio: "보유·거래",
     liveTradeSideDockRailForm: "등록",
     liveTradeSideDockRailPrograms: "프로그램",
+    liveTradeSideDockRailActivity: "가동",
     liveTradeSideDockCollapse: "접기",
     liveTradeSideDockExpand: "펼치기",
     liveTradeSideDockResize: "패널 너비",
