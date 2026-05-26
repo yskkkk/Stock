@@ -9399,7 +9399,7 @@ html[data-theme="light"] .market-indices-rail__item {
     height: auto;
     min-height: 100dvh;
     max-height: none;
-    overflow: hidden;
+    overflow: visible;
     overscroll-behavior: contain;
   }
 
@@ -9409,7 +9409,7 @@ html[data-theme="light"] .market-indices-rail__item {
     min-height: 100%;
     max-height: none;
     height: 100%;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .app__right-panel--dock .app-live-trade-side-dock--open .app-live-trade-side-dock__host {
@@ -9977,7 +9977,7 @@ html[data-theme="light"]
   min-height: 100%;
   border-top-left-radius: var(--radius-xl, 22px);
   border-bottom-left-radius: var(--radius-xl, 22px);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .app-live-trade-side-dock--open .app-live-trade-side-dock__host {
