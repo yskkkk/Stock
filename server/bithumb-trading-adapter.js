@@ -8,8 +8,15 @@ import { randomUUID } from "node:crypto";
 import {
   resolveOrderAmountForMarket,
   quantityFromOrderAmount,
+  normalizeSellQuantity,
   CRYPTO_MIN_ORDER_KRW,
 } from "./live-trade-market.js";
+import { clampBithumbSellVolumeToAvailable, getBithumbExchangeQtyMaps } from "./live-trade-bithumb-reconcile.js";
+import {
+  deductBithumbLedgerAvailable,
+  refreshBithumbLedgerForUser,
+  resolveSellVolumeFromLedger,
+} from "./live-trade-bithumb-ledger.js";
 import { usdtSymbolToBithumbBase } from "./bithumb-krw.js";
 import { pickMeetsProgramThreshold } from "./toss-trading-adapter.js";
 import { isBoxRangePickSignal } from "./box-range/buy-guard.js";
@@ -318,7 +325,16 @@ export async function executeBithumbLiveBuyOrder(program, pick, options = {}) {
       orderId,
       /** @type {BithumbCredentials} */ (credentials),
     );
-    return { ok: true, orderId, fillPrice: fill?.price ?? null };
+    const userId = String(program.userId ?? "").trim();
+    if (userId && credentials?.apiKey) {
+      await refreshBithumbLedgerForUser(userId, credentials);
+    }
+    return {
+      ok: true,
+      orderId,
+      fillPrice: fill?.price ?? null,
+      fillVolume: fill?.volume ?? null,
+    };
   } catch (e) {
     return {
       ok: false,
@@ -328,9 +344,74 @@ export async function executeBithumbLiveBuyOrder(program, pick, options = {}) {
 }
 
 /**
- * @param {{ market: string; volume: number }} input
- * @param {{ credentials?: BithumbCredentials | null }} [options]
+ * 시장가 매도 수량 — 장부(캐시)·거래소 balance 기준 (지정가 전량 API 없음 → available 전량 시장가 ask)
  */
+export async function resolveBithumbSellVolumeForMarket(
+  market,
+  requestedVolume,
+  credentials,
+  userId = "",
+) {
+  const mk = String(market ?? "").trim();
+  const base = mk.replace(/^KRW-/i, "").toUpperCase();
+  let available = 0;
+  if (credentials?.apiKey && credentials?.secretKey) {
+    try {
+      const maps = await getBithumbExchangeQtyMaps(credentials);
+      available = maps.available.get(base) ?? 0;
+    } catch {
+      available = 0;
+    }
+  }
+  const uid = String(userId ?? "").trim();
+  if (uid) {
+    return {
+      ...resolveSellVolumeFromLedger(requestedVolume, uid, base, available),
+      available,
+      base,
+    };
+  }
+  return {
+    ...clampBithumbSellVolumeToAvailable(requestedVolume, available),
+    available,
+    base,
+  };
+}
+
+async function marketSellOnce(market, volume, credentials, opts = {}) {
+  const slip = await checkBithumbMarketSellSlippage(market, volume, credentials);
+  if (!slip.ok) {
+    return {
+      ok: false,
+      error: slip.error ?? "SLIPPAGE_TOO_HIGH",
+      slippagePct: slip.slippagePct ?? null,
+    };
+  }
+  const vol =
+    Math.round(volume * 1e8) / 1e8 > 0
+      ? String(Math.round(volume * 1e8) / 1e8)
+      : String(volume);
+  const body = await bithumbPrivateRequestWithCredentials(
+    "POST",
+    "/v1/orders",
+    { market, side: "ask", ord_type: "market", volume: vol },
+    credentials,
+  );
+  const orderId = String(body.uuid ?? "").trim();
+  if (!orderId) return { ok: false, error: "매도 주문 ID를 받지 못했습니다." };
+  const fill = await pollBithumbOrderFill(
+    orderId,
+    credentials,
+    opts.maxAttempts,
+  );
+  return {
+    ok: true,
+    orderId,
+    fillPrice: fill?.price ?? null,
+    fillVolume: fill?.volume ?? volume,
+  };
+}
+
 /**
  * 시장가 매도 전 호가 깊이·슬리피지 검사
  * @param {string} market
@@ -419,47 +500,87 @@ export async function executeBithumbLiveSellOrder(input, options = {}) {
     return { ok: false, success: false, error: status.messageKo };
   }
   const market = String(input.market ?? "").trim();
-  const volume = Number(input.volume);
-  if (!market || !Number.isFinite(volume) || volume <= 0) {
+  const requestedVolume = Number(input.volume);
+  if (!market || !Number.isFinite(requestedVolume) || requestedVolume <= 0) {
     return { ok: false, success: false, error: "매도 수량이 올바르지 않습니다." };
   }
 
-  const slip = await checkBithumbMarketSellSlippage(market, volume, credentials);
-  if (!slip.ok) {
-    return {
-      ok: false,
-      success: false,
-      error: slip.error ?? "SLIPPAGE_TOO_HIGH",
-      slippagePct: slip.slippagePct ?? null,
-      bestBid: slip.bestBid ?? null,
-      expectedAvgPrice: slip.expectedAvgPrice ?? null,
-    };
+  const userId = String(options.userId ?? "").trim();
+  const useAvailable = options.useExchangeAvailable !== false;
+  let sellVolume = requestedVolume;
+  let volumeClamped = false;
+  if (useAvailable) {
+    const resolved = await resolveBithumbSellVolumeForMarket(
+      market,
+      requestedVolume,
+      credentials,
+      userId,
+    );
+    sellVolume = resolved.volume;
+    volumeClamped = resolved.clamped;
+    if (sellVolume <= 0) {
+      return {
+        ok: false,
+        success: false,
+        error: "빗썸 주문가능 수량이 없습니다.",
+        available: resolved.available,
+      };
+    }
+    if (userId) deductBithumbLedgerAvailable(userId, resolved.base, sellVolume);
   }
 
   try {
-    const vol =
-      Math.round(volume * 1e8) / 1e8 > 0
-        ? String(Math.round(volume * 1e8) / 1e8)
-        : String(volume);
-    const body = await bithumbPrivateRequestWithCredentials(
-      "POST",
-      "/v1/orders",
-      {
-        market,
-        side: "ask",
-        ord_type: "market",
-        volume: vol,
-      },
-      /** @type {BithumbCredentials} */ (credentials),
-    );
-    const orderId = String(body.uuid ?? "").trim();
-    if (!orderId) return { ok: false, error: "매도 주문 ID를 받지 못했습니다." };
-    const fill = await pollBithumbOrderFill(
-      orderId,
-      /** @type {BithumbCredentials} */ (credentials),
-    );
-    return { ok: true, orderId, fillPrice: fill?.price ?? null };
+    const first = await marketSellOnce(market, sellVolume, credentials);
+    if (!first.ok) {
+      return { ok: false, success: false, error: first.error, ...first };
+    }
+    let totalSold = Number(first.fillVolume) || sellVolume;
+    let lastOrderId = first.orderId;
+    let fillPrice = first.fillPrice;
+
+    const sweep = options.sweepRemainder !== false;
+    if (sweep && credentials?.apiKey) {
+      const base = market.replace(/^KRW-/i, "").toUpperCase();
+      const maps = await getBithumbExchangeQtyMaps(credentials);
+      const rem = normalizeSellQuantity(maps.available.get(base) ?? 0, "crypto");
+      let estPx = fillPrice ?? 0;
+      if (estPx <= 0) {
+        try {
+          const { fetchBithumbKrwTickerForBase } = await import("./bithumb-krw.js");
+          const t = await fetchBithumbKrwTickerForBase(base);
+          estPx = Number(t?.price) || 0;
+        } catch {
+          estPx = 0;
+        }
+      }
+      if (rem > 0 && estPx > 0 && rem * estPx >= CRYPTO_MIN_ORDER_KRW) {
+        if (userId) deductBithumbLedgerAvailable(userId, base, rem);
+        const second = await marketSellOnce(market, rem, credentials, {
+          maxAttempts: 2,
+        });
+        if (second.ok) {
+          totalSold += Number(second.fillVolume) || rem;
+          lastOrderId = second.orderId ?? lastOrderId;
+          fillPrice = second.fillPrice ?? fillPrice;
+        }
+      }
+    }
+
+    if (userId) await refreshBithumbLedgerForUser(userId, credentials);
+
+    return {
+      ok: true,
+      orderId: lastOrderId,
+      fillPrice,
+      fillVolume: totalSold,
+      requestedVolume,
+      soldVolume: totalSold,
+      volumeClamped,
+    };
   } catch (e) {
+    if (userId && credentials) {
+      await refreshBithumbLedgerForUser(userId, credentials).catch(() => {});
+    }
     return {
       ok: false,
       error: e instanceof Error ? e.message : String(e),
@@ -594,8 +715,11 @@ export async function listBithumbDoneOrdersAllMarketsWithCredentials(
  * @param {BithumbCredentials} credentials
  * @returns {Promise<{ price: number; volume: number; funds: number } | null>}
  */
-export async function pollBithumbOrderFill(orderId, credentials) {
-  const MAX_ATTEMPTS = 3;
+export async function pollBithumbOrderFill(orderId, credentials, maxAttempts = 3) {
+  const MAX_ATTEMPTS =
+    Number.isFinite(maxAttempts) && maxAttempts >= 1
+      ? Math.min(8, Math.floor(maxAttempts))
+      : 3;
   const DELAY_MS = 2_000;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     await new Promise((r) => setTimeout(r, DELAY_MS));

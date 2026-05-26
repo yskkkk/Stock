@@ -41,23 +41,65 @@ function displayTicker(symbol: string, market: BoxRangeCatalogMarket): string {
   return symbol.replace(/^US_/i, "").trim().toUpperCase();
 }
 
-/** 국내: 종목명 · 미국: 티커 */
+function cryptoKoFromName(name: string): string {
+  const slash = String(name ?? "").split("/");
+  if (slash.length > 1) {
+    const ko = slash[slash.length - 1].trim();
+    if (/[\uAC00-\uD7A3]/.test(ko)) return ko;
+  }
+  const m = String(name ?? "").match(/[\uAC00-\uD7A3][\uAC00-\uD7A3·\s]*/);
+  return m ? m[0].trim() : "";
+}
+
+/** 국내: 종목명 · 미국: 한글명(티커) · 코인: 한글명(티커) */
 function displaySymbolLabel(
   symbol: string,
   name: string,
   market: BoxRangeCatalogMarket,
+  nameKo?: string,
 ): string {
   const ticker = displayTicker(symbol, market);
   if (market === "kr") {
     const n = String(name ?? "").trim();
     return n || ticker;
   }
+  if (market === "us") {
+    const ko = String(nameKo ?? "").trim();
+    return ko ? `${ko} (${ticker})` : ticker;
+  }
+  if (market === "crypto") {
+    const ko = cryptoKoFromName(name);
+    return ko ? `${ko} (${ticker})` : ticker;
+  }
   return ticker;
+}
+
+function logoUrlForSymbol(
+  symbol: string,
+  market: BoxRangeCatalogMarket,
+): string | null {
+  if (market === "crypto") {
+    const slug = cryptoIconSlug(symbol, "crypto");
+    return slug ? cryptoCoinIconUrl(slug) : null;
+  }
+  if (market === "kr") {
+    const bare = symbol
+      .replace(/^KR_/i, "")
+      .replace(/\.(KS|KQ)$/i, "")
+      .trim();
+    const code =
+      /^\d{6}$/.test(bare) ? bare : symbol.replace(/^KR_/i, "").trim();
+    return krStockLogoUrl(
+      /^\d{6}$/.test(code) ? `KR_${code}` : symbol,
+    );
+  }
+  return usStockLogoUrl(symbol);
 }
 
 function BoxRangeLogoButton({
   symbol,
   name,
+  nameKo,
   eligibleCount,
   selected,
   market,
@@ -65,22 +107,16 @@ function BoxRangeLogoButton({
 }: {
   symbol: string;
   name: string;
+  nameKo?: string;
   eligibleCount: number;
   selected: boolean;
   market: BoxRangeCatalogMarket;
   onSelect: () => void;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
-  const cryptoSlug =
-    market === "crypto" ? cryptoIconSlug(symbol, "crypto") : null;
-  const logo =
-    market === "crypto" && cryptoSlug
-      ? cryptoCoinIconUrl(cryptoSlug)
-      : market === "kr"
-        ? krStockLogoUrl(symbol)
-        : usStockLogoUrl(symbol);
+  const logo = logoUrlForSymbol(symbol, market);
   const ticker = displayTicker(symbol, market);
-  const label = displaySymbolLabel(symbol, name, market);
+  const label = displaySymbolLabel(symbol, name, market, nameKo);
   const showImg = Boolean(logo) && !imgFailed;
 
   return (
@@ -328,6 +364,7 @@ export default function BoxRangeTab() {
                   key={r.symbol}
                   symbol={r.symbol}
                   name={r.name}
+                  nameKo={r.nameKo}
                   eligibleCount={r.eligibleCount}
                   selected={selected === r.symbol}
                   market={catalogMarket}

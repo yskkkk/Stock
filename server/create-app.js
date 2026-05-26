@@ -891,8 +891,21 @@ export function createApp() {
       const { readCatalogIndexSync, resolveCatalogMarket } = await import(
         "./box-range/catalog-store.js"
       );
+      const { getKoreanStockName } = await import("./names-ko.js");
       const market = resolveCatalogMarket(req.query?.market);
-      res.json(readCatalogIndexSync(market));
+      const idx = readCatalogIndexSync(market);
+      if (market === "us" && Array.isArray(idx.symbols)) {
+        res.json({
+          ...idx,
+          symbols: idx.symbols.map((row) => {
+            const sym = String(row.symbol ?? "").trim().toUpperCase();
+            const nameKo = getKoreanStockName(sym);
+            return nameKo ? { ...row, nameKo } : row;
+          }),
+        });
+        return;
+      }
+      res.json(idx);
     }),
   );
 

@@ -449,11 +449,8 @@ export async function tickLiveTradeAutoSell() {
         }
 
         const sellResult = await executeBithumbLiveSellOrder(
-
           { market: bithumbMarket, volume: sellVolume },
-
-          { credentials },
-
+          { credentials, userId },
         );
 
         if (!sellResult.ok) {
@@ -465,13 +462,17 @@ export async function tickLiveTradeAutoSell() {
         }
 
         const fillPrice = sellResult.fillPrice ?? hit.price ?? current;
+        const recordedQty =
+          Number(sellResult.fillVolume) > 0
+            ? Number(sellResult.fillVolume)
+            : sellVolume;
 
         recordLiveTradeSellSync(
           {
             programId: pos.programId,
             symbol: pos.symbol,
             market: pos.market,
-            quantity: sellVolume,
+            quantity: recordedQty,
             price: fillPrice,
             note: hit.note,
             simulated: Boolean(sellResult.simulated),

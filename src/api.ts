@@ -1449,6 +1449,8 @@ export function fetchLiveTradingBoxRangeStatus() {
 export interface BoxRangeCatalogIndexRow {
   symbol: string;
   name: string;
+  /** 미국 — names-ko 맵 */
+  nameKo?: string;
   updatedAtMs: number;
   eligibleCount: number;
   boxCount: number;

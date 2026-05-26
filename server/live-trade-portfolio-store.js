@@ -453,7 +453,13 @@ export function recordLiveTradeBuySync(
   /** @type {number} */
   const orderAmount = amount;
 
-  let quantity = quantityFromOrderAmount(orderAmount, price, market);
+  const fillVol = Number(orderMeta.fillVolume);
+  let quantity =
+    market === "crypto" &&
+    Number.isFinite(fillVol) &&
+    fillVol > 0
+      ? normalizeSellQuantity(fillVol, "crypto")
+      : quantityFromOrderAmount(orderAmount, price, market);
   if (quantity <= 0) return null;
 
   const store = readStoreSync();

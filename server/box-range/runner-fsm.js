@@ -151,6 +151,7 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
               {
                 simulated: out.simulated,
                 orderId: out.orderId,
+                fillVolume: out.fillVolume ?? undefined,
                 ...boxMeta,
               },
             );
@@ -230,6 +231,7 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
     const entry = lot.entryPrice ?? box.entryPrice ?? box.mid;
     let exitSide = null;
     let fillPrice = lastPrice;
+    let soldQty = qty;
     if (lastPrice >= box.top) {
       exitSide = "tp";
       fillPrice = box.top;
@@ -250,11 +252,13 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
             { market: bithumbMarket, volume: qty },
             {
               credentials: getDecryptedCredentialsSync(userId, "bithumb"),
+              userId,
             },
           );
           if (!out.ok) throw new Error(out.error ?? "매도 실패");
           fillPrice = out.fillPrice ?? fillPrice;
           simulated = Boolean(out.simulated);
+          if (Number(out.fillVolume) > 0) soldQty = Number(out.fillVolume);
         } else {
           const out = await executeLiveSellOrder(
             program,
@@ -270,7 +274,7 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
             programId: program.id,
             symbol: sym,
             market,
-            quantity: qty,
+            quantity: soldQty,
             price: fillPrice,
             note: `box:${box.boxId}:${exitSide}`,
             simulated,
