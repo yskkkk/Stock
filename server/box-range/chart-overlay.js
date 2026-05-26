@@ -1,6 +1,10 @@
 import { loadStock } from "../stock-data.js";
 import { detectBoxRangesProOnCandles } from "./detect-pro.js";
 import { BOX_RANGE_MAX_DETECTED } from "./constants.js";
+import {
+  CATALOG_MARKETS,
+  readSymbolCatalogSync,
+} from "./catalog-store.js";
 import { listBoxesForChartOverlaySync } from "./store.js";
 
 /** @type {readonly ("1h"|"4h"|"1d")[]} */
@@ -22,6 +26,34 @@ export function boxRangeTfsForChartTimeframe(_chartTimeframe) {
  * @param {string} symbol
  * @returns {Promise<object[]>}
  */
+/**
+ * KR/US 카탈로그에 저장된 탐지 박스 — 차트 오버레이에 포함(기존엔 live 탐지만 반환).
+ * @param {string} symbol
+ */
+function listCatalogBoxesForChartOverlay(symbol) {
+  const sym = String(symbol ?? "").trim().toUpperCase();
+  if (!sym) return [];
+  /** @type {object[]} */
+  const out = [];
+  for (const market of CATALOG_MARKETS) {
+    const cat = readSymbolCatalogSync(sym, market);
+    if (!cat?.boxes?.length) continue;
+    for (const cb of cat.boxes) {
+      out.push({
+        boxId: `catalog-${cb.catalogBoxId}`,
+        top: cb.top,
+        bottom: cb.bottom,
+        mid: cb.mid,
+        timeframe: cb.timeframe,
+        state: cb.consumedAtMs ? "closed" : "idle",
+        leftTime: cb.leftTime,
+        rightTime: cb.rightTime,
+      });
+    }
+  }
+  return out;
+}
+
 async function detectBoxesForTf(symbol, timeframe) {
   const data = await loadStock(symbol, timeframe, { live: true });
   const candles = Array.isArray(data?.candles) ? data.candles : [];
@@ -63,12 +95,25 @@ export async function buildChartBoxRangeOverlayAsync(
   const tfs = boxRangeTfsForChartTimeframe(chartTimeframe);
   /** @type {object[]} */
   const chartBoxes = [];
+  const seenIds = new Set();
+
+  const pushBox = (b) => {
+    const id = String(b.boxId ?? "").trim();
+    if (!id || seenIds.has(id)) return;
+    if (!tfs.includes(b.timeframe)) return;
+    seenIds.add(id);
+    chartBoxes.push(b);
+    scan[b.timeframe] = "found";
+  };
+
+  for (const b of listCatalogBoxesForChartOverlay(sym)) {
+    pushBox(b);
+  }
 
   const uid = String(userId ?? "").trim();
   if (uid) {
     for (const b of listBoxesForChartOverlaySync(uid, sym)) {
-      if (!tfs.includes(b.timeframe)) continue;
-      chartBoxes.push({
+      pushBox({
         boxId: b.boxId,
         top: b.top,
         bottom: b.bottom,
@@ -78,7 +123,6 @@ export async function buildChartBoxRangeOverlayAsync(
         leftTime: b.leftTime,
         rightTime: b.rightTime,
       });
-      scan[b.timeframe] = "found";
     }
   }
 
@@ -89,9 +133,8 @@ export async function buildChartBoxRangeOverlayAsync(
         if (scan[tf] !== "found") scan[tf] = "none";
         continue;
       }
-      scan[tf] = "found";
       for (const live of liveList) {
-        chartBoxes.push(live);
+        pushBox(live);
       }
     } catch {
       scan[tf] = "error";

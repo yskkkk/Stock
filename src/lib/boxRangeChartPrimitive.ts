@@ -34,6 +34,8 @@ const STRATEGY_TF_SEC: Record<string, number> = {
   "1d": 86400,
 };
 
+const KST_OFFSET_SEC = 9 * 60 * 60;
+
 function chartBarSeconds(interval: string): number {
   const m: Record<string, number> = {
     "1m": 60,
@@ -61,13 +63,41 @@ export function shouldDrawBoxOnChart(
   return boxSec >= chartSec;
 }
 
+/** 서버 일봉 캔들·박스 leftTime/rightTime 과 동일 KST 달력 키 */
 function timeSortKey(t: Time): number {
   if (typeof t === "number") return t;
   if (typeof t === "string") {
     const ms = Date.parse(t);
     return Number.isFinite(ms) ? Math.floor(ms / 1000) : 0;
   }
-  return Math.floor(Date.UTC(t.year, t.month - 1, t.day) / 1000);
+  return Math.floor(Date.UTC(t.year, t.month - 1, t.day) / 1000) - KST_OFFSET_SEC;
+}
+
+/** unix(박스) → 일봉 차트용 BusinessDay (UTC midnight 오류 방지) */
+export function unixSecToKstBusinessDayTime(unixSec: number): Time {
+  const kstMs = unixSec * 1000 + KST_OFFSET_SEC * 1000;
+  const d = new Date(kstMs);
+  return {
+    year: d.getUTCFullYear(),
+    month: d.getUTCMonth() + 1,
+    day: d.getUTCDate(),
+  };
+}
+
+function chartTimeFromUnix(
+  unixSec: number,
+  chartInterval: string,
+): Time {
+  if (chartBarSeconds(chartInterval) >= 86400) {
+    return unixSecToKstBusinessDayTime(unixSec);
+  }
+  return unixSec;
+}
+
+function maxSlopSec(chartInterval: string, boxTimeframe: string): number {
+  const chartSec = chartBarSeconds(chartInterval);
+  const boxSec = STRATEGY_TF_SEC[boxTimeframe] ?? chartSec;
+  return Math.max(chartSec * 2, boxSec * 2, 7200);
 }
 
 function resolveTimeX(
@@ -75,8 +105,10 @@ function resolveTimeX(
   series: ISeriesApi<SeriesType>,
   unixSec: number,
   chartInterval: string,
+  boxTimeframe: string,
 ): number | null {
-  const direct = chart.timeScale().timeToCoordinate(unixSec as Time);
+  const target = chartTimeFromUnix(unixSec, chartInterval);
+  const direct = chart.timeScale().timeToCoordinate(target);
   if (direct != null && Number.isFinite(direct)) return direct;
 
   const bars = series.data() as { time: Time }[];
@@ -92,9 +124,7 @@ function resolveTimeX(
     }
   }
 
-  const chartSec = chartBarSeconds(chartInterval);
-  const maxSlop = Math.max(chartSec * 2, chartBarSeconds("1h") * 2);
-  if (bestD > maxSlop) return null;
+  if (bestD > maxSlopSec(chartInterval, boxTimeframe)) return null;
 
   const x = chart.timeScale().timeToCoordinate(best.time);
   return x != null && Number.isFinite(x) ? x : null;
@@ -131,12 +161,14 @@ function boxGeom(
     data.series,
     leftUnix,
     data.chartInterval,
+    box.timeframe,
   );
   const x2 = resolveTimeX(
     data.chart,
     data.series,
     rightUnix,
     data.chartInterval,
+    box.timeframe,
   );
   const yTop = data.series.priceToCoordinate(box.top);
   const yBot = data.series.priceToCoordinate(box.bottom);

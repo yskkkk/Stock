@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { shouldDrawBoxOnChart } from "./boxRangeChartPrimitive";
+import {
+  shouldDrawBoxOnChart,
+  unixSecToKstBusinessDayTime,
+} from "./boxRangeChartPrimitive";
 
 describe("shouldDrawBoxOnChart", () => {
   it("shows all strategy TFs on intraday charts", () => {
@@ -14,5 +17,13 @@ describe("shouldDrawBoxOnChart", () => {
     expect(shouldDrawBoxOnChart("1d", "1h")).toBe(true);
     expect(shouldDrawBoxOnChart("1d", "4h")).toBe(true);
     expect(shouldDrawBoxOnChart("1h", "1d")).toBe(false);
+  });
+
+  it("maps box unix to KST business day for daily charts", () => {
+    expect(unixSecToKstBusinessDayTime(1738681200)).toEqual({
+      year: 2025,
+      month: 2,
+      day: 5,
+    });
   });
 });

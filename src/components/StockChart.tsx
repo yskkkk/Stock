@@ -2458,7 +2458,7 @@ export default function StockChart({
       boxRangePrimitiveRef.current = null;
     }
 
-    const list = (boxRangeOverlays ?? []).slice(0, 8);
+    const list = (boxRangeOverlays ?? []).slice(0, 24);
     if (!list.length) return;
 
     const prim = createBoxRangeChartPrimitive();
