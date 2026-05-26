@@ -2,6 +2,14 @@ import { useMemo } from "react";
 import type { LiveTradeArmLane } from "../api";
 import { ko } from "../i18n/ko";
 import type { LiveArmLaneOption } from "../lib/liveTradeArmLanes";
+import { BithumbBrandMark, TossBrandMark } from "./ExchangeBrandMarks";
+
+function ArmLaneMark({ lane }: { lane: LiveTradeArmLane }) {
+  if (lane === "bithumb") {
+    return <BithumbBrandMark className="live-trade-arm-menu__mark" />;
+  }
+  return <TossBrandMark className="live-trade-arm-menu__mark" />;
+}
 
 export default function LiveTradeArmStartMenu({
   options,
@@ -59,7 +67,10 @@ export default function LiveTradeArmStartMenu({
               title={opt.title}
               onClick={() => onSelect(opt.lane)}
             >
-              <span className="live-trade-arm-menu__item-label">{opt.label}</span>
+              <span className="live-trade-arm-menu__item-main">
+                <ArmLaneMark lane={opt.lane} />
+                <span className="live-trade-arm-menu__item-label">{opt.label}</span>
+              </span>
               {!opt.enabled ? (
                 <span className="live-trade-arm-menu__item-badge">
                   {ko.app.liveTradeArmMenuNeedLink}

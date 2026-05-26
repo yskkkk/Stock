@@ -3,6 +3,7 @@ import {
   minOrderAmountKrwForMarkets,
 } from "../constants/liveTradeOrder";
 import { ko } from "../i18n/ko";
+import { hasStockCryptoMarketConflict } from "./liveTradeProgramMarkets";
 
 export type LiveTradeProgramDraftFields = {
   name: string;
@@ -90,7 +91,10 @@ export function validateLiveTradeProgramDraft(
     crypto: draft.marketsCrypto,
   };
   if (!markets.kr && !markets.us && !markets.crypto) {
-    return { ok: false, message: ko.app.liveTradeFieldMarkets };
+    return { ok: false, message: ko.app.liveTradeFieldMarketsRequired };
+  }
+  if (hasStockCryptoMarketConflict(markets)) {
+    return { ok: false, message: ko.app.liveTradeMarketsStockCryptoExclusive };
   }
   const maxOpenPositions = parseMaxOpenPositionsInput(draft.maxOpenPositions);
   if (maxOpenPositions == null) {

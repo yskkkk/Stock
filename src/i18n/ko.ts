@@ -143,6 +143,8 @@ export const ko = {
     liveTradeCryptoSimNote: "코인은 빗썸 KRW 시세·원화 매수 금액 기준입니다. 실매매는 «더 빗썸 API»에서 거래소 실주문을 켜야 합니다.",
     liveTradeFieldAmountKrwCrypto: "국내·코인 1회 매수 금액 (원)",
     liveTradeFieldMarketsRequired: "국내·미국·코인 중 하나를 선택하세요.",
+    liveTradeMarketsStockCryptoExclusive:
+      "코인(빗썸)은 국내·미국 주식(토스)과 함께 선택할 수 없습니다.",
     liveTradeFieldSellHorizon: "매도 관점 (보유 기간 가정)",
     liveTradeSellHorizonShort: "단기",
     liveTradeSellHorizonMedium: "중기",

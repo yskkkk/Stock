@@ -30,6 +30,18 @@ describe("validateLiveTradeProgramDraft", () => {
     if (!v.ok) expect(v.message.length).toBeGreaterThan(0);
   });
 
+  it("rejects crypto with stock markets", () => {
+    const v = validateLiveTradeProgramDraft({
+      ...base,
+      marketsKr: true,
+      marketsCrypto: true,
+    });
+    expect(v.ok).toBe(false);
+    if (!v.ok) {
+      expect(v.message).toBe(ko.app.liveTradeMarketsStockCryptoExclusive);
+    }
+  });
+
   it("requires usd when us market on", () => {
     const v = validateLiveTradeProgramDraft({
       ...base,

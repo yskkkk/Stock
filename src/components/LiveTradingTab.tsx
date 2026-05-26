@@ -80,6 +80,10 @@ import {
   parseMaxOpenPositionsInput,
   validateLiveTradeProgramDraft,
 } from "../lib/liveTradeProgramFormValidate";
+import {
+  programMarketDraftFromMarkets,
+  toggleProgramMarketDraft,
+} from "../lib/liveTradeProgramMarkets";
 
 /** 실매매 중 한 채널(빗썸/토스)이 켜져 있으면 다른 «시작» 버튼 숨김 */
 function showArmLaneButton(p: LiveTradeProgram, lane: LiveTradeArmLane): boolean {
@@ -143,18 +147,6 @@ function usdAmountFieldLabel(marketsUs: boolean, marketsCrypto: boolean): string
 function krwAmountFieldLabel(crypto: boolean): string {
   if (crypto) return ko.app.liveTradeFieldAmountCrypto;
   return ko.app.liveTradeFieldAmountKrw;
-}
-
-function marketsFromProgram(m: {
-  kr: boolean;
-  us: boolean;
-  crypto: boolean;
-}) {
-  return {
-    marketsKr: Boolean(m.kr),
-    marketsUs: Boolean(m.us),
-    marketsCrypto: Boolean(m.crypto),
-  };
 }
 
 const emptyDraft = () => ({
@@ -497,7 +489,7 @@ export default function LiveTradingTab({
       setDraft({
         name: p.name,
         modelId: p.modelId,
-        ...marketsFromProgram(p.markets),
+        ...programMarketDraftFromMarkets(p.markets),
         minScoreRatio: p.minScoreRatio,
         maxOpenPositions: String(p.maxOpenPositions),
         orderAmountKrw:
@@ -1019,11 +1011,23 @@ export default function LiveTradingTab({
                   onApplyPatch={(patch: LiveSimDraftPatch) => {
                     const patchMarkets =
                       patch.marketsUs === true
-                        ? { marketsUs: true }
+                        ? programMarketDraftFromMarkets({
+                            kr: false,
+                            us: true,
+                            crypto: false,
+                          })
                         : patch.marketsCrypto === true
-                          ? { marketsCrypto: true }
+                          ? programMarketDraftFromMarkets({
+                              kr: false,
+                              us: false,
+                              crypto: true,
+                            })
                           : patch.marketsKr === true
-                            ? { marketsKr: true }
+                            ? programMarketDraftFromMarkets({
+                                kr: true,
+                                us: false,
+                                crypto: false,
+                              })
                             : null;
                     setDraft((d) => ({
                       ...d,
@@ -1101,15 +1105,8 @@ export default function LiveTradingTab({
                       aria-pressed={draft.marketsKr}
                       onClick={() =>
                         setDraft((d) => {
-                          const next = { ...d, marketsKr: !d.marketsKr };
-                          if (
-                            !next.marketsKr &&
-                            !next.marketsUs &&
-                            !next.marketsCrypto
-                          ) {
-                            return d;
-                          }
-                          return next;
+                          const next = toggleProgramMarketDraft(d, "marketsKr");
+                          return next ?? d;
                         })
                       }
                     >
@@ -1125,15 +1122,8 @@ export default function LiveTradingTab({
                       aria-pressed={draft.marketsUs}
                       onClick={() =>
                         setDraft((d) => {
-                          const next = { ...d, marketsUs: !d.marketsUs };
-                          if (
-                            !next.marketsKr &&
-                            !next.marketsUs &&
-                            !next.marketsCrypto
-                          ) {
-                            return d;
-                          }
-                          return next;
+                          const next = toggleProgramMarketDraft(d, "marketsUs");
+                          return next ?? d;
                         })
                       }
                     >
@@ -1149,15 +1139,8 @@ export default function LiveTradingTab({
                       aria-pressed={draft.marketsCrypto}
                       onClick={() =>
                         setDraft((d) => {
-                          const next = { ...d, marketsCrypto: !d.marketsCrypto };
-                          if (
-                            !next.marketsKr &&
-                            !next.marketsUs &&
-                            !next.marketsCrypto
-                          ) {
-                            return d;
-                          }
-                          return next;
+                          const next = toggleProgramMarketDraft(d, "marketsCrypto");
+                          return next ?? d;
                         })
                       }
                     >

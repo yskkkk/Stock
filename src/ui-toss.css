@@ -3477,6 +3477,20 @@ html[data-theme="light"]
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
 }
 
+.live-trade-arm-menu__item-main {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.live-trade-arm-menu__mark {
+  width: 1.35rem;
+  height: 1.35rem;
+  flex: none;
+  display: block;
+}
+
 .live-trade-arm-menu__item {
   display: flex;
   align-items: center;

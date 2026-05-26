@@ -315,6 +315,11 @@ function validateProgramPatch(patch) {
   if (!mk.kr && !mk.us && !mk.crypto) {
     throw new Error("국내·미국·코인 시장 중 하나 이상 선택하세요.");
   }
+  if (mk.crypto && (mk.kr || mk.us)) {
+    throw new Error(
+      "코인은 국내·미국 주식과 함께 선택할 수 없습니다. 코인(빗썸) 또는 국내·미국(토스)만 선택하세요.",
+    );
+  }
   const name = String(patch.name ?? "").trim();
   if (!name) throw new Error("프로그램 이름이 필요합니다.");
   const needsKrw = mk.kr || mk.crypto;
