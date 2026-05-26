@@ -2721,9 +2721,9 @@ html[data-theme="light"]
 
 .box-range-tab__price-card {
   padding: 0.65rem 0.75rem;
-  border: 1px solid var(--card-border, rgba(148, 163, 184, 0.16));
+  border: 1px solid transparent;
   border-radius: 12px;
-  background: color-mix(in srgb, var(--card, #fff) 92%, var(--accent, #2563eb) 4%);
+  background: transparent;
 }
 
 .box-range-tab__price-card-head {

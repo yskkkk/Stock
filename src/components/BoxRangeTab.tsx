@@ -34,6 +34,20 @@ function displayTicker(symbol: string, market: BoxRangeCatalogMarket): string {
   return symbol.replace(/^US_/i, "").trim().toUpperCase();
 }
 
+/** 국내: 종목명 · 미국: 티커 */
+function displaySymbolLabel(
+  symbol: string,
+  name: string,
+  market: BoxRangeCatalogMarket,
+): string {
+  const ticker = displayTicker(symbol, market);
+  if (market === "kr") {
+    const n = String(name ?? "").trim();
+    return n || ticker;
+  }
+  return ticker;
+}
+
 function BoxRangeLogoButton({
   symbol,
   name,
@@ -53,6 +67,7 @@ function BoxRangeLogoButton({
   const logo =
     market === "kr" ? krStockLogoUrl(symbol) : usStockLogoUrl(symbol);
   const ticker = displayTicker(symbol, market);
+  const label = displaySymbolLabel(symbol, name, market);
   const showImg = Boolean(logo) && !imgFailed;
 
   return (
@@ -84,7 +99,7 @@ function BoxRangeLogoButton({
             {(name.trim() || ticker).slice(0, 1)}
           </span>
         )}
-        <span className="box-range-tab__logo-ticker">{ticker}</span>
+        <span className="box-range-tab__logo-ticker">{label}</span>
         {eligibleCount > 1 ? (
           <span className="box-range-tab__logo-badge" aria-hidden>
             {eligibleCount}
