@@ -6771,8 +6771,8 @@ html[data-theme="light"] .live-portfolio__trade-quote-strip {
   box-sizing: border-box;
   padding-block: 1.1rem max(0.65rem, env(safe-area-inset-bottom, 0px));
   padding-inline: var(--app-page-inline-pad-safe);
-  border-top: 1px solid var(--card-border, rgba(148, 163, 184, 0.14));
-  background: color-mix(in srgb, var(--bg) 94%, var(--muted) 6%);
+  border-top: none;
+  background: transparent;
   text-align: center;
   font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   font-weight: 200;
@@ -6916,8 +6916,8 @@ html[data-theme="light"] .live-portfolio__trade-quote-strip {
 }
 
 html[data-theme="light"] .app-site-footer {
-  border-top-color: rgba(15, 23, 42, 0.08);
-  background: color-mix(in srgb, var(--bg) 96%, var(--muted) 4%);
+  border-top: none;
+  background: transparent;
 }
 
 html[data-theme="light"] .app-site-footer__nav {
@@ -7188,11 +7188,20 @@ html:not([data-theme="light"]) nav.main-tabs button.main-tab.active .tab-badge {
 }
 
 html:not([data-theme="light"])
-  .workspace:not(.crypto-workspace)
+  .workspace:not(.crypto-workspace):not(.workspace--stock-lookup)
   .picks-panel:not(.crypto-panel).card {
   background: var(--bg);
   border-color: color-mix(in srgb, var(--card-border) 70%, transparent);
   box-shadow: none;
+}
+
+html:not([data-theme="light"])
+  .workspace.workspace--stock-lookup:not(.crypto-workspace)
+  .picks-panel:not(.crypto-panel).card {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
 }
 
 html:not([data-theme="light"])
@@ -7317,8 +7326,18 @@ html:not([data-theme="light"]) .tag--telegram-btn .tag-count {
   }
 }
 
-/* 종목검색 — .card 글로벌 box-shadow 제거 */
+/* 종목검색 — 뒤 카드 패널 없음(본문 배경만) */
 .app__shell > .workspace.workspace--stock-lookup > .picks-panel.card {
-  box-shadow: none;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.app__shell > .workspace.workspace--stock-lookup > .picks-panel.card::after {
+  display: none !important;
+  content: none !important;
 }
 
