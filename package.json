@@ -30,6 +30,7 @@
     "email:box-range-pine-tv": "node scripts/send-box-range-pine-tv-email.mjs",
     "email:box-range-server-pine": "node scripts/send-box-range-server-pine-email.mjs",
     "email:box-range-alert-why": "node scripts/send-box-range-alert-why-email.mjs",
+    "box-catalog-scan": "node scripts/run-box-catalog-scan-telegram.mjs",
     "email:web-balsin-impl": "node scripts/send-web-balsin-implementation-email.mjs",
     "email:sim-trade-history-fix": "node scripts/send-sim-trade-history-fix-email.mjs",
     "email:server-audit": "node scripts/send-server-audit-email.mjs",

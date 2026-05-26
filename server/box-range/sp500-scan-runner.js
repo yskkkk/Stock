@@ -2,6 +2,7 @@ import { loadUniverse } from "../universe.js";
 import { BOX_RANGE_SP500_SCAN_MS } from "./constants.js";
 import { scanOneSymbolCatalog } from "./catalog-scan-shared.js";
 import { refreshCatalogIndexSync } from "./catalog-store.js";
+import { notifyCatalogScanTelegram } from "./catalog-scan-telegram.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "../live-trade-log.js";
 
 const BATCH_SIZE = (() => {
@@ -47,13 +48,18 @@ export async function runSp500BoxRangeCatalogScan() {
   }
 
   refreshCatalogIndexSync("us");
+  const result = { scanned: list.length, ok, errors, withBoxes };
   liveTradeLogInfo("[box-range:sp500-scan] done", {
-    ok,
-    errors,
-    withBoxes,
+    ...result,
     total: list.length,
   });
-  return { scanned: list.length, ok, errors, withBoxes };
+  await notifyCatalogScanTelegram("us", result).catch((e) => {
+    liveTradeLogWarn(
+      "[box-range:sp500-scan:telegram]",
+      e instanceof Error ? e.message : e,
+    );
+  });
+  return result;
 }
 
 export function startSp500BoxRangeCatalogPoller() {

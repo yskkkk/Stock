@@ -5,6 +5,7 @@ import {
 } from "./constants.js";
 import { scanOneSymbolCatalog } from "./catalog-scan-shared.js";
 import { refreshCatalogIndexSync } from "./catalog-store.js";
+import { notifyCatalogScanTelegram } from "./catalog-scan-telegram.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "../live-trade-log.js";
 
 /** @returns {{ symbol: string; name: string }} */
@@ -32,6 +33,12 @@ export async function runCryptoBoxRangeCatalogScan() {
     error: r.error,
   };
   liveTradeLogInfo("[box-range:crypto-scan] done", out);
+  await notifyCatalogScanTelegram("crypto", out).catch((e) => {
+    liveTradeLogWarn(
+      "[box-range:crypto-scan:telegram]",
+      e instanceof Error ? e.message : e,
+    );
+  });
   return out;
 }
 
