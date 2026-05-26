@@ -1,9 +1,13 @@
-/* 종목 검색 — 뒤에 겹치는 picks-panel.card(글래스·카드 시트)만 제거, 내부 UI는 테마 기본 */
+/* 종목 검색 — 바깥 picks-panel.card(겹침)만 제거, 안쪽은 테마 카드·입력·행 색 유지 */
 
 .app__shell > .workspace.workspace--stock-lookup > .picks-panel.card,
 .workspace--stock-lookup:not(.crypto-workspace) > .picks-panel.card {
   position: static;
   overflow: visible;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
@@ -18,6 +22,180 @@
   content: none !important;
 }
 
+/* 패널 본문 — 스크리너 좌측 카드와 동일 표면 */
+.workspace--stock-lookup:not(.crypto-workspace) > .picks-panel.card > .panel-head {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0.55rem var(--tab-card-pad-x, 1rem) 0.45rem;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--card) 94%, white) 0%,
+    color-mix(in srgb, var(--surface) 88%, var(--card)) 100%
+  );
+  border: 1px solid var(--card-border);
+  border-bottom: 1px solid var(--card-border);
+  border-radius: var(--radius-xl, 16px) var(--radius-xl, 16px) 0 0;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 50%, transparent);
+}
+
+.workspace--stock-lookup:not(.crypto-workspace) > .picks-panel.card > .stock-search-tab {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--card) 94%, white) 0%,
+    color-mix(in srgb, var(--surface) 88%, var(--card)) 100%
+  );
+  border: 1px solid var(--card-border);
+  border-top: none;
+  border-radius: 0 0 var(--radius-xl, 16px) var(--radius-xl, 16px);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.workspace--stock-lookup:not(.crypto-workspace) .stock-search-tab__toolbar {
+  flex-shrink: 0;
+  padding: 0.5rem var(--tab-card-pad-x, 1rem) 0.55rem;
+  border-bottom: 1px solid var(--card-border);
+  background: color-mix(in srgb, var(--card) 72%, var(--surface));
+}
+
+.workspace--stock-lookup:not(.crypto-workspace) .pick-search {
+  background: color-mix(in srgb, var(--card) 55%, var(--surface)) !important;
+  border: 1px solid var(--card-border) !important;
+  border-radius: var(--radius-sm, 8px) !important;
+  color: var(--text) !important;
+  box-shadow: inset 0 1px 2px color-mix(in srgb, var(--shadow) 12%, transparent) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.workspace--stock-lookup:not(.crypto-workspace) .pick-search::placeholder {
+  color: var(--muted) !important;
+}
+
+.workspace--stock-lookup:not(.crypto-workspace) .pick-search:focus {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--card-border)) !important;
+  box-shadow:
+    inset 0 1px 2px color-mix(in srgb, var(--shadow) 10%, transparent),
+    0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent) !important;
+  outline: none !important;
+  background: color-mix(in srgb, var(--card) 78%, var(--surface)) !important;
+}
+
+.workspace--stock-lookup:not(.crypto-workspace) .stock-search-tab__hot-list {
+  background: transparent;
+}
+
+.workspace--stock-lookup:not(.crypto-workspace) .stock-hot-item {
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 88%, transparent) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.workspace--stock-lookup:not(.crypto-workspace) .stock-hot-item:hover {
+  background: color-mix(in srgb, var(--accent-dim) 35%, var(--card)) !important;
+}
+
+.workspace--stock-lookup:not(.crypto-workspace) .stock-hot-item--active,
+.workspace--stock-lookup:not(.crypto-workspace) .stock-hot-item.active {
+  background: color-mix(in srgb, var(--accent-dim) 55%, var(--card)) !important;
+  border-bottom-color: color-mix(in srgb, var(--accent) 28%, var(--card-border)) !important;
+}
+
+.workspace--stock-lookup:not(.crypto-workspace) .stock-hot-item__name,
+.workspace--stock-lookup:not(.crypto-workspace) .stock-hot-item__price {
+  color: var(--text);
+}
+
+.workspace--stock-lookup:not(.crypto-workspace) .stock-hot-item__code,
+.workspace--stock-lookup:not(.crypto-workspace) .stock-hot-item__turnover {
+  color: var(--text-dim);
+}
+
+/* 다크 */
+html:not([data-theme="light"])
+  .workspace--stock-lookup:not(.crypto-workspace)
+  > .picks-panel.card
+  > .panel-head,
+html:not([data-theme="light"])
+  .workspace--stock-lookup:not(.crypto-workspace)
+  > .picks-panel.card
+  > .stock-search-tab {
+  background: color-mix(in srgb, var(--bg) 88%, var(--surface));
+  border-color: color-mix(in srgb, var(--card-border) 75%, transparent);
+  box-shadow: var(--shadow);
+}
+
+html:not([data-theme="light"])
+  .workspace--stock-lookup:not(.crypto-workspace)
+  .stock-search-tab__toolbar {
+  background: color-mix(in srgb, var(--surface) 65%, var(--bg));
+}
+
+html:not([data-theme="light"])
+  .workspace--stock-lookup:not(.crypto-workspace)
+  .pick-search {
+  background: color-mix(in srgb, var(--bg) 92%, var(--surface)) !important;
+  border-color: color-mix(in srgb, var(--card-border) 80%, transparent) !important;
+}
+
+/* 라이트 — 크림·팔레트 */
+html[data-theme="light"]
+  .workspace--stock-lookup:not(.crypto-workspace)
+  > .picks-panel.card
+  > .panel-head,
+html[data-theme="light"]
+  .workspace--stock-lookup:not(.crypto-workspace)
+  > .picks-panel.card
+  > .stock-search-tab {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--card) 94%, white) 0%,
+    color-mix(in srgb, var(--surface) 88%, var(--card)) 100%
+  );
+  border-color: var(--card-border);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    var(--shadow);
+}
+
+html[data-theme="light"]
+  .workspace--stock-lookup:not(.crypto-workspace)
+  .stock-search-tab__toolbar {
+  background: color-mix(in srgb, var(--card) 82%, white);
+}
+
+html[data-theme="light"]
+  .workspace--stock-lookup:not(.crypto-workspace)
+  .pick-search {
+  background: color-mix(in srgb, var(--card) 42%, white) !important;
+  border: 1px solid var(--card-border) !important;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+
+html[data-theme="light"]
+  .workspace--stock-lookup:not(.crypto-workspace)
+  .stock-hot-item:hover {
+  background: color-mix(in srgb, var(--card) 55%, white) !important;
+}
+
+html[data-theme="light"]
+  .workspace--stock-lookup:not(.crypto-workspace)
+  .stock-hot-item--active,
+html[data-theme="light"]
+  .workspace--stock-lookup:not(.crypto-workspace)
+  .stock-hot-item.active {
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--accent) 9%, white) 0%,
+    color-mix(in srgb, var(--card) 90%, white) 58%
+  ) !important;
+}
+
+/* 글래스 팔레트 */
 html[data-theme="light"][data-light-palette="glass"]
   .app__shell
   > .workspace.workspace--stock-lookup
@@ -36,4 +214,53 @@ html[data-theme="light"][data-light-palette="glass"]
   > .picks-panel.card::after {
   display: none !important;
   content: none !important;
+}
+
+html[data-theme="light"][data-light-palette="glass"]
+  .workspace--stock-lookup:not(.crypto-workspace)
+  > .picks-panel.card
+  > .panel-head,
+html[data-theme="light"][data-light-palette="glass"]
+  .workspace--stock-lookup:not(.crypto-workspace)
+  > .picks-panel.card
+  > .stock-search-tab {
+  background: rgba(255, 255, 255, 0.52) !important;
+  border-color: rgba(255, 255, 255, 0.62) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur, 18px))
+    saturate(var(--glass-saturate, 1.14));
+  backdrop-filter: blur(var(--glass-blur, 18px)) saturate(var(--glass-saturate, 1.14));
+  box-shadow:
+    var(--shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+
+html[data-theme="light"][data-light-palette="glass"]
+  .workspace--stock-lookup:not(.crypto-workspace)
+  .stock-search-tab__toolbar {
+  background: rgba(255, 255, 255, 0.28) !important;
+}
+
+html[data-theme="light"][data-light-palette="glass"]
+  .workspace--stock-lookup:not(.crypto-workspace)
+  .pick-search {
+  background: rgba(255, 255, 255, 0.42) !important;
+  border-color: rgba(255, 255, 255, 0.52) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(1.1);
+  backdrop-filter: blur(12px) saturate(1.1);
+}
+
+html[data-theme="light"][data-light-palette="glass"]
+  .workspace--stock-lookup:not(.crypto-workspace)
+  .stock-hot-item:hover {
+  background: rgba(255, 255, 255, 0.36) !important;
+}
+
+html[data-theme="light"][data-light-palette="glass"]
+  .workspace--stock-lookup:not(.crypto-workspace)
+  .stock-hot-item--active,
+html[data-theme="light"][data-light-palette="glass"]
+  .workspace--stock-lookup:not(.crypto-workspace)
+  .stock-hot-item.active {
+  background: rgba(255, 255, 255, 0.48) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.55) !important;
 }
