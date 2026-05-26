@@ -26,7 +26,7 @@ import {
 import { boxRangeBuyDedupeKey } from "./buy-guard.js";
 import { resolveBoxSellQuantitySync } from "./lot-reconcile.js";
 import { markCatalogBoxConsumedSync } from "./catalog-store.js";
-import { notifyBoxRangeMidEntry } from "./box-range-telegram.js";
+import { notifyBoxRangeDipRecoveryEntry } from "./box-range-telegram.js";
 
 /** @type {Set<string>} */
 const boxBuyInFlight = new Set();
@@ -47,6 +47,8 @@ function closeTradingBox(box, reason = "closed") {
     buyTradeId: null,
     entryPrice: null,
     buyAtMs: null,
+    breakAtMs: null,
+    dipLow: null,
   });
   const cid = String(box.catalogBoxId ?? "").trim();
   if (cid) markCatalogBoxConsumedSync(cid, reason);
@@ -88,16 +90,23 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
   const now = Date.now();
 
   if (!live && !sim) return;
+  if (box.dead === true) {
+    // 손절 후 박스 소멸 — 재진입 금지
+    closeTradingBox(box, "dead");
+    return;
+  }
 
   const rightMs = Number(box.rightTime) > 0 ? Number(box.rightTime) * 1000 : 0;
   const afterBox = rightMs > 0 && now > rightMs;
 
   if (box.state === "idle") {
-    if (afterBox && lastPrice < box.bottom) {
+    // 트리거: 박스 종료 후 하단 이하 이탈 (종가 대신 lastPrice 사용)
+    if (afterBox && lastPrice <= box.bottom) {
       patchBoxSync(box.boxId, {
         state: "armed",
         armedAtMs: now,
         breakAtMs: now,
+        dipLow: lastPrice,
       });
     }
     return;
@@ -105,13 +114,30 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
 
   if (box.state === "armed") {
     const broke = box.breakAtMs != null;
-    if (afterBox && broke && lastPrice >= box.mid) {
+    if (!afterBox || !broke) return;
+
+    // 이탈 구간 최저점 갱신(손절 기준)
+    const nextDip =
+      lastPrice <= box.bottom
+        ? box.dipLow == null || lastPrice < box.dipLow
+          ? lastPrice
+          : box.dipLow
+        : box.dipLow;
+    if (nextDip !== box.dipLow) patchBoxSync(box.boxId, { dipLow: nextDip });
+
+    // 진입: 하단 위로 복귀(종가 대신 lastPrice) → entry=bottom
+    if (lastPrice >= box.bottom) {
       if (!box.midNotifiedAtMs) {
         const notifyKey = `${program.id}:${box.boxId}`;
         if (!boxNotifyInFlight.has(notifyKey)) {
           boxNotifyInFlight.add(notifyKey);
           try {
-            const sent = await notifyBoxRangeMidEntry(box, program, lastPrice, market);
+            const sent = await notifyBoxRangeDipRecoveryEntry(
+              { ...box, dipLow: nextDip },
+              program,
+              lastPrice,
+              market,
+            );
             if (sent) {
               patchBoxSync(box.boxId, { midNotifiedAtMs: now });
             }
@@ -133,15 +159,16 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
         const pick = {
           symbol: sym,
           market,
-          price: box.mid,
+          price: box.bottom,
           name: sym,
           score: 1,
           signalIds: [`box-range:${box.timeframe}`],
         };
         const boxMeta = { boxId: box.boxId, boxTimeframe: box.timeframe };
+        const stopLoss = nextDip ?? box.bottom;
         const targets = {
           targetSellPrice: box.top,
-          stopLossPrice: box.bottom,
+          stopLossPrice: stopLoss,
           exitScenarioNote: `box:${box.boxId}`,
           entryKind: `box:${box.timeframe}`,
           entryStructureNote: "박스권",
@@ -157,14 +184,14 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
             if (!out.ok) throw new Error(out.error ?? "매수 실패");
             trade = await recordLiveTradeBuyAsync(
               program,
-              { ...pick, price: out.fillPrice ?? box.mid },
+              { ...pick, price: out.fillPrice ?? box.bottom },
               {
                 simulated: out.simulated,
                 orderId: out.orderId,
                 fillVolume: out.fillVolume ?? undefined,
                 ...boxMeta,
                 targetSellPrice: box.top,
-                stopLossPrice: box.bottom,
+                stopLossPrice: stopLoss,
               },
             );
           } else {
@@ -173,7 +200,7 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
             const orderAmount = await resolveOrderAmountForMarket(program, market);
             trade = recordLiveTradeBuySync(
               program,
-              { ...pick, price: out.fillPrice ?? box.mid },
+              { ...pick, price: out.fillPrice ?? box.bottom },
               {
                 simulated: out.simulated,
                 orderId: out.orderId,
@@ -188,8 +215,9 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
               state: "in_position",
               buyTradeId: trade.id,
               lotQty: trade.quantity,
-              entryPrice: trade.price,
+              entryPrice: box.bottom,
               buyAtMs: trade.atMs,
+              dipLow: stopLoss,
             });
             liveTradeLogInfo(
               "[box-range:buy]",
@@ -203,15 +231,16 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
           const trade = await recordLiveTradeBuyAsync(
             program,
             pick,
-            { simulated: true, ...boxMeta, targetSellPrice: box.top, stopLossPrice: box.bottom },
+            { simulated: true, ...boxMeta, targetSellPrice: box.top, stopLossPrice: stopLoss },
           );
           if (trade) {
             patchBoxSync(box.boxId, {
               state: "in_position",
               buyTradeId: trade.id,
               lotQty: trade.quantity,
-              entryPrice: trade.price,
+              entryPrice: box.bottom,
               buyAtMs: trade.atMs,
+              dipLow: stopLoss,
             });
             liveTradeLogInfo(
               "[box-range:sim-buy]",
@@ -243,16 +272,16 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
     }
     const qty = lot.quantity;
     if (qty <= 0) return;
-    const entry = lot.entryPrice ?? box.entryPrice ?? box.mid;
+    const entry = lot.entryPrice ?? box.entryPrice ?? box.bottom;
     let exitSide = null;
     let fillPrice = lastPrice;
     let soldQty = qty;
     if (lastPrice >= box.top) {
       exitSide = "tp";
       fillPrice = box.top;
-    } else if (lastPrice <= box.bottom) {
+    } else if (box.dipLow != null && lastPrice <= box.dipLow) {
       exitSide = "sl";
-      fillPrice = box.bottom;
+      fillPrice = box.dipLow;
     }
     if (!exitSide) return;
 
@@ -318,6 +347,9 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
         );
       }
       closeTradingBox(box, exitSide);
+      if (exitSide === "sl") {
+        patchBoxSync(box.boxId, { dead: true });
+      }
       liveTradeLogInfo(
         "[box-range:sell]",
         program.name,

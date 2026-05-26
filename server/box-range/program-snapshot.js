@@ -18,7 +18,7 @@ function toPublicBox(b) {
     state: b.state,
     entryPrice: b.entryPrice,
     takeProfitPrice: b.top,
-    stopLossPrice: b.bottom,
+    stopLossPrice: b.dipLow ?? b.bottom,
     lotQty: b.lotQty > 0 ? b.lotQty : null,
     buyAtMs: b.buyAtMs,
   };

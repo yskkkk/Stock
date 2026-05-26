@@ -32,9 +32,13 @@ function stateFilePath() {
  *   lotQty: number;
  *   entryPrice: number | null;
  *   buyAtMs: number | null;
+ *   /** 하단 이탈 구간 최저점(손절 기준) *\/
+ *   dipLow: number | null;
+ *   /** 손절 1회 후 재진입 금지(박스 소멸) *\/
+ *   dead: boolean;
  *   updatedAtMs: number;
  *   catalogBoxId: string | null;
- *   catalogMarket: "us" | "kr" | null;
+ *   catalogMarket: "us" | "kr" | "crypto" | null;
  *   tradeEligible: boolean;
  *   midNotifiedAtMs: number | null;
  * }} BoxRangeRecord
@@ -106,6 +110,11 @@ function normalizeBox(raw) {
         : null,
     buyAtMs:
       typeof o.buyAtMs === "number" && o.buyAtMs > 0 ? o.buyAtMs : null,
+    dipLow:
+      typeof o.dipLow === "number" && Number.isFinite(o.dipLow) && o.dipLow > 0
+        ? o.dipLow
+        : null,
+    dead: o.dead === true,
     updatedAtMs:
       typeof o.updatedAtMs === "number" && o.updatedAtMs > 0
         ? o.updatedAtMs
@@ -279,6 +288,8 @@ export function upsertDetectedBoxSync(detected) {
     lotQty: 0,
     entryPrice: null,
     buyAtMs: null,
+    dipLow: null,
+    dead: false,
     updatedAtMs: now,
     catalogBoxId: catalogId,
     catalogMarket:

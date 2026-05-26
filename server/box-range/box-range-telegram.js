@@ -24,13 +24,13 @@ function fmtBoxPrice(n, market) {
 }
 
 /**
- * 박스권 종료 후 하단 이탈·평행선(중심) 터치 매수 — 텔레그램 1회 알림
+ * 박스권 종료 후 하단 이탈 → 하단 위로 복귀 매수(PRO v2) — 텔레그램 1회 알림
  * @param {import("./store.js").BoxRangeRecord} box
  * @param {import("../live-trade-programs-store.js").LiveTradeProgram} program
  * @param {number} lastPrice
  * @param {"kr"|"us"|"crypto"} market
  */
-export async function notifyBoxRangeMidEntry(box, program, lastPrice, market) {
+export async function notifyBoxRangeDipRecoveryEntry(box, program, lastPrice, market) {
   if (!isTelegramNotifyEnabled()) {
     liveTradeLogWarn(
       "[box-range:telegram]",
@@ -42,17 +42,19 @@ export async function notifyBoxRangeMidEntry(box, program, lastPrice, market) {
   const sym = box.symbol;
   const tf = box.timeframe;
   const st = program.status === "armed" ? "실매매" : "시뮬";
+  const dip = Number(box.dipLow);
+  const dipOk = Number.isFinite(dip) && dip > 0;
   const text = [
-    "<b>📦 박스권 매수(평행선)</b>",
+    "<b>📦 박스권 매수(PRO v2)</b>",
     "",
     `종목: <b>${sym}</b> · ${tf}`,
     `프로그램: ${program.name ?? program.id} (${st})`,
     `현재가: ${fmtBoxPrice(lastPrice, market)}`,
-    `평행선(중심): <b>${fmtBoxPrice(box.mid, market)}</b>`,
+    `진입(하단): <b>${fmtBoxPrice(box.bottom, market)}</b>`,
     `익절(상단): ${fmtBoxPrice(box.top, market)}`,
-    `손절(하단): ${fmtBoxPrice(box.bottom, market)}`,
+    `손절(${dipOk ? "dipLow" : "하단"}): ${fmtBoxPrice(dipOk ? dip : box.bottom, market)}`,
     "",
-    "조건: 박스 종료 후 하단 이탈·평행선 터치",
+    "조건: 박스 종료 후 하단 이탈 → 하단 위로 복귀",
   ].join("\n");
   const ok = await sendTelegramMessage(text, undefined, resolveStockTelegramCreds());
   if (ok) {
