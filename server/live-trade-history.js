@@ -107,6 +107,44 @@ export function buildLiveTradeHistoryPayload(userId, opts = {}) {
   };
 }
 
+/** @type {readonly ("sim"|"live-bithumb"|"live-toss")[]} */
+export const TRADE_HISTORY_SCENARIOS = ["sim", "live-bithumb", "live-toss"];
+
+/**
+ * @param {{ scenario?: string; exchange?: string }} opts
+ * @returns {"sim"|"live-bithumb"|"live-toss"|null}
+ */
+export function resolveTradeHistoryScenario(opts = {}) {
+  const raw = String(opts.scenario ?? "").trim().toLowerCase();
+  if (TRADE_HISTORY_SCENARIOS.includes(/** @type {typeof TRADE_HISTORY_SCENARIOS[number]} */ (raw))) {
+    return /** @type {"sim"|"live-bithumb"|"live-toss"} */ (raw);
+  }
+  const ex = String(opts.exchange ?? "").trim().toLowerCase();
+  if (ex === "bithumb") return "live-bithumb";
+  if (ex === "toss") return "live-toss";
+  return null;
+}
+
+/**
+ * @param {object[]} trades
+ * @param {"sim"|"live-bithumb"|"live-toss"|null} scenario
+ */
+export function filterTradesByScenario(trades, scenario) {
+  if (!scenario) return trades;
+  if (scenario === "sim") {
+    return trades.filter((t) => t.simulated === true);
+  }
+  if (scenario === "live-bithumb") {
+    return trades.filter((t) => !t.simulated && t.market === "crypto");
+  }
+  if (scenario === "live-toss") {
+    return trades.filter(
+      (t) => !t.simulated && (t.market === "kr" || t.market === "us"),
+    );
+  }
+  return trades;
+}
+
 /** @param {"bithumb"|"toss"} exchange @param {object[]} trades */
 export function filterTradesByExchange(trades, exchange) {
   if (exchange === "bithumb") {
@@ -158,15 +196,35 @@ function historyRangeFromTrades(trades) {
 
 /**
  * @param {string} userId
- * @param {{ endDay?: string, days?: number, all?: boolean, programId?: string, exchange?: "bithumb"|"toss" }} [opts]
+ * @param {{ endDay?: string, days?: number, all?: boolean, programId?: string, exchange?: "bithumb"|"toss", scenario?: "sim"|"live-bithumb"|"live-toss" }} [opts]
  */
 export async function buildLiveTradeHistoryPayloadAsync(userId, opts = {}) {
   const uid = String(userId ?? "").trim();
   if (!uid) throw new Error("userId required");
 
-  const exchange = opts.exchange;
+  const scenario = resolveTradeHistoryScenario(opts);
+  const programId = String(opts.programId ?? "").trim();
 
-  if (exchange === "bithumb") {
+  if (scenario === "sim") {
+    let records = listLiveTradeRecordsSync(null, uid);
+    if (programId) records = records.filter((t) => t.programId === programId);
+    records = records.filter((t) => t.simulated === true);
+    let trades = [...records].sort((a, b) => b.atMs - a.atMs);
+    trades = enrichPortfolioTradeNames(trades);
+    trades = attachProgramNames(trades, uid);
+    const { rangeStartDay, rangeEndDay } = historyRangeFromTrades(trades);
+    return {
+      trades,
+      rangeStartDay,
+      rangeEndDay,
+      hasOlder: false,
+      nextOlderEndDay: null,
+      fetchedAtMs: Date.now(),
+      scenario,
+    };
+  }
+
+  if (scenario === "live-bithumb") {
     const { listBithumbTradesFromExchangeApiForHistory } = await import(
       "./live-trade-bithumb-exchange-trades.js"
     );
@@ -176,11 +234,13 @@ export async function buildLiveTradeHistoryPayloadAsync(userId, opts = {}) {
     } catch {
       apiTrades = [];
     }
-    const storeCrypto = filterTradesByExchange(
+    let storeCrypto = filterTradesByExchange(
       listLiveTradeRecordsSync(null, uid),
       "bithumb",
     );
-    /** API 키·체결 있으면 거래소 응답만 표시(앱 기록 교차검증·병합 없음) */
+    storeCrypto = storeCrypto.filter((t) => !t.simulated);
+    if (programId) storeCrypto = storeCrypto.filter((t) => t.programId === programId);
+    /** 실매매만 — 빗썸 API 체결 우선 */
     let trades =
       apiTrades.length > 0
         ? enrichBithumbApiHistoryTrades(apiTrades, storeCrypto)
@@ -195,14 +255,20 @@ export async function buildLiveTradeHistoryPayloadAsync(userId, opts = {}) {
       hasOlder: false,
       nextOlderEndDay: null,
       fetchedAtMs: Date.now(),
+      scenario,
     };
   }
 
   const payload = buildLiveTradeHistoryPayload(userId, opts);
 
-  if (exchange === "toss") {
-    const filtered = filterTradesByExchange(payload.trades, "toss");
-    return { ...payload, trades: filtered, fetchedAtMs: Date.now() };
+  if (scenario === "live-toss") {
+    const filtered = filterTradesByScenario(payload.trades, "live-toss");
+    return {
+      ...payload,
+      trades: filtered,
+      fetchedAtMs: Date.now(),
+      scenario,
+    };
   }
 
   return payload;

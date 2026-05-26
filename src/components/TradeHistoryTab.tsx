@@ -1,27 +1,37 @@
 import { useEffect, useState } from "react";
 import type { LiveTradeHolding } from "../api";
 import LiveAccountTradesMainPanel from "./LiveAccountTradesMainPanel";
+import LiveTradeHistoryScenarioTabs from "./LiveTradeHistoryScenarioTabs";
 import {
   LIVE_TRADE_DOCK_ACCOUNT_PROVIDER_EVENT,
   readDockAccountProvider,
   readDockAccountProviderEvent,
 } from "../lib/liveTradeDockAccount";
+import type { LiveTradeHistoryScenario } from "../lib/liveTradeHistoryScenario";
 import type { LiveTradeTradesExchange } from "../lib/liveTradeTradesWorkspace";
 
-/** 상단 «거래내역» — 우측 도크 «계좌»에서 고른 거래소만 반영 */
+function scenarioFromDockExchange(
+  ex: LiveTradeTradesExchange,
+): LiveTradeHistoryScenario {
+  return ex === "toss" ? "live-toss" : "live-bithumb";
+}
+
+/** 상단 «거래내역» — 시나리오(시뮬·빗썸·토스)별 분리 */
 export default function TradeHistoryTab({
   onOpenHoldingChart,
 }: {
   onOpenHoldingChart?: (h: LiveTradeHolding) => void;
 }) {
-  const [exchange, setExchange] = useState<LiveTradeTradesExchange>(
-    readDockAccountProvider,
+  const [scenario, setScenario] = useState<LiveTradeHistoryScenario>(() =>
+    scenarioFromDockExchange(readDockAccountProvider()),
   );
 
   useEffect(() => {
     const onProvider = (e: Event) => {
       const p = readDockAccountProviderEvent(e);
-      if (p === "bithumb" || p === "toss") setExchange(p);
+      if (p === "bithumb" || p === "toss") {
+        setScenario(scenarioFromDockExchange(p));
+      }
     };
     window.addEventListener(LIVE_TRADE_DOCK_ACCOUNT_PROVIDER_EVENT, onProvider);
     return () =>
@@ -33,8 +43,13 @@ export default function TradeHistoryTab({
 
   return (
     <div className="workspace trade-history-workspace">
+      <LiveTradeHistoryScenarioTabs
+        value={scenario}
+        onChange={setScenario}
+        className="trade-history-workspace__scenario-tabs"
+      />
       <LiveAccountTradesMainPanel
-        exchange={exchange}
+        scenario={scenario}
         onOpenHoldingChart={onOpenHoldingChart}
       />
     </div>

@@ -14,6 +14,10 @@ import {
 import { tradeFillDisplayByTradeId } from "../lib/liveTradeBuySellPrices";
 import { formatTradeSideLabel } from "../lib/liveTradeSideDisplay";
 import { liveTradeRecordMatchesExchange } from "../lib/liveTradeTradesExchangeFilter";
+import {
+  liveTradeHistoryScenarioSub,
+} from "./LiveTradeHistoryScenarioTabs";
+import type { LiveTradeHistoryScenario } from "../lib/liveTradeHistoryScenario";
 import type { LiveTradeTradesExchange } from "../lib/liveTradeTradesWorkspace";
 import { ko } from "../i18n/ko";
 import { LiveTradeSymbolCellFromRecord } from "./LiveTradeSymbolCell";
@@ -62,14 +66,19 @@ export default function LiveTradeTradesHistoryPanel({
   /** 지정 시 해당 프로그램 체결만 */
   programId?: string | null;
   programName?: string | null;
-  /** 토스(kr·us) / 빗썸(crypto) 필터 */
+  /** 토스(kr·us) / 빗썸(crypto) — scenario 없을 때만 */
   exchange?: LiveTradeTradesExchange | null;
+  /** 시뮬 / 빗썸 실매매 / 토스 실매매 (우선) */
+  scenario?: LiveTradeHistoryScenario | null;
   /** true면 전체 일자·최신순(거래소 필터와 함께 사용) */
   loadAll?: boolean;
 }) {
   const loadAll =
     loadAllProp ??
-    (embedded || Boolean(programId?.trim()) || Boolean(exchange));
+    (embedded ||
+      Boolean(programId?.trim()) ||
+      Boolean(exchange) ||
+      Boolean(scenario));
   const [trades, setTrades] = useState<LiveTradeRecord[]>([]);
   const [nextOlderEndDay, setNextOlderEndDay] = useState<string | null>(null);
   const [hasOlder, setHasOlder] = useState(false);
@@ -94,13 +103,15 @@ export default function LiveTradeTradesHistoryPanel({
           ? {
               all: true as const,
               programId: pid,
-              exchange: exchange ?? undefined,
+              scenario: scenario ?? undefined,
+              exchange: scenario ? undefined : (exchange ?? undefined),
             }
           : {
               endDay: endDay ?? undefined,
               days: 1,
               programId: pid,
-              exchange: exchange ?? undefined,
+              scenario: scenario ?? undefined,
+              exchange: scenario ? undefined : (exchange ?? undefined),
             };
         const data = adminId
           ? await fetchAccessAdminLiveTradingTradeHistory(
@@ -123,7 +134,7 @@ export default function LiveTradeTradesHistoryPanel({
         loadingMoreRef.current = false;
       }
     },
-    [adminViewUserId, loadAll, programId, exchange],
+    [adminViewUserId, loadAll, programId, exchange, scenario],
   );
 
   useEffect(() => {
@@ -152,14 +163,23 @@ export default function LiveTradeTradesHistoryPanel({
   }, [hasOlder, nextOlderEndDay, fetchPage, loadAll]);
 
   const filteredTrades = useMemo(() => {
-    if (!exchange || loadAll) return trades;
+    if (scenario || loadAll) return trades;
+    if (!exchange) return trades;
     return trades.filter((t) => liveTradeRecordMatchesExchange(t, exchange));
-  }, [trades, exchange, loadAll]);
+  }, [trades, exchange, loadAll, scenario]);
 
   const tradeFill = useMemo(
     () => tradeFillDisplayByTradeId(filteredTrades),
     [filteredTrades],
   );
+
+  const scenarioTitle = scenario
+    ? scenario === "sim"
+      ? ko.app.liveTradeHistoryScenarioSim
+      : scenario === "live-bithumb"
+        ? ko.app.liveTradeHistoryScenarioBithumb
+        : ko.app.liveTradeHistoryScenarioToss
+    : null;
 
   const exchangeTitle =
     exchange === "toss"
@@ -167,6 +187,8 @@ export default function LiveTradeTradesHistoryPanel({
       : exchange === "bithumb"
         ? ko.app.liveTradeBithumbShort
         : null;
+
+  const subNote = scenario ? liveTradeHistoryScenarioSub(scenario) : null;
 
   const nameBySymbol = useMemo(() => {
     const m = new Map<string, string>();
@@ -196,14 +218,19 @@ export default function LiveTradeTradesHistoryPanel({
         <h3 id="live-trade-history-title" className="live-trade-history__title">
           {programName?.trim()
             ? `${programName.trim()} · ${ko.app.liveTradePfTabTrades}`
-            : exchangeTitle
-              ? `${exchangeTitle} · ${ko.app.liveTradePfTabTrades}`
-              : embedded
-                ? ko.app.liveTradePfTabTradesDock
-                : ko.app.liveTradeAllTradesTitle}
+            : scenarioTitle
+              ? `${scenarioTitle} · ${ko.app.liveTradePfTabTrades}`
+              : exchangeTitle
+                ? `${exchangeTitle} · ${ko.app.liveTradePfTabTrades}`
+                : embedded
+                  ? ko.app.liveTradePfTabTradesDock
+                  : ko.app.liveTradeAllTradesTitle}
         </h3>
         <p className="live-trade-history__sub">
-          {loadAll ? ko.app.liveTradeAllTradesDockSub : ko.app.liveTradeAllTradesSub}
+          {subNote ??
+            (loadAll
+              ? ko.app.liveTradeAllTradesDockSub
+              : ko.app.liveTradeAllTradesSub)}
         </p>
       </header>
       ) : null}
@@ -216,13 +243,17 @@ export default function LiveTradeTradesHistoryPanel({
 
       {loading && filteredTrades.length === 0 ? (
         <p className="live-trade-history__muted">
-          {exchange ? ko.app.liveTradeTradesFetching : ko.app.liveTradePfLoading}
+          {scenario === "live-bithumb"
+            ? ko.app.liveTradeTradesFetching
+            : ko.app.liveTradePfLoading}
         </p>
       ) : filteredTrades.length === 0 ? (
         <p className="live-trade-history__muted">
-          {exchange
-            ? ko.app.liveTradeTradesEmptyExchange
-            : ko.app.liveTradePfNoTrades}
+          {scenario
+            ? ko.app.liveTradePfNoTrades
+            : exchange
+              ? ko.app.liveTradeTradesEmptyExchange
+              : ko.app.liveTradePfNoTrades}
         </p>
       ) : (
         <div className="live-trade-history__scroll">

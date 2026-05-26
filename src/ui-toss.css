@@ -4117,6 +4117,26 @@ html[data-theme="light"] .live-trading-tab__program-actions .btn:hover:not(:disa
 }
 
 /* 거래내역 탭 — shell·top-bar와 좌우 정렬(바깥 여백은 .trade-history-main-workspace.card) */
+.trade-history-workspace__scenario-tabs {
+  margin-bottom: 0.65rem;
+}
+
+.live-trading-tab__programs-trade-scenario {
+  margin-bottom: 0.5rem;
+}
+
+.live-portfolio__trades-scenario {
+  margin-bottom: 1rem;
+}
+
+.live-portfolio__trades-scenario:last-child {
+  margin-bottom: 0;
+}
+
+.trade-history-main-workspace__scenario-sub {
+  margin: 0.2rem 0 0.5rem;
+}
+
 .trade-history-workspace {
   padding: 0;
   margin: 0;

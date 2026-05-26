@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   fetchLiveTradingPortfolio,
   type LiveTradePortfolioResponse,
@@ -7,18 +7,26 @@ import LiveTradeTradesHistoryPanel from "./LiveTradeTradesHistoryPanel";
 import LiveAccountHoldingsTable from "./LiveAccountHoldingsTable";
 import { BithumbBrandMark, TossBrandMark } from "./ExchangeBrandMarks";
 import { useLiveTradeAuth } from "./LiveTradeAuthAndCredentials";
+import { liveTradeHistoryScenarioSub } from "./LiveTradeHistoryScenarioTabs";
 import { ko } from "../i18n/ko";
-import type { LiveTradeTradesExchange } from "../lib/liveTradeTradesWorkspace";
+import type { LiveTradeHistoryScenario } from "../lib/liveTradeHistoryScenario";
+import { liveTradeHoldingMatchesExchange } from "../lib/liveTradeTradesExchangeFilter";
 
 export default function LiveAccountTradesMainPanel({
-  exchange,
+  scenario,
   onOpenHoldingChart,
 }: {
-  exchange: LiveTradeTradesExchange;
+  scenario: LiveTradeHistoryScenario;
   onOpenHoldingChart?: Parameters<
     typeof LiveAccountHoldingsTable
   >[0]["onOpenHoldingChart"];
 }) {
+  const exchange =
+    scenario === "live-toss"
+      ? "toss"
+      : scenario === "live-bithumb"
+        ? "bithumb"
+        : null;
   const { user } = useLiveTradeAuth();
   const [portfolio, setPortfolio] = useState<LiveTradePortfolioResponse | null>(
     null,
@@ -46,49 +54,78 @@ export default function LiveAccountTradesMainPanel({
   }, [user]);
 
   useEffect(() => {
+    if (scenario === "sim") {
+      setPortfolio(null);
+      setPfErr(null);
+      setPfLoading(false);
+      return;
+    }
     void loadPortfolio();
-  }, [loadPortfolio, exchange]);
+  }, [loadPortfolio, scenario]);
 
   const title =
-    exchange === "toss" ? ko.app.liveTradeTossShort : ko.app.liveTradeBithumbShort;
-  const Mark = exchange === "toss" ? TossBrandMark : BithumbBrandMark;
+    scenario === "sim"
+      ? ko.app.liveTradeHistoryScenarioSim
+      : scenario === "live-toss"
+        ? ko.app.liveTradeTossShort
+        : ko.app.liveTradeBithumbShort;
+  const Mark =
+    scenario === "sim"
+      ? null
+      : scenario === "live-toss"
+        ? TossBrandMark
+        : BithumbBrandMark;
+
+  const liveHoldings = useMemo(() => {
+    if (!portfolio || !exchange) return [];
+    return portfolio.holdings.filter((h) =>
+      liveTradeHoldingMatchesExchange(h, exchange),
+    );
+  }, [portfolio, exchange]);
+
+  const showBalance = scenario !== "sim" && exchange != null;
 
   return (
     <div className="trade-history-main-workspace card">
-      <header className="trade-history-main-workspace__head">
-        <div className="live-trade-trades-workspace__title-row">
-          <Mark className="live-trade-trades-workspace__mark" />
-          <h2 className="live-trade-trades-workspace__title">
-            {title} · {ko.app.liveTradeDockAccountTabBalance}
-          </h2>
-        </div>
-      </header>
+      {showBalance ? (
+        <header className="trade-history-main-workspace__head">
+          <div className="live-trade-trades-workspace__title-row">
+            {Mark ? (
+              <Mark className="live-trade-trades-workspace__mark" />
+            ) : null}
+            <h2 className="live-trade-trades-workspace__title">
+              {title} · {ko.app.liveTradeDockAccountTabBalance}
+            </h2>
+          </div>
+        </header>
+      ) : null}
 
       <div className="trade-history-main-workspace__body">
-        {pfLoading && !portfolio ? (
-          <p className="live-trade-history__muted">{ko.app.liveTradePfLoading}</p>
-        ) : pfErr ? (
-          <p className="live-trade-history__err" role="alert">
-            {pfErr}
-          </p>
-        ) : portfolio ? (
-          <LiveAccountHoldingsTable
-            exchange={exchange}
-            holdings={portfolio.holdings}
-            onOpenHoldingChart={onOpenHoldingChart}
-          />
+        {showBalance ? (
+          pfLoading && !portfolio ? (
+            <p className="live-trade-history__muted">{ko.app.liveTradePfLoading}</p>
+          ) : pfErr ? (
+            <p className="live-trade-history__err" role="alert">
+              {pfErr}
+            </p>
+          ) : portfolio ? (
+            <LiveAccountHoldingsTable
+              exchange={exchange}
+              holdings={liveHoldings}
+              onOpenHoldingChart={onOpenHoldingChart}
+            />
+          ) : null
         ) : null}
 
         <header className="trade-history-main-workspace__subhead">
           <h3 className="live-trade-trades-workspace__title live-trade-trades-workspace__title--sub">
             {title} · {ko.app.liveTradePfTabTrades}
           </h3>
+          <p className="live-trade-history__sub trade-history-main-workspace__scenario-sub">
+            {liveTradeHistoryScenarioSub(scenario)}
+          </p>
         </header>
-        <LiveTradeTradesHistoryPanel
-          exchange={exchange}
-          loadAll
-          workspaceMode
-        />
+        <LiveTradeTradesHistoryPanel scenario={scenario} loadAll workspaceMode />
       </div>
     </div>
   );

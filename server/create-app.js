@@ -829,6 +829,13 @@ export function createApp() {
         exchangeRaw === "bithumb" || exchangeRaw === "toss"
           ? exchangeRaw
           : undefined;
+      const scenarioRaw = String(req.query?.scenario ?? "").trim().toLowerCase();
+      const scenario =
+        scenarioRaw === "sim" ||
+        scenarioRaw === "live-bithumb" ||
+        scenarioRaw === "live-toss"
+          ? scenarioRaw
+          : undefined;
       const { buildLiveTradeHistoryPayloadAsync } = await import(
         "./live-trade-history.js"
       );
@@ -838,6 +845,7 @@ export function createApp() {
         all,
         programId,
         exchange,
+        scenario,
       });
       res.json(payload);
     }),

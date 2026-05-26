@@ -28,6 +28,8 @@ import {
 } from "../api";
 import LiveSimRunningPanel from "./LiveSimRunningPanel";
 import LiveTradeTradesHistoryPanel from "./LiveTradeTradesHistoryPanel";
+import LiveTradeHistoryScenarioTabs from "./LiveTradeHistoryScenarioTabs";
+import type { LiveTradeHistoryScenario } from "../lib/liveTradeHistoryScenario";
 import LiveTradeRegisteredProgramCard from "./LiveTradeRegisteredProgramCard";
 import LiveSimRecommendationsPanel, {
   type LiveSimDraftPatch,
@@ -253,6 +255,8 @@ export default function LiveTradingTab({
   const [programsPanelTab, setProgramsPanelTab] = useState<
     "programs" | "trades"
   >("programs");
+  const [tradeHistoryScenario, setTradeHistoryScenario] =
+    useState<LiveTradeHistoryScenario>("sim");
   const [boxRangeStatus, setBoxRangeStatus] =
     useState<LiveTradeBoxRangeStatusResponse | null>(null);
   const sidePanel = useLiveTradeCardSidePanelOptional();
@@ -793,10 +797,19 @@ export default function LiveTradingTab({
                 {ko.app.liveTradePfTradesDockHint}
               </p>
             ) : (
-              <LiveTradeTradesHistoryPanel
-                embedded
-                adminViewUserId={adminReadOnly ? adminViewUserId : null}
-              />
+              <>
+                <LiveTradeHistoryScenarioTabs
+                  value={programsTradeScenario}
+                  onChange={setProgramsTradeScenario}
+                  className="live-trading-tab__programs-trade-scenario"
+                />
+                <LiveTradeTradesHistoryPanel
+                  embedded
+                  scenario={programsTradeScenario}
+                  loadAll
+                  adminViewUserId={adminReadOnly ? adminViewUserId : null}
+                />
+              </>
             )
           ) : programs.length === 0 ? (
             <p className="live-trading-tab__empty">{ko.app.liveTradeListEmpty}</p>

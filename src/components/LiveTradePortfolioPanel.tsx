@@ -12,6 +12,7 @@ import {
   type LiveTradeHolding,
   type LiveTradePortfolioResponse,
   type LiveTradeProgram,
+  type LiveTradeRecord,
 } from "../api";
 import {
   consumePendingLiveTradePortfolioFocus,
@@ -643,6 +644,17 @@ export default function LiveTradePortfolioPanel({
     }
   }, [programs, programId, adminReadOnly]);
 
+  const tradesByScenario = useMemo(() => {
+    const all = data?.trades ?? [];
+    return {
+      sim: all.filter((t) => t.simulated),
+      liveBithumb: all.filter((t) => !t.simulated && t.market === "crypto"),
+      liveToss: all.filter(
+        (t) => !t.simulated && (t.market === "kr" || t.market === "us"),
+      ),
+    };
+  }, [data?.trades]);
+
   const tradeFill = useMemo(
     () => tradeFillDisplayByTradeId(data?.trades ?? []),
     [data?.trades],
@@ -880,130 +892,176 @@ export default function LiveTradePortfolioPanel({
           ) : null}
 
           {viewTab === "trades" && !selfOnly ? (
-            data.trades.length === 0 ? (
-              <>
-                <p className="live-portfolio__exchange-note">
-                  {ko.app.liveTradePfExchangeTradesNote}
-                </p>
-                <p className="live-portfolio__muted">{ko.app.liveTradePfNoTrades}</p>
-              </>
-            ) : (
-              <>
-              <p className="live-portfolio__exchange-note">
-                {ko.app.liveTradePfExchangeTradesNote}
-              </p>
-              <h5 className="live-sim-run__sub">{ko.app.liveTradeSimRunRecentTrades}</h5>
-              <div className="live-portfolio__trades-scroll live-sim-run__table-wrap">
-                <table className="live-sim-run__table live-sim-run__table--stacked live-sim-run__table--trades">
-                  <thead>
-                    <tr>
-                      <th>{ko.app.liveTradePfColTime}</th>
-                      <th>{ko.app.liveTradePfColSide}</th>
-                      <th>{ko.app.liveTradePfColSymbol}</th>
-                      <th>{ko.app.liveTradePfColQty}</th>
-                      <th>{ko.app.liveTradePfColBuyPrice}</th>
-                      <th>{ko.app.liveTradePfColSellPrice}</th>
-                      <th>{ko.app.liveTradePfColRealizedPnlPct}</th>
-                      <th>{ko.app.liveTradePfColRealizedPnl}</th>
-                      <th>{ko.app.liveTradePfColAmount}</th>
-                      <th>{ko.app.liveTradePfColProgram}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.trades.map((t) => {
-                      const fd = tradeFill.get(t.id);
-                      const pnlUp =
-                        fd?.realizedPnl != null ? fd.realizedPnl >= 0 : null;
-                      return (
-                      <tr
-                        key={t.id}
-                        className={
-                          t.side === "buy"
-                            ? "live-sim-run__row--buy"
-                            : "live-sim-run__row--sell"
-                        }
-                      >
-                        <td className="live-sim-run__ts" data-label={ko.app.liveTradePfColTime}>
-                          {formatTs(t.atMs)}
-                        </td>
-                        <td
-                          className="live-sim-run__side"
-                          data-label={ko.app.liveTradePfColSide}
-                        >
-                          {formatTradeSideLabel(t)}
-                        </td>
-                        <td data-label={ko.app.liveTradePfColSymbol}>
-                          <TradeSymbolCell t={t} />
-                        </td>
-                        <td className="live-sim-run__num" data-label={ko.app.liveTradePfColQty}>
-                          {formatLiveTradeQuantity(t.quantity, t.market)}
-                        </td>
-                        <td
-                          className="live-sim-run__num"
-                          data-label={ko.app.liveTradePfColBuyPrice}
-                        >
-                          {fd?.buyPrice != null
-                            ? formatPrice(fd.buyPrice, t.currency)
-                            : "—"}
-                        </td>
-                        <td
-                          className="live-sim-run__num"
-                          data-label={ko.app.liveTradePfColSellPrice}
-                        >
-                          {fd?.sellPrice != null
-                            ? formatPrice(fd.sellPrice, t.currency)
-                            : "—"}
-                        </td>
-                        <td
-                          className={
-                            pnlUp == null
-                              ? "live-sim-run__num"
-                              : pnlUp
-                                ? "live-sim-run__num live-sim-run__num--up"
-                                : "live-sim-run__num live-sim-run__num--down"
-                          }
-                          data-label={ko.app.liveTradePfColRealizedPnlPct}
-                        >
-                          {fd?.realizedPnlPct != null
-                            ? formatPercent(fd.realizedPnlPct)
-                            : "—"}
-                        </td>
-                        <td
-                          className={
-                            pnlUp == null
-                              ? "live-sim-run__num"
-                              : pnlUp
-                                ? "live-sim-run__num live-sim-run__num--up"
-                                : "live-sim-run__num live-sim-run__num--down"
-                          }
-                          data-label={ko.app.liveTradePfColRealizedPnl}
-                        >
-                          {fd?.realizedPnl != null
-                            ? formatSignedMoney(fd.realizedPnl, t.currency)
-                            : "—"}
-                        </td>
-                        <td className="live-sim-run__num" data-label={ko.app.liveTradePfColAmount}>
-                          {formatPrice(t.amount, t.currency)}
-                        </td>
-                        <td
-                          className="live-sim-run__num live-portfolio__prog"
-                          data-label={ko.app.liveTradePfColProgram}
-                        >
-                          <span className="live-sim-run__sym">{t.programName ?? t.programId}</span>
-                          {t.note ? (
-                            <span className="live-sim-run__name" title={t.note}>
-                              {t.note}
-                            </span>
-                          ) : null}
-                        </td>
-                      </tr>
-                    );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              </>
-            )
+            (() => {
+              const sections = [
+                {
+                  id: "sim",
+                  title: ko.app.liveTradeHistoryScenarioSim,
+                  note: ko.app.liveTradeHistorySimSub,
+                  rows: tradesByScenario.sim,
+                },
+                {
+                  id: "live-bithumb",
+                  title: ko.app.liveTradeHistoryScenarioBithumb,
+                  note: ko.app.liveTradeHistoryBithumbSub,
+                  rows: tradesByScenario.liveBithumb,
+                },
+                {
+                  id: "live-toss",
+                  title: ko.app.liveTradeHistoryScenarioToss,
+                  note: ko.app.liveTradeHistoryTossSub,
+                  rows: tradesByScenario.liveToss,
+                },
+              ];
+              const anyRows = sections.some((s) => s.rows.length > 0);
+              if (!anyRows) {
+                return (
+                  <p className="live-portfolio__muted">{ko.app.liveTradePfNoTrades}</p>
+                );
+              }
+              return sections.map((section) =>
+                section.rows.length === 0 ? null : (
+                  <div
+                    key={section.id}
+                    className="live-portfolio__trades-scenario"
+                  >
+                    <h5 className="live-sim-run__sub">{section.title}</h5>
+                    <p className="live-portfolio__exchange-note">{section.note}</p>
+                    <div className="live-portfolio__trades-scroll live-sim-run__table-wrap">
+                      <table className="live-sim-run__table live-sim-run__table--stacked live-sim-run__table--trades">
+                        <thead>
+                          <tr>
+                            <th>{ko.app.liveTradePfColTime}</th>
+                            <th>{ko.app.liveTradePfColSide}</th>
+                            <th>{ko.app.liveTradePfColSymbol}</th>
+                            <th>{ko.app.liveTradePfColQty}</th>
+                            <th>{ko.app.liveTradePfColBuyPrice}</th>
+                            <th>{ko.app.liveTradePfColSellPrice}</th>
+                            <th>{ko.app.liveTradePfColRealizedPnlPct}</th>
+                            <th>{ko.app.liveTradePfColRealizedPnl}</th>
+                            <th>{ko.app.liveTradePfColAmount}</th>
+                            <th>{ko.app.liveTradePfColProgram}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {section.rows.map((t: LiveTradeRecord) => {
+                            const fd = tradeFill.get(t.id);
+                            const pnlUp =
+                              fd?.realizedPnl != null
+                                ? fd.realizedPnl >= 0
+                                : null;
+                            return (
+                              <tr
+                                key={t.id}
+                                className={
+                                  t.side === "buy"
+                                    ? "live-sim-run__row--buy"
+                                    : "live-sim-run__row--sell"
+                                }
+                              >
+                                <td
+                                  className="live-sim-run__ts"
+                                  data-label={ko.app.liveTradePfColTime}
+                                >
+                                  {formatTs(t.atMs)}
+                                </td>
+                                <td
+                                  className="live-sim-run__side"
+                                  data-label={ko.app.liveTradePfColSide}
+                                >
+                                  {formatTradeSideLabel(t)}
+                                </td>
+                                <td data-label={ko.app.liveTradePfColSymbol}>
+                                  <TradeSymbolCell t={t} />
+                                </td>
+                                <td
+                                  className="live-sim-run__num"
+                                  data-label={ko.app.liveTradePfColQty}
+                                >
+                                  {formatLiveTradeQuantity(
+                                    t.quantity,
+                                    t.market,
+                                  )}
+                                </td>
+                                <td
+                                  className="live-sim-run__num"
+                                  data-label={ko.app.liveTradePfColBuyPrice}
+                                >
+                                  {fd?.buyPrice != null
+                                    ? formatPrice(fd.buyPrice, t.currency)
+                                    : "—"}
+                                </td>
+                                <td
+                                  className="live-sim-run__num"
+                                  data-label={ko.app.liveTradePfColSellPrice}
+                                >
+                                  {fd?.sellPrice != null
+                                    ? formatPrice(fd.sellPrice, t.currency)
+                                    : "—"}
+                                </td>
+                                <td
+                                  className={
+                                    pnlUp == null
+                                      ? "live-sim-run__num"
+                                      : pnlUp
+                                        ? "live-sim-run__num live-sim-run__num--up"
+                                        : "live-sim-run__num live-sim-run__num--down"
+                                  }
+                                  data-label={ko.app.liveTradePfColRealizedPnlPct}
+                                >
+                                  {fd?.realizedPnlPct != null
+                                    ? formatPercent(fd.realizedPnlPct)
+                                    : "—"}
+                                </td>
+                                <td
+                                  className={
+                                    pnlUp == null
+                                      ? "live-sim-run__num"
+                                      : pnlUp
+                                        ? "live-sim-run__num live-sim-run__num--up"
+                                        : "live-sim-run__num live-sim-run__num--down"
+                                  }
+                                  data-label={ko.app.liveTradePfColRealizedPnl}
+                                >
+                                  {fd?.realizedPnl != null
+                                    ? formatSignedMoney(
+                                        fd.realizedPnl,
+                                        t.currency,
+                                      )
+                                    : "—"}
+                                </td>
+                                <td
+                                  className="live-sim-run__num"
+                                  data-label={ko.app.liveTradePfColAmount}
+                                >
+                                  {formatPrice(t.amount, t.currency)}
+                                </td>
+                                <td
+                                  className="live-sim-run__num live-portfolio__prog"
+                                  data-label={ko.app.liveTradePfColProgram}
+                                >
+                                  <span className="live-sim-run__sym">
+                                    {t.programName ?? t.programId}
+                                  </span>
+                                  {t.note ? (
+                                    <span
+                                      className="live-sim-run__name"
+                                      title={t.note}
+                                    >
+                                      {t.note}
+                                    </span>
+                                  ) : null}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ),
+              );
+            })()
           ) : null}
 
           {viewTab === "trades" && selfOnly ? (

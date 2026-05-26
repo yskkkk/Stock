@@ -5,11 +5,23 @@ import os from "node:os";
 import path from "node:path";
 import {
   buildLiveTradeHistoryPayload,
+  filterTradesByScenario,
   kstDateKeyFromMs,
   shiftKstDateKey,
 } from "./live-trade-history.js";
 import { writePortfolioStoreSync } from "./live-trade-portfolio-store.js";
 import { writeProgramsStoreSync } from "./live-trade-programs-store.js";
+
+test("filterTradesByScenario splits sim and live", () => {
+  const rows = [
+    { simulated: true, market: "crypto" },
+    { simulated: false, market: "crypto" },
+    { simulated: false, market: "kr" },
+  ];
+  assert.equal(filterTradesByScenario(rows, "sim").length, 1);
+  assert.equal(filterTradesByScenario(rows, "live-bithumb").length, 1);
+  assert.equal(filterTradesByScenario(rows, "live-toss").length, 1);
+});
 
 test("shiftKstDateKey moves calendar days in KST", () => {
   assert.equal(shiftKstDateKey("2026-05-25", -1), "2026-05-24");
