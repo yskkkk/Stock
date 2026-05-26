@@ -62,6 +62,8 @@ import {
   LiveTradeHoldingRationaleRow,
 } from "./LiveTradeHoldingDisplay";
 import { LiveTradeSymbolCellFromRecord as TradeSymbolCell } from "./LiveTradeSymbolCell";
+import { LiveTradeTradesHistoryTable } from "./LiveTradeTradesHistoryPanel";
+import { groupTradesByProgram } from "../lib/groupTradesByProgram";
 
 type PanelTab = "summary" | "holdings" | "trade" | "trades" | "openOrders";
 
@@ -920,7 +922,32 @@ export default function LiveTradePortfolioPanel({
                 );
               }
               return sections.map((section) =>
-                section.rows.length === 0 ? null : (
+                section.rows.length === 0 ? null : section.id === "sim" ? (
+                  <div
+                    key={section.id}
+                    className="live-portfolio__trades-scenario"
+                  >
+                    <h5 className="live-sim-run__sub">{section.title}</h5>
+                    <p className="live-portfolio__exchange-note">{section.note}</p>
+                    {groupTradesByProgram(section.rows).map((g) => (
+                      <div
+                        key={g.programId}
+                        className="live-portfolio__trades-program"
+                      >
+                        <h6 className="live-sim-run__sub live-portfolio__trades-program-title">
+                          {g.programName}
+                        </h6>
+                        <div className="live-portfolio__trades-scroll live-sim-run__table-wrap">
+                          <LiveTradeTradesHistoryTable
+                            trades={g.trades}
+                            loadAll={false}
+                            hideProgramColumn
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
                   <div
                     key={section.id}
                     className="live-portfolio__trades-scenario"
