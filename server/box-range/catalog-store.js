@@ -3,11 +3,35 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { resolveServerDataDir } from "../data-path.js";
 import { readBoxRangeStoreSync, writeBoxRangeStoreSync } from "./store.js";
+import {
+  BOX_RANGE_CATALOG_DIR_LEGACY,
+  BOX_RANGE_CATALOG_DIR_PINE,
+} from "./constants.js";
 import { pineBoxesShouldMerge } from "./detect-pine.js";
 
 /** @typedef {"us"|"kr"} CatalogMarket */
 
 export const CATALOG_MARKETS = /** @type {const} */ (["us", "kr"]);
+
+export { BOX_RANGE_CATALOG_DIR_LEGACY, BOX_RANGE_CATALOG_DIR_PINE };
+
+/** @returns {string} server/.data 하위 카탈로그 루트 폴더명 */
+export function resolveCatalogRootDir() {
+  const raw = String(process.env.STOCK_BOX_RANGE_CATALOG_DIR ?? "").trim();
+  return raw || BOX_RANGE_CATALOG_DIR_LEGACY;
+}
+
+/**
+ * @param {CatalogMarket} [market]
+ * @param {string} [catalogRoot]
+ */
+export function catalogDirForRoot(market = "us", catalogRoot = resolveCatalogRootDir()) {
+  return path.join(
+    resolveServerDataDir(),
+    catalogRoot,
+    resolveCatalogMarket(market),
+  );
+}
 
 /**
  * @param {unknown} raw
@@ -19,31 +43,30 @@ export function resolveCatalogMarket(raw) {
 
 /**
  * @param {CatalogMarket} [market]
+ * @param {string} [catalogRoot]
  */
-function catalogDir(market = "us") {
-  return path.join(
-    resolveServerDataDir(),
-    "box-range-catalog",
-    resolveCatalogMarket(market),
-  );
+function catalogDir(market = "us", catalogRoot = resolveCatalogRootDir()) {
+  return catalogDirForRoot(market, catalogRoot);
 }
 
 /**
  * @param {string} symbol
  * @param {CatalogMarket} [market]
+ * @param {string} [catalogRoot]
  */
-function symbolFilePath(symbol, market = "us") {
+function symbolFilePath(symbol, market = "us", catalogRoot = resolveCatalogRootDir()) {
   return path.join(
-    catalogDir(market),
+    catalogDir(market, catalogRoot),
     `${String(symbol).trim().toUpperCase()}.json`,
   );
 }
 
 /**
  * @param {CatalogMarket} [market]
+ * @param {string} [catalogRoot]
  */
-function indexFilePath(market = "us") {
-  return path.join(catalogDir(market), "_index.json");
+function indexFilePath(market = "us", catalogRoot = resolveCatalogRootDir()) {
+  return path.join(catalogDir(market, catalogRoot), "_index.json");
 }
 
 /**
@@ -121,13 +144,18 @@ function normalizeCatalogBox(raw) {
 /**
  * @param {string} symbol
  * @param {CatalogMarket} [market]
+ * @param {string} [catalogRoot]
  */
-export function readSymbolCatalogSync(symbol, market = "us") {
+export function readSymbolCatalogSync(
+  symbol,
+  market = "us",
+  catalogRoot = resolveCatalogRootDir(),
+) {
   const sym = String(symbol ?? "").trim().toUpperCase();
   if (!sym) return null;
   const m = resolveCatalogMarket(market);
   try {
-    const file = symbolFilePath(sym, m);
+    const file = symbolFilePath(sym, m, catalogRoot);
     if (!fs.existsSync(file)) return null;
     const o = JSON.parse(fs.readFileSync(file, "utf8"));
     if (!o || typeof o !== "object") return null;
@@ -152,14 +180,19 @@ export function readSymbolCatalogSync(symbol, market = "us") {
 /**
  * @param {SymbolCatalogFile} payload
  * @param {CatalogMarket} [market]
+ * @param {string} [catalogRoot]
  */
-export function writeSymbolCatalogSync(payload, market = "us") {
+export function writeSymbolCatalogSync(
+  payload,
+  market = "us",
+  catalogRoot = resolveCatalogRootDir(),
+) {
   const sym = String(payload.symbol ?? "").trim().toUpperCase();
   if (!sym) return;
   const m = resolveCatalogMarket(market);
-  const dir = catalogDir(m);
+  const dir = catalogDir(m, catalogRoot);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  const file = symbolFilePath(sym, m);
+  const file = symbolFilePath(sym, m, catalogRoot);
   const tmp = `${file}.tmp`;
   const body = {
     symbol: sym,
@@ -170,7 +203,7 @@ export function writeSymbolCatalogSync(payload, market = "us") {
   };
   fs.writeFileSync(tmp, JSON.stringify(body, null, 0), "utf8");
   fs.renameSync(tmp, file);
-  refreshCatalogIndexSync(m);
+  refreshCatalogIndexSync(m, catalogRoot);
 }
 
 /**
@@ -211,10 +244,11 @@ export function upsertSymbolCatalogDetectionsSync(
   byTf,
   scanError = null,
   market = "us",
+  catalogRoot = resolveCatalogRootDir(),
 ) {
   const sym = String(symbol).trim().toUpperCase();
   const m = resolveCatalogMarket(market);
-  const prev = readSymbolCatalogSync(sym, m);
+  const prev = readSymbolCatalogSync(sym, m, catalogRoot);
   const prevBoxes = prev?.boxes ?? [];
   const now = Date.now();
   /** @type {CatalogBox[]} */
@@ -259,15 +293,20 @@ export function upsertSymbolCatalogDetectionsSync(
       boxes,
     },
     m,
+    catalogRoot,
   );
 }
 
 /**
  * @param {CatalogMarket} [market]
+ * @param {string} [catalogRoot]
  */
-export function refreshCatalogIndexSync(market = "us") {
+export function refreshCatalogIndexSync(
+  market = "us",
+  catalogRoot = resolveCatalogRootDir(),
+) {
   const m = resolveCatalogMarket(market);
-  const dir = catalogDir(m);
+  const dir = catalogDir(m, catalogRoot);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -278,7 +317,7 @@ export function refreshCatalogIndexSync(market = "us") {
   const entries = [];
   for (const f of files) {
     const sym = f.replace(/\.json$/i, "");
-    const cat = readSymbolCatalogSync(sym, m);
+    const cat = readSymbolCatalogSync(sym, m, catalogRoot);
     if (!cat) continue;
     const eligible = cat.boxes.filter((b) => b.tradeEligible && !b.consumedAtMs);
     entries.push({
@@ -292,15 +331,47 @@ export function refreshCatalogIndexSync(market = "us") {
   entries.sort((a, b) => a.symbol.localeCompare(b.symbol));
   const idx = {
     market: m,
+    catalogRoot,
     updatedAtMs: Date.now(),
     count: entries.length,
     symbols: entries,
   };
-  const file = indexFilePath(m);
+  const file = indexFilePath(m, catalogRoot);
   const tmp = `${file}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(idx, null, 0), "utf8");
   fs.renameSync(tmp, file);
   return idx;
+}
+
+/**
+ * 카탈로그 루트별 박스 개수 집계(비교 리포트용)
+ * @param {string} catalogRoot
+ * @param {CatalogMarket} market
+ */
+export function summarizeCatalogRootSync(catalogRoot, market = "us") {
+  const m = resolveCatalogMarket(market);
+  const dir = catalogDirForRoot(m, catalogRoot);
+  /** @type {Record<"1h"|"4h"|"1d", number>} */
+  const byTf = { "1h": 0, "4h": 0, "1d": 0 };
+  let symbols = 0;
+  let withBoxes = 0;
+  let total = 0;
+  if (!fs.existsSync(dir)) {
+    return { catalogRoot, market: m, symbols, withBoxes, total, byTf };
+  }
+  for (const f of fs.readdirSync(dir)) {
+    if (!f.endsWith(".json") || f === "_index.json") continue;
+    symbols += 1;
+    const sym = f.replace(/\.json$/i, "");
+    const cat = readSymbolCatalogSync(sym, m, catalogRoot);
+    if (!cat?.boxes?.length) continue;
+    withBoxes += 1;
+    for (const b of cat.boxes) {
+      if (b.timeframe in byTf) byTf[b.timeframe] += 1;
+      total += 1;
+    }
+  }
+  return { catalogRoot, market: m, symbols, withBoxes, total, byTf };
 }
 
 /**

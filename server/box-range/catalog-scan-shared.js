@@ -1,7 +1,10 @@
 import { loadStock } from "../stock-data.js";
 import { BOX_RANGE_PINE_MAX_STORE, BOX_RANGE_TIMEFRAMES } from "./constants.js";
 import { detectBoxRangesPineOnCandles, resolvePineDetectOpts } from "./detect-pine.js";
-import { upsertSymbolCatalogDetectionsSync } from "./catalog-store.js";
+import {
+  resolveCatalogRootDir,
+  upsertSymbolCatalogDetectionsSync,
+} from "./catalog-store.js";
 import { normalizeBoxUnixTime } from "./box-time.js";
 
 /**
@@ -77,6 +80,7 @@ export async function scanOneSymbolCatalog(item, catalogMarket) {
     byTf,
     scanError,
     catalogMarket,
+    resolveCatalogRootDir(),
   );
 
   return {

@@ -28,6 +28,11 @@ export const BOX_RANGE_MAX_DETECTED = 35;
 /** Pine maxStoreZones(엔진 내부 저장 상한) — 카탈로그 전체 스캔과 동일 */
 export const BOX_RANGE_PINE_MAX_STORE = 40;
 
+/** 기존 카탈로그(legacy detect-pro·overlap merge) */
+export const BOX_RANGE_CATALOG_DIR_LEGACY = "box-range-catalog";
+/** Pine f_zoneEngine 전체 차트 탐지 전용 저장 */
+export const BOX_RANGE_CATALOG_DIR_PINE = "box-range-catalog-pine";
+
 /** @deprecated detect-pro 전용 — Pine 탐지에는 미사용 */
 export const BOX_RANGE_MIN_TOUCHES = 2;
 export const BOX_RANGE_MERGE_PCT = 35;
