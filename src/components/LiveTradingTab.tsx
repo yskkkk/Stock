@@ -17,9 +17,7 @@ import {
   stopSimLiveTradeProgram,
   fetchAccessAdminLiveTradingUserStatus,
   fetchLiveTradingStatus,
-  fetchLiveTradingBoxRangeStatus,
   fetchLiveTradeTechModels,
-  type LiveTradeBoxRangeStatusResponse,
   getStoredAccessAdminToken,
   updateLiveTradeProgram,
   type LiveTradeArmLane,
@@ -260,8 +258,6 @@ export default function LiveTradingTab({
   >("programs");
   const [tradeHistoryScenario, setTradeHistoryScenario] =
     useState<LiveTradeHistoryScenario>("sim");
-  const [boxRangeStatus, setBoxRangeStatus] =
-    useState<LiveTradeBoxRangeStatusResponse | null>(null);
   const sidePanel = useLiveTradeCardSidePanelOptional();
   const polledStatus = useLiveTradingStatusPoll();
   const adminViewUserId = adminView?.userId?.trim() || null;
@@ -382,27 +378,6 @@ export default function LiveTradingTab({
     return ln >= pn ? status : polledStatus;
   }, [polledStatus, status]);
   const programs = effectiveStatus?.programs ?? [];
-  const loadBoxRangeStatus = useCallback(async () => {
-    if (!user || portalSourceOnly) {
-      setBoxRangeStatus(null);
-      return;
-    }
-    try {
-      setBoxRangeStatus(await fetchLiveTradingBoxRangeStatus());
-    } catch {
-      setBoxRangeStatus(null);
-    }
-  }, [user, portalSourceOnly]);
-
-  useEffect(() => {
-    void loadBoxRangeStatus();
-  }, [
-    loadBoxRangeStatus,
-    portfolioRefreshKey,
-    effectiveStatus?.armedCount,
-    effectiveStatus?.simCount,
-  ]);
-
   const activeRunCount =
     (effectiveStatus?.simCount ?? 0) + (effectiveStatus?.armedCount ?? 0);
   /** 메인 실매매 탭 — 도크 미사용 시 또는 가동 중일 때 */
@@ -820,7 +795,6 @@ export default function LiveTradingTab({
                 const holdingCount = ret?.holdingCount ?? 0;
                 const displayStatus = programDisplayStatus(p, holdingCount);
                 const returnPct = ret?.totalReturnPct;
-                const boxEntry = boxRangeStatus?.programs[p.id];
                 return (
                   <li key={p.id}>
                     <LiveTradeRegisteredProgramCard
@@ -839,9 +813,6 @@ export default function LiveTradingTab({
                       onDelete={() => void handleDelete(p.id, p.name)}
                       deleting={deletingProgramId === p.id}
                       readOnly={adminReadOnly}
-                      boxRangeBoxes={
-                        portalSourceOnly ? undefined : boxEntry?.boxes
-                      }
                     />
                   </li>
                 );

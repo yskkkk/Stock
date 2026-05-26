@@ -1,6 +1,5 @@
 import type {
   LiveTradeArmLane,
-  LiveTradeBoxRangePublicBox,
   LiveTradeProgram,
   TechModelRecord,
 } from "../api";
@@ -8,7 +7,6 @@ import { BOX_RANGE_MODEL_ID } from "../lib/boxRangeTechModel";
 import { ko } from "../i18n/ko";
 import { formatPercent } from "../lib/format";
 import { showProgramRunError } from "../lib/liveProgramDisplay";
-import LiveTradeProgramBoxRangeSection from "./LiveTradeProgramBoxRangeSection";
 
 function formatMoney(
   n: number | null | undefined,
@@ -82,7 +80,6 @@ export default function LiveTradeRegisteredProgramCard({
   onDelete,
   deleting = false,
   readOnly = false,
-  boxRangeBoxes,
 }: {
   program: LiveTradeProgram;
   model?: TechModelRecord;
@@ -99,8 +96,6 @@ export default function LiveTradeRegisteredProgramCard({
   onDelete: () => void;
   deleting?: boolean;
   readOnly?: boolean;
-  /** 박스권 프로그램 — 감시·보유 박스 */
-  boxRangeBoxes?: LiveTradeBoxRangePublicBox[];
 }) {
   const isBoxRange = p.modelId === BOX_RANGE_MODEL_ID;
   const markets = [
@@ -184,9 +179,6 @@ export default function LiveTradeRegisteredProgramCard({
         :{" "}
         <span className={returnClass}>{formatPercent(returnPct ?? undefined)}</span>
       </p>
-      {isBoxRange && boxRangeBoxes ? (
-        <LiveTradeProgramBoxRangeSection boxes={boxRangeBoxes} />
-      ) : null}
       {showProgramRunError(p, holdingCount) ? (
         <p className="live-trading-tab__program-err" role="alert">
           {p.lastError}
