@@ -1819,17 +1819,36 @@ html[data-theme="light"] .top-bar__scan {
 }
 
 .live-trade-header-strip__msg {
-  display: flex;
-  flex-wrap: wrap;
+  display: inline-flex;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.25rem 0.45rem;
   min-width: 0;
-  overflow: visible;
+  flex: 0 1 auto;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.live-trade-header-strip__msg::-webkit-scrollbar {
+  display: none;
 }
 
 .top-bar__live-trade .scan-status__msg.live-trade-header-strip__msg {
-  overflow: visible;
+  overflow-x: auto;
+  overflow-y: hidden;
   text-overflow: clip;
+}
+
+.top-bar__live-trade .scan-status--compact .scan-status__primary {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.top-bar__live-trade .scan-status--compact .scan-status__primary::-webkit-scrollbar {
+  display: none;
 }
 
 .live-trade-header-strip__telegram-btn {
@@ -1892,9 +1911,16 @@ html[data-theme="light"] .live-trade-header-strip__telegram-count {
 
 .live-trade-header-strip__names {
   display: inline-flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  flex: 0 0 auto;
   gap: 0.25rem;
   min-width: 0;
+}
+
+.live-trade-header-strip__armed,
+.live-trade-header-strip__sep,
+.live-trade-header-strip__msg > span:not(.live-trade-header-strip__names) {
+  flex-shrink: 0;
 }
 
 .live-trade-header-strip__chip {
