@@ -9418,7 +9418,7 @@ html[data-theme="light"] .market-indices-rail__item {
     right: env(safe-area-inset-right, 0px);
     bottom: 0;
     left: auto;
-    z-index: 120;
+    z-index: 140;
     width: var(--live-trade-dock-rail-width, 3.25rem) !important;
     min-width: var(--live-trade-dock-rail-width, 3.25rem) !important;
     max-width: var(--live-trade-dock-rail-width, 3.25rem) !important;
@@ -9562,7 +9562,9 @@ html:not([data-theme="light"]) {
   pointer-events: auto;
 }
 
-.app-live-trade-side-dock__rail {
+.app-live-trade-side-dock__rail,
+.app-live-trade-side-dock__rail--portal,
+[data-live-trade-side-dock-rail] {
   flex: 0 0 var(--live-trade-dock-rail-width, 2.68rem);
   align-self: stretch;
   display: flex;
@@ -9598,10 +9600,14 @@ html:not([data-theme="light"]) {
   flex: 0 0 var(--live-trade-dock-rail-width, 2.68rem);
 }
 
-/* 접힘 — 레일만 보일 때 왼쪽 상·하 모서리(펼침 패널과 동일) */
-.app-live-trade-side-dock--collapsed .app-live-trade-side-dock__rail {
+/* 접힘 — 레일만 보일 때 왼쪽 상·하 모서리(포털 레일은 --dock-collapsed 클래스) */
+.app-live-trade-side-dock__rail--dock-collapsed {
   border-radius: var(--radius-md, 10px) 0 0 var(--radius-md, 10px);
   overflow: hidden;
+}
+
+.app-live-trade-side-dock__rail--dock-open {
+  border-radius: 0;
 }
 
 .app-live-trade-side-dock__fold.app-live-trade-side-dock__rail-btn {
@@ -9696,7 +9702,7 @@ html:not([data-theme="light"]) {
 }
 
 .app-live-trade-side-dock__rail-footer {
-  flex: none;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -9704,8 +9710,11 @@ html:not([data-theme="light"]) {
   min-width: 0;
   max-width: 100%;
   gap: 0.2rem;
-  margin-top: 0.15rem;
-  padding-bottom: 0.1rem;
+  margin-top: 0;
+  padding-top: 0.2rem;
+  padding-bottom: 0;
+  border-top: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 55%, transparent);
+  pointer-events: auto;
 }
 
 .app-live-trade-side-dock__rail-btn--auth,
@@ -9937,6 +9946,8 @@ html[data-theme="light"]
   z-index: 12;
   display: block;
   width: 0.36rem;
+  height: 3.1rem;
+  max-height: 3.1rem;
   min-height: 3.1rem;
   margin: 0;
   padding: 0;

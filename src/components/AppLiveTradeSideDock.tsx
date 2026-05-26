@@ -337,6 +337,7 @@ export default function AppLiveTradeSideDock({
       /* ignore */
     }
   }, []);
+
   const panelWidthBounds = useMemo(
     () => ({
       min: clampDockPanelWidthPx(0),
@@ -420,6 +421,8 @@ export default function AppLiveTradeSideDock({
   useEffect(() => {
     const onAfterFormSave = () => {
       releaseResizeDrag();
+      setAuthPopoverOpen(false);
+      window.dispatchEvent(new CustomEvent("live-trade-dock-close-api-popover"));
     };
     window.addEventListener(LIVE_TRADE_DOCK_AFTER_FORM_SAVE_EVENT, onAfterFormSave);
     return () =>
@@ -427,6 +430,16 @@ export default function AppLiveTradeSideDock({
         LIVE_TRADE_DOCK_AFTER_FORM_SAVE_EVENT,
         onAfterFormSave,
       );
+  }, [releaseResizeDrag]);
+
+  useEffect(() => {
+    const onGlobalPointerEnd = () => releaseResizeDrag();
+    window.addEventListener("pointerup", onGlobalPointerEnd);
+    window.addEventListener("pointercancel", onGlobalPointerEnd);
+    return () => {
+      window.removeEventListener("pointerup", onGlobalPointerEnd);
+      window.removeEventListener("pointercancel", onGlobalPointerEnd);
+    };
   }, [releaseResizeDrag]);
 
   useEffect(() => {
@@ -745,7 +758,12 @@ export default function AppLiveTradeSideDock({
 
   const dockRail = (
     <nav
-      className="app-live-trade-side-dock__rail app-live-trade-side-dock__rail--portal"
+      className={[
+        "app-live-trade-side-dock__rail app-live-trade-side-dock__rail--portal",
+        open
+          ? "app-live-trade-side-dock__rail--dock-open"
+          : "app-live-trade-side-dock__rail--dock-collapsed",
+      ].join(" ")}
       data-live-trade-side-dock-rail
       aria-label={ko.app.liveTradeSideDockRailAria}
     >
@@ -829,6 +847,7 @@ export default function AppLiveTradeSideDock({
           );
         })}
       </div>
+      </div>
       <div className="app-live-trade-side-dock__rail-footer">
         {user ? (
           <LiveTradeDockApiRail
@@ -898,7 +917,6 @@ export default function AppLiveTradeSideDock({
           />
         ) : null}
       </div>
-      </div>
     </nav>
   );
 
@@ -929,6 +947,7 @@ export default function AppLiveTradeSideDock({
           onPointerMove={onResizePointerMove}
           onPointerUp={finishResize}
           onPointerCancel={finishResize}
+          onLostPointerCapture={releaseResizeDrag}
           aria-label={
             open ? ko.app.liveTradeSideDockResize : ko.app.liveTradeSideDockExpand
           }
