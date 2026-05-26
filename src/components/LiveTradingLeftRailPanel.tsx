@@ -9,7 +9,10 @@ import {
   type LiveTradeRecord,
 } from "../api";
 import { useLivePortfolioQuotePoll } from "../hooks/useLivePortfolioQuotePoll";
-import { useLiveTradingStatusPoll } from "../hooks/useLiveTradingStatusPoll";
+import {
+  pickRunningLivePrograms,
+  useLiveTradingStatusPoll,
+} from "../hooks/useLiveTradingStatusPoll";
 import { ko } from "../i18n/ko";
 import { programDisplayStatus } from "../lib/liveProgramDisplay";
 import { formatPercent, formatPrice } from "../lib/format";
@@ -105,10 +108,6 @@ function sortHoldingsByValue(holdings: LiveTradeHolding[]): LiveTradeHolding[] {
   return [...holdings].sort(
     (a, b) => (b.marketValue ?? 0) - (a.marketValue ?? 0),
   );
-}
-
-function isRunningLiveProgram(p: LiveTradeProgram): boolean {
-  return p.status === "armed" || p.status === "sim";
 }
 
 function RailProgramCard({
@@ -487,44 +486,38 @@ export function LiveTradingRailCore({
   );
 
   const rows = useMemo(() => {
-    const programs = status?.programs ?? [];
-    const visible =
-      layout === "dock" ? programs : programs.filter(isRunningLiveProgram);
-    return visible
-      .sort((a, b) => {
-        const rank = (s: LiveTradeProgram["status"]) =>
-          s === "armed" ? 0 : s === "sim" ? 1 : 2;
-        const d = rank(a.status) - rank(b.status);
-        return d !== 0 ? d : a.name.localeCompare(b.name, "ko");
-      })
-      .map((p) => {
-        const ret = status?.programReturns?.[p.id];
-        const holdingCount = ret?.holdingCount ?? 0;
-        const displayStatus = programDisplayStatus(p, holdingCount);
-        const holdings = holdingsByProgram[p.id] ?? [];
-        const fromHoldings = openHoldingsNetReturnPct(
-          holdings,
-          roundTripForMarket,
-        );
-        return {
-          program: p,
-          displayStatus,
-          returnPct: fromHoldings ?? ret?.totalReturnPct ?? null,
-          holdingCount,
-          holdings,
-        };
-      });
-  }, [status, holdingsByProgram, roundTripForMarket, layout]);
+    return pickRunningLivePrograms(status).map(({ program: p, kind }) => {
+      const ret = status?.programReturns?.[p.id];
+      const holdingCount = ret?.holdingCount ?? 0;
+      const displayStatus =
+        kind === "armed" ? "armed" : programDisplayStatus(p, holdingCount);
+      const holdings = holdingsByProgram[p.id] ?? [];
+      const fromHoldings = openHoldingsNetReturnPct(
+        holdings,
+        roundTripForMarket,
+      );
+      return {
+        program: p,
+        kind,
+        displayStatus,
+        returnPct: fromHoldings ?? ret?.totalReturnPct ?? null,
+        holdingCount,
+        holdings,
+      };
+    });
+  }, [status, holdingsByProgram, roundTripForMarket]);
 
-  const { armedRows, simRows } = useMemo(() => {
-    const armed: typeof rows = [];
-    const sim: typeof rows = [];
-    for (const row of rows) {
-      if (row.program.status === "armed") armed.push(row);
-      else if (row.program.status === "sim") sim.push(row);
-    }
-    return { armedRows: armed, simRows: sim };
-  }, [rows]);
+  const runningCount =
+    (status?.armedCount ?? 0) + (status?.simCount ?? 0) || rows.length;
+
+  const armedRows = useMemo(
+    () => rows.filter((row) => row.kind === "armed"),
+    [rows],
+  );
+  const simRows = useMemo(
+    () => rows.filter((row) => row.kind === "sim"),
+    [rows],
+  );
 
   if (!authChecked) {
     return layout === "dock" ? (
@@ -549,8 +542,8 @@ export function LiveTradingRailCore({
         title={layout === "rail-aside" ? ko.app.liveTradeLeftRailOpen : undefined}
       >
         <span className="live-trade-rail__title">{ko.app.liveTradeLeftRailTitle}</span>
-        {rows.length > 0 ? (
-          <span className="live-trade-rail__count">{rows.length}</span>
+        {runningCount > 0 ? (
+          <span className="live-trade-rail__count">{runningCount}</span>
         ) : null}
       </button>
     </div>
