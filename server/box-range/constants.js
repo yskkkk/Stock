@@ -55,11 +55,28 @@ export const BOX_RANGE_CATALOG_DIR_LEGACY = "box-range-catalog";
 /** Pine f_zoneEngine 전체 차트 탐지 전용 저장 */
 export const BOX_RANGE_CATALOG_DIR_PINE = "box-range-catalog-pine";
 
-/** @deprecated detect-pro 전용 — Pine 탐지에는 미사용 */
+/** @deprecated legacy overlap merge — PRO는 BOX_RANGE_PRO_MERGE_MID_PCT */
 export const BOX_RANGE_MIN_TOUCHES = 2;
 export const BOX_RANGE_MERGE_PCT = 35;
 export const BOX_RANGE_MERGE_BARS_GAP = 5;
 export const BOX_RANGE_SIMILAR_RANGE_PCT = 8;
+
+/** PRO v2 — box-range-pro-core.js · pine-box-range-pro.pine SSOT */
+export const BOX_RANGE_PRO_BAND_HIGH_PCT = 90;
+export const BOX_RANGE_PRO_BAND_LOW_PCT = 10;
+export const BOX_RANGE_PRO_MIN_REJECTIONS = 2;
+/** 상·하단 터치 후 종가가 밴드 안쪽으로 밀린 비율(터치폭 × 이 값) */
+export const BOX_RANGE_PRO_REJECT_CLOSE_FRAC = 0.4;
+/** 병합: 중심가 차이(중간가 대비 %) 상한 */
+export const BOX_RANGE_PRO_MERGE_MID_PCT = 1.5;
+/** 병합: 박스 높이(%) 차이 상한 */
+export const BOX_RANGE_PRO_MERGE_HEIGHT_DIFF_PCT = 25;
+/** 가로 확장 중단 — 종가가 중심에서 벗어난 반높이 비율(%) */
+export const BOX_RANGE_PRO_SPLIT_MID_PCT = {
+  "1h": 28,
+  "4h": 38,
+  "1d": 48,
+};
 
 export function getBoxRangeTechModelStub() {
   const now = Date.now();

@@ -1,8 +1,8 @@
 import {
   BOX_RANGE_MERGE_BARS_GAP,
-  BOX_RANGE_MERGE_PCT,
-  BOX_RANGE_SIMILAR_RANGE_PCT,
+  BOX_RANGE_PRO_MERGE_MID_PCT,
 } from "./constants.js";
+import { shouldMergeProBoxes } from "./box-range-pro-core.js";
 
 /**
  * @param {number} t1
@@ -63,28 +63,17 @@ export function findMergeBoxIndex(candidate, existing, barSec) {
     const e = existing[j];
     if (String(e.timeframe ?? "").trim() !== tf) continue;
     if (e.state === "closed" || e.state === "in_position") continue;
-    const priceOk =
-      priceOverlapPct(
-        candidate.top,
-        candidate.bottom,
-        e.top,
-        e.bottom,
-      ) >= BOX_RANGE_MERGE_PCT ||
-      similarRange(
-        candidate.top,
-        candidate.bottom,
-        e.top,
-        e.bottom,
-        BOX_RANGE_SIMILAR_RANGE_PCT,
-      );
-    const timeOk = timesNearOverlap(
-      candidate.leftTime,
-      candidate.rightTime,
-      e.leftTime,
-      e.rightTime,
-      gap,
-    );
-    if (priceOk && timeOk) return j;
+    if (
+      shouldMergeProBoxes(
+        candidate,
+        e,
+        barSec,
+        BOX_RANGE_MERGE_BARS_GAP,
+        BOX_RANGE_PRO_MERGE_MID_PCT,
+      )
+    ) {
+      return j;
+    }
   }
   return -1;
 }

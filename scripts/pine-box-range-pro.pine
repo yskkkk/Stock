@@ -1,16 +1,18 @@
-// 통합 박스권 감지기 PRO — TradingView Pine v5
-// 중심 수평선: 첫 매수 봉까지만 · 가로 확장: 종가가 중심에서 TF별 반높이 % 이탈 시 중단
+// 통합 박스권 감지기 PRO v2 — SSOT: server/box-range/box-range-pro-core.js
+// 1단계: 종가 90/10 밴드 · 중심 반대 거절 터치 · 중심가 병합
+// 3단계: VWAP(없으면 typical 50%) 중심 · 확장 시 슬라이스 재계산 · 중심 이탈 시 가로 중단
 
 //@version=5
 indicator("통합 박스권 감지기 PRO", overlay=true, max_boxes_count=500, max_lines_count=500)
 
 string active_tf = input.string("D", "분석 타임프레임", options=["60", "240", "D"])
 int min_days = input.int(14, "최소 기간", minval=14)
-float merge_pct = input.float(35.0, "박스 병합: 가격 겹침 %", minval=10, maxval=90)
-int merge_bars = input.int(5, "박스 병합: 좌우 봉 간격", minval=0)
+float merge_mid_pct = input.float(1.5, "병합: 중심 허용(%)", minval=0.2, maxval=8.0, step=0.1, tooltip="중심가 차이 — box-range-pro-core shouldMergeProBoxes")
+float merge_height_pct = input.float(25.0, "병합: 높이 차(%)", minval=5.0, maxval=50.0, step=1.0)
+int merge_bars = input.int(5, "병합: 좌우 봉 간격", minval=0)
 int max_expand_bars = input.int(120, "좌우 확장 최대(봉)", minval=20, maxval=300)
-float expand_edge_pct = input.float(12.0, "확장 허용(박스높이 %)", minval=2.0, maxval=40.0, step=0.5, tooltip="시드 박스 밖으로 이만큼까지는 같은 박스로 봄")
-int expand_gap_bars = input.int(2, "확장 끊김(연속 이탈 봉)", minval=1, maxval=6, tooltip="이 봉 수 연속으로 박스 밖이면 좌·우 확장 중단")
+float expand_edge_pct = input.float(12.0, "확장 허용(박스높이 %)", minval=2.0, maxval=40.0, step=0.5)
+int expand_gap_bars = input.int(2, "확장 끊김(연속 이탈 봉)", minval=1, maxval=6)
 
 bool show_buy = input.bool(true, "매수 신호")
 bool show_sell = input.bool(true, "매도 신호")
@@ -21,8 +23,8 @@ if active_tf == "60"
 else if active_tf == "240"
     max_box_pct := 5.0
 
-bool split_tf_preset = input.bool(true, "TF별 중심 이탈 % 프리셋", tooltip="1H 28 / 4H 38 / 1D 48. 끄면 아래 수동 값 사용")
-float split_mid_manual = input.float(48.0, "중심 이탈 한계(반높이 %)", minval=10, maxval=80, step=1.0, tooltip="종가가 중심에서 반높이×이 % 이상 벗어나면 가로 확장 중단")
+bool split_tf_preset = input.bool(true, "TF별 중심 이탈 % 프리셋", tooltip="1H 28 / 4H 38 / 1D 48")
+float split_mid_manual = input.float(48.0, "중심 이탈 한계(반높이 %)", minval=10, maxval=80, step=1.0)
 float split_mid_pct = split_tf_preset ? (active_tf == "60" ? 28.0 : active_tf == "240" ? 38.0 : 48.0) : split_mid_manual
 
 bool is_selected_tf = timeframe.period == active_tf
@@ -50,27 +52,81 @@ bool sig_buy = false
 bool sig_selltp = false
 bool sig_sellsl = false
 
-price_overlap_pct(float t1, float b1, float t2, float b2) =>
-    float hi = math.min(t1, t2)
-    float lo = math.max(b1, b2)
-    float overlap = math.max(0.0, hi - lo)
-    float h1 = t1 - b1
-    float h2 = t2 - b2
-    float base = math.max(h1, h2, syminfo.mintick)
-    (overlap / base) * 100.0
+// ── core: percentile · VWAP mid (constants.js 와 동일) ─────────────
+f_percentile_close(int newestOff, int oldestOff, float p) =>
+    float[] buf = array.new_float()
+    for i = newestOff to oldestOff
+        array.push(buf, close[i])
+    int n = array.size(buf)
+    if n == 0
+        na
+    else
+        array.sort(buf, order.ascending)
+        int idx = int(math.round((p / 100.0) * (n - 1)))
+        array.get(buf, idx)
+
+f_typical_median(int newestOff, int oldestOff) =>
+    float[] buf = array.new_float()
+    for i = newestOff to oldestOff
+        array.push(buf, hlc3[i])
+    int n = array.size(buf)
+    if n == 0
+        na
+    else
+        array.sort(buf, order.ascending)
+        array.get(buf, int((n - 1) / 2))
+
+// oldestOff > newestOff (과거 봉 offset 이 더 큼)
+f_compute_box_slice(int oldestOff, int newestOff) =>
+    float top = f_percentile_close(newestOff, oldestOff, 90.0)
+    float bot = f_percentile_close(newestOff, oldestOff, 10.0)
+    float mid = na
+    if na(top) or na(bot)
+        [na, na, na]
+    else
+        if top <= bot
+            for i = newestOff to oldestOff
+                top := math.max(top, high[i])
+                bot := math.min(bot, low[i])
+        float pv = 0.0
+        float vol = 0.0
+        for i = newestOff to oldestOff
+            float tp = hlc3[i]
+            float v = volume[i]
+            if v > 0
+                pv += tp * v
+                vol += v
+        mid := vol > 0 ? pv / vol : f_typical_median(newestOff, oldestOff)
+        mid := math.max(bot, math.min(top, mid))
+        [top, bot, mid]
+
+f_box_height_pct(float t, float b) =>
+    float m = (t + b) * 0.5
+    m > 0 ? ((t - b) / m) * 100.0 : 100.0
+
+f_mid_distance_pct(float t1, float b1, float t2, float b2) =>
+    float m1 = (t1 + b1) * 0.5
+    float m2 = (t2 + b2) * 0.5
+    float ref = (m1 + m2) * 0.5
+    ref > 0 ? (math.abs(m1 - m2) / ref) * 100.0 : 100.0
 
 time_near_overlap(int tL1, int tR1, int tL2, int tR2, int gapBars) =>
     int gap = gapBars * tfMs
     (tL1 <= tR2 + gap) and (tL2 <= tR1 + gap)
 
-similar_range(float tA, float bA, float tB, float bB, float tol_pct) =>
-    float tol = math.max(tA - bA, tB - bB) * (tol_pct / 100.0)
-    math.abs(tA - tB) <= tol and math.abs(bA - bB) <= tol
+f_should_merge_pro(float t, float b, float mid, int lT, int rT, int j) =>
+    float et = array.get(tops, j)
+    float eb = array.get(bottoms, j)
+    int el = array.get(leftTimes, j)
+    int er = array.get(rightTimes, j)
+    bool timeOk = time_near_overlap(lT, rT, el, er, merge_bars)
+    bool midOk = f_mid_distance_pct(t, b, et, eb) <= merge_mid_pct
+    bool hOk = math.abs(f_box_height_pct(t, b) - f_box_height_pct(et, eb)) <= merge_height_pct
+    timeOk and midOk and hOk
 
 bar_in_band(int idx, float top, float bot, float pad) =>
     high[idx] <= top + pad and low[idx] >= bot - pad
 
-// 종가가 중심에서 splitPct%×반높이 이내일 때만 가로 확장 허용
 bar_near_mid(int idx, float mid, float top, float bot, float splitPct) =>
     float halfH = (top - bot) * 0.5
     halfH <= syminfo.mintick ? true : math.abs(close[idx] - mid) <= (splitPct / 100.0) * halfH
@@ -78,43 +134,50 @@ bar_near_mid(int idx, float mid, float top, float bot, float splitPct) =>
 bar_can_extend(int idx, float top, float bot, float mid, float pad, float splitPct) =>
     bar_in_band(idx, top, bot, pad) and bar_near_mid(idx, mid, top, bot, splitPct)
 
-expand_range_idx(int seedLeft, int seedRight, float top, float bot, float mid, int maxBars, float pad, int gapAllow, float splitPct) =>
-    int leftIdx = seedLeft
-    int rightIdx = seedRight
+expand_range_idx(int seedOldest, int seedNewest, int maxBars, float pad, int gapAllow, float splitPct) =>
+    int oldestOff = seedOldest
+    int newestOff = seedNewest
     int miss = 0
     int lim = math.min(maxBars, bar_index - 1)
-    if seedLeft < lim
-        for i = seedLeft + 1 to lim
-            if bar_can_extend(i, top, bot, mid, pad, splitPct)
-                leftIdx := i
+    if seedOldest < lim
+        for i = seedOldest + 1 to lim
+            [top, bot, mid] = f_compute_box_slice(i, newestOff)
+            if not na(top) and bar_can_extend(i, top, bot, mid, pad, splitPct)
+                oldestOff := i
                 miss := 0
             else
                 miss += 1
                 if miss >= gapAllow
                     break
     miss := 0
-    for i = seedRight - 1 to 0
-        if bar_can_extend(i, top, bot, mid, pad, splitPct)
-            rightIdx := i
+    for i = seedNewest - 1 to 0
+        [top, bot, mid] = f_compute_box_slice(oldestOff, i)
+        if not na(top) and bar_can_extend(i, top, bot, mid, pad, splitPct)
+            newestOff := i
             miss := 0
         else
             miss += 1
             if miss >= gapAllow
                 break
-    [leftIdx, rightIdx]
+    [oldestOff, newestOff]
 
-recalc_box_prices(int leftIdx, int rightIdx) =>
-    float t = high[rightIdx]
-    float b = low[rightIdx]
-    for i = rightIdx + 1 to leftIdx
-        t := math.max(t, high[i])
-        b := math.min(b, low[i])
-    [t, b, (t + b) * 0.5]
+f_count_rejections(int oldestOff, int newestOff, float top, float bot) =>
+    float h = top - bot
+    float th = h * 0.12
+    float mid = (top + bot) * 0.5
+    int topR = 0
+    int botR = 0
+    for i = newestOff to oldestOff
+        if high[i] >= top - th and close[i] < mid
+            topR += 1
+        if low[i] <= bot + th and close[i] > mid
+            botR += 1
+    [topR, botR]
 
 f_lineEndT(int boxRightT, int buyT) =>
     na(buyT) ? boxRightT : buyT
 
-merge_into(int idx, float newTop, float newBot, int newLeftT, int newRightT) =>
+merge_into(int idx, float newTop, float newBot, float newMid, int newLeftT, int newRightT) =>
     float oldTop = array.get(tops, idx)
     float oldBot = array.get(bottoms, idx)
     float mTop = math.max(oldTop, newTop)
@@ -139,18 +202,12 @@ merge_into(int idx, float newTop, float newBot, int newLeftT, int newRightT) =>
     line.set_extend(ln, extend.none)
     idx
 
-find_merge_index(float t, float b, int lT, int rT) =>
+find_merge_index(float t, float b, float mid, int lT, int rT) =>
     int found = -1
     int n = array.size(boxes)
     if n > 0
         for j = 0 to n - 1
-            float et = array.get(tops, j)
-            float eb = array.get(bottoms, j)
-            int el = array.get(leftTimes, j)
-            int er = array.get(rightTimes, j)
-            bool price_ok = price_overlap_pct(t, b, et, eb) >= merge_pct or similar_range(t, b, et, eb, 8.0)
-            bool time_ok = time_near_overlap(lT, rT, el, er, merge_bars)
-            if price_ok and time_ok
+            if f_should_merge_pro(t, b, mid, lT, rT, j)
                 found := j
                 break
     found
@@ -174,23 +231,15 @@ if is_selected_tf and barstate.isconfirmed
         float seedTop = max_val
         float seedBot = min_val
         float pad = (seedTop - seedBot) * (expand_edge_pct / 100.0)
-        float seedMid = (seedTop + seedBot) * 0.5
-        [leftIdx, rightIdx] = expand_range_idx(start_idx, 1, seedTop, seedBot, seedMid, lookback, pad, expand_gap_bars, split_mid_pct)
-        [boxTop, boxBot, mid] = recalc_box_prices(leftIdx, rightIdx)
-        float threshold = (boxTop - boxBot) * 0.12
-        int top_touch = 0
-        int bottom_touch = 0
-        for i = rightIdx to leftIdx
-            if high[i] >= boxTop - threshold
-                top_touch += 1
-            if low[i] <= boxBot + threshold
-                bottom_touch += 1
-        if top_touch >= 2 and bottom_touch >= 2
-            int tLeft = time[leftIdx]
-            int tRight = time[rightIdx]
-            int mergeIdx = find_merge_index(boxTop, boxBot, tLeft, tRight)
+        [oldestOff, newestOff] = expand_range_idx(start_idx, 1, lookback, pad, expand_gap_bars, split_mid_pct)
+        [boxTop, boxBot, mid] = f_compute_box_slice(oldestOff, newestOff)
+        [topR, botR] = f_count_rejections(oldestOff, newestOff, boxTop, boxBot)
+        if not na(mid) and topR >= 2 and botR >= 2
+            int tLeft = time[oldestOff]
+            int tRight = time[newestOff]
+            int mergeIdx = find_merge_index(boxTop, boxBot, mid, tLeft, tRight)
             if mergeIdx >= 0
-                merge_into(mergeIdx, boxTop, boxBot, tLeft, tRight)
+                merge_into(mergeIdx, boxTop, boxBot, mid, tLeft, tRight)
             else
                 box b = box.new(tLeft, boxTop, tRight, boxBot, xloc=xloc.bar_time, border_color=color.blue, border_width=2, bgcolor=color.new(color.blue, 90))
                 line l = line.new(tLeft, mid, tRight, mid, xloc=xloc.bar_time, color=color.orange, width=1, extend=extend.none)
