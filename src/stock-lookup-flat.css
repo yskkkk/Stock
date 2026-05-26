@@ -62,6 +62,20 @@
   background: color-mix(in srgb, var(--card) 72%, var(--surface));
 }
 
+.workspace--stock-lookup:not(.crypto-workspace) .stock-search-tab__selected-pin {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 22%, var(--card-border));
+  background: color-mix(in srgb, var(--accent-dim) 45%, var(--card));
+}
+
+.workspace--stock-lookup:not(.crypto-workspace)
+  .stock-search-tab__selected-pin
+  > .stock-hot-item {
+  border-bottom: none !important;
+}
+
 .workspace--stock-lookup:not(.crypto-workspace) .pick-search {
   background: color-mix(in srgb, var(--card) 55%, var(--surface)) !important;
   border: 1px solid var(--card-border) !important;

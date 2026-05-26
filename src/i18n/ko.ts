@@ -723,6 +723,7 @@ export const ko = {
     stockLookupSelectTitle: "종목을 검색하거나 선택하세요",
     stockLookupSelectDesc: "Yahoo Finance 검색 결과에서 종목을 누르면 차트가 열립니다.",
     stockLookupPlaceholder: "이름 또는 심볼 (예: 삼성, AAPL, 005930)",
+    stockLookupSelectedPin: "선택 종목",
     stockLookupAria: "종목 검색",
     stockLookupIdle: "검색어를 입력하세요.",
     stockLookupHotTitle: "거래대금 상위",

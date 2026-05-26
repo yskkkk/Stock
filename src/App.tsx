@@ -584,6 +584,28 @@ export default function App() {
     return () => window.clearTimeout(t);
   }, [workspacePick?.symbol, workspacePick?.market, appTab]);
 
+  /** 종목검색 좌측 고정 행 — 차트 시세와 동기화 */
+  useEffect(() => {
+    if (appTab !== "stockLookup" || !quote) return;
+    const sym = workspacePick?.symbol?.trim().toUpperCase();
+    if (!sym) return;
+    setLookupSelected((prev) => {
+      if (!prev || prev.symbol.trim().toUpperCase() !== sym) return prev;
+      return {
+        ...prev,
+        price: quote.price ?? prev.price,
+        changePercent: quote.changePercent ?? prev.changePercent,
+        currency: quote.currency ?? prev.currency,
+      };
+    });
+  }, [
+    appTab,
+    quote?.price,
+    quote?.changePercent,
+    quote?.currency,
+    workspacePick?.symbol,
+  ]);
+
   const { rate: usdKrwRate, valuationDate: usdKrwValDate } = useUsdKrwRate(true);
   const {
     items: marketIndices,
@@ -1581,6 +1603,7 @@ export default function App() {
               market={lookupMarketTab}
               seedQuery={lookupSeedQuery}
               selectedSymbol={lookupSelected?.symbol ?? null}
+              selectedPick={lookupSelected}
               onSelectPick={handleLookupSelect}
               onLookupMarketChange={setLookupMarketTab}
               onNews={handleNews}

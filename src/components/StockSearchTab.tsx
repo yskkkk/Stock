@@ -43,6 +43,8 @@ export interface StockSearchTabProps {
   /** 실거래 등 외부에서 넘어온 심볼 — 검색창·결과 목록 자동 조회 */
   seedQuery?: string | null;
   selectedSymbol: string | null;
+  /** 차트·선택 종목 — 검색창 바로 아래 고정 */
+  selectedPick?: StockPick | null;
   onSelectPick: (pick: StockPick) => void;
   /** 교차 시장 검색으로 탭을 맞출 때 */
   onLookupMarketChange: (market: Market) => void;
@@ -60,6 +62,20 @@ export interface StockSearchTabProps {
   onToggleUsQuoteKrw?: () => void;
   usdKrwRate?: number | null;
   usdKrwValDate?: string | null;
+}
+
+function pickToQuoteRow(pick: StockPick): StockSearchQuoteRow {
+  return {
+    symbol: pick.symbol,
+    name: pick.name,
+    market: pick.market,
+    nameKo: pick.nameKo,
+    nameEn: pick.nameEn,
+    price: pick.price,
+    changePercent: pick.changePercent,
+    currency: pick.currency,
+    turnover: pick.turnover,
+  };
 }
 
 function rowToPick(row: StockSearchQuoteRow): StockPick {
@@ -396,6 +412,7 @@ export default function StockSearchTab({
   market,
   seedQuery = null,
   selectedSymbol,
+  selectedPick = null,
   onSelectPick,
   onLookupMarketChange,
   onNews,
@@ -694,6 +711,16 @@ export default function StockSearchTab({
 
   useEffect(() => () => analysisAbortRef.current?.abort(), []);
 
+  const pinnedPick =
+    selectedPick && selectedPick.market === market ? selectedPick : null;
+  const pinnedSym = pinnedPick?.symbol.trim().toUpperCase() ?? "";
+  const hotWithoutPinned = pinnedSym
+    ? hotQuotes.filter((r) => r.symbol.trim().toUpperCase() !== pinnedSym)
+    : hotQuotes;
+  const quotesWithoutPinned = pinnedSym
+    ? quotes.filter((r) => r.symbol.trim().toUpperCase() !== pinnedSym)
+    : quotes;
+
   return (
     <div className="stock-search-tab">
       <div className="pick-toolbar stock-search-tab__toolbar">
@@ -718,6 +745,20 @@ export default function StockSearchTab({
           spellCheck={false}
         />
       </div>
+      {pinnedPick ? (
+        <ul
+          className="pick-list stock-search-tab__list stock-search-tab__selected-pin"
+          aria-label={ko.app.stockLookupSelectedPin}
+        >
+          <StockSearchHotRow
+            row={pickToQuoteRow(pinnedPick)}
+            isActive
+            onSelectPick={onSelectPick}
+            usQuoteInKrw={usQuoteInKrw}
+            usdKrwRate={usdKrwRate}
+          />
+        </ul>
+      ) : null}
       {loading && (
         <p className="picks-empty picks-empty--muted">{ko.app.stockLookupLoading}</p>
       )}
@@ -728,14 +769,14 @@ export default function StockSearchTab({
       )}
       {!loading && !error && debounced.length < 1 && (
         <>
-          {hotLoading && hotQuotes.length === 0 ? (
+          {hotLoading && hotWithoutPinned.length === 0 && !pinnedPick ? (
             <p className="picks-empty picks-empty--muted">
               {ko.app.stockLookupHotLoading}
             </p>
-          ) : hotQuotes.length > 0 ? (
+          ) : hotWithoutPinned.length > 0 ? (
             <>
               <ul className="pick-list stock-search-tab__list stock-search-tab__hot-list">
-                {hotQuotes.map((row) => (
+                {hotWithoutPinned.map((row) => (
                   <StockSearchHotRow
                     key={row.symbol}
                     row={row}
@@ -747,17 +788,17 @@ export default function StockSearchTab({
                 ))}
               </ul>
             </>
-          ) : (
+          ) : !pinnedPick ? (
             <p className="picks-empty">{ko.app.stockLookupIdle}</p>
-          )}
+          ) : null}
         </>
       )}
       {!loading && !error && debounced.length >= 1 && quotes.length === 0 && (
         <p className="picks-empty">{ko.app.stockLookupNoHits}</p>
       )}
-      {!loading && !error && quotes.length > 0 && (
+      {!loading && !error && quotesWithoutPinned.length > 0 && (
         <ul className="pick-list stock-search-tab__list">
-          {quotes.map((row) => (
+          {quotesWithoutPinned.map((row) => (
             <StockSearchPickRow
               key={row.symbol}
               row={row}
