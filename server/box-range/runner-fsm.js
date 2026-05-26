@@ -93,7 +93,7 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
   const afterBox = rightMs > 0 && now > rightMs;
 
   if (box.state === "idle") {
-    if (afterBox && lastPrice <= box.bottom) {
+    if (afterBox && lastPrice < box.bottom) {
       patchBoxSync(box.boxId, {
         state: "armed",
         armedAtMs: now,
@@ -105,7 +105,7 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
 
   if (box.state === "armed") {
     const broke = box.breakAtMs != null;
-    if (afterBox && broke && lastPrice > box.bottom) {
+    if (afterBox && broke && lastPrice >= box.mid) {
       if (!box.midNotifiedAtMs) {
         const notifyKey = `${program.id}:${box.boxId}`;
         if (!boxNotifyInFlight.has(notifyKey)) {
@@ -133,7 +133,7 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
         const pick = {
           symbol: sym,
           market,
-          price: lastPrice,
+          price: box.mid,
           name: sym,
           score: 1,
           signalIds: [`box-range:${box.timeframe}`],
@@ -157,7 +157,7 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
             if (!out.ok) throw new Error(out.error ?? "매수 실패");
             trade = await recordLiveTradeBuyAsync(
               program,
-              { ...pick, price: out.fillPrice ?? lastPrice },
+              { ...pick, price: out.fillPrice ?? box.mid },
               {
                 simulated: out.simulated,
                 orderId: out.orderId,
@@ -173,7 +173,7 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
             const orderAmount = await resolveOrderAmountForMarket(program, market);
             trade = recordLiveTradeBuySync(
               program,
-              { ...pick, price: out.fillPrice ?? lastPrice },
+              { ...pick, price: out.fillPrice ?? box.mid },
               {
                 simulated: out.simulated,
                 orderId: out.orderId,

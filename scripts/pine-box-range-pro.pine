@@ -1,7 +1,7 @@
 // 통합 박스권 감지기 PRO v2 — SSOT: server/box-range/box-range-pro-core.js
 // 서버 카탈로그: 4h·1d → server/.data/box-range-catalog-pro (1h 별도 예정)
 // 1단계: 종가 88/12 밴드(러프) · 거절 1회+ · 중심 병합 2.5%
-// 3단계: VWAP 중심(표시용) · 매매: 박스 종료 후 하단 터치→하단 재돌파 매수(박스 내 중심선 매수 없음)
+// 3단계: VWAP 중심=평행선 · 매매: 박스 종료→하단 이탈→박스 밖 평행선 터치(박스 구간·박스 내 선 끊김 없음)
 
 //@version=5
 indicator("통합 박스권 감지기 PRO", overlay=true, max_boxes_count=500, max_lines_count=500)
@@ -180,16 +180,16 @@ f_count_rejections(int oldestOff, int newestOff, float top, float bot) =>
             botR += 1
     [topR, botR]
 
+// 평행선: 박스 전체 + 우측 연장; 매수 봉이 박스 밖일 때만 그 봉에서 종료
 f_lineEndT(int boxRightT, int buyT) =>
-    na(buyT) ? boxRightT : buyT
+    na(buyT) ? boxRightT : math.max(boxRightT, buyT)
 
-// 박스 우측(시간상 이후) 봉만 — 박스 구간 안에서는 매매 없음
+// 박스 우측(시간) 이후 봉만 — 박스 구간 안 매매·매수 선 단절 금지
 f_after_box(int boxRightT) =>
     time > boxRightT
 
-// 무장 봉에서 하단 이하 → 이후 종가가 하단선 위로 복귀(중심/VWAP 터치와 무관)
-f_reclaim_bottom(float bot) =>
-    close > bot
+f_touches_mid(float mid) =>
+    high >= mid and low <= mid
 
 merge_into(int idx, float newTop, float newBot, float newMid, int newLeftT, int newRightT) =>
     float oldTop = array.get(tops, idx)
@@ -213,7 +213,7 @@ merge_into(int idx, float newTop, float newBot, float newMid, int newLeftT, int 
     box.set_rightbottom(bx, mRight, mBot)
     line.set_xy1(ln, mLeft, mMid)
     line.set_xy2(ln, f_lineEndT(mRight, buyT), mMid)
-    line.set_extend(ln, extend.none)
+    line.set_extend(ln, na(buyT) ? extend.right : extend.none)
     idx
 
 find_merge_index(float t, float b, float mid, int lT, int rT) =>
@@ -256,7 +256,7 @@ if is_selected_tf and barstate.isconfirmed
                 merge_into(mergeIdx, boxTop, boxBot, mid, tLeft, tRight)
             else
                 box b = box.new(tLeft, boxTop, tRight, boxBot, xloc=xloc.bar_time, border_color=color.blue, border_width=2, bgcolor=color.new(color.blue, 90))
-                line l = line.new(tLeft, mid, tRight, mid, xloc=xloc.bar_time, color=color.orange, width=1, extend=extend.none)
+                line l = line.new(tLeft, mid, tRight, mid, xloc=xloc.bar_time, color=color.orange, width=1, extend=extend.right)
                 array.push(boxes, b)
                 array.push(lines, l)
                 array.push(tops, boxTop)
@@ -287,7 +287,7 @@ if sz > 0
                 if afterBox and not trig and low < bottom
                     array.set(triggered, i, true)
                     array.set(breakBars, i, bar_index)
-                if trig and afterBox and f_touches_mid(top, bottom, mid)
+                if trig and afterBox and f_touches_mid(mid)
                     array.set(entryPrices, i, mid)
                     array.set(entryBars, i, bar_index)
                     array.set(firstBuyTimes, i, time)
@@ -329,7 +329,7 @@ if liveSz > 0
         int lineEndT = f_lineEndT(boxRightT, buyT)
         line.set_xy1(ln, array.get(leftTimes, i), mid)
         line.set_xy2(ln, lineEndT, mid)
-        line.set_extend(ln, extend.none)
+        line.set_extend(ln, na(buyT) ? extend.right : extend.none)
         color borderCol = hasPos ? color.lime : color.blue
         color bgCol = hasPos ? color.new(color.green, 82) : color.new(color.blue, 90)
         box.set_border_color(bx, borderCol)
