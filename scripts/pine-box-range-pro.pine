@@ -1,5 +1,5 @@
 // 통합 박스권 감지기 PRO — TradingView Pine v5
-// 중심 수평선: 첫 매수(중심 재돌파) 봉까지만 연장 · 노란 터치 강조 없음
+// 중심 수평선: 첫 매수 봉까지만 · 가로 확장: 종가가 중심에서 TF별 반높이 % 이탈 시 중단
 
 //@version=5
 indicator("통합 박스권 감지기 PRO", overlay=true, max_boxes_count=500, max_lines_count=500)
@@ -16,10 +16,15 @@ bool show_buy = input.bool(true, "매수 신호")
 bool show_sell = input.bool(true, "매도 신호")
 
 float max_box_pct = 15.0
+float split_mid_pct = 48.0
 if active_tf == "60"
     max_box_pct := 3.0
+    split_mid_pct := 28.0
 else if active_tf == "240"
     max_box_pct := 5.0
+    split_mid_pct := 38.0
+
+split_mid_pct := input.float(split_mid_pct, "중심 이탈 한계(반높이 %)", minval=10, maxval=80, step=1.0, tooltip="종가가 박스 중심에서 이 비율×반높이 이상 벗어나면 좌·우·우측 연장 중단. 프리셋: 1H 28 / 4H 38 / 1D 48")
 
 bool is_selected_tf = timeframe.period == active_tf
 int tfMs = timeframe.in_seconds() * 1000
@@ -66,14 +71,22 @@ similar_range(float tA, float bA, float tB, float bB, float tol_pct) =>
 bar_in_band(int idx, float top, float bot, float pad) =>
     high[idx] <= top + pad and low[idx] >= bot - pad
 
-expand_range_idx(int seedLeft, int seedRight, float top, float bot, int maxBars, float pad, int gapAllow) =>
+// 종가가 중심에서 splitPct%×반높이 이내일 때만 가로 확장 허용
+bar_near_mid(int idx, float mid, float top, float bot, float splitPct) =>
+    float halfH = (top - bot) * 0.5
+    halfH <= syminfo.mintick ? true : math.abs(close[idx] - mid) <= (splitPct / 100.0) * halfH
+
+bar_can_extend(int idx, float top, float bot, float mid, float pad, float splitPct) =>
+    bar_in_band(idx, top, bot, pad) and bar_near_mid(idx, mid, top, bot, splitPct)
+
+expand_range_idx(int seedLeft, int seedRight, float top, float bot, float mid, int maxBars, float pad, int gapAllow, float splitPct) =>
     int leftIdx = seedLeft
     int rightIdx = seedRight
     int miss = 0
     int lim = math.min(maxBars, bar_index - 1)
     if seedLeft < lim
         for i = seedLeft + 1 to lim
-            if bar_in_band(i, top, bot, pad)
+            if bar_can_extend(i, top, bot, mid, pad, splitPct)
                 leftIdx := i
                 miss := 0
             else
@@ -82,7 +95,7 @@ expand_range_idx(int seedLeft, int seedRight, float top, float bot, int maxBars,
                     break
     miss := 0
     for i = seedRight - 1 to 0
-        if bar_in_band(i, top, bot, pad)
+        if bar_can_extend(i, top, bot, mid, pad, splitPct)
             rightIdx := i
             miss := 0
         else
@@ -162,7 +175,8 @@ if is_selected_tf and barstate.isconfirmed
         float seedTop = max_val
         float seedBot = min_val
         float pad = (seedTop - seedBot) * (expand_edge_pct / 100.0)
-        [leftIdx, rightIdx] = expand_range_idx(start_idx, 1, seedTop, seedBot, lookback, pad, expand_gap_bars)
+        float seedMid = (seedTop + seedBot) * 0.5
+        [leftIdx, rightIdx] = expand_range_idx(start_idx, 1, seedTop, seedBot, seedMid, lookback, pad, expand_gap_bars, split_mid_pct)
         [boxTop, boxBot, mid] = recalc_box_prices(leftIdx, rightIdx)
         float threshold = (boxTop - boxBot) * 0.12
         int top_touch = 0
@@ -244,7 +258,8 @@ if liveSz > 0
         int origRightT = array.get(rightTimes, i)
         int buyT = array.get(firstBuyTimes, i)
         float pad = (top - bottom) * (expand_edge_pct / 100.0)
-        int boxRightT = bar_in_band(0, top, bottom, pad) ? time : origRightT
+        bool canExtendBox = bar_can_extend(0, top, bottom, mid, pad, split_mid_pct)
+        int boxRightT = canExtendBox ? time : origRightT
         box.set_right(bx, boxRightT)
         int lineEndT = na(buyT) ? time : buyT
         line.set_xy1(ln, array.get(leftTimes, i), mid)
