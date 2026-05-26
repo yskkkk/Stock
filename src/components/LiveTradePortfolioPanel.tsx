@@ -63,7 +63,8 @@ import {
 } from "./LiveTradeHoldingDisplay";
 import { LiveTradeSymbolCellFromRecord as TradeSymbolCell } from "./LiveTradeSymbolCell";
 import { LiveTradeTradesHistoryTable } from "./LiveTradeTradesHistoryPanel";
-import { groupTradesByProgram } from "../lib/groupTradesByProgram";
+import LiveTradeHistorySimProgramTabs from "./LiveTradeHistorySimProgramTabs";
+import { programTradesPnlSummary } from "../lib/programTradesPnlSummary";
 
 type PanelTab = "summary" | "holdings" | "trade" | "trades" | "openOrders";
 
@@ -428,6 +429,7 @@ export default function LiveTradePortfolioPanel({
   const viewTab = hoverTab ?? pinnedTab;
   const { user } = useLiveTradeAuth();
   const [programId, setProgramId] = useState<string>("");
+  const [simTradesProgramId, setSimTradesProgramId] = useState("");
   const [adminViewUserId, setAdminViewUserId] = useState<string | null>(null);
   const [adminViewProgramName, setAdminViewProgramName] = useState<string | null>(
     null,
@@ -645,6 +647,16 @@ export default function LiveTradePortfolioPanel({
       setProgramId("");
     }
   }, [programs, programId, adminReadOnly]);
+
+  useEffect(() => {
+    if (programs.length === 0) {
+      setSimTradesProgramId("");
+      return;
+    }
+    if (!simTradesProgramId || !programs.some((p) => p.id === simTradesProgramId)) {
+      setSimTradesProgramId(programs[0].id);
+    }
+  }, [programs, simTradesProgramId]);
 
   const tradesByScenario = useMemo(() => {
     const all = data?.trades ?? [];
@@ -923,30 +935,87 @@ export default function LiveTradePortfolioPanel({
               }
               return sections.map((section) =>
                 section.rows.length === 0 ? null : section.id === "sim" ? (
+                  (() => {
+                    const simRows = simTradesProgramId
+                      ? section.rows.filter(
+                          (t) => t.programId === simTradesProgramId,
+                        )
+                      : [];
+                    const simHoldings = (data?.holdings ?? []).filter(
+                      (h) => h.programId === simTradesProgramId,
+                    );
+                    const simPnl = programTradesPnlSummary(simRows, simHoldings);
+                    const simRetUp =
+                      simPnl.totalReturnPct != null &&
+                      simPnl.totalReturnPct >= 0;
+                    return (
                   <div
                     key={section.id}
                     className="live-portfolio__trades-scenario"
                   >
                     <h5 className="live-sim-run__sub">{section.title}</h5>
                     <p className="live-portfolio__exchange-note">{section.note}</p>
-                    {groupTradesByProgram(section.rows).map((g) => (
-                      <div
-                        key={g.programId}
-                        className="live-portfolio__trades-program"
-                      >
-                        <h6 className="live-sim-run__sub live-portfolio__trades-program-title">
-                          {g.programName}
-                        </h6>
+                    <LiveTradeHistorySimProgramTabs
+                      programs={programs}
+                      value={simTradesProgramId}
+                      onChange={setSimTradesProgramId}
+                      className="live-portfolio__trades-sim-pick"
+                    />
+                    {simRows.length > 0 ? (
+                      <>
+                        <div
+                          className="live-trade-history__pnl-summary live-portfolio__trades-pnl"
+                          role="status"
+                        >
+                          <div className="live-trade-history__pnl-row">
+                            <span className="live-trade-history__pnl-label">
+                              {ko.app.liveTradeHistoryTotalReturn}
+                            </span>
+                            <span
+                              className={
+                                simPnl.totalReturnPct == null
+                                  ? "live-trade-history__pnl-val"
+                                  : simRetUp
+                                    ? "live-trade-history__pnl-val live-trade-history__pnl-val--up"
+                                    : "live-trade-history__pnl-val live-trade-history__pnl-val--down"
+                              }
+                            >
+                              {simPnl.totalReturnPct == null
+                                ? "—"
+                                : formatPercent(simPnl.totalReturnPct)}
+                            </span>
+                          </div>
+                          <div className="live-trade-history__pnl-row">
+                            <span className="live-trade-history__pnl-label">
+                              {ko.app.liveTradePfColRealizedPnl}
+                            </span>
+                            <span
+                              className={
+                                simPnl.realizedPnl >= 0
+                                  ? "live-trade-history__pnl-val live-trade-history__pnl-val--up"
+                                  : "live-trade-history__pnl-val live-trade-history__pnl-val--down"
+                              }
+                            >
+                              {simPnl.realizedLabel}
+                            </span>
+                          </div>
+                        </div>
                         <div className="live-portfolio__trades-scroll live-sim-run__table-wrap">
                           <LiveTradeTradesHistoryTable
-                            trades={g.trades}
+                            trades={simRows}
                             loadAll={false}
                             hideProgramColumn
                           />
                         </div>
-                      </div>
-                    ))}
+                      </>
+                    ) : (
+                      <p className="live-portfolio__muted">
+                        {ko.app.liveTradePfNoTrades}
+                      </p>
+                    )}
                   </div>
+                    );
+                  })()
                 ) : (
                   <div
                     key={section.id}

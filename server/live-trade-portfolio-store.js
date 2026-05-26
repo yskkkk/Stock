@@ -821,10 +821,7 @@ export async function enrichProgramReturnsFromHoldings(out, userId) {
     byProgram.get(pid).push(h);
   }
   for (const [pid, holdings] of byProgram) {
-    const pct = openReturnPctFromHoldings(holdings);
-    if (pct == null || !Number.isFinite(pct)) continue;
     if (!out[pid]) out[pid] = { totalReturnPct: null, holdingCount: 0 };
-    out[pid].totalReturnPct = pct;
     out[pid].holdingCount = holdings.length;
   }
   return out;
@@ -886,16 +883,17 @@ export async function buildProgramPortfolioSummariesMap(programIds, userId) {
       if (cp != null) marketValueOpen += cp * pos.quantity;
     }
     const unrealizedPnl = marketValueOpen - data.investedOpen;
+    const totalPnl = data.realizedPnl + unrealizedPnl;
     let totalReturnPct =
-      data.investedOpen > 0
-        ? (unrealizedPnl / data.investedOpen) * 100
-        : null;
+      data.totalBuyCost > 0 ? (totalPnl / data.totalBuyCost) * 100 : null;
     if (totalReturnPct != null && !Number.isFinite(totalReturnPct)) {
       totalReturnPct = null;
     }
     out[pid] = {
       totalReturnPct,
       holdingCount: data.holdingCount,
+      realizedPnl: data.realizedPnl,
+      totalPnl,
     };
   }
   for (const pid of ids) {

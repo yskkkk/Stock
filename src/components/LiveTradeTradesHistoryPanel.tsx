@@ -14,7 +14,7 @@ import {
 import { tradeFillDisplayByTradeId } from "../lib/liveTradeBuySellPrices";
 import { formatTradeSideLabel } from "../lib/liveTradeSideDisplay";
 import { liveTradeRecordMatchesExchange } from "../lib/liveTradeTradesExchangeFilter";
-import { groupTradesByProgram } from "../lib/groupTradesByProgram";
+import { programTradesPnlSummary } from "../lib/programTradesPnlSummary";
 import {
   liveTradeHistoryScenarioSub,
 } from "./LiveTradeHistoryScenarioTabs";
@@ -210,6 +210,7 @@ export default function LiveTradeTradesHistoryPanel({
   workspaceMode = false,
   programId = null,
   programName = null,
+  programReturnPct = null,
   exchange = null,
   scenario = null,
   loadAll: loadAllProp,
@@ -222,6 +223,8 @@ export default function LiveTradeTradesHistoryPanel({
   /** 지정 시 해당 프로그램 체결만 */
   programId?: string | null;
   programName?: string | null;
+  /** 상태 API programReturns.totalReturnPct (시뮬·프로그램별) */
+  programReturnPct?: number | null;
   /** 토스(kr·us) / 빗썸(crypto) — scenario 없을 때만 */
   exchange?: LiveTradeTradesExchange | null;
   /** 시뮬 / 빗썸 실매매 / 토스 실매매 (우선) */
@@ -324,12 +327,19 @@ export default function LiveTradeTradesHistoryPanel({
     return trades.filter((t) => liveTradeRecordMatchesExchange(t, exchange));
   }, [trades, exchange, loadAll, scenario]);
 
-  const splitByProgram =
-    scenario === "sim" && !String(programId ?? "").trim();
-  const programGroups = useMemo(
-    () => (splitByProgram ? groupTradesByProgram(filteredTrades) : []),
-    [splitByProgram, filteredTrades],
+  const pnlSummary = useMemo(
+    () =>
+      String(programId ?? "").trim()
+        ? programTradesPnlSummary(filteredTrades)
+        : null,
+    [programId, filteredTrades],
   );
+
+  const displayReturnPct =
+    programReturnPct != null && Number.isFinite(programReturnPct)
+      ? programReturnPct
+      : pnlSummary?.totalReturnPct ?? null;
+  const returnUp = displayReturnPct != null && displayReturnPct >= 0;
 
   const scenarioTitle = scenario
     ? scenario === "sim"
@@ -404,30 +414,48 @@ export default function LiveTradeTradesHistoryPanel({
               ? ko.app.liveTradeTradesEmptyExchange
               : ko.app.liveTradePfNoTrades}
         </p>
-      ) : splitByProgram && programGroups.length > 0 ? (
-        <div className="live-trade-history__scroll live-trade-history__scroll--by-program">
-          {programGroups.map((g) => (
-            <section
-              key={g.programId}
-              className="live-trade-history__program-block"
-              aria-label={`${g.programName} · ${ko.app.liveTradePfTabTrades}`}
-            >
-              <h4 className="live-trade-history__program-title">
-                {g.programName}
-              </h4>
-              <LiveTradeTradesHistoryTable
-                trades={g.trades}
-                loadAll={loadAll}
-                hideProgramColumn
-              />
-            </section>
-          ))}
-        </div>
       ) : (
         <div className="live-trade-history__scroll">
+          {pnlSummary && filteredTrades.length > 0 ? (
+            <div className="live-trade-history__pnl-summary" role="status">
+              <div className="live-trade-history__pnl-row">
+                <span className="live-trade-history__pnl-label">
+                  {ko.app.liveTradeHistoryTotalReturn}
+                </span>
+                <span
+                  className={
+                    displayReturnPct == null
+                      ? "live-trade-history__pnl-val"
+                      : returnUp
+                        ? "live-trade-history__pnl-val live-trade-history__pnl-val--up"
+                        : "live-trade-history__pnl-val live-trade-history__pnl-val--down"
+                  }
+                >
+                  {displayReturnPct == null
+                    ? "—"
+                    : formatPercent(displayReturnPct)}
+                </span>
+              </div>
+              <div className="live-trade-history__pnl-row">
+                <span className="live-trade-history__pnl-label">
+                  {ko.app.liveTradePfColRealizedPnl}
+                </span>
+                <span
+                  className={
+                    pnlSummary.realizedPnl >= 0
+                      ? "live-trade-history__pnl-val live-trade-history__pnl-val--up"
+                      : "live-trade-history__pnl-val live-trade-history__pnl-val--down"
+                  }
+                >
+                  {pnlSummary.realizedLabel}
+                </span>
+              </div>
+            </div>
+          ) : null}
           <LiveTradeTradesHistoryTable
             trades={filteredTrades}
             loadAll={loadAll}
+            hideProgramColumn={Boolean(programId?.trim())}
           />
           {!loadAll && hasOlder && nextOlderEndDay ? (
             <div

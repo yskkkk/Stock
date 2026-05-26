@@ -27,6 +27,7 @@ import {
   type TechModelRecord,
 } from "../api";
 import LiveSimRunningPanel from "./LiveSimRunningPanel";
+import LiveTradeHistorySimSection from "./LiveTradeHistorySimSection";
 import LiveTradeTradesHistoryPanel from "./LiveTradeTradesHistoryPanel";
 import LiveTradeHistoryScenarioTabs from "./LiveTradeHistoryScenarioTabs";
 import type { LiveTradeHistoryScenario } from "../lib/liveTradeHistoryScenario";
@@ -799,16 +800,26 @@ export default function LiveTradingTab({
             ) : (
               <>
                 <LiveTradeHistoryScenarioTabs
-                  value={programsTradeScenario}
-                  onChange={setProgramsTradeScenario}
+                  value={tradeHistoryScenario}
+                  onChange={setTradeHistoryScenario}
                   className="live-trading-tab__programs-trade-scenario"
                 />
-                <LiveTradeTradesHistoryPanel
-                  embedded
-                  scenario={programsTradeScenario}
-                  loadAll
-                  adminViewUserId={adminReadOnly ? adminViewUserId : null}
-                />
+                {tradeHistoryScenario === "sim" ? (
+                  <LiveTradeHistorySimSection
+                    embedded
+                    loadAll
+                    adminViewUserId={adminReadOnly ? adminViewUserId : null}
+                    programs={programs}
+                    programReturns={effectiveStatus?.programReturns}
+                  />
+                ) : (
+                  <LiveTradeTradesHistoryPanel
+                    embedded
+                    scenario={tradeHistoryScenario}
+                    loadAll
+                    adminViewUserId={adminReadOnly ? adminViewUserId : null}
+                  />
+                )}
               </>
             )
           ) : programs.length === 0 ? (
@@ -944,9 +955,27 @@ export default function LiveTradingTab({
                 onOpenHoldingChart={onOpenHoldingChart}
               />
               {!showMainProgramsList ? (
-                <LiveTradeTradesHistoryPanel
-                  adminViewUserId={adminReadOnly ? adminViewUserId : null}
-                />
+                <>
+                  <LiveTradeHistoryScenarioTabs
+                    value={tradeHistoryScenario}
+                    onChange={setTradeHistoryScenario}
+                    className="live-trading-tab__programs-trade-scenario"
+                  />
+                  {tradeHistoryScenario === "sim" ? (
+                    <LiveTradeHistorySimSection
+                      loadAll
+                      adminViewUserId={adminReadOnly ? adminViewUserId : null}
+                      programs={programs}
+                      programReturns={effectiveStatus?.programReturns}
+                    />
+                  ) : (
+                    <LiveTradeTradesHistoryPanel
+                      scenario={tradeHistoryScenario}
+                      loadAll
+                      adminViewUserId={adminReadOnly ? adminViewUserId : null}
+                    />
+                  )}
+                </>
               ) : null}
             </>
           ) : null}

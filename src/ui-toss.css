@@ -4154,6 +4154,47 @@ html[data-theme="light"] .live-trading-tab__program-actions .btn:hover:not(:disa
   font-weight: 700;
 }
 
+.live-trade-history-sim-section__pick {
+  margin-bottom: 0.55rem;
+}
+
+.live-trade-history__pnl-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1.25rem;
+  margin-bottom: 0.65rem;
+  padding: 0.5rem 0.15rem;
+}
+
+.live-trade-history__pnl-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.live-trade-history__pnl-label {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.live-trade-history__pnl-val {
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.live-trade-history__pnl-val--up {
+  color: var(--up, #16a34a);
+}
+
+.live-trade-history__pnl-val--down {
+  color: var(--down, #dc2626);
+}
+
+.live-portfolio__trades-sim-pick {
+  margin-bottom: 0.5rem;
+}
+
 .trade-history-main-workspace__scenario-sub {
   margin: 0.2rem 0 0.5rem;
 }

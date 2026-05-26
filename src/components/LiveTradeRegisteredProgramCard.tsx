@@ -160,9 +160,11 @@ export default function LiveTradeRegisteredProgramCard({
         <p className="live-trading-tab__program-meta">{amountLine}</p>
       ) : null}
       <p className="live-trading-tab__program-meta">
-        {isBoxRange
-          ? ko.app.liveTradeCumulativeReturn
-          : ko.app.liveTradeCurrentReturn}
+        {p.status === "sim" || displayStatus === "sim"
+          ? ko.app.liveTradeTotalReturn
+          : isBoxRange
+            ? ko.app.liveTradeCumulativeReturn
+            : ko.app.liveTradeCurrentReturn}
         :{" "}
         <span className={returnClass}>{formatPercent(returnPct ?? undefined)}</span>
       </p>

@@ -3,6 +3,7 @@ import {
   fetchLiveTradingPortfolio,
   type LiveTradePortfolioResponse,
 } from "../api";
+import LiveTradeHistorySimSection from "./LiveTradeHistorySimSection";
 import LiveTradeTradesHistoryPanel from "./LiveTradeTradesHistoryPanel";
 import LiveAccountHoldingsTable from "./LiveAccountHoldingsTable";
 import { BithumbBrandMark, TossBrandMark } from "./ExchangeBrandMarks";
@@ -125,7 +126,11 @@ export default function LiveAccountTradesMainPanel({
             {liveTradeHistoryScenarioSub(scenario)}
           </p>
         </header>
-        <LiveTradeTradesHistoryPanel scenario={scenario} loadAll workspaceMode />
+        {scenario === "sim" ? (
+          <LiveTradeHistorySimSection workspaceMode loadAll />
+        ) : (
+          <LiveTradeTradesHistoryPanel scenario={scenario} loadAll workspaceMode />
+        )}
       </div>
     </div>
   );

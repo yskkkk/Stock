@@ -1019,6 +1019,8 @@ export interface BithumbTradingStatus {
 export interface LiveTradeProgramReturnSummary {
   totalReturnPct: number | null;
   holdingCount: number;
+  realizedPnl?: number;
+  totalPnl?: number;
 }
 
 export interface ExchangeTradingFeeRateInfo {

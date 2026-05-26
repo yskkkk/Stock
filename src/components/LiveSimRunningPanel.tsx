@@ -32,6 +32,7 @@ import {
 } from "../lib/livePortfolioPnl";
 import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
 import { tradeFillDisplayByTradeId } from "../lib/liveTradeBuySellPrices";
+import { programTradesPnlSummary } from "../lib/programTradesPnlSummary";
 import { formatTradeSideLabel } from "../lib/liveTradeSideDisplay";
 import { showProgramRunError } from "../lib/liveProgramDisplay";
 import { ko } from "../i18n/ko";
@@ -137,6 +138,12 @@ function ProgramRunCard({
   const pnlUp = sum.unrealizedUp === true;
   const pnlDown = sum.unrealizedUp === false;
   const recentTrades = trades.slice(0, 12);
+  const totalPnl = useMemo(
+    () => programTradesPnlSummary(trades, holdings),
+    [trades, holdings],
+  );
+  const totalRetUp =
+    totalPnl.totalReturnPct != null && totalPnl.totalReturnPct >= 0;
   const tradeFill = useMemo(() => tradeFillDisplayByTradeId(trades), [trades]);
   const nameBySymbol = useMemo(() => {
     const m = new Map<string, string>();
@@ -189,15 +196,17 @@ function ProgramRunCard({
               <span aria-hidden>·</span>
               <span
                 className={
-                  sum.ret == null
+                  totalPnl.totalReturnPct == null
                     ? ""
-                    : retUp
+                    : totalRetUp
                       ? "live-sim-run__card-summary--up"
                       : "live-sim-run__card-summary--down"
                 }
               >
-                {ko.app.liveTradePfReturn}{" "}
-                {sum.ret == null ? "—" : formatPercent(sum.ret)}
+                {ko.app.liveTradeTotalReturn}{" "}
+                {totalPnl.totalReturnPct == null
+                  ? "—"
+                  : formatPercent(totalPnl.totalReturnPct)}
               </span>
               <span aria-hidden>·</span>
               <span
