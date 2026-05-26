@@ -399,16 +399,11 @@ export default function AppLiveTradeSideDock({
   const openDefaultDockPanel = useCallback(() => {
     if (!openPanel) return;
     const titles = defaultLiveTradeSideTabTitles();
-    const programCount = liveStatus?.programs?.length ?? 0;
-    if (programCount > 0) {
-      openPanel("programs", titles.programs ?? ko.app.liveTradeListTitle);
-      return;
-    }
     openPanel(
       LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb,
       titles[LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb] ?? ko.app.liveTradeDockRailAccountTab,
     );
-  }, [openPanel, liveStatus?.programs?.length]);
+  }, [openPanel]);
 
   const toggleFold = useCallback(() => {
     const next = !open;
