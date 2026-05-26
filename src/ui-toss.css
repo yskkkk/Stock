@@ -2628,22 +2628,20 @@ html[data-theme="light"]
   gap: 0.2rem;
   width: 100%;
   padding: 0.4rem 0.25rem 0.35rem;
-  border: 1px solid var(--card-border, rgba(148, 163, 184, 0.18));
+  border: none;
   border-radius: 10px;
-  background: var(--surface, #fff);
+  background: transparent;
   cursor: pointer;
-  transition:
-    border-color 0.15s,
-    box-shadow 0.15s;
+  transition: opacity 0.15s;
 }
 
 .box-range-tab__logo-btn:hover {
-  border-color: color-mix(in srgb, var(--accent, #2563eb) 40%, transparent);
+  opacity: 0.88;
 }
 
-.box-range-tab__logo-btn--on {
-  border-color: var(--accent, #2563eb);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #2563eb) 22%, transparent);
+.box-range-tab__logo-btn--on .box-range-tab__logo-ticker {
+  color: var(--accent, #2563eb);
+  font-weight: 700;
 }
 
 .box-range-tab__logo-img {
