@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLiveTradeFeeRates } from "../contexts/LiveTradeFeeRatesContext";
 import {
   buildPortfolioFeeNote,
@@ -55,6 +55,7 @@ import { refreshLiveTradingStatusNow } from "../hooks/useLiveTradingStatusPoll";
 import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
 import { ko } from "../i18n/ko";
 import { RefreshIconButton } from "./RefreshIconButton";
+import DockPanelCenterLoading from "./DockPanelCenterLoading";
 import { openAccountTrades } from "../lib/liveTradeDockAccount";
 import {
   LiveHoldingChartSymbol,
@@ -437,6 +438,7 @@ export default function LiveTradePortfolioPanel({
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const loadSeqRef = useRef(0);
   const { feeRates, roundTripForMarket } = useLiveTradeFeeRates();
   const feeByMarket = useMemo(
     () => feeByMarketFromStatus(feeRates),
@@ -444,7 +446,7 @@ export default function LiveTradePortfolioPanel({
   );
 
   const applyPortfolioSnapshot = useCallback(
-    async (snap: LiveTradePortfolioResponse) => {
+    async (snap: LiveTradePortfolioResponse, loadSeq?: number) => {
       const syms = [
         ...new Set(
           snap.holdings
@@ -461,6 +463,7 @@ export default function LiveTradePortfolioPanel({
           merged = snap;
         }
       }
+      if (loadSeq != null && loadSeq !== loadSeqRef.current) return;
       setData(merged);
       setErr(null);
     },
@@ -554,6 +557,7 @@ export default function LiveTradePortfolioPanel({
 
   const load = useCallback(
     async (opts?: { keepQuoteMerge?: boolean }) => {
+      const seq = ++loadSeqRef.current;
       try {
         let snap: LiveTradePortfolioResponse;
         const useAdminPortfolio = Boolean(
@@ -574,6 +578,7 @@ export default function LiveTradePortfolioPanel({
           snap = await fetchLiveTradingPortfolio(resolvedProgramId || null);
         }
         if (opts?.keepQuoteMerge) {
+          if (seq !== loadSeqRef.current) return;
           setData((prev) =>
             prev?.holdings.length
               ? mergeLiveQuotesIntoPortfolio(
@@ -584,13 +589,15 @@ export default function LiveTradePortfolioPanel({
               : snap,
           );
         } else {
-          await applyPortfolioSnapshot(snap);
+          await applyPortfolioSnapshot(snap, seq);
         }
+        if (seq !== loadSeqRef.current) return;
         setErr(null);
       } catch (e) {
+        if (seq !== loadSeqRef.current) return;
         setErr(e instanceof Error ? e.message : String(e));
       } finally {
-        setLoading(false);
+        if (seq === loadSeqRef.current) setLoading(false);
       }
     },
     [
@@ -724,7 +731,12 @@ export default function LiveTradePortfolioPanel({
               className="input live-portfolio__select"
               value={resolvedProgramId}
               disabled={adminReadOnly || programOptions.length === 0}
-              onChange={(e) => setProgramId(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                if (next === resolvedProgramId) return;
+                setProgramId(next);
+                setLoading(true);
+              }}
             >
               {programOptions.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -745,7 +757,15 @@ export default function LiveTradePortfolioPanel({
         </div>
       </header>
 
-      <div className="live-portfolio__panel live-portfolio__panel--in-card">
+      <div
+        className={[
+          "live-portfolio__panel",
+          "live-portfolio__panel--in-card",
+          loading ? "live-portfolio__panel--pending" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
         <div
           className="live-portfolio__tabs"
           role="tablist"
@@ -812,16 +832,15 @@ export default function LiveTradePortfolioPanel({
           })}
         </div>
 
-        {loading && !data ? (
-          <p className="live-portfolio__muted">{ko.app.liveTradePfLoading}</p>
-        ) : null}
         {err ? (
           <p className="live-portfolio__banner live-portfolio__banner--err" role="alert">
             {err}
           </p>
         ) : null}
 
-        {data ? (
+        {loading ? (
+          <DockPanelCenterLoading label={ko.app.liveTradePfLoading} />
+        ) : data ? (
           <div className="live-portfolio__body">
           <PortfolioHeroTiles
             holdings={data.holdings}

@@ -10907,6 +10907,21 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   align-self: stretch;
 }
 
+.app-live-trade-side-dock__host .live-portfolio__panel--pending {
+  flex: 1 1 auto;
+  min-height: min(12rem, 40dvh);
+  display: flex;
+  flex-direction: column;
+}
+
+.app-live-trade-side-dock__host
+  .live-portfolio__panel--pending
+  > .dock-panel-center-loading {
+  flex: 1 1 auto;
+  min-height: min(10rem, 36dvh);
+  align-self: stretch;
+}
+
 .live-trade-rail__empty-hint {
   margin: 0;
   padding: 0.35rem 0.15rem;
