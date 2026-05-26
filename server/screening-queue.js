@@ -1,4 +1,7 @@
-import { isMarketOpenBySchedule } from "./market-hours.js";
+import {
+  isMarketOpenBySchedule,
+  isStockTradableBySchedule,
+} from "./market-hours.js";
 
 /** @typedef {{ kr: object[]; us: object[]; crypto?: object[] }} Universe */
 
@@ -9,8 +12,8 @@ export function scanScopeLabel() {
 
 export function scanScopeMarketFlags() {
   return {
-    krActive: isMarketOpenBySchedule("kr"),
-    usActive: isMarketOpenBySchedule("us"),
+    krActive: isStockTradableBySchedule("kr"),
+    usActive: isStockTradableBySchedule("us"),
   };
 }
 

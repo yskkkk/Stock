@@ -1221,9 +1221,11 @@ export default function App() {
                     <span className="top-bar__brand-tags__lead">
                       <span
                         className={
-                          picks && picks.scanScopeKrActive === false
-                            ? "top-bar__brand-tags__scope top-bar__brand-tags__scope--off"
-                            : "top-bar__brand-tags__scope"
+                          picks?.scanScopeKrActive === true
+                            ? "top-bar__brand-tags__scope top-bar__brand-tags__scope--on"
+                            : picks?.scanScopeKrActive === false
+                              ? "top-bar__brand-tags__scope top-bar__brand-tags__scope--off"
+                              : "top-bar__brand-tags__scope"
                         }
                       >
                         {ko.app.scanScopeKr}
@@ -1233,9 +1235,11 @@ export default function App() {
                       </span>
                       <span
                         className={
-                          picks && picks.scanScopeUsActive === false
-                            ? "top-bar__brand-tags__scope top-bar__brand-tags__scope--off"
-                            : "top-bar__brand-tags__scope"
+                          picks?.scanScopeUsActive === true
+                            ? "top-bar__brand-tags__scope top-bar__brand-tags__scope--on"
+                            : picks?.scanScopeUsActive === false
+                              ? "top-bar__brand-tags__scope top-bar__brand-tags__scope--off"
+                              : "top-bar__brand-tags__scope"
                         }
                       >
                         {ko.app.scanScopeUs}

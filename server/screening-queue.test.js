@@ -13,6 +13,7 @@ describe("screening-queue", () => {
 
   it("buildScreeningQueue skips KR when market closed", () => {
     vi.spyOn(marketHours, "isMarketOpenBySchedule").mockImplementation((m) => m !== "kr");
+    vi.spyOn(marketHours, "isStockTradableBySchedule").mockImplementation((m) => m !== "kr");
     const { queue, includeKr, scanScopeKrActive, scanScopeUsActive, scanScopeLabel: label } =
       buildScreeningQueue({
       kr: [{ symbol: "005930.KS", name: "Samsung" }],
