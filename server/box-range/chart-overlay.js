@@ -74,9 +74,8 @@ async function detectBoxesForTf(symbol, timeframe) {
     Array.isArray(data?.candles) ? data.candles : [],
   );
   if (candles.length < 20) return [];
-  const confirmed = candles.slice(0, -1);
   const detected = detectBoxRangesProOnCandles(
-    confirmed,
+    candles,
     timeframe,
     BOX_RANGE_MAX_DETECTED,
   );
