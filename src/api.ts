@@ -871,7 +871,11 @@ export function fetchUserCredentials() {
   return fetchJson<UserCredentialsResponse>("/api/user/credentials");
 }
 
-export function fetchBithumbAccountSnapshot() {
+export function fetchBithumbAccountSnapshot(opts?: { refresh?: boolean }) {
+  const q =
+    opts?.refresh === true
+      ? "?refresh=1"
+      : "";
   return fetchJson<{
     ok: boolean;
     ready: boolean;
@@ -879,7 +883,10 @@ export function fetchBithumbAccountSnapshot() {
     feeLabelKo?: string | null;
     messageKo?: string;
     error?: string;
-  }>("/api/user/bithumb/account-snapshot");
+    fromCache?: boolean;
+    syncedAtMs?: number | null;
+    stale?: boolean;
+  }>(`/api/user/bithumb/account-snapshot${q}`);
 }
 
 export function saveUserCredential(

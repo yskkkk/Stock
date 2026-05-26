@@ -7,9 +7,10 @@ import {
 } from "../api";
 import { LIVE_TRADE_AUTH_CHANGE } from "../lib/liveTradeAuthEvents";
 
-const POLL_MS = 45_000;
+const VISIBLE_POLL_MS = 1000;
 
-export function useBithumbAccountSnapshot() {
+export function useBithumbAccountSnapshot(opts?: { poll?: boolean }) {
+  const poll = opts?.poll ?? false;
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [snapshot, setSnapshot] = useState<BithumbTestSnapshot | null>(null);
@@ -18,51 +19,80 @@ export function useBithumbAccountSnapshot() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
-  const reload = useCallback(async () => {
-    try {
-      const me = await fetchAuthMe();
-      setUser(me.user);
-      if (!me.user) {
-        setSnapshot(null);
-        setFeeLabelKo(null);
-        setUpdatedAtMs(null);
-        setErr(null);
-        return;
-      }
-      const out = await fetchBithumbAccountSnapshot();
+  const applySnapshotResponse = useCallback(
+    (out: Awaited<ReturnType<typeof fetchBithumbAccountSnapshot>>) => {
       if (out.ready && out.snapshot) {
         setSnapshot(out.snapshot);
         setFeeLabelKo(out.feeLabelKo ?? null);
-        setUpdatedAtMs(Date.now());
-        setErr(null);
+        setUpdatedAtMs(
+          typeof out.syncedAtMs === "number" && out.syncedAtMs > 0
+            ? out.syncedAtMs
+            : Date.now(),
+        );
+        setErr(out.stale ? (out.messageKo ?? null) : null);
       } else {
         setSnapshot(null);
         setFeeLabelKo(null);
         setUpdatedAtMs(null);
-        setErr(out.messageKo ?? null);
+        setErr(out.messageKo ?? out.error ?? null);
       }
-    } catch (e) {
-      setSnapshot(null);
-      setUpdatedAtMs(null);
-      setErr(e instanceof Error ? e.message : String(e));
-    } finally {
-      setAuthChecked(true);
-      setLoading(false);
-    }
-  }, []);
+    },
+    [],
+  );
+
+  const reload = useCallback(
+    async (refresh = false, silent = false) => {
+      if (!silent) setLoading(true);
+      try {
+        const me = await fetchAuthMe();
+        setUser(me.user);
+        if (!me.user) {
+          setSnapshot(null);
+          setFeeLabelKo(null);
+          setUpdatedAtMs(null);
+          setErr(null);
+          return;
+        }
+        const out = await fetchBithumbAccountSnapshot({ refresh });
+        applySnapshotResponse(out);
+      } catch (e) {
+        setSnapshot(null);
+        setUpdatedAtMs(null);
+        setErr(e instanceof Error ? e.message : String(e));
+      } finally {
+        setAuthChecked(true);
+        if (!silent) setLoading(false);
+      }
+    },
+    [applySnapshotResponse],
+  );
 
   useEffect(() => {
-    void reload();
-    const id = window.setInterval(() => void reload(), POLL_MS);
+    let cancelled = false;
+
+    void (async () => {
+      if (cancelled) return;
+      await reload(false);
+      if (cancelled) return;
+      if (poll) await reload(true, true);
+    })();
+
+    const id = poll
+      ? window.setInterval(() => {
+          void reload(true, true);
+        }, VISIBLE_POLL_MS)
+      : undefined;
+
     const onAuthChange = () => {
-      void reload();
+      void reload(true, false);
     };
     window.addEventListener(LIVE_TRADE_AUTH_CHANGE, onAuthChange);
     return () => {
-      window.clearInterval(id);
+      cancelled = true;
+      if (id != null) window.clearInterval(id);
       window.removeEventListener(LIVE_TRADE_AUTH_CHANGE, onAuthChange);
     };
-  }, [reload]);
+  }, [poll, reload]);
 
   return {
     user,

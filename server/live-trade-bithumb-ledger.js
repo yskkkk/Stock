@@ -1,6 +1,8 @@
 /**
- * 빗썸 계좌 잔고 캐시(장부 보조) — 매도 시 주문가능 수량 기준, 매매 직후·주기 동기화
+ * 빗썸 계좌 잔고 캐시(장부) — 파일 영속 + 메모리, UI는 요청·화면 노출 시 동기화
  */
+import fs from "node:fs";
+import path from "node:path";
 import { listArmedLiveTradeProgramsSync } from "./live-trade-programs-store.js";
 import { getDecryptedCredentialsSync } from "./user-credentials-store.js";
 import { fetchBithumbAccountsWithCredentials } from "./bithumb-trading-adapter.js";
@@ -8,18 +10,108 @@ import {
   bithumbAccountQtyMapsFromAccounts,
   getBithumbExchangeQtyMaps,
 } from "./live-trade-bithumb-reconcile.js";
+import {
+  enrichBithumbSnapshotWithMarketQuotes,
+  summarizeBithumbAccountsForDisplay,
+} from "./bithumb-accounts-summary.js";
 import { normalizeSellQuantity } from "./live-trade-market.js";
 import { liveTradeLogWarn } from "./live-trade-log.js";
-
-const POLL_MS = (() => {
-  const n = Number(process.env.STOCK_BITHUMB_LEDGER_POLL_MS ?? 600_000);
-  return Number.isFinite(n) && n >= 60_000 ? Math.min(n, 3_600_000) : 600_000;
-})();
+import { resolveServerDataDir } from "./data-path.js";
 
 /** @typedef {{ total: number; available: number; locked: number; syncedAtMs: number }} BithumbBaseLedger */
 
+/** @typedef {{
+ *   ledger?: Record<string, BithumbBaseLedger>;
+ *   snapshot?: object | null;
+ *   feeLabelKo?: string | null;
+ *   snapshotSyncedAtMs?: number;
+ * }} BithumbLedgerUserRow */
+
+function ledgerFilePath() {
+  return path.join(resolveServerDataDir(), "live-trade-bithumb-ledger.json");
+}
+
+function ensureDataDirSync() {
+  const dir = resolveServerDataDir();
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+}
+
+function defaultStore() {
+  return { users: /** @type {Record<string, BithumbLedgerUserRow>} */ ({}) };
+}
+
+function readStoreSync() {
+  const fp = ledgerFilePath();
+  try {
+    if (!fs.existsSync(fp)) return defaultStore();
+    const parsed = JSON.parse(fs.readFileSync(fp, "utf8"));
+    if (!parsed || typeof parsed !== "object") return defaultStore();
+    if (!parsed.users || typeof parsed.users !== "object") {
+      return { users: {} };
+    }
+    return /** @type {{ users: Record<string, BithumbLedgerUserRow> }} */ (parsed);
+  } catch {
+    return defaultStore();
+  }
+}
+
+function writeStoreSync(store) {
+  ensureDataDirSync();
+  const fp = ledgerFilePath();
+  const tmp = `${fp}.${process.pid}.${Date.now()}.tmp`;
+  fs.writeFileSync(tmp, `${JSON.stringify(store, null, 2)}\n`, "utf8");
+  fs.renameSync(tmp, fp);
+}
+
 /** @type {Map<string, Map<string, BithumbBaseLedger>>} */
 const byUser = new Map();
+
+function serializeLedgerMap(ledgerMap) {
+  /** @type {Record<string, BithumbBaseLedger>} */
+  const ledger = {};
+  for (const [base, row] of ledgerMap) {
+    ledger[base] = { ...row };
+  }
+  return ledger;
+}
+
+function persistUserRow(userId, patch) {
+  const uid = String(userId ?? "").trim();
+  if (!uid) return;
+  const store = readStoreSync();
+  const prev = store.users[uid] ?? {};
+  store.users[uid] = { ...prev, ...patch };
+  writeStoreSync(store);
+}
+
+function persistLedgerMaps(userId) {
+  const uid = String(userId ?? "").trim();
+  const m = byUser.get(uid);
+  if (!m) return;
+  persistUserRow(uid, { ledger: serializeLedgerMap(m) });
+}
+
+function hydrateMemoryFromDisk() {
+  const store = readStoreSync();
+  for (const [uid, row] of Object.entries(store.users ?? {})) {
+    const ledger = row.ledger;
+    if (!ledger || typeof ledger !== "object") continue;
+    /** @type {Map<string, BithumbBaseLedger>} */
+    const next = new Map();
+    for (const [base, entry] of Object.entries(ledger)) {
+      if (!entry || typeof entry !== "object") continue;
+      next.set(String(base).toUpperCase(), {
+        total: Number(entry.total) || 0,
+        available: Number(entry.available) || 0,
+        locked: Number(entry.locked) || 0,
+        syncedAtMs: Number(entry.syncedAtMs) || 0,
+      });
+    }
+    if (next.size > 0) byUser.set(uid, next);
+  }
+}
+
+hydrateMemoryFromDisk();
 
 /**
  * @param {string} userId
@@ -43,6 +135,7 @@ export function applyBithumbLedgerMaps(userId, maps) {
     });
   }
   byUser.set(uid, next);
+  persistLedgerMaps(uid);
 }
 
 /**
@@ -67,7 +160,6 @@ export async function refreshBithumbLedgerForUser(userId, credentials) {
 
 /**
  * @param {string} userId
- * @param {string} base
  */
 export function getBithumbLedgerAvailable(userId, base) {
   const b = String(base ?? "").trim().toUpperCase();
@@ -92,6 +184,7 @@ export function deductBithumbLedgerAvailable(userId, base, qty) {
   if (q <= 0) return;
   row.available = Math.max(0, row.available - q);
   row.syncedAtMs = Date.now();
+  persistLedgerMaps(uid);
 }
 
 /**
@@ -117,6 +210,96 @@ export function resolveSellVolumeFromLedger(
   return { volume, clamped: volume + 1e-8 < app };
 }
 
+/**
+ * 파일 캐시 — UI 즉시 표시용(거래소 미호출)
+ * @param {string} userId
+ */
+export function getBithumbLedgerSnapshotCacheSync(userId) {
+  const uid = String(userId ?? "").trim();
+  if (!uid) return null;
+  const row = readStoreSync().users[uid];
+  if (!row?.snapshot) return null;
+  return {
+    ready: true,
+    snapshot: row.snapshot,
+    feeLabelKo: row.feeLabelKo ?? null,
+    syncedAtMs: row.snapshotSyncedAtMs ?? null,
+    fromCache: true,
+  };
+}
+
+/**
+ * 빗썸 /v1/accounts 폴링 → 장부·스냅샷 파일·메모리 갱신
+ * @param {string} userId
+ */
+export async function refreshBithumbLedgerSnapshotForUserAsync(userId) {
+  const uid = String(userId ?? "").trim();
+  if (!uid) {
+    return { ready: false, messageKo: "로그인이 필요합니다." };
+  }
+  const { getCredentialMetaSync } = await import("./user-credentials-store.js");
+  const meta = getCredentialMetaSync(uid, "bithumb");
+  if (!meta.ready) {
+    return {
+      ready: false,
+      messageKo:
+        meta.messageKo ?? "빗썸 API Key·Secret을 실거래 탭에서 저장하세요.",
+    };
+  }
+  const creds = getDecryptedCredentialsSync(uid, "bithumb");
+  if (!creds?.apiKey || !creds?.secretKey) {
+    return { ready: false, messageKo: "빗썸 API 키를 저장하세요." };
+  }
+
+  try {
+    const accounts = await fetchBithumbAccountsWithCredentials(creds);
+    const maps = bithumbAccountQtyMapsFromAccounts(accounts);
+    applyBithumbLedgerMaps(uid, maps);
+
+    const snapshot = await enrichBithumbSnapshotWithMarketQuotes(
+      summarizeBithumbAccountsForDisplay(accounts),
+    );
+    let feeLabelKo = null;
+    try {
+      const { ensureUserTradingFeesFreshAsync, getUserTradingFeeRatesForApiSync } =
+        await import("./exchange-trading-fees.js");
+      await ensureUserTradingFeesFreshAsync(uid);
+      feeLabelKo = getUserTradingFeeRatesForApiSync(uid).bithumb?.labelKo ?? null;
+    } catch {
+      /* 수수료 라벨 없어도 잔고·보유는 표시 */
+    }
+
+    const syncedAtMs = Date.now();
+    persistUserRow(uid, {
+      snapshot,
+      feeLabelKo,
+      snapshotSyncedAtMs: syncedAtMs,
+    });
+
+    return {
+      ready: true,
+      snapshot,
+      feeLabelKo,
+      syncedAtMs,
+      fromCache: false,
+    };
+  } catch (e) {
+    const cached = getBithumbLedgerSnapshotCacheSync(uid);
+    if (cached) {
+      return {
+        ...cached,
+        stale: true,
+        messageKo: e instanceof Error ? e.message : String(e),
+      };
+    }
+    return {
+      ready: false,
+      error: e instanceof Error ? e.message : String(e),
+      messageKo: e instanceof Error ? e.message : String(e),
+    };
+  }
+}
+
 export async function tickBithumbLedgerPoll() {
   const uids = new Set();
   for (const p of listArmedLiveTradeProgramsSync()) {
@@ -127,29 +310,15 @@ export async function tickBithumbLedgerPoll() {
   for (const uid of uids) {
     const creds = getDecryptedCredentialsSync(uid, "bithumb");
     if (creds?.apiKey && creds?.secretKey) {
-      await refreshBithumbLedgerForUser(uid, creds);
+      await refreshBithumbLedgerSnapshotForUserAsync(uid);
     }
   }
   return { users: uids.size };
 }
 
+/** @deprecated 백그라운드 주기 폴링 제거 — UI 노출 시 클라이언트가 refresh=1 로 요청 */
 export function startBithumbLedgerPoller() {
-  if (process.env.STOCK_BITHUMB_LEDGER_POLL === "0") return;
-  const g = /** @type {typeof globalThis & { __stockBithumbLedgerPoll?: boolean }} */ (
-    globalThis
-  );
-  if (g.__stockBithumbLedgerPoll) return;
-  g.__stockBithumbLedgerPoll = true;
-  const loop = () => {
-    tickBithumbLedgerPoll().catch((e) => {
-      liveTradeLogWarn(
-        "[bithumb-ledger]",
-        e instanceof Error ? e.message : e,
-      );
-    });
-  };
-  loop();
-  setInterval(loop, POLL_MS);
+  hydrateMemoryFromDisk();
 }
 
 export { fetchBithumbAccountsWithCredentials };

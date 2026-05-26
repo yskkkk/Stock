@@ -38,7 +38,11 @@ export function registerUserCredentialRoutes(app) {
     requireUserAuth,
     asyncRoute(async (req, res) => {
       try {
-        const out = await getBithumbAccountSnapshotForUserAsync(req.user.id);
+        const refresh =
+          req.query.refresh === "1" || req.query.refresh === "true";
+        const out = await getBithumbAccountSnapshotForUserAsync(req.user.id, {
+          refresh,
+        });
         res.json({ ok: true, ...out });
       } catch (e) {
         res.status(400).json({

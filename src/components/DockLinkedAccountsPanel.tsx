@@ -92,7 +92,7 @@ function DockLinkedAccountsPanelInner() {
     updatedAtMs,
     loading: bithumbLoading,
     err: bithumbErr,
-  } = useBithumbAccountSnapshot();
+  } = useBithumbAccountSnapshot({ poll: provider === "bithumb" });
 
   if (!user) {
     return (
