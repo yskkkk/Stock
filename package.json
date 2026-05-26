@@ -30,6 +30,7 @@
     "email:box-range-pine-tv": "node scripts/send-box-range-pine-tv-email.mjs",
     "email:web-balsin-impl": "node scripts/send-web-balsin-implementation-email.mjs",
     "email:sim-trade-history-fix": "node scripts/send-sim-trade-history-fix-email.mjs",
+    "email:server-audit": "node scripts/send-server-audit-email.mjs",
     "cap:sync": "npx cap sync",
     "cap:android": "npx cap open android",
     "cap:ios": "npx cap open ios",
