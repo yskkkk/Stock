@@ -17,7 +17,7 @@ const FLAG_FILE = path.join(
   __dirname,
   "../.data/.box-range-scenario-rollout-v2.json",
 );
-export const BOX_RANGE_SCENARIO_VERSION = 2;
+export const BOX_RANGE_SCENARIO_VERSION = 3;
 
 function readFlagSync() {
   try {

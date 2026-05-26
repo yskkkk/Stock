@@ -13,7 +13,7 @@ import { readProgramsStoreSync } from "../live-trade-programs-store.js";
 import { resolveServerDataDir } from "../data-path.js";
 import { BOX_RANGE_SCENARIO_VERSION } from "../box-range/migrate-active-programs.js";
 
-const CAMPAIGN_ID = "box-range-scenario-v2-2026-05-26";
+const CAMPAIGN_ID = "box-range-pro-v2-trading-2026-05-26";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -60,11 +60,11 @@ function listLiveTradeUserIdsSync() {
 
 export function buildBoxRangeStrategyEmailContent() {
   const subject =
-    "[YSTOCK] 실매매 전략 업데이트 — 박스권 v2 (S&P500·코인·Pine PRO)";
+    "[YSTOCK] 실매매 전략 업데이트 — 박스권 PRO v2 (하단 복귀 매수)";
 
   const text = `안녕하세요, YSTOCK입니다.
 
-등록하신 실매매 프로그램에 「박스권 (1h·4h·일)」 시나리오 v2가 일괄 적용되었습니다.
+등록하신 실매매 프로그램에 「박스권 (1h·4h·일)」 매매 규칙(PRO v2)이 적용되었습니다.
 아래 내용을 꼭 읽어 주시고, 앱에서 보유·거래 내역·박스권 탭을 확인해 주세요.
 
 
@@ -85,15 +85,16 @@ export function buildBoxRangeStrategyEmailContent() {
   · 시장: 코인(KRW) · 빗썸 App 연동 실매매
   · 감시: 1시간 / 4시간 / 일봉 각각 독립 박스 (시간봉끼리 합치지 않음)
   · 시세: 빗썸 실시간 시세
-  · 매수: 박스 하단 이탈 후, 가격이 박스 중심(중앙)선을 다시 돌파할 때
-  · 매도: 해당 박스 lot 기준 — 상단=익절, 하단 재이탈=손절
+  · 매수: 박스 하단 이하 이탈 후, 종가가 하단 위로 복귀할 때 (중심 매수 없음)
+  · 매도: 상단=익절 / 손절=이탈 구간 최저점(dipLow) 재도달
+  · 손절 1회 후: 해당 박스는 소멸(dead)되어 재진입하지 않습니다.
   · 동시 보유: 「최대 동시 보유」= 동시에 열 수 있는 박스(포지션) 개수
 
 【B】 미국·국내 주식(S&P500 / KOSPI·KOSDAQ) — 미국·국내 시장이 켜진 프로그램
   · 탐지: 30분마다 S&P500·국내 전 종목을 스캔해 박스권 후보를 서버 파일에 저장
   · 매매: 실매매(armed)·시뮬 모두 카탈로그 박스 자동매매 (코인과 동시 선택 가능)
-  · 매수: 박스 하단 이탈 후, 가격이 박스 중심(중앙)선을 다시 돌파할 때
-  · 매도: 해당 박스 lot 기준 — 상단=익절, 하단 재이탈=손절
+  · 매수: 박스 하단 이하 이탈 후, 종가가 하단 위로 복귀할 때
+  · 매도: 상단=익절 / 손절=dipLow 재도달(손절 1회 후 박스 소멸)
   · 앱: 상단 「박스권」 탭에서 S&P500 / 국내 선택·종목별 박스 확인
   · 실주문: 회원별 토스 API(«내 API 연동») + TOSS_LIVE_ORDERS_ENABLED 시 실주문
 
@@ -102,9 +103,9 @@ export function buildBoxRangeStrategyEmailContent() {
 3. 박스권 탐지 규칙 (Pine PRO 동일)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-· 시드: 봉 구간 누적 고저 폭이 TF별 한도(1h 3% / 4h 5% / 1d 15%) 안에서 14봉 이상
+· 시드: 봉 구간 누적 고저 폭이 TF별 한도(1h 4% / 4h 6.5% / 1d 18%) 안에서 10봉 이상
 · 확장: 시드 구간을 좌·우로 같은 가격대 봉이 이어지는 만큼 확장 (최대 120봉)
-· 상·하단: 확장 구간에서 상단·하단 각 2회 이상 터치(박스 높이 12% 허용)
+· 상·하단: 확장 구간에서 상단·하단 각 1회 이상 거절 터치(터치 폭=박스 높이의 16%)
 · 병합: 가격 35% 겹침 또는 유사 범위 8%, 시간 5봉 이내면 하나로 정리
 · 사용 완료 박스: 매매·청산(또는 수동 미사용 체크)된 박스는 이후 매매에 쓰지 않음
 
@@ -149,7 +150,7 @@ YSTOCK · 시나리오 v${BOX_RANGE_SCENARIO_VERSION}`;
 <head><meta charset="utf-8"><title>${subject}</title></head>
 <body style="font-family:'Malgun Gothic',Apple SD Gothic Neo,sans-serif;line-height:1.7;color:#1a1a1a;max-width:680px;margin:0 auto;padding:24px;">
 <p>안녕하세요, <strong>YSTOCK</strong>입니다.</p>
-<p>등록하신 <strong>실매매 프로그램</strong>에 「박스권 (1h·4h·일)」 <strong>시나리오 v2</strong>가 일괄 적용되었습니다.</p>
+<p>등록하신 <strong>실매매 프로그램</strong>에 「박스권 (1h·4h·일)」 <strong>PRO v2</strong> 매매 규칙이 적용되었습니다.</p>
 
 <h2 style="font-size:1.15em;border-bottom:2px solid #2563eb;padding-bottom:8px;color:#1e40af;">1. 변경 요약</h2>
 <ul>
@@ -163,8 +164,8 @@ YSTOCK · 시나리오 v${BOX_RANGE_SCENARIO_VERSION}`;
 <tr style="background:#f1f5f9;"><th align="left">구분</th><th align="left">코인(빗썸)</th><th align="left">미국·국내(S&P500/KR)</th></tr>
 <tr><td><strong>대상</strong></td><td>코인 시장 프로그램</td><td>미국·국내 시장 (코인과 동시 가능)</td></tr>
 <tr><td><strong>탐지</strong></td><td>실시간 1h/4h/1d</td><td>30분마다 전 종목 스캔·파일 저장</td></tr>
-<tr><td><strong>매수</strong></td><td>하단 이탈 → 중심선 재돌파</td><td>동일</td></tr>
-<tr><td><strong>매도</strong></td><td>박스 상단 익절 / 하단 손절 (lot별)</td><td>동일</td></tr>
+<tr><td><strong>매수</strong></td><td>하단 이하 이탈 → 하단 위로 종가 복귀 (진입가=하단)</td><td>동일</td></tr>
+<tr><td><strong>매도</strong></td><td>상단 익절 / dipLow(이탈 최저점) 재도달 손절, 손절 1회 후 박스 소멸</td><td>동일</td></tr>
 <tr><td><strong>실매매</strong></td><td>빗썸 App 연동</td><td>토스(회원 API) · sim/armed 모두</td></tr>
 </table>
 
