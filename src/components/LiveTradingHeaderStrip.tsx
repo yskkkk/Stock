@@ -15,7 +15,6 @@ function LiveTradingHeaderStripInner({
 
   const armedN = status?.armedCount ?? rows.filter((r) => r.kind === "armed").length;
   const simN = status?.simCount ?? rows.filter((r) => r.kind === "sim").length;
-  const hasStatus = armedN > 0 || simN > 0;
 
   return (
     <div className="top-bar__live-trade">
@@ -24,12 +23,12 @@ function LiveTradingHeaderStripInner({
         role="status"
       >
         <div className="scan-status__primary live-trade-header-strip__primary">
-          {hasStatus ? (
-            <span className="live-trade-header-strip__pulse" aria-hidden />
-          ) : null}
           <span className="scan-status__msg live-trade-header-strip__msg">
             {armedN > 0 ? (
-              <strong>{liveTradeHeaderStripArmed(armedN)}</strong>
+              <span className="live-trade-header-strip__armed">
+                <span className="live-trade-header-strip__pulse" aria-hidden />
+                <strong>{liveTradeHeaderStripArmed(armedN)}</strong>
+              </span>
             ) : null}
             {armedN > 0 && simN > 0 ? (
               <span className="live-trade-header-strip__sep"> · </span>
