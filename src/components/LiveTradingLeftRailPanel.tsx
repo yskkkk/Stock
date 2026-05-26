@@ -8,7 +8,10 @@ import {
   type LiveTradeProgram,
   type LiveTradeRecord,
 } from "../api";
-import { useLivePortfolioQuotePoll } from "../hooks/useLivePortfolioQuotePoll";
+import {
+  LIVE_TRADE_ARMED_POLL_MS,
+  useLivePortfolioQuotePoll,
+} from "../hooks/useLivePortfolioQuotePoll";
 import {
   pickRunningLivePrograms,
   useLiveTradingStatusPoll,
@@ -33,8 +36,8 @@ import { peekLiveTradingPrefetch } from "../lib/tabPrefetch";
 import DockPanelCenterLoading from "./DockPanelCenterLoading";
 import { useLiveTradeAuth } from "./LiveTradeAuthAndCredentials";
 
-/** 좌측 실매매 카드 — 보유·수익률 갱신 */
-const POLL_MS = 500;
+/** 실매매·시뮬 도크 — 포트폴리오·시세 갱신(실매매는 exchangeSync) */
+const RAIL_PORTFOLIO_POLL_MS = LIVE_TRADE_ARMED_POLL_MS;
 const MAX_DOTS = 8;
 
 function statusLabel(status: LiveTradeProgram["status"]): string {
@@ -396,6 +399,8 @@ export function LiveTradingRailCore({
     [status?.feeRates],
   );
   const programCount = status?.programs?.length ?? 0;
+  const armedCount = status?.armedCount ?? 0;
+  const runningCount = armedCount + (status?.simCount ?? 0);
   const { rate: usdKrwRate } = useUsdKrwRate(Boolean(user && programCount > 0));
 
   const reloadPortfolio = useCallback(async () => {
@@ -408,7 +413,9 @@ export function LiveTradingRailCore({
     const trackDockLoad = layout === "dock" && !portfolioLoadedRef.current;
     if (trackDockLoad) setLoading(true);
     try {
-      let snap = await fetchLiveTradingPortfolio(null).catch(() => null);
+      let snap = await fetchLiveTradingPortfolio(null, {
+        exchangeSync: armedCount > 0,
+      }).catch(() => null);
       if (snap) {
         const syms = [
           ...new Set(
@@ -435,7 +442,7 @@ export function LiveTradingRailCore({
     } finally {
       if (trackDockLoad) setLoading(false);
     }
-  }, [user, feeByMarket, layout]);
+  }, [user, feeByMarket, layout, armedCount]);
 
   useEffect(() => {
     if (statusPending) {
@@ -443,7 +450,7 @@ export function LiveTradingRailCore({
       return;
     }
     void reloadPortfolio();
-    const id = window.setInterval(() => void reloadPortfolio(), POLL_MS);
+    const id = window.setInterval(() => void reloadPortfolio(), RAIL_PORTFOLIO_POLL_MS);
     return () => window.clearInterval(id);
   }, [reloadPortfolio, statusPending]);
 
@@ -479,9 +486,9 @@ export function LiveTradingRailCore({
   useLivePortfolioQuotePoll(
     portfolio,
     setPortfolio,
-    Boolean(user) && (status?.armedCount ?? 0) + (status?.simCount ?? 0) > 0,
+    Boolean(user) && runningCount > 0,
     feeByMarket,
-    POLL_MS,
+    armedCount > 0 ? LIVE_TRADE_ARMED_POLL_MS : undefined,
   );
 
   const roundTripForMarket = useCallback(
@@ -512,8 +519,7 @@ export function LiveTradingRailCore({
     });
   }, [status, holdingsByProgram, roundTripForMarket]);
 
-  const runningCount =
-    (status?.armedCount ?? 0) + (status?.simCount ?? 0) || rows.length;
+  const runningDisplayCount = runningCount || rows.length;
 
   const armedRows = useMemo(
     () => rows.filter((row) => row.kind === "armed"),

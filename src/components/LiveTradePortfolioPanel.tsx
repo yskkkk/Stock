@@ -22,8 +22,11 @@ import {
   type LiveTradePortfolioFocus,
   type LiveTradePortfolioPanelTab,
 } from "../lib/liveTradePortfolioFocus";
+import {
+  LIVE_TRADE_ARMED_POLL_MS,
+  useLivePortfolioQuotePoll,
+} from "../hooks/useLivePortfolioQuotePoll";
 import { useLiveTradeAuth } from "./LiveTradeAuthAndCredentials";
-import { useLivePortfolioQuotePoll } from "../hooks/useLivePortfolioQuotePoll";
 import {
   extractQuotesFromPortfolio,
   mergeLiveQuotesIntoPortfolio,
@@ -536,6 +539,12 @@ export default function LiveTradePortfolioPanel({
     return programs[0]?.id ?? "";
   }, [programId, programs, adminReadOnly]);
 
+  const isArmedPortfolio = useMemo(
+    () =>
+      programs.find((p) => p.id === resolvedProgramId)?.status === "armed",
+    [programs, resolvedProgramId],
+  );
+
   const programOptions = useMemo(() => {
     if (adminReadOnly && programId) {
       const name =
@@ -575,7 +584,9 @@ export default function LiveTradePortfolioPanel({
             resolvedProgramId,
           );
         } else {
-          snap = await fetchLiveTradingPortfolio(resolvedProgramId || null);
+          snap = await fetchLiveTradingPortfolio(resolvedProgramId || null, {
+            exchangeSync: isArmedPortfolio,
+          });
         }
         if (opts?.keepQuoteMerge) {
           if (seq !== loadSeqRef.current) return;
@@ -607,6 +618,7 @@ export default function LiveTradePortfolioPanel({
       selfOnly,
       feeByMarket,
       applyPortfolioSnapshot,
+      isArmedPortfolio,
     ],
   );
 
@@ -623,18 +635,22 @@ export default function LiveTradePortfolioPanel({
     let cancelled = false;
     setLoading(true);
     void load();
-    const id = window.setInterval(() => { if (!cancelled) void load(); }, 30_000);
+    const pollMs = isArmedPortfolio ? LIVE_TRADE_ARMED_POLL_MS : 30_000;
+    const id = window.setInterval(() => {
+      if (!cancelled) void load();
+    }, pollMs);
     return () => {
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [load]);
+  }, [load, isArmedPortfolio]);
 
   useLivePortfolioQuotePoll(
     data,
     setData,
     Boolean(data?.holdings.length),
     feeByMarket,
+    isArmedPortfolio ? LIVE_TRADE_ARMED_POLL_MS : undefined,
   );
   const { rate: usdKrwRate } = useUsdKrwRate(Boolean(data?.holdings.length));
 

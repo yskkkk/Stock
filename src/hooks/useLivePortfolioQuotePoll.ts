@@ -7,8 +7,10 @@ import {
   mergeLiveQuotesIntoPortfolio,
   type LiveTradeFeeRateByMarket,
 } from "../lib/livePortfolioLiveQuotes";
-/** 보유 종목 현재가 — 장중 갱신용(스크리너 목록보다 짧은 주기) */
+/** 보유 종목 현재가 — 시뮬·일반 */
 export const PORTFOLIO_QUOTE_POLL_MS = 15_000;
+/** 실매매(armed) — 거래소·시세 동기화 주기 */
+export const LIVE_TRADE_ARMED_POLL_MS = 5_000;
 
 /** 시뮬·포트폴리오 보유 종목 현재가 — 1분봉 폴링으로 실시간 반영 */
 export function useLivePortfolioQuotePoll(
