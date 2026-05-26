@@ -727,23 +727,26 @@ html {
     padding: 0.35rem 0.4rem;
   }
 
-  .box-range-tab__search {
+  .box-range-tab__search-wrap {
     max-width: none;
-    width: 100%;
     min-height: 2.45rem;
-    box-sizing: border-box;
   }
 
   .box-range-tab__layout {
     grid-template-columns: 1fr;
     min-height: 0;
+    max-height: none;
+    height: auto;
+    overflow: visible;
     padding: 0.65rem 0.75rem;
     gap: 0.65rem;
   }
 
   .box-range-tab__logos {
-    max-height: none;
-    overflow: visible;
+    max-height: min(42vh, 360px);
+    height: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
     padding: 0 0 0.6rem;
     margin: 0;
     border-bottom: 1px solid var(--card-border, rgba(148, 163, 184, 0.12));
@@ -787,6 +790,17 @@ html {
   .box-range-tab__detail {
     padding: 0.1rem 0;
     min-width: 0;
+    max-height: min(52vh, 520px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .box-range-tab__detail::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
   }
 
   .box-range-tab__title {
@@ -2743,10 +2757,69 @@ html[data-theme="light"]
   color: var(--muted);
 }
 
-.box-range-tab__search {
+.box-range-tab__search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
   width: 100%;
-  max-width: 280px;
+  max-width: min(100%, 22rem);
+  min-height: 2.35rem;
+  margin-top: 0.15rem;
+  padding: 0 0.75rem;
+  box-sizing: border-box;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 78%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--card-bg, var(--surface, #fff)) 94%,
+    var(--bg, #f8fafc)
+  );
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.box-range-tab__search-wrap:focus-within {
+  border-color: color-mix(in srgb, var(--accent, #8fb5aa) 42%, transparent);
+  box-shadow:
+    inset 0 1px 2px rgba(15, 23, 42, 0.04),
+    0 0 0 2px color-mix(in srgb, var(--accent-dim, rgba(143, 181, 170, 0.14)) 90%, transparent);
+}
+
+.box-range-tab__search-icon {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted, #94a3b8);
+  opacity: 0.85;
+}
+
+.box-range-tab__search {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0.32rem 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  outline: none;
   font-size: 0.85rem;
+  color: var(--text, #0f172a);
+}
+
+.box-range-tab__search::placeholder {
+  color: var(--muted, #94a3b8);
+  opacity: 0.9;
+}
+
+.box-range-tab__search::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .box-range-tab__layout {
@@ -2754,14 +2827,29 @@ html[data-theme="light"]
   grid-template-columns: minmax(200px, 280px) 1fr;
   gap: 0.85rem;
   min-height: 360px;
+  max-height: min(72vh, 640px);
+  height: min(72vh, 640px);
+  align-items: stretch;
+  overflow: hidden;
   padding: 0.65rem;
 }
 
 .box-range-tab__logos {
-  min-height: 200px;
-  max-height: min(72vh, 640px);
+  min-height: 0;
+  max-height: 100%;
+  height: 100%;
   overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   padding-right: 0.25rem;
+}
+
+.box-range-tab__logos::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .box-range-tab__logo-grid {
@@ -2843,7 +2931,22 @@ html[data-theme="light"]
 
 .box-range-tab__detail {
   min-width: 0;
-  padding: 0.15rem 0.25rem;
+  min-height: 0;
+  max-height: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 0.15rem 0.35rem 0.25rem 0.15rem;
+}
+
+.box-range-tab__detail::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .box-range-tab__title {
