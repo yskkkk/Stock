@@ -9978,6 +9978,7 @@ html[data-theme="light"]
   border-top-left-radius: var(--radius-xl, 22px);
   border-bottom-left-radius: var(--radius-xl, 22px);
   overflow: visible;
+  overscroll-behavior: contain;
 }
 
 .app-live-trade-side-dock--open .app-live-trade-side-dock__host {
@@ -9985,6 +9986,7 @@ html[data-theme="light"]
   min-height: 0;
   max-height: none;
   overflow: hidden;
+  overscroll-behavior: contain;
   border-top-left-radius: inherit;
   border-bottom-left-radius: inherit;
 }
