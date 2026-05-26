@@ -6,7 +6,10 @@ import type {
 import { BOX_RANGE_MODEL_ID } from "../lib/boxRangeTechModel";
 import { ko } from "../i18n/ko";
 import { formatPercent } from "../lib/format";
-import { showProgramRunError } from "../lib/liveProgramDisplay";
+import {
+  liveArmLaneForProgramStart,
+  showProgramRunError,
+} from "../lib/liveProgramDisplay";
 
 function formatMoney(
   n: number | null | undefined,
@@ -128,11 +131,11 @@ export default function LiveTradeRegisteredProgramCard({
         ? "live-trading-tab__program-return-val live-trading-tab__program-return-val--up"
         : "live-trading-tab__program-return-val live-trading-tab__program-return-val--down";
 
+  const liveArmLane = liveArmLaneForProgramStart(p);
   const armLanes = (["bithumb", "toss"] as const).filter((lane) =>
     showArmLaneButton(lane),
   );
-  const showGenericArmStart =
-    p.status !== "sim" && p.status !== "armed" && armLanes.length === 1;
+  const showLiveArmStart = liveArmLane != null;
 
   if (deleting) {
     return (
@@ -250,16 +253,16 @@ export default function LiveTradeRegisteredProgramCard({
             >
               {ko.app.liveTradeSimStart}
             </button>
-            {showGenericArmStart ? (
+            {showLiveArmStart ? (
               <button
                 type="button"
                 className="btn btn--secondary btn--sm live-trading-tab__program-arm"
                 disabled={busy}
-                onClick={() => onArmLane(armLanes[0]!)}
+                onClick={() => onArmLane(liveArmLane!)}
               >
                 {ko.app.liveTradeArm}
               </button>
-            ) : (
+            ) : armLanes.length > 0 ? (
               <>
                 {showArmLaneButton("bithumb") ? (
                   <button
@@ -282,7 +285,7 @@ export default function LiveTradeRegisteredProgramCard({
                   </button>
                 ) : null}
               </>
-            )}
+            ) : null}
           </>
         )}
         <button

@@ -83,8 +83,9 @@ import {
 
 /** 실매매 중 한 채널(빗썸/토스)이 켜져 있으면 다른 «시작» 버튼 숨김 */
 function showArmLaneButton(p: LiveTradeProgram, lane: LiveTradeArmLane): boolean {
-  const cryptoArmed = Boolean(p.armedMarkets?.crypto);
-  const krArmed = Boolean(p.armedMarkets?.kr);
+  const cryptoArmed =
+    p.status === "armed" && Boolean(p.armedMarkets?.crypto);
+  const krArmed = p.status === "armed" && Boolean(p.armedMarkets?.kr);
   if (lane === "bithumb") {
     if (!p.markets.crypto || cryptoArmed) return false;
     if (p.status === "armed" && krArmed) return false;
