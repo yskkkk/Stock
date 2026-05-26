@@ -527,6 +527,31 @@ export default function LiveTradePortfolioPanel({
     !selfOnly && adminViewUserId && user?.id && user.id !== adminViewUserId,
   );
 
+  const resolvedProgramId = useMemo(() => {
+    if (adminReadOnly && programId) return programId;
+    if (programId && programs.some((p) => p.id === programId)) return programId;
+    return programs[0]?.id ?? "";
+  }, [programId, programs, adminReadOnly]);
+
+  const programOptions = useMemo(() => {
+    if (adminReadOnly && programId) {
+      const name =
+        adminViewProgramName ??
+        programs.find((p) => p.id === programId)?.name ??
+        programId;
+      return [{ id: programId, name }];
+    }
+    return programs.map((p) => ({ id: p.id, name: p.name }));
+  }, [programs, adminReadOnly, programId, adminViewProgramName]);
+
+  useEffect(() => {
+    if (adminReadOnly) return;
+    const firstId = programs[0]?.id ?? "";
+    if (!programId || !programs.some((p) => p.id === programId)) {
+      if (firstId !== programId) setProgramId(firstId);
+    }
+  }, [programs, programId, adminReadOnly]);
+
   const load = useCallback(
     async (opts?: { keepQuoteMerge?: boolean }) => {
       try {
@@ -543,10 +568,10 @@ export default function LiveTradePortfolioPanel({
           snap = await fetchAccessAdminLiveTradingPortfolio(
             token,
             adminViewUserId!,
-            programId,
+            resolvedProgramId,
           );
         } else {
-          snap = await fetchLiveTradingPortfolio(programId || null);
+          snap = await fetchLiveTradingPortfolio(resolvedProgramId || null);
         }
         if (opts?.keepQuoteMerge) {
           setData((prev) =>
@@ -569,7 +594,7 @@ export default function LiveTradePortfolioPanel({
       }
     },
     [
-      programId,
+      resolvedProgramId,
       adminViewUserId,
       user?.id,
       selfOnly,
@@ -628,24 +653,6 @@ export default function LiveTradePortfolioPanel({
     return () =>
       window.removeEventListener(LIVE_TRADE_PORTFOLIO_PANEL_TAB_EVENT, onPanelTab);
   }, [selfOnly]);
-
-  const programOptions = useMemo(() => {
-    if (adminReadOnly && programId) {
-      const name =
-        adminViewProgramName ??
-        programs.find((p) => p.id === programId)?.name ??
-        programId;
-      return [{ id: programId, name }];
-    }
-    return [{ id: "", name: ko.app.liveTradePfAllPrograms }, ...programs];
-  }, [programs, adminReadOnly, programId, adminViewProgramName]);
-
-  useEffect(() => {
-    if (!programId || adminReadOnly) return;
-    if (!programs.some((p) => p.id === programId)) {
-      setProgramId("");
-    }
-  }, [programs, programId, adminReadOnly]);
 
   const simPrograms = useMemo(() => filterSimPrograms(programs), [programs]);
 
@@ -715,12 +722,12 @@ export default function LiveTradePortfolioPanel({
             </span>
             <select
               className="input live-portfolio__select"
-              value={programId}
-              disabled={adminReadOnly}
+              value={resolvedProgramId}
+              disabled={adminReadOnly || programOptions.length === 0}
               onChange={(e) => setProgramId(e.target.value)}
             >
               {programOptions.map((p) => (
-                <option key={p.id || "all"} value={p.id}>
+                <option key={p.id} value={p.id}>
                   {p.name}
                 </option>
               ))}
@@ -863,7 +870,7 @@ export default function LiveTradePortfolioPanel({
                         key={`${h.programId}:${h.market}:${h.symbol}`}
                         row={h}
                         onOpenHoldingChart={onOpenHoldingChart}
-                        portfolioProgramId={programId}
+                        portfolioProgramId={resolvedProgramId}
                       />
                     ))}
                   </tbody>
@@ -877,7 +884,7 @@ export default function LiveTradePortfolioPanel({
             <LiveTradePortfolioTradeTab
               programs={programs}
               holdings={data.holdings}
-              portfolioProgramId={programId}
+              portfolioProgramId={resolvedProgramId}
               busy={busy}
               onTraded={(snap) => {
                 setBusy(true);
