@@ -1,7 +1,7 @@
 // 통합 박스권 감지기 PRO v2 — SSOT: server/box-range/box-range-pro-core.js
 // 서버 카탈로그: 4h·1d → server/.data/box-range-catalog-pro (1h 별도 예정)
 // 1단계: 종가 88/12 밴드(러프) · 거절 1회+ · 중심 병합 2.5%
-// 3단계: VWAP(없으면 typical 50%) 중심 · 확장 시 슬라이스 재계산 · 중심 이탈 시 가로 중단
+// 3단계: VWAP 중심 · 확장 시 슬라이스 재계산 · 완성 박스만(우측 현재봉 연장 없음)
 
 //@version=5
 indicator("통합 박스권 감지기 PRO", overlay=true, max_boxes_count=500, max_lines_count=500)
@@ -308,13 +308,10 @@ if liveSz > 0
         float bottom = array.get(bottoms, i)
         float mid = array.get(mids, i)
         bool hasPos = not na(array.get(entryPrices, i))
-        int origRightT = array.get(rightTimes, i)
+        int boxRightT = array.get(rightTimes, i)
         int buyT = array.get(firstBuyTimes, i)
-        float pad = (top - bottom) * (expand_edge_pct / 100.0)
-        bool canExtendBox = bar_can_extend(0, top, bottom, mid, pad, split_mid_pct)
-        int boxRightT = canExtendBox ? time : origRightT
         box.set_right(bx, boxRightT)
-        int lineEndT = na(buyT) ? time : buyT
+        int lineEndT = f_lineEndT(boxRightT, buyT)
         line.set_xy1(ln, array.get(leftTimes, i), mid)
         line.set_xy2(ln, lineEndT, mid)
         line.set_extend(ln, extend.none)
