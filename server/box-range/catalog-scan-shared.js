@@ -1,7 +1,6 @@
 import { loadStock } from "../stock-data.js";
-import { BOX_RANGE_TIMEFRAMES } from "./constants.js";
-import { detectBoxRangesProOnCandles } from "./detect-pro.js";
-import { detectBoxRangesPineOnCandles } from "./detect-pine.js";
+import { BOX_RANGE_PINE_MAX_STORE, BOX_RANGE_TIMEFRAMES } from "./constants.js";
+import { detectBoxRangesPineOnCandles, resolvePineDetectOpts } from "./detect-pine.js";
 import { upsertSymbolCatalogDetectionsSync } from "./catalog-store.js";
 import { normalizeBoxUnixTime } from "./box-time.js";
 
@@ -35,7 +34,8 @@ export async function loadCandlesForBoxScan(symbol, timeframe) {
 export async function scanOneSymbolCatalog(item, catalogMarket) {
   const sym = String(item.symbol ?? "").trim().toUpperCase();
   if (!sym) return { ok: false, symbol: sym, error: "empty symbol" };
-  /** @type {Partial<Record<"1h"|"4h"|"1d", import("./detect-pro.js").DetectedBox[]>>} */
+  const pineOpts = resolvePineDetectOpts();
+  /** @type {Partial<Record<"1h"|"4h"|"1d", import("./detect-pine.js").DetectedBox[]>>} */
   const byTf = {};
   let tfOk = 0;
   let totalBoxes = 0;
@@ -50,16 +50,13 @@ export async function scanOneSymbolCatalog(item, catalogMarket) {
         continue;
       }
       tfOk += 1;
-      // 비교/포팅: Pine 탐지 방식(원본 f_zoneEngine) 사용 옵션
-      const usePine = process.env.STOCK_BOX_RANGE_DETECTOR === "pine";
-      byTf[tf] = usePine
-        ? detectBoxRangesPineOnCandles(candles, tf, 5, {
-            pctLimit: process.env.STOCK_BOX_RANGE_PINE_PCTLIMIT === "1",
-            useAtrCap: process.env.STOCK_BOX_RANGE_PINE_ATRCAP === "1",
-            breakAtrMult: Number(process.env.STOCK_BOX_RANGE_PINE_BREAK_ATR_MULT ?? 0.45),
-            maxStore: Number(process.env.STOCK_BOX_RANGE_PINE_MAX_STORE ?? 40),
-          })
-        : detectBoxRangesProOnCandles(candles, tf, 5);
+      // 전체 차트 1회 Pine f_zoneEngine (maxStoreZones=40)
+      byTf[tf] = detectBoxRangesPineOnCandles(
+        candles,
+        tf,
+        BOX_RANGE_PINE_MAX_STORE,
+        pineOpts,
+      );
       totalBoxes += byTf[tf].length;
     } catch (e) {
       tfErrors.push(`${tf}:${e instanceof Error ? e.message : e}`);

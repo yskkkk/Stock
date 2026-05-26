@@ -3,17 +3,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { resolveServerDataDir } from "../data-path.js";
 import { readBoxRangeStoreSync, writeBoxRangeStoreSync } from "./store.js";
-import {
-  BOX_RANGE_MERGE_BARS_GAP,
-  BOX_RANGE_MERGE_PCT,
-  BOX_RANGE_SIMILAR_RANGE_PCT,
-} from "./constants.js";
-import {
-  findMergeBoxIndex,
-  priceOverlapPct,
-  similarRange,
-  timesNearOverlap,
-} from "./merge.js";
+import { pineBoxesShouldMerge } from "./detect-pine.js";
 
 /** @typedef {"us"|"kr"} CatalogMarket */
 
@@ -184,51 +174,13 @@ export function writeSymbolCatalogSync(payload, market = "us") {
 }
 
 /**
- * @param {import("./detect-pro.js").DetectedBox} detected
+ * @param {import("./detect-pine.js").DetectedBox} detected
  * @param {"1h"|"4h"|"1d"} timeframe
- * @param {CatalogBox[]} existing
+ * @param {CatalogBox | null} prevMatch
  */
-function mergeCatalogDetected(detected, timeframe, existing) {
-  const barSec = barSecForTf(timeframe);
-  const gap = BOX_RANGE_MERGE_BARS_GAP * barSec;
-  for (let j = 0; j < existing.length; j++) {
-    const e = existing[j];
-    if (e.timeframe !== timeframe) continue;
-    const priceOk =
-      priceOverlapPct(detected.top, detected.bottom, e.top, e.bottom) >=
-        BOX_RANGE_MERGE_PCT ||
-      similarRange(
-        detected.top,
-        detected.bottom,
-        e.top,
-        e.bottom,
-        BOX_RANGE_SIMILAR_RANGE_PCT,
-      );
-    const timeOk = timesNearOverlap(
-      detected.leftTime,
-      detected.rightTime,
-      e.leftTime,
-      e.rightTime,
-      gap,
-    );
-    if (priceOk && timeOk) {
-      const mTop = Math.max(e.top, detected.top);
-      const mBot = Math.min(e.bottom, detected.bottom);
-      existing[j] = {
-        ...e,
-        top: mTop,
-        bottom: mBot,
-        mid: (mTop + mBot) * 0.5,
-        leftTime: Math.min(e.leftTime, detected.leftTime),
-        rightTime: Math.max(e.rightTime, detected.rightTime),
-        validBars: Math.max(e.validBars, detected.validBars ?? 0),
-        detectedAtMs: Date.now(),
-      };
-      return;
-    }
-  }
-  existing.push({
-    catalogBoxId: randomUUID(),
+function detectedToCatalogBox(detected, timeframe, prevMatch) {
+  return {
+    catalogBoxId: prevMatch?.catalogBoxId ?? randomUUID(),
     timeframe,
     top: detected.top,
     bottom: detected.bottom,
@@ -237,16 +189,19 @@ function mergeCatalogDetected(detected, timeframe, existing) {
     rightTime: detected.rightTime,
     validBars: detected.validBars ?? 0,
     detectedAtMs: Date.now(),
-    tradeEligible: true,
-    consumedAtMs: null,
-    consumedReason: null,
-  });
+    tradeEligible: prevMatch?.tradeEligible !== false,
+    consumedAtMs: prevMatch?.consumedAtMs ?? null,
+    consumedReason: prevMatch?.consumedReason ?? null,
+  };
 }
 
 /**
+ * Pine 전체 차트 탐지 결과로 TF별 저장 목록 교체(서버 overlap 병합 없음).
+ * 이전 consumed 박스는 Pine f_shouldMerge로 매칭되면 id·소비 상태 유지.
+ *
  * @param {string} symbol
  * @param {string} name
- * @param {Partial<Record<"1h"|"4h"|"1d", import("./detect-pro.js").DetectedBox[]>>} byTf
+ * @param {Partial<Record<"1h"|"4h"|"1d", import("./detect-pine.js").DetectedBox[]>>} byTf
  * @param {string | null} scanError
  * @param {CatalogMarket} [market]
  */
@@ -260,16 +215,41 @@ export function upsertSymbolCatalogDetectionsSync(
   const sym = String(symbol).trim().toUpperCase();
   const m = resolveCatalogMarket(market);
   const prev = readSymbolCatalogSync(sym, m);
-  /** @type {CatalogBox[]} */
-  const boxes = prev ? [...prev.boxes] : [];
+  const prevBoxes = prev?.boxes ?? [];
   const now = Date.now();
+  /** @type {CatalogBox[]} */
+  const boxes = [];
+
   for (const tf of /** @type {const} */ (["1h", "4h", "1d"])) {
     const list = byTf[tf];
-    if (!Array.isArray(list)) continue;
+    if (!Array.isArray(list)) {
+      for (const b of prevBoxes) {
+        if (b.timeframe === tf) boxes.push(b);
+      }
+      continue;
+    }
+    const prevTf = prevBoxes.filter((b) => b.timeframe === tf);
     for (const d of list) {
-      mergeCatalogDetected(d, tf, boxes);
+      const det = {
+        top: d.top,
+        bottom: d.bottom,
+        leftTime: d.leftTime,
+        rightTime: d.rightTime,
+      };
+      let prevMatch = null;
+      for (const p of prevTf) {
+        if (
+          pineBoxesShouldMerge(det, p, tf) ||
+          pineBoxesShouldMerge(p, det, tf)
+        ) {
+          prevMatch = p;
+          break;
+        }
+      }
+      boxes.push(detectedToCatalogBox(d, tf, prevMatch));
     }
   }
+
   writeSymbolCatalogSync(
     {
       symbol: sym,

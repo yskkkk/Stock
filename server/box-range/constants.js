@@ -23,11 +23,13 @@ export const BOX_RANGE_EXPAND_GAP_BARS = 2;
 export const BOX_RANGE_SP500_SCAN_MS = 30 * 60 * 1000;
 /** 국내(KOSPI/KOSDAQ) 카탈로그 전체 스캔 주기 */
 export const BOX_RANGE_KR_SCAN_MS = 30 * 60 * 1000;
-/** 탐지 창 1개당 최대 봉 수 — lookback과 별개로 다중 창 스캔 간격에 사용 */
-export const BOX_RANGE_MAX_DETECTED = 5;
-export const BOX_RANGE_MIN_TOUCHES = 2;
+/** Pine zonesPerTf(표시·API 반환 상한) */
+export const BOX_RANGE_MAX_DETECTED = 35;
+/** Pine maxStoreZones(엔진 내부 저장 상한) — 카탈로그 전체 스캔과 동일 */
+export const BOX_RANGE_PINE_MAX_STORE = 40;
 
-/** 동일 TF·동일 종목 내 겹침만 병합 — 1h/4h/1d 간 겹침은 병합하지 않음(각각 매매). */
+/** @deprecated detect-pro 전용 — Pine 탐지에는 미사용 */
+export const BOX_RANGE_MIN_TOUCHES = 2;
 export const BOX_RANGE_MERGE_PCT = 35;
 export const BOX_RANGE_MERGE_BARS_GAP = 5;
 export const BOX_RANGE_SIMILAR_RANGE_PCT = 8;

@@ -19,6 +19,14 @@ function flatBars(n, price = 100, spread = 2) {
 
 test("detectBoxRangeOnCandles finds tight range with touches", () => {
   const bars = flatBars(30, 100, 2);
+  // Pine은 박스 '종료' 시에만 저장(completedOnly) — 마지막 봉에서 이탈
+  const last = bars.length - 2;
+  bars[last] = {
+    ...bars[last],
+    high: 130,
+    low: 120,
+    close: 125,
+  };
   const hit = detectBoxRangeOnCandles(bars, "1d");
   assert.ok(hit);
   assert.ok(hit.top >= hit.bottom);

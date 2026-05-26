@@ -1,6 +1,5 @@
 import { loadStock } from "../stock-data.js";
-import { detectBoxRangesProOnCandles } from "./detect-pro.js";
-import { detectBoxRangesPineOnCandles } from "./detect-pine.js";
+import { detectBoxRangesOnCandles } from "./detect.js";
 import { BOX_RANGE_MAX_DETECTED } from "./constants.js";
 import {
   CATALOG_MARKETS,
@@ -75,15 +74,11 @@ async function detectBoxesForTf(symbol, timeframe) {
     Array.isArray(data?.candles) ? data.candles : [],
   );
   if (candles.length < 20) return [];
-  const usePine = process.env.STOCK_BOX_RANGE_DETECTOR === "pine";
-  const detected = usePine
-    ? detectBoxRangesPineOnCandles(candles, timeframe, BOX_RANGE_MAX_DETECTED, {
-        pctLimit: process.env.STOCK_BOX_RANGE_PINE_PCTLIMIT === "1",
-        useAtrCap: process.env.STOCK_BOX_RANGE_PINE_ATRCAP === "1",
-        breakAtrMult: Number(process.env.STOCK_BOX_RANGE_PINE_BREAK_ATR_MULT ?? 0.45),
-        maxStore: Number(process.env.STOCK_BOX_RANGE_PINE_MAX_STORE ?? 40),
-      })
-    : detectBoxRangesProOnCandles(candles, timeframe, BOX_RANGE_MAX_DETECTED);
+  const detected = detectBoxRangesOnCandles(
+    candles,
+    timeframe,
+    BOX_RANGE_MAX_DETECTED,
+  );
   /** @type {object[]} */
   const out = [];
   for (let i = 0; i < detected.length; i++) {

@@ -1,14 +1,19 @@
 import { BOX_RANGE_MAX_DETECTED } from "./constants.js";
 import {
-  detectBoxRangeProAt,
-  detectBoxRangesProOnCandles,
-} from "./detect-pro.js";
+  detectBoxRangesPineOnCandles,
+  resolvePineDetectOpts,
+} from "./detect-pine.js";
 
-export { detectBoxRangeProAt, detectBoxRangesProOnCandles } from "./detect-pro.js";
+export {
+  detectBoxRangesPineOnCandles,
+  resolvePineDetectOpts,
+  getPinePreset,
+  pineBoxesShouldMerge,
+} from "./detect-pine.js";
 
 /**
- * @typedef {import("./detect-pro.js").Bar} Bar
- * @typedef {import("./detect-pro.js").DetectedBox} DetectedBox
+ * @typedef {import("./detect-pine.js").Bar} Bar
+ * @typedef {import("./detect-pine.js").DetectedBox} DetectedBox
  */
 
 /**
@@ -18,19 +23,31 @@ export { detectBoxRangeProAt, detectBoxRangesProOnCandles } from "./detect-pro.j
  */
 export function detectBoxRangeOnCandles(candles, timeframe) {
   if (!Array.isArray(candles) || candles.length < 16) return null;
-  const result = detectBoxRangeProAt(candles, candles.length - 2, timeframe);
-  return result?.box ?? null;
+  const list = detectBoxRangesPineOnCandles(
+    candles,
+    timeframe,
+    1,
+    resolvePineDetectOpts(),
+  );
+  return list[0] ?? null;
 }
 
 /**
+ * 전체 캔들에 Pine f_zoneEngine 1회 통과 — TradingView 저장 배열과 동일 방식
  * @param {Bar[]} candles
  * @param {"1h"|"4h"|"1d"} timeframe
+ * @param {number} [maxCount]
  * @returns {DetectedBox[]}
  */
-export function detectBoxRangesOnCandles(candles, timeframe) {
-  return detectBoxRangesProOnCandles(
+export function detectBoxRangesOnCandles(
+  candles,
+  timeframe,
+  maxCount = BOX_RANGE_MAX_DETECTED,
+) {
+  return detectBoxRangesPineOnCandles(
     candles,
     timeframe,
-    BOX_RANGE_MAX_DETECTED,
+    maxCount,
+    resolvePineDetectOpts(),
   );
 }

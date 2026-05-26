@@ -320,3 +320,49 @@ export function detectBoxRangesPineOnCandles(
   return out;
 }
 
+/** Pine 스크립트 기본값과 동일한 탐지 옵션 */
+export function resolvePineDetectOpts(env = process.env) {
+  return {
+    pctLimit: env?.STOCK_BOX_RANGE_PINE_PCTLIMIT === "1",
+    useAtrCap: env?.STOCK_BOX_RANGE_PINE_ATRCAP === "1",
+    breakAtrMult:
+      Number(env?.STOCK_BOX_RANGE_PINE_BREAK_ATR_MULT ?? 0.45) || 0.45,
+    maxStore: Math.max(
+      12,
+      Math.min(
+        80,
+        Math.floor(Number(env?.STOCK_BOX_RANGE_PINE_MAX_STORE ?? 40) || 40),
+      ),
+    ),
+  };
+}
+
+/** @param {"1h"|"4h"|"1d"} timeframe */
+export function getPinePreset(timeframe) {
+  return PRESET[timeframe] ?? null;
+}
+
+/**
+ * Pine f_shouldMerge — 카탈로그 consumed 매칭용
+ * @param {{ top: number; bottom: number; leftTime: number; rightTime: number }} a
+ * @param {{ top: number; bottom: number; leftTime: number; rightTime: number }} b
+ * @param {"1h"|"4h"|"1d"} timeframe
+ */
+export function pineBoxesShouldMerge(a, b, timeframe) {
+  const p = PRESET[timeframe];
+  if (!p) return false;
+  return shouldMerge(
+    a.top,
+    a.bottom,
+    a.leftTime,
+    a.rightTime,
+    b.top,
+    b.bottom,
+    b.leftTime,
+    b.rightTime,
+    p.mergeMidPct,
+    p.mergeBars,
+    tfSec(timeframe),
+  );
+}
+
