@@ -2,8 +2,11 @@
  * server/ 전역 버그·리스크 감사 — 메일 보고
  */
 import { sendTransactionalEmail, isEmailSendingConfigured } from "../email-sender.js";
+import { readProgramsStoreSync } from "../live-trade-programs-store.js";
+import { readBoxRangeStoreSync } from "../box-range/store.js";
+import { isBoxRangeProgram } from "../box-range/constants.js";
 
-export const SERVER_AUDIT_REPORT_VERSION = "2026-05-26-server-audit-1";
+export const SERVER_AUDIT_REPORT_VERSION = "2026-05-27-server-audit-2";
 export const DEFAULT_SERVER_AUDIT_TO = "samron3@naver.com";
 
 /** @type {{ severity: string; id: string; file: string; issue: string; impact: string; fix: string }[]} */
@@ -23,8 +26,8 @@ const FINDINGS = [
     file: "box-range/detect-pine.js (timeNear)",
     issue: "봉 time은 초(unix)인데 merge gap = mBars×tfSec×1000(ms 스케일)",
     impact:
-      "Pine TV(ms)와 불일치; mergeBars>0일 때 시간 간격 병합이 거의 항상 통과해 박스가 과다 병합될 수 있음",
-    fix: "gap을 초 단위로 맞추거나 엔진 내부 시간을 ms로 통일",
+      "Pine TV(ms)와 불일치; mergeBars>0일 때 시간 간격 병합이 거의 항상 통과해 legacy pine 탐지 박스 과다 병합",
+    fix: "gap을 초 단위로 맞추거나 엔진 내부 시간을 ms로 통일 (PRO v2 core는 timesNearOverlap 초 단위 사용)",
   },
   {
     severity: "P1",
@@ -109,10 +112,26 @@ const FINDINGS = [
   {
     severity: "P1",
     id: "P1-11",
-    file: "box-range/quotes.js (수정됨 d92cbcb)",
-    issue: "과거: picks 1m quotedAtMs 며칠 전 → FSM 전량 스킵",
-    impact: "진입 대기(armed) 0개처럼 보이는 증상",
-    fix: "배포 확인·STOCK_BOX_RANGE_QUOTE_* 모니터링 (코드는 maxAgeMs:0 반영)",
+    file: "live-trade-arm-gate.js",
+    issue: 'isProgramArmedForMarket("us")는 mk.us만 확인, toss arm 미확인',
+    impact: "코인만 빗썸 arm한 프로그램에 us:true면 US live FSM 매수 시도",
+    fix: "US도 armedMarkets 또는 toss-ready + toss arm 확인",
+  },
+  {
+    severity: "P1",
+    id: "P1-12",
+    file: "server/**/*.test.js (node:test)",
+    issue: "11개 box-range·live-trade 테스트가 node:test 형식 — vitest가 suite 미인식",
+    impact: 'npm test 시 "No test suite found" 11 fail · CI 녹색/적색 혼란',
+    fix: "vitest describe/it로 통일 또는 vite.config에 node:test runner 추가",
+  },
+  {
+    severity: "P1",
+    id: "P1-13",
+    file: "box-range/store.js upsertDetectedBoxSync",
+    issue: "boxes.length>800 시 updatedAtMs 기준 600개로 잘림",
+    impact: "장기 운영 시 idle/armed 박스가 조용히 삭제 → FSM 대상 소실",
+    fix: "closed만 prune · in_position/armed 보호",
   },
   {
     severity: "P2",
@@ -149,19 +168,56 @@ const FINDINGS = [
   {
     severity: "P2",
     id: "P2-5",
-    file: "tests",
-    issue: "vitest: chart-overlay.test 1 fail; merge/quotes.test suite 없음",
-    impact: "CI/로컬 test 신뢰도 저하",
-    fix: "flatBoxCandles 기대값 조정 또는 node:test→vitest 통일",
+    file: "runner-fsm.js (live tick)",
+    issue: "Pine OHLC vs lastPrice — wick low/high 미반영",
+    impact: "dipLow·트리거·TP/SL 타이밍이 Pine 대비 ±1틱 차이",
+    fix: "현재봉 high/low 캐시 병합(전략 동일, 정밀도만)",
+  },
+  {
+    severity: "P2",
+    id: "P2-6",
+    file: "live-trade-auto-sell.js + box-range FSM",
+    issue: "default modelId armed 프로그램은 ATR auto-sell 경로, box-range FSM 분리",
+    impact: "armed default 프로그램이 박스권과 다른 매매 경로로 동작",
+    fix: "box-range 전환 또는 disarm",
+  },
+  {
+    severity: "P2",
+    id: "P2-7",
+    file: "sim US/KR box-range 매수",
+    issue: "recordLiveTradeBuyAsync(sim)에 targetSellPrice/stopLossPrice 미저장",
+    impact: "sim 거래내역 TP/SL 빈칸",
+    fix: "live와 동일 targets 기록",
   },
 ];
 
 const FIXED_RECENT = [
-  "시뮬 거래내역 손익: entryPrice 대신 평균 매입가 (97a0534)",
-  "박스 기간 표시: detect-pine extMs 초 오류 (b11273a)",
+  "PRO v2 TP 후 idle 리셋·dipLow 추적 (5c6d025)",
+  "시뮬 거래내역 손익: 평균 매입가 (97a0534)",
   "박스 US 시세 stale → armed 미갱신 (d92cbcb)",
-  "빗썸 매도 장부·스윕 (5aae63e)",
+  "chart-overlay.test 통과 (vitest)",
+  "등락률 costBasis 우선 (holdingPurchaseCostForReturn)",
 ];
+
+function analyzeRuntimeSync() {
+  const programs = readProgramsStoreSync().programs ?? [];
+  const boxProgs = programs.filter(isBoxRangeProgram);
+  const armed = programs.filter((p) => p.status === "armed");
+  const armedDefault = armed.filter((p) => !isBoxRangeProgram(p));
+  const boxes = readBoxRangeStoreSync().boxes ?? [];
+  const open = boxes.filter((b) => b.state !== "closed");
+  return {
+    programs: programs.length,
+    boxPrograms: boxProgs.length,
+    armed: armed.length,
+    armedDefault: armedDefault.length,
+    sim: programs.filter((p) => p.status === "sim").length,
+    boxesTotal: boxes.length,
+    openBoxes: open.length,
+    armedBoxes: open.filter((b) => b.state === "armed").length,
+    inPosition: open.filter((b) => b.state === "in_position").length,
+  };
+}
 
 function sectionHtml(severity, items) {
   if (!items.length) return "";
@@ -178,16 +234,22 @@ function sectionHtml(severity, items) {
 }
 
 export function buildServerAuditReportContent(testSummary = "") {
+  const rt = analyzeRuntimeSync();
   const p0 = FINDINGS.filter((f) => f.severity === "P0");
   const p1 = FINDINGS.filter((f) => f.severity === "P1");
   const p2 = FINDINGS.filter((f) => f.severity === "P2");
-  const subject = `[YSTOCK] server/ 버그·리스크 감사 (${SERVER_AUDIT_REPORT_VERSION})`;
+  const subject = `[YSTOCK] server/ 백엔드 전역 디버그·버그 리포트 (${SERVER_AUDIT_REPORT_VERSION})`;
 
-  const text = `YSTOCK — server/ 정적 감사 (${SERVER_AUDIT_REPORT_VERSION})
+  const text = `YSTOCK — server/ 백엔드 전역 감사 (${SERVER_AUDIT_REPORT_VERSION})
 
 ■ 요약
 · P0 ${p0.length} · P1 ${p1.length} · P2 ${p2.length} (총 ${FINDINGS.length})
-· 최근 수정됨: ${FIXED_RECENT.join(" / ")}
+· 최근 수정: ${FIXED_RECENT.join(" / ")}
+
+■ 런타임 스냅샷
+· 프로그램 ${rt.programs} (box-range ${rt.boxPrograms} / armed ${rt.armed} / sim ${rt.sim})
+· armed non-box-range ${rt.armedDefault} — 스크리너·ATR 경로 주의
+· 박스 state ${rt.boxesTotal} (미청산 ${rt.openBoxes}: armed ${rt.armedBoxes} / pos ${rt.inPosition})
 
 ■ 테스트
 ${testSummary || "(미실행)"}
@@ -196,7 +258,7 @@ ${testSummary || "(미실행)"}
 ${p0.map((f) => `[${f.id}] ${f.file}\n  ${f.issue}\n  → ${f.fix}`).join("\n\n")}
 
 ■ P1 — 높음
-${p1.map((f) => `[${f.id}] ${f.file}\n  ${f.issue}`).join("\n\n")}
+${p1.map((f) => `[${f.id}] ${f.file}\n  ${f.issue}\n  → ${f.impact}`).join("\n\n")}
 
 ■ P2 — 보통
 ${p2.map((f) => `[${f.id}] ${f.file}\n  ${f.issue}`).join("\n\n")}
@@ -206,17 +268,30 @@ ${p2.map((f) => `[${f.id}] ${f.file}\n  ${f.issue}`).join("\n\n")}
 2) P0-2 detect-pine timeNear 단위
 3) P1-4 빗썸 체결 동기화 로그
 4) P1-10 picks/refresh 권한
+5) P1-11 US armed gate
+6) P1-12 vitest/node:test 통일
 
-— YSTOCK 자동 감사
+■ 모듈 커버리지
+· HTTP: create-app.js (auth, picks, live-trade, box-range, ops)
+· 실매매: live-trade-runner, auto-sell, bithumb/toss adapter, portfolio-store
+· 박스권: detect-pro-core, runner-fsm, catalog scan, ws-fsm
+· 영속: store-json(원자) vs portfolio/sessions/feedback(비원자 혼재)
+· 백그라운드: dev-sidecars (screener, box-range tick, exchange sync)
+
+— YSTOCK 자동 감사 · ${SERVER_AUDIT_REPORT_VERSION}
 `;
 
   const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"/>
 <title>server 감사</title></head>
 <body style="font-family:Malgun Gothic,sans-serif;line-height:1.55;color:#111;max-width:900px;">
-<h1>server/ 버그·리스크 감사</h1>
+<h1>server/ 백엔드 전역 디버그·버그 리포트</h1>
 <p><strong>${SERVER_AUDIT_REPORT_VERSION}</strong> · P0 ${p0.length} / P1 ${p1.length} / P2 ${p2.length}</p>
 
-<h2>최근 수정(참고)</h2>
+<h2>런타임</h2>
+<p>프로그램 ${rt.programs} · box-range ${rt.boxPrograms} · armed ${rt.armed} (non-box ${rt.armedDefault})<br>
+박스 ${rt.boxesTotal} · open ${rt.openBoxes} (armed ${rt.armedBoxes} / pos ${rt.inPosition})</p>
+
+<h2>최근 수정</h2>
 <ul>${FIXED_RECENT.map((x) => `<li>${x}</li>`).join("")}</ul>
 
 <h2>테스트</h2>
@@ -226,10 +301,10 @@ ${sectionHtml("P0 — 즉시", p0)}
 ${sectionHtml("P1 — 높음", p1)}
 ${sectionHtml("P2 — 보통", p2)}
 
-<p style="color:#64748b;margin-top:2rem;">정적 분석·코드 리뷰 기준. 프로덕션 .data·부하 테스트는 별도.</p>
+<p style="color:#64748b;margin-top:2rem;">정적 분석·코드 리뷰·npm test 기준. 부하·침투 테스트 별도.</p>
 </body></html>`;
 
-  return { subject, text, html, counts: { p0: p0.length, p1: p1.length, p2: p2.length } };
+  return { subject, text, html, counts: { p0: p0.length, p1: p1.length, p2: p2.length }, rt };
 }
 
 export async function sendServerAuditReportEmail(opts = {}) {
@@ -242,12 +317,12 @@ export async function sendServerAuditReportEmail(opts = {}) {
     throw err;
   }
   const payload = buildServerAuditReportContent(opts.testSummary ?? "");
-  if (dryRun) return { to, dryRun: true, ...payload.counts };
+  if (dryRun) return { to, dryRun: true, ...payload.counts, rt: payload.rt };
   await sendTransactionalEmail({
     to,
     subject: payload.subject,
     text: payload.text,
     html: payload.html,
   });
-  return { to, dryRun: false, sent: true, subject: payload.subject, ...payload.counts };
+  return { to, dryRun: false, sent: true, subject: payload.subject, ...payload.counts, rt: payload.rt };
 }

@@ -21,10 +21,12 @@ try {
     timeout: 120_000,
     maxBuffer: 2_000_000,
   });
-  const m = out.match(/Tests\s+(\d+)\s+failed[^\n]*\n[^\n]*\s+(\d+)\s+passed/);
-  testSummary = m
-    ? `vitest: failed ${m[1]}, passed ${m[2]} (chart-overlay flat range 1건 등)`
-    : out.slice(-800);
+  const m = out.match(/Tests\s+(\d+)\s+passed/);
+  const failM = out.match(/Test Files\s+(\d+)\s+failed/);
+  const passFiles = out.match(/Test Files\s+(\d+)\s+passed/);
+  testSummary = failM
+    ? `vitest: ${passFiles?.[1] ?? "?"} files pass, ${failM[1]} fail (node:test 11건 suite 미인식) · ${m?.[1] ?? "?"} tests pass`
+    : out.slice(-600);
 } catch (e) {
   testSummary = `npm test 실패/타임아웃: ${e instanceof Error ? e.message : e}`;
 }
