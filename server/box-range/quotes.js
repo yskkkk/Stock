@@ -96,18 +96,23 @@ export async function fetchBoxRangeLastPrices(symbols) {
   }
 
   if (other.length > 0) {
+    // FSM은 quotedAtMs 5초 이내 필수 — picks 1m 스냅샷의 오래된 시각을 그대로 쓰면 전부 스킵됨
+    const fetchedAt = Date.now();
     const yahoo = await fetchQuoteSnapshotsForSymbols(other, {
-      maxAgeMs: BOX_RANGE_QUOTE_TTL_MS,
+      maxAgeMs: 0,
     });
     for (const sym of other) {
       const q = yahoo[sym];
       if (!q?.price || !Number.isFinite(q.price) || q.price <= 0) continue;
+      const snapAt =
+        typeof q.quotedAtMs === "number" &&
+        q.quotedAtMs > 0 &&
+        fetchedAt - q.quotedAtMs <= BOX_RANGE_QUOTE_MAX_STALE_MS
+          ? q.quotedAtMs
+          : fetchedAt;
       out[sym] = {
         price: q.price,
-        quotedAtMs:
-          typeof q.quotedAtMs === "number" && q.quotedAtMs > 0
-            ? q.quotedAtMs
-            : Date.now(),
+        quotedAtMs: snapAt,
         priceSource:
           typeof q.priceSource === "string" && q.priceSource
             ? q.priceSource
