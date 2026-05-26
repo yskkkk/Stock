@@ -9325,37 +9325,40 @@ html[data-theme="light"] .market-indices-rail__item {
     position: fixed;
     top: 0;
     right: calc(var(--live-trade-dock-rail-width, 3.25rem) + env(safe-area-inset-right, 0px));
-    bottom: auto;
+    bottom: 0;
     left: auto;
     width: max-content;
     max-width: calc(var(--live-trade-dock-panel-width, 26rem) + 0.72rem);
     height: auto;
-    min-height: 0;
+    min-height: 100dvh;
     max-height: none;
     z-index: 50;
+    align-items: stretch;
   }
 
-  /* 펼침 — 본문 높이만큼, 화면 아래로 넘치면 스크롤(스크롤바 숨김) */
+  /* 펼침 — 뷰포트 상·하 꽉 참, 패널 본문만 내부 스크롤 */
   .app__right-panel--dock .app-live-trade-side-dock--open {
-    height: 100dvh;
-    max-height: 100dvh;
+    height: auto;
+    min-height: 100dvh;
+    max-height: none;
     overflow: hidden;
     overscroll-behavior: contain;
   }
 
   .app__right-panel--dock .app-live-trade-side-dock--open .app-live-trade-side-dock__panel {
     flex: 1 1 auto;
-    min-height: 0;
-    max-height: 100%;
-    height: auto;
+    align-self: stretch;
+    min-height: 100%;
+    max-height: none;
+    height: 100%;
     overflow: hidden;
   }
 
   .app__right-panel--dock .app-live-trade-side-dock--open .app-live-trade-side-dock__host {
     flex: 1 1 auto;
     min-height: 0;
-    max-height: 100%;
-    height: auto;
+    max-height: none;
+    height: 100%;
     overflow: hidden;
   }
 
@@ -9905,15 +9908,18 @@ html[data-theme="light"]
 
 .app-live-trade-side-dock--open .app-live-trade-side-dock__panel {
   visibility: visible;
+  align-self: stretch;
+  height: 100%;
+  min-height: 100%;
   border-top-left-radius: var(--radius-xl, 22px);
   border-bottom-left-radius: var(--radius-xl, 22px);
-  overflow: visible;
+  overflow: hidden;
 }
 
 .app-live-trade-side-dock--open .app-live-trade-side-dock__host {
-  height: auto;
+  height: 100%;
   min-height: 0;
-  max-height: 100%;
+  max-height: none;
   overflow: hidden;
   border-top-left-radius: inherit;
   border-bottom-left-radius: inherit;
@@ -10250,7 +10256,7 @@ html[data-theme="light"][data-light-palette="glass"]
   max-height: 100% !important;
   border: none;
   border-left: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
-  border-radius: var(--radius-xl, 22px) 0 var(--radius-xl, 22px) 0 !important;
+  border-radius: var(--radius-xl, 22px) 0 0 var(--radius-xl, 22px) !important;
   box-shadow: -8px 0 32px rgba(0, 0, 0, 0.22);
   background: var(--card-bg);
   color: var(--text);
