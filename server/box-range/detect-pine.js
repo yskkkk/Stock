@@ -79,7 +79,8 @@ function midDistancePct(t1, b1, t2, b2) {
 }
 
 function timeNear(tEnd, tStart, mBars, tfSeconds) {
-  const gap = mBars * tfSeconds * 1000;
+  // tStart/tEnd are unix seconds (same as candle `time` in this module)
+  const gap = mBars * tfSeconds;
   if (mBars <= 0) return true;
   return Math.abs(tStart - tEnd) <= gap;
 }

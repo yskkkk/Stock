@@ -1,4 +1,4 @@
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import {
   BOX_RANGE_QUOTE_MAX_STALE_MS,

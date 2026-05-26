@@ -1153,7 +1153,7 @@ export function createApp() {
     }),
   );
 
-  app.post("/api/picks/refresh", requireUserAuth, (_req, res) => {
+  app.post("/api/picks/refresh", requireAccessAdmin, (_req, res) => {
     res.json(forceRescreen());
   });
 
