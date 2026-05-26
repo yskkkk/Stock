@@ -277,7 +277,6 @@ if sz > 0
         float bottom = array.get(bottoms, i)
         float mid = array.get(mids, i)
         bool trig = array.get(triggered, i)
-        int brk = array.get(breakBars, i)
         float entry = array.get(entryPrices, i)
         bool closed = array.get(tradeClosed, i)
         int boxRightT = array.get(rightTimes, i)
