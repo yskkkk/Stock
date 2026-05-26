@@ -379,7 +379,8 @@ function ProgramRunCard({
             </thead>
             <tbody>
               {holdings.map((h) => {
-                const up = (h.changePct ?? 0) >= 0;
+                const pnlUp =
+                  h.unrealizedPnl != null ? h.unrealizedPnl >= 0 : null;
                 return (
                   <Fragment key={`${h.market}:${h.symbol}`}>
                   <tr>
@@ -450,7 +451,7 @@ function ProgramRunCard({
                       className={
                         h.unrealizedPnl == null
                           ? "live-sim-run__num live-table__col live-table__col--num-end"
-                          : up
+                          : pnlUp
                             ? "live-sim-run__num live-sim-run__num--up live-table__col live-table__col--num-end"
                             : "live-sim-run__num live-sim-run__num--down live-table__col live-table__col--num-end"
                       }
