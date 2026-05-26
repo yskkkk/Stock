@@ -28,6 +28,7 @@
     "email:box-range-strategy": "node scripts/send-box-range-strategy-email.mjs",
     "email:box-range-v2-audit": "node scripts/send-box-range-v2-audit-report.mjs",
     "email:box-range-pine-tv": "node scripts/send-box-range-pine-tv-email.mjs",
+    "email:box-range-server-pine": "node scripts/send-box-range-server-pine-email.mjs",
     "email:web-balsin-impl": "node scripts/send-web-balsin-implementation-email.mjs",
     "email:sim-trade-history-fix": "node scripts/send-sim-trade-history-fix-email.mjs",
     "email:server-audit": "node scripts/send-server-audit-email.mjs",

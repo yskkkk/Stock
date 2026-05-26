@@ -1,0 +1,219 @@
+// YSTOCK server/box-range/detect-pine.js — f_zoneEngine 단일 TF 포팅
+// TradingView Pine Editor 붙여넣기용 · 차트 TF = 1H / 4H / 1D 중 하나
+// 원본 시드: pine-horizontal-box-zones.pine (f_zoneEngine 동일)
+//
+// 서버 기본(환경변수 미설정 시):
+//   STOCK_BOX_RANGE_PINE_PCTLIMIT=0  → 폭 % 제한 OFF (usePctLimit=false)
+//   STOCK_BOX_RANGE_PINE_ATRCAP=0    → ATR 폭 보조 OFF
+//   STOCK_BOX_RANGE_PINE_BREAK_ATR_MULT=0.45
+//   STOCK_BOX_RANGE_PINE_MAX_STORE=40
+//   마지막 봉 1개 미포함(배치 탐지) ≈ 완성 봉만 처리 — 아래 «서버: 확정 봉만» 참고
+//
+// TV 원본(pine-horizontal-box-zones)과 다른 점:
+// · MTF request.security 없음 — 현재 차트 TF 프리셋만
+// · 저장 rightTime에 extMs 미가산(서버 UI·카탈로그와 동일) · 그리기만 우측 연장
+// · pine-box-range-finder.pine(ER/ADX) 과는 별개 알고리즘
+
+//@version=6
+indicator("YSTOCK 서버 박스엔진", shorttitle="YSTOCK박스", overlay=true, max_boxes_count=128, max_lines_count=128, max_bars_back=3000)
+
+// ── 프리셋 (detect-pine.js PRESET) ───────────────────────────────────
+H1_LB = 16
+H1_MIN = 6
+H1_MAX_PCT = 3.2
+H1_ATR_LEN = 14
+H1_ATR_MULT = 2.0
+H1_MERGE_P = 1.0
+H1_MERGE_B = 0
+H1_EXT_B = 10
+H1_EXIT_B = 2
+H1_TF_SEC = 3600
+
+H4_LB = 14
+H4_MIN = 5
+H4_MAX_PCT = 4.5
+H4_ATR_LEN = 14
+H4_ATR_MULT = 2.0
+H4_MERGE_P = 1.2
+H4_MERGE_B = 0
+H4_EXT_B = 8
+H4_EXIT_B = 2
+H4_TF_SEC = 14400
+
+D1_LB = 12
+D1_MIN = 4
+D1_MAX_PCT = 7.0
+D1_ATR_LEN = 14
+D1_ATR_MULT = 2.0
+D1_MERGE_P = 1.5
+D1_MERGE_B = 0
+D1_EXT_B = 6
+D1_EXIT_B = 2
+D1_TF_SEC = 86400
+
+float NO_PCT = 99999.0
+int MERGE_SCAN = 6
+
+grpSrv = "YSTOCK 서버 동기화"
+usePctLimit = input.bool(false, "폭 % 제한 (PCTLIMIT=1)", group=grpSrv, tooltip="서버 env STOCK_BOX_RANGE_PINE_PCTLIMIT — 기본 0=OFF")
+useAtrCap = input.bool(false, "ATR 폭 보조 (ATRCAP=1)", group=grpSrv)
+breakAtrMult = input.float(0.45, "이탈 ATR 배수", minval=0.1, maxval=3.0, step=0.05, group=grpSrv)
+maxStoreZones = input.int(40, "저장 상한", minval=12, maxval=80, group=grpSrv)
+serverConfirmedOnly = input.bool(true, "서버: 확정 봉만 엔진", group=grpSrv, tooltip="detect-pine.js 는 마지막 미확정 봉 제외 후 배치 처리")
+
+grpVis = "표시"
+zonesPerTf = input.int(35, "표시 박스 수", minval=5, maxval=80, group=grpVis)
+completedOnly = input.bool(true, "완성 박스만", group=grpVis)
+showMid = input.bool(false, "중심선", group=grpVis)
+cFill = input.color(color.new(#00BFA5, 86), "채움", group=grpVis)
+cBrd = input.color(color.new(#00BFA5, 35), "테두리", group=grpVis)
+cMid = input.color(color.new(#00BFA5, 0), "중심", group=grpVis)
+
+int chartSec = timeframe.in_seconds()
+bool is1H = chartSec == H1_TF_SEC
+bool is4H = chartSec == H4_TF_SEC
+bool is1D = timeframe.isdaily or chartSec == D1_TF_SEC
+
+int pLb = is1H ? H1_LB : is4H ? H4_LB : is1D ? D1_LB : H1_LB
+int pMin = is1H ? H1_MIN : is4H ? H4_MIN : is1D ? D1_MIN : H1_MIN
+float pMax = is1H ? H1_MAX_PCT : is4H ? H4_MAX_PCT : is1D ? D1_MAX_PCT : H1_MAX_PCT
+int pAtrL = is1H ? H1_ATR_LEN : is4H ? H4_ATR_LEN : is1D ? D1_ATR_LEN : H1_ATR_LEN
+float pAtrM = is1H ? H1_ATR_MULT : is4H ? H4_ATR_MULT : is1D ? D1_ATR_MULT : H1_ATR_MULT
+float pMergeP = is1H ? H1_MERGE_P : is4H ? H4_MERGE_P : is1D ? D1_MERGE_P : H1_MERGE_P
+int pMergeB = is1H ? H1_MERGE_B : is4H ? H4_MERGE_B : is1D ? D1_MERGE_B : H1_MERGE_B
+int pExtB = is1H ? H1_EXT_B : is4H ? H4_EXT_B : is1D ? D1_EXT_B : H1_EXT_B
+int pExitB = is1H ? H1_EXIT_B : is4H ? H4_EXIT_B : is1D ? D1_EXIT_B : H1_EXIT_B
+int pTfSec = is1H ? H1_TF_SEC : is4H ? H4_TF_SEC : is1D ? D1_TF_SEC : H1_TF_SEC
+int extMs = pExtB * pTfSec * 1000
+
+f_timeNear(int tEnd, int tStart, int mBars, int tfSec) =>
+    int gap = mBars * tfSec * 1000
+    mBars <= 0 ? true : math.abs(tStart - tEnd) <= gap
+
+f_midDistancePct(float t1, float b1, float t2, float b2) =>
+    float m1 = (t1 + b1) * 0.5
+    float m2 = (t2 + b2) * 0.5
+    float ref = (m1 + m2) * 0.5
+    ref > 0 ? math.abs(m1 - m2) / ref * 100.0 : 100.0
+
+f_shouldMerge(float tN, float bN, int t0N, int t1N, float tO, float bO, int t0O, int t1O, float maxMidPct, int mBars, int tfSec) =>
+    f_midDistancePct(tN, bN, tO, bO) <= maxMidPct and (f_timeNear(t1N, t0O, mBars, tfSec) or f_timeNear(t1O, t0N, mBars, tfSec))
+
+f_trimZoneStore(float[] tops, float[] bots, int[] t0s, int[] t1s, int maxN) =>
+    while array.size(tops) > maxN
+        array.pop(tops)
+        array.pop(bots)
+        array.pop(t0s)
+        array.pop(t1s)
+
+f_pushMerged(float[] tops, float[] bots, int[] t0s, int[] t1s, float tN, float bN, int t0N, int t1N, float mPct, int mBars, int tfSec, int maxN) =>
+    array.unshift(tops, tN)
+    array.unshift(bots, bN)
+    array.unshift(t0s, t0N)
+    array.unshift(t1s, t1N)
+    int scan = math.min(MERGE_SCAN, array.size(tops) - 1)
+    if scan > 0
+        for j = 1 to scan
+            if f_shouldMerge(tN, bN, t0N, t1N, array.get(tops, j), array.get(bots, j), array.get(t0s, j), array.get(t1s, j), mPct, mBars, tfSec)
+                array.set(tops, 0, math.max(tN, array.get(tops, j)))
+                array.set(bots, 0, math.min(bN, array.get(bots, j)))
+                array.set(t0s, 0, math.min(t0N, array.get(t0s, j)))
+                array.set(t1s, 0, math.max(t1N, array.get(t1s, j)))
+                array.remove(tops, j)
+                array.remove(bots, j)
+                array.remove(t0s, j)
+                array.remove(t1s, j)
+                break
+    f_trimZoneStore(tops, bots, t0s, t1s, maxN)
+
+// detect-pine.js detectBoxRangesPineOnCandles 루프와 동일
+f_zoneEngine(
+     int lb, int minB, float maxPct, bool useAtr, int atrL, float atrM,
+     float mPct, int mBars, int tfSec, int exitBars,
+     bool pctLimit, float brkAtr, int maxStore, bool runEngine) =>
+    rngHi = ta.highest(high, lb)
+    rngLo = ta.lowest(low, lb)
+    midPx = (rngHi + rngLo) * 0.5
+    rangePct = midPx > 0 ? (rngHi - rngLo) / midPx * 100.0 : 100.0
+    atrVal = ta.atr(atrL)
+    atrPct = close > 0 ? atrVal / close * 100.0 * atrM : rangePct
+    capPct = pctLimit ? (useAtr ? math.min(maxPct, math.max(maxPct * 0.5, atrPct)) : maxPct) : NO_PCT
+    bool rollTight = pctLimit ? rangePct <= capPct : true
+
+    var int stT0 = na
+    var int stCnt = 0
+    var int looseCnt = 0
+    var float stTop = na
+    var float stBot = na
+    var float[] zTop = array.new_float()
+    var float[] zBot = array.new_float()
+    var int[] zT0 = array.new_int()
+    var int[] zT1 = array.new_int()
+
+    float trkMid = not na(stTop) and not na(stBot) ? (stTop + stBot) * 0.5 : midPx
+    float trkPct = not na(stTop) and not na(stBot) and trkMid > 0 ? (stTop - stBot) / trkMid * 100.0 : rangePct
+    float brkBuf = atrVal * brkAtr
+    bool pctWide = stCnt > 0 and pctLimit and trkPct > capPct * 1.25
+    bool atrBreak = stCnt > 0 and not pctLimit and not na(stTop) and not na(stBot) and (close > stTop + brkBuf or close < stBot - brkBuf)
+    bool wideBreak = pctWide or atrBreak
+    bool inBox = stCnt > 0 and not wideBreak
+
+    if runEngine
+        if stCnt > 0
+            looseCnt := (pctLimit and not rollTight) ? looseCnt + 1 : 0
+            if wideBreak or (pctLimit and looseCnt >= exitBars)
+                if stCnt >= minB and not na(stTop)
+                    f_pushMerged(zTop, zBot, zT0, zT1, stTop, stBot, stT0, time, mPct, mBars, tfSec, maxStore)
+                stT0 := na
+                stCnt := 0
+                looseCnt := 0
+                stTop := na
+                stBot := na
+        if stCnt == 0 and rollTight
+            stT0 := time
+            stCnt := 1
+            looseCnt := 0
+            stTop := high
+            stBot := low
+        else if stCnt > 0 and inBox
+            stCnt += 1
+            stTop := math.max(stTop, high)
+            stBot := math.min(stBot, low)
+
+    [zTop, zBot, zT0, zT1, rangePct, array.size(zTop)]
+
+bool atrOn = usePctLimit and useAtrCap
+bool runEng = not serverConfirmedOnly or barstate.isconfirmed
+
+[zTop, zBot, zT0, zT1, rollPct, zn] = f_zoneEngine(
+     pLb, pMin, pMax, atrOn, pAtrL, pAtrM, pMergeP, pMergeB, pTfSec, pExitB,
+     usePctLimit, breakAtrMult, maxStoreZones, runEng)
+
+var box[] gBox = array.new_box()
+var line[] gLn = array.new_line()
+
+f_clear() =>
+    while array.size(gBox) > 0
+        box.delete(array.pop(gBox))
+    while array.size(gLn) > 0
+        line.delete(array.pop(gLn))
+
+if barstate.isconfirmed
+    f_clear()
+    int total = math.min(array.size(zTop), array.size(zBot), array.size(zT0), array.size(zT1))
+    if total > 0
+        int n = math.min(zonesPerTf, total, 80)
+        for i = 0 to n - 1
+            float top = array.get(zTop, i)
+            float bot = array.get(zBot, i)
+            int t0 = array.get(zT0, i)
+            int t1Draw = array.get(zT1, i) + extMs
+            if not na(top) and not na(bot) and top > bot
+                box nb = box.new(math.min(t0, t1Draw), top, math.max(t0, t1Draw), bot, xloc=xloc.bar_time, bgcolor=cFill, border_color=cBrd)
+                array.push(gBox, nb)
+                if showMid
+                    float mid = (top + bot) * 0.5
+                    array.push(gLn, line.new(t0, mid, t1Draw, mid, xloc=xloc.bar_time, color=cMid, width=2))
+
+plot(zn, "저장 박스 수", display=display.data_window)
+plot(rollPct, "롤링 폭%", display=display.data_window)

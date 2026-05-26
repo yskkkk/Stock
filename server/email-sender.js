@@ -74,7 +74,7 @@ export function resolveMailFrom() {
 }
 
 /**
- * @param {{ to: string; subject: string; text: string; html?: string }} msg
+ * @param {{ to: string; subject: string; text: string; html?: string; attachments?: import("nodemailer").Attachment[] }} msg
  */
 export async function sendTransactionalEmail(msg) {
   const to = String(msg.to ?? "").trim();
@@ -103,6 +103,9 @@ export async function sendTransactionalEmail(msg) {
     subject: msg.subject,
     text: msg.text,
     html: msg.html ?? undefined,
+    ...(Array.isArray(msg.attachments) && msg.attachments.length > 0
+      ? { attachments: msg.attachments }
+      : {}),
   });
   return { mock: false };
 }
