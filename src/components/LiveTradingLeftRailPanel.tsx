@@ -25,6 +25,7 @@ import {
   summarizeHoldingsPnl,
   summarizeNetMarketByCurrency,
   holdingNetMarketValue,
+  holdingReturnPctForDisplay,
   formatInvestedOrMarketLabel,
   programCashKrwBalance,
 } from "../lib/livePortfolioPnl";
@@ -252,12 +253,13 @@ function RailProgramCard({
           ) : (
             dotHoldings.map((h) => {
               const sym = shortSymbol(h.symbol);
-              const tone = holdingChangeTone(h.changePct);
+              const rowPct = holdingReturnPctForDisplay(h, roundTripForMarket);
+              const tone = holdingChangeTone(rowPct);
               return (
                 <span
                   key={`${h.market}:${h.symbol}`}
                   className={`live-trade-rail__dot live-trade-rail__dot--${tone}`}
-                  title={`${sym} ${h.changePct == null ? "—" : formatPercent(h.changePct)}`}
+                  title={`${sym} ${rowPct == null ? "—" : formatPercent(rowPct)}`}
                 >
                   {sym.slice(0, 1)}
                 </span>
@@ -290,7 +292,11 @@ function RailProgramCard({
                 <tbody>
                   {sorted.map((h) => {
                     const sym = shortSymbol(h.symbol);
-                    const tone = holdingChangeTone(h.changePct);
+                    const rowPct = holdingReturnPctForDisplay(
+                      h,
+                      roundTripForMarket,
+                    );
+                    const tone = holdingChangeTone(rowPct);
                     const mv =
                       holdingNetMarketValue(h, roundTripForMarket(h.market)) ?? 0;
                     return (
@@ -299,7 +305,7 @@ function RailProgramCard({
                         <td
                           className={`live-trade-rail__table-chg live-trade-rail__table-chg--${tone}`}
                         >
-                          {h.changePct == null ? "—" : formatPercent(h.changePct)}
+                          {rowPct == null ? "—" : formatPercent(rowPct)}
                         </td>
                         <td className="live-trade-rail__table-val">
                           {formatRailNetValuation(h, roundTripForMarket)}

@@ -71,6 +71,30 @@ export function netReturnPctFromPrices(
   return netReturnPct(entry, current, roundTripFeeRate);
 }
 
+/** 매입 원가·평가금액 기준 총수익률(%) — 평단·24h 등락과 어긋나지 않게 */
+export function holdingGrossReturnPctFromCost(costBasis, marketValue) {
+  const cost = Number(costBasis);
+  const mv = Number(marketValue);
+  if (!Number.isFinite(cost) || cost <= 0) return null;
+  if (!Number.isFinite(mv) || mv <= 0) return null;
+  return ((mv - cost) / cost) * 100;
+}
+
+/** 매입 원가 대비 매도 수수료 반영 순평가 수익률(%) */
+export function holdingNetReturnPctFromCost(
+  costBasis,
+  marketValue,
+  roundTripFeeRate = DEFAULT_ROUND_TRIP_FEE_RATE,
+) {
+  const cost = Number(costBasis);
+  const mv = Number(marketValue);
+  if (!Number.isFinite(cost) || cost <= 0) return null;
+  if (!Number.isFinite(mv) || mv <= 0) return null;
+  const fee = normalizeRoundTripFeeRate(roundTripFeeRate);
+  const netMv = mv * (1 - fee / 2);
+  return ((netMv - cost) / cost) * 100;
+}
+
 /**
  * @param {number} pct
  * @returns {"win"|"loss"|"flat"}

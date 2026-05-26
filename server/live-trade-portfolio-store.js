@@ -8,7 +8,11 @@ import { fetchQuoteSnapshotsForSymbols } from "./picks-live-quotes.js";
 import { pickQuoteFromMap } from "./quote-symbol-resolve.js";
 import { resolveLiveTradeQuote } from "./live-trade-quote.js";
 import { resolveLiveTradeExitTargets } from "./live-trade-exit-scenario.js";
-import { DEFAULT_ROUND_TRIP_FEE_RATE, netReturnPct } from "./net-return.js";
+import {
+  DEFAULT_ROUND_TRIP_FEE_RATE,
+  holdingGrossReturnPctFromCost,
+  holdingNetReturnPctFromCost,
+} from "./net-return.js";
 import {
   getOneWayFeeRateForUserMarketSync,
   getRoundTripFeeRateForUserMarketSync,
@@ -966,14 +970,12 @@ export async function buildLiveTradePortfolioSnapshot(opts = {}) {
     const mv =
       currentPrice != null ? currentPrice * pos.quantity : null;
     if (mv != null) marketValueOpen += mv;
-    const grossPct =
-      currentPrice != null && avgEntry > 0
-        ? ((currentPrice - avgEntry) / avgEntry) * 100
-        : null;
     const feeRate = getRoundTripFeeRateForUserMarketSync(userId, pos.market);
+    const grossPct =
+      mv != null ? holdingGrossReturnPctFromCost(pos.costBasis, mv) : null;
     const netPct =
-      currentPrice != null && avgEntry > 0
-        ? netReturnPct(avgEntry, currentPrice, feeRate)
+      mv != null
+        ? holdingNetReturnPctFromCost(pos.costBasis, mv, feeRate)
         : null;
     const unrealized =
       mv != null ? mv - pos.costBasis : null;

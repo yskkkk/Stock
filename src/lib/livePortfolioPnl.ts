@@ -198,6 +198,44 @@ export function openHoldingsReturnPct(
   );
 }
 
+/** 매입 원가·평가금액 기준 총수익률(%) */
+export function holdingGrossReturnPctFromCost(
+  costBasis: number | null | undefined,
+  marketValue: number | null | undefined,
+): number | null {
+  const cost = Number(costBasis);
+  const mv = Number(marketValue);
+  if (!Number.isFinite(cost) || cost <= 0) return null;
+  if (!Number.isFinite(mv) || mv <= 0) return null;
+  return ((mv - cost) / cost) * 100;
+}
+
+/** 매입 원가 대비 매도 수수료 반영 순평가 수익률(%) */
+export function holdingNetReturnPctFromCost(
+  costBasis: number | null | undefined,
+  marketValue: number | null | undefined,
+  roundTripFeeRate: number,
+): number | null {
+  const cost = Number(costBasis);
+  const mv = Number(marketValue);
+  if (!Number.isFinite(cost) || cost <= 0) return null;
+  if (!Number.isFinite(mv) || mv <= 0) return null;
+  const fee = normalizeRoundTripFeeRate(roundTripFeeRate);
+  const netMv = mv * (1 - fee / 2);
+  return ((netMv - cost) / cost) * 100;
+}
+
+export function holdingReturnPctForDisplay(
+  h: LiveTradeHolding,
+  roundTripForMarket: (market: LiveTradeMarket) => number,
+): number | null {
+  return holdingNetReturnPctFromCost(
+    h.costBasis,
+    h.marketValue,
+    roundTripForMarket(h.market),
+  );
+}
+
 /** 보유 종목 수익률 — 매도 수수료(왕복의 절반) 반영 순평가 기준 */
 export function openHoldingsNetReturnPct(
   holdings: LiveTradeHolding[],

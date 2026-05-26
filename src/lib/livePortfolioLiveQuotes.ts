@@ -4,7 +4,11 @@ import type {
   LiveTradeRecord,
   PicksDailyHistoryQuotesMap,
 } from "../api";
-import { DEFAULT_ROUND_TRIP_FEE_RATE, netReturnPct } from "./netReturn";
+import { DEFAULT_ROUND_TRIP_FEE_RATE } from "./netReturn";
+import {
+  holdingGrossReturnPctFromCost,
+  holdingNetReturnPctFromCost,
+} from "./livePortfolioPnl";
 import type { LiveTradeMarket } from "../types";
 
 function pickQuote(
@@ -50,13 +54,14 @@ function applyQuoteToHolding(
   quote: PicksDailyHistoryQuotesMap[string] | undefined,
   roundTripFeeRate: number,
 ): LiveTradeHolding {
-  const avgEntry = h.avgEntryPrice;
   const mv = price * h.quantity;
   const unrealized = mv - h.costBasis;
-  const grossPct =
-    avgEntry > 0 ? ((price - avgEntry) / avgEntry) * 100 : null;
-  const netPct =
-    avgEntry > 0 ? netReturnPct(avgEntry, price, roundTripFeeRate) : null;
+  const grossPct = holdingGrossReturnPctFromCost(h.costBasis, mv);
+  const netPct = holdingNetReturnPctFromCost(
+    h.costBasis,
+    mv,
+    roundTripFeeRate,
+  );
   const quotedAtMs =
     quote?.quotedAtMs != null && Number.isFinite(quote.quotedAtMs)
       ? quote.quotedAtMs

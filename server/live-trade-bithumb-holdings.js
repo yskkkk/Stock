@@ -10,7 +10,11 @@ import {
 import { getDecryptedCredentialsSync } from "./user-credentials-store.js";
 import { fetchQuoteSnapshotsForSymbols } from "./picks-live-quotes.js";
 import { pickQuoteFromMap } from "./quote-symbol-resolve.js";
-import { netReturnPct } from "./net-return.js";
+import {
+  holdingGrossReturnPctFromCost,
+  holdingNetReturnPctFromCost,
+  netReturnPct,
+} from "./net-return.js";
 import { getBithumbRoundTripFeeRateSync } from "./exchange-trading-fees.js";
 import { liveTradeCurrency } from "./live-trade-market.js";
 import {
@@ -287,12 +291,10 @@ async function listBithumbExchangeOverlayRowsForCredentials(
     if (mv != null && mv < MIN_DISPLAY_KRW) continue;
 
     const grossPct =
-      currentPrice != null && avgEntry > 0
-        ? ((currentPrice - avgEntry) / avgEntry) * 100
-        : null;
+      mv != null ? holdingGrossReturnPctFromCost(costBasis, mv) : null;
     const netPct =
-      currentPrice != null && avgEntry > 0
-        ? netReturnPct(avgEntry, currentPrice, feeRate)
+      mv != null
+        ? holdingNetReturnPctFromCost(costBasis, mv, feeRate)
         : null;
 
     const exit = await resolveCryptoHoldingExitTargets(
