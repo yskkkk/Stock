@@ -301,6 +301,7 @@ export const ko = {
     boxRangeTabMarketLabel: "시장",
     boxRangeTabMarketUs: "S&P500",
     boxRangeTabMarketKr: "국내",
+    boxRangeTabMarketCrypto: "비트",
     boxRangeTabPickSymbol: "종목 로고를 선택하세요.",
     boxRangeTabNoValid: "이 종목에 유효한 박스가 없습니다.",
     boxRangeTabNoSymbols: "유효 박스가 있는 종목이 없습니다. 스캔 후 다시 확인하세요.",

@@ -9,9 +9,9 @@ import {
 } from "./constants.js";
 import { pineBoxesShouldMerge } from "./detect-pine.js";
 
-/** @typedef {"us"|"kr"} CatalogMarket */
+/** @typedef {"us"|"kr"|"crypto"} CatalogMarket */
 
-export const CATALOG_MARKETS = /** @type {const} */ (["us", "kr"]);
+export const CATALOG_MARKETS = /** @type {const} */ (["us", "kr", "crypto"]);
 
 export { BOX_RANGE_CATALOG_DIR_LEGACY, BOX_RANGE_CATALOG_DIR_PINE };
 
@@ -38,7 +38,10 @@ export function catalogDirForRoot(market = "us", catalogRoot = resolveCatalogRoo
  * @returns {CatalogMarket}
  */
 export function resolveCatalogMarket(raw) {
-  return String(raw ?? "").trim().toLowerCase() === "kr" ? "kr" : "us";
+  const s = String(raw ?? "").trim().toLowerCase();
+  if (s === "kr") return "kr";
+  if (s === "crypto") return "crypto";
+  return "us";
 }
 
 /**

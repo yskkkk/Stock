@@ -23,6 +23,10 @@ export const BOX_RANGE_EXPAND_GAP_BARS = 2;
 export const BOX_RANGE_SP500_SCAN_MS = 30 * 60 * 1000;
 /** 국내(KOSPI/KOSDAQ) 카탈로그 전체 스캔 주기 */
 export const BOX_RANGE_KR_SCAN_MS = 30 * 60 * 1000;
+/** BTC(빗썸 KRW 봉) 카탈로그 스캔 주기 */
+export const BOX_RANGE_CRYPTO_SCAN_MS = 30 * 60 * 1000;
+/** 박스권 카탈로그 코인 — 비트만 */
+export const BOX_RANGE_CRYPTO_CATALOG_SYMBOL = "BTC-USDT";
 /** Pine zonesPerTf(표시·API 반환 상한) */
 export const BOX_RANGE_MAX_DETECTED = 35;
 /** Pine maxStoreZones(엔진 내부 저장 상한) — 카탈로그 전체 스캔과 동일 */

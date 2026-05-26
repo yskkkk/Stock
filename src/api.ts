@@ -1454,7 +1454,7 @@ export interface BoxRangeCatalogIndexRow {
   boxCount: number;
 }
 
-export type BoxRangeCatalogMarket = "us" | "kr";
+export type BoxRangeCatalogMarket = "us" | "kr" | "crypto";
 
 export interface BoxRangeCatalogIndex {
   market?: BoxRangeCatalogMarket;

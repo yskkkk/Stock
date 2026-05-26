@@ -4,6 +4,7 @@ import { loadEnvFile } from "../server/load-env.js";
 import { loadUniverse } from "../server/universe.js";
 import { scanOneSymbolCatalog } from "../server/box-range/catalog-scan-shared.js";
 import { refreshCatalogIndexSync } from "../server/box-range/catalog-store.js";
+import { boxRangeCryptoCatalogItem } from "../server/box-range/crypto-scan-runner.js";
 
 loadEnvFile();
 
@@ -55,6 +56,13 @@ for (let i = 0; i < list.length; i += batch) {
 for (const m of ["us", "kr"]) {
   refreshCatalogIndexSync(m);
 }
+
+const btcItem = boxRangeCryptoCatalogItem();
+const btcR = await scanOneSymbolCatalog(btcItem, "crypto");
+refreshCatalogIndexSync("crypto");
+console.log(
+  `[box-range] crypto ${btcItem.symbol} ok=${btcR.ok} boxes=${btcR.boxes}${btcR.error ? ` err=${btcR.error}` : ""}`,
+);
 
 const sec = ((Date.now() - t0) / 1000).toFixed(0);
 console.log(`[box-range] done ${list.length} symbols · ok=${ok} err=${err} · ${sec}s`);

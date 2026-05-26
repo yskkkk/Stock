@@ -8,6 +8,7 @@ import {
   type BoxRangeSymbolCatalog,
 } from "../api";
 import { formatPrice } from "../lib/format";
+import { cryptoCoinIconUrl, cryptoIconSlug } from "../lib/cryptoCoinIcon";
 import { krStockLogoUrl, usStockLogoUrl } from "../lib/stockLogoUrl";
 import { ko } from "../i18n/ko";
 import DockPanelCenterLoading from "./DockPanelCenterLoading";
@@ -20,7 +21,8 @@ function fmtPrice(
   market: BoxRangeCatalogMarket,
 ): string {
   if (n == null || !Number.isFinite(n)) return "—";
-  return formatPrice(n, market === "kr" ? "KRW" : "USD");
+  if (market === "crypto" || market === "kr") return formatPrice(n, "KRW");
+  return formatPrice(n, "USD");
 }
 
 function isValidCatalogBox(b: BoxRangeCatalogBox): boolean {
@@ -28,6 +30,11 @@ function isValidCatalogBox(b: BoxRangeCatalogBox): boolean {
 }
 
 function displayTicker(symbol: string, market: BoxRangeCatalogMarket): string {
+  if (market === "crypto") {
+    const s = symbol.trim().toUpperCase();
+    if (s.endsWith("-USDT")) return s.slice(0, -5);
+    return s;
+  }
   if (market === "kr") {
     return symbol.replace(/^KR_/i, "").trim();
   }
@@ -64,8 +71,14 @@ function BoxRangeLogoButton({
   onSelect: () => void;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
+  const cryptoSlug =
+    market === "crypto" ? cryptoIconSlug(symbol, "crypto") : null;
   const logo =
-    market === "kr" ? krStockLogoUrl(symbol) : usStockLogoUrl(symbol);
+    market === "crypto" && cryptoSlug
+      ? cryptoCoinIconUrl(cryptoSlug)
+      : market === "kr"
+        ? krStockLogoUrl(symbol)
+        : usStockLogoUrl(symbol);
   const ticker = displayTicker(symbol, market);
   const label = displaySymbolLabel(symbol, name, market);
   const showImg = Boolean(logo) && !imgFailed;
@@ -273,6 +286,18 @@ export default function BoxRangeTab() {
             onClick={() => setCatalogMarket("kr")}
           >
             {ko.app.boxRangeTabMarketKr}
+          </button>
+          <button
+            type="button"
+            className={
+              catalogMarket === "crypto"
+                ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
+                : "live-trading-tab__segment-btn"
+            }
+            aria-pressed={catalogMarket === "crypto"}
+            onClick={() => setCatalogMarket("crypto")}
+          >
+            {ko.app.boxRangeTabMarketCrypto}
           </button>
         </div>
         <input

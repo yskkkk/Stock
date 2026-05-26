@@ -125,7 +125,9 @@ async function tickCatalogProgram(program, catalogMarket) {
     (b) =>
       b.catalogBoxId &&
       (b.catalogMarket === catalogMarket ||
-        (!b.catalogMarket && catalogMarket === "us")) &&
+        (!b.catalogMarket &&
+          (catalogMarket === "us" ||
+            (catalogMarket === "crypto" && b.symbol.includes("USDT"))))) &&
       b.tradeEligible !== false &&
       b.state !== "closed",
   );
@@ -149,7 +151,10 @@ async function tickProgram(program) {
   if (!isBoxRangeProgram(program)) return;
   if (program.markets?.kr) await tickCatalogProgram(program, "kr");
   if (program.markets?.us) await tickCatalogProgram(program, "us");
-  if (program.markets?.crypto) await tickCryptoProgram(program);
+  if (program.markets?.crypto) {
+    await tickCatalogProgram(program, "crypto");
+    await tickCryptoProgram(program);
+  }
 }
 
 export async function tickBoxRangeTrading() {

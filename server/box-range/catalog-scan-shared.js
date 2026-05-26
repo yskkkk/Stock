@@ -32,7 +32,7 @@ export async function loadCandlesForBoxScan(symbol, timeframe) {
 
 /**
  * @param {{ symbol: string; name: string }} item
- * @param {"us"|"kr"} catalogMarket
+ * @param {"us"|"kr"|"crypto"} catalogMarket
  */
 export async function scanOneSymbolCatalog(item, catalogMarket) {
   const sym = String(item.symbol ?? "").trim().toUpperCase();

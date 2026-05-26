@@ -53,7 +53,11 @@ function closeTradingBox(box, reason = "closed") {
  * @param {import("./store.js").BoxRangeRecord} box
  */
 function boxMarketForProgram(program, box) {
-  if (box.catalogMarket === "kr" || box.catalogMarket === "us") {
+  if (
+    box.catalogMarket === "kr" ||
+    box.catalogMarket === "us" ||
+    box.catalogMarket === "crypto"
+  ) {
     return box.catalogMarket;
   }
   if (box.catalogBoxId) {

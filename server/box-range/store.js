@@ -115,7 +115,9 @@ function normalizeBox(raw) {
         ? "kr"
         : o.catalogMarket === "us"
           ? "us"
-          : null,
+          : o.catalogMarket === "crypto"
+            ? "crypto"
+            : null,
     tradeEligible: o.tradeEligible !== false,
     midNotifiedAtMs:
       typeof o.midNotifiedAtMs === "number" && o.midNotifiedAtMs > 0
@@ -271,7 +273,9 @@ export function upsertDetectedBoxSync(detected) {
         ? "kr"
         : detected.catalogMarket === "us"
           ? "us"
-          : null,
+          : detected.catalogMarket === "crypto"
+            ? "crypto"
+            : null,
     tradeEligible: detected.tradeEligible !== false,
     midNotifiedAtMs: null,
   };

@@ -19,13 +19,14 @@ const MAX_NEW_SLOTS_PER_TICK = (() => {
 
 /**
  * @param {import("../live-trade-programs-store.js").LiveTradeProgram} program
- * @param {"us"|"kr"} catalogMarket
+ * @param {"us"|"kr"|"crypto"} catalogMarket
  */
 export function syncCatalogTradingBoxesFromCatalogSync(program, catalogMarket) {
   const market = resolveCatalogMarket(catalogMarket);
   if (!isBoxRangeProgram(program)) return { linked: 0 };
   if (market === "us" && !program.markets?.us) return { linked: 0 };
   if (market === "kr" && !program.markets?.kr) return { linked: 0 };
+  if (market === "crypto" && !program.markets?.crypto) return { linked: 0 };
 
   const index = readCatalogIndexSync(market);
   const symbols = Array.isArray(index?.symbols) ? index.symbols : [];
