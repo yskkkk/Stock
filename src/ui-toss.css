@@ -104,6 +104,7 @@ html {
 
 /* 탭 본문 카드·필터 — top-bar와 동일 좌우, shell·워크스페이스 세로 gap 통일 */
 .app__shell > .workspace,
+.app__shell > .workspace.box-range-tab,
 .app__shell > .trade-history-workspace,
 .app__shell > .live-trade-tab-root,
 .app__shell > .crypto-workspace {
@@ -693,6 +694,158 @@ html {
   .live-sim-run__card-head .btn {
     width: 100%;
     justify-content: center;
+  }
+
+  .box-range-tab {
+    max-width: none;
+    padding: 0 0 max(0.75rem, env(safe-area-inset-bottom, 0px));
+    gap: var(--tab-stack-gap, 0.55rem);
+  }
+
+  .box-range-tab > .card,
+  .box-range-tab__head.card,
+  .box-range-tab__layout.card {
+    padding: var(--tab-card-pad-y-top, 0.62rem) var(--tab-card-pad-x, 0.55rem)
+      var(--tab-card-pad-y-bottom, 0.75rem);
+    border-radius: 12px;
+  }
+
+  .box-range-tab__head {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .box-range-tab__market-segment {
+    width: 100%;
+  }
+
+  .box-range-tab__market-segment .live-trading-tab__segment-btn {
+    min-height: 2.35rem;
+    font-size: 0.74rem;
+    padding: 0.35rem 0.4rem;
+  }
+
+  .box-range-tab__search {
+    max-width: none;
+    width: 100%;
+    min-height: 2.45rem;
+    box-sizing: border-box;
+  }
+
+  .box-range-tab__layout {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    padding: 0.65rem 0.75rem;
+    gap: 0.65rem;
+  }
+
+  .box-range-tab__logos {
+    max-height: none;
+    overflow: visible;
+    padding: 0 0 0.6rem;
+    margin: 0;
+    border-bottom: 1px solid var(--card-border, rgba(148, 163, 184, 0.12));
+  }
+
+  .box-range-tab__logo-grid {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.45rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0.1rem 0.05rem 0.35rem;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+  }
+
+  .box-range-tab__logo-item {
+    flex: 0 0 auto;
+    width: 4.6rem;
+    scroll-snap-align: start;
+  }
+
+  .box-range-tab__logo-btn {
+    min-height: 4.5rem;
+    touch-action: manipulation;
+  }
+
+  .box-range-tab__logo-ticker {
+    font-size: 0.62rem;
+    line-height: 1.2;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-align: center;
+  }
+
+  .box-range-tab__detail {
+    padding: 0.1rem 0;
+    min-width: 0;
+  }
+
+  .box-range-tab__title {
+    font-size: 0.95rem;
+    line-height: 1.35;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+
+  .box-range-tab__card-grid {
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+  }
+
+  .box-range-tab__price-card {
+    padding: 0.72rem 0.78rem;
+  }
+
+  .box-range-tab__price-card-row {
+    gap: 0.35rem;
+  }
+
+  .box-range-tab__price-card-row--span {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .box-range-tab__price-card-row--span dd {
+    text-align: left;
+  }
+
+  .box-range-tab__price-card-val {
+    font-size: 0.84rem;
+  }
+
+  .box-range-tab--guest {
+    max-width: none;
+    padding-inline: var(--app-page-inline-pad-safe, 0.55rem);
+  }
+
+  .box-range-catalog__layout {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    gap: 0.55rem;
+  }
+
+  .box-range-catalog__search {
+    max-width: none;
+    min-height: 2.45rem;
+    box-sizing: border-box;
+  }
+
+  .box-range-catalog__symbol-list {
+    max-height: min(38dvh, 220px);
+  }
+
+  .box-range-catalog__symbol-btn {
+    min-height: 2.5rem;
+    padding: 0.45rem 0.5rem;
   }
 
   .live-sim__grid {
@@ -2781,16 +2934,6 @@ html[data-theme="light"]
 .box-range-tab--guest {
   max-width: 420px;
   padding: 1rem;
-}
-
-@media (max-width: 720px) {
-  .box-range-tab__layout {
-    grid-template-columns: 1fr;
-  }
-
-  .box-range-tab__logos {
-    max-height: 220px;
-  }
 }
 
 .live-trading-tab__box-state--in_position {
