@@ -1,4 +1,4 @@
-import { loadUniverse } from "../universe.js";
+import { loadBoxRangeCatalogUniverse } from "../universe.js";
 import { BOX_RANGE_SP500_SCAN_MS } from "./constants.js";
 import { scanOneSymbolCatalog } from "./catalog-scan-shared.js";
 import { refreshCatalogIndexSync } from "./catalog-store.js";
@@ -6,8 +6,8 @@ import { notifyCatalogScanTelegram } from "./catalog-scan-telegram.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "../live-trade-log.js";
 
 const BATCH_SIZE = (() => {
-  const n = Number(process.env.STOCK_BOX_RANGE_SP500_BATCH ?? 4);
-  return Number.isFinite(n) && n >= 1 ? Math.min(n, 12) : 4;
+  const n = Number(process.env.STOCK_BOX_RANGE_US_BATCH ?? 6);
+  return Number.isFinite(n) && n >= 1 ? Math.min(n, 16) : 6;
 })();
 
 const BATCH_DELAY_MS = (() => {
@@ -20,17 +20,22 @@ function delay(ms) {
 }
 
 export async function runSp500BoxRangeCatalogScan() {
-  const uni = await loadUniverse();
+  const uni = await loadBoxRangeCatalogUniverse();
   const list = Array.isArray(uni?.us) ? uni.us : [];
+  const meta = uni?.meta ?? {};
   if (!list.length) {
-    liveTradeLogWarn("[box-range:sp500-scan] universe.us empty");
-    return { scanned: 0, errors: 0, ok: 0, withBoxes: 0 };
+    liveTradeLogWarn("[box-range:us-scan] universe.us empty");
+    return { scanned: 0, errors: 0, ok: 0, withBoxes: 0, ...meta };
   }
 
   let ok = 0;
   let errors = 0;
   let withBoxes = 0;
-  liveTradeLogInfo("[box-range:sp500-scan] start", list.length, "symbols");
+  liveTradeLogInfo("[box-range:us-scan] start", {
+    symbols: list.length,
+    sp500: meta.usSp500,
+    nasdaq: meta.usNasdaq,
+  });
 
   for (let i = 0; i < list.length; i += BATCH_SIZE) {
     const batch = list.slice(i, i + BATCH_SIZE);
@@ -48,14 +53,11 @@ export async function runSp500BoxRangeCatalogScan() {
   }
 
   refreshCatalogIndexSync("us");
-  const result = { scanned: list.length, ok, errors, withBoxes };
-  liveTradeLogInfo("[box-range:sp500-scan] done", {
-    ...result,
-    total: list.length,
-  });
+  const result = { scanned: list.length, ok, errors, withBoxes, ...meta };
+  liveTradeLogInfo("[box-range:us-scan] done", result);
   await notifyCatalogScanTelegram("us", result).catch((e) => {
     liveTradeLogWarn(
-      "[box-range:sp500-scan:telegram]",
+      "[box-range:us-scan:telegram]",
       e instanceof Error ? e.message : e,
     );
   });
@@ -77,7 +79,7 @@ export function startSp500BoxRangeCatalogPoller() {
     runSp500BoxRangeCatalogScan()
       .catch((e) => {
         liveTradeLogWarn(
-          "[box-range:sp500-scan]",
+          "[box-range:us-scan]",
           e instanceof Error ? e.message : e,
         );
       })

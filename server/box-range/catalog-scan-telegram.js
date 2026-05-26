@@ -141,10 +141,18 @@ export function buildCatalogScanSummaryMessage(market, scanRun = {}) {
   const sum = summarizeCatalogRootSync(root, m);
   const now = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
 
+  const scopeNote =
+    m === "us" && (scanRun.usSp500 != null || scanRun.usNasdaq != null)
+      ? `범위: S&P500 ${scanRun.usSp500 ?? "—"} + 미국시총(나스닥·NYSE) ${scanRun.usNasdaq ?? "—"} = 합계 ${scanRun.usTotal ?? scanRun.scanned ?? "—"}`
+      : m === "kr" && scanRun.kr != null
+        ? `범위: 국내 시총 상위 ${scanRun.kr}종목`
+        : null;
+
   const lines = [
     `<b>📊 박스권 카탈로그 스캔 완료 · ${escHtml(label)}</b>`,
     "",
     `🕐 ${escHtml(now)} KST`,
+    ...(scopeNote ? [escHtml(scopeNote), ""] : []),
     `이번 스캔: 종목 ${scanRun.scanned ?? "—"} · 성공 ${scanRun.ok ?? "—"} · 오류 ${scanRun.errors ?? 0} · 박스있음 ${scanRun.withBoxes ?? "—"}`,
     "",
     `<b>카탈로그 누적</b>`,

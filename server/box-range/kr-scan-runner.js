@@ -1,4 +1,4 @@
-import { loadUniverse } from "../universe.js";
+import { loadBoxRangeCatalogUniverse } from "../universe.js";
 import { BOX_RANGE_KR_SCAN_MS } from "./constants.js";
 import { scanOneSymbolCatalog } from "./catalog-scan-shared.js";
 import { refreshCatalogIndexSync } from "./catalog-store.js";
@@ -20,17 +20,21 @@ function delay(ms) {
 }
 
 export async function runKrBoxRangeCatalogScan() {
-  const uni = await loadUniverse();
+  const uni = await loadBoxRangeCatalogUniverse();
   const list = Array.isArray(uni?.kr) ? uni.kr : [];
+  const meta = uni?.meta ?? {};
   if (!list.length) {
     liveTradeLogWarn("[box-range:kr-scan] universe.kr empty");
-    return { scanned: 0, errors: 0, ok: 0, withBoxes: 0 };
+    return { scanned: 0, errors: 0, ok: 0, withBoxes: 0, kr: 0 };
   }
 
   let ok = 0;
   let errors = 0;
   let withBoxes = 0;
-  liveTradeLogInfo("[box-range:kr-scan] start", list.length, "symbols");
+  liveTradeLogInfo("[box-range:kr-scan] start", {
+    symbols: list.length,
+    target: meta.kr,
+  });
 
   for (let i = 0; i < list.length; i += BATCH_SIZE) {
     const batch = list.slice(i, i + BATCH_SIZE);
@@ -48,11 +52,8 @@ export async function runKrBoxRangeCatalogScan() {
   }
 
   refreshCatalogIndexSync("kr");
-  const result = { scanned: list.length, ok, errors, withBoxes };
-  liveTradeLogInfo("[box-range:kr-scan] done", {
-    ...result,
-    total: list.length,
-  });
+  const result = { scanned: list.length, ok, errors, withBoxes, kr: meta.kr };
+  liveTradeLogInfo("[box-range:kr-scan] done", result);
   await notifyCatalogScanTelegram("kr", result).catch((e) => {
     liveTradeLogWarn(
       "[box-range:kr-scan:telegram]",
