@@ -42,30 +42,32 @@ export default function LiveTradeArmStartMenu({
           ▾
         </span>
       </button>
-      <div className="live-trade-arm-menu__panel" role="menu">
-        {options.map((opt) => (
-          <button
-            key={opt.lane}
-            type="button"
-            role="menuitem"
-            className={[
-              "live-trade-arm-menu__item",
-              opt.enabled ? "" : "live-trade-arm-menu__item--disabled",
-            ]
-              .filter(Boolean)
-              .join(" ")}
-            disabled={busy || !opt.enabled}
-            title={opt.title}
-            onClick={() => onSelect(opt.lane)}
-          >
-            <span className="live-trade-arm-menu__item-label">{opt.label}</span>
-            {!opt.enabled ? (
-              <span className="live-trade-arm-menu__item-badge">
-                {ko.app.liveTradeArmMenuNeedLink}
-              </span>
-            ) : null}
-          </button>
-        ))}
+      <div className="live-trade-arm-menu__drop">
+        <div className="live-trade-arm-menu__panel" role="menu">
+          {options.map((opt) => (
+            <button
+              key={opt.lane}
+              type="button"
+              role="menuitem"
+              className={[
+                "live-trade-arm-menu__item",
+                opt.enabled ? "" : "live-trade-arm-menu__item--disabled",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              disabled={busy || !opt.enabled}
+              title={opt.title}
+              onClick={() => onSelect(opt.lane)}
+            >
+              <span className="live-trade-arm-menu__item-label">{opt.label}</span>
+              {!opt.enabled ? (
+                <span className="live-trade-arm-menu__item-badge">
+                  {ko.app.liveTradeArmMenuNeedLink}
+                </span>
+              ) : null}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

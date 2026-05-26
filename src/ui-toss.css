@@ -3407,6 +3407,7 @@ html[data-theme="light"]
   flex-wrap: wrap;
   gap: 0.28rem 0.35rem;
   margin-top: 0.55rem;
+  overflow: visible;
 }
 
 .live-trading-tab__program-actions .btn {
@@ -3440,12 +3441,23 @@ html[data-theme="light"]
   line-height: 1;
 }
 
-.live-trade-arm-menu__panel {
+.live-trade-arm-menu__drop {
   position: absolute;
-  bottom: calc(100% + 4px);
+  top: 100%;
   left: 0;
-  z-index: 40;
+  z-index: 80;
   display: none;
+  min-width: 8.5rem;
+  padding-top: 6px;
+}
+
+.live-trade-arm-menu:hover .live-trade-arm-menu__drop,
+.live-trade-arm-menu:focus-within .live-trade-arm-menu__drop {
+  display: block;
+}
+
+.live-trade-arm-menu__panel {
+  display: flex;
   flex-direction: column;
   min-width: 8.5rem;
   padding: 0.28rem;
@@ -3453,11 +3465,6 @@ html[data-theme="light"]
   border: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 88%, transparent);
   background: var(--card-bg, var(--card, #fff));
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
-}
-
-.live-trade-arm-menu:hover .live-trade-arm-menu__panel,
-.live-trade-arm-menu:focus-within .live-trade-arm-menu__panel {
-  display: flex;
 }
 
 .live-trade-arm-menu__item {
