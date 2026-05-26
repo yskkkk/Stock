@@ -20,6 +20,7 @@ import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
 import {
   openHoldingsNetReturnPct,
   summarizeHoldingsPnl,
+  summarizeNetMarketByCurrency,
   holdingNetMarketValue,
   formatInvestedOrMarketLabel,
   programCashKrwBalance,
@@ -158,8 +159,12 @@ function RailProgramCard({
     pnlAgg.investedByCurrency,
     usdKrwRate,
   );
+  const netMarketByCurrency = useMemo(
+    () => summarizeNetMarketByCurrency(sorted, roundTripForMarket),
+    [sorted, roundTripForMarket],
+  );
   const evalLabel = formatInvestedOrMarketLabel(
-    pnlAgg.marketByCurrency,
+    netMarketByCurrency,
     usdKrwRate,
   );
   const cashKrw = useMemo(

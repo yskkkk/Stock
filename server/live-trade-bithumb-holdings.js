@@ -23,6 +23,38 @@ import { resolveLiveTradeExitTargets } from "./live-trade-exit-scenario.js";
 
 const MIN_DISPLAY_KRW = 1_000;
 
+/**
+ * 거래소 잔고 전체가 아니라 프로그램 매수 원장 수량·원가로 표시(실매매 배분 한도 반영)
+ * @param {number} exchangeQty
+ * @param {number | null} exchangeAvgEntry
+ * @param {{ quantity: number; costBasis: number } | null | undefined} ledgerPos
+ */
+export function applyProgramLedgerToBithumbHoldingMetrics(
+  exchangeQty,
+  exchangeAvgEntry,
+  ledgerPos,
+) {
+  const qtyEx = Number(exchangeQty);
+  let quantity = Number.isFinite(qtyEx) && qtyEx > 0 ? qtyEx : 0;
+  let avgEntry =
+    exchangeAvgEntry != null &&
+    Number.isFinite(exchangeAvgEntry) &&
+    exchangeAvgEntry > 0
+      ? exchangeAvgEntry
+      : 0;
+
+  if (ledgerPos && ledgerPos.quantity > 1e-9) {
+    quantity = Math.min(quantity, ledgerPos.quantity);
+    avgEntry =
+      ledgerPos.quantity > 0
+        ? ledgerPos.costBasis / ledgerPos.quantity
+        : avgEntry;
+  }
+
+  const costBasis = avgEntry > 0 && quantity > 0 ? avgEntry * quantity : 0;
+  return { quantity, avgEntry, costBasis };
+}
+
 /** @param {string} base e.g. BTC */
 export function bithumbBaseToUsdtSymbol(base) {
   const b = String(base ?? "").trim().toUpperCase();
@@ -202,12 +234,13 @@ async function listBithumbExchangeOverlayRowsForCredentials(
       store.trades,
       program.id,
     );
-    if (
-      overlayOnly &&
-      programOpen.some(
-        (p) => p.market === "crypto" && p.symbol === symbol,
-      )
-    ) {
+    const ledgerPos = programOpen.find(
+      (p) => p.market === "crypto" && p.symbol === symbol,
+    );
+    if (overlayOnly && ledgerPos) {
+      continue;
+    }
+    if (!ledgerPos) {
       continue;
     }
 
@@ -221,6 +254,7 @@ async function listBithumbExchangeOverlayRowsForCredentials(
       name: cryptoYahooUsdtDisplayName(symbol),
       quantity: qty,
       avgEntryPrice: avgEntry,
+      ledgerPos,
     });
   }
 
@@ -237,10 +271,19 @@ async function listBithumbExchangeOverlayRowsForCredentials(
       q?.price != null && Number.isFinite(q.price) && q.price > 0
         ? q.price
         : null;
-    const avgEntry = row.avgEntryPrice ?? currentPrice ?? 0;
-    const costBasis = avgEntry > 0 ? avgEntry * row.quantity : 0;
+    const metrics = applyProgramLedgerToBithumbHoldingMetrics(
+      row.quantity,
+      row.avgEntryPrice,
+      row.ledgerPos,
+    );
+    if (!(metrics.quantity > 1e-9)) continue;
+
+    const avgEntry =
+      metrics.avgEntry > 0 ? metrics.avgEntry : (currentPrice ?? 0);
+    const costBasis = metrics.costBasis;
+    const quantity = metrics.quantity;
     const mv =
-      currentPrice != null ? currentPrice * row.quantity : null;
+      currentPrice != null ? currentPrice * quantity : null;
     if (mv != null && mv < MIN_DISPLAY_KRW) continue;
 
     const grossPct =
@@ -265,7 +308,7 @@ async function listBithumbExchangeOverlayRowsForCredentials(
       symbol: row.symbol,
       name: row.name,
       market: "crypto",
-      quantity: row.quantity,
+      quantity,
       avgEntryPrice: avgEntry,
       costBasis,
       currentPrice,
