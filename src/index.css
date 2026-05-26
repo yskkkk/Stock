@@ -4171,7 +4171,10 @@ html[data-theme="light"] .access-admin-tab--active {
   }
 
   .workspace:not(.crypto-workspace) .picks-panel:not(.crypto-panel) .picks-panel-stack .pick-list,
-  .workspace:not(.crypto-workspace) .picks-panel:not(.crypto-panel) > .stock-search-tab .pick-list:not(.stock-search-tab__hot-list) {
+  .workspace:not(.crypto-workspace)
+    .picks-panel:not(.crypto-panel)
+    > .stock-search-tab
+    .pick-list:not(.stock-search-tab__hot-list):not(.stock-search-tab__selected-pin) {
     --pick-list-slot: 11rem;
     --pick-list-row-gap: 0.5rem;
     --pick-list-three-h: calc(
@@ -4394,8 +4397,12 @@ html[data-theme="light"] .access-admin-tab--active {
   }
 
   /* 스크리너·종목 검색: 목록을 전폭 카드 스택(601–900px 구간 포함) */
-  .picks-panel:not(.crypto-panel) .pick-list:not(.stock-search-tab__hot-list),
-  .picks-panel:not(.crypto-panel) .stock-search-tab__list:not(.stock-search-tab__hot-list) {
+  .picks-panel:not(.crypto-panel)
+    .pick-list:not(.stock-search-tab__hot-list):not(.stock-search-tab__selected-pin),
+  .picks-panel:not(.crypto-panel)
+    .stock-search-tab__list:not(.stock-search-tab__hot-list):not(
+      .stock-search-tab__selected-pin
+    ) {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
