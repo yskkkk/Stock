@@ -403,7 +403,7 @@ export function detectBoxRangesProOnCandles(
       results.push(result.box);
       searchEnd = result.startIdx - 1;
     } else {
-      searchEnd -= Math.ceil(BOX_RANGE_MAX_EXPAND_BARS / 2);
+      searchEnd -= Math.ceil(BOX_RANGE_MAX_EXPAND_BARS / 3);
     }
   }
   return results;

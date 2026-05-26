@@ -82,7 +82,7 @@ test("shouldMergeProBoxes requires mid proximity", () => {
   const c = { top: 160, bottom: 140, leftTime: 150, rightTime: 250 };
   assert.equal(shouldMergeProBoxes(a, b, 86400), true);
   assert.equal(shouldMergeProBoxes(far, c, 86400), false);
-  assert.ok(midDistancePct(110, 90, 160, 140) > 1.5);
+  assert.ok(midDistancePct(110, 90, 160, 140) > 2.5);
 });
 
 test("detectBoxRangesProOnCandles returns multiple on long ranging series", () => {

@@ -1,31 +1,35 @@
 // 통합 박스권 감지기 PRO v2 — SSOT: server/box-range/box-range-pro-core.js
-// 1단계: 종가 90/10 밴드 · 중심 반대 거절 터치 · 중심가 병합
+// 1단계: 종가 88/12 밴드(러프) · 거절 1회+ · 중심 병합 2.5%
 // 3단계: VWAP(없으면 typical 50%) 중심 · 확장 시 슬라이스 재계산 · 중심 이탈 시 가로 중단
 
 //@version=5
 indicator("통합 박스권 감지기 PRO", overlay=true, max_boxes_count=500, max_lines_count=500)
 
 string active_tf = input.string("D", "분석 타임프레임", options=["60", "240", "D"])
-int min_days = input.int(14, "최소 기간", minval=14)
-float merge_mid_pct = input.float(1.5, "병합: 중심 허용(%)", minval=0.2, maxval=8.0, step=0.1, tooltip="중심가 차이 — box-range-pro-core shouldMergeProBoxes")
-float merge_height_pct = input.float(25.0, "병합: 높이 차(%)", minval=5.0, maxval=50.0, step=1.0)
-int merge_bars = input.int(5, "병합: 좌우 봉 간격", minval=0)
+int min_days = input.int(10, "최소 기간", minval=8, tooltip="constants BOX_RANGE_MIN_BARS=10")
+float merge_mid_pct = input.float(2.5, "병합: 중심 허용(%)", minval=0.2, maxval=8.0, step=0.1)
+float merge_height_pct = input.float(35.0, "병합: 높이 차(%)", minval=5.0, maxval=50.0, step=1.0)
+int merge_bars = input.int(8, "병합: 좌우 봉 간격", minval=0)
 int max_expand_bars = input.int(120, "좌우 확장 최대(봉)", minval=20, maxval=300)
-float expand_edge_pct = input.float(12.0, "확장 허용(박스높이 %)", minval=2.0, maxval=40.0, step=0.5)
-int expand_gap_bars = input.int(2, "확장 끊김(연속 이탈 봉)", minval=1, maxval=6)
+float expand_edge_pct = input.float(16.0, "확장 허용(박스높이 %)", minval=2.0, maxval=40.0, step=0.5)
+int expand_gap_bars = input.int(3, "확장 끊김(연속 이탈 봉)", minval=1, maxval=6)
+int min_rejections = input.int(1, "최소 거절 터치(상·하)", minval=1, maxval=4)
+float band_high_pct = input.float(88.0, "밴드 상단(종가 백분위)", minval=80, maxval=98)
+float band_low_pct = input.float(12.0, "밴드 하단(종가 백분위)", minval=2, maxval=20)
+float touch_thresh = input.float(0.16, "터치·거절 폭(박스높이 비율)", minval=0.08, maxval=0.25, step=0.01)
 
 bool show_buy = input.bool(true, "매수 신호")
 bool show_sell = input.bool(true, "매도 신호")
 
-float max_box_pct = 15.0
+float max_box_pct = 18.0
 if active_tf == "60"
-    max_box_pct := 3.0
+    max_box_pct := 4.0
 else if active_tf == "240"
-    max_box_pct := 5.0
+    max_box_pct := 6.5
 
-bool split_tf_preset = input.bool(true, "TF별 중심 이탈 % 프리셋", tooltip="1H 28 / 4H 38 / 1D 48")
-float split_mid_manual = input.float(48.0, "중심 이탈 한계(반높이 %)", minval=10, maxval=80, step=1.0)
-float split_mid_pct = split_tf_preset ? (active_tf == "60" ? 28.0 : active_tf == "240" ? 38.0 : 48.0) : split_mid_manual
+bool split_tf_preset = input.bool(true, "TF별 중심 이탈 % 프리셋", tooltip="1H 38 / 4H 48 / 1D 58")
+float split_mid_manual = input.float(58.0, "중심 이탈 한계(반높이 %)", minval=10, maxval=80, step=1.0)
+float split_mid_pct = split_tf_preset ? (active_tf == "60" ? 38.0 : active_tf == "240" ? 48.0 : 58.0) : split_mid_manual
 
 bool is_selected_tf = timeframe.period == active_tf
 int tfMs = timeframe.in_seconds() * 1000
@@ -78,8 +82,8 @@ f_typical_median(int newestOff, int oldestOff) =>
 
 // oldestOff > newestOff (과거 봉 offset 이 더 큼)
 f_compute_box_slice(int oldestOff, int newestOff) =>
-    float top = f_percentile_close(newestOff, oldestOff, 90.0)
-    float bot = f_percentile_close(newestOff, oldestOff, 10.0)
+    float top = f_percentile_close(newestOff, oldestOff, band_high_pct)
+    float bot = f_percentile_close(newestOff, oldestOff, band_low_pct)
     float mid = na
     if na(top) or na(bot)
         [na, na, na]
@@ -163,7 +167,7 @@ expand_range_idx(int seedOldest, int seedNewest, int maxBars, float pad, int gap
 
 f_count_rejections(int oldestOff, int newestOff, float top, float bot) =>
     float h = top - bot
-    float th = h * 0.12
+    float th = h * touch_thresh
     float mid = (top + bot) * 0.5
     int topR = 0
     int botR = 0
@@ -234,7 +238,7 @@ if is_selected_tf and barstate.isconfirmed
         [oldestOff, newestOff] = expand_range_idx(start_idx, 1, lookback, pad, expand_gap_bars, split_mid_pct)
         [boxTop, boxBot, mid] = f_compute_box_slice(oldestOff, newestOff)
         [topR, botR] = f_count_rejections(oldestOff, newestOff, boxTop, boxBot)
-        if not na(mid) and topR >= 2 and botR >= 2
+        if not na(mid) and topR >= min_rejections and botR >= min_rejections
             int tLeft = time[oldestOff]
             int tRight = time[newestOff]
             int mergeIdx = find_merge_index(boxTop, boxBot, mid, tLeft, tRight)

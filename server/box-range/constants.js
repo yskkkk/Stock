@@ -5,20 +5,20 @@ export const BOX_RANGE_MODEL_ID = "box-range";
 /** @type {readonly ("1h"|"4h"|"1d")[]} */
 export const BOX_RANGE_TIMEFRAMES = ["1h", "4h", "1d"];
 
-/** TF별 최대 박스 폭(%) — Pine PRO 시드 끊김 */
+/** TF별 최대 박스 폭(%) — Pine PRO 시드 끊김 (러프: 약간 넓게) */
 export const BOX_RANGE_MAX_PCT = {
-  "1h": 3,
-  "4h": 5,
-  "1d": 15,
+  "1h": 4,
+  "4h": 6.5,
+  "1d": 18,
 };
 
-export const BOX_RANGE_MIN_BARS = 14;
+export const BOX_RANGE_MIN_BARS = 10;
 export const BOX_RANGE_LOOKBACK = 100;
-/** 박스 높이 대비 상·하단 터치 허용 (Pine 12%) */
-export const BOX_RANGE_TOUCH_THRESHOLD = 0.12;
+/** 박스 높이 대비 상·하단 터치·거절 판정 폭 */
+export const BOX_RANGE_TOUCH_THRESHOLD = 0.16;
 export const BOX_RANGE_MAX_EXPAND_BARS = 120;
-export const BOX_RANGE_EXPAND_EDGE_PCT = 12;
-export const BOX_RANGE_EXPAND_GAP_BARS = 2;
+export const BOX_RANGE_EXPAND_EDGE_PCT = 16;
+export const BOX_RANGE_EXPAND_GAP_BARS = 3;
 /** S&P500 카탈로그 전체 스캔 주기 */
 export const BOX_RANGE_SP500_SCAN_MS = 30 * 60 * 1000;
 /** 국내(KOSPI/KOSDAQ) 카탈로그 전체 스캔 주기 */
@@ -61,21 +61,21 @@ export const BOX_RANGE_MERGE_PCT = 35;
 export const BOX_RANGE_MERGE_BARS_GAP = 5;
 export const BOX_RANGE_SIMILAR_RANGE_PCT = 8;
 
-/** PRO v2 — box-range-pro-core.js · pine-box-range-pro.pine SSOT */
-export const BOX_RANGE_PRO_BAND_HIGH_PCT = 90;
-export const BOX_RANGE_PRO_BAND_LOW_PCT = 10;
-export const BOX_RANGE_PRO_MIN_REJECTIONS = 2;
+/** PRO v2 — box-range-pro-core.js · pine-box-range-pro.pine SSOT (러프 프리셋) */
+export const BOX_RANGE_PRO_BAND_HIGH_PCT = 88;
+export const BOX_RANGE_PRO_BAND_LOW_PCT = 12;
+export const BOX_RANGE_PRO_MIN_REJECTIONS = 1;
 /** 상·하단 터치 후 종가가 밴드 안쪽으로 밀린 비율(터치폭 × 이 값) */
 export const BOX_RANGE_PRO_REJECT_CLOSE_FRAC = 0.4;
 /** 병합: 중심가 차이(중간가 대비 %) 상한 */
-export const BOX_RANGE_PRO_MERGE_MID_PCT = 1.5;
+export const BOX_RANGE_PRO_MERGE_MID_PCT = 2.5;
 /** 병합: 박스 높이(%) 차이 상한 */
-export const BOX_RANGE_PRO_MERGE_HEIGHT_DIFF_PCT = 25;
+export const BOX_RANGE_PRO_MERGE_HEIGHT_DIFF_PCT = 35;
 /** 가로 확장 중단 — 종가가 중심에서 벗어난 반높이 비율(%) */
 export const BOX_RANGE_PRO_SPLIT_MID_PCT = {
-  "1h": 28,
-  "4h": 38,
-  "1d": 48,
+  "1h": 38,
+  "4h": 48,
+  "1d": 58,
 };
 
 export function getBoxRangeTechModelStub() {
