@@ -4179,6 +4179,12 @@ html[data-theme="light"] .live-trading-tab__program-actions .btn:hover:not(:disa
   line-height: 1.2;
 }
 
+.live-trading-tab__form-save-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+  color: var(--text-muted, #888);
+}
+
 .live-trade-history-sim-section__pick {
   margin-bottom: 0.55rem;
 }

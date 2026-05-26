@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -69,10 +70,12 @@ import {
 } from "../lib/liveProgramDisplay";
 import { ko } from "../i18n/ko";
 import { LiveTradeFeeRatesProvider } from "../contexts/LiveTradeFeeRatesContext";
+import { minOrderAmountKrwForMarkets } from "../constants/liveTradeOrder";
 import {
-  isOrderAmountKrwValid,
-  minOrderAmountKrwForMarkets,
-} from "../constants/liveTradeOrder";
+  liveTradeProgramDraftCanSave,
+  parseMaxOpenPositionsInput,
+  validateLiveTradeProgramDraft,
+} from "../lib/liveTradeProgramFormValidate";
 
 /** 실매매 중 한 채널(빗썸/토스)이 켜져 있으면 다른 «시작» 버튼 숨김 */
 function showArmLaneButton(p: LiveTradeProgram, lane: LiveTradeArmLane): boolean {
@@ -124,15 +127,6 @@ function formatTs(ms: number | null): string {
   } catch {
     return "—";
   }
-}
-
-/** @returns {number | null} 1~50 정수, 빈 값·0·비정상이면 null */
-function parseMaxOpenPositionsInput(raw: string): number | null {
-  const t = String(raw ?? "").trim();
-  if (!t) return null;
-  const n = Number(t);
-  if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1 || n > 50) return null;
-  return n;
 }
 
 function usdAmountFieldLabel(marketsUs: boolean, marketsCrypto: boolean): string {
@@ -240,6 +234,7 @@ export default function LiveTradingTab({
   );
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const saveInFlightRef = useRef(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -426,18 +421,17 @@ export default function LiveTradingTab({
   const isBoxRangeDraft = draft.modelId === BOX_RANGE_MODEL_ID;
   const needsKrwAmount = draft.marketsKr || draft.marketsCrypto;
   const needsUsdAmount = draft.marketsUs;
-  const hasAnyMarket =
-    draft.marketsKr || draft.marketsUs || draft.marketsCrypto;
   const minScoreSliderValue = Math.min(
     1,
     Math.max(0.7, Number(draft.minScoreRatio) || 0.8),
   );
   const minOrderKrw = minOrderAmountKrwForMarkets(draftMarkets);
-  const canSaveForm =
-    Boolean(draft.name.trim() && draft.modelId && hasAnyMarket) &&
-    parseMaxOpenPositionsInput(draft.maxOpenPositions) != null &&
-    (!needsKrwAmount || draft.orderAmountKrw.trim() !== "") &&
-    (!needsUsdAmount || draft.orderAmountUsd.trim() !== "");
+  const canSaveForm = liveTradeProgramDraftCanSave(draft);
+  const saveBlockedHint = useMemo(() => {
+    if (canSaveForm) return null;
+    const v = validateLiveTradeProgramDraft(draft);
+    return v.ok ? null : v.message;
+  }, [canSaveForm, draft]);
 
   const formCardSummary = useMemo(() => {
     if (editingId) {
@@ -520,78 +514,45 @@ export default function LiveTradingTab({
   useEffect(() => {
     const onDockNewForm = () => {
       resetForm();
+      sidePanel?.openPanel("form", ko.app.liveTradeFormNew);
     };
     window.addEventListener(LIVE_TRADE_DOCK_OPEN_FORM_EVENT, onDockNewForm);
     return () =>
       window.removeEventListener(LIVE_TRADE_DOCK_OPEN_FORM_EVENT, onDockNewForm);
-  }, [resetForm]);
-
-  const buildBody = useCallback(() => {
-    const orderKrw = draft.orderAmountKrw.trim();
-    const orderUsd = draft.orderAmountUsd.trim();
-    const maxOpenPositions = parseMaxOpenPositionsInput(draft.maxOpenPositions)!;
-    return {
-      name: draft.name.trim(),
-      modelId: draft.modelId,
-      markets: {
-        kr: draft.marketsKr,
-        us: draft.marketsUs,
-        crypto: draft.marketsCrypto,
-      },
-      minScoreRatio: draft.minScoreRatio,
-      maxOpenPositions,
-      orderAmountKrw: needsKrwAmount && orderKrw ? Number(orderKrw) : null,
-      orderAmountUsd: needsUsdAmount && orderUsd ? Number(orderUsd) : null,
-      simAutoBuy: draft.simAutoBuy,
-      autoSellAtTarget:
-        draft.modelId === BOX_RANGE_MODEL_ID ? false : draft.autoSellAtTarget,
-      sellHorizon: draft.sellHorizon,
-    };
-  }, [draft, needsKrwAmount, needsUsdAmount]);
+  }, [resetForm, sidePanel]);
 
   const handleSave = useCallback(async () => {
+    if (busy || saveInFlightRef.current) return;
     setErr(null);
     setMsg(null);
-    if (parseMaxOpenPositionsInput(draft.maxOpenPositions) == null) {
-      setErr(ko.app.liveTradeFieldMaxPosInvalid);
+    const checked = validateLiveTradeProgramDraft(draft);
+    if (!checked.ok) {
+      setErr(checked.message);
+      sidePanel?.openPanel("form", editingId ? ko.app.liveTradeFormEdit : ko.app.liveTradeFormNew);
       return;
     }
-    if (!hasAnyMarket) {
-      setErr(ko.app.liveTradeFieldMarkets);
-      return;
-    }
-    if (
-      needsKrwAmount &&
-      !draft.orderAmountKrw.trim()
-    ) {
-      setErr(
-        krwAmountFieldLabel(
-          draft.marketsCrypto && !draft.marketsKr,
-        ),
-      );
-      return;
-    }
-    const orderKrwNum = Number(draft.orderAmountKrw.trim());
-    const minOrderKrw = minOrderAmountKrwForMarkets(draftMarkets);
-    if (
-      needsKrwAmount &&
-      draft.orderAmountKrw.trim() &&
-      (!Number.isFinite(orderKrwNum) || orderKrwNum < minOrderKrw)
-    ) {
-      setErr(
-        draft.marketsCrypto
-          ? `코인 1회 매수 금액은 ${minOrderKrw.toLocaleString("ko-KR")}원 이상이어야 합니다.`
-          : `1회 매수 금액은 ${minOrderKrw.toLocaleString("ko-KR")}원 이상이어야 합니다.`,
-      );
-      return;
-    }
-    if (needsUsdAmount && !draft.orderAmountUsd.trim()) {
-      setErr(usdAmountFieldLabel(false, false));
-      return;
-    }
+    saveInFlightRef.current = true;
     setBusy(true);
     try {
-      const body = buildBody();
+      const orderKrw = draft.orderAmountKrw.trim();
+      const orderUsd = draft.orderAmountUsd.trim();
+      const body = {
+        name: draft.name.trim(),
+        modelId: draft.modelId,
+        markets: checked.markets,
+        minScoreRatio: draft.minScoreRatio,
+        maxOpenPositions: checked.maxOpenPositions,
+        orderAmountKrw:
+          (checked.markets.kr || checked.markets.crypto) && orderKrw
+            ? Number(orderKrw)
+            : null,
+        orderAmountUsd:
+          checked.markets.us && orderUsd ? Number(orderUsd) : null,
+        simAutoBuy: draft.simAutoBuy,
+        autoSellAtTarget:
+          draft.modelId === BOX_RANGE_MODEL_ID ? false : draft.autoSellAtTarget,
+        sellHorizon: draft.sellHorizon,
+      };
       if (editingId) {
         await updateLiveTradeProgram(editingId, body);
         setMsg(ko.app.liveTradeSaved);
@@ -603,15 +564,13 @@ export default function LiveTradingTab({
       await reload();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
+      sidePanel?.openPanel("form", editingId ? ko.app.liveTradeFormEdit : ko.app.liveTradeFormNew);
     } finally {
+      saveInFlightRef.current = false;
       setBusy(false);
-      if (typeof document !== "undefined") {
-        const el = document.activeElement;
-        if (el instanceof HTMLElement) el.blur();
-      }
       dispatchLiveTradeDockAfterFormSave();
     }
-  }, [buildBody, draft.maxOpenPositions, editingId, reload, resetForm]);
+  }, [busy, draft, editingId, reload, resetForm, sidePanel]);
 
   const handleDelete = useCallback(
     async (id: string, name: string) => {
@@ -1025,7 +984,14 @@ export default function LiveTradingTab({
               {ko.app.liveTradeNoModels}
             </p>
           ) : (
-            <div className="live-trading-tab__form-panel">
+            <form
+              className="live-trading-tab__form-panel"
+              noValidate
+              onSubmit={(e) => {
+                e.preventDefault();
+                void handleSave();
+              }}
+            >
               {!editingId ? (
                 <LiveSimRecommendationsPanel
                   onApplyPatch={(patch: LiveSimDraftPatch) => {
@@ -1402,12 +1368,16 @@ export default function LiveTradingTab({
 
               <div className="live-trading-tab__actions">
                 <button
-                  type="button"
+                  type="submit"
                   className="btn btn--primary live-trading-tab__submit"
-                  disabled={busy || !canSaveForm}
-                  onClick={() => void handleSave()}
+                  disabled={busy}
+                  aria-disabled={busy}
                 >
-                  {editingId ? ko.app.liveTradeSave : ko.app.liveTradeRegister}
+                  {busy
+                    ? ko.app.liveTradeSaving
+                    : editingId
+                      ? ko.app.liveTradeSave
+                      : ko.app.liveTradeRegister}
                 </button>
                 {editingId ? (
                   <button
@@ -1420,6 +1390,11 @@ export default function LiveTradingTab({
                   </button>
                 ) : null}
               </div>
+              {!busy && saveBlockedHint ? (
+                <p className="live-trading-tab__form-save-hint" role="status">
+                  {saveBlockedHint}
+                </p>
+              ) : null}
 
               {msg ? (
                 <p
@@ -1437,7 +1412,7 @@ export default function LiveTradingTab({
                   {err}
                 </p>
               ) : null}
-            </div>
+            </form>
           )}
         </LiveTradeCollapsibleCard>
                 ) : null}
