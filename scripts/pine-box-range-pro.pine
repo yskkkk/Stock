@@ -1,7 +1,7 @@
 // 통합 박스권 감지기 PRO v2 — SSOT: server/box-range/box-range-pro-core.js
 // 서버 카탈로그: 4h·1d → server/.data/box-range-catalog-pro (1h 별도 예정)
 // 1단계: 종가 88/12 밴드(러프) · 거절 1회+ · 중심 병합 2.5%
-// 3단계: VWAP 중심 · 확장 시 슬라이스 재계산 · 완성 박스만(우측 현재봉 연장 없음)
+// 3단계: VWAP 중심 · 완성 박스만 · 매매: 박스 종료 후 하단 이탈→중심 터치 매수
 
 //@version=5
 indicator("통합 박스권 감지기 PRO", overlay=true, max_boxes_count=500, max_lines_count=500)
@@ -183,6 +183,13 @@ f_count_rejections(int oldestOff, int newestOff, float top, float bot) =>
 f_lineEndT(int boxRightT, int buyT) =>
     na(buyT) ? boxRightT : buyT
 
+// 박스 우측(시간상 이후) 봉만 — 박스 구간 안에서는 매매 없음
+f_after_box(int boxRightT) =>
+    time > boxRightT
+
+f_touches_mid(float top, float bot, float mid) =>
+    high >= mid and low <= mid
+
 merge_into(int idx, float newTop, float newBot, float newMid, int newLeftT, int newRightT) =>
     float oldTop = array.get(tops, idx)
     float oldBot = array.get(bottoms, idx)
@@ -273,12 +280,14 @@ if sz > 0
         int brk = array.get(breakBars, i)
         float entry = array.get(entryPrices, i)
         bool closed = array.get(tradeClosed, i)
+        int boxRightT = array.get(rightTimes, i)
+        bool afterBox = f_after_box(boxRightT)
         if not closed
             if na(entry)
-                if not trig and low <= bottom
+                if afterBox and not trig and low < bottom
                     array.set(triggered, i, true)
                     array.set(breakBars, i, bar_index)
-                if trig and bar_index > brk and high >= mid
+                if trig and afterBox and f_touches_mid(top, bottom, mid)
                     array.set(entryPrices, i, mid)
                     array.set(entryBars, i, bar_index)
                     array.set(firstBuyTimes, i, time)
