@@ -197,10 +197,19 @@ function normalizeTrade(raw) {
     return null;
   }
   const market = normalizeLiveTradeMarket(o.market, symbol);
+  let quantity = qty;
+  if (market === "crypto") {
+    quantity = Math.round(quantity * 1e8) / 1e8;
+  } else if (market === "us") {
+    quantity = Math.round(quantity * 1e4) / 1e4;
+  } else {
+    quantity = Math.floor(quantity);
+  }
+  if (quantity <= 0) return null;
   const amount =
     Number.isFinite(Number(o.amount)) && Number(o.amount) > 0
       ? Number(o.amount)
-      : qty * price;
+      : quantity * price;
   return {
     id,
     programId,
@@ -208,7 +217,7 @@ function normalizeTrade(raw) {
     symbol,
     name: String(o.name ?? symbol).trim() || symbol,
     market,
-    quantity: qty,
+    quantity,
     price,
     amount,
     currency: liveTradeCurrency(market),

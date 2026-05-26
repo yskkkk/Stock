@@ -16,7 +16,12 @@ function positionKey(t: Pick<LiveTradeRecord, "programId" | "market" | "symbol">
   return `${t.programId}:${t.market}:${t.symbol}`;
 }
 
-/** 체결 목록(시간순 무관) → 거래 id별 구매·판매·실현 손익 */
+const QTY_EPS = 1e-12;
+
+/**
+ * 체결 목록(시간순 무관) → 거래 id별 구매·판매·실현 손익
+ * — 매도 행의 entryPrice(박스 mid 등)는 표시·손익에 쓰지 않고, 선행 매수의 가중 평균 원가만 사용
+ */
 export function tradeFillDisplayByTradeId(
   trades: LiveTradeRecord[],
 ): Map<string, TradeFillDisplay> {
@@ -41,31 +46,28 @@ export function tradeFillDisplayByTradeId(
     }
 
     const pos = positions.get(key);
-    const storedEntry =
-      typeof t.entryPrice === "number" &&
-      Number.isFinite(t.entryPrice) &&
-      t.entryPrice > 0
-        ? t.entryPrice
-        : null;
-    const buyPrice =
-      storedEntry ?? (pos && pos.qty > 0 ? pos.cost / pos.qty : null);
+    const avgCost =
+      pos && pos.qty > QTY_EPS ? pos.cost / pos.qty : null;
+    const buyPrice = avgCost;
 
     let realizedPnl: number | null = null;
     let realizedPnlPct: number | null = null;
 
-    if (buyPrice != null && buyPrice > 0 && pos && pos.qty > 0) {
+    if (buyPrice != null && buyPrice > 0 && pos && pos.qty > QTY_EPS) {
       const sellQty = Math.min(t.quantity, pos.qty);
-      if (sellQty > 0) {
-        const proceeds =
-          (t.amount / t.quantity) * sellQty - (t.feeAmount ?? 0);
+      if (sellQty > QTY_EPS) {
+        const sellFee =
+          t.quantity > QTY_EPS
+            ? ((t.feeAmount ?? 0) / t.quantity) * sellQty
+            : 0;
+        const proceeds = sellQty * t.price - sellFee;
         const costPortion = buyPrice * sellQty;
         realizedPnl = proceeds - costPortion;
         realizedPnlPct =
           costPortion > 1e-9 ? (realizedPnl / costPortion) * 100 : null;
-        const costPortionFromPos = buyPrice * sellQty;
         pos.qty -= sellQty;
-        pos.cost -= costPortionFromPos;
-        if (pos.qty <= 1e-9) {
+        pos.cost -= costPortion;
+        if (pos.qty <= QTY_EPS) {
           pos.qty = 0;
           pos.cost = 0;
         }

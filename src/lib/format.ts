@@ -14,6 +14,14 @@ export function formatLiveTradeQuantity(
       minimumFractionDigits: 0,
     });
   }
+  if (market === "us") {
+    const abs = Math.abs(value);
+    const digits = abs >= 1 ? 4 : 2;
+    return value.toLocaleString("ko-KR", {
+      maximumFractionDigits: digits,
+      minimumFractionDigits: 0,
+    });
+  }
   return value.toLocaleString("ko-KR", { maximumFractionDigits: 0 });
 }
 
