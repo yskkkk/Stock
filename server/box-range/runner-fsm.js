@@ -54,6 +54,21 @@ function closeTradingBox(box, reason = "closed") {
   if (cid) markCatalogBoxConsumedSync(cid, reason);
 }
 
+/** Pine PRO v2: 익절 후 triggered/dipLow 리셋 — 동일 박스 재진입 허용 */
+function resetBoxAfterTakeProfit(box) {
+  patchBoxSync(box.boxId, {
+    state: "idle",
+    lotQty: 0,
+    buyTradeId: null,
+    entryPrice: null,
+    buyAtMs: null,
+    breakAtMs: null,
+    dipLow: null,
+    armedAtMs: null,
+    midNotifiedAtMs: null,
+  });
+}
+
 /**
  * @param {import("../live-trade-programs-store.js").LiveTradeProgram} program
  * @param {import("./store.js").BoxRangeRecord} box
@@ -116,13 +131,9 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
     const broke = box.breakAtMs != null;
     if (!afterBox || !broke) return;
 
-    // 이탈 구간 최저점 갱신(손절 기준)
+    // 이탈 구간 최저점 갱신(손절 기준) — Pine: trig 중 low 최저
     const nextDip =
-      lastPrice <= box.bottom
-        ? box.dipLow == null || lastPrice < box.dipLow
-          ? lastPrice
-          : box.dipLow
-        : box.dipLow;
+      box.dipLow == null || lastPrice < box.dipLow ? lastPrice : box.dipLow;
     if (nextDip !== box.dipLow) patchBoxSync(box.boxId, { dipLow: nextDip });
 
     // 진입: 하단 위로 복귀(종가 대신 lastPrice) → entry=bottom
@@ -346,9 +357,11 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
           userId,
         );
       }
-      closeTradingBox(box, exitSide);
-      if (exitSide === "sl") {
+      if (exitSide === "tp") {
+        resetBoxAfterTakeProfit(box);
+      } else {
         patchBoxSync(box.boxId, { dead: true });
+        closeTradingBox(box, exitSide);
       }
       liveTradeLogInfo(
         "[box-range:sell]",
