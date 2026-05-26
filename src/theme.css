@@ -550,6 +550,14 @@ html[data-theme="light"] .picks-panel:not(.crypto-panel).card {
     var(--shadow);
 }
 
+/* 종목검색 — 단일 면(그라데이션·inset 그림자 제거) */
+html[data-theme="light"]
+  .workspace--stock-lookup
+  .picks-panel:not(.crypto-panel).card {
+  background: var(--card);
+  box-shadow: none;
+}
+
 html[data-theme="light"] .picks-panel.rec-tracker-panel.card {
   box-shadow: var(--shadow);
 }

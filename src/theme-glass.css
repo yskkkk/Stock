@@ -202,6 +202,24 @@ html[data-theme="light"][data-light-palette="glass"] .picks-panel::after {
   animation-delay: 2.2s;
 }
 
+/* 종목검색 — 글래스 시트·sheen 제거(이중 패널 방지) */
+html[data-theme="light"][data-light-palette="glass"]
+  .workspace--stock-lookup
+  .picks-panel.card {
+  background: var(--card) !important;
+  border-color: var(--card-border) !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+html[data-theme="light"][data-light-palette="glass"]
+  .workspace--stock-lookup
+  .picks-panel.card::after {
+  display: none !important;
+  content: none !important;
+}
+
 html[data-theme="light"][data-light-palette="glass"] .top-bar.card::after {
   animation-delay: 1.1s;
 }
@@ -229,9 +247,7 @@ html[data-theme="light"][data-light-palette="glass"] .app-live-trade-side-dock__
 html[data-theme="light"][data-light-palette="glass"]
   .app-live-trade-side-dock__host
   .live-trading-tab__card-tabs-pane--rail {
-  background: transparent !important;
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
+  background: rgba(255, 255, 255, 0.48) !important;
   --dock-pane-outer-fill: #dce2e8;
 }
 

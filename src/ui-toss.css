@@ -7111,3 +7111,8 @@ html:not([data-theme="light"]) .tag--telegram-btn .tag-count {
   }
 }
 
+/* 종목검색 — .card 글로벌 box-shadow 제거 */
+.app__shell > .workspace.workspace--stock-lookup > .picks-panel.card {
+  box-shadow: none;
+}
+

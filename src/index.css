@@ -4098,6 +4098,49 @@ html[data-theme="light"] .access-admin-tab--active {
     max-height: none;
   }
 
+  /* 종목검색 — 단일 패널(뒤에 겹친 카드·그림자 레이어 제거) */
+  .workspace--stock-lookup:not(.crypto-workspace) .picks-panel:not(.crypto-panel).card {
+    background: var(--card);
+    box-shadow: none;
+  }
+
+  html[data-theme="light"]
+    .workspace--stock-lookup:not(.crypto-workspace)
+    .picks-panel:not(.crypto-panel).card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    box-shadow: none;
+  }
+
+  html[data-theme="light"][data-light-palette="glass"]
+    .workspace--stock-lookup:not(.crypto-workspace)
+    .picks-panel.card {
+    background: var(--card) !important;
+    border: 1px solid var(--card-border) !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  html[data-theme="light"][data-light-palette="glass"]
+    .workspace--stock-lookup:not(.crypto-workspace)
+    .picks-panel.card::after {
+    display: none !important;
+    content: none !important;
+  }
+
+  .workspace--stock-lookup:not(.crypto-workspace)
+    .picks-panel:not(.crypto-panel)
+    > .panel-head,
+  .workspace--stock-lookup:not(.crypto-workspace)
+    .picks-panel:not(.crypto-panel)
+    > .stock-search-tab,
+  .workspace--stock-lookup:not(.crypto-workspace)
+    .picks-panel:not(.crypto-panel)
+    .stock-search-tab__hot-list {
+    background: transparent;
+  }
+
   .workspace:not(.crypto-workspace) .picks-panel:not(.crypto-panel) .picks-panel-stack .pick-list,
   .workspace:not(.crypto-workspace) .picks-panel:not(.crypto-panel) > .stock-search-tab .pick-list:not(.stock-search-tab__hot-list) {
     --pick-list-slot: 11rem;
@@ -5603,6 +5646,14 @@ html[data-theme="light"] .access-admin-tab--active {
     border-radius: 16px;
     box-shadow: var(--shadow);
     border-color: var(--card-border);
+  }
+
+  .workspace--stock-lookup .picks-panel.card {
+    box-shadow: none;
+  }
+
+  html[data-theme="light"] .workspace--stock-lookup .picks-panel.card {
+    box-shadow: none;
   }
 
   .filter-bar.card {
