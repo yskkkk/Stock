@@ -1443,7 +1443,14 @@ export default function App() {
           </section>
         </div>
       ) : (
-        <div className="workspace">
+        <div
+          className={[
+            "workspace",
+            appTab === "stockLookup" ? "workspace--stock-lookup" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
         <aside className="picks-panel card">
           <div
             className={[
@@ -1583,6 +1590,7 @@ export default function App() {
           )}
         </aside>
 
+        {(appTab !== "stockLookup" || workspacePick) && (
         <section
           ref={stockChartSectionRef}
           className="chart-section crypto-chart-section"
@@ -1901,6 +1909,7 @@ export default function App() {
             </>
           )}
         </section>
+        )}
       </div>
       )}
 

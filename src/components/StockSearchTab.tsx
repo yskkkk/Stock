@@ -186,9 +186,7 @@ function StockSearchHotRow({
 
   return (
     <li
-      className={
-        isActive ? "pick-item stock-hot-item stock-hot-item--active" : "pick-item stock-hot-item"
-      }
+      className={isActive ? "stock-hot-item stock-hot-item--active" : "stock-hot-item"}
     >
       <button
         type="button"

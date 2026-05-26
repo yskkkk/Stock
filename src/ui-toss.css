@@ -6272,8 +6272,15 @@ html[data-theme="light"] .live-portfolio__trade-quote-strip {
     max-height: min(44dvh, 400px);
   }
 
+  .workspace--stock-lookup:not(.crypto-workspace) .picks-panel:not(.crypto-panel) {
+    max-height: none;
+  }
+
   .workspace:not(.crypto-workspace) .picks-panel:not(.crypto-panel) .picks-panel-stack .pick-list,
-  .workspace:not(.crypto-workspace) .picks-panel:not(.crypto-panel) > .stock-search-tab .pick-list {
+  .workspace:not(.crypto-workspace)
+    .picks-panel:not(.crypto-panel)
+    > .stock-search-tab
+    .pick-list:not(.stock-search-tab__hot-list) {
     --pick-list-slot: 8rem;
     --pick-list-row-gap: 0.42rem;
     --pick-list-mobile-h: calc(2 * var(--pick-list-slot) + var(--pick-list-row-gap));

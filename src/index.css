@@ -2404,8 +2404,9 @@ html[data-theme="light"] .live-trade-header-strip__telegram-count {
 }
 
 .stock-search-tab__hot-list {
-  gap: 0.32rem !important;
-  padding-top: 0.15rem !important;
+  gap: 0 !important;
+  padding-top: 0 !important;
+  padding-inline: 0 !important;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -2420,25 +2421,31 @@ html[data-theme="light"] .live-trade-header-strip__telegram-count {
   display: none;
 }
 
-/* 거래대금 상위 — 토스형 가로 행 카드 */
+/* 거래대금 상위 — 패널 안 평면 행(중첩 카드 없음) */
 .stock-hot-item {
-  border-radius: 10px !important;
-  border: 1px solid color-mix(in srgb, var(--card-border, rgba(148, 163, 184, 0.12)) 88%, transparent) !important;
-  background: color-mix(in srgb, var(--card, #161d27) 96%, var(--bg-elevated, #121820)) !important;
+  margin: 0;
+  border-radius: 0 !important;
+  border: none !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border, rgba(148, 163, 184, 0.12)) 88%, transparent) !important;
+  background: transparent !important;
   box-shadow: none !important;
   overflow: hidden;
 }
 
+.stock-search-tab__hot-list > .stock-hot-item:last-child {
+  border-bottom: none !important;
+}
+
 html[data-theme="light"] .stock-hot-item {
-  background: var(--card, #fff) !important;
-  border-color: color-mix(in srgb, var(--border, #e2e8f0) 90%, transparent) !important;
-  box-shadow: 0 1px 0 color-mix(in srgb, #fff 80%, transparent) !important;
+  background: transparent !important;
+  border-bottom-color: color-mix(in srgb, var(--border, #e2e8f0) 90%, transparent) !important;
+  box-shadow: none !important;
 }
 
 .stock-hot-item--active,
 .stock-hot-item.active {
-  border-color: color-mix(in srgb, var(--accent, #5eead4) 42%, var(--card-border)) !important;
-  background: color-mix(in srgb, var(--accent-dim, rgba(94, 234, 212, 0.12)) 55%, var(--card)) !important;
+  border-bottom-color: color-mix(in srgb, var(--accent, #5eead4) 28%, var(--card-border)) !important;
+  background: color-mix(in srgb, var(--accent-dim, rgba(94, 234, 212, 0.12)) 40%, transparent) !important;
   box-shadow: none !important;
 }
 
@@ -4076,8 +4083,23 @@ html[data-theme="light"] .access-admin-tab--active {
   /*
    * 국내·나스닥: 목록 ul 은 항상 약 3카드 높이를 확보하고 넘치면 내부 스크롤.
    */
+  .workspace:not(.crypto-workspace)
+    .picks-panel:not(.crypto-panel)
+    > .stock-search-tab
+    .stock-search-tab__hot-list {
+    height: auto;
+    min-height: 0;
+    max-height: min(56dvh, 520px);
+    flex: 1 1 auto;
+  }
+
+  .workspace--stock-lookup:not(.crypto-workspace) .picks-panel:not(.crypto-panel) {
+    flex: 1 1 auto;
+    max-height: none;
+  }
+
   .workspace:not(.crypto-workspace) .picks-panel:not(.crypto-panel) .picks-panel-stack .pick-list,
-  .workspace:not(.crypto-workspace) .picks-panel:not(.crypto-panel) > .stock-search-tab .pick-list {
+  .workspace:not(.crypto-workspace) .picks-panel:not(.crypto-panel) > .stock-search-tab .pick-list:not(.stock-search-tab__hot-list) {
     --pick-list-slot: 11rem;
     --pick-list-row-gap: 0.5rem;
     --pick-list-three-h: calc(
@@ -4300,13 +4322,19 @@ html[data-theme="light"] .access-admin-tab--active {
   }
 
   /* 스크리너·종목 검색: 목록을 전폭 카드 스택(601–900px 구간 포함) */
-  .picks-panel:not(.crypto-panel) .pick-list,
-  .picks-panel:not(.crypto-panel) .stock-search-tab__list {
+  .picks-panel:not(.crypto-panel) .pick-list:not(.stock-search-tab__hot-list),
+  .picks-panel:not(.crypto-panel) .stock-search-tab__list:not(.stock-search-tab__hot-list) {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
     padding: 0.48rem max(0.55rem, env(safe-area-inset-left, 0px)) 0.58rem
       max(0.55rem, env(safe-area-inset-right, 0px));
+  }
+
+  .picks-panel:not(.crypto-panel) .stock-search-tab__hot-list {
+    gap: 0 !important;
+    padding-inline: 0 !important;
+    padding-top: 0 !important;
   }
 
   .picks-panel:not(.crypto-panel) .pick-list > .pick-item,
