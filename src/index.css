@@ -4170,18 +4170,6 @@ html[data-theme="light"] .access-admin-tab--active {
     content: none !important;
   }
 
-  .workspace--stock-lookup:not(.crypto-workspace)
-    .picks-panel:not(.crypto-panel)
-    > .panel-head,
-  .workspace--stock-lookup:not(.crypto-workspace)
-    .picks-panel:not(.crypto-panel)
-    > .stock-search-tab,
-  .workspace--stock-lookup:not(.crypto-workspace)
-    .picks-panel:not(.crypto-panel)
-    .stock-search-tab__hot-list {
-    background: transparent;
-  }
-
   .workspace:not(.crypto-workspace) .picks-panel:not(.crypto-panel) .picks-panel-stack .pick-list,
   .workspace:not(.crypto-workspace) .picks-panel:not(.crypto-panel) > .stock-search-tab .pick-list:not(.stock-search-tab__hot-list) {
     --pick-list-slot: 11rem;

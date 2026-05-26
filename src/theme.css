@@ -553,10 +553,10 @@ html[data-theme="light"] .picks-panel:not(.crypto-panel).card {
     var(--shadow);
 }
 
-/* 종목검색 — 배경 없음(stock-lookup-flat.css) */
+/* 종목검색 — 바깥 카드만 제거(stock-lookup-flat.css) */
 html[data-theme="light"]
   .workspace--stock-lookup
-  .picks-panel:not(.crypto-panel).card {
+  > .picks-panel:not(.crypto-panel).card {
   background: transparent;
   border: none;
   box-shadow: none;

@@ -1,0 +1,39 @@
+/* 종목 검색 — 뒤에 겹치는 picks-panel.card(글래스·카드 시트)만 제거, 내부 UI는 테마 기본 */
+
+.app__shell > .workspace.workspace--stock-lookup > .picks-panel.card,
+.workspace--stock-lookup:not(.crypto-workspace) > .picks-panel.card {
+  position: static;
+  overflow: visible;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.app__shell > .workspace.workspace--stock-lookup > .picks-panel.card::after,
+.workspace--stock-lookup:not(.crypto-workspace) > .picks-panel.card::after {
+  display: none !important;
+  content: none !important;
+}
+
+html[data-theme="light"][data-light-palette="glass"]
+  .app__shell
+  > .workspace.workspace--stock-lookup
+  > .picks-panel.card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  overflow: visible;
+}
+
+html[data-theme="light"][data-light-palette="glass"]
+  .app__shell
+  > .workspace.workspace--stock-lookup
+  > .picks-panel.card::after {
+  display: none !important;
+  content: none !important;
+}
