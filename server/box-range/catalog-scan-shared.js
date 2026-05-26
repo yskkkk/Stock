@@ -1,6 +1,7 @@
 import { loadStock } from "../stock-data.js";
 import { BOX_RANGE_TIMEFRAMES } from "./constants.js";
 import { detectBoxRangesProOnCandles } from "./detect-pro.js";
+import { detectBoxRangesPineOnCandles } from "./detect-pine.js";
 import { upsertSymbolCatalogDetectionsSync } from "./catalog-store.js";
 import { normalizeBoxUnixTime } from "./box-time.js";
 
@@ -49,7 +50,11 @@ export async function scanOneSymbolCatalog(item, catalogMarket) {
         continue;
       }
       tfOk += 1;
-      byTf[tf] = detectBoxRangesProOnCandles(candles, tf, 5);
+      // 비교/포팅: Pine 탐지 방식(원본 f_zoneEngine) 사용 옵션
+      const usePine = process.env.STOCK_BOX_RANGE_DETECTOR === "pine";
+      byTf[tf] = usePine
+        ? detectBoxRangesPineOnCandles(candles, tf, 5)
+        : detectBoxRangesProOnCandles(candles, tf, 5);
       totalBoxes += byTf[tf].length;
     } catch (e) {
       tfErrors.push(`${tf}:${e instanceof Error ? e.message : e}`);
