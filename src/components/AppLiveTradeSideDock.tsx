@@ -99,10 +99,6 @@ function wheelDeltaY(e: WheelEvent): number {
   return delta;
 }
 
-function findAppScrollEl(): HTMLElement | null {
-  return document.querySelector<HTMLElement>(".app__scroll");
-}
-
 function queryDockRailEl(): HTMLElement | null {
   return (
     document.querySelector<HTMLElement>("[data-live-trade-side-dock-rail]") ??
@@ -110,19 +106,47 @@ function queryDockRailEl(): HTMLElement | null {
   );
 }
 
-/** 우측 도크(패널·레일·리사이즈 핸들) 휠 → 메인 `.app__scroll` */
-function applyPageScrollWheel(scrollEl: HTMLElement, e: WheelEvent): boolean {
+/** 도크 패널·레일 내부 스크롤(스크롤바는 CSS로 숨김) */
+function applyDockScrollWheel(scrollEl: HTMLElement, e: WheelEvent): void {
   const delta = wheelDeltaY(e);
-  if (delta === 0) return false;
+  if (delta === 0) return;
+  const max = Math.max(0, scrollEl.scrollHeight - scrollEl.clientHeight);
+  scrollEl.scrollTop = Math.max(0, Math.min(max, scrollEl.scrollTop + delta));
+}
 
-  const max = scrollEl.scrollHeight - scrollEl.clientHeight;
-  if (max <= 0) return false;
+function findDockWheelScrollTarget(target: EventTarget | null): HTMLElement | null {
+  if (!(target instanceof Element)) return null;
 
-  scrollEl.scrollTop = Math.max(
-    0,
-    Math.min(max, scrollEl.scrollTop + delta),
+  const hostScroll = target.closest(
+    ".app-live-trade-side-dock__host .live-trading-tab__card-tabs-host",
   );
-  return true;
+  if (
+    hostScroll instanceof HTMLElement &&
+    !hostScroll.classList.contains("live-trading-tab__card-tabs-host--idle")
+  ) {
+    return hostScroll;
+  }
+
+  const railScroll = target.closest(".app-live-trade-side-dock__rail-scroll");
+  if (railScroll instanceof HTMLElement) return railScroll;
+
+  const host = target.closest(".app-live-trade-side-dock__host");
+  if (host) {
+    const panel = host.querySelector<HTMLElement>(
+      ".live-trading-tab__card-tabs-host:not(.live-trading-tab__card-tabs-host--idle)",
+    );
+    if (panel) return panel;
+  }
+
+  const rail = target.closest("[data-live-trade-side-dock-rail]");
+  if (rail) {
+    const body = rail.querySelector<HTMLElement>(
+      ".app-live-trade-side-dock__rail-scroll",
+    );
+    if (body) return body;
+  }
+
+  return null;
 }
 
 function isWheelInLiveTradeDockZone(
@@ -732,11 +756,17 @@ export default function AppLiveTradeSideDock({
     const onWheel = (e: WheelEvent) => {
       if (!isWheelInLiveTradeDockZone(dockRef.current, e.target)) return;
 
-      const pageScroll = findAppScrollEl();
-      if (pageScroll && applyPageScrollWheel(pageScroll, e)) {
+      const scrollEl = findDockWheelScrollTarget(e.target);
+      if (scrollEl) {
+        applyDockScrollWheel(scrollEl, e);
         e.preventDefault();
         e.stopPropagation();
+        return;
       }
+
+      /* 패널·레일 위 여백 — 메인 스크롤로 새지 않게 */
+      e.preventDefault();
+      e.stopPropagation();
     };
 
     document.addEventListener("wheel", onWheel, { passive: false, capture: true });
