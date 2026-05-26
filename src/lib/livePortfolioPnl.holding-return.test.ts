@@ -74,10 +74,41 @@ describe("holding return from cost basis", () => {
     expect(pct!).toBeLessThan(0);
   });
 
-  it("program total matches sum of net vs resolved cost", () => {
+  it("program total aligns with costBasis when trade sum is inflated (dupes)", () => {
+    const holdings = [
+      holding({ symbol: "SOL-USDT", costBasis: 19_678, marketValue: 19_982 }),
+      holding({ symbol: "WLD-USDT", costBasis: 19_677, marketValue: 19_900 }),
+    ];
+    const dupBuy = {
+      programId: "p1",
+      side: "buy" as const,
+      name: "SOL",
+      market: "crypto" as const,
+      quantity: 1,
+      price: 20_000,
+      amount: 20_000,
+      feeAmount: 40,
+      currency: "KRW",
+      simulated: false,
+      orderId: null,
+      note: null,
+      atMs: 1,
+    };
+    const trades: LiveTradeRecord[] = [
+      { ...dupBuy, id: "t1", symbol: "SOL-USDT" },
+      { ...dupBuy, id: "t1-dup", symbol: "SOL-USDT" },
+      { ...dupBuy, id: "t2", symbol: "WLD-USDT" },
+      { ...dupBuy, id: "t2-dup", symbol: "WLD-USDT" },
+    ];
+    const total = programOpenReturnFromNetAndCost(holdings, trades, () => 0.002);
+    expect(total).not.toBeNull();
+    expect(total!).toBeGreaterThan(-5);
+    expect(total!).toBeLessThan(5);
+  });
+
+  it("program total uses buy trades only when ledger understates slightly", () => {
     const holdings = [
       holding({ symbol: "SOL-USDT", costBasis: 19_600, marketValue: 19_998 }),
-      holding({ symbol: "WLD-USDT", costBasis: 19_600, marketValue: 19_900 }),
     ];
     const trades: LiveTradeRecord[] = [
       {
@@ -92,25 +123,15 @@ describe("holding return from cost basis", () => {
         amount: 20_000,
         feeAmount: 40,
         currency: "KRW",
+        simulated: false,
+        orderId: null,
+        note: null,
         atMs: 1,
-      },
-      {
-        id: "t2",
-        programId: "p1",
-        side: "buy",
-        symbol: "WLD-USDT",
-        name: "WLD",
-        market: "crypto",
-        quantity: 1,
-        price: 20_000,
-        amount: 20_000,
-        feeAmount: 40,
-        currency: "KRW",
-        atMs: 2,
       },
     ];
     const total = programOpenReturnFromNetAndCost(holdings, trades, () => 0.002);
     expect(total).not.toBeNull();
     expect(total!).toBeLessThan(0);
+    expect(total!).toBeGreaterThan(-3);
   });
 });

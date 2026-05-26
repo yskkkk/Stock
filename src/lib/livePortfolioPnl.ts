@@ -225,23 +225,32 @@ export function holdingNetReturnPctFromCost(
   return ((netMv - cost) / cost) * 100;
 }
 
-/** 해당 종목 매수 체결 합(금액+수수료) */
+/** 해당 종목 매수 체결 합(금액+수수료) — 동일 id 중복 제외 */
 export function sumBuyCostForHolding(
   h: Pick<LiveTradeHolding, "programId" | "symbol" | "market">,
   trades: LiveTradeRecord[],
 ): number {
+  const seen = new Set<string>();
   let sum = 0;
   for (const t of trades) {
     if (t.programId !== h.programId || t.symbol !== h.symbol || t.market !== h.market) {
       continue;
     }
     if (t.side !== "buy") continue;
+    const id = String(t.id ?? "").trim();
+    if (id) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+    }
     sum += t.amount + (t.feeAmount ?? 0);
   }
   return sum;
 }
 
-/** 원장 costBasis vs 매수 체결 — 실제 지출이 더 크면 체결 기준 */
+/**
+ * 수익률 분모 — 보유 스냅샷 costBasis(매수총금액 표시와 동일) 우선.
+ * 체결 합이 원장보다 5% 이상 크면 중복·과거 체결 누적로 보고 원장만 사용.
+ */
 export function resolvedHoldingCostBasis(
   h: LiveTradeHolding,
   trades?: LiveTradeRecord[],
@@ -251,9 +260,13 @@ export function resolvedHoldingCostBasis(
     return Number.isFinite(ledger) && ledger > 0 ? ledger : 0;
   }
   const buys = sumBuyCostForHolding(h, trades);
-  if (buys > 0 && ledger > 0) return Math.max(ledger, buys);
+  if (Number.isFinite(ledger) && ledger > 0) {
+    if (buys > ledger * 1.05) return ledger;
+    if (buys > 0) return Math.max(ledger, buys);
+    return ledger;
+  }
   if (buys > 0) return buys;
-  return Number.isFinite(ledger) && ledger > 0 ? ledger : 0;
+  return 0;
 }
 
 /** 수익률 — 표시 평가금(순)과 동일한 매입 원가 기준 */
