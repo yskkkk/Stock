@@ -8,6 +8,7 @@ import {
   type BoxRangeSymbolCatalog,
 } from "../api";
 import { formatPercent, formatPrice } from "../lib/format";
+import { coerceBoxUnixTime } from "../lib/boxRangeChartPrimitive";
 import { cryptoCoinIconUrl, cryptoIconSlug } from "../lib/cryptoCoinIcon";
 import { krStockLogoUrl, usStockLogoUrl } from "../lib/stockLogoUrl";
 import { ko } from "../i18n/ko";
@@ -159,9 +160,44 @@ function BoxRangeLogoButton({
   );
 }
 
-function formatBoxPeriod(leftTime: number, rightTime: number): string {
+/** Pine draw용 extMs가 초에 더해져 저장된 레거시 보정 */
+const LEGACY_EXT_SEC_BUG: Record<"1h" | "4h" | "1d", number> = {
+  "1h": 10 * 3600 * 1000,
+  "4h": 8 * 14_400 * 1000,
+  "1d": 6 * 86_400 * 1000,
+};
+
+function boxSpanUnixSec(
+  leftRaw: unknown,
+  rightRaw: unknown,
+  timeframe: "1h" | "4h" | "1d",
+): { left: number; right: number } | null {
+  let left = coerceBoxUnixTime(leftRaw);
+  let right = coerceBoxUnixTime(rightRaw);
+  if (left == null || right == null) return null;
+  const now = Math.floor(Date.now() / 1000);
+  const bug = LEGACY_EXT_SEC_BUG[timeframe];
+  if (bug > 0 && right > now + 3600 && right - left >= bug * 0.5) {
+    const fixed = right - bug;
+    if (fixed >= left && fixed <= now + 86_400) right = fixed;
+  }
+  if (right > now) right = now;
+  if (left > right) {
+    const t = left;
+    left = right;
+    right = t;
+  }
+  return { left, right };
+}
+
+function formatBoxPeriod(
+  leftRaw: unknown,
+  rightRaw: unknown,
+  timeframe: "1h" | "4h" | "1d",
+): string {
+  const span = boxSpanUnixSec(leftRaw, rightRaw, timeframe);
+  if (!span) return "—";
   const fmt = (sec: number) => {
-    if (!Number.isFinite(sec) || sec <= 0) return "—";
     try {
       return new Date(sec * 1000).toLocaleDateString("ko-KR", {
         year: "2-digit",
@@ -172,10 +208,7 @@ function formatBoxPeriod(leftTime: number, rightTime: number): string {
       return "—";
     }
   };
-  const a = fmt(leftTime);
-  const b = fmt(rightTime);
-  if (a === "—" && b === "—") return "—";
-  return `${a} ~ ${b}`;
+  return `${fmt(span.left)} ~ ${fmt(span.right)}`;
 }
 
 function boxPctFromMid(mid: number, target: number): number | null {
@@ -204,7 +237,7 @@ function BoxRangePriceCard({
         <div className="box-range-tab__price-card-row box-range-tab__price-card-row--span">
           <dt>{ko.app.boxRangeTabBoxPeriod}</dt>
           <dd className="box-range-tab__price-card-val">
-            {formatBoxPeriod(box.leftTime, box.rightTime)}
+            {formatBoxPeriod(box.leftTime, box.rightTime, box.timeframe)}
             {box.validBars > 0 ? (
               <span className="box-range-tab__price-card-bars">
                 {" "}

@@ -173,7 +173,6 @@ export function detectBoxRangesPineOnCandles(
       : 40;
 
   const tfSeconds = tfSec(timeframe);
-  const extMs = p.extBars * tfSeconds * 1000;
 
   // 마지막 미확정 봉 1개 제외(기존 detect-pro와 동일한 관례)
   const confirmedEnd = Math.max(0, candles.length - 2);
@@ -296,7 +295,8 @@ export function detectBoxRangesPineOnCandles(
     const top = zTop[i];
     const bottom = zBot[i];
     const t0 = zT0[i];
-    const t1 = zT1[i] + extMs; // Pine draw 시점에 extMs 더함
+    const t1 = zT1[i];
+    // Pine 차트 그리기만 t1+extMs — 저장·UI 기간은 실제 박스 좌우 봉 시각만
     const leftTime = normalizeBoxUnixTime(t0);
     const rightTime = normalizeBoxUnixTime(t1);
     if (
