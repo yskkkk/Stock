@@ -147,7 +147,6 @@ function RailProgramCard({
     open && sorted.length > 0,
     "live-trade-rail__table-wrap--dragging",
   );
-  const up = displayReturnPct != null && displayReturnPct >= 0;
   const dotHoldings = sorted.slice(0, MAX_DOTS);
   const dotMore = sorted.length > MAX_DOTS ? sorted.length - MAX_DOTS : 0;
   const totalNetMarketValue = useMemo(
@@ -166,6 +165,7 @@ function RailProgramCard({
     );
     return fromNet ?? returnPct;
   }, [sorted, trades, roundTripForMarket, returnPct]);
+  const up = displayReturnPct != null && displayReturnPct >= 0;
   const pnlAgg = useMemo(() => summarizeHoldingsPnl(sorted), [sorted]);
   const investedLabel = formatInvestedOrMarketLabel(
     pnlAgg.investedByCurrency,
@@ -540,8 +540,6 @@ export function LiveTradingRailCore({
       };
     });
   }, [status, holdingsByProgram, tradesByProgram, roundTripForMarket]);
-
-  const runningDisplayCount = runningCount || rows.length;
 
   const armedRows = useMemo(
     () => rows.filter((row) => row.kind === "armed"),
