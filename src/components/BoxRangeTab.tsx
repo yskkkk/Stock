@@ -315,7 +315,7 @@ export default function BoxRangeTab() {
 
         <section className="box-range-tab__detail" aria-live="polite">
           {!selected ? (
-            <p className="box-range-tab__empty">{ko.app.boxRangeTabPickSymbol}</p>
+            null
           ) : !detail ? (
             <DockPanelCenterLoading label={ko.app.boxRangeCatalogLoading} />
           ) : (
