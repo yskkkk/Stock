@@ -146,6 +146,8 @@ async function liveBuyForProgram(program, pick) {
           simulated: out.simulated,
           orderId: out.orderId,
           atMs: quote.atMs,
+          fillVolume: out.fillVolume ?? undefined,
+          executedFunds: out.executedFunds ?? undefined,
         },
       );
     } catch (e) {

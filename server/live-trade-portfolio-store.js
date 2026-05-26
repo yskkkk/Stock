@@ -467,6 +467,7 @@ export function recordLiveTradeBuySync(
   const orderAmount = amount;
 
   const fillVol = Number(orderMeta.fillVolume);
+  const execFunds = Number(orderMeta.executedFunds);
   let quantity =
     market === "crypto" &&
     Number.isFinite(fillVol) &&
@@ -474,6 +475,19 @@ export function recordLiveTradeBuySync(
       ? normalizeSellQuantity(fillVol, "crypto")
       : quantityFromOrderAmount(orderAmount, price, market);
   if (quantity <= 0) return null;
+
+  let tradePrice = price;
+  let tradeAmount = quantity * tradePrice;
+  if (
+    market === "crypto" &&
+    Number.isFinite(execFunds) &&
+    execFunds > 0
+  ) {
+    tradeAmount = execFunds;
+    if (quantity > 0) {
+      tradePrice = execFunds / quantity;
+    }
+  }
 
   const store = readStoreSync();
   if (isBoxRangeProgram(program)) {
@@ -507,7 +521,6 @@ export function recordLiveTradeBuySync(
       : null);
   const uid = String(program.userId ?? "").trim();
   const oneWayFee = getOneWayFeeRateForUserMarketSync(uid, market);
-  const tradeAmount = quantity * price;
   const trade = normalizeTrade({
     id: randomUUID(),
     programId: program.id,
@@ -516,7 +529,7 @@ export function recordLiveTradeBuySync(
     name: String(pick.name ?? symbol),
     market,
     quantity,
-    price,
+    price: tradePrice,
     amount: tradeAmount,
     feeAmount: tradeAmount * oneWayFee,
     simulated: Boolean(orderMeta.simulated),

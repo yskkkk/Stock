@@ -21,11 +21,11 @@ import { programDisplayStatus } from "../lib/liveProgramDisplay";
 import { formatPercent, formatPrice } from "../lib/format";
 import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
 import {
-  openHoldingsNetReturnPct,
   summarizeHoldingsPnl,
   summarizeNetMarketByCurrency,
   holdingNetMarketValue,
   holdingReturnPctForDisplay,
+  programOpenReturnFromNetAndCost,
   formatInvestedOrMarketLabel,
   programCashKrwBalance,
 } from "../lib/livePortfolioPnl";
@@ -147,7 +147,7 @@ function RailProgramCard({
     open && sorted.length > 0,
     "live-trade-rail__table-wrap--dragging",
   );
-  const up = returnPct != null && returnPct >= 0;
+  const up = displayReturnPct != null && displayReturnPct >= 0;
   const dotHoldings = sorted.slice(0, MAX_DOTS);
   const dotMore = sorted.length > MAX_DOTS ? sorted.length - MAX_DOTS : 0;
   const totalNetMarketValue = useMemo(
@@ -158,6 +158,14 @@ function RailProgramCard({
       }, 0),
     [sorted, roundTripForMarket],
   );
+  const displayReturnPct = useMemo(() => {
+    const fromNet = programOpenReturnFromNetAndCost(
+      sorted,
+      trades,
+      roundTripForMarket,
+    );
+    return fromNet ?? returnPct;
+  }, [sorted, trades, roundTripForMarket, returnPct]);
   const pnlAgg = useMemo(() => summarizeHoldingsPnl(sorted), [sorted]);
   const investedLabel = formatInvestedOrMarketLabel(
     pnlAgg.investedByCurrency,
@@ -214,14 +222,14 @@ function RailProgramCard({
           </span>
           <span
             className={
-              returnPct == null
+              displayReturnPct == null
                 ? "live-trade-rail__ret live-trade-rail__ret--hero live-trade-rail__ret--muted"
                 : up
                   ? "live-trade-rail__ret live-trade-rail__ret--hero live-trade-rail__ret--up"
                   : "live-trade-rail__ret live-trade-rail__ret--hero live-trade-rail__ret--down"
             }
           >
-            {returnPct == null ? "—" : formatPercent(returnPct)}
+            {displayReturnPct == null ? "—" : formatPercent(displayReturnPct)}
           </span>
         </span>
         <span className="live-trade-rail__summary-metrics">
@@ -253,7 +261,11 @@ function RailProgramCard({
           ) : (
             dotHoldings.map((h) => {
               const sym = shortSymbol(h.symbol);
-              const rowPct = holdingReturnPctForDisplay(h, roundTripForMarket);
+              const rowPct = holdingReturnPctForDisplay(
+                h,
+                roundTripForMarket,
+                trades,
+              );
               const tone = holdingChangeTone(rowPct);
               return (
                 <span
@@ -295,6 +307,7 @@ function RailProgramCard({
                     const rowPct = holdingReturnPctForDisplay(
                       h,
                       roundTripForMarket,
+                      trades,
                     );
                     const tone = holdingChangeTone(rowPct);
                     const mv =
@@ -322,14 +335,16 @@ function RailProgramCard({
                     <th scope="row">{ko.app.liveTradeLeftRailTotal}</th>
                     <td
                       className={
-                        returnPct == null
+                        displayReturnPct == null
                           ? ""
                           : up
                             ? "live-trade-rail__table-chg--up"
                             : "live-trade-rail__table-chg--down"
                       }
                     >
-                      {returnPct == null ? "—" : formatPercent(returnPct)}
+                      {displayReturnPct == null
+                        ? "—"
+                        : formatPercent(displayReturnPct)}
                     </td>
                     <td className="live-trade-rail__table-val">
                       {formatRailValuation(
@@ -510,20 +525,21 @@ export function LiveTradingRailCore({
       const displayStatus =
         kind === "armed" ? "armed" : programDisplayStatus(p, holdingCount);
       const holdings = holdingsByProgram[p.id] ?? [];
-      const fromHoldings = openHoldingsNetReturnPct(
+      const fromNet = programOpenReturnFromNetAndCost(
         holdings,
+        tradesByProgram[p.id] ?? [],
         roundTripForMarket,
       );
       return {
         program: p,
         kind,
         displayStatus,
-        returnPct: fromHoldings ?? ret?.totalReturnPct ?? null,
+        returnPct: fromNet ?? ret?.totalReturnPct ?? null,
         holdingCount,
         holdings,
       };
     });
-  }, [status, holdingsByProgram, roundTripForMarket]);
+  }, [status, holdingsByProgram, tradesByProgram, roundTripForMarket]);
 
   const runningDisplayCount = runningCount || rows.length;
 

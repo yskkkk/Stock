@@ -334,6 +334,10 @@ export async function executeBithumbLiveBuyOrder(program, pick, options = {}) {
       orderId,
       fillPrice: fill?.price ?? null,
       fillVolume: fill?.volume ?? null,
+      executedFunds:
+        fill?.funds != null && Number.isFinite(fill.funds) && fill.funds > 0
+          ? fill.funds
+          : null,
     };
   } catch (e) {
     return {
