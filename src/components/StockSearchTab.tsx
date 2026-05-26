@@ -650,6 +650,27 @@ export default function StockSearchTab({
     }
   }, [quotes, selectedSymbol, onSelectPick]);
 
+  /** 인기(왼쪽 상단) 첫 카드 — 검색어 없을 때 기본 차트 */
+  useEffect(() => {
+    if (debounced.length >= 1) return;
+    if (hotLoading) return;
+    if (hotQuotes.length === 0) return;
+    const norm = (s: string | null | undefined) => (s ?? "").trim().toUpperCase();
+    const pickOk =
+      selectedPick && selectedPick.market === market ? selectedPick : null;
+    const sel = norm(pickOk?.symbol ?? null);
+    const still = sel && hotQuotes.some((r) => norm(r.symbol) === sel);
+    if (still) return;
+    onSelectPick(rowToPick(hotQuotes[0]));
+  }, [
+    debounced,
+    hotQuotes,
+    hotLoading,
+    market,
+    selectedPick,
+    onSelectPick,
+  ]);
+
   const tryDirectSubmit = useCallback(() => {
     const pick = pickFromDirectInput(input, market);
     if (pick) onSelectPick(pick);
