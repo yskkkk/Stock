@@ -10239,9 +10239,11 @@ html[data-theme="light"][data-light-palette="glass"]
 }
 
 .app-live-trade-side-dock__host {
+  position: relative;
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
+  align-items: stretch;
   width: 100%;
   min-width: 0;
   height: 100%;
@@ -10257,14 +10259,15 @@ html[data-theme="light"][data-light-palette="glass"]
   pointer-events: none;
 }
 
-.app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane {
+.app-live-trade-side-dock__host > .live-trading-tab__card-tabs-pane {
   position: relative;
   display: flex;
   flex: 1 1 auto;
+  align-self: stretch;
   flex-direction: column;
-  min-height: 0 !important;
+  min-height: 100% !important;
   height: 100% !important;
-  max-height: 100% !important;
+  max-height: none !important;
   border: none;
   border-left: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
   border-radius: var(--radius-xl, 22px) 0 0 var(--radius-xl, 22px) !important;
@@ -10444,18 +10447,22 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   flex: 1 1 auto;
 }
 
-/* host 안 포털 소스 — 실행 패널은 표시, 카드 도크 껍데기만 숨김(본문은 card-tabs-host 포털) */
+/* host 안 포털 소스 — React 트리·포털 출처만(화면에는 카드 탭 패널만 표시) */
 .app-live-trade-side-dock__host > .live-trading-panel--dock-portals {
-  display: flex;
-  flex-direction: column;
-  flex: 0 0 auto;
-  width: 100%;
-  min-width: 0;
-  min-height: 0;
-  gap: 0.55rem;
-  overflow: visible;
-  pointer-events: auto;
-  opacity: 1;
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  flex: 0 0 0 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 .app-live-trade-side-dock__host
@@ -10464,16 +10471,6 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   flex: 0 0 auto;
   max-height: min(72dvh, 640px);
   overflow: auto;
-}
-
-.live-trading-panel--dock-portals--boot {
-  flex: 1 1 auto;
-  min-height: min(14rem, 42dvh);
-}
-
-.live-trading-panel--dock-portals--boot > .dock-panel-center-loading {
-  flex: 1 1 auto;
-  min-height: min(12rem, 38dvh);
 }
 
 .app-dock-rail-panel--pending {
@@ -10523,8 +10520,12 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
 .dock-linked-accounts {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   gap: 0.85rem;
   min-width: 0;
+  min-height: 0;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .dock-linked-accounts__block {
@@ -10777,7 +10778,17 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   .live-trading-tab__card-tabs-host
   .app-dock-rail-panel--accounts.dock-linked-accounts {
   flex: 1 1 auto;
-  min-height: min(14rem, 48dvh);
+  min-height: 0;
+  height: 100%;
+}
+
+.app-live-trade-side-dock__host
+  .live-trading-tab__card-tabs-pane--rail
+  .dock-linked-accounts__body
+  .dock-panel-center-loading {
+  flex: 1 1 auto;
+  min-height: 6rem;
+  align-self: stretch;
 }
 
 .dock-panel-center-loading {

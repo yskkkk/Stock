@@ -94,17 +94,9 @@ function DockLinkedAccountsPanelInner() {
     err: bithumbErr,
   } = useBithumbAccountSnapshot();
 
-  if (!authChecked) {
-    return (
-      <div className="app-dock-rail-panel app-dock-rail-panel--accounts">
-        <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
-      </div>
-    );
-  }
-
   if (!user) {
     return (
-      <div className="app-dock-rail-panel app-dock-rail-panel--accounts">
+      <div className="app-dock-rail-panel app-dock-rail-panel--accounts dock-linked-accounts">
         <p className="dock-linked-accounts__empty" role="status">
           {ko.app.liveTradeDockNoLinkedAccounts}
         </p>
@@ -148,7 +140,11 @@ function DockLinkedAccountsPanelInner() {
         role="region"
         aria-label={ko.app.liveTradeDockAccountTabBalance}
       >
-        {balanceBody}
+        {!authChecked ? (
+          <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
+        ) : (
+          balanceBody
+        )}
       </div>
     </div>
   );

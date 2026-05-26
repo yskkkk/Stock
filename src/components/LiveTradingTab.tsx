@@ -845,15 +845,10 @@ export default function LiveTradingTab({
     <div
       className={
         portalSourceOnly
-          ? `live-trading-tab live-trading-panel live-trading-panel--dock-portals${
-              statusPending ? " live-trading-panel--dock-portals--boot" : ""
-            }`
+          ? "live-trading-tab live-trading-panel live-trading-panel--dock-portals"
           : "live-trading-tab live-trading-panel"
       }
     >
-      {portalSourceOnly && user && statusPending ? (
-        <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
-      ) : null}
       {!portalSourceOnly ? (
       <header className="live-trading-tab__head card">
         <div>
