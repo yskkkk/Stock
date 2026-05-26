@@ -6,6 +6,7 @@ import {
   type LiveTradeHolding,
   type LiveTradePortfolioResponse,
   type LiveTradeProgram,
+  type LiveTradeRecord,
 } from "../api";
 import { useLivePortfolioQuotePoll } from "../hooks/useLivePortfolioQuotePoll";
 import { useLiveTradingStatusPoll } from "../hooks/useLiveTradingStatusPoll";
@@ -13,7 +14,13 @@ import { ko } from "../i18n/ko";
 import { programDisplayStatus } from "../lib/liveProgramDisplay";
 import { formatPercent, formatPrice } from "../lib/format";
 import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
-import { openHoldingsNetReturnPct, summarizeHoldingsPnl, summarizeNetMarketByCurrency, holdingNetMarketValue, formatInvestedOrMarketLabel } from "../lib/livePortfolioPnl";
+import {
+  openHoldingsNetReturnPct,
+  summarizeHoldingsPnl,
+  holdingNetMarketValue,
+  formatInvestedOrMarketLabel,
+  programCashKrwBalance,
+} from "../lib/livePortfolioPnl";
 import { mergeLiveQuotesIntoPortfolio } from "../lib/livePortfolioLiveQuotes";
 import { feeByMarketFromStatus } from "../lib/liveTradeFeeByMarket";
 import { DEFAULT_ROUND_TRIP_FEE_RATE } from "../lib/netReturn";
@@ -114,6 +121,7 @@ function RailProgramCard({
   roundTripForMarket,
   dataUpdatedAtMs,
   usdKrwRate,
+  trades,
 }: {
   program: LiveTradeProgram;
   displayStatus: ReturnType<typeof programDisplayStatus>;
@@ -125,6 +133,7 @@ function RailProgramCard({
   /** 보유·시세가 마지막으로 반영된 시각 */
   dataUpdatedAtMs: number | null;
   usdKrwRate: number | null;
+  trades: LiveTradeRecord[];
 }) {
   const [open, setOpen] = useState(false);
   const tableWrapRef = useRef<HTMLDivElement>(null);
@@ -146,19 +155,20 @@ function RailProgramCard({
     [sorted, roundTripForMarket],
   );
   const pnlAgg = useMemo(() => summarizeHoldingsPnl(sorted), [sorted]);
-  const netMarketByCurrency = useMemo(
-    () => summarizeNetMarketByCurrency(sorted, roundTripForMarket),
-    [sorted, roundTripForMarket],
-  );
   const investedLabel = formatInvestedOrMarketLabel(
     pnlAgg.investedByCurrency,
     usdKrwRate,
   );
-  const grossHoldingsLabel = formatInvestedOrMarketLabel(
+  const evalLabel = formatInvestedOrMarketLabel(
     pnlAgg.marketByCurrency,
     usdKrwRate,
   );
-  const evalLabel = formatInvestedOrMarketLabel(netMarketByCurrency, usdKrwRate);
+  const cashKrw = useMemo(
+    () => programCashKrwBalance(p, trades),
+    [p, trades],
+  );
+  const cashKrwLabel =
+    cashKrw == null ? "—" : formatPrice(cashKrw, "KRW");
 
   return (
     <article
@@ -215,17 +225,15 @@ function RailProgramCard({
           </span>
           <span className="live-trade-rail__summary-metric">
             <span className="live-trade-rail__summary-metric-k">
-              {ko.app.liveTradeLeftRailTotalHoldingsKrw}
-            </span>
-            <span className="live-trade-rail__summary-metric-v">
-              {grossHoldingsLabel}
-            </span>
-          </span>
-          <span className="live-trade-rail__summary-metric">
-            <span className="live-trade-rail__summary-metric-k">
               {ko.app.liveTradeLeftRailTotalEval}
             </span>
             <span className="live-trade-rail__summary-metric-v">{evalLabel}</span>
+          </span>
+          <span className="live-trade-rail__summary-metric">
+            <span className="live-trade-rail__summary-metric-k">
+              {ko.app.liveTradeLeftRailCashKrw}
+            </span>
+            <span className="live-trade-rail__summary-metric-v">{cashKrwLabel}</span>
           </span>
         </span>
         <span
@@ -451,6 +459,17 @@ export function LiveTradingRailCore({
     return map;
   }, [portfolio?.holdings]);
 
+  const tradesByProgram = useMemo(() => {
+    const map: Record<string, LiveTradeRecord[]> = {};
+    for (const t of portfolio?.trades ?? []) {
+      const pid = String(t.programId ?? "").trim();
+      if (!pid) continue;
+      if (!map[pid]) map[pid] = [];
+      map[pid].push(t);
+    }
+    return map;
+  }, [portfolio?.trades]);
+
   const dataUpdatedAtMs = portfolio?.updatedAtMs ?? null;
 
   useLivePortfolioQuotePoll(
@@ -557,6 +576,7 @@ export function LiveTradingRailCore({
           roundTripForMarket={roundTripForMarket}
           dataUpdatedAtMs={dataUpdatedAtMs}
           usdKrwRate={usdKrwRate}
+          trades={tradesByProgram[p.id] ?? []}
         />
       </li>
     );

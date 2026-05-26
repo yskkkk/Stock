@@ -1,4 +1,4 @@
-import type { LiveTradeHolding } from "../api";
+import type { LiveTradeHolding, LiveTradeProgram, LiveTradeRecord } from "../api";
 import type { LiveTradeMarket } from "../types";
 import { formatPrice, formatSignedMoney } from "./format";
 import { normalizeRoundTripFeeRate } from "./netReturn";
@@ -47,6 +47,35 @@ export function holdingNetMarketValue(
   if (mv == null || !Number.isFinite(mv) || mv <= 0) return null;
   const askFee = normalizeRoundTripFeeRate(roundTripFeeRate) / 2;
   return Math.round(mv * (1 - askFee));
+}
+
+/** 시뮬·체결 원장 — 프로그램 예산에서 매수·매도 반영한 원화 현금 */
+export function programCashKrwBalance(
+  program: Pick<LiveTradeProgram, "id" | "orderAmountKrw" | "status">,
+  trades: LiveTradeRecord[],
+): number | null {
+  const budget = program.orderAmountKrw;
+  if (budget == null || !Number.isFinite(budget) || budget < 0) return null;
+
+  const pid = program.id;
+  let cash = budget;
+  let hasFlow = false;
+
+  for (const t of trades) {
+    if (t.programId !== pid) continue;
+    const isKrw =
+      t.currency === "KRW" || t.market === "crypto" || t.market === "kr";
+    if (!isKrw) continue;
+    hasFlow = true;
+    const fee = t.feeAmount ?? 0;
+    if (t.side === "buy") cash -= t.amount + fee;
+    else cash += t.amount - fee;
+  }
+
+  if (!hasFlow) {
+    return program.status === "sim" ? Math.max(0, Math.round(budget)) : null;
+  }
+  return Math.max(0, Math.round(cash));
 }
 
 export function summarizeNetMarketByCurrency(
