@@ -1,4 +1,5 @@
 // 통합 박스권 감지기 PRO v2 — SSOT: server/box-range/box-range-pro-core.js
+// 서버 카탈로그: 4h·1d → server/.data/box-range-catalog-pro (1h 별도 예정)
 // 1단계: 종가 88/12 밴드(러프) · 거절 1회+ · 중심 병합 2.5%
 // 3단계: VWAP(없으면 typical 50%) 중심 · 확장 시 슬라이스 재계산 · 중심 이탈 시 가로 중단
 

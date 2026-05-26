@@ -1,12 +1,12 @@
 import { loadStock } from "../stock-data.js";
 import {
+  BOX_RANGE_CATALOG_DIR_PRO,
   BOX_RANGE_PINE_MAX_STORE,
-  BOX_RANGE_TIMEFRAMES,
+  BOX_RANGE_PRO_TIMEFRAMES,
   isBoxRangeCryptoHtfSymbol,
 } from "./constants.js";
-import { detectBoxRangesPineOnCandles, resolvePineDetectOpts } from "./detect-pine.js";
+import { detectCatalogBoxesForTimeframe } from "./catalog-detect.js";
 import {
-  resolveCatalogRootDir,
   upsertSymbolCatalogDetectionsSync,
 } from "./catalog-store.js";
 import { normalizeBoxUnixTime } from "./box-time.js";
@@ -29,7 +29,12 @@ export async function loadCandlesForBoxScan(symbol, timeframe) {
         if (time == null || !Number.isFinite(c.high) || !Number.isFinite(c.low)) {
           return null;
         }
-        return { ...c, time };
+        const vol = Number(c.volume);
+        return {
+          ...c,
+          time,
+          volume: Number.isFinite(vol) && vol > 0 ? vol : undefined,
+        };
       })
       .filter(Boolean);
   } catch {
@@ -38,6 +43,7 @@ export async function loadCandlesForBoxScan(symbol, timeframe) {
 }
 
 /**
+ * PRO v2 — 4h·1d만 카탈로그 저장 (1h 전용은 추후 별도)
  * @param {{ symbol: string; name: string }} item
  * @param {"us"|"kr"|"crypto"} catalogMarket
  */
@@ -47,15 +53,14 @@ export async function scanOneSymbolCatalog(item, catalogMarket) {
   if (catalogMarket === "crypto" && !isBoxRangeCryptoHtfSymbol(sym)) {
     return { ok: false, symbol: sym, error: "crypto HTF: BTC·ETH only" };
   }
-  const pineOpts = resolvePineDetectOpts();
-  /** @type {Partial<Record<"1h"|"4h"|"1d", import("./detect-pine.js").DetectedBox[]>>} */
+  /** @type {Partial<Record<"1h"|"4h"|"1d", import("./box-range-pro-core.js").DetectedBox[]>>} */
   const byTf = {};
   let tfOk = 0;
   let totalBoxes = 0;
   /** @type {string[]} */
   const tfErrors = [];
 
-  for (const tf of BOX_RANGE_TIMEFRAMES) {
+  for (const tf of BOX_RANGE_PRO_TIMEFRAMES) {
     try {
       const candles = await loadCandlesForBoxScan(sym, tf);
       if (candles.length < 20) {
@@ -63,12 +68,10 @@ export async function scanOneSymbolCatalog(item, catalogMarket) {
         continue;
       }
       tfOk += 1;
-      // 전체 차트 1회 Pine f_zoneEngine (저장 상한 0=무제한)
-      byTf[tf] = detectBoxRangesPineOnCandles(
+      byTf[tf] = detectCatalogBoxesForTimeframe(
         candles,
         tf,
         BOX_RANGE_PINE_MAX_STORE,
-        pineOpts,
       );
       totalBoxes += byTf[tf].length;
     } catch (e) {
@@ -81,7 +84,7 @@ export async function scanOneSymbolCatalog(item, catalogMarket) {
     tfOk === 0
       ? tfErrors.length
         ? tfErrors.join("; ")
-        : "봉 데이터 없음(1h·4h·1d)"
+        : "봉 데이터 없음(4h·1d)"
       : null;
 
   upsertSymbolCatalogDetectionsSync(
@@ -90,7 +93,7 @@ export async function scanOneSymbolCatalog(item, catalogMarket) {
     byTf,
     scanError,
     catalogMarket,
-    resolveCatalogRootDir(),
+    BOX_RANGE_CATALOG_DIR_PRO,
   );
 
   return {

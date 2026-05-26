@@ -52,8 +52,13 @@ export const BOX_RANGE_PINE_MAX_STORE = 0;
 
 /** 기존 카탈로그(legacy detect-pro·overlap merge) */
 export const BOX_RANGE_CATALOG_DIR_LEGACY = "box-range-catalog";
-/** Pine f_zoneEngine 전체 차트 탐지 전용 저장 */
+/** Pine f_zoneEngine — 1h 전용(추후) · legacy 스캔 */
 export const BOX_RANGE_CATALOG_DIR_PINE = "box-range-catalog-pine";
+/** PRO v2 (pine-box-range-pro) — 4h·1d 카탈로그 SSOT */
+export const BOX_RANGE_CATALOG_DIR_PRO = "box-range-catalog-pro";
+
+/** 카탈로그·실매매 연동 — PRO 탐지 TF (1h는 별도 예정) */
+export const BOX_RANGE_PRO_TIMEFRAMES = /** @type {const} */ (["4h", "1d"]);
 
 /** @deprecated legacy overlap merge — PRO는 BOX_RANGE_PRO_MERGE_MID_PCT */
 export const BOX_RANGE_MIN_TOUCHES = 2;

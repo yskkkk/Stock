@@ -6,21 +6,42 @@ import { readBoxRangeStoreSync, writeBoxRangeStoreSync } from "./store.js";
 import {
   BOX_RANGE_CATALOG_DIR_LEGACY,
   BOX_RANGE_CATALOG_DIR_PINE,
+  BOX_RANGE_CATALOG_DIR_PRO,
   isBoxRangeCryptoHtfManaged,
   isBoxRangeCryptoHtfSymbol,
 } from "./constants.js";
 import { pineBoxesShouldMerge } from "./detect-pine.js";
+import { shouldMergeProBoxes } from "./box-range-pro-core.js";
 
 /** @typedef {"us"|"kr"|"crypto"} CatalogMarket */
 
 export const CATALOG_MARKETS = /** @type {const} */ (["us", "kr", "crypto"]);
 
-export { BOX_RANGE_CATALOG_DIR_LEGACY, BOX_RANGE_CATALOG_DIR_PINE };
+export {
+  BOX_RANGE_CATALOG_DIR_LEGACY,
+  BOX_RANGE_CATALOG_DIR_PINE,
+  BOX_RANGE_CATALOG_DIR_PRO,
+};
 
 /** @returns {string} server/.data 하위 카탈로그 루트 폴더명 */
 export function resolveCatalogRootDir() {
   const raw = String(process.env.STOCK_BOX_RANGE_CATALOG_DIR ?? "").trim();
-  return raw || BOX_RANGE_CATALOG_DIR_PINE;
+  return raw || BOX_RANGE_CATALOG_DIR_PRO;
+}
+
+/**
+ * @param {{ top: number; bottom: number; leftTime: number; rightTime: number }} det
+ * @param {{ top: number; bottom: number; leftTime: number; rightTime: number }} prev
+ * @param {"1h"|"4h"|"1d"} tf
+ * @param {string} catalogRoot
+ */
+function catalogBoxesShouldMerge(det, prev, tf, catalogRoot) {
+  if (catalogRoot === BOX_RANGE_CATALOG_DIR_PRO) {
+    return shouldMergeProBoxes(det, prev, barSecForTf(tf));
+  }
+  return (
+    pineBoxesShouldMerge(det, prev, tf) || pineBoxesShouldMerge(prev, det, tf)
+  );
 }
 
 /**
@@ -277,10 +298,7 @@ export function upsertSymbolCatalogDetectionsSync(
       };
       let prevMatch = null;
       for (const p of prevTf) {
-        if (
-          pineBoxesShouldMerge(det, p, tf) ||
-          pineBoxesShouldMerge(p, det, tf)
-        ) {
+        if (catalogBoxesShouldMerge(det, p, tf, catalogRoot)) {
           prevMatch = p;
           break;
         }

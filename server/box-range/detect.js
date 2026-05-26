@@ -1,4 +1,8 @@
-import { BOX_RANGE_MAX_DETECTED } from "./constants.js";
+import {
+  BOX_RANGE_MAX_DETECTED,
+  BOX_RANGE_PRO_TIMEFRAMES,
+} from "./constants.js";
+import { detectBoxRangesProOnCandles } from "./detect-pro.js";
 import {
   detectBoxRangesPineOnCandles,
   resolvePineDetectOpts,
@@ -23,12 +27,7 @@ export {
  */
 export function detectBoxRangeOnCandles(candles, timeframe) {
   if (!Array.isArray(candles) || candles.length < 16) return null;
-  const list = detectBoxRangesPineOnCandles(
-    candles,
-    timeframe,
-    1,
-    resolvePineDetectOpts(),
-  );
+  const list = detectBoxRangesOnCandles(candles, timeframe, 1);
   return list[0] ?? null;
 }
 
@@ -44,6 +43,11 @@ export function detectBoxRangesOnCandles(
   timeframe,
   maxCount = BOX_RANGE_MAX_DETECTED,
 ) {
+  const cap =
+    maxCount === 0 ? Number.MAX_SAFE_INTEGER : Math.max(1, maxCount);
+  if (BOX_RANGE_PRO_TIMEFRAMES.includes(timeframe)) {
+    return detectBoxRangesProOnCandles(candles, timeframe, cap);
+  }
   return detectBoxRangesPineOnCandles(
     candles,
     timeframe,
