@@ -1,7 +1,7 @@
 // 통합 박스권 감지기 PRO v2 — SSOT: server/box-range/box-range-pro-core.js
 // 서버 카탈로그: 4h·1d → server/.data/box-range-catalog-pro (1h 별도 예정)
 // 1단계: 종가 88/12 밴드(러프) · 거절 1회+ · 중심 병합 2.5%
-// 3단계: VWAP 중심 · 완성 박스만 · 매매: 박스 종료 후 하단 이탈→중심 터치 매수
+// 3단계: VWAP 중심(표시용) · 매매: 박스 종료 후 하단 터치→하단 재돌파 매수(박스 내 중심선 매수 없음)
 
 //@version=5
 indicator("통합 박스권 감지기 PRO", overlay=true, max_boxes_count=500, max_lines_count=500)
@@ -187,8 +187,9 @@ f_lineEndT(int boxRightT, int buyT) =>
 f_after_box(int boxRightT) =>
     time > boxRightT
 
-f_touches_mid(float top, float bot, float mid) =>
-    high >= mid and low <= mid
+// 무장 봉에서 하단 이하 → 이후 종가가 하단선 위로 복귀(중심/VWAP 터치와 무관)
+f_reclaim_bottom(float bot) =>
+    close > bot
 
 merge_into(int idx, float newTop, float newBot, float newMid, int newLeftT, int newRightT) =>
     float oldTop = array.get(tops, idx)
