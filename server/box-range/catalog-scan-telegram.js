@@ -142,8 +142,8 @@ export function buildCatalogScanSummaryMessage(market, scanRun = {}) {
   const now = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
 
   const scopeNote =
-    m === "us" && (scanRun.usSp500 != null || scanRun.usNasdaq != null)
-      ? `범위: S&P500 ${scanRun.usSp500 ?? "—"} + 미국시총(나스닥·NYSE) ${scanRun.usNasdaq ?? "—"} = 합계 ${scanRun.usTotal ?? scanRun.scanned ?? "—"}`
+    m === "us" && scanRun.usSp500 != null
+      ? `범위: S&P500 ${scanRun.usSp500 ?? scanRun.usTotal ?? scanRun.scanned ?? "—"}종목`
       : m === "kr" && scanRun.kr != null
         ? `범위: 국내 시총 상위 ${scanRun.kr}종목`
         : null;

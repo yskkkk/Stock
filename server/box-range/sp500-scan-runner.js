@@ -34,7 +34,6 @@ export async function runSp500BoxRangeCatalogScan() {
   liveTradeLogInfo("[box-range:us-scan] start", {
     symbols: list.length,
     sp500: meta.usSp500,
-    nasdaq: meta.usNasdaq,
   });
 
   for (let i = 0; i < list.length; i += BATCH_SIZE) {

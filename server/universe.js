@@ -10,12 +10,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const KR_TARGET = 300;
 const US_TARGET = 500;
 
-/** 박스권 카탈로그 — 나스닥(시총순) 추가 스캔 상한 */
-const BOX_SCAN_NASDAQ_TARGET = (() => {
-  const n = Number(process.env.STOCK_BOX_RANGE_NASDAQ_TARGET ?? 3000);
-  return Number.isFinite(n) && n >= 500 ? Math.min(n, 6000) : 3000;
-})();
-
 const BOX_SCAN_KR_TARGET = (() => {
   const n = Number(process.env.STOCK_BOX_RANGE_KR_TARGET ?? KR_TARGET);
   return Number.isFinite(n) && n >= 50 ? Math.min(n, 500) : KR_TARGET;
@@ -27,9 +21,6 @@ const SP500_CSV_URL =
 
 const SP500_FETCH_UA =
   "Mozilla/5.0 (compatible; StockDashboard/1.0; +https://github.com/yskkkk/Stock)";
-
-const NASDAQ_LISTED_URL =
-  "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt";
 
 const KRX_LIST_CSV_URL =
   "https://raw.githubusercontent.com/dalinaum/rs/main/krx-list.csv";
@@ -184,93 +175,6 @@ async function fetchUniverseRegion(region, target) {
 }
 
 /**
- * @param {string} region
- * @param {string} exchange
- * @param {number} target
- */
-async function fetchUniverseByExchange(region, exchange, target) {
-  const out = [];
-  const seen = new Set();
-  const maxOffset = Math.max(target * 2, target + 250);
-
-  for (let offset = 0; offset < maxOffset && out.length < target; offset += 250) {
-    try {
-      const page = await fetchScreenerPage(
-        region,
-        offset,
-        Math.min(250, target - out.length + 50),
-        exchange,
-      );
-      for (const item of page) {
-        if (!seen.has(item.symbol)) {
-          seen.add(item.symbol);
-          out.push(item);
-        }
-      }
-      if (page.length < 50) break;
-    } catch (e) {
-      console.warn(
-        "[universe] screener",
-        region,
-        exchange || "all",
-        e instanceof Error ? e.message : e,
-      );
-      break;
-    }
-  }
-
-  return out.slice(0, target);
-}
-
-/**
- * @param {string} text
- * @returns {Array<{ symbol: string; name: string }>}
- */
-function parseNasdaqListedTxt(text) {
-  const lines = String(text ?? "")
-    .trim()
-    .split(/\r?\n/);
-  /** @type {Array<{ symbol: string; name: string }>} */
-  const out = [];
-  const seen = new Set();
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-    const p = line.split("|");
-    const sym = String(p[0] ?? "")
-      .trim()
-      .toUpperCase();
-    if (!sym || sym === "FILE CREATION TIME" || seen.has(sym)) continue;
-    if (p[3] === "Y" || p[6] === "Y") continue;
-    const name = String(p[1] ?? sym).trim();
-    seen.add(sym);
-    out.push({ symbol: sym, name: resolveDisplayName(sym, name, name) });
-  }
-  return out;
-}
-
-async function fetchNasdaqListedFromTrader() {
-  try {
-    const res = await fetch(NASDAQ_LISTED_URL, {
-      headers: { "User-Agent": SP500_FETCH_UA },
-      signal: AbortSignal.timeout(45_000),
-    });
-    if (!res.ok) throw new Error(`NASDAQ listed HTTP ${res.status}`);
-    const parsed = parseNasdaqListedTxt(await res.text());
-    if (parsed.length < 500) {
-      throw new Error(`NASDAQ listed 수 부족 (${parsed.length})`);
-    }
-    return parsed;
-  } catch (e) {
-    console.warn(
-      "[universe] NASDAQ listed.txt:",
-      e instanceof Error ? e.message : e,
-    );
-    return [];
-  }
-}
-
-/**
  * @param {string} text
  * @param {number} target
  */
@@ -329,25 +233,6 @@ async function fetchKrTopMarketCapCsv() {
   }
 }
 
-/** S&P500 외 나스닥 상장 전체 — 스크리너 실패 시 nasdaqlisted.txt */
-async function fetchUsNasdaqUniverse() {
-  for (const ex of ["NMS", "NAS"]) {
-    const list = await fetchUniverseByExchange("us", ex, BOX_SCAN_NASDAQ_TARGET);
-    if (list.length >= 200) {
-      console.info("[universe] US NASDAQ exchange", ex, list.length);
-      return list;
-    }
-  }
-  const broad = await fetchUniverseRegion("us", BOX_SCAN_NASDAQ_TARGET);
-  if (broad.length >= 200) {
-    console.info("[universe] US market-cap screener", broad.length);
-    return broad;
-  }
-  const listed = await fetchNasdaqListedFromTrader();
-  console.info("[universe] US NASDAQ listed.txt", listed.length);
-  return listed;
-}
-
 /**
  * @param {Array<{ symbol: string; name: string }>[]} lists
  */
@@ -372,13 +257,12 @@ function mergeSymbolUniverse(...lists) {
 }
 
 /**
- * 박스권 카탈로그 스캔 전용: S&P500 + 나스닥 시총순 + 국내 시총 300
- * @returns {Promise<{ kr: object[]; us: object[]; crypto: object[]; meta: { kr: number; usSp500: number; usNasdaq: number; usTotal: number } }>}
+ * 박스권 카탈로그 스캔 전용: S&P500 + 국내 시총 상위 300
+ * @returns {Promise<{ kr: object[]; us: object[]; crypto: object[]; meta: { kr: number; usSp500: number; usTotal: number } }>}
  */
 export async function loadBoxRangeCatalogUniverse() {
   let kr = [];
   let sp500 = [];
-  let nasdaq = [];
 
   try {
     await getYahooSession();
@@ -388,7 +272,6 @@ export async function loadBoxRangeCatalogUniverse() {
       const screenerKr = await fetchUniverseRegion("kr", BOX_SCAN_KR_TARGET);
       kr = mergeSymbolUniverse(kr, screenerKr);
     }
-    nasdaq = await fetchUsNasdaqUniverse();
   } catch (e) {
     console.warn(
       "[universe] box-range catalog:",
@@ -409,7 +292,7 @@ export async function loadBoxRangeCatalogUniverse() {
     })
     .slice(0, BOX_SCAN_KR_TARGET);
 
-  const us = mergeSymbolUniverse(sp500, nasdaq, usFallback);
+  const us = mergeSymbolUniverse(sp500, usFallback).slice(0, US_TARGET);
 
   let crypto = [];
   try {
@@ -424,8 +307,7 @@ export async function loadBoxRangeCatalogUniverse() {
 
   const meta = {
     kr: kr.length,
-    usSp500: sp500.length,
-    usNasdaq: nasdaq.length,
+    usSp500: us.length,
     usTotal: us.length,
   };
   console.info("[universe] box-range catalog universe", meta);
