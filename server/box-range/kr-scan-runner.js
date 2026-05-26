@@ -1,6 +1,7 @@
 import { loadUniverse } from "../universe.js";
 import { BOX_RANGE_KR_SCAN_MS } from "./constants.js";
 import { scanOneSymbolCatalog } from "./catalog-scan-shared.js";
+import { refreshCatalogIndexSync } from "./catalog-store.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "../live-trade-log.js";
 
 const BATCH_SIZE = (() => {
@@ -45,6 +46,7 @@ export async function runKrBoxRangeCatalogScan() {
     }
   }
 
+  refreshCatalogIndexSync("kr");
   liveTradeLogInfo("[box-range:kr-scan] done", {
     ok,
     errors,

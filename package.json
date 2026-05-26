@@ -22,6 +22,7 @@
     "ios:open": "node scripts/open-ios-xcode.mjs",
     "app:build": "node scripts/build-android-apk.mjs",
     "icons:gen": "node scripts/gen-pwa-icons.mjs",
+    "box-range:catalog:refresh": "node scripts/refresh-box-range-catalog.mjs",
     "email:box-range-strategy": "node scripts/send-box-range-strategy-email.mjs",
     "email:box-range-v2-audit": "node scripts/send-box-range-v2-audit-report.mjs",
     "cap:sync": "npx cap sync",

@@ -18,7 +18,7 @@ export { BOX_RANGE_CATALOG_DIR_LEGACY, BOX_RANGE_CATALOG_DIR_PINE };
 /** @returns {string} server/.data 하위 카탈로그 루트 폴더명 */
 export function resolveCatalogRootDir() {
   const raw = String(process.env.STOCK_BOX_RANGE_CATALOG_DIR ?? "").trim();
-  return raw || BOX_RANGE_CATALOG_DIR_LEGACY;
+  return raw || BOX_RANGE_CATALOG_DIR_PINE;
 }
 
 /**
