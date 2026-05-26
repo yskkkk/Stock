@@ -56,6 +56,7 @@ export default function LiveTradeTradesHistoryPanel({
   programId = null,
   programName = null,
   exchange = null,
+  scenario = null,
   loadAll: loadAllProp,
 }: {
   adminViewUserId?: string | null;
