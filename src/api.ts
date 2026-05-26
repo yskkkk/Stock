@@ -1499,13 +1499,23 @@ export interface BoxRangeSymbolCatalog {
   boxes: BoxRangeCatalogBox[];
 }
 
-function boxRangeCatalogMarketQuery(market: BoxRangeCatalogMarket): string {
-  if (market === "us") return "";
-  return `?market=${encodeURIComponent(market)}`;
+function boxRangeCatalogQuery(opts: {
+  market: BoxRangeCatalogMarket;
+  strategy?: string | null;
+}): string {
+  const params = new URLSearchParams();
+  if (opts.market !== "us") params.set("market", opts.market);
+  const strategy = String(opts.strategy ?? "").trim();
+  if (strategy) params.set("strategy", strategy);
+  const q = params.toString();
+  return q ? `?${q}` : "";
 }
 
-export function fetchBoxRangeCatalog(market: BoxRangeCatalogMarket = "us") {
-  const q = boxRangeCatalogMarketQuery(market);
+export function fetchBoxRangeCatalog(
+  market: BoxRangeCatalogMarket = "us",
+  opts?: { strategy?: string | null },
+) {
+  const q = boxRangeCatalogQuery({ market, strategy: opts?.strategy });
   return fetchJson<BoxRangeCatalogIndex>(`/api/box-range/catalog${q}`, {
     cache: "no-store",
   });
@@ -1514,9 +1524,10 @@ export function fetchBoxRangeCatalog(market: BoxRangeCatalogMarket = "us") {
 export function fetchBoxRangeCatalogSymbol(
   symbol: string,
   market: BoxRangeCatalogMarket = "us",
+  opts?: { strategy?: string | null },
 ) {
   const sym = symbol.trim().toUpperCase();
-  const q = boxRangeCatalogMarketQuery(market);
+  const q = boxRangeCatalogQuery({ market, strategy: opts?.strategy });
   return fetchJson<BoxRangeSymbolCatalog>(
     `/api/box-range/catalog/${encodeURIComponent(sym)}${q}`,
     { cache: "no-store" },
@@ -1526,12 +1537,12 @@ export function fetchBoxRangeCatalogSymbol(
 export function patchBoxRangeCatalogBox(
   symbol: string,
   catalogBoxId: string,
-  body: { tradeEligible: boolean; consumedReason?: string },
+  body: { tradeEligible: boolean; consumedReason?: string; strategy?: string },
   market: BoxRangeCatalogMarket = "us",
 ) {
   const sym = symbol.trim().toUpperCase();
   const id = catalogBoxId.trim();
-  const q = market === "kr" ? "?market=kr" : "";
+  const q = boxRangeCatalogQuery({ market, strategy: body.strategy });
   return fetchJson<{ ok: boolean; box: BoxRangeCatalogBox }>(
     `/api/box-range/catalog/${encodeURIComponent(sym)}/boxes/${encodeURIComponent(id)}${q}`,
     {

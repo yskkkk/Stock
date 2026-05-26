@@ -888,12 +888,14 @@ export function createApp() {
     "/api/box-range/catalog",
     requireUserAuth,
     asyncRoute(async (req, res) => {
-      const { readCatalogIndexSync, resolveCatalogMarket } = await import(
+      const { readCatalogIndexSync, resolveCatalogMarket, resolveCatalogRootDir } = await import(
         "./box-range/catalog-store.js"
       );
       const { getKoreanStockName } = await import("./names-ko.js");
       const market = resolveCatalogMarket(req.query?.market);
-      const idx = readCatalogIndexSync(market);
+      const strategy = String(req.query?.strategy ?? "").trim() || undefined;
+      const catalogRoot = resolveCatalogRootDir(strategy);
+      const idx = readCatalogIndexSync(market, catalogRoot);
       if (market === "us" && Array.isArray(idx.symbols)) {
         res.json({
           ...idx,
@@ -914,11 +916,13 @@ export function createApp() {
     requireUserAuth,
     asyncRoute(async (req, res) => {
       const symbol = String(req.params?.symbol ?? "").trim().toUpperCase();
-      const { readSymbolCatalogSync, resolveCatalogMarket } = await import(
+      const { readSymbolCatalogSync, resolveCatalogMarket, resolveCatalogRootDir } = await import(
         "./box-range/catalog-store.js"
       );
       const market = resolveCatalogMarket(req.query?.market);
-      const cat = readSymbolCatalogSync(symbol, market);
+      const strategy = String(req.query?.strategy ?? "").trim() || undefined;
+      const catalogRoot = resolveCatalogRootDir(strategy);
+      const cat = readSymbolCatalogSync(symbol, market, catalogRoot);
       if (!cat) {
         res.status(404).json({ error: "not found" });
         return;
@@ -934,10 +938,12 @@ export function createApp() {
       const symbol = String(req.params?.symbol ?? "").trim().toUpperCase();
       const catalogBoxId = String(req.params?.catalogBoxId ?? "").trim();
       const tradeEligible = req.body?.tradeEligible;
-      const { patchCatalogBoxSync, resolveCatalogMarket } = await import(
+      const { patchCatalogBoxSync, resolveCatalogMarket, resolveCatalogRootDir } = await import(
         "./box-range/catalog-store.js"
       );
       const market = resolveCatalogMarket(req.query?.market ?? req.body?.market);
+      const strategy = String(req.query?.strategy ?? req.body?.strategy ?? "").trim() || undefined;
+      const catalogRoot = resolveCatalogRootDir(strategy);
       const reason =
         tradeEligible === false
           ? String(req.body?.consumedReason ?? "manual").trim() || "manual"
@@ -950,6 +956,7 @@ export function createApp() {
           consumedReason: reason,
         },
         market,
+        catalogRoot,
       );
       if (!box) {
         res.status(404).json({ error: "not found" });

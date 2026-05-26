@@ -303,6 +303,9 @@ export default function BoxRangeTab() {
   const { user, authChecked, registrationOpen } = useLiveTradeAuth();
   const [catalogMarket, setCatalogMarket] =
     useState<BoxRangeCatalogMarket>("us");
+  const [catalogStrategy, setCatalogStrategy] = useState<"pro-v2" | "legacy">(
+    "pro-v2",
+  );
   const [index, setIndex] = useState<BoxRangeCatalogIndex | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState<BoxRangeSymbolCatalog | null>(null);
@@ -312,13 +315,15 @@ export default function BoxRangeTab() {
   const loadIndex = useCallback(async () => {
     setLoadErr(null);
     try {
-      const data = await fetchBoxRangeCatalog(catalogMarket);
+      const data = await fetchBoxRangeCatalog(catalogMarket, {
+        strategy: catalogStrategy,
+      });
       setIndex(data);
     } catch (e) {
       setLoadErr(e instanceof Error ? e.message : String(e));
       setIndex(null);
     }
-  }, [catalogMarket]);
+  }, [catalogMarket, catalogStrategy]);
 
   useEffect(() => {
     if (!user) {
@@ -338,7 +343,9 @@ export default function BoxRangeTab() {
       return;
     }
     let cancelled = false;
-    void fetchBoxRangeCatalogSymbol(selected, catalogMarket)
+    void fetchBoxRangeCatalogSymbol(selected, catalogMarket, {
+      strategy: catalogStrategy,
+    })
       .then((d) => {
         if (!cancelled) setDetail(d);
       })
@@ -351,7 +358,7 @@ export default function BoxRangeTab() {
     return () => {
       cancelled = true;
     };
-  }, [selected, user, catalogMarket]);
+  }, [selected, user, catalogMarket, catalogStrategy]);
 
   const logoRows = useMemo(() => {
     const list = (index?.symbols ?? []).filter((r) => (r.boxCount ?? 0) > 0);
@@ -437,6 +444,40 @@ export default function BoxRangeTab() {
             onClick={() => setCatalogMarket("crypto")}
           >
             {ko.app.boxRangeTabMarketCrypto}
+          </button>
+        </div>
+        <div className="box-range-tab__market-segment live-trading-tab__segment" role="group" aria-label="전략">
+          <button
+            type="button"
+            className={
+              catalogStrategy === "pro-v2"
+                ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
+                : "live-trading-tab__segment-btn"
+            }
+            aria-pressed={catalogStrategy === "pro-v2"}
+            onClick={() => {
+              setSelected(null);
+              setDetail(null);
+              setCatalogStrategy("pro-v2");
+            }}
+          >
+            PRO v2
+          </button>
+          <button
+            type="button"
+            className={
+              catalogStrategy === "legacy"
+                ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
+                : "live-trading-tab__segment-btn"
+            }
+            aria-pressed={catalogStrategy === "legacy"}
+            onClick={() => {
+              setSelected(null);
+              setDetail(null);
+              setCatalogStrategy("legacy");
+            }}
+          >
+            Legacy
           </button>
         </div>
         {loadErr ? (

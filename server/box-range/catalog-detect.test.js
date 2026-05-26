@@ -10,10 +10,10 @@ import { resolveCatalogRootDir } from "./catalog-store.js";
 test("isProCatalogTimeframe", () => {
   assert.equal(isProCatalogTimeframe("4h"), true);
   assert.equal(isProCatalogTimeframe("1d"), true);
-  assert.equal(isProCatalogTimeframe("1h"), false);
+  assert.equal(isProCatalogTimeframe("1h"), true);
 });
 
-test("detectCatalogBoxesForTimeframe skips 1h", () => {
+test("detectCatalogBoxesForTimeframe supports 1h", () => {
   const bars = [];
   for (let i = 0; i < 30; i++) {
     bars.push({
@@ -25,7 +25,8 @@ test("detectCatalogBoxesForTimeframe skips 1h", () => {
       volume: 100,
     });
   }
-  assert.deepEqual(detectCatalogBoxesForTimeframe(bars, "1h"), []);
+  const out = detectCatalogBoxesForTimeframe(bars, "1h");
+  assert.ok(Array.isArray(out));
 });
 
 test("resolveCatalogRootDir defaults to PRO catalog", () => {

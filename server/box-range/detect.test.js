@@ -45,18 +45,35 @@ function rangingBars(n) {
   return out;
 }
 
-test("detectBoxRangeOnCandles pine 1h finds range after break", () => {
-  const bars = flatBars(30, 100, 2);
-  const last = bars.length - 2;
-  bars[last] = {
-    ...bars[last],
-    high: 130,
-    low: 120,
-    close: 125,
-  };
+test("detectBoxRangeOnCandles PRO 1h finds ranging box", () => {
+  const bars = [];
+  const t0 = 1_700_000_000;
+  for (let i = 0; i < 80; i++) {
+    const atTop = i % 6 < 3;
+    const mid = 100;
+    bars.push(
+      atTop
+        ? {
+            time: t0 + i * 3600,
+            open: mid + 1.1,
+            high: mid + 1.8,
+            low: mid - 0.2,
+            close: mid - 0.6,
+            volume: 1000,
+          }
+        : {
+            time: t0 + i * 3600,
+            open: mid - 1.1,
+            high: mid + 0.2,
+            low: mid - 1.8,
+            close: mid + 0.6,
+            volume: 1000,
+          },
+    );
+  }
   const hit = detectBoxRangeOnCandles(bars, "1h");
   assert.ok(hit);
-  assert.ok(hit.top >= hit.bottom);
+  assert.ok(hit.mid >= hit.bottom && hit.mid <= hit.top);
 });
 
 test("detectBoxRangeOnCandles PRO 1d finds ranging box", () => {

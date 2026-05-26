@@ -400,14 +400,14 @@ export function summarizeCatalogRootSync(catalogRoot, market = "us") {
 /**
  * @param {CatalogMarket} [market]
  */
-export function readCatalogIndexSync(market = "us") {
+export function readCatalogIndexSync(market = "us", catalogRoot = resolveCatalogRootDir()) {
   const m = resolveCatalogMarket(market);
   try {
-    const file = indexFilePath(m);
-    if (!fs.existsSync(file)) return refreshCatalogIndexSync(m);
+    const file = indexFilePath(m, catalogRoot);
+    if (!fs.existsSync(file)) return refreshCatalogIndexSync(m, catalogRoot);
     return JSON.parse(fs.readFileSync(file, "utf8"));
   } catch {
-    return refreshCatalogIndexSync(m);
+    return refreshCatalogIndexSync(m, catalogRoot);
   }
 }
 
@@ -416,9 +416,16 @@ export function readCatalogIndexSync(market = "us") {
  * @param {string} catalogBoxId
  * @param {{ tradeEligible?: boolean; consumedReason?: string }} patch
  * @param {CatalogMarket} [market]
+ * @param {string} [catalogRoot]
  */
-export function patchCatalogBoxSync(symbol, catalogBoxId, patch, market = "us") {
-  const cat = readSymbolCatalogSync(symbol, market);
+export function patchCatalogBoxSync(
+  symbol,
+  catalogBoxId,
+  patch,
+  market = "us",
+  catalogRoot = resolveCatalogRootDir(),
+) {
+  const cat = readSymbolCatalogSync(symbol, market, catalogRoot);
   if (!cat) return null;
   const id = String(catalogBoxId ?? "").trim();
   const i = cat.boxes.findIndex((b) => b.catalogBoxId === id);
@@ -439,7 +446,7 @@ export function patchCatalogBoxSync(symbol, catalogBoxId, patch, market = "us") 
       consumedReason: null,
     };
   }
-  writeSymbolCatalogSync(cat, market);
+  writeSymbolCatalogSync(cat, market, catalogRoot);
 
   const tstore = readBoxRangeStoreSync();
   let tChanged = 0;
