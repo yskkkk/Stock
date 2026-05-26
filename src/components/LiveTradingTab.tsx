@@ -244,6 +244,7 @@ export default function LiveTradingTab({
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingProgramId, setDeletingProgramId] = useState<string | null>(null);
   const [draft, setDraft] = useState(emptyDraft);
   useEffect(() => {
     if (draft.modelId !== BOX_RANGE_MODEL_ID) return;
@@ -606,6 +607,7 @@ export default function LiveTradingTab({
         ? ko.app.liveTradeDeleteRunningConfirm.replace("{name}", name)
         : ko.app.liveTradeDeleteConfirmNamed.replace("{name}", name);
       if (!window.confirm(confirmMsg)) return;
+      setDeletingProgramId(id);
       setBusy(true);
       setErr(null);
       try {
@@ -633,6 +635,7 @@ export default function LiveTradingTab({
       } catch (e) {
         setErr(e instanceof Error ? e.message : String(e));
       } finally {
+        setDeletingProgramId(null);
         setBusy(false);
       }
     },
@@ -834,6 +837,7 @@ export default function LiveTradingTab({
                       onArmLane={(lane) => void handleArmLane(p.id, lane)}
                       onEdit={() => loadProgramToForm(p)}
                       onDelete={() => void handleDelete(p.id, p.name)}
+                      deleting={deletingProgramId === p.id}
                       readOnly={adminReadOnly}
                       boxRangeBoxes={
                         portalSourceOnly ? undefined : boxEntry?.boxes

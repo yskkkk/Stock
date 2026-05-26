@@ -80,6 +80,7 @@ export default function LiveTradeRegisteredProgramCard({
   onArmLane,
   onEdit,
   onDelete,
+  deleting = false,
   readOnly = false,
   boxRangeBoxes,
 }: {
@@ -96,6 +97,7 @@ export default function LiveTradeRegisteredProgramCard({
   onArmLane: (lane: LiveTradeArmLane) => void;
   onEdit: () => void;
   onDelete: () => void;
+  deleting?: boolean;
   readOnly?: boolean;
   /** 박스권 프로그램 — 감시·보유 박스 */
   boxRangeBoxes?: LiveTradeBoxRangePublicBox[];
@@ -130,6 +132,20 @@ export default function LiveTradeRegisteredProgramCard({
       : retUp
         ? "live-trading-tab__program-return-val live-trading-tab__program-return-val--up"
         : "live-trading-tab__program-return-val live-trading-tab__program-return-val--down";
+
+  if (deleting) {
+    return (
+      <article
+        className={`live-trading-tab__program live-trading-tab__program--${displayStatus} live-trading-tab__program--deleting`}
+        aria-busy="true"
+      >
+        <div className="live-trading-tab__program-deleting" role="status" aria-live="polite">
+          <div className="spinner" aria-hidden />
+          <span>{ko.app.liveTradeDeletingProgram}</span>
+        </div>
+      </article>
+    );
+  }
 
   return (
     <article

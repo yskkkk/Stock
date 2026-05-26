@@ -3215,6 +3215,27 @@ html[data-theme="light"]
   padding-left: 0.5rem;
 }
 
+.live-trading-tab__program--deleting {
+  min-height: 5.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-left: none;
+  padding-left: 0;
+}
+
+.live-trading-tab__program-deleting {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  padding: 0.85rem 0.5rem;
+  color: var(--muted, #6b7280);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
 .live-trading-tab__program-head {
   display: flex;
   flex-wrap: wrap;
