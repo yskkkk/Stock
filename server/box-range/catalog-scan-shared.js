@@ -53,7 +53,12 @@ export async function scanOneSymbolCatalog(item, catalogMarket) {
       // 비교/포팅: Pine 탐지 방식(원본 f_zoneEngine) 사용 옵션
       const usePine = process.env.STOCK_BOX_RANGE_DETECTOR === "pine";
       byTf[tf] = usePine
-        ? detectBoxRangesPineOnCandles(candles, tf, 5)
+        ? detectBoxRangesPineOnCandles(candles, tf, 5, {
+            pctLimit: process.env.STOCK_BOX_RANGE_PINE_PCTLIMIT === "1",
+            useAtrCap: process.env.STOCK_BOX_RANGE_PINE_ATRCAP === "1",
+            breakAtrMult: Number(process.env.STOCK_BOX_RANGE_PINE_BREAK_ATR_MULT ?? 0.45),
+            maxStore: Number(process.env.STOCK_BOX_RANGE_PINE_MAX_STORE ?? 40),
+          })
         : detectBoxRangesProOnCandles(candles, tf, 5);
       totalBoxes += byTf[tf].length;
     } catch (e) {

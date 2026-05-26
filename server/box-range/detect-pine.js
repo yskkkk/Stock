@@ -1,7 +1,7 @@
 import { normalizeBoxUnixTime } from "./box-time.js";
 
 /**
- * Pine `pine-horizontal-box-zones.pine` 의 `f_zoneEngine` (pctLimit=false 기본) 서버 포팅.
+ * Pine `pine-horizontal-box-zones.pine` 의 `f_zoneEngine` 서버 포팅.
  * - request.security lookahead_off 기준: 마지막 미확정 봉 1개 제외하고 순차 처리.
  * - 저장 배열은 Pine과 동일하게 최신이 앞(unshift).
  *
@@ -150,16 +150,27 @@ function rmaSeries(values, length) {
  * @param {number} [maxCount]
  * @returns {DetectedBox[]}
  */
-export function detectBoxRangesPineOnCandles(candles, timeframe, maxCount = 5) {
+export function detectBoxRangesPineOnCandles(
+  candles,
+  timeframe,
+  maxCount = 5,
+  opts = {},
+) {
   const p = PRESET[timeframe];
   if (!p) return [];
   if (!Array.isArray(candles) || candles.length < Math.max(20, p.lb + 3)) return [];
 
-  // Pine 기본: usePctLimit=false, completedOnly=true, showActive=false
-  const pctLimit = false;
-  const useAtrCap = false;
-  const breakAtrMult = 0.45;
-  const capPct = pctLimit ? (useAtrCap ? p.maxPct : p.maxPct) : NO_PCT;
+  // Pine 옵션(기본은 스크립트 기본값과 동일)
+  const pctLimit = opts?.pctLimit === true;
+  const useAtrCap = opts?.useAtrCap === true;
+  const breakAtrMult =
+    typeof opts?.breakAtrMult === "number" && Number.isFinite(opts.breakAtrMult)
+      ? opts.breakAtrMult
+      : 0.45;
+  const maxStore =
+    typeof opts?.maxStore === "number" && Number.isFinite(opts.maxStore)
+      ? Math.max(12, Math.min(80, Math.floor(opts.maxStore)))
+      : 40;
 
   const tfSeconds = tfSec(timeframe);
   const extMs = p.extBars * tfSeconds * 1000;
@@ -208,9 +219,17 @@ export function detectBoxRangesPineOnCandles(candles, timeframe, maxCount = 5) {
     }
     const midPx = (rngHi + rngLo) * 0.5;
     const rangePct = midPx > 0 ? ((rngHi - rngLo) / midPx) * 100.0 : 100.0;
-    const rollTight = pctLimit ? rangePct <= capPct : true;
 
     const atrVal = atr[i] ?? 0;
+    const atrPct =
+      c.close > 0 ? (atrVal / c.close) * 100.0 * p.atrMult : rangePct;
+    const capPct = pctLimit
+      ? useAtrCap
+        ? Math.min(p.maxPct, Math.max(p.maxPct * 0.5, atrPct))
+        : p.maxPct
+      : NO_PCT;
+
+    const rollTight = pctLimit ? rangePct <= capPct : true;
     const brkBuf = atrVal * breakAtrMult;
 
     const trkMid =
@@ -246,7 +265,7 @@ export function detectBoxRangesPineOnCandles(candles, timeframe, maxCount = 5) {
             p.mergeMidPct,
             p.mergeBars,
             tfSeconds,
-            40, // maxStoreZones
+            maxStore,
           );
         }
         stT0 = null;
@@ -295,7 +314,7 @@ export function detectBoxRangesPineOnCandles(candles, timeframe, maxCount = 5) {
       mid: (top + bottom) * 0.5,
       leftTime,
       rightTime,
-      validBars: 0, // Pine은 저장 개수/시각이 핵심. 봉수는 비교용으로 0 처리(필요 시 확장 가능)
+      validBars: 0,
     });
   }
   return out;
