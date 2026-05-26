@@ -263,6 +263,37 @@ function matchesUserForUser(program, userId) {
   return program.userId === uid;
 }
 
+/** @param {string} name */
+export function programNameCompareKey(name) {
+  return String(name ?? "").trim().toLowerCase();
+}
+
+/**
+ * @param {string} name
+ * @param {string} userId
+ * @param {string} [excludeProgramId]
+ */
+export function assertUniqueProgramNameForUserSync(
+  name,
+  userId,
+  excludeProgramId,
+) {
+  const key = programNameCompareKey(name);
+  if (!key) return;
+  const uid = String(userId ?? "").trim();
+  if (!uid) throw new Error("로그인이 필요합니다.");
+  const exclude = String(excludeProgramId ?? "").trim();
+  const dup = readStoreSync().programs.find(
+    (p) =>
+      matchesUserForUser(p, uid) &&
+      p.id !== exclude &&
+      programNameCompareKey(p.name) === key,
+  );
+  if (dup) {
+    throw new Error("이미 사용 중인 프로그램 이름입니다.");
+  }
+}
+
 /**
  * @param {string} programId
  * @param {string} userId
@@ -522,6 +553,7 @@ export function createLiveTradeProgramSync(input, userId, ownerEmail) {
     crypto: Boolean(input.markets?.crypto),
   };
   validateProgramPatch({ ...input, markets });
+  assertUniqueProgramNameForUserSync(input.name, uid);
   const now = Date.now();
   const program = normalizeProgram({
     id: randomUUID(),
@@ -561,6 +593,9 @@ export function updateLiveTradeProgramForRunnerSync(id, patch) {
   const idx = store.programs.findIndex((p) => p.id === id);
   if (idx < 0) throw new Error("프로그램을 찾을 수 없습니다.");
   const prev = store.programs[idx];
+  if (patch.name !== undefined) {
+    assertUniqueProgramNameForUserSync(patch.name, prev.userId, prev.id);
+  }
   const markets = {
     kr:
       patch.markets?.kr !== undefined ? Boolean(patch.markets.kr) : prev.markets.kr,

@@ -445,12 +445,19 @@ export default function LiveTradingTab({
     Math.max(0.7, Number(draft.minScoreRatio) || 0.8),
   );
   const minOrderKrw = minOrderAmountKrwForMarkets(draftMarkets);
-  const canSaveForm = liveTradeProgramDraftCanSave(draft);
+  const draftValidateContext = useMemo(
+    () => ({
+      existingPrograms: programs.map((p) => ({ id: p.id, name: p.name })),
+      editingProgramId: editingId,
+    }),
+    [programs, editingId],
+  );
+  const canSaveForm = liveTradeProgramDraftCanSave(draft, draftValidateContext);
   const saveBlockedHint = useMemo(() => {
     if (canSaveForm) return null;
-    const v = validateLiveTradeProgramDraft(draft);
+    const v = validateLiveTradeProgramDraft(draft, draftValidateContext);
     return v.ok ? null : v.message;
-  }, [canSaveForm, draft]);
+  }, [canSaveForm, draft, draftValidateContext]);
 
   const formCardSummary = useMemo(() => {
     if (editingId) {
@@ -544,7 +551,7 @@ export default function LiveTradingTab({
     if (busy || saveInFlightRef.current) return;
     setErr(null);
     setMsg(null);
-    const checked = validateLiveTradeProgramDraft(draft);
+    const checked = validateLiveTradeProgramDraft(draft, draftValidateContext);
     if (!checked.ok) {
       setErr(checked.message);
       sidePanel?.openPanel("form", editingId ? ko.app.liveTradeFormEdit : ko.app.liveTradeFormNew);
@@ -589,7 +596,7 @@ export default function LiveTradingTab({
       setBusy(false);
       dispatchLiveTradeDockAfterFormSave();
     }
-  }, [busy, draft, editingId, reload, resetForm, sidePanel]);
+  }, [busy, draft, draftValidateContext, editingId, reload, resetForm, sidePanel]);
 
   const handleDelete = useCallback(
     async (id: string, name: string) => {

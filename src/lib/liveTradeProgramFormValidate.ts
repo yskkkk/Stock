@@ -15,6 +15,28 @@ export type LiveTradeProgramDraftFields = {
   orderAmountUsd: string;
 };
 
+export type LiveTradeProgramDraftValidateContext = {
+  existingPrograms?: { id: string; name: string }[];
+  editingProgramId?: string | null;
+};
+
+export function programNameCompareKey(name: string): string {
+  return String(name ?? "").trim().toLowerCase();
+}
+
+export function hasDuplicateProgramName(
+  name: string,
+  programs: { id: string; name: string }[],
+  excludeProgramId?: string | null,
+): boolean {
+  const key = programNameCompareKey(name);
+  if (!key) return false;
+  const exclude = String(excludeProgramId ?? "").trim();
+  return programs.some(
+    (p) => p.id !== exclude && programNameCompareKey(p.name) === key,
+  );
+}
+
 /** @returns 1~50 정수, 빈 값·0·비정상이면 null */
 export function parseMaxOpenPositionsInput(raw: string): number | null {
   const t = String(raw ?? "").trim();
@@ -40,12 +62,23 @@ function usdAmountFieldLabel(marketsUs: boolean, marketsCrypto: boolean): string
  */
 export function validateLiveTradeProgramDraft(
   draft: LiveTradeProgramDraftFields,
+  context?: LiveTradeProgramDraftValidateContext,
 ):
   | { ok: true; maxOpenPositions: number; markets: { kr: boolean; us: boolean; crypto: boolean } }
   | { ok: false; message: string } {
   const name = draft.name.trim();
   if (!name) {
     return { ok: false, message: ko.app.liveTradeFieldNameRequired };
+  }
+  if (
+    context?.existingPrograms?.length &&
+    hasDuplicateProgramName(
+      name,
+      context.existingPrograms,
+      context.editingProgramId,
+    )
+  ) {
+    return { ok: false, message: ko.app.liveTradeProgramNameDuplicate };
   }
   const modelId = String(draft.modelId ?? "").trim();
   if (!modelId) {
@@ -91,6 +124,7 @@ export function validateLiveTradeProgramDraft(
 
 export function liveTradeProgramDraftCanSave(
   draft: LiveTradeProgramDraftFields,
+  context?: LiveTradeProgramDraftValidateContext,
 ): boolean {
-  return validateLiveTradeProgramDraft(draft).ok;
+  return validateLiveTradeProgramDraft(draft, context).ok;
 }

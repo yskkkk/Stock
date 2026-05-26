@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  hasDuplicateProgramName,
   liveTradeProgramDraftCanSave,
   validateLiveTradeProgramDraft,
 } from "./liveTradeProgramFormValidate";
+import { ko } from "../i18n/ko";
 
 const base = {
   name: "테스트",
@@ -41,5 +43,33 @@ describe("validateLiveTradeProgramDraft", () => {
   it("canSave matches validator", () => {
     expect(liveTradeProgramDraftCanSave(base)).toBe(true);
     expect(liveTradeProgramDraftCanSave({ ...base, name: "" })).toBe(false);
+  });
+
+  it("rejects duplicate program name for same user list", () => {
+    const ctx = {
+      existingPrograms: [{ id: "p1", name: "YSTOCK" }],
+      editingProgramId: null,
+    };
+    const v = validateLiveTradeProgramDraft({ ...base, name: "ystock" }, ctx);
+    expect(v.ok).toBe(false);
+    if (!v.ok) {
+      expect(v.message).toBe(ko.app.liveTradeProgramNameDuplicate);
+    }
+  });
+
+  it("allows same name when editing that program", () => {
+    const ctx = {
+      existingPrograms: [{ id: "p1", name: "YSTOCK" }],
+      editingProgramId: "p1",
+    };
+    expect(validateLiveTradeProgramDraft({ ...base, name: "YSTOCK" }, ctx).ok).toBe(
+      true,
+    );
+  });
+
+  it("hasDuplicateProgramName is case-insensitive", () => {
+    expect(
+      hasDuplicateProgramName("ystock", [{ id: "a", name: "YSTOCK" }]),
+    ).toBe(true);
   });
 });

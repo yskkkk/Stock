@@ -269,6 +269,7 @@ export const ko = {
     liveTradeNoModels: "등록된 기술 모델이 없습니다.",
     liveTradeFieldName: "프로그램 이름",
     liveTradeFieldNameRequired: "프로그램 이름을 입력하세요.",
+    liveTradeProgramNameDuplicate: "이미 사용 중인 프로그램 이름입니다.",
     liveTradeFieldModelRequired: "기술 분석 모델을 선택하세요.",
     liveTradeNamePlaceholder: "예: 기본 모델 실매매",
     liveTradeFieldModel: "기술 분석 모델",
