@@ -2,14 +2,7 @@ import { loadStock } from "../stock-data.js";
 import { BOX_RANGE_TIMEFRAMES } from "./constants.js";
 import { detectBoxRangesProOnCandles } from "./detect-pro.js";
 import { upsertSymbolCatalogDetectionsSync } from "./catalog-store.js";
-
-function normalizeTime(t) {
-  if (Number.isFinite(t)) return t;
-  if (t && typeof t === "object" && t.year) {
-    return Math.floor(Date.UTC(t.year, t.month - 1, t.day) / 1000) - 9 * 3600;
-  }
-  return null;
-}
+import { normalizeBoxUnixTime } from "./box-time.js";
 
 /**
  * @param {string} symbol
@@ -22,7 +15,7 @@ export async function loadCandlesForBoxScan(symbol, timeframe) {
     return candles
       .map((c) => {
         if (!c) return null;
-        const time = normalizeTime(c.time);
+        const time = normalizeBoxUnixTime(c.time);
         if (time == null || !Number.isFinite(c.high) || !Number.isFinite(c.low)) {
           return null;
         }

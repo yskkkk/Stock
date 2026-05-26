@@ -20,6 +20,7 @@ import { processBoxFsmForProgram } from "./runner-fsm.js";
 import { syncBoxRangeWsSubscriptions } from "./ws-sync.js";
 import { reconcileBoxRangeLotsFromPortfolioSync } from "./lot-reconcile.js";
 import { syncCatalogTradingBoxesFromCatalogSync } from "./catalog-trading-sync.js";
+import { normalizeBoxUnixTime } from "./box-time.js";
 
 const TICK_MS = (() => {
   const n = Number(process.env.STOCK_BOX_RANGE_TICK_MS ?? 3_000);
@@ -30,21 +31,13 @@ const TICK_MS = (() => {
  * @param {string} symbol
  * @param {"1h"|"4h"|"1d"} timeframe
  */
-function normalizeTime(t) {
-  if (Number.isFinite(t)) return t;
-  if (t && typeof t === "object" && t.year) {
-    return Math.floor(Date.UTC(t.year, t.month - 1, t.day) / 1000) - 9 * 3600;
-  }
-  return null;
-}
-
 async function loadCandlesForBoxTf(symbol, timeframe) {
   const data = await loadStock(symbol, timeframe, { live: true });
   const candles = Array.isArray(data?.candles) ? data.candles : [];
   return candles
     .map((c) => {
       if (!c) return null;
-      const time = normalizeTime(c.time);
+      const time = normalizeBoxUnixTime(c.time);
       if (time == null || !Number.isFinite(c.high) || !Number.isFinite(c.low)) {
         return null;
       }

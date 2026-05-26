@@ -7,6 +7,7 @@ import {
   BOX_RANGE_MIN_TOUCHES,
   BOX_RANGE_TOUCH_THRESHOLD,
 } from "./constants.js";
+import { normalizeBoxUnixTime } from "./box-time.js";
 
 /**
  * @typedef {{ time: number; open: number; high: number; low: number; close: number }} Bar
@@ -158,13 +159,17 @@ export function detectBoxRangeProAt(candles, endIdx, timeframe) {
     return null;
   }
 
+  const leftTime = normalizeBoxUnixTime(candles[rightIdx].time);
+  const rightTime = normalizeBoxUnixTime(candles[leftIdx].time);
+  if (leftTime == null || rightTime == null) return null;
+
   return {
     box: {
       top: boxTop,
       bottom: boxBot,
       mid,
-      leftTime: candles[rightIdx].time,
-      rightTime: candles[leftIdx].time,
+      leftTime,
+      rightTime,
       validBars: leftIdx - rightIdx + 1,
     },
     startIdx: leftIdx,

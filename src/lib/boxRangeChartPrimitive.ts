@@ -73,6 +73,18 @@ function timeSortKey(t: Time): number {
   return Math.floor(Date.UTC(t.year, t.month - 1, t.day) / 1000) - KST_OFFSET_SEC;
 }
 
+/** API·탐지 leftTime — number 또는 legacy BusinessDay 객체 */
+export function coerceBoxUnixTime(t: unknown): number | null {
+  if (typeof t === "number" && Number.isFinite(t)) return t;
+  if (t && typeof t === "object" && "year" in t) {
+    const o = t as { year: number; month: number; day: number };
+    return (
+      Math.floor(Date.UTC(o.year, o.month - 1, o.day) / 1000) - KST_OFFSET_SEC
+    );
+  }
+  return null;
+}
+
 /** unix(박스) → 일봉 차트용 BusinessDay (UTC midnight 오류 방지) */
 export function unixSecToKstBusinessDayTime(unixSec: number): Time {
   const kstMs = unixSec * 1000 + KST_OFFSET_SEC * 1000;
@@ -114,6 +126,19 @@ function resolveTimeX(
   const bars = series.data() as { time: Time }[];
   if (!bars.length) return null;
 
+  const keys = bars
+    .map((b) => timeSortKey(b.time))
+    .filter((k) => Number.isFinite(k) && k > 0);
+  if (keys.length) {
+    const tMin = Math.min(...keys);
+    const tMax = Math.max(...keys);
+    const boxSec = STRATEGY_TF_SEC[boxTimeframe] ?? chartBarSeconds(chartInterval);
+    if (unixSec >= tMin - boxSec && unixSec <= tMax + boxSec) {
+      const inRange = chart.timeScale().timeToCoordinate(target);
+      if (inRange != null && Number.isFinite(inRange)) return inRange;
+    }
+  }
+
   let best = bars[0]!;
   let bestD = Math.abs(timeSortKey(best.time) - unixSec);
   for (const b of bars) {
@@ -154,8 +179,11 @@ function boxGeom(
 } | null {
   if (!shouldDrawBoxOnChart(box.timeframe, data.chartInterval)) return null;
 
-  const leftUnix = Math.min(box.leftTime, box.rightTime);
-  const rightUnix = Math.max(box.leftTime, box.rightTime);
+  const t0 = coerceBoxUnixTime(box.leftTime);
+  const t1 = coerceBoxUnixTime(box.rightTime);
+  if (t0 == null || t1 == null) return null;
+  const leftUnix = Math.min(t0, t1);
+  const rightUnix = Math.max(t0, t1);
   const x1 = resolveTimeX(
     data.chart,
     data.series,

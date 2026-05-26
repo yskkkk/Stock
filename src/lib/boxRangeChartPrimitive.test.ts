@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  coerceBoxUnixTime,
   shouldDrawBoxOnChart,
   unixSecToKstBusinessDayTime,
 } from "./boxRangeChartPrimitive";
@@ -25,5 +26,15 @@ describe("shouldDrawBoxOnChart", () => {
       month: 2,
       day: 5,
     });
+  });
+
+  it("coerces legacy BusinessDay leftTime to unix", () => {
+    expect(coerceBoxUnixTime({ year: 2025, month: 2, day: 5 })).toBe(1738681200);
+    expect(
+      Math.min(
+        coerceBoxUnixTime({ year: 2025, month: 2, day: 5 })!,
+        coerceBoxUnixTime({ year: 2025, month: 3, day: 1 })!,
+      ),
+    ).toBe(1738681200);
   });
 });

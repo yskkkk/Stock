@@ -5,6 +5,7 @@ import {
   CATALOG_MARKETS,
   readSymbolCatalogSync,
 } from "./catalog-store.js";
+import { normalizeBoxUnixTime, withNormalizedBoxTimes } from "./box-time.js";
 import { listBoxesForChartOverlaySync } from "./store.js";
 
 /** @type {readonly ("1h"|"4h"|"1d")[]} */
@@ -54,9 +55,24 @@ function listCatalogBoxesForChartOverlay(symbol) {
   return out;
 }
 
+function candlesForDetect(raw) {
+  return raw
+    .map((c) => {
+      if (!c) return null;
+      const time = normalizeBoxUnixTime(c.time);
+      if (time == null || !Number.isFinite(c.high) || !Number.isFinite(c.low)) {
+        return null;
+      }
+      return { ...c, time };
+    })
+    .filter(Boolean);
+}
+
 async function detectBoxesForTf(symbol, timeframe) {
   const data = await loadStock(symbol, timeframe, { live: true });
-  const candles = Array.isArray(data?.candles) ? data.candles : [];
+  const candles = candlesForDetect(
+    Array.isArray(data?.candles) ? data.candles : [],
+  );
   if (candles.length < 20) return [];
   const confirmed = candles.slice(0, -1);
   const detected = detectBoxRangesProOnCandles(
@@ -64,16 +80,22 @@ async function detectBoxesForTf(symbol, timeframe) {
     timeframe,
     BOX_RANGE_MAX_DETECTED,
   );
-  return detected.map((b, i) => ({
-    boxId: `chart-detect-${timeframe}-${i}`,
-    top: b.top,
-    bottom: b.bottom,
-    mid: b.mid,
-    timeframe,
-    state: "idle",
-    leftTime: b.leftTime,
-    rightTime: b.rightTime,
-  }));
+  /** @type {object[]} */
+  const out = [];
+  for (let i = 0; i < detected.length; i++) {
+    const b = withNormalizedBoxTimes({
+      boxId: `chart-detect-${timeframe}-${i}`,
+      top: detected[i].top,
+      bottom: detected[i].bottom,
+      mid: detected[i].mid,
+      timeframe,
+      state: "idle",
+      leftTime: detected[i].leftTime,
+      rightTime: detected[i].rightTime,
+    });
+    if (b) out.push(b);
+  }
+  return out;
 }
 
 /**
@@ -97,7 +119,9 @@ export async function buildChartBoxRangeOverlayAsync(
   const chartBoxes = [];
   const seenIds = new Set();
 
-  const pushBox = (b) => {
+  const pushBox = (raw) => {
+    const b = withNormalizedBoxTimes(raw);
+    if (!b) return;
     const id = String(b.boxId ?? "").trim();
     if (!id || seenIds.has(id)) return;
     if (!tfs.includes(b.timeframe)) return;
