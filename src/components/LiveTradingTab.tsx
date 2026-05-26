@@ -91,7 +91,8 @@ function showArmLaneButton(p: LiveTradeProgram, lane: LiveTradeArmLane): boolean
     if (p.status === "armed" && krArmed) return false;
     return true;
   }
-  if (!p.markets.kr || p.markets.us || krArmed) return false;
+  if (!p.markets.kr && !p.markets.us) return false;
+  if (krArmed) return false;
   if (p.status === "armed" && cryptoArmed) return false;
   return true;
 }
@@ -806,6 +807,8 @@ export default function LiveTradingTab({
                       holdingCount={holdingCount}
                       busy={busy}
                       showArmLaneButton={(lane) => showArmLaneButton(p, lane)}
+                      tossStatus={effectiveStatus?.toss}
+                      bithumbStatus={effectiveStatus?.bithumb}
                       onSimStop={() => void handleSimStop(p.id)}
                       onDisarm={() => void handleDisarm(p.id)}
                       onSimStart={() => void handleSimStart(p.id)}

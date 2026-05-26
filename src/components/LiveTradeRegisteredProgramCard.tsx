@@ -1,15 +1,20 @@
+import { useMemo } from "react";
 import type {
+  BithumbTradingStatus,
   LiveTradeArmLane,
   LiveTradeProgram,
   TechModelRecord,
+  TossTradingStatus,
 } from "../api";
 import { BOX_RANGE_MODEL_ID } from "../lib/boxRangeTechModel";
 import { ko } from "../i18n/ko";
 import { formatPercent } from "../lib/format";
 import {
-  liveArmLaneForProgramStart,
-  showProgramRunError,
-} from "../lib/liveProgramDisplay";
+  buildLiveArmLaneOptions,
+  filterLiveArmLaneOptions,
+} from "../lib/liveTradeArmLanes";
+import { showProgramRunError } from "../lib/liveProgramDisplay";
+import LiveTradeArmStartMenu from "./LiveTradeArmStartMenu";
 
 function formatMoney(
   n: number | null | undefined,
@@ -75,6 +80,8 @@ export default function LiveTradeRegisteredProgramCard({
   holdingCount,
   busy,
   showArmLaneButton,
+  tossStatus,
+  bithumbStatus,
   onSimStop,
   onDisarm,
   onSimStart,
@@ -91,6 +98,8 @@ export default function LiveTradeRegisteredProgramCard({
   holdingCount: number;
   busy: boolean;
   showArmLaneButton: (lane: LiveTradeArmLane) => boolean;
+  tossStatus?: TossTradingStatus | null;
+  bithumbStatus?: BithumbTradingStatus | null;
   onSimStop: () => void;
   onDisarm: () => void;
   onSimStart: () => void;
@@ -131,11 +140,14 @@ export default function LiveTradeRegisteredProgramCard({
         ? "live-trading-tab__program-return-val live-trading-tab__program-return-val--up"
         : "live-trading-tab__program-return-val live-trading-tab__program-return-val--down";
 
-  const liveArmLane = liveArmLaneForProgramStart(p);
-  const armLanes = (["bithumb", "toss"] as const).filter((lane) =>
-    showArmLaneButton(lane),
+  const armLaneOptions = useMemo(
+    () => buildLiveArmLaneOptions(p, tossStatus, bithumbStatus),
+    [p, tossStatus, bithumbStatus],
   );
-  const showLiveArmStart = liveArmLane != null;
+  const extraArmLaneOptions = useMemo(
+    () => filterLiveArmLaneOptions(armLaneOptions, showArmLaneButton),
+    [armLaneOptions, showArmLaneButton],
+  );
 
   if (deleting) {
     return (
@@ -222,26 +234,12 @@ export default function LiveTradeRegisteredProgramCard({
             >
               {ko.app.liveTradeDisarm}
             </button>
-            {showArmLaneButton("bithumb") ? (
-              <button
-                type="button"
-                className="btn btn--secondary btn--sm"
-                disabled={busy}
-                onClick={() => onArmLane("bithumb")}
-              >
-                {ko.app.liveTradeArmBithumb}
-              </button>
-            ) : null}
-            {showArmLaneButton("toss") ? (
-              <button
-                type="button"
-                className="btn btn--secondary btn--sm"
-                disabled={busy}
-                onClick={() => onArmLane("toss")}
-              >
-                {ko.app.liveTradeArmToss}
-              </button>
-            ) : null}
+            <LiveTradeArmStartMenu
+              options={extraArmLaneOptions}
+              busy={busy}
+              triggerLabel={ko.app.liveTradeArmMenuAddLane}
+              onSelect={onArmLane}
+            />
           </>
         ) : (
           <>
@@ -253,39 +251,11 @@ export default function LiveTradeRegisteredProgramCard({
             >
               {ko.app.liveTradeSimStart}
             </button>
-            {showLiveArmStart ? (
-              <button
-                type="button"
-                className="btn btn--secondary btn--sm live-trading-tab__program-arm"
-                disabled={busy}
-                onClick={() => onArmLane(liveArmLane!)}
-              >
-                {ko.app.liveTradeArm}
-              </button>
-            ) : armLanes.length > 0 ? (
-              <>
-                {showArmLaneButton("bithumb") ? (
-                  <button
-                    type="button"
-                    className="btn btn--secondary btn--sm"
-                    disabled={busy}
-                    onClick={() => onArmLane("bithumb")}
-                  >
-                    {ko.app.liveTradeArmBithumb}
-                  </button>
-                ) : null}
-                {showArmLaneButton("toss") ? (
-                  <button
-                    type="button"
-                    className="btn btn--secondary btn--sm"
-                    disabled={busy}
-                    onClick={() => onArmLane("toss")}
-                  >
-                    {ko.app.liveTradeArmToss}
-                  </button>
-                ) : null}
-              </>
-            ) : null}
+            <LiveTradeArmStartMenu
+              options={armLaneOptions}
+              busy={busy}
+              onSelect={onArmLane}
+            />
           </>
         )}
         <button
