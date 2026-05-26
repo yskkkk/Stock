@@ -10889,6 +10889,17 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   min-height: 0;
 }
 
+.app-dock-rail-panel--live.app-dock-rail-panel--pending {
+  flex: 1 1 auto;
+  min-height: min(12rem, 40dvh);
+}
+
+.app-dock-rail-panel--live.app-dock-rail-panel--pending > .dock-panel-center-loading {
+  flex: 1 1 auto;
+  min-height: min(10rem, 36dvh);
+  align-self: stretch;
+}
+
 .live-trade-rail__empty-hint {
   margin: 0;
   padding: 0.35rem 0.15rem;

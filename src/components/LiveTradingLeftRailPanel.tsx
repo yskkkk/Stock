@@ -376,6 +376,7 @@ export function LiveTradingRailCore({
   const [portfolio, setPortfolio] = useState<LiveTradePortfolioResponse | null>(
     null,
   );
+  const portfolioLoadedRef = useRef(false);
   const [loading, setLoading] = useState(!prefetched?.status);
 
   const feeByMarket = useMemo(
@@ -389,8 +390,11 @@ export function LiveTradingRailCore({
     if (!user) {
       setPortfolio(null);
       setLoading(false);
+      portfolioLoadedRef.current = false;
       return;
     }
+    const trackDockLoad = layout === "dock" && !portfolioLoadedRef.current;
+    if (trackDockLoad) setLoading(true);
     try {
       let snap = await fetchLiveTradingPortfolio(null).catch(() => null);
       if (snap) {
@@ -410,15 +414,16 @@ export function LiveTradingRailCore({
           }
         }
         setPortfolio(snap);
+        portfolioLoadedRef.current = true;
       } else {
         setPortfolio(null);
       }
     } catch {
       /* ignore */
     } finally {
-      setLoading(false);
+      if (trackDockLoad) setLoading(false);
     }
-  }, [user, feeByMarket]);
+  }, [user, feeByMarket, layout]);
 
   useEffect(() => {
     if (statusPending) {
