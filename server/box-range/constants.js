@@ -50,15 +50,45 @@ export const BOX_RANGE_MAX_DETECTED = 0;
 /** Pine maxStoreZones — 카탈로그 스캔·엔진 저장, 0이면 제한 없음 */
 export const BOX_RANGE_PINE_MAX_STORE = 0;
 
-/** 기존 카탈로그(legacy detect-pro·overlap merge) */
-export const BOX_RANGE_CATALOG_DIR_LEGACY = "box-range-catalog";
 /** Pine f_zoneEngine — 1h 전용(추후) · legacy 스캔 */
 export const BOX_RANGE_CATALOG_DIR_PINE = "box-range-catalog-pine";
-/** PRO v2 (pine-box-range-pro) — 4h·1d 카탈로그 SSOT */
+/** PRO v2 탐지·매매 SSOT 카탈로그 */
 export const BOX_RANGE_CATALOG_DIR_PRO = "box-range-catalog-pro";
+/** Legacy overlap-merge 카탈로그 */
+export const BOX_RANGE_CATALOG_DIR_LEGACY = "box-range-catalog";
 
-/** 카탈로그·실매매 연동 — PRO 탐지 TF (1h는 별도 예정) */
-export const BOX_RANGE_PRO_TIMEFRAMES = /** @type {const} */ (["4h", "1d"]);
+/** UI·API 카탈로그 전략 선택 */
+export const BOX_RANGE_CATALOG_STRATEGIES = /** @type {const} */ ([
+  {
+    id: "pro-v2",
+    label: "PRO v2 (하단복귀)",
+    catalogDir: BOX_RANGE_CATALOG_DIR_PRO,
+    default: true,
+  },
+  {
+    id: "legacy",
+    label: "Legacy (overlap)",
+    catalogDir: BOX_RANGE_CATALOG_DIR_LEGACY,
+    default: false,
+  },
+]);
+
+/** @param {string} [strategyId] */
+export function resolveBoxRangeCatalogDir(strategyId) {
+  const id = String(strategyId ?? "").trim().toLowerCase();
+  const hit = BOX_RANGE_CATALOG_STRATEGIES.find((s) => s.id === id);
+  if (hit) return hit.catalogDir;
+  const env = String(process.env.STOCK_BOX_RANGE_CATALOG_DIR ?? "").trim();
+  if (env) return env;
+  return BOX_RANGE_CATALOG_DIR_PRO;
+}
+
+/** 카탈로그 스캔·BTC/ETH 폴링 — 1h·4h·1d PRO 탐지 */
+export const BOX_RANGE_PRO_TIMEFRAMES = /** @type {const} */ ([
+  "1h",
+  "4h",
+  "1d",
+]);
 
 /** @deprecated legacy overlap merge — PRO는 BOX_RANGE_PRO_MERGE_MID_PCT */
 export const BOX_RANGE_MIN_TOUCHES = 2;

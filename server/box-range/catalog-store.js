@@ -7,6 +7,7 @@ import {
   BOX_RANGE_CATALOG_DIR_LEGACY,
   BOX_RANGE_CATALOG_DIR_PINE,
   BOX_RANGE_CATALOG_DIR_PRO,
+  resolveBoxRangeCatalogDir,
   isBoxRangeCryptoHtfManaged,
   isBoxRangeCryptoHtfSymbol,
 } from "./constants.js";
@@ -23,10 +24,9 @@ export {
   BOX_RANGE_CATALOG_DIR_PRO,
 };
 
-/** @returns {string} server/.data 하위 카탈로그 루트 폴더명 */
-export function resolveCatalogRootDir() {
-  const raw = String(process.env.STOCK_BOX_RANGE_CATALOG_DIR ?? "").trim();
-  return raw || BOX_RANGE_CATALOG_DIR_PRO;
+/** @param {string} [strategyId] @returns {string} server/.data 하위 카탈로그 루트 폴더명 */
+export function resolveCatalogRootDir(strategyId) {
+  return resolveBoxRangeCatalogDir(strategyId);
 }
 
 /**
