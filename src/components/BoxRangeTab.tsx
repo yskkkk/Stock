@@ -439,27 +439,6 @@ export default function BoxRangeTab() {
             {ko.app.boxRangeTabMarketCrypto}
           </button>
         </div>
-        <label className="box-range-tab__search-wrap">
-          <span className="box-range-tab__search-icon" aria-hidden>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.75" />
-              <path
-                d="M16 16l5 5"
-                stroke="currentColor"
-                strokeWidth="1.75"
-                strokeLinecap="round"
-              />
-            </svg>
-          </span>
-          <input
-            type="search"
-            className="box-range-tab__search"
-            placeholder={ko.app.boxRangeCatalogSearch}
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            aria-label={ko.app.boxRangeCatalogSearch}
-          />
-        </label>
         {loadErr ? (
           <p className="live-trading-tab__err" role="alert">
             {loadErr}
@@ -469,6 +448,27 @@ export default function BoxRangeTab() {
 
       <div className="box-range-tab__layout card">
         <aside className="box-range-tab__logos" aria-label={ko.app.tabBoxRange}>
+          <label className="box-range-tab__search-wrap">
+            <span className="box-range-tab__search-icon" aria-hidden>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.75" />
+                <path
+                  d="M16 16l5 5"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </span>
+            <input
+              type="search"
+              className="box-range-tab__search"
+              placeholder={ko.app.boxRangeCatalogSearch}
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              aria-label={ko.app.boxRangeCatalogSearch}
+            />
+          </label>
           {!index ? (
             <DockPanelCenterLoading label={ko.app.boxRangeCatalogLoading} />
           ) : logoRows.length === 0 ? (
