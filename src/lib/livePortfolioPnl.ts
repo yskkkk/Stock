@@ -248,10 +248,10 @@ export function sumBuyCostForHolding(
 }
 
 /**
- * 수익률 분모 — 보유 스냅샷 costBasis(매수총금액 표시와 동일) 우선.
- * 체결 합이 원장보다 5% 이상 크면 중복·과거 체결 누적로 보고 원장만 사용.
+ * 등락률 분모(매수원금) — UI 매수총금액과 동일한 costBasis.
+ * 원장이 체결 합보다 2% 이상 작을 때만 매수 체결(금액+수수료)로 보정.
  */
-export function resolvedHoldingCostBasis(
+export function holdingPurchaseCostForReturn(
   h: LiveTradeHolding,
   trades?: LiveTradeRecord[],
 ): number {
@@ -260,28 +260,37 @@ export function resolvedHoldingCostBasis(
     return Number.isFinite(ledger) && ledger > 0 ? ledger : 0;
   }
   const buys = sumBuyCostForHolding(h, trades);
-  if (Number.isFinite(ledger) && ledger > 0) {
-    if (buys > ledger * 1.05) return ledger;
-    if (buys > 0) return Math.max(ledger, buys);
-    return ledger;
+  if (!(Number.isFinite(ledger) && ledger > 0)) {
+    return buys > 0 ? buys : 0;
   }
-  if (buys > 0) return buys;
-  return 0;
+  if (buys > ledger * 1.05) return ledger;
+  if (buys > 0 && ledger < buys * 0.98) return buys;
+  return ledger;
 }
 
-/** 수익률 — 표시 평가금(순)과 동일한 매입 원가 기준 */
+/** @deprecated — holdingPurchaseCostForReturn */
+export const resolvedHoldingCostBasis = holdingPurchaseCostForReturn;
+
+/**
+ * 등락률(%) = (순평가금 − 매수원금) / 매수원금 × 100
+ * 순평가금 = 평가금액 × (1 − 매도 수수료/2), 매수원금 = costBasis(매수+매수수수료).
+ */
 export function holdingReturnPctForDisplay(
   h: LiveTradeHolding,
   roundTripForMarket: (m: LiveTradeMarket) => number,
   trades?: LiveTradeRecord[],
 ): number | null {
-  const cost = resolvedHoldingCostBasis(h, trades);
-  const net = holdingNetMarketValue(h, roundTripForMarket(h.market));
-  if (!(cost > 0) || net == null) return null;
-  return ((net - cost) / cost) * 100;
+  const cost = holdingPurchaseCostForReturn(h, trades);
+  const mv = Number(h.marketValue);
+  if (!(cost > 0) || !Number.isFinite(mv) || mv <= 0) return null;
+  return holdingNetReturnPctFromCost(
+    cost,
+    mv,
+    roundTripForMarket(h.market),
+  );
 }
 
-/** 프로그램 합계 수익률 — 순평가 합 / 매입 원가 합 */
+/** 프로그램 합계 — 종목별 매수원금·순평가 합산 후 동일 공식 */
 export function programOpenReturnFromNetAndCost(
   holdings: LiveTradeHolding[],
   trades: LiveTradeRecord[],
@@ -290,7 +299,7 @@ export function programOpenReturnFromNetAndCost(
   let cost = 0;
   let net = 0;
   for (const h of holdings) {
-    const c = resolvedHoldingCostBasis(h, trades);
+    const c = holdingPurchaseCostForReturn(h, trades);
     const n = holdingNetMarketValue(h, roundTripForMarket(h.market));
     if (c > 0) cost += c;
     if (n != null && n > 0) net += n;

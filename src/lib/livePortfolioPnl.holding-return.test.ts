@@ -50,6 +50,17 @@ describe("holding return from cost basis", () => {
     expect(pct).not.toBeCloseTo(2.18, 1);
   });
 
+  it("negative when net eval is below purchase (costBasis matches spend)", () => {
+    const h = holding({
+      symbol: "WLD-USDT",
+      costBasis: 20_040,
+      marketValue: 19_988,
+    });
+    const pct = holdingReturnPctForDisplay(h, () => 0.002);
+    expect(pct).not.toBeNull();
+    expect(pct!).toBeLessThan(0);
+  });
+
   it("prefers buy trade cost when ledger understates spend", () => {
     const h = holding({ symbol: "SOL-USDT", costBasis: 19_600, marketValue: 19_998 });
     const trades: LiveTradeRecord[] = [
