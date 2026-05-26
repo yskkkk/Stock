@@ -764,6 +764,7 @@ export default function AppLiveTradeSideDock({
           <DockFoldChevron open={open} />
         </span>
       </button>
+      <div className="app-live-trade-side-dock__rail-scroll">
       <div className="app-live-trade-side-dock__rail-tabs">
         {railTabs.map((tab) => {
           const selected = open && activeId === tab.id;
@@ -896,6 +897,7 @@ export default function AppLiveTradeSideDock({
             onClick={() => feedbackRef.current?.openSubmit()}
           />
         ) : null}
+      </div>
       </div>
     </nav>
   );

@@ -9309,24 +9309,26 @@ html[data-theme="light"] .market-indices-rail__item {
 
   /* 펼침 — 본문 높이만큼, 화면 아래로 넘치면 스크롤(스크롤바 숨김) */
   .app__right-panel--dock .app-live-trade-side-dock--open {
+    height: 100dvh;
     max-height: 100dvh;
-    overflow-x: visible;
-    overflow-y: auto;
+    overflow: hidden;
     overscroll-behavior: contain;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .app__right-panel--dock .app-live-trade-side-dock--open::-webkit-scrollbar {
-    display: none;
-    width: 0;
-    height: 0;
   }
 
   .app__right-panel--dock .app-live-trade-side-dock--open .app-live-trade-side-dock__panel {
+    flex: 1 1 auto;
     min-height: 0;
+    max-height: 100%;
     height: auto;
+    overflow: hidden;
+  }
+
+  .app__right-panel--dock .app-live-trade-side-dock--open .app-live-trade-side-dock__host {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: 100%;
+    height: auto;
+    overflow: hidden;
   }
 
   .app__right-panel--dock .app-live-trade-side-dock--collapsed {
@@ -9389,8 +9391,12 @@ html[data-theme="light"] .market-indices-rail__item {
     width: var(--live-trade-dock-rail-width, 3.25rem) !important;
     min-width: var(--live-trade-dock-rail-width, 3.25rem) !important;
     max-width: var(--live-trade-dock-rail-width, 3.25rem) !important;
+    height: 100dvh;
+    max-height: 100dvh;
     flex: none !important;
     padding-right: 0;
+    overflow: hidden;
+    box-sizing: border-box;
     pointer-events: auto !important;
   }
 
@@ -9536,13 +9542,15 @@ html:not([data-theme="light"]) {
   min-width: var(--live-trade-dock-rail-width, 2.68rem);
   max-width: var(--live-trade-dock-rail-width, 2.68rem);
   flex-shrink: 0;
-  min-height: 100%;
-  height: auto;
+  min-height: 0;
+  height: 100%;
+  max-height: 100dvh;
   padding-top: max(0.35rem, env(safe-area-inset-top, 0px));
-  padding-bottom: 0;
+  padding-bottom: max(0.35rem, env(safe-area-inset-bottom, 0px));
   padding-left: 0;
   padding-right: 0;
   box-sizing: border-box;
+  overflow: hidden;
   border-left: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 75%, transparent);
   border-right: none;
   border-radius: 0;
@@ -9617,8 +9625,34 @@ html:not([data-theme="light"]) {
   opacity: 1;
 }
 
+.app-live-trade-side-dock__rail-scroll {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb, rgba(148, 163, 184, 0.35)) transparent;
+  box-sizing: border-box;
+}
+
+.app-live-trade-side-dock__rail-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.app-live-trade-side-dock__rail-scroll::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: var(--scrollbar-thumb, rgba(148, 163, 184, 0.35));
+}
+
 .app-live-trade-side-dock__rail-tabs {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -9626,10 +9660,7 @@ html:not([data-theme="light"]) {
   min-width: 0;
   max-width: 100%;
   gap: 0.2rem;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  scrollbar-width: thin;
+  overflow: visible;
   box-sizing: border-box;
 }
 
@@ -9642,8 +9673,8 @@ html:not([data-theme="light"]) {
   min-width: 0;
   max-width: 100%;
   gap: 0.2rem;
-  margin-top: auto;
-  margin-bottom: max(0.35rem, env(safe-area-inset-bottom, 0px));
+  margin-top: 0.15rem;
+  padding-bottom: 0.1rem;
 }
 
 .app-live-trade-side-dock__rail-btn--auth,
@@ -9854,8 +9885,8 @@ html[data-theme="light"]
 .app-live-trade-side-dock--open .app-live-trade-side-dock__host {
   height: auto;
   min-height: 0;
-  max-height: none;
-  overflow: visible;
+  max-height: 100%;
+  overflow: hidden;
   border-top-left-radius: inherit;
   border-bottom-left-radius: inherit;
 }
@@ -10184,11 +10215,11 @@ html[data-theme="light"][data-light-palette="glass"]
 .app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane {
   position: relative;
   display: flex;
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   flex-direction: column;
   min-height: 0 !important;
-  height: auto !important;
-  max-height: none !important;
+  height: 100% !important;
+  max-height: 100% !important;
   border: none;
   border-left: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
   border-radius: var(--radius-xl, 22px) 0 var(--radius-xl, 22px) 0 !important;
@@ -10267,26 +10298,35 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
 
 .app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail .live-trading-tab__card-tabs-body {
   display: flex;
-  flex: 1;
+  flex: 1 1 0;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
   border-top: none;
 }
 
 .app-live-trade-side-dock__host .live-trading-tab__card-tabs-pane--rail .live-trading-tab__card-tabs-host {
-  flex: 0 1 auto;
+  flex: 1 1 0;
   min-height: 0;
-  overflow: visible;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb, rgba(148, 163, 184, 0.35)) transparent;
 }
 
 .app-live-trade-side-dock__host
   .live-trading-tab__card-tabs-pane--rail
   .live-trading-tab__card-tabs-host::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
+  width: 6px;
+}
+
+.app-live-trade-side-dock__host
+  .live-trading-tab__card-tabs-pane--rail
+  .live-trading-tab__card-tabs-host::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: var(--scrollbar-thumb, rgba(148, 163, 184, 0.35));
 }
 
 .app-live-trade-side-dock__host .live-trading-tab__card-tabs-host:not(.live-trading-tab__card-tabs-host--idle) {
