@@ -1,5 +1,9 @@
 import { loadStock } from "../stock-data.js";
-import { BOX_RANGE_PINE_MAX_STORE, BOX_RANGE_TIMEFRAMES } from "./constants.js";
+import {
+  BOX_RANGE_PINE_MAX_STORE,
+  BOX_RANGE_TIMEFRAMES,
+  isBoxRangeCryptoHtfSymbol,
+} from "./constants.js";
 import { detectBoxRangesPineOnCandles, resolvePineDetectOpts } from "./detect-pine.js";
 import {
   resolveCatalogRootDir,
@@ -40,6 +44,9 @@ export async function loadCandlesForBoxScan(symbol, timeframe) {
 export async function scanOneSymbolCatalog(item, catalogMarket) {
   const sym = String(item.symbol ?? "").trim().toUpperCase();
   if (!sym) return { ok: false, symbol: sym, error: "empty symbol" };
+  if (catalogMarket === "crypto" && !isBoxRangeCryptoHtfSymbol(sym)) {
+    return { ok: false, symbol: sym, error: "crypto HTF: BTC·ETH only" };
+  }
   const pineOpts = resolvePineDetectOpts();
   /** @type {Partial<Record<"1h"|"4h"|"1d", import("./detect-pine.js").DetectedBox[]>>} */
   const byTf = {};

@@ -6,6 +6,8 @@ import { readBoxRangeStoreSync, writeBoxRangeStoreSync } from "./store.js";
 import {
   BOX_RANGE_CATALOG_DIR_LEGACY,
   BOX_RANGE_CATALOG_DIR_PINE,
+  isBoxRangeCryptoHtfManaged,
+  isBoxRangeCryptoHtfSymbol,
 } from "./constants.js";
 import { pineBoxesShouldMerge } from "./detect-pine.js";
 
@@ -484,5 +486,13 @@ export function markCatalogBoxConsumedSync(catalogBoxId, reason = "closed") {
 export function listTradeEligibleCatalogBoxesSync(symbol, market = "us") {
   const cat = readSymbolCatalogSync(symbol, market);
   if (!cat) return [];
-  return cat.boxes.filter((b) => b.tradeEligible && !b.consumedAtMs);
+  const m = resolveCatalogMarket(market);
+  const sym = String(symbol ?? "").trim().toUpperCase();
+  if (m === "crypto" && !isBoxRangeCryptoHtfSymbol(sym)) return [];
+  return cat.boxes.filter(
+    (b) =>
+      b.tradeEligible &&
+      !b.consumedAtMs &&
+      (m !== "crypto" || isBoxRangeCryptoHtfManaged(sym, b.timeframe)),
+  );
 }

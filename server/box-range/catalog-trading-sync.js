@@ -10,7 +10,11 @@ import {
   patchBoxSync,
   readBoxRangeStoreSync,
 } from "./store.js";
-import { isBoxRangeProgram } from "./constants.js";
+import {
+  isBoxRangeCryptoHtfManaged,
+  isBoxRangeCryptoHtfSymbol,
+  isBoxRangeProgram,
+} from "./constants.js";
 
 const MAX_NEW_SLOTS_PER_TICK = (() => {
   const n = Number(process.env.STOCK_BOX_RANGE_CATALOG_SLOTS_PER_TICK ?? 20);
@@ -43,10 +47,17 @@ export function syncCatalogTradingBoxesFromCatalogSync(program, catalogMarket) {
     if (linked >= MAX_NEW_SLOTS_PER_TICK) break;
     const sym = String(row.symbol ?? "").trim().toUpperCase();
     if (!sym) continue;
+    if (market === "crypto" && !isBoxRangeCryptoHtfSymbol(sym)) continue;
     const eligible = listTradeEligibleCatalogBoxesSync(sym, market);
     for (const cb of eligible) {
       if (linked >= MAX_NEW_SLOTS_PER_TICK) break;
       if (linkedIds.has(cb.catalogBoxId)) continue;
+      if (
+        market === "crypto" &&
+        !isBoxRangeCryptoHtfManaged(sym, cb.timeframe)
+      ) {
+        continue;
+      }
 
       upsertDetectedBoxSync({
         programId: program.id,

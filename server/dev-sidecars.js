@@ -9,6 +9,7 @@ import { startBoxRangeRunnerPoller } from "./box-range/runner.js";
 import { startSp500BoxRangeCatalogPoller } from "./box-range/sp500-scan-runner.js";
 import { startKrBoxRangeCatalogPoller } from "./box-range/kr-scan-runner.js";
 import { startCryptoBoxRangeCatalogPoller } from "./box-range/crypto-scan-runner.js";
+import { purgeBoxRangeCryptoOutsideHtfSymbolsSync } from "./box-range/crypto-htf-purge.js";
 import { startLiveTradeExchangeSyncPoller } from "./live-trade-exchange-sync.js";
 import { startBithumbLedgerPoller } from "./live-trade-bithumb-ledger.js";
 import { startOpsFileDevPoller } from "./ops-file-dev-poller.js";
@@ -35,6 +36,7 @@ export function startStockDevSidecarsOnce(modeLabel) {
   startLiveTradeExchangeSyncPoller();
   startBithumbLedgerPoller();
   startLiveTradeAutoSellPoller();
+  purgeBoxRangeCryptoOutsideHtfSymbolsSync();
   startBoxRangeRunnerPoller();
   startSp500BoxRangeCatalogPoller();
   startKrBoxRangeCatalogPoller();

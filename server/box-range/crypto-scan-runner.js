@@ -1,6 +1,6 @@
 import { cryptoYahooUsdtDisplayName } from "../crypto-display-names.js";
 import {
-  BOX_RANGE_CRYPTO_CATALOG_SYMBOL,
+  BOX_RANGE_CRYPTO_HTF_SYMBOLS,
   BOX_RANGE_CRYPTO_SCAN_MS,
 } from "./constants.js";
 import { scanOneSymbolCatalog } from "./catalog-scan-shared.js";
@@ -8,29 +8,52 @@ import { refreshCatalogIndexSync } from "./catalog-store.js";
 import { notifyCatalogScanTelegram } from "./catalog-scan-telegram.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "../live-trade-log.js";
 
-/** @returns {{ symbol: string; name: string }} */
-export function boxRangeCryptoCatalogItem() {
-  const symbol = BOX_RANGE_CRYPTO_CATALOG_SYMBOL;
-  return {
+/** @returns {{ symbol: string; name: string }[]} */
+export function boxRangeCryptoCatalogItems() {
+  return BOX_RANGE_CRYPTO_HTF_SYMBOLS.map((symbol) => ({
     symbol,
     name: cryptoYahooUsdtDisplayName(symbol),
-  };
+  }));
+}
+
+/** @returns {{ symbol: string; name: string }} */
+export function boxRangeCryptoCatalogItem() {
+  return boxRangeCryptoCatalogItems()[0];
 }
 
 export async function runCryptoBoxRangeCatalogScan() {
-  const item = boxRangeCryptoCatalogItem();
-  liveTradeLogInfo("[box-range:crypto-scan] start", item.symbol);
+  const items = boxRangeCryptoCatalogItems();
+  liveTradeLogInfo(
+    "[box-range:crypto-scan] start",
+    items.map((i) => i.symbol).join(","),
+  );
 
-  const r = await scanOneSymbolCatalog(item, "crypto");
+  let ok = 0;
+  let errors = 0;
+  let withBoxes = 0;
+  let boxes = 0;
+  /** @type {string[]} */
+  const scanErrors = [];
+
+  for (const item of items) {
+    const r = await scanOneSymbolCatalog(item, "crypto");
+    if (r.ok) ok += 1;
+    else {
+      errors += 1;
+      if (r.error) scanErrors.push(`${item.symbol}:${r.error}`);
+    }
+    if (r.boxes > 0) withBoxes += 1;
+    boxes += r.boxes;
+  }
   refreshCatalogIndexSync("crypto");
 
   const out = {
-    scanned: 1,
-    ok: r.ok ? 1 : 0,
-    errors: r.ok ? 0 : 1,
-    withBoxes: r.boxes > 0 ? 1 : 0,
-    boxes: r.boxes,
-    error: r.error,
+    scanned: items.length,
+    ok,
+    errors,
+    withBoxes,
+    boxes,
+    error: scanErrors.length ? scanErrors.join("; ") : undefined,
   };
   liveTradeLogInfo("[box-range:crypto-scan] done", out);
   await notifyCatalogScanTelegram("crypto", out).catch((e) => {

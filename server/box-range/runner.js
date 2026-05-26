@@ -10,7 +10,12 @@ import {
 } from "./quotes.js";
 import { liveTradeLogWarn } from "../live-trade-log.js";
 import { collectWatchSymbolsForProgram } from "./watch-symbols.js";
-import { BOX_RANGE_TIMEFRAMES, isBoxRangeProgram } from "./constants.js";
+import {
+  BOX_RANGE_TIMEFRAMES,
+  isBoxRangeCryptoHtfManaged,
+  isBoxRangeCryptoHtfSymbol,
+  isBoxRangeProgram,
+} from "./constants.js";
 import { detectBoxRangesOnCandles } from "./detect.js";
 import {
   listBoxesForProgramSync,
@@ -84,6 +89,9 @@ async function tickCryptoProgram(program) {
 
   for (const tf of BOX_RANGE_TIMEFRAMES) {
     for (const sym of symbols) {
+      if (!isBoxRangeCryptoHtfSymbol(sym) || !isBoxRangeCryptoHtfManaged(sym, tf)) {
+        continue;
+      }
       try {
         await runDetectionForTf(program, sym, tf);
       } catch (e) {
@@ -100,7 +108,11 @@ async function tickCryptoProgram(program) {
 
   const quotes = await fetchBoxRangeLastPrices(symbols);
   const boxes = listBoxesForProgramSync(program.id).filter(
-    (b) => !b.catalogBoxId && b.tradeEligible !== false,
+    (b) =>
+      !b.catalogBoxId &&
+      b.tradeEligible !== false &&
+      isBoxRangeCryptoHtfSymbol(b.symbol) &&
+      isBoxRangeCryptoHtfManaged(b.symbol, b.timeframe),
   );
 
   for (const box of boxes) {
@@ -132,7 +144,10 @@ async function tickCatalogProgram(program, catalogMarket) {
           (catalogMarket === "us" ||
             (catalogMarket === "crypto" && b.symbol.includes("USDT"))))) &&
       b.tradeEligible !== false &&
-      b.state !== "closed",
+      b.state !== "closed" &&
+      (catalogMarket !== "crypto" ||
+        (isBoxRangeCryptoHtfSymbol(b.symbol) &&
+          isBoxRangeCryptoHtfManaged(b.symbol, b.timeframe))),
   );
   const symbols = [...new Set(boxes.map((b) => b.symbol))];
   if (!symbols.length) return;

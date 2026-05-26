@@ -25,8 +25,26 @@ export const BOX_RANGE_SP500_SCAN_MS = 30 * 60 * 1000;
 export const BOX_RANGE_KR_SCAN_MS = 30 * 60 * 1000;
 /** BTC(빗썸 KRW 봉) 카탈로그 스캔 주기 */
 export const BOX_RANGE_CRYPTO_SCAN_MS = 30 * 60 * 1000;
-/** 박스권 카탈로그 코인 — 비트만 */
-export const BOX_RANGE_CRYPTO_CATALOG_SYMBOL = "BTC-USDT";
+/** 코인 1h·4h·1d(HTF) 박스권 — 비트·이더만 */
+export const BOX_RANGE_CRYPTO_HTF_SYMBOLS = ["BTC-USDT", "ETH-USDT"];
+/** @deprecated — BOX_RANGE_CRYPTO_HTF_SYMBOLS[0] */
+export const BOX_RANGE_CRYPTO_CATALOG_SYMBOL = BOX_RANGE_CRYPTO_HTF_SYMBOLS[0];
+/** 코인 HTF 제한 적용 봉 */
+export const BOX_RANGE_CRYPTO_HTF_TIMEFRAMES = ["1h", "4h", "1d"];
+
+const CRYPTO_HTF_SYMBOL_SET = new Set(BOX_RANGE_CRYPTO_HTF_SYMBOLS);
+
+/** @param {string} [symbol] */
+export function isBoxRangeCryptoHtfSymbol(symbol) {
+  const s = String(symbol ?? "").trim().toUpperCase();
+  return CRYPTO_HTF_SYMBOL_SET.has(s);
+}
+
+/** @param {string} [symbol] @param {"1h"|"4h"|"1d"} [timeframe] */
+export function isBoxRangeCryptoHtfManaged(symbol, timeframe) {
+  if (!BOX_RANGE_CRYPTO_HTF_TIMEFRAMES.includes(timeframe)) return true;
+  return isBoxRangeCryptoHtfSymbol(symbol);
+}
 /** 차트 라이브 탐지·반환 상한 — 0이면 제한 없음 */
 export const BOX_RANGE_MAX_DETECTED = 0;
 /** Pine maxStoreZones — 카탈로그 스캔·엔진 저장, 0이면 제한 없음 */

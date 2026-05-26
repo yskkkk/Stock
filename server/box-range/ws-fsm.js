@@ -2,7 +2,11 @@ import {
   listArmedLiveTradeProgramsSync,
   listSimActiveProgramsSync,
 } from "../live-trade-programs-store.js";
-import { isBoxRangeProgram } from "./constants.js";
+import {
+  isBoxRangeCryptoHtfManaged,
+  isBoxRangeCryptoHtfSymbol,
+  isBoxRangeProgram,
+} from "./constants.js";
 import {
   fetchBoxRangeLastPrices,
   isBoxRangeQuoteFresh,
@@ -34,7 +38,7 @@ function activeBoxRangePrograms() {
 export function scheduleBoxRangeFsmOnWsPrice(yahooSymbol) {
   if (process.env.STOCK_BOX_RANGE_WS === "0") return;
   const sym = String(yahooSymbol ?? "").trim().toUpperCase();
-  if (!sym) return;
+  if (!sym || !isBoxRangeCryptoHtfSymbol(sym)) return;
   const prev = debounceBySymbol.get(sym);
   if (prev) clearTimeout(prev);
   if (FSM_DEBOUNCE_MS <= 0) {
@@ -80,6 +84,7 @@ export async function runBoxRangeFsmForSymbol(symbol) {
     const boxes = listBoxesForProgramSync(program.id, sym);
     for (const box of boxes) {
       if (box.state === "closed" || box.tradeEligible === false) continue;
+      if (!isBoxRangeCryptoHtfManaged(box.symbol, box.timeframe)) continue;
       await processBoxFsmForProgram(program, box, lastPrice, live);
     }
   }

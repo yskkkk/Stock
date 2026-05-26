@@ -3,6 +3,10 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { resolveServerDataDir } from "../data-path.js";
 import { findMergeBoxIndex } from "./merge.js";
+import {
+  isBoxRangeCryptoHtfManaged,
+  isBoxRangeCryptoHtfSymbol,
+} from "./constants.js";
 
 function stateFilePath() {
   return path.join(resolveServerDataDir(), "box-range-state.json");
@@ -203,6 +207,15 @@ function barSecondsForTf(timeframe) {
  */
 /** 탐지·병합·매매는 timeframe 단위로 완전 분리(1h/4h/1d 겹쳐도 각각 독립 박스). */
 export function upsertDetectedBoxSync(detected) {
+  const sym = String(detected.symbol ?? "").trim().toUpperCase();
+  const tf = String(detected.timeframe ?? "").trim();
+  const crypto =
+    detected.catalogMarket === "crypto" ||
+    (!detected.catalogMarket && sym.endsWith("-USDT"));
+  if (crypto && !isBoxRangeCryptoHtfManaged(sym, tf)) {
+    return null;
+  }
+
   const store = readBoxRangeStoreSync();
   const catalogId = String(detected.catalogBoxId ?? "").trim() || null;
   if (catalogId) {
