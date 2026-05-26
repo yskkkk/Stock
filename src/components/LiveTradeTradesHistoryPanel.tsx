@@ -372,6 +372,17 @@ export default function LiveTradeTradesHistoryPanel({
         workspaceMode ? undefined : "live-trade-history-title"
       }
     >
+      {workspaceMode && programName?.trim() ? (
+        <header className="live-trade-history__head live-trade-history__head--workspace-program">
+          <h3 className="live-trade-history__title">
+            {programName.trim()} · {ko.app.liveTradePfTabTrades}
+          </h3>
+          {subNote ? (
+            <p className="live-trade-history__sub">{subNote}</p>
+          ) : null}
+        </header>
+      ) : null}
+
       {!workspaceMode ? (
       <header className="live-trade-history__head">
         <h3 id="live-trade-history-title" className="live-trade-history__title">

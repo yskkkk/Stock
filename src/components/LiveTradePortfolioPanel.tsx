@@ -63,8 +63,8 @@ import {
 } from "./LiveTradeHoldingDisplay";
 import { LiveTradeSymbolCellFromRecord as TradeSymbolCell } from "./LiveTradeSymbolCell";
 import { LiveTradeTradesHistoryTable } from "./LiveTradeTradesHistoryPanel";
-import LiveTradeHistorySimProgramTabs from "./LiveTradeHistorySimProgramTabs";
-import { programTradesPnlSummary } from "../lib/programTradesPnlSummary";
+import LiveTradeHistorySimSection from "./LiveTradeHistorySimSection";
+import { filterSimPrograms } from "../lib/liveTradeSimPrograms";
 
 type PanelTab = "summary" | "holdings" | "trade" | "trades" | "openOrders";
 
@@ -429,7 +429,6 @@ export default function LiveTradePortfolioPanel({
   const viewTab = hoverTab ?? pinnedTab;
   const { user } = useLiveTradeAuth();
   const [programId, setProgramId] = useState<string>("");
-  const [simTradesProgramId, setSimTradesProgramId] = useState("");
   const [adminViewUserId, setAdminViewUserId] = useState<string | null>(null);
   const [adminViewProgramName, setAdminViewProgramName] = useState<string | null>(
     null,
@@ -648,15 +647,7 @@ export default function LiveTradePortfolioPanel({
     }
   }, [programs, programId, adminReadOnly]);
 
-  useEffect(() => {
-    if (programs.length === 0) {
-      setSimTradesProgramId("");
-      return;
-    }
-    if (!simTradesProgramId || !programs.some((p) => p.id === simTradesProgramId)) {
-      setSimTradesProgramId(programs[0].id);
-    }
-  }, [programs, simTradesProgramId]);
+  const simPrograms = useMemo(() => filterSimPrograms(programs), [programs]);
 
   const tradesByScenario = useMemo(() => {
     const all = data?.trades ?? [];
@@ -927,96 +918,26 @@ export default function LiveTradePortfolioPanel({
                   rows: tradesByScenario.liveToss,
                 },
               ];
-              const anyRows = sections.some((s) => s.rows.length > 0);
+              const anyRows =
+                sections.some((s) => s.rows.length > 0) || simPrograms.length > 0;
               if (!anyRows) {
                 return (
                   <p className="live-portfolio__muted">{ko.app.liveTradePfNoTrades}</p>
                 );
               }
               return sections.map((section) =>
-                section.rows.length === 0 ? null : section.id === "sim" ? (
-                  (() => {
-                    const simRows = simTradesProgramId
-                      ? section.rows.filter(
-                          (t) => t.programId === simTradesProgramId,
-                        )
-                      : [];
-                    const simHoldings = (data?.holdings ?? []).filter(
-                      (h) => h.programId === simTradesProgramId,
-                    );
-                    const simPnl = programTradesPnlSummary(simRows, simHoldings);
-                    const simRetUp =
-                      simPnl.totalReturnPct != null &&
-                      simPnl.totalReturnPct >= 0;
-                    return (
+                section.id === "sim" ? (
+                  simPrograms.length === 0 && section.rows.length === 0 ? null : (
                   <div
                     key={section.id}
                     className="live-portfolio__trades-scenario"
                   >
                     <h5 className="live-sim-run__sub">{section.title}</h5>
                     <p className="live-portfolio__exchange-note">{section.note}</p>
-                    <LiveTradeHistorySimProgramTabs
-                      programs={programs}
-                      value={simTradesProgramId}
-                      onChange={setSimTradesProgramId}
-                      className="live-portfolio__trades-sim-pick"
-                    />
-                    {simRows.length > 0 ? (
-                      <>
-                        <div
-                          className="live-trade-history__pnl-summary live-portfolio__trades-pnl"
-                          role="status"
-                        >
-                          <div className="live-trade-history__pnl-row">
-                            <span className="live-trade-history__pnl-label">
-                              {ko.app.liveTradeHistoryTotalReturn}
-                            </span>
-                            <span
-                              className={
-                                simPnl.totalReturnPct == null
-                                  ? "live-trade-history__pnl-val"
-                                  : simRetUp
-                                    ? "live-trade-history__pnl-val live-trade-history__pnl-val--up"
-                                    : "live-trade-history__pnl-val live-trade-history__pnl-val--down"
-                              }
-                            >
-                              {simPnl.totalReturnPct == null
-                                ? "—"
-                                : formatPercent(simPnl.totalReturnPct)}
-                            </span>
-                          </div>
-                          <div className="live-trade-history__pnl-row">
-                            <span className="live-trade-history__pnl-label">
-                              {ko.app.liveTradePfColRealizedPnl}
-                            </span>
-                            <span
-                              className={
-                                simPnl.realizedPnl >= 0
-                                  ? "live-trade-history__pnl-val live-trade-history__pnl-val--up"
-                                  : "live-trade-history__pnl-val live-trade-history__pnl-val--down"
-                              }
-                            >
-                              {simPnl.realizedLabel}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="live-portfolio__trades-scroll live-sim-run__table-wrap">
-                          <LiveTradeTradesHistoryTable
-                            trades={simRows}
-                            loadAll={false}
-                            hideProgramColumn
-                          />
-                        </div>
-                      </>
-                    ) : (
-                      <p className="live-portfolio__muted">
-                        {ko.app.liveTradePfNoTrades}
-                      </p>
-                    )}
+                    <LiveTradeHistorySimSection embedded loadAll programs={programs} />
                   </div>
-                    );
-                  })()
-                ) : (
+                  )
+                ) : section.rows.length === 0 ? null : (
                   <div
                     key={section.id}
                     className="live-portfolio__trades-scenario"

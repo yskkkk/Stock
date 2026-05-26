@@ -4154,6 +4154,31 @@ html[data-theme="light"] .live-trading-tab__program-actions .btn:hover:not(:disa
   font-weight: 700;
 }
 
+.live-trade-history-sim-pick__name {
+  display: inline;
+}
+
+.live-trade-history-sim-pick__ret {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  opacity: 0.92;
+  margin-top: 0.12rem;
+}
+
+.live-trade-history-sim-pick__ret--up {
+  color: var(--up, #e53935);
+}
+
+.live-trade-history-sim-pick__ret--down {
+  color: var(--down, #1976d2);
+}
+
+.live-trading-tab__segment-btn .live-trade-history-sim-pick__name,
+.live-trading-tab__segment-btn .live-trade-history-sim-pick__ret {
+  line-height: 1.2;
+}
+
 .live-trade-history-sim-section__pick {
   margin-bottom: 0.55rem;
 }
