@@ -32,6 +32,7 @@ import LiveTradeAuthPanel, {
 import { ko } from "../i18n/ko";
 import {
   LIVE_TRADE_DOCK_AFTER_FORM_SAVE_EVENT,
+  LIVE_TRADE_DOCK_OPEN_EVENT,
   LIVE_TRADE_DOCK_TOGGLE_EVENT,
   dispatchLiveTradeDockOpenForm,
 } from "../lib/liveTradeDockEvents";
@@ -402,6 +403,17 @@ export default function AppLiveTradeSideDock({
     window.addEventListener(LIVE_TRADE_DOCK_TOGGLE_EVENT, onToggle);
     return () => window.removeEventListener(LIVE_TRADE_DOCK_TOGGLE_EVENT, onToggle);
   }, [toggleFold]);
+
+  useEffect(() => {
+    const onOpen = () => {
+      if (openRef.current) return;
+      persistOpen(true);
+      openDefaultDockPanel();
+      beginDockPanelOpenAnimation();
+    };
+    window.addEventListener(LIVE_TRADE_DOCK_OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(LIVE_TRADE_DOCK_OPEN_EVENT, onOpen);
+  }, [persistOpen, openDefaultDockPanel, beginDockPanelOpenAnimation]);
 
   useEffect(() => {
     const onAfterFormSave = () => {

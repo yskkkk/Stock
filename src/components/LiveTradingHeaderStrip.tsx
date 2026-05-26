@@ -7,7 +7,7 @@ import {
 function LiveTradingHeaderStripInner({
   onOpenLiveTrading,
 }: {
-  onOpenLiveTrading: () => void;
+  onOpenLiveTrading: (programId: string) => void;
 }) {
   const status = useLiveTradingStatusPoll();
   const rows = pickRunningLivePrograms(status);
@@ -45,7 +45,7 @@ function LiveTradingHeaderStripInner({
                     type="button"
                     className={`live-trade-header-strip__chip live-trade-header-strip__chip--${kind}`}
                     title={program.name}
-                    onClick={onOpenLiveTrading}
+                    onClick={() => onOpenLiveTrading(program.id)}
                   >
                     {program.name}
                   </button>

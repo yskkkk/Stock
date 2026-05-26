@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -35,6 +36,10 @@ import { tradeFillDisplayByTradeId } from "../lib/liveTradeBuySellPrices";
 import { programTradesPnlSummary } from "../lib/programTradesPnlSummary";
 import { formatTradeSideLabel } from "../lib/liveTradeSideDisplay";
 import { showProgramRunError } from "../lib/liveProgramDisplay";
+import {
+  consumePendingLiveTradeProgramFocus,
+  LIVE_TRADE_PROGRAM_FOCUS_EVENT,
+} from "../lib/liveTradeProgramFocus";
 import { ko } from "../i18n/ko";
 import LiveSimFeedbackBlock from "./LiveSimFeedbackBlock";
 import {
@@ -117,6 +122,8 @@ function ProgramRunCard({
   onOpenHoldingChart,
   usdKrwRate,
   readOnly = false,
+  expanded: expandedProp,
+  onExpandedChange,
 }: {
   program: LiveTradeProgram;
   mode: "sim" | "armed";
@@ -130,9 +137,16 @@ function ProgramRunCard({
   onProgramUpdated?: () => void;
   onOpenHoldingChart?: (h: LiveTradeHolding) => void;
   usdKrwRate: number | null;
+  expanded?: boolean;
+  onExpandedChange?: (open: boolean) => void;
 }) {
   const isArmed = mode === "armed";
-  const [expanded, setExpanded] = useState(false);
+  const [expandedLocal, setExpandedLocal] = useState(false);
+  const expanded = expandedProp ?? expandedLocal;
+  const setExpanded = (next: boolean) => {
+    if (onExpandedChange) onExpandedChange(next);
+    else setExpandedLocal(next);
+  };
   const sum = programSummary(holdings, usdKrwRate);
   const retUp = sum.ret != null && sum.ret >= 0;
   const pnlUp = sum.unrealizedUp === true;
@@ -158,7 +172,7 @@ function ProgramRunCard({
     return m;
   }, [holdings, trades]);
 
-  const toggleExpanded = () => setExpanded((v) => !v);
+  const toggleExpanded = () => setExpanded(!expanded);
 
   return (
     <article
@@ -717,6 +731,49 @@ export default function LiveSimRunningPanel({
     [activePrograms],
   );
 
+  const [focusProgramId, setFocusProgramId] = useState<string | null>(null);
+
+  const scrollToProgramCard = useCallback((programId: string) => {
+    const id = String(programId ?? "").trim();
+    if (!id) return;
+    requestAnimationFrame(() => {
+      const el = document.querySelector(
+        `.live-sim-run__card[data-program-id="${CSS.escape(id)}"]`,
+      );
+      el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+  }, []);
+
+  const applyProgramFocus = useCallback(
+    (programId: string | null) => {
+      const id = String(programId ?? "").trim();
+      if (!id || !activeIds.has(id)) return;
+      setFocusProgramId(id);
+      scrollToProgramCard(id);
+    },
+    [activeIds, scrollToProgramCard],
+  );
+
+  const pendingFocusRef = useRef<string | null>(null);
+  useEffect(() => {
+    pendingFocusRef.current = consumePendingLiveTradeProgramFocus();
+  }, []);
+
+  useEffect(() => {
+    const pending = pendingFocusRef.current;
+    if (pending && activeIds.has(pending)) {
+      applyProgramFocus(pending);
+      pendingFocusRef.current = null;
+    }
+    const onFocus = (e: Event) => {
+      const id = (e as CustomEvent<{ programId?: string }>).detail?.programId;
+      if (id) applyProgramFocus(id);
+    };
+    window.addEventListener(LIVE_TRADE_PROGRAM_FOCUS_EVENT, onFocus);
+    return () =>
+      window.removeEventListener(LIVE_TRADE_PROGRAM_FOCUS_EVENT, onFocus);
+  }, [applyProgramFocus, activeIds]);
+
   const renderProgramCard = (p: LiveTradeProgram) => (
     <ProgramRunCard
       mode={p.status === "armed" ? "armed" : "sim"}
@@ -731,6 +788,11 @@ export default function LiveSimRunningPanel({
       onOpenHoldingChart={onOpenHoldingChart}
       usdKrwRate={usdKrwRate}
       readOnly={readOnly}
+      expanded={focusProgramId === p.id}
+      onExpandedChange={(open) => {
+        if (open) setFocusProgramId(p.id);
+        else if (focusProgramId === p.id) setFocusProgramId(null);
+      }}
     />
   );
 

@@ -389,7 +389,11 @@ export default function LiveTradingTab({
     effectiveStatus?.simCount,
   ]);
 
-  const showRunningPanel = portalSourceOnly || !hideCardDock;
+  const activeRunCount =
+    (effectiveStatus?.simCount ?? 0) + (effectiveStatus?.armedCount ?? 0);
+  /** 도크 분리 시에도 실행·무장 패널 표시(메인·포털) */
+  const showRunningPanel =
+    portalSourceOnly || !hideCardDock || activeRunCount > 0;
 
   const portfolioAdminView = useMemo(
     () =>
@@ -900,7 +904,7 @@ export default function LiveTradingTab({
               ) : null}
             </div>
           ) : null}
-          {showRunningPanel && !portalSourceOnly ? (
+          {showRunningPanel ? (
             <>
               <LiveSimRunningPanel
                 programs={programs}
@@ -913,7 +917,7 @@ export default function LiveTradingTab({
                 onProgramUpdated={() => void reload()}
                 onOpenHoldingChart={onOpenHoldingChart}
               />
-              {!showMainProgramsList ? (
+              {!portalSourceOnly && !showMainProgramsList ? (
                 <>
                   <LiveTradeHistoryScenarioTabs
                     value={tradeHistoryScenario}

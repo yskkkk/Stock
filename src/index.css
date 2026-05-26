@@ -10359,20 +10359,26 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   flex: 1 1 auto;
 }
 
-/* host 안 포털 소스 — 레이아웃·포인터 차단(본문은 card-tabs-host 포털로만 표시) */
+/* host 안 포털 소스 — 실행 패널은 표시, 카드 도크 껍데기만 숨김(본문은 card-tabs-host 포털) */
 .app-live-trade-side-dock__host > .live-trading-panel--dock-portals {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-  flex: none;
-  pointer-events: none;
-  opacity: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  gap: 0.55rem;
+  overflow: visible;
+  pointer-events: auto;
+  opacity: 1;
+}
+
+.app-live-trade-side-dock__host
+  > .live-trading-panel--dock-portals
+  > .live-sim-run.card {
+  flex: 0 0 auto;
+  max-height: min(72dvh, 640px);
+  overflow: auto;
 }
 
 .live-trading-panel--dock-portals--boot {

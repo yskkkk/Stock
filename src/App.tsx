@@ -80,6 +80,11 @@ import { usePickKeyboard } from "./hooks/usePickKeyboard";
 import { useMarketIndices } from "./hooks/useMarketIndices";
 import { useUsdKrwRate } from "./hooks/useUsdKrwRate";
 import { resolveUsQuoteDisplay } from "./lib/usQuoteDisplay";
+import { dispatchLiveTradeDockOpen } from "./lib/liveTradeDockEvents";
+import {
+  dispatchLiveTradeProgramFocus,
+  setPendingLiveTradeProgramFocus,
+} from "./lib/liveTradeProgramFocus";
 import {
   dispatchLiveTradeDockOpenPortfolio,
   dispatchLiveTradePortfolioFocus,
@@ -539,6 +544,22 @@ export default function App() {
   const leftRailRef = useRef<HTMLElement>(null);
   useLeftRailLazyFollow(leftRailRef, appScrollRef);
   const desktopDockLayout = useDesktopDockLayout();
+  const openLiveTradingProgram = useCallback(
+    (programId: string) => {
+      const id = String(programId ?? "").trim();
+      if (!id) {
+        setAppTab("liveTrading");
+        return;
+      }
+      setPendingLiveTradeProgramFocus(id);
+      setAppTab("liveTrading");
+      window.setTimeout(() => {
+        dispatchLiveTradeProgramFocus(id);
+        if (desktopDockLayout) dispatchLiveTradeDockOpen();
+      }, 0);
+    },
+    [desktopDockLayout],
+  );
   const feedbackRef = useRef<FeedbackCornerHandle>(null);
   const [footerFeedbackKind, setFooterFeedbackKind] = useState<FeedbackSubmitKind | null>(
     null,
@@ -1118,7 +1139,7 @@ export default function App() {
           <aside ref={leftRailRef} className="app__left-rail" aria-label={ko.app.leftRailAria}>
             <LeftRailLiveTradeAuthPanel />
             <LeftRailBithumbAccountPanel
-              onOpenLiveTrading={() => setAppTab("liveTrading")}
+              onOpenLiveTrading={openLiveTradingProgram}
             />
             <LiveTradingLeftRailPanel
               onOpenLiveTrading={() => setAppTab("liveTrading")}
@@ -1295,9 +1316,7 @@ export default function App() {
                 </div>
               </div>
             ) : null}
-            <LiveTradingHeaderStrip
-              onOpenLiveTrading={() => setAppTab("liveTrading")}
-            />
+            <LiveTradingHeaderStrip onOpenLiveTrading={openLiveTradingProgram} />
           </div>
 
           <div className="top-bar__right">
@@ -2022,7 +2041,7 @@ export default function App() {
         {showDesktopSideDock ? (
           <>
             <AppRightDockRailPanels
-              onOpenLiveTrading={() => setAppTab("liveTrading")}
+              onOpenLiveTrading={openLiveTradingProgram}
             />
             <AppLiveTradeSideDock
               feedbackRef={feedbackRef}
