@@ -30,6 +30,10 @@ import { notifyBoxRangeMidEntry } from "./box-range-telegram.js";
 
 /** @type {Set<string>} */
 const boxBuyInFlight = new Set();
+/** @type {Set<string>} */
+const boxSellInFlight = new Set();
+/** @type {Set<string>} */
+const boxNotifyInFlight = new Set();
 
 /**
  * @param {import("./store.js").BoxRangeRecord} box
@@ -100,14 +104,17 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
     const broke = box.breakAtMs != null;
     if (broke && lastPrice >= box.mid) {
       if (!box.midNotifiedAtMs) {
-        const sent = await notifyBoxRangeMidEntry(
-          box,
-          program,
-          lastPrice,
-          market,
-        );
-        if (sent) {
-          patchBoxSync(box.boxId, { midNotifiedAtMs: now });
+        const notifyKey = `${program.id}:${box.boxId}`;
+        if (!boxNotifyInFlight.has(notifyKey)) {
+          boxNotifyInFlight.add(notifyKey);
+          try {
+            const sent = await notifyBoxRangeMidEntry(box, program, lastPrice, market);
+            if (sent) {
+              patchBoxSync(box.boxId, { midNotifiedAtMs: now });
+            }
+          } finally {
+            boxNotifyInFlight.delete(notifyKey);
+          }
         }
       }
 
@@ -153,6 +160,8 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
                 orderId: out.orderId,
                 fillVolume: out.fillVolume ?? undefined,
                 ...boxMeta,
+                targetSellPrice: box.top,
+                stopLossPrice: box.bottom,
               },
             );
           } else {
@@ -191,7 +200,7 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
           const trade = await recordLiveTradeBuyAsync(
             program,
             pick,
-            { simulated: true, ...boxMeta },
+            { simulated: true, ...boxMeta, targetSellPrice: box.top, stopLossPrice: box.bottom },
           );
           if (trade) {
             patchBoxSync(box.boxId, {
@@ -221,6 +230,9 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
   }
 
   if (box.state === "in_position") {
+    const sellKey = `${program.id}:${box.boxId}`;
+    if (boxSellInFlight.has(sellKey)) return;
+
     const lot = resolveBoxSellQuantitySync(box);
     if (lot.closed) {
       closeTradingBox(box, "reconciled");
@@ -241,6 +253,7 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
     }
     if (!exitSide) return;
 
+    boxSellInFlight.add(sellKey);
     try {
       const userId = String(program.userId ?? "").trim();
       if (live && isProgramArmedForMarket(program, market)) {
@@ -313,6 +326,8 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
       const msg = e instanceof Error ? e.message : String(e);
       liveTradeLogWarn("[box-range:sell]", program.name, sym, msg);
       touchLiveTradeProgramRunSync(program.id, msg);
+    } finally {
+      boxSellInFlight.delete(sellKey);
     }
   }
 }

@@ -79,7 +79,7 @@ export async function runBoxRangeFsmForSymbol(symbol) {
 
     const boxes = listBoxesForProgramSync(program.id, sym);
     for (const box of boxes) {
-      if (box.state === "closed") continue;
+      if (box.state === "closed" || box.tradeEligible === false) continue;
       await processBoxFsmForProgram(program, box, lastPrice, live);
     }
   }

@@ -532,6 +532,7 @@ export async function executeBithumbLiveSellOrder(input, options = {}) {
   try {
     const first = await marketSellOnce(market, sellVolume, credentials);
     if (!first.ok) {
+      if (userId) await refreshBithumbLedgerForUser(userId, credentials).catch(() => {});
       return { ok: false, success: false, error: first.error, ...first };
     }
     let totalSold = Number(first.fillVolume) || sellVolume;

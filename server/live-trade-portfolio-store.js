@@ -413,7 +413,7 @@ export function buildPositionsFromTrades(trades, programIdFilter) {
       const sellQty = Math.min(t.quantity, pos.quantity);
       if (sellQty <= 0) continue;
       const avgCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
-      const proportionalFee = t.quantity > 0 ? (t.feeAmount / t.quantity) * sellQty : 0;
+      const proportionalFee = t.quantity > 1e-12 ? (t.feeAmount / t.quantity) * sellQty : 0;
       const proceeds = (t.amount / t.quantity) * sellQty - proportionalFee;
       const costPortion = avgCost * sellQty;
       realizedPnl += proceeds - costPortion;
@@ -567,8 +567,8 @@ export async function recordLiveTradeBuyAsync(program, pick, orderMeta = {}) {
   const boxId = String(orderMeta.boxId ?? pick.boxId ?? "").trim();
   if (boxId) {
     targets = {
-      targetSellPrice: null,
-      stopLossPrice: null,
+      targetSellPrice: orderMeta.targetSellPrice ?? null,
+      stopLossPrice: orderMeta.stopLossPrice ?? null,
       exitScenarioNote: `box:${boxId}`,
       entryKind: `box:${orderMeta.boxTimeframe ?? pick.boxTimeframe ?? "?"}`,
       entryStructureNote: "박스권",
@@ -679,7 +679,7 @@ export function recordLiveTradeSellSync(input, userId) {
   quantity = normalizeSellQuantity(quantity, market);
   if (quantity <= 0) throw new Error("매도 수량이 올바르지 않습니다.");
 
-  const avgEntry = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+  const avgEntry = pos.quantity > 1e-9 && pos.costBasis > 0 ? pos.costBasis / pos.quantity : 0;
   const customEntry = Number(input.entryPrice);
   const entryForSell =
     Number.isFinite(customEntry) && customEntry > 0 ? customEntry : avgEntry;

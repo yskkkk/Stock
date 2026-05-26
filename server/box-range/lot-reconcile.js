@@ -45,7 +45,7 @@ export function resolveBoxOpenLotFromTrades(box, trades) {
       (t) =>
         t.side === "sell" &&
         t.programId === pid &&
-        t.boxId === boxId &&
+        (t.boxId === boxId || (!t.boxId && t.symbol === box.symbol)) &&
         t.atMs >= buy.atMs,
     )
     .reduce((s, t) => s + t.quantity, 0);
