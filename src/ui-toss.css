@@ -4185,6 +4185,93 @@ html[data-theme="light"] .live-trading-tab__program-actions .btn:hover:not(:disa
   color: var(--text-muted, #888);
 }
 
+.live-trade-history-sim-pick--select {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.65rem;
+  margin-bottom: 0.5rem;
+}
+
+.live-trade-history-sim-pick__label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted, #888);
+}
+
+.live-trade-history-sim-pick__select {
+  min-width: min(100%, 14rem);
+  max-width: 100%;
+  flex: 1 1 12rem;
+}
+
+.live-trade-program-holdings {
+  margin: 0 0 0.65rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  background: var(--surface-2, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+}
+
+.live-trade-program-holdings__title {
+  margin: 0 0 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.live-trade-program-holdings__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.live-trade-program-holdings__row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto auto;
+  gap: 0.35rem 0.5rem;
+  align-items: center;
+  font-size: 0.78rem;
+}
+
+.live-trade-program-holdings__qty,
+.live-trade-program-holdings__px,
+.live-trade-program-holdings__chg,
+.live-trade-program-holdings__pnl {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.live-trade-program-holdings__chg--up {
+  color: var(--up, #e53935);
+}
+
+.live-trade-program-holdings__chg--down {
+  color: var(--down, #1976d2);
+}
+
+.box-range-tab__price-card-row--span dd {
+  font-size: 0.82rem;
+}
+
+.box-range-tab__price-card-bars {
+  opacity: 0.75;
+  font-size: 0.78rem;
+}
+
+.box-range-tab__price-card-pct {
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin-left: 0.2rem;
+}
+
+.box-range-tab__price-card-row--hint dt {
+  font-size: 0.72rem;
+  opacity: 0.85;
+}
+
 .live-trade-history-sim-section__pick {
   margin-bottom: 0.55rem;
 }

@@ -1488,8 +1488,13 @@ export interface BoxRangeSymbolCatalog {
   boxes: BoxRangeCatalogBox[];
 }
 
+function boxRangeCatalogMarketQuery(market: BoxRangeCatalogMarket): string {
+  if (market === "us") return "";
+  return `?market=${encodeURIComponent(market)}`;
+}
+
 export function fetchBoxRangeCatalog(market: BoxRangeCatalogMarket = "us") {
-  const q = market === "kr" ? "?market=kr" : "";
+  const q = boxRangeCatalogMarketQuery(market);
   return fetchJson<BoxRangeCatalogIndex>(`/api/box-range/catalog${q}`, {
     cache: "no-store",
   });
@@ -1500,7 +1505,7 @@ export function fetchBoxRangeCatalogSymbol(
   market: BoxRangeCatalogMarket = "us",
 ) {
   const sym = symbol.trim().toUpperCase();
-  const q = market === "kr" ? "?market=kr" : "";
+  const q = boxRangeCatalogMarketQuery(market);
   return fetchJson<BoxRangeSymbolCatalog>(
     `/api/box-range/catalog/${encodeURIComponent(sym)}${q}`,
     { cache: "no-store" },

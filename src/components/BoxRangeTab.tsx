@@ -7,7 +7,7 @@ import {
   type BoxRangeCatalogMarket,
   type BoxRangeSymbolCatalog,
 } from "../api";
-import { formatPrice } from "../lib/format";
+import { formatPercent, formatPrice } from "../lib/format";
 import { cryptoCoinIconUrl, cryptoIconSlug } from "../lib/cryptoCoinIcon";
 import { krStockLogoUrl, usStockLogoUrl } from "../lib/stockLogoUrl";
 import { ko } from "../i18n/ko";
@@ -159,6 +159,30 @@ function BoxRangeLogoButton({
   );
 }
 
+function formatBoxPeriod(leftTime: number, rightTime: number): string {
+  const fmt = (sec: number) => {
+    if (!Number.isFinite(sec) || sec <= 0) return "—";
+    try {
+      return new Date(sec * 1000).toLocaleDateString("ko-KR", {
+        year: "2-digit",
+        month: "numeric",
+        day: "numeric",
+      });
+    } catch {
+      return "—";
+    }
+  };
+  const a = fmt(leftTime);
+  const b = fmt(rightTime);
+  if (a === "—" && b === "—") return "—";
+  return `${a} ~ ${b}`;
+}
+
+function boxPctFromMid(mid: number, target: number): number | null {
+  if (!Number.isFinite(mid) || mid <= 0 || !Number.isFinite(target)) return null;
+  return ((target - mid) / mid) * 100;
+}
+
 function BoxRangePriceCard({
   box,
   market,
@@ -166,6 +190,8 @@ function BoxRangePriceCard({
   box: BoxRangeCatalogBox;
   market: BoxRangeCatalogMarket;
 }) {
+  const tpPct = boxPctFromMid(box.mid, box.top);
+  const slPct = boxPctFromMid(box.mid, box.bottom);
   return (
     <article className="box-range-tab__price-card">
       <header className="box-range-tab__price-card-head">
@@ -175,6 +201,18 @@ function BoxRangePriceCard({
         </span>
       </header>
       <dl className="box-range-tab__price-card-metrics">
+        <div className="box-range-tab__price-card-row box-range-tab__price-card-row--span">
+          <dt>{ko.app.boxRangeTabBoxPeriod}</dt>
+          <dd className="box-range-tab__price-card-val">
+            {formatBoxPeriod(box.leftTime, box.rightTime)}
+            {box.validBars > 0 ? (
+              <span className="box-range-tab__price-card-bars">
+                {" "}
+                · {box.validBars}봉
+              </span>
+            ) : null}
+          </dd>
+        </div>
         <div className="box-range-tab__price-card-row">
           <dt>{ko.app.liveTradeBoxColMid}</dt>
           <dd className="box-range-tab__price-card-val">{fmtPrice(box.mid, market)}</dd>
@@ -183,12 +221,36 @@ function BoxRangePriceCard({
           <dt>{ko.app.liveTradeBoxColTp}</dt>
           <dd className="box-range-tab__price-card-val box-range-tab__price-card-val--up">
             {fmtPrice(box.top, market)}
+            {tpPct != null ? (
+              <span className="box-range-tab__price-card-pct">
+                {" "}
+                {formatPercent(tpPct)}
+              </span>
+            ) : null}
           </dd>
         </div>
         <div className="box-range-tab__price-card-row">
           <dt>{ko.app.liveTradeBoxColSl}</dt>
           <dd className="box-range-tab__price-card-val box-range-tab__price-card-val--down">
             {fmtPrice(box.bottom, market)}
+            {slPct != null ? (
+              <span className="box-range-tab__price-card-pct">
+                {" "}
+                {formatPercent(slPct)}
+              </span>
+            ) : null}
+          </dd>
+        </div>
+        <div className="box-range-tab__price-card-row box-range-tab__price-card-row--hint">
+          <dt>{ko.app.boxRangeTabExpectTp}</dt>
+          <dd className="box-range-tab__price-card-val box-range-tab__price-card-val--up">
+            {tpPct != null ? formatPercent(tpPct) : "—"}
+          </dd>
+        </div>
+        <div className="box-range-tab__price-card-row box-range-tab__price-card-row--hint">
+          <dt>{ko.app.boxRangeTabExpectSl}</dt>
+          <dd className="box-range-tab__price-card-val box-range-tab__price-card-val--down">
+            {slPct != null ? formatPercent(slPct) : "—"}
           </dd>
         </div>
       </dl>

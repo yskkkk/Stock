@@ -27,6 +27,7 @@
     "box-range:catalog:crypto": "node scripts/scan-box-range-crypto.mjs",
     "email:box-range-strategy": "node scripts/send-box-range-strategy-email.mjs",
     "email:box-range-v2-audit": "node scripts/send-box-range-v2-audit-report.mjs",
+    "email:box-range-pine-tv": "node scripts/send-box-range-pine-tv-email.mjs",
     "cap:sync": "npx cap sync",
     "cap:android": "npx cap open android",
     "cap:ios": "npx cap open ios",
