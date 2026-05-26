@@ -32,7 +32,10 @@ const TICK_MS = (() => {
  * @param {"1h"|"4h"|"1d"} timeframe
  */
 async function loadCandlesForBoxTf(symbol, timeframe) {
-  const data = await loadStock(symbol, timeframe, { live: true });
+  const data = await loadStock(symbol, timeframe, {
+    live: true,
+    boxRangeScan: true,
+  });
   const candles = Array.isArray(data?.candles) ? data.candles : [];
   return candles
     .map((c) => {

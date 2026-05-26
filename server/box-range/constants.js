@@ -27,10 +27,10 @@ export const BOX_RANGE_KR_SCAN_MS = 30 * 60 * 1000;
 export const BOX_RANGE_CRYPTO_SCAN_MS = 30 * 60 * 1000;
 /** 박스권 카탈로그 코인 — 비트만 */
 export const BOX_RANGE_CRYPTO_CATALOG_SYMBOL = "BTC-USDT";
-/** Pine zonesPerTf(표시·API 반환 상한) */
-export const BOX_RANGE_MAX_DETECTED = 35;
-/** Pine maxStoreZones(엔진 내부 저장 상한) — 카탈로그 전체 스캔과 동일 */
-export const BOX_RANGE_PINE_MAX_STORE = 40;
+/** 차트 라이브 탐지·반환 상한 — 0이면 제한 없음 */
+export const BOX_RANGE_MAX_DETECTED = 0;
+/** Pine maxStoreZones — 카탈로그 스캔·엔진 저장, 0이면 제한 없음 */
+export const BOX_RANGE_PINE_MAX_STORE = 0;
 
 /** 기존 카탈로그(legacy detect-pro·overlap merge) */
 export const BOX_RANGE_CATALOG_DIR_LEGACY = "box-range-catalog";

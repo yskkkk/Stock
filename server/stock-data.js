@@ -115,8 +115,21 @@ function computeTurnover(dayVolume, price) {
 /** 스크리너·기술 점수용 캔들 (일봉이 아닐 때는 TIMEFRAME_MAP 그대로) */
 export const SCAN_CHART_TIMEFRAME = "1m";
 
-function chartConfig(timeframe, { scan = false } = {}) {
+function chartConfig(timeframe, { scan = false, boxRangeScan = false } = {}) {
   const base = TIMEFRAME_MAP[timeframe] ?? TIMEFRAME_MAP["1d"];
+  if (boxRangeScan) {
+    if (timeframe === "1d") {
+      return { ...base, range: "50y", days: undefined };
+    }
+    if (timeframe === "1h" || timeframe === "4h") {
+      const envDays = Number(process.env.STOCK_BOX_RANGE_SCAN_DAYS ?? 729);
+      const days =
+        Number.isFinite(envDays) && envDays >= 30
+          ? Math.min(729, Math.floor(envDays))
+          : 729;
+      return { ...base, days, range: undefined, aggregate: base.aggregate };
+    }
+  }
   if (!scan || timeframe !== "1d") return base;
   return { ...base, range: "2y", days: undefined };
 }
@@ -317,11 +330,11 @@ async function attachDailyQuote(symbol, data) {
   }
 }
 
-async function fetchRemote(symbol, timeframe) {
+async function fetchRemote(symbol, timeframe, loadOpts = {}) {
   const sym = symbol.toUpperCase();
   const data = isBinanceUsdtSymbol(sym)
     ? await fetchBithumbKrwChart(sym, timeframe)
-    : await queueYahooRequest(() => fetchYahooChart(symbol, timeframe));
+    : await queueYahooRequest(() => fetchYahooChart(symbol, timeframe, loadOpts));
   if (timeframe !== "1d") {
     const daily = await attachDailyQuote(symbol, data);
     if (daily?.candles?.length) {
@@ -360,7 +373,7 @@ export async function loadStock(symbol, timeframe, options = {}) {
   const task = (async () => {
     const stale = readCache(cacheKey, { allowStale: true });
     try {
-      const data = await fetchRemote(sym, tf);
+      const data = await fetchRemote(sym, tf, options);
       setCacheEntry(cacheKey, data);
       return data;
     } catch {

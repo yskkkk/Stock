@@ -69,7 +69,10 @@ function candlesForDetect(raw) {
 }
 
 async function detectBoxesForTf(symbol, timeframe) {
-  const data = await loadStock(symbol, timeframe, { live: true });
+  const data = await loadStock(symbol, timeframe, {
+    live: true,
+    boxRangeScan: true,
+  });
   const candles = candlesForDetect(
     Array.isArray(data?.candles) ? data.candles : [],
   );
@@ -164,5 +167,5 @@ export async function buildChartBoxRangeOverlayAsync(
     }
   }
 
-  return { boxes: chartBoxes.slice(0, 24), scan };
+  return { boxes: chartBoxes, scan };
 }

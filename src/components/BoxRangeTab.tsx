@@ -27,7 +27,15 @@ function fmtPrice(
 }
 
 function isValidCatalogBox(b: BoxRangeCatalogBox): boolean {
-  return b.tradeEligible && !b.consumedAtMs;
+  const top = Number(b.top);
+  const bottom = Number(b.bottom);
+  const mid = Number(b.mid);
+  return (
+    Number.isFinite(top) &&
+    Number.isFinite(bottom) &&
+    Number.isFinite(mid) &&
+    top > bottom
+  );
 }
 
 function displayTicker(symbol: string, market: BoxRangeCatalogMarket): string {
@@ -346,7 +354,7 @@ export default function BoxRangeTab() {
   }, [selected, user, catalogMarket]);
 
   const logoRows = useMemo(() => {
-    const list = (index?.symbols ?? []).filter((r) => r.eligibleCount > 0);
+    const list = (index?.symbols ?? []).filter((r) => (r.boxCount ?? 0) > 0);
     const q = filter.trim().toUpperCase();
     if (!q) return list;
     return list.filter(

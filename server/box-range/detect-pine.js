@@ -19,6 +19,15 @@ import { normalizeBoxUnixTime } from "./box-time.js";
 const NO_PCT = 99999.0;
 const MERGE_SCAN = 6;
 
+/** @param {number | undefined | null} n @param {number} fallback */
+function resolveMaxBoxes(n, fallback) {
+  if (n === 0) return Number.MAX_SAFE_INTEGER;
+  if (typeof n === "number" && Number.isFinite(n) && n > 0) {
+    return Math.floor(n);
+  }
+  return fallback === 0 ? Number.MAX_SAFE_INTEGER : Math.max(12, Math.floor(fallback));
+}
+
 /** Pine 프리셋 */
 const PRESET = {
   "1h": {
@@ -83,6 +92,7 @@ function shouldMerge(tN, bN, t0N, t1N, tO, bO, t0O, t1O, maxMidPct, mBars, tfSec
 }
 
 function trimStore(zTop, zBot, zT0, zT1, maxN) {
+  if (maxN >= Number.MAX_SAFE_INTEGER / 2) return;
   while (zTop.length > maxN) {
     zTop.pop();
     zBot.pop();
@@ -167,10 +177,11 @@ export function detectBoxRangesPineOnCandles(
     typeof opts?.breakAtrMult === "number" && Number.isFinite(opts.breakAtrMult)
       ? opts.breakAtrMult
       : 0.45;
-  const maxStore =
-    typeof opts?.maxStore === "number" && Number.isFinite(opts.maxStore)
-      ? Math.max(12, Math.min(80, Math.floor(opts.maxStore)))
-      : 40;
+  const maxStore = resolveMaxBoxes(
+    typeof opts?.maxStore === "number" ? opts.maxStore : undefined,
+    Number(process.env.STOCK_BOX_RANGE_PINE_MAX_STORE ?? 0) || 0,
+  );
+  const maxOut = resolveMaxBoxes(maxCount, 0);
 
   const tfSeconds = tfSec(timeframe);
 
@@ -291,7 +302,7 @@ export function detectBoxRangesPineOnCandles(
   /** @type {DetectedBox[]} */
   const out = [];
   const n = Math.min(zTop.length, zBot.length, zT0.length, zT1.length);
-  for (let i = 0; i < n && out.length < maxCount; i++) {
+  for (let i = 0; i < n && out.length < maxOut; i++) {
     const top = zTop[i];
     const bottom = zBot[i];
     const t0 = zT0[i];
@@ -327,12 +338,9 @@ export function resolvePineDetectOpts(env = process.env) {
     useAtrCap: env?.STOCK_BOX_RANGE_PINE_ATRCAP === "1",
     breakAtrMult:
       Number(env?.STOCK_BOX_RANGE_PINE_BREAK_ATR_MULT ?? 0.45) || 0.45,
-    maxStore: Math.max(
-      12,
-      Math.min(
-        80,
-        Math.floor(Number(env?.STOCK_BOX_RANGE_PINE_MAX_STORE ?? 40) || 40),
-      ),
+    maxStore: resolveMaxBoxes(
+      Number(env?.STOCK_BOX_RANGE_PINE_MAX_STORE ?? 0),
+      0,
     ),
   };
 }

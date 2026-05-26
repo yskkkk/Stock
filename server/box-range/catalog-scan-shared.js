@@ -13,7 +13,10 @@ import { normalizeBoxUnixTime } from "./box-time.js";
  */
 export async function loadCandlesForBoxScan(symbol, timeframe) {
   try {
-    const data = await loadStock(symbol, timeframe, { live: true });
+    const data = await loadStock(symbol, timeframe, {
+      live: true,
+      boxRangeScan: true,
+    });
     const candles = Array.isArray(data?.candles) ? data.candles : [];
     return candles
       .map((c) => {
@@ -53,7 +56,7 @@ export async function scanOneSymbolCatalog(item, catalogMarket) {
         continue;
       }
       tfOk += 1;
-      // 전체 차트 1회 Pine f_zoneEngine (maxStoreZones=40)
+      // 전체 차트 1회 Pine f_zoneEngine (저장 상한 0=무제한)
       byTf[tf] = detectBoxRangesPineOnCandles(
         candles,
         tf,
