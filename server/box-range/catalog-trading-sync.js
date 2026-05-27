@@ -8,6 +8,7 @@ import {
 import {
   listBoxesForProgramSync,
   upsertDetectedBoxSync,
+  batchUpsertCatalogBoxesSync,
   patchBoxSync,
   readBoxRangeStoreSync,
 } from "./store.js";
@@ -18,12 +19,8 @@ import {
   isBoxRangeProgram,
 } from "./constants.js";
 
-const MAX_NEW_SLOTS_PER_TICK = (() => {
-  const n = Number(process.env.STOCK_BOX_RANGE_CATALOG_SLOTS_PER_TICK ?? 500);
-  return Number.isFinite(n) && n >= 1 ? Math.min(n, 5000) : 500;
-})();
-
 /**
+ * 카탈로그 전체를 한 번에 스토어에 반영 — 파일 I/O 1회로 누락 없이 등록.
  * @param {import("../live-trade-programs-store.js").LiveTradeProgram} program
  * @param {"us"|"kr"|"crypto"} catalogMarket
  * @param {string} [catalogRoot]
@@ -41,6 +38,8 @@ export function syncCatalogTradingBoxesFromCatalogSync(
 
   const index = readCatalogIndexSync(market, catalogRoot);
   const symbols = Array.isArray(index?.symbols) ? index.symbols : [];
+
+  // 이미 등록된 catalogBoxId 목록 (스킵용)
   const existing = listBoxesForProgramSync(program.id);
   const linkedIds = new Set(
     existing
@@ -49,24 +48,21 @@ export function syncCatalogTradingBoxesFromCatalogSync(
       .filter(Boolean),
   );
 
-  let linked = 0;
+  // 최근 1년 이내 박스만 등록 (오래된 역사적 박스 제외)
+  const cutoffSec = Math.floor(Date.now() / 1000) - 365 * 86400;
+
+  // 새로 등록할 박스를 전부 수집
+  const toAdd = [];
   for (const row of symbols) {
-    if (linked >= MAX_NEW_SLOTS_PER_TICK) break;
     const sym = String(row.symbol ?? "").trim().toUpperCase();
     if (!sym) continue;
     if (market === "crypto" && !isBoxRangeCryptoHtfSymbol(sym)) continue;
     const eligible = listTradeEligibleCatalogBoxesSync(sym, market, catalogRoot);
     for (const cb of eligible) {
-      if (linked >= MAX_NEW_SLOTS_PER_TICK) break;
       if (linkedIds.has(cb.catalogBoxId)) continue;
-      if (
-        market === "crypto" &&
-        !isBoxRangeCryptoHtfManaged(sym, cb.timeframe)
-      ) {
-        continue;
-      }
-
-      upsertDetectedBoxSync({
+      if (market === "crypto" && !isBoxRangeCryptoHtfManaged(sym, cb.timeframe)) continue;
+      if (cb.rightTime < cutoffSec) continue; // 1년 초과 박스 제외
+      toAdd.push({
         programId: program.id,
         userId: String(program.userId ?? "").trim(),
         symbol: sym,
@@ -80,11 +76,15 @@ export function syncCatalogTradingBoxesFromCatalogSync(
         catalogMarket: market,
         tradeEligible: true,
       });
-      linkedIds.add(cb.catalogBoxId);
-      linked += 1;
+      linkedIds.add(cb.catalogBoxId); // 같은 틱 내 중복 방지
     }
   }
-  return { linked };
+
+  if (!toAdd.length) return { linked: 0 };
+
+  // 파일 I/O 1회로 전체 배치 등록
+  const { added } = batchUpsertCatalogBoxesSync(toAdd);
+  return { linked: added };
 }
 
 /** @deprecated — use syncCatalogTradingBoxesFromCatalogSync(program, "us") */

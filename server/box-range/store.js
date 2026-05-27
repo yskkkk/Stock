@@ -335,6 +335,89 @@ export function upsertDetectedBoxSync(detected) {
 }
 
 /**
+ * 카탈로그 박스 배치 등록 — 스토어를 한 번만 읽고 한 번만 씀.
+ * 파일 I/O가 박스 수에 무관하게 1회로 고정되어 누락 없이 전체 등록 가능.
+ * @param {Array<Parameters<typeof upsertDetectedBoxSync>[0]>} detectedList
+ * @returns {{ added: number; skipped: number }}
+ */
+export function batchUpsertCatalogBoxesSync(detectedList) {
+  if (!detectedList.length) return { added: 0, skipped: 0 };
+  const store = readBoxRangeStoreSync();
+  const now = Date.now();
+  let added = 0, skipped = 0;
+
+  for (const detected of detectedList) {
+    const sym = String(detected.symbol ?? "").trim().toUpperCase();
+    const tf = String(detected.timeframe ?? "").trim();
+    const crypto =
+      detected.catalogMarket === "crypto" ||
+      (!detected.catalogMarket && sym.endsWith("-USDT"));
+    if (crypto && !isBoxRangeCryptoHtfManaged(sym, tf)) { skipped++; continue; }
+
+    const catalogId = String(detected.catalogBoxId ?? "").trim() || null;
+    if (catalogId) {
+      const dup = store.boxes.find(
+        (b) => b.programId === detected.programId && b.catalogBoxId === catalogId && b.state !== "closed",
+      );
+      if (dup) { skipped++; continue; }
+      const overlap = store.boxes.find(
+        (b) =>
+          b.programId === detected.programId &&
+          b.symbol === sym &&
+          b.timeframe === tf &&
+          b.state !== "closed" &&
+          b.catalogBoxId &&
+          b.catalogBoxId !== catalogId &&
+          Math.min(b.top, detected.top) / Math.max(b.bottom, detected.bottom) >= 0.97,
+      );
+      if (overlap) { skipped++; continue; }
+    }
+
+    store.boxes.push({
+      boxId: randomUUID(),
+      programId: detected.programId,
+      userId: String(detected.userId ?? "").trim(),
+      symbol: sym,
+      timeframe: tf,
+      top: detected.top,
+      bottom: detected.bottom,
+      mid: detected.mid,
+      leftTime: detected.leftTime,
+      rightTime: detected.rightTime,
+      state: "idle",
+      armedAtMs: null,
+      breakAtMs: null,
+      buyTradeId: null,
+      lotQty: 0,
+      entryPrice: null,
+      buyAtMs: null,
+      confirmingAtMs: null,
+      dipLow: null,
+      dead: false,
+      updatedAtMs: now,
+      catalogBoxId: catalogId,
+      catalogMarket:
+        detected.catalogMarket === "kr" ? "kr" :
+        detected.catalogMarket === "us" ? "us" :
+        detected.catalogMarket === "crypto" ? "crypto" : null,
+      tradeEligible: detected.tradeEligible !== false,
+      midNotifiedAtMs: null,
+    });
+    added++;
+  }
+
+  if (added > 0) {
+    if (store.boxes.length > 10000) {
+      store.boxes = store.boxes
+        .sort((a, b) => b.updatedAtMs - a.updatedAtMs)
+        .slice(0, 8000);
+    }
+    writeBoxRangeStoreSync(store);
+  }
+  return { added, skipped };
+}
+
+/**
  * @param {string} boxId
  * @param {Partial<BoxRangeRecord>} patch
  */
