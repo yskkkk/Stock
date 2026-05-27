@@ -10301,6 +10301,57 @@ html[data-theme="light"][data-light-palette="glass"] .app-live-trade-side-dock__
   background-color: #f2f5f9 !important;
 }
 
+.app-live-trade-side-dock__logout-popover {
+  width: min(13.5rem, calc(100vw - 5.5rem));
+  max-height: none;
+  padding: 0.62rem 0.72rem 0.68rem;
+}
+
+.app-live-trade-side-dock__logout-popover-lead {
+  margin: 0 0 0.55rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--text, #f1f5f9);
+}
+
+.app-live-trade-side-dock__logout-popover-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+}
+
+.app-live-trade-side-dock__logout-popover-btn {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--muted, #94a3b8);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.app-live-trade-side-dock__logout-popover-btn:hover:not(:disabled) {
+  color: var(--text, #f1f5f9);
+}
+
+.app-live-trade-side-dock__logout-popover-btn--danger {
+  color: var(--down, #f87171);
+}
+
+.app-live-trade-side-dock__logout-popover-btn--danger:hover:not(:disabled) {
+  color: color-mix(in srgb, var(--down, #f87171) 82%, #fff);
+}
+
+.app-live-trade-side-dock__logout-popover-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .app-live-trade-side-dock__auth-popover .input,
 .app-live-trade-side-dock__auth-popover textarea {
   backdrop-filter: none;

@@ -67,6 +67,7 @@ import {
 } from "../lib/liveTradeDockPanelWidth";
 
 const AUTH_POPOVER_GAP_PX = 9;
+const LOGOUT_CONFIRM_POPOVER_ID = "app-live-trade-side-dock-logout-popover";
 
 function isUsablePointerClientX(clientX: number): boolean {
   if (!Number.isFinite(clientX)) return false;
@@ -344,6 +345,8 @@ export default function AppLiveTradeSideDock({
 }) {
   const { user, authChecked, registrationOpen } = useLiveTradeAuth();
   const [authPopoverOpen, setAuthPopoverOpen] = useState(false);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const [logoutBusy, setLogoutBusy] = useState(false);
   const [authPopoverStyle, setAuthPopoverStyle] = useState<CSSProperties>({});
   const authAnchorRef = useRef<HTMLSpanElement>(null);
   const ctx = useLiveTradeCardSidePanelOptional();
@@ -623,7 +626,10 @@ export default function AppLiveTradeSideDock({
     ],
   );
 
-  const handleLogout = useCallback(() => {
+  const handleLogoutConfirm = useCallback(() => {
+    if (logoutBusy) return;
+    setLogoutConfirmOpen(false);
+    setLogoutBusy(true);
     void logoutAuth()
       .then(() => {
         invalidateLiveTradingPrefetch();
@@ -634,8 +640,9 @@ export default function AppLiveTradeSideDock({
         persistOpen(false);
         clearDockPanelWidthCss();
       })
-      .catch(() => {});
-  }, [closePanel, persistOpen]);
+      .catch(() => {})
+      .finally(() => setLogoutBusy(false));
+  }, [closePanel, persistOpen, logoutBusy]);
 
   const onDockAuthChange = useCallback(() => {
     invalidateLiveTradingPrefetch();
@@ -651,7 +658,7 @@ export default function AppLiveTradeSideDock({
   }, []);
 
   useLayoutEffect(() => {
-    if (!authPopoverOpen) return;
+    if (!authPopoverOpen && !logoutConfirmOpen) return;
     syncAuthPopoverPosition();
     window.addEventListener("resize", syncAuthPopoverPosition);
     window.addEventListener("scroll", syncAuthPopoverPosition, true);
@@ -659,10 +666,10 @@ export default function AppLiveTradeSideDock({
       window.removeEventListener("resize", syncAuthPopoverPosition);
       window.removeEventListener("scroll", syncAuthPopoverPosition, true);
     };
-  }, [authPopoverOpen, open, resizing, syncAuthPopoverPosition]);
+  }, [authPopoverOpen, logoutConfirmOpen, open, resizing, syncAuthPopoverPosition]);
 
   useEffect(() => {
-    if (!authPopoverOpen) return;
+    if (!authPopoverOpen && !logoutConfirmOpen) return;
     const onDoc = (e: MouseEvent) => {
       const t = e.target as Node;
       if (authAnchorRef.current?.contains(t)) return;
@@ -673,10 +680,19 @@ export default function AppLiveTradeSideDock({
       ) {
         return;
       }
+      if (
+        document.getElementById(LOGOUT_CONFIRM_POPOVER_ID)?.contains(t)
+      ) {
+        return;
+      }
       setAuthPopoverOpen(false);
+      setLogoutConfirmOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setAuthPopoverOpen(false);
+      if (e.key === "Escape") {
+        setAuthPopoverOpen(false);
+        setLogoutConfirmOpen(false);
+      }
     };
     document.addEventListener("mousedown", onDoc);
     document.addEventListener("keydown", onKey);
@@ -684,10 +700,14 @@ export default function AppLiveTradeSideDock({
       document.removeEventListener("mousedown", onDoc);
       document.removeEventListener("keydown", onKey);
     };
-  }, [authPopoverOpen]);
+  }, [authPopoverOpen, logoutConfirmOpen]);
 
   useEffect(() => {
-    if (user) setAuthPopoverOpen(false);
+    if (user) {
+      setAuthPopoverOpen(false);
+      return;
+    }
+    setLogoutConfirmOpen(false);
   }, [user]);
 
   useLayoutEffect(() => {
@@ -851,14 +871,18 @@ export default function AppLiveTradeSideDock({
   if (!wide || !authChecked) return null;
 
   const authRailSelected = user
-    ? open && activeId === LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth
+    ? logoutConfirmOpen ||
+      (open && activeId === LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth)
     : authPopoverOpen;
   const onAuthRailClick = () => {
-    if (user) handleLogout();
-    else {
-      setAuthPopoverOpen((v) => !v);
+    if (user) {
       window.dispatchEvent(new CustomEvent("live-trade-dock-close-api-popover"));
+      setLogoutConfirmOpen((v) => !v);
+      return;
     }
+    setLogoutConfirmOpen(false);
+    setAuthPopoverOpen((v) => !v);
+    window.dispatchEvent(new CustomEvent("live-trade-dock-close-api-popover"));
   };
 
   const dockRail = (
@@ -977,18 +1001,23 @@ export default function AppLiveTradeSideDock({
                   : "app-live-trade-side-dock__rail-btn app-live-trade-side-dock__rail-btn--auth"
             }
             aria-selected={authRailSelected}
-            aria-expanded={!user ? authPopoverOpen : undefined}
-            aria-haspopup={!user ? "dialog" : undefined}
+            aria-expanded={
+              user ? logoutConfirmOpen : authPopoverOpen ? true : undefined
+            }
+            aria-haspopup="dialog"
             aria-controls={
-              !user && authPopoverOpen
-                ? "app-live-trade-side-dock-auth-popover"
-                : user
-                  ? "app-live-trade-side-dock-panel"
-                  : undefined
+              user && logoutConfirmOpen
+                ? LOGOUT_CONFIRM_POPOVER_ID
+                : !user && authPopoverOpen
+                  ? "app-live-trade-side-dock-auth-popover"
+                  : user
+                    ? "app-live-trade-side-dock-panel"
+                    : undefined
             }
             title={
               user ? ko.app.liveTradeAuthLogout : ko.app.liveTradeSideDockRailAuth
             }
+            disabled={logoutBusy}
             onClick={onAuthRailClick}
           >
             <span className="app-live-trade-side-dock__rail-glyph" aria-hidden>
@@ -999,6 +1028,44 @@ export default function AppLiveTradeSideDock({
             </span>
           </button>
         </span>
+        {user && logoutConfirmOpen
+          ? createPortal(
+              <div
+                id={LOGOUT_CONFIRM_POPOVER_ID}
+                className="app-live-trade-side-dock__auth-popover app-live-trade-side-dock__logout-popover app-live-trade-side-dock__auth-popover--portal"
+                style={authPopoverStyle}
+                role="dialog"
+                aria-labelledby="app-live-trade-side-dock-logout-title"
+                onMouseDown={(ev) => ev.stopPropagation()}
+              >
+                <p
+                  id="app-live-trade-side-dock-logout-title"
+                  className="app-live-trade-side-dock__logout-popover-lead"
+                >
+                  {ko.app.liveTradeAuthLogoutConfirm}
+                </p>
+                <div className="app-live-trade-side-dock__logout-popover-actions">
+                  <button
+                    type="button"
+                    className="app-live-trade-side-dock__logout-popover-btn app-live-trade-side-dock__logout-popover-btn--danger"
+                    disabled={logoutBusy}
+                    onClick={handleLogoutConfirm}
+                  >
+                    {ko.app.liveTradeAuthLogout}
+                  </button>
+                  <button
+                    type="button"
+                    className="app-live-trade-side-dock__logout-popover-btn"
+                    disabled={logoutBusy}
+                    onClick={() => setLogoutConfirmOpen(false)}
+                  >
+                    {ko.app.liveTradeCancelEdit}
+                  </button>
+                </div>
+              </div>,
+              document.body,
+            )
+          : null}
         {!user && authPopoverOpen
           ? createPortal(
               <div
