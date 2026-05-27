@@ -4,6 +4,7 @@ import {
   BOX_RANGE_CATALOG_DIR_LEGACY,
   BOX_RANGE_CATALOG_DIR_PINE,
   BOX_RANGE_CATALOG_DIR_PRO,
+  BOX_RANGE_CATALOG_DIR_V2,
   BOX_RANGE_CRYPTO_HTF_SYMBOLS,
   BOX_RANGE_CRYPTO_HTF_TIMEFRAMES,
   isBoxRangeCryptoHtfManaged,
@@ -34,6 +35,7 @@ export function purgeBoxRangeCryptoOutsideHtfSymbolsSync() {
   const roots = [
     resolveCatalogRootDir(),
     BOX_RANGE_CATALOG_DIR_PRO,
+    BOX_RANGE_CATALOG_DIR_V2,
     BOX_RANGE_CATALOG_DIR_PINE,
     BOX_RANGE_CATALOG_DIR_LEGACY,
   ].filter((v, i, a) => a.indexOf(v) === i);
