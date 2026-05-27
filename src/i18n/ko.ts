@@ -318,6 +318,7 @@ export const ko = {
     boxRangeTabNoSymbols: "유효 박스가 있는 종목이 없습니다. 스캔 후 다시 확인하세요.",
     boxRangeTabLogin: "박스권 목록은 로그인 후 이용할 수 있습니다.",
     boxRangeTabValidCount: "유효 박스",
+    boxRangeTabBackList: "종목 목록",
     boxRangeTabBoxPeriod: "박스 기간",
     boxRangeTabExpectTp: "예상 익절(중심→상단)",
     boxRangeTabExpectSl: "예상 손절(중심→하단)",

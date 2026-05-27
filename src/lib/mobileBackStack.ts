@@ -16,6 +16,7 @@ export const MOBILE_BACK_PRIORITY = {
   LIVE_TRADE_EDIT: 140,
   CHART_DRAW: 130,
   TAB: 50,
+  BOX_RANGE_SYMBOL: 42,
   WORKSPACE_PICK: 40,
 } as const;
 

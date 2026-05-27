@@ -126,3 +126,170 @@
     padding: 0 0.25rem;
   }
 }
+
+/* Capacitor 앱 전용 — 모바일 웹 브라우저(@media 900px) 레이아웃은 유지 */
+
+.app--capacitor.app--box-range .app__shell > .workspace.box-range-tab--native {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  gap: 0.4rem;
+  padding-bottom: max(0.35rem, env(safe-area-inset-bottom, 0px));
+}
+
+.app--capacitor .box-range-tab--native .box-range-tab__head--compact {
+  flex: 0 0 auto;
+  padding: 0.45rem 0.55rem;
+  gap: 0.35rem;
+}
+
+.app--capacitor .box-range-tab--native .box-range-tab__head-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.app--capacitor .box-range-tab--native .box-range-tab__market-segment {
+  width: 100%;
+  min-width: 0;
+}
+
+.app--capacitor .box-range-tab--native .box-range-tab__market-segment .live-trading-tab__segment-btn {
+  min-height: 2.1rem;
+  font-size: 0.68rem;
+  padding: 0.28rem 0.25rem;
+}
+
+.app--capacitor .box-range-tab--native .box-range-tab__layout {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: none;
+  height: auto;
+  padding: 0.5rem 0.55rem;
+  gap: 0.45rem;
+}
+
+.app--capacitor .box-range-tab--native:not(.box-range-tab--native-detail) .box-range-tab__logos {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.app--capacitor .box-range-tab--native-detail .box-range-tab__logos {
+  display: none;
+}
+
+.app--capacitor .box-range-tab--native:not(.box-range-tab--native-detail) .box-range-tab__detail {
+  display: none;
+}
+
+.app--capacitor .box-range-tab--native-detail .box-range-tab__detail {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.app--capacitor .box-range-tab__detail-toolbar {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
+  margin-bottom: 0.15rem;
+}
+
+.app--capacitor .box-range-tab__native-back {
+  align-self: flex-start;
+  min-height: 2.25rem;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.78rem;
+}
+
+.app--capacitor .box-range-tab__title--toolbar {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.3;
+}
+
+.app--capacitor .box-range-tab__tf-tabs {
+  display: flex;
+  gap: 0.35rem;
+  margin: 0 0 0.45rem;
+}
+
+.app--capacitor .box-range-tab__tf-tab {
+  flex: 1;
+  min-height: 2.35rem;
+  border-radius: 8px;
+  border: 1px solid var(--card-border, rgba(148, 163, 184, 0.2));
+  background: var(--surface, #222830);
+  color: var(--text-dim, #a8b0bc);
+  font-size: 0.8rem;
+  font-weight: 600;
+  touch-action: manipulation;
+}
+
+.app--capacitor .box-range-tab__tf-tab--on {
+  color: var(--accent, #8fb5aa);
+  border-color: var(--accent-border, rgba(143, 181, 170, 0.32));
+  background: var(--accent-dim, rgba(143, 181, 170, 0.14));
+}
+
+.app--capacitor .box-range-tab--native .box-range-tab__card-grid {
+  gap: 0.45rem;
+}
+
+.app--capacitor .box-range-tab__price-card--compact {
+  padding: 0.55rem 0.62rem;
+}
+
+.app--capacitor .box-range-tab__price-card--compact .box-range-tab__price-card-head {
+  margin-bottom: 0.35rem;
+}
+
+.app--capacitor .box-range-tab__price-card--compact .box-range-tab__price-card-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem 0.55rem;
+}
+
+.app--capacitor .box-range-tab__price-card--compact .box-range-tab__price-card-row--span {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.app--capacitor .box-range-tab__price-card--compact .box-range-tab__price-card-row--span dt {
+  flex: 0 0 auto;
+}
+
+.app--capacitor .box-range-tab__price-card--compact .box-range-tab__price-card-row--span dd {
+  text-align: right;
+  font-size: 0.78rem;
+}
+
+.app--capacitor .box-range-tab__price-card--compact .box-range-tab__price-card-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.12rem;
+}
+
+.app--capacitor .box-range-tab__price-card--compact .box-range-tab__price-card-val {
+  font-size: 0.8rem;
+}
+
+.app--capacitor .box-range-tab__pick-hint {
+  margin: 0.25rem 0;
+  font-size: 0.82rem;
+}

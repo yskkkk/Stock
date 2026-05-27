@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMobileBackHandler } from "../hooks/useMobileBackHandler";
+import { isNativeApp } from "../lib/isNativeApp";
+import { MOBILE_BACK_PRIORITY } from "../lib/mobileBackStack";
 import {
   fetchBoxRangeCatalog,
   fetchBoxRangeCatalogSymbol,
@@ -224,17 +227,27 @@ function boxPctFromMid(mid: number, target: number): number | null {
   return ((target - mid) / mid) * 100;
 }
 
+const BOX_TF_ORDER = ["1h", "4h", "1d"] as const;
+
 function BoxRangePriceCard({
   box,
   market,
+  compact = false,
 }: {
   box: BoxRangeCatalogBox;
   market: BoxRangeCatalogMarket;
+  compact?: boolean;
 }) {
   const tpPct = boxPctFromMid(box.mid, box.top);
   const slPct = boxPctFromMid(box.mid, box.bottom);
   return (
-    <article className="box-range-tab__price-card">
+    <article
+      className={
+        compact
+          ? "box-range-tab__price-card box-range-tab__price-card--compact"
+          : "box-range-tab__price-card"
+      }
+    >
       <header className="box-range-tab__price-card-head">
         <span className="box-range-tab__price-card-tf">{box.timeframe}</span>
         <span className="box-range-tab__price-card-tag">
@@ -282,24 +295,29 @@ function BoxRangePriceCard({
             ) : null}
           </dd>
         </div>
-        <div className="box-range-tab__price-card-row box-range-tab__price-card-row--hint">
-          <dt>{ko.app.boxRangeTabExpectTp}</dt>
-          <dd className="box-range-tab__price-card-val box-range-tab__price-card-val--up">
-            {tpPct != null ? formatPercent(tpPct) : "—"}
-          </dd>
-        </div>
-        <div className="box-range-tab__price-card-row box-range-tab__price-card-row--hint">
-          <dt>{ko.app.boxRangeTabExpectSl}</dt>
-          <dd className="box-range-tab__price-card-val box-range-tab__price-card-val--down">
-            {slPct != null ? formatPercent(slPct) : "—"}
-          </dd>
-        </div>
+        {!compact ? (
+          <>
+            <div className="box-range-tab__price-card-row box-range-tab__price-card-row--hint">
+              <dt>{ko.app.boxRangeTabExpectTp}</dt>
+              <dd className="box-range-tab__price-card-val box-range-tab__price-card-val--up">
+                {tpPct != null ? formatPercent(tpPct) : "—"}
+              </dd>
+            </div>
+            <div className="box-range-tab__price-card-row box-range-tab__price-card-row--hint">
+              <dt>{ko.app.boxRangeTabExpectSl}</dt>
+              <dd className="box-range-tab__price-card-val box-range-tab__price-card-val--down">
+                {slPct != null ? formatPercent(slPct) : "—"}
+              </dd>
+            </div>
+          </>
+        ) : null}
       </dl>
     </article>
   );
 }
 
 export default function BoxRangeTab() {
+  const nativeUi = isNativeApp();
   const { user, authChecked, registrationOpen } = useLiveTradeAuth();
   const [catalogMarket, setCatalogMarket] =
     useState<BoxRangeCatalogMarket>("us");
@@ -311,6 +329,13 @@ export default function BoxRangeTab() {
   const [detail, setDetail] = useState<BoxRangeSymbolCatalog | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
+  const [nativeTf, setNativeTf] = useState<"1h" | "4h" | "1d">("1h");
+
+  useMobileBackHandler(
+    nativeUi && Boolean(selected),
+    MOBILE_BACK_PRIORITY.BOX_RANGE_SYMBOL,
+    () => setSelected(null),
+  );
 
   const loadIndex = useCallback(async () => {
     setLoadErr(null);
@@ -379,6 +404,32 @@ export default function BoxRangeTab() {
     [detail],
   );
 
+  const nativeTfOptions = useMemo(() => {
+    const set = new Set(validBoxes.map((b) => b.timeframe));
+    return BOX_TF_ORDER.filter((tf) => set.has(tf));
+  }, [validBoxes]);
+
+  useEffect(() => {
+    if (!nativeUi || nativeTfOptions.length === 0) return;
+    if (!nativeTfOptions.includes(nativeTf)) {
+      setNativeTf(nativeTfOptions[0]);
+    }
+  }, [nativeUi, nativeTfOptions, nativeTf]);
+
+  const boxesToShow = useMemo(() => {
+    if (!nativeUi) return validBoxes;
+    return validBoxes.filter((b) => b.timeframe === nativeTf);
+  }, [nativeUi, validBoxes, nativeTf]);
+
+  const rootClass = [
+    "workspace",
+    "box-range-tab",
+    nativeUi ? "box-range-tab--native" : "",
+    nativeUi && selected ? "box-range-tab--native-detail" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   if (!authChecked) {
     return (
       <div className="workspace box-range-tab">
@@ -401,9 +452,18 @@ export default function BoxRangeTab() {
   }
 
   return (
-    <div className="workspace box-range-tab">
-      <header className="box-range-tab__head card">
-        <p className="box-range-tab__hint">{ko.app.boxRangeTabHint}</p>
+    <div className={rootClass}>
+      <header
+        className={
+          nativeUi
+            ? "box-range-tab__head card box-range-tab__head--compact"
+            : "box-range-tab__head card"
+        }
+      >
+        {!nativeUi ? (
+          <p className="box-range-tab__hint">{ko.app.boxRangeTabHint}</p>
+        ) : null}
+        <div className="box-range-tab__head-controls">
         <div
           className="box-range-tab__market-segment live-trading-tab__segment"
           role="group"
@@ -480,6 +540,7 @@ export default function BoxRangeTab() {
             Legacy
           </button>
         </div>
+        </div>
         {loadErr ? (
           <p className="live-trading-tab__err" role="alert">
             {loadErr}
@@ -488,6 +549,7 @@ export default function BoxRangeTab() {
       </header>
 
       <div className="box-range-tab__layout card">
+        {(!nativeUi || !selected) && (
         <aside className="box-range-tab__logos" aria-label={ko.app.tabBoxRange}>
           <label className="box-range-tab__search-wrap">
             <span className="box-range-tab__search-icon" aria-hidden>
@@ -531,39 +593,92 @@ export default function BoxRangeTab() {
             </ul>
           )}
         </aside>
+        )}
 
+        {(selected || !nativeUi) && (
         <section className="box-range-tab__detail" aria-live="polite">
           {!selected ? (
-            null
+            nativeUi ? null : (
+              <p className="box-range-tab__empty box-range-tab__pick-hint">
+                {ko.app.boxRangeTabPickSymbol}
+              </p>
+            )
           ) : !detail ? (
             <DockPanelCenterLoading label={ko.app.boxRangeCatalogLoading} />
           ) : (
             <>
-              <h2 className="box-range-tab__title">
-                {detail.name}{" "}
-                <span className="box-range-tab__title-sym">
-                  ({displayTicker(detail.symbol, catalogMarket)})
-                </span>
-              </h2>
+              {nativeUi ? (
+                <div className="box-range-tab__detail-toolbar">
+                  <button
+                    type="button"
+                    className="box-range-tab__native-back btn btn--ghost"
+                    onClick={() => setSelected(null)}
+                  >
+                    ← {ko.app.boxRangeTabBackList}
+                  </button>
+                  <h2 className="box-range-tab__title box-range-tab__title--toolbar">
+                    {displaySymbolLabel(
+                      detail.symbol,
+                      detail.name,
+                      catalogMarket,
+                    )}
+                  </h2>
+                </div>
+              ) : (
+                <h2 className="box-range-tab__title">
+                  {detail.name}{" "}
+                  <span className="box-range-tab__title-sym">
+                    ({displayTicker(detail.symbol, catalogMarket)})
+                  </span>
+                </h2>
+              )}
               {detail.scanError ? (
                 <p className="live-trading-tab__err">{detail.scanError}</p>
               ) : null}
               {validBoxes.length === 0 ? (
                 <p className="box-range-tab__empty">{ko.app.boxRangeTabNoValid}</p>
               ) : (
-                <div className="box-range-tab__card-grid">
-                  {validBoxes.map((b) => (
-                    <BoxRangePriceCard
-                      key={b.catalogBoxId}
-                      box={b}
-                      market={catalogMarket}
-                    />
-                  ))}
-                </div>
+                <>
+                  {nativeUi && nativeTfOptions.length > 1 ? (
+                    <div
+                      className="box-range-tab__tf-tabs"
+                      role="tablist"
+                      aria-label="시간봉"
+                    >
+                      {nativeTfOptions.map((tf) => (
+                        <button
+                          key={tf}
+                          type="button"
+                          role="tab"
+                          className={
+                            nativeTf === tf
+                              ? "box-range-tab__tf-tab box-range-tab__tf-tab--on"
+                              : "box-range-tab__tf-tab"
+                          }
+                          aria-selected={nativeTf === tf}
+                          onClick={() => setNativeTf(tf)}
+                        >
+                          {tf}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                  <div className="box-range-tab__card-grid">
+                    {boxesToShow.map((b) => (
+                      <BoxRangePriceCard
+                        key={b.catalogBoxId}
+                        box={b}
+                        market={catalogMarket}
+                        compact={nativeUi}
+                      />
+                    ))}
+                  </div>
+                </>
               )}
             </>
           )}
         </section>
+        )}
       </div>
     </div>
   );
