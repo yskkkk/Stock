@@ -346,6 +346,7 @@ if sz > 0
     for i = 0 to sz - 1
         float top = array.get(tops, i)
         float bottom = array.get(bottoms, i)
+        float midPx = array.get(mids, i)
         bool trig = array.get(triggered, i)
         float entry = array.get(entryPrices, i)
         bool isDead = array.get(dead, i)
@@ -357,12 +358,12 @@ if sz > 0
             if not isDead and not trig and low <= bottom
                 array.set(triggered, i, true)
                 array.set(dipLows, i, low)
-            if not isDead and trig and close >= bottom and uptrend
-                array.set(entryPrices, i, bottom)
+            if not isDead and trig and close >= midPx and uptrend
+                array.set(entryPrices, i, midPx)
                 array.set(firstBuyTs, i, time)
                 total_trades += 1
                 sig_buy := true
-                label.new(bar_index, bottom, "매수", style=label.style_label_up, color=color.green, textcolor=color.white, size=size.small)
+                label.new(bar_index, midPx, "매수", style=label.style_label_up, color=color.green, textcolor=color.white, size=size.small)
         else
             if high >= top
                 float ret = entry > 0 ? ((top - entry) / entry) * 100.0 : 0.0
