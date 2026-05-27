@@ -250,6 +250,8 @@ export default function LiveTradeRegisteredProgramCard({
     const subline = [model?.name ?? p.modelId, markets]
       .filter(Boolean)
       .join(" · ");
+    const isRunning =
+      displayStatus === "sim" || displayStatus === "armed";
     return (
       <article
         className={[
@@ -257,6 +259,9 @@ export default function LiveTradeRegisteredProgramCard({
           `live-trading-tab__program--${displayStatus}`,
           "live-trading-tab__program--card",
           "live-trading-tab__program--pickable",
+          isRunning
+            ? "live-trading-tab__program--running"
+            : "live-trading-tab__program--idle",
           selected ? "live-trading-tab__program--selected" : "",
         ]
           .filter(Boolean)
