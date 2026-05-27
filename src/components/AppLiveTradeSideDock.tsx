@@ -105,25 +105,10 @@ function isScrollableY(el: HTMLElement): boolean {
   return el.scrollHeight > el.clientHeight + 2;
 }
 
-/** 펼친 도크 왼쪽 패널 — 단일 스크롤 루트(탭 본문 host) */
-function findDockPanelScrollRoot(dock: HTMLElement): HTMLElement | null {
-  return dock.querySelector<HTMLElement>(
-    ".live-trading-tab__card-tabs-host:not(.live-trading-tab__card-tabs-host--idle)",
-  );
-}
-
 function applyScrollDelta(el: HTMLElement, delta: number): void {
   if (delta === 0) return;
   const max = el.scrollHeight - el.clientHeight;
   el.scrollTop = Math.max(0, Math.min(max, el.scrollTop + delta));
-}
-
-/** 펼친 도크 패널 — 본문 host만 스크롤(중첩 영역 무시) */
-function applyDockPanelWheelScroll(dock: HTMLElement, e: WheelEvent): void {
-  const delta = wheelDeltaY(e);
-  if (delta === 0) return;
-  const root = findDockPanelScrollRoot(dock);
-  if (root) applyScrollDelta(root, delta);
 }
 
 function isWheelInDockPanel(dock: HTMLElement | null, e: WheelEvent): boolean {
@@ -291,7 +276,7 @@ export default function AppLiveTradeSideDock({
   feedbackRef,
   feedbackActive = false,
   portalSource = null,
-  pageScrollRef: _pageScrollRef = null,
+  pageScrollRef = null,
 }: {
   feedbackRef?: RefObject<FeedbackCornerHandle | null>;
   feedbackActive?: boolean;
@@ -751,11 +736,13 @@ export default function AppLiveTradeSideDock({
       const open = openRef.current;
 
       if (open && dock && isWheelInDockPanel(dock, e) && !isWheelInDockRail(e)) {
-        const panelRoot = findDockPanelScrollRoot(dock);
-        if (panelRoot && isScrollableY(panelRoot)) {
+        const pageScroll =
+          pageScrollRef?.current ??
+          document.querySelector<HTMLElement>(".app__scroll");
+        if (pageScroll) {
           e.preventDefault();
           e.stopPropagation();
-          applyDockPanelWheelScroll(dock, e);
+          applyScrollDelta(pageScroll, wheelDeltaY(e));
         }
         return;
       }
@@ -772,7 +759,7 @@ export default function AppLiveTradeSideDock({
 
     window.addEventListener("wheel", onWheel, { passive: false, capture: true });
     return () => window.removeEventListener("wheel", onWheel, { capture: true });
-  }, [wide, authChecked]);
+  }, [wide, authChecked, pageScrollRef]);
 
   useNestedVerticalScroll(
     railScrollRef,
