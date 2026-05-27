@@ -134,7 +134,7 @@ import type {
   StockPick,
   MarketIndexItem,
   TelegramSentItem,
-  type AppTab,
+  AppTab,
 } from "./types";
 
 export type { AppTab };
