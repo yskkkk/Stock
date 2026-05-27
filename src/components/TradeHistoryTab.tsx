@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import type { LiveTradeHolding } from "../api";
 import LiveAccountTradesMainPanel from "./LiveAccountTradesMainPanel";
-import LiveTradeHistoryScenarioTabs from "./LiveTradeHistoryScenarioTabs";
 import {
   LIVE_TRADE_DOCK_ACCOUNT_PROVIDER_EVENT,
   readDockAccountProvider,
@@ -43,11 +42,6 @@ export default function TradeHistoryTab({
 
   return (
     <div className="workspace trade-history-workspace">
-      <LiveTradeHistoryScenarioTabs
-        value={scenario}
-        onChange={setScenario}
-        className="trade-history-workspace__scenario-tabs"
-      />
       <LiveAccountTradesMainPanel
         scenario={scenario}
         onOpenHoldingChart={onOpenHoldingChart}
