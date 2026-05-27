@@ -243,6 +243,20 @@ export function upsertDetectedBoxSync(detected) {
     );
     if (dup) return dup;
   }
+  // 카탈로그 간 가격대 중복 체크 (PRO·V2 이중 등록 방지)
+  if (catalogId) {
+    const priceOverlap = store.boxes.find(
+      (b) =>
+        b.programId === detected.programId &&
+        b.symbol === detected.symbol &&
+        b.timeframe === detected.timeframe &&
+        b.state !== "closed" &&
+        b.catalogBoxId &&
+        b.catalogBoxId !== catalogId &&
+        Math.min(b.top, detected.top) / Math.max(b.bottom, detected.bottom) >= 0.97,
+    );
+    if (priceOverlap) return priceOverlap;
+  }
   const same = store.boxes.filter(
     (b) =>
       b.programId === detected.programId &&
@@ -311,10 +325,10 @@ export function upsertDetectedBoxSync(detected) {
     midNotifiedAtMs: null,
   };
   store.boxes.push(box);
-  if (store.boxes.length > 800) {
+  if (store.boxes.length > 10000) {
     store.boxes = store.boxes
       .sort((a, b) => b.updatedAtMs - a.updatedAtMs)
-      .slice(0, 600);
+      .slice(0, 8000);
   }
   writeBoxRangeStoreSync(store);
   return box;

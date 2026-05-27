@@ -19,8 +19,8 @@ import {
 } from "./constants.js";
 
 const MAX_NEW_SLOTS_PER_TICK = (() => {
-  const n = Number(process.env.STOCK_BOX_RANGE_CATALOG_SLOTS_PER_TICK ?? 20);
-  return Number.isFinite(n) && n >= 1 ? Math.min(n, 100) : 20;
+  const n = Number(process.env.STOCK_BOX_RANGE_CATALOG_SLOTS_PER_TICK ?? 500);
+  return Number.isFinite(n) && n >= 1 ? Math.min(n, 5000) : 500;
 })();
 
 /**

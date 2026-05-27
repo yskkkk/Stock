@@ -172,14 +172,28 @@ function parseChartResult(symbol, result, displayInterval, yahooInterval, aggreg
   const meta = result.meta ?? {};
   const timestamps = result.timestamp ?? [];
   const q = result.indicators?.quote?.[0] ?? {};
-  const raw = timestamps.map((ts, i) => ({
-    time: ts,
-    open: q.open?.[i],
-    high: q.high?.[i],
-    low: q.low?.[i],
-    close: q.close?.[i],
-    volume: q.volume?.[i] ?? 0,
-  }));
+  const adjCloseArr = result.indicators?.adjclose?.[0]?.adjclose ?? [];
+  const raw = timestamps.map((ts, i) => {
+    const rawClose = q.close?.[i];
+    const adjClose = adjCloseArr[i];
+    // 분할 조정 비율 적용 — adjclose가 있을 때 OHLC 전체를 동일 비율로 스케일
+    const ratio =
+      typeof adjClose === "number" &&
+      Number.isFinite(adjClose) &&
+      typeof rawClose === "number" &&
+      Number.isFinite(rawClose) &&
+      rawClose > 0
+        ? adjClose / rawClose
+        : 1;
+    return {
+      time: ts,
+      open:  typeof q.open?.[i]  === "number" ? q.open[i]  * ratio : q.open?.[i],
+      high:  typeof q.high?.[i]  === "number" ? q.high[i]  * ratio : q.high?.[i],
+      low:   typeof q.low?.[i]   === "number" ? q.low[i]   * ratio : q.low?.[i],
+      close: typeof rawClose     === "number" ? rawClose    * ratio : rawClose,
+      volume: q.volume?.[i] ?? 0,
+    };
+  });
 
   const candles = normalizeCandles(raw, yahooInterval, aggregate ?? 1);
   const { price, change, changePercent } = computeDailyChange(
