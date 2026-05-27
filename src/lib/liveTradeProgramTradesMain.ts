@@ -10,6 +10,9 @@ export type LiveTradeProgramTradesMainDetail = {
 export const LIVE_TRADE_PROGRAM_TRADES_MAIN_EVENT =
   "ystock-live-trade-program-trades-main";
 
+export const LIVE_TRADE_PROGRAM_TRADES_MAIN_CLEAR_EVENT =
+  "ystock-live-trade-program-trades-main-clear";
+
 const PENDING_KEY = "ystock-live-trade-program-trades-main";
 
 export function historyScenarioForProgram(
@@ -75,4 +78,16 @@ export function readLiveTradeProgramTradesMainEvent(
   e: Event,
 ): LiveTradeProgramTradesMainDetail | undefined {
   return (e as CustomEvent<LiveTradeProgramTradesMainDetail>).detail;
+}
+
+export function dispatchLiveTradeProgramTradesMainClear(): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.removeItem(PENDING_KEY);
+  } catch {
+    /* ignore */
+  }
+  window.dispatchEvent(
+    new CustomEvent(LIVE_TRADE_PROGRAM_TRADES_MAIN_CLEAR_EVENT),
+  );
 }

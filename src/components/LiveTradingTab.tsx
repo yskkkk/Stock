@@ -50,7 +50,9 @@ import LiveTradeProgramTradesMainWorkspace from "./LiveTradeProgramTradesMainWor
 import {
   consumePendingLiveTradeProgramTradesMain,
   dispatchLiveTradeProgramTradesMain,
+  dispatchLiveTradeProgramTradesMainClear,
   historyScenarioForProgram,
+  LIVE_TRADE_PROGRAM_TRADES_MAIN_CLEAR_EVENT,
   LIVE_TRADE_PROGRAM_TRADES_MAIN_EVENT,
   readLiveTradeProgramTradesMainEvent,
   type LiveTradeProgramTradesMainDetail,
@@ -261,6 +263,9 @@ export default function LiveTradingTab({
     useState<LiveTradeProgramTradesMainDetail | null>(() =>
       !portalSourceOnly ? consumePendingLiveTradeProgramTradesMain() : null,
     );
+  const [selectedProgramId, setSelectedProgramId] = useState<string | null>(
+    () => consumePendingLiveTradeProgramTradesMain()?.programId ?? null,
+  );
   const sidePanel = useLiveTradeCardSidePanelOptional();
   const polledStatus = useLiveTradingStatusPoll();
   const adminViewUserId = adminView?.userId?.trim() || null;
@@ -333,20 +338,34 @@ export default function LiveTradingTab({
   }, [reload]);
 
   useEffect(() => {
-    if (portalSourceOnly) return;
     const onProgramTradesMain = (e: Event) => {
       const detail = readLiveTradeProgramTradesMainEvent(e);
-      if (detail?.programId) setMainProgramTrades(detail);
+      if (!detail?.programId) return;
+      setSelectedProgramId(detail.programId);
+      if (!portalSourceOnly) setMainProgramTrades(detail);
+    };
+    const onClear = () => {
+      setSelectedProgramId(null);
+      if (!portalSourceOnly) setMainProgramTrades(null);
     };
     window.addEventListener(
       LIVE_TRADE_PROGRAM_TRADES_MAIN_EVENT,
       onProgramTradesMain,
     );
-    return () =>
+    window.addEventListener(
+      LIVE_TRADE_PROGRAM_TRADES_MAIN_CLEAR_EVENT,
+      onClear,
+    );
+    return () => {
       window.removeEventListener(
         LIVE_TRADE_PROGRAM_TRADES_MAIN_EVENT,
         onProgramTradesMain,
       );
+      window.removeEventListener(
+        LIVE_TRADE_PROGRAM_TRADES_MAIN_CLEAR_EVENT,
+        onClear,
+      );
+    };
   }, [portalSourceOnly]);
 
   useEffect(() => {
@@ -836,11 +855,12 @@ export default function LiveTradingTab({
                       onArmLane={(lane) => void handleArmLane(p.id, lane)}
                       onEdit={() => loadProgramToForm(p)}
                       onDelete={() => void handleDelete(p.id, p.name)}
-                      onOpenTrades={
+                      onSelect={
                         portalSourceOnly
                           ? () => openProgramTradesInMain(p)
                           : undefined
                       }
+                      selected={selectedProgramId === p.id}
                       deleting={deletingProgramId === p.id}
                       readOnly={adminReadOnly}
                     />
@@ -995,7 +1015,11 @@ export default function LiveTradingTab({
                   ?.totalReturnPct
               }
               adminViewUserId={adminReadOnly ? adminViewUserId : null}
-              onClose={() => setMainProgramTrades(null)}
+              onClose={() => {
+                setMainProgramTrades(null);
+                setSelectedProgramId(null);
+                dispatchLiveTradeProgramTradesMainClear();
+              }}
             />
           ) : null}
 

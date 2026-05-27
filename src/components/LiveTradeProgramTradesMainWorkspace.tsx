@@ -1,6 +1,9 @@
 import LiveTradeTradesHistoryPanel from "./LiveTradeTradesHistoryPanel";
 import { liveTradeHistoryScenarioSub } from "./LiveTradeHistoryScenarioTabs";
-import type { LiveTradeProgramTradesMainDetail } from "../lib/liveTradeProgramTradesMain";
+import {
+  dispatchLiveTradeProgramTradesMainClear,
+  type LiveTradeProgramTradesMainDetail,
+} from "../lib/liveTradeProgramTradesMain";
 import { ko } from "../i18n/ko";
 
 export default function LiveTradeProgramTradesMainWorkspace({
@@ -33,7 +36,10 @@ export default function LiveTradeProgramTradesMainWorkspace({
         <button
           type="button"
           className="btn btn--ghost btn--sm live-trade-program-trades-main__close"
-          onClick={onClose}
+          onClick={() => {
+            dispatchLiveTradeProgramTradesMainClear();
+            onClose();
+          }}
         >
           {ko.app.liveTradeCardModalClose}
         </button>

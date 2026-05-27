@@ -88,7 +88,8 @@ export default function LiveTradeRegisteredProgramCard({
   onArmLane,
   onEdit,
   onDelete,
-  onOpenTrades,
+  onSelect,
+  selected = false,
   deleting = false,
   readOnly = false,
   cardLayout = false,
@@ -108,10 +109,12 @@ export default function LiveTradeRegisteredProgramCard({
   onArmLane: (lane: LiveTradeArmLane) => void;
   onEdit: () => void;
   onDelete: () => void;
-  onOpenTrades?: () => void;
+  /** 도크 카드 클릭 — 좌측 거래내역 */
+  onSelect?: () => void;
+  selected?: boolean;
   deleting?: boolean;
   readOnly?: boolean;
-  /** 도크 프로그램 탭 — 카드 그리드 */
+  /** 도크 프로그램 탭 — 컴팩트 카드 */
   cardLayout?: boolean;
 }) {
   const isBoxRange = p.modelId === BOX_RANGE_MODEL_ID;
@@ -154,95 +157,20 @@ export default function LiveTradeRegisteredProgramCard({
     [armLaneOptions, showArmLaneButton],
   );
 
-  if (deleting) {
-    return (
-      <article
-        className={`live-trading-tab__program live-trading-tab__program--${displayStatus} live-trading-tab__program--deleting`}
-        aria-busy="true"
-      >
-        <div className="live-trading-tab__program-deleting" role="status" aria-live="polite">
-          <div className="spinner" aria-hidden />
-          <span>{ko.app.liveTradeDeletingProgram}</span>
-        </div>
-      </article>
-    );
-  }
+  const returnLabel =
+    p.status === "sim" || displayStatus === "sim"
+      ? ko.app.liveTradeTotalReturn
+      : isBoxRange
+        ? ko.app.liveTradeCumulativeReturn
+        : ko.app.liveTradeCurrentReturn;
 
-  return (
-    <article
-      className={[
-        "live-trading-tab__program",
-        `live-trading-tab__program--${displayStatus}`,
-        cardLayout ? "live-trading-tab__program--card" : "",
-      ]
-        .filter(Boolean)
-        .join(" ")}
-    >
-      <div className="live-trading-tab__program-head">
-        <strong>{p.name}</strong>
-        <span className={`live-trading-tab__badge live-trading-tab__badge--${displayStatus}`}>
-          {statusLabel(displayStatus)}
-        </span>
-      </div>
-      <p className="live-trading-tab__program-meta">
-        {ko.app.liveTradeFieldModel}: {model?.name ?? p.modelId}
-      </p>
-      {markets ? (
-        <p className="live-trading-tab__program-meta">
-          {ko.app.liveTradeFieldMarkets}: {markets}
-          {!isBoxRange ? (
-            <>
-              {" "}
-              · {ko.app.liveTradeMinScoreShort}{" "}
-              {Math.round(p.minScoreRatio * 100)}%
-            </>
-          ) : null}
-        </p>
-      ) : null}
-      {amountLine ? (
-        <p className="live-trading-tab__program-meta">{amountLine}</p>
-      ) : null}
-      <p className="live-trading-tab__program-meta">
-        {p.status === "sim" || displayStatus === "sim"
-          ? ko.app.liveTradeTotalReturn
-          : isBoxRange
-            ? ko.app.liveTradeCumulativeReturn
-            : ko.app.liveTradeCurrentReturn}
-        :{" "}
-        <span className={returnClass}>{formatPercent(returnPct ?? undefined)}</span>
-      </p>
-      {showProgramRunError(p, holdingCount) ? (
-        <p className="live-trading-tab__program-err" role="alert">
-          {p.lastError}
-        </p>
-      ) : null}
-      <p className="live-trading-tab__program-ts">
-        {p.status === "armed" && p.armedAtMs
-          ? `${ko.app.liveTradeArmedAt}: ${formatTs(p.armedAtMs)}`
-          : null}
-        {p.lastRunAtMs
-          ? `${p.status === "armed" && p.armedAtMs ? " · " : ""}${ko.app.liveTradeLastRun}: ${formatTs(p.lastRunAtMs)}`
-          : null}
-      </p>
-      {!readOnly ? (
-      <div
-        className={
-          cardLayout
-            ? "live-trading-tab__program-actions live-trading-tab__program-actions--card"
-            : "live-trading-tab__program-actions"
-        }
-      >
-        {onOpenTrades ? (
-          <button
-            type="button"
-            className="btn btn--secondary btn--sm live-trading-tab__program-trades-btn"
-            disabled={busy}
-            onClick={onOpenTrades}
-          >
-            {ko.app.liveTradeProgramsTabTrades}
-          </button>
-        ) : null}
-        {p.status === "sim" ? (
+  const stopCardActionBubble = (e: { stopPropagation: () => void }) => {
+    e.stopPropagation();
+  };
+
+  const actionButtons = !readOnly ? (
+    <>
+      {p.status === "sim" ? (
           <button
             type="button"
             className="btn btn--secondary btn--sm"
@@ -301,7 +229,144 @@ export default function LiveTradeRegisteredProgramCard({
         >
           {ko.app.liveTradeDelete}
         </button>
+    </>
+  ) : null;
+
+  if (deleting) {
+    return (
+      <article
+        className={`live-trading-tab__program live-trading-tab__program--${displayStatus} live-trading-tab__program--deleting`}
+        aria-busy="true"
+      >
+        <div className="live-trading-tab__program-deleting" role="status" aria-live="polite">
+          <div className="spinner" aria-hidden />
+          <span>{ko.app.liveTradeDeletingProgram}</span>
+        </div>
+      </article>
+    );
+  }
+
+  if (cardLayout) {
+    const subline = [model?.name ?? p.modelId, markets]
+      .filter(Boolean)
+      .join(" · ");
+    return (
+      <article
+        className={[
+          "live-trading-tab__program",
+          `live-trading-tab__program--${displayStatus}`,
+          "live-trading-tab__program--card",
+          "live-trading-tab__program--pickable",
+          selected ? "live-trading-tab__program--selected" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        onClick={onSelect}
+        onKeyDown={
+          onSelect
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onSelect();
+                }
+              }
+            : undefined
+        }
+        tabIndex={onSelect ? 0 : undefined}
+        aria-current={selected ? "true" : undefined}
+        title={ko.app.liveTradeProgramsTabTrades}
+      >
+        <div className="live-trading-tab__program-card-body">
+          <div className="live-trading-tab__program-head live-trading-tab__program-head--card">
+            <strong>{p.name}</strong>
+            <span
+              className={`live-trading-tab__badge live-trading-tab__badge--${displayStatus}`}
+            >
+              {statusLabel(displayStatus)}
+            </span>
+          </div>
+          {subline ? (
+            <p className="live-trading-tab__program-card-sub">{subline}</p>
+          ) : null}
+          <p className="live-trading-tab__program-card-return">
+            <span className="live-trading-tab__program-card-return-label">
+              {returnLabel}
+            </span>{" "}
+            <span className={returnClass}>
+              {formatPercent(returnPct ?? undefined)}
+            </span>
+          </p>
+          {showProgramRunError(p, holdingCount) ? (
+            <p className="live-trading-tab__program-err" role="alert">
+              {p.lastError}
+            </p>
+          ) : null}
+        </div>
+        {actionButtons ? (
+          <div
+            className="live-trading-tab__program-actions live-trading-tab__program-actions--card"
+            onClick={stopCardActionBubble}
+            onKeyDown={stopCardActionBubble}
+          >
+            {actionButtons}
+          </div>
+        ) : null}
+      </article>
+    );
+  }
+
+  return (
+    <article
+      className={[
+        "live-trading-tab__program",
+        `live-trading-tab__program--${displayStatus}`,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <div className="live-trading-tab__program-head">
+        <strong>{p.name}</strong>
+        <span className={`live-trading-tab__badge live-trading-tab__badge--${displayStatus}`}>
+          {statusLabel(displayStatus)}
+        </span>
       </div>
+      <p className="live-trading-tab__program-meta">
+        {ko.app.liveTradeFieldModel}: {model?.name ?? p.modelId}
+      </p>
+      {markets ? (
+        <p className="live-trading-tab__program-meta">
+          {ko.app.liveTradeFieldMarkets}: {markets}
+          {!isBoxRange ? (
+            <>
+              {" "}
+              · {ko.app.liveTradeMinScoreShort}{" "}
+              {Math.round(p.minScoreRatio * 100)}%
+            </>
+          ) : null}
+        </p>
+      ) : null}
+      {amountLine ? (
+        <p className="live-trading-tab__program-meta">{amountLine}</p>
+      ) : null}
+      <p className="live-trading-tab__program-meta">
+        {returnLabel}:{" "}
+        <span className={returnClass}>{formatPercent(returnPct ?? undefined)}</span>
+      </p>
+      {showProgramRunError(p, holdingCount) ? (
+        <p className="live-trading-tab__program-err" role="alert">
+          {p.lastError}
+        </p>
+      ) : null}
+      <p className="live-trading-tab__program-ts">
+        {p.status === "armed" && p.armedAtMs
+          ? `${ko.app.liveTradeArmedAt}: ${formatTs(p.armedAtMs)}`
+          : null}
+        {p.lastRunAtMs
+          ? `${p.status === "armed" && p.armedAtMs ? " · " : ""}${ko.app.liveTradeLastRun}: ${formatTs(p.lastRunAtMs)}`
+          : null}
+      </p>
+      {actionButtons ? (
+        <div className="live-trading-tab__program-actions">{actionButtons}</div>
       ) : null}
     </article>
   );
