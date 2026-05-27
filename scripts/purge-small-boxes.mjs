@@ -8,8 +8,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { resolveServerDataDir } from "../server/data-path.js";
 
-const MIN = { "1h": 1, "4h": 3, "1d": 0 };
-const CATALOG_ROOT = "box-range-catalog-pro";
+const MIN = { "1h": 2, "4h": 3, "1d": 3 };
+const CATALOG_ROOTS = ["box-range-catalog-pro", "box-range-catalog-v2"];
 const MARKETS = ["us", "kr", "crypto"];
 
 function boxHeightPct(top, bottom) {
@@ -28,33 +28,36 @@ function keepCatalogBox(b) {
 }
 
 function purgeCatalog() {
-  const root = path.join(resolveServerDataDir(), CATALOG_ROOT);
   /** @type {{ files: number; boxesBefore: number; boxesAfter: number; removed: number }} */
   const out = { files: 0, boxesBefore: 0, boxesAfter: 0, removed: 0 };
-  for (const m of MARKETS) {
-    const dir = path.join(root, m);
-    if (!fs.existsSync(dir)) continue;
-    for (const f of fs.readdirSync(dir)) {
-      if (!f.endsWith(".json") || f === "_index.json") continue;
-      const p = path.join(dir, f);
-      let o;
-      try {
-        o = JSON.parse(fs.readFileSync(p, "utf8"));
-      } catch {
-        continue;
-      }
-      if (!o || !Array.isArray(o.boxes)) continue;
-      out.files += 1;
-      const before = o.boxes.length;
-      out.boxesBefore += before;
-      o.boxes = o.boxes.filter(keepCatalogBox);
-      const after = o.boxes.length;
-      out.boxesAfter += after;
-      out.removed += Math.max(0, before - after);
-      if (after !== before) {
-        const tmp = `${p}.tmp`;
-        fs.writeFileSync(tmp, JSON.stringify(o, null, 0), "utf8");
-        fs.renameSync(tmp, p);
+  for (const catalogRoot of CATALOG_ROOTS) {
+    const root = path.join(resolveServerDataDir(), catalogRoot);
+    if (!fs.existsSync(root)) continue;
+    for (const m of MARKETS) {
+      const dir = path.join(root, m);
+      if (!fs.existsSync(dir)) continue;
+      for (const f of fs.readdirSync(dir)) {
+        if (!f.endsWith(".json") || f === "_index.json") continue;
+        const p = path.join(dir, f);
+        let o;
+        try {
+          o = JSON.parse(fs.readFileSync(p, "utf8"));
+        } catch {
+          continue;
+        }
+        if (!o || !Array.isArray(o.boxes)) continue;
+        out.files += 1;
+        const before = o.boxes.length;
+        out.boxesBefore += before;
+        o.boxes = o.boxes.filter(keepCatalogBox);
+        const after = o.boxes.length;
+        out.boxesAfter += after;
+        out.removed += Math.max(0, before - after);
+        if (after !== before) {
+          const tmp = `${p}.tmp`;
+          fs.writeFileSync(tmp, JSON.stringify(o, null, 0), "utf8");
+          fs.renameSync(tmp, p);
+        }
       }
     }
   }

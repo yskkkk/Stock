@@ -12,11 +12,11 @@ export const BOX_RANGE_MAX_PCT = {
   "1d": 18,
 };
 
-/** TF별 최소 박스 폭(%) — 너무 작은 박스(잡음) 필터 */
+/** TF별 최소 박스 폭(%) — 수수료 손익분기(KR 0.75%, US 0.3%) 고려 */
 export const BOX_RANGE_MIN_PCT = {
-  "1h": 1,
+  "1h": 2,
   "4h": 3,
-  "1d": 0,
+  "1d": 3,
 };
 
 export const BOX_RANGE_MIN_BARS = 10;
