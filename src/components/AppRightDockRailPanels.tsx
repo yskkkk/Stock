@@ -1,5 +1,4 @@
 import { useCallback, useEffect, type ReactNode } from "react";
-import type { LiveTradeHolding } from "../api";
 import { useDesktopDockLayout } from "../hooks/useDesktopDockLayout";
 import { logoutAuth } from "../api";
 import { invalidateLiveTradingPrefetch } from "../lib/tabPrefetch";
@@ -7,7 +6,6 @@ import { refreshLiveTradingStatusNow } from "../hooks/useLiveTradingStatusPoll";
 import { ko } from "../i18n/ko";
 import DockLinkedAccountsPanel from "./DockLinkedAccountsPanel";
 import { LiveTradingRailCore } from "./LiveTradingLeftRailPanel";
-import TradeHistoryTab from "./TradeHistoryTab";
 import LiveTradeAuthPanel, {
   LIVE_TRADE_DOCK_RAIL_TAB_IDS,
   LiveTradeAuthSignedInCard,
@@ -34,13 +32,11 @@ function DockRailPanelPortal({
   );
 }
 
-/** 로그인·빗썸·거래내역·실매매 — 우측 도크 패널 본문(포털) */
+/** 로그인·빗썸·실매매 — 우측 도크 패널 본문(포털) */
 export default function AppRightDockRailPanels({
   onOpenLiveTrading,
-  onOpenHoldingChart,
 }: {
   onOpenLiveTrading?: () => void;
-  onOpenHoldingChart?: (h: LiveTradeHolding) => void;
 }) {
   const wide = useDesktopDockLayout();
   const { user, authChecked, registrationOpen } = useLiveTradeAuth();
@@ -56,7 +52,6 @@ export default function AppRightDockRailPanels({
     const cleanups = [
       registerSideTab(ids.auth, ko.app.liveTradeSideDockRailAuth),
       registerSideTab(ids.bithumb, ko.app.liveTradeDockRailAccountTab),
-      registerSideTab(ids.trades, ko.app.liveTradeSideDockRailTrades),
       registerSideTab(ids.liveRail, ko.app.liveTradeLeftRailTitle),
     ];
     return () => {
@@ -99,12 +94,6 @@ export default function AppRightDockRailPanels({
         <>
           <DockRailPanelPortal tabId={ids.bithumb}>
             <DockLinkedAccountsPanel />
-          </DockRailPanelPortal>
-          <DockRailPanelPortal tabId={ids.trades}>
-            <TradeHistoryTab
-              layout="dock"
-              onOpenHoldingChart={onOpenHoldingChart}
-            />
           </DockRailPanelPortal>
           <DockRailPanelPortal tabId={ids.liveRail}>
             <LiveTradingRailCore

@@ -1124,10 +1124,7 @@ export default function App() {
   const showEarningsViewportRail = desktopDockLayout && appTab !== "ops";
 
   useEffect(() => {
-    const onTradeHistoryTab = () => {
-      if (showLiveTradeDockPortals) return;
-      setAppTab("tradeHistory");
-    };
+    const onTradeHistoryTab = () => setAppTab("tradeHistory");
     window.addEventListener(
       LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT,
       onTradeHistoryTab,
@@ -1137,7 +1134,7 @@ export default function App() {
         LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT,
         onTradeHistoryTab,
       );
-  }, [showLiveTradeDockPortals]);
+  }, []);
   return (
     <LiveTradeCardSidePanelProvider>
     <div
@@ -1461,7 +1458,7 @@ export default function App() {
         />
       ) : appTab === "recommendations" ? (
         <RecommendationsTab onOpenPick={handleSelect} />
-      ) : appTab === "tradeHistory" && !showLiveTradeDockPortals ? (
+      ) : appTab === "tradeHistory" ? (
         <TradeHistoryTab onOpenHoldingChart={handleLiveTradeChart} />
       ) : appTab === "boxRange" ? (
         <BoxRangeTab />
@@ -2095,12 +2092,12 @@ export default function App() {
           <>
             <AppRightDockRailPanels
               onOpenLiveTrading={openLiveTradingProgram}
-              onOpenHoldingChart={handleLiveTradeChart}
             />
             <AppLiveTradeSideDock
               pageScrollRef={appScrollRef}
               feedbackRef={feedbackRef}
               feedbackActive={footerFeedbackKind != null}
+              tradeHistoryMainActive={appTab === "tradeHistory"}
               portalSource={
                 showLiveTradeDockPortals ? (
                   <LiveTradingTab

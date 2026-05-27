@@ -1,9 +1,8 @@
-import { dispatchLiveTradeDockOpenTrades } from "./liveTradeDockEvents";
 import type { LiveTradeTradesExchange } from "./liveTradeTradesWorkspace";
 
 export type { LiveTradeTradesExchange };
 
-/** 좁은 화면 — 메인 «거래내역» 탭. 넓은 화면은 도크 `LIVE_TRADE_DOCK_OPEN_TRADES_EVENT` */
+/** 메인 «거래내역» — 데스크톱은 우측 레일(프로그램 아래)에서도 동일 이벤트 */
 export const LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT =
   "ystock-navigate-trade-history-tab";
 
@@ -65,7 +64,6 @@ export function navigateToTradeHistoryTab(
 ): void {
   if (typeof window === "undefined") return;
   dispatchDockAccountProvider(exchange);
-  dispatchLiveTradeDockOpenTrades();
   window.dispatchEvent(
     new CustomEvent<LiveTradeTradesExchange>(
       LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT,

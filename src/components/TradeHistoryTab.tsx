@@ -16,12 +16,10 @@ function scenarioFromDockExchange(
   return ex === "toss" ? "live-toss" : "live-bithumb";
 }
 
-/** 거래내역 — 메인 탭 또는 우측 도크 패널 */
+/** 거래내역 — 메인 영역 */
 export default function TradeHistoryTab({
-  layout = "main",
   onOpenHoldingChart,
 }: {
-  layout?: "main" | "dock";
   onOpenHoldingChart?: (h: LiveTradeHolding) => void;
 }) {
   const [scenario, setScenario] = useState<LiveTradeHistoryScenario>(() =>
@@ -44,13 +42,7 @@ export default function TradeHistoryTab({
   }, []);
 
   return (
-    <div
-      className={
-        layout === "dock"
-          ? "workspace trade-history-workspace trade-history-workspace--dock"
-          : "workspace trade-history-workspace"
-      }
-    >
+    <div className="workspace trade-history-workspace">
       <LiveTradeHistoryScenarioTabs
         value={scenario}
         onChange={setScenario}

@@ -4901,19 +4901,6 @@ html[data-theme="light"] .live-trading-tab__program-actions .btn:hover:not(:disa
   box-sizing: border-box;
 }
 
-.live-trading-tab__card-tabs-host .trade-history-workspace--dock {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  height: 100%;
-}
-
-.live-trading-tab__card-tabs-host .trade-history-workspace--dock .trade-history-main-workspace__body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
-}
-
 .trade-history-workspace .live-trade-trades-workspace__title {
   font-size: 0.88rem;
 }

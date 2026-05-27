@@ -34,7 +34,6 @@ import { ko } from "../i18n/ko";
 import {
   LIVE_TRADE_DOCK_AFTER_FORM_SAVE_EVENT,
   LIVE_TRADE_DOCK_OPEN_EVENT,
-  LIVE_TRADE_DOCK_OPEN_TRADES_EVENT,
   LIVE_TRADE_DOCK_TOGGLE_EVENT,
   dispatchLiveTradeDockOpenForm,
 } from "../lib/liveTradeDockEvents";
@@ -332,6 +331,7 @@ export default function AppLiveTradeSideDock({
   feedbackActive = false,
   portalSource = null,
   pageScrollRef = null,
+  tradeHistoryMainActive = false,
 }: {
   feedbackRef?: RefObject<FeedbackCornerHandle | null>;
   feedbackActive?: boolean;
@@ -339,6 +339,8 @@ export default function AppLiveTradeSideDock({
   portalSource?: ReactNode;
   /** 메인 페이지 스크롤(`.app__scroll`) — fixed 도크 휠 연동 */
   pageScrollRef?: RefObject<HTMLDivElement | null> | null;
+  /** 왼쪽 메인에 거래내역 표시 중 */
+  tradeHistoryMainActive?: boolean;
 }) {
   const { user, authChecked, registrationOpen } = useLiveTradeAuth();
   const [authPopoverOpen, setAuthPopoverOpen] = useState(false);
@@ -516,39 +518,14 @@ export default function AppLiveTradeSideDock({
       );
   }, [openPanel, persistOpen, beginDockPanelOpenAnimation]);
 
-  const openTradesDockPanel = useCallback(() => {
-    if (!openPanel) return;
-    const titles = defaultLiveTradeSideTabTitles();
-    const id = LIVE_TRADE_DOCK_RAIL_TAB_IDS.trades;
-    openPanel(id, titles[id] ?? ko.app.liveTradeSideDockRailTrades);
-    if (!openRef.current) {
-      persistOpen(true);
-      beginDockPanelOpenAnimation();
-    } else {
-      applyDockPanelWidthCss(panelWidthPx);
-    }
-  }, [
-    openPanel,
-    persistOpen,
-    beginDockPanelOpenAnimation,
-    panelWidthPx,
-  ]);
-
-  useEffect(() => {
-    const onOpenTrades = () => openTradesDockPanel();
-    window.addEventListener(LIVE_TRADE_DOCK_OPEN_TRADES_EVENT, onOpenTrades);
-    window.addEventListener(
-      LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT,
-      onOpenTrades,
+  const openTradeHistoryInMain = useCallback(() => {
+    closePanel?.();
+    window.dispatchEvent(
+      new CustomEvent(LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT, {
+        detail: accountRailProvider,
+      }),
     );
-    return () => {
-      window.removeEventListener(LIVE_TRADE_DOCK_OPEN_TRADES_EVENT, onOpenTrades);
-      window.removeEventListener(
-        LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT,
-        onOpenTrades,
-      );
-    };
-  }, [openTradesDockPanel]);
+  }, [closePanel, accountRailProvider]);
 
   useEffect(() => {
     const onProvider = (e: Event) => {
@@ -600,6 +577,10 @@ export default function AppLiveTradeSideDock({
 
   const onRailTab = useCallback(
     (id: string, title: string) => {
+      if (id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.trades) {
+        openTradeHistoryInMain();
+        return;
+      }
       if (!openPanel) return;
       openPanel(id, title);
       if (!openRef.current) {
@@ -637,6 +618,8 @@ export default function AppLiveTradeSideDock({
       beginDockPanelOpenAnimation,
       panelWidthPx,
       accountRailProvider,
+      openTradeHistoryInMain,
+      closePanel,
     ],
   );
 
@@ -910,7 +893,10 @@ export default function AppLiveTradeSideDock({
       >
       <div className="app-live-trade-side-dock__rail-tabs">
         {railTabs.map((tab) => {
-          const selected = open && activeId === tab.id;
+          const isTradesRail = tab.id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.trades;
+          const selected = isTradesRail
+            ? tradeHistoryMainActive
+            : open && activeId === tab.id;
           const isAccountTab = tab.id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb;
           const { glyph, label, subLabel, stacked } = railTabShort(
             tab.id,

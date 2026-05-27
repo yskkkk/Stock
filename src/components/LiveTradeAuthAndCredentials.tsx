@@ -176,11 +176,11 @@ export const LIVE_TRADE_DOCK_RAIL_TAB_IDS = {
 const LIVE_TRADE_CARD_TAB_ORDER = [
   LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth,
   LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb,
-  LIVE_TRADE_DOCK_RAIL_TAB_IDS.trades,
   LIVE_TRADE_DOCK_RAIL_TAB_IDS.liveRail,
   "activity",
   "form",
   "programs",
+  LIVE_TRADE_DOCK_RAIL_TAB_IDS.trades,
 ] as const;
 
 export function defaultLiveTradeSideTabTitles(): Record<string, string> {

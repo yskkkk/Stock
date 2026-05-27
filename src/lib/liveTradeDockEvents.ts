@@ -14,15 +14,6 @@ export function dispatchLiveTradeDockOpen() {
   window.dispatchEvent(new CustomEvent(LIVE_TRADE_DOCK_OPEN_EVENT));
 }
 
-/** 우측 도크 «거래내역» 패널 */
-export const LIVE_TRADE_DOCK_OPEN_TRADES_EVENT =
-  "ystock-live-trade-dock-open-trades";
-
-export function dispatchLiveTradeDockOpenTrades(): void {
-  if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent(LIVE_TRADE_DOCK_OPEN_TRADES_EVENT));
-}
-
 /** 도크 «+» — 새 프로그램 폼 초기화 */
 export const LIVE_TRADE_DOCK_OPEN_FORM_EVENT = "ystock-live-trade-dock-open-form";
 
