@@ -4229,6 +4229,15 @@ html[data-theme="light"] .live-trading-tab__program-actions .btn:hover:not(:disa
   min-width: 58rem;
 }
 
+.live-sim-run__table--trades th,
+.live-sim-run__table--trades td {
+  vertical-align: middle;
+}
+
+.live-sim-run__table--trades .live-symbol-with-icon {
+  align-items: center;
+}
+
 .live-sim-run__table--trades .live-sim-run__side {
   white-space: nowrap;
   word-break: keep-all;
@@ -4242,11 +4251,22 @@ html[data-theme="light"] .live-trading-tab__program-actions .btn:hover:not(:disa
   width: 1%;
 }
 
+.live-sim-run__table--trades th:last-child,
 .live-sim-run__table--trades td.live-portfolio__prog {
-  max-width: 14rem;
+  width: 6.5rem;
+  min-width: 6.5rem;
+  max-width: 9rem;
+}
+
+.live-sim-run__table--trades td.live-portfolio__prog {
+  display: table-cell;
+  vertical-align: middle;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-size: inherit;
+  color: inherit;
+  line-height: 1.35;
 }
 
 .live-trade-history {
