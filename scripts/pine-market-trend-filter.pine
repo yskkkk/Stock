@@ -1,0 +1,156 @@
+//@version=5
+indicator("Market Trend Filter — 박스권 시장추세 필터", overlay=true, max_lines_count=5)
+
+// ════════════════════════════════════════════════════════════
+// 개요
+// ────────────────────────────────────────────────────────────
+// 박스권 하단 이탈·복귀 신호가 진짜 지지인지 단순 추가 하락인지
+// 판단하는 보조 지표.
+//
+// 원리: 기준지수(KOSPI / S&P500 / BTC)가 일봉 MA 위에 있을 때만
+//       박스권 매수 신호를 허용. MA 아래면 이탈 = 하락 추세 추종
+//       가능성이 높으므로 대기.
+//
+// 사용법:
+//   1) 매매하려는 종목 차트에 이 인디케이터를 추가
+//   2) 우측 상단 테이블의 '박스권 매수' 항목 확인
+//      ✅ 매수 가능 → 박스권 하단 복귀 신호 사용
+//      🚫 대기    → 기준지수 MA 아래, 신호 무시
+//   3) 배경색으로도 즉시 확인 가능 (녹색=가능, 적색=대기)
+// ════════════════════════════════════════════════════════════
+
+// ── 설정 ────────────────────────────────────────────────────
+grp_market = "📊 시장 설정"
+market_type = input.string("auto", "시장 자동감지",
+  options=["auto", "kr", "us", "crypto"],
+  tooltip="auto: 티커명으로 자동 판단 (KS/KQ→KR, USDT/BTC/ETH→Crypto, 나머지→US)",
+  group=grp_market)
+
+grp_ma = "📈 추세 MA 설정"
+ma_fast   = input.int(20,  "단기 MA (일봉 기준)", minval=5,  maxval=100,  group=grp_ma)
+ma_slow   = input.int(60,  "장기 MA (일봉 기준)", minval=20, maxval=300,  group=grp_ma)
+use_slow  = input.bool(true, "장기 MA도 함께 확인 (AND 조건)", group=grp_ma,
+  tooltip="체크: 단기·장기 MA 모두 위여야 매수 가능 / 미체크: 단기 MA만 확인")
+
+grp_display = "🎨 표시 설정"
+show_bg      = input.bool(true,  "추세 배경색 표시",      group=grp_display)
+show_own_ma  = input.bool(true,  "현재 종목 20MA 표시",   group=grp_display)
+show_crosses = input.bool(true,  "추세 전환 신호 표시",   group=grp_display)
+bg_opacity   = input.int(95,     "배경 투명도 (0=진함)", minval=70, maxval=99, group=grp_display)
+
+// ── 기준지수 결정 ───────────────────────────────────────────
+ticker = syminfo.ticker
+is_kr     = market_type == "kr"     or (market_type == "auto" and (str.contains(ticker, ".KS") or str.contains(ticker, ".KQ") or str.contains(ticker, "KRX:")))
+is_crypto = market_type == "crypto" or (market_type == "auto" and (str.contains(ticker, "USDT") or str.contains(ticker, "BTC") or str.contains(ticker, "ETH") or str.contains(ticker, "SOL")))
+
+ref_symbol = is_kr ? "KRX:KOSPI" : is_crypto ? "BINANCE:BTCUSDT" : "SP:SPX"
+ref_label  = is_kr ? "KOSPI"     : is_crypto ? "BTC"              : "S&P500"
+
+// ── 기준지수 일봉 데이터 (현재 차트 TF와 무관하게 항상 일봉) ──
+[ref_close, ref_high, ref_low] = request.security(ref_symbol, "D",
+  [close, high, low], lookahead=barmerge.lookahead_off)
+
+ref_ma_fast = ta.sma(ref_close, ma_fast)
+ref_ma_slow = ta.sma(ref_close, ma_slow)
+
+above_fast = ref_close > ref_ma_fast
+above_slow = ref_close > ref_ma_slow
+trend_ok   = use_slow ? (above_fast and above_slow) : above_fast
+
+// 기준지수가 MA 대비 몇 % 위/아래
+dist_fast_pct = (ref_close - ref_ma_fast) / ref_ma_fast * 100
+dist_slow_pct = (ref_close - ref_ma_slow) / ref_ma_slow * 100
+
+// ── 추세 전환 감지 ──────────────────────────────────────────
+was_ok       = use_slow ? (ref_close[1] > ref_ma_fast[1] and ref_close[1] > ref_ma_slow[1])
+                        : ref_close[1] > ref_ma_fast[1]
+turned_bull  = trend_ok  and not was_ok
+turned_bear  = not trend_ok and was_ok
+
+// ── 현재 종목 MA (참고용) ──────────────────────────────────
+own_ma20 = ta.sma(close, 20)
+
+// ── 배경색 ─────────────────────────────────────────────────
+bgcolor(show_bg and trend_ok     ? color.new(color.green, bg_opacity) : na, title="매수 가능 배경")
+bgcolor(show_bg and not trend_ok ? color.new(color.red,   bg_opacity) : na, title="대기 배경")
+
+// ── 현재 종목 MA 라인 ──────────────────────────────────────
+plot(show_own_ma ? own_ma20 : na, "종목 20MA", color=color.new(color.orange, 40), linewidth=1)
+
+// ── 추세 전환 마커 ─────────────────────────────────────────
+plotshape(show_crosses and turned_bull, "추세 전환 ↑ (매수가능)",
+  shape.triangleup, location.belowbar, color.lime, size=size.small, text="추세↑")
+plotshape(show_crosses and turned_bear, "추세 전환 ↓ (대기)",
+  shape.triangledown, location.abovebar, color.red, size=size.small, text="추세↓")
+
+// ── 정보 테이블 ─────────────────────────────────────────────
+var table tbl = table.new(position.top_right, 2, 8,
+  bgcolor=color.new(color.black, 78),
+  border_color=color.new(color.gray, 60),
+  border_width=1,
+  frame_color=color.new(color.gray, 40),
+  frame_width=1)
+
+if barstate.islast
+    buy_ok_color = trend_ok ? color.lime : color.red
+    buy_ok_bg    = trend_ok ? color.new(color.green, 75) : color.new(color.red, 75)
+    buy_ok_text  = trend_ok ? "✅  매수 가능" : "🚫  대기"
+
+    // 헤더
+    table.cell(tbl, 0, 0, "Market Trend Filter",
+      text_color=color.white, bgcolor=color.new(color.navy, 55),
+      text_size=size.small, text_halign=text.align_left)
+    table.cell(tbl, 1, 0, ref_label,
+      text_color=color.white, bgcolor=color.new(color.navy, 55),
+      text_size=size.small, text_halign=text.align_right)
+
+    // 현재가
+    table.cell(tbl, 0, 1, "현재가", text_color=color.gray, text_size=size.small, text_halign=text.align_left)
+    table.cell(tbl, 1, 1, str.tostring(math.round(ref_close, 2)),
+      text_color=color.white, text_size=size.small, text_halign=text.align_right)
+
+    // 단기 MA
+    fast_sign = dist_fast_pct >= 0 ? "+" : ""
+    fast_col  = above_fast ? color.lime : color.red
+    table.cell(tbl, 0, 2, str.tostring(ma_fast) + "일 MA", text_color=color.gray, text_size=size.small, text_halign=text.align_left)
+    table.cell(tbl, 1, 2, str.tostring(math.round(ref_ma_fast, 2)) + "  (" + fast_sign + str.tostring(math.round(dist_fast_pct, 2)) + "%)",
+      text_color=fast_col, text_size=size.small, text_halign=text.align_right)
+
+    // 장기 MA (use_slow 일 때만 표시)
+    if use_slow
+        slow_sign = dist_slow_pct >= 0 ? "+" : ""
+        slow_col  = above_slow ? color.lime : color.red
+        table.cell(tbl, 0, 3, str.tostring(ma_slow) + "일 MA", text_color=color.gray, text_size=size.small, text_halign=text.align_left)
+        table.cell(tbl, 1, 3, str.tostring(math.round(ref_ma_slow, 2)) + "  (" + slow_sign + str.tostring(math.round(dist_slow_pct, 2)) + "%)",
+          text_color=slow_col, text_size=size.small, text_halign=text.align_right)
+    else
+        table.cell(tbl, 0, 3, "", text_size=size.tiny)
+        table.cell(tbl, 1, 3, "", text_size=size.tiny)
+
+    // 구분선
+    table.cell(tbl, 0, 4, "─────────────", text_color=color.new(color.gray, 60), text_size=size.tiny)
+    table.cell(tbl, 1, 4, "─────────────", text_color=color.new(color.gray, 60), text_size=size.tiny)
+
+    // 시장 상태
+    mkt_text = above_fast ? (above_slow or not use_slow ? "상승추세 🟢" : "단기만 상승") : "하락추세 🔴"
+    mkt_col  = trend_ok ? color.lime : color.red
+    table.cell(tbl, 0, 5, "시장 상태", text_color=color.gray, text_size=size.small, text_halign=text.align_left)
+    table.cell(tbl, 1, 5, mkt_text, text_color=mkt_col, text_size=size.small, text_halign=text.align_right)
+
+    // 빈 칸
+    table.cell(tbl, 0, 6, "", text_size=size.tiny)
+    table.cell(tbl, 1, 6, "", text_size=size.tiny)
+
+    // 박스권 신호 결론
+    table.cell(tbl, 0, 7, "박스권 매수",
+      text_color=color.white, bgcolor=buy_ok_bg, text_size=size.normal, text_halign=text.align_left)
+    table.cell(tbl, 1, 7, buy_ok_text,
+      text_color=color.white, bgcolor=buy_ok_bg, text_size=size.normal, text_halign=text.align_right)
+
+// ── 알림 ────────────────────────────────────────────────────
+alertcondition(turned_bull, "추세 전환 상승 (매수 가능)",
+  "{{ticker}} — " + ref_label + " 추세 전환: 박스권 매수 신호 활성화")
+alertcondition(turned_bear, "추세 전환 하락 (대기)",
+  "{{ticker}} — " + ref_label + " 추세 전환: 박스권 매수 신호 비활성화")
+alertcondition(turned_bull or turned_bear, "추세 전환 (양방향)",
+  "{{ticker}} — " + ref_label + " 추세 전환 감지")
