@@ -48,9 +48,6 @@ export function syncCatalogTradingBoxesFromCatalogSync(
       .filter(Boolean),
   );
 
-  // 최근 1년 이내 박스만 등록 (오래된 역사적 박스 제외)
-  const cutoffSec = Math.floor(Date.now() / 1000) - 365 * 86400;
-
   // 새로 등록할 박스를 전부 수집
   const toAdd = [];
   for (const row of symbols) {
@@ -61,7 +58,6 @@ export function syncCatalogTradingBoxesFromCatalogSync(
     for (const cb of eligible) {
       if (linkedIds.has(cb.catalogBoxId)) continue;
       if (market === "crypto" && !isBoxRangeCryptoHtfManaged(sym, cb.timeframe)) continue;
-      if (cb.rightTime < cutoffSec) continue; // 1년 초과 박스 제외
       toAdd.push({
         programId: program.id,
         userId: String(program.userId ?? "").trim(),

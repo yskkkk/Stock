@@ -12,6 +12,12 @@ function stateFilePath() {
   return path.join(resolveServerDataDir(), "box-range-state.json");
 }
 
+/** @type {{ boxes: BoxRangeRecord[] } | null} */
+let _storeCache = null;
+let _storeCacheMs = 0;
+let _storeFileMtimeMs = 0;
+const STORE_CACHE_TTL_MS = 1000;
+
 /**
  * @typedef {"idle"|"armed"|"confirming"|"in_position"|"closed"} BoxRangeState
  * @typedef {{
@@ -147,16 +153,40 @@ function normalizeBox(raw) {
 }
 
 export function readBoxRangeStoreSync() {
+  const now = Date.now();
+  if (_storeCache && now - _storeCacheMs < STORE_CACHE_TTL_MS) {
+    // mtime 체크로 외부 쓰기 감지
+    try {
+      const mtime = fs.statSync(stateFilePath()).mtimeMs;
+      if (mtime <= _storeFileMtimeMs) return _storeCache;
+    } catch {
+      return _storeCache;
+    }
+  }
   try {
     const file = stateFilePath();
-    if (!fs.existsSync(file)) return defaultStore();
+    if (!fs.existsSync(file)) {
+      _storeCache = defaultStore();
+      _storeCacheMs = now;
+      _storeFileMtimeMs = 0;
+      return _storeCache;
+    }
+    const stat = fs.statSync(file);
     const o = JSON.parse(fs.readFileSync(file, "utf8"));
-    if (!o || !Array.isArray(o.boxes)) return defaultStore();
-    return {
-      boxes: o.boxes.map(normalizeBox).filter(Boolean),
-    };
+    if (!o || !Array.isArray(o.boxes)) {
+      _storeCache = defaultStore();
+      _storeCacheMs = now;
+      _storeFileMtimeMs = stat.mtimeMs;
+      return _storeCache;
+    }
+    _storeCache = { boxes: o.boxes.map(normalizeBox).filter(Boolean) };
+    _storeCacheMs = now;
+    _storeFileMtimeMs = stat.mtimeMs;
+    return _storeCache;
   } catch {
-    return defaultStore();
+    _storeCache = defaultStore();
+    _storeCacheMs = now;
+    return _storeCache;
   }
 }
 
@@ -164,9 +194,24 @@ export function writeBoxRangeStoreSync(store) {
   const dir = resolveServerDataDir();
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const file = stateFilePath();
-  const tmp = `${file}.tmp`;
+  const tmp = `${file}.tmp.${process.pid}`;
   fs.writeFileSync(tmp, JSON.stringify(store, null, 0), "utf8");
-  fs.renameSync(tmp, file);
+  // Windows: EPERM/EBUSY when another process holds the file — retry up to 5 times
+  for (let i = 0; i < 5; i++) {
+    try {
+      fs.renameSync(tmp, file);
+      break;
+    } catch (e) {
+      if (i === 4) { try { fs.unlinkSync(tmp); } catch {} throw e; }
+      if (e.code !== "EPERM" && e.code !== "EBUSY") { try { fs.unlinkSync(tmp); } catch {} throw e; }
+      const deadline = Date.now() + 60;
+      while (Date.now() < deadline) {} // 60ms busy-wait
+    }
+  }
+  const mtime = fs.statSync(file).mtimeMs;
+  _storeCache = store;
+  _storeCacheMs = Date.now();
+  _storeFileMtimeMs = mtime;
 }
 
 /**
@@ -325,10 +370,10 @@ export function upsertDetectedBoxSync(detected) {
     midNotifiedAtMs: null,
   };
   store.boxes.push(box);
-  if (store.boxes.length > 10000) {
+  if (store.boxes.length > 50000) {
     store.boxes = store.boxes
       .sort((a, b) => b.updatedAtMs - a.updatedAtMs)
-      .slice(0, 8000);
+      .slice(0, 40000);
   }
   writeBoxRangeStoreSync(store);
   return box;
@@ -407,10 +452,10 @@ export function batchUpsertCatalogBoxesSync(detectedList) {
   }
 
   if (added > 0) {
-    if (store.boxes.length > 10000) {
+    if (store.boxes.length > 50000) {
       store.boxes = store.boxes
         .sort((a, b) => b.updatedAtMs - a.updatedAtMs)
-        .slice(0, 8000);
+        .slice(0, 40000);
     }
     writeBoxRangeStoreSync(store);
   }
