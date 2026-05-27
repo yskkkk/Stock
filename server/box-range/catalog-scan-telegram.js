@@ -42,6 +42,11 @@ function scanTelegramEnabled() {
   return String(process.env.STOCK_BOX_RANGE_SCAN_TELEGRAM ?? "1").trim() !== "0";
 }
 
+/** 현재가↔박스권 근접 알림 — 기본 OFF (STOCK_BOX_RANGE_NEAR_TELEGRAM=1 로만 발송) */
+function nearTelegramEnabled() {
+  return String(process.env.STOCK_BOX_RANGE_NEAR_TELEGRAM ?? "0").trim() === "1";
+}
+
 /**
  * @param {number} n
  * @param {CatalogMarket} market
@@ -212,29 +217,35 @@ export async function notifyCatalogScanTelegram(market, scanRun = {}) {
   const m = resolveCatalogMarket(market);
   const creds = resolveStockTelegramCreds();
   const summaryText = buildCatalogScanSummaryMessage(m, scanRun);
-  const nearHits = await collectNearPriceCatalogHits(m, NEAR_PCT);
-  const nearText = buildNearPriceMessage(m, nearHits);
 
   const ok1 = await sendTelegramMessage(summaryText, undefined, creds);
-  const ok2 = await sendTelegramMessage(nearText, undefined, creds);
+
+  let nearHits = [];
+  let ok2 = false;
+  if (nearTelegramEnabled()) {
+    nearHits = await collectNearPriceCatalogHits(m, NEAR_PCT);
+    const nearText = buildNearPriceMessage(m, nearHits);
+    ok2 = await sendTelegramMessage(nearText, undefined, creds);
+  }
 
   if (ok1 || ok2) {
     liveTradeLogInfo(
       "[box-range:scan-tg]",
       "sent",
       m,
-      `near=${nearHits.length}`,
-      `scan ok=${ok1} near=${ok2}`,
+      nearTelegramEnabled() ? `near=${nearHits.length}` : "near=off",
+      `scan ok=${ok1} near=${nearTelegramEnabled() ? ok2 : "skip"}`,
     );
   } else {
     liveTradeLogWarn("[box-range:scan-tg]", "send failed", m);
   }
 
   return {
-    ok: Boolean(ok1 && ok2),
+    ok: Boolean(ok1 && (!nearTelegramEnabled() || ok2)),
     market: m,
     nearCount: nearHits.length,
     summarySent: ok1,
     nearSent: ok2,
+    nearSkipped: !nearTelegramEnabled(),
   };
 }
