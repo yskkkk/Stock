@@ -39,7 +39,6 @@ import {
 } from "../lib/liveTradeDockEvents";
 import {
   dispatchLiveTradeDockProgramsPlain,
-  dispatchLiveTradePortfolioPanelTab,
   LIVE_TRADE_DOCK_OPEN_PORTFOLIO_EVENT,
 } from "../lib/liveTradePortfolioFocus";
 import {
@@ -286,14 +285,6 @@ function railTabShort(
   if (id === "activity") {
     return { glyph: "▶", label: ko.app.liveTradeSideDockRailActivity };
   }
-  if (id === "portfolio") {
-    return {
-      glyph: "₩",
-      label: ko.app.liveTradeSideDockRailPortfolio,
-      subLabel: ko.app.liveTradeDockRailPortfolioTrades,
-      stacked: true,
-    };
-  }
   if (id === "form") {
     return { glyph: <DockRailWebsiteIcon />, label: ko.app.liveTradeSideDockRailForm };
   }
@@ -333,7 +324,8 @@ export default function AppLiveTradeSideDock({
           title,
         }));
   const railTabs = allSideTabs.filter(
-    (t) => t.id !== LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth,
+    (t) =>
+      t.id !== LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth && t.id !== "portfolio",
   );
   const panel = ctx?.panel ?? null;
   const openPanel = ctx?.openPanel;
@@ -476,9 +468,12 @@ export default function AppLiveTradeSideDock({
   useEffect(() => {
     const onOpenPortfolio = () => {
       if (!openPanel) return;
-      dispatchLiveTradePortfolioPanelTab("trade");
       const titles = defaultLiveTradeSideTabTitles();
-      openPanel("portfolio", titles.portfolio ?? ko.app.liveTradePfTitle);
+      openPanel(
+        LIVE_TRADE_DOCK_RAIL_TAB_IDS.liveRail,
+        titles[LIVE_TRADE_DOCK_RAIL_TAB_IDS.liveRail] ??
+          ko.app.liveTradeLeftRailTitle,
+      );
       persistOpen(true);
       beginDockPanelOpenAnimation();
     };
@@ -566,8 +561,6 @@ export default function AppLiveTradeSideDock({
             detail: { provider: next },
           }),
         );
-      } else if (id === "portfolio") {
-        dispatchLiveTradePortfolioPanelTab("trade");
       } else if (id === "programs") {
         dispatchLiveTradeDockProgramsPlain();
       }

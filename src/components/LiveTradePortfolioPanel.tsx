@@ -727,7 +727,7 @@ export default function LiveTradePortfolioPanel({
         summary={collapsedSummary}
         className="live-portfolio live-portfolio--collapsible live-portfolio--sim-like"
         ariaLabel={ko.app.liveTradePfTitle}
-        sidePanelId="portfolio"
+        sidePanelId={selfOnly ? undefined : "portfolio"}
       >
       <header className="live-portfolio__head live-portfolio__head--in-card">
         {adminReadOnly ? (

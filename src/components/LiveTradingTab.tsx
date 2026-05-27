@@ -46,10 +46,6 @@ import {
   dispatchLiveTradeDockAfterFormSave,
 } from "../lib/liveTradeDockEvents";
 import { openAccountTrades } from "../lib/liveTradeDockAccount";
-import {
-  LIVE_TRADE_PORTFOLIO_PANEL_TAB_EVENT,
-  type LiveTradePortfolioPanelTab,
-} from "../lib/liveTradePortfolioFocus";
 import { invalidateLiveTradingPrefetch, peekLiveTradingPrefetch } from "../lib/tabPrefetch";
 import { formatPercent } from "../lib/format";
 import DockPanelCenterLoading from "./DockPanelCenterLoading";
@@ -262,24 +258,6 @@ export default function LiveTradingTab({
       user?.id &&
       user.id !== adminViewUserId,
   );
-
-  useEffect(() => {
-    if (!portalSourceOnly || !sidePanel?.openPanel) return;
-    const titles = defaultLiveTradeSideTabTitles();
-    const onPanelTab = (e: Event) => {
-      const tab = (e as CustomEvent<LiveTradePortfolioPanelTab>).detail;
-      if (tab === "trade") {
-        sidePanel.openPanel(
-          "portfolio",
-          titles.portfolio ?? ko.app.liveTradePfTitle,
-        );
-      }
-    };
-    window.addEventListener(LIVE_TRADE_PORTFOLIO_PANEL_TAB_EVENT, onPanelTab);
-    return () => {
-      window.removeEventListener(LIVE_TRADE_PORTFOLIO_PANEL_TAB_EVENT, onPanelTab);
-    };
-  }, [portalSourceOnly, sidePanel]);
 
   useEffect(() => {
     if (!portalSourceOnly) return;

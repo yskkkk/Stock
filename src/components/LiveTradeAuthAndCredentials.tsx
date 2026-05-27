@@ -176,7 +176,6 @@ const LIVE_TRADE_CARD_TAB_ORDER = [
   LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb,
   LIVE_TRADE_DOCK_RAIL_TAB_IDS.liveRail,
   "activity",
-  "portfolio",
   "form",
   "programs",
 ] as const;
@@ -187,7 +186,6 @@ export function defaultLiveTradeSideTabTitles(): Record<string, string> {
     [LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb]: ko.app.liveTradeDockRailAccountTab,
     [LIVE_TRADE_DOCK_RAIL_TAB_IDS.liveRail]: ko.app.liveTradeLeftRailTitle,
     activity: ko.app.liveTradeActivityTitle,
-    portfolio: ko.app.liveTradePfTitle,
     form: ko.app.liveTradeFormNew,
     programs: ko.app.liveTradeListTitle,
   };
@@ -301,7 +299,11 @@ export function LiveTradeCardSidePanelProvider({
   useEffect(() => {
     const onOpenPortfolio = () => {
       const titles = defaultLiveTradeSideTabTitles();
-      openPanel("portfolio", titles.portfolio ?? ko.app.liveTradePfTitle);
+      openPanel(
+        LIVE_TRADE_DOCK_RAIL_TAB_IDS.liveRail,
+        titles[LIVE_TRADE_DOCK_RAIL_TAB_IDS.liveRail] ??
+          ko.app.liveTradeLeftRailTitle,
+      );
     };
     window.addEventListener(LIVE_TRADE_DOCK_OPEN_PORTFOLIO_EVENT, onOpenPortfolio);
     return () =>
