@@ -125,6 +125,7 @@ export const ko = {
     liveTradePfTradesMainHint:
       "선택한 거래소 체결 내역은 왼쪽 영역에 표시됩니다.",
     liveTradeApiNotConnected: "API 연동되어 있지 않습니다.",
+    liveTradeApiConnectCta: "API 연동 열기",
     liveTradeSideDockRailTrades: "거래내역",
     liveTradeTradesPickExchange: "거래소를 선택하세요",
     liveTradeTradesWorkspaceBack: "거래소 선택",

@@ -20,7 +20,9 @@ import {
 } from "./LiveTradeHistoryScenarioTabs";
 import type { LiveTradeHistoryScenario } from "../lib/liveTradeHistoryScenario";
 import type { LiveTradeTradesExchange } from "../lib/liveTradeTradesWorkspace";
+import { useLiveTradingStatusPoll } from "../hooks/useLiveTradingStatusPoll";
 import { ko } from "../i18n/ko";
+import LiveTradeApiNotConnectedNotice from "./LiveTradeApiNotConnectedNotice";
 import { LiveTradeSymbolCellFromRecord } from "./LiveTradeSymbolCell";
 
 function formatTs(ms: number, withYear = false): string {
@@ -238,6 +240,19 @@ export default function LiveTradeTradesHistoryPanel({
       Boolean(programId?.trim()) ||
       Boolean(exchange) ||
       Boolean(scenario));
+  const status = useLiveTradingStatusPoll();
+  const liveExchange: LiveTradeTradesExchange | null =
+    scenario === "live-toss"
+      ? "toss"
+      : scenario === "live-bithumb"
+        ? "bithumb"
+        : exchange;
+  const apiReady =
+    liveExchange === "toss"
+      ? Boolean(status?.toss?.ready)
+      : liveExchange === "bithumb"
+        ? Boolean(status?.bithumb?.ready)
+        : true;
   const [trades, setTrades] = useState<LiveTradeRecord[]>([]);
   const [nextOlderEndDay, setNextOlderEndDay] = useState<string | null>(null);
   const [hasOlder, setHasOlder] = useState(false);
@@ -297,11 +312,19 @@ export default function LiveTradeTradesHistoryPanel({
   );
 
   useEffect(() => {
+    if (liveExchange && !apiReady) {
+      setTrades([]);
+      setNextOlderEndDay(null);
+      setHasOlder(false);
+      setLoading(false);
+      setErr(null);
+      return;
+    }
     setTrades([]);
     setNextOlderEndDay(null);
     setHasOlder(false);
     void fetchPage(null, false);
-  }, [fetchPage]);
+  }, [fetchPage, liveExchange, apiReady]);
 
   useEffect(() => {
     if (loadAll) return;
@@ -357,6 +380,22 @@ export default function LiveTradeTradesHistoryPanel({
         : null;
 
   const subNote = scenario ? liveTradeHistoryScenarioSub(scenario) : null;
+
+  if (liveExchange && !apiReady) {
+    return (
+      <section
+        className={[
+          "live-trade-history",
+          embedded ? "live-trade-history--embedded" : "",
+          workspaceMode ? "live-trade-history--workspace" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        <LiveTradeApiNotConnectedNotice exchange={liveExchange} />
+      </section>
+    );
+  }
 
   return (
     <section

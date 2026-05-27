@@ -7,6 +7,8 @@ import LiveTradeHistorySimSection from "./LiveTradeHistorySimSection";
 import LiveTradeTradesHistoryPanel from "./LiveTradeTradesHistoryPanel";
 import LiveAccountHoldingsTable from "./LiveAccountHoldingsTable";
 import { BithumbBrandMark, TossBrandMark } from "./ExchangeBrandMarks";
+import { useLiveTradingStatusPoll } from "../hooks/useLiveTradingStatusPoll";
+import LiveTradeApiNotConnectedNotice from "./LiveTradeApiNotConnectedNotice";
 import { useLiveTradeAuth } from "./LiveTradeAuthAndCredentials";
 import { liveTradeHistoryScenarioSub } from "./LiveTradeHistoryScenarioTabs";
 import { ko } from "../i18n/ko";
@@ -29,6 +31,13 @@ export default function LiveAccountTradesMainPanel({
         ? "bithumb"
         : null;
   const { user } = useLiveTradeAuth();
+  const status = useLiveTradingStatusPoll();
+  const apiReady =
+    exchange === "toss"
+      ? Boolean(status?.toss?.ready)
+      : exchange === "bithumb"
+        ? Boolean(status?.bithumb?.ready)
+        : true;
   const [portfolio, setPortfolio] = useState<LiveTradePortfolioResponse | null>(
     null,
   );
@@ -61,8 +70,14 @@ export default function LiveAccountTradesMainPanel({
       setPfLoading(false);
       return;
     }
+    if (!apiReady) {
+      setPortfolio(null);
+      setPfErr(null);
+      setPfLoading(false);
+      return;
+    }
     void loadPortfolio();
-  }, [loadPortfolio, scenario]);
+  }, [loadPortfolio, scenario, apiReady]);
 
   const title =
     scenario === "sim"
@@ -102,7 +117,9 @@ export default function LiveAccountTradesMainPanel({
       ) : null}
 
       <div className="trade-history-main-workspace__body">
-        {showBalance ? (
+        {showBalance && !apiReady && exchange ? (
+          <LiveTradeApiNotConnectedNotice exchange={exchange} />
+        ) : showBalance ? (
           pfLoading && !portfolio ? (
             <p className="live-trade-history__muted">{ko.app.liveTradePfLoading}</p>
           ) : pfErr ? (
@@ -118,17 +135,19 @@ export default function LiveAccountTradesMainPanel({
           ) : null
         ) : null}
 
-        <header className="trade-history-main-workspace__subhead">
-          <h3 className="live-trade-trades-workspace__title live-trade-trades-workspace__title--sub">
-            {title} · {ko.app.liveTradePfTabTrades}
-          </h3>
-          <p className="live-trade-history__sub trade-history-main-workspace__scenario-sub">
-            {liveTradeHistoryScenarioSub(scenario)}
-          </p>
-        </header>
+        {scenario === "sim" || (showBalance && !apiReady) ? null : (
+          <header className="trade-history-main-workspace__subhead">
+            <h3 className="live-trade-trades-workspace__title live-trade-trades-workspace__title--sub">
+              {title} · {ko.app.liveTradePfTabTrades}
+            </h3>
+            <p className="live-trade-history__sub trade-history-main-workspace__scenario-sub">
+              {liveTradeHistoryScenarioSub(scenario)}
+            </p>
+          </header>
+        )}
         {scenario === "sim" ? (
           <LiveTradeHistorySimSection workspaceMode loadAll />
-        ) : (
+        ) : showBalance && !apiReady ? null : (
           <LiveTradeTradesHistoryPanel scenario={scenario} loadAll workspaceMode />
         )}
       </div>

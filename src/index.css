@@ -10754,6 +10754,25 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   font-weight: 600;
 }
 
+.live-trade-api-not-connected {
+  margin: 0.65rem 0;
+  padding: 0.75rem 0.85rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--muted) 12%, transparent);
+}
+
+.live-trade-api-not-connected__text {
+  margin: 0 0 0.55rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+
+.live-trade-api-not-connected__btn {
+  font-size: 0.78rem;
+}
+
 .dock-linked-accounts__trades-back {
   margin: 0 0 0.45rem;
   align-self: flex-start;

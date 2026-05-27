@@ -3,6 +3,7 @@ import {
   listLiveTradeRecordsSync,
 } from "./live-trade-portfolio-store.js";
 import { listLiveTradeProgramsSync } from "./live-trade-programs-store.js";
+import { getCredentialMetaSync } from "./user-credentials-store.js";
 
 /** @param {number} ms */
 export function kstDateKeyFromMs(ms) {
@@ -200,6 +201,21 @@ function mergeBithumbApiAndStoreTrades(apiTrades, storeTrades) {
   return [...apiTrades, ...storeOnly].sort((a, b) => b.atMs - a.atMs);
 }
 
+/** API 미연동 시 빈 실매매 이력(앱·시뮬 기록 노출 방지) */
+function emptyLiveTradeHistoryPayload(scenario) {
+  const day = kstDateKeyFromMs(Date.now());
+  return {
+    trades: [],
+    rangeStartDay: day,
+    rangeEndDay: day,
+    hasOlder: false,
+    nextOlderEndDay: null,
+    fetchedAtMs: Date.now(),
+    scenario,
+    apiNotConnected: true,
+  };
+}
+
 function historyRangeFromTrades(trades) {
   const rangeEndDay =
     trades.length > 0
@@ -243,6 +259,9 @@ export async function buildLiveTradeHistoryPayloadAsync(userId, opts = {}) {
   }
 
   if (scenario === "live-bithumb") {
+    if (!getCredentialMetaSync(uid, "bithumb")?.ready) {
+      return emptyLiveTradeHistoryPayload("live-bithumb");
+    }
     const { listBithumbTradesFromExchangeApiForHistory } = await import(
       "./live-trade-bithumb-exchange-trades.js"
     );
@@ -283,6 +302,9 @@ export async function buildLiveTradeHistoryPayloadAsync(userId, opts = {}) {
   const payload = buildLiveTradeHistoryPayload(userId, opts);
 
   if (scenario === "live-toss") {
+    if (!getCredentialMetaSync(uid, "toss")?.ready) {
+      return emptyLiveTradeHistoryPayload("live-toss");
+    }
     const filtered = filterTradesByScenario(payload.trades, "live-toss");
     return {
       ...payload,

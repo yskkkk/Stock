@@ -17,21 +17,9 @@ import {
 } from "../lib/liveTradeDockAccount";
 import { navigateToTradeHistoryTab } from "../lib/liveTradeDockAccount";
 import type { LiveTradeTradesExchange } from "../lib/liveTradeTradesWorkspace";
-import { ko } from "../i18n/ko";
+import LiveTradeApiNotConnectedNotice from "./LiveTradeApiNotConnectedNotice";
 
 type LinkedProvider = LiveTradeTradesExchange;
-
-function ApiNotConnectedMessage({ exchange }: { exchange: LinkedProvider }) {
-  const label =
-    exchange === "bithumb"
-      ? ko.app.liveTradeBithumbShort
-      : ko.app.liveTradeTossShort;
-  return (
-    <p className="dock-linked-accounts__hint dock-linked-accounts__hint--api" role="status">
-      {label} {ko.app.liveTradeApiNotConnected}
-    </p>
-  );
-}
 
 function applyAccountView(
   view: LiveTradeDockAccountView | undefined,
@@ -126,7 +114,10 @@ function DockLinkedAccountsPanelInner() {
           <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
         )
       ) : !bithumbReady ? (
-        <ApiNotConnectedMessage exchange="bithumb" />
+        <LiveTradeApiNotConnectedNotice
+          exchange="bithumb"
+          className="dock-linked-accounts__hint dock-linked-accounts__hint--api"
+        />
       ) : bithumbLoading && !snapshot ? (
         <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
       ) : !snapshot ? (
@@ -144,7 +135,10 @@ function DockLinkedAccountsPanelInner() {
     ) : statusPending ? (
       <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
     ) : !tossReady ? (
-      <ApiNotConnectedMessage exchange="toss" />
+      <LiveTradeApiNotConnectedNotice
+        exchange="toss"
+        className="dock-linked-accounts__hint dock-linked-accounts__hint--api"
+      />
     ) : (
       <TossAccountBalancePanel feeLabelKo={tossFeeLabel} />
     );
