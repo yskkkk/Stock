@@ -10460,21 +10460,16 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--muted) 55%, transparent) transparent;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .app-live-trade-side-dock__host
   .live-trading-tab__card-tabs-pane--rail
   .live-trading-tab__card-tabs-host::-webkit-scrollbar {
-  width: 6px;
-}
-
-.app-live-trade-side-dock__host
-  .live-trading-tab__card-tabs-pane--rail
-  .live-trading-tab__card-tabs-host::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--muted) 50%, transparent);
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 /* 도크 패널 — 패널 host 한 겹만 스크롤(내부 중첩 스크롤 해제) */
