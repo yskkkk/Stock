@@ -1,17 +1,7 @@
-// ┌─────────────────────────────────────────────────────────────────────┐
-// │  통합 박스권 감지기 PRO V2                                          │
-// │  SSOT: server/box-range/box-range-v2-core.js (예정)                 │
-// │                                                                     │
-// │  V1 대비 개선:                                                      │
-// │  ① ER(효율비) 필터  — 추세 중 쉬어가기 박스 제거                    │
-// │  ② 고저 퍼센타일   — top=고가80% / bottom=저가20% (윅 포함)         │
-// │  ③ 거래량 POC      — mid = 최대 거래량 가격대                       │
-// │  ④ 거절 강도 스코어 — 거래량×되돌림 가중                            │
-// └─────────────────────────────────────────────────────────────────────┘
+// 통합 박스권 감지기 PRO V2 — SSOT: server/box-range/box-range-v2-core.js (예정)
 //@version=5
 indicator("통합 박스권 감지기 PRO V2", overlay=true, max_boxes_count=500, max_lines_count=500)
 
-// ── 입력 ──────────────────────────────────────────────────────────────
 string active_tf = input.string("D", "분석 타임프레임", options=["60", "240", "D"])
 int min_days = input.int(10, "최소 기간(봉)", minval=8, tooltip="BOX_RANGE_MIN_BARS=10")
 int max_expand = input.int(120, "최대 확장(봉)", minval=20, maxval=300)
@@ -19,12 +9,12 @@ float exp_edge = input.float(16.0, "확장 허용(박스높이%)", minval=2.0, m
 int exp_gap = input.int(3, "확장 끊김(연속 이탈봉)", minval=1, maxval=6)
 
 string grpV2 = "V2 탐지 파라미터"
-float er_thresh = input.float(0.40, "ER 임계값 (<=횡보)", step=0.05, group=grpV2, tooltip="효율비. 0=완전횡보, 1=완전추세")
-float v2_hi_pct = input.float(80.0, "고가 퍼센타일 → top", step=5.0, group=grpV2)
-float v2_lo_pct = input.float(20.0, "저가 퍼센타일 → bot", step=5.0, group=grpV2)
+float er_thresh = input.float(0.40, "ER 임계값 (횡보)", step=0.05, group=grpV2)
+float v2_hi_pct = input.float(80.0, "고가 퍼센타일 top", step=5.0, group=grpV2)
+float v2_lo_pct = input.float(20.0, "저가 퍼센타일 bot", step=5.0, group=grpV2)
 int poc_bkt = input.int(40, "POC 버킷 수", minval=10, maxval=80, group=grpV2)
-float rej_score = input.float(0.50, "최소 거절 점수(상·하)", step=0.1, group=grpV2)
-float touch_th = input.float(0.15, "터치폭(박스높이×)", step=0.05, group=grpV2)
+float rej_score = input.float(0.50, "최소 거절 점수(상하)", step=0.1, group=grpV2)
+float touch_th = input.float(0.15, "터치폭(박스높이x)", step=0.05, group=grpV2)
 
 bool split_tf_preset = input.bool(true, "TF별 중심 이탈% 프리셋", tooltip="1H 38 / 4H 48 / 1D 58")
 float split_mid_man = input.float(58.0, "중심 이탈 한계(반높이%)", minval=10, maxval=80, step=1.0)
@@ -42,7 +32,6 @@ int merge_bars = input.int(8, "병합: 좌우 봉 간격", minval=0)
 bool is_tf = timeframe.period == active_tf
 int tfMs = timeframe.in_seconds() * 1000
 
-// ── 배열 ──────────────────────────────────────────────────────────────
 var box[] boxes = array.new_box()
 var line[] lines = array.new_line()
 var float[] tops = array.new_float()
@@ -65,39 +54,36 @@ bool sig_buy = false
 bool sig_tp = false
 bool sig_sl = false
 
-// ══════════════════════════════════════════════════════════════════════
-// V2 탐지 핵심 함수
-// ══════════════════════════════════════════════════════════════════════
-
 f_er(int oldestOff, int newestOff) =>
     float net = math.abs(close[newestOff] - close[oldestOff])
     float path = 0.0
-    for i = newestOff + 1 to oldestOff
-        path += math.abs(close[i] - close[i - 1])
+    if oldestOff > newestOff
+        for i = newestOff + 1 to oldestOff
+            path += math.abs(close[i] - close[i - 1])
     path > 0 ? net / path : 1.0
 
-f_poc(int oldestOff, int newestOff, int n) =>
+f_poc(int oldestOff, int newestOff, int nBuckets) =>
     float lo_r = low[newestOff]
     float hi_r = high[newestOff]
     for i = newestOff to oldestOff
         lo_r := math.min(lo_r, low[i])
         hi_r := math.max(hi_r, high[i])
     float rng = hi_r - lo_r
-    float step = rng > 1e-10 ? rng / n : 1.0
-    float[] vols = array.new_float(n, 0.0)
+    float pocStep = rng > 1e-10 ? rng / nBuckets : 1.0
+    float[] vols = array.new_float(nBuckets, 0.0)
     for i = newestOff to oldestOff
         float tp = hlc3[i]
         float v = volume[i] > 0 ? volume[i] : 1.0
-        int bkt = math.min(int(math.floor((tp - lo_r) / step)), n - 1)
+        int bkt = math.max(0, math.min(int(math.floor((tp - lo_r) / pocStep)), nBuckets - 1))
         array.set(vols, bkt, array.get(vols, bkt) + v)
     float max_v = 0.0
     int max_b = 0
-    for b = 0 to n - 1
+    for b = 0 to nBuckets - 1
         float pv = array.get(vols, b)
         if pv > max_v
             max_v := pv
             max_b := b
-    lo_r + (max_b + 0.5) * step
+    lo_r + (max_b + 0.5) * pocStep
 
 f_compute_box_v2(int oldestOff, int newestOff) =>
     float[] hBuf = array.new_float()
@@ -105,27 +91,27 @@ f_compute_box_v2(int oldestOff, int newestOff) =>
     for i = newestOff to oldestOff
         array.push(hBuf, high[i])
         array.push(lBuf, low[i])
-    int n = array.size(hBuf)
-    if n == 0
-        [float(na), float(na), float(na)]
+    int cnt = array.size(hBuf)
+    if cnt == 0
+        [na, na, na]
     else
         array.sort(hBuf, order.ascending)
         array.sort(lBuf, order.ascending)
-        int hiIdx = int(math.round((v2_hi_pct / 100.0) * (n - 1)))
-        int loIdx = int(math.round((v2_lo_pct / 100.0) * (n - 1)))
-        float top = array.get(hBuf, math.min(math.max(hiIdx, 0), n - 1))
-        float bot = array.get(lBuf, math.min(math.max(loIdx, 0), n - 1))
-        if na(top) or na(bot) or top <= bot
-            [float(na), float(na), float(na)]
+        int hiIdx = int(math.round((v2_hi_pct / 100.0) * (cnt - 1)))
+        int loIdx = int(math.round((v2_lo_pct / 100.0) * (cnt - 1)))
+        float boxTop = array.get(hBuf, math.min(math.max(hiIdx, 0), cnt - 1))
+        float boxBot = array.get(lBuf, math.min(math.max(loIdx, 0), cnt - 1))
+        if na(boxTop) or na(boxBot) or boxTop <= boxBot
+            [na, na, na]
         else
-            float poc = f_poc(oldestOff, newestOff, poc_bkt)
-            float mid = math.max(bot, math.min(top, poc))
-            [top, bot, mid]
+            float pocMid = f_poc(oldestOff, newestOff, poc_bkt)
+            float boxMid = math.max(boxBot, math.min(boxTop, pocMid))
+            [boxTop, boxBot, boxMid]
 
 f_reject_score(int oldestOff, int newestOff, float top, float bot) =>
     float h = top - bot
     float th = h * touch_th
-    float mid = (top + bot) * 0.5
+    float midPx = (top + bot) * 0.5
     float vol_sum = 0.0
     int vol_cnt = 0
     for i = newestOff to oldestOff
@@ -139,20 +125,20 @@ f_reject_score(int oldestOff, int newestOff, float top, float bot) =>
     for i = newestOff to oldestOff
         float v = volume[i] > 0 ? volume[i] : avg_v
         float vf = math.sqrt(v / avg_v)
-        if high[i] >= top - th and close[i] < mid
-            float str = math.min(1.0, (top - close[i]) / (h * 0.5))
-            t_sc += str * vf
-        if low[i] <= bot + th and close[i] > mid
-            float str = math.min(1.0, (close[i] - bot) / (h * 0.5))
-            b_sc += str * vf
+        if high[i] >= top - th and close[i] < midPx
+            float rejStr = math.min(1.0, (top - close[i]) / (h * 0.5))
+            t_sc += rejStr * vf
+        if low[i] <= bot + th and close[i] > midPx
+            float rejStr = math.min(1.0, (close[i] - bot) / (h * 0.5))
+            b_sc += rejStr * vf
     [t_sc, b_sc]
 
 bar_in_band(int idx, float top, float bot, float pad) =>
     high[idx] <= top + pad and low[idx] >= bot - pad
 
-bar_near_mid(int idx, float mid, float top, float bot, float sp) =>
+bar_near_mid(int idx, float midPx, float top, float bot, float sp) =>
     float hH = (top - bot) * 0.5
-    hH <= syminfo.mintick ? true : math.abs(close[idx] - mid) <= (sp / 100.0) * hH
+    hH <= syminfo.mintick ? true : math.abs(close[idx] - midPx) <= (sp / 100.0) * hH
 
 expand_range_idx(int sOld, int sNew, int maxB, float pad, int gapA, float sp) =>
     int oldOff = sOld
@@ -161,8 +147,8 @@ expand_range_idx(int sOld, int sNew, int maxB, float pad, int gapA, float sp) =>
     int lim = math.min(maxB, bar_index - 1)
     if sOld < lim
         for i = sOld + 1 to lim
-            [t, b, m] = f_compute_box_v2(i, newOff)
-            if not na(t) and bar_in_band(i, t, b, pad) and bar_near_mid(i, m, t, b, sp)
+            [bxTop, bxBot, bxMid] = f_compute_box_v2(i, newOff)
+            if not na(bxTop) and bar_in_band(i, bxTop, bxBot, pad) and bar_near_mid(i, bxMid, bxTop, bxBot, sp)
                 oldOff := i
                 miss := 0
             else
@@ -170,15 +156,16 @@ expand_range_idx(int sOld, int sNew, int maxB, float pad, int gapA, float sp) =>
                 if miss >= gapA
                     break
     miss := 0
-    for i = sNew - 1 to 0
-        [t, b, m] = f_compute_box_v2(oldOff, i)
-        if not na(t) and bar_in_band(i, t, b, pad) and bar_near_mid(i, m, t, b, sp)
-            newOff := i
-            miss := 0
-        else
-            miss += 1
-            if miss >= gapA
-                break
+    if sNew > 0
+        for i = sNew - 1 to 0
+            [bxTop, bxBot, bxMid] = f_compute_box_v2(oldOff, i)
+            if not na(bxTop) and bar_in_band(i, bxTop, bxBot, pad) and bar_near_mid(i, bxMid, bxTop, bxBot, sp)
+                newOff := i
+                miss := 0
+            else
+                miss += 1
+                if miss >= gapA
+                    break
     [oldOff, newOff]
 
 f_box_h_pct(float t, float b) =>
@@ -195,19 +182,22 @@ time_overlap(int tL1, int tR1, int tL2, int tR2, int gapB) =>
     int gap = gapB * tfMs
     (tL1 <= tR2 + gap) and (tL2 <= tR1 + gap)
 
-f_should_merge(float t, float b, float mid, int lT, int rT, int j) =>
+f_should_merge(float t, float b, float midPx, int lT, int rT, int j) =>
     float et = array.get(tops, j)
     float eb = array.get(bottoms, j)
     int el = array.get(leftTimes, j)
-    int er_j = array.get(rightTimes, j)
-    time_overlap(lT, rT, el, er_j, merge_bars) and f_mid_dist(t, b, et, eb) <= merge_mid and math.abs(f_box_h_pct(t, b) - f_box_h_pct(et, eb)) <= merge_h
+    int erJ = array.get(rightTimes, j)
+    bool timeOk = time_overlap(lT, rT, el, erJ, merge_bars)
+    bool midOk = f_mid_dist(t, b, et, eb) <= merge_mid
+    bool hOk = math.abs(f_box_h_pct(t, b) - f_box_h_pct(et, eb)) <= merge_h
+    timeOk and midOk and hOk
 
-find_merge_idx(float t, float b, float mid, int lT, int rT) =>
+find_merge_idx(float t, float b, float midPx, int lT, int rT) =>
     int found = -1
     int nBox = array.size(boxes)
     if nBox > 0
         for j = 0 to nBox - 1
-            if not array.get(dead, j) and f_should_merge(t, b, mid, lT, rT, j)
+            if not array.get(dead, j) and f_should_merge(t, b, midPx, lT, rT, j)
                 found := j
                 break
     found
@@ -235,9 +225,6 @@ merge_into(int idx, float nT, float nB, float nM, int nL, int nR) =>
     line.set_extend(ln, extend.none)
     idx
 
-// ══════════════════════════════════════════════════════════════════════
-// V2 탐지 메인
-// ══════════════════════════════════════════════════════════════════════
 if is_tf and barstate.isconfirmed
     int valid_count = 0
     float max_val = high[1]
@@ -257,8 +244,8 @@ if is_tf and barstate.isconfirmed
         if erVal <= er_thresh
             float pad = (max_val - min_val) * (exp_edge / 100.0)
             [oldOff, newOff] = expand_range_idx(start_idx, 1, max_expand, pad, exp_gap, split_mid_pct)
-            [boxTop, boxBot, mid] = f_compute_box_v2(oldOff, newOff)
-            if not na(mid) and boxTop > boxBot
+            [boxTop, boxBot, midPx] = f_compute_box_v2(oldOff, newOff)
+            if not na(midPx) and boxTop > boxBot
                 float hPct = f_box_h_pct(boxTop, boxBot)
                 float minHpct = active_tf == "60" ? 1.0 : active_tf == "240" ? 3.0 : 0.1
                 bool sizeOk = hPct >= minHpct and hPct <= max_box_pct * 1.5
@@ -267,17 +254,17 @@ if is_tf and barstate.isconfirmed
                     if tSc >= rej_score and bSc >= rej_score
                         int tLeft = time[oldOff]
                         int tRight = time[newOff]
-                        int mIdx = find_merge_idx(boxTop, boxBot, mid, tLeft, tRight)
+                        int mIdx = find_merge_idx(boxTop, boxBot, midPx, tLeft, tRight)
                         if mIdx >= 0
-                            merge_into(mIdx, boxTop, boxBot, mid, tLeft, tRight)
+                            merge_into(mIdx, boxTop, boxBot, midPx, tLeft, tRight)
                         else
-                            box bx = box.new(tLeft, boxTop, tRight, boxBot, xloc=xloc.bar_time, border_color=color.new(color.blue, 0), border_width=2, bgcolor=color.new(color.blue, 88))
-                            line ln = line.new(tLeft, mid, tRight, mid, xloc=xloc.bar_time, color=color.new(color.orange, 20), width=2)
+                            box bx = box.new(tLeft, boxTop, tRight, boxBot, xloc=xloc.bar_time, border_color=color.blue, border_width=2, bgcolor=color.new(color.blue, 90))
+                            line ln = line.new(tLeft, midPx, tRight, midPx, xloc=xloc.bar_time, color=color.orange, width=1, extend=extend.none)
                             array.push(boxes, bx)
                             array.push(lines, ln)
                             array.push(tops, boxTop)
                             array.push(bottoms, boxBot)
-                            array.push(mids, mid)
+                            array.push(mids, midPx)
                             array.push(leftTimes, tLeft)
                             array.push(rightTimes, tRight)
                             array.push(firstBuyTs, na)
@@ -286,9 +273,6 @@ if is_tf and barstate.isconfirmed
                             array.push(dead, false)
                             array.push(dipLows, na)
 
-// ══════════════════════════════════════════════════════════════════════
-// 매매 FSM — 하단 복귀 매수 · dipLow SL · TP 후 재진입
-// ══════════════════════════════════════════════════════════════════════
 int sz = array.size(boxes)
 if sz > 0
     for i = 0 to sz - 1
@@ -310,14 +294,14 @@ if sz > 0
                 array.set(firstBuyTs, i, time)
                 total_trades += 1
                 sig_buy := true
-                label.new(bar_index, bottom, "매수", style=label.style_label_up, color=color.new(color.green, 0), textcolor=color.white, size=size.small)
+                label.new(bar_index, bottom, "매수", style=label.style_label_up, color=color.green, textcolor=color.white, size=size.small)
         else
             if high >= top
                 float ret = entry > 0 ? ((top - entry) / entry) * 100.0 : 0.0
                 total_return += ret
                 win_trades += 1
                 sig_tp := true
-                label.new(bar_index, top, "익절 +" + str.tostring(ret, "#.##") + "%", style=label.style_label_down, color=color.new(color.lime, 0), textcolor=color.black, size=size.small)
+                label.new(bar_index, top, "익절", style=label.style_label_down, color=color.lime, textcolor=color.black, size=size.small)
                 array.set(entryPrices, i, na)
                 array.set(triggered, i, false)
                 array.set(dipLows, i, na)
@@ -326,14 +310,11 @@ if sz > 0
                 total_return += ret
                 loss_trades += 1
                 sig_sl := true
-                label.new(bar_index, dipLow, "손절 " + str.tostring(ret, "#.##") + "%", style=label.style_label_down, color=color.new(color.red, 0), textcolor=color.white, size=size.small)
+                label.new(bar_index, dipLow, "손절", style=label.style_label_down, color=color.red, textcolor=color.white, size=size.small)
                 array.set(entryPrices, i, na)
                 array.set(triggered, i, false)
                 array.set(dead, i, true)
 
-// ══════════════════════════════════════════════════════════════════════
-// 렌더링
-// ══════════════════════════════════════════════════════════════════════
 int liveSz = array.size(boxes)
 if liveSz > 0
     for i = 0 to liveSz - 1
@@ -341,50 +322,49 @@ if liveSz > 0
         line ln = array.get(lines, i)
         float top = array.get(tops, i)
         float bot = array.get(bottoms, i)
-        float mid = array.get(mids, i)
+        float midPx = array.get(mids, i)
         bool hasPos = not na(array.get(entryPrices, i))
         bool isDead = array.get(dead, i)
         int origR = array.get(rightTimes, i)
         int buyT = array.get(firstBuyTs, i)
         float pad = (top - bot) * (exp_edge / 100.0)
-        bool canExt = not isDead and bar_in_band(0, top, bot, pad) and bar_near_mid(0, mid, top, bot, split_mid_pct)
+        bool canExt = not isDead and bar_in_band(0, top, bot, pad) and bar_near_mid(0, midPx, top, bot, split_mid_pct)
         box.set_right(bx, canExt ? time : origR)
-        line.set_xy1(ln, array.get(leftTimes, i), mid)
-        line.set_xy2(ln, na(buyT) ? time : buyT, mid)
+        line.set_xy1(ln, array.get(leftTimes, i), midPx)
+        line.set_xy2(ln, na(buyT) ? time : buyT, midPx)
         line.set_extend(ln, extend.none)
-        color brd = hasPos ? color.new(color.lime, 0) : isDead ? color.new(color.gray, 0) : color.new(color.blue, 0)
-        color bg = hasPos ? color.new(color.green, 82) : isDead ? color.new(color.gray, 93) : color.new(color.blue, 88)
+        color brd = hasPos ? color.lime : isDead ? color.gray : color.blue
+        color bg = hasPos ? color.new(color.green, 82) : isDead ? color.new(color.gray, 93) : color.new(color.blue, 90)
         box.set_border_color(bx, brd)
         box.set_bgcolor(bx, bg)
         box.set_border_width(bx, isDead ? 1 : 2)
-        line.set_color(ln, hasPos ? color.new(color.lime, 0) : isDead ? color.new(color.gray, 60) : color.new(color.orange, 20))
+        line.set_color(ln, hasPos ? color.lime : isDead ? color.new(color.gray, 60) : color.orange)
 
-// 시그널 + ER
-plotshape(show_buy and sig_buy, "매수", shape.triangleup, location.belowbar, color.new(color.green, 0), size=size.small, text="매수")
-plotshape(show_sell and sig_tp, "익절", shape.triangledown, location.abovebar, color.new(color.lime, 0), size=size.small, text="익절")
-plotshape(show_sell and sig_sl, "손절", shape.xcross, location.belowbar, color.new(color.red, 0), size=size.tiny, text="손절")
+plotshape(show_buy and sig_buy, title="매수", style=shape.triangleup, location=location.belowbar, color=color.green, size=size.small, text="매수")
+plotshape(show_sell and sig_tp, title="익절", style=shape.triangledown, location=location.abovebar, color=color.lime, size=size.small, text="익절")
+plotshape(show_sell and sig_sl, title="손절", style=shape.xcross, location=location.belowbar, color=color.red, size=size.tiny, text="손절")
 
-float er_now = f_er(math.min(max_expand, bar_index - 1), 1)
-plot(show_er ? er_now : na, "ER(효율비)", color=er_now <= er_thresh ? color.new(color.green, 0) : color.new(color.red, 0), linewidth=2, display=display.pane)
-hline(er_thresh, "ER 임계값", color=color.new(color.gray, 0), linestyle=hline.style_dotted, display=display.pane)
-plot(er_now, "ER", display=display.data_window)
+int erOldest = math.max(1, math.min(max_expand, bar_index - 1))
+float er_now = f_er(erOldest, 1)
+plot(show_er ? er_now : na, title="ER", color=er_now <= er_thresh ? color.green : color.red, linewidth=2, display=display.pane)
+plot(show_er ? er_thresh : na, title="ER 임계", color=color.gray, style=plot.style_line, linewidth=1, display=display.pane)
 
 float wr = total_trades > 0 ? (win_trades * 100.0 / total_trades) : 0.0
-var table tbl = table.new(position.bottom_right, 2, 8, bgcolor=color.new(color.black, 78), border_color=color.new(color.gray, 0), border_width=1)
+var table tbl = table.new(position.bottom_right, 2, 8, bgcolor=color.new(color.black, 80))
 if barstate.islast
-    table.cell(tbl, 0, 0, "V2 박스 수", text_color=color.gray, text_size=size.small)
+    table.cell(tbl, 0, 0, "V2 박스", text_color=color.gray, text_size=size.small)
     table.cell(tbl, 1, 0, str.tostring(sz), text_color=color.white, text_size=size.small)
-    table.cell(tbl, 0, 1, "ER <=", text_color=color.gray, text_size=size.small)
-    table.cell(tbl, 1, 1, str.tostring(er_thresh), text_color=color.new(color.teal, 0), text_size=size.small)
-    table.cell(tbl, 0, 2, "거래수", text_color=color.gray, text_size=size.small)
+    table.cell(tbl, 0, 1, "ER", text_color=color.gray, text_size=size.small)
+    table.cell(tbl, 1, 1, str.tostring(er_thresh), text_color=color.teal, text_size=size.small)
+    table.cell(tbl, 0, 2, "거래", text_color=color.gray, text_size=size.small)
     table.cell(tbl, 1, 2, str.tostring(total_trades), text_color=color.white, text_size=size.small)
     table.cell(tbl, 0, 3, "승률", text_color=color.gray, text_size=size.small)
-    table.cell(tbl, 1, 3, str.tostring(wr, "#.##") + "%", text_color=wr >= 50 ? color.new(color.lime, 0) : color.new(color.red, 0), text_size=size.small)
+    table.cell(tbl, 1, 3, str.tostring(wr, "#.##") + "%", text_color=wr >= 50 ? color.lime : color.red, text_size=size.small)
     table.cell(tbl, 0, 4, "승", text_color=color.gray, text_size=size.small)
-    table.cell(tbl, 1, 4, str.tostring(win_trades), text_color=color.new(color.lime, 0), text_size=size.small)
+    table.cell(tbl, 1, 4, str.tostring(win_trades), text_color=color.lime, text_size=size.small)
     table.cell(tbl, 0, 5, "패", text_color=color.gray, text_size=size.small)
-    table.cell(tbl, 1, 5, str.tostring(loss_trades), text_color=color.new(color.red, 0), text_size=size.small)
-    table.cell(tbl, 0, 6, "누적수익", text_color=color.gray, text_size=size.small)
-    table.cell(tbl, 1, 6, str.tostring(total_return, "#.##") + "%", text_color=total_return >= 0 ? color.new(color.lime, 0) : color.new(color.red, 0), text_size=size.small)
-    table.cell(tbl, 0, 7, "고저80/20", text_color=color.gray, text_size=size.small)
-    table.cell(tbl, 1, 7, "POC mid", text_color=color.new(color.orange, 0), text_size=size.small)
+    table.cell(tbl, 1, 5, str.tostring(loss_trades), text_color=color.red, text_size=size.small)
+    table.cell(tbl, 0, 6, "누적", text_color=color.gray, text_size=size.small)
+    table.cell(tbl, 1, 6, str.tostring(total_return, "#.##") + "%", text_color=total_return >= 0 ? color.lime : color.red, text_size=size.small)
+    table.cell(tbl, 0, 7, "80/20", text_color=color.gray, text_size=size.small)
+    table.cell(tbl, 1, 7, "POC", text_color=color.orange, text_size=size.small)
