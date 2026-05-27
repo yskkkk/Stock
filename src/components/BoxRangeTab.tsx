@@ -321,7 +321,7 @@ export default function BoxRangeTab() {
   const { user, authChecked, registrationOpen } = useLiveTradeAuth();
   const [catalogMarket, setCatalogMarket] =
     useState<BoxRangeCatalogMarket>("us");
-  const [catalogStrategy, setCatalogStrategy] = useState<"pro-v2" | "legacy">(
+  const [catalogStrategy, setCatalogStrategy] = useState<"pro-v2" | "v2" | "legacy">(
     "pro-v2",
   );
   const [index, setIndex] = useState<BoxRangeCatalogIndex | null>(null);
@@ -522,6 +522,22 @@ export default function BoxRangeTab() {
             }}
           >
             PRO v2
+          </button>
+          <button
+            type="button"
+            className={
+              catalogStrategy === "v2"
+                ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
+                : "live-trading-tab__segment-btn"
+            }
+            aria-pressed={catalogStrategy === "v2"}
+            onClick={() => {
+              setSelected(null);
+              setDetail(null);
+              setCatalogStrategy("v2");
+            }}
+          >
+            V2
           </button>
           <button
             type="button"
