@@ -10492,10 +10492,6 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   height: auto;
 }
 
-.app-live-trade-side-dock__host .live-trading-tab__card-tabs-host:not(.live-trading-tab__card-tabs-host--idle) {
-  display: block;
-}
-
 .live-trading-tab__card-tabs-host--dragging {
   cursor: grabbing;
   user-select: none;

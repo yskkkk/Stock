@@ -111,6 +111,26 @@ function applyScrollDelta(el: HTMLElement, delta: number): void {
   el.scrollTop = Math.max(0, Math.min(max, el.scrollTop + delta));
 }
 
+/** 1번 도크 — 탭 본문 host 단일 스크롤 */
+function findDockPanelScrollRoot(dock: HTMLElement): HTMLElement | null {
+  return dock.querySelector<HTMLElement>(
+    ".live-trading-tab__card-tabs-host:not(.live-trading-tab__card-tabs-host--idle)",
+  );
+}
+
+/** 2번 본문 — 브라우저 우측 스크롤바·끝 여백 휠 */
+const MAIN_SCROLL_GUTTER_PX = 22;
+
+function isWheelInMainScrollGutter(e: WheelEvent): boolean {
+  return e.clientX >= window.innerWidth - MAIN_SCROLL_GUTTER_PX;
+}
+
+function resolvePageScroll(
+  pageScrollRef: RefObject<HTMLDivElement | null> | null | undefined,
+): HTMLElement | null {
+  return pageScrollRef?.current ?? document.querySelector<HTMLElement>(".app__scroll");
+}
+
 function isWheelInDockPanel(dock: HTMLElement | null, e: WheelEvent): boolean {
   if (!dock) return false;
   for (const node of e.composedPath()) {
@@ -734,16 +754,25 @@ export default function AppLiveTradeSideDock({
     const onWheel = (e: WheelEvent) => {
       const dock = dockRef.current;
       const open = openRef.current;
+      const delta = wheelDeltaY(e);
 
-      if (open && dock && isWheelInDockPanel(dock, e) && !isWheelInDockRail(e)) {
-        const pageScroll =
-          pageScrollRef?.current ??
-          document.querySelector<HTMLElement>(".app__scroll");
+      /* 우측 끝(스크롤바 트랙) — 2번 본문(.app__scroll)만 */
+      if (isWheelInMainScrollGutter(e)) {
+        const pageScroll = resolvePageScroll(pageScrollRef);
         if (pageScroll) {
           e.preventDefault();
           e.stopPropagation();
-          applyScrollDelta(pageScroll, wheelDeltaY(e));
+          applyScrollDelta(pageScroll, delta);
         }
+        return;
+      }
+
+      /* 1번 도크 흰 패널 — 패널 host 내부만, 본문 스크롤 차단 */
+      if (open && dock && isWheelInDockPanel(dock, e) && !isWheelInDockRail(e)) {
+        const panelRoot = findDockPanelScrollRoot(dock);
+        e.preventDefault();
+        e.stopPropagation();
+        if (panelRoot) applyScrollDelta(panelRoot, delta);
         return;
       }
 
@@ -752,7 +781,7 @@ export default function AppLiveTradeSideDock({
         if (railScroll && isScrollableY(railScroll)) {
           e.preventDefault();
           e.stopPropagation();
-          applyScrollDelta(railScroll, wheelDeltaY(e));
+          applyScrollDelta(railScroll, delta);
         }
       }
     };
