@@ -13,7 +13,7 @@ function stateFilePath() {
 }
 
 /**
- * @typedef {"idle"|"armed"|"in_position"|"closed"} BoxRangeState
+ * @typedef {"idle"|"armed"|"confirming"|"in_position"|"closed"} BoxRangeState
  * @typedef {{
  *   boxId: string;
  *   programId: string;
@@ -74,6 +74,7 @@ function normalizeBox(raw) {
   /** @type {BoxRangeState} */
   const state =
     st === "armed" ||
+    st === "confirming" ||
     st === "in_position" ||
     st === "closed"
       ? st

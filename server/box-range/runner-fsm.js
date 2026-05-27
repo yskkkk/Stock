@@ -136,138 +136,155 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
       box.dipLow == null || lastPrice < box.dipLow ? lastPrice : box.dipLow;
     if (nextDip !== box.dipLow) patchBoxSync(box.boxId, { dipLow: nextDip });
 
-    // 진입: 하단 위로 복귀(종가 대신 lastPrice) → entry=bottom
+    // 하단 복귀 첫 틱 → confirming 상태로 전환 (확인캔들 모델 ⑩)
     if (lastPrice >= box.bottom) {
-      if (!box.midNotifiedAtMs) {
-        const notifyKey = `${program.id}:${box.boxId}`;
-        if (!boxNotifyInFlight.has(notifyKey)) {
-          boxNotifyInFlight.add(notifyKey);
-          try {
-            const sent = await notifyBoxRangeDipRecoveryEntry(
-              { ...box, dipLow: nextDip },
-              program,
-              lastPrice,
-              market,
-            );
-            if (sent) {
-              patchBoxSync(box.boxId, { midNotifiedAtMs: now });
-            }
-          } finally {
-            boxNotifyInFlight.delete(notifyKey);
-          }
-        }
-      }
+      patchBoxSync(box.boxId, { state: "confirming" });
+    }
+    return;
+  }
 
-      const openLots = countOpenBoxLotsSync(program.id);
-      if (openLots >= program.maxOpenPositions) return;
+  if (box.state === "confirming") {
+    const broke = box.breakAtMs != null;
+    if (!afterBox || !broke) return;
 
-      const dedupe = boxRangeBuyDedupeKey(program.id, box.boxId, sym);
-      if (boxBuyInFlight.has(dedupe)) return;
-      boxBuyInFlight.add(dedupe);
+    // 가짜 복귀: 다시 하단 아래로 → armed로 복귀
+    if (lastPrice < box.bottom) {
+      const nextDip =
+        box.dipLow == null || lastPrice < box.dipLow ? lastPrice : box.dipLow;
+      patchBoxSync(box.boxId, { state: "armed", dipLow: nextDip });
+      return;
+    }
 
-      let runErr = null;
-      try {
-        const pick = {
-          symbol: sym,
-          market,
-          price: box.bottom,
-          name: sym,
-          score: 1,
-          signalIds: [`box-range:${box.timeframe}`],
-        };
-        const boxMeta = { boxId: box.boxId, boxTimeframe: box.timeframe };
-        const stopLoss = nextDip ?? box.bottom;
-        const targets = {
-          targetSellPrice: box.top,
-          stopLossPrice: stopLoss,
-          exitScenarioNote: `box:${box.boxId}`,
-          entryKind: `box:${box.timeframe}`,
-          entryStructureNote: "박스권",
-        };
-
-        if (live && isProgramArmedForMarket(program, market)) {
-          const userId = String(program.userId ?? "").trim();
-          let trade = null;
-          if (market === "crypto") {
-            const out = await executeBithumbLiveBuyOrder(program, pick, {
-              credentials: getDecryptedCredentialsSync(userId, "bithumb"),
-            });
-            if (!out.ok) throw new Error(out.error ?? "매수 실패");
-            trade = await recordLiveTradeBuyAsync(
-              program,
-              { ...pick, price: out.fillPrice ?? box.bottom },
-              {
-                simulated: out.simulated,
-                orderId: out.orderId,
-                fillVolume: out.fillVolume ?? undefined,
-                ...boxMeta,
-                targetSellPrice: box.top,
-                stopLossPrice: stopLoss,
-              },
-            );
-          } else {
-            const out = await executeLiveBuyOrder(program, pick, { userId });
-            if (!out.ok) throw new Error(out.error ?? "매수 실패");
-            const orderAmount = await resolveOrderAmountForMarket(program, market);
-            trade = recordLiveTradeBuySync(
-              program,
-              { ...pick, price: out.fillPrice ?? box.bottom },
-              {
-                simulated: out.simulated,
-                orderId: out.orderId,
-                ...boxMeta,
-              },
-              targets,
-              orderAmount,
-            );
-          }
-          if (trade) {
-            patchBoxSync(box.boxId, {
-              state: "in_position",
-              buyTradeId: trade.id,
-              lotQty: trade.quantity,
-              entryPrice: box.bottom,
-              buyAtMs: trade.atMs,
-              dipLow: stopLoss,
-            });
-            liveTradeLogInfo(
-              "[box-range:buy]",
-              program.name,
-              sym,
-              box.timeframe,
-              trade.quantity,
-            );
-          }
-        } else if (!live && program.simAutoBuy !== false) {
-          const trade = await recordLiveTradeBuyAsync(
+    // 복귀 확인 완료 → 알림 + 매수
+    if (!box.midNotifiedAtMs) {
+      const notifyKey = `${program.id}:${box.boxId}`;
+      if (!boxNotifyInFlight.has(notifyKey)) {
+        boxNotifyInFlight.add(notifyKey);
+        try {
+          const sent = await notifyBoxRangeDipRecoveryEntry(
+            { ...box },
             program,
-            pick,
-            { simulated: true, ...boxMeta, targetSellPrice: box.top, stopLossPrice: stopLoss },
+            lastPrice,
+            market,
           );
-          if (trade) {
-            patchBoxSync(box.boxId, {
-              state: "in_position",
-              buyTradeId: trade.id,
-              lotQty: trade.quantity,
-              entryPrice: box.bottom,
-              buyAtMs: trade.atMs,
-              dipLow: stopLoss,
-            });
-            liveTradeLogInfo(
-              "[box-range:sim-buy]",
-              program.name,
-              sym,
-              box.timeframe,
-            );
+          if (sent) {
+            patchBoxSync(box.boxId, { midNotifiedAtMs: now });
           }
+        } finally {
+          boxNotifyInFlight.delete(notifyKey);
         }
-      } catch (e) {
-        runErr = e instanceof Error ? e.message : String(e);
-        liveTradeLogWarn("[box-range:buy]", program.name, sym, runErr);
-      } finally {
-        boxBuyInFlight.delete(dedupe);
-        touchLiveTradeProgramRunSync(program.id, runErr);
       }
+    }
+
+    const openLots = countOpenBoxLotsSync(program.id);
+    if (openLots >= program.maxOpenPositions) return;
+
+    const dedupe = boxRangeBuyDedupeKey(program.id, box.boxId, sym);
+    if (boxBuyInFlight.has(dedupe)) return;
+    boxBuyInFlight.add(dedupe);
+
+    const stopLoss = box.dipLow ?? box.bottom;
+    let runErr = null;
+    try {
+      const pick = {
+        symbol: sym,
+        market,
+        price: box.bottom,
+        name: sym,
+        score: 1,
+        signalIds: [`box-range:${box.timeframe}`],
+      };
+      const boxMeta = { boxId: box.boxId, boxTimeframe: box.timeframe };
+      const targets = {
+        targetSellPrice: box.top,
+        stopLossPrice: stopLoss,
+        exitScenarioNote: `box:${box.boxId}`,
+        entryKind: `box:${box.timeframe}`,
+        entryStructureNote: "박스권",
+      };
+
+      if (live && isProgramArmedForMarket(program, market)) {
+        const userId = String(program.userId ?? "").trim();
+        let trade = null;
+        if (market === "crypto") {
+          const out = await executeBithumbLiveBuyOrder(program, pick, {
+            credentials: getDecryptedCredentialsSync(userId, "bithumb"),
+          });
+          if (!out.ok) throw new Error(out.error ?? "매수 실패");
+          trade = await recordLiveTradeBuyAsync(
+            program,
+            { ...pick, price: out.fillPrice ?? box.bottom },
+            {
+              simulated: out.simulated,
+              orderId: out.orderId,
+              fillVolume: out.fillVolume ?? undefined,
+              ...boxMeta,
+              targetSellPrice: box.top,
+              stopLossPrice: stopLoss,
+            },
+          );
+        } else {
+          const out = await executeLiveBuyOrder(program, pick, { userId });
+          if (!out.ok) throw new Error(out.error ?? "매수 실패");
+          const orderAmount = await resolveOrderAmountForMarket(program, market);
+          trade = recordLiveTradeBuySync(
+            program,
+            { ...pick, price: out.fillPrice ?? box.bottom },
+            {
+              simulated: out.simulated,
+              orderId: out.orderId,
+              ...boxMeta,
+            },
+            targets,
+            orderAmount,
+          );
+        }
+        if (trade) {
+          patchBoxSync(box.boxId, {
+            state: "in_position",
+            buyTradeId: trade.id,
+            lotQty: trade.quantity,
+            entryPrice: box.bottom,
+            buyAtMs: trade.atMs,
+            dipLow: stopLoss,
+          });
+          liveTradeLogInfo(
+            "[box-range:buy]",
+            program.name,
+            sym,
+            box.timeframe,
+            trade.quantity,
+          );
+        }
+      } else if (!live && program.simAutoBuy !== false) {
+        const trade = await recordLiveTradeBuyAsync(
+          program,
+          pick,
+          { simulated: true, ...boxMeta, targetSellPrice: box.top, stopLossPrice: stopLoss },
+        );
+        if (trade) {
+          patchBoxSync(box.boxId, {
+            state: "in_position",
+            buyTradeId: trade.id,
+            lotQty: trade.quantity,
+            entryPrice: box.bottom,
+            buyAtMs: trade.atMs,
+            dipLow: stopLoss,
+          });
+          liveTradeLogInfo(
+            "[box-range:sim-buy]",
+            program.name,
+            sym,
+            box.timeframe,
+          );
+        }
+      }
+    } catch (e) {
+      runErr = e instanceof Error ? e.message : String(e);
+      liveTradeLogWarn("[box-range:buy]", program.name, sym, runErr);
+    } finally {
+      boxBuyInFlight.delete(dedupe);
+      touchLiveTradeProgramRunSync(program.id, runErr);
     }
     return;
   }

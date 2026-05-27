@@ -61,6 +61,8 @@ export const BOX_RANGE_PINE_MAX_STORE = 0;
 export const BOX_RANGE_CATALOG_DIR_PINE = "box-range-catalog-pine";
 /** PRO v2 탐지·매매 SSOT 카탈로그 */
 export const BOX_RANGE_CATALOG_DIR_PRO = "box-range-catalog-pro";
+/** V2 탐지(ER필터+고저퍼센타일+POC+거절점수) 카탈로그 */
+export const BOX_RANGE_CATALOG_DIR_V2 = "box-range-catalog-v2";
 /** Legacy overlap-merge 카탈로그 */
 export const BOX_RANGE_CATALOG_DIR_LEGACY = "box-range-catalog";
 
@@ -71,6 +73,12 @@ export const BOX_RANGE_CATALOG_STRATEGIES = /** @type {const} */ ([
     label: "PRO v2 (하단복귀)",
     catalogDir: BOX_RANGE_CATALOG_DIR_PRO,
     default: true,
+  },
+  {
+    id: "v2",
+    label: "V2 (ER필터+POC+확인캔들)",
+    catalogDir: BOX_RANGE_CATALOG_DIR_V2,
+    default: false,
   },
   {
     id: "legacy",

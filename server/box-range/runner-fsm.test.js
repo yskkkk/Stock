@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 /**
  * Pine PRO v2 FSM 의사결정 — runner-fsm.js와 동일 규칙(틱 lastPrice)
+ * 모델 ⑩: armed→confirming→in_position (확인캔들 1틱 추가)
  * @param {{ state: string; bottom: number; top: number; dipLow: number | null; dead?: boolean; rightTime: number }} box
  * @param {number} lastPrice
  * @param {number} nowMs
@@ -23,9 +24,19 @@ function proV2FsmStep(box, lastPrice, nowMs) {
     const dipLow =
       box.dipLow == null || lastPrice < box.dipLow ? lastPrice : box.dipLow;
     if (lastPrice >= box.bottom) {
-      return { action: "buy", entryPrice: box.bottom, dipLow };
+      return { action: "confirm", dipLow };
     }
     return { action: "track_dip", dipLow };
+  }
+
+  if (box.state === "confirming") {
+    if (!afterBox) return { action: "none" };
+    if (lastPrice < box.bottom) {
+      const dipLow =
+        box.dipLow == null || lastPrice < box.dipLow ? lastPrice : box.dipLow;
+      return { action: "rearm", dipLow };
+    }
+    return { action: "buy", entryPrice: box.bottom, dipLow: box.dipLow };
   }
 
   if (box.state === "in_position") {
@@ -59,15 +70,34 @@ test("PRO v2: no arm before box rightTime", () => {
   assert.equal(r.action, "none");
 });
 
-test("PRO v2: armed buy on recovery at bottom", () => {
+test("PRO v2: armed → confirming on first recovery tick", () => {
   const r = proV2FsmStep(
     { ...BOX, state: "armed", dipLow: 97, breakAtMs: 1 },
+    100,
+    AFTER_BOX_MS,
+  );
+  assert.equal(r.action, "confirm");
+  assert.equal(r.dipLow, 97);
+});
+
+test("PRO v2: confirming → buy on second recovery tick", () => {
+  const r = proV2FsmStep(
+    { ...BOX, state: "confirming", dipLow: 97, breakAtMs: 1 },
     100,
     AFTER_BOX_MS,
   );
   assert.equal(r.action, "buy");
   assert.equal(r.entryPrice, 100);
   assert.equal(r.dipLow, 97);
+});
+
+test("PRO v2: confirming → rearm on fake recovery", () => {
+  const r = proV2FsmStep(
+    { ...BOX, state: "confirming", dipLow: 97, breakAtMs: 1 },
+    98,
+    AFTER_BOX_MS,
+  );
+  assert.equal(r.action, "rearm");
 });
 
 test("PRO v2: dipLow tracks min while armed even above bottom", () => {
