@@ -1,6 +1,6 @@
 import { loadBoxRangeCatalogUniverse } from "../universe.js";
 import { BOX_RANGE_SP500_SCAN_MS } from "./constants.js";
-import { scanOneSymbolCatalog } from "./catalog-scan-shared.js";
+import { scanOneSymbolCatalog, scanOneSymbolCatalogV2 } from "./catalog-scan-shared.js";
 import { refreshCatalogIndexSync } from "./catalog-store.js";
 import { notifyCatalogScanTelegram } from "./catalog-scan-telegram.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "../live-trade-log.js";
@@ -39,9 +39,12 @@ export async function runSp500BoxRangeCatalogScan() {
   for (let i = 0; i < list.length; i += BATCH_SIZE) {
     const batch = list.slice(i, i + BATCH_SIZE);
     const results = await Promise.all(
-      batch.map((item) => scanOneSymbolCatalog(item, "us")),
+      batch.map((item) => Promise.all([
+        scanOneSymbolCatalog(item, "us"),
+        scanOneSymbolCatalogV2(item, "us"),
+      ])),
     );
-    for (const r of results) {
+    for (const [r] of results) {
       if (r.ok) ok += 1;
       else errors += 1;
       if (r.boxes > 0) withBoxes += 1;

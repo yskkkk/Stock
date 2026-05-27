@@ -3,7 +3,7 @@ import {
   BOX_RANGE_CRYPTO_HTF_SYMBOLS,
   BOX_RANGE_CRYPTO_SCAN_MS,
 } from "./constants.js";
-import { scanOneSymbolCatalog } from "./catalog-scan-shared.js";
+import { scanOneSymbolCatalog, scanOneSymbolCatalogV2 } from "./catalog-scan-shared.js";
 import { refreshCatalogIndexSync } from "./catalog-store.js";
 import { notifyCatalogScanTelegram } from "./catalog-scan-telegram.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "../live-trade-log.js";
@@ -36,7 +36,10 @@ export async function runCryptoBoxRangeCatalogScan() {
   const scanErrors = [];
 
   for (const item of items) {
-    const r = await scanOneSymbolCatalog(item, "crypto");
+    const [r] = await Promise.all([
+      scanOneSymbolCatalog(item, "crypto"),
+      scanOneSymbolCatalogV2(item, "crypto"),
+    ]);
     if (r.ok) ok += 1;
     else {
       errors += 1;
