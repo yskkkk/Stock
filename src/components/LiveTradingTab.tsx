@@ -1105,7 +1105,7 @@ export default function LiveTradingTab({
                       role="radio"
                       aria-checked={draft.marketsKr}
                       onClick={() =>
-                        setDraft((d) => selectProgramMarketDraft(d, "marketsKr"))
+                        setDraft((d) => ({ ...d, ...selectProgramMarketDraft(d, "marketsKr") }))
                       }
                     >
                       {ko.app.liveTradeMarketKr}
@@ -1120,7 +1120,7 @@ export default function LiveTradingTab({
                       role="radio"
                       aria-checked={draft.marketsUs}
                       onClick={() =>
-                        setDraft((d) => selectProgramMarketDraft(d, "marketsUs"))
+                        setDraft((d) => ({ ...d, ...selectProgramMarketDraft(d, "marketsUs") }))
                       }
                     >
                       {ko.app.liveTradeMarketUs}
@@ -1136,7 +1136,7 @@ export default function LiveTradingTab({
                       aria-checked={draft.marketsCrypto}
                       onClick={() =>
                         setDraft((d) =>
-                          selectProgramMarketDraft(d, "marketsCrypto"),
+                          ({ ...d, ...selectProgramMarketDraft(d, "marketsCrypto") }),
                         )
                       }
                     >
