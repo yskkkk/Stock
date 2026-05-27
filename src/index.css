@@ -10459,32 +10459,46 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  touch-action: pan-y;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--muted) 55%, transparent) transparent;
 }
 
 .app-live-trade-side-dock__host
   .live-trading-tab__card-tabs-pane--rail
   .live-trading-tab__card-tabs-host::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
+  width: 6px;
 }
 
-/* 도크 패널 안 중첩 스크롤 영역도 막대 숨김(휠로만 이동) */
-.app-live-trade-side-dock__host .live-trading-tab__card-tabs-host * {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+.app-live-trade-side-dock__host
+  .live-trading-tab__card-tabs-pane--rail
+  .live-trading-tab__card-tabs-host::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 50%, transparent);
 }
 
-.app-live-trade-side-dock__host .live-trading-tab__card-tabs-host *::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
+/* 도크 패널 — 패널 host 한 겹만 스크롤(내부 중첩 스크롤 해제) */
+.app-live-trade-side-dock__host
+  .live-trading-tab__card-tabs-host:not(.live-trading-tab__card-tabs-host--idle)
+  .dock-linked-accounts,
+.app-live-trade-side-dock__host
+  .live-trading-tab__card-tabs-host:not(.live-trading-tab__card-tabs-host--idle)
+  .dock-linked-accounts__body,
+.app-live-trade-side-dock__host
+  .live-trading-tab__card-tabs-host:not(.live-trading-tab__card-tabs-host--idle)
+  .app-dock-rail-panel {
+  overflow: visible;
+  max-height: none;
+  height: auto;
 }
 
 .app-live-trade-side-dock__host .live-trading-tab__card-tabs-host:not(.live-trading-tab__card-tabs-host--idle) {
   display: block;
+}
+
+.live-trading-tab__card-tabs-host--dragging {
+  cursor: grabbing;
+  user-select: none;
 }
 
 /* 도크 안 거래내역(테이블) — 내부만 세로 스크롤되도록 강제 (스크롤바는 숨김) */
@@ -10657,11 +10671,10 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
 .dock-linked-accounts {
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   gap: 0.85rem;
   min-width: 0;
   min-height: 0;
-  height: 100%;
   box-sizing: border-box;
 }
 
@@ -10914,9 +10927,8 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   .live-trading-tab__card-tabs-pane--rail
   .live-trading-tab__card-tabs-host
   .app-dock-rail-panel--accounts.dock-linked-accounts {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
-  height: 100%;
 }
 
 .app-live-trade-side-dock__host

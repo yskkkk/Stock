@@ -31,6 +31,7 @@ import BithumbAccountSnapshotCard from "./BithumbAccountSnapshotCard";
 import FieldValidationCallout from "./FieldValidationCallout";
 import LiveTradeDockYsHead from "./LiveTradeDockYsHead";
 import { ko } from "../i18n/ko";
+import { useNestedVerticalScroll } from "../hooks/useNestedVerticalScroll";
 import { LIVE_TRADE_DOCK_OPEN_PORTFOLIO_EVENT } from "../lib/liveTradePortfolioFocus";
 import {
   validateAuthCredentials,
@@ -367,6 +368,7 @@ export function LiveTradeCardSidePanel({
     useLiveTradeCardSidePanel();
   const { user, authChecked } = useLiveTradeAuth();
   const { docked, host } = useLiveTradeRightPanelDock();
+  const dockBodyScrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!panel) return;
@@ -398,6 +400,20 @@ export function LiveTradeCardSidePanel({
     Boolean(activeId) &&
     authChecked &&
     (Boolean(user) || activeId === LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth);
+
+  const setDockBodyHostEl = useCallback(
+    (el: HTMLDivElement | null) => {
+      dockBodyScrollRef.current = el;
+      setBodyHostEl(el);
+    },
+    [setBodyHostEl],
+  );
+
+  useNestedVerticalScroll(
+    dockBodyScrollRef,
+    railMode && bodyHostActive,
+    "live-trading-tab__card-tabs-host--dragging",
+  );
 
   const pane = (
     <aside
@@ -463,7 +479,7 @@ export function LiveTradeCardSidePanel({
           </p>
         ) : null}
         <div
-          ref={setBodyHostEl}
+          ref={setDockBodyHostEl}
           className={`live-trading-tab__card-tabs-host${
             bodyHostActive ? "" : " live-trading-tab__card-tabs-host--idle"
           }`}

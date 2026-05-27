@@ -105,20 +105,11 @@ function isScrollableY(el: HTMLElement): boolean {
   return el.scrollHeight > el.clientHeight + 2;
 }
 
-/** 펼친 패널 안 — 이벤트 지점에서 위로 올라가며 첫 스크롤 가능 조상 */
-function findDockPanelScrollTarget(
-  dock: HTMLElement,
-  from: EventTarget | null,
-): HTMLElement | null {
-  let el: Element | null = from instanceof Element ? from : null;
-  while (el && dock.contains(el)) {
-    if (el instanceof HTMLElement && isScrollableY(el)) return el;
-    el = el.parentElement;
-  }
-  const host = dock.querySelector<HTMLElement>(
+/** 펼친 도크 왼쪽 패널 — 단일 스크롤 루트(탭 본문 host) */
+function findDockPanelScrollRoot(dock: HTMLElement): HTMLElement | null {
+  return dock.querySelector<HTMLElement>(
     ".live-trading-tab__card-tabs-host:not(.live-trading-tab__card-tabs-host--idle)",
   );
-  return host;
 }
 
 function applyScrollDelta(el: HTMLElement, delta: number): void {
@@ -127,12 +118,12 @@ function applyScrollDelta(el: HTMLElement, delta: number): void {
   el.scrollTop = Math.max(0, Math.min(max, el.scrollTop + delta));
 }
 
-/** 펼친 도크 패널 — 본문 `.app__scroll`과 분리, 패널 내부만 스크롤 */
+/** 펼친 도크 패널 — 본문 host만 스크롤(중첩 영역 무시) */
 function applyDockPanelWheelScroll(dock: HTMLElement, e: WheelEvent): void {
   const delta = wheelDeltaY(e);
   if (delta === 0) return;
-  const target = findDockPanelScrollTarget(dock, e.target);
-  if (target) applyScrollDelta(target, delta);
+  const root = findDockPanelScrollRoot(dock);
+  if (root) applyScrollDelta(root, delta);
 }
 
 function isWheelInDockPanel(dock: HTMLElement | null, e: WheelEvent): boolean {
@@ -759,10 +750,13 @@ export default function AppLiveTradeSideDock({
       const dock = dockRef.current;
       const open = openRef.current;
 
-      if (open && dock && isWheelInDockPanel(dock, e)) {
-        e.preventDefault();
-        e.stopPropagation();
-        applyDockPanelWheelScroll(dock, e);
+      if (open && dock && isWheelInDockPanel(dock, e) && !isWheelInDockRail(e)) {
+        const panelRoot = findDockPanelScrollRoot(dock);
+        if (panelRoot && isScrollableY(panelRoot)) {
+          e.preventDefault();
+          e.stopPropagation();
+          applyDockPanelWheelScroll(dock, e);
+        }
         return;
       }
 
