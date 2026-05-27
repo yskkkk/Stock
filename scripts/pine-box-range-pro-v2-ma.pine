@@ -57,8 +57,11 @@ color color_20_120 = gold_20_120 ? color.green : dead_20_120 ? color.red : na
 plot(show_ma_cross and (gold_5_20 or dead_5_20) ? ma5 : na, style=plot.style_circles, linewidth=5, color=color_5_20, title="5-20 교차점")
 plot(show_ma_cross and (gold_20_120 or dead_20_120) ? ma20 : na, style=plot.style_circles, linewidth=5, color=color_20_120, title="20-120 교차점")
 
-bool is_tf = timeframe.period == active_tf
+// timeframe.period("D")만으로는 차트·브로커 조합에 따라 불일치 가능 → isdaily/multiplier 병행
+bool is_tf = (active_tf == "D" and timeframe.isdaily) or (active_tf == "60" and timeframe.isintraday and timeframe.multiplier == 60) or (active_tf == "240" and timeframe.isintraday and timeframe.multiplier == 240)
 int tfMs = timeframe.in_seconds() * 1000
+// 일봉 확장: split_mid(58%)가 너무 빡세면 구간이 줄어 거절점수 미달 → 확장만 완화
+float expand_split = active_tf == "D" ? math.max(split_mid_pct, 75.0) : split_mid_pct
 
 var box[] boxes = array.new_box()
 var line[] lines = array.new_line()
@@ -278,11 +281,11 @@ f_scan_box(int newestOff) =>
         float erVal = f_er(start_idx, newestOff)
         if erVal <= er_thresh
             float pad = (max_val - min_val) * (exp_edge / 100.0)
-            [oldOff, newOff] = expand_range_idx(start_idx, newestOff, max_expand, pad, exp_gap, split_mid_pct)
+            [oldOff, newOff] = expand_range_idx(start_idx, newestOff, max_expand, pad, exp_gap, expand_split)
             [boxTop, boxBot, midPx] = f_compute_box_v2(oldOff, newOff)
             if not na(midPx) and boxTop > boxBot
                 float hPct = f_box_h_pct(boxTop, boxBot)
-                float minHpct = active_tf == "60" ? 1.0 : active_tf == "240" ? 3.0 : 0.1
+                float minHpct = active_tf == "60" ? 1.0 : active_tf == "240" ? 3.0 : 3.0
                 bool sizeOk = hPct >= minHpct and hPct <= max_box_pct * 1.5
                 if sizeOk
                     [tSc, bSc] = f_reject_score(oldOff, newOff, boxTop, boxBot)
@@ -419,10 +422,13 @@ plot(show_er ? er_now : na, title="ER", color=er_now <= er_thresh ? color.green 
 plot(show_er ? er_thresh : na, title="ER 임계", color=color.gray, style=plot.style_line, linewidth=1, display=display.pane)
 
 float wr = total_trades > 0 ? (win_trades * 100.0 / total_trades) : 0.0
-var table tbl = table.new(position.bottom_right, 2, 9, bgcolor=color.new(color.black, 80))
+var table tbl = table.new(position.bottom_right, 2, 10, bgcolor=color.new(color.black, 80))
 if barstate.islast
     table.cell(tbl, 0, 0, "V2 박스", text_color=color.gray, text_size=size.small)
     table.cell(tbl, 1, 0, str.tostring(sz), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 0, 9, "차트TF", text_color=color.gray, text_size=size.small)
+    string tfHint = is_tf ? "일치" : "불일치→" + (active_tf == "D" ? "일봉차트" : active_tf == "240" ? "4H차트" : "1H차트")
+    table.cell(tbl, 1, 9, tfHint, text_color=is_tf ? color.lime : color.red, text_size=size.small)
     table.cell(tbl, 0, 1, "추세", text_color=color.gray, text_size=size.small)
     table.cell(tbl, 1, 1, uptrend ? "상승" : "비상승", text_color=uptrend ? color.lime : color.red, text_size=size.small)
     table.cell(tbl, 0, 2, "ER", text_color=color.gray, text_size=size.small)
