@@ -5,13 +5,14 @@ import {
 import { ko } from "../i18n/ko";
 import { countProgramMarketsSelected } from "./liveTradeProgramMarkets";
 
+export const LIVE_TRADE_DEFAULT_MAX_OPEN_POSITIONS = 5;
+
 export type LiveTradeProgramDraftFields = {
   name: string;
   modelId: string;
   marketsKr: boolean;
   marketsUs: boolean;
   marketsCrypto: boolean;
-  maxOpenPositions: string;
   orderAmountKrw: string;
   orderAmountUsd: string;
 };
@@ -19,6 +20,8 @@ export type LiveTradeProgramDraftFields = {
 export type LiveTradeProgramDraftValidateContext = {
   existingPrograms?: { id: string; name: string }[];
   editingProgramId?: string | null;
+  /** 편집 시 서버 값 유지 (폼 필드 없음) */
+  editingMaxOpenPositions?: number;
 };
 
 export function programNameCompareKey(name: string): string {
@@ -36,15 +39,6 @@ export function hasDuplicateProgramName(
   return programs.some(
     (p) => p.id !== exclude && programNameCompareKey(p.name) === key,
   );
-}
-
-/** @returns 1~50 정수, 빈 값·0·비정상이면 null */
-export function parseMaxOpenPositionsInput(raw: string): number | null {
-  const t = String(raw ?? "").trim();
-  if (!t) return null;
-  const n = Number(t);
-  if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1 || n > 50) return null;
-  return n;
 }
 
 function krwAmountFieldLabel(cryptoOnly: boolean): string {
@@ -93,10 +87,8 @@ export function validateLiveTradeProgramDraft(
   if (countProgramMarketsSelected(markets) !== 1) {
     return { ok: false, message: ko.app.liveTradeFieldMarketsRequired };
   }
-  const maxOpenPositions = parseMaxOpenPositionsInput(draft.maxOpenPositions);
-  if (maxOpenPositions == null) {
-    return { ok: false, message: ko.app.liveTradeFieldMaxPosInvalid };
-  }
+  const maxOpenPositions =
+    context?.editingMaxOpenPositions ?? LIVE_TRADE_DEFAULT_MAX_OPEN_POSITIONS;
   const needsKrw = markets.kr || markets.crypto;
   const needsUsd = markets.us;
   if (needsKrw && !draft.orderAmountKrw.trim()) {

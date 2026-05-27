@@ -12,7 +12,6 @@ const base = {
   marketsKr: true,
   marketsUs: false,
   marketsCrypto: false,
-  maxOpenPositions: "5",
   orderAmountKrw: "10000",
   orderAmountUsd: "",
 };

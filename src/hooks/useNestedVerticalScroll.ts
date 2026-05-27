@@ -13,6 +13,16 @@ function canScrollY(el: HTMLElement): boolean {
   return el.scrollHeight > el.clientHeight + EPS;
 }
 
+/** 드래그 스크롤이 클릭·입력을 가로채지 않도록 */
+function isInteractiveScrollTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  return Boolean(
+    target.closest(
+      'button, input, select, textarea, a, label, [role="radio"], [role="tab"], [contenteditable="true"]',
+    ),
+  );
+}
+
 function findParentScrollY(el: HTMLElement): HTMLElement | null {
   let n: HTMLElement | null = el.parentElement;
   while (n) {
@@ -75,6 +85,7 @@ export function useNestedVerticalScroll(
 
     const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0 || !canScrollY(el)) return;
+      if (isInteractiveScrollTarget(e.target)) return;
       dragging = true;
       activePointer = e.pointerId;
       dragStartY = e.clientY;

@@ -163,7 +163,6 @@ const emptyDraft = () => ({
   marketsUs: false,
   marketsCrypto: false,
   minScoreRatio: 0.8,
-  maxOpenPositions: "5",
   orderAmountKrw: "10000",
   orderAmountUsd: "",
   simAutoBuy: true,
@@ -442,13 +441,16 @@ export default function LiveTradingTab({
     Math.max(0.7, Number(draft.minScoreRatio) || 0.8),
   );
   const minOrderKrw = minOrderAmountKrwForMarkets(draftMarkets);
-  const draftValidateContext = useMemo(
-    () => ({
+  const draftValidateContext = useMemo(() => {
+    const editing = editingId
+      ? programs.find((p) => p.id === editingId)
+      : undefined;
+    return {
       existingPrograms: programs.map((p) => ({ id: p.id, name: p.name })),
       editingProgramId: editingId,
-    }),
-    [programs, editingId],
-  );
+      editingMaxOpenPositions: editing?.maxOpenPositions,
+    };
+  }, [programs, editingId]);
   const canSaveForm = liveTradeProgramDraftCanSave(draft, draftValidateContext);
   const saveBlockedHint = useMemo(() => {
     if (canSaveForm) return null;
@@ -518,7 +520,6 @@ export default function LiveTradingTab({
         modelId: p.modelId,
         ...programMarketDraftFromMarkets(p.markets),
         minScoreRatio: p.minScoreRatio,
-        maxOpenPositions: String(p.maxOpenPositions),
         orderAmountKrw:
           p.orderAmountKrw != null ? String(Math.round(p.orderAmountKrw)) : "",
         orderAmountUsd:
@@ -1104,10 +1105,6 @@ export default function LiveTradingTab({
                       modelId: patch.modelId ?? d.modelId,
                       ...(patchMarkets ?? {}),
                       minScoreRatio: patch.minScoreRatio ?? d.minScoreRatio,
-                      maxOpenPositions:
-                        patch.maxOpenPositions != null
-                          ? String(patch.maxOpenPositions)
-                          : d.maxOpenPositions,
                       orderAmountKrw: patch.orderAmountKrw ?? d.orderAmountKrw,
                       orderAmountUsd: patch.orderAmountUsd ?? d.orderAmountUsd,
                       simAutoBuy: patch.simAutoBuy ?? d.simAutoBuy,
@@ -1245,26 +1242,6 @@ export default function LiveTradingTab({
                     />
                   </div>
                 )}
-
-                <label className="live-trading-tab__field">
-                  <span className="live-trading-tab__label">
-                    {ko.app.liveTradeFieldMaxPos}
-                  </span>
-                  <input
-                    type="number"
-                    className="input live-trading-tab__input"
-                    min={1}
-                    max={50}
-                    inputMode="numeric"
-                    value={draft.maxOpenPositions}
-                    onChange={(e) =>
-                      setDraft((d) => ({
-                        ...d,
-                        maxOpenPositions: e.target.value,
-                      }))
-                    }
-                  />
-                </label>
 
                 <label
                   className={`live-trading-tab__field${!needsKrwAmount ? " live-trading-tab__field--off" : ""}`}
