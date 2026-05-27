@@ -190,7 +190,9 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
     if (boxBuyInFlight.has(dedupe)) return;
     boxBuyInFlight.add(dedupe);
 
-    const stopLoss = box.dipLow ?? box.bottom;
+    // 손절가 = 박스 하단 (Pine 동일): 매수는 하단 위 현재가, 손절은 하단 아래 재이탈 시
+    // dipLow(최저점)는 0거리 손절 유발 — box.bottom이 항상 매수가보다 낮음
+    const stopLoss = box.bottom;
     let runErr = null;
     try {
       const pick = {
@@ -318,9 +320,11 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
     if (lastPrice >= box.top) {
       exitSide = "tp";
       fillPrice = box.top;
-    } else if (box.dipLow != null && lastPrice <= box.dipLow) {
+    } else if (lastPrice < box.bottom) {
+      // 손절: 박스 하단 아래로 재이탈 — Pine 동일 (low <= bottom)
+      // dipLow 기준은 매수가 ≈ dipLow인 경우 0거리 손절 유발
       exitSide = "sl";
-      fillPrice = box.dipLow;
+      fillPrice = box.bottom;
     }
     if (!exitSide) return;
 

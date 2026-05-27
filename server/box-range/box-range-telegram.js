@@ -44,15 +44,23 @@ export async function notifyBoxRangeDipRecoveryEntry(box, program, lastPrice, ma
   const st = program.status === "armed" ? "실매매" : "시뮬";
   const dip = Number(box.dipLow);
   const dipOk = Number.isFinite(dip) && dip > 0;
+  const slPct = box.bottom > 0 && lastPrice > 0
+    ? (((lastPrice - box.bottom) / lastPrice) * 100).toFixed(2)
+    : null;
+  const tpPct = box.top > 0 && lastPrice > 0
+    ? (((box.top - lastPrice) / lastPrice) * 100).toFixed(2)
+    : null;
   const text = [
     "<b>📦 박스권 매수(PRO v2)</b>",
     "",
     `종목: <b>${sym}</b> · ${tf}`,
     `프로그램: ${program.name ?? program.id} (${st})`,
     `예상체결가(현재가): <b>${fmtBoxPrice(lastPrice, market)}</b>`,
-    `박스 하단(기준): ${fmtBoxPrice(box.bottom, market)}`,
-    `익절(상단): ${fmtBoxPrice(box.top, market)}`,
-    `손절(${dipOk ? "dipLow" : "하단"}): ${fmtBoxPrice(dipOk ? dip : box.bottom, market)}`,
+    `익절(상단): ${fmtBoxPrice(box.top, market)}${tpPct != null ? ` (+${tpPct}%)` : ""}`,
+    `손절(하단): ${fmtBoxPrice(box.bottom, market)}${slPct != null ? ` (-${slPct}%)` : ""}`,
+    ...(dipOk && Math.abs(dip - box.bottom) / box.bottom > 0.001
+      ? [`dip 최저: ${fmtBoxPrice(dip, market)}`]
+      : []),
     "",
     "조건: 박스 종료 후 하단 이탈 → 하단 위로 복귀",
   ].join("\n");
