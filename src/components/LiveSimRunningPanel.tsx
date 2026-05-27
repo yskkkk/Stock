@@ -635,7 +635,7 @@ export default function LiveSimRunningPanel({
     [feeRates],
   );
 
-  const loadPortfolio = useCallback(async () => {
+  const loadPortfolio = useCallback(async (exchangeSync = false) => {
     if (activeIds.size === 0) {
       setPortfolio(null);
       setErr(null);
@@ -649,7 +649,8 @@ export default function LiveSimRunningPanel({
         const token = getStoredAccessAdminToken() ?? "";
         snap = await fetchAccessAdminLiveTradingPortfolio(token, viewUid, null);
       } else {
-        snap = await fetchLiveTradingPortfolio(null, { exchangeSync: true });
+        // NOTE: exchangeSync can block on external APIs; keep the panel responsive by default.
+        snap = await fetchLiveTradingPortfolio(null, { exchangeSync });
       }
       const syms = [
         ...new Set(snap.holdings.map((h) => h.symbol.trim().toUpperCase()).filter(Boolean)),
@@ -686,12 +687,12 @@ export default function LiveSimRunningPanel({
   }, [activeIds.size, feeByMarket, adminViewUserId, readOnly]);
 
   useEffect(() => {
-    void loadPortfolio();
+    void loadPortfolio(false);
   }, [loadPortfolio, refreshKey]);
 
   useEffect(() => {
     if (activeIds.size === 0) return;
-    const id = window.setInterval(() => void loadPortfolio(), 20_000);
+    const id = window.setInterval(() => void loadPortfolio(false), 20_000);
     return () => window.clearInterval(id);
   }, [loadPortfolio, activeIds.size]);
 
@@ -826,7 +827,7 @@ export default function LiveSimRunningPanel({
             label={ko.app.liveTradePfRefresh}
             className="btn btn--secondary btn--sm"
             disabled={loading || activeCount === 0}
-            onClick={() => void loadPortfolio()}
+            onClick={() => void loadPortfolio(true)}
           />
         </div>
       </div>
