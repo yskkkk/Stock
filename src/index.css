@@ -8948,11 +8948,9 @@ html[data-theme="light"] .market-indices-belt {
 
 @media (prefers-reduced-motion: reduce) {
   .market-indices-belt__track {
-    animation: none;
-    overflow-x: auto;
-    max-width: 100%;
-    padding-bottom: 0.15rem;
-    scrollbar-width: thin;
+    /* 스크롤 UI 대신 기존 벨트처럼 자동 흐름 유지 */
+    animation: market-indices-belt-scroll var(--market-indices-belt-duration, 60s)
+      linear infinite;
   }
 
   .market-indices-belt__viewport {
