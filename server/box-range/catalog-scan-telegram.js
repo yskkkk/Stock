@@ -1,5 +1,7 @@
 /**
- * 카탈로그 스캔 완료·현재가↔박스권 1% 근접 — 텔레그램 알림
+ * 박스권 텔레그램 — 기본: 스캔(탐색) 요약 OFF, 현재가↔박스 1% 이내만 발송
+ * STOCK_BOX_RANGE_SCAN_TELEGRAM=1 — 스캔 완료 요약(탐색) 복구
+ * STOCK_BOX_RANGE_NEAR_TELEGRAM=0 — 근접 알림 끔
  */
 import { pickQuoteFromMap } from "../quote-symbol-resolve.js";
 import {
@@ -37,13 +39,14 @@ const QUOTE_CHUNK = (() => {
 
 const MARKET_LABEL = { us: "미국", kr: "국내", crypto: "코인" };
 
+/** 카탈로그 스캔(탐색) 완료 요약 — 기본 OFF */
 function scanTelegramEnabled() {
-  return String(process.env.STOCK_BOX_RANGE_SCAN_TELEGRAM ?? "1").trim() !== "0";
+  return String(process.env.STOCK_BOX_RANGE_SCAN_TELEGRAM ?? "0").trim() === "1";
 }
 
-/** 현재가↔박스권 근접 알림 — 기본 OFF (STOCK_BOX_RANGE_NEAR_TELEGRAM=1 로만 발송) */
+/** 현재가↔박스권 근접 알림 — 기본 ON (STOCK_BOX_RANGE_NEAR_TELEGRAM=0 으로 끔) */
 function nearTelegramEnabled() {
-  return String(process.env.STOCK_BOX_RANGE_NEAR_TELEGRAM ?? "0").trim() === "1";
+  return String(process.env.STOCK_BOX_RANGE_NEAR_TELEGRAM ?? "1").trim() !== "0";
 }
 
 /**
@@ -205,7 +208,9 @@ export function buildNearPriceMessage(market, hits) {
  * @param {{ scanned?: number; ok?: number; errors?: number; withBoxes?: number }} [scanRun]
  */
 export async function notifyCatalogScanTelegram(market, scanRun = {}) {
-  if (!scanTelegramEnabled()) {
+  const scanOn = scanTelegramEnabled();
+  const nearOn = nearTelegramEnabled();
+  if (!scanOn && !nearOn) {
     return { ok: false, skipped: true, reason: "disabled" };
   }
   if (!isTelegramNotifyEnabled()) {
@@ -214,36 +219,53 @@ export async function notifyCatalogScanTelegram(market, scanRun = {}) {
   }
 
   const m = resolveCatalogMarket(market);
-  const summaryText = buildCatalogScanSummaryMessage(m, scanRun);
 
-  const ok1 = await sendStockTelegramMessage(summaryText, undefined);
-
-  let nearHits = [];
-  let ok2 = false;
-  if (nearTelegramEnabled()) {
-    nearHits = await collectNearPriceCatalogHits(m, NEAR_PCT);
-    const nearText = buildNearPriceMessage(m, nearHits);
-    ok2 = await sendStockTelegramMessage(nearText, undefined);
+  let summarySent = false;
+  let okSummary = true;
+  if (scanOn) {
+    const summaryText = buildCatalogScanSummaryMessage(m, scanRun);
+    okSummary = await sendStockTelegramMessage(summaryText, undefined);
+    summarySent = okSummary;
   }
 
-  if (ok1 || ok2) {
+  let nearHits = [];
+  let nearSent = false;
+  let okNear = true;
+  if (nearOn) {
+    nearHits = await collectNearPriceCatalogHits(m, NEAR_PCT);
+    if (nearHits.length > 0) {
+      const nearText = buildNearPriceMessage(m, nearHits);
+      okNear = await sendStockTelegramMessage(nearText, undefined);
+      nearSent = okNear;
+    }
+  }
+
+  const didSend = summarySent || nearSent;
+  if (didSend) {
     liveTradeLogInfo(
       "[box-range:scan-tg]",
       "sent",
       m,
-      nearTelegramEnabled() ? `near=${nearHits.length}` : "near=off",
-      `scan ok=${ok1} near=${nearTelegramEnabled() ? ok2 : "skip"}`,
+      `scan=${scanOn ? (summarySent ? "yes" : "fail") : "off"}`,
+      `near=${nearOn ? nearHits.length : "off"}`,
+      nearSent ? "near_msg=yes" : nearOn ? "near_msg=skip_empty" : "",
     );
-  } else {
-    liveTradeLogWarn("[box-range:scan-tg]", "send failed", m);
+  } else if (scanOn && !okSummary) {
+    liveTradeLogWarn("[box-range:scan-tg]", "scan summary send failed", m);
+  } else if (nearOn && nearHits.length > 0 && !okNear) {
+    liveTradeLogWarn("[box-range:scan-tg]", "near price send failed", m);
   }
 
+  const ok =
+    (!scanOn || okSummary) && (!nearOn || nearHits.length === 0 || okNear);
+
   return {
-    ok: Boolean(ok1 && (!nearTelegramEnabled() || ok2)),
+    ok,
     market: m,
     nearCount: nearHits.length,
-    summarySent: ok1,
-    nearSent: ok2,
-    nearSkipped: !nearTelegramEnabled(),
+    summarySent,
+    nearSent,
+    nearSkipped: !nearOn,
+    scanSkipped: !scanOn,
   };
 }

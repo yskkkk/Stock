@@ -152,7 +152,7 @@ ${tfTableText}
   · Legacy 카탈로그(box-range-catalog)는 overlap-merge 구버전 — PRO와 별도
   · 손절 후 dead 박스는 재매매 안 함 / 익절 후에는 같은 박스 재진입 가능
   · 카탈로그 consumed·수동 미사용 박스는 이후 매매 제외
-  · 박스권 근접 텔레그램(STOCK_BOX_RANGE_NEAR_TELEGRAM) 기본 OFF, 스캔 요약만 별도
+  · 박스권 텔레그램: 근접(STOCK_BOX_RANGE_NEAR_TELEGRAM) 기본 ON, 스캔 요약(STOCK_BOX_RANGE_SCAN_TELEGRAM) 기본 OFF
 
 문의: 앱 내 「문의」 — 종목·시간봉·스크린샷 첨부 권장
 
