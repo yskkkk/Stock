@@ -17,7 +17,7 @@ const token =
     ? process.env.TELEGRAM_BOT_TOKEN?.trim()
     : process.env.TELEGRAM_OPS_BOT_TOKEN?.trim();
 const envKey =
-  which === "stock" ? "TELEGRAM_CHAT_ID" : "TELEGRAM_OPS_CHAT_ID";
+  which === "stock" ? "TELEGRAM_CHANNEL_ID 또는 TELEGRAM_CHAT_ID" : "TELEGRAM_OPS_CHAT_ID";
 
 if (!token) {
   console.error(
@@ -66,8 +66,16 @@ if (chats.size === 0) {
 }
 
 for (const { id, type, label } of chats.values()) {
-  console.log(`  ${envKey}=${id}   (${type}: ${label})`);
+  const hint =
+    which === "stock" && type === "channel"
+      ? " → .env TELEGRAM_CHANNEL_ID"
+      : which === "stock" && (type === "private" || type === "group")
+        ? " → .env TELEGRAM_CHAT_ID (또는 채널은 TELEGRAM_CHANNEL_ID)"
+        : "";
+  console.log(`  chat_id=${id}   (${type}: ${label})${hint}`);
 }
 console.log(
-  "\n원하는 방의 숫자를 .env에 넣고 서버를 재시작하세요.\n",
+  which === "stock"
+    ? "\n채널 알림: TELEGRAM_CHANNEL_ID=-100… (봇을 채널 관리자·메시지 게시 권한)\n개인 DM만: TELEGRAM_CHAT_ID\n서버 재시작 후 적용.\n"
+    : "\n원하는 방의 숫자를 .env에 넣고 서버를 재시작하세요.\n",
 );

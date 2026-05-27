@@ -134,7 +134,9 @@ const ok = await sendStockPickTelegramNow(pick, {
 });
 
 if (!ok) {
-  console.error("전송 실패 — TELEGRAM_BOT_TOKEN·TELEGRAM_CHAT_ID·서버 로그 확인");
+  console.error(
+    "전송 실패 — TELEGRAM_BOT_TOKEN·TELEGRAM_CHANNEL_ID(채널) 또는 TELEGRAM_CHAT_ID 확인",
+  );
   process.exit(1);
 }
 
