@@ -2990,6 +2990,37 @@ html[data-theme="light"]
   background: transparent;
 }
 
+.box-range-tab__price-card--selectable {
+  cursor: pointer;
+}
+
+.box-range-tab__price-card--selectable:hover {
+  border-color: rgba(148, 163, 184, 0.35);
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.box-range-tab__price-card--on {
+  border-color: rgba(37, 99, 235, 0.6);
+  background: rgba(37, 99, 235, 0.12);
+}
+
+.box-range-tab__chart-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 320px;
+}
+
+.box-range-tab__chart-picked {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.box-range-tab__view-tabs {
+  margin: 0 0 0.5rem;
+}
+
 .box-range-tab__price-card-head {
   display: flex;
   align-items: center;

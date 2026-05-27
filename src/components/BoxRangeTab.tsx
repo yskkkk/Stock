@@ -1,15 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMobileBackHandler } from "../hooks/useMobileBackHandler";
 import { isNativeApp } from "../lib/isNativeApp";
 import { MOBILE_BACK_PRIORITY } from "../lib/mobileBackStack";
 import {
   fetchBoxRangeCatalog,
   fetchBoxRangeCatalogSymbol,
+  fetchStock,
   type BoxRangeCatalogBox,
   type BoxRangeCatalogIndex,
   type BoxRangeCatalogMarket,
   type BoxRangeSymbolCatalog,
 } from "../api";
+import type { Candle, ChartTimeframe } from "../types";
 import { formatPercent, formatPrice } from "../lib/format";
 import { coerceBoxUnixTime } from "../lib/boxRangeChartPrimitive";
 import { cryptoCoinIconUrl, cryptoIconSlug } from "../lib/cryptoCoinIcon";
@@ -19,6 +21,7 @@ import DockPanelCenterLoading from "./DockPanelCenterLoading";
 import LiveTradeAuthPanel, {
   useLiveTradeAuth,
 } from "./LiveTradeAuthAndCredentials";
+import StockChart from "./StockChart";
 
 function fmtPrice(
   n: number | null | undefined,
@@ -228,25 +231,44 @@ function boxPctFromMid(mid: number, target: number): number | null {
 }
 
 const BOX_TF_ORDER = ["1h", "4h", "1d"] as const;
+type BoxRangeViewTab = "cards" | "chart";
 
 function BoxRangePriceCard({
   box,
   market,
   compact = false,
+  selected = false,
+  onSelect,
 }: {
   box: BoxRangeCatalogBox;
   market: BoxRangeCatalogMarket;
   compact?: boolean;
+  selected?: boolean;
+  onSelect?: () => void;
 }) {
   const tpPct = boxPctFromMid(box.mid, box.top);
   const slPct = boxPctFromMid(box.mid, box.bottom);
   return (
     <article
-      className={
-        compact
-          ? "box-range-tab__price-card box-range-tab__price-card--compact"
-          : "box-range-tab__price-card"
-      }
+      className={[
+        "box-range-tab__price-card",
+        compact ? "box-range-tab__price-card--compact" : "",
+        onSelect ? "box-range-tab__price-card--selectable" : "",
+        selected ? "box-range-tab__price-card--on" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      role={onSelect ? "button" : undefined}
+      tabIndex={onSelect ? 0 : undefined}
+      aria-pressed={onSelect ? selected : undefined}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (!onSelect) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
     >
       <header className="box-range-tab__price-card-head">
         <span className="box-range-tab__price-card-tf">{box.timeframe}</span>
@@ -330,6 +352,14 @@ export default function BoxRangeTab() {
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
   const [nativeTf, setNativeTf] = useState<"1h" | "4h" | "1d">("1h");
+  const [viewTab, setViewTab] = useState<BoxRangeViewTab>("cards");
+  const [selectedBoxId, setSelectedBoxId] = useState<string | null>(null);
+
+  const [chartCandles, setChartCandles] = useState<Candle[]>([]);
+  const [chartDailyCandles, setChartDailyCandles] = useState<Candle[]>([]);
+  const [chartLoading, setChartLoading] = useState(false);
+  const [chartErr, setChartErr] = useState<string | null>(null);
+  const chartAbortRef = useRef<AbortController | null>(null);
 
   useMobileBackHandler(
     nativeUi && Boolean(selected),
@@ -355,10 +385,14 @@ export default function BoxRangeTab() {
       setIndex(null);
       setSelected(null);
       setDetail(null);
+      setSelectedBoxId(null);
+      setViewTab("cards");
       return;
     }
     setSelected(null);
     setDetail(null);
+    setSelectedBoxId(null);
+    setViewTab("cards");
     void loadIndex();
   }, [user, loadIndex]);
 
@@ -420,6 +454,69 @@ export default function BoxRangeTab() {
     if (!nativeUi) return validBoxes;
     return validBoxes.filter((b) => b.timeframe === nativeTf);
   }, [nativeUi, validBoxes, nativeTf]);
+
+  useEffect(() => {
+    setSelectedBoxId(null);
+  }, [selected, detail?.symbol, catalogMarket, catalogStrategy]);
+
+  const chartTimeframe: ChartTimeframe = useMemo(() => {
+    const fallback = (validBoxes[0]?.timeframe ?? "1h") as ChartTimeframe;
+    if (nativeUi) return nativeTf;
+    const picked = selectedBoxId
+      ? (validBoxes.find((b) => b.catalogBoxId === selectedBoxId)?.timeframe as
+          | ChartTimeframe
+          | undefined)
+      : undefined;
+    return (picked ?? fallback) === "4h" || (picked ?? fallback) === "1d"
+      ? (picked ?? fallback)
+      : "1h";
+  }, [nativeUi, nativeTf, selectedBoxId, validBoxes]);
+
+  const catalogOverlays = useMemo(
+    () =>
+      boxesToShow.map((b) => ({
+        boxId: b.catalogBoxId,
+        top: b.top,
+        bottom: b.bottom,
+        mid: b.mid,
+        timeframe: b.timeframe,
+        state: "catalog",
+        leftTime: b.leftTime,
+        rightTime: b.rightTime,
+      })),
+    [boxesToShow],
+  );
+
+  useEffect(() => {
+    if (viewTab !== "chart" || !selected || !detail) return;
+    const sym = String(detail.symbol ?? "").trim().toUpperCase();
+    if (!sym) return;
+    chartAbortRef.current?.abort();
+    const ac = new AbortController();
+    chartAbortRef.current = ac;
+    setChartLoading(true);
+    setChartErr(null);
+    fetchStock(sym, chartTimeframe, true, ac.signal)
+      .then((d) => {
+        if (ac.signal.aborted) return;
+        const c = Array.isArray(d?.candles) ? d.candles : [];
+        const dc = Array.isArray((d as any)?.dailyCandles)
+          ? (d as any).dailyCandles
+          : [];
+        setChartCandles(c as Candle[]);
+        setChartDailyCandles(dc as Candle[]);
+      })
+      .catch((e) => {
+        if (ac.signal.aborted) return;
+        setChartCandles([]);
+        setChartDailyCandles([]);
+        setChartErr(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => {
+        if (!ac.signal.aborted) setChartLoading(false);
+      });
+    return () => ac.abort();
+  }, [viewTab, selected, detail, chartTimeframe, fetchStock]);
 
   const rootClass = [
     "workspace",
@@ -655,6 +752,38 @@ export default function BoxRangeTab() {
                 <p className="box-range-tab__empty">{ko.app.boxRangeTabNoValid}</p>
               ) : (
                 <>
+                  <div
+                    className="box-range-tab__view-tabs live-trading-tab__segment"
+                    role="tablist"
+                    aria-label="보기"
+                  >
+                    <button
+                      type="button"
+                      role="tab"
+                      className={
+                        viewTab === "cards"
+                          ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
+                          : "live-trading-tab__segment-btn"
+                      }
+                      aria-selected={viewTab === "cards"}
+                      onClick={() => setViewTab("cards")}
+                    >
+                      카드
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      className={
+                        viewTab === "chart"
+                          ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
+                          : "live-trading-tab__segment-btn"
+                      }
+                      aria-selected={viewTab === "chart"}
+                      onClick={() => setViewTab("chart")}
+                    >
+                      차트
+                    </button>
+                  </div>
                   {nativeUi && nativeTfOptions.length > 1 ? (
                     <div
                       className="box-range-tab__tf-tabs"
@@ -679,16 +808,58 @@ export default function BoxRangeTab() {
                       ))}
                     </div>
                   ) : null}
-                  <div className="box-range-tab__card-grid">
-                    {boxesToShow.map((b) => (
-                      <BoxRangePriceCard
-                        key={b.catalogBoxId}
-                        box={b}
-                        market={catalogMarket}
-                        compact={nativeUi}
-                      />
-                    ))}
-                  </div>
+                  {viewTab === "cards" ? (
+                    <div className="box-range-tab__card-grid box-range-tab__card-grid--cards">
+                      {boxesToShow.map((b) => (
+                        <BoxRangePriceCard
+                          key={b.catalogBoxId}
+                          box={b}
+                          market={catalogMarket}
+                          compact={nativeUi}
+                          selected={selectedBoxId === b.catalogBoxId}
+                          onSelect={() => setSelectedBoxId(b.catalogBoxId)}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="box-range-tab__chart-wrap">
+                      {selectedBoxId ? (
+                        <p className="box-range-tab__chart-picked" role="status">
+                          선택 박스:{" "}
+                          {validBoxes.find((b) => b.catalogBoxId === selectedBoxId)
+                            ?.timeframe ?? "—"}
+                        </p>
+                      ) : (
+                        <p className="box-range-tab__chart-picked" role="status">
+                          표시된 박스 {boxesToShow.length}개를 차트에 표시합니다.
+                        </p>
+                      )}
+                      {chartLoading ? (
+                        <p className="chart-status">{ko.app.chartLoading}</p>
+                      ) : chartErr ? (
+                        <p className="chart-status chart-status--error" role="alert">
+                          {chartErr}
+                        </p>
+                      ) : chartCandles.length === 0 ? (
+                        <p className="chart-status">{ko.app.chartEmpty}</p>
+                      ) : (
+                        <StockChart
+                          colorMode="dark"
+                          candles={chartCandles}
+                          dailyCandles={chartDailyCandles}
+                          fitKey={`${detail.symbol}:${chartTimeframe}:box-range`}
+                          interval={chartTimeframe}
+                          overlays={{
+                            ma: false,
+                            ichimoku: false,
+                            volume: true,
+                            rsi: false,
+                          }}
+                          boxRangeOverlays={catalogOverlays}
+                        />
+                      )}
+                    </div>
+                  )}
                 </>
               )}
             </>
