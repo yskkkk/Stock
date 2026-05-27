@@ -160,6 +160,8 @@ interface StockChartProps {
   colorMode?: ColorMode;
   interval?: string;
   overlays: ChartOverlays;
+  /** 특정 구간으로 차트 뷰를 이동(박스권 등) */
+  focusTimeRange?: { from: number; to: number } | null;
   /** 수평선·광선 등 간단 드로잉(TradingView 수준은 아님) */
   drawingsEnabled?: boolean;
   /** 상위 툴바와 모드 동기화 시 둘 다 전달 */
@@ -1782,6 +1784,7 @@ export default function StockChart({
   onChartDrawMagnetChange,
   profitMarker = null,
   boxRangeOverlays = [],
+  focusTimeRange = null,
 }: StockChartProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1850,6 +1853,8 @@ export default function StockChart({
   dailyCandlesRef.current = dailyCandles;
   const overlaysRef = useRef(overlays);
   overlaysRef.current = overlays;
+  const focusTimeRangeRef = useRef<typeof focusTimeRange>(null);
+  focusTimeRangeRef.current = focusTimeRange;
   const prevCandlesForStreamRef = useRef<Candle[]>([]);
   const prevStructureKeyForStreamRef = useRef<string>("");
 
@@ -2318,6 +2323,42 @@ export default function StockChart({
     el.addEventListener("wheel", onWheel, { passive: false, capture: true });
     return () => el.removeEventListener("wheel", onWheel, true);
   }, [structureKey]);
+
+  useEffect(() => {
+    const b = bundleRef.current;
+    if (!b || b.structureKey !== structureKey) return;
+    const r = focusTimeRangeRef.current;
+    if (!r) return;
+    if (!(Number.isFinite(r.from) && Number.isFinite(r.to))) return;
+    const fromSec = Math.min(r.from, r.to);
+    const toSec = Math.max(r.from, r.to);
+    const c = candlesRef.current;
+    if (!Array.isArray(c) || c.length < 5) return;
+    const times = c.map((x) => (typeof x.time === "number" ? x.time : null));
+    if (times.every((t) => t == null)) return;
+
+    const idxNear = (tSec: number) => {
+      let bestIdx = 0;
+      let bestD = Infinity;
+      for (let i = 0; i < times.length; i++) {
+        const tt = times[i];
+        if (tt == null) continue;
+        const d = Math.abs(tt - tSec);
+        if (d < bestD) {
+          bestD = d;
+          bestIdx = i;
+        }
+      }
+      return bestIdx;
+    };
+
+    const a = idxNear(fromSec);
+    const z = idxNear(toSec);
+    const lo = Math.max(0, Math.min(a, z) - 20);
+    const hi = Math.min(times.length - 1, Math.max(a, z) + 40);
+    if (hi - lo < 5) return;
+    b.chart.timeScale().setVisibleLogicalRange({ from: lo, to: hi });
+  }, [structureKey, focusTimeRange]);
 
   useEffect(() => {
     if (!drawingsEnabled || drawModeForChart === "cursor") return;

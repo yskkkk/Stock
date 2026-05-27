@@ -679,11 +679,7 @@ export default function BoxRangeTab() {
         {(selected || !nativeUi) && (
         <section className="box-range-tab__detail" aria-live="polite">
           {!selected ? (
-            nativeUi ? null : (
-              <p className="box-range-tab__empty box-range-tab__pick-hint">
-                {ko.app.boxRangeTabPickSymbol}
-              </p>
-            )
+            null
           ) : !detail ? (
             <DockPanelCenterLoading label={ko.app.boxRangeCatalogLoading} />
           ) : (
@@ -812,7 +808,17 @@ export default function BoxRangeTab() {
                           market={catalogMarket}
                           compact={nativeUi}
                           selected={selectedBoxId === b.catalogBoxId}
-                          onSelect={() => setSelectedBoxId(b.catalogBoxId)}
+                          onSelect={() => {
+                            setSelectedBoxId(b.catalogBoxId);
+                            setViewTab("chart");
+                            const tf = b.timeframe as ChartTimeframe;
+                            if (nativeUi && (tf === "1h" || tf === "4h" || tf === "1d")) {
+                              setNativeTf(tf);
+                            }
+                            if (tf === "1h" || tf === "4h" || tf === "1d") {
+                              setChartTf(tf);
+                            }
+                          }}
                         />
                       ))}
                     </div>
@@ -851,6 +857,17 @@ export default function BoxRangeTab() {
                             rsi: false,
                           }}
                           boxRangeOverlays={catalogOverlays}
+                          focusTimeRange={
+                            selectedBoxId
+                              ? (() => {
+                                  const bx = validBoxes.find(
+                                    (b) => b.catalogBoxId === selectedBoxId,
+                                  );
+                                  if (!bx) return null;
+                                  return { from: bx.leftTime, to: bx.rightTime };
+                                })()
+                              : null
+                          }
                         />
                       )}
                     </div>
