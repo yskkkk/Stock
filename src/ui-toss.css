@@ -178,6 +178,24 @@ html {
   padding: 0.52rem 1.1rem;
 }
 
+.btn-inline-spinner {
+  display: inline-block;
+  flex: none;
+  width: var(--btn-inline-spinner-size, 1.15rem);
+  height: var(--btn-inline-spinner-size, 1.15rem);
+  border: 2px solid var(--btn-inline-spinner-track, color-mix(in srgb, currentColor 30%, transparent));
+  border-top-color: var(--btn-inline-spinner-head, currentColor);
+  border-radius: 50%;
+  animation: btn-inline-spinner-spin 0.65s linear infinite;
+  vertical-align: middle;
+}
+
+@keyframes btn-inline-spinner-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .search-row button,
 .error-overlay button {
   border-radius: 999px;
@@ -1349,10 +1367,23 @@ html[data-theme="dark"] .live-trading-tab__auth-code-msg {
 }
 
 .live-trading-tab__auth-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   min-height: 2.55rem;
   margin-top: 0.15rem;
   font-weight: 650;
+}
+
+.live-trading-tab__auth-submit--busy {
+  cursor: wait;
+}
+
+.live-trading-tab__auth-submit .btn-inline-spinner {
+  --btn-inline-spinner-size: 1.2rem;
+  --btn-inline-spinner-track: color-mix(in srgb, #fff 32%, transparent);
+  --btn-inline-spinner-head: #fff;
 }
 
 .live-trading-tab__auth--popover {

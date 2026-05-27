@@ -1866,14 +1866,26 @@ export default function LiveTradeAuthPanel({
 
         <button
           type="submit"
-          className="btn btn--primary live-trading-tab__auth-submit"
+          className={[
+            "btn btn--primary live-trading-tab__auth-submit",
+            busy ? "live-trading-tab__auth-submit--busy" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
           disabled={busy || !canSubmit}
+          aria-busy={busy}
         >
-          {busy
-            ? "…"
-            : mode === "register"
-              ? ko.app.liveTradeAuthRegisterSubmit
-              : ko.app.liveTradeAuthLoginSubmit}
+          {busy ? (
+            <span
+              className="btn-inline-spinner"
+              role="status"
+              aria-label={ko.app.liveTradePfLoading}
+            />
+          ) : mode === "register" ? (
+            ko.app.liveTradeAuthRegisterSubmit
+          ) : (
+            ko.app.liveTradeAuthLoginSubmit
+          )}
         </button>
       </form>
     </section>
