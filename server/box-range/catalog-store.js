@@ -507,9 +507,14 @@ export function markCatalogBoxConsumedSync(catalogBoxId, reason = "closed") {
 /**
  * @param {string} symbol
  * @param {CatalogMarket} [market]
+ * @param {string} [catalogRoot]
  */
-export function listTradeEligibleCatalogBoxesSync(symbol, market = "us") {
-  const cat = readSymbolCatalogSync(symbol, market);
+export function listTradeEligibleCatalogBoxesSync(
+  symbol,
+  market = "us",
+  catalogRoot = resolveCatalogRootDir(),
+) {
+  const cat = readSymbolCatalogSync(symbol, market, catalogRoot);
   if (!cat) return [];
   const m = resolveCatalogMarket(market);
   const sym = String(symbol ?? "").trim().toUpperCase();

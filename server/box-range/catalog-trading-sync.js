@@ -3,6 +3,7 @@ import {
   listTradeEligibleCatalogBoxesSync,
   markCatalogBoxConsumedSync,
   resolveCatalogMarket,
+  resolveCatalogRootDir,
 } from "./catalog-store.js";
 import {
   listBoxesForProgramSync,
@@ -11,6 +12,7 @@ import {
   readBoxRangeStoreSync,
 } from "./store.js";
 import {
+  BOX_RANGE_CATALOG_DIR_PRO,
   isBoxRangeCryptoHtfManaged,
   isBoxRangeCryptoHtfSymbol,
   isBoxRangeProgram,
@@ -24,15 +26,20 @@ const MAX_NEW_SLOTS_PER_TICK = (() => {
 /**
  * @param {import("../live-trade-programs-store.js").LiveTradeProgram} program
  * @param {"us"|"kr"|"crypto"} catalogMarket
+ * @param {string} [catalogRoot]
  */
-export function syncCatalogTradingBoxesFromCatalogSync(program, catalogMarket) {
+export function syncCatalogTradingBoxesFromCatalogSync(
+  program,
+  catalogMarket,
+  catalogRoot = BOX_RANGE_CATALOG_DIR_PRO,
+) {
   const market = resolveCatalogMarket(catalogMarket);
   if (!isBoxRangeProgram(program)) return { linked: 0 };
   if (market === "us" && !program.markets?.us) return { linked: 0 };
   if (market === "kr" && !program.markets?.kr) return { linked: 0 };
   if (market === "crypto" && !program.markets?.crypto) return { linked: 0 };
 
-  const index = readCatalogIndexSync(market);
+  const index = readCatalogIndexSync(market, catalogRoot);
   const symbols = Array.isArray(index?.symbols) ? index.symbols : [];
   const existing = listBoxesForProgramSync(program.id);
   const linkedIds = new Set(
@@ -48,7 +55,7 @@ export function syncCatalogTradingBoxesFromCatalogSync(program, catalogMarket) {
     const sym = String(row.symbol ?? "").trim().toUpperCase();
     if (!sym) continue;
     if (market === "crypto" && !isBoxRangeCryptoHtfSymbol(sym)) continue;
-    const eligible = listTradeEligibleCatalogBoxesSync(sym, market);
+    const eligible = listTradeEligibleCatalogBoxesSync(sym, market, catalogRoot);
     for (const cb of eligible) {
       if (linked >= MAX_NEW_SLOTS_PER_TICK) break;
       if (linkedIds.has(cb.catalogBoxId)) continue;

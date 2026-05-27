@@ -128,6 +128,13 @@ export const BOX_RANGE_PRO_SPLIT_MID_PCT = {
   "1d": 58,
 };
 
+/** confirming 상태 → 매수 전 최소 대기 시간 (TF 1봉 기준) */
+export const BOX_RANGE_CONFIRM_MIN_MS = {
+  "1h":  3_600_000,
+  "4h": 14_400_000,
+  "1d": 86_400_000,
+};
+
 export function getBoxRangeTechModelStub() {
   const now = Date.now();
   return {

@@ -41,6 +41,8 @@ function stateFilePath() {
  *   catalogMarket: "us" | "kr" | "crypto" | null;
  *   tradeEligible: boolean;
  *   midNotifiedAtMs: number | null;
+ *   /** confirming 진입 시각 (TF별 최소 대기 후 매수) *\/
+ *   confirmingAtMs: number | null;
  * }} BoxRangeRecord
  */
 
@@ -136,6 +138,10 @@ function normalizeBox(raw) {
     midNotifiedAtMs:
       typeof o.midNotifiedAtMs === "number" && o.midNotifiedAtMs > 0
         ? o.midNotifiedAtMs
+        : null,
+    confirmingAtMs:
+      typeof o.confirmingAtMs === "number" && o.confirmingAtMs > 0
+        ? o.confirmingAtMs
         : null,
   };
 }

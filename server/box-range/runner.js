@@ -11,6 +11,7 @@ import {
 import { liveTradeLogWarn } from "../live-trade-log.js";
 import { collectWatchSymbolsForProgram } from "./watch-symbols.js";
 import {
+  BOX_RANGE_CATALOG_DIR_V2,
   BOX_RANGE_TIMEFRAMES,
   isBoxRangeCryptoHtfManaged,
   isBoxRangeCryptoHtfSymbol,
@@ -131,7 +132,8 @@ async function tickCryptoProgram(program) {
  * @param {"us"|"kr"} catalogMarket
  */
 async function tickCatalogProgram(program, catalogMarket) {
-  syncCatalogTradingBoxesFromCatalogSync(program, catalogMarket);
+  syncCatalogTradingBoxesFromCatalogSync(program, catalogMarket);                        // PRO v2
+  syncCatalogTradingBoxesFromCatalogSync(program, catalogMarket, BOX_RANGE_CATALOG_DIR_V2); // V2
   const live = program.status === "armed";
   const sim = program.status === "sim";
   if (!live && !sim) return;

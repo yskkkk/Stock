@@ -1,10 +1,12 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
 
+const CONFIRM_MIN_MS = { "1h": 3_600_000, "4h": 14_400_000, "1d": 86_400_000 };
+
 /**
  * Pine PRO v2 FSM 의사결정 — runner-fsm.js와 동일 규칙(틱 lastPrice)
- * 모델 ⑩: armed→confirming→in_position (확인캔들 1틱 추가)
- * @param {{ state: string; bottom: number; top: number; dipLow: number | null; dead?: boolean; rightTime: number }} box
+ * 모델 ⑩: armed→confirming(TF 1봉 대기)→in_position
+ * @param {{ state: string; bottom: number; top: number; dipLow: number | null; dead?: boolean; rightTime: number; timeframe?: string; confirmingAtMs?: number | null }} box
  * @param {number} lastPrice
  * @param {number} nowMs
  */
@@ -24,7 +26,7 @@ function proV2FsmStep(box, lastPrice, nowMs) {
     const dipLow =
       box.dipLow == null || lastPrice < box.dipLow ? lastPrice : box.dipLow;
     if (lastPrice >= box.bottom) {
-      return { action: "confirm", dipLow };
+      return { action: "confirm", dipLow, confirmingAtMs: nowMs };
     }
     return { action: "track_dip", dipLow };
   }
@@ -35,6 +37,11 @@ function proV2FsmStep(box, lastPrice, nowMs) {
       const dipLow =
         box.dipLow == null || lastPrice < box.dipLow ? lastPrice : box.dipLow;
       return { action: "rearm", dipLow };
+    }
+    const tf = box.timeframe ?? "1h";
+    const minMs = CONFIRM_MIN_MS[tf] ?? 3_600_000;
+    if (nowMs - (box.confirmingAtMs ?? nowMs) < minMs) {
+      return { action: "wait_confirm" };
     }
     return { action: "buy", entryPrice: box.bottom, dipLow: box.dipLow };
   }
@@ -80,11 +87,20 @@ test("PRO v2: armed → confirming on first recovery tick", () => {
   assert.equal(r.dipLow, 97);
 });
 
-test("PRO v2: confirming → buy on second recovery tick", () => {
+test("PRO v2: confirming → wait_confirm before TF duration elapses", () => {
   const r = proV2FsmStep(
-    { ...BOX, state: "confirming", dipLow: 97, breakAtMs: 1 },
+    { ...BOX, state: "confirming", timeframe: "1h", dipLow: 97, confirmingAtMs: AFTER_BOX_MS },
     100,
-    AFTER_BOX_MS,
+    AFTER_BOX_MS + 1_000, // 1초 후 — 아직 1h 미경과
+  );
+  assert.equal(r.action, "wait_confirm");
+});
+
+test("PRO v2: confirming → buy after TF duration elapses", () => {
+  const r = proV2FsmStep(
+    { ...BOX, state: "confirming", timeframe: "1h", dipLow: 97, confirmingAtMs: AFTER_BOX_MS },
+    100,
+    AFTER_BOX_MS + 3_600_001, // 1h 경과
   );
   assert.equal(r.action, "buy");
   assert.equal(r.entryPrice, 100);
@@ -93,9 +109,9 @@ test("PRO v2: confirming → buy on second recovery tick", () => {
 
 test("PRO v2: confirming → rearm on fake recovery", () => {
   const r = proV2FsmStep(
-    { ...BOX, state: "confirming", dipLow: 97, breakAtMs: 1 },
+    { ...BOX, state: "confirming", timeframe: "1h", dipLow: 97, confirmingAtMs: AFTER_BOX_MS },
     98,
-    AFTER_BOX_MS,
+    AFTER_BOX_MS + 3_600_001,
   );
   assert.equal(r.action, "rearm");
 });

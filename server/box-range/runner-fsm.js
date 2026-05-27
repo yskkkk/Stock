@@ -23,6 +23,7 @@ import {
   countOpenBoxLotsSync,
   patchBoxSync,
 } from "./store.js";
+import { BOX_RANGE_CONFIRM_MIN_MS } from "./constants.js";
 import { boxRangeBuyDedupeKey } from "./buy-guard.js";
 import { resolveBoxSellQuantitySync } from "./lot-reconcile.js";
 import { markCatalogBoxConsumedSync } from "./catalog-store.js";
@@ -49,6 +50,7 @@ function closeTradingBox(box, reason = "closed") {
     buyAtMs: null,
     breakAtMs: null,
     dipLow: null,
+    confirmingAtMs: null,
   });
   const cid = String(box.catalogBoxId ?? "").trim();
   if (cid) markCatalogBoxConsumedSync(cid, reason);
@@ -66,6 +68,7 @@ function resetBoxAfterTakeProfit(box) {
     dipLow: null,
     armedAtMs: null,
     midNotifiedAtMs: null,
+    confirmingAtMs: null,
   });
 }
 
@@ -138,7 +141,7 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
 
     // 하단 복귀 첫 틱 → confirming 상태로 전환 (확인캔들 모델 ⑩)
     if (lastPrice >= box.bottom) {
-      patchBoxSync(box.boxId, { state: "confirming" });
+      patchBoxSync(box.boxId, { state: "confirming", confirmingAtMs: now });
     }
     return;
   }
@@ -151,9 +154,13 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
     if (lastPrice < box.bottom) {
       const nextDip =
         box.dipLow == null || lastPrice < box.dipLow ? lastPrice : box.dipLow;
-      patchBoxSync(box.boxId, { state: "armed", dipLow: nextDip });
+      patchBoxSync(box.boxId, { state: "armed", dipLow: nextDip, confirmingAtMs: null });
       return;
     }
+
+    // TF 1봉 미만 경과 → 아직 확인 대기 중
+    const minConfirmMs = BOX_RANGE_CONFIRM_MIN_MS[box.timeframe] ?? 3_600_000;
+    if (now - (box.confirmingAtMs ?? now) < minConfirmMs) return;
 
     // 복귀 확인 완료 → 알림 + 매수
     if (!box.midNotifiedAtMs) {
