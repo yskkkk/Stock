@@ -8930,8 +8930,11 @@ html[data-theme="light"] .market-indices-belt {
   white-space: nowrap;
 }
 
-.market-indices-belt:hover .market-indices-belt__track {
-  animation-play-state: paused;
+/* 터치 기기(hover stick)에서 벨트가 영구 정지되는 문제 방지 */
+@media (hover: hover) and (pointer: fine) {
+  .market-indices-belt:hover .market-indices-belt__track {
+    animation-play-state: paused;
+  }
 }
 
 @keyframes market-indices-belt-scroll {
