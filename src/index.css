@@ -10630,6 +10630,10 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   min-height: min(12rem, 36dvh);
 }
 
+.live-trade-tab-root .live-trade-program-trades-main {
+  min-height: min(52dvh, 520px);
+}
+
 .live-trade-tab-root > .live-trading-tab > .dock-panel-center-loading {
   min-height: min(14rem, 40dvh);
 }

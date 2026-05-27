@@ -57,6 +57,7 @@ import RecommendationsTab from "./components/RecommendationsTab";
 import TradeHistoryTab from "./components/TradeHistoryTab";
 import BoxRangeTab from "./components/BoxRangeTab";
 import { LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT } from "./lib/liveTradeDockAccount";
+import { LIVE_TRADE_PROGRAM_TRADES_MAIN_EVENT } from "./lib/liveTradeProgramTradesMain";
 import StockSearchTab from "./components/StockSearchTab";
 import StockChart from "./components/StockChart";
 import TradingViewAdvancedChart from "./components/TradingViewAdvancedChart";
@@ -206,6 +207,19 @@ export default function App() {
       window.removeEventListener(
         LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT,
         onTradeHistoryTab,
+      );
+  }, []);
+
+  useEffect(() => {
+    const onProgramTradesMain = () => setAppTab("liveTrading");
+    window.addEventListener(
+      LIVE_TRADE_PROGRAM_TRADES_MAIN_EVENT,
+      onProgramTradesMain,
+    );
+    return () =>
+      window.removeEventListener(
+        LIVE_TRADE_PROGRAM_TRADES_MAIN_EVENT,
+        onProgramTradesMain,
       );
   }, []);
 

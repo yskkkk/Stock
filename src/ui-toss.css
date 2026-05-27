@@ -115,6 +115,7 @@ html {
 .app__shell > .workspace:not(.workspace--stock-lookup) > .picks-panel.card,
 .app__shell > .workspace.workspace--rec-tracker > .picks-panel.card,
 .app__shell > .workspace.ops-workspace > .card,
+.app__shell .live-trade-program-trades-main.card,
 .app__shell .trade-history-main-workspace.card,
 .app__shell > .picks-panel.live-trading-side,
 .app__shell .crypto-workspace > .picks-panel.crypto-panel.card,
@@ -3349,6 +3350,60 @@ html[data-theme="light"]
   gap: 0.65rem;
 }
 
+.live-trading-tab__programs--cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 13.5rem), 1fr));
+  gap: 0.7rem;
+}
+
+.live-trading-tab__programs--cards > li {
+  min-width: 0;
+}
+
+.live-trading-tab__program--card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  height: 100%;
+  min-height: 100%;
+  padding: 0.75rem 0.8rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 72%, transparent);
+  border-radius: var(--radius-md, 10px);
+  border-left: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 72%, transparent);
+  background: color-mix(in srgb, var(--card-bg, var(--card)) 96%, var(--surface, #fff));
+  box-shadow: 0 1px 10px rgba(15, 23, 42, 0.05);
+}
+
+.live-trading-tab__program--card.live-trading-tab__program--armed {
+  border-color: color-mix(in srgb, var(--up, #72a883) 38%, var(--card-border, #e2e8f0));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--up, #72a883) 55%, transparent);
+}
+
+.live-trading-tab__program--card.live-trading-tab__program--sim {
+  border-color: color-mix(in srgb, var(--accent, #8fb5aa) 35%, var(--card-border, #e2e8f0));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent, #8fb5aa) 52%, transparent);
+}
+
+.live-trading-tab__program--card.live-trading-tab__program--error {
+  border-color: color-mix(in srgb, var(--down, #c48686) 38%, var(--card-border, #e2e8f0));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--down, #c48686) 52%, transparent);
+}
+
+.live-trading-tab__programs--cards > li:last-child .live-trading-tab__program--card {
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 72%, transparent);
+  padding-bottom: 0.8rem;
+}
+
+.live-trading-tab__program-actions--card {
+  flex-wrap: wrap;
+  margin-top: auto;
+  padding-top: 0.45rem;
+}
+
+.live-trading-tab__program-trades-btn {
+  flex: 1 1 100%;
+}
+
 .live-trading-tab__program {
   padding: 0.6rem 0 0.65rem;
   border-radius: 0;
@@ -4524,6 +4579,34 @@ html[data-theme="light"] .live-trading-tab__program-actions .btn:hover:not(:disa
   overflow: hidden;
   gap: var(--tab-stack-gap);
   padding: 0;
+}
+
+.live-trade-program-trades-main__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 65%, transparent);
+}
+
+.live-trade-program-trades-main__title-row {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.live-trade-program-trades-main__title {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.35;
+}
+
+.live-trade-program-trades-main__sub {
+  margin: 0.2rem 0 0;
+}
+
+.live-trade-program-trades-main__close {
+  flex-shrink: 0;
 }
 
 .live-trade-trades-workspace__title--sub {

@@ -46,6 +46,15 @@ import {
   dispatchLiveTradeDockAfterFormSave,
 } from "../lib/liveTradeDockEvents";
 import { openAccountTrades } from "../lib/liveTradeDockAccount";
+import LiveTradeProgramTradesMainWorkspace from "./LiveTradeProgramTradesMainWorkspace";
+import {
+  consumePendingLiveTradeProgramTradesMain,
+  dispatchLiveTradeProgramTradesMain,
+  historyScenarioForProgram,
+  LIVE_TRADE_PROGRAM_TRADES_MAIN_EVENT,
+  readLiveTradeProgramTradesMainEvent,
+  type LiveTradeProgramTradesMainDetail,
+} from "../lib/liveTradeProgramTradesMain";
 import { invalidateLiveTradingPrefetch, peekLiveTradingPrefetch } from "../lib/tabPrefetch";
 import { formatPercent } from "../lib/format";
 import DockPanelCenterLoading from "./DockPanelCenterLoading";
@@ -248,6 +257,10 @@ export default function LiveTradingTab({
   >("programs");
   const [tradeHistoryScenario, setTradeHistoryScenario] =
     useState<LiveTradeHistoryScenario>("sim");
+  const [mainProgramTrades, setMainProgramTrades] =
+    useState<LiveTradeProgramTradesMainDetail | null>(() =>
+      !portalSourceOnly ? consumePendingLiveTradeProgramTradesMain() : null,
+    );
   const sidePanel = useLiveTradeCardSidePanelOptional();
   const polledStatus = useLiveTradingStatusPoll();
   const adminViewUserId = adminView?.userId?.trim() || null;
@@ -318,6 +331,23 @@ export default function LiveTradingTab({
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  useEffect(() => {
+    if (portalSourceOnly) return;
+    const onProgramTradesMain = (e: Event) => {
+      const detail = readLiveTradeProgramTradesMainEvent(e);
+      if (detail?.programId) setMainProgramTrades(detail);
+    };
+    window.addEventListener(
+      LIVE_TRADE_PROGRAM_TRADES_MAIN_EVENT,
+      onProgramTradesMain,
+    );
+    return () =>
+      window.removeEventListener(
+        LIVE_TRADE_PROGRAM_TRADES_MAIN_EVENT,
+        onProgramTradesMain,
+      );
+  }, [portalSourceOnly]);
 
   useEffect(() => {
     if (user) void reload();
@@ -673,8 +703,22 @@ export default function LiveTradingTab({
   );
 
   const showCardDock = portalSourceOnly || !hideCardDock;
-  /** 실매매 탭 본문 — 로그인 시 등록 프로그램 전체 목록(도크 사용 중에도 표시) */
-  const showMainProgramsList = Boolean(user && !portalSourceOnly);
+  /** 실매매 탭 본문 — 도크 미사용 시에만 메인에 프로그램 목록 */
+  const showMainProgramsList = Boolean(
+    user && !portalSourceOnly && !hideCardDock,
+  );
+  const openProgramTradesInMain = useCallback(
+    (p: LiveTradeProgram) => {
+      const detail = {
+        programId: p.id,
+        programName: p.name,
+        scenario: historyScenarioForProgram(p),
+      };
+      dispatchLiveTradeProgramTradesMain(detail);
+      if (!portalSourceOnly) setMainProgramTrades(detail);
+    },
+    [portalSourceOnly],
+  );
   const statusPending = Boolean(
     user && authChecked && effectiveStatus == null && !loadErr,
   );
@@ -760,7 +804,13 @@ export default function LiveTradingTab({
           ) : programs.length === 0 ? (
             <p className="live-trading-tab__empty">{ko.app.liveTradeListEmpty}</p>
           ) : (
-            <ul className="live-trading-tab__programs">
+            <ul
+              className={
+                portalSourceOnly
+                  ? "live-trading-tab__programs live-trading-tab__programs--cards"
+                  : "live-trading-tab__programs"
+              }
+            >
               {programs.map((p) => {
                 const model = modelById.get(p.modelId);
                 const ret = effectiveStatus?.programReturns?.[p.id];
@@ -776,6 +826,7 @@ export default function LiveTradingTab({
                       returnPct={returnPct}
                       holdingCount={holdingCount}
                       busy={busy}
+                      cardLayout={portalSourceOnly}
                       showArmLaneButton={(lane) => showArmLaneButton(p, lane)}
                       tossStatus={effectiveStatus?.toss}
                       bithumbStatus={effectiveStatus?.bithumb}
@@ -785,6 +836,11 @@ export default function LiveTradingTab({
                       onArmLane={(lane) => void handleArmLane(p.id, lane)}
                       onEdit={() => loadProgramToForm(p)}
                       onDelete={() => void handleDelete(p.id, p.name)}
+                      onOpenTrades={
+                        portalSourceOnly
+                          ? () => openProgramTradesInMain(p)
+                          : undefined
+                      }
                       deleting={deletingProgramId === p.id}
                       readOnly={adminReadOnly}
                     />
@@ -929,6 +985,18 @@ export default function LiveTradingTab({
                 </>
               ) : null}
             </>
+          ) : null}
+
+          {!portalSourceOnly && mainProgramTrades ? (
+            <LiveTradeProgramTradesMainWorkspace
+              detail={mainProgramTrades}
+              programReturnPct={
+                effectiveStatus?.programReturns?.[mainProgramTrades.programId]
+                  ?.totalReturnPct
+              }
+              adminViewUserId={adminReadOnly ? adminViewUserId : null}
+              onClose={() => setMainProgramTrades(null)}
+            />
           ) : null}
 
           {showMainProgramsList ? (

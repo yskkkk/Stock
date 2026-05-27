@@ -88,8 +88,10 @@ export default function LiveTradeRegisteredProgramCard({
   onArmLane,
   onEdit,
   onDelete,
+  onOpenTrades,
   deleting = false,
   readOnly = false,
+  cardLayout = false,
 }: {
   program: LiveTradeProgram;
   model?: TechModelRecord;
@@ -106,8 +108,11 @@ export default function LiveTradeRegisteredProgramCard({
   onArmLane: (lane: LiveTradeArmLane) => void;
   onEdit: () => void;
   onDelete: () => void;
+  onOpenTrades?: () => void;
   deleting?: boolean;
   readOnly?: boolean;
+  /** 도크 프로그램 탭 — 카드 그리드 */
+  cardLayout?: boolean;
 }) {
   const isBoxRange = p.modelId === BOX_RANGE_MODEL_ID;
   const markets = [
@@ -165,7 +170,13 @@ export default function LiveTradeRegisteredProgramCard({
 
   return (
     <article
-      className={`live-trading-tab__program live-trading-tab__program--${displayStatus}`}
+      className={[
+        "live-trading-tab__program",
+        `live-trading-tab__program--${displayStatus}`,
+        cardLayout ? "live-trading-tab__program--card" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
     >
       <div className="live-trading-tab__program-head">
         <strong>{p.name}</strong>
@@ -214,7 +225,23 @@ export default function LiveTradeRegisteredProgramCard({
           : null}
       </p>
       {!readOnly ? (
-      <div className="live-trading-tab__program-actions">
+      <div
+        className={
+          cardLayout
+            ? "live-trading-tab__program-actions live-trading-tab__program-actions--card"
+            : "live-trading-tab__program-actions"
+        }
+      >
+        {onOpenTrades ? (
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm live-trading-tab__program-trades-btn"
+            disabled={busy}
+            onClick={onOpenTrades}
+          >
+            {ko.app.liveTradeProgramsTabTrades}
+          </button>
+        ) : null}
         {p.status === "sim" ? (
           <button
             type="button"
