@@ -1,12 +1,13 @@
+import { dispatchLiveTradeDockOpenTrades } from "./liveTradeDockEvents";
 import type { LiveTradeTradesExchange } from "./liveTradeTradesWorkspace";
 
 export type { LiveTradeTradesExchange };
 
-/** 상단 «거래내역» 탭으로 전환 */
+/** 좁은 화면 — 메인 «거래내역» 탭. 넓은 화면은 도크 `LIVE_TRADE_DOCK_OPEN_TRADES_EVENT` */
 export const LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT =
   "ystock-navigate-trade-history-tab";
 
-/** @deprecated 거래내역은 메인 영역; `openAccountTrades` 사용 */
+/** @deprecated 거래내역은 우측 도크; `openAccountTrades` 사용 */
 export type LiveTradeDockAccountSubTab = "balance" | "trades";
 
 export type LiveTradeDockAccountView = {
@@ -64,6 +65,7 @@ export function navigateToTradeHistoryTab(
 ): void {
   if (typeof window === "undefined") return;
   dispatchDockAccountProvider(exchange);
+  dispatchLiveTradeDockOpenTrades();
   window.dispatchEvent(
     new CustomEvent<LiveTradeTradesExchange>(
       LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT,
@@ -72,7 +74,7 @@ export function navigateToTradeHistoryTab(
   );
 }
 
-/** 거래내역 탭 열기(계좌·포트폴리오 등) */
+/** 우측 도크 거래내역 패널(좁은 화면은 메인 탭) */
 export function openAccountTrades(
   exchange: LiveTradeTradesExchange = readDockAccountProvider(),
 ): void {

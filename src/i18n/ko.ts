@@ -121,7 +121,7 @@ export const ko = {
     liveTradePfTabTrades: "거래 내역",
     liveTradePfTabTradesDock: "거래내역",
     liveTradePfTradesDockHint:
-      "«계좌» 패널에서 거래소를 선택해 거래내역을 확인하세요.",
+      "우측 «거래내역» 아이콘에서 시뮬·빗썸·토스 체결 내역을 확인하세요.",
     liveTradePfTradesMainHint:
       "선택한 거래소 체결 내역은 왼쪽 영역에 표시됩니다.",
     liveTradeApiNotConnected: "API 연동되어 있지 않습니다.",

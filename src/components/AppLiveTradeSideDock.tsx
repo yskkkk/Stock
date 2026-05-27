@@ -34,9 +34,11 @@ import { ko } from "../i18n/ko";
 import {
   LIVE_TRADE_DOCK_AFTER_FORM_SAVE_EVENT,
   LIVE_TRADE_DOCK_OPEN_EVENT,
+  LIVE_TRADE_DOCK_OPEN_TRADES_EVENT,
   LIVE_TRADE_DOCK_TOGGLE_EVENT,
   dispatchLiveTradeDockOpenForm,
 } from "../lib/liveTradeDockEvents";
+import { LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT } from "../lib/liveTradeDockAccount";
 import {
   dispatchLiveTradeDockProgramsPlain,
   LIVE_TRADE_DOCK_OPEN_PORTFOLIO_EVENT,
@@ -222,6 +224,33 @@ function DockRailBanknoteIcon() {
   );
 }
 
+function DockRailTradesIcon() {
+  return (
+    <svg
+      className="app-live-trade-side-dock__rail-icon"
+      viewBox="0 0 24 24"
+      width={16}
+      height={16}
+      aria-hidden
+    >
+      <path
+        d="M8 6h12M8 12h12M8 18h7"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M4 6h.01M4 12h.01M4 18h.01"
+        fill="currentColor"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 function DockRailWebsiteIcon() {
   return (
     <svg
@@ -273,6 +302,12 @@ function railTabShort(
     return {
       glyph: <Mark className="app-live-trade-side-dock__rail-bithumb-mark" />,
       label: ko.app.liveTradeDockRailAccountTab,
+    };
+  }
+  if (id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.trades) {
+    return {
+      glyph: <DockRailTradesIcon />,
+      label: ko.app.liveTradeSideDockRailTrades,
     };
   }
   if (id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.liveRail) {
@@ -480,6 +515,40 @@ export default function AppLiveTradeSideDock({
         onOpenPortfolio,
       );
   }, [openPanel, persistOpen, beginDockPanelOpenAnimation]);
+
+  const openTradesDockPanel = useCallback(() => {
+    if (!openPanel) return;
+    const titles = defaultLiveTradeSideTabTitles();
+    const id = LIVE_TRADE_DOCK_RAIL_TAB_IDS.trades;
+    openPanel(id, titles[id] ?? ko.app.liveTradeSideDockRailTrades);
+    if (!openRef.current) {
+      persistOpen(true);
+      beginDockPanelOpenAnimation();
+    } else {
+      applyDockPanelWidthCss(panelWidthPx);
+    }
+  }, [
+    openPanel,
+    persistOpen,
+    beginDockPanelOpenAnimation,
+    panelWidthPx,
+  ]);
+
+  useEffect(() => {
+    const onOpenTrades = () => openTradesDockPanel();
+    window.addEventListener(LIVE_TRADE_DOCK_OPEN_TRADES_EVENT, onOpenTrades);
+    window.addEventListener(
+      LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT,
+      onOpenTrades,
+    );
+    return () => {
+      window.removeEventListener(LIVE_TRADE_DOCK_OPEN_TRADES_EVENT, onOpenTrades);
+      window.removeEventListener(
+        LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT,
+        onOpenTrades,
+      );
+    };
+  }, [openTradesDockPanel]);
 
   useEffect(() => {
     const onProvider = (e: Event) => {

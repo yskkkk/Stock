@@ -16,10 +16,12 @@ function scenarioFromDockExchange(
   return ex === "toss" ? "live-toss" : "live-bithumb";
 }
 
-/** 상단 «거래내역» — 시나리오(시뮬·빗썸·토스)별 분리 */
+/** 거래내역 — 메인 탭 또는 우측 도크 패널 */
 export default function TradeHistoryTab({
+  layout = "main",
   onOpenHoldingChart,
 }: {
+  layout?: "main" | "dock";
   onOpenHoldingChart?: (h: LiveTradeHolding) => void;
 }) {
   const [scenario, setScenario] = useState<LiveTradeHistoryScenario>(() =>
@@ -42,7 +44,13 @@ export default function TradeHistoryTab({
   }, []);
 
   return (
-    <div className="workspace trade-history-workspace">
+    <div
+      className={
+        layout === "dock"
+          ? "workspace trade-history-workspace trade-history-workspace--dock"
+          : "workspace trade-history-workspace"
+      }
+    >
       <LiveTradeHistoryScenarioTabs
         value={scenario}
         onChange={setScenario}

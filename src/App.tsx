@@ -198,19 +198,6 @@ export default function App() {
   const [chartStale, setChartStale] = useState(false);
   const [chartEngine, setChartEngine] = useState<StockChartEngine>("app");
   useEffect(() => {
-    const onTradeHistoryTab = () => setAppTab("tradeHistory");
-    window.addEventListener(
-      LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT,
-      onTradeHistoryTab,
-    );
-    return () =>
-      window.removeEventListener(
-        LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT,
-        onTradeHistoryTab,
-      );
-  }, []);
-
-  useEffect(() => {
     const onProgramTradesMain = () => setAppTab("liveTrading");
     window.addEventListener(
       LIVE_TRADE_PROGRAM_TRADES_MAIN_EVENT,
@@ -1135,6 +1122,22 @@ export default function App() {
   const showDesktopSideDock = desktopDockLayout && appTab !== "ops";
   const showLiveTradeDockPortals = showDesktopSideDock && Boolean(liveTradeUser);
   const showEarningsViewportRail = desktopDockLayout && appTab !== "ops";
+
+  useEffect(() => {
+    const onTradeHistoryTab = () => {
+      if (showLiveTradeDockPortals) return;
+      setAppTab("tradeHistory");
+    };
+    window.addEventListener(
+      LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT,
+      onTradeHistoryTab,
+    );
+    return () =>
+      window.removeEventListener(
+        LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT,
+        onTradeHistoryTab,
+      );
+  }, [showLiveTradeDockPortals]);
   return (
     <LiveTradeCardSidePanelProvider>
     <div
@@ -1393,7 +1396,7 @@ export default function App() {
               >
                 {ko.app.tabRecommendations}
               </button>
-              {liveTradeUser ? (
+              {liveTradeUser && !showLiveTradeDockPortals ? (
                 <button
                   type="button"
                   className={
@@ -1458,7 +1461,7 @@ export default function App() {
         />
       ) : appTab === "recommendations" ? (
         <RecommendationsTab onOpenPick={handleSelect} />
-      ) : appTab === "tradeHistory" ? (
+      ) : appTab === "tradeHistory" && !showLiveTradeDockPortals ? (
         <TradeHistoryTab onOpenHoldingChart={handleLiveTradeChart} />
       ) : appTab === "boxRange" ? (
         <BoxRangeTab />
@@ -2092,6 +2095,7 @@ export default function App() {
           <>
             <AppRightDockRailPanels
               onOpenLiveTrading={openLiveTradingProgram}
+              onOpenHoldingChart={handleLiveTradeChart}
             />
             <AppLiveTradeSideDock
               pageScrollRef={appScrollRef}

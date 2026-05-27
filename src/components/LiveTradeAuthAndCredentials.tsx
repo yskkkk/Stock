@@ -169,12 +169,14 @@ type LiveTradeSidePanelState = { id: string; title: string } | null;
 export const LIVE_TRADE_DOCK_RAIL_TAB_IDS = {
   auth: "dock-auth",
   bithumb: "dock-bithumb",
+  trades: "dock-trades",
   liveRail: "dock-live-rail",
 } as const;
 
 const LIVE_TRADE_CARD_TAB_ORDER = [
   LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth,
   LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb,
+  LIVE_TRADE_DOCK_RAIL_TAB_IDS.trades,
   LIVE_TRADE_DOCK_RAIL_TAB_IDS.liveRail,
   "activity",
   "form",
@@ -185,6 +187,7 @@ export function defaultLiveTradeSideTabTitles(): Record<string, string> {
   return {
     [LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth]: ko.app.liveTradeSideDockRailAuth,
     [LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb]: ko.app.liveTradeDockRailAccountTab,
+    [LIVE_TRADE_DOCK_RAIL_TAB_IDS.trades]: ko.app.liveTradeSideDockRailTrades,
     [LIVE_TRADE_DOCK_RAIL_TAB_IDS.liveRail]: ko.app.liveTradeLeftRailTitle,
     activity: ko.app.liveTradeActivityTitle,
     form: ko.app.liveTradeFormNew,
