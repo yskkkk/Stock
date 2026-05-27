@@ -5,8 +5,7 @@ import { pickQuoteFromMap } from "../quote-symbol-resolve.js";
 import {
   escHtml,
   isTelegramNotifyEnabled,
-  resolveStockTelegramCreds,
-  sendTelegramMessage,
+  sendStockTelegramMessage,
 } from "../telegram-notify.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "../live-trade-log.js";
 import { liveTradeCurrency } from "../live-trade-market.js";
@@ -215,17 +214,16 @@ export async function notifyCatalogScanTelegram(market, scanRun = {}) {
   }
 
   const m = resolveCatalogMarket(market);
-  const creds = resolveStockTelegramCreds();
   const summaryText = buildCatalogScanSummaryMessage(m, scanRun);
 
-  const ok1 = await sendTelegramMessage(summaryText, undefined, creds);
+  const ok1 = await sendStockTelegramMessage(summaryText, undefined);
 
   let nearHits = [];
   let ok2 = false;
   if (nearTelegramEnabled()) {
     nearHits = await collectNearPriceCatalogHits(m, NEAR_PCT);
     const nearText = buildNearPriceMessage(m, nearHits);
-    ok2 = await sendTelegramMessage(nearText, undefined, creds);
+    ok2 = await sendStockTelegramMessage(nearText, undefined);
   }
 
   if (ok1 || ok2) {

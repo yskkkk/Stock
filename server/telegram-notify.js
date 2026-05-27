@@ -100,17 +100,59 @@ function sanitizeSentEntry(entry) {
   return out;
 }
 
-/** 종목 추천·경제지표 예고 — @YSK_STOCK_RECOMMEND_BOT (TELEGRAM_BOT_TOKEN 만) */
+/** 채널·그룹 chat_id 정규화 (@채널명, -100… 숫자 ID) */
+export function normalizeStockTelegramChatId(raw) {
+  const s = String(raw ?? "").trim();
+  if (!s) return "";
+  if (s.startsWith("@")) return s;
+  if (/^-?\d+$/.test(s)) return s;
+  return s;
+}
+
+/**
+ * 주식 알림 수신처 — TELEGRAM_CHANNEL_ID 우선(채널), 없으면 TELEGRAM_CHAT_ID(개인 DM 등).
+ * TELEGRAM_STOCK_NOTIFY_DM=1 이면 채널과 함께 TELEGRAM_CHAT_ID에도 발송.
+ */
+export function resolveStockTelegramDestinations() {
+  const token = process.env.TELEGRAM_BOT_TOKEN?.trim() || "";
+  const channelId = normalizeStockTelegramChatId(
+    process.env.TELEGRAM_CHANNEL_ID?.trim() || "",
+  );
+  const chatId = normalizeStockTelegramChatId(
+    process.env.TELEGRAM_CHAT_ID?.trim() || "",
+  );
+  const alsoDm =
+    String(process.env.TELEGRAM_STOCK_NOTIFY_DM ?? "").trim() === "1";
+  const chatIds = [];
+  if (channelId) chatIds.push(channelId);
+  if (chatId && (!channelId || alsoDm)) chatIds.push(chatId);
+  return { token, chatIds: [...new Set(chatIds)] };
+}
+
+/** @deprecated 단일 수신처 — resolveStockTelegramDestinations 사용 */
 export function resolveStockTelegramCreds() {
-  return {
-    token: process.env.TELEGRAM_BOT_TOKEN?.trim() || "",
-    chatId: process.env.TELEGRAM_CHAT_ID?.trim() || "",
-  };
+  const { token, chatIds } = resolveStockTelegramDestinations();
+  return { token, chatId: chatIds[0] ?? "" };
 }
 
 export function isTelegramNotifyEnabled() {
-  const { token, chatId } = resolveStockTelegramCreds();
-  return Boolean(token && chatId);
+  const { token, chatIds } = resolveStockTelegramDestinations();
+  return Boolean(token && chatIds.length > 0);
+}
+
+/**
+ * 주식·박스권·경제지표 알림 — 설정된 모든 수신처(채널·DM)로 전송.
+ * @returns {Promise<boolean>} 하나라도 성공하면 true
+ */
+export async function sendStockTelegramMessage(text, replyMarkup) {
+  const { token, chatIds } = resolveStockTelegramDestinations();
+  if (!token || !chatIds.length) return false;
+  let anyOk = false;
+  for (const chatId of chatIds) {
+    const ok = await sendTelegramMessage(text, replyMarkup, { token, chatId });
+    if (ok) anyOk = true;
+  }
+  return anyOk;
 }
 
 /** @param {{ token: string; chatId: string; label: string }} cfg */
@@ -161,16 +203,24 @@ async function probeTelegramCreds(cfg) {
   }
 }
 
-/** 종목 추천 봇(@YSK_STOCK_RECOMMEND_BOT) 연결 검증 */
+/** 종목 추천 봇(@YSK_STOCK_RECOMMEND_BOT) 연결 검증 — 채널·DM 수신처 각각 */
 export async function probeStockTelegramSetup() {
-  const { token, chatId } = resolveStockTelegramCreds();
-  const out = await probeTelegramCreds({
-    token,
-    chatId,
-    label: "stock",
-  });
-  if (out.ok) lastTelegramSendError = null;
-  return out;
+  const { token, chatIds } = resolveStockTelegramDestinations();
+  if (!token || !chatIds.length) {
+    return { ok: false, reason: "TELEGRAM_BOT_TOKEN·TELEGRAM_CHANNEL_ID(또는 CHAT_ID) 없음" };
+  }
+  let lastFail = null;
+  for (let i = 0; i < chatIds.length; i += 1) {
+    const chatId = chatIds[i];
+    const label = chatIds.length > 1 ? `stock:${i + 1}` : "stock";
+    const out = await probeTelegramCreds({ token, chatId, label });
+    if (out.ok) {
+      lastTelegramSendError = null;
+      return out;
+    }
+    lastFail = out;
+  }
+  return lastFail ?? { ok: false, reason: "probe failed" };
 }
 
 /** @deprecated probeStockTelegramSetup 사용 */
@@ -570,7 +620,10 @@ function humanizeTelegramError(description, errText) {
       : "unknown");
   const s = raw.toLowerCase();
   if (s.includes("chat not found")) {
-    return "TELEGRAM_CHAT_ID 오류 또는 봇이 채팅에 없음 — 그룹/채널에 봇 초대 후 /start, chat_id 재확인";
+    return "TELEGRAM_CHANNEL_ID·TELEGRAM_CHAT_ID 오류 또는 봇 미초대 — 채널은 봇을 관리자로 추가(메시지 게시 권한), chat_id 재확인";
+  }
+  if (s.includes("need administrator rights") || s.includes("not enough rights")) {
+    return "채널에서 봇에 «메시지 게시» 관리자 권한이 필요합니다";
   }
   if (s.includes("bot was blocked")) {
     return "사용자가 봇을 차단함 — 텔레그램에서 봇 차단 해제 필요";
@@ -755,8 +808,14 @@ export function getTelegramNotifyBaseline(symbol, market = "crypto") {
 export function getTelegramNotifyStatus() {
   const minMet = minConditionsRequired();
   const minScore = minTelegramScoreRequired();
+  const { chatIds } = resolveStockTelegramDestinations();
+  const channelId = normalizeStockTelegramChatId(
+    process.env.TELEGRAM_CHANNEL_ID?.trim() || "",
+  );
   return {
     enabled: isTelegramNotifyEnabled(),
+    channelConfigured: Boolean(channelId),
+    destinationCount: chatIds.length,
     minConditionsRequired: minMet,
     minAlertScore: minScore,
     maxTechScore: getMaxTechScore(),
@@ -1134,8 +1193,7 @@ export async function sendStockPickTelegramNow(pick, opts = {}) {
   const replyMarkup = openUrl
     ? { inline_keyboard: [[{ text: "📈 종목 보기", url: openUrl }]] }
     : undefined;
-  const stockCreds = resolveStockTelegramCreds();
-  const ok = await sendTelegramMessage(text, replyMarkup, stockCreds);
+  const ok = await sendStockTelegramMessage(text, replyMarkup);
   if (ok) {
     if (recordSent) confirmNotifySent(pick);
     console.log(
@@ -1171,8 +1229,7 @@ export function notifyHighScorePick(pick) {
     ? { inline_keyboard: [[{ text: "📈 종목 보기", url: openUrl }]] }
     : undefined;
 
-  const stockCreds = resolveStockTelegramCreds();
-  void sendTelegramMessage(text, replyMarkup, stockCreds)
+  void sendStockTelegramMessage(text, replyMarkup)
     .then((ok) => {
       if (ok) {
         confirmNotifySent(pick);

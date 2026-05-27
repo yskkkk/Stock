@@ -1,8 +1,7 @@
 import { liveTradeCurrency } from "../live-trade-market.js";
 import {
   isTelegramNotifyEnabled,
-  sendTelegramMessage,
-  resolveStockTelegramCreds,
+  sendStockTelegramMessage,
 } from "../telegram-notify.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "../live-trade-log.js";
 
@@ -34,7 +33,7 @@ export async function notifyBoxRangeDipRecoveryEntry(box, program, lastPrice, ma
   if (!isTelegramNotifyEnabled()) {
     liveTradeLogWarn(
       "[box-range:telegram]",
-      "TELEGRAM_BOT_TOKEN·TELEGRAM_CHAT_ID 미설정 — 알림 생략",
+      "TELEGRAM_BOT_TOKEN·TELEGRAM_CHANNEL_ID(또는 CHAT_ID) 미설정 — 알림 생략",
       box.symbol,
     );
     return false;
@@ -64,7 +63,7 @@ export async function notifyBoxRangeDipRecoveryEntry(box, program, lastPrice, ma
     "",
     "조건: 박스 종료 후 하단 이탈 → 하단 위로 복귀",
   ].join("\n");
-  const ok = await sendTelegramMessage(text, undefined, resolveStockTelegramCreds());
+  const ok = await sendStockTelegramMessage(text, undefined);
   if (ok) {
     liveTradeLogInfo("[box-range:telegram]", "sent", program.name, sym, tf, box.mid);
   } else {

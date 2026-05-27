@@ -1,6 +1,6 @@
 /**
  * 경제 지표 발표 N분 전 텔레그램 예고 (스크리너 고득점 알림과 별도).
- * — TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID 필요
+ * — TELEGRAM_BOT_TOKEN + TELEGRAM_CHANNEL_ID(또는 TELEGRAM_CHAT_ID)
  * — TELEGRAM_MACRO_REMINDERS=0 이면 비활성
  */
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
@@ -9,8 +9,7 @@ import { fileURLToPath } from "url";
 import { getUpcomingMacroEvents } from "./macro-events.js";
 import {
   isTelegramNotifyEnabled,
-  resolveStockTelegramCreds,
-  sendTelegramMessage,
+  sendStockTelegramMessage,
 } from "./telegram-notify.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -168,7 +167,7 @@ export async function tickMacroReminders() {
       if (sent[key]) continue;
 
       const html = buildMacroReminderHtml(ev, phase);
-      const ok = await sendTelegramMessage(html, undefined, resolveStockTelegramCreds());
+      const ok = await sendStockTelegramMessage(html, undefined);
       if (ok) {
         sent[key] = Date.now();
         sent = pruneSent(sent);
