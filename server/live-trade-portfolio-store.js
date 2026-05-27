@@ -18,6 +18,7 @@ import {
   getRoundTripFeeRateForUserMarketSync,
 } from "./exchange-trading-fees.js";
 import { cryptoYahooUsdtDisplayName } from "./crypto-display-names.js";
+import { resolveDisplayName } from "./names-ko.js";
 import { getLiveTradeProgramSync } from "./live-trade-programs-store.js";
 import { isBoxRangeProgram } from "./box-range/constants.js";
 import { countOpenBoxLotsSync } from "./box-range/store.js";
@@ -170,11 +171,21 @@ function enrichCryptoDisplayName(symbol, name, market) {
   return display || nm || symbol;
 }
 
+function enrichListedDisplayName(symbol, name, market) {
+  if (market === "crypto") {
+    return enrichCryptoDisplayName(symbol, name, market);
+  }
+  if (market === "kr" || market === "us") {
+    return resolveDisplayName(symbol, name);
+  }
+  return String(name ?? symbol).trim() || symbol;
+}
+
 /** @param {LiveTradeRecord[]} trades */
 export function enrichPortfolioTradeNames(trades) {
   return trades.map((t) => ({
     ...t,
-    name: enrichCryptoDisplayName(t.symbol, t.name, t.market),
+    name: enrichListedDisplayName(t.symbol, t.name, t.market),
   }));
 }
 
@@ -182,7 +193,7 @@ export function enrichPortfolioTradeNames(trades) {
 function enrichPortfolioHoldingNames(holdings) {
   return holdings.map((h) => ({
     ...h,
-    name: enrichCryptoDisplayName(h.symbol, h.name, h.market),
+    name: enrichListedDisplayName(h.symbol, h.name, h.market),
   }));
 }
 

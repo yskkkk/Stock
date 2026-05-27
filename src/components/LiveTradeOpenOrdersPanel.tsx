@@ -7,6 +7,7 @@ import {
 } from "../api";
 import { formatPercent, formatPrice, formatUpdatedAt } from "../lib/format";
 import { ko } from "../i18n/ko";
+import { LiveTradeSymbolCell } from "./LiveTradeSymbolCell";
 
 const POLL_MS = 8_000;
 
@@ -188,8 +189,11 @@ export default function LiveTradeOpenOrdersPanel({
                       <span className="live-portfolio__sim">{stateLabel(o.state)}</span>
                     </td>
                     <td>
-                      <span className="live-portfolio__sym">{o.symbol}</span>
-                      <span className="live-portfolio__nm">{o.name}</span>
+                      <LiveTradeSymbolCell
+                        symbol={o.symbol}
+                        name={o.name}
+                        market="crypto"
+                      />
                     </td>
                     <td className="live-portfolio__num">{ordTypeLabel(o.ordType, o.side)}</td>
                     <td className="live-portfolio__num">

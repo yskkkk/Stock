@@ -1,12 +1,6 @@
 import type { LiveTradeHolding, LiveTradeRecord } from "../api";
+import { resolveSymbolDisplayName } from "../lib/symbolDisplayName";
 import CryptoCoinIcon from "./CryptoCoinIcon";
-
-function showSymbolName(symbol: string, name: string): boolean {
-  const nm = name.trim();
-  if (!nm) return false;
-  const sym = symbol.trim().toUpperCase();
-  return nm.toUpperCase() !== sym && !nm.toUpperCase().startsWith(`${sym} `);
-}
 
 export function LiveTradeSymbolCell({
   symbol,
@@ -19,14 +13,13 @@ export function LiveTradeSymbolCell({
   market?: LiveTradeHolding["market"];
   className?: string;
 }) {
-  const displayName = String(name ?? "").trim();
-  const showName = showSymbolName(symbol, displayName);
+  const { label, sublabel } = resolveSymbolDisplayName(symbol, name, market);
   return (
     <span className="live-symbol-with-icon">
       <CryptoCoinIcon symbol={symbol} market={market} />
       <span className={`live-symbol-with-icon__text ${className}`.trim()}>
-        <span className="live-portfolio__sym">{symbol}</span>
-        {showName ? <span className="live-portfolio__nm">{displayName}</span> : null}
+        <span className="live-portfolio__sym">{label}</span>
+        {sublabel ? <span className="live-portfolio__nm">{sublabel}</span> : null}
       </span>
     </span>
   );

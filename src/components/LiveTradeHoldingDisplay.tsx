@@ -5,7 +5,29 @@ import { formatPercent, formatPrice } from "../lib/format";
 import { useLiveTradeFeeRates } from "../contexts/LiveTradeFeeRatesContext";
 import { netReturnPctFromPrices } from "../lib/netReturn";
 import { ko } from "../i18n/ko";
+import { resolveSymbolDisplayName } from "../lib/symbolDisplayName";
 import CryptoCoinIcon from "./CryptoCoinIcon";
+
+function HoldingSymbolLabels({
+  holding,
+  footer,
+}: {
+  holding: LiveTradeHolding;
+  footer?: ReactNode;
+}) {
+  const { label, sublabel } = resolveSymbolDisplayName(
+    holding.symbol,
+    holding.name,
+    holding.market,
+  );
+  return (
+    <>
+      <span className="live-sim-run__sym">{label}</span>
+      {sublabel ? <span className="live-sim-run__name">{sublabel}</span> : null}
+      {footer}
+    </>
+  );
+}
 
 function SymbolWithCoinIcon({
   symbol,
@@ -131,35 +153,39 @@ export function LiveHoldingChartSymbol({
   if (!onOpen) {
     if (variant === "portfolio") {
       const prog = holding.programName ?? holding.programId;
-      const nm = String(holding.name ?? "").trim();
-      const showNm =
-        nm &&
-        nm.toUpperCase() !== holding.symbol.toUpperCase() &&
-        !nm.toUpperCase().startsWith(holding.symbol.toUpperCase());
+      const { label, sublabel } = resolveSymbolDisplayName(
+        holding.symbol,
+        holding.name,
+        holding.market,
+      );
       return (
         <span className="live-portfolio__sym-block">
           <span className="live-portfolio__sym-line">
-            <span className="live-portfolio__sym">{holding.symbol}</span>
+            <span className="live-portfolio__sym">{label}</span>
             {prog ? (
               <span className="live-portfolio__prog-badge" title={prog}>
                 {prog}
               </span>
             ) : null}
           </span>
-          {showNm ? <span className="live-portfolio__nm">{nm}</span> : null}
+          {sublabel ? <span className="live-portfolio__nm">{sublabel}</span> : null}
         </span>
       );
     }
     return (
       <SymbolWithCoinIcon symbol={holding.symbol} market={holding.market}>
-        <span className="live-sim-run__sym">{holding.symbol}</span>
-        <span className="live-sim-run__name">{holding.name}</span>
-        {footer}
+        <HoldingSymbolLabels holding={holding} footer={footer} />
       </SymbolWithCoinIcon>
     );
   }
 
   const cls = `live-holding-chart-btn${selected ? " live-holding-chart-btn--selected" : ""}`;
+  const { label, sublabel } = resolveSymbolDisplayName(
+    holding.symbol,
+    holding.name,
+    holding.market,
+  );
+
   if (variant === "portfolio") {
     return (
       <button
@@ -170,7 +196,7 @@ export function LiveHoldingChartSymbol({
         title={ko.app.liveTradeChartOpenLookup}
       >
         <span className="live-portfolio__sym-line">
-          <span className="live-portfolio__sym">{holding.symbol}</span>
+          <span className="live-portfolio__sym">{label}</span>
           {(holding.programName ?? holding.programId) ? (
             <span
               className="live-portfolio__prog-badge"
@@ -180,9 +206,7 @@ export function LiveHoldingChartSymbol({
             </span>
           ) : null}
         </span>
-        {holding.name && holding.name !== holding.symbol ? (
-          <span className="live-portfolio__nm">{holding.name}</span>
-        ) : null}
+        {sublabel ? <span className="live-portfolio__nm">{sublabel}</span> : null}
       </button>
     );
   }
@@ -196,8 +220,8 @@ export function LiveHoldingChartSymbol({
       title={ko.app.liveTradeChartOpenLookup}
     >
       <SymbolWithCoinIcon symbol={holding.symbol} market={holding.market}>
-        <span className="live-sim-run__sym">{holding.symbol}</span>
-        <span className="live-sim-run__name">{holding.name}</span>
+        <span className="live-sim-run__sym">{label}</span>
+        {sublabel ? <span className="live-sim-run__name">{sublabel}</span> : null}
         {footer}
       </SymbolWithCoinIcon>
     </button>

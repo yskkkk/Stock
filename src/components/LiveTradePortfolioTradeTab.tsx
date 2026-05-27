@@ -8,6 +8,7 @@ import {
 } from "../api";
 import { useBithumbCryptoQuotesPoll } from "../hooks/useBithumbCryptoQuotesPoll";
 import { formatLiveTradeQuantity, formatPercent, formatPrice } from "../lib/format";
+import { resolveSymbolDisplayName } from "../lib/symbolDisplayName";
 import { ko } from "../i18n/ko";
 import type { QuoteResponse } from "../types";
 import CryptoCoinIcon from "./CryptoCoinIcon";
@@ -170,6 +171,11 @@ function HoldingSellRow({
 
   const chg = display.changePercent;
   const chgUp = chg != null && chg >= 0;
+  const { label: symLabel, sublabel: symSub } = resolveSymbolDisplayName(
+    row.symbol,
+    row.name,
+    row.market,
+  );
 
   return (
     <li
@@ -189,9 +195,9 @@ function HoldingSellRow({
           <CryptoCoinIcon symbol={row.symbol} market={row.market} size={24} />
         </span>
         <div className="live-portfolio__trade-sell-sym">
-          <span className="live-portfolio__trade-sell-symbol">{row.symbol}</span>
-          {row.name ? (
-            <span className="live-portfolio__trade-sell-name">{row.name}</span>
+          <span className="live-portfolio__trade-sell-symbol">{symLabel}</span>
+          {symSub ? (
+            <span className="live-portfolio__trade-sell-name">{symSub}</span>
           ) : null}
           {!portfolioProgramId && (row.programName ?? row.programId) ? (
             <span className="live-portfolio__trade-sell-prog">
