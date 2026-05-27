@@ -13,6 +13,7 @@
     "verify:api-smoke": "node scripts/verify-api-smoke.mjs",
     "verify:express-spa": "node scripts/verify-express-spa-root.mjs",
     "test": "vitest run",
+    "test:ui": "vitest run src/components/DockLinkedAccountsPanel.mount.test.tsx src/components/CryptoTab.mount.test.tsx src/regression",
     "build": "npm run verify && tsc -b && vite build",
     "build:mobile": "vite build --mode capacitor && npx cap sync",
     "apk:build": "node scripts/build-android-apk.mjs",

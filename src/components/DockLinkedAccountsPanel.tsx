@@ -18,6 +18,7 @@ import {
 import { navigateToTradeHistoryTab } from "../lib/liveTradeDockAccount";
 import type { LiveTradeTradesExchange } from "../lib/liveTradeTradesWorkspace";
 import LiveTradeApiNotConnectedNotice from "./LiveTradeApiNotConnectedNotice";
+import { ko } from "../i18n/ko";
 
 type LinkedProvider = LiveTradeTradesExchange;
 
