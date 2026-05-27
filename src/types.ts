@@ -1,6 +1,17 @@
 export type ChartTimeframe = "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
 export type Market = "kr" | "us" | "crypto";
 
+/** 상단 메인 네비 탭 */
+export type AppTab =
+  | "screener"
+  | "recommendations"
+  | "liveTrading"
+  | "stockLookup"
+  | "crypto"
+  | "tradeHistory"
+  | "boxRange"
+  | "ops";
+
 /** 실매매·시뮬 포트폴리오 시장 */
 export type LiveTradeMarket = Market | "crypto";
 

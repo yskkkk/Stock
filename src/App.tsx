@@ -17,6 +17,7 @@ import BullishReasonModal from "./components/BullishReasonModal";
 import AccessAdminModal from "./components/AccessAdminModal";
 import AppSiteFooter from "./components/AppSiteFooter";
 import AppThemeCorner from "./components/AppThemeCorner";
+import { useMainTabWithPreview } from "./hooks/useMainTabWithPreview";
 import FeedbackCorner, {
   type FeedbackCornerHandle,
   type FeedbackSubmitKind,
@@ -133,17 +134,10 @@ import type {
   StockPick,
   MarketIndexItem,
   TelegramSentItem,
+  type AppTab,
 } from "./types";
 
-export type AppTab =
-  | "screener"
-  | "recommendations"
-  | "liveTrading"
-  | "stockLookup"
-  | "crypto"
-  | "tradeHistory"
-  | "boxRange"
-  | "ops";
+export type { AppTab };
 
 type StockChartEngine = "tradingview" | "app";
 
@@ -165,7 +159,14 @@ export default function App() {
   const [telegramNotify, setTelegramNotify] = useState(false);
   const [telegramSentCount, setTelegramSentCount] = useState(0);
   const [resettingTelegram, setResettingTelegram] = useState(false);
-  const [appTab, setAppTab] = useState<AppTab>("stockLookup");
+  const {
+    appTab,
+    committedTab,
+    setAppTab,
+    previewMainTab,
+    clearMainTabPreview,
+    mainTabClassName,
+  } = useMainTabWithPreview("stockLookup");
   const prevAppTabRef = useRef<AppTab>("stockLookup");
   /** 실거래 보유 → 종목검색: 탭 진입 시 lookupSelected 초기화 effect 건너뜀 */
   const skipLookupResetRef = useRef(false);
@@ -212,8 +213,8 @@ export default function App() {
 
   useEffect(() => {
     const prev = prevAppTabRef.current;
-    prevAppTabRef.current = appTab;
-    if (appTab !== "stockLookup") return;
+    prevAppTabRef.current = committedTab;
+    if (committedTab !== "stockLookup") return;
     if (prev === "stockLookup") return;
     if (skipLookupResetRef.current) {
       skipLookupResetRef.current = false;
@@ -229,7 +230,7 @@ export default function App() {
     setChartInterval(timeframe);
     setQuote(null);
     setChartLoading(false);
-  }, [appTab, timeframe]);
+  }, [committedTab, timeframe]);
 
   const [chartDrawMode, setChartDrawMode] = useState<ChartDrawMode>("cursor");
   const [chartDrawMagnet, setChartDrawMagnet] = useChartDrawMagnet();
@@ -1360,35 +1361,48 @@ export default function App() {
           </div>
 
           <div className="top-bar__right">
-            <nav className="main-tabs" aria-label={ko.app.mainNav}>
+            <nav
+              className="main-tabs"
+              aria-label={ko.app.mainNav}
+              onPointerLeave={(e) => {
+                const nav = e.currentTarget;
+                if (
+                  e.relatedTarget instanceof Node &&
+                  nav.contains(e.relatedTarget)
+                ) {
+                  return;
+                }
+                clearMainTabPreview();
+              }}
+            >
               <button
                 type="button"
-                className={
-                  appTab === "stockLookup" ? "main-tab active" : "main-tab"
-                }
+                className={mainTabClassName("stockLookup")}
+                onPointerEnter={() => previewMainTab("stockLookup")}
                 onClick={() => setAppTab("stockLookup")}
               >
                 {ko.app.tabStockLookup}
               </button>
               <button
                 type="button"
-                className={appTab === "crypto" ? "main-tab active" : "main-tab"}
+                className={mainTabClassName("crypto")}
+                onPointerEnter={() => previewMainTab("crypto")}
                 onClick={() => setAppTab("crypto")}
               >
                 {ko.app.tabCrypto}
               </button>
               <button
                 type="button"
-                className={appTab === "screener" ? "main-tab active" : "main-tab"}
+                className={mainTabClassName("screener")}
+                onPointerEnter={() => previewMainTab("screener")}
                 onClick={() => setAppTab("screener")}
               >
                 {ko.app.tabScreener}
               </button>
               <button
                 type="button"
-                className={
-                  appTab === "recommendations" ? "main-tab active" : "main-tab"
-                }
+                className={mainTabClassName("recommendations")}
+                onPointerEnter={() => previewMainTab("recommendations")}
                 onClick={() => setAppTab("recommendations")}
               >
                 {ko.app.tabRecommendations}
@@ -1396,9 +1410,8 @@ export default function App() {
               {liveTradeUser && !showLiveTradeDockPortals ? (
                 <button
                   type="button"
-                  className={
-                    appTab === "tradeHistory" ? "main-tab active" : "main-tab"
-                  }
+                  className={mainTabClassName("tradeHistory")}
+                  onPointerEnter={() => previewMainTab("tradeHistory")}
                   onClick={() => setAppTab("tradeHistory")}
                 >
                   {ko.app.tabTradeHistory}
@@ -1406,7 +1419,8 @@ export default function App() {
               ) : null}
               <button
                 type="button"
-                className={appTab === "boxRange" ? "main-tab active" : "main-tab"}
+                className={mainTabClassName("boxRange")}
+                onPointerEnter={() => previewMainTab("boxRange")}
                 onClick={() => setAppTab("boxRange")}
               >
                 {ko.app.tabBoxRange}
@@ -2097,7 +2111,7 @@ export default function App() {
               pageScrollRef={appScrollRef}
               feedbackRef={feedbackRef}
               feedbackActive={footerFeedbackKind != null}
-              tradeHistoryMainActive={appTab === "tradeHistory"}
+              tradeHistoryMainActive={committedTab === "tradeHistory"}
               portalSource={
                 showLiveTradeDockPortals ? (
                   <LiveTradingTab

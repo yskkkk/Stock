@@ -216,6 +216,30 @@ html {
   padding: 0.5rem 1.1rem;
   font-size: 0.86rem;
   font-weight: 700;
+  transition:
+    color 0.14s ease,
+    font-weight 0.14s ease;
+}
+
+html[data-theme="light"] .main-tab {
+  color: color-mix(in srgb, var(--muted) 72%, var(--text));
+}
+
+html[data-theme="light"] .main-tab:hover,
+html[data-theme="light"] .main-tab.main-tab--preview {
+  color: var(--accent-ink, #5c4033);
+  font-weight: 800;
+}
+
+html[data-theme="light"] .main-tab.active {
+  color: var(--accent-ink, var(--accent));
+  font-weight: 800;
+}
+
+html:not([data-theme="light"]) .main-tab:hover,
+html:not([data-theme="light"]) .main-tab.main-tab--preview {
+  color: var(--text);
+  font-weight: 800;
 }
 
 .top-bar__brand h1 {
