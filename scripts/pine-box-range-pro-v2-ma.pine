@@ -25,6 +25,7 @@ bool show_ma = input.bool(true, "MA 선 표시", group=grpMA)
 bool show_ma_cross = input.bool(true, "교차점 표시", group=grpMA)
 bool ma_strict = input.bool(true, "정배열(5>20>120) 필수", group=grpMA, tooltip="끄면 5>20 만 확인")
 
+bool show_preview = input.bool(true, "현재봉 미리보기 박스", tooltip="미확정 봉 포함. 봉 마감 전 모양·유무가 바뀔 수 있음. 매매 배열에는 넣지 않음(표시만).")
 bool show_buy = input.bool(true, "매수 신호")
 bool show_sell = input.bool(true, "매도 신호")
 bool show_er = input.bool(true, "ER 서브차트 표시")
@@ -252,12 +253,13 @@ merge_into(int idx, float nT, float nB, float nM, int nL, int nR) =>
     line.set_extend(ln, extend.none)
     idx
 
-if is_tf and barstate.isconfirmed
+// newestOff: 0=현재봉 포함(미리보기), 1=확정봉만(확정 박스)
+f_scan_box(int newestOff) =>
     int valid_count = 0
-    float max_val = high[1]
-    float min_val = low[1]
+    float max_val = high[newestOff]
+    float min_val = low[newestOff]
     int start_idx = na
-    for i = 1 to max_expand
+    for i = newestOff to max_expand
         max_val := math.max(max_val, high[i])
         min_val := math.min(min_val, low[i])
         float rng_pct = min_val > 0 ? ((max_val - min_val) / min_val) * 100.0 : 100.0
@@ -266,11 +268,17 @@ if is_tf and barstate.isconfirmed
             start_idx := i
         else
             break
+    bool ok = false
+    int tLeft = na
+    int tRight = na
+    float boxTop = na
+    float boxBot = na
+    float midPx = na
     if valid_count >= min_days and not na(start_idx)
-        float erVal = f_er(start_idx, 1)
+        float erVal = f_er(start_idx, newestOff)
         if erVal <= er_thresh
             float pad = (max_val - min_val) * (exp_edge / 100.0)
-            [oldOff, newOff] = expand_range_idx(start_idx, 1, max_expand, pad, exp_gap, split_mid_pct)
+            [oldOff, newOff] = expand_range_idx(start_idx, newestOff, max_expand, pad, exp_gap, split_mid_pct)
             [boxTop, boxBot, midPx] = f_compute_box_v2(oldOff, newOff)
             if not na(midPx) and boxTop > boxBot
                 float hPct = f_box_h_pct(boxTop, boxBot)
@@ -279,26 +287,59 @@ if is_tf and barstate.isconfirmed
                 if sizeOk
                     [tSc, bSc] = f_reject_score(oldOff, newOff, boxTop, boxBot)
                     if tSc >= rej_score and bSc >= rej_score
-                        int tLeft = time[oldOff]
-                        int tRight = time[newOff]
-                        int mIdx = find_merge_idx(boxTop, boxBot, midPx, tLeft, tRight)
-                        if mIdx >= 0
-                            merge_into(mIdx, boxTop, boxBot, midPx, tLeft, tRight)
-                        else
-                            box bx = box.new(tLeft, boxTop, tRight, boxBot, xloc=xloc.bar_time, border_color=color.blue, border_width=2, bgcolor=color.new(color.blue, 90))
-                            line ln = line.new(tLeft, midPx, tRight, midPx, xloc=xloc.bar_time, color=color.orange, width=1, extend=extend.none)
-                            array.push(boxes, bx)
-                            array.push(lines, ln)
-                            array.push(tops, boxTop)
-                            array.push(bottoms, boxBot)
-                            array.push(mids, midPx)
-                            array.push(leftTimes, tLeft)
-                            array.push(rightTimes, tRight)
-                            array.push(firstBuyTs, na)
-                            array.push(triggered, false)
-                            array.push(entryPrices, na)
-                            array.push(dead, false)
-                            array.push(dipLows, na)
+                        ok := true
+                        tLeft := time[oldOff]
+                        tRight := time[newOff]
+    [ok, tLeft, tRight, boxTop, boxBot, midPx]
+
+var box previewBx = na
+var line previewLn = na
+
+if is_tf and barstate.isconfirmed
+    if show_preview and not na(previewBx)
+        box.delete(previewBx)
+        previewBx := na
+    if show_preview and not na(previewLn)
+        line.delete(previewLn)
+        previewLn := na
+    [ok, tLeft, tRight, boxTop, boxBot, midPx] = f_scan_box(1)
+    if ok
+        int mIdx = find_merge_idx(boxTop, boxBot, midPx, tLeft, tRight)
+        if mIdx >= 0
+            merge_into(mIdx, boxTop, boxBot, midPx, tLeft, tRight)
+        else
+            box bx = box.new(tLeft, boxTop, tRight, boxBot, xloc=xloc.bar_time, border_color=color.blue, border_width=2, bgcolor=color.new(color.blue, 90))
+            line ln = line.new(tLeft, midPx, tRight, midPx, xloc=xloc.bar_time, color=color.orange, width=1, extend=extend.none)
+            array.push(boxes, bx)
+            array.push(lines, ln)
+            array.push(tops, boxTop)
+            array.push(bottoms, boxBot)
+            array.push(mids, midPx)
+            array.push(leftTimes, tLeft)
+            array.push(rightTimes, tRight)
+            array.push(firstBuyTs, na)
+            array.push(triggered, false)
+            array.push(entryPrices, na)
+            array.push(dead, false)
+            array.push(dipLows, na)
+
+if is_tf and show_preview and barstate.islast and not barstate.isconfirmed
+    [pOk, pL, pR, pT, pB, pM] = f_scan_box(0)
+    int pRight = time
+    if pOk
+        if na(previewBx)
+            previewBx := box.new(pL, pT, pRight, pB, xloc=xloc.bar_time, border_color=color.aqua, border_width=2, border_style=line.style_dashed, bgcolor=color.new(color.aqua, 92))
+            previewLn := line.new(pL, pM, pRight, pM, xloc=xloc.bar_time, color=color.new(color.aqua, 30), width=1, style=line.style_dashed)
+        else
+            box.set_lefttop(previewBx, pL, pT)
+            box.set_rightbottom(previewBx, pRight, pB)
+            line.set_xy1(previewLn, pL, pM)
+            line.set_xy2(previewLn, pRight, pM)
+    else if not na(previewBx)
+        box.delete(previewBx)
+        previewBx := na
+        line.delete(previewLn)
+        previewLn := na
 
 int sz = array.size(boxes)
 if sz > 0
