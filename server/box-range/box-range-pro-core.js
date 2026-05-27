@@ -10,6 +10,7 @@ import {
   BOX_RANGE_EXPAND_GAP_BARS,
   BOX_RANGE_MAX_EXPAND_BARS,
   BOX_RANGE_MAX_PCT,
+  BOX_RANGE_MIN_PCT,
   BOX_RANGE_MIN_BARS,
   BOX_RANGE_PRO_BAND_HIGH_PCT,
   BOX_RANGE_PRO_BAND_LOW_PCT,
@@ -296,6 +297,7 @@ export function detectBoxRangeProAt(candles, endIdx, timeframe) {
   if (end < 1 || end >= candles.length) return null;
 
   const maxPct = BOX_RANGE_MAX_PCT[timeframe] ?? 15;
+  const minPct = BOX_RANGE_MIN_PCT[timeframe] ?? 0;
   const splitPct = splitMidPctForTimeframe(timeframe);
   const lookback = Math.min(BOX_RANGE_MAX_EXPAND_BARS, end);
 
@@ -344,6 +346,9 @@ export function detectBoxRangeProAt(candles, endIdx, timeframe) {
   ) {
     return null;
   }
+
+  // 최소 등락폭 필터(박스 높이%) — 1h>=1%, 4h>=3%
+  if (minPct > 0 && boxHeightPct(boxTop, boxBot) < minPct) return null;
 
   const { topReject, bottomReject } = countRejections(
     candles,

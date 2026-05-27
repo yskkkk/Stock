@@ -12,6 +12,13 @@ export const BOX_RANGE_MAX_PCT = {
   "1d": 18,
 };
 
+/** TF별 최소 박스 폭(%) — 너무 작은 박스(잡음) 필터 */
+export const BOX_RANGE_MIN_PCT = {
+  "1h": 1,
+  "4h": 3,
+  "1d": 0,
+};
+
 export const BOX_RANGE_MIN_BARS = 10;
 export const BOX_RANGE_LOOKBACK = 100;
 /** 박스 높이 대비 상·하단 터치·거절 판정 폭 */
