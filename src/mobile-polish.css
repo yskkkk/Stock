@@ -199,6 +199,21 @@
   -webkit-overflow-scrolling: touch;
 }
 
+.app--capacitor .box-range-tab--native-detail .box-range-tab__detail--chart {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.app--capacitor .box-range-tab--native-detail .box-range-tab__chart-section {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.app--capacitor .box-range-tab--native-detail .box-range-tab__chart-panel {
+  min-height: 0;
+}
+
 .app--capacitor .box-range-tab__detail-toolbar {
   display: flex;
   flex-direction: column;

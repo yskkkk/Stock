@@ -11,8 +11,9 @@ import {
   type BoxRangeCatalogMarket,
   type BoxRangeSymbolCatalog,
 } from "../api";
-import type { Candle, ChartTimeframe } from "../types";
+import type { Candle, ChartTimeframe, QuoteResponse } from "../types";
 import { formatPercent, formatPrice } from "../lib/format";
+import PickQuoteStrip from "./PickQuoteStrip";
 import { coerceBoxUnixTime } from "../lib/boxRangeChartPrimitive";
 import { cryptoCoinIconUrl, cryptoIconSlug } from "../lib/cryptoCoinIcon";
 import { krStockLogoUrl, usStockLogoUrl } from "../lib/stockLogoUrl";
@@ -356,6 +357,7 @@ export default function BoxRangeTab() {
 
   const [chartCandles, setChartCandles] = useState<Candle[]>([]);
   const [chartDailyCandles, setChartDailyCandles] = useState<Candle[]>([]);
+  const [chartQuote, setChartQuote] = useState<QuoteResponse | null>(null);
   const [chartLoading, setChartLoading] = useState(false);
   const [chartErr, setChartErr] = useState<string | null>(null);
   const chartAbortRef = useRef<AbortController | null>(null);
@@ -507,6 +509,7 @@ export default function BoxRangeTab() {
     chartAbortRef.current = ac;
     setChartLoading(true);
     setChartErr(null);
+    setChartQuote(null);
     fetchStock(sym, chartTimeframe, true, ac.signal)
       .then((d) => {
         if (ac.signal.aborted) return;
@@ -516,11 +519,13 @@ export default function BoxRangeTab() {
           : [];
         setChartCandles(c as Candle[]);
         setChartDailyCandles(dc as Candle[]);
+        setChartQuote(d?.quote ?? null);
       })
       .catch((e) => {
         if (ac.signal.aborted) return;
         setChartCandles([]);
         setChartDailyCandles([]);
+        setChartQuote(null);
         setChartErr(e instanceof Error ? e.message : String(e));
       })
       .finally(() => {
@@ -668,7 +673,10 @@ export default function BoxRangeTab() {
                   eligibleCount={r.eligibleCount}
                   selected={selected === r.symbol}
                   market={catalogMarket}
-                  onSelect={() => setSelected(r.symbol)}
+                  onSelect={() => {
+                    setSelected(r.symbol);
+                    setViewTab("chart");
+                  }}
                 />
               ))}
             </ul>
@@ -677,7 +685,15 @@ export default function BoxRangeTab() {
         )}
 
         {(selected || !nativeUi) && (
-        <section className="box-range-tab__detail" aria-live="polite">
+        <section
+          className={[
+            "box-range-tab__detail",
+            viewTab === "chart" ? "box-range-tab__detail--chart" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          aria-live="polite"
+        >
           {!selected ? (
             null
           ) : !detail ? (
@@ -701,14 +717,14 @@ export default function BoxRangeTab() {
                     )}
                   </h2>
                 </div>
-              ) : (
+              ) : viewTab !== "chart" ? (
                 <h2 className="box-range-tab__title">
                   {detail.name}{" "}
                   <span className="box-range-tab__title-sym">
                     ({displayTicker(detail.symbol, catalogMarket)})
                   </span>
                 </h2>
-              )}
+              ) : null}
               {detail.scanError ? (
                 <p className="live-trading-tab__err">{detail.scanError}</p>
               ) : null}
@@ -748,34 +764,7 @@ export default function BoxRangeTab() {
                       차트
                     </button>
                   </div>
-                  {viewTab === "chart" ? (
-                    <div
-                      className="box-range-tab__chart-tf live-trading-tab__segment"
-                      role="tablist"
-                      aria-label="차트 시간봉"
-                    >
-                      {(["1h", "4h", "1d"] as const).map((tf) => (
-                        <button
-                          key={tf}
-                          type="button"
-                          role="tab"
-                          className={
-                            chartTimeframe === tf
-                              ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
-                              : "live-trading-tab__segment-btn"
-                          }
-                          aria-selected={chartTimeframe === tf}
-                          onClick={() => {
-                            if (nativeUi) setNativeTf(tf);
-                            setChartTf(tf);
-                          }}
-                        >
-                          {tf}
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-                  {nativeUi && nativeTfOptions.length > 1 ? (
+                  {viewTab === "cards" && nativeUi && nativeTfOptions.length > 1 ? (
                     <div
                       className="box-range-tab__tf-tabs"
                       role="tablist"
@@ -823,53 +812,143 @@ export default function BoxRangeTab() {
                       ))}
                     </div>
                   ) : (
-                    <div className="box-range-tab__chart-wrap">
-                      {selectedBoxId ? (
-                        <p className="box-range-tab__chart-picked" role="status">
-                          선택 박스:{" "}
-                          {validBoxes.find((b) => b.catalogBoxId === selectedBoxId)
-                            ?.timeframe ?? "—"}
-                        </p>
-                      ) : (
-                        <p className="box-range-tab__chart-picked" role="status">
-                          표시된 박스 {boxesToShow.length}개를 차트에 표시합니다.
-                        </p>
-                      )}
-                      {chartLoading ? (
-                        <p className="chart-status">{ko.app.chartLoading}</p>
-                      ) : chartErr ? (
-                        <p className="chart-status chart-status--error" role="alert">
-                          {chartErr}
-                        </p>
-                      ) : chartCandles.length === 0 ? (
-                        <p className="chart-status">{ko.app.chartEmpty}</p>
-                      ) : (
-                        <StockChart
-                          colorMode="dark"
-                          candles={chartCandles}
-                          dailyCandles={chartDailyCandles}
-                          fitKey={`${detail.symbol}:${chartTimeframe}:box-range`}
-                          interval={chartTimeframe}
-                          overlays={{
-                            ma: false,
-                            ichimoku: false,
-                            volume: true,
-                            rsi: false,
-                          }}
-                          boxRangeOverlays={catalogOverlays}
-                          focusTimeRange={
-                            selectedBoxId
-                              ? (() => {
-                                  const bx = validBoxes.find(
-                                    (b) => b.catalogBoxId === selectedBoxId,
-                                  );
-                                  if (!bx) return null;
-                                  return { from: bx.leftTime, to: bx.rightTime };
-                                })()
-                              : null
-                          }
-                        />
-                      )}
+                    <div className="box-range-tab__chart-section chart-section crypto-chart-section">
+                      <div className="quote-bar box-range-tab__quote-bar">
+                        <div className="quote-bar__info">
+                          {!nativeUi ? (
+                            <h2 className="quote-bar__title-stack">
+                              <span className="quote-bar__title-line">
+                                {displaySymbolLabel(
+                                  detail.symbol,
+                                  detail.name,
+                                  catalogMarket,
+                                )}
+                              </span>
+                            </h2>
+                          ) : null}
+                          <div className="quote-bar__quote-row">
+                            {chartLoading && chartQuote?.price == null ? (
+                              <span className="quote-bar__quote-loading">
+                                {ko.app.quoteBarLoading}
+                              </span>
+                            ) : (
+                              <PickQuoteStrip
+                                symbol={detail.symbol}
+                                price={chartQuote?.price}
+                                currency={
+                                  chartQuote?.currency ??
+                                  (catalogMarket === "us" ? "USD" : "KRW")
+                                }
+                                changePercent={chartQuote?.changePercent}
+                                turnover={chartQuote?.turnover}
+                                size="md"
+                              />
+                            )}
+                          </div>
+                        </div>
+                        <div className="quote-bar__right">
+                          <div
+                            className="timeframe-seg segmented compact"
+                            role="tablist"
+                            aria-label="차트 시간봉"
+                          >
+                            {(nativeTfOptions.length > 0
+                              ? nativeTfOptions
+                              : BOX_TF_ORDER
+                            ).map((tf) => (
+                              <button
+                                key={tf}
+                                type="button"
+                                role="tab"
+                                className={
+                                  chartTimeframe === tf ? "seg active" : "seg"
+                                }
+                                aria-selected={chartTimeframe === tf}
+                                onClick={() => {
+                                  if (nativeUi) setNativeTf(tf);
+                                  setChartTf(tf);
+                                }}
+                              >
+                                {tf}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="chart-panel crypto-chart-panel box-range-tab__chart-panel">
+                        <div className="chart-toolbar">
+                          <span className="chart-toolbar__label">
+                            {chartTimeframe}
+                          </span>
+                          {chartCandles.length > 0 ? (
+                            <span className="chart-toolbar__muted">
+                              {chartCandles.length}
+                              {ko.app.candleSuffix}
+                            </span>
+                          ) : null}
+                          {catalogOverlays.length > 0 ? (
+                            <span className="chart-toolbar__muted">
+                              · 박스 {catalogOverlays.length}
+                            </span>
+                          ) : null}
+                          {chartLoading && chartCandles.length === 0 ? (
+                            <span className="chart-toolbar__muted">
+                              {ko.app.chartLoading}
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="crypto-chart-panel-body">
+                          {chartLoading && chartCandles.length === 0 ? (
+                            <div className="overlay">
+                              <div className="spinner" />
+                              <p>{ko.app.chartLoading}</p>
+                            </div>
+                          ) : null}
+                          {chartErr && !chartLoading ? (
+                            <div className="overlay error-overlay">
+                              <p>{chartErr}</p>
+                            </div>
+                          ) : null}
+                          {!chartLoading &&
+                          !chartErr &&
+                          chartCandles.length > 0 ? (
+                            <StockChart
+                              colorMode="dark"
+                              candles={chartCandles}
+                              dailyCandles={chartDailyCandles}
+                              fitKey={`${detail.symbol}:${chartTimeframe}:box-range`}
+                              interval={chartTimeframe}
+                              overlays={{
+                                ma: false,
+                                ichimoku: false,
+                                volume: true,
+                                rsi: false,
+                              }}
+                              boxRangeOverlays={catalogOverlays}
+                              focusTimeRange={
+                                selectedBoxId
+                                  ? (() => {
+                                      const bx = validBoxes.find(
+                                        (b) =>
+                                          b.catalogBoxId === selectedBoxId,
+                                      );
+                                      if (!bx) return null;
+                                      return {
+                                        from: bx.leftTime,
+                                        to: bx.rightTime,
+                                      };
+                                    })()
+                                  : null
+                              }
+                            />
+                          ) : null}
+                          {!chartLoading &&
+                          !chartErr &&
+                          chartCandles.length === 0 ? (
+                            <p className="chart-empty">{ko.app.chartEmpty}</p>
+                          ) : null}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </>

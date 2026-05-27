@@ -822,6 +822,15 @@ html:not([data-theme="light"]) .main-tab.main-tab--preview {
     -ms-overflow-style: none;
   }
 
+  .box-range-tab__detail--chart {
+    max-height: min(68vh, 640px);
+    overflow: hidden;
+  }
+
+  .box-range-tab__detail--chart .box-range-tab__chart-panel {
+    min-height: min(280px, 42vh);
+  }
+
   .box-range-tab__detail::-webkit-scrollbar {
     display: none;
     width: 0;
@@ -3029,25 +3038,45 @@ html[data-theme="light"]
   background: rgba(37, 99, 235, 0.12);
 }
 
-.box-range-tab__chart-wrap {
+.box-range-tab__detail--chart {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  min-height: 320px;
+  min-height: 0;
 }
 
-.box-range-tab__chart-picked {
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--muted);
+.box-range-tab__chart-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 0.45rem;
+}
+
+.box-range-tab__quote-bar {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0.15rem 0;
+}
+
+.box-range-tab__chart-panel {
+  flex: 1 1 auto;
+  min-height: min(360px, 52vh);
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.box-range-tab__chart-section .crypto-chart-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
 }
 
 .box-range-tab__view-tabs {
   margin: 0 0 0.5rem;
-}
-
-.box-range-tab__chart-tf {
-  margin: 0 0 0.5rem;
+  flex: 0 0 auto;
 }
 
 .box-range-tab__strategy-pill {
