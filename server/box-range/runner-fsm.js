@@ -162,7 +162,10 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
     const minConfirmMs = BOX_RANGE_CONFIRM_MIN_MS[box.timeframe] ?? 3_600_000;
     if (now - (box.confirmingAtMs ?? now) < minConfirmMs) return;
 
-    // 복귀 확인 완료 → 알림 + 매수
+    // 복귀 확인 완료 → 포지션 한도 먼저 확인 후 알림 + 매수
+    const openLots = countOpenBoxLotsSync(program.id);
+    if (openLots >= program.maxOpenPositions) return;
+
     if (!box.midNotifiedAtMs) {
       const notifyKey = `${program.id}:${box.boxId}`;
       if (!boxNotifyInFlight.has(notifyKey)) {
@@ -182,9 +185,6 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
         }
       }
     }
-
-    const openLots = countOpenBoxLotsSync(program.id);
-    if (openLots >= program.maxOpenPositions) return;
 
     const dedupe = boxRangeBuyDedupeKey(program.id, box.boxId, sym);
     if (boxBuyInFlight.has(dedupe)) return;
@@ -213,14 +213,16 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
       if (live && isProgramArmedForMarket(program, market)) {
         const userId = String(program.userId ?? "").trim();
         let trade = null;
+        let liveFillPrice = box.bottom;
         if (market === "crypto") {
           const out = await executeBithumbLiveBuyOrder(program, pick, {
             credentials: getDecryptedCredentialsSync(userId, "bithumb"),
           });
           if (!out.ok) throw new Error(out.error ?? "매수 실패");
+          liveFillPrice = out.fillPrice ?? box.bottom;
           trade = await recordLiveTradeBuyAsync(
             program,
-            { ...pick, price: out.fillPrice ?? box.bottom },
+            { ...pick, price: liveFillPrice },
             {
               simulated: out.simulated,
               orderId: out.orderId,
@@ -233,13 +235,15 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
         } else {
           const out = await executeLiveBuyOrder(program, pick, { userId });
           if (!out.ok) throw new Error(out.error ?? "매수 실패");
+          liveFillPrice = out.fillPrice ?? box.bottom;
           const orderAmount = await resolveOrderAmountForMarket(program, market);
           trade = recordLiveTradeBuySync(
             program,
-            { ...pick, price: out.fillPrice ?? box.bottom },
+            { ...pick, price: liveFillPrice },
             {
               simulated: out.simulated,
               orderId: out.orderId,
+              fillVolume: out.fillVolume ?? undefined,
               ...boxMeta,
             },
             targets,
@@ -251,7 +255,7 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
             state: "in_position",
             buyTradeId: trade.id,
             lotQty: trade.quantity,
-            entryPrice: box.bottom,
+            entryPrice: liveFillPrice,
             buyAtMs: trade.atMs,
             dipLow: stopLoss,
           });
@@ -349,6 +353,13 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
           fillPrice = out.fillPrice ?? fillPrice;
           simulated = Boolean(out.simulated);
         }
+        // 매도 API 성공 직후 state 업데이트 — 이후 기록 실패해도 중복 매도 방지
+        if (exitSide === "tp") {
+          resetBoxAfterTakeProfit(box);
+        } else {
+          patchBoxSync(box.boxId, { dead: true });
+          closeTradingBox(box, exitSide);
+        }
         recordLiveTradeSellSync(
           {
             programId: program.id,
@@ -380,12 +391,12 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
           },
           userId,
         );
-      }
-      if (exitSide === "tp") {
-        resetBoxAfterTakeProfit(box);
-      } else {
-        patchBoxSync(box.boxId, { dead: true });
-        closeTradingBox(box, exitSide);
+        if (exitSide === "tp") {
+          resetBoxAfterTakeProfit(box);
+        } else {
+          patchBoxSync(box.boxId, { dead: true });
+          closeTradingBox(box, exitSide);
+        }
       }
       liveTradeLogInfo(
         "[box-range:sell]",
