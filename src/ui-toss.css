@@ -2763,9 +2763,9 @@ html[data-theme="light"]
   gap: 0.45rem;
   width: 100%;
   max-width: none;
-  min-height: 2.35rem;
-  margin: 0 0 0.55rem;
-  padding: 0 0.75rem;
+  min-height: 2.15rem;
+  margin: 0 0 0.35rem;
+  padding: 0 0.7rem;
   position: sticky;
   top: 0;
   z-index: 2;
@@ -3019,6 +3019,24 @@ html[data-theme="light"]
 
 .box-range-tab__view-tabs {
   margin: 0 0 0.5rem;
+}
+
+.box-range-tab__chart-tf {
+  margin: 0 0 0.5rem;
+}
+
+.box-range-tab__strategy-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--accent, #2563eb);
+  background: color-mix(in srgb, var(--accent, #2563eb) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent, #2563eb) 30%, transparent);
 }
 
 .box-range-tab__price-card-head {

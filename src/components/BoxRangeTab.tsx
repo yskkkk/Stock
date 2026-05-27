@@ -343,9 +343,7 @@ export default function BoxRangeTab() {
   const { user, authChecked, registrationOpen } = useLiveTradeAuth();
   const [catalogMarket, setCatalogMarket] =
     useState<BoxRangeCatalogMarket>("us");
-  const [catalogStrategy, setCatalogStrategy] = useState<"pro-v2" | "v2" | "legacy">(
-    "pro-v2",
-  );
+  const catalogStrategy = "pro-v2" as const;
   const [index, setIndex] = useState<BoxRangeCatalogIndex | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState<BoxRangeSymbolCatalog | null>(null);
@@ -354,6 +352,7 @@ export default function BoxRangeTab() {
   const [nativeTf, setNativeTf] = useState<"1h" | "4h" | "1d">("1h");
   const [viewTab, setViewTab] = useState<BoxRangeViewTab>("cards");
   const [selectedBoxId, setSelectedBoxId] = useState<string | null>(null);
+  const [chartTf, setChartTf] = useState<ChartTimeframe>("1h");
 
   const [chartCandles, setChartCandles] = useState<Candle[]>([]);
   const [chartDailyCandles, setChartDailyCandles] = useState<Candle[]>([]);
@@ -460,31 +459,43 @@ export default function BoxRangeTab() {
   }, [selected, detail?.symbol, catalogMarket, catalogStrategy]);
 
   const chartTimeframe: ChartTimeframe = useMemo(() => {
+    const tf = nativeUi ? nativeTf : chartTf;
+    return tf === "4h" || tf === "1d" ? tf : "1h";
+  }, [nativeUi, nativeTf, chartTf]);
+
+  useEffect(() => {
+    if (!selected) return;
+    if (nativeUi) {
+      setChartTf(nativeTf);
+      return;
+    }
     const fallback = (validBoxes[0]?.timeframe ?? "1h") as ChartTimeframe;
-    if (nativeUi) return nativeTf;
     const picked = selectedBoxId
       ? (validBoxes.find((b) => b.catalogBoxId === selectedBoxId)?.timeframe as
           | ChartTimeframe
           | undefined)
       : undefined;
-    return (picked ?? fallback) === "4h" || (picked ?? fallback) === "1d"
+    const next = (picked ?? fallback) === "4h" || (picked ?? fallback) === "1d"
       ? (picked ?? fallback)
       : "1h";
-  }, [nativeUi, nativeTf, selectedBoxId, validBoxes]);
+    setChartTf(next);
+  }, [selected, nativeUi, nativeTf, selectedBoxId, validBoxes]);
 
   const catalogOverlays = useMemo(
     () =>
-      boxesToShow.map((b) => ({
-        boxId: b.catalogBoxId,
-        top: b.top,
-        bottom: b.bottom,
-        mid: b.mid,
-        timeframe: b.timeframe,
-        state: "catalog",
-        leftTime: b.leftTime,
-        rightTime: b.rightTime,
-      })),
-    [boxesToShow],
+      boxesToShow
+        .filter((b) => b.timeframe === chartTimeframe)
+        .map((b) => ({
+          boxId: b.catalogBoxId,
+          top: b.top,
+          bottom: b.bottom,
+          mid: b.mid,
+          timeframe: b.timeframe,
+          state: "catalog",
+          leftTime: b.leftTime,
+          rightTime: b.rightTime,
+        })),
+    [boxesToShow, chartTimeframe],
   );
 
   useEffect(() => {
@@ -603,55 +614,12 @@ export default function BoxRangeTab() {
             {ko.app.boxRangeTabMarketCrypto}
           </button>
         </div>
-        <div className="box-range-tab__market-segment live-trading-tab__segment" role="group" aria-label="전략">
-          <button
-            type="button"
-            className={
-              catalogStrategy === "pro-v2"
-                ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
-                : "live-trading-tab__segment-btn"
-            }
-            aria-pressed={catalogStrategy === "pro-v2"}
-            onClick={() => {
-              setSelected(null);
-              setDetail(null);
-              setCatalogStrategy("pro-v2");
-            }}
-          >
-            PRO v2
-          </button>
-          <button
-            type="button"
-            className={
-              catalogStrategy === "v2"
-                ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
-                : "live-trading-tab__segment-btn"
-            }
-            aria-pressed={catalogStrategy === "v2"}
-            onClick={() => {
-              setSelected(null);
-              setDetail(null);
-              setCatalogStrategy("v2");
-            }}
-          >
-            V2
-          </button>
-          <button
-            type="button"
-            className={
-              catalogStrategy === "legacy"
-                ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
-                : "live-trading-tab__segment-btn"
-            }
-            aria-pressed={catalogStrategy === "legacy"}
-            onClick={() => {
-              setSelected(null);
-              setDetail(null);
-              setCatalogStrategy("legacy");
-            }}
-          >
-            Legacy
-          </button>
+        <div
+          className="box-range-tab__market-segment live-trading-tab__segment"
+          role="group"
+          aria-label="전략"
+        >
+          <span className="box-range-tab__strategy-pill">PRO v2</span>
         </div>
         </div>
         {loadErr ? (
@@ -784,6 +752,33 @@ export default function BoxRangeTab() {
                       차트
                     </button>
                   </div>
+                  {viewTab === "chart" ? (
+                    <div
+                      className="box-range-tab__chart-tf live-trading-tab__segment"
+                      role="tablist"
+                      aria-label="차트 시간봉"
+                    >
+                      {(["1h", "4h", "1d"] as const).map((tf) => (
+                        <button
+                          key={tf}
+                          type="button"
+                          role="tab"
+                          className={
+                            chartTimeframe === tf
+                              ? "live-trading-tab__segment-btn live-trading-tab__segment-btn--on"
+                              : "live-trading-tab__segment-btn"
+                          }
+                          aria-selected={chartTimeframe === tf}
+                          onClick={() => {
+                            if (nativeUi) setNativeTf(tf);
+                            setChartTf(tf);
+                          }}
+                        >
+                          {tf}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                   {nativeUi && nativeTfOptions.length > 1 ? (
                     <div
                       className="box-range-tab__tf-tabs"
