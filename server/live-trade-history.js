@@ -182,6 +182,24 @@ function enrichBithumbApiHistoryTrades(apiTrades, storeTrades) {
   });
 }
 
+/**
+ * 빗썸 API 체결은 최근 구간만 내려올 수 있어, 스토어에만 있는 과거 체결도 합친다.
+ * orderId 기준으로 중복 제거.
+ */
+function mergeBithumbApiAndStoreTrades(apiTrades, storeTrades) {
+  const apiByOrder = new Set(
+    apiTrades
+      .map((t) => String(t.orderId ?? "").trim())
+      .filter(Boolean),
+  );
+  const storeOnly = storeTrades.filter((t) => {
+    const oid = String(t.orderId ?? "").trim();
+    if (!oid) return true;
+    return !apiByOrder.has(oid);
+  });
+  return [...apiTrades, ...storeOnly].sort((a, b) => b.atMs - a.atMs);
+}
+
 function historyRangeFromTrades(trades) {
   const rangeEndDay =
     trades.length > 0
@@ -240,10 +258,13 @@ export async function buildLiveTradeHistoryPayloadAsync(userId, opts = {}) {
     );
     storeCrypto = storeCrypto.filter((t) => !t.simulated);
     if (programId) storeCrypto = storeCrypto.filter((t) => t.programId === programId);
-    /** 실매매만 — 빗썸 API 체결 우선 */
+    /** 실매매만 — 빗썸 API 체결 + 스토어 과거 체결 합치기 */
     let trades =
       apiTrades.length > 0
-        ? enrichBithumbApiHistoryTrades(apiTrades, storeCrypto)
+        ? mergeBithumbApiAndStoreTrades(
+            enrichBithumbApiHistoryTrades(apiTrades, storeCrypto),
+            storeCrypto,
+          )
         : storeCrypto;
     trades = enrichPortfolioTradeNames(trades);
     trades = attachProgramNames(trades, uid);

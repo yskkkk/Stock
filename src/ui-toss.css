@@ -4244,6 +4244,9 @@ html[data-theme="light"] .live-trading-tab__program-actions .btn:hover:not(:disa
 
 .live-sim-run__table--trades td.live-portfolio__prog {
   max-width: 14rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .live-trade-history {
