@@ -17,6 +17,7 @@ import { BithumbBrandMark, TossBrandMark } from "./ExchangeBrandMarks";
 import LiveTradeDockApiRail from "./LiveTradeDockApiRail";
 import LiveTradeDockYsHead from "./LiveTradeDockYsHead";
 import { useDesktopDockLayout } from "../hooks/useDesktopDockLayout";
+import { useNestedVerticalScroll } from "../hooks/useNestedVerticalScroll";
 import { refreshLiveTradingStatusNow } from "../hooks/useLiveTradingStatusPoll";
 import { invalidateLiveTradingPrefetch } from "../lib/tabPrefetch";
 import { useLiveTradingStatusPoll } from "../hooks/useLiveTradingStatusPoll";
@@ -164,14 +165,6 @@ function findRailScrollHost(from: EventTarget | null): HTMLElement | null {
   if (!from || !(from instanceof Element)) return null;
   const rail = from.closest<HTMLElement>("[data-live-trade-side-dock-rail]");
   return rail?.querySelector<HTMLElement>(".app-live-trade-side-dock__rail-scroll") ?? null;
-}
-
-/** 레일 위 휠 — 레일 스크롤만, 페이지 본문은 고정 */
-function applyDockRailWheelScroll(e: WheelEvent): void {
-  const delta = wheelDeltaY(e);
-  if (delta === 0) return;
-  const railScroll = findRailScrollHost(e.target);
-  if (railScroll) applyScrollDelta(railScroll, delta);
 }
 
 /** 접힘=왼쪽, 펼침=오른쪽 */
@@ -354,6 +347,7 @@ export default function AppLiveTradeSideDock({
   const [accountRailProvider, setAccountRailProvider] =
     useState<LiveTradeTradesExchange>(readDockAccountProvider);
   const dockRef = useRef<HTMLDivElement>(null);
+  const railScrollRef = useRef<HTMLDivElement>(null);
   const openRef = useRef(open);
   openRef.current = open;
   const resizeHandleRef = useRef<HTMLButtonElement>(null);
@@ -780,15 +774,24 @@ export default function AppLiveTradeSideDock({
       }
 
       if (isWheelInDockRail(e)) {
-        e.preventDefault();
-        e.stopPropagation();
-        applyDockRailWheelScroll(e);
+        const railScroll = findRailScrollHost(e.target);
+        if (railScroll && isScrollableY(railScroll)) {
+          e.preventDefault();
+          e.stopPropagation();
+          applyScrollDelta(railScroll, wheelDeltaY(e));
+        }
       }
     };
 
     window.addEventListener("wheel", onWheel, { passive: false, capture: true });
     return () => window.removeEventListener("wheel", onWheel, { capture: true });
   }, [wide, authChecked]);
+
+  useNestedVerticalScroll(
+    railScrollRef,
+    wide && authChecked,
+    "app-live-trade-side-dock__rail-scroll--dragging",
+  );
 
   if (!wide || !authChecked) return null;
 
@@ -829,7 +832,10 @@ export default function AppLiveTradeSideDock({
           <DockFoldChevron open={open} />
         </span>
       </button>
-      <div className="app-live-trade-side-dock__rail-scroll">
+      <div
+        ref={railScrollRef}
+        className="app-live-trade-side-dock__rail-scroll"
+      >
       <div className="app-live-trade-side-dock__rail-tabs">
         {railTabs.map((tab) => {
           const selected = open && activeId === tab.id;
@@ -893,7 +899,6 @@ export default function AppLiveTradeSideDock({
             </button>
           );
         })}
-      </div>
       </div>
       <div className="app-live-trade-side-dock__rail-footer">
         {user ? (
@@ -963,6 +968,7 @@ export default function AppLiveTradeSideDock({
             onClick={() => feedbackRef.current?.openSubmit()}
           />
         ) : null}
+      </div>
       </div>
     </nav>
   );

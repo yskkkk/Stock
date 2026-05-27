@@ -9768,9 +9768,15 @@ html:not([data-theme="light"]) {
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   scrollbar-width: none;
   -ms-overflow-style: none;
   box-sizing: border-box;
+}
+
+.app-live-trade-side-dock__rail-scroll--dragging {
+  cursor: grabbing;
+  user-select: none;
 }
 
 .app-live-trade-side-dock__rail-scroll::-webkit-scrollbar {
@@ -9801,9 +9807,9 @@ html:not([data-theme="light"]) {
   min-width: 0;
   max-width: 100%;
   gap: 0.2rem;
-  margin-top: 0;
+  margin-top: auto;
   padding-top: 0.2rem;
-  padding-bottom: 0;
+  padding-bottom: max(0.35rem, env(safe-area-inset-bottom, 0px));
   border-top: 1px solid color-mix(in srgb, var(--card-border, #e2e8f0) 55%, transparent);
   pointer-events: auto;
 }
