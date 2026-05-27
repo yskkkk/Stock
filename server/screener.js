@@ -26,6 +26,11 @@ function screenConcurrency() {
 
 const DEFAULT_SCREEN_INTERVAL_MS = 60_000;
 
+/** 자동 1분 스캔 — 기본 OFF (STOCK_SCREENER_POLL=1 로만 기동) */
+export function screeningPollerEnabled() {
+  return String(process.env.STOCK_SCREENER_POLL ?? "0").trim() === "1";
+}
+
 function screenIntervalMs() {
   const n = Number(process.env.SCREEN_INTERVAL_MS);
   if (Number.isFinite(n) && n > 0) return n;
@@ -70,6 +75,7 @@ function logScreeningError(err) {
 }
 
 function scheduleNextScan() {
+  if (!screeningPollerEnabled()) return;
   clearNextScanTimer();
   const interval = screenIntervalMs();
   nextScanAt = Date.now() + interval;
@@ -382,6 +388,7 @@ export function forceRescreen() {
 }
 
 export function ensureScreening() {
+  if (!screeningPollerEnabled()) return;
   if (state.running) return;
   const stale =
     !state.updatedAt || Date.now() - state.updatedAt > screenIntervalMs();
