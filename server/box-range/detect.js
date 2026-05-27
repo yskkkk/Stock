@@ -3,6 +3,7 @@ import {
   BOX_RANGE_PRO_TIMEFRAMES,
 } from "./constants.js";
 import { detectBoxRangesProOnCandles } from "./detect-pro.js";
+import { detectBoxRangesV2OnCandles } from "./box-range-v2-core.js";
 import {
   detectBoxRangesPineOnCandles,
   resolvePineDetectOpts,
@@ -46,7 +47,13 @@ export function detectBoxRangesOnCandles(
   const cap =
     maxCount === 0 ? Number.MAX_SAFE_INTEGER : Math.max(1, maxCount);
   if (BOX_RANGE_PRO_TIMEFRAMES.includes(timeframe)) {
-    return detectBoxRangesProOnCandles(candles, timeframe, cap);
+    const engine = String(process.env.STOCK_BOX_RANGE_ENGINE ?? "v2")
+      .trim()
+      .toLowerCase();
+    if (engine === "pro") {
+      return detectBoxRangesProOnCandles(candles, timeframe, cap);
+    }
+    return detectBoxRangesV2OnCandles(candles, timeframe, cap);
   }
   return detectBoxRangesPineOnCandles(
     candles,

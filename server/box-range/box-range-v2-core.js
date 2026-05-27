@@ -9,8 +9,6 @@
  */
 
 import {
-  percentileLinear,
-  expandRangeIdxPro,
   boxHeightPct,
 } from "./box-range-pro-core.js";
 import { normalizeBoxUnixTime } from "./box-time.js";
@@ -31,6 +29,43 @@ export const V2_BAND_LOW_PCT      = 20;    // 저가 퍼센타일 → bottom
 export const V2_POC_BUCKETS       = 40;    // 거래량 프로파일 버킷 수
 export const V2_MIN_REJECT_SCORE  = 0.50;  // 거절 강도 최솟값 (상·하단 각각)
 export const V2_TOUCH_THRESHOLD   = 0.15;  // 터치 판정폭 (박스높이 × 값)
+
+/**
+ * Pine 스크립트와 동일하게 percentile 인덱스를 반올림으로 선택.
+ * Pine: round((pct/100) * (n-1)) 후 clamp.
+ * @param {number[]} values
+ * @param {number} p 0–100
+ */
+export function percentilePickRound(values, p) {
+  if (!values.length) return NaN;
+  const sorted = [...values].sort((a, b) => a - b);
+  const idxRaw = (p / 100) * (sorted.length - 1);
+  const idx = Math.min(sorted.length - 1, Math.max(0, Math.round(idxRaw)));
+  return sorted[idx];
+}
+
+/**
+ * @param {import("./box-range-pro-core.js").Bar} bar
+ * @param {number} top
+ * @param {number} bot
+ * @param {number} pad
+ */
+export function barInBandV2(bar, top, bot, pad) {
+  return bar.high <= top + pad && bar.low >= bot - pad;
+}
+
+/**
+ * @param {import("./box-range-pro-core.js").Bar} bar
+ * @param {number} mid
+ * @param {number} top
+ * @param {number} bot
+ * @param {number} splitPct
+ */
+export function barNearMidV2(bar, mid, top, bot, splitPct) {
+  const halfH = (top - bot) * 0.5;
+  if (halfH <= 1e-10) return true;
+  return Math.abs(bar.close - mid) <= (splitPct / 100) * halfH;
+}
 
 // ── ER (Efficiency Ratio) ─────────────────────────────────────────────────
 /**
@@ -87,8 +122,9 @@ export function computeBoxV2Prices(candles, oldestIdx, newestIdx) {
     lows.push(candles[i].low);
   }
 
-  const top    = percentileLinear(highs, V2_BAND_HIGH_PCT);
-  const bottom = percentileLinear(lows,  V2_BAND_LOW_PCT);
+  // Pine(v2)와 동일: round 인덱스 선택
+  const top    = percentilePickRound(highs, V2_BAND_HIGH_PCT);
+  const bottom = percentilePickRound(lows,  V2_BAND_LOW_PCT);
 
   if (!Number.isFinite(top) || !Number.isFinite(bottom) || top <= bottom) {
     return { top: NaN, bottom: NaN, mid: NaN };
@@ -98,6 +134,70 @@ export function computeBoxV2Prices(candles, oldestIdx, newestIdx) {
   const mid = Math.max(bottom, Math.min(top, poc));
 
   return { top, bottom, mid };
+}
+
+/**
+ * V2 확장: 확장 판단용 박스 경계도 V2(고저 퍼센타일+POC)로 재계산.
+ * Pine `expand_range_idx` 와 동일 구조.
+ * @param {import("./box-range-pro-core.js").Bar[]} candles
+ * @param {number} seedOldestIdx
+ * @param {number} seedNewestIdx
+ * @param {number} maxBars
+ * @param {number} pad
+ * @param {number} gapAllow
+ * @param {number} splitPct
+ * @returns {[number, number]} [newestIdx, oldestIdx]
+ */
+export function expandRangeIdxV2(
+  candles,
+  seedOldestIdx,
+  seedNewestIdx,
+  maxBars,
+  pad,
+  gapAllow,
+  splitPct,
+) {
+  let newestIdx = seedNewestIdx;
+  let oldestIdx = seedOldestIdx;
+  let miss = 0;
+  const lim = Math.min(maxBars, candles.length - 1);
+
+  if (seedOldestIdx < lim) {
+    for (let i = seedOldestIdx + 1; i <= lim; i++) {
+      const { top, bottom, mid } = computeBoxV2Prices(candles, i, newestIdx);
+      if (
+        Number.isFinite(top) &&
+        barInBandV2(candles[i], top, bottom, pad) &&
+        barNearMidV2(candles[i], mid, top, bottom, splitPct)
+      ) {
+        oldestIdx = i;
+        miss = 0;
+      } else {
+        miss += 1;
+        if (miss >= gapAllow) break;
+      }
+    }
+  }
+
+  miss = 0;
+  if (seedNewestIdx > 0) {
+    for (let i = seedNewestIdx - 1; i >= 0; i--) {
+      const { top, bottom, mid } = computeBoxV2Prices(candles, oldestIdx, i);
+      if (
+        Number.isFinite(top) &&
+        barInBandV2(candles[i], top, bottom, pad) &&
+        barNearMidV2(candles[i], mid, top, bottom, splitPct)
+      ) {
+        newestIdx = i;
+        miss = 0;
+      } else {
+        miss += 1;
+        if (miss >= gapAllow) break;
+      }
+    }
+  }
+
+  return [newestIdx, oldestIdx];
 }
 
 // ── 거절 강도 스코어 (거래량 가중) ────────────────────────────────────────
@@ -186,8 +286,14 @@ export function detectBoxV2At(candles, endIdx, timeframe) {
   // ③ 양방향 확장 (기존 expandRangeIdxPro 재사용 — 경계 인덱스 탐색)
   const seedH = maxVal - minVal;
   const pad = seedH * (BOX_RANGE_EXPAND_EDGE_PCT / 100);
-  const [newestIdx, oldestIdx] = expandRangeIdxPro(
-    candles, startIdx, end, lookback, pad, BOX_RANGE_EXPAND_GAP_BARS, splitPct,
+  const [newestIdx, oldestIdx] = expandRangeIdxV2(
+    candles,
+    startIdx,
+    end,
+    lookback,
+    pad,
+    BOX_RANGE_EXPAND_GAP_BARS,
+    splitPct,
   );
 
   // ④ V2 경계 계산 (고저 퍼센타일 + POC)

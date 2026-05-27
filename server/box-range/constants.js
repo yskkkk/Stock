@@ -70,8 +70,8 @@ export const BOX_RANGE_CATALOG_DIR_LEGACY = "box-range-catalog";
 export const BOX_RANGE_CATALOG_STRATEGIES = /** @type {const} */ ([
   {
     id: "pro-v2",
-    label: "PRO v2 (하단복귀)",
-    catalogDir: BOX_RANGE_CATALOG_DIR_PRO,
+    label: "PRO v2 (Pine V2·POC·ER)",
+    catalogDir: BOX_RANGE_CATALOG_DIR_V2,
     default: true,
   },
   {
@@ -95,7 +95,7 @@ export function resolveBoxRangeCatalogDir(strategyId) {
   if (hit) return hit.catalogDir;
   const env = String(process.env.STOCK_BOX_RANGE_CATALOG_DIR ?? "").trim();
   if (env) return env;
-  return BOX_RANGE_CATALOG_DIR_PRO;
+  return BOX_RANGE_CATALOG_DIR_V2;
 }
 
 /** 카탈로그 스캔·BTC/ETH 폴링 — 1h·4h·1d PRO 탐지 */
