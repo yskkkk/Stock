@@ -650,11 +650,9 @@ export function createApp() {
       const userId = req.user.id;
       try {
         deleteLiveTradeProgramSync(id, userId);
-        const purged = purgeLiveTradeRecordsForProgramSync(id);
         res.json({
           ok: true,
           deletedId: id,
-          purgedTrades: purged.removed,
           programs: listLiveTradeProgramsForUserSync(userId),
         });
       } catch (e) {

@@ -72,6 +72,7 @@ function simCashBalanceFromTrades(trades, programId, currency) {
  * @typedef {{
  *   id: string;
  *   programId: string;
+ *   programName?: string | null;
  *   side: "buy" | "sell";
  *   symbol: string;
  *   name: string;
@@ -162,7 +163,21 @@ export function readStoreSync() {
     if (!fs.existsSync(file)) return defaultStore();
     const o = JSON.parse(fs.readFileSync(file, "utf8"));
     if (!o || typeof o !== "object" || !Array.isArray(o.trades)) return defaultStore();
-    return { trades: o.trades.map(normalizeTrade).filter(Boolean) };
+    const normalized = o.trades.map(normalizeTrade).filter(Boolean);
+    // 과거 레코드에 programName이 없으면 1회 스냅샷으로 채워 넣어(삭제/리네임 후에도 유지)
+    let mutated = false;
+    for (const t of normalized) {
+      if (t.programName && String(t.programName).trim()) continue;
+      const prog = getLiveTradeProgramForRunnerSync(t.programId);
+      const nm = prog?.name ? String(prog.name).trim() : "";
+      if (nm) {
+        t.programName = nm;
+        mutated = true;
+      }
+    }
+    const store = { trades: normalized };
+    if (mutated) writeStoreSync(store);
+    return store;
   } catch {
     return defaultStore();
   }
@@ -254,6 +269,10 @@ function normalizeTrade(raw) {
   return {
     id,
     programId,
+    programName:
+      typeof o.programName === "string" && o.programName.trim()
+        ? o.programName.trim().slice(0, 80)
+        : null,
     side,
     symbol,
     name: String(o.name ?? symbol).trim() || symbol,
@@ -561,6 +580,7 @@ export function recordLiveTradeBuySync(
   const trade = normalizeTrade({
     id: randomUUID(),
     programId: program.id,
+    programName: program.name,
     side: "buy",
     symbol,
     name: String(pick.name ?? symbol),
@@ -740,7 +760,8 @@ export function recordLiveTradeSellSync(input, userId) {
     typeof input.atMs === "number" && Number.isFinite(input.atMs) && input.atMs > 0
       ? input.atMs
       : Date.now();
-  if (!getLiveTradeProgramSync(programId, userId)) {
+  const prog = getLiveTradeProgramSync(programId, userId);
+  if (!prog) {
     throw new Error("프로그램을 찾을 수 없습니다.");
   }
 
@@ -771,6 +792,7 @@ export function recordLiveTradeSellSync(input, userId) {
   const trade = normalizeTrade({
     id: randomUUID(),
     programId,
+    programName: prog.name,
     side: "sell",
     symbol,
     name: pos.name,
