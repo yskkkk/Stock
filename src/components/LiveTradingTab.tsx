@@ -245,6 +245,9 @@ export default function LiveTradingTab({
   const [err, setErr] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingProgramId, setDeletingProgramId] = useState<string | null>(null);
+  const [hiddenProgramIds, setHiddenProgramIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [draft, setDraft] = useState(emptyDraft);
   useEffect(() => {
     if (draft.modelId !== BOX_RANGE_MODEL_ID) return;
@@ -399,7 +402,11 @@ export default function LiveTradingTab({
     const ln = status.programs?.length ?? 0;
     return ln >= pn ? status : polledStatus;
   }, [polledStatus, status]);
-  const programs = effectiveStatus?.programs ?? [];
+  const programs = useMemo(() => {
+    const all = effectiveStatus?.programs ?? [];
+    if (!hiddenProgramIds.size) return all;
+    return all.filter((p) => !hiddenProgramIds.has(p.id));
+  }, [effectiveStatus?.programs, hiddenProgramIds]);
   const activeRunCount =
     (effectiveStatus?.simCount ?? 0) + (effectiveStatus?.armedCount ?? 0);
   /** 메인 실매매 탭 — 도크 미사용 시 또는 가동 중일 때 */
@@ -622,6 +629,11 @@ export default function LiveTradingTab({
 
       // 낙관적 삭제: 확인 즉시 화면에서 제거(느린 API/정리 작업과 분리)
       const prevPrograms = status?.programs ?? [];
+      setHiddenProgramIds((s) => {
+        const next = new Set(s);
+        next.add(id);
+        return next;
+      });
       setStatus((prev) => {
         if (!prev) return prev;
         const programs = prev.programs.filter((p) => p.id !== id);
@@ -661,6 +673,12 @@ export default function LiveTradingTab({
       } catch (e) {
         setErr(e instanceof Error ? e.message : String(e));
         // 실패 시: 화면 상태를 즉시 원복(이후 reload가 최종 동기화)
+        setHiddenProgramIds((s) => {
+          if (!s.size) return s;
+          const next = new Set(s);
+          next.delete(id);
+          return next;
+        });
         setStatus((prev) => {
           if (!prev) return prev;
           return {
