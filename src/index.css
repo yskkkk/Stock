@@ -1917,6 +1917,22 @@ html[data-theme="light"] .live-trade-header-strip__telegram-count {
   min-width: 0;
 }
 
+@media (max-width: 520px) {
+  /* 모바일: 프로그램 칩이 잘리지 않게 줄바꿈 */
+  .live-trade-header-strip__msg {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .live-trade-header-strip__names {
+    flex-wrap: wrap;
+  }
+
+  .live-trade-header-strip__chip {
+    max-width: 100%;
+  }
+}
+
 .live-trade-header-strip__armed,
 .live-trade-header-strip__sep,
 .live-trade-header-strip__msg > span:not(.live-trade-header-strip__names) {
