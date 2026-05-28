@@ -20,6 +20,7 @@ import {
 import { cryptoYahooUsdtDisplayName } from "./crypto-display-names.js";
 import { resolveDisplayName } from "./names-ko.js";
 import { getLiveTradeProgramSync } from "./live-trade-programs-store.js";
+import { getLiveTradeProgramForRunnerSync } from "./live-trade-programs-store.js";
 import { isBoxRangeProgram } from "./box-range/constants.js";
 import { countOpenBoxLotsSync } from "./box-range/store.js";
 import { listLiveTradeProgramsSync } from "./live-trade-programs-store.js";
@@ -41,6 +42,31 @@ function portfolioFilePath() {
 
 /** 레거시 기본 편도 수수료 */
 const DEFAULT_ONE_WAY_FEE_RATE = DEFAULT_ROUND_TRIP_FEE_RATE / 2;
+
+/**
+ * 시뮬 프로그램 — 현금 잔고(투자원금 기반)
+ * buy: -(amount+fee), sell: +(amount-fee)
+ * @param {LiveTradeRecord[]} trades
+ * @param {string} programId
+ * @param {string} currency
+ */
+function simCashBalanceFromTrades(trades, programId, currency) {
+  const pid = String(programId ?? "").trim();
+  const cur = String(currency ?? "").trim().toUpperCase();
+  if (!pid || !cur) return null;
+  let net = 0;
+  for (const t of trades) {
+    if (!t || t.programId !== pid) continue;
+    if (String(t.currency ?? "").trim().toUpperCase() !== cur) continue;
+    const amt = Number(t.amount);
+    const fee = Number(t.feeAmount);
+    if (!Number.isFinite(amt) || amt <= 0) continue;
+    const f = Number.isFinite(fee) && fee >= 0 ? fee : 0;
+    if (t.side === "buy") net -= amt + f;
+    else if (t.side === "sell") net += amt - f;
+  }
+  return net;
+}
 
 /**
  * @typedef {{
@@ -621,6 +647,33 @@ export async function recordLiveTradeBuyAsync(program, pick, orderMeta = {}) {
       exitScenarioNote: null,
     };
   }
+
+  // ── 시뮬 투자원금(현금 잔고) 한도 ──
+  if (orderMeta.simulated) {
+    const currency = liveTradeCurrency(market);
+    const principal =
+      currency === "USD"
+        ? Number(program.simInitialCapitalUsd)
+        : Number(program.simInitialCapitalKrw);
+    if (Number.isFinite(principal) && principal > 0) {
+      const store = readStoreSync();
+      const netCashFlow = simCashBalanceFromTrades(store.trades, program.id, currency) ?? 0;
+      const cash = principal + netCashFlow;
+      const oneWayFee = getOneWayFeeRateForUserMarketSync(uid, market);
+      const estCost = orderAmount * (1 + oneWayFee);
+      if (cash + 1e-6 < estCost) {
+        const unit = currency === "USD" ? "$" : "₩";
+        const fmt = (n) =>
+          currency === "USD"
+            ? n.toFixed(2)
+            : Math.round(n).toLocaleString("ko-KR");
+        throw new Error(
+          `투자원금 잔고 부족: 남은 ${unit}${fmt(cash)} / 필요 ${unit}${fmt(estCost)} (수수료 포함)`,
+        );
+      }
+    }
+  }
+
   return recordLiveTradeBuySync(program, pick, orderMeta, targets, orderAmount);
 }
 
@@ -927,8 +980,21 @@ export async function buildProgramPortfolioSummariesMap(programIds, userId) {
     }
     const unrealizedPnl = marketValueOpen - data.investedOpen;
     const totalPnl = data.realizedPnl + unrealizedPnl;
-    let totalReturnPct =
-      data.totalBuyCost > 0 ? (totalPnl / data.totalBuyCost) * 100 : null;
+    // 분모:
+    // - 기본: 누적 매수원가(totalBuyCost) (레거시)
+    // - 시뮬 투자원금 설정 시: 투자원금(현금 포함 계좌 기준)
+    let denom = data.totalBuyCost;
+    const prog = getLiveTradeProgramForRunnerSync(pid);
+    if (prog && programHasOnlySimulatedBuyTradesSync(pid)) {
+      const market = data.positions[0]?.market;
+      const currency = market ? liveTradeCurrency(market) : null;
+      const principal =
+        currency === "USD"
+          ? Number(prog.simInitialCapitalUsd)
+          : Number(prog.simInitialCapitalKrw);
+      if (Number.isFinite(principal) && principal > 0) denom = principal;
+    }
+    let totalReturnPct = denom > 0 ? (totalPnl / denom) * 100 : null;
     if (totalReturnPct != null && !Number.isFinite(totalReturnPct)) {
       totalReturnPct = null;
     }

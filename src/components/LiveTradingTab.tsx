@@ -165,6 +165,8 @@ const emptyDraft = () => ({
   minScoreRatio: 0.8,
   orderAmountKrw: "10000",
   orderAmountUsd: "",
+  simInitialCapitalKrw: "",
+  simInitialCapitalUsd: "",
   simAutoBuy: true,
   autoSellAtTarget: true,
   sellHorizon: "short" as "short" | "medium" | "long",
@@ -524,6 +526,12 @@ export default function LiveTradingTab({
           p.orderAmountKrw != null ? String(Math.round(p.orderAmountKrw)) : "",
         orderAmountUsd:
           p.orderAmountUsd != null ? String(p.orderAmountUsd) : "",
+        simInitialCapitalKrw:
+          p.simInitialCapitalKrw != null
+            ? String(Math.round(p.simInitialCapitalKrw))
+            : "",
+        simInitialCapitalUsd:
+          p.simInitialCapitalUsd != null ? String(p.simInitialCapitalUsd) : "",
         simAutoBuy: p.simAutoBuy !== false,
         autoSellAtTarget: p.autoSellAtTarget !== false,
         sellHorizon: p.sellHorizon ?? "short",
@@ -560,6 +568,8 @@ export default function LiveTradingTab({
     try {
       const orderKrw = draft.orderAmountKrw.trim();
       const orderUsd = draft.orderAmountUsd.trim();
+      const capKrw = String(draft.simInitialCapitalKrw ?? "").trim();
+      const capUsd = String(draft.simInitialCapitalUsd ?? "").trim();
       const body = {
         name: draft.name.trim(),
         modelId: draft.modelId,
@@ -572,6 +582,11 @@ export default function LiveTradingTab({
             : null,
         orderAmountUsd:
           checked.markets.us && orderUsd ? Number(orderUsd) : null,
+        simInitialCapitalKrw:
+          (checked.markets.kr || checked.markets.crypto) && capKrw
+            ? Number(capKrw)
+            : null,
+        simInitialCapitalUsd: checked.markets.us && capUsd ? Number(capUsd) : null,
         simAutoBuy: draft.simAutoBuy,
         autoSellAtTarget:
           draft.modelId === BOX_RANGE_MODEL_ID ? false : draft.autoSellAtTarget,
@@ -1299,6 +1314,43 @@ export default function LiveTradingTab({
                     }
                     disabled={!needsUsdAmount}
                   />
+                </label>
+
+                <label
+                  className={`live-trading-tab__field${
+                    !(needsKrwAmount || needsUsdAmount)
+                      ? " live-trading-tab__field--off"
+                      : ""
+                  }`}
+                >
+                  <span className="live-trading-tab__label">
+                    {needsUsdAmount
+                      ? ko.app.liveTradeFieldSimInitialCapitalUsd
+                      : ko.app.liveTradeFieldSimInitialCapitalKrw}
+                  </span>
+                  <input
+                    type="number"
+                    className="input live-trading-tab__input"
+                    step={needsUsdAmount ? 10 : 10000}
+                    min={0}
+                    value={
+                      needsUsdAmount
+                        ? draft.simInitialCapitalUsd
+                        : draft.simInitialCapitalKrw
+                    }
+                    onChange={(e) =>
+                      setDraft((d) =>
+                        needsUsdAmount
+                          ? { ...d, simInitialCapitalUsd: e.target.value }
+                          : { ...d, simInitialCapitalKrw: e.target.value },
+                      )
+                    }
+                    disabled={!(needsKrwAmount || needsUsdAmount)}
+                    placeholder={needsUsdAmount ? "예: 10000" : "예: 10000000"}
+                  />
+                  <span className="live-trading-tab__hint live-trading-tab__hint--inline">
+                    {ko.app.liveTradeFieldSimInitialCapitalHint}
+                  </span>
                 </label>
               </div>
 

@@ -56,6 +56,8 @@ export const LIVE_TRADE_DEFAULT_MIN_SCORE_RATIO = 0.8;
  *   maxOpenPositions: number;
  *   orderAmountKrw: number | null;
  *   orderAmountUsd: number | null;
+ *   simInitialCapitalKrw?: number | null;
+ *   simInitialCapitalUsd?: number | null;
  *   status: LiveTradeStatus;
  *   armedAtMs: number | null;
  *   lastRunAtMs: number | null;
@@ -191,6 +193,14 @@ function normalizeProgram(raw) {
       o.orderAmountUsd == null || o.orderAmountUsd === ""
         ? null
         : clampNum(o.orderAmountUsd, 10, 1_000_000, 100),
+    simInitialCapitalKrw:
+      o.simInitialCapitalKrw == null || o.simInitialCapitalKrw === ""
+        ? null
+        : clampNum(o.simInitialCapitalKrw, 0, 1_000_000_000_000, 0),
+    simInitialCapitalUsd:
+      o.simInitialCapitalUsd == null || o.simInitialCapitalUsd === ""
+        ? null
+        : clampNum(o.simInitialCapitalUsd, 0, 1_000_000_000, 0),
     status,
     armedAtMs:
       typeof o.armedAtMs === "number" && Number.isFinite(o.armedAtMs)
@@ -336,6 +346,31 @@ function validateProgramPatch(patch) {
           ? `코인 1회 매수 금액은 ${minKrw.toLocaleString("ko-KR")}원 이상이어야 합니다.`
           : `1회 매수 금액은 ${minKrw.toLocaleString("ko-KR")}원 이상이어야 합니다.`,
       );
+    }
+  }
+
+  if (mk.us) {
+    const raw = patch.orderAmountUsd;
+    if (raw == null || raw === "") {
+      throw new Error("미국 1회 매수 금액을 입력하세요.");
+    }
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 10) {
+      throw new Error("미국 1회 매수 금액은 $10 이상이어야 합니다.");
+    }
+  }
+
+  // 시뮬 투자원금(선택) — 실매매에는 영향 없음
+  if (patch.simInitialCapitalKrw != null && patch.simInitialCapitalKrw !== "") {
+    const n = Number(patch.simInitialCapitalKrw);
+    if (!Number.isFinite(n) || n < 0) {
+      throw new Error("투자원금(KRW)이 올바르지 않습니다.");
+    }
+  }
+  if (patch.simInitialCapitalUsd != null && patch.simInitialCapitalUsd !== "") {
+    const n = Number(patch.simInitialCapitalUsd);
+    if (!Number.isFinite(n) || n < 0) {
+      throw new Error("투자원금(USD)이 올바르지 않습니다.");
     }
   }
 }
@@ -536,6 +571,8 @@ export function stopSimLiveTradeProgramSync(id, userId) {
  *   maxOpenPositions?: number;
  *   orderAmountKrw?: number | null;
  *   orderAmountUsd?: number | null;
+ *   simInitialCapitalKrw?: number | null;
+ *   simInitialCapitalUsd?: number | null;
  *   simAutoBuy?: boolean;
  *   autoSellAtTarget?: boolean;
  *   takeProfitPct?: number | null;
@@ -578,6 +615,8 @@ export function createLiveTradeProgramSync(input, userId, ownerEmail) {
     maxOpenPositions: input.maxOpenPositions,
     orderAmountKrw: input.orderAmountKrw,
     orderAmountUsd: input.orderAmountUsd,
+    simInitialCapitalKrw: input.simInitialCapitalKrw,
+    simInitialCapitalUsd: input.simInitialCapitalUsd,
     simAutoBuy: input.simAutoBuy,
     autoSellAtTarget: input.autoSellAtTarget,
     sellHorizon: input.sellHorizon,

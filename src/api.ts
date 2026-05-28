@@ -986,6 +986,10 @@ export interface LiveTradeProgram {
   maxOpenPositions: number;
   orderAmountKrw: number | null;
   orderAmountUsd: number | null;
+  /** 시뮬 전용 투자원금(현금 한도) */
+  simInitialCapitalKrw?: number | null;
+  /** 시뮬 전용 투자원금(현금 한도) */
+  simInitialCapitalUsd?: number | null;
   status: LiveTradeProgramStatus;
   armedAtMs: number | null;
   lastRunAtMs: number | null;
@@ -1190,6 +1194,8 @@ export function createLiveTradeProgram(body: {
   maxOpenPositions?: number;
   orderAmountKrw?: number | null;
   orderAmountUsd?: number | null;
+  simInitialCapitalKrw?: number | null;
+  simInitialCapitalUsd?: number | null;
   simAutoBuy?: boolean;
   autoSellAtTarget?: boolean;
   takeProfitPct?: number | null;
@@ -1217,6 +1223,8 @@ export function updateLiveTradeProgram(
     maxOpenPositions: number;
     orderAmountKrw: number | null;
     orderAmountUsd: number | null;
+    simInitialCapitalKrw: number | null;
+    simInitialCapitalUsd: number | null;
     simAutoBuy: boolean;
     autoSellAtTarget: boolean;
     takeProfitPct: number | null;
