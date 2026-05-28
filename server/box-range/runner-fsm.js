@@ -19,6 +19,7 @@ import {
 import { getDecryptedCredentialsSync } from "../user-credentials-store.js";
 import { isProgramArmedForMarket } from "../live-trade-arm-gate.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "../live-trade-log.js";
+import { loadStock } from "../stock-data.js";
 import {
   countOpenBoxLotsSync,
   patchBoxSync,
@@ -35,6 +36,53 @@ const boxBuyInFlight = new Set();
 const boxSellInFlight = new Set();
 /** @type {Set<string>} */
 const boxNotifyInFlight = new Set();
+
+// 시뮬레이터 전용: TradingView `pine-box-range-pro-v2-ma.pine`과 같은 트리거/매수 조건으로 동작
+const BOX_RANGE_SIM_FSM_MODE = String(process.env.STOCK_BOX_RANGE_SIM_FSM ?? "v2v2")
+  .trim()
+  .toLowerCase();
+const MA_STRICT = String(process.env.STOCK_BOX_RANGE_MA_STRICT ?? "1").trim() !== "0";
+
+/** @type {Map<string, { at: number; uptrend: boolean }>} */
+const uptrendCache = new Map();
+const UPTREND_TTL_MS = 10 * 60_000;
+
+function sma(values, len) {
+  const n = Math.floor(Number(len));
+  if (!Number.isFinite(n) || n <= 0) return null;
+  if (!Array.isArray(values) || values.length < n) return null;
+  let sum = 0;
+  for (let i = values.length - n; i < values.length; i++) sum += values[i];
+  return sum / n;
+}
+
+async function isDailyUptrend(symbol) {
+  const sym = String(symbol ?? "").trim().toUpperCase();
+  if (!sym) return true;
+  const now = Date.now();
+  const cached = uptrendCache.get(sym);
+  if (cached && now - cached.at <= UPTREND_TTL_MS) return cached.uptrend;
+  try {
+    const data = await loadStock(sym, "1d", { live: true, scan: true });
+    const candles = Array.isArray(data?.candles) ? data.candles : [];
+    const closes = candles
+      .map((c) => Number(c?.close))
+      .filter((v) => Number.isFinite(v) && v > 0);
+    const ma5 = sma(closes, 5);
+    const ma20 = sma(closes, 20);
+    const ma120 = sma(closes, 120);
+    const up =
+      ma5 != null &&
+      ma20 != null &&
+      (MA_STRICT ? (ma120 != null && ma5 > ma20 && ma20 > ma120) : ma5 > ma20);
+    uptrendCache.set(sym, { at: now, uptrend: Boolean(up) });
+    return Boolean(up);
+  } catch {
+    // 데이터 실패로 매수 전체가 막히지 않게 기본 true
+    uptrendCache.set(sym, { at: now, uptrend: true });
+    return true;
+  }
+}
 
 /**
  * @param {import("./store.js").BoxRangeRecord} box
@@ -108,6 +156,153 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
   const now = Date.now();
 
   if (!live && !sim) return;
+
+  // 시뮬레이션: v2v2 (TradingView) 매수 조건
+  if (sim && BOX_RANGE_SIM_FSM_MODE === "v2v2") {
+    if (box.dead === true) {
+      closeTradingBox(box, "dead");
+      return;
+    }
+
+    if (box.state === "idle") {
+      if (lastPrice <= box.bottom) {
+        patchBoxSync(box.boxId, {
+          state: "armed",
+          armedAtMs: now,
+          breakAtMs: now,
+          dipLow: lastPrice,
+        });
+      }
+      return;
+    }
+
+    if (box.state === "armed") {
+      const nextDip =
+        box.dipLow == null || lastPrice < box.dipLow ? lastPrice : box.dipLow;
+      if (nextDip !== box.dipLow) patchBoxSync(box.boxId, { dipLow: nextDip });
+
+      if (lastPrice >= box.mid) {
+        const up = await isDailyUptrend(sym);
+        if (!up) return;
+
+        const openLots = countOpenBoxLotsSync(program.id);
+        if (openLots >= program.maxOpenPositions) return;
+
+        const dedupe = boxRangeBuyDedupeKey(program.id, box.boxId, sym);
+        if (boxBuyInFlight.has(dedupe)) return;
+        boxBuyInFlight.add(dedupe);
+
+        const stopLoss = nextDip ?? box.bottom;
+        let runErr = null;
+        try {
+          const pick = {
+            symbol: sym,
+            market,
+            price: box.mid,
+            name: sym,
+            score: 1,
+            signalIds: [`box-range:${box.timeframe}`],
+          };
+          const boxMeta = { boxId: box.boxId, boxTimeframe: box.timeframe };
+          const trade = await recordLiveTradeBuyAsync(
+            program,
+            pick,
+            { simulated: true, ...boxMeta, targetSellPrice: box.top, stopLossPrice: stopLoss },
+          );
+          if (trade) {
+            patchBoxSync(box.boxId, {
+              state: "in_position",
+              buyTradeId: trade.id,
+              lotQty: trade.quantity,
+              entryPrice: box.mid,
+              buyAtMs: trade.atMs,
+              dipLow: stopLoss,
+              confirmingAtMs: null,
+            });
+            liveTradeLogInfo("[box-range:sim-buy]", program.name, sym, box.timeframe);
+          }
+        } catch (e) {
+          runErr = e instanceof Error ? e.message : String(e);
+          liveTradeLogWarn("[box-range:sim-buy]", program.name, sym, runErr);
+        } finally {
+          boxBuyInFlight.delete(dedupe);
+          touchLiveTradeProgramRunSync(program.id, runErr);
+        }
+      }
+      return;
+    }
+
+    if (box.state === "in_position") {
+      const sellKey = `${program.id}:${box.boxId}`;
+      if (boxSellInFlight.has(sellKey)) return;
+
+      const lot = resolveBoxSellQuantitySync(box);
+      if (lot.closed) {
+        closeTradingBox(box, "reconciled");
+        return;
+      }
+      const qty = lot.quantity;
+      if (qty <= 0) return;
+      const entry = lot.entryPrice ?? box.entryPrice ?? box.mid;
+
+      let exitSide = null;
+      let fillPrice = lastPrice;
+      if (lastPrice >= box.top) {
+        exitSide = "tp";
+        fillPrice = box.top;
+      } else {
+        const sl = box.dipLow;
+        if (sl != null && Number.isFinite(sl) && lastPrice <= sl) {
+          exitSide = "sl";
+          fillPrice = sl;
+        }
+      }
+      if (!exitSide) return;
+
+      boxSellInFlight.add(sellKey);
+      try {
+        recordLiveTradeSellSync(
+          program,
+          {
+            id: box.buyTradeId ?? `${box.boxId}:sell`,
+            programId: program.id,
+            side: "sell",
+            symbol: sym,
+            name: sym,
+            market,
+            quantity: qty,
+            price: fillPrice,
+            amount: qty * fillPrice,
+            feeAmount: 0,
+            currency: market === "us" ? "USD" : "KRW",
+            atMs: now,
+            simulated: true,
+            orderId: null,
+            note: exitSide,
+          },
+          { entryPrice: entry, exitSide, targetSellPrice: box.top, stopLossPrice: box.dipLow ?? box.bottom },
+        );
+        if (exitSide === "tp") {
+          resetBoxAfterTakeProfit(box);
+        } else {
+          patchBoxSync(box.boxId, { dead: true });
+          closeTradingBox(box, "sl");
+        }
+        liveTradeLogInfo("[box-range:sim-sell]", program.name, sym, exitSide, box.timeframe);
+      } catch (e) {
+        liveTradeLogWarn(
+          "[box-range:sim-sell]",
+          program.name,
+          sym,
+          e instanceof Error ? e.message : e,
+        );
+      } finally {
+        boxSellInFlight.delete(sellKey);
+      }
+      return;
+    }
+  }
+
   if (box.dead === true) {
     // 손절 후 박스 소멸 — 재진입 금지
     closeTradingBox(box, "dead");
