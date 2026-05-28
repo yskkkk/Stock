@@ -50,7 +50,32 @@
     <link rel="preconnect" href="https://www.tradingview.com" crossorigin />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="launch-shell launch-shell--loading" aria-busy="true">
+        <p>불러오는 중…</p>
+      </div>
+    </div>
+    <noscript>
+      <div style="padding:1rem;font-family:system-ui,-apple-system,Segoe UI,sans-serif;">
+        자바스크립트가 꺼져 있어 화면을 표시할 수 없습니다.
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // 모바일에서 모듈 스크립트가 막히면 빈 화면이 될 수 있어 안내를 남김
+      setTimeout(function () {
+        try {
+          var root = document.getElementById("root");
+          if (!root) return;
+          if (root.children && root.children.length > 0) return;
+          root.innerHTML =
+            '<div style="min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:1.25rem;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#0a0e13;color:#eef2f7;">' +
+            '<div style="width:min(520px,100%);border:1px solid rgba(148,163,184,.18);background:#161d27;border-radius:12px;padding:1rem 1.05rem;box-shadow:0 8px 28px rgba(0,0,0,.45);">' +
+            '<div style="font-weight:800;letter-spacing:-0.02em;margin:0 0 .35rem;">화면을 표시할 수 없습니다</div>' +
+            '<div style="font-size:.9rem;line-height:1.55;color:#9aa8bc;white-space:pre-wrap;">브라우저가 모듈 스크립트를 차단했거나, 네트워크/캐시 문제로 앱 스크립트 로드에 실패했습니다.\n주소가 https로 열렸다면 http로 다시 접속해 보세요.</div>' +
+            "</div></div>";
+        } catch (e) {}
+      }, 3500);
+    </script>
   </body>
 </html>
