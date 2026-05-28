@@ -619,6 +619,20 @@ export default function LiveTradingTab({
         ? ko.app.liveTradeDeleteRunningConfirm.replace("{name}", name)
         : ko.app.liveTradeDeleteConfirmNamed.replace("{name}", name);
       if (!window.confirm(confirmMsg)) return;
+
+      // 낙관적 삭제: 확인 즉시 화면에서 제거(느린 API/정리 작업과 분리)
+      const prevPrograms = status?.programs ?? [];
+      setStatus((prev) => {
+        if (!prev) return prev;
+        const programs = prev.programs.filter((p) => p.id !== id);
+        return {
+          ...prev,
+          programs,
+          armedCount: programs.filter((p) => p.status === "armed").length,
+          simCount: programs.filter((p) => p.status === "sim").length,
+        };
+      });
+
       setDeletingProgramId(id);
       setBusy(true);
       setErr(null);
@@ -646,6 +660,16 @@ export default function LiveTradingTab({
         void reload();
       } catch (e) {
         setErr(e instanceof Error ? e.message : String(e));
+        // 실패 시: 화면 상태를 즉시 원복(이후 reload가 최종 동기화)
+        setStatus((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            programs: prevPrograms,
+            armedCount: prevPrograms.filter((p) => p.status === "armed").length,
+            simCount: prevPrograms.filter((p) => p.status === "sim").length,
+          };
+        });
       } finally {
         setDeletingProgramId(null);
         setBusy(false);
