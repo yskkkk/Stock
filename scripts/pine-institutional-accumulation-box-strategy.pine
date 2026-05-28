@@ -1,0 +1,314 @@
+// 매집 박스 Strategy — 일봉 백테스트용 (지표와 동일 탐지 + 돌파 매매)
+// TradingView: 차트 일봉(D) · Strategy Tester · process_orders_on_close
+
+//@version=6
+strategy("매집 박스 Strategy", shorttitle="매집Strat", overlay=true, max_boxes_count=500, max_lines_count=500, max_bars_back=5000, pyramiding=0, process_orders_on_close=true, initial_capital=10000000, default_qty_type=strategy.percent_of_equity, default_qty_value=100, commission_type=strategy.commission.percent, commission_value=0.05)
+
+grpTf = "타임프레임"
+tfPreset = input.string("차트 자동", "프리셋", options=["차트 자동", "수동"], group=grpTf)
+
+grpCore = "핵심 (지표 동일)"
+preset = input.string("보통", "민감도", options=["느슨", "보통", "엄격"], group=grpCore)
+baseLen = input.int(14, "베이스 창", minval=6, maxval=60, group=grpCore)
+minBoxBars = input.int(6, "최소 매집 봉", minval=3, maxval=80, group=grpCore)
+maxBoxPct = input.float(12.0, "박스 최대 높이(%)", minval=1.0, maxval=35.0, step=0.5, group=grpCore)
+breakAtr = input.float(0.55, "이탈 ATR 배수", minval=0.1, maxval=2.5, step=0.05, group=grpCore)
+cooldown = input.int(2, "박스 쿨다운", minval=0, maxval=30, group=grpCore)
+enterBars = input.int(2, "시작 확인 봉", minval=1, maxval=8, group=grpCore)
+graceBars = input.int(3, "이탈 허용 봉", minval=0, maxval=12, group=grpCore)
+
+grpDrop = "매집 맥락"
+needPriorDrop = input.bool(false, "하락 선행", group=grpDrop)
+dropLookback = input.int(40, "하락 참조", minval=10, maxval=200, group=grpDrop)
+minDropPct = input.float(4.0, "최소 하락(%)", minval=1.0, maxval=40.0, step=0.5, group=grpDrop)
+
+grpVol = "거래량"
+volLen = input.int(20, "거래량 MA", minval=5, maxval=100, group=grpVol)
+minRvol = input.float(0.95, "베이스 RVOL", minval=0.5, maxval=3.0, step=0.05, group=grpVol)
+minAbsorb = input.int(1, "최소 흡수봉", minval=0, maxval=20, group=grpVol)
+absorbVol = input.float(1.25, "흡수 RVOL", minval=1.0, maxval=3.0, step=0.05, group=grpVol)
+maxBodyPct = input.float(45.0, "흡수 몸통%", minval=10.0, maxval=70.0, step=1.0, group=grpVol)
+
+grpFlow = "자금"
+requireFlow = input.bool(false, "CMF·OBV 필수", group=grpFlow)
+cmfLen = input.int(20, "CMF", minval=5, maxval=50, group=grpFlow)
+minCmf = input.float(-0.05, "CMF 하한", minval=-0.3, maxval=0.3, step=0.01, group=grpFlow)
+useObvSlope = input.bool(false, "OBV+", group=grpFlow)
+obvLen = input.int(10, "OBV 창", minval=3, maxval=40, group=grpFlow)
+
+grpFilt = "횡보"
+adxLen = input.int(14, "ADX", minval=5, group=grpFilt)
+maxAdx = input.float(30.0, "ADX 상한", minval=5.0, maxval=50.0, step=0.5, group=grpFilt)
+maxEr = input.float(0.55, "ER 상한", minval=0.05, maxval=0.9, step=0.02, group=grpFilt)
+lowZonePct = input.float(75.0, "종가 하단%", minval=30.0, maxval=95.0, step=5.0, group=grpFilt)
+
+grpTrade = "매매"
+entryMode = input.string("상향 이탈", "진입", options=["상향 이탈", "이탈+거래량", "완성 후 N봉 돌파"], group=grpTrade, tooltip="상향 이탈=박스 종료 봉 종가가 상단+ATR 돌파")
+entryWindow = input.int(12, "돌파 대기(봉)", minval=1, maxval=40, group=grpTrade, tooltip="완성 후 N봉 돌파 모드")
+entryRvol = input.float(1.05, "진입 RVOL", minval=0.8, maxval=2.5, step=0.05, group=grpTrade)
+slMode = input.string("박스 하단", "손절", options=["박스 하단", "박스+ATR", "박스높이%"], group=grpTrade)
+slAtrMult = input.float(0.5, "SL ATR 여유", minval=0.0, maxval=2.0, step=0.1, group=grpTrade)
+slBoxPct = input.float(50.0, "SL 박스높이%", minval=10.0, maxval=100.0, step=5.0, group=grpTrade)
+tpMode = input.string("박스높이 배수", "익절", options=["박스높이 배수", "R배수", "고정%"], group=grpTrade)
+tpBoxMult = input.float(1.0, "TP 박스높이×", minval=0.3, maxval=4.0, step=0.1, group=grpTrade)
+tpRmult = input.float(2.0, "TP R배수", minval=0.5, maxval=5.0, step=0.1, group=grpTrade)
+tpFixedPct = input.float(10.0, "TP 고정%", minval=2.0, maxval=50.0, step=0.5, group=grpTrade)
+maxHoldBars = input.int(40, "최대 보유(봉)", minval=5, maxval=200, group=grpTrade)
+
+grpVis = "표시"
+showBoxes = input.bool(true, "완성 박스", group=grpVis)
+showMarks = input.bool(true, "진입·청산", group=grpVis)
+extendR = input.int(3, "박스 우측 연장", minval=0, maxval=20, group=grpVis)
+
+int tfSec = timeframe.in_seconds()
+bool tfDaily = tfSec >= 86400
+bool tf4h = tfSec == 14400
+bool tf1h = tfSec == 3600
+bool tfAuto = tfPreset == "차트 자동"
+
+float effMaxBox = tfAuto ? (tfDaily ? 22.0 : tf4h ? 10.0 : tf1h ? 6.5 : 4.5) : maxBoxPct
+float effMaxEr = tfAuto ? (tfDaily ? 0.70 : tf4h ? 0.55 : 0.48) : maxEr
+float effMaxAdx = tfAuto ? (tfDaily ? 40.0 : tf4h ? 34.0 : 30.0) : maxAdx
+float effLowZone = tfAuto ? (tfDaily ? 92.0 : 78.0) : lowZonePct
+int effBaseLen = tfAuto ? (tfDaily ? 10 : tf4h ? 12 : baseLen) : baseLen
+int effMinBars = tfAuto ? (tfDaily ? 5 : minBoxBars) : minBoxBars
+float effBreakAtr = tfAuto ? (tfDaily ? 0.80 : tf4h ? 0.60 : breakAtr) : breakAtr
+int effGrace = tfAuto ? (tfDaily ? 5 : tf4h ? 4 : graceBars) : graceBars
+int effDropLb = tfAuto ? (tfDaily ? 60 : dropLookback) : dropLookback
+
+float pMaxBox = preset == "엄격" ? math.min(effMaxBox, tfDaily ? 14.0 : 6.0) : preset == "느슨" ? effMaxBox * 1.25 : effMaxBox
+float pMaxEr = preset == "엄격" ? math.min(effMaxEr, tfDaily ? 0.50 : 0.38) : preset == "느슨" ? effMaxEr * 1.12 : effMaxEr
+float pMaxAdx = preset == "엄격" ? math.min(effMaxAdx, tfDaily ? 32.0 : 24.0) : preset == "느슨" ? effMaxAdx * 1.08 : effMaxAdx
+float pLowZone = effLowZone
+float pMinRv = preset == "엄격" ? math.max(minRvol, 1.2) : preset == "느슨" ? math.min(minRvol, 0.85) : minRvol
+int pMinAbs = preset == "엄격" ? math.max(minAbsorb, 2) : minAbsorb
+
+f_cmf(int len) =>
+    float mfm = high == low ? 0.0 : ((close - low) - (high - close)) / (high - low)
+    float mfv = mfm * volume
+    float sumMfv = ta.sma(mfv, len) * len
+    float sumVol = ta.sma(volume, len) * len
+    sumVol > 0 ? sumMfv / sumVol : 0.0
+
+float obvChg = close > close[1] ? volume : close < close[1] ? -volume : 0.0
+float volMa = ta.sma(volume, volLen)
+float rvol = volMa > 0 ? volume / volMa : 1.0
+float rng = high - low
+float body = math.abs(close - open)
+float bodyPctBar = rng > 0 ? body / rng * 100.0 : 100.0
+bool isAbsorb = rvol >= absorbVol and bodyPctBar <= maxBodyPct and rng > 0
+
+float boxTop = ta.highest(high, effBaseLen)
+float boxBot = ta.lowest(low, effBaseLen)
+float boxMid = (boxTop + boxBot) * 0.5
+float boxH = boxTop - boxBot
+float boxPct = boxMid > 0 ? boxH / boxMid * 100.0 : 100.0
+float absChg = math.abs(close - close[1])
+float path = ta.sma(absChg, effBaseLen) * effBaseLen
+float er = path > 0 ? math.abs(close - close[effBaseLen]) / path : 1.0
+[_, _, adx] = ta.dmi(adxLen, adxLen)
+float cmf = f_cmf(cmfLen)
+float obv = ta.cum(obvChg)
+float obvSlope = obv - obv[obvLen]
+float priorHigh = ta.highest(high, effDropLb)
+float dropFromHigh = priorHigh > 0 ? (priorHigh - close) / priorHigh * 100.0 : 0.0
+bool hadDrop = dropFromHigh >= minDropPct
+float closePosInBox = boxH > 0 ? (close - boxBot) / boxH * 100.0 : 50.0
+
+bool isFlat = boxPct <= pMaxBox
+bool isChop = er <= pMaxEr
+bool isWeakTrend = adx <= pMaxAdx
+bool isLowClose = closePosInBox <= pLowZone
+bool flowOk = not requireFlow or (cmf >= minCmf and (not useObvSlope or obvSlope > 0))
+bool canAccumBar = isFlat and isChop and isWeakTrend and isLowClose and flowOk and (not needPriorDrop or hadDrop)
+
+var int bStart = na
+var int bCount = 0
+var float bTop = na
+var float bBot = na
+var float bVolSum = 0.0
+var int bAbsCnt = 0
+var int coolLeft = 0
+var int accumRun = 0
+var int missRun = 0
+
+var float[] doneTop = array.new_float()
+var float[] doneBot = array.new_float()
+var int[] doneT0 = array.new_int()
+var int[] doneT1 = array.new_int()
+
+float atr = ta.atr(14)
+int extMs = extendR * timeframe.in_seconds() * 1000
+
+f_boxPct(float t, float b) =>
+    float m = (t + b) * 0.5
+    m > 0 ? (t - b) / m * 100.0 : 100.0
+
+f_closeOutside(float t, float b, float mult) =>
+    float buf = atr * mult
+    close > t + buf or close < b - buf
+
+f_avgRvol(float volSum, int cnt) =>
+    cnt > 0 and volMa > 0 ? (volSum / cnt) / volMa : 0.0
+
+f_sl(float top, float bot) =>
+    float h = top - bot
+    slMode == "박스 하단" ? bot : slMode == "박스+ATR" ? bot - atr * slAtrMult : bot - h * (slBoxPct / 100.0)
+
+f_tp(float entry, float top, float bot, float sl) =>
+    float h = top - bot
+    float risk = math.max(entry - sl, syminfo.mintick)
+    tpMode == "박스높이 배수" ? entry + h * tpBoxMult : tpMode == "R배수" ? entry + risk * tpRmult : entry * (1.0 + tpFixedPct / 100.0)
+
+if coolLeft > 0
+    coolLeft -= 1
+
+accumRun := canAccumBar ? accumRun + 1 : 0
+bool readyStart = accumRun >= enterBars
+bool inTrack = bCount > 0
+float livePct = inTrack ? f_boxPct(bTop, bBot) : boxPct
+bool tooWide = inTrack and livePct > pMaxBox * 1.25
+bool broke = inTrack and f_closeOutside(bTop, bBot, effBreakAtr)
+
+if inTrack
+    missRun := canAccumBar ? 0 : missRun + 1
+else
+    missRun := 0
+
+bool lostAccum = inTrack and missRun > effGrace
+bool zoneEnd = inTrack and (tooWide or broke or lostAccum)
+
+bool boxSaved = false
+float savedTop = na
+float savedBot = na
+bool bullExit = false
+
+if zoneEnd
+    float avgRv = f_avgRvol(bVolSum, bCount)
+    bool volOk = avgRv >= pMinRv or pMinRv <= 0.5
+    bool absorbOk = bAbsCnt >= pMinAbs
+    if bCount >= effMinBars and volOk and absorbOk
+        boxSaved := true
+        savedTop := bTop
+        savedBot := bBot
+        bullExit := broke and close > bTop
+        array.unshift(doneTop, bTop)
+        array.unshift(doneBot, bBot)
+        array.unshift(doneT0, bStart)
+        array.unshift(doneT1, time[1])
+    bStart := na
+    bCount := 0
+    bTop := na
+    bBot := na
+    bVolSum := 0.0
+    bAbsCnt := 0
+    coolLeft := cooldown
+    missRun := 0
+
+if bCount == 0 and coolLeft <= 0 and readyStart
+    bStart := time
+    bCount := 1
+    bTop := high
+    bBot := low
+    bVolSum := volume
+    bAbsCnt := isAbsorb ? 1 : 0
+    missRun := 0
+else if inTrack and not zoneEnd
+    bCount += 1
+    bTop := math.max(bTop, high)
+    bBot := math.min(bBot, low)
+    bVolSum += volume
+    if isAbsorb
+        bAbsCnt += 1
+
+// ── 매매: 완성 박스 ARM ──
+var float armTop = na
+var float armBot = na
+var int armBars = 0
+var bool armBullOnDone = false
+
+if boxSaved
+    armTop := savedTop
+    armBot := savedBot
+    armBars := entryWindow
+    armBullOnDone := bullExit
+
+bool volEntryOk = rvol >= entryRvol
+bool crossUpTop = not na(armTop) and ta.crossover(close, armTop)
+bool volOkForEntry = entryMode == "상향 이탈" or volEntryOk
+bool bullDoneEntry = boxSaved and bullExit and entryMode != "완성 후 N봉 돌파" and volOkForEntry
+bool windowEntry = armBars > 0 and crossUpTop and entryMode == "완성 후 N봉 돌파" and volEntryOk
+bool delayedBreak = armBars > 0 and not armBullOnDone and crossUpTop and entryMode != "완성 후 N봉 돌파" and volOkForEntry
+
+bool goLong = strategy.position_size == 0 and (bullDoneEntry or windowEntry or delayedBreak)
+
+if goLong and not na(armTop) and not na(armBot)
+    float sl = f_sl(armTop, armBot)
+    float tp = f_tp(close, armTop, armBot, sl)
+    strategy.entry("Long", strategy.long, comment="매집↑")
+    strategy.exit("X", "Long", stop=sl, limit=tp)
+    armTop := na
+    armBot := na
+    armBars := 0
+    armBullOnDone := false
+
+if strategy.position_size > 0
+    int eBar = strategy.opentrades.entry_bar_index(0)
+    if bar_index - eBar >= maxHoldBars
+        strategy.close("Long", comment="기간")
+
+if armBars > 0 and strategy.position_size == 0
+    armBars -= 1
+    if armBars <= 0
+        armTop := na
+        armBot := na
+
+// ── 박스 그리기 ──
+var box[] gBox = array.new_box()
+f_wipe() =>
+    while array.size(gBox) > 0
+        box.delete(array.pop(gBox))
+
+if barstate.isconfirmed and showBoxes
+    f_wipe()
+    int n = array.size(doneTop)
+    int lim = math.min(n, 25)
+    if lim > 0
+        for i = 0 to lim - 1
+            int t0 = array.get(doneT0, i)
+            int t1 = array.get(doneT1, i) + extMs
+            float top = array.get(doneTop, i)
+            float bot = array.get(doneBot, i)
+            if not na(t0) and top > bot
+                array.push(gBox, box.new(t0, top, t1, bot, xloc=xloc.bar_time, bgcolor=color.new(#00897B, 85), border_color=color.new(#004D40, 0), border_width=1))
+
+plotshape(showMarks and goLong, title="매수", style=shape.triangleup, location=location.belowbar, color=color.new(#00E676, 0), size=size.small, text="매집")
+plotshape(showMarks and strategy.position_size[1] > 0 and strategy.position_size == 0, title="청산", style=shape.xcross, location=location.abovebar, color=color.orange, size=size.tiny)
+
+// ── 통계 (Strategy Tester 보조) ──
+var int sigBoxes = 0
+var int sigEntries = 0
+if boxSaved
+    sigBoxes += 1
+if goLong
+    sigEntries += 1
+
+var table stat = table.new(position.bottom_right, 2, 7, bgcolor=color.new(#1a1a1a, 10), frame_color=color.gray, border_width=1)
+if barstate.islast
+    int closed = strategy.closedtrades
+    float wr = closed > 0 ? strategy.wintrades / closed * 100.0 : 0.0
+    float pf = strategy.grossloss != 0 ? strategy.grossprofit / math.abs(strategy.grossloss) : na
+    table.cell(stat, 0, 0, "완성 박스", text_color=color.gray, text_size=size.small)
+    table.cell(stat, 1, 0, str.tostring(sigBoxes), text_color=color.white, text_size=size.small)
+    table.cell(stat, 0, 1, "진입 신호", text_color=color.gray, text_size=size.small)
+    table.cell(stat, 1, 1, str.tostring(sigEntries), text_color=color.white, text_size=size.small)
+    table.cell(stat, 0, 2, "체결", text_color=color.gray, text_size=size.small)
+    table.cell(stat, 1, 2, str.tostring(closed), text_color=color.white, text_size=size.small)
+    table.cell(stat, 0, 3, "승률", text_color=color.gray, text_size=size.small)
+    table.cell(stat, 1, 3, str.tostring(wr, "#.#") + "%", text_color=wr >= 50 ? color.lime : color.red, text_size=size.small)
+    table.cell(stat, 0, 4, "PF", text_color=color.gray, text_size=size.small)
+    table.cell(stat, 1, 4, na(pf) ? "—" : str.tostring(pf, "#.##"), text_color=color.white, text_size=size.small)
+    table.cell(stat, 0, 5, "순손익%", text_color=color.gray, text_size=size.small)
+    table.cell(stat, 1, 5, str.tostring(strategy.netprofit_percent, "#.##") + "%", text_color=strategy.netprofit >= 0 ? color.lime : color.red, text_size=size.small)
+    table.cell(stat, 0, 6, "TF", text_color=color.gray, text_size=size.small)
+    table.cell(stat, 1, 6, (tfAuto ? "자동 " : "") + (tfDaily ? "일봉" : timeframe.period), text_color=color.silver, text_size=size.small)
