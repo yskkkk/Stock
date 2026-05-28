@@ -7430,7 +7430,9 @@ html[data-theme="light"] .app-site-footer__link--active {
 
 /* 스크리너 상단: 불필요한 가로 구분선 제거(top-bar 카드 하단 border) */
 .app--screener .top-bar.card {
+  border: none !important;
   border-bottom: none !important;
+  box-shadow: none !important;
 }
 
 .filter-bar.card,
