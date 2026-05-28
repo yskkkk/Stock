@@ -1,0 +1,247 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// 기관·대형 자본 매집(흡수·거래량 집중) 구간 박스 — TradingView Pine v6
+// 휴리스틱: 하락/조정 후 좁은 횡보 + 상대거래량·흡수봉 + CMF/OBV 개선
+
+//@version=6
+indicator("기관·대형 매집 박스", shorttitle="매집Box", overlay=true, max_boxes_count=500, max_lines_count=500, max_bars_back=5000)
+
+// ═══════════════════════════════════════════════════════════════════
+// 입력
+// ═══════════════════════════════════════════════════════════════════
+grpCore = "핵심"
+baseLen     = input.int(14, "베이스 창(봉)", minval=6, maxval=60, group=grpCore, tooltip="횡보·거래량을 잰 롤링 창")
+minBoxBars  = input.int(8, "최소 매집 봉 수", minval=4, maxval=80, group=grpCore)
+maxBoxPct   = input.float(4.5, "박스 최대 높이(%)", minval=0.8, maxval=20.0, step=0.1, group=grpCore)
+breakAtr    = input.float(0.4, "이탈 ATR 배수", minval=0.1, maxval=2.5, step=0.05, group=grpCore)
+cooldown    = input.int(3, "박스 간 쿨다운(봉)", minval=0, maxval=30, group=grpCore)
+enterBars   = input.int(3, "시작 확인(봉)", minval=1, maxval=8, group=grpCore)
+
+grpDrop = "매집 전 맥락"
+needPriorDrop = input.bool(true, "하락·조정 선행", group=grpDrop, tooltip="베이스 직전 구간에서 고점 대비 하락이 있었는지")
+dropLookback  = input.int(40, "하락 참조(봉)", minval=10, maxval=200, group=grpDrop)
+minDropPct    = input.float(5.0, "최소 하락(%)", minval=1.0, maxval=40.0, step=0.5, group=grpDrop)
+
+grpVol = "거래량·흡수"
+volLen      = input.int(20, "거래량 MA", minval=5, maxval=100, group=grpVol)
+minRvol     = input.float(1.15, "베이스 평균 RVOL", minval=0.8, maxval=3.0, step=0.05, group=grpVol, tooltip="베이스 구간 평균 거래량 / MA")
+minAbsorb   = input.int(2, "최소 흡수봉 수", minval=1, maxval=20, group=grpVol, tooltip="거래량↑ + 몸통 작은 봉(매수·매도 흡수)")
+absorbVol   = input.float(1.35, "흡수 RVOL", minval=1.0, maxval=3.0, step=0.05, group=grpVol)
+maxBodyPct  = input.float(38.0, "흡수 몸통/전체(%)", minval=10.0, maxval=60.0, step=1.0, group=grpVol)
+
+grpFlow = "자금 흐름"
+cmfLen      = input.int(20, "CMF", minval=5, maxval=50, group=grpFlow)
+minCmf      = input.float(0.02, "CMF 하한", minval=-0.3, maxval=0.3, step=0.01, group=grpFlow)
+useObvSlope = input.bool(true, "OBV 기울기+", group=grpFlow)
+obvLen      = input.int(10, "OBV 기울기 창", minval=3, maxval=40, group=grpFlow)
+
+grpFilt = "횡보 필터"
+adxLen      = input.int(14, "ADX", minval=5, group=grpFilt)
+maxAdx      = input.float(24.0, "ADX 상한", minval=5.0, maxval=50.0, step=0.5, group=grpFilt)
+maxEr       = input.float(0.42, "ER 상한", minval=0.05, maxval=0.9, step=0.02, group=grpFilt)
+lowZonePct  = input.float(55.0, "종가 위치(박스 하단%)", minval=20.0, maxval=80.0, step=5.0, group=grpFilt, tooltip="매집은 보통 박스 하단~중앙 — 종가가 박스 하단에서 이 비율 이내")
+
+grpVis = "표시"
+onlyDone    = input.bool(true, "완성 박스만", group=grpVis)
+showLive    = input.bool(true, "진행 중", group=grpVis)
+extendR     = input.int(3, "우측 연장(봉)", minval=0, maxval=30, group=grpVis)
+maxBoxes    = input.int(12, "최대 개수(0=전체)", minval=0, maxval=250, group=grpVis)
+showMid     = input.bool(true, "중심·POC", group=grpVis)
+showLabel   = input.bool(true, "매집 라벨", group=grpVis)
+
+grpCol = "색"
+cFill  = input.color(color.new(#26A69A, 86), "채움", group=grpCol)
+cBrd   = input.color(color.new(#26A69A, 10), "테두리", group=grpCol)
+cMid   = input.color(color.new(#FFD54F, 25), "중심", group=grpCol)
+cPoc   = input.color(color.new(#FF7043, 35), "POC", group=grpCol)
+cLive  = input.color(color.new(#26A69A, 92), "진행", group=grpCol)
+
+// ═══════════════════════════════════════════════════════════════════
+// 지표
+// ═══════════════════════════════════════════════════════════════════
+float volMa = ta.sma(volume, volLen)
+float rvol  = volMa > 0 ? volume / volMa : 1.0
+
+float rng   = high - low
+float body  = math.abs(close - open)
+float bodyPctBar = rng > 0 ? body / rng * 100.0 : 100.0
+bool isAbsorb = rvol >= absorbVol and bodyPctBar <= maxBodyPct and rng > 0
+
+float boxTop = ta.highest(high, baseLen)
+float boxBot = ta.lowest(low, baseLen)
+float boxMid = (boxTop + boxBot) * 0.5
+float boxH   = boxTop - boxBot
+float boxPct = boxMid > 0 ? boxH / boxMid * 100.0 : 100.0
+
+float path = ta.sum(math.abs(ta.change(close)), baseLen)
+float er   = path > 0 ? math.abs(close - close[baseLen]) / path : 1.0
+[_, _, adx] = ta.dmi(adxLen, adxLen)
+
+float cmf = ta.cmf(cmfLen)
+float obv = ta.obv
+float obvSlope = obv - obv[obvLen]
+
+float priorHigh = ta.highest(high, dropLookback)
+float dropFromHigh = priorHigh > 0 ? (priorHigh - close) / priorHigh * 100.0 : 0.0
+bool hadDrop = dropFromHigh >= minDropPct
+
+float closePosInBox = boxH > 0 ? (close - boxBot) / boxH * 100.0 : 50.0
+
+bool isFlat = boxPct <= maxBoxPct
+bool isChop = er <= maxEr
+bool isWeakTrend = adx <= maxAdx
+bool isLowClose = closePosInBox <= lowZonePct
+bool flowOk = cmf >= minCmf and (not useObvSlope or obvSlope > 0)
+
+bool canAccumBar = isFlat and isChop and isWeakTrend and isLowClose and flowOk and rvol >= 1.0
+bool contextOk = not needPriorDrop or hadDrop
+
+// ═══════════════════════════════════════════════════════════════════
+// 베이스(매집) 추적
+// ═══════════════════════════════════════════════════════════════════
+var int   bStart = na
+var int   bCount = 0
+var float bTop   = na
+var float bBot   = na
+var float bVolSum = 0.0
+var int   bAbsCnt = 0
+var float bPocVol = 0.0
+var float bPocPrice = na
+var int   coolLeft = 0
+var int   accumRun = 0
+
+var float[] doneTop = array.new_float()
+var float[] doneBot = array.new_float()
+var float[] donePoc = array.new_float()
+var int[]   doneT0  = array.new_int()
+var int[]   doneT1  = array.new_int()
+var int[]   doneAbs = array.new_int()
+var float[] doneRvol = array.new_float()
+
+float atr = ta.atr(14)
+int extMs = extendR * timeframe.in_seconds() * 1000
+
+f_boxPct(float t, float b) =>
+    float m = (t + b) * 0.5
+    m > 0 ? (t - b) / m * 100.0 : 100.0
+
+f_closeOutside(float t, float b, float mult) =>
+    float buf = atr * mult
+    close > t + buf or close < b - buf
+
+f_avgRvol(float volSum, int cnt) =>
+    cnt > 0 and volMa > 0 ? (volSum / cnt) / volMa : 0.0
+
+if coolLeft > 0
+    coolLeft -= 1
+
+accumRun := canAccumBar and contextOk ? accumRun + 1 : 0
+bool readyStart = accumRun >= enterBars
+
+bool inTrack = bCount > 0
+float livePct = inTrack ? f_boxPct(bTop, bBot) : boxPct
+bool tooWide = inTrack and livePct > maxBoxPct * 1.2
+bool broke = inTrack and f_closeOutside(bTop, bBot, breakAtr)
+bool lostAccum = inTrack and not canAccumBar
+
+// 종료 → 완성 박스 저장
+if inTrack and (tooWide or broke or lostAccum)
+    float avgRv = f_avgRvol(bVolSum, bCount)
+    bool volOk = avgRv >= minRvol
+    bool absorbOk = bAbsCnt >= minAbsorb
+    if bCount >= minBoxBars and volOk and absorbOk
+        array.unshift(doneTop, bTop)
+        array.unshift(doneBot, bBot)
+        array.unshift(donePoc, bPocPrice)
+        array.unshift(doneT0, bStart)
+        array.unshift(doneT1, time[1])
+        array.unshift(doneAbs, bAbsCnt)
+        array.unshift(doneRvol, avgRv)
+    bStart := na
+    bCount := 0
+    bTop := na
+    bBot := na
+    bVolSum := 0.0
+    bAbsCnt := 0
+    bPocVol := 0.0
+    bPocPrice := na
+    coolLeft := cooldown
+
+// 시작
+if bCount == 0 and coolLeft <= 0 and readyStart
+    bStart := time
+    bCount := 1
+    bTop := high
+    bBot := low
+    bVolSum := volume
+    bAbsCnt := isAbsorb ? 1 : 0
+    bPocVol := volume
+    bPocPrice := (high + low) * 0.5
+
+// 확장
+else if inTrack and not (tooWide or broke or lostAccum)
+    bCount += 1
+    bTop := math.max(bTop, high)
+    bBot := math.min(bBot, low)
+    bVolSum += volume
+    if isAbsorb
+        bAbsCnt += 1
+    if volume > bPocVol
+        bPocVol := volume
+        bPocPrice := (high + low) * 0.5
+
+bool liveOn = bCount >= minBoxBars and inTrack
+float liveTop = liveOn ? bTop : na
+float liveBot = liveOn ? bBot : na
+float livePoc = liveOn ? bPocPrice : na
+int liveT0 = liveOn ? bStart : na
+int liveT1 = liveOn ? time + extMs : na
+
+// ═══════════════════════════════════════════════════════════════════
+// 그리기
+// ═══════════════════════════════════════════════════════════════════
+var box[]  gBox = array.new_box()
+var line[] gLn  = array.new_line()
+var label[] gLb = array.new_label()
+
+f_wipe() =>
+    while array.size(gBox) > 0
+        box.delete(array.pop(gBox))
+    while array.size(gLn) > 0
+        line.delete(array.pop(gLn))
+    while array.size(gLb) > 0
+        label.delete(array.pop(gLb))
+
+f_paint(int t0, int t1, float top, float bot, float poc, color fill, color brd, bool dash, string tag, int absN, float avgRv) =>
+    if not na(t0) and not na(t1) and not na(top) and not na(bot) and top > bot
+        int tL = math.min(t0, t1)
+        int tR = math.max(t0, t1)
+        array.push(gBox, box.new(tL, top, tR, bot, xloc=xloc.bar_time, bgcolor=fill, border_color=brd, border_width=1, border_style=dash ? line.style_dashed : line.style_solid))
+        if showMid
+            float mid = (top + bot) * 0.5
+            array.push(gLn, line.new(tL, mid, tR, mid, xloc=xloc.bar_time, color=cMid, width=1, style=line.style_dotted))
+            if not na(poc) and poc >= bot and poc <= top
+                array.push(gLn, line.new(tL, poc, tR, poc, xloc=xloc.bar_time, color=cPoc, width=2, style=line.style_solid))
+        if showLabel and tag != ""
+            int tMid = int((tL + tR) * 0.5)
+            string txt = tag + "\n흡수 " + str.tostring(absN) + " · RVOL " + str.tostring(avgRv, "#.##")
+            array.push(gLb, label.new(tMid, top, txt, xloc=xloc.bar_time, yloc=yloc.price, style=label.style_label_down, color=color.new(cBrd, 70), textcolor=color.white, size=size.small))
+
+if barstate.isconfirmed
+    f_wipe()
+    if liveOn and showLive and not onlyDone
+        f_paint(liveT0, liveT1, liveTop, liveBot, livePoc, cLive, cBrd, true, "매집…", bAbsCnt, f_avgRvol(bVolSum, bCount))
+    int n = array.size(doneTop)
+    if n > 0
+        int lim = maxBoxes <= 0 ? n : math.min(maxBoxes, n)
+        for i = 0 to lim - 1
+            f_paint(array.get(doneT0, i), array.get(doneT1, i) + extMs, array.get(doneTop, i), array.get(doneBot, i), array.get(donePoc, i), cFill, cBrd, false, "매집", array.get(doneAbs, i), array.get(doneRvol, i))
+
+// ═══════════════════════════════════════════════════════════════════
+// 데이터 창
+// ═══════════════════════════════════════════════════════════════════
+plot(boxPct, "창 폭%", display=display.data_window)
+plot(rvol, "RVOL", display=display.data_window)
+plot(cmf, "CMF", display=display.data_window)
+plot(dropFromHigh, "고점대비하락%", display=display.data_window)
+plot(canAccumBar ? 1 : 0, "매집봉OK", display=display.data_window)
+plot(isAbsorb ? 1 : 0, "흡수봉", display=display.data_window)
