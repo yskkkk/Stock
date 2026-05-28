@@ -12,6 +12,7 @@ import {
   validateLiveTradeArmLane,
 } from "./live-trade-arm-gate.js";
 import { minOrderAmountKrwForMarkets } from "./live-trade-market.js";
+import { getBithumbLedgerAvailable } from "./live-trade-bithumb-ledger.js";
 import {
   findUserByIdSync,
   listUsersSync,
@@ -346,6 +347,20 @@ function validateProgramPatch(patch) {
           ? `코인 1회 매수 금액은 ${minKrw.toLocaleString("ko-KR")}원 이상이어야 합니다.`
           : `1회 매수 금액은 ${minKrw.toLocaleString("ko-KR")}원 이상이어야 합니다.`,
       );
+    }
+
+    // 실거래(빗썸) — 주문 가능 KRW 잔고보다 큰 값은 저장 차단
+    // (잔고 스냅샷이 아직 없으면 검증을 건너뜀)
+    if (mk.crypto) {
+      const uid = String(patch.userId ?? "").trim();
+      if (uid) {
+        const avail = getBithumbLedgerAvailable(uid, "KRW");
+        if (avail != null && Number.isFinite(avail) && avail > 0 && n > avail) {
+          throw new Error(
+            `코인 1회 매수 금액은 빗썸 주문 가능 원화(${Math.floor(avail).toLocaleString("ko-KR")}원) 이하여야 합니다.`,
+          );
+        }
+      }
     }
   }
 
