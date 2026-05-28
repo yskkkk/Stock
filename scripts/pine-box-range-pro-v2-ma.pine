@@ -71,6 +71,13 @@ var bool[] triggered = array.new_bool()
 var float[] entryPrices = array.new_float()
 var bool[] dead = array.new_bool()
 var float[] dipLows = array.new_float()
+var color[] boxColors = array.new_color()
+
+f_box_color(int idx) =>
+    int r = (idx * 73 + 50) % 206 + 30
+    int g = (idx * 131 + 90) % 206 + 30
+    int b = (idx * 191 + 130) % 206 + 30
+    color.rgb(r, g, b)
 
 var int total_trades = 0
 var int win_trades = 0
@@ -285,7 +292,8 @@ if is_tf and barstate.isconfirmed
                         if mIdx >= 0
                             merge_into(mIdx, boxTop, boxBot, midPx, tLeft, tRight)
                         else
-                            box bx = box.new(tLeft, boxTop, tRight, boxBot, xloc=xloc.bar_time, border_color=color.blue, border_width=2, bgcolor=color.new(color.blue, 90))
+                            color bc = f_box_color(array.size(boxes))
+                            box bx = box.new(tLeft, boxTop, tRight, boxBot, xloc=xloc.bar_time, border_color=bc, border_width=2, bgcolor=color.new(bc, 90))
                             line ln = line.new(tLeft, midPx, tRight, midPx, xloc=xloc.bar_time, color=color.orange, width=1, extend=extend.none)
                             array.push(boxes, bx)
                             array.push(lines, ln)
@@ -299,6 +307,7 @@ if is_tf and barstate.isconfirmed
                             array.push(entryPrices, na)
                             array.push(dead, false)
                             array.push(dipLows, na)
+                            array.push(boxColors, bc)
 
 int sz = array.size(boxes)
 if sz > 0
@@ -308,6 +317,7 @@ if sz > 0
         // 박스권 \"내\" 매수 방지: 박스 오른쪽 경계가 지난 뒤에만 트리거/매수 허용
         int boxR = array.get(rightTimes, i)
         bool afterBox = time > boxR
+        color bc = array.get(boxColors, i)
         bool trig = array.get(triggered, i)
         float entry = array.get(entryPrices, i)
         bool isDead = array.get(dead, i)
@@ -324,14 +334,14 @@ if sz > 0
                 array.set(firstBuyTs, i, time)
                 total_trades += 1
                 sig_buy := true
-                label.new(bar_index, bottom, "매수", style=label.style_label_up, color=color.green, textcolor=color.white, size=size.small)
+                label.new(bar_index, bottom, "매수 B" + str.tostring(i + 1), style=label.style_label_up, color=bc, textcolor=color.white, size=size.small)
         else
             if high >= top
                 float ret = entry > 0 ? ((top - entry) / entry) * 100.0 : 0.0
                 total_return += ret
                 win_trades += 1
                 sig_tp := true
-                label.new(bar_index, top, "익절", style=label.style_label_down, color=color.lime, textcolor=color.black, size=size.small)
+                label.new(bar_index, top, "익절 B" + str.tostring(i + 1), style=label.style_label_down, color=bc, textcolor=color.black, size=size.small)
                 array.set(entryPrices, i, na)
                 array.set(triggered, i, false)
                 array.set(dipLows, i, na)
@@ -340,7 +350,7 @@ if sz > 0
                 total_return += ret
                 loss_trades += 1
                 sig_sl := true
-                label.new(bar_index, dipLow, "손절", style=label.style_label_down, color=color.red, textcolor=color.white, size=size.small)
+                label.new(bar_index, dipLow, "손절 B" + str.tostring(i + 1), style=label.style_label_down, color=bc, textcolor=color.white, size=size.small)
                 array.set(entryPrices, i, na)
                 array.set(triggered, i, false)
                 array.set(dead, i, true)
@@ -363,8 +373,9 @@ if liveSz > 0
         line.set_xy1(ln, array.get(leftTimes, i), midPx)
         line.set_xy2(ln, na(buyT) ? time : buyT, midPx)
         line.set_extend(ln, extend.none)
-        color brd = hasPos ? color.lime : isDead ? color.gray : color.blue
-        color bg = hasPos ? color.new(color.green, 82) : isDead ? color.new(color.gray, 93) : color.new(color.blue, 90)
+        color bc = array.get(boxColors, i)
+        color brd = hasPos ? color.lime : isDead ? color.gray : bc
+        color bg = hasPos ? color.new(color.green, 82) : isDead ? color.new(color.gray, 93) : color.new(bc, 90)
         box.set_border_color(bx, brd)
         box.set_bgcolor(bx, bg)
         box.set_border_width(bx, isDead ? 1 : 2)
