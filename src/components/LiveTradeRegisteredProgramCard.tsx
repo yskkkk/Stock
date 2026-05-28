@@ -6,7 +6,7 @@ import type {
   TechModelRecord,
   TossTradingStatus,
 } from "../api";
-import { BOX_RANGE_MODEL_ID } from "../lib/boxRangeTechModel";
+import { isBoxRangeModelId } from "../lib/boxRangeTechModel";
 import { ko } from "../i18n/ko";
 import { formatPercent } from "../lib/format";
 import {
@@ -119,7 +119,7 @@ export default function LiveTradeRegisteredProgramCard({
   /** 도크 프로그램 탭 — 컴팩트 카드 */
   cardLayout?: boolean;
 }) {
-  const isBoxRange = p.modelId === BOX_RANGE_MODEL_ID;
+  const isBoxRange = isBoxRangeModelId(p.modelId);
   const markets = [
     p.markets.kr ? ko.app.liveTradeMarketKr : "",
     p.markets.us ? ko.app.liveTradeMarketUs : "",

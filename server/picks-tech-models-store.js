@@ -11,7 +11,12 @@ import {
   sanitizeWeightsRecord,
   sumTechScoreWeights,
 } from "./picks-tech-weights-store.js";
-import { BOX_RANGE_MODEL_ID, getBoxRangeTechModelStub } from "./box-range/constants.js";
+import {
+  BOX_RANGE_MODEL_ID,
+  getBoxRangeTechModelStub,
+  listAllBoxRangeTechModelStubs,
+} from "./box-range/constants.js";
+import { getBoxRangeV2MaProfile } from "./box-range/v2-ma-models.js";
 
 export { getDefaultSignalScoreWeights };
 export { sumTechScoreWeights };
@@ -160,10 +165,14 @@ export function listTechModelsSync() {
 /** 실매매 등록 UI — 저장된 모델 + 가상 박스권 모델 */
 export function listTechModelsForLiveTradingSync() {
   const listed = listTechModelsSync();
-  if (listed.models.some((m) => m.id === BOX_RANGE_MODEL_ID)) return listed;
-  const stub = getBoxRangeTechModelStub();
+  const stubs = listAllBoxRangeTechModelStubs();
+  const missing = stubs.filter((s) => !listed.models.some((m) => m.id === s.id));
+  if (!missing.length) return listed;
   return {
-    models: [...listed.models, { ...stub, maxTechScore: 0 }],
+    models: [
+      ...listed.models,
+      ...missing.map((s) => ({ ...s, maxTechScore: 0 })),
+    ],
     activeModelIds: [...listed.activeModelIds],
   };
 }
@@ -177,6 +186,11 @@ export function getActiveTechModelsSync() {
 export function getTechModelByIdSync(id) {
   const sid = String(id ?? "").trim();
   if (sid === BOX_RANGE_MODEL_ID) return getBoxRangeTechModelStub();
+  const v2ma = getBoxRangeV2MaProfile(sid);
+  if (v2ma) {
+    const stub = listAllBoxRangeTechModelStubs().find((m) => m.id === sid);
+    return stub ?? null;
+  }
   return readStoreSync().models.find((m) => m.id === sid) ?? null;
 }
 

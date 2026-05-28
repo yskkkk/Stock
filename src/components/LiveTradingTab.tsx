@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import type { AuthUser, LiveTradeHolding } from "../api";
-import { BOX_RANGE_MODEL_ID } from "../lib/boxRangeTechModel";
+import { isBoxRangeModelId } from "../lib/boxRangeTechModel";
 import {
   armLiveTradeProgram,
   createLiveTradeProgram,
@@ -250,9 +250,9 @@ export default function LiveTradingTab({
   );
   const [draft, setDraft] = useState(emptyDraft);
   useEffect(() => {
-    if (draft.modelId !== BOX_RANGE_MODEL_ID) return;
+    if (!isBoxRangeModelId(draft.modelId)) return;
     setDraft((d) => {
-      if (d.modelId !== BOX_RANGE_MODEL_ID) return d;
+      if (!isBoxRangeModelId(d.modelId)) return d;
       if (d.autoSellAtTarget === false) return d;
       return { ...d, autoSellAtTarget: false };
     });
@@ -442,7 +442,7 @@ export default function LiveTradingTab({
     [draft.marketsKr, draft.marketsUs, draft.marketsCrypto],
   );
 
-  const isBoxRangeDraft = draft.modelId === BOX_RANGE_MODEL_ID;
+  const isBoxRangeDraft = isBoxRangeModelId(draft.modelId);
   const needsKrwAmount = draft.marketsKr || draft.marketsCrypto;
   const needsUsdAmount = draft.marketsUs;
   const minScoreSliderValue = Math.min(
@@ -596,7 +596,7 @@ export default function LiveTradingTab({
         simInitialCapitalUsd: checked.markets.us && capUsd ? Number(capUsd) : null,
         simAutoBuy: draft.simAutoBuy,
         autoSellAtTarget:
-          draft.modelId === BOX_RANGE_MODEL_ID ? false : draft.autoSellAtTarget,
+          isBoxRangeModelId(draft.modelId) ? false : draft.autoSellAtTarget,
         sellHorizon: draft.sellHorizon,
       };
       if (editingId) {
@@ -1204,7 +1204,7 @@ export default function LiveTradingTab({
                   >
                     {models.map((m) => (
                       <option key={m.id} value={m.id}>
-                        {m.id === BOX_RANGE_MODEL_ID
+                        {isBoxRangeModelId(m.id)
                           ? m.name
                           : `${m.name} (max ${m.maxTechScore}점)`}
                       </option>

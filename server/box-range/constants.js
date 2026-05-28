@@ -1,6 +1,29 @@
-/** 박스권 실매매 — 단일 프로그램·1h/4h/1d·빗썸(앱) */
+/** 박스권 실매매 — 1h/4h/1d·빗썸(앱) */
 
-export const BOX_RANGE_MODEL_ID = "box-range";
+import {
+  BOX_RANGE_LEGACY_MODEL_ID,
+  BOX_RANGE_V2_MA_PROFILES,
+  getBoxRangeV2MaProfile,
+  isAnyBoxRangeModelId,
+  isAnyBoxRangeProgram,
+  isBoxRangeV2MaModelId,
+  isBoxRangeV2MaProgram,
+  listBoxRangeV2MaTechModelStubs,
+} from "./v2-ma-models.js";
+
+export {
+  BOX_RANGE_LEGACY_MODEL_ID,
+  BOX_RANGE_V2_MA_PROFILES,
+  getBoxRangeV2MaProfile,
+  isBoxRangeV2MaModelId,
+  isBoxRangeV2MaProgram,
+  isAnyBoxRangeModelId,
+  isAnyBoxRangeProgram,
+  listBoxRangeV2MaTechModelStubs,
+};
+
+/** @deprecated — 기존 프로그램; 신규는 box-range-v2-ma* 사용 */
+export const BOX_RANGE_MODEL_ID = BOX_RANGE_LEGACY_MODEL_ID;
 
 /** @type {readonly ("1h"|"4h"|"1d")[]} */
 export const BOX_RANGE_TIMEFRAMES = ["1h", "4h", "1d"];
@@ -139,15 +162,20 @@ export function getBoxRangeTechModelStub() {
   const now = Date.now();
   return {
     id: BOX_RANGE_MODEL_ID,
-    name: "박스권 (1h·4h·일)",
+    name: "박스권 (1h·4h·일·확인캔들)",
     weights: {},
     createdAtMs: now,
     updatedAtMs: now,
   };
 }
 
+/** 모든 박스권 modelId 스텁 (레거시 + V2+MA 3종) */
+export function listAllBoxRangeTechModelStubs() {
+  return [getBoxRangeTechModelStub(), ...listBoxRangeV2MaTechModelStubs()];
+}
+
 export function isBoxRangeProgram(program) {
-  return String(program?.modelId ?? "").trim() === BOX_RANGE_MODEL_ID;
+  return isAnyBoxRangeProgram(program);
 }
 
 /** 시세: STOCK_BOX_RANGE_QUOTE_* · WS: STOCK_BOX_RANGE_WS(0=off), STOCK_BITHUMB_WS_TICKER, STOCK_BOX_RANGE_WS_MAX_STALE_MS, BITHUMB_WS_* */

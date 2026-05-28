@@ -29,6 +29,8 @@ import { boxRangeBuyDedupeKey } from "./buy-guard.js";
 import { resolveBoxSellQuantitySync } from "./lot-reconcile.js";
 import { markCatalogBoxConsumedSync } from "./catalog-store.js";
 import { notifyBoxRangeDipRecoveryEntry } from "./box-range-telegram.js";
+import { isBoxRangeV2MaProgram } from "./v2-ma-models.js";
+import { processBoxFsmV2Ma } from "./runner-fsm-v2-ma.js";
 
 /** @type {Set<string>} */
 const boxBuyInFlight = new Set();
@@ -150,6 +152,10 @@ function boxMarketForProgram(program, box) {
  */
 export async function processBoxFsmForProgram(program, box, lastPrice, live) {
   if (box.state === "closed" || box.tradeEligible === false) return;
+  if (isBoxRangeV2MaProgram(program)) {
+    await processBoxFsmV2Ma(program, box, lastPrice, live);
+    return;
+  }
   const sym = box.symbol;
   const market = boxMarketForProgram(program, box);
   const sim = program.status === "sim";

@@ -49,6 +49,10 @@ const STORE_CACHE_TTL_MS = 1000;
  *   midNotifiedAtMs: number | null;
  *   /** confirming 진입 시각 (TF별 최소 대기 후 매수) *\/
  *   confirmingAtMs: number | null;
+ *   /** V2+MA: 상단 1차 익절(50%) 완료 *\/
+ *   tp1Done: boolean;
+ *   /** V2+MA: 1차 익절 후 트레일 고점 *\/
+ *   peakAfterTp: number | null;
  * }} BoxRangeRecord
  */
 
@@ -148,6 +152,13 @@ function normalizeBox(raw) {
     confirmingAtMs:
       typeof o.confirmingAtMs === "number" && o.confirmingAtMs > 0
         ? o.confirmingAtMs
+        : null,
+    tp1Done: o.tp1Done === true,
+    peakAfterTp:
+      typeof o.peakAfterTp === "number" &&
+      Number.isFinite(o.peakAfterTp) &&
+      o.peakAfterTp > 0
+        ? o.peakAfterTp
         : null,
   };
 }

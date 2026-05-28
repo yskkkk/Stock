@@ -4,7 +4,7 @@
  */
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { BOX_RANGE_MODEL_ID } from "./box-range/constants.js";
+import { isAnyBoxRangeModelId } from "./box-range/v2-ma-models.js";
 import { getTechModelByIdSync } from "./picks-tech-models-store.js";
 import { programHasOnlySimulatedBuyTradesSync } from "./live-trade-portfolio-store.js";
 import {
@@ -319,7 +319,7 @@ export function assertProgramOwnedByUser(programId, userId) {
 function validateProgramPatch(patch) {
   const modelId = String(patch.modelId ?? "").trim();
   if (!modelId) throw new Error("기술 분석 모델을 선택하세요.");
-  if (modelId !== BOX_RANGE_MODEL_ID && !getTechModelByIdSync(modelId)) {
+  if (!isAnyBoxRangeModelId(modelId) && !getTechModelByIdSync(modelId)) {
     throw new Error("선택한 모델을 찾을 수 없습니다. 추천 목록에서 모델을 먼저 만드세요.");
   }
   const mk = patch.markets ?? { kr: true, us: false, crypto: false };
