@@ -75,7 +75,7 @@ export function LiveTradeTradesHistoryTable({
   }, [trades]);
 
   return (
-    <div className="live-sim-run__table-wrap">
+    <div className="live-sim-run__table-wrap live-trade-history__table-wrap">
       <table className="live-sim-run__table live-sim-run__table--stacked live-sim-run__table--trades live-trade-history__table">
         <thead>
           <tr>
