@@ -361,7 +361,9 @@ export default function AppLiveTradeSideDock({
         }));
   const railTabs = allSideTabs.filter(
     (t) =>
-      t.id !== LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth && t.id !== "portfolio",
+      t.id !== LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth &&
+      t.id !== "portfolio" &&
+      t.id !== "programs",
   );
   const panel = ctx?.panel ?? null;
   const openPanel = ctx?.openPanel;

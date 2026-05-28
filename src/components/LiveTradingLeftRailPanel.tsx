@@ -13,7 +13,6 @@ import {
   useLivePortfolioQuotePoll,
 } from "../hooks/useLivePortfolioQuotePoll";
 import {
-  pickRunningLivePrograms,
   useLiveTradingStatusPoll,
 } from "../hooks/useLiveTradingStatusPoll";
 import { ko } from "../i18n/ko";
@@ -521,7 +520,27 @@ export function LiveTradingRailCore({
   );
 
   const rows = useMemo(() => {
-    return pickRunningLivePrograms(status).map(({ program: p, kind }) => {
+    const programs = status?.programs ?? [];
+    const armed = programs
+      .filter((p) => p.status === "armed")
+      .sort((a, b) => a.name.localeCompare(b.name, "ko"));
+    // 자동매매(시뮬) 등록 프로그램은 모두 노출(상태와 무관)
+    const simRegistered = programs
+      .filter((p) => p.simAutoBuy !== false)
+      .sort((a, b) => a.name.localeCompare(b.name, "ko"));
+    const picked = [
+      ...armed.map((program) => ({ program, kind: "armed" as const })),
+      ...simRegistered.map((program) => ({ program, kind: "sim" as const })),
+    ];
+    // armed가 simRegistered에도 포함되면 중복 제거
+    const seen = new Set<string>();
+    const deduped = picked.filter((row) => {
+      const id = row.program.id;
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+    return deduped.map(({ program: p, kind }) => {
       const ret = status?.programReturns?.[p.id];
       const holdingCount = ret?.holdingCount ?? 0;
       const displayStatus =
