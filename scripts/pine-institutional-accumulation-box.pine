@@ -62,6 +62,16 @@ float pMaxAdx = preset == "엄격" ? math.min(maxAdx, 24.0) : preset == "느슨"
 float pMinRv = preset == "엄격" ? math.max(minRvol, 1.2) : preset == "느슨" ? math.min(minRvol, 0.85) : minRvol
 int pMinAbs = preset == "엄격" ? math.max(minAbsorb, 2) : minAbsorb
 
+// Pine v6: ta.cmf / ta.obv 없음 — 직접 계산
+f_cmf(int len) =>
+    float mfm = high == low ? 0.0 : ((close - low) - (high - close)) / (high - low)
+    float mfv = mfm * volume
+    float sumMfv = ta.sma(mfv, len) * len
+    float sumVol = ta.sma(volume, len) * len
+    sumVol > 0 ? sumMfv / sumVol : 0.0
+
+float obvChg = close > close[1] ? volume : close < close[1] ? -volume : 0.0
+
 float volMa = ta.sma(volume, volLen)
 float rvol  = volMa > 0 ? volume / volMa : 1.0
 
@@ -81,8 +91,8 @@ float path = ta.sma(absChg, baseLen) * baseLen
 float er   = path > 0 ? math.abs(close - close[baseLen]) / path : 1.0
 [_, _, adx] = ta.dmi(adxLen, adxLen)
 
-float cmf = ta.cmf(cmfLen)
-float obv = ta.obv
+float cmf = f_cmf(cmfLen)
+float obv = ta.cum(obvChg)
 float obvSlope = obv - obv[obvLen]
 
 float priorHigh = ta.highest(high, dropLookback)
