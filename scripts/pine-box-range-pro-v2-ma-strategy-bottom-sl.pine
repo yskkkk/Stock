@@ -356,6 +356,7 @@ if sz > 0
                 array.set(entryPrices, i, na)
                 array.set(triggered, i, false)
                 array.set(dipLows, i, na)
+                array.set(dead, i, true)  // 박스 재사용 금지
                 strategy.close(orderId)
             else if low <= bottom
                 float ret = entry > 0 ? ((bottom - entry) / entry) * 100.0 : 0.0
