@@ -4,11 +4,14 @@
 //@version=6
 indicator("기관·대형 매집 박스", shorttitle="매집Box", overlay=true, max_boxes_count=500, max_lines_count=500, max_bars_back=5000)
 
+grpTf = "타임프레임"
+tfPreset    = input.string("차트 자동", "프리셋", options=["차트 자동", "수동"], group=grpTf, tooltip="자동=일봉·4H·1H 등 차트 봉에 맞춤. 일봉은 박스 높이·ER을 넓게 잡음")
+
 grpCore = "핵심"
 preset      = input.string("보통", "민감도", options=["느슨", "보통", "엄격"], group=grpCore)
-baseLen     = input.int(14, "베이스 창(봉)", minval=6, maxval=60, group=grpCore)
+baseLen     = input.int(14, "베이스 창(봉)", minval=6, maxval=60, group=grpCore, tooltip="차트 자동 시 일봉≈10봉")
 minBoxBars  = input.int(6, "최소 매집 봉 수", minval=3, maxval=80, group=grpCore)
-maxBoxPct   = input.float(12.0, "박스 최대 높이(%)", minval=1.0, maxval=30.0, step=0.5, group=grpCore, tooltip="일봉·알트는 넓게(10~18%), 단기는 좁게")
+maxBoxPct   = input.float(12.0, "박스 최대 높이(%)", minval=1.0, maxval=35.0, step=0.5, group=grpCore, tooltip="수동 모드일 때만 직접 적용. 자동=일봉 약 22%")
 breakAtr    = input.float(0.55, "이탈 ATR 배수", minval=0.1, maxval=2.5, step=0.05, group=grpCore)
 cooldown    = input.int(2, "박스 간 쿨다운(봉)", minval=0, maxval=30, group=grpCore)
 enterBars   = input.int(2, "시작 확인(봉)", minval=1, maxval=8, group=grpCore)
@@ -56,9 +59,26 @@ cPoc   = input.color(color.new(#FF6F00, 15), "POC", group=grpCol)
 cLive  = input.color(color.new(#00897B, 88), "진행", group=grpCol)
 cCand   = input.color(color.new(#00897B, 94), "후보 배경", group=grpCol)
 
-float pMaxBox = preset == "엄격" ? math.min(maxBoxPct, 6.0) : preset == "느슨" ? maxBoxPct * 1.35 : maxBoxPct
-float pMaxEr = preset == "엄격" ? math.min(maxEr, 0.38) : preset == "느슨" ? maxEr * 1.15 : maxEr
-float pMaxAdx = preset == "엄격" ? math.min(maxAdx, 24.0) : preset == "느슨" ? maxAdx * 1.1 : maxAdx
+int tfSec = timeframe.in_seconds()
+bool tfDaily = tfSec >= 86400
+bool tf4h = tfSec == 14400
+bool tf1h = tfSec == 3600
+bool tfAuto = tfPreset == "차트 자동"
+
+float effMaxBox = tfAuto ? (tfDaily ? 22.0 : tf4h ? 10.0 : tf1h ? 6.5 : 4.5) : maxBoxPct
+float effMaxEr = tfAuto ? (tfDaily ? 0.70 : tf4h ? 0.55 : 0.48) : maxEr
+float effMaxAdx = tfAuto ? (tfDaily ? 40.0 : tf4h ? 34.0 : 30.0) : maxAdx
+float effLowZone = tfAuto ? (tfDaily ? 92.0 : 78.0) : lowZonePct
+int effBaseLen = tfAuto ? (tfDaily ? 10 : tf4h ? 12 : baseLen) : baseLen
+int effMinBars = tfAuto ? (tfDaily ? 5 : minBoxBars) : minBoxBars
+float effBreakAtr = tfAuto ? (tfDaily ? 0.80 : tf4h ? 0.60 : breakAtr) : breakAtr
+int effGrace = tfAuto ? (tfDaily ? 5 : tf4h ? 4 : graceBars) : graceBars
+int effDropLb = tfAuto ? (tfDaily ? 60 : dropLookback) : dropLookback
+
+float pMaxBox = preset == "엄격" ? math.min(effMaxBox, tfDaily ? 14.0 : 6.0) : preset == "느슨" ? effMaxBox * 1.25 : effMaxBox
+float pMaxEr = preset == "엄격" ? math.min(effMaxEr, tfDaily ? 0.50 : 0.38) : preset == "느슨" ? effMaxEr * 1.12 : effMaxEr
+float pMaxAdx = preset == "엄격" ? math.min(effMaxAdx, tfDaily ? 32.0 : 24.0) : preset == "느슨" ? effMaxAdx * 1.08 : effMaxAdx
+float pLowZone = effLowZone
 float pMinRv = preset == "엄격" ? math.max(minRvol, 1.2) : preset == "느슨" ? math.min(minRvol, 0.85) : minRvol
 int pMinAbs = preset == "엄격" ? math.max(minAbsorb, 2) : minAbsorb
 
@@ -80,22 +100,22 @@ float body  = math.abs(close - open)
 float bodyPctBar = rng > 0 ? body / rng * 100.0 : 100.0
 bool isAbsorb = rvol >= absorbVol and bodyPctBar <= maxBodyPct and rng > 0
 
-float boxTop = ta.highest(high, baseLen)
-float boxBot = ta.lowest(low, baseLen)
+float boxTop = ta.highest(high, effBaseLen)
+float boxBot = ta.lowest(low, effBaseLen)
 float boxMid = (boxTop + boxBot) * 0.5
 float boxH   = boxTop - boxBot
 float boxPct = boxMid > 0 ? boxH / boxMid * 100.0 : 100.0
 
 float absChg = math.abs(close - close[1])
-float path = ta.sma(absChg, baseLen) * baseLen
-float er   = path > 0 ? math.abs(close - close[baseLen]) / path : 1.0
+float path = ta.sma(absChg, effBaseLen) * effBaseLen
+float er   = path > 0 ? math.abs(close - close[effBaseLen]) / path : 1.0
 [_, _, adx] = ta.dmi(adxLen, adxLen)
 
 float cmf = f_cmf(cmfLen)
 float obv = ta.cum(obvChg)
 float obvSlope = obv - obv[obvLen]
 
-float priorHigh = ta.highest(high, dropLookback)
+float priorHigh = ta.highest(high, effDropLb)
 float dropFromHigh = priorHigh > 0 ? (priorHigh - close) / priorHigh * 100.0 : 0.0
 bool hadDrop = dropFromHigh >= minDropPct
 
@@ -104,7 +124,7 @@ float closePosInBox = boxH > 0 ? (close - boxBot) / boxH * 100.0 : 50.0
 bool isFlat = boxPct <= pMaxBox
 bool isChop = er <= pMaxEr
 bool isWeakTrend = adx <= pMaxAdx
-bool isLowClose = closePosInBox <= lowZonePct
+bool isLowClose = closePosInBox <= pLowZone
 bool flowOk = not requireFlow or (cmf >= minCmf and (not useObvSlope or obvSlope > 0))
 
 bool baseBar = isFlat and isChop and isWeakTrend and isLowClose and flowOk
@@ -154,20 +174,20 @@ bool readyStart = accumRun >= enterBars
 bool inTrack = bCount > 0
 float livePct = inTrack ? f_boxPct(bTop, bBot) : boxPct
 bool tooWide = inTrack and livePct > pMaxBox * 1.25
-bool broke = inTrack and f_closeOutside(bTop, bBot, breakAtr)
+bool broke = inTrack and f_closeOutside(bTop, bBot, effBreakAtr)
 
 if inTrack
     missRun := canAccumBar ? 0 : missRun + 1
 else
     missRun := 0
 
-bool lostAccum = inTrack and missRun > graceBars
+bool lostAccum = inTrack and missRun > effGrace
 
 if inTrack and (tooWide or broke or lostAccum)
     float avgRv = f_avgRvol(bVolSum, bCount)
     bool volOk = avgRv >= pMinRv or pMinRv <= 0.5
     bool absorbOk = bAbsCnt >= pMinAbs
-    if bCount >= minBoxBars and volOk and absorbOk
+    if bCount >= effMinBars and volOk and absorbOk
         array.unshift(doneTop, bTop)
         array.unshift(doneBot, bBot)
         array.unshift(donePoc, bPocPrice)
@@ -208,7 +228,7 @@ else if inTrack and not (tooWide or broke or lostAccum)
         bPocVol := volume
         bPocPrice := (high + low) * 0.5
 
-bool liveOn = bCount >= math.max(3, minBoxBars - 2) and inTrack
+bool liveOn = bCount >= math.max(3, effMinBars - 2) and inTrack
 float liveTop = liveOn ? bTop : na
 float liveBot = liveOn ? bBot : na
 float livePoc = liveOn ? bPocPrice : na
@@ -259,3 +279,9 @@ plot(boxPct, "창 폭%", display=display.data_window)
 plot(rvol, "RVOL", display=display.data_window)
 plot(canAccumBar ? 1 : 0, "매집봉", display=display.data_window)
 plot(array.size(doneTop), "완성박스수", display=display.data_window)
+plot(pMaxBox, "적용 박스높이%", display=display.data_window)
+
+string tfTag = tfDaily ? "일봉+" : tf4h ? "4H" : tf1h ? "1H" : timeframe.period
+var table tfTbl = table.new(position.top_right, 1, 1, bgcolor=color.new(color.black, 75), frame_color=color.gray)
+if barstate.islast
+    table.cell(tfTbl, 0, 0, (tfAuto ? "자동·" : "수동·") + tfTag + " ·박스≤" + str.tostring(pMaxBox, "#.#") + "%", text_color=color.white, text_size=size.tiny)
