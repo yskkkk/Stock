@@ -3700,15 +3700,22 @@ html[data-theme="light"]
   position: absolute;
   top: 100%;
   left: 0;
-  z-index: 80;
+  z-index: 2147483646;
   display: none;
   min-width: 8.5rem;
   padding-top: 6px;
 }
 
-.live-trade-arm-menu:hover .live-trade-arm-menu__drop,
+.live-trade-arm-menu--open .live-trade-arm-menu__drop,
 .live-trade-arm-menu:focus-within .live-trade-arm-menu__drop {
   display: block;
+}
+
+.live-trade-arm-menu--up .live-trade-arm-menu__drop {
+  top: auto;
+  bottom: 100%;
+  padding-top: 0;
+  padding-bottom: 6px;
 }
 
 .live-trade-arm-menu__panel {

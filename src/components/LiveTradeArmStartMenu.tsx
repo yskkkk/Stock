@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { LiveTradeArmLane } from "../api";
 import { ko } from "../i18n/ko";
 import type { LiveArmLaneOption } from "../lib/liveTradeArmLanes";
@@ -28,22 +28,67 @@ export default function LiveTradeArmStartMenu({
   if (!visible) return null;
 
   const anyEnabled = options.some((o) => o.enabled);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const [open, setOpen] = useState(false);
+  const [dropUp, setDropUp] = useState(false);
+
+  const syncDropDirection = useCallback(() => {
+    // panel이 보이기 전이면(open false) 측정 불가
+    const root = rootRef.current;
+    const panel = panelRef.current;
+    if (!root || !panel) return;
+    const r = root.getBoundingClientRect();
+    const ph = panel.offsetHeight || 0;
+    // 아래 공간이 부족하면 위로 펼침
+    const spaceBelow = window.innerHeight - r.bottom;
+    const spaceAbove = r.top;
+    const shouldUp = ph > 0 && spaceBelow < ph + 10 && spaceAbove > spaceBelow;
+    setDropUp(shouldUp);
+  }, []);
+
+  const openMenu = useCallback(() => {
+    if (busy) return;
+    setOpen(true);
+    // 다음 프레임에 측정 (display가 생긴 뒤 높이 확보)
+    window.requestAnimationFrame(() => syncDropDirection());
+  }, [busy, syncDropDirection]);
+
+  const closeMenu = useCallback(() => {
+    setOpen(false);
+  }, []);
 
   return (
     <div
-      className={["live-trade-arm-menu", className].filter(Boolean).join(" ")}
+      ref={rootRef}
+      className={[
+        "live-trade-arm-menu",
+        open ? "live-trade-arm-menu--open" : "",
+        dropUp ? "live-trade-arm-menu--up" : "",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      onMouseEnter={openMenu}
+      onMouseLeave={closeMenu}
     >
       <button
         type="button"
         className="btn btn--secondary btn--sm live-trade-arm-menu__trigger"
         disabled={busy}
         aria-haspopup="menu"
-        aria-expanded={false}
+        aria-expanded={open}
         title={
           anyEnabled
             ? ko.app.liveTradeArmMenuTriggerHint
             : ko.app.liveTradeArmMenuNoneReady
         }
+        onFocus={openMenu}
+        onBlur={(e) => {
+          const next = e.relatedTarget as Node | null;
+          if (next && rootRef.current?.contains(next)) return;
+          closeMenu();
+        }}
       >
         <span>{triggerLabel}</span>
         <span className="live-trade-arm-menu__caret" aria-hidden>
@@ -51,7 +96,11 @@ export default function LiveTradeArmStartMenu({
         </span>
       </button>
       <div className="live-trade-arm-menu__drop">
-        <div className="live-trade-arm-menu__panel" role="menu">
+        <div
+          ref={panelRef}
+          className="live-trade-arm-menu__panel"
+          role="menu"
+        >
           {options.map((opt) => (
             <button
               key={opt.lane}
@@ -65,7 +114,10 @@ export default function LiveTradeArmStartMenu({
                 .join(" ")}
               disabled={busy || !opt.enabled}
               title={opt.title}
-              onClick={() => onSelect(opt.lane)}
+              onClick={() => {
+                closeMenu();
+                onSelect(opt.lane);
+              }}
             >
               <span className="live-trade-arm-menu__item-main">
                 <ArmLaneMark lane={opt.lane} />
