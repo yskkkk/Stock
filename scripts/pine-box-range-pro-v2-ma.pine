@@ -31,7 +31,7 @@ bool show_sell = input.bool(true, "매도 신호")
 bool show_er = input.bool(true, "ER 서브차트 표시")
 
 float max_box_pct = active_tf == "60" ? 4.0 : active_tf == "240" ? 6.5 : 18.0
-float min_box_pct_d = input.float(0.1, "일봉 최소 박스높이(%)", minval=0.05, maxval=10.0, step=0.05, tooltip="일봉에서 박스가 안 잡히면 이 값을 낮춰보세요. (박스높이% = (top-bot)/mid*100)")
+float min_box_pct_d = input.float(2.0, "일봉 최소 박스높이(%)", minval=0.05, maxval=10.0, step=0.05, tooltip="일봉에서 박스가 안 잡히면 이 값을 낮춰보세요. (박스높이% = (top-bot)/mid*100)")
 float merge_mid = input.float(2.5, "병합: 중심 허용(%)", minval=0.2, maxval=8.0, step=0.1)
 float merge_h = input.float(35.0, "병합: 높이 차(%)", minval=5.0, maxval=50.0, step=1.0)
 int merge_bars = input.int(8, "병합: 좌우 봉 간격", minval=0)
