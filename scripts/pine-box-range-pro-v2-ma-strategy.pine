@@ -9,7 +9,7 @@ float exp_edge = input.float(16.0, "확장 허용(박스높이%)", minval=2.0, m
 int exp_gap = input.int(3, "확장 끊김(연속 이탈봉)", minval=1, maxval=6)
 
 string grpV2 = "V2 탐지 파라미터"
-float er_thresh = input.float(0.40, "ER 임계값 (횡보)", step=0.05, group=grpV2)
+float er_thresh = input.float(0.35, "ER 임계값 (횡보)", step=0.05, group=grpV2)
 float v2_hi_pct = input.float(80.0, "고가 퍼센타일 top", step=5.0, group=grpV2)
 float v2_lo_pct = input.float(20.0, "저가 퍼센타일 bot", step=5.0, group=grpV2)
 int poc_bkt = input.int(40, "POC 버킷 수", minval=10, maxval=80, group=grpV2)
@@ -33,12 +33,22 @@ bool show_sell = input.bool(true, "매도 신호")
 bool show_er = input.bool(true, "ER 서브차트 표시")
 
 float max_box_pct = active_tf == "60" ? 4.0 : active_tf == "240" ? 6.5 : 18.0
-float merge_mid = input.float(2.5, "병합: 중심 허용(%)", minval=0.2, maxval=8.0, step=0.1)
+float merge_mid = input.float(4.0, "병합: 중심 허용(%)", minval=0.2, maxval=8.0, step=0.1)
 float merge_h = input.float(35.0, "병합: 높이 차(%)", minval=5.0, maxval=50.0, step=1.0)
 int merge_bars = input.int(8, "병합: 좌우 봉 간격", minval=0)
 
 string grpExit = "분할매도"
-float trail_pct = input.float(2.0, "트레일링 폭(%)", minval=0.2, maxval=20.0, step=0.1, group=grpExit, tooltip="상단 도달 시 50% 익절 후, 나머지는 고점*(1-폭%) 트레일링 스탑")
+float tp1_pct = input.float(50.0, "1차 익절 비율(%)", minval=10.0, maxval=90.0, step=5.0, group=grpExit, tooltip="상단 도달 시 일부 익절, 나머지는 트레일링")
+float trail_pct = input.float(2.0, "트레일링 폭(%)", minval=0.2, maxval=20.0, step=0.1, group=grpExit, tooltip="1차 익절 후 잔여분: 고점*(1-폭%) 트레일링 스탑")
+int reuse_cooldown = input.int(5, "청산 후 재진입 금지(봉)", minval=0, maxval=60, group=grpExit, tooltip="0=즉시 재진입 가능. 영구 dead 대신 N봉만 매수 금지")
+
+string grpSl = "손절"
+string sl_mode = input.string("ATR", "손절 방식", options=["dipLow", "ATR", "bottom_buffer"], group=grpSl)
+int sl_atr_len = input.int(14, "ATR 기간", minval=1, group=grpSl)
+float sl_atr_mult = input.float(2.0, "ATR 배수", minval=0.5, maxval=6.0, step=0.1, group=grpSl)
+float sl_bottom_buf_pct = input.float(0.5, "하단 버퍼(%)", minval=0.0, maxval=5.0, step=0.1, group=grpSl, tooltip="bottom_buffer: bottom*(1-버퍼%)")
+
+float atrVal = ta.atr(sl_atr_len)
 
 // === 일봉 MA ===
 float ma5 = request.security(syminfo.tickerid, "D", ta.sma(close, 5), barmerge.gaps_off, barmerge.lookahead_off)
@@ -80,6 +90,8 @@ var float[] dipLows = array.new_float()
 var color[] boxColors = array.new_color()
 var bool[] tp1Done = array.new_bool()
 var float[] peakAfterTp = array.new_float()
+var float[] slLevels = array.new_float()
+var int[] cooldownUntil = array.new_int()
 
 f_box_color(int idx) =>
     int r = (idx * 73 + 50) % 206 + 30
@@ -269,6 +281,18 @@ merge_into(int idx, float nT, float nB, float nM, int nL, int nR) =>
     line.set_extend(ln, extend.none)
     idx
 
+f_sl_at_entry(float ent, float bot) =>
+    sl_mode == "ATR" ? ent - sl_atr_mult * atrVal : sl_mode == "bottom_buffer" ? bot * (1.0 - sl_bottom_buf_pct / 100.0) : na
+
+f_reset_box_cooldown(int idx) =>
+    array.set(cooldownUntil, idx, reuse_cooldown > 0 ? bar_index + reuse_cooldown : bar_index - 1)
+    array.set(entryPrices, idx, na)
+    array.set(triggered, idx, false)
+    array.set(tp1Done, idx, false)
+    array.set(peakAfterTp, idx, na)
+    array.set(slLevels, idx, na)
+    array.set(dipLows, idx, na)
+
 if is_tf and barstate.isconfirmed
     int valid_count = 0
     float max_val = high[1]
@@ -320,83 +344,85 @@ if is_tf and barstate.isconfirmed
                             array.push(boxColors, bc)
                             array.push(tp1Done, false)
                             array.push(peakAfterTp, na)
+                            array.push(slLevels, na)
+                            array.push(cooldownUntil, 0)
 
 int sz = array.size(boxes)
 if sz > 0
     for i = 0 to sz - 1
         float top = array.get(tops, i)
         float bottom = array.get(bottoms, i)
+        float midPx = array.get(mids, i)
         int boxR = array.get(rightTimes, i)
         bool afterBox = time > boxR
         color bc = array.get(boxColors, i)
         bool trig = array.get(triggered, i)
         float entry = array.get(entryPrices, i)
         bool isDead = array.get(dead, i)
+        int coolUntil = array.get(cooldownUntil, i)
+        bool inCooldown = bar_index <= coolUntil
+        bool canTrade = not isDead and not inCooldown
         float dipLow = array.get(dipLows, i)
+        float slPx = array.get(slLevels, i)
         bool didTp1 = array.get(tp1Done, i)
         float peak = array.get(peakAfterTp, i)
 
         string orderId = "B" + str.tostring(i + 1)
 
         if na(entry)
-            if not isDead and trig
+            if canTrade and trig and sl_mode == "dipLow"
                 if na(dipLow) or low < dipLow
                     array.set(dipLows, i, low)
-            if not isDead and not trig and afterBox and low <= bottom
+            if canTrade and not trig and afterBox and low <= bottom
                 array.set(triggered, i, true)
                 array.set(dipLows, i, low)
-            if not isDead and trig and afterBox and close >= bottom and uptrend
-                array.set(entryPrices, i, bottom)
+            if canTrade and trig and afterBox and close >= midPx and uptrend
+                float entPx = midPx
+                array.set(entryPrices, i, entPx)
                 array.set(firstBuyTs, i, time)
+                if sl_mode != "dipLow"
+                    array.set(slLevels, i, f_sl_at_entry(entPx, bottom))
                 total_trades += 1
                 sig_buy := true
                 if show_buy
-                    label.new(bar_index, bottom, "매수 " + orderId, style=label.style_label_up, color=bc, textcolor=color.white, size=size.small)
+                    label.new(bar_index, midPx, "매수 " + orderId, style=label.style_label_up, color=bc, textcolor=color.white, size=size.small)
                 strategy.entry(orderId, strategy.long)
         else
-            // TP/SL은 \"바로\" 조건이지만 Strategy Tester 체결은 process_orders_on_close 기준(봉 마감)입니다.
-            // 1) 기본 손절: dipLow 이탈
-            if not na(dipLow) and low <= dipLow
-                float ret = entry > 0 ? ((dipLow - entry) / entry) * 100.0 : 0.0
+            // TP/SL: Strategy Tester는 process_orders_on_close(봉 마감) 기준
+            float activeSl = sl_mode == "dipLow" ? dipLow : slPx
+            if not na(activeSl) and low <= activeSl
+                float exitPx = activeSl
+                float ret = entry > 0 ? ((exitPx - entry) / entry) * 100.0 : 0.0
                 total_return += ret
                 loss_trades += 1
                 sig_sl := true
                 if show_sell
-                    label.new(bar_index, dipLow, "손절 " + orderId, style=label.style_label_down, color=bc, textcolor=color.white, size=size.small)
-                array.set(entryPrices, i, na)
-                array.set(triggered, i, false)
-                array.set(dead, i, true)
-                array.set(tp1Done, i, false)
-                array.set(peakAfterTp, i, na)
+                    label.new(bar_index, exitPx, "손절 " + orderId, style=label.style_label_down, color=bc, textcolor=color.white, size=size.small)
+                f_reset_box_cooldown(i)
                 strategy.close(orderId)
             else
-                // 2) 1차 익절: 상단 도달 시 50% 매도 (한 번만)
                 if not didTp1 and high >= top
                     win_trades += 1
                     sig_tp := true
                     if show_sell
-                        label.new(bar_index, top, "익절50 " + orderId, style=label.style_label_down, color=bc, textcolor=color.black, size=size.small)
+                        label.new(bar_index, top, "익절" + str.tostring(tp1_pct, "#") + "% " + orderId, style=label.style_label_down, color=bc, textcolor=color.black, size=size.small)
                     array.set(tp1Done, i, true)
                     array.set(peakAfterTp, i, high)
-                    strategy.close(orderId, qty_percent=50)
+                    strategy.close(orderId, qty_percent=tp1_pct)
 
-                // 3) 잔여분: 고점 갱신마다 올라가는 트레일링 스탑
                 bool nowTp1 = array.get(tp1Done, i)
                 if nowTp1
                     float p = array.get(peakAfterTp, i)
                     float newPeak = na(p) ? high : math.max(p, high)
                     array.set(peakAfterTp, i, newPeak)
                     float trailStop = newPeak * (1.0 - trail_pct / 100.0)
-                    float stopPx = na(dipLow) ? trailStop : math.max(trailStop, dipLow)
+                    float floorPx = sl_mode == "dipLow" ? dipLow : slPx
+                    float stopPx = na(floorPx) ? trailStop : math.max(trailStop, floorPx)
                     if low <= stopPx
                         sig_sl := true
                         if show_sell
                             label.new(bar_index, stopPx, "트레일 " + orderId, style=label.style_label_down, color=bc, textcolor=color.white, size=size.small)
-                        array.set(entryPrices, i, na)
-                        array.set(triggered, i, false)
-                        array.set(dead, i, true)  // 박스 재사용 금지
-                        array.set(tp1Done, i, false)
-                        array.set(peakAfterTp, i, na)
+                        f_reset_box_cooldown(i)
                         strategy.close(orderId)
 
 int liveSz = array.size(boxes)
@@ -409,21 +435,22 @@ if liveSz > 0
         float midPx = array.get(mids, i)
         bool hasPos = not na(array.get(entryPrices, i))
         bool isDead = array.get(dead, i)
+        bool inCooldown = bar_index <= array.get(cooldownUntil, i)
         int origR = array.get(rightTimes, i)
         int buyT = array.get(firstBuyTs, i)
         float pad = (top - bot) * (exp_edge / 100.0)
-        bool canExt = not isDead and bar_in_band(0, top, bot, pad) and bar_near_mid(0, midPx, top, bot, split_mid_pct)
+        bool canExt = not isDead and not inCooldown and bar_in_band(0, top, bot, pad) and bar_near_mid(0, midPx, top, bot, split_mid_pct)
         box.set_right(bx, canExt ? time : origR)
         line.set_xy1(ln, array.get(leftTimes, i), midPx)
         line.set_xy2(ln, na(buyT) ? time : buyT, midPx)
         line.set_extend(ln, extend.none)
         color bc = array.get(boxColors, i)
-        color brd = hasPos ? color.lime : isDead ? color.gray : bc
-        color bg = hasPos ? color.new(color.green, 82) : isDead ? color.new(color.gray, 93) : color.new(bc, 90)
+        color brd = hasPos ? color.lime : isDead or inCooldown ? color.gray : bc
+        color bg = hasPos ? color.new(color.green, 82) : isDead or inCooldown ? color.new(color.gray, 93) : color.new(bc, 90)
         box.set_border_color(bx, brd)
         box.set_bgcolor(bx, bg)
-        box.set_border_width(bx, isDead ? 1 : 2)
-        line.set_color(ln, hasPos ? color.lime : isDead ? color.new(color.gray, 60) : color.orange)
+        box.set_border_width(bx, isDead or inCooldown ? 1 : 2)
+        line.set_color(ln, hasPos ? color.lime : isDead or inCooldown ? color.new(color.gray, 60) : color.orange)
 
 plotshape(show_buy and sig_buy, title="매수", style=shape.triangleup, location=location.belowbar, color=color.green, size=size.small, text="매수")
 plotshape(show_sell and sig_tp, title="익절", style=shape.triangledown, location=location.abovebar, color=color.lime, size=size.small, text="익절")
@@ -481,19 +508,22 @@ if barstate.islast and show_debug
             bool hasPos = not na(entry)
             bool trig = array.get(triggered, i)
             bool isDead = array.get(dead, i)
+            bool inCooldown = bar_index <= array.get(cooldownUntil, i)
             int boxR = array.get(rightTimes, i)
             bool afterBox = time > boxR
+            float midPx = array.get(mids, i)
             bool hitTop = hasPos and high >= top
-            bool hitSL = hasPos and not na(dipLow) and low <= dipLow
+            float slDbg = sl_mode == "dipLow" ? dipLow : array.get(slLevels, i)
+            bool hitSL = hasPos and not na(slDbg) and low <= slDbg
             color bc = array.get(boxColors, i)
             int row = shown + 1
             table.cell(dbg, 0, row, "B" + str.tostring(i + 1), text_color=bc, text_size=size.tiny)
             table.cell(dbg, 1, row, f_b(afterBox), text_color=afterBox ? color.lime : color.red, text_size=size.tiny)
             table.cell(dbg, 2, row, f_b(trig), text_color=trig ? color.lime : color.gray, text_size=size.tiny)
-            table.cell(dbg, 3, row, isDead ? "DEAD" : hasPos ? "Y" : "N", text_color=isDead ? color.gray : hasPos ? color.lime : color.gray, text_size=size.tiny)
+            table.cell(dbg, 3, row, isDead ? "DEAD" : inCooldown ? "COOL" : hasPos ? "Y" : "N", text_color=isDead or inCooldown ? color.gray : hasPos ? color.lime : color.gray, text_size=size.tiny)
             table.cell(dbg, 4, row, f_b(hitTop), text_color=hitTop ? color.lime : color.gray, text_size=size.tiny)
             table.cell(dbg, 5, row, f_b(hitSL), text_color=hitSL ? color.red : color.gray, text_size=size.tiny)
-            table.cell(dbg, 6, row, str.tostring(close, "#.##") + "/" + str.tostring(top, "#.##") + "/" + str.tostring(bottom, "#.##"), text_color=color.white, text_size=size.tiny)
+            table.cell(dbg, 6, row, str.tostring(close, "#.##") + "/" + str.tostring(midPx, "#.##") + "/" + str.tostring(bottom, "#.##"), text_color=color.white, text_size=size.tiny)
             shown += 1
 else if barstate.islast
     for r = 0 to 5
