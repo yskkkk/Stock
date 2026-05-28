@@ -365,9 +365,6 @@ function RailProgramCard({
             <span className="live-trade-rail__meta">
               {armedLaneLabel(p)}
               {orderMode ? ` · ${orderMode}` : ""}
-              <span className="live-trade-rail__detail-sep"> · </span>
-              {ko.app.liveTradeMinScoreShort}{" "}
-              {Math.round(p.minScoreRatio * 100)}%
               {dataUpdatedAtMs != null ? (
                 <>
                   <span className="live-trade-rail__detail-sep"> · </span>

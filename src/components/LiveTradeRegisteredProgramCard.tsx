@@ -355,13 +355,6 @@ export default function LiveTradeRegisteredProgramCard({
       {markets ? (
         <p className="live-trading-tab__program-meta">
           {ko.app.liveTradeFieldMarkets}: {markets}
-          {!isBoxRange ? (
-            <>
-              {" "}
-              · {ko.app.liveTradeMinScoreShort}{" "}
-              {Math.round(p.minScoreRatio * 100)}%
-            </>
-          ) : null}
         </p>
       ) : null}
       {amountLine ? (

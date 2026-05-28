@@ -303,10 +303,6 @@ function ProgramRunCard({
           </>
         )}
         <li>
-          {ko.app.liveTradeMinScoreShort}{" "}
-          {(program.minScoreRatio * 100).toFixed(0)}%
-        </li>
-        <li>
           {ko.app.liveTradeFieldMaxPos} {program.maxOpenPositions}
         </li>
       </ul>
@@ -723,6 +719,18 @@ export default function LiveSimRunningPanel({
     return { holdings, trades };
   }, [portfolio, activeIds]);
 
+  // 실거래(거래소) 보유는 프로그램과 무관하게도 표시(사용자 보유 현황 우선)
+  const externalHoldingsByMarket = useMemo(() => {
+    const map = new Map<LiveTradeHolding["market"], LiveTradeHolding[]>();
+    if (!portfolio) return map;
+    for (const h of portfolio.holdings) {
+      if (!h.exchangeSource) continue;
+      if (!map.has(h.market)) map.set(h.market, []);
+      map.get(h.market)!.push(h);
+    }
+    return map;
+  }, [portfolio]);
+
   const activeCount = activePrograms.length;
   const armedPrograms = useMemo(
     () => activePrograms.filter((p) => p.status === "armed"),
@@ -777,10 +785,32 @@ export default function LiveSimRunningPanel({
   }, [applyProgramFocus, activeIds]);
 
   const renderProgramCard = (p: LiveTradeProgram) => (
+    // NOTE: 실거래 프로그램은 거래소 잔고 기반 보유도 함께 표시
+    // (프로그램 원장에 없는 수동매매/기존 보유도 UI에 보이게)
+    // sim 프로그램은 기존대로 programId 기반 보유만 표시
     <ProgramRunCard
       mode={p.status === "armed" ? "armed" : "sim"}
       program={p}
-      holdings={byProgram.holdings.get(p.id) ?? []}
+      holdings={(() => {
+        const base = byProgram.holdings.get(p.id) ?? [];
+        if (p.status !== "armed") return base;
+        const mk = p.markets.crypto
+          ? "crypto"
+          : p.markets.us
+            ? "us"
+            : "kr";
+        const ext = externalHoldingsByMarket.get(mk) ?? [];
+        if (!ext.length) return base;
+        const seen = new Set(base.map((h) => `${h.market}:${h.symbol}`));
+        const merged = [...base];
+        for (const h of ext) {
+          const key = `${h.market}:${h.symbol}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          merged.push(h);
+        }
+        return merged;
+      })()}
       trades={byProgram.trades.get(p.id) ?? []}
       busy={busy}
       onStop={onStop}
