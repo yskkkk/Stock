@@ -305,6 +305,9 @@ if sz > 0
     for i = 0 to sz - 1
         float top = array.get(tops, i)
         float bottom = array.get(bottoms, i)
+        // 박스권 \"내\" 매수 방지: 박스 오른쪽 경계가 지난 뒤에만 트리거/매수 허용
+        int boxR = array.get(rightTimes, i)
+        bool afterBox = time > boxR
         bool trig = array.get(triggered, i)
         float entry = array.get(entryPrices, i)
         bool isDead = array.get(dead, i)
@@ -313,10 +316,10 @@ if sz > 0
             if not isDead and trig
                 if na(dipLow) or low < dipLow
                     array.set(dipLows, i, low)
-            if not isDead and not trig and low <= bottom
+            if not isDead and not trig and afterBox and low <= bottom
                 array.set(triggered, i, true)
                 array.set(dipLows, i, low)
-            if not isDead and trig and close >= bottom and uptrend
+            if not isDead and trig and afterBox and close >= bottom and uptrend
                 array.set(entryPrices, i, bottom)
                 array.set(firstBuyTs, i, time)
                 total_trades += 1
@@ -377,7 +380,8 @@ plot(show_er ? er_now : na, title="ER", color=er_now <= er_thresh ? color.green 
 plot(show_er ? er_thresh : na, title="ER 임계", color=color.gray, style=plot.style_line, linewidth=1, display=display.pane)
 
 float wr = total_trades > 0 ? (win_trades * 100.0 / total_trades) : 0.0
-var table tbl = table.new(position.bottom_right, 2, 9, bgcolor=color.new(color.black, 80))
+float avg_ret = total_trades > 0 ? (total_return / total_trades) : 0.0
+var table tbl = table.new(position.bottom_right, 2, 10, bgcolor=color.new(color.black, 80))
 if barstate.islast
     table.cell(tbl, 0, 0, "V2 박스", text_color=color.gray, text_size=size.small)
     table.cell(tbl, 1, 0, str.tostring(sz), text_color=color.white, text_size=size.small)
@@ -397,3 +401,5 @@ if barstate.islast
     table.cell(tbl, 1, 7, str.tostring(total_return, "#.##") + "%", text_color=total_return >= 0 ? color.lime : color.red, text_size=size.small)
     table.cell(tbl, 0, 8, "80/20", text_color=color.gray, text_size=size.small)
     table.cell(tbl, 1, 8, "POC", text_color=color.orange, text_size=size.small)
+    table.cell(tbl, 0, 9, "평균", text_color=color.gray, text_size=size.small)
+    table.cell(tbl, 1, 9, str.tostring(avg_ret, "#.##") + "%", text_color=avg_ret >= 0 ? color.lime : color.red, text_size=size.small)
