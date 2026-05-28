@@ -25,6 +25,9 @@ bool show_ma = input.bool(true, "MA 선 표시", group=grpMA)
 bool show_ma_cross = input.bool(true, "교차점 표시", group=grpMA)
 bool ma_strict = input.bool(true, "정배열(5>20>120) 필수", group=grpMA, tooltip="끄면 5>20 만 확인")
 
+string grpDbg = "디버그"
+bool show_debug = input.bool(false, "박스별 상태표 표시", group=grpDbg, tooltip="우상단에 박스별 상태(afterBox/trig/pos/hitTop 등)를 표시합니다.")
+
 bool show_buy = input.bool(true, "매수 신호")
 bool show_sell = input.bool(true, "매도 신호")
 bool show_er = input.bool(true, "ER 서브차트 표시")
@@ -87,6 +90,8 @@ var float total_return = 0.0
 bool sig_buy = false
 bool sig_tp = false
 bool sig_sl = false
+
+f_b(bool v) => v ? "Y" : "N"
 
 f_er(int oldestOff, int newestOff) =>
     float net = math.abs(close[newestOff] - close[oldestOff])
@@ -414,3 +419,46 @@ if barstate.islast
     table.cell(tbl, 1, 8, "POC", text_color=color.orange, text_size=size.small)
     table.cell(tbl, 0, 9, "평균", text_color=color.gray, text_size=size.small)
     table.cell(tbl, 1, 9, str.tostring(avg_ret, "#.##") + "%", text_color=avg_ret >= 0 ? color.lime : color.red, text_size=size.small)
+
+var table dbg = table.new(position.top_right, 7, 6, bgcolor=color.new(color.black, 82))
+if barstate.islast and show_debug
+    // header
+    table.cell(dbg, 0, 0, "Box", text_color=color.gray, text_size=size.tiny)
+    table.cell(dbg, 1, 0, "after", text_color=color.gray, text_size=size.tiny)
+    table.cell(dbg, 2, 0, "trig", text_color=color.gray, text_size=size.tiny)
+    table.cell(dbg, 3, 0, "pos", text_color=color.gray, text_size=size.tiny)
+    table.cell(dbg, 4, 0, "hitTop", text_color=color.gray, text_size=size.tiny)
+    table.cell(dbg, 5, 0, "hitSL", text_color=color.gray, text_size=size.tiny)
+    table.cell(dbg, 6, 0, "c/t/b", text_color=color.gray, text_size=size.tiny)
+
+    int n = array.size(boxes)
+    int shown = 0
+    for k = 0 to 4
+        int i = n - 1 - k
+        if i >= 0
+            float top = array.get(tops, i)
+            float bottom = array.get(bottoms, i)
+            float entry = array.get(entryPrices, i)
+            float dipLow = array.get(dipLows, i)
+            bool hasPos = not na(entry)
+            bool trig = array.get(triggered, i)
+            bool isDead = array.get(dead, i)
+            int boxR = array.get(rightTimes, i)
+            bool afterBox = time > boxR
+            bool hitTop = hasPos and high >= top
+            bool hitSL = hasPos and not na(dipLow) and low <= dipLow
+            color bc = array.get(boxColors, i)
+            int row = shown + 1
+            table.cell(dbg, 0, row, "B" + str.tostring(i + 1), text_color=bc, text_size=size.tiny)
+            table.cell(dbg, 1, row, f_b(afterBox), text_color=afterBox ? color.lime : color.red, text_size=size.tiny)
+            table.cell(dbg, 2, row, f_b(trig), text_color=trig ? color.lime : color.gray, text_size=size.tiny)
+            table.cell(dbg, 3, row, isDead ? "DEAD" : hasPos ? "Y" : "N", text_color=isDead ? color.gray : hasPos ? color.lime : color.gray, text_size=size.tiny)
+            table.cell(dbg, 4, row, f_b(hitTop), text_color=hitTop ? color.lime : color.gray, text_size=size.tiny)
+            table.cell(dbg, 5, row, f_b(hitSL), text_color=hitSL ? color.red : color.gray, text_size=size.tiny)
+            table.cell(dbg, 6, row, str.tostring(close, "#.##") + "/" + str.tostring(top, "#.##") + "/" + str.tostring(bottom, "#.##"), text_color=color.white, text_size=size.tiny)
+            shown += 1
+else if barstate.islast
+    // 디버그 끄면 표를 지워서 화면을 깔끔하게
+    for r = 0 to 5
+        for c = 0 to 6
+            table.cell(dbg, c, r, "", text_color=color.new(color.white, 100), text_size=size.tiny)
