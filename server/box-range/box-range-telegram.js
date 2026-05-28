@@ -1,9 +1,11 @@
 import { liveTradeCurrency } from "../live-trade-market.js";
+import { resolveDisplayName } from "../names-ko.js";
 import {
   isTelegramNotifyEnabled,
   sendStockTelegramMessage,
 } from "../telegram-notify.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "../live-trade-log.js";
+import { readSymbolCatalogSync, resolveCatalogRootDir } from "./catalog-store.js";
 
 /**
  * @param {number} n
@@ -39,6 +41,16 @@ export async function notifyBoxRangeDipRecoveryEntry(box, program, lastPrice, ma
     return false;
   }
   const sym = box.symbol;
+  const cat =
+    market === "crypto"
+      ? null
+      : readSymbolCatalogSync(
+          sym,
+          market,
+          resolveCatalogRootDir(),
+        );
+  const displayName =
+    market === "crypto" ? sym : resolveDisplayName(sym, cat?.name);
   const tf = box.timeframe;
   const st = program.status === "armed" ? "실매매" : "시뮬";
   const dip = Number(box.dipLow);
@@ -52,7 +64,7 @@ export async function notifyBoxRangeDipRecoveryEntry(box, program, lastPrice, ma
   const text = [
     "<b>📦 박스권 매수(PRO v2)</b>",
     "",
-    `종목: <b>${sym}</b> · ${tf}`,
+    `종목: <b>${displayName}</b> · ${sym} · ${tf}`,
     `프로그램: ${program.name ?? program.id} (${st})`,
     `예상체결가(현재가): <b>${fmtBoxPrice(lastPrice, market)}</b>`,
     `익절(상단): ${fmtBoxPrice(box.top, market)}${tpPct != null ? ` (+${tpPct}%)` : ""}`,

@@ -4,6 +4,7 @@
  * STOCK_BOX_RANGE_NEAR_TELEGRAM=0 — 근접 알림 끔
  */
 import { pickQuoteFromMap } from "../quote-symbol-resolve.js";
+import { resolveDisplayName } from "../names-ko.js";
 import {
   escHtml,
   isTelegramNotifyEnabled,
@@ -86,12 +87,18 @@ export function nearestBoxLevelWithinPct(price, box, maxPct = NEAR_PCT) {
 export async function collectNearPriceCatalogHits(market, maxPct = NEAR_PCT) {
   const m = resolveCatalogMarket(market);
   const idx = readCatalogIndexSync(m);
+  const nameBySymbol = new Map(
+    (Array.isArray(idx?.symbols) ? idx.symbols : []).map((r) => [
+      String(r.symbol ?? "").trim().toUpperCase(),
+      String(r.name ?? "").trim(),
+    ]),
+  );
   const symbols = (Array.isArray(idx?.symbols) ? idx.symbols : [])
     .filter((r) => (r.boxCount ?? 0) > 0)
     .map((r) => String(r.symbol ?? "").trim().toUpperCase())
     .filter(Boolean);
 
-  /** @type {{ symbol: string; timeframe: string; levelLabel: string; level: number; pct: number; price: number; mid: number; top: number; bottom: number }[]} */
+  /** @type {{ symbol: string; displayName: string; timeframe: string; levelLabel: string; level: number; pct: number; price: number; mid: number; top: number; bottom: number }[]} */
   const hits = [];
   const root = resolveCatalogRootDir();
 
@@ -104,12 +111,17 @@ export async function collectNearPriceCatalogHits(market, maxPct = NEAR_PCT) {
       const price = Number(q.price);
       const cat = readSymbolCatalogSync(sym, m, root);
       if (!cat?.boxes?.length) continue;
+      const nameCandidate =
+        nameBySymbol.get(sym) || String(cat?.name ?? "").trim() || "";
+      const displayName =
+        m === "crypto" ? sym : resolveDisplayName(sym, nameCandidate);
       for (const b of cat.boxes) {
         if (b.consumedAtMs || b.tradeEligible === false) continue;
         const near = nearestBoxLevelWithinPct(price, b, maxPct);
         if (!near) continue;
         hits.push({
           symbol: sym,
+          displayName,
           timeframe: b.timeframe,
           levelLabel: near.label,
           level: near.level,
@@ -181,7 +193,7 @@ export function buildNearPriceMessage(market, hits) {
   for (const h of show) {
     lines.push(
       "",
-      `<b>${escHtml(h.symbol)}</b> · ${escHtml(h.timeframe)} · ${escHtml(h.levelLabel)}`,
+      `<b>${escHtml(h.displayName || h.symbol)}</b> · ${escHtml(h.timeframe)} · ${escHtml(h.levelLabel)}`,
       `현재 ${escHtml(fmtPrice(h.price, m))} · ${escHtml(h.levelLabel)} ${escHtml(fmtPrice(h.level, m))} (<b>${h.pct.toFixed(2)}%</b>)`,
       `박스 중심 ${escHtml(fmtPrice(h.mid, m))}`,
     );
