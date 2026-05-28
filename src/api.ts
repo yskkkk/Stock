@@ -1030,6 +1030,7 @@ export interface BithumbTradingStatus {
 export interface LiveTradeProgramReturnSummary {
   totalReturnPct: number | null;
   holdingCount: number;
+  tradeCount?: number;
   realizedPnl?: number;
   totalPnl?: number;
 }

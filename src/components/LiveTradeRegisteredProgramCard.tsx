@@ -78,6 +78,7 @@ export default function LiveTradeRegisteredProgramCard({
   displayStatus,
   returnPct,
   holdingCount,
+  tradeCount,
   busy,
   showArmLaneButton,
   tossStatus,
@@ -99,6 +100,7 @@ export default function LiveTradeRegisteredProgramCard({
   displayStatus: LiveTradeProgram["status"];
   returnPct: number | null | undefined;
   holdingCount: number;
+  tradeCount: number;
   busy: boolean;
   showArmLaneButton: (lane: LiveTradeArmLane) => boolean;
   tossStatus?: TossTradingStatus | null;
@@ -252,6 +254,15 @@ export default function LiveTradeRegisteredProgramCard({
       .join(" · ");
     const isRunning =
       displayStatus === "sim" || displayStatus === "armed";
+    const principalLine = (() => {
+      const cap =
+        p.markets.us && p.simInitialCapitalUsd != null
+          ? formatMoney(p.simInitialCapitalUsd, "usd")
+          : !p.markets.us && p.simInitialCapitalKrw != null
+            ? formatMoney(p.simInitialCapitalKrw, "krw")
+            : null;
+      return cap ? `투자원금 ${cap}` : "투자원금 —";
+    })();
     return (
       <article
         className={[
@@ -300,6 +311,9 @@ export default function LiveTradeRegisteredProgramCard({
             <span className={returnClass}>
               {formatPercent(returnPct ?? undefined)}
             </span>
+          </p>
+          <p className="live-trading-tab__program-card-sub">
+            {principalLine} · 거래 {Math.max(0, tradeCount)}회
           </p>
           {showProgramRunError(p, holdingCount) ? (
             <p className="live-trading-tab__program-err" role="alert">

@@ -947,12 +947,14 @@ export async function buildProgramPortfolioSummariesMap(programIds, userId) {
     const totalBuyCost = trades
       .filter((t) => t.side === "buy")
       .reduce((s, t) => s + t.amount + t.feeAmount, 0);
+    const tradeCount = trades.length;
     perProgram.set(pid, {
       positions,
       realizedPnl,
       investedOpen,
       totalBuyCost,
       holdingCount: positions.length,
+      tradeCount,
     });
   }
 
@@ -1001,6 +1003,7 @@ export async function buildProgramPortfolioSummariesMap(programIds, userId) {
     out[pid] = {
       totalReturnPct,
       holdingCount: data.holdingCount,
+      tradeCount: data.tradeCount,
       realizedPnl: data.realizedPnl,
       totalPnl,
     };

@@ -892,6 +892,7 @@ export default function LiveTradingTab({
                 const model = modelById.get(p.modelId);
                 const ret = effectiveStatus?.programReturns?.[p.id];
                 const holdingCount = ret?.holdingCount ?? 0;
+                const tradeCount = ret?.tradeCount ?? 0;
                 const displayStatus = programDisplayStatus(p, holdingCount);
                 const returnPct = ret?.totalReturnPct;
                 return (
@@ -902,6 +903,7 @@ export default function LiveTradingTab({
                       displayStatus={displayStatus}
                       returnPct={returnPct}
                       holdingCount={holdingCount}
+                      tradeCount={tradeCount}
                       busy={busy}
                       cardLayout={portalSourceOnly}
                       showArmLaneButton={(lane) => showArmLaneButton(p, lane)}
