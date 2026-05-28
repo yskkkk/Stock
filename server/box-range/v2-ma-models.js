@@ -29,6 +29,7 @@ export const BOX_RANGE_V2_MA_PROFILES = [
   {
     id: "box-range-v2-ma-relaxed",
     name: "박스권 V2+MA (5>20·dipLow)",
+    // @see scripts/pine-box-range-pro-v2-ma-strategy-relaxed.pine
     maStrict: false,
     stopMode: "dipLow",
     partialTpPct: 50,
