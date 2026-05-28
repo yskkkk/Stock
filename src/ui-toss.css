@@ -7428,6 +7428,11 @@ html[data-theme="light"] .app-site-footer__link--active {
   margin-bottom: var(--tab-stack-gap);
 }
 
+/* 스크리너 상단: 불필요한 가로 구분선 제거(top-bar 카드 하단 border) */
+.app--screener .top-bar.card {
+  border-bottom: none !important;
+}
+
 .filter-bar.card,
 .filter-bar.card .signal-filter,
 .signal-filter .filter-chips,
