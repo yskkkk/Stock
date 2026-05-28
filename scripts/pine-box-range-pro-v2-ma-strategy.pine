@@ -37,6 +37,9 @@ float merge_mid = input.float(2.5, "병합: 중심 허용(%)", minval=0.2, maxva
 float merge_h = input.float(35.0, "병합: 높이 차(%)", minval=5.0, maxval=50.0, step=1.0)
 int merge_bars = input.int(8, "병합: 좌우 봉 간격", minval=0)
 
+string grpExit = "분할매도"
+float trail_pct = input.float(2.0, "트레일링 폭(%)", minval=0.2, maxval=20.0, step=0.1, group=grpExit, tooltip="상단 도달 시 50% 익절 후, 나머지는 고점*(1-폭%) 트레일링 스탑")
+
 // === 일봉 MA ===
 float ma5 = request.security(syminfo.tickerid, "D", ta.sma(close, 5), barmerge.gaps_off, barmerge.lookahead_off)
 float ma20 = request.security(syminfo.tickerid, "D", ta.sma(close, 20), barmerge.gaps_off, barmerge.lookahead_off)
@@ -75,6 +78,8 @@ var float[] entryPrices = array.new_float()
 var bool[] dead = array.new_bool()
 var float[] dipLows = array.new_float()
 var color[] boxColors = array.new_color()
+var bool[] tp1Done = array.new_bool()
+var float[] peakAfterTp = array.new_float()
 
 f_box_color(int idx) =>
     int r = (idx * 73 + 50) % 206 + 30
@@ -313,6 +318,8 @@ if is_tf and barstate.isconfirmed
                             array.push(dead, false)
                             array.push(dipLows, na)
                             array.push(boxColors, bc)
+                            array.push(tp1Done, false)
+                            array.push(peakAfterTp, na)
 
 int sz = array.size(boxes)
 if sz > 0
@@ -326,6 +333,8 @@ if sz > 0
         float entry = array.get(entryPrices, i)
         bool isDead = array.get(dead, i)
         float dipLow = array.get(dipLows, i)
+        bool didTp1 = array.get(tp1Done, i)
+        float peak = array.get(peakAfterTp, i)
 
         string orderId = "B" + str.tostring(i + 1)
 
@@ -346,19 +355,8 @@ if sz > 0
                 strategy.entry(orderId, strategy.long)
         else
             // TP/SL은 \"바로\" 조건이지만 Strategy Tester 체결은 process_orders_on_close 기준(봉 마감)입니다.
-            if high >= top
-                float ret = entry > 0 ? ((top - entry) / entry) * 100.0 : 0.0
-                total_return += ret
-                win_trades += 1
-                sig_tp := true
-                if show_sell
-                    label.new(bar_index, top, "익절 " + orderId, style=label.style_label_down, color=bc, textcolor=color.black, size=size.small)
-                array.set(entryPrices, i, na)
-                array.set(triggered, i, false)
-                array.set(dipLows, i, na)
-                array.set(dead, i, true)  // 박스 재사용 금지
-                strategy.close(orderId)
-            else if not na(dipLow) and low <= dipLow
+            // 1) 기본 손절: dipLow 이탈
+            if not na(dipLow) and low <= dipLow
                 float ret = entry > 0 ? ((dipLow - entry) / entry) * 100.0 : 0.0
                 total_return += ret
                 loss_trades += 1
@@ -368,7 +366,38 @@ if sz > 0
                 array.set(entryPrices, i, na)
                 array.set(triggered, i, false)
                 array.set(dead, i, true)
+                array.set(tp1Done, i, false)
+                array.set(peakAfterTp, i, na)
                 strategy.close(orderId)
+            else
+                // 2) 1차 익절: 상단 도달 시 50% 매도 (한 번만)
+                if not didTp1 and high >= top
+                    win_trades += 1
+                    sig_tp := true
+                    if show_sell
+                        label.new(bar_index, top, "익절50 " + orderId, style=label.style_label_down, color=bc, textcolor=color.black, size=size.small)
+                    array.set(tp1Done, i, true)
+                    array.set(peakAfterTp, i, high)
+                    strategy.close(orderId, qty_percent=50)
+
+                // 3) 잔여분: 고점 갱신마다 올라가는 트레일링 스탑
+                bool nowTp1 = array.get(tp1Done, i)
+                if nowTp1
+                    float p = array.get(peakAfterTp, i)
+                    float newPeak = na(p) ? high : math.max(p, high)
+                    array.set(peakAfterTp, i, newPeak)
+                    float trailStop = newPeak * (1.0 - trail_pct / 100.0)
+                    float stopPx = na(dipLow) ? trailStop : math.max(trailStop, dipLow)
+                    if low <= stopPx
+                        sig_sl := true
+                        if show_sell
+                            label.new(bar_index, stopPx, "트레일 " + orderId, style=label.style_label_down, color=bc, textcolor=color.white, size=size.small)
+                        array.set(entryPrices, i, na)
+                        array.set(triggered, i, false)
+                        array.set(dead, i, true)  // 박스 재사용 금지
+                        array.set(tp1Done, i, false)
+                        array.set(peakAfterTp, i, na)
+                        strategy.close(orderId)
 
 int liveSz = array.size(boxes)
 if liveSz > 0
