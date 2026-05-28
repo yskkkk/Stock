@@ -43,7 +43,8 @@ float boxMid = (ta.highest(high, boxLen) + ta.lowest(low, boxLen)) * 0.5
 float boxH   = ta.highest(high, boxLen) - ta.lowest(low, boxLen)
 float boxPct = boxMid > 0 ? boxH / boxMid * 100.0 : 100.0
 
-float path = ta.sum(math.abs(ta.change(close)), boxLen)
+float absChg = math.abs(close - close[1])
+float path = ta.sma(absChg, boxLen) * boxLen
 float er   = path > 0 ? math.abs(close - close[boxLen]) / path : 1.0
 
 [_, _, adx] = ta.dmi(adxLen, adxLen)
@@ -86,6 +87,9 @@ f_closeOutside(float t, float b, float mult) =>
 if coolLeft > 0
     coolLeft -= 1
 
+flatRun := canRange ? flatRun + 1 : 0
+bool readyStart = flatRun >= enterBars
+
 bool inTrack = bCount > 0
 float livePct = inTrack ? f_boxPct(bTop, bBot) : boxPct
 bool tooWide = inTrack and livePct > maxBoxPct * 1.15
@@ -106,7 +110,7 @@ if inTrack and (tooWide or broke or lostFlat)
     coolLeft := cooldown
 
 // 시작
-if bCount == 0 and coolLeft <= 0 and canRange
+if bCount == 0 and coolLeft <= 0 and readyStart
     bStart := time
     bCount := 1
     bTop := high

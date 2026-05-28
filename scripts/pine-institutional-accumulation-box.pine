@@ -72,7 +72,8 @@ float boxMid = (boxTop + boxBot) * 0.5
 float boxH   = boxTop - boxBot
 float boxPct = boxMid > 0 ? boxH / boxMid * 100.0 : 100.0
 
-float path = ta.sum(math.abs(ta.change(close)), baseLen)
+float absChg = math.abs(close - close[1])
+float path = ta.sma(absChg, baseLen) * baseLen
 float er   = path > 0 ? math.abs(close - close[baseLen]) / path : 1.0
 [_, _, adx] = ta.dmi(adxLen, adxLen)
 
