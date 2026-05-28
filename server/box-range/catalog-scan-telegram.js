@@ -72,21 +72,11 @@ function fmtPrice(n, market) {
 export function nearestBoxLevelWithinPct(price, box, maxPct = NEAR_PCT) {
   const p = Number(price);
   if (!Number.isFinite(p) || p <= 0) return null;
-  /** @type {Array<["중심"|"상단"|"하단", number]>} */
-  const levels = [
-    ["중심", Number(box.mid)],
-    ["상단", Number(box.top)],
-    ["하단", Number(box.bottom)],
-  ];
-  let best = null;
-  for (const [label, lv] of levels) {
-    if (!Number.isFinite(lv) || lv <= 0) continue;
-    const pct = (Math.abs(p - lv) / lv) * 100;
-    if (pct <= maxPct && (!best || pct < best.pct)) {
-      best = { label, level: lv, pct };
-    }
-  }
-  return best;
+  const mid = Number(box.mid);
+  if (!Number.isFinite(mid) || mid <= 0) return null;
+  const pct = (Math.abs(p - mid) / mid) * 100;
+  if (pct > maxPct) return null;
+  return { label: "중심", level: mid, pct };
 }
 
 /**
@@ -179,7 +169,7 @@ export function buildNearPriceMessage(market, hits) {
   const lines = [
     `<b>🎯 현재가 ↔ 박스권 ${NEAR_PCT}% 이내 · ${escHtml(label)}</b>`,
     "",
-    `기준: 중심·상단·하단 중 가장 가까운 가격 (tradeEligible·미소진 박스)`,
+    `기준: 중심가 기준 (tradeEligible·미소진 박스)`,
   ];
 
   if (!hits.length) {
@@ -193,7 +183,7 @@ export function buildNearPriceMessage(market, hits) {
       "",
       `<b>${escHtml(h.symbol)}</b> · ${escHtml(h.timeframe)} · ${escHtml(h.levelLabel)}`,
       `현재 ${escHtml(fmtPrice(h.price, m))} · ${escHtml(h.levelLabel)} ${escHtml(fmtPrice(h.level, m))} (<b>${h.pct.toFixed(2)}%</b>)`,
-      `박스 중심 ${escHtml(fmtPrice(h.mid, m))} · 상 ${escHtml(fmtPrice(h.top, m))} · 하 ${escHtml(fmtPrice(h.bottom, m))}`,
+      `박스 중심 ${escHtml(fmtPrice(h.mid, m))}`,
     );
   }
   if (hits.length > show.length) {
