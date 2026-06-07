@@ -6514,8 +6514,7 @@ html[data-theme="light"] .feedback-inbox-item {
   align-self: stretch;
   width: 100%;
   min-width: 0;
-  padding: max(0.45rem, calc(0.28rem + env(safe-area-inset-top, 0px))) 0.12rem
-    0.35rem 0.08rem;
+  padding: max(0.45rem, calc(0.28rem + env(safe-area-inset-top, 0px))) 0.1rem 0.35rem 0;
   border-right: none;
   background: transparent;
   box-sizing: border-box;
@@ -6545,16 +6544,17 @@ html[data-theme="light"] .feedback-inbox-item {
 @media (min-width: 1180px) {
   #root > .app .app__viewport.app__viewport--earnings-rail.app__viewport--no-left-rail {
     grid-template-columns:
-      minmax(0, 1fr)
+      auto
       minmax(0, min(var(--app-page-max-width, 1680px), 100%))
       minmax(0, 1fr);
-    column-gap: 0;
+    column-gap: 0.35rem;
     align-items: stretch;
-    padding-inline: var(--app-page-inline-pad-safe, var(--app-page-inline-pad, 1.35rem));
+    padding-left: max(0.12rem, env(safe-area-inset-left, 0px));
+    padding-right: var(--app-page-inline-pad-safe, var(--app-page-inline-pad, 1.35rem));
   }
 
   .app__viewport-earnings-rail {
-    grid-column: 2;
+    grid-column: 1;
     grid-row: 1;
     justify-self: start;
     align-self: stretch;
@@ -6586,7 +6586,6 @@ html[data-theme="light"] .feedback-inbox-item {
     max-width: 100% !important;
     margin-inline: 0 !important;
     padding-inline: 0;
-    padding-left: calc(2.85rem + 0.35rem);
     box-sizing: border-box;
   }
 
@@ -6619,8 +6618,9 @@ html[data-theme="light"] .feedback-inbox-item {
 
   #root > .app:has(.app__viewport--earnings-rail) > .app__scroll > .app-site-footer {
     max-width: min(var(--app-page-max-width, 1680px), 100%);
-    margin-inline: auto;
-    padding-inline: var(--app-page-inline-pad-safe, var(--app-page-inline-pad, 1.35rem));
+    margin-inline: 0;
+    margin-left: calc(2.85rem + 0.35rem + max(0.12rem, env(safe-area-inset-left, 0px)));
+    padding-inline: 0 var(--app-page-inline-pad-safe, var(--app-page-inline-pad, 1.35rem));
   }
 }
 
