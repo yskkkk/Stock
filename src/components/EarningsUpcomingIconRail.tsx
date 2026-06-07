@@ -23,6 +23,10 @@ import {
   formatSectorEarningsDday,
 } from "../lib/formatMacro";
 import { stockLogoUrl } from "../lib/stockLogoUrl";
+import {
+  tradingViewChartUrl,
+  yahooStockSymbolToTradingView,
+} from "../lib/tradingviewSymbols";
 import StockLogoWithPlate from "./StockLogoWithPlate";
 import { peekMacroPrefetch } from "../lib/tabPrefetch";
 import { ko } from "../i18n/ko";
@@ -244,6 +248,11 @@ export default function EarningsUpcomingIconRail({
   const finLines = activeFin
     ? formatEarningsBubbleFinancialLines(activeFin, finLabels)
     : null;
+  const tvChartUrl = tip
+    ? tradingViewChartUrl(
+        yahooStockSymbolToTradingView(tip.row.symbol, tip.row.market),
+      )
+    : null;
 
   const bubble =
     tip && typeof document !== "undefined"
@@ -319,9 +328,24 @@ export default function EarningsUpcomingIconRail({
                     {line.text}
                   </p>
                 ))}
+              </div>
+            ) : null}
+            {tvChartUrl ? (
+              <div className="earnings-icon-rail__bubble-actions">
+                <a
+                  className="earnings-icon-rail__bubble-btn earnings-icon-rail__bubble-btn--tv"
+                  href={tvChartUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${tip.row.name} ${ko.stockVault.openTradingViewChart}`}
+                  onClick={() => setTip(null)}
+                >
+                  {ko.stockVault.bubbleBtnChart}
+                </a>
                 <button
                   type="button"
-                  className="earnings-icon-rail__bubble-fin-btn"
+                  className="earnings-icon-rail__bubble-btn earnings-icon-rail__bubble-btn--fin"
+                  aria-label={`${tip.row.name} ${ko.stockVault.openFinancialsTab}`}
                   onClick={() => {
                     dispatchOpenFinancialsTab({
                       symbol: tip.row.symbol,
@@ -331,7 +355,7 @@ export default function EarningsUpcomingIconRail({
                     setTip(null);
                   }}
                 >
-                  {ko.macro.earningsBubbleOpenFinancials}
+                  {ko.stockVault.bubbleBtnFinancials}
                 </button>
               </div>
             ) : null}

@@ -7022,24 +7022,43 @@ html[data-theme="light"] .earnings-icon-rail__logo-wrap.stock-logo-plate--dark {
   margin-top: 0.08rem;
 }
 
-.earnings-icon-rail__bubble-fin-btn {
-  display: block;
-  width: 100%;
-  margin-top: 0.42rem;
-  padding: 0.28rem 0.55rem;
-  border-radius: 0.45rem;
-  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--card-border));
-  background: color-mix(in srgb, var(--accent) 12%, var(--card-bg));
-  color: var(--accent);
-  font-size: 0.68rem;
-  font-weight: 600;
-  line-height: 1.35;
-  cursor: pointer;
-  text-align: center;
+.earnings-icon-rail__bubble-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+  padding-top: 0.38rem;
+  border-top: 1px solid color-mix(in srgb, var(--card-border) 88%, transparent);
 }
 
-.earnings-icon-rail__bubble-fin-btn:hover {
-  background: color-mix(in srgb, var(--accent) 18%, var(--card-bg));
+.earnings-icon-rail__bubble-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0.28rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid var(--card-border);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text);
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.earnings-icon-rail__bubble-btn:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--card-border));
+  color: var(--accent);
+}
+
+.earnings-icon-rail__bubble-btn--fin {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--card-border));
+  color: var(--accent);
 }
 
 .earnings-icon-rail__bubble-sep {
