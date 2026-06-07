@@ -6728,10 +6728,10 @@ html[data-theme="light"] .earnings-icon-rail__logo-wrap.stock-logo-plate--dark {
   background: transparent;
 }
 
-.earnings-icon-rail--edge .earnings-icon-rail__market {
-  width: 0.72rem;
-  height: 0.72rem;
-  font-size: 0.44rem;
+.earnings-icon-rail--edge .earnings-icon-rail__dday {
+  right: -0.38rem;
+  bottom: -0.12rem;
+  font-size: 0.4rem;
 }
 
 @media (max-width: 900px) {
@@ -6840,25 +6840,23 @@ html[data-theme="light"] .earnings-icon-rail__logo-wrap.stock-logo-plate--dark {
   background: color-mix(in srgb, var(--accent-dim) 65%, var(--surface));
 }
 
-.earnings-icon-rail__market {
+.earnings-icon-rail__dday {
   position: absolute;
-  right: -0.12rem;
-  bottom: -0.1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 0.82rem;
-  height: 0.82rem;
-  border-radius: 999px;
-  font-size: 0.48rem;
-  font-weight: 800;
+  right: -0.34rem;
+  bottom: -0.14rem;
+  font-size: 0.44rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
   line-height: 1;
-  border: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
-  background: var(--card-bg, var(--card));
   color: var(--muted);
+  background: transparent;
+  border: none;
+  pointer-events: none;
+  white-space: nowrap;
 }
 
-.earnings-icon-rail__market--kr {
+.earnings-icon-rail__dday--today {
   color: var(--accent);
 }
 

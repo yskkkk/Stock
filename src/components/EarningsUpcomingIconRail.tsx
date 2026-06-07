@@ -40,11 +40,13 @@ type TipState = {
 
 function EarningsIconButton({
   row,
+  now,
   active,
   onEnter,
   onLeave,
 }: {
   row: SectorEarningsSpotlightItem;
+  now: number;
   active: boolean;
   onEnter: (el: HTMLElement, row: SectorEarningsSpotlightItem) => void;
   onLeave: () => void;
@@ -54,6 +56,7 @@ function EarningsIconButton({
   const codeShort = row.symbol.replace(/^KR_/i, "").replace(/\.(KS|KQ)$/i, "");
   const href = `https://finance.yahoo.com/quote/${encodeURIComponent(row.symbol)}`;
   const showImg = Boolean(logo) && !imgFailed;
+  const dday = formatSectorEarningsDday(row.at, now, row.timezone);
 
   return (
     <li className="earnings-icon-rail__item">
@@ -66,7 +69,7 @@ function EarningsIconButton({
             ? "earnings-icon-rail__btn earnings-icon-rail__btn--on"
             : "earnings-icon-rail__btn"
         }
-        aria-label={`${row.name} · ${formatMacroWhen(row.at, row.timezone)}`}
+        aria-label={`${row.name} · ${dday} · ${formatMacroWhen(row.at, row.timezone)}`}
         onMouseEnter={(e) => onEnter(e.currentTarget, row)}
         onMouseLeave={onLeave}
         onFocus={(e) => onEnter(e.currentTarget, row)}
@@ -90,10 +93,14 @@ function EarningsIconButton({
           </span>
         )}
         <span
-          className={`earnings-icon-rail__market earnings-icon-rail__market--${row.market}`}
+          className={
+            dday === "D-day"
+              ? "earnings-icon-rail__dday earnings-icon-rail__dday--today"
+              : "earnings-icon-rail__dday"
+          }
           aria-hidden
         >
-          {row.market === "kr" ? "K" : "U"}
+          {dday}
         </span>
       </a>
     </li>
@@ -349,6 +356,7 @@ export default function EarningsUpcomingIconRail({
             <EarningsIconButton
               key={row.id}
               row={row}
+              now={now}
               active={activeRow?.id === row.id}
               onEnter={openTip}
               onLeave={scheduleHideTip}
