@@ -2150,7 +2150,13 @@ export function createApp() {
     "/api/stock-vault",
     asyncRoute(async (_req, res) => {
       const { listStockVaultItemsSync } = await import("./stock-vault-store.js");
-      res.json({ items: listStockVaultItemsSync() });
+      const items = listStockVaultItemsSync();
+      const symbols = items.map((it) => it.symbol);
+      const quotes =
+        symbols.length > 0
+          ? await fetchQuoteSnapshotsForSymbols(symbols)
+          : {};
+      res.json({ items, quotes });
     }),
   );
 

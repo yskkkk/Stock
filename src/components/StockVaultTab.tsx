@@ -6,6 +6,7 @@ import {
   triggerGoldenCrossScan,
 } from "../api";
 import { ko } from "../i18n/ko";
+import { formatPercent, formatPrice } from "../lib/format";
 import type { GoldenCrossKind, StockVaultItem, StockVaultSource } from "../types";
 
 const CROSS_LABEL: Record<GoldenCrossKind, string> = {
@@ -15,6 +16,7 @@ const CROSS_LABEL: Record<GoldenCrossKind, string> = {
 };
 
 const SCAN_POLL_MS = 2500;
+const QUOTE_POLL_MS = 60_000;
 
 function fmtDate(ms: number): string {
   try {
@@ -48,6 +50,9 @@ export default function StockVaultTab({
   onVaultChange?: (symbols: string[]) => void;
 }) {
   const [items, setItems] = useState<StockVaultItem[]>([]);
+  const [quotes, setQuotes] = useState<
+    Record<string, { price: number; changePercent?: number; currency?: string }>
+  >({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | StockVaultSource>("all");
@@ -63,6 +68,7 @@ export default function StockVaultTab({
   const reloadVault = useCallback(async () => {
     const vault = await fetchStockVault();
     setItems(vault.items ?? []);
+    setQuotes(vault.quotes ?? {});
     onVaultChange?.((vault.items ?? []).map((it) => it.symbol));
   }, [onVaultChange]);
 
@@ -75,6 +81,7 @@ export default function StockVaultTab({
         fetchGoldenCrossStatus().catch(() => null),
       ]);
       setItems(vault.items ?? []);
+      setQuotes(vault.quotes ?? {});
       onVaultChange?.((vault.items ?? []).map((it) => it.symbol));
       if (status) {
         setScanEnabled(status.enabled);
@@ -91,6 +98,14 @@ export default function StockVaultTab({
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  useEffect(() => {
+    if (loading || scanRunning || items.length === 0) return;
+    const id = window.setInterval(() => {
+      void reloadVault();
+    }, QUOTE_POLL_MS);
+    return () => window.clearInterval(id);
+  }, [loading, scanRunning, items.length, reloadVault]);
 
   useEffect(() => {
     if (!scanRunning) return;
@@ -286,7 +301,14 @@ export default function StockVaultTab({
           <p className="stock-vault-tab__muted">{ko.stockVault.empty}</p>
         ) : (
           <ul className="stock-vault-tab__list">
-            {filtered.map((item) => (
+            {filtered.map((item) => {
+              const symKey = item.symbol.trim().toUpperCase();
+              const quote = quotes[symKey];
+              const cur =
+                quote?.currency ?? (item.market === "kr" ? "KRW" : "USD");
+              const chg = quote?.changePercent;
+              const chgUp = chg != null && chg >= 0;
+              return (
               <li key={item.id} className="stock-vault-tab__row">
                 <div className="stock-vault-tab__row-main">
                   <div className="stock-vault-tab__row-head">
@@ -319,6 +341,30 @@ export default function StockVaultTab({
                     </div>
                   ) : null}
                 </div>
+                <div className="stock-vault-tab__quote">
+                  {quote?.price != null && Number.isFinite(quote.price) ? (
+                    <>
+                      <span className="stock-vault-tab__price">
+                        {formatPrice(quote.price, cur)}
+                      </span>
+                      {chg != null && Number.isFinite(chg) ? (
+                        <span
+                          className={
+                            chgUp
+                              ? "stock-vault-tab__chg stock-vault-tab__chg--up"
+                              : "stock-vault-tab__chg stock-vault-tab__chg--down"
+                          }
+                        >
+                          {formatPercent(chg)}
+                        </span>
+                      ) : null}
+                    </>
+                  ) : (
+                    <span className="stock-vault-tab__quote-pending">
+                      {ko.app.stockLookupQuotePending}
+                    </span>
+                  )}
+                </div>
                 <button
                   type="button"
                   className="stock-vault-tab__remove"
@@ -333,7 +379,8 @@ export default function StockVaultTab({
                   <span className="stock-vault-tab__remove-label">{ko.stockVault.remove}</span>
                 </button>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </section>

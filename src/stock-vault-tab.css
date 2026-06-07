@@ -242,14 +242,51 @@
 }
 
 .stock-vault-tab__row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.55rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.55rem 0.65rem;
   padding: 0.55rem 0.65rem;
   border: 1px solid var(--card-border);
   border-radius: var(--radius-sm, 8px);
   background: color-mix(in srgb, var(--card) 88%, var(--surface));
+}
+
+.stock-vault-tab__quote {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.08rem;
+  min-width: 4.8rem;
+  text-align: right;
+}
+
+.stock-vault-tab__price {
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.stock-vault-tab__chg {
+  font-size: 0.68rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.stock-vault-tab__chg--up {
+  color: var(--up);
+}
+
+.stock-vault-tab__chg--down {
+  color: var(--down);
+}
+
+.stock-vault-tab__quote-pending {
+  font-size: 0.68rem;
+  color: var(--muted);
+  white-space: nowrap;
 }
 
 .stock-vault-tab__row-head {

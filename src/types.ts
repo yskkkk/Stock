@@ -360,6 +360,15 @@ export interface StockVaultItem {
 
 export interface StockVaultResponse {
   items: StockVaultItem[];
+  quotes?: Record<
+    string,
+    {
+      price: number;
+      changePercent?: number;
+      currency?: string;
+      quotedAtMs?: number;
+    }
+  >;
 }
 
 export interface GoldenCrossScanState {
