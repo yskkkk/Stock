@@ -355,22 +355,23 @@
 
 .stock-vault-tab__filters--industry .market-tabs {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(7.1rem, 1fr));
-  gap: 0.12rem 0.38rem;
+  grid-template-columns: repeat(auto-fill, minmax(5.6rem, max-content));
+  justify-content: start;
+  gap: 0.1rem 0.42rem;
   width: 100%;
   max-width: 100%;
 }
 
 .stock-vault-tab__filters--industry .market-tab {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.22rem;
-  width: 100%;
+  justify-content: flex-start;
+  gap: 0.16rem;
+  width: auto;
+  max-width: 100%;
   min-width: 0;
   min-height: 1.34rem;
-  max-width: none;
-  padding: 0.16rem 0.08rem;
+  padding: 0.16rem 0.14rem 0.16rem 0;
   font-size: 0.68rem;
   font-weight: 600;
   line-height: 1.15;
@@ -378,8 +379,8 @@
 }
 
 .stock-vault-tab__filters--industry .market-tab__label {
+  flex: 0 1 auto;
   min-width: 0;
-  flex: 1 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -387,12 +388,12 @@
 
 .stock-vault-tab__filters--industry .market-tab__count {
   flex: 0 0 auto;
-  min-width: 1rem;
+  min-width: 0;
   font-size: 0.62rem;
   font-weight: 600;
   line-height: 1;
   font-family: var(--font-mono);
-  text-align: right;
+  text-align: left;
 }
 
 .stock-vault-tab__filters--industry .market-tab--empty:not(.active) {
