@@ -25,6 +25,7 @@ type TipState = {
   row: SectorEarningsSpotlightItem;
   left: number;
   top: number;
+  placement: "left" | "right";
 };
 
 function EarningsIconButton({
@@ -139,12 +140,15 @@ export default function EarningsUpcomingIconRail({
   const openTip = useCallback((el: HTMLElement, row: SectorEarningsSpotlightItem) => {
     clearHideTimer();
     const r = el.getBoundingClientRect();
+    const gap = 10;
+    const placement: TipState["placement"] = variant === "edge" ? "left" : "right";
     setTip({
       row,
-      left: r.right + 10,
+      left: placement === "left" ? r.left - gap : r.right + gap,
       top: r.top + r.height / 2,
+      placement,
     });
-  }, [clearHideTimer]);
+  }, [clearHideTimer, variant]);
 
   const scheduleHideTip = useCallback(() => {
     clearHideTimer();
@@ -162,11 +166,18 @@ export default function EarningsUpcomingIconRail({
           <div
             id={tipId}
             role="tooltip"
-            className="earnings-icon-rail__bubble"
+            className={
+              tip.placement === "left"
+                ? "earnings-icon-rail__bubble earnings-icon-rail__bubble--left"
+                : "earnings-icon-rail__bubble"
+            }
             style={{
               left: `${tip.left}px`,
               top: `${tip.top}px`,
-              transform: "translate(0, -50%)",
+              transform:
+                tip.placement === "left"
+                  ? "translate(-100%, -50%)"
+                  : "translate(0, -50%)",
             }}
             onMouseEnter={clearHideTimer}
             onMouseLeave={scheduleHideTip}
