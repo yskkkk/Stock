@@ -179,7 +179,7 @@ export default function StockVaultTab({
     <div className="workspace stock-vault-tab">
       <section className="stock-vault-tab__panel card">
         <header className="stock-vault-tab__head">
-          <div>
+          <div className="stock-vault-tab__head-text">
             <h2 className="stock-vault-tab__title">{ko.stockVault.title}</h2>
             {scanHint ? (
               <p className="stock-vault-tab__scan-hint">
@@ -195,7 +195,7 @@ export default function StockVaultTab({
               <button
                 ref={scanBtnRef}
                 type="button"
-                className="btn btn--secondary btn--compact"
+                className="stock-vault-tab__head-btn"
                 disabled={!scanEnabled || scanRunning}
                 aria-expanded={scanConfirmOpen}
                 aria-haspopup="dialog"
@@ -241,7 +241,7 @@ export default function StockVaultTab({
             </div>
             <button
               type="button"
-              className="btn btn--secondary btn--compact"
+              className="stock-vault-tab__head-btn"
               onClick={() => void reload()}
             >
               {ko.app.retry}
