@@ -1847,20 +1847,10 @@ export function setStockVaultFavorite(symbol: string, favorited: boolean) {
 }
 
 export function fetchGoldenCrossStatus(signal?: AbortSignal) {
-  return fetchJson<{
-    enabled: boolean;
-    running: boolean;
-    lastManualScan: {
-      atMs: number;
-      results: Array<{
-        market: "kr" | "us";
-        scanDate: string;
-        scanned: number;
-        hitCount: number;
-      }>;
-    } | null;
-    state: import("./types").GoldenCrossScanState;
-  }>("/api/golden-cross/status", signal ? { signal } : undefined);
+  return fetchJson<import("./types").StockVaultScanStatus>(
+    "/api/golden-cross/status",
+    signal ? { signal } : undefined,
+  );
 }
 
 export function triggerGoldenCrossScan() {

@@ -13,7 +13,7 @@ import {
   tradingViewChartUrl,
   yahooStockSymbolToTradingView,
 } from "../lib/tradingviewSymbols";
-import type { GoldenCrossKind, StockVaultItem, StockVaultSource } from "../types";
+import type { GoldenCrossKind, StockVaultItem, StockVaultKindTab } from "../types";
 import { VaultBookmarkIcon } from "./StockVaultMarkButton";
 
 const CROSS_LABEL: Record<GoldenCrossKind, string> = {
@@ -39,19 +39,30 @@ function fmtDate(ms: number): string {
   }
 }
 
-function scanHintFromState(state: {
-  krLastScanDate: string | null;
-  usLastScanDate: string | null;
-}) {
-  const kr = state.krLastScanDate;
-  const us = state.usLastScanDate;
-  if (!kr && !us) return null;
-  return [kr ? `국내 ${kr}` : null, us ? `미국 ${us}` : null]
-    .filter(Boolean)
-    .join(" · ");
+function scanHintFromState(
+  goldenCross: { krLastScanDate: string | null; usLastScanDate: string | null },
+  maAlign: { krLastScanDate: string | null; usLastScanDate: string | null },
+) {
+  const fmt = (
+    label: string,
+    state: { krLastScanDate: string | null; usLastScanDate: string | null },
+  ) => {
+    const kr = state.krLastScanDate;
+    const us = state.usLastScanDate;
+    if (!kr && !us) return null;
+    const dates = [kr ? `국내 ${kr}` : null, us ? `미국 ${us}` : null]
+      .filter(Boolean)
+      .join(" · ");
+    return `${label} ${dates}`;
+  };
+  const parts = [
+    fmt(ko.stockVault.lastScanGolden, goldenCross),
+    fmt(ko.stockVault.lastScanMaAlign, maAlign),
+  ].filter(Boolean);
+  return parts.length ? parts.join(" | ") : null;
 }
 
-type VaultFilter = "all" | StockVaultSource | "favorite";
+type VaultFilter = "all" | "favorite";
 
 function manualVaultSymbols(items: StockVaultItem[]) {
   return items
@@ -84,6 +95,7 @@ export default function StockVaultTab({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<VaultFilter>("all");
+  const [kindTab, setKindTab] = useState<StockVaultKindTab>("golden_cross");
   const [marketFilter, setMarketFilter] = useState<"all" | "kr" | "us">("all");
   const [industryFilter, setIndustryFilter] = useState<string>("all");
   const [authenticated, setAuthenticated] = useState(false);
@@ -135,7 +147,11 @@ export default function StockVaultTab({
       if (status) {
         setScanEnabled(status.enabled);
         setScanRunning(Boolean(status.running));
-        setScanHint(status.state ? scanHintFromState(status.state) : null);
+        const gcState = status.goldenCross?.state ?? status.state;
+        const maState = status.maAlign?.state ?? status.state;
+        if (gcState && maState) {
+          setScanHint(scanHintFromState(gcState, maState));
+        }
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -164,7 +180,11 @@ export default function StockVaultTab({
           const status = await fetchGoldenCrossStatus();
           setScanEnabled(status.enabled);
           setScanRunning(Boolean(status.running));
-          if (status.state) setScanHint(scanHintFromState(status.state));
+          const gcState = status.goldenCross?.state ?? status.state;
+          const maState = status.maAlign?.state ?? status.state;
+          if (gcState && maState) {
+            setScanHint(scanHintFromState(gcState, maState));
+          }
           if (!status.running) {
             await reloadVault();
             setScanNotice(ko.stockVault.scanDone);
@@ -200,18 +220,25 @@ export default function StockVaultTab({
 
   const baseFiltered = useMemo(() => {
     return items.filter((it) => {
+      if (it.source !== kindTab) return false;
       if (marketFilter !== "all" && it.market !== marketFilter) return false;
       if (filter === "favorite" && !it.favorited) return false;
-      if (filter !== "all" && filter !== "favorite" && it.source !== filter) {
-        return false;
-      }
       return true;
     });
-  }, [items, filter, marketFilter]);
+  }, [items, filter, marketFilter, kindTab]);
+
+  const kindCounts = useMemo(
+    () => ({
+      golden_cross: items.filter((it) => it.source === "golden_cross").length,
+      ma_align: items.filter((it) => it.source === "ma_align").length,
+      manual: items.filter((it) => it.source === "manual").length,
+    }),
+    [items],
+  );
 
   const favoriteCount = useMemo(
-    () => items.filter((it) => it.favorited).length,
-    [items],
+    () => items.filter((it) => it.favorited && it.source === kindTab).length,
+    [items, kindTab],
   );
 
   const industryOptions = useMemo(() => {
@@ -247,11 +274,11 @@ export default function StockVaultTab({
 
   const marketCounts = useMemo(
     () => ({
-      all: items.length,
-      kr: items.filter((it) => it.market === "kr").length,
-      us: items.filter((it) => it.market === "us").length,
+      all: items.filter((it) => it.source === kindTab).length,
+      kr: items.filter((it) => it.source === kindTab && it.market === "kr").length,
+      us: items.filter((it) => it.source === kindTab && it.market === "us").length,
     }),
-    [items],
+    [items, kindTab],
   );
 
   const handleRemove = useCallback(
@@ -408,6 +435,37 @@ export default function StockVaultTab({
 
         <div className="stock-vault-tab__filters-wrap">
           <div
+            className="stock-vault-tab__filters stock-vault-tab__filters--kind"
+            role="tablist"
+            aria-label={ko.stockVault.kindTabAria}
+          >
+            <div className="market-tabs">
+              {(
+                [
+                  ["golden_cross", ko.stockVault.tabGolden, kindCounts.golden_cross],
+                  ["ma_align", ko.stockVault.tabMaAlign, kindCounts.ma_align],
+                  ["manual", ko.stockVault.tabManual, kindCounts.manual],
+                ] as const
+              ).map(([id, label, count]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={kindTab === id}
+                  className={kindTab === id ? "market-tab active" : "market-tab"}
+                  onClick={() => {
+                    setKindTab(id);
+                    setIndustryFilter("all");
+                  }}
+                >
+                  {label}
+                  <span className="market-tab__count">{count}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div
             className="stock-vault-tab__filters panel-head__filters"
             role="tablist"
             aria-label={ko.stockVault.filterMarketAria}
@@ -445,8 +503,6 @@ export default function StockVaultTab({
                 [
                   ["all", ko.stockVault.filterAll],
                   ["favorite", ko.stockVault.filterFavorite, favoriteCount],
-                  ["golden_cross", ko.stockVault.filterGolden],
-                  ["manual", ko.stockVault.filterManual],
                 ] as const
               ).map(([id, label, count]) => (
                 <button
@@ -585,7 +641,9 @@ export default function StockVaultTab({
                       <span className="stock-vault-tab__source">
                         {item.source === "golden_cross"
                           ? ko.stockVault.sourceGolden
-                          : ko.stockVault.sourceManual}
+                          : item.source === "ma_align"
+                            ? ko.stockVault.sourceMaAlign
+                            : ko.stockVault.sourceManual}
                       </span>
                       {item.scanDate ? (
                         <span className="stock-vault-tab__scan-date">{item.scanDate}</span>
@@ -601,6 +659,12 @@ export default function StockVaultTab({
                             {CROSS_LABEL[c] ?? c}
                           </span>
                         ))}
+                      </div>
+                    ) : item.source === "ma_align" ? (
+                      <div className="stock-vault-tab__crosses">
+                        <span className="stock-vault-tab__cross stock-vault-tab__cross--align">
+                          {ko.stockVault.maAlignBadge}
+                        </span>
                       </div>
                     ) : null}
                   </div>

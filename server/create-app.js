@@ -2247,6 +2247,7 @@ export function createApp() {
     "/api/golden-cross/status",
     asyncRoute(async (_req, res) => {
       const { getGoldenCrossScanStateSync } = await import("./golden-cross-scan.js");
+      const { getMaAlignScanStateSync } = await import("./ma-align-scan.js");
       const {
         goldenCrossScanEnabled,
         getLastGoldenCrossManualScanResult,
@@ -2256,6 +2257,8 @@ export function createApp() {
         enabled: goldenCrossScanEnabled(),
         running: isGoldenCrossManualScanRunning(),
         lastManualScan: getLastGoldenCrossManualScanResult(),
+        goldenCross: { state: getGoldenCrossScanStateSync() },
+        maAlign: { state: getMaAlignScanStateSync() },
         state: getGoldenCrossScanStateSync(),
       });
     }),
@@ -2317,6 +2320,41 @@ export function createApp() {
       res.json({
         dates: listGoldenCrossHistoryDatesSync(),
         runs: listGoldenCrossHistoryRunsSync({
+          scanDate: scanDate || undefined,
+          limit: 30,
+        }),
+      });
+    }),
+  );
+
+  app.get(
+    "/api/ma-align/history",
+    asyncRoute(async (req, res) => {
+      const {
+        listMaAlignHistoryRunsSync,
+        listMaAlignHistoryDatesSync,
+        listMaAlignHistorySync,
+      } = await import("./ma-align-history-store.js");
+      const scanDate = String(req.query?.date ?? "").trim();
+      const runId = String(req.query?.runId ?? "").trim();
+      const detail = req.query?.detail === "1" || req.query?.detail === "true";
+      if (runId) {
+        const entries = listMaAlignHistorySync({ limit: 180 }).filter(
+          (e) => e.runId === runId,
+        );
+        res.json({ runId, entries });
+        return;
+      }
+      if (detail && scanDate) {
+        res.json({
+          scanDate,
+          entries: listMaAlignHistorySync({ scanDate, limit: 60 }),
+        });
+        return;
+      }
+      res.json({
+        dates: listMaAlignHistoryDatesSync(),
+        runs: listMaAlignHistoryRunsSync({
           scanDate: scanDate || undefined,
           limit: 30,
         }),

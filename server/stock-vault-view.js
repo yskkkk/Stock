@@ -11,14 +11,14 @@ import {
  * @param {string | null | undefined} userId
  */
 export function buildStockVaultItemsForUserSync(userId) {
-  const globalGolden = listStockVaultItemsSync().filter(
-    (it) => it.source === "golden_cross",
+  const globalAuto = listStockVaultItemsSync().filter(
+    (it) => it.source === "golden_cross" || it.source === "ma_align",
   );
   if (!userId) {
     return {
       authenticated: false,
       favoriteSymbols: [],
-      items: globalGolden.map((it) => ({
+      items: globalAuto.map((it) => ({
         ...it,
         name: resolveDisplayName(it.symbol, it.name),
         favorited: false,
@@ -30,17 +30,20 @@ export function buildStockVaultItemsForUserSync(userId) {
   const dismissed = new Set(userVault.dismissed);
   const favorites = new Set(userVault.favorites);
   /** @type {Map<string, import("./stock-vault-store.js").StockVaultItem & { favorited?: boolean }>} */
-  const bySymbol = new Map();
+  const byKey = new Map();
 
-  for (const it of globalGolden) {
+  for (const it of globalAuto) {
     if (dismissed.has(it.symbol)) continue;
-    bySymbol.set(it.symbol, { ...it, favorited: favorites.has(it.symbol) });
+    byKey.set(`${it.symbol}:${it.source}`, {
+      ...it,
+      favorited: favorites.has(it.symbol),
+    });
   }
   for (const it of userVault.manualItems) {
-    bySymbol.set(it.symbol, { ...it, favorited: favorites.has(it.symbol) });
+    byKey.set(`${it.symbol}:manual`, { ...it, favorited: favorites.has(it.symbol) });
   }
 
-  const items = [...bySymbol.values()]
+  const items = [...byKey.values()]
     .map((it) => ({
       ...it,
       name: resolveDisplayName(it.symbol, it.name),

@@ -503,7 +503,19 @@
   margin-top: 0.35rem;
 }
 
-.stock-vault-tab__cross {
+.stock-vault-tab__filters--kind {
+  margin-bottom: 0.35rem;
+}
+
+.stock-vault-tab__filters--kind .market-tab {
+  font-weight: 600;
+}
+
+.stock-vault-tab__cross--align {
+  background: color-mix(in srgb, var(--accent, #2563eb) 14%, transparent);
+  color: var(--accent, #2563eb);
+}
+
   padding: 0.08rem 0.35rem;
   border-radius: 999px;
   font-size: 0.64rem;

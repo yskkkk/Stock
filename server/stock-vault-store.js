@@ -6,7 +6,7 @@ function vaultStoreFile() {
   return process.env.STOCK_VAULT_STORE_TEST_FILE?.trim() || "stock-vault.json";
 }
 
-/** @typedef {"manual"|"golden_cross"} StockVaultSource */
+/** @typedef {"manual"|"golden_cross"|"ma_align"} StockVaultSource */
 
 /**
  * @typedef {{
@@ -25,6 +25,18 @@ function vaultStoreFile() {
 /** @typedef {{ version: 1; items: StockVaultItem[]; dismissed?: string[] }} StockVaultStore */
 
 const TEST_JUNK_NAMES = new Set(["골든", "즐겨", "수동", "테스트"]);
+
+/** @param {unknown} source */
+function normalizeSource(source) {
+  if (source === "golden_cross") return "golden_cross";
+  if (source === "ma_align") return "ma_align";
+  return "manual";
+}
+
+/** @param {StockVaultItem} item */
+function itemKey(item) {
+  return `${item.symbol}:${item.source}`;
+}
 
 /** @param {unknown} row */
 function isTestGarbageItem(row) {
@@ -46,14 +58,14 @@ function normalizeStore(raw) {
     const symbol = String(row?.symbol ?? "")
       .trim()
       .toUpperCase();
-    if (!symbol || seen.has(symbol)) continue;
+    if (!symbol || seen.has(`${symbol}:${normalizeSource(row?.source)}`)) continue;
     if (isTestGarbageItem(row)) continue;
     const market = row?.market === "us" ? "us" : "kr";
-    const source = row?.source === "golden_cross" ? "golden_cross" : "manual";
+    const source = normalizeSource(row?.source);
     const crosses = Array.isArray(row?.crosses)
       ? row.crosses.filter((c) => c === "5>20" || c === "5>60" || c === "5>120")
       : [];
-    out.push({
+    const item = {
       id: String(row?.id ?? randomUUID()),
       symbol,
       name: resolveDisplayName(symbol, String(row?.name ?? symbol).trim() || symbol),
@@ -72,8 +84,9 @@ function normalizeStore(raw) {
         typeof row?.updatedAtMs === "number" && Number.isFinite(row.updatedAtMs)
           ? row.updatedAtMs
           : Date.now(),
-    });
-    seen.add(symbol);
+    };
+    out.push(item);
+    seen.add(itemKey(item));
   }
   out.sort((a, b) => b.updatedAtMs - a.updatedAtMs);
   const dismissed = Array.isArray(raw?.dismissed)
@@ -127,11 +140,13 @@ export function upsertStockVaultItemSync(input) {
   const market = input.market === "us" ? "us" : "kr";
   const now = Date.now();
   const store = readStore();
-  const idx = store.items.findIndex((it) => it.symbol === symbol);
-  const source = input.source === "golden_cross" ? "golden_cross" : "manual";
+  const source = normalizeSource(input.source);
   const crosses = Array.isArray(input.crosses)
     ? input.crosses.filter((c) => c === "5>20" || c === "5>60" || c === "5>120")
     : [];
+  const idx = store.items.findIndex(
+    (it) => it.symbol === symbol && it.source === source,
+  );
 
   if (idx >= 0) {
     const prev = store.items[idx];
@@ -143,7 +158,7 @@ export function upsertStockVaultItemSync(input) {
       ...prev,
       name: resolveDisplayName(symbol, String(input.name ?? prev.name).trim() || prev.name),
       market,
-      source: prev.source === "manual" && source === "golden_cross" ? "golden_cross" : prev.source === "golden_cross" ? "golden_cross" : source,
+      source,
       crosses: mergedCrosses?.length ? mergedCrosses : undefined,
       scanDate:
         input.scanDate != null
@@ -168,7 +183,7 @@ export function upsertStockVaultItemSync(input) {
     store.dismissed = (store.dismissed ?? []).filter((s) => s !== symbol);
   }
   writeStore(store);
-  return store.items.find((it) => it.symbol === symbol) ?? null;
+  return store.items.find((it) => it.symbol === symbol && it.source === source) ?? null;
 }
 
 /** @param {string} symbol */
@@ -204,6 +219,41 @@ export function clearGoldenCrossVaultItemsSync(opts = {}) {
     writeStore(store);
   }
   return before - store.items.length;
+}
+
+export function clearMaAlignVaultItemsSync(opts = {}) {
+  const marketFilter = opts.market === "kr" || opts.market === "us" ? opts.market : null;
+  const store = readStore();
+  const before = store.items.length;
+  store.items = store.items.filter((it) => {
+    if (it.source !== "ma_align") return true;
+    if (marketFilter && it.market !== marketFilter) return true;
+    return false;
+  });
+  if (store.items.length !== before) {
+    writeStore(store);
+  }
+  return before - store.items.length;
+}
+
+/**
+ * @param {Array<{ symbol: string; name: string; market: "kr"|"us"; scanDate: string }>} hits
+ */
+export function mergeMaAlignHitsIntoVaultSync(hits) {
+  const dismissed = new Set(readStore().dismissed ?? []);
+  for (const hit of hits) {
+    const sym = String(hit.symbol ?? "")
+      .trim()
+      .toUpperCase();
+    if (!sym || dismissed.has(sym)) continue;
+    upsertStockVaultItemSync({
+      symbol: hit.symbol,
+      name: hit.name,
+      market: hit.market,
+      source: "ma_align",
+      scanDate: hit.scanDate,
+    });
+  }
 }
 
 /**

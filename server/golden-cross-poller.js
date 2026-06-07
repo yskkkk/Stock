@@ -1,11 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { getKstParts, isKrBusinessDay } from "./kr-business-day.js";
 import { runGoldenCrossMarketScan, wasGoldenCrossScannedSync } from "./golden-cross-scan.js";
+import { runMaAlignMarketScan, wasMaAlignScannedSync } from "./ma-align-scan.js";
 import {
   clearGoldenCrossVaultItemsSync,
+  clearMaAlignVaultItemsSync,
   mergeGoldenCrossHitsIntoVaultSync,
+  mergeMaAlignHitsIntoVaultSync,
 } from "./stock-vault-store.js";
 import { appendGoldenCrossHistoryEntrySync } from "./golden-cross-history-store.js";
+import { appendMaAlignHistoryEntrySync } from "./ma-align-history-store.js";
 import { notifyGoldenCrossScanTelegram } from "./golden-cross-telegram.js";
 import { sendGoldenCrossScanReportEmail } from "./notifications/golden-cross-scan-email.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
@@ -68,7 +72,7 @@ export function goldenCrossScanEnabled() {
 }
 
 let manualScanRunning = false;
-/** @type {{ atMs: number; results: Array<{ market: "kr"|"us"; scanDate: string; scanned: number; hitCount: number }> } | null} */
+/** @type {{ atMs: number; goldenCross: Array<{ market: "kr"|"us"; scanDate: string; scanned: number; hitCount: number }>; maAlign: Array<{ market: "kr"|"us"; scanDate: string; scanned: number; hitCount: number }> } | null} */
 let lastManualScanResult = null;
 
 export function isGoldenCrossManualScanRunning() {
@@ -79,63 +83,118 @@ export function getLastGoldenCrossManualScanResult() {
   return lastManualScanResult;
 }
 
+/**
+ * @param {"kr"|"us"} market
+ * @param {string} scanDate
+ * @param {string} runId
+ * @param {"manual"|"scheduled"} trigger
+ */
+async function runVaultMarketScans(market, scanDate, runId, trigger) {
+  const gcResult = await runGoldenCrossMarketScan(market, scanDate);
+  if (gcResult.hits.length) {
+    mergeGoldenCrossHitsIntoVaultSync(gcResult.hits);
+  }
+  appendGoldenCrossHistoryEntrySync({
+    runId,
+    trigger,
+    market,
+    scanDate,
+    scanned: gcResult.scanned,
+    hits: gcResult.hits,
+  });
+  await notifyGoldenCrossScanTelegram(market, scanDate, gcResult.hits);
+
+  const maResult = await runMaAlignMarketScan(market, scanDate);
+  if (maResult.hits.length) {
+    mergeMaAlignHitsIntoVaultSync(maResult.hits);
+  }
+  appendMaAlignHistoryEntrySync({
+    runId,
+    trigger,
+    market,
+    scanDate,
+    scanned: maResult.scanned,
+    hits: maResult.hits,
+  });
+
+  return { goldenCross: gcResult, maAlign: maResult };
+}
+
 /** @param {Date} [now] */
 async function runGoldenCrossManualScanInternal(now = new Date()) {
   const runId = randomUUID();
   clearGoldenCrossVaultItemsSync();
+  clearMaAlignVaultItemsSync();
 
   /** @type {Array<{ market: "kr"|"us"; scanDate: string; scanned: number; hitCount: number }>} */
-  const results = [];
+  const goldenCrossResults = [];
+  /** @type {Array<{ market: "kr"|"us"; scanDate: string; scanned: number; hitCount: number }>} */
+  const maAlignResults = [];
   /** @type {import("./notifications/golden-cross-scan-email.js").GoldenCrossEmailMarket[]} */
-  const emailMarkets = [];
+  const goldenCrossEmailMarkets = [];
+  /** @type {import("./notifications/golden-cross-scan-email.js").MaAlignEmailMarket[]} */
+  const maAlignEmailMarkets = [];
 
   for (const market of /** @type {const} */ (["kr", "us"])) {
     const scanDate =
       market === "kr"
         ? getKstParts(now).dateKey
         : localMinutesOfDay("us", now).dateKey;
-    const result = await runGoldenCrossMarketScan(market, scanDate);
-    if (result.hits.length) {
-      mergeGoldenCrossHitsIntoVaultSync(result.hits);
-    }
-    appendGoldenCrossHistoryEntrySync({
+    const { goldenCross, maAlign } = await runVaultMarketScans(
+      market,
+      scanDate,
       runId,
-      trigger: "manual",
+      "manual",
+    );
+    goldenCrossEmailMarkets.push({
       market,
       scanDate,
-      scanned: result.scanned,
-      hits: result.hits,
+      scanned: goldenCross.scanned,
+      hits: goldenCross.hits,
     });
-    await notifyGoldenCrossScanTelegram(market, scanDate, result.hits);
-    emailMarkets.push({
+    maAlignEmailMarkets.push({
       market,
       scanDate,
-      scanned: result.scanned,
-      hits: result.hits,
+      scanned: maAlign.scanned,
+      hits: maAlign.hits,
     });
-    results.push({
+    goldenCrossResults.push({
       market,
       scanDate,
-      scanned: result.scanned,
-      hitCount: result.hitCount,
+      scanned: goldenCross.scanned,
+      hitCount: goldenCross.hitCount,
+    });
+    maAlignResults.push({
+      market,
+      scanDate,
+      scanned: maAlign.scanned,
+      hitCount: maAlign.hitCount,
     });
   }
 
   try {
-    const emailResult = await sendGoldenCrossScanReportEmail({ markets: emailMarkets });
-    liveTradeLogInfo("[golden-cross:email]", {
+    const emailResult = await sendGoldenCrossScanReportEmail({
+      goldenCross: goldenCrossEmailMarkets,
+      maAlign: maAlignEmailMarkets,
+    });
+    liveTradeLogInfo("[stock-vault:scan:email]", {
       sent: emailResult.sent,
-      totalHits: emailResult.totalHits,
+      goldenCrossHits: emailResult.goldenCrossHits,
+      maAlignHits: emailResult.maAlignHits,
       recipients: emailResult.recipients,
     });
   } catch (e) {
     liveTradeLogWarn(
-      "[golden-cross:email]",
+      "[stock-vault:scan:email]",
       e instanceof Error ? e.message : e,
     );
   }
 
-  lastManualScanResult = { atMs: Date.now(), results };
+  lastManualScanResult = {
+    atMs: Date.now(),
+    goldenCross: goldenCrossResults,
+    maAlign: maAlignResults,
+  };
   return lastManualScanResult;
 }
 
@@ -166,8 +225,13 @@ export function shouldRunGoldenCrossScan(market, now = new Date()) {
   if (!goldenCrossScanEnabled()) return false;
   const local =
     market === "kr" ? getKstParts(now) : localMinutesOfDay("us", now);
-  const dateKey = market === "kr" ? local.dateKey : local.dateKey;
-  if (wasGoldenCrossScannedSync(market, dateKey)) return false;
+  const dateKey = local.dateKey;
+  if (
+    wasGoldenCrossScannedSync(market, dateKey) &&
+    wasMaAlignScannedSync(market, dateKey)
+  ) {
+    return false;
+  }
   return market === "kr" ? isKrMarketFullyClosed(now) : isUsMarketFullyClosed(now);
 }
 
@@ -180,38 +244,42 @@ export async function runGoldenCrossScanIfDue(market, now = new Date()) {
       : localMinutesOfDay("us", now).dateKey;
 
   clearGoldenCrossVaultItemsSync({ market });
-  const result = await runGoldenCrossMarketScan(market, scanDate);
-  if (result.hits.length) {
-    mergeGoldenCrossHitsIntoVaultSync(result.hits);
-  }
-  appendGoldenCrossHistoryEntrySync({
-    runId: randomUUID(),
-    trigger: "scheduled",
+  clearMaAlignVaultItemsSync({ market });
+  const runId = randomUUID();
+  const { goldenCross, maAlign } = await runVaultMarketScans(
     market,
     scanDate,
-    scanned: result.scanned,
-    hits: result.hits,
-  });
-  await notifyGoldenCrossScanTelegram(market, scanDate, result.hits);
+    runId,
+    "scheduled",
+  );
+
   try {
     await sendGoldenCrossScanReportEmail({
-      markets: [
+      goldenCross: [
         {
           market,
           scanDate,
-          scanned: result.scanned,
-          hits: result.hits,
+          scanned: goldenCross.scanned,
+          hits: goldenCross.hits,
+        },
+      ],
+      maAlign: [
+        {
+          market,
+          scanDate,
+          scanned: maAlign.scanned,
+          hits: maAlign.hits,
         },
       ],
     });
   } catch (e) {
     liveTradeLogWarn(
-      "[golden-cross:email]",
+      "[stock-vault:scan:email]",
       market,
       e instanceof Error ? e.message : e,
     );
   }
-  return result;
+  return { goldenCross, maAlign };
 }
 
 export function startGoldenCrossScanPoller() {
@@ -233,7 +301,8 @@ export function startGoldenCrossScanPoller() {
           if (result) {
             liveTradeLogInfo("[golden-cross:poller] ran", {
               market,
-              hits: result.hitCount,
+              goldenCrossHits: result.goldenCross.hitCount,
+              maAlignHits: result.maAlign.hitCount,
             });
           }
         } catch (e) {

@@ -76,21 +76,33 @@ test("golden cross history groups runs by runId", () => {
 });
 
 test("buildGoldenCrossScanEmailContent includes hits", () => {
-  const { subject, text, totalHits } = buildGoldenCrossScanEmailContent([
-    {
-      market: "kr",
-      scanDate: "2026-06-08",
-      scanned: 300,
-      hits: [
-        {
-          symbol: "005930.KS",
-          name: "삼성전자",
-          crosses: ["5>20"],
-        },
-      ],
-    },
-  ]);
-  assert.match(subject, /골든크로스/);
-  assert.equal(totalHits, 1);
+  const { subject, text, goldenCrossHits, maAlignHits } = buildGoldenCrossScanEmailContent({
+    goldenCross: [
+      {
+        market: "kr",
+        scanDate: "2026-06-08",
+        scanned: 300,
+        hits: [
+          {
+            symbol: "005930.KS",
+            name: "삼성전자",
+            crosses: ["5>20"],
+          },
+        ],
+      },
+    ],
+    maAlign: [
+      {
+        market: "kr",
+        scanDate: "2026-06-08",
+        scanned: 300,
+        hits: [{ symbol: "000660.KS", name: "SK하이닉스" }],
+      },
+    ],
+  });
+  assert.match(subject, /탐색 리포트/);
+  assert.equal(goldenCrossHits, 1);
+  assert.equal(maAlignHits, 1);
   assert.match(text, /삼성전자/);
+  assert.match(text, /SK하이닉스/);
 });

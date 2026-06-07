@@ -358,8 +358,9 @@ export interface FinancialStatementAnalysisResponse extends FinancialStatementDe
   aiOpinion: FinancialAiOpinion;
 }
 
-export type StockVaultSource = "manual" | "golden_cross";
+export type StockVaultSource = "manual" | "golden_cross" | "ma_align";
 export type GoldenCrossKind = "5>20" | "5>60" | "5>120";
+export type StockVaultKindTab = "golden_cross" | "ma_align" | "manual";
 
 export interface StockVaultItem {
   id: string;
@@ -410,6 +411,29 @@ export interface GoldenCrossScanState {
     hits: number;
     atMs: number;
   }>;
+}
+
+export interface StockVaultScanStatus {
+  enabled: boolean;
+  running: boolean;
+  lastManualScan: {
+    atMs: number;
+    goldenCross: Array<{
+      market: "kr" | "us";
+      scanDate: string;
+      scanned: number;
+      hitCount: number;
+    }>;
+    maAlign: Array<{
+      market: "kr" | "us";
+      scanDate: string;
+      scanned: number;
+      hitCount: number;
+    }>;
+  } | null;
+  goldenCross: { state: GoldenCrossScanState };
+  maAlign: { state: GoldenCrossScanState };
+  state: GoldenCrossScanState;
 }
 
 export interface DartCompanyRow {
