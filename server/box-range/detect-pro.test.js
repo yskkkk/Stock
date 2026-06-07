@@ -26,7 +26,7 @@ function flatBars(n, price = 100, spread = 2) {
   return out;
 }
 
-/** 상·하단 거절(터치 후 중심 반대편 종가) */
+/** 상·하단 거절(터치 후 중심 반대편 종가) — 1d minPct(3%) + rejection 조건 */
 function rangingBars(n) {
   /** @type {import("./box-range-pro-core.js").Bar[]} */
   const out = [];
@@ -36,18 +36,18 @@ function rangingBars(n) {
       atTop
         ? {
             time: 1_700_000_000 + i * 86400,
-            open: 102,
-            high: 104,
-            low: 99,
-            close: 99.2,
+            open: 106,
+            high: 108,
+            low: 104,
+            close: 98,
             volume: 1000 + i,
           }
         : {
             time: 1_700_000_000 + i * 86400,
-            open: 98,
-            high: 101,
-            low: 96,
-            close: 100.8,
+            open: 96,
+            high: 96,
+            low: 92,
+            close: 102,
             volume: 1000 + i,
           },
     );

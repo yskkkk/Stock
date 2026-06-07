@@ -103,7 +103,7 @@ function chartTimeFromUnix(
   if (chartBarSeconds(chartInterval) >= 86400) {
     return unixSecToKstBusinessDayTime(unixSec);
   }
-  return unixSec;
+  return unixSec as Time;
 }
 
 function maxSlopSec(chartInterval: string, boxTimeframe: string): number {

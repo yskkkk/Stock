@@ -66,7 +66,6 @@ import {
   LiveTradeHoldingRationaleRow,
 } from "./LiveTradeHoldingDisplay";
 import { LiveTradeSymbolCellFromRecord as TradeSymbolCell } from "./LiveTradeSymbolCell";
-import { LiveTradeTradesHistoryTable } from "./LiveTradeTradesHistoryPanel";
 import LiveTradeHistorySimSection from "./LiveTradeHistorySimSection";
 import { filterSimPrograms } from "../lib/liveTradeSimPrograms";
 

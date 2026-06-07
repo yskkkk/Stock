@@ -4,7 +4,7 @@ import {
   detectCatalogBoxesForTimeframe,
   isProCatalogTimeframe,
 } from "./catalog-detect.js";
-import { BOX_RANGE_CATALOG_DIR_PRO } from "./constants.js";
+import { BOX_RANGE_CATALOG_DIR_V2 } from "./constants.js";
 import { resolveCatalogRootDir } from "./catalog-store.js";
 
 test("isProCatalogTimeframe", () => {
@@ -29,11 +29,11 @@ test("detectCatalogBoxesForTimeframe supports 1h", () => {
   assert.ok(Array.isArray(out));
 });
 
-test("resolveCatalogRootDir defaults to PRO catalog", () => {
+test("resolveCatalogRootDir defaults to V2 catalog", () => {
   const prev = process.env.STOCK_BOX_RANGE_CATALOG_DIR;
   delete process.env.STOCK_BOX_RANGE_CATALOG_DIR;
   try {
-    assert.equal(resolveCatalogRootDir(), BOX_RANGE_CATALOG_DIR_PRO);
+    assert.equal(resolveCatalogRootDir(), BOX_RANGE_CATALOG_DIR_V2);
   } finally {
     if (prev !== undefined) process.env.STOCK_BOX_RANGE_CATALOG_DIR = prev;
     else delete process.env.STOCK_BOX_RANGE_CATALOG_DIR;

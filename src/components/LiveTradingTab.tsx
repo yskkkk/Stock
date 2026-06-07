@@ -58,10 +58,8 @@ import {
   type LiveTradeProgramTradesMainDetail,
 } from "../lib/liveTradeProgramTradesMain";
 import { invalidateLiveTradingPrefetch, peekLiveTradingPrefetch } from "../lib/tabPrefetch";
-import { formatPercent } from "../lib/format";
 import DockPanelCenterLoading from "./DockPanelCenterLoading";
 import LiveTradeAuthPanel, {
-  defaultLiveTradeSideTabTitles,
   LiveTradeCardSidePanelInline,
   LiveTradeCollapsibleCard,
   LiveTradeSidePanelPortal,
@@ -72,10 +70,7 @@ import LiveTradeAuthPanel, {
 } from "./LiveTradeAuthAndCredentials";
 
 const LIVE_TRADE_ACTIVITY_PANEL_ID = "activity";
-import {
-  programDisplayStatus,
-  showProgramRunError,
-} from "../lib/liveProgramDisplay";
+import { programDisplayStatus } from "../lib/liveProgramDisplay";
 import { ko } from "../i18n/ko";
 import { LiveTradeFeeRatesProvider } from "../contexts/LiveTradeFeeRatesContext";
 import {
@@ -84,7 +79,6 @@ import {
 } from "../constants/liveTradeOrder";
 import {
   liveTradeProgramDraftCanSave,
-  parseMaxOpenPositionsInput,
   validateLiveTradeProgramDraft,
 } from "../lib/liveTradeProgramFormValidate";
 import {
@@ -120,29 +114,6 @@ function statusLabel(status: LiveTradeProgram["status"]): string {
       return ko.app.liveTradeStatusError;
     default:
       return ko.app.liveTradeStatusDraft;
-  }
-}
-
-function formatMoney(n: number | null, currency: "krw" | "usd"): string {
-  if (n == null || !Number.isFinite(n)) return "—";
-  if (currency === "krw") {
-    return `${Math.round(n).toLocaleString("ko-KR")}원`;
-  }
-  return `$${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
-}
-
-function formatTs(ms: number | null): string {
-  if (ms == null || !Number.isFinite(ms)) return "—";
-  try {
-    return new Date(ms).toLocaleString("ko-KR", {
-      month: "numeric",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-  } catch {
-    return "—";
   }
 }
 

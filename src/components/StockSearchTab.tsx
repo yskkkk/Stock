@@ -16,7 +16,6 @@ import type {
   StockTechnicalResponse,
 } from "../types";
 import PickQuoteStrip from "./PickQuoteStrip";
-import { formatPercent, formatPrice, formatTurnover } from "../lib/format";
 import { resolveUsQuoteDisplay } from "../lib/usQuoteDisplay";
 import StockSearchHotRow, { rowToStockPick } from "./StockSearchHotRow";
 import StockTechnicalAnalysisPanel, {
@@ -303,8 +302,7 @@ const StockSearchPickRow = memo(
     prev.onReason === next.onReason &&
     prev.onAnalyze === next.onAnalyze &&
     prev.usQuoteInKrw === next.usQuoteInKrw &&
-    prev.usdKrwRate === next.usdKrwRate &&
-    prev.usdKrwValDate === next.usdKrwValDate,
+    prev.usdKrwRate === next.usdKrwRate,
 );
 
 export default function StockSearchTab({
@@ -318,9 +316,7 @@ export default function StockSearchTab({
   onReason,
   onLookupPickPatch,
   usQuoteInKrw = false,
-  onToggleUsQuoteKrw,
   usdKrwRate = null,
-  usdKrwValDate = null,
 }: StockSearchTabProps) {
   const [input, setInput] = useState("");
   const [debounced, setDebounced] = useState("");

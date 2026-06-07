@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LiveTradeHolding } from "../api";
 import {
-  holdingNetMarketValue,
   summarizeHoldingsPnl,
   summarizeNetMarketByCurrency,
 } from "./livePortfolioPnl";
@@ -18,6 +17,7 @@ const holding: LiveTradeHolding = {
   marketValue: 10000,
   unrealizedPnl: 1000,
   changePct: 10,
+  grossChangePct: null,
   currency: "KRW",
   openedAtMs: 1,
   lastAtMs: 1,

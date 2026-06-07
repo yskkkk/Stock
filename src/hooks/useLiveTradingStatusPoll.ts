@@ -8,7 +8,6 @@ const POLL_MS = 22_000;
 
 let sharedStatus: LiveTradingStatusResponse | null = null;
 let pollStarted = false;
-let pollIntervalId: number | null = null;
 const listeners = new Set<(status: LiveTradingStatusResponse | null) => void>();
 
 function notify(status: LiveTradingStatusResponse | null) {
@@ -46,7 +45,7 @@ function pollTick() {
 function ensurePoll() {
   if (pollStarted) return;
   pollStarted = true;
-  pollIntervalId = window.setInterval(pollTick, POLL_MS);
+  window.setInterval(pollTick, POLL_MS);
 }
 
 /** 로그인·로그아웃 직후 — 캐시 무효화 후 즉시 재조회 */

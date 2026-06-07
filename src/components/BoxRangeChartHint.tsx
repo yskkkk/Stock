@@ -5,7 +5,7 @@ import { ko } from "../i18n/ko";
 
 const TF_ORDER = ["1h", "4h", "1d"] as const;
 
-function scanLabel(tf: string, status: string | undefined): string {
+function scanLabel(_tf: string, status: string | undefined): string {
   if (status === "found") return ko.app.boxRangeScanFound;
   if (status === "error") return ko.app.boxRangeScanError;
   return ko.app.boxRangeScanNone;

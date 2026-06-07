@@ -20,7 +20,6 @@ import { useDesktopDockLayout } from "../hooks/useDesktopDockLayout";
 import { useNestedVerticalScroll } from "../hooks/useNestedVerticalScroll";
 import { refreshLiveTradingStatusNow } from "../hooks/useLiveTradingStatusPoll";
 import { invalidateLiveTradingPrefetch } from "../lib/tabPrefetch";
-import { useLiveTradingStatusPoll } from "../hooks/useLiveTradingStatusPoll";
 import LiveTradeAuthPanel, {
   LIVE_TRADE_DOCK_RAIL_TAB_IDS,
   LIVE_TRADE_RIGHT_PANEL_HOST_ID,
@@ -354,7 +353,6 @@ export default function AppLiveTradeSideDock({
   const [authPopoverStyle, setAuthPopoverStyle] = useState<CSSProperties>({});
   const authAnchorRef = useRef<HTMLSpanElement>(null);
   const ctx = useLiveTradeCardSidePanelOptional();
-  const liveStatus = useLiveTradingStatusPoll();
   const closePanel = ctx?.closePanel;
   const allSideTabs =
     (ctx?.sideTabs?.length ?? 0) > 0

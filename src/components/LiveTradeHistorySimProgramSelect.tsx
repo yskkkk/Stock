@@ -1,7 +1,5 @@
-import type {
-  LiveTradeProgram,
-  LiveTradeProgramReturnSummary,
-} from "../api";
+import type { LiveTradeProgramReturnSummary } from "../api";
+import type { SimProgramLike } from "../lib/liveTradeSimPrograms";
 import { formatPercent } from "../lib/format";
 import { ko } from "../i18n/ko";
 
@@ -13,7 +11,7 @@ export default function LiveTradeHistorySimProgramSelect({
   onChange,
   className = "",
 }: {
-  programs: LiveTradeProgram[];
+  programs: SimProgramLike[];
   programReturns?: Record<string, LiveTradeProgramReturnSummary>;
   value: string;
   onChange: (programId: string) => void;

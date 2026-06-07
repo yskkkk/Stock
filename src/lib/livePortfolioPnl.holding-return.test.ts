@@ -21,6 +21,7 @@ const holding = (
   marketValue: 20_000,
   unrealizedPnl: 400,
   changePct: 2.18,
+  grossChangePct: null,
   currency: "KRW",
   openedAtMs: 1,
   lastAtMs: 1,
@@ -76,6 +77,9 @@ describe("holding return from cost basis", () => {
         amount: 20_000,
         feeAmount: 40,
         currency: "KRW",
+        simulated: false,
+        orderId: null,
+        note: null,
         atMs: 1,
       },
     ];
