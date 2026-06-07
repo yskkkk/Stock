@@ -27,12 +27,17 @@ function fmtDate(ms: number): string {
   }
 }
 
-export default function StockVaultTab() {
+export default function StockVaultTab({
+  onVaultChange,
+}: {
+  onVaultChange?: (symbols: string[]) => void;
+}) {
   const [items, setItems] = useState<StockVaultItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | StockVaultSource>("all");
   const [scanHint, setScanHint] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -43,6 +48,7 @@ export default function StockVaultTab() {
         fetchGoldenCrossStatus().catch(() => null),
       ]);
       setItems(vault.items ?? []);
+      onVaultChange?.((vault.items ?? []).map((it) => it.symbol));
       if (status?.state) {
         const kr = status.state.krLastScanDate;
         const us = status.state.usLastScanDate;
@@ -59,7 +65,7 @@ export default function StockVaultTab() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onVaultChange]);
 
   useEffect(() => {
     void reload();
@@ -70,14 +76,26 @@ export default function StockVaultTab() {
     return items.filter((it) => it.source === filter);
   }, [items, filter]);
 
-  const handleRemove = useCallback(async (symbol: string) => {
-    try {
-      await removeStockVaultItem(symbol);
-      setItems((prev) => prev.filter((it) => it.symbol !== symbol));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
-  }, []);
+  const handleRemove = useCallback(
+    async (symbol: string) => {
+      const sym = symbol.trim().toUpperCase();
+      setRemoving(sym);
+      setError(null);
+      try {
+        await removeStockVaultItem(symbol);
+        setItems((prev) => {
+          const next = prev.filter((it) => it.symbol !== sym);
+          onVaultChange?.(next.map((it) => it.symbol));
+          return next;
+        });
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setRemoving(null);
+      }
+    },
+    [onVaultChange],
+  );
 
   return (
     <div className="workspace stock-vault-tab">
@@ -167,10 +185,16 @@ export default function StockVaultTab() {
                 </div>
                 <button
                   type="button"
-                  className="btn btn--ghost btn--compact stock-vault-tab__remove"
+                  className="stock-vault-tab__remove"
+                  aria-label={`${item.name} ${ko.stockVault.removeAria}`}
+                  title={ko.stockVault.remove}
+                  disabled={removing === item.symbol}
                   onClick={() => void handleRemove(item.symbol)}
                 >
-                  {ko.stockVault.remove}
+                  <span className="stock-vault-tab__remove-icon" aria-hidden>
+                    ×
+                  </span>
+                  <span className="stock-vault-tab__remove-label">{ko.stockVault.remove}</span>
                 </button>
               </li>
             ))}

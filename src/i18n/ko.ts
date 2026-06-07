@@ -887,6 +887,8 @@ export const ko = {
     sourceGolden: "골든크로스",
     sourceManual: "수동",
     remove: "삭제",
+    removeAria: "보관함에서 삭제",
+    removeFromVault: "보관함에서 제거",
     lastScan: "마지막 스캔",
     add: "보관",
     added: "보관됨",

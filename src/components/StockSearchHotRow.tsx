@@ -76,8 +76,8 @@ export default function StockSearchHotRow({
               ? "stock-hot-item__vault-btn stock-hot-item__vault-btn--saved"
               : "stock-hot-item__vault-btn"
           }
-          title={vaultSaved ? ko.stockVault.added : ko.stockVault.addAria}
-          aria-label={vaultSaved ? ko.stockVault.added : ko.stockVault.addAria}
+          title={vaultSaved ? ko.stockVault.removeFromVault : ko.stockVault.addAria}
+          aria-label={vaultSaved ? ko.stockVault.removeFromVault : ko.stockVault.addAria}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();

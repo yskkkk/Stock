@@ -134,6 +134,38 @@
 
 .stock-vault-tab__remove {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.18rem;
+  padding: 0.3rem 0.52rem;
+  border: 1px solid color-mix(in srgb, var(--down) 38%, var(--card-border));
+  border-radius: var(--radius-sm, 8px);
+  background: color-mix(in srgb, var(--down) 10%, var(--card));
+  color: var(--down);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.stock-vault-tab__remove:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--down) 20%, var(--card));
+  border-color: color-mix(in srgb, var(--down) 55%, var(--card-border));
+}
+
+.stock-vault-tab__remove:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.stock-vault-tab__remove-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.stock-vault-tab__remove-label {
+  white-space: nowrap;
 }
 
 .stock-hot-item__vault-btn {

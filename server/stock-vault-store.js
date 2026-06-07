@@ -19,7 +19,7 @@ const STORE_FILE = "stock-vault.json";
  * }} StockVaultItem
  */
 
-/** @typedef {{ version: 1; items: StockVaultItem[] }} StockVaultStore */
+/** @typedef {{ version: 1; items: StockVaultItem[]; dismissed?: string[] }} StockVaultStore */
 
 /** @param {unknown} raw */
 function normalizeStore(raw) {
@@ -60,11 +60,20 @@ function normalizeStore(raw) {
     seen.add(symbol);
   }
   out.sort((a, b) => b.updatedAtMs - a.updatedAtMs);
-  return { version: 1, items: out };
+  const dismissed = Array.isArray(raw?.dismissed)
+    ? [
+        ...new Set(
+          raw.dismissed
+            .map((s) => String(s ?? "").trim().toUpperCase())
+            .filter(Boolean),
+        ),
+      ]
+    : [];
+  return { version: 1, items: out, dismissed };
 }
 
 function emptyStore() {
-  return /** @type {StockVaultStore} */ ({ version: 1, items: [] });
+  return /** @type {StockVaultStore} */ ({ version: 1, items: [], dismissed: [] });
 }
 
 function readStore() {
@@ -132,6 +141,9 @@ export function upsertStockVaultItemSync(input) {
       updatedAtMs: now,
     });
   }
+  if (source === "manual") {
+    store.dismissed = (store.dismissed ?? []).filter((s) => s !== symbol);
+  }
   writeStore(store);
   return store.items.find((it) => it.symbol === symbol) ?? null;
 }
@@ -145,7 +157,9 @@ export function removeStockVaultItemSync(symbol) {
   const store = readStore();
   const next = store.items.filter((it) => it.symbol !== sym);
   if (next.length === store.items.length) return false;
-  writeStore({ version: 1, items: next });
+  const dismissed = new Set(store.dismissed ?? []);
+  dismissed.add(sym);
+  writeStore({ version: 1, items: next, dismissed: [...dismissed] });
   return true;
 }
 
@@ -153,7 +167,12 @@ export function removeStockVaultItemSync(symbol) {
  * @param {Array<{ symbol: string; name: string; market: "kr"|"us"; crosses: string[]; scanDate: string }>} hits
  */
 export function mergeGoldenCrossHitsIntoVaultSync(hits) {
+  const dismissed = new Set(readStore().dismissed ?? []);
   for (const hit of hits) {
+    const sym = String(hit.symbol ?? "")
+      .trim()
+      .toUpperCase();
+    if (!sym || dismissed.has(sym)) continue;
     upsertStockVaultItemSync({
       symbol: hit.symbol,
       name: hit.name,

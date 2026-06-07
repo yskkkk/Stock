@@ -298,8 +298,8 @@ const StockSearchPickRow = memo(
             <button
               type="button"
               className="pick-action pick-action--vault"
-              aria-label={vaultSaved ? ko.stockVault.added : ko.stockVault.addAria}
-              title={vaultSaved ? ko.stockVault.added : ko.stockVault.addAria}
+              aria-label={vaultSaved ? ko.stockVault.removeFromVault : ko.stockVault.addAria}
+              title={vaultSaved ? ko.stockVault.removeFromVault : ko.stockVault.addAria}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();

@@ -10,6 +10,7 @@ import {
   fetchStock,
   fetchStockVault,
   addStockVaultItem,
+  removeStockVaultItem,
   fetchTelegramSent,
   refreshPicks,
   resetTelegramAlertHistory,
@@ -202,20 +203,34 @@ export default function App() {
   const [chartEngine, setChartEngine] = useState<StockChartEngine>("app");
   const [vaultSymbols, setVaultSymbols] = useState<Set<string>>(() => new Set());
 
+  const syncVaultSymbols = useCallback((symbols: string[]) => {
+    setVaultSymbols(new Set(symbols.map((s) => s.trim().toUpperCase())));
+  }, []);
+
   useEffect(() => {
     void fetchStockVault()
       .then((data) => {
-        setVaultSymbols(
-          new Set((data.items ?? []).map((it) => it.symbol.trim().toUpperCase())),
-        );
+        syncVaultSymbols((data.items ?? []).map((it) => it.symbol));
       })
       .catch(() => {});
-  }, []);
+  }, [syncVaultSymbols]);
 
-  const handleAddToVault = useCallback(async (pick: StockPick) => {
+  const handleToggleVault = useCallback(async (pick: StockPick) => {
     if (pick.market !== "kr" && pick.market !== "us") return;
     const sym = pick.symbol.trim().toUpperCase();
-    if (vaultSymbols.has(sym)) return;
+    if (vaultSymbols.has(sym)) {
+      try {
+        await removeStockVaultItem(pick.symbol);
+        setVaultSymbols((prev) => {
+          const next = new Set(prev);
+          next.delete(sym);
+          return next;
+        });
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
     try {
       const res = await addStockVaultItem({
         symbol: pick.symbol,
@@ -1509,7 +1524,7 @@ export default function App() {
       ) : appTab === "financials" ? (
         <FinancialsTab />
       ) : appTab === "stockVault" ? (
-        <StockVaultTab />
+        <StockVaultTab onVaultChange={syncVaultSymbols} />
       ) : appTab === "liveTrading" ? (
         <div className="live-trade-tab-root">
           <LiveTradingTab
@@ -1675,7 +1690,7 @@ export default function App() {
               onToggleUsQuoteKrw={toggleUsQuoteKrw}
               usdKrwRate={usdKrwRate}
               usdKrwValDate={usdKrwValDate}
-              onAddToVault={handleAddToVault}
+              onAddToVault={handleToggleVault}
               vaultSymbols={vaultSymbols}
             />
           )}
