@@ -183,7 +183,7 @@ const CATEGORY_ICON: Record<string, string> = {
   sentiment: "●",
 };
 
-function MacroCardBrandIcon({
+function MacroCardBrandBg({
   symbol,
   market,
   name,
@@ -199,19 +199,19 @@ function MacroCardBrandIcon({
   const initial = (name.trim() || codeShort).slice(0, 1);
 
   return (
-    <span className="macro-card__brand" aria-hidden>
+    <span className="macro-card__brand-bg" aria-hidden>
       {showImg ? (
         <img
           src={logo!}
           alt=""
-          width={18}
-          height={18}
+          width={64}
+          height={64}
           loading="lazy"
           decoding="async"
           onError={() => setImgFailed(true)}
         />
       ) : (
-        <span className="macro-card__brand-fallback">{initial}</span>
+        <span className="macro-card__brand-bg-fallback">{initial}</span>
       )}
     </span>
   );
@@ -309,12 +309,12 @@ function SectorEarningsCard({
       rel="noopener noreferrer"
       aria-label={`${row.name} · ${row.symbol} · ${formatMacroCountdown(msLeft)}`}
     >
+      <MacroCardBrandBg symbol={row.symbol} market={row.market} name={row.name} />
       <div className="macro-card__top">
         <span className="macro-card__code">{codeShort}</span>
         <span className={`macro-card__region macro-card__region--${row.market}`}>
           {row.market === "kr" ? ko.macro.regionKr : ko.macro.regionUs}
         </span>
-        <MacroCardBrandIcon symbol={row.symbol} market={row.market} name={row.name} />
       </div>
       <p className="macro-card__name" title={row.name}>
         {row.name}

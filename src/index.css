@@ -195,28 +195,39 @@
 .macro-card__region--us { color: #93c5fd; background: rgba(59, 130, 246, 0.15); }
 .macro-card__region--kr { color: #fca5a5; background: rgba(239, 68, 68, 0.12); }
 .macro-card__cat { margin-left: auto; font-size: 0.55rem; color: var(--muted); opacity: 0.7; }
-.macro-card__brand {
-  margin-left: auto;
-  flex: none;
-  width: 1.12rem;
-  height: 1.12rem;
-  border-radius: 0.28rem;
-  overflow: hidden;
-  background: color-mix(in srgb, var(--card-border) 28%, transparent);
+.macro-card__brand-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
+  padding: 0.2rem 0.35rem 0.2rem 0.5rem;
+  pointer-events: none;
+  opacity: 0.13;
 }
-.macro-card__brand img {
-  width: 100%;
-  height: 100%;
+.macro-card__brand-bg img {
+  width: auto;
+  height: min(4.2rem, 78%);
+  max-width: 88%;
   object-fit: contain;
+  object-position: center right;
+  filter: saturate(0.85);
 }
-.macro-card__brand-fallback {
-  font-size: 0.54rem;
+.macro-card__brand-bg-fallback {
+  font-size: 2.75rem;
   font-weight: 800;
-  color: var(--muted);
   line-height: 1;
+  color: var(--muted);
+  letter-spacing: -0.04em;
+  user-select: none;
+}
+.macro-card--earnings > :not(.macro-card__brand-bg) {
+  position: relative;
+  z-index: 1;
+}
+html[data-theme="light"] .macro-card__brand-bg {
+  opacity: 0.1;
 }
 .macro-card__name {
   margin: 0 0 0.12rem;
