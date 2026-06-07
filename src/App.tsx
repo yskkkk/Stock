@@ -164,8 +164,6 @@ export default function App() {
     appTab,
     committedTab,
     setAppTab,
-    previewMainTab,
-    clearMainTabPreview,
     mainTabClassName,
   } = useMainTabWithPreview("stockLookup");
   const prevAppTabRef = useRef<AppTab>("stockLookup");
@@ -1365,24 +1363,10 @@ export default function App() {
           </div>
 
           <div className="top-bar__right">
-            <nav
-              className="main-tabs"
-              aria-label={ko.app.mainNav}
-              onPointerLeave={(e) => {
-                const nav = e.currentTarget;
-                if (
-                  e.relatedTarget instanceof Node &&
-                  nav.contains(e.relatedTarget)
-                ) {
-                  return;
-                }
-                clearMainTabPreview();
-              }}
-            >
+            <nav className="main-tabs" aria-label={ko.app.mainNav}>
               <button
                 type="button"
                 className={mainTabClassName("stockLookup")}
-                onPointerEnter={() => previewMainTab("stockLookup")}
                 onClick={() => setAppTab("stockLookup")}
               >
                 {ko.app.tabStockLookup}
@@ -1390,7 +1374,6 @@ export default function App() {
               <button
                 type="button"
                 className={mainTabClassName("crypto")}
-                onPointerEnter={() => previewMainTab("crypto")}
                 onClick={() => setAppTab("crypto")}
               >
                 {ko.app.tabCrypto}
@@ -1398,7 +1381,6 @@ export default function App() {
               <button
                 type="button"
                 className={mainTabClassName("screener")}
-                onPointerEnter={() => previewMainTab("screener")}
                 onClick={() => setAppTab("screener")}
               >
                 {ko.app.tabScreener}
@@ -1406,7 +1388,6 @@ export default function App() {
               <button
                 type="button"
                 className={mainTabClassName("recommendations")}
-                onPointerEnter={() => previewMainTab("recommendations")}
                 onClick={() => setAppTab("recommendations")}
               >
                 {ko.app.tabRecommendations}
@@ -1415,7 +1396,6 @@ export default function App() {
                 <button
                   type="button"
                   className={mainTabClassName("tradeHistory")}
-                  onPointerEnter={() => previewMainTab("tradeHistory")}
                   onClick={() => setAppTab("tradeHistory")}
                 >
                   {ko.app.tabTradeHistory}
@@ -1424,7 +1404,6 @@ export default function App() {
               <button
                 type="button"
                 className={mainTabClassName("financials")}
-                onPointerEnter={() => previewMainTab("financials")}
                 onClick={() => setAppTab("financials")}
               >
                 {ko.app.tabFinancials}
@@ -1432,7 +1411,6 @@ export default function App() {
               <button
                 type="button"
                 className={mainTabClassName("boxRange")}
-                onPointerEnter={() => previewMainTab("boxRange")}
                 onClick={() => setAppTab("boxRange")}
               >
                 {ko.app.tabBoxRange}
