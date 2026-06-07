@@ -61,6 +61,65 @@ export function goldenCrossScanEnabled() {
   return String(process.env.STOCK_GOLDEN_CROSS_SCAN ?? "1").trim() !== "0";
 }
 
+let manualScanRunning = false;
+/** @type {{ atMs: number; results: Array<{ market: "kr"|"us"; scanDate: string; scanned: number; hitCount: number }> } | null} */
+let lastManualScanResult = null;
+
+export function isGoldenCrossManualScanRunning() {
+  return manualScanRunning;
+}
+
+export function getLastGoldenCrossManualScanResult() {
+  return lastManualScanResult;
+}
+
+/** @param {Date} [now] */
+async function runGoldenCrossManualScanInternal(now = new Date()) {
+  /** @type {Array<{ market: "kr"|"us"; scanDate: string; scanned: number; hitCount: number }>} */
+  const results = [];
+  for (const market of /** @type {const} */ (["kr", "us"])) {
+    const scanDate =
+      market === "kr"
+        ? getKstParts(now).dateKey
+        : localMinutesOfDay("us", now).dateKey;
+    const result = await runGoldenCrossMarketScan(market, scanDate);
+    if (result.hits.length) {
+      mergeGoldenCrossHitsIntoVaultSync(result.hits);
+    }
+    await notifyGoldenCrossScanTelegram(market, scanDate, result.hits);
+    results.push({
+      market,
+      scanDate,
+      scanned: result.scanned,
+      hitCount: result.hitCount,
+    });
+  }
+  lastManualScanResult = { atMs: Date.now(), results };
+  return lastManualScanResult;
+}
+
+/** @returns {{ started: boolean; reason?: string }} */
+export function triggerGoldenCrossManualScan() {
+  if (!goldenCrossScanEnabled()) {
+    return { started: false, reason: "disabled" };
+  }
+  if (manualScanRunning) {
+    return { started: false, reason: "busy" };
+  }
+  manualScanRunning = true;
+  void runGoldenCrossManualScanInternal()
+    .catch((e) => {
+      liveTradeLogWarn(
+        "[golden-cross:manual]",
+        e instanceof Error ? e.message : e,
+      );
+    })
+    .finally(() => {
+      manualScanRunning = false;
+    });
+  return { started: true };
+}
+
 /** @param {"kr"|"us"} market @param {Date} [now] */
 export function shouldRunGoldenCrossScan(market, now = new Date()) {
   if (!goldenCrossScanEnabled()) return false;
@@ -97,7 +156,7 @@ export function startGoldenCrossScanPoller() {
 
   let running = false;
   const tick = () => {
-    if (running) return;
+    if (running || manualScanRunning) return;
     running = true;
     (async () => {
       for (const market of /** @type {const} */ (["kr", "us"])) {

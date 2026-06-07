@@ -1838,8 +1838,25 @@ export function removeStockVaultItem(symbol: string) {
 export function fetchGoldenCrossStatus(signal?: AbortSignal) {
   return fetchJson<{
     enabled: boolean;
+    running: boolean;
+    lastManualScan: {
+      atMs: number;
+      results: Array<{
+        market: "kr" | "us";
+        scanDate: string;
+        scanned: number;
+        hitCount: number;
+      }>;
+    } | null;
     state: import("./types").GoldenCrossScanState;
   }>("/api/golden-cross/status", signal ? { signal } : undefined);
+}
+
+export function triggerGoldenCrossScan() {
+  return fetchJson<{ started: boolean; reason?: string; error?: string }>(
+    "/api/golden-cross/scan",
+    { method: "POST" },
+  );
 }
 
 export function fetchNews(

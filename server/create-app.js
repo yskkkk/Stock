@@ -2202,11 +2202,45 @@ export function createApp() {
     "/api/golden-cross/status",
     asyncRoute(async (_req, res) => {
       const { getGoldenCrossScanStateSync } = await import("./golden-cross-scan.js");
-      const { goldenCrossScanEnabled } = await import("./golden-cross-poller.js");
+      const {
+        goldenCrossScanEnabled,
+        getLastGoldenCrossManualScanResult,
+        isGoldenCrossManualScanRunning,
+      } = await import("./golden-cross-poller.js");
       res.json({
         enabled: goldenCrossScanEnabled(),
+        running: isGoldenCrossManualScanRunning(),
+        lastManualScan: getLastGoldenCrossManualScanResult(),
         state: getGoldenCrossScanStateSync(),
       });
+    }),
+  );
+
+  app.post(
+    "/api/golden-cross/scan",
+    asyncRoute(async (_req, res) => {
+      const { triggerGoldenCrossManualScan } = await import("./golden-cross-poller.js");
+      const result = triggerGoldenCrossManualScan();
+      if (!result.started) {
+        const status =
+          result.reason === "disabled"
+            ? 503
+            : result.reason === "busy"
+              ? 409
+              : 400;
+        res.status(status).json({
+          started: false,
+          reason: result.reason ?? "failed",
+          error:
+            result.reason === "disabled"
+              ? "골든크로스 탐색이 비활성화되어 있습니다."
+              : result.reason === "busy"
+                ? "이미 탐색이 진행 중입니다."
+                : "탐색을 시작할 수 없습니다.",
+        });
+        return;
+      }
+      res.json({ started: true });
     }),
   );
 

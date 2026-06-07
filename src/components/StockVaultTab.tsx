@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   fetchGoldenCrossStatus,
   fetchStockVault,
   removeStockVaultItem,
+  triggerGoldenCrossScan,
 } from "../api";
 import { ko } from "../i18n/ko";
 import type { GoldenCrossKind, StockVaultItem, StockVaultSource } from "../types";
@@ -12,6 +13,8 @@ const CROSS_LABEL: Record<GoldenCrossKind, string> = {
   "5>60": "5→60",
   "5>120": "5→120",
 };
+
+const SCAN_POLL_MS = 2500;
 
 function fmtDate(ms: number): string {
   try {
@@ -27,6 +30,18 @@ function fmtDate(ms: number): string {
   }
 }
 
+function scanHintFromState(state: {
+  krLastScanDate: string | null;
+  usLastScanDate: string | null;
+}) {
+  const kr = state.krLastScanDate;
+  const us = state.usLastScanDate;
+  if (!kr && !us) return null;
+  return [kr ? `국내 ${kr}` : null, us ? `미국 ${us}` : null]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 export default function StockVaultTab({
   onVaultChange,
 }: {
@@ -38,6 +53,18 @@ export default function StockVaultTab({
   const [filter, setFilter] = useState<"all" | StockVaultSource>("all");
   const [scanHint, setScanHint] = useState<string | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
+  const [scanEnabled, setScanEnabled] = useState(true);
+  const [scanRunning, setScanRunning] = useState(false);
+  const [scanConfirmOpen, setScanConfirmOpen] = useState(false);
+  const [scanNotice, setScanNotice] = useState<string | null>(null);
+  const scanBtnRef = useRef<HTMLButtonElement>(null);
+  const scanPopoverRef = useRef<HTMLDivElement>(null);
+
+  const reloadVault = useCallback(async () => {
+    const vault = await fetchStockVault();
+    setItems(vault.items ?? []);
+    onVaultChange?.((vault.items ?? []).map((it) => it.symbol));
+  }, [onVaultChange]);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -49,16 +76,10 @@ export default function StockVaultTab({
       ]);
       setItems(vault.items ?? []);
       onVaultChange?.((vault.items ?? []).map((it) => it.symbol));
-      if (status?.state) {
-        const kr = status.state.krLastScanDate;
-        const us = status.state.usLastScanDate;
-        if (kr || us) {
-          setScanHint(
-            [kr ? `국내 ${kr}` : null, us ? `미국 ${us}` : null]
-              .filter(Boolean)
-              .join(" · "),
-          );
-        }
+      if (status) {
+        setScanEnabled(status.enabled);
+        setScanRunning(Boolean(status.running));
+        setScanHint(status.state ? scanHintFromState(status.state) : null);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -70,6 +91,40 @@ export default function StockVaultTab({
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  useEffect(() => {
+    if (!scanRunning) return;
+    const id = window.setInterval(() => {
+      void (async () => {
+        try {
+          const status = await fetchGoldenCrossStatus();
+          setScanEnabled(status.enabled);
+          setScanRunning(Boolean(status.running));
+          if (status.state) setScanHint(scanHintFromState(status.state));
+          if (!status.running) {
+            await reloadVault();
+            setScanNotice(ko.stockVault.scanDone);
+          }
+        } catch {
+          /* ignore poll errors */
+        }
+      })();
+    }, SCAN_POLL_MS);
+    return () => window.clearInterval(id);
+  }, [scanRunning, reloadVault]);
+
+  useEffect(() => {
+    if (!scanConfirmOpen) return;
+    const onDocDown = (ev: MouseEvent) => {
+      const t = ev.target;
+      if (!(t instanceof Node)) return;
+      if (scanBtnRef.current?.contains(t)) return;
+      if (scanPopoverRef.current?.contains(t)) return;
+      setScanConfirmOpen(false);
+    };
+    document.addEventListener("mousedown", onDocDown);
+    return () => document.removeEventListener("mousedown", onDocDown);
+  }, [scanConfirmOpen]);
 
   const filtered = useMemo(() => {
     if (filter === "all") return items;
@@ -97,6 +152,29 @@ export default function StockVaultTab({
     [onVaultChange],
   );
 
+  const handleScanConfirm = useCallback(async () => {
+    setScanConfirmOpen(false);
+    setScanNotice(null);
+    setError(null);
+    try {
+      const res = await triggerGoldenCrossScan();
+      if (!res.started) {
+        setScanNotice(
+          res.reason === "busy"
+            ? ko.stockVault.scanBusy
+            : res.reason === "disabled"
+              ? ko.stockVault.scanDisabled
+              : res.error ?? ko.errors.request,
+        );
+        return;
+      }
+      setScanRunning(true);
+      setScanNotice(ko.stockVault.scanRunning);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, []);
+
   return (
     <div className="workspace stock-vault-tab">
       <section className="stock-vault-tab__panel card">
@@ -108,14 +186,67 @@ export default function StockVaultTab({
                 {ko.stockVault.lastScan}: {scanHint}
               </p>
             ) : null}
+            {scanNotice ? (
+              <p className="stock-vault-tab__scan-notice">{scanNotice}</p>
+            ) : null}
           </div>
-          <button
-            type="button"
-            className="btn btn--secondary btn--compact"
-            onClick={() => void reload()}
-          >
-            {ko.app.retry}
-          </button>
+          <div className="stock-vault-tab__head-actions">
+            <div className="stock-vault-tab__scan-wrap">
+              <button
+                ref={scanBtnRef}
+                type="button"
+                className="btn btn--secondary btn--compact"
+                disabled={!scanEnabled || scanRunning}
+                aria-expanded={scanConfirmOpen}
+                aria-haspopup="dialog"
+                onClick={() => setScanConfirmOpen((open) => !open)}
+              >
+                {scanRunning ? ko.stockVault.scanRunning : ko.stockVault.scanRun}
+              </button>
+              {scanConfirmOpen ? (
+                <div
+                  ref={scanPopoverRef}
+                  className="stock-vault-tab__scan-popover"
+                  role="dialog"
+                  aria-labelledby="stock-vault-scan-popover-title"
+                  onMouseDown={(ev) => ev.stopPropagation()}
+                >
+                  <p
+                    id="stock-vault-scan-popover-title"
+                    className="stock-vault-tab__scan-popover-lead"
+                  >
+                    {ko.stockVault.scanConfirmLead}
+                  </p>
+                  <p className="stock-vault-tab__scan-popover-body">
+                    {ko.stockVault.scanConfirmBody}
+                  </p>
+                  <div className="stock-vault-tab__scan-popover-actions">
+                    <button
+                      type="button"
+                      className="stock-vault-tab__scan-popover-btn stock-vault-tab__scan-popover-btn--primary"
+                      onClick={() => void handleScanConfirm()}
+                    >
+                      {ko.stockVault.scanConfirmOk}
+                    </button>
+                    <button
+                      type="button"
+                      className="stock-vault-tab__scan-popover-btn"
+                      onClick={() => setScanConfirmOpen(false)}
+                    >
+                      {ko.stockVault.scanConfirmCancel}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              className="btn btn--secondary btn--compact"
+              onClick={() => void reload()}
+            >
+              {ko.app.retry}
+            </button>
+          </div>
         </header>
 
         <div
