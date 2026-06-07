@@ -396,7 +396,7 @@ export default function StockVaultTab({
                   }
                   onClick={() => setIndustryFilter("all")}
                 >
-                  {ko.stockVault.filterAll}
+                  <span className="market-tab__label">{ko.stockVault.filterAll}</span>
                   <span className="market-tab__count">{baseFiltered.length}</span>
                 </button>
                 {industryOptions.map(({ name, count }) => (
@@ -414,7 +414,7 @@ export default function StockVaultTab({
                     }
                     onClick={() => setIndustryFilter(name)}
                   >
-                    {name}
+                    <span className="market-tab__label">{name}</span>
                     <span className="market-tab__count">{count}</span>
                   </button>
                 ))}

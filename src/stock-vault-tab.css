@@ -348,23 +348,63 @@
   white-space: nowrap;
 }
 
+.stock-vault-tab__filters--industry {
+  align-items: stretch;
+  width: 100%;
+}
+
 .stock-vault-tab__filters--industry .market-tabs {
-  flex-wrap: wrap;
-  align-items: center;
-  row-gap: 0.28rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7.1rem, 1fr));
+  gap: 0.12rem 0.38rem;
+  width: 100%;
   max-width: 100%;
 }
 
 .stock-vault-tab__filters--industry .market-tab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.22rem;
+  width: 100%;
+  min-width: 0;
+  min-height: 1.34rem;
   max-width: none;
+  padding: 0.16rem 0.08rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.15;
+  overflow: hidden;
+}
+
+.stock-vault-tab__filters--industry .market-tab__label {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stock-vault-tab__filters--industry .market-tab__count {
+  flex: 0 0 auto;
+  min-width: 1rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  line-height: 1;
+  font-family: var(--font-mono);
+  text-align: right;
 }
 
 .stock-vault-tab__filters--industry .market-tab--empty:not(.active) {
-  opacity: 0.52;
+  color: color-mix(in srgb, var(--muted) 68%, transparent);
 }
 
 .stock-vault-tab__filters--industry .market-tab--empty:not(.active) .market-tab__count {
-  opacity: 0.85;
+  color: color-mix(in srgb, var(--muted) 78%, transparent);
+}
+
+.stock-vault-tab__filters--industry .market-tab.active {
+  font-weight: 700;
 }
 
 .stock-vault-tab__sector {
