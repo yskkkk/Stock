@@ -220,7 +220,12 @@ function installDistSpaIfPresent(app) {
     const pathname = raw.split("?")[0].split("#")[0] || "/";
     const p = pathname.startsWith("/") ? pathname : `/${pathname}`;
     if (p.startsWith("/api")) {
-      return next();
+      res.status(404).json({
+        error: "요청한 API를 찾을 수 없습니다.",
+        code: "API_NOT_FOUND",
+        path: p,
+      });
+      return;
     }
     res.sendFile(path.resolve(DIST_INDEX_HTML), (err) => {
       if (err) next(err);
@@ -2354,6 +2359,14 @@ export function createApp() {
       }
     }),
   );
+
+  app.use("/api", (req, res) => {
+    res.status(404).json({
+      error: "요청한 API를 찾을 수 없습니다.",
+      code: "API_NOT_FOUND",
+      path: req.originalUrl ?? req.url,
+    });
+  });
 
   installDistSpaIfPresent(app);
 

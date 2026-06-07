@@ -30,52 +30,115 @@ export interface StockData extends ChartResponse {
   quote: QuoteResponse;
 }
 
+const RETRYABLE_API_CODES = new Set(["API_NOT_FOUND", "API_UNHANDLED"]);
+
+function sleep(ms: number) {
+  return new Promise((r) => window.setTimeout(r, ms));
+}
+
+function isHtmlResponseBody(text: string): boolean {
+  const head = text.trimStart().slice(0, 32).toLowerCase();
+  return head.startsWith("<!doctype") || head.startsWith("<html");
+}
+
+function isRetryableApiFailure(
+  res: Response,
+  data: { code?: string },
+  parseErr: "html" | "parse" | null,
+): boolean {
+  if (parseErr === "html") return true;
+  if (!res.ok && data.code && RETRYABLE_API_CODES.has(data.code)) return true;
+  return res.status === 503 || res.status === 502 || res.status === 504;
+}
+
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   const reqInit: RequestInit = {
     credentials: "include",
     ...init,
   };
   const resolved = url.startsWith("/") ? withApiBase(url) : url;
-  let res: Response;
-  try {
-    res = await fetch(resolved, reqInit);
-  } catch (err) {
-    if (err instanceof TypeError) {
-      throw new Error(ko.errors.network);
+  const isApiPath = (() => {
+    if (url.startsWith("/api")) return true;
+    try {
+      const base =
+        typeof window !== "undefined" ? window.location.origin : "http://localhost";
+      return new URL(resolved, base).pathname.startsWith("/api");
+    } catch {
+      return resolved.includes("/api");
     }
-    throw err;
-  }
-  const text = await res.text();
-  let data: { error?: string; message?: string; code?: string } = {};
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    const head = text.trimStart().slice(0, 32).toLowerCase();
-    if (head.startsWith("<!doctype") || head.startsWith("<html")) {
-      throw new Error(ko.errors.parseHtml);
-    }
-    throw new Error(ko.errors.parse);
-  }
-  if (!res.ok) {
-    if (
-      res.status === 403 &&
-      data.code === "ACCESS_DENIED" &&
-      typeof window !== "undefined"
-    ) {
-      if (!(window as unknown as { __stockAccessDeniedNav?: boolean }).__stockAccessDeniedNav) {
-        (window as unknown as { __stockAccessDeniedNav?: boolean }).__stockAccessDeniedNav = true;
-        try {
-          clearStoredAccessAdminToken();
-        } catch {
-          /* ignore */
+  })();
+  const maxAttempts = isApiPath ? 3 : 1;
+  let lastErr: unknown;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    let res: Response;
+    try {
+      res = await fetch(resolved, reqInit);
+    } catch (err) {
+      if (err instanceof TypeError) {
+        lastErr = new Error(ko.errors.network);
+        if (isApiPath && attempt < maxAttempts - 1) {
+          await sleep(450 * (attempt + 1));
+          continue;
         }
-        clearStockOpsInstructionDraft();
-        redirectToAccessGate();
+        throw lastErr;
       }
+      throw err;
     }
-    throw new Error(data.error ?? data.message ?? ko.errors.request);
+
+    const text = await res.text();
+    let data: { error?: string; message?: string; code?: string } = {};
+    let parseErr: "html" | "parse" | null = null;
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      if (isHtmlResponseBody(text)) parseErr = "html";
+      else parseErr = "parse";
+    }
+
+    if (parseErr) {
+      lastErr = new Error(
+        parseErr === "html" ? ko.errors.parseHtml : ko.errors.parse,
+      );
+      if (isApiPath && attempt < maxAttempts - 1) {
+        await sleep(450 * (attempt + 1));
+        continue;
+      }
+      throw lastErr;
+    }
+
+    if (
+      isApiPath &&
+      attempt < maxAttempts - 1 &&
+      isRetryableApiFailure(res, data, null)
+    ) {
+      await sleep(450 * (attempt + 1));
+      continue;
+    }
+
+    if (!res.ok) {
+      if (
+        res.status === 403 &&
+        data.code === "ACCESS_DENIED" &&
+        typeof window !== "undefined"
+      ) {
+        if (!(window as unknown as { __stockAccessDeniedNav?: boolean }).__stockAccessDeniedNav) {
+          (window as unknown as { __stockAccessDeniedNav?: boolean }).__stockAccessDeniedNav = true;
+          try {
+            clearStoredAccessAdminToken();
+          } catch {
+            /* ignore */
+          }
+          clearStockOpsInstructionDraft();
+          redirectToAccessGate();
+        }
+      }
+      throw new Error(data.error ?? data.message ?? ko.errors.request);
+    }
+    return data as T;
   }
-  return data as T;
+
+  throw lastErr instanceof Error ? lastErr : new Error(ko.errors.request);
 }
 
 const ACCESS_ADMIN_TOKEN_KEY = "stock_access_admin_token";

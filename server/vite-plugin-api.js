@@ -18,6 +18,7 @@ import { clearViteRestartMarker } from "./vite-restart-marker.js";
 import { installViteMobileApkMiddleware } from "./mobile-apk-download.js";
 import { installViteMobileIosMiddleware } from "./mobile-ios-download.js";
 import { installServerOfflineHtmlMiddleware, writeServerOfflineHtmlForBuild } from "./vite-server-offline-html.js";
+import { installServerSourceAutoReload } from "./vite-express-hot-reload.js";
 
 function mergeStockProcessEnv(mode) {
   if (!process.env.NODE_ENV) {
@@ -97,7 +98,15 @@ function attachStockApiMiddlewares(server) {
         }
         return;
       }
-      next();
+      if (res.headersSent || res.writableEnded) return;
+      res.statusCode = 503;
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.end(
+        JSON.stringify({
+          error: "API 서버가 준비 중입니다. 잠시 후 다시 시도해 주세요.",
+          code: "API_UNHANDLED",
+        }),
+      );
     });
   });
 }
@@ -138,6 +147,7 @@ export function stockApiPlugin() {
       installServerOfflineHtmlMiddleware(server);
       installViteAccessTraceMiddleware(server);
       attachStockApiMiddlewares(server);
+      installServerSourceAutoReload(server);
       attachAutoGitSyncWhenListening(server);
       migrateLegacyServerLogsSync();
       startStockDevSidecarsOnce("dev 서버 기동");
@@ -155,6 +165,7 @@ export function stockApiPlugin() {
       installServerOfflineHtmlMiddleware(server);
       installViteAccessTraceMiddleware(server);
       attachStockApiMiddlewares(server);
+      installServerSourceAutoReload(server);
       migrateLegacyServerLogsSync();
       startStockDevSidecarsOnce("preview 서버 기동");
     },
