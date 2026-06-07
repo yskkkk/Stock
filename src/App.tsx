@@ -208,18 +208,6 @@ export default function App() {
     setVaultSymbols(new Set(symbols.map((s) => s.trim().toUpperCase())));
   }, []);
 
-  useEffect(() => {
-    void loadStockVault()
-      .then((data) => {
-        syncVaultSymbols(
-          (data.vault.items ?? [])
-            .filter((it) => it.source === "manual")
-            .map((it) => it.symbol),
-        );
-      })
-      .catch(() => {});
-  }, [syncVaultSymbols]);
-
   const handleToggleVault = useCallback(async (pick: StockPick) => {
     if (pick.market !== "kr" && pick.market !== "us") return;
     const sym = pick.symbol.trim().toUpperCase();
@@ -481,7 +469,16 @@ export default function App() {
   useEffect(() => {
     if (!configReady) return;
     startBackgroundTabPrefetch();
-  }, [configReady]);
+    void loadStockVault()
+      .then((data) => {
+        syncVaultSymbols(
+          (data.vault.items ?? [])
+            .filter((it) => it.source === "manual")
+            .map((it) => it.symbol),
+        );
+      })
+      .catch(() => {});
+  }, [configReady, syncVaultSymbols]);
 
   useEffect(() => {
     if (

@@ -21,6 +21,7 @@ import {
   loadStockVault,
   peekStockVaultPrefetch,
   refreshStockVaultTab,
+  subscribeStockVaultPrefetch,
   updateStockVaultPrefetchVault,
 } from "../lib/tabPrefetch";
 import {
@@ -249,6 +250,15 @@ export default function StockVaultTab({
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  useEffect(() => {
+    return subscribeStockVaultPrefetch((bundle) => {
+      applyVaultResponse(bundle.vault);
+      applyScanStatus(bundle.scanStatus);
+      setLoading(false);
+      setError(null);
+    });
+  }, [applyVaultResponse, applyScanStatus]);
 
   useEffect(() => {
     if (loading || scanRunning || items.length === 0) return;

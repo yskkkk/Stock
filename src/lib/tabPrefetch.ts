@@ -326,8 +326,29 @@ export type StockVaultPrefetch = {
   scanStatus: StockVaultScanStatus | null;
 };
 
+const vaultListeners = new Set<(data: StockVaultPrefetch) => void>();
+
 export function peekStockVaultPrefetch(): StockVaultPrefetch | null {
   return getCached<StockVaultPrefetch>("stockVault");
+}
+
+export function subscribeStockVaultPrefetch(
+  listener: (data: StockVaultPrefetch) => void,
+): () => void {
+  const cached = peekStockVaultPrefetch();
+  if (cached) listener(cached);
+  vaultListeners.add(listener);
+  return () => vaultListeners.delete(listener);
+}
+
+function notifyStockVaultPrefetch(data: StockVaultPrefetch) {
+  for (const fn of vaultListeners) {
+    try {
+      fn(data);
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 export function invalidateStockVaultPrefetch(): void {
@@ -344,7 +365,10 @@ async function fetchStockVaultBundle(): Promise<StockVaultPrefetch> {
 }
 
 export function loadStockVault(): Promise<StockVaultPrefetch> {
-  return dedupe("stockVault", fetchStockVaultBundle);
+  return dedupe("stockVault", fetchStockVaultBundle).then((data) => {
+    notifyStockVaultPrefetch(data);
+    return data;
+  });
 }
 
 export async function refreshStockVaultTab(): Promise<StockVaultPrefetch> {
@@ -354,10 +378,12 @@ export async function refreshStockVaultTab(): Promise<StockVaultPrefetch> {
 
 export function updateStockVaultPrefetchVault(vault: StockVaultResponse): void {
   const existing = peekStockVaultPrefetch();
-  setCached("stockVault", {
+  const bundle: StockVaultPrefetch = {
     vault,
     scanStatus: existing?.scanStatus ?? null,
-  });
+  };
+  setCached("stockVault", bundle);
+  notifyStockVaultPrefetch(bundle);
 }
 
 export async function prefetchStockVaultTab(): Promise<StockVaultPrefetch> {
@@ -371,6 +397,9 @@ export function startBackgroundTabPrefetch(): void {
   if (typeof window === "undefined" || prefetchStarted) return;
   prefetchStarted = true;
 
+  /* 종목보관 — 탭 진입 전 즉시 선로드(idle 대기 없음) */
+  void prefetchStockVaultTab();
+
   scheduleIdle(() => {
     void prefetchMacroBundle();
     void prefetchRecommendationsTracker();
@@ -379,6 +408,5 @@ export function startBackgroundTabPrefetch(): void {
     prefetchLiveTradingPortfolio();
     void prefetchPicksDailyHistory();
     void prefetchStockSearchHotTabs();
-    void prefetchStockVaultTab();
   });
 }
