@@ -104,8 +104,8 @@ test("clearGoldenCrossVaultItemsSync keeps favorited auto items", () => {
   assert.ok(!symbols.includes(plain));
 });
 
-test("buildGoldenCrossScanEmailContent includes hits", () => {
-  const { subject, text, goldenCrossHits, maAlignHits } = buildGoldenCrossScanEmailContent({
+test("buildGoldenCrossScanEmailContent includes hits with quote columns", () => {
+  const { subject, text, html, goldenCrossHits, maAlignHits } = buildGoldenCrossScanEmailContent({
     goldenCross: [
       {
         market: "kr",
@@ -115,17 +115,32 @@ test("buildGoldenCrossScanEmailContent includes hits", () => {
           {
             symbol: "005930.KS",
             name: "삼성전자",
+            displayName: "삼성전자",
             crosses: ["5>20"],
+            price: 72000,
+            changePercent: 1.2,
+            currency: "KRW",
+            industry: "반도체",
           },
         ],
       },
     ],
     maAlign: [
       {
-        market: "kr",
+        market: "us",
         scanDate: "2026-06-08",
-        scanned: 300,
-        hits: [{ symbol: "000660.KS", name: "SK하이닉스" }],
+        scanned: 500,
+        hits: [
+          {
+            symbol: "INTC",
+            name: "Intel Corporation",
+            displayName: "인텔",
+            price: 21.5,
+            changePercent: -0.8,
+            currency: "USD",
+            industry: "반도체",
+          },
+        ],
       },
     ],
   });
@@ -133,5 +148,8 @@ test("buildGoldenCrossScanEmailContent includes hits", () => {
   assert.equal(goldenCrossHits, 1);
   assert.equal(maAlignHits, 1);
   assert.match(text, /삼성전자/);
-  assert.match(text, /SK하이닉스/);
+  assert.match(text, /72,000원/);
+  assert.match(text, /인텔/);
+  assert.match(html, /업종/);
+  assert.match(html, /인텔/);
 });

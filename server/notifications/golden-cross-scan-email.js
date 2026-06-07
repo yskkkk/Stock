@@ -1,5 +1,10 @@
 import { sendTransactionalEmail, isEmailSendingConfigured } from "../email-sender.js";
 import { DEFAULT_AUDIT_REPORT_TO } from "./box-range-v2-audit-report.js";
+import {
+  enrichScanEmailMarkets,
+  formatScanEmailHitLine,
+  scanEmailHitCells,
+} from "./golden-cross-scan-email-enrich.js";
 import { listUsersSync, getUserNotificationEmailSync } from "../users-store.js";
 
 export { DEFAULT_AUDIT_REPORT_TO };
@@ -27,6 +32,28 @@ const CROSS_LABEL = {
  *   hits: Array<{ symbol: string; name: string }>;
  * }} MaAlignEmailMarket
  */
+
+const EMAIL_TABLE_HEAD =
+  `<tr style="background:#f1f5f9"><th>종목</th><th>코드</th><th>현재가</th><th>등락률</th><th>업종</th></tr>`;
+
+/** @param {import("./golden-cross-scan-email-enrich.js").ScanEmailHit} h @param {"kr"|"us"} market */
+function renderHitRowHtml(h, market) {
+  const cells = scanEmailHitCells(h, market);
+  const chgNum = Number(h.changePercent);
+  const chgStyle =
+    Number.isFinite(chgNum) && chgNum >= 0
+      ? "color:#15803d;font-weight:600"
+      : Number.isFinite(chgNum)
+        ? "color:#b91c1c;font-weight:600"
+        : "";
+  return `<tr>
+<td>${escapeHtml(cells.name)}</td>
+<td>${escapeHtml(cells.code)}</td>
+<td style="text-align:right;font-family:monospace">${escapeHtml(cells.price)}</td>
+<td style="text-align:right;font-family:monospace;${chgStyle}">${escapeHtml(cells.change)}</td>
+<td>${escapeHtml(cells.industry)}</td>
+</tr>`;
+}
 
 /** @returns {string[]} */
 export function listGoldenCrossEmailRecipientsSync() {
@@ -77,14 +104,11 @@ function buildGoldenCrossSection(markets) {
       textParts.push(`  ${label} (${group.length})`);
       htmlParts.push(`<h4>${label} (${group.length})</h4>`);
       htmlParts.push(
-        `<table cellpadding="6" cellspacing="0" border="1" style="border-collapse:collapse;font-size:0.9em;margin-bottom:16px;width:100%;"><tr style="background:#f1f5f9"><th>종목</th><th>코드</th></tr>`,
+        `<table cellpadding="6" cellspacing="0" border="1" style="border-collapse:collapse;font-size:0.85em;margin-bottom:16px;width:100%;">${EMAIL_TABLE_HEAD}`,
       );
       for (const h of group) {
-        const code = h.symbol.replace(/\.(KS|KQ)$/i, "");
-        textParts.push(`  · ${h.name} (${code})`);
-        htmlParts.push(
-          `<tr><td>${escapeHtml(h.name)}</td><td>${escapeHtml(code)}</td></tr>`,
-        );
+        textParts.push(`  ${formatScanEmailHitLine(h, block.market)}`);
+        htmlParts.push(renderHitRowHtml(h, block.market));
       }
       htmlParts.push("</table>");
     }
@@ -114,14 +138,11 @@ function buildMaAlignSection(markets) {
       continue;
     }
     htmlParts.push(
-      `<table cellpadding="6" cellspacing="0" border="1" style="border-collapse:collapse;font-size:0.9em;margin-bottom:16px;width:100%;"><tr style="background:#f1f5f9"><th>종목</th><th>코드</th></tr>`,
+      `<table cellpadding="6" cellspacing="0" border="1" style="border-collapse:collapse;font-size:0.85em;margin-bottom:16px;width:100%;">${EMAIL_TABLE_HEAD}`,
     );
     for (const h of block.hits) {
-      const code = h.symbol.replace(/\.(KS|KQ)$/i, "");
-      textParts.push(`· ${h.name} (${code})`);
-      htmlParts.push(
-        `<tr><td>${escapeHtml(h.name)}</td><td>${escapeHtml(code)}</td></tr>`,
-      );
+      textParts.push(formatScanEmailHitLine(h, block.market));
+      htmlParts.push(renderHitRowHtml(h, block.market));
     }
     htmlParts.push("</table>");
     textParts.push("");
@@ -213,8 +234,16 @@ export async function sendGoldenCrossScanReportEmail(opts) {
     throw err;
   }
 
+  const [goldenCrossEnriched, maAlignEnriched] = await Promise.all([
+    enrichScanEmailMarkets(goldenCross),
+    enrichScanEmailMarkets(maAlign),
+  ]);
+
   const { subject, text, html, goldenCrossHits, maAlignHits, totalHits } =
-    buildGoldenCrossScanEmailContent({ goldenCross, maAlign });
+    buildGoldenCrossScanEmailContent({
+      goldenCross: goldenCrossEnriched,
+      maAlign: maAlignEnriched,
+    });
   if (dryRun) {
     return {
       dryRun: true,
