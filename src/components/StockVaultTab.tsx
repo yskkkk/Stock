@@ -118,25 +118,31 @@ export default function StockVaultTab({
           </button>
         </header>
 
-        <div className="stock-vault-tab__filters" role="tablist" aria-label={ko.stockVault.filterAria}>
-          {(
-            [
-              ["all", ko.stockVault.filterAll],
-              ["golden_cross", ko.stockVault.filterGolden],
-              ["manual", ko.stockVault.filterManual],
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={filter === id}
-              className={filter === id ? "stock-vault-tab__filter active" : "stock-vault-tab__filter"}
-              onClick={() => setFilter(id)}
-            >
-              {label}
-            </button>
-          ))}
+        <div
+          className="stock-vault-tab__filters panel-head__filters"
+          role="tablist"
+          aria-label={ko.stockVault.filterAria}
+        >
+          <div className="market-tabs">
+            {(
+              [
+                ["all", ko.stockVault.filterAll],
+                ["golden_cross", ko.stockVault.filterGolden],
+                ["manual", ko.stockVault.filterManual],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={filter === id}
+                className={filter === id ? "market-tab active" : "market-tab"}
+                onClick={() => setFilter(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {loading ? (

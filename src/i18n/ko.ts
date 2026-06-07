@@ -883,7 +883,7 @@ export const ko = {
     filterAria: "보관 필터",
     filterAll: "전체",
     filterGolden: "골든크로스",
-    filterManual: "수동 추가",
+    filterManual: "수동",
     sourceGolden: "골든크로스",
     sourceManual: "수동",
     remove: "삭제",

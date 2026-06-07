@@ -51,27 +51,58 @@
 }
 
 .stock-vault-tab__filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  margin-bottom: 0.65rem;
+  justify-content: flex-start;
+  margin-bottom: 0.55rem;
 }
 
-.stock-vault-tab__filter {
-  padding: 0.28rem 0.55rem;
-  border: 1px solid var(--card-border);
-  border-radius: var(--radius-sm, 8px);
-  background: color-mix(in srgb, var(--card) 80%, var(--surface));
+.stock-vault-tab__filters .market-tabs {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.55rem;
+  max-width: 100%;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.stock-vault-tab__filters .market-tab {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.22rem 0.15rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+}
+
+.stock-vault-tab__filters .market-tab:hover {
   color: var(--text-dim);
-  font: inherit;
-  font-size: 0.74rem;
-  cursor: pointer;
+  background: transparent;
 }
 
-.stock-vault-tab__filter.active {
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--card-border));
+.stock-vault-tab__filters .market-tab.active {
   color: var(--accent);
-  background: color-mix(in srgb, var(--accent-dim) 35%, var(--card));
+  font-weight: 700;
+  background: transparent;
+  box-shadow: none;
+}
+
+.stock-vault-tab__head .btn--compact {
+  flex-shrink: 0;
+  padding: 0.28rem 0.62rem;
+  font-size: 0.72rem;
+  font-weight: 600;
 }
 
 .stock-vault-tab__list {
