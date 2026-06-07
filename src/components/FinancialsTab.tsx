@@ -530,6 +530,20 @@ export default function FinancialsTab() {
                 ) : null}
               </header>
 
+              <section className="financials-tab__snapshot-wrap" aria-label={ko.financials.metricsAria}>
+                <h4 className="financials-tab__snapshot-title">{ko.financials.metricsAria}</h4>
+                <table className="financials-tab__snapshot">
+                  <tbody>
+                    {metrics.map((m) => (
+                      <tr key={m.key}>
+                        <th scope="row">{m.label}</th>
+                        <td>{m.value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+
               <section className="financials-tab__periods" aria-label={ko.financials.periodsTitle}>
                 <h4 className="financials-tab__periods-title">{ko.financials.periodsTitle}</h4>
                 {periodsLoading && periods.length === 0 ? (
@@ -670,20 +684,6 @@ export default function FinancialsTab() {
                   ) : null}
                 </section>
               ) : null}
-
-              <section className="financials-tab__snapshot-wrap" aria-label={ko.financials.metricsAria}>
-                <h4 className="financials-tab__snapshot-title">{ko.financials.metricsAria}</h4>
-                <table className="financials-tab__snapshot">
-                  <tbody>
-                    {metrics.map((m) => (
-                      <tr key={m.key}>
-                        <th scope="row">{m.label}</th>
-                        <td>{m.value}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </section>
             </div>
           ) : null}
         </section>

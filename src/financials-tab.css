@@ -221,9 +221,7 @@
 
 /* 밸류에이션 스냅샷 — 카드 없이 표 */
 .financials-tab__snapshot-wrap {
-  margin-top: 0.85rem;
-  padding-top: 0.65rem;
-  border-top: 1px solid var(--card-border);
+  margin-top: 0.55rem;
 }
 
 .financials-tab__snapshot-title {
@@ -263,7 +261,9 @@
 }
 
 .financials-tab__periods {
-  margin-top: 0.25rem;
+  margin-top: 0.85rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--card-border);
 }
 
 .financials-tab__periods-title {
