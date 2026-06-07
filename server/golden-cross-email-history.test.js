@@ -12,10 +12,12 @@ import {
   upsertStockVaultItemSync,
 } from "./stock-vault-store.js";
 import { buildGoldenCrossScanEmailContent } from "./notifications/golden-cross-scan-email.js";
+import { setUserVaultFavoriteSync } from "./user-stock-vault-store.js";
 
 beforeEach(() => {
   const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   process.env.STOCK_VAULT_STORE_TEST_FILE = `stock-vault-test-${id}.json`;
+  process.env.USER_STOCK_VAULT_STORE_TEST_FILE = `user-stock-vault-test-${id}.json`;
   process.env.GOLDEN_CROSS_HISTORY_TEST_FILE = `golden-cross-history-test-${id}.json`;
 });
 
@@ -73,6 +75,33 @@ test("golden cross history groups runs by runId", () => {
   assert.equal(runs[0].runId, runId);
   assert.equal(runs[0].markets.length, 2);
   assert.ok(listGoldenCrossHistoryDatesSync().includes("2026-06-08"));
+});
+
+test("clearGoldenCrossVaultItemsSync keeps favorited auto items", () => {
+  const userId = `user-${Date.now()}`;
+  const fav = `GCFAV${Date.now()}.KS`;
+  const plain = `GCPLN${Date.now()}.KS`;
+  upsertStockVaultItemSync({
+    symbol: fav,
+    name: "즐겨찾기골든",
+    market: "kr",
+    source: "golden_cross",
+    crosses: ["5>20"],
+    scanDate: "2026-06-08",
+  });
+  upsertStockVaultItemSync({
+    symbol: plain,
+    name: "일반골든",
+    market: "kr",
+    source: "golden_cross",
+    crosses: ["5>60"],
+    scanDate: "2026-06-08",
+  });
+  setUserVaultFavoriteSync(userId, fav, true);
+  assert.equal(clearGoldenCrossVaultItemsSync(), 1);
+  const symbols = listStockVaultItemsSync().map((it) => it.symbol);
+  assert.ok(symbols.includes(fav));
+  assert.ok(!symbols.includes(plain));
 });
 
 test("buildGoldenCrossScanEmailContent includes hits", () => {

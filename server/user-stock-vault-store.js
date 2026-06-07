@@ -203,6 +203,20 @@ export function removeUserVaultSymbolSync(userId, symbol) {
  * @param {string} symbol
  * @param {boolean} favorited
  */
+/** @returns {Set<string>} */
+export function listAllFavoritedSymbolsSync() {
+  const out = new Set();
+  for (const row of readStore().users) {
+    for (const sym of row.favorites ?? []) {
+      const s = String(sym ?? "")
+        .trim()
+        .toUpperCase();
+      if (s) out.add(s);
+    }
+  }
+  return out;
+}
+
 export function setUserVaultFavoriteSync(userId, symbol, favorited) {
   const uid = String(userId ?? "").trim();
   const sym = String(symbol ?? "")

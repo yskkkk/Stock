@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { resolveDisplayName } from "./names-ko.js";
+import { listAllFavoritedSymbolsSync } from "./user-stock-vault-store.js";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
 
 function vaultStoreFile() {
@@ -202,17 +203,20 @@ export function removeStockVaultItemSync(symbol) {
 }
 
 /**
- * 골든크로스 자동 탐색 종목만 제거(수동 추가·dismissed 유지).
- * @param {{ market?: "kr"|"us" }} [opts]
+ * 골든크로스 자동 탐색 종목만 제거(수동 추가·dismissed·즐겨찾기 유지).
+ * @param {{ market?: "kr"|"us"; preserveFavorites?: boolean }} [opts]
  * @returns {number} 제거된 종목 수
  */
 export function clearGoldenCrossVaultItemsSync(opts = {}) {
   const marketFilter = opts.market === "kr" || opts.market === "us" ? opts.market : null;
+  const preserveFavorites = opts.preserveFavorites !== false;
+  const favorited = preserveFavorites ? listAllFavoritedSymbolsSync() : new Set();
   const store = readStore();
   const before = store.items.length;
   store.items = store.items.filter((it) => {
     if (it.source !== "golden_cross") return true;
     if (marketFilter && it.market !== marketFilter) return true;
+    if (favorited.has(it.symbol)) return true;
     return false;
   });
   if (store.items.length !== before) {
@@ -223,11 +227,14 @@ export function clearGoldenCrossVaultItemsSync(opts = {}) {
 
 export function clearMaAlignVaultItemsSync(opts = {}) {
   const marketFilter = opts.market === "kr" || opts.market === "us" ? opts.market : null;
+  const preserveFavorites = opts.preserveFavorites !== false;
+  const favorited = preserveFavorites ? listAllFavoritedSymbolsSync() : new Set();
   const store = readStore();
   const before = store.items.length;
   store.items = store.items.filter((it) => {
     if (it.source !== "ma_align") return true;
     if (marketFilter && it.market !== marketFilter) return true;
+    if (favorited.has(it.symbol)) return true;
     return false;
   });
   if (store.items.length !== before) {
