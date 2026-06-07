@@ -254,74 +254,74 @@ export default function StockVaultTab({
     <div className="workspace stock-vault-tab">
       <section className="stock-vault-tab__panel card">
         <header className="stock-vault-tab__head">
-          <div className="stock-vault-tab__head-text">
+          <div className="stock-vault-tab__head-row">
             <h2 className="stock-vault-tab__title">{ko.stockVault.title}</h2>
-            {scanHint ? (
-              <p className="stock-vault-tab__scan-hint">
-                {ko.stockVault.lastScan}: {scanHint}
-              </p>
-            ) : null}
-            {scanNotice ? (
-              <p className="stock-vault-tab__scan-notice">{scanNotice}</p>
-            ) : null}
-          </div>
-          <div className="stock-vault-tab__head-actions">
-            <div className="stock-vault-tab__scan-wrap">
+            <div className="stock-vault-tab__head-actions">
+              <div className="stock-vault-tab__scan-wrap">
+                <button
+                  ref={scanBtnRef}
+                  type="button"
+                  className="stock-vault-tab__head-btn"
+                  disabled={!scanEnabled || scanRunning}
+                  aria-expanded={scanConfirmOpen}
+                  aria-haspopup="dialog"
+                  onClick={() => setScanConfirmOpen((open) => !open)}
+                >
+                  {scanRunning ? ko.stockVault.scanRunning : ko.stockVault.scanRun}
+                </button>
+                {scanConfirmOpen ? (
+                  <div
+                    ref={scanPopoverRef}
+                    className="stock-vault-tab__scan-popover"
+                    role="dialog"
+                    aria-labelledby="stock-vault-scan-popover-title"
+                    onMouseDown={(ev) => ev.stopPropagation()}
+                  >
+                    <p
+                      id="stock-vault-scan-popover-title"
+                      className="stock-vault-tab__scan-popover-lead"
+                    >
+                      {ko.stockVault.scanConfirmLead}
+                    </p>
+                    <p className="stock-vault-tab__scan-popover-body">
+                      {ko.stockVault.scanConfirmBody}
+                    </p>
+                    <div className="stock-vault-tab__scan-popover-actions">
+                      <button
+                        type="button"
+                        className="stock-vault-tab__scan-popover-btn stock-vault-tab__scan-popover-btn--primary"
+                        onClick={() => void handleScanConfirm()}
+                      >
+                        {ko.stockVault.scanConfirmOk}
+                      </button>
+                      <button
+                        type="button"
+                        className="stock-vault-tab__scan-popover-btn"
+                        onClick={() => setScanConfirmOpen(false)}
+                      >
+                        {ko.stockVault.scanConfirmCancel}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
               <button
-                ref={scanBtnRef}
                 type="button"
                 className="stock-vault-tab__head-btn"
-                disabled={!scanEnabled || scanRunning}
-                aria-expanded={scanConfirmOpen}
-                aria-haspopup="dialog"
-                onClick={() => setScanConfirmOpen((open) => !open)}
+                onClick={() => void reload()}
               >
-                {scanRunning ? ko.stockVault.scanRunning : ko.stockVault.scanRun}
+                {ko.app.retry}
               </button>
-              {scanConfirmOpen ? (
-                <div
-                  ref={scanPopoverRef}
-                  className="stock-vault-tab__scan-popover"
-                  role="dialog"
-                  aria-labelledby="stock-vault-scan-popover-title"
-                  onMouseDown={(ev) => ev.stopPropagation()}
-                >
-                  <p
-                    id="stock-vault-scan-popover-title"
-                    className="stock-vault-tab__scan-popover-lead"
-                  >
-                    {ko.stockVault.scanConfirmLead}
-                  </p>
-                  <p className="stock-vault-tab__scan-popover-body">
-                    {ko.stockVault.scanConfirmBody}
-                  </p>
-                  <div className="stock-vault-tab__scan-popover-actions">
-                    <button
-                      type="button"
-                      className="stock-vault-tab__scan-popover-btn stock-vault-tab__scan-popover-btn--primary"
-                      onClick={() => void handleScanConfirm()}
-                    >
-                      {ko.stockVault.scanConfirmOk}
-                    </button>
-                    <button
-                      type="button"
-                      className="stock-vault-tab__scan-popover-btn"
-                      onClick={() => setScanConfirmOpen(false)}
-                    >
-                      {ko.stockVault.scanConfirmCancel}
-                    </button>
-                  </div>
-                </div>
-              ) : null}
             </div>
-            <button
-              type="button"
-              className="stock-vault-tab__head-btn"
-              onClick={() => void reload()}
-            >
-              {ko.app.retry}
-            </button>
           </div>
+          {scanHint ? (
+            <p className="stock-vault-tab__scan-hint">
+              {ko.stockVault.lastScan}: {scanHint}
+            </p>
+          ) : null}
+          {scanNotice ? (
+            <p className="stock-vault-tab__scan-notice">{scanNotice}</p>
+          ) : null}
         </header>
 
         <div className="stock-vault-tab__filters-wrap">
