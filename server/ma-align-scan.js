@@ -94,8 +94,10 @@ async function scanOneSymbol(item, market, scanDate) {
 /**
  * @param {"kr"|"us"} market
  * @param {string} scanDate
+ * @param {{ persistState?: boolean }} [opts]
  */
-export async function runMaAlignMarketScan(market, scanDate) {
+export async function runMaAlignMarketScan(market, scanDate, opts = {}) {
+  const persistState = opts.persistState !== false;
   const uni = await loadBoxRangeCatalogUniverse();
   const list =
     market === "kr"
@@ -128,18 +130,20 @@ export async function runMaAlignMarketScan(market, scanDate) {
     }
   }
 
-  const state = readState();
-  if (market === "kr") state.krLastScanDate = scanDate;
-  else state.usLastScanDate = scanDate;
-  state.lastRuns.unshift({
-    market,
-    scanDate,
-    scanned: list.length,
-    hits: hits.length,
-    atMs: Date.now(),
-  });
-  state.lastRuns = state.lastRuns.slice(0, 14);
-  writeState(state);
+  if (persistState) {
+    const state = readState();
+    if (market === "kr") state.krLastScanDate = scanDate;
+    else state.usLastScanDate = scanDate;
+    state.lastRuns.unshift({
+      market,
+      scanDate,
+      scanned: list.length,
+      hits: hits.length,
+      atMs: Date.now(),
+    });
+    state.lastRuns = state.lastRuns.slice(0, 14);
+    writeState(state);
+  }
 
   const out = {
     market,

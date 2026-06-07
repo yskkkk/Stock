@@ -13,10 +13,21 @@ import { appendMaAlignHistoryEntrySync } from "./ma-align-history-store.js";
 import { notifyGoldenCrossScanTelegram } from "./golden-cross-telegram.js";
 import { sendGoldenCrossScanReportEmail } from "./notifications/golden-cross-scan-email.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
+import { isStockTradableBySchedule } from "./market-hours.js";
 
 const POLL_MS = (() => {
   const n = Number(process.env.STOCK_GOLDEN_CROSS_POLL_MS ?? 300_000);
   return Number.isFinite(n) && n >= 60_000 ? Math.min(n, 900_000) : 300_000;
+})();
+
+const INTRADAY_RESCAN_MS = (() => {
+  const n = Number(process.env.STOCK_VAULT_INTRADAY_RESCAN_MS ?? 900_000);
+  return Number.isFinite(n) && n >= 300_000 ? Math.min(n, 3_600_000) : 900_000;
+})();
+
+const INTRADAY_TICK_MS = (() => {
+  const n = Number(process.env.STOCK_VAULT_INTRADAY_TICK_MS ?? 60_000);
+  return Number.isFinite(n) && n >= 15_000 ? Math.min(n, 300_000) : 60_000;
 })();
 
 /** KR 장후 시간외 종료 18:00 KST */
@@ -71,12 +82,26 @@ export function goldenCrossScanEnabled() {
   return String(process.env.STOCK_GOLDEN_CROSS_SCAN ?? "1").trim() !== "0";
 }
 
+export function stockVaultIntradayRescanEnabled() {
+  return (
+    goldenCrossScanEnabled() &&
+    String(process.env.STOCK_VAULT_INTRADAY_RESCAN ?? "1").trim() !== "0"
+  );
+}
+
 let manualScanRunning = false;
+let vaultScanRunning = false;
+/** @type {Record<"kr"|"us", number>} */
+const lastIntradayRescanAtMs = { kr: 0, us: 0 };
 /** @type {{ atMs: number; goldenCross: Array<{ market: "kr"|"us"; scanDate: string; scanned: number; hitCount: number }>; maAlign: Array<{ market: "kr"|"us"; scanDate: string; scanned: number; hitCount: number }> } | null} */
 let lastManualScanResult = null;
 
 export function isGoldenCrossManualScanRunning() {
   return manualScanRunning;
+}
+
+export function isVaultMarketScanRunning() {
+  return vaultScanRunning || manualScanRunning;
 }
 
 export function getLastGoldenCrossManualScanResult() {
@@ -105,15 +130,27 @@ function emptyMaAlignMarketResult(market, scanDate) {
  * @param {"kr"|"us"} market
  * @param {string} scanDate
  * @param {string} runId
- * @param {"manual"|"scheduled"} trigger
+ * @param {"manual"|"scheduled"|"intraday"} trigger
+ * @param {{ notifyGoldenCrossTelegram?: boolean; persistScanState?: boolean; appendHistory?: boolean }} [opts]
  */
-export async function runVaultMarketScans(market, scanDate, runId, trigger) {
+export async function runVaultMarketScans(
+  market,
+  scanDate,
+  runId,
+  trigger,
+  opts = {},
+) {
+  const notifyGoldenCrossTelegram = opts.notifyGoldenCrossTelegram !== false;
+  const persistScanState = opts.persistScanState !== false;
+  const appendHistory = opts.appendHistory !== false;
+  const scanOpts = { persistState: persistScanState };
+
   clearGoldenCrossVaultItemsSync({ market });
   clearMaAlignVaultItemsSync({ market });
 
   const [gcSettled, maSettled] = await Promise.allSettled([
-    runGoldenCrossMarketScan(market, scanDate),
-    runMaAlignMarketScan(market, scanDate),
+    runGoldenCrossMarketScan(market, scanDate, scanOpts),
+    runMaAlignMarketScan(market, scanDate, scanOpts),
   ]);
 
   /** @type {Awaited<ReturnType<typeof runGoldenCrossMarketScan>>} */
@@ -123,22 +160,26 @@ export async function runVaultMarketScans(market, scanDate, runId, trigger) {
     if (goldenCross.hits.length) {
       mergeGoldenCrossHitsIntoVaultSync(goldenCross.hits);
     }
-    appendGoldenCrossHistoryEntrySync({
-      runId,
-      trigger,
-      market,
-      scanDate,
-      scanned: goldenCross.scanned,
-      hits: goldenCross.hits,
-    });
-    try {
-      await notifyGoldenCrossScanTelegram(market, scanDate, goldenCross.hits);
-    } catch (e) {
-      liveTradeLogWarn(
-        "[stock-vault:scan:golden-cross:telegram]",
+    if (appendHistory) {
+      appendGoldenCrossHistoryEntrySync({
+        runId,
+        trigger: trigger === "intraday" ? "scheduled" : trigger,
         market,
-        e instanceof Error ? e.message : e,
-      );
+        scanDate,
+        scanned: goldenCross.scanned,
+        hits: goldenCross.hits,
+      });
+    }
+    if (notifyGoldenCrossTelegram) {
+      try {
+        await notifyGoldenCrossScanTelegram(market, scanDate, goldenCross.hits);
+      } catch (e) {
+        liveTradeLogWarn(
+          "[stock-vault:scan:golden-cross:telegram]",
+          market,
+          e instanceof Error ? e.message : e,
+        );
+      }
     }
   } else {
     liveTradeLogWarn(
@@ -157,14 +198,16 @@ export async function runVaultMarketScans(market, scanDate, runId, trigger) {
     if (maAlign.hits.length) {
       mergeMaAlignHitsIntoVaultSync(maAlign.hits);
     }
-    appendMaAlignHistoryEntrySync({
-      runId,
-      trigger,
-      market,
-      scanDate,
-      scanned: maAlign.scanned,
-      hits: maAlign.hits,
-    });
+    if (appendHistory) {
+      appendMaAlignHistoryEntrySync({
+        runId,
+        trigger: trigger === "intraday" ? "scheduled" : trigger,
+        market,
+        scanDate,
+        scanned: maAlign.scanned,
+        hits: maAlign.hits,
+      });
+    }
   } else {
     liveTradeLogWarn(
       "[stock-vault:scan:ma-align]",
@@ -195,6 +238,60 @@ export async function runVaultMarketScans(market, scanDate, runId, trigger) {
   }
 
   return { goldenCross, maAlign };
+}
+
+/**
+ * @param {"kr"|"us"} market
+ * @param {number} [lastAtMs]
+ * @param {Date} [now]
+ */
+export function shouldRunVaultIntradayRescan(
+  market,
+  lastAtMs = lastIntradayRescanAtMs[market],
+  now = new Date(),
+) {
+  if (!stockVaultIntradayRescanEnabled()) return false;
+  if (!isStockTradableBySchedule(market, now)) return false;
+  if (Date.now() - lastAtMs < INTRADAY_RESCAN_MS) return false;
+  return true;
+}
+
+/** @param {"kr"|"us"} market @param {Date} [now] */
+export async function runVaultIntradayRescanIfDue(market, now = new Date()) {
+  if (!shouldRunVaultIntradayRescan(market, lastIntradayRescanAtMs[market], now)) {
+    return null;
+  }
+  if (vaultScanRunning || manualScanRunning) return null;
+
+  const scanDate =
+    market === "kr"
+      ? getKstParts(now).dateKey
+      : localMinutesOfDay("us", now).dateKey;
+  const runId = randomUUID();
+  vaultScanRunning = true;
+  try {
+    const result = await runVaultMarketScans(
+      market,
+      scanDate,
+      runId,
+      "intraday",
+      {
+        notifyGoldenCrossTelegram: false,
+        persistScanState: false,
+        appendHistory: false,
+      },
+    );
+    lastIntradayRescanAtMs[market] = Date.now();
+    liveTradeLogInfo("[stock-vault:intraday] rescan done", {
+      market,
+      scanDate,
+      goldenCrossHits: result.goldenCross.hitCount,
+      maAlignHits: result.maAlign.hitCount,
+    });
+    return result;
+  } finally {
+    vaultScanRunning = false;
+  }
 }
 
 /** @param {Date} [now] */
@@ -292,6 +389,7 @@ export function triggerGoldenCrossManualScan() {
     return { started: false, reason: "busy" };
   }
   manualScanRunning = true;
+  vaultScanRunning = true;
   void runGoldenCrossManualScanInternal()
     .catch((e) => {
       liveTradeLogWarn(
@@ -301,6 +399,7 @@ export function triggerGoldenCrossManualScan() {
     })
     .finally(() => {
       manualScanRunning = false;
+      vaultScanRunning = false;
     });
   return { started: true };
 }
@@ -329,40 +428,44 @@ export async function runGoldenCrossScanIfDue(market, now = new Date()) {
       : localMinutesOfDay("us", now).dateKey;
 
   const runId = randomUUID();
-  const { goldenCross, maAlign } = await runVaultMarketScans(
-    market,
-    scanDate,
-    runId,
-    "scheduled",
-  );
-
+  vaultScanRunning = true;
   try {
-    await sendGoldenCrossScanReportEmail({
-      goldenCross: [
-        {
-          market,
-          scanDate,
-          scanned: goldenCross.scanned,
-          hits: goldenCross.hits,
-        },
-      ],
-      maAlign: [
-        {
-          market,
-          scanDate,
-          scanned: maAlign.scanned,
-          hits: maAlign.hits,
-        },
-      ],
-    });
-  } catch (e) {
-    liveTradeLogWarn(
-      "[stock-vault:scan:email]",
+    const { goldenCross, maAlign } = await runVaultMarketScans(
       market,
-      e instanceof Error ? e.message : e,
+      scanDate,
+      runId,
+      "scheduled",
     );
+    try {
+      await sendGoldenCrossScanReportEmail({
+        goldenCross: [
+          {
+            market,
+            scanDate,
+            scanned: goldenCross.scanned,
+            hits: goldenCross.hits,
+          },
+        ],
+        maAlign: [
+          {
+            market,
+            scanDate,
+            scanned: maAlign.scanned,
+            hits: maAlign.hits,
+          },
+        ],
+      });
+    } catch (e) {
+      liveTradeLogWarn(
+        "[stock-vault:scan:email]",
+        market,
+        e instanceof Error ? e.message : e,
+      );
+    }
+    return { goldenCross, maAlign };
+  } finally {
+    vaultScanRunning = false;
   }
-  return { goldenCross, maAlign };
 }
 
 export function startGoldenCrossScanPoller() {
@@ -408,6 +511,37 @@ export function startGoldenCrossScanPoller() {
       });
   };
 
+  let intradayRunning = false;
+  const intradayTick = () => {
+    if (!stockVaultIntradayRescanEnabled()) return;
+    if (intradayRunning || vaultScanRunning || manualScanRunning) return;
+    intradayRunning = true;
+    (async () => {
+      for (const market of /** @type {const} */ (["kr", "us"])) {
+        try {
+          await runVaultIntradayRescanIfDue(market);
+        } catch (e) {
+          liveTradeLogWarn(
+            "[stock-vault:intraday]",
+            market,
+            e instanceof Error ? e.message : e,
+          );
+        }
+      }
+    })()
+      .catch((e) => {
+        liveTradeLogWarn(
+          "[stock-vault:intraday]",
+          e instanceof Error ? e.message : e,
+        );
+      })
+      .finally(() => {
+        intradayRunning = false;
+      });
+  };
+
   tick();
   setInterval(tick, POLL_MS);
+  intradayTick();
+  setInterval(intradayTick, INTRADAY_TICK_MS);
 }

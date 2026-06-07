@@ -46,3 +46,57 @@ export function detectDailyMaAlignment(candles, barIndex) {
   }
   return v5 > v20 && v20 > v60 && v60 > v120;
 }
+
+/**
+ * @param {Array<{ close?: number }>} candles
+ * @param {number} [barIndex]
+ * @returns {{ ma5: number; ma20: number; ma60: number; ma120: number } | null}
+ */
+export function getDailyMaValues(candles, barIndex) {
+  if (!Array.isArray(candles) || candles.length < MA_ALIGN_MIN_CANDLES) {
+    return null;
+  }
+  const closes = candles
+    .map((c) => Number(c?.close))
+    .filter((v) => Number.isFinite(v));
+  if (closes.length < MA_ALIGN_MIN_CANDLES) return null;
+
+  const i =
+    barIndex == null
+      ? closes.length - 1
+      : Math.min(Math.max(0, barIndex), closes.length - 1);
+
+  const ma5 = sma(closes, 5)[i];
+  const ma20 = sma(closes, 20)[i];
+  const ma60 = sma(closes, 60)[i];
+  const ma120 = sma(closes, 120)[i];
+  if (
+    ma5 == null ||
+    ma20 == null ||
+    ma60 == null ||
+    ma120 == null ||
+    !Number.isFinite(ma5) ||
+    !Number.isFinite(ma20) ||
+    !Number.isFinite(ma60) ||
+    !Number.isFinite(ma120)
+  ) {
+    return null;
+  }
+  return { ma5, ma20, ma60, ma120 };
+}
+
+/**
+ * @param {number} price
+ * @param {number} ma120
+ * @param {number} [thresholdPct] — 허용 편차(%). 기본 2
+ */
+export function isPriceNearMa120(price, ma120, thresholdPct = 2) {
+  const p = Number(price);
+  const m = Number(ma120);
+  const t = Number(thresholdPct);
+  if (!Number.isFinite(p) || p <= 0 || !Number.isFinite(m) || m <= 0) {
+    return false;
+  }
+  if (!Number.isFinite(t) || t <= 0) return false;
+  return Math.abs(p - m) / m <= t / 100;
+}
