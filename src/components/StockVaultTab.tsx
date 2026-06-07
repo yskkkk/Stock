@@ -3,6 +3,7 @@ import {
   fetchGoldenCrossStatus,
   fetchStockVault,
   removeStockVaultItem,
+  setStockVaultFavorite,
   triggerGoldenCrossScan,
 } from "../api";
 import { ko } from "../i18n/ko";
@@ -13,6 +14,7 @@ import {
   yahooStockSymbolToTradingView,
 } from "../lib/tradingviewSymbols";
 import type { GoldenCrossKind, StockVaultItem, StockVaultSource } from "../types";
+import { VaultBookmarkIcon } from "./StockVaultMarkButton";
 
 const CROSS_LABEL: Record<GoldenCrossKind, string> = {
   "5>20": "5→20",
@@ -49,6 +51,14 @@ function scanHintFromState(state: {
     .join(" · ");
 }
 
+type VaultFilter = "all" | StockVaultSource | "favorite";
+
+function manualVaultSymbols(items: StockVaultItem[]) {
+  return items
+    .filter((it) => it.source === "manual")
+    .map((it) => it.symbol.trim().toUpperCase());
+}
+
 export default function StockVaultTab({
   onVaultChange,
 }: {
@@ -65,11 +75,13 @@ export default function StockVaultTab({
   const [industryGridRows, setIndustryGridRows] = useState(20);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"all" | StockVaultSource>("all");
+  const [filter, setFilter] = useState<VaultFilter>("all");
   const [marketFilter, setMarketFilter] = useState<"all" | "kr" | "us">("all");
   const [industryFilter, setIndustryFilter] = useState<string>("all");
+  const [authenticated, setAuthenticated] = useState(false);
   const [scanHint, setScanHint] = useState<string | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
+  const [favoriting, setFavoriting] = useState<string | null>(null);
   const [scanEnabled, setScanEnabled] = useState(true);
   const [scanRunning, setScanRunning] = useState(false);
   const [scanConfirmOpen, setScanConfirmOpen] = useState(false);
@@ -77,23 +89,31 @@ export default function StockVaultTab({
   const scanBtnRef = useRef<HTMLButtonElement>(null);
   const scanPopoverRef = useRef<HTMLDivElement>(null);
 
+  const applyVaultResponse = useCallback(
+    (vault: Awaited<ReturnType<typeof fetchStockVault>>) => {
+      setItems(vault.items ?? []);
+      setQuotes(vault.quotes ?? {});
+      setMeta(vault.meta ?? {});
+      setAuthenticated(Boolean(vault.authenticated));
+      setIndustryTabs((prev) =>
+        vault.industryTabs?.length ? vault.industryTabs : prev,
+      );
+      setIndustryGridRows((prev) =>
+        typeof vault.industryGridRows === "number" && vault.industryGridRows > 0
+          ? vault.industryGridRows
+          : vault.industryTabs?.length
+            ? Math.max(16, Math.ceil(vault.industryTabs.length / 8))
+            : prev,
+      );
+      onVaultChange?.(manualVaultSymbols(vault.items ?? []));
+    },
+    [onVaultChange],
+  );
+
   const reloadVault = useCallback(async () => {
     const vault = await fetchStockVault();
-    setItems(vault.items ?? []);
-    setQuotes(vault.quotes ?? {});
-    setMeta(vault.meta ?? {});
-    setIndustryTabs((prev) =>
-      vault.industryTabs?.length ? vault.industryTabs : prev,
-    );
-    setIndustryGridRows((prev) =>
-      typeof vault.industryGridRows === "number" && vault.industryGridRows > 0
-        ? vault.industryGridRows
-        : vault.industryTabs?.length
-          ? Math.max(16, Math.ceil(vault.industryTabs.length / 8))
-          : prev,
-    );
-    onVaultChange?.((vault.items ?? []).map((it) => it.symbol));
-  }, [onVaultChange]);
+    applyVaultResponse(vault);
+  }, [applyVaultResponse]);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -103,20 +123,7 @@ export default function StockVaultTab({
         fetchStockVault(),
         fetchGoldenCrossStatus().catch(() => null),
       ]);
-      setItems(vault.items ?? []);
-      setQuotes(vault.quotes ?? {});
-      setMeta(vault.meta ?? {});
-    setIndustryTabs((prev) =>
-      vault.industryTabs?.length ? vault.industryTabs : prev,
-    );
-    setIndustryGridRows((prev) =>
-      typeof vault.industryGridRows === "number" && vault.industryGridRows > 0
-        ? vault.industryGridRows
-        : vault.industryTabs?.length
-          ? Math.max(16, Math.ceil(vault.industryTabs.length / 8))
-          : prev,
-    );
-      onVaultChange?.((vault.items ?? []).map((it) => it.symbol));
+      applyVaultResponse(vault);
       if (status) {
         setScanEnabled(status.enabled);
         setScanRunning(Boolean(status.running));
@@ -127,7 +134,7 @@ export default function StockVaultTab({
     } finally {
       setLoading(false);
     }
-  }, [onVaultChange]);
+  }, [applyVaultResponse]);
 
   useEffect(() => {
     void reload();
@@ -186,10 +193,18 @@ export default function StockVaultTab({
   const baseFiltered = useMemo(() => {
     return items.filter((it) => {
       if (marketFilter !== "all" && it.market !== marketFilter) return false;
-      if (filter !== "all" && it.source !== filter) return false;
+      if (filter === "favorite" && !it.favorited) return false;
+      if (filter !== "all" && filter !== "favorite" && it.source !== filter) {
+        return false;
+      }
       return true;
     });
   }, [items, filter, marketFilter]);
+
+  const favoriteCount = useMemo(
+    () => items.filter((it) => it.favorited).length,
+    [items],
+  );
 
   const industryOptions = useMemo(() => {
     const counts = new Map<string, number>();
@@ -233,6 +248,10 @@ export default function StockVaultTab({
 
   const handleRemove = useCallback(
     async (symbol: string) => {
+      if (!authenticated) {
+        setError(ko.stockVault.loginRequired);
+        return;
+      }
       const sym = symbol.trim().toUpperCase();
       setRemoving(sym);
       setError(null);
@@ -240,7 +259,7 @@ export default function StockVaultTab({
         await removeStockVaultItem(symbol);
         setItems((prev) => {
           const next = prev.filter((it) => it.symbol !== sym);
-          onVaultChange?.(next.map((it) => it.symbol));
+          onVaultChange?.(manualVaultSymbols(next));
           return next;
         });
       } catch (e) {
@@ -249,7 +268,34 @@ export default function StockVaultTab({
         setRemoving(null);
       }
     },
-    [onVaultChange],
+    [authenticated, onVaultChange],
+  );
+
+  const handleToggleFavorite = useCallback(
+    async (symbol: string, favorited: boolean) => {
+      if (!authenticated) {
+        setError(ko.stockVault.loginRequired);
+        return;
+      }
+      const sym = symbol.trim().toUpperCase();
+      setFavoriting(sym);
+      setError(null);
+      try {
+        await setStockVaultFavorite(symbol, !favorited);
+        setItems((prev) =>
+          prev.map((it) =>
+            it.symbol.trim().toUpperCase() === sym
+              ? { ...it, favorited: !favorited }
+              : it,
+          ),
+        );
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setFavoriting(null);
+      }
+    },
+    [authenticated],
   );
 
   const handleScanConfirm = useCallback(async () => {
@@ -347,6 +393,9 @@ export default function StockVaultTab({
           {scanNotice ? (
             <p className="stock-vault-tab__scan-notice">{scanNotice}</p>
           ) : null}
+          {!authenticated ? (
+            <p className="stock-vault-tab__desc">{ko.stockVault.loginHint}</p>
+          ) : null}
         </header>
 
         <div className="stock-vault-tab__filters-wrap">
@@ -387,10 +436,11 @@ export default function StockVaultTab({
               {(
                 [
                   ["all", ko.stockVault.filterAll],
+                  ["favorite", ko.stockVault.filterFavorite, favoriteCount],
                   ["golden_cross", ko.stockVault.filterGolden],
                   ["manual", ko.stockVault.filterManual],
                 ] as const
-              ).map(([id, label]) => (
+              ).map(([id, label, count]) => (
                 <button
                   key={id}
                   type="button"
@@ -400,6 +450,9 @@ export default function StockVaultTab({
                   onClick={() => setFilter(id)}
                 >
                   {label}
+                  {typeof count === "number" ? (
+                    <span className="market-tab__count">{count}</span>
+                  ) : null}
                 </button>
               ))}
             </div>
@@ -561,21 +614,48 @@ export default function StockVaultTab({
                     )}
                   </div>
                 </a>
-                <button
-                  type="button"
-                  className="stock-vault-tab__remove"
-                  aria-label={`${display.label} ${ko.stockVault.removeAria}`}
-                  title={ko.stockVault.remove}
-                  disabled={removing === item.symbol}
-                  onClick={() => void handleRemove(item.symbol)}
-                >
-                  <span className="stock-vault-tab__remove-icon" aria-hidden>
-                    ×
-                  </span>
-                  <span className="stock-vault-tab__remove-label">
-                    {ko.stockVault.remove}
-                  </span>
-                </button>
+                <div className="stock-vault-tab__row-actions">
+                  <button
+                    type="button"
+                    className={
+                      item.favorited
+                        ? "stock-vault-tab__favorite stock-vault-tab__favorite--on"
+                        : "stock-vault-tab__favorite"
+                    }
+                    aria-label={
+                      item.favorited
+                        ? `${display.label} ${ko.stockVault.favoriteRemoveAria}`
+                        : `${display.label} ${ko.stockVault.favoriteAddAria}`
+                    }
+                    title={
+                      item.favorited
+                        ? ko.stockVault.favoriteRemove
+                        : ko.stockVault.favoriteAdd
+                    }
+                    aria-pressed={Boolean(item.favorited)}
+                    disabled={favoriting === item.symbol}
+                    onClick={() =>
+                      void handleToggleFavorite(item.symbol, Boolean(item.favorited))
+                    }
+                  >
+                    <VaultBookmarkIcon filled={Boolean(item.favorited)} />
+                  </button>
+                  <button
+                    type="button"
+                    className="stock-vault-tab__remove"
+                    aria-label={`${display.label} ${ko.stockVault.removeAria}`}
+                    title={ko.stockVault.remove}
+                    disabled={removing === item.symbol || !authenticated}
+                    onClick={() => void handleRemove(item.symbol)}
+                  >
+                    <span className="stock-vault-tab__remove-icon" aria-hidden>
+                      ×
+                    </span>
+                    <span className="stock-vault-tab__remove-label">
+                      {ko.stockVault.remove}
+                    </span>
+                  </button>
+                </div>
               </li>
               );
             })}

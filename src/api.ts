@@ -1835,6 +1835,17 @@ export function removeStockVaultItem(symbol: string) {
   );
 }
 
+export function setStockVaultFavorite(symbol: string, favorited: boolean) {
+  return fetchJson<{ ok: boolean; favorited: boolean }>(
+    `/api/stock-vault/${encodeURIComponent(symbol)}/favorite`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ favorited }),
+    },
+  );
+}
+
 export function fetchGoldenCrossStatus(signal?: AbortSignal) {
   return fetchJson<{
     enabled: boolean;

@@ -364,8 +364,9 @@
   align-items: center;
   justify-content: flex-start;
   gap: 0.16rem;
-  min-height: 1.34rem;
-  padding: 0.16rem 0.14rem 0.16rem 0;
+  width: auto;
+  min-height: 0;
+  padding: 0.08rem 0;
   font-size: 0.68rem;
   font-weight: 600;
   line-height: 1.15;
@@ -517,13 +518,55 @@
   color: var(--down);
 }
 
+.stock-vault-tab__row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.28rem;
+  margin-top: auto;
+}
+
+.stock-vault-tab__favorite {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.72rem;
+  height: 1.72rem;
+  padding: 0;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm, 6px);
+  background: color-mix(in srgb, var(--card) 92%, var(--surface));
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.stock-vault-tab__favorite:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent-border);
+}
+
+.stock-vault-tab__favorite--on {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--card-border));
+  background: color-mix(in srgb, var(--accent) 12%, var(--card));
+}
+
+.stock-vault-tab__favorite:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.stock-vault-tab__favorite .stock-vault-mark__icon {
+  width: 0.92rem;
+  height: 0.92rem;
+}
+
 .stock-vault-tab__remove {
   flex-shrink: 0;
-  align-self: flex-end;
   display: inline-flex;
   align-items: center;
   gap: 0.18rem;
-  margin: 0.12rem 0 0;
+  margin: 0;
   padding: 0.24rem 0.42rem;
   border: none;
   border-radius: 0;

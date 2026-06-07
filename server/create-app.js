@@ -168,6 +168,7 @@ import { getTossTradingStatus } from "./toss-trading-adapter.js";
 import {
   registerUserAuthRoutes,
   requireUserAuth,
+  resolveUserFromRequest,
 } from "./user-auth.js";
 import { sendChatNoCodeTelegram } from "./ops-chat-no-code-notify.js";
 import { registerUserCredentialRoutes } from "./user-credentials-routes.js";
@@ -2148,11 +2149,15 @@ export function createApp() {
 
   app.get(
     "/api/stock-vault",
-    asyncRoute(async (_req, res) => {
-      const { listStockVaultItemsSync } = await import("./stock-vault-store.js");
+    asyncRoute(async (req, res) => {
+      const { buildStockVaultItemsForUserSync } = await import(
+        "./stock-vault-view.js"
+      );
       const { fetchStockVaultMetaForItems, listStockVaultIndustryTabs, stockVaultIndustryGridRows } =
         await import("./stock-vault-meta.js");
-      const items = listStockVaultItemsSync();
+      const user = resolveUserFromRequest(req);
+      const { items, authenticated, favoriteSymbols } =
+        buildStockVaultItemsForUserSync(user?.id);
       const symbols = items.map((it) => it.symbol);
       const [quotes, meta] = await Promise.all([
         symbols.length > 0 ? fetchQuoteSnapshotsForSymbols(symbols) : Promise.resolve({}),
@@ -2165,14 +2170,19 @@ export function createApp() {
         meta,
         industryTabs,
         industryGridRows: stockVaultIndustryGridRows(industryTabs.length),
+        authenticated,
+        favoriteSymbols,
       });
     }),
   );
 
   app.post(
     "/api/stock-vault",
+    requireUserAuth,
     asyncRoute(async (req, res) => {
-      const { upsertStockVaultItemSync } = await import("./stock-vault-store.js");
+      const { addStockVaultItemForUserSync } = await import(
+        "./stock-vault-view.js"
+      );
       const symbol = String(req.body?.symbol ?? "").trim();
       const market = req.body?.market === "us" ? "us" : "kr";
       const name = String(req.body?.name ?? "").trim();
@@ -2181,13 +2191,12 @@ export function createApp() {
         return;
       }
       try {
-        const item = upsertStockVaultItemSync({
+        const item = addStockVaultItemForUserSync(req.user.id, {
           symbol,
           market,
           name: name || symbol,
-          source: "manual",
         });
-        res.json({ item });
+        res.json({ item: { ...item, favorited: false } });
       } catch (e) {
         const message = e instanceof Error ? e.message : "저장 실패";
         res.status(400).json({ error: message });
@@ -2195,21 +2204,42 @@ export function createApp() {
     }),
   );
 
-  app.delete(
-    "/api/stock-vault/:symbol",
+  app.post(
+    "/api/stock-vault/:symbol/favorite",
+    requireUserAuth,
     asyncRoute(async (req, res) => {
-      const { removeStockVaultItemSync } = await import("./stock-vault-store.js");
+      const { setStockVaultFavoriteForUserSync } = await import(
+        "./stock-vault-view.js"
+      );
       const symbol = decodeURIComponent(String(req.params.symbol ?? "")).trim();
       if (!symbol) {
         res.status(400).json({ error: "symbol이 필요합니다." });
         return;
       }
-      const ok = removeStockVaultItemSync(symbol);
-      if (!ok) {
+      const favorited = req.body?.favorited !== false;
+      setStockVaultFavoriteForUserSync(req.user.id, symbol, favorited);
+      res.json({ ok: true, favorited });
+    }),
+  );
+
+  app.delete(
+    "/api/stock-vault/:symbol",
+    requireUserAuth,
+    asyncRoute(async (req, res) => {
+      const { removeStockVaultItemForUserSync } = await import(
+        "./stock-vault-view.js"
+      );
+      const symbol = decodeURIComponent(String(req.params.symbol ?? "")).trim();
+      if (!symbol) {
+        res.status(400).json({ error: "symbol이 필요합니다." });
+        return;
+      }
+      const result = removeStockVaultItemForUserSync(req.user.id, symbol);
+      if (!result.removedManual && !result.dismissed) {
         res.status(404).json({ error: "종목을 찾을 수 없습니다." });
         return;
       }
-      res.json({ ok: true });
+      res.json({ ok: true, ...result });
     }),
   );
 

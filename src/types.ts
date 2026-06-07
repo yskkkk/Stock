@@ -356,6 +356,7 @@ export interface StockVaultItem {
   scanDate?: string | null;
   addedAtMs: number;
   updatedAtMs: number;
+  favorited?: boolean;
 }
 
 export interface StockVaultResponse {
@@ -377,6 +378,8 @@ export interface StockVaultResponse {
   >;
   industryTabs?: string[];
   industryGridRows?: number;
+  authenticated?: boolean;
+  favoriteSymbols?: string[];
 }
 
 export interface GoldenCrossScanState {

@@ -210,7 +210,11 @@ export default function App() {
   useEffect(() => {
     void fetchStockVault()
       .then((data) => {
-        syncVaultSymbols((data.items ?? []).map((it) => it.symbol));
+        syncVaultSymbols(
+          (data.items ?? [])
+            .filter((it) => it.source === "manual")
+            .map((it) => it.symbol),
+        );
       })
       .catch(() => {});
   }, [syncVaultSymbols]);
@@ -238,8 +242,10 @@ export default function App() {
         name: pick.name,
       });
       setVaultSymbols((prev) => new Set(prev).add(res.item.symbol.trim().toUpperCase()));
-    } catch {
-      /* ignore */
+    } catch (e) {
+      if (e instanceof Error && e.message.includes("로그인")) {
+        window.alert(ko.stockVault.loginRequired);
+      }
     }
   }, [vaultSymbols]);
   useEffect(() => {
