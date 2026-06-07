@@ -49,7 +49,9 @@ function docTopToColumnTop(
 export function useLeftRailLazyFollow(
   railRef: RefObject<HTMLElement | null>,
   scrollRef: RefObject<HTMLElement | null>,
+  options?: { columnSelector?: string },
 ) {
+  const columnSelector = options?.columnSelector ?? ".app__left-column";
   useEffect(() => {
     const rail = railRef.current;
     if (!rail) return;
@@ -66,7 +68,7 @@ export function useLeftRailLazyFollow(
 
     const getScrollEl = () => scrollRef.current;
 
-    const getColumn = () => rail.closest<HTMLElement>(".app__left-column");
+    const getColumn = () => rail.closest<HTMLElement>(columnSelector);
 
     const applyTop = (px: number) => {
       const y = `${px}px`;
@@ -175,5 +177,5 @@ export function useLeftRailLazyFollow(
       getScrollEl()?.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
     };
-  }, [railRef, scrollRef]);
+  }, [railRef, scrollRef, columnSelector]);
 }

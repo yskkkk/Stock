@@ -6514,14 +6514,26 @@ html[data-theme="light"] .feedback-inbox-item {
   align-self: stretch;
   width: 100%;
   min-width: 0;
-  padding: max(0.45rem, calc(0.28rem + env(safe-area-inset-top, 0px))) 0.1rem
-    0.35rem 0.06rem;
-  border-right: 1px solid color-mix(in srgb, var(--card-border) 55%, transparent);
-  background: color-mix(in srgb, var(--card-bg, var(--card)) 94%, var(--bg-elevated));
+  padding: max(0.45rem, calc(0.28rem + env(safe-area-inset-top, 0px))) 0.12rem
+    0.35rem 0.08rem;
+  border-right: none;
+  background: transparent;
+  box-sizing: border-box;
 }
 
 .earnings-icon-rail--edge .earnings-icon-rail__list {
-  max-height: min(72dvh, 640px);
+  max-height: min(calc(100dvh - 1.25rem), 720px);
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.earnings-icon-rail--edge .earnings-icon-rail__list::-webkit-scrollbar {
+  display: none;
 }
 
 /* 실적 레일 — 앱 뷰포트 최좌측(본문 왼쪽) */
@@ -6541,10 +6553,25 @@ html[data-theme="light"] .feedback-inbox-item {
     grid-column: 1;
     grid-row: 1 / -1;
     align-self: start;
-    position: sticky;
-    top: max(0.35rem, env(safe-area-inset-top, 0px));
+    position: relative;
     z-index: 4;
-    max-height: calc(100dvh - 1rem);
+    width: 2.85rem;
+    min-width: 2.85rem;
+    min-height: calc(100dvh - 1rem);
+    pointer-events: none;
+  }
+
+  .app__viewport-earnings-rail > .earnings-icon-rail--edge {
+    pointer-events: auto;
+    position: absolute;
+    left: 0;
+    top: max(0.35rem, env(safe-area-inset-top, 0px));
+    width: 100%;
+    max-height: calc(100dvh - max(0.35rem, env(safe-area-inset-top, 0px)) - 0.65rem);
+    will-change: top;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
 
   #root > .app .app__viewport.app__viewport--earnings-rail.app__viewport--no-left-rail > .app__shell {
@@ -6562,6 +6589,16 @@ html[data-theme="light"] .feedback-inbox-item {
   width: 1.72rem;
   height: 1.72rem;
   border-radius: 0.42rem;
+  background: transparent;
+  border-color: color-mix(in srgb, var(--card-border) 45%, transparent);
+  box-shadow: none;
+}
+
+.earnings-icon-rail--edge .earnings-icon-rail__btn:hover,
+.earnings-icon-rail--edge .earnings-icon-rail__btn--on {
+  background: color-mix(in srgb, var(--accent-dim) 42%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-border) 40%, transparent);
+  transform: none;
 }
 
 .earnings-icon-rail--edge .earnings-icon-rail__img {
@@ -6586,8 +6623,15 @@ html[data-theme="light"] .feedback-inbox-item {
     width: 100%;
     min-width: 0;
     padding: max(0.4rem, env(safe-area-inset-top, 0px)) 0.08rem 0.3rem 0.04rem;
-    border-right: 1px solid color-mix(in srgb, var(--card-border) 55%, transparent);
+    border-right: none;
     border-bottom: none;
+    position: static;
+    max-height: none;
+  }
+
+  .app__viewport-earnings-rail > .earnings-icon-rail--edge {
+    position: static;
+    max-height: none;
   }
 
   .earnings-icon-rail--edge .earnings-icon-rail__list {

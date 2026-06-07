@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
 import { fetchSectorEarnings } from "../api";
@@ -89,11 +90,15 @@ function EarningsIconButton({
   );
 }
 
+const EARNINGS_GRACE_MS = 12 * 60 * 60 * 1000;
+
 export default function EarningsUpcomingIconRail({
   variant = "workspace",
+  railRef,
 }: {
   /** workspace=종목 목록 그리드 열, edge=앱 본문 최좌측 얇은 레일 */
   variant?: "workspace" | "edge";
+  railRef?: RefObject<HTMLElement | null>;
 }) {
   const tipId = useId();
   const [rows, setRows] = useState<SectorEarningsSpotlightItem[]>(() => {
@@ -126,8 +131,8 @@ export default function EarningsUpcomingIconRail({
 
   const upcoming = useMemo(() => {
     return rows
-      .filter((r) => r.at > now)
-      .sort((a, b) => b.at - a.at);
+      .filter((r) => r.at > now - EARNINGS_GRACE_MS)
+      .sort((a, b) => a.at - b.at);
   }, [rows, now]);
 
   const clearHideTimer = useCallback(() => {
@@ -205,6 +210,7 @@ export default function EarningsUpcomingIconRail({
   return (
     <>
       <aside
+        ref={railRef}
         className={
           variant === "edge"
             ? "earnings-icon-rail earnings-icon-rail--edge"

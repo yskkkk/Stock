@@ -31,11 +31,11 @@ const CACHE_MS = Number(process.env.SECTOR_EARNINGS_CACHE_MS) > 60_000
   ? Math.min(6 * 60 * 60_000, Math.floor(Number(process.env.SECTOR_EARNINGS_CACHE_MS)))
   : 20 * 60_000;
 const HORIZON_DAYS = Number(process.env.SECTOR_EARNINGS_HORIZON_DAYS) > 0
-  ? Math.min(45, Math.floor(Number(process.env.SECTOR_EARNINGS_HORIZON_DAYS)))
-  : 21;
+  ? Math.min(120, Math.floor(Number(process.env.SECTOR_EARNINGS_HORIZON_DAYS)))
+  : 90;
 const MAX_ITEMS = Number(process.env.SECTOR_EARNINGS_MAX) > 0
-  ? Math.min(24, Math.floor(Number(process.env.SECTOR_EARNINGS_MAX)))
-  : 12;
+  ? Math.min(32, Math.floor(Number(process.env.SECTOR_EARNINGS_MAX)))
+  : 24;
 const CONCURRENCY = (() => {
   const n = Number(process.env.SECTOR_EARNINGS_CONCURRENCY);
   return Number.isFinite(n) && n >= 1 ? Math.min(8, Math.floor(n)) : 4;
