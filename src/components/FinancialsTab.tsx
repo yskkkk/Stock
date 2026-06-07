@@ -17,7 +17,9 @@ import {
 } from "../lib/tradingviewSymbols";
 import { fmtFinancialStatementCell } from "../lib/fmtFinancialStatement";
 import type {
+  FinancialPeriodMetrics,
   FinancialPeriodRow,
+  FinancialPeriodsResponse,
   FinancialStatementAnalysisResponse,
   Market,
   StockFundamentalsResponse,
@@ -94,8 +96,10 @@ export default function FinancialsTab() {
 
   const [selected, setSelected] = useState<StockSearchQuoteRow | null>(null);
   const [fundamentals, setFundamentals] = useState<StockFundamentalsResponse | null>(null);
-  const [fundLoading, setFundLoading] = useState(false);
-  const [fundErr, setFundErr] = useState<string | null>(null);
+  const [periodsMeta, setPeriodsMeta] = useState<Pick<
+    FinancialPeriodsResponse,
+    "name" | "symbol" | "currency" | "market"
+  > | null>(null);
 
   const [periods, setPeriods] = useState<FinancialPeriodRow[]>([]);
   const [periodsLoading, setPeriodsLoading] = useState(false);
@@ -213,39 +217,13 @@ export default function FinancialsTab() {
 
   const loadFundamentals = useCallback(async (symbol: string) => {
     const seq = ++fundSeqRef.current;
-    setFundLoading(true);
-    setFundErr(null);
     try {
       const data = await fetchStockFundamentals(symbol);
       if (seq !== fundSeqRef.current) return;
       setFundamentals(data);
-    } catch (e) {
+    } catch {
       if (seq !== fundSeqRef.current) return;
       setFundamentals(null);
-      setFundErr(e instanceof Error ? e.message : String(e));
-    } finally {
-      if (seq === fundSeqRef.current) setFundLoading(false);
-    }
-  }, []);
-
-  const loadPeriods = useCallback(async (symbol: string) => {
-    const seq = ++periodsSeqRef.current;
-    setPeriodsLoading(true);
-    setPeriodsErr(null);
-    setPeriods([]);
-    setActivePeriodId(null);
-    setStatement(null);
-    setStatementErr(null);
-    try {
-      const data = await fetchFinancialPeriods(symbol);
-      if (seq !== periodsSeqRef.current) return;
-      setPeriods(data.periods ?? []);
-    } catch (e) {
-      if (seq !== periodsSeqRef.current) return;
-      setPeriods([]);
-      setPeriodsErr(e instanceof Error ? e.message : String(e));
-    } finally {
-      if (seq === periodsSeqRef.current) setPeriodsLoading(false);
     }
   }, []);
 
@@ -265,10 +243,46 @@ export default function FinancialsTab() {
     }
   }, []);
 
+  const loadPeriods = useCallback(
+    async (symbol: string) => {
+      const seq = ++periodsSeqRef.current;
+      setPeriodsLoading(true);
+      setPeriodsErr(null);
+      setPeriods([]);
+      setPeriodsMeta(null);
+      setActivePeriodId(null);
+      setStatement(null);
+      setStatementErr(null);
+      try {
+        const data = await fetchFinancialPeriods(symbol);
+        if (seq !== periodsSeqRef.current) return;
+        setPeriods(data.periods ?? []);
+        setPeriodsMeta({
+          name: data.name,
+          symbol: data.symbol,
+          currency: data.currency,
+          market: data.market,
+        });
+        const first = data.periods?.[0];
+        if (first) {
+          setActivePeriodId(first.id);
+          void loadStatement(symbol, first.id);
+        }
+      } catch (e) {
+        if (seq !== periodsSeqRef.current) return;
+        setPeriods([]);
+        setPeriodsErr(e instanceof Error ? e.message : String(e));
+      } finally {
+        if (seq === periodsSeqRef.current) setPeriodsLoading(false);
+      }
+    },
+    [loadStatement],
+  );
+
   useEffect(() => {
     if (!selected?.symbol) {
       setFundamentals(null);
-      setFundErr(null);
+      setPeriodsMeta(null);
       setPeriods([]);
       setPeriodsErr(null);
       setActivePeriodId(null);
@@ -336,54 +350,88 @@ export default function FinancialsTab() {
         ? hotQuotes.filter((r) => r.symbol.trim().toUpperCase() !== selectedSym)
         : hotQuotes;
 
-  const metrics = fundamentals
+  const activePeriod = useMemo(
+    () => periods.find((p) => p.id === activePeriodId) ?? null,
+    [periods, activePeriodId],
+  );
+
+  const periodMetrics: FinancialPeriodMetrics | null = useMemo(() => {
+    const pm = statement?.periodMetrics;
+    if (!pm) return null;
+    if (pm.periodId === activePeriodId) return pm;
+    if (statementLoading) return null;
+    return pm;
+  }, [statement?.periodMetrics, activePeriodId, statementLoading]);
+
+  const displayName =
+    periodsMeta?.name ?? fundamentals?.name ?? selected?.name ?? "";
+  const displaySymbol = periodsMeta?.symbol ?? fundamentals?.symbol ?? selected?.symbol ?? "";
+  const metricsCurrency =
+    periodMetrics?.currency ?? fundamentals?.currency ?? periodsMeta?.currency;
+
+  const metrics = periodMetrics
     ? [
-        { key: "per", label: ko.financials.per, value: fmtMetric(fundamentals.per, "ratio") },
+        { key: "per", label: ko.financials.per, value: fmtMetric(periodMetrics.per, "ratio") },
         {
           key: "forwardPer",
           label: ko.financials.forwardPer,
-          value: fmtMetric(fundamentals.forwardPer, "ratio"),
+          value: fmtMetric(
+            periodMetrics.forwardPer ?? (periodMetrics.isForecast ? fundamentals?.forwardPer : null),
+            "ratio",
+          ),
         },
         {
           key: "eps",
           label: ko.financials.eps,
-          value: fmtMetric(fundamentals.eps, "eps", fundamentals.currency),
+          value: fmtMetric(periodMetrics.eps, "eps", metricsCurrency),
         },
         {
           key: "forwardEps",
           label: ko.financials.forwardEps,
-          value: fmtMetric(fundamentals.forwardEps, "eps", fundamentals.currency),
+          value: fmtMetric(
+            periodMetrics.forwardEps ??
+              (periodMetrics.isForecast ? fundamentals?.forwardEps : null),
+            "eps",
+            metricsCurrency,
+          ),
         },
         {
           key: "bps",
           label: ko.financials.bps,
-          value: fmtMetric(fundamentals.bps, "eps", fundamentals.currency),
+          value: fmtMetric(periodMetrics.bps, "eps", metricsCurrency),
         },
-        { key: "pbr", label: ko.financials.pbr, value: fmtMetric(fundamentals.pbr, "ratio") },
+        {
+          key: "pbr",
+          label: ko.financials.pbr,
+          value: fmtMetric(periodMetrics.pbr, "ratio"),
+        },
         {
           key: "price",
           label: ko.financials.price,
-          value: fmtMetric(fundamentals.price, "money", fundamentals.currency),
+          value: fmtMetric(fundamentals?.price ?? periodMetrics.price, "money", metricsCurrency),
         },
         {
           key: "marketCap",
           label: ko.financials.marketCap,
-          value: fmtMetric(fundamentals.marketCap, "money", fundamentals.currency),
+          value: fmtMetric(fundamentals?.marketCap ?? periodMetrics.marketCap, "money", metricsCurrency),
         },
         {
           key: "dividendYield",
           label: ko.financials.dividendYield,
-          value: fmtMetric(fundamentals.dividendYield, "percent"),
+          value: fmtMetric(
+            periodMetrics.dividendYield ?? fundamentals?.dividendYield,
+            "percent",
+          ),
         },
         {
           key: "profitMargin",
           label: ko.financials.profitMargin,
-          value: fmtMetric(fundamentals.profitMargin, "percent"),
+          value: fmtMetric(periodMetrics.profitMargin, "percent"),
         },
         {
           key: "roe",
           label: ko.financials.roe,
-          value: fmtMetric(fundamentals.roe, "percent"),
+          value: fmtMetric(periodMetrics.roe, "percent"),
         },
       ]
     : [];
@@ -500,19 +548,15 @@ export default function FinancialsTab() {
         >
           {!selected ? (
             <p className="financials-tab__muted financials-tab__idle">{ko.financials.idle}</p>
-          ) : fundLoading && !fundamentals ? (
+          ) : periodsLoading && periods.length === 0 ? (
             <p className="financials-tab__muted">{ko.financials.loading}</p>
-          ) : fundErr ? (
-            <p className="financials-tab__error" role="alert">
-              {fundErr}
-            </p>
-          ) : fundamentals ? (
+          ) : (
             <div className="financials-tab__detail-inner">
               <header className="financials-tab__head">
                 <div className="financials-tab__head-text">
-                  <h3 className="financials-tab__name">{fundamentals.name}</h3>
+                  <h3 className="financials-tab__name">{displayName}</h3>
                   <p className="financials-tab__sym">
-                    {fundamentals.symbol}
+                    {displaySymbol}
                     {tvSymbol ? ` · ${tvSymbol}` : ""}
                   </p>
                 </div>
@@ -528,25 +572,12 @@ export default function FinancialsTab() {
                 ) : null}
               </header>
 
-              <section className="financials-tab__snapshot-wrap" aria-label={ko.financials.metricsAria}>
-                <h4 className="financials-tab__snapshot-title">{ko.financials.metricsAria}</h4>
-                <table className="financials-tab__snapshot">
-                  <tbody>
-                    {metrics.map((m) => (
-                      <tr key={m.key}>
-                        <th scope="row">{m.label}</th>
-                        <td>{m.value}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </section>
-
-              <section className="financials-tab__periods" aria-label={ko.financials.periodsTitle}>
+              <section
+                className="financials-tab__periods financials-tab__periods--primary"
+                aria-label={ko.financials.periodsTitle}
+              >
                 <h4 className="financials-tab__periods-title">{ko.financials.periodsTitle}</h4>
-                {periodsLoading && periods.length === 0 ? (
-                  <p className="financials-tab__muted">{ko.financials.periodsLoading}</p>
-                ) : periodsErr ? (
+                {periodsErr ? (
                   <p className="financials-tab__error" role="alert">
                     {periodsErr}
                   </p>
@@ -585,6 +616,48 @@ export default function FinancialsTab() {
                   </div>
                 )}
               </section>
+
+              {(activePeriodId || periodMetrics) ? (
+                <section
+                  className={
+                    statementLoading
+                      ? "financials-tab__snapshot-wrap financials-tab__snapshot-wrap--loading"
+                      : "financials-tab__snapshot-wrap"
+                  }
+                  aria-label={ko.financials.metricsAria}
+                  aria-busy={statementLoading}
+                >
+                  <h4 className="financials-tab__snapshot-title">
+                    {ko.financials.metricsAria}
+                    {activePeriod ? (
+                      <span className="financials-tab__snapshot-period">
+                        {" "}
+                        · {activePeriod.label}
+                        {activePeriod.isForecast ? ` ${ko.financials.periodForecast}` : ""}
+                      </span>
+                    ) : null}
+                  </h4>
+                  {statementLoading && !periodMetrics ? (
+                    <p className="financials-tab__muted">{ko.financials.statementLoading}</p>
+                  ) : (
+                    <>
+                      <table className="financials-tab__snapshot">
+                        <tbody>
+                          {metrics.map((m) => (
+                            <tr key={m.key}>
+                              <th scope="row">{m.label}</th>
+                              <td>{m.value}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <p className="financials-tab__snapshot-note">
+                        {ko.financials.metricsCurrentPriceNote}
+                      </p>
+                    </>
+                  )}
+                </section>
+              ) : null}
 
               {(activePeriodId || statement) ? (
                 <section
@@ -691,7 +764,7 @@ export default function FinancialsTab() {
                 </section>
               ) : null}
             </div>
-          ) : null}
+          )}
         </section>
       </div>
     </div>

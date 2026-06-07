@@ -220,8 +220,32 @@
 }
 
 /* 밸류에이션 스냅샷 — 카드 없이 표 */
+.financials-tab__periods--primary {
+  margin-top: 0.65rem;
+  padding-top: 0;
+  border-top: none;
+}
+
 .financials-tab__snapshot-wrap {
-  margin-top: 0.55rem;
+  margin-top: 0.75rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--card-border);
+}
+
+.financials-tab__snapshot-wrap--loading {
+  opacity: 0.82;
+}
+
+.financials-tab__snapshot-period {
+  font-weight: 500;
+  color: var(--accent);
+}
+
+.financials-tab__snapshot-note {
+  margin: 0.35rem 0 0;
+  font-size: 0.68rem;
+  color: var(--muted);
+  line-height: 1.4;
 }
 
 .financials-tab__snapshot-title {

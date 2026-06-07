@@ -4,11 +4,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadStockFundamentals } from "./stock-fundamentals.js";
 import {
   loadFinancialPeriods,
   loadFinancialStatementDetail,
 } from "./stock-financials.js";
+import { loadStockFundamentals } from "./stock-fundamentals.js";
+import { extractPeriodMetricsFromDetail } from "./stock-financial-period-metrics.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SECTOR_CONFIG_PATH = path.join(__dirname, "data", "sector-earnings-spotlight.json");
@@ -282,6 +283,19 @@ export async function loadFinancialStatementAnalysis(symbol, periodId) {
     loadStockFundamentals(sym).catch(() => null),
   ]);
 
+  const periodMetrics = extractPeriodMetricsFromDetail(detail, {
+    currency: periodsPayload?.currency ?? "KRW",
+    market: periodsPayload?.market === "us" ? "us" : "kr",
+  });
+
+  /** 스냅샷 PER·PBR 등 — 선택 기간 기준, 없으면 최신 fundamentals 보조 */
+  const metricsForOpinion = {
+    per: periodMetrics.per ?? fundamentals?.per ?? null,
+    pbr: periodMetrics.pbr ?? fundamentals?.pbr ?? null,
+    roe: periodMetrics.roe ?? fundamentals?.roe ?? null,
+    profitMargin: periodMetrics.profitMargin ?? fundamentals?.profitMargin ?? null,
+  };
+
   const periods = Array.isArray(periodsPayload?.periods) ? periodsPayload.periods : [];
   const currentPeriod = periods.find((p) => p.id === pid) ?? {
     id: pid,
@@ -321,7 +335,7 @@ export async function loadFinancialStatementAnalysis(symbol, periodId) {
   const aiOpinion = buildAiOpinion({
     name: periodsPayload?.name ?? sym,
     peerGroup,
-    fundamentals,
+    fundamentals: metricsForOpinion,
     peerMedians,
     yoyFlat: sections.flatMap((s) => s.rows ?? []),
     priorLabel: priorPeriod?.label ?? priorDetail?.label ?? null,
@@ -333,6 +347,7 @@ export async function loadFinancialStatementAnalysis(symbol, periodId) {
     sections,
     priorPeriodId: priorPeriod?.id ?? null,
     priorPeriodLabel: priorPeriod?.label ?? priorDetail?.label ?? null,
+    periodMetrics,
     aiOpinion,
     updatedAt: Date.now(),
   };

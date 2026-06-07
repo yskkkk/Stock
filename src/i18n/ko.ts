@@ -857,6 +857,8 @@ export const ko = {
     profitMargin: "순이익률",
     roe: "ROE",
     openTradingView: "TradingView 재무",
+    metricsPeriodSuffix: "기간",
+    metricsCurrentPriceNote: "현재가·시총은 최신 시세 기준",
     formulaNote: "PER·PBR은 API 제공값 우선, 없으면 현재가÷EPS·BPS로 계산합니다.",
     periodsTitle: "재무제표",
     periodsLoading: "재무제표 기간 불러오는 중…",

@@ -316,9 +316,30 @@ export interface FinancialStatementDetailResponse {
   updatedAt: number;
 }
 
+export interface FinancialPeriodMetrics {
+  periodId: string;
+  periodLabel: string;
+  kind: "annual" | "quarter";
+  isForecast: boolean;
+  currency: string;
+  market: "kr" | "us";
+  per: number | null;
+  forwardPer: number | null;
+  eps: number | null;
+  forwardEps: number | null;
+  bps: number | null;
+  pbr: number | null;
+  price: number | null;
+  marketCap: number | null;
+  dividendYield: number | null;
+  profitMargin: number | null;
+  roe: number | null;
+}
+
 export interface FinancialStatementAnalysisResponse extends FinancialStatementDetailResponse {
   priorPeriodId: string | null;
   priorPeriodLabel: string | null;
+  periodMetrics: FinancialPeriodMetrics;
   aiOpinion: FinancialAiOpinion;
 }
 
