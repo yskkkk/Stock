@@ -201,18 +201,18 @@
   z-index: 0;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  padding: 0.2rem 0.35rem 0.2rem 0.5rem;
+  justify-content: center;
+  padding: 0.2rem;
   pointer-events: none;
-  opacity: 0.13;
+  opacity: 0.26;
 }
 .macro-card__brand-bg img {
   width: auto;
-  height: min(4.2rem, 78%);
-  max-width: 88%;
+  height: min(4.6rem, 82%);
+  max-width: 92%;
   object-fit: contain;
-  object-position: center right;
-  filter: saturate(0.85);
+  object-position: center;
+  filter: saturate(0.9);
 }
 .macro-card__brand-bg-fallback {
   font-size: 2.75rem;
@@ -221,13 +221,14 @@
   color: var(--muted);
   letter-spacing: -0.04em;
   user-select: none;
+  text-align: center;
 }
 .macro-card--earnings > :not(.macro-card__brand-bg) {
   position: relative;
   z-index: 1;
 }
 html[data-theme="light"] .macro-card__brand-bg {
-  opacity: 0.1;
+  opacity: 0.22;
 }
 .macro-card__name {
   margin: 0 0 0.12rem;
@@ -333,6 +334,8 @@ html[data-theme="light"] .macro-card__brand-bg {
   text-decoration: none;
   color: inherit;
   display: block;
+  overflow: hidden;
+  isolation: isolate;
   border-left: 3px solid rgba(167, 139, 250, 0.75);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
