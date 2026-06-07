@@ -14,6 +14,7 @@ export default function StockLogoWithPlate({
   width,
   height,
   loading = "lazy",
+  transparentWrap = false,
   onError,
 }: {
   symbol: string;
@@ -24,15 +25,19 @@ export default function StockLogoWithPlate({
   width: number;
   height: number;
   loading?: "lazy" | "eager";
+  /** true면 배경판·어두운 패드 없이 로고만 */
+  transparentWrap?: boolean;
   onError?: () => void;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
-  const [needsDarkPlate, setNeedsDarkPlate] = useState(() =>
-    isKnownLightLogoSymbol(symbol, market),
+  const [needsDarkPlate, setNeedsDarkPlate] = useState(
+    () => !transparentWrap && isKnownLightLogoSymbol(symbol, market),
   );
 
   useEffect(() => {
-    if (needsDarkPlate || isKnownLightLogoSymbol(symbol, market)) return;
+    if (transparentWrap || needsDarkPlate || isKnownLightLogoSymbol(symbol, market)) {
+      return;
+    }
     const probe = new Image();
     probe.crossOrigin = "anonymous";
     probe.onload = () => {
@@ -48,13 +53,17 @@ export default function StockLogoWithPlate({
       probe.onload = null;
       probe.onerror = null;
     };
-  }, [src, symbol, market, needsDarkPlate]);
+  }, [src, symbol, market, needsDarkPlate, transparentWrap]);
 
   const wrapClasses = useMemo(() => {
     const parts = [wrapClassName, "stock-logo-plate"];
-    if (needsDarkPlate) parts.push("stock-logo-plate--dark");
+    if (transparentWrap) {
+      parts.push("stock-logo-plate--transparent");
+    } else if (needsDarkPlate) {
+      parts.push("stock-logo-plate--dark");
+    }
     return parts.filter(Boolean).join(" ");
-  }, [wrapClassName, needsDarkPlate]);
+  }, [wrapClassName, needsDarkPlate, transparentWrap]);
 
   const handleError = useCallback(() => {
     setImgFailed(true);

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   buildVaultDisplayRows,
   countVaultIntersection,
-  STOCK_VAULT_SCAN_SOURCES,
 } from "./stockVaultFilter";
 import type { StockVaultItem } from "../types";
 

@@ -1,10 +1,23 @@
 import type { Market } from "../types";
 
-/** 국내 종목 로고(Naver). 실패 시 UI에서 이니셜 폴백. */
+const FMP_LOGO_BASE = "https://financialmodelingprep.com/image-stock";
+
+/** @returns e.g. 005930.KS */
+export function krStockLogoTicker(symbol: string): string | null {
+  const s = String(symbol ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/^KR_/, "");
+  const m = s.match(/^(\d{6})(\.(KS|KQ))?$/);
+  if (!m) return null;
+  return `${m[1]}.${m[3] ?? "KS"}`;
+}
+
+/** 국내 종목 로고(FMP · Yahoo 티커 형식). 실패 시 UI에서 이니셜 폴백. */
 export function krStockLogoUrl(symbol: string): string | null {
-  const code = symbol.replace(/^KR_/i, "").replace(/\.(KS|KQ)$/i, "").trim();
-  if (!/^\d{6}$/.test(code)) return null;
-  return `https://ssl.pstatic.net/imgstock/item_logo/${code}.png`;
+  const ticker = krStockLogoTicker(symbol);
+  if (!ticker) return null;
+  return `${FMP_LOGO_BASE}/${encodeURIComponent(ticker)}.png`;
 }
 
 /** 미국 티커 로고(FMP). 실패 시 UI 이니셜 폴백. */
