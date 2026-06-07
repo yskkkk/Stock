@@ -26,7 +26,7 @@
 .workspace--stock-lookup:not(.crypto-workspace) > .picks-panel.card > .panel-head {
   flex-shrink: 0;
   margin: 0;
-  padding: 0.55rem var(--tab-card-pad-x, 1rem) 0.45rem;
+  padding: 0.55rem 0.38rem 0.45rem;
   background: linear-gradient(
     180deg,
     color-mix(in srgb, var(--card) 94%, white) 0%,
@@ -57,7 +57,7 @@
 
 .workspace--stock-lookup:not(.crypto-workspace) .stock-search-tab__toolbar {
   flex-shrink: 0;
-  padding: 0.5rem var(--tab-card-pad-x, 1rem) 0.55rem;
+  padding: 0.5rem 0.38rem 0.55rem;
   border-bottom: 1px solid var(--card-border);
   background: color-mix(in srgb, var(--card) 72%, var(--surface));
 }

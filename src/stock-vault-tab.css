@@ -194,8 +194,7 @@
 }
 
 .stock-vault-tab__panel.card {
-  padding: var(--tab-card-pad-y-top, 0.9rem) var(--tab-card-pad-x, 0.95rem)
-    var(--tab-card-pad-y-bottom, 1.05rem);
+  padding: var(--tab-card-pad-y-top, 0.9rem) 0.42rem var(--tab-card-pad-y-bottom, 1.05rem);
 }
 
 .stock-vault-tab__filters-wrap {
@@ -273,7 +272,7 @@
   flex-direction: column;
   gap: 0.45rem;
   min-width: 0;
-  padding: 0.5rem 0.58rem;
+  padding: 0.5rem 0.38rem;
   border: 1px solid var(--card-border);
   border-radius: var(--radius-sm, 8px);
   background: color-mix(in srgb, var(--card) 88%, var(--surface));
@@ -881,7 +880,7 @@ html[data-theme="light"] .stock-vault-tab__row--gc-recent-10 {
 }
 
 .stock-hot-item:has(.stock-vault-mark--inline) .stock-hot-item__btn {
-  padding-left: 0.45rem;
+  padding-left: 0.28rem;
 }
 
 .pick-action--vault {

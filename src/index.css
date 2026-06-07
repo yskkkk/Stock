@@ -2553,7 +2553,7 @@ html[data-theme="light"] .stock-hot-item {
   width: 100%;
   min-height: 3.1rem;
   margin: 0;
-  padding: 0.62rem 0.72rem;
+  padding: 0.62rem 0.46rem;
   border: 0;
   background: transparent;
   color: inherit;
@@ -2651,7 +2651,7 @@ html[data-theme="light"] .stock-hot-item__chg--down {
   .stock-hot-item__btn {
     grid-template-columns: minmax(0, 1fr) auto auto;
     gap: 0.35rem 0.4rem;
-    padding: 0.55rem 0.62rem;
+    padding: 0.55rem 0.38rem;
     min-height: 2.85rem;
   }
 
@@ -6584,10 +6584,10 @@ html[data-theme="light"] .feedback-inbox-item {
       auto
       minmax(0, min(var(--app-page-max-width, 1680px), 100%))
       minmax(0, 1fr);
-    column-gap: 0.35rem;
+    column-gap: 0.12rem;
     align-items: stretch;
-    padding-left: max(0.12rem, env(safe-area-inset-left, 0px));
-    padding-right: var(--app-page-inline-pad-safe, var(--app-page-inline-pad, 1.35rem));
+    padding-left: max(0.04rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.35rem, env(safe-area-inset-right, 0px));
   }
 
   .app__viewport-earnings-rail {
@@ -6636,7 +6636,7 @@ html[data-theme="light"] .feedback-inbox-item {
       .app-live-trade-side-dock
     ) {
     grid-template-columns: auto minmax(0, 1fr);
-    column-gap: 0.2rem;
+    column-gap: 0.08rem;
     padding-right: env(safe-area-inset-right, 0px);
   }
 
@@ -6653,8 +6653,8 @@ html[data-theme="light"] .feedback-inbox-item {
   #root > .app:has(.app__viewport--earnings-rail) > .app__scroll > .app-site-footer {
     max-width: min(var(--app-page-max-width, 1680px), 100%);
     margin-inline: 0;
-    margin-left: calc(2.85rem + 0.35rem + max(0.12rem, env(safe-area-inset-left, 0px)));
-    padding-inline: 0 var(--app-page-inline-pad-safe, var(--app-page-inline-pad, 1.35rem));
+    margin-left: calc(2.85rem + 0.12rem + max(0.04rem, env(safe-area-inset-left, 0px)));
+    padding-inline: 0 max(0.35rem, env(safe-area-inset-right, 0px));
   }
 }
 
