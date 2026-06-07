@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   fetchGoldenCrossStatus,
-  fetchStockVault,
   removeStockVaultItem,
   setStockVaultFavorite,
   triggerGoldenCrossScan,
@@ -13,10 +12,22 @@ import {
   sortGoldenCrossItems,
 } from "../lib/goldenCrossRecency";
 import {
+  loadStockVault,
+  peekStockVaultPrefetch,
+  refreshStockVaultTab,
+  updateStockVaultPrefetchVault,
+} from "../lib/tabPrefetch";
+import {
   tradingViewChartUrl,
   yahooStockSymbolToTradingView,
 } from "../lib/tradingviewSymbols";
-import type { GoldenCrossKind, StockVaultItem, StockVaultKindTab } from "../types";
+import type {
+  GoldenCrossKind,
+  StockVaultItem,
+  StockVaultKindTab,
+  StockVaultResponse,
+  StockVaultScanStatus,
+} from "../types";
 import { VaultBookmarkIcon } from "./StockVaultMarkButton";
 
 const CROSS_LABEL: Record<GoldenCrossKind, string> = {
@@ -73,15 +84,42 @@ function manualVaultSymbols(items: StockVaultItem[]) {
     .map((it) => it.symbol.trim().toUpperCase());
 }
 
+function scanHintFromStatus(status: StockVaultScanStatus | null | undefined) {
+  if (!status) return null;
+  const gcState = status.goldenCross?.state ?? status.state;
+  const maState = status.maAlign?.state ?? status.state;
+  if (gcState && maState) return scanHintFromState(gcState, maState);
+  return null;
+}
+
+function vaultStateFromResponse(vault: StockVaultResponse) {
+  return {
+    items: vault.items ?? [],
+    quotes: vault.quotes ?? {},
+    meta: vault.meta ?? {},
+    authenticated: Boolean(vault.authenticated),
+    industryTabs: vault.industryTabs?.length ? vault.industryTabs : [],
+    industryGridRows:
+      typeof vault.industryGridRows === "number" && vault.industryGridRows > 0
+        ? vault.industryGridRows
+        : vault.industryTabs?.length
+          ? Math.max(16, Math.ceil(vault.industryTabs.length / 8))
+          : 20,
+  };
+}
+
 export default function StockVaultTab({
   onVaultChange,
 }: {
   onVaultChange?: (symbols: string[]) => void;
 }) {
-  const [items, setItems] = useState<StockVaultItem[]>([]);
+  const cachedInit = peekStockVaultPrefetch();
+  const cachedVault = cachedInit ? vaultStateFromResponse(cachedInit.vault) : null;
+
+  const [items, setItems] = useState<StockVaultItem[]>(() => cachedVault?.items ?? []);
   const [quotes, setQuotes] = useState<
     Record<string, { price: number; changePercent?: number; currency?: string }>
-  >({});
+  >(() => cachedVault?.quotes ?? {});
   const [meta, setMeta] = useState<
     Record<
       string,
@@ -92,28 +130,40 @@ export default function StockVaultTab({
         exchange?: string | null;
       }
     >
-  >({});
-  const [industryTabs, setIndustryTabs] = useState<string[]>([]);
-  const [industryGridRows, setIndustryGridRows] = useState(20);
-  const [loading, setLoading] = useState(true);
+  >(() => cachedVault?.meta ?? {});
+  const [industryTabs, setIndustryTabs] = useState<string[]>(
+    () => cachedVault?.industryTabs ?? [],
+  );
+  const [industryGridRows, setIndustryGridRows] = useState(
+    () => cachedVault?.industryGridRows ?? 20,
+  );
+  const [loading, setLoading] = useState(!cachedInit);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<VaultFilter>("all");
   const [kindTab, setKindTab] = useState<StockVaultKindTab>("golden_cross");
   const [marketFilter, setMarketFilter] = useState<"all" | "kr" | "us">("all");
   const [industryFilter, setIndustryFilter] = useState<string>("all");
-  const [authenticated, setAuthenticated] = useState(false);
-  const [scanHint, setScanHint] = useState<string | null>(null);
+  const [authenticated, setAuthenticated] = useState(
+    () => cachedVault?.authenticated ?? false,
+  );
+  const [scanHint, setScanHint] = useState<string | null>(() =>
+    scanHintFromStatus(cachedInit?.scanStatus),
+  );
   const [removing, setRemoving] = useState<string | null>(null);
   const [favoriting, setFavoriting] = useState<string | null>(null);
-  const [scanEnabled, setScanEnabled] = useState(true);
-  const [scanRunning, setScanRunning] = useState(false);
+  const [scanEnabled, setScanEnabled] = useState(
+    () => cachedInit?.scanStatus?.enabled ?? true,
+  );
+  const [scanRunning, setScanRunning] = useState(() =>
+    Boolean(cachedInit?.scanStatus?.running),
+  );
   const [scanConfirmOpen, setScanConfirmOpen] = useState(false);
   const [scanNotice, setScanNotice] = useState<string | null>(null);
   const scanBtnRef = useRef<HTMLButtonElement>(null);
   const scanPopoverRef = useRef<HTMLDivElement>(null);
 
   const applyVaultResponse = useCallback(
-    (vault: Awaited<ReturnType<typeof fetchStockVault>>) => {
+    (vault: StockVaultResponse) => {
       setItems(vault.items ?? []);
       setQuotes(vault.quotes ?? {});
       setMeta(vault.meta ?? {});
@@ -129,39 +179,39 @@ export default function StockVaultTab({
             : prev,
       );
       onVaultChange?.(manualVaultSymbols(vault.items ?? []));
+      updateStockVaultPrefetchVault(vault);
     },
     [onVaultChange],
   );
 
+  const applyScanStatus = useCallback((status: StockVaultScanStatus | null | undefined) => {
+    if (!status) return;
+    setScanEnabled(status.enabled);
+    setScanRunning(Boolean(status.running));
+    setScanHint(scanHintFromStatus(status));
+  }, []);
+
   const reloadVault = useCallback(async () => {
-    const vault = await fetchStockVault();
-    applyVaultResponse(vault);
+    const bundle = await loadStockVault();
+    applyVaultResponse(bundle.vault);
   }, [applyVaultResponse]);
 
-  const reload = useCallback(async () => {
-    setLoading(true);
+  const reload = useCallback(async (force = false) => {
+    const hadCache = !force && Boolean(peekStockVaultPrefetch());
+    if (!hadCache) {
+      setLoading(true);
+    }
     setError(null);
     try {
-      const [vault, status] = await Promise.all([
-        fetchStockVault(),
-        fetchGoldenCrossStatus().catch(() => null),
-      ]);
-      applyVaultResponse(vault);
-      if (status) {
-        setScanEnabled(status.enabled);
-        setScanRunning(Boolean(status.running));
-        const gcState = status.goldenCross?.state ?? status.state;
-        const maState = status.maAlign?.state ?? status.state;
-        if (gcState && maState) {
-          setScanHint(scanHintFromState(gcState, maState));
-        }
-      }
+      const bundle = force ? await refreshStockVaultTab() : await loadStockVault();
+      applyVaultResponse(bundle.vault);
+      applyScanStatus(bundle.scanStatus);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
-  }, [applyVaultResponse]);
+  }, [applyVaultResponse, applyScanStatus]);
 
   useEffect(() => {
     void reload();
@@ -181,15 +231,11 @@ export default function StockVaultTab({
       void (async () => {
         try {
           const status = await fetchGoldenCrossStatus();
-          setScanEnabled(status.enabled);
-          setScanRunning(Boolean(status.running));
-          const gcState = status.goldenCross?.state ?? status.state;
-          const maState = status.maAlign?.state ?? status.state;
-          if (gcState && maState) {
-            setScanHint(scanHintFromState(gcState, maState));
-          }
+          applyScanStatus(status);
           if (!status.running) {
-            await reloadVault();
+            const bundle = await refreshStockVaultTab();
+            applyVaultResponse(bundle.vault);
+            applyScanStatus(bundle.scanStatus);
             setScanNotice(ko.stockVault.scanDone);
           }
         } catch {
@@ -198,7 +244,7 @@ export default function StockVaultTab({
       })();
     }, SCAN_POLL_MS);
     return () => window.clearInterval(id);
-  }, [scanRunning, reloadVault]);
+  }, [scanRunning, applyScanStatus, applyVaultResponse]);
 
   useEffect(() => {
     if (!scanConfirmOpen) return;
@@ -423,7 +469,7 @@ export default function StockVaultTab({
               <button
                 type="button"
                 className="stock-vault-tab__head-btn"
-                onClick={() => void reload()}
+                onClick={() => void reload(true)}
               >
                 {ko.app.retry}
               </button>

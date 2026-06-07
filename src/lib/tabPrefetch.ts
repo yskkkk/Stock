@@ -6,9 +6,11 @@ import {
   fetchMacroEvents,
   fetchPicksDailyHistory,
   fetchPicksDailyHistoryQuotes,
+  fetchGoldenCrossStatus,
   fetchRecommendationsTracker,
   fetchSectorEarnings,
   fetchStockSearchHot,
+  fetchStockVault,
   fetchTechModels,
   type LiveTradingStatusResponse,
   type TechModelsResponse,
@@ -27,6 +29,8 @@ import type {
   RecommendationsTrackerResponse,
   SectorEarningsSpotlightItem,
   StockSearchQuoteRow,
+  StockVaultResponse,
+  StockVaultScanStatus,
 } from "../types";
 
 const MACRO_SESSION_CACHE_KEY = "stock-macro-bar-v2";
@@ -39,6 +43,7 @@ const TTL_MS = {
   picksHistory: 120_000,
   stockSearchHotKr: 120_000,
   stockSearchHotUs: 120_000,
+  stockVault: 60_000,
 } as const;
 
 type CacheKey = keyof typeof TTL_MS;
@@ -316,6 +321,49 @@ export async function prefetchStockSearchHotTabs(): Promise<void> {
   await Promise.all([loadStockSearchHot("kr"), loadStockSearchHot("us")]);
 }
 
+export type StockVaultPrefetch = {
+  vault: StockVaultResponse;
+  scanStatus: StockVaultScanStatus | null;
+};
+
+export function peekStockVaultPrefetch(): StockVaultPrefetch | null {
+  return getCached<StockVaultPrefetch>("stockVault");
+}
+
+export function invalidateStockVaultPrefetch(): void {
+  cache.delete("stockVault");
+  inflight.delete("stockVault");
+}
+
+async function fetchStockVaultBundle(): Promise<StockVaultPrefetch> {
+  const [vault, scanStatus] = await Promise.all([
+    fetchStockVault(),
+    fetchGoldenCrossStatus().catch(() => null),
+  ]);
+  return { vault, scanStatus };
+}
+
+export function loadStockVault(): Promise<StockVaultPrefetch> {
+  return dedupe("stockVault", fetchStockVaultBundle);
+}
+
+export async function refreshStockVaultTab(): Promise<StockVaultPrefetch> {
+  invalidateStockVaultPrefetch();
+  return loadStockVault();
+}
+
+export function updateStockVaultPrefetchVault(vault: StockVaultResponse): void {
+  const existing = peekStockVaultPrefetch();
+  setCached("stockVault", {
+    vault,
+    scanStatus: existing?.scanStatus ?? null,
+  });
+}
+
+export async function prefetchStockVaultTab(): Promise<StockVaultPrefetch> {
+  return loadStockVault();
+}
+
 let prefetchStarted = false;
 
 /** config 로드 후 — 탭 미진입 데이터를 백그라운드로 선요청 */
@@ -331,5 +379,6 @@ export function startBackgroundTabPrefetch(): void {
     prefetchLiveTradingPortfolio();
     void prefetchPicksDailyHistory();
     void prefetchStockSearchHotTabs();
+    void prefetchStockVaultTab();
   });
 }

@@ -8,7 +8,6 @@ import {
   fetchNews,
   fetchPicks,
   fetchStock,
-  fetchStockVault,
   addStockVaultItem,
   removeStockVaultItem,
   fetchTelegramSent,
@@ -124,7 +123,7 @@ import {
 } from "./lib/userPersist";
 import { filterPicksByQuery } from "./lib/searchPicks";
 import { liveHoldingToStockPick } from "./lib/liveHoldingToPick";
-import { startBackgroundTabPrefetch } from "./lib/tabPrefetch";
+import { startBackgroundTabPrefetch, loadStockVault } from "./lib/tabPrefetch";
 import { SHOW_OPS_GLOBAL_DEV_QUEUE_UI } from "./constants/opsDevQueuePoll";
 import { warmOpsDevQueueDisplay } from "./lib/opsDevQueueDisplayClient";
 import { sortPicksList, type SortKey } from "./lib/sortPicks";
@@ -210,10 +209,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    void fetchStockVault()
+    void loadStockVault()
       .then((data) => {
         syncVaultSymbols(
-          (data.items ?? [])
+          (data.vault.items ?? [])
             .filter((it) => it.source === "manual")
             .map((it) => it.symbol),
         );
