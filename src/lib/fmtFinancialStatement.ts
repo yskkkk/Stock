@@ -3,7 +3,39 @@ function normStatementLabel(label: string): string {
 }
 
 function valueLooksUnitized(raw: string): boolean {
-  return /[%원배억$€£₩]|krw|usd|million|billion|m\b|b\b/i.test(raw);
+  return /[%원배억조$€£₩]|krw|usd|million|billion|m\b|b\b/i.test(raw);
+}
+
+/** 1조 = 10,000억 */
+const EOK_PER_JO = 10_000;
+
+function parseStatementDisplayNumber(raw: string): number | null {
+  const s = raw.trim();
+  if (!s || s === "—" || s === "-") return null;
+  const neg = /^\(.*\)$/.test(s);
+  const m = s.replace(/,/g, "").replace(/[()]/g, "").match(/^([+-]?[\d.]+)/);
+  if (!m) return null;
+  let n = Number(m[1]);
+  if (!Number.isFinite(n)) return null;
+  return neg ? -n : n;
+}
+
+function formatJoWonFromEok(eok: number): string {
+  const jo = eok / EOK_PER_JO;
+  const abs = Math.abs(jo);
+  const maxFrac = abs >= 100 ? 1 : 2;
+  const formatted = jo.toLocaleString("ko-KR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: maxFrac,
+  });
+  return `${formatted}조원`;
+}
+
+function formatEokWon(raw: string, eok: number): string {
+  if (Math.abs(eok) >= EOK_PER_JO) {
+    return formatJoWonFromEok(eok);
+  }
+  return `${raw}억원`;
 }
 
 /** 재무제표 행 라벨·섹션 단위로 표시 단위 추론 */
@@ -25,7 +57,7 @@ export function statementRowDisplayUnit(
     /^roe$|^roa$|^ros$/.test(n) ||
     n.endsWith("이익률") ||
     n.endsWith("수익률") ||
-    (n.endsWith("률") && !n.includes("배당"))
+    ((n.endsWith("률") || n.endsWith("율")) && !n.includes("배당"))
   ) {
     return "%";
   }
@@ -57,7 +89,11 @@ export function fmtFinancialStatementCell(
   if (unit === "%") return `${raw}%`;
   if (unit === "배") return `${raw}배`;
   if (unit === "원") return `${raw}원`;
-  if (unit === "억원") return `${raw}억원`;
+  if (unit === "억원") {
+    const n = parseStatementDisplayNumber(raw);
+    if (n == null) return `${raw}억원`;
+    return formatEokWon(raw, n);
+  }
   if (unit === "USD") return `$${raw}`;
   return raw;
 }
