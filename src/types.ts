@@ -389,6 +389,7 @@ export interface StockVaultResponse {
     string,
     {
       industry?: string | null;
+      nameKo?: string | null;
     }
   >;
   industryTabs?: string[];

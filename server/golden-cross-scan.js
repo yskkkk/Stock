@@ -1,6 +1,7 @@
 import { loadStock } from "./stock-data.js";
 import { detectDailyGoldenCrosses } from "./golden-cross-detect.js";
 import { isGoldenCrossTradable } from "./golden-cross-tradable.js";
+import { resolveDisplayName } from "./names-ko.js";
 import { loadBoxRangeCatalogUniverse } from "./universe.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
@@ -70,7 +71,10 @@ async function scanOneSymbol(item, market, scanDate) {
     if (!crosses.length) return null;
     return {
       symbol: sym,
-      name: String(item.name ?? data?.quote?.name ?? sym).trim() || sym,
+      name: resolveDisplayName(
+        sym,
+        String(item.name ?? data?.quote?.name ?? sym).trim() || sym,
+      ),
       market,
       crosses,
       scanDate,

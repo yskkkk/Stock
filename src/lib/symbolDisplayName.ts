@@ -94,8 +94,22 @@ export function resolveSymbolDisplayName(
   market?: string | null,
 ): SymbolDisplayParts {
   const sym = symbol.trim().toUpperCase();
-  const label = resolveLabel(sym, fallbackName);
   const code = shortTickerCode(sym, market);
+  const mapped = lookupMappedName(sym);
+
+  if (market === "us") {
+    const fb = String(fallbackName ?? "").trim();
+    const label = mapped ?? (hasHangul(fb) ? fb : null) ?? code;
+    if (label !== code && !hasHangul(label)) {
+      return { label: code, sublabel: label === sym ? undefined : label };
+    }
+    if (hasHangul(label) && label !== code) {
+      return { label, sublabel: code };
+    }
+    return { label: code };
+  }
+
+  const label = resolveLabel(sym, fallbackName);
   const showSub =
     !hasHangul(label) &&
     label !== sym &&

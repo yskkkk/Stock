@@ -1,4 +1,9 @@
 import { normalizeYahooQuoteSymbol } from "./quote-symbol-resolve.js";
+import { getKoreanStockName } from "./names-ko.js";
+import {
+  normalizeUsTicker,
+  resolveUsKoreanStockNamesBatch,
+} from "./us-naver-korean-name.js";
 import { yahooGet } from "./yahoo.js";
 
 const CACHE_TTL_MS = 24 * 60 * 60_000;
@@ -506,12 +511,17 @@ async function fetchIndustryForSymbol(symbol, market) {
 
 /**
  * @param {Array<{ symbol: string; market?: "kr"|"us" }>} items
- * @returns {Promise<Record<string, { industry?: string | null }>>}
+ * @returns {Promise<Record<string, { industry?: string | null; nameKo?: string | null }>>}
  */
 export async function fetchStockVaultMetaForItems(items) {
-  /** @type {Record<string, { industry?: string | null }>} */
+  /** @type {Record<string, { industry?: string | null; nameKo?: string | null }>} */
   const meta = {};
   const rows = Array.isArray(items) ? items : [];
+  const usSymbols = rows
+    .filter((it) => it.market === "us")
+    .map((it) => String(it.symbol ?? "").trim().toUpperCase());
+  const usKoMap = await resolveUsKoreanStockNamesBatch(usSymbols);
+
   await Promise.all(
     rows.map(async (item) => {
       const sym = String(item?.symbol ?? "")
@@ -519,7 +529,16 @@ export async function fetchStockVaultMetaForItems(items) {
         .toUpperCase();
       if (!sym) return;
       const industry = await fetchIndustryForSymbol(sym, item.market);
-      if (industry) meta[sym] = { industry };
+      const bare = normalizeUsTicker(sym);
+      const nameKo =
+        item.market === "us"
+          ? getKoreanStockName(sym) ?? usKoMap.get(bare) ?? null
+          : getKoreanStockName(sym);
+      const row = {
+        ...(industry ? { industry } : {}),
+        ...(nameKo ? { nameKo } : {}),
+      };
+      if (Object.keys(row).length > 0) meta[sym] = row;
     }),
   );
   return meta;

@@ -1,4 +1,5 @@
 import { listStockVaultItemsSync } from "./stock-vault-store.js";
+import { resolveDisplayName } from "./names-ko.js";
 import {
   getUserStockVaultSync,
   removeUserVaultSymbolSync,
@@ -17,7 +18,11 @@ export function buildStockVaultItemsForUserSync(userId) {
     return {
       authenticated: false,
       favoriteSymbols: [],
-      items: globalGolden.map((it) => ({ ...it, favorited: false })),
+      items: globalGolden.map((it) => ({
+        ...it,
+        name: resolveDisplayName(it.symbol, it.name),
+        favorited: false,
+      })),
     };
   }
 
@@ -35,9 +40,12 @@ export function buildStockVaultItemsForUserSync(userId) {
     bySymbol.set(it.symbol, { ...it, favorited: favorites.has(it.symbol) });
   }
 
-  const items = [...bySymbol.values()].sort(
-    (a, b) => b.updatedAtMs - a.updatedAtMs,
-  );
+  const items = [...bySymbol.values()]
+    .map((it) => ({
+      ...it,
+      name: resolveDisplayName(it.symbol, it.name),
+    }))
+    .sort((a, b) => b.updatedAtMs - a.updatedAtMs);
   return {
     authenticated: true,
     favoriteSymbols: [...favorites],

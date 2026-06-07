@@ -69,7 +69,7 @@ export default function StockVaultTab({
     Record<string, { price: number; changePercent?: number; currency?: string }>
   >({});
   const [meta, setMeta] = useState<
-    Record<string, { industry?: string | null }>
+    Record<string, { industry?: string | null; nameKo?: string | null }>
   >({});
   const [industryTabs, setIndustryTabs] = useState<string[]>([]);
   const [industryGridRows, setIndustryGridRows] = useState(20);
@@ -526,9 +526,10 @@ export default function StockVaultTab({
             {filtered.map((item) => {
               const symKey = item.symbol.trim().toUpperCase();
               const quote = quotes[symKey];
+              const metaRow = meta[symKey];
               const display = resolveSymbolDisplayName(
                 item.symbol,
-                item.name,
+                metaRow?.nameKo ?? item.name,
                 item.market,
               );
               const industry = getItemIndustry(item);

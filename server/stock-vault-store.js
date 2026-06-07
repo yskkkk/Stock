@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
+import { resolveDisplayName } from "./names-ko.js";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
 
-const STORE_FILE = "stock-vault.json";
+function vaultStoreFile() {
+  return process.env.STOCK_VAULT_STORE_TEST_FILE?.trim() || "stock-vault.json";
+}
 
 /** @typedef {"manual"|"golden_cross"} StockVaultSource */
 
@@ -21,6 +24,18 @@ const STORE_FILE = "stock-vault.json";
 
 /** @typedef {{ version: 1; items: StockVaultItem[]; dismissed?: string[] }} StockVaultStore */
 
+const TEST_JUNK_NAMES = new Set(["골든", "즐겨", "수동", "테스트"]);
+
+/** @param {unknown} row */
+function isTestGarbageItem(row) {
+  const sym = String(row?.symbol ?? "")
+    .trim()
+    .toUpperCase();
+  const name = String(row?.name ?? "").trim();
+  if (!TEST_JUNK_NAMES.has(name)) return false;
+  return /^(TEST|GC|GCV|MAN|FAV)\d/i.test(sym);
+}
+
 /** @param {unknown} raw */
 function normalizeStore(raw) {
   const items = Array.isArray(raw?.items) ? raw.items : [];
@@ -32,6 +47,7 @@ function normalizeStore(raw) {
       .trim()
       .toUpperCase();
     if (!symbol || seen.has(symbol)) continue;
+    if (isTestGarbageItem(row)) continue;
     const market = row?.market === "us" ? "us" : "kr";
     const source = row?.source === "golden_cross" ? "golden_cross" : "manual";
     const crosses = Array.isArray(row?.crosses)
@@ -40,7 +56,7 @@ function normalizeStore(raw) {
     out.push({
       id: String(row?.id ?? randomUUID()),
       symbol,
-      name: String(row?.name ?? symbol).trim() || symbol,
+      name: resolveDisplayName(symbol, String(row?.name ?? symbol).trim() || symbol),
       market,
       source,
       crosses: source === "golden_cross" ? crosses : undefined,
@@ -77,12 +93,19 @@ function emptyStore() {
 }
 
 function readStore() {
-  return readJsonStoreSync(STORE_FILE, normalizeStore, emptyStore);
+  const empty = emptyStore();
+  const raw = readJsonStoreSync(vaultStoreFile(), (v) => v, () => empty);
+  const normalized = normalizeStore(raw);
+  const rawLen = Array.isArray(raw?.items) ? raw.items.length : 0;
+  if (rawLen !== normalized.items.length) {
+    writeStore(normalized);
+  }
+  return normalized;
 }
 
 /** @param {StockVaultStore} data */
 function writeStore(data) {
-  writeJsonStoreSync(STORE_FILE, normalizeStore(data));
+  writeJsonStoreSync(vaultStoreFile(), normalizeStore(data));
 }
 
 export function listStockVaultItemsSync() {
@@ -118,7 +141,7 @@ export function upsertStockVaultItemSync(input) {
         : prev.crosses;
     store.items[idx] = {
       ...prev,
-      name: String(input.name ?? prev.name).trim() || prev.name,
+      name: resolveDisplayName(symbol, String(input.name ?? prev.name).trim() || prev.name),
       market,
       source: prev.source === "manual" && source === "golden_cross" ? "golden_cross" : prev.source === "golden_cross" ? "golden_cross" : source,
       crosses: mergedCrosses?.length ? mergedCrosses : undefined,
@@ -132,7 +155,7 @@ export function upsertStockVaultItemSync(input) {
     store.items.unshift({
       id: randomUUID(),
       symbol,
-      name: String(input.name ?? symbol).trim() || symbol,
+      name: resolveDisplayName(symbol, String(input.name ?? symbol).trim() || symbol),
       market,
       source,
       crosses: crosses.length ? crosses : undefined,

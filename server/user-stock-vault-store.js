@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
 
-const STORE_FILE = "user-stock-vault.json";
+function userVaultStoreFile() {
+  return process.env.USER_STOCK_VAULT_STORE_TEST_FILE?.trim() || "user-stock-vault.json";
+}
 
 /**
  * @typedef {import("./stock-vault-store.js").StockVaultItem} StockVaultItem
@@ -87,12 +89,12 @@ function emptyStore() {
 }
 
 function readStore() {
-  return readJsonStoreSync(STORE_FILE, normalizeStore, emptyStore);
+  return readJsonStoreSync(userVaultStoreFile(), normalizeStore, emptyStore);
 }
 
 /** @param {UserStockVaultStore} data */
 function writeStore(data) {
-  writeJsonStoreSync(STORE_FILE, normalizeStore(data));
+  writeJsonStoreSync(userVaultStoreFile(), normalizeStore(data));
 }
 
 /** @param {string} userId */
