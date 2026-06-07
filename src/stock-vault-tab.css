@@ -179,31 +179,46 @@
   white-space: nowrap;
 }
 
-.stock-hot-item__vault-btn {
-  flex-shrink: 0;
-  align-self: center;
-  width: 1.65rem;
-  height: 1.65rem;
-  margin-right: 0.35rem;
+.stock-vault-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
   padding: 0;
-  border: 1px solid var(--card-border);
-  border-radius: var(--radius-sm, 8px);
-  background: color-mix(in srgb, var(--card) 70%, var(--surface));
-  color: var(--muted);
-  font-size: 0.95rem;
-  line-height: 1;
+  border: none;
+  background: transparent;
+  color: color-mix(in srgb, var(--muted) 78%, transparent);
   cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
 }
 
-.stock-hot-item__vault-btn:hover {
-  color: var(--accent);
-  border-color: color-mix(in srgb, var(--accent) 40%, var(--card-border));
+.stock-vault-mark--inline {
+  flex: 0 0 2rem;
+  align-self: stretch;
+  width: 2rem;
+  min-height: 100%;
 }
 
-.stock-hot-item__vault-btn--saved {
+.stock-hot-item:hover .stock-vault-mark--inline,
+.stock-vault-mark--inline:hover {
   color: var(--accent);
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--card-border));
-  background: color-mix(in srgb, var(--accent-dim) 35%, var(--card));
+  background: color-mix(in srgb, var(--accent-dim) 28%, transparent);
+}
+
+.stock-vault-mark--saved,
+.stock-hot-item--active .stock-vault-mark--saved {
+  color: var(--accent);
+}
+
+.stock-vault-mark--inline.stock-vault-mark--saved {
+  background: color-mix(in srgb, var(--accent-dim) 22%, transparent);
+}
+
+.stock-vault-mark__icon {
+  display: block;
+  flex-shrink: 0;
 }
 
 .stock-hot-item {
@@ -211,6 +226,31 @@
   align-items: stretch;
 }
 
-.pick-action--vault .pick-action__icon {
-  font-size: 0.72rem;
+.stock-hot-item:has(.stock-vault-mark--inline) .stock-hot-item__btn {
+  padding-left: 0.45rem;
+}
+
+.pick-action--vault {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+}
+
+.pick-action--vault-saved {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--card-border));
+  background: color-mix(in srgb, var(--accent-dim) 30%, var(--surface));
+}
+
+.pick-action__icon--vault {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.pick-action__icon--vault .stock-vault-mark__icon {
+  width: 0.82rem;
+  height: 0.82rem;
 }

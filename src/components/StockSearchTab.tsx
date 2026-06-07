@@ -18,6 +18,7 @@ import type {
 import PickQuoteStrip from "./PickQuoteStrip";
 import { resolveUsQuoteDisplay } from "../lib/usQuoteDisplay";
 import StockSearchHotRow, { rowToStockPick } from "./StockSearchHotRow";
+import { VaultBookmarkIcon } from "./StockVaultMarkButton";
 import StockTechnicalAnalysisPanel, {
   type StockTechnicalAnalysisSlot,
 } from "./StockTechnicalAnalysisPanel";
@@ -297,19 +298,24 @@ const StockSearchPickRow = memo(
           {onAddToVault && (row.market === "kr" || row.market === "us") ? (
             <button
               type="button"
-              className="pick-action pick-action--vault"
+              className={
+                vaultSaved
+                  ? "pick-action pick-action--vault pick-action--vault-saved"
+                  : "pick-action pick-action--vault"
+              }
               aria-label={vaultSaved ? ko.stockVault.removeFromVault : ko.stockVault.addAria}
               title={vaultSaved ? ko.stockVault.removeFromVault : ko.stockVault.addAria}
+              aria-pressed={vaultSaved}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 onAddToVault(pick);
               }}
             >
-              <span className="pick-action__icon" aria-hidden>
-                {vaultSaved ? "✓" : "+"}
+              <span className="pick-action__icon pick-action__icon--vault" aria-hidden>
+                <VaultBookmarkIcon filled={vaultSaved} />
               </span>
-              {ko.stockVault.add}
+              {vaultSaved ? ko.stockVault.added : ko.stockVault.add}
             </button>
           ) : null}
         </div>

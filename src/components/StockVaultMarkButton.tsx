@@ -1,0 +1,69 @@
+import type { ButtonHTMLAttributes, MouseEvent } from "react";
+
+export function VaultBookmarkIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg
+      className="stock-vault-mark__icon"
+      viewBox="0 0 24 24"
+      width={15}
+      height={15}
+      aria-hidden
+    >
+      {filled ? (
+        <path
+          fill="currentColor"
+          d="M6 4a2 2 0 0 0-2 2v14l8-4.5 8 4.5V6a2 2 0 0 0-2-2H6z"
+        />
+      ) : (
+        <path
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.65"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M6 4a2 2 0 0 0-2 2v14l8-4.5 8 4.5V6a2 2 0 0 0-2-2H6z"
+        />
+      )}
+    </svg>
+  );
+}
+
+export default function StockVaultMarkButton({
+  saved,
+  label,
+  variant = "inline",
+  className = "",
+  onClick,
+  ...rest
+}: {
+  saved: boolean;
+  label: string;
+  variant?: "inline" | "compact";
+} & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "type" | "aria-label" | "title">) {
+  const handleClick = (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onClick?.(e);
+  };
+
+  return (
+    <button
+      type="button"
+      className={[
+        "stock-vault-mark",
+        variant === "inline" ? "stock-vault-mark--inline" : "stock-vault-mark--compact",
+        saved ? "stock-vault-mark--saved" : "",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      aria-label={label}
+      aria-pressed={saved}
+      title={label}
+      onClick={handleClick}
+      {...rest}
+    >
+      <VaultBookmarkIcon filled={saved} />
+    </button>
+  );
+}

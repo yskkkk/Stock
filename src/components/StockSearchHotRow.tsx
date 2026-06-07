@@ -2,6 +2,7 @@ import { ko } from "../i18n/ko";
 import { formatPercent, formatPrice, formatTurnover } from "../lib/format";
 import { resolveUsQuoteDisplay } from "../lib/usQuoteDisplay";
 import type { StockPick, StockSearchQuoteRow } from "../types";
+import StockVaultMarkButton from "./StockVaultMarkButton";
 
 export function rowToStockPick(row: StockSearchQuoteRow): StockPick {
   const pick: StockPick = {
@@ -69,23 +70,11 @@ export default function StockSearchHotRow({
       className={isActive ? "stock-hot-item stock-hot-item--active" : "stock-hot-item"}
     >
       {onAddToVault && (row.market === "kr" || row.market === "us") ? (
-        <button
-          type="button"
-          className={
-            vaultSaved
-              ? "stock-hot-item__vault-btn stock-hot-item__vault-btn--saved"
-              : "stock-hot-item__vault-btn"
-          }
-          title={vaultSaved ? ko.stockVault.removeFromVault : ko.stockVault.addAria}
-          aria-label={vaultSaved ? ko.stockVault.removeFromVault : ko.stockVault.addAria}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onAddToVault(pick);
-          }}
-        >
-          {vaultSaved ? "✓" : "+"}
-        </button>
+        <StockVaultMarkButton
+          saved={vaultSaved}
+          label={vaultSaved ? ko.stockVault.removeFromVault : ko.stockVault.addAria}
+          onClick={() => onAddToVault(pick)}
+        />
       ) : null}
       <button
         type="button"
