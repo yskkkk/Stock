@@ -4,6 +4,7 @@ import { ko } from "./i18n/ko";
 import { applyTheme, readStoredTheme } from "./lib/theme";
 import { ensureMobileBackNavigation } from "./lib/initMobileBack";
 import { registerPwaServiceWorker } from "./lib/registerPwa";
+import AppErrorBoundary from "./components/AppErrorBoundary";
 import "./index.css";
 import "./theme.css";
 import "./theme-light-palettes.css";
@@ -49,27 +50,32 @@ window.addEventListener("error", (e) => {
 
 window.addEventListener("unhandledrejection", (e) => {
   const r = (e as PromiseRejectionEvent).reason;
-  renderFatal(r instanceof Error ? r.message : String(r ?? "Promise rejection"));
+  const msg = r instanceof Error ? r.message : String(r ?? "");
+  if (!msg.trim()) return;
+  console.error("[unhandledrejection]", r);
+  e.preventDefault();
 });
 
 try {
   createRoot(document.getElementById("root")!).render(
     <StrictMode>
-      <Suspense
-        fallback={
-          <div
-            className="launch-shell launch-shell--loading"
-            aria-busy="true"
-            data-testid="launch-loading"
-          >
-            <p>{ko.launch.loading}</p>
-          </div>
-        }
-      >
-        <MobileServerGate>
-          <App />
-        </MobileServerGate>
-      </Suspense>
+      <AppErrorBoundary>
+        <Suspense
+          fallback={
+            <div
+              className="launch-shell launch-shell--loading"
+              aria-busy="true"
+              data-testid="launch-loading"
+            >
+              <p>{ko.launch.loading}</p>
+            </div>
+          }
+        >
+          <MobileServerGate>
+            <App />
+          </MobileServerGate>
+        </Suspense>
+      </AppErrorBoundary>
     </StrictMode>,
   );
 } catch (e) {

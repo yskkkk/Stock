@@ -398,15 +398,15 @@ export function startBackgroundTabPrefetch(): void {
   prefetchStarted = true;
 
   /* 종목보관 — 탭 진입 전 즉시 선로드(idle 대기 없음) */
-  void prefetchStockVaultTab();
+  void prefetchStockVaultTab().catch(() => {});
 
   scheduleIdle(() => {
-    void prefetchMacroBundle();
-    void prefetchRecommendationsTracker();
-    void prefetchCryptoTabData();
+    void prefetchMacroBundle().catch(() => {});
+    void prefetchRecommendationsTracker().catch(() => {});
+    void prefetchCryptoTabData().catch(() => {});
     void prefetchLiveTradingTab().catch(() => {});
     prefetchLiveTradingPortfolio();
-    void prefetchPicksDailyHistory();
-    void prefetchStockSearchHotTabs();
+    void prefetchPicksDailyHistory().catch(() => {});
+    void prefetchStockSearchHotTabs().catch(() => {});
   });
 }

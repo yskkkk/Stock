@@ -60,6 +60,10 @@ export function useLeftRailLazyFollow(
     if (!rail) return;
 
     const mq = window.matchMedia(DESKTOP_MQ);
+    if (!mq.matches) return;
+
+    if (typeof ResizeObserver === "undefined") return;
+
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const anchorLerp = reduceMotion ? 0.286 : ANCHOR_LERP;
     const positionLerp = reduceMotion ? 0.338 : POSITION_LERP;
