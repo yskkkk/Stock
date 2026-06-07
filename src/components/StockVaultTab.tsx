@@ -216,6 +216,12 @@ export default function StockVaultTab({
     }
   }, [industryFilter, industryTabs]);
 
+  const industryGridCols = useMemo(
+    () =>
+      Math.max(1, Math.ceil(industryTabs.length / Math.max(1, industryGridRows))),
+    [industryTabs.length, industryGridRows],
+  );
+
   const marketCounts = useMemo(
     () => ({
       all: items.length,
@@ -425,6 +431,7 @@ export default function StockVaultTab({
                   style={
                     {
                       "--stock-vault-industry-rows": String(industryGridRows),
+                      "--stock-vault-industry-cols": String(industryGridCols),
                     } as React.CSSProperties
                   }
                 >
