@@ -858,7 +858,8 @@ export const ko = {
     roe: "ROE",
     openTradingView: "TradingView 재무",
     metricsPeriodSuffix: "기간",
-    metricsCurrentPriceNote: "현재가·시총은 최신 시세 기준",
+    metricsCurrentPriceNote:
+      "PER·PBR·주가는 해당 기간 공시 시점(결산 후 약 40~75일) 추정 주가·TTM EPS 기준입니다. Forward PER/EPS는 최신 분기에만 표시됩니다.",
     formulaNote: "PER·PBR은 API 제공값 우선, 없으면 현재가÷EPS·BPS로 계산합니다.",
     periodsTitle: "재무제표",
     periodsLoading: "재무제표 기간 불러오는 중…",

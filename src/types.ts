@@ -334,6 +334,8 @@ export interface FinancialPeriodMetrics {
   dividendYield: number | null;
   profitMargin: number | null;
   roe: number | null;
+  valuationBasis?: "period_statement" | "disclosure_proxy" | null;
+  disclosureDateMs?: number | null;
 }
 
 export interface FinancialStatementAnalysisResponse extends FinancialStatementDetailResponse {

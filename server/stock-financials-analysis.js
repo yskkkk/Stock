@@ -10,6 +10,7 @@ import {
 } from "./stock-financials.js";
 import { loadStockFundamentals } from "./stock-fundamentals.js";
 import { extractPeriodMetricsFromDetail } from "./stock-financial-period-metrics.js";
+import { buildHistoricalPeriodMetrics } from "./stock-financial-period-valuation.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SECTOR_CONFIG_PATH = path.join(__dirname, "data", "sector-earnings-spotlight.json");
@@ -290,36 +291,36 @@ export async function loadFinancialStatementAnalysis(symbol, periodId) {
     market: periodsPayload?.market === "us" ? "us" : "kr",
   });
 
-  /** US Yahoo history에는 PER·EPS 등 없음 — quoteSummary fundamentals 보조 */
-  const periodMetrics = {
-    ...extracted,
-    per: extracted.per ?? fundamentals?.per ?? null,
-    forwardPer: extracted.forwardPer ?? fundamentals?.forwardPer ?? null,
-    eps: extracted.eps ?? fundamentals?.eps ?? null,
-    forwardEps: extracted.forwardEps ?? fundamentals?.forwardEps ?? null,
-    bps: extracted.bps ?? fundamentals?.bps ?? null,
-    pbr: extracted.pbr ?? fundamentals?.pbr ?? null,
-    price: extracted.price ?? fundamentals?.price ?? null,
-    marketCap: extracted.marketCap ?? fundamentals?.marketCap ?? null,
-    dividendYield: extracted.dividendYield ?? fundamentals?.dividendYield ?? null,
-    profitMargin: extracted.profitMargin ?? fundamentals?.profitMargin ?? null,
-    roe: extracted.roe ?? fundamentals?.roe ?? null,
-  };
-
-  /** 스냅샷 PER·PBR 등 — 선택 기간 기준, 없으면 최신 fundamentals 보조 */
-  const metricsForOpinion = {
-    per: periodMetrics.per,
-    pbr: periodMetrics.pbr,
-    roe: periodMetrics.roe,
-    profitMargin: periodMetrics.profitMargin,
-  };
-
   const periods = Array.isArray(periodsPayload?.periods) ? periodsPayload.periods : [];
   const currentPeriod = periods.find((p) => p.id === pid) ?? {
     id: pid,
     kind: detail.kind,
     endDateMs: null,
     isForecast: detail.isForecast,
+  };
+
+  let periodMetrics = await buildHistoricalPeriodMetrics(
+    sym,
+    currentPeriod,
+    extracted,
+    detail,
+  );
+
+  const latestPeriodId = periods[0]?.id ?? null;
+  if (latestPeriodId === pid && fundamentals) {
+    periodMetrics = {
+      ...periodMetrics,
+      forwardPer: fundamentals.forwardPer ?? null,
+      forwardEps: fundamentals.forwardEps ?? null,
+    };
+  }
+
+  /** 스냅샷 PER·PBR 등 — 선택 기간 기준 */
+  const metricsForOpinion = {
+    per: periodMetrics.per,
+    pbr: periodMetrics.pbr,
+    roe: periodMetrics.roe,
+    profitMargin: periodMetrics.profitMargin,
   };
 
   const priorPeriod = findPriorPeriod(periods, currentPeriod);
