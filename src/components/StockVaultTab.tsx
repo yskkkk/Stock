@@ -294,7 +294,6 @@ export default function StockVaultTab({
     setSelectedScanSources((prev) => {
       const set = new Set(prev);
       if (set.has(source)) {
-        if (set.size <= 1) return prev;
         set.delete(source);
       } else {
         set.add(source);
@@ -371,6 +370,9 @@ export default function StockVaultTab({
 
   const intersectionActive =
     vaultView === "scan" && selectedScanSources.length >= 2;
+
+  const showSelectScanCondition =
+    vaultView === "scan" && selectedScanSources.length === 0;
 
   const showEmptyIntersection =
     intersectionActive &&
@@ -720,9 +722,11 @@ export default function StockVaultTab({
           </p>
         ) : filtered.length === 0 ? (
           <p className="stock-vault-tab__muted">
-            {showEmptyIntersection
-              ? ko.stockVault.emptyIntersection
-              : ko.stockVault.empty}
+            {showSelectScanCondition
+              ? ko.stockVault.selectScanCondition
+              : showEmptyIntersection
+                ? ko.stockVault.emptyIntersection
+                : ko.stockVault.empty}
           </p>
         ) : (
           <ul className="stock-vault-tab__list">

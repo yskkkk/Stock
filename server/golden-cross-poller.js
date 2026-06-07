@@ -111,45 +111,36 @@ export async function runVaultMarketScans(market, scanDate, runId, trigger) {
   clearGoldenCrossVaultItemsSync({ market });
   clearMaAlignVaultItemsSync({ market });
 
-  const runGoldenCrossBranch = async () => {
-    const gcResult = await runGoldenCrossMarketScan(market, scanDate);
-    if (gcResult.hits.length) {
-      mergeGoldenCrossHitsIntoVaultSync(gcResult.hits);
+  const [gcSettled, maSettled] = await Promise.allSettled([
+    runGoldenCrossMarketScan(market, scanDate),
+    runMaAlignMarketScan(market, scanDate),
+  ]);
+
+  /** @type {Awaited<ReturnType<typeof runGoldenCrossMarketScan>>} */
+  let goldenCross = emptyGoldenCrossMarketResult(market, scanDate);
+  if (gcSettled.status === "fulfilled") {
+    goldenCross = gcSettled.value;
+    if (goldenCross.hits.length) {
+      mergeGoldenCrossHitsIntoVaultSync(goldenCross.hits);
     }
     appendGoldenCrossHistoryEntrySync({
       runId,
       trigger,
       market,
       scanDate,
-      scanned: gcResult.scanned,
-      hits: gcResult.hits,
+      scanned: goldenCross.scanned,
+      hits: goldenCross.hits,
     });
-    await notifyGoldenCrossScanTelegram(market, scanDate, gcResult.hits);
-    return gcResult;
-  };
-
-  const runMaAlignBranch = async () => {
-    const maResult = await runMaAlignMarketScan(market, scanDate);
-    if (maResult.hits.length) {
-      mergeMaAlignHitsIntoVaultSync(maResult.hits);
+    try {
+      await notifyGoldenCrossScanTelegram(market, scanDate, goldenCross.hits);
+    } catch (e) {
+      liveTradeLogWarn(
+        "[stock-vault:scan:golden-cross:telegram]",
+        market,
+        e instanceof Error ? e.message : e,
+      );
     }
-    appendMaAlignHistoryEntrySync({
-      runId,
-      trigger,
-      market,
-      scanDate,
-      scanned: maResult.scanned,
-      hits: maResult.hits,
-    });
-    return maResult;
-  };
-
-  const [gcSettled, maSettled] = await Promise.allSettled([
-    runGoldenCrossBranch(),
-    runMaAlignBranch(),
-  ]);
-
-  if (gcSettled.status === "rejected") {
+  } else {
     liveTradeLogWarn(
       "[stock-vault:scan:golden-cross]",
       market,
@@ -158,7 +149,23 @@ export async function runVaultMarketScans(market, scanDate, runId, trigger) {
         : gcSettled.reason,
     );
   }
-  if (maSettled.status === "rejected") {
+
+  /** @type {Awaited<ReturnType<typeof runMaAlignMarketScan>>} */
+  let maAlign = emptyMaAlignMarketResult(market, scanDate);
+  if (maSettled.status === "fulfilled") {
+    maAlign = maSettled.value;
+    if (maAlign.hits.length) {
+      mergeMaAlignHitsIntoVaultSync(maAlign.hits);
+    }
+    appendMaAlignHistoryEntrySync({
+      runId,
+      trigger,
+      market,
+      scanDate,
+      scanned: maAlign.scanned,
+      hits: maAlign.hits,
+    });
+  } else {
     liveTradeLogWarn(
       "[stock-vault:scan:ma-align]",
       market,
@@ -167,15 +174,6 @@ export async function runVaultMarketScans(market, scanDate, runId, trigger) {
         : maSettled.reason,
     );
   }
-
-  const goldenCross =
-    gcSettled.status === "fulfilled"
-      ? gcSettled.value
-      : emptyGoldenCrossMarketResult(market, scanDate);
-  const maAlign =
-    maSettled.status === "fulfilled"
-      ? maSettled.value
-      : emptyMaAlignMarketResult(market, scanDate);
 
   liveTradeLogInfo("[stock-vault:scan] market done", {
     market,

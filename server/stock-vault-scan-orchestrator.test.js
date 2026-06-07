@@ -94,6 +94,38 @@ test("runVaultMarketScans still merges ma align when golden cross fails", async 
   );
 });
 
+test("runVaultMarketScans keeps both golden cross and ma align hits", async () => {
+  gcScan.mockResolvedValue({
+    market: "kr",
+    scanDate: "2026-06-08",
+    scanned: 1,
+    hits: [
+      {
+        symbol: "005930.KS",
+        name: "삼성전자",
+        market: "kr",
+        crosses: ["5>20"],
+        crossDate: "2026-06-08",
+        scanDate: "2026-06-08",
+      },
+    ],
+    hitCount: 1,
+  });
+  maScan.mockResolvedValue({
+    market: "kr",
+    scanDate: "2026-06-08",
+    scanned: 1,
+    hits: [{ symbol: "005930.KS", name: "삼성전자", market: "kr", scanDate: "2026-06-08" }],
+    hitCount: 1,
+  });
+
+  await runVaultMarketScans("kr", "2026-06-08", "run-both", "manual");
+
+  const items = listStockVaultItemsSync();
+  assert.equal(items.filter((it) => it.source === "golden_cross").length, 1);
+  assert.equal(items.filter((it) => it.source === "ma_align").length, 1);
+});
+
 test("runVaultMarketScans clears only the target market before merge", async () => {
   upsertStockVaultItemSync({
     symbol: "KRGC.KS",

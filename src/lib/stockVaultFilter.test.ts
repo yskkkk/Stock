@@ -68,8 +68,17 @@ describe("stockVaultFilter", () => {
     expect(countVaultIntersection(items, ["golden_cross", "ma_align"])).toBe(1);
   });
 
-  it("exposes scan source registry for future types", () => {
-    expect(STOCK_VAULT_SCAN_SOURCES).toContain("golden_cross");
-    expect(STOCK_VAULT_SCAN_SOURCES).toContain("ma_align");
+  it("returns empty list when no scan source selected", () => {
+    const items = [
+      item({ symbol: "A.KS", source: "golden_cross" }),
+      item({ symbol: "B.KS", source: "ma_align" }),
+    ];
+    const rows = buildVaultDisplayRows(items, {
+      view: "scan",
+      selectedScanSources: [],
+      marketFilter: "all",
+      favoriteOnly: false,
+    });
+    expect(rows).toHaveLength(0);
   });
 });
