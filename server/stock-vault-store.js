@@ -187,6 +187,26 @@ export function removeStockVaultItemSync(symbol) {
 }
 
 /**
+ * 골든크로스 자동 탐색 종목만 제거(수동 추가·dismissed 유지).
+ * @param {{ market?: "kr"|"us" }} [opts]
+ * @returns {number} 제거된 종목 수
+ */
+export function clearGoldenCrossVaultItemsSync(opts = {}) {
+  const marketFilter = opts.market === "kr" || opts.market === "us" ? opts.market : null;
+  const store = readStore();
+  const before = store.items.length;
+  store.items = store.items.filter((it) => {
+    if (it.source !== "golden_cross") return true;
+    if (marketFilter && it.market !== marketFilter) return true;
+    return false;
+  });
+  if (store.items.length !== before) {
+    writeStore(store);
+  }
+  return before - store.items.length;
+}
+
+/**
  * @param {Array<{ symbol: string; name: string; market: "kr"|"us"; crosses: string[]; scanDate: string }>} hits
  */
 export function mergeGoldenCrossHitsIntoVaultSync(hits) {

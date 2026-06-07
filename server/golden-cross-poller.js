@@ -1,7 +1,13 @@
+import { randomUUID } from "node:crypto";
 import { getKstParts, isKrBusinessDay } from "./kr-business-day.js";
 import { runGoldenCrossMarketScan, wasGoldenCrossScannedSync } from "./golden-cross-scan.js";
-import { mergeGoldenCrossHitsIntoVaultSync } from "./stock-vault-store.js";
+import {
+  clearGoldenCrossVaultItemsSync,
+  mergeGoldenCrossHitsIntoVaultSync,
+} from "./stock-vault-store.js";
+import { appendGoldenCrossHistoryEntrySync } from "./golden-cross-history-store.js";
 import { notifyGoldenCrossScanTelegram } from "./golden-cross-telegram.js";
+import { sendGoldenCrossScanReportEmail } from "./notifications/golden-cross-scan-email.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 
 const POLL_MS = (() => {
@@ -75,8 +81,14 @@ export function getLastGoldenCrossManualScanResult() {
 
 /** @param {Date} [now] */
 async function runGoldenCrossManualScanInternal(now = new Date()) {
+  const runId = randomUUID();
+  clearGoldenCrossVaultItemsSync();
+
   /** @type {Array<{ market: "kr"|"us"; scanDate: string; scanned: number; hitCount: number }>} */
   const results = [];
+  /** @type {import("./notifications/golden-cross-scan-email.js").GoldenCrossEmailMarket[]} */
+  const emailMarkets = [];
+
   for (const market of /** @type {const} */ (["kr", "us"])) {
     const scanDate =
       market === "kr"
@@ -86,7 +98,21 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
     if (result.hits.length) {
       mergeGoldenCrossHitsIntoVaultSync(result.hits);
     }
+    appendGoldenCrossHistoryEntrySync({
+      runId,
+      trigger: "manual",
+      market,
+      scanDate,
+      scanned: result.scanned,
+      hits: result.hits,
+    });
     await notifyGoldenCrossScanTelegram(market, scanDate, result.hits);
+    emailMarkets.push({
+      market,
+      scanDate,
+      scanned: result.scanned,
+      hits: result.hits,
+    });
     results.push({
       market,
       scanDate,
@@ -94,6 +120,21 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
       hitCount: result.hitCount,
     });
   }
+
+  try {
+    const emailResult = await sendGoldenCrossScanReportEmail({ markets: emailMarkets });
+    liveTradeLogInfo("[golden-cross:email]", {
+      sent: emailResult.sent,
+      totalHits: emailResult.totalHits,
+      recipients: emailResult.recipients,
+    });
+  } catch (e) {
+    liveTradeLogWarn(
+      "[golden-cross:email]",
+      e instanceof Error ? e.message : e,
+    );
+  }
+
   lastManualScanResult = { atMs: Date.now(), results };
   return lastManualScanResult;
 }
@@ -138,11 +179,38 @@ export async function runGoldenCrossScanIfDue(market, now = new Date()) {
       ? getKstParts(now).dateKey
       : localMinutesOfDay("us", now).dateKey;
 
+  clearGoldenCrossVaultItemsSync({ market });
   const result = await runGoldenCrossMarketScan(market, scanDate);
   if (result.hits.length) {
     mergeGoldenCrossHitsIntoVaultSync(result.hits);
   }
+  appendGoldenCrossHistoryEntrySync({
+    runId: randomUUID(),
+    trigger: "scheduled",
+    market,
+    scanDate,
+    scanned: result.scanned,
+    hits: result.hits,
+  });
   await notifyGoldenCrossScanTelegram(market, scanDate, result.hits);
+  try {
+    await sendGoldenCrossScanReportEmail({
+      markets: [
+        {
+          market,
+          scanDate,
+          scanned: result.scanned,
+          hits: result.hits,
+        },
+      ],
+    });
+  } catch (e) {
+    liveTradeLogWarn(
+      "[golden-cross:email]",
+      market,
+      e instanceof Error ? e.message : e,
+    );
+  }
   return result;
 }
 

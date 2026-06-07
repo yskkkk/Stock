@@ -2290,6 +2290,41 @@ export function createApp() {
   );
 
   app.get(
+    "/api/golden-cross/history",
+    asyncRoute(async (req, res) => {
+      const {
+        listGoldenCrossHistoryRunsSync,
+        listGoldenCrossHistoryDatesSync,
+        listGoldenCrossHistorySync,
+      } = await import("./golden-cross-history-store.js");
+      const scanDate = String(req.query?.date ?? "").trim();
+      const runId = String(req.query?.runId ?? "").trim();
+      const detail = req.query?.detail === "1" || req.query?.detail === "true";
+      if (runId) {
+        const entries = listGoldenCrossHistorySync({ limit: 180 }).filter(
+          (e) => e.runId === runId,
+        );
+        res.json({ runId, entries });
+        return;
+      }
+      if (detail && scanDate) {
+        res.json({
+          scanDate,
+          entries: listGoldenCrossHistorySync({ scanDate, limit: 60 }),
+        });
+        return;
+      }
+      res.json({
+        dates: listGoldenCrossHistoryDatesSync(),
+        runs: listGoldenCrossHistoryRunsSync({
+          scanDate: scanDate || undefined,
+          limit: 30,
+        }),
+      });
+    }),
+  );
+
+  app.get(
     "/api/stock-search/hot",
     asyncRoute(async (req, res) => {
       try {
