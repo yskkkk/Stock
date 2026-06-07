@@ -47,4 +47,7 @@ export default defineConfig(({ mode }) => ({
     host: true,
     strictPort: true,
   },
+  build: {
+    target: ["es2020", "safari14"],
+  },
 }));

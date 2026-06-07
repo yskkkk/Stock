@@ -1,22 +1,35 @@
-/** Stock PWA — iOS 16.4+ · Android 홈 화면 설치 지원 */
-const CACHE = "stock-pwa-v1";
-const PRECACHE = ["/", "/manifest.webmanifest", "/install-ios.html"];
+/** Stock PWA — HTML은 항상 네트워크(구 캐시 index → JS 404 흰화면 방지) */
+const CACHE = "stock-pwa-v2";
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(PRECACHE).catch(() => undefined)),
-  );
   self.skipWaiting();
+  event.waitUntil(
+    caches
+      .open(CACHE)
+      .then((cache) => cache.addAll(["/manifest.webmanifest"]).catch(() => undefined)),
+  );
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))),
-    ),
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
+      await self.clients.claim();
+      const clients = await self.clients.matchAll({ type: "window" });
+      for (const client of clients) {
+        client.postMessage({ type: "SW_ACTIVATED" });
+      }
+    })(),
   );
-  self.clients.claim();
 });
+
+function isDocumentRequest(request, url) {
+  if (request.mode === "navigate") return true;
+  if (url.pathname === "/" || url.pathname === "/index.html") return true;
+  const accept = request.headers.get("accept") || "";
+  return accept.includes("text/html");
+}
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
@@ -24,15 +37,25 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith("/api")) return;
 
+  if (isDocumentRequest(event.request, url)) {
+    event.respondWith(
+      fetch(event.request).catch(async () => {
+        const offline = await caches.match("/server-offline.html");
+        if (offline) return offline;
+        return new Response("오프라인입니다.", {
+          status: 503,
+          headers: { "Content-Type": "text/plain; charset=utf-8" },
+        });
+      }),
+    );
+    return;
+  }
+
   event.respondWith(
-    fetch(event.request)
-      .then((res) => {
-        if (res.ok && url.pathname === "/") {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(event.request, copy));
-        }
-        return res;
-      })
-      .catch(() => caches.match(event.request).then((r) => r || caches.match("/"))),
+    fetch(event.request).catch(() => caches.match(event.request)),
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
 });

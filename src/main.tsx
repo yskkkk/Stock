@@ -1,10 +1,11 @@
-import { lazy, StrictMode, Suspense } from "react";
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { ko } from "./i18n/ko";
 import { applyTheme, readStoredTheme } from "./lib/theme";
 import { ensureMobileBackNavigation } from "./lib/initMobileBack";
 import { registerPwaServiceWorker } from "./lib/registerPwa";
 import AppErrorBoundary from "./components/AppErrorBoundary";
+import App from "./App";
+import MobileServerGate from "./components/MobileServerGate";
 import "./index.css";
 import "./theme.css";
 import "./theme-light-palettes.css";
@@ -19,8 +20,11 @@ import "./stock-lookup-flat.css";
 import "./financials-tab.css";
 import "./stock-vault-tab.css";
 
-const App = lazy(() => import("./App"));
-const MobileServerGate = lazy(() => import("./components/MobileServerGate"));
+declare global {
+  interface Window {
+    __STOCK_BOOT?: number;
+  }
+}
 
 applyTheme(readStoredTheme());
 registerPwaServiceWorker();
@@ -41,6 +45,7 @@ function renderFatal(message: string) {
 }
 
 window.addEventListener("error", (e) => {
+  if ((window.__STOCK_BOOT ?? 0) >= 2) return;
   const msg =
     (e as ErrorEvent).error instanceof Error
       ? (e as ErrorEvent).error.message
@@ -56,28 +61,19 @@ window.addEventListener("unhandledrejection", (e) => {
   e.preventDefault();
 });
 
+window.__STOCK_BOOT = 1;
+
 try {
   createRoot(document.getElementById("root")!).render(
     <StrictMode>
       <AppErrorBoundary>
-        <Suspense
-          fallback={
-            <div
-              className="launch-shell launch-shell--loading"
-              aria-busy="true"
-              data-testid="launch-loading"
-            >
-              <p>{ko.launch.loading}</p>
-            </div>
-          }
-        >
-          <MobileServerGate>
-            <App />
-          </MobileServerGate>
-        </Suspense>
+        <MobileServerGate>
+          <App />
+        </MobileServerGate>
       </AppErrorBoundary>
     </StrictMode>,
   );
+  window.__STOCK_BOOT = 2;
 } catch (e) {
   renderFatal(e instanceof Error ? e.message : String(e));
 }

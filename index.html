@@ -17,6 +17,49 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=19" />
     <title>YSTOCK</title>
     <script>
+      window.__STOCK_BOOT = 0;
+      (function () {
+        var PURGE_KEY = "stock-pwa-boot-purge-v2";
+        try {
+          if (localStorage.getItem(PURGE_KEY) === "1") return;
+          localStorage.setItem(PURGE_KEY, "1");
+        } catch (e) {
+          return;
+        }
+        if (!("serviceWorker" in navigator) && !("caches" in window)) return;
+        var reloaded = false;
+        function maybeReload() {
+          if (reloaded) return;
+          reloaded = true;
+          if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+            location.reload();
+          }
+        }
+        var tasks = [];
+        if ("caches" in window) {
+          tasks.push(
+            caches.keys().then(function (keys) {
+              return Promise.all(
+                keys.map(function (k) {
+                  return caches.delete(k);
+                }),
+              );
+            }),
+          );
+        }
+        if ("serviceWorker" in navigator) {
+          tasks.push(
+            navigator.serviceWorker.getRegistrations().then(function (regs) {
+              return Promise.all(
+                regs.map(function (r) {
+                  return r.unregister();
+                }),
+              );
+            }),
+          );
+        }
+        Promise.all(tasks).then(maybeReload).catch(function () {});
+      })();
       (function () {
         try {
           var k = "stock-app-color-theme";
@@ -51,8 +94,23 @@
   </head>
   <body>
     <div id="root">
-      <div class="launch-shell launch-shell--loading" aria-busy="true">
-        <p>불러오는 중…</p>
+      <div
+        class="launch-shell launch-shell--loading"
+        aria-busy="true"
+        style="
+          min-height: 100vh;
+          min-height: 100dvh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 1rem;
+          background: #f1f5f9;
+          color: #475569;
+          font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+          font-size: 0.95rem;
+        "
+      >
+        <p style="margin: 0">불러오는 중…</p>
       </div>
     </div>
     <noscript>
@@ -62,20 +120,35 @@
     </noscript>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // 모바일에서 모듈 스크립트가 막히면 빈 화면이 될 수 있어 안내를 남김
-      setTimeout(function () {
+      function stockShowBootError(detail) {
         try {
           var root = document.getElementById("root");
           if (!root) return;
-          if (root.children && root.children.length > 0) return;
+          if (window.__STOCK_BOOT >= 2) return;
           root.innerHTML =
-            '<div style="min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:1.25rem;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#0a0e13;color:#eef2f7;">' +
-            '<div style="width:min(520px,100%);border:1px solid rgba(148,163,184,.18);background:#161d27;border-radius:12px;padding:1rem 1.05rem;box-shadow:0 8px 28px rgba(0,0,0,.45);">' +
+            '<div style="min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:1.25rem;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#f1f5f9;color:#0f172a;">' +
+            '<div style="width:min(520px,100%);border:1px solid rgba(15,23,42,.12);background:#fff;border-radius:12px;padding:1rem 1.05rem;box-shadow:0 8px 28px rgba(15,23,42,.08);">' +
             '<div style="font-weight:800;letter-spacing:-0.02em;margin:0 0 .35rem;">화면을 표시할 수 없습니다</div>' +
-            '<div style="font-size:.9rem;line-height:1.55;color:#9aa8bc;white-space:pre-wrap;">브라우저가 모듈 스크립트를 차단했거나, 네트워크/캐시 문제로 앱 스크립트 로드에 실패했습니다.\n주소가 https로 열렸다면 http로 다시 접속해 보세요.</div>' +
+            '<div style="font-size:.9rem;line-height:1.55;color:#64748b;white-space:pre-wrap;">' +
+            String(detail || "앱 스크립트를 불러오지 못했습니다.") +
+            "</div>" +
+            '<button type="button" onclick="location.reload()" style="margin-top:.85rem;padding:.45rem .85rem;border-radius:8px;border:1px solid rgba(15,23,42,.15);background:#1e5fc4;color:#fff;font-weight:600;">새로고침</button>' +
             "</div></div>";
         } catch (e) {}
-      }, 3500);
+      }
+
+      window.addEventListener("error", function (ev) {
+        if (window.__STOCK_BOOT >= 2) return;
+        var msg = (ev && ev.message) || "스크립트 오류";
+        stockShowBootError(msg + "\n\nSafari 설정 → 고급 → 웹 사이트 데이터 삭제 후 다시 시도해 보세요.");
+      });
+
+      setTimeout(function () {
+        if (window.__STOCK_BOOT >= 2) return;
+        stockShowBootError(
+          "앱이 시작되지 않았습니다.\n\n캐시·네트워크 문제일 수 있습니다. Safari에서 이 사이트 데이터를 삭제한 뒤 새로고침해 주세요.",
+        );
+      }, 8000);
     </script>
   </body>
 </html>
