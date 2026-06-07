@@ -8,6 +8,7 @@ import {
   fetchPicksDailyHistoryQuotes,
   fetchRecommendationsTracker,
   fetchSectorEarnings,
+  fetchStockSearchHot,
   fetchTechModels,
   type LiveTradingStatusResponse,
   type TechModelsResponse,
@@ -21,9 +22,11 @@ import { applyTrackerQuotes, prioritizeTrackerSymbols } from "./recTrackerQuotes
 import { sortCryptoAssetsByTurnover, type CryptoAsset } from "../constants/crypto";
 import type {
   MacroEvent,
+  Market,
   PicksDailyHistoryResponse,
   RecommendationsTrackerResponse,
   SectorEarningsSpotlightItem,
+  StockSearchQuoteRow,
 } from "../types";
 
 const MACRO_SESSION_CACHE_KEY = "stock-macro-bar-v2";
@@ -34,6 +37,8 @@ const TTL_MS = {
   cryptoQuotes: 15_000,
   liveTrading: 30_000,
   picksHistory: 120_000,
+  stockSearchHotKr: 120_000,
+  stockSearchHotUs: 120_000,
 } as const;
 
 type CacheKey = keyof typeof TTL_MS;
@@ -283,6 +288,34 @@ export async function prefetchPicksDailyHistory(): Promise<PicksDailyHistoryResp
   });
 }
 
+function stockSearchHotCacheKey(
+  market: Market,
+): "stockSearchHotKr" | "stockSearchHotUs" | null {
+  if (market === "kr") return "stockSearchHotKr";
+  if (market === "us") return "stockSearchHotUs";
+  return null;
+}
+
+export function peekStockSearchHotPrefetch(market: Market): StockSearchQuoteRow[] | null {
+  const key = stockSearchHotCacheKey(market);
+  if (!key) return null;
+  return getCached<StockSearchQuoteRow[]>(key);
+}
+
+/** 종목검색·재무 — 인기 종목(시장별) */
+export function loadStockSearchHot(market: Market): Promise<StockSearchQuoteRow[]> {
+  const key = stockSearchHotCacheKey(market);
+  if (!key) return Promise.resolve([]);
+  return dedupe(key, async () => {
+    const data = await fetchStockSearchHot(market);
+    return data.quotes ?? [];
+  });
+}
+
+export async function prefetchStockSearchHotTabs(): Promise<void> {
+  await Promise.all([loadStockSearchHot("kr"), loadStockSearchHot("us")]);
+}
+
 let prefetchStarted = false;
 
 /** config 로드 후 — 탭 미진입 데이터를 백그라운드로 선요청 */
@@ -297,5 +330,6 @@ export function startBackgroundTabPrefetch(): void {
     void prefetchLiveTradingTab().catch(() => {});
     prefetchLiveTradingPortfolio();
     void prefetchPicksDailyHistory();
+    void prefetchStockSearchHotTabs();
   });
 }

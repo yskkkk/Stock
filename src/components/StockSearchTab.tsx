@@ -1,5 +1,9 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { fetchStockSearch, fetchStockSearchHot, fetchStockTechnical } from "../api";
+import { fetchStockSearch, fetchStockTechnical } from "../api";
+import {
+  loadStockSearchHot,
+  peekStockSearchHotPrefetch,
+} from "../lib/tabPrefetch";
 import {
   resolvePickSignalIds,
   signalChipMeta,
@@ -321,8 +325,12 @@ export default function StockSearchTab({
   const [input, setInput] = useState("");
   const [debounced, setDebounced] = useState("");
   const [quotes, setQuotes] = useState<StockSearchQuoteRow[]>([]);
-  const [hotQuotes, setHotQuotes] = useState<StockSearchQuoteRow[]>([]);
-  const [hotLoading, setHotLoading] = useState(false);
+  const [hotQuotes, setHotQuotes] = useState<StockSearchQuoteRow[]>(
+    () => peekStockSearchHotPrefetch(market) ?? [],
+  );
+  const [hotLoading, setHotLoading] = useState(
+    () => peekStockSearchHotPrefetch(market) == null,
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [techBySym, setTechBySym] = useState<Record<string, TechnicalSlot>>({});
@@ -357,13 +365,19 @@ export default function StockSearchTab({
     }
 
     const ac = new AbortController();
-    setHotLoading(true);
+    const cached = peekStockSearchHotPrefetch(market);
+    if (cached != null) {
+      setHotQuotes(cached);
+      setHotLoading(false);
+    } else {
+      setHotLoading(true);
+    }
 
     void (async () => {
       try {
-        const data = await fetchStockSearchHot(market, ac.signal);
+        const quotes = await loadStockSearchHot(market);
         if (ac.signal.aborted) return;
-        setHotQuotes(data.quotes);
+        setHotQuotes(quotes);
       } catch (err: unknown) {
         if (ac.signal.aborted) return;
         if (err instanceof DOMException && err.name === "AbortError") return;
@@ -374,8 +388,8 @@ export default function StockSearchTab({
     })();
 
     const refreshId = window.setInterval(() => {
-      void fetchStockSearchHot(market)
-        .then((data) => setHotQuotes(data.quotes))
+      void loadStockSearchHot(market)
+        .then((quotes) => setHotQuotes(quotes))
         .catch(() => {});
     }, HOT_REFRESH_MS);
 
