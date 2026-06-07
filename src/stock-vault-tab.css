@@ -907,3 +907,160 @@ html[data-theme="light"] .stock-vault-tab__row--gc-recent-10 {
   width: 0.82rem;
   height: 0.82rem;
 }
+
+/* 즐겨찾기 추적 — 종목보관·종목검색 */
+.favorite-track {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent-dim) 18%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--card-border));
+  font-size: 0.78rem;
+}
+
+.favorite-track__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.favorite-track__title {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.favorite-track__dplus {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+.favorite-track__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.favorite-track__since,
+.favorite-track__base,
+.favorite-track__current {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+}
+
+.favorite-track__label {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.favorite-track__chg {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.favorite-track__chg--up {
+  color: var(--up);
+}
+
+.favorite-track__chg--down {
+  color: var(--down);
+}
+
+.favorite-track__price {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.favorite-track__muted {
+  color: var(--text-muted);
+}
+
+.favorite-track__price-edit {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.favorite-track__price-input {
+  width: 5.5rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 6px;
+  border: 1px solid var(--card-border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.78rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.favorite-track__save-btn {
+  padding: 0.12rem 0.4rem;
+  border-radius: 6px;
+  border: 1px solid var(--card-border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.favorite-track__save-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.favorite-track__save-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.favorite-track__error {
+  margin: 0;
+  color: var(--down);
+  font-size: 0.72rem;
+}
+
+.stock-vault-tab__row .favorite-track {
+  margin-top: 0.35rem;
+}
+
+.favorite-track-popover {
+  position: fixed;
+  z-index: 1200;
+  width: 280px;
+  padding: 0.55rem 0.65rem 0.65rem;
+  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+}
+
+.favorite-track-popover__close {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.35rem;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.15rem 0.25rem;
+}
+
+.favorite-track-popover__close:hover {
+  color: var(--text);
+}
+
+.favorite-track-popover .favorite-track {
+  border: none;
+  background: transparent;
+  padding: 0.35rem 0.15rem 0;
+}
+

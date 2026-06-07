@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import FavoriteTrackPanel from "./FavoriteTrackPanel";
 import {
   fetchGoldenCrossStatus,
   removeStockVaultItem,
@@ -30,6 +31,7 @@ import {
 } from "../lib/tradingviewSymbols";
 import type {
   GoldenCrossKind,
+  StockVaultFavoriteMeta,
   StockVaultIndustryFinancials,
   StockVaultItem,
   StockVaultResponse,
@@ -119,6 +121,14 @@ function scanHintFromStatus(status: StockVaultScanStatus | null | undefined) {
   return null;
 }
 
+function rowFavoriteTrack(row: VaultDisplayRow) {
+  const src = row.favorite ?? row.goldenCross ?? row.maAlign;
+  return {
+    addedAtMs: src?.favoriteAddedAtMs ?? src?.addedAtMs ?? null,
+    favoritePrice: src?.favoritePrice ?? null,
+  };
+}
+
 function vaultStateFromResponse(vault: StockVaultResponse) {
   return {
     items: vault.items ?? [],
@@ -126,6 +136,7 @@ function vaultStateFromResponse(vault: StockVaultResponse) {
     meta: vault.meta ?? {},
     industryFinancials: vault.industryFinancials ?? {},
     authenticated: Boolean(vault.authenticated),
+    favoriteMeta: vault.favoriteMeta ?? {},
     industryTabs: vault.industryTabs?.length ? vault.industryTabs : [],
     industryGridRows:
       typeof vault.industryGridRows === "number" && vault.industryGridRows > 0
@@ -139,7 +150,10 @@ function vaultStateFromResponse(vault: StockVaultResponse) {
 export default function StockVaultTab({
   onVaultChange,
 }: {
-  onVaultChange?: (symbols: string[]) => void;
+  onVaultChange?: (
+    symbols: string[],
+    favoriteMeta?: Record<string, StockVaultFavoriteMeta>,
+  ) => void;
 }) {
   const cachedInit = peekStockVaultPrefetch();
   const cachedVault = cachedInit ? vaultStateFromResponse(cachedInit.vault) : null;
@@ -179,6 +193,9 @@ export default function StockVaultTab({
   const [authenticated, setAuthenticated] = useState(
     () => cachedVault?.authenticated ?? false,
   );
+  const [favoriteMeta, setFavoriteMeta] = useState<
+    Record<string, StockVaultFavoriteMeta>
+  >(() => cachedVault?.favoriteMeta ?? {});
   const [scanHint, setScanHint] = useState<string | null>(() =>
     scanHintFromStatus(cachedInit?.scanStatus),
   );
@@ -204,6 +221,7 @@ export default function StockVaultTab({
       setMeta(vault.meta ?? {});
       setIndustryFinancials(vault.industryFinancials ?? {});
       setAuthenticated(Boolean(vault.authenticated));
+      setFavoriteMeta(vault.favoriteMeta ?? {});
       setIndustryTabs((prev) =>
         vault.industryTabs?.length ? vault.industryTabs : prev,
       );
@@ -214,7 +232,7 @@ export default function StockVaultTab({
             ? Math.max(16, Math.ceil(vault.industryTabs.length / 8))
             : prev,
       );
-      onVaultChange?.(favoriteVaultSymbols(vault));
+      onVaultChange?.(favoriteVaultSymbols(vault), vault.favoriteMeta);
       updateStockVaultPrefetchVault(vault);
     },
     [onVaultChange],
@@ -439,7 +457,7 @@ export default function StockVaultTab({
   );
 
   const handleToggleFavorite = useCallback(
-    async (symbol: string, favorited: boolean) => {
+    async (symbol: string, favorited: boolean, market: "kr" | "us", name: string) => {
       if (!authenticated) {
         setError(ko.stockVault.loginRequired);
         return;
@@ -448,21 +466,79 @@ export default function StockVaultTab({
       setFavoriting(sym);
       setError(null);
       try {
-        await setStockVaultFavorite(symbol, !favorited);
-        setItems((prev) =>
-          prev.map((it) =>
-            it.symbol.trim().toUpperCase() === sym
-              ? { ...it, favorited: !favorited }
-              : it,
-          ),
-        );
+        const quotePrice = quotes[sym]?.price;
+        const res = await setStockVaultFavorite(symbol, !favorited, {
+          favoritePrice: !favorited ? quotePrice : undefined,
+          market,
+          name,
+        });
+        if (res.meta) {
+          setFavoriteMeta((prev) => {
+            const next = { ...prev, [sym]: res.meta! };
+            onVaultChange?.(Object.keys(next), next);
+            return next;
+          });
+        } else if (favorited) {
+          setFavoriteMeta((prev) => {
+            const next = { ...prev };
+            delete next[sym];
+            onVaultChange?.(Object.keys(next), next);
+            return next;
+          });
+        }
+        setItems((prev) => {
+          const nextItems = prev.map((it) => {
+            if (it.symbol.trim().toUpperCase() !== sym) return it;
+            const nextFav = !favorited;
+            const fields = res.meta
+              ? {
+                  favoriteAddedAtMs: res.meta.addedAtMs,
+                  favoritePrice: res.meta.favoritePrice ?? null,
+                }
+              : nextFav
+                ? {}
+                : {
+                    favoriteAddedAtMs: null,
+                    favoritePrice: null,
+                  };
+            return { ...it, favorited: nextFav, ...fields };
+          });
+          return nextItems;
+        });
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
         setFavoriting(null);
       }
     },
-    [authenticated],
+    [authenticated, quotes, onVaultChange],
+  );
+
+  const handleFavoritePriceSaved = useCallback(
+    (symbol: string, price: number | null) => {
+      const sym = symbol.trim().toUpperCase();
+      setFavoriteMeta((prev) => {
+        const row = prev[sym];
+        if (!row) return prev;
+        const next = {
+          ...prev,
+          [sym]: { ...row, favoritePrice: price, updatedAtMs: Date.now() },
+        };
+        onVaultChange?.(
+          Object.keys(next).filter((k) => next[k]),
+          next,
+        );
+        return next;
+      });
+      setItems((prev) =>
+        prev.map((it) =>
+          it.symbol.trim().toUpperCase() === sym
+            ? { ...it, favoritePrice: price }
+            : it,
+        ),
+      );
+    },
+    [onVaultChange],
   );
 
   const handleScanConfirm = useCallback(async () => {
@@ -859,6 +935,24 @@ export default function StockVaultTab({
                         </span>
                       </div>
                     ) : null}
+                    {row.favorited ? (() => {
+                      const track = rowFavoriteTrack(row);
+                      const metaRow = favoriteMeta[symKey];
+                      return (
+                        <FavoriteTrackPanel
+                          symbol={row.symbol}
+                          market={row.market}
+                          addedAtMs={track.addedAtMs ?? metaRow?.addedAtMs}
+                          basePrice={track.favoritePrice ?? metaRow?.favoritePrice}
+                          currentPrice={quote?.price}
+                          currency={cur}
+                          editable={authenticated}
+                          onBasePriceSaved={(price) =>
+                            handleFavoritePriceSaved(row.symbol, price)
+                          }
+                        />
+                      );
+                    })() : null}
                   </div>
                   <div className="stock-vault-tab__quote">
                     {quote?.price != null && Number.isFinite(quote.price) ? (
@@ -906,7 +1000,12 @@ export default function StockVaultTab({
                     aria-pressed={Boolean(row.favorited)}
                     disabled={favoriting === row.symbol}
                     onClick={() =>
-                      void handleToggleFavorite(row.symbol, Boolean(row.favorited))
+                      void handleToggleFavorite(
+                        row.symbol,
+                        Boolean(row.favorited),
+                        row.market,
+                        display.label,
+                      )
                     }
                   >
                     <VaultBookmarkIcon filled={Boolean(row.favorited)} />

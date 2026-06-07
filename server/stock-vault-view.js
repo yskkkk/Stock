@@ -3,9 +3,36 @@ import { resolveDisplayName } from "./names-ko.js";
 import {
   addUserVaultFavoriteEntrySync,
   getUserStockVaultSync,
+  patchUserVaultFavoriteMetaSync,
   removeUserVaultSymbolSync,
   setUserVaultFavoriteSync,
 } from "./user-stock-vault-store.js";
+
+/**
+ * @param {import("./user-stock-vault-store.js").UserFavoriteMeta | undefined} meta
+ */
+function favoriteFieldsFromMeta(meta) {
+  if (!meta) return {};
+  return {
+    favoriteAddedAtMs: meta.addedAtMs,
+    favoritePrice: meta.favoritePrice ?? null,
+  };
+}
+
+/**
+ * @param {import("./stock-vault-store.js").StockVaultItem & { favorited?: boolean }} it
+ * @param {Set<string>} favorites
+ * @param {Record<string, import("./user-stock-vault-store.js").UserFavoriteMeta>} favoriteMeta
+ */
+function withFavoriteFields(it, favorites, favoriteMeta) {
+  const favorited = favorites.has(it.symbol) || it.source === "favorite";
+  const meta = favoriteMeta[it.symbol];
+  return {
+    ...it,
+    favorited,
+    ...favoriteFieldsFromMeta(meta),
+  };
+}
 
 /**
  * @param {string | null | undefined} userId
@@ -18,6 +45,7 @@ export function buildStockVaultItemsForUserSync(userId) {
     return {
       authenticated: false,
       favoriteSymbols: [],
+      favoriteMeta: {},
       items: globalAuto.map((it) => ({
         ...it,
         name: resolveDisplayName(it.symbol, it.name),
@@ -29,6 +57,7 @@ export function buildStockVaultItemsForUserSync(userId) {
   const userVault = getUserStockVaultSync(userId);
   const dismissed = new Set(userVault.dismissed);
   const favorites = new Set(userVault.favorites);
+  const favoriteMeta = userVault.favoriteMeta ?? {};
   /** @type {Map<string, import("./stock-vault-store.js").StockVaultItem & { favorited?: boolean }>} */
   const byKey = new Map();
   const autoSymbols = new Set();
@@ -36,15 +65,12 @@ export function buildStockVaultItemsForUserSync(userId) {
   for (const it of globalAuto) {
     if (dismissed.has(it.symbol)) continue;
     autoSymbols.add(it.symbol);
-    byKey.set(`${it.symbol}:${it.source}`, {
-      ...it,
-      favorited: favorites.has(it.symbol),
-    });
+    byKey.set(`${it.symbol}:${it.source}`, withFavoriteFields(it, favorites, favoriteMeta));
   }
 
   for (const sym of favorites) {
     if (dismissed.has(sym) || autoSymbols.has(sym)) continue;
-    const meta = userVault.favoriteMeta[sym];
+    const meta = favoriteMeta[sym];
     if (!meta) continue;
     byKey.set(`${sym}:favorite`, {
       id: sym,
@@ -55,6 +81,7 @@ export function buildStockVaultItemsForUserSync(userId) {
       addedAtMs: meta.addedAtMs,
       updatedAtMs: meta.updatedAtMs,
       favorited: true,
+      ...favoriteFieldsFromMeta(meta),
     });
   }
 
@@ -67,13 +94,14 @@ export function buildStockVaultItemsForUserSync(userId) {
   return {
     authenticated: true,
     favoriteSymbols: [...favorites],
+    favoriteMeta,
     items,
   };
 }
 
 /**
  * @param {string} userId
- * @param {{ symbol: string; name?: string; market: "kr"|"us" }} input
+ * @param {{ symbol: string; name?: string; market: "kr"|"us"; favoritePrice?: number | null }} input
  */
 export function addStockVaultItemForUserSync(userId, input) {
   return addUserVaultFavoriteEntrySync(userId, input);
@@ -91,7 +119,17 @@ export function removeStockVaultItemForUserSync(userId, symbol) {
  * @param {string} userId
  * @param {string} symbol
  * @param {boolean} favorited
+ * @param {{ name?: string; market?: "kr"|"us"; favoritePrice?: number | null }} [opts]
  */
-export function setStockVaultFavoriteForUserSync(userId, symbol, favorited) {
-  return setUserVaultFavoriteSync(userId, symbol, favorited);
+export function setStockVaultFavoriteForUserSync(userId, symbol, favorited, opts) {
+  return setUserVaultFavoriteSync(userId, symbol, favorited, opts);
+}
+
+/**
+ * @param {string} userId
+ * @param {string} symbol
+ * @param {{ favoritePrice?: number | null }} patch
+ */
+export function patchStockVaultFavoriteMetaForUserSync(userId, symbol, patch) {
+  return patchUserVaultFavoriteMetaSync(userId, symbol, patch);
 }

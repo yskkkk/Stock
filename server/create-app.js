@@ -2160,7 +2160,7 @@ export function createApp() {
         "./stock-vault-industry-financials.js"
       );
       const user = resolveUserFromRequest(req);
-      const { items, authenticated, favoriteSymbols } =
+      const { items, authenticated, favoriteSymbols, favoriteMeta } =
         buildStockVaultItemsForUserSync(user?.id);
       const symbols = items.map((it) => it.symbol);
       const [quotes, meta] = await Promise.all([
@@ -2177,6 +2177,7 @@ export function createApp() {
         industryGridRows: stockVaultIndustryGridRows(industryTabs.length),
         authenticated,
         favoriteSymbols,
+        favoriteMeta,
       });
     }),
   );
@@ -2191,6 +2192,7 @@ export function createApp() {
       const symbol = String(req.body?.symbol ?? "").trim();
       const market = req.body?.market === "us" ? "us" : "kr";
       const name = String(req.body?.name ?? "").trim();
+      const favoritePrice = req.body?.favoritePrice;
       if (!symbol) {
         res.status(400).json({ error: "symbol이 필요합니다." });
         return;
@@ -2200,6 +2202,7 @@ export function createApp() {
           symbol,
           market,
           name: name || symbol,
+          favoritePrice,
         });
         res.json({ item: { ...item, favorited: true } });
       } catch (e) {
@@ -2222,8 +2225,44 @@ export function createApp() {
         return;
       }
       const favorited = req.body?.favorited !== false;
-      setStockVaultFavoriteForUserSync(req.user.id, symbol, favorited);
-      res.json({ ok: true, favorited });
+      const favoritePrice = req.body?.favoritePrice;
+      const name = String(req.body?.name ?? "").trim() || undefined;
+      const market = req.body?.market === "us" ? "us" : req.body?.market === "kr" ? "kr" : undefined;
+      const result = setStockVaultFavoriteForUserSync(req.user.id, symbol, favorited, {
+        favoritePrice,
+        name,
+        market,
+      });
+      res.json({ ok: true, favorited: result.favorited, meta: result.meta });
+    }),
+  );
+
+  app.patch(
+    "/api/stock-vault/:symbol/favorite-meta",
+    requireUserAuth,
+    asyncRoute(async (req, res) => {
+      const { patchStockVaultFavoriteMetaForUserSync } = await import(
+        "./stock-vault-view.js"
+      );
+      const symbol = decodeURIComponent(String(req.params.symbol ?? "")).trim();
+      if (!symbol) {
+        res.status(400).json({ error: "symbol이 필요합니다." });
+        return;
+      }
+      try {
+        const meta = patchStockVaultFavoriteMetaForUserSync(req.user.id, symbol, {
+          favoritePrice: req.body?.favoritePrice,
+        });
+        res.json({ ok: true, meta });
+      } catch (e) {
+        const code = e && typeof e === "object" && "code" in e ? e.code : null;
+        if (code === "NOT_FAVORITED" || code === "META_MISSING") {
+          res.status(404).json({ error: "즐겨찾기 정보를 찾을 수 없습니다." });
+          return;
+        }
+        const message = e instanceof Error ? e.message : "저장 실패";
+        res.status(400).json({ error: message });
+      }
     }),
   );
 

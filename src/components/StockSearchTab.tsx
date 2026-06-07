@@ -14,7 +14,12 @@ import type {
   StockPick,
   StockSearchQuoteRow,
   StockTechnicalResponse,
+  StockVaultFavoriteMeta,
+  StockVaultToggleResult,
 } from "../types";
+import FavoriteTrackPopover, {
+  type FavoriteTrackPopoverData,
+} from "./FavoriteTrackPopover";
 import PickQuoteStrip from "./PickQuoteStrip";
 import { resolveUsQuoteDisplay } from "../lib/usQuoteDisplay";
 import StockSearchHotRow, { rowToStockPick } from "./StockSearchHotRow";
@@ -67,8 +72,13 @@ export interface StockSearchTabProps {
   onToggleUsQuoteKrw?: () => void;
   usdKrwRate?: number | null;
   usdKrwValDate?: string | null;
-  onAddToVault?: (pick: StockPick) => void;
+  onAddToVault?: (
+    pick: StockPick,
+    ctx?: { row: StockSearchQuoteRow },
+  ) => Promise<StockVaultToggleResult | void>;
   vaultSymbols?: ReadonlySet<string>;
+  vaultFavoriteMeta?: Record<string, StockVaultFavoriteMeta>;
+  onFavoritePriceSaved?: (symbol: string, price: number | null) => void;
 }
 
 function pickToQuoteRow(pick: StockPick): StockSearchQuoteRow {
@@ -165,7 +175,11 @@ interface StockSearchPickRowProps {
   onAnalyze: (row: StockSearchQuoteRow) => void;
   usQuoteInKrw?: boolean;
   usdKrwRate?: number | null;
-  onAddToVault?: (pick: StockPick) => void;
+  onVaultButtonClick?: (
+    pick: StockPick,
+    row: StockSearchQuoteRow,
+    anchor: HTMLElement,
+  ) => void;
   vaultSaved?: boolean;
 }
 
@@ -181,7 +195,7 @@ const StockSearchPickRow = memo(
     onAnalyze,
     usQuoteInKrw = false,
     usdKrwRate = null,
-    onAddToVault,
+    onVaultButtonClick,
     vaultSaved = false,
   }: StockSearchPickRowProps) {
     const pick = mergeTechnical(rowToPick(row), slot);
@@ -295,7 +309,7 @@ const StockSearchPickRow = memo(
             </span>
             뉴스
           </button>
-          {onAddToVault && (row.market === "kr" || row.market === "us") ? (
+          {onVaultButtonClick && (row.market === "kr" || row.market === "us") ? (
             <button
               type="button"
               className={
@@ -309,7 +323,7 @@ const StockSearchPickRow = memo(
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                onAddToVault(pick);
+                onVaultButtonClick?.(pick, row, e.currentTarget);
               }}
             >
               <span className="pick-action__icon pick-action__icon--vault" aria-hidden>
@@ -333,7 +347,7 @@ const StockSearchPickRow = memo(
     prev.onAnalyze === next.onAnalyze &&
     prev.usQuoteInKrw === next.usQuoteInKrw &&
     prev.usdKrwRate === next.usdKrwRate &&
-    prev.onAddToVault === next.onAddToVault &&
+    prev.onVaultButtonClick === next.onVaultButtonClick &&
     prev.vaultSaved === next.vaultSaved,
 );
 
@@ -351,6 +365,8 @@ export default function StockSearchTab({
   usdKrwRate = null,
   onAddToVault,
   vaultSymbols,
+  vaultFavoriteMeta,
+  onFavoritePriceSaved,
 }: StockSearchTabProps) {
   const [input, setInput] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -669,6 +685,73 @@ export default function StockSearchTab({
     [analysisTarget?.symbol, analysisSlot, runAnalysis],
   );
 
+  const [trackPopover, setTrackPopover] = useState<{
+    anchor: HTMLElement;
+    data: FavoriteTrackPopoverData;
+  } | null>(null);
+
+  const openTrackPopover = useCallback(
+    (
+      pick: StockPick,
+      row: StockSearchQuoteRow,
+      anchor: HTMLElement,
+      override?: { addedAtMs: number; favoritePrice: number | null },
+    ) => {
+      const sym = pick.symbol.trim().toUpperCase();
+      const meta = vaultFavoriteMeta?.[sym];
+      const addedAtMs = override?.addedAtMs ?? meta?.addedAtMs;
+      if (addedAtMs == null || !Number.isFinite(addedAtMs)) return;
+      setTrackPopover({
+        anchor,
+        data: {
+          symbol: sym,
+          name: pick.name,
+          market: pick.market === "us" ? "us" : "kr",
+          addedAtMs,
+          favoritePrice:
+            override?.favoritePrice ?? meta?.favoritePrice ?? pick.price ?? null,
+          currentPrice: row.price ?? pick.price ?? null,
+          currency: row.currency ?? pick.currency,
+        },
+      });
+    },
+    [vaultFavoriteMeta],
+  );
+
+  const handleVaultButtonClick = useCallback(
+    (pick: StockPick, row: StockSearchQuoteRow, anchor: HTMLElement) => {
+      const sym = pick.symbol.trim().toUpperCase();
+      if (vaultSymbols?.has(sym)) {
+        openTrackPopover(pick, row, anchor);
+        return;
+      }
+      void (async () => {
+        const result = await onAddToVault?.(pick, { row });
+        if (result?.action === "added") {
+          openTrackPopover(pick, row, anchor, {
+            addedAtMs: result.addedAtMs,
+            favoritePrice: result.favoritePrice,
+          });
+        }
+      })();
+    },
+    [vaultSymbols, onAddToVault, openTrackPopover],
+  );
+
+  const handleTrackPriceSaved = useCallback(
+    (symbol: string, price: number | null) => {
+      onFavoritePriceSaved?.(symbol, price);
+      setTrackPopover((prev) => {
+        if (!prev || prev.data.symbol !== symbol.trim().toUpperCase()) return prev;
+        return {
+          ...prev,
+          data: { ...prev.data, favoritePrice: price },
+        };
+      });
+    },
+    [onFavoritePriceSaved],
+  );
+
   useEffect(() => () => analysisAbortRef.current?.abort(), []);
 
   const pinnedPick =
@@ -716,7 +799,7 @@ export default function StockSearchTab({
             onSelectPick={onSelectPick}
             usQuoteInKrw={usQuoteInKrw}
             usdKrwRate={usdKrwRate}
-            onAddToVault={onAddToVault}
+            onVaultButtonClick={handleVaultButtonClick}
             vaultSaved={vaultSymbols?.has(pinnedPick.symbol.trim().toUpperCase())}
           />
         </ul>
@@ -746,7 +829,7 @@ export default function StockSearchTab({
                     onSelectPick={onSelectPick}
                     usQuoteInKrw={usQuoteInKrw}
                     usdKrwRate={usdKrwRate}
-                    onAddToVault={onAddToVault}
+                    onVaultButtonClick={handleVaultButtonClick}
                     vaultSaved={vaultSymbols?.has(row.symbol.trim().toUpperCase())}
                   />
                 ))}
@@ -775,7 +858,7 @@ export default function StockSearchTab({
               onAnalyze={handleAnalyze}
               usQuoteInKrw={usQuoteInKrw}
               usdKrwRate={usdKrwRate}
-              onAddToVault={onAddToVault}
+              onVaultButtonClick={handleVaultButtonClick}
               vaultSaved={vaultSymbols?.has(row.symbol.trim().toUpperCase())}
             />
           ))}
@@ -793,6 +876,12 @@ export default function StockSearchTab({
           }}
         />
       )}
+      <FavoriteTrackPopover
+        anchor={trackPopover?.anchor ?? null}
+        data={trackPopover?.data ?? null}
+        onClose={() => setTrackPopover(null)}
+        onBasePriceSaved={handleTrackPriceSaved}
+      />
     </div>
   );
 }

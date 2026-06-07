@@ -11,6 +11,7 @@ function userVaultStoreFile() {
  *   market: "kr"|"us";
  *   addedAtMs: number;
  *   updatedAtMs: number;
+ *   favoritePrice?: number | null;
  * }} UserFavoriteMeta
  */
 
@@ -37,6 +38,13 @@ function normSymbols(arr) {
   ];
 }
 
+/** @param {unknown} v */
+function normFavoritePrice(v) {
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 /** @param {unknown} raw */
 function normalizeFavoriteMeta(raw) {
   /** @type {Record<string, UserFavoriteMeta>} */
@@ -57,7 +65,13 @@ function normalizeFavoriteMeta(raw) {
       typeof row?.updatedAtMs === "number" && Number.isFinite(row.updatedAtMs)
         ? row.updatedAtMs
         : addedAtMs;
-    out[symbol] = { name, market, addedAtMs, updatedAtMs };
+    out[symbol] = {
+      name,
+      market,
+      addedAtMs,
+      updatedAtMs,
+      favoritePrice: normFavoritePrice(row?.favoritePrice),
+    };
   }
   return out;
 }
@@ -159,7 +173,7 @@ export function getUserStockVaultSync(userId) {
 
 /**
  * @param {string} userId
- * @param {{ symbol: string; name?: string; market: "kr"|"us" }} input
+ * @param {{ symbol: string; name?: string; market: "kr"|"us"; favoritePrice?: number | null }} input
  */
 export function addUserVaultFavoriteEntrySync(userId, input) {
   const uid = String(userId ?? "").trim();
@@ -177,11 +191,16 @@ export function addUserVaultFavoriteEntrySync(userId, input) {
   const row = ensureUserRow(store, uid);
   if (!row.favorites.includes(symbol)) row.favorites.push(symbol);
   const prev = row.favoriteMeta[symbol];
+  const favoritePrice =
+    input.favoritePrice !== undefined
+      ? normFavoritePrice(input.favoritePrice)
+      : (prev?.favoritePrice ?? null);
   row.favoriteMeta[symbol] = {
     name: String(input.name ?? prev?.name ?? symbol).trim() || symbol,
     market,
     addedAtMs: prev?.addedAtMs ?? now,
     updatedAtMs: now,
+    favoritePrice,
   };
   row.dismissed = row.dismissed.filter((s) => s !== symbol);
   row.updatedAtMs = now;
@@ -194,6 +213,8 @@ export function addUserVaultFavoriteEntrySync(userId, input) {
     source: /** @type {const} */ ("favorite"),
     addedAtMs: row.favoriteMeta[symbol].addedAtMs,
     updatedAtMs: now,
+    favoriteAddedAtMs: row.favoriteMeta[symbol].addedAtMs,
+    favoritePrice: row.favoriteMeta[symbol].favoritePrice ?? null,
   };
 }
 
@@ -242,7 +263,59 @@ export function listAllFavoritedSymbolsSync() {
   return out;
 }
 
-export function setUserVaultFavoriteSync(userId, symbol, favorited) {
+/**
+ * @param {string} userId
+ * @param {string} symbol
+ * @param {boolean} favorited
+ * @param {{ name?: string; market?: "kr"|"us"; favoritePrice?: number | null }} [opts]
+ */
+export function setUserVaultFavoriteSync(userId, symbol, favorited, opts = {}) {
+  const uid = String(userId ?? "").trim();
+  const sym = String(symbol ?? "")
+    .trim()
+    .toUpperCase();
+  if (!uid || !sym) {
+    const err = new Error("symbol required");
+    err.code = "INVALID_SYMBOL";
+    throw err;
+  }
+  const now = Date.now();
+  const store = readStore();
+  const row = ensureUserRow(store, uid);
+  const has = row.favorites.includes(sym);
+  /** @type {UserFavoriteMeta | null} */
+  let meta = null;
+  if (favorited) {
+    if (!has) row.favorites.push(sym);
+    const prev = row.favoriteMeta[sym];
+    const market = opts.market === "us" ? "us" : opts.market === "kr" ? "kr" : prev?.market ?? "kr";
+    const favoritePrice =
+      opts.favoritePrice !== undefined
+        ? normFavoritePrice(opts.favoritePrice)
+        : (prev?.favoritePrice ?? null);
+    meta = {
+      name: String(opts.name ?? prev?.name ?? sym).trim() || sym,
+      market,
+      addedAtMs: prev?.addedAtMs ?? now,
+      updatedAtMs: now,
+      favoritePrice,
+    };
+    row.favoriteMeta[sym] = meta;
+  } else {
+    row.favorites = row.favorites.filter((s) => s !== sym);
+    delete row.favoriteMeta[sym];
+  }
+  row.updatedAtMs = now;
+  writeStore(store);
+  return { favorited, meta };
+}
+
+/**
+ * @param {string} userId
+ * @param {string} symbol
+ * @param {{ favoritePrice?: number | null }} patch
+ */
+export function patchUserVaultFavoriteMetaSync(userId, symbol, patch) {
   const uid = String(userId ?? "").trim();
   const sym = String(symbol ?? "")
     .trim()
@@ -254,14 +327,25 @@ export function setUserVaultFavoriteSync(userId, symbol, favorited) {
   }
   const store = readStore();
   const row = ensureUserRow(store, uid);
-  const has = row.favorites.includes(sym);
-  if (favorited) {
-    if (!has) row.favorites.push(sym);
-  } else {
-    row.favorites = row.favorites.filter((s) => s !== sym);
-    delete row.favoriteMeta[sym];
+  if (!row.favorites.includes(sym)) {
+    const err = new Error("not favorited");
+    err.code = "NOT_FAVORITED";
+    throw err;
   }
-  row.updatedAtMs = Date.now();
+  const prev = row.favoriteMeta[sym];
+  if (!prev) {
+    const err = new Error("favorite meta missing");
+    err.code = "META_MISSING";
+    throw err;
+  }
+  const now = Date.now();
+  const favoritePrice =
+    patch.favoritePrice !== undefined
+      ? normFavoritePrice(patch.favoritePrice)
+      : (prev.favoritePrice ?? null);
+  const meta = { ...prev, favoritePrice, updatedAtMs: now };
+  row.favoriteMeta[sym] = meta;
+  row.updatedAtMs = now;
   writeStore(store);
-  return favorited;
+  return meta;
 }

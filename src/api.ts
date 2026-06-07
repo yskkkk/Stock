@@ -1820,6 +1820,7 @@ export function addStockVaultItem(body: {
   symbol: string;
   market: "kr" | "us";
   name?: string;
+  favoritePrice?: number | null;
 }) {
   return fetchJson<{ item: import("./types").StockVaultItem }>("/api/stock-vault", {
     method: "POST",
@@ -1835,15 +1836,38 @@ export function removeStockVaultItem(symbol: string) {
   );
 }
 
-export function setStockVaultFavorite(symbol: string, favorited: boolean) {
-  return fetchJson<{ ok: boolean; favorited: boolean }>(
-    `/api/stock-vault/${encodeURIComponent(symbol)}/favorite`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ favorited }),
-    },
-  );
+export function setStockVaultFavorite(
+  symbol: string,
+  favorited: boolean,
+  opts?: {
+    favoritePrice?: number | null;
+    name?: string;
+    market?: "kr" | "us";
+  },
+) {
+  return fetchJson<{
+    ok: boolean;
+    favorited: boolean;
+    meta: import("./types").StockVaultFavoriteMeta | null;
+  }>(`/api/stock-vault/${encodeURIComponent(symbol)}/favorite`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ favorited, ...opts }),
+  });
+}
+
+export function patchStockVaultFavoriteMeta(
+  symbol: string,
+  body: { favoritePrice?: number | null },
+) {
+  return fetchJson<{
+    ok: boolean;
+    meta: import("./types").StockVaultFavoriteMeta;
+  }>(`/api/stock-vault/${encodeURIComponent(symbol)}/favorite-meta`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }
 
 export function fetchGoldenCrossStatus(signal?: AbortSignal) {

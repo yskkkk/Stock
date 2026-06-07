@@ -364,6 +364,22 @@ export type StockVaultScanSource = "golden_cross" | "ma_align";
 export type GoldenCrossKind = "5>20" | "5>60" | "5>120";
 export type StockVaultKindTab = "golden_cross" | "ma_align";
 
+export type StockVaultToggleResult =
+  | { action: "removed" }
+  | {
+      action: "added";
+      addedAtMs: number;
+      favoritePrice: number | null;
+    };
+
+export interface StockVaultFavoriteMeta {
+  name: string;
+  market: "kr" | "us";
+  addedAtMs: number;
+  updatedAtMs: number;
+  favoritePrice?: number | null;
+}
+
 export interface StockVaultItem {
   id: string;
   symbol: string;
@@ -377,6 +393,10 @@ export interface StockVaultItem {
   addedAtMs: number;
   updatedAtMs: number;
   favorited?: boolean;
+  /** 즐겨찾기 등록 시각(ms) — D+N 계산용 */
+  favoriteAddedAtMs?: number | null;
+  /** 즐겨찾기 등록(또는 수정) 기준가 */
+  favoritePrice?: number | null;
 }
 
 export interface StockVaultIndustryFinancials {
@@ -424,6 +444,7 @@ export interface StockVaultResponse {
   industryGridRows?: number;
   authenticated?: boolean;
   favoriteSymbols?: string[];
+  favoriteMeta?: Record<string, StockVaultFavoriteMeta>;
 }
 
 export interface GoldenCrossScanState {

@@ -5,6 +5,7 @@ import { buildStockVaultItemsForUserSync } from "./stock-vault-view.js";
 import { writeJsonStoreSync } from "./store-json.js";
 import {
   addUserVaultFavoriteEntrySync,
+  patchUserVaultFavoriteMetaSync,
   removeUserVaultSymbolSync,
   setUserVaultFavoriteSync,
 } from "./user-stock-vault-store.js";
@@ -78,6 +79,29 @@ test("user favorites and dismiss are scoped per account", () => {
     removeUserVaultSymbolSync(userA, sym);
     removeUserVaultSymbolSync(userB, sym);
     removeStockVaultItemSync(sym);
+  }
+});
+
+test("setUserVaultFavoriteSync stores favoritePrice and addedAtMs", () => {
+  const userId = `user-fav-${Date.now()}`;
+  const sym = `ZXFP${Date.now()}.KS`;
+  try {
+    const { favorited, meta } = setUserVaultFavoriteSync(userId, sym, true, {
+      name: "테스트",
+      market: "kr",
+      favoritePrice: 10000,
+    });
+    assert.equal(favorited, true);
+    assert.ok(meta);
+    assert.equal(meta.favoritePrice, 10000);
+    assert.ok(meta.addedAtMs > 0);
+
+    const patched = patchUserVaultFavoriteMetaSync(userId, sym, {
+      favoritePrice: 12000,
+    });
+    assert.equal(patched.favoritePrice, 12000);
+  } finally {
+    removeUserVaultSymbolSync(userId, sym);
   }
 });
 

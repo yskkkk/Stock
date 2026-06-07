@@ -137,6 +137,8 @@ import type {
   PicksResponse,
   QuoteResponse,
   StockPick,
+  StockVaultFavoriteMeta,
+  StockVaultToggleResult,
   MarketIndexItem,
   TelegramSentItem,
   AppTab,
@@ -203,40 +205,92 @@ export default function App() {
   const [chartStale, setChartStale] = useState(false);
   const [chartEngine, setChartEngine] = useState<StockChartEngine>("app");
   const [vaultSymbols, setVaultSymbols] = useState<Set<string>>(() => new Set());
+  const [vaultFavoriteMeta, setVaultFavoriteMeta] = useState<
+    Record<string, StockVaultFavoriteMeta>
+  >({});
 
-  const syncVaultSymbols = useCallback((symbols: string[]) => {
-    setVaultSymbols(new Set(symbols.map((s) => s.trim().toUpperCase())));
-  }, []);
+  const syncVaultFromResponse = useCallback(
+    (favoriteSymbols: string[] | undefined, favoriteMeta?: Record<string, StockVaultFavoriteMeta>) => {
+      setVaultSymbols(new Set((favoriteSymbols ?? []).map((s) => s.trim().toUpperCase())));
+      if (favoriteMeta) setVaultFavoriteMeta(favoriteMeta);
+    },
+    [],
+  );
 
-  const handleToggleVault = useCallback(async (pick: StockPick) => {
-    if (pick.market !== "kr" && pick.market !== "us") return;
-    const sym = pick.symbol.trim().toUpperCase();
-    if (vaultSymbols.has(sym)) {
+  const handleToggleVault = useCallback(
+    async (
+      pick: StockPick,
+      ctx?: { row: { price?: number | null; currency?: string } },
+    ): Promise<StockVaultToggleResult | void> => {
+      if (pick.market !== "kr" && pick.market !== "us") return;
+      const sym = pick.symbol.trim().toUpperCase();
+      if (vaultSymbols.has(sym)) {
+        try {
+          await removeStockVaultItem(pick.symbol);
+          setVaultSymbols((prev) => {
+            const next = new Set(prev);
+            next.delete(sym);
+            return next;
+          });
+          setVaultFavoriteMeta((prev) => {
+            const next = { ...prev };
+            delete next[sym];
+            return next;
+          });
+          return { action: "removed" };
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+      const favoritePrice =
+        ctx?.row?.price ?? pick.price ?? null;
       try {
-        await removeStockVaultItem(pick.symbol);
-        setVaultSymbols((prev) => {
-          const next = new Set(prev);
-          next.delete(sym);
-          return next;
+        const res = await addStockVaultItem({
+          symbol: pick.symbol,
+          market: pick.market,
+          name: pick.name,
+          favoritePrice,
         });
-      } catch {
-        /* ignore */
+        const item = res.item;
+        const addedAtMs = item.favoriteAddedAtMs ?? item.addedAtMs;
+        const meta: StockVaultFavoriteMeta = {
+          name: item.name,
+          market: item.market,
+          addedAtMs,
+          updatedAtMs: item.updatedAtMs,
+          favoritePrice: item.favoritePrice ?? favoritePrice,
+        };
+        setVaultSymbols((prev) => new Set(prev).add(sym));
+        setVaultFavoriteMeta((prev) => ({ ...prev, [sym]: meta }));
+        return {
+          action: "added",
+          addedAtMs,
+          favoritePrice: meta.favoritePrice ?? null,
+        };
+      } catch (e) {
+        if (e instanceof Error && e.message.includes("로그인")) {
+          window.alert(ko.stockVault.loginRequired);
+        }
       }
-      return;
-    }
-    try {
-      const res = await addStockVaultItem({
-        symbol: pick.symbol,
-        market: pick.market,
-        name: pick.name,
+    },
+    [vaultSymbols],
+  );
+
+  const handleVaultFavoritePriceSaved = useCallback(
+    (symbol: string, price: number | null) => {
+      const sym = symbol.trim().toUpperCase();
+      setVaultFavoriteMeta((prev) => {
+        const row = prev[sym];
+        if (!row) return prev;
+        return {
+          ...prev,
+          [sym]: { ...row, favoritePrice: price, updatedAtMs: Date.now() },
+        };
       });
-      setVaultSymbols((prev) => new Set(prev).add(res.item.symbol.trim().toUpperCase()));
-    } catch (e) {
-      if (e instanceof Error && e.message.includes("로그인")) {
-        window.alert(ko.stockVault.loginRequired);
-      }
-    }
-  }, [vaultSymbols]);
+    },
+    [],
+  );
   useEffect(() => {
     const onProgramTradesMain = () => setAppTab("liveTrading");
     window.addEventListener(
@@ -471,10 +525,10 @@ export default function App() {
     startBackgroundTabPrefetch();
     void loadStockVault()
       .then((data) => {
-        syncVaultSymbols(data.vault.favoriteSymbols ?? []);
+        syncVaultFromResponse(data.vault.favoriteSymbols, data.vault.favoriteMeta);
       })
       .catch(() => {});
-  }, [configReady, syncVaultSymbols]);
+  }, [configReady, syncVaultFromResponse]);
 
   useEffect(() => {
     if (
@@ -1550,7 +1604,7 @@ export default function App() {
           onFocusPickConsumed={handleFinancialsFocusConsumed}
         />
       ) : appTab === "stockVault" ? (
-        <StockVaultTab onVaultChange={syncVaultSymbols} />
+        <StockVaultTab onVaultChange={syncVaultFromResponse} />
       ) : appTab === "liveTrading" ? (
         <div className="live-trade-tab-root">
           <LiveTradingTab
@@ -1718,6 +1772,8 @@ export default function App() {
               usdKrwValDate={usdKrwValDate}
               onAddToVault={handleToggleVault}
               vaultSymbols={vaultSymbols}
+              vaultFavoriteMeta={vaultFavoriteMeta}
+              onFavoritePriceSaved={handleVaultFavoritePriceSaved}
             />
           )}
         </aside>
