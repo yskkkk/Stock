@@ -827,7 +827,7 @@ export const ko = {
     sourceNote: "PER=주가÷EPS · PBR=주가÷BPS · 값 없음(—)은 해당 종목/시장에서 미제공일 수 있습니다.",
     searchAria: "종목 검색",
     searchLabel: "종목 검색",
-    searchPlaceholder: "회사명 또는 심볼 (삼성, AAPL, 005930)",
+    searchPlaceholder: "회사명·심볼 (삼성, AAPL, 005930)",
     metricsAria: "재무 지표",
     loading: "불러오는 중…",
     noHits: "검색 결과가 없습니다.",

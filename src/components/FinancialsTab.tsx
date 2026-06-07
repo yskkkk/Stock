@@ -168,10 +168,6 @@ export default function FinancialsTab() {
 
   return (
     <div className="workspace financials-tab">
-      <section className="financials-tab__hero card">
-        <h2 className="financials-tab__title">{ko.financials.title}</h2>
-      </section>
-
       <div className="financials-tab__grid">
         <section className="financials-tab__panel card" aria-label={ko.financials.searchAria}>
           <div className="financials-tab__market-tabs" role="tablist">

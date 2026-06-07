@@ -16,35 +16,9 @@
   max-width: 100%;
 }
 
-.financials-tab__hero,
 .financials-tab__grid {
   width: 100%;
   max-width: 100%;
-}
-
-.financials-tab__hero {
-  padding: 0;
-}
-
-.financials-tab__title {
-  margin: 0 0 0.35rem;
-  font-size: 1.15rem;
-}
-
-.financials-tab__hint,
-.financials-tab__source {
-  margin: 0.25rem 0 0;
-  color: var(--text-dim);
-  font-size: 0.88rem;
-  line-height: 1.45;
-}
-
-.financials-tab__source {
-  color: var(--muted);
-  font-size: 0.8rem;
-}
-
-.financials-tab__grid {
   display: grid;
   grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
   gap: var(--tab-stack-gap, 0.75rem);
@@ -55,13 +29,14 @@
   width: 100%;
   min-width: 0;
   min-height: 18rem;
-  padding: 0;
+  overflow: hidden;
 }
 
 .financials-tab__market-tabs {
   display: flex;
   gap: 0.35rem;
   margin-bottom: 0.65rem;
+  flex-wrap: wrap;
 }
 
 .financials-tab__market {
@@ -70,7 +45,7 @@
   border: 1px solid var(--card-border);
   background: transparent;
   color: var(--text-dim);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   cursor: pointer;
 }
 
@@ -83,19 +58,28 @@
 .financials-tab__label {
   display: block;
   margin-bottom: 0.35rem;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   color: var(--muted);
 }
 
 .financials-tab__input {
   width: 100%;
+  max-width: 100%;
   margin-bottom: 0.65rem;
-  padding: 0.55rem 0.65rem;
+  padding: 0.5rem 0.7rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--card-border);
   background: transparent;
   box-shadow: none;
   color: var(--text);
+  font-size: 0.84rem;
+  line-height: 1.35;
+  box-sizing: border-box;
+}
+
+.financials-tab__input::placeholder {
+  font-size: 0.78rem;
+  color: var(--muted);
 }
 
 .financials-tab__input:focus {
@@ -118,13 +102,14 @@
   justify-content: space-between;
   gap: 0.5rem;
   align-items: center;
-  padding: 0.55rem 0.45rem;
+  padding: 0.5rem 0.15rem;
   border: none;
   border-bottom: 1px solid var(--card-border);
   background: transparent;
   color: var(--text);
   text-align: left;
   cursor: pointer;
+  min-width: 0;
 }
 
 .financials-tab__hit:hover,
@@ -133,12 +118,18 @@
 }
 
 .financials-tab__hit-name {
-  font-size: 0.92rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.86rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .financials-tab__hit-sym {
+  flex: 0 0 auto;
   font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   color: var(--muted);
 }
 
@@ -148,65 +139,76 @@
   align-items: flex-start;
   gap: 0.75rem;
   margin-bottom: 0.85rem;
+  min-width: 0;
 }
 
 .financials-tab__name {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 0.98rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .financials-tab__sym {
   margin: 0.2rem 0 0;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   color: var(--muted);
   font-family: var(--font-mono);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .financials-tab__tv-link {
   flex-shrink: 0;
-  white-space: nowrap;
+  max-width: 100%;
+  white-space: normal;
+  text-align: center;
+  font-size: 0.78rem;
+  line-height: 1.3;
 }
 
 .financials-tab__metrics {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
   gap: 0.55rem;
   margin: 0;
 }
 
 .financials-tab__metric {
-  padding: 0.55rem 0.65rem;
+  min-width: 0;
+  padding: 0.5rem 0.6rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--card-border);
   background: var(--bg-elevated);
+  overflow: hidden;
 }
 
 .financials-tab__metric dt {
   margin: 0;
-  font-size: 0.74rem;
+  font-size: 0.68rem;
+  line-height: 1.35;
   color: var(--muted);
+  overflow-wrap: anywhere;
+  word-break: keep-all;
 }
 
 .financials-tab__metric dd {
-  margin: 0.2rem 0 0;
-  font-size: 1rem;
+  margin: 0.18rem 0 0;
+  font-size: 0.9rem;
   font-weight: 600;
   font-family: var(--font-mono);
-}
-
-.financials-tab__formula {
-  margin: 0.85rem 0 0;
-  font-size: 0.78rem;
-  color: var(--muted);
-  line-height: 1.45;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .financials-tab__muted,
 .financials-tab__error,
 .financials-tab__idle {
-  margin: 0.5rem 0;
-  font-size: 0.88rem;
+  margin: 0.35rem 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
   color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
 .financials-tab__error {
