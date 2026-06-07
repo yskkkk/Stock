@@ -360,6 +360,16 @@
   border-top: 1px solid var(--card-border);
 }
 
+.financials-tab__statement--loading {
+  opacity: 0.82;
+}
+
+.financials-tab__statement-err {
+  margin: 0 0 0.45rem;
+  padding: 0;
+  font-size: 0.78rem;
+}
+
 .financials-tab__statement-head {
   margin-bottom: 0.45rem;
 }

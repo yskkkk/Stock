@@ -253,14 +253,12 @@ export default function FinancialsTab() {
     const seq = ++statementSeqRef.current;
     setStatementLoading(true);
     setStatementErr(null);
-    setStatement(null);
     try {
       const data = await fetchFinancialStatementAnalysis(symbol, periodId);
       if (seq !== statementSeqRef.current) return;
       setStatement(data);
     } catch (e) {
       if (seq !== statementSeqRef.current) return;
-      setStatement(null);
       setStatementErr(e instanceof Error ? e.message : String(e));
     } finally {
       if (seq === statementSeqRef.current) setStatementLoading(false);
@@ -588,19 +586,25 @@ export default function FinancialsTab() {
                 )}
               </section>
 
-              {activePeriodId ? (
+              {(activePeriodId || statement) ? (
                 <section
-                  className="financials-tab__statement"
+                  className={
+                    statementLoading
+                      ? "financials-tab__statement financials-tab__statement--loading"
+                      : "financials-tab__statement"
+                  }
                   aria-live="polite"
                   aria-busy={statementLoading}
                 >
-                  {statementLoading && !statement ? (
-                    <p className="financials-tab__muted">{ko.financials.statementLoading}</p>
-                  ) : statementErr ? (
-                    <p className="financials-tab__error" role="alert">
+                  {statementErr ? (
+                    <p
+                      className="financials-tab__error financials-tab__statement-err"
+                      role="alert"
+                    >
                       {statementErr}
                     </p>
-                  ) : statement ? (
+                  ) : null}
+                  {statement ? (
                     <>
                       <header className="financials-tab__statement-head">
                         <h4 className="financials-tab__statement-title">
@@ -681,6 +685,8 @@ export default function FinancialsTab() {
                         </section>
                       ) : null}
                     </>
+                  ) : statementLoading ? (
+                    <p className="financials-tab__muted">{ko.financials.statementLoading}</p>
                   ) : null}
                 </section>
               ) : null}
