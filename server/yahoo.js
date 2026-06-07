@@ -16,22 +16,24 @@ export async function getYahooSession() {
     return yahooSession;
   }
 
-  const pageRes = await fetch("https://finance.yahoo.com/quote/AAPL/", {
+  const consentRes = await fetch("https://fc.yahoo.com/", {
     headers: { "User-Agent": YAHOO_UA },
     redirect: "follow",
   });
   const rawCookies =
-    typeof pageRes.headers.getSetCookie === "function"
-      ? pageRes.headers.getSetCookie()
+    typeof consentRes.headers.getSetCookie === "function"
+      ? consentRes.headers.getSetCookie()
       : [];
   const cookie = rawCookies.map((c) => c.split(";")[0]).join("; ");
 
   const crumbRes = await fetch(
-    "https://query1.finance.yahoo.com/v1/test/getcrumb",
+    "https://query2.finance.yahoo.com/v1/test/getcrumb",
     { headers: { "User-Agent": YAHOO_UA, Cookie: cookie } },
   );
   const crumb = (await crumbRes.text()).trim();
-  if (!crumb || crumb.includes("<")) throw new Error("Yahoo session");
+  if (!crumb || crumb.includes("<") || crumb.startsWith("{")) {
+    throw new Error("Yahoo session");
+  }
 
   yahooSession = { cookie, crumb, expires: Date.now() + 60 * 60_000 };
   return yahooSession;
@@ -41,7 +43,7 @@ export async function yahooGet(path) {
   const session = await getYahooSession();
   const sep = path.includes("?") ? "&" : "?";
   const url =
-    `https://query1.finance.yahoo.com${path}${sep}crumb=${encodeURIComponent(session.crumb)}`;
+    `https://query2.finance.yahoo.com${path}${sep}crumb=${encodeURIComponent(session.crumb)}`;
   const res = await fetch(url, {
     headers: { "User-Agent": YAHOO_UA, Cookie: session.cookie },
   });
@@ -63,7 +65,7 @@ export async function yahooGet(path) {
 export async function yahooPost(path, body) {
   const session = await getYahooSession();
   const url =
-    `https://query1.finance.yahoo.com${path}?crumb=${encodeURIComponent(session.crumb)}`;
+    `https://query2.finance.yahoo.com${path}?crumb=${encodeURIComponent(session.crumb)}`;
   const res = await fetch(url, {
     method: "POST",
     headers: {

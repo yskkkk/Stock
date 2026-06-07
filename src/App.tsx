@@ -57,7 +57,7 @@ import {
 import RecommendationsTab from "./components/RecommendationsTab";
 import TradeHistoryTab from "./components/TradeHistoryTab";
 import BoxRangeTab from "./components/BoxRangeTab";
-import DisclosureTab from "./components/DisclosureTab";
+import FinancialsTab from "./components/FinancialsTab";
 import { LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT } from "./lib/liveTradeDockAccount";
 import { LIVE_TRADE_PROGRAM_TRADES_MAIN_EVENT } from "./lib/liveTradeProgramTradesMain";
 import StockSearchTab from "./components/StockSearchTab";
@@ -533,7 +533,7 @@ export default function App() {
       appTab === "ops" ||
       appTab === "liveTrading" ||
       appTab === "boxRange" ||
-      appTab === "disclosure"
+      appTab === "financials"
     ) {
       return null;
     }
@@ -578,7 +578,7 @@ export default function App() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!workspacePick) return;
-    if (appTab === "crypto" || appTab === "ops" || appTab === "disclosure") return;
+    if (appTab === "crypto" || appTab === "ops" || appTab === "financials") return;
     if (window.innerWidth > 900) return;
     const el = stockChartSectionRef.current;
     if (!el) return;
@@ -918,7 +918,7 @@ export default function App() {
 
   useEffect(() => {
     const pick = workspacePickRef.current;
-    if (!pick || appTab === "crypto" || appTab === "ops" || appTab === "disclosure") return;
+    if (!pick || appTab === "crypto" || appTab === "ops" || appTab === "financials") return;
     loadChart(pick, timeframe);
     const refreshMs = timeframe === "1m" ? 1_000 : 8_000;
     const id = window.setInterval(() => {
@@ -1150,8 +1150,8 @@ export default function App() {
               ? "app app--trade-history"
               : appTab === "boxRange"
                 ? "app app--box-range"
-                : appTab === "disclosure"
-                  ? "app app--disclosure"
+                : appTab === "financials"
+                  ? "app app--financials"
                 : appTab === "liveTrading"
                 ? "app app--live-trade"
                 : appTab === "ops"
@@ -1423,11 +1423,11 @@ export default function App() {
               ) : null}
               <button
                 type="button"
-                className={mainTabClassName("disclosure")}
-                onPointerEnter={() => previewMainTab("disclosure")}
-                onClick={() => setAppTab("disclosure")}
+                className={mainTabClassName("financials")}
+                onPointerEnter={() => previewMainTab("financials")}
+                onClick={() => setAppTab("financials")}
               >
-                {ko.app.tabDisclosure}
+                {ko.app.tabFinancials}
               </button>
               <button
                 type="button"
@@ -1488,8 +1488,8 @@ export default function App() {
         <TradeHistoryTab onOpenHoldingChart={handleLiveTradeChart} />
       ) : appTab === "boxRange" ? (
         <BoxRangeTab />
-      ) : appTab === "disclosure" ? (
-        <DisclosureTab />
+      ) : appTab === "financials" ? (
+        <FinancialsTab />
       ) : appTab === "liveTrading" ? (
         <div className="live-trade-tab-root">
           <LiveTradingTab

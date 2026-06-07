@@ -51,3 +51,9 @@ export function yahooStockSymbolToTradingView(
   if (!ticker) return "NASDAQ:AAPL";
   return `NASDAQ:${ticker}`;
 }
+
+/** TradingView 재무 탭 URL (심볼 슬러그) */
+export function tradingViewFinancialsUrl(tvSymbol: string): string {
+  const slug = tvSymbol.trim().replace(":", "-");
+  return `https://www.tradingview.com/symbols/${slug}/financials-overview/?utm_source=ystock&utm_medium=financials_tab`;
+}

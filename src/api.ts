@@ -5,9 +5,7 @@ import type {
   ChartTimeframe,
   CryptoQuotesResponse,
   CryptoUniverseResponse,
-  DartCompanyRow,
-  DartDisclosuresSearchResponse,
-  DartStatusResponse,
+  StockFundamentalsResponse,
   FeedbackInboxResponse,
   MacroEventsResponse,
   MarketIndicesResponse,
@@ -1709,42 +1707,9 @@ export function cancelBithumbOpenOrder(orderId: string) {
   );
 }
 
-export function fetchDartStatus(signal?: AbortSignal) {
-  return fetchJson<DartStatusResponse>("/api/dart/status", signal ? { signal } : undefined);
-}
-
-export function fetchDartCompanies(q: string, limit = 25, signal?: AbortSignal) {
-  const params = new URLSearchParams({
-    q: q.trim(),
-    limit: String(limit),
-  });
-  return fetchJson<{ items: DartCompanyRow[] }>(
-    `/api/dart/companies?${params.toString()}`,
-    signal ? { signal } : undefined,
-  ).then((r) => r.items);
-}
-
-export function fetchDartDisclosuresSearch(
-  opts: {
-    query?: string;
-    symbol?: string;
-    corpCode?: string;
-    days?: number;
-    page?: number;
-    pageSize?: number;
-  },
-  signal?: AbortSignal,
-) {
-  const params = new URLSearchParams();
-  if (opts.query?.trim()) params.set("q", opts.query.trim());
-  if (opts.symbol?.trim()) params.set("symbol", opts.symbol.trim());
-  if (opts.corpCode?.trim()) params.set("corpCode", opts.corpCode.trim());
-  if (opts.days != null) params.set("days", String(opts.days));
-  if (opts.page != null) params.set("page", String(opts.page));
-  if (opts.pageSize != null) params.set("pageSize", String(opts.pageSize));
-  const qs = params.toString();
-  return fetchJson<DartDisclosuresSearchResponse>(
-    `/api/dart/disclosures${qs ? `?${qs}` : ""}`,
+export function fetchStockFundamentals(symbol: string, signal?: AbortSignal) {
+  return fetchJson<StockFundamentalsResponse>(
+    `/api/stock/${encodeURIComponent(symbol)}/fundamentals`,
     signal ? { signal } : undefined,
   );
 }

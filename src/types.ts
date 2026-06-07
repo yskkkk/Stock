@@ -10,7 +10,7 @@ export type AppTab =
   | "crypto"
   | "tradeHistory"
   | "boxRange"
-  | "disclosure"
+  | "financials"
   | "ops";
 
 /** 실매매·시뮬 포트폴리오 시장 */
@@ -242,6 +242,28 @@ export interface NewsItem {
   publishedAt: number;
   type: NewsKind;
   sentiment: NewsSentiment;
+}
+
+export interface StockFundamentalsResponse {
+  symbol: string;
+  name: string;
+  currency: string;
+  market: "kr" | "us";
+  price: number | null;
+  eps: number | null;
+  forwardEps: number | null;
+  bps: number | null;
+  per: number | null;
+  forwardPer: number | null;
+  pbr: number | null;
+  marketCap: number | null;
+  dividendYield: number | null;
+  profitMargin: number | null;
+  revenueGrowth: number | null;
+  roe: number | null;
+  source: string;
+  sourceNote: string;
+  updatedAt: number;
 }
 
 export interface DartCompanyRow {

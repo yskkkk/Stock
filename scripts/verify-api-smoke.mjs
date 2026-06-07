@@ -116,13 +116,13 @@ await expect(
 );
 
 await expect(
-  "dart-status",
+  "stock-fundamentals",
   "GET",
-  "/api/dart/status",
+  "/api/stock/AAPL/fundamentals",
   (r) =>
     okJson(r) &&
-    typeof r.json.enabled === "boolean" &&
-    typeof r.json.corpIndexReady === "boolean",
+    r.json.symbol === "AAPL" &&
+    (typeof r.json.per === "number" || r.json.per === null),
 );
 
 await expect(
