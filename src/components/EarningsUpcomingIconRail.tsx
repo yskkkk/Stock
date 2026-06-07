@@ -11,6 +11,11 @@ import { useLeftRailLazyFollow } from "../hooks/useLeftRailLazyFollow";
 import { createPortal } from "react-dom";
 import { fetchSectorEarnings } from "../api";
 import {
+  formatEarningsBubbleFinancialLines,
+  loadEarningsBubbleFinancials,
+  type EarningsBubbleFinancialSummary,
+} from "../lib/earningsBubbleFinancials";
+import {
   formatMacroCountdown,
   formatMacroWhen,
   formatSectorEarningsDday,
@@ -120,6 +125,9 @@ export default function EarningsUpcomingIconRail({
   });
   const [now, setNow] = useState(() => Date.now());
   const [tip, setTip] = useState<TipState | null>(null);
+  const [finSummary, setFinSummary] = useState<
+    EarningsBubbleFinancialSummary | null | "loading"
+  >(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -164,7 +172,7 @@ export default function EarningsUpcomingIconRail({
     clearHideTimer();
     const r = el.getBoundingClientRect();
     const gap = 10;
-    const estW = 176;
+    const estW = 240;
     const pad = 8;
     // edge 레일은 화면/본문 왼쪽 — 말풍선은 아이콘 오른쪽(본문 방향)으로
     let placement: TipState["placement"] = "right";
@@ -186,10 +194,41 @@ export default function EarningsUpcomingIconRail({
     hideTimerRef.current = setTimeout(() => setTip(null), HIDE_DELAY_MS);
   }, [clearHideTimer]);
 
+  useEffect(() => {
+    if (!tip?.row?.symbol) {
+      setFinSummary(null);
+      return;
+    }
+    const ac = new AbortController();
+    setFinSummary("loading");
+    void loadEarningsBubbleFinancials(tip.row.symbol, ac.signal)
+      .then((data) => {
+        if (!ac.signal.aborted) setFinSummary(data);
+      })
+      .catch(() => {
+        if (!ac.signal.aborted) setFinSummary(null);
+      });
+    return () => ac.abort();
+  }, [tip?.row?.symbol]);
+
   if (upcoming.length === 0) return null;
 
   const activeRow = tip?.row ?? null;
   const msLeft = activeRow ? activeRow.at - now : 0;
+  const finLabels = {
+    per: ko.financials.per.replace(/\s*\(.+\)\s*$/, ""),
+    eps: ko.financials.eps.replace(/\s*\(.+\)\s*$/, ""),
+    pbr: ko.financials.pbr.replace(/\s*\(.+\)\s*$/, ""),
+    profitMargin: ko.financials.profitMargin,
+    roe: ko.financials.roe,
+    yoyRevenue: ko.macro.earningsBubbleYoyRevenue,
+    yoyNetIncome: ko.macro.earningsBubbleYoyNetIncome,
+  };
+  const activeFin =
+    finSummary !== "loading" && finSummary != null ? finSummary : null;
+  const finLines = activeFin
+    ? formatEarningsBubbleFinancialLines(activeFin, finLabels)
+    : null;
 
   const bubble =
     tip && typeof document !== "undefined"
@@ -228,6 +267,33 @@ export default function EarningsUpcomingIconRail({
               </span>{" "}
               {formatMacroCountdown(msLeft)}
             </p>
+            {finSummary === "loading" ? (
+              <p className="earnings-icon-rail__bubble-fin earnings-icon-rail__bubble-fin--muted">
+                {ko.macro.earningsBubbleFinancialsLoading}
+              </p>
+            ) : activeFin && finLines ? (
+              <div className="earnings-icon-rail__bubble-fin">
+                <p className="earnings-icon-rail__bubble-fin-title">
+                  {ko.macro.earningsBubbleFinancials} · {activeFin.periodLabel}
+                </p>
+                <p className="earnings-icon-rail__bubble-fin-line">{finLines.line1}</p>
+                <p className="earnings-icon-rail__bubble-fin-line">{finLines.line2}</p>
+                {finLines.yoyLines.map((line) => (
+                  <p
+                    key={line.text}
+                    className={
+                      line.yoyPct != null && line.yoyPct >= 0
+                        ? "earnings-icon-rail__bubble-fin-line earnings-icon-rail__bubble-fin-yoy earnings-icon-rail__bubble-fin-yoy--up"
+                        : line.yoyPct != null && line.yoyPct < 0
+                          ? "earnings-icon-rail__bubble-fin-line earnings-icon-rail__bubble-fin-yoy earnings-icon-rail__bubble-fin-yoy--down"
+                          : "earnings-icon-rail__bubble-fin-line earnings-icon-rail__bubble-fin-yoy"
+                    }
+                  >
+                    {line.text}
+                  </p>
+                ))}
+              </div>
+            ) : null}
           </div>,
           document.body,
         )

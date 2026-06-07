@@ -6897,6 +6897,47 @@ html[data-theme="light"] .feedback-inbox-item {
   color: var(--accent);
 }
 
+.earnings-icon-rail__bubble-fin {
+  margin: 0.42rem 0 0;
+  padding-top: 0.38rem;
+  border-top: 1px solid color-mix(in srgb, var(--card-border) 88%, transparent);
+}
+
+.earnings-icon-rail__bubble-fin--muted {
+  margin: 0.42rem 0 0;
+  padding-top: 0.38rem;
+  border-top: 1px solid color-mix(in srgb, var(--card-border) 88%, transparent);
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.earnings-icon-rail__bubble-fin-title {
+  margin: 0 0 0.22rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.earnings-icon-rail__bubble-fin-line {
+  margin: 0.1rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+
+.earnings-icon-rail__bubble-fin-yoy--up {
+  color: var(--up);
+  font-weight: 600;
+}
+
+.earnings-icon-rail__bubble-fin-yoy--down {
+  color: var(--down);
+  font-weight: 600;
+}
+
 .earnings-icon-rail__bubble-sep {
   color: var(--muted);
   font-weight: 500;

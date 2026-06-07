@@ -833,6 +833,10 @@ export const ko = {
     earningsMetaLabel: "실적",
     earningsMetaPending: "일정만 확인",
     earningsIconRailAria: "예정 실적 발표 (아이콘)",
+    earningsBubbleFinancials: "재무",
+    earningsBubbleFinancialsLoading: "재무 불러오는 중…",
+    earningsBubbleYoyRevenue: "전년대비 매출",
+    earningsBubbleYoyNetIncome: "전년대비 순이익",
   },
   financials: {
     title: "재무 · 밸류에이션",
