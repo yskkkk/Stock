@@ -148,13 +148,15 @@ export function useStockVaultRowBubble() {
                 href={tip.tvChartUrl}
                 target="_blank"
                 rel="noopener noreferrer"
+                aria-label={`${tip.name} ${ko.stockVault.openTradingViewChart}`}
                 onClick={() => setTip(null)}
               >
-                TradingView
+                {ko.stockVault.bubbleBtnChart}
               </a>
               <button
                 type="button"
                 className="stock-vault-tab__bubble-btn stock-vault-tab__bubble-btn--fin"
+                aria-label={`${tip.name} ${ko.stockVault.openFinancialsTab}`}
                 onClick={() => {
                   dispatchOpenFinancialsTab({
                     symbol: tip.symbol,

@@ -922,6 +922,8 @@ export const ko = {
     loginHint: "골든크로스·정배열 탐색 결과는 공통으로 보이며, 수동 추가·즐겨찾기·삭제는 계정별로 저장됩니다.",
     openTradingViewChart: "TradingView 차트 열기",
     openFinancialsTab: "제무재표 탭 열기",
+    bubbleBtnChart: "차트",
+    bubbleBtnFinancials: "제무재표",
     rowBubbleAria: "종목 이동 선택",
     industryFinLoading: "업종 재무 비교 불러오는 중…",
     industryFinTitle: "동종 업계 재무",
