@@ -520,7 +520,7 @@ export default function FinancialsTab() {
                 </div>
                 {tvUrl ? (
                   <a
-                    className="btn btn--secondary financials-tab__tv-link"
+                    className="financials-tab__tv-link"
                     href={tvUrl}
                     target="_blank"
                     rel="noopener noreferrer"
