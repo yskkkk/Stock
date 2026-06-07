@@ -15,6 +15,7 @@ import {
   tradingViewFinancialsUrl,
   yahooStockSymbolToTradingView,
 } from "../lib/tradingviewSymbols";
+import { fmtFinancialStatementCell } from "../lib/fmtFinancialStatement";
 import type {
   FinancialPeriodRow,
   FinancialStatementAnalysisResponse,
@@ -324,6 +325,9 @@ export default function FinancialsTab() {
     return tradingViewFinancialsUrl(tvSymbol);
   }, [selected, tvSymbol]);
 
+  const statementMarket: "kr" | "us" | undefined =
+    selected?.market === "kr" || selected?.market === "us" ? selected.market : undefined;
+
   const selectedSym = selected?.symbol.trim().toUpperCase() ?? "";
   const listRows =
     debounced.length >= 1
@@ -626,8 +630,22 @@ export default function FinancialsTab() {
                               {section.rows.map((row) => (
                                 <tr key={`${section.title}:${row.label}`}>
                                   <th scope="row">{row.label}</th>
-                                  <td>{row.value}</td>
-                                  <td>{row.priorValue ?? "—"}</td>
+                                  <td>
+                                    {fmtFinancialStatementCell(
+                                      row.value,
+                                      row.label,
+                                      section.unitNote,
+                                      statementMarket,
+                                    )}
+                                  </td>
+                                  <td>
+                                    {fmtFinancialStatementCell(
+                                      row.priorValue,
+                                      row.label,
+                                      section.unitNote,
+                                      statementMarket,
+                                    )}
+                                  </td>
                                   <td className={yoyClass(row.yoyPct)}>{fmtYoyPct(row.yoyPct)}</td>
                                 </tr>
                               ))}
