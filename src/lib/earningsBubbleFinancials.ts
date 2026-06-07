@@ -3,6 +3,10 @@ import {
   fetchFinancialStatementAnalysis,
 } from "../api";
 import { formatPercent, formatPrice } from "./format";
+import {
+  formatPeerPerComparison,
+  type PeerPerVerdict,
+} from "./peerPerComparison";
 
 const CACHE_TTL_MS = 5 * 60_000;
 
@@ -19,6 +23,8 @@ export type EarningsBubbleFinancialSummary = {
   roe: number | null;
   revenueYoyPct: number | null;
   netIncomeYoyPct: number | null;
+  peerGroup: string | null;
+  peerMedianPer: number | null;
 };
 
 function findRowYoy(
@@ -55,6 +61,7 @@ export async function loadEarningsBubbleFinancials(
 
     const analysis = await fetchFinancialStatementAnalysis(sym, first.id, signal);
     const pm = analysis.periodMetrics;
+    const peer = analysis.peerComparison;
     const data: EarningsBubbleFinancialSummary = {
       periodLabel: first.label,
       currency: pm.currency ?? periods.currency ?? "USD",
@@ -68,6 +75,8 @@ export async function loadEarningsBubbleFinancials(
         analysis.sections,
         /당기순이익|순이익|netincome/i,
       ),
+      peerGroup: peer?.peerGroup ?? null,
+      peerMedianPer: peer?.medianPer ?? null,
     };
     cache.set(sym, { at: Date.now(), data });
     return data;
@@ -111,10 +120,30 @@ export function formatEarningsBubbleFinancialLines(
     roe: string;
     yoyRevenue: string;
     yoyNetIncome: string;
+    peerMedianPer: string;
+    vsPeerHigh: string;
+    vsPeerLow: string;
+    vsPeerSimilar: string;
   },
 ) {
   const line1 = `${labels.per} ${fmtRatio(s.per)} · ${labels.eps} ${fmtEps(s.eps, s.currency)} · ${labels.pbr} ${fmtRatio(s.pbr)}`;
   const line2 = `${labels.profitMargin} ${fmtPct(s.profitMargin != null ? s.profitMargin * 100 : null)} · ${labels.roe} ${fmtPct(s.roe != null ? s.roe * 100 : null)}`;
+  let peerLine: { text: string; verdict: PeerPerVerdict } | null = null;
+  if (
+    s.per != null &&
+    s.peerMedianPer != null &&
+    s.peerGroup &&
+    Number.isFinite(s.per) &&
+    Number.isFinite(s.peerMedianPer)
+  ) {
+    const cmp = formatPeerPerComparison(s.per, s.peerMedianPer, s.peerGroup, {
+      peerMedianPer: labels.peerMedianPer,
+      vsPeerHigh: labels.vsPeerHigh,
+      vsPeerLow: labels.vsPeerLow,
+      vsPeerSimilar: labels.vsPeerSimilar,
+    });
+    peerLine = { text: cmp.text, verdict: cmp.verdict };
+  }
   /** @type {{ text: string; yoyPct?: number | null }[]} */
   const yoyLines = [];
   if (s.revenueYoyPct != null) {
@@ -129,5 +158,5 @@ export function formatEarningsBubbleFinancialLines(
       yoyPct: s.netIncomeYoyPct,
     });
   }
-  return { line1, line2, yoyLines };
+  return { line1, line2, peerLine, yoyLines };
 }

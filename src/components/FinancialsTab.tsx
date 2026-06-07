@@ -12,6 +12,10 @@ import {
 import { ko } from "../i18n/ko";
 import { formatPercent, formatPrice, formatTurnover } from "../lib/format";
 import {
+  formatPeerPerComparison,
+  peerPerVerdictClassName,
+} from "../lib/peerPerComparison";
+import {
   tradingViewFinancialsUrl,
   yahooStockSymbolToTradingView,
 } from "../lib/tradingviewSymbols";
@@ -369,7 +373,14 @@ export default function FinancialsTab() {
   const metricsCurrency =
     periodMetrics?.currency ?? fundamentals?.currency ?? periodsMeta?.currency;
 
-  const metrics = periodMetrics
+  type MetricRow = {
+    key: string;
+    label: string;
+    value: string;
+    verdictClass?: string;
+  };
+
+  const metrics: MetricRow[] = periodMetrics
     ? [
         {
           key: "per",
@@ -428,6 +439,43 @@ export default function FinancialsTab() {
         },
       ]
     : [];
+
+  const peer = statement?.peerComparison;
+  if (
+    periodMetrics?.per != null &&
+    peer?.medianPer != null &&
+    Number.isFinite(periodMetrics.per) &&
+    Number.isFinite(peer.medianPer)
+  ) {
+    const perIdx = metrics.findIndex((m) => m.key === "per");
+    const insertAt = perIdx >= 0 ? perIdx + 1 : 0;
+    const cmp = formatPeerPerComparison(
+      periodMetrics.per,
+      peer.medianPer,
+      peer.peerGroup,
+      {
+        peerMedianPer: ko.financials.peerMedianPer,
+        vsPeerHigh: ko.financials.perVsPeerHigh,
+        vsPeerLow: ko.financials.perVsPeerLow,
+        vsPeerSimilar: ko.financials.perVsPeerSimilar,
+      },
+    );
+    metrics.splice(
+      insertAt,
+      0,
+      {
+        key: "peerMedianPer",
+        label: `${ko.financials.peerMedianPer} (${peer.peerGroup})`,
+        value: fmtMetric(peer.medianPer, "ratio"),
+      },
+      {
+        key: "perVsPeer",
+        label: ko.financials.perVsPeer,
+        value: cmp.text,
+        verdictClass: peerPerVerdictClassName(cmp.verdict),
+      },
+    );
+  }
 
   return (
     <div className="workspace financials-tab">
@@ -639,7 +687,7 @@ export default function FinancialsTab() {
                           {metrics.map((m) => (
                             <tr key={m.key}>
                               <th scope="row">{m.label}</th>
-                              <td>{m.value}</td>
+                              <td className={m.verdictClass}>{m.value}</td>
                             </tr>
                           ))}
                         </tbody>

@@ -6938,6 +6938,20 @@ html[data-theme="light"] .feedback-inbox-item {
   font-weight: 600;
 }
 
+.earnings-icon-rail__bubble-fin-peer.peer-per--high {
+  color: var(--down);
+  font-weight: 600;
+}
+
+.earnings-icon-rail__bubble-fin-peer.peer-per--low {
+  color: var(--up);
+  font-weight: 600;
+}
+
+.earnings-icon-rail__bubble-fin-peer.peer-per--similar {
+  color: var(--muted);
+}
+
 .earnings-icon-rail__bubble-sep {
   color: var(--muted);
   font-weight: 500;

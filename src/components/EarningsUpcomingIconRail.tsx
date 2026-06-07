@@ -15,6 +15,7 @@ import {
   loadEarningsBubbleFinancials,
   type EarningsBubbleFinancialSummary,
 } from "../lib/earningsBubbleFinancials";
+import { peerPerVerdictClassName } from "../lib/peerPerComparison";
 import {
   formatMacroCountdown,
   formatMacroWhen,
@@ -223,6 +224,10 @@ export default function EarningsUpcomingIconRail({
     roe: ko.financials.roe,
     yoyRevenue: ko.macro.earningsBubbleYoyRevenue,
     yoyNetIncome: ko.macro.earningsBubbleYoyNetIncome,
+    peerMedianPer: ko.financials.peerMedianPer,
+    vsPeerHigh: ko.financials.perVsPeerHigh,
+    vsPeerLow: ko.financials.perVsPeerLow,
+    vsPeerSimilar: ko.financials.perVsPeerSimilar,
   };
   const activeFin =
     finSummary !== "loading" && finSummary != null ? finSummary : null;
@@ -277,6 +282,13 @@ export default function EarningsUpcomingIconRail({
                   {ko.macro.earningsBubbleFinancials} · {activeFin.periodLabel}
                 </p>
                 <p className="earnings-icon-rail__bubble-fin-line">{finLines.line1}</p>
+                {finLines.peerLine ? (
+                  <p
+                    className={`earnings-icon-rail__bubble-fin-line earnings-icon-rail__bubble-fin-peer ${peerPerVerdictClassName(finLines.peerLine.verdict)}`}
+                  >
+                    {finLines.peerLine.text}
+                  </p>
+                ) : null}
                 <p className="earnings-icon-rail__bubble-fin-line">{finLines.line2}</p>
                 {finLines.yoyLines.map((line) => (
                   <p

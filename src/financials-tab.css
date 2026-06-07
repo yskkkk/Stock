@@ -284,6 +284,19 @@
   text-align: right;
 }
 
+.financials-tab__snapshot td.peer-per--high {
+  color: var(--down);
+}
+
+.financials-tab__snapshot td.peer-per--low {
+  color: var(--up);
+}
+
+.financials-tab__snapshot td.peer-per--similar {
+  color: var(--muted);
+  font-weight: 500;
+}
+
 .financials-tab__periods {
   margin-top: 0.85rem;
   padding-top: 0.65rem;

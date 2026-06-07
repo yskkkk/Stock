@@ -409,6 +409,13 @@ export async function loadFinancialStatementAnalysis(symbol, periodId) {
     prevAnnouncePeriodLabel:
       prevAnnouncePeriod?.label ?? prevAnnounceDetail?.label ?? null,
     periodMetrics,
+    peerComparison: {
+      peerGroup,
+      medianPer: peerMedians.per,
+      medianPbr: peerMedians.pbr,
+      medianRoe: peerMedians.roe,
+      medianProfitMargin: peerMedians.profitMargin,
+    },
     aiOpinion,
     updatedAt: Date.now(),
   };

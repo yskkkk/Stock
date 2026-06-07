@@ -307,6 +307,14 @@ export interface FinancialAiOpinion {
   disclaimer: string;
 }
 
+export interface FinancialPeerComparison {
+  peerGroup: string;
+  medianPer: number | null;
+  medianPbr: number | null;
+  medianRoe: number | null;
+  medianProfitMargin: number | null;
+}
+
 export interface FinancialStatementDetailResponse {
   symbol: string;
   periodId: string;
@@ -346,6 +354,7 @@ export interface FinancialStatementAnalysisResponse extends FinancialStatementDe
   prevAnnouncePeriodId: string | null;
   prevAnnouncePeriodLabel: string | null;
   periodMetrics: FinancialPeriodMetrics;
+  peerComparison: FinancialPeerComparison;
   aiOpinion: FinancialAiOpinion;
 }
 

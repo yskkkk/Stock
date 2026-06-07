@@ -78,6 +78,22 @@ test("buildHistoricalPeriodMetrics keeps KR statement PER", async () => {
   assert.equal(out.valuationBasis, "period_statement");
 });
 
+test("MSFT analysis exposes peer PER comparison", async () => {
+  const periods = await loadFinancialPeriods("MSFT");
+  const first = periods.periods?.[0];
+  assert.ok(first);
+  const analysis = await loadFinancialStatementAnalysis("MSFT", first.id);
+  assert.ok(analysis.peerComparison);
+  assert.equal(analysis.peerComparison.peerGroup, "빅테크");
+  assert.ok(
+    analysis.peerComparison.medianPer != null &&
+      Number.isFinite(analysis.peerComparison.medianPer),
+  );
+  if (analysis.periodMetrics.per != null) {
+    assert.ok(analysis.aiOpinion.bullets.some((b) => b.includes("PER")));
+  }
+});
+
 test("fetchHistoricalCloseNearDate returns positive price", async () => {
   const ms = Date.UTC(2024, 7, 15);
   const px = await fetchHistoricalCloseNearDate("LITE", ms);
