@@ -103,7 +103,6 @@ export default function StockVaultTab({
         <header className="stock-vault-tab__head">
           <div>
             <h2 className="stock-vault-tab__title">{ko.stockVault.title}</h2>
-            <p className="stock-vault-tab__desc">{ko.stockVault.desc}</p>
             {scanHint ? (
               <p className="stock-vault-tab__scan-hint">
                 {ko.stockVault.lastScan}: {scanHint}
