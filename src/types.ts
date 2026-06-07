@@ -266,6 +266,46 @@ export interface StockFundamentalsResponse {
   updatedAt: number;
 }
 
+export interface FinancialPeriodRow {
+  id: string;
+  label: string;
+  kind: "annual" | "quarter";
+  endDateMs: number | null;
+  isForecast: boolean;
+  source: string;
+}
+
+export interface FinancialPeriodsResponse {
+  symbol: string;
+  name: string;
+  market: "kr" | "us";
+  currency: string;
+  periods: FinancialPeriodRow[];
+  updatedAt: number;
+}
+
+export interface FinancialStatementLineRow {
+  label: string;
+  value: string;
+}
+
+export interface FinancialStatementSection {
+  title: string;
+  unitNote?: string;
+  rows: FinancialStatementLineRow[];
+}
+
+export interface FinancialStatementDetailResponse {
+  symbol: string;
+  periodId: string;
+  label: string;
+  kind: "annual" | "quarter";
+  isForecast: boolean;
+  sections: FinancialStatementSection[];
+  source: string;
+  updatedAt: number;
+}
+
 export interface DartCompanyRow {
   corpCode: string;
   corpName: string;

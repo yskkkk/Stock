@@ -6,6 +6,8 @@ import type {
   CryptoQuotesResponse,
   CryptoUniverseResponse,
   StockFundamentalsResponse,
+  FinancialPeriodsResponse,
+  FinancialStatementDetailResponse,
   FeedbackInboxResponse,
   MacroEventsResponse,
   MarketIndicesResponse,
@@ -1710,6 +1712,24 @@ export function cancelBithumbOpenOrder(orderId: string) {
 export function fetchStockFundamentals(symbol: string, signal?: AbortSignal) {
   return fetchJson<StockFundamentalsResponse>(
     `/api/stock/${encodeURIComponent(symbol)}/fundamentals`,
+    signal ? { signal } : undefined,
+  );
+}
+
+export function fetchFinancialPeriods(symbol: string, signal?: AbortSignal) {
+  return fetchJson<FinancialPeriodsResponse>(
+    `/api/stock/${encodeURIComponent(symbol)}/financials/periods`,
+    signal ? { signal } : undefined,
+  );
+}
+
+export function fetchFinancialStatementDetail(
+  symbol: string,
+  periodId: string,
+  signal?: AbortSignal,
+) {
+  return fetchJson<FinancialStatementDetailResponse>(
+    `/api/stock/${encodeURIComponent(symbol)}/financials/periods/${encodeURIComponent(periodId)}`,
     signal ? { signal } : undefined,
   );
 }

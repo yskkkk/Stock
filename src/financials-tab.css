@@ -32,6 +32,16 @@
   overflow: hidden;
 }
 
+.financials-tab__detail {
+  overflow: auto;
+}
+
+.financials-tab__detail-inner {
+  padding: var(--tab-card-pad-y-top, 0.9rem) var(--tab-card-pad-x, 1rem)
+    var(--tab-card-pad-y-bottom, 1.05rem);
+  min-width: 0;
+}
+
 /* 종목검색 좌측 패널과 동일 구조 */
 .financials-tab__search.card {
   display: flex;
@@ -78,7 +88,7 @@
   width: 100%;
   max-width: 100%;
   margin: 0;
-  padding: 0.5rem 0.72rem;
+  padding: 0.55rem 0.85rem;
   box-sizing: border-box;
   font-size: 0.84rem;
   line-height: 1.35;
@@ -115,6 +125,10 @@
   border-bottom: none !important;
 }
 
+.financials-tab__search .stock-hot-item__btn {
+  padding-inline: var(--tab-card-pad-x, 1rem);
+}
+
 .financials-tab__search .stock-search-tab__hot-list,
 .financials-tab__search .stock-search-tab__list {
   flex: 1 1 auto;
@@ -125,7 +139,6 @@
 .financials-tab__search .stock-search-tab__hot-list {
   gap: 0 !important;
   padding-top: 0 !important;
-  padding-inline: 0 !important;
 }
 
 .financials-tab__search .picks-empty {
@@ -139,6 +152,11 @@
   gap: 0.75rem;
   margin-bottom: 0.85rem;
   min-width: 0;
+}
+
+.financials-tab__head-text {
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .financials-tab__name {
@@ -166,48 +184,217 @@
   line-height: 1.3;
 }
 
-.financials-tab__metrics {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
-  gap: 0.55rem;
-  margin: 0;
+/* 밸류에이션 스냅샷 — 카드 없이 표 */
+.financials-tab__snapshot {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 1rem;
+  font-size: 0.82rem;
+  line-height: 1.4;
 }
 
-.financials-tab__metric {
-  min-width: 0;
-  padding: 0.5rem 0.6rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--card-border);
-  background: var(--bg-elevated);
-  overflow: hidden;
-}
-
-.financials-tab__metric dt {
-  margin: 0;
-  font-size: 0.68rem;
-  line-height: 1.35;
-  color: var(--muted);
+.financials-tab__snapshot th,
+.financials-tab__snapshot td {
+  padding: 0.42rem 0.55rem;
+  border-bottom: 1px solid var(--card-border);
+  vertical-align: top;
   overflow-wrap: anywhere;
   word-break: keep-all;
 }
 
-.financials-tab__metric dd {
-  margin: 0.18rem 0 0;
-  font-size: 0.9rem;
+.financials-tab__snapshot th {
+  width: 42%;
+  font-weight: 500;
+  color: var(--muted);
+  text-align: left;
+}
+
+.financials-tab__snapshot td {
   font-weight: 600;
   font-family: var(--font-mono);
+  text-align: right;
+}
+
+.financials-tab__periods {
+  margin-top: 0.25rem;
+}
+
+.financials-tab__periods-title {
+  margin: 0 0 0.55rem;
+  font-size: 0.88rem;
+  font-weight: 600;
   line-height: 1.35;
+}
+
+.financials-tab__period-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+  gap: 0.5rem;
+}
+
+.financials-tab__period-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.28rem;
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.financials-tab__period-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--card-border));
+}
+
+.financials-tab__period-card--active {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--card-border));
+  background: color-mix(in srgb, var(--accent-dim) 55%, var(--bg-elevated));
+}
+
+.financials-tab__period-label {
+  font-size: 0.92rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  line-height: 1.3;
   overflow-wrap: anywhere;
+}
+
+.financials-tab__period-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.financials-tab__period-kind,
+.financials-tab__period-forecast {
+  display: inline-block;
+  padding: 0.08rem 0.38rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  line-height: 1.35;
+  font-weight: 500;
+}
+
+.financials-tab__period-kind {
+  background: color-mix(in srgb, var(--surface) 80%, var(--card));
+  color: var(--muted);
+}
+
+.financials-tab__period-forecast {
+  background: color-mix(in srgb, var(--warn) 18%, transparent);
+  color: var(--warn);
+}
+
+.financials-tab__statement {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--card-border);
+}
+
+.financials-tab__statement-head {
+  margin-bottom: 0.65rem;
+}
+
+.financials-tab__statement-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.financials-tab__statement-kind {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.financials-tab__statement-source {
+  margin: 0.25rem 0 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.financials-tab__statement-section {
+  margin-bottom: 0.85rem;
+}
+
+.financials-tab__statement-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin-bottom: 0.35rem;
+}
+
+.financials-tab__statement-section-head h5 {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.financials-tab__statement-unit {
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.financials-tab__statement-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.financials-tab__statement-table th,
+.financials-tab__statement-table td {
+  padding: 0.38rem 0.5rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 85%, transparent);
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+
+.financials-tab__statement-table th {
+  width: 55%;
+  font-weight: 500;
+  color: var(--muted);
+  text-align: left;
+}
+
+.financials-tab__statement-table td {
+  font-family: var(--font-mono);
+  text-align: right;
+  white-space: nowrap;
 }
 
 .financials-tab__muted,
 .financials-tab__error,
 .financials-tab__idle {
   margin: 0.35rem 0;
+  padding: 0 var(--tab-card-pad-x, 1rem);
   font-size: 0.82rem;
   line-height: 1.45;
   color: var(--muted);
   overflow-wrap: anywhere;
+}
+
+.financials-tab__detail .financials-tab__muted,
+.financials-tab__detail .financials-tab__error,
+.financials-tab__detail .financials-tab__idle {
+  padding: var(--tab-card-pad-y-top, 0.9rem) var(--tab-card-pad-x, 1rem);
 }
 
 .financials-tab__error {
@@ -221,5 +408,9 @@
 
   .financials-tab__head {
     flex-direction: column;
+  }
+
+  .financials-tab__statement-table td {
+    white-space: normal;
   }
 }

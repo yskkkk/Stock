@@ -1,12 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { fetchStockFundamentals, fetchStockSearch, fetchStockSearchHot } from "../api";
+import {
+  fetchFinancialPeriods,
+  fetchFinancialStatementDetail,
+  fetchStockFundamentals,
+  fetchStockSearch,
+  fetchStockSearchHot,
+} from "../api";
 import { ko } from "../i18n/ko";
 import { formatPercent, formatPrice, formatTurnover } from "../lib/format";
 import {
   tradingViewFinancialsUrl,
   yahooStockSymbolToTradingView,
 } from "../lib/tradingviewSymbols";
-import type { Market, StockFundamentalsResponse, StockPick, StockSearchQuoteRow } from "../types";
+import type {
+  FinancialPeriodRow,
+  FinancialStatementDetailResponse,
+  Market,
+  StockFundamentalsResponse,
+  StockPick,
+  StockSearchQuoteRow,
+} from "../types";
 import StockSearchHotRow, { rowToStockPick } from "./StockSearchHotRow";
 
 const HANGUL_RE = /[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7A3]/;
@@ -42,6 +55,10 @@ function fmtMetric(
   return String(value);
 }
 
+function periodKindLabel(kind: FinancialPeriodRow["kind"]) {
+  return kind === "annual" ? ko.financials.periodAnnual : ko.financials.periodQuarter;
+}
+
 export default function FinancialsTab() {
   const [market, setMarket] = useState<Market>("kr");
   const [input, setInput] = useState("");
@@ -57,8 +74,19 @@ export default function FinancialsTab() {
   const [fundLoading, setFundLoading] = useState(false);
   const [fundErr, setFundErr] = useState<string | null>(null);
 
+  const [periods, setPeriods] = useState<FinancialPeriodRow[]>([]);
+  const [periodsLoading, setPeriodsLoading] = useState(false);
+  const [periodsErr, setPeriodsErr] = useState<string | null>(null);
+
+  const [activePeriodId, setActivePeriodId] = useState<string | null>(null);
+  const [statement, setStatement] = useState<FinancialStatementDetailResponse | null>(null);
+  const [statementLoading, setStatementLoading] = useState(false);
+  const [statementErr, setStatementErr] = useState<string | null>(null);
+
   const searchAbortRef = useRef<AbortController | null>(null);
   const fundSeqRef = useRef(0);
+  const periodsSeqRef = useRef(0);
+  const statementSeqRef = useRef(0);
 
   useEffect(() => {
     const id = window.setTimeout(() => setDebounced(input.trim()), 260);
@@ -171,14 +199,59 @@ export default function FinancialsTab() {
     }
   }, []);
 
+  const loadPeriods = useCallback(async (symbol: string) => {
+    const seq = ++periodsSeqRef.current;
+    setPeriodsLoading(true);
+    setPeriodsErr(null);
+    setPeriods([]);
+    setActivePeriodId(null);
+    setStatement(null);
+    setStatementErr(null);
+    try {
+      const data = await fetchFinancialPeriods(symbol);
+      if (seq !== periodsSeqRef.current) return;
+      setPeriods(data.periods ?? []);
+    } catch (e) {
+      if (seq !== periodsSeqRef.current) return;
+      setPeriods([]);
+      setPeriodsErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      if (seq === periodsSeqRef.current) setPeriodsLoading(false);
+    }
+  }, []);
+
+  const loadStatement = useCallback(async (symbol: string, periodId: string) => {
+    const seq = ++statementSeqRef.current;
+    setStatementLoading(true);
+    setStatementErr(null);
+    setStatement(null);
+    try {
+      const data = await fetchFinancialStatementDetail(symbol, periodId);
+      if (seq !== statementSeqRef.current) return;
+      setStatement(data);
+    } catch (e) {
+      if (seq !== statementSeqRef.current) return;
+      setStatement(null);
+      setStatementErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      if (seq === statementSeqRef.current) setStatementLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!selected?.symbol) {
       setFundamentals(null);
       setFundErr(null);
+      setPeriods([]);
+      setPeriodsErr(null);
+      setActivePeriodId(null);
+      setStatement(null);
+      setStatementErr(null);
       return;
     }
     void loadFundamentals(selected.symbol);
-  }, [selected?.symbol, loadFundamentals]);
+    void loadPeriods(selected.symbol);
+  }, [selected?.symbol, loadFundamentals, loadPeriods]);
 
   const handleSelectPick = useCallback((pick: StockPick) => {
     setSelected({
@@ -203,6 +276,15 @@ export default function FinancialsTab() {
     setSelected(null);
     setError(null);
   }, [market]);
+
+  const handlePeriodClick = useCallback(
+    (period: FinancialPeriodRow) => {
+      if (!selected?.symbol) return;
+      setActivePeriodId(period.id);
+      void loadStatement(selected.symbol, period.id);
+    },
+    [selected?.symbol, loadStatement],
+  );
 
   const tvSymbol = useMemo(() => {
     if (!selected) return null;
@@ -382,7 +464,10 @@ export default function FinancialsTab() {
           </div>
         </section>
 
-        <section className="financials-tab__panel card" aria-label={ko.financials.metricsAria}>
+        <section
+          className="financials-tab__panel card financials-tab__detail"
+          aria-label={ko.financials.metricsAria}
+        >
           {!selected ? (
             <p className="financials-tab__muted financials-tab__idle">{ko.financials.idle}</p>
           ) : fundLoading && !fundamentals ? (
@@ -392,9 +477,9 @@ export default function FinancialsTab() {
               {fundErr}
             </p>
           ) : fundamentals ? (
-            <>
+            <div className="financials-tab__detail-inner">
               <header className="financials-tab__head">
-                <div>
+                <div className="financials-tab__head-text">
                   <h3 className="financials-tab__name">{fundamentals.name}</h3>
                   <p className="financials-tab__sym">
                     {fundamentals.symbol}
@@ -413,15 +498,116 @@ export default function FinancialsTab() {
                 ) : null}
               </header>
 
-              <dl className="financials-tab__metrics">
-                {metrics.map((m) => (
-                  <div key={m.key} className="financials-tab__metric">
-                    <dt>{m.label}</dt>
-                    <dd>{m.value}</dd>
+              <table className="financials-tab__snapshot" aria-label={ko.financials.metricsAria}>
+                <tbody>
+                  {metrics.map((m) => (
+                    <tr key={m.key}>
+                      <th scope="row">{m.label}</th>
+                      <td>{m.value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <section className="financials-tab__periods" aria-label={ko.financials.periodsTitle}>
+                <h4 className="financials-tab__periods-title">{ko.financials.periodsTitle}</h4>
+                {periodsLoading && periods.length === 0 ? (
+                  <p className="financials-tab__muted">{ko.financials.periodsLoading}</p>
+                ) : periodsErr ? (
+                  <p className="financials-tab__error" role="alert">
+                    {periodsErr}
+                  </p>
+                ) : periods.length === 0 ? (
+                  <p className="financials-tab__muted">{ko.financials.periodsEmpty}</p>
+                ) : (
+                  <div className="financials-tab__period-grid">
+                    {periods.map((period) => {
+                      const isActive = activePeriodId === period.id;
+                      return (
+                        <button
+                          key={period.id}
+                          type="button"
+                          className={
+                            isActive
+                              ? "financials-tab__period-card financials-tab__period-card--active"
+                              : "financials-tab__period-card"
+                          }
+                          aria-pressed={isActive}
+                          onClick={() => handlePeriodClick(period)}
+                        >
+                          <span className="financials-tab__period-label">{period.label}</span>
+                          <span className="financials-tab__period-badges">
+                            <span className="financials-tab__period-kind">
+                              {periodKindLabel(period.kind)}
+                            </span>
+                            {period.isForecast ? (
+                              <span className="financials-tab__period-forecast">
+                                {ko.financials.periodForecast}
+                              </span>
+                            ) : null}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
-                ))}
-              </dl>
-            </>
+                )}
+              </section>
+
+              {activePeriodId ? (
+                <section
+                  className="financials-tab__statement"
+                  aria-live="polite"
+                  aria-busy={statementLoading}
+                >
+                  {statementLoading && !statement ? (
+                    <p className="financials-tab__muted">{ko.financials.statementLoading}</p>
+                  ) : statementErr ? (
+                    <p className="financials-tab__error" role="alert">
+                      {statementErr}
+                    </p>
+                  ) : statement ? (
+                    <>
+                      <header className="financials-tab__statement-head">
+                        <h4 className="financials-tab__statement-title">
+                          {statement.label}
+                          <span className="financials-tab__statement-kind">
+                            {periodKindLabel(statement.kind)}
+                          </span>
+                          {statement.isForecast ? (
+                            <span className="financials-tab__period-forecast">
+                              {ko.financials.periodForecast}
+                            </span>
+                          ) : null}
+                        </h4>
+                        <p className="financials-tab__statement-source">
+                          {ko.financials.statementSource}: {statement.source}
+                        </p>
+                      </header>
+                      {statement.sections.map((section) => (
+                        <div key={section.title} className="financials-tab__statement-section">
+                          <div className="financials-tab__statement-section-head">
+                            <h5>{section.title}</h5>
+                            {section.unitNote ? (
+                              <span className="financials-tab__statement-unit">{section.unitNote}</span>
+                            ) : null}
+                          </div>
+                          <table className="financials-tab__statement-table">
+                            <tbody>
+                              {section.rows.map((row) => (
+                                <tr key={`${section.title}:${row.label}`}>
+                                  <th scope="row">{row.label}</th>
+                                  <td>{row.value}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ))}
+                    </>
+                  ) : null}
+                </section>
+              ) : null}
+            </div>
           ) : null}
         </section>
       </div>

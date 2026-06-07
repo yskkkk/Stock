@@ -126,6 +126,42 @@ await expect(
 );
 
 await expect(
+  "stock-financials-periods",
+  "GET",
+  "/api/stock/AAPL/financials/periods",
+  (r) =>
+    okJson(r) &&
+    r.json.symbol === "AAPL" &&
+    Array.isArray(r.json.periods) &&
+    r.json.periods.length > 0,
+);
+
+{
+  const periodsRes = await httpReq("GET", "/api/stock/AAPL/financials/periods");
+  const firstId = periodsRes.json?.periods?.[0]?.id;
+  if (firstId) {
+    await expect(
+      "stock-financials-detail",
+      "GET",
+      `/api/stock/AAPL/financials/periods/${encodeURIComponent(firstId)}`,
+      (r) =>
+        okJson(r) &&
+        r.json.symbol === "AAPL" &&
+        Array.isArray(r.json.sections) &&
+        r.json.sections.length > 0,
+    );
+  } else {
+    failures.push({
+      label: "stock-financials-detail",
+      method: "GET",
+      path: "(skip)",
+      error: "no period id from periods response",
+    });
+    console.error("FAIL stock-financials-detail no period id");
+  }
+}
+
+await expect(
   "ops-cursor-agent-forbidden",
   "POST",
   "/api/ops/cursor-agent",
