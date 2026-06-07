@@ -5,9 +5,10 @@ import {
   resolveUsStockDisplayMetaBatch,
 } from "./us-naver-korean-name.js";
 import { yahooGet } from "./yahoo.js";
+import { fetchKrNaverIndustryRawName } from "./kr-naver-industry.js";
 
 const CACHE_TTL_MS = 24 * 60 * 60_000;
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3;
 
 /** @type {Map<string, { at: number; industry: string | null }>} */
 const cache = new Map();
@@ -187,6 +188,20 @@ const INDUSTRY_KO = {
 
 /** @type {Array<[RegExp, string]>} */
 const INDUSTRY_KEYWORD_KO = [
+  [/반도체와반도체|반도체장비|반도체 장비/i, "반도체 장비·소재"],
+  [/반도체/i, "반도체"],
+  [/화학|석유/i, "화학"],
+  [/은행|금융/i, "은행"],
+  [/제약|바이오|의약/i, "제약·바이오"],
+  [/유통|백화|마트|할인점/i, "유통"],
+  [/자동차|완성차|부품/i, "자동차"],
+  [/조선|해운/i, "조선"],
+  [/철강|금속/i, "철강"],
+  [/건설|건자재/i, "건설"],
+  [/게임|엔터|미디어/i, "미디어·엔터"],
+  [/통신|네트워크/i, "통신"],
+  [/2차전지|배터리/i, "2차전지"],
+  [/디스플레이|패널/i, "디스플레이"],
   [/semiconductor/i, "반도체"],
   [/software/i, "소프트웨어"],
   [/internet/i, "인터넷"],
@@ -460,7 +475,6 @@ export function normalizeIndustryText(raw) {
 export function localizeIndustry(raw) {
   const text = normalizeIndustryText(raw);
   if (!text) return null;
-  if (hasHangul(text)) return text;
 
   if (INDUSTRY_KO[text]) return INDUSTRY_KO[text];
 
@@ -471,6 +485,8 @@ export function localizeIndustry(raw) {
   for (const [re, ko] of INDUSTRY_KEYWORD_KO) {
     if (re.test(text)) return ko;
   }
+
+  if (hasHangul(text)) return text;
 
   return "기타";
 }
@@ -489,10 +505,15 @@ function cacheKeyFor(symbol, market) {
  */
 async function fetchIndustryForSymbol(symbol, market) {
   const key = cacheKeyFor(symbol, market);
-  if (!key || key.endsWith(":")) return null;
+  if (!key || key.endsWith(":")) return "기타";
 
   const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.industry;
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
+    return hit.industry ?? "기타";
+  }
+
+  /** @type {string | null} */
+  let industry = null;
 
   try {
     const ySym = key.slice(key.indexOf(":") + 1);
@@ -500,13 +521,22 @@ async function fetchIndustryForSymbol(symbol, market) {
       `/v10/finance/quoteSummary/${encodeURIComponent(ySym)}?modules=assetProfile`,
     );
     const profile = data?.quoteSummary?.result?.[0]?.assetProfile;
-    const industry = localizeIndustry(profile?.industry ?? profile?.sector ?? null);
-    cache.set(key, { at: Date.now(), industry });
-    return industry;
+    industry = localizeIndustry(profile?.industry ?? profile?.sector ?? null);
   } catch {
-    cache.set(key, { at: Date.now(), industry: null });
-    return null;
+    industry = null;
   }
+
+  if (!industry && market === "kr") {
+    try {
+      industry = localizeIndustry(await fetchKrNaverIndustryRawName(symbol));
+    } catch {
+      industry = null;
+    }
+  }
+
+  const resolved = industry ?? "기타";
+  cache.set(key, { at: Date.now(), industry: resolved });
+  return resolved;
 }
 
 /**
@@ -536,12 +566,12 @@ export async function fetchStockVaultMetaForItems(items) {
           ? usMeta?.nameKo ?? getKoreanStockName(sym) ?? null
           : getKoreanStockName(sym);
       const row = {
-        ...(industry ? { industry } : {}),
+        industry,
         ...(nameKo ? { nameKo } : {}),
         ...(usMeta?.tvSymbol ? { tvSymbol: usMeta.tvSymbol } : {}),
         ...(usMeta?.exchange ? { exchange: usMeta.exchange } : {}),
       };
-      if (Object.keys(row).length > 0) meta[sym] = row;
+      meta[sym] = row;
     }),
   );
   return meta;

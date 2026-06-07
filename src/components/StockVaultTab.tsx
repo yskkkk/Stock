@@ -105,7 +105,7 @@ function manualVaultSymbols(items: StockVaultItem[]) {
 
 function rowIndustry(meta: StockVaultResponse["meta"], row: VaultDisplayRow) {
   const symKey = row.symbol.trim().toUpperCase();
-  return meta?.[symKey]?.industry?.trim() || null;
+  return meta?.[symKey]?.industry?.trim() || "기타";
 }
 
 function scanHintFromStatus(status: StockVaultScanStatus | null | undefined) {
@@ -845,9 +845,7 @@ export default function StockVaultTab({
                         <span className="stock-vault-tab__sym">{display.sublabel}</span>
                       ) : null}
                     </div>
-                    {industry ? (
-                      <p className="stock-vault-tab__sector">{industry}</p>
-                    ) : null}
+                    <p className="stock-vault-tab__sector">{industry}</p>
                     <div className="stock-vault-tab__meta">
                       <span className="stock-vault-tab__market">
                         {row.market === "kr" ? ko.app.marketKr : ko.app.marketUs}
