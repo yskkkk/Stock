@@ -47,9 +47,14 @@ function numField(v) {
 function displayField(v) {
   if (v == null) return "—";
   if (typeof v === "string") return v;
-  if (typeof v === "number" && Number.isFinite(v)) return String(v);
+  if (typeof v === "number" && Number.isFinite(v)) {
+    return v === 0 ? "—" : String(v);
+  }
   if (typeof v === "object") {
     const o = /** @type {{ fmt?: unknown; longFmt?: unknown; raw?: unknown }} */ (v);
+    if (typeof o.raw === "number" && Number.isFinite(o.raw) && o.raw === 0 && o.fmt == null) {
+      return "—";
+    }
     if (typeof o.longFmt === "string" && o.longFmt.trim()) return o.longFmt.trim();
     if (typeof o.fmt === "string" && o.fmt.trim()) return o.fmt.trim();
     if (typeof o.raw === "number" && Number.isFinite(o.raw)) return String(o.raw);
@@ -165,12 +170,9 @@ function yahooRowsFromStatement(stmt, labels) {
   const rows = [];
   for (const [field, label] of Object.entries(labels)) {
     if (!(field in stmt)) continue;
-    rows.push({ label, value: displayField(stmt[field]) });
-  }
-  for (const [field, val] of Object.entries(stmt)) {
-    if (field === "maxAge" || field === "endDate" || field in labels) continue;
-    if (val == null) continue;
-    rows.push({ label: field, value: displayField(val) });
+    const value = displayField(stmt[field]);
+    if (value === "—") continue;
+    rows.push({ label, value });
   }
   return rows;
 }

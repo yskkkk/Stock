@@ -371,25 +371,32 @@ export default function FinancialsTab() {
 
   const metrics = periodMetrics
     ? [
-        { key: "per", label: ko.financials.per, value: fmtMetric(periodMetrics.per, "ratio") },
+        {
+          key: "per",
+          label: ko.financials.per,
+          value: fmtMetric(periodMetrics.per ?? fundamentals?.per, "ratio"),
+        },
         {
           key: "forwardPer",
           label: ko.financials.forwardPer,
           value: fmtMetric(
-            periodMetrics.forwardPer ?? (periodMetrics.isForecast ? fundamentals?.forwardPer : null),
+            periodMetrics.forwardPer ??
+              fundamentals?.forwardPer ??
+              (periodMetrics.isForecast ? fundamentals?.forwardPer : null),
             "ratio",
           ),
         },
         {
           key: "eps",
           label: ko.financials.eps,
-          value: fmtMetric(periodMetrics.eps, "eps", metricsCurrency),
+          value: fmtMetric(periodMetrics.eps ?? fundamentals?.eps, "eps", metricsCurrency),
         },
         {
           key: "forwardEps",
           label: ko.financials.forwardEps,
           value: fmtMetric(
             periodMetrics.forwardEps ??
+              fundamentals?.forwardEps ??
               (periodMetrics.isForecast ? fundamentals?.forwardEps : null),
             "eps",
             metricsCurrency,
@@ -398,12 +405,12 @@ export default function FinancialsTab() {
         {
           key: "bps",
           label: ko.financials.bps,
-          value: fmtMetric(periodMetrics.bps, "eps", metricsCurrency),
+          value: fmtMetric(periodMetrics.bps ?? fundamentals?.bps, "eps", metricsCurrency),
         },
         {
           key: "pbr",
           label: ko.financials.pbr,
-          value: fmtMetric(periodMetrics.pbr, "ratio"),
+          value: fmtMetric(periodMetrics.pbr ?? fundamentals?.pbr, "ratio"),
         },
         {
           key: "price",
@@ -426,12 +433,15 @@ export default function FinancialsTab() {
         {
           key: "profitMargin",
           label: ko.financials.profitMargin,
-          value: fmtMetric(periodMetrics.profitMargin, "percent"),
+          value: fmtMetric(
+            periodMetrics.profitMargin ?? fundamentals?.profitMargin,
+            "percent",
+          ),
         },
         {
           key: "roe",
           label: ko.financials.roe,
-          value: fmtMetric(periodMetrics.roe, "percent"),
+          value: fmtMetric(periodMetrics.roe ?? fundamentals?.roe, "percent"),
         },
       ]
     : [];

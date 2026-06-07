@@ -51,7 +51,9 @@ export function calcYoyPct(cur, prior) {
 /** @param {object[]} periods @param {object} current */
 export function findPriorPeriod(periods, current) {
   if (!current?.endDateMs) return null;
-  const targetMs = current.endDateMs - 365.25 * 86400000;
+  const isQuarter = current.kind === "quarter";
+  const targetMs = current.endDateMs - (isQuarter ? 365.25 : 365.25) * 86400000;
+  const maxDiffMs = (isQuarter ? 75 : 400) * 86400000;
   let best = null;
   let bestDiff = Infinity;
   for (const p of periods) {
@@ -66,7 +68,7 @@ export function findPriorPeriod(periods, current) {
       best = p;
     }
   }
-  if (!best || bestDiff > 400 * 86400000) return null;
+  if (!best || bestDiff > maxDiffMs) return null;
   return best;
 }
 
@@ -283,17 +285,33 @@ export async function loadFinancialStatementAnalysis(symbol, periodId) {
     loadStockFundamentals(sym).catch(() => null),
   ]);
 
-  const periodMetrics = extractPeriodMetricsFromDetail(detail, {
+  const extracted = extractPeriodMetricsFromDetail(detail, {
     currency: periodsPayload?.currency ?? "KRW",
     market: periodsPayload?.market === "us" ? "us" : "kr",
   });
 
+  /** US Yahoo history에는 PER·EPS 등 없음 — quoteSummary fundamentals 보조 */
+  const periodMetrics = {
+    ...extracted,
+    per: extracted.per ?? fundamentals?.per ?? null,
+    forwardPer: extracted.forwardPer ?? fundamentals?.forwardPer ?? null,
+    eps: extracted.eps ?? fundamentals?.eps ?? null,
+    forwardEps: extracted.forwardEps ?? fundamentals?.forwardEps ?? null,
+    bps: extracted.bps ?? fundamentals?.bps ?? null,
+    pbr: extracted.pbr ?? fundamentals?.pbr ?? null,
+    price: extracted.price ?? fundamentals?.price ?? null,
+    marketCap: extracted.marketCap ?? fundamentals?.marketCap ?? null,
+    dividendYield: extracted.dividendYield ?? fundamentals?.dividendYield ?? null,
+    profitMargin: extracted.profitMargin ?? fundamentals?.profitMargin ?? null,
+    roe: extracted.roe ?? fundamentals?.roe ?? null,
+  };
+
   /** 스냅샷 PER·PBR 등 — 선택 기간 기준, 없으면 최신 fundamentals 보조 */
   const metricsForOpinion = {
-    per: periodMetrics.per ?? fundamentals?.per ?? null,
-    pbr: periodMetrics.pbr ?? fundamentals?.pbr ?? null,
-    roe: periodMetrics.roe ?? fundamentals?.roe ?? null,
-    profitMargin: periodMetrics.profitMargin ?? fundamentals?.profitMargin ?? null,
+    per: periodMetrics.per,
+    pbr: periodMetrics.pbr,
+    roe: periodMetrics.roe,
+    profitMargin: periodMetrics.profitMargin,
   };
 
   const periods = Array.isArray(periodsPayload?.periods) ? periodsPayload.periods : [];
