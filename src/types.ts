@@ -369,6 +369,8 @@ export interface StockVaultItem {
   market: "kr" | "us";
   source: StockVaultSource;
   crosses?: GoldenCrossKind[];
+  /** 골든크로스가 발생한 일봉 날짜 (YYYY-MM-DD) */
+  crossDate?: string | null;
   scanDate?: string | null;
   addedAtMs: number;
   updatedAtMs: number;

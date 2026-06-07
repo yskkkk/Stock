@@ -17,6 +17,7 @@ function vaultStoreFile() {
  *   market: "kr"|"us";
  *   source: StockVaultSource;
  *   crosses?: ("5>20"|"5>60"|"5>120")[];
+ *   crossDate?: string | null;
  *   scanDate?: string | null;
  *   addedAtMs: number;
  *   updatedAtMs: number;
@@ -73,6 +74,16 @@ function normalizeStore(raw) {
       market,
       source,
       crosses: source === "golden_cross" ? crosses : undefined,
+      crossDate:
+        source === "golden_cross" &&
+        typeof row?.crossDate === "string" &&
+        row.crossDate.trim()
+          ? row.crossDate.trim()
+          : source === "golden_cross" &&
+              typeof row?.scanDate === "string" &&
+              row.scanDate.trim()
+            ? row.scanDate.trim()
+            : null,
       scanDate:
         typeof row?.scanDate === "string" && row.scanDate.trim()
           ? row.scanDate.trim()
@@ -127,7 +138,7 @@ export function listStockVaultItemsSync() {
 }
 
 /**
- * @param {{ symbol: string; name?: string; market: "kr"|"us"; source?: StockVaultSource; crosses?: string[]; scanDate?: string | null }} input
+ * @param {{ symbol: string; name?: string; market: "kr"|"us"; source?: StockVaultSource; crosses?: string[]; crossDate?: string | null; scanDate?: string | null }} input
  */
 export function upsertStockVaultItemSync(input) {
   const symbol = String(input.symbol ?? "")
@@ -161,6 +172,14 @@ export function upsertStockVaultItemSync(input) {
       market,
       source,
       crosses: mergedCrosses?.length ? mergedCrosses : undefined,
+      crossDate:
+        source === "golden_cross"
+          ? input.crossDate != null
+            ? input.crossDate
+            : input.scanDate != null
+              ? input.scanDate
+              : prev.crossDate ?? null
+          : undefined,
       scanDate:
         input.scanDate != null
           ? input.scanDate
@@ -175,6 +194,10 @@ export function upsertStockVaultItemSync(input) {
       market,
       source,
       crosses: crosses.length ? crosses : undefined,
+      crossDate:
+        source === "golden_cross"
+          ? (input.crossDate ?? input.scanDate ?? null)
+          : undefined,
       scanDate: input.scanDate ?? null,
       addedAtMs: now,
       updatedAtMs: now,
@@ -264,7 +287,7 @@ export function mergeMaAlignHitsIntoVaultSync(hits) {
 }
 
 /**
- * @param {Array<{ symbol: string; name: string; market: "kr"|"us"; crosses: string[]; scanDate: string }>} hits
+ * @param {Array<{ symbol: string; name: string; market: "kr"|"us"; crosses: string[]; crossDate?: string | null; scanDate: string }>} hits
  */
 export function mergeGoldenCrossHitsIntoVaultSync(hits) {
   const dismissed = new Set(readStore().dismissed ?? []);
@@ -279,6 +302,7 @@ export function mergeGoldenCrossHitsIntoVaultSync(hits) {
       market: hit.market,
       source: "golden_cross",
       crosses: hit.crosses,
+      crossDate: hit.crossDate ?? hit.scanDate,
       scanDate: hit.scanDate,
     });
   }

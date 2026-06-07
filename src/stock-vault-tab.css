@@ -279,6 +279,37 @@
   background: color-mix(in srgb, var(--card) 88%, var(--surface));
 }
 
+/* 골든크로스 발생 후 1~3일 · 4~6일 · 7~10일 */
+.stock-vault-tab__row--gc-recent-3 {
+  border-color: color-mix(in srgb, #15803d 62%, var(--card-border));
+  background: color-mix(in srgb, #15803d 22%, var(--card));
+  box-shadow: inset 3px 0 0 #15803d;
+}
+
+.stock-vault-tab__row--gc-recent-6 {
+  border-color: color-mix(in srgb, #22c55e 50%, var(--card-border));
+  background: color-mix(in srgb, #22c55e 14%, var(--card));
+  box-shadow: inset 3px 0 0 #22c55e;
+}
+
+.stock-vault-tab__row--gc-recent-10 {
+  border-color: color-mix(in srgb, #86efac 45%, var(--card-border));
+  background: color-mix(in srgb, #86efac 11%, var(--card));
+  box-shadow: inset 3px 0 0 #86efac;
+}
+
+html[data-theme="light"] .stock-vault-tab__row--gc-recent-3 {
+  background: color-mix(in srgb, #15803d 12%, #fff);
+}
+
+html[data-theme="light"] .stock-vault-tab__row--gc-recent-6 {
+  background: color-mix(in srgb, #22c55e 9%, #fff);
+}
+
+html[data-theme="light"] .stock-vault-tab__row--gc-recent-10 {
+  background: color-mix(in srgb, #86efac 14%, #fff);
+}
+
 .stock-vault-tab__row-main {
   min-width: 0;
   flex: 1 1 auto;

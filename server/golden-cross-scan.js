@@ -1,5 +1,5 @@
 import { loadStock } from "./stock-data.js";
-import { detectDailyGoldenCrosses } from "./golden-cross-detect.js";
+import { detectDailyGoldenCrossDetail } from "./golden-cross-detect.js";
 import { isGoldenCrossTradable } from "./golden-cross-tradable.js";
 import { resolveDisplayName } from "./names-ko.js";
 import { loadBoxRangeCatalogUniverse } from "./universe.js";
@@ -67,7 +67,7 @@ async function scanOneSymbol(item, market, scanDate) {
       return null;
     }
     const candles = Array.isArray(data?.candles) ? data.candles : [];
-    const crosses = detectDailyGoldenCrosses(candles);
+    const { crosses, crossDate } = detectDailyGoldenCrossDetail(candles);
     if (!crosses.length) return null;
     return {
       symbol: sym,
@@ -77,6 +77,7 @@ async function scanOneSymbol(item, market, scanDate) {
       ),
       market,
       crosses,
+      crossDate: crossDate ?? scanDate,
       scanDate,
     };
   } catch (e) {

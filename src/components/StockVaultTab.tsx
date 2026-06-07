@@ -8,7 +8,10 @@ import {
 } from "../api";
 import { ko } from "../i18n/ko";
 import { formatPercent, formatPrice } from "../lib/format";
-import { resolveSymbolDisplayName } from "../lib/symbolDisplayName";
+import {
+  goldenCrossRecencyClass,
+  sortGoldenCrossItems,
+} from "../lib/goldenCrossRecency";
 import {
   tradingViewChartUrl,
   yahooStockSymbolToTradingView,
@@ -255,9 +258,15 @@ export default function StockVaultTab({
   }, [baseFiltered, getItemIndustry, industryTabs]);
 
   const filtered = useMemo(() => {
-    if (industryFilter === "all") return baseFiltered;
-    return baseFiltered.filter((it) => getItemIndustry(it) === industryFilter);
-  }, [baseFiltered, industryFilter, getItemIndustry]);
+    let list =
+      industryFilter === "all"
+        ? baseFiltered
+        : baseFiltered.filter((it) => getItemIndustry(it) === industryFilter);
+    if (kindTab === "golden_cross") {
+      list = sortGoldenCrossItems(list);
+    }
+    return list;
+  }, [baseFiltered, industryFilter, getItemIndustry, kindTab]);
 
   useEffect(() => {
     if (industryFilter === "all") return;
@@ -609,8 +618,18 @@ export default function StockVaultTab({
                 quote?.currency ?? (item.market === "kr" ? "KRW" : "USD");
               const chg = quote?.changePercent;
               const chgUp = chg != null && chg >= 0;
+              const gcRecencyClass =
+                item.source === "golden_cross"
+                  ? goldenCrossRecencyClass(item)
+                  : null;
+              const rowClassName = [
+                "stock-vault-tab__row",
+                gcRecencyClass,
+              ]
+                .filter(Boolean)
+                .join(" ");
               return (
-              <li key={item.id} className="stock-vault-tab__row">
+              <li key={item.id} className={rowClassName}>
                 <a
                   className="stock-vault-tab__row-link"
                   href={tvChartUrl}
@@ -645,8 +664,10 @@ export default function StockVaultTab({
                             ? ko.stockVault.sourceMaAlign
                             : ko.stockVault.sourceManual}
                       </span>
-                      {item.scanDate ? (
-                        <span className="stock-vault-tab__scan-date">{item.scanDate}</span>
+                      {(item.crossDate ?? item.scanDate) ? (
+                        <span className="stock-vault-tab__scan-date">
+                          {item.crossDate ?? item.scanDate}
+                        </span>
                       ) : null}
                       <span className="stock-vault-tab__added">
                         {fmtDate(item.updatedAtMs)}

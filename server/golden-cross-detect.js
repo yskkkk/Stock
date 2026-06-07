@@ -36,6 +36,48 @@ export function isGoldenCrossBar(fastPrev, fastNow, slowPrev, slowNow) {
 }
 
 /**
+ * @param {unknown} time
+ * @returns {string | null} YYYY-MM-DD (KST 일봉 time 객체·unix ms/sec)
+ */
+export function candleTimeToDateKey(time) {
+  if (time == null) return null;
+  if (typeof time === "object") {
+    const y = Number(time.year);
+    const m = Number(time.month);
+    const d = Number(time.day);
+    if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) {
+      return null;
+    }
+    return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  }
+  if (typeof time === "number" && Number.isFinite(time)) {
+    const ms = time > 1e12 ? time : time * 1000;
+    return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(
+      new Date(ms),
+    );
+  }
+  return null;
+}
+
+/**
+ * @param {Array<{ close?: number; time?: unknown }>} candles
+ * @param {number} [barIndex]
+ * @returns {{ crosses: ("5>20"|"5>60"|"5>120")[]; crossDate: string | null }}
+ */
+export function detectDailyGoldenCrossDetail(candles, barIndex) {
+  const crosses = detectDailyGoldenCrosses(candles, barIndex);
+  if (!crosses.length) return { crosses: [], crossDate: null };
+  const i =
+    barIndex == null
+      ? candles.length - 1
+      : Math.min(Math.max(0, barIndex), candles.length - 1);
+  return {
+    crosses,
+    crossDate: candleTimeToDateKey(candles[i]?.time),
+  };
+}
+
+/**
  * @param {Array<{ close?: number }>} candles
  * @param {number} [barIndex] — 기본: 마지막 봉
  * @returns {("5>20"|"5>60"|"5>120")[]}
