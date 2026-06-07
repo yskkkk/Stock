@@ -18,7 +18,8 @@ import {
   macroUrgency,
 } from "../lib/formatMacro";
 import { getMacroSurpriseUpBias } from "../lib/macroSentiment";
-import type { MacroEvent, SectorEarningsSpotlightItem } from "../types";
+import { stockLogoUrl } from "../lib/stockLogoUrl";
+import type { MacroEvent, Market, SectorEarningsSpotlightItem } from "../types";
 import MacroEventInfoModal from "./MacroEventInfoModal";
 
 type MacroTrackEdge = { side: "none" | "left" | "right"; pull: number };
@@ -182,6 +183,40 @@ const CATEGORY_ICON: Record<string, string> = {
   sentiment: "●",
 };
 
+function MacroCardBrandIcon({
+  symbol,
+  market,
+  name,
+}: {
+  symbol: string;
+  market: Market;
+  name: string;
+}) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const logo = stockLogoUrl(symbol, market);
+  const codeShort = symbol.replace(/^KR_/i, "").replace(/\.(KS|KQ)$/i, "");
+  const showImg = Boolean(logo) && !imgFailed;
+  const initial = (name.trim() || codeShort).slice(0, 1);
+
+  return (
+    <span className="macro-card__brand" aria-hidden>
+      {showImg ? (
+        <img
+          src={logo!}
+          alt=""
+          width={18}
+          height={18}
+          loading="lazy"
+          decoding="async"
+          onError={() => setImgFailed(true)}
+        />
+      ) : (
+        <span className="macro-card__brand-fallback">{initial}</span>
+      )}
+    </span>
+  );
+}
+
 function MacroEventCard({
   event,
   now,
@@ -279,9 +314,7 @@ function SectorEarningsCard({
         <span className={`macro-card__region macro-card__region--${row.market}`}>
           {row.market === "kr" ? ko.macro.regionKr : ko.macro.regionUs}
         </span>
-        <span className="macro-card__cat" aria-hidden>
-          ◐
-        </span>
+        <MacroCardBrandIcon symbol={row.symbol} market={row.market} name={row.name} />
       </div>
       <p className="macro-card__name" title={row.name}>
         {row.name}
