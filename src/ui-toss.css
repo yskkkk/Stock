@@ -105,6 +105,7 @@ html {
 /* 탭 본문 카드·필터 — top-bar와 동일 좌우, shell·워크스페이스 세로 gap 통일 */
 .app__shell > .workspace,
 .app__shell > .workspace.box-range-tab,
+.app__shell > .workspace.financials-tab,
 .app__shell > .trade-history-workspace,
 .app__shell > .live-trade-tab-root,
 .app__shell > .crypto-workspace {
@@ -114,6 +115,7 @@ html {
 .app__shell > .filter-bar.card,
 .app__shell > .workspace:not(.workspace--stock-lookup) > .picks-panel.card,
 .app__shell > .workspace.workspace--rec-tracker > .picks-panel.card,
+.app__shell > .workspace.financials-tab > .card,
 .app__shell > .workspace.ops-workspace > .card,
 .app__shell .live-trade-program-trades-main.card,
 .app__shell .trade-history-main-workspace.card,
@@ -149,6 +151,8 @@ html {
 .chart-panel.card,
 .chart-placeholder.card,
 .macro-bar.card,
+.financials-tab__hero.card,
+.financials-tab__panel.card,
 .news-modal.card,
 .access-admin-modal.card,
 .feedback-modal.card {

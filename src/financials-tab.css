@@ -1,19 +1,29 @@
 .workspace.financials-tab {
   width: 100%;
-  max-width: min(1120px, 100%);
+  max-width: min(var(--app-page-max-width, 1680px), 100%);
   margin: 0 auto;
-  padding: 0.75rem 0 1.5rem;
+  padding: 0.5rem 0 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: var(--tab-stack-gap, 0.75rem);
+  align-self: stretch;
+  box-sizing: border-box;
 }
 
 .app.app--financials .app__shell > .workspace.financials-tab {
   grid-column: 1 / -1;
+  width: 100%;
+  max-width: 100%;
+}
+
+.financials-tab__hero,
+.financials-tab__grid {
+  width: 100%;
+  max-width: 100%;
 }
 
 .financials-tab__hero {
-  padding: 1rem 1.15rem;
+  padding: 0;
 }
 
 .financials-tab__title {
@@ -36,14 +46,16 @@
 
 .financials-tab__grid {
   display: grid;
-  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
-  gap: 0.85rem;
-  align-items: start;
+  grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
+  gap: var(--tab-stack-gap, 0.75rem);
+  align-items: stretch;
 }
 
 .financials-tab__panel {
-  padding: 0.9rem 1rem;
+  width: 100%;
+  min-width: 0;
   min-height: 18rem;
+  padding: 0;
 }
 
 .financials-tab__market-tabs {
@@ -81,8 +93,15 @@
   padding: 0.55rem 0.65rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--card-border);
-  background: var(--bg-elevated);
+  background: transparent;
+  box-shadow: none;
   color: var(--text);
+}
+
+.financials-tab__input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--card-border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-dim) 90%, transparent);
 }
 
 .financials-tab__hits {
