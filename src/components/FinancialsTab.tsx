@@ -41,7 +41,7 @@ function fmtMetric(
   currency?: string,
 ): string {
   if (value == null || !Number.isFinite(value)) return "—";
-  if (kind === "ratio") return value.toFixed(2);
+  if (kind === "ratio") return `${value.toFixed(2)}배`;
   if (kind === "percent") return formatPercent(value * 100);
   if (kind === "eps") {
     return currency === "KRW"
