@@ -8,6 +8,10 @@ import {
 import { ko } from "../i18n/ko";
 import { formatPercent, formatPrice } from "../lib/format";
 import { resolveSymbolDisplayName } from "../lib/symbolDisplayName";
+import {
+  tradingViewChartUrl,
+  yahooStockSymbolToTradingView,
+} from "../lib/tradingviewSymbols";
 import type { GoldenCrossKind, StockVaultItem, StockVaultSource } from "../types";
 
 const CROSS_LABEL: Record<GoldenCrossKind, string> = {
@@ -430,52 +434,63 @@ export default function StockVaultTab({
                 item.market,
               );
               const industry = getItemIndustry(item);
+              const tvSymbol = yahooStockSymbolToTradingView(item.symbol, item.market);
+              const tvChartUrl = tradingViewChartUrl(tvSymbol);
               const cur =
                 quote?.currency ?? (item.market === "kr" ? "KRW" : "USD");
               const chg = quote?.changePercent;
               const chgUp = chg != null && chg >= 0;
               return (
               <li key={item.id} className="stock-vault-tab__row">
-                <div className="stock-vault-tab__row-main">
-                  <div className="stock-vault-tab__row-head">
-                    <span
-                      className="stock-vault-tab__name"
-                      title={display.label}
-                    >
-                      {display.label}
-                    </span>
-                    {display.sublabel ? (
-                      <span className="stock-vault-tab__sym">{display.sublabel}</span>
-                    ) : null}
-                  </div>
-                  {industry ? (
-                    <p className="stock-vault-tab__sector">{industry}</p>
-                  ) : null}
-                  <div className="stock-vault-tab__meta">
-                    <span className="stock-vault-tab__market">
-                      {item.market === "kr" ? ko.app.marketKr : ko.app.marketUs}
-                    </span>
-                    <span className="stock-vault-tab__source">
-                      {item.source === "golden_cross"
-                        ? ko.stockVault.sourceGolden
-                        : ko.stockVault.sourceManual}
-                    </span>
-                    {item.scanDate ? (
-                      <span className="stock-vault-tab__scan-date">{item.scanDate}</span>
-                    ) : null}
-                    <span className="stock-vault-tab__added">{fmtDate(item.updatedAtMs)}</span>
-                  </div>
-                  {item.crosses?.length ? (
-                    <div className="stock-vault-tab__crosses">
-                      {item.crosses.map((c) => (
-                        <span key={c} className="stock-vault-tab__cross">
-                          {CROSS_LABEL[c] ?? c}
-                        </span>
-                      ))}
+                <a
+                  className="stock-vault-tab__row-link"
+                  href={tvChartUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${display.label} ${ko.stockVault.openTradingViewChart}`}
+                  title={ko.stockVault.openTradingViewChart}
+                >
+                  <div className="stock-vault-tab__row-main">
+                    <div className="stock-vault-tab__row-head">
+                      <span
+                        className="stock-vault-tab__name"
+                        title={display.label}
+                      >
+                        {display.label}
+                      </span>
+                      {display.sublabel ? (
+                        <span className="stock-vault-tab__sym">{display.sublabel}</span>
+                      ) : null}
                     </div>
-                  ) : null}
-                </div>
-                <div className="stock-vault-tab__row-foot">
+                    {industry ? (
+                      <p className="stock-vault-tab__sector">{industry}</p>
+                    ) : null}
+                    <div className="stock-vault-tab__meta">
+                      <span className="stock-vault-tab__market">
+                        {item.market === "kr" ? ko.app.marketKr : ko.app.marketUs}
+                      </span>
+                      <span className="stock-vault-tab__source">
+                        {item.source === "golden_cross"
+                          ? ko.stockVault.sourceGolden
+                          : ko.stockVault.sourceManual}
+                      </span>
+                      {item.scanDate ? (
+                        <span className="stock-vault-tab__scan-date">{item.scanDate}</span>
+                      ) : null}
+                      <span className="stock-vault-tab__added">
+                        {fmtDate(item.updatedAtMs)}
+                      </span>
+                    </div>
+                    {item.crosses?.length ? (
+                      <div className="stock-vault-tab__crosses">
+                        {item.crosses.map((c) => (
+                          <span key={c} className="stock-vault-tab__cross">
+                            {CROSS_LABEL[c] ?? c}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
                   <div className="stock-vault-tab__quote">
                     {quote?.price != null && Number.isFinite(quote.price) ? (
                       <>
@@ -500,22 +515,22 @@ export default function StockVaultTab({
                       </span>
                     )}
                   </div>
-                  <button
-                    type="button"
-                    className="stock-vault-tab__remove"
-                    aria-label={`${display.label} ${ko.stockVault.removeAria}`}
-                    title={ko.stockVault.remove}
-                    disabled={removing === item.symbol}
-                    onClick={() => void handleRemove(item.symbol)}
-                  >
-                    <span className="stock-vault-tab__remove-icon" aria-hidden>
-                      ×
-                    </span>
-                    <span className="stock-vault-tab__remove-label">
-                      {ko.stockVault.remove}
-                    </span>
-                  </button>
-                </div>
+                </a>
+                <button
+                  type="button"
+                  className="stock-vault-tab__remove"
+                  aria-label={`${display.label} ${ko.stockVault.removeAria}`}
+                  title={ko.stockVault.remove}
+                  disabled={removing === item.symbol}
+                  onClick={() => void handleRemove(item.symbol)}
+                >
+                  <span className="stock-vault-tab__remove-icon" aria-hidden>
+                    ×
+                  </span>
+                  <span className="stock-vault-tab__remove-label">
+                    {ko.stockVault.remove}
+                  </span>
+                </button>
               </li>
               );
             })}

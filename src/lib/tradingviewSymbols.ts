@@ -57,3 +57,19 @@ export function tradingViewFinancialsUrl(tvSymbol: string): string {
   const slug = tvSymbol.trim().replace(":", "-");
   return `https://www.tradingview.com/symbols/${slug}/financials-overview/?utm_source=ystock&utm_medium=financials_tab`;
 }
+
+/** TradingView 차트 페이지 URL (일봉 기본) */
+export function tradingViewChartUrl(
+  tvSymbol: string,
+  timeframe: ChartTimeframe = "1d",
+): string {
+  const symbol = tvSymbol.trim();
+  const interval = chartTimeframeToTradingViewInterval(timeframe);
+  const q = new URLSearchParams({
+    symbol,
+    interval,
+    utm_source: "ystock",
+    utm_medium: "stock_vault",
+  });
+  return `https://www.tradingview.com/chart/?${q.toString()}`;
+}

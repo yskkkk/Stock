@@ -890,6 +890,7 @@ export const ko = {
     sourceManual: "수동",
     remove: "삭제",
     removeAria: "보관함에서 삭제",
+    openTradingViewChart: "TradingView 차트 열기",
     removeFromVault: "보관함에서 제거",
     lastScan: "마지막 스캔",
     scanRun: "일봉 탐색",

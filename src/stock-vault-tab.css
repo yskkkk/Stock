@@ -265,6 +265,27 @@
   flex: 1 1 auto;
 }
 
+.stock-vault-tab__row-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+  flex: 1 1 auto;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.stock-vault-tab__row-link:hover .stock-vault-tab__name {
+  color: var(--accent);
+}
+
+.stock-vault-tab__row-link:focus-visible {
+  outline: 2px solid var(--accent-border);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm, 6px);
+}
+
 .stock-vault-tab__row-foot {
   display: flex;
   align-items: flex-end;
@@ -380,10 +401,11 @@
 
 .stock-vault-tab__remove {
   flex-shrink: 0;
+  align-self: flex-end;
   display: inline-flex;
   align-items: center;
   gap: 0.18rem;
-  margin: 0;
+  margin: 0.12rem 0 0;
   padding: 0.24rem 0.42rem;
   border: none;
   border-radius: 0;
