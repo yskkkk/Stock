@@ -9,9 +9,14 @@ import { ko } from "../i18n/ko";
 import { formatPercent, formatPrice } from "../lib/format";
 import {
   goldenCrossRecencyClass,
-  sortGoldenCrossItems,
 } from "../lib/goldenCrossRecency";
 import { resolveSymbolDisplayName } from "../lib/symbolDisplayName";
+import {
+  buildVaultDisplayRows,
+  countItemsByScanSource,
+  STOCK_VAULT_SCAN_SOURCES,
+  type VaultDisplayRow,
+} from "../lib/stockVaultFilter";
 import {
   loadStockVault,
   peekStockVaultPrefetch,
@@ -25,11 +30,21 @@ import {
 import type {
   GoldenCrossKind,
   StockVaultItem,
-  StockVaultKindTab,
   StockVaultResponse,
+  StockVaultScanSource,
   StockVaultScanStatus,
 } from "../types";
 import { VaultBookmarkIcon } from "./StockVaultMarkButton";
+
+const SCAN_SOURCE_LABEL: Record<StockVaultScanSource, string> = {
+  golden_cross: ko.stockVault.tabGolden,
+  ma_align: ko.stockVault.tabMaAlign,
+};
+
+const SOURCE_BADGE_LABEL: Record<StockVaultScanSource, string> = {
+  golden_cross: ko.stockVault.sourceGolden,
+  ma_align: ko.stockVault.sourceMaAlign,
+};
 
 const CROSS_LABEL: Record<GoldenCrossKind, string> = {
   "5>20": "5→20",
@@ -83,6 +98,11 @@ function manualVaultSymbols(items: StockVaultItem[]) {
   return items
     .filter((it) => it.source === "manual")
     .map((it) => it.symbol.trim().toUpperCase());
+}
+
+function rowIndustry(meta: StockVaultResponse["meta"], row: VaultDisplayRow) {
+  const symKey = row.symbol.trim().toUpperCase();
+  return meta?.[symKey]?.industry?.trim() || null;
 }
 
 function scanHintFromStatus(status: StockVaultScanStatus | null | undefined) {
@@ -141,7 +161,10 @@ export default function StockVaultTab({
   const [loading, setLoading] = useState(!cachedInit);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<VaultFilter>("all");
-  const [kindTab, setKindTab] = useState<StockVaultKindTab>("golden_cross");
+  const [vaultView, setVaultView] = useState<"scan" | "manual">("scan");
+  const [selectedScanSources, setSelectedScanSources] = useState<
+    StockVaultScanSource[]
+  >(["golden_cross"]);
   const [marketFilter, setMarketFilter] = useState<"all" | "kr" | "us">("all");
   const [industryFilter, setIndustryFilter] = useState<string>("all");
   const [authenticated, setAuthenticated] = useState(
@@ -260,41 +283,78 @@ export default function StockVaultTab({
     return () => document.removeEventListener("mousedown", onDocDown);
   }, [scanConfirmOpen]);
 
-  const getItemIndustry = useCallback(
-    (item: StockVaultItem) => {
-      const symKey = item.symbol.trim().toUpperCase();
-      return meta[symKey]?.industry?.trim() || null;
-    },
+  const getRowIndustry = useCallback(
+    (row: VaultDisplayRow) => rowIndustry(meta, row),
     [meta],
   );
 
-  const baseFiltered = useMemo(() => {
-    return items.filter((it) => {
-      if (it.source !== kindTab) return false;
-      if (marketFilter !== "all" && it.market !== marketFilter) return false;
-      if (filter === "favorite" && !it.favorited) return false;
-      return true;
+  const toggleScanSource = useCallback((source: StockVaultScanSource) => {
+    setVaultView("scan");
+    setIndustryFilter("all");
+    setSelectedScanSources((prev) => {
+      const set = new Set(prev);
+      if (set.has(source)) {
+        if (set.size <= 1) return prev;
+        set.delete(source);
+      } else {
+        set.add(source);
+      }
+      return STOCK_VAULT_SCAN_SOURCES.filter((s) => set.has(s));
     });
-  }, [items, filter, marketFilter, kindTab]);
+  }, []);
 
-  const kindCounts = useMemo(
-    () => ({
-      golden_cross: items.filter((it) => it.source === "golden_cross").length,
-      ma_align: items.filter((it) => it.source === "ma_align").length,
-      manual: items.filter((it) => it.source === "manual").length,
-    }),
+  const selectManualView = useCallback(() => {
+    setVaultView("manual");
+    setIndustryFilter("all");
+  }, []);
+
+  const scanSourceCounts = useMemo(
+    () =>
+      Object.fromEntries(
+        STOCK_VAULT_SCAN_SOURCES.map((source) => [
+          source,
+          countItemsByScanSource(items, source),
+        ]),
+      ) as Record<StockVaultScanSource, number>,
     [items],
   );
 
+  const manualCount = useMemo(
+    () => items.filter((it) => it.source === "manual").length,
+    [items],
+  );
+
+  const preMarketRows = useMemo(
+    () =>
+      buildVaultDisplayRows(items, {
+        view: vaultView,
+        selectedScanSources,
+        marketFilter: "all",
+        favoriteOnly: filter === "favorite",
+      }),
+    [items, vaultView, selectedScanSources, filter],
+  );
+
+  const baseFiltered = useMemo(
+    () =>
+      buildVaultDisplayRows(items, {
+        view: vaultView,
+        selectedScanSources,
+        marketFilter,
+        favoriteOnly: filter === "favorite",
+      }),
+    [items, vaultView, selectedScanSources, marketFilter, filter],
+  );
+
   const favoriteCount = useMemo(
-    () => items.filter((it) => it.favorited && it.source === kindTab).length,
-    [items, kindTab],
+    () => preMarketRows.filter((r) => r.favorited).length,
+    [preMarketRows],
   );
 
   const industryOptions = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const it of baseFiltered) {
-      const industry = getItemIndustry(it);
+    for (const row of baseFiltered) {
+      const industry = getRowIndustry(row);
       if (!industry) continue;
       counts.set(industry, (counts.get(industry) ?? 0) + 1);
     }
@@ -302,18 +362,20 @@ export default function StockVaultTab({
       name,
       count: counts.get(name) ?? 0,
     }));
-  }, [baseFiltered, getItemIndustry, industryTabs]);
+  }, [baseFiltered, getRowIndustry, industryTabs]);
 
   const filtered = useMemo(() => {
-    let list =
-      industryFilter === "all"
-        ? baseFiltered
-        : baseFiltered.filter((it) => getItemIndustry(it) === industryFilter);
-    if (kindTab === "golden_cross") {
-      list = sortGoldenCrossItems(list);
-    }
-    return list;
-  }, [baseFiltered, industryFilter, getItemIndustry, kindTab]);
+    if (industryFilter === "all") return baseFiltered;
+    return baseFiltered.filter((row) => getRowIndustry(row) === industryFilter);
+  }, [baseFiltered, industryFilter, getRowIndustry]);
+
+  const intersectionActive =
+    vaultView === "scan" && selectedScanSources.length >= 2;
+
+  const showEmptyIntersection =
+    intersectionActive &&
+    filtered.length === 0 &&
+    selectedScanSources.some((s) => scanSourceCounts[s] > 0);
 
   useEffect(() => {
     if (industryFilter === "all") return;
@@ -330,11 +392,11 @@ export default function StockVaultTab({
 
   const marketCounts = useMemo(
     () => ({
-      all: items.filter((it) => it.source === kindTab).length,
-      kr: items.filter((it) => it.source === kindTab && it.market === "kr").length,
-      us: items.filter((it) => it.source === kindTab && it.market === "us").length,
+      all: preMarketRows.length,
+      kr: preMarketRows.filter((r) => r.market === "kr").length,
+      us: preMarketRows.filter((r) => r.market === "us").length,
     }),
-    [items, kindTab],
+    [preMarketRows],
   );
 
   const handleRemove = useCallback(
@@ -492,33 +554,50 @@ export default function StockVaultTab({
         <div className="stock-vault-tab__filters-wrap">
           <div
             className="stock-vault-tab__filters stock-vault-tab__filters--kind"
-            role="tablist"
-            aria-label={ko.stockVault.kindTabAria}
+            role="group"
+            aria-label={ko.stockVault.scanConditionAria}
           >
-            <div className="market-tabs">
-              {(
-                [
-                  ["golden_cross", ko.stockVault.tabGolden, kindCounts.golden_cross],
-                  ["ma_align", ko.stockVault.tabMaAlign, kindCounts.ma_align],
-                  ["manual", ko.stockVault.tabManual, kindCounts.manual],
-                ] as const
-              ).map(([id, label, count]) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  aria-selected={kindTab === id}
-                  className={kindTab === id ? "market-tab active" : "market-tab"}
-                  onClick={() => {
-                    setKindTab(id);
-                    setIndustryFilter("all");
-                  }}
-                >
-                  {label}
-                  <span className="market-tab__count">{count}</span>
-                </button>
-              ))}
+            <div className="market-tabs market-tabs--vault-scan">
+              {STOCK_VAULT_SCAN_SOURCES.map((source) => {
+                const active =
+                  vaultView === "scan" && selectedScanSources.includes(source);
+                return (
+                  <button
+                    key={source}
+                    type="button"
+                    className={
+                      active
+                        ? "market-tab market-tab--toggle active"
+                        : "market-tab market-tab--toggle"
+                    }
+                    aria-pressed={active}
+                    onClick={() => toggleScanSource(source)}
+                  >
+                    {SCAN_SOURCE_LABEL[source]}
+                    <span className="market-tab__count">{scanSourceCounts[source]}</span>
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                role="tab"
+                aria-selected={vaultView === "manual"}
+                className={
+                  vaultView === "manual"
+                    ? "market-tab market-tab--manual active"
+                    : "market-tab market-tab--manual"
+                }
+                onClick={selectManualView}
+              >
+                {ko.stockVault.tabManual}
+                <span className="market-tab__count">{manualCount}</span>
+              </button>
             </div>
+            {intersectionActive ? (
+              <p className="stock-vault-tab__intersection-hint">
+                {ko.stockVault.intersectionHint.replace("{n}", String(filtered.length))}
+              </p>
+            ) : null}
           </div>
 
           <div
@@ -640,43 +719,55 @@ export default function StockVaultTab({
             {error}
           </p>
         ) : filtered.length === 0 ? (
-          <p className="stock-vault-tab__muted">{ko.stockVault.empty}</p>
+          <p className="stock-vault-tab__muted">
+            {showEmptyIntersection
+              ? ko.stockVault.emptyIntersection
+              : ko.stockVault.empty}
+          </p>
         ) : (
           <ul className="stock-vault-tab__list">
-            {filtered.map((item) => {
-              const symKey = item.symbol.trim().toUpperCase();
+            {filtered.map((row) => {
+              const symKey = row.symbol.trim().toUpperCase();
               const quote = quotes[symKey];
               const metaRow = meta[symKey];
               const display = resolveSymbolDisplayName(
-                item.symbol,
-                metaRow?.nameKo ?? item.name,
-                item.market,
+                row.symbol,
+                metaRow?.nameKo ?? row.name,
+                row.market,
               );
-              const industry = getItemIndustry(item);
+              const industry = getRowIndustry(row);
               const tvSymbol =
                 metaRow?.tvSymbol ??
                 yahooStockSymbolToTradingView(
-                  item.symbol,
-                  item.market,
+                  row.symbol,
+                  row.market,
                   metaRow?.exchange,
                 );
               const tvChartUrl = tradingViewChartUrl(tvSymbol);
               const cur =
-                quote?.currency ?? (item.market === "kr" ? "KRW" : "USD");
+                quote?.currency ?? (row.market === "kr" ? "KRW" : "USD");
               const chg = quote?.changePercent;
               const chgUp = chg != null && chg >= 0;
-              const gcRecencyClass =
-                item.source === "golden_cross"
-                  ? goldenCrossRecencyClass(item)
-                  : null;
+              const gcItem = row.goldenCross;
+              const gcRecencyClass = gcItem ? goldenCrossRecencyClass(gcItem) : null;
               const rowClassName = [
                 "stock-vault-tab__row",
                 gcRecencyClass,
               ]
                 .filter(Boolean)
                 .join(" ");
+              const scanDate =
+                gcItem?.crossDate ??
+                gcItem?.scanDate ??
+                row.maAlign?.scanDate ??
+                row.manual?.scanDate ??
+                null;
+              const sourceLabels =
+                row.scanSources.length > 0
+                  ? row.scanSources.map((s) => SOURCE_BADGE_LABEL[s])
+                  : [ko.stockVault.sourceManual];
               return (
-              <li key={item.id} className={rowClassName}>
+              <li key={row.key} className={rowClassName}>
                 <a
                   className="stock-vault-tab__row-link"
                   href={tvChartUrl}
@@ -702,33 +793,32 @@ export default function StockVaultTab({
                     ) : null}
                     <div className="stock-vault-tab__meta">
                       <span className="stock-vault-tab__market">
-                        {item.market === "kr" ? ko.app.marketKr : ko.app.marketUs}
+                        {row.market === "kr" ? ko.app.marketKr : ko.app.marketUs}
                       </span>
-                      <span className="stock-vault-tab__source">
-                        {item.source === "golden_cross"
-                          ? ko.stockVault.sourceGolden
-                          : item.source === "ma_align"
-                            ? ko.stockVault.sourceMaAlign
-                            : ko.stockVault.sourceManual}
-                      </span>
-                      {(item.crossDate ?? item.scanDate) ? (
+                      {sourceLabels.map((label) => (
+                        <span key={label} className="stock-vault-tab__source">
+                          {label}
+                        </span>
+                      ))}
+                      {scanDate ? (
                         <span className="stock-vault-tab__scan-date">
-                          {item.crossDate ?? item.scanDate}
+                          {scanDate}
                         </span>
                       ) : null}
                       <span className="stock-vault-tab__added">
-                        {fmtDate(item.updatedAtMs)}
+                        {fmtDate(row.updatedAtMs)}
                       </span>
                     </div>
-                    {item.crosses?.length ? (
+                    {gcItem?.crosses?.length ? (
                       <div className="stock-vault-tab__crosses">
-                        {item.crosses.map((c) => (
+                        {gcItem.crosses.map((c) => (
                           <span key={c} className="stock-vault-tab__cross">
                             {CROSS_LABEL[c] ?? c}
                           </span>
                         ))}
                       </div>
-                    ) : item.source === "ma_align" ? (
+                    ) : null}
+                    {row.maAlign ? (
                       <div className="stock-vault-tab__crosses">
                         <span className="stock-vault-tab__cross stock-vault-tab__cross--align">
                           {ko.stockVault.maAlignBadge}
@@ -765,35 +855,35 @@ export default function StockVaultTab({
                   <button
                     type="button"
                     className={
-                      item.favorited
+                      row.favorited
                         ? "stock-vault-tab__favorite stock-vault-tab__favorite--on"
                         : "stock-vault-tab__favorite"
                     }
                     aria-label={
-                      item.favorited
+                      row.favorited
                         ? `${display.label} ${ko.stockVault.favoriteRemoveAria}`
                         : `${display.label} ${ko.stockVault.favoriteAddAria}`
                     }
                     title={
-                      item.favorited
+                      row.favorited
                         ? ko.stockVault.favoriteRemove
                         : ko.stockVault.favoriteAdd
                     }
-                    aria-pressed={Boolean(item.favorited)}
-                    disabled={favoriting === item.symbol}
+                    aria-pressed={Boolean(row.favorited)}
+                    disabled={favoriting === row.symbol}
                     onClick={() =>
-                      void handleToggleFavorite(item.symbol, Boolean(item.favorited))
+                      void handleToggleFavorite(row.symbol, Boolean(row.favorited))
                     }
                   >
-                    <VaultBookmarkIcon filled={Boolean(item.favorited)} />
+                    <VaultBookmarkIcon filled={Boolean(row.favorited)} />
                   </button>
                   <button
                     type="button"
                     className="stock-vault-tab__remove"
                     aria-label={`${display.label} ${ko.stockVault.removeAria}`}
                     title={ko.stockVault.remove}
-                    disabled={removing === item.symbol || !authenticated}
-                    onClick={() => void handleRemove(item.symbol)}
+                    disabled={removing === row.symbol || !authenticated}
+                    onClick={() => void handleRemove(row.symbol)}
                   >
                     <span className="stock-vault-tab__remove-icon" aria-hidden>
                       ×

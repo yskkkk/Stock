@@ -359,6 +359,8 @@ export interface FinancialStatementAnalysisResponse extends FinancialStatementDe
 }
 
 export type StockVaultSource = "manual" | "golden_cross" | "ma_align";
+/** 자동 탐색 조건 — stockVaultFilter.STOCK_VAULT_SCAN_SOURCES 와 동기 */
+export type StockVaultScanSource = "golden_cross" | "ma_align";
 export type GoldenCrossKind = "5>20" | "5>60" | "5>120";
 export type StockVaultKindTab = "golden_cross" | "ma_align" | "manual";
 
