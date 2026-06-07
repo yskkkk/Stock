@@ -1809,6 +1809,39 @@ export function fetchFinancialStatementAnalysis(
   );
 }
 
+export function fetchStockVault(signal?: AbortSignal) {
+  return fetchJson<import("./types").StockVaultResponse>(
+    "/api/stock-vault",
+    signal ? { signal } : undefined,
+  );
+}
+
+export function addStockVaultItem(body: {
+  symbol: string;
+  market: "kr" | "us";
+  name?: string;
+}) {
+  return fetchJson<{ item: import("./types").StockVaultItem }>("/api/stock-vault", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function removeStockVaultItem(symbol: string) {
+  return fetchJson<{ ok: boolean }>(
+    `/api/stock-vault/${encodeURIComponent(symbol)}`,
+    { method: "DELETE" },
+  );
+}
+
+export function fetchGoldenCrossStatus(signal?: AbortSignal) {
+  return fetchJson<{
+    enabled: boolean;
+    state: import("./types").GoldenCrossScanState;
+  }>("/api/golden-cross/status", signal ? { signal } : undefined);
+}
+
 export function fetchNews(
   symbol: string,
   name: string,

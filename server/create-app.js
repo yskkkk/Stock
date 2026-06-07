@@ -2147,6 +2147,70 @@ export function createApp() {
   );
 
   app.get(
+    "/api/stock-vault",
+    asyncRoute(async (_req, res) => {
+      const { listStockVaultItemsSync } = await import("./stock-vault-store.js");
+      res.json({ items: listStockVaultItemsSync() });
+    }),
+  );
+
+  app.post(
+    "/api/stock-vault",
+    asyncRoute(async (req, res) => {
+      const { upsertStockVaultItemSync } = await import("./stock-vault-store.js");
+      const symbol = String(req.body?.symbol ?? "").trim();
+      const market = req.body?.market === "us" ? "us" : "kr";
+      const name = String(req.body?.name ?? "").trim();
+      if (!symbol) {
+        res.status(400).json({ error: "symbol이 필요합니다." });
+        return;
+      }
+      try {
+        const item = upsertStockVaultItemSync({
+          symbol,
+          market,
+          name: name || symbol,
+          source: "manual",
+        });
+        res.json({ item });
+      } catch (e) {
+        const message = e instanceof Error ? e.message : "저장 실패";
+        res.status(400).json({ error: message });
+      }
+    }),
+  );
+
+  app.delete(
+    "/api/stock-vault/:symbol",
+    asyncRoute(async (req, res) => {
+      const { removeStockVaultItemSync } = await import("./stock-vault-store.js");
+      const symbol = decodeURIComponent(String(req.params.symbol ?? "")).trim();
+      if (!symbol) {
+        res.status(400).json({ error: "symbol이 필요합니다." });
+        return;
+      }
+      const ok = removeStockVaultItemSync(symbol);
+      if (!ok) {
+        res.status(404).json({ error: "종목을 찾을 수 없습니다." });
+        return;
+      }
+      res.json({ ok: true });
+    }),
+  );
+
+  app.get(
+    "/api/golden-cross/status",
+    asyncRoute(async (_req, res) => {
+      const { getGoldenCrossScanStateSync } = await import("./golden-cross-scan.js");
+      const { goldenCrossScanEnabled } = await import("./golden-cross-poller.js");
+      res.json({
+        enabled: goldenCrossScanEnabled(),
+        state: getGoldenCrossScanStateSync(),
+      });
+    }),
+  );
+
+  app.get(
     "/api/stock-search/hot",
     asyncRoute(async (req, res) => {
       try {

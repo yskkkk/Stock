@@ -16,6 +16,7 @@ import "./app-site-footer.css";
 import "./app-theme-corner.css";
 import "./stock-lookup-flat.css";
 import "./financials-tab.css";
+import "./stock-vault-tab.css";
 
 const App = lazy(() => import("./App"));
 const MobileServerGate = lazy(() => import("./components/MobileServerGate"));

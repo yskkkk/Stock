@@ -8,6 +8,8 @@ import {
   fetchNews,
   fetchPicks,
   fetchStock,
+  fetchStockVault,
+  addStockVaultItem,
   fetchTelegramSent,
   refreshPicks,
   resetTelegramAlertHistory,
@@ -58,6 +60,7 @@ import RecommendationsTab from "./components/RecommendationsTab";
 import TradeHistoryTab from "./components/TradeHistoryTab";
 import BoxRangeTab from "./components/BoxRangeTab";
 import FinancialsTab from "./components/FinancialsTab";
+import StockVaultTab from "./components/StockVaultTab";
 import { LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT } from "./lib/liveTradeDockAccount";
 import { LIVE_TRADE_PROGRAM_TRADES_MAIN_EVENT } from "./lib/liveTradeProgramTradesMain";
 import StockSearchTab from "./components/StockSearchTab";
@@ -197,6 +200,33 @@ export default function App() {
   const [chartError, setChartError] = useState<string | null>(null);
   const [chartStale, setChartStale] = useState(false);
   const [chartEngine, setChartEngine] = useState<StockChartEngine>("app");
+  const [vaultSymbols, setVaultSymbols] = useState<Set<string>>(() => new Set());
+
+  useEffect(() => {
+    void fetchStockVault()
+      .then((data) => {
+        setVaultSymbols(
+          new Set((data.items ?? []).map((it) => it.symbol.trim().toUpperCase())),
+        );
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleAddToVault = useCallback(async (pick: StockPick) => {
+    if (pick.market !== "kr" && pick.market !== "us") return;
+    const sym = pick.symbol.trim().toUpperCase();
+    if (vaultSymbols.has(sym)) return;
+    try {
+      const res = await addStockVaultItem({
+        symbol: pick.symbol,
+        market: pick.market,
+        name: pick.name,
+      });
+      setVaultSymbols((prev) => new Set(prev).add(res.item.symbol.trim().toUpperCase()));
+    } catch {
+      /* ignore */
+    }
+  }, [vaultSymbols]);
   useEffect(() => {
     const onProgramTradesMain = () => setAppTab("liveTrading");
     window.addEventListener(
@@ -531,7 +561,8 @@ export default function App() {
       appTab === "ops" ||
       appTab === "liveTrading" ||
       appTab === "boxRange" ||
-      appTab === "financials"
+      appTab === "financials" ||
+      appTab === "stockVault"
     ) {
       return null;
     }
@@ -576,7 +607,7 @@ export default function App() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!workspacePick) return;
-    if (appTab === "crypto" || appTab === "ops" || appTab === "financials") return;
+    if (appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault") return;
     if (window.innerWidth > 900) return;
     const el = stockChartSectionRef.current;
     if (!el) return;
@@ -916,7 +947,7 @@ export default function App() {
 
   useEffect(() => {
     const pick = workspacePickRef.current;
-    if (!pick || appTab === "crypto" || appTab === "ops" || appTab === "financials") return;
+    if (!pick || appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault") return;
     loadChart(pick, timeframe);
     const refreshMs = timeframe === "1m" ? 1_000 : 8_000;
     const id = window.setInterval(() => {
@@ -1150,6 +1181,8 @@ export default function App() {
                 ? "app app--box-range"
                 : appTab === "financials"
                   ? "app app--financials"
+                : appTab === "stockVault"
+                  ? "app app--stock-vault"
                 : appTab === "liveTrading"
                 ? "app app--live-trade"
                 : appTab === "ops"
@@ -1410,6 +1443,13 @@ export default function App() {
               </button>
               <button
                 type="button"
+                className={mainTabClassName("stockVault")}
+                onClick={() => setAppTab("stockVault")}
+              >
+                {ko.app.tabStockVault}
+              </button>
+              <button
+                type="button"
                 className={mainTabClassName("boxRange")}
                 onClick={() => setAppTab("boxRange")}
               >
@@ -1468,6 +1508,8 @@ export default function App() {
         <BoxRangeTab />
       ) : appTab === "financials" ? (
         <FinancialsTab />
+      ) : appTab === "stockVault" ? (
+        <StockVaultTab />
       ) : appTab === "liveTrading" ? (
         <div className="live-trade-tab-root">
           <LiveTradingTab
@@ -1633,6 +1675,8 @@ export default function App() {
               onToggleUsQuoteKrw={toggleUsQuoteKrw}
               usdKrwRate={usdKrwRate}
               usdKrwValDate={usdKrwValDate}
+              onAddToVault={handleAddToVault}
+              vaultSymbols={vaultSymbols}
             />
           )}
         </aside>

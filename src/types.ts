@@ -11,6 +11,7 @@ export type AppTab =
   | "tradeHistory"
   | "boxRange"
   | "financials"
+  | "stockVault"
   | "ops";
 
 /** 실매매·시뮬 포트폴리오 시장 */
@@ -319,6 +320,37 @@ export interface FinancialStatementAnalysisResponse extends FinancialStatementDe
   priorPeriodId: string | null;
   priorPeriodLabel: string | null;
   aiOpinion: FinancialAiOpinion;
+}
+
+export type StockVaultSource = "manual" | "golden_cross";
+export type GoldenCrossKind = "5>20" | "5>60" | "5>120";
+
+export interface StockVaultItem {
+  id: string;
+  symbol: string;
+  name: string;
+  market: "kr" | "us";
+  source: StockVaultSource;
+  crosses?: GoldenCrossKind[];
+  scanDate?: string | null;
+  addedAtMs: number;
+  updatedAtMs: number;
+}
+
+export interface StockVaultResponse {
+  items: StockVaultItem[];
+}
+
+export interface GoldenCrossScanState {
+  krLastScanDate: string | null;
+  usLastScanDate: string | null;
+  lastRuns: Array<{
+    market: "kr" | "us";
+    scanDate: string;
+    scanned: number;
+    hits: number;
+    atMs: number;
+  }>;
 }
 
 export interface DartCompanyRow {

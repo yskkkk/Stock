@@ -66,6 +66,8 @@ export interface StockSearchTabProps {
   onToggleUsQuoteKrw?: () => void;
   usdKrwRate?: number | null;
   usdKrwValDate?: string | null;
+  onAddToVault?: (pick: StockPick) => void;
+  vaultSymbols?: ReadonlySet<string>;
 }
 
 function pickToQuoteRow(pick: StockPick): StockSearchQuoteRow {
@@ -162,6 +164,8 @@ interface StockSearchPickRowProps {
   onAnalyze: (row: StockSearchQuoteRow) => void;
   usQuoteInKrw?: boolean;
   usdKrwRate?: number | null;
+  onAddToVault?: (pick: StockPick) => void;
+  vaultSaved?: boolean;
 }
 
 const StockSearchPickRow = memo(
@@ -176,6 +180,8 @@ const StockSearchPickRow = memo(
     onAnalyze,
     usQuoteInKrw = false,
     usdKrwRate = null,
+    onAddToVault,
+    vaultSaved = false,
   }: StockSearchPickRowProps) {
     const pick = mergeTechnical(rowToPick(row), slot);
     const signalIds = resolvePickSignalIds(pick);
@@ -288,6 +294,24 @@ const StockSearchPickRow = memo(
             </span>
             뉴스
           </button>
+          {onAddToVault && (row.market === "kr" || row.market === "us") ? (
+            <button
+              type="button"
+              className="pick-action pick-action--vault"
+              aria-label={vaultSaved ? ko.stockVault.added : ko.stockVault.addAria}
+              title={vaultSaved ? ko.stockVault.added : ko.stockVault.addAria}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onAddToVault(pick);
+              }}
+            >
+              <span className="pick-action__icon" aria-hidden>
+                {vaultSaved ? "✓" : "+"}
+              </span>
+              {ko.stockVault.add}
+            </button>
+          ) : null}
         </div>
       </li>
     );
@@ -302,7 +326,9 @@ const StockSearchPickRow = memo(
     prev.onReason === next.onReason &&
     prev.onAnalyze === next.onAnalyze &&
     prev.usQuoteInKrw === next.usQuoteInKrw &&
-    prev.usdKrwRate === next.usdKrwRate,
+    prev.usdKrwRate === next.usdKrwRate &&
+    prev.onAddToVault === next.onAddToVault &&
+    prev.vaultSaved === next.vaultSaved,
 );
 
 export default function StockSearchTab({
@@ -317,6 +343,8 @@ export default function StockSearchTab({
   onLookupPickPatch,
   usQuoteInKrw = false,
   usdKrwRate = null,
+  onAddToVault,
+  vaultSymbols,
 }: StockSearchTabProps) {
   const [input, setInput] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -682,6 +710,8 @@ export default function StockSearchTab({
             onSelectPick={onSelectPick}
             usQuoteInKrw={usQuoteInKrw}
             usdKrwRate={usdKrwRate}
+            onAddToVault={onAddToVault}
+            vaultSaved={vaultSymbols?.has(pinnedPick.symbol.trim().toUpperCase())}
           />
         </ul>
       ) : null}
@@ -710,6 +740,8 @@ export default function StockSearchTab({
                     onSelectPick={onSelectPick}
                     usQuoteInKrw={usQuoteInKrw}
                     usdKrwRate={usdKrwRate}
+                    onAddToVault={onAddToVault}
+                    vaultSaved={vaultSymbols?.has(row.symbol.trim().toUpperCase())}
                   />
                 ))}
               </ul>
@@ -737,6 +769,8 @@ export default function StockSearchTab({
               onAnalyze={handleAnalyze}
               usQuoteInKrw={usQuoteInKrw}
               usdKrwRate={usdKrwRate}
+              onAddToVault={onAddToVault}
+              vaultSaved={vaultSymbols?.has(row.symbol.trim().toUpperCase())}
             />
           ))}
         </ul>

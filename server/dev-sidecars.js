@@ -16,7 +16,7 @@ import { startBithumbLedgerPoller } from "./live-trade-bithumb-ledger.js";
 import { startOpsFileDevPoller } from "./ops-file-dev-poller.js";
 import { startServerSelfImprovementWatcher } from "./server-self-improvement-log.js";
 import { prewarmAppCaches } from "./prewarm-caches.js";
-import { startScreening, screeningPollerEnabled } from "./screener.js";
+import { startGoldenCrossScanPoller } from "./golden-cross-poller.js";
 
 function logScreeningError(err) {
   console.warn("[screener]", err instanceof Error ? err.message : err);
@@ -47,6 +47,7 @@ export function startStockDevSidecarsOnce(modeLabel) {
     appendServerEventLog("server", "box-range detect off (STOCK_BOX_RANGE_DETECT≠1)");
   }
   startOpsFileDevPoller();
+  startGoldenCrossScanPoller();
   startServerSelfImprovementWatcher();
   setTimeout(() => prewarmAppCaches(), 400);
   setTimeout(() => {

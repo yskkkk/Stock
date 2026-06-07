@@ -32,12 +32,16 @@ export default function StockSearchHotRow({
   onSelectPick,
   usQuoteInKrw = false,
   usdKrwRate = null,
+  onAddToVault,
+  vaultSaved = false,
 }: {
   row: StockSearchQuoteRow;
   isActive: boolean;
   onSelectPick: (pick: StockPick) => void;
   usQuoteInKrw?: boolean;
   usdKrwRate?: number | null;
+  onAddToVault?: (pick: StockPick) => void;
+  vaultSaved?: boolean;
 }) {
   const pick = rowToStockPick(row);
   const hasPrice = row.price != null && Number.isFinite(row.price);
@@ -64,6 +68,25 @@ export default function StockSearchHotRow({
     <li
       className={isActive ? "stock-hot-item stock-hot-item--active" : "stock-hot-item"}
     >
+      {onAddToVault && (row.market === "kr" || row.market === "us") ? (
+        <button
+          type="button"
+          className={
+            vaultSaved
+              ? "stock-hot-item__vault-btn stock-hot-item__vault-btn--saved"
+              : "stock-hot-item__vault-btn"
+          }
+          title={vaultSaved ? ko.stockVault.added : ko.stockVault.addAria}
+          aria-label={vaultSaved ? ko.stockVault.added : ko.stockVault.addAria}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onAddToVault(pick);
+          }}
+        >
+          {vaultSaved ? "✓" : "+"}
+        </button>
+      ) : null}
       <button
         type="button"
         className="stock-hot-item__btn"
