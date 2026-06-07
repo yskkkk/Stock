@@ -546,11 +546,7 @@ export default function App() {
   const stockChartSectionRef = useRef<HTMLElement | null>(null);
   const appScrollRef = useRef<HTMLDivElement>(null);
   const leftRailRef = useRef<HTMLElement>(null);
-  const earningsRailRef = useRef<HTMLElement>(null);
   useLeftRailLazyFollow(leftRailRef, appScrollRef);
-  useLeftRailLazyFollow(earningsRailRef, appScrollRef, {
-    columnSelector: ".app__viewport-earnings-rail",
-  });
   const desktopDockLayout = useDesktopDockLayout();
   const openLiveTradingProgram = useCallback(
     (programId?: string) => {
@@ -1176,7 +1172,7 @@ export default function App() {
       >
       {showEarningsViewportRail ? (
         <div className="app__viewport-earnings-rail">
-          <EarningsUpcomingIconRail variant="edge" railRef={earningsRailRef} />
+          <EarningsUpcomingIconRail variant="edge" pageScrollRef={appScrollRef} />
         </div>
       ) : null}
       {!desktopDockLayout ? (

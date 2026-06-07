@@ -7,6 +7,7 @@ import {
   useState,
   type RefObject,
 } from "react";
+import { useLeftRailLazyFollow } from "../hooks/useLeftRailLazyFollow";
 import { createPortal } from "react-dom";
 import { fetchSectorEarnings } from "../api";
 import {
@@ -94,12 +95,24 @@ const EARNINGS_GRACE_MS = 12 * 60 * 60 * 1000;
 
 export default function EarningsUpcomingIconRail({
   variant = "workspace",
-  railRef,
+  railRef: railRefProp,
+  pageScrollRef,
 }: {
   /** workspace=종목 목록 그리드 열, edge=앱 본문 최좌측 얇은 레일 */
   variant?: "workspace" | "edge";
   railRef?: RefObject<HTMLElement | null>;
+  pageScrollRef?: RefObject<HTMLElement | null>;
 }) {
+  const innerRailRef = useRef<HTMLElement>(null);
+  const railRef = railRefProp ?? innerRailRef;
+  const [railMounted, setRailMounted] = useState(false);
+  const bindRailRef = useCallback(
+    (node: HTMLElement | null) => {
+      (railRef as { current: HTMLElement | null }).current = node;
+      setRailMounted(Boolean(node));
+    },
+    [railRef],
+  );
   const tipId = useId();
   const [rows, setRows] = useState<SectorEarningsSpotlightItem[]>(() => {
     const cached = peekMacroPrefetch();
@@ -134,6 +147,11 @@ export default function EarningsUpcomingIconRail({
       .filter((r) => r.at > now - EARNINGS_GRACE_MS)
       .sort((a, b) => a.at - b.at);
   }, [rows, now]);
+
+  useLeftRailLazyFollow(railRef, pageScrollRef ?? { current: null }, {
+    columnSelector: ".app__viewport-earnings-rail",
+    enabled: variant === "edge" && upcoming.length > 0 && railMounted,
+  });
 
   const clearHideTimer = useCallback(() => {
     if (hideTimerRef.current != null) {
@@ -210,7 +228,7 @@ export default function EarningsUpcomingIconRail({
   return (
     <>
       <aside
-        ref={railRef}
+        ref={bindRailRef}
         className={
           variant === "edge"
             ? "earnings-icon-rail earnings-icon-rail--edge"
