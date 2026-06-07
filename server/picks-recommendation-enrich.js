@@ -4,8 +4,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { fetchScanCandles } from "./stock-data.js";
+import { fetchScanCandles, loadStock } from "./stock-data.js";
 import { analyzeTechnicals, weightedScoreFromSignalIds } from "./technical.js";
+import { detectDailyMa5OverMa20 } from "./ma-align-detect.js";
 import { readRecommendationMeta, recommendationMetaKey, upsertRecommendationMeta } from "./picks-recommendation-meta.js";
 import { kstYmd, readHistorySync, writeHistorySync } from "./picks-history-store.js";
 
@@ -213,7 +214,16 @@ async function fetchSignalIdsForSymbol(symbol) {
   }
   try {
     const data = await fetchScanCandles(sym);
-    const analysis = analyzeTechnicals(data.candles);
+    let dailyMa5OverMa20 = false;
+    try {
+      const daily = await loadStock(sym, "1d", { live: false });
+      dailyMa5OverMa20 = detectDailyMa5OverMa20(daily?.candles ?? []);
+    } catch {
+      /* optional */
+    }
+    const analysis = analyzeTechnicals(data.candles, undefined, {
+      dailyMa5OverMa20,
+    });
     const signalIds = Array.isArray(analysis.signalIds)
       ? analysis.signalIds.map((x) => String(x).trim()).filter(Boolean)
       : [];

@@ -75,6 +75,14 @@ test("runVaultMarketScans runs golden cross and ma align in parallel", async () 
 });
 
 test("runVaultMarketScans still merges ma align when golden cross fails", async () => {
+  upsertStockVaultItemSync({
+    symbol: "OLDGC.KS",
+    name: "기존골든",
+    market: "kr",
+    source: "golden_cross",
+    crosses: ["5>20"],
+    scanDate: "2026-06-07",
+  });
   gcScan.mockRejectedValue(new Error("gc down"));
   maScan.mockResolvedValue({
     market: "kr",
@@ -91,6 +99,12 @@ test("runVaultMarketScans still merges ma align when golden cross fails", async 
   assert.equal(
     listStockVaultItemsSync().filter((it) => it.source === "ma_align").length,
     1,
+  );
+  assert.ok(
+    listStockVaultItemsSync().some(
+      (it) => it.source === "golden_cross" && it.symbol === "OLDGC.KS",
+    ),
+    "golden cross vault preserved when scan fails",
   );
 });
 

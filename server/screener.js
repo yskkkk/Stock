@@ -1,6 +1,7 @@
 import { SYMBOL_NOT_FOUND } from "./errors.js";
-import { fetchScanCandles } from "./stock-data.js";
+import { fetchScanCandles, loadStock } from "./stock-data.js";
 import { resolveDisplayName } from "./names-ko.js";
+import { detectDailyMa5OverMa20 } from "./ma-align-detect.js";
 import {
   getActiveTechModelsSync,
   sumTechScoreWeights,
@@ -184,6 +185,13 @@ function finalizePicksAfterScan(prevList, draftList, processedSymbols) {
 async function screenSymbol(item, market) {
   try {
     const data = await fetchScanCandles(item.symbol);
+    let dailyMa5OverMa20 = false;
+    try {
+      const daily = await loadStock(data.symbol, "1d", { live: false });
+      dailyMa5OverMa20 = detectDailyMa5OverMa20(daily?.candles ?? []);
+    } catch {
+      /* daily ma_align optional */
+    }
     const models = getActiveTechModelsSync();
     if (!models.length) return { type: "skip" };
 
@@ -192,7 +200,9 @@ async function screenSymbol(item, market) {
     /** @type {Map<string, object>} */
     const bestNotifyBySymbol = new Map();
     for (const model of models) {
-      const analysis = analyzeTechnicals(data.candles, model.weights);
+      const analysis = analyzeTechnicals(data.candles, model.weights, {
+        dailyMa5OverMa20,
+      });
       if (!analysis.buy) continue;
       const pick = {
         symbol: data.symbol,

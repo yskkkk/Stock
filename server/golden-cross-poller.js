@@ -146,9 +146,6 @@ export async function runVaultMarketScans(
   const appendHistory = opts.appendHistory !== false;
   const scanOpts = { persistState: persistScanState };
 
-  clearGoldenCrossVaultItemsSync({ market });
-  clearMaAlignVaultItemsSync({ market });
-
   const [gcSettled, maSettled] = await Promise.allSettled([
     runGoldenCrossMarketScan(market, scanDate, scanOpts),
     runMaAlignMarketScan(market, scanDate, scanOpts),
@@ -158,6 +155,7 @@ export async function runVaultMarketScans(
   let goldenCross = emptyGoldenCrossMarketResult(market, scanDate);
   if (gcSettled.status === "fulfilled") {
     goldenCross = gcSettled.value;
+    clearGoldenCrossVaultItemsSync({ market });
     if (goldenCross.hits.length) {
       mergeGoldenCrossHitsIntoVaultSync(goldenCross.hits);
     }
@@ -196,6 +194,7 @@ export async function runVaultMarketScans(
   let maAlign = emptyMaAlignMarketResult(market, scanDate);
   if (maSettled.status === "fulfilled") {
     maAlign = maSettled.value;
+    clearMaAlignVaultItemsSync({ market });
     if (maAlign.hits.length) {
       mergeMaAlignHitsIntoVaultSync(maAlign.hits);
     }

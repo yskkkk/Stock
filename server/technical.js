@@ -13,7 +13,7 @@ import {
 export { SIGNAL_SCORE_WEIGHT } from "./technical-default-weights.js";
 
 export const SIGNAL_DEFS = [
-  { id: "ma_align", label: "이동평균 정배열" },
+  { id: "ma_align", label: "일봉 5>20" },
   { id: "ma_golden", label: "이평선 골든크로스" },
   { id: "ma20", label: "20봉 위" },
   { id: "ma50", label: "50일선 위" },
@@ -282,8 +282,8 @@ function addSignalHit(hits, score, id, label, weights) {
   return score + (w > 0 ? w : 0);
 }
 
-/** @param {unknown[]} candles @param {Record<string, number>} [weights] */
-export function analyzeTechnicals(candles, weights) {
+/** @param {unknown[]} candles @param {Record<string, number>} [weights] @param {{ dailyMa5OverMa20?: boolean }} [opts] */
+export function analyzeTechnicals(candles, weights, opts = {}) {
   if (candles.length < 55) {
     return { score: 0, signalIds: [], signals: [], buy: false };
   }
@@ -303,8 +303,8 @@ export function analyzeTechnicals(candles, weights) {
   const hits = [];
   let score = 0;
 
-  if (sma20[i] != null && sma50[i] != null && sma20[i] > sma50[i]) {
-    score = addSignalHit(hits, score, "ma_align", "이동평균 정배열", weights);
+  if (opts.dailyMa5OverMa20) {
+    score = addSignalHit(hits, score, "ma_align", "일봉 5>20", weights);
   }
 
   if (recentCrossAbove(sma20, sma50, i, 5)) {
@@ -381,8 +381,9 @@ export function analyzeTechnicals(candles, weights) {
  * 종목검색·상세 — 12신호 충족 여부·스크리너/텔레그램 통과 상태
  * @param {unknown[]} candles
  * @param {Record<string, number>} [weights]
+ * @param {{ dailyMa5OverMa20?: boolean }} [opts]
  */
-export function buildTechnicalStatusReport(candles, weights) {
+export function buildTechnicalStatusReport(candles, weights, opts = {}) {
   const w = weights ?? getPrimaryActiveWeightsSync();
   const maxScore = getMaxTechScore(w);
   const conditionsRequired = minConditionsRequired();
@@ -414,7 +415,7 @@ export function buildTechnicalStatusReport(candles, weights) {
     };
   }
 
-  const analysis = analyzeTechnicals(candles, w);
+  const analysis = analyzeTechnicals(candles, w, opts);
   const metSet = new Set(analysis.signalIds);
   const signalBreakdown = SIGNAL_DEFS.map((def) => ({
     id: def.id,

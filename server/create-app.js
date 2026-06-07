@@ -40,6 +40,7 @@ import {
 } from "./stock-financials.js";
 import { loadFinancialStatementAnalysis } from "./stock-financials-analysis.js";
 import { buildTechnicalStatusReport } from "./technical.js";
+import { detectDailyMa5OverMa20 } from "./ma-align-detect.js";
 import {
   getActiveTechModelsSync,
   getTechModelByIdSync,
@@ -2528,14 +2529,19 @@ export function createApp() {
           res.status(400).json({ error: "symbol이 필요합니다." });
           return;
         }
-        const data = await fetchScanCandles(symbol);
+        const [data, daily] = await Promise.all([
+          fetchScanCandles(symbol),
+          loadStock(symbol, "1d", { live: false }),
+        ]);
         const modelIdQ = String(req.query.modelId ?? "").trim();
         const model = modelIdQ
           ? getTechModelByIdSync(modelIdQ)
           : getActiveTechModelsSync()[0] ??
             getTechModelByIdSync("default");
         const weights = model?.weights;
-        const report = buildTechnicalStatusReport(data.candles, weights);
+        const report = buildTechnicalStatusReport(data.candles, weights, {
+          dailyMa5OverMa20: detectDailyMa5OverMa20(daily?.candles ?? []),
+        });
         res.json({
           symbol: data.symbol,
           techModelId: model?.id ?? "default",

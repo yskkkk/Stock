@@ -58,27 +58,30 @@ async function scanOneSymbol(item, market, scanDate) {
   const sym = String(item.symbol ?? "")
     .trim()
     .toUpperCase();
-  if (!sym) return null;
+  if (!sym) return { ok: true, hit: null };
   try {
     const data = await loadStock(sym, "1d", { live: true });
     const tradable = await isGoldenCrossTradable(data, market);
     if (!tradable.ok) {
       liveTradeLogInfo("[golden-cross:scan] skip", sym, tradable.reason);
-      return null;
+      return { ok: true, hit: null };
     }
     const candles = Array.isArray(data?.candles) ? data.candles : [];
     const { crosses, crossDate } = detectDailyGoldenCrossDetail(candles);
-    if (!crosses.length) return null;
+    if (!crosses.length) return { ok: true, hit: null };
     return {
-      symbol: sym,
-      name: resolveDisplayName(
-        sym,
-        String(item.name ?? data?.quote?.name ?? sym).trim() || sym,
-      ),
-      market,
-      crosses,
-      crossDate: crossDate ?? scanDate,
-      scanDate,
+      ok: true,
+      hit: {
+        symbol: sym,
+        name: resolveDisplayName(
+          sym,
+          String(item.name ?? data?.quote?.name ?? sym).trim() || sym,
+        ),
+        market,
+        crosses,
+        crossDate: crossDate ?? scanDate,
+        scanDate,
+      },
     };
   } catch (e) {
     liveTradeLogWarn(
@@ -86,7 +89,7 @@ async function scanOneSymbol(item, market, scanDate) {
       sym,
       e instanceof Error ? e.message : e,
     );
-    return null;
+    return { ok: false, hit: null };
   }
 }
 
@@ -113,7 +116,7 @@ export async function runGoldenCrossMarketScan(market, scanDate, opts = {}) {
     symbols: list.length,
   });
 
-  /** @type {Awaited<ReturnType<typeof scanOneSymbol>>[]} */
+  /** @type {NonNullable<Awaited<ReturnType<typeof scanOneSymbol>>["hit"]>[]} */
   const hits = [];
   let errors = 0;
 
@@ -123,9 +126,12 @@ export async function runGoldenCrossMarketScan(market, scanDate, opts = {}) {
       batch.map((item) => scanOneSymbol(item, market, scanDate)),
     );
     for (const r of results) {
-      if (r) hits.push(r);
+      if (!r.ok) {
+        errors += 1;
+        continue;
+      }
+      if (r.hit) hits.push(r.hit);
     }
-    errors += results.filter((r) => r === null && batch.length).length;
     if (i + BATCH_SIZE < list.length && BATCH_DELAY_MS > 0) {
       await delay(BATCH_DELAY_MS);
     }
@@ -158,6 +164,7 @@ export async function runGoldenCrossMarketScan(market, scanDate, opts = {}) {
     scanDate,
     scanned: list.length,
     hits: hits.length,
+    errors,
   });
   return out;
 }
