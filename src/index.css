@@ -6771,7 +6771,7 @@ html[data-theme="light"] .feedback-inbox-item {
   z-index: 10050;
   box-sizing: border-box;
   width: max-content;
-  max-width: min(16.5rem, 88vw);
+  max-width: min(16.5rem, calc(100vw - 1rem));
   padding: 0.55rem 0.68rem;
   border-radius: 10px;
   background: var(--card-bg, var(--card));

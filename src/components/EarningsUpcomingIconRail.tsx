@@ -164,14 +164,22 @@ export default function EarningsUpcomingIconRail({
     clearHideTimer();
     const r = el.getBoundingClientRect();
     const gap = 10;
-    const placement: TipState["placement"] = variant === "edge" ? "left" : "right";
+    const estW = 176;
+    const pad = 8;
+    // edge 레일은 화면/본문 왼쪽 — 말풍선은 아이콘 오른쪽(본문 방향)으로
+    let placement: TipState["placement"] = "right";
+    let left = r.right + gap;
+    if (left + estW > window.innerWidth - pad) {
+      placement = "left";
+      left = Math.max(pad, r.left - gap);
+    }
     setTip({
       row,
-      left: placement === "left" ? r.left - gap : r.right + gap,
+      left,
       top: r.top + r.height / 2,
       placement,
     });
-  }, [clearHideTimer, variant]);
+  }, [clearHideTimer]);
 
   const scheduleHideTip = useCallback(() => {
     clearHideTimer();
