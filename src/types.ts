@@ -390,6 +390,8 @@ export interface StockVaultResponse {
     {
       industry?: string | null;
       nameKo?: string | null;
+      tvSymbol?: string | null;
+      exchange?: string | null;
     }
   >;
   industryTabs?: string[];

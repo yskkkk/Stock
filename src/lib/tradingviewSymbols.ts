@@ -35,9 +35,24 @@ export function yahooCryptoSymbolToTradingView(yahoo: string): string {
 }
 
 /** Yahoo 종목 티커 → TradingView Advanced Chart 심볼 (근사 매핑) */
+export function exchangeToTradingViewPrefix(
+  exchange?: string | null,
+): "NASDAQ" | "NYSE" | "AMEX" | null {
+  const ex = String(exchange ?? "")
+    .trim()
+    .toUpperCase();
+  if (!ex) return null;
+  if (ex.includes("NASDAQ")) return "NASDAQ";
+  if (ex.includes("NYSE") || ex.includes("NEW YORK")) return "NYSE";
+  if (ex.includes("AMEX") || ex.includes("AMERICAN")) return "AMEX";
+  return null;
+}
+
+/** Yahoo 종목 티커 → TradingView Advanced Chart 심볼 (근사 매핑) */
 export function yahooStockSymbolToTradingView(
   yahoo: string,
   market: Market,
+  exchange?: string | null,
 ): string {
   const u = yahoo.trim().toUpperCase();
   if (market === "kr") {
@@ -49,7 +64,8 @@ export function yahooStockSymbolToTradingView(
   const base = u.includes(".") ? u.slice(0, Math.max(0, u.indexOf("."))) : u;
   const ticker = base.replace(/\./g, "-");
   if (!ticker) return "NASDAQ:AAPL";
-  return `NASDAQ:${ticker}`;
+  const prefix = exchangeToTradingViewPrefix(exchange) ?? "NASDAQ";
+  return `${prefix}:${ticker}`;
 }
 
 /** TradingView 재무 탭 URL (심볼 슬러그) */

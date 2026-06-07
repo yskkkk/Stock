@@ -4,8 +4,10 @@ const UA =
   "Mozilla/5.0 (compatible; StockDashboard/1.0; +https://github.com/yskkkk/Stock)";
 const CACHE_MS = 7 * 24 * 60 * 60 * 1000;
 
-/** @type {Map<string, { at: number; name: string | null }>} */
-const cache = new Map();
+/** @typedef {{ stockName?: string; symbolCode?: string; stockExchangeName?: string }} NaverUsBasicRow */
+
+/** @type {Map<string, { at: number; data: NaverUsBasicRow | null }>} */
+const basicCache = new Map();
 
 /** @param {string} symbol */
 export function normalizeUsTicker(symbol) {
@@ -16,11 +18,34 @@ export function normalizeUsTicker(symbol) {
     .replace(/^KR_/i, "");
 }
 
+/** @param {string | null | undefined} exchangeName */
+export function naverExchangeToTradingViewPrefix(exchangeName) {
+  const ex = String(exchangeName ?? "")
+    .trim()
+    .toUpperCase();
+  if (!ex) return null;
+  if (ex.includes("NASDAQ")) return "NASDAQ";
+  if (ex.includes("NYSE") || ex.includes("NEW YORK")) return "NYSE";
+  if (ex.includes("AMEX") || ex.includes("AMERICAN")) return "AMEX";
+  return null;
+}
+
+/**
+ * @param {string} ticker
+ * @param {string | null | undefined} exchangeName
+ */
+export function usTickerToTradingViewSymbol(ticker, exchangeName) {
+  const sym = normalizeUsTicker(ticker).replace(/\./g, "-");
+  if (!sym) return null;
+  const prefix = naverExchangeToTradingViewPrefix(exchangeName) ?? "NASDAQ";
+  return `${prefix}:${sym}`;
+}
+
 /**
  * @param {string} naverCode
- * @returns {Promise<string | null>}
+ * @returns {Promise<NaverUsBasicRow | null>}
  */
-async function fetchNaverBasicName(naverCode) {
+async function fetchNaverUsBasicRaw(naverCode) {
   const code = String(naverCode ?? "").trim();
   if (!code) return null;
   try {
@@ -34,8 +59,8 @@ async function fetchNaverBasicName(naverCode) {
     if (!res.ok) return null;
     const data = await res.json();
     if (data?.code === "StockConflict") return null;
-    const name = String(data?.stockName ?? "").trim();
-    return name && hasHangul(name) ? name : null;
+    if (!data || typeof data !== "object") return null;
+    return data;
   } catch {
     return null;
   }
@@ -43,29 +68,57 @@ async function fetchNaverBasicName(naverCode) {
 
 /**
  * @param {string} symbol
- * @returns {Promise<string | null>}
+ * @returns {Promise<NaverUsBasicRow | null>}
  */
-export async function resolveUsKoreanStockName(symbol) {
+async function fetchNaverUsBasic(symbol) {
   const sym = normalizeUsTicker(symbol);
   if (!sym) return null;
 
-  const local = getKoreanStockName(sym);
-  if (local) return local;
-
-  const hit = cache.get(sym);
-  if (hit && Date.now() - hit.at < CACHE_MS) return hit.name;
+  const hit = basicCache.get(sym);
+  if (hit && Date.now() - hit.at < CACHE_MS) return hit.data;
 
   for (const code of [sym, `${sym}.O`, `${sym}.N`]) {
-    const name = await fetchNaverBasicName(code);
-    if (name) {
-      cache.set(sym, { at: Date.now(), name });
-      registerKoreanName(sym, name);
-      return name;
+    const data = await fetchNaverUsBasicRaw(code);
+    if (data?.symbolCode || data?.stockName) {
+      basicCache.set(sym, { at: Date.now(), data });
+      return data;
     }
   }
 
-  cache.set(sym, { at: Date.now(), name: null });
+  basicCache.set(sym, { at: Date.now(), data: null });
   return null;
+}
+
+/**
+ * @param {string} symbol
+ * @returns {Promise<{ nameKo: string | null; tvSymbol: string | null; exchange: string | null }>}
+ */
+export async function resolveUsStockDisplayMeta(symbol) {
+  const sym = normalizeUsTicker(symbol);
+  const basic = await fetchNaverUsBasic(sym);
+  const mappedKo = getKoreanStockName(sym);
+  const naverKo =
+    basic?.stockName && hasHangul(basic.stockName) ? basic.stockName.trim() : null;
+  const nameKo = mappedKo ?? naverKo;
+  if (nameKo && !mappedKo) registerKoreanName(sym, nameKo);
+  const exchange =
+    typeof basic?.stockExchangeName === "string"
+      ? basic.stockExchangeName.trim() || null
+      : null;
+  const tvSymbol = usTickerToTradingViewSymbol(
+    basic?.symbolCode ?? sym,
+    exchange,
+  );
+  return { nameKo, tvSymbol, exchange };
+}
+
+/**
+ * @param {string} symbol
+ * @returns {Promise<string | null>}
+ */
+export async function resolveUsKoreanStockName(symbol) {
+  const meta = await resolveUsStockDisplayMeta(symbol);
+  return meta.nameKo;
 }
 
 /**
@@ -74,7 +127,22 @@ export async function resolveUsKoreanStockName(symbol) {
  * @returns {Promise<Map<string, string>>}
  */
 export async function resolveUsKoreanStockNamesBatch(symbols, concurrency = 6) {
+  const batch = await resolveUsStockDisplayMetaBatch(symbols, concurrency);
   /** @type {Map<string, string>} */
+  const out = new Map();
+  for (const [sym, meta] of batch) {
+    if (meta.nameKo) out.set(sym, meta.nameKo);
+  }
+  return out;
+}
+
+/**
+ * @param {string[]} symbols
+ * @param {number} [concurrency]
+ * @returns {Promise<Map<string, { nameKo: string | null; tvSymbol: string | null; exchange: string | null }>>}
+ */
+export async function resolveUsStockDisplayMetaBatch(symbols, concurrency = 6) {
+  /** @type {Map<string, { nameKo: string | null; tvSymbol: string | null; exchange: string | null }>} */
   const out = new Map();
   const uniq = [
     ...new Set(
@@ -89,8 +157,7 @@ export async function resolveUsKoreanStockNamesBatch(symbols, concurrency = 6) {
     const chunk = uniq.slice(i, i + limit);
     await Promise.all(
       chunk.map(async (sym) => {
-        const name = await resolveUsKoreanStockName(sym);
-        if (name) out.set(sym, name);
+        out.set(sym, await resolveUsStockDisplayMeta(sym));
       }),
     );
   }

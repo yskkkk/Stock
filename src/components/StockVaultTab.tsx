@@ -69,7 +69,15 @@ export default function StockVaultTab({
     Record<string, { price: number; changePercent?: number; currency?: string }>
   >({});
   const [meta, setMeta] = useState<
-    Record<string, { industry?: string | null; nameKo?: string | null }>
+    Record<
+      string,
+      {
+        industry?: string | null;
+        nameKo?: string | null;
+        tvSymbol?: string | null;
+        exchange?: string | null;
+      }
+    >
   >({});
   const [industryTabs, setIndustryTabs] = useState<string[]>([]);
   const [industryGridRows, setIndustryGridRows] = useState(20);
@@ -533,7 +541,13 @@ export default function StockVaultTab({
                 item.market,
               );
               const industry = getItemIndustry(item);
-              const tvSymbol = yahooStockSymbolToTradingView(item.symbol, item.market);
+              const tvSymbol =
+                metaRow?.tvSymbol ??
+                yahooStockSymbolToTradingView(
+                  item.symbol,
+                  item.market,
+                  metaRow?.exchange,
+                );
               const tvChartUrl = tradingViewChartUrl(tvSymbol);
               const cur =
                 quote?.currency ?? (item.market === "kr" ? "KRW" : "USD");

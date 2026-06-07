@@ -2,7 +2,7 @@ import { normalizeYahooQuoteSymbol } from "./quote-symbol-resolve.js";
 import { getKoreanStockName } from "./names-ko.js";
 import {
   normalizeUsTicker,
-  resolveUsKoreanStockNamesBatch,
+  resolveUsStockDisplayMetaBatch,
 } from "./us-naver-korean-name.js";
 import { yahooGet } from "./yahoo.js";
 
@@ -511,16 +511,16 @@ async function fetchIndustryForSymbol(symbol, market) {
 
 /**
  * @param {Array<{ symbol: string; market?: "kr"|"us" }>} items
- * @returns {Promise<Record<string, { industry?: string | null; nameKo?: string | null }>>}
+ * @returns {Promise<Record<string, { industry?: string | null; nameKo?: string | null; tvSymbol?: string | null; exchange?: string | null }>>}
  */
 export async function fetchStockVaultMetaForItems(items) {
-  /** @type {Record<string, { industry?: string | null; nameKo?: string | null }>} */
+  /** @type {Record<string, { industry?: string | null; nameKo?: string | null; tvSymbol?: string | null; exchange?: string | null }>} */
   const meta = {};
   const rows = Array.isArray(items) ? items : [];
   const usSymbols = rows
     .filter((it) => it.market === "us")
     .map((it) => String(it.symbol ?? "").trim().toUpperCase());
-  const usKoMap = await resolveUsKoreanStockNamesBatch(usSymbols);
+  const usMetaMap = await resolveUsStockDisplayMetaBatch(usSymbols);
 
   await Promise.all(
     rows.map(async (item) => {
@@ -530,13 +530,16 @@ export async function fetchStockVaultMetaForItems(items) {
       if (!sym) return;
       const industry = await fetchIndustryForSymbol(sym, item.market);
       const bare = normalizeUsTicker(sym);
+      const usMeta = item.market === "us" ? usMetaMap.get(bare) : null;
       const nameKo =
         item.market === "us"
-          ? getKoreanStockName(sym) ?? usKoMap.get(bare) ?? null
+          ? usMeta?.nameKo ?? getKoreanStockName(sym) ?? null
           : getKoreanStockName(sym);
       const row = {
         ...(industry ? { industry } : {}),
         ...(nameKo ? { nameKo } : {}),
+        ...(usMeta?.tvSymbol ? { tvSymbol: usMeta.tvSymbol } : {}),
+        ...(usMeta?.exchange ? { exchange: usMeta.exchange } : {}),
       };
       if (Object.keys(row).length > 0) meta[sym] = row;
     }),
