@@ -60,6 +60,7 @@ export default function StockVaultTab({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | StockVaultSource>("all");
+  const [marketFilter, setMarketFilter] = useState<"all" | "kr" | "us">("all");
   const [scanHint, setScanHint] = useState<string | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
   const [scanEnabled, setScanEnabled] = useState(true);
@@ -148,9 +149,21 @@ export default function StockVaultTab({
   }, [scanConfirmOpen]);
 
   const filtered = useMemo(() => {
-    if (filter === "all") return items;
-    return items.filter((it) => it.source === filter);
-  }, [items, filter]);
+    return items.filter((it) => {
+      if (marketFilter !== "all" && it.market !== marketFilter) return false;
+      if (filter !== "all" && it.source !== filter) return false;
+      return true;
+    });
+  }, [items, filter, marketFilter]);
+
+  const marketCounts = useMemo(
+    () => ({
+      all: items.length,
+      kr: items.filter((it) => it.market === "kr").length,
+      us: items.filter((it) => it.market === "us").length,
+    }),
+    [items],
+  );
 
   const handleRemove = useCallback(
     async (symbol: string) => {
@@ -270,30 +283,60 @@ export default function StockVaultTab({
           </div>
         </header>
 
-        <div
-          className="stock-vault-tab__filters panel-head__filters"
-          role="tablist"
-          aria-label={ko.stockVault.filterAria}
-        >
-          <div className="market-tabs">
-            {(
-              [
-                ["all", ko.stockVault.filterAll],
-                ["golden_cross", ko.stockVault.filterGolden],
-                ["manual", ko.stockVault.filterManual],
-              ] as const
-            ).map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={filter === id}
-                className={filter === id ? "market-tab active" : "market-tab"}
-                onClick={() => setFilter(id)}
-              >
-                {label}
-              </button>
-            ))}
+        <div className="stock-vault-tab__filters-wrap">
+          <div
+            className="stock-vault-tab__filters panel-head__filters"
+            role="tablist"
+            aria-label={ko.stockVault.filterMarketAria}
+          >
+            <div className="market-tabs">
+              {(
+                [
+                  ["all", ko.stockVault.filterAll, marketCounts.all],
+                  ["kr", ko.app.marketKr, marketCounts.kr],
+                  ["us", ko.app.marketUs, marketCounts.us],
+                ] as const
+              ).map(([id, label, count]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={marketFilter === id}
+                  className={marketFilter === id ? "market-tab active" : "market-tab"}
+                  onClick={() => setMarketFilter(id)}
+                >
+                  {label}
+                  <span className="market-tab__count">{count}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div
+            className="stock-vault-tab__filters panel-head__filters"
+            role="tablist"
+            aria-label={ko.stockVault.filterAria}
+          >
+            <div className="market-tabs">
+              {(
+                [
+                  ["all", ko.stockVault.filterAll],
+                  ["golden_cross", ko.stockVault.filterGolden],
+                  ["manual", ko.stockVault.filterManual],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={filter === id}
+                  className={filter === id ? "market-tab active" : "market-tab"}
+                  onClick={() => setFilter(id)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 

@@ -184,9 +184,16 @@
     var(--tab-card-pad-y-bottom, 1.05rem);
 }
 
+.stock-vault-tab__filters-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+  margin-bottom: 0.55rem;
+}
+
 .stock-vault-tab__filters {
   justify-content: flex-start;
-  margin-bottom: 0.55rem;
+  margin-bottom: 0;
 }
 
 .stock-vault-tab__filters .market-tabs {

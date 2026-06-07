@@ -881,6 +881,7 @@ export const ko = {
     loading: "불러오는 중…",
     empty: "보관된 종목이 없습니다.",
     filterAria: "보관 필터",
+    filterMarketAria: "시장 필터",
     filterAll: "전체",
     filterGolden: "골든크로스",
     filterManual: "수동",
