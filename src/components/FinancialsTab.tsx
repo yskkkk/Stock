@@ -84,7 +84,13 @@ function yoyClass(pct: number | null | undefined): string {
     : "financials-tab__yoy financials-tab__yoy--down";
 }
 
-export default function FinancialsTab() {
+export default function FinancialsTab({
+  focusPick = null,
+  onFocusPickConsumed,
+}: {
+  focusPick?: StockPick | null;
+  onFocusPickConsumed?: () => void;
+} = {}) {
   const [market, setMarket] = useState<Market>("kr");
   const [input, setInput] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -118,6 +124,28 @@ export default function FinancialsTab() {
   const fundSeqRef = useRef(0);
   const periodsSeqRef = useRef(0);
   const statementSeqRef = useRef(0);
+
+  useEffect(() => {
+    if (!focusPick?.symbol?.trim()) return;
+    if (focusPick.market === "kr" || focusPick.market === "us") {
+      setMarket(focusPick.market);
+    }
+    setInput("");
+    setDebounced("");
+    setQuotes([]);
+    setSelected({
+      symbol: focusPick.symbol,
+      name: focusPick.name,
+      market: focusPick.market,
+      nameKo: focusPick.nameKo ?? null,
+      nameEn: focusPick.nameEn ?? null,
+      price: focusPick.price,
+      changePercent: focusPick.changePercent,
+      currency: focusPick.currency,
+      turnover: focusPick.turnover,
+    });
+    onFocusPickConsumed?.();
+  }, [focusPick, onFocusPickConsumed]);
 
   useEffect(() => {
     const id = window.setTimeout(() => setDebounced(input.trim()), 260);
@@ -378,6 +406,7 @@ export default function FinancialsTab() {
     label: string;
     value: string;
     verdictClass?: string;
+    badge?: string;
   };
 
   const metrics: MetricRow[] = periodMetrics
@@ -471,7 +500,8 @@ export default function FinancialsTab() {
       {
         key: "perVsPeer",
         label: ko.financials.perVsPeer,
-        value: cmp.text,
+        value: cmp.detailText,
+        badge: cmp.verdictLabel,
         verdictClass: peerPerVerdictClassName(cmp.verdict),
       },
     );
@@ -687,7 +717,16 @@ export default function FinancialsTab() {
                           {metrics.map((m) => (
                             <tr key={m.key}>
                               <th scope="row">{m.label}</th>
-                              <td className={m.verdictClass}>{m.value}</td>
+                              <td className={m.verdictClass}>
+                                {m.badge ? (
+                                  <span
+                                    className={`financials-tab__peer-badge ${m.verdictClass ?? ""}`}
+                                  >
+                                    {m.badge}
+                                  </span>
+                                ) : null}
+                                <span className="financials-tab__peer-value">{m.value}</span>
+                              </td>
                             </tr>
                           ))}
                         </tbody>

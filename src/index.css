@@ -6952,6 +6952,63 @@ html[data-theme="light"] .feedback-inbox-item {
   color: var(--muted);
 }
 
+.earnings-icon-rail__bubble-peer {
+  margin-top: 0.18rem;
+}
+
+.earnings-icon-rail__bubble-peer-badge {
+  display: inline-block;
+  margin-bottom: 0.18rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  line-height: 1.35;
+  font-family: var(--font-sans);
+  border: 1px solid color-mix(in srgb, var(--card-border) 88%, transparent);
+  background: color-mix(in srgb, var(--card-bg) 92%, transparent);
+}
+
+.earnings-icon-rail__bubble-peer-badge.peer-per--high {
+  color: var(--down);
+  border-color: color-mix(in srgb, var(--down) 35%, var(--card-border));
+  background: color-mix(in srgb, var(--down) 10%, var(--card-bg));
+}
+
+.earnings-icon-rail__bubble-peer-badge.peer-per--low {
+  color: var(--up);
+  border-color: color-mix(in srgb, var(--up) 35%, var(--card-border));
+  background: color-mix(in srgb, var(--up) 10%, var(--card-bg));
+}
+
+.earnings-icon-rail__bubble-peer-badge.peer-per--similar {
+  color: var(--muted);
+}
+
+.earnings-icon-rail__bubble-fin-peer-detail {
+  margin-top: 0.08rem;
+}
+
+.earnings-icon-rail__bubble-fin-btn {
+  display: block;
+  width: 100%;
+  margin-top: 0.42rem;
+  padding: 0.28rem 0.55rem;
+  border-radius: 0.45rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--card-border));
+  background: color-mix(in srgb, var(--accent) 12%, var(--card-bg));
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.35;
+  cursor: pointer;
+  text-align: center;
+}
+
+.earnings-icon-rail__bubble-fin-btn:hover {
+  background: color-mix(in srgb, var(--accent) 18%, var(--card-bg));
+}
+
 .earnings-icon-rail__bubble-sep {
   color: var(--muted);
   font-weight: 500;

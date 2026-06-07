@@ -16,6 +16,7 @@ import {
   type EarningsBubbleFinancialSummary,
 } from "../lib/earningsBubbleFinancials";
 import { peerPerVerdictClassName } from "../lib/peerPerComparison";
+import { dispatchOpenFinancialsTab } from "../lib/openFinancialsTab";
 import {
   formatMacroCountdown,
   formatMacroWhen,
@@ -173,7 +174,7 @@ export default function EarningsUpcomingIconRail({
     clearHideTimer();
     const r = el.getBoundingClientRect();
     const gap = 10;
-    const estW = 240;
+    const estW = 268;
     const pad = 8;
     // edge 레일은 화면/본문 왼쪽 — 말풍선은 아이콘 오른쪽(본문 방향)으로
     let placement: TipState["placement"] = "right";
@@ -283,11 +284,16 @@ export default function EarningsUpcomingIconRail({
                 </p>
                 <p className="earnings-icon-rail__bubble-fin-line">{finLines.line1}</p>
                 {finLines.peerLine ? (
-                  <p
-                    className={`earnings-icon-rail__bubble-fin-line earnings-icon-rail__bubble-fin-peer ${peerPerVerdictClassName(finLines.peerLine.verdict)}`}
-                  >
-                    {finLines.peerLine.text}
-                  </p>
+                  <div className="earnings-icon-rail__bubble-peer">
+                    <span
+                      className={`earnings-icon-rail__bubble-peer-badge ${peerPerVerdictClassName(finLines.peerLine.verdict)}`}
+                    >
+                      {finLines.peerLine.verdictLabel}
+                    </span>
+                    <p className="earnings-icon-rail__bubble-fin-line earnings-icon-rail__bubble-fin-peer-detail">
+                      {finLines.peerLine.detailText}
+                    </p>
+                  </div>
                 ) : null}
                 <p className="earnings-icon-rail__bubble-fin-line">{finLines.line2}</p>
                 {finLines.yoyLines.map((line) => (
@@ -304,6 +310,20 @@ export default function EarningsUpcomingIconRail({
                     {line.text}
                   </p>
                 ))}
+                <button
+                  type="button"
+                  className="earnings-icon-rail__bubble-fin-btn"
+                  onClick={() => {
+                    dispatchOpenFinancialsTab({
+                      symbol: tip.row.symbol,
+                      name: tip.row.name,
+                      market: tip.row.market === "kr" ? "kr" : "us",
+                    });
+                    setTip(null);
+                  }}
+                >
+                  {ko.macro.earningsBubbleOpenFinancials}
+                </button>
               </div>
             ) : null}
           </div>,

@@ -64,6 +64,7 @@ import FinancialsTab from "./components/FinancialsTab";
 import StockVaultTab from "./components/StockVaultTab";
 import { LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT } from "./lib/liveTradeDockAccount";
 import { LIVE_TRADE_PROGRAM_TRADES_MAIN_EVENT } from "./lib/liveTradeProgramTradesMain";
+import { OPEN_FINANCIALS_TAB_EVENT, type OpenFinancialsTabDetail } from "./lib/openFinancialsTab";
 import StockSearchTab from "./components/StockSearchTab";
 import StockChart from "./components/StockChart";
 import TradingViewAdvancedChart from "./components/TradingViewAdvancedChart";
@@ -185,6 +186,7 @@ export default function App() {
   const [lookupSearchTabMountKey, setLookupSearchTabMountKey] = useState(0);
   const [usQuoteInKrw, setUsQuoteInKrw] = useState(readUsQuoteKrwPref);
   const [cryptoFocusSymbol, setCryptoFocusSymbol] = useState<string | null>(null);
+  const [financialsFocusPick, setFinancialsFocusPick] = useState<StockPick | null>(null);
   const [signalFilters, setSignalFilters] = useState<SignalId[]>([]);
   const [filterMode, setFilterMode] = useState<FilterMode>("and");
   const [searchQuery, setSearchQuery] = useState("");
@@ -260,6 +262,25 @@ export default function App() {
         onProgramTradesMain,
       );
   }, []);
+
+  useEffect(() => {
+    const onOpenFinancials = (e: Event) => {
+      const d = (e as CustomEvent<OpenFinancialsTabDetail>).detail;
+      if (!d?.symbol?.trim()) return;
+      const market: "kr" | "us" = d.market === "kr" ? "kr" : "us";
+      setFinancialsFocusPick({
+        symbol: d.symbol.trim(),
+        name: d.name?.trim() || d.symbol.trim(),
+        market,
+        score: 0,
+        signals: [],
+      });
+      setAppTab("financials");
+    };
+    window.addEventListener(OPEN_FINANCIALS_TAB_EVENT, onOpenFinancials);
+    return () =>
+      window.removeEventListener(OPEN_FINANCIALS_TAB_EVENT, onOpenFinancials);
+  }, [setAppTab]);
 
   useEffect(() => {
     const prev = prevAppTabRef.current;
@@ -823,6 +844,10 @@ export default function App() {
 
   const handleCryptoFocusConsumed = useCallback(() => {
     setCryptoFocusSymbol(null);
+  }, []);
+
+  const handleFinancialsFocusConsumed = useCallback(() => {
+    setFinancialsFocusPick(null);
   }, []);
 
   const deepLinkHandledRef = useRef<string | null>(null);
@@ -1528,7 +1553,10 @@ export default function App() {
       ) : appTab === "boxRange" ? (
         <BoxRangeTab />
       ) : appTab === "financials" ? (
-        <FinancialsTab />
+        <FinancialsTab
+          focusPick={financialsFocusPick}
+          onFocusPickConsumed={handleFinancialsFocusConsumed}
+        />
       ) : appTab === "stockVault" ? (
         <StockVaultTab onVaultChange={syncVaultSymbols} />
       ) : appTab === "liveTrading" ? (

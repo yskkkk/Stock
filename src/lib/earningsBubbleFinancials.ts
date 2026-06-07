@@ -4,8 +4,8 @@ import {
 } from "../api";
 import { formatPercent, formatPrice } from "./format";
 import {
-  formatPeerPerComparison,
-  type PeerPerVerdict,
+  buildPeerPerComparison,
+  type PeerPerComparison,
 } from "./peerPerComparison";
 
 const CACHE_TTL_MS = 5 * 60_000;
@@ -128,7 +128,7 @@ export function formatEarningsBubbleFinancialLines(
 ) {
   const line1 = `${labels.per} ${fmtRatio(s.per)} · ${labels.eps} ${fmtEps(s.eps, s.currency)} · ${labels.pbr} ${fmtRatio(s.pbr)}`;
   const line2 = `${labels.profitMargin} ${fmtPct(s.profitMargin != null ? s.profitMargin * 100 : null)} · ${labels.roe} ${fmtPct(s.roe != null ? s.roe * 100 : null)}`;
-  let peerLine: { text: string; verdict: PeerPerVerdict } | null = null;
+  let peerLine: PeerPerComparison | null = null;
   if (
     s.per != null &&
     s.peerMedianPer != null &&
@@ -136,13 +136,11 @@ export function formatEarningsBubbleFinancialLines(
     Number.isFinite(s.per) &&
     Number.isFinite(s.peerMedianPer)
   ) {
-    const cmp = formatPeerPerComparison(s.per, s.peerMedianPer, s.peerGroup, {
-      peerMedianPer: labels.peerMedianPer,
+    peerLine = buildPeerPerComparison(s.per, s.peerMedianPer, s.peerGroup, {
       vsPeerHigh: labels.vsPeerHigh,
       vsPeerLow: labels.vsPeerLow,
       vsPeerSimilar: labels.vsPeerSimilar,
     });
-    peerLine = { text: cmp.text, verdict: cmp.verdict };
   }
   /** @type {{ text: string; yoyPct?: number | null }[]} */
   const yoyLines = [];

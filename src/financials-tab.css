@@ -297,6 +297,40 @@
   font-weight: 500;
 }
 
+.financials-tab__peer-badge {
+  display: inline-block;
+  margin-right: 0.45rem;
+  padding: 0.08rem 0.42rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.35;
+  font-family: var(--font-sans);
+  vertical-align: middle;
+  border: 1px solid color-mix(in srgb, var(--card-border) 88%, transparent);
+  background: color-mix(in srgb, var(--card-bg) 92%, transparent);
+}
+
+.financials-tab__peer-badge.peer-per--high {
+  color: var(--down);
+  border-color: color-mix(in srgb, var(--down) 35%, var(--card-border));
+  background: color-mix(in srgb, var(--down) 10%, var(--card-bg));
+}
+
+.financials-tab__peer-badge.peer-per--low {
+  color: var(--up);
+  border-color: color-mix(in srgb, var(--up) 35%, var(--card-border));
+  background: color-mix(in srgb, var(--up) 10%, var(--card-bg));
+}
+
+.financials-tab__peer-badge.peer-per--similar {
+  color: var(--muted);
+}
+
+.financials-tab__peer-value {
+  vertical-align: middle;
+}
+
 .financials-tab__periods {
   margin-top: 0.85rem;
   padding-top: 0.65rem;
