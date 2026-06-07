@@ -170,8 +170,6 @@ export default function FinancialsTab() {
     <div className="workspace financials-tab">
       <section className="financials-tab__hero card">
         <h2 className="financials-tab__title">{ko.financials.title}</h2>
-        <p className="financials-tab__hint">{ko.financials.hint}</p>
-        <p className="financials-tab__source">{ko.financials.sourceNote}</p>
       </section>
 
       <div className="financials-tab__grid">
@@ -271,8 +269,6 @@ export default function FinancialsTab() {
                   </div>
                 ))}
               </dl>
-
-              <p className="financials-tab__formula">{ko.financials.formulaNote}</p>
             </>
           ) : null}
         </section>
