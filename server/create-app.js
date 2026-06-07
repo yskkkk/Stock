@@ -2167,10 +2167,14 @@ export function createApp() {
           });
           return;
         }
+        const lite =
+          req.query.lite === "1" ||
+          req.query.lite === "true" ||
+          req.query.lite === "yes";
         const data =
           market === "crypto"
             ? await searchCryptoForLiveTrade(q)
-            : await searchStocks(q, market);
+            : await searchStocks(q, market, { lite });
         res.json(data);
       } catch (err) {
         const message = err instanceof Error ? err.message : "요청 실패";

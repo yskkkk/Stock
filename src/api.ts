@@ -1756,10 +1756,12 @@ export function fetchStockSearch(
   query: string,
   market: Market | "crypto",
   signal?: AbortSignal,
+  options?: { lite?: boolean },
 ) {
   const q = query.trim();
+  const liteQ = options?.lite ? "&lite=1" : "";
   return fetchJson<StockSearchResponse>(
-    `/api/stock-search?q=${encodeURIComponent(q)}&market=${market}`,
+    `/api/stock-search?q=${encodeURIComponent(q)}&market=${market}${liteQ}`,
     signal ? { signal } : undefined,
   );
 }

@@ -49,10 +49,15 @@ export default function FinancialsTab() {
   const [fundErr, setFundErr] = useState<string | null>(null);
 
   const debounceRef = useRef<number | null>(null);
+  const searchAbortRef = useRef<AbortController | null>(null);
+  const searchSeqRef = useRef(0);
   const fundSeqRef = useRef(0);
 
   useEffect(() => {
     if (debounceRef.current != null) window.clearTimeout(debounceRef.current);
+    searchAbortRef.current?.abort();
+    searchAbortRef.current = null;
+
     const q = query.trim();
     if (q.length < 1) {
       setHits([]);
@@ -60,21 +65,35 @@ export default function FinancialsTab() {
       setSearchLoading(false);
       return;
     }
+
     setSearchLoading(true);
+    setSearchErr(null);
+
     debounceRef.current = window.setTimeout(() => {
-      void fetchStockSearch(q, market)
+      const seq = ++searchSeqRef.current;
+      const ac = new AbortController();
+      searchAbortRef.current = ac;
+
+      void fetchStockSearch(q, market, ac.signal, { lite: true })
         .then((res) => {
+          if (seq !== searchSeqRef.current || ac.signal.aborted) return;
           setHits(res.quotes ?? []);
-          setSearchErr(null);
         })
         .catch((e) => {
+          if (seq !== searchSeqRef.current || ac.signal.aborted) return;
+          if (e instanceof DOMException && e.name === "AbortError") return;
           setHits([]);
           setSearchErr(e instanceof Error ? e.message : String(e));
         })
-        .finally(() => setSearchLoading(false));
-    }, 280);
+        .finally(() => {
+          if (seq !== searchSeqRef.current || ac.signal.aborted) return;
+          setSearchLoading(false);
+        });
+    }, 100);
+
     return () => {
       if (debounceRef.current != null) window.clearTimeout(debounceRef.current);
+      searchAbortRef.current?.abort();
     };
   }, [query, market]);
 

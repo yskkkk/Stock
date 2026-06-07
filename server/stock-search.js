@@ -219,12 +219,21 @@ function appendLocalUniverseMatches(query, market, seen, out) {
   }
 }
 
+function ensureUniverseReady(market) {
+  const cached = getCachedUniverse();
+  const rows = market === "kr" ? cached?.kr : cached?.us;
+  if (Array.isArray(rows) && rows.length > 0) return Promise.resolve();
+  return warmUniverseCache();
+}
+
 /**
  * @param {string} query
  * @param {"kr" | "us"} market
+ * @param {{ lite?: boolean }} [options]
  */
-export async function searchStocks(query, market) {
-  await warmUniverseCache();
+export async function searchStocks(query, market, options = {}) {
+  const lite = options.lite === true;
+  await ensureUniverseReady(market);
   const q = String(query ?? "").trim();
   if (q.length < 1) return { quotes: [] };
   if (q.length > 80) {
@@ -233,7 +242,7 @@ export async function searchStocks(query, market) {
     throw err;
   }
 
-  const cacheKey = `${market}:${q.toLowerCase()}`;
+  const cacheKey = `${market}:${lite ? "lite:" : ""}${q.toLowerCase()}`;
   const hit = cache.get(cacheKey);
   if (hit && Date.now() - hit.at < CACHE_MS) {
     return hit.payload;
@@ -249,8 +258,8 @@ export async function searchStocks(query, market) {
     appendLocalUniverseMatches(q, market, seen, quotes);
   }
 
-  const skipYahoo =
-    localKrHangulFirst && quotes.length >= KR_HANGUL_SKIP_YAHOO_MIN;
+  const skipYahooMin = lite && localKrHangulFirst ? 1 : KR_HANGUL_SKIP_YAHOO_MIN;
+  const skipYahoo = localKrHangulFirst && quotes.length >= skipYahooMin;
 
   let data = { quotes: [] };
   if (!skipYahoo) {
@@ -286,7 +295,7 @@ export async function searchStocks(query, market) {
       rowOut.nameKo = getKoreanStockName(sym) ?? null;
       rowOut.nameEn = englishYahooName(row.shortName, row.longName) || null;
     }
-    mergeHintFromSearchQuote(row, rowOut);
+    if (!lite) mergeHintFromSearchQuote(row, rowOut);
     quotes.push(rowOut);
     if (quotes.length >= 28) break;
   }
@@ -296,7 +305,7 @@ export async function searchStocks(query, market) {
   }
 
   const sliced = quotes.slice(0, 24);
-  const enriched = await enrichSearchQuotePrices(sliced);
+  const enriched = lite ? sliced : await enrichSearchQuotePrices(sliced);
   const finalQuotes =
     market === "us"
       ? enriched.filter((row) => isUsSearchResultRow(row))
