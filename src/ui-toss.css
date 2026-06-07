@@ -115,7 +115,7 @@ html {
 .app__shell > .filter-bar.card,
 .app__shell > .workspace:not(.workspace--stock-lookup) > .picks-panel.card,
 .app__shell > .workspace.workspace--rec-tracker > .picks-panel.card,
-.app__shell > .workspace.financials-tab > .card,
+.app__shell > .workspace.financials-tab > .card:not(.financials-tab__search),
 .app__shell > .workspace.ops-workspace > .card,
 .app__shell .live-trade-program-trades-main.card,
 .app__shell .trade-history-main-workspace.card,

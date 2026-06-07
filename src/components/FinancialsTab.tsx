@@ -1,12 +1,26 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { fetchStockFundamentals, fetchStockSearch } from "../api";
+import { fetchStockFundamentals, fetchStockSearch, fetchStockSearchHot } from "../api";
 import { ko } from "../i18n/ko";
 import { formatPercent, formatPrice, formatTurnover } from "../lib/format";
 import {
   tradingViewFinancialsUrl,
   yahooStockSymbolToTradingView,
 } from "../lib/tradingviewSymbols";
-import type { Market, StockFundamentalsResponse, StockSearchQuoteRow } from "../types";
+import type { Market, StockFundamentalsResponse, StockPick, StockSearchQuoteRow } from "../types";
+import StockSearchHotRow, { rowToStockPick } from "./StockSearchHotRow";
+
+const HANGUL_RE = /[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7A3]/;
+const HOT_REFRESH_MS = 120_000;
+
+function looksUsAlternateQuery(q: string) {
+  return /[A-Za-z]/.test(q);
+}
+
+function looksKrAlternateQuery(q: string) {
+  const t = q.trim();
+  if (/^\d{1,6}$/.test(t)) return true;
+  return HANGUL_RE.test(t);
+}
 
 function fmtMetric(
   value: number | null | undefined,
@@ -28,74 +42,117 @@ function fmtMetric(
   return String(value);
 }
 
-function rowToPick(row: StockSearchQuoteRow) {
-  return {
-    symbol: row.symbol,
-    name: row.name,
-    market: row.market,
-  };
-}
-
 export default function FinancialsTab() {
   const [market, setMarket] = useState<Market>("kr");
-  const [query, setQuery] = useState("");
-  const [hits, setHits] = useState<StockSearchQuoteRow[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [searchErr, setSearchErr] = useState<string | null>(null);
+  const [input, setInput] = useState("");
+  const [debounced, setDebounced] = useState("");
+  const [quotes, setQuotes] = useState<StockSearchQuoteRow[]>([]);
+  const [hotQuotes, setHotQuotes] = useState<StockSearchQuoteRow[]>([]);
+  const [hotLoading, setHotLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [selected, setSelected] = useState<StockSearchQuoteRow | null>(null);
   const [fundamentals, setFundamentals] = useState<StockFundamentalsResponse | null>(null);
   const [fundLoading, setFundLoading] = useState(false);
   const [fundErr, setFundErr] = useState<string | null>(null);
 
-  const debounceRef = useRef<number | null>(null);
   const searchAbortRef = useRef<AbortController | null>(null);
-  const searchSeqRef = useRef(0);
   const fundSeqRef = useRef(0);
 
   useEffect(() => {
-    if (debounceRef.current != null) window.clearTimeout(debounceRef.current);
-    searchAbortRef.current?.abort();
-    searchAbortRef.current = null;
+    const id = window.setTimeout(() => setDebounced(input.trim()), 260);
+    return () => window.clearTimeout(id);
+  }, [input]);
 
-    const q = query.trim();
-    if (q.length < 1) {
-      setHits([]);
-      setSearchErr(null);
-      setSearchLoading(false);
+  useEffect(() => {
+    if (debounced.length >= 1) {
+      setHotQuotes([]);
+      setHotLoading(false);
       return;
     }
 
-    setSearchLoading(true);
-    setSearchErr(null);
+    const ac = new AbortController();
+    setHotLoading(true);
 
-    debounceRef.current = window.setTimeout(() => {
-      const seq = ++searchSeqRef.current;
-      const ac = new AbortController();
-      searchAbortRef.current = ac;
+    void (async () => {
+      try {
+        const data = await fetchStockSearchHot(market, ac.signal);
+        if (ac.signal.aborted) return;
+        setHotQuotes(data.quotes ?? []);
+      } catch (err: unknown) {
+        if (ac.signal.aborted) return;
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setHotQuotes([]);
+      } finally {
+        if (!ac.signal.aborted) setHotLoading(false);
+      }
+    })();
 
-      void fetchStockSearch(q, market, ac.signal, { lite: true })
-        .then((res) => {
-          if (seq !== searchSeqRef.current || ac.signal.aborted) return;
-          setHits(res.quotes ?? []);
-        })
-        .catch((e) => {
-          if (seq !== searchSeqRef.current || ac.signal.aborted) return;
-          if (e instanceof DOMException && e.name === "AbortError") return;
-          setHits([]);
-          setSearchErr(e instanceof Error ? e.message : String(e));
-        })
-        .finally(() => {
-          if (seq !== searchSeqRef.current || ac.signal.aborted) return;
-          setSearchLoading(false);
-        });
-    }, 100);
+    const refreshId = window.setInterval(() => {
+      void fetchStockSearchHot(market)
+        .then((data) => setHotQuotes(data.quotes ?? []))
+        .catch(() => {});
+    }, HOT_REFRESH_MS);
 
     return () => {
-      if (debounceRef.current != null) window.clearTimeout(debounceRef.current);
-      searchAbortRef.current?.abort();
+      ac.abort();
+      window.clearInterval(refreshId);
     };
-  }, [query, market]);
+  }, [debounced, market]);
+
+  useEffect(() => {
+    if (debounced.length < 1) {
+      setQuotes([]);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
+    searchAbortRef.current?.abort();
+    const ac = new AbortController();
+    searchAbortRef.current = ac;
+    setLoading(true);
+    setError(null);
+
+    void (async () => {
+      try {
+        const primary = await fetchStockSearch(debounced, market, ac.signal);
+        if (ac.signal.aborted) return;
+        if (primary.quotes.length > 0) {
+          setQuotes(primary.quotes);
+          return;
+        }
+
+        const alt: Market = market === "kr" ? "us" : "kr";
+        const tryAlt =
+          (market === "kr" && looksUsAlternateQuery(debounced)) ||
+          (market === "us" && looksKrAlternateQuery(debounced));
+        if (!tryAlt) {
+          setQuotes([]);
+          return;
+        }
+
+        const secondary = await fetchStockSearch(debounced, alt, ac.signal);
+        if (ac.signal.aborted) return;
+        if (secondary.quotes.length > 0) {
+          setMarket(alt);
+          setQuotes(secondary.quotes);
+        } else {
+          setQuotes([]);
+        }
+      } catch (err: unknown) {
+        if (ac.signal.aborted) return;
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setQuotes([]);
+        setError(err instanceof Error ? err.message : ko.app.stockLookupError);
+      } finally {
+        if (!ac.signal.aborted) setLoading(false);
+      }
+    })();
+
+    return () => ac.abort();
+  }, [debounced, market]);
 
   const loadFundamentals = useCallback(async (symbol: string) => {
     const seq = ++fundSeqRef.current;
@@ -123,6 +180,30 @@ export default function FinancialsTab() {
     void loadFundamentals(selected.symbol);
   }, [selected?.symbol, loadFundamentals]);
 
+  const handleSelectPick = useCallback((pick: StockPick) => {
+    setSelected({
+      symbol: pick.symbol,
+      name: pick.name,
+      market: pick.market,
+      nameKo: pick.nameKo,
+      nameEn: pick.nameEn,
+      price: pick.price,
+      changePercent: pick.changePercent,
+      currency: pick.currency,
+      turnover: pick.turnover,
+    });
+  }, []);
+
+  const handleMarketChange = useCallback((next: Market) => {
+    if (next === market) return;
+    setMarket(next);
+    setInput("");
+    setDebounced("");
+    setQuotes([]);
+    setSelected(null);
+    setError(null);
+  }, [market]);
+
   const tvSymbol = useMemo(() => {
     if (!selected) return null;
     return yahooStockSymbolToTradingView(selected.symbol, selected.market);
@@ -132,6 +213,16 @@ export default function FinancialsTab() {
     if (!selected || !tvSymbol) return null;
     return tradingViewFinancialsUrl(tvSymbol);
   }, [selected, tvSymbol]);
+
+  const selectedSym = selected?.symbol.trim().toUpperCase() ?? "";
+  const listRows =
+    debounced.length >= 1
+      ? selectedSym
+        ? quotes.filter((r) => r.symbol.trim().toUpperCase() !== selectedSym)
+        : quotes
+      : selectedSym
+        ? hotQuotes.filter((r) => r.symbol.trim().toUpperCase() !== selectedSym)
+        : hotQuotes;
 
   const metrics = fundamentals
     ? [
@@ -188,61 +279,107 @@ export default function FinancialsTab() {
   return (
     <div className="workspace financials-tab">
       <div className="financials-tab__grid">
-        <section className="financials-tab__panel card" aria-label={ko.financials.searchAria}>
-          <div className="financials-tab__market-tabs" role="tablist">
-            {(["kr", "us"] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                role="tab"
-                aria-selected={market === m}
-                className={market === m ? "financials-tab__market active" : "financials-tab__market"}
-                onClick={() => setMarket(m)}
-              >
-                {m === "kr" ? ko.app.marketKr : ko.app.marketUs}
-              </button>
-            ))}
-          </div>
-          <label className="financials-tab__label" htmlFor="financials-q">
-            {ko.financials.searchLabel}
-          </label>
-          <input
-            id="financials-q"
-            className="financials-tab__input"
-            type="search"
-            placeholder={ko.financials.searchPlaceholder}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            autoComplete="off"
-          />
-          {searchLoading ? (
-            <p className="financials-tab__muted">{ko.financials.loading}</p>
-          ) : searchErr ? (
-            <p className="financials-tab__error" role="alert">
-              {searchErr}
-            </p>
-          ) : hits.length === 0 && query.trim() ? (
-            <p className="financials-tab__muted">{ko.financials.noHits}</p>
-          ) : (
-            <ul className="financials-tab__hits">
-              {hits.map((row) => (
-                <li key={row.symbol}>
+        <section
+          className="financials-tab__panel card financials-tab__search"
+          aria-label={ko.financials.searchAria}
+        >
+          <div className="panel-head panel-head--lookup-hot">
+            <div className="panel-head__filters panel-head__filters--lookup-hot panel-head__filters--lookup-center">
+              <div className="market-tabs">
+                {(["kr", "us"] as const).map((m) => (
                   <button
+                    key={m}
                     type="button"
-                    className={
-                      selected?.symbol === row.symbol
-                        ? "financials-tab__hit financials-tab__hit--active"
-                        : "financials-tab__hit"
-                    }
-                    onClick={() => setSelected(row)}
+                    className={market === m ? "market-tab active" : "market-tab"}
+                    onClick={() => handleMarketChange(m)}
                   >
-                    <span className="financials-tab__hit-name">{row.name}</span>
-                    <span className="financials-tab__hit-sym">{row.symbol}</span>
+                    {m === "kr" ? ko.app.marketKr : ko.app.marketUs}
                   </button>
-                </li>
-              ))}
-            </ul>
-          )}
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="stock-search-tab">
+            <div className="pick-toolbar stock-search-tab__toolbar">
+              <input
+                id="financials-q"
+                type="search"
+                className="pick-search"
+                placeholder={ko.app.stockLookupPlaceholder}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter") return;
+                  e.preventDefault();
+                  const first = quotes[0] ?? hotQuotes[0];
+                  if (first) handleSelectPick(rowToStockPick(first));
+                }}
+                aria-label={ko.app.stockLookupAria}
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </div>
+
+            {selected ? (
+              <ul
+                className="pick-list stock-search-tab__list stock-search-tab__selected-pin"
+                aria-label={ko.app.stockLookupSelectedPin}
+              >
+                <StockSearchHotRow
+                  row={selected}
+                  isActive
+                  onSelectPick={handleSelectPick}
+                />
+              </ul>
+            ) : null}
+
+            {loading && (
+              <p className="picks-empty picks-empty--muted">{ko.app.stockLookupLoading}</p>
+            )}
+            {!loading && error && (
+              <p className="picks-empty picks-empty--warn" role="alert">
+                {error}
+              </p>
+            )}
+            {!loading && !error && debounced.length < 1 && (
+              <>
+                {hotLoading && listRows.length === 0 && !selected ? (
+                  <p className="picks-empty picks-empty--muted">
+                    {ko.app.stockLookupHotLoading}
+                  </p>
+                ) : listRows.length > 0 ? (
+                  <ul className="pick-list stock-search-tab__list stock-search-tab__hot-list">
+                    {listRows.map((row) => (
+                      <StockSearchHotRow
+                        key={row.symbol}
+                        row={row}
+                        isActive={selected?.symbol === row.symbol}
+                        onSelectPick={handleSelectPick}
+                      />
+                    ))}
+                  </ul>
+                ) : !selected ? (
+                  <p className="picks-empty">{ko.app.stockLookupIdle}</p>
+                ) : null}
+              </>
+            )}
+            {!loading && !error && debounced.length >= 1 && quotes.length === 0 && (
+              <p className="picks-empty">{ko.app.stockLookupNoHits}</p>
+            )}
+            {!loading && !error && debounced.length >= 1 && listRows.length > 0 && (
+              <ul className="pick-list stock-search-tab__list stock-search-tab__hot-list">
+                {listRows.map((row) => (
+                  <StockSearchHotRow
+                    key={row.symbol}
+                    row={row}
+                    isActive={selected?.symbol === row.symbol}
+                    onSelectPick={handleSelectPick}
+                  />
+                ))}
+              </ul>
+            )}
+          </div>
         </section>
 
         <section className="financials-tab__panel card" aria-label={ko.financials.metricsAria}>

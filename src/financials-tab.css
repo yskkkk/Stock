@@ -20,7 +20,7 @@
   width: 100%;
   max-width: 100%;
   display: grid;
-  grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
   gap: var(--tab-stack-gap, 0.75rem);
   align-items: stretch;
 }
@@ -32,105 +32,104 @@
   overflow: hidden;
 }
 
-.financials-tab__market-tabs {
+/* 종목검색 좌측 패널과 동일 구조 */
+.financials-tab__search.card {
   display: flex;
-  gap: 0.35rem;
-  margin-bottom: 0.65rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 0;
+  padding: 0 !important;
+  overflow: hidden;
 }
 
-.financials-tab__market {
-  padding: 0.28rem 0.65rem;
-  border-radius: 999px;
-  border: 1px solid var(--card-border);
-  background: transparent;
-  color: var(--text-dim);
-  font-size: 0.76rem;
-  cursor: pointer;
+.financials-tab__search > .panel-head {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0.55rem var(--tab-card-pad-x, 1rem) 0.45rem;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--card) 94%, white) 0%,
+    color-mix(in srgb, var(--surface) 88%, var(--card)) 100%
+  );
+  border-bottom: 1px solid var(--card-border);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 50%, transparent);
 }
 
-.financials-tab__market.active {
-  border-color: var(--accent-border);
-  background: var(--accent-dim);
-  color: var(--text);
+.financials-tab__search > .stock-search-tab {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--card) 94%, white) 0%,
+    color-mix(in srgb, var(--surface) 88%, var(--card)) 100%
+  );
+  overflow: hidden;
 }
 
-.financials-tab__label {
-  display: block;
-  margin-bottom: 0.35rem;
-  font-size: 0.8rem;
-  color: var(--muted);
+.financials-tab__search .stock-search-tab__toolbar {
+  flex-shrink: 0;
+  padding: 0.5rem var(--tab-card-pad-x, 1rem) 0.55rem;
+  border-bottom: 1px solid var(--card-border);
+  background: color-mix(in srgb, var(--card) 72%, var(--surface));
 }
 
-.financials-tab__input {
+.financials-tab__search .pick-search {
   width: 100%;
   max-width: 100%;
-  margin-bottom: 0.65rem;
-  padding: 0.5rem 0.7rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--card-border);
-  background: transparent;
-  box-shadow: none;
-  color: var(--text);
+  margin: 0;
+  padding: 0.5rem 0.72rem;
+  box-sizing: border-box;
   font-size: 0.84rem;
   line-height: 1.35;
-  box-sizing: border-box;
+  background: color-mix(in srgb, var(--card) 55%, var(--surface)) !important;
+  border: 1px solid var(--card-border) !important;
+  border-radius: var(--radius-sm, 8px) !important;
+  color: var(--text) !important;
+  box-shadow: inset 0 1px 2px color-mix(in srgb, var(--shadow) 12%, transparent) !important;
 }
 
-.financials-tab__input::placeholder {
+.financials-tab__search .pick-search::placeholder {
   font-size: 0.78rem;
-  color: var(--muted);
+  color: var(--muted) !important;
 }
 
-.financials-tab__input:focus {
-  outline: none;
-  border-color: color-mix(in srgb, var(--accent) 42%, var(--card-border));
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-dim) 90%, transparent);
+.financials-tab__search .pick-search:focus {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--card-border)) !important;
+  box-shadow:
+    inset 0 1px 2px color-mix(in srgb, var(--shadow) 10%, transparent),
+    0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent) !important;
+  outline: none !important;
+  background: color-mix(in srgb, var(--card) 78%, var(--surface)) !important;
 }
 
-.financials-tab__hits {
-  list-style: none;
+.financials-tab__search .stock-search-tab__selected-pin {
+  flex: 0 0 auto;
   margin: 0;
   padding: 0;
-  max-height: min(42vh, 420px);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 22%, var(--card-border));
+  background: color-mix(in srgb, var(--accent-dim) 45%, var(--card));
+}
+
+.financials-tab__search .stock-search-tab__selected-pin > .stock-hot-item {
+  border-bottom: none !important;
+}
+
+.financials-tab__search .stock-search-tab__hot-list,
+.financials-tab__search .stock-search-tab__list {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
 }
 
-.financials-tab__hit {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  gap: 0.5rem;
-  align-items: center;
-  padding: 0.5rem 0.15rem;
-  border: none;
-  border-bottom: 1px solid var(--card-border);
-  background: transparent;
-  color: var(--text);
-  text-align: left;
-  cursor: pointer;
-  min-width: 0;
+.financials-tab__search .stock-search-tab__hot-list {
+  gap: 0 !important;
+  padding-top: 0 !important;
+  padding-inline: 0 !important;
 }
 
-.financials-tab__hit:hover,
-.financials-tab__hit--active {
-  background: var(--accent-dim);
-}
-
-.financials-tab__hit-name {
-  flex: 1 1 auto;
-  min-width: 0;
-  font-size: 0.86rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.financials-tab__hit-sym {
-  flex: 0 0 auto;
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  color: var(--muted);
+.financials-tab__search .picks-empty {
+  padding: 0.65rem var(--tab-card-pad-x, 1rem);
 }
 
 .financials-tab__head {
@@ -218,10 +217,6 @@
 @media (max-width: 900px) {
   .financials-tab__grid {
     grid-template-columns: 1fr;
-  }
-
-  .financials-tab__hits {
-    max-height: 28vh;
   }
 
   .financials-tab__head {
