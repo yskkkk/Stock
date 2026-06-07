@@ -97,6 +97,7 @@ export function resolveSymbolDisplayName(
   const label = resolveLabel(sym, fallbackName);
   const code = shortTickerCode(sym, market);
   const showSub =
+    !hasHangul(label) &&
     label !== sym &&
     label.toUpperCase() !== sym &&
     code !== label &&

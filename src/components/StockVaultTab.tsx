@@ -7,6 +7,7 @@ import {
 } from "../api";
 import { ko } from "../i18n/ko";
 import { formatPercent, formatPrice } from "../lib/format";
+import { resolveSymbolDisplayName } from "../lib/symbolDisplayName";
 import type { GoldenCrossKind, StockVaultItem, StockVaultSource } from "../types";
 
 const CROSS_LABEL: Record<GoldenCrossKind, string> = {
@@ -53,6 +54,9 @@ export default function StockVaultTab({
   const [quotes, setQuotes] = useState<
     Record<string, { price: number; changePercent?: number; currency?: string }>
   >({});
+  const [meta, setMeta] = useState<
+    Record<string, { industry?: string | null }>
+  >({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | StockVaultSource>("all");
@@ -69,6 +73,7 @@ export default function StockVaultTab({
     const vault = await fetchStockVault();
     setItems(vault.items ?? []);
     setQuotes(vault.quotes ?? {});
+    setMeta(vault.meta ?? {});
     onVaultChange?.((vault.items ?? []).map((it) => it.symbol));
   }, [onVaultChange]);
 
@@ -82,6 +87,7 @@ export default function StockVaultTab({
       ]);
       setItems(vault.items ?? []);
       setQuotes(vault.quotes ?? {});
+      setMeta(vault.meta ?? {});
       onVaultChange?.((vault.items ?? []).map((it) => it.symbol));
       if (status) {
         setScanEnabled(status.enabled);
@@ -304,6 +310,12 @@ export default function StockVaultTab({
             {filtered.map((item) => {
               const symKey = item.symbol.trim().toUpperCase();
               const quote = quotes[symKey];
+              const display = resolveSymbolDisplayName(
+                item.symbol,
+                item.name,
+                item.market,
+              );
+              const industry = meta[symKey]?.industry?.trim();
               const cur =
                 quote?.currency ?? (item.market === "kr" ? "KRW" : "USD");
               const chg = quote?.changePercent;
@@ -312,11 +324,19 @@ export default function StockVaultTab({
               <li key={item.id} className="stock-vault-tab__row">
                 <div className="stock-vault-tab__row-main">
                   <div className="stock-vault-tab__row-head">
-                    <span className="stock-vault-tab__name" title={item.name}>
-                      {item.name}
+                    <span
+                      className="stock-vault-tab__name"
+                      title={display.label}
+                    >
+                      {display.label}
                     </span>
-                    <span className="stock-vault-tab__sym">{item.symbol}</span>
+                    {display.sublabel ? (
+                      <span className="stock-vault-tab__sym">{display.sublabel}</span>
+                    ) : null}
                   </div>
+                  {industry ? (
+                    <p className="stock-vault-tab__sector">{industry}</p>
+                  ) : null}
                   <div className="stock-vault-tab__meta">
                     <span className="stock-vault-tab__market">
                       {item.market === "kr" ? ko.app.marketKr : ko.app.marketUs}
@@ -341,43 +361,47 @@ export default function StockVaultTab({
                     </div>
                   ) : null}
                 </div>
-                <div className="stock-vault-tab__quote">
-                  {quote?.price != null && Number.isFinite(quote.price) ? (
-                    <>
-                      <span className="stock-vault-tab__price">
-                        {formatPrice(quote.price, cur)}
-                      </span>
-                      {chg != null && Number.isFinite(chg) ? (
-                        <span
-                          className={
-                            chgUp
-                              ? "stock-vault-tab__chg stock-vault-tab__chg--up"
-                              : "stock-vault-tab__chg stock-vault-tab__chg--down"
-                          }
-                        >
-                          {formatPercent(chg)}
+                <div className="stock-vault-tab__row-foot">
+                  <div className="stock-vault-tab__quote">
+                    {quote?.price != null && Number.isFinite(quote.price) ? (
+                      <>
+                        <span className="stock-vault-tab__price">
+                          {formatPrice(quote.price, cur)}
                         </span>
-                      ) : null}
-                    </>
-                  ) : (
-                    <span className="stock-vault-tab__quote-pending">
-                      {ko.app.stockLookupQuotePending}
+                        {chg != null && Number.isFinite(chg) ? (
+                          <span
+                            className={
+                              chgUp
+                                ? "stock-vault-tab__chg stock-vault-tab__chg--up"
+                                : "stock-vault-tab__chg stock-vault-tab__chg--down"
+                            }
+                          >
+                            {formatPercent(chg)}
+                          </span>
+                        ) : null}
+                      </>
+                    ) : (
+                      <span className="stock-vault-tab__quote-pending">
+                        {ko.app.stockLookupQuotePending}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className="stock-vault-tab__remove"
+                    aria-label={`${display.label} ${ko.stockVault.removeAria}`}
+                    title={ko.stockVault.remove}
+                    disabled={removing === item.symbol}
+                    onClick={() => void handleRemove(item.symbol)}
+                  >
+                    <span className="stock-vault-tab__remove-icon" aria-hidden>
+                      ×
                     </span>
-                  )}
+                    <span className="stock-vault-tab__remove-label">
+                      {ko.stockVault.remove}
+                    </span>
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  className="stock-vault-tab__remove"
-                  aria-label={`${item.name} ${ko.stockVault.removeAria}`}
-                  title={ko.stockVault.remove}
-                  disabled={removing === item.symbol}
-                  onClick={() => void handleRemove(item.symbol)}
-                >
-                  <span className="stock-vault-tab__remove-icon" aria-hidden>
-                    ×
-                  </span>
-                  <span className="stock-vault-tab__remove-label">{ko.stockVault.remove}</span>
-                </button>
               </li>
               );
             })}

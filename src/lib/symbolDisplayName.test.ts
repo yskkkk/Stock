@@ -11,7 +11,19 @@ describe("symbolDisplayName", () => {
     expect(getMappedSymbolName("000120")).toBe("CJ대한통운");
     const d = resolveSymbolDisplayName("000120.KS", "000120.KS", "kr");
     expect(d.label).toBe("CJ대한통운");
-    expect(d.sublabel).toBe("000120");
+    expect(d.sublabel).toBeUndefined();
+  });
+
+  it("shows ticker for English labels only", () => {
+    const d = resolveSymbolDisplayName("XYL", "Xylem Inc.", "us");
+    expect(d.label).toBe("Xylem Inc.");
+    expect(d.sublabel).toBe("XYL");
+  });
+
+  it("hides ticker for mapped Korean US names", () => {
+    const d = resolveSymbolDisplayName("VRSK", "Verisk Analytics, Inc.", "us");
+    expect(d.label).toBe("베리스크");
+    expect(d.sublabel).toBeUndefined();
   });
 
   it("prefers mapped name over raw ticker fallback", () => {

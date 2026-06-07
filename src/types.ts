@@ -369,6 +369,12 @@ export interface StockVaultResponse {
       quotedAtMs?: number;
     }
   >;
+  meta?: Record<
+    string,
+    {
+      industry?: string | null;
+    }
+  >;
 }
 
 export interface GoldenCrossScanState {

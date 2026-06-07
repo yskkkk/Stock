@@ -236,29 +236,43 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17.5rem), 1fr));
   gap: 0.45rem;
+  align-items: stretch;
 }
 
 .stock-vault-tab__row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 0.55rem 0.65rem;
-  padding: 0.55rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+  padding: 0.5rem 0.58rem;
   border: 1px solid var(--card-border);
   border-radius: var(--radius-sm, 8px);
   background: color-mix(in srgb, var(--card) 88%, var(--surface));
 }
 
+.stock-vault-tab__row-main {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.stock-vault-tab__row-foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.45rem;
+  margin-top: auto;
+}
+
 .stock-vault-tab__quote {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 0.08rem;
-  min-width: 4.8rem;
-  text-align: right;
+  min-width: 0;
+  text-align: left;
 }
 
 .stock-vault-tab__price {
@@ -287,6 +301,15 @@
   font-size: 0.68rem;
   color: var(--muted);
   white-space: nowrap;
+}
+
+.stock-vault-tab__sector {
+  margin: 0.12rem 0 0;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: var(--muted);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 .stock-vault-tab__row-head {
@@ -343,10 +366,12 @@
   display: inline-flex;
   align-items: center;
   gap: 0.18rem;
-  padding: 0.3rem 0.52rem;
-  border: 1px solid color-mix(in srgb, var(--down) 38%, var(--card-border));
-  border-radius: var(--radius-sm, 8px);
-  background: color-mix(in srgb, var(--down) 10%, var(--card));
+  margin: 0;
+  padding: 0.24rem 0.42rem;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   color: var(--down);
   font: inherit;
   font-size: 0.72rem;
@@ -356,8 +381,8 @@
 }
 
 .stock-vault-tab__remove:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--down) 20%, var(--card));
-  border-color: color-mix(in srgb, var(--down) 55%, var(--card-border));
+  color: color-mix(in srgb, var(--down) 82%, var(--text));
+  background: transparent;
 }
 
 .stock-vault-tab__remove:disabled {
