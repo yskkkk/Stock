@@ -391,21 +391,26 @@ export default function AppLiveTradeSideDock({
     wasOpen: boolean;
     pointerId?: number;
   } | null>(null);
+  const commitResizeDragEndRef = useRef<() => void>(() => {});
+
+  const releaseResizePointerCapture = useCallback(
+    (pointerId?: number) => {
+      const el = resizeHandleRef.current;
+      const pid = pointerId ?? resizeDragRef.current?.pointerId;
+      if (el == null || pid == null) return;
+      try {
+        if (el.hasPointerCapture(pid)) {
+          el.releasePointerCapture(pid);
+        }
+      } catch {
+        /* ignore */
+      }
+    },
+    [],
+  );
 
   const releaseResizeDrag = useCallback(() => {
-    const drag = resizeDragRef.current;
-    resizeDragRef.current = null;
-    setResizing(false);
-    const el = resizeHandleRef.current;
-    const pid = drag?.pointerId;
-    if (el == null || pid == null) return;
-    try {
-      if (el.hasPointerCapture(pid)) {
-        el.releasePointerCapture(pid);
-      }
-    } catch {
-      /* ignore */
-    }
+    commitResizeDragEndRef.current();
   }, []);
 
   const panelWidthBounds = useMemo(
@@ -450,6 +455,50 @@ export default function AppLiveTradeSideDock({
       titles[LIVE_TRADE_DOCK_RAIL_TAB_IDS.bithumb] ?? ko.app.liveTradeDockRailAccountTab,
     );
   }, [openPanel]);
+
+  const commitResizeDragEnd = useCallback(() => {
+    const drag = resizeDragRef.current;
+    if (!drag) return;
+    resizeDragRef.current = null;
+    setResizing(false);
+    releaseResizePointerCapture(drag.pointerId);
+
+    const snapHalf = dockPanelOpenSnapThresholdPx();
+    const min = minDockPanelWidthPx();
+    const w = readDockPanelWidthFromCss();
+
+    const restoreWidth = () =>
+      readDockPanelWidthPref() ?? defaultDockPanelWidthPx();
+
+    if (w <= snapHalf) {
+      applyDockPanelWidthCss(0);
+      persistOpen(false);
+      window.setTimeout(() => {
+        if (!openRef.current) clearDockPanelWidthCss();
+      }, 240);
+      setPanelWidthPx(restoreWidth());
+    } else {
+      const finalW = syncDockPanelWidth(Math.max(w, min));
+      persistOpen(true);
+      openDefaultDockPanel();
+      if (finalW >= defaultDockPanelWidthPx() * 0.72) {
+        persistDockPanelWidthPref(finalW);
+      } else {
+        try {
+          localStorage.removeItem(LIVE_TRADE_DOCK_PANEL_WIDTH_PREF);
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+  }, [
+    persistOpen,
+    openDefaultDockPanel,
+    releaseResizePointerCapture,
+    syncDockPanelWidth,
+  ]);
+
+  commitResizeDragEndRef.current = commitResizeDragEnd;
 
   const toggleFold = useCallback(() => {
     const next = !open;
@@ -498,14 +547,14 @@ export default function AppLiveTradeSideDock({
   }, [releaseResizeDrag]);
 
   useEffect(() => {
-    const onGlobalPointerEnd = () => releaseResizeDrag();
+    const onGlobalPointerEnd = () => commitResizeDragEndRef.current();
     window.addEventListener("pointerup", onGlobalPointerEnd);
     window.addEventListener("pointercancel", onGlobalPointerEnd);
     return () => {
       window.removeEventListener("pointerup", onGlobalPointerEnd);
       window.removeEventListener("pointercancel", onGlobalPointerEnd);
     };
-  }, [releaseResizeDrag]);
+  }, []);
 
   useEffect(() => {
     const onOpenPortfolio = () => {
@@ -824,45 +873,10 @@ export default function AppLiveTradeSideDock({
 
   const finishResize = useCallback(
     (e: PointerEvent<HTMLButtonElement>) => {
-      const drag = resizeDragRef.current;
-      if (!drag) return;
-
-      const snapHalf = dockPanelOpenSnapThresholdPx();
-      const min = minDockPanelWidthPx();
-      const clientX = isUsablePointerClientX(e.clientX) ? e.clientX : drag.startX;
-      const w = drag.wasOpen
-        ? dockPanelWidthFromOpenDrag(drag.startW, drag.startX, clientX)
-        : dockPanelWidthFromCollapsedDrag(drag.startX, clientX);
-
-      const restoreWidth = () =>
-        readDockPanelWidthPref() ?? defaultDockPanelWidthPx();
-
-      if (w <= snapHalf) {
-        persistOpen(false);
-        clearDockPanelWidthCss();
-        setPanelWidthPx(restoreWidth());
-      } else {
-        const finalW = syncDockPanelWidth(Math.max(w, min));
-        persistOpen(true);
-        openDefaultDockPanel();
-        if (finalW >= defaultDockPanelWidthPx() * 0.72) {
-          persistDockPanelWidthPref(finalW);
-        } else {
-          try {
-            localStorage.removeItem(LIVE_TRADE_DOCK_PANEL_WIDTH_PREF);
-          } catch {
-            /* ignore */
-          }
-        }
-      }
-
-      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-        e.currentTarget.releasePointerCapture(e.pointerId);
-      }
-      resizeDragRef.current = null;
-      setResizing(false);
+      e.preventDefault();
+      commitResizeDragEnd();
     },
-    [persistOpen, openDefaultDockPanel, syncDockPanelWidth],
+    [commitResizeDragEnd],
   );
 
   useEffect(() => {
@@ -1170,7 +1184,9 @@ export default function AppLiveTradeSideDock({
           onPointerMove={onResizePointerMove}
           onPointerUp={finishResize}
           onPointerCancel={finishResize}
-          onLostPointerCapture={releaseResizeDrag}
+          onLostPointerCapture={() => {
+            if (resizeDragRef.current) commitResizeDragEndRef.current();
+          }}
           aria-label={
             open ? ko.app.liveTradeSideDockResize : ko.app.liveTradeSideDockExpand
           }

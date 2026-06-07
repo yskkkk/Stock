@@ -3,6 +3,7 @@ import {
   clampDockPanelWidthPx,
   defaultDockPanelWidthPx,
   dockPanelOpenSnapThresholdPx,
+  dockPanelWidthDragPx,
   dockPanelWidthFromCollapsedDrag,
   isDockPanelWidthPrefUsable,
   minDockPanelWidthPx,
@@ -31,6 +32,14 @@ describe("liveTradeDockPanelWidth", () => {
     expect(dockPanelWidthFromCollapsedDrag(startX, startX, vw)).toBe(0);
     expect(dockPanelWidthFromCollapsedDrag(startX, startX + 80, vw)).toBe(0);
     expect(dockPanelWidthFromCollapsedDrag(startX, startX - 100, vw)).toBe(100);
+  });
+
+  it("open drag below snap threshold closes on release", () => {
+    const snap = dockPanelOpenSnapThresholdPx(vw);
+    const min = minDockPanelWidthPx(vw);
+    expect(snap).toBe(Math.round(min / 2));
+    expect(dockPanelWidthDragPx(snap, vw)).toBeLessThanOrEqual(snap);
+    expect(dockPanelWidthDragPx(snap + 1, vw)).toBeGreaterThan(snap);
   });
 
   it("rejects prefs much narrower than default", () => {
