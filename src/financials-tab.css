@@ -21,7 +21,7 @@
   max-width: 100%;
   display: grid;
   grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
-  gap: var(--tab-stack-gap, 0.75rem);
+  gap: 0;
   align-items: start;
 }
 
@@ -38,6 +38,9 @@
 
 .financials-tab__detail.card {
   padding: 0 !important;
+  border-left: none !important;
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
 }
 
 .financials-tab__detail-inner {
@@ -53,6 +56,10 @@
   padding: 0 !important;
   overflow: hidden;
   max-height: min(calc(100dvh - 8rem), 42rem);
+  border-right: none !important;
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  box-shadow: none !important;
 }
 
 .financials-tab__search > .panel-head {
@@ -138,6 +145,13 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.financials-tab__search .stock-search-tab__hot-list::-webkit-scrollbar,
+.financials-tab__search .stock-search-tab__list::-webkit-scrollbar {
+  display: none;
 }
 
 .financials-tab__search .stock-search-tab__hot-list {
