@@ -86,45 +86,113 @@ export function getLastGoldenCrossManualScanResult() {
 /**
  * @param {"kr"|"us"} market
  * @param {string} scanDate
+ * @returns {{ market: "kr"|"us"; scanDate: string; scanned: number; hits: never[]; hitCount: number }}
+ */
+function emptyGoldenCrossMarketResult(market, scanDate) {
+  return { market, scanDate, scanned: 0, hits: [], hitCount: 0 };
+}
+
+/**
+ * @param {"kr"|"us"} market
+ * @param {string} scanDate
+ * @returns {{ market: "kr"|"us"; scanDate: string; scanned: number; hits: never[]; hitCount: number }}
+ */
+function emptyMaAlignMarketResult(market, scanDate) {
+  return { market, scanDate, scanned: 0, hits: [], hitCount: 0 };
+}
+
+/**
+ * @param {"kr"|"us"} market
+ * @param {string} scanDate
  * @param {string} runId
  * @param {"manual"|"scheduled"} trigger
  */
-async function runVaultMarketScans(market, scanDate, runId, trigger) {
-  const gcResult = await runGoldenCrossMarketScan(market, scanDate);
-  if (gcResult.hits.length) {
-    mergeGoldenCrossHitsIntoVaultSync(gcResult.hits);
+export async function runVaultMarketScans(market, scanDate, runId, trigger) {
+  clearGoldenCrossVaultItemsSync({ market });
+  clearMaAlignVaultItemsSync({ market });
+
+  const runGoldenCrossBranch = async () => {
+    const gcResult = await runGoldenCrossMarketScan(market, scanDate);
+    if (gcResult.hits.length) {
+      mergeGoldenCrossHitsIntoVaultSync(gcResult.hits);
+    }
+    appendGoldenCrossHistoryEntrySync({
+      runId,
+      trigger,
+      market,
+      scanDate,
+      scanned: gcResult.scanned,
+      hits: gcResult.hits,
+    });
+    await notifyGoldenCrossScanTelegram(market, scanDate, gcResult.hits);
+    return gcResult;
+  };
+
+  const runMaAlignBranch = async () => {
+    const maResult = await runMaAlignMarketScan(market, scanDate);
+    if (maResult.hits.length) {
+      mergeMaAlignHitsIntoVaultSync(maResult.hits);
+    }
+    appendMaAlignHistoryEntrySync({
+      runId,
+      trigger,
+      market,
+      scanDate,
+      scanned: maResult.scanned,
+      hits: maResult.hits,
+    });
+    return maResult;
+  };
+
+  const [gcSettled, maSettled] = await Promise.allSettled([
+    runGoldenCrossBranch(),
+    runMaAlignBranch(),
+  ]);
+
+  if (gcSettled.status === "rejected") {
+    liveTradeLogWarn(
+      "[stock-vault:scan:golden-cross]",
+      market,
+      gcSettled.reason instanceof Error
+        ? gcSettled.reason.message
+        : gcSettled.reason,
+    );
   }
-  appendGoldenCrossHistoryEntrySync({
-    runId,
-    trigger,
+  if (maSettled.status === "rejected") {
+    liveTradeLogWarn(
+      "[stock-vault:scan:ma-align]",
+      market,
+      maSettled.reason instanceof Error
+        ? maSettled.reason.message
+        : maSettled.reason,
+    );
+  }
+
+  const goldenCross =
+    gcSettled.status === "fulfilled"
+      ? gcSettled.value
+      : emptyGoldenCrossMarketResult(market, scanDate);
+  const maAlign =
+    maSettled.status === "fulfilled"
+      ? maSettled.value
+      : emptyMaAlignMarketResult(market, scanDate);
+
+  liveTradeLogInfo("[stock-vault:scan] market done", {
     market,
     scanDate,
-    scanned: gcResult.scanned,
-    hits: gcResult.hits,
-  });
-  await notifyGoldenCrossScanTelegram(market, scanDate, gcResult.hits);
-
-  const maResult = await runMaAlignMarketScan(market, scanDate);
-  if (maResult.hits.length) {
-    mergeMaAlignHitsIntoVaultSync(maResult.hits);
-  }
-  appendMaAlignHistoryEntrySync({
-    runId,
     trigger,
-    market,
-    scanDate,
-    scanned: maResult.scanned,
-    hits: maResult.hits,
+    goldenCrossHits: goldenCross.hitCount,
+    maAlignHits: maAlign.hitCount,
+    goldenCrossOk: gcSettled.status === "fulfilled",
+    maAlignOk: maSettled.status === "fulfilled",
   });
 
-  return { goldenCross: gcResult, maAlign: maResult };
+  return { goldenCross, maAlign };
 }
 
 /** @param {Date} [now] */
 async function runGoldenCrossManualScanInternal(now = new Date()) {
   const runId = randomUUID();
-  clearGoldenCrossVaultItemsSync();
-  clearMaAlignVaultItemsSync();
 
   /** @type {Array<{ market: "kr"|"us"; scanDate: string; scanned: number; hitCount: number }>} */
   const goldenCrossResults = [];
@@ -140,12 +208,22 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
       market === "kr"
         ? getKstParts(now).dateKey
         : localMinutesOfDay("us", now).dateKey;
-    const { goldenCross, maAlign } = await runVaultMarketScans(
-      market,
-      scanDate,
-      runId,
-      "manual",
-    );
+    let goldenCross = emptyGoldenCrossMarketResult(market, scanDate);
+    let maAlign = emptyMaAlignMarketResult(market, scanDate);
+    try {
+      ({ goldenCross, maAlign } = await runVaultMarketScans(
+        market,
+        scanDate,
+        runId,
+        "manual",
+      ));
+    } catch (e) {
+      liveTradeLogWarn(
+        "[golden-cross:manual]",
+        market,
+        e instanceof Error ? e.message : e,
+      );
+    }
     goldenCrossEmailMarkets.push({
       market,
       scanDate,
@@ -243,8 +321,6 @@ export async function runGoldenCrossScanIfDue(market, now = new Date()) {
       ? getKstParts(now).dateKey
       : localMinutesOfDay("us", now).dateKey;
 
-  clearGoldenCrossVaultItemsSync({ market });
-  clearMaAlignVaultItemsSync({ market });
   const runId = randomUUID();
   const { goldenCross, maAlign } = await runVaultMarketScans(
     market,
