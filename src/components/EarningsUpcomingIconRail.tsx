@@ -23,6 +23,7 @@ import {
   formatSectorEarningsDday,
 } from "../lib/formatMacro";
 import { stockLogoUrl } from "../lib/stockLogoUrl";
+import StockLogoWithPlate from "./StockLogoWithPlate";
 import { peekMacroPrefetch } from "../lib/tabPrefetch";
 import { ko } from "../i18n/ko";
 import type { SectorEarningsSpotlightItem } from "../types";
@@ -72,14 +73,14 @@ function EarningsIconButton({
         onBlur={onLeave}
       >
         {showImg ? (
-          <img
-            className="earnings-icon-rail__img"
+          <StockLogoWithPlate
+            symbol={row.symbol}
+            market={row.market}
             src={logo!}
-            alt=""
+            imgClassName="earnings-icon-rail__img"
+            wrapClassName="earnings-icon-rail__logo-wrap"
             width={28}
             height={28}
-            loading="lazy"
-            decoding="async"
             onError={() => setImgFailed(true)}
           />
         ) : (
