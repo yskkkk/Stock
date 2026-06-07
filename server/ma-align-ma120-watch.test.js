@@ -53,11 +53,11 @@ test("evaluateMa120NearHit rejects when not aligned", () => {
 test("shouldRunVaultIntradayRescan respects interval", () => {
   const now = new Date("2026-06-08T03:00:00.000Z"); // KR regular session
   assert.equal(
-    shouldRunVaultIntradayRescan("kr", Date.now() - 901_000, now),
+    shouldRunVaultIntradayRescan("kr", Date.now() - 61_000, now),
     true,
   );
   assert.equal(
-    shouldRunVaultIntradayRescan("kr", Date.now() - 100_000, now),
+    shouldRunVaultIntradayRescan("kr", Date.now() - 30_000, now),
     false,
   );
 });

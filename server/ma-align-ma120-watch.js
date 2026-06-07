@@ -15,8 +15,8 @@ import { notifyMaAlignMa120NearTelegram } from "./ma-align-ma120-telegram.js";
 const DEDUP_FILE = "ma-align-ma120-near-sent.json";
 
 const WATCH_MS = (() => {
-  const n = Number(process.env.STOCK_MA120_NEAR_POLL_MS ?? 120_000);
-  return Number.isFinite(n) && n >= 30_000 ? Math.min(n, 600_000) : 120_000;
+  const n = Number(process.env.STOCK_MA120_NEAR_POLL_MS ?? 60_000);
+  return Number.isFinite(n) && n >= 30_000 ? Math.min(n, 600_000) : 60_000;
 })();
 
 const NEAR_PCT = (() => {

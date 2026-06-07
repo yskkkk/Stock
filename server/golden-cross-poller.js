@@ -12,6 +12,7 @@ import { appendGoldenCrossHistoryEntrySync } from "./golden-cross-history-store.
 import { appendMaAlignHistoryEntrySync } from "./ma-align-history-store.js";
 import { notifyGoldenCrossScanTelegram } from "./golden-cross-telegram.js";
 import { sendGoldenCrossScanReportEmail } from "./notifications/golden-cross-scan-email.js";
+import { runMaAlignVaultIntradayRefresh } from "./ma-align-vault-intraday.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 import { isStockTradableBySchedule } from "./market-hours.js";
 
@@ -21,8 +22,8 @@ const POLL_MS = (() => {
 })();
 
 const INTRADAY_RESCAN_MS = (() => {
-  const n = Number(process.env.STOCK_VAULT_INTRADAY_RESCAN_MS ?? 900_000);
-  return Number.isFinite(n) && n >= 300_000 ? Math.min(n, 3_600_000) : 900_000;
+  const n = Number(process.env.STOCK_VAULT_INTRADAY_RESCAN_MS ?? 60_000);
+  return Number.isFinite(n) && n >= 30_000 ? Math.min(n, 3_600_000) : 60_000;
 })();
 
 const INTRADAY_TICK_MS = (() => {
@@ -267,27 +268,11 @@ export async function runVaultIntradayRescanIfDue(market, now = new Date()) {
     market === "kr"
       ? getKstParts(now).dateKey
       : localMinutesOfDay("us", now).dateKey;
-  const runId = randomUUID();
   vaultScanRunning = true;
   try {
-    const result = await runVaultMarketScans(
-      market,
-      scanDate,
-      runId,
-      "intraday",
-      {
-        notifyGoldenCrossTelegram: false,
-        persistScanState: false,
-        appendHistory: false,
-      },
-    );
+    const result = await runMaAlignVaultIntradayRefresh(market, scanDate);
     lastIntradayRescanAtMs[market] = Date.now();
-    liveTradeLogInfo("[stock-vault:intraday] rescan done", {
-      market,
-      scanDate,
-      goldenCrossHits: result.goldenCross.hitCount,
-      maAlignHits: result.maAlign.hitCount,
-    });
+    liveTradeLogInfo("[stock-vault:intraday] ma_align refresh done", result);
     return result;
   } finally {
     vaultScanRunning = false;

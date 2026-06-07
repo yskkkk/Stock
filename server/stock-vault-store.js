@@ -226,6 +226,25 @@ export function removeStockVaultItemSync(symbol) {
 }
 
 /**
+ * @param {string} symbol
+ * @param {StockVaultSource} source
+ */
+export function removeStockVaultItemBySourceSync(symbol, source) {
+  const sym = String(symbol ?? "")
+    .trim()
+    .toUpperCase();
+  const src = normalizeSource(source);
+  if (!sym) return false;
+  const store = readStore();
+  const next = store.items.filter(
+    (it) => !(it.symbol === sym && it.source === src),
+  );
+  if (next.length === store.items.length) return false;
+  writeStore({ version: 1, items: next, dismissed: store.dismissed ?? [] });
+  return true;
+}
+
+/**
  * 골든크로스 자동 탐색 종목만 제거(수동 추가·dismissed·즐겨찾기 유지).
  * @param {{ market?: "kr"|"us"; preserveFavorites?: boolean }} [opts]
  * @returns {number} 제거된 종목 수
