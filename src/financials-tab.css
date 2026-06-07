@@ -252,73 +252,82 @@
 .financials-tab__period-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.38rem;
-  align-items: flex-start;
+  gap: 0.2rem 0.85rem;
+  align-items: baseline;
 }
 
 .financials-tab__period-card {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.16rem;
+  display: inline-flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.22rem;
   flex: 0 0 auto;
-  width: 6.75rem;
-  max-width: 100%;
+  width: auto;
+  max-width: none;
   min-width: 0;
-  padding: 0.38rem 0.48rem;
-  border: 1px solid var(--card-border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-elevated);
-  color: inherit;
+  padding: 0.06rem 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-dim);
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition:
-    border-color 0.15s ease,
-    background 0.15s ease;
+  transition: color 0.12s ease;
 }
 
 .financials-tab__period-card:hover {
-  border-color: color-mix(in srgb, var(--accent) 35%, var(--card-border));
+  color: var(--text);
 }
 
 .financials-tab__period-card--active {
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--card-border));
-  background: color-mix(in srgb, var(--accent-dim) 55%, var(--bg-elevated));
+  color: var(--accent);
 }
 
 .financials-tab__period-label {
-  font-size: 0.84rem;
+  font-size: 0.72rem;
   font-weight: 600;
   font-family: var(--font-mono);
-  line-height: 1.25;
+  line-height: 1.3;
   overflow-wrap: anywhere;
 }
 
 .financials-tab__period-badges {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
+  align-items: baseline;
+  gap: 0.2rem;
 }
 
 .financials-tab__period-kind,
 .financials-tab__period-forecast {
-  display: inline-block;
-  padding: 0.08rem 0.38rem;
-  border-radius: 999px;
-  font-size: 0.62rem;
-  line-height: 1.35;
+  display: inline;
+  padding: 0;
+  border-radius: 0;
+  font-size: 0.64rem;
+  line-height: 1.3;
   font-weight: 500;
+  background: transparent;
 }
 
 .financials-tab__period-kind {
-  background: color-mix(in srgb, var(--surface) 80%, var(--card));
   color: var(--muted);
 }
 
 .financials-tab__period-forecast {
-  background: color-mix(in srgb, var(--warn) 18%, transparent);
   color: var(--warn);
+}
+
+.financials-tab__period-card--active .financials-tab__period-label {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.14em;
+  text-decoration-color: color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+.financials-tab__period-card--active .financials-tab__period-kind {
+  color: color-mix(in srgb, var(--accent) 72%, var(--muted));
 }
 
 .financials-tab__statement {
