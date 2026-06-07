@@ -13,6 +13,7 @@ import { collectWatchSymbolsForProgram } from "./watch-symbols.js";
 import {
   BOX_RANGE_CATALOG_DIR_V2,
   BOX_RANGE_TIMEFRAMES,
+  boxRangeDetectEnabled,
   isBoxRangeCryptoHtfManaged,
   isBoxRangeCryptoHtfSymbol,
   isBoxRangeProgram,
@@ -89,6 +90,7 @@ async function tickCryptoProgram(program) {
   const sim = program.status === "sim";
 
   for (const tf of BOX_RANGE_TIMEFRAMES) {
+    if (!boxRangeDetectEnabled()) break;
     for (const sym of symbols) {
       if (!isBoxRangeCryptoHtfSymbol(sym) || !isBoxRangeCryptoHtfManaged(sym, tf)) {
         continue;

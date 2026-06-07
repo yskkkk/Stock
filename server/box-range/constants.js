@@ -178,4 +178,9 @@ export function isBoxRangeProgram(program) {
   return isAnyBoxRangeProgram(program);
 }
 
+/** 박스권 탐지(카탈로그 스캔·프로그램 detect) — STOCK_BOX_RANGE_DETECT=1 일 때만 기동 */
+export function boxRangeDetectEnabled() {
+  return String(process.env.STOCK_BOX_RANGE_DETECT ?? "0").trim() === "1";
+}
+
 /** 시세: STOCK_BOX_RANGE_QUOTE_* · WS: STOCK_BOX_RANGE_WS(0=off), STOCK_BITHUMB_WS_TICKER, STOCK_BOX_RANGE_WS_MAX_STALE_MS, BITHUMB_WS_* */

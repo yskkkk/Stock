@@ -1,5 +1,5 @@
 import { loadBoxRangeCatalogUniverse } from "../universe.js";
-import { BOX_RANGE_SP500_SCAN_MS } from "./constants.js";
+import { boxRangeDetectEnabled, BOX_RANGE_SP500_SCAN_MS } from "./constants.js";
 import { scanOneSymbolCatalog, scanOneSymbolCatalogV2 } from "./catalog-scan-shared.js";
 import { refreshCatalogIndexSync } from "./catalog-store.js";
 import { notifyCatalogScanTelegram } from "./catalog-scan-telegram.js";
@@ -67,6 +67,7 @@ export async function runSp500BoxRangeCatalogScan() {
 }
 
 export function startSp500BoxRangeCatalogPoller() {
+  if (!boxRangeDetectEnabled()) return;
   if (process.env.STOCK_BOX_RANGE_SP500_SCAN === "0") return;
   const g = /** @type {typeof globalThis & { __stockBoxRangeSp500Scan?: boolean }} */ (
     globalThis

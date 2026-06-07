@@ -2,6 +2,7 @@ import { cryptoYahooUsdtDisplayName } from "../crypto-display-names.js";
 import {
   BOX_RANGE_CRYPTO_HTF_SYMBOLS,
   BOX_RANGE_CRYPTO_SCAN_MS,
+  boxRangeDetectEnabled,
 } from "./constants.js";
 import { scanOneSymbolCatalog, scanOneSymbolCatalogV2 } from "./catalog-scan-shared.js";
 import { refreshCatalogIndexSync } from "./catalog-store.js";
@@ -69,6 +70,7 @@ export async function runCryptoBoxRangeCatalogScan() {
 }
 
 export function startCryptoBoxRangeCatalogPoller() {
+  if (!boxRangeDetectEnabled()) return;
   if (process.env.STOCK_BOX_RANGE_CRYPTO_SCAN === "0") return;
   const g = /** @type {typeof globalThis & { __stockBoxRangeCryptoScan?: boolean }} */ (
     globalThis
