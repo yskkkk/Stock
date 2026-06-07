@@ -599,7 +599,7 @@ export default function FinancialsTab() {
                         <p className="financials-tab__statement-source">
                           {ko.financials.statementSource}: {statement.source}
                           {statement.priorPeriodLabel
-                            ? ` · ${ko.financials.statementPrior}: ${statement.priorPeriodLabel}`
+                            ? ` · ${ko.financials.statementPriorHint} (${statement.priorPeriodLabel})`
                             : ""}
                         </p>
                       </header>
@@ -616,7 +616,9 @@ export default function FinancialsTab() {
                               <tr>
                                 <th scope="col">{ko.financials.statementItem}</th>
                                 <th scope="col">{statement.label}</th>
-                                <th scope="col">{ko.financials.statementPrior}</th>
+                                <th scope="col">
+                                  {statement.priorPeriodLabel ?? ko.financials.statementPrior}
+                                </th>
                                 <th scope="col">{ko.financials.statementYoy}</th>
                               </tr>
                             </thead>
