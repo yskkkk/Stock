@@ -215,6 +215,30 @@ const INDUSTRY_KEYWORD_KO = [
   [/packaging|paper|textile|apparel|footwear|luxury|household/i, "소비재"],
 ];
 
+/** @type {string[]} */
+const STOCK_VAULT_INDUSTRY_EXTRA_KO = [
+  "조선",
+  "제약·바이오",
+  "2차전지",
+  "디스플레이",
+  "통신서비스",
+  "유통·백화",
+  "철강·소재",
+  "카드·여신",
+  "지주사",
+];
+
+/** Yahoo·키워드 매핑 기준 전체 업종 탭 (보관 종목과 무관) */
+export function listStockVaultIndustryTabs() {
+  const labels = new Set([
+    ...Object.values(INDUSTRY_KO),
+    ...INDUSTRY_KEYWORD_KO.map(([, ko]) => ko),
+    ...STOCK_VAULT_INDUSTRY_EXTRA_KO,
+    "기타",
+  ]);
+  return [...labels].sort((a, b) => a.localeCompare(b, "ko"));
+}
+
 function hasHangul(text) {
   return /[\uAC00-\uD7A3]/.test(String(text ?? ""));
 }

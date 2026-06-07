@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { localizeIndustry, normalizeIndustryText } from "./stock-vault-meta.js";
+import { listStockVaultIndustryTabs, localizeIndustry, normalizeIndustryText } from "./stock-vault-meta.js";
 
 describe("stock-vault-meta", () => {
+  it("lists all industry tabs independent of vault holdings", () => {
+    const tabs = listStockVaultIndustryTabs();
+    expect(tabs.length).toBeGreaterThan(60);
+    expect(tabs).toContain("은행");
+    expect(tabs).toContain("반도체");
+    expect(tabs).toContain("기타");
+    expect(tabs).toContain("조선");
+    expect(new Set(tabs).size).toBe(tabs.length);
+  });
+
   it("normalizes dash variants", () => {
     expect(normalizeIndustryText("Drug Manufacturers—General")).toBe(
       "Drug Manufacturers-General",

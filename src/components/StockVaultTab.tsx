@@ -61,6 +61,7 @@ export default function StockVaultTab({
   const [meta, setMeta] = useState<
     Record<string, { industry?: string | null }>
   >({});
+  const [industryTabs, setIndustryTabs] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | StockVaultSource>("all");
@@ -80,6 +81,7 @@ export default function StockVaultTab({
     setItems(vault.items ?? []);
     setQuotes(vault.quotes ?? {});
     setMeta(vault.meta ?? {});
+    setIndustryTabs(vault.industryTabs ?? []);
     onVaultChange?.((vault.items ?? []).map((it) => it.symbol));
   }, [onVaultChange]);
 
@@ -94,6 +96,7 @@ export default function StockVaultTab({
       setItems(vault.items ?? []);
       setQuotes(vault.quotes ?? {});
       setMeta(vault.meta ?? {});
+    setIndustryTabs(vault.industryTabs ?? []);
       onVaultChange?.((vault.items ?? []).map((it) => it.symbol));
       if (status) {
         setScanEnabled(status.enabled);
@@ -176,10 +179,11 @@ export default function StockVaultTab({
       if (!industry) continue;
       counts.set(industry, (counts.get(industry) ?? 0) + 1);
     }
-    return [...counts.entries()]
-      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko"))
-      .map(([name, count]) => ({ name, count }));
-  }, [baseFiltered, getItemIndustry]);
+    return industryTabs.map((name) => ({
+      name,
+      count: counts.get(name) ?? 0,
+    }));
+  }, [baseFiltered, getItemIndustry, industryTabs]);
 
   const filtered = useMemo(() => {
     if (industryFilter === "all") return baseFiltered;
@@ -188,10 +192,10 @@ export default function StockVaultTab({
 
   useEffect(() => {
     if (industryFilter === "all") return;
-    if (!industryOptions.some((opt) => opt.name === industryFilter)) {
+    if (!industryTabs.includes(industryFilter)) {
       setIndustryFilter("all");
     }
-  }, [industryFilter, industryOptions]);
+  }, [industryFilter, industryTabs]);
 
   const marketCounts = useMemo(
     () => ({
@@ -376,7 +380,7 @@ export default function StockVaultTab({
             </div>
           </div>
 
-          {industryOptions.length > 0 ? (
+          {industryTabs.length > 0 ? (
             <div
               className="stock-vault-tab__filters stock-vault-tab__filters--industry panel-head__filters"
               role="tablist"
@@ -402,7 +406,11 @@ export default function StockVaultTab({
                     role="tab"
                     aria-selected={industryFilter === name}
                     className={
-                      industryFilter === name ? "market-tab active" : "market-tab"
+                      industryFilter === name
+                        ? "market-tab active"
+                        : count > 0
+                          ? "market-tab"
+                          : "market-tab market-tab--empty"
                     }
                     onClick={() => setIndustryFilter(name)}
                   >

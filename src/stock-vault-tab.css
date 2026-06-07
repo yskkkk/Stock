@@ -341,6 +341,14 @@
   max-width: none;
 }
 
+.stock-vault-tab__filters--industry .market-tab--empty:not(.active) {
+  opacity: 0.52;
+}
+
+.stock-vault-tab__filters--industry .market-tab--empty:not(.active) .market-tab__count {
+  opacity: 0.85;
+}
+
 .stock-vault-tab__sector {
   margin: 0.12rem 0 0;
   font-size: 0.68rem;
