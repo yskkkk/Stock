@@ -17,6 +17,7 @@ import { startOpsFileDevPoller } from "./ops-file-dev-poller.js";
 import { startServerSelfImprovementWatcher } from "./server-self-improvement-log.js";
 import { prewarmAppCaches } from "./prewarm-caches.js";
 import { startGoldenCrossScanPoller } from "./golden-cross-poller.js";
+import { screeningPollerEnabled, startScreening } from "./screener.js";
 
 function logScreeningError(err) {
   console.warn("[screener]", err instanceof Error ? err.message : err);

@@ -11,6 +11,7 @@ import {
   goldenCrossRecencyClass,
   sortGoldenCrossItems,
 } from "../lib/goldenCrossRecency";
+import { resolveSymbolDisplayName } from "../lib/symbolDisplayName";
 import {
   loadStockVault,
   peekStockVaultPrefetch,
