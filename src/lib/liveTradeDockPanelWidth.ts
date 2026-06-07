@@ -1,6 +1,10 @@
 export const LIVE_TRADE_DOCK_PANEL_WIDTH_VAR = "--live-trade-dock-panel-width";
+export const APP_DOCK_RESERVE_RIGHT_VAR = "--app-dock-reserve-right";
 export const LIVE_TRADE_DOCK_PANEL_WIDTH_PREF =
   "ystock-live-trade-side-dock-panel-width-px";
+
+/** 접힘 — 리사이즈 핸들이 레일 왼쪽으로 살짝 튀어나옴 */
+const DOCK_COLLAPSED_HANDLE_PX = 6;
 
 const RAIL_REM = 3.25;
 const DEFAULT_PANEL_REM = 26;
@@ -128,4 +132,67 @@ export function applyDockPanelWidthCss(px: number): void {
 export function clearDockPanelWidthCss(): void {
   if (typeof document === "undefined") return;
   document.documentElement.style.removeProperty(LIVE_TRADE_DOCK_PANEL_WIDTH_VAR);
+}
+
+function readCssLengthPx(raw: string, fallbackPx: number): number {
+  const v = raw.trim();
+  if (!v) return fallbackPx;
+  if (v.endsWith("px")) {
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? Math.round(n) : fallbackPx;
+  }
+  if (v.endsWith("rem")) {
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? Math.round(n * rootFontPx()) : fallbackPx;
+  }
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? Math.round(n) : fallbackPx;
+}
+
+export function readDockPanelWidthFromCss(): number {
+  if (typeof document === "undefined") return 0;
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(
+    LIVE_TRADE_DOCK_PANEL_WIDTH_VAR,
+  );
+  return Math.max(0, readCssLengthPx(raw, 0));
+}
+
+function dockShellGapPx(): number {
+  if (typeof document === "undefined") return Math.round(0.55 * rootFontPx());
+  const el = document.documentElement;
+  const gapRaw = getComputedStyle(el).getPropertyValue("--live-trade-dock-shell-gap");
+  if (gapRaw.trim()) {
+    return readCssLengthPx(gapRaw, Math.round(0.55 * rootFontPx()));
+  }
+  const tabGapRaw = getComputedStyle(el).getPropertyValue("--tab-stack-gap");
+  return readCssLengthPx(tabGapRaw, Math.round(0.55 * rootFontPx()));
+}
+
+/** 도크 레일(+펼침 시 패널)만큼 본문 우측 여백(px) */
+export function computeAppDockReserveRightPx(opts: {
+  open: boolean;
+  resizing: boolean;
+  panelWidthPx?: number;
+}): number {
+  const rail = dockRailWidthPx();
+  const gap = dockShellGapPx();
+  let panel = 0;
+  if (opts.open || opts.resizing) {
+    panel = Math.max(0, opts.panelWidthPx ?? readDockPanelWidthFromCss());
+  }
+  const handle = !opts.open && !opts.resizing ? DOCK_COLLAPSED_HANDLE_PX : 0;
+  return rail + panel + gap + handle;
+}
+
+export function applyAppDockReserveRightPx(px: number): void {
+  if (typeof document === "undefined") return;
+  document.documentElement.style.setProperty(
+    APP_DOCK_RESERVE_RIGHT_VAR,
+    `${Math.max(0, Math.round(px))}px`,
+  );
+}
+
+export function clearAppDockReserveRight(): void {
+  if (typeof document === "undefined") return;
+  document.documentElement.style.removeProperty(APP_DOCK_RESERVE_RIGHT_VAR);
 }

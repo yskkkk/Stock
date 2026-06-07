@@ -54,15 +54,19 @@ import {
 } from "../lib/liveTradeDockAccount";
 import {
   LIVE_TRADE_DOCK_PANEL_WIDTH_PREF,
+  applyAppDockReserveRightPx,
   applyDockPanelWidthCss,
   clampDockPanelWidthPx,
+  clearAppDockReserveRight,
   clearDockPanelWidthCss,
+  computeAppDockReserveRightPx,
   defaultDockPanelWidthPx,
   dockPanelOpenSnapThresholdPx,
   dockPanelWidthDragPx,
   dockPanelWidthFromCollapsedDrag,
   minDockPanelWidthPx,
   persistDockPanelWidthPref,
+  readDockPanelWidthFromCss,
   readDockPanelWidthPref,
 } from "../lib/liveTradeDockPanelWidth";
 
@@ -725,6 +729,26 @@ export default function AppLiveTradeSideDock({
     applyDockPanelWidthCss(panelWidthPx);
   }, [open, resizing, panelWidthPx]);
 
+  useLayoutEffect(() => {
+    if (!wide || !authChecked) {
+      clearAppDockReserveRight();
+      return;
+    }
+    const panelForReserve =
+      open || resizing
+        ? Math.max(panelWidthPx, readDockPanelWidthFromCss())
+        : 0;
+    applyAppDockReserveRightPx(
+      computeAppDockReserveRightPx({
+        open,
+        resizing,
+        panelWidthPx: panelForReserve,
+      }),
+    );
+  }, [wide, authChecked, open, resizing, panelWidthPx]);
+
+  useEffect(() => () => clearAppDockReserveRight(), []);
+
   useEffect(() => {
     const saved = readDockPanelWidthPref();
     if (saved != null) return;
@@ -735,10 +759,22 @@ export default function AppLiveTradeSideDock({
   useEffect(() => {
     const onResize = () => {
       setPanelWidthPx((w) => clampDockPanelWidthPx(w));
+      if (!wide || !authChecked) return;
+      const panelForReserve =
+        open || resizing
+          ? Math.max(panelWidthPx, readDockPanelWidthFromCss())
+          : 0;
+      applyAppDockReserveRightPx(
+        computeAppDockReserveRightPx({
+          open,
+          resizing,
+          panelWidthPx: panelForReserve,
+        }),
+      );
     };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-  }, []);
+  }, [wide, authChecked, open, resizing, panelWidthPx]);
 
   const onResizePointerDown = useCallback(
     (e: PointerEvent<HTMLButtonElement>) => {
@@ -775,6 +811,13 @@ export default function AppLiveTradeSideDock({
         : dockPanelWidthFromCollapsedDrag(drag.startX, e.clientX, vw);
       applyDockPanelWidthCss(next);
       setPanelWidthPx(next);
+      applyAppDockReserveRightPx(
+        computeAppDockReserveRightPx({
+          open: drag.wasOpen,
+          resizing: true,
+          panelWidthPx: next,
+        }),
+      );
     },
     [],
   );
