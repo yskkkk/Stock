@@ -471,11 +471,7 @@ export default function App() {
     startBackgroundTabPrefetch();
     void loadStockVault()
       .then((data) => {
-        syncVaultSymbols(
-          (data.vault.items ?? [])
-            .filter((it) => it.source === "manual")
-            .map((it) => it.symbol),
-        );
+        syncVaultSymbols(data.vault.favoriteSymbols ?? []);
       })
       .catch(() => {});
   }, [configReady, syncVaultSymbols]);

@@ -21,29 +21,6 @@ beforeEach(() => {
   process.env.GOLDEN_CROSS_HISTORY_TEST_FILE = `golden-cross-history-test-${id}.json`;
 });
 
-test("clearGoldenCrossVaultItemsSync keeps manual items", () => {
-  const manual = `MAN${Date.now()}.KS`;
-  const golden = `GC${Date.now()}.KS`;
-  upsertStockVaultItemSync({
-    symbol: manual,
-    name: "수동보관",
-    market: "kr",
-    source: "manual",
-  });
-  upsertStockVaultItemSync({
-    symbol: golden,
-    name: "골든크로스테스트",
-    market: "kr",
-    source: "golden_cross",
-    crosses: ["5>20"],
-    scanDate: "2026-06-08",
-  });
-  assert.equal(clearGoldenCrossVaultItemsSync(), 1);
-  const items = listStockVaultItemsSync();
-  assert.ok(items.some((it) => it.symbol === manual));
-  assert.ok(!items.some((it) => it.symbol === golden));
-});
-
 test("golden cross history groups runs by runId", () => {
   const runId = "run-test-1";
   appendGoldenCrossHistoryEntrySync({

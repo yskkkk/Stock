@@ -2200,7 +2200,7 @@ export function createApp() {
           market,
           name: name || symbol,
         });
-        res.json({ item: { ...item, favorited: false } });
+        res.json({ item: { ...item, favorited: true } });
       } catch (e) {
         const message = e instanceof Error ? e.message : "저장 실패";
         res.status(400).json({ error: message });
@@ -2239,7 +2239,7 @@ export function createApp() {
         return;
       }
       const result = removeStockVaultItemForUserSync(req.user.id, symbol);
-      if (!result.removedManual && !result.dismissed) {
+      if (!result.removedFavorite && !result.dismissed) {
         res.status(404).json({ error: "종목을 찾을 수 없습니다." });
         return;
       }

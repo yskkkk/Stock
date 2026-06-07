@@ -6,14 +6,19 @@ function userVaultStoreFile() {
 }
 
 /**
- * @typedef {import("./stock-vault-store.js").StockVaultItem} StockVaultItem
+ * @typedef {{
+ *   name: string;
+ *   market: "kr"|"us";
+ *   addedAtMs: number;
+ *   updatedAtMs: number;
+ * }} UserFavoriteMeta
  */
 
 /**
  * @typedef {{
  *   userId: string;
- *   manualItems: StockVaultItem[];
  *   favorites: string[];
+ *   favoriteMeta: Record<string, UserFavoriteMeta>;
  *   dismissed: string[];
  *   updatedAtMs: number;
  * }} UserStockVaultRow
@@ -21,28 +26,40 @@ function userVaultStoreFile() {
 
 /** @typedef {{ version: 1; users: UserStockVaultRow[] }} UserStockVaultStore */
 
+/** @param {unknown} arr */
+function normSymbols(arr) {
+  return [
+    ...new Set(
+      (Array.isArray(arr) ? arr : [])
+        .map((s) => String(s ?? "").trim().toUpperCase())
+        .filter(Boolean),
+    ),
+  ];
+}
+
 /** @param {unknown} raw */
-function normalizeItem(row) {
-  const symbol = String(row?.symbol ?? "")
-    .trim()
-    .toUpperCase();
-  if (!symbol) return null;
-  const market = row?.market === "us" ? "us" : "kr";
-  return {
-    id: String(row?.id ?? randomUUID()),
-    symbol,
-    name: String(row?.name ?? symbol).trim() || symbol,
-    market,
-    source: /** @type {const} */ ("manual"),
-    addedAtMs:
+function normalizeFavoriteMeta(raw) {
+  /** @type {Record<string, UserFavoriteMeta>} */
+  const out = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  for (const [key, row] of Object.entries(raw)) {
+    const symbol = String(key ?? "")
+      .trim()
+      .toUpperCase();
+    if (!symbol) continue;
+    const market = row?.market === "us" ? "us" : "kr";
+    const name = String(row?.name ?? symbol).trim() || symbol;
+    const addedAtMs =
       typeof row?.addedAtMs === "number" && Number.isFinite(row.addedAtMs)
         ? row.addedAtMs
-        : Date.now(),
-    updatedAtMs:
+        : Date.now();
+    const updatedAtMs =
       typeof row?.updatedAtMs === "number" && Number.isFinite(row.updatedAtMs)
         ? row.updatedAtMs
-        : Date.now(),
-  };
+        : addedAtMs;
+    out[symbol] = { name, market, addedAtMs, updatedAtMs };
+  }
+  return out;
 }
 
 /** @param {unknown} raw */
@@ -53,27 +70,38 @@ function normalizeStore(raw) {
   for (const row of users) {
     const userId = String(row?.userId ?? "").trim();
     if (!userId) continue;
-    const manualItems = [];
-    const seen = new Set();
+
+    const favorites = normSymbols(row?.favorites);
+    const favoriteMeta = normalizeFavoriteMeta(row?.favoriteMeta);
+
     for (const item of Array.isArray(row?.manualItems) ? row.manualItems : []) {
-      const norm = normalizeItem(item);
-      if (!norm || seen.has(norm.symbol)) continue;
-      manualItems.push(norm);
-      seen.add(norm.symbol);
+      const symbol = String(item?.symbol ?? "")
+        .trim()
+        .toUpperCase();
+      if (!symbol) continue;
+      if (!favorites.includes(symbol)) favorites.push(symbol);
+      if (!favoriteMeta[symbol]) {
+        const addedAtMs =
+          typeof item?.addedAtMs === "number" && Number.isFinite(item.addedAtMs)
+            ? item.addedAtMs
+            : Date.now();
+        const updatedAtMs =
+          typeof item?.updatedAtMs === "number" && Number.isFinite(item.updatedAtMs)
+            ? item.updatedAtMs
+            : addedAtMs;
+        favoriteMeta[symbol] = {
+          name: String(item?.name ?? symbol).trim() || symbol,
+          market: item?.market === "us" ? "us" : "kr",
+          addedAtMs,
+          updatedAtMs,
+        };
+      }
     }
-    manualItems.sort((a, b) => b.updatedAtMs - a.updatedAtMs);
-    const normSymbols = (arr) =>
-      [
-        ...new Set(
-          (Array.isArray(arr) ? arr : [])
-            .map((s) => String(s ?? "").trim().toUpperCase())
-            .filter(Boolean),
-        ),
-      ];
+
     out.push({
       userId,
-      manualItems,
-      favorites: normSymbols(row?.favorites),
+      favorites,
+      favoriteMeta,
       dismissed: normSymbols(row?.dismissed),
       updatedAtMs:
         typeof row?.updatedAtMs === "number" && Number.isFinite(row.updatedAtMs)
@@ -104,8 +132,8 @@ function ensureUserRow(store, userId) {
   if (!row) {
     row = {
       userId: uid,
-      manualItems: [],
       favorites: [],
+      favoriteMeta: {},
       dismissed: [],
       updatedAtMs: Date.now(),
     };
@@ -121,8 +149,8 @@ export function getUserStockVaultSync(userId) {
   return (
     row ?? {
       userId: uid,
-      manualItems: [],
       favorites: [],
+      favoriteMeta: {},
       dismissed: [],
       updatedAtMs: Date.now(),
     }
@@ -133,7 +161,7 @@ export function getUserStockVaultSync(userId) {
  * @param {string} userId
  * @param {{ symbol: string; name?: string; market: "kr"|"us" }} input
  */
-export function upsertUserManualVaultItemSync(userId, input) {
+export function addUserVaultFavoriteEntrySync(userId, input) {
   const uid = String(userId ?? "").trim();
   const symbol = String(input.symbol ?? "")
     .trim()
@@ -147,30 +175,31 @@ export function upsertUserManualVaultItemSync(userId, input) {
   const now = Date.now();
   const store = readStore();
   const row = ensureUserRow(store, uid);
-  const idx = row.manualItems.findIndex((it) => it.symbol === symbol);
-  if (idx >= 0) {
-    const prev = row.manualItems[idx];
-    row.manualItems[idx] = {
-      ...prev,
-      name: String(input.name ?? prev.name).trim() || prev.name,
-      market,
-      updatedAtMs: now,
-    };
-  } else {
-    row.manualItems.unshift({
-      id: randomUUID(),
-      symbol,
-      name: String(input.name ?? symbol).trim() || symbol,
-      market,
-      source: "manual",
-      addedAtMs: now,
-      updatedAtMs: now,
-    });
-  }
+  if (!row.favorites.includes(symbol)) row.favorites.push(symbol);
+  const prev = row.favoriteMeta[symbol];
+  row.favoriteMeta[symbol] = {
+    name: String(input.name ?? prev?.name ?? symbol).trim() || symbol,
+    market,
+    addedAtMs: prev?.addedAtMs ?? now,
+    updatedAtMs: now,
+  };
   row.dismissed = row.dismissed.filter((s) => s !== symbol);
   row.updatedAtMs = now;
   writeStore(store);
-  return row.manualItems.find((it) => it.symbol === symbol) ?? null;
+  return {
+    id: randomUUID(),
+    symbol,
+    name: row.favoriteMeta[symbol].name,
+    market,
+    source: /** @type {const} */ ("favorite"),
+    addedAtMs: row.favoriteMeta[symbol].addedAtMs,
+    updatedAtMs: now,
+  };
+}
+
+/** @deprecated use addUserVaultFavoriteEntrySync */
+export function upsertUserManualVaultItemSync(userId, input) {
+  return addUserVaultFavoriteEntrySync(userId, input);
 }
 
 /**
@@ -182,27 +211,23 @@ export function removeUserVaultSymbolSync(userId, symbol) {
   const sym = String(symbol ?? "")
     .trim()
     .toUpperCase();
-  if (!uid || !sym) return { removedManual: false, dismissed: false };
+  if (!uid || !sym) return { removedFavorite: false, dismissed: false };
   const store = readStore();
   const row = ensureUserRow(store, uid);
-  const beforeManual = row.manualItems.length;
-  row.manualItems = row.manualItems.filter((it) => it.symbol !== sym);
-  const removedManual = row.manualItems.length < beforeManual;
-  if (removedManual) {
-    row.favorites = row.favorites.filter((s) => s !== sym);
-  } else if (!row.dismissed.includes(sym)) {
+  const hadFavorite = row.favorites.includes(sym);
+  const hadMeta = Boolean(row.favoriteMeta[sym]);
+  row.favorites = row.favorites.filter((s) => s !== sym);
+  if (hadMeta) delete row.favoriteMeta[sym];
+  let dismissed = false;
+  if (!hadMeta && !row.dismissed.includes(sym)) {
     row.dismissed.push(sym);
+    dismissed = true;
   }
   row.updatedAtMs = Date.now();
   writeStore(store);
-  return { removedManual, dismissed: !removedManual };
+  return { removedFavorite: hadFavorite || hadMeta, dismissed };
 }
 
-/**
- * @param {string} userId
- * @param {string} symbol
- * @param {boolean} favorited
- */
 /** @returns {Set<string>} */
 export function listAllFavoritedSymbolsSync() {
   const out = new Set();
@@ -234,6 +259,7 @@ export function setUserVaultFavoriteSync(userId, symbol, favorited) {
     if (!has) row.favorites.push(sym);
   } else {
     row.favorites = row.favorites.filter((s) => s !== sym);
+    delete row.favoriteMeta[sym];
   }
   row.updatedAtMs = Date.now();
   writeStore(store);

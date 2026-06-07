@@ -2,10 +2,11 @@ import { test, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import { upsertStockVaultItemSync, removeStockVaultItemSync } from "./stock-vault-store.js";
 import { buildStockVaultItemsForUserSync } from "./stock-vault-view.js";
+import { writeJsonStoreSync } from "./store-json.js";
 import {
-  setUserVaultFavoriteSync,
-  upsertUserManualVaultItemSync,
+  addUserVaultFavoriteEntrySync,
   removeUserVaultSymbolSync,
+  setUserVaultFavoriteSync,
 } from "./user-stock-vault-store.js";
 
 beforeEach(() => {
@@ -14,10 +15,10 @@ beforeEach(() => {
   process.env.USER_STOCK_VAULT_STORE_TEST_FILE = `user-stock-vault-test-${id}.json`;
 });
 
-test("buildStockVaultItemsForUserSync merges global golden cross and user manual", () => {
+test("buildStockVaultItemsForUserSync merges global golden cross and user favorites", () => {
   const userId = `user-${Date.now()}`;
   const gcSym = `ZXGC${Date.now()}.KS`;
-  const manualSym = `ZXMAN${Date.now()}.KS`;
+  const favSym = `ZXFAV${Date.now()}.KS`;
 
   try {
     upsertStockVaultItemSync({
@@ -28,23 +29,24 @@ test("buildStockVaultItemsForUserSync merges global golden cross and user manual
       crosses: ["5>20"],
       scanDate: "2026-05-29",
     });
-    upsertUserManualVaultItemSync(userId, {
-      symbol: manualSym,
-      name: "수동보관",
+    addUserVaultFavoriteEntrySync(userId, {
+      symbol: favSym,
+      name: "즐겨찾기보관",
       market: "kr",
     });
 
     const guest = buildStockVaultItemsForUserSync(null);
     assert.equal(guest.authenticated, false);
     assert.ok(guest.items.some((it) => it.symbol === gcSym));
-    assert.ok(!guest.items.some((it) => it.symbol === manualSym));
+    assert.ok(!guest.items.some((it) => it.symbol === favSym));
 
     const mine = buildStockVaultItemsForUserSync(userId);
     assert.equal(mine.authenticated, true);
     assert.ok(mine.items.some((it) => it.symbol === gcSym));
-    assert.ok(mine.items.some((it) => it.symbol === manualSym));
+    assert.ok(mine.items.some((it) => it.symbol === favSym && it.source === "favorite"));
+    assert.ok(mine.favoriteSymbols.includes(favSym));
   } finally {
-    removeUserVaultSymbolSync(userId, manualSym);
+    removeUserVaultSymbolSync(userId, favSym);
     removeStockVaultItemSync(gcSym);
   }
 });
@@ -77,4 +79,36 @@ test("user favorites and dismiss are scoped per account", () => {
     removeUserVaultSymbolSync(userB, sym);
     removeStockVaultItemSync(sym);
   }
+});
+
+test("legacy manualItems migrate into favorites", () => {
+  const userId = `user-migrate-${Date.now()}`;
+  const sym = `ZXLEG${Date.now()}.KS`;
+  process.env.USER_STOCK_VAULT_STORE_TEST_FILE = `user-stock-vault-migrate-${Date.now()}.json`;
+  writeJsonStoreSync(process.env.USER_STOCK_VAULT_STORE_TEST_FILE, {
+    version: 1,
+    users: [
+      {
+        userId,
+        manualItems: [
+          {
+            id: "legacy-1",
+            symbol: sym,
+            name: "레거시수동",
+            market: "kr",
+            source: "manual",
+            addedAtMs: 1,
+            updatedAtMs: 2,
+          },
+        ],
+        favorites: [],
+        dismissed: [],
+        updatedAtMs: 3,
+      },
+    ],
+  });
+
+  const view = buildStockVaultItemsForUserSync(userId);
+  assert.ok(view.favoriteSymbols.includes(sym));
+  assert.ok(view.items.some((it) => it.symbol === sym && it.source === "favorite"));
 });

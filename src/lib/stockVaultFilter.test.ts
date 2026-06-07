@@ -29,7 +29,6 @@ describe("stockVaultFilter", () => {
       item({ symbol: "B.KS", source: "ma_align" }),
     ];
     const rows = buildVaultDisplayRows(items, {
-      view: "scan",
       selectedScanSources: ["golden_cross"],
       marketFilter: "all",
       favoriteOnly: false,
@@ -46,7 +45,6 @@ describe("stockVaultFilter", () => {
       item({ symbol: "C.KS", source: "ma_align" }),
     ];
     const rows = buildVaultDisplayRows(items, {
-      view: "scan",
       selectedScanSources: ["golden_cross", "ma_align"],
       marketFilter: "all",
       favoriteOnly: false,
@@ -73,11 +71,25 @@ describe("stockVaultFilter", () => {
       item({ symbol: "B.KS", source: "ma_align" }),
     ];
     const rows = buildVaultDisplayRows(items, {
-      view: "scan",
       selectedScanSources: [],
       marketFilter: "all",
       favoriteOnly: false,
     });
     expect(rows).toHaveLength(0);
+  });
+
+  it("lists favorite-only items when favorite filter is on", () => {
+    const items = [
+      item({ symbol: "A.KS", source: "favorite", favorited: true }),
+      item({ symbol: "B.KS", source: "golden_cross" }),
+    ];
+    const rows = buildVaultDisplayRows(items, {
+      selectedScanSources: ["golden_cross"],
+      marketFilter: "all",
+      favoriteOnly: true,
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.symbol).toBe("A.KS");
+    expect(rows[0]?.favorite).toBeTruthy();
   });
 });

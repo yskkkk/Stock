@@ -97,9 +97,12 @@ function scanHintFromState(
 
 type VaultFilter = "all" | "favorite";
 
-function manualVaultSymbols(items: StockVaultItem[]) {
-  return items
-    .filter((it) => it.source === "manual")
+function favoriteVaultSymbols(vault: Pick<StockVaultResponse, "favoriteSymbols" | "items">) {
+  if (vault.favoriteSymbols?.length) {
+    return vault.favoriteSymbols.map((s) => s.trim().toUpperCase());
+  }
+  return (vault.items ?? [])
+    .filter((it) => it.favorited || it.source === "favorite")
     .map((it) => it.symbol.trim().toUpperCase());
 }
 
@@ -168,7 +171,6 @@ export default function StockVaultTab({
   const [loading, setLoading] = useState(!cachedInit);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<VaultFilter>("all");
-  const [vaultView, setVaultView] = useState<"scan" | "manual">("scan");
   const [selectedScanSources, setSelectedScanSources] = useState<
     StockVaultScanSource[]
   >(["golden_cross"]);
@@ -212,7 +214,7 @@ export default function StockVaultTab({
             ? Math.max(16, Math.ceil(vault.industryTabs.length / 8))
             : prev,
       );
-      onVaultChange?.(manualVaultSymbols(vault.items ?? []));
+      onVaultChange?.(favoriteVaultSymbols(vault));
       updateStockVaultPrefetchVault(vault);
     },
     [onVaultChange],
@@ -308,7 +310,6 @@ export default function StockVaultTab({
   );
 
   const toggleScanSource = useCallback((source: StockVaultScanSource) => {
-    setVaultView("scan");
     setIndustryFilter("all");
     setSelectedScanSources((prev) => {
       const set = new Set(prev);
@@ -319,11 +320,6 @@ export default function StockVaultTab({
       }
       return STOCK_VAULT_SCAN_SOURCES.filter((s) => set.has(s));
     });
-  }, []);
-
-  const selectManualView = useCallback(() => {
-    setVaultView("manual");
-    setIndustryFilter("all");
   }, []);
 
   const scanSourceCounts = useMemo(
@@ -337,31 +333,24 @@ export default function StockVaultTab({
     [items],
   );
 
-  const manualCount = useMemo(
-    () => items.filter((it) => it.source === "manual").length,
-    [items],
-  );
-
   const preMarketRows = useMemo(
     () =>
       buildVaultDisplayRows(items, {
-        view: vaultView,
         selectedScanSources,
         marketFilter: "all",
         favoriteOnly: filter === "favorite",
       }),
-    [items, vaultView, selectedScanSources, filter],
+    [items, selectedScanSources, filter],
   );
 
   const baseFiltered = useMemo(
     () =>
       buildVaultDisplayRows(items, {
-        view: vaultView,
         selectedScanSources,
         marketFilter,
         favoriteOnly: filter === "favorite",
       }),
-    [items, vaultView, selectedScanSources, marketFilter, filter],
+    [items, selectedScanSources, marketFilter, filter],
   );
 
   const favoriteCount = useMemo(
@@ -388,10 +377,10 @@ export default function StockVaultTab({
   }, [baseFiltered, industryFilter, getRowIndustry]);
 
   const intersectionActive =
-    vaultView === "scan" && selectedScanSources.length >= 2;
+    filter !== "favorite" && selectedScanSources.length >= 2;
 
   const showSelectScanCondition =
-    vaultView === "scan" && selectedScanSources.length === 0;
+    filter !== "favorite" && selectedScanSources.length === 0;
 
   const showEmptyIntersection =
     intersectionActive &&
@@ -433,7 +422,11 @@ export default function StockVaultTab({
         await removeStockVaultItem(symbol);
         setItems((prev) => {
           const next = prev.filter((it) => it.symbol !== sym);
-          onVaultChange?.(manualVaultSymbols(next));
+          onVaultChange?.(
+            next
+              .filter((it) => it.favorited || it.source === "favorite")
+              .map((it) => it.symbol.trim().toUpperCase()),
+          );
           return next;
         });
       } catch (e) {
@@ -580,8 +573,7 @@ export default function StockVaultTab({
           >
             <div className="market-tabs market-tabs--vault-scan">
               {STOCK_VAULT_SCAN_SOURCES.map((source) => {
-                const active =
-                  vaultView === "scan" && selectedScanSources.includes(source);
+                const active = selectedScanSources.includes(source);
                 return (
                   <button
                     key={source}
@@ -599,20 +591,6 @@ export default function StockVaultTab({
                   </button>
                 );
               })}
-              <button
-                type="button"
-                role="tab"
-                aria-selected={vaultView === "manual"}
-                className={
-                  vaultView === "manual"
-                    ? "market-tab market-tab--manual active"
-                    : "market-tab market-tab--manual"
-                }
-                onClick={selectManualView}
-              >
-                {ko.stockVault.tabManual}
-                <span className="market-tab__count">{manualCount}</span>
-              </button>
             </div>
             {intersectionActive ? (
               <p className="stock-vault-tab__intersection-hint">
@@ -783,12 +761,13 @@ export default function StockVaultTab({
                 gcItem?.crossDate ??
                 gcItem?.scanDate ??
                 row.maAlign?.scanDate ??
-                row.manual?.scanDate ??
                 null;
               const sourceLabels =
                 row.scanSources.length > 0
                   ? row.scanSources.map((s) => SOURCE_BADGE_LABEL[s])
-                  : [ko.stockVault.sourceManual];
+                  : row.favorite
+                    ? [ko.stockVault.sourceFavorite]
+                    : [];
               const finRow = industryFinancials[symKey];
               const sectorLeader = Boolean(finRow?.sectorLeader);
               return (

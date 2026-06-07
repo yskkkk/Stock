@@ -7,7 +7,7 @@ function vaultStoreFile() {
   return process.env.STOCK_VAULT_STORE_TEST_FILE?.trim() || "stock-vault.json";
 }
 
-/** @typedef {"manual"|"golden_cross"|"ma_align"} StockVaultSource */
+/** @typedef {"golden_cross"|"ma_align"} StockVaultSource */
 
 /**
  * @typedef {{
@@ -32,7 +32,7 @@ const TEST_JUNK_NAMES = new Set(["골든", "즐겨", "수동", "테스트"]);
 function normalizeSource(source) {
   if (source === "golden_cross") return "golden_cross";
   if (source === "ma_align") return "ma_align";
-  return "manual";
+  return null;
 }
 
 /** @param {StockVaultItem} item */
@@ -62,8 +62,9 @@ function normalizeStore(raw) {
       .toUpperCase();
     if (!symbol || seen.has(`${symbol}:${normalizeSource(row?.source)}`)) continue;
     if (isTestGarbageItem(row)) continue;
-    const market = row?.market === "us" ? "us" : "kr";
     const source = normalizeSource(row?.source);
+    if (!source) continue;
+    const market = row?.market === "us" ? "us" : "kr";
     const crosses = Array.isArray(row?.crosses)
       ? row.crosses.filter((c) => c === "5>20" || c === "5>60" || c === "5>120")
       : [];
@@ -153,6 +154,11 @@ export function upsertStockVaultItemSync(input) {
   const now = Date.now();
   const store = readStore();
   const source = normalizeSource(input.source);
+  if (!source) {
+    const err = new Error("invalid source");
+    err.code = "INVALID_SOURCE";
+    throw err;
+  }
   const crosses = Array.isArray(input.crosses)
     ? input.crosses.filter((c) => c === "5>20" || c === "5>60" || c === "5>120")
     : [];
@@ -203,9 +209,6 @@ export function upsertStockVaultItemSync(input) {
       updatedAtMs: now,
     });
   }
-  if (source === "manual") {
-    store.dismissed = (store.dismissed ?? []).filter((s) => s !== symbol);
-  }
   writeStore(store);
   return store.items.find((it) => it.symbol === symbol && it.source === source) ?? null;
 }
@@ -245,7 +248,7 @@ export function removeStockVaultItemBySourceSync(symbol, source) {
 }
 
 /**
- * 골든크로스 자동 탐색 종목만 제거(수동 추가·dismissed·즐겨찾기 유지).
+ * 골든크로스 자동 탐색 종목만 제거(즐겨찾기·dismissed 유지).
  * @param {{ market?: "kr"|"us"; preserveFavorites?: boolean }} [opts]
  * @returns {number} 제거된 종목 수
  */

@@ -11,20 +11,18 @@ beforeEach(() => {
   process.env.STOCK_VAULT_STORE_TEST_FILE = `stock-vault-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.json`;
 });
 
-test("stock vault manual upsert and remove", () => {
+test("global vault rejects manual source upsert", () => {
   const sym = `TEST${Date.now()}.KS`;
-  try {
-    upsertStockVaultItemSync({
-      symbol: sym,
-      name: "수동보관테스트",
-      market: "kr",
-      source: "manual",
-    });
-    const items = listStockVaultItemsSync();
-    assert.ok(items.some((it) => it.symbol === sym));
-  } finally {
-    removeStockVaultItemSync(sym);
-  }
+  assert.throws(
+    () =>
+      upsertStockVaultItemSync({
+        symbol: sym,
+        name: "수동보관테스트",
+        market: "kr",
+        source: "manual",
+      }),
+    /invalid source/i,
+  );
 });
 
 test("removed golden cross symbols stay dismissed", () => {

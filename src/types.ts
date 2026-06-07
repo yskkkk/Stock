@@ -358,11 +358,11 @@ export interface FinancialStatementAnalysisResponse extends FinancialStatementDe
   aiOpinion: FinancialAiOpinion;
 }
 
-export type StockVaultSource = "manual" | "golden_cross" | "ma_align";
+export type StockVaultSource = "golden_cross" | "ma_align" | "favorite";
 /** 자동 탐색 조건 — stockVaultFilter.STOCK_VAULT_SCAN_SOURCES 와 동기 */
 export type StockVaultScanSource = "golden_cross" | "ma_align";
 export type GoldenCrossKind = "5>20" | "5>60" | "5>120";
-export type StockVaultKindTab = "golden_cross" | "ma_align" | "manual";
+export type StockVaultKindTab = "golden_cross" | "ma_align";
 
 export interface StockVaultItem {
   id: string;
