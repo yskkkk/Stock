@@ -349,20 +349,38 @@
 }
 
 .stock-vault-tab__filters--industry {
-  align-items: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.24rem;
   width: 100%;
 }
 
-.stock-vault-tab__filters--industry .market-tabs {
+.stock-vault-tab__filters--industry .market-tab--industry-all {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.16rem;
+  min-height: 1.34rem;
+  padding: 0.16rem 0.14rem 0.16rem 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.stock-vault-tab__industry-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(5.6rem, max-content));
+  grid-auto-flow: column;
+  grid-template-rows: repeat(var(--stock-vault-industry-rows, 20), auto);
+  grid-auto-columns: max-content;
+  align-content: start;
   justify-content: start;
   gap: 0.1rem 0.42rem;
   width: 100%;
   max-width: 100%;
 }
 
-.stock-vault-tab__filters--industry .market-tab {
+.stock-vault-tab__industry-grid .market-tab {
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
@@ -378,7 +396,7 @@
   overflow: hidden;
 }
 
-.stock-vault-tab__filters--industry .market-tab__label {
+.stock-vault-tab__industry-grid .market-tab__label {
   flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
@@ -386,7 +404,7 @@
   white-space: nowrap;
 }
 
-.stock-vault-tab__filters--industry .market-tab__count {
+.stock-vault-tab__industry-grid .market-tab__count {
   flex: 0 0 auto;
   min-width: 0;
   font-size: 0.62rem;
@@ -396,15 +414,15 @@
   text-align: left;
 }
 
-.stock-vault-tab__filters--industry .market-tab--empty:not(.active) {
+.stock-vault-tab__industry-grid .market-tab--empty:not(.active) {
   color: color-mix(in srgb, var(--muted) 68%, transparent);
 }
 
-.stock-vault-tab__filters--industry .market-tab--empty:not(.active) .market-tab__count {
+.stock-vault-tab__industry-grid .market-tab--empty:not(.active) .market-tab__count {
   color: color-mix(in srgb, var(--muted) 78%, transparent);
 }
 
-.stock-vault-tab__filters--industry .market-tab.active {
+.stock-vault-tab__industry-grid .market-tab.active {
   font-weight: 700;
 }
 

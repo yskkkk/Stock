@@ -2150,7 +2150,7 @@ export function createApp() {
     "/api/stock-vault",
     asyncRoute(async (_req, res) => {
       const { listStockVaultItemsSync } = await import("./stock-vault-store.js");
-      const { fetchStockVaultMetaForItems, listStockVaultIndustryTabs } =
+      const { fetchStockVaultMetaForItems, listStockVaultIndustryTabs, stockVaultIndustryGridRows } =
         await import("./stock-vault-meta.js");
       const items = listStockVaultItemsSync();
       const symbols = items.map((it) => it.symbol);
@@ -2158,7 +2158,14 @@ export function createApp() {
         symbols.length > 0 ? fetchQuoteSnapshotsForSymbols(symbols) : Promise.resolve({}),
         fetchStockVaultMetaForItems(items),
       ]);
-      res.json({ items, quotes, meta, industryTabs: listStockVaultIndustryTabs() });
+      const industryTabs = listStockVaultIndustryTabs();
+      res.json({
+        items,
+        quotes,
+        meta,
+        industryTabs,
+        industryGridRows: stockVaultIndustryGridRows(industryTabs.length),
+      });
     }),
   );
 

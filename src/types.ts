@@ -376,6 +376,7 @@ export interface StockVaultResponse {
     }
   >;
   industryTabs?: string[];
+  industryGridRows?: number;
 }
 
 export interface GoldenCrossScanState {

@@ -62,6 +62,7 @@ export default function StockVaultTab({
     Record<string, { industry?: string | null }>
   >({});
   const [industryTabs, setIndustryTabs] = useState<string[]>([]);
+  const [industryGridRows, setIndustryGridRows] = useState(20);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | StockVaultSource>("all");
@@ -82,6 +83,11 @@ export default function StockVaultTab({
     setQuotes(vault.quotes ?? {});
     setMeta(vault.meta ?? {});
     setIndustryTabs(vault.industryTabs ?? []);
+    setIndustryGridRows(
+      typeof vault.industryGridRows === "number" && vault.industryGridRows > 0
+        ? vault.industryGridRows
+        : Math.max(16, Math.ceil((vault.industryTabs?.length ?? 0) / 8)),
+    );
     onVaultChange?.((vault.items ?? []).map((it) => it.symbol));
   }, [onVaultChange]);
 
@@ -97,6 +103,11 @@ export default function StockVaultTab({
       setQuotes(vault.quotes ?? {});
       setMeta(vault.meta ?? {});
     setIndustryTabs(vault.industryTabs ?? []);
+    setIndustryGridRows(
+      typeof vault.industryGridRows === "number" && vault.industryGridRows > 0
+        ? vault.industryGridRows
+        : Math.max(16, Math.ceil((vault.industryTabs?.length ?? 0) / 8)),
+    );
       onVaultChange?.((vault.items ?? []).map((it) => it.symbol));
       if (status) {
         setScanEnabled(status.enabled);
@@ -386,19 +397,28 @@ export default function StockVaultTab({
               role="tablist"
               aria-label={ko.stockVault.filterIndustryAria}
             >
-              <div className="market-tabs">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={industryFilter === "all"}
-                  className={
-                    industryFilter === "all" ? "market-tab active" : "market-tab"
-                  }
-                  onClick={() => setIndustryFilter("all")}
-                >
-                  <span className="market-tab__label">{ko.stockVault.filterAll}</span>
-                  <span className="market-tab__count">{baseFiltered.length}</span>
-                </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={industryFilter === "all"}
+                className={
+                  industryFilter === "all"
+                    ? "market-tab market-tab--industry-all active"
+                    : "market-tab market-tab--industry-all"
+                }
+                onClick={() => setIndustryFilter("all")}
+              >
+                <span className="market-tab__label">{ko.stockVault.filterAll}</span>
+                <span className="market-tab__count">{baseFiltered.length}</span>
+              </button>
+              <div
+                className="market-tabs stock-vault-tab__industry-grid"
+                style={
+                  {
+                    "--stock-vault-industry-rows": industryGridRows,
+                  } as React.CSSProperties
+                }
+              >
                 {industryOptions.map(({ name, count }) => (
                   <button
                     key={name}

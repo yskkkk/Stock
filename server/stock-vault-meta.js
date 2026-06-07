@@ -228,15 +228,214 @@ const STOCK_VAULT_INDUSTRY_EXTRA_KO = [
   "지주사",
 ];
 
-/** Yahoo·키워드 매핑 기준 전체 업종 탭 (보관 종목과 무관) */
-export function listStockVaultIndustryTabs() {
-  const labels = new Set([
+/** 유사 업종끼리 세로로 붙도록 그룹 순서 고정 */
+/** @type {string[][]} */
+const STOCK_VAULT_INDUSTRY_GROUPS = [
+  [
+    "반도체",
+    "반도체 장비·소재",
+    "2차전지",
+    "디스플레이",
+    "전자",
+    "전자부품",
+    "가전·전자",
+    "IT 서비스",
+    "IT 하드웨어",
+    "컴퓨터 하드웨어",
+    "소프트웨어",
+    "통신장비",
+    "인터넷",
+    "인터넷·정보",
+    "게임·멀티미디어",
+    "기술",
+  ],
+  [
+    "은행",
+    "보험",
+    "생명보험",
+    "손해보험",
+    "증권·자본시장",
+    "자산운용",
+    "여신·카드",
+    "카드·여신",
+    "금융데이터·거래소",
+    "모기지 금융",
+    "금융",
+    "지주사",
+    "지주·복합",
+    "스펙",
+  ],
+  [
+    "리츠",
+    "리츠(주거)",
+    "리츠(오피스)",
+    "리츠(물류·산업)",
+    "리츠(리테일)",
+    "리츠(의료)",
+    "리츠(모기지)",
+    "리츠(호텔)",
+    "부동산",
+    "부동산 개발",
+    "부동산 서비스",
+  ],
+  [
+    "헬스케어",
+    "헬스케어 IT",
+    "의료기기",
+    "의료기기·소모품",
+    "의료기관",
+    "진단·연구",
+    "제약",
+    "바이오",
+    "제약·바이오",
+  ],
+  [
+    "에너지",
+    "석유·가스",
+    "석유·가스 탐사",
+    "석유·가스 midstream",
+    "정유·판매",
+    "유정·시추",
+    "석유·가스 장비",
+    "전력",
+    "가스",
+    "수도",
+    "신재생에너지",
+    "발전",
+    "유틸리티",
+    "전력·유틸리티",
+    "태양광",
+    "우라늄",
+    "석탄",
+  ],
+  [
+    "소재",
+    "소재·광업",
+    "화학",
+    "특수화학",
+    "철강",
+    "철강·소재",
+    "구리",
+    "알루미늄",
+    "금",
+    "귀금속·광업",
+    "비철·광업",
+    "건축자재",
+    "금속 가공",
+    "목재",
+    "환경·처리",
+    "폐기물",
+  ],
+  [
+    "산업재",
+    "산업기계",
+    "건설·농기계",
+    "건설·엔지니어링",
+    "건설",
+    "주택 건설",
+    "건자재·장비",
+    "조선",
+    "항공·방산",
+    "전기장비",
+    "과학·측정기기",
+    "사무·산업용품",
+    "농업 투입재",
+  ],
+  ["자동차", "자동차 부품", "자동차 딜러", "레저용 차량"],
+  [
+    "경기소비재",
+    "필수소비재",
+    "소비재",
+    "할인유통",
+    "백화점",
+    "홈리테일",
+    "전문 리테일",
+    "의류 유통",
+    "식료품 유통",
+    "온라인 유통",
+    "유통",
+    "유통·백화",
+    "식품 유통",
+    "가공식품",
+    "음료",
+    "주류",
+    "외식",
+    "식품·외식",
+    "생활·위생용품",
+    "가구·가전",
+    "명품",
+    "신발·잡화",
+    "의류",
+    "섬유",
+    "포장·용기",
+    "제지",
+    "제과",
+    "담배",
+    "공구·잡화",
+    "개인 서비스",
+  ],
+  ["운송·물류", "물류", "철도", "항공", "해운", "트럭 운송"],
+  [
+    "미디어·엔터",
+    "엔터테인먼트",
+    "방송",
+    "출판",
+    "광고",
+    "도박·게임",
+    "리조트·카지노",
+    "레저",
+    "여행",
+    "숙박",
+  ],
+  ["통신", "통신서비스", "커뮤니케이션"],
+  [
+    "컨설팅",
+    "교육",
+    "인력·고용",
+    "보안",
+    "전문 B2B 서비스",
+    "렌탈·리스",
+    "농산물",
+    "기타",
+  ],
+];
+
+function collectStockVaultIndustryLabelSet() {
+  return new Set([
     ...Object.values(INDUSTRY_KO),
     ...INDUSTRY_KEYWORD_KO.map(([, ko]) => ko),
     ...STOCK_VAULT_INDUSTRY_EXTRA_KO,
     "기타",
   ]);
-  return [...labels].sort((a, b) => a.localeCompare(b, "ko"));
+}
+
+/** 그리드 세로 칸 수 (유사 업종 열 묶음용) */
+export function stockVaultIndustryGridRows(tabCount) {
+  const n = Number(tabCount);
+  if (!Number.isFinite(n) || n < 1) return 18;
+  return Math.max(16, Math.min(24, Math.ceil(n / 8)));
+}
+
+/** Yahoo·키워드 매핑 기준 전체 업종 탭 — 유사 업종끼리 인접·세로 배치 순 */
+export function listStockVaultIndustryTabs() {
+  const all = collectStockVaultIndustryLabelSet();
+  /** @type {string[]} */
+  const ordered = [];
+  const seen = new Set();
+
+  for (const group of STOCK_VAULT_INDUSTRY_GROUPS) {
+    for (const label of group) {
+      if (!all.has(label) || seen.has(label)) continue;
+      ordered.push(label);
+      seen.add(label);
+    }
+  }
+
+  const rest = [...all]
+    .filter((label) => !seen.has(label))
+    .sort((a, b) => a.localeCompare(b, "ko"));
+  ordered.push(...rest);
+  return ordered;
 }
 
 function hasHangul(text) {

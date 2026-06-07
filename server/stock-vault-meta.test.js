@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { listStockVaultIndustryTabs, localizeIndustry, normalizeIndustryText } from "./stock-vault-meta.js";
+import {
+  listStockVaultIndustryTabs,
+  localizeIndustry,
+  normalizeIndustryText,
+  stockVaultIndustryGridRows,
+} from "./stock-vault-meta.js";
 
 describe("stock-vault-meta", () => {
   it("lists all industry tabs independent of vault holdings", () => {
@@ -10,6 +15,22 @@ describe("stock-vault-meta", () => {
     expect(tabs).toContain("기타");
     expect(tabs).toContain("조선");
     expect(new Set(tabs).size).toBe(tabs.length);
+  });
+
+  it("groups similar industries adjacently", () => {
+    const tabs = listStockVaultIndustryTabs();
+    const bank = tabs.indexOf("은행");
+    const insurance = tabs.indexOf("보험");
+    const semi = tabs.indexOf("반도체");
+    const semiEq = tabs.indexOf("반도체 장비·소재");
+    expect(bank).toBeGreaterThan(-1);
+    expect(insurance).toBe(bank + 1);
+    expect(semiEq).toBe(semi + 1);
+  });
+
+  it("computes vertical grid row count", () => {
+    expect(stockVaultIndustryGridRows(157)).toBe(20);
+    expect(stockVaultIndustryGridRows(0)).toBe(18);
   });
 
   it("normalizes dash variants", () => {
