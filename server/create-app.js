@@ -11,7 +11,13 @@ import {
 } from "./access-control.js";
 import { requireAccessAdmin } from "./route-guards.js";
 import { appendServerEventLog, expressAccessLogger, clientIp as expressClientIp } from "./access-log.js";
-import { isDartEnabled } from "./dart.js";
+import {
+  fetchDartDisclosures,
+  getDartStatus,
+  isDartEnabled,
+  searchDartCompanies,
+  searchDartDisclosures,
+} from "./dart.js";
 import {
   ensureScreening,
   forceRescreen,
@@ -2006,6 +2012,67 @@ export function createApp() {
       } catch (err) {
         const message = err instanceof Error ? err.message : "요청 실패";
         res.status(404).json({ error: message });
+      }
+    }),
+  );
+
+  app.get(
+    "/api/dart/status",
+    asyncRoute(async (_req, res) => {
+      res.json(getDartStatus());
+    }),
+  );
+
+  app.get(
+    "/api/dart/companies",
+    asyncRoute(async (req, res) => {
+      if (!isDartEnabled()) {
+        res.json({ enabled: false, items: [] });
+        return;
+      }
+      const q = String(req.query.q ?? "").trim();
+      if (q.length < 1) {
+        res.status(400).json({ error: "검색어를 입력하세요." });
+        return;
+      }
+      const limit = Math.min(Math.max(Number(req.query.limit) || 25, 1), 50);
+      try {
+        const items = await searchDartCompanies(q, limit);
+        res.json({ enabled: true, items });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "검색 실패";
+        res.status(502).json({ error: message });
+      }
+    }),
+  );
+
+  app.get(
+    "/api/dart/disclosures",
+    asyncRoute(async (req, res) => {
+      const q = String(req.query.q ?? "").trim();
+      const symbol = String(req.query.symbol ?? "").trim().toUpperCase();
+      const corpCode = String(req.query.corpCode ?? "").trim();
+      if (!q && !symbol && !corpCode) {
+        res.status(400).json({ error: "회사 선택 또는 공시 검색어가 필요합니다." });
+        return;
+      }
+      if (symbol && !/^[0-9]{6}\.(KS|KQ)$/i.test(symbol)) {
+        res.status(400).json({ error: "국내 종목 심볼(예: 005930.KS)만 지원합니다." });
+        return;
+      }
+      try {
+        const data = await searchDartDisclosures({
+          query: q,
+          symbol,
+          corpCode,
+          days: Number(req.query.days),
+          page: Number(req.query.page),
+          pageSize: Number(req.query.pageSize),
+        });
+        res.json(data);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "공시 조회 실패";
+        res.status(502).json({ error: message });
       }
     }),
   );

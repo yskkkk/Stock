@@ -1,0 +1,211 @@
+.workspace.disclosure-tab {
+  width: 100%;
+  max-width: min(1120px, 100%);
+  margin: 0 auto;
+  padding: 0.75rem 0 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.app.app--disclosure .app__shell > .workspace.disclosure-tab {
+  grid-column: 1 / -1;
+}
+
+.disclosure-tab__hero {
+  padding: 1rem 1.15rem;
+}
+
+.disclosure-tab__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.15rem;
+}
+
+.disclosure-tab__hint,
+.disclosure-tab__status,
+.disclosure-tab__setup {
+  margin: 0.25rem 0 0;
+  color: var(--text-dim);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.disclosure-tab__setup {
+  color: var(--warn);
+}
+
+.disclosure-tab__grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  gap: 0.85rem;
+  align-items: start;
+}
+
+.disclosure-tab__panel {
+  padding: 0.9rem 1rem;
+  min-height: 18rem;
+}
+
+.disclosure-tab__label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.disclosure-tab__input {
+  width: 100%;
+  margin-bottom: 0.65rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--card-border);
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.disclosure-tab__company-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(42vh, 420px);
+  overflow: auto;
+}
+
+.disclosure-tab__company {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.55rem 0.45rem;
+  border: none;
+  border-bottom: 1px solid var(--card-border);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.disclosure-tab__company:hover,
+.disclosure-tab__company--active {
+  background: var(--accent-dim);
+}
+
+.disclosure-tab__company-name {
+  font-size: 0.92rem;
+}
+
+.disclosure-tab__company-code {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.disclosure-tab__selected {
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--card-border);
+  font-size: 0.88rem;
+}
+
+.disclosure-tab__clear {
+  margin-left: 0.35rem;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.78rem;
+}
+
+.disclosure-tab__filters {
+  margin-bottom: 0.65rem;
+}
+
+.disclosure-tab__days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.disclosure-tab__day {
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.disclosure-tab__day.active {
+  border-color: var(--accent-border);
+  background: var(--accent-dim);
+  color: var(--text);
+}
+
+.disclosure-tab__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.disclosure-tab__item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  padding: 0.65rem 0.35rem;
+  border: none;
+  border-bottom: 1px solid var(--card-border);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.disclosure-tab__item:hover {
+  background: rgba(148, 163, 184, 0.06);
+}
+
+.disclosure-tab__item-top {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.disclosure-tab__item-title {
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.disclosure-tab__item-meta {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.disclosure-tab__muted,
+.disclosure-tab__error,
+.disclosure-tab__idle {
+  margin: 0.5rem 0;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.disclosure-tab__error {
+  color: var(--down);
+}
+
+.disclosure-tab__more {
+  margin-top: 0.75rem;
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .disclosure-tab__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .disclosure-tab__company-list {
+    max-height: 28vh;
+  }
+}

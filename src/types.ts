@@ -10,6 +10,7 @@ export type AppTab =
   | "crypto"
   | "tradeHistory"
   | "boxRange"
+  | "disclosure"
   | "ops";
 
 /** 실매매·시뮬 포트폴리오 시장 */
@@ -241,6 +242,45 @@ export interface NewsItem {
   publishedAt: number;
   type: NewsKind;
   sentiment: NewsSentiment;
+}
+
+export interface DartCompanyRow {
+  corpCode: string;
+  corpName: string;
+  stockCode: string;
+  symbol: string;
+}
+
+export interface DartDisclosureRow {
+  id: string;
+  title: string;
+  url: string;
+  source: string;
+  publishedAt: number;
+  type: "disclosure";
+  corpCode: string | null;
+  corpName: string;
+  stockCode: string | null;
+  symbol: string | null;
+  rceptNo: string | null;
+  flrNm: string;
+}
+
+export interface DartDisclosuresSearchResponse {
+  enabled: boolean;
+  items: DartDisclosureRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+  corpCode: string | null;
+  days: number;
+}
+
+export interface DartStatusResponse {
+  enabled: boolean;
+  corpIndexReady: boolean;
+  corpCount: number;
 }
 
 export interface NewsResponse {

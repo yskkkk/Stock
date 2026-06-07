@@ -116,6 +116,16 @@ await expect(
 );
 
 await expect(
+  "dart-status",
+  "GET",
+  "/api/dart/status",
+  (r) =>
+    okJson(r) &&
+    typeof r.json.enabled === "boolean" &&
+    typeof r.json.corpIndexReady === "boolean",
+);
+
+await expect(
   "ops-cursor-agent-forbidden",
   "POST",
   "/api/ops/cursor-agent",

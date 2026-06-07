@@ -52,6 +52,9 @@ const t = {
     tabCrypto: "\uCF54\uC778",
     tabRecommendations: "\uc8fc\uc2dd \ucd94\ucc9c\ubaa9\ub85d",
     tabLiveTrading: "\uc2e4\uac70\ub798",
+    tabTradeHistory: "\uac70\ub798\ub0b4\uc5ed",
+    tabBoxRange: "\ubc15\uc2a4\uad6c",
+    tabDisclosure: "\uae30\uc5c5 \uacf5\uc2dc",
     tabOps: "\uC6B4\uC601",
     liveTradeSimFeedbackApplied: "\ud504\ub85c\uadf8\ub7a8 \uc124\uc815\uc5d0 \ubc18\uc601\ud588\uc2b5\ub2c8\ub2e4.",
     liveTradeSimFeedbackTitle: "\uc2dc\ubbac \uccad\uc0b0 \ubd84\uc11d",
@@ -709,6 +712,32 @@ const t = {
     earningsMetaLabel: "\uC2E4\uC801",
     earningsMetaPending: "\uC77C\uC815\uB9CC \uD655\uC778",
   },
+  dart: {
+    title: "\uae30\uc5c5 \uacf5\uc2dc (DART)",
+    hint: "\uae08\uc735\uac10\ub3c5\uc6d0 \uc804\uc790\uacf5\uc2dc\ub97c \uac80\uc0c9\u00b7\uc870\ud68c\ud569\ub2c8\ub2e4. \uad6d\ub0b4 \uc0c1\uc7a5 \ud68c\uc0ac\ub9cc \uc9c0\uc6d0\ud569\ub2c8\ub2e4.",
+    statusLoading: "DART \uc5f0\uacb0 \ud655\uc778 \uc911\u2026",
+    statusDisabled:
+      "DART API \ud0a4\uac00 \uc124\uc815\ub418\uc9c0 \uc54a\uc558\uc2b5\ub2c8\ub2e4. \ud504\ub85c\uc81d\ud2b8 \ub204\uc5d0 OPENDART_API_KEY\ub97c \ub123\uc73c\uba74 \uacf5\uc2dc\uac00 \ud45c\uc2dc\ub429\ub2c8\ub2e4.",
+    statusReady: "DART \uc5f0\uacb0 \uc644\ub8cc \u00b7 \ub4f1\ub85d \ud68c\uc0ac {n}\uac1c",
+    statusPartial: "DART \uc5f0\uacb0 \uc644\ub8cc \u00b7 \ud68c\uc0ac \ubaa9\ub85d \ubd88\ub7ec\uc624\ub294 \uc911",
+    setupHint: "docs/OPENDART_SETUP.md \ucc38\uace0",
+    companySearchAria: "\uae30\uc5c5 \uac80\uc0c9",
+    companyLabel: "\uae30\uc5c5 \uac80\uc0c9",
+    companyPlaceholder: "\ud68c\uc0ac\uba85 \ub610\ub294 \uc885\ubaa9\ucf54\ub4dc (005930)",
+    reportLabel: "\uacf5\uc2dc \uc81c\ubaa9 \uac80\uc0c9",
+    reportPlaceholder: "\uc608: \uc790\uae30\uc8fc\uccad \u00b7 \ubd84\uae30 \u00b7 \uc784\uc6d0",
+    periodLabel: "\uae30\uac04",
+    periodDays: "{n}\uc77c",
+    listAria: "\uacf5\uc2dc \ubaa9\ub85d",
+    loading: "\ubd88\ub7ec\uc624\ub294 \uc911\u2026",
+    noCompanies: "\uac80\uc0c9 \uacb0\uacfc\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.",
+    noDisclosures: "\uacf5\uc2dc\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.",
+    idle: "\uae30\uc5c5\uc744 \uc120\ud0dd\ud558\uac70\ub098 \uacf5\uc2dc \uac80\uc0c9\uc5b4\ub97c \uc785\ub825\ud558\uc138\uc694.",
+    selected: "\uc120\ud0dd",
+    clearSelection: "\uc120\ud0dd \ud574\uc81c",
+    badge: "\uacf5\uc2dc",
+    loadMore: "\ub354 \ubcf4\uae30",
+  },
   errors: {
     picksLoad: "\uC885\uBAA9 \uBAA9\uB85D\uC744 \uBD88\uB7EC\uC62C \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.",
     chartLoad: "\uCC28\uD2B8\uB97C \uBD88\uB7EC\uC62C \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.",
@@ -932,6 +961,9 @@ ${emitObj(t.feedback, 4)}
   },
   crypto: {
 ${emitObj(t.crypto, 4)}
+  },
+  dart: {
+${emitObj(t.dart, 4)}
   },
   access: {
 ${emitObj(t.access, 4)}
