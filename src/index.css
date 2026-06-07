@@ -6546,10 +6546,9 @@ html[data-theme="light"] .feedback-inbox-item {
   #root > .app .app__viewport.app__viewport--earnings-rail.app__viewport--no-left-rail {
     grid-template-columns:
       minmax(0, 1fr)
-      auto
       minmax(0, min(var(--app-page-max-width, 1680px), 100%))
       minmax(0, 1fr);
-    column-gap: 0.35rem;
+    column-gap: 0;
     align-items: stretch;
     padding-inline: var(--app-page-inline-pad-safe, var(--app-page-inline-pad, 1.35rem));
   }
@@ -6557,6 +6556,7 @@ html[data-theme="light"] .feedback-inbox-item {
   .app__viewport-earnings-rail {
     grid-column: 2;
     grid-row: 1;
+    justify-self: start;
     align-self: stretch;
     position: relative;
     z-index: 4;
@@ -6579,18 +6579,42 @@ html[data-theme="light"] .feedback-inbox-item {
   }
 
   #root > .app .app__viewport.app__viewport--earnings-rail.app__viewport--no-left-rail > .app__shell {
-    grid-column: 3;
+    grid-column: 2;
     grid-row: 1;
     justify-self: stretch;
     width: 100%;
     max-width: 100% !important;
     margin-inline: 0 !important;
     padding-inline: 0;
+    padding-left: calc(2.85rem + 0.35rem);
+    box-sizing: border-box;
   }
 
   #root > .app .app__viewport.app__viewport--earnings-rail.app__viewport--no-left-rail > .app__right-panel {
-    grid-column: 3;
+    grid-column: 2;
     grid-row: 1;
+  }
+
+  #root > .app .app__viewport.app__viewport--earnings-rail.app__viewport--no-left-rail:has(
+      .app-live-trade-side-dock
+    )
+    > .app__shell {
+    padding-right: calc(var(--live-trade-dock-rail-width, 2.68rem) + 0.2rem);
+  }
+
+  #root > .app
+    .app__viewport.app__viewport--earnings-rail.app__viewport--no-left-rail:has(
+      .app-live-trade-side-dock--open
+    )
+    > .app__shell,
+  #root > .app
+    .app__viewport.app__viewport--earnings-rail.app__viewport--no-left-rail:has(
+      .app-live-trade-side-dock--collapsed.app-live-trade-side-dock--resizing
+    )
+    > .app__shell {
+    padding-right: calc(
+      var(--live-trade-dock-rail-width, 2.68rem) + var(--live-trade-dock-panel-width, min(26rem, calc(100dvw - 4rem))) + 0.2rem
+    );
   }
 
   #root > .app:has(.app__viewport--earnings-rail) > .app__scroll > .app-site-footer {
