@@ -203,6 +203,8 @@
   flex-direction: column;
   gap: 0.32rem;
   margin-bottom: 0.55rem;
+  min-width: 0;
+  overflow: visible;
 }
 
 .stock-vault-tab__filters {
@@ -354,6 +356,7 @@
   align-items: flex-start;
   gap: 0.24rem;
   width: 100%;
+  min-width: 0;
 }
 
 .stock-vault-tab__filters--industry .market-tab--industry-all {
@@ -366,18 +369,38 @@
   font-size: 0.68rem;
   font-weight: 600;
   line-height: 1.15;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.stock-vault-tab__filters--industry .market-tab--industry-all.active {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.stock-vault-tab__industry-grid-scroll {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 0.08rem;
 }
 
 .stock-vault-tab__industry-grid {
   display: grid;
   grid-auto-flow: column;
-  grid-template-rows: repeat(var(--stock-vault-industry-rows, 20), auto);
+  grid-template-rows: repeat(var(--stock-vault-industry-rows, 20), minmax(1.34rem, auto));
   grid-auto-columns: max-content;
   align-content: start;
   justify-content: start;
   gap: 0.1rem 0.42rem;
-  width: 100%;
-  max-width: 100%;
+  width: max-content;
+  min-width: 100%;
+  max-width: none;
 }
 
 .stock-vault-tab__industry-grid .market-tab {
@@ -386,7 +409,7 @@
   justify-content: flex-start;
   gap: 0.16rem;
   width: auto;
-  max-width: 100%;
+  max-width: none;
   min-width: 0;
   min-height: 1.34rem;
   padding: 0.16rem 0.14rem 0.16rem 0;
@@ -394,6 +417,17 @@
   font-weight: 600;
   line-height: 1.15;
   overflow: hidden;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.stock-vault-tab__industry-grid .market-tab:hover {
+  color: var(--text-dim);
+  background: transparent;
 }
 
 .stock-vault-tab__industry-grid .market-tab__label {
@@ -424,6 +458,7 @@
 
 .stock-vault-tab__industry-grid .market-tab.active {
   font-weight: 700;
+  color: var(--accent);
 }
 
 .stock-vault-tab__sector {

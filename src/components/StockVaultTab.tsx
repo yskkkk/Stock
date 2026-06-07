@@ -82,11 +82,15 @@ export default function StockVaultTab({
     setItems(vault.items ?? []);
     setQuotes(vault.quotes ?? {});
     setMeta(vault.meta ?? {});
-    setIndustryTabs(vault.industryTabs ?? []);
-    setIndustryGridRows(
+    setIndustryTabs((prev) =>
+      vault.industryTabs?.length ? vault.industryTabs : prev,
+    );
+    setIndustryGridRows((prev) =>
       typeof vault.industryGridRows === "number" && vault.industryGridRows > 0
         ? vault.industryGridRows
-        : Math.max(16, Math.ceil((vault.industryTabs?.length ?? 0) / 8)),
+        : vault.industryTabs?.length
+          ? Math.max(16, Math.ceil(vault.industryTabs.length / 8))
+          : prev,
     );
     onVaultChange?.((vault.items ?? []).map((it) => it.symbol));
   }, [onVaultChange]);
@@ -102,11 +106,15 @@ export default function StockVaultTab({
       setItems(vault.items ?? []);
       setQuotes(vault.quotes ?? {});
       setMeta(vault.meta ?? {});
-    setIndustryTabs(vault.industryTabs ?? []);
-    setIndustryGridRows(
+    setIndustryTabs((prev) =>
+      vault.industryTabs?.length ? vault.industryTabs : prev,
+    );
+    setIndustryGridRows((prev) =>
       typeof vault.industryGridRows === "number" && vault.industryGridRows > 0
         ? vault.industryGridRows
-        : Math.max(16, Math.ceil((vault.industryTabs?.length ?? 0) / 8)),
+        : vault.industryTabs?.length
+          ? Math.max(16, Math.ceil(vault.industryTabs.length / 8))
+          : prev,
     );
       onVaultChange?.((vault.items ?? []).map((it) => it.symbol));
       if (status) {
@@ -393,7 +401,7 @@ export default function StockVaultTab({
 
           {industryTabs.length > 0 ? (
             <div
-              className="stock-vault-tab__filters stock-vault-tab__filters--industry panel-head__filters"
+              className="stock-vault-tab__filters stock-vault-tab__filters--industry"
               role="tablist"
               aria-label={ko.stockVault.filterIndustryAria}
             >
@@ -411,15 +419,16 @@ export default function StockVaultTab({
                 <span className="market-tab__label">{ko.stockVault.filterAll}</span>
                 <span className="market-tab__count">{baseFiltered.length}</span>
               </button>
-              <div
-                className="market-tabs stock-vault-tab__industry-grid"
-                style={
-                  {
-                    "--stock-vault-industry-rows": industryGridRows,
-                  } as React.CSSProperties
-                }
-              >
-                {industryOptions.map(({ name, count }) => (
+              <div className="stock-vault-tab__industry-grid-scroll">
+                <div
+                  className="stock-vault-tab__industry-grid"
+                  style={
+                    {
+                      "--stock-vault-industry-rows": String(industryGridRows),
+                    } as React.CSSProperties
+                  }
+                >
+                  {industryOptions.map(({ name, count }) => (
                   <button
                     key={name}
                     type="button"
@@ -438,6 +447,7 @@ export default function StockVaultTab({
                     <span className="market-tab__count">{count}</span>
                   </button>
                 ))}
+                </div>
               </div>
             </div>
           ) : null}
