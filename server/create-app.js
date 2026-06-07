@@ -2155,6 +2155,9 @@ export function createApp() {
       );
       const { fetchStockVaultMetaForItems, listStockVaultIndustryTabs, stockVaultIndustryGridRows } =
         await import("./stock-vault-meta.js");
+      const { readStockVaultIndustryFinancialsSync } = await import(
+        "./stock-vault-industry-financials.js"
+      );
       const user = resolveUserFromRequest(req);
       const { items, authenticated, favoriteSymbols } =
         buildStockVaultItemsForUserSync(user?.id);
@@ -2168,6 +2171,7 @@ export function createApp() {
         items,
         quotes,
         meta,
+        industryFinancials: readStockVaultIndustryFinancialsSync(),
         industryTabs,
         industryGridRows: stockVaultIndustryGridRows(industryTabs.length),
         authenticated,

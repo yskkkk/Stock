@@ -28,6 +28,23 @@ export function VaultBookmarkIcon({ filled }: { filled: boolean }) {
   );
 }
 
+export function VaultSectorLeaderIcon() {
+  return (
+    <svg
+      className="stock-vault-tab__crown"
+      viewBox="0 0 24 24"
+      width={14}
+      height={14}
+      aria-hidden
+    >
+      <path
+        fill="currentColor"
+        d="M5 16h14l-1.2-8.5-3.3 2.8L12 4 9.5 10.3 6.2 7.5 5 16zm0 2v2h14v-2H5z"
+      />
+    </svg>
+  );
+}
+
 export default function StockVaultMarkButton({
   saved,
   label,

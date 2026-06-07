@@ -185,6 +185,15 @@ export async function runVaultMarketScans(market, scanDate, runId, trigger) {
     maAlignOk: maSettled.status === "fulfilled",
   });
 
+  try {
+    const { scheduleStockVaultIndustryFinancialsRefresh } = await import(
+      "./stock-vault-industry-financials.js"
+    );
+    scheduleStockVaultIndustryFinancialsRefresh();
+  } catch {
+    /* ignore industry financials refresh scheduling */
+  }
+
   return { goldenCross, maAlign };
 }
 

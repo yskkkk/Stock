@@ -379,6 +379,26 @@ export interface StockVaultItem {
   favorited?: boolean;
 }
 
+export interface StockVaultIndustryFinancials {
+  industry?: string | null;
+  per?: number | null;
+  roe?: number | null;
+  pbr?: number | null;
+  profitMargin?: number | null;
+  marketCap?: number | null;
+  industryMedianPer?: number | null;
+  industryMedianRoe?: number | null;
+  industryMedianProfitMargin?: number | null;
+  industryMedianPbr?: number | null;
+  industryPeerCount?: number;
+  sectorLeader?: boolean;
+  verdict?: "better" | "worse" | "similar" | "unknown";
+  verdictLabel?: string;
+  verdictDetail?: string;
+  peerGroup?: string;
+  updatedAtMs?: number;
+}
+
 export interface StockVaultResponse {
   items: StockVaultItem[];
   quotes?: Record<
@@ -399,6 +419,7 @@ export interface StockVaultResponse {
       exchange?: string | null;
     }
   >;
+  industryFinancials?: Record<string, StockVaultIndustryFinancials>;
   industryTabs?: string[];
   industryGridRows?: number;
   authenticated?: boolean;

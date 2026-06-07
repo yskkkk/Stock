@@ -507,6 +507,181 @@ html[data-theme="light"] .stock-vault-tab__row--gc-recent-10 {
   gap: 0.35rem 0.55rem;
 }
 
+.stock-vault-tab__leader {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: #d4a017;
+  line-height: 1;
+}
+
+.stock-vault-tab__crown {
+  display: block;
+}
+
+.stock-vault-tab__bubble {
+  position: fixed;
+  z-index: 10050;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(18rem, calc(100vw - 1rem));
+  padding: 0.55rem 0.68rem;
+  border-radius: 10px;
+  background: var(--card-bg, var(--card));
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow-card, var(--shadow));
+  color: var(--text-dim);
+  font-size: 0.74rem;
+  font-weight: 500;
+  line-height: 1.45;
+  text-align: left;
+  pointer-events: auto;
+}
+
+.stock-vault-tab__bubble::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  margin-top: -4.5px;
+  background: var(--card-bg, var(--card));
+  border-left: 1px solid var(--card-border);
+  border-bottom: 1px solid var(--card-border);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+.stock-vault-tab__bubble--left::before {
+  left: auto;
+  right: -5px;
+  border-left: none;
+  border-bottom: none;
+  border-right: 1px solid var(--card-border);
+  border-top: 1px solid var(--card-border);
+}
+
+.stock-vault-tab__bubble-name {
+  margin: 0 0 0.2rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.stock-vault-tab__bubble-code {
+  margin: 0 0 0.28rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.stock-vault-tab__bubble-leader {
+  color: #d4a017;
+  font-weight: 600;
+}
+
+.stock-vault-tab__bubble-fin {
+  margin: 0.42rem 0 0;
+  padding-top: 0.38rem;
+  border-top: 1px solid color-mix(in srgb, var(--card-border) 88%, transparent);
+}
+
+.stock-vault-tab__bubble-fin-title {
+  margin: 0 0 0.22rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.stock-vault-tab__bubble-peer {
+  margin: 0.15rem 0 0.28rem;
+}
+
+.stock-vault-tab__fin-badge {
+  display: inline-block;
+  padding: 0.12rem 0.38rem;
+  border-radius: 999px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.stock-vault-tab__fin-badge--better {
+  color: #0d7a4a;
+  background: color-mix(in srgb, #0d7a4a 14%, transparent);
+}
+
+.stock-vault-tab__fin-badge--worse {
+  color: #b42318;
+  background: color-mix(in srgb, #b42318 12%, transparent);
+}
+
+.stock-vault-tab__fin-badge--similar,
+.stock-vault-tab__fin-badge--unknown {
+  color: var(--muted);
+  background: color-mix(in srgb, var(--muted) 12%, transparent);
+}
+
+.stock-vault-tab__bubble-fin-detail {
+  margin: 0.28rem 0 0;
+  font-size: 0.66rem;
+  line-height: 1.45;
+  color: var(--text-dim);
+  word-break: keep-all;
+}
+
+.stock-vault-tab__bubble-fin-line {
+  margin: 0.1rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: var(--text-dim);
+}
+
+.stock-vault-tab__bubble-fin-muted {
+  margin: 0.18rem 0 0;
+  font-size: 0.64rem;
+  color: var(--muted);
+}
+
+.stock-vault-tab__bubble-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+  padding-top: 0.38rem;
+  border-top: 1px solid color-mix(in srgb, var(--card-border) 88%, transparent);
+}
+
+.stock-vault-tab__bubble-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0.28rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid var(--card-border);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text);
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.stock-vault-tab__bubble-btn:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--card-border));
+  color: var(--accent);
+}
+
+.stock-vault-tab__bubble-btn--fin {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--card-border));
+  color: var(--accent);
+}
+
 .stock-vault-tab__name {
   font-size: 0.86rem;
   font-weight: 600;

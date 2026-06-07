@@ -29,12 +29,14 @@ import {
 } from "../lib/tradingviewSymbols";
 import type {
   GoldenCrossKind,
+  StockVaultIndustryFinancials,
   StockVaultItem,
   StockVaultResponse,
   StockVaultScanSource,
   StockVaultScanStatus,
 } from "../types";
-import { VaultBookmarkIcon } from "./StockVaultMarkButton";
+import { VaultBookmarkIcon, VaultSectorLeaderIcon } from "./StockVaultMarkButton";
+import { useStockVaultRowBubble } from "./StockVaultRowBubble";
 
 const SCAN_SOURCE_LABEL: Record<StockVaultScanSource, string> = {
   golden_cross: ko.stockVault.tabGolden,
@@ -118,6 +120,7 @@ function vaultStateFromResponse(vault: StockVaultResponse) {
     items: vault.items ?? [],
     quotes: vault.quotes ?? {},
     meta: vault.meta ?? {},
+    industryFinancials: vault.industryFinancials ?? {},
     authenticated: Boolean(vault.authenticated),
     industryTabs: vault.industryTabs?.length ? vault.industryTabs : [],
     industryGridRows:
@@ -152,6 +155,9 @@ export default function StockVaultTab({
       }
     >
   >(() => cachedVault?.meta ?? {});
+  const [industryFinancials, setIndustryFinancials] = useState<
+    Record<string, StockVaultIndustryFinancials>
+  >(() => cachedVault?.industryFinancials ?? {});
   const [industryTabs, setIndustryTabs] = useState<string[]>(
     () => cachedVault?.industryTabs ?? [],
   );
@@ -185,12 +191,15 @@ export default function StockVaultTab({
   const [scanNotice, setScanNotice] = useState<string | null>(null);
   const scanBtnRef = useRef<HTMLButtonElement>(null);
   const scanPopoverRef = useRef<HTMLDivElement>(null);
+  const { tipId, showTip, scheduleHideTip, bubble: rowBubble } =
+    useStockVaultRowBubble();
 
   const applyVaultResponse = useCallback(
     (vault: StockVaultResponse) => {
       setItems(vault.items ?? []);
       setQuotes(vault.quotes ?? {});
       setMeta(vault.meta ?? {});
+      setIndustryFinancials(vault.industryFinancials ?? {});
       setAuthenticated(Boolean(vault.authenticated));
       setIndustryTabs((prev) =>
         vault.industryTabs?.length ? vault.industryTabs : prev,
@@ -770,15 +779,40 @@ export default function StockVaultTab({
                 row.scanSources.length > 0
                   ? row.scanSources.map((s) => SOURCE_BADGE_LABEL[s])
                   : [ko.stockVault.sourceManual];
+              const finRow = industryFinancials[symKey];
+              const sectorLeader = Boolean(finRow?.sectorLeader);
               return (
               <li key={row.key} className={rowClassName}>
-                <a
+                <div
                   className="stock-vault-tab__row-link"
-                  href={tvChartUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={`${display.label} ${ko.stockVault.openTradingViewChart}`}
-                  title={ko.stockVault.openTradingViewChart}
+                  role="button"
+                  tabIndex={0}
+                  aria-describedby={tipId}
+                  aria-label={`${display.label} ${ko.stockVault.rowBubbleAria}`}
+                  onMouseEnter={(e) =>
+                    showTip(e.currentTarget, {
+                      symbol: row.symbol,
+                      name: display.label,
+                      market: row.market,
+                      industry,
+                      tvChartUrl,
+                      fin: finRow,
+                      sectorLeader,
+                    })
+                  }
+                  onMouseLeave={scheduleHideTip}
+                  onFocus={(e) =>
+                    showTip(e.currentTarget, {
+                      symbol: row.symbol,
+                      name: display.label,
+                      market: row.market,
+                      industry,
+                      tvChartUrl,
+                      fin: finRow,
+                      sectorLeader,
+                    })
+                  }
+                  onBlur={scheduleHideTip}
                 >
                   <div className="stock-vault-tab__row-main">
                     <div className="stock-vault-tab__row-head">
@@ -788,6 +822,15 @@ export default function StockVaultTab({
                       >
                         {display.label}
                       </span>
+                      {sectorLeader ? (
+                        <span
+                          className="stock-vault-tab__leader"
+                          title={ko.stockVault.sectorLeader}
+                          aria-label={ko.stockVault.sectorLeaderAria}
+                        >
+                          <VaultSectorLeaderIcon />
+                        </span>
+                      ) : null}
                       {display.sublabel ? (
                         <span className="stock-vault-tab__sym">{display.sublabel}</span>
                       ) : null}
@@ -854,7 +897,7 @@ export default function StockVaultTab({
                       </span>
                     )}
                   </div>
-                </a>
+                </div>
                 <div className="stock-vault-tab__row-actions">
                   <button
                     type="button"
@@ -903,6 +946,7 @@ export default function StockVaultTab({
           </ul>
         )}
       </section>
+      {rowBubble}
     </div>
   );
 }
