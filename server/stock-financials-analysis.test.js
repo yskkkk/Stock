@@ -1,12 +1,43 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
-import { loadFinancialPeriods, loadFinancialStatementDetail } from "./stock-financials.js";
+import { loadFinancialPeriods } from "./stock-financials.js";
 import { loadFinancialStatementAnalysis } from "./stock-financials-analysis.js";
+import {
+  findPreviousAnnouncePeriod,
+  findPriorPeriod,
+} from "./stock-financials-analysis.js";
 import {
   buildHistoricalPeriodMetrics,
   fetchHistoricalCloseNearDate,
 } from "./stock-financial-period-valuation.js";
 import { extractPeriodMetricsFromDetail } from "./stock-financial-period-metrics.js";
+
+test("findPreviousAnnouncePeriod picks immediately prior same kind", () => {
+  const periods = [
+    { id: "a", kind: "quarter", endDateMs: Date.UTC(2026, 2, 31), isForecast: false },
+    { id: "b", kind: "quarter", endDateMs: Date.UTC(2025, 11, 31), isForecast: false },
+    { id: "c", kind: "quarter", endDateMs: Date.UTC(2025, 2, 31), isForecast: false },
+  ];
+  const current = periods[0];
+  const prev = findPreviousAnnouncePeriod(periods, current);
+  assert.equal(prev?.id, "b");
+  const yoy = findPriorPeriod(periods, current);
+  assert.equal(yoy?.id, "c");
+});
+
+test("US LITE statement includes prev announce comparison columns", async () => {
+  const periods = await import("./stock-financials.js").then((m) =>
+    m.loadFinancialPeriods("LITE"),
+  );
+  const q202603 = periods.periods.find((p) => p.label === "2026.03");
+  assert.ok(q202603);
+  const analysis = await loadFinancialStatementAnalysis("LITE", q202603.id);
+  assert.ok(analysis.prevAnnouncePeriodLabel);
+  const row = analysis.sections?.[0]?.rows?.[0];
+  assert.ok(row);
+  assert.ok("prevAnnounceValue" in row);
+  assert.ok("prevAnnouncePct" in row);
+});
 
 test("US LITE period metrics differ by selected fiscal period", async () => {
   const periods = await loadFinancialPeriods("LITE");
@@ -24,10 +55,7 @@ test("US LITE period metrics differ by selected fiscal period", async () => {
   assert.notEqual(qAnalysis.periodMetrics.price, aAnalysis.periodMetrics.price);
   assert.ok(aAnalysis.periodMetrics.price < 200, "2024 disclosure price should be far below current");
   assert.equal(aAnalysis.periodMetrics.per, null, "negative EPS year should not show PER");
-  assert.notEqual(
-    qAnalysis.periodMetrics.per,
-    aAnalysis.periodMetrics.per,
-  );
+  assert.notEqual(qAnalysis.periodMetrics.per, aAnalysis.periodMetrics.per);
 });
 
 test("buildHistoricalPeriodMetrics keeps KR statement PER", async () => {

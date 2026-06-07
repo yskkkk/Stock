@@ -290,6 +290,8 @@ export interface FinancialStatementLineRow {
   value: string;
   priorValue?: string | null;
   yoyPct?: number | null;
+  prevAnnounceValue?: string | null;
+  prevAnnouncePct?: number | null;
 }
 
 export interface FinancialStatementSection {
@@ -341,6 +343,8 @@ export interface FinancialPeriodMetrics {
 export interface FinancialStatementAnalysisResponse extends FinancialStatementDetailResponse {
   priorPeriodId: string | null;
   priorPeriodLabel: string | null;
+  prevAnnouncePeriodId: string | null;
+  prevAnnouncePeriodLabel: string | null;
   periodMetrics: FinancialPeriodMetrics;
   aiOpinion: FinancialAiOpinion;
 }

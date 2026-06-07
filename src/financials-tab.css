@@ -449,8 +449,14 @@
   color: var(--muted);
 }
 
+.financials-tab__statement-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .financials-tab__statement-table {
   width: 100%;
+  min-width: 36rem;
   border-collapse: collapse;
   font-size: 0.8rem;
   line-height: 1.4;
@@ -478,7 +484,7 @@
 }
 
 .financials-tab__statement-table tbody th {
-  width: 38%;
+  width: 28%;
   font-weight: 500;
   color: var(--muted);
   text-align: left;

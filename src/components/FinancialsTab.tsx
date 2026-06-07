@@ -686,8 +686,11 @@ export default function FinancialsTab() {
                         </h4>
                         <p className="financials-tab__statement-source">
                           {ko.financials.statementSource}: {statement.source}
+                          {statement.prevAnnouncePeriodLabel
+                            ? ` · ${ko.financials.statementPrevAnnounce} (${statement.prevAnnouncePeriodLabel})`
+                            : ""}
                           {statement.priorPeriodLabel
-                            ? ` · ${ko.financials.statementPriorHint} (${statement.priorPeriodLabel})`
+                            ? ` · ${ko.financials.statementPrior} (${statement.priorPeriodLabel})`
                             : ""}
                         </p>
                       </header>
@@ -699,11 +702,17 @@ export default function FinancialsTab() {
                               <span className="financials-tab__statement-unit">{section.unitNote}</span>
                             ) : null}
                           </div>
+                          <div className="financials-tab__statement-table-wrap">
                           <table className="financials-tab__statement-table">
                             <thead>
                               <tr>
                                 <th scope="col">{ko.financials.statementItem}</th>
                                 <th scope="col">{statement.label}</th>
+                                <th scope="col">
+                                  {statement.prevAnnouncePeriodLabel ??
+                                    ko.financials.statementPrevAnnounce}
+                                </th>
+                                <th scope="col">{ko.financials.statementPrevAnnounceChange}</th>
                                 <th scope="col">
                                   {statement.priorPeriodLabel ?? ko.financials.statementPrior}
                                 </th>
@@ -724,6 +733,17 @@ export default function FinancialsTab() {
                                   </td>
                                   <td>
                                     {fmtFinancialStatementCell(
+                                      row.prevAnnounceValue,
+                                      row.label,
+                                      section.unitNote,
+                                      statementMarket,
+                                    )}
+                                  </td>
+                                  <td className={yoyClass(row.prevAnnouncePct)}>
+                                    {fmtYoyPct(row.prevAnnouncePct)}
+                                  </td>
+                                  <td>
+                                    {fmtFinancialStatementCell(
                                       row.priorValue,
                                       row.label,
                                       section.unitNote,
@@ -735,6 +755,7 @@ export default function FinancialsTab() {
                               ))}
                             </tbody>
                           </table>
+                          </div>
                         </div>
                       ))}
 

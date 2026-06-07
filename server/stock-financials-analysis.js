@@ -73,6 +73,23 @@ export function findPriorPeriod(periods, current) {
   return best;
 }
 
+/** @param {object[]} periods @param {object} current — 직전 동일 kind(분기/연간) */
+export function findPreviousAnnouncePeriod(periods, current) {
+  if (!current?.endDateMs) return null;
+  if (current.isForecast) return null;
+  /** @type {object[]} */
+  const candidates = [];
+  for (const p of periods) {
+    if (!p || p.id === current.id) continue;
+    if (p.kind !== current.kind) continue;
+    if (p.isForecast) continue;
+    if (!p.endDateMs || p.endDateMs >= current.endDateMs) continue;
+    candidates.push(p);
+  }
+  candidates.sort((a, b) => (b.endDateMs ?? 0) - (a.endDateMs ?? 0));
+  return candidates[0] ?? null;
+}
+
 /** @param {object[]} sections @param {string} unitNote */
 function flattenRows(sections, unitNote = "") {
   /** @type {{ label: string; value: string; numeric: number | null }[]} */
@@ -90,23 +107,32 @@ function flattenRows(sections, unitNote = "") {
   return out;
 }
 
-/** @param {object[]} currentSections @param {object[] | null} priorSections */
-function mergeYoySections(currentSections, priorSections) {
-  const priorFlat = flattenRows(priorSections ?? []);
-  const priorByLabel = new Map(priorFlat.map((r) => [normLabel(r.label), r]));
+/** @param {object[]} currentSections @param {object[] | null} yoyPriorSections @param {object[] | null} prevAnnounceSections */
+function mergeComparisonSections(
+  currentSections,
+  yoyPriorSections,
+  prevAnnounceSections,
+) {
+  const yoyFlat = flattenRows(yoyPriorSections ?? []);
+  const yoyByLabel = new Map(yoyFlat.map((r) => [normLabel(r.label), r]));
+  const prevFlat = flattenRows(prevAnnounceSections ?? []);
+  const prevByLabel = new Map(prevFlat.map((r) => [normLabel(r.label), r]));
 
   return (currentSections ?? []).map((sec) => ({
     ...sec,
     rows: (sec.rows ?? []).map((row) => {
-      const prior = priorByLabel.get(normLabel(row.label));
+      const yoyPrior = yoyByLabel.get(normLabel(row.label));
+      const prevAnnounce = prevByLabel.get(normLabel(row.label));
       const curNum = parseStatementNumber(row.value, sec.unitNote);
-      const priorNum = prior?.numeric ?? null;
-      const yoyPct = calcYoyPct(curNum, priorNum);
+      const yoyNum = yoyPrior?.numeric ?? null;
+      const prevNum = prevAnnounce?.numeric ?? null;
       return {
         label: row.label,
         value: row.value,
-        priorValue: prior?.value ?? null,
-        yoyPct,
+        priorValue: yoyPrior?.value ?? null,
+        yoyPct: calcYoyPct(curNum, yoyNum),
+        prevAnnounceValue: prevAnnounce?.value ?? null,
+        prevAnnouncePct: calcYoyPct(curNum, prevNum),
       };
     }),
   }));
@@ -324,7 +350,9 @@ export async function loadFinancialStatementAnalysis(symbol, periodId) {
   };
 
   const priorPeriod = findPriorPeriod(periods, currentPeriod);
+  const prevAnnouncePeriod = findPreviousAnnouncePeriod(periods, currentPeriod);
   let priorDetail = null;
+  let prevAnnounceDetail = null;
   if (priorPeriod?.id) {
     try {
       priorDetail = await loadFinancialStatementDetail(sym, priorPeriod.id);
@@ -332,8 +360,19 @@ export async function loadFinancialStatementAnalysis(symbol, periodId) {
       priorDetail = null;
     }
   }
+  if (prevAnnouncePeriod?.id) {
+    try {
+      prevAnnounceDetail = await loadFinancialStatementDetail(sym, prevAnnouncePeriod.id);
+    } catch {
+      prevAnnounceDetail = null;
+    }
+  }
 
-  const sections = mergeYoySections(detail.sections, priorDetail?.sections ?? null);
+  const sections = mergeComparisonSections(
+    detail.sections,
+    priorDetail?.sections ?? null,
+    prevAnnounceDetail?.sections ?? null,
+  );
   const yoyFlat = sections.flatMap((s) =>
     (s.rows ?? []).map((r) => ({ label: r.label, yoyPct: r.yoyPct })),
   );
@@ -366,6 +405,9 @@ export async function loadFinancialStatementAnalysis(symbol, periodId) {
     sections,
     priorPeriodId: priorPeriod?.id ?? null,
     priorPeriodLabel: priorPeriod?.label ?? priorDetail?.label ?? null,
+    prevAnnouncePeriodId: prevAnnouncePeriod?.id ?? null,
+    prevAnnouncePeriodLabel:
+      prevAnnouncePeriod?.label ?? prevAnnounceDetail?.label ?? null,
     periodMetrics,
     aiOpinion,
     updatedAt: Date.now(),

@@ -871,6 +871,8 @@ export const ko = {
     statementSource: "출처",
     statementPrior: "전년 동기",
     statementPriorHint: "아래 표에서 전년 동기와 비교합니다",
+    statementPrevAnnounce: "이전 발표",
+    statementPrevAnnounceChange: "이전 발표 대비",
     statementYoy: "전년 대비",
     statementItem: "항목",
     aiOpinionTitle: "AI 의견",
