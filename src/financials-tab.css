@@ -189,10 +189,22 @@
 }
 
 /* 밸류에이션 스냅샷 — 카드 없이 표 */
+.financials-tab__snapshot-wrap {
+  margin-top: 0.85rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--card-border);
+}
+
+.financials-tab__snapshot-title {
+  margin: 0 0 0.45rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
 .financials-tab__snapshot {
   width: 100%;
   border-collapse: collapse;
-  margin: 0 0 0.65rem;
+  margin: 0;
   font-size: 0.82rem;
   line-height: 1.4;
 }
@@ -372,24 +384,90 @@
 
 .financials-tab__statement-table th,
 .financials-tab__statement-table td {
-  padding: 0.38rem 0.5rem;
+  padding: 0.34rem 0.42rem;
   border-bottom: 1px solid color-mix(in srgb, var(--card-border) 85%, transparent);
   vertical-align: top;
   overflow-wrap: anywhere;
   word-break: keep-all;
 }
 
-.financials-tab__statement-table th {
-  width: 55%;
+.financials-tab__statement-table thead th {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: left;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.financials-tab__statement-table thead th:not(:first-child) {
+  text-align: right;
+}
+
+.financials-tab__statement-table tbody th {
+  width: 38%;
   font-weight: 500;
   color: var(--muted);
   text-align: left;
 }
 
-.financials-tab__statement-table td {
+.financials-tab__statement-table tbody td {
   font-family: var(--font-mono);
   text-align: right;
   white-space: nowrap;
+}
+
+.financials-tab__yoy {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.financials-tab__yoy--up {
+  color: var(--up);
+}
+
+.financials-tab__yoy--down {
+  color: var(--down);
+}
+
+.financials-tab__ai {
+  margin-top: 0.75rem;
+  padding: 0.65rem 0.72rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--accent-border) 35%, var(--card-border));
+  background: color-mix(in srgb, var(--accent-dim) 28%, var(--bg-elevated));
+}
+
+.financials-tab__ai-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.financials-tab__ai-summary {
+  margin: 0 0 0.45rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.financials-tab__ai-list {
+  margin: 0 0 0.45rem;
+  padding-left: 1.1rem;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+.financials-tab__ai-list li + li {
+  margin-top: 0.22rem;
+}
+
+.financials-tab__ai-disclaimer {
+  margin: 0;
+  font-size: 0.68rem;
+  line-height: 1.4;
+  color: var(--muted);
 }
 
 .financials-tab__muted,

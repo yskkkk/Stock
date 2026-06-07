@@ -287,12 +287,21 @@ export interface FinancialPeriodsResponse {
 export interface FinancialStatementLineRow {
   label: string;
   value: string;
+  priorValue?: string | null;
+  yoyPct?: number | null;
 }
 
 export interface FinancialStatementSection {
   title: string;
   unitNote?: string;
   rows: FinancialStatementLineRow[];
+}
+
+export interface FinancialAiOpinion {
+  summary: string;
+  bullets: string[];
+  peerGroup: string;
+  disclaimer: string;
 }
 
 export interface FinancialStatementDetailResponse {
@@ -304,6 +313,12 @@ export interface FinancialStatementDetailResponse {
   sections: FinancialStatementSection[];
   source: string;
   updatedAt: number;
+}
+
+export interface FinancialStatementAnalysisResponse extends FinancialStatementDetailResponse {
+  priorPeriodId: string | null;
+  priorPeriodLabel: string | null;
+  aiOpinion: FinancialAiOpinion;
 }
 
 export interface DartCompanyRow {

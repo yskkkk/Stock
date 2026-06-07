@@ -150,6 +150,17 @@ await expect(
         Array.isArray(r.json.sections) &&
         r.json.sections.length > 0,
     );
+    await expect(
+      "stock-financials-analysis",
+      "GET",
+      `/api/stock/AAPL/financials/periods/${encodeURIComponent(firstId)}/analysis`,
+      (r) =>
+        okJson(r) &&
+        r.json.symbol === "AAPL" &&
+        Array.isArray(r.json.sections) &&
+        r.json.aiOpinion &&
+        typeof r.json.aiOpinion.summary === "string",
+    );
   } else {
     failures.push({
       label: "stock-financials-detail",

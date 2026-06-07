@@ -853,6 +853,11 @@ export const ko = {
     periodForecast: "예상",
     statementLoading: "재무제표 불러오는 중…",
     statementSource: "출처",
+    statementPrior: "전년",
+    statementYoy: "전년 대비",
+    statementItem: "항목",
+    aiOpinionTitle: "AI 의견",
+    aiOpinionLoading: "AI 분석 생성 중…",
   },
   errors: {
     picksLoad: "종목 목록을 불러올 수 없습니다.",

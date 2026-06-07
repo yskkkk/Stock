@@ -38,6 +38,7 @@ import {
   loadFinancialPeriods,
   loadFinancialStatementDetail,
 } from "./stock-financials.js";
+import { loadFinancialStatementAnalysis } from "./stock-financials-analysis.js";
 import { buildTechnicalStatusReport } from "./technical.js";
 import {
   getActiveTechModelsSync,
@@ -2253,6 +2254,33 @@ export function createApp() {
       }
       try {
         const data = await loadFinancialStatementDetail(req.params.symbol, periodId);
+        res.json(data);
+      } catch (err) {
+        const code = err && typeof err === "object" && "code" in err ? err.code : "";
+        const message = err instanceof Error ? err.message : "요청 실패";
+        if (code === "BAD_SYMBOL" || code === "UNSUPPORTED") {
+          res.status(400).json({ error: message });
+          return;
+        }
+        res.status(code === "NOT_FOUND" ? 404 : 502).json({ error: message });
+      }
+    }),
+  );
+
+  app.get(
+    "/api/stock/:symbol/financials/periods/:periodId/analysis",
+    asyncRoute(async (req, res) => {
+      if (!/^[A-Z0-9.\-^]{1,20}$/i.test(req.params.symbol)) {
+        res.status(400).json({ error: "올바르지 않은 심볼 형식입니다." });
+        return;
+      }
+      const periodId = decodeURIComponent(String(req.params.periodId ?? ""));
+      if (!periodId) {
+        res.status(400).json({ error: "기간 ID가 필요합니다." });
+        return;
+      }
+      try {
+        const data = await loadFinancialStatementAnalysis(req.params.symbol, periodId);
         res.json(data);
       } catch (err) {
         const code = err && typeof err === "object" && "code" in err ? err.code : "";

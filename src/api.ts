@@ -8,6 +8,7 @@ import type {
   StockFundamentalsResponse,
   FinancialPeriodsResponse,
   FinancialStatementDetailResponse,
+  FinancialStatementAnalysisResponse,
   FeedbackInboxResponse,
   MacroEventsResponse,
   MarketIndicesResponse,
@@ -1730,6 +1731,17 @@ export function fetchFinancialStatementDetail(
 ) {
   return fetchJson<FinancialStatementDetailResponse>(
     `/api/stock/${encodeURIComponent(symbol)}/financials/periods/${encodeURIComponent(periodId)}`,
+    signal ? { signal } : undefined,
+  );
+}
+
+export function fetchFinancialStatementAnalysis(
+  symbol: string,
+  periodId: string,
+  signal?: AbortSignal,
+) {
+  return fetchJson<FinancialStatementAnalysisResponse>(
+    `/api/stock/${encodeURIComponent(symbol)}/financials/periods/${encodeURIComponent(periodId)}/analysis`,
     signal ? { signal } : undefined,
   );
 }

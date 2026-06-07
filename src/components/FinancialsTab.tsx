@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   fetchFinancialPeriods,
-  fetchFinancialStatementDetail,
+  fetchFinancialStatementAnalysis,
   fetchStockFundamentals,
   fetchStockSearch,
   fetchStockSearchHot,
@@ -14,7 +14,7 @@ import {
 } from "../lib/tradingviewSymbols";
 import type {
   FinancialPeriodRow,
-  FinancialStatementDetailResponse,
+  FinancialStatementAnalysisResponse,
   Market,
   StockFundamentalsResponse,
   StockPick,
@@ -59,6 +59,21 @@ function periodKindLabel(kind: FinancialPeriodRow["kind"]) {
   return kind === "annual" ? ko.financials.periodAnnual : ko.financials.periodQuarter;
 }
 
+function fmtYoyPct(pct: number | null | undefined): string {
+  if (pct == null || !Number.isFinite(pct)) return "—";
+  const sign = pct > 0 ? "+" : "";
+  return `${sign}${pct.toFixed(1)}%`;
+}
+
+function yoyClass(pct: number | null | undefined): string {
+  if (pct == null || !Number.isFinite(pct) || Math.abs(pct) < 0.05) {
+    return "financials-tab__yoy";
+  }
+  return pct > 0
+    ? "financials-tab__yoy financials-tab__yoy--up"
+    : "financials-tab__yoy financials-tab__yoy--down";
+}
+
 export default function FinancialsTab() {
   const [market, setMarket] = useState<Market>("kr");
   const [input, setInput] = useState("");
@@ -79,7 +94,7 @@ export default function FinancialsTab() {
   const [periodsErr, setPeriodsErr] = useState<string | null>(null);
 
   const [activePeriodId, setActivePeriodId] = useState<string | null>(null);
-  const [statement, setStatement] = useState<FinancialStatementDetailResponse | null>(null);
+  const [statement, setStatement] = useState<FinancialStatementAnalysisResponse | null>(null);
   const [statementLoading, setStatementLoading] = useState(false);
   const [statementErr, setStatementErr] = useState<string | null>(null);
 
@@ -226,7 +241,7 @@ export default function FinancialsTab() {
     setStatementErr(null);
     setStatement(null);
     try {
-      const data = await fetchFinancialStatementDetail(symbol, periodId);
+      const data = await fetchFinancialStatementAnalysis(symbol, periodId);
       if (seq !== statementSeqRef.current) return;
       setStatement(data);
     } catch (e) {
@@ -498,17 +513,6 @@ export default function FinancialsTab() {
                 ) : null}
               </header>
 
-              <table className="financials-tab__snapshot" aria-label={ko.financials.metricsAria}>
-                <tbody>
-                  {metrics.map((m) => (
-                    <tr key={m.key}>
-                      <th scope="row">{m.label}</th>
-                      <td>{m.value}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
               <section className="financials-tab__periods" aria-label={ko.financials.periodsTitle}>
                 <h4 className="financials-tab__periods-title">{ko.financials.periodsTitle}</h4>
                 {periodsLoading && periods.length === 0 ? (
@@ -581,6 +585,9 @@ export default function FinancialsTab() {
                         </h4>
                         <p className="financials-tab__statement-source">
                           {ko.financials.statementSource}: {statement.source}
+                          {statement.priorPeriodLabel
+                            ? ` · ${ko.financials.statementPrior}: ${statement.priorPeriodLabel}`
+                            : ""}
                         </p>
                       </header>
                       {statement.sections.map((section) => (
@@ -592,21 +599,58 @@ export default function FinancialsTab() {
                             ) : null}
                           </div>
                           <table className="financials-tab__statement-table">
+                            <thead>
+                              <tr>
+                                <th scope="col">{ko.financials.statementItem}</th>
+                                <th scope="col">{statement.label}</th>
+                                <th scope="col">{ko.financials.statementPrior}</th>
+                                <th scope="col">{ko.financials.statementYoy}</th>
+                              </tr>
+                            </thead>
                             <tbody>
                               {section.rows.map((row) => (
                                 <tr key={`${section.title}:${row.label}`}>
                                   <th scope="row">{row.label}</th>
                                   <td>{row.value}</td>
+                                  <td>{row.priorValue ?? "—"}</td>
+                                  <td className={yoyClass(row.yoyPct)}>{fmtYoyPct(row.yoyPct)}</td>
                                 </tr>
                               ))}
                             </tbody>
                           </table>
                         </div>
                       ))}
+
+                      {statement.aiOpinion ? (
+                        <section className="financials-tab__ai" aria-label={ko.financials.aiOpinionTitle}>
+                          <h4 className="financials-tab__ai-title">{ko.financials.aiOpinionTitle}</h4>
+                          <p className="financials-tab__ai-summary">{statement.aiOpinion.summary}</p>
+                          <ul className="financials-tab__ai-list">
+                            {statement.aiOpinion.bullets.map((line) => (
+                              <li key={line}>{line}</li>
+                            ))}
+                          </ul>
+                          <p className="financials-tab__ai-disclaimer">{statement.aiOpinion.disclaimer}</p>
+                        </section>
+                      ) : null}
                     </>
                   ) : null}
                 </section>
               ) : null}
+
+              <section className="financials-tab__snapshot-wrap" aria-label={ko.financials.metricsAria}>
+                <h4 className="financials-tab__snapshot-title">{ko.financials.metricsAria}</h4>
+                <table className="financials-tab__snapshot">
+                  <tbody>
+                    {metrics.map((m) => (
+                      <tr key={m.key}>
+                        <th scope="row">{m.label}</th>
+                        <td>{m.value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
             </div>
           ) : null}
         </section>

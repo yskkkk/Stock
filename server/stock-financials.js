@@ -318,11 +318,21 @@ export async function loadFinancialPeriods(symbol) {
     /* Yahoo 보조 — Naver만 있어도 OK */
   }
 
-  const periods = [...periodMap.values()].sort(
+  const periods = [...periodMap.values()]
+    .sort((a, b) => (b.endDateMs ?? 0) - (a.endDateMs ?? 0));
+
+  /** @type {Map<string, object>} */
+  const deduped = new Map();
+  for (const p of periods) {
+    const key = `${p.kind}:${p.label}:${p.isForecast ? "f" : "a"}`;
+    const prev = deduped.get(key);
+    if (!prev || p.source === "naver") deduped.set(key, p);
+  }
+  const uniquePeriods = [...deduped.values()].sort(
     (a, b) => (b.endDateMs ?? 0) - (a.endDateMs ?? 0),
   );
 
-  if (periods.length === 0) {
+  if (uniquePeriods.length === 0) {
     const err = new Error("재무제표 기간을 찾을 수 없습니다.");
     err.code = "NOT_FOUND";
     throw err;
@@ -333,7 +343,7 @@ export async function loadFinancialPeriods(symbol) {
     name,
     market,
     currency,
-    periods,
+    periods: uniquePeriods,
     updatedAt: Date.now(),
   };
   setCache(cacheKey, payload);
