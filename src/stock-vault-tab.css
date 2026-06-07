@@ -310,6 +310,16 @@
   white-space: nowrap;
 }
 
+.stock-vault-tab__filters--industry .market-tabs {
+  flex-wrap: wrap;
+  row-gap: 0.28rem;
+  max-width: 100%;
+}
+
+.stock-vault-tab__filters--industry .market-tab {
+  max-width: none;
+}
+
 .stock-vault-tab__sector {
   margin: 0.12rem 0 0;
   font-size: 0.68rem;

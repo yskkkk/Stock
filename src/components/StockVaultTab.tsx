@@ -61,6 +61,7 @@ export default function StockVaultTab({
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | StockVaultSource>("all");
   const [marketFilter, setMarketFilter] = useState<"all" | "kr" | "us">("all");
+  const [industryFilter, setIndustryFilter] = useState<string>("all");
   const [scanHint, setScanHint] = useState<string | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
   const [scanEnabled, setScanEnabled] = useState(true);
@@ -148,13 +149,45 @@ export default function StockVaultTab({
     return () => document.removeEventListener("mousedown", onDocDown);
   }, [scanConfirmOpen]);
 
-  const filtered = useMemo(() => {
+  const getItemIndustry = useCallback(
+    (item: StockVaultItem) => {
+      const symKey = item.symbol.trim().toUpperCase();
+      return meta[symKey]?.industry?.trim() || null;
+    },
+    [meta],
+  );
+
+  const baseFiltered = useMemo(() => {
     return items.filter((it) => {
       if (marketFilter !== "all" && it.market !== marketFilter) return false;
       if (filter !== "all" && it.source !== filter) return false;
       return true;
     });
   }, [items, filter, marketFilter]);
+
+  const industryOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const it of baseFiltered) {
+      const industry = getItemIndustry(it);
+      if (!industry) continue;
+      counts.set(industry, (counts.get(industry) ?? 0) + 1);
+    }
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko"))
+      .map(([name, count]) => ({ name, count }));
+  }, [baseFiltered, getItemIndustry]);
+
+  const filtered = useMemo(() => {
+    if (industryFilter === "all") return baseFiltered;
+    return baseFiltered.filter((it) => getItemIndustry(it) === industryFilter);
+  }, [baseFiltered, industryFilter, getItemIndustry]);
+
+  useEffect(() => {
+    if (industryFilter === "all") return;
+    if (!industryOptions.some((opt) => opt.name === industryFilter)) {
+      setIndustryFilter("all");
+    }
+  }, [industryFilter, industryOptions]);
 
   const marketCounts = useMemo(
     () => ({
@@ -338,6 +371,44 @@ export default function StockVaultTab({
               ))}
             </div>
           </div>
+
+          {industryOptions.length > 0 ? (
+            <div
+              className="stock-vault-tab__filters stock-vault-tab__filters--industry panel-head__filters"
+              role="tablist"
+              aria-label={ko.stockVault.filterIndustryAria}
+            >
+              <div className="market-tabs">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={industryFilter === "all"}
+                  className={
+                    industryFilter === "all" ? "market-tab active" : "market-tab"
+                  }
+                  onClick={() => setIndustryFilter("all")}
+                >
+                  {ko.stockVault.filterAll}
+                  <span className="market-tab__count">{baseFiltered.length}</span>
+                </button>
+                {industryOptions.map(({ name, count }) => (
+                  <button
+                    key={name}
+                    type="button"
+                    role="tab"
+                    aria-selected={industryFilter === name}
+                    className={
+                      industryFilter === name ? "market-tab active" : "market-tab"
+                    }
+                    onClick={() => setIndustryFilter(name)}
+                  >
+                    {name}
+                    <span className="market-tab__count">{count}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {loading ? (
@@ -358,7 +429,7 @@ export default function StockVaultTab({
                 item.name,
                 item.market,
               );
-              const industry = meta[symKey]?.industry?.trim();
+              const industry = getItemIndustry(item);
               const cur =
                 quote?.currency ?? (item.market === "kr" ? "KRW" : "USD");
               const chg = quote?.changePercent;
