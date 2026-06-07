@@ -6699,8 +6699,11 @@ html[data-theme="light"] .feedback-inbox-item {
   width: 2.85rem;
   min-width: 2.85rem;
   padding: 0.35rem 0.2rem 0.35rem 0;
-  border-right: 1px solid color-mix(in srgb, var(--card-border) 55%, transparent);
   box-sizing: border-box;
+}
+
+.earnings-icon-rail:not(.earnings-icon-rail--edge) {
+  border-right: 1px solid color-mix(in srgb, var(--card-border) 55%, transparent);
 }
 
 .earnings-icon-rail__list {
