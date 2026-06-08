@@ -956,6 +956,24 @@ export function fetchBithumbAccountSnapshot(opts?: { refresh?: boolean }) {
   }>(`/api/user/bithumb/account-snapshot${q}`);
 }
 
+export function fetchTossAccountSnapshot(opts?: { refresh?: boolean }) {
+  const q =
+    opts?.refresh === true
+      ? "?refresh=1"
+      : "";
+  return fetchJson<{
+    ok: boolean;
+    ready: boolean;
+    snapshot?: TossTestSnapshot;
+    feeLabelKo?: string | null;
+    messageKo?: string;
+    error?: string;
+    fromCache?: boolean;
+    syncedAtMs?: number | null;
+    stale?: boolean;
+  }>(`/api/user/toss/account-snapshot${q}`);
+}
+
 export function saveUserCredential(
   exchange: "bithumb" | "toss",
   body: {
@@ -1012,6 +1030,31 @@ export interface BithumbTestSnapshot {
   holdings: BithumbTestHolding[];
 }
 
+export interface TossTestHolding {
+  symbol: string;
+  rawSymbol?: string;
+  name: string;
+  market: "kr" | "us";
+  currency: "KRW" | "USD";
+  quantity: number;
+  avgBuyPrice: number | null;
+  currentPrice?: number | null;
+  marketValue?: number | null;
+  returnPercent?: number | null;
+  dailyChangePercent?: number | null;
+}
+
+export interface TossTestSnapshot {
+  cash: { krw: number; usd: number };
+  summary?: {
+    profitLossKrw?: number | null;
+    profitLossUsd?: number | null;
+    marketValueKrw?: number | null;
+    marketValueUsd?: number | null;
+  };
+  holdings: TossTestHolding[];
+}
+
 export interface BithumbTradingFees {
   bidFee: number;
   askFee: number;
@@ -1025,6 +1068,7 @@ export interface UserCredentialTestResult {
   exchange?: string;
   accountCount?: number;
   bithumbSnapshot?: BithumbTestSnapshot;
+  tossSnapshot?: TossTestSnapshot;
   tradingFees?: BithumbTradingFees | null;
 }
 

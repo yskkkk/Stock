@@ -1,9 +1,10 @@
 import { memo, useCallback, useEffect, useState } from "react";
 import { useBithumbAccountSnapshot } from "../hooks/useBithumbAccountSnapshot";
+import { useTossAccountSnapshot } from "../hooks/useTossAccountSnapshot";
 import { useLiveTradingStatusPoll } from "../hooks/useLiveTradingStatusPoll";
 import { useLiveTradeAuth } from "./LiveTradeAuthAndCredentials";
 import BithumbAccountSnapshotCard from "./BithumbAccountSnapshotCard";
-import TossAccountBalancePanel from "./TossAccountBalancePanel";
+import TossAccountSnapshotCard from "./TossAccountSnapshotCard";
 import DockPanelCenterLoading from "./DockPanelCenterLoading";
 import { LiveTradeExchangePicker } from "./LiveTradeExchangePicker";
 import {
@@ -44,7 +45,6 @@ function DockLinkedAccountsPanelInner() {
   const status = useLiveTradingStatusPoll();
   const bithumbReady = Boolean(status?.bithumb?.ready);
   const tossReady = Boolean(status?.toss?.ready);
-  const tossFeeLabel = status?.feeRates?.toss?.labelKo?.trim() || null;
 
   const [provider, setProvider] = useState<LinkedProvider>(readDockAccountProvider);
 
@@ -80,6 +80,17 @@ function DockLinkedAccountsPanelInner() {
     loading: bithumbLoading,
     err: bithumbErr,
   } = useBithumbAccountSnapshot({ poll: provider === "bithumb" });
+
+  const {
+    snapshot: tossSnapshot,
+    feeLabelKo: tossFeeLabelHook,
+    updatedAtMs: tossUpdatedAtMs,
+    loading: tossLoading,
+    err: tossErr,
+  } = useTossAccountSnapshot({ poll: provider === "toss" });
+
+  const tossFeeLabel =
+    status?.feeRates?.toss?.labelKo?.trim() || tossFeeLabelHook || null;
 
   const statusPending = status == null;
 
@@ -140,8 +151,19 @@ function DockLinkedAccountsPanelInner() {
         exchange="toss"
         className="dock-linked-accounts__hint dock-linked-accounts__hint--api"
       />
+    ) : tossLoading && !tossSnapshot ? (
+      <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
+    ) : !tossSnapshot ? (
+      <p className="dock-linked-accounts__hint">
+        {tossErr ?? ko.app.leftRailTossAccountNeedKeys}
+      </p>
     ) : (
-      <TossAccountBalancePanel feeLabelKo={tossFeeLabel} />
+      <TossAccountSnapshotCard
+        snapshot={tossSnapshot}
+        feeLabelKo={tossFeeLabel}
+        updatedAtMs={tossUpdatedAtMs}
+        variant="inline"
+      />
     );
 
   return (

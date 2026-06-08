@@ -1,0 +1,145 @@
+/**
+ * 토스 계좌 스냅샷 캐시 — UI·좌측 레일 표시용
+ */
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { getDecryptedCredentialsSync } from "./user-credentials-store.js";
+import { fetchTossAccountRawWithCredentials } from "./toss-openapi.js";
+import { summarizeTossAccountsForDisplay } from "./toss-accounts-summary.js";
+import { liveTradeLogWarn } from "./live-trade-log.js";
+import { resolveServerDataDir } from "./data-path.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+/** @typedef {{ snapshot?: object | null; feeLabelKo?: string | null; snapshotSyncedAtMs?: number }} TossLedgerUserRow */
+
+function ledgerFilePath() {
+  return path.join(resolveServerDataDir(), "live-trade-toss-ledger.json");
+}
+
+function ensureDataDirSync() {
+  const dir = resolveServerDataDir();
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+}
+
+function defaultStore() {
+  return { users: /** @type {Record<string, TossLedgerUserRow>} */ ({}) };
+}
+
+function readStoreSync() {
+  const fp = ledgerFilePath();
+  try {
+    if (!fs.existsSync(fp)) return defaultStore();
+    const parsed = JSON.parse(fs.readFileSync(fp, "utf8"));
+    if (!parsed?.users || typeof parsed.users !== "object") return defaultStore();
+    return /** @type {{ users: Record<string, TossLedgerUserRow> }} */ (parsed);
+  } catch {
+    return defaultStore();
+  }
+}
+
+function writeStoreSync(store) {
+  ensureDataDirSync();
+  const fp = ledgerFilePath();
+  const tmp = `${fp}.${process.pid}.${Date.now()}.tmp`;
+  fs.writeFileSync(tmp, `${JSON.stringify(store, null, 2)}\n`, "utf8");
+  fs.renameSync(tmp, fp);
+}
+
+function persistUserRow(userId, patch) {
+  const uid = String(userId ?? "").trim();
+  if (!uid) return;
+  const store = readStoreSync();
+  const prev = store.users[uid] ?? {};
+  store.users[uid] = { ...prev, ...patch };
+  writeStoreSync(store);
+}
+
+/**
+ * @param {string} userId
+ */
+export function getTossLedgerSnapshotCacheSync(userId) {
+  const uid = String(userId ?? "").trim();
+  if (!uid) return null;
+  const row = readStoreSync().users[uid];
+  if (!row?.snapshot) return null;
+  return {
+    ready: true,
+    snapshot: row.snapshot,
+    feeLabelKo: row.feeLabelKo ?? null,
+    syncedAtMs: row.snapshotSyncedAtMs ?? null,
+    fromCache: true,
+  };
+}
+
+/**
+ * @param {string} userId
+ */
+export async function refreshTossLedgerSnapshotForUserAsync(userId) {
+  const uid = String(userId ?? "").trim();
+  if (!uid) {
+    return { ready: false, messageKo: "로그인이 필요합니다." };
+  }
+
+  const { getCredentialMetaSync } = await import("./user-credentials-store.js");
+  const meta = getCredentialMetaSync(uid, "toss");
+  if (!meta.ready) {
+    return {
+      ready: false,
+      messageKo:
+        meta.messageKo ??
+        "토스 API Key·Secret·계좌 ID를 실거래 탭에서 저장하세요.",
+    };
+  }
+
+  const creds = getDecryptedCredentialsSync(uid, "toss");
+  if (!creds?.apiKey || !creds?.secretKey || !creds?.accountId) {
+    return { ready: false, messageKo: "토스 API 키·계좌를 저장하세요." };
+  }
+
+  try {
+    const raw = await fetchTossAccountRawWithCredentials(creds);
+    const snapshot = summarizeTossAccountsForDisplay(raw);
+
+    let feeLabelKo = null;
+    try {
+      const { ensureUserTradingFeesFreshAsync, getUserTradingFeeRatesForApiSync } =
+        await import("./exchange-trading-fees.js");
+      await ensureUserTradingFeesFreshAsync(uid);
+      feeLabelKo = getUserTradingFeeRatesForApiSync(uid).toss?.labelKo ?? null;
+    } catch {
+      /* 수수료 라벨 없어도 잔고·보유는 표시 */
+    }
+
+    const syncedAtMs = Date.now();
+    persistUserRow(uid, { snapshot, feeLabelKo, snapshotSyncedAtMs: syncedAtMs });
+
+    return {
+      ready: true,
+      snapshot,
+      feeLabelKo,
+      syncedAtMs,
+      fromCache: false,
+    };
+  } catch (e) {
+    liveTradeLogWarn(
+      "[toss-ledger] sync failed",
+      uid,
+      e instanceof Error ? e.message : e,
+    );
+    const cached = getTossLedgerSnapshotCacheSync(uid);
+    if (cached) {
+      return {
+        ...cached,
+        stale: true,
+        messageKo: e instanceof Error ? e.message : String(e),
+      };
+    }
+    return {
+      ready: false,
+      error: e instanceof Error ? e.message : String(e),
+      messageKo: e instanceof Error ? e.message : String(e),
+    };
+  }
+}

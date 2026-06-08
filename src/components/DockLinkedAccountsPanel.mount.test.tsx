@@ -23,8 +23,14 @@ vi.mock("../hooks/useBithumbAccountSnapshot", () => ({
   })),
 }));
 
-vi.mock("./TossAccountBalancePanel", () => ({
-  default: () => <div data-testid="toss-balance" />,
+vi.mock("../hooks/useTossAccountSnapshot", () => ({
+  useTossAccountSnapshot: vi.fn(() => ({
+    snapshot: null,
+    feeLabelKo: null,
+    updatedAtMs: null,
+    loading: false,
+    err: null,
+  })),
 }));
 
 vi.mock("./BithumbAccountSnapshotCard", () => ({

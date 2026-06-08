@@ -22,6 +22,10 @@ import {
 } from "./bithumb-trading-adapter.js";
 import { getTossTradingStatus } from "./toss-trading-adapter.js";
 import {
+  fetchTossAccountRawWithCredentials,
+} from "./toss-openapi.js";
+import { summarizeTossAccountsForDisplay } from "./toss-accounts-summary.js";
+import {
   validateBithumbCredentialPair,
   validateTossCredentialSet,
 } from "./stock-input-validation.js";
@@ -332,6 +336,13 @@ export function upsertUserCredentialSync(userId, exchange, input) {
         console.warn("[credentials] 빗썸 수수료 갱신 실패:", e instanceof Error ? e.message : e);
       });
   }
+  if (ex === "toss" && row.apiKeyEncrypted && row.secretEncrypted && row.accountIdEncrypted) {
+    void import("./live-trade-toss-ledger.js")
+      .then((m) => m.refreshTossLedgerSnapshotForUserAsync(uid))
+      .catch((e) => {
+        console.warn("[credentials] 토스 계좌 갱신 실패:", e instanceof Error ? e.message : e);
+      });
+  }
   return getCredentialMetaSync(uid, ex);
 }
 
@@ -453,28 +464,28 @@ export async function testUserCredentialAsync(userId, exchange, inline = null) {
     } else {
       creds = getDecryptedCredentialsSync(userId, "toss");
     }
-    if (creds?.apiKey && creds?.secretKey && creds?.accountId) {
-      return {
-        ok: true,
-        exchange: "toss",
-        messageKo: `토스 API 저장 확인 (계좌 ${creds.accountId.slice(0, 4)}···)`,
-      };
+    if (!creds?.apiKey || !creds?.secretKey) {
+      throw new Error("토스 API Key·Secret Key를 입력하거나 저장하세요.");
     }
-    const meta = getCredentialMetaSync(userId, "toss");
-    if (meta.source === "user" && meta.configured && !meta.ready) {
-      throw new Error(meta.messageKo);
+    if (!creds?.accountId) {
+      const meta = getCredentialMetaSync(userId, "toss");
+      if (meta.source === "user" && meta.configured && !meta.ready) {
+        throw new Error(meta.messageKo);
+      }
+      throw new Error("토스 계좌 ID(accountSeq)를 입력하거나 저장하세요.");
     }
-    const env = getTossTradingStatus();
-    if (env.ready) {
-      return {
-        ok: true,
-        exchange: "toss",
-        messageKo: "서버 .env 토스 설정으로 연결 확인됨 (공유 키)",
-      };
-    }
-    throw new Error(
-      meta.messageKo ?? "토스 API Key·Secret Key·계좌 번호를 입력하거나 저장하세요.",
-    );
+
+    const raw = await fetchTossAccountRawWithCredentials(creds);
+    const tossSnapshot = summarizeTossAccountsForDisplay(raw);
+    const holdingCount = tossSnapshot.holdings.length;
+
+    return {
+      ok: true,
+      exchange: "toss",
+      accountCount: 1,
+      tossSnapshot,
+      messageKo: `토스 연결 성공 (보유 ${holdingCount}종 · 주문가능 ₩${Math.round(tossSnapshot.cash.krw).toLocaleString("ko-KR")})`,
+    };
   }
 
   throw new Error("지원하지 않는 거래소입니다.");
@@ -520,4 +531,35 @@ export async function getBithumbAccountSnapshotForUserAsync(userId, opts = {}) {
   }
 
   return refreshBithumbLedgerSnapshotForUserAsync(uid);
+}
+
+/**
+ * 좌측 레일·계좌 요약 — 파일 캐시 우선, refresh 시 토스 Open API 폴링
+ * @param {string} userId
+ * @param {{ refresh?: boolean }} [opts]
+ */
+export async function getTossAccountSnapshotForUserAsync(userId, opts = {}) {
+  const uid = String(userId ?? "").trim();
+  if (!uid) {
+    return { ready: false, messageKo: "로그인이 필요합니다." };
+  }
+  const meta = getCredentialMetaSync(uid, "toss");
+  if (!meta.ready) {
+    return {
+      ready: false,
+      messageKo:
+        meta.messageKo ??
+        "토스 API Key·Secret·계좌 ID를 실거래 탭에서 저장하세요.",
+    };
+  }
+
+  const { getTossLedgerSnapshotCacheSync, refreshTossLedgerSnapshotForUserAsync } =
+    await import("./live-trade-toss-ledger.js");
+
+  if (!opts.refresh) {
+    const cached = getTossLedgerSnapshotCacheSync(uid);
+    if (cached) return cached;
+  }
+
+  return refreshTossLedgerSnapshotForUserAsync(uid);
 }

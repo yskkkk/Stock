@@ -4,6 +4,7 @@
 import {
   deleteUserCredentialSync,
   getBithumbAccountSnapshotForUserAsync,
+  getTossAccountSnapshotForUserAsync,
   getCredentialMetaSync,
   listCredentialMetaForUserSync,
   testUserCredentialAsync,
@@ -41,6 +42,27 @@ export function registerUserCredentialRoutes(app) {
         const refresh =
           req.query.refresh === "1" || req.query.refresh === "true";
         const out = await getBithumbAccountSnapshotForUserAsync(req.user.id, {
+          refresh,
+        });
+        res.json({ ok: true, ...out });
+      } catch (e) {
+        res.status(400).json({
+          ok: false,
+          ready: false,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }),
+  );
+
+  app.get(
+    "/api/user/toss/account-snapshot",
+    requireUserAuth,
+    asyncRoute(async (req, res) => {
+      try {
+        const refresh =
+          req.query.refresh === "1" || req.query.refresh === "true";
+        const out = await getTossAccountSnapshotForUserAsync(req.user.id, {
           refresh,
         });
         res.json({ ok: true, ...out });

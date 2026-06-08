@@ -27,6 +27,7 @@ import FeedbackCorner, {
 import EarningsUpcomingIconRail from "./components/EarningsUpcomingIconRail";
 import MacroEventsBar from "./components/MacroEventsBar";
 import LeftRailBithumbAccountPanel from "./components/LeftRailBithumbAccountPanel";
+import LeftRailTossAccountPanel from "./components/LeftRailTossAccountPanel";
 import LeftRailLiveTradeAuthPanel from "./components/LeftRailLiveTradeAuthPanel";
 import LiveTradingHeaderStrip from "./components/LiveTradingHeaderStrip";
 import TelegramNotifyIconButton from "./components/TelegramNotifyIconButton";
@@ -1303,6 +1304,9 @@ export default function App() {
           <aside ref={leftRailRef} className="app__left-rail" aria-label={ko.app.leftRailAria}>
             <LeftRailLiveTradeAuthPanel />
             <LeftRailBithumbAccountPanel
+              onOpenLiveTrading={openLiveTradingProgram}
+            />
+            <LeftRailTossAccountPanel
               onOpenLiveTrading={openLiveTradingProgram}
             />
             <LiveTradingLeftRailPanel

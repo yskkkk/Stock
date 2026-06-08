@@ -25,9 +25,11 @@ import {
   verifyAccountPassword,
   type AuthUser,
   type BithumbTestSnapshot,
+  type TossTestSnapshot,
   type UserCredentialMeta,
 } from "../api";
 import BithumbAccountSnapshotCard from "./BithumbAccountSnapshotCard";
+import TossAccountSnapshotCard from "./TossAccountSnapshotCard";
 import FieldValidationCallout from "./FieldValidationCallout";
 import LiveTradeDockYsHead from "./LiveTradeDockYsHead";
 import { ko } from "../i18n/ko";
@@ -873,6 +875,7 @@ function CredentialExchangeForm({
   const [secretKeyErr, setSecretKeyErr] = useState<string | null>(null);
   const [accountIdErr, setAccountIdErr] = useState<string | null>(null);
   const [testSnapshot, setTestSnapshot] = useState<BithumbTestSnapshot | null>(null);
+  const [testTossSnapshot, setTestTossSnapshot] = useState<TossTestSnapshot | null>(null);
   const [testTradingFees, setTestTradingFees] = useState<{
     bidFee: number;
     askFee: number;
@@ -983,6 +986,7 @@ function CredentialExchangeForm({
         setErr(null);
         setMsg(null);
         setTestSnapshot(null);
+        setTestTossSnapshot(null);
         setTestTradingFees(null);
         try {
           await deleteUserCredential(exchange, pw);
@@ -1099,6 +1103,7 @@ function CredentialExchangeForm({
     setErr(null);
     setMsg(null);
     setTestSnapshot(null);
+    setTestTossSnapshot(null);
     setTestTradingFees(null);
     setApiKeyErr(null);
     setSecretKeyErr(null);
@@ -1141,6 +1146,8 @@ function CredentialExchangeForm({
       if (exchange === "bithumb") {
         if (out.bithumbSnapshot) setTestSnapshot(out.bithumbSnapshot);
         if (out.tradingFees) setTestTradingFees(out.tradingFees);
+      } else if (exchange === "toss") {
+        if (out.tossSnapshot) setTestTossSnapshot(out.tossSnapshot);
       }
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -1344,6 +1351,21 @@ function CredentialExchangeForm({
             <BithumbAccountSnapshotCard
               snapshot={testSnapshot}
               tradingFees={testTradingFees}
+              variant="inline"
+              authenticated={keysReady}
+            />
+          ) : null}
+        </div>
+      ) : (msg || testTossSnapshot) && exchange === "toss" ? (
+        <div className="live-trading-tab__cred-test-row">
+          {msg ? (
+            <p className="live-trading-tab__hint live-trading-tab__cred-test-msg" role="status">
+              {msg}
+            </p>
+          ) : null}
+          {testTossSnapshot ? (
+            <TossAccountSnapshotCard
+              snapshot={testTossSnapshot}
               variant="inline"
               authenticated={keysReady}
             />
