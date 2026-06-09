@@ -1,7 +1,11 @@
+import { useRef } from "react";
 import type { TossTestSnapshot } from "../api";
 import { ko } from "../i18n/ko";
 import { useBithumbBalanceHidden } from "../hooks/useBithumbBalanceHidden";
 import { LiveTradeSymbolCell } from "./LiveTradeSymbolCell";
+import TossAccountOrderPanel, {
+  type TossAccountOrderPanelHandle,
+} from "./TossAccountOrderPanel";
 import {
   formatLiveTradeQuantity,
   formatPercent,
@@ -33,14 +37,23 @@ export default function TossAccountSnapshotCard({
   updatedAtMs = null,
   variant = "inline",
   authenticated = true,
+  liveOrdersEnabled = false,
+  serverLiveOrdersEnabled = false,
+  showOrders = true,
+  onOrderChanged,
 }: {
   snapshot: TossTestSnapshot;
   feeLabelKo?: string | null;
   updatedAtMs?: number | null;
   variant?: "inline" | "rail";
   authenticated?: boolean;
+  liveOrdersEnabled?: boolean;
+  serverLiveOrdersEnabled?: boolean;
+  showOrders?: boolean;
+  onOrderChanged?: () => void;
 }) {
   const { cash, summary, holdings } = snapshot;
+  const orderPanelRef = useRef<TossAccountOrderPanelHandle>(null);
   const [balanceHidden, toggleBalanceHidden] = useBithumbBalanceHidden();
   const isRail = variant === "rail";
   const rootClass = [
@@ -181,6 +194,15 @@ export default function TossAccountSnapshotCard({
                         {formatPrice(h.marketValue, h.currency)}
                       </span>
                     ) : null}
+                    {showOrders && authenticated ? (
+                      <button
+                        type="button"
+                        className="btn btn--secondary btn--sm account-snapshot__sell-btn"
+                        onClick={() => orderPanelRef.current?.openSell(h)}
+                      >
+                        {ko.app.liveTradeTossOrderSell}
+                      </button>
+                    ) : null}
                   </div>
                 </li>
               );
@@ -188,6 +210,16 @@ export default function TossAccountSnapshotCard({
           </ul>
         )}
       </section>
+
+      {showOrders && authenticated ? (
+        <TossAccountOrderPanel
+          ref={orderPanelRef}
+          compact={isRail}
+          liveOrdersEnabled={liveOrdersEnabled}
+          serverLiveOrdersEnabled={serverLiveOrdersEnabled}
+          onChanged={onOrderChanged}
+        />
+      ) : null}
     </div>
   );
 }

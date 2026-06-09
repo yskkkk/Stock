@@ -1560,6 +1560,21 @@ html[data-theme="dark"] .live-trading-tab__auth-code-msg {
   overflow: visible;
 }
 
+.live-trading-tab__cred-live-orders {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.38rem;
+  margin: 0.35rem 0 0.15rem;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.live-trading-tab__cred-live-orders input {
+  margin-top: 0.15rem;
+}
+
 .live-trading-tab__cred-password-anchor {
   position: relative;
   display: inline-flex;

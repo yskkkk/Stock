@@ -130,11 +130,18 @@ export function registerUserCredentialRoutes(app) {
         if (Object.prototype.hasOwnProperty.call(body, "liveOrdersEnabled")) {
           input.liveOrdersEnabled = Boolean(body.liveOrdersEnabled);
         }
-        requireAccountPasswordForExistingCredential(
-          req.user.id,
-          exchange,
-          body.accountPassword,
-        );
+        const ordersOnlyToggle =
+          Object.prototype.hasOwnProperty.call(body, "liveOrdersEnabled") &&
+          !Object.prototype.hasOwnProperty.call(body, "apiKey") &&
+          !Object.prototype.hasOwnProperty.call(body, "secretKey") &&
+          !Object.prototype.hasOwnProperty.call(body, "accountId");
+        if (!ordersOnlyToggle) {
+          requireAccountPasswordForExistingCredential(
+            req.user.id,
+            exchange,
+            body.accountPassword,
+          );
+        }
         const meta = upsertUserCredentialSync(req.user.id, exchange, input);
         res.json({ ok: true, credential: meta });
       } catch (e) {

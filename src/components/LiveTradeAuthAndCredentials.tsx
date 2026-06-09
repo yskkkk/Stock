@@ -881,6 +881,8 @@ function CredentialExchangeForm({
     askFee: number;
     roundTripFeeRate: number;
   } | null>(null);
+  const [liveOrdersEnabled, setLiveOrdersEnabled] = useState(false);
+  const [liveOrdersBusy, setLiveOrdersBusy] = useState(false);
   const [editingKeys, setEditingKeys] = useState(false);
   const [pwdGate, setPwdGate] = useState<CredPasswordGate | null>(null);
   const [pwdGateValue, setPwdGateValue] = useState("");
@@ -918,6 +920,10 @@ function CredentialExchangeForm({
       setEditingKeys(true);
     }
   }, [keysSaved]);
+
+  useEffect(() => {
+    setLiveOrdersEnabled(Boolean(meta?.liveOrdersEnabled));
+  }, [meta?.liveOrdersEnabled, meta?.updatedAtMs]);
 
   const closePwdGate = useCallback(() => {
     setPwdGate(null);
@@ -1162,6 +1168,38 @@ function CredentialExchangeForm({
       {envConfigured ? (
         <p className="live-trading-tab__hint live-trading-tab__cred-hint live-trading-tab__cred-env-banner">
           {ko.app.liveTradeCredEnvTossHint}
+        </p>
+      ) : null}
+      {keysSaved && !editingKeys && isToss ? (
+        <label className="live-trading-tab__cred-live-orders">
+          <input
+            type="checkbox"
+            checked={liveOrdersEnabled}
+            disabled={liveOrdersBusy || busy}
+            onChange={(e) => {
+              const next = e.target.checked;
+              setLiveOrdersBusy(true);
+              setErr(null);
+              void saveUserCredential("toss", { liveOrdersEnabled: next })
+                .then(() => {
+                  setLiveOrdersEnabled(next);
+                  setMsg(ko.app.liveTradeCredSaved);
+                  onSaved();
+                })
+                .catch((toggleErr) => {
+                  setErr(
+                    toggleErr instanceof Error ? toggleErr.message : String(toggleErr),
+                  );
+                })
+                .finally(() => setLiveOrdersBusy(false));
+            }}
+          />
+          <span>{ko.app.liveTradeCredLiveOrders}</span>
+        </label>
+      ) : null}
+      {keysSaved && !editingKeys && isToss ? (
+        <p className="live-trading-tab__hint live-trading-tab__cred-hint">
+          {ko.app.liveTradeCredLiveOrdersHint}
         </p>
       ) : null}
       {keysSaved && !editingKeys ? (

@@ -261,7 +261,7 @@ export function getDecryptedCredentialsSync(userId, exchange) {
     const out = {
       apiKey: decryptSecret(row.apiKeyEncrypted),
       secretKey: decryptSecret(row.secretEncrypted),
-      liveOrdersEnabled: true,
+      liveOrdersEnabled: Boolean(row.liveOrdersEnabled),
     };
     if (row.accountIdEncrypted) {
       out.accountId = decryptSecret(row.accountIdEncrypted);
@@ -363,6 +363,13 @@ export function upsertUserCredentialSync(userId, exchange, input) {
       ? encryptSecret(accountRaw)
       : prev?.accountIdEncrypted ?? "";
 
+  const liveOrdersEnabled =
+    input.liveOrdersEnabled !== undefined
+      ? Boolean(input.liveOrdersEnabled)
+      : prev?.liveOrdersEnabled != null
+        ? Boolean(prev.liveOrdersEnabled)
+        : false;
+
   const row = {
     id: prev?.id ?? randomUUID(),
     userId: uid,
@@ -370,7 +377,7 @@ export function upsertUserCredentialSync(userId, exchange, input) {
     apiKeyEncrypted,
     secretEncrypted,
     accountIdEncrypted: ex === "toss" ? accountIdEncrypted : prev?.accountIdEncrypted ?? "",
-    liveOrdersEnabled: true,
+    liveOrdersEnabled,
     updatedAtMs: Date.now(),
   };
   if (idx >= 0) store.credentials[idx] = row;

@@ -1,5 +1,5 @@
-import { memo, useEffect, useState } from "react";
-import { fetchAuthMe } from "../api";
+import { memo, useCallback, useEffect, useState } from "react";
+import { fetchAuthMe, fetchLiveTradingStatus, fetchUserCredentials } from "../api";
 import TossAccountSnapshotCard from "./TossAccountSnapshotCard";
 import TossAccountTitle from "./TossAccountTitle";
 import DockPanelCenterLoading from "./DockPanelCenterLoading";
@@ -13,8 +13,34 @@ export function TossAccountRailCore({
   onOpenLiveTrading?: () => void;
   layout?: "rail-aside" | "dock";
 }) {
-  const { user, authChecked, snapshot, feeLabelKo, updatedAtMs, loading, err } =
+  const { user, authChecked, snapshot, feeLabelKo, updatedAtMs, loading, err, reload } =
     useTossAccountSnapshot();
+  const [liveOrdersEnabled, setLiveOrdersEnabled] = useState(false);
+  const [serverLiveOrdersEnabled, setServerLiveOrdersEnabled] = useState(false);
+
+  const reloadOrderMeta = useCallback(async () => {
+    try {
+      const creds = await fetchUserCredentials();
+      setLiveOrdersEnabled(Boolean(creds.toss?.liveOrdersEnabled));
+    } catch {
+      setLiveOrdersEnabled(false);
+    }
+    try {
+      const status = await fetchLiveTradingStatus();
+      setServerLiveOrdersEnabled(status.tossSimulatedOrders === false);
+    } catch {
+      setServerLiveOrdersEnabled(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setLiveOrdersEnabled(false);
+      setServerLiveOrdersEnabled(false);
+      return;
+    }
+    void reloadOrderMeta();
+  }, [user, reloadOrderMeta]);
 
   if (authChecked && !user) return null;
 
@@ -45,6 +71,12 @@ export function TossAccountRailCore({
       feeLabelKo={feeLabelKo}
       updatedAtMs={updatedAtMs}
       variant={layout === "dock" ? "inline" : "rail"}
+      liveOrdersEnabled={liveOrdersEnabled}
+      serverLiveOrdersEnabled={serverLiveOrdersEnabled}
+      onOrderChanged={() => {
+        void reload(true, true);
+        void reloadOrderMeta();
+      }}
     />
   );
 

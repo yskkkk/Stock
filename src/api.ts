@@ -1817,6 +1817,85 @@ export function cancelBithumbOpenOrder(orderId: string) {
   );
 }
 
+export interface TossOpenOrder {
+  orderId: string;
+  symbol: string;
+  rawSymbol: string;
+  name: string;
+  market: "kr" | "us" | string;
+  side: "buy" | "sell" | string;
+  ordType: string;
+  state: string;
+  price: number | null;
+  amount: number | null;
+  volume: number | null;
+  remainingVolume: number | null;
+  executedVolume: number | null;
+  createdAtMs: number;
+  currency: string;
+}
+
+export interface TossOpenOrdersResponse {
+  ok: boolean;
+  ready: boolean;
+  configured?: boolean;
+  liveOrdersEnabled: boolean;
+  serverLiveOrdersEnabled?: boolean;
+  messageKo?: string;
+  fetchError?: string;
+  orders: TossOpenOrder[];
+  updatedAtMs: number;
+}
+
+export interface TossPlaceOrderBody {
+  symbol: string;
+  market?: "kr" | "us" | string;
+  side: "buy" | "sell";
+  orderType?: "market" | "limit";
+  amount?: number;
+  quantity?: number;
+  price?: number;
+}
+
+export interface TossPlaceOrderResponse {
+  ok: boolean;
+  simulated?: boolean;
+  orderId?: string;
+  fillPrice?: number;
+  messageKo?: string;
+  openOrders?: TossOpenOrdersResponse;
+  error?: string;
+}
+
+export function fetchTossOpenOrders() {
+  return fetchJson<TossOpenOrdersResponse>("/api/live-trading/toss/open-orders");
+}
+
+export function cancelTossOpenOrder(orderId: string) {
+  return fetchJson<TossOpenOrdersResponse & { ok: boolean }>(
+    `/api/live-trading/toss/orders/${encodeURIComponent(orderId)}`,
+    { method: "DELETE" },
+  );
+}
+
+export function placeTossOrder(body: TossPlaceOrderBody) {
+  return fetchJson<TossPlaceOrderResponse>("/api/live-trading/toss/orders", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function fetchTossSellableQuantity(symbol: string, market: "kr" | "us" | string) {
+  const q = new URLSearchParams({
+    symbol: symbol.trim(),
+    market: String(market ?? "kr"),
+  });
+  return fetchJson<{ ok: boolean; symbol: string; market: string; quantity: number }>(
+    `/api/live-trading/toss/sellable-quantity?${q}`,
+  );
+}
+
 export function fetchStockFundamentals(symbol: string, signal?: AbortSignal) {
   return fetchJson<StockFundamentalsResponse>(
     `/api/stock/${encodeURIComponent(symbol)}/fundamentals`,

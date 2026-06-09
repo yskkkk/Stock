@@ -94,8 +94,8 @@ export async function refreshTossLedgerSnapshotForUserAsync(userId) {
   }
 
   const creds = getDecryptedCredentialsSync(uid, "toss");
-  if (!creds?.apiKey || !creds?.secretKey || !creds?.accountId) {
-    return { ready: false, messageKo: "토스 API 키·계좌를 저장하세요." };
+  if (!creds?.apiKey || !creds?.secretKey) {
+    return { ready: false, messageKo: "토스 API Key·Secret Key를 저장하세요." };
   }
 
   try {

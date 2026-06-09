@@ -293,3 +293,157 @@ html[data-theme="light"] .account-snapshot__balance-card {
 .account-snapshot .live-symbol-with-icon__text {
   min-width: 0;
 }
+
+.account-snapshot__sell-btn {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 0.08rem 0.38rem;
+  font-size: 0.58rem;
+}
+
+.toss-order-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.42rem;
+  margin-top: 0.15rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+}
+
+.toss-order-panel__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+  align-items: center;
+}
+
+.toss-order-panel__sim {
+  margin: 0;
+  padding: 0.38rem 0.45rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--warn, #f59e0b) 12%, transparent);
+  color: var(--text-dim, #94a3b8);
+  font-size: 0.62rem;
+  line-height: 1.45;
+}
+
+.toss-order-panel__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+  padding: 0.45rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  background: color-mix(in srgb, var(--card-bg) 90%, transparent);
+}
+
+.toss-order-panel__form-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
+.toss-order-panel__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  font-size: 0.62rem;
+  color: var(--muted);
+}
+
+.toss-order-panel__input {
+  font-size: 0.68rem;
+  padding: 0.28rem 0.38rem;
+}
+
+.toss-order-panel__type {
+  display: flex;
+  gap: 0.22rem;
+}
+
+.toss-order-panel__type-btn {
+  flex: 1;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.62rem;
+  padding: 0.22rem 0.35rem;
+}
+
+.toss-order-panel__type-btn.active {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.toss-order-panel__submit {
+  align-self: flex-start;
+}
+
+.toss-order-panel__open-title {
+  margin: 0;
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: var(--text-dim, #94a3b8);
+}
+
+.toss-order-panel__orders {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.toss-order-panel__order {
+  padding: 0.32rem 0.38rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--border) 68%, transparent);
+}
+
+.toss-order-panel__order-row {
+  display: flex;
+  align-items: center;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.toss-order-panel__order-row + .toss-order-panel__order-row {
+  margin-top: 0.18rem;
+}
+
+.toss-order-panel__side {
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+
+.toss-order-panel__side--buy {
+  color: var(--up, #16a34a);
+}
+
+.toss-order-panel__side--sell {
+  color: var(--down, #dc2626);
+}
+
+.toss-order-panel__muted,
+.toss-order-panel__updated {
+  margin: 0;
+  font-size: 0.62rem;
+  color: var(--muted);
+}
+
+.toss-order-panel__msg {
+  margin: 0;
+  font-size: 0.64rem;
+  color: var(--up, #16a34a);
+}
+
+.toss-order-panel__err {
+  margin: 0;
+  font-size: 0.64rem;
+  color: var(--down, #dc2626);
+}

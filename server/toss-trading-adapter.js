@@ -12,6 +12,9 @@ import { isBoxRangePickSignal } from "./box-range/buy-guard.js";
 import { isBoxRangeProgram } from "./box-range/constants.js";
 import { getDecryptedCredentialsSync } from "./user-credentials-store.js";
 import {
+  cancelTossOrderRaw,
+  fetchTossOpenOrdersRaw,
+  fetchTossSellableQuantityRaw,
   issueTossAccessToken,
   resolveTossAccountSeq,
   tossOpenApiPost,
@@ -184,6 +187,219 @@ function tossOrderSymbol(symbol, market) {
 }
 
 /**
+ * @param {string} [userId]
+ */
+export function isTossLiveOrdersEnabledForUser(userId) {
+  if (process.env.TOSS_LIVE_ORDERS_ENABLED !== "1") return false;
+  const uid = String(userId ?? "").trim();
+  if (uid) {
+    const creds = getDecryptedCredentialsSync(uid, "toss");
+    if (creds) return Boolean(creds.liveOrdersEnabled);
+  }
+  return true;
+}
+
+/**
+ * @param {string} userId
+ */
+async function resolveTossApiSession(userId) {
+  const creds = resolveTossCredentials(userId);
+  if (!creds.apiKey || !creds.secret) {
+    throw new Error("토스 API Key·Secret Key를 저장하세요.");
+  }
+  const accessToken = await issueTossAccessToken(creds.apiKey, creds.secret);
+  const accountSeq = await resolveTossAccountSeq(accessToken, creds.accountId);
+  return { accessToken, accountSeq, creds };
+}
+
+/**
+ * @param {string} accessToken
+ * @param {string} accountSeq
+ * @param {Record<string, unknown>} body
+ */
+async function submitTossOrder(accessToken, accountSeq, body) {
+  const json = await tossOpenApiPost(accessToken, accountSeq, "/api/v1/orders", body);
+  const result =
+    json?.result && typeof json.result === "object" ? json.result : json;
+  return {
+    orderId: String(result?.orderId ?? result?.id ?? ""),
+    fillPrice:
+      typeof result?.averagePrice === "number" && Number.isFinite(result.averagePrice)
+        ? result.averagePrice
+        : undefined,
+    raw: result,
+  };
+}
+
+/**
+ * @typedef {{
+ *   apiKey: string;
+ *   secretKey: string;
+ *   accountId?: string;
+ *   liveOrdersEnabled?: boolean;
+ * }} TossTradingCredentials
+ */
+
+/**
+ * @param {TossTradingCredentials} credentials
+ */
+export async function listTossOpenOrdersWithCredentials(credentials) {
+  const apiKey = String(credentials?.apiKey ?? "").trim();
+  const secretKey = String(credentials?.secretKey ?? "").trim();
+  if (!apiKey || !secretKey) {
+    throw new Error("토스 API Key·Secret Key가 필요합니다.");
+  }
+  const accessToken = await issueTossAccessToken(apiKey, secretKey);
+  const accountSeq = await resolveTossAccountSeq(accessToken, credentials?.accountId);
+  return fetchTossOpenOrdersRaw(accessToken, accountSeq);
+}
+
+/**
+ * @param {string} orderId
+ * @param {TossTradingCredentials} credentials
+ */
+export async function cancelTossOrderWithCredentials(orderId, credentials) {
+  const apiKey = String(credentials?.apiKey ?? "").trim();
+  const secretKey = String(credentials?.secretKey ?? "").trim();
+  if (!apiKey || !secretKey) {
+    throw new Error("토스 API Key·Secret Key가 필요합니다.");
+  }
+  const accessToken = await issueTossAccessToken(apiKey, secretKey);
+  const accountSeq = await resolveTossAccountSeq(accessToken, credentials?.accountId);
+  await cancelTossOrderRaw(accessToken, accountSeq, orderId);
+}
+
+/**
+ * @param {string} userId
+ * @param {string} symbol
+ * @param {"kr"|"us"} market
+ */
+export async function fetchTossSellableQuantityForUser(userId, symbol, market) {
+  const { accessToken, accountSeq } = await resolveTossApiSession(userId);
+  const orderSymbol = tossOrderSymbol(symbol, market);
+  const raw = await fetchTossSellableQuantityRaw(
+    accessToken,
+    accountSeq,
+    orderSymbol,
+    market === "us" ? "US" : "KR",
+  );
+  const qty = Number(raw?.quantity ?? raw?.sellableQuantity ?? raw?.qty);
+  return Number.isFinite(qty) && qty >= 0 ? qty : 0;
+}
+
+/**
+ * @param {string} userId
+ * @param {{
+ *   symbol: string;
+ *   market?: string;
+ *   side: "buy" | "sell";
+ *   orderType?: "market" | "limit";
+ *   amount?: number;
+ *   quantity?: number;
+ *   price?: number;
+ * }} order
+ */
+export async function placeManualTossOrderForUser(userId, order) {
+  const uid = String(userId ?? "").trim();
+  if (!uid) return { ok: false, error: "로그인이 필요합니다." };
+  if (!tossReadyForUser(uid)) {
+    const status = getTossTradingStatusForUser(uid);
+    return { ok: false, error: status.messageKo };
+  }
+
+  const symbol = String(order.symbol ?? "").trim();
+  const market = normalizeLiveTradeMarket(order.market, symbol);
+  if (market === "crypto") {
+    return { ok: false, error: "코인은 토스 실주문을 지원하지 않습니다." };
+  }
+  const side = String(order.side ?? "").trim().toLowerCase();
+  if (side !== "buy" && side !== "sell") {
+    return { ok: false, error: "매수·매도 구분이 올바르지 않습니다." };
+  }
+  const orderTypeRaw = String(order.orderType ?? "market").trim().toLowerCase();
+  const orderType = orderTypeRaw === "limit" ? "LIMIT" : "MARKET";
+  const orderSymbol = tossOrderSymbol(symbol, market);
+  if (!orderSymbol) {
+    return { ok: false, error: "종목 코드가 올바르지 않습니다." };
+  }
+
+  const live = isTossLiveOrdersEnabledForUser(uid);
+  if (!live) {
+    console.info("[toss-trading] simulated manual order", side, orderSymbol, market);
+    return {
+      ok: true,
+      simulated: true,
+      orderId: `sim-manual-${Date.now()}`,
+      messageKo: "실주문이 꺼져 있어 시뮬레이션으로 처리했습니다.",
+    };
+  }
+
+  try {
+    const { accessToken, accountSeq } = await resolveTossApiSession(uid);
+    /** @type {Record<string, unknown>} */
+    const body = {
+      symbol: orderSymbol,
+      side: side === "sell" ? "SELL" : "BUY",
+      orderType,
+      marketCountry: market === "us" ? "US" : "KR",
+      clientOrderId: `manual-${orderSymbol}-${side}-${Date.now()}`,
+    };
+
+    if (side === "buy") {
+      const amount = Number(order.amount);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return { ok: false, error: "매수 금액을 입력하세요." };
+      }
+      if (orderType === "LIMIT") {
+        const price = Number(order.price);
+        if (!Number.isFinite(price) || price <= 0) {
+          return { ok: false, error: "지정가를 입력하세요." };
+        }
+        body.price = {
+          currency: market === "us" ? "USD" : "KRW",
+          value: String(price),
+        };
+      }
+      body.amount = {
+        currency: market === "us" ? "USD" : "KRW",
+        value: String(Math.round(amount)),
+      };
+    } else {
+      const quantity = Number(order.quantity);
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        return { ok: false, error: "매도 수량을 입력하세요." };
+      }
+      body.quantity = String(quantity);
+      if (orderType === "LIMIT") {
+        const price = Number(order.price);
+        if (!Number.isFinite(price) || price <= 0) {
+          return { ok: false, error: "지정가를 입력하세요." };
+        }
+        body.price = {
+          currency: market === "us" ? "USD" : "KRW",
+          value: String(price),
+        };
+      }
+    }
+
+    const placed = await submitTossOrder(accessToken, accountSeq, body);
+    void import("./live-trade-toss-ledger.js")
+      .then((m) => m.refreshTossLedgerSnapshotForUserAsync(uid))
+      .catch(() => null);
+    return {
+      ok: true,
+      orderId: placed.orderId,
+      fillPrice: placed.fillPrice,
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : String(e),
+    };
+  }
+}
+
+/**
  * @param {import("./live-trade-programs-store.js").LiveTradeProgram} program
  * @param {{ score: number; signalIds?: string[]; techModelWeights?: Record<string, number> }} pick
  */
@@ -252,7 +468,7 @@ export async function executeLiveBuyOrder(program, pick, opts = {}) {
 
   const creds = resolveTossCredentials(userId);
 
-  if (process.env.TOSS_LIVE_ORDERS_ENABLED !== "1") {
+  if (!isTossLiveOrdersEnabledForUser(userId)) {
     console.info(
       "[toss-trading] simulated buy",
       program.name,
@@ -269,10 +485,9 @@ export async function executeLiveBuyOrder(program, pick, opts = {}) {
   }
 
   try {
-    const accessToken = await issueTossAccessToken(creds.apiKey, creds.secret);
-    const accountSeq = await resolveTossAccountSeq(accessToken, creds.accountId);
+    const { accessToken, accountSeq } = await resolveTossApiSession(userId);
     const orderSymbol = tossOrderSymbol(symbol, market);
-    const json = await tossOpenApiPost(accessToken, accountSeq, "/api/v1/orders", {
+    const placed = await submitTossOrder(accessToken, accountSeq, {
       symbol: orderSymbol,
       side: "BUY",
       orderType: "MARKET",
@@ -283,16 +498,10 @@ export async function executeLiveBuyOrder(program, pick, opts = {}) {
       },
       clientOrderId: `${program.id}-${orderSymbol}-${Date.now()}`,
     });
-    const result =
-      json?.result && typeof json.result === "object" ? json.result : json;
     return {
       ok: true,
-      orderId: String(result?.orderId ?? result?.id ?? ""),
-      fillPrice:
-        typeof result?.averagePrice === "number" &&
-        Number.isFinite(result.averagePrice)
-          ? result.averagePrice
-          : undefined,
+      orderId: placed.orderId,
+      fillPrice: placed.fillPrice,
     };
   } catch (e) {
     return {
@@ -333,7 +542,7 @@ export async function executeLiveSellOrder(program, order, opts = {}) {
       ? order.price
       : undefined;
 
-  if (process.env.TOSS_LIVE_ORDERS_ENABLED !== "1") {
+  if (!isTossLiveOrdersEnabledForUser(userId)) {
     console.info(
       "[toss-trading] simulated sell",
       program.name,
@@ -351,10 +560,9 @@ export async function executeLiveSellOrder(program, order, opts = {}) {
   }
 
   try {
-    const accessToken = await issueTossAccessToken(creds.apiKey, creds.secret);
-    const accountSeq = await resolveTossAccountSeq(accessToken, creds.accountId);
+    const { accessToken, accountSeq } = await resolveTossApiSession(userId);
     const orderSymbol = tossOrderSymbol(symbol, market);
-    const json = await tossOpenApiPost(accessToken, accountSeq, "/api/v1/orders", {
+    const placed = await submitTossOrder(accessToken, accountSeq, {
       symbol: orderSymbol,
       side: "SELL",
       orderType: price != null ? "LIMIT" : "MARKET",
@@ -370,16 +578,10 @@ export async function executeLiveSellOrder(program, order, opts = {}) {
         : {}),
       clientOrderId: `${program.id}-${orderSymbol}-sell-${Date.now()}`,
     });
-    const result =
-      json?.result && typeof json.result === "object" ? json.result : json;
     return {
       ok: true,
-      orderId: String(result?.orderId ?? result?.id ?? ""),
-      fillPrice:
-        typeof result?.averagePrice === "number" &&
-        Number.isFinite(result.averagePrice)
-          ? result.averagePrice
-          : price,
+      orderId: placed.orderId,
+      fillPrice: placed.fillPrice ?? price,
     };
   } catch (e) {
     return {

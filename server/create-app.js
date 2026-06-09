@@ -161,6 +161,12 @@ import {
   cancelBithumbOpenOrderForUser,
 } from "./live-trade-bithumb-open-orders.js";
 import {
+  buildTossOpenOrdersForUser,
+  cancelTossOpenOrderForUser,
+  placeTossOrderForUser,
+} from "./live-trade-toss-orders.js";
+import { fetchTossSellableQuantityForUser } from "./toss-trading-adapter.js";
+import {
   analyzeSimProgramFeedback,
   applySimProgramFeedbackPatch,
   buildSimCreationRecommendations,
@@ -1043,6 +1049,70 @@ export function createApp() {
       try {
         const orderId = String(req.params.orderId ?? "").trim();
         const payload = await cancelBithumbOpenOrderForUser(req.user.id, orderId);
+        res.json({ ok: true, ...payload });
+      } catch (e) {
+        res.status(400).json({
+          ok: false,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }),
+  );
+
+  app.get(
+    "/api/live-trading/toss/open-orders",
+    requireUserAuth,
+    asyncRoute(async (req, res) => {
+      const payload = await buildTossOpenOrdersForUser(req.user.id);
+      res.json(payload);
+    }),
+  );
+
+  app.get(
+    "/api/live-trading/toss/sellable-quantity",
+    requireUserAuth,
+    asyncRoute(async (req, res) => {
+      try {
+        const symbol = String(req.query?.symbol ?? "").trim();
+        const market = String(req.query?.market ?? "kr").trim();
+        const quantity = await fetchTossSellableQuantityForUser(
+          req.user.id,
+          symbol,
+          market,
+        );
+        res.json({ ok: true, symbol, market, quantity });
+      } catch (e) {
+        res.status(400).json({
+          ok: false,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }),
+  );
+
+  app.post(
+    "/api/live-trading/toss/orders",
+    requireUserAuth,
+    asyncRoute(async (req, res) => {
+      try {
+        const payload = await placeTossOrderForUser(req.user.id, req.body ?? {});
+        res.json(payload);
+      } catch (e) {
+        res.status(400).json({
+          ok: false,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }),
+  );
+
+  app.delete(
+    "/api/live-trading/toss/orders/:orderId",
+    requireUserAuth,
+    asyncRoute(async (req, res) => {
+      try {
+        const orderId = String(req.params.orderId ?? "").trim();
+        const payload = await cancelTossOpenOrderForUser(req.user.id, orderId);
         res.json({ ok: true, ...payload });
       } catch (e) {
         res.status(400).json({

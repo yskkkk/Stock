@@ -251,6 +251,95 @@ export async function fetchTossAccountRawWithCredentials(creds) {
  * @param {TossOpenApiCredentials} creds
  * @param {"KR"|"US"} [marketCountry]
  */
+/**
+ * @param {string} accessToken
+ * @param {string} accountSeq
+ * @param {string} path
+ */
+export async function tossOpenApiDelete(accessToken, accountSeq, path) {
+  const base = tossOpenApiBaseUrl();
+  const url = new URL(path.startsWith("/") ? path : `/${path}`, base);
+
+  /** @type {Record<string, string>} */
+  const headers = {
+    Authorization: `Bearer ${accessToken}`,
+    Accept: "application/json",
+  };
+  const acct = String(accountSeq ?? "").trim();
+  if (acct) headers["X-Tossinvest-Account"] = acct;
+
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers,
+    signal: AbortSignal.timeout(30_000),
+  });
+
+  const text = await res.text();
+  /** @type {Record<string, unknown>} */
+  let json = {};
+  try {
+    json = text ? JSON.parse(text) : {};
+  } catch {
+    json = {};
+  }
+
+  if (!res.ok) {
+    const errObj =
+      json.error && typeof json.error === "object" ? json.error : null;
+    const msg =
+      (errObj && typeof errObj.message === "string" && errObj.message) ||
+      (typeof json.message === "string" && json.message) ||
+      `토스 API 오류 HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+
+  return json;
+}
+
+/**
+ * @param {string} accessToken
+ * @param {string} accountSeq
+ */
+export async function fetchTossOpenOrdersRaw(accessToken, accountSeq) {
+  const json = await tossOpenApiGet(accessToken, accountSeq, "/api/v1/orders");
+  const result = json?.result;
+  if (Array.isArray(result)) return result;
+  if (result && typeof result === "object" && Array.isArray(result.items)) {
+    return result.items;
+  }
+  return [];
+}
+
+/**
+ * @param {string} accessToken
+ * @param {string} accountSeq
+ * @param {string} symbol
+ * @param {"KR"|"US"} marketCountry
+ */
+export async function fetchTossSellableQuantityRaw(
+  accessToken,
+  accountSeq,
+  symbol,
+  marketCountry,
+) {
+  const json = await tossOpenApiGet(accessToken, accountSeq, "/api/v1/sellable-quantity", {
+    symbol: String(symbol ?? "").trim(),
+    marketCountry,
+  });
+  return json?.result ?? json;
+}
+
+/**
+ * @param {string} accessToken
+ * @param {string} accountSeq
+ * @param {string} orderId
+ */
+export async function cancelTossOrderRaw(accessToken, accountSeq, orderId) {
+  const id = String(orderId ?? "").trim();
+  if (!id) throw new Error("주문 ID가 필요합니다.");
+  return tossOpenApiPost(accessToken, accountSeq, `/api/v1/orders/${encodeURIComponent(id)}/cancel`);
+}
+
 export async function fetchTossCommissionsWithCredentials(creds, marketCountry = "KR") {
   const apiKey = String(creds?.apiKey ?? "").trim();
   const secretKey = String(creds?.secretKey ?? "").trim();

@@ -72,7 +72,7 @@ export function buildVaultItemsFromScanHistory(
     const favorited = favorites.has(sym);
     const fm = meta[sym];
     const crosses = (hit.crosses ?? []).filter(
-      (c): c is GoldenCrossKind =>
+      (c: string): c is GoldenCrossKind =>
         c === "5>20" || c === "5>60" || c === "5>120",
     );
     items.push({
