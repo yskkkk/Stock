@@ -40,7 +40,11 @@ function renderFatal(message: string) {
       <div style="width:min(520px,100%);border:1px solid rgba(148,163,184,.18);background:#161d27;border-radius:12px;padding:1rem 1.05rem;box-shadow:0 8px 28px rgba(0,0,0,.45);">
         <div style="font-weight:800;letter-spacing:-0.02em;margin:0 0 .35rem;">로딩 중 오류</div>
         <div style="font-size:.9rem;line-height:1.55;color:#9aa8bc;white-space:pre-wrap;">${String(message ?? "알 수 없는 오류").replace(/</g, "&lt;")}</div>
-        <div style="margin-top:.85rem;font-size:.82rem;color:#6d7d92;">새로고침 후에도 계속되면 콘솔 오류 캡처를 보내주세요.</div>
+        <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.85rem;">
+          <button type="button" onclick="location.reload()" style="padding:.45rem .85rem;border-radius:8px;border:1px solid rgba(148,163,184,.25);background:#1e5fc4;color:#fff;font-weight:600;">새로고침</button>
+          <button type="button" onclick="(window.stockClearCacheAndReload?window.stockClearCacheAndReload():location.reload())" style="padding:.45rem .85rem;border-radius:8px;border:1px solid rgba(148,163,184,.25);background:#1b2430;color:#eef2f7;font-weight:600;">캐시 삭제 후 재시도</button>
+        </div>
+        <div style="margin-top:.65rem;font-size:.82rem;color:#6d7d92;">새로고침 후에도 계속되면 콘솔 오류 캡처를 보내주세요.</div>
       </div>
     </div>
   `;

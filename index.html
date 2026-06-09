@@ -16,50 +16,9 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png?v=19" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=19" />
     <title>YSTOCK</title>
+    <script src="/stock-boot-cache.js"></script>
     <script>
       window.__STOCK_BOOT = 0;
-      (function () {
-        var PURGE_KEY = "stock-pwa-boot-purge-v2";
-        try {
-          if (localStorage.getItem(PURGE_KEY) === "1") return;
-          localStorage.setItem(PURGE_KEY, "1");
-        } catch (e) {
-          return;
-        }
-        if (!("serviceWorker" in navigator) && !("caches" in window)) return;
-        var reloaded = false;
-        function maybeReload() {
-          if (reloaded) return;
-          reloaded = true;
-          if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-            location.reload();
-          }
-        }
-        var tasks = [];
-        if ("caches" in window) {
-          tasks.push(
-            caches.keys().then(function (keys) {
-              return Promise.all(
-                keys.map(function (k) {
-                  return caches.delete(k);
-                }),
-              );
-            }),
-          );
-        }
-        if ("serviceWorker" in navigator) {
-          tasks.push(
-            navigator.serviceWorker.getRegistrations().then(function (regs) {
-              return Promise.all(
-                regs.map(function (r) {
-                  return r.unregister();
-                }),
-              );
-            }),
-          );
-        }
-        Promise.all(tasks).then(maybeReload).catch(function () {});
-      })();
       (function () {
         try {
           var k = "stock-app-color-theme";
@@ -120,6 +79,27 @@
     </noscript>
     <script type="module" src="/src/main.tsx"></script>
     <script>
+      function stockBootHint() {
+        try {
+          return (
+            (window.__stockBootCache && window.__stockBootCache.cacheHintText()) ||
+            "캐시·네트워크 문제일 수 있습니다."
+          );
+        } catch (e) {
+          return "캐시·네트워크 문제일 수 있습니다.";
+        }
+      }
+
+      function stockClearCacheAndReload() {
+        try {
+          if (window.__stockBootCache && window.__stockBootCache.clearAll) {
+            window.__stockBootCache.clearAll({ reload: true, resetPurgeFlag: true });
+            return;
+          }
+        } catch (e) {}
+        location.reload();
+      }
+
       function stockShowBootError(detail) {
         try {
           var root = document.getElementById("root");
@@ -132,23 +112,25 @@
             '<div style="font-size:.9rem;line-height:1.55;color:#64748b;white-space:pre-wrap;">' +
             String(detail || "앱 스크립트를 불러오지 못했습니다.") +
             "</div>" +
-            '<button type="button" onclick="location.reload()" style="margin-top:.85rem;padding:.45rem .85rem;border-radius:8px;border:1px solid rgba(15,23,42,.15);background:#1e5fc4;color:#fff;font-weight:600;">새로고침</button>' +
-            "</div></div>";
+            '<div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.85rem;">' +
+            '<button type="button" onclick="location.reload()" style="padding:.45rem .85rem;border-radius:8px;border:1px solid rgba(15,23,42,.15);background:#1e5fc4;color:#fff;font-weight:600;">새로고침</button>' +
+            '<button type="button" onclick="stockClearCacheAndReload()" style="padding:.45rem .85rem;border-radius:8px;border:1px solid rgba(15,23,42,.15);background:#fff;color:#0f172a;font-weight:600;">캐시 삭제 후 재시도</button>' +
+            "</div></div></div>";
         } catch (e) {}
       }
+
+      window.stockClearCacheAndReload = stockClearCacheAndReload;
 
       window.addEventListener("error", function (ev) {
         if (window.__STOCK_BOOT >= 2) return;
         var msg = (ev && ev.message) || "스크립트 오류";
-        stockShowBootError(msg + "\n\nSafari 설정 → 고급 → 웹 사이트 데이터 삭제 후 다시 시도해 보세요.");
+        stockShowBootError(msg + "\n\n" + stockBootHint());
       });
 
       setTimeout(function () {
         if (window.__STOCK_BOOT >= 2) return;
-        stockShowBootError(
-          "앱이 시작되지 않았습니다.\n\n캐시·네트워크 문제일 수 있습니다. Safari에서 이 사이트 데이터를 삭제한 뒤 새로고침해 주세요.",
-        );
-      }, 8000);
+        stockShowBootError("앱이 시작되지 않았습니다.\n\n" + stockBootHint());
+      }, (window.__stockBootCache && window.__stockBootCache.bootTimeoutMs()) || 15000);
     </script>
   </body>
 </html>

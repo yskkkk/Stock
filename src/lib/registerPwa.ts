@@ -4,6 +4,14 @@ let swReloadDone = false;
 
 /** PWA service worker — iOS·Android 홈 화면 설치 */
 export function registerPwaServiceWorker(): void {
+  if (import.meta.env.DEV) {
+    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+      void navigator.serviceWorker.getRegistrations().then((regs) =>
+        Promise.all(regs.map((r) => r.unregister())),
+      );
+    }
+    return;
+  }
   if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
 
   navigator.serviceWorker.addEventListener("message", (event) => {
@@ -21,8 +29,6 @@ export function registerPwaServiceWorker(): void {
     swReloadDone = true;
     window.location.reload();
   });
-
-  void caches.delete("stock-pwa-v1");
 
   void navigator.serviceWorker
     .register("/sw.js")

@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { clearStockWebCache } from "../lib/webCache";
 
 type Props = {
   children: ReactNode;
@@ -54,14 +55,22 @@ export default class AppErrorBoundary extends Component<Props, State> {
             <p style={{ margin: 0, fontSize: "0.9rem", lineHeight: 1.55, color: "var(--muted, #8a929e)" }}>
               {this.state.message}
             </p>
-            <button
-              type="button"
-              className="btn btn--primary"
-              style={{ marginTop: "0.85rem" }}
-              onClick={() => window.location.reload()}
-            >
-              새로고침
-            </button>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.85rem" }}>
+              <button
+                type="button"
+                className="btn btn--primary"
+                onClick={() => window.location.reload()}
+              >
+                새로고침
+              </button>
+              <button
+                type="button"
+                className="btn btn--secondary"
+                onClick={() => void clearStockWebCache({ resetPurgeFlag: true })}
+              >
+                캐시 삭제 후 재시도
+              </button>
+            </div>
           </div>
         </div>
       );
