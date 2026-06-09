@@ -11,6 +11,12 @@ import {
 import { isBoxRangePickSignal } from "./box-range/buy-guard.js";
 import { isBoxRangeProgram } from "./box-range/constants.js";
 import { getDecryptedCredentialsSync } from "./user-credentials-store.js";
+import {
+  issueTossAccessToken,
+  resolveTossAccountSeq,
+  tossOpenApiPost,
+  tossOpenApiBaseUrl,
+} from "./toss-openapi.js";
 
 /** 국내 주식 실매매 자동매도 파이프라인(스크리너) 지원 여부 */
 export const KR_LIVE_AUTO_SELL_SUPPORTED = false;
@@ -95,7 +101,7 @@ function resolveTossCredentials(userId) {
 
 export function getTossApiPhase() {
   if (!tossApiKey()) return "unconfigured";
-  if (!tossAccountId()) return "configured";
+  if (!tossApiSecret()) return "configured";
   return "ready";
 }
 
@@ -110,7 +116,7 @@ export function getTossTradingStatus() {
   let messageKo = "토스 API 키가 아직 등록되지 않았습니다.";
   if (phase === "configured") {
     messageKo =
-      "API 키는 등록됐습니다. 계좌 정보를 추가하면 실매매를 켤 수 있습니다.";
+      "API Key는 등록됐습니다. Secret Key를 추가하면 연동할 수 있습니다.";
   } else if (ready) {
     messageKo =
       "토스 API 연동 준비됨. 프로그램 조건에 맞으면 주문 파이프라인으로 전달됩니다.";
@@ -134,17 +140,17 @@ export function getTossTradingStatus() {
 export function getTossTradingStatusForUser(userId) {
   const creds = resolveTossCredentials(userId);
   if (!creds.apiKey) return getTossTradingStatus();
-  if (!creds.accountId) {
+  if (!creds.secret) {
     return {
       phase: "configured",
       configured: true,
       ready: false,
       messageKo:
-        "토스 API 키는 등록됐습니다. «내 API 연동»에서 계좌 ID를 추가하세요.",
-      hasSecret: Boolean(creds.secret),
-      hasAccount: false,
-      baseUrl: tossApiBase() || null,
-      docsHint: "https://docs.tossinvest.com",
+        "토스 API Key는 등록됐습니다. Secret Key를 함께 저장하세요.",
+      hasSecret: false,
+      hasAccount: Boolean(creds.accountId),
+      baseUrl: tossApiBase() || tossOpenApiBaseUrl(),
+      docsHint: "https://openapi.tossinvest.com",
       source: creds.source,
     };
   }
@@ -152,18 +158,29 @@ export function getTossTradingStatusForUser(userId) {
     phase: "ready",
     configured: true,
     ready: true,
-    messageKo: "회원 토스 API 연동 준비됨.",
-    hasSecret: Boolean(creds.secret),
-    hasAccount: true,
-    baseUrl: tossApiBase() || null,
-    docsHint: "https://docs.tossinvest.com",
+    messageKo: creds.accountId
+      ? "회원 토스 API 연동 준비됨."
+      : "회원 토스 API 연동 준비됨 · accountSeq는 첫 조회 시 자동 저장됩니다.",
+    hasSecret: true,
+    hasAccount: Boolean(creds.accountId),
+    baseUrl: tossApiBase() || tossOpenApiBaseUrl(),
+    docsHint: "https://openapi.tossinvest.com",
     source: creds.source,
   };
 }
 
 function tossReadyForUser(userId) {
   const creds = resolveTossCredentials(userId);
-  return Boolean(creds.apiKey && creds.accountId);
+  return Boolean(creds.apiKey && creds.secret);
+}
+
+function tossOrderSymbol(symbol, market) {
+  const raw = String(symbol ?? "").trim().toUpperCase();
+  if (market === "kr") {
+    const digits = raw.replace(/\.(KS|KQ|KO)$/i, "").replace(/\D/g, "");
+    return digits.slice(0, 6);
+  }
+  return raw.replace(/\.(KS|KQ)$/i, "");
 }
 
 /**
@@ -252,46 +269,29 @@ export async function executeLiveBuyOrder(program, pick, opts = {}) {
   }
 
   try {
-    const base = tossApiBase() || "https://api.tossinvest.com";
-    const res = await fetch(`${base}/v1/orders`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${creds.apiKey}`,
-        "Content-Type": "application/json",
-        ...(creds.secret ? { "X-Toss-Secret": creds.secret } : {}),
+    const accessToken = await issueTossAccessToken(creds.apiKey, creds.secret);
+    const accountSeq = await resolveTossAccountSeq(accessToken, creds.accountId);
+    const orderSymbol = tossOrderSymbol(symbol, market);
+    const json = await tossOpenApiPost(accessToken, accountSeq, "/api/v1/orders", {
+      symbol: orderSymbol,
+      side: "BUY",
+      orderType: "MARKET",
+      marketCountry: market === "us" ? "US" : "KR",
+      amount: {
+        currency: market === "us" ? "USD" : "KRW",
+        value: String(Math.round(amount)),
       },
-      body: JSON.stringify({
-        accountId: creds.accountId,
-        symbol,
-        market,
-        side: "buy",
-        amount,
-        clientOrderId: `${program.id}-${symbol}-${Date.now()}`,
-      }),
-      signal: AbortSignal.timeout(30_000),
+      clientOrderId: `${program.id}-${orderSymbol}-${Date.now()}`,
     });
-    const text = await res.text();
-    let body = {};
-    try {
-      body = text ? JSON.parse(text) : {};
-    } catch {
-      body = {};
-    }
-    if (!res.ok) {
-      const err =
-        typeof body.error === "string"
-          ? body.error
-          : typeof body.message === "string"
-            ? body.message
-            : `토스 API 오류 HTTP ${res.status}`;
-      return { ok: false, error: err };
-    }
+    const result =
+      json?.result && typeof json.result === "object" ? json.result : json;
     return {
       ok: true,
-      orderId: String(body.orderId ?? body.id ?? ""),
+      orderId: String(result?.orderId ?? result?.id ?? ""),
       fillPrice:
-        typeof body.fillPrice === "number" && Number.isFinite(body.fillPrice)
-          ? body.fillPrice
+        typeof result?.averagePrice === "number" &&
+        Number.isFinite(result.averagePrice)
+          ? result.averagePrice
           : undefined,
     };
   } catch (e) {
@@ -351,47 +351,34 @@ export async function executeLiveSellOrder(program, order, opts = {}) {
   }
 
   try {
-    const base = tossApiBase() || "https://api.tossinvest.com";
-    const res = await fetch(`${base}/v1/orders`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${creds.apiKey}`,
-        "Content-Type": "application/json",
-        ...(creds.secret ? { "X-Toss-Secret": creds.secret } : {}),
-      },
-      body: JSON.stringify({
-        accountId: creds.accountId,
-        symbol,
-        market,
-        side: "sell",
-        quantity,
-        ...(price != null ? { price } : {}),
-        clientOrderId: `${program.id}-${symbol}-sell-${Date.now()}`,
-      }),
-      signal: AbortSignal.timeout(30_000),
+    const accessToken = await issueTossAccessToken(creds.apiKey, creds.secret);
+    const accountSeq = await resolveTossAccountSeq(accessToken, creds.accountId);
+    const orderSymbol = tossOrderSymbol(symbol, market);
+    const json = await tossOpenApiPost(accessToken, accountSeq, "/api/v1/orders", {
+      symbol: orderSymbol,
+      side: "SELL",
+      orderType: price != null ? "LIMIT" : "MARKET",
+      marketCountry: market === "us" ? "US" : "KR",
+      quantity: String(quantity),
+      ...(price != null
+        ? {
+            price: {
+              currency: market === "us" ? "USD" : "KRW",
+              value: String(price),
+            },
+          }
+        : {}),
+      clientOrderId: `${program.id}-${orderSymbol}-sell-${Date.now()}`,
     });
-    const text = await res.text();
-    let body = {};
-    try {
-      body = text ? JSON.parse(text) : {};
-    } catch {
-      body = {};
-    }
-    if (!res.ok) {
-      const err =
-        typeof body.error === "string"
-          ? body.error
-          : typeof body.message === "string"
-            ? body.message
-            : `토스 API 오류 HTTP ${res.status}`;
-      return { ok: false, error: err };
-    }
+    const result =
+      json?.result && typeof json.result === "object" ? json.result : json;
     return {
       ok: true,
-      orderId: String(body.orderId ?? body.id ?? ""),
+      orderId: String(result?.orderId ?? result?.id ?? ""),
       fillPrice:
-        typeof body.fillPrice === "number" && Number.isFinite(body.fillPrice)
-          ? body.fillPrice
+        typeof result?.averagePrice === "number" &&
+        Number.isFinite(result.averagePrice)
+          ? result.averagePrice
           : price,
     };
   } catch (e) {

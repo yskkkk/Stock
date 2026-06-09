@@ -234,7 +234,7 @@ export const ko = {
     liveTradeCredDeleted: "API 키를 삭제했습니다.",
     liveTradeCredNoChange: "변경할 내용이 없습니다.",
     liveTradeTossAccountLabel: "토스 계좌 ID (accountSeq)",
-    liveTradeTossAccountPlaceholder: "비워두면 기존 계좌 유지 · 보통 1",
+    liveTradeTossAccountPlaceholder: "선택 · 비우면 자동 조회 (보통 1)",
     liveTradeAuthVerificationCode: "이메일 인증 코드 6자리",
     liveTradeAuthVerificationRequired: "6자리 인증 코드를 입력하세요.",
     liveTradeAuthPasswordRegister: "비밀번호 (8자 이상)",

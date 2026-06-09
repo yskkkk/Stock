@@ -1034,7 +1034,7 @@ function CredentialExchangeForm({
     if (checked.ok) return true;
     if (checked.field === "API Key") setApiKeyErr(checked.error);
     else if (checked.field === "Secret Key") setSecretKeyErr(checked.error);
-    else if (checked.field === "계좌 번호") setAccountIdErr(checked.error);
+    else if (checked.field === "계좌 ID (accountSeq)") setAccountIdErr(checked.error);
     else setErr(checked.error);
     return false;
   };

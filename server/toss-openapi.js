@@ -92,6 +92,24 @@ export async function issueTossAccessToken(clientId, clientSecret) {
 
 /**
  * @param {string} accessToken
+ * @param {string | null | undefined} preferredAccountId
+ */
+export async function resolveTossAccountSeq(accessToken, preferredAccountId) {
+  const pref = String(preferredAccountId ?? "").trim();
+  if (pref) return pref;
+  const accounts = await fetchTossAccountsList(accessToken);
+  if (!accounts.length) {
+    throw new Error("토스 종합매매 계좌가 없습니다.");
+  }
+  const accountSeq = String(accounts[0]?.accountSeq ?? "").trim();
+  if (!accountSeq) {
+    throw new Error("토스 accountSeq를 확인할 수 없습니다.");
+  }
+  return accountSeq;
+}
+
+/**
+ * @param {string} accessToken
  * @param {string | null | undefined} accountSeq
  * @param {string} path
  * @param {Record<string, string>} [query]
@@ -143,6 +161,54 @@ export async function tossOpenApiGet(accessToken, accountSeq, path, query) {
 
 /**
  * @param {string} accessToken
+ * @param {string | null | undefined} accountSeq
+ * @param {string} path
+ * @param {unknown} [body]
+ */
+export async function tossOpenApiPost(accessToken, accountSeq, path, body) {
+  const base = tossOpenApiBaseUrl();
+  const url = new URL(path.startsWith("/") ? path : `/${path}`, base);
+
+  /** @type {Record<string, string>} */
+  const headers = {
+    Authorization: `Bearer ${accessToken}`,
+    Accept: "application/json",
+    "Content-Type": "application/json",
+  };
+  const acct = String(accountSeq ?? "").trim();
+  if (acct) headers["X-Tossinvest-Account"] = acct;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: body != null ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(30_000),
+  });
+
+  const text = await res.text();
+  /** @type {Record<string, unknown>} */
+  let json = {};
+  try {
+    json = text ? JSON.parse(text) : {};
+  } catch {
+    json = {};
+  }
+
+  if (!res.ok) {
+    const errObj =
+      json.error && typeof json.error === "object" ? json.error : null;
+    const msg =
+      (errObj && typeof errObj.message === "string" && errObj.message) ||
+      (typeof json.message === "string" && json.message) ||
+      `토스 API 오류 HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+
+  return json;
+}
+
+/**
+ * @param {string} accessToken
  */
 export async function fetchTossAccountsList(accessToken) {
   const json = await tossOpenApiGet(accessToken, null, "/api/v1/accounts");
@@ -161,18 +227,7 @@ export async function fetchTossAccountRawWithCredentials(creds) {
   }
 
   const accessToken = await issueTossAccessToken(apiKey, secretKey);
-  let accountSeq = String(creds?.accountId ?? "").trim();
-
-  if (!accountSeq) {
-    const accounts = await fetchTossAccountsList(accessToken);
-    if (!accounts.length) {
-      throw new Error("토스 종합매매 계좌가 없습니다.");
-    }
-    accountSeq = String(accounts[0]?.accountSeq ?? "").trim();
-    if (!accountSeq) {
-      throw new Error("토스 accountSeq를 확인할 수 없습니다.");
-    }
-  }
+  const accountSeq = await resolveTossAccountSeq(accessToken, creds?.accountId);
 
   const [holdingsJson, bpKrwJson, bpUsdJson] = await Promise.all([
     tossOpenApiGet(accessToken, accountSeq, "/api/v1/holdings"),
@@ -190,4 +245,22 @@ export async function fetchTossAccountRawWithCredentials(creds) {
     buyingPowerKrw: bpKrwJson?.result ?? null,
     buyingPowerUsd: bpUsdJson?.result ?? null,
   };
+}
+
+/**
+ * @param {TossOpenApiCredentials} creds
+ * @param {"KR"|"US"} [marketCountry]
+ */
+export async function fetchTossCommissionsWithCredentials(creds, marketCountry = "KR") {
+  const apiKey = String(creds?.apiKey ?? "").trim();
+  const secretKey = String(creds?.secretKey ?? "").trim();
+  if (!apiKey || !secretKey) {
+    throw new Error("토스 API Key·Secret Key가 필요합니다.");
+  }
+  const accessToken = await issueTossAccessToken(apiKey, secretKey);
+  const accountSeq = await resolveTossAccountSeq(accessToken, creds?.accountId);
+  const json = await tossOpenApiGet(accessToken, accountSeq, "/api/v1/commissions", {
+    marketCountry,
+  });
+  return { accountSeq, result: json?.result ?? json };
 }

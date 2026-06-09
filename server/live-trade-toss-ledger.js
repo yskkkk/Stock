@@ -100,12 +100,22 @@ export async function refreshTossLedgerSnapshotForUserAsync(userId) {
 
   try {
     const raw = await fetchTossAccountRawWithCredentials(creds);
+    if (raw.accountSeq) {
+      const { saveTossAccountIdIfMissingSync } = await import(
+        "./user-credentials-store.js"
+      );
+      saveTossAccountIdIfMissingSync(uid, raw.accountSeq);
+    }
     const snapshot = summarizeTossAccountsForDisplay(raw);
 
     let feeLabelKo = null;
     try {
-      const { ensureUserTradingFeesFreshAsync, getUserTradingFeeRatesForApiSync } =
-        await import("./exchange-trading-fees.js");
+      const {
+        ensureUserTradingFeesFreshAsync,
+        getUserTradingFeeRatesForApiSync,
+        refreshTossFeesForUserAsync,
+      } = await import("./exchange-trading-fees.js");
+      await refreshTossFeesForUserAsync(uid).catch(() => null);
       await ensureUserTradingFeesFreshAsync(uid);
       feeLabelKo = getUserTradingFeeRatesForApiSync(uid).toss?.labelKo ?? null;
     } catch {

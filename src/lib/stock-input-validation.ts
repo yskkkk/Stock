@@ -85,15 +85,15 @@ export function validateBithumbCredentialPair(
   return ok({ apiKey: keyIn, secretKey: secIn });
 }
 
-const TOSS_ACCOUNT_MIN = 4;
-const TOSS_ACCOUNT_MAX = 64;
-const TOSS_ACCOUNT_RE = /^[A-Za-z0-9-]+$/;
+const TOSS_ACCOUNT_MIN = 1;
+const TOSS_ACCOUNT_MAX = 16;
+const TOSS_ACCOUNT_RE = /^\d{1,16}$/;
 
 export function validateTossAccountId(
   value: string,
   opts?: { allowEmpty?: boolean },
 ): ValidationResult<string> {
-  const label = "계좌 번호";
+  const label = "계좌 ID (accountSeq)";
   const v = String(value ?? "").trim();
   if (!v) {
     return opts?.allowEmpty ? ok("") : bad(label, `${label}를 입력하세요.`);
@@ -101,11 +101,11 @@ export function validateTossAccountId(
   if (v.length < TOSS_ACCOUNT_MIN || v.length > TOSS_ACCOUNT_MAX) {
     return bad(
       label,
-      `${label}는 ${TOSS_ACCOUNT_MIN}~${TOSS_ACCOUNT_MAX}자여야 합니다.`,
+      `${label}는 ${TOSS_ACCOUNT_MIN}~${TOSS_ACCOUNT_MAX}자리 숫자여야 합니다.`,
     );
   }
   if (!TOSS_ACCOUNT_RE.test(v)) {
-    return bad(label, `${label}는 영문·숫자와 -(하이픈)만 사용할 수 있습니다.`);
+    return bad(label, `${label}는 숫자만 사용할 수 있습니다. (예: 1)`);
   }
   return ok(v);
 }
@@ -126,7 +126,7 @@ export function validateTossCredentialSet(
     if (!k.ok) return k;
     const s = validateExchangeApiToken(secIn, { label: "Secret Key" });
     if (!s.ok) return s;
-    const a = validateTossAccountId(acctIn);
+    const a = validateTossAccountId(acctIn, { allowEmpty: true });
     if (!a.ok) return a;
     return ok({ apiKey: k.value, secretKey: s.value, accountId: a.value });
   }
@@ -134,7 +134,7 @@ export function validateTossCredentialSet(
   if (!keyIn && !secIn && !acctIn) {
     return bad(
       "API Key",
-      "변경할 API Key·Secret Key·계좌 번호 중 하나 이상을 입력하세요.",
+      "변경할 API Key·Secret Key·계좌 ID 중 하나 이상을 입력하세요.",
     );
   }
 

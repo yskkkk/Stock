@@ -101,6 +101,59 @@ export function readCredentialRowSync(userId, exchange) {
  *   market?: string;
  * }} fees
  */
+/**
+ * @param {string} userId
+ * @param {string} accountSeq
+ */
+export function saveTossAccountIdIfMissingSync(userId, accountSeq) {
+  const uid = String(userId ?? "").trim();
+  const seq = String(accountSeq ?? "").trim();
+  if (!uid || !seq || !isCredentialsCryptoReady()) return false;
+  const store = readStoreSync();
+  const idx = store.credentials.findIndex(
+    (c) => c.userId === uid && c.exchange === "toss",
+  );
+  if (idx < 0) return false;
+  const prev = store.credentials[idx];
+  if (prev.accountIdEncrypted) return false;
+  store.credentials[idx] = {
+    ...prev,
+    accountIdEncrypted: encryptSecret(seq),
+    updatedAtMs: Date.now(),
+  };
+  writeStoreSync(store);
+  return true;
+}
+
+/**
+ * @param {string} userId
+ * @param {{
+ *   bidFee: number;
+ *   askFee: number;
+ *   roundTripFeeRate: number;
+ *   market?: string;
+ * }} fees
+ */
+export function writeTossFeesOnRowSync(userId, fees) {
+  const uid = String(userId ?? "").trim();
+  if (!uid) return;
+  const store = readStoreSync();
+  const idx = store.credentials.findIndex(
+    (c) => c.userId === uid && c.exchange === "toss",
+  );
+  if (idx < 0) return;
+  const prev = store.credentials[idx];
+  store.credentials[idx] = {
+    ...prev,
+    tossBidFee: fees.bidFee,
+    tossAskFee: fees.askFee,
+    tossFeeMarket: fees.market ?? prev.tossFeeMarket ?? "KR",
+    tossFeesAtMs: Date.now(),
+    updatedAtMs: Date.now(),
+  };
+  writeStoreSync(store);
+}
+
 export function writeBithumbFeesOnRowSync(userId, fees) {
   const uid = String(userId ?? "").trim();
   if (!uid) return;
@@ -155,18 +208,15 @@ export function getCredentialMetaSync(userId, exchange) {
   const hasSecret = Boolean(row.secretEncrypted);
   const hasAccount = Boolean(row.accountIdEncrypted);
   const configured = hasKey;
-  const ready =
-    exchange === "toss"
-      ? configured && hasSecret && hasAccount
-      : configured && hasSecret;
+  const ready = configured && hasSecret;
   let messageKo = "API Key만 저장되어 있습니다. Secret Key를 함께 저장하세요.";
   if (exchange === "toss") {
     if (ready) {
-      messageKo = "토스 연동됨 · 실주문은 «토스 실매매 시작» 프로그램에서 실행";
-    } else if (configured && hasSecret && !hasAccount) {
-      messageKo = "API Key·Secret은 저장됐습니다. 계좌 번호를 저장하세요.";
+      messageKo = hasAccount
+        ? "토스 연동됨 · 실주문은 «토스 실매매 시작» 프로그램에서 실행"
+        : "토스 연동됨 · accountSeq는 첫 조회 시 자동 저장됩니다.";
     } else if (!configured) {
-      messageKo = "토스 API Key·Secret Key·계좌 번호를 저장하세요.";
+      messageKo = "토스 API Key·Secret Key를 저장하세요. (accountSeq는 선택)";
     }
   } else if (ready) {
     messageKo = "연동됨 · 실주문은 «빗썸 실매매 시작» 프로그램에서 실행";
@@ -312,9 +362,6 @@ export function upsertUserCredentialSync(userId, exchange, input) {
     accountRaw.length > 0
       ? encryptSecret(accountRaw)
       : prev?.accountIdEncrypted ?? "";
-  if (ex === "toss" && !accountIdEncrypted) {
-    throw new Error("계좌 번호가 필요합니다.");
-  }
 
   const row = {
     id: prev?.id ?? randomUUID(),
@@ -336,7 +383,7 @@ export function upsertUserCredentialSync(userId, exchange, input) {
         console.warn("[credentials] 빗썸 수수료 갱신 실패:", e instanceof Error ? e.message : e);
       });
   }
-  if (ex === "toss" && row.apiKeyEncrypted && row.secretEncrypted && row.accountIdEncrypted) {
+  if (ex === "toss" && row.apiKeyEncrypted && row.secretEncrypted) {
     void import("./live-trade-toss-ledger.js")
       .then((m) => m.refreshTossLedgerSnapshotForUserAsync(uid))
       .catch((e) => {
@@ -467,15 +514,10 @@ export async function testUserCredentialAsync(userId, exchange, inline = null) {
     if (!creds?.apiKey || !creds?.secretKey) {
       throw new Error("토스 API Key·Secret Key를 입력하거나 저장하세요.");
     }
-    if (!creds?.accountId) {
-      const meta = getCredentialMetaSync(userId, "toss");
-      if (meta.source === "user" && meta.configured && !meta.ready) {
-        throw new Error(meta.messageKo);
-      }
-      throw new Error("토스 계좌 ID(accountSeq)를 입력하거나 저장하세요.");
-    }
-
     const raw = await fetchTossAccountRawWithCredentials(creds);
+    if (raw.accountSeq && !creds.accountId) {
+      saveTossAccountIdIfMissingSync(userId, raw.accountSeq);
+    }
     const tossSnapshot = summarizeTossAccountsForDisplay(raw);
     const holdingCount = tossSnapshot.holdings.length;
 

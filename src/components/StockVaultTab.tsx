@@ -716,42 +716,26 @@ export default function StockVaultTab({
             </p>
           ) : null}
           {historyDates.length > 0 ? (
-            <ul
-              className="stock-vault-tab__history-dates"
-              role="group"
-              aria-label={ko.stockVault.historyDateAria}
-            >
-              <li>
-                <button
-                  type="button"
-                  className={
-                    !selectedScanDate
-                      ? "stock-vault-tab__history-date stock-vault-tab__history-date--selected"
-                      : "stock-vault-tab__history-date"
-                  }
-                  aria-pressed={!selectedScanDate}
-                  onClick={() => setSelectedScanDate(null)}
-                >
-                  {ko.stockVault.historyLatest}
-                </button>
-              </li>
-              {historyDates.map((date) => (
-                <li key={date}>
-                  <button
-                    type="button"
-                    className={
-                      selectedScanDate === date
-                        ? "stock-vault-tab__history-date stock-vault-tab__history-date--selected"
-                        : "stock-vault-tab__history-date"
-                    }
-                    aria-pressed={selectedScanDate === date}
-                    onClick={() => setSelectedScanDate(date)}
-                  >
+            <label className="stock-vault-tab__history-select-wrap">
+              <span className="stock-vault-tab__history-select-label">
+                {ko.stockVault.historyDateAria}
+              </span>
+              <select
+                className="input stock-vault-tab__history-select"
+                aria-label={ko.stockVault.historyDateAria}
+                value={selectedScanDate ?? ""}
+                onChange={(e) =>
+                  setSelectedScanDate(e.target.value.trim() || null)
+                }
+              >
+                <option value="">{ko.stockVault.historyLatest}</option>
+                {historyDates.map((date) => (
+                  <option key={date} value={date}>
                     {date}
-                  </button>
-                </li>
-              ))}
-            </ul>
+                  </option>
+                ))}
+              </select>
+            </label>
           ) : null}
           {isHistoricalView && selectedScanDate ? (
             <p className="stock-vault-tab__history-hint">
