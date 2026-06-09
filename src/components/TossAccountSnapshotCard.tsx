@@ -1,11 +1,12 @@
-import { useRef } from "react";
-import type { TossTestSnapshot } from "../api";
+import { useRef, useState } from "react";
+import type { TossTestHolding, TossTestSnapshot } from "../api";
 import { ko } from "../i18n/ko";
 import { useBithumbBalanceHidden } from "../hooks/useBithumbBalanceHidden";
 import { LiveTradeSymbolCell } from "./LiveTradeSymbolCell";
 import TossAccountOrderPanel, {
   type TossAccountOrderPanelHandle,
 } from "./TossAccountOrderPanel";
+import TossHoldingManageModal from "./TossHoldingManageModal";
 import {
   formatLiveTradeQuantity,
   formatPercent,
@@ -54,6 +55,7 @@ export default function TossAccountSnapshotCard({
 }) {
   const { cash, summary, holdings } = snapshot;
   const orderPanelRef = useRef<TossAccountOrderPanelHandle>(null);
+  const [manageHolding, setManageHolding] = useState<TossTestHolding | null>(null);
   const [balanceHidden, toggleBalanceHidden] = useBithumbBalanceHidden();
   const isRail = variant === "rail";
   const rootClass = [
@@ -171,12 +173,18 @@ export default function TossAccountSnapshotCard({
               return (
                 <li key={`${h.market}-${h.symbol}`} className="account-snapshot__holding">
                   <div className="account-snapshot__holding-row">
-                    <LiveTradeSymbolCell
-                      symbol={h.symbol}
-                      name={h.name}
-                      market={h.market}
-                      className="account-snapshot__holding-name"
-                    />
+                    <button
+                      type="button"
+                      className="account-snapshot__holding-open"
+                      onClick={() => setManageHolding(h)}
+                    >
+                      <LiveTradeSymbolCell
+                        symbol={h.symbol}
+                        name={h.name}
+                        market={h.market}
+                        className="account-snapshot__holding-name"
+                      />
+                    </button>
                     {h.returnPercent != null ? (
                       <span
                         className={`account-snapshot__holding-chg account-snapshot__holding-chg--${tone}`}
@@ -195,13 +203,22 @@ export default function TossAccountSnapshotCard({
                       </span>
                     ) : null}
                     {showOrders && authenticated ? (
-                      <button
-                        type="button"
-                        className="btn btn--secondary btn--sm account-snapshot__sell-btn"
-                        onClick={() => orderPanelRef.current?.openSell(h)}
-                      >
-                        {ko.app.liveTradeTossOrderSell}
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          className="btn btn--ghost btn--sm account-snapshot__manage-btn"
+                          onClick={() => setManageHolding(h)}
+                        >
+                          {ko.app.liveTradeTossHoldingManage}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn--secondary btn--sm account-snapshot__sell-btn"
+                          onClick={() => orderPanelRef.current?.openSell(h)}
+                        >
+                          {ko.app.liveTradeTossOrderSell}
+                        </button>
+                      </>
                     ) : null}
                   </div>
                 </li>
@@ -217,6 +234,16 @@ export default function TossAccountSnapshotCard({
           compact={isRail}
           liveOrdersEnabled={liveOrdersEnabled}
           serverLiveOrdersEnabled={serverLiveOrdersEnabled}
+          onChanged={onOrderChanged}
+        />
+      ) : null}
+
+      {manageHolding ? (
+        <TossHoldingManageModal
+          holding={manageHolding}
+          liveOrdersEnabled={liveOrdersEnabled}
+          serverLiveOrdersEnabled={serverLiveOrdersEnabled}
+          onClose={() => setManageHolding(null)}
           onChanged={onOrderChanged}
         />
       ) : null}

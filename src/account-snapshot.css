@@ -294,11 +294,29 @@ html[data-theme="light"] .account-snapshot__balance-card {
   min-width: 0;
 }
 
+.account-snapshot__holding-open {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.account-snapshot__manage-btn,
 .account-snapshot__sell-btn {
   flex: 0 0 auto;
   margin-left: auto;
   padding: 0.08rem 0.38rem;
   font-size: 0.58rem;
+}
+
+.account-snapshot__manage-btn {
+  margin-left: 0;
 }
 
 .toss-order-panel {
@@ -445,5 +463,140 @@ html[data-theme="light"] .account-snapshot__balance-card {
 .toss-order-panel__err {
   margin: 0;
   font-size: 0.64rem;
+  color: var(--down, #dc2626);
+}
+
+.toss-holding-modal-backdrop {
+  z-index: 120;
+}
+
+.toss-holding-modal {
+  width: min(42rem, 96vw);
+  max-height: min(88vh, 52rem);
+  overflow: auto;
+  padding: 0.75rem 0.85rem 1rem;
+}
+
+.toss-holding-modal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.55rem;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: inherit;
+  padding-bottom: 0.35rem;
+}
+
+.toss-holding-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.toss-holding-modal__section h3 {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-dim, #94a3b8);
+}
+
+.toss-holding-modal__kv {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.28rem 0.55rem;
+  margin: 0;
+}
+
+.toss-holding-modal__kv dt {
+  font-size: 0.62rem;
+  color: var(--muted);
+}
+
+.toss-holding-modal__kv dd {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.toss-holding-modal__metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.28rem 0.45rem;
+  font-size: 0.68rem;
+}
+
+.toss-holding-modal__summary {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.toss-holding-modal__bullets {
+  margin: 0;
+  padding-left: 1rem;
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
+.toss-holding-modal__disclaimer,
+.toss-holding-modal__muted,
+.toss-holding-modal__sim {
+  margin: 0.35rem 0 0;
+  font-size: 0.62rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.toss-holding-modal__tech {
+  margin: 0;
+  font-size: 0.68rem;
+}
+
+.toss-holding-modal__signals {
+  margin: 0.25rem 0 0;
+  padding-left: 1rem;
+  font-size: 0.64rem;
+  color: var(--muted);
+}
+
+.toss-holding-modal__plan-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.toss-holding-modal__plan-grid label,
+.toss-holding-modal__notes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  font-size: 0.62rem;
+  color: var(--muted);
+}
+
+.toss-holding-modal__notes {
+  margin-top: 0.35rem;
+}
+
+.toss-holding-modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+  margin-top: 0.45rem;
+}
+
+.toss-holding-modal__msg {
+  margin: 0;
+  font-size: 0.68rem;
+  color: var(--up, #16a34a);
+}
+
+.toss-holding-modal__err {
+  margin: 0;
+  font-size: 0.68rem;
   color: var(--down, #dc2626);
 }

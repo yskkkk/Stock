@@ -1886,6 +1886,100 @@ export function placeTossOrder(body: TossPlaceOrderBody) {
   });
 }
 
+export interface TossHoldingPlan {
+  symbol: string;
+  targetBuyPrice: number | null;
+  targetBuyAmountKrw: number | null;
+  targetBuyAmountUsd: number | null;
+  targetSellPrice: number | null;
+  stopLossPrice: number | null;
+  notes: string | null;
+  updatedAtMs: number | null;
+}
+
+export interface TossHoldingAiReport {
+  summary: string;
+  bullets: string[];
+  disclaimer: string;
+}
+
+export interface TossHoldingManageSummary extends TossTestHolding {
+  industry?: string | null;
+  per?: number | null;
+  pbr?: number | null;
+  roe?: number | null;
+  plan?: TossHoldingPlan | null;
+}
+
+export interface TossHoldingsManageResponse {
+  ok: boolean;
+  ready: boolean;
+  messageKo?: string;
+  holdings: TossHoldingManageSummary[];
+  plans: Record<string, TossHoldingPlan>;
+  updatedAtMs: number;
+}
+
+export interface TossHoldingReportResponse {
+  ok: boolean;
+  symbol: string;
+  market: "kr" | "us";
+  industry: string | null;
+  holding: TossTestHolding | null;
+  plan: TossHoldingPlan | null;
+  fundamentals: import("./types").StockFundamentalsResponse | null;
+  financialPeriods: import("./types").FinancialPeriodRow[];
+  financialAnalysis: import("./types").FinancialStatementAnalysisResponse | null;
+  technical: import("./types").StockTechnicalResponse | null;
+  aiReport: TossHoldingAiReport;
+  updatedAtMs: number;
+}
+
+export function fetchTossHoldingsManage() {
+  return fetchJson<TossHoldingsManageResponse>("/api/live-trading/toss/holdings/manage");
+}
+
+export function fetchTossHoldingReport(symbol: string, market: "kr" | "us" | string) {
+  const q = new URLSearchParams({ market: String(market ?? "kr") });
+  return fetchJson<TossHoldingReportResponse>(
+    `/api/live-trading/toss/holdings/${encodeURIComponent(symbol)}/report?${q}`,
+  );
+}
+
+export function saveTossHoldingPlan(
+  symbol: string,
+  body: Partial<TossHoldingPlan> & { market?: "kr" | "us" },
+) {
+  return fetchJson<{ ok: boolean; plan: TossHoldingPlan }>(
+    `/api/live-trading/toss/holdings/${encodeURIComponent(symbol)}/plan`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+}
+
+export function executeTossHoldingPlanOrder(
+  symbol: string,
+  body: {
+    action: "buy" | "sell" | "stop";
+    market?: "kr" | "us";
+    price?: number;
+    amount?: number;
+    quantity?: number;
+  },
+) {
+  return fetchJson<{ ok: boolean; action: string; orderId?: string; simulated?: boolean }>(
+    `/api/live-trading/toss/holdings/${encodeURIComponent(symbol)}/execute`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+}
+
 export function fetchTossSellableQuantity(symbol: string, market: "kr" | "us" | string) {
   const q = new URLSearchParams({
     symbol: symbol.trim(),

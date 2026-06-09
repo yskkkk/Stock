@@ -167,6 +167,12 @@ import {
 } from "./live-trade-toss-orders.js";
 import { fetchTossSellableQuantityForUser } from "./toss-trading-adapter.js";
 import {
+  buildTossHoldingReportForUser,
+  buildTossHoldingsManageBoardForUser,
+  executeTossHoldingPlanOrderForUser,
+  saveTossHoldingPlanForUser,
+} from "./toss-holdings-report.js";
+import {
   analyzeSimProgramFeedback,
   applySimProgramFeedbackPatch,
   buildSimCreationRecommendations,
@@ -1096,6 +1102,82 @@ export function createApp() {
     asyncRoute(async (req, res) => {
       try {
         const payload = await placeTossOrderForUser(req.user.id, req.body ?? {});
+        res.json(payload);
+      } catch (e) {
+        res.status(400).json({
+          ok: false,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }),
+  );
+
+  app.get(
+    "/api/live-trading/toss/holdings/manage",
+    requireUserAuth,
+    asyncRoute(async (req, res) => {
+      try {
+        const payload = await buildTossHoldingsManageBoardForUser(req.user.id);
+        res.json(payload);
+      } catch (e) {
+        res.status(400).json({
+          ok: false,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }),
+  );
+
+  app.get(
+    "/api/live-trading/toss/holdings/:symbol/report",
+    requireUserAuth,
+    asyncRoute(async (req, res) => {
+      try {
+        const symbol = String(req.params.symbol ?? "").trim();
+        const market = String(req.query?.market ?? "kr").trim();
+        const payload = await buildTossHoldingReportForUser(req.user.id, symbol, {
+          market,
+        });
+        res.json(payload);
+      } catch (e) {
+        res.status(400).json({
+          ok: false,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }),
+  );
+
+  app.put(
+    "/api/live-trading/toss/holdings/:symbol/plan",
+    requireUserAuth,
+    asyncRoute(async (req, res) => {
+      try {
+        const symbol = String(req.params.symbol ?? "").trim();
+        const payload = saveTossHoldingPlanForUser(req.user.id, symbol, req.body ?? {});
+        res.json(payload);
+      } catch (e) {
+        res.status(400).json({
+          ok: false,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }),
+  );
+
+  app.post(
+    "/api/live-trading/toss/holdings/:symbol/execute",
+    requireUserAuth,
+    asyncRoute(async (req, res) => {
+      try {
+        const symbol = String(req.params.symbol ?? "").trim();
+        const action = String(req.body?.action ?? "").trim().toLowerCase();
+        const payload = await executeTossHoldingPlanOrderForUser(
+          req.user.id,
+          symbol,
+          /** @type {"buy"|"sell"|"stop"} */ (action),
+          req.body ?? {},
+        );
         res.json(payload);
       } catch (e) {
         res.status(400).json({
