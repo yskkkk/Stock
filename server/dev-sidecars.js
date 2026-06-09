@@ -18,6 +18,7 @@ import { startServerSelfImprovementWatcher } from "./server-self-improvement-log
 import { prewarmAppCaches } from "./prewarm-caches.js";
 import { startGoldenCrossScanPoller } from "./golden-cross-poller.js";
 import { startMaAlignMa120WatchPoller } from "./ma-align-ma120-watch.js";
+import { startHoldingsNewsEmailPoller } from "./holdings-news-poller.js";
 import { screeningPollerEnabled, startScreening } from "./screener.js";
 
 function logScreeningError(err) {
@@ -51,6 +52,7 @@ export function startStockDevSidecarsOnce(modeLabel) {
   startOpsFileDevPoller();
   startGoldenCrossScanPoller();
   startMaAlignMa120WatchPoller();
+  startHoldingsNewsEmailPoller();
   startServerSelfImprovementWatcher();
   setTimeout(() => prewarmAppCaches(), 400);
   setTimeout(() => {

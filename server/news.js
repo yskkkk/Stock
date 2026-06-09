@@ -207,12 +207,13 @@ function buildQuery(symbol, name) {
 /**
  * @param {string} symbol
  * @param {string} [name]
+ * @param {{ bypassCache?: boolean }} [opts]
  */
-export async function loadNews(symbol, name = "") {
+export async function loadNews(symbol, name = "", opts = {}) {
   const sym = symbol.toUpperCase();
   const cacheKey = `${sym}:v2`;
   const hit = cache.get(cacheKey);
-  if (hit && Date.now() - hit.at < CACHE_MS) return hit.data;
+  if (!opts.bypassCache && hit && Date.now() - hit.at < CACHE_MS) return hit.data;
 
   const ctx = buildQuery(sym, name);
   const displayName = ctx.koName;
