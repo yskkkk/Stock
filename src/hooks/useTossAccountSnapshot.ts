@@ -8,6 +8,8 @@ import {
 import { LIVE_TRADE_AUTH_CHANGE } from "../lib/liveTradeAuthEvents";
 
 const DEFAULT_POLL_MS = 45_000;
+/** 토스 Open API(잔고·수량) — ACCOUNT 1TPS 보호 */
+export const TOSS_LEDGER_POLL_MS = 15_000;
 
 export function useTossAccountSnapshot(opts?: {
   poll?: boolean;

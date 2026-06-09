@@ -1,6 +1,9 @@
 import { memo, useCallback, useEffect, useState } from "react";
 import { useBithumbAccountSnapshot } from "../hooks/useBithumbAccountSnapshot";
-import { useTossAccountSnapshot } from "../hooks/useTossAccountSnapshot";
+import {
+  TOSS_LEDGER_POLL_MS,
+  useTossAccountSnapshot,
+} from "../hooks/useTossAccountSnapshot";
 import { useLiveTradingStatusPoll } from "../hooks/useLiveTradingStatusPoll";
 import { useLiveTradeAuth } from "./LiveTradeAuthAndCredentials";
 import BithumbAccountSnapshotCard from "./BithumbAccountSnapshotCard";
@@ -87,7 +90,10 @@ function DockLinkedAccountsPanelInner() {
     updatedAtMs: tossUpdatedAtMs,
     loading: tossLoading,
     err: tossErr,
-  } = useTossAccountSnapshot({ poll: provider === "toss" });
+  } = useTossAccountSnapshot({
+    poll: provider === "toss",
+    pollIntervalMs: TOSS_LEDGER_POLL_MS,
+  });
 
   const tossFeeLabel =
     status?.feeRates?.toss?.labelKo?.trim() || tossFeeLabelHook || null;

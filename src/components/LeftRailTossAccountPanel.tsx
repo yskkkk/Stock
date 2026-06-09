@@ -3,7 +3,10 @@ import { fetchAuthMe, fetchLiveTradingStatus, fetchUserCredentials } from "../ap
 import TossAccountSnapshotCard from "./TossAccountSnapshotCard";
 import TossAccountTitle from "./TossAccountTitle";
 import DockPanelCenterLoading from "./DockPanelCenterLoading";
-import { useTossAccountSnapshot } from "../hooks/useTossAccountSnapshot";
+import {
+  TOSS_LEDGER_POLL_MS,
+  useTossAccountSnapshot,
+} from "../hooks/useTossAccountSnapshot";
 import { ko } from "../i18n/ko";
 
 export function TossAccountRailCore({
@@ -14,7 +17,7 @@ export function TossAccountRailCore({
   layout?: "rail-aside" | "dock";
 }) {
   const { user, authChecked, snapshot, feeLabelKo, updatedAtMs, loading, err, reload } =
-    useTossAccountSnapshot({ poll: true, pollIntervalMs: 1_000 });
+    useTossAccountSnapshot({ poll: true, pollIntervalMs: TOSS_LEDGER_POLL_MS });
   const [liveOrdersEnabled, setLiveOrdersEnabled] = useState(false);
   const [serverLiveOrdersEnabled, setServerLiveOrdersEnabled] = useState(false);
 

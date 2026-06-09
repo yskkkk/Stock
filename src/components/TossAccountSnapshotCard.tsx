@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import type { TossTestHolding, TossTestSnapshot } from "../api";
 import { ko } from "../i18n/ko";
 import { useBithumbBalanceHidden } from "../hooks/useBithumbBalanceHidden";
+import { useTossSnapshotLiveQuotes } from "../hooks/useTossSnapshotLiveQuotes";
 import { LiveTradeSymbolCell } from "./LiveTradeSymbolCell";
 import TossAccountOrderPanel, {
   type TossAccountOrderPanelHandle,
@@ -53,7 +54,11 @@ export default function TossAccountSnapshotCard({
   showOrders?: boolean;
   onOrderChanged?: () => void;
 }) {
-  const { cash, summary, holdings } = snapshot;
+  const liveSnapshot = useTossSnapshotLiveQuotes(
+    snapshot,
+    Boolean(snapshot.holdings?.length),
+  );
+  const { cash, summary, holdings } = liveSnapshot ?? snapshot;
   const orderPanelRef = useRef<TossAccountOrderPanelHandle>(null);
   const [manageHolding, setManageHolding] = useState<TossTestHolding | null>(null);
   const [balanceHidden, toggleBalanceHidden] = useBithumbBalanceHidden();
