@@ -8,6 +8,7 @@ import {
 } from "react";
 import {
   cancelTossOpenOrder,
+  fetchLiveTradingMinuteQuotes,
   fetchTossOpenOrders,
   fetchTossSellableQuantity,
   placeTossOrder,
@@ -28,7 +29,37 @@ type OrderDraft = {
   market: "kr" | "us";
   side: "buy" | "sell";
   quantity?: number;
+  currentPrice?: number | null;
 };
+
+function formatLimitPriceInput(price: number, market: "kr" | "us"): string {
+  if (!Number.isFinite(price) || price <= 0) return "";
+  if (market === "kr") return String(Math.round(price));
+  return price.toFixed(2).replace(/\.?0+$/, "");
+}
+
+async function resolveDraftCurrentPrice(draft: OrderDraft): Promise<number | null> {
+  const cached = draft.currentPrice;
+  if (cached != null && Number.isFinite(cached) && cached > 0) return cached;
+  const sym = draft.symbol.trim().toUpperCase();
+  if (!sym) return null;
+  try {
+    const res = await fetchLiveTradingMinuteQuotes([sym]);
+    const quotes = res.quotes ?? {};
+    const direct = quotes[sym];
+    if (direct?.price != null && Number.isFinite(direct.price) && direct.price > 0) {
+      return direct.price;
+    }
+    const bare = sym.replace(/\.(KS|KQ)$/i, "");
+    const alt = bare !== sym ? quotes[bare] : undefined;
+    if (alt?.price != null && Number.isFinite(alt.price) && alt.price > 0) {
+      return alt.price;
+    }
+  } catch {
+    /* 시세 없으면 빈칸 유지 */
+  }
+  return null;
+}
 
 export type TossAccountOrderPanelHandle = {
   openSell: (holding: TossTestHolding) => void;
@@ -114,18 +145,35 @@ const TossAccountOrderPanel = forwardRef<
     return () => window.clearInterval(id);
   }, [loadOpenOrders]);
 
+  const fillLimitPriceFromQuote = useCallback(async (nextDraft: OrderDraft) => {
+    const cp = await resolveDraftCurrentPrice(nextDraft);
+    if (!mountedRef.current || cp == null) return;
+    setPrice(formatLimitPriceInput(cp, nextDraft.market));
+    setDraft((d) => (d ? { ...d, currentPrice: cp } : d));
+  }, []);
+
   const openSellDraft = useCallback(async (holding: TossTestHolding) => {
     const market = holding.market === "us" ? "us" : "kr";
-    setDraft({
+    const currentPrice =
+      holding.currentPrice != null &&
+      Number.isFinite(holding.currentPrice) &&
+      holding.currentPrice > 0
+        ? holding.currentPrice
+        : null;
+    const nextDraft: OrderDraft = {
       symbol: holding.symbol,
       name: holding.name,
       market,
       side: "sell",
       quantity: holding.quantity,
-    });
-    setOrderType("market");
+      currentPrice,
+    };
+    setDraft(nextDraft);
+    setOrderType("limit");
     setAmount("");
-    setPrice("");
+    setPrice(
+      currentPrice != null ? formatLimitPriceInput(currentPrice, market) : "",
+    );
     setQuantity(String(holding.quantity));
     setMsg(null);
     setErr(null);
@@ -138,6 +186,30 @@ const TossAccountOrderPanel = forwardRef<
   }, []);
 
   useImperativeHandle(ref, () => ({ openSell: openSellDraft }), [openSellDraft]);
+
+  useEffect(() => {
+    if (!draft || orderType !== "limit" || price.trim()) return;
+    let cancelled = false;
+    void (async () => {
+      const cp = await resolveDraftCurrentPrice(draft);
+      if (cancelled || cp == null) return;
+      setPrice(formatLimitPriceInput(cp, draft.market));
+      setDraft((d) => (d ? { ...d, currentPrice: cp } : d));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [draft?.symbol, draft?.market, draft?.side, draft?.currentPrice, orderType, price]);
+
+  const selectOrderType = useCallback(
+    (next: "market" | "limit") => {
+      setOrderType(next);
+      if (next === "limit" && draft && !price.trim()) {
+        void fillLimitPriceFromQuote(draft);
+      }
+    },
+    [draft, fillLimitPriceFromQuote, price],
+  );
 
   const openBuyDraft = useCallback(() => {
     setDraft({
@@ -321,7 +393,7 @@ const TossAccountOrderPanel = forwardRef<
                   ? "toss-order-panel__type-btn active"
                   : "toss-order-panel__type-btn"
               }
-              onClick={() => setOrderType("market")}
+              onClick={() => selectOrderType("market")}
             >
               {ko.app.liveTradeTossOrderMarket}
             </button>
@@ -332,7 +404,7 @@ const TossAccountOrderPanel = forwardRef<
                   ? "toss-order-panel__type-btn active"
                   : "toss-order-panel__type-btn"
               }
-              onClick={() => setOrderType("limit")}
+              onClick={() => selectOrderType("limit")}
             >
               {ko.app.liveTradeTossOrderLimit}
             </button>
