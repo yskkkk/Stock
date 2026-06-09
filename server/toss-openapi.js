@@ -147,16 +147,30 @@ export async function tossOpenApiGet(accessToken, accountSeq, path, query) {
   }
 
   if (!res.ok) {
-    const errObj =
-      json.error && typeof json.error === "object" ? json.error : null;
-    const msg =
-      (errObj && typeof errObj.message === "string" && errObj.message) ||
-      (typeof json.message === "string" && json.message) ||
-      `토스 API 오류 HTTP ${res.status}`;
-    throw new Error(msg);
+    throw new Error(formatTossOpenApiError(json, res.status));
   }
 
   return json;
+}
+
+/**
+ * @param {unknown} json
+ * @param {number} [httpStatus]
+ */
+export function formatTossOpenApiError(json, httpStatus) {
+  const errObj =
+    json && typeof json === "object" && json.error && typeof json.error === "object"
+      ? json.error
+      : null;
+  const base =
+    (errObj && typeof errObj.message === "string" && errObj.message) ||
+    (json && typeof json === "object" && typeof json.message === "string" && json.message) ||
+    `토스 API 오류 HTTP ${httpStatus ?? "?"}`;
+  const data =
+    errObj && errObj.data && typeof errObj.data === "object" ? errObj.data : null;
+  const field = data && typeof data.field === "string" ? data.field.trim() : "";
+  if (field) return `${base} (필드: ${field})`;
+  return base;
 }
 
 /**
@@ -284,16 +298,22 @@ export async function tossOpenApiDelete(accessToken, accountSeq, path) {
   }
 
   if (!res.ok) {
-    const errObj =
-      json.error && typeof json.error === "object" ? json.error : null;
-    const msg =
-      (errObj && typeof errObj.message === "string" && errObj.message) ||
-      (typeof json.message === "string" && json.message) ||
-      `토스 API 오류 HTTP ${res.status}`;
-    throw new Error(msg);
+    throw new Error(formatTossOpenApiError(json, res.status));
   }
 
   return json;
+}
+
+/**
+ * @param {unknown} result
+ */
+export function parseTossOpenOrdersResult(result) {
+  if (Array.isArray(result)) return result;
+  if (result && typeof result === "object") {
+    if (Array.isArray(result.orders)) return result.orders;
+    if (Array.isArray(result.items)) return result.items;
+  }
+  return [];
 }
 
 /**
@@ -301,13 +321,10 @@ export async function tossOpenApiDelete(accessToken, accountSeq, path) {
  * @param {string} accountSeq
  */
 export async function fetchTossOpenOrdersRaw(accessToken, accountSeq) {
-  const json = await tossOpenApiGet(accessToken, accountSeq, "/api/v1/orders");
-  const result = json?.result;
-  if (Array.isArray(result)) return result;
-  if (result && typeof result === "object" && Array.isArray(result.items)) {
-    return result.items;
-  }
-  return [];
+  const json = await tossOpenApiGet(accessToken, accountSeq, "/api/v1/orders", {
+    status: "OPEN",
+  });
+  return parseTossOpenOrdersResult(json?.result);
 }
 
 /**

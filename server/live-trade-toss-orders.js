@@ -43,7 +43,14 @@ function parseTossOpenOrderRow(o) {
   const orderId = String(o?.orderId ?? o?.id ?? "").trim();
   const rawSymbol = String(o?.symbol ?? "").trim();
   const marketCountry = String(o?.marketCountry ?? o?.market ?? "").trim().toUpperCase();
-  const market = marketCountry === "US" ? "us" : "kr";
+  const market =
+    marketCountry === "US"
+      ? "us"
+      : marketCountry === "KR"
+        ? "kr"
+        : /^\d{6}$/.test(rawSymbol)
+          ? "kr"
+          : "us";
   const symbol =
     market === "kr" && /^\d{6}$/.test(rawSymbol) ? `${rawSymbol}.KS` : rawSymbol;
   const name = resolveDisplayName(symbol, String(o?.name ?? rawSymbol).trim() || rawSymbol);
@@ -51,20 +58,33 @@ function parseTossOpenOrderRow(o) {
   const ordType = parseTossOrderType(o?.orderType ?? o?.type);
   const state = String(o?.status ?? o?.state ?? "pending").trim();
   const priceObj = o?.price && typeof o.price === "object" ? o.price : null;
-  const amountObj = o?.amount && typeof o.amount === "object" ? o.amount : null;
+  const amountObj =
+    o?.orderAmount && typeof o.orderAmount === "object"
+      ? o.orderAmount
+      : o?.amount && typeof o.amount === "object"
+        ? o.amount
+        : null;
+  const execution = o?.execution && typeof o.execution === "object" ? o.execution : null;
   const price = parseTossDecimal(priceObj?.value ?? o?.price);
-  const amount = parseTossDecimal(amountObj?.value ?? o?.amount);
+  const amount = parseTossDecimal(
+    amountObj?.value ?? o?.orderAmount ?? o?.amount,
+  );
   const quantity = parseTossDecimal(o?.quantity ?? o?.orderQuantity);
-  const remaining = parseTossDecimal(
+  const executed = parseTossDecimal(
+    execution?.filledQuantity ?? o?.executedQuantity ?? o?.filledQuantity,
+  );
+  let remaining = parseTossDecimal(
     o?.remainingQuantity ?? o?.unfilledQuantity ?? o?.remaining,
   );
-  const executed = parseTossDecimal(o?.executedQuantity ?? o?.filledQuantity);
+  if (!(remaining >= 0 && Number.isFinite(remaining)) && quantity > 0 && executed >= 0) {
+    remaining = Math.max(0, quantity - executed);
+  }
   const currencyRaw = String(
     priceObj?.currency ?? amountObj?.currency ?? (market === "us" ? "USD" : "KRW"),
   ).toUpperCase();
   const currency = currencyRaw === "USD" ? "USD" : "KRW";
 
-  let createdAtMs = Date.parse(String(o?.createdAt ?? o?.orderedAt ?? ""));
+  let createdAtMs = Date.parse(String(o?.orderedAt ?? o?.createdAt ?? ""));
   if (!Number.isFinite(createdAtMs) || createdAtMs <= 0) createdAtMs = Date.now();
 
   return {
