@@ -50,6 +50,7 @@ window.addEventListener("error", (e) => {
     (e as ErrorEvent).error instanceof Error
       ? (e as ErrorEvent).error.message
       : (e as ErrorEvent).message;
+  if (msg && /Cannot update oldest data/i.test(msg)) return;
   if (msg) renderFatal(msg);
 });
 

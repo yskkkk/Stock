@@ -49,6 +49,11 @@ import { ko } from "../i18n/ko";
 import type { ColorMode } from "../lib/theme";
 import type { Candle, ChartTime } from "../types";
 import {
+  chartTimeBefore,
+  chartTimeEquals,
+  normalizeChartTime,
+} from "../lib/chartTime";
+import {
   computeRayLineEndpoints,
   extrapolateTimeBeyondLast,
   logicalFromPanePixelLinear,
@@ -238,7 +243,7 @@ function disposeChartDrawingModel(
 }
 
 function toSeriesTime(t: ChartTime): Time {
-  return t as Time;
+  return normalizeChartTime(t);
 }
 
 function toLineData(
@@ -1441,7 +1446,7 @@ function restoreMainViewport(
 
 function candleEquals(a: Candle, b: Candle): boolean {
   return (
-    a.time === b.time &&
+    chartTimeEquals(a.time, b.time) &&
     a.open === b.open &&
     a.high === b.high &&
     a.low === b.low &&
@@ -1453,8 +1458,12 @@ function candleEquals(a: Candle, b: Candle): boolean {
 /** 이전 캔들 배열과 접두만 동일한지(실시간으로 마지막·또는 1봉 추가만 바뀐 경우) */
 function canStreamCandleUpdate(prev: Candle[], next: Candle[]): boolean {
   if (prev.length === 0 || next.length === 0) return false;
+  const prevLast = prev[prev.length - 1]!;
+  const nextLast = next[next.length - 1]!;
+
   if (prev.length === next.length) {
     if (prev.length === 1) return false;
+    if (!chartTimeEquals(prevLast.time, nextLast.time)) return false;
     for (let i = 0; i < prev.length - 1; i++) {
       if (!candleEquals(prev[i]!, next[i]!)) return false;
     }
@@ -1464,7 +1473,7 @@ function canStreamCandleUpdate(prev: Candle[], next: Candle[]): boolean {
     for (let i = 0; i < prev.length; i++) {
       if (!candleEquals(prev[i]!, next[i]!)) return false;
     }
-    return true;
+    return chartTimeBefore(prevLast.time, nextLast.time);
   }
   return false;
 }
@@ -1727,42 +1736,53 @@ function applyCandleDataStreamed(
 ) {
   const vp = snapMainViewport(bundle.chart, bundle.candle);
   const last = candles[candles.length - 1]!;
-  bundle.candle.update(candleBarData([last])[0]!);
 
-  const useDailyMa =
-    overlays.ma &&
-    dailyCandles &&
-    dailyCandles.length > 0 &&
-    isIntradayInterval(interval);
+  try {
+    bundle.candle.update(candleBarData([last])[0]!);
 
-  if (bundle.ma20 && bundle.ma50) {
-    const { ma20, ma50 } = useDailyMa
-      ? computeMaLinesFromDaily(candles, dailyCandles!)
-      : computeMaLines(candles);
-    const p20 = ma20[ma20.length - 1];
-    const p50 = ma50[ma50.length - 1];
-    if (p20) bundle.ma20.update(toLineData([p20])[0]!);
-    if (p50) bundle.ma50.update(toLineData([p50])[0]!);
-  }
+    const useDailyMa =
+      overlays.ma &&
+      dailyCandles &&
+      dailyCandles.length > 0 &&
+      isIntradayInterval(interval);
 
-  if (bundle.ichimoku && bundle.ichimoku.length === 2) {
-    const ichi = computeIchimokuLines(candles);
-    const cloudBars = buildIchimokuCloudBarsFromSpans(ichi.spanA, ichi.spanB);
-    if (bundle.ichimokuCloud && cloudBars.length > 0) {
-      bundle.ichimokuCloud.setData(ichimokuCloudBarData(cloudBars));
+    if (bundle.ma20 && bundle.ma50) {
+      const { ma20, ma50 } = useDailyMa
+        ? computeMaLinesFromDaily(candles, dailyCandles!)
+        : computeMaLines(candles);
+      const p20 = ma20[ma20.length - 1];
+      const p50 = ma50[ma50.length - 1];
+      if (p20) bundle.ma20.update(toLineData([p20])[0]!);
+      if (p50) bundle.ma50.update(toLineData([p50])[0]!);
     }
-    bundle.ichimoku[0]!.setData(toLineData(ichi.spanA));
-    bundle.ichimoku[1]!.setData(toLineData(ichi.spanB));
-  }
 
-  if (bundle.volume) {
-    bundle.volume.update(volumeBarData([last])[0]!);
-  }
+    if (bundle.ichimoku && bundle.ichimoku.length === 2) {
+      const ichi = computeIchimokuLines(candles);
+      const cloudBars = buildIchimokuCloudBarsFromSpans(ichi.spanA, ichi.spanB);
+      if (bundle.ichimokuCloud && cloudBars.length > 0) {
+        bundle.ichimokuCloud.setData(ichimokuCloudBarData(cloudBars));
+      }
+      bundle.ichimoku[0]!.setData(toLineData(ichi.spanA));
+      bundle.ichimoku[1]!.setData(toLineData(ichi.spanB));
+    }
 
-  if (bundle.rsi) {
-    const rsiPts = computeRsiLine(candles);
-    const lastR = rsiPts[rsiPts.length - 1];
-    if (lastR) bundle.rsi.update(toLineData([lastR])[0]!);
+    if (bundle.volume) {
+      bundle.volume.update(volumeBarData([last])[0]!);
+    }
+
+    if (bundle.rsi) {
+      const rsiPts = computeRsiLine(candles);
+      const lastR = rsiPts[rsiPts.length - 1];
+      if (lastR) bundle.rsi.update(toLineData([lastR])[0]!);
+    }
+  } catch (e) {
+    console.warn(
+      "[StockChart] stream update failed, falling back to setData",
+      e instanceof Error ? e.message : e,
+    );
+    applyCandleData(bundle, candles, dailyCandles, interval, overlays);
+    restoreMainViewport(bundle.chart, bundle.candle, vp);
+    return;
   }
 
   restoreMainViewport(bundle.chart, bundle.candle, vp);
