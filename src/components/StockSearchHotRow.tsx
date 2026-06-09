@@ -21,6 +21,7 @@ export function rowToStockPick(row: StockSearchQuoteRow): StockPick {
     pick.changePercent = row.changePercent;
   }
   if (row.currency?.trim()) pick.currency = row.currency.trim();
+  if (row.exchange?.trim()) pick.exchange = row.exchange.trim();
   if (row.turnover != null && Number.isFinite(row.turnover) && row.turnover > 0) {
     pick.turnover = row.turnover;
   }

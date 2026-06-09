@@ -35,6 +35,25 @@ export function yahooCryptoSymbolToTradingView(yahoo: string): string {
 }
 
 /** Yahoo 종목 티커 → TradingView Advanced Chart 심볼 (근사 매핑) */
+export function yahooExchangeCodeToTradingViewPrefix(
+  code?: string | null,
+): "NASDAQ" | "NYSE" | "AMEX" | null {
+  const ex = String(code ?? "")
+    .trim()
+    .toUpperCase();
+  if (!ex) return null;
+  if (ex === "NMS" || ex === "NGM" || ex === "NCM" || ex.includes("NASDAQ")) {
+    return "NASDAQ";
+  }
+  if (ex === "NYQ" || ex === "NYS" || ex.includes("NYSE") || ex.includes("NEW YORK")) {
+    return "NYSE";
+  }
+  if (ex === "ASE" || ex === "AMX" || ex.includes("AMEX") || ex.includes("AMERICAN")) {
+    return "AMEX";
+  }
+  return null;
+}
+
 export function exchangeToTradingViewPrefix(
   exchange?: string | null,
 ): "NASDAQ" | "NYSE" | "AMEX" | null {
@@ -45,7 +64,7 @@ export function exchangeToTradingViewPrefix(
   if (ex.includes("NASDAQ")) return "NASDAQ";
   if (ex.includes("NYSE") || ex.includes("NEW YORK")) return "NYSE";
   if (ex.includes("AMEX") || ex.includes("AMERICAN")) return "AMEX";
-  return null;
+  return yahooExchangeCodeToTradingViewPrefix(ex);
 }
 
 /** Yahoo 종목 티커 → TradingView Advanced Chart 심볼 (근사 매핑) */

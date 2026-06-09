@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ko } from "../i18n/ko";
 import { dispatchOpenFinancialsTab } from "../lib/openFinancialsTab";
+import { tradingViewChartUrl } from "../lib/tradingviewSymbols";
 import {
   formatVaultIndustryFinancialLines,
   vaultIndustryFinVerdictClassName,
@@ -15,7 +16,7 @@ export type StockVaultRowBubbleTarget = {
   name: string;
   market: "kr" | "us";
   industry: string | null;
-  tvChartUrl: string;
+  tvSymbol: string;
   fin: StockVaultIndustryFinancials | null | undefined;
   sectorLeader: boolean;
 };
@@ -145,7 +146,7 @@ export function useStockVaultRowBubble() {
             <div className="stock-vault-tab__bubble-actions">
               <a
                 className="stock-vault-tab__bubble-btn stock-vault-tab__bubble-btn--tv"
-                href={tip.tvChartUrl}
+                href={tradingViewChartUrl(tip.tvSymbol)}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={`${tip.name} ${ko.stockVault.openTradingViewChart}`}
@@ -166,7 +167,7 @@ export function useStockVaultRowBubble() {
                   setTip(null);
                 }}
               >
-                {ko.stockVault.openFinancialsTab}
+                {ko.stockVault.bubbleBtnFinancials}
               </button>
             </div>
           </div>,

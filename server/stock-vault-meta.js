@@ -543,12 +543,20 @@ async function fetchIndustryForSymbol(symbol, market) {
  * @param {Array<{ symbol: string; market?: "kr"|"us" }>} items
  * @returns {Promise<Record<string, { industry?: string | null; nameKo?: string | null; tvSymbol?: string | null; exchange?: string | null }>>}
  */
+/** @param {{ symbol?: string; market?: "kr"|"us" }} item */
+function inferVaultItemMarket(item) {
+  if (item.market === "us" || item.market === "kr") return item.market;
+  const sym = String(item?.symbol ?? "").trim();
+  if (/^\d{6}(\.(KS|KQ))?$/i.test(sym)) return "kr";
+  return "us";
+}
+
 export async function fetchStockVaultMetaForItems(items) {
   /** @type {Record<string, { industry?: string | null; nameKo?: string | null; tvSymbol?: string | null; exchange?: string | null }>} */
   const meta = {};
   const rows = Array.isArray(items) ? items : [];
   const usSymbols = rows
-    .filter((it) => it.market === "us")
+    .filter((it) => inferVaultItemMarket(it) === "us")
     .map((it) => String(it.symbol ?? "").trim().toUpperCase());
   const usMetaMap = await resolveUsStockDisplayMetaBatch(usSymbols);
 
@@ -559,10 +567,11 @@ export async function fetchStockVaultMetaForItems(items) {
         .toUpperCase();
       if (!sym) return;
       const industry = await fetchIndustryForSymbol(sym, item.market);
+      const market = inferVaultItemMarket(item);
       const bare = normalizeUsTicker(sym);
-      const usMeta = item.market === "us" ? usMetaMap.get(bare) : null;
+      const usMeta = market === "us" ? usMetaMap.get(bare) : null;
       const nameKo =
-        item.market === "us"
+        market === "us"
           ? usMeta?.nameKo ?? getKoreanStockName(sym) ?? null
           : getKoreanStockName(sym);
       const row = {

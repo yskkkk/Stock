@@ -131,6 +131,8 @@ export interface StockPick {
   nameKo?: string;
   /** 미국 종목 영문 회사명(검색 보조) */
   nameEn?: string;
+  /** 미국 거래소(NYSE·NASDAQ 등) — TradingView 심볼 매핑 */
+  exchange?: string;
   /** 상승 유망 탭용 근거 문장 */
   bullishReasons?: string[];
   techModelId?: string;

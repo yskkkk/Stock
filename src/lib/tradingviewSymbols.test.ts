@@ -24,6 +24,7 @@ describe("tradingviewSymbols", () => {
   it("parses exchange labels", () => {
     expect(exchangeToTradingViewPrefix("NYSE")).toBe("NYSE");
     expect(exchangeToTradingViewPrefix("NASDAQ Global Select")).toBe("NASDAQ");
+    expect(exchangeToTradingViewPrefix("NYQ")).toBe("NYSE");
   });
 
   it("builds chart URL with daily interval", () => {

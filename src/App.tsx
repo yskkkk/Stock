@@ -1139,6 +1139,7 @@ export default function App() {
         ? yahooStockSymbolToTradingView(
             workspacePick.symbol,
             workspacePick.market,
+            workspacePick.exchange,
           )
         : "",
     [workspacePick],

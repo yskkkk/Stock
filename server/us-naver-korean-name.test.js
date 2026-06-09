@@ -4,6 +4,7 @@ import {
   resolveUsKoreanStockName,
   resolveUsStockDisplayMeta,
   usTickerToTradingViewSymbol,
+  yahooExchangeCodeToTradingViewPrefix,
 } from "./us-naver-korean-name.js";
 
 test("resolveUsKoreanStockName returns Korean from Naver for NASDAQ ticker", async () => {
@@ -21,4 +22,15 @@ test("resolveUsStockDisplayMeta maps NYSE TJX to TradingView NYSE symbol", async
 test("usTickerToTradingViewSymbol uses exchange prefix", () => {
   assert.equal(usTickerToTradingViewSymbol("TJX", "NYSE"), "NYSE:TJX");
   assert.equal(usTickerToTradingViewSymbol("POOL", "NASDAQ"), "NASDAQ:POOL");
+  assert.equal(usTickerToTradingViewSymbol("WAB", "NYQ"), "NYSE:WAB");
+});
+
+test("yahooExchangeCodeToTradingViewPrefix maps Yahoo codes", () => {
+  assert.equal(yahooExchangeCodeToTradingViewPrefix("NYQ"), "NYSE");
+  assert.equal(yahooExchangeCodeToTradingViewPrefix("NMS"), "NASDAQ");
+});
+
+test("resolveUsStockDisplayMeta maps NYSE WAB to TradingView NYSE symbol", async () => {
+  const meta = await resolveUsStockDisplayMeta("WAB");
+  assert.equal(meta.tvSymbol, "NYSE:WAB");
 });

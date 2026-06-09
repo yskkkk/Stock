@@ -31,10 +31,7 @@ import {
   subscribeStockVaultPrefetch,
   updateStockVaultPrefetchVault,
 } from "../lib/tabPrefetch";
-import {
-  tradingViewChartUrl,
-  yahooStockSymbolToTradingView,
-} from "../lib/tradingviewSymbols";
+import { yahooStockSymbolToTradingView } from "../lib/tradingviewSymbols";
 import type {
   GoldenCrossKind,
   StockVaultFavoriteMeta,
@@ -931,7 +928,6 @@ export default function StockVaultTab({
                   row.market,
                   metaRow?.exchange,
                 );
-              const tvChartUrl = tradingViewChartUrl(tvSymbol);
               const cur =
                 quote?.currency ?? (row.market === "kr" ? "KRW" : "USD");
               const chg = quote?.changePercent;
@@ -971,7 +967,7 @@ export default function StockVaultTab({
                       name: display.label,
                       market: row.market,
                       industry,
-                      tvChartUrl,
+                      tvSymbol,
                       fin: finRow,
                       sectorLeader,
                     })
@@ -983,7 +979,7 @@ export default function StockVaultTab({
                       name: display.label,
                       market: row.market,
                       industry,
-                      tvChartUrl,
+                      tvSymbol,
                       fin: finRow,
                       sectorLeader,
                     })

@@ -1,8 +1,10 @@
 import { getKoreanStockName, hasHangul, registerKoreanName } from "./names-ko.js";
+import { yahooGet } from "./yahoo.js";
 
 const UA =
   "Mozilla/5.0 (compatible; StockDashboard/1.0; +https://github.com/yskkkk/Stock)";
 const CACHE_MS = 7 * 24 * 60 * 60 * 1000;
+const NULL_CACHE_MS = 60 * 60 * 1000;
 
 /** @typedef {{ stockName?: string; symbolCode?: string; stockExchangeName?: string }} NaverUsBasicRow */
 
@@ -27,7 +29,50 @@ export function naverExchangeToTradingViewPrefix(exchangeName) {
   if (ex.includes("NASDAQ")) return "NASDAQ";
   if (ex.includes("NYSE") || ex.includes("NEW YORK")) return "NYSE";
   if (ex.includes("AMEX") || ex.includes("AMERICAN")) return "AMEX";
+  return yahooExchangeCodeToTradingViewPrefix(ex);
+}
+
+/** Yahoo `price.exchange` 코드 → TradingView 접두사 */
+export function yahooExchangeCodeToTradingViewPrefix(code) {
+  const ex = String(code ?? "")
+    .trim()
+    .toUpperCase();
+  if (!ex) return null;
+  if (ex === "NMS" || ex === "NGM" || ex === "NCM" || ex.includes("NASDAQ")) {
+    return "NASDAQ";
+  }
+  if (ex === "NYQ" || ex === "NYS" || ex.includes("NYSE") || ex.includes("NEW YORK")) {
+    return "NYSE";
+  }
+  if (ex === "ASE" || ex === "AMX" || ex.includes("AMEX") || ex.includes("AMERICAN")) {
+    return "AMEX";
+  }
   return null;
+}
+
+/** @param {string} ticker */
+function usTickerToYahooSymbol(ticker) {
+  return normalizeUsTicker(ticker).replace(/\./g, "-");
+}
+
+/**
+ * @param {string} ticker
+ * @returns {Promise<string | null>}
+ */
+export async function fetchYahooUsExchangeName(ticker) {
+  const ySym = usTickerToYahooSymbol(ticker);
+  if (!ySym) return null;
+  try {
+    const data = await yahooGet(
+      `/v10/finance/quoteSummary/${encodeURIComponent(ySym)}?modules=price`,
+    );
+    const exchange = data?.quoteSummary?.result?.[0]?.price?.exchange;
+    return typeof exchange === "string" && exchange.trim()
+      ? exchange.trim()
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -75,7 +120,10 @@ async function fetchNaverUsBasic(symbol) {
   if (!sym) return null;
 
   const hit = basicCache.get(sym);
-  if (hit && Date.now() - hit.at < CACHE_MS) return hit.data;
+  if (hit) {
+    const ttl = hit.data ? CACHE_MS : NULL_CACHE_MS;
+    if (Date.now() - hit.at < ttl) return hit.data;
+  }
 
   for (const code of [sym, `${sym}.O`, `${sym}.N`]) {
     const data = await fetchNaverUsBasicRaw(code);
@@ -101,10 +149,14 @@ export async function resolveUsStockDisplayMeta(symbol) {
     basic?.stockName && hasHangul(basic.stockName) ? basic.stockName.trim() : null;
   const nameKo = mappedKo ?? naverKo;
   if (nameKo && !mappedKo) registerKoreanName(sym, nameKo);
-  const exchange =
+  let exchange =
     typeof basic?.stockExchangeName === "string"
       ? basic.stockExchangeName.trim() || null
       : null;
+  if (!exchange) {
+    const yahooExchange = await fetchYahooUsExchangeName(sym);
+    if (yahooExchange) exchange = yahooExchange;
+  }
   const tvSymbol = usTickerToTradingViewSymbol(
     basic?.symbolCode ?? sym,
     exchange,
