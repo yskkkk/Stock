@@ -1,0 +1,295 @@
+/* 연동 계좌 스냅샷 — 토스·빗썸 공통 카드 레이아웃 */
+.account-snapshot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: 0;
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+.account-snapshot--rail {
+  gap: 0.48rem;
+  font-size: 0.72rem;
+}
+
+.account-snapshot__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  min-width: 0;
+  font-size: 0.62rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.account-snapshot__fees {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--accent) 82%, var(--muted));
+  font-weight: 600;
+}
+
+.account-snapshot__updated {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.account-snapshot__balance-card {
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--border, #334155) 72%, transparent);
+  background: color-mix(in srgb, var(--card-bg, #0f172a) 88%, transparent);
+  padding: 0.55rem 0.62rem 0.5rem;
+}
+
+html[data-theme="light"] .account-snapshot__balance-card {
+  background: color-mix(in srgb, var(--card-bg, #fff) 92%, #f8fafc);
+  border-color: color-mix(in srgb, var(--border, #e2e8f0) 90%, transparent);
+}
+
+.account-snapshot__balance-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin-bottom: 0.42rem;
+}
+
+.account-snapshot__balance-title {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-dim, #94a3b8);
+}
+
+.account-snapshot__hide-btn {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0.1rem 0.42rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.6rem;
+  font-weight: 650;
+  line-height: 1.35;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.account-snapshot__hide-btn:hover,
+.account-snapshot__hide-btn[aria-pressed="true"] {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.account-snapshot__cash-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.42rem 0.55rem;
+}
+
+.account-snapshot__cash-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.08rem;
+  min-width: 0;
+}
+
+.account-snapshot__cash-label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account-snapshot__cash-value {
+  font-size: 0.82rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.account-snapshot--rail .account-snapshot__cash-value {
+  font-size: 0.78rem;
+}
+
+.account-snapshot__pl {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+  padding-top: 0.42rem;
+  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+
+.account-snapshot__pl-label {
+  font-size: 0.64rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.account-snapshot__pl-value {
+  font-size: 0.8rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.account-snapshot__pl-value--up {
+  color: var(--up, #16a34a);
+}
+
+.account-snapshot__pl-value--down {
+  color: var(--down, #dc2626);
+}
+
+.account-snapshot__values--hidden .account-snapshot__cash-value,
+.account-snapshot__values--hidden .account-snapshot__pl-value {
+  filter: blur(7px);
+  user-select: none;
+  pointer-events: none;
+}
+
+.account-snapshot__holdings {
+  min-width: 0;
+}
+
+.account-snapshot__holdings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin: 0 0 0.32rem;
+}
+
+.account-snapshot__holdings-title {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-dim, #94a3b8);
+}
+
+.account-snapshot__holdings-count {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.account-snapshot__holdings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  overflow: hidden;
+}
+
+.account-snapshot--rail .account-snapshot__holdings-list {
+  max-height: 11.5rem;
+  overflow-y: auto;
+}
+
+.account-snapshot__holding {
+  padding: 0.42rem 0.55rem;
+  background: color-mix(in srgb, var(--card-bg) 70%, transparent);
+}
+
+.account-snapshot__holding + .account-snapshot__holding {
+  border-top: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+}
+
+.account-snapshot__holding-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.account-snapshot__holding-row + .account-snapshot__holding-row {
+  margin-top: 0.14rem;
+}
+
+.account-snapshot__holding-name {
+  min-width: 0;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.account-snapshot__holding-name .live-portfolio__sym {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-snapshot__holding-name .live-portfolio__nm {
+  display: block;
+  margin-top: 0.04rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.account-snapshot__holding-chg {
+  flex: 0 0 auto;
+  font-size: 0.68rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.account-snapshot__holding-chg--up {
+  color: var(--up, #16a34a);
+}
+
+.account-snapshot__holding-chg--down {
+  color: var(--down, #dc2626);
+}
+
+.account-snapshot__holding-chg--flat {
+  color: var(--muted);
+}
+
+.account-snapshot__holding-qty {
+  font-size: 0.64rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.account-snapshot__holding-val {
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.account-snapshot__empty {
+  margin: 0;
+  padding: 0.55rem;
+  border-radius: 8px;
+  border: 1px dashed color-mix(in srgb, var(--border) 70%, transparent);
+  text-align: center;
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.account-snapshot .live-symbol-with-icon {
+  align-items: flex-start;
+}
+
+.account-snapshot .live-symbol-with-icon__text {
+  min-width: 0;
+}
