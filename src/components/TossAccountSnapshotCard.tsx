@@ -170,6 +170,14 @@ export default function TossAccountSnapshotCard({
           <ul className="account-snapshot__holdings-list">
             {holdings.map((h) => {
               const tone = holdingChgTone(h.returnPercent);
+              const hasAvg =
+                h.avgBuyPrice != null &&
+                Number.isFinite(h.avgBuyPrice) &&
+                h.avgBuyPrice > 0;
+              const hasCur =
+                h.currentPrice != null &&
+                Number.isFinite(h.currentPrice) &&
+                h.currentPrice > 0;
               return (
                 <li key={`${h.market}-${h.symbol}`} className="account-snapshot__holding">
                   <div className="account-snapshot__holding-row">
@@ -221,6 +229,25 @@ export default function TossAccountSnapshotCard({
                       </>
                     ) : null}
                   </div>
+                  {hasAvg || hasCur ? (
+                    <div className="account-snapshot__holding-prices">
+                      {hasAvg ? (
+                        <span>
+                          {ko.app.liveTradePfColAvg}{" "}
+                          {formatPrice(h.avgBuyPrice!, h.currency)}
+                        </span>
+                      ) : null}
+                      {hasAvg && hasCur ? (
+                        <span className="account-snapshot__holding-prices-sep">·</span>
+                      ) : null}
+                      {hasCur ? (
+                        <span>
+                          {ko.app.liveTradePfColCurrent}{" "}
+                          {formatPrice(h.currentPrice!, h.currency)}
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </li>
               );
             })}
