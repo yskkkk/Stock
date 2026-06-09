@@ -1,4 +1,5 @@
 import { loadCryptoWatchlistTen } from "./crypto-universe.js";
+import { ensureKrSearchIndex } from "./kr-stock-search-index.js";
 import { warmUniverseCache } from "./universe.js";
 import { prewarmMacroEventsCache } from "./macro-events.js";
 import { buildRecommendationsTrackerPayload } from "./picks-recommendations-tracker.js";
@@ -27,4 +28,7 @@ export function prewarmAppCaches() {
     console.warn("[prewarm] crypto-universe:", e instanceof Error ? e.message : e);
   });
   void warmUniverseCache();
+  void ensureKrSearchIndex().catch((e) => {
+    console.warn("[prewarm] kr-search-index:", e instanceof Error ? e.message : e);
+  });
 }

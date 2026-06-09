@@ -53,6 +53,11 @@ const KR_EX = new Set([
 
 const ALLOW_QUOTE_TYPES = new Set(["EQUITY", "ETF", "INDEX"]);
 
+import {
+  appendKrExtendedSearchMatches,
+  ensureKrSearchIndex,
+  krYahooSymbolFromCode,
+} from "./kr-stock-search-index.js";
 import { getCachedUniverse, warmUniverseCache } from "./universe.js";
 
 function loadUniverseJsonFallback(name) {
@@ -234,6 +239,7 @@ function ensureUniverseReady(market) {
 export async function searchStocks(query, market, options = {}) {
   const lite = options.lite === true;
   await ensureUniverseReady(market);
+  if (market === "kr") await ensureKrSearchIndex();
   const q = String(query ?? "").trim();
   if (q.length < 1) return { quotes: [] };
   if (q.length > 80) {
@@ -277,7 +283,9 @@ export async function searchStocks(query, market, options = {}) {
   for (const row of raw) {
     let sym = String(row.symbol ?? "").trim().toUpperCase();
     if (!sym) continue;
-    if (market === "kr" && /^\d{6}$/.test(sym)) sym = `${sym}.KS`;
+    if (market === "kr" && /^\d{6}$/.test(sym)) {
+      sym = krYahooSymbolFromCode(sym) || `${sym}.KS`;
+    }
     const m = inferMarket({ ...row, symbol: sym });
     if (m !== market) continue;
     if (market === "us" && !isPrimaryUsSearchSymbol(sym)) continue;
@@ -302,6 +310,10 @@ export async function searchStocks(query, market, options = {}) {
 
   if (!localKrHangulFirst && (quotes.length === 0 || qHasHangul)) {
     appendLocalUniverseMatches(q, market, seen, quotes);
+  }
+
+  if (market === "kr" && qHasHangul && quotes.length < 24) {
+    await appendKrExtendedSearchMatches(q, seen, quotes);
   }
 
   const sliced = quotes.slice(0, 24);

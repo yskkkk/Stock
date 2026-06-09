@@ -209,6 +209,10 @@ export async function searchDartCompanies(query, limit = 25) {
   if (q.length < 1) return [];
 
   const corps = await loadCorpIndex();
+  const { ensureKrSearchIndex, krYahooSymbolFromCode } = await import(
+    "./kr-stock-search-index.js"
+  );
+  await ensureKrSearchIndex();
   const digits = q.replace(/\D/g, "");
   /** @type {Array<{ corpCode: string; corpName: string; stockCode: string; symbol: string; score: number }>} */
   const scored = [];
@@ -227,7 +231,7 @@ export async function searchDartCompanies(query, limit = 25) {
       corpCode: c.corpCode,
       corpName: c.corpName,
       stockCode: c.stockCode,
-      symbol: `${c.stockCode}.KS`,
+      symbol: krYahooSymbolFromCode(c.stockCode) || `${c.stockCode}.KS`,
       score,
     });
   }
