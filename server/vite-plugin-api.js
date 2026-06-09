@@ -66,6 +66,11 @@ function mergeStockProcessEnv(mode) {
     "TOSS_API_SECRET",
     "TOSS_ACCOUNT_ID",
     "TOSS_LIVE_ORDERS_ENABLED",
+    "STOCK_HOLDINGS_NEWS_EMAIL",
+    "STOCK_HOLDINGS_NEWS_POLL_MS",
+    "STOCK_HOLDINGS_NEWS_MAX_AGE_MS",
+    "STOCK_HOLDINGS_NEWS_INCLUDE_VAULT",
+    "STOCK_HOLDINGS_NEWS_EMAIL_DELAY_MS",
   ]) {
     if (env[key]) process.env[key] = env[key];
   }

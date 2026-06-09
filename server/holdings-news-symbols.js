@@ -108,8 +108,8 @@ export async function collectUserHeldSymbolsAsync(userId, opts = {}) {
   }
 
   const includeVault =
-    opts.includeVaultFavorites === true ||
-    String(process.env.STOCK_HOLDINGS_NEWS_INCLUDE_VAULT ?? "0").trim() === "1";
+    opts.includeVaultFavorites !== false &&
+    String(process.env.STOCK_HOLDINGS_NEWS_INCLUDE_VAULT ?? "1").trim() !== "0";
   if (includeVault) {
     const vault = getUserStockVaultSync(uid);
     const meta = vault?.favoriteMeta ?? {};
