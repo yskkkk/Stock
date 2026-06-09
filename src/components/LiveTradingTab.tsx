@@ -65,7 +65,6 @@ import LiveTradeAuthPanel, {
   LiveTradeSidePanelPortal,
   notifyLiveTradeAuthChange,
   useLiveTradeAuth,
-  useLiveTradeCardSidePanel,
   useLiveTradeCardSidePanelOptional,
 } from "./LiveTradeAuthAndCredentials";
 
@@ -152,7 +151,9 @@ function LiveTradeCardWorkspace({
   onCloseEdit: () => void;
   children: ReactNode;
 }) {
-  const { panel, closePanel } = useLiveTradeCardSidePanel();
+  const sidePanelCtx = useLiveTradeCardSidePanelOptional();
+  const panel = sidePanelCtx?.panel ?? null;
+  const closePanel = sidePanelCtx?.closePanel ?? (() => {});
 
   useMobileBackHandler(
     Boolean(panel),

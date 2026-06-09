@@ -369,8 +369,12 @@ export function LiveTradeCardSidePanel({
   /** 우측 아이콘 레일 — 가로 탭 숨김, 레일만으로 전환 */
   railMode?: boolean;
 } = {}) {
-  const { panel, openPanel, closePanel, setBodyHostEl, sideTabs } =
-    useLiveTradeCardSidePanel();
+  const sidePanelCtx = useLiveTradeCardSidePanelOptional();
+  const panel = sidePanelCtx?.panel ?? null;
+  const openPanel = sidePanelCtx?.openPanel ?? (() => {});
+  const closePanel = sidePanelCtx?.closePanel ?? (() => {});
+  const setBodyHostEl = sidePanelCtx?.setBodyHostEl ?? (() => {});
+  const sideTabs = sidePanelCtx?.sideTabs ?? [];
   const { user, authChecked } = useLiveTradeAuth();
   const { docked, host } = useLiveTradeRightPanelDock();
   const dockBodyScrollRef = useRef<HTMLDivElement | null>(null);
@@ -419,6 +423,8 @@ export function LiveTradeCardSidePanel({
     railMode && bodyHostActive,
     "live-trading-tab__card-tabs-host--dragging",
   );
+
+  if (!sidePanelCtx) return null;
 
   const pane = (
     <aside

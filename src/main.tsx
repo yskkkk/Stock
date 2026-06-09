@@ -6,6 +6,7 @@ import { registerPwaServiceWorker } from "./lib/registerPwa";
 import AppErrorBoundary from "./components/AppErrorBoundary";
 import App from "./App";
 import MobileServerGate from "./components/MobileServerGate";
+import { LiveTradeCardSidePanelProvider } from "./components/LiveTradeAuthAndCredentials";
 import "./index.css";
 import "./theme.css";
 import "./theme-light-palettes.css";
@@ -69,9 +70,11 @@ try {
   createRoot(document.getElementById("root")!).render(
     <StrictMode>
       <AppErrorBoundary>
-        <MobileServerGate>
-          <App />
-        </MobileServerGate>
+        <LiveTradeCardSidePanelProvider>
+          <MobileServerGate>
+            <App />
+          </MobileServerGate>
+        </LiveTradeCardSidePanelProvider>
       </AppErrorBoundary>
     </StrictMode>,
   );

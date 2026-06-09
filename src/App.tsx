@@ -53,10 +53,7 @@ import LiveTradingTab, {
 } from "./components/LiveTradingTab";
 import AppLiveTradeSideDock from "./components/AppLiveTradeSideDock";
 import AppRightDockRailPanels from "./components/AppRightDockRailPanels";
-import {
-  LiveTradeCardSidePanelProvider,
-  useLiveTradeAuth,
-} from "./components/LiveTradeAuthAndCredentials";
+import { useLiveTradeAuth } from "./components/LiveTradeAuthAndCredentials";
 import RecommendationsTab from "./components/RecommendationsTab";
 import TradeHistoryTab from "./components/TradeHistoryTab";
 import BoxRangeTab from "./components/BoxRangeTab";
@@ -1261,7 +1258,6 @@ export default function App() {
       );
   }, []);
   return (
-    <LiveTradeCardSidePanelProvider>
     <div
         className={
         appTab === "recommendations"
@@ -2277,6 +2273,5 @@ export default function App() {
       />
       </div>
     </div>
-    </LiveTradeCardSidePanelProvider>
   );
 }
