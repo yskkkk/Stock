@@ -7,10 +7,14 @@ import {
 } from "../api";
 import { LIVE_TRADE_AUTH_CHANGE } from "../lib/liveTradeAuthEvents";
 
-const VISIBLE_POLL_MS = 45_000;
+const DEFAULT_POLL_MS = 45_000;
 
-export function useTossAccountSnapshot(opts?: { poll?: boolean }) {
+export function useTossAccountSnapshot(opts?: {
+  poll?: boolean;
+  pollIntervalMs?: number;
+}) {
   const poll = opts?.poll ?? false;
+  const pollIntervalMs = opts?.pollIntervalMs ?? DEFAULT_POLL_MS;
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [snapshot, setSnapshot] = useState<TossTestSnapshot | null>(null);
@@ -80,7 +84,7 @@ export function useTossAccountSnapshot(opts?: { poll?: boolean }) {
     const id = poll
       ? window.setInterval(() => {
           void reload(true, true);
-        }, VISIBLE_POLL_MS)
+        }, pollIntervalMs)
       : undefined;
 
     const onAuthChange = () => {
@@ -92,7 +96,7 @@ export function useTossAccountSnapshot(opts?: { poll?: boolean }) {
       if (id != null) window.clearInterval(id);
       window.removeEventListener(LIVE_TRADE_AUTH_CHANGE, onAuthChange);
     };
-  }, [poll, reload]);
+  }, [poll, pollIntervalMs, reload]);
 
   return {
     user,

@@ -195,7 +195,7 @@ export default function TossAccountSnapshotCard({
                   </div>
                   <div className="account-snapshot__holding-row">
                     <span className="account-snapshot__holding-qty">
-                      {formatLiveTradeQuantity(h.quantity, h.market)}
+                      {formatLiveTradeQuantity(h.quantity, h.market)}주
                     </span>
                     {h.marketValue != null ? (
                       <span className="account-snapshot__holding-val">

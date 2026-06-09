@@ -14,7 +14,7 @@ export function TossAccountRailCore({
   layout?: "rail-aside" | "dock";
 }) {
   const { user, authChecked, snapshot, feeLabelKo, updatedAtMs, loading, err, reload } =
-    useTossAccountSnapshot();
+    useTossAccountSnapshot({ poll: true, pollIntervalMs: 1_000 });
   const [liveOrdersEnabled, setLiveOrdersEnabled] = useState(false);
   const [serverLiveOrdersEnabled, setServerLiveOrdersEnabled] = useState(false);
 

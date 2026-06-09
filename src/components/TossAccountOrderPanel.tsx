@@ -19,7 +19,7 @@ import { formatPrice, formatUpdatedAt } from "../lib/format";
 import { ko } from "../i18n/ko";
 import { LiveTradeSymbolCell } from "./LiveTradeSymbolCell";
 
-const POLL_MS = 12_000;
+const POLL_MS = 1_000;
 const TOSS_TRADE_URL = "https://www.tossinvest.com/";
 
 type OrderDraft = {
