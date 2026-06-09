@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FavoriteTrackPanel from "./FavoriteTrackPanel";
 import {
+  fetchGoldenCrossHistory,
   fetchGoldenCrossStatus,
+  fetchMaAlignHistory,
   removeStockVaultItem,
   setStockVaultFavorite,
   triggerGoldenCrossScan,
@@ -18,6 +20,10 @@ import {
   STOCK_VAULT_SCAN_SOURCES,
   type VaultDisplayRow,
 } from "../lib/stockVaultFilter";
+import {
+  buildVaultItemsFromScanHistory,
+  mergeScanHistoryDates,
+} from "../lib/stockVaultHistory";
 import {
   loadStockVault,
   peekStockVaultPrefetch,
@@ -209,6 +215,10 @@ export default function StockVaultTab({
   );
   const [scanConfirmOpen, setScanConfirmOpen] = useState(false);
   const [scanNotice, setScanNotice] = useState<string | null>(null);
+  const [historyDates, setHistoryDates] = useState<string[]>([]);
+  const [selectedScanDate, setSelectedScanDate] = useState<string | null>(null);
+  const [historyItems, setHistoryItems] = useState<StockVaultItem[] | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const scanBtnRef = useRef<HTMLButtonElement>(null);
   const scanPopoverRef = useRef<HTMLDivElement>(null);
   const { tipId, showTip, scheduleHideTip, bubble: rowBubble } =
@@ -271,6 +281,77 @@ export default function StockVaultTab({
     void reload();
   }, [reload]);
 
+  const refreshHistoryDates = useCallback(async () => {
+    try {
+      const [gc, ma] = await Promise.all([
+        fetchGoldenCrossHistory(),
+        fetchMaAlignHistory(),
+      ]);
+      setHistoryDates(mergeScanHistoryDates(gc.dates, ma.dates));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshHistoryDates();
+  }, [refreshHistoryDates]);
+
+  const favoriteSymbolSet = useMemo(
+    () => new Set(favoriteVaultSymbols({ items, favoriteSymbols: undefined })),
+    [items],
+  );
+
+  const isHistoricalView = selectedScanDate != null;
+
+  useEffect(() => {
+    if (!selectedScanDate) {
+      setHistoryItems(null);
+      setHistoryLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setHistoryLoading(true);
+    void (async () => {
+      try {
+        const [gc, ma] = await Promise.all([
+          fetchGoldenCrossHistory({
+            scanDate: selectedScanDate,
+            detail: true,
+          }),
+          fetchMaAlignHistory({
+            scanDate: selectedScanDate,
+            detail: true,
+          }),
+        ]);
+        if (cancelled) return;
+        setHistoryItems(
+          buildVaultItemsFromScanHistory(
+            selectedScanDate,
+            gc.entries ?? [],
+            ma.entries ?? [],
+            { favoriteSymbols: favoriteSymbolSet, favoriteMeta },
+          ),
+        );
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : String(e));
+        }
+      } finally {
+        if (!cancelled) setHistoryLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedScanDate, favoriteSymbolSet, favoriteMeta]);
+
+  const displayItems = useMemo(
+    () =>
+      isHistoricalView && historyItems != null ? historyItems : items,
+    [isHistoricalView, historyItems, items],
+  );
+
   useEffect(() => {
     return subscribeStockVaultPrefetch((bundle) => {
       applyVaultResponse(bundle.vault);
@@ -281,12 +362,12 @@ export default function StockVaultTab({
   }, [applyVaultResponse, applyScanStatus]);
 
   useEffect(() => {
-    if (loading || scanRunning || items.length === 0) return;
+    if (loading || scanRunning || displayItems.length === 0) return;
     const id = window.setInterval(() => {
       void reloadVault();
     }, QUOTE_POLL_MS);
     return () => window.clearInterval(id);
-  }, [loading, scanRunning, items.length, reloadVault]);
+  }, [loading, scanRunning, displayItems.length, reloadVault]);
 
   useEffect(() => {
     if (!scanRunning) return;
@@ -299,6 +380,7 @@ export default function StockVaultTab({
             const bundle = await refreshStockVaultTab();
             applyVaultResponse(bundle.vault);
             applyScanStatus(bundle.scanStatus);
+            void refreshHistoryDates();
             setScanNotice(ko.stockVault.scanDone);
           }
         } catch {
@@ -307,7 +389,7 @@ export default function StockVaultTab({
       })();
     }, SCAN_POLL_MS);
     return () => window.clearInterval(id);
-  }, [scanRunning, applyScanStatus, applyVaultResponse]);
+  }, [scanRunning, applyScanStatus, applyVaultResponse, refreshHistoryDates]);
 
   useEffect(() => {
     if (!scanConfirmOpen) return;
@@ -345,30 +427,30 @@ export default function StockVaultTab({
       Object.fromEntries(
         STOCK_VAULT_SCAN_SOURCES.map((source) => [
           source,
-          countItemsByScanSource(items, source),
+          countItemsByScanSource(displayItems, source),
         ]),
       ) as Record<StockVaultScanSource, number>,
-    [items],
+    [displayItems],
   );
 
   const preMarketRows = useMemo(
     () =>
-      buildVaultDisplayRows(items, {
+      buildVaultDisplayRows(displayItems, {
         selectedScanSources,
         marketFilter: "all",
         favoriteOnly: filter === "favorite",
       }),
-    [items, selectedScanSources, filter],
+    [displayItems, selectedScanSources, filter],
   );
 
   const baseFiltered = useMemo(
     () =>
-      buildVaultDisplayRows(items, {
+      buildVaultDisplayRows(displayItems, {
         selectedScanSources,
         marketFilter,
         favoriteOnly: filter === "favorite",
       }),
-    [items, selectedScanSources, marketFilter, filter],
+    [displayItems, selectedScanSources, marketFilter, filter],
   );
 
   const favoriteCount = useMemo(
@@ -633,6 +715,49 @@ export default function StockVaultTab({
               {ko.stockVault.lastScan}: {scanHint}
             </p>
           ) : null}
+          {historyDates.length > 0 ? (
+            <ul
+              className="stock-vault-tab__history-dates"
+              role="group"
+              aria-label={ko.stockVault.historyDateAria}
+            >
+              <li>
+                <button
+                  type="button"
+                  className={
+                    !selectedScanDate
+                      ? "stock-vault-tab__history-date stock-vault-tab__history-date--selected"
+                      : "stock-vault-tab__history-date"
+                  }
+                  aria-pressed={!selectedScanDate}
+                  onClick={() => setSelectedScanDate(null)}
+                >
+                  {ko.stockVault.historyLatest}
+                </button>
+              </li>
+              {historyDates.map((date) => (
+                <li key={date}>
+                  <button
+                    type="button"
+                    className={
+                      selectedScanDate === date
+                        ? "stock-vault-tab__history-date stock-vault-tab__history-date--selected"
+                        : "stock-vault-tab__history-date"
+                    }
+                    aria-pressed={selectedScanDate === date}
+                    onClick={() => setSelectedScanDate(date)}
+                  >
+                    {date}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {isHistoricalView && selectedScanDate ? (
+            <p className="stock-vault-tab__history-hint">
+              {ko.stockVault.historyViewHint(selectedScanDate)}
+            </p>
+          ) : null}
           {scanNotice ? (
             <p className="stock-vault-tab__scan-notice">{scanNotice}</p>
           ) : null}
@@ -787,7 +912,7 @@ export default function StockVaultTab({
           ) : null}
         </div>
 
-        {loading ? (
+        {loading || (isHistoricalView && historyLoading) ? (
           <p className="stock-vault-tab__muted">{ko.stockVault.loading}</p>
         ) : error ? (
           <p className="stock-vault-tab__error" role="alert">
@@ -795,11 +920,13 @@ export default function StockVaultTab({
           </p>
         ) : filtered.length === 0 ? (
           <p className="stock-vault-tab__muted">
-            {showSelectScanCondition
-              ? ko.stockVault.selectScanCondition
-              : showEmptyIntersection
-                ? ko.stockVault.emptyIntersection
-                : ko.stockVault.empty}
+            {isHistoricalView
+              ? ko.stockVault.historyEmpty
+              : showSelectScanCondition
+                ? ko.stockVault.selectScanCondition
+                : showEmptyIntersection
+                  ? ko.stockVault.emptyIntersection
+                  : ko.stockVault.empty}
           </p>
         ) : (
           <ul className="stock-vault-tab__list">
@@ -1010,21 +1137,23 @@ export default function StockVaultTab({
                   >
                     <VaultBookmarkIcon filled={Boolean(row.favorited)} />
                   </button>
-                  <button
-                    type="button"
-                    className="stock-vault-tab__remove"
-                    aria-label={`${display.label} ${ko.stockVault.removeAria}`}
-                    title={ko.stockVault.remove}
-                    disabled={removing === row.symbol || !authenticated}
-                    onClick={() => void handleRemove(row.symbol)}
-                  >
-                    <span className="stock-vault-tab__remove-icon" aria-hidden>
-                      ×
-                    </span>
-                    <span className="stock-vault-tab__remove-label">
-                      {ko.stockVault.remove}
-                    </span>
-                  </button>
+                  {!isHistoricalView ? (
+                    <button
+                      type="button"
+                      className="stock-vault-tab__remove"
+                      aria-label={`${display.label} ${ko.stockVault.removeAria}`}
+                      title={ko.stockVault.remove}
+                      disabled={removing === row.symbol || !authenticated}
+                      onClick={() => void handleRemove(row.symbol)}
+                    >
+                      <span className="stock-vault-tab__remove-icon" aria-hidden>
+                        ×
+                      </span>
+                      <span className="stock-vault-tab__remove-label">
+                        {ko.stockVault.remove}
+                      </span>
+                    </button>
+                  ) : null}
                 </div>
               </li>
               );

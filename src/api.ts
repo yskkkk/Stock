@@ -1928,6 +1928,36 @@ export function triggerGoldenCrossScan() {
   );
 }
 
+export function fetchGoldenCrossHistory(opts?: {
+  scanDate?: string;
+  detail?: boolean;
+  signal?: AbortSignal;
+}) {
+  const params = new URLSearchParams();
+  if (opts?.scanDate) params.set("date", opts.scanDate);
+  if (opts?.detail) params.set("detail", "1");
+  const q = params.toString();
+  return fetchJson<import("./types").GoldenCrossHistoryResponse>(
+    `/api/golden-cross/history${q ? `?${q}` : ""}`,
+    opts?.signal ? { signal: opts.signal } : undefined,
+  );
+}
+
+export function fetchMaAlignHistory(opts?: {
+  scanDate?: string;
+  detail?: boolean;
+  signal?: AbortSignal;
+}) {
+  const params = new URLSearchParams();
+  if (opts?.scanDate) params.set("date", opts.scanDate);
+  if (opts?.detail) params.set("detail", "1");
+  const q = params.toString();
+  return fetchJson<import("./types").MaAlignHistoryResponse>(
+    `/api/ma-align/history${q ? `?${q}` : ""}`,
+    opts?.signal ? { signal: opts.signal } : undefined,
+  );
+}
+
 export function fetchNews(
   symbol: string,
   name: string,

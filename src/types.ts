@@ -459,6 +459,58 @@ export interface GoldenCrossScanState {
   }>;
 }
 
+export interface GoldenCrossHistoryHit {
+  symbol: string;
+  name: string;
+  market: "kr" | "us";
+  crosses: GoldenCrossKind[];
+  scanDate: string;
+  crossDate?: string | null;
+}
+
+export interface MaAlignHistoryHit {
+  symbol: string;
+  name: string;
+  market: "kr" | "us";
+  scanDate: string;
+}
+
+export interface GoldenCrossHistoryEntry {
+  id: string;
+  runId: string;
+  atMs: number;
+  trigger: "manual" | "scheduled";
+  market: "kr" | "us";
+  scanDate: string;
+  scanned: number;
+  hitCount: number;
+  hits: GoldenCrossHistoryHit[];
+}
+
+export interface MaAlignHistoryEntry {
+  id: string;
+  runId: string;
+  atMs: number;
+  trigger: "manual" | "scheduled";
+  market: "kr" | "us";
+  scanDate: string;
+  scanned: number;
+  hitCount: number;
+  hits: MaAlignHistoryHit[];
+}
+
+export interface GoldenCrossHistoryResponse {
+  dates?: string[];
+  scanDate?: string;
+  entries?: GoldenCrossHistoryEntry[];
+}
+
+export interface MaAlignHistoryResponse {
+  dates?: string[];
+  scanDate?: string;
+  entries?: MaAlignHistoryEntry[];
+}
+
 export interface StockVaultScanStatus {
   enabled: boolean;
   running: boolean;

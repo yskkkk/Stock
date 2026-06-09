@@ -935,6 +935,11 @@ export const ko = {
     sectorLeaderAria: "동종 업계 시가총액 1위",
     removeFromVault: "보관함에서 제거",
     lastScan: "마지막 스캔",
+    historyDateAria: "탐색 일자 선택",
+    historyLatest: "최신",
+    historyViewHint: (date: string) =>
+      `${date} 탐색 스냅샷입니다. 즐겨찾기는 현재 계정 기준이며 삭제는 최신 보관함에서만 가능합니다.`,
+    historyEmpty: "해당 날짜의 탐색 기록이 없습니다.",
     lastScanGolden: "골든",
     lastScanMaAlign: "정배열",
     scanRun: "일봉 탐색",

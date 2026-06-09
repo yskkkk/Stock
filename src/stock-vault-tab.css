@@ -193,6 +193,47 @@
   color: var(--accent);
 }
 
+.stock-vault-tab__history-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+  margin: 0.28rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stock-vault-tab__history-date {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.55rem;
+  padding: 0.12rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.stock-vault-tab__history-date:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.stock-vault-tab__history-date--selected {
+  border-color: var(--accent);
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.stock-vault-tab__history-hint {
+  margin: 0.22rem 0 0;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
 .stock-vault-tab__panel.card {
   padding: var(--tab-card-pad-y-top, 0.9rem) 0.42rem var(--tab-card-pad-y-bottom, 1.05rem);
 }
