@@ -4,7 +4,7 @@ indicator("일봉·주봉 MA 정확 접점 (골든/데드 구분)", overlay=true
 string grpDisp = "표시"
 string tfMode = input.string("일봉+주봉", "표시 TF", options=["일봉+주봉", "일봉만", "주봉만"], group=grpDisp)
 bool showLegend = input.bool(true, "범례 표시 (우하단)", group=grpDisp)
-bool smoothWeekly = input.bool(true, "주봉 선형 보간 (일·분봉)", group=grpDisp, tooltip="주 경계 MA 값 사이를 직선 보간해 계단 모서리를 없앱니다. 교차점 판정·표시는 실제 주봉 MA 값을 유지합니다.")
+bool smoothWeekly = input.bool(true, "주봉 선형 보간 (일·분봉)", group=grpDisp, tooltip="전주 확정 MA → 금주 MA를 주 안에서 직선 보간합니다(계단·뾰족 모서리 제거). 교차점 판정·표시는 확정 주봉 MA(lookahead_off)를 유지합니다.")
 int brightTransp = input.int(0, "활성 TF 투명도", minval=0, maxval=90, group=grpDisp)
 int dimTransp = input.int(72, "비활성 TF 투명도", minval=30, maxval=95, group=grpDisp)
 
@@ -35,16 +35,16 @@ int wAlpha = showBoth and weeklyPrimary ? brightTransp : showBoth ? dimTransp : 
 
 bool needWeeklySmooth = smoothWeekly and not timeframe.isweekly and not timeframe.ismonthly
 
-// 주봉 MA — 전주·금주 값 사이 선형 보간 (표시용, 교차 판정은 step 값)
+// 주봉 MA — 전주 확정 → 금주(진행 중) 선형 보간 (표시용만 lookahead_on)
 f_interp_week(float curr, float prev) =>
     int t0 = time("W")
     int t1 = time_close("W")
-    float span = math.max(float(t1 - t0), 1.0)
-    float frac = math.min(math.max((time - t0) / span, 0.0), 1.0)
+    float span = float(t1 - t0)
+    float frac = span > 0 ? math.min(math.max((time - t0) / span, 0.0), 1.0) : 1.0
     prev + (curr - prev) * frac
 
-f_week_plot(float curr, float prev) =>
-    needWeeklySmooth ? f_interp_week(curr, prev) : curr
+f_week_plot(float currDev, float prevFin, float step) =>
+    needWeeklySmooth ? f_interp_week(currDev, prevFin) : step
 
 // === 일봉 MA ===
 float ma5_d = request.security(syminfo.tickerid, "D", ta.sma(close, 5), barmerge.gaps_off, barmerge.lookahead_off)
@@ -52,15 +52,23 @@ float ma20_d = request.security(syminfo.tickerid, "D", ta.sma(close, 20), barmer
 float ma60_d = request.security(syminfo.tickerid, "D", ta.sma(close, 60), barmerge.gaps_off, barmerge.lookahead_off)
 float ma120_d = request.security(syminfo.tickerid, "D", ta.sma(close, 120), barmerge.gaps_off, barmerge.lookahead_off)
 
-// === 주봉 MA (step=교차·마커, plot=선형 보간 표시) ===
-[ma5_w_step, ma5_w_prev] = request.security(syminfo.tickerid, "W", [ta.sma(close, 5), ta.sma(close, 5)[1]], barmerge.gaps_off, barmerge.lookahead_off)
-[ma20_w_step, ma20_w_prev] = request.security(syminfo.tickerid, "W", [ta.sma(close, 20), ta.sma(close, 20)[1]], barmerge.gaps_off, barmerge.lookahead_off)
-[ma60_w_step, ma60_w_prev] = request.security(syminfo.tickerid, "W", [ta.sma(close, 60), ta.sma(close, 60)[1]], barmerge.gaps_off, barmerge.lookahead_off)
-[ma120_w_step, ma120_w_prev] = request.security(syminfo.tickerid, "W", [ta.sma(close, 120), ta.sma(close, 120)[1]], barmerge.gaps_off, barmerge.lookahead_off)
-float ma5_w = f_week_plot(ma5_w_step, ma5_w_prev)
-float ma20_w = f_week_plot(ma20_w_step, ma20_w_prev)
-float ma60_w = f_week_plot(ma60_w_step, ma60_w_prev)
-float ma120_w = f_week_plot(ma120_w_step, ma120_w_prev)
+// === 주봉 MA — 교차=확정(step), 선=전주→금주 보간(표시) ===
+float ma5_w_step = request.security(syminfo.tickerid, "W", ta.sma(close, 5), barmerge.gaps_off, barmerge.lookahead_off)
+float ma20_w_step = request.security(syminfo.tickerid, "W", ta.sma(close, 20), barmerge.gaps_off, barmerge.lookahead_off)
+float ma60_w_step = request.security(syminfo.tickerid, "W", ta.sma(close, 60), barmerge.gaps_off, barmerge.lookahead_off)
+float ma120_w_step = request.security(syminfo.tickerid, "W", ta.sma(close, 120), barmerge.gaps_off, barmerge.lookahead_off)
+float ma5_w_curr = request.security(syminfo.tickerid, "W", ta.sma(close, 5), barmerge.gaps_off, barmerge.lookahead_on)
+float ma20_w_curr = request.security(syminfo.tickerid, "W", ta.sma(close, 20), barmerge.gaps_off, barmerge.lookahead_on)
+float ma60_w_curr = request.security(syminfo.tickerid, "W", ta.sma(close, 60), barmerge.gaps_off, barmerge.lookahead_on)
+float ma120_w_curr = request.security(syminfo.tickerid, "W", ta.sma(close, 120), barmerge.gaps_off, barmerge.lookahead_on)
+float ma5_w_prev = request.security(syminfo.tickerid, "W", ta.sma(close, 5)[1], barmerge.gaps_off, barmerge.lookahead_on)
+float ma20_w_prev = request.security(syminfo.tickerid, "W", ta.sma(close, 20)[1], barmerge.gaps_off, barmerge.lookahead_on)
+float ma60_w_prev = request.security(syminfo.tickerid, "W", ta.sma(close, 60)[1], barmerge.gaps_off, barmerge.lookahead_on)
+float ma120_w_prev = request.security(syminfo.tickerid, "W", ta.sma(close, 120)[1], barmerge.gaps_off, barmerge.lookahead_on)
+float ma5_w = f_week_plot(ma5_w_curr, ma5_w_prev, ma5_w_step)
+float ma20_w = f_week_plot(ma20_w_curr, ma20_w_prev, ma20_w_step)
+float ma60_w = f_week_plot(ma60_w_curr, ma60_w_prev, ma60_w_step)
+float ma120_w = f_week_plot(ma120_w_curr, ma120_w_prev, ma120_w_step)
 
 // === 일봉 교차 ===
 bool gold_5_20_d = ta.crossover(ma5_d, ma20_d)
