@@ -416,7 +416,11 @@ export interface StockVaultIndustryFinancials {
   industryMedianProfitMargin?: number | null;
   industryMedianPbr?: number | null;
   industryPeerCount?: number;
+  industryUniversePeerCount?: number | null;
+  marketCapRankInIndustry?: number | null;
   sectorLeader?: boolean;
+  sectorLeaderDetail?: string | null;
+  sectorLeaderCriteria?: string[];
   verdict?: "better" | "worse" | "similar" | "unknown";
   verdictLabel?: string;
   verdictDetail?: string;

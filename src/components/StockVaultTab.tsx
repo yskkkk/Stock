@@ -1066,6 +1066,7 @@ export default function StockVaultTab({
                       tvSymbol,
                       fin: finRow,
                       sectorLeader,
+                      sectorLeaderDetail: finRow?.sectorLeaderDetail,
                     })
                   }
                   onMouseLeave={scheduleHideTip}
@@ -1078,6 +1079,7 @@ export default function StockVaultTab({
                       tvSymbol,
                       fin: finRow,
                       sectorLeader,
+                      sectorLeaderDetail: finRow?.sectorLeaderDetail,
                     })
                   }
                   onBlur={scheduleHideTip}
@@ -1093,7 +1095,15 @@ export default function StockVaultTab({
                       {sectorLeader ? (
                         <span
                           className="stock-vault-tab__leader"
-                          title={ko.stockVault.sectorLeader}
+                          title={
+                            finRow?.sectorLeaderDetail
+                              ? `${ko.stockVault.sectorLeader} · ${finRow.sectorLeaderDetail}${
+                                  finRow.industryUniversePeerCount
+                                    ? ` · ${ko.stockVault.sectorLeaderUniversePeers(finRow.industryUniversePeerCount)}`
+                                    : ""
+                                }`
+                              : ko.stockVault.sectorLeaderAria
+                          }
                           aria-label={ko.stockVault.sectorLeaderAria}
                         >
                           <VaultSectorLeaderIcon />

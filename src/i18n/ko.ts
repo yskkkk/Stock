@@ -981,7 +981,10 @@ export const ko = {
     industryFinTitle: "동종 업계 재무",
     industryFinPeerCount: (n: number) => `동종 ${n}종목 중앙값 기준`,
     sectorLeader: "업종 대장주",
-    sectorLeaderAria: "동종 업계 시가총액 1위",
+    sectorLeaderAria:
+      "국내·미국 통합 업종 시총 1위 · 2위 대비 1.3배 이상 · 수익성·성장성 기준 충족",
+    sectorLeaderUniversePeers: (n: number) =>
+      `국내·미국 유니버스 ${n}종목 기준`,
     removeFromVault: "보관함에서 제거",
     lastScan: "마지막 스캔",
     historyDateAria: "탐색 일자 선택",

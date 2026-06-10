@@ -30,6 +30,7 @@ export type StockVaultRowBubbleTarget = {
   tvSymbol: string;
   fin: StockVaultIndustryFinancials | null | undefined;
   sectorLeader: boolean;
+  sectorLeaderDetail?: string | null;
 };
 
 type Placement = "left" | "right" | "below" | "above";
@@ -193,9 +194,13 @@ export function useStockVaultRowBubble() {
               {tip.symbol.replace(/^KR_/i, "")}
               {tip.industry ? ` · ${tip.industry}` : ""}
               {tip.sectorLeader ? (
-                <span className="stock-vault-tab__bubble-leader">
+                <span
+                  className="stock-vault-tab__bubble-leader"
+                  title={tip.sectorLeaderDetail ?? ko.stockVault.sectorLeaderAria}
+                >
                   {" "}
                   · {ko.stockVault.sectorLeader}
+                  {tip.sectorLeaderDetail ? ` (${tip.sectorLeaderDetail})` : ""}
                 </span>
               ) : null}
             </p>

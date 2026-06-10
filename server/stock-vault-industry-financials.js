@@ -4,6 +4,7 @@
 import { listStockVaultItemsSync } from "./stock-vault-store.js";
 import { fetchStockVaultMetaForItems } from "./stock-vault-meta.js";
 import { loadStockFundamentals } from "./stock-fundamentals.js";
+import { getOrBuildSectorLeaderIndex } from "./sector-leader-index.js";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
 
 const STORE_FILE = "stock-vault-industry-financials.json";
@@ -122,8 +123,16 @@ export function buildIndustryFinancialVerdict(fund, medians, industry) {
 
 /**
  * @param {Array<{ symbol: string; market?: "kr"|"us"; industry?: string | null; fund: Awaited<ReturnType<typeof loadStockFundamentals>> | null }>} rows
+ * @param {{ leaderBySymbol?: Record<string, {
+ *   sectorLeader?: boolean;
+ *   sectorLeaderDetail?: string;
+ *   sectorLeaderCriteria?: string[];
+ *   industryUniversePeerCount?: number;
+ *   marketCapRankInIndustry?: number | null;
+ * }> }} [opts]
  */
-export function computeIndustryFinancialSnapshots(rows) {
+export function computeIndustryFinancialSnapshots(rows, opts = {}) {
+  const leaderBySymbol = opts.leaderBySymbol ?? null;
   /** @type {Map<string, typeof rows>} */
   const byIndustry = new Map();
   for (const row of rows) {
@@ -146,20 +155,10 @@ export function computeIndustryFinancialSnapshots(rows) {
       pbr: median(funds.map((f) => f?.pbr ?? null)),
     };
 
-    let leaderSym = null;
-    let leaderCap = -Infinity;
-    for (const row of group) {
-      const cap = row.fund?.marketCap;
-      if (cap == null || !Number.isFinite(cap)) continue;
-      if (cap > leaderCap) {
-        leaderCap = cap;
-        leaderSym = row.symbol.trim().toUpperCase();
-      }
-    }
-
     for (const row of group) {
       const sym = row.symbol.trim().toUpperCase();
       const fund = row.fund;
+      const leaderPack = leaderBySymbol?.[sym];
       const verdictPack = buildIndustryFinancialVerdict(
         {
           per: fund?.per ?? null,
@@ -182,7 +181,11 @@ export function computeIndustryFinancialSnapshots(rows) {
         industryMedianProfitMargin: medians.profitMargin,
         industryMedianPbr: medians.pbr,
         industryPeerCount: group.length,
-        sectorLeader: leaderSym != null && sym === leaderSym,
+        sectorLeader: Boolean(leaderPack?.sectorLeader),
+        sectorLeaderDetail: leaderPack?.sectorLeaderDetail ?? null,
+        sectorLeaderCriteria: leaderPack?.sectorLeaderCriteria ?? [],
+        industryUniversePeerCount: leaderPack?.industryUniversePeerCount ?? null,
+        marketCapRankInIndustry: leaderPack?.marketCapRankInIndustry ?? null,
         ...verdictPack,
         updatedAtMs,
       };
@@ -258,7 +261,15 @@ export async function buildIndustryFinancialsForVaultItems(items, meta) {
     fund: fundamentals[i],
   }));
 
-  return computeIndustryFinancialSnapshots(rows);
+  let leaderBySymbol = null;
+  try {
+    const leaderIndex = await getOrBuildSectorLeaderIndex();
+    leaderBySymbol = leaderIndex?.bySymbol ?? null;
+  } catch {
+    leaderBySymbol = null;
+  }
+
+  return computeIndustryFinancialSnapshots(rows, { leaderBySymbol });
 }
 
 export async function refreshStockVaultIndustryFinancialsAsync() {

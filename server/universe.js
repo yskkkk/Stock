@@ -211,6 +211,80 @@ function parseKrMarketCapCsv(text, target) {
   return rows.slice(0, target).map(({ symbol, name }) => ({ symbol, name }));
 }
 
+/**
+ * @param {string} text
+ * @returns {Array<{ symbol: string; name: string; marcap: number }>}
+ */
+function parseKrMarketCapCsvRows(text) {
+  const lines = String(text ?? "")
+    .trim()
+    .split(/\r?\n/);
+  if (lines.length < 2) return [];
+  const header = lines[0].split(",");
+  const codeIdx = header.indexOf("Code");
+  const nameIdx = header.indexOf("Name");
+  const marketIdx = header.indexOf("Market");
+  const marcapIdx = header.indexOf("Marcap");
+  if (codeIdx < 0 || nameIdx < 0 || marcapIdx < 0) return [];
+
+  /** @type {Array<{ symbol: string; name: string; marcap: number }>} */
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const p = lines[i].split(",");
+    const code = String(p[codeIdx] ?? "").trim().padStart(6, "0");
+    if (!/^\d{6}$/.test(code)) continue;
+    const market = String(p[marketIdx] ?? "").trim().toUpperCase();
+    const suffix =
+      market.includes("KOSDAQ") || market === "KQ" ? "KQ" : "KS";
+    const sym = `${code}.${suffix}`;
+    const marcap = Number(p[marcapIdx]);
+    rows.push({
+      symbol: sym,
+      name: resolveDisplayName(sym, String(p[nameIdx] ?? sym).trim(), sym),
+      marcap: Number.isFinite(marcap) ? marcap : 0,
+    });
+  }
+  rows.sort((a, b) => b.marcap - a.marcap);
+  return rows;
+}
+
+/** @type {Map<string, number> | null} */
+let krMarketCapCache = null;
+/** @type {number} */
+let krMarketCapCacheAt = 0;
+const KR_MARKET_CAP_CACHE_MS = 6 * 60 * 60_000;
+
+/** @returns {Promise<Map<string, number>>} symbol → 시가총액(KRW) */
+export async function loadKrSymbolMarketCapKrwMap(target = KR_TARGET) {
+  if (
+    krMarketCapCache &&
+    Date.now() - krMarketCapCacheAt < KR_MARKET_CAP_CACHE_MS
+  ) {
+    return krMarketCapCache;
+  }
+  try {
+    const res = await fetch(KRX_LIST_CSV_URL, {
+      headers: { "User-Agent": SP500_FETCH_UA },
+      signal: AbortSignal.timeout(45_000),
+    });
+    if (!res.ok) throw new Error(`KRX list HTTP ${res.status}`);
+    const rows = parseKrMarketCapCsvRows(await res.text()).slice(0, target);
+    const map = new Map();
+    for (const row of rows) {
+      map.set(row.symbol.trim().toUpperCase(), row.marcap);
+    }
+    krMarketCapCache = map;
+    krMarketCapCacheAt = Date.now();
+    return map;
+  } catch (e) {
+    console.warn(
+      "[universe] KR market-cap map:",
+      e instanceof Error ? e.message : e,
+    );
+    return krMarketCapCache ?? new Map();
+  }
+}
+
 async function fetchKrTopMarketCapCsv() {
   try {
     const res = await fetch(KRX_LIST_CSV_URL, {
