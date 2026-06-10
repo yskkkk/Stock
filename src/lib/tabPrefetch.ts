@@ -55,9 +55,21 @@ const inflight = new Map();
 
 const recListeners = new Set<(data: RecommendationsTrackerResponse) => void>();
 
+let stockVaultSessionPinned = false;
+
+/** 종목보관 — 페이지를 떠나기 전까지 캐시 TTL 만료 없음 */
+export function pinStockVaultSessionCache(): void {
+  stockVaultSessionPinned = true;
+}
+
+export function isStockVaultSessionPinned(): boolean {
+  return stockVaultSessionPinned;
+}
+
 function getCached<T>(key: CacheKey): T | null {
   const row = cache.get(key);
   if (!row) return null;
+  if (key === "stockVault" && stockVaultSessionPinned) return row.data as T;
   if (Date.now() - row.at > TTL_MS[key]) return null;
   return row.data as T;
 }
@@ -364,8 +376,20 @@ async function fetchStockVaultBundle(): Promise<StockVaultPrefetch> {
   return { vault, scanStatus };
 }
 
-export function loadStockVault(): Promise<StockVaultPrefetch> {
+export function loadStockVault(opts?: {
+  refresh?: boolean;
+}): Promise<StockVaultPrefetch> {
+  const refresh = opts?.refresh === true;
+  if (refresh) {
+    return fetchStockVaultBundle().then((data) => {
+      pinStockVaultSessionCache();
+      setCached("stockVault", data);
+      notifyStockVaultPrefetch(data);
+      return data;
+    });
+  }
   return dedupe("stockVault", fetchStockVaultBundle).then((data) => {
+    pinStockVaultSessionCache();
     notifyStockVaultPrefetch(data);
     return data;
   });
@@ -382,6 +406,7 @@ export function updateStockVaultPrefetchVault(vault: StockVaultResponse): void {
     vault,
     scanStatus: existing?.scanStatus ?? null,
   };
+  pinStockVaultSessionCache();
   setCached("stockVault", bundle);
   notifyStockVaultPrefetch(bundle);
 }

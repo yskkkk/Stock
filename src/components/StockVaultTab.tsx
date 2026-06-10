@@ -31,6 +31,12 @@ import {
   stockVaultTimeframeRowClass,
 } from "../lib/stockVaultTimeframe";
 import {
+  defaultStockVaultTabUi,
+  peekStockVaultTabUi,
+  saveStockVaultTabUi,
+} from "../lib/stockVaultTabSession";
+import {
+  isStockVaultSessionPinned,
   loadStockVault,
   peekStockVaultPrefetch,
   refreshStockVaultTab,
@@ -175,6 +181,7 @@ export default function StockVaultTab({
 }) {
   const cachedInit = peekStockVaultPrefetch();
   const cachedVault = cachedInit ? vaultStateFromResponse(cachedInit.vault) : null;
+  const uiInit = peekStockVaultTabUi() ?? defaultStockVaultTabUi();
 
   const [items, setItems] = useState<StockVaultItem[]>(() => cachedVault?.items ?? []);
   const [quotes, setQuotes] = useState<
@@ -200,16 +207,23 @@ export default function StockVaultTab({
   const [industryGridRows, setIndustryGridRows] = useState(
     () => cachedVault?.industryGridRows ?? 20,
   );
-  const [loading, setLoading] = useState(!cachedInit);
+  const [loading, setLoading] = useState(
+    () => !cachedInit && !isStockVaultSessionPinned(),
+  );
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<VaultFilter>("all");
+  const [filter, setFilter] = useState<VaultFilter>(() => uiInit.filter);
   const [selectedScanSources, setSelectedScanSources] = useState<
     StockVaultScanSource[]
-  >(["golden_cross"]);
-  const [timeframeFilter, setTimeframeFilter] =
-    useState<StockVaultTimeframe>("1d");
-  const [marketFilter, setMarketFilter] = useState<"all" | "kr" | "us">("all");
-  const [industryFilter, setIndustryFilter] = useState<string>("all");
+  >(() => [...uiInit.selectedScanSources]);
+  const [timeframeFilter, setTimeframeFilter] = useState<StockVaultTimeframe>(
+    () => uiInit.timeframeFilter,
+  );
+  const [marketFilter, setMarketFilter] = useState<"all" | "kr" | "us">(
+    () => uiInit.marketFilter,
+  );
+  const [industryFilter, setIndustryFilter] = useState<string>(
+    () => uiInit.industryFilter,
+  );
   const [authenticated, setAuthenticated] = useState(
     () => cachedVault?.authenticated ?? false,
   );
@@ -230,7 +244,9 @@ export default function StockVaultTab({
   const [scanConfirmOpen, setScanConfirmOpen] = useState(false);
   const [scanNotice, setScanNotice] = useState<string | null>(null);
   const [historyDates, setHistoryDates] = useState<string[]>([]);
-  const [selectedScanDate, setSelectedScanDate] = useState<string | null>(null);
+  const [selectedScanDate, setSelectedScanDate] = useState<string | null>(
+    () => uiInit.selectedScanDate,
+  );
   const [historyItems, setHistoryItems] = useState<StockVaultItem[] | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const scanBtnRef = useRef<HTMLButtonElement>(null);
@@ -270,7 +286,7 @@ export default function StockVaultTab({
   }, []);
 
   const reloadVault = useCallback(async () => {
-    const bundle = await loadStockVault();
+    const bundle = await loadStockVault({ refresh: true });
     applyVaultResponse(bundle.vault);
   }, [applyVaultResponse]);
 
@@ -292,6 +308,28 @@ export default function StockVaultTab({
   }, [applyVaultResponse, applyScanStatus]);
 
   useEffect(() => {
+    saveStockVaultTabUi({
+      filter,
+      selectedScanSources,
+      timeframeFilter,
+      marketFilter,
+      industryFilter,
+      selectedScanDate,
+    });
+  }, [
+    filter,
+    selectedScanSources,
+    timeframeFilter,
+    marketFilter,
+    industryFilter,
+    selectedScanDate,
+  ]);
+
+  useEffect(() => {
+    if (peekStockVaultPrefetch() || isStockVaultSessionPinned()) {
+      setLoading(false);
+      return;
+    }
     void reload();
   }, [reload]);
 
