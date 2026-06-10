@@ -6,15 +6,19 @@ bool showLegend = input.bool(true, "범례 표시 (우하단)", group=grpDisp)
 int brightTransp = input.int(0, "활성 TF 투명도", minval=0, maxval=90, group=grpDisp)
 int dimTransp = input.int(72, "비활성 TF 투명도", minval=30, maxval=95, group=grpDisp)
 
-// 기간별 색 — 일봉(밝은 톤) / 주봉(대비 톤): 5=노랑·시안, 20=주황·자홍, 60=라임·청록, 120=파랑·보라
-color c5_d = color.yellow
-color c20_d = color.orange
-color c60_d = #76FF03
-color c120_d = color.blue
-color c5_w = #00E5FF
-color c20_w = #E040FB
-color c60_w = #00E676
-color c120_w = #7C4DFF
+// 스펙트럼 — 일봉: 노랑→주황→빨강(따뜻한 계열) / 주봉: 시안→파랑→보라(차가운 계열), 5→120으로 hue 이동
+color dailySpecA = #FFEE58
+color dailySpecZ = #C62828
+color weeklySpecA = #40C4FF
+color weeklySpecZ = #7E57C2
+color c5_d = color.from_gradient(5, 5, 120, dailySpecA, dailySpecZ)
+color c20_d = color.from_gradient(20, 5, 120, dailySpecA, dailySpecZ)
+color c60_d = color.from_gradient(60, 5, 120, dailySpecA, dailySpecZ)
+color c120_d = color.from_gradient(120, 5, 120, dailySpecA, dailySpecZ)
+color c5_w = color.from_gradient(5, 5, 120, weeklySpecA, weeklySpecZ)
+color c20_w = color.from_gradient(20, 5, 120, weeklySpecA, weeklySpecZ)
+color c60_w = color.from_gradient(60, 5, 120, weeklySpecA, weeklySpecZ)
+color c120_w = color.from_gradient(120, 5, 120, weeklySpecA, weeklySpecZ)
 
 // 주봉 이상 차트 → 주봉 강조 / 그 외(분봉·일봉) → 일봉 강조
 bool weeklyPrimary = timeframe.isweekly or timeframe.ismonthly
@@ -84,8 +88,8 @@ f_leg_ma(int row, string label, color cD, color cW) =>
 if barstate.islast and showLegend
     string activeHint = weeklyPrimary ? "강조: 주봉" : "강조: 일봉"
     table.cell(legend, 0, 0, "MA 색상", text_color=color.white, text_size=size.small, text_halign=text.align_left)
-    table.cell(legend, 1, 0, "일봉", text_color=color.new(color.yellow, dAlpha), text_size=size.tiny)
-    table.cell(legend, 2, 0, "주봉", text_color=color.new(#00E5FF, wAlpha), text_size=size.tiny)
+    table.cell(legend, 1, 0, "일봉", text_color=color.new(dailySpecA, dAlpha), text_size=size.tiny)
+    table.cell(legend, 2, 0, "주봉", text_color=color.new(weeklySpecA, wAlpha), text_size=size.tiny)
     f_leg_ma(1, "5일", c5_d, c5_w)
     f_leg_ma(2, "20일", c20_d, c20_w)
     f_leg_ma(3, "60일", c60_d, c60_w)
