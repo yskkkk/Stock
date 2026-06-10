@@ -1,0 +1,60 @@
+//@version=5
+indicator("일봉·주봉 MA 정확 접점 (골든/데드 구분)", overlay=true)
+
+int grpDisp = "표시"
+int brightTransp = input.int(0, "활성 TF 투명도", minval=0, maxval=90, group=grpDisp)
+int dimTransp = input.int(72, "비활성 TF 투명도", minval=30, maxval=95, group=grpDisp)
+
+// 주봉 이상 차트 → 주봉 강조 / 그 외(분봉·일봉) → 일봉 강조
+bool weeklyPrimary = timeframe.isweekly or timeframe.ismonthly
+bool dailyPrimary = not weeklyPrimary
+
+int dAlpha = dailyPrimary ? brightTransp : dimTransp
+int wAlpha = weeklyPrimary ? brightTransp : dimTransp
+int dLw = dailyPrimary ? 2 : 1
+int wLw = weeklyPrimary ? 2 : 1
+int dCrossLw = dailyPrimary ? 5 : 3
+int wCrossLw = weeklyPrimary ? 5 : 3
+
+// === 일봉 MA ===
+float ma5_d = request.security(syminfo.tickerid, "D", ta.sma(close, 5), barmerge.gaps_off, barmerge.lookahead_off)
+float ma20_d = request.security(syminfo.tickerid, "D", ta.sma(close, 20), barmerge.gaps_off, barmerge.lookahead_off)
+float ma120_d = request.security(syminfo.tickerid, "D", ta.sma(close, 120), barmerge.gaps_off, barmerge.lookahead_off)
+
+// === 주봉 MA ===
+float ma5_w = request.security(syminfo.tickerid, "W", ta.sma(close, 5), barmerge.gaps_off, barmerge.lookahead_off)
+float ma20_w = request.security(syminfo.tickerid, "W", ta.sma(close, 20), barmerge.gaps_off, barmerge.lookahead_off)
+float ma120_w = request.security(syminfo.tickerid, "W", ta.sma(close, 120), barmerge.gaps_off, barmerge.lookahead_off)
+
+// === 일봉 교차 ===
+bool gold_5_20_d = ta.crossover(ma5_d, ma20_d)
+bool dead_5_20_d = ta.crossunder(ma5_d, ma20_d)
+bool gold_20_120_d = ta.crossover(ma20_d, ma120_d)
+bool dead_20_120_d = ta.crossunder(ma20_d, ma120_d)
+
+// === 주봉 교차 ===
+bool gold_5_20_w = ta.crossover(ma5_w, ma20_w)
+bool dead_5_20_w = ta.crossunder(ma5_w, ma20_w)
+bool gold_20_120_w = ta.crossover(ma20_w, ma120_w)
+bool dead_20_120_w = ta.crossunder(ma20_w, ma120_w)
+
+color color_5_20_d = gold_5_20_d ? color.new(color.green, dAlpha) : dead_5_20_d ? color.new(color.red, dAlpha) : na
+color color_20_120_d = gold_20_120_d ? color.new(color.green, dAlpha) : dead_20_120_d ? color.new(color.red, dAlpha) : na
+color color_5_20_w = gold_5_20_w ? color.new(color.green, wAlpha) : dead_5_20_w ? color.new(color.red, wAlpha) : na
+color color_20_120_w = gold_20_120_w ? color.new(color.green, wAlpha) : dead_20_120_w ? color.new(color.red, wAlpha) : na
+
+// === 일봉 MA 선 ===
+plot(ma5_d, color=color.new(color.yellow, dAlpha), linewidth=dLw, title="[일] 5 MA")
+plot(ma20_d, color=color.new(color.orange, dAlpha), linewidth=dLw, title="[일] 20 MA")
+plot(ma120_d, color=color.new(color.blue, dAlpha), linewidth=dLw, title="[일] 120 MA")
+
+// === 주봉 MA 선 ===
+plot(ma5_w, color=color.new(color.yellow, wAlpha), linewidth=wLw, title="[주] 5 MA")
+plot(ma20_w, color=color.new(color.orange, wAlpha), linewidth=wLw, title="[주] 20 MA")
+plot(ma120_w, color=color.new(color.blue, wAlpha), linewidth=wLw, title="[주] 120 MA")
+
+// === 교차점 ===
+plot(gold_5_20_d or dead_5_20_d ? ma5_d : na, style=plot.style_circles, linewidth=dCrossLw, color=color_5_20_d, title="[일] 5-20 교차점")
+plot(gold_20_120_d or dead_20_120_d ? ma20_d : na, style=plot.style_circles, linewidth=dCrossLw, color=color_20_120_d, title="[일] 20-120 교차점")
+plot(gold_5_20_w or dead_5_20_w ? ma5_w : na, style=plot.style_circles, linewidth=wCrossLw, color=color_5_20_w, title="[주] 5-20 교차점")
+plot(gold_20_120_w or dead_20_120_w ? ma20_w : na, style=plot.style_circles, linewidth=wCrossLw, color=color_20_120_w, title="[주] 20-120 교차점")
