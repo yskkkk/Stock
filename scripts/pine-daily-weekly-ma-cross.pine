@@ -11,10 +11,6 @@ bool dailyPrimary = not weeklyPrimary
 
 int dAlpha = dailyPrimary ? brightTransp : dimTransp
 int wAlpha = weeklyPrimary ? brightTransp : dimTransp
-int dLw = dailyPrimary ? 2 : 1
-int wLw = weeklyPrimary ? 2 : 1
-int dCrossLw = dailyPrimary ? 5 : 3
-int wCrossLw = weeklyPrimary ? 5 : 3
 
 // === 일봉 MA ===
 float ma5_d = request.security(syminfo.tickerid, "D", ta.sma(close, 5), barmerge.gaps_off, barmerge.lookahead_off)
@@ -44,17 +40,17 @@ color color_5_20_w = gold_5_20_w ? color.new(color.green, wAlpha) : dead_5_20_w 
 color color_20_120_w = gold_20_120_w ? color.new(color.green, wAlpha) : dead_20_120_w ? color.new(color.red, wAlpha) : na
 
 // === 일봉 MA 선 ===
-plot(ma5_d, color=color.new(color.yellow, dAlpha), linewidth=dLw, title="[일] 5 MA")
-plot(ma20_d, color=color.new(color.orange, dAlpha), linewidth=dLw, title="[일] 20 MA")
-plot(ma120_d, color=color.new(color.blue, dAlpha), linewidth=dLw, title="[일] 120 MA")
+plot(ma5_d, color=color.new(color.yellow, dAlpha), linewidth=2, title="[일] 5 MA")
+plot(ma20_d, color=color.new(color.orange, dAlpha), linewidth=2, title="[일] 20 MA")
+plot(ma120_d, color=color.new(color.blue, dAlpha), linewidth=2, title="[일] 120 MA")
 
 // === 주봉 MA 선 ===
-plot(ma5_w, color=color.new(color.yellow, wAlpha), linewidth=wLw, title="[주] 5 MA")
-plot(ma20_w, color=color.new(color.orange, wAlpha), linewidth=wLw, title="[주] 20 MA")
-plot(ma120_w, color=color.new(color.blue, wAlpha), linewidth=wLw, title="[주] 120 MA")
+plot(ma5_w, color=color.new(color.yellow, wAlpha), linewidth=2, title="[주] 5 MA")
+plot(ma20_w, color=color.new(color.orange, wAlpha), linewidth=2, title="[주] 20 MA")
+plot(ma120_w, color=color.new(color.blue, wAlpha), linewidth=2, title="[주] 120 MA")
 
 // === 교차점 ===
-plot(gold_5_20_d or dead_5_20_d ? ma5_d : na, style=plot.style_circles, linewidth=dCrossLw, color=color_5_20_d, title="[일] 5-20 교차점")
-plot(gold_20_120_d or dead_20_120_d ? ma20_d : na, style=plot.style_circles, linewidth=dCrossLw, color=color_20_120_d, title="[일] 20-120 교차점")
-plot(gold_5_20_w or dead_5_20_w ? ma5_w : na, style=plot.style_circles, linewidth=wCrossLw, color=color_5_20_w, title="[주] 5-20 교차점")
-plot(gold_20_120_w or dead_20_120_w ? ma20_w : na, style=plot.style_circles, linewidth=wCrossLw, color=color_20_120_w, title="[주] 20-120 교차점")
+plot(gold_5_20_d or dead_5_20_d ? ma5_d : na, style=plot.style_circles, linewidth=5, color=color_5_20_d, title="[일] 5-20 교차점")
+plot(gold_20_120_d or dead_20_120_d ? ma20_d : na, style=plot.style_circles, linewidth=5, color=color_20_120_d, title="[일] 20-120 교차점")
+plot(gold_5_20_w or dead_5_20_w ? ma5_w : na, style=plot.style_circles, linewidth=5, color=color_5_20_w, title="[주] 5-20 교차점")
+plot(gold_20_120_w or dead_20_120_w ? ma20_w : na, style=plot.style_circles, linewidth=5, color=color_20_120_w, title="[주] 20-120 교차점")
