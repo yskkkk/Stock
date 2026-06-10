@@ -9,13 +9,17 @@ alwaysApply: true
 
 ## 수신
 
-- `samron3797@gmail.com` (본인만 — Telegram·다른 수신자·공개 채널 금지)
+- **네이버 메일** — `.env` 의 `AGENT_EMAIL_TO` (본인만 — Telegram·다른 수신자·공개 채널 금지)
+- Gmail 등 다른 주소로 보내지 않는다.
 
 ## 보낼 때
 
-- **질문**: 선택지·확인이 필요할 때 본문에 질문·옵션을 담아 발송
-- **수정 결과**: 변경 요약, 검증 결과, 미해결 이슈, 후속 필요 사항을 본문(또는 md 첨부)으로 발송
-- SMTP: `server/email-sender.js` `sendTransactionalEmail` 또는 `node scripts/send-report-email.mjs samron3797@gmail.com <file>`
+- **본문만**: 메일 **text 본문**에 전체 내용. **파일 첨부·md 첨부 금지.**
+- **질문**: 선택지·확인이 필요할 때 본문에 질문·옵션
+- **수정·보고 결과**: 변경 요약, 검증, 미해결 이슈, 후속 사항을 본문에
+- 발송: `node scripts/send-agent-text-email.mjs "<제목>" --file <path>` 또는 stdin 파이프
+  - 파일은 **읽기용 원고**일 뿐, 수신함에는 **텍스트 본문**만 도착
+- SMTP: `server/email-sender.js` `sendTransactionalEmail`
 - `.env` SMTP 미설정 시 발송 실패를 채팅에만 짧게 알림
 
 ## 채팅
