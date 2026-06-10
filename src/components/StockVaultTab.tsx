@@ -48,11 +48,17 @@ import {
   formatGoldenCrossChain,
   formatMaAlignChain,
 } from "../lib/stockVaultMaDisplay";
+import {
+  formatWeeklyMaProximityLabel,
+  weeklyMaProximityBadgeClass,
+  weeklyMaProximityPriceClass,
+} from "../lib/stockVaultWeeklyMaProximity";
 import type {
   StockVaultFavoriteMeta,
   StockVaultIndustryFinancials,
   StockVaultItem,
   StockVaultResponse,
+  StockVaultWeeklyMaProximitySnapshot,
   StockVaultScanSource,
   StockVaultScanStatus,
   StockVaultTimeframe,
@@ -159,6 +165,7 @@ function vaultStateFromResponse(vault: StockVaultResponse) {
     quotes: vault.quotes ?? {},
     meta: vault.meta ?? {},
     industryFinancials: vault.industryFinancials ?? {},
+    weeklyMaProximity: vault.weeklyMaProximity ?? {},
     authenticated: Boolean(vault.authenticated),
     favoriteMeta: vault.favoriteMeta ?? {},
     industryTabs: vault.industryTabs?.length ? vault.industryTabs : [],
@@ -201,6 +208,9 @@ export default function StockVaultTab({
   const [industryFinancials, setIndustryFinancials] = useState<
     Record<string, StockVaultIndustryFinancials>
   >(() => cachedVault?.industryFinancials ?? {});
+  const [weeklyMaProximity, setWeeklyMaProximity] = useState<
+    Record<string, StockVaultWeeklyMaProximitySnapshot>
+  >(() => cachedVault?.weeklyMaProximity ?? {});
   const [industryTabs, setIndustryTabs] = useState<string[]>(
     () => cachedVault?.industryTabs ?? [],
   );
@@ -260,6 +270,7 @@ export default function StockVaultTab({
       setQuotes(vault.quotes ?? {});
       setMeta(vault.meta ?? {});
       setIndustryFinancials(vault.industryFinancials ?? {});
+      setWeeklyMaProximity(vault.weeklyMaProximity ?? {});
       setAuthenticated(Boolean(vault.authenticated));
       setFavoriteMeta(vault.favoriteMeta ?? {});
       setIndustryTabs((prev) =>
@@ -1049,6 +1060,8 @@ export default function StockVaultTab({
                     : [];
               const finRow = industryFinancials[symKey];
               const sectorLeader = Boolean(finRow?.sectorLeader);
+              const maNear = weeklyMaProximity[symKey]?.near ?? [];
+              const maPriceClass = weeklyMaProximityPriceClass(maNear);
               return (
               <li key={row.key} className={rowClassName}>
                 <div
@@ -1155,6 +1168,25 @@ export default function StockVaultTab({
                         </span>
                       </div>
                     ) : null}
+                    {maNear.length > 0 ? (
+                      <div className="stock-vault-tab__ma-near-wrap">
+                        {maNear.map((hit) => (
+                          <span
+                            key={`${row.key}-wk-ma-${hit.period}`}
+                            className={`stock-vault-tab__ma-near ${weeklyMaProximityBadgeClass(hit.period)}`}
+                            title={ko.stockVault.weeklyMaNearHint(
+                              hit.period,
+                              hit.diffPct,
+                              hit.side,
+                            )}
+                          >
+                            {formatWeeklyMaProximityLabel(hit.period, {
+                              near: ko.stockVault.weeklyMaNear,
+                            })}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
                     {row.favorited ? (() => {
                       const track = rowFavoriteTrack(row);
                       const metaRow = favoriteMeta[symKey];
@@ -1177,7 +1209,14 @@ export default function StockVaultTab({
                   <div className="stock-vault-tab__quote">
                     {quote?.price != null && Number.isFinite(quote.price) ? (
                       <>
-                        <span className="stock-vault-tab__price">
+                        <span
+                          className={[
+                            "stock-vault-tab__price",
+                            maPriceClass,
+                          ]
+                            .filter(Boolean)
+                            .join(" ")}
+                        >
                           {formatPrice(quote.price, cur)}
                         </span>
                         {chg != null && Number.isFinite(chg) ? (

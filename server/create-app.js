@@ -2319,11 +2319,19 @@ export function createApp() {
         symbols.length > 0 ? fetchQuoteSnapshotsForSymbols(symbols) : Promise.resolve({}),
         fetchStockVaultMetaForItems(items),
       ]);
+      const { fetchWeeklyMaProximityMap } = await import(
+        "./stock-vault-weekly-ma-proximity.js"
+      );
+      const weeklyMaProximity =
+        symbols.length > 0
+          ? await fetchWeeklyMaProximityMap(symbols, quotes)
+          : {};
       const industryTabs = listStockVaultIndustryTabs();
       res.json({
         items,
         quotes,
         meta,
+        weeklyMaProximity,
         industryFinancials: readStockVaultIndustryFinancialsSync(),
         industryTabs,
         industryGridRows: stockVaultIndustryGridRows(industryTabs.length),

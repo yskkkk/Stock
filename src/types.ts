@@ -428,6 +428,18 @@ export interface StockVaultIndustryFinancials {
   updatedAtMs?: number;
 }
 
+export type StockVaultWeeklyMaProximityHit = {
+  period: number;
+  ma: number;
+  diffPct: number;
+  side: "above" | "below";
+};
+
+export type StockVaultWeeklyMaProximitySnapshot = {
+  near: StockVaultWeeklyMaProximityHit[];
+  updatedAtMs?: number;
+};
+
 export interface StockVaultResponse {
   items: StockVaultItem[];
   quotes?: Record<
@@ -449,6 +461,7 @@ export interface StockVaultResponse {
     }
   >;
   industryFinancials?: Record<string, StockVaultIndustryFinancials>;
+  weeklyMaProximity?: Record<string, StockVaultWeeklyMaProximitySnapshot>;
   industryTabs?: string[];
   industryGridRows?: number;
   authenticated?: boolean;

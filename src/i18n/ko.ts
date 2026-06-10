@@ -985,6 +985,9 @@ export const ko = {
       "국내·미국 통합 업종 시총 1위 · 2위 대비 1.3배 이상 · 수익성·성장성 기준 충족",
     sectorLeaderUniversePeers: (n: number) =>
       `국내·미국 유니버스 ${n}종목 기준`,
+    weeklyMaNear: (period: number) => `주봉 MA${period} 근처`,
+    weeklyMaNearHint: (period: number, diffPct: number, side: "above" | "below") =>
+      `주봉 ${period}일선 ${side === "above" ? "상회" : "하회"} · 괴리 ${diffPct.toFixed(1)}%`,
     removeFromVault: "보관함에서 제거",
     lastScan: "마지막 스캔",
     historyDateAria: "탐색 일자 선택",
