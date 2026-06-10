@@ -5,8 +5,13 @@ import {
 } from "./stockVaultMaDisplay";
 
 describe("formatGoldenCrossChain", () => {
-  it("returns ordered chain for partial crosses", () => {
-    expect(formatGoldenCrossChain(["5>120", "5>20"])).toBe("5→20→120");
+  it("formats Pine-aligned crosses", () => {
+    expect(formatGoldenCrossChain(["20>120", "5>20"])).toBe(
+      "5→20 골든 · 20→120 골든",
+    );
+    expect(formatGoldenCrossChain(["5<20", "20<120"])).toBe(
+      "5→20 데드 · 20→120 데드",
+    );
   });
 
   it("returns null when empty", () => {
@@ -14,9 +19,9 @@ describe("formatGoldenCrossChain", () => {
     expect(formatGoldenCrossChain(undefined)).toBeNull();
   });
 
-  it("returns full chain when all cross", () => {
+  it("keeps legacy 5>60/5>120 labels", () => {
     expect(formatGoldenCrossChain(["5>20", "5>60", "5>120"])).toBe(
-      "5→20→60→120",
+      "5→20 골든 · 5→60 골든 · 5→120 골든",
     );
   });
 });

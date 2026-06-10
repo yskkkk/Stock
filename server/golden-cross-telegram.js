@@ -1,4 +1,8 @@
 import {
+  LEGACY_MA_CROSS_KINDS,
+  MA_CROSS_KINDS,
+} from "./golden-cross-detect.js";
+import {
   isTelegramNotifyEnabled,
   sendStockTelegramMessage,
 } from "./telegram-notify.js";
@@ -14,10 +18,15 @@ function esc(s) {
 }
 
 const CROSS_LABEL = {
-  "5>20": "5→20",
-  "5>60": "5→60",
-  "5>120": "5→120",
+  "5>20": "5→20 골든",
+  "5<20": "5→20 데드",
+  "20>120": "20→120 골든",
+  "20<120": "20→120 데드",
+  "5>60": "5→60 골든",
+  "5>120": "5→120 골든",
 };
+
+const CROSS_GROUP_ORDER = [...MA_CROSS_KINDS, ...LEGACY_MA_CROSS_KINDS];
 
 const TIMEFRAME_LABEL = {
   "1d": "일봉",
@@ -44,17 +53,17 @@ export function buildGoldenCrossTelegramHtml(
   const tfKo = TIMEFRAME_LABEL[tf] ?? "일봉";
   const marketKo = market === "kr" ? "국내 시총 300" : "S&amp;P 500";
   const lines = [
-    `<b>📈 ${tfKo} 골든크로스 · ${marketKo}</b>`,
-    `<i>${esc(scanDate)} · MA 5·20·60·120 · ${tfKo}</i>`,
+    `<b>📈 ${tfKo} MA 교차 · ${marketKo}</b>`,
+    `<i>${esc(scanDate)} · 5↔20 · 20↔120 · ${tfKo}</i>`,
     "",
   ];
 
   if (!hits.length) {
-    lines.push(`오늘 신규 ${tfKo} 골든크로스 종목이 없습니다.`);
+    lines.push(`오늘 신규 ${tfKo} MA 교차 종목이 없습니다.`);
     return lines.join("\n");
   }
 
-  for (const cross of ["5>20", "5>60", "5>120"]) {
+  for (const cross of CROSS_GROUP_ORDER) {
     const group = hits.filter((h) => h.crosses.includes(cross));
     if (!group.length) continue;
     lines.push(`<b>${CROSS_LABEL[cross] ?? cross}</b> (${group.length})`);
@@ -101,11 +110,7 @@ export async function notifyGoldenCrossScanTelegram(
   }
 }
 
-const IX_CROSS_LABEL = {
-  "5>20": "5→20",
-  "5>60": "5→60",
-  "5>120": "5→120",
-};
+const IX_CROSS_LABEL = { ...CROSS_LABEL };
 
 /**
  * @param {{

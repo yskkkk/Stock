@@ -1,4 +1,4 @@
-import { GOLDEN_CROSS_MA_SLOW_PERIODS } from "./golden-cross-detect.js";
+import { MA_CROSS_MIN_CANDLES } from "./golden-cross-detect.js";
 import {
   fetchKrNaverQuoteForSymbol,
   isKrQuoteSymbol,
@@ -9,9 +9,8 @@ import {
   normalizeVaultScanTimeframe,
 } from "./vault-scan-timeframe.js";
 
-/** detectDailyGoldenCrosses와 동일 — MA120 + 교차 판정용 */
-export const GOLDEN_CROSS_MIN_CANDLES =
-  Math.max(...GOLDEN_CROSS_MA_SLOW_PERIODS) + 1;
+/** detectMaCrosses와 동일 — MA120 + 교차 판정용 */
+export const GOLDEN_CROSS_MIN_CANDLES = MA_CROSS_MIN_CANDLES;
 
 /**
  * @param {{ year: number; month: number; day: number } | number | undefined} time

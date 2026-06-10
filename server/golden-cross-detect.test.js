@@ -3,14 +3,21 @@ import assert from "node:assert/strict";
 import {
   candleTimeToDateKey,
   detectDailyGoldenCrossDetail,
-  detectDailyGoldenCrosses,
+  detectMaCrosses,
+  isDeadCrossBar,
   isGoldenCrossBar,
 } from "./golden-cross-detect.js";
 
-test("isGoldenCrossBar detects upward cross", () => {
+test("isGoldenCrossBar matches Pine ta.crossover", () => {
   assert.equal(isGoldenCrossBar(98, 102, 100, 100), true);
   assert.equal(isGoldenCrossBar(102, 102, 100, 100), false);
   assert.equal(isGoldenCrossBar(98, 99, 100, 100), false);
+});
+
+test("isDeadCrossBar matches Pine ta.crossunder", () => {
+  assert.equal(isDeadCrossBar(102, 98, 100, 100), true);
+  assert.equal(isDeadCrossBar(98, 98, 100, 100), false);
+  assert.equal(isDeadCrossBar(102, 101, 100, 100), false);
 });
 
 test("detectDailyGoldenCrossDetail returns crossDate from bar time", () => {
@@ -33,7 +40,7 @@ test("candleTimeToDateKey formats KST day object", () => {
   );
 });
 
-test("detectDailyGoldenCrosses finds 5>20 cross on synthetic series", () => {
+test("detectMaCrosses finds 5>20 golden cross", () => {
   /** @type {{ close: number }[]} */
   const candles = [];
   for (let i = 0; i < 140; i++) {
@@ -41,6 +48,23 @@ test("detectDailyGoldenCrosses finds 5>20 cross on synthetic series", () => {
   }
   candles[138].close = 99;
   candles[139].close = 105;
-  const crosses = detectDailyGoldenCrosses(candles);
-  assert.ok(crosses.length >= 0);
+  const crosses = detectMaCrosses(candles);
+  assert.ok(crosses.includes("5>20"));
+  assert.ok(!crosses.includes("5>60"));
+  assert.ok(!crosses.includes("5>120"));
+});
+
+test("detectMaCrosses finds 20>120 when ma20 crosses ma120", () => {
+  /** @type {{ close: number }[]} */
+  const candles = Array.from({ length: 140 }, (_, i) => ({
+    close: i < 125 ? 90 : 90 + (i - 124) * 3,
+  }));
+  let hit = -1;
+  for (let bi = 121; bi < candles.length; bi++) {
+    if (detectMaCrosses(candles, bi).includes("20>120")) {
+      hit = bi;
+      break;
+    }
+  }
+  assert.ok(hit >= 0, "synthetic series should contain 20>120 cross");
 });

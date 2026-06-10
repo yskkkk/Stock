@@ -7,15 +7,24 @@ import {
 } from "./golden-cross-scan-email-enrich.js";
 import { listUsersSync, getUserNotificationEmailSync } from "../users-store.js";
 import { normalizeVaultScanTimeframe } from "../vault-scan-timeframe.js";
+import {
+  LEGACY_MA_CROSS_KINDS,
+  MA_CROSS_KINDS,
+} from "../golden-cross-detect.js";
 import { buildEmailTimeframeIntersections } from "../vault-scan-intersection.js";
 
 export { DEFAULT_AUDIT_REPORT_TO };
 
 const CROSS_LABEL = {
-  "5>20": "5→20",
-  "5>60": "5→60",
-  "5>120": "5→120",
+  "5>20": "5→20 골든",
+  "5<20": "5→20 데드",
+  "20>120": "20→120 골든",
+  "20<120": "20→120 데드",
+  "5>60": "5→60 골든",
+  "5>120": "5→120 골든",
 };
+
+const CROSS_GROUP_ORDER = [...MA_CROSS_KINDS, ...LEGACY_MA_CROSS_KINDS];
 
 const TIMEFRAME_LABEL = {
   "1d": "일봉",
@@ -128,7 +137,7 @@ export function buildScanEmailPayloadFromVaultResult(market, scanDate, byTimefra
  */
 function buildGoldenCrossSection(markets) {
   /** @type {string[]} */
-  const textParts = ["[골든크로스] MA5→20·60·120", ""];
+  const textParts = ["[MA 교차] 5↔20 · 20↔120 (골든·데드)", ""];
   /** @type {string[]} */
   const htmlParts = [`<h2 style="color:#1e40af;">골든크로스</h2>`];
 
@@ -144,7 +153,7 @@ function buildGoldenCrossSection(markets) {
       htmlParts.push("<p>없음</p>");
       continue;
     }
-    for (const cross of ["5>20", "5>60", "5>120"]) {
+    for (const cross of CROSS_GROUP_ORDER) {
       const group = block.hits.filter((h) => h.crosses.includes(cross));
       if (!group.length) continue;
       const label = CROSS_LABEL[cross] ?? cross;

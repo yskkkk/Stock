@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { normalizeMaCrossKinds } from "./golden-cross-detect.js";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
 import { normalizeVaultScanTimeframe } from "./vault-scan-timeframe.js";
 
@@ -32,9 +33,7 @@ function normalizeEntry(raw) {
             .toUpperCase(),
           name: String(h?.name ?? "").trim(),
           market: h?.market === "us" ? "us" : "kr",
-          crosses: Array.isArray(h?.crosses)
-            ? h.crosses.filter((c) => c === "5>20" || c === "5>60" || c === "5>120")
-            : [],
+          crosses: normalizeMaCrossKinds(h?.crosses),
           scanDate:
             typeof h?.scanDate === "string" && h.scanDate.trim()
               ? h.scanDate.trim()

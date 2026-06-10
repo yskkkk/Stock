@@ -164,6 +164,6 @@ test("buildGoldenCrossScanEmailContent lists daily-weekly intersection", () => {
   assert.match(text, /5→20/);
   assert.match(text, /5→60/);
   assert.match(html, /일봉·주봉 교집합/);
-  const ixBlock = text.split("[골든크로스]")[0];
+  const ixBlock = text.split("[MA 교차]")[0];
   assert.doesNotMatch(ixBlock, /SK하이닉스/);
 });

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { resolveDisplayName } from "./names-ko.js";
 import { listAllFavoritedSymbolsSync } from "./user-stock-vault-store.js";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
+import { normalizeMaCrossKinds } from "./golden-cross-detect.js";
 import {
   normalizeVaultScanTimeframe,
   VAULT_SCAN_TIMEFRAME_DEFAULT,
@@ -21,7 +22,7 @@ function vaultStoreFile() {
  *   market: "kr"|"us";
  *   source: StockVaultSource;
  *   timeframe?: "1d"|"1wk";
- *   crosses?: ("5>20"|"5>60"|"5>120")[];
+ *   crosses?: import("./golden-cross-detect.js").MaCrossKind[];
  *   crossDate?: string | null;
  *   scanDate?: string | null;
  *   addedAtMs: number;
@@ -71,9 +72,7 @@ function normalizeStore(raw) {
     const source = normalizeSource(row?.source);
     if (!source) continue;
     const market = row?.market === "us" ? "us" : "kr";
-    const crosses = Array.isArray(row?.crosses)
-      ? row.crosses.filter((c) => c === "5>20" || c === "5>60" || c === "5>120")
-      : [];
+    const crosses = normalizeMaCrossKinds(row?.crosses);
     const timeframe = normalizeVaultScanTimeframe(row?.timeframe);
     const item = {
       id: String(row?.id ?? randomUUID()),
@@ -167,9 +166,7 @@ export function upsertStockVaultItemSync(input) {
     err.code = "INVALID_SOURCE";
     throw err;
   }
-  const crosses = Array.isArray(input.crosses)
-    ? input.crosses.filter((c) => c === "5>20" || c === "5>60" || c === "5>120")
-    : [];
+  const crosses = normalizeMaCrossKinds(input.crosses);
   const timeframe = normalizeVaultScanTimeframe(input.timeframe);
   const idx = store.items.findIndex(
     (it) =>

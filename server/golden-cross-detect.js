@@ -1,4 +1,4 @@
-/** 일봉 MA5·20·60·120 골든크로스(5가 slow를 상향 돌파) */
+/** 일·주봉 MA 교차 — Pine `ta.crossover` / `ta.crossunder` 와 동일 (5↔20, 20↔120) */
 
 import {
   buildDailyClosesIndex,
@@ -6,8 +6,26 @@ import {
   resolveCloseIndexAtCandle,
 } from "./daily-bar-index.js";
 
+/** @typedef {"5>20"|"5<20"|"20>120"|"20<120"} MaCrossKind */
+
+export const MA_CROSS_KINDS = /** @type {const} */ ([
+  "5>20",
+  "5<20",
+  "20>120",
+  "20<120",
+]);
+
+/** @deprecated Pine·서버 SSOT는 MA_CROSS_PAIRS */
 export const GOLDEN_CROSS_MA_FAST = 5;
-export const GOLDEN_CROSS_MA_SLOW_PERIODS = [20, 60, 120];
+/** @deprecated */
+export const GOLDEN_CROSS_MA_SLOW_PERIODS = [20, 120];
+
+export const MA_CROSS_PAIRS = [
+  { fast: 5, slow: 20, golden: "5>20", dead: "5<20" },
+  { fast: 20, slow: 120, golden: "20>120", dead: "20<120" },
+];
+
+export const MA_CROSS_MIN_CANDLES = 121;
 
 /**
  * @param {number[]} values
@@ -24,6 +42,7 @@ export function sma(values, period) {
 }
 
 /**
+ * Pine `ta.crossover(fast, slow)`
  * @param {number} fastPrev
  * @param {number} fastNow
  * @param {number} slowPrev
@@ -39,6 +58,41 @@ export function isGoldenCrossBar(fastPrev, fastNow, slowPrev, slowNow) {
     return false;
   }
   return fastPrev <= slowPrev && fastNow > slowNow;
+}
+
+/**
+ * Pine `ta.crossunder(fast, slow)`
+ * @param {number} fastPrev
+ * @param {number} fastNow
+ * @param {number} slowPrev
+ * @param {number} slowNow
+ */
+export function isDeadCrossBar(fastPrev, fastNow, slowPrev, slowNow) {
+  if (
+    !Number.isFinite(fastPrev) ||
+    !Number.isFinite(fastNow) ||
+    !Number.isFinite(slowPrev) ||
+    !Number.isFinite(slowNow)
+  ) {
+    return false;
+  }
+  return fastPrev >= slowPrev && fastNow < slowNow;
+}
+
+/** 저장 데이터 호환 — 구 스캔(5→60·120) */
+export const LEGACY_MA_CROSS_KINDS = /** @type {const} */ (["5>60", "5>120"]);
+
+/** @param {unknown} kind */
+export function isMaCrossKind(kind) {
+  return (
+    MA_CROSS_KINDS.includes(kind) || LEGACY_MA_CROSS_KINDS.includes(kind)
+  );
+}
+
+/** @param {unknown} crosses */
+export function normalizeMaCrossKinds(crosses) {
+  if (!Array.isArray(crosses)) return [];
+  return crosses.filter((c) => isMaCrossKind(c));
 }
 
 /**
@@ -66,35 +120,16 @@ export function candleTimeToDateKey(time) {
 }
 
 /**
- * @param {Array<{ close?: number; time?: unknown }>} candles
- * @param {number} [barIndex] — candles 기준
- * @returns {{ crosses: ("5>20"|"5>60"|"5>120")[]; crossDate: string | null }}
- */
-export function detectDailyGoldenCrossDetail(candles, barIndex) {
-  const { candleToCloseIndex } = buildDailyClosesIndex(candles);
-  const { candleIndex } = resolveCandleBarIndex(
-    candleToCloseIndex,
-    barIndex,
-    candles.length,
-  );
-  const crosses = detectDailyGoldenCrosses(candles, candleIndex);
-  if (!crosses.length) return { crosses: [], crossDate: null };
-  const i = Math.min(Math.max(0, candleIndex), candles.length - 1);
-  return {
-    crosses,
-    crossDate: candleTimeToDateKey(candles[i]?.time),
-  };
-}
-
-/**
  * @param {Array<{ close?: number }>} candles
  * @param {number} [barIndex] — candles 기준; 기본: 마지막 봉
- * @returns {("5>20"|"5>60"|"5>120")[]}
+ * @returns {MaCrossKind[]}
  */
-export function detectDailyGoldenCrosses(candles, barIndex) {
-  if (!Array.isArray(candles) || candles.length < 121) return [];
+export function detectMaCrosses(candles, barIndex) {
+  if (!Array.isArray(candles) || candles.length < MA_CROSS_MIN_CANDLES) {
+    return [];
+  }
   const { closes, candleToCloseIndex } = buildDailyClosesIndex(candles);
-  if (closes.length < 121) return [];
+  if (closes.length < MA_CROSS_MIN_CANDLES) return [];
 
   const { candleIndex: ci } = resolveCandleBarIndex(
     candleToCloseIndex,
@@ -107,15 +142,52 @@ export function detectDailyGoldenCrosses(candles, barIndex) {
   const idxPrev = resolveCloseIndexAtCandle(candleToCloseIndex, ci - 1);
   if (idxNow < 0 || idxPrev < 0) return [];
 
-  const ma5 = sma(closes, GOLDEN_CROSS_MA_FAST);
-  /** @type {("5>20"|"5>60"|"5>120")[]} */
+  /** @type {MaCrossKind[]} */
   const crosses = [];
 
-  for (const slow of GOLDEN_CROSS_MA_SLOW_PERIODS) {
-    const maSlow = sma(closes, slow);
-    if (isGoldenCrossBar(ma5[idxPrev], ma5[idxNow], maSlow[idxPrev], maSlow[idxNow])) {
-      crosses.push(`5>${slow}`);
+  for (const pair of MA_CROSS_PAIRS) {
+    const maFast = sma(closes, pair.fast);
+    const maSlow = sma(closes, pair.slow);
+    const fastPrev = maFast[idxPrev];
+    const fastNow = maFast[idxNow];
+    const slowPrev = maSlow[idxPrev];
+    const slowNow = maSlow[idxNow];
+    if (isGoldenCrossBar(fastPrev, fastNow, slowPrev, slowNow)) {
+      crosses.push(pair.golden);
+    }
+    if (isDeadCrossBar(fastPrev, fastNow, slowPrev, slowNow)) {
+      crosses.push(pair.dead);
     }
   }
   return crosses;
+}
+
+/**
+ * @param {Array<{ close?: number; time?: unknown }>} candles
+ * @param {number} [barIndex] — candles 기준
+ * @returns {{ crosses: MaCrossKind[]; crossDate: string | null }}
+ */
+export function detectDailyGoldenCrossDetail(candles, barIndex) {
+  const { candleToCloseIndex } = buildDailyClosesIndex(candles);
+  const { candleIndex } = resolveCandleBarIndex(
+    candleToCloseIndex,
+    barIndex,
+    candles.length,
+  );
+  const crosses = detectMaCrosses(candles, candleIndex);
+  if (!crosses.length) return { crosses: [], crossDate: null };
+  const i = Math.min(Math.max(0, candleIndex), candles.length - 1);
+  return {
+    crosses,
+    crossDate: candleTimeToDateKey(candles[i]?.time),
+  };
+}
+
+/**
+ * @param {Array<{ close?: number }>} candles
+ * @param {number} [barIndex]
+ * @returns {MaCrossKind[]}
+ */
+export function detectDailyGoldenCrosses(candles, barIndex) {
+  return detectMaCrosses(candles, barIndex);
 }

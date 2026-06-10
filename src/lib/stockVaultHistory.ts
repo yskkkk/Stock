@@ -80,7 +80,12 @@ export function buildVaultItemsFromScanHistory(
     const fm = meta[sym];
     const crosses = (hit.crosses ?? []).filter(
       (c: string): c is GoldenCrossKind =>
-        c === "5>20" || c === "5>60" || c === "5>120",
+        c === "5>20" ||
+        c === "5<20" ||
+        c === "20>120" ||
+        c === "20<120" ||
+        c === "5>60" ||
+        c === "5>120",
     );
     items.push({
       id: `hist-gc-${hit.market}-${sym}`,
