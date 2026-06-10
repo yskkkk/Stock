@@ -1,7 +1,4 @@
-import {
-  LEGACY_MA_CROSS_KINDS,
-  MA_CROSS_KINDS,
-} from "./golden-cross-detect.js";
+import { MA_CROSS_KINDS } from "./golden-cross-detect.js";
 import {
   isTelegramNotifyEnabled,
   sendStockTelegramMessage,
@@ -26,7 +23,7 @@ const CROSS_LABEL = {
   "5>120": "5→120 골든",
 };
 
-const CROSS_GROUP_ORDER = [...MA_CROSS_KINDS, ...LEGACY_MA_CROSS_KINDS];
+const CROSS_GROUP_ORDER = [...MA_CROSS_KINDS];
 
 const TIMEFRAME_LABEL = {
   "1d": "일봉",
@@ -54,7 +51,7 @@ export function buildGoldenCrossTelegramHtml(
   const marketKo = market === "kr" ? "국내 시총 300" : "S&amp;P 500";
   const lines = [
     `<b>📈 ${tfKo} MA 교차 · ${marketKo}</b>`,
-    `<i>${esc(scanDate)} · 5↔20 · 20↔120 · ${tfKo}</i>`,
+    `<i>${esc(scanDate)} · 5↔20·60·120 · 20↔120 · ${tfKo}</i>`,
     "",
   ];
 

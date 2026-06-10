@@ -1,4 +1,4 @@
-/** 일·주봉 MA 교차 — Pine `ta.crossover` / `ta.crossunder` 와 동일 (5↔20, 20↔120) */
+/** 일·주봉 MA 교차 — Pine(5↔20·20↔120 골든·데드) + 기존 5→60·120 골든 */
 
 import {
   buildDailyClosesIndex,
@@ -6,22 +6,27 @@ import {
   resolveCloseIndexAtCandle,
 } from "./daily-bar-index.js";
 
-/** @typedef {"5>20"|"5<20"|"20>120"|"20<120"} MaCrossKind */
+/** @typedef {"5>20"|"5<20"|"5>60"|"5>120"|"20>120"|"20<120"} MaCrossKind */
 
 export const MA_CROSS_KINDS = /** @type {const} */ ([
   "5>20",
   "5<20",
+  "5>60",
+  "5>120",
   "20>120",
   "20<120",
 ]);
 
-/** @deprecated Pine·서버 SSOT는 MA_CROSS_PAIRS */
+/** @deprecated MA_CROSS_PAIRS 사용 */
 export const GOLDEN_CROSS_MA_FAST = 5;
 /** @deprecated */
-export const GOLDEN_CROSS_MA_SLOW_PERIODS = [20, 120];
+export const GOLDEN_CROSS_MA_SLOW_PERIODS = [20, 60, 120];
 
+/** @type {Array<{ fast: number; slow: number; golden: MaCrossKind; dead: MaCrossKind | null }>} */
 export const MA_CROSS_PAIRS = [
   { fast: 5, slow: 20, golden: "5>20", dead: "5<20" },
+  { fast: 5, slow: 60, golden: "5>60", dead: null },
+  { fast: 5, slow: 120, golden: "5>120", dead: null },
   { fast: 20, slow: 120, golden: "20>120", dead: "20<120" },
 ];
 
@@ -79,14 +84,9 @@ export function isDeadCrossBar(fastPrev, fastNow, slowPrev, slowNow) {
   return fastPrev >= slowPrev && fastNow < slowNow;
 }
 
-/** 저장 데이터 호환 — 구 스캔(5→60·120) */
-export const LEGACY_MA_CROSS_KINDS = /** @type {const} */ (["5>60", "5>120"]);
-
 /** @param {unknown} kind */
 export function isMaCrossKind(kind) {
-  return (
-    MA_CROSS_KINDS.includes(kind) || LEGACY_MA_CROSS_KINDS.includes(kind)
-  );
+  return MA_CROSS_KINDS.includes(kind);
 }
 
 /** @param {unknown} crosses */
@@ -155,7 +155,10 @@ export function detectMaCrosses(candles, barIndex) {
     if (isGoldenCrossBar(fastPrev, fastNow, slowPrev, slowNow)) {
       crosses.push(pair.golden);
     }
-    if (isDeadCrossBar(fastPrev, fastNow, slowPrev, slowNow)) {
+    if (
+      pair.dead &&
+      isDeadCrossBar(fastPrev, fastNow, slowPrev, slowNow)
+    ) {
       crosses.push(pair.dead);
     }
   }

@@ -12,13 +12,13 @@ const CROSS_LABEL: Record<GoldenCrossKind, string> = {
 const CROSS_DISPLAY_ORDER: GoldenCrossKind[] = [
   "5>20",
   "5<20",
-  "20>120",
-  "20<120",
   "5>60",
   "5>120",
+  "20>120",
+  "20<120",
 ];
 
-/** MA 교차 — Pine 지표와 동일한 5↔20·20↔120 (골든·데드) */
+/** MA 교차 — Pine(5↔20·20↔120) + 5→60·120 골든 */
 export function formatGoldenCrossChain(
   crosses: GoldenCrossKind[] | undefined,
 ): string | null {

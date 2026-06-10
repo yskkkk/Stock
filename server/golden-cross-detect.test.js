@@ -50,8 +50,18 @@ test("detectMaCrosses finds 5>20 golden cross", () => {
   candles[139].close = 105;
   const crosses = detectMaCrosses(candles);
   assert.ok(crosses.includes("5>20"));
-  assert.ok(!crosses.includes("5>60"));
-  assert.ok(!crosses.includes("5>120"));
+});
+
+test("detectMaCrosses still finds legacy 5>60 golden cross", () => {
+  /** @type {{ close: number }[]} */
+  const candles = [];
+  for (let i = 0; i < 140; i++) {
+    candles.push({ close: 100 });
+  }
+  candles[138].close = 99;
+  candles[139].close = 130;
+  const crosses = detectMaCrosses(candles);
+  assert.ok(crosses.includes("5>60"));
 });
 
 test("detectMaCrosses finds 20>120 when ma20 crosses ma120", () => {
