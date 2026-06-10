@@ -9,7 +9,7 @@ alwaysApply: true
 
 ## 수신
 
-- **네이버 메일** — `.env` 의 `AGENT_EMAIL_TO` (본인만 — Telegram·다른 수신자·공개 채널 금지)
+- **네이버 메일** — `.env` `AGENT_EMAIL_TO=samron3@naver.com` (운영자, 본인만)
 - Gmail 등 다른 주소로 보내지 않는다.
 
 ## 보낼 때
