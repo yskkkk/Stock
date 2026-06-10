@@ -1,12 +1,11 @@
 //@version=5
-indicator("일봉·주봉 MA 정확 접점 (골든/데드 구분)", overlay=true, max_labels_count=500)
+indicator("일봉·주봉 MA 정확 접점 (골든/데드 구분)", overlay=true)
 
 string grpDisp = "표시"
 string tfMode = input.string("일봉+주봉", "표시 TF", options=["일봉+주봉", "일봉만", "주봉만"], group=grpDisp)
 bool showLegend = input.bool(true, "범례 표시 (우하단)", group=grpDisp)
 bool showWatermark = input.bool(true, "선 워터마크 (5·20·60·120)", group=grpDisp)
 int wmStep = input.int(42, "워터마크 간격(봉)", minval=12, maxval=150, group=grpDisp)
-int wmCount = input.int(9, "워터마크 개수", minval=3, maxval=14, group=grpDisp)
 bool smoothWeekly = input.bool(true, "주봉 선형 보간 (일·분봉)", group=grpDisp, tooltip="전주 확정 MA → 금주 MA를 주 안에서 직선 보간합니다(계단·뾰족 모서리 제거). 교차점 판정·표시는 확정 주봉 MA(lookahead_off)를 유지합니다.")
 int brightTransp = input.int(0, "활성 TF 투명도", minval=0, maxval=90, group=grpDisp)
 int dimTransp = input.int(72, "비활성 TF 투명도", minval=30, maxval=95, group=grpDisp)
@@ -108,40 +107,19 @@ plot(showDaily and (gold_20_120_d or dead_20_120_d) ? ma20_d : na, style=plot.st
 plot(showWeekly and (gold_5_20_w or dead_5_20_w) ? ma5_w_step : na, style=plot.style_circles, linewidth=5, color=color_5_20_w, title="[주] 5-20 교차점")
 plot(showWeekly and (gold_20_120_w or dead_20_120_w) ? ma20_w_step : na, style=plot.style_circles, linewidth=5, color=color_20_120_w, title="[주] 20-120 교차점")
 
-// === 선 워터마크 (선 위 5·20·60·120) ===
-var array<label> wmLabels = array.new<label>()
+// === 선 워터마크 (선 위 5·20·60·120 · plotshape) ===
+int wmPh = int(math.max(wmStep / 5, 3))
+int wmTa = math.min(dAlpha + 40, 88)
+int wmTw = math.min(wAlpha + 40, 88)
 
-f_wm_text_alpha(int baseAlpha) =>
-    math.min(baseAlpha + 40, 88)
-
-f_wm_clear() =>
-    int n = array.size(wmLabels)
-    if n > 0
-        for j = 0 to n - 1
-            label.delete(array.get(wmLabels, j))
-        array.clear(wmLabels)
-
-f_wm_place(int phase, float ma, string txt, color c, int alpha) =>
-    for i = 1 to wmCount
-        int off = i * wmStep + phase
-        if bar_index >= off
-            float y = ma[off]
-            if not na(y)
-                array.push(wmLabels, label.new(bar_index - off, y, txt, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_none, textcolor=color.new(c, alpha), size=size.tiny))
-
-if barstate.islast and showWatermark
-    f_wm_clear()
-    int ph = int(math.max(wmStep / 5, 3))
-    if showDaily
-        f_wm_place(0, ma5_d, "5", c5_d, f_wm_text_alpha(dAlpha))
-        f_wm_place(ph, ma20_d, "20", c20_d, f_wm_text_alpha(dAlpha))
-        f_wm_place(ph * 2, ma60_d, "60", c60_d, f_wm_text_alpha(dAlpha))
-        f_wm_place(ph * 3, ma120_d, "120", c120_d, f_wm_text_alpha(dAlpha))
-    if showWeekly
-        f_wm_place(ph / 2, ma5_w, "5", c5_w, f_wm_text_alpha(wAlpha))
-        f_wm_place(ph + ph / 2, ma20_w, "20", c20_w, f_wm_text_alpha(wAlpha))
-        f_wm_place(ph * 2 + ph / 2, ma60_w, "60", c60_w, f_wm_text_alpha(wAlpha))
-        f_wm_place(ph * 3 + ph / 2, ma120_w, "120", c120_w, f_wm_text_alpha(wAlpha))
+plotshape(showWatermark and showDaily and not na(ma5_d) and bar_index % wmStep == 0, title="wm5d", location=location.absolute, price=ma5_d, style=shape.label_center, color=color.new(color.white, 100), textcolor=color.new(c5_d, wmTa), text="5", size=size.tiny, display=display.all - display.price_scale - display.status_line)
+plotshape(showWatermark and showDaily and not na(ma20_d) and bar_index % wmStep == wmPh, title="wm20d", location=location.absolute, price=ma20_d, style=shape.label_center, color=color.new(color.white, 100), textcolor=color.new(c20_d, wmTa), text="20", size=size.tiny, display=display.all - display.price_scale - display.status_line)
+plotshape(showWatermark and showDaily and not na(ma60_d) and bar_index % wmStep == wmPh * 2, title="wm60d", location=location.absolute, price=ma60_d, style=shape.label_center, color=color.new(color.white, 100), textcolor=color.new(c60_d, wmTa), text="60", size=size.tiny, display=display.all - display.price_scale - display.status_line)
+plotshape(showWatermark and showDaily and not na(ma120_d) and bar_index % wmStep == wmPh * 3, title="wm120d", location=location.absolute, price=ma120_d, style=shape.label_center, color=color.new(color.white, 100), textcolor=color.new(c120_d, wmTa), text="120", size=size.tiny, display=display.all - display.price_scale - display.status_line)
+plotshape(showWatermark and showWeekly and not na(ma5_w) and bar_index % wmStep == 1, title="wm5w", location=location.absolute, price=ma5_w, style=shape.label_center, color=color.new(color.white, 100), textcolor=color.new(c5_w, wmTw), text="5", size=size.tiny, display=display.all - display.price_scale - display.status_line)
+plotshape(showWatermark and showWeekly and not na(ma20_w) and bar_index % wmStep == wmPh + 1, title="wm20w", location=location.absolute, price=ma20_w, style=shape.label_center, color=color.new(color.white, 100), textcolor=color.new(c20_w, wmTw), text="20", size=size.tiny, display=display.all - display.price_scale - display.status_line)
+plotshape(showWatermark and showWeekly and not na(ma60_w) and bar_index % wmStep == wmPh * 2 + 1, title="wm60w", location=location.absolute, price=ma60_w, style=shape.label_center, color=color.new(color.white, 100), textcolor=color.new(c60_w, wmTw), text="60", size=size.tiny, display=display.all - display.price_scale - display.status_line)
+plotshape(showWatermark and showWeekly and not na(ma120_w) and bar_index % wmStep == wmPh * 3 + 1, title="wm120w", location=location.absolute, price=ma120_w, style=shape.label_center, color=color.new(color.white, 100), textcolor=color.new(c120_w, wmTw), text="120", size=size.tiny, display=display.all - display.price_scale - display.status_line)
 
 // === 우하단 범례 (배경 없음 · 차트와 동일 dAlpha/wAlpha) ===
 var table legend = table.new(position.bottom_right, 3, 8, bgcolor=na, frame_color=color.new(color.gray, 70), border_width=1)
