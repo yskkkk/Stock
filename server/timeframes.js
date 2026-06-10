@@ -23,7 +23,7 @@ export const TIMEFRAME_MAP = {
   "1h": {
     label: "1시간",
     interval: "60m",
-    // Yahoo 60m: range must be strictly within last 730 days (730 fails)
+    // Yahoo 60m: 약 730일 상한(730 요청 시 실패하는 경우 있어 729 유지)
     days: 729,
     displayInterval: "1h",
   },
@@ -41,6 +41,12 @@ export const TIMEFRAME_MAP = {
     // 표시(일봉)와 실제 봉 간격이 어긋나지 않도록 긴 고정 구간만 사용한다.
     range: "50y",
     displayInterval: "1d",
+  },
+  "1wk": {
+    label: "주봉",
+    interval: "1wk",
+    range: "50y",
+    displayInterval: "1wk",
   },
 };
 

@@ -5,6 +5,11 @@ import { resolveDisplayName } from "./names-ko.js";
 import { loadBoxRangeCatalogUniverse } from "./universe.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
+import {
+  normalizeVaultScanTimeframe,
+  vaultScanChartTimeframe,
+  vaultScanStateDateField,
+} from "./vault-scan-timeframe.js";
 
 const STATE_FILE = "golden-cross-scan-state.json";
 
@@ -25,14 +30,39 @@ function delay(ms) {
 
 /** @param {unknown} raw */
 function normalizeState(raw) {
+  const lastRuns = Array.isArray(raw?.lastRuns)
+    ? raw.lastRuns.slice(0, 28).map((row) => ({
+        market: row?.market === "us" ? "us" : "kr",
+        scanDate: typeof row?.scanDate === "string" ? row.scanDate : "",
+        scanned:
+          typeof row?.scanned === "number" && Number.isFinite(row.scanned)
+            ? row.scanned
+            : 0,
+        hits:
+          typeof row?.hits === "number" && Number.isFinite(row.hits)
+            ? row.hits
+            : 0,
+        atMs:
+          typeof row?.atMs === "number" && Number.isFinite(row.atMs)
+            ? row.atMs
+            : Date.now(),
+        timeframe: normalizeVaultScanTimeframe(row?.timeframe),
+      }))
+    : [];
   return {
     krLastScanDate:
       typeof raw?.krLastScanDate === "string" ? raw.krLastScanDate : null,
     usLastScanDate:
       typeof raw?.usLastScanDate === "string" ? raw.usLastScanDate : null,
-    lastRuns: Array.isArray(raw?.lastRuns)
-      ? raw.lastRuns.slice(0, 14)
-      : [],
+    krWeeklyLastScanDate:
+      typeof raw?.krWeeklyLastScanDate === "string"
+        ? raw.krWeeklyLastScanDate
+        : null,
+    usWeeklyLastScanDate:
+      typeof raw?.usWeeklyLastScanDate === "string"
+        ? raw.usWeeklyLastScanDate
+        : null,
+    lastRuns,
   };
 }
 
@@ -40,7 +70,13 @@ function readState() {
   return readJsonStoreSync(
     STATE_FILE,
     normalizeState,
-    () => ({ krLastScanDate: null, usLastScanDate: null, lastRuns: [] }),
+    () => ({
+      krLastScanDate: null,
+      usLastScanDate: null,
+      krWeeklyLastScanDate: null,
+      usWeeklyLastScanDate: null,
+      lastRuns: [],
+    }),
   );
 }
 
@@ -53,17 +89,20 @@ function writeState(state) {
  * @param {{ symbol: string; name: string }} item
  * @param {"kr"|"us"} market
  * @param {string} scanDate
+ * @param {import("./vault-scan-timeframe.js").VaultScanTimeframe} [timeframe]
  */
-async function scanOneSymbol(item, market, scanDate) {
+async function scanOneSymbol(item, market, scanDate, timeframe = "1d") {
+  const tf = normalizeVaultScanTimeframe(timeframe);
+  const chartTf = vaultScanChartTimeframe(tf);
   const sym = String(item.symbol ?? "")
     .trim()
     .toUpperCase();
   if (!sym) return { ok: true, hit: null };
   try {
-    const data = await loadStock(sym, "1d", { live: true });
-    const tradable = await isGoldenCrossTradable(data, market);
+    const data = await loadStock(sym, chartTf, { live: true });
+    const tradable = await isGoldenCrossTradable(data, market, { timeframe: tf });
     if (!tradable.ok) {
-      liveTradeLogInfo("[golden-cross:scan] skip", sym, tradable.reason);
+      liveTradeLogInfo("[golden-cross:scan] skip", sym, tf, tradable.reason);
       return { ok: true, hit: null };
     }
     const candles = Array.isArray(data?.candles) ? data.candles : [];
@@ -78,6 +117,7 @@ async function scanOneSymbol(item, market, scanDate) {
           String(item.name ?? data?.quote?.name ?? sym).trim() || sym,
         ),
         market,
+        timeframe: tf,
         crosses,
         crossDate: crossDate ?? scanDate,
         scanDate,
@@ -87,6 +127,7 @@ async function scanOneSymbol(item, market, scanDate) {
     liveTradeLogWarn(
       "[golden-cross:scan]",
       sym,
+      tf,
       e instanceof Error ? e.message : e,
     );
     return { ok: false, hit: null };
@@ -96,10 +137,11 @@ async function scanOneSymbol(item, market, scanDate) {
 /**
  * @param {"kr"|"us"} market
  * @param {string} scanDate
- * @param {{ persistState?: boolean }} [opts]
+ * @param {{ persistState?: boolean; timeframe?: import("./vault-scan-timeframe.js").VaultScanTimeframe }} [opts]
  */
 export async function runGoldenCrossMarketScan(market, scanDate, opts = {}) {
   const persistState = opts.persistState !== false;
+  const timeframe = normalizeVaultScanTimeframe(opts.timeframe);
   const uni = await loadBoxRangeCatalogUniverse();
   const list =
     market === "kr"
@@ -113,6 +155,7 @@ export async function runGoldenCrossMarketScan(market, scanDate, opts = {}) {
   liveTradeLogInfo("[golden-cross:scan] start", {
     market,
     scanDate,
+    timeframe,
     symbols: list.length,
   });
 
@@ -123,7 +166,7 @@ export async function runGoldenCrossMarketScan(market, scanDate, opts = {}) {
   for (let i = 0; i < list.length; i += BATCH_SIZE) {
     const batch = list.slice(i, i + BATCH_SIZE);
     const results = await Promise.all(
-      batch.map((item) => scanOneSymbol(item, market, scanDate)),
+      batch.map((item) => scanOneSymbol(item, market, scanDate, timeframe)),
     );
     for (const r of results) {
       if (!r.ok) {
@@ -139,22 +182,24 @@ export async function runGoldenCrossMarketScan(market, scanDate, opts = {}) {
 
   if (persistState) {
     const state = readState();
-    if (market === "kr") state.krLastScanDate = scanDate;
-    else state.usLastScanDate = scanDate;
+    const field = vaultScanStateDateField(market, timeframe);
+    state[field] = scanDate;
     state.lastRuns.unshift({
       market,
       scanDate,
       scanned: list.length,
       hits: hits.length,
       atMs: Date.now(),
+      timeframe,
     });
-    state.lastRuns = state.lastRuns.slice(0, 14);
+    state.lastRuns = state.lastRuns.slice(0, 28);
     writeState(state);
   }
 
   const out = {
     market,
     scanDate,
+    timeframe,
     scanned: list.length,
     hits,
     hitCount: hits.length,
@@ -162,6 +207,7 @@ export async function runGoldenCrossMarketScan(market, scanDate, opts = {}) {
   liveTradeLogInfo("[golden-cross:scan] done", {
     market,
     scanDate,
+    timeframe,
     scanned: list.length,
     hits: hits.length,
     errors,
@@ -173,18 +219,17 @@ export function getGoldenCrossScanStateSync() {
   return readState();
 }
 
-/** @param {"kr"|"us"} market @param {string} scanDate */
-export function markGoldenCrossScanDoneSync(market, scanDate) {
+/** @param {"kr"|"us"} market @param {string} scanDate @param {import("./vault-scan-timeframe.js").VaultScanTimeframe} [timeframe] */
+export function markGoldenCrossScanDoneSync(market, scanDate, timeframe = "1d") {
   const state = readState();
-  if (market === "kr") state.krLastScanDate = scanDate;
-  else state.usLastScanDate = scanDate;
+  const field = vaultScanStateDateField(market, timeframe);
+  state[field] = scanDate;
   writeState(state);
 }
 
-/** @param {"kr"|"us"} market @param {string} scanDate */
-export function wasGoldenCrossScannedSync(market, scanDate) {
+/** @param {"kr"|"us"} market @param {string} scanDate @param {import("./vault-scan-timeframe.js").VaultScanTimeframe} [timeframe] */
+export function wasGoldenCrossScannedSync(market, scanDate, timeframe = "1d") {
   const state = readState();
-  return market === "kr"
-    ? state.krLastScanDate === scanDate
-    : state.usLastScanDate === scanDate;
+  const field = vaultScanStateDateField(market, timeframe);
+  return state[field] === scanDate;
 }

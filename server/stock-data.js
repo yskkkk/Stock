@@ -130,7 +130,10 @@ function chartConfig(timeframe, { scan = false, boxRangeScan = false } = {}) {
       return { ...base, days, range: undefined, aggregate: base.aggregate };
     }
   }
-  if (!scan || timeframe !== "1d") return base;
+  if (!scan || (timeframe !== "1d" && timeframe !== "1wk")) return base;
+  if (timeframe === "1wk") {
+    return { ...base, range: "50y", days: undefined };
+  }
   return { ...base, range: "2y", days: undefined };
 }
 

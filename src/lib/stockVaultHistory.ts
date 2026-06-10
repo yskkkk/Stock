@@ -4,7 +4,9 @@ import type {
   MaAlignHistoryEntry,
   StockVaultFavoriteMeta,
   StockVaultItem,
+  StockVaultTimeframe,
 } from "../types";
+import { normalizeStockVaultTimeframe } from "./stockVaultTimeframe";
 
 function symbolMarketKey(symbol: string, market: "kr" | "us") {
   return `${market}:${symbol.trim().toUpperCase()}`;
@@ -38,14 +40,17 @@ export function buildVaultItemsFromScanHistory(
   scanDate: string,
   goldenEntries: GoldenCrossHistoryEntry[],
   maAlignEntries: MaAlignHistoryEntry[],
-  opts: HistoryBuildOpts = {},
+  opts: HistoryBuildOpts & { timeframe?: StockVaultTimeframe } = {},
 ): StockVaultItem[] {
   const favorites = opts.favoriteSymbols ?? new Set<string>();
   const meta = opts.favoriteMeta ?? {};
+  const timeframe = normalizeStockVaultTimeframe(opts.timeframe);
 
   /** @type {Map<string, { hit: GoldenCrossHistoryEntry["hits"][number]; atMs: number }>} */
   const gcMap = new Map();
-  for (const entry of [...goldenEntries].sort((a, b) => b.atMs - a.atMs)) {
+  for (const entry of [...goldenEntries]
+    .filter((e) => normalizeStockVaultTimeframe(e.timeframe) === timeframe)
+    .sort((a, b) => b.atMs - a.atMs)) {
     for (const hit of entry.hits) {
       const key = symbolMarketKey(hit.symbol, hit.market);
       if (!gcMap.has(key)) {
@@ -56,7 +61,9 @@ export function buildVaultItemsFromScanHistory(
 
   /** @type {Map<string, { hit: MaAlignHistoryEntry["hits"][number]; atMs: number }>} */
   const maMap = new Map();
-  for (const entry of [...maAlignEntries].sort((a, b) => b.atMs - a.atMs)) {
+  for (const entry of [...maAlignEntries]
+    .filter((e) => normalizeStockVaultTimeframe(e.timeframe) === timeframe)
+    .sort((a, b) => b.atMs - a.atMs)) {
     for (const hit of entry.hits) {
       const key = symbolMarketKey(hit.symbol, hit.market);
       if (!maMap.has(key)) {
@@ -81,6 +88,7 @@ export function buildVaultItemsFromScanHistory(
       name: hit.name,
       market: hit.market,
       source: "golden_cross",
+      timeframe,
       crosses,
       crossDate: hit.crossDate ?? hit.scanDate ?? scanDate,
       scanDate: hit.scanDate || scanDate,
@@ -102,6 +110,7 @@ export function buildVaultItemsFromScanHistory(
       name: hit.name,
       market: hit.market,
       source: "ma_align",
+      timeframe,
       scanDate: hit.scanDate || scanDate,
       addedAtMs: atMs,
       updatedAtMs: atMs,

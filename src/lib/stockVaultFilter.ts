@@ -1,5 +1,10 @@
 import { sortGoldenCrossItems } from "./goldenCrossRecency";
-import type { StockVaultItem, StockVaultScanSource } from "../types";
+import { normalizeStockVaultTimeframe } from "./stockVaultTimeframe";
+import type {
+  StockVaultItem,
+  StockVaultScanSource,
+  StockVaultTimeframe,
+} from "../types";
 
 /** 자동 탐색 조건 — 새 유형 추가 시 여기만 확장 */
 export const STOCK_VAULT_SCAN_SOURCES: readonly StockVaultScanSource[] = [
@@ -12,6 +17,7 @@ export type VaultDisplayRow = {
   symbol: string;
   name: string;
   market: "kr" | "us";
+  timeframe: StockVaultTimeframe;
   favorited: boolean;
   updatedAtMs: number;
   scanSources: StockVaultScanSource[];
@@ -20,8 +26,10 @@ export type VaultDisplayRow = {
   favorite?: StockVaultItem;
 };
 
-function symbolMarketKey(item: Pick<StockVaultItem, "symbol" | "market">) {
-  return `${item.market}:${item.symbol.trim().toUpperCase()}`;
+function symbolMarketTimeframeKey(
+  item: Pick<StockVaultItem, "symbol" | "market" | "timeframe">,
+) {
+  return `${item.market}:${item.symbol.trim().toUpperCase()}:${normalizeStockVaultTimeframe(item.timeframe)}`;
 }
 
 function pickDisplayName(row: {
@@ -46,6 +54,7 @@ function buildScanRow(
     favorite?: StockVaultItem;
   },
   scanSources: StockVaultScanSource[],
+  timeframe: StockVaultTimeframe,
 ): VaultDisplayRow {
   const goldenCross = parts.golden_cross;
   const maAlign = parts.ma_align;
@@ -67,6 +76,7 @@ function buildScanRow(
     symbol,
     name: pickDisplayName({ goldenCross, maAlign, favorite }),
     market,
+    timeframe,
     favorited,
     updatedAtMs,
     scanSources,
@@ -80,16 +90,34 @@ function isFavoriteItem(item: StockVaultItem) {
   return Boolean(item.favorited) || item.source === "favorite";
 }
 
-function buildFavoriteRows(items: StockVaultItem[]): VaultDisplayRow[] {
+function matchesTimeframe(
+  item: StockVaultItem,
+  timeframe: StockVaultTimeframe,
+) {
+  if (item.source === "favorite") return true;
+  return normalizeStockVaultTimeframe(item.timeframe) === timeframe;
+}
+
+function buildFavoriteRows(
+  items: StockVaultItem[],
+  timeframe: StockVaultTimeframe,
+): VaultDisplayRow[] {
   /** @type {Map<string, Partial<Record<StockVaultScanSource, StockVaultItem>> & { favorite?: StockVaultItem }>} */
   const grouped = new Map();
   for (const it of items) {
     if (!isFavoriteItem(it)) continue;
-    const key = symbolMarketKey(it);
+    const key = symbolMarketTimeframeKey({
+      ...it,
+      timeframe: it.source === "favorite" ? timeframe : it.timeframe,
+    });
     const row = grouped.get(key) ?? {};
-    if (it.source === "golden_cross") row.golden_cross = it;
-    else if (it.source === "ma_align") row.ma_align = it;
-    else if (it.source === "favorite") row.favorite = it;
+    if (it.source === "golden_cross" && matchesTimeframe(it, timeframe)) {
+      row.golden_cross = it;
+    } else if (it.source === "ma_align" && matchesTimeframe(it, timeframe)) {
+      row.ma_align = it;
+    } else if (it.source === "favorite") {
+      row.favorite = it;
+    }
     grouped.set(key, row);
   }
 
@@ -98,7 +126,7 @@ function buildFavoriteRows(items: StockVaultItem[]): VaultDisplayRow[] {
     const scanSources = STOCK_VAULT_SCAN_SOURCES.filter(
       (src) => parts[src],
     ) as StockVaultScanSource[];
-    rows.push(buildScanRow(key, parts, scanSources));
+    rows.push(buildScanRow(key, parts, scanSources, timeframe));
   }
   return rows;
 }
@@ -106,12 +134,20 @@ function buildFavoriteRows(items: StockVaultItem[]): VaultDisplayRow[] {
 export function countItemsByScanSource(
   items: StockVaultItem[],
   source: StockVaultScanSource,
+  timeframe: StockVaultTimeframe = "1d",
 ) {
-  return items.filter((it) => it.source === source).length;
+  return items.filter(
+    (it) =>
+      it.source === source &&
+      normalizeStockVaultTimeframe(it.timeframe) === timeframe,
+  ).length;
 }
 
-export function countFavoriteVaultItems(items: StockVaultItem[]) {
-  return buildFavoriteRows(items).length;
+export function countFavoriteVaultItems(
+  items: StockVaultItem[],
+  timeframe: StockVaultTimeframe = "1d",
+) {
+  return buildFavoriteRows(items, timeframe).length;
 }
 
 /**
@@ -123,14 +159,16 @@ export function buildVaultDisplayRows(
     selectedScanSources: StockVaultScanSource[];
     marketFilter: "all" | "kr" | "us";
     favoriteOnly: boolean;
+    timeframeFilter?: StockVaultTimeframe;
   },
 ): VaultDisplayRow[] {
+  const timeframe = normalizeStockVaultTimeframe(opts.timeframeFilter);
   const selected = opts.selectedScanSources.filter((s) =>
     STOCK_VAULT_SCAN_SOURCES.includes(s),
   );
 
   if (opts.favoriteOnly) {
-    let rows = buildFavoriteRows(items);
+    let rows = buildFavoriteRows(items, timeframe);
     if (selected.length) {
       rows = rows.filter(
         (row) =>
@@ -152,8 +190,9 @@ export function buildVaultDisplayRows(
     if (!STOCK_VAULT_SCAN_SOURCES.includes(it.source as StockVaultScanSource)) {
       continue;
     }
+    if (!matchesTimeframe(it, timeframe)) continue;
     const src = it.source as StockVaultScanSource;
-    const key = symbolMarketKey(it);
+    const key = symbolMarketTimeframeKey(it);
     const row = grouped.get(key) ?? {};
     row[src] = it;
     grouped.set(key, row);
@@ -162,7 +201,7 @@ export function buildVaultDisplayRows(
   const rows: VaultDisplayRow[] = [];
   for (const [key, parts] of grouped) {
     if (!selected.every((src) => parts[src])) continue;
-    rows.push(buildScanRow(key, parts, selected));
+    rows.push(buildScanRow(key, parts, selected, timeframe));
   }
 
   let filtered = rows;
@@ -191,10 +230,12 @@ export function countVaultIntersection(
   items: StockVaultItem[],
   selectedScanSources: StockVaultScanSource[],
   marketFilter: "all" | "kr" | "us" = "all",
+  timeframeFilter: StockVaultTimeframe = "1d",
 ) {
   return buildVaultDisplayRows(items, {
     selectedScanSources,
     marketFilter,
     favoriteOnly: false,
+    timeframeFilter,
   }).length;
 }

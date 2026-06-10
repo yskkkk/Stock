@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
+import { normalizeVaultScanTimeframe } from "./vault-scan-timeframe.js";
 
 const HISTORY_FILE = () =>
   process.env.MA_ALIGN_HISTORY_TEST_FILE?.trim() ||
@@ -51,6 +52,7 @@ function normalizeEntry(raw) {
       typeof raw?.scanDate === "string" && raw.scanDate.trim()
         ? raw.scanDate.trim()
         : "",
+    timeframe: normalizeVaultScanTimeframe(raw?.timeframe),
     scanned:
       typeof raw?.scanned === "number" && Number.isFinite(raw.scanned)
         ? raw.scanned
@@ -104,6 +106,7 @@ export function appendMaAlignHistoryEntrySync(input) {
     trigger: input.trigger ?? "scheduled",
     market: input.market,
     scanDate: input.scanDate,
+    timeframe: input.timeframe,
     scanned: input.scanned,
     hitCount: input.hits.length,
     hits: input.hits,

@@ -15,6 +15,7 @@ import { sendGoldenCrossScanReportEmail } from "./notifications/golden-cross-sca
 import { runMaAlignVaultIntradayRefresh } from "./ma-align-vault-intraday.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 import { isStockTradableBySchedule } from "./market-hours.js";
+import { VAULT_SCAN_TIMEFRAMES } from "./vault-scan-timeframe.js";
 
 const POLL_MS = (() => {
   const n = Number(process.env.STOCK_GOLDEN_CROSS_POLL_MS ?? 300_000);
@@ -132,19 +133,20 @@ function emptyMaAlignMarketResult(market, scanDate) {
  * @param {string} scanDate
  * @param {string} runId
  * @param {"manual"|"scheduled"|"intraday"} trigger
- * @param {{ notifyGoldenCrossTelegram?: boolean; persistScanState?: boolean; appendHistory?: boolean }} [opts]
+ * @param {{ notifyGoldenCrossTelegram?: boolean; persistScanState?: boolean; appendHistory?: boolean; timeframe?: import("./vault-scan-timeframe.js").VaultScanTimeframe }} [opts]
  */
-export async function runVaultMarketScans(
+async function runVaultMarketScansForTimeframe(
   market,
   scanDate,
   runId,
   trigger,
+  timeframe,
   opts = {},
 ) {
   const notifyGoldenCrossTelegram = opts.notifyGoldenCrossTelegram !== false;
   const persistScanState = opts.persistScanState !== false;
   const appendHistory = opts.appendHistory !== false;
-  const scanOpts = { persistState: persistScanState };
+  const scanOpts = { persistState: persistScanState, timeframe };
 
   const [gcSettled, maSettled] = await Promise.allSettled([
     runGoldenCrossMarketScan(market, scanDate, scanOpts),
@@ -155,7 +157,7 @@ export async function runVaultMarketScans(
   let goldenCross = emptyGoldenCrossMarketResult(market, scanDate);
   if (gcSettled.status === "fulfilled") {
     goldenCross = gcSettled.value;
-    clearGoldenCrossVaultItemsSync({ market });
+    clearGoldenCrossVaultItemsSync({ market, timeframe });
     if (goldenCross.hits.length) {
       mergeGoldenCrossHitsIntoVaultSync(goldenCross.hits);
     }
@@ -165,17 +167,19 @@ export async function runVaultMarketScans(
         trigger: trigger === "intraday" ? "scheduled" : trigger,
         market,
         scanDate,
+        timeframe,
         scanned: goldenCross.scanned,
         hits: goldenCross.hits,
       });
     }
-    if (notifyGoldenCrossTelegram) {
+    if (notifyGoldenCrossTelegram && timeframe === "1d") {
       try {
         await notifyGoldenCrossScanTelegram(market, scanDate, goldenCross.hits);
       } catch (e) {
         liveTradeLogWarn(
           "[stock-vault:scan:golden-cross:telegram]",
           market,
+          timeframe,
           e instanceof Error ? e.message : e,
         );
       }
@@ -184,6 +188,7 @@ export async function runVaultMarketScans(
     liveTradeLogWarn(
       "[stock-vault:scan:golden-cross]",
       market,
+      timeframe,
       gcSettled.reason instanceof Error
         ? gcSettled.reason.message
         : gcSettled.reason,
@@ -194,7 +199,7 @@ export async function runVaultMarketScans(
   let maAlign = emptyMaAlignMarketResult(market, scanDate);
   if (maSettled.status === "fulfilled") {
     maAlign = maSettled.value;
-    clearMaAlignVaultItemsSync({ market });
+    clearMaAlignVaultItemsSync({ market, timeframe });
     if (maAlign.hits.length) {
       mergeMaAlignHitsIntoVaultSync(maAlign.hits);
     }
@@ -204,6 +209,7 @@ export async function runVaultMarketScans(
         trigger: trigger === "intraday" ? "scheduled" : trigger,
         market,
         scanDate,
+        timeframe,
         scanned: maAlign.scanned,
         hits: maAlign.hits,
       });
@@ -212,21 +218,53 @@ export async function runVaultMarketScans(
     liveTradeLogWarn(
       "[stock-vault:scan:ma-align]",
       market,
+      timeframe,
       maSettled.reason instanceof Error
         ? maSettled.reason.message
         : maSettled.reason,
     );
   }
 
-  liveTradeLogInfo("[stock-vault:scan] market done", {
+  liveTradeLogInfo("[stock-vault:scan] timeframe done", {
     market,
     scanDate,
     trigger,
+    timeframe,
     goldenCrossHits: goldenCross.hitCount,
     maAlignHits: maAlign.hitCount,
     goldenCrossOk: gcSettled.status === "fulfilled",
     maAlignOk: maSettled.status === "fulfilled",
   });
+
+  return { goldenCross, maAlign, timeframe };
+}
+
+/**
+ * @param {"kr"|"us"} market
+ * @param {string} scanDate
+ * @param {string} runId
+ * @param {"manual"|"scheduled"|"intraday"} trigger
+ * @param {{ notifyGoldenCrossTelegram?: boolean; persistScanState?: boolean; appendHistory?: boolean }} [opts]
+ */
+export async function runVaultMarketScans(
+  market,
+  scanDate,
+  runId,
+  trigger,
+  opts = {},
+) {
+  /** @type {Record<import("./vault-scan-timeframe.js").VaultScanTimeframe, { goldenCross: Awaited<ReturnType<typeof runGoldenCrossMarketScan>>; maAlign: Awaited<ReturnType<typeof runMaAlignMarketScan>> }>} */
+  const byTimeframe = {};
+  for (const timeframe of VAULT_SCAN_TIMEFRAMES) {
+    byTimeframe[timeframe] = await runVaultMarketScansForTimeframe(
+      market,
+      scanDate,
+      runId,
+      trigger,
+      timeframe,
+      opts,
+    );
+  }
 
   try {
     const { scheduleStockVaultIndustryFinancialsRefresh } = await import(
@@ -237,7 +275,12 @@ export async function runVaultMarketScans(
     /* ignore industry financials refresh scheduling */
   }
 
-  return { goldenCross, maAlign };
+  const daily = byTimeframe["1d"];
+  return {
+    goldenCross: daily.goldenCross,
+    maAlign: daily.maAlign,
+    byTimeframe,
+  };
 }
 
 /**
@@ -388,19 +431,23 @@ export function triggerGoldenCrossManualScan() {
   return { started: true };
 }
 
-/** @param {"kr"|"us"} market @param {Date} [now] */
+/** @param {Date} [now] */
 export function shouldRunGoldenCrossScan(market, now = new Date()) {
   if (!goldenCrossScanEnabled()) return false;
   const local =
     market === "kr" ? getKstParts(now) : localMinutesOfDay("us", now);
   const dateKey = local.dateKey;
-  if (
-    wasGoldenCrossScannedSync(market, dateKey) &&
-    wasMaAlignScannedSync(market, dateKey)
-  ) {
-    return false;
+  for (const timeframe of VAULT_SCAN_TIMEFRAMES) {
+    if (
+      !wasGoldenCrossScannedSync(market, dateKey, timeframe) ||
+      !wasMaAlignScannedSync(market, dateKey, timeframe)
+    ) {
+      return market === "kr"
+        ? isKrMarketFullyClosed(now)
+        : isUsMarketFullyClosed(now);
+    }
   }
-  return market === "kr" ? isKrMarketFullyClosed(now) : isUsMarketFullyClosed(now);
+  return false;
 }
 
 /** @param {"kr"|"us"} market @param {Date} [now] */

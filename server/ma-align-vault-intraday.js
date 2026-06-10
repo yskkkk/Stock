@@ -32,12 +32,12 @@ async function rescanVaultMaAlignItem(item, scanDate) {
     const data = await loadStock(sym, "1d", { live: true });
     const tradable = await isGoldenCrossTradable(data, item.market);
     if (!tradable.ok) {
-      removeStockVaultItemBySourceSync(sym, "ma_align");
+      removeStockVaultItemBySourceSync(sym, "ma_align", "1d");
       return { symbol: sym, status: "removed", reason: tradable.reason };
     }
     const candles = Array.isArray(data?.candles) ? data.candles : [];
     if (!detectDailyMaAlignment(candles)) {
-      removeStockVaultItemBySourceSync(sym, "ma_align");
+      removeStockVaultItemBySourceSync(sym, "ma_align", "1d");
       return { symbol: sym, status: "removed", reason: "not_aligned" };
     }
     upsertStockVaultItemSync({
@@ -48,6 +48,7 @@ async function rescanVaultMaAlignItem(item, scanDate) {
       ),
       market: item.market,
       source: "ma_align",
+      timeframe: "1d",
       scanDate,
     });
     return { symbol: sym, status: "kept" };
@@ -68,7 +69,10 @@ async function rescanVaultMaAlignItem(item, scanDate) {
  */
 export async function runMaAlignVaultIntradayRefresh(market, scanDate) {
   const items = listStockVaultItemsSync().filter(
-    (it) => it.source === "ma_align" && it.market === market,
+    (it) =>
+      it.source === "ma_align" &&
+      it.market === market &&
+      (it.timeframe == null || it.timeframe === "1d"),
   );
 
   liveTradeLogInfo("[ma-align:intraday] start", {

@@ -2,6 +2,10 @@ import { randomUUID } from "node:crypto";
 import { resolveDisplayName } from "./names-ko.js";
 import { listAllFavoritedSymbolsSync } from "./user-stock-vault-store.js";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
+import {
+  normalizeVaultScanTimeframe,
+  VAULT_SCAN_TIMEFRAME_DEFAULT,
+} from "./vault-scan-timeframe.js";
 
 function vaultStoreFile() {
   return process.env.STOCK_VAULT_STORE_TEST_FILE?.trim() || "stock-vault.json";
@@ -16,6 +20,7 @@ function vaultStoreFile() {
  *   name: string;
  *   market: "kr"|"us";
  *   source: StockVaultSource;
+ *   timeframe?: "1d"|"1wk";
  *   crosses?: ("5>20"|"5>60"|"5>120")[];
  *   crossDate?: string | null;
  *   scanDate?: string | null;
@@ -37,7 +42,8 @@ function normalizeSource(source) {
 
 /** @param {StockVaultItem} item */
 function itemKey(item) {
-  return `${item.symbol}:${item.source}`;
+  const tf = normalizeVaultScanTimeframe(item.timeframe);
+  return `${item.symbol}:${item.source}:${tf}`;
 }
 
 /** @param {unknown} row */
@@ -60,7 +66,7 @@ function normalizeStore(raw) {
     const symbol = String(row?.symbol ?? "")
       .trim()
       .toUpperCase();
-    if (!symbol || seen.has(`${symbol}:${normalizeSource(row?.source)}`)) continue;
+    if (!symbol || seen.has(`${symbol}:${normalizeSource(row?.source)}:${normalizeVaultScanTimeframe(row?.timeframe)}`)) continue;
     if (isTestGarbageItem(row)) continue;
     const source = normalizeSource(row?.source);
     if (!source) continue;
@@ -68,12 +74,14 @@ function normalizeStore(raw) {
     const crosses = Array.isArray(row?.crosses)
       ? row.crosses.filter((c) => c === "5>20" || c === "5>60" || c === "5>120")
       : [];
+    const timeframe = normalizeVaultScanTimeframe(row?.timeframe);
     const item = {
       id: String(row?.id ?? randomUUID()),
       symbol,
       name: resolveDisplayName(symbol, String(row?.name ?? symbol).trim() || symbol),
       market,
       source,
+      timeframe,
       crosses: source === "golden_cross" ? crosses : undefined,
       crossDate:
         source === "golden_cross" &&
@@ -139,7 +147,7 @@ export function listStockVaultItemsSync() {
 }
 
 /**
- * @param {{ symbol: string; name?: string; market: "kr"|"us"; source?: StockVaultSource; crosses?: string[]; crossDate?: string | null; scanDate?: string | null }} input
+ * @param {{ symbol: string; name?: string; market: "kr"|"us"; source?: StockVaultSource; timeframe?: import("./vault-scan-timeframe.js").VaultScanTimeframe; crosses?: string[]; crossDate?: string | null; scanDate?: string | null }} input
  */
 export function upsertStockVaultItemSync(input) {
   const symbol = String(input.symbol ?? "")
@@ -162,8 +170,12 @@ export function upsertStockVaultItemSync(input) {
   const crosses = Array.isArray(input.crosses)
     ? input.crosses.filter((c) => c === "5>20" || c === "5>60" || c === "5>120")
     : [];
+  const timeframe = normalizeVaultScanTimeframe(input.timeframe);
   const idx = store.items.findIndex(
-    (it) => it.symbol === symbol && it.source === source,
+    (it) =>
+      it.symbol === symbol &&
+      it.source === source &&
+      normalizeVaultScanTimeframe(it.timeframe) === timeframe,
   );
 
   if (idx >= 0) {
@@ -177,6 +189,7 @@ export function upsertStockVaultItemSync(input) {
       name: resolveDisplayName(symbol, String(input.name ?? prev.name).trim() || prev.name),
       market,
       source,
+      timeframe,
       crosses: mergedCrosses?.length ? mergedCrosses : undefined,
       crossDate:
         source === "golden_cross"
@@ -199,6 +212,7 @@ export function upsertStockVaultItemSync(input) {
       name: resolveDisplayName(symbol, String(input.name ?? symbol).trim() || symbol),
       market,
       source,
+      timeframe,
       crosses: crosses.length ? crosses : undefined,
       crossDate:
         source === "golden_cross"
@@ -210,7 +224,12 @@ export function upsertStockVaultItemSync(input) {
     });
   }
   writeStore(store);
-  return store.items.find((it) => it.symbol === symbol && it.source === source) ?? null;
+  return store.items.find(
+    (it) =>
+      it.symbol === symbol &&
+      it.source === source &&
+      normalizeVaultScanTimeframe(it.timeframe) === timeframe,
+  ) ?? null;
 }
 
 /** @param {string} symbol */
@@ -231,17 +250,22 @@ export function removeStockVaultItemSync(symbol) {
 /**
  * @param {string} symbol
  * @param {StockVaultSource} source
+ * @param {import("./vault-scan-timeframe.js").VaultScanTimeframe} [timeframe]
  */
-export function removeStockVaultItemBySourceSync(symbol, source) {
+export function removeStockVaultItemBySourceSync(symbol, source, timeframe) {
   const sym = String(symbol ?? "")
     .trim()
     .toUpperCase();
   const src = normalizeSource(source);
   if (!sym) return false;
+  const tf =
+    timeframe == null ? null : normalizeVaultScanTimeframe(timeframe);
   const store = readStore();
-  const next = store.items.filter(
-    (it) => !(it.symbol === sym && it.source === src),
-  );
+  const next = store.items.filter((it) => {
+    if (it.symbol !== sym || it.source !== src) return true;
+    if (tf == null) return false;
+    return normalizeVaultScanTimeframe(it.timeframe) !== tf;
+  });
   if (next.length === store.items.length) return false;
   writeStore({ version: 1, items: next, dismissed: store.dismissed ?? [] });
   return true;
@@ -249,11 +273,13 @@ export function removeStockVaultItemBySourceSync(symbol, source) {
 
 /**
  * 골든크로스 자동 탐색 종목만 제거(즐겨찾기·dismissed 유지).
- * @param {{ market?: "kr"|"us"; preserveFavorites?: boolean }} [opts]
+ * @param {{ market?: "kr"|"us"; preserveFavorites?: boolean; timeframe?: import("./vault-scan-timeframe.js").VaultScanTimeframe }} [opts]
  * @returns {number} 제거된 종목 수
  */
 export function clearGoldenCrossVaultItemsSync(opts = {}) {
   const marketFilter = opts.market === "kr" || opts.market === "us" ? opts.market : null;
+  const timeframeFilter =
+    opts.timeframe == null ? null : normalizeVaultScanTimeframe(opts.timeframe);
   const preserveFavorites = opts.preserveFavorites !== false;
   const favorited = preserveFavorites ? listAllFavoritedSymbolsSync() : new Set();
   const store = readStore();
@@ -261,6 +287,12 @@ export function clearGoldenCrossVaultItemsSync(opts = {}) {
   store.items = store.items.filter((it) => {
     if (it.source !== "golden_cross") return true;
     if (marketFilter && it.market !== marketFilter) return true;
+    if (
+      timeframeFilter &&
+      normalizeVaultScanTimeframe(it.timeframe) !== timeframeFilter
+    ) {
+      return true;
+    }
     if (favorited.has(it.symbol)) return true;
     return false;
   });
@@ -272,6 +304,8 @@ export function clearGoldenCrossVaultItemsSync(opts = {}) {
 
 export function clearMaAlignVaultItemsSync(opts = {}) {
   const marketFilter = opts.market === "kr" || opts.market === "us" ? opts.market : null;
+  const timeframeFilter =
+    opts.timeframe == null ? null : normalizeVaultScanTimeframe(opts.timeframe);
   const preserveFavorites = opts.preserveFavorites !== false;
   const favorited = preserveFavorites ? listAllFavoritedSymbolsSync() : new Set();
   const store = readStore();
@@ -279,6 +313,12 @@ export function clearMaAlignVaultItemsSync(opts = {}) {
   store.items = store.items.filter((it) => {
     if (it.source !== "ma_align") return true;
     if (marketFilter && it.market !== marketFilter) return true;
+    if (
+      timeframeFilter &&
+      normalizeVaultScanTimeframe(it.timeframe) !== timeframeFilter
+    ) {
+      return true;
+    }
     if (favorited.has(it.symbol)) return true;
     return false;
   });
@@ -303,6 +343,7 @@ export function mergeMaAlignHitsIntoVaultSync(hits) {
       name: hit.name,
       market: hit.market,
       source: "ma_align",
+      timeframe: hit.timeframe ?? VAULT_SCAN_TIMEFRAME_DEFAULT,
       scanDate: hit.scanDate,
     });
   }
@@ -323,6 +364,7 @@ export function mergeGoldenCrossHitsIntoVaultSync(hits) {
       name: hit.name,
       market: hit.market,
       source: "golden_cross",
+      timeframe: hit.timeframe ?? VAULT_SCAN_TIMEFRAME_DEFAULT,
       crosses: hit.crosses,
       crossDate: hit.crossDate ?? hit.scanDate,
       scanDate: hit.scanDate,

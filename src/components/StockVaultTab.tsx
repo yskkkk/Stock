@@ -25,6 +25,10 @@ import {
   mergeScanHistoryDates,
 } from "../lib/stockVaultHistory";
 import {
+  STOCK_VAULT_TIMEFRAMES,
+  stockVaultTimeframeLabel,
+} from "../lib/stockVaultTimeframe";
+import {
   loadStockVault,
   peekStockVaultPrefetch,
   refreshStockVaultTab,
@@ -43,6 +47,7 @@ import type {
   StockVaultResponse,
   StockVaultScanSource,
   StockVaultScanStatus,
+  StockVaultTimeframe,
 } from "../types";
 import { VaultBookmarkIcon, VaultSectorLeaderIcon } from "./StockVaultMarkButton";
 import { useStockVaultRowBubble } from "./StockVaultRowBubble";
@@ -75,29 +80,47 @@ function fmtDate(ms: number): string {
 }
 
 function scanHintFromState(
-  goldenCross: { krLastScanDate: string | null; usLastScanDate: string | null },
-  maAlign: { krLastScanDate: string | null; usLastScanDate: string | null },
+  label: string,
+  state: {
+    krLastScanDate: string | null;
+    usLastScanDate: string | null;
+    krWeeklyLastScanDate?: string | null;
+    usWeeklyLastScanDate?: string | null;
+  },
 ) {
   const fmt = (
-    label: string,
-    state: { krLastScanDate: string | null; usLastScanDate: string | null },
+    tfLabel: string,
+    kr: string | null | undefined,
+    us: string | null | undefined,
   ) => {
-    const kr = state.krLastScanDate;
-    const us = state.usLastScanDate;
     if (!kr && !us) return null;
     const dates = [kr ? `국내 ${kr}` : null, us ? `미국 ${us}` : null]
       .filter(Boolean)
       .join(" · ");
-    return `${label} ${dates}`;
+    return `${tfLabel} ${dates}`;
   };
   const parts = [
-    fmt(ko.stockVault.lastScanGolden, goldenCross),
-    fmt(ko.stockVault.lastScanMaAlign, maAlign),
+    fmt(`${label} 일봉`, state.krLastScanDate, state.usLastScanDate),
+    fmt(
+      `${label} 주봉`,
+      state.krWeeklyLastScanDate,
+      state.usWeeklyLastScanDate,
+    ),
   ].filter(Boolean);
   return parts.length ? parts.join(" | ") : null;
 }
 
-type VaultFilter = "all" | "favorite";
+function scanHintFromStatus(status: StockVaultScanStatus | null | undefined) {
+  if (!status) return null;
+  const gcState = status.goldenCross?.state ?? status.state;
+  const maState = status.maAlign?.state ?? status.state;
+  if (!gcState || !maState) return null;
+  const parts = [
+    scanHintFromState(ko.stockVault.lastScanGolden, gcState),
+    scanHintFromState(ko.stockVault.lastScanMaAlign, maState),
+  ].filter(Boolean);
+  return parts.length ? parts.join(" · ") : null;
+}
 
 function favoriteVaultSymbols(vault: Pick<StockVaultResponse, "favoriteSymbols" | "items">) {
   if (vault.favoriteSymbols?.length) {
@@ -112,14 +135,7 @@ function rowIndustry(meta: StockVaultResponse["meta"], row: VaultDisplayRow) {
   const symKey = row.symbol.trim().toUpperCase();
   return meta?.[symKey]?.industry?.trim() || "기타";
 }
-
-function scanHintFromStatus(status: StockVaultScanStatus | null | undefined) {
-  if (!status) return null;
-  const gcState = status.goldenCross?.state ?? status.state;
-  const maState = status.maAlign?.state ?? status.state;
-  if (gcState && maState) return scanHintFromState(gcState, maState);
-  return null;
-}
+type VaultFilter = "all" | "favorite";
 
 function rowFavoriteTrack(row: VaultDisplayRow) {
   const src = row.favorite ?? row.goldenCross ?? row.maAlign;
@@ -188,6 +204,8 @@ export default function StockVaultTab({
   const [selectedScanSources, setSelectedScanSources] = useState<
     StockVaultScanSource[]
   >(["golden_cross"]);
+  const [timeframeFilter, setTimeframeFilter] =
+    useState<StockVaultTimeframe>("1d");
   const [marketFilter, setMarketFilter] = useState<"all" | "kr" | "us">("all");
   const [industryFilter, setIndustryFilter] = useState<string>("all");
   const [authenticated, setAuthenticated] = useState(
@@ -324,7 +342,11 @@ export default function StockVaultTab({
             selectedScanDate,
             gc.entries ?? [],
             ma.entries ?? [],
-            { favoriteSymbols: favoriteSymbolSet, favoriteMeta },
+            {
+              favoriteSymbols: favoriteSymbolSet,
+              favoriteMeta,
+              timeframe: timeframeFilter,
+            },
           ),
         );
       } catch (e) {
@@ -338,7 +360,7 @@ export default function StockVaultTab({
     return () => {
       cancelled = true;
     };
-  }, [selectedScanDate, favoriteSymbolSet, favoriteMeta]);
+  }, [selectedScanDate, favoriteSymbolSet, favoriteMeta, timeframeFilter]);
 
   const displayItems = useMemo(
     () =>
@@ -421,10 +443,10 @@ export default function StockVaultTab({
       Object.fromEntries(
         STOCK_VAULT_SCAN_SOURCES.map((source) => [
           source,
-          countItemsByScanSource(displayItems, source),
+          countItemsByScanSource(displayItems, source, timeframeFilter),
         ]),
       ) as Record<StockVaultScanSource, number>,
-    [displayItems],
+    [displayItems, timeframeFilter],
   );
 
   const preMarketRows = useMemo(
@@ -433,8 +455,9 @@ export default function StockVaultTab({
         selectedScanSources,
         marketFilter: "all",
         favoriteOnly: filter === "favorite",
+        timeframeFilter,
       }),
-    [displayItems, selectedScanSources, filter],
+    [displayItems, selectedScanSources, filter, timeframeFilter],
   );
 
   const baseFiltered = useMemo(
@@ -443,8 +466,9 @@ export default function StockVaultTab({
         selectedScanSources,
         marketFilter,
         favoriteOnly: filter === "favorite",
+        timeframeFilter,
       }),
-    [displayItems, selectedScanSources, marketFilter, filter],
+    [displayItems, selectedScanSources, marketFilter, filter, timeframeFilter],
   );
 
   const favoriteCount = useMemo(
@@ -745,6 +769,32 @@ export default function StockVaultTab({
         </header>
 
         <div className="stock-vault-tab__filters-wrap">
+          <div
+            className="stock-vault-tab__filters stock-vault-tab__filters--timeframe"
+            role="tablist"
+            aria-label={ko.stockVault.timeframeFilterAria}
+          >
+            <div className="market-tabs">
+              {STOCK_VAULT_TIMEFRAMES.map((tf) => (
+                <button
+                  key={tf}
+                  type="button"
+                  role="tab"
+                  aria-selected={timeframeFilter === tf}
+                  className={
+                    timeframeFilter === tf ? "market-tab active" : "market-tab"
+                  }
+                  onClick={() => {
+                    setIndustryFilter("all");
+                    setTimeframeFilter(tf);
+                  }}
+                >
+                  {stockVaultTimeframeLabel(tf)}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div
             className="stock-vault-tab__filters stock-vault-tab__filters--kind"
             role="group"

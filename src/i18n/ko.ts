@@ -940,7 +940,7 @@ export const ko = {
   },
   stockVault: {
     title: "종목보관",
-    desc: "일봉 골든크로스·정배열(MA5>20>60>120) 자동 탐지 종목과 즐겨찾기를 관리합니다.",
+    desc: "일봉·주봉 골든크로스·정배열(MA5>20>60>120) 자동 탐지 종목과 즐겨찾기를 관리합니다.",
     loading: "불러오는 중…",
     empty: "보관된 종목이 없습니다.",
     kindTabAria: "탐색 유형",
@@ -950,7 +950,9 @@ export const ko = {
     emptyIntersection: "선택한 조건을 모두 만족하는 종목이 없습니다.",
     tabGolden: "골든크로스",
     tabMaAlign: "정배열",
-    maAlignBadge: "5>20>60>120",
+    timeframeFilterAria: "봉 구간 필터",
+    timeframeDaily: "일봉",
+    timeframeWeekly: "주봉",
     maAlignBadgeHint:
       "일봉 MA5>20>60>120 완전정배열 탐지 결과(모든 정배열 종목이 동일 조건을 충족)",
     filterAria: "보관 필터",
@@ -992,7 +994,7 @@ export const ko = {
     scanRun: "일봉 탐색",
     scanConfirmLead: "일봉 골든크로스·정배열 탐색을 실행할까요?",
     scanConfirmBody:
-      "국내 시총 상위·미국 S&P500 종목의 일봉에서 골든크로스(MA5→20·60·120)와 정배열(MA5>20>60>120)을 각각 찾아 보관함에 추가합니다. 수분 걸릴 수 있습니다.",
+      "국내 시총 상위·미국 S&P500 종목의 일봉·주봉에서 골든크로스(MA5→20·60·120)와 정배열(MA5>20>60>120)을 각각 찾아 보관함에 추가합니다. 수분 걸릴 수 있습니다.",
     scanConfirmOk: "탐색 시작",
     scanConfirmCancel: "취소",
     scanRunning: "탐색 중…",

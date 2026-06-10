@@ -7,6 +7,7 @@ import {
   removeUserVaultSymbolSync,
   setUserVaultFavoriteSync,
 } from "./user-stock-vault-store.js";
+import { normalizeVaultScanTimeframe } from "./vault-scan-timeframe.js";
 
 /**
  * @param {import("./user-stock-vault-store.js").UserFavoriteMeta | undefined} meta
@@ -65,7 +66,10 @@ export function buildStockVaultItemsForUserSync(userId) {
   for (const it of globalAuto) {
     if (dismissed.has(it.symbol)) continue;
     autoSymbols.add(it.symbol);
-    byKey.set(`${it.symbol}:${it.source}`, withFavoriteFields(it, favorites, favoriteMeta));
+    byKey.set(
+      `${it.symbol}:${it.source}:${normalizeVaultScanTimeframe(it.timeframe)}`,
+      withFavoriteFields(it, favorites, favoriteMeta),
+    );
   }
 
   for (const sym of favorites) {

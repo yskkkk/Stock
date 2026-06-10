@@ -363,6 +363,7 @@ export interface FinancialStatementAnalysisResponse extends FinancialStatementDe
 export type StockVaultSource = "golden_cross" | "ma_align" | "favorite";
 /** 자동 탐색 조건 — stockVaultFilter.STOCK_VAULT_SCAN_SOURCES 와 동기 */
 export type StockVaultScanSource = "golden_cross" | "ma_align";
+export type StockVaultTimeframe = "1d" | "1wk";
 export type GoldenCrossKind = "5>20" | "5>60" | "5>120";
 export type StockVaultKindTab = "golden_cross" | "ma_align";
 
@@ -388,6 +389,8 @@ export interface StockVaultItem {
   name: string;
   market: "kr" | "us";
   source: StockVaultSource;
+  /** 자동탐색 봉 구간 — legacy 항목은 1d */
+  timeframe?: StockVaultTimeframe;
   crosses?: GoldenCrossKind[];
   /** 골든크로스가 발생한 일봉 날짜 (YYYY-MM-DD) */
   crossDate?: string | null;
@@ -452,9 +455,12 @@ export interface StockVaultResponse {
 export interface GoldenCrossScanState {
   krLastScanDate: string | null;
   usLastScanDate: string | null;
+  krWeeklyLastScanDate?: string | null;
+  usWeeklyLastScanDate?: string | null;
   lastRuns: Array<{
     market: "kr" | "us";
     scanDate: string;
+    timeframe?: StockVaultTimeframe;
     scanned: number;
     hits: number;
     atMs: number;
@@ -484,6 +490,7 @@ export interface GoldenCrossHistoryEntry {
   trigger: "manual" | "scheduled";
   market: "kr" | "us";
   scanDate: string;
+  timeframe?: StockVaultTimeframe;
   scanned: number;
   hitCount: number;
   hits: GoldenCrossHistoryHit[];
@@ -496,6 +503,7 @@ export interface MaAlignHistoryEntry {
   trigger: "manual" | "scheduled";
   market: "kr" | "us";
   scanDate: string;
+  timeframe?: StockVaultTimeframe;
   scanned: number;
   hitCount: number;
   hits: MaAlignHistoryHit[];

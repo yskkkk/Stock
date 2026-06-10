@@ -4,15 +4,14 @@ import {
   isKrQuoteSymbol,
   krNaverQuotesEnabled,
 } from "./kr-naver-quote.js";
+import {
+  maxBarAgeDaysForVaultScan,
+  normalizeVaultScanTimeframe,
+} from "./vault-scan-timeframe.js";
 
 /** detectDailyGoldenCrosses와 동일 — MA120 + 교차 판정용 */
 export const GOLDEN_CROSS_MIN_CANDLES =
   Math.max(...GOLDEN_CROSS_MA_SLOW_PERIODS) + 1;
-
-const MAX_LAST_BAR_AGE_DAYS = (() => {
-  const n = Number(process.env.STOCK_GOLDEN_CROSS_MAX_BAR_AGE_DAYS ?? 21);
-  return Number.isFinite(n) && n >= 5 ? Math.min(n, 90) : 21;
-})();
 
 /**
  * @param {{ year: number; month: number; day: number } | number | undefined} time
@@ -41,14 +40,16 @@ function positivePrice(v) {
 }
 
 /**
- * @param {unknown} data loadStock 1d 결과
+ * @param {unknown} data loadStock 결과
  * @param {"kr"|"us"} market
- * @param {{ nowMs?: number; naverPrice?: number | null; maxBarAgeDays?: number }} [opts]
+ * @param {{ nowMs?: number; maxBarAgeDays?: number; naverPrice?: number | null; timeframe?: import("./vault-scan-timeframe.js").VaultScanTimeframe }} [opts]
  * @returns {{ ok: true } | { ok: false; reason: string }}
  */
 export function assessGoldenCrossTradable(data, market, opts = {}) {
+  const timeframe = normalizeVaultScanTimeframe(opts.timeframe);
   const nowMs = opts.nowMs ?? Date.now();
-  const maxBarAgeDays = opts.maxBarAgeDays ?? MAX_LAST_BAR_AGE_DAYS;
+  const maxBarAgeDays =
+    opts.maxBarAgeDays ?? maxBarAgeDaysForVaultScan(timeframe);
   const candles = Array.isArray(data?.candles) ? data.candles : [];
 
   if (candles.length < GOLDEN_CROSS_MIN_CANDLES) {
@@ -86,7 +87,7 @@ export function assessGoldenCrossTradable(data, market, opts = {}) {
 /**
  * @param {unknown} data
  * @param {"kr"|"us"} market
- * @param {{ nowMs?: number; maxBarAgeDays?: number }} [opts]
+ * @param {{ nowMs?: number; maxBarAgeDays?: number; timeframe?: import("./vault-scan-timeframe.js").VaultScanTimeframe }} [opts]
  */
 export async function isGoldenCrossTradable(data, market, opts = {}) {
   /** @type {{ nowMs?: number; maxBarAgeDays?: number; naverPrice?: number | null }} */
