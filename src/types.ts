@@ -428,15 +428,33 @@ export interface StockVaultIndustryFinancials {
   updatedAtMs?: number;
 }
 
-export type StockVaultWeeklyMaProximityHit = {
+export type StockVaultTrend = "up" | "down" | "neutral";
+
+export type StockVaultMaProximityHit = {
   period: number;
   ma: number;
   diffPct: number;
   side: "above" | "below";
+  approach: "from_below" | "from_above" | "flat";
 };
 
+export type StockVaultTimeframeChartInsight = {
+  trend: StockVaultTrend;
+  near: StockVaultMaProximityHit[];
+};
+
+export type StockVaultChartInsightSnapshot = {
+  daily: StockVaultTimeframeChartInsight;
+  weekly: StockVaultTimeframeChartInsight;
+  updatedAtMs?: number;
+};
+
+/** @deprecated */
+export type StockVaultWeeklyMaProximityHit = StockVaultMaProximityHit;
+
+/** @deprecated */
 export type StockVaultWeeklyMaProximitySnapshot = {
-  near: StockVaultWeeklyMaProximityHit[];
+  near: StockVaultMaProximityHit[];
   updatedAtMs?: number;
 };
 
@@ -461,6 +479,8 @@ export interface StockVaultResponse {
     }
   >;
   industryFinancials?: Record<string, StockVaultIndustryFinancials>;
+  chartInsights?: Record<string, StockVaultChartInsightSnapshot>;
+  /** @deprecated chartInsights 사용 */
   weeklyMaProximity?: Record<string, StockVaultWeeklyMaProximitySnapshot>;
   industryTabs?: string[];
   industryGridRows?: number;

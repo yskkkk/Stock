@@ -2033,6 +2033,20 @@ export function fetchStockVault(signal?: AbortSignal) {
   );
 }
 
+export function fetchStockVaultChartInsights(opts?: {
+  refresh?: boolean;
+  signal?: AbortSignal;
+}) {
+  const q = opts?.refresh ? "?refresh=1" : "";
+  return fetchJson<{
+    chartInsights: import("./types").StockVaultResponse["chartInsights"];
+    updatedAtMs: number;
+  }>(
+    `/api/stock-vault/chart-insights${q}`,
+    opts?.signal ? { signal: opts.signal } : undefined,
+  );
+}
+
 export function addStockVaultItem(body: {
   symbol: string;
   market: "kr" | "us";

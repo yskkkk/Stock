@@ -472,6 +472,47 @@ html[data-theme="light"] .stock-vault-tab__ma-near--120 {
   background: color-mix(in srgb, #f97316 14%, #fff);
 }
 
+.stock-vault-tab__ma-near--daily {
+  border-style: dashed;
+}
+
+.stock-vault-tab__ma-near--weekly {
+  border-style: solid;
+}
+
+.stock-vault-tab__trend {
+  padding: 0.04rem 0.28rem;
+  border-radius: 999px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.stock-vault-tab__trend--up {
+  color: #4ade80;
+  background: color-mix(in srgb, #16a34a 18%, transparent);
+}
+
+.stock-vault-tab__trend--down {
+  color: #f87171;
+  background: color-mix(in srgb, #dc2626 18%, transparent);
+}
+
+.stock-vault-tab__trend--neutral {
+  color: var(--muted);
+  background: color-mix(in srgb, var(--muted) 14%, transparent);
+}
+
+html[data-theme="light"] .stock-vault-tab__trend--up {
+  color: #15803d;
+  background: color-mix(in srgb, #16a34a 10%, #fff);
+}
+
+html[data-theme="light"] .stock-vault-tab__trend--down {
+  color: #b91c1c;
+  background: color-mix(in srgb, #dc2626 10%, #fff);
+}
+
 .stock-vault-tab__chg {
   font-size: 0.62rem;
   font-weight: 600;

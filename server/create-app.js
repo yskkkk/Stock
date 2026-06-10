@@ -2319,25 +2319,63 @@ export function createApp() {
         symbols.length > 0 ? fetchQuoteSnapshotsForSymbols(symbols) : Promise.resolve({}),
         fetchStockVaultMetaForItems(items),
       ]);
-      const { fetchWeeklyMaProximityMap } = await import(
-        "./stock-vault-weekly-ma-proximity.js"
-      );
-      const weeklyMaProximity =
-        symbols.length > 0
-          ? await fetchWeeklyMaProximityMap(symbols, quotes)
-          : {};
+      const {
+        readStockVaultChartInsightsSync,
+        scheduleStockVaultChartInsightsRefresh,
+      } = await import("./stock-vault-chart-insights.js");
+      const chartInsights = readStockVaultChartInsightsSync();
+      if (symbols.length > 0) {
+        scheduleStockVaultChartInsightsRefresh(symbols, quotes);
+      }
       const industryTabs = listStockVaultIndustryTabs();
       res.json({
         items,
         quotes,
         meta,
-        weeklyMaProximity,
+        chartInsights,
         industryFinancials: readStockVaultIndustryFinancialsSync(),
         industryTabs,
         industryGridRows: stockVaultIndustryGridRows(industryTabs.length),
         authenticated,
         favoriteSymbols,
         favoriteMeta,
+      });
+    }),
+  );
+
+  app.get(
+    "/api/stock-vault/chart-insights",
+    asyncRoute(async (req, res) => {
+      const { buildStockVaultItemsForUserSync } = await import(
+        "./stock-vault-view.js"
+      );
+      const {
+        readStockVaultChartInsightsSync,
+        fetchStockVaultChartInsightsMap,
+      } = await import("./stock-vault-chart-insights.js");
+      const { fetchQuoteSnapshotsForSymbols } = await import(
+        "./picks-live-quotes.js"
+      );
+      const user = resolveUserFromRequest(req);
+      const { items } = buildStockVaultItemsForUserSync(user?.id);
+      const symbols = items.map((it) => it.symbol);
+      const force = String(req.query?.refresh ?? "") === "1";
+      let quotes = {};
+      if (symbols.length > 0) {
+        quotes = await fetchQuoteSnapshotsForSymbols(symbols);
+      }
+      const chartInsights = force
+        ? await fetchStockVaultChartInsightsMap(symbols, quotes)
+        : readStockVaultChartInsightsSync();
+      if (!force && symbols.length > 0) {
+        const { scheduleStockVaultChartInsightsRefresh } = await import(
+          "./stock-vault-chart-insights.js"
+        );
+        scheduleStockVaultChartInsightsRefresh(symbols, quotes);
+      }
+      res.json({
+        chartInsights,
+        updatedAtMs: Date.now(),
       });
     }),
   );

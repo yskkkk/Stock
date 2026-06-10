@@ -4,6 +4,7 @@ import {
   fetchGoldenCrossHistory,
   fetchGoldenCrossStatus,
   fetchMaAlignHistory,
+  fetchStockVaultChartInsights,
   removeStockVaultItem,
   setStockVaultFavorite,
   triggerGoldenCrossScan,
@@ -49,16 +50,20 @@ import {
   formatMaAlignChain,
 } from "../lib/stockVaultMaDisplay";
 import {
-  formatWeeklyMaProximityLabel,
-  weeklyMaProximityBadgeClass,
-  weeklyMaProximityPriceClass,
-} from "../lib/stockVaultWeeklyMaProximity";
+  formatMaApproachLabel,
+  formatMaNearLabel,
+  formatTrendLabel,
+  maProximityBadgeClass,
+  maProximityPriceClass,
+  pickChartInsight,
+  trendBadgeClass,
+} from "../lib/stockVaultChartInsights";
 import type {
   StockVaultFavoriteMeta,
   StockVaultIndustryFinancials,
   StockVaultItem,
   StockVaultResponse,
-  StockVaultWeeklyMaProximitySnapshot,
+  StockVaultChartInsightSnapshot,
   StockVaultScanSource,
   StockVaultScanStatus,
   StockVaultTimeframe,
@@ -78,6 +83,7 @@ const SOURCE_BADGE_LABEL: Record<StockVaultScanSource, string> = {
 
 const SCAN_POLL_MS = 2500;
 const QUOTE_POLL_MS = 60_000;
+const CHART_INSIGHTS_POLL_MS = 90_000;
 
 function fmtDate(ms: number): string {
   try {
@@ -165,7 +171,20 @@ function vaultStateFromResponse(vault: StockVaultResponse) {
     quotes: vault.quotes ?? {},
     meta: vault.meta ?? {},
     industryFinancials: vault.industryFinancials ?? {},
-    weeklyMaProximity: vault.weeklyMaProximity ?? {},
+    chartInsights:
+      vault.chartInsights ??
+      (vault.weeklyMaProximity
+        ? Object.fromEntries(
+            Object.entries(vault.weeklyMaProximity).map(([sym, row]) => [
+              sym,
+              {
+                daily: { trend: "neutral" as const, near: [] },
+                weekly: { trend: "neutral" as const, near: row.near ?? [] },
+                updatedAtMs: row.updatedAtMs,
+              },
+            ]),
+          )
+        : {}),
     authenticated: Boolean(vault.authenticated),
     favoriteMeta: vault.favoriteMeta ?? {},
     industryTabs: vault.industryTabs?.length ? vault.industryTabs : [],
@@ -208,9 +227,9 @@ export default function StockVaultTab({
   const [industryFinancials, setIndustryFinancials] = useState<
     Record<string, StockVaultIndustryFinancials>
   >(() => cachedVault?.industryFinancials ?? {});
-  const [weeklyMaProximity, setWeeklyMaProximity] = useState<
-    Record<string, StockVaultWeeklyMaProximitySnapshot>
-  >(() => cachedVault?.weeklyMaProximity ?? {});
+  const [chartInsights, setChartInsights] = useState<
+    Record<string, StockVaultChartInsightSnapshot>
+  >(() => cachedVault?.chartInsights ?? {});
   const [industryTabs, setIndustryTabs] = useState<string[]>(
     () => cachedVault?.industryTabs ?? [],
   );
@@ -270,7 +289,21 @@ export default function StockVaultTab({
       setQuotes(vault.quotes ?? {});
       setMeta(vault.meta ?? {});
       setIndustryFinancials(vault.industryFinancials ?? {});
-      setWeeklyMaProximity(vault.weeklyMaProximity ?? {});
+      setChartInsights(
+        vault.chartInsights ??
+          (vault.weeklyMaProximity
+            ? Object.fromEntries(
+                Object.entries(vault.weeklyMaProximity).map(([sym, row]) => [
+                  sym,
+                  {
+                    daily: { trend: "neutral" as const, near: [] },
+                    weekly: { trend: "neutral" as const, near: row.near ?? [] },
+                    updatedAtMs: row.updatedAtMs,
+                  },
+                ]),
+              )
+            : {}),
+      );
       setAuthenticated(Boolean(vault.authenticated));
       setFavoriteMeta(vault.favoriteMeta ?? {});
       setIndustryTabs((prev) =>
@@ -343,6 +376,29 @@ export default function StockVaultTab({
     }
     void reload();
   }, [reload]);
+
+  useEffect(() => {
+    if (items.length === 0) return;
+    let cancelled = false;
+    const loadInsights = async () => {
+      try {
+        const res = await fetchStockVaultChartInsights();
+        if (!cancelled && res.chartInsights) {
+          setChartInsights(res.chartInsights);
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+    void loadInsights();
+    const id = window.setInterval(() => {
+      void loadInsights();
+    }, CHART_INSIGHTS_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [items.length]);
 
   const refreshHistoryDates = useCallback(async () => {
     try {
@@ -1060,8 +1116,20 @@ export default function StockVaultTab({
                     : [];
               const finRow = industryFinancials[symKey];
               const sectorLeader = Boolean(finRow?.sectorLeader);
-              const maNear = weeklyMaProximity[symKey]?.near ?? [];
-              const maPriceClass = weeklyMaProximityPriceClass(maNear);
+              const chartInsight = pickChartInsight(chartInsights, symKey);
+              const dailyTrend = chartInsight?.daily?.trend ?? "neutral";
+              const weeklyTrend = chartInsight?.weekly?.trend ?? "neutral";
+              const maNearHits = [
+                ...(chartInsight?.daily?.near ?? []).map((hit) => ({
+                  ...hit,
+                  timeframe: "daily" as const,
+                })),
+                ...(chartInsight?.weekly?.near ?? []).map((hit) => ({
+                  ...hit,
+                  timeframe: "weekly" as const,
+                })),
+              ];
+              const maPriceClass = maProximityPriceClass(chartInsight?.weekly?.near);
               return (
               <li key={row.key} className={rowClassName}>
                 <div
@@ -1139,6 +1207,46 @@ export default function StockVaultTab({
                       <span className={stockVaultTimeframeBadgeClass(row.timeframe)}>
                         {stockVaultTimeframeLabel(row.timeframe)}
                       </span>
+                      <span
+                        className={`stock-vault-tab__trend ${trendBadgeClass(dailyTrend)}`}
+                        title={formatTrendLabel("daily", dailyTrend, {
+                          dailyUp: ko.stockVault.trendDailyUp,
+                          dailyDown: ko.stockVault.trendDailyDown,
+                          dailyNeutral: ko.stockVault.trendDailyNeutral,
+                          weeklyUp: ko.stockVault.trendWeeklyUp,
+                          weeklyDown: ko.stockVault.trendWeeklyDown,
+                          weeklyNeutral: ko.stockVault.trendWeeklyNeutral,
+                        })}
+                      >
+                        {formatTrendLabel("daily", dailyTrend, {
+                          dailyUp: ko.stockVault.trendDailyUp,
+                          dailyDown: ko.stockVault.trendDailyDown,
+                          dailyNeutral: ko.stockVault.trendDailyNeutral,
+                          weeklyUp: ko.stockVault.trendWeeklyUp,
+                          weeklyDown: ko.stockVault.trendWeeklyDown,
+                          weeklyNeutral: ko.stockVault.trendWeeklyNeutral,
+                        })}
+                      </span>
+                      <span
+                        className={`stock-vault-tab__trend ${trendBadgeClass(weeklyTrend)}`}
+                        title={formatTrendLabel("weekly", weeklyTrend, {
+                          dailyUp: ko.stockVault.trendDailyUp,
+                          dailyDown: ko.stockVault.trendDailyDown,
+                          dailyNeutral: ko.stockVault.trendDailyNeutral,
+                          weeklyUp: ko.stockVault.trendWeeklyUp,
+                          weeklyDown: ko.stockVault.trendWeeklyDown,
+                          weeklyNeutral: ko.stockVault.trendWeeklyNeutral,
+                        })}
+                      >
+                        {formatTrendLabel("weekly", weeklyTrend, {
+                          dailyUp: ko.stockVault.trendDailyUp,
+                          dailyDown: ko.stockVault.trendDailyDown,
+                          dailyNeutral: ko.stockVault.trendDailyNeutral,
+                          weeklyUp: ko.stockVault.trendWeeklyUp,
+                          weeklyDown: ko.stockVault.trendWeeklyDown,
+                          weeklyNeutral: ko.stockVault.trendWeeklyNeutral,
+                        })}
+                      </span>
                       {scanDate ? (
                         <span className="stock-vault-tab__scan-date">
                           {scanDate}
@@ -1168,23 +1276,50 @@ export default function StockVaultTab({
                         </span>
                       </div>
                     ) : null}
-                    {maNear.length > 0 ? (
+                    {maNearHits.length > 0 ? (
                       <div className="stock-vault-tab__ma-near-wrap">
-                        {maNear.map((hit) => (
-                          <span
-                            key={`${row.key}-wk-ma-${hit.period}`}
-                            className={`stock-vault-tab__ma-near ${weeklyMaProximityBadgeClass(hit.period)}`}
-                            title={ko.stockVault.weeklyMaNearHint(
-                              hit.period,
-                              hit.diffPct,
-                              hit.side,
-                            )}
-                          >
-                            {formatWeeklyMaProximityLabel(hit.period, {
-                              near: ko.stockVault.weeklyMaNear,
-                            })}
-                          </span>
-                        ))}
+                        {maNearHits.map((hit) => {
+                          const approachLabel = formatMaApproachLabel(hit.approach, {
+                            fromBelow: ko.stockVault.maApproachFromBelow,
+                            fromAbove: ko.stockVault.maApproachFromAbove,
+                            flat: ko.stockVault.maApproachFlat,
+                          });
+                          return (
+                            <span
+                              key={`${row.key}-${hit.timeframe}-ma-${hit.period}`}
+                              className={[
+                                "stock-vault-tab__ma-near",
+                                maProximityBadgeClass(hit.period),
+                                hit.timeframe === "daily"
+                                  ? "stock-vault-tab__ma-near--daily"
+                                  : "stock-vault-tab__ma-near--weekly",
+                              ]
+                                .filter(Boolean)
+                                .join(" ")}
+                              title={
+                                hit.timeframe === "daily"
+                                  ? ko.stockVault.dailyMaNearHint(
+                                      hit.period,
+                                      hit.diffPct,
+                                      hit.side,
+                                      hit.approach,
+                                    )
+                                  : ko.stockVault.weeklyMaNearHint(
+                                      hit.period,
+                                      hit.diffPct,
+                                      hit.side,
+                                      hit.approach,
+                                    )
+                              }
+                            >
+                              {formatMaNearLabel(hit.timeframe, hit.period, {
+                                dailyNear: ko.stockVault.dailyMaNear,
+                                weeklyNear: ko.stockVault.weeklyMaNear,
+                              })}
+                              {approachLabel ? ` · ${approachLabel}` : ""}
+                            </span>
+                          );
+                        })}
                       </div>
                     ) : null}
                     {row.favorited ? (() => {

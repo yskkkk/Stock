@@ -986,8 +986,46 @@ export const ko = {
     sectorLeaderUniversePeers: (n: number) =>
       `국내·미국 유니버스 ${n}종목 기준`,
     weeklyMaNear: (period: number) => `주봉 MA${period} 근처`,
-    weeklyMaNearHint: (period: number, diffPct: number, side: "above" | "below") =>
-      `주봉 ${period}일선 ${side === "above" ? "상회" : "하회"} · 괴리 ${diffPct.toFixed(1)}%`,
+    dailyMaNear: (period: number) => `일봉 MA${period} 근처`,
+    weeklyMaNearHint: (
+      period: number,
+      diffPct: number,
+      side: "above" | "below",
+      approach?: "from_below" | "from_above" | "flat",
+    ) => {
+      const pos = side === "above" ? "상회" : "하회";
+      const dir =
+        approach === "from_below"
+          ? " · 하단 접근"
+          : approach === "from_above"
+            ? " · 상단 접근"
+            : "";
+      return `주봉 MA${period} ${pos} · 괴리 ${diffPct.toFixed(1)}%${dir}`;
+    },
+    dailyMaNearHint: (
+      period: number,
+      diffPct: number,
+      side: "above" | "below",
+      approach?: "from_below" | "from_above" | "flat",
+    ) => {
+      const pos = side === "above" ? "상회" : "하회";
+      const dir =
+        approach === "from_below"
+          ? " · 하단 접근"
+          : approach === "from_above"
+            ? " · 상단 접근"
+            : "";
+      return `일봉 MA${period} ${pos} · 괴리 ${diffPct.toFixed(1)}%${dir}`;
+    },
+    trendDailyUp: "일봉 ↑",
+    trendDailyDown: "일봉 ↓",
+    trendDailyNeutral: "일봉 →",
+    trendWeeklyUp: "주봉 ↑",
+    trendWeeklyDown: "주봉 ↓",
+    trendWeeklyNeutral: "주봉 →",
+    maApproachFromBelow: "하단접근",
+    maApproachFromAbove: "상단접근",
+    maApproachFlat: "정체",
     removeFromVault: "보관함에서 제거",
     lastScan: "마지막 스캔",
     historyDateAria: "탐색 일자 선택",
