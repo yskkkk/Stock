@@ -10,12 +10,13 @@ import {
 } from "./stock-vault-store.js";
 import { appendGoldenCrossHistoryEntrySync } from "./golden-cross-history-store.js";
 import { appendMaAlignHistoryEntrySync } from "./ma-align-history-store.js";
-import { notifyGoldenCrossScanTelegram } from "./golden-cross-telegram.js";
+import { notifyGoldenCrossScanTelegram, notifyVaultTimeframeIntersectionTelegram } from "./golden-cross-telegram.js";
 import { sendGoldenCrossScanReportEmail, buildScanEmailPayloadFromVaultResult } from "./notifications/golden-cross-scan-email.js";
 import { runMaAlignVaultIntradayRefresh } from "./ma-align-vault-intraday.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 import { isStockTradableBySchedule } from "./market-hours.js";
 import { VAULT_SCAN_TIMEFRAMES } from "./vault-scan-timeframe.js";
+import { buildMarketTimeframeIntersections } from "./vault-scan-intersection.js";
 
 const POLL_MS = (() => {
   const n = Number(process.env.STOCK_GOLDEN_CROSS_POLL_MS ?? 300_000);
@@ -269,6 +270,28 @@ export async function runVaultMarketScans(
       timeframe,
       opts,
     );
+  }
+
+  if (opts.notifyGoldenCrossTelegram !== false) {
+    try {
+      const intersection = buildMarketTimeframeIntersections(market, scanDate, {
+        "1d": {
+          goldenCross: byTimeframe["1d"]?.goldenCross ?? { hits: [] },
+          maAlign: byTimeframe["1d"]?.maAlign ?? { hits: [] },
+        },
+        "1wk": {
+          goldenCross: byTimeframe["1wk"]?.goldenCross ?? { hits: [] },
+          maAlign: byTimeframe["1wk"]?.maAlign ?? { hits: [] },
+        },
+      });
+      await notifyVaultTimeframeIntersectionTelegram(intersection);
+    } catch (e) {
+      liveTradeLogWarn(
+        "[stock-vault:scan:intersection:telegram]",
+        market,
+        e instanceof Error ? e.message : e,
+      );
+    }
   }
 
   try {

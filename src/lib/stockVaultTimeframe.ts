@@ -20,3 +20,15 @@ export function normalizeStockVaultTimeframe(
 export function stockVaultTimeframeLabel(tf: StockVaultTimeframe): string {
   return tf === "1wk" ? "주봉" : "일봉";
 }
+
+export function stockVaultTimeframeRowClass(tf: StockVaultTimeframe): string {
+  return normalizeStockVaultTimeframe(tf) === "1wk"
+    ? "stock-vault-tab__row--tf-wk"
+    : "stock-vault-tab__row--tf-d";
+}
+
+export function stockVaultTimeframeBadgeClass(tf: StockVaultTimeframe): string {
+  return normalizeStockVaultTimeframe(tf) === "1wk"
+    ? "stock-vault-tab__timeframe stock-vault-tab__timeframe--wk"
+    : "stock-vault-tab__timeframe stock-vault-tab__timeframe--d";
+}

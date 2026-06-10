@@ -7,6 +7,7 @@ import {
 } from "./golden-cross-scan-email-enrich.js";
 import { listUsersSync, getUserNotificationEmailSync } from "../users-store.js";
 import { normalizeVaultScanTimeframe } from "../vault-scan-timeframe.js";
+import { buildEmailTimeframeIntersections } from "../vault-scan-intersection.js";
 
 export { DEFAULT_AUDIT_REPORT_TO };
 
@@ -198,16 +199,98 @@ function buildMaAlignSection(markets) {
 }
 
 /**
- * @param {{ goldenCross?: GoldenCrossEmailMarket[]; maAlign?: MaAlignEmailMarket[] }} input
+ * @param {Array<{ market: "kr"|"us"; scanDate: string; goldenCross: Array<{ daily: { symbol: string; name: string; crosses?: string[] }; weekly: { crosses?: string[] } }>; maAlign: Array<{ daily: { symbol: string; name: string } }> }>} intersections
+ */
+function buildIntersectionSection(intersections) {
+  /** @type {string[]} */
+  const textParts = ["[일봉·주봉 교집합] 동일 종목이 일봉·주봉 모두 탐지", ""];
+  /** @type {string[]} */
+  const htmlParts = [
+    `<h2 style="color:#7c3aed;">일봉·주봉 교집합</h2>`,
+    `<p style="color:#64748b;font-size:0.9em">아래 종목은 <strong>일봉과 주봉 모두</strong> 해당 조건을 만족합니다.</p>`,
+  ];
+
+  let any = false;
+  for (const block of intersections) {
+    const marketKo = block.market === "kr" ? "국내 시총 300" : "S&P 500";
+    const gcCount = block.goldenCross?.length ?? 0;
+    const maCount = block.maAlign?.length ?? 0;
+    if (!gcCount && !maCount) continue;
+    any = true;
+    textParts.push(`${marketKo} · ${block.scanDate}`);
+    htmlParts.push(
+      `<h3>${marketKo} <small style="color:#64748b">${block.scanDate}</small></h3>`,
+    );
+
+    if (gcCount) {
+      textParts.push(`  골든크로스 교집합 (${gcCount})`);
+      htmlParts.push(`<h4>골든크로스 (${gcCount})</h4>`);
+      htmlParts.push(
+        `<table cellpadding="6" cellspacing="0" border="1" style="border-collapse:collapse;font-size:0.85em;margin-bottom:16px;width:100%;"><tr style="background:#f1f5f9"><th>종목</th><th>일봉 교차</th><th>주봉 교차</th></tr>`,
+      );
+      for (const pair of block.goldenCross) {
+        const dCross = (pair.daily.crosses ?? [])
+          .map((c) => CROSS_LABEL[c] ?? c)
+          .join(", ");
+        const wCross = (pair.weekly.crosses ?? [])
+          .map((c) => CROSS_LABEL[c] ?? c)
+          .join(", ");
+        textParts.push(
+          `  · ${pair.daily.name} (${pair.daily.symbol}) · 일봉 ${dCross || "—"} · 주봉 ${wCross || "—"}`,
+        );
+        htmlParts.push(
+          `<tr><td>${escapeHtml(pair.daily.name)}</td><td>${escapeHtml(dCross || "—")}</td><td>${escapeHtml(wCross || "—")}</td></tr>`,
+        );
+      }
+      htmlParts.push("</table>");
+    }
+
+    if (maCount) {
+      textParts.push(`  정배열 교집합 (${maCount})`);
+      htmlParts.push(`<h4>정배열 (${maCount})</h4>`);
+      htmlParts.push(
+        `<table cellpadding="6" cellspacing="0" border="1" style="border-collapse:collapse;font-size:0.85em;margin-bottom:16px;width:100%;">${EMAIL_TABLE_HEAD}`,
+      );
+      for (const pair of block.maAlign) {
+        textParts.push(
+          `  · ${pair.daily.name} (${pair.daily.symbol}) · 일봉·주봉 정배열`,
+        );
+        htmlParts.push(renderHitRowHtml(pair.daily, block.market));
+      }
+      htmlParts.push("</table>");
+    }
+    textParts.push("");
+  }
+
+  if (!any) {
+    textParts.push("· 없음", "");
+    htmlParts.push("<p>없음</p>");
+  }
+  return { textParts, htmlParts };
+}
+
+/**
+ * @param {{ goldenCross?: GoldenCrossEmailMarket[]; maAlign?: MaAlignEmailMarket[]; intersections?: ReturnType<typeof buildEmailTimeframeIntersections> }} input
  */
 export function buildGoldenCrossScanEmailContent(input) {
   const goldenCross = Array.isArray(input.goldenCross) ? input.goldenCross : [];
   const maAlign = Array.isArray(input.maAlign) ? input.maAlign : [];
+  const intersections =
+    input.intersections ?? buildEmailTimeframeIntersections(goldenCross, maAlign);
   const goldenCrossHits = goldenCross.reduce((s, m) => s + m.hits.length, 0);
   const maAlignHits = maAlign.reduce((s, m) => s + m.hits.length, 0);
+  const intersectionGc = intersections.reduce(
+    (s, m) => s + (m.goldenCross?.length ?? 0),
+    0,
+  );
+  const intersectionMa = intersections.reduce(
+    (s, m) => s + (m.maAlign?.length ?? 0),
+    0,
+  );
   const now = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
-  const subject = `[YSTOCK] 일봉·주봉 탐색 리포트 — 골든 ${goldenCrossHits} · 정배열 ${maAlignHits} · ${now}`;
+  const subject = `[YSTOCK] 일봉·주봉 탐색 — 골든 ${goldenCrossHits} · 정배열 ${maAlignHits} · 교집합 ${intersectionGc + intersectionMa} · ${now}`;
 
+  const ix = buildIntersectionSection(intersections);
   const gc = buildGoldenCrossSection(goldenCross);
   const ma = buildMaAlignSection(maAlign);
 
@@ -216,6 +299,7 @@ export function buildGoldenCrossScanEmailContent(input) {
     "",
     "앱 「종목보관」 탭에서 일봉/주봉 필터와 골든크로스·정배열 조건으로 확인할 수 있습니다.",
     "",
+    ...ix.textParts,
     ...gc.textParts,
     ...ma.textParts,
     "YSTOCK",
@@ -225,8 +309,8 @@ export function buildGoldenCrossScanEmailContent(input) {
     `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>${subject}</title></head>`,
     `<body style="font-family:'Malgun Gothic',sans-serif;line-height:1.6;max-width:900px;margin:0 auto;padding:20px;">`,
     `<h1 style="color:#1e40af;font-size:1.2em;">일봉·주봉 탐색 리포트</h1>`,
-    `<p>${now} · 골든크로스 <strong>${goldenCrossHits}</strong> · 정배열 <strong>${maAlignHits}</strong></p>`,
-    `<p style="color:#64748b;font-size:0.9em">각 표 제목에 <strong>일봉</strong> 또는 <strong>주봉</strong>이 표시됩니다.</p>`,
+    `<p>${now} · 골든 <strong>${goldenCrossHits}</strong> · 정배열 <strong>${maAlignHits}</strong> · 교집합 <strong>${intersectionGc + intersectionMa}</strong></p>`,
+    ...ix.htmlParts,
     ...gc.htmlParts,
     ...ma.htmlParts,
     `<p style="color:#888;font-size:0.85em;margin-top:24px;">YSTOCK · 종목보관</p>`,

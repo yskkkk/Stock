@@ -121,7 +121,8 @@ test("buildGoldenCrossScanEmailContent includes hits with quote columns", () => 
       },
     ],
   });
-  assert.match(subject, /일봉·주봉 탐색 리포트/);
+  assert.match(subject, /일봉·주봉 탐색/);
+  assert.match(text, /일봉·주봉 교집합/);
   assert.match(text, /일봉/);
   assert.match(html, /주봉/);
   assert.equal(goldenCrossHits, 1);
@@ -131,4 +132,38 @@ test("buildGoldenCrossScanEmailContent includes hits with quote columns", () => 
   assert.match(text, /인텔/);
   assert.match(html, /업종/);
   assert.match(html, /인텔/);
+});
+
+test("buildGoldenCrossScanEmailContent lists daily-weekly intersection", () => {
+  const { text, html } = buildGoldenCrossScanEmailContent({
+    goldenCross: [
+      {
+        market: "kr",
+        scanDate: "2026-06-10",
+        timeframe: "1d",
+        scanned: 300,
+        hits: [
+          { symbol: "005930.KS", name: "삼성전자", crosses: ["5>20"] },
+          { symbol: "000660.KS", name: "SK하이닉스", crosses: ["5>60"] },
+        ],
+      },
+      {
+        market: "kr",
+        scanDate: "2026-06-10",
+        timeframe: "1wk",
+        scanned: 300,
+        hits: [
+          { symbol: "005930.KS", name: "삼성전자", crosses: ["5>60"] },
+        ],
+      },
+    ],
+    maAlign: [],
+  });
+  assert.match(text, /골든크로스 교집합/);
+  assert.match(text, /삼성전자/);
+  assert.match(text, /5→20/);
+  assert.match(text, /5→60/);
+  assert.match(html, /일봉·주봉 교집합/);
+  const ixBlock = text.split("[골든크로스]")[0];
+  assert.doesNotMatch(ixBlock, /SK하이닉스/);
 });

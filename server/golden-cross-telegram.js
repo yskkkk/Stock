@@ -100,3 +100,82 @@ export async function notifyGoldenCrossScanTelegram(
     return { sent: false, reason: "send_failed" };
   }
 }
+
+const IX_CROSS_LABEL = {
+  "5>20": "5→20",
+  "5>60": "5→60",
+  "5>120": "5→120",
+};
+
+/**
+ * @param {{
+ *   market: "kr"|"us";
+ *   scanDate: string;
+ *   goldenCross: Array<{ daily: { symbol: string; name: string; crosses?: string[] }; weekly: { crosses?: string[] } }>;
+ *   maAlign: Array<{ daily: { symbol: string; name: string } }>;
+ * }} intersection
+ */
+export function buildVaultIntersectionTelegramHtml(intersection) {
+  const marketKo = intersection.market === "kr" ? "국내 시총 300" : "S&amp;P 500";
+  const lines = [
+    `<b>🔗 일봉·주봉 교집합 · ${marketKo}</b>`,
+    `<i>${esc(intersection.scanDate)} · 일봉·주봉 모두 탐지된 종목</i>`,
+    "",
+  ];
+  const gc = intersection.goldenCross ?? [];
+  const ma = intersection.maAlign ?? [];
+  if (!gc.length && !ma.length) {
+    lines.push("교집합 종목이 없습니다.");
+    return lines.join("\n");
+  }
+  if (gc.length) {
+    lines.push(`<b>골든크로스 (${gc.length})</b>`);
+    for (const pair of gc.slice(0, 25)) {
+      const code = pair.daily.symbol.replace(/\.(KS|KQ)$/i, "");
+      const d = (pair.daily.crosses ?? [])
+        .map((c) => IX_CROSS_LABEL[c] ?? c)
+        .join("·");
+      const w = (pair.weekly.crosses ?? [])
+        .map((c) => IX_CROSS_LABEL[c] ?? c)
+        .join("·");
+      lines.push(
+        `· ${esc(pair.daily.name)} <code>${esc(code)}</code> 일${d || "—"} 주${w || "—"}`,
+      );
+    }
+    if (gc.length > 25) lines.push(`… 외 ${gc.length - 25}종목`);
+    lines.push("");
+  }
+  if (ma.length) {
+    lines.push(`<b>정배열 (${ma.length})</b>`);
+    for (const pair of ma.slice(0, 25)) {
+      const code = pair.daily.symbol.replace(/\.(KS|KQ)$/i, "");
+      lines.push(`· ${esc(pair.daily.name)} <code>${esc(code)}</code>`);
+    }
+    if (ma.length > 25) lines.push(`… 외 ${ma.length - 25}종목`);
+  }
+  return lines.join("\n").trim();
+}
+
+/**
+ * @param {Parameters<typeof buildVaultIntersectionTelegramHtml>[0]} intersection
+ */
+export async function notifyVaultTimeframeIntersectionTelegram(intersection) {
+  if (!goldenCrossTelegramEnabled()) return { sent: false, reason: "disabled" };
+  if (!isTelegramNotifyEnabled()) return { sent: false, reason: "telegram_off" };
+  const gc = intersection.goldenCross?.length ?? 0;
+  const ma = intersection.maAlign?.length ?? 0;
+  if (!gc && !ma) return { sent: false, reason: "empty" };
+
+  const text = buildVaultIntersectionTelegramHtml(intersection);
+  try {
+    await sendStockTelegramMessage(text);
+    return { sent: true };
+  } catch (e) {
+    liveTradeLogWarn(
+      "[golden-cross:telegram:intersection]",
+      intersection.market,
+      e instanceof Error ? e.message : e,
+    );
+    return { sent: false, reason: "send_failed" };
+  }
+}

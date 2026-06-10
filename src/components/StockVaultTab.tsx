@@ -26,7 +26,9 @@ import {
 } from "../lib/stockVaultHistory";
 import {
   STOCK_VAULT_TIMEFRAMES,
+  stockVaultTimeframeBadgeClass,
   stockVaultTimeframeLabel,
+  stockVaultTimeframeRowClass,
 } from "../lib/stockVaultTimeframe";
 import {
   loadStockVault,
@@ -780,10 +782,18 @@ export default function StockVaultTab({
                   key={tf}
                   type="button"
                   role="tab"
+                  data-tf={tf}
                   aria-selected={timeframeFilter === tf}
-                  className={
-                    timeframeFilter === tf ? "market-tab active" : "market-tab"
-                  }
+                  className={[
+                    "market-tab",
+                    "stock-vault-tab__tf-tab",
+                    tf === "1wk"
+                      ? "stock-vault-tab__tf-tab--wk"
+                      : "stock-vault-tab__tf-tab--d",
+                    timeframeFilter === tf ? "active" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
                   onClick={() => {
                     setIndustryFilter("all");
                     setTimeframeFilter(tf);
@@ -983,6 +993,7 @@ export default function StockVaultTab({
               const gcRecencyClass = gcItem ? goldenCrossRecencyClass(gcItem) : null;
               const rowClassName = [
                 "stock-vault-tab__row",
+                stockVaultTimeframeRowClass(row.timeframe),
                 gcRecencyClass,
               ]
                 .filter(Boolean)
@@ -1064,7 +1075,7 @@ export default function StockVaultTab({
                           {label}
                         </span>
                       ))}
-                      <span className="stock-vault-tab__timeframe">
+                      <span className={stockVaultTimeframeBadgeClass(row.timeframe)}>
                         {stockVaultTimeframeLabel(row.timeframe)}
                       </span>
                       {scanDate ? (

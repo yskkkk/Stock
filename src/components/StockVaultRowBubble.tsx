@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import { ko } from "../i18n/ko";
 import { dispatchOpenFinancialsTab } from "../lib/openFinancialsTab";
@@ -10,6 +17,10 @@ import {
 import type { StockVaultIndustryFinancials } from "../types";
 
 const HIDE_DELAY_MS = 120;
+const VIEWPORT_PAD = 8;
+const GAP = 10;
+const EST_BUBBLE_W = 260;
+const EST_BUBBLE_H = 220;
 
 export type StockVaultRowBubbleTarget = {
   symbol: string;
@@ -21,28 +32,94 @@ export type StockVaultRowBubbleTarget = {
   sectorLeader: boolean;
 };
 
+type Placement = "left" | "right" | "below" | "above";
+
 type TipState = StockVaultRowBubbleTarget & {
+  anchorRect: DOMRectReadOnly;
   left: number;
   top: number;
-  placement: "left" | "right";
+  placement: Placement;
+  transform: string;
 };
 
-function positionTip(el: HTMLElement): Pick<TipState, "left" | "top" | "placement"> {
-  const rect = el.getBoundingClientRect();
-  const gap = 10;
-  const bubbleW = 280;
-  const rightSpace = window.innerWidth - rect.right;
-  const placement = rightSpace >= bubbleW + gap ? "right" : "left";
+function clamp(n: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, n));
+}
+
+function positionTip(
+  anchor: DOMRectReadOnly,
+  bubbleW = EST_BUBBLE_W,
+  bubbleH = EST_BUBBLE_H,
+): Pick<TipState, "left" | "top" | "placement" | "transform"> {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  const fitsRight = anchor.right + GAP + bubbleW <= vw - VIEWPORT_PAD;
+  const fitsLeft = anchor.left - GAP - bubbleW >= VIEWPORT_PAD;
+  const fitsBelow = anchor.bottom + GAP + bubbleH <= vh - VIEWPORT_PAD;
+  const fitsAbove = anchor.top - GAP - bubbleH >= VIEWPORT_PAD;
+
+  if (fitsRight) {
+    return {
+      left: anchor.right + GAP,
+      top: clamp(
+        anchor.top + anchor.height / 2,
+        VIEWPORT_PAD + bubbleH / 2,
+        vh - VIEWPORT_PAD - bubbleH / 2,
+      ),
+      placement: "right",
+      transform: "translate(0, -50%)",
+    };
+  }
+  if (fitsLeft) {
+    return {
+      left: anchor.left - GAP,
+      top: clamp(
+        anchor.top + anchor.height / 2,
+        VIEWPORT_PAD + bubbleH / 2,
+        vh - VIEWPORT_PAD - bubbleH / 2,
+      ),
+      placement: "left",
+      transform: "translate(-100%, -50%)",
+    };
+  }
+  if (fitsBelow || (!fitsAbove && anchor.top < vh / 2)) {
+    const left = clamp(
+      anchor.left + anchor.width / 2,
+      VIEWPORT_PAD + bubbleW / 2,
+      vw - VIEWPORT_PAD - bubbleW / 2,
+    );
+    return {
+      left,
+      top: anchor.bottom + GAP,
+      placement: "below",
+      transform: "translate(-50%, 0)",
+    };
+  }
+  const left = clamp(
+    anchor.left + anchor.width / 2,
+    VIEWPORT_PAD + bubbleW / 2,
+    vw - VIEWPORT_PAD - bubbleW / 2,
+  );
   return {
-    left: placement === "right" ? rect.right + gap : rect.left - gap,
-    top: rect.top + rect.height / 2,
-    placement,
+    left,
+    top: anchor.top - GAP,
+    placement: "above",
+    transform: "translate(-50%, -100%)",
   };
+}
+
+function bubblePlacementClass(placement: Placement) {
+  if (placement === "left") return "stock-vault-tab__bubble stock-vault-tab__bubble--left";
+  if (placement === "below") return "stock-vault-tab__bubble stock-vault-tab__bubble--below";
+  if (placement === "above") return "stock-vault-tab__bubble stock-vault-tab__bubble--above";
+  return "stock-vault-tab__bubble";
 }
 
 export function useStockVaultRowBubble() {
   const tipId = useId();
   const hideTimerRef = useRef<number | null>(null);
+  const bubbleRef = useRef<HTMLDivElement | null>(null);
   const [tip, setTip] = useState<TipState | null>(null);
 
   const clearHideTimer = useCallback(() => {
@@ -63,10 +140,35 @@ export function useStockVaultRowBubble() {
   const showTip = useCallback(
     (el: HTMLElement, target: StockVaultRowBubbleTarget) => {
       clearHideTimer();
-      setTip({ ...target, ...positionTip(el) });
+      const anchorRect = el.getBoundingClientRect();
+      setTip({
+        ...target,
+        anchorRect,
+        ...positionTip(anchorRect),
+      });
     },
     [clearHideTimer],
   );
+
+  useLayoutEffect(() => {
+    if (!tip || !bubbleRef.current) return;
+    const bubble = bubbleRef.current;
+    const bw = bubble.offsetWidth;
+    const bh = bubble.offsetHeight;
+    if (!bw || !bh) return;
+    const next = positionTip(tip.anchorRect, bw, bh);
+    if (
+      next.left === tip.left &&
+      next.top === tip.top &&
+      next.placement === tip.placement &&
+      next.transform === tip.transform
+    ) {
+      return;
+    }
+    setTip((current) =>
+      current ? { ...current, ...next } : current,
+    );
+  }, [tip?.symbol, tip?.name, tip?.anchorRect]);
 
   useEffect(() => () => clearHideTimer(), [clearHideTimer]);
 
@@ -74,20 +176,14 @@ export function useStockVaultRowBubble() {
     tip && typeof document !== "undefined"
       ? createPortal(
           <div
+            ref={bubbleRef}
             id={tipId}
             role="tooltip"
-            className={
-              tip.placement === "left"
-                ? "stock-vault-tab__bubble stock-vault-tab__bubble--left"
-                : "stock-vault-tab__bubble"
-            }
+            className={bubblePlacementClass(tip.placement)}
             style={{
               left: `${tip.left}px`,
               top: `${tip.top}px`,
-              transform:
-                tip.placement === "left"
-                  ? "translate(-100%, -50%)"
-                  : "translate(0, -50%)",
+              transform: tip.transform,
             }}
             onMouseEnter={clearHideTimer}
             onMouseLeave={scheduleHideTip}

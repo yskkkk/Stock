@@ -310,6 +310,14 @@
   background: color-mix(in srgb, var(--card) 88%, var(--surface));
 }
 
+.stock-vault-tab__row--tf-d {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, #2563eb 72%, transparent);
+}
+
+.stock-vault-tab__row--tf-wk {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, #d97706 72%, transparent);
+}
+
 /* 골든크로스 발생 후 1~3일 · 4~6일 · 7~10일 */
 .stock-vault-tab__row--gc-recent-3 {
   border-color: color-mix(in srgb, #15803d 62%, var(--card-border));
@@ -593,6 +601,31 @@ html[data-theme="light"] .stock-vault-tab__row--gc-recent-10 {
   border-top: 1px solid var(--card-border);
 }
 
+.stock-vault-tab__bubble--below::before {
+  left: 50%;
+  top: -5px;
+  right: auto;
+  margin-top: 0;
+  margin-left: -4.5px;
+  border-left: 1px solid var(--card-border);
+  border-top: 1px solid var(--card-border);
+  border-bottom: none;
+  border-right: none;
+}
+
+.stock-vault-tab__bubble--above::before {
+  left: 50%;
+  top: auto;
+  bottom: -5px;
+  right: auto;
+  margin-top: 0;
+  margin-left: -4.5px;
+  border-right: 1px solid var(--card-border);
+  border-bottom: 1px solid var(--card-border);
+  border-left: none;
+  border-top: none;
+}
+
 .stock-vault-tab__bubble-name {
   margin: 0 0 0.2rem;
   font-size: 0.82rem;
@@ -735,11 +768,50 @@ html[data-theme="light"] .stock-vault-tab__row--gc-recent-10 {
 
 .stock-vault-tab__timeframe {
   font-weight: 700;
-  color: color-mix(in srgb, var(--accent, #2563eb) 85%, var(--muted));
+  padding: 0.05rem 0.32rem;
+  border-radius: 999px;
+}
+
+.stock-vault-tab__timeframe--d {
+  color: #60a5fa;
+  background: color-mix(in srgb, #2563eb 18%, transparent);
+}
+
+.stock-vault-tab__timeframe--wk {
+  color: #fbbf24;
+  background: color-mix(in srgb, #d97706 20%, transparent);
+}
+
+html[data-theme="light"] .stock-vault-tab__timeframe--d {
+  color: #1d4ed8;
+  background: color-mix(in srgb, #2563eb 12%, #fff);
+}
+
+html[data-theme="light"] .stock-vault-tab__timeframe--wk {
+  color: #b45309;
+  background: color-mix(in srgb, #d97706 14%, #fff);
 }
 
 .stock-vault-tab__filters--timeframe {
   margin-bottom: 0.35rem;
+}
+
+.stock-vault-tab__tf-tab--d.active {
+  color: #60a5fa;
+  box-shadow: inset 0 -2px 0 #2563eb;
+}
+
+.stock-vault-tab__tf-tab--wk.active {
+  color: #fbbf24;
+  box-shadow: inset 0 -2px 0 #d97706;
+}
+
+html[data-theme="light"] .stock-vault-tab__tf-tab--d.active {
+  color: #1d4ed8;
+}
+
+html[data-theme="light"] .stock-vault-tab__tf-tab--wk.active {
+  color: #b45309;
 }
 
 .stock-vault-tab__crosses {
@@ -784,6 +856,26 @@ html[data-theme="light"] .stock-vault-tab__row--gc-recent-10 {
 .stock-vault-tab__cross--align {
   background: color-mix(in srgb, var(--accent, #2563eb) 14%, transparent);
   color: var(--accent, #2563eb);
+}
+
+.stock-vault-tab__row--tf-d .stock-vault-tab__cross {
+  color: #60a5fa;
+  background: color-mix(in srgb, #2563eb 16%, transparent);
+}
+
+.stock-vault-tab__row--tf-wk .stock-vault-tab__cross {
+  color: #fbbf24;
+  background: color-mix(in srgb, #d97706 18%, transparent);
+}
+
+html[data-theme="light"] .stock-vault-tab__row--tf-d .stock-vault-tab__cross {
+  color: #1d4ed8;
+  background: color-mix(in srgb, #2563eb 10%, #fff);
+}
+
+html[data-theme="light"] .stock-vault-tab__row--tf-wk .stock-vault-tab__cross {
+  color: #b45309;
+  background: color-mix(in srgb, #d97706 12%, #fff);
 }
 
 .stock-vault-tab__error {
