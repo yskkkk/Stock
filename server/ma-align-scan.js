@@ -1,5 +1,6 @@
 import { loadStock } from "./stock-data.js";
 import { detectDailyMaAlignment } from "./ma-align-detect.js";
+import { candlesForWeeklyMaScan } from "./weekly-candle-trim.js";
 import { isGoldenCrossTradable } from "./golden-cross-tradable.js";
 import { resolveDisplayName } from "./names-ko.js";
 import { loadBoxRangeCatalogUniverse } from "./universe.js";
@@ -109,7 +110,14 @@ async function scanOneSymbol(item, market, scanDate, timeframe = "1d") {
       liveTradeLogInfo("[ma-align:scan] skip", sym, tf, tradable.reason);
       return null;
     }
-    const candles = Array.isArray(data?.candles) ? data.candles : [];
+    let candles = Array.isArray(data?.candles) ? data.candles : [];
+    if (tf === "1wk") {
+      const daily = await loadStock(sym, "1d", { live: true });
+      candles = candlesForWeeklyMaScan(
+        candles,
+        Array.isArray(daily?.candles) ? daily.candles : [],
+      );
+    }
     if (!detectDailyMaAlignment(candles)) return null;
     return {
       symbol: sym,

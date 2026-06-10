@@ -1,6 +1,8 @@
 import { loadStock } from "./stock-data.js";
 import { detectDailyMaAlignment } from "./ma-align-detect.js";
 import { isGoldenCrossTradable } from "./golden-cross-tradable.js";
+import { normalizeVaultScanTimeframe } from "./vault-scan-timeframe.js";
+import { candlesForWeeklyMaScan } from "./weekly-candle-trim.js";
 import { resolveDisplayName } from "./names-ko.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 import {
@@ -28,16 +30,27 @@ async function rescanVaultMaAlignItem(item, scanDate) {
     .trim()
     .toUpperCase();
   if (!sym) return { symbol: sym, status: "skip" };
+  const tf = normalizeVaultScanTimeframe(item.timeframe);
+  const chartTf = tf === "1wk" ? "1wk" : "1d";
   try {
-    const data = await loadStock(sym, "1d", { live: true });
-    const tradable = await isGoldenCrossTradable(data, item.market);
+    const data = await loadStock(sym, chartTf, { live: true });
+    const tradable = await isGoldenCrossTradable(data, item.market, {
+      timeframe: tf,
+    });
     if (!tradable.ok) {
-      removeStockVaultItemBySourceSync(sym, "ma_align", "1d");
+      removeStockVaultItemBySourceSync(sym, "ma_align", tf);
       return { symbol: sym, status: "removed", reason: tradable.reason };
     }
-    const candles = Array.isArray(data?.candles) ? data.candles : [];
+    let candles = Array.isArray(data?.candles) ? data.candles : [];
+    if (tf === "1wk") {
+      const daily = await loadStock(sym, "1d", { live: true });
+      candles = candlesForWeeklyMaScan(
+        candles,
+        Array.isArray(daily?.candles) ? daily.candles : [],
+      );
+    }
     if (!detectDailyMaAlignment(candles)) {
-      removeStockVaultItemBySourceSync(sym, "ma_align", "1d");
+      removeStockVaultItemBySourceSync(sym, "ma_align", tf);
       return { symbol: sym, status: "removed", reason: "not_aligned" };
     }
     upsertStockVaultItemSync({
@@ -48,7 +61,7 @@ async function rescanVaultMaAlignItem(item, scanDate) {
       ),
       market: item.market,
       source: "ma_align",
-      timeframe: "1d",
+      timeframe: tf,
       scanDate,
     });
     return { symbol: sym, status: "kept" };
@@ -72,7 +85,9 @@ export async function runMaAlignVaultIntradayRefresh(market, scanDate) {
     (it) =>
       it.source === "ma_align" &&
       it.market === market &&
-      (it.timeframe == null || it.timeframe === "1d"),
+      (it.timeframe == null ||
+        normalizeVaultScanTimeframe(it.timeframe) === "1d" ||
+        normalizeVaultScanTimeframe(it.timeframe) === "1wk"),
   );
 
   liveTradeLogInfo("[ma-align:intraday] start", {

@@ -1,5 +1,6 @@
 import { loadStock } from "./stock-data.js";
 import { detectDailyGoldenCrossDetail } from "./golden-cross-detect.js";
+import { candlesForWeeklyMaScan } from "./weekly-candle-trim.js";
 import { isGoldenCrossTradable } from "./golden-cross-tradable.js";
 import { resolveDisplayName } from "./names-ko.js";
 import { loadBoxRangeCatalogUniverse } from "./universe.js";
@@ -105,7 +106,14 @@ async function scanOneSymbol(item, market, scanDate, timeframe = "1d") {
       liveTradeLogInfo("[golden-cross:scan] skip", sym, tf, tradable.reason);
       return { ok: true, hit: null };
     }
-    const candles = Array.isArray(data?.candles) ? data.candles : [];
+    let candles = Array.isArray(data?.candles) ? data.candles : [];
+    if (tf === "1wk") {
+      const daily = await loadStock(sym, "1d", { live: true });
+      candles = candlesForWeeklyMaScan(
+        candles,
+        Array.isArray(daily?.candles) ? daily.candles : [],
+      );
+    }
     const { crosses, crossDate } = detectDailyGoldenCrossDetail(candles);
     if (!crosses.length) return { ok: true, hit: null };
     return {
