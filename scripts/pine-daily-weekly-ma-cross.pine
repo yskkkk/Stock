@@ -1,7 +1,7 @@
 //@version=5
 indicator("일봉·주봉 MA 정확 접점 (골든/데드 구분)", overlay=true)
 
-int grpDisp = "표시"
+string grpDisp = "표시"
 int brightTransp = input.int(0, "활성 TF 투명도", minval=0, maxval=90, group=grpDisp)
 int dimTransp = input.int(72, "비활성 TF 투명도", minval=30, maxval=95, group=grpDisp)
 
