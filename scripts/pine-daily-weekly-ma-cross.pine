@@ -111,7 +111,7 @@ plot(showWeekly and (gold_20_120_w or dead_20_120_w) ? ma20_w_step : na, style=p
 // === 선 워터마크 (선 위 5·20·60·120) ===
 var array<label> wmLabels = array.new<label>()
 
-int f_wm_text_alpha(int baseAlpha) =>
+f_wm_text_alpha(int baseAlpha) =>
     math.min(baseAlpha + 40, 88)
 
 f_wm_clear() =>
