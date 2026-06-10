@@ -32,8 +32,11 @@ import {
   updateStockVaultPrefetchVault,
 } from "../lib/tabPrefetch";
 import { yahooStockSymbolToTradingView } from "../lib/tradingviewSymbols";
+import {
+  formatGoldenCrossChain,
+  formatMaAlignChain,
+} from "../lib/stockVaultMaDisplay";
 import type {
-  GoldenCrossKind,
   StockVaultFavoriteMeta,
   StockVaultIndustryFinancials,
   StockVaultItem,
@@ -52,12 +55,6 @@ const SCAN_SOURCE_LABEL: Record<StockVaultScanSource, string> = {
 const SOURCE_BADGE_LABEL: Record<StockVaultScanSource, string> = {
   golden_cross: ko.stockVault.sourceGolden,
   ma_align: ko.stockVault.sourceMaAlign,
-};
-
-const CROSS_LABEL: Record<GoldenCrossKind, string> = {
-  "5>20": "5→20",
-  "5>60": "5→60",
-  "5>120": "5→120",
 };
 
 const SCAN_POLL_MS = 2500;
@@ -1026,19 +1023,23 @@ export default function StockVaultTab({
                         {fmtDate(row.updatedAtMs)}
                       </span>
                     </div>
-                    {gcItem?.crosses?.length ? (
-                      <div className="stock-vault-tab__crosses">
-                        {gcItem.crosses.map((c) => (
-                          <span key={c} className="stock-vault-tab__cross">
-                            {CROSS_LABEL[c] ?? c}
+                    {(() => {
+                      const gcChain = formatGoldenCrossChain(gcItem?.crosses);
+                      return gcChain ? (
+                        <div className="stock-vault-tab__crosses">
+                          <span className="stock-vault-tab__cross">
+                            {gcChain}
                           </span>
-                        ))}
-                      </div>
-                    ) : null}
+                        </div>
+                      ) : null;
+                    })()}
                     {row.maAlign ? (
                       <div className="stock-vault-tab__crosses">
-                        <span className="stock-vault-tab__cross stock-vault-tab__cross--align">
-                          {ko.stockVault.maAlignBadge}
+                        <span
+                          className="stock-vault-tab__cross stock-vault-tab__cross--align"
+                          title={ko.stockVault.maAlignBadgeHint}
+                        >
+                          {formatMaAlignChain()}
                         </span>
                       </div>
                     ) : null}

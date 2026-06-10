@@ -951,6 +951,8 @@ export const ko = {
     tabGolden: "골든크로스",
     tabMaAlign: "정배열",
     maAlignBadge: "5>20>60>120",
+    maAlignBadgeHint:
+      "일봉 MA5>20>60>120 완전정배열 탐지 결과(모든 정배열 종목이 동일 조건을 충족)",
     filterAria: "보관 필터",
     filterMarketAria: "시장 필터",
     filterIndustryAria: "업종 필터",
