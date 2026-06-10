@@ -4,6 +4,7 @@ indicator("일봉·주봉 MA 정확 접점 (골든/데드 구분)", overlay=true
 string grpDisp = "표시"
 string tfMode = input.string("일봉+주봉", "표시 TF", options=["일봉+주봉", "일봉만", "주봉만"], group=grpDisp)
 bool showLegend = input.bool(true, "범례 표시 (우하단)", group=grpDisp)
+bool smoothWeekly = input.bool(true, "주봉 선형 보간 (일·분봉)", group=grpDisp, tooltip="주 경계 MA 값 사이를 직선 보간해 계단 모서리를 없앱니다. 교차점 판정·표시는 실제 주봉 MA 값을 유지합니다.")
 int brightTransp = input.int(0, "활성 TF 투명도", minval=0, maxval=90, group=grpDisp)
 int dimTransp = input.int(72, "비활성 TF 투명도", minval=30, maxval=95, group=grpDisp)
 
@@ -32,17 +33,34 @@ bool dailyPrimary = not weeklyPrimary
 int dAlpha = showBoth and dailyPrimary ? brightTransp : showBoth ? dimTransp : brightTransp
 int wAlpha = showBoth and weeklyPrimary ? brightTransp : showBoth ? dimTransp : brightTransp
 
+bool needWeeklySmooth = smoothWeekly and not timeframe.isweekly and not timeframe.ismonthly
+
+// 주봉 MA — 전주·금주 값 사이 선형 보간 (표시용, 교차 판정은 step 값)
+f_interp_week(float curr, float prev) =>
+    int t0 = time("W")
+    int t1 = time_close("W")
+    float span = math.max(float(t1 - t0), 1.0)
+    float frac = math.min(math.max((time - t0) / span, 0.0), 1.0)
+    prev + (curr - prev) * frac
+
+f_week_plot(float curr, float prev) =>
+    needWeeklySmooth ? f_interp_week(curr, prev) : curr
+
 // === 일봉 MA ===
 float ma5_d = request.security(syminfo.tickerid, "D", ta.sma(close, 5), barmerge.gaps_off, barmerge.lookahead_off)
 float ma20_d = request.security(syminfo.tickerid, "D", ta.sma(close, 20), barmerge.gaps_off, barmerge.lookahead_off)
 float ma60_d = request.security(syminfo.tickerid, "D", ta.sma(close, 60), barmerge.gaps_off, barmerge.lookahead_off)
 float ma120_d = request.security(syminfo.tickerid, "D", ta.sma(close, 120), barmerge.gaps_off, barmerge.lookahead_off)
 
-// === 주봉 MA ===
-float ma5_w = request.security(syminfo.tickerid, "W", ta.sma(close, 5), barmerge.gaps_off, barmerge.lookahead_off)
-float ma20_w = request.security(syminfo.tickerid, "W", ta.sma(close, 20), barmerge.gaps_off, barmerge.lookahead_off)
-float ma60_w = request.security(syminfo.tickerid, "W", ta.sma(close, 60), barmerge.gaps_off, barmerge.lookahead_off)
-float ma120_w = request.security(syminfo.tickerid, "W", ta.sma(close, 120), barmerge.gaps_off, barmerge.lookahead_off)
+// === 주봉 MA (step=교차·마커, plot=선형 보간 표시) ===
+[ma5_w_step, ma5_w_prev] = request.security(syminfo.tickerid, "W", [ta.sma(close, 5), ta.sma(close, 5)[1]], barmerge.gaps_off, barmerge.lookahead_off)
+[ma20_w_step, ma20_w_prev] = request.security(syminfo.tickerid, "W", [ta.sma(close, 20), ta.sma(close, 20)[1]], barmerge.gaps_off, barmerge.lookahead_off)
+[ma60_w_step, ma60_w_prev] = request.security(syminfo.tickerid, "W", [ta.sma(close, 60), ta.sma(close, 60)[1]], barmerge.gaps_off, barmerge.lookahead_off)
+[ma120_w_step, ma120_w_prev] = request.security(syminfo.tickerid, "W", [ta.sma(close, 120), ta.sma(close, 120)[1]], barmerge.gaps_off, barmerge.lookahead_off)
+float ma5_w = f_week_plot(ma5_w_step, ma5_w_prev)
+float ma20_w = f_week_plot(ma20_w_step, ma20_w_prev)
+float ma60_w = f_week_plot(ma60_w_step, ma60_w_prev)
+float ma120_w = f_week_plot(ma120_w_step, ma120_w_prev)
 
 // === 일봉 교차 ===
 bool gold_5_20_d = ta.crossover(ma5_d, ma20_d)
@@ -50,11 +68,11 @@ bool dead_5_20_d = ta.crossunder(ma5_d, ma20_d)
 bool gold_20_120_d = ta.crossover(ma20_d, ma120_d)
 bool dead_20_120_d = ta.crossunder(ma20_d, ma120_d)
 
-// === 주봉 교차 ===
-bool gold_5_20_w = ta.crossover(ma5_w, ma20_w)
-bool dead_5_20_w = ta.crossunder(ma5_w, ma20_w)
-bool gold_20_120_w = ta.crossover(ma20_w, ma120_w)
-bool dead_20_120_w = ta.crossunder(ma20_w, ma120_w)
+// === 주봉 교차 (step 값 — 왜곡 없음) ===
+bool gold_5_20_w = ta.crossover(ma5_w_step, ma20_w_step)
+bool dead_5_20_w = ta.crossunder(ma5_w_step, ma20_w_step)
+bool gold_20_120_w = ta.crossover(ma20_w_step, ma120_w_step)
+bool dead_20_120_w = ta.crossunder(ma20_w_step, ma120_w_step)
 
 color color_5_20_d = gold_5_20_d ? color.new(color.green, dAlpha) : dead_5_20_d ? color.new(color.red, dAlpha) : na
 color color_20_120_d = gold_20_120_d ? color.new(color.green, dAlpha) : dead_20_120_d ? color.new(color.red, dAlpha) : na
@@ -76,8 +94,8 @@ plot(showWeekly ? ma120_w : na, color=color.new(c120_w, wAlpha), linewidth=2, ti
 // === 교차점 ===
 plot(showDaily and (gold_5_20_d or dead_5_20_d) ? ma5_d : na, style=plot.style_circles, linewidth=5, color=color_5_20_d, title="[일] 5-20 교차점")
 plot(showDaily and (gold_20_120_d or dead_20_120_d) ? ma20_d : na, style=plot.style_circles, linewidth=5, color=color_20_120_d, title="[일] 20-120 교차점")
-plot(showWeekly and (gold_5_20_w or dead_5_20_w) ? ma5_w : na, style=plot.style_circles, linewidth=5, color=color_5_20_w, title="[주] 5-20 교차점")
-plot(showWeekly and (gold_20_120_w or dead_20_120_w) ? ma20_w : na, style=plot.style_circles, linewidth=5, color=color_20_120_w, title="[주] 20-120 교차점")
+plot(showWeekly and (gold_5_20_w or dead_5_20_w) ? ma5_w_step : na, style=plot.style_circles, linewidth=5, color=color_5_20_w, title="[주] 5-20 교차점")
+plot(showWeekly and (gold_20_120_w or dead_20_120_w) ? ma20_w_step : na, style=plot.style_circles, linewidth=5, color=color_20_120_w, title="[주] 20-120 교차점")
 
 // === 우하단 범례 (배경 없음 · 차트와 동일 dAlpha/wAlpha) ===
 var table legend = table.new(position.bottom_right, 3, 8, bgcolor=na, frame_color=color.new(color.gray, 70), border_width=1)
@@ -91,7 +109,8 @@ f_leg_ma(int row, string label, color cD, color cW) =>
     table.cell(legend, 2, row, showWeekly ? "━━" : "", text_color=color.new(cW, wAlpha), text_size=size.tiny)
 
 if barstate.islast and showLegend
-    string modeHint = showBoth ? (weeklyPrimary ? "강조: 주봉" : "강조: 일봉") : tfMode
+    string smoothHint = needWeeklySmooth ? " · 주봉보간" : ""
+    string modeHint = (showBoth ? (weeklyPrimary ? "강조: 주봉" : "강조: 일봉") : tfMode) + smoothHint
     table.cell(legend, 0, 0, "MA 색상", text_color=color.white, text_size=size.small, text_halign=text.align_left)
     table.cell(legend, 1, 0, showDaily ? "일봉" : "", text_color=color.new(dailySpecA, dAlpha), text_size=size.tiny)
     table.cell(legend, 2, 0, showWeekly ? "주봉" : "", text_color=color.new(weeklySpecA, wAlpha), text_size=size.tiny)
