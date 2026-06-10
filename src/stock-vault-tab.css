@@ -733,6 +733,15 @@ html[data-theme="light"] .stock-vault-tab__row--gc-recent-10 {
   color: var(--muted);
 }
 
+.stock-vault-tab__timeframe {
+  font-weight: 700;
+  color: color-mix(in srgb, var(--accent, #2563eb) 85%, var(--muted));
+}
+
+.stock-vault-tab__filters--timeframe {
+  margin-bottom: 0.35rem;
+}
+
 .stock-vault-tab__crosses {
   display: flex;
   flex-wrap: wrap;

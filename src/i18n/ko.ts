@@ -992,7 +992,7 @@ export const ko = {
     lastScanGolden: "골든",
     lastScanMaAlign: "정배열",
     scanRun: "일봉 탐색",
-    scanConfirmLead: "일봉 골든크로스·정배열 탐색을 실행할까요?",
+    scanConfirmLead: "일봉·주봉 골든크로스·정배열 탐색을 실행할까요?",
     scanConfirmBody:
       "국내 시총 상위·미국 S&P500 종목의 일봉·주봉에서 골든크로스(MA5→20·60·120)와 정배열(MA5>20>60>120)을 각각 찾아 보관함에 추가합니다. 수분 걸릴 수 있습니다.",
     scanConfirmOk: "탐색 시작",

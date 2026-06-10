@@ -121,7 +121,9 @@ test("buildGoldenCrossScanEmailContent includes hits with quote columns", () => 
       },
     ],
   });
-  assert.match(subject, /탐색 리포트/);
+  assert.match(subject, /일봉·주봉 탐색 리포트/);
+  assert.match(text, /일봉/);
+  assert.match(html, /주봉/);
   assert.equal(goldenCrossHits, 1);
   assert.equal(maAlignHits, 1);
   assert.match(text, /삼성전자/);

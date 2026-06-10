@@ -1064,6 +1064,9 @@ export default function StockVaultTab({
                           {label}
                         </span>
                       ))}
+                      <span className="stock-vault-tab__timeframe">
+                        {stockVaultTimeframeLabel(row.timeframe)}
+                      </span>
                       {scanDate ? (
                         <span className="stock-vault-tab__scan-date">
                           {scanDate}

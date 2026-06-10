@@ -6,6 +6,7 @@ import {
   scanEmailHitCells,
 } from "./golden-cross-scan-email-enrich.js";
 import { listUsersSync, getUserNotificationEmailSync } from "../users-store.js";
+import { normalizeVaultScanTimeframe } from "../vault-scan-timeframe.js";
 
 export { DEFAULT_AUDIT_REPORT_TO };
 
@@ -15,10 +16,22 @@ const CROSS_LABEL = {
   "5>120": "5→120",
 };
 
+const TIMEFRAME_LABEL = {
+  "1d": "일봉",
+  "1wk": "주봉",
+};
+
+/** @param {import("../vault-scan-timeframe.js").VaultScanTimeframe | undefined} tf */
+function timeframeLabel(tf) {
+  const key = normalizeVaultScanTimeframe(tf);
+  return TIMEFRAME_LABEL[key] ?? "일봉";
+}
+
 /**
  * @typedef {{
  *   market: "kr"|"us";
  *   scanDate: string;
+ *   timeframe?: import("../vault-scan-timeframe.js").VaultScanTimeframe;
  *   scanned: number;
  *   hits: Array<{ symbol: string; name: string; crosses: string[] }>;
  * }} GoldenCrossEmailMarket
@@ -28,6 +41,7 @@ const CROSS_LABEL = {
  * @typedef {{
  *   market: "kr"|"us";
  *   scanDate: string;
+ *   timeframe?: import("../vault-scan-timeframe.js").VaultScanTimeframe;
  *   scanned: number;
  *   hits: Array<{ symbol: string; name: string }>;
  * }} MaAlignEmailMarket
@@ -78,6 +92,37 @@ export function listGoldenCrossEmailRecipientsSync() {
 }
 
 /**
+ * @param {"kr"|"us"} market
+ * @param {string} scanDate
+ * @param {Record<import("../vault-scan-timeframe.js").VaultScanTimeframe, { goldenCross: { scanned: number; hits: GoldenCrossEmailMarket["hits"] }; maAlign: { scanned: number; hits: MaAlignEmailMarket["hits"] } }>} byTimeframe
+ */
+export function buildScanEmailPayloadFromVaultResult(market, scanDate, byTimeframe) {
+  /** @type {GoldenCrossEmailMarket[]} */
+  const goldenCross = [];
+  /** @type {MaAlignEmailMarket[]} */
+  const maAlign = [];
+  for (const tf of /** @type {const} */ (["1d", "1wk"])) {
+    const block = byTimeframe?.[tf];
+    if (!block) continue;
+    goldenCross.push({
+      market,
+      scanDate,
+      timeframe: tf,
+      scanned: block.goldenCross.scanned,
+      hits: block.goldenCross.hits,
+    });
+    maAlign.push({
+      market,
+      scanDate,
+      timeframe: tf,
+      scanned: block.maAlign.scanned,
+      hits: block.maAlign.hits,
+    });
+  }
+  return { goldenCross, maAlign };
+}
+
+/**
  * @param {GoldenCrossEmailMarket[]} markets
  */
 function buildGoldenCrossSection(markets) {
@@ -88,9 +133,10 @@ function buildGoldenCrossSection(markets) {
 
   for (const block of markets) {
     const marketKo = block.market === "kr" ? "국내 시총 300" : "S&P 500";
-    textParts.push(`${marketKo} · ${block.scanDate} · ${block.hits.length}건`);
+    const tfKo = timeframeLabel(block.timeframe);
+    textParts.push(`${marketKo} · ${tfKo} · ${block.scanDate} · ${block.hits.length}건`);
     htmlParts.push(
-      `<h3>${marketKo} <small style="color:#64748b">${block.scanDate} · ${block.hits.length}건</small></h3>`,
+      `<h3>${marketKo} · <strong>${tfKo}</strong> <small style="color:#64748b">${block.scanDate} · ${block.hits.length}건</small></h3>`,
     );
     if (!block.hits.length) {
       textParts.push("· 없음", "");
@@ -128,9 +174,10 @@ function buildMaAlignSection(markets) {
 
   for (const block of markets) {
     const marketKo = block.market === "kr" ? "국내 시총 300" : "S&P 500";
-    textParts.push(`${marketKo} · ${block.scanDate} · ${block.hits.length}건`);
+    const tfKo = timeframeLabel(block.timeframe);
+    textParts.push(`${marketKo} · ${tfKo} · ${block.scanDate} · ${block.hits.length}건`);
     htmlParts.push(
-      `<h3>${marketKo} <small style="color:#64748b">${block.scanDate} · ${block.hits.length}건</small></h3>`,
+      `<h3>${marketKo} · <strong>${tfKo}</strong> <small style="color:#64748b">${block.scanDate} · ${block.hits.length}건</small></h3>`,
     );
     if (!block.hits.length) {
       textParts.push("· 없음", "");
@@ -159,15 +206,15 @@ export function buildGoldenCrossScanEmailContent(input) {
   const goldenCrossHits = goldenCross.reduce((s, m) => s + m.hits.length, 0);
   const maAlignHits = maAlign.reduce((s, m) => s + m.hits.length, 0);
   const now = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
-  const subject = `[YSTOCK] 일봉 탐색 리포트 — 골든 ${goldenCrossHits} · 정배열 ${maAlignHits} · ${now}`;
+  const subject = `[YSTOCK] 일봉·주봉 탐색 리포트 — 골든 ${goldenCrossHits} · 정배열 ${maAlignHits} · ${now}`;
 
   const gc = buildGoldenCrossSection(goldenCross);
   const ma = buildMaAlignSection(maAlign);
 
   const text = [
-    `YSTOCK 일봉 탐색 리포트 (${now})`,
+    `YSTOCK 일봉·주봉 탐색 리포트 (${now})`,
     "",
-    "앱 「종목보관」 탭에서 골든크로스·정배열 탭으로 확인할 수 있습니다.",
+    "앱 「종목보관」 탭에서 일봉/주봉 필터와 골든크로스·정배열 조건으로 확인할 수 있습니다.",
     "",
     ...gc.textParts,
     ...ma.textParts,
@@ -177,8 +224,9 @@ export function buildGoldenCrossScanEmailContent(input) {
   const html = [
     `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>${subject}</title></head>`,
     `<body style="font-family:'Malgun Gothic',sans-serif;line-height:1.6;max-width:900px;margin:0 auto;padding:20px;">`,
-    `<h1 style="color:#1e40af;font-size:1.2em;">일봉 탐색 리포트</h1>`,
+    `<h1 style="color:#1e40af;font-size:1.2em;">일봉·주봉 탐색 리포트</h1>`,
     `<p>${now} · 골든크로스 <strong>${goldenCrossHits}</strong> · 정배열 <strong>${maAlignHits}</strong></p>`,
+    `<p style="color:#64748b;font-size:0.9em">각 표 제목에 <strong>일봉</strong> 또는 <strong>주봉</strong>이 표시됩니다.</p>`,
     ...gc.htmlParts,
     ...ma.htmlParts,
     `<p style="color:#888;font-size:0.85em;margin-top:24px;">YSTOCK · 종목보관</p>`,

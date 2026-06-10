@@ -11,7 +11,7 @@ import {
 import { appendGoldenCrossHistoryEntrySync } from "./golden-cross-history-store.js";
 import { appendMaAlignHistoryEntrySync } from "./ma-align-history-store.js";
 import { notifyGoldenCrossScanTelegram } from "./golden-cross-telegram.js";
-import { sendGoldenCrossScanReportEmail } from "./notifications/golden-cross-scan-email.js";
+import { sendGoldenCrossScanReportEmail, buildScanEmailPayloadFromVaultResult } from "./notifications/golden-cross-scan-email.js";
 import { runMaAlignVaultIntradayRefresh } from "./ma-align-vault-intraday.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 import { isStockTradableBySchedule } from "./market-hours.js";
@@ -172,9 +172,14 @@ async function runVaultMarketScansForTimeframe(
         hits: goldenCross.hits,
       });
     }
-    if (notifyGoldenCrossTelegram && timeframe === "1d") {
+    if (notifyGoldenCrossTelegram) {
       try {
-        await notifyGoldenCrossScanTelegram(market, scanDate, goldenCross.hits);
+        await notifyGoldenCrossScanTelegram(
+          market,
+          scanDate,
+          goldenCross.hits,
+          timeframe,
+        );
       } catch (e) {
         liveTradeLogWarn(
           "[stock-vault:scan:golden-cross:telegram]",
@@ -341,13 +346,17 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
         : localMinutesOfDay("us", now).dateKey;
     let goldenCross = emptyGoldenCrossMarketResult(market, scanDate);
     let maAlign = emptyMaAlignMarketResult(market, scanDate);
+    let byTimeframe = null;
     try {
-      ({ goldenCross, maAlign } = await runVaultMarketScans(
+      const scanResult = await runVaultMarketScans(
         market,
         scanDate,
         runId,
         "manual",
-      ));
+      );
+      goldenCross = scanResult.goldenCross;
+      maAlign = scanResult.maAlign;
+      byTimeframe = scanResult.byTimeframe;
     } catch (e) {
       liveTradeLogWarn(
         "[golden-cross:manual]",
@@ -355,18 +364,30 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
         e instanceof Error ? e.message : e,
       );
     }
-    goldenCrossEmailMarkets.push({
-      market,
-      scanDate,
-      scanned: goldenCross.scanned,
-      hits: goldenCross.hits,
-    });
-    maAlignEmailMarkets.push({
-      market,
-      scanDate,
-      scanned: maAlign.scanned,
-      hits: maAlign.hits,
-    });
+    if (byTimeframe) {
+      const payload = buildScanEmailPayloadFromVaultResult(
+        market,
+        scanDate,
+        byTimeframe,
+      );
+      goldenCrossEmailMarkets.push(...payload.goldenCross);
+      maAlignEmailMarkets.push(...payload.maAlign);
+    } else {
+      goldenCrossEmailMarkets.push({
+        market,
+        scanDate,
+        timeframe: "1d",
+        scanned: goldenCross.scanned,
+        hits: goldenCross.hits,
+      });
+      maAlignEmailMarkets.push({
+        market,
+        scanDate,
+        timeframe: "1d",
+        scanned: maAlign.scanned,
+        hits: maAlign.hits,
+      });
+    }
     goldenCrossResults.push({
       market,
       scanDate,
@@ -461,31 +482,19 @@ export async function runGoldenCrossScanIfDue(market, now = new Date()) {
   const runId = randomUUID();
   vaultScanRunning = true;
   try {
-    const { goldenCross, maAlign } = await runVaultMarketScans(
+    const { goldenCross, maAlign, byTimeframe } = await runVaultMarketScans(
       market,
       scanDate,
       runId,
       "scheduled",
     );
     try {
-      await sendGoldenCrossScanReportEmail({
-        goldenCross: [
-          {
-            market,
-            scanDate,
-            scanned: goldenCross.scanned,
-            hits: goldenCross.hits,
-          },
-        ],
-        maAlign: [
-          {
-            market,
-            scanDate,
-            scanned: maAlign.scanned,
-            hits: maAlign.hits,
-          },
-        ],
-      });
+      const payload = buildScanEmailPayloadFromVaultResult(
+        market,
+        scanDate,
+        byTimeframe,
+      );
+      await sendGoldenCrossScanReportEmail(payload);
     } catch (e) {
       liveTradeLogWarn(
         "[stock-vault:scan:email]",
