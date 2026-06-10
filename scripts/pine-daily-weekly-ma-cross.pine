@@ -2,9 +2,14 @@
 indicator("일봉·주봉 MA 정확 접점 (골든/데드 구분)", overlay=true)
 
 string grpDisp = "표시"
+string tfMode = input.string("일봉+주봉", "표시 TF", options=["일봉+주봉", "일봉만", "주봉만"], group=grpDisp)
 bool showLegend = input.bool(true, "범례 표시 (우하단)", group=grpDisp)
 int brightTransp = input.int(0, "활성 TF 투명도", minval=0, maxval=90, group=grpDisp)
 int dimTransp = input.int(72, "비활성 TF 투명도", minval=30, maxval=95, group=grpDisp)
+
+bool showBoth = tfMode == "일봉+주봉"
+bool showDaily = showBoth or tfMode == "일봉만"
+bool showWeekly = showBoth or tfMode == "주봉만"
 
 // 스펙트럼 — 일봉: 노랑→주황→빨강(따뜻한 계열) / 주봉: 시안→파랑→보라(차가운 계열), 5→120으로 hue 이동
 color dailySpecA = #FFEE58
@@ -24,8 +29,8 @@ color c120_w = color.from_gradient(120, 5, 120, weeklySpecA, weeklySpecZ)
 bool weeklyPrimary = timeframe.isweekly or timeframe.ismonthly
 bool dailyPrimary = not weeklyPrimary
 
-int dAlpha = dailyPrimary ? brightTransp : dimTransp
-int wAlpha = weeklyPrimary ? brightTransp : dimTransp
+int dAlpha = showBoth and dailyPrimary ? brightTransp : showBoth ? dimTransp : brightTransp
+int wAlpha = showBoth and weeklyPrimary ? brightTransp : showBoth ? dimTransp : brightTransp
 
 // === 일봉 MA ===
 float ma5_d = request.security(syminfo.tickerid, "D", ta.sma(close, 5), barmerge.gaps_off, barmerge.lookahead_off)
@@ -57,22 +62,22 @@ color color_5_20_w = gold_5_20_w ? color.new(color.green, wAlpha) : dead_5_20_w 
 color color_20_120_w = gold_20_120_w ? color.new(color.green, wAlpha) : dead_20_120_w ? color.new(color.red, wAlpha) : na
 
 // === 일봉 MA 선 ===
-plot(ma5_d, color=color.new(c5_d, dAlpha), linewidth=2, title="[일] 5 MA")
-plot(ma20_d, color=color.new(c20_d, dAlpha), linewidth=2, title="[일] 20 MA")
-plot(ma60_d, color=color.new(c60_d, dAlpha), linewidth=2, title="[일] 60 MA")
-plot(ma120_d, color=color.new(c120_d, dAlpha), linewidth=2, title="[일] 120 MA")
+plot(showDaily ? ma5_d : na, color=color.new(c5_d, dAlpha), linewidth=2, title="[일] 5 MA")
+plot(showDaily ? ma20_d : na, color=color.new(c20_d, dAlpha), linewidth=2, title="[일] 20 MA")
+plot(showDaily ? ma60_d : na, color=color.new(c60_d, dAlpha), linewidth=2, title="[일] 60 MA")
+plot(showDaily ? ma120_d : na, color=color.new(c120_d, dAlpha), linewidth=2, title="[일] 120 MA")
 
 // === 주봉 MA 선 ===
-plot(ma5_w, color=color.new(c5_w, wAlpha), linewidth=2, title="[주] 5 MA")
-plot(ma20_w, color=color.new(c20_w, wAlpha), linewidth=2, title="[주] 20 MA")
-plot(ma60_w, color=color.new(c60_w, wAlpha), linewidth=2, title="[주] 60 MA")
-plot(ma120_w, color=color.new(c120_w, wAlpha), linewidth=2, title="[주] 120 MA")
+plot(showWeekly ? ma5_w : na, color=color.new(c5_w, wAlpha), linewidth=2, title="[주] 5 MA")
+plot(showWeekly ? ma20_w : na, color=color.new(c20_w, wAlpha), linewidth=2, title="[주] 20 MA")
+plot(showWeekly ? ma60_w : na, color=color.new(c60_w, wAlpha), linewidth=2, title="[주] 60 MA")
+plot(showWeekly ? ma120_w : na, color=color.new(c120_w, wAlpha), linewidth=2, title="[주] 120 MA")
 
 // === 교차점 ===
-plot(gold_5_20_d or dead_5_20_d ? ma5_d : na, style=plot.style_circles, linewidth=5, color=color_5_20_d, title="[일] 5-20 교차점")
-plot(gold_20_120_d or dead_20_120_d ? ma20_d : na, style=plot.style_circles, linewidth=5, color=color_20_120_d, title="[일] 20-120 교차점")
-plot(gold_5_20_w or dead_5_20_w ? ma5_w : na, style=plot.style_circles, linewidth=5, color=color_5_20_w, title="[주] 5-20 교차점")
-plot(gold_20_120_w or dead_20_120_w ? ma20_w : na, style=plot.style_circles, linewidth=5, color=color_20_120_w, title="[주] 20-120 교차점")
+plot(showDaily and (gold_5_20_d or dead_5_20_d) ? ma5_d : na, style=plot.style_circles, linewidth=5, color=color_5_20_d, title="[일] 5-20 교차점")
+plot(showDaily and (gold_20_120_d or dead_20_120_d) ? ma20_d : na, style=plot.style_circles, linewidth=5, color=color_20_120_d, title="[일] 20-120 교차점")
+plot(showWeekly and (gold_5_20_w or dead_5_20_w) ? ma5_w : na, style=plot.style_circles, linewidth=5, color=color_5_20_w, title="[주] 5-20 교차점")
+plot(showWeekly and (gold_20_120_w or dead_20_120_w) ? ma20_w : na, style=plot.style_circles, linewidth=5, color=color_20_120_w, title="[주] 20-120 교차점")
 
 // === 우하단 범례 (배경 없음 · 차트와 동일 dAlpha/wAlpha) ===
 var table legend = table.new(position.bottom_right, 3, 8, bgcolor=na, frame_color=color.new(color.gray, 70), border_width=1)
@@ -82,24 +87,24 @@ f_leg_label(int row, string label) =>
 
 f_leg_ma(int row, string label, color cD, color cW) =>
     f_leg_label(row, label)
-    table.cell(legend, 1, row, "━━", text_color=color.new(cD, dAlpha), text_size=size.tiny)
-    table.cell(legend, 2, row, "━━", text_color=color.new(cW, wAlpha), text_size=size.tiny)
+    table.cell(legend, 1, row, showDaily ? "━━" : "", text_color=color.new(cD, dAlpha), text_size=size.tiny)
+    table.cell(legend, 2, row, showWeekly ? "━━" : "", text_color=color.new(cW, wAlpha), text_size=size.tiny)
 
 if barstate.islast and showLegend
-    string activeHint = weeklyPrimary ? "강조: 주봉" : "강조: 일봉"
+    string modeHint = showBoth ? (weeklyPrimary ? "강조: 주봉" : "강조: 일봉") : tfMode
     table.cell(legend, 0, 0, "MA 색상", text_color=color.white, text_size=size.small, text_halign=text.align_left)
-    table.cell(legend, 1, 0, "일봉", text_color=color.new(dailySpecA, dAlpha), text_size=size.tiny)
-    table.cell(legend, 2, 0, "주봉", text_color=color.new(weeklySpecA, wAlpha), text_size=size.tiny)
+    table.cell(legend, 1, 0, showDaily ? "일봉" : "", text_color=color.new(dailySpecA, dAlpha), text_size=size.tiny)
+    table.cell(legend, 2, 0, showWeekly ? "주봉" : "", text_color=color.new(weeklySpecA, wAlpha), text_size=size.tiny)
     f_leg_ma(1, "5일", c5_d, c5_w)
     f_leg_ma(2, "20일", c20_d, c20_w)
     f_leg_ma(3, "60일", c60_d, c60_w)
     f_leg_ma(4, "120일", c120_d, c120_w)
     f_leg_label(5, "교차")
-    table.cell(legend, 1, 5, "골든 ●", text_color=color.new(color.green, dAlpha), text_size=size.tiny)
-    table.cell(legend, 2, 5, "골든 ●", text_color=color.new(color.green, wAlpha), text_size=size.tiny)
+    table.cell(legend, 1, 5, showDaily ? "골든 ●" : "", text_color=color.new(color.green, dAlpha), text_size=size.tiny)
+    table.cell(legend, 2, 5, showWeekly ? "골든 ●" : "", text_color=color.new(color.green, wAlpha), text_size=size.tiny)
     f_leg_label(6, "")
-    table.cell(legend, 1, 6, "데드 ●", text_color=color.new(color.red, dAlpha), text_size=size.tiny)
-    table.cell(legend, 2, 6, "데드 ●", text_color=color.new(color.red, wAlpha), text_size=size.tiny)
-    table.cell(legend, 0, 7, activeHint, text_color=color.gray, text_size=size.tiny, text_halign=text.align_left)
-    table.cell(legend, 1, 7, "5↔20", text_color=color.new(color.gray, dAlpha), text_size=size.tiny)
-    table.cell(legend, 2, 7, "20↔120", text_color=color.new(color.gray, wAlpha), text_size=size.tiny)
+    table.cell(legend, 1, 6, showDaily ? "데드 ●" : "", text_color=color.new(color.red, dAlpha), text_size=size.tiny)
+    table.cell(legend, 2, 6, showWeekly ? "데드 ●" : "", text_color=color.new(color.red, wAlpha), text_size=size.tiny)
+    table.cell(legend, 0, 7, modeHint, text_color=color.gray, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(legend, 1, 7, showDaily ? "5↔20" : "", text_color=color.new(color.gray, dAlpha), text_size=size.tiny)
+    table.cell(legend, 2, 7, showWeekly ? "20↔120" : "", text_color=color.new(color.gray, wAlpha), text_size=size.tiny)
