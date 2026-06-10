@@ -2,6 +2,7 @@
 indicator("일봉·주봉 MA 정확 접점 (골든/데드 구분)", overlay=true)
 
 string grpDisp = "표시"
+bool showLegend = input.bool(true, "범례 표시 (우하단)", group=grpDisp)
 int brightTransp = input.int(0, "활성 TF 투명도", minval=0, maxval=90, group=grpDisp)
 int dimTransp = input.int(72, "비활성 TF 투명도", minval=30, maxval=95, group=grpDisp)
 
@@ -68,3 +69,30 @@ plot(gold_5_20_d or dead_5_20_d ? ma5_d : na, style=plot.style_circles, linewidt
 plot(gold_20_120_d or dead_20_120_d ? ma20_d : na, style=plot.style_circles, linewidth=5, color=color_20_120_d, title="[일] 20-120 교차점")
 plot(gold_5_20_w or dead_5_20_w ? ma5_w : na, style=plot.style_circles, linewidth=5, color=color_5_20_w, title="[주] 5-20 교차점")
 plot(gold_20_120_w or dead_20_120_w ? ma20_w : na, style=plot.style_circles, linewidth=5, color=color_20_120_w, title="[주] 20-120 교차점")
+
+// === 우하단 범례 ===
+var table legend = table.new(position.bottom_right, 3, 8, bgcolor=color.new(#1e1e1e, 8), frame_color=color.new(color.gray, 40), border_width=1)
+
+f_leg_ma(int row, string label, color cD, color cW) =>
+    table.cell(legend, 0, row, label, text_color=color.silver, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(legend, 1, row, "━━", text_color=cD, text_size=size.tiny, bgcolor=color.new(cD, math.max(dAlpha, 55)))
+    table.cell(legend, 2, row, "━━", text_color=cW, text_size=size.tiny, bgcolor=color.new(cW, math.max(wAlpha, 55)))
+
+if barstate.islast and showLegend
+    string activeHint = weeklyPrimary ? "강조: 주봉" : "강조: 일봉"
+    table.cell(legend, 0, 0, "MA 색상", text_color=color.white, text_size=size.small, text_halign=text.align_left)
+    table.cell(legend, 1, 0, "일봉", text_color=color.yellow, text_size=size.tiny)
+    table.cell(legend, 2, 0, "주봉", text_color=#00E5FF, text_size=size.tiny)
+    f_leg_ma(1, "5일", c5_d, c5_w)
+    f_leg_ma(2, "20일", c20_d, c20_w)
+    f_leg_ma(3, "60일", c60_d, c60_w)
+    f_leg_ma(4, "120일", c120_d, c120_w)
+    table.cell(legend, 0, 5, "교차", text_color=color.silver, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(legend, 1, 5, "골든 ●", text_color=color.green, text_size=size.tiny, bgcolor=color.new(color.green, 82))
+    table.cell(legend, 2, 5, "골든 ●", text_color=color.green, text_size=size.tiny, bgcolor=color.new(color.green, 82))
+    table.cell(legend, 0, 6, "", text_color=color.silver, text_size=size.tiny)
+    table.cell(legend, 1, 6, "데드 ●", text_color=color.red, text_size=size.tiny, bgcolor=color.new(color.red, 82))
+    table.cell(legend, 2, 6, "데드 ●", text_color=color.red, text_size=size.tiny, bgcolor=color.new(color.red, 82))
+    table.cell(legend, 0, 7, activeHint, text_color=color.gray, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(legend, 1, 7, "5↔20", text_color=color.gray, text_size=size.tiny)
+    table.cell(legend, 2, 7, "20↔120", text_color=color.gray, text_size=size.tiny)
