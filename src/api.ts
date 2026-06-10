@@ -2033,6 +2033,17 @@ export function fetchStockVault(signal?: AbortSignal) {
   );
 }
 
+export function fetchKrInvestorFlow(opts?: {
+  refresh?: boolean;
+  signal?: AbortSignal;
+}) {
+  const q = opts?.refresh ? "?refresh=1" : "";
+  return fetchJson<import("./types").KrInvestorFlowResponse>(
+    `/api/kr-investor-flow${q}`,
+    opts?.signal ? { signal: opts.signal } : undefined,
+  );
+}
+
 export function fetchStockVaultChartInsights(opts?: {
   refresh?: boolean;
   signal?: AbortSignal;

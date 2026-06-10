@@ -2344,6 +2344,19 @@ export function createApp() {
   );
 
   app.get(
+    "/api/kr-investor-flow",
+    asyncRoute(async (req, res) => {
+      const { readKrInvestorFlowSnapshotSync, runKrInvestorFlowScan } =
+        await import("./kr-investor-flow.js");
+      const refresh = String(req.query?.refresh ?? "") === "1";
+      const snapshot = refresh
+        ? await runKrInvestorFlowScan()
+        : readKrInvestorFlowSnapshotSync();
+      res.json(snapshot);
+    }),
+  );
+
+  app.get(
     "/api/stock-vault/chart-insights",
     asyncRoute(async (req, res) => {
       const { buildStockVaultItemsForUserSync } = await import(

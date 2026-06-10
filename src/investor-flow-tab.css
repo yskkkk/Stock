@@ -1,0 +1,155 @@
+.workspace.investor-flow-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.app.app--investor-flow .app__shell > .workspace.investor-flow-tab {
+  grid-column: 1 / -1;
+}
+
+.investor-flow-tab__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+}
+
+.investor-flow-tab__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.investor-flow-tab__meta {
+  margin: 0.15rem 0 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.investor-flow-tab__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.investor-flow-tab__search {
+  min-width: 10rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.78rem;
+}
+
+.investor-flow-tab__rank-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.investor-flow-tab__table-wrap {
+  overflow: auto;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm, 8px);
+  background: color-mix(in srgb, var(--card) 92%, var(--surface));
+}
+
+.investor-flow-tab__table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  font-size: 0.76rem;
+}
+
+.investor-flow-tab__table th,
+.investor-flow-tab__table td {
+  padding: 0.42rem 0.55rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.investor-flow-tab__table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: color-mix(in srgb, var(--surface) 96%, var(--card));
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.investor-flow-tab__table th.investor-flow-tab__col--name,
+.investor-flow-tab__table td.investor-flow-tab__col--name {
+  text-align: left;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: inherit;
+  min-width: 8.5rem;
+}
+
+.investor-flow-tab__table th.investor-flow-tab__col--rank,
+.investor-flow-tab__table td.investor-flow-tab__col--rank {
+  text-align: center;
+  width: 2.2rem;
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+
+.investor-flow-tab__table th.is-active {
+  color: var(--accent);
+}
+
+.investor-flow-tab__name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.investor-flow-tab__sym {
+  display: block;
+  margin-top: 0.08rem;
+  font-size: 0.64rem;
+  font-family: var(--font-mono);
+  color: var(--muted);
+}
+
+.investor-flow-tab__qty--buy {
+  color: var(--up);
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+
+.investor-flow-tab__qty--sell {
+  color: var(--down);
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+
+.investor-flow-tab__qty--flat {
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+
+.investor-flow-tab__muted {
+  margin: 0;
+  padding: 1.25rem;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.investor-flow-tab__error {
+  margin: 0;
+  padding: 0.75rem;
+  font-size: 0.82rem;
+  color: var(--down);
+}

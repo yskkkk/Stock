@@ -20,6 +20,7 @@ import "./app-theme-corner.css";
 import "./stock-lookup-flat.css";
 import "./financials-tab.css";
 import "./stock-vault-tab.css";
+import "./investor-flow-tab.css";
 import "./account-snapshot.css";
 
 declare global {

@@ -12,6 +12,7 @@ export type AppTab =
   | "boxRange"
   | "financials"
   | "stockVault"
+  | "investorFlow"
   | "ops";
 
 /** 실매매·시뮬 포트폴리오 시장 */
@@ -487,6 +488,27 @@ export interface StockVaultResponse {
   authenticated?: boolean;
   favoriteSymbols?: string[];
   favoriteMeta?: Record<string, StockVaultFavoriteMeta>;
+}
+
+export interface KrInvestorFlowItem {
+  symbol: string;
+  name: string;
+  bizDate?: string | null;
+  closePrice?: number | null;
+  foreignNetQty?: number | null;
+  foreignHoldRatio?: number | null;
+  institutionNetQty?: number | null;
+  individualNetQty?: number | null;
+  accumulatedVolume?: number | null;
+}
+
+export interface KrInvestorFlowResponse {
+  version?: number;
+  updatedAtMs?: number;
+  bizDate?: string | null;
+  scanned?: number;
+  itemCount?: number;
+  items: KrInvestorFlowItem[];
 }
 
 export interface GoldenCrossScanState {

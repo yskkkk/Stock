@@ -59,6 +59,7 @@ import TradeHistoryTab from "./components/TradeHistoryTab";
 import BoxRangeTab from "./components/BoxRangeTab";
 import FinancialsTab from "./components/FinancialsTab";
 import StockVaultTab from "./components/StockVaultTab";
+import InvestorFlowTab from "./components/InvestorFlowTab";
 import { LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT } from "./lib/liveTradeDockAccount";
 import { LIVE_TRADE_PROGRAM_TRADES_MAIN_EVENT } from "./lib/liveTradeProgramTradesMain";
 import { OPEN_FINANCIALS_TAB_EVENT, type OpenFinancialsTabDetail } from "./lib/openFinancialsTab";
@@ -648,7 +649,8 @@ export default function App() {
       appTab === "liveTrading" ||
       appTab === "boxRange" ||
       appTab === "financials" ||
-      appTab === "stockVault"
+      appTab === "stockVault" ||
+      appTab === "investorFlow"
     ) {
       return null;
     }
@@ -693,7 +695,7 @@ export default function App() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!workspacePick) return;
-    if (appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault") return;
+    if (appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault" || appTab === "investorFlow") return;
     if (window.innerWidth > 900) return;
     const el = stockChartSectionRef.current;
     if (!el) return;
@@ -1037,7 +1039,7 @@ export default function App() {
 
   useEffect(() => {
     const pick = workspacePickRef.current;
-    if (!pick || appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault") return;
+    if (!pick || appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault" || appTab === "investorFlow") return;
     loadChart(pick, timeframe);
     const refreshMs = timeframe === "1m" ? 1_000 : 8_000;
     const id = window.setInterval(() => {
@@ -1273,6 +1275,8 @@ export default function App() {
                   ? "app app--financials"
                 : appTab === "stockVault"
                   ? "app app--stock-vault"
+                : appTab === "investorFlow"
+                  ? "app app--investor-flow"
                 : appTab === "liveTrading"
                 ? "app app--live-trade"
                 : appTab === "ops"
@@ -1543,6 +1547,13 @@ export default function App() {
               </button>
               <button
                 type="button"
+                className={mainTabClassName("investorFlow")}
+                onClick={() => setAppTab("investorFlow")}
+              >
+                {ko.app.tabInvestorFlow}
+              </button>
+              <button
+                type="button"
                 className={mainTabClassName("boxRange")}
                 onClick={() => setAppTab("boxRange")}
               >
@@ -1606,6 +1617,8 @@ export default function App() {
         />
       ) : appTab === "stockVault" ? (
         <StockVaultTab onVaultChange={syncVaultFromResponse} />
+      ) : appTab === "investorFlow" ? (
+        <InvestorFlowTab />
       ) : appTab === "liveTrading" ? (
         <div className="live-trade-tab-root">
           <LiveTradingTab

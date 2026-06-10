@@ -17,6 +17,7 @@ import { startOpsFileDevPoller } from "./ops-file-dev-poller.js";
 import { startServerSelfImprovementWatcher } from "./server-self-improvement-log.js";
 import { prewarmAppCaches } from "./prewarm-caches.js";
 import { startGoldenCrossScanPoller } from "./golden-cross-poller.js";
+import { startKrInvestorFlowPoller } from "./kr-investor-flow-poller.js";
 import { startMaAlignMa120WatchPoller } from "./ma-align-ma120-watch.js";
 import { startHoldingsNewsEmailPoller } from "./holdings-news-poller.js";
 import { screeningPollerEnabled, startScreening } from "./screener.js";
@@ -51,6 +52,7 @@ export function startStockDevSidecarsOnce(modeLabel) {
   }
   startOpsFileDevPoller();
   startGoldenCrossScanPoller();
+  startKrInvestorFlowPoller();
   startMaAlignMa120WatchPoller();
   startHoldingsNewsEmailPoller();
   startServerSelfImprovementWatcher();
