@@ -320,21 +320,21 @@
 
 /* 골든크로스 발생 후 1~3일 · 4~6일 · 7~10일 */
 .stock-vault-tab__row--gc-recent-3 {
-  border-color: color-mix(in srgb, #15803d 62%, var(--card-border));
-  background: color-mix(in srgb, #15803d 22%, var(--card));
-  box-shadow: inset 3px 0 0 #15803d;
+  border-color: color-mix(in srgb, #15803d 38%, var(--card-border));
+  background: color-mix(in srgb, #15803d 10%, var(--card));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, #15803d 55%, transparent);
 }
 
 .stock-vault-tab__row--gc-recent-6 {
-  border-color: color-mix(in srgb, #22c55e 50%, var(--card-border));
-  background: color-mix(in srgb, #22c55e 14%, var(--card));
-  box-shadow: inset 3px 0 0 #22c55e;
+  border-color: color-mix(in srgb, #22c55e 32%, var(--card-border));
+  background: color-mix(in srgb, #22c55e 7%, var(--card));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, #22c55e 45%, transparent);
 }
 
 .stock-vault-tab__row--gc-recent-10 {
-  border-color: color-mix(in srgb, #86efac 45%, var(--card-border));
-  background: color-mix(in srgb, #86efac 11%, var(--card));
-  box-shadow: inset 3px 0 0 #86efac;
+  border-color: color-mix(in srgb, #86efac 28%, var(--card-border));
+  background: color-mix(in srgb, #86efac 5%, var(--card));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, #86efac 40%, transparent);
 }
 
 html[data-theme="light"] .stock-vault-tab__row--gc-recent-3 {
@@ -399,28 +399,10 @@ html[data-theme="light"] .stock-vault-tab__row--gc-recent-10 {
   white-space: nowrap;
 }
 
-.stock-vault-tab__price--wk-ma-20 {
-  color: #38bdf8;
-}
-
-.stock-vault-tab__price--wk-ma-60 {
-  color: #a78bfa;
-}
-
+.stock-vault-tab__price--wk-ma-20,
+.stock-vault-tab__price--wk-ma-60,
 .stock-vault-tab__price--wk-ma-120 {
-  color: #fb923c;
-}
-
-html[data-theme="light"] .stock-vault-tab__price--wk-ma-20 {
-  color: #0284c7;
-}
-
-html[data-theme="light"] .stock-vault-tab__price--wk-ma-60 {
-  color: #7c3aed;
-}
-
-html[data-theme="light"] .stock-vault-tab__price--wk-ma-120 {
-  color: #ea580c;
+  color: var(--text-dim);
 }
 
 .stock-vault-tab__ma-near-wrap {
@@ -431,53 +413,26 @@ html[data-theme="light"] .stock-vault-tab__price--wk-ma-120 {
 }
 
 .stock-vault-tab__ma-near {
-  padding: 0.08rem 0.35rem;
-  border-radius: 999px;
-  font-size: 0.62rem;
-  font-weight: 700;
-  line-height: 1.3;
+  padding: 0.06rem 0.32rem;
+  border-radius: 4px;
+  font-size: 0.6rem;
+  font-weight: 500;
+  line-height: 1.35;
   white-space: nowrap;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--border) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 48%, transparent);
 }
 
-.stock-vault-tab__ma-near--20 {
-  color: #7dd3fc;
-  background: color-mix(in srgb, #0ea5e9 22%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, #38bdf8 45%, transparent);
-}
-
-.stock-vault-tab__ma-near--60 {
-  color: #c4b5fd;
-  background: color-mix(in srgb, #8b5cf6 22%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, #a78bfa 45%, transparent);
-}
-
-.stock-vault-tab__ma-near--120 {
-  color: #fdba74;
-  background: color-mix(in srgb, #f97316 22%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, #fb923c 45%, transparent);
-}
-
-html[data-theme="light"] .stock-vault-tab__ma-near--20 {
-  color: #0369a1;
-  background: color-mix(in srgb, #0ea5e9 12%, #fff);
-}
-
-html[data-theme="light"] .stock-vault-tab__ma-near--60 {
-  color: #6d28d9;
-  background: color-mix(in srgb, #8b5cf6 12%, #fff);
-}
-
-html[data-theme="light"] .stock-vault-tab__ma-near--120 {
-  color: #c2410c;
-  background: color-mix(in srgb, #f97316 14%, #fff);
-}
-
-.stock-vault-tab__ma-near--daily {
-  border-style: dashed;
-}
-
+.stock-vault-tab__ma-near--20,
+.stock-vault-tab__ma-near--60,
+.stock-vault-tab__ma-near--120,
+.stock-vault-tab__ma-near--daily,
 .stock-vault-tab__ma-near--weekly {
-  border-style: solid;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--border) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 48%, transparent);
+  box-shadow: none;
 }
 
 .stock-vault-tab__trend {
@@ -968,8 +923,10 @@ html[data-theme="light"] .stock-vault-tab__tf-tab--wk.active {
 }
 
 .stock-vault-tab__cross--align {
-  background: color-mix(in srgb, var(--accent, #2563eb) 14%, transparent);
-  color: var(--accent, #2563eb);
+  font-weight: 500;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--border) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 48%, transparent);
 }
 
 .stock-vault-tab__row--tf-d .stock-vault-tab__cross {
