@@ -5,6 +5,16 @@ string grpDisp = "표시"
 int brightTransp = input.int(0, "활성 TF 투명도", minval=0, maxval=90, group=grpDisp)
 int dimTransp = input.int(72, "비활성 TF 투명도", minval=30, maxval=95, group=grpDisp)
 
+// 기간별 색 — 일봉(밝은 톤) / 주봉(대비 톤): 5=노랑·시안, 20=주황·자홍, 60=라임·청록, 120=파랑·보라
+color c5_d = color.yellow
+color c20_d = color.orange
+color c60_d = #76FF03
+color c120_d = color.blue
+color c5_w = #00E5FF
+color c20_w = #E040FB
+color c60_w = #00E676
+color c120_w = #7C4DFF
+
 // 주봉 이상 차트 → 주봉 강조 / 그 외(분봉·일봉) → 일봉 강조
 bool weeklyPrimary = timeframe.isweekly or timeframe.ismonthly
 bool dailyPrimary = not weeklyPrimary
@@ -15,11 +25,13 @@ int wAlpha = weeklyPrimary ? brightTransp : dimTransp
 // === 일봉 MA ===
 float ma5_d = request.security(syminfo.tickerid, "D", ta.sma(close, 5), barmerge.gaps_off, barmerge.lookahead_off)
 float ma20_d = request.security(syminfo.tickerid, "D", ta.sma(close, 20), barmerge.gaps_off, barmerge.lookahead_off)
+float ma60_d = request.security(syminfo.tickerid, "D", ta.sma(close, 60), barmerge.gaps_off, barmerge.lookahead_off)
 float ma120_d = request.security(syminfo.tickerid, "D", ta.sma(close, 120), barmerge.gaps_off, barmerge.lookahead_off)
 
 // === 주봉 MA ===
 float ma5_w = request.security(syminfo.tickerid, "W", ta.sma(close, 5), barmerge.gaps_off, barmerge.lookahead_off)
 float ma20_w = request.security(syminfo.tickerid, "W", ta.sma(close, 20), barmerge.gaps_off, barmerge.lookahead_off)
+float ma60_w = request.security(syminfo.tickerid, "W", ta.sma(close, 60), barmerge.gaps_off, barmerge.lookahead_off)
 float ma120_w = request.security(syminfo.tickerid, "W", ta.sma(close, 120), barmerge.gaps_off, barmerge.lookahead_off)
 
 // === 일봉 교차 ===
@@ -40,14 +52,16 @@ color color_5_20_w = gold_5_20_w ? color.new(color.green, wAlpha) : dead_5_20_w 
 color color_20_120_w = gold_20_120_w ? color.new(color.green, wAlpha) : dead_20_120_w ? color.new(color.red, wAlpha) : na
 
 // === 일봉 MA 선 ===
-plot(ma5_d, color=color.new(color.yellow, dAlpha), linewidth=2, title="[일] 5 MA")
-plot(ma20_d, color=color.new(color.orange, dAlpha), linewidth=2, title="[일] 20 MA")
-plot(ma120_d, color=color.new(color.blue, dAlpha), linewidth=2, title="[일] 120 MA")
+plot(ma5_d, color=color.new(c5_d, dAlpha), linewidth=2, title="[일] 5 MA")
+plot(ma20_d, color=color.new(c20_d, dAlpha), linewidth=2, title="[일] 20 MA")
+plot(ma60_d, color=color.new(c60_d, dAlpha), linewidth=2, title="[일] 60 MA")
+plot(ma120_d, color=color.new(c120_d, dAlpha), linewidth=2, title="[일] 120 MA")
 
 // === 주봉 MA 선 ===
-plot(ma5_w, color=color.new(color.yellow, wAlpha), linewidth=2, title="[주] 5 MA")
-plot(ma20_w, color=color.new(color.orange, wAlpha), linewidth=2, title="[주] 20 MA")
-plot(ma120_w, color=color.new(color.blue, wAlpha), linewidth=2, title="[주] 120 MA")
+plot(ma5_w, color=color.new(c5_w, wAlpha), linewidth=2, title="[주] 5 MA")
+plot(ma20_w, color=color.new(c20_w, wAlpha), linewidth=2, title="[주] 20 MA")
+plot(ma60_w, color=color.new(c60_w, wAlpha), linewidth=2, title="[주] 60 MA")
+plot(ma120_w, color=color.new(c120_w, wAlpha), linewidth=2, title="[주] 120 MA")
 
 // === 교차점 ===
 plot(gold_5_20_d or dead_5_20_d ? ma5_d : na, style=plot.style_circles, linewidth=5, color=color_5_20_d, title="[일] 5-20 교차점")
