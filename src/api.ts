@@ -1051,6 +1051,8 @@ export interface TossTestSnapshot {
     profitLossUsd?: number | null;
     marketValueKrw?: number | null;
     marketValueUsd?: number | null;
+    /** 보유 매입 대비 총수익률(%) */
+    totalReturnPct?: number | null;
   };
   holdings: TossTestHolding[];
 }

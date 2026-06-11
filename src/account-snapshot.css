@@ -133,6 +133,12 @@ html[data-theme="light"] .account-snapshot__balance-card {
   border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
 }
 
+.account-snapshot__pl--compact {
+  margin-top: 0.28rem;
+  padding-top: 0;
+  border-top: none;
+}
+
 .account-snapshot__pl-label {
   font-size: 0.64rem;
   font-weight: 600;

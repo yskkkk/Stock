@@ -30,6 +30,7 @@ describe("mergeLiveQuotesIntoTossSnapshot", () => {
     );
     expect(out.holdings[0]?.currentPrice).toBe(72_000);
     expect(out.summary?.profitLossKrw).toBe(20_000);
+    expect(out.summary?.totalReturnPct).toBeCloseTo((20_000 / 700_000) * 100, 4);
   });
 
   it("converts USD unrealized into KRW total", () => {

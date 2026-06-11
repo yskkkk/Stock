@@ -78,6 +78,11 @@ export default function TossAccountSnapshotCard({
       ? summary.profitLossKrw
       : null;
   const plUp = plKrw != null && plKrw >= 0;
+  const returnPct =
+    summary?.totalReturnPct != null && Number.isFinite(summary.totalReturnPct)
+      ? summary.totalReturnPct
+      : null;
+  const retUp = returnPct != null && returnPct >= 0;
 
   return (
     <div className={rootClass} aria-label={ko.app.liveTradeTossAccountSectionAria}>
@@ -155,6 +160,21 @@ export default function TossAccountSnapshotCard({
               aria-hidden={balanceHidden || undefined}
             >
               {formatSignedMoney(plKrw, "KRW")}
+            </span>
+          </div>
+        ) : null}
+        {returnPct != null ? (
+          <div className="account-snapshot__pl account-snapshot__pl--compact">
+            <span className="account-snapshot__pl-label">
+              {ko.app.liveTradePfReturn}
+            </span>
+            <span
+              className={`account-snapshot__pl-value ${
+                retUp ? "account-snapshot__pl-value--up" : "account-snapshot__pl-value--down"
+              }`}
+              aria-hidden={balanceHidden || undefined}
+            >
+              {formatPercent(returnPct)}
             </span>
           </div>
         ) : null}

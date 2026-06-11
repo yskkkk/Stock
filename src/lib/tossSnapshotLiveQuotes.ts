@@ -23,6 +23,45 @@ function pickTossQuote(
   return undefined;
 }
 
+/** 보유 매입·평가 합산 총수익률(%) — USD는 환율로 원화 환산 */
+export function tossHoldingsReturnPct(
+  holdings: TossTestHolding[],
+  usdKrwRate: number | null,
+): number | null {
+  let costKrw = 0;
+  let mktKrw = 0;
+
+  for (const h of holdings) {
+    const avg = h.avgBuyPrice;
+    const qty = h.quantity;
+    if (avg == null || !(avg > 0) || !(qty > 0)) continue;
+
+    const cost = avg * qty;
+    const mv =
+      h.marketValue != null && Number.isFinite(h.marketValue) && h.marketValue > 0
+        ? h.marketValue
+        : h.currentPrice != null &&
+            Number.isFinite(h.currentPrice) &&
+            h.currentPrice > 0
+          ? h.currentPrice * qty
+          : null;
+    if (mv == null) continue;
+
+    if (h.currency === "USD") {
+      if (!(usdKrwRate != null && usdKrwRate > 0)) continue;
+      costKrw += cost * usdKrwRate;
+      mktKrw += mv * usdKrwRate;
+    } else {
+      costKrw += cost;
+      mktKrw += mv;
+    }
+  }
+
+  if (!(costKrw > 0)) return null;
+  const pct = ((mktKrw - costKrw) / costKrw) * 100;
+  return Number.isFinite(pct) ? pct : null;
+}
+
 function holdingUnrealized(h: TossTestHolding, price: number): number | null {
   if (!(h.avgBuyPrice != null && h.avgBuyPrice > 0 && Number.isFinite(h.avgBuyPrice))) {
     return null;
@@ -97,7 +136,18 @@ export function mergeLiveQuotesIntoTossSnapshot(
     };
   });
 
-  if (!anyLive && !hasKrwPl && !hasUsdPl) return snapshot;
+  const totalReturnPct = tossHoldingsReturnPct(holdings, usdKrwRate);
+
+  if (!anyLive && !hasKrwPl && !hasUsdPl) {
+    if (totalReturnPct == null) return snapshot;
+    return {
+      ...snapshot,
+      summary: {
+        ...snapshot.summary,
+        totalReturnPct,
+      },
+    };
+  }
 
   let profitLossKrw = snapshot.summary?.profitLossKrw ?? null;
   if (hasKrwPl || hasUsdPl) {
@@ -115,6 +165,7 @@ export function mergeLiveQuotesIntoTossSnapshot(
       ...snapshot.summary,
       profitLossKrw,
       profitLossUsd: hasUsdPl ? plUsd : snapshot.summary?.profitLossUsd,
+      totalReturnPct,
     },
   };
 }
