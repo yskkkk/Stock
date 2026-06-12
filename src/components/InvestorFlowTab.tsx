@@ -52,6 +52,43 @@ function rowIndustry(row: KrInvestorFlowItem): string {
   return s || "기타";
 }
 
+function SortInvestorTh({
+  column,
+  label,
+  rankKey,
+  flowDir,
+  onSelect,
+}: {
+  column: RankKey;
+  label: string;
+  rankKey: RankKey;
+  flowDir: FlowDir;
+  onSelect: (key: RankKey) => void;
+}) {
+  const active = rankKey === column;
+  return (
+    <th
+      className={active ? "investor-flow-tab__sort-th is-active" : "investor-flow-tab__sort-th"}
+      aria-sort={active ? (flowDir === "buy" ? "descending" : "ascending") : "none"}
+    >
+      <button
+        type="button"
+        className="investor-flow-tab__sort-btn"
+        aria-label={ko.investorFlow.sortColAria(label)}
+        aria-pressed={active}
+        onClick={() => onSelect(column)}
+      >
+        <span>{label}</span>
+        {active ? (
+          <span className="investor-flow-tab__sort-mark" aria-hidden>
+            {flowDir === "buy" ? "▼" : "▲"}
+          </span>
+        ) : null}
+      </button>
+    </th>
+  );
+}
+
 export default function InvestorFlowTab() {
   const { showValueInvestBubble } = useValueInvestBubble();
   const [data, setData] = useState<KrInvestorFlowResponse | null>(null);
@@ -233,6 +270,7 @@ export default function InvestorFlowTab() {
       </header>
 
       <div className="investor-flow-tab__rank-tabs market-tabs" role="tablist" aria-label={ko.investorFlow.investorTabsAria}>
+        <span className="investor-flow-tab__sort-by-label">{ko.investorFlow.sortByLabel}</span>
         {rankTabs.map((tab) => (
           <button
             key={tab.id}
@@ -323,9 +361,27 @@ export default function InvestorFlowTab() {
                 <tr>
                   <th>{ko.investorFlow.colIndustry}</th>
                   <th>{ko.investorFlow.colCount}</th>
-                  <th>{ko.investorFlow.colForeign}</th>
-                  <th>{ko.investorFlow.colInstitution}</th>
-                  <th>{ko.investorFlow.colIndividual}</th>
+                  <SortInvestorTh
+                    column="foreign"
+                    label={ko.investorFlow.colForeign}
+                    rankKey={rankKey}
+                    flowDir={flowDir}
+                    onSelect={setRankKey}
+                  />
+                  <SortInvestorTh
+                    column="institution"
+                    label={ko.investorFlow.colInstitution}
+                    rankKey={rankKey}
+                    flowDir={flowDir}
+                    onSelect={setRankKey}
+                  />
+                  <SortInvestorTh
+                    column="individual"
+                    label={ko.investorFlow.colIndividual}
+                    rankKey={rankKey}
+                    flowDir={flowDir}
+                    onSelect={setRankKey}
+                  />
                 </tr>
               </thead>
               <tbody>
@@ -395,24 +451,27 @@ export default function InvestorFlowTab() {
                     <tr>
                       <th className="investor-flow-tab__col--rank">#</th>
                       <th className="investor-flow-tab__col--name">{ko.investorFlow.colName}</th>
-                      <th
-                        className={rankKey === "foreign" ? "is-active" : ""}
-                        aria-sort={rankKey === "foreign" ? "descending" : "none"}
-                      >
-                        {ko.investorFlow.colForeign}
-                      </th>
-                      <th
-                        className={rankKey === "institution" ? "is-active" : ""}
-                        aria-sort={rankKey === "institution" ? "descending" : "none"}
-                      >
-                        {ko.investorFlow.colInstitution}
-                      </th>
-                      <th
-                        className={rankKey === "individual" ? "is-active" : ""}
-                        aria-sort={rankKey === "individual" ? "descending" : "none"}
-                      >
-                        {ko.investorFlow.colIndividual}
-                      </th>
+                      <SortInvestorTh
+                        column="foreign"
+                        label={ko.investorFlow.colForeign}
+                        rankKey={rankKey}
+                        flowDir={flowDir}
+                        onSelect={setRankKey}
+                      />
+                      <SortInvestorTh
+                        column="institution"
+                        label={ko.investorFlow.colInstitution}
+                        rankKey={rankKey}
+                        flowDir={flowDir}
+                        onSelect={setRankKey}
+                      />
+                      <SortInvestorTh
+                        column="individual"
+                        label={ko.investorFlow.colIndividual}
+                        rankKey={rankKey}
+                        flowDir={flowDir}
+                        onSelect={setRankKey}
+                      />
                       <th>{ko.investorFlow.colForeignHold}</th>
                       <th>{ko.investorFlow.colPrice}</th>
                     </tr>
@@ -433,24 +492,27 @@ export default function InvestorFlowTab() {
                 <th className="investor-flow-tab__col--rank">#</th>
                 <th className="investor-flow-tab__col--name">{ko.investorFlow.colName}</th>
                 <th>{ko.investorFlow.colIndustry}</th>
-                <th
-                  className={rankKey === "foreign" ? "is-active" : ""}
-                  aria-sort={rankKey === "foreign" ? "descending" : "none"}
-                >
-                  {ko.investorFlow.colForeign}
-                </th>
-                <th
-                  className={rankKey === "institution" ? "is-active" : ""}
-                  aria-sort={rankKey === "institution" ? "descending" : "none"}
-                >
-                  {ko.investorFlow.colInstitution}
-                </th>
-                <th
-                  className={rankKey === "individual" ? "is-active" : ""}
-                  aria-sort={rankKey === "individual" ? "descending" : "none"}
-                >
-                  {ko.investorFlow.colIndividual}
-                </th>
+                <SortInvestorTh
+                  column="foreign"
+                  label={ko.investorFlow.colForeign}
+                  rankKey={rankKey}
+                  flowDir={flowDir}
+                  onSelect={setRankKey}
+                />
+                <SortInvestorTh
+                  column="institution"
+                  label={ko.investorFlow.colInstitution}
+                  rankKey={rankKey}
+                  flowDir={flowDir}
+                  onSelect={setRankKey}
+                />
+                <SortInvestorTh
+                  column="individual"
+                  label={ko.investorFlow.colIndividual}
+                  rankKey={rankKey}
+                  flowDir={flowDir}
+                  onSelect={setRankKey}
+                />
                 <th>{ko.investorFlow.colForeignHold}</th>
                 <th>{ko.investorFlow.colPrice}</th>
               </tr>

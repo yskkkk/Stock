@@ -1013,6 +1013,8 @@ export const ko = {
     refresh: "새로고침",
     searchPlaceholder: "종목명·코드·업종 검색",
     investorTabsAria: "투자자 유형",
+    sortByLabel: "정렬 기준",
+    sortColAria: (col: string) => `${col} 기준 정렬`,
     flowTabsAria: "매수·매도 구분",
     viewTabsAria: "보기 방식",
     rankForeign: "외국인",
