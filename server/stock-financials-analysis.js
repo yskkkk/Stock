@@ -41,6 +41,50 @@ export function parseStatementNumber(value, unitNote = "") {
   return n;
 }
 
+/**
+ * 재무제표 금액 문자열 → 절대 통화 단위(원·USD 등).
+ * Yahoo US는 fmt가 full dollar(112,010,000,000)인데 unitNote가 millions인 경우가 있어
+ * 이미 큰 값이면 추가 배율을 적용하지 않는다.
+ * @param {string | null | undefined} value
+ * @param {string} [unitNote]
+ */
+export function absoluteMoneyFromStatementRow(value, unitNote = "") {
+  if (value == null) return null;
+  const s = String(value).trim();
+  if (!s || s === "—" || s === "-") return null;
+  const neg = /^\(.*\)$/.test(s);
+  const cleaned = s.replace(/,/g, "").replace(/[()]/g, "").trim();
+  const suffixMatch = cleaned.match(/^([+-]?[\d.]+)\s*([BbTtMmKk])$/);
+  if (suffixMatch) {
+    let n = Number(suffixMatch[1]);
+    if (!Number.isFinite(n)) return null;
+    const suf = suffixMatch[2].toUpperCase();
+    if (suf === "K") n *= 1e3;
+    else if (suf === "M") n *= 1e6;
+    else if (suf === "B") n *= 1e9;
+    else if (suf === "T") n *= 1e12;
+    return neg ? -n : n;
+  }
+  const n = parseStatementNumber(value, unitNote);
+  if (n == null) return null;
+  const note = String(unitNote ?? "");
+  if (note.includes("억원")) return (neg ? -1 : 1) * Math.abs(n) * 1e8;
+  if (/million/i.test(note) && Math.abs(n) < 1e7) {
+    return (neg ? -1 : 1) * Math.abs(n) * 1e6;
+  }
+  if (/billion/i.test(note) && Math.abs(n) < 1e4) {
+    return (neg ? -1 : 1) * Math.abs(n) * 1e9;
+  }
+  return neg ? -n : n;
+}
+
+/** @param {number | null} eps @param {"kr"|"us"} market */
+export function isPlausibleAnnualEps(eps, market = "us") {
+  if (eps == null || !Number.isFinite(eps) || eps <= 0) return false;
+  const max = market === "kr" ? 500_000 : 10_000;
+  return eps <= max;
+}
+
 /** @param {number | null} cur @param {number | null} prior */
 export function calcYoyPct(cur, prior) {
   if (cur == null || prior == null || !Number.isFinite(cur) || !Number.isFinite(prior)) {

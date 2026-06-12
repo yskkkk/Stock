@@ -21,7 +21,8 @@ import {
 } from "./stock-financials.js";
 import { extractPeriodMetricsFromDetail } from "./stock-financial-period-metrics.js";
 import { buildHistoricalPeriodMetrics } from "./stock-financial-period-valuation.js";
-import { parseStatementNumber } from "./stock-financials-analysis.js";
+import { absoluteMoneyFromStatementRow } from "./stock-financials-analysis.js";
+import { epsFromNetIncomeAndShares } from "./value-invest-eps-from-statement.js";
 import { queueYahooRequest } from "./yahoo-queue.js";
 import { yahooGet } from "./yahoo.js";
 
@@ -138,26 +139,6 @@ async function fetchHistoricalEpsSeries(symbol, market) {
   };
 }
 
-/**
- * @param {Awaited<ReturnType<typeof loadFinancialStatementDetail>>} detail
- * @param {number} shares
- */
-function epsFromNetIncomeAndShares(detail, shares) {
-  if (!detail?.sections?.length || shares <= 0) return null;
-  for (const sec of detail.sections) {
-    for (const row of sec.rows ?? []) {
-      const n = String(row.label ?? "")
-        .toLowerCase()
-        .replace(/\s+/g, "");
-      if (!n.includes("netincome") && !n.includes("당기순이익")) continue;
-      const netIncome = parseStatementNumber(row.value, sec.unitNote ?? "");
-      if (netIncome == null || netIncome <= 0) return null;
-      return netIncome / shares;
-    }
-  }
-  return null;
-}
-
 /** @param {{ year: number; eps: number }[]} series
  * @param {{ eps: number | null; forwardEps: number | null; market?: "kr"|"us" }} fundamentals
  */
@@ -223,7 +204,7 @@ function extractDebtPerShare(detail, shares) {
     for (const row of flat) {
       const n = String(row.label ?? "").toLowerCase().replace(/\s+/g, "");
       if (patterns.some((p) => n.includes(p))) {
-        const v = parseStatementNumber(row.value, row.note ?? "");
+        const v = absoluteMoneyFromStatementRow(row.value, row.note ?? "");
         if (v != null) return v;
       }
     }
@@ -235,17 +216,9 @@ function extractDebtPerShare(detail, shares) {
   if (totalLiab == null) return null;
 
   const netDebt = totalLiab - Math.max(0, cash ?? 0);
-  const unitNote = detail.sections[0]?.unitNote ?? "";
-  let debtAbsolute = netDebt;
-  if (unitNote.includes("억원")) {
-    debtAbsolute = netDebt * 1e8;
-  } else if (unitNote.toLowerCase().includes("million")) {
-    debtAbsolute = netDebt * 1e6;
-  }
-
-  if (!Number.isFinite(debtAbsolute)) return null;
+  if (!Number.isFinite(netDebt)) return null;
   return {
-    value: debtAbsolute / shares,
+    value: netDebt / shares,
     source: "최근 연간 재무제표 총부채−현금 ÷ 발행주식수",
   };
 }

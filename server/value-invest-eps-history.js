@@ -7,7 +7,8 @@ import {
 } from "./stock-financials.js";
 import { extractPeriodMetricsFromDetail } from "./stock-financial-period-metrics.js";
 import { buildHistoricalPeriodMetrics } from "./stock-financial-period-valuation.js";
-import { parseStatementNumber } from "./stock-financials-analysis.js";
+import { isPlausibleAnnualEps } from "./stock-financials-analysis.js";
+import { epsFromNetIncomeAndShares } from "./value-invest-eps-from-statement.js";
 import { queueYahooRequest } from "./yahoo-queue.js";
 import { yahooGet } from "./yahoo.js";
 
@@ -100,13 +101,16 @@ export async function loadAnnualEpsHistory(symbol) {
       if (m.eps > 30_000) continue;
     } else if (shares != null && shares > 0) {
       const fromNi = epsFromNetIncomeAndShares(detail, shares);
-      if (fromNi != null && (m.eps == null || m.eps <= 0)) {
+      if (fromNi != null) {
         m = { ...m, eps: fromNi };
+      } else if (!isPlausibleAnnualEps(m.eps, "us")) {
+        m = { ...m, eps: null };
       }
-    } else if (m.eps == null || m.eps <= 0) {
+    } else if (m.eps == null || m.eps <= 0 || !isPlausibleAnnualEps(m.eps, "us")) {
       m = await buildHistoricalPeriodMetrics(sym, p, m, detail);
     }
     if (m.eps == null || m.eps <= 0) continue;
+    if (periods.market === "us" && !isPlausibleAnnualEps(m.eps, "us")) continue;
     const y = Number(String(p.label ?? "").slice(0, 4));
     series.push({ year: Number.isFinite(y) ? y : 0, eps: m.eps });
   }
@@ -144,28 +148,4 @@ async function fetchSharesOutstanding(symbol) {
   } catch {
     return null;
   }
-}
-
-/**
- * @param {Awaited<ReturnType<typeof loadFinancialStatementDetail>>} detail
- * @param {number} shares
- */
-function epsFromNetIncomeAndShares(detail, shares) {
-  if (!detail?.sections?.length || shares <= 0) return null;
-  for (const sec of detail.sections) {
-    for (const row of sec.rows ?? []) {
-      const n = String(row.label ?? "")
-        .toLowerCase()
-        .replace(/\s+/g, "");
-      if (!n.includes("netincome") && !n.includes("당기순이익")) continue;
-      const unitNote = sec.unitNote ?? "";
-      let netIncome = parseStatementNumber(row.value, unitNote);
-      if (netIncome == null || netIncome <= 0) return null;
-      if (unitNote.includes("억원")) netIncome *= 1e8;
-      else if (/million/i.test(unitNote)) netIncome *= 1e6;
-      else if (/billion/i.test(unitNote)) netIncome *= 1e9;
-      return netIncome / shares;
-    }
-  }
-  return null;
 }

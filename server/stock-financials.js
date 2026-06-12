@@ -521,7 +521,7 @@ export async function loadFinancialStatementDetail(symbol, periodId, options = {
   /** @type {object[]} */
   const sections = [];
   const yahooMarket = isKrQuoteSymbol(sym) ? "kr" : "us";
-  const yahooUnitNote = yahooMarket === "kr" ? "단위: 억원" : "단위: USD (millions)";
+  const yahooUnitNote = yahooMarket === "kr" ? "단위: 억원" : "단위: USD";
   if (income && typeof income === "object") {
     sections.push({
       title: "손익계산서",
