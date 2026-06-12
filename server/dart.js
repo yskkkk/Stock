@@ -50,26 +50,42 @@ async function dartGet(path, params) {
 }
 
 function extractFirstZipEntry(buffer) {
-  for (let i = 0; i < buffer.length - 30; i++) {
+  const scanStart = Math.max(0, buffer.length - 65_536);
+  for (let j = buffer.length - 4; j >= scanStart; j--) {
     if (
-      buffer[i] !== 0x50 ||
-      buffer[i + 1] !== 0x4b ||
-      buffer[i + 2] !== 0x03 ||
-      buffer[i + 3] !== 0x04
+      buffer[j] !== 0x50 ||
+      buffer[j + 1] !== 0x4b ||
+      buffer[j + 2] !== 0x05 ||
+      buffer[j + 3] !== 0x06
     ) {
       continue;
     }
-    const compMethod = buffer.readUInt16LE(i + 8);
-    const compSize = buffer.readUInt32LE(i + 18);
-    const fileNameLen = buffer.readUInt16LE(i + 26);
-    const extraLen = buffer.readUInt16LE(i + 28);
-    const dataStart = i + 30 + fileNameLen + extraLen;
+    const cdOffset = buffer.readUInt32LE(j + 16);
+    if (cdOffset <= 0 || cdOffset >= buffer.length) continue;
+    const cd = buffer.subarray(cdOffset);
+    if (cd[0] !== 0x50 || cd[1] !== 0x4b || cd[2] !== 0x01 || cd[3] !== 0x02) continue;
+
+    const compSize = cd.readUInt32LE(20);
+    const method = cd.readUInt16LE(10);
+    const localOffset = cd.readUInt32LE(42);
+    if (localOffset < 0 || localOffset >= buffer.length) continue;
+
+    const fnLenL = buffer.readUInt16LE(localOffset + 26);
+    const extraLenL = buffer.readUInt16LE(localOffset + 28);
+    const dataStart = localOffset + 30 + fnLenL + extraLenL;
+    if (dataStart + compSize > buffer.length) continue;
+
     const compressed = buffer.subarray(dataStart, dataStart + compSize);
-    if (compMethod === 0) return compressed;
-    if (compMethod === 8) return inflateRawSync(compressed);
-    break;
+    if (method === 0) return compressed;
+    if (method === 8) return inflateRawSync(compressed);
+    return null;
   }
   return null;
+}
+
+/** @param {Buffer} buffer — tests·진단용 */
+export function extractDartCorpZipEntry(buffer) {
+  return extractFirstZipEntry(buffer);
 }
 
 function parseCorpXml(xml) {
@@ -135,18 +151,33 @@ function stockCodeFromSymbol(symbol) {
   return symbol.replace(/\.(KS|KQ)$/i, "").padStart(6, "0");
 }
 
+export async function dartApiGet(path, params) {
+  return dartGet(path, params);
+}
+
+/** @param {string} symbol e.g. 005930.KS */
+export async function resolveDartCorpCode(symbol) {
+  return resolveCorpCode(symbol);
+}
+
 async function resolveCorpCode(symbol) {
   const code = stockCodeFromSymbol(symbol);
   const hit = cache.get(`corp:${code}`);
   if (hit && Date.now() - hit.at < 24 * 60 * 60_000) return hit.corpCode;
 
-  const data = await dartGet("/company.json", { stock_code: code });
-  const corpCode = data?.corp_code;
-  if (!corpCode) return null;
+  try {
+    const corps = await loadCorpIndex();
+    const found = corps.find((c) => c.stockCode === code);
+    if (found?.corpCode) {
+      cache.set(`corp:${code}`, { at: Date.now(), corpCode: found.corpCode });
+      pruneDartCache();
+      return found.corpCode;
+    }
+  } catch {
+    /* corp index 실패 */
+  }
 
-  cache.set(`corp:${code}`, { at: Date.now(), corpCode });
-  pruneDartCache();
-  return corpCode;
+  return null;
 }
 
 function formatDartDate(d) {

@@ -49,18 +49,29 @@ export async function loadAnnualEpsHistory(symbol) {
   const periods = await loadFinancialPeriods(sym).catch(() => null);
   if (!periods?.periods?.length) return [];
 
-  /** 연도별 중복 제거: KR은 Naver 연말 결산(n:a:)만, US는 Naver 우선·Yahoo 보조 */
+  /** 연도별 중복 제거: KR은 DART·Naver 연말 결산, US는 Naver 우선·Yahoo 보조 */
   /** @type {Map<number, import("./stock-financials.js").FinancialPeriodRow>} */
   const byYear = new Map();
   for (const p of periods.periods) {
     if (p.kind !== "annual" || p.isForecast) continue;
-    if (periods.market === "kr" && !String(p.id).startsWith("n:a:")) continue;
+    if (periods.market === "kr") {
+      const id = String(p.id);
+      if (!id.startsWith("d:a:") && !id.startsWith("n:a:")) continue;
+    }
     const y = Number(String(p.label ?? "").slice(0, 4));
     if (!Number.isFinite(y)) continue;
     const existing = byYear.get(y);
-    if (!existing || String(p.id).startsWith("n:a:")) {
+    if (!existing) {
       byYear.set(y, p);
+      continue;
     }
+    const prefer = (row) =>
+      String(row.id).startsWith("d:a:")
+        ? 3
+        : String(row.id).startsWith("n:a:")
+          ? 2
+          : 1;
+    if (prefer(p) >= prefer(existing)) byYear.set(y, p);
   }
 
   const annual = [...byYear.values()].sort(
@@ -85,6 +96,8 @@ export async function loadAnnualEpsHistory(symbol) {
     });
     if (periods.market === "kr") {
       if (m.eps == null || m.eps <= 0) continue;
+      // DART 구형 공시 — 주당이익 (단위:원) 미조정(액면분할 전) 값 제외
+      if (m.eps > 30_000) continue;
     } else if (shares != null && shares > 0) {
       const fromNi = epsFromNetIncomeAndShares(detail, shares);
       if (fromNi != null && (m.eps == null || m.eps <= 0)) {

@@ -66,7 +66,7 @@ export function extractPeriodMetricsFromDetail(detail, meta) {
 
   const per = rowNumber(flat, ["per", "주가수익"]);
   const forwardPer = rowNumber(flat, ["forwardper", "예상per", "cnsper"]);
-  const eps = rowNumber(flat, ["eps", "주당순이익", "basiceps", "dilutedeps"]) ??
+  const eps = rowNumber(flat, ["eps", "주당순이익", "주당이익", "basiceps", "dilutedeps"]) ??
     rowNumber(flat, ["basicaverageeps"]);
   const forwardEps = rowNumber(flat, ["forwardeps", "예상eps", "cnseps"]);
   const bps = rowNumber(flat, ["bps", "주당순자산"]);

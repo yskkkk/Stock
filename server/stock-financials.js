@@ -1,7 +1,9 @@
 /**
- * 재무제표 기간 목록·상세 — KR: Naver finance, US: Yahoo quoteSummary history
+ * 재무제표 기간 목록·상세 — KR: DART + Naver finance, US: Yahoo quoteSummary history
  */
 import { isKrQuoteSymbol, yahooSymbolToKrCode } from "./kr-naver-quote.js";
+import { isDartEnabled } from "./dart.js";
+import { loadDartKrFinancialPeriods, loadDartKrStatementDetail } from "./dart-financials.js";
 import { resolveDisplayName } from "./names-ko.js";
 import { normalizeKrStatementMoneyValue } from "./statement-display-units.js";
 import {
@@ -303,8 +305,8 @@ export async function loadFinancialPeriods(symbol, options = {}) {
     if (archived) return archived;
   }
 
-  const cacheKey = `periods:${sym}`;
-  const hit = getCache(cacheKey);
+  const cacheKey = `periods:v2:${sym}`;
+  const hit = forceLive ? null : getCache(cacheKey);
   if (hit) return hit;
 
   /** @type {Map<string, object>} */
@@ -314,6 +316,13 @@ export async function loadFinancialPeriods(symbol, options = {}) {
   let currency = market === "kr" ? "KRW" : "USD";
 
   if (isKrQuoteSymbol(sym)) {
+    if (isDartEnabled()) {
+      try {
+        for (const p of await loadDartKrFinancialPeriods(sym)) periodMap.set(p.id, p);
+      } catch {
+        /* DART 보조 — Naver만 있어도 OK */
+      }
+    }
     const code = yahooSymbolToKrCode(sym);
     if (code) {
       const [annual, quarter] = await Promise.all([
@@ -343,9 +352,20 @@ export async function loadFinancialPeriods(symbol, options = {}) {
   /** @type {Map<string, object>} */
   const deduped = new Map();
   for (const p of periods) {
-    const key = `${p.kind}:${p.label}:${p.isForecast ? "f" : "a"}`;
+    const year = Number(String(p.label ?? "").slice(0, 4));
+    const monthMatch = String(p.label ?? "").match(/\.(\d{2})$/);
+    const month = monthMatch ? Number(monthMatch[1]) : p.kind === "annual" ? 12 : 0;
+    const key =
+      market === "kr" && Number.isFinite(year) && year > 1900
+        ? `${p.kind}:${year}:${month}:${p.isForecast ? "f" : "a"}`
+        : `${p.kind}:${p.label}:${p.isForecast ? "f" : "a"}`;
     const prev = deduped.get(key);
-    if (!prev || p.source === "naver") deduped.set(key, p);
+    if (!prev) {
+      deduped.set(key, p);
+      continue;
+    }
+    const rank = (src) => (src === "naver" ? 3 : src === "dart" ? 2 : 1);
+    if (rank(p.source) > rank(prev.source)) deduped.set(key, p);
   }
   const uniquePeriods = [...deduped.values()].sort(
     (a, b) => (b.endDateMs ?? 0) - (a.endDateMs ?? 0),
@@ -399,11 +419,11 @@ export async function loadFinancialStatementDetail(symbol, periodId, options = {
     if (archived) return archived;
   }
 
-  const cacheKey = `detail:${sym}:${pid}`;
-  const hit = getCache(cacheKey);
+  const cacheKey = `detail:v2:${sym}:${pid}`;
+  const hit = forceLive ? null : getCache(cacheKey);
   if (hit) return hit;
 
-  const m = pid.match(/^([ny]):([aq]):(.+)$/);
+  const m = pid.match(/^([dny]):([aq]):(.+)$/);
   if (!m) {
     const err = new Error("올바르지 않은 기간 ID입니다.");
     err.code = "BAD_SYMBOL";
@@ -412,6 +432,10 @@ export async function loadFinancialStatementDetail(symbol, periodId, options = {
 
   const [, source, kindCode, rawKey] = m;
   const kind = kindCode === "a" ? "annual" : "quarter";
+
+  if (source === "d") {
+    return loadDartKrStatementDetail(sym, pid);
+  }
 
   if (source === "n") {
     const code = yahooSymbolToKrCode(sym);
