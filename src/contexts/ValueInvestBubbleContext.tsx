@@ -325,9 +325,10 @@ function InputField({
   const showHistorical =
     hover && !showSourceDetail && historicalEpsRows && historicalEpsRows.length > 0;
   const showProjection =
-    hover && !showSourceDetail && projectionColumn && projectionRows && projectionRows.length > 0;
+    hover && projectionColumn && projectionRows && projectionRows.length > 0;
+  const showDualPop = showSourceDetail && showProjection;
   const showPop = showSourceDetail || showHistorical || showProjection;
-  const labelHint = Boolean(sourceDetail?.length || projectionColumn);
+  const labelHint = Boolean(sourceDetail?.length || projectionColumn || historicalEpsRows?.length);
 
   useEffect(() => {
     if (!pctMode) return;
@@ -386,36 +387,68 @@ function InputField({
         {label}
         {showPop ? (
           <span
-            className="value-invest-bubble__hover-pop"
+            className={
+              showDualPop
+                ? "value-invest-bubble__hover-pop value-invest-bubble__hover-pop--dual"
+                : "value-invest-bubble__hover-pop"
+            }
             role="tooltip"
             onMouseEnter={() => setHover(true)}
             onMouseLeave={() => setHover(false)}
           >
-            <span className="value-invest-bubble__hover-pop-title">
-              {showSourceDetail
-                ? (sourceDetailTitle ?? ko.valueInvest.growthCalcTitle)
-                : showHistorical
-                  ? ko.valueInvest.epsHistoryTitle
-                  : projectionColumn
-                    ? `${projectionColumnLabel(projectionColumn)} · ${ko.valueInvest.projectionTitle}`
-                    : ko.valueInvest.projectionTitle}
-            </span>
-            {showSourceDetail ? (
-              <ul className="value-invest-bubble__source-detail">
-                {sourceDetail!.map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
-            ) : showHistorical ? (
-              <HistoricalEpsTable rows={historicalEpsRows!} currency={currency} />
-            ) : projectionColumn ? (
-              <YearlyProjectionTable
-                rows={projectionRows!}
-                currency={currency}
-                column={projectionColumn}
-                perMultiple={projectionPer}
-              />
-            ) : null}
+            {showDualPop ? (
+              <span className="value-invest-bubble__hover-pop-cols">
+                <span className="value-invest-bubble__hover-pop-pane">
+                  <span className="value-invest-bubble__hover-pop-title">
+                    {sourceDetailTitle ?? ko.valueInvest.growthCalcTitle}
+                  </span>
+                  <ul className="value-invest-bubble__source-detail">
+                    {sourceDetail!.map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                </span>
+                <span className="value-invest-bubble__hover-pop-pane">
+                  <span className="value-invest-bubble__hover-pop-title">
+                    {`${projectionColumnLabel(projectionColumn!)} · ${ko.valueInvest.projectionTitle}`}
+                  </span>
+                  <YearlyProjectionTable
+                    rows={projectionRows!}
+                    currency={currency}
+                    column={projectionColumn!}
+                    perMultiple={projectionPer}
+                  />
+                </span>
+              </span>
+            ) : (
+              <>
+                <span className="value-invest-bubble__hover-pop-title">
+                  {showSourceDetail
+                    ? (sourceDetailTitle ?? ko.valueInvest.growthCalcTitle)
+                    : showHistorical
+                      ? ko.valueInvest.epsHistoryTitle
+                      : projectionColumn
+                        ? `${projectionColumnLabel(projectionColumn)} · ${ko.valueInvest.projectionTitle}`
+                        : ko.valueInvest.projectionTitle}
+                </span>
+                {showSourceDetail ? (
+                  <ul className="value-invest-bubble__source-detail">
+                    {sourceDetail!.map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                ) : showHistorical ? (
+                  <HistoricalEpsTable rows={historicalEpsRows!} currency={currency} />
+                ) : projectionColumn ? (
+                  <YearlyProjectionTable
+                    rows={projectionRows!}
+                    currency={currency}
+                    column={projectionColumn}
+                    perMultiple={projectionPer}
+                  />
+                ) : null}
+              </>
+            )}
           </span>
         ) : null}
       </span>
@@ -707,6 +740,8 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
                     value=""
                     suffix="%"
                     step="0.1"
+                    projectionColumn="eps"
+                    projectionRows={projectionRows}
                     currency={currency}
                     onChange={() => {}}
                     pctRate={inputs.growthRate}
