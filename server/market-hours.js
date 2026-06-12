@@ -93,7 +93,7 @@ export function isMarketOpen(market, marketState) {
 }
 
 /** 시장 현지 달력일 — 알림 발송 이력(세션) 구분용 */
-export function getTradingSessionKey(market) {
+export function getTradingSessionKey(market, now = new Date()) {
   const tz =
     market === "crypto"
       ? "UTC"
@@ -105,6 +105,6 @@ export function getTradingSessionKey(market) {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(new Date());
+  }).format(now);
   return `${market}:${date}`;
 }

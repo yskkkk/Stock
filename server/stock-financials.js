@@ -3,6 +3,11 @@
  */
 import { isKrQuoteSymbol, yahooSymbolToKrCode } from "./kr-naver-quote.js";
 import { resolveDisplayName } from "./names-ko.js";
+import {
+  isLiveFinancialsFetchForced,
+  readArchivedFinancialPeriods,
+  readArchivedStatementDetail,
+} from "./stock-financials-archive-store.js";
 import { queueYahooRequest } from "./yahoo-queue.js";
 import { yahooGet } from "./yahoo.js";
 
@@ -277,13 +282,20 @@ async function loadYahooFinancialBundle(symbol) {
 
 /**
  * @param {string} symbol
+ * @param {{ forceLive?: boolean }} [options]
  */
-export async function loadFinancialPeriods(symbol) {
+export async function loadFinancialPeriods(symbol, options = {}) {
   const sym = String(symbol ?? "").trim().toUpperCase();
   if (!/^[A-Z0-9.\-^]{1,20}$/.test(sym)) {
     const err = new Error("올바르지 않은 심볼 형식입니다.");
     err.code = "BAD_SYMBOL";
     throw err;
+  }
+
+  const forceLive = options.forceLive === true || isLiveFinancialsFetchForced();
+  if (!forceLive) {
+    const archived = readArchivedFinancialPeriods(sym);
+    if (archived) return archived;
   }
 
   const cacheKey = `periods:${sym}`;
@@ -365,14 +377,21 @@ function findYahooStmt(arr, endRaw) {
 /**
  * @param {string} symbol
  * @param {string} periodId
+ * @param {{ forceLive?: boolean }} [options]
  */
-export async function loadFinancialStatementDetail(symbol, periodId) {
+export async function loadFinancialStatementDetail(symbol, periodId, options = {}) {
   const sym = String(symbol ?? "").trim().toUpperCase();
   const pid = String(periodId ?? "").trim();
   if (!pid) {
     const err = new Error("기간 ID가 필요합니다.");
     err.code = "BAD_SYMBOL";
     throw err;
+  }
+
+  const forceLive = options.forceLive === true || isLiveFinancialsFetchForced();
+  if (!forceLive) {
+    const archived = readArchivedStatementDetail(sym, pid);
+    if (archived) return archived;
   }
 
   const cacheKey = `detail:${sym}:${pid}`;

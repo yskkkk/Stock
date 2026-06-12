@@ -7,6 +7,10 @@ import {
   yahooSymbolToKrCode,
 } from "./kr-naver-quote.js";
 import { resolveDisplayName } from "./names-ko.js";
+import {
+  isLiveFinancialsFetchForced,
+  readArchivedFundamentals,
+} from "./stock-financials-archive-store.js";
 import { queueYahooRequest } from "./yahoo-queue.js";
 import { yahooGet } from "./yahoo.js";
 
@@ -299,8 +303,9 @@ async function loadYahooFundamentals(symbol) {
 
 /**
  * @param {string} symbol
+ * @param {{ forceLive?: boolean }} [options]
  */
-export async function loadStockFundamentals(symbol) {
+export async function loadStockFundamentals(symbol, options = {}) {
   const sym = String(symbol ?? "").trim().toUpperCase();
   if (!/^[A-Z0-9.\-^]{1,20}$/.test(sym)) {
     const err = new Error("올바르지 않은 심볼 형식입니다.");
@@ -311,6 +316,12 @@ export async function loadStockFundamentals(symbol) {
     const err = new Error("코인 종목은 재무 지표를 지원하지 않습니다.");
     err.code = "UNSUPPORTED";
     throw err;
+  }
+
+  const forceLive = options.forceLive === true || isLiveFinancialsFetchForced();
+  if (!forceLive) {
+    const archived = readArchivedFundamentals(sym);
+    if (archived) return archived;
   }
 
   if (isKrQuoteSymbol(sym)) {

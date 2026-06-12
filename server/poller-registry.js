@@ -170,6 +170,21 @@ export const POLLER_CATALOG = {
     descriptionKo:
       "stock-vault에 등록된 종목 중 장중 조건(MA120 근접 등)을 60초 주기로 재평가합니다. STOCK_VAULT_INTRADAY_RESCAN=0이면 부팅 시 off.",
   },
+  "financials-archive": {
+    labelKo: "재무제표 일일 아카이브",
+    groupKo: "스크리너",
+    intervalMs: () => {
+      const n = Number(process.env.STOCK_FINANCIALS_ARCHIVE_TICK_MS ?? 60_000);
+      return Number.isFinite(n) && n >= 15_000 ? Math.min(n, 300_000) : 60_000;
+    },
+    envDisable: "STOCK_FINANCIALS_ARCHIVE=0",
+    isBootEnabled: () => {
+      const v = String(process.env.STOCK_FINANCIALS_ARCHIVE ?? "1").toLowerCase();
+      return v !== "0" && v !== "false" && v !== "off";
+    },
+    descriptionKo:
+      "스캔 유니버스(KR·US) 종목별 재무제표·펀더멘털을 디스크에 저장합니다. KR 08:50 KST·US 09:20 ET(정규장 10분 전)에 하루 1회 갱신합니다.",
+  },
   "kr-investor-flow": {
     labelKo: "국내 수급 스캔",
     groupKo: "스크리너",
