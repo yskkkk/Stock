@@ -8904,6 +8904,26 @@ html[data-theme="light"] .live-trade-rail {
   line-height: 1;
 }
 
+.live-trade-rail__card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  padding: 0.18rem 0.38rem 0.28rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.live-trade-rail__card-action {
+  min-height: 1.55rem;
+  padding: 0.12rem 0.42rem;
+  font-size: 0.68rem;
+  line-height: 1.2;
+}
+
+.live-trade-rail__card-action--danger {
+  margin-left: auto;
+  color: rgb(239, 68, 68);
+}
+
 .live-trade-rail__expand {
   padding: 0 0.32rem 0.3rem;
   border-top: 1px solid rgba(148, 163, 184, 0.14);

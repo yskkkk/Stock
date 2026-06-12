@@ -1,8 +1,12 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNestedVerticalScroll } from "../hooks/useNestedVerticalScroll";
 import {
+  deleteLiveTradeProgram,
+  disarmLiveTradeProgram,
   fetchLiveTradingMinuteQuotes,
   fetchLiveTradingPortfolio,
+  startSimLiveTradeProgram,
+  stopSimLiveTradeProgram,
   type LiveTradeHolding,
   type LiveTradePortfolioResponse,
   type LiveTradeProgram,
@@ -13,6 +17,7 @@ import {
   useLivePortfolioQuotePoll,
 } from "../hooks/useLivePortfolioQuotePoll";
 import {
+  refreshLiveTradingStatusNow,
   useLiveTradingStatusPoll,
 } from "../hooks/useLiveTradingStatusPoll";
 import { ko } from "../i18n/ko";
@@ -32,7 +37,7 @@ import { mergeLiveQuotesIntoPortfolio } from "../lib/livePortfolioLiveQuotes";
 import { feeByMarketFromStatus } from "../lib/liveTradeFeeByMarket";
 import { DEFAULT_ROUND_TRIP_FEE_RATE } from "../lib/netReturn";
 import type { LiveTradeMarket } from "../types";
-import { peekLiveTradingPrefetch } from "../lib/tabPrefetch";
+import { invalidateLiveTradingPrefetch, peekLiveTradingPrefetch } from "../lib/tabPrefetch";
 import DockPanelCenterLoading from "./DockPanelCenterLoading";
 import { useLiveTradeAuth } from "./LiveTradeAuthAndCredentials";
 
@@ -48,6 +53,8 @@ function statusLabel(status: LiveTradeProgram["status"]): string {
       return ko.app.liveTradeStatusSim;
     case "error":
       return ko.app.liveTradeStatusError;
+    case "paused":
+      return ko.app.liveTradeStatusPaused;
     default:
       return status;
   }
@@ -126,6 +133,11 @@ function RailProgramCard({
   usdKrwRate,
   trades,
   bithumbKrwTotal,
+  actionBusy,
+  onSimStart,
+  onSimStop,
+  onDisarm,
+  onDelete,
 }: {
   program: LiveTradeProgram;
   displayStatus: ReturnType<typeof programDisplayStatus>;
@@ -139,6 +151,11 @@ function RailProgramCard({
   usdKrwRate: number | null;
   trades: LiveTradeRecord[];
   bithumbKrwTotal?: number | null;
+  actionBusy?: boolean;
+  onSimStart?: () => void;
+  onSimStop?: () => void;
+  onDisarm?: () => void;
+  onDelete?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const tableWrapRef = useRef<HTMLDivElement>(null);
@@ -285,6 +302,54 @@ function RailProgramCard({
         </span>
       </button>
 
+      {onSimStart || onSimStop || onDisarm || onDelete ? (
+        <div
+          className="live-trade-rail__card-actions"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {p.status === "sim" && onSimStop ? (
+            <button
+              type="button"
+              className="btn btn--ghost live-trade-rail__card-action"
+              disabled={actionBusy}
+              onClick={() => onSimStop()}
+            >
+              {ko.app.liveTradeSimStop}
+            </button>
+          ) : null}
+          {p.status === "armed" && onDisarm ? (
+            <button
+              type="button"
+              className="btn btn--ghost live-trade-rail__card-action"
+              disabled={actionBusy}
+              onClick={() => onDisarm()}
+            >
+              {ko.app.liveTradeDisarm}
+            </button>
+          ) : null}
+          {p.status !== "sim" && p.status !== "armed" && onSimStart ? (
+            <button
+              type="button"
+              className="btn btn--primary live-trade-rail__card-action"
+              disabled={actionBusy}
+              onClick={() => onSimStart()}
+            >
+              {ko.app.liveTradeSimStart}
+            </button>
+          ) : null}
+          {onDelete ? (
+            <button
+              type="button"
+              className="btn btn--ghost live-trade-rail__card-action live-trade-rail__card-action--danger"
+              disabled={actionBusy}
+              onClick={() => onDelete()}
+            >
+              {ko.app.liveTradeDelete}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
       {open ? (
         <div className="live-trade-rail__expand">
           {sorted.length === 0 ? (
@@ -412,6 +477,10 @@ export function LiveTradingRailCore({
   );
   const portfolioLoadedRef = useRef(false);
   const [loading, setLoading] = useState(!prefetched?.status);
+  const [actionBusyId, setActionBusyId] = useState<string | null>(null);
+  const [hiddenProgramIds, setHiddenProgramIds] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   const feeByMarket = useMemo(
     () => feeByMarketFromStatus(status?.feeRates),
@@ -462,6 +531,93 @@ export function LiveTradingRailCore({
       if (trackDockLoad) setLoading(false);
     }
   }, [user, feeByMarket, layout, armedCount]);
+
+  const afterProgramMutation = useCallback(() => {
+    invalidateLiveTradingPrefetch();
+    refreshLiveTradingStatusNow();
+    void reloadPortfolio();
+  }, [reloadPortfolio]);
+
+  const handleSimStart = useCallback(
+    async (id: string) => {
+      setActionBusyId(id);
+      try {
+        await startSimLiveTradeProgram(id);
+        afterProgramMutation();
+      } catch {
+        /* status poll will resync */
+      } finally {
+        setActionBusyId(null);
+      }
+    },
+    [afterProgramMutation],
+  );
+
+  const handleSimStop = useCallback(
+    async (id: string) => {
+      setActionBusyId(id);
+      try {
+        await stopSimLiveTradeProgram(id);
+        afterProgramMutation();
+      } catch {
+        /* status poll will resync */
+      } finally {
+        setActionBusyId(null);
+      }
+    },
+    [afterProgramMutation],
+  );
+
+  const handleDisarm = useCallback(
+    async (id: string) => {
+      setActionBusyId(id);
+      try {
+        await disarmLiveTradeProgram(id);
+        afterProgramMutation();
+      } catch {
+        /* status poll will resync */
+      } finally {
+        setActionBusyId(null);
+      }
+    },
+    [afterProgramMutation],
+  );
+
+  const handleDelete = useCallback(
+    async (id: string, name: string) => {
+      const target = status?.programs.find((p) => p.id === id);
+      const running = target?.status === "sim" || target?.status === "armed";
+      const confirmMsg = running
+        ? ko.app.liveTradeDeleteRunningConfirm.replace("{name}", name)
+        : ko.app.liveTradeDeleteConfirmNamed.replace("{name}", name);
+      if (!window.confirm(confirmMsg)) return;
+
+      setHiddenProgramIds((s) => {
+        const next = new Set(s);
+        next.add(id);
+        return next;
+      });
+      setActionBusyId(id);
+      try {
+        if (target?.status === "sim") {
+          await stopSimLiveTradeProgram(id);
+        } else if (target?.status === "armed") {
+          await disarmLiveTradeProgram(id);
+        }
+        await deleteLiveTradeProgram(id);
+        afterProgramMutation();
+      } catch {
+        setHiddenProgramIds((s) => {
+          const next = new Set(s);
+          next.delete(id);
+          return next;
+        });
+      } finally {
+        setActionBusyId(null);
+      }
+    },
+    [afterProgramMutation, status?.programs],
+  );
 
   useEffect(() => {
     if (statusPending) {
@@ -517,7 +673,9 @@ export function LiveTradingRailCore({
   );
 
   const rows = useMemo(() => {
-    const programs = status?.programs ?? [];
+    const programs = (status?.programs ?? []).filter(
+      (p) => !hiddenProgramIds.has(p.id),
+    );
     const armed = programs
       .filter((p) => p.status === "armed")
       .sort((a, b) => a.name.localeCompare(b.name, "ko"));
@@ -557,7 +715,7 @@ export function LiveTradingRailCore({
         holdings,
       };
     });
-  }, [status, holdingsByProgram, tradesByProgram, roundTripForMarket]);
+  }, [status, holdingsByProgram, tradesByProgram, roundTripForMarket, hiddenProgramIds]);
 
   const armedRows = useMemo(
     () => rows.filter((row) => row.kind === "armed"),
@@ -624,6 +782,11 @@ export function LiveTradingRailCore({
               ? portfolio?.summary?.bithumbKrwTotal
               : undefined
           }
+          actionBusy={actionBusyId === p.id}
+          onSimStart={() => void handleSimStart(p.id)}
+          onSimStop={() => void handleSimStop(p.id)}
+          onDisarm={() => void handleDisarm(p.id)}
+          onDelete={() => void handleDelete(p.id, p.name)}
         />
       </li>
     );
