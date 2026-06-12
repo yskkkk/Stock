@@ -14,6 +14,31 @@ export function dispatchLiveTradeDockOpen() {
   window.dispatchEvent(new CustomEvent(LIVE_TRADE_DOCK_OPEN_EVENT));
 }
 
+/** 우측 도크 레일 — 토스·빗썸 API 연동 팝오버 */
+export const LIVE_TRADE_DOCK_OPEN_API_EVENT = "ystock-live-trade-dock-open-api";
+
+export type LiveTradeDockOpenApiDetail = {
+  exchange: "bithumb" | "toss";
+};
+
+export function readLiveTradeDockOpenApiEvent(
+  e: Event,
+): LiveTradeDockOpenApiDetail | undefined {
+  return (e as CustomEvent<LiveTradeDockOpenApiDetail>).detail;
+}
+
+export function dispatchLiveTradeDockOpenApi(
+  exchange: LiveTradeDockOpenApiDetail["exchange"],
+): void {
+  if (typeof window === "undefined") return;
+  dispatchLiveTradeDockOpen();
+  window.dispatchEvent(
+    new CustomEvent<LiveTradeDockOpenApiDetail>(LIVE_TRADE_DOCK_OPEN_API_EVENT, {
+      detail: { exchange },
+    }),
+  );
+}
+
 /** 도크 «+» — 새 프로그램 폼 초기화 */
 export const LIVE_TRADE_DOCK_OPEN_FORM_EVENT = "ystock-live-trade-dock-open-form";
 

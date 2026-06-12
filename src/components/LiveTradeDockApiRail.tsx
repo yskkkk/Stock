@@ -17,6 +17,10 @@ import {
 } from "./LiveTradeExchangeApiPanel";
 import { BithumbBrandMark, TossBrandMark } from "./ExchangeBrandMarks";
 import LiveTradeDockYsHead from "./LiveTradeDockYsHead";
+import {
+  LIVE_TRADE_DOCK_OPEN_API_EVENT,
+  readLiveTradeDockOpenApiEvent,
+} from "../lib/liveTradeDockEvents";
 
 const API_POPOVER_GAP_PX = 9;
 
@@ -154,6 +158,19 @@ export default function LiveTradeDockApiRail({
     return () =>
       window.removeEventListener("live-trade-dock-close-api-popover", onCloseApi);
   }, []);
+
+  useEffect(() => {
+    const onOpenApi = (e: Event) => {
+      const detail = readLiveTradeDockOpenApiEvent(e);
+      const exchange = detail?.exchange;
+      if (exchange !== "bithumb" && exchange !== "toss") return;
+      onPopoverOpen?.();
+      setOpen(exchange);
+    };
+    window.addEventListener(LIVE_TRADE_DOCK_OPEN_API_EVENT, onOpenApi);
+    return () =>
+      window.removeEventListener(LIVE_TRADE_DOCK_OPEN_API_EVENT, onOpenApi);
+  }, [onPopoverOpen]);
 
   useEffect(() => {
     if (!open) return;

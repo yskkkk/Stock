@@ -1,5 +1,6 @@
 import { ko } from "../i18n/ko";
-import { dispatchLiveTradeDockOpenAccount } from "../lib/liveTradeDockAccount";
+import { dispatchLiveTradeDockOpenApi } from "../lib/liveTradeDockEvents";
+import { dispatchDockAccountProvider } from "../lib/liveTradeDockAccount";
 import type { LiveTradeTradesExchange } from "../lib/liveTradeTradesWorkspace";
 
 export default function LiveTradeApiNotConnectedNotice({
@@ -28,9 +29,10 @@ export default function LiveTradeApiNotConnectedNotice({
         <button
           type="button"
           className="btn btn--secondary live-trade-api-not-connected__btn"
-          onClick={() =>
-            dispatchLiveTradeDockOpenAccount({ provider: exchange })
-          }
+          onClick={() => {
+            dispatchDockAccountProvider(exchange);
+            dispatchLiveTradeDockOpenApi(exchange);
+          }}
         >
           {ko.app.liveTradeApiConnectCta}
         </button>
