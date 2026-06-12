@@ -67,6 +67,17 @@ export function exchangeToTradingViewPrefix(
   return yahooExchangeCodeToTradingViewPrefix(ex);
 }
 
+/** Yahoo US 티커 → TradingView 티커 (BRK-B → BRK.B 등 클래스주) */
+export function yahooUsTickerToTradingViewTicker(ticker: string): string {
+  const u = ticker.trim().toUpperCase();
+  if (!u) return u;
+  if (/^[A-Z0-9]+-[A-Z]$/.test(u)) {
+    return u.replace(/-([A-Z])$/, ".$1");
+  }
+  if (u.includes(".")) return u;
+  return u;
+}
+
 /** Yahoo 종목 티커 → TradingView Advanced Chart 심볼 (근사 매핑) */
 export function yahooStockSymbolToTradingView(
   yahoo: string,
@@ -80,8 +91,7 @@ export function yahooStockSymbolToTradingView(
     const raw = ks?.[1] ?? kq?.[1];
     if (raw) return `KRX:${raw.padStart(6, "0")}`;
   }
-  const base = u.includes(".") ? u.slice(0, Math.max(0, u.indexOf("."))) : u;
-  const ticker = base.replace(/\./g, "-");
+  const ticker = yahooUsTickerToTradingViewTicker(u);
   if (!ticker) return "NASDAQ:AAPL";
   const prefix = exchangeToTradingViewPrefix(exchange) ?? "NASDAQ";
   return `${prefix}:${ticker}`;

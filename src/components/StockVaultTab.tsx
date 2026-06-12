@@ -1239,13 +1239,11 @@ export default function StockVaultTab({
                 row.market,
               );
               const industry = getRowIndustry(row);
-              const tvSymbol =
-                metaRow?.tvSymbol ??
-                yahooStockSymbolToTradingView(
-                  row.symbol,
-                  row.market,
-                  metaRow?.exchange,
-                );
+              const tvSymbol = yahooStockSymbolToTradingView(
+                row.symbol,
+                row.market,
+                metaRow?.exchange,
+              );
               const cur =
                 quote?.currency ?? (row.market === "kr" ? "KRW" : "USD");
               const chg = quote?.changePercent;

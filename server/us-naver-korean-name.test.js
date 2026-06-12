@@ -19,10 +19,16 @@ test("resolveUsStockDisplayMeta maps NYSE TJX to TradingView NYSE symbol", async
   assert.ok(meta.nameKo);
 });
 
+test("resolveUsStockDisplayMeta maps BRK-B to TradingView BRK.B", async () => {
+  const meta = await resolveUsStockDisplayMeta("BRK-B");
+  assert.equal(meta.tvSymbol, "NYSE:BRK.B");
+});
+
 test("usTickerToTradingViewSymbol uses exchange prefix", () => {
   assert.equal(usTickerToTradingViewSymbol("TJX", "NYSE"), "NYSE:TJX");
   assert.equal(usTickerToTradingViewSymbol("POOL", "NASDAQ"), "NASDAQ:POOL");
   assert.equal(usTickerToTradingViewSymbol("WAB", "NYQ"), "NYSE:WAB");
+  assert.equal(usTickerToTradingViewSymbol("BRK-B", "NYSE"), "NYSE:BRK.B");
 });
 
 test("yahooExchangeCodeToTradingViewPrefix maps Yahoo codes", () => {

@@ -75,12 +75,23 @@ export async function fetchYahooUsExchangeName(ticker) {
   }
 }
 
+/** @param {string} ticker */
+export function yahooUsTickerToTradingViewTicker(ticker) {
+  const u = normalizeUsTicker(ticker);
+  if (!u) return u;
+  if (/^[A-Z0-9]+-[A-Z]$/.test(u)) {
+    return u.replace(/-([A-Z])$/, ".$1");
+  }
+  if (u.includes(".")) return u;
+  return u;
+}
+
 /**
  * @param {string} ticker
  * @param {string | null | undefined} exchangeName
  */
 export function usTickerToTradingViewSymbol(ticker, exchangeName) {
-  const sym = normalizeUsTicker(ticker).replace(/\./g, "-");
+  const sym = yahooUsTickerToTradingViewTicker(normalizeUsTicker(ticker));
   if (!sym) return null;
   const prefix = naverExchangeToTradingViewPrefix(exchangeName) ?? "NASDAQ";
   return `${prefix}:${sym}`;
@@ -157,10 +168,7 @@ export async function resolveUsStockDisplayMeta(symbol) {
     const yahooExchange = await fetchYahooUsExchangeName(sym);
     if (yahooExchange) exchange = yahooExchange;
   }
-  const tvSymbol = usTickerToTradingViewSymbol(
-    basic?.symbolCode ?? sym,
-    exchange,
-  );
+  const tvSymbol = usTickerToTradingViewSymbol(sym, exchange);
   return { nameKo, tvSymbol, exchange };
 }
 

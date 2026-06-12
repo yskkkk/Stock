@@ -27,10 +27,22 @@ describe("tradingviewSymbols", () => {
     expect(exchangeToTradingViewPrefix("NYQ")).toBe("NYSE");
   });
 
+  it("maps Yahoo class shares to TradingView dot tickers", () => {
+    expect(yahooStockSymbolToTradingView("BRK-B", "us", "NYSE")).toBe(
+      "NYSE:BRK.B",
+    );
+    expect(yahooStockSymbolToTradingView("BRK-A", "us", "NYSE")).toBe(
+      "NYSE:BRK.A",
+    );
+    expect(yahooStockSymbolToTradingView("BF-B", "us", "NYSE")).toBe(
+      "NYSE:BF.B",
+    );
+  });
+
   it("builds chart URL with daily interval", () => {
-    const url = tradingViewChartUrl("NYSE:TJX");
+    const url = tradingViewChartUrl("NYSE:BRK.B");
     expect(url).toContain("https://www.tradingview.com/chart/?");
-    expect(url).toContain("symbol=NYSE%3ATJX");
+    expect(url).toContain("symbol=NYSE%3ABRK.B");
     expect(url).toContain("interval=D");
   });
 });
