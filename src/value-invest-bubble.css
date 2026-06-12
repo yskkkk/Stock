@@ -94,6 +94,13 @@
   pointer-events: auto;
 }
 
+.value-invest-bubble__hover-pop--portal {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 10100;
+}
+
 .value-invest-bubble__hover-pop-title {
   display: block;
   margin-bottom: 0.28rem;

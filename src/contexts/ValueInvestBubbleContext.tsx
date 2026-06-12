@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
   type ReactNode,
+  type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
 import { fetchValueInvestReturn } from "../api";
@@ -212,6 +213,100 @@ function projectionColumnValue(
   }
 }
 
+const FIELD_HOVER_HIDE_MS = 120;
+const FIELD_HOVER_GAP = 4;
+const FIELD_HOVER_Z = 10100;
+
+function positionFieldHoverPop(
+  anchor: DOMRectReadOnly,
+  popW: number,
+  popH: number,
+): { left: number; top: number } {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  let left = anchor.left;
+  let top = anchor.bottom + FIELD_HOVER_GAP;
+  if (left + popW > vw - FIELD_HOVER_PAD) {
+    left = Math.max(FIELD_HOVER_PAD, vw - FIELD_HOVER_PAD - popW);
+  }
+  if (left < FIELD_HOVER_PAD) left = FIELD_HOVER_PAD;
+  if (top + popH > vh - FIELD_HOVER_PAD) {
+    top = anchor.top - FIELD_HOVER_GAP - popH;
+  }
+  if (top < FIELD_HOVER_PAD) top = FIELD_HOVER_PAD;
+  return { left, top };
+}
+
+function FieldHoverPopPortal({
+  anchorRef,
+  show,
+  dual,
+  onMouseEnter,
+  onMouseLeave,
+  children,
+}: {
+  anchorRef: RefObject<HTMLElement | null>;
+  show: boolean;
+  dual: boolean;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+  children: ReactNode;
+}) {
+  const popRef = useRef<HTMLSpanElement | null>(null);
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+
+  const updatePos = useCallback(() => {
+    const anchor = anchorRef.current;
+    const pop = popRef.current;
+    if (!anchor || !pop) return;
+    const rect = anchor.getBoundingClientRect();
+    setPos(positionFieldHoverPop(rect, pop.offsetWidth, pop.offsetHeight));
+  }, [anchorRef]);
+
+  useLayoutEffect(() => {
+    if (!show) {
+      setPos(null);
+      return;
+    }
+    updatePos();
+  }, [show, dual, children, updatePos]);
+
+  useEffect(() => {
+    if (!show) return;
+    const onReflow = () => updatePos();
+    window.addEventListener("resize", onReflow);
+    window.addEventListener("scroll", onReflow, true);
+    return () => {
+      window.removeEventListener("resize", onReflow);
+      window.removeEventListener("scroll", onReflow, true);
+    };
+  }, [show, updatePos]);
+
+  if (!show || typeof document === "undefined") return null;
+
+  return createPortal(
+    <span
+      ref={popRef}
+      className={
+        dual
+          ? "value-invest-bubble__hover-pop value-invest-bubble__hover-pop--dual value-invest-bubble__hover-pop--portal"
+          : "value-invest-bubble__hover-pop value-invest-bubble__hover-pop--portal"
+      }
+      role="tooltip"
+      style={
+        pos
+          ? { left: `${pos.left}px`, top: `${pos.top}px`, visibility: "visible" as const }
+          : { left: "-9999px", top: "0", visibility: "hidden" as const }
+      }
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      {children}
+    </span>,
+    document.body,
+  );
+}
+
 function HistoricalEpsTable({
   rows,
   currency,
@@ -318,6 +413,8 @@ function InputField({
   pctRate?: number;
   onPctRateChange?: (rate: number) => void;
 }) {
+  const labelRef = useRef<HTMLSpanElement | null>(null);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [hover, setHover] = useState(false);
   const [pctDraft, setPctDraft] = useState<string | null>(null);
   const pctMode = onPctRateChange != null;
@@ -363,9 +460,86 @@ function InputField({
     }
   };
 
+  useEffect(() => {
+    return () => {
+      if (hideTimerRef.current != null) clearTimeout(hideTimerRef.current);
+    };
+  }, []);
+
+  const openHover = () => {
+    if (hideTimerRef.current != null) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+    setHover(true);
+  };
+
+  const scheduleHoverClose = () => {
+    if (hideTimerRef.current != null) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => {
+      setHover(false);
+      hideTimerRef.current = null;
+    }, FIELD_HOVER_HIDE_MS);
+  };
+
+  const hoverPopContent = showDualPop ? (
+    <span className="value-invest-bubble__hover-pop-cols">
+      <span className="value-invest-bubble__hover-pop-pane">
+        <span className="value-invest-bubble__hover-pop-title">
+          {sourceDetailTitle ?? ko.valueInvest.growthCalcTitle}
+        </span>
+        <ul className="value-invest-bubble__source-detail">
+          {sourceDetail!.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      </span>
+      <span className="value-invest-bubble__hover-pop-pane">
+        <span className="value-invest-bubble__hover-pop-title">
+          {`${projectionColumnLabel(projectionColumn!)} · ${ko.valueInvest.projectionTitle}`}
+        </span>
+        <YearlyProjectionTable
+          rows={projectionRows!}
+          currency={currency}
+          column={projectionColumn!}
+          perMultiple={projectionPer}
+        />
+      </span>
+    </span>
+  ) : (
+    <>
+      <span className="value-invest-bubble__hover-pop-title">
+        {showSourceDetail
+          ? (sourceDetailTitle ?? ko.valueInvest.growthCalcTitle)
+          : showHistorical
+            ? ko.valueInvest.epsHistoryTitle
+            : projectionColumn
+              ? `${projectionColumnLabel(projectionColumn)} · ${ko.valueInvest.projectionTitle}`
+              : ko.valueInvest.projectionTitle}
+      </span>
+      {showSourceDetail ? (
+        <ul className="value-invest-bubble__source-detail">
+          {sourceDetail!.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      ) : showHistorical ? (
+        <HistoricalEpsTable rows={historicalEpsRows!} currency={currency} />
+      ) : projectionColumn ? (
+        <YearlyProjectionTable
+          rows={projectionRows!}
+          currency={currency}
+          column={projectionColumn}
+          perMultiple={projectionPer}
+        />
+      ) : null}
+    </>
+  );
+
   return (
     <label className="value-invest-bubble__field">
       <span
+        ref={labelRef}
         className={
           labelHint
             ? "value-invest-bubble__field-label value-invest-bubble__field-label--hint"
@@ -378,80 +552,25 @@ function InputField({
               ? ko.valueInvest.labelHoverHint
               : undefined
         }
-        onMouseEnter={() => setHover(true)}
-        onMouseLeave={() => setHover(false)}
-        onFocus={() => setHover(true)}
-        onBlur={() => setHover(false)}
+        onMouseEnter={openHover}
+        onMouseLeave={scheduleHoverClose}
+        onFocus={openHover}
+        onBlur={scheduleHoverClose}
         tabIndex={labelHint ? 0 : undefined}
       >
         {label}
-        {showPop ? (
-          <span
-            className={
-              showDualPop
-                ? "value-invest-bubble__hover-pop value-invest-bubble__hover-pop--dual"
-                : "value-invest-bubble__hover-pop"
-            }
-            role="tooltip"
-            onMouseEnter={() => setHover(true)}
-            onMouseLeave={() => setHover(false)}
-          >
-            {showDualPop ? (
-              <span className="value-invest-bubble__hover-pop-cols">
-                <span className="value-invest-bubble__hover-pop-pane">
-                  <span className="value-invest-bubble__hover-pop-title">
-                    {sourceDetailTitle ?? ko.valueInvest.growthCalcTitle}
-                  </span>
-                  <ul className="value-invest-bubble__source-detail">
-                    {sourceDetail!.map((line) => (
-                      <li key={line}>{line}</li>
-                    ))}
-                  </ul>
-                </span>
-                <span className="value-invest-bubble__hover-pop-pane">
-                  <span className="value-invest-bubble__hover-pop-title">
-                    {`${projectionColumnLabel(projectionColumn!)} · ${ko.valueInvest.projectionTitle}`}
-                  </span>
-                  <YearlyProjectionTable
-                    rows={projectionRows!}
-                    currency={currency}
-                    column={projectionColumn!}
-                    perMultiple={projectionPer}
-                  />
-                </span>
-              </span>
-            ) : (
-              <>
-                <span className="value-invest-bubble__hover-pop-title">
-                  {showSourceDetail
-                    ? (sourceDetailTitle ?? ko.valueInvest.growthCalcTitle)
-                    : showHistorical
-                      ? ko.valueInvest.epsHistoryTitle
-                      : projectionColumn
-                        ? `${projectionColumnLabel(projectionColumn)} · ${ko.valueInvest.projectionTitle}`
-                        : ko.valueInvest.projectionTitle}
-                </span>
-                {showSourceDetail ? (
-                  <ul className="value-invest-bubble__source-detail">
-                    {sourceDetail!.map((line) => (
-                      <li key={line}>{line}</li>
-                    ))}
-                  </ul>
-                ) : showHistorical ? (
-                  <HistoricalEpsTable rows={historicalEpsRows!} currency={currency} />
-                ) : projectionColumn ? (
-                  <YearlyProjectionTable
-                    rows={projectionRows!}
-                    currency={currency}
-                    column={projectionColumn}
-                    perMultiple={projectionPer}
-                  />
-                ) : null}
-              </>
-            )}
-          </span>
-        ) : null}
       </span>
+      {showPop ? (
+        <FieldHoverPopPortal
+          anchorRef={labelRef}
+          show={showPop}
+          dual={showDualPop}
+          onMouseEnter={openHover}
+          onMouseLeave={scheduleHoverClose}
+        >
+          {hoverPopContent}
+        </FieldHoverPopPortal>
+      ) : null}
       <span className="value-invest-bubble__field-input-wrap">
         <input
           type={pctMode ? "text" : "number"}
