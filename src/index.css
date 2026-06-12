@@ -6668,29 +6668,34 @@ html[data-theme="light"] .feedback-inbox-item {
 }
 
 .earnings-icon-rail--edge .earnings-icon-rail__btn {
-  width: 1.72rem;
-  height: 1.72rem;
-  border-radius: 0.42rem;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
   background: transparent;
-  border-color: color-mix(in srgb, var(--card-border) 45%, transparent);
   box-shadow: none;
 }
 
 .earnings-icon-rail--edge .earnings-icon-rail__btn:hover,
 .earnings-icon-rail--edge .earnings-icon-rail__btn--on {
-  background: color-mix(in srgb, var(--accent-dim) 42%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-border) 40%, transparent);
-  transform: none;
+  background: transparent;
+  box-shadow: none;
+  transform: scale(1.06);
+  opacity: 0.92;
 }
 
 .earnings-icon-rail--edge .earnings-icon-rail__img {
-  width: 1.2rem;
-  height: 1.2rem;
+  width: 1.28rem;
+  height: 1.28rem;
+  border-radius: 0;
 }
 
 .earnings-icon-rail--edge .earnings-icon-rail__logo-wrap {
-  width: 1.2rem;
-  height: 1.2rem;
+  width: 1.28rem;
+  height: 1.28rem;
 }
 
 .earnings-icon-rail__logo-wrap {
@@ -7078,6 +7083,19 @@ html[data-theme="light"] .earnings-icon-rail__logo-wrap.stock-logo-plate--dark {
 html[data-theme="light"] .earnings-icon-rail__btn {
   background: var(--card-bg, #fff);
   box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+}
+
+html[data-theme="light"] .earnings-icon-rail--edge .earnings-icon-rail__btn,
+html[data-theme="light"] .earnings-icon-rail--edge .earnings-icon-rail__btn:hover,
+html[data-theme="light"] .earnings-icon-rail--edge .earnings-icon-rail__btn--on {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+html[data-theme="light"] .earnings-icon-rail--edge .earnings-icon-rail__img {
+  mix-blend-mode: multiply;
+  filter: none;
 }
 
 @media (max-width: 900px) {
