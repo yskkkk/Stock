@@ -223,10 +223,10 @@ export async function placeTossOrderForUser(userId, body) {
   if (!result.ok) {
     throw new Error(result.error ?? "주문에 실패했습니다.");
   }
-  const openOrders = await buildTossOpenOrdersForUser(uid);
+  // 주문 API 응답을 먼저 반환 — 미체결·원장 갱신은 큐 경합 없이 백그라운드
+  void buildTossOpenOrdersForUser(uid).catch(() => null);
   return {
     ok: true,
     ...result,
-    openOrders,
   };
 }
