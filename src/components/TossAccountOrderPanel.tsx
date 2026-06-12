@@ -16,8 +16,6 @@ import { formatPrice } from "../lib/format";
 import { ko } from "../i18n/ko";
 import { LiveTradeSymbolCell } from "./LiveTradeSymbolCell";
 
-const TOSS_TRADE_URL = "https://www.tossinvest.com/";
-
 type OrderDraft = {
   symbol: string;
   name: string;
@@ -166,21 +164,6 @@ const TossAccountOrderPanel = forwardRef<
     [draft, fillLimitPriceFromQuote, price],
   );
 
-  const openBuyDraft = useCallback(() => {
-    setDraft({
-      symbol: "",
-      name: "",
-      market: "kr",
-      side: "buy",
-    });
-    setOrderType("market");
-    setAmount("");
-    setQuantity("");
-    setPrice("");
-    setMsg(null);
-    setErr(null);
-  }, []);
-
   const submitOrder = async () => {
     if (!draft) return;
     const symbol = draft.symbol.trim();
@@ -229,6 +212,8 @@ const TossAccountOrderPanel = forwardRef<
     }
   };
 
+  if (!draft && !msg && !err) return null;
+
   const rootClass = [
     "toss-order-panel",
     compact ? "toss-order-panel--compact" : "",
@@ -238,24 +223,6 @@ const TossAccountOrderPanel = forwardRef<
 
   return (
     <section className={rootClass} aria-label={ko.app.liveTradeTossOrderTitle}>
-      <div className="toss-order-panel__toolbar">
-        <button
-          type="button"
-          className="btn btn--secondary btn--sm toss-order-panel__btn"
-          onClick={openBuyDraft}
-        >
-          {ko.app.liveTradeTossOrderBuy}
-        </button>
-        <a
-          className="btn btn--ghost btn--sm toss-order-panel__link"
-          href={TOSS_TRADE_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {ko.app.liveTradeTossOpenInApp}
-        </a>
-      </div>
-
       {draft ? (
         <div className="toss-order-panel__form">
           <div className="toss-order-panel__form-head">
