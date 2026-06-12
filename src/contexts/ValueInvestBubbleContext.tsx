@@ -213,8 +213,9 @@ function projectionColumnValue(
   }
 }
 
-const FIELD_HOVER_HIDE_MS = 120;
+const FIELD_HOVER_PAD = 8;
 const FIELD_HOVER_GAP = 4;
+const FIELD_HOVER_HIDE_MS = 120;
 const FIELD_HOVER_Z = 10100;
 
 function positionFieldHoverPop(
@@ -295,8 +296,13 @@ function FieldHoverPopPortal({
       role="tooltip"
       style={
         pos
-          ? { left: `${pos.left}px`, top: `${pos.top}px`, visibility: "visible" as const }
-          : { left: "-9999px", top: "0", visibility: "hidden" as const }
+          ? {
+              left: `${pos.left}px`,
+              top: `${pos.top}px`,
+              visibility: "visible" as const,
+              zIndex: FIELD_HOVER_Z,
+            }
+          : { left: "-9999px", top: "0", visibility: "hidden" as const, zIndex: FIELD_HOVER_Z }
       }
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
@@ -564,7 +570,7 @@ function InputField({
         <FieldHoverPopPortal
           anchorRef={labelRef}
           show={showPop}
-          dual={showDualPop}
+          dual={Boolean(showDualPop)}
           onMouseEnter={openHover}
           onMouseLeave={scheduleHoverClose}
         >
@@ -716,6 +722,7 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
       const el = bubbleRef.current;
       const target = e.target as Node;
       if (el?.contains(target)) return;
+      if ((target as Element).closest?.(".value-invest-bubble__hover-pop--portal")) return;
       if ((target as Element).closest?.(".earnings-icon-rail__bubble")) return;
       closeValueInvestBubble();
     };

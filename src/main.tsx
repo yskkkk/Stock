@@ -77,15 +77,15 @@ window.__STOCK_BOOT = 1;
 try {
   createRoot(document.getElementById("root")!).render(
     <StrictMode>
-      <ValueInvestBubbleProvider>
-        <AppErrorBoundary>
+      <AppErrorBoundary>
+        <ValueInvestBubbleProvider>
           <LiveTradeCardSidePanelProvider>
             <MobileServerGate>
               <App />
             </MobileServerGate>
           </LiveTradeCardSidePanelProvider>
-        </AppErrorBoundary>
-      </ValueInvestBubbleProvider>
+        </ValueInvestBubbleProvider>
+      </AppErrorBoundary>
     </StrictMode>,
   );
   window.__STOCK_BOOT = 2;
