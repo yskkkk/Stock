@@ -54,7 +54,49 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.35rem 0.55rem;
+  flex: none;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.investor-flow-tab__flow-tabs .market-tab,
+.investor-flow-tab__view-tabs .market-tab {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.28rem 0.55rem;
+  font-size: 0.66rem;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+}
+
+.investor-flow-tab__flow-tabs .market-tab:hover,
+.investor-flow-tab__view-tabs .market-tab:hover {
+  color: var(--text-dim);
+  background: transparent;
+}
+
+.investor-flow-tab__flow-tabs .market-tab.active,
+.investor-flow-tab__view-tabs .market-tab.active {
+  color: var(--accent);
+  font-weight: 700;
+  background: transparent;
+  box-shadow: none;
 }
 
 .investor-flow-tab__flow-hint {
