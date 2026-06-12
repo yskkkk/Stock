@@ -322,6 +322,45 @@ export interface BuffettIntrinsicValueResponse {
   disclaimer: string;
 }
 
+export interface ValueInvestReturnInputs {
+  currentPrice: number;
+  currentEps: number;
+  growthRate: number;
+  averagePer: number;
+  payoutRatio: number;
+  targetReturnRate: number;
+  years: number;
+}
+
+export interface ValueInvestReturnResult {
+  years: number;
+  yearlyEps: { year: number; eps: number }[];
+  totalEps: number | null;
+  epsAtEnd: number | null;
+  futurePrice: number | null;
+  totalDividends: number | null;
+  totalReturn: number | null;
+  cagr: number | null;
+  cagrPct: number | null;
+  fairBuyPrice: number | null;
+}
+
+export interface ValueInvestReturnResponse {
+  symbol: string;
+  name: string;
+  currency: string;
+  market: "kr" | "us";
+  inputs: ValueInvestReturnInputs;
+  inputSources: Record<string, string>;
+  payoutSource: string | null;
+  growthSource: string | null;
+  result: ValueInvestReturnResult | null;
+  missing: string[];
+  computable: boolean;
+  disclaimer: string;
+  updatedAtMs: number;
+}
+
 export interface FinancialPeriodRow {
   id: string;
   label: string;

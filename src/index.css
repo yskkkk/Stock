@@ -738,6 +738,15 @@ html[data-theme="light"] .top-bar__brand .brand-mark__img {
   padding: 0;
 }
 
+.picks-history-pick-item--clickable {
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.picks-history-pick-item--clickable:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
 .picks-history-pick-item__title {
   font-weight: 650;
   color: var(--text);

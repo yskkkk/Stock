@@ -14,7 +14,9 @@ import {
   applyTrackerQuotes,
   prioritizeTrackerSymbols,
 } from "../lib/recTrackerQuotes";
+import { useValueInvestBubble } from "../contexts/ValueInvestBubbleContext";
 import { signalChipMeta } from "../constants/signalChips";
+import { stockPickToValueInvestTarget } from "../lib/valueInvestBubbleTarget";
 import type { SignalId } from "../constants/signals";
 import {
   displayStockSymbol,
@@ -955,6 +957,7 @@ function RecTrackerRow({
   item: RecommendationTrackerItem;
   onOpenPick: (pick: StockPick) => void;
 }) {
+  const { showValueInvestBubble } = useValueInvestBubble();
   const sym = displayStockSymbol(item.symbol);
   const up = (item.changePct ?? 0) >= 0;
   const scoreMismatch = recTrackerScoreSignalMismatch(item.score, item.signalIds);
@@ -975,8 +978,8 @@ function RecTrackerRow({
       tabIndex={0}
       role="button"
       aria-label={`${item.name} ${ko.app.recTrackerOpenChart}`}
-      onClick={() =>
-        onOpenPick({
+      onClick={(e) => {
+        const pick: StockPick = {
           symbol: item.symbol,
           name: item.name,
           market: item.market,
@@ -985,12 +988,16 @@ function RecTrackerRow({
           signalIds: item.signalIds,
           price: item.currentPrice ?? item.entryPrice ?? undefined,
           currency: item.currency,
-        })
-      }
+        };
+        if (item.market === "kr" || item.market === "us") {
+          showValueInvestBubble(e.currentTarget, stockPickToValueInvestTarget(pick));
+        }
+        onOpenPick(pick);
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          onOpenPick({
+          const pick: StockPick = {
             symbol: item.symbol,
             name: item.name,
             market: item.market,
@@ -999,7 +1006,11 @@ function RecTrackerRow({
             signalIds: item.signalIds,
             price: item.currentPrice ?? item.entryPrice ?? undefined,
             currency: item.currency,
-          });
+          };
+          if (item.market === "kr" || item.market === "us") {
+            showValueInvestBubble(e.currentTarget, stockPickToValueInvestTarget(pick));
+          }
+          onOpenPick(pick);
         }
       }}
     >

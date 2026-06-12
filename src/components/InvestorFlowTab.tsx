@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchKrInvestorFlow } from "../api";
+import { useValueInvestBubble } from "../contexts/ValueInvestBubbleContext";
 import { ko } from "../i18n/ko";
+import { krFlowRowToValueInvestTarget } from "../lib/valueInvestBubbleTarget";
 import { formatPrice } from "../lib/format";
 import {
   formatInvestorNetQty,
@@ -51,6 +53,7 @@ function rowIndustry(row: KrInvestorFlowItem): string {
 }
 
 export default function InvestorFlowTab() {
+  const { showValueInvestBubble } = useValueInvestBubble();
   const [data, setData] = useState<KrInvestorFlowResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -161,7 +164,21 @@ export default function InvestorFlowTab() {
   ];
 
   const renderRow = (row: KrInvestorFlowItem, idx: number) => (
-    <tr key={row.symbol}>
+    <tr
+      key={row.symbol}
+      className="investor-flow-tab__row--clickable"
+      tabIndex={0}
+      role="button"
+      onClick={(e) =>
+        showValueInvestBubble(e.currentTarget, krFlowRowToValueInvestTarget(row))
+      }
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          showValueInvestBubble(e.currentTarget, krFlowRowToValueInvestTarget(row));
+        }
+      }}
+    >
       <td className="investor-flow-tab__col--rank">{idx + 1}</td>
       <td className="investor-flow-tab__col--name">
         <span className="investor-flow-tab__name">{row.name}</span>

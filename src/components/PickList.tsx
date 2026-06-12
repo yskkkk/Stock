@@ -5,7 +5,9 @@ import {
   PickConditionRow,
 } from "./PickConditionMatrix";
 import { formatPercent } from "../lib/format";
+import { useValueInvestBubble } from "../contexts/ValueInvestBubbleContext";
 import { ko } from "../i18n/ko";
+import { stockPickToValueInvestTarget } from "../lib/valueInvestBubbleTarget";
 import type { Market, PickRecommendationStats, StockPick } from "../types";
 
 function samePickStats(
@@ -99,12 +101,18 @@ const PickListRow = memo(
     onNews,
     onReason,
   }: PickListRowProps) {
+    const { showValueInvestBubble } = useValueInvestBubble();
     return (
       <li className={isActive ? "pick-item active" : "pick-item"}>
         <button
           type="button"
           className="pick-row"
-          onClick={() => onSelect(pick)}
+          onClick={(e) => {
+            if (pick.market === "kr" || pick.market === "us") {
+              showValueInvestBubble(e.currentTarget, stockPickToValueInvestTarget(pick));
+            }
+            onSelect(pick);
+          }}
         >
           <div className="pick-head">
             <span className="pick-name" title={pick.name}>

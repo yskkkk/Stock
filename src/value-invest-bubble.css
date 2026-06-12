@@ -1,0 +1,172 @@
+.value-invest-bubble {
+  position: fixed;
+  z-index: 10060;
+  width: min(300px, calc(100vw - 16px));
+  max-height: min(78dvh, 520px);
+  overflow: auto;
+  padding: 0.65rem 0.7rem 0.7rem;
+  border-radius: 0.65rem;
+  border: 1px solid var(--card-border);
+  background: color-mix(in srgb, var(--card) 96%, white);
+  box-shadow: var(--shadow);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.value-invest-bubble__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.45rem;
+  margin-bottom: 0.45rem;
+}
+
+.value-invest-bubble__name {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+
+.value-invest-bubble__sym {
+  margin: 0.1rem 0 0;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.value-invest-bubble__close {
+  flex-shrink: 0;
+  width: 1.6rem;
+  height: 1.6rem;
+  border: none;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.value-invest-bubble__close:hover {
+  background: color-mix(in srgb, var(--surface) 80%, var(--card));
+  color: var(--text);
+}
+
+.value-invest-bubble__inputs {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.value-invest-bubble__field {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.value-invest-bubble__field-label {
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.value-invest-bubble__field-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.value-invest-bubble__field-input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.22rem 0.35rem;
+  border-radius: 0.35rem;
+  border: 1px solid var(--card-border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.value-invest-bubble__field-suffix {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.value-invest-bubble__field-source {
+  font-size: 0.62rem;
+  color: var(--muted);
+}
+
+.value-invest-bubble__result-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+  margin-bottom: 0.45rem;
+}
+
+.value-invest-bubble__result-card {
+  padding: 0.45rem 0.5rem;
+  border-radius: 0.45rem;
+  border: 1px solid var(--card-border);
+  background: var(--surface);
+}
+
+.value-invest-bubble__result-card--primary {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--card-border));
+  background: color-mix(in srgb, var(--accent) 7%, var(--card));
+}
+
+.value-invest-bubble__result-label {
+  display: block;
+  font-size: 0.64rem;
+  color: var(--muted);
+}
+
+.value-invest-bubble__result-value {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.value-invest-bubble__detail {
+  margin: 0;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.value-invest-bubble__detail > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.value-invest-bubble__detail dt {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.value-invest-bubble__detail dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.value-invest-bubble__muted,
+.value-invest-bubble__error,
+.value-invest-bubble__disclaimer {
+  margin: 0.35rem 0 0;
+  font-size: 0.66rem;
+  color: var(--muted);
+}
+
+.value-invest-bubble__error {
+  color: var(--down);
+}
+
+.value-invest-bubble__missing {
+  margin: 0 0 0.35rem;
+  padding-left: 1rem;
+  font-size: 0.66rem;
+  color: var(--warn, #c9a227);
+}

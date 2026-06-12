@@ -8,7 +8,9 @@ import {
   resolvePickSignalIds,
   signalChipMeta,
 } from "../constants/signalChips";
+import { useValueInvestBubble } from "../contexts/ValueInvestBubbleContext";
 import { ko } from "../i18n/ko";
+import { stockPickToValueInvestTarget } from "../lib/valueInvestBubbleTarget";
 import type {
   Market,
   StockPick,
@@ -198,6 +200,7 @@ const StockSearchPickRow = memo(
     onVaultButtonClick,
     vaultSaved = false,
   }: StockSearchPickRowProps) {
+    const { showValueInvestBubble } = useValueInvestBubble();
     const pick = mergeTechnical(rowToPick(row), slot);
     const signalIds = resolvePickSignalIds(pick);
     const hasPrice = row.price != null && Number.isFinite(row.price);
@@ -221,7 +224,12 @@ const StockSearchPickRow = memo(
         <button
           type="button"
           className="pick-row"
-          onClick={() => onSelectPick(pick)}
+          onClick={(e) => {
+            if (row.market === "kr" || row.market === "us") {
+              showValueInvestBubble(e.currentTarget, stockPickToValueInvestTarget(pick));
+            }
+            onSelectPick(pick);
+          }}
         >
           <div className="pick-head">
             <span className="pick-name" title={row.name}>

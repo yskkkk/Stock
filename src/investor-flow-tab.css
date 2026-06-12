@@ -275,3 +275,12 @@
   font-size: 0.82rem;
   color: var(--down);
 }
+
+.investor-flow-tab__row--clickable {
+  cursor: pointer;
+}
+
+.investor-flow-tab__row--clickable:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: -2px;
+}

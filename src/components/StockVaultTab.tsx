@@ -9,6 +9,7 @@ import {
   setStockVaultFavorite,
   triggerGoldenCrossScan,
 } from "../api";
+import { useValueInvestBubble } from "../contexts/ValueInvestBubbleContext";
 import { ko } from "../i18n/ko";
 import { formatPercent, formatPrice } from "../lib/format";
 import {
@@ -282,6 +283,7 @@ export default function StockVaultTab({
   const scanPopoverRef = useRef<HTMLDivElement>(null);
   const { tipId, showTip, scheduleHideTip, bubble: rowBubble } =
     useStockVaultRowBubble();
+  const { showValueInvestBubble } = useValueInvestBubble();
 
   const applyVaultResponse = useCallback(
     (vault: StockVaultResponse) => {
@@ -1164,6 +1166,15 @@ export default function StockVaultTab({
                     })
                   }
                   onBlur={scheduleHideTip}
+                  onClick={(e) => {
+                    showValueInvestBubble(e.currentTarget, {
+                      symbol: row.symbol,
+                      name: display.label,
+                      market: row.market,
+                      price: quote?.price ?? null,
+                      currency: cur ?? null,
+                    });
+                  }}
                 >
                   <div className="stock-vault-tab__row-main">
                     <div className="stock-vault-tab__row-head">

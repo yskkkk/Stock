@@ -6,6 +6,7 @@ import type {
   CryptoQuotesResponse,
   CryptoUniverseResponse,
   BuffettIntrinsicValueResponse,
+  ValueInvestReturnResponse,
   StockFundamentalsResponse,
   FinancialPeriodsResponse,
   FinancialStatementDetailResponse,
@@ -2003,6 +2004,13 @@ export function fetchStockFundamentals(symbol: string, signal?: AbortSignal) {
 export function fetchBuffettIntrinsicValue(symbol: string, signal?: AbortSignal) {
   return fetchJson<BuffettIntrinsicValueResponse>(
     `/api/stock/${encodeURIComponent(symbol)}/intrinsic-value`,
+    signal ? { signal } : undefined,
+  );
+}
+
+export function fetchValueInvestReturn(symbol: string, signal?: AbortSignal) {
+  return fetchJson<ValueInvestReturnResponse>(
+    `/api/stock/${encodeURIComponent(symbol)}/value-invest-return`,
     signal ? { signal } : undefined,
   );
 }

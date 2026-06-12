@@ -7,6 +7,7 @@ import AppErrorBoundary from "./components/AppErrorBoundary";
 import App from "./App";
 import MobileServerGate from "./components/MobileServerGate";
 import { LiveTradeCardSidePanelProvider } from "./components/LiveTradeAuthAndCredentials";
+import { ValueInvestBubbleProvider } from "./contexts/ValueInvestBubbleContext";
 import "./index.css";
 import "./theme.css";
 import "./theme-light-palettes.css";
@@ -21,6 +22,7 @@ import "./stock-lookup-flat.css";
 import "./financials-tab.css";
 import "./stock-vault-tab.css";
 import "./investor-flow-tab.css";
+import "./value-invest-bubble.css";
 import "./account-snapshot.css";
 
 declare global {
@@ -76,9 +78,11 @@ try {
     <StrictMode>
       <AppErrorBoundary>
         <LiveTradeCardSidePanelProvider>
-          <MobileServerGate>
-            <App />
-          </MobileServerGate>
+          <ValueInvestBubbleProvider>
+            <MobileServerGate>
+              <App />
+            </MobileServerGate>
+          </ValueInvestBubbleProvider>
         </LiveTradeCardSidePanelProvider>
       </AppErrorBoundary>
     </StrictMode>,

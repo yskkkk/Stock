@@ -13,7 +13,9 @@ import {
   formatTimeMsKst,
 } from "../lib/format";
 import { netReturnPctFromPrices } from "../lib/netReturn";
+import { useValueInvestBubble } from "../contexts/ValueInvestBubbleContext";
 import { ko } from "../i18n/ko";
+import { stockPickToValueInvestTarget } from "../lib/valueInvestBubbleTarget";
 import type { PicksDailyHistoryDay, PicksDailyHistorySlimPick } from "../types";
 
 const PICKS_HISTORY_LS = "stock_picks_daily_history_v1";
@@ -164,6 +166,7 @@ function HistoryPickColumn({
   quotes: PicksDailyHistoryQuotesMap;
   quotesLoading: boolean;
 }) {
+  const { showValueInvestBubble } = useValueInvestBubble();
   const sortedPicks = useMemo(() => {
     return [...picks].sort((a, b) =>
       compareHistoryPicksDesc(a, b, rowScannedAtMs),
@@ -188,7 +191,43 @@ function HistoryPickColumn({
             ? p.recordedAtMs
             : anchorMs;
         return (
-          <li key={p.symbol} className="picks-history-pick-item">
+          <li
+            key={p.symbol}
+            className="picks-history-pick-item picks-history-pick-item--clickable"
+            role="button"
+            tabIndex={0}
+            onClick={(e) =>
+              showValueInvestBubble(
+                e.currentTarget,
+                stockPickToValueInvestTarget({
+                  symbol: p.symbol,
+                  name: p.name ?? sym,
+                  market: defaultCurrency === "USD" ? "us" : "kr",
+                  score: 0,
+                  signals: [],
+                  price: p.price ?? undefined,
+                  currency: p.currency ?? defaultCurrency,
+                }),
+              )
+            }
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                showValueInvestBubble(
+                  e.currentTarget,
+                  stockPickToValueInvestTarget({
+                    symbol: p.symbol,
+                    name: p.name ?? sym,
+                    market: defaultCurrency === "USD" ? "us" : "kr",
+                    score: 0,
+                    signals: [],
+                    price: p.price ?? undefined,
+                    currency: p.currency ?? defaultCurrency,
+                  }),
+                );
+              }
+            }}
+          >
             <div className="picks-history-pick-item__title">{title}</div>
             <div className="picks-history-pick-item__meta">
               <span>{formatTimeMsKst(t)}</span>

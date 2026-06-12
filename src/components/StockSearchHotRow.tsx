@@ -1,4 +1,6 @@
+import { useValueInvestBubble } from "../contexts/ValueInvestBubbleContext";
 import { ko } from "../i18n/ko";
+import { stockPickToValueInvestTarget } from "../lib/valueInvestBubbleTarget";
 import { formatPercent, formatPrice, formatTurnover } from "../lib/format";
 import { resolveUsQuoteDisplay } from "../lib/usQuoteDisplay";
 import type { StockPick, StockSearchQuoteRow } from "../types";
@@ -49,6 +51,7 @@ export default function StockSearchHotRow({
   ) => void;
   vaultSaved?: boolean;
 }) {
+  const { showValueInvestBubble } = useValueInvestBubble();
   const pick = rowToStockPick(row);
   const hasPrice = row.price != null && Number.isFinite(row.price);
   const quoteDisplay = resolveUsQuoteDisplay(
@@ -84,7 +87,12 @@ export default function StockSearchHotRow({
       <button
         type="button"
         className="stock-hot-item__btn"
-        onClick={() => onSelectPick(pick)}
+        onClick={(e) => {
+          if (row.market === "kr" || row.market === "us") {
+            showValueInvestBubble(e.currentTarget, stockPickToValueInvestTarget(pick));
+          }
+          onSelectPick(pick);
+        }}
       >
         <span className="stock-hot-item__identity">
           <span className="stock-hot-item__name" title={row.name}>
