@@ -241,12 +241,6 @@ export default function InvestorFlowTab() {
     });
   }, [flowDir, rankKey, rows]);
 
-  const rankTabs: { id: RankKey; label: string }[] = [
-    { id: "foreign", label: ko.investorFlow.rankForeign },
-    { id: "institution", label: ko.investorFlow.rankInstitution },
-    { id: "individual", label: ko.investorFlow.rankIndividual },
-  ];
-
   const flowTabs: { id: FlowDir; label: string }[] = [
     { id: "buy", label: ko.investorFlow.flowBuy },
     { id: "sell", label: ko.investorFlow.flowSell },
@@ -320,22 +314,6 @@ export default function InvestorFlowTab() {
           </button>
         </div>
       </header>
-
-      <div className="investor-flow-tab__rank-tabs market-tabs" role="tablist" aria-label={ko.investorFlow.investorTabsAria}>
-        <span className="investor-flow-tab__sort-by-label">{ko.investorFlow.sortByLabel}</span>
-        {rankTabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            role="tab"
-            aria-selected={rankKey === tab.id}
-            className={rankKey === tab.id ? "market-tab active" : "market-tab"}
-            onClick={() => setRankKey(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
 
       <div className="investor-flow-tab__flow-tabs market-tabs" role="tablist" aria-label={ko.investorFlow.flowTabsAria}>
         {flowTabs.map((tab) => (

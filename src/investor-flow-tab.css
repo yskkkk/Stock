@@ -49,21 +49,12 @@
   font-size: 0.78rem;
 }
 
-.investor-flow-tab__rank-tabs,
 .investor-flow-tab__flow-tabs,
 .investor-flow-tab__view-tabs {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.25rem;
-}
-
-.investor-flow-tab__sort-by-label {
-  margin-right: 0.15rem;
-  font-size: 0.68rem;
-  font-weight: 600;
-  color: var(--muted);
-  white-space: nowrap;
 }
 
 .investor-flow-tab__flow-hint {
