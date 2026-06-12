@@ -2202,6 +2202,21 @@ export function fetchMaAlignHistory(opts?: {
   );
 }
 
+export function fetchMa120NearHistory(opts?: {
+  scanDate?: string;
+  detail?: boolean;
+  signal?: AbortSignal;
+}) {
+  const params = new URLSearchParams();
+  if (opts?.scanDate) params.set("date", opts.scanDate);
+  if (opts?.detail) params.set("detail", "1");
+  const q = params.toString();
+  return fetchJson<import("./types").Ma120NearHistoryResponse>(
+    `/api/ma120-near/history${q ? `?${q}` : ""}`,
+    opts?.signal ? { signal: opts.signal } : undefined,
+  );
+}
+
 export function fetchNews(
   symbol: string,
   name: string,

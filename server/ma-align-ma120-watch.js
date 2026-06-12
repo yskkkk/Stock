@@ -21,8 +21,8 @@ const WATCH_MS = (() => {
 })();
 
 const NEAR_PCT = (() => {
-  const n = Number(process.env.STOCK_MA120_NEAR_PCT ?? 2);
-  return Number.isFinite(n) && n > 0 && n <= 10 ? n : 2;
+  const n = Number(process.env.STOCK_MA120_NEAR_PCT ?? 3);
+  return Number.isFinite(n) && n > 0 && n <= 10 ? n : 3;
 })();
 
 const BATCH_SIZE = (() => {

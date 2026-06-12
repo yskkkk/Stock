@@ -2586,6 +2586,7 @@ export function createApp() {
     asyncRoute(async (_req, res) => {
       const { getGoldenCrossScanStateSync } = await import("./golden-cross-scan.js");
       const { getMaAlignScanStateSync } = await import("./ma-align-scan.js");
+      const { getMa120NearScanStateSync } = await import("./ma120-near-scan.js");
       const {
         goldenCrossScanEnabled,
         getLastGoldenCrossManualScanResult,
@@ -2597,6 +2598,7 @@ export function createApp() {
         lastManualScan: getLastGoldenCrossManualScanResult(),
         goldenCross: { state: getGoldenCrossScanStateSync() },
         maAlign: { state: getMaAlignScanStateSync() },
+        ma120Near: { state: getMa120NearScanStateSync() },
         state: getGoldenCrossScanStateSync(),
       });
     }),
@@ -2693,6 +2695,41 @@ export function createApp() {
       res.json({
         dates: listMaAlignHistoryDatesSync(),
         runs: listMaAlignHistoryRunsSync({
+          scanDate: scanDate || undefined,
+          limit: 30,
+        }),
+      });
+    }),
+  );
+
+  app.get(
+    "/api/ma120-near/history",
+    asyncRoute(async (req, res) => {
+      const {
+        listMa120NearHistoryRunsSync,
+        listMa120NearHistoryDatesSync,
+        listMa120NearHistorySync,
+      } = await import("./ma120-near-history-store.js");
+      const scanDate = String(req.query?.date ?? "").trim();
+      const runId = String(req.query?.runId ?? "").trim();
+      const detail = req.query?.detail === "1" || req.query?.detail === "true";
+      if (runId) {
+        const entries = listMa120NearHistorySync({ limit: 180 }).filter(
+          (e) => e.runId === runId,
+        );
+        res.json({ runId, entries });
+        return;
+      }
+      if (detail && scanDate) {
+        res.json({
+          scanDate,
+          entries: listMa120NearHistorySync({ scanDate, limit: 60 }),
+        });
+        return;
+      }
+      res.json({
+        dates: listMa120NearHistoryDatesSync(),
+        runs: listMa120NearHistoryRunsSync({
           scanDate: scanDate || undefined,
           limit: 30,
         }),

@@ -2,14 +2,18 @@ import { randomUUID } from "node:crypto";
 import { getKstParts, isKrBusinessDay } from "./kr-business-day.js";
 import { runGoldenCrossMarketScan, wasGoldenCrossScannedSync } from "./golden-cross-scan.js";
 import { runMaAlignMarketScan, wasMaAlignScannedSync } from "./ma-align-scan.js";
+import { runMa120NearMarketScan, wasMa120NearScannedSync } from "./ma120-near-scan.js";
 import {
   clearGoldenCrossVaultItemsSync,
   clearMaAlignVaultItemsSync,
+  clearMa120NearVaultItemsSync,
   mergeGoldenCrossHitsIntoVaultSync,
   mergeMaAlignHitsIntoVaultSync,
+  mergeMa120NearHitsIntoVaultSync,
 } from "./stock-vault-store.js";
 import { appendGoldenCrossHistoryEntrySync } from "./golden-cross-history-store.js";
 import { appendMaAlignHistoryEntrySync } from "./ma-align-history-store.js";
+import { appendMa120NearHistoryEntrySync } from "./ma120-near-history-store.js";
 import { notifyGoldenCrossScanTelegram, notifyVaultTimeframeIntersectionTelegram } from "./golden-cross-telegram.js";
 import { sendGoldenCrossScanReportEmail, buildScanEmailPayloadFromVaultResult } from "./notifications/golden-cross-scan-email.js";
 import { runMaAlignVaultIntradayRefresh } from "./ma-align-vault-intraday.js";
@@ -97,7 +101,7 @@ let manualScanRunning = false;
 let vaultScanRunning = false;
 /** @type {Record<"kr"|"us", number>} */
 const lastIntradayRescanAtMs = { kr: 0, us: 0 };
-/** @type {{ atMs: number; goldenCross: Array<{ market: "kr"|"us"; scanDate: string; scanned: number; hitCount: number }>; maAlign: Array<{ market: "kr"|"us"; scanDate: string; scanned: number; hitCount: number }> } | null} */
+/** @type {{ atMs: number; goldenCross: Array<{ market: "kr"|"us"; scanDate: string; scanned: number; hitCount: number }>; maAlign: Array<{ market: "kr"|"us"; scanDate: string; scanned: number; hitCount: number }>; ma120Near: Array<{ market: "kr"|"us"; scanDate: string; scanned: number; hitCount: number }> } | null} */
 let lastManualScanResult = null;
 
 export function isGoldenCrossManualScanRunning() {
@@ -130,6 +134,10 @@ function emptyMaAlignMarketResult(market, scanDate) {
   return { market, scanDate, scanned: 0, hits: [], hitCount: 0 };
 }
 
+function emptyMa120NearMarketResult(market, scanDate) {
+  return { market, scanDate, scanned: 0, hits: [], hitCount: 0 };
+}
+
 /**
  * @param {"kr"|"us"} market
  * @param {string} scanDate
@@ -150,10 +158,17 @@ async function runVaultMarketScansForTimeframe(
   const appendHistory = opts.appendHistory !== false;
   const scanOpts = { persistState: persistScanState, timeframe };
 
-  const [gcSettled, maSettled] = await Promise.allSettled([
+  /** @type {PromiseSettledResult<Awaited<ReturnType<typeof runGoldenCrossMarketScan>>>[]} */
+  const settled = await Promise.allSettled([
     runGoldenCrossMarketScan(market, scanDate, scanOpts),
     runMaAlignMarketScan(market, scanDate, scanOpts),
+    ...(timeframe === "1d"
+      ? [runMa120NearMarketScan(market, scanDate, { persistState: persistScanState })]
+      : []),
   ]);
+  const gcSettled = settled[0];
+  const maSettled = settled[1];
+  const ma120Settled = timeframe === "1d" ? settled[2] : null;
 
   /** @type {Awaited<ReturnType<typeof runGoldenCrossMarketScan>>} */
   let goldenCross = emptyGoldenCrossMarketResult(market, scanDate);
@@ -232,6 +247,36 @@ async function runVaultMarketScansForTimeframe(
     );
   }
 
+  /** @type {Awaited<ReturnType<typeof runMa120NearMarketScan>>} */
+  let ma120Near = emptyMa120NearMarketResult(market, scanDate);
+  if (timeframe === "1d" && ma120Settled) {
+    if (ma120Settled.status === "fulfilled") {
+      ma120Near = ma120Settled.value;
+      clearMa120NearVaultItemsSync({ market });
+      if (ma120Near.hits.length) {
+        mergeMa120NearHitsIntoVaultSync(ma120Near.hits);
+      }
+      if (appendHistory) {
+        appendMa120NearHistoryEntrySync({
+          runId,
+          trigger: trigger === "intraday" ? "scheduled" : trigger,
+          market,
+          scanDate,
+          scanned: ma120Near.scanned,
+          hits: ma120Near.hits,
+        });
+      }
+    } else {
+      liveTradeLogWarn(
+        "[stock-vault:scan:ma120-near]",
+        market,
+        ma120Settled.reason instanceof Error
+          ? ma120Settled.reason.message
+          : ma120Settled.reason,
+      );
+    }
+  }
+
   liveTradeLogInfo("[stock-vault:scan] timeframe done", {
     market,
     scanDate,
@@ -239,11 +284,13 @@ async function runVaultMarketScansForTimeframe(
     timeframe,
     goldenCrossHits: goldenCross.hitCount,
     maAlignHits: maAlign.hitCount,
+    ma120NearHits: ma120Near.hitCount,
     goldenCrossOk: gcSettled.status === "fulfilled",
     maAlignOk: maSettled.status === "fulfilled",
+    ma120NearOk: ma120Settled?.status === "fulfilled",
   });
 
-  return { goldenCross, maAlign, timeframe };
+  return { goldenCross, maAlign, ma120Near, timeframe };
 }
 
 /**
@@ -260,7 +307,7 @@ export async function runVaultMarketScans(
   trigger,
   opts = {},
 ) {
-  /** @type {Record<import("./vault-scan-timeframe.js").VaultScanTimeframe, { goldenCross: Awaited<ReturnType<typeof runGoldenCrossMarketScan>>; maAlign: Awaited<ReturnType<typeof runMaAlignMarketScan>> }>} */
+  /** @type {Record<import("./vault-scan-timeframe.js").VaultScanTimeframe, { goldenCross: Awaited<ReturnType<typeof runGoldenCrossMarketScan>>; maAlign: Awaited<ReturnType<typeof runMaAlignMarketScan>>; ma120Near: Awaited<ReturnType<typeof runMa120NearMarketScan>> }>} */
   const byTimeframe = {};
   for (const timeframe of VAULT_SCAN_TIMEFRAMES) {
     byTimeframe[timeframe] = await runVaultMarketScansForTimeframe(
@@ -308,6 +355,7 @@ export async function runVaultMarketScans(
   return {
     goldenCross: daily.goldenCross,
     maAlign: daily.maAlign,
+    ma120Near: daily.ma120Near,
     byTimeframe,
   };
 }
@@ -358,6 +406,8 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
   const goldenCrossResults = [];
   /** @type {Array<{ market: "kr"|"us"; scanDate: string; scanned: number; hitCount: number }>} */
   const maAlignResults = [];
+  /** @type {Array<{ market: "kr"|"us"; scanDate: string; scanned: number; hitCount: number }>} */
+  const ma120NearResults = [];
   /** @type {import("./notifications/golden-cross-scan-email.js").GoldenCrossEmailMarket[]} */
   const goldenCrossEmailMarkets = [];
   /** @type {import("./notifications/golden-cross-scan-email.js").MaAlignEmailMarket[]} */
@@ -370,6 +420,7 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
         : localMinutesOfDay("us", now).dateKey;
     let goldenCross = emptyGoldenCrossMarketResult(market, scanDate);
     let maAlign = emptyMaAlignMarketResult(market, scanDate);
+    let ma120Near = emptyMa120NearMarketResult(market, scanDate);
     let byTimeframe = null;
     try {
       const scanResult = await runVaultMarketScans(
@@ -380,6 +431,7 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
       );
       goldenCross = scanResult.goldenCross;
       maAlign = scanResult.maAlign;
+      ma120Near = scanResult.ma120Near;
       byTimeframe = scanResult.byTimeframe;
     } catch (e) {
       liveTradeLogWarn(
@@ -424,6 +476,12 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
       scanned: maAlign.scanned,
       hitCount: maAlign.hitCount,
     });
+    ma120NearResults.push({
+      market,
+      scanDate,
+      scanned: ma120Near.scanned,
+      hitCount: ma120Near.hitCount,
+    });
   }
 
   try {
@@ -448,6 +506,7 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
     atMs: Date.now(),
     goldenCross: goldenCrossResults,
     maAlign: maAlignResults,
+    ma120Near: ma120NearResults,
   };
   return lastManualScanResult;
 }
@@ -485,7 +544,8 @@ export function shouldRunGoldenCrossScan(market, now = new Date()) {
   for (const timeframe of VAULT_SCAN_TIMEFRAMES) {
     if (
       !wasGoldenCrossScannedSync(market, dateKey, timeframe) ||
-      !wasMaAlignScannedSync(market, dateKey, timeframe)
+      !wasMaAlignScannedSync(market, dateKey, timeframe) ||
+      (timeframe === "1d" && !wasMa120NearScannedSync(market, dateKey))
     ) {
       return market === "kr"
         ? isKrMarketFullyClosed(now)
@@ -506,7 +566,7 @@ export async function runGoldenCrossScanIfDue(market, now = new Date()) {
   const runId = randomUUID();
   vaultScanRunning = true;
   try {
-    const { goldenCross, maAlign, byTimeframe } = await runVaultMarketScans(
+    const { goldenCross, maAlign, ma120Near, byTimeframe } = await runVaultMarketScans(
       market,
       scanDate,
       runId,
@@ -526,7 +586,7 @@ export async function runGoldenCrossScanIfDue(market, now = new Date()) {
         e instanceof Error ? e.message : e,
       );
     }
-    return { goldenCross, maAlign };
+    return { goldenCross, maAlign, ma120Near: byTimeframe["1d"]?.ma120Near };
   } finally {
     vaultScanRunning = false;
   }
@@ -553,6 +613,7 @@ export function startGoldenCrossScanPoller() {
               market,
               goldenCrossHits: result.goldenCross.hitCount,
               maAlignHits: result.maAlign.hitCount,
+              ma120NearHits: result.ma120Near?.hitCount ?? 0,
             });
           }
         } catch (e) {

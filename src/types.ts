@@ -480,9 +480,9 @@ export interface FinancialStatementAnalysisResponse extends FinancialStatementDe
   aiOpinion: FinancialAiOpinion;
 }
 
-export type StockVaultSource = "golden_cross" | "ma_align" | "favorite";
+export type StockVaultSource = "golden_cross" | "ma_align" | "ma120_near" | "favorite";
 /** 자동 탐색 조건 — stockVaultFilter.STOCK_VAULT_SCAN_SOURCES 와 동기 */
-export type StockVaultScanSource = "golden_cross" | "ma_align";
+export type StockVaultScanSource = "golden_cross" | "ma_align" | "ma120_near";
 export type StockVaultTimeframe = "1d" | "1wk";
 export type GoldenCrossKind =
   | "5>20"
@@ -491,7 +491,7 @@ export type GoldenCrossKind =
   | "20<120"
   | "5>60"
   | "5>120";
-export type StockVaultKindTab = "golden_cross" | "ma_align";
+export type StockVaultKindTab = "golden_cross" | "ma_align" | "ma120_near";
 
 export type StockVaultToggleResult =
   | { action: "removed" }
@@ -521,6 +521,8 @@ export interface StockVaultItem {
   /** 골든크로스가 발생한 일봉 날짜 (YYYY-MM-DD) */
   crossDate?: string | null;
   scanDate?: string | null;
+  ma120?: number;
+  distancePct?: number;
   addedAtMs: number;
   updatedAtMs: number;
   favorited?: boolean;
@@ -694,6 +696,15 @@ export interface MaAlignHistoryHit {
   scanDate: string;
 }
 
+export interface Ma120NearHistoryHit {
+  symbol: string;
+  name: string;
+  market: "kr" | "us";
+  scanDate: string;
+  ma120?: number;
+  distancePct?: number;
+}
+
 export interface GoldenCrossHistoryEntry {
   id: string;
   runId: string;
@@ -720,6 +731,18 @@ export interface MaAlignHistoryEntry {
   hits: MaAlignHistoryHit[];
 }
 
+export interface Ma120NearHistoryEntry {
+  id: string;
+  runId: string;
+  atMs: number;
+  trigger: "manual" | "scheduled";
+  market: "kr" | "us";
+  scanDate: string;
+  scanned: number;
+  hitCount: number;
+  hits: Ma120NearHistoryHit[];
+}
+
 export interface GoldenCrossHistoryResponse {
   dates?: string[];
   scanDate?: string;
@@ -730,6 +753,12 @@ export interface MaAlignHistoryResponse {
   dates?: string[];
   scanDate?: string;
   entries?: MaAlignHistoryEntry[];
+}
+
+export interface Ma120NearHistoryResponse {
+  dates?: string[];
+  scanDate?: string;
+  entries?: Ma120NearHistoryEntry[];
 }
 
 export interface StockVaultScanStatus {
@@ -749,9 +778,16 @@ export interface StockVaultScanStatus {
       scanned: number;
       hitCount: number;
     }>;
+    ma120Near?: Array<{
+      market: "kr" | "us";
+      scanDate: string;
+      scanned: number;
+      hitCount: number;
+    }>;
   } | null;
   goldenCross: { state: GoldenCrossScanState };
   maAlign: { state: GoldenCrossScanState };
+  ma120Near?: { state: GoldenCrossScanState };
   state: GoldenCrossScanState;
 }
 

@@ -3,7 +3,7 @@ import { detectDailyGoldenCrossDetail } from "./golden-cross-detect.js";
 import { candlesForWeeklyMaScan } from "./weekly-candle-trim.js";
 import { isGoldenCrossTradable } from "./golden-cross-tradable.js";
 import { resolveDisplayName } from "./names-ko.js";
-import { loadBoxRangeCatalogUniverse } from "./universe.js";
+import { loadUniverse } from "./universe.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
 import {
@@ -150,7 +150,7 @@ async function scanOneSymbol(item, market, scanDate, timeframe = "1d") {
 export async function runGoldenCrossMarketScan(market, scanDate, opts = {}) {
   const persistState = opts.persistState !== false;
   const timeframe = normalizeVaultScanTimeframe(opts.timeframe);
-  const uni = await loadBoxRangeCatalogUniverse();
+  const uni = await loadUniverse();
   const list =
     market === "kr"
       ? Array.isArray(uni?.kr)

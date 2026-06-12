@@ -34,3 +34,11 @@ export function formatGoldenCrossChain(
 export function formatMaAlignChain(): string {
   return "5>20>60>120";
 }
+
+/** 일봉 120선 근처 — 스캔 결과 배지 */
+export function formatMa120NearLabel(distancePct?: number | null): string {
+  if (distancePct == null || !Number.isFinite(distancePct)) {
+    return "120선 ±3%";
+  }
+  return `120선 ±${distancePct.toFixed(1)}%`;
+}

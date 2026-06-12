@@ -40,7 +40,10 @@ function withFavoriteFields(it, favorites, favoriteMeta) {
  */
 export function buildStockVaultItemsForUserSync(userId) {
   const globalAuto = listStockVaultItemsSync().filter(
-    (it) => it.source === "golden_cross" || it.source === "ma_align",
+    (it) =>
+      it.source === "golden_cross" ||
+      it.source === "ma_align" ||
+      it.source === "ma120_near",
   );
   if (!userId) {
     return {

@@ -4,6 +4,7 @@ import IndustryFilterPanel from "./IndustryFilterPanel";
 import {
   fetchGoldenCrossHistory,
   fetchGoldenCrossStatus,
+  fetchMa120NearHistory,
   fetchMaAlignHistory,
   fetchStockVaultChartInsights,
   removeStockVaultItem,
@@ -20,6 +21,7 @@ import {
   buildVaultDisplayRows,
   countItemsByScanSource,
   STOCK_VAULT_SCAN_SOURCES,
+  visibleStockVaultScanSources,
   type VaultDisplayRow,
 } from "../lib/stockVaultFilter";
 import {
@@ -49,6 +51,7 @@ import {
 import { yahooStockSymbolToTradingView } from "../lib/tradingviewSymbols";
 import {
   formatGoldenCrossChain,
+  formatMa120NearLabel,
   formatMaAlignChain,
 } from "../lib/stockVaultMaDisplay";
 import {
@@ -76,11 +79,13 @@ import { useStockVaultRowBubble } from "./StockVaultRowBubble";
 const SCAN_SOURCE_LABEL: Record<StockVaultScanSource, string> = {
   golden_cross: ko.stockVault.tabGolden,
   ma_align: ko.stockVault.tabMaAlign,
+  ma120_near: ko.stockVault.tabMa120Near,
 };
 
 const SOURCE_BADGE_LABEL: Record<StockVaultScanSource, string> = {
   golden_cross: ko.stockVault.sourceGolden,
   ma_align: ko.stockVault.sourceMaAlign,
+  ma120_near: ko.stockVault.sourceMa120Near,
 };
 
 const SCAN_POLL_MS = 2500;
@@ -136,10 +141,14 @@ function scanHintFromStatus(status: StockVaultScanStatus | null | undefined) {
   if (!status) return null;
   const gcState = status.goldenCross?.state ?? status.state;
   const maState = status.maAlign?.state ?? status.state;
+  const ma120State = status.ma120Near?.state;
   if (!gcState || !maState) return null;
   const parts = [
     scanHintFromState(ko.stockVault.lastScanGolden, gcState),
     scanHintFromState(ko.stockVault.lastScanMaAlign, maState),
+    ma120State
+      ? scanHintFromState(ko.stockVault.lastScanMa120Near, ma120State)
+      : null,
   ].filter(Boolean);
   return parts.length ? parts.join(" · ") : null;
 }
@@ -160,7 +169,7 @@ function rowIndustry(meta: StockVaultResponse["meta"], row: VaultDisplayRow) {
 type VaultFilter = "all" | "favorite";
 
 function rowFavoriteTrack(row: VaultDisplayRow) {
-  const src = row.favorite ?? row.goldenCross ?? row.maAlign;
+  const src = row.favorite ?? row.goldenCross ?? row.maAlign ?? row.ma120Near;
   return {
     addedAtMs: src?.favoriteAddedAtMs ?? src?.addedAtMs ?? null,
     favoritePrice: src?.favoritePrice ?? null,
@@ -393,11 +402,12 @@ export default function StockVaultTab({
 
   const refreshHistoryDates = useCallback(async () => {
     try {
-      const [gc, ma] = await Promise.all([
+      const [gc, ma, ma120] = await Promise.all([
         fetchGoldenCrossHistory(),
         fetchMaAlignHistory(),
+        fetchMa120NearHistory(),
       ]);
-      setHistoryDates(mergeScanHistoryDates(gc.dates, ma.dates));
+      setHistoryDates(mergeScanHistoryDates(gc.dates, ma.dates, ma120.dates));
     } catch {
       /* ignore */
     }
@@ -424,12 +434,16 @@ export default function StockVaultTab({
     setHistoryLoading(true);
     void (async () => {
       try {
-        const [gc, ma] = await Promise.all([
+        const [gc, ma, ma120] = await Promise.all([
           fetchGoldenCrossHistory({
             scanDate: selectedScanDate,
             detail: true,
           }),
           fetchMaAlignHistory({
+            scanDate: selectedScanDate,
+            detail: true,
+          }),
+          fetchMa120NearHistory({
             scanDate: selectedScanDate,
             detail: true,
           }),
@@ -440,6 +454,7 @@ export default function StockVaultTab({
             selectedScanDate,
             gc.entries ?? [],
             ma.entries ?? [],
+            ma120.entries ?? [],
             {
               favoriteSymbols: favoriteSymbolSet,
               favoriteMeta,
@@ -536,15 +551,28 @@ export default function StockVaultTab({
     });
   }, []);
 
+  useEffect(() => {
+    if (timeframeFilter !== "1wk") return;
+    setSelectedScanSources((prev) => {
+      const next = prev.filter((s) => s !== "ma120_near");
+      return next.length ? next : ["golden_cross"];
+    });
+  }, [timeframeFilter]);
+
+  const visibleScanSources = useMemo(
+    () => visibleStockVaultScanSources(timeframeFilter),
+    [timeframeFilter],
+  );
+
   const scanSourceCounts = useMemo(
     () =>
       Object.fromEntries(
-        STOCK_VAULT_SCAN_SOURCES.map((source) => [
+        visibleScanSources.map((source) => [
           source,
           countItemsByScanSource(displayItems, source, timeframeFilter),
         ]),
       ) as Record<StockVaultScanSource, number>,
-    [displayItems, timeframeFilter],
+    [displayItems, timeframeFilter, visibleScanSources],
   );
 
   const preMarketRows = useMemo(
@@ -905,7 +933,7 @@ export default function StockVaultTab({
             aria-label={ko.stockVault.scanConditionAria}
           >
             <div className="market-tabs market-tabs--vault-scan">
-              {STOCK_VAULT_SCAN_SOURCES.map((source) => {
+              {visibleScanSources.map((source) => {
                 const active = selectedScanSources.includes(source);
                 return (
                   <button
@@ -1218,6 +1246,16 @@ export default function StockVaultTab({
                           title={ko.stockVault.maAlignBadgeHint}
                         >
                           {formatMaAlignChain()}
+                        </span>
+                      </div>
+                    ) : null}
+                    {row.ma120Near ? (
+                      <div className="stock-vault-tab__crosses">
+                        <span
+                          className="stock-vault-tab__cross stock-vault-tab__cross--ma120"
+                          title={ko.stockVault.ma120NearBadgeHint}
+                        >
+                          {formatMa120NearLabel(row.ma120Near.distancePct)}
                         </span>
                       </div>
                     ) : null}

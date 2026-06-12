@@ -1043,6 +1043,13 @@ html[data-theme="light"] .stock-vault-tab__tf-tab--wk.active {
   border: 1px solid color-mix(in srgb, var(--border) 48%, transparent);
 }
 
+.stock-vault-tab__cross--ma120 {
+  font-weight: 500;
+  color: #d4a574;
+  background: color-mix(in srgb, #b45309 14%, transparent);
+  border: 1px solid color-mix(in srgb, #b45309 35%, transparent);
+}
+
 .stock-vault-tab__row--tf-d .stock-vault-tab__cross {
   color: #60a5fa;
   background: color-mix(in srgb, #2563eb 16%, transparent);

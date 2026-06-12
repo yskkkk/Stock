@@ -1,31 +1,36 @@
 import { loadStock } from "./stock-data.js";
-import { detectDailyMaAlignment } from "./ma-align-detect.js";
-import { candlesForWeeklyMaScan } from "./weekly-candle-trim.js";
+import { getDailyMaValues, isPriceNearMa120 } from "./ma-align-detect.js";
 import { isGoldenCrossTradable } from "./golden-cross-tradable.js";
 import { resolveDisplayName } from "./names-ko.js";
 import { loadUniverse } from "./universe.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
-import {
-  normalizeVaultScanTimeframe,
-  vaultScanChartTimeframe,
-  vaultScanStateDateField,
-} from "./vault-scan-timeframe.js";
 
-const STATE_FILE = "ma-align-scan-state.json";
+const STATE_FILE = "ma120-near-scan-state.json";
 
 const BATCH_SIZE = (() => {
-  const n = Number(process.env.STOCK_MA_ALIGN_BATCH ?? process.env.STOCK_GOLDEN_CROSS_BATCH ?? 6);
+  const n = Number(
+    process.env.STOCK_MA120_NEAR_BATCH ??
+      process.env.STOCK_MA_ALIGN_BATCH ??
+      process.env.STOCK_GOLDEN_CROSS_BATCH ??
+      6,
+  );
   return Number.isFinite(n) && n >= 1 ? Math.min(n, 12) : 6;
 })();
 
 const BATCH_DELAY_MS = (() => {
   const n = Number(
-    process.env.STOCK_MA_ALIGN_BATCH_DELAY_MS ??
+    process.env.STOCK_MA120_NEAR_BATCH_DELAY_MS ??
+      process.env.STOCK_MA_ALIGN_BATCH_DELAY_MS ??
       process.env.STOCK_GOLDEN_CROSS_BATCH_DELAY_MS ??
       350,
   );
   return Number.isFinite(n) && n >= 0 ? Math.min(n, 5_000) : 350;
+})();
+
+export const MA120_NEAR_THRESHOLD_PCT = (() => {
+  const n = Number(process.env.STOCK_MA120_NEAR_PCT ?? 3);
+  return Number.isFinite(n) && n > 0 && n <= 10 ? n : 3;
 })();
 
 /** @param {number} ms */
@@ -51,7 +56,6 @@ function normalizeState(raw) {
           typeof row?.atMs === "number" && Number.isFinite(row.atMs)
             ? row.atMs
             : Date.now(),
-        timeframe: normalizeVaultScanTimeframe(row?.timeframe),
       }))
     : [];
   return {
@@ -59,14 +63,6 @@ function normalizeState(raw) {
       typeof raw?.krLastScanDate === "string" ? raw.krLastScanDate : null,
     usLastScanDate:
       typeof raw?.usLastScanDate === "string" ? raw.usLastScanDate : null,
-    krWeeklyLastScanDate:
-      typeof raw?.krWeeklyLastScanDate === "string"
-        ? raw.krWeeklyLastScanDate
-        : null,
-    usWeeklyLastScanDate:
-      typeof raw?.usWeeklyLastScanDate === "string"
-        ? raw.usWeeklyLastScanDate
-        : null,
     lastRuns,
   };
 }
@@ -78,8 +74,6 @@ function readState() {
     () => ({
       krLastScanDate: null,
       usLastScanDate: null,
-      krWeeklyLastScanDate: null,
-      usWeeklyLastScanDate: null,
       lastRuns: [],
     }),
   );
@@ -91,34 +85,65 @@ function writeState(state) {
 }
 
 /**
+ * @param {number} price
+ * @param {number} ma120
+ * @param {number} [thresholdPct]
+ */
+export function ma120NearDistancePct(price, ma120, thresholdPct = MA120_NEAR_THRESHOLD_PCT) {
+  const p = Number(price);
+  const m = Number(ma120);
+  if (!Number.isFinite(p) || p <= 0 || !Number.isFinite(m) || m <= 0) {
+    return null;
+  }
+  return (Math.abs(p - m) / m) * 100;
+}
+
+/**
+ * @param {{
+ *   price: number;
+ *   ma120: number;
+ *   thresholdPct?: number;
+ * }} input
+ */
+export function isMa120NearHit(input) {
+  const thresholdPct = input.thresholdPct ?? MA120_NEAR_THRESHOLD_PCT;
+  if (!isPriceNearMa120(input.price, input.ma120, thresholdPct)) return false;
+  const distancePct = ma120NearDistancePct(input.price, input.ma120, thresholdPct);
+  return distancePct != null;
+}
+
+/**
  * @param {{ symbol: string; name: string }} item
  * @param {"kr"|"us"} market
  * @param {string} scanDate
- * @param {import("./vault-scan-timeframe.js").VaultScanTimeframe} [timeframe]
  */
-async function scanOneSymbol(item, market, scanDate, timeframe = "1d") {
-  const tf = normalizeVaultScanTimeframe(timeframe);
-  const chartTf = vaultScanChartTimeframe(tf);
+async function scanOneSymbol(item, market, scanDate) {
   const sym = String(item.symbol ?? "")
     .trim()
     .toUpperCase();
   if (!sym) return null;
   try {
-    const data = await loadStock(sym, chartTf, { live: true });
-    const tradable = await isGoldenCrossTradable(data, market, { timeframe: tf });
+    const data = await loadStock(sym, "1d", { live: true });
+    const tradable = await isGoldenCrossTradable(data, market, { timeframe: "1d" });
     if (!tradable.ok) {
-      liveTradeLogInfo("[ma-align:scan] skip", sym, tf, tradable.reason);
+      liveTradeLogInfo("[ma120-near:scan] skip", sym, tradable.reason);
       return null;
     }
-    let candles = Array.isArray(data?.candles) ? data.candles : [];
-    if (tf === "1wk") {
-      const daily = await loadStock(sym, "1d", { live: true });
-      candles = candlesForWeeklyMaScan(
-        candles,
-        Array.isArray(daily?.candles) ? daily.candles : [],
-      );
+    const candles = Array.isArray(data?.candles) ? data.candles : [];
+    const ma = getDailyMaValues(candles);
+    if (!ma) return null;
+
+    let price = Number(data?.quote?.price ?? data?.quote?.regularMarketPrice);
+    if (!Number.isFinite(price) || price <= 0) {
+      const lastClose = Number(candles[candles.length - 1]?.close);
+      if (Number.isFinite(lastClose) && lastClose > 0) price = lastClose;
     }
-    if (!detectDailyMaAlignment(candles)) return null;
+    if (!Number.isFinite(price) || price <= 0) return null;
+    if (!isMa120NearHit({ price, ma120: ma.ma120 })) return null;
+
+    const distancePct = ma120NearDistancePct(price, ma.ma120);
+    if (distancePct == null) return null;
+
     return {
       symbol: sym,
       name: resolveDisplayName(
@@ -126,14 +151,14 @@ async function scanOneSymbol(item, market, scanDate, timeframe = "1d") {
         String(item.name ?? data?.quote?.name ?? sym).trim() || sym,
       ),
       market,
-      timeframe: tf,
       scanDate,
+      ma120: ma.ma120,
+      distancePct,
     };
   } catch (e) {
     liveTradeLogWarn(
-      "[ma-align:scan]",
+      "[ma120-near:scan]",
       sym,
-      tf,
       e instanceof Error ? e.message : e,
     );
     return null;
@@ -143,11 +168,10 @@ async function scanOneSymbol(item, market, scanDate, timeframe = "1d") {
 /**
  * @param {"kr"|"us"} market
  * @param {string} scanDate
- * @param {{ persistState?: boolean; timeframe?: import("./vault-scan-timeframe.js").VaultScanTimeframe }} [opts]
+ * @param {{ persistState?: boolean }} [opts]
  */
-export async function runMaAlignMarketScan(market, scanDate, opts = {}) {
+export async function runMa120NearMarketScan(market, scanDate, opts = {}) {
   const persistState = opts.persistState !== false;
-  const timeframe = normalizeVaultScanTimeframe(opts.timeframe);
   const uni = await loadUniverse();
   const list =
     market === "kr"
@@ -158,11 +182,11 @@ export async function runMaAlignMarketScan(market, scanDate, opts = {}) {
         ? uni.us
         : [];
 
-  liveTradeLogInfo("[ma-align:scan] start", {
+  liveTradeLogInfo("[ma120-near:scan] start", {
     market,
     scanDate,
-    timeframe,
     symbols: list.length,
+    thresholdPct: MA120_NEAR_THRESHOLD_PCT,
   });
 
   /** @type {Awaited<ReturnType<typeof scanOneSymbol>>[]} */
@@ -171,7 +195,7 @@ export async function runMaAlignMarketScan(market, scanDate, opts = {}) {
   for (let i = 0; i < list.length; i += BATCH_SIZE) {
     const batch = list.slice(i, i + BATCH_SIZE);
     const results = await Promise.all(
-      batch.map((item) => scanOneSymbol(item, market, scanDate, timeframe)),
+      batch.map((item) => scanOneSymbol(item, market, scanDate)),
     );
     for (const r of results) {
       if (r) hits.push(r);
@@ -183,7 +207,7 @@ export async function runMaAlignMarketScan(market, scanDate, opts = {}) {
 
   if (persistState) {
     const state = readState();
-    const field = vaultScanStateDateField(market, timeframe);
+    const field = market === "kr" ? "krLastScanDate" : "usLastScanDate";
     state[field] = scanDate;
     state.lastRuns.unshift({
       market,
@@ -191,7 +215,6 @@ export async function runMaAlignMarketScan(market, scanDate, opts = {}) {
       scanned: list.length,
       hits: hits.length,
       atMs: Date.now(),
-      timeframe,
     });
     state.lastRuns = state.lastRuns.slice(0, 28);
     writeState(state);
@@ -200,28 +223,27 @@ export async function runMaAlignMarketScan(market, scanDate, opts = {}) {
   const out = {
     market,
     scanDate,
-    timeframe,
+    timeframe: /** @type {const} */ ("1d"),
     scanned: list.length,
     hits,
     hitCount: hits.length,
   };
-  liveTradeLogInfo("[ma-align:scan] done", {
+  liveTradeLogInfo("[ma120-near:scan] done", {
     market,
     scanDate,
-    timeframe,
     scanned: list.length,
     hits: hits.length,
   });
   return out;
 }
 
-export function getMaAlignScanStateSync() {
+export function getMa120NearScanStateSync() {
   return readState();
 }
 
-/** @param {"kr"|"us"} market @param {string} scanDate @param {import("./vault-scan-timeframe.js").VaultScanTimeframe} [timeframe] */
-export function wasMaAlignScannedSync(market, scanDate, timeframe = "1d") {
+/** @param {"kr"|"us"} market @param {string} scanDate */
+export function wasMa120NearScannedSync(market, scanDate) {
   const state = readState();
-  const field = vaultScanStateDateField(market, timeframe);
+  const field = market === "kr" ? "krLastScanDate" : "usLastScanDate";
   return state[field] === scanDate;
 }

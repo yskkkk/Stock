@@ -1,6 +1,7 @@
 import type {
   GoldenCrossHistoryEntry,
   GoldenCrossKind,
+  Ma120NearHistoryEntry,
   MaAlignHistoryEntry,
   StockVaultFavoriteMeta,
   StockVaultItem,
@@ -12,16 +13,20 @@ function symbolMarketKey(symbol: string, market: "kr" | "us") {
   return `${market}:${symbol.trim().toUpperCase()}`;
 }
 
-/** 골든크로스·정배열 이력 날짜 목록(최신순) */
+/** 골든크로스·정배열·120선 근처 이력 날짜 목록(최신순) */
 export function mergeScanHistoryDates(
   goldenDates: string[] | undefined,
   maAlignDates: string[] | undefined,
+  ma120NearDates?: string[] | undefined,
 ): string[] {
   const set = new Set<string>();
   for (const d of goldenDates ?? []) {
     if (d.trim()) set.add(d.trim());
   }
   for (const d of maAlignDates ?? []) {
+    if (d.trim()) set.add(d.trim());
+  }
+  for (const d of ma120NearDates ?? []) {
     if (d.trim()) set.add(d.trim());
   }
   return [...set].sort((a, b) => b.localeCompare(a));
@@ -40,6 +45,7 @@ export function buildVaultItemsFromScanHistory(
   scanDate: string,
   goldenEntries: GoldenCrossHistoryEntry[],
   maAlignEntries: MaAlignHistoryEntry[],
+  ma120NearEntries: Ma120NearHistoryEntry[] = [],
   opts: HistoryBuildOpts & { timeframe?: StockVaultTimeframe } = {},
 ): StockVaultItem[] {
   const favorites = opts.favoriteSymbols ?? new Set<string>();
@@ -68,6 +74,19 @@ export function buildVaultItemsFromScanHistory(
       const key = symbolMarketKey(hit.symbol, hit.market);
       if (!maMap.has(key)) {
         maMap.set(key, { hit, atMs: entry.atMs });
+      }
+    }
+  }
+
+  /** @type {Map<string, { hit: Ma120NearHistoryEntry["hits"][number]; atMs: number }>} */
+  const ma120Map = new Map();
+  if (timeframe === "1d") {
+    for (const entry of [...ma120NearEntries].sort((a, b) => b.atMs - a.atMs)) {
+      for (const hit of entry.hits) {
+        const key = symbolMarketKey(hit.symbol, hit.market);
+        if (!ma120Map.has(key)) {
+          ma120Map.set(key, { hit, atMs: entry.atMs });
+        }
       }
     }
   }
@@ -117,6 +136,28 @@ export function buildVaultItemsFromScanHistory(
       source: "ma_align",
       timeframe,
       scanDate: hit.scanDate || scanDate,
+      addedAtMs: atMs,
+      updatedAtMs: atMs,
+      favorited,
+      favoriteAddedAtMs: fm?.addedAtMs ?? null,
+      favoritePrice: fm?.favoritePrice ?? null,
+    });
+  }
+
+  for (const { hit, atMs } of ma120Map.values()) {
+    const sym = hit.symbol.trim().toUpperCase();
+    const favorited = favorites.has(sym);
+    const fm = meta[sym];
+    items.push({
+      id: `hist-ma120-${hit.market}-${sym}`,
+      symbol: sym,
+      name: hit.name,
+      market: hit.market,
+      source: "ma120_near",
+      timeframe: "1d",
+      scanDate: hit.scanDate || scanDate,
+      ma120: hit.ma120,
+      distancePct: hit.distancePct,
       addedAtMs: atMs,
       updatedAtMs: atMs,
       favorited,

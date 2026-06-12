@@ -10,6 +10,7 @@ import type {
 export const STOCK_VAULT_SCAN_SOURCES: readonly StockVaultScanSource[] = [
   "golden_cross",
   "ma_align",
+  "ma120_near",
 ];
 
 export type VaultDisplayRow = {
@@ -23,6 +24,7 @@ export type VaultDisplayRow = {
   scanSources: StockVaultScanSource[];
   goldenCross?: StockVaultItem;
   maAlign?: StockVaultItem;
+  ma120Near?: StockVaultItem;
   favorite?: StockVaultItem;
 };
 
@@ -35,14 +37,17 @@ function symbolMarketTimeframeKey(
 function pickDisplayName(row: {
   goldenCross?: StockVaultItem;
   maAlign?: StockVaultItem;
+  ma120Near?: StockVaultItem;
   favorite?: StockVaultItem;
 }) {
   return (
     row.goldenCross?.name ??
     row.maAlign?.name ??
+    row.ma120Near?.name ??
     row.favorite?.name ??
     row.goldenCross?.symbol ??
     row.maAlign?.symbol ??
+    row.ma120Near?.symbol ??
     row.favorite?.symbol ??
     ""
   );
@@ -58,23 +63,25 @@ function buildScanRow(
 ): VaultDisplayRow {
   const goldenCross = parts.golden_cross;
   const maAlign = parts.ma_align;
+  const ma120Near = parts.ma120_near;
   const favorite = parts.favorite;
   const symbol =
-    goldenCross?.symbol ?? maAlign?.symbol ?? favorite?.symbol ?? "";
+    goldenCross?.symbol ?? maAlign?.symbol ?? ma120Near?.symbol ?? favorite?.symbol ?? "";
   const market =
-    goldenCross?.market ?? maAlign?.market ?? favorite?.market ?? "kr";
+    goldenCross?.market ?? maAlign?.market ?? ma120Near?.market ?? favorite?.market ?? "kr";
   const favorited = Boolean(
-    goldenCross?.favorited || maAlign?.favorited || favorite?.favorited,
+    goldenCross?.favorited || maAlign?.favorited || ma120Near?.favorited || favorite?.favorited,
   );
   const updatedAtMs = Math.max(
     goldenCross?.updatedAtMs ?? 0,
     maAlign?.updatedAtMs ?? 0,
+    ma120Near?.updatedAtMs ?? 0,
     favorite?.updatedAtMs ?? 0,
   );
   return {
     key,
     symbol,
-    name: pickDisplayName({ goldenCross, maAlign, favorite }),
+    name: pickDisplayName({ goldenCross, maAlign, ma120Near, favorite }),
     market,
     timeframe,
     favorited,
@@ -82,6 +89,7 @@ function buildScanRow(
     scanSources,
     goldenCross,
     maAlign,
+    ma120Near,
     favorite,
   };
 }
@@ -115,6 +123,8 @@ function buildFavoriteRows(
       row.golden_cross = it;
     } else if (it.source === "ma_align" && matchesTimeframe(it, timeframe)) {
       row.ma_align = it;
+    } else if (it.source === "ma120_near" && matchesTimeframe(it, timeframe)) {
+      row.ma120_near = it;
     } else if (it.source === "favorite") {
       row.favorite = it;
     }
@@ -238,4 +248,14 @@ export function countVaultIntersection(
     favoriteOnly: false,
     timeframeFilter,
   }).length;
+}
+
+/** 일봉 전용 탐색 조건 — 주봉 탭에서는 숨김 */
+export function visibleStockVaultScanSources(
+  timeframe: StockVaultTimeframe,
+): StockVaultScanSource[] {
+  if (timeframe === "1wk") {
+    return STOCK_VAULT_SCAN_SOURCES.filter((s) => s !== "ma120_near");
+  }
+  return [...STOCK_VAULT_SCAN_SOURCES];
 }

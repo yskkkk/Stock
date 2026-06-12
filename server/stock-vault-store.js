@@ -12,7 +12,7 @@ function vaultStoreFile() {
   return process.env.STOCK_VAULT_STORE_TEST_FILE?.trim() || "stock-vault.json";
 }
 
-/** @typedef {"golden_cross"|"ma_align"} StockVaultSource */
+/** @typedef {"golden_cross"|"ma_align"|"ma120_near"} StockVaultSource */
 
 /**
  * @typedef {{
@@ -25,6 +25,8 @@ function vaultStoreFile() {
  *   crosses?: import("./golden-cross-detect.js").MaCrossKind[];
  *   crossDate?: string | null;
  *   scanDate?: string | null;
+ *   ma120?: number;
+ *   distancePct?: number;
  *   addedAtMs: number;
  *   updatedAtMs: number;
  * }} StockVaultItem
@@ -38,6 +40,7 @@ const TEST_JUNK_NAMES = new Set(["골든", "즐겨", "수동", "테스트"]);
 function normalizeSource(source) {
   if (source === "golden_cross") return "golden_cross";
   if (source === "ma_align") return "ma_align";
+  if (source === "ma120_near") return "ma120_near";
   return null;
 }
 
@@ -96,6 +99,18 @@ function normalizeStore(raw) {
         typeof row?.scanDate === "string" && row.scanDate.trim()
           ? row.scanDate.trim()
           : null,
+      ma120:
+        source === "ma120_near" &&
+        typeof row?.ma120 === "number" &&
+        Number.isFinite(row.ma120)
+          ? row.ma120
+          : undefined,
+      distancePct:
+        source === "ma120_near" &&
+        typeof row?.distancePct === "number" &&
+        Number.isFinite(row.distancePct)
+          ? row.distancePct
+          : undefined,
       addedAtMs:
         typeof row?.addedAtMs === "number" && Number.isFinite(row.addedAtMs)
           ? row.addedAtMs
@@ -200,6 +215,14 @@ export function upsertStockVaultItemSync(input) {
         input.scanDate != null
           ? input.scanDate
           : prev.scanDate ?? null,
+      ma120:
+        source === "ma120_near" && input.ma120 != null
+          ? input.ma120
+          : prev.ma120,
+      distancePct:
+        source === "ma120_near" && input.distancePct != null
+          ? input.distancePct
+          : prev.distancePct,
       updatedAtMs: now,
     };
   } else {
@@ -216,6 +239,8 @@ export function upsertStockVaultItemSync(input) {
           ? (input.crossDate ?? input.scanDate ?? null)
           : undefined,
       scanDate: input.scanDate ?? null,
+      ma120: source === "ma120_near" ? input.ma120 : undefined,
+      distancePct: source === "ma120_near" ? input.distancePct : undefined,
       addedAtMs: now,
       updatedAtMs: now,
     });
@@ -323,6 +348,47 @@ export function clearMaAlignVaultItemsSync(opts = {}) {
     writeStore(store);
   }
   return before - store.items.length;
+}
+
+export function clearMa120NearVaultItemsSync(opts = {}) {
+  const marketFilter = opts.market === "kr" || opts.market === "us" ? opts.market : null;
+  const preserveFavorites = opts.preserveFavorites !== false;
+  const favorited = preserveFavorites ? listAllFavoritedSymbolsSync() : new Set();
+  const store = readStore();
+  const before = store.items.length;
+  store.items = store.items.filter((it) => {
+    if (it.source !== "ma120_near") return true;
+    if (marketFilter && it.market !== marketFilter) return true;
+    if (favorited.has(it.symbol)) return true;
+    return false;
+  });
+  if (store.items.length !== before) {
+    writeStore(store);
+  }
+  return before - store.items.length;
+}
+
+/**
+ * @param {Array<{ symbol: string; name: string; market: "kr"|"us"; scanDate: string; ma120?: number; distancePct?: number }>} hits
+ */
+export function mergeMa120NearHitsIntoVaultSync(hits) {
+  const dismissed = new Set(readStore().dismissed ?? []);
+  for (const hit of hits) {
+    const sym = String(hit.symbol ?? "")
+      .trim()
+      .toUpperCase();
+    if (!sym || dismissed.has(sym)) continue;
+    upsertStockVaultItemSync({
+      symbol: hit.symbol,
+      name: hit.name,
+      market: hit.market,
+      source: "ma120_near",
+      timeframe: "1d",
+      scanDate: hit.scanDate,
+      ma120: hit.ma120,
+      distancePct: hit.distancePct,
+    });
+  }
 }
 
 /**
