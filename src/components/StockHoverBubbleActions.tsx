@@ -1,3 +1,4 @@
+import { useValueInvestBubble } from "../contexts/ValueInvestBubbleContext";
 import { ko } from "../i18n/ko";
 import { dispatchOpenFinancialsTab } from "../lib/openFinancialsTab";
 
@@ -8,6 +9,8 @@ export default function StockHoverBubbleActions({
   symbol,
   name,
   market,
+  price,
+  currency,
   tvChartUrl,
   onAfterAction,
 }: {
@@ -15,9 +18,12 @@ export default function StockHoverBubbleActions({
   symbol: string;
   name: string;
   market: "kr" | "us";
+  price?: number | null;
+  currency?: string | null;
   tvChartUrl?: string | null;
   onAfterAction?: () => void;
 }) {
+  const { showValueInvestBubble } = useValueInvestBubble();
   const base =
     variant === "vault"
       ? "stock-vault-tab__bubble-actions"
@@ -57,9 +63,17 @@ export default function StockHoverBubbleActions({
       <button
         type="button"
         className={btn("buffett")}
-        aria-label={`${name} ${ko.stockVault.openBuffettTab}`}
-        onClick={() => {
-          dispatchOpenFinancialsTab({ symbol, name, market, scrollTo: "buffett" });
+        aria-label={`${name} ${ko.valueInvest.bubbleAria}`}
+        title={ko.valueInvest.bubbleAria}
+        onClick={(e) => {
+          e.stopPropagation();
+          showValueInvestBubble(e.currentTarget, {
+            symbol,
+            name,
+            market,
+            price: price ?? null,
+            currency: currency ?? null,
+          });
           done();
         }}
       >

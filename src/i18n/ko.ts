@@ -1105,7 +1105,7 @@ export const ko = {
     bubbleBtnChart: "차트",
     bubbleBtnFinancials: "제무재표",
     bubbleBtnBuffett: "버핏",
-    openBuffettTab: "재무제표 탭에서 버핏식 내재가치 보기",
+    openBuffettTab: "10년 기대수익·적정가 계산",
     rowBubbleAria: "종목 이동 선택",
     industryFinLoading: "업종 재무 비교 불러오는 중…",
     industryFinTitle: "동종 업계 재무",
