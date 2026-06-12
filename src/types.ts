@@ -596,11 +596,27 @@ export interface KrInvestorFlowItem {
   industry?: string | null;
   bizDate?: string | null;
   closePrice?: number | null;
+  changePercent?: number | null;
+  tradingValue?: number | null;
   foreignNetQty?: number | null;
   foreignHoldRatio?: number | null;
   institutionNetQty?: number | null;
   individualNetQty?: number | null;
   accumulatedVolume?: number | null;
+}
+
+export interface KrInvestorFlowHoldingsDetail {
+  symbol: string;
+  name: string;
+  listedShares?: number | null;
+  foreignHoldRatio?: number | null;
+  foreignHoldShares?: number | null;
+  foreignNetQty?: number | null;
+  institutionNetQty?: number | null;
+  individualNetQty?: number | null;
+  changePercent?: number | null;
+  tradingValue?: number | null;
+  updatedAtMs?: number;
 }
 
 export interface KrInvestorFlowIndustrySummary {

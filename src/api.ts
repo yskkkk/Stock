@@ -2071,6 +2071,16 @@ export function fetchKrInvestorFlow(opts?: {
   );
 }
 
+export function fetchKrInvestorFlowHoldings(
+  symbol: string,
+  signal?: AbortSignal,
+) {
+  return fetchJson<import("./types").KrInvestorFlowHoldingsDetail>(
+    `/api/kr-investor-flow/${encodeURIComponent(symbol)}/holdings`,
+    signal ? { signal } : undefined,
+  );
+}
+
 export function fetchStockVaultChartInsights(opts?: {
   refresh?: boolean;
   signal?: AbortSignal;

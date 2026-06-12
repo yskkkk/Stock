@@ -151,7 +151,7 @@
 
 .investor-flow-tab__table {
   width: 100%;
-  min-width: 820px;
+  min-width: 980px;
   border-collapse: collapse;
   font-size: 0.76rem;
 }
@@ -299,4 +299,95 @@
 .investor-flow-tab__row--clickable:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
   outline-offset: -2px;
+}
+
+.investor-flow-tab__row--clickable:hover {
+  background: color-mix(in srgb, var(--accent-dim) 35%, transparent);
+}
+
+.investor-flow-tab__row--on {
+  background: color-mix(in srgb, var(--accent-dim) 55%, transparent);
+}
+
+.investor-flow-hold-bubble {
+  position: fixed;
+  z-index: 12050;
+  width: min(300px, calc(100vw - 16px));
+  padding: 0.65rem 0.7rem 0.7rem;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md, 10px);
+  background: color-mix(in srgb, var(--card) 96%, var(--surface));
+  box-shadow: 0 10px 28px color-mix(in srgb, #000 22%, transparent);
+}
+
+.investor-flow-hold-bubble__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+}
+
+.investor-flow-hold-bubble__name {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.investor-flow-hold-bubble__sym {
+  margin: 0.12rem 0 0;
+  font-size: 0.66rem;
+  font-family: var(--font-mono);
+  color: var(--muted);
+}
+
+.investor-flow-hold-bubble__close {
+  padding: 0 0.25rem;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.investor-flow-hold-bubble__list {
+  margin: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.investor-flow-hold-bubble__list > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.74rem;
+}
+
+.investor-flow-hold-bubble__list dt {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.investor-flow-hold-bubble__list dd {
+  margin: 0;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.investor-flow-hold-bubble__muted,
+.investor-flow-hold-bubble__hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.66rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.investor-flow-hold-bubble__error {
+  margin: 0.35rem 0 0;
+  font-size: 0.72rem;
+  color: var(--down);
 }

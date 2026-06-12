@@ -20,3 +20,24 @@ export function investorNetQtyClass(value: number | null | undefined): string {
     ? "investor-flow-tab__qty--buy"
     : "investor-flow-tab__qty--sell";
 }
+
+export function formatInvestorHoldShares(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return "—";
+  const abs = Math.abs(value);
+  if (abs >= 100_000_000) {
+    return `${(abs / 100_000_000).toFixed(2)}억주`;
+  }
+  if (abs >= 10_000) {
+    return `${(abs / 10_000).toFixed(1)}만주`;
+  }
+  return `${abs.toLocaleString("ko-KR")}주`;
+}
+
+export function investorChangePctClass(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value) || value === 0) {
+    return "investor-flow-tab__qty--flat";
+  }
+  return value > 0
+    ? "investor-flow-tab__qty--buy"
+    : "investor-flow-tab__qty--sell";
+}

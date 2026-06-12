@@ -1,18 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchKrInvestorFlow } from "../api";
-import { useValueInvestBubble } from "../contexts/ValueInvestBubbleContext";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { fetchKrInvestorFlow, fetchKrInvestorFlowHoldings } from "../api";
 import { ko } from "../i18n/ko";
-import { krFlowRowToValueInvestTarget } from "../lib/valueInvestBubbleTarget";
-import { formatPrice } from "../lib/format";
+import { formatPercent, formatPrice, formatTurnover } from "../lib/format";
 import {
   formatInvestorNetQty,
+  investorChangePctClass,
   investorNetQtyClass,
 } from "../lib/formatInvestorFlow";
 import type {
+  KrInvestorFlowHoldingsDetail,
   KrInvestorFlowIndustrySummary,
   KrInvestorFlowItem,
   KrInvestorFlowResponse,
 } from "../types";
+import InvestorFlowHoldBubble, {
+  positionInvestorFlowHoldBubble,
+  type InvestorFlowHoldBubbleState,
+} from "./InvestorFlowHoldBubble";
 
 type RankKey = "foreign" | "institution" | "individual";
 type FlowDir = "buy" | "sell";
@@ -89,8 +93,52 @@ function SortInvestorTh({
   );
 }
 
+function InvestorFlowTableHead({
+  rankKey,
+  flowDir,
+  onSelectRank,
+  showIndustry,
+}: {
+  rankKey: RankKey;
+  flowDir: FlowDir;
+  onSelectRank: (key: RankKey) => void;
+  showIndustry?: boolean;
+}) {
+  return (
+    <tr>
+      <th className="investor-flow-tab__col--rank">#</th>
+      <th className="investor-flow-tab__col--name">{ko.investorFlow.colName}</th>
+      {showIndustry ? <th className="investor-flow-tab__col--industry">{ko.investorFlow.colIndustry}</th> : null}
+      <SortInvestorTh
+        column="foreign"
+        label={ko.investorFlow.colForeign}
+        rankKey={rankKey}
+        flowDir={flowDir}
+        onSelect={onSelectRank}
+      />
+      <SortInvestorTh
+        column="institution"
+        label={ko.investorFlow.colInstitution}
+        rankKey={rankKey}
+        flowDir={flowDir}
+        onSelect={onSelectRank}
+      />
+      <SortInvestorTh
+        column="individual"
+        label={ko.investorFlow.colIndividual}
+        rankKey={rankKey}
+        flowDir={flowDir}
+        onSelect={onSelectRank}
+      />
+      <th>{ko.investorFlow.colForeignHold}</th>
+      <th>{ko.investorFlow.colChange}</th>
+      <th>{ko.investorFlow.colTurnover}</th>
+      <th>{ko.investorFlow.colPrice}</th>
+    </tr>
+  );
+}
+
 export default function InvestorFlowTab() {
-  const { showValueInvestBubble } = useValueInvestBubble();
   const [data, setData] = useState<KrInvestorFlowResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -99,6 +147,45 @@ export default function InvestorFlowTab() {
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [industryFilter, setIndustryFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
+  const [holdBubble, setHoldBubble] = useState<InvestorFlowHoldBubbleState | null>(null);
+  const [holdDetail, setHoldDetail] = useState<KrInvestorFlowHoldingsDetail | null>(null);
+  const [holdLoading, setHoldLoading] = useState(false);
+  const [holdError, setHoldError] = useState<string | null>(null);
+  const holdFetchSeq = useRef(0);
+
+  const closeHoldBubble = useCallback(() => {
+    setHoldBubble(null);
+    setHoldDetail(null);
+    setHoldLoading(false);
+    setHoldError(null);
+  }, []);
+
+  const openHoldBubble = useCallback((anchor: HTMLElement, row: KrInvestorFlowItem) => {
+    const anchorRect = anchor.getBoundingClientRect();
+    setHoldBubble({
+      symbol: row.symbol,
+      name: row.name,
+      anchorRect,
+      ...positionInvestorFlowHoldBubble(anchorRect),
+    });
+    setHoldDetail(null);
+    setHoldError(null);
+    setHoldLoading(true);
+
+    const seq = ++holdFetchSeq.current;
+    void (async () => {
+      try {
+        const detail = await fetchKrInvestorFlowHoldings(row.symbol);
+        if (seq !== holdFetchSeq.current) return;
+        setHoldDetail(detail);
+      } catch (e: unknown) {
+        if (seq !== holdFetchSeq.current) return;
+        setHoldError(e instanceof Error ? e.message : String(e));
+      } finally {
+        if (seq === holdFetchSeq.current) setHoldLoading(false);
+      }
+    })();
+  }, []);
 
   const load = useCallback(async (opts?: { silent?: boolean; refresh?: boolean }) => {
     if (!opts?.silent) setLoading(true);
@@ -249,16 +336,19 @@ export default function InvestorFlowTab() {
   const renderRow = (row: KrInvestorFlowItem, idx: number) => (
     <tr
       key={row.symbol}
-      className="investor-flow-tab__row--clickable"
+      className={
+        holdBubble?.symbol === row.symbol
+          ? "investor-flow-tab__row--clickable investor-flow-tab__row--on"
+          : "investor-flow-tab__row--clickable"
+      }
       tabIndex={0}
       role="button"
-      onClick={(e) =>
-        showValueInvestBubble(e.currentTarget, krFlowRowToValueInvestTarget(row))
-      }
+      aria-expanded={holdBubble?.symbol === row.symbol}
+      onClick={(e) => openHoldBubble(e.currentTarget, row)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          showValueInvestBubble(e.currentTarget, krFlowRowToValueInvestTarget(row));
+          openHoldBubble(e.currentTarget, row);
         }
       }}
     >
@@ -280,6 +370,54 @@ export default function InvestorFlowTab() {
       <td>
         {row.foreignHoldRatio != null ? `${row.foreignHoldRatio.toFixed(2)}%` : "—"}
       </td>
+      <td className={investorChangePctClass(row.changePercent)}>
+        {row.changePercent != null ? formatPercent(row.changePercent) : "—"}
+      </td>
+      <td>{row.tradingValue != null ? formatTurnover(row.tradingValue, "KRW") : "—"}</td>
+      <td>{row.closePrice != null ? formatPrice(row.closePrice, "KRW") : "—"}</td>
+    </tr>
+  );
+
+  const renderSectorRow = (row: KrInvestorFlowItem, idx: number) => (
+    <tr
+      key={row.symbol}
+      className={
+        holdBubble?.symbol === row.symbol
+          ? "investor-flow-tab__row--clickable investor-flow-tab__row--on"
+          : "investor-flow-tab__row--clickable"
+      }
+      tabIndex={0}
+      role="button"
+      aria-expanded={holdBubble?.symbol === row.symbol}
+      onClick={(e) => openHoldBubble(e.currentTarget, row)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openHoldBubble(e.currentTarget, row);
+        }
+      }}
+    >
+      <td className="investor-flow-tab__col--rank">{idx + 1}</td>
+      <td className="investor-flow-tab__col--name">
+        <span className="investor-flow-tab__name">{row.name}</span>
+        <span className="investor-flow-tab__sym">{row.symbol.replace(/\.(KS|KQ)$/i, "")}</span>
+      </td>
+      <td className={investorNetQtyClass(row.foreignNetQty)}>
+        {formatInvestorNetQty(row.foreignNetQty)}
+      </td>
+      <td className={investorNetQtyClass(row.institutionNetQty)}>
+        {formatInvestorNetQty(row.institutionNetQty)}
+      </td>
+      <td className={investorNetQtyClass(row.individualNetQty)}>
+        {formatInvestorNetQty(row.individualNetQty)}
+      </td>
+      <td>
+        {row.foreignHoldRatio != null ? `${row.foreignHoldRatio.toFixed(2)}%` : "—"}
+      </td>
+      <td className={investorChangePctClass(row.changePercent)}>
+        {row.changePercent != null ? formatPercent(row.changePercent) : "—"}
+      </td>
+      <td>{row.tradingValue != null ? formatTurnover(row.tradingValue, "KRW") : "—"}</td>
       <td>{row.closePrice != null ? formatPrice(row.closePrice, "KRW") : "—"}</td>
     </tr>
   );
@@ -504,36 +642,14 @@ export default function InvestorFlowTab() {
               <div className="investor-flow-tab__table-wrap">
                 <table className="investor-flow-tab__table">
                   <thead>
-                    <tr>
-                      <th className="investor-flow-tab__col--rank">#</th>
-                      <th className="investor-flow-tab__col--name">{ko.investorFlow.colName}</th>
-                      <SortInvestorTh
-                        column="foreign"
-                        label={ko.investorFlow.colForeign}
-                        rankKey={rankKey}
-                        flowDir={flowDir}
-                        onSelect={setRankKey}
-                      />
-                      <SortInvestorTh
-                        column="institution"
-                        label={ko.investorFlow.colInstitution}
-                        rankKey={rankKey}
-                        flowDir={flowDir}
-                        onSelect={setRankKey}
-                      />
-                      <SortInvestorTh
-                        column="individual"
-                        label={ko.investorFlow.colIndividual}
-                        rankKey={rankKey}
-                        flowDir={flowDir}
-                        onSelect={setRankKey}
-                      />
-                      <th>{ko.investorFlow.colForeignHold}</th>
-                      <th>{ko.investorFlow.colPrice}</th>
-                    </tr>
+                    <InvestorFlowTableHead
+                      rankKey={rankKey}
+                      flowDir={flowDir}
+                      onSelectRank={setRankKey}
+                    />
                   </thead>
                   <tbody>
-                    {group.map((row, idx) => renderRow(row, idx + 1))}
+                    {group.map((row, idx) => renderSectorRow(row, idx + 1))}
                   </tbody>
                 </table>
               </div>
@@ -544,34 +660,12 @@ export default function InvestorFlowTab() {
         <div className="investor-flow-tab__table-wrap">
           <table className="investor-flow-tab__table">
             <thead>
-              <tr>
-                <th className="investor-flow-tab__col--rank">#</th>
-                <th className="investor-flow-tab__col--name">{ko.investorFlow.colName}</th>
-                <th>{ko.investorFlow.colIndustry}</th>
-                <SortInvestorTh
-                  column="foreign"
-                  label={ko.investorFlow.colForeign}
-                  rankKey={rankKey}
-                  flowDir={flowDir}
-                  onSelect={setRankKey}
-                />
-                <SortInvestorTh
-                  column="institution"
-                  label={ko.investorFlow.colInstitution}
-                  rankKey={rankKey}
-                  flowDir={flowDir}
-                  onSelect={setRankKey}
-                />
-                <SortInvestorTh
-                  column="individual"
-                  label={ko.investorFlow.colIndividual}
-                  rankKey={rankKey}
-                  flowDir={flowDir}
-                  onSelect={setRankKey}
-                />
-                <th>{ko.investorFlow.colForeignHold}</th>
-                <th>{ko.investorFlow.colPrice}</th>
-              </tr>
+              <InvestorFlowTableHead
+                rankKey={rankKey}
+                flowDir={flowDir}
+                onSelectRank={setRankKey}
+                showIndustry
+              />
             </thead>
             <tbody>
               {rows.map((row, idx) => renderRow(row, idx + 1))}
@@ -579,6 +673,14 @@ export default function InvestorFlowTab() {
           </table>
         </div>
       )}
+
+      <InvestorFlowHoldBubble
+        open={holdBubble}
+        loading={holdLoading}
+        error={holdError}
+        detail={holdDetail}
+        onClose={closeHoldBubble}
+      />
     </section>
   );
 }

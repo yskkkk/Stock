@@ -2400,6 +2400,44 @@ export function createApp() {
   );
 
   app.get(
+    "/api/kr-investor-flow/:symbol/holdings",
+    asyncRoute(async (req, res) => {
+      const sym = String(req.params.symbol ?? "")
+        .trim()
+        .toUpperCase();
+      if (!/^[A-Z0-9]{6}(?:\.(KS|KQ))?$/i.test(sym)) {
+        res.status(400).json({ error: "올바르지 않은 심볼 형식입니다." });
+        return;
+      }
+      const { readKrInvestorFlowSnapshotSync, loadKrInvestorFlowHoldingsDetail } =
+        await import("./kr-investor-flow.js");
+      const snap = readKrInvestorFlowSnapshotSync();
+      const rowHint =
+        snap.items?.find(
+          (it) =>
+            String(it.symbol ?? "")
+              .trim()
+              .toUpperCase() === sym ||
+            String(it.symbol ?? "")
+              .replace(/\.(KS|KQ)$/i, "")
+              .toUpperCase() === sym.replace(/\.(KS|KQ)$/i, ""),
+        ) ?? null;
+      try {
+        const data = await loadKrInvestorFlowHoldingsDetail(sym, rowHint);
+        res.json(data);
+      } catch (err) {
+        const code = err && typeof err === "object" && "code" in err ? err.code : "";
+        const message = err instanceof Error ? err.message : "요청 실패";
+        if (code === "BAD_SYMBOL") {
+          res.status(400).json({ error: message });
+          return;
+        }
+        res.status(code === "NOT_FOUND" ? 404 : 502).json({ error: message });
+      }
+    }),
+  );
+
+  app.get(
     "/api/stock-vault/chart-insights",
     asyncRoute(async (req, res) => {
       const { buildStockVaultItemsForUserSync } = await import(
