@@ -10661,12 +10661,35 @@ html[data-theme="light"][data-light-palette="glass"]
   font-variant-numeric: tabular-nums;
 }
 
+.dock-poller-rail__card-actions,
+.dock-poller-rail__detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.28rem;
+}
+
+.dock-poller-rail__card-actions {
+  flex: 0 0 auto;
+}
+
+.dock-poller-rail__detail-actions {
+  margin-top: 0.35rem;
+  padding-top: 0.3rem;
+  border-top: 1px solid color-mix(in srgb, var(--card-border, #334155) 55%, transparent);
+}
+
 .dock-poller-rail__toggle {
   flex: 0 0 auto;
   min-height: 1.35rem;
   padding: 0.12rem 0.42rem;
   font-size: 0.58rem;
   white-space: nowrap;
+}
+
+.dock-poller-rail__toggle--restart {
+  font-weight: 700;
 }
 
 .dock-poller-rail__env-hint {

@@ -480,6 +480,7 @@ export const ko = {
     liveTradeSideDockPollersStopped: "중지됨",
     liveTradeSideDockPollersBootOff: "부팅 off",
     liveTradeSideDockPollersStart: "실행",
+    liveTradeSideDockPollersRestart: "다시 기동",
     liveTradeSideDockPollersStop: "중지",
     liveTradeSideDockPollersDetail: "동작 설명",
     liveTradeSideDockPollersEnvHint: "env",

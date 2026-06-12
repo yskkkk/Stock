@@ -112,16 +112,69 @@ function PollerIcon({ className }: { className?: string }) {
   );
 }
 
+function PollerToggleActions({
+  poller,
+  onToggleRequest,
+  className,
+}: {
+  poller: PollerStatusRow;
+  onToggleRequest: (p: PollerStatusRow, anchor: HTMLElement, enabled: boolean) => void;
+  className?: string;
+}) {
+  const stopRef = useRef<HTMLButtonElement>(null);
+  const restartRef = useRef<HTMLButtonElement>(null);
+  const canToggle = poller.runtimeToggleable && poller.bootEnabled && poller.bootStarted;
+  const canStop = canToggle && poller.runtimeEnabled;
+  const canRestart = canToggle && !poller.runtimeEnabled;
+
+  if (!canToggle) {
+    return <p className="dock-poller-rail__env-hint">{poller.envDisable}</p>;
+  }
+
+  return (
+    <div className={className ?? "dock-poller-rail__card-actions"}>
+      {canRestart ? (
+        <button
+          ref={restartRef}
+          type="button"
+          className="btn btn--primary btn--sm dock-poller-rail__toggle dock-poller-rail__toggle--restart"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (restartRef.current) onToggleRequest(poller, restartRef.current, true);
+          }}
+        >
+          {ko.app.liveTradeSideDockPollersRestart}
+        </button>
+      ) : null}
+      {canStop ? (
+        <button
+          ref={stopRef}
+          type="button"
+          className="btn btn--ghost btn--sm dock-poller-rail__toggle dock-poller-rail__toggle--stop"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (stopRef.current) onToggleRequest(poller, stopRef.current, false);
+          }}
+        >
+          {ko.app.liveTradeSideDockPollersStop}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function AdminPasswordBubble({
   anchorRef,
   busy,
   error,
+  actionLabel,
   onConfirm,
   onCancel,
 }: {
   anchorRef: RefObject<HTMLElement | null>;
   busy: boolean;
   error: string | null;
+  actionLabel: string;
   onConfirm: (password: string) => void;
   onCancel: () => void;
 }) {
@@ -141,7 +194,7 @@ function AdminPasswordBubble({
       className="dock-poller-rail__password-pop"
       style={style}
       role="dialog"
-      aria-label={ko.app.liveTradeSideDockPollersToggleNeedPassword}
+      aria-label={actionLabel}
       onMouseDown={(e) => e.stopPropagation()}
     >
       <label className="dock-poller-rail__password-label">
@@ -186,9 +239,11 @@ function AdminPasswordBubble({
 function PollerDetailPanel({
   poller,
   onClose,
+  onToggleRequest,
 }: {
   poller: PollerStatusRow;
   onClose: () => void;
+  onToggleRequest: (p: PollerStatusRow, anchor: HTMLElement, enabled: boolean) => void;
 }) {
   return (
     <aside className="dock-poller-rail__detail-panel" role="region" aria-label={poller.labelKo}>
@@ -230,6 +285,11 @@ function PollerDetailPanel({
           {poller.lastError}
         </p>
       ) : null}
+      <PollerToggleActions
+        poller={poller}
+        onToggleRequest={onToggleRequest}
+        className="dock-poller-rail__detail-actions"
+      />
     </aside>
   );
 }
@@ -242,12 +302,9 @@ function PollerCard({
 }: {
   poller: PollerStatusRow;
   selected: boolean;
-  onToggleRequest: (p: PollerStatusRow, anchor: HTMLElement) => void;
+  onToggleRequest: (p: PollerStatusRow, anchor: HTMLElement, enabled: boolean) => void;
   onDetailToggle: (p: PollerStatusRow) => void;
 }) {
-  const toggleRef = useRef<HTMLButtonElement>(null);
-  const canToggle = poller.runtimeToggleable && poller.bootEnabled && poller.bootStarted;
-  const nextEnabled = !poller.runtimeEnabled;
   const summary = pollerCardSummary(poller);
 
   return (
@@ -294,27 +351,7 @@ function PollerCard({
             <dd>{formatLastTick(poller.lastTickAtMs)}</dd>
           </div>
         </dl>
-        {canToggle ? (
-          <button
-            ref={toggleRef}
-            type="button"
-            className={`btn btn--sm dock-poller-rail__toggle${
-              nextEnabled ? " btn--primary" : " btn--ghost"
-            }`}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (toggleRef.current) onToggleRequest(poller, toggleRef.current);
-            }}
-          >
-            {nextEnabled
-              ? ko.app.liveTradeSideDockPollersStart
-              : ko.app.liveTradeSideDockPollersStop}
-          </button>
-        ) : (
-          <p className="dock-poller-rail__env-hint">
-            {poller.envDisable}
-          </p>
-        )}
+        <PollerToggleActions poller={poller} onToggleRequest={onToggleRequest} />
       </div>
     </article>
   );
@@ -334,6 +371,7 @@ export default function LiveTradeDockPollerRail({
   const [toggleTarget, setToggleTarget] = useState<{
     poller: PollerStatusRow;
     anchor: HTMLElement;
+    enabled: boolean;
   } | null>(null);
   const [toggleBusy, setToggleBusy] = useState(false);
   const [toggleErr, setToggleErr] = useState<string | null>(null);
@@ -422,7 +460,7 @@ export default function LiveTradeDockPollerRail({
       try {
         const out = await togglePollerRuntime(
           toggleTarget.poller.id,
-          !toggleTarget.poller.runtimeEnabled,
+          toggleTarget.enabled,
           password,
         );
         if (!out.ok) {
@@ -500,9 +538,9 @@ export default function LiveTradeDockPollerRail({
                       key={p.id}
                       poller={p}
                       selected={detailId === p.id}
-                      onToggleRequest={(row, anchor) => {
+                      onToggleRequest={(row, anchor, enabled) => {
                         setToggleErr(null);
-                        setToggleTarget({ poller: row, anchor });
+                        setToggleTarget({ poller: row, anchor, enabled });
                       }}
                       onDetailToggle={(row) => {
                         setDetailId((cur) => (cur === row.id ? null : row.id));
@@ -512,7 +550,14 @@ export default function LiveTradeDockPollerRail({
                 </div>
               )}
               {detailPoller ? (
-                <PollerDetailPanel poller={detailPoller} onClose={() => setDetailId(null)} />
+                <PollerDetailPanel
+                  poller={detailPoller}
+                  onClose={() => setDetailId(null)}
+                  onToggleRequest={(row, anchor, enabled) => {
+                    setToggleErr(null);
+                    setToggleTarget({ poller: row, anchor, enabled });
+                  }}
+                />
               ) : null}
             </div>,
             document.body,
@@ -524,6 +569,11 @@ export default function LiveTradeDockPollerRail({
           anchorRef={toggleAnchorRef}
           busy={toggleBusy}
           error={toggleErr}
+          actionLabel={
+            toggleTarget.enabled
+              ? ko.app.liveTradeSideDockPollersRestart
+              : ko.app.liveTradeSideDockPollersStop
+          }
           onConfirm={(pw) => void onToggleConfirm(pw)}
           onCancel={() => {
             setToggleTarget(null);
