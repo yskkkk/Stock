@@ -36,9 +36,42 @@ export function formatMaAlignChain(): string {
 }
 
 /** 일봉 120선 근처 — 스캔 결과 배지 */
-export function formatMa120NearLabel(distancePct?: number | null): string {
-  if (distancePct == null || !Number.isFinite(distancePct)) {
-    return "120선 ±3%";
+export function formatMa120NearLabel(
+  distancePct?: number | null,
+  approach?: "from_below" | "from_above" | "flat" | null,
+  labels?: { fromBelow: string; fromAbove: string },
+): string {
+  const dist =
+    distancePct == null || !Number.isFinite(distancePct)
+      ? "±3%"
+      : `±${distancePct.toFixed(1)}%`;
+  if (approach === "from_below") {
+    return `120선 ${dist} · ${labels?.fromBelow ?? "하단접근"}`;
   }
-  return `120선 ±${distancePct.toFixed(1)}%`;
+  if (approach === "from_above") {
+    return `120선 ${dist} · ${labels?.fromAbove ?? "상단접근"}`;
+  }
+  return `120선 ${dist}`;
+}
+
+export function resolveMa120Approach(
+  item: { ma120Approach?: "from_below" | "from_above" | "flat"; ma120?: number | null },
+  insight?: { daily?: { near?: Array<{ period: number; approach?: string }> } } | null,
+): "from_below" | "from_above" | "flat" {
+  if (
+    item.ma120Approach === "from_below" ||
+    item.ma120Approach === "from_above" ||
+    item.ma120Approach === "flat"
+  ) {
+    return item.ma120Approach;
+  }
+  const hit = insight?.daily?.near?.find((n) => n.period === 120);
+  if (
+    hit?.approach === "from_below" ||
+    hit?.approach === "from_above" ||
+    hit?.approach === "flat"
+  ) {
+    return hit.approach;
+  }
+  return "flat";
 }

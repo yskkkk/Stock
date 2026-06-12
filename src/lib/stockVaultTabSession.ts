@@ -2,16 +2,19 @@ import { STOCK_VAULT_SCAN_SOURCES } from "./stockVaultFilter";
 import { normalizeStockVaultTimeframe } from "./stockVaultTimeframe";
 import type { StockVaultScanSource, StockVaultTimeframe } from "../types";
 
+export type Ma120ApproachFilter = "from_below" | "from_above";
+
 export type StockVaultTabUiState = {
   filter: "all" | "favorite";
   selectedScanSources: StockVaultScanSource[];
+  ma120ApproachFilter: Ma120ApproachFilter[];
   timeframeFilter: StockVaultTimeframe;
   marketFilter: "all" | "kr" | "us";
   industryFilter: string;
   selectedScanDate: string | null;
 };
 
-const UI_STORAGE_KEY = "stock-vault-tab-ui-v2";
+const UI_STORAGE_KEY = "stock-vault-tab-ui-v3";
 
 let memoryUi: StockVaultTabUiState | null = null;
 
@@ -31,10 +34,19 @@ function normalizeMarketFilter(
   return "all";
 }
 
+function normalizeMa120ApproachFilter(
+  value: Ma120ApproachFilter[] | undefined,
+): Ma120ApproachFilter[] {
+  if (!value?.length) return [];
+  const allowed = new Set<Ma120ApproachFilter>(["from_below", "from_above"]);
+  return value.filter((v) => allowed.has(v));
+}
+
 function normalizeUiState(raw: Partial<StockVaultTabUiState> | null): StockVaultTabUiState {
   return {
     filter: raw?.filter === "favorite" ? "favorite" : "all",
     selectedScanSources: normalizeScanSources(raw?.selectedScanSources),
+    ma120ApproachFilter: normalizeMa120ApproachFilter(raw?.ma120ApproachFilter),
     timeframeFilter: normalizeStockVaultTimeframe(raw?.timeframeFilter),
     marketFilter: normalizeMarketFilter(raw?.marketFilter),
     industryFilter:

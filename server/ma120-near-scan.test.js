@@ -4,6 +4,7 @@ import {
   isMa120NearHit,
   ma120NearDistancePct,
   MA120_NEAR_THRESHOLD_PCT,
+  detectMa120NearApproach,
 } from "./ma120-near-scan.js";
 
 describe("ma120-near-scan", () => {
@@ -24,5 +25,11 @@ describe("ma120-near-scan", () => {
   it("computes distance pct", () => {
     assert.equal(ma120NearDistancePct(103, 100), 3);
     assert.equal(MA120_NEAR_THRESHOLD_PCT, 3);
+  });
+
+  it("detects approach from below", () => {
+    const candles = Array.from({ length: 125 }, () => ({ close: 92 }));
+    candles.push({ close: 94 }, { close: 96 }, { close: 98 });
+    assert.equal(detectMa120NearApproach(98, candles, 100), "from_below");
   });
 });

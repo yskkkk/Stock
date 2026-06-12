@@ -523,6 +523,7 @@ export interface StockVaultItem {
   scanDate?: string | null;
   ma120?: number;
   distancePct?: number;
+  ma120Approach?: "from_below" | "from_above" | "flat";
   addedAtMs: number;
   updatedAtMs: number;
   favorited?: boolean;
@@ -703,6 +704,7 @@ export interface Ma120NearHistoryHit {
   scanDate: string;
   ma120?: number;
   distancePct?: number;
+  ma120Approach?: "from_below" | "from_above" | "flat";
 }
 
 export interface GoldenCrossHistoryEntry {

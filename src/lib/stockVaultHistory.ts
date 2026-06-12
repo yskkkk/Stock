@@ -158,6 +158,7 @@ export function buildVaultItemsFromScanHistory(
       scanDate: hit.scanDate || scanDate,
       ma120: hit.ma120,
       distancePct: hit.distancePct,
+      ma120Approach: hit.ma120Approach,
       addedAtMs: atMs,
       updatedAtMs: atMs,
       favorited,

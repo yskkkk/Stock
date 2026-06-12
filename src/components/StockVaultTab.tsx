@@ -39,6 +39,7 @@ import {
   defaultStockVaultTabUi,
   peekStockVaultTabUi,
   saveStockVaultTabUi,
+  type Ma120ApproachFilter,
 } from "../lib/stockVaultTabSession";
 import {
   isStockVaultSessionPinned,
@@ -53,6 +54,7 @@ import {
   formatGoldenCrossChain,
   formatMa120NearLabel,
   formatMaAlignChain,
+  resolveMa120Approach,
 } from "../lib/stockVaultMaDisplay";
 import {
   formatMaApproachLabel,
@@ -249,6 +251,9 @@ export default function StockVaultTab({
   const [selectedScanSources, setSelectedScanSources] = useState<
     StockVaultScanSource[]
   >(() => [...uiInit.selectedScanSources]);
+  const [ma120ApproachFilter, setMa120ApproachFilter] = useState<
+    Ma120ApproachFilter[]
+  >(() => [...uiInit.ma120ApproachFilter]);
   const [timeframeFilter, setTimeframeFilter] = useState<StockVaultTimeframe>(
     () => uiInit.timeframeFilter,
   );
@@ -355,6 +360,7 @@ export default function StockVaultTab({
     saveStockVaultTabUi({
       filter,
       selectedScanSources,
+      ma120ApproachFilter,
       timeframeFilter,
       marketFilter,
       industryFilter,
@@ -363,6 +369,7 @@ export default function StockVaultTab({
   }, [
     filter,
     selectedScanSources,
+    ma120ApproachFilter,
     timeframeFilter,
     marketFilter,
     industryFilter,
@@ -545,7 +552,11 @@ export default function StockVaultTab({
         const set = new Set(prev);
         if (set.has(source)) set.delete(source);
         else set.add(source);
-        return STOCK_VAULT_SCAN_SOURCES.filter((s) => set.has(s));
+        const next = STOCK_VAULT_SCAN_SOURCES.filter((s) => set.has(s));
+        if (!next.includes("ma120_near")) {
+          setMa120ApproachFilter([]);
+        }
+        return next;
       });
       if (
         source === "ma120_near" &&
@@ -557,13 +568,41 @@ export default function StockVaultTab({
     [items, timeframeFilter, reload],
   );
 
+  const toggleMa120ApproachFilter = useCallback((approach: Ma120ApproachFilter) => {
+    setIndustryFilter("all");
+    setMa120ApproachFilter((prev) => {
+      const set = new Set(prev);
+      if (set.has(approach)) set.delete(approach);
+      else set.add(approach);
+      return (["from_below", "from_above"] as const).filter((a) => set.has(a));
+    });
+  }, []);
+
   useEffect(() => {
     if (timeframeFilter !== "1wk") return;
     setSelectedScanSources((prev) => {
       const next = prev.filter((s) => s !== "ma120_near");
       return next.length ? next : ["golden_cross"];
     });
+    setMa120ApproachFilter([]);
   }, [timeframeFilter]);
+
+  const ma120ApproachCounts = useMemo(() => {
+    const counts = { from_below: 0, from_above: 0 };
+    if (timeframeFilter !== "1d") return counts;
+    for (const it of displayItems) {
+      if (it.source !== "ma120_near") continue;
+      if (marketFilter !== "all" && it.market !== marketFilter) continue;
+      const sym = it.symbol.trim().toUpperCase();
+      const approach = resolveMa120Approach(it, chartInsights[sym]);
+      if (approach === "from_below") counts.from_below += 1;
+      else if (approach === "from_above") counts.from_above += 1;
+    }
+    return counts;
+  }, [displayItems, marketFilter, timeframeFilter, chartInsights]);
+
+  const showMa120ApproachFilters =
+    selectedScanSources.includes("ma120_near") && timeframeFilter === "1d";
 
   const visibleScanSources = useMemo(
     () => visibleStockVaultScanSources(timeframeFilter),
@@ -622,9 +661,30 @@ export default function StockVaultTab({
   }, [baseFiltered, getRowIndustry, industryTabs]);
 
   const filtered = useMemo(() => {
-    if (industryFilter === "all") return baseFiltered;
-    return baseFiltered.filter((row) => getRowIndustry(row) === industryFilter);
-  }, [baseFiltered, industryFilter, getRowIndustry]);
+    let rows =
+      industryFilter === "all"
+        ? baseFiltered
+        : baseFiltered.filter((row) => getRowIndustry(row) === industryFilter);
+    if (
+      !showMa120ApproachFilters ||
+      ma120ApproachFilter.length === 0
+    ) {
+      return rows;
+    }
+    return rows.filter((row) => {
+      if (!row.ma120Near) return false;
+      const sym = row.symbol.trim().toUpperCase();
+      const approach = resolveMa120Approach(row.ma120Near, chartInsights[sym]);
+      return ma120ApproachFilter.includes(approach);
+    });
+  }, [
+    baseFiltered,
+    industryFilter,
+    getRowIndustry,
+    showMa120ApproachFilters,
+    ma120ApproachFilter,
+    chartInsights,
+  ]);
 
   const intersectionActive =
     filter !== "favorite" && selectedScanSources.length >= 2;
@@ -964,6 +1024,42 @@ export default function StockVaultTab({
                 {ko.stockVault.intersectionHint.replace("{n}", String(filtered.length))}
               </p>
             ) : null}
+            {showMa120ApproachFilters ? (
+              <div
+                className="stock-vault-tab__filters stock-vault-tab__filters--ma120-approach"
+                role="group"
+                aria-label={ko.stockVault.ma120ApproachFilterAria}
+              >
+                <div className="market-tabs market-tabs--vault-scan">
+                  {(
+                    [
+                      ["from_below", ko.stockVault.ma120ApproachFromBelow],
+                      ["from_above", ko.stockVault.ma120ApproachFromAbove],
+                    ] as const
+                  ).map(([approach, label]) => {
+                    const active = ma120ApproachFilter.includes(approach);
+                    return (
+                      <button
+                        key={approach}
+                        type="button"
+                        className={
+                          active
+                            ? "market-tab market-tab--toggle active stock-vault-tab__ma120-approach-btn"
+                            : "market-tab market-tab--toggle stock-vault-tab__ma120-approach-btn"
+                        }
+                        aria-pressed={active}
+                        onClick={() => toggleMa120ApproachFilter(approach)}
+                      >
+                        {label}
+                        <span className="market-tab__count">
+                          {ma120ApproachCounts[approach]}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div
@@ -1261,7 +1357,17 @@ export default function StockVaultTab({
                           className="stock-vault-tab__cross stock-vault-tab__cross--ma120"
                           title={ko.stockVault.ma120NearBadgeHint}
                         >
-                          {formatMa120NearLabel(row.ma120Near.distancePct)}
+                          {formatMa120NearLabel(
+                            row.ma120Near.distancePct,
+                            resolveMa120Approach(
+                              row.ma120Near,
+                              chartInsights[symKey],
+                            ),
+                            {
+                              fromBelow: ko.stockVault.maApproachFromBelow,
+                              fromAbove: ko.stockVault.maApproachFromAbove,
+                            },
+                          )}
                         </span>
                       </div>
                     ) : null}

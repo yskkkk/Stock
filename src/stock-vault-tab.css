@@ -1050,6 +1050,15 @@ html[data-theme="light"] .stock-vault-tab__tf-tab--wk.active {
   border: 1px solid color-mix(in srgb, #b45309 35%, transparent);
 }
 
+.stock-vault-tab__filters--ma120-approach {
+  margin-top: 0.35rem;
+  padding-left: 0.15rem;
+}
+
+.stock-vault-tab__ma120-approach-btn.active {
+  border-color: color-mix(in srgb, #b45309 55%, var(--border));
+}
+
 .stock-vault-tab__row--tf-d .stock-vault-tab__cross {
   color: #60a5fa;
   background: color-mix(in srgb, #2563eb 16%, transparent);

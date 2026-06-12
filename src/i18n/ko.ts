@@ -1140,6 +1140,9 @@ export const ko = {
       "일봉 MA5>20>60>120 완전정배열 탐지 결과(모든 정배열 종목이 동일 조건을 충족)",
     ma120NearBadgeHint:
       "일봉 종가가 MA120 대비 ±3% 이내인 종목(국내 시총 상위·미국 S&P500)",
+    ma120ApproachFilterAria: "120선 접근 방향",
+    ma120ApproachFromBelow: "하단접근",
+    ma120ApproachFromAbove: "상단접근",
     filterAria: "보관 필터",
     filterMarketAria: "시장 필터",
     filterIndustryAria: "업종 필터",

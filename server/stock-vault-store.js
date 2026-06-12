@@ -27,6 +27,7 @@ function vaultStoreFile() {
  *   scanDate?: string | null;
  *   ma120?: number;
  *   distancePct?: number;
+ *   ma120Approach?: "from_below"|"from_above"|"flat";
  *   addedAtMs: number;
  *   updatedAtMs: number;
  * }} StockVaultItem
@@ -110,6 +111,13 @@ function normalizeStore(raw) {
         typeof row?.distancePct === "number" &&
         Number.isFinite(row.distancePct)
           ? row.distancePct
+          : undefined,
+      ma120Approach:
+        source === "ma120_near" &&
+        (row?.ma120Approach === "from_below" ||
+          row?.ma120Approach === "from_above" ||
+          row?.ma120Approach === "flat")
+          ? row.ma120Approach
           : undefined,
       addedAtMs:
         typeof row?.addedAtMs === "number" && Number.isFinite(row.addedAtMs)
@@ -223,6 +231,10 @@ export function upsertStockVaultItemSync(input) {
         source === "ma120_near" && input.distancePct != null
           ? input.distancePct
           : prev.distancePct,
+      ma120Approach:
+        source === "ma120_near" && input.ma120Approach != null
+          ? input.ma120Approach
+          : prev.ma120Approach,
       updatedAtMs: now,
     };
   } else {
@@ -241,6 +253,7 @@ export function upsertStockVaultItemSync(input) {
       scanDate: input.scanDate ?? null,
       ma120: source === "ma120_near" ? input.ma120 : undefined,
       distancePct: source === "ma120_near" ? input.distancePct : undefined,
+      ma120Approach: source === "ma120_near" ? input.ma120Approach : undefined,
       addedAtMs: now,
       updatedAtMs: now,
     });
@@ -387,6 +400,7 @@ export function mergeMa120NearHitsIntoVaultSync(hits) {
       scanDate: hit.scanDate,
       ma120: hit.ma120,
       distancePct: hit.distancePct,
+      ma120Approach: hit.ma120Approach,
     });
   }
 }

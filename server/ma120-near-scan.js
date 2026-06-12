@@ -1,5 +1,7 @@
 import { loadStock } from "./stock-data.js";
 import { getDailyMaValues, isPriceNearMa120 } from "./ma-align-detect.js";
+import { buildDailyClosesIndex } from "./daily-bar-index.js";
+import { detectMaApproach } from "./stock-vault-chart-insights.js";
 import { isGoldenCrossTradable } from "./golden-cross-tradable.js";
 import { resolveDisplayName } from "./names-ko.js";
 import { loadUniverse } from "./universe.js";
@@ -113,6 +115,28 @@ export function isMa120NearHit(input) {
 }
 
 /**
+ * @param {number} price
+ * @param {Array<{ close?: number }>} candles
+ * @param {number} ma120
+ * @returns {"from_below"|"from_above"|"flat"}
+ */
+export function detectMa120NearApproach(price, candles, ma120) {
+  const p = Number(price);
+  const m = Number(ma120);
+  if (!Number.isFinite(p) || p <= 0 || !Number.isFinite(m) || m <= 0) {
+    return "flat";
+  }
+  const { closes } = buildDailyClosesIndex(candles);
+  if (closes.length < 5) return p < m ? "from_below" : p > m ? "from_above" : "flat";
+  const last = closes.length - 1;
+  const lookback = Math.min(4, last);
+  const prevPrice = closes[last - lookback];
+  const distNow = Math.abs(p - m);
+  const distPrev = Math.abs(prevPrice - m);
+  return detectMaApproach(p, prevPrice, m, distNow, distPrev);
+}
+
+/**
  * @param {{ symbol: string; name: string }} item
  * @param {"kr"|"us"} market
  * @param {string} scanDate
@@ -143,6 +167,7 @@ async function scanOneSymbol(item, market, scanDate) {
 
     const distancePct = ma120NearDistancePct(price, ma.ma120);
     if (distancePct == null) return null;
+    const ma120Approach = detectMa120NearApproach(price, candles, ma.ma120);
 
     return {
       symbol: sym,
@@ -154,6 +179,7 @@ async function scanOneSymbol(item, market, scanDate) {
       scanDate,
       ma120: ma.ma120,
       distancePct,
+      ma120Approach,
     };
   } catch (e) {
     liveTradeLogWarn(

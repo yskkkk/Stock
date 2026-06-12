@@ -50,6 +50,12 @@ function normalizeEntry(raw) {
             typeof h?.distancePct === "number" && Number.isFinite(h.distancePct)
               ? h.distancePct
               : undefined,
+          ma120Approach:
+            h?.ma120Approach === "from_below" ||
+            h?.ma120Approach === "from_above" ||
+            h?.ma120Approach === "flat"
+              ? h.ma120Approach
+              : undefined,
         }))
         .filter((h) => h.symbol)
     : [];
