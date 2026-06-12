@@ -305,9 +305,11 @@ export async function buildLiveTradeHistoryPayloadAsync(userId, opts = {}) {
     if (!getCredentialMetaSync(uid, "toss")?.ready) {
       return emptyLiveTradeHistoryPayload("live-toss");
     }
-    const { listTossTradesFromExchangeApiForHistory } = await import(
-      "./live-trade-toss-exchange-trades.js"
-    );
+    const {
+      listTossTradesFromExchangeApiForHistory,
+      enrichTossApiHistoryTrades,
+      mergeTossApiAndStoreTrades,
+    } = await import("./live-trade-toss-exchange-trades.js");
     let apiTrades = [];
     try {
       apiTrades = await listTossTradesFromExchangeApiForHistory(uid);
@@ -322,8 +324,8 @@ export async function buildLiveTradeHistoryPayloadAsync(userId, opts = {}) {
     if (programId) storeStock = storeStock.filter((t) => t.programId === programId);
     let trades =
       apiTrades.length > 0
-        ? mergeBithumbApiAndStoreTrades(
-            enrichBithumbApiHistoryTrades(apiTrades, storeStock),
+        ? mergeTossApiAndStoreTrades(
+            enrichTossApiHistoryTrades(apiTrades, storeStock),
             storeStock,
           )
         : storeStock;

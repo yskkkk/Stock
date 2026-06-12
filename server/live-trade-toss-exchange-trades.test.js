@@ -27,11 +27,12 @@ test("parseTossFilledOrderForHistory maps filled KR buy", () => {
   assert.equal(row.amount, 700000);
 });
 
-test("parseTossFilledOrderForHistory skips zero fill", () => {
+test("parseTossFilledOrderForHistory skips canceled without fill", () => {
   const row = parseTossFilledOrderForHistory({
-    orderId: "ord-2",
+    orderId: "ord-3",
     symbol: "AAPL",
-    side: "SELL",
+    side: "BUY",
+    status: "CANCELED",
     execution: { filledQuantity: "0" },
   });
   assert.equal(row, null);

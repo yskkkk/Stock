@@ -29,10 +29,17 @@ function parseTossOrderSide(v) {
   return null;
 }
 
+/** CLOSED 주문 status — FILLED만 거래내역에 포함 */
+function isTossFilledClosedOrder(o) {
+  const st = String(o?.status ?? "").trim().toUpperCase();
+  return st === "FILLED" || st === "PARTIALLY_FILLED";
+}
+
 /**
  * @param {unknown} o
  */
 export function parseTossFilledOrderForHistory(o) {
+  if (!isTossFilledClosedOrder(o)) return null;
   const orderId = String(o?.orderId ?? o?.id ?? "").trim();
   if (!orderId) return null;
 
@@ -100,6 +107,7 @@ export async function fetchAllTossClosedOrdersRaw(
   sinceMs = Date.now() - HISTORY_LOOKBACK_MS,
 ) {
   const from = kstDateKeyFromMs(sinceMs);
+  const to = kstDateKeyFromMs(Date.now());
   /** @type {object[]} */
   const all = [];
   let cursor = null;
@@ -109,6 +117,7 @@ export async function fetchAllTossClosedOrdersRaw(
     try {
       batch = await fetchTossClosedOrdersPageRaw(accessToken, accountSeq, {
         from,
+        to,
         limit: 100,
         cursor: cursor ?? undefined,
       });
@@ -140,7 +149,7 @@ export async function fetchAllTossClosedOrdersRaw(
  * @param {object[]} apiTrades
  * @param {object[]} storeTrades
  */
-function enrichTossApiHistoryTrades(apiTrades, storeTrades) {
+export function enrichTossApiHistoryTrades(apiTrades, storeTrades) {
   const byOrder = new Map();
   for (const t of storeTrades) {
     const oid = String(t.orderId ?? "").trim();
@@ -165,7 +174,7 @@ function enrichTossApiHistoryTrades(apiTrades, storeTrades) {
  * @param {object[]} apiTrades
  * @param {object[]} storeTrades
  */
-function mergeTossApiAndStoreTrades(apiTrades, storeTrades) {
+export function mergeTossApiAndStoreTrades(apiTrades, storeTrades) {
   const apiByOrder = new Set(
     apiTrades.map((t) => String(t.orderId ?? "").trim()).filter(Boolean),
   );
