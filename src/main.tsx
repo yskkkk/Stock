@@ -8,6 +8,7 @@ import App from "./App";
 import MobileServerGate from "./components/MobileServerGate";
 import { LiveTradeCardSidePanelProvider } from "./components/LiveTradeAuthAndCredentials";
 import { ValueInvestBubbleProvider } from "./contexts/ValueInvestBubbleContext";
+import { UiFeatureToggleProvider } from "./contexts/UiFeatureToggleContext";
 import "./index.css";
 import "./theme.css";
 import "./theme-light-palettes.css";
@@ -79,11 +80,13 @@ try {
     <StrictMode>
       <AppErrorBoundary>
         <ValueInvestBubbleProvider>
-          <LiveTradeCardSidePanelProvider>
-            <MobileServerGate>
-              <App />
-            </MobileServerGate>
-          </LiveTradeCardSidePanelProvider>
+          <UiFeatureToggleProvider>
+            <LiveTradeCardSidePanelProvider>
+              <MobileServerGate>
+                <App />
+              </MobileServerGate>
+            </LiveTradeCardSidePanelProvider>
+          </UiFeatureToggleProvider>
         </ValueInvestBubbleProvider>
       </AppErrorBoundary>
     </StrictMode>,

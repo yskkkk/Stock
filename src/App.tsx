@@ -69,10 +69,7 @@ import StockChart from "./components/StockChart";
 import TradingViewAdvancedChart from "./components/TradingViewAdvancedChart";
 import { CHART_TIMEFRAMES } from "./constants/timeframes";
 import type { SignalId } from "./constants/signals";
-import {
-  ENABLE_THEME_MODE_TOGGLE,
-  SHOW_PROFIT_MODEL_BUTTON,
-} from "./constants/uiFlags";
+import { useUiFeature } from "./contexts/UiFeatureToggleContext";
 import { useMobileBackHandler } from "./hooks/useMobileBackHandler";
 import { useDesktopDockLayout } from "./hooks/useDesktopDockLayout";
 import { useLeftRailLazyFollow } from "./hooks/useLeftRailLazyFollow";
@@ -124,7 +121,6 @@ import {
 import { filterPicksByQuery } from "./lib/searchPicks";
 import { liveHoldingToStockPick } from "./lib/liveHoldingToPick";
 import { startBackgroundTabPrefetch, loadStockVault } from "./lib/tabPrefetch";
-import { SHOW_OPS_GLOBAL_DEV_QUEUE_UI } from "./constants/opsDevQueuePoll";
 import { warmOpsDevQueueDisplay } from "./lib/opsDevQueueDisplayClient";
 import { sortPicksList, type SortKey } from "./lib/sortPicks";
 import { yahooStockSymbolToTradingView } from "./lib/tradingviewSymbols";
@@ -160,6 +156,9 @@ function readUsQuoteKrwPref(): boolean {
 }
 
 export default function App() {
+  const showProfitModelButton = useUiFeature("profitModelButton");
+  const enableThemeModeToggle = useUiFeature("themeModeToggle");
+  const showOpsDevQueueUi = useUiFeature("opsDevQueueUi");
   const [picks, setPicks] = useState<PicksResponse | null>(null);
   const [picksError, setPicksError] = useState<string | null>(null);
   const [rescanning, setRescanning] = useState(false);
@@ -419,7 +418,7 @@ export default function App() {
     () => setShowAccessAdmin(false),
   );
   useMobileBackHandler(
-    Boolean(SHOW_PROFIT_MODEL_BUTTON && profitModalOpen && hasWorkspacePickForBack),
+    Boolean(showProfitModelButton && profitModalOpen && hasWorkspacePickForBack),
     MOBILE_BACK_PRIORITY.PROFIT,
     () => setProfitModalOpen(false),
   );
@@ -534,7 +533,7 @@ export default function App() {
 
   useEffect(() => {
     if (
-      !SHOW_OPS_GLOBAL_DEV_QUEUE_UI ||
+      !showOpsDevQueueUi ||
       !configReady ||
       (!accessAdmin && !adminIpConsole)
     ) {
@@ -544,7 +543,7 @@ export default function App() {
   }, [configReady, accessAdmin, adminIpConsole]);
 
   const showOpsGlobalQueue =
-    SHOW_OPS_GLOBAL_DEV_QUEUE_UI && (accessAdmin || adminIpConsole);
+    showOpsDevQueueUi && (accessAdmin || adminIpConsole);
 
   useEffect(() => {
     applyTheme(colorMode);
@@ -1330,7 +1329,7 @@ export default function App() {
           colorMode={colorMode}
           lightPalette={lightPalette}
           onColorModeChange={(mode) => {
-            if (!ENABLE_THEME_MODE_TOGGLE) return;
+            if (!enableThemeModeToggle) return;
             setColorMode((m) => {
               if (m === mode) return m;
               persistTheme(mode);
@@ -1872,7 +1871,7 @@ export default function App() {
                   </div>
                 </div>
                 <div className="quote-bar__right">
-                  {SHOW_PROFIT_MODEL_BUTTON ? (
+                  {showProfitModelButton ? (
                     <button
                       type="button"
                       className="btn btn--secondary quote-bar__profit-btn"
@@ -1899,7 +1898,7 @@ export default function App() {
                   )}
                 </div>
               </div>
-              {SHOW_PROFIT_MODEL_BUTTON &&
+              {showProfitModelButton &&
                 profitModelResult &&
                 profitEntry != null && (
                 <div
@@ -2183,7 +2182,7 @@ export default function App() {
         />
       )}
 
-      {SHOW_PROFIT_MODEL_BUTTON && profitModalOpen && workspacePick && (
+      {showProfitModelButton && profitModalOpen && workspacePick && (
         <ProfitModelModal
           open={profitModalOpen}
           browserUserId={browserUserId}

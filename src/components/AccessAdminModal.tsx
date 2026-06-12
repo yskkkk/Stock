@@ -15,17 +15,21 @@ import {
   postAccessAdminRevokeDelegate,
   postFeedbackAdminDelete,
   postFeedbackAdminReply,
+  fetchAccessAdminUiFeatures,
+  postAccessAdminUiFeatureSet,
   type AccessAdminLiveTradeProgram,
   type AccessAdminLiveTradingRunningResponse,
   type AccessAdminSnapshot,
   type AccessAllowedEntry,
   type AccessDeviceInfoPayload,
   type AccessRequestItem,
+  type UiFeatureAdminItem,
 } from "../api";
 import type { FeedbackInboxItem } from "../types";
 import { ko } from "../i18n/ko";
+import { dispatchUiFeaturesChanged } from "../contexts/UiFeatureToggleContext";
 
-type AdminTab = "access" | "feedback" | "telegram" | "liveTrade";
+type AdminTab = "access" | "feedback" | "telegram" | "liveTrade" | "uiFeatures";
 
 function liveTradeStatusLabel(status: AccessAdminLiveTradeProgram["status"]): string {
   if (status === "armed") return ko.app.liveTradeStatusArmed;
@@ -122,6 +126,11 @@ export default function AccessAdminModal({
   const [liveTradeBusy, setLiveTradeBusy] = useState(false);
   const [liveTradeErr, setLiveTradeErr] = useState<string | null>(null);
   const [liveTradeRefreshKey, setLiveTradeRefreshKey] = useState(0);
+  const [uiFeatureItems, setUiFeatureItems] = useState<UiFeatureAdminItem[]>([]);
+  const [uiFeatureBusy, setUiFeatureBusy] = useState(false);
+  const [uiFeatureErr, setUiFeatureErr] = useState<string | null>(null);
+  const [uiFeatureRefreshKey, setUiFeatureRefreshKey] = useState(0);
+  const [uiFeatureActionId, setUiFeatureActionId] = useState<string | null>(null);
   const passwordFieldRef = useRef<HTMLInputElement>(null);
   const passwordFocusTimerRef = useRef<number | null>(null);
   const { modalStyle, onDragHandlePointerDown } = useModalDrag([open, phase]);
@@ -189,6 +198,9 @@ export default function AccessAdminModal({
     setLiveTradeData(null);
     setLiveTradeErr(null);
     setLiveTradeRefreshKey(0);
+    setUiFeatureItems([]);
+    setUiFeatureErr(null);
+    setUiFeatureRefreshKey(0);
     if (adminIpBypassPassword) {
       setPhase("admin");
       setPasswordInput("");
@@ -278,6 +290,7 @@ export default function AccessAdminModal({
 
   const reloadFeedback = () => setFeedbackRefreshKey((k) => k + 1);
   const reloadLiveTrade = () => setLiveTradeRefreshKey((k) => k + 1);
+  const reloadUiFeatures = () => setUiFeatureRefreshKey((k) => k + 1);
 
   const unlock = async () => {
     const p = passwordInput.trim();
@@ -368,6 +381,21 @@ export default function AccessAdminModal({
     }
   }, [authForApi, adminIpBypassPassword]);
 
+  const loadUiFeatures = useCallback(async () => {
+    if (!canUseAccessApi()) return;
+    setUiFeatureBusy(true);
+    setUiFeatureErr(null);
+    try {
+      const data = await fetchAccessAdminUiFeatures(authForApi());
+      setUiFeatureItems(data.items ?? []);
+    } catch (e) {
+      setUiFeatureItems([]);
+      setUiFeatureErr(e instanceof Error ? e.message : ko.errors.request);
+    } finally {
+      setUiFeatureBusy(false);
+    }
+  }, [authForApi, adminIpBypassPassword]);
+
   useEffect(() => {
     if (!open || phase !== "admin" || tab !== "liveTrade") return;
     void loadLiveTradeRunning();
@@ -380,6 +408,30 @@ export default function AccessAdminModal({
     }, 5000);
     return () => window.clearInterval(id);
   }, [open, phase, tab, loadLiveTradeRunning]);
+
+  useEffect(() => {
+    if (!open || phase !== "admin" || tab !== "uiFeatures") return;
+    void loadUiFeatures();
+  }, [open, phase, tab, uiFeatureRefreshKey, loadUiFeatures]);
+
+  const toggleUiFeature = async (item: UiFeatureAdminItem) => {
+    if (!canUseAccessApi()) return;
+    setUiFeatureActionId(item.id);
+    setUiFeatureErr(null);
+    try {
+      const data = await postAccessAdminUiFeatureSet(
+        authForApi(),
+        item.id,
+        !item.enabled,
+      );
+      setUiFeatureItems(data.items ?? []);
+      dispatchUiFeaturesChanged();
+    } catch (e) {
+      setUiFeatureErr(e instanceof Error ? e.message : ko.errors.request);
+    } finally {
+      setUiFeatureActionId(null);
+    }
+  };
 
   if (!open) return null;
 
@@ -489,6 +541,19 @@ export default function AccessAdminModal({
               >
                 {ko.access.adminTabLiveTrade}
               </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === "uiFeatures"}
+                className={`access-admin-tab${tab === "uiFeatures" ? " access-admin-tab--active" : ""}`}
+                onClick={() => {
+                  setUiFeatureErr(null);
+                  setTab("uiFeatures");
+                  setUiFeatureRefreshKey((k) => k + 1);
+                }}
+              >
+                {ko.access.adminTabUiFeatures}
+              </button>
               {telegramNotify ? (
                 <button
                   type="button"
@@ -521,6 +586,16 @@ export default function AccessAdminModal({
                   onClick={() => reloadLiveTrade()}
                 >
                   {ko.access.adminLiveTradeReload}
+                </button>
+              ) : null}
+              {tab === "uiFeatures" ? (
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  disabled={uiFeatureBusy}
+                  onClick={() => reloadUiFeatures()}
+                >
+                  {ko.access.adminUiFeaturesReload}
                 </button>
               ) : null}
               {!adminIpBypassPassword ? (
@@ -948,6 +1023,73 @@ export default function AccessAdminModal({
                             }
                           >
                             {ko.access.adminLiveTradeOpenPortfolio}
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {tab === "uiFeatures" && (
+              <div className="access-admin-body access-admin-body--ui-features">
+                <p className="access-admin-muted">{ko.access.adminUiFeaturesHint}</p>
+                {uiFeatureBusy && !uiFeatureItems.length ? (
+                  <p className="access-admin-muted">{ko.macro.loading}</p>
+                ) : uiFeatureErr ? (
+                  <p className="access-admin-error" role="alert">
+                    {uiFeatureErr}
+                  </p>
+                ) : uiFeatureItems.length === 0 ? (
+                  <p className="access-admin-muted">{ko.access.adminUiFeaturesEmpty}</p>
+                ) : (
+                  <ul className="access-admin-list access-admin-ui-feature-list">
+                    {uiFeatureItems.map((item) => (
+                      <li
+                        key={item.id}
+                        className="access-admin-item access-admin-ui-feature-item"
+                      >
+                        <div className="access-admin-item-head access-admin-ui-feature-head">
+                          <div>
+                            <strong>{item.label}</strong>
+                            <p className="access-admin-muted access-admin-ui-feature-desc">
+                              {item.description}
+                            </p>
+                          </div>
+                          <span
+                            className={
+                              item.enabled
+                                ? "access-admin-ui-feature-badge access-admin-ui-feature-badge--on"
+                                : "access-admin-ui-feature-badge access-admin-ui-feature-badge--off"
+                            }
+                          >
+                            {item.enabled
+                              ? ko.access.adminUiFeatureEnabled
+                              : ko.access.adminUiFeatureDisabled}
+                          </span>
+                        </div>
+                        <p className="access-admin-muted access-admin-ui-feature-meta">
+                          {item.defaultEnabled
+                            ? ko.access.adminUiFeatureDefaultOn
+                            : ko.access.adminUiFeatureDefaultOff}
+                          {item.hasOverride ? ` · ${ko.access.adminUiFeatureOverridden}` : null}
+                          {item.updatedAtMs
+                            ? ` · ${formatAdminMs(item.updatedAtMs)}`
+                            : null}
+                        </p>
+                        <div className="access-admin-item-actions">
+                          <button
+                            type="button"
+                            className={
+                              item.enabled ? "btn btn--ghost btn--sm" : "btn btn--primary btn--sm"
+                            }
+                            disabled={uiFeatureActionId === item.id}
+                            onClick={() => void toggleUiFeature(item)}
+                          >
+                            {item.enabled
+                              ? ko.access.adminUiFeatureDisable
+                              : ko.access.adminUiFeatureEnable}
                           </button>
                         </div>
                       </li>

@@ -40,7 +40,7 @@ import {
   type ChartDrawingSnapshotV1,
 } from "../lib/userPersist";
 import type { ChartDrawMode, ChartDrawToolbarApi } from "../chartDrawTypes";
-import { CHART_DRAW_RAY_TOOL_ENABLED } from "../chartDrawTypes";
+import { useUiFeature } from "../contexts/UiFeatureToggleContext";
 import {
   createBoxRangeChartPrimitive,
   type BoxRangeChartPrimitive,
@@ -1806,6 +1806,7 @@ export default function StockChart({
   boxRangeOverlays = [],
   focusTimeRange = null,
 }: StockChartProps) {
+  const chartDrawRayEnabled = useUiFeature("chartDrawRay");
   const wrapRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const bundleRef = useRef<ChartSeriesBundle | null>(null);
@@ -1821,7 +1822,7 @@ export default function StockChart({
     chartDrawModeProp !== undefined && onChartDrawModeChange !== undefined;
   const drawMode = isDrawControlled ? chartDrawModeProp! : internalDrawMode;
   const drawModeForChart =
-    !CHART_DRAW_RAY_TOOL_ENABLED && drawMode === "ray" ? "cursor" : drawMode;
+    !chartDrawRayEnabled && drawMode === "ray" ? "cursor" : drawMode;
   const setDrawMode = useCallback(
     (m: ChartDrawMode) => {
       if (chartDrawModeProp !== undefined && onChartDrawModeChange) {

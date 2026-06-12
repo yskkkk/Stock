@@ -11,6 +11,7 @@ import {
   verifyAccessAdminPassword,
 } from "./access-control.js";
 import { requireAccessAdmin } from "./route-guards.js";
+import { registerUiFeatureToggleRoutes } from "./ui-feature-toggles.js";
 import { appendServerEventLog, expressAccessLogger, clientIp as expressClientIp } from "./access-log.js";
 import {
   fetchDartDisclosures,
@@ -321,6 +322,7 @@ export function createApp() {
   app.use(express.json());
   app.use(expressAccessLogger);
   registerAccessControl(app);
+  registerUiFeatureToggleRoutes(app);
   registerUserAuthRoutes(app);
   registerUserCredentialRoutes(app);
 

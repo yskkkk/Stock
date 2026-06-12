@@ -14,7 +14,7 @@ import {
   type CryptoAsset,
 } from "../constants/crypto";
 import { CHART_TIMEFRAMES } from "../constants/timeframes";
-import { SHOW_PROFIT_MODEL_BUTTON } from "../constants/uiFlags";
+import { useUiFeature } from "../contexts/UiFeatureToggleContext";
 import {
   formatPercent,
   formatPrice,
@@ -120,6 +120,7 @@ export default function CryptoTab({
   focusSymbol = null,
   onFocusSymbolConsumed,
 }: CryptoTabProps) {
+  const showProfitModelButton = useUiFeature("profitModelButton");
   const [cryptoAssets, setCryptoAssets] = useState<CryptoAsset[]>(() => {
     const uni = peekCryptoUniversePrefetch();
     return uni?.assets?.length
@@ -164,7 +165,7 @@ export default function CryptoTab({
     useUsdKrwRate(true);
 
   useMobileBackHandler(
-    Boolean(SHOW_PROFIT_MODEL_BUTTON && profitModalOpen),
+    Boolean(showProfitModelButton && profitModalOpen),
     MOBILE_BACK_PRIORITY.PROFIT,
     () => setProfitModalOpen(false),
   );
@@ -582,7 +583,7 @@ export default function CryptoTab({
             />
           </div>
           <div className="quote-bar__right">
-            {SHOW_PROFIT_MODEL_BUTTON ? (
+            {showProfitModelButton ? (
               <button
                 type="button"
                 className="btn btn--secondary quote-bar__profit-btn"
@@ -608,7 +609,7 @@ export default function CryptoTab({
           </div>
         </div>
 
-        {SHOW_PROFIT_MODEL_BUTTON && profitModelResult && profitEntry != null && (
+        {showProfitModelButton && profitModelResult && profitEntry != null && (
           <div
             className={`profit-model-strip card profit-model-strip--${profitStripTone}`}
           >
@@ -795,7 +796,7 @@ export default function CryptoTab({
         </div>
       </section>
 
-      {SHOW_PROFIT_MODEL_BUTTON && profitModalOpen && (
+      {showProfitModelButton && profitModalOpen && (
         <ProfitModelModal
           open={profitModalOpen}
           browserUserId={browserUserId}

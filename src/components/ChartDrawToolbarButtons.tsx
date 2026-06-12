@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import type { ChartDrawMode } from "../chartDrawTypes";
-import { CHART_DRAW_RAY_TOOL_ENABLED } from "../chartDrawTypes";
+import { useUiFeature } from "../contexts/UiFeatureToggleContext";
 import { ko } from "../i18n/ko";
 
 export interface ChartDrawToolbarButtonsProps {
@@ -74,11 +74,13 @@ export default function ChartDrawToolbarButtons({
   onMagnetChange,
   className,
 }: ChartDrawToolbarButtonsProps) {
+  const chartDrawRayEnabled = useUiFeature("chartDrawRay");
+
   useEffect(() => {
-    if (!CHART_DRAW_RAY_TOOL_ENABLED && drawMode === "ray") {
+    if (!chartDrawRayEnabled && drawMode === "ray") {
       onDrawModeChange("cursor");
     }
-  }, [drawMode, onDrawModeChange]);
+  }, [chartDrawRayEnabled, drawMode, onDrawModeChange]);
 
   const rootClass = ["chart-draw-toolbar", className]
     .filter(Boolean)
@@ -124,7 +126,7 @@ export default function ChartDrawToolbarButtons({
       </button>
       <button
         type="button"
-        disabled={!CHART_DRAW_RAY_TOOL_ENABLED}
+        disabled={!chartDrawRayEnabled}
         className={
           drawMode === "ray"
             ? "chart-draw-btn chart-draw-btn--active chart-draw-btn--icon"
@@ -132,11 +134,11 @@ export default function ChartDrawToolbarButtons({
         }
         aria-label={ko.crypto.drawRay}
         title={
-          CHART_DRAW_RAY_TOOL_ENABLED ? ko.crypto.drawRay : ko.crypto.drawRayDisabled
+          chartDrawRayEnabled ? ko.crypto.drawRay : ko.crypto.drawRayDisabled
         }
         aria-pressed={drawMode === "ray"}
         onClick={() => {
-          if (CHART_DRAW_RAY_TOOL_ENABLED) onDrawModeChange("ray");
+          if (chartDrawRayEnabled) onDrawModeChange("ray");
         }}
       >
         <span className="chart-draw-btn__icon">

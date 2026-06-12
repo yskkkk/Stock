@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { LiveTradeHolding } from "../api";
-import { SHOW_HOLDING_RATIONALE_ROW } from "../constants/uiFlags";
+import { useUiFeature } from "../contexts/UiFeatureToggleContext";
 import { formatPercent, formatPrice } from "../lib/format";
 import { useLiveTradeFeeRates } from "../contexts/LiveTradeFeeRatesContext";
 import { netReturnPctFromPrices } from "../lib/netReturn";
@@ -108,7 +108,8 @@ export function LiveTradeHoldingRationaleRow({
   holding: LiveTradeHolding;
   colSpan?: number;
 }) {
-  if (!SHOW_HOLDING_RATIONALE_ROW) return null;
+  const showHoldingRationaleRow = useUiFeature("holdingRationaleRow");
+  if (!showHoldingRationaleRow) return null;
 
   const entryNote = h.entryStructureNote?.trim();
   const exitNote = h.exitScenarioNote?.trim();

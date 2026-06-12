@@ -175,6 +175,7 @@ function isPathPublic(pathname, method) {
   if (method === "GET" && pathname === "/api/health") return true;
   if (method === "GET" && pathname === "/api/config") return true;
   if (method === "GET" && pathname === "/api/access/status") return true;
+  if (method === "GET" && pathname === "/api/ui-features") return true;
   if (method === "POST" && pathname === "/api/server-open-request") return true;
   if (method === "POST" && pathname === "/api/access/request") return true;
   if (method === "POST" && pathname === "/api/feedback") return true;

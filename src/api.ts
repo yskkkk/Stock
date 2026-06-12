@@ -2660,3 +2660,51 @@ export function postFeedbackAdminDelete(adminToken: string, id: string) {
   });
 }
 
+export type UiFeaturesPublicSnapshot = {
+  features: Record<string, boolean>;
+  updatedAtMs: number;
+};
+
+export type UiFeatureAdminItem = {
+  id: string;
+  label: string;
+  description: string;
+  defaultEnabled: boolean;
+  enabled: boolean;
+  hasOverride: boolean;
+  updatedAtMs: number | null;
+};
+
+export type UiFeaturesAdminSnapshot = {
+  items: UiFeatureAdminItem[];
+  updatedAtMs: number;
+};
+
+export function fetchUiFeatures() {
+  return fetchJson<UiFeaturesPublicSnapshot>("/api/ui-features");
+}
+
+export function fetchAccessAdminUiFeatures(adminToken: string) {
+  const headers: Record<string, string> = {};
+  const t = adminToken.trim();
+  if (t) headers.Authorization = `Bearer ${t}`;
+  return fetchJson<UiFeaturesAdminSnapshot>("/api/access/admin/ui-features", {
+    headers: Object.keys(headers).length ? headers : undefined,
+  });
+}
+
+export function postAccessAdminUiFeatureSet(
+  adminToken: string,
+  id: string,
+  enabled: boolean,
+) {
+  return fetchJson<UiFeaturesAdminSnapshot & { ok: boolean }>(
+    "/api/access/admin/ui-features/set",
+    {
+      method: "POST",
+      headers: accessAdminPostHeaders(adminToken),
+      body: JSON.stringify({ id, enabled }),
+    },
+  );
+}
+

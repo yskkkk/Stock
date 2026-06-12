@@ -8,7 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { createPortal } from "react-dom";
-import { ENABLE_THEME_MODE_TOGGLE } from "../constants/uiFlags";
+import { useUiFeature } from "../contexts/UiFeatureToggleContext";
 import { applyThemeBlend, clearThemeBlend } from "../lib/themeBlend";
 import {
   LIGHT_PALETTE_IDS,
@@ -101,6 +101,7 @@ export default function AppThemeCorner({
   onColorModeChange,
   onLightPalette,
 }: AppThemeCornerProps) {
+  const enableThemeModeToggle = useUiFeature("themeModeToggle");
   const isLight = colorMode === "light";
   const trackRef = useRef<HTMLSpanElement>(null);
   const thumbRef = useRef<HTMLSpanElement>(null);
@@ -172,7 +173,7 @@ export default function AppThemeCorner({
   );
 
   const onModePointerDown = (e: ReactPointerEvent<HTMLButtonElement>) => {
-    if (!ENABLE_THEME_MODE_TOGGLE || e.button !== 0) return;
+    if (!enableThemeModeToggle || e.button !== 0) return;
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
     measureThumbWidth();
@@ -192,7 +193,7 @@ export default function AppThemeCorner({
   };
 
   const onModePointerUp = (e: ReactPointerEvent<HTMLButtonElement>) => {
-    if (!ENABLE_THEME_MODE_TOGGLE) return;
+    if (!enableThemeModeToggle) return;
     if (e.currentTarget.hasPointerCapture(e.pointerId)) {
       e.currentTarget.releasePointerCapture(e.pointerId);
     }
@@ -230,14 +231,14 @@ export default function AppThemeCorner({
   const centerEggOpacity = centerIconOpacityFromT(thumbT, dragging);
   const showCenterEggOverlay = dragging && centerEggOpacity > 0.01;
 
-  const themeTitle = !ENABLE_THEME_MODE_TOGGLE
+  const themeTitle = !enableThemeModeToggle
     ? ko.app.themeToggleDisabledHint
     : isLight
       ? ko.app.themeUseDark
       : ko.app.themeUseLight;
 
   const onModeKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
-    if (!ENABLE_THEME_MODE_TOGGLE) return;
+    if (!enableThemeModeToggle) return;
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       onColorModeChange(isLight ? "dark" : "light");
@@ -290,7 +291,7 @@ export default function AppThemeCorner({
         aria-label={themeTitle}
         role="switch"
         aria-checked={isLight}
-        disabled={!ENABLE_THEME_MODE_TOGGLE}
+        disabled={!enableThemeModeToggle}
         onKeyDown={onModeKeyDown}
         onPointerDown={onModePointerDown}
         onPointerMove={onModePointerMove}
