@@ -8,13 +8,57 @@ import {
   averageEpsFromHistory,
   loadAnnualEpsHistory,
 } from "./value-invest-eps-history.js";
+import { loadStock } from "./stock-data.js";
 
 const DEFAULT_TARGET_RETURN = 0.15;
 const DEFAULT_YEARS = 10;
 
 /**
+ * 역사적 평균 PER: 연도별 평균주가 ÷ 연도별 EPS
+ * @param {{ year: number; eps: number }[]} epsHistory
+ * @param {{ candles?: { time: number; close: number }[] } | null} candleData
+ * @returns {{ avg: number | null; perByYear: { year: number; per: number; avgPrice: number }[]; source: string | null }}
+ */
+function computeHistoricalAveragePer(epsHistory, candleData) {
+  const candles = Array.isArray(candleData?.candles) ? candleData.candles : [];
+  if (!candles.length || !epsHistory.length) return { avg: null, perByYear: [], source: null };
+
+  /** @type {Map<number, number[]>} */
+  const pricesByYear = new Map();
+  for (const c of candles) {
+    if (!Number.isFinite(c.close) || c.close <= 0) continue;
+    const year = new Date(c.time * 1000).getFullYear();
+    if (!pricesByYear.has(year)) pricesByYear.set(year, []);
+    pricesByYear.get(year).push(c.close);
+  }
+
+  const perByYear = [];
+  for (const { year, eps } of epsHistory) {
+    if (eps <= 0) continue;
+    const prices = pricesByYear.get(year);
+    if (!prices?.length) continue;
+    const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
+    const per = avgPrice / eps;
+    if (Number.isFinite(per) && per > 1 && per < 150) {
+      perByYear.push({ year, per: Math.round(per * 100) / 100, avgPrice: Math.round(avgPrice * 100) / 100 });
+    }
+  }
+
+  if (!perByYear.length) return { avg: null, perByYear: [], source: null };
+
+  const avg = perByYear.reduce((sum, r) => sum + r.per, 0) / perByYear.length;
+  const start = perByYear[0].year;
+  const end = perByYear[perByYear.length - 1].year;
+  return {
+    avg: Number.isFinite(avg) && avg > 0 ? Math.round(avg * 100) / 100 : null,
+    perByYear,
+    source: `역사적 평균 PER ${start}–${end} (${perByYear.length}개 연도 평균주가÷EPS)`,
+  };
+}
+
+/**
  * @param {Awaited<ReturnType<typeof loadStockFundamentals>>} f
- * @param {{ targetReturnRate?: number; years?: number; epsHistory?: { year: number; eps: number }[] }} opts
+ * @param {{ targetReturnRate?: number; years?: number; epsHistory?: { year: number; eps: number }[]; historicalPer?: ReturnType<typeof computeHistoricalAveragePer> }} opts
  */
 export function buildValueInvestInputsFromFundamentals(f, opts = {}) {
   const targetReturnRate = opts.targetReturnRate ?? DEFAULT_TARGET_RETURN;
@@ -56,11 +100,19 @@ export function buildValueInvestInputsFromFundamentals(f, opts = {}) {
     sources.growthRate = growthSource ?? "";
   }
 
-  const averagePer = f.per;
+  // 역사적 평균 PER 우선, 없으면 현재 Trailing PER 폴백
+  const historicalPerData = opts.historicalPer ?? null;
+  const averagePer = (historicalPerData?.avg != null && historicalPerData.avg > 0)
+    ? historicalPerData.avg
+    : f.per;
+  const averagePerSource = (historicalPerData?.avg != null && historicalPerData.avg > 0)
+    ? historicalPerData.source
+    : f.source;
+
   if (averagePer == null || averagePer <= 0) {
     missing.push("PER");
   } else {
-    sources.averagePer = f.source;
+    sources.averagePer = averagePerSource ?? f.source;
   }
 
   let payoutRatio = null;
@@ -123,6 +175,7 @@ export function buildValueInvestInputsFromFundamentals(f, opts = {}) {
     inputSources: sources,
     payoutSource,
     growthSource,
+    historicalPerData: historicalPerData ?? null,
     warnings,
     result,
     missing,
@@ -140,9 +193,10 @@ export function buildValueInvestInputsFromFundamentals(f, opts = {}) {
  * @param {{ targetReturnRate?: number; years?: number; price?: number }} [opts]
  */
 export async function loadValueInvestReturn(symbol, opts = {}) {
-  const [fundamentals, epsHistory] = await Promise.all([
+  const [fundamentals, epsHistory, candleData] = await Promise.all([
     loadStockFundamentals(symbol),
     loadAnnualEpsHistory(symbol).catch(() => []),
+    loadStock(symbol, "1d").catch(() => null),
   ]);
 
   if (opts.price != null && Number.isFinite(opts.price) && opts.price > 0) {
@@ -150,7 +204,9 @@ export async function loadValueInvestReturn(symbol, opts = {}) {
     sourcesPatch(fundamentals);
   }
 
-  return buildValueInvestInputsFromFundamentals(fundamentals, { ...opts, epsHistory });
+  const historicalPer = computeHistoricalAveragePer(epsHistory, candleData);
+
+  return buildValueInvestInputsFromFundamentals(fundamentals, { ...opts, epsHistory, historicalPer });
 }
 
 /** @param {Awaited<ReturnType<typeof loadStockFundamentals>>} f */
