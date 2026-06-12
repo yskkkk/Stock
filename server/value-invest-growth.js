@@ -2,8 +2,14 @@
  * 10년 수익 모델 — 성장률 산출 (연간 EPS 이력 CAGR)
  */
 
+/** 10년 복리 가정 상한 (단기 EPS 이력·1년 추정 폴백) */
+export const GROWTH_10Y_CAP = 0.25;
+
 /** EPS CAGR 산출에 쓰는 최대 연수 */
 export const EPS_GROWTH_HISTORY_YEARS = 10;
+
+/** 이 연수 이하 연말 EPS만 있으면 CAGR 왜곡 방지를 위해 상한 적용 */
+export const EPS_SHORT_HISTORY_CAP_YEARS = 3;
 
 /**
  * @param {{ year: number; eps: number }[]} series
@@ -55,15 +61,36 @@ export function buildEpsGrowthByYear(series) {
   }));
 }
 
+/** @param {{ year: number; eps: number }[]} series */
+function countPositiveEpsYears(series) {
+  return (series ?? []).filter((s) => s.year > 0 && s.eps > 0).length;
+}
+
+/** @param {{ year: number; eps: number }[]} series */
+function shouldCapShortEpsHistory(series) {
+  return countPositiveEpsYears(series) <= EPS_SHORT_HISTORY_CAP_YEARS;
+}
+
 /**
  * @param {{ year: number; eps: number }[]} series
+ * @param {number} [rawGrowth]
+ * @param {number} [appliedGrowth]
  */
-function formatEpsCagrSource(series) {
+function formatEpsCagrSource(series, rawGrowth, appliedGrowth) {
   const window = epsGrowthWindow(series);
   if (!window) return "EPS CAGR";
   const { start, end, periodYears, fromListing } = window;
   const spanNote = fromListing ? `, API 가용 ${periodYears}년` : "";
-  return `EPS CAGR ${start.year}→${end.year} (${periodYears}년${spanNote})`;
+  const base = `EPS CAGR ${start.year}→${end.year} (${periodYears}년${spanNote})`;
+  if (
+    rawGrowth != null &&
+    appliedGrowth != null &&
+    rawGrowth > GROWTH_10Y_CAP &&
+    appliedGrowth === GROWTH_10Y_CAP
+  ) {
+    return `${base} → 10년 상한 ${GROWTH_10Y_CAP * 100}%`;
+  }
+  return base;
 }
 
 /** @param {number} v */
@@ -82,28 +109,41 @@ function fmtPct(v) {
 
 /**
  * @param {{ year: number; eps: number }[]} series
- * @param {number} value
+ * @param {number} rawGrowth
+ * @param {number} appliedGrowth
  */
-function buildEpsCagrDetail(series, value) {
+function buildEpsCagrDetail(series, rawGrowth, appliedGrowth) {
   const window = epsGrowthWindow(series);
   if (!window) {
-    return { method: "eps_cagr", lines: ["연간 EPS 이력 CAGR", `결과: ${fmtPct(value)}`] };
+    return { method: "eps_cagr", lines: ["연간 EPS 이력 CAGR", `결과: ${fmtPct(appliedGrowth)}`] };
   }
   const { start, end, periodYears, fromListing } = window;
   const startEps = fmtEpsNum(start.eps);
   const endEps = fmtEpsNum(end.eps);
+  const capped =
+    rawGrowth > GROWTH_10Y_CAP &&
+    appliedGrowth === GROWTH_10Y_CAP &&
+    shouldCapShortEpsHistory(series);
+  /** @type {string[]} */
+  const lines = [
+    "연말 결산 EPS 이력 CAGR (분기·전망 제외)",
+    fromListing
+      ? `구간: ${start.year}→${end.year} (API 가용 ${periodYears}년, 연말 실적 전체)`
+      : `구간: ${start.year}→${end.year} (최근 ${periodYears}년 연말 실적)`,
+    `시작 EPS (${start.year}): ${startEps}`,
+    `종료 EPS (${end.year}): ${endEps}`,
+    `식: (${endEps} ÷ ${startEps})^(1/${periodYears}) − 1`,
+    `원 CAGR: ${fmtPct(rawGrowth)}`,
+  ];
+  if (capped) {
+    lines.push(
+      `단기 이력 ${countPositiveEpsYears(series)}년 — 10년 복리 가정 ${fmtPct(GROWTH_10Y_CAP)} 상한`,
+    );
+  }
+  lines.push(`적용: ${fmtPct(appliedGrowth)}`);
   return {
     method: "eps_cagr",
-    lines: [
-      "연말 결산 EPS 이력 CAGR (분기·전망 제외)",
-      fromListing
-        ? `구간: ${start.year}→${end.year} (API 가용 ${periodYears}년, 연말 실적 전체)`
-        : `구간: ${start.year}→${end.year} (최근 ${periodYears}년 연말 실적)`,
-      `시작 EPS (${start.year}): ${startEps}`,
-      `종료 EPS (${end.year}): ${endEps}`,
-      `식: (${endEps} ÷ ${startEps})^(1/${periodYears}) − 1`,
-      `결과: ${fmtPct(value)}`,
-    ],
+    lines,
     table: buildEpsGrowthByYear(series),
   };
 }
@@ -120,30 +160,44 @@ export function deriveValueInvestGrowth10y(f) {
   /** @type {string[]} */
   const warnings = [];
 
-  const histGrowth = epsCagrFromHistory(f.epsHistory ?? []);
+  const epsHistory = f.epsHistory ?? [];
+  const histGrowth = epsCagrFromHistory(epsHistory);
   if (histGrowth != null && Number.isFinite(histGrowth)) {
-    if (histGrowth < -0.4) {
+    const shortHistory = shouldCapShortEpsHistory(epsHistory);
+    const applied =
+      shortHistory && histGrowth > GROWTH_10Y_CAP ? GROWTH_10Y_CAP : histGrowth;
+    if (shortHistory && histGrowth > GROWTH_10Y_CAP) {
+      warnings.push(
+        `EPS CAGR ${(histGrowth * 100).toFixed(1)}% — 단기 이력 ${countPositiveEpsYears(epsHistory)}년, 10년 복리 ${GROWTH_10Y_CAP * 100}% 상한`,
+      );
+    } else if (histGrowth < -0.4) {
       warnings.push(`EPS CAGR ${(histGrowth * 100).toFixed(1)}% — 음수 성장 구간`);
     }
     return {
-      value: histGrowth,
-      source: formatEpsCagrSource(f.epsHistory ?? []),
-      detail: buildEpsCagrDetail(f.epsHistory ?? [], histGrowth),
+      value: applied,
+      source: formatEpsCagrSource(epsHistory, histGrowth, applied),
+      detail: buildEpsCagrDetail(epsHistory, histGrowth, applied),
       warnings,
     };
   }
 
   const rg = f.revenueGrowth;
   if (rg != null && Number.isFinite(rg)) {
+    const capped = Math.min(rg, GROWTH_10Y_CAP);
+    if (rg > GROWTH_10Y_CAP) {
+      warnings.push(`매출 성장률 ${(rg * 100).toFixed(1)}% — 10년 상한 ${GROWTH_10Y_CAP * 100}% 적용`);
+    }
     return {
-      value: rg,
+      value: capped,
       source: "Yahoo revenueGrowth",
       detail: {
         method: "revenue_growth",
         lines: [
           "EPS 이력 부족 → Yahoo revenueGrowth 사용",
           "Yahoo Finance 매출 성장률 필드",
-          `결과: ${fmtPct(rg)}`,
+          rg > GROWTH_10Y_CAP
+            ? `원: ${fmtPct(rg)} → 적용: ${fmtPct(capped)} (10년 상한)`
+            : `결과: ${fmtPct(capped)}`,
         ],
       },
       warnings,
@@ -154,6 +208,28 @@ export function deriveValueInvestGrowth10y(f) {
   const fwd = f.forwardEps;
   if (eps != null && eps > 0 && fwd != null && fwd > 0) {
     const implied1y = fwd / eps - 1;
+    if (implied1y > GROWTH_10Y_CAP) {
+      warnings.push(
+        `Forward EPS(${fwd.toLocaleString()})는 차기 1년 컨센서스, Trailing EPS(${eps.toLocaleString()}) 대비 +${(implied1y * 100).toFixed(0)}%입니다. 10년 성장률은 ${GROWTH_10Y_CAP * 100}% 상한을 적용했습니다.`,
+      );
+      const trailing = fmtEpsNum(eps);
+      const forward = fmtEpsNum(fwd);
+      return {
+        value: GROWTH_10Y_CAP,
+        source: `Forward÷Trailing +${(implied1y * 100).toFixed(0)}% (1년) → 10년 상한 ${GROWTH_10Y_CAP * 100}%`,
+        detail: {
+          method: "forward_trailing",
+          lines: [
+            "EPS 이력 부족 → Forward÷Trailing 폴백",
+            `Trailing EPS: ${trailing}`,
+            `Forward EPS: ${forward}`,
+            `식: (${forward} ÷ ${trailing}) − 1`,
+            `원: ${fmtPct(implied1y)} (차기 1년) → 적용: ${fmtPct(GROWTH_10Y_CAP)}`,
+          ],
+        },
+        warnings,
+      };
+    }
     if (implied1y < -0.5) {
       warnings.push(`Forward÷Trailing ${(implied1y * 100).toFixed(0)}% — 급격한 이익 감소 구간`);
     }

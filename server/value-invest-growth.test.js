@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildEpsGrowthByYear,
+  GROWTH_10Y_CAP,
   epsCagrFromHistory,
   epsGrowthWindow,
   deriveValueInvestGrowth10y,
@@ -92,20 +93,38 @@ describe("deriveValueInvestGrowth10y", () => {
     expect(r.source).toMatch(/CAGR/);
   });
 
-  it("1년 50% — 상한 없이 그대로", () => {
+  it("1년 50% — 4년 이상 이력이면 상한 없음", () => {
     const r = deriveValueInvestGrowth10y({
       eps: null,
       forwardEps: null,
       revenueGrowth: null,
       epsHistory: [
-        { year: 2023, eps: 10 },
-        { year: 2024, eps: 15 },
+        { year: 2020, eps: 8 },
+        { year: 2021, eps: 9 },
+        { year: 2022, eps: 10 },
+        { year: 2023, eps: 15 },
       ],
     });
-    expect(r.value).toBeCloseTo(0.5, 4);
+    expect(r.value).toBeCloseTo(cagr(8, 15, 3), 4);
   });
 
-  it("NVIDIA 1년 급성장 — 상한 없음", () => {
+  it("3년 이하 이력 — 25% 상한", () => {
+    const r = deriveValueInvestGrowth10y({
+      eps: null,
+      forwardEps: null,
+      revenueGrowth: null,
+      epsHistory: [
+        { year: 2023, eps: 2131 },
+        { year: 2024, eps: 4950 },
+        { year: 2025, eps: 6564 },
+      ],
+    });
+    expect(r.value).toBe(GROWTH_10Y_CAP);
+    expect(r.source).toMatch(/10년 상한 25%/);
+    expect(r.warnings[0]).toMatch(/단기 이력 3년/);
+  });
+
+  it("NVIDIA 1년 급성장 — 2년 이력이면 25% 상한", () => {
     const r = deriveValueInvestGrowth10y({
       eps: null,
       forwardEps: null,
@@ -115,7 +134,7 @@ describe("deriveValueInvestGrowth10y", () => {
         { year: 2024, eps: 11.93 },
       ],
     });
-    expect(r.value).toBeCloseTo(cagr(1.74, 11.93, 1), 3);
+    expect(r.value).toBe(GROWTH_10Y_CAP);
   });
 
   it("EPS CAGR detail — 구간·식·결과", () => {
@@ -130,8 +149,7 @@ describe("deriveValueInvestGrowth10y", () => {
     });
     expect(r.detail?.method).toBe("eps_cagr");
     expect(r.detail?.lines.join("\n")).toMatch(/2023→2024/);
-    expect(r.detail?.lines.join("\n")).toMatch(/10 ÷ 12|12 ÷ 10/);
-    expect(r.detail?.lines.at(-1)).toMatch(/20\.0%/);
+    expect(r.detail?.lines.join("\n")).toMatch(/적용: 20\.0%/);
   });
 });
 
