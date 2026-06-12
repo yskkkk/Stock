@@ -40,13 +40,25 @@ export function summarizeHoldingsPnl(
 
 /** 현재가×수량 평가액에서 매도 수수료(왕복의 절반)를 뺀 순평가액 */
 export function holdingNetMarketValue(
-  h: LiveTradeHolding,
+  h: Pick<LiveTradeHolding, "marketValue">,
   roundTripFeeRate: number,
 ): number | null {
   const mv = h.marketValue;
   if (mv == null || !Number.isFinite(mv) || mv <= 0) return null;
   const askFee = normalizeRoundTripFeeRate(roundTripFeeRate) / 2;
   return Math.round(mv * (1 - askFee));
+}
+
+/** 매도 수수료 반영 미실현 손익 */
+export function holdingNetUnrealizedPnl(
+  h: Pick<LiveTradeHolding, "costBasis" | "marketValue">,
+  roundTripFeeRate: number,
+): number | null {
+  const cost = h.costBasis;
+  const netMv = holdingNetMarketValue(h, roundTripFeeRate);
+  if (!(cost > 0) || netMv == null) return null;
+  const pnl = netMv - cost;
+  return Number.isFinite(pnl) ? pnl : null;
 }
 
 /** 시뮬·체결 원장 — 프로그램 예산에서 매수·매도 반영한 원화 현금 */

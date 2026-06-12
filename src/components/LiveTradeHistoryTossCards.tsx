@@ -78,8 +78,7 @@ export default function LiveTradeHistoryTossCards({
         const fd = tradeFill.get(t.id);
         const name =
           nameBySymbol.get(t.symbol.toUpperCase()) ??
-          String(t.name ?? "").trim() ||
-          t.symbol;
+          (String(t.name ?? "").trim() || t.symbol);
         const roundTrip = roundTripFeeForMarket(t.market, feeByMarket);
         const gross = t.amount;
         const fee =
@@ -119,15 +118,17 @@ export default function LiveTradeHistoryTossCards({
           label: ko.app.tossMyStockAvgPerShare,
           value: formatPrice(t.price, t.currency),
         });
-        rows.push({
-          label: ko.app.tossMyStockFee,
-          value: estMoney(fee, t.currency),
-        });
 
+        const feeTaxRows: TossMyStockSummaryRow[] = [
+          {
+            label: ko.app.tossMyStockFee,
+            value: estMoney(fee, t.currency),
+          },
+        ];
         if (t.side === "sell") {
           const tax = estimateSaleTaxAmount(gross, t.market);
           if (tax > 0) {
-            rows.push({
+            feeTaxRows.push({
               label: ko.app.tossMyStockSaleTax,
               value: estMoney(tax, t.currency),
             });
@@ -145,6 +146,7 @@ export default function LiveTradeHistoryTossCards({
               </>
             }
             rows={rows}
+            feeTaxRows={feeTaxRows}
             showFeeTaxLink={t.side === "sell"}
           />
         );

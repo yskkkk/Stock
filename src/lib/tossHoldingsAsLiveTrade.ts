@@ -27,9 +27,12 @@ export function mapTossHoldingsToLiveTrade(
       currentPrice: h.currentPrice ?? null,
       marketValue: mv,
       unrealizedPnl: unreal,
+      grossChangePct: h.returnPercent ?? h.dailyChangePercent ?? null,
       changePct: h.returnPercent ?? h.dailyChangePercent ?? null,
       targetSellPrice: null,
       stopLossPrice: null,
+      openedAtMs: null,
+      lastAtMs: null,
     };
   });
 }

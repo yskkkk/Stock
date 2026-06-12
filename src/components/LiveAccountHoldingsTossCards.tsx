@@ -18,7 +18,10 @@ import {
   estimateSellFeeAmount,
   roundTripFeeForMarket,
 } from "../lib/tossTradeCardEstimates";
-import { holdingNetReturnPctFromCost } from "../lib/livePortfolioPnl";
+import {
+  holdingNetReturnPctFromCost,
+  holdingNetUnrealizedPnl,
+} from "../lib/livePortfolioPnl";
 import TossMyStockSummaryCard from "./TossMyStockSummaryCard";
 
 function qtyWithUnit(qty: number, market: LiveTradeMarket): string {
@@ -35,10 +38,12 @@ export default function LiveAccountHoldingsTossCards({
   exchange,
   holdings,
   cumulativeReturnBySymbol,
+  onOpenHoldingChart,
 }: {
   exchange: LiveTradeTradesExchange;
   holdings: LiveTradeHolding[];
   cumulativeReturnBySymbol?: Map<string, number | null>;
+  onOpenHoldingChart?: (h: LiveTradeHolding) => void;
 }) {
   const status = useLiveTradingStatusPoll();
   const feeByMarket = useMemo(
@@ -69,10 +74,9 @@ export default function LiveAccountHoldingsTossCards({
           const tax = estimateSaleTaxAmount(mv, h.market);
           const cumKey = exchangeSymbolKey(h);
           const cumPct = cumulativeReturnBySymbol?.get(cumKey);
+          const pnl = holdingNetUnrealizedPnl(h, roundTrip);
           const retPct =
-            cumPct ??
-            holdingNetReturnPctFromCost(h.costBasis, h.marketValue, roundTrip);
-          const pnl = h.unrealizedPnl;
+            cumPct ?? holdingNetReturnPctFromCost(h.costBasis, h.marketValue, roundTrip);
           const pnlUp = (pnl ?? 0) >= 0;
           const profitValue =
             pnl != null
@@ -85,12 +89,14 @@ export default function LiveAccountHoldingsTossCards({
             <TossMyStockSummaryCard
               key={`${h.programId}:${h.market}:${h.symbol}`}
               title={h.name?.trim() || h.symbol}
+              onTitleClick={
+                onOpenHoldingChart ? () => onOpenHoldingChart(h) : undefined
+              }
               rows={[
                 {
                   label: ko.app.tossMyStockTotalProfit,
                   value: profitValue,
-                  tone:
-                    pnl == null ? "flat" : pnlUp ? "up" : "down",
+                  tone: pnl == null ? "flat" : pnlUp ? "up" : "down",
                 },
                 {
                   label: ko.app.tossMyStockTotalAmount,
@@ -110,6 +116,8 @@ export default function LiveAccountHoldingsTossCards({
                       ? formatPrice(h.avgEntryPrice, h.currency)
                       : "—",
                 },
+              ]}
+              feeTaxRows={[
                 {
                   label: ko.app.tossMyStockFee,
                   value: estMoney(fee, h.currency),

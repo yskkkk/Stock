@@ -31,9 +31,7 @@ export default function LiveAccountTradesMainPanel({
   onOpenHoldingChart,
 }: {
   scenario: LiveTradeHistoryScenario;
-  onOpenHoldingChart?: Parameters<
-    typeof LiveAccountHoldingsTable
-  >[0]["onOpenHoldingChart"];
+  onOpenHoldingChart?: (h: LiveTradeHolding) => void;
 }) {
   const exchange =
     scenario === "live-toss"
@@ -136,7 +134,7 @@ export default function LiveAccountTradesMainPanel({
     showBalance && scenario === "live-toss" && liveHoldings.length > 0,
   );
   const accountPnl = useMemo(() => {
-    if (!showBalance || scenario === "sim") return null;
+    if (!showBalance) return null;
     if (exchangeTrades.length === 0 && liveHoldings.length === 0) return null;
     return exchangeAccountPnlSummary(exchangeTrades, liveHoldings, {
       usdKrwRate,
@@ -192,6 +190,7 @@ export default function LiveAccountTradesMainPanel({
                 exchange={exchange}
                 holdings={liveHoldings}
                 cumulativeReturnBySymbol={cumulativeReturnBySymbol}
+                onOpenHoldingChart={onOpenHoldingChart}
               />
             </>
           )

@@ -16,6 +16,7 @@ import {
 } from "../lib/recTrackerQuotes";
 import { useValueInvestBubble } from "../contexts/ValueInvestBubbleContext";
 import { signalChipMeta } from "../constants/signalChips";
+import { pointerFromElementCenter } from "../lib/bubblePointerAnchor";
 import { stockPickToValueInvestTarget } from "../lib/valueInvestBubbleTarget";
 import type { SignalId } from "../constants/signals";
 import {
@@ -1015,7 +1016,7 @@ function RecTrackerRow({
             showValueInvestBubble(
               e.currentTarget,
               stockPickToValueInvestTarget(pick),
-              { clientX: e.clientX, clientY: e.clientY },
+              pointerFromElementCenter(e.currentTarget),
             );
           }
           onOpenPick(pick);

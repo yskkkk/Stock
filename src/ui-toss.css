@@ -4550,9 +4550,9 @@ html[data-theme="light"] .live-trading-tab__program-actions .btn:hover:not(:disa
 }
 
 .toss-my-stock-card {
-  background: #1b1e23;
-  color: #eceff3;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--toss-my-stock-card-bg, #1b1e23);
+  color: var(--toss-my-stock-card-fg, #eceff3);
+  border: 1px solid var(--toss-my-stock-card-border, rgba(255, 255, 255, 0.07));
   border-radius: 14px;
   padding: 1rem 1.05rem 0.85rem;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
@@ -4562,12 +4562,28 @@ html[data-theme="light"] .live-trading-tab__program-actions .btn:hover:not(:disa
   margin-bottom: 0.35rem;
 }
 
+.toss-my-stock-card__title-btn {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.toss-my-stock-card__title-btn:hover .toss-my-stock-card__title {
+  text-decoration: underline;
+}
+
 .toss-my-stock-card__title {
   margin: 0;
   font-size: 1.02rem;
   font-weight: 750;
   letter-spacing: -0.02em;
-  color: #fff;
+  color: var(--toss-my-stock-card-title, #fff);
 }
 
 .toss-my-stock-card__meta {
@@ -4632,20 +4648,59 @@ html[data-theme="light"] .live-trading-tab__program-actions .btn:hover:not(:disa
 
 .toss-my-stock-card__fee-tax {
   grid-column: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
   margin: 0;
-  padding: 0;
-  border: none;
+  padding: 0.2rem 0.45rem;
+  border: 1px solid rgba(110, 168, 254, 0.35);
+  border-radius: 999px;
   background: transparent;
   font: inherit;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 650;
   color: #6ea8fe;
   cursor: pointer;
   white-space: nowrap;
 }
 
+.toss-my-stock-card__fee-tax--on {
+  background: rgba(110, 168, 254, 0.14);
+  border-color: rgba(110, 168, 254, 0.55);
+}
+
+.toss-my-stock-card__fee-tax-check {
+  font-size: 0.68rem;
+  line-height: 1;
+}
+
 .toss-my-stock-card__fee-tax:hover {
-  text-decoration: underline;
+  text-decoration: none;
+  background: rgba(110, 168, 254, 0.1);
+}
+
+:root[data-theme="light"] .toss-my-stock-card {
+  --toss-my-stock-card-bg: #f4f6f8;
+  --toss-my-stock-card-fg: #1a1d21;
+  --toss-my-stock-card-border: rgba(0, 0, 0, 0.08);
+  --toss-my-stock-card-title: #111;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+:root[data-theme="light"] .toss-my-stock-card__row {
+  border-top-color: rgba(0, 0, 0, 0.06);
+}
+
+:root[data-theme="light"] .toss-my-stock-card__label {
+  color: rgba(26, 29, 33, 0.75);
+}
+
+:root[data-theme="light"] .toss-my-stock-card__value {
+  color: #111;
+}
+
+:root[data-theme="light"] .toss-my-stock-card__meta {
+  color: rgba(26, 29, 33, 0.55);
 }
 
 .live-account-holdings--toss-cards .live-account-holdings__title {

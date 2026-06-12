@@ -1,4 +1,5 @@
 import type { LiveTradeMarket } from "../types";
+import type { LiveTradeFeeRateByMarket } from "./livePortfolioLiveQuotes";
 import { normalizeRoundTripFeeRate, DEFAULT_ROUND_TRIP_FEE_RATE } from "./netReturn";
 
 /** 국내 상장 매도 시 증권거래세 등 간이 추정(토스 앱 표시와 유사) */
@@ -6,7 +7,7 @@ export const KR_LISTED_SALE_TAX_RATE = 0.002;
 
 export function roundTripFeeForMarket(
   market: LiveTradeMarket,
-  roundTripByMarket?: Partial<Record<LiveTradeMarket, number>>,
+  roundTripByMarket?: LiveTradeFeeRateByMarket,
 ): number {
   const raw =
     roundTripByMarket?.[market] ??
