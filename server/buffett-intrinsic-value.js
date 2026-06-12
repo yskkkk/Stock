@@ -121,7 +121,7 @@ export function calcEpsVolatility(epsValues) {
   const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
   if (mean <= 0) return null;
   const variance =
-    vals.reduce((acc, v) => acc + (v - mean) ** 2, 0) / vals.length;
+    vals.reduce((acc, v) => acc + (v - mean) ** 2, 0) / (vals.length - 1);
   const cv = Math.sqrt(variance) / mean;
   return Number.isFinite(cv) ? cv : null;
 }

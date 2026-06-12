@@ -375,6 +375,7 @@ export async function pollerGuardAsync(id, fn) {
     runtime[id].tickCount = (runtime[id].tickCount ?? 0) + 1;
   } catch (e) {
     runtime[id].lastError = e instanceof Error ? e.message : String(e);
+    // 호출부(runner.js)에서 .catch()로 처리 — UnhandledRejection 없음
     throw e;
   } finally {
     runtime[id].running = false;

@@ -64,7 +64,7 @@ async function fetchHistoricalEpsSeries(symbol, market) {
   const sym = String(symbol ?? "").trim().toUpperCase();
   const periods = await loadFinancialPeriods(sym).catch(() => null);
   if (!periods?.periods?.length) {
-    return { series: [], netIncomeSharesProxy: false };
+    return { series: [], netIncomeSharesProxy: false, periodsMeta: null, sharesInfo: { shares: null } };
   }
 
   /** @type {Map<number, import("./stock-financials.js").FinancialPeriodRow>} */
@@ -128,6 +128,8 @@ async function fetchHistoricalEpsSeries(symbol, market) {
   return {
     series: out.sort((a, b) => a.year - b.year),
     netIncomeSharesProxy: usedNetIncomeShares,
+    periodsMeta: periods,
+    sharesInfo,
   };
 }
 
@@ -151,6 +153,9 @@ function epsFromNetIncomeAndShares(detail, shares) {
   return null;
 }
 
+/** 버핏 DCF 10년 명시구간 성장률 상한 — 미래 예측 불확실성 반영 */
+const BUFFETT_GROWTH_CAP = 0.25;
+
 /**
  * @param {{ year: number; eps: number }[]} series
  * @param {{ eps: number | null; forwardEps: number | null }} fundamentals
@@ -164,9 +169,13 @@ function deriveGrowth10y(series, fundamentals) {
     if (span >= 2 && first.eps > 0 && last.eps > 0) {
       const cagr = (last.eps / first.eps) ** (1 / span) - 1;
       if (Number.isFinite(cagr)) {
+        const capped = Math.min(cagr, BUFFETT_GROWTH_CAP);
         return {
-          value: cagr,
-          source: `연간 EPS CAGR ${first.year}–${last.year} (${positive.length}개 실적)`,
+          value: capped,
+          source:
+            cagr > BUFFETT_GROWTH_CAP
+              ? `연간 EPS CAGR ${first.year}–${last.year} (${positive.length}개 실적) → 보수적 상한 ${BUFFETT_GROWTH_CAP * 100}%`
+              : `연간 EPS CAGR ${first.year}–${last.year} (${positive.length}개 실적)`,
         };
       }
     }
@@ -177,12 +186,17 @@ function deriveGrowth10y(series, fundamentals) {
   if (eps != null && eps > 0 && fwd != null && fwd > 0) {
     const implied = fwd / eps - 1;
     if (Number.isFinite(implied)) {
+      const capped = Math.min(implied, BUFFETT_GROWTH_CAP);
       return {
-        value: implied,
+        value: capped,
         source:
-          fundamentals.market === "kr"
-            ? "Naver Forward EPS ÷ Trailing EPS"
-            : "Yahoo Forward EPS ÷ Trailing EPS",
+          implied > BUFFETT_GROWTH_CAP
+            ? (fundamentals.market === "kr"
+                ? `Naver Forward EPS ÷ Trailing EPS → 보수적 상한 ${BUFFETT_GROWTH_CAP * 100}%`
+                : `Yahoo Forward EPS ÷ Trailing EPS → 보수적 상한 ${BUFFETT_GROWTH_CAP * 100}%`)
+            : (fundamentals.market === "kr"
+                ? "Naver Forward EPS ÷ Trailing EPS"
+                : "Yahoo Forward EPS ÷ Trailing EPS"),
       };
     }
   }
@@ -261,13 +275,12 @@ export async function loadBuffettIntrinsicValue(symbol, opts = {}) {
   const margin = opts.marginOfSafety ?? 0.25;
   const years = opts.years ?? 10;
 
-  const [riskFree, epsHistory, sharesInfo, periodsMeta] = await Promise.all([
+  const [riskFree, epsHistory] = await Promise.all([
     fetchRiskFreeRate(market),
     fetchHistoricalEpsSeries(sym, market),
-    fetchSharesOutstanding(sym),
-    loadFinancialPeriods(sym).catch(() => null),
   ]);
   const epsSeries = epsHistory.series;
+  const { periodsMeta, sharesInfo } = epsHistory;
 
   const eps0 = fundamentals.eps;
   const price = fundamentals.price;
@@ -292,9 +305,9 @@ export async function loadBuffettIntrinsicValue(symbol, opts = {}) {
 
   let debtPerShare = null;
   if (periodsMeta?.periods?.length && sharesInfo.shares) {
-    const latestAnnual = periodsMeta.periods.find(
-      (p) => p.kind === "annual" && !p.isForecast,
-    );
+    const latestAnnual = periodsMeta.periods
+      .filter((p) => p.kind === "annual" && !p.isForecast)
+      .sort((a, b) => (b.endDateMs ?? 0) - (a.endDateMs ?? 0))[0];
     if (latestAnnual) {
       try {
         const detail = await loadFinancialStatementDetail(sym, latestAnnual.id);

@@ -45,16 +45,33 @@ export async function loadAnnualEpsHistory(symbol) {
   const periods = await loadFinancialPeriods(sym).catch(() => null);
   if (!periods?.periods?.length) return [];
 
-  const annual = periods.periods
-    .filter((p) => p.kind === "annual" && !p.isForecast)
+  /** 연도별 중복 제거: 같은 연도면 네이버 실적(n:a: 접두사)을 우선 */
+  /** @type {Map<number, import("./stock-financials.js").FinancialPeriodRow>} */
+  const byYear = new Map();
+  for (const p of periods.periods) {
+    if (p.kind !== "annual" || p.isForecast) continue;
+    const y = Number(String(p.label ?? "").slice(0, 4));
+    if (!Number.isFinite(y)) continue;
+    const existing = byYear.get(y);
+    if (!existing || String(p.id).startsWith("n:a:")) {
+      byYear.set(y, p);
+    }
+  }
+
+  const annual = [...byYear.values()]
     .sort((a, b) => (a.endDateMs ?? 0) - (b.endDateMs ?? 0))
     .slice(-(EPS_AVERAGE_MAX_YEARS + 2));
 
+  const details = await Promise.all(
+    annual.map((p) => loadFinancialStatementDetail(sym, p.id).catch(() => null)),
+  );
+
   /** @type {{ year: number; eps: number }[]} */
   const series = [];
-  for (const p of annual) {
-    const detail = await loadFinancialStatementDetail(sym, p.id).catch(() => null);
-    if (!detail) continue;
+  for (let i = 0; i < details.length; i++) {
+    const detail = details[i];
+    const p = annual[i];
+    if (!detail || !p) continue;
     const m = extractPeriodMetricsFromDetail(detail, {
       currency: periods.currency,
       market: periods.market,

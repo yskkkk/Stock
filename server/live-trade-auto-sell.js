@@ -230,7 +230,11 @@ export async function tickLiveTradeAutoSell() {
       const uid = String(prog.userId ?? "").trim();
       if (!uid || uidCredMap.has(uid)) continue;
       const creds = getDecryptedCredentialsSync(uid, "bithumb");
-      if (creds?.apiKey && creds?.secretKey) uidCredMap.set(uid, creds);
+      if (creds?.apiKey && creds?.secretKey) {
+        uidCredMap.set(uid, creds);
+      } else {
+        liveTradeLogWarn("[live-trade:auto-sell] 빗썸 API 키 없음 — 해당 사용자 자동매도 비활성:", uid);
+      }
     }
     await Promise.all(
       [...uidCredMap.entries()].map(async ([uid, creds]) => {

@@ -387,7 +387,6 @@ async function fetchRemoteWithRetry(symbol, timeframe, loadOpts = {}) {
       throw err;
     }
   }
-  throw lastErr;
 }
 
 export function queueRequest(task) {

@@ -251,7 +251,7 @@ async function buildRecommendationsTrackerPayloadInner(opts = {}) {
       items.push({
         ...ev,
         id: `${ev.date}:${ev.market}:${ev.symbol}:${tg.modelId}`,
-        score: tg.score ?? ev.score,
+        score: tg.score != null ? tg.score : ev.score,
         signalIds: tg.signalIds?.length ? tg.signalIds : ev.signalIds,
         currentPrice,
         changePct,

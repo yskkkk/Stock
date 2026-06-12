@@ -265,7 +265,7 @@ function volumeProfileBreakout(candles, i, lookback = 40) {
 
   const volumes = candles.map((c) => c.volume);
   const volHist = volumes.slice(Math.max(0, i - 21), i).filter((v) => v > 0);
-  if (!volHist.length) return true;
+  if (!volHist.length) return false;
   const avgVol = volHist.reduce((a, b) => a + b, 0) / volHist.length;
   return (volumes[i] ?? 0) >= avgVol * 1.05;
 }

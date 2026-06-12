@@ -9,7 +9,7 @@ export const GROWTH_10Y_CAP = 0.25;
  * @param {{ year: number; eps: number }[]} series
  */
 export function epsCagrFromHistory(series) {
-  const positive = (series ?? []).filter((s) => s.eps > 0);
+  const positive = (series ?? []).filter((s) => s.eps > 0).sort((a, b) => a.year - b.year);
   if (positive.length < 3) return null;
   const first = positive[0];
   const last = positive[positive.length - 1];

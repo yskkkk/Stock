@@ -29,6 +29,7 @@ import { syncBoxRangeWsSubscriptions } from "./ws-sync.js";
 import { reconcileBoxRangeLotsFromPortfolioSync } from "./lot-reconcile.js";
 import { syncCatalogTradingBoxesFromCatalogSync } from "./catalog-trading-sync.js";
 import { normalizeBoxUnixTime } from "./box-time.js";
+import { isStockTradableBySchedule } from "../market-hours.js";
 
 const TICK_MS = (() => {
   const n = Number(process.env.STOCK_BOX_RANGE_TICK_MS ?? 3_000);
@@ -135,6 +136,7 @@ async function tickCryptoProgram(program) {
  * @param {"us"|"kr"} catalogMarket
  */
 async function tickCatalogProgram(program, catalogMarket) {
+  if (catalogMarket !== "crypto" && !isStockTradableBySchedule(catalogMarket)) return;
   syncCatalogTradingBoxesFromCatalogSync(program, catalogMarket);                        // PRO v2
   syncCatalogTradingBoxesFromCatalogSync(program, catalogMarket, BOX_RANGE_CATALOG_DIR_V2); // V2
   const live = program.status === "armed";

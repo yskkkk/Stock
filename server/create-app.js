@@ -2822,7 +2822,7 @@ export function createApp() {
       } catch (err) {
         const code = err && typeof err === "object" && "code" in err ? err.code : "";
         const message = err instanceof Error ? err.message : "요청 실패";
-        if (code === "BAD_SYMBOL" || code === "UNSUPPORTED") {
+        if (code === "BAD_SYMBOL" || code === "UNSUPPORTED" || code === "BAD_QUERY") {
           res.status(400).json({ error: message });
           return;
         }

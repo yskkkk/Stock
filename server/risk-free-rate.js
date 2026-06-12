@@ -6,7 +6,7 @@
 import { queueYahooRequest } from "./yahoo-queue.js";
 import { yahooGet } from "./yahoo.js";
 
-const CACHE_MS = 15 * 60_000;
+const CACHE_MS = 6 * 60 * 60_000;
 const NAVER_BOND_URL =
   "https://m.stock.naver.com/front-api/marketIndex/productDetail?category=bond&reutersCode=KR10YT%3DRR";
 const NAVER_UA =
