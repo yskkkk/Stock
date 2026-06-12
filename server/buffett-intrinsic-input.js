@@ -11,6 +11,12 @@ import {
 import { fetchRiskFreeRate } from "./risk-free-rate.js";
 import { loadStockFundamentals } from "./stock-fundamentals.js";
 import {
+  EPS_GROWTH_HISTORY_YEARS,
+  epsCagrFromHistory,
+  epsGrowthWindow,
+  GROWTH_10Y_CAP,
+} from "./value-invest-growth.js";
+import {
   loadFinancialPeriods,
   loadFinancialStatementDetail,
 } from "./stock-financials.js";
@@ -81,7 +87,7 @@ async function fetchHistoricalEpsSeries(symbol, market) {
 
   const annual = [...byYear.values()]
     .sort((a, b) => (b.endDateMs ?? 0) - (a.endDateMs ?? 0))
-    .slice(0, 6);
+    .slice(0, EPS_GROWTH_HISTORY_YEARS + 2);
 
   const sharesInfo =
     market === "us" ? await fetchSharesOutstanding(sym) : { shares: null };
@@ -153,31 +159,29 @@ function epsFromNetIncomeAndShares(detail, shares) {
   return null;
 }
 
-/** 버핏 DCF 10년 명시구간 성장률 상한 — 미래 예측 불확실성 반영 */
-const BUFFETT_GROWTH_CAP = 0.25;
+/** 버핏 DCF 10년 명시구간 성장률 상한 — value-invest-growth 와 동일 */
+const BUFFETT_GROWTH_CAP = GROWTH_10Y_CAP;
 
 /**
  * @param {{ year: number; eps: number }[]} series
- * @param {{ eps: number | null; forwardEps: number | null }} fundamentals
+ * @param {{ eps: number | null; forwardEps: number | null; market?: "kr"|"us" }} fundamentals
  */
 function deriveGrowth10y(series, fundamentals) {
-  const sorted = series.filter((s) => s.eps > 0).sort((a, b) => a.year - b.year);
-  if (sorted.length >= 2) {
-    const prev = sorted[sorted.length - 2];
-    const curr = sorted[sorted.length - 1];
-    if (prev.eps > 0 && curr.eps > 0) {
-      const growth = (curr.eps - prev.eps) / prev.eps;
-      if (Number.isFinite(growth)) {
-        const capped = Math.min(growth, BUFFETT_GROWTH_CAP);
-        return {
-          value: capped,
-          source:
-            growth > BUFFETT_GROWTH_CAP
-              ? `전년 대비 EPS 성장률 ${prev.year}→${curr.year} → 보수적 상한 ${BUFFETT_GROWTH_CAP * 100}%`
-              : `전년 대비 EPS 성장률 ${prev.year}→${curr.year}`,
-        };
-      }
-    }
+  const growth = epsCagrFromHistory(series);
+  if (growth != null && Number.isFinite(growth)) {
+    const capped = Math.min(growth, BUFFETT_GROWTH_CAP);
+    const window = epsGrowthWindow(series);
+    const sourceBase =
+      window != null
+        ? `EPS CAGR ${window.start.year}→${window.end.year} (${window.periodYears}년)`
+        : "EPS CAGR";
+    return {
+      value: capped,
+      source:
+        growth > BUFFETT_GROWTH_CAP
+          ? `${sourceBase} → 보수적 상한 ${BUFFETT_GROWTH_CAP * 100}%`
+          : sourceBase,
+    };
   }
 
   const eps = fundamentals.eps;

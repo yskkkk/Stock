@@ -1,22 +1,57 @@
 /**
- * 10년 수익 모델 — 성장률 산출 (1년 Forward÷Trailing을 10년 CAGR로 쓰지 않음)
+ * 10년 수익 모델 — 성장률 산출 (연간 EPS 이력 CAGR, 1년 Forward÷Trailing을 10년 CAGR로 쓰지 않음)
  */
 
 /** 10년 복리 가정 자동 상한 */
 export const GROWTH_10Y_CAP = 0.25;
 
+/** EPS CAGR 산출에 쓰는 최대 연수 */
+export const EPS_GROWTH_HISTORY_YEARS = 10;
+
 /**
- * 전년 대비 EPS 이익성장률: (당기 EPS - 전기 EPS) / |전기 EPS|
+ * @param {{ year: number; eps: number }[]} series
+ * @param {number} [maxYears]
+ * @returns {{ start: { year: number; eps: number }; end: { year: number; eps: number }; periodYears: number } | null}
+ */
+export function epsGrowthWindow(series, maxYears = EPS_GROWTH_HISTORY_YEARS) {
+  const sorted = (series ?? [])
+    .filter((s) => s.year > 0 && s.eps > 0)
+    .sort((a, b) => a.year - b.year);
+  if (sorted.length < 2) return null;
+  const recent = sorted.slice(-maxYears);
+  const start = recent[0];
+  const end = recent[recent.length - 1];
+  const periodYears = end.year - start.year;
+  if (periodYears < 1) return null;
+  return { start, end, periodYears };
+}
+
+/**
+ * 연간 EPS CAGR: (EPS_최근 / EPS_과거)^(1/기간년수) − 1
+ * @param {{ year: number; eps: number }[]} series
+ * @param {number} [maxYears]
+ */
+export function epsCagrFromHistory(series, maxYears = EPS_GROWTH_HISTORY_YEARS) {
+  const window = epsGrowthWindow(series, maxYears);
+  if (!window) return null;
+  const ratio = window.end.eps / window.start.eps;
+  if (!Number.isFinite(ratio) || ratio <= 0) return null;
+  const cagr = ratio ** (1 / window.periodYears) - 1;
+  return Number.isFinite(cagr) ? cagr : null;
+}
+
+/**
  * @param {{ year: number; eps: number }[]} series
  */
-export function epsCagrFromHistory(series) {
-  const sorted = (series ?? []).filter((s) => s.eps > 0).sort((a, b) => a.year - b.year);
-  if (sorted.length < 2) return null;
-  const prev = sorted[sorted.length - 2];
-  const curr = sorted[sorted.length - 1];
-  if (prev.eps <= 0) return null;
-  const growth = (curr.eps - prev.eps) / prev.eps;
-  return Number.isFinite(growth) ? growth : null;
+function formatEpsCagrSource(series, rawGrowth, cappedGrowth) {
+  const window = epsGrowthWindow(series);
+  if (!window) return "EPS CAGR";
+  const { start, end, periodYears } = window;
+  const base = `EPS CAGR ${start.year}→${end.year} (${periodYears}년)`;
+  if (rawGrowth != null && cappedGrowth != null && rawGrowth > GROWTH_10Y_CAP) {
+    return `${base} → 10년 상한 ${GROWTH_10Y_CAP * 100}%`;
+  }
+  return base;
 }
 
 /**
@@ -33,27 +68,22 @@ export function deriveValueInvestGrowth10y(f) {
 
   const histGrowth = epsCagrFromHistory(f.epsHistory ?? []);
   if (histGrowth != null && Number.isFinite(histGrowth)) {
-    const sorted = (f.epsHistory ?? []).filter((s) => s.eps > 0).sort((a, b) => a.year - b.year);
-    const prevYear = sorted.length >= 2 ? sorted[sorted.length - 2].year : null;
-    const currYear = sorted.length >= 1 ? sorted[sorted.length - 1].year : null;
     if (histGrowth > GROWTH_10Y_CAP) {
       warnings.push(
-        `전년 대비 EPS 성장률 ${(histGrowth * 100).toFixed(1)}% — 10년 복리 가정은 ${GROWTH_10Y_CAP * 100}%로 상한`,
+        `EPS CAGR ${(histGrowth * 100).toFixed(1)}% — 10년 복리 가정은 ${GROWTH_10Y_CAP * 100}%로 상한`,
       );
       return {
         value: GROWTH_10Y_CAP,
-        source: `전년 대비 EPS 성장률 ${(histGrowth * 100).toFixed(1)}% → 10년 상한 ${GROWTH_10Y_CAP * 100}%`,
+        source: formatEpsCagrSource(f.epsHistory ?? [], histGrowth, GROWTH_10Y_CAP),
         warnings,
       };
     }
     if (histGrowth < -0.4) {
-      warnings.push(`전년 대비 EPS 성장률 ${(histGrowth * 100).toFixed(1)}% — 음수 성장 구간`);
+      warnings.push(`EPS CAGR ${(histGrowth * 100).toFixed(1)}% — 음수 성장 구간`);
     }
     return {
       value: histGrowth,
-      source: prevYear && currYear
-        ? `전년 대비 EPS 성장률 ${prevYear}→${currYear}`
-        : `전년 대비 EPS 성장률 (${f.epsHistory.length}개 실적)`,
+      source: formatEpsCagrSource(f.epsHistory ?? [], histGrowth, histGrowth),
       warnings,
     };
   }
