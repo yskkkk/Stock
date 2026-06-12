@@ -156,7 +156,7 @@ function PollerToggleActions({
         <button
           ref={restartRef}
           type="button"
-          className="btn btn--primary btn--sm dock-poller-rail__toggle dock-poller-rail__toggle--restart"
+          className="btn btn--ghost btn--sm dock-poller-rail__toggle dock-poller-rail__toggle--restart"
           onClick={(e) => {
             e.stopPropagation();
             if (restartRef.current) onToggleRequest(poller, restartRef.current, true);

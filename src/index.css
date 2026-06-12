@@ -10702,14 +10702,35 @@ html[data-theme="light"][data-light-palette="glass"]
 
 .dock-poller-rail__toggle {
   flex: 0 0 auto;
+  box-sizing: border-box;
+  min-width: 3.35rem;
   min-height: 1.35rem;
   padding: 0.12rem 0.42rem;
   font-size: 0.58rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
   white-space: nowrap;
 }
 
-.dock-poller-rail__toggle--restart {
-  font-weight: 700;
+.dock-poller-rail__toggle--restart,
+.dock-poller-rail__toggle--stop {
+  border: 1px solid color-mix(in srgb, var(--card-border, #334155) 75%, transparent);
+  background: color-mix(in srgb, var(--card-bg, #1e293b) 92%, var(--surface-2, #0f172a));
+  color: var(--text-dim, #a8b0bc);
+}
+
+.dock-poller-rail__toggle--restart:hover:not(:disabled),
+.dock-poller-rail__toggle--stop:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent, #8fb5aa) 40%, var(--card-border, #334155));
+  color: var(--text, #dce1e8);
+}
+
+html[data-theme="light"] .dock-poller-rail__toggle--restart,
+html[data-theme="light"] .dock-poller-rail__toggle--stop {
+  background: #f6f8fa;
+  border-color: color-mix(in srgb, var(--card-border, #cbd5e1) 90%, transparent);
+  color: var(--muted);
 }
 
 .dock-poller-rail__env-hint {
