@@ -14,6 +14,7 @@ import {
   withLiveFinancialsFetch,
   writeFinancialsArchiveMeta,
   writeSymbolFinancialArchive,
+  FINANCIALS_ARCHIVE_SCHEMA_VERSION,
 } from "./stock-financials-archive-store.js";
 
 const CONCURRENCY = (() => {
@@ -28,6 +29,8 @@ const BATCH_DELAY_MS = (() => {
 
 const ANNUAL_DETAIL_LIMIT = 4;
 const QUARTER_DETAIL_LIMIT = 2;
+const KR_ANNUAL_DETAIL_LIMIT = 10;
+const KR_QUARTER_DETAIL_LIMIT = 4;
 
 /**
  * @typedef {object} SymbolFinancialArchive
@@ -36,6 +39,8 @@ const QUARTER_DETAIL_LIMIT = 2;
  * @property {string} name
  * @property {string} currency
  * @property {number} archivedAtMs
+ * @property {number} schemaVersion
+ * @property {boolean} [dartLinked] — DART 고유번호·공시 연동 가능 여부(KR)
  * @property {Awaited<ReturnType<typeof loadStockFundamentals>> | null} fundamentals
  * @property {Awaited<ReturnType<typeof loadFinancialPeriods>> | null} periods
  * @property {Record<string, Awaited<ReturnType<typeof loadFinancialStatementDetail>>>} statements
@@ -61,14 +66,43 @@ function delay(ms) {
 
 /**
  * @param {Awaited<ReturnType<typeof loadFinancialPeriods>>["periods"]} periods
+ * @param {"kr"|"us"} [market]
  */
-export function selectPeriodIdsForArchive(periods) {
-  const annual = periods
+export function selectPeriodIdsForArchive(periods, market = "us") {
+  const isKr = market === "kr";
+  const annualLimit = isKr ? KR_ANNUAL_DETAIL_LIMIT : ANNUAL_DETAIL_LIMIT;
+  const quarterLimit = isKr ? KR_QUARTER_DETAIL_LIMIT : QUARTER_DETAIL_LIMIT;
+
+  const annualSorted = periods
     .filter((p) => p.kind === "annual" && !p.isForecast)
-    .slice(0, ANNUAL_DETAIL_LIMIT);
+    .sort((a, b) => (b.endDateMs ?? 0) - (a.endDateMs ?? 0));
+
+  /** @type {typeof periods} */
+  let annual = annualSorted.slice(0, annualLimit);
+  if (isKr) {
+    const picked = [];
+    const seen = new Set();
+    for (const p of annualSorted) {
+      if (!String(p.id).startsWith("d:a:")) continue;
+      if (seen.has(p.id)) continue;
+      picked.push(p);
+      seen.add(p.id);
+      if (picked.length >= annualLimit) break;
+    }
+    for (const p of annualSorted) {
+      if (picked.length >= annualLimit) break;
+      if (seen.has(p.id)) continue;
+      picked.push(p);
+      seen.add(p.id);
+    }
+    annual = picked;
+  }
+
   const quarter = periods
     .filter((p) => p.kind === "quarter" && !p.isForecast)
-    .slice(0, QUARTER_DETAIL_LIMIT);
+    .sort((a, b) => (b.endDateMs ?? 0) - (a.endDateMs ?? 0))
+    .slice(0, quarterLimit);
+
   return [...annual, ...quarter].map((p) => p.id);
 }
 
@@ -86,7 +120,10 @@ export async function archiveFinancialsForSymbol(symbol) {
     /** @type {Record<string, Awaited<ReturnType<typeof loadFinancialStatementDetail>>>} */
     const statements = {};
     if (periods?.periods?.length) {
-      for (const periodId of selectPeriodIdsForArchive(periods.periods)) {
+      for (const periodId of selectPeriodIdsForArchive(
+        periods.periods,
+        periods.market === "kr" ? "kr" : "us",
+      )) {
         try {
           const detail = await loadFinancialStatementDetail(sym, periodId, {
             forceLive: true,
@@ -108,6 +145,8 @@ export async function archiveFinancialsForSymbol(symbol) {
 
     /** @type {SymbolFinancialArchive} */
     const payload = {
+      schemaVersion: FINANCIALS_ARCHIVE_SCHEMA_VERSION,
+      dartLinked: Boolean(periods?.periods?.some((p) => p.source === "dart")),
       symbol: sym,
       market: market === "kr" ? "kr" : "us",
       name: periods?.name ?? fundamentals?.name ?? sym,

@@ -109,7 +109,7 @@ function parseCorpXml(xml) {
   return corps;
 }
 
-async function loadCorpIndex(force = false) {
+export async function loadCorpIndex(force = false) {
   if (!isDartEnabled()) return [];
   if (!force && corpIndex && Date.now() - corpIndex.at < CORP_INDEX_TTL_MS) {
     return corpIndex.corps;

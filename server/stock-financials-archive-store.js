@@ -3,11 +3,15 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { isDartEnabled } from "./dart.js";
 import { resolveServerDataDir } from "./data-path.js";
 import { ensureDataDirSync, readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
 
 const ARCHIVE_DIR = path.join(resolveServerDataDir(), "financials-archive");
 const META_FILE = "financials-archive-meta.json";
+
+/** DART 연동 이후 KR 아카이브 스키마 — 미만이면 디스크 캐시 무시 */
+export const FINANCIALS_ARCHIVE_SCHEMA_VERSION = 2;
 
 /** @type {number} */
 let liveFetchDepth = 0;
@@ -116,9 +120,25 @@ function normalizeMarketMeta(v) {
 }
 
 /** @param {string} symbol */
+function isKrArchiveSymbol(symbol) {
+  const sym = String(symbol ?? "").trim().toUpperCase();
+  return sym.endsWith(".KS") || sym.endsWith(".KQ");
+}
+
+/** @param {import("./stock-financials-archive.js").SymbolFinancialArchive | null} hit */
+function isKrDartArchiveStale(hit) {
+  if (!hit?.periods?.periods?.length) return true;
+  if ((hit.schemaVersion ?? 0) < FINANCIALS_ARCHIVE_SCHEMA_VERSION) return true;
+  if (!isDartEnabled()) return false;
+  if (hit.dartLinked === false) return false;
+  return !hit.periods.periods.some((p) => String(p.id).startsWith("d:"));
+}
+
+/** @param {string} symbol */
 export function readArchivedFinancialPeriods(symbol) {
   const hit = readSymbolFinancialArchive(symbol);
   if (!hit?.periods?.periods?.length) return null;
+  if (isKrArchiveSymbol(symbol) && isKrDartArchiveStale(hit)) return null;
   return {
     ...hit.periods,
     updatedAt: hit.archivedAtMs ?? hit.periods.updatedAt ?? Date.now(),
@@ -132,6 +152,7 @@ export function readArchivedFinancialPeriods(symbol) {
  */
 export function readArchivedStatementDetail(symbol, periodId) {
   const hit = readSymbolFinancialArchive(symbol);
+  if (isKrArchiveSymbol(symbol) && isKrDartArchiveStale(hit)) return null;
   const detail = hit?.statements?.[periodId];
   if (!detail) return null;
   return {

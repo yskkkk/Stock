@@ -4,7 +4,7 @@
  */
 import { isKrQuoteSymbol } from "./kr-naver-quote.js";
 import { formatKrEokDisplay } from "./statement-display-units.js";
-import { dartApiGet, isDartEnabled, resolveDartCorpCode } from "./dart.js";
+import { dartApiGet, isDartEnabled, loadCorpIndex, resolveDartCorpCode } from "./dart.js";
 
 /** 사업보고서(연간) */
 export const DART_REPORT_ANNUAL = "11011";
@@ -200,6 +200,8 @@ export async function loadDartKrFinancialPeriods(symbol) {
 
   const corpCode = await resolveDartCorpCode(sym);
   if (!corpCode) return [];
+
+  await loadCorpIndex().catch(() => null);
 
   const currentYear = new Date().getFullYear();
   /** @type {object[]} */

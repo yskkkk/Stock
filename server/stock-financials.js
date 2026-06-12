@@ -305,7 +305,7 @@ export async function loadFinancialPeriods(symbol, options = {}) {
     if (archived) return archived;
   }
 
-  const cacheKey = `periods:v2:${sym}`;
+  const cacheKey = `periods:v3:${sym}`;
   const hit = forceLive ? null : getCache(cacheKey);
   if (hit) return hit;
 
@@ -316,12 +316,11 @@ export async function loadFinancialPeriods(symbol, options = {}) {
   let currency = market === "kr" ? "KRW" : "USD";
 
   if (isKrQuoteSymbol(sym)) {
+    let dartCount = 0;
     if (isDartEnabled()) {
-      try {
-        for (const p of await loadDartKrFinancialPeriods(sym)) periodMap.set(p.id, p);
-      } catch {
-        /* DART 보조 — Naver만 있어도 OK */
-      }
+      const dartPeriods = await loadDartKrFinancialPeriods(sym);
+      dartCount = dartPeriods.length;
+      for (const p of dartPeriods) periodMap.set(p.id, p);
     }
     const code = yahooSymbolToKrCode(sym);
     if (code) {
@@ -334,16 +333,24 @@ export async function loadFinancialPeriods(symbol, options = {}) {
       if (typeof annual?.financeInfo?.itemCode === "string") {
         name = resolveDisplayName(sym, name);
       }
+    } else if (dartCount === 0) {
+      const err = new Error("국내 종목 코드를 확인할 수 없습니다.");
+      err.code = "NOT_FOUND";
+      throw err;
     }
   }
 
-  try {
-    const { bundle, name: yName } = await loadYahooFinancialBundle(sym);
-    if (yName) name = yName;
-    addYahooPeriodsFrom(bundle.incomeAnnual, "annual", periodMap);
-    addYahooPeriodsFrom(bundle.incomeQuarter, "quarter", periodMap);
-  } catch {
-    /* Yahoo 보조 — Naver만 있어도 OK */
+  const skipYahooForKrDart =
+    isKrQuoteSymbol(sym) && isDartEnabled() && [...periodMap.values()].some((p) => p.source === "dart");
+  if (!skipYahooForKrDart) {
+    try {
+      const { bundle, name: yName } = await loadYahooFinancialBundle(sym);
+      if (yName) name = yName;
+      addYahooPeriodsFrom(bundle.incomeAnnual, "annual", periodMap);
+      addYahooPeriodsFrom(bundle.incomeQuarter, "quarter", periodMap);
+    } catch {
+      /* Yahoo 보조 */
+    }
   }
 
   const periods = [...periodMap.values()]
@@ -364,8 +371,18 @@ export async function loadFinancialPeriods(symbol, options = {}) {
       deduped.set(key, p);
       continue;
     }
-    const rank = (src) => (src === "naver" ? 3 : src === "dart" ? 2 : 1);
-    if (rank(p.source) > rank(prev.source)) deduped.set(key, p);
+    const rank = (src, isForecast) => {
+      if (market === "kr") {
+        if (isForecast) return src === "naver" ? 3 : 0;
+        if (src === "dart") return 3;
+        if (src === "naver") return 2;
+        return 1;
+      }
+      if (src === "naver") return 3;
+      if (src === "dart") return 2;
+      return 1;
+    };
+    if (rank(p.source, p.isForecast) > rank(prev.source, prev.isForecast)) deduped.set(key, p);
   }
   const uniquePeriods = [...deduped.values()].sort(
     (a, b) => (b.endDateMs ?? 0) - (a.endDateMs ?? 0),
@@ -419,7 +436,7 @@ export async function loadFinancialStatementDetail(symbol, periodId, options = {
     if (archived) return archived;
   }
 
-  const cacheKey = `detail:v2:${sym}:${pid}`;
+  const cacheKey = `detail:v3:${sym}:${pid}`;
   const hit = forceLive ? null : getCache(cacheKey);
   if (hit) return hit;
 
