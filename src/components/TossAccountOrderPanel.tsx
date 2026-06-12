@@ -107,6 +107,7 @@ const TossAccountOrderPanel = forwardRef<
   const mountedRef = useRef(true);
   const priceTouchedRef = useRef(false);
   const simulated = !liveOrdersEnabled || !serverLiveOrdersEnabled;
+  const showLiveOrdersOffBanner = !liveOrdersEnabled;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -327,7 +328,7 @@ const TossAccountOrderPanel = forwardRef<
 
   return (
     <section className={rootClass} aria-label={ko.app.liveTradeTossOrderTitle}>
-      {simulated ? (
+      {showLiveOrdersOffBanner ? (
         <p className="toss-order-panel__sim" role="status">
           {ko.app.liveTradeTossOrderSimBanner}
         </p>

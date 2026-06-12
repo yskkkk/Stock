@@ -18,7 +18,7 @@ function isInteractiveScrollTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
   return Boolean(
     target.closest(
-      'button, input, select, textarea, a, label, [role="radio"], [role="tab"], [contenteditable="true"]',
+      'button, input, select, textarea, a, [role="radio"], [role="tab"], [contenteditable="true"]',
     ),
   );
 }
@@ -86,6 +86,7 @@ export function useNestedVerticalScroll(
     const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0 || !canScrollY(el)) return;
       if (isInteractiveScrollTarget(e.target)) return;
+      e.preventDefault();
       dragging = true;
       activePointer = e.pointerId;
       dragStartY = e.clientY;
@@ -93,6 +94,14 @@ export function useNestedVerticalScroll(
       el.setPointerCapture(e.pointerId);
       el.classList.add(draggingClass);
     };
+
+    const syncScrollCursor = () => {
+      el.style.cursor = canScrollY(el) ? "grab" : "";
+    };
+
+    syncScrollCursor();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(syncScrollCursor) : null;
+    ro?.observe(el);
 
     const onPointerMove = (e: PointerEvent) => {
       if (!dragging || e.pointerId !== activePointer) return;
@@ -118,6 +127,8 @@ export function useNestedVerticalScroll(
     el.addEventListener("pointercancel", endDrag);
 
     return () => {
+      ro?.disconnect();
+      el.style.cursor = "";
       el.removeEventListener("wheel", onWheel);
       el.removeEventListener("pointerdown", onPointerDown);
       el.removeEventListener("pointermove", onPointerMove);

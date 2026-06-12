@@ -268,7 +268,7 @@ export const ko = {
     liveTradeTossOrderSubmit: "주문 넣기",
     liveTradeTossOrderBusy: "주문 중…",
     liveTradeTossOrderSimBanner:
-      "실주문이 꺼져 있어 시뮬레이션으로만 처리됩니다. «토스 API 연동»에서 «실주문 허용»을 켜고 서버 TOSS_LIVE_ORDERS_ENABLED=1이 필요합니다.",
+      "실주문이 꺼져 있어 시뮬레이션으로만 처리됩니다. «토스 API 연동»에서 «실주문 허용»을 켜세요.",
     liveTradeTossOrderConfirmBuy: "시장가 매수 주문을 넣을까요?",
     liveTradeTossOrderConfirmSell: "매도 주문을 넣을까요?",
     liveTradeTossOrderConfirmLimitBuy:

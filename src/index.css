@@ -10227,6 +10227,7 @@ html:not([data-theme="light"]) {
   scrollbar-width: none;
   -ms-overflow-style: none;
   box-sizing: border-box;
+  cursor: grab;
 }
 
 .app-live-trade-side-dock__rail-scroll--dragging {
@@ -11320,6 +11321,14 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   touch-action: pan-y;
   scrollbar-width: none;
   -ms-overflow-style: none;
+}
+
+.app-live-trade-side-dock__host
+  .live-trading-tab__card-tabs-pane--rail
+  .live-trading-tab__card-tabs-host:not(.live-trading-tab__card-tabs-host--idle):not(
+    .live-trading-tab__card-tabs-host--dragging
+  ) {
+  cursor: grab;
 }
 
 .app-live-trade-side-dock__host
