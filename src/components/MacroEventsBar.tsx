@@ -297,8 +297,8 @@ function SectorEarningsCard({
   const urgency = macroUrgency(msLeft);
   const href = `https://finance.yahoo.com/quote/${encodeURIComponent(row.symbol)}`;
   const codeShort = row.symbol.replace(/^KR_/, "");
-  const metaValue =
-    row.sectorLabel?.trim() || ko.macro.earningsMetaPending;
+  const forecastValue =
+    row.forecast?.trim() || ko.macro.forecastPending;
 
   return (
     <a
@@ -307,7 +307,7 @@ function SectorEarningsCard({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label={`${row.name} · ${row.symbol} · ${formatMacroCountdown(msLeft)}`}
+      aria-label={`${row.name} · ${row.symbol} · ${ko.macro.forecastLabel} ${forecastValue}`}
     >
       <MacroCardBrandBg symbol={row.symbol} market={row.market} name={row.name} />
       <div className="macro-card__top">
@@ -320,12 +320,12 @@ function SectorEarningsCard({
         {row.name}
       </p>
       <p className="macro-card__forecast">
-        <span className="macro-card__forecast-k">{ko.macro.earningsMetaLabel}</span>
+        <span className="macro-card__forecast-k">{ko.macro.forecastLabel}</span>
         <span className="macro-card__forecast-sep" aria-hidden>
           {" "}
           ·{" "}
         </span>
-        <span className="macro-card__forecast-v">{metaValue}</span>
+        <span className="macro-card__forecast-v">{forecastValue}</span>
       </p>
       <p className="macro-card__countdown" aria-live="polite">
         {formatMacroCountdown(msLeft)}
@@ -432,20 +432,31 @@ export default function MacroEventsBar({
       if (!cancelled) writeSessionMacroCache(ev, sec);
     };
 
-    void fetchMacroEvents()
-      .then((data) => {
-        applyMacro(data.events);
-        setSectorEarnings((prev) => {
-          persist(data.events, prev);
-          return prev;
+    const pollUntilForecasts = (attempt = 0) => {
+      void fetchMacroEvents()
+        .then((data) => {
+          applyMacro(data.events);
+          setSectorEarnings((prev) => {
+            persist(data.events, prev);
+            return prev;
+          });
+          const needsRetry =
+            !data.forecastsEnriched &&
+            attempt < 8 &&
+            data.events.every((e) => !e.forecast?.trim());
+          if (needsRetry && !cancelled) {
+            window.setTimeout(() => pollUntilForecasts(attempt + 1), 4000);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setEvents([]);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
         });
-      })
-      .catch(() => {
-        if (!cancelled) setEvents([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    };
+
+    pollUntilForecasts();
 
     void fetchSectorEarnings()
       .then((data) => {

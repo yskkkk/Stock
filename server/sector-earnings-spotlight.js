@@ -8,6 +8,7 @@
  * @property {"kr"|"us"} market
  * @property {number} at
  * @property {string} timezone
+ * @property {string | null} [forecast] EPS 컨센서스(예: $1.23)
  */
 
 /**
@@ -144,6 +145,42 @@ function quoteSummaryFirstResult(data) {
  * @param {string} listingTz
  * @returns {{ at: number; name: string } | null}
  */
+/**
+ * @param {unknown} data
+ * @returns {string | null}
+ */
+function parseEpsEstimateFromQuoteSummary(data) {
+  const r0 = quoteSummaryFirstResult(data);
+  if (!r0) return null;
+  const et =
+    r0.earningsTrend && typeof r0.earningsTrend === "object"
+      ? /** @type {Record<string, unknown>} */ (r0.earningsTrend)
+      : null;
+  const trend = Array.isArray(et?.trend) ? et.trend : [];
+  const q0 =
+    trend.find(
+      (t) =>
+        t &&
+        typeof t === "object" &&
+        /** @type {Record<string, unknown>} */ (t).period === "0q",
+    ) ?? trend[0];
+  if (!q0 || typeof q0 !== "object") return null;
+  const est = /** @type {Record<string, unknown>} */ (q0).earningsEstimate;
+  if (!est || typeof est !== "object") return null;
+  const avg = /** @type {Record<string, unknown>} */ (est).avg;
+  if (!avg || typeof avg !== "object") return null;
+  const fmt = /** @type {Record<string, unknown>} */ (avg).fmt;
+  if (typeof fmt === "string" && fmt.trim()) {
+    const n = fmt.trim();
+    return n.startsWith("$") ? n : `$${n}`;
+  }
+  const raw = /** @type {Record<string, unknown>} */ (avg).raw;
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return `$${Math.round(raw * 100) / 100}`;
+  }
+  return null;
+}
+
 function parseNextEarningsFromQuoteSummary(data, symbol, listingTz) {
   const r0 = quoteSummaryFirstResult(data);
   if (!r0) return null;
@@ -243,21 +280,37 @@ async function loadFinnhubEarningsBulkRows(fromYmd, toYmd, token, needInternatio
  * @param {number} now
  * @param {number} horizon
  */
-function nextEarningMsFromBulk(rows, symbol, listingTz, now, horizon) {
+/**
+ * @param {unknown[]} rows
+ * @param {string} symbol
+ * @param {string} listingTz
+ * @param {number} now
+ * @param {number} horizon
+ * @returns {{ at: number; forecast: string | null } | null}
+ */
+function nextEarningFromBulk(rows, symbol, listingTz, now, horizon) {
   const symU = symbol.trim().toUpperCase();
-  let best = /** @type {number | null} */ (null);
+  /** @type {{ at: number; forecast: string | null } | null} */
+  let best = null;
   for (const row of rows) {
     if (!row || typeof row !== "object") continue;
-    const s = String(/** @type {Record<string, unknown>} */ (row).symbol ?? "")
-      .trim()
-      .toUpperCase();
+    const o = /** @type {Record<string, unknown>} */ (row);
+    const s = String(o.symbol ?? "").trim().toUpperCase();
     if (s !== symU) continue;
-    const dateStr = /** @type {Record<string, unknown>} */ (row).date;
+    const dateStr = o.date;
     if (typeof dateStr !== "string" || !dateStr) continue;
     const at = finnhubDateToUtcMs(dateStr, listingTz);
     if (at == null || !Number.isFinite(at)) continue;
     if (at < now - 12 * 3600 * 1000 || at > horizon) continue;
-    if (best == null || at < best) best = at;
+    const eps = o.epsEstimate;
+    let forecast = null;
+    if (typeof eps === "number" && Number.isFinite(eps)) {
+      forecast = `$${Math.round(eps * 100) / 100}`;
+    } else if (typeof eps === "string" && eps.trim()) {
+      const n = eps.trim();
+      forecast = n.startsWith("$") ? n : `$${n}`;
+    }
+    if (!best || at < best.at) best = { at, forecast };
   }
   return best;
 }
@@ -317,29 +370,48 @@ async function fetchFreshSectorEarnings() {
     const listingTz = listingTimezone(symbol);
     const market = marketFromSymbol(symbol);
 
-    /** @type {{ at: number; name: string } | null} */
+    /** @type {{ at: number; name: string; forecast: string | null } | null} */
     let parsed = null;
 
     if (apiKey && bulkRows.length) {
-      const at = nextEarningMsFromBulk(bulkRows, symbol, listingTz, now, horizon);
-      if (at != null && Number.isFinite(at)) {
-        parsed = { at, name: resolveDisplayName(symbol) };
+      const bulk = nextEarningFromBulk(bulkRows, symbol, listingTz, now, horizon);
+      if (bulk != null && Number.isFinite(bulk.at)) {
+        parsed = {
+          at: bulk.at,
+          name: resolveDisplayName(symbol),
+          forecast: bulk.forecast,
+        };
       }
     }
 
+    const enc = encodeURIComponent(symbol);
+    const yahooModules = "calendarEvents%2Cprice%2CearningsTrend";
+    const pathStr = `/v10/finance/quoteSummary/${enc}?modules=${yahooModules}`;
+
     if (!parsed) {
-      const enc = encodeURIComponent(symbol);
-      const pathStr = `/v10/finance/quoteSummary/${enc}?modules=calendarEvents%2Cprice`;
       try {
         const data = await queueYahooRequest(() => yahooGet(pathStr));
-        parsed = parseNextEarningsFromQuoteSummary(data, symbol, listingTz);
+        const next = parseNextEarningsFromQuoteSummary(data, symbol, listingTz);
+        if (next) {
+          parsed = {
+            ...next,
+            forecast: parseEpsEstimateFromQuoteSummary(data),
+          };
+        }
       } catch {
         parsed = null;
+      }
+    } else if (!parsed.forecast) {
+      try {
+        const data = await queueYahooRequest(() => yahooGet(pathStr));
+        parsed.forecast = parseEpsEstimateFromQuoteSummary(data);
+      } catch {
+        /* optional */
       }
     }
 
     if (!parsed) return null;
-    const { at, name } = parsed;
+    const { at, name, forecast } = parsed;
     if (at < now - 12 * 3600 * 1000 || at > horizon) return null;
     return {
       id: `${sectorId}:${symbol}:${at}`,
@@ -350,6 +422,7 @@ async function fetchFreshSectorEarnings() {
       market,
       at,
       timezone: listingTz,
+      forecast: forecast ?? null,
     };
   }
 

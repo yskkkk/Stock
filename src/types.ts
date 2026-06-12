@@ -55,6 +55,8 @@ export interface SectorEarningsSpotlightItem {
   market: Market;
   at: number;
   timezone: string;
+  /** 애널리스트 EPS 컨센서스(예: $1.23) */
+  forecast?: string | null;
 }
 
 export type ChartTime =

@@ -1,13 +1,13 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { enrichMacroEventsWithFinnhubConsensus } from "./macro-consensus-finhub.js";
+import { enrichMacroEventsConsensus } from "./macro-consensus.js";
 
 /**
  * 정적 일정: `data/macro-releases.json` — 행에 선택 필드 `forecast`(문자열)를 넣으면
  * API·카드에 예상치로 노출됩니다(시장 컨센서스 수치를 수동으로 넣는 용도).
- * `FINNHUB_API_KEY`가 설정된 경우 Finnhub 경제 캘린더의 estimate(컨센서스)가
- * 일치하는 이벤트에 병합되어 우선 표시됩니다. 없으면 클라이언트에서「발표 전」표시.
+ * `FINNHUB_API_KEY`가 있으면 Finnhub estimate를 우선 병합하고, 없거나 비어 있으면
+ * Forex Factory 공개 캘린더 forecast로 보강합니다.
  */
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -416,52 +416,44 @@ export function getUpcomingMacroEvents(opts = {}) {
   return dedup.slice(0, limit);
 }
 
-const MACRO_FULL_TTL_MS = 60_000;
-const MACRO_FAST_TTL_MS = 5 * 60_000;
+const MACRO_CACHE_TTL_MS = 5 * 60_000;
 
 /** @type {{ at: number; data: { events: unknown[]; updatedAt: number; forecastsEnriched?: boolean } | null }} */
-let macroFullCache = { at: 0, data: null };
-/** @type {{ at: number; data: { events: unknown[]; updatedAt: number; forecastsEnriched?: boolean } | null }} */
-let macroFastCache = { at: 0, data: null };
+let macroCache = { at: 0, data: null };
 /** @type {Promise<void> | null} */
-let finnhubEnrichInflight = null;
+let macroEnrichInflight = null;
 
-function buildMacroPayload(enriched = false) {
-  return {
-    events: getUpcomingMacroEvents(),
+async function refreshMacroCache() {
+  const events = getUpcomingMacroEvents();
+  await enrichMacroEventsConsensus(events).catch(() => {});
+  const data = {
+    events,
     updatedAt: Date.now(),
-    forecastsEnriched: enriched,
+    forecastsEnriched: true,
   };
-}
-
-function scheduleFinnhubEnrich() {
-  if (finnhubEnrichInflight) return;
-  finnhubEnrichInflight = (async () => {
-    const events = getUpcomingMacroEvents();
-    await enrichMacroEventsWithFinnhubConsensus(events).catch(() => {});
-    const data = { events, updatedAt: Date.now(), forecastsEnriched: true };
-    const at = Date.now();
-    macroFullCache = { at, data };
-    macroFastCache = { at, data };
-  })().finally(() => {
-    finnhubEnrichInflight = null;
-  });
+  macroCache = { at: Date.now(), data };
 }
 
 export async function getMacroEventsCachedAsync() {
   const now = Date.now();
-  if (macroFullCache.data && now - macroFullCache.at < MACRO_FULL_TTL_MS) {
-    return macroFullCache.data;
-  }
-  if (macroFastCache.data && now - macroFastCache.at < MACRO_FAST_TTL_MS) {
-    scheduleFinnhubEnrich();
-    return macroFastCache.data;
+  if (macroCache.data && now - macroCache.at < MACRO_CACHE_TTL_MS) {
+    return macroCache.data;
   }
 
-  const fast = buildMacroPayload(false);
-  macroFastCache = { at: now, data: fast };
-  scheduleFinnhubEnrich();
-  return fast;
+  if (!macroEnrichInflight) {
+    macroEnrichInflight = refreshMacroCache().finally(() => {
+      macroEnrichInflight = null;
+    });
+  }
+
+  await macroEnrichInflight;
+  return (
+    macroCache.data ?? {
+      events: getUpcomingMacroEvents(),
+      updatedAt: Date.now(),
+      forecastsEnriched: false,
+    }
+  );
 }
 
 /** 서버 기동 시 일정·Finnhub 예상치 미리 채움 */

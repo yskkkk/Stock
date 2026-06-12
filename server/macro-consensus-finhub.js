@@ -163,7 +163,7 @@ function matchStrength(code, eventLower) {
  */
 function pickFinnhubEstimate(ev, rows) {
   const wantCountry = ev.region === "kr" ? "KR" : "US";
-  const windowMs = 3 * 60 * 60 * 1000;
+  const windowMs = 72 * 60 * 60 * 1000;
 
   /** @type {{ est: unknown; strength: number; delta: number; event: string } | null} */
   let best = null;
