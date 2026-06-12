@@ -109,7 +109,11 @@ const PickListRow = memo(
           className="pick-row"
           onClick={(e) => {
             if (pick.market === "kr" || pick.market === "us") {
-              showValueInvestBubble(e.currentTarget, stockPickToValueInvestTarget(pick));
+              showValueInvestBubble(
+                e.currentTarget,
+                stockPickToValueInvestTarget(pick),
+                { clientX: e.clientX, clientY: e.clientY },
+              );
             }
             onSelect(pick);
           }}

@@ -1,5 +1,7 @@
 /** HMR·캐시 분할 시 Context 모듈 이중 로드 대비 — window 싱글톤 */
 
+import type { BubblePointer } from "./bubblePointerAnchor";
+
 export type ValueInvestBubbleBridgeTarget = {
   symbol: string;
   name: string;
@@ -12,6 +14,7 @@ export type ValueInvestBubbleBridgeApi = {
   showValueInvestBubble: (
     anchor: HTMLElement,
     target: ValueInvestBubbleBridgeTarget,
+    pointer?: BubblePointer | null,
   ) => void;
   closeValueInvestBubble: () => void;
   openSymbol: string | null;

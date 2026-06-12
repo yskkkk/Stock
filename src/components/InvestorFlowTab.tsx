@@ -3,6 +3,11 @@ import { fetchKrInvestorFlow, fetchKrInvestorFlowHoldings } from "../api";
 import { ko } from "../i18n/ko";
 import { formatPercent, formatPrice, formatTurnover } from "../lib/format";
 import {
+  anchorRectForBubble,
+  pointerFromElementCenter,
+  type BubblePointer,
+} from "../lib/bubblePointerAnchor";
+import {
   formatInvestorNetQty,
   investorChangePctClass,
   investorNetQtyClass,
@@ -160,8 +165,12 @@ export default function InvestorFlowTab() {
     setHoldError(null);
   }, []);
 
-  const openHoldBubble = useCallback((anchor: HTMLElement, row: KrInvestorFlowItem) => {
-    const anchorRect = anchor.getBoundingClientRect();
+  const openHoldBubble = useCallback((
+    anchor: HTMLElement,
+    row: KrInvestorFlowItem,
+    pointer?: BubblePointer | null,
+  ) => {
+    const anchorRect = anchorRectForBubble(anchor, pointer);
     setHoldBubble({
       symbol: row.symbol,
       name: row.name,
@@ -344,11 +353,16 @@ export default function InvestorFlowTab() {
       tabIndex={0}
       role="button"
       aria-expanded={holdBubble?.symbol === row.symbol}
-      onClick={(e) => openHoldBubble(e.currentTarget, row)}
+      onClick={(e) =>
+        openHoldBubble(e.currentTarget, row, {
+          clientX: e.clientX,
+          clientY: e.clientY,
+        })
+      }
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          openHoldBubble(e.currentTarget, row);
+          openHoldBubble(e.currentTarget, row, pointerFromElementCenter(e.currentTarget));
         }
       }}
     >
@@ -389,11 +403,16 @@ export default function InvestorFlowTab() {
       tabIndex={0}
       role="button"
       aria-expanded={holdBubble?.symbol === row.symbol}
-      onClick={(e) => openHoldBubble(e.currentTarget, row)}
+      onClick={(e) =>
+        openHoldBubble(e.currentTarget, row, {
+          clientX: e.clientX,
+          clientY: e.clientY,
+        })
+      }
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          openHoldBubble(e.currentTarget, row);
+          openHoldBubble(e.currentTarget, row, pointerFromElementCenter(e.currentTarget));
         }
       }}
     >

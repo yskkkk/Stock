@@ -226,7 +226,11 @@ const StockSearchPickRow = memo(
           className="pick-row"
           onClick={(e) => {
             if (row.market === "kr" || row.market === "us") {
-              showValueInvestBubble(e.currentTarget, stockPickToValueInvestTarget(pick));
+              showValueInvestBubble(
+                e.currentTarget,
+                stockPickToValueInvestTarget(pick),
+                { clientX: e.clientX, clientY: e.clientY },
+              );
             }
             onSelectPick(pick);
           }}

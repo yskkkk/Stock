@@ -67,13 +67,17 @@ export default function StockHoverBubbleActions({
         onClick={(e) => {
           e.stopPropagation();
           if (valueInvest) {
-            valueInvest.showValueInvestBubble(e.currentTarget, {
-              symbol,
-              name,
-              market,
-              price: price ?? null,
-              currency: currency ?? null,
-            });
+            valueInvest.showValueInvestBubble(
+              e.currentTarget,
+              {
+                symbol,
+                name,
+                market,
+                price: price ?? null,
+                currency: currency ?? null,
+              },
+              { clientX: e.clientX, clientY: e.clientY },
+            );
           } else {
             dispatchOpenFinancialsTab({ symbol, name, market });
           }

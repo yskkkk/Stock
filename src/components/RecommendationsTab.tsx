@@ -990,7 +990,11 @@ function RecTrackerRow({
           currency: item.currency,
         };
         if (item.market === "kr" || item.market === "us") {
-          showValueInvestBubble(e.currentTarget, stockPickToValueInvestTarget(pick));
+          showValueInvestBubble(
+            e.currentTarget,
+            stockPickToValueInvestTarget(pick),
+            { clientX: e.clientX, clientY: e.clientY },
+          );
         }
         onOpenPick(pick);
       }}
@@ -1008,7 +1012,11 @@ function RecTrackerRow({
             currency: item.currency,
           };
           if (item.market === "kr" || item.market === "us") {
-            showValueInvestBubble(e.currentTarget, stockPickToValueInvestTarget(pick));
+            showValueInvestBubble(
+              e.currentTarget,
+              stockPickToValueInvestTarget(pick),
+              { clientX: e.clientX, clientY: e.clientY },
+            );
           }
           onOpenPick(pick);
         }

@@ -14,6 +14,7 @@ import {
 } from "../lib/format";
 import { netReturnPctFromPrices } from "../lib/netReturn";
 import { useValueInvestBubble } from "../contexts/ValueInvestBubbleContext";
+import { pointerFromElementCenter } from "../lib/bubblePointerAnchor";
 import { ko } from "../i18n/ko";
 import { stockPickToValueInvestTarget } from "../lib/valueInvestBubbleTarget";
 import type { PicksDailyHistoryDay, PicksDailyHistorySlimPick } from "../types";
@@ -208,6 +209,7 @@ function HistoryPickColumn({
                   price: p.price ?? undefined,
                   currency: p.currency ?? defaultCurrency,
                 }),
+                { clientX: e.clientX, clientY: e.clientY },
               )
             }
             onKeyDown={(e) => {
@@ -224,6 +226,7 @@ function HistoryPickColumn({
                     price: p.price ?? undefined,
                     currency: p.currency ?? defaultCurrency,
                   }),
+                  pointerFromElementCenter(e.currentTarget),
                 );
               }
             }}

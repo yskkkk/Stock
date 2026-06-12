@@ -23,6 +23,10 @@ import {
 } from "../lib/valueInvestReturnModel";
 import type { ValueInvestReturnInputs, ValueInvestReturnResponse } from "../types";
 import {
+  anchorRectForBubble,
+  type BubblePointer,
+} from "../lib/bubblePointerAnchor";
+import {
   registerValueInvestBubbleApi,
   readValueInvestBubbleApi,
 } from "../lib/valueInvestBubbleBridge";
@@ -373,7 +377,11 @@ function InputField({
 }
 
 type Ctx = {
-  showValueInvestBubble: (anchor: HTMLElement, target: ValueInvestBubbleTarget) => void;
+  showValueInvestBubble: (
+    anchor: HTMLElement,
+    target: ValueInvestBubbleTarget,
+    pointer?: BubblePointer | null,
+  ) => void;
   closeValueInvestBubble: () => void;
   openSymbol: string | null;
 };
@@ -417,8 +425,12 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
   }, []);
 
   const showValueInvestBubble = useCallback(
-    (anchor: HTMLElement, target: ValueInvestBubbleTarget) => {
-      const anchorRect = anchor.getBoundingClientRect();
+    (
+      anchor: HTMLElement,
+      target: ValueInvestBubbleTarget,
+      pointer?: BubblePointer | null,
+    ) => {
+      const anchorRect = anchorRectForBubble(anchor, pointer);
       setOpen({
         ...target,
         anchorRect,
