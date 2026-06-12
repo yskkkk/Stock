@@ -11,19 +11,25 @@ export const EPS_GROWTH_HISTORY_YEARS = 10;
 /**
  * @param {{ year: number; eps: number }[]} series
  * @param {number} [maxYears]
- * @returns {{ start: { year: number; eps: number }; end: { year: number; eps: number }; periodYears: number } | null}
+ * @returns {{ start: { year: number; eps: number }; end: { year: number; eps: number }; periodYears: number; fromListing: boolean } | null}
  */
 export function epsGrowthWindow(series, maxYears = EPS_GROWTH_HISTORY_YEARS) {
   const sorted = (series ?? [])
     .filter((s) => s.year > 0 && s.eps > 0)
     .sort((a, b) => a.year - b.year);
   if (sorted.length < 2) return null;
-  const recent = sorted.slice(-maxYears);
-  const start = recent[0];
-  const end = recent[recent.length - 1];
+
+  const end = sorted[sorted.length - 1];
+  const listingSpan = end.year - sorted[0].year;
+  const fromListing = listingSpan < maxYears;
+  const start = fromListing
+    ? sorted[0]
+    : (sorted.find((s) => s.year >= end.year - maxYears) ?? sorted[0]);
+
   const periodYears = end.year - start.year;
   if (periodYears < 1) return null;
-  return { start, end, periodYears };
+
+  return { start, end, periodYears, fromListing };
 }
 
 /**
@@ -46,8 +52,9 @@ export function epsCagrFromHistory(series, maxYears = EPS_GROWTH_HISTORY_YEARS) 
 function formatEpsCagrSource(series, rawGrowth, cappedGrowth) {
   const window = epsGrowthWindow(series);
   if (!window) return "EPS CAGR";
-  const { start, end, periodYears } = window;
-  const base = `EPS CAGR ${start.year}→${end.year} (${periodYears}년)`;
+  const { start, end, periodYears, fromListing } = window;
+  const spanNote = fromListing ? `, 상장 ${periodYears}년` : "";
+  const base = `EPS CAGR ${start.year}→${end.year} (${periodYears}년${spanNote})`;
   if (rawGrowth != null && cappedGrowth != null && rawGrowth > GROWTH_10Y_CAP) {
     return `${base} → 10년 상한 ${GROWTH_10Y_CAP * 100}%`;
   }

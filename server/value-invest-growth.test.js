@@ -117,8 +117,27 @@ describe("epsGrowthWindow", () => {
     const w = epsGrowthWindow(series);
     expect(w).not.toBeNull();
     if (!w) return;
-    expect(w.start.year).toBe(2015);
+    expect(w.start.year).toBe(2014);
     expect(w.end.year).toBe(2024);
-    expect(w.periodYears).toBe(9);
+    expect(w.periodYears).toBe(10);
+    expect(w.fromListing).toBe(false);
+  });
+
+  it("상장 10년 미만 — 첫 실적연도부터", () => {
+    const series = [
+      { year: 2021, eps: 100 },
+      { year: 2022, eps: 120 },
+      { year: 2023, eps: 140 },
+      { year: 2024, eps: 160 },
+    ];
+    const w = epsGrowthWindow(series);
+    expect(w).not.toBeNull();
+    if (!w) return;
+    expect(w.start.year).toBe(2021);
+    expect(w.end.year).toBe(2024);
+    expect(w.periodYears).toBe(3);
+    expect(w.fromListing).toBe(true);
+    const r = epsCagrFromHistory(series);
+    expect(r).toBeCloseTo(cagr(100, 160, 3), 4);
   });
 });

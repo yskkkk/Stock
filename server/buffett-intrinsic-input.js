@@ -85,9 +85,9 @@ async function fetchHistoricalEpsSeries(symbol, market) {
     }
   }
 
-  const annual = [...byYear.values()]
-    .sort((a, b) => (b.endDateMs ?? 0) - (a.endDateMs ?? 0))
-    .slice(0, EPS_GROWTH_HISTORY_YEARS + 2);
+  const annual = [...byYear.values()].sort(
+    (a, b) => (b.endDateMs ?? 0) - (a.endDateMs ?? 0),
+  );
 
   const sharesInfo =
     market === "us" ? await fetchSharesOutstanding(sym) : { shares: null };
@@ -173,7 +173,7 @@ function deriveGrowth10y(series, fundamentals) {
     const window = epsGrowthWindow(series);
     const sourceBase =
       window != null
-        ? `EPS CAGR ${window.start.year}→${window.end.year} (${window.periodYears}년)`
+        ? `EPS CAGR ${window.start.year}→${window.end.year} (${window.periodYears}년${window.fromListing ? ", 상장 기간" : ""})`
         : "EPS CAGR";
     return {
       value: capped,

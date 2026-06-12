@@ -58,9 +58,9 @@ export async function loadAnnualEpsHistory(symbol) {
     }
   }
 
-  const annual = [...byYear.values()]
-    .sort((a, b) => (a.endDateMs ?? 0) - (b.endDateMs ?? 0))
-    .slice(-(EPS_AVERAGE_MAX_YEARS + 2));
+  const annual = [...byYear.values()].sort(
+    (a, b) => (a.endDateMs ?? 0) - (b.endDateMs ?? 0),
+  );
 
   const details = await Promise.all(
     annual.map((p) => loadFinancialStatementDetail(sym, p.id).catch(() => null)),
