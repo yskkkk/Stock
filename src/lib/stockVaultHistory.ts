@@ -159,7 +159,13 @@ export function buildVaultItemsFromScanHistory(
       ma120: hit.ma120,
       distancePct: hit.distancePct,
       ma120Approach: hit.ma120Approach,
-      ma120Side: hit.ma120Side,
+      ma120Side:
+        hit.ma120Side ??
+        (hit.ma120Approach === "from_below"
+          ? "below"
+          : hit.ma120Approach === "from_above"
+            ? "above"
+            : undefined),
       addedAtMs: atMs,
       updatedAtMs: atMs,
       favorited,

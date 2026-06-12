@@ -2092,6 +2092,24 @@ export function fetchKrInvestorFlowHoldings(
   );
 }
 
+export function fetchStockVaultQuotes(
+  symbols: string[],
+  signal?: AbortSignal,
+) {
+  const uniq = [...new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean))];
+  if (!uniq.length) {
+    return Promise.resolve({
+      quotes: {} as PicksDailyHistoryQuotesMap,
+      updatedAtMs: Date.now(),
+    });
+  }
+  const params = new URLSearchParams({ symbols: uniq.join(",") });
+  return fetchJson<{
+    quotes: PicksDailyHistoryQuotesMap;
+    updatedAtMs: number;
+  }>(`/api/stock-vault/quotes?${params}`, signal ? { signal } : undefined);
+}
+
 export function fetchStockVaultChartInsights(opts?: {
   refresh?: boolean;
   signal?: AbortSignal;

@@ -2440,6 +2440,24 @@ export function createApp() {
   );
 
   app.get(
+    "/api/stock-vault/quotes",
+    asyncRoute(async (req, res) => {
+      const raw = String(req.query.symbols ?? "").trim();
+      const symbols = raw
+        ? raw
+            .split(/[,\s]+/)
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : [];
+      const quotes =
+        symbols.length > 0
+          ? await fetchQuoteSnapshotsForSymbols(symbols, { maxAgeMs: 0 })
+          : {};
+      res.json({ quotes, updatedAtMs: Date.now() });
+    }),
+  );
+
+  app.get(
     "/api/stock-vault/chart-insights",
     asyncRoute(async (req, res) => {
       const { buildStockVaultItemsForUserSync } = await import(

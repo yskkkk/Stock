@@ -7,6 +7,7 @@ import {
   fetchMa120NearHistory,
   fetchMaAlignHistory,
   fetchStockVaultChartInsights,
+  fetchStockVaultQuotes,
   removeStockVaultItem,
   setStockVaultFavorite,
   triggerGoldenCrossScan,
@@ -59,9 +60,11 @@ import {
 } from "../lib/tabPrefetch";
 import { yahooStockSymbolToTradingView } from "../lib/tradingviewSymbols";
 import {
+  enrichMa120ItemSide,
   formatGoldenCrossChain,
   formatMa120NearLabel,
   formatMaAlignChain,
+  listMa120SymbolsNeedingQuotes,
   resolveMa120Approach,
 } from "../lib/stockVaultMaDisplay";
 import {
@@ -100,6 +103,7 @@ const SOURCE_BADGE_LABEL: Record<StockVaultScanSource, string> = {
 
 const SCAN_POLL_MS = 2500;
 const QUOTE_POLL_MS = 60_000;
+const MA120_APPROACH_QUOTE_POLL_MS = 15_000;
 const CHART_INSIGHTS_POLL_MS = 90_000;
 
 function fmtDate(ms: number): string {
@@ -444,9 +448,9 @@ export default function StockVaultTab({
     const insightCount = (snapshotItems?.length ?? 0) + items.filter((it) => it.source === "favorite").length;
     if (insightCount === 0) return;
     let cancelled = false;
-    const loadInsights = async () => {
+    const loadInsights = async (refresh = false) => {
       try {
-        const res = await fetchStockVaultChartInsights();
+        const res = await fetchStockVaultChartInsights({ refresh });
         if (!cancelled && res.chartInsights) {
           setChartInsights(res.chartInsights);
         }
@@ -454,9 +458,9 @@ export default function StockVaultTab({
         /* ignore */
       }
     };
-    void loadInsights();
+    void loadInsights(true);
     const id = window.setInterval(() => {
-      void loadInsights();
+      void loadInsights(false);
     }, CHART_INSIGHTS_POLL_MS);
     return () => {
       cancelled = true;
@@ -560,6 +564,65 @@ export default function StockVaultTab({
     const extras = items.filter((it) => it.source === "favorite");
     return [...snap, ...extras];
   }, [snapshotItems, items, isHistoricalView]);
+
+  useEffect(() => {
+    if (timeframeFilter !== "1d") return;
+    const need = listMa120SymbolsNeedingQuotes(displayItems, quotes, chartInsights);
+    if (!need.length) return;
+
+    let cancelled = false;
+    const pull = async () => {
+      if (cancelled) return;
+      const pending = listMa120SymbolsNeedingQuotes(displayItems, quotes, chartInsights);
+      if (!pending.length) return;
+      try {
+        const res = await fetchStockVaultQuotes(pending);
+        if (cancelled) return;
+        setQuotes((prev) => {
+          const next = { ...prev };
+          for (const [sym, q] of Object.entries(res.quotes ?? {})) {
+            if (!q?.price || !Number.isFinite(q.price)) continue;
+            next[sym.trim().toUpperCase()] = {
+              price: q.price,
+              changePercent: q.changePercent,
+              currency: q.currency,
+            };
+          }
+          return next;
+        });
+        setSnapshotItems((prev) => {
+          if (!prev?.length) return prev;
+          let changed = false;
+          const nextItems = prev.map((it) => {
+            const sym = it.symbol.trim().toUpperCase();
+            const enriched = enrichMa120ItemSide(it, res.quotes?.[sym]?.price);
+            if (enriched.ma120Side !== it.ma120Side) changed = true;
+            return enriched;
+          });
+          if (!changed) return prev;
+          saveLocalScanSnapshot(selectedScanDate ?? kstTodayYmd(), nextItems);
+          return nextItems;
+        });
+      } catch {
+        /* ignore */
+      }
+    };
+
+    void pull();
+    const id = window.setInterval(() => {
+      void pull();
+    }, MA120_APPROACH_QUOTE_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [
+    displayItems,
+    timeframeFilter,
+    chartInsights,
+    quotes,
+    selectedScanDate,
+  ]);
 
   useEffect(() => {
     return subscribeStockVaultPrefetch((bundle) => {

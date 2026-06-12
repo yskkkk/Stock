@@ -1,4 +1,4 @@
-import type { GoldenCrossKind } from "../types";
+import type { GoldenCrossKind, StockVaultChartInsightSnapshot, StockVaultItem } from "../types";
 
 const CROSS_LABEL: Record<GoldenCrossKind, string> = {
   "5>20": "5→20 골든",
@@ -52,6 +52,71 @@ export function formatMa120NearLabel(
     return `120선 ${dist} · ${labels?.fromAbove ?? "상단접근"}`;
   }
   return `120선 ${dist}`;
+}
+
+export function ma120ApproachResolvableWithoutQuote(
+  item: Pick<
+    StockVaultItem,
+    "ma120Approach" | "ma120Side" | "source" | "symbol"
+  >,
+  insight?: StockVaultChartInsightSnapshot | null,
+): boolean {
+  if (item.source !== "ma120_near") return true;
+  if (item.ma120Approach === "from_below" || item.ma120Approach === "from_above") {
+    return true;
+  }
+  if (item.ma120Side === "below" || item.ma120Side === "above") {
+    return true;
+  }
+  const hit = insight?.daily?.near?.find((n) => n.period === 120);
+  if (hit?.approach === "from_below" || hit?.approach === "from_above") {
+    return true;
+  }
+  if (hit?.side === "below" || hit?.side === "above") {
+    return true;
+  }
+  return false;
+}
+
+export function listMa120SymbolsNeedingQuotes(
+  items: StockVaultItem[],
+  quotes: Record<string, { price?: number } | undefined>,
+  chartInsights: Record<string, StockVaultChartInsightSnapshot | undefined>,
+): string[] {
+  const out: string[] = [];
+  for (const it of items) {
+    if (it.source !== "ma120_near") continue;
+    const sym = it.symbol.trim().toUpperCase();
+    const insight = chartInsights[sym];
+    if (ma120ApproachResolvableWithoutQuote(it, insight)) continue;
+    const ma120 = Number(it.ma120);
+    const price = Number(quotes[sym]?.price);
+    if (Number.isFinite(ma120) && ma120 > 0 && Number.isFinite(price) && price > 0) {
+      continue;
+    }
+    out.push(sym);
+  }
+  return [...new Set(out)];
+}
+
+export function enrichMa120ItemSide(
+  item: StockVaultItem,
+  currentPrice?: number | null,
+): StockVaultItem {
+  if (item.source !== "ma120_near") return item;
+  if (item.ma120Side === "above" || item.ma120Side === "below") return item;
+  if (item.ma120Approach === "from_below") {
+    return { ...item, ma120Side: "below" };
+  }
+  if (item.ma120Approach === "from_above") {
+    return { ...item, ma120Side: "above" };
+  }
+  const ma120 = Number(item.ma120);
+  const price = Number(currentPrice);
+  if (Number.isFinite(ma120) && ma120 > 0 && Number.isFinite(price) && price > 0) {
+    return { ...item, ma120Side: price >= ma120 ? "above" : "below" };
+  }
+  return item;
 }
 
 export function resolveMa120Approach(
