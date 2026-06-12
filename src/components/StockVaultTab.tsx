@@ -539,19 +539,13 @@ export default function StockVaultTab({
   );
 
   const toggleScanSource = useCallback(
-    (source: StockVaultScanSource, ev?: React.MouseEvent) => {
+    (source: StockVaultScanSource) => {
       setIndustryFilter("all");
-      const multi = Boolean(ev?.ctrlKey || ev?.metaKey);
       setSelectedScanSources((prev) => {
-        if (multi) {
-          const set = new Set(prev);
-          if (set.has(source)) set.delete(source);
-          else set.add(source);
-          const next = STOCK_VAULT_SCAN_SOURCES.filter((s) => set.has(s));
-          return next.length ? next : [source];
-        }
-        if (prev.length === 1 && prev[0] === source) return prev;
-        return [source];
+        const set = new Set(prev);
+        if (set.has(source)) set.delete(source);
+        else set.add(source);
+        return STOCK_VAULT_SCAN_SOURCES.filter((s) => set.has(s));
       });
       if (
         source === "ma120_near" &&
@@ -957,7 +951,7 @@ export default function StockVaultTab({
                         : "market-tab market-tab--toggle"
                     }
                     aria-pressed={active}
-                    onClick={(ev) => toggleScanSource(source, ev)}
+                    onClick={() => toggleScanSource(source)}
                   >
                     {SCAN_SOURCE_LABEL[source]}
                     <span className="market-tab__count">{scanSourceCounts[source]}</span>
