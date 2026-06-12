@@ -296,6 +296,32 @@ function resolveIntervalMs(entry) {
   return typeof iv === "function" ? iv() : iv;
 }
 
+/** @type {Map<string, () => void>} */
+const lazyStarters = new Map();
+
+/** @param {string} id @param {() => void} fn */
+export function registerPollerLazyStarter(id, fn) {
+  const uid = String(id ?? "").trim();
+  if (!uid || typeof fn !== "function") return;
+  lazyStarters.set(uid, fn);
+}
+
+/** @param {string} id */
+export function tryLazyStartPoller(id) {
+  const uid = String(id ?? "").trim();
+  const fn = lazyStarters.get(uid);
+  if (fn) {
+    try {
+      fn();
+    } catch (e) {
+      const st = runtime[uid] ?? {};
+      st.lastError = e instanceof Error ? e.message : String(e);
+      runtime[uid] = st;
+    }
+  }
+  markPollerBootStarted(uid);
+}
+
 export function markPollerBootStarted(id) {
   const uid = String(id ?? "").trim();
   if (!uid) return;
@@ -380,6 +406,9 @@ export function setPollerRuntimeEnabled(id, enabled) {
   const overrides = readOverridesSync();
   overrides[id] = Boolean(enabled);
   writeOverridesSync(overrides);
+  if (enabled) {
+    tryLazyStartPoller(id);
+  }
   return listPollersStatusSync();
 }
 

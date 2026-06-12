@@ -22,6 +22,32 @@ import { startKrInvestorFlowPoller } from "./kr-investor-flow-poller.js";
 import { startMaAlignMa120WatchPoller } from "./ma-align-ma120-watch.js";
 import { startHoldingsNewsEmailPoller } from "./holdings-news-poller.js";
 import { screeningPollerEnabled, startScreening } from "./screener.js";
+import { registerPollerLazyStarter } from "./poller-registry.js";
+
+function registerDevSidecarPollers() {
+  registerPollerLazyStarter("dev-queue-sync", startDevQueueDisplaySyncPoller);
+  registerPollerLazyStarter("ide-transcript", startOpsIdeTranscriptPoller);
+  registerPollerLazyStarter("live-trade-exchange-sync", startLiveTradeExchangeSyncPoller);
+  registerPollerLazyStarter("toss-ledger-cache", startTossLedgerSnapshotPoller);
+  registerPollerLazyStarter("toss-ledger-api", startTossLedgerSnapshotPoller);
+  registerPollerLazyStarter("live-trade-auto-sell", startLiveTradeAutoSellPoller);
+  registerPollerLazyStarter("box-range-runner", startBoxRangeRunnerPoller);
+  registerPollerLazyStarter("box-sp500-scan", startSp500BoxRangeCatalogPoller);
+  registerPollerLazyStarter("box-kr-scan", startKrBoxRangeCatalogPoller);
+  registerPollerLazyStarter("box-crypto-scan", startCryptoBoxRangeCatalogPoller);
+  registerPollerLazyStarter("ops-file-dev", startOpsFileDevPoller);
+  registerPollerLazyStarter("golden-cross", startGoldenCrossScanPoller);
+  registerPollerLazyStarter("golden-cross-intraday", startGoldenCrossScanPoller);
+  registerPollerLazyStarter("kr-investor-flow", startKrInvestorFlowPoller);
+  registerPollerLazyStarter("ma120-near-watch", startMaAlignMa120WatchPoller);
+  registerPollerLazyStarter("holdings-news", startHoldingsNewsEmailPoller);
+  registerPollerLazyStarter("self-improvement", startServerSelfImprovementWatcher);
+  registerPollerLazyStarter("screener", () => {
+    if (screeningPollerEnabled()) {
+      startScreening().catch(logScreeningError);
+    }
+  });
+}
 
 function logScreeningError(err) {
   console.warn("[screener]", err instanceof Error ? err.message : err);
@@ -34,6 +60,7 @@ export function startStockDevSidecarsOnce(modeLabel) {
   );
   if (g.__stockViteDevSidecars) return;
   g.__stockViteDevSidecars = true;
+  registerDevSidecarPollers();
   if (modeLabel) {
     appendServerEventLog("server", `${modeLabel} — 로그는 server/.logs 에 append 유지`);
   }

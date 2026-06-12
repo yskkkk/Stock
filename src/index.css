@@ -10512,7 +10512,12 @@ html[data-theme="light"]
 
 .app-live-trade-side-dock__api-popover--portal {
   position: fixed;
-  z-index: 120;
+  z-index: 10050;
+  pointer-events: auto;
+}
+
+.app-live-trade-side-dock__pollers-popover.app-live-trade-side-dock__api-popover--portal {
+  z-index: 10050;
 }
 
 .app-live-trade-side-dock__pollers-popover {
@@ -10672,6 +10677,21 @@ html[data-theme="light"][data-light-palette="glass"]
 
 .dock-poller-rail__card-actions {
   flex: 0 0 auto;
+}
+
+.dock-poller-rail__card-actions--blocked {
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.dock-poller-rail__card-actions--blocked .dock-poller-rail__env-hint {
+  flex: 1 1 100%;
+  text-align: right;
+}
+
+.dock-poller-rail__toggle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .dock-poller-rail__detail-actions {

@@ -25,6 +25,8 @@ function pollerPopoverStyle(anchor: HTMLElement): CSSProperties {
   return {
     right: Math.max(8, window.innerWidth - r.left + POLLER_POPOVER_GAP_PX),
     bottom: Math.max(8, window.innerHeight - r.bottom),
+    zIndex: OVERLAY_Z,
+    pointerEvents: "auto",
   };
 }
 
@@ -123,9 +125,26 @@ function PollerToggleActions({
 }) {
   const stopRef = useRef<HTMLButtonElement>(null);
   const restartRef = useRef<HTMLButtonElement>(null);
-  const canToggle = poller.runtimeToggleable && poller.bootEnabled && poller.bootStarted;
-  const canStop = canToggle && poller.runtimeEnabled;
-  const canRestart = canToggle && !poller.runtimeEnabled;
+  const bootBlocked = poller.runtimeToggleable && !poller.bootEnabled;
+  const canToggle = poller.runtimeToggleable && poller.bootEnabled;
+  const canStop = canToggle && poller.runtimeEnabled && poller.effectiveEnabled;
+  const canRestart = canToggle && !canStop;
+
+  if (bootBlocked) {
+    return (
+      <div className="dock-poller-rail__card-actions dock-poller-rail__card-actions--blocked">
+        <button
+          type="button"
+          className="btn btn--sm dock-poller-rail__toggle dock-poller-rail__toggle--restart"
+          disabled
+          title={poller.envDisable}
+        >
+          {ko.app.liveTradeSideDockPollersRestart}
+        </button>
+        <p className="dock-poller-rail__env-hint">{ko.app.liveTradeSideDockPollersBootBlocked}</p>
+      </div>
+    );
+  }
 
   if (!canToggle) {
     return <p className="dock-poller-rail__env-hint">{poller.envDisable}</p>;

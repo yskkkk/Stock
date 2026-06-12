@@ -482,6 +482,7 @@ export const ko = {
     liveTradeSideDockPollersStart: "실행",
     liveTradeSideDockPollersRestart: "다시 기동",
     liveTradeSideDockPollersStop: "중지",
+    liveTradeSideDockPollersBootBlocked: "부팅 off — env 설정 후 서버 재기동",
     liveTradeSideDockPollersDetail: "동작 설명",
     liveTradeSideDockPollersEnvHint: "env",
     liveTradeSideDockPollersToggleNeedPassword: "관리자 비밀번호",
