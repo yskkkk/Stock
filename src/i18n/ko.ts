@@ -492,6 +492,7 @@ export const ko = {
     footerInquiry: "문의",
     footerInquiryPlaceholder: "문의 내용을 적어 주세요…",
     footerInquiryTitle: "문의하기",
+    scrollToTop: "맨 위로",
     leftRailAria: "주요 지수 · 환율 계산",
     leftRailBithumbAccountAria: "빗썸 계좌 잔고·보유",
     leftRailBithumbAccountNeedKeys: "실거래 탭에서 빗썸 API를 저장하면 잔고·보유가 표시됩니다.",

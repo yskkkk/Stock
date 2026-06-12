@@ -18,6 +18,7 @@ import {
 import BullishReasonModal from "./components/BullishReasonModal";
 import AccessAdminModal from "./components/AccessAdminModal";
 import AppSiteFooter from "./components/AppSiteFooter";
+import ScrollToTopButton from "./components/ScrollToTopButton";
 import AppThemeCorner from "./components/AppThemeCorner";
 import { useMainTabWithPreview } from "./hooks/useMainTabWithPreview";
 import FeedbackCorner, {
@@ -2286,6 +2287,7 @@ export default function App() {
         hideFeedbackLink={desktopDockLayout}
       />
       </div>
+      <ScrollToTopButton scrollRef={appScrollRef} />
     </div>
   );
 }

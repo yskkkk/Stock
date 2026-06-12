@@ -1,0 +1,60 @@
+.scroll-to-top-btn {
+  position: fixed;
+  left: max(0.55rem, env(safe-area-inset-left, 0px));
+  bottom: max(0.55rem, env(safe-area-inset-bottom, 0px));
+  z-index: 10055;
+  width: 2.4rem;
+  height: 2.4rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: color-mix(in srgb, var(--card) 90%, transparent);
+  color: var(--text-dim);
+  box-shadow: var(--shadow);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px) scale(0.96);
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.scroll-to-top-btn--visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.scroll-to-top-btn:hover {
+  color: var(--text);
+  border-color: var(--accent-border);
+  background: color-mix(in srgb, var(--card) 96%, var(--accent-dim));
+}
+
+.scroll-to-top-btn:focus-visible {
+  outline: 2px solid var(--accent-border);
+  outline-offset: 2px;
+}
+
+.scroll-to-top-btn__icon {
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
+@media (min-width: 1180px) {
+  .scroll-to-top-btn {
+    left: max(0.75rem, env(safe-area-inset-left, 0px));
+    bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+  }
+}

@@ -24,6 +24,7 @@ import "./stock-vault-tab.css";
 import "./investor-flow-tab.css";
 import "./value-invest-bubble.css";
 import "./account-snapshot.css";
+import "./scroll-to-top-button.css";
 
 declare global {
   interface Window {
