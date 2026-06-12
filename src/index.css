@@ -7080,6 +7080,11 @@ html[data-theme="light"] .earnings-icon-rail__logo-wrap.stock-logo-plate--dark {
   color: var(--accent);
 }
 
+.earnings-icon-rail__bubble-btn--buffett {
+  border-color: color-mix(in srgb, #8b6914 35%, var(--card-border));
+  color: color-mix(in srgb, #8b6914 88%, var(--text));
+}
+
 .earnings-icon-rail__bubble-sep {
   color: var(--muted);
   font-weight: 500;

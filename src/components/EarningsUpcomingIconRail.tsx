@@ -16,7 +16,7 @@ import {
   type EarningsBubbleFinancialSummary,
 } from "../lib/earningsBubbleFinancials";
 import { peerPerVerdictClassName } from "../lib/peerPerComparison";
-import { dispatchOpenFinancialsTab } from "../lib/openFinancialsTab";
+import StockHoverBubbleActions from "./StockHoverBubbleActions";
 import {
   formatMacroCountdown,
   formatMacroWhen,
@@ -333,35 +333,14 @@ export default function EarningsUpcomingIconRail({
                 ))}
               </div>
             ) : null}
-            {tvChartUrl ? (
-              <div className="earnings-icon-rail__bubble-actions">
-                <a
-                  className="earnings-icon-rail__bubble-btn earnings-icon-rail__bubble-btn--tv"
-                  href={tvChartUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={`${tip.row.name} ${ko.stockVault.openTradingViewChart}`}
-                  onClick={() => setTip(null)}
-                >
-                  {ko.stockVault.bubbleBtnChart}
-                </a>
-                <button
-                  type="button"
-                  className="earnings-icon-rail__bubble-btn earnings-icon-rail__bubble-btn--fin"
-                  aria-label={`${tip.row.name} ${ko.stockVault.openFinancialsTab}`}
-                  onClick={() => {
-                    dispatchOpenFinancialsTab({
-                      symbol: tip.row.symbol,
-                      name: tip.row.name,
-                      market: tip.row.market === "kr" ? "kr" : "us",
-                    });
-                    setTip(null);
-                  }}
-                >
-                  {ko.stockVault.bubbleBtnFinancials}
-                </button>
-              </div>
-            ) : null}
+            <StockHoverBubbleActions
+              variant="earnings"
+              symbol={tip.row.symbol}
+              name={tip.row.name}
+              market={tip.row.market === "kr" ? "kr" : "us"}
+              tvChartUrl={tvChartUrl}
+              onAfterAction={() => setTip(null)}
+            />
           </div>,
           document.body,
         )

@@ -8,7 +8,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { ko } from "../i18n/ko";
-import { dispatchOpenFinancialsTab } from "../lib/openFinancialsTab";
+import StockHoverBubbleActions from "./StockHoverBubbleActions";
 import { tradingViewChartUrl } from "../lib/tradingviewSymbols";
 import {
   formatVaultIndustryFinancialLines,
@@ -244,49 +244,14 @@ export function useStockVaultRowBubble() {
                 {ko.stockVault.industryFinLoading}
               </p>
             )}
-            <div className="stock-vault-tab__bubble-actions">
-              <a
-                className="stock-vault-tab__bubble-btn stock-vault-tab__bubble-btn--tv"
-                href={tradingViewChartUrl(tip.tvSymbol)}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`${tip.name} ${ko.stockVault.openTradingViewChart}`}
-                onClick={() => setTip(null)}
-              >
-                {ko.stockVault.bubbleBtnChart}
-              </a>
-              <button
-                type="button"
-                className="stock-vault-tab__bubble-btn stock-vault-tab__bubble-btn--fin"
-                aria-label={`${tip.name} ${ko.stockVault.openFinancialsTab}`}
-                onClick={() => {
-                  dispatchOpenFinancialsTab({
-                    symbol: tip.symbol,
-                    name: tip.name,
-                    market: tip.market,
-                  });
-                  setTip(null);
-                }}
-              >
-                {ko.stockVault.bubbleBtnFinancials}
-              </button>
-              <button
-                type="button"
-                className="stock-vault-tab__bubble-btn stock-vault-tab__bubble-btn--buffett"
-                aria-label={`${tip.name} ${ko.stockVault.openBuffettTab}`}
-                onClick={() => {
-                  dispatchOpenFinancialsTab({
-                    symbol: tip.symbol,
-                    name: tip.name,
-                    market: tip.market,
-                    scrollTo: "buffett",
-                  });
-                  setTip(null);
-                }}
-              >
-                {ko.stockVault.bubbleBtnBuffett}
-              </button>
-            </div>
+            <StockHoverBubbleActions
+              variant="vault"
+              symbol={tip.symbol}
+              name={tip.name}
+              market={tip.market}
+              tvChartUrl={tradingViewChartUrl(tip.tvSymbol)}
+              onAfterAction={() => setTip(null)}
+            />
           </div>,
           document.body,
         )
