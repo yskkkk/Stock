@@ -179,7 +179,7 @@ export default function LiveAccountTradesMainPanel({
               {holdingsErr}
             </p>
           ) : (
-            <>
+            <div className="trade-history-main-workspace__holdings-pane">
               {accountPnl ? <LiveAccountPnlSummaryBar summary={accountPnl} /> : null}
               {exchangeTradesErr ? (
                 <p className="live-trade-history__err" role="alert">
@@ -192,7 +192,7 @@ export default function LiveAccountTradesMainPanel({
                 cumulativeReturnBySymbol={cumulativeReturnBySymbol}
                 onOpenHoldingChart={onOpenHoldingChart}
               />
-            </>
+            </div>
           )
         ) : null}
 

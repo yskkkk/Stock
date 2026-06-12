@@ -1,5 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import type { LiveTradeHolding } from "../api";
+import { useNestedVerticalScroll } from "../hooks/useNestedVerticalScroll";
 import { useLiveTradingStatusPoll } from "../hooks/useLiveTradingStatusPoll";
 import { ko } from "../i18n/ko";
 import {
@@ -66,6 +67,8 @@ export default function LiveAccountHoldingsTossCards({
     () => holdings.filter((h) => liveTradeHoldingMatchesExchange(h, exchange)),
     [holdings, exchange],
   );
+  const listScrollRef = useRef<HTMLDivElement>(null);
+  useNestedVerticalScroll(listScrollRef, rows.length > 0);
 
   if (rows.length === 0) {
     return (
@@ -78,8 +81,13 @@ export default function LiveAccountHoldingsTossCards({
   return (
     <div className="live-account-holdings live-account-holdings--toss-cards">
       <h3 className="live-account-holdings__title">{ko.app.liveTradePfTabHoldings}</h3>
-      <div className="toss-my-stock-card-list">
-        {rows.map((h) => {
+      <div
+        ref={listScrollRef}
+        className="toss-my-stock-card-list-scroll scroll-region"
+        aria-label={ko.app.liveTradePfTabHoldings}
+      >
+        <div className="toss-my-stock-card-list">
+          {rows.map((h) => {
           const roundTrip = roundTripFeeForMarket(h.market, feeByMarket);
           const mv = h.marketValue ?? 0;
           const fee = estimateSellFeeAmount(mv, roundTrip);
@@ -163,6 +171,7 @@ export default function LiveAccountHoldingsTossCards({
             />
           );
         })}
+        </div>
       </div>
     </div>
   );
