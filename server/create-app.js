@@ -2349,7 +2349,7 @@ export function createApp() {
       const { buildStockVaultItemsForUserSync } = await import(
         "./stock-vault-view.js"
       );
-      const { fetchStockVaultMetaForItems, listStockVaultIndustryTabs, stockVaultIndustryGridRows } =
+      const { readStockVaultMetaForItemsSync, scheduleStockVaultMetaRefresh, listStockVaultIndustryTabs, stockVaultIndustryGridRows } =
         await import("./stock-vault-meta.js");
       const { readStockVaultIndustryFinancialsSync } = await import(
         "./stock-vault-industry-financials.js"
@@ -2358,16 +2358,18 @@ export function createApp() {
       const { items, authenticated, favoriteSymbols, favoriteMeta } =
         buildStockVaultItemsForUserSync(user?.id);
       const symbols = items.map((it) => it.symbol);
-      const [quotes, meta] = await Promise.all([
-        symbols.length > 0 ? fetchQuoteSnapshotsForSymbols(symbols) : Promise.resolve({}),
-        fetchStockVaultMetaForItems(items),
-      ]);
+      const meta = readStockVaultMetaForItemsSync(items);
+      const quotes =
+        symbols.length > 0
+          ? await fetchQuoteSnapshotsForSymbols(symbols, { maxAgeMs: 120_000 })
+          : {};
       const {
         readStockVaultChartInsightsSync,
         scheduleStockVaultChartInsightsRefresh,
       } = await import("./stock-vault-chart-insights.js");
       const chartInsights = readStockVaultChartInsightsSync();
       if (symbols.length > 0) {
+        scheduleStockVaultMetaRefresh(items);
         scheduleStockVaultChartInsightsRefresh(symbols, quotes);
       }
       const industryTabs = listStockVaultIndustryTabs();

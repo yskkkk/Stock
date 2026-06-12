@@ -369,10 +369,12 @@ export function invalidateStockVaultPrefetch(): void {
 }
 
 async function fetchStockVaultBundle(): Promise<StockVaultPrefetch> {
-  const [vault, scanStatus] = await Promise.all([
-    fetchStockVault(),
-    fetchGoldenCrossStatus().catch(() => null),
-  ]);
+  const vault = await fetchStockVault();
+  const partial: StockVaultPrefetch = { vault, scanStatus: null };
+  pinStockVaultSessionCache();
+  setCached("stockVault", partial);
+  notifyStockVaultPrefetch(partial);
+  const scanStatus = await fetchGoldenCrossStatus().catch(() => null);
   return { vault, scanStatus };
 }
 

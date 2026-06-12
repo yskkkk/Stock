@@ -230,7 +230,10 @@ export default function StockVaultTab({
     () => cachedVault?.industryTabs ?? [],
   );
   const [loading, setLoading] = useState(
-    () => !cachedInit && !isStockVaultSessionPinned(),
+    () =>
+      !cachedInit &&
+      !(cachedVault?.items?.length) &&
+      !isStockVaultSessionPinned(),
   );
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<VaultFilter>(() => uiInit.filter);
@@ -321,8 +324,10 @@ export default function StockVaultTab({
   }, [applyVaultResponse]);
 
   const reload = useCallback(async (force = false) => {
-    const hadCache = !force && Boolean(peekStockVaultPrefetch());
-    if (!hadCache) {
+    const hadData =
+      !force &&
+      (Boolean(peekStockVaultPrefetch()) || items.length > 0);
+    if (!hadData) {
       setLoading(true);
     }
     setError(null);
@@ -335,7 +340,7 @@ export default function StockVaultTab({
     } finally {
       setLoading(false);
     }
-  }, [applyVaultResponse, applyScanStatus]);
+  }, [applyVaultResponse, applyScanStatus, items.length]);
 
   useEffect(() => {
     saveStockVaultTabUi({
@@ -999,7 +1004,8 @@ export default function StockVaultTab({
           ) : null}
         </div>
 
-        {loading || (isHistoricalView && historyLoading) ? (
+        {(loading && displayItems.length === 0) ||
+        (isHistoricalView && historyLoading) ? (
           <p className="stock-vault-tab__muted">{ko.stockVault.loading}</p>
         ) : error ? (
           <p className="stock-vault-tab__error" role="alert">

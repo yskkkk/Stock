@@ -6,12 +6,81 @@ import {
 } from "./us-naver-korean-name.js";
 import { yahooGet } from "./yahoo.js";
 import { fetchKrNaverIndustryRawName } from "./kr-naver-industry.js";
+import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
 
 const CACHE_TTL_MS = 24 * 60 * 60_000;
 const CACHE_VERSION = 3;
+const META_STORE_FILE = "stock-vault-meta-cache.json";
+const REFRESH_DEBOUNCE_MS = 2_000;
+const META_FETCH_CONCURRENCY = 4;
 
 /** @type {Map<string, { at: number; industry: string | null }>} */
 const cache = new Map();
+
+/** @type {ReturnType<typeof setTimeout> | null} */
+let refreshTimer = null;
+/** @type {Promise<Record<string, object>> | null} */
+let refreshInFlight = null;
+
+/** @param {unknown} raw */
+function normalizeMetaStore(raw) {
+  const root = raw && typeof raw === "object" ? raw : {};
+  /** @type {Record<string, { at?: number; industry?: string | null; nameKo?: string | null; tvSymbol?: string | null; exchange?: string | null }>} */
+  const bySymbol =
+    root.bySymbol && typeof root.bySymbol === "object"
+      ? /** @type {Record<string, object>} */ (root.bySymbol)
+      : {};
+  return {
+    version: CACHE_VERSION,
+    updatedAtMs:
+      typeof root.updatedAtMs === "number" && Number.isFinite(root.updatedAtMs)
+        ? root.updatedAtMs
+        : 0,
+    bySymbol,
+  };
+}
+
+function readMetaStoreSync() {
+  return readJsonStoreSync(META_STORE_FILE, normalizeMetaStore, () => ({
+    version: CACHE_VERSION,
+    updatedAtMs: 0,
+    bySymbol: {},
+  }));
+}
+
+/** @param {Record<string, object>} bySymbol */
+function persistMetaStore(bySymbol) {
+  writeJsonStoreSync(META_STORE_FILE, {
+    version: CACHE_VERSION,
+    updatedAtMs: Date.now(),
+    bySymbol,
+  });
+}
+
+/**
+ * @param {string} symbol
+ * @param {"kr"|"us"|null|undefined} market
+ */
+function readCachedIndustry(symbol, market) {
+  const key = cacheKeyFor(symbol, market);
+  if (!key || key.endsWith(":")) return "기타";
+
+  const hit = cache.get(key);
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
+    return hit.industry ?? "기타";
+  }
+
+  const sym = String(symbol ?? "").trim().toUpperCase();
+  const row = readMetaStoreSync().bySymbol[sym];
+  if (row?.industry) {
+    const at =
+      typeof row.at === "number" && Number.isFinite(row.at) ? row.at : Date.now();
+    cache.set(key, { at, industry: row.industry });
+    return row.industry;
+  }
+
+  return "기타";
+}
 
 /** @type {Record<string, string>} */
 const INDUSTRY_KO = {
@@ -552,6 +621,73 @@ function inferVaultItemMarket(item) {
   return "us";
 }
 
+export function readStockVaultMetaForItemsSync(items) {
+  /** @type {Record<string, { industry?: string | null; nameKo?: string | null; tvSymbol?: string | null; exchange?: string | null }>} */
+  const meta = {};
+  const store = readMetaStoreSync();
+  const rows = Array.isArray(items) ? items : [];
+
+  for (const item of rows) {
+    const sym = String(item?.symbol ?? "").trim().toUpperCase();
+    if (!sym) continue;
+    const market = inferVaultItemMarket(item);
+    const cached = store.bySymbol[sym];
+    const nameKo =
+      market === "us"
+        ? getKoreanStockName(sym) ?? cached?.nameKo ?? null
+        : getKoreanStockName(sym);
+    meta[sym] = {
+      industry: readCachedIndustry(sym, market),
+      ...(nameKo ? { nameKo } : {}),
+      ...(cached?.tvSymbol ? { tvSymbol: cached.tvSymbol } : {}),
+      ...(cached?.exchange ? { exchange: cached.exchange } : {}),
+    };
+  }
+  return meta;
+}
+
+/** @param {Record<string, { industry?: string | null; nameKo?: string | null; tvSymbol?: string | null; exchange?: string | null }>} meta */
+function mergeMetaIntoStore(meta) {
+  const store = readMetaStoreSync();
+  const bySymbol = { ...store.bySymbol };
+  const now = Date.now();
+  for (const [sym, row] of Object.entries(meta)) {
+    bySymbol[sym] = { ...bySymbol[sym], ...row, at: now };
+    const market = /^\d{6}(\.(KS|KQ))?$/i.test(sym) ? "kr" : "us";
+    if (row.industry) {
+      cache.set(cacheKeyFor(sym, market), { at: now, industry: row.industry });
+    }
+  }
+  persistMetaStore(bySymbol);
+}
+
+/**
+ * @param {Array<{ symbol: string; market?: "kr"|"us" }>} items
+ */
+export async function refreshStockVaultMetaForItemsAsync(items) {
+  const meta = await fetchStockVaultMetaForItems(items);
+  mergeMetaIntoStore(meta);
+  return meta;
+}
+
+/**
+ * @param {Array<{ symbol: string; market?: "kr"|"us" }>} items
+ */
+export function scheduleStockVaultMetaRefresh(items) {
+  const rows = Array.isArray(items) ? items : [];
+  if (!rows.length) return;
+  if (refreshTimer) clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(() => {
+    refreshTimer = null;
+    if (refreshInFlight) return;
+    refreshInFlight = refreshStockVaultMetaForItemsAsync(rows)
+      .catch(() => ({}))
+      .finally(() => {
+        refreshInFlight = null;
+      });
+  }, REFRESH_DEBOUNCE_MS);
+}
+
 export async function fetchStockVaultMetaForItems(items) {
   /** @type {Record<string, { industry?: string | null; nameKo?: string | null; tvSymbol?: string | null; exchange?: string | null }>} */
   const meta = {};
@@ -561,12 +697,15 @@ export async function fetchStockVaultMetaForItems(items) {
     .map((it) => String(it.symbol ?? "").trim().toUpperCase());
   const usMetaMap = await resolveUsStockDisplayMetaBatch(usSymbols);
 
-  await Promise.all(
-    rows.map(async (item) => {
+  let cursor = 0;
+  async function worker() {
+    while (cursor < rows.length) {
+      const idx = cursor++;
+      const item = rows[idx];
       const sym = String(item?.symbol ?? "")
         .trim()
         .toUpperCase();
-      if (!sym) return;
+      if (!sym) continue;
       const industry = await fetchIndustryForSymbol(sym, item.market);
       const market = inferVaultItemMarket(item);
       const bare = normalizeUsTicker(sym);
@@ -575,14 +714,16 @@ export async function fetchStockVaultMetaForItems(items) {
         market === "us"
           ? usMeta?.nameKo ?? getKoreanStockName(sym) ?? null
           : getKoreanStockName(sym);
-      const row = {
+      meta[sym] = {
         industry,
         ...(nameKo ? { nameKo } : {}),
         ...(usMeta?.tvSymbol ? { tvSymbol: usMeta.tvSymbol } : {}),
         ...(usMeta?.exchange ? { exchange: usMeta.exchange } : {}),
       };
-      meta[sym] = row;
-    }),
-  );
+    }
+  }
+
+  const workers = Math.min(META_FETCH_CONCURRENCY, Math.max(1, rows.length));
+  await Promise.all(Array.from({ length: workers }, () => worker()));
   return meta;
 }

@@ -3,6 +3,7 @@ import {
   listStockVaultIndustryTabs,
   localizeIndustry,
   normalizeIndustryText,
+  readStockVaultMetaForItemsSync,
   stockVaultIndustryGridRows,
 } from "./stock-vault-meta.js";
 
@@ -55,5 +56,14 @@ describe("stock-vault-meta", () => {
 
   it("maps unknown english to 기타", () => {
     expect(localizeIndustry("ZZZ Unknown Category XYZ")).toBe("기타");
+  });
+
+  it("readStockVaultMetaForItemsSync returns meta without network", () => {
+    const meta = readStockVaultMetaForItemsSync([
+      { symbol: "005930", market: "kr" },
+      { symbol: "AAPL", market: "us" },
+    ]);
+    expect(meta["005930"]?.industry).toBeTruthy();
+    expect(meta.AAPL?.industry).toBeTruthy();
   });
 });
