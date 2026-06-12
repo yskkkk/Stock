@@ -1038,6 +1038,8 @@ export const ko = {
     unitEpsKr: "원/주",
     projectionTitle: "연도별 계산",
     epsHistoryTitle: "연간 실적 (평균 산출)",
+    perHistoryTitle: "연도별 PER (평균 산출)",
+    perHistoryPrice: "연평균 주가",
     projectionYear: "연도",
     projectionEps: "EPS",
     projectionDividend: "배당",

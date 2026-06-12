@@ -346,6 +346,41 @@ function HistoricalEpsTable({
   );
 }
 
+function HistoricalPerTable({
+  rows,
+  currency,
+}: {
+  rows: { year: number; per: number; avgPrice: number }[];
+  currency?: string;
+}) {
+  if (!rows.length) {
+    return <p className="value-invest-bubble__proj-empty">—</p>;
+  }
+
+  return (
+    <table className="value-invest-bubble__proj-table value-invest-bubble__proj-table--wide">
+      <thead>
+        <tr>
+          <th>{ko.valueInvest.projectionYear}</th>
+          <th>{ko.valueInvest.perHistoryPrice}</th>
+          <th>{ko.valueInvest.averagePer}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.year}>
+            <td>{`${row.year}년`}</td>
+            <td>{fmtProjectionValue(row.avgPrice, currency)}</td>
+            <td className="value-invest-bubble__proj-col--highlight">
+              {fmtProjectionPer(row.per)}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 function YearlyProjectionTable({
   rows,
   currency,
@@ -397,6 +432,7 @@ function InputField({
   projectionColumn,
   projectionRows,
   historicalEpsRows,
+  historicalPerRows,
   projectionPer,
   currency,
   pctRate,
@@ -413,6 +449,7 @@ function InputField({
   projectionColumn?: ProjectionColumn;
   projectionRows?: ValueInvestYearlyProjectionRow[];
   historicalEpsRows?: { year: number; eps: number }[];
+  historicalPerRows?: { year: number; per: number; avgPrice: number }[];
   projectionPer?: number;
   currency?: string;
   /** 0–1 비율 — 포커스 중 문자열 draft로 소수·빈칸 입력 허용 */
@@ -427,11 +464,20 @@ function InputField({
   const showSourceDetail = hover && sourceDetail != null && sourceDetail.length > 0;
   const showHistorical =
     hover && !showSourceDetail && historicalEpsRows && historicalEpsRows.length > 0;
+  const showHistoricalPer =
+    hover && !showSourceDetail && historicalPerRows && historicalPerRows.length > 0;
   const showProjection =
-    hover && projectionColumn && projectionRows && projectionRows.length > 0;
+    hover &&
+    !showSourceDetail &&
+    !showHistoricalPer &&
+    projectionColumn &&
+    projectionRows &&
+    projectionRows.length > 0;
   const showDualPop = showSourceDetail && showProjection;
-  const showPop = showSourceDetail || showHistorical || showProjection;
-  const labelHint = Boolean(sourceDetail?.length || projectionColumn || historicalEpsRows?.length);
+  const showPop = showSourceDetail || showHistorical || showHistoricalPer || showProjection;
+  const labelHint = Boolean(
+    sourceDetail?.length || projectionColumn || historicalEpsRows?.length || historicalPerRows?.length,
+  );
 
   useEffect(() => {
     if (!pctMode) return;
@@ -519,9 +565,11 @@ function InputField({
           ? (sourceDetailTitle ?? ko.valueInvest.growthCalcTitle)
           : showHistorical
             ? ko.valueInvest.epsHistoryTitle
-            : projectionColumn
-              ? `${projectionColumnLabel(projectionColumn)} · ${ko.valueInvest.projectionTitle}`
-              : ko.valueInvest.projectionTitle}
+            : showHistoricalPer
+              ? ko.valueInvest.perHistoryTitle
+              : projectionColumn
+                ? `${projectionColumnLabel(projectionColumn)} · ${ko.valueInvest.projectionTitle}`
+                : ko.valueInvest.projectionTitle}
       </span>
       {showSourceDetail ? (
         <ul className="value-invest-bubble__source-detail">
@@ -531,6 +579,8 @@ function InputField({
         </ul>
       ) : showHistorical ? (
         <HistoricalEpsTable rows={historicalEpsRows!} currency={currency} />
+      ) : showHistoricalPer ? (
+        <HistoricalPerTable rows={historicalPerRows!} currency={currency} />
       ) : projectionColumn ? (
         <YearlyProjectionTable
           rows={projectionRows!}
@@ -886,6 +936,7 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
                     projectionColumn="per"
                     projectionRows={projectionRows}
                     projectionPer={inputs.averagePer}
+                    historicalPerRows={payload?.historicalPerData?.perByYear}
                     currency={currency}
                     onChange={(v) =>
                       setInputs((cur) =>

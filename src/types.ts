@@ -370,6 +370,12 @@ export interface ValueInvestReturnResponse {
   epsHistory?: { year: number; eps: number }[];
   /** Yahoo/Naver trailing EPS (평균 대비 참고) */
   trailingEps?: number | null;
+  /** 역사적 평균 PER 산출 상세 */
+  historicalPerData?: {
+    avg: number | null;
+    perByYear: { year: number; per: number; avgPrice: number }[];
+    source: string | null;
+  } | null;
   disclaimer: string;
   updatedAtMs: number;
 }

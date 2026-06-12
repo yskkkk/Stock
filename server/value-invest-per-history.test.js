@@ -218,10 +218,10 @@ test("T15: 역사적 PER source 문자열 내용 확인", () => {
         { year: 2023, per: 16, avgPrice: 176 },
         { year: 2024, per: 17, avgPrice: 204 },
       ],
-      source: "역사적 평균 PER 2020–2024 (5개 연도 평균주가÷EPS)",
+      source: "역사적 평균 PER 2020→2024 (5년, 연평균주가÷EPS)",
     },
   });
   assert.match(r.inputSources.averagePer ?? "", /2020/);
   assert.match(r.inputSources.averagePer ?? "", /2024/);
-  assert.match(r.inputSources.averagePer ?? "", /5개 연도/);
+  assert.match(r.inputSources.averagePer ?? "", /5년/);
 });

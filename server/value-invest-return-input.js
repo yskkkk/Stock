@@ -13,13 +13,39 @@ import { loadStock } from "./stock-data.js";
 const DEFAULT_TARGET_RETURN = 0.15;
 const DEFAULT_YEARS = 10;
 
+/** 역사적 PER 산출에 쓰는 최대 연수 (EPS 평균과 동일) */
+export const PER_HISTORY_MAX_YEARS = 10;
+
+/**
+ * @param {{ time?: unknown; timeSec?: number }} candle
+ * @returns {number | null}
+ */
+export function candleCalendarYear(candle) {
+  const t = candle?.time;
+  if (t && typeof t === "object" && "year" in t) {
+    const y = Number(/** @type {{ year?: unknown }} */ (t).year);
+    return Number.isFinite(y) ? y : null;
+  }
+  const sec =
+    typeof candle?.timeSec === "number" && Number.isFinite(candle.timeSec)
+      ? candle.timeSec
+      : typeof t === "number" && Number.isFinite(t)
+        ? t > 1e12
+          ? Math.floor(t / 1000)
+          : t
+        : null;
+  if (sec == null) return null;
+  return new Date(sec * 1000).getFullYear();
+}
+
 /**
  * 역사적 평균 PER: 연도별 평균주가 ÷ 연도별 EPS
  * @param {{ year: number; eps: number }[]} epsHistory
- * @param {{ candles?: { time: number; close: number }[] } | null} candleData
+ * @param {{ candles?: { time?: unknown; timeSec?: number; close: number }[] } | null} candleData
+ * @param {number} [maxYears]
  * @returns {{ avg: number | null; perByYear: { year: number; per: number; avgPrice: number }[]; source: string | null }}
  */
-function computeHistoricalAveragePer(epsHistory, candleData) {
+export function computeHistoricalAveragePer(epsHistory, candleData, maxYears = PER_HISTORY_MAX_YEARS) {
   const candles = Array.isArray(candleData?.candles) ? candleData.candles : [];
   if (!candles.length || !epsHistory.length) return { avg: null, perByYear: [], source: null };
 
@@ -27,7 +53,8 @@ function computeHistoricalAveragePer(epsHistory, candleData) {
   const pricesByYear = new Map();
   for (const c of candles) {
     if (!Number.isFinite(c.close) || c.close <= 0) continue;
-    const year = new Date(c.time * 1000).getFullYear();
+    const year = candleCalendarYear(c);
+    if (year == null) continue;
     if (!pricesByYear.has(year)) pricesByYear.set(year, []);
     pricesByYear.get(year).push(c.close);
   }
@@ -46,13 +73,18 @@ function computeHistoricalAveragePer(epsHistory, candleData) {
 
   if (!perByYear.length) return { avg: null, perByYear: [], source: null };
 
-  const avg = perByYear.reduce((sum, r) => sum + r.per, 0) / perByYear.length;
-  const start = perByYear[0].year;
-  const end = perByYear[perByYear.length - 1].year;
+  perByYear.sort((a, b) => a.year - b.year);
+  const recent =
+    perByYear.length > maxYears ? perByYear.slice(-maxYears) : perByYear;
+  const avg = recent.reduce((sum, r) => sum + r.per, 0) / recent.length;
+  const start = recent[0].year;
+  const end = recent[recent.length - 1].year;
+  const spanNote =
+    recent.length < maxYears ? `, 상장 ${recent.length}년` : "";
   return {
     avg: Number.isFinite(avg) && avg > 0 ? Math.round(avg * 100) / 100 : null,
-    perByYear,
-    source: `역사적 평균 PER ${start}–${end} (${perByYear.length}개 연도 평균주가÷EPS)`,
+    perByYear: recent,
+    source: `역사적 평균 PER ${start}→${end} (${recent.length}년${spanNote}, 연평균주가÷EPS)`,
   };
 }
 

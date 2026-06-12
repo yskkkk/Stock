@@ -6,6 +6,10 @@ import {
   loadFinancialStatementDetail,
 } from "./stock-financials.js";
 import { extractPeriodMetricsFromDetail } from "./stock-financial-period-metrics.js";
+import { buildHistoricalPeriodMetrics } from "./stock-financial-period-valuation.js";
+import { parseStatementNumber } from "./stock-financials-analysis.js";
+import { queueYahooRequest } from "./yahoo-queue.js";
+import { yahooGet } from "./yahoo.js";
 
 /** 기준 EPS 산출에 쓰는 최대 연수 (상장 10년 미만이면 가용 연수만) */
 export const EPS_AVERAGE_MAX_YEARS = 10;
@@ -62,6 +66,9 @@ export async function loadAnnualEpsHistory(symbol) {
     (a, b) => (a.endDateMs ?? 0) - (b.endDateMs ?? 0),
   );
 
+  const shares =
+    periods.market === "us" ? await fetchSharesOutstanding(sym) : null;
+
   const details = await Promise.all(
     annual.map((p) => loadFinancialStatementDetail(sym, p.id).catch(() => null)),
   );
@@ -72,13 +79,78 @@ export async function loadAnnualEpsHistory(symbol) {
     const detail = details[i];
     const p = annual[i];
     if (!detail || !p) continue;
-    const m = extractPeriodMetricsFromDetail(detail, {
+    let m = extractPeriodMetricsFromDetail(detail, {
       currency: periods.currency,
       market: periods.market,
     });
+    if (
+      periods.market === "us" &&
+      shares != null &&
+      shares > 0
+    ) {
+      const fromNi = epsFromNetIncomeAndShares(detail, shares);
+      if (fromNi != null) {
+        m = { ...m, eps: fromNi };
+      }
+    } else if (periods.market === "us" && (m.eps == null || m.eps <= 0)) {
+      m = await buildHistoricalPeriodMetrics(sym, p, m, detail);
+    }
     if (m.eps == null || m.eps <= 0) continue;
     const y = Number(String(p.label ?? "").slice(0, 4));
     series.push({ year: Number.isFinite(y) ? y : 0, eps: m.eps });
   }
   return series.filter((s) => s.year > 0).sort((a, b) => a.year - b.year);
+}
+
+/** @param {unknown} v */
+function numField(v) {
+  if (v == null) return null;
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "object") {
+    const raw = /** @type {{ raw?: unknown }} */ (v).raw;
+    if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  }
+  return null;
+}
+
+/**
+ * @param {string} symbol
+ * @returns {Promise<number | null>}
+ */
+async function fetchSharesOutstanding(symbol) {
+  const sym = String(symbol ?? "").trim().toUpperCase();
+  try {
+    const data = await queueYahooRequest(() =>
+      yahooGet(
+        `/v10/finance/quoteSummary/${encodeURIComponent(sym)}?modules=defaultKeyStatistics`,
+      ),
+    );
+    const stats = data?.quoteSummary?.result?.[0]?.defaultKeyStatistics;
+    const shares =
+      numField(stats?.sharesOutstanding) ??
+      numField(stats?.impliedSharesOutstanding);
+    return shares != null && shares > 0 ? shares : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * @param {Awaited<ReturnType<typeof loadFinancialStatementDetail>>} detail
+ * @param {number} shares
+ */
+function epsFromNetIncomeAndShares(detail, shares) {
+  if (!detail?.sections?.length || shares <= 0) return null;
+  for (const sec of detail.sections) {
+    for (const row of sec.rows ?? []) {
+      const n = String(row.label ?? "")
+        .toLowerCase()
+        .replace(/\s+/g, "");
+      if (!n.includes("netincome") && !n.includes("당기순이익")) continue;
+      const netIncome = parseStatementNumber(row.value, sec.unitNote ?? "");
+      if (netIncome == null || netIncome <= 0) return null;
+      return netIncome / shares;
+    }
+  }
+  return null;
 }

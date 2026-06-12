@@ -183,6 +183,11 @@
   text-align: right;
 }
 
+.value-invest-bubble__proj-table--wide th:not(:first-child),
+.value-invest-bubble__proj-table--wide td:not(:first-child) {
+  text-align: right;
+}
+
 .value-invest-bubble__proj-col--highlight {
   color: var(--text);
   background: color-mix(in srgb, var(--accent) 8%, transparent);
