@@ -3,6 +3,7 @@ import type { TossTestSnapshot } from "../api";
 export type TossSnapshotCacheRow = {
   snapshot: TossTestSnapshot;
   feeLabelKo?: string | null;
+  tossRoundTripFeeRate?: number | null;
   syncedAtMs?: number | null;
 };
 

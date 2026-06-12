@@ -1,9 +1,21 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useStickyNumber } from "../hooks/useStickyNumber";
 import type { TossTestHolding, TossTestSnapshot } from "../api";
 import { ko } from "../i18n/ko";
 import { useBithumbBalanceHidden } from "../hooks/useBithumbBalanceHidden";
 import { useTossSnapshotLiveQuotes } from "../hooks/useTossSnapshotLiveQuotes";
+import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
+import {
+  DEFAULT_ROUND_TRIP_FEE_RATE,
+  normalizeRoundTripFeeRate,
+} from "../lib/netReturn";
+import {
+  tossHoldingNetMarketValue,
+  tossHoldingNetReturnPercent,
+  tossHoldingNetUnrealizedPnl,
+  tossHoldingsNetProfitLossKrw,
+  tossHoldingsNetReturnPct,
+} from "../lib/tossHoldingPnl";
 import { LiveTradeSymbolCell } from "./LiveTradeSymbolCell";
 import TossAccountOrderPanel, {
   type TossAccountOrderPanelHandle,
@@ -34,22 +46,6 @@ function holdingChgTone(pct: number | null | undefined): "up" | "down" | "flat" 
   return "flat";
 }
 
-function holdingUnrealizedPnl(h: TossTestHolding): number | null {
-  const avg = h.avgBuyPrice;
-  const qty = h.quantity;
-  if (avg == null || !(avg > 0) || !(qty > 0)) return null;
-  const cost = avg * qty;
-  const mv =
-    h.marketValue != null && Number.isFinite(h.marketValue)
-      ? h.marketValue
-      : h.currentPrice != null && Number.isFinite(h.currentPrice) && h.currentPrice > 0
-        ? h.currentPrice * qty
-        : null;
-  if (mv == null) return null;
-  const pnl = mv - cost;
-  return Number.isFinite(pnl) ? pnl : null;
-}
-
 function pnlTone(pnl: number | null | undefined): "up" | "down" | "flat" {
   if (pnl == null || !Number.isFinite(pnl)) return "flat";
   if (pnl > 0) return "up";
@@ -60,6 +56,7 @@ function pnlTone(pnl: number | null | undefined): "up" | "down" | "flat" {
 export default function TossAccountSnapshotCard({
   snapshot,
   feeLabelKo,
+  tossRoundTripFeeRate = null,
   updatedAtMs = null,
   variant = "inline",
   authenticated = true,
@@ -70,6 +67,8 @@ export default function TossAccountSnapshotCard({
 }: {
   snapshot: TossTestSnapshot;
   feeLabelKo?: string | null;
+  /** 미지정 시 기본 왕복 수수료 */
+  tossRoundTripFeeRate?: number | null;
   updatedAtMs?: number | null;
   variant?: "inline" | "rail";
   authenticated?: boolean;
@@ -83,6 +82,25 @@ export default function TossAccountSnapshotCard({
     Boolean(snapshot.holdings?.length),
   );
   const { cash, summary, holdings } = liveSnapshot ?? snapshot;
+  const roundTripFee = normalizeRoundTripFeeRate(
+    tossRoundTripFeeRate ?? DEFAULT_ROUND_TRIP_FEE_RATE,
+  );
+  const { rate: usdKrwRate } = useUsdKrwRate(Boolean(holdings.length));
+  const netSummary = useMemo(
+    () => ({
+      profitLossKrw: tossHoldingsNetProfitLossKrw(
+        holdings,
+        usdKrwRate,
+        roundTripFee,
+      ),
+      totalReturnPct: tossHoldingsNetReturnPct(
+        holdings,
+        usdKrwRate,
+        roundTripFee,
+      ),
+    }),
+    [holdings, usdKrwRate, roundTripFee],
+  );
   const orderPanelRef = useRef<TossAccountOrderPanelHandle>(null);
   const [manageHolding, setManageHolding] = useState<TossTestHolding | null>(null);
   const [balanceHidden, toggleBalanceHidden] = useBithumbBalanceHidden();
@@ -98,15 +116,19 @@ export default function TossAccountSnapshotCard({
 
   const feesLine = feeLabelKo?.trim() || null;
   const plKrw = useStickyNumber(
-    summary?.profitLossKrw != null && Number.isFinite(summary.profitLossKrw)
-      ? summary.profitLossKrw
-      : null,
+    netSummary.profitLossKrw != null && Number.isFinite(netSummary.profitLossKrw)
+      ? netSummary.profitLossKrw
+      : summary?.profitLossKrw != null && Number.isFinite(summary.profitLossKrw)
+        ? summary.profitLossKrw
+        : null,
   );
   const plUp = plKrw != null && plKrw >= 0;
   const returnPct = useStickyNumber(
-    summary?.totalReturnPct != null && Number.isFinite(summary.totalReturnPct)
-      ? summary.totalReturnPct
-      : null,
+    netSummary.totalReturnPct != null && Number.isFinite(netSummary.totalReturnPct)
+      ? netSummary.totalReturnPct
+      : summary?.totalReturnPct != null && Number.isFinite(summary.totalReturnPct)
+        ? summary.totalReturnPct
+        : null,
   );
   const retUp = returnPct != null && returnPct >= 0;
   const cashKrw = useStickyNumber(
@@ -223,8 +245,10 @@ export default function TossAccountSnapshotCard({
         ) : (
           <ul className="account-snapshot__holdings-list">
             {holdings.map((h) => {
-              const tone = holdingChgTone(h.returnPercent);
-              const unrealizedPnl = holdingUnrealizedPnl(h);
+              const netReturn = tossHoldingNetReturnPercent(h, roundTripFee);
+              const tone = holdingChgTone(netReturn ?? h.returnPercent);
+              const unrealizedPnl = tossHoldingNetUnrealizedPnl(h, roundTripFee);
+              const netMarketValue = tossHoldingNetMarketValue(h, roundTripFee);
               const pnlUpDown = pnlTone(unrealizedPnl);
               const hasAvg =
                 h.avgBuyPrice != null &&
@@ -249,7 +273,7 @@ export default function TossAccountSnapshotCard({
                         className="account-snapshot__holding-name"
                       />
                     </button>
-                    {unrealizedPnl != null || h.returnPercent != null ? (
+                    {unrealizedPnl != null || netReturn != null ? (
                       <span className="account-snapshot__holding-pnl-wrap">
                         {unrealizedPnl != null ? (
                           <span
@@ -259,11 +283,11 @@ export default function TossAccountSnapshotCard({
                             {formatSignedMoney(unrealizedPnl, h.currency)}
                           </span>
                         ) : null}
-                        {h.returnPercent != null ? (
+                        {netReturn != null ? (
                           <span
                             className={`account-snapshot__holding-chg account-snapshot__holding-chg--${tone}`}
                           >
-                            {formatPercent(h.returnPercent)}
+                            {formatPercent(netReturn)}
                           </span>
                         ) : null}
                       </span>
@@ -273,9 +297,9 @@ export default function TossAccountSnapshotCard({
                     <span className="account-snapshot__holding-qty">
                       {formatLiveTradeQuantity(h.quantity, h.market)}주
                     </span>
-                    {h.marketValue != null ? (
+                    {netMarketValue != null ? (
                       <span className="account-snapshot__holding-val">
-                        {formatPrice(h.marketValue, h.currency)}
+                        {formatPrice(netMarketValue, h.currency)}
                       </span>
                     ) : null}
                     {showOrders && authenticated ? (

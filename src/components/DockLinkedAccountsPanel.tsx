@@ -87,6 +87,7 @@ function DockLinkedAccountsPanelInner() {
   const {
     snapshot: tossSnapshot,
     feeLabelKo: tossFeeLabelHook,
+    tossRoundTripFeeRate: tossRoundTripFeeRateHook,
     updatedAtMs: tossUpdatedAtMs,
     loading: tossLoading,
     err: tossErr,
@@ -97,6 +98,8 @@ function DockLinkedAccountsPanelInner() {
 
   const tossFeeLabel =
     status?.feeRates?.toss?.labelKo?.trim() || tossFeeLabelHook || null;
+  const tossRoundTripFeeRate =
+    status?.feeRates?.toss?.roundTripFeeRate ?? tossRoundTripFeeRateHook ?? null;
 
   const statusPending = status == null;
 
@@ -167,6 +170,7 @@ function DockLinkedAccountsPanelInner() {
       <TossAccountSnapshotCard
         snapshot={tossSnapshot}
         feeLabelKo={tossFeeLabel}
+        tossRoundTripFeeRate={tossRoundTripFeeRate}
         updatedAtMs={tossUpdatedAtMs}
         variant="inline"
       />

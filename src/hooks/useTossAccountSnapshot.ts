@@ -24,6 +24,7 @@ export const TOSS_LEDGER_API_REFRESH_MS = 15_000;
 function hydrateFromClientCache(userId: string): {
   snapshot: TossTestSnapshot;
   feeLabelKo: string | null;
+  tossRoundTripFeeRate: number | null;
   updatedAtMs: number | null;
 } | null {
   const row = readTossSnapshotCache(userId);
@@ -31,6 +32,10 @@ function hydrateFromClientCache(userId: string): {
   return {
     snapshot: row.snapshot,
     feeLabelKo: row.feeLabelKo ?? null,
+    tossRoundTripFeeRate:
+      row.tossRoundTripFeeRate != null && Number.isFinite(row.tossRoundTripFeeRate)
+        ? row.tossRoundTripFeeRate
+        : null,
     updatedAtMs:
       typeof row.syncedAtMs === "number" && row.syncedAtMs > 0
         ? row.syncedAtMs
@@ -56,6 +61,12 @@ export function useTossAccountSnapshot(opts?: {
   const [feeLabelKo, setFeeLabelKo] = useState<string | null>(
     () => peek?.feeLabelKo ?? null,
   );
+  const [tossRoundTripFeeRate, setTossRoundTripFeeRate] = useState<number | null>(
+    () =>
+      peek?.tossRoundTripFeeRate != null && Number.isFinite(peek.tossRoundTripFeeRate)
+        ? peek.tossRoundTripFeeRate
+        : null,
+  );
   const [updatedAtMs, setUpdatedAtMs] = useState<number | null>(() => {
     if (peek?.syncedAtMs != null && peek.syncedAtMs > 0) return peek.syncedAtMs;
     return null;
@@ -74,12 +85,14 @@ export function useTossAccountSnapshot(opts?: {
       uid: string,
       snap: TossTestSnapshot,
       fee: string | null,
+      roundTrip: number | null,
       syncedAt: number | null,
     ) => {
       rememberTossSnapshotUserId(uid);
       writeTossSnapshotCache(uid, {
         snapshot: snap,
         feeLabelKo: fee,
+        tossRoundTripFeeRate: roundTrip,
         syncedAtMs: syncedAt,
       });
     },
@@ -108,10 +121,21 @@ export function useTossAccountSnapshot(opts?: {
           return out.snapshot;
         });
         setFeeLabelKo(out.feeLabelKo ?? null);
+        setTossRoundTripFeeRate(
+          out.tossRoundTripFeeRate != null && Number.isFinite(out.tossRoundTripFeeRate)
+            ? out.tossRoundTripFeeRate
+            : null,
+        );
         setUpdatedAtMs(syncedAt);
         setErr(out.stale ? (out.messageKo ?? null) : null);
         if (uid) {
-          persistSnapshot(uid, out.snapshot, out.feeLabelKo ?? null, syncedAt);
+          persistSnapshot(
+            uid,
+            out.snapshot,
+            out.feeLabelKo ?? null,
+            out.tossRoundTripFeeRate ?? null,
+            syncedAt,
+          );
         }
         return;
       }
@@ -119,6 +143,7 @@ export function useTossAccountSnapshot(opts?: {
       if (!keepStale) {
         setSnapshot(null);
         setFeeLabelKo(null);
+        setTossRoundTripFeeRate(null);
         setUpdatedAtMs(null);
         if (uid) clearTossSnapshotCache(uid);
       }
@@ -138,6 +163,7 @@ export function useTossAccountSnapshot(opts?: {
         if (!me.user) {
           setSnapshot(null);
           setFeeLabelKo(null);
+          setTossRoundTripFeeRate(null);
           setUpdatedAtMs(null);
           setErr(null);
           clearTossSnapshotUserId();
@@ -157,6 +183,7 @@ export function useTossAccountSnapshot(opts?: {
             return cached.snapshot;
           });
           setFeeLabelKo(cached.feeLabelKo);
+          setTossRoundTripFeeRate(cached.tossRoundTripFeeRate);
           setUpdatedAtMs(cached.updatedAtMs);
         }
         const out = await fetchTossAccountSnapshot({ refresh });
@@ -219,6 +246,7 @@ export function useTossAccountSnapshot(opts?: {
     authChecked,
     snapshot,
     feeLabelKo,
+    tossRoundTripFeeRate,
     updatedAtMs,
     loading,
     err,

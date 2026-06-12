@@ -16,8 +16,17 @@ export function TossAccountRailCore({
   onOpenLiveTrading?: () => void;
   layout?: "rail-aside" | "dock";
 }) {
-  const { user, authChecked, snapshot, feeLabelKo, updatedAtMs, loading, err, reload } =
-    useTossAccountSnapshot({ poll: true, pollIntervalMs: TOSS_LEDGER_POLL_MS });
+  const {
+    user,
+    authChecked,
+    snapshot,
+    feeLabelKo,
+    tossRoundTripFeeRate,
+    updatedAtMs,
+    loading,
+    err,
+    reload,
+  } = useTossAccountSnapshot({ poll: true, pollIntervalMs: TOSS_LEDGER_POLL_MS });
   const [liveOrdersEnabled, setLiveOrdersEnabled] = useState(false);
   const [serverLiveOrdersEnabled, setServerLiveOrdersEnabled] = useState(false);
 
@@ -76,6 +85,7 @@ export function TossAccountRailCore({
     <TossAccountSnapshotCard
       snapshot={snapshot}
       feeLabelKo={feeLabelKo}
+      tossRoundTripFeeRate={tossRoundTripFeeRate}
       updatedAtMs={updatedAtMs}
       variant={layout === "dock" ? "inline" : "rail"}
       liveOrdersEnabled={liveOrdersEnabled}

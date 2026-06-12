@@ -968,6 +968,7 @@ export function fetchTossAccountSnapshot(opts?: { refresh?: boolean }) {
     ready: boolean;
     snapshot?: TossTestSnapshot;
     feeLabelKo?: string | null;
+    tossRoundTripFeeRate?: number | null;
     messageKo?: string;
     error?: string;
     fromCache?: boolean;
