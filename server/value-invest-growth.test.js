@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildEpsGrowthByYear,
   epsCagrFromHistory,
   epsGrowthWindow,
   deriveValueInvestGrowth10y,
@@ -8,6 +9,20 @@ import {
 function cagr(startEps, endEps, periodYears) {
   return (endEps / startEps) ** (1 / periodYears) - 1;
 }
+
+describe("buildEpsGrowthByYear", () => {
+  it("첫 해 YoY null, 이후 전년대비 %", () => {
+    const rows = buildEpsGrowthByYear([
+      { year: 2023, eps: 2131 },
+      { year: 2024, eps: 4950 },
+      { year: 2025, eps: 6564 },
+    ]);
+    expect(rows).toHaveLength(3);
+    expect(rows[0].yoyPct).toBeNull();
+    expect(rows[1].yoyPct).toBeCloseTo(((4950 / 2131) - 1) * 100, 2);
+    expect(rows[2].yoyPct).toBeCloseTo(((6564 / 4950) - 1) * 100, 2);
+  });
+});
 
 describe("epsCagrFromHistory", () => {
   it("3개 연도 — 구간 CAGR (2022→2024)", () => {

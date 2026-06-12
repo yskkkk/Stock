@@ -381,6 +381,43 @@ function HistoricalPerTable({
   );
 }
 
+function HistoricalGrowthTable({
+  rows,
+  currency,
+}: {
+  rows: { year: number; eps: number; yoyPct: number | null }[];
+  currency?: string;
+}) {
+  if (!rows.length) {
+    return <p className="value-invest-bubble__proj-empty">—</p>;
+  }
+
+  return (
+    <table className="value-invest-bubble__proj-table value-invest-bubble__proj-table--wide">
+      <thead>
+        <tr>
+          <th>{ko.valueInvest.projectionYear}</th>
+          <th>{ko.valueInvest.projectionEps}</th>
+          <th>{ko.valueInvest.growthHistoryYoy}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.year}>
+            <td>{`${row.year}년`}</td>
+            <td>{fmtProjectionValue(row.eps, currency, "eps")}</td>
+            <td className="value-invest-bubble__proj-col--highlight">
+              {row.yoyPct != null && Number.isFinite(row.yoyPct)
+                ? formatPercent(row.yoyPct)
+                : "—"}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 function YearlyProjectionTable({
   rows,
   currency,
@@ -433,6 +470,7 @@ function InputField({
   projectionRows,
   historicalEpsRows,
   historicalPerRows,
+  historicalGrowthRows,
   projectionPer,
   currency,
   pctRate,
@@ -450,6 +488,7 @@ function InputField({
   projectionRows?: ValueInvestYearlyProjectionRow[];
   historicalEpsRows?: { year: number; eps: number }[];
   historicalPerRows?: { year: number; per: number; avgPrice: number }[];
+  historicalGrowthRows?: { year: number; eps: number; yoyPct: number | null }[];
   projectionPer?: number;
   currency?: string;
   /** 0–1 비율 — 포커스 중 문자열 draft로 소수·빈칸 입력 허용 */
@@ -466,17 +505,30 @@ function InputField({
     hover && !showSourceDetail && historicalEpsRows && historicalEpsRows.length > 0;
   const showHistoricalPer =
     hover && !showSourceDetail && historicalPerRows && historicalPerRows.length > 0;
+  const showHistoricalGrowth =
+    hover && historicalGrowthRows && historicalGrowthRows.length > 0;
   const showProjection =
     hover &&
     !showSourceDetail &&
     !showHistoricalPer &&
+    !showHistoricalGrowth &&
     projectionColumn &&
     projectionRows &&
     projectionRows.length > 0;
-  const showDualPop = showSourceDetail && showProjection;
-  const showPop = showSourceDetail || showHistorical || showHistoricalPer || showProjection;
+  const showDualPop =
+    showSourceDetail && (showHistoricalGrowth || showProjection);
+  const showPop =
+    showSourceDetail ||
+    showHistorical ||
+    showHistoricalPer ||
+    showHistoricalGrowth ||
+    showProjection;
   const labelHint = Boolean(
-    sourceDetail?.length || projectionColumn || historicalEpsRows?.length || historicalPerRows?.length,
+    sourceDetail?.length ||
+      projectionColumn ||
+      historicalEpsRows?.length ||
+      historicalPerRows?.length ||
+      historicalGrowthRows?.length,
   );
 
   useEffect(() => {
@@ -548,14 +600,20 @@ function InputField({
       </span>
       <span className="value-invest-bubble__hover-pop-pane">
         <span className="value-invest-bubble__hover-pop-title">
-          {`${projectionColumnLabel(projectionColumn!)} · ${ko.valueInvest.projectionTitle}`}
+          {showHistoricalGrowth
+            ? ko.valueInvest.growthHistoryTitle
+            : `${projectionColumnLabel(projectionColumn!)} · ${ko.valueInvest.projectionTitle}`}
         </span>
-        <YearlyProjectionTable
-          rows={projectionRows!}
-          currency={currency}
-          column={projectionColumn!}
-          perMultiple={projectionPer}
-        />
+        {showHistoricalGrowth ? (
+          <HistoricalGrowthTable rows={historicalGrowthRows!} currency={currency} />
+        ) : (
+          <YearlyProjectionTable
+            rows={projectionRows!}
+            currency={currency}
+            column={projectionColumn!}
+            perMultiple={projectionPer}
+          />
+        )}
       </span>
     </span>
   ) : (
@@ -565,8 +623,10 @@ function InputField({
           ? (sourceDetailTitle ?? ko.valueInvest.growthCalcTitle)
           : showHistorical
             ? ko.valueInvest.epsHistoryTitle
-            : showHistoricalPer
-              ? ko.valueInvest.perHistoryTitle
+          : showHistoricalPer
+            ? ko.valueInvest.perHistoryTitle
+            : showHistoricalGrowth
+              ? ko.valueInvest.growthHistoryTitle
               : projectionColumn
                 ? `${projectionColumnLabel(projectionColumn)} · ${ko.valueInvest.projectionTitle}`
                 : ko.valueInvest.projectionTitle}
@@ -581,6 +641,8 @@ function InputField({
         <HistoricalEpsTable rows={historicalEpsRows!} currency={currency} />
       ) : showHistoricalPer ? (
         <HistoricalPerTable rows={historicalPerRows!} currency={currency} />
+      ) : showHistoricalGrowth ? (
+        <HistoricalGrowthTable rows={historicalGrowthRows!} currency={currency} />
       ) : projectionColumn ? (
         <YearlyProjectionTable
           rows={projectionRows!}
@@ -916,8 +978,6 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
                     value=""
                     suffix="%"
                     step="0.1"
-                    projectionColumn="eps"
-                    projectionRows={projectionRows}
                     currency={currency}
                     onChange={() => {}}
                     pctRate={inputs.growthRate}
@@ -927,6 +987,7 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
                     source={payload?.growthSource ?? undefined}
                     sourceDetail={payload?.growthDetail?.lines}
                     sourceDetailTitle={ko.valueInvest.growthCalcTitle}
+                    historicalGrowthRows={payload?.epsGrowthByYear}
                   />
                   <InputField
                     label={ko.valueInvest.averagePer}

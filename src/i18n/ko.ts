@@ -1040,6 +1040,8 @@ export const ko = {
     epsHistoryTitle: "연간 실적 (평균 산출)",
     perHistoryTitle: "연도별 PER (평균 산출)",
     perHistoryPrice: "연평균 주가",
+    growthHistoryTitle: "연말 EPS · 전년대비",
+    growthHistoryYoy: "전년대비",
     projectionYear: "연도",
     projectionEps: "EPS",
     projectionDividend: "배당",

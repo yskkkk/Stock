@@ -3,7 +3,7 @@
  */
 import { calcValueInvestReturn } from "./value-invest-return-model.js";
 import { loadStockFundamentals } from "./stock-fundamentals.js";
-import { deriveValueInvestGrowth10y } from "./value-invest-growth.js";
+import { deriveValueInvestGrowth10y, buildEpsGrowthByYear } from "./value-invest-growth.js";
 import {
   averageEpsFromHistory,
   EPS_AVERAGE_MAX_YEARS,
@@ -215,6 +215,7 @@ export function buildValueInvestInputsFromFundamentals(f, opts = {}) {
     payoutSource,
     growthSource,
     growthDetail,
+    epsGrowthByYear: buildEpsGrowthByYear(epsHistory),
     historicalPerData: historicalPerData ?? null,
     warnings,
     result,

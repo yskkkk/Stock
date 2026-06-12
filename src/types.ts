@@ -350,6 +350,13 @@ export interface ValueInvestReturnResult {
 export interface ValueInvestGrowthDetail {
   method: "eps_cagr" | "revenue_growth" | "forward_trailing";
   lines: string[];
+  table?: { year: number; eps: number; yoyPct: number | null }[];
+}
+
+export interface ValueInvestEpsGrowthYearRow {
+  year: number;
+  eps: number;
+  yoyPct: number | null;
 }
 
 export interface ValueInvestReturnResponse {
@@ -362,6 +369,8 @@ export interface ValueInvestReturnResponse {
   payoutSource: string | null;
   growthSource: string | null;
   growthDetail: ValueInvestGrowthDetail | null;
+  /** 연말 EPS + 전년대비 성장률 (예상 이익 성장률 hover 표) */
+  epsGrowthByYear?: ValueInvestEpsGrowthYearRow[];
   warnings: string[];
   result: ValueInvestReturnResult | null;
   missing: string[];

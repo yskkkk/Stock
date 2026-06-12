@@ -43,6 +43,18 @@ export function epsCagrFromHistory(series, maxYears = EPS_GROWTH_HISTORY_YEARS) 
   return Number.isFinite(cagr) ? cagr : null;
 }
 
+/** @param {{ year: number; eps: number }[]} series */
+export function buildEpsGrowthByYear(series) {
+  const sorted = (series ?? [])
+    .filter((s) => s.year > 0 && s.eps > 0)
+    .sort((a, b) => a.year - b.year);
+  return sorted.map((row, i) => ({
+    year: row.year,
+    eps: row.eps,
+    yoyPct: i === 0 ? null : ((row.eps / sorted[i - 1].eps) - 1) * 100,
+  }));
+}
+
 /**
  * @param {{ year: number; eps: number }[]} series
  */
@@ -83,15 +95,16 @@ function buildEpsCagrDetail(series, value) {
   return {
     method: "eps_cagr",
     lines: [
-      "연간 EPS 이력으로 CAGR 산출",
+      "연말 결산 EPS 이력 CAGR (분기·전망 제외)",
       fromListing
-        ? `구간: ${start.year}→${end.year} (상장 ${periodYears}년, 전체 이력)`
-        : `구간: ${start.year}→${end.year} (최근 ${periodYears}년)`,
+        ? `구간: ${start.year}→${end.year} (API 가용 ${periodYears}년, 연말 실적 전체)`
+        : `구간: ${start.year}→${end.year} (최근 ${periodYears}년 연말 실적)`,
       `시작 EPS (${start.year}): ${startEps}`,
       `종료 EPS (${end.year}): ${endEps}`,
       `식: (${endEps} ÷ ${startEps})^(1/${periodYears}) − 1`,
       `결과: ${fmtPct(value)}`,
     ],
+    table: buildEpsGrowthByYear(series),
   };
 }
 

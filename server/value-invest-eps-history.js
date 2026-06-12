@@ -49,11 +49,12 @@ export async function loadAnnualEpsHistory(symbol) {
   const periods = await loadFinancialPeriods(sym).catch(() => null);
   if (!periods?.periods?.length) return [];
 
-  /** 연도별 중복 제거: 같은 연도면 네이버 실적(n:a: 접두사)을 우선 */
+  /** 연도별 중복 제거: KR은 Naver 연말 결산(n:a:)만, US는 Naver 우선·Yahoo 보조 */
   /** @type {Map<number, import("./stock-financials.js").FinancialPeriodRow>} */
   const byYear = new Map();
   for (const p of periods.periods) {
     if (p.kind !== "annual" || p.isForecast) continue;
+    if (periods.market === "kr" && !String(p.id).startsWith("n:a:")) continue;
     const y = Number(String(p.label ?? "").slice(0, 4));
     if (!Number.isFinite(y)) continue;
     const existing = byYear.get(y);
@@ -82,12 +83,14 @@ export async function loadAnnualEpsHistory(symbol) {
       currency: periods.currency,
       market: periods.market,
     });
-    if (shares != null && shares > 0) {
+    if (periods.market === "kr") {
+      if (m.eps == null || m.eps <= 0) continue;
+    } else if (shares != null && shares > 0) {
       const fromNi = epsFromNetIncomeAndShares(detail, shares);
       if (fromNi != null && (m.eps == null || m.eps <= 0)) {
         m = { ...m, eps: fromNi };
       }
-    } else if (periods.market === "us" && (m.eps == null || m.eps <= 0)) {
+    } else if (m.eps == null || m.eps <= 0) {
       m = await buildHistoricalPeriodMetrics(sym, p, m, detail);
     }
     if (m.eps == null || m.eps <= 0) continue;
