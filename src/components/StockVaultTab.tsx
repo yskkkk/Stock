@@ -1333,7 +1333,7 @@ export default function StockVaultTab({
               const chartInsight = pickChartInsight(chartInsights, symKey);
               const dailyTrend = chartInsight?.daily?.trend ?? "neutral";
               const weeklyTrend = chartInsight?.weekly?.trend ?? "neutral";
-              const maNearHits = [
+              const maNearHitsAll = [
                 ...(chartInsight?.daily?.near ?? []).map((hit) => ({
                   ...hit,
                   timeframe: "daily" as const,
@@ -1343,7 +1343,30 @@ export default function StockVaultTab({
                   timeframe: "weekly" as const,
                 })),
               ];
+              const maNearHits = (row.ma120Near
+                ? maNearHitsAll.filter(
+                    (h) => !(h.timeframe === "daily" && h.period === 120),
+                  )
+                : maNearHitsAll
+              ).slice(0, 3);
               const maPriceClass = maProximityPriceClass(chartInsight?.weekly?.near);
+              const gcChain = formatGoldenCrossChain(gcItem?.crosses);
+              const ma120Label = row.ma120Near
+                ? formatMa120NearLabel(
+                    row.ma120Near.distancePct,
+                    resolveMa120Approach(
+                      row.ma120Near,
+                      chartInsights[symKey],
+                      quote?.price,
+                    ),
+                    {
+                      fromBelow: ko.stockVault.maApproachFromBelow,
+                      fromAbove: ko.stockVault.maApproachFromAbove,
+                    },
+                  )
+                : null;
+              const hasSignalBadges =
+                Boolean(gcChain) || Boolean(row.maAlign) || Boolean(ma120Label);
               const openRowBubble = (el: HTMLElement) =>
                 showTip(el, {
                   symbol: row.symbol,
@@ -1374,283 +1397,267 @@ export default function StockVaultTab({
                     scheduleHideTip();
                   }}
                 >
-                  <div className="stock-vault-tab__row-main">
-                    <div className="stock-vault-tab__row-head">
-                      <span
-                        className="stock-vault-tab__name"
-                        title={display.label}
-                      >
-                        {display.label}
-                      </span>
-                      {sectorLeader ? (
+                  <div className="stock-vault-tab__row-top">
+                    <div className="stock-vault-tab__row-main">
+                      <div className="stock-vault-tab__row-head">
                         <span
-                          className="stock-vault-tab__leader"
-                          title={
-                            finRow?.sectorLeaderDetail
-                              ? `${ko.stockVault.sectorLeader} · ${finRow.sectorLeaderDetail}${
-                                  finRow.industryUniversePeerCount
-                                    ? ` · ${ko.stockVault.sectorLeaderUniversePeers(finRow.industryUniversePeerCount)}`
-                                    : ""
-                                }`
-                              : ko.stockVault.sectorLeaderAria
-                          }
-                          aria-label={ko.stockVault.sectorLeaderAria}
+                          className="stock-vault-tab__name"
+                          title={display.label}
                         >
-                          <VaultSectorLeaderIcon />
+                          {display.label}
                         </span>
-                      ) : null}
-                      {display.sublabel ? (
-                        <span className="stock-vault-tab__sym">{display.sublabel}</span>
-                      ) : null}
+                        {sectorLeader ? (
+                          <span
+                            className="stock-vault-tab__leader"
+                            title={
+                              finRow?.sectorLeaderDetail
+                                ? `${ko.stockVault.sectorLeader} · ${finRow.sectorLeaderDetail}${
+                                    finRow.industryUniversePeerCount
+                                      ? ` · ${ko.stockVault.sectorLeaderUniversePeers(finRow.industryUniversePeerCount)}`
+                                      : ""
+                                  }`
+                                : ko.stockVault.sectorLeaderAria
+                            }
+                            aria-label={ko.stockVault.sectorLeaderAria}
+                          >
+                            <VaultSectorLeaderIcon />
+                          </span>
+                        ) : null}
+                        {display.sublabel ? (
+                          <span className="stock-vault-tab__sym">{display.sublabel}</span>
+                        ) : null}
+                        {industry ? (
+                          <span className="stock-vault-tab__sector-inline">{industry}</span>
+                        ) : null}
+                      </div>
                     </div>
-                    <p className="stock-vault-tab__sector">{industry}</p>
-                    <div className="stock-vault-tab__meta">
-                      <span className="stock-vault-tab__market">
-                        {row.market === "kr" ? ko.app.marketKr : ko.app.marketUs}
+                    <div className="stock-vault-tab__row-aside">
+                      <div className="stock-vault-tab__quote">
+                        {quote?.price != null && Number.isFinite(quote.price) ? (
+                          <>
+                            <span
+                              className={[
+                                "stock-vault-tab__price",
+                                maPriceClass,
+                              ]
+                                .filter(Boolean)
+                                .join(" ")}
+                            >
+                              {formatPrice(quote.price, cur)}
+                            </span>
+                            {chg != null && Number.isFinite(chg) ? (
+                              <span
+                                className={
+                                  chgUp
+                                    ? "stock-vault-tab__chg stock-vault-tab__chg--up"
+                                    : "stock-vault-tab__chg stock-vault-tab__chg--down"
+                                }
+                              >
+                                {formatPercent(chg)}
+                              </span>
+                            ) : null}
+                          </>
+                        ) : (
+                          <span className="stock-vault-tab__quote-pending">
+                            {ko.app.stockLookupQuotePending}
+                          </span>
+                        )}
+                      </div>
+                      <div className="stock-vault-tab__row-actions">
+                        <button
+                          type="button"
+                          className={
+                            row.favorited
+                              ? "stock-vault-tab__favorite stock-vault-tab__favorite--on"
+                              : "stock-vault-tab__favorite"
+                          }
+                          aria-label={
+                            row.favorited
+                              ? `${display.label} ${ko.stockVault.favoriteRemoveAria}`
+                              : `${display.label} ${ko.stockVault.favoriteAddAria}`
+                          }
+                          title={
+                            row.favorited
+                              ? ko.stockVault.favoriteRemove
+                              : ko.stockVault.favoriteAdd
+                          }
+                          aria-pressed={Boolean(row.favorited)}
+                          disabled={favoriting === row.symbol}
+                          onClick={() =>
+                            void handleToggleFavorite(
+                              row.symbol,
+                              Boolean(row.favorited),
+                              row.market,
+                              display.label,
+                            )
+                          }
+                        >
+                          <VaultBookmarkIcon filled={Boolean(row.favorited)} />
+                        </button>
+                        {!isHistoricalView ? (
+                          <button
+                            type="button"
+                            className="stock-vault-tab__remove"
+                            aria-label={`${display.label} ${ko.stockVault.removeAria}`}
+                            title={ko.stockVault.remove}
+                            disabled={removing === row.symbol || !authenticated}
+                            onClick={() => void handleRemove(row.symbol)}
+                          >
+                            <span className="stock-vault-tab__remove-icon" aria-hidden>
+                              ×
+                            </span>
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="stock-vault-tab__meta">
+                    <span className="stock-vault-tab__market">
+                      {row.market === "kr" ? ko.app.marketKr : ko.app.marketUs}
+                    </span>
+                    {sourceLabels.map((label) => (
+                      <span key={label} className="stock-vault-tab__source">
+                        {label}
                       </span>
-                      {sourceLabels.map((label) => (
-                        <span key={label} className="stock-vault-tab__source">
-                          {label}
-                        </span>
-                      ))}
-                      <span className={stockVaultTimeframeBadgeClass(row.timeframe)}>
-                        {stockVaultTimeframeLabel(row.timeframe)}
-                      </span>
-                      <span
-                        className={`stock-vault-tab__trend ${trendBadgeClass(dailyTrend)}`}
-                        title={formatTrendLabel("daily", dailyTrend, {
-                          dailyUp: ko.stockVault.trendDailyUp,
-                          dailyDown: ko.stockVault.trendDailyDown,
-                          dailyNeutral: ko.stockVault.trendDailyNeutral,
-                          weeklyUp: ko.stockVault.trendWeeklyUp,
-                          weeklyDown: ko.stockVault.trendWeeklyDown,
-                          weeklyNeutral: ko.stockVault.trendWeeklyNeutral,
-                        })}
-                      >
-                        {formatTrendLabel("daily", dailyTrend, {
-                          dailyUp: ko.stockVault.trendDailyUp,
-                          dailyDown: ko.stockVault.trendDailyDown,
-                          dailyNeutral: ko.stockVault.trendDailyNeutral,
-                          weeklyUp: ko.stockVault.trendWeeklyUp,
-                          weeklyDown: ko.stockVault.trendWeeklyDown,
-                          weeklyNeutral: ko.stockVault.trendWeeklyNeutral,
-                        })}
-                      </span>
-                      <span
-                        className={`stock-vault-tab__trend ${trendBadgeClass(weeklyTrend)}`}
-                        title={formatTrendLabel("weekly", weeklyTrend, {
-                          dailyUp: ko.stockVault.trendDailyUp,
-                          dailyDown: ko.stockVault.trendDailyDown,
-                          dailyNeutral: ko.stockVault.trendDailyNeutral,
-                          weeklyUp: ko.stockVault.trendWeeklyUp,
-                          weeklyDown: ko.stockVault.trendWeeklyDown,
-                          weeklyNeutral: ko.stockVault.trendWeeklyNeutral,
-                        })}
-                      >
-                        {formatTrendLabel("weekly", weeklyTrend, {
-                          dailyUp: ko.stockVault.trendDailyUp,
-                          dailyDown: ko.stockVault.trendDailyDown,
-                          dailyNeutral: ko.stockVault.trendDailyNeutral,
-                          weeklyUp: ko.stockVault.trendWeeklyUp,
-                          weeklyDown: ko.stockVault.trendWeeklyDown,
-                          weeklyNeutral: ko.stockVault.trendWeeklyNeutral,
-                        })}
-                      </span>
-                      {scanDate ? (
-                        <span className="stock-vault-tab__scan-date">
-                          {scanDate}
-                        </span>
-                      ) : null}
+                    ))}
+                    <span className={stockVaultTimeframeBadgeClass(row.timeframe)}>
+                      {stockVaultTimeframeLabel(row.timeframe)}
+                    </span>
+                    <span
+                      className={`stock-vault-tab__trend ${trendBadgeClass(dailyTrend)}`}
+                      title={formatTrendLabel("daily", dailyTrend, {
+                        dailyUp: ko.stockVault.trendDailyUp,
+                        dailyDown: ko.stockVault.trendDailyDown,
+                        dailyNeutral: ko.stockVault.trendDailyNeutral,
+                        weeklyUp: ko.stockVault.trendWeeklyUp,
+                        weeklyDown: ko.stockVault.trendWeeklyDown,
+                        weeklyNeutral: ko.stockVault.trendWeeklyNeutral,
+                      })}
+                    >
+                      {formatTrendLabel("daily", dailyTrend, {
+                        dailyUp: ko.stockVault.trendDailyUp,
+                        dailyDown: ko.stockVault.trendDailyDown,
+                        dailyNeutral: ko.stockVault.trendDailyNeutral,
+                        weeklyUp: ko.stockVault.trendWeeklyUp,
+                        weeklyDown: ko.stockVault.trendWeeklyDown,
+                        weeklyNeutral: ko.stockVault.trendWeeklyNeutral,
+                      })}
+                    </span>
+                    <span
+                      className={`stock-vault-tab__trend ${trendBadgeClass(weeklyTrend)}`}
+                      title={formatTrendLabel("weekly", weeklyTrend, {
+                        dailyUp: ko.stockVault.trendDailyUp,
+                        dailyDown: ko.stockVault.trendDailyDown,
+                        dailyNeutral: ko.stockVault.trendDailyNeutral,
+                        weeklyUp: ko.stockVault.trendWeeklyUp,
+                        weeklyDown: ko.stockVault.trendWeeklyDown,
+                        weeklyNeutral: ko.stockVault.trendWeeklyNeutral,
+                      })}
+                    >
+                      {formatTrendLabel("weekly", weeklyTrend, {
+                        dailyUp: ko.stockVault.trendDailyUp,
+                        dailyDown: ko.stockVault.trendDailyDown,
+                        dailyNeutral: ko.stockVault.trendDailyNeutral,
+                        weeklyUp: ko.stockVault.trendWeeklyUp,
+                        weeklyDown: ko.stockVault.trendWeeklyDown,
+                        weeklyNeutral: ko.stockVault.trendWeeklyNeutral,
+                      })}
+                    </span>
+                    {scanDate ? (
+                      <span className="stock-vault-tab__scan-date">{scanDate}</span>
+                    ) : (
                       <span className="stock-vault-tab__added">
                         {fmtDate(row.updatedAtMs)}
                       </span>
-                    </div>
-                    {(() => {
-                      const gcChain = formatGoldenCrossChain(gcItem?.crosses);
-                      return gcChain ? (
-                        <div className="stock-vault-tab__crosses">
-                          <span className="stock-vault-tab__cross">
-                            {gcChain}
-                          </span>
-                        </div>
-                      ) : null;
-                    })()}
-                    {row.maAlign ? (
-                      <div className="stock-vault-tab__crosses">
+                    )}
+                  </div>
+                  {hasSignalBadges ? (
+                    <div className="stock-vault-tab__crosses">
+                      {gcChain ? (
+                        <span className="stock-vault-tab__cross">{gcChain}</span>
+                      ) : null}
+                      {row.maAlign ? (
                         <span
                           className="stock-vault-tab__cross stock-vault-tab__cross--align"
                           title={ko.stockVault.maAlignBadgeHint}
                         >
                           {formatMaAlignChain()}
                         </span>
-                      </div>
-                    ) : null}
-                    {row.ma120Near ? (
-                      <div className="stock-vault-tab__crosses">
+                      ) : null}
+                      {ma120Label ? (
                         <span
                           className="stock-vault-tab__cross stock-vault-tab__cross--ma120"
                           title={ko.stockVault.ma120NearBadgeHint}
                         >
-                          {formatMa120NearLabel(
-                            row.ma120Near.distancePct,
-                            resolveMa120Approach(
-                              row.ma120Near,
-                              chartInsights[symKey],
-                              quote?.price,
-                            ),
-                            {
-                              fromBelow: ko.stockVault.maApproachFromBelow,
-                              fromAbove: ko.stockVault.maApproachFromAbove,
-                            },
-                          )}
+                          {ma120Label}
                         </span>
-                      </div>
-                    ) : null}
-                    {maNearHits.length > 0 ? (
-                      <div className="stock-vault-tab__ma-near-wrap">
-                        {maNearHits.map((hit) => {
-                          const approachLabel = formatMaApproachLabel(hit.approach, {
-                            fromBelow: ko.stockVault.maApproachFromBelow,
-                            fromAbove: ko.stockVault.maApproachFromAbove,
-                            flat: ko.stockVault.maApproachFlat,
-                          });
-                          return (
-                            <span
-                              key={`${row.key}-${hit.timeframe}-ma-${hit.period}`}
-                              className={[
-                                "stock-vault-tab__ma-near",
-                                maProximityBadgeClass(hit.period),
-                                hit.timeframe === "daily"
-                                  ? "stock-vault-tab__ma-near--daily"
-                                  : "stock-vault-tab__ma-near--weekly",
-                              ]
-                                .filter(Boolean)
-                                .join(" ")}
-                              title={
-                                hit.timeframe === "daily"
-                                  ? ko.stockVault.dailyMaNearHint(
-                                      hit.period,
-                                      hit.diffPct,
-                                      hit.side,
-                                      hit.approach,
-                                    )
-                                  : ko.stockVault.weeklyMaNearHint(
-                                      hit.period,
-                                      hit.diffPct,
-                                      hit.side,
-                                      hit.approach,
-                                    )
-                              }
-                            >
-                              {formatMaNearLabel(hit.timeframe, hit.period, {
-                                dailyNear: ko.stockVault.dailyMaNear,
-                                weeklyNear: ko.stockVault.weeklyMaNear,
-                              })}
-                              {approachLabel ? ` · ${approachLabel}` : ""}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    ) : null}
-                    {row.favorited ? (() => {
-                      const track = rowFavoriteTrack(row);
-                      const metaRow = favoriteMeta[symKey];
-                      return (
-                        <FavoriteTrackPanel
-                          symbol={row.symbol}
-                          market={row.market}
-                          addedAtMs={track.addedAtMs ?? metaRow?.addedAtMs}
-                          basePrice={track.favoritePrice ?? metaRow?.favoritePrice}
-                          currentPrice={quote?.price}
-                          currency={cur}
-                          editable={authenticated}
-                          onBasePriceSaved={(price) =>
-                            handleFavoritePriceSaved(row.symbol, price)
-                          }
-                        />
-                      );
-                    })() : null}
-                  </div>
-                  <div className="stock-vault-tab__quote">
-                    {quote?.price != null && Number.isFinite(quote.price) ? (
-                      <>
-                        <span
-                          className={[
-                            "stock-vault-tab__price",
-                            maPriceClass,
-                          ]
-                            .filter(Boolean)
-                            .join(" ")}
-                        >
-                          {formatPrice(quote.price, cur)}
-                        </span>
-                        {chg != null && Number.isFinite(chg) ? (
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {maNearHits.length > 0 ? (
+                    <div className="stock-vault-tab__ma-near-wrap">
+                      {maNearHits.map((hit) => {
+                        const approachLabel = formatMaApproachLabel(hit.approach, {
+                          fromBelow: ko.stockVault.maApproachFromBelow,
+                          fromAbove: ko.stockVault.maApproachFromAbove,
+                          flat: ko.stockVault.maApproachFlat,
+                        });
+                        return (
                           <span
-                            className={
-                              chgUp
-                                ? "stock-vault-tab__chg stock-vault-tab__chg--up"
-                                : "stock-vault-tab__chg stock-vault-tab__chg--down"
+                            key={`${row.key}-${hit.timeframe}-ma-${hit.period}`}
+                            className={[
+                              "stock-vault-tab__ma-near",
+                              maProximityBadgeClass(hit.period),
+                              hit.timeframe === "daily"
+                                ? "stock-vault-tab__ma-near--daily"
+                                : "stock-vault-tab__ma-near--weekly",
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                            title={
+                              hit.timeframe === "daily"
+                                ? ko.stockVault.dailyMaNearHint(
+                                    hit.period,
+                                    hit.diffPct,
+                                    hit.side,
+                                    hit.approach,
+                                  )
+                                : ko.stockVault.weeklyMaNearHint(
+                                    hit.period,
+                                    hit.diffPct,
+                                    hit.side,
+                                    hit.approach,
+                                  )
                             }
                           >
-                            {formatPercent(chg)}
+                            {formatMaNearLabel(hit.timeframe, hit.period, {
+                              dailyNear: ko.stockVault.dailyMaNear,
+                              weeklyNear: ko.stockVault.weeklyMaNear,
+                            })}
+                            {approachLabel ? ` · ${approachLabel}` : ""}
                           </span>
-                        ) : null}
-                      </>
-                    ) : (
-                      <span className="stock-vault-tab__quote-pending">
-                        {ko.app.stockLookupQuotePending}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="stock-vault-tab__row-actions">
-                  <button
-                    type="button"
-                    className={
-                      row.favorited
-                        ? "stock-vault-tab__favorite stock-vault-tab__favorite--on"
-                        : "stock-vault-tab__favorite"
-                    }
-                    aria-label={
-                      row.favorited
-                        ? `${display.label} ${ko.stockVault.favoriteRemoveAria}`
-                        : `${display.label} ${ko.stockVault.favoriteAddAria}`
-                    }
-                    title={
-                      row.favorited
-                        ? ko.stockVault.favoriteRemove
-                        : ko.stockVault.favoriteAdd
-                    }
-                    aria-pressed={Boolean(row.favorited)}
-                    disabled={favoriting === row.symbol}
-                    onClick={() =>
-                      void handleToggleFavorite(
-                        row.symbol,
-                        Boolean(row.favorited),
-                        row.market,
-                        display.label,
-                      )
-                    }
-                  >
-                    <VaultBookmarkIcon filled={Boolean(row.favorited)} />
-                  </button>
-                  {!isHistoricalView ? (
-                    <button
-                      type="button"
-                      className="stock-vault-tab__remove"
-                      aria-label={`${display.label} ${ko.stockVault.removeAria}`}
-                      title={ko.stockVault.remove}
-                      disabled={removing === row.symbol || !authenticated}
-                      onClick={() => void handleRemove(row.symbol)}
-                    >
-                      <span className="stock-vault-tab__remove-icon" aria-hidden>
-                        ×
-                      </span>
-                      <span className="stock-vault-tab__remove-label">
-                        {ko.stockVault.remove}
-                      </span>
-                    </button>
+                        );
+                      })}
+                    </div>
                   ) : null}
+                  {row.favorited ? (() => {
+                    const track = rowFavoriteTrack(row);
+                    const metaRow = favoriteMeta[symKey];
+                    return (
+                      <FavoriteTrackPanel
+                        symbol={row.symbol}
+                        market={row.market}
+                        addedAtMs={track.addedAtMs ?? metaRow?.addedAtMs}
+                        basePrice={track.favoritePrice ?? metaRow?.favoritePrice}
+                        currentPrice={quote?.price}
+                        currency={cur}
+                        editable={authenticated}
+                        onBasePriceSaved={(price) =>
+                          handleFavoritePriceSaved(row.symbol, price)
+                        }
+                      />
+                    );
+                  })() : null}
                 </div>
               </li>
               );
