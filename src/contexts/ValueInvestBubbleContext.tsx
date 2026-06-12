@@ -258,6 +258,8 @@ function InputField({
   projectionRows,
   projectionPer,
   currency,
+  pctRate,
+  onPctRateChange,
 }: {
   label: string;
   value: string;
@@ -269,10 +271,48 @@ function InputField({
   projectionRows?: ValueInvestYearlyProjectionRow[];
   projectionPer?: number;
   currency?: string;
+  /** 0–1 비율 — 포커스 중 문자열 draft로 소수·빈칸 입력 허용 */
+  pctRate?: number;
+  onPctRateChange?: (rate: number) => void;
 }) {
   const [hover, setHover] = useState(false);
+  const [pctDraft, setPctDraft] = useState<string | null>(null);
+  const pctMode = onPctRateChange != null;
   const showTable =
     hover && projectionColumn && projectionRows && projectionRows.length > 0;
+
+  useEffect(() => {
+    if (!pctMode) return;
+    setPctDraft(null);
+  }, [pctMode, pctRate]);
+
+  const inputValue = pctMode
+    ? (pctDraft ?? pctInput(pctRate ?? 0))
+    : value;
+
+  const handleInputChange = (raw: string) => {
+    if (pctMode && onPctRateChange) {
+      if (!/^\d*\.?\d*$/.test(raw)) return;
+      setPctDraft(raw);
+      if (raw !== "" && raw !== ".") {
+        const n = Number(raw);
+        if (Number.isFinite(n)) onPctRateChange(n / 100);
+      }
+      return;
+    }
+    onChange(raw);
+  };
+
+  const handleInputFocus = () => {
+    if (pctMode) setPctDraft(pctInput(pctRate ?? 0));
+  };
+
+  const handleInputBlur = () => {
+    if (pctMode && onPctRateChange && pctDraft !== null) {
+      onPctRateChange(parsePctInput(pctDraft === "." ? "" : pctDraft));
+      setPctDraft(null);
+    }
+  };
 
   return (
     <label className="value-invest-bubble__field">
@@ -315,11 +355,14 @@ function InputField({
       </span>
       <span className="value-invest-bubble__field-input-wrap">
         <input
-          type="number"
+          type={pctMode ? "text" : "number"}
+          inputMode={pctMode ? "decimal" : undefined}
           className="value-invest-bubble__field-input"
-          value={value}
-          step={step}
-          onChange={(e) => onChange(e.target.value)}
+          value={inputValue}
+          step={pctMode ? undefined : step}
+          onChange={(e) => handleInputChange(e.target.value)}
+          onFocus={handleInputFocus}
+          onBlur={handleInputBlur}
           onClick={(e) => e.stopPropagation()}
         />
         {suffix ? <span className="value-invest-bubble__field-suffix">{suffix}</span> : null}
@@ -574,16 +617,16 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
                   />
                   <InputField
                     label={ko.valueInvest.growthRate}
-                    value={pctInput(inputs.growthRate)}
+                    value=""
                     suffix="%"
                     step="0.1"
                     projectionColumn="eps"
                     projectionRows={projectionRows}
                     currency={currency}
-                    onChange={(v) =>
-                      setInputs((cur) =>
-                        cur ? { ...cur, growthRate: parsePctInput(v) } : cur,
-                      )
+                    onChange={() => {}}
+                    pctRate={inputs.growthRate}
+                    onPctRateChange={(rate) =>
+                      setInputs((cur) => (cur ? { ...cur, growthRate: rate } : cur))
                     }
                     source={payload?.growthSource ?? undefined}
                   />
@@ -605,28 +648,28 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
                   />
                   <InputField
                     label={ko.valueInvest.payoutRatio}
-                    value={pctInput(inputs.payoutRatio)}
+                    value=""
                     suffix="%"
                     step="0.1"
                     projectionColumn="dividend"
                     projectionRows={projectionRows}
                     currency={currency}
-                    onChange={(v) =>
-                      setInputs((cur) =>
-                        cur ? { ...cur, payoutRatio: parsePctInput(v) } : cur,
-                      )
+                    onChange={() => {}}
+                    pctRate={inputs.payoutRatio}
+                    onPctRateChange={(rate) =>
+                      setInputs((cur) => (cur ? { ...cur, payoutRatio: rate } : cur))
                     }
                     source={payload?.payoutSource ?? undefined}
                   />
                   <InputField
                     label={ko.valueInvest.targetReturn}
-                    value={pctInput(inputs.targetReturnRate)}
+                    value=""
                     suffix="%"
                     step="0.1"
-                    onChange={(v) =>
-                      setInputs((cur) =>
-                        cur ? { ...cur, targetReturnRate: parsePctInput(v) } : cur,
-                      )
+                    onChange={() => {}}
+                    pctRate={inputs.targetReturnRate}
+                    onPctRateChange={(rate) =>
+                      setInputs((cur) => (cur ? { ...cur, targetReturnRate: rate } : cur))
                     }
                   />
                   <InputField
