@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   fetchLiveTradingPortfolio,
+  type LiveTradeHolding,
   type LiveTradePortfolioResponse,
 } from "../api";
 import LiveTradeHistorySimSection from "./LiveTradeHistorySimSection";
@@ -14,6 +15,12 @@ import { liveTradeHistoryScenarioSub } from "./LiveTradeHistoryScenarioTabs";
 import { ko } from "../i18n/ko";
 import type { LiveTradeHistoryScenario } from "../lib/liveTradeHistoryScenario";
 import { liveTradeHoldingMatchesExchange } from "../lib/liveTradeTradesExchangeFilter";
+import {
+  TOSS_LEDGER_POLL_MS,
+  useTossAccountSnapshot,
+} from "../hooks/useTossAccountSnapshot";
+import { useTossSnapshotLiveQuotes } from "../hooks/useTossSnapshotLiveQuotes";
+import { mapTossHoldingsToLiveTrade } from "../lib/tossHoldingsAsLiveTrade";
 
 export default function LiveAccountTradesMainPanel({
   scenario,
@@ -43,6 +50,18 @@ export default function LiveAccountTradesMainPanel({
   );
   const [pfLoading, setPfLoading] = useState(false);
   const [pfErr, setPfErr] = useState<string | null>(null);
+  const {
+    snapshot: tossSnapshot,
+    loading: tossSnapshotLoading,
+    err: tossSnapshotErr,
+  } = useTossAccountSnapshot({
+    poll: scenario === "live-toss" && apiReady,
+    pollIntervalMs: TOSS_LEDGER_POLL_MS,
+  });
+  const liveTossSnapshot = useTossSnapshotLiveQuotes(
+    tossSnapshot,
+    scenario === "live-toss" && apiReady,
+  );
 
   const loadPortfolio = useCallback(async () => {
     if (!user) {
@@ -64,7 +83,7 @@ export default function LiveAccountTradesMainPanel({
   }, [user]);
 
   useEffect(() => {
-    if (scenario === "sim") {
+    if (scenario === "sim" || scenario === "live-toss") {
       setPortfolio(null);
       setPfErr(null);
       setPfLoading(false);
@@ -93,11 +112,18 @@ export default function LiveAccountTradesMainPanel({
         : BithumbBrandMark;
 
   const liveHoldings = useMemo(() => {
+    if (scenario === "live-toss") {
+      return mapTossHoldingsToLiveTrade(liveTossSnapshot?.holdings ?? []);
+    }
     if (!portfolio || !exchange) return [];
     return portfolio.holdings.filter((h) =>
       liveTradeHoldingMatchesExchange(h, exchange),
     );
-  }, [portfolio, exchange]);
+  }, [scenario, liveTossSnapshot, portfolio, exchange]);
+
+  const holdingsLoading =
+    scenario === "live-toss" ? tossSnapshotLoading && !tossSnapshot : pfLoading && !portfolio;
+  const holdingsErr = scenario === "live-toss" ? tossSnapshotErr : pfErr;
 
   const showBalance = scenario !== "sim" && exchange != null;
 
@@ -120,19 +146,19 @@ export default function LiveAccountTradesMainPanel({
         {showBalance && !apiReady && exchange ? (
           <LiveTradeApiNotConnectedNotice exchange={exchange} />
         ) : showBalance ? (
-          pfLoading && !portfolio ? (
+          holdingsLoading ? (
             <p className="live-trade-history__muted">{ko.app.liveTradePfLoading}</p>
-          ) : pfErr ? (
+          ) : holdingsErr ? (
             <p className="live-trade-history__err" role="alert">
-              {pfErr}
+              {holdingsErr}
             </p>
-          ) : portfolio ? (
+          ) : (
             <LiveAccountHoldingsTable
               exchange={exchange}
               holdings={liveHoldings}
               onOpenHoldingChart={onOpenHoldingChart}
             />
-          ) : null
+          )
         ) : null}
 
         {scenario === "sim" || (showBalance && !apiReady) ? null : (

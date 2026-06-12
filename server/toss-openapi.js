@@ -328,6 +328,40 @@ export async function fetchTossOpenOrdersRaw(accessToken, accountSeq) {
 }
 
 /**
+ * 종료 주문 목록 (체결·취소 등) — cursor 페이징
+ * @param {string} accessToken
+ * @param {string} accountSeq
+ * @param {{ cursor?: string; from?: string; to?: string; limit?: number; symbol?: string }} [query]
+ */
+export async function fetchTossClosedOrdersPageRaw(accessToken, accountSeq, query = {}) {
+  /** @type {Record<string, string>} */
+  const q = { status: "CLOSED" };
+  if (query.cursor) q.cursor = String(query.cursor);
+  if (query.from) q.from = String(query.from);
+  if (query.to) q.to = String(query.to);
+  if (query.symbol) q.symbol = String(query.symbol);
+  const limit = Number(query.limit);
+  if (Number.isFinite(limit) && limit >= 1) {
+    q.limit = String(Math.min(100, Math.floor(limit)));
+  }
+
+  const json = await tossOpenApiGet(accessToken, accountSeq, "/api/v1/orders", q);
+  const result =
+    json?.result && typeof json.result === "object" ? json.result : {};
+  const orders = Array.isArray(result.orders)
+    ? result.orders
+    : parseTossOpenOrdersResult(result);
+  return {
+    orders,
+    nextCursor:
+      result.nextCursor != null && String(result.nextCursor).trim()
+        ? String(result.nextCursor)
+        : null,
+    hasNext: Boolean(result.hasNext),
+  };
+}
+
+/**
  * @param {string} accessToken
  * @param {string} accountSeq
  * @param {string} symbol
