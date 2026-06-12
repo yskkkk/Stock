@@ -396,11 +396,13 @@ export async function loadUniverse() {
   let us = [];
 
   try {
-    await getYahooSession();
-    [kr, us] = await Promise.all([
-      fetchUniverseRegion("kr", KR_TARGET),
-      fetchUsSp500Universe(),
-    ]);
+    kr = await fetchKrTopMarketCapCsv();
+    if (kr.length < KR_TARGET * 0.5) {
+      await getYahooSession();
+      const screenerKr = await fetchUniverseRegion("kr", KR_TARGET);
+      kr = mergeSymbolUniverse(kr, screenerKr);
+    }
+    us = await fetchUsSp500Universe();
   } catch {
     /* fallback */
   }
