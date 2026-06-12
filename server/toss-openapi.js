@@ -3,7 +3,7 @@
  * @see https://openapi.tossinvest.com/openapi-docs/overview.md
  */
 
-import { queueTossApiRequest } from "./toss-api-queue.js";
+import { isTossInvalidTokenError, queueTossApiRequest } from "./toss-api-queue.js";
 
 const DEFAULT_BASE = "https://openapi.tossinvest.com";
 
@@ -30,20 +30,30 @@ export function parseTossDecimal(v) {
  * }} TossOpenApiCredentials
  */
 
+/** @param {string} [clientId] */
+export function invalidateTossAccessTokenCache(clientId) {
+  const id = String(clientId ?? "").trim();
+  if (id) tokenCache.delete(id);
+  else tokenCache.clear();
+}
+
 /**
  * @param {string} clientId
  * @param {string} clientSecret
+ * @param {{ force?: boolean }} [opts]
  */
-export async function issueTossAccessToken(clientId, clientSecret) {
+export async function issueTossAccessToken(clientId, clientSecret, opts = {}) {
   const id = String(clientId ?? "").trim();
   const secret = String(clientSecret ?? "").trim();
   if (!id || !secret) {
     throw new Error("토스 client_id·client_secret(API Key·Secret)가 필요합니다.");
   }
 
-  const cached = tokenCache.get(id);
-  if (cached && cached.expiresAtMs > Date.now() + 60_000) {
-    return cached.accessToken;
+  if (!opts.force) {
+    const cached = tokenCache.get(id);
+    if (cached && cached.expiresAtMs > Date.now() + 60_000) {
+      return cached.accessToken;
+    }
   }
 
   const body = new URLSearchParams({
@@ -89,9 +99,27 @@ export async function issueTossAccessToken(clientId, clientSecret) {
   const ttlMs =
     Number.isFinite(expiresIn) && expiresIn > 120
       ? (expiresIn - 60) * 1000
-      : 23 * 60 * 60 * 1000;
+      : 50 * 60 * 1000;
   tokenCache.set(id, { accessToken, expiresAtMs: Date.now() + ttlMs });
   return accessToken;
+}
+
+/**
+ * @template T
+ * @param {string} apiKey
+ * @param {string} secretKey
+ * @param {(accessToken: string) => Promise<T>} fn
+ */
+export async function withTossAccessToken(apiKey, secretKey, fn) {
+  let token = await issueTossAccessToken(apiKey, secretKey);
+  try {
+    return await fn(token);
+  } catch (e) {
+    if (!isTossInvalidTokenError(e)) throw e;
+    invalidateTossAccessTokenCache(apiKey);
+    token = await issueTossAccessToken(apiKey, secretKey, { force: true });
+    return await fn(token);
+  }
 }
 
 /**
@@ -174,13 +202,17 @@ export function formatTossOpenApiError(json, httpStatus) {
       : null;
   const base =
     (errObj && typeof errObj.message === "string" && errObj.message) ||
+    (errObj && typeof errObj.reason === "string" && errObj.reason) ||
     (json && typeof json === "object" && typeof json.message === "string" && json.message) ||
     `토스 API 오류 HTTP ${httpStatus ?? "?"}`;
+  const code =
+    (errObj && typeof errObj.errorCode === "string" && errObj.errorCode.trim()) || "";
   const data =
     errObj && errObj.data && typeof errObj.data === "object" ? errObj.data : null;
   const field = data && typeof data.field === "string" ? data.field.trim() : "";
-  if (field) return `${base} (필드: ${field})`;
-  return base;
+  const withCode = code ? `${base} [${code}]` : base;
+  if (field) return `${withCode} (필드: ${field})`;
+  return withCode;
 }
 
 /**
@@ -246,25 +278,26 @@ export async function fetchTossAccountRawWithCredentials(creds) {
     throw new Error("토스 API Key·Secret Key를 입력하세요.");
   }
 
-  const accessToken = await issueTossAccessToken(apiKey, secretKey);
-  const accountSeq = await resolveTossAccountSeq(accessToken, creds?.accountId);
+  return withTossAccessToken(apiKey, secretKey, async (accessToken) => {
+    const accountSeq = await resolveTossAccountSeq(accessToken, creds?.accountId);
 
-  const [holdingsJson, bpKrwJson, bpUsdJson] = await Promise.all([
-    tossOpenApiGet(accessToken, accountSeq, "/api/v1/holdings"),
-    tossOpenApiGet(accessToken, accountSeq, "/api/v1/buying-power", {
-      currency: "KRW",
-    }).catch(() => null),
-    tossOpenApiGet(accessToken, accountSeq, "/api/v1/buying-power", {
-      currency: "USD",
-    }).catch(() => null),
-  ]);
+    const [holdingsJson, bpKrwJson, bpUsdJson] = await Promise.all([
+      tossOpenApiGet(accessToken, accountSeq, "/api/v1/holdings"),
+      tossOpenApiGet(accessToken, accountSeq, "/api/v1/buying-power", {
+        currency: "KRW",
+      }).catch(() => null),
+      tossOpenApiGet(accessToken, accountSeq, "/api/v1/buying-power", {
+        currency: "USD",
+      }).catch(() => null),
+    ]);
 
-  return {
-    accountSeq,
-    holdings: holdingsJson?.result ?? null,
-    buyingPowerKrw: bpKrwJson?.result ?? null,
-    buyingPowerUsd: bpUsdJson?.result ?? null,
-  };
+    return {
+      accountSeq,
+      holdings: holdingsJson?.result ?? null,
+      buyingPowerKrw: bpKrwJson?.result ?? null,
+      buyingPowerUsd: bpUsdJson?.result ?? null,
+    };
+  });
 }
 
 /**

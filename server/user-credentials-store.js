@@ -395,6 +395,21 @@ export function upsertUserCredentialSync(userId, exchange, input) {
   if (idx >= 0) store.credentials[idx] = row;
   else store.credentials.push(row);
   writeStoreSync(store);
+  if (ex === "toss" && (keyIn || secIn)) {
+    let cacheClientId = keyIn;
+    if (!cacheClientId && prev?.apiKeyEncrypted) {
+      try {
+        cacheClientId = decryptSecret(prev.apiKeyEncrypted);
+      } catch {
+        cacheClientId = "";
+      }
+    }
+    if (cacheClientId) {
+      void import("./toss-openapi.js")
+        .then((m) => m.invalidateTossAccessTokenCache(cacheClientId))
+        .catch(() => null);
+    }
+  }
   if (ex === "bithumb" && row.apiKeyEncrypted && row.secretEncrypted) {
     void import("./exchange-trading-fees.js")
       .then((m) => m.refreshBithumbFeesForUserAsync(uid))

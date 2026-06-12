@@ -47,6 +47,14 @@ export function isTossRateLimitError(err) {
   return /요청 한도|rate.?limit|too many|429/i.test(msg);
 }
 
+/** @param {unknown} err */
+export function isTossInvalidTokenError(err) {
+  const msg = err instanceof Error ? err.message : String(err ?? "");
+  return /유효하지 않은 토큰|토큰이 유효하지|invalid.*token|unauthorized|CE1000|40101/i.test(
+    msg,
+  );
+}
+
 /** @param {number} [ms] */
 export function markTossRateLimited(ms = 12_000) {
   rateLimitUntil = Math.max(rateLimitUntil, Date.now() + ms);
