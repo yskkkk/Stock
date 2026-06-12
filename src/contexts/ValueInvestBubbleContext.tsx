@@ -212,6 +212,39 @@ function projectionColumnValue(
   }
 }
 
+function HistoricalEpsTable({
+  rows,
+  currency,
+}: {
+  rows: { year: number; eps: number }[];
+  currency?: string;
+}) {
+  if (!rows.length) {
+    return <p className="value-invest-bubble__proj-empty">—</p>;
+  }
+
+  return (
+    <table className="value-invest-bubble__proj-table value-invest-bubble__proj-table--single">
+      <thead>
+        <tr>
+          <th>{ko.valueInvest.projectionYear}</th>
+          <th>{ko.valueInvest.projectionEps}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.year}>
+            <td>{`${row.year}년`}</td>
+            <td className="value-invest-bubble__proj-col--highlight">
+              {fmtProjectionValue(row.eps, currency, "eps")}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 function YearlyProjectionTable({
   rows,
   currency,
@@ -260,6 +293,7 @@ function InputField({
   source,
   projectionColumn,
   projectionRows,
+  historicalEpsRows,
   projectionPer,
   currency,
   pctRate,
@@ -273,6 +307,7 @@ function InputField({
   source?: string;
   projectionColumn?: ProjectionColumn;
   projectionRows?: ValueInvestYearlyProjectionRow[];
+  historicalEpsRows?: { year: number; eps: number }[];
   projectionPer?: number;
   currency?: string;
   /** 0–1 비율 — 포커스 중 문자열 draft로 소수·빈칸 입력 허용 */
@@ -282,8 +317,11 @@ function InputField({
   const [hover, setHover] = useState(false);
   const [pctDraft, setPctDraft] = useState<string | null>(null);
   const pctMode = onPctRateChange != null;
-  const showTable =
+  const showHistorical =
+    hover && historicalEpsRows && historicalEpsRows.length > 0;
+  const showProjection =
     hover && projectionColumn && projectionRows && projectionRows.length > 0;
+  const showTable = showHistorical || showProjection;
 
   useEffect(() => {
     if (!pctMode) return;
@@ -342,13 +380,17 @@ function InputField({
             onMouseLeave={() => setHover(false)}
           >
             <span className="value-invest-bubble__hover-pop-title">
-              {projectionColumn
-                ? `${projectionColumnLabel(projectionColumn)} · ${ko.valueInvest.projectionTitle}`
-                : ko.valueInvest.projectionTitle}
+              {showHistorical
+                ? ko.valueInvest.epsHistoryTitle
+                : projectionColumn
+                  ? `${projectionColumnLabel(projectionColumn)} · ${ko.valueInvest.projectionTitle}`
+                  : ko.valueInvest.projectionTitle}
             </span>
-            {projectionColumn ? (
+            {showHistorical ? (
+              <HistoricalEpsTable rows={historicalEpsRows!} currency={currency} />
+            ) : projectionColumn ? (
               <YearlyProjectionTable
-                rows={projectionRows}
+                rows={projectionRows!}
                 currency={currency}
                 column={projectionColumn}
                 perMultiple={projectionPer}
@@ -619,8 +661,7 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
                     label={ko.valueInvest.currentEps}
                     value={String(inputs.currentEps)}
                     suffix={epsSuffix}
-                    projectionColumn="eps"
-                    projectionRows={projectionRows}
+                    historicalEpsRows={payload?.epsHistory}
                     currency={currency}
                     onChange={(v) =>
                       setInputs((cur) => (cur ? { ...cur, currentEps: Number(v) || 0 } : cur))

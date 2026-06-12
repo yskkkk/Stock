@@ -4,7 +4,10 @@
 import { calcValueInvestReturn } from "./value-invest-return-model.js";
 import { loadStockFundamentals } from "./stock-fundamentals.js";
 import { deriveValueInvestGrowth10y } from "./value-invest-growth.js";
-import { loadAnnualEpsHistory } from "./value-invest-eps-history.js";
+import {
+  averageEpsFromHistory,
+  loadAnnualEpsHistory,
+} from "./value-invest-eps-history.js";
 
 const DEFAULT_TARGET_RETURN = 0.15;
 const DEFAULT_YEARS = 10;
@@ -20,7 +23,10 @@ export function buildValueInvestInputsFromFundamentals(f, opts = {}) {
   const sources = {};
 
   const currentPrice = f.price;
-  const currentEps = f.eps;
+  const epsHistory = opts.epsHistory ?? [];
+  const epsAverage = averageEpsFromHistory(epsHistory);
+  const trailingEps = f.eps;
+  const currentEps = epsAverage.avg ?? trailingEps;
   if (currentPrice == null || currentPrice <= 0) {
     missing.push("현재가");
   } else {
@@ -28,15 +34,17 @@ export function buildValueInvestInputsFromFundamentals(f, opts = {}) {
   }
   if (currentEps == null || currentEps <= 0) {
     missing.push("EPS");
+  } else if (epsAverage.avg != null && epsAverage.source) {
+    sources.currentEps = epsAverage.source;
   } else {
     sources.currentEps = f.source;
   }
 
   const growth = deriveValueInvestGrowth10y({
-    eps: currentEps,
+    eps: trailingEps,
     forwardEps: f.forwardEps,
     revenueGrowth: f.revenueGrowth,
-    epsHistory: opts.epsHistory ?? [],
+    epsHistory,
   });
   const growthRate = growth.value;
   const growthSource = growth.source;
@@ -81,10 +89,15 @@ export function buildValueInvestInputsFromFundamentals(f, opts = {}) {
     sources.payoutRatio = payoutSource;
   }
 
+  const roundedEps =
+    currentEps != null && Number.isFinite(currentEps)
+      ? Math.round(currentEps * 100) / 100
+      : 0;
+
   /** @type {import("./value-invest-return-model.js").calcValueInvestReturn extends (i: infer I) => unknown ? I : never} */
   const inputs = {
     currentPrice: currentPrice ?? 0,
-    currentEps: currentEps ?? 0,
+    currentEps: roundedEps,
     growthRate: growthRate ?? 0,
     averagePer: averagePer ?? 0,
     payoutRatio,
@@ -114,6 +127,8 @@ export function buildValueInvestInputsFromFundamentals(f, opts = {}) {
     result,
     missing,
     computable: Boolean(result && missing.length <= 1),
+    epsHistory: epsAverage.years.length > 0 ? epsAverage.years : epsHistory,
+    trailingEps,
     disclaimer:
       "실제 시장·재무 데이터 기반 추정이며 투자 권유가 아닙니다. 성장·PER·배당 가정에 따라 결과가 달라집니다.",
     updatedAtMs: Date.now(),

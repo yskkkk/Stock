@@ -360,6 +360,10 @@ export interface ValueInvestReturnResponse {
   result: ValueInvestReturnResult | null;
   missing: string[];
   computable: boolean;
+  /** 기준 EPS 산출에 사용한 연간 실적 (최대 10년) */
+  epsHistory?: { year: number; eps: number }[];
+  /** Yahoo/Naver trailing EPS (평균 대비 참고) */
+  trailingEps?: number | null;
   disclaimer: string;
   updatedAtMs: number;
 }
