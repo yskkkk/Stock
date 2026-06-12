@@ -1,21 +1,20 @@
 .scroll-to-top-btn {
   position: fixed;
-  left: max(0.55rem, env(safe-area-inset-left, 0px));
+  left: auto;
+  right: max(0.55rem, env(safe-area-inset-right, 0px));
   bottom: max(0.55rem, env(safe-area-inset-bottom, 0px));
-  z-index: 10055;
-  width: 2.4rem;
-  height: 2.4rem;
+  z-index: 10060;
+  width: 2.15rem;
+  height: 2.15rem;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
-  border: 1px solid var(--card-border);
-  background: color-mix(in srgb, var(--card) 90%, transparent);
-  color: var(--text-dim);
-  box-shadow: var(--shadow);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  border-radius: 0.45rem;
+  border: none;
+  background: transparent;
+  color: var(--muted, #94a3b8);
+  box-shadow: none;
   cursor: pointer;
   opacity: 0;
   pointer-events: none;
@@ -24,7 +23,6 @@
     opacity 0.18s ease,
     transform 0.18s ease,
     color 0.15s ease,
-    border-color 0.15s ease,
     background 0.15s ease;
 }
 
@@ -35,9 +33,8 @@
 }
 
 .scroll-to-top-btn:hover {
-  color: var(--text);
-  border-color: var(--accent-border);
-  background: color-mix(in srgb, var(--card) 96%, var(--accent-dim));
+  color: var(--text, #f1f5f9);
+  background: color-mix(in srgb, var(--accent-dim) 38%, transparent);
 }
 
 .scroll-to-top-btn:focus-visible {
@@ -45,16 +42,22 @@
   outline-offset: 2px;
 }
 
-.scroll-to-top-btn__icon {
-  font-size: 1.05rem;
-  font-weight: 700;
-  line-height: 1;
-  transform: translateY(-1px);
+.scroll-to-top-btn__svg {
+  display: block;
+  flex: none;
+}
+
+/* 우측 도크 레일 하단에 정렬 */
+#root:has([data-live-trade-side-dock-rail]) .scroll-to-top-btn {
+  right: calc(
+    max(0px, (var(--live-trade-dock-rail-width, 3.25rem) - 2.15rem) / 2) +
+      env(safe-area-inset-right, 0px)
+  );
+  bottom: max(0.55rem, env(safe-area-inset-bottom, 0px));
 }
 
 @media (min-width: 1180px) {
-  .scroll-to-top-btn {
-    left: max(0.75rem, env(safe-area-inset-left, 0px));
-    bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+  #root:has([data-live-trade-side-dock-rail]) .scroll-to-top-btn {
+    bottom: max(0.65rem, env(safe-area-inset-bottom, 0px));
   }
 }

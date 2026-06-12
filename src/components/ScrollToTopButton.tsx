@@ -9,6 +9,27 @@ function resolveScrollEl(scrollRef: RefObject<HTMLElement | null>) {
   return scrollRef.current ?? document.querySelector<HTMLElement>(".app__scroll");
 }
 
+function ScrollToTopIcon() {
+  return (
+    <svg
+      className="scroll-to-top-btn__svg"
+      viewBox="0 0 24 24"
+      width={18}
+      height={18}
+      aria-hidden
+    >
+      <path
+        d="M12 19V6M12 6l-5 5M12 6l5 5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export default function ScrollToTopButton({ scrollRef }: ScrollToTopButtonProps) {
   const [visible, setVisible] = useState(false);
 
@@ -43,9 +64,7 @@ export default function ScrollToTopButton({ scrollRef }: ScrollToTopButtonProps)
       tabIndex={visible ? 0 : -1}
       aria-hidden={!visible}
     >
-      <span className="scroll-to-top-btn__icon" aria-hidden>
-        ↑
-      </span>
+      <ScrollToTopIcon />
     </button>
   );
 }
