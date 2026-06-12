@@ -72,37 +72,8 @@
   color: var(--muted);
 }
 
-.investor-flow-tab__industry-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.28rem;
-  max-height: 6.5rem;
-  overflow: auto;
-  padding: 0.15rem 0;
-}
-
-.investor-flow-tab__industry-chip {
-  padding: 0.1rem 0.3rem;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  color: var(--muted);
-  font: inherit;
-  font-size: 0.66rem;
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.investor-flow-tab__industry-chip:hover {
-  color: var(--text);
-}
-
-.investor-flow-tab__industry-chip--on {
-  background: transparent;
-  color: var(--accent);
-  font-weight: 700;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+.investor-flow-tab__industry-filters {
+  margin: 0.1rem 0 0.15rem;
 }
 
 .investor-flow-tab__sector-summary-title {

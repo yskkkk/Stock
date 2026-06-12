@@ -97,7 +97,7 @@ export default function InvestorFlowTab() {
   const [rankKey, setRankKey] = useState<RankKey>("foreign");
   const [flowDir, setFlowDir] = useState<FlowDir>("buy");
   const [viewMode, setViewMode] = useState<ViewMode>("list");
-  const [industryFilter, setIndustryFilter] = useState<string>("");
+  const [industryFilter, setIndustryFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
 
   const load = useCallback(async (opts?: { silent?: boolean; refresh?: boolean }) => {
@@ -130,6 +130,58 @@ export default function InvestorFlowTab() {
     return [...set].sort((a, b) => a.localeCompare(b, "ko"));
   }, [data?.industryTabs, data?.items]);
 
+  const baseForIndustryCounts = useMemo(() => {
+    const items = data?.items ?? [];
+    const q = query.trim().toLowerCase();
+    let filtered = items;
+    if (q) {
+      filtered = filtered.filter((row) => {
+        const sym = row.symbol.replace(/\.(KS|KQ)$/i, "").toLowerCase();
+        return (
+          row.name.toLowerCase().includes(q) ||
+          sym.includes(q) ||
+          row.symbol.toLowerCase().includes(q) ||
+          rowIndustry(row).toLowerCase().includes(q)
+        );
+      });
+    }
+    return filtered.filter((row) => {
+      const v = qtyForKey(row, rankKey);
+      if (v == null) return false;
+      return flowDir === "buy" ? v > 0 : v < 0;
+    });
+  }, [data?.items, flowDir, query, rankKey]);
+
+  const industryOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const row of baseForIndustryCounts) {
+      const industry = rowIndustry(row);
+      counts.set(industry, (counts.get(industry) ?? 0) + 1);
+    }
+    return industryTabs.map((name) => ({
+      name,
+      count: counts.get(name) ?? 0,
+    }));
+  }, [baseForIndustryCounts, industryTabs]);
+
+  const industryGridRows = useMemo(
+    () => Math.max(16, Math.ceil(industryTabs.length / 8)),
+    [industryTabs.length],
+  );
+
+  const industryGridCols = useMemo(
+    () =>
+      Math.max(1, Math.ceil(industryTabs.length / Math.max(1, industryGridRows))),
+    [industryTabs.length, industryGridRows],
+  );
+
+  useEffect(() => {
+    if (industryFilter === "all") return;
+    if (!industryTabs.includes(industryFilter)) {
+      setIndustryFilter("all");
+    }
+  }, [industryFilter, industryTabs]);
+
   const sectorSummary = useMemo(() => {
     const base = data?.industrySummary ?? [];
     const sorted = [...base].sort((a, b) => {
@@ -157,7 +209,7 @@ export default function InvestorFlowTab() {
         );
       });
     }
-    if (industryFilter) {
+    if (industryFilter !== "all") {
       filtered = filtered.filter((row) => rowIndustry(row) === industryFilter);
     }
     filtered = filtered.filter((row) => {
@@ -323,32 +375,58 @@ export default function InvestorFlowTab() {
       </div>
 
       {industryTabs.length > 0 ? (
-        <div className="investor-flow-tab__industry-bar" role="group" aria-label={ko.investorFlow.industryFilterAria}>
+        <div
+          className="stock-vault-tab__filters stock-vault-tab__filters--industry investor-flow-tab__industry-filters"
+          role="tablist"
+          aria-label={ko.investorFlow.industryFilterAria}
+        >
           <button
             type="button"
+            role="tab"
+            aria-selected={industryFilter === "all"}
             className={
-              industryFilter === ""
-                ? "investor-flow-tab__industry-chip investor-flow-tab__industry-chip--on"
-                : "investor-flow-tab__industry-chip"
+              industryFilter === "all"
+                ? "market-tab market-tab--industry-all active"
+                : "market-tab market-tab--industry-all"
             }
-            onClick={() => setIndustryFilter("")}
+            onClick={() => setIndustryFilter("all")}
           >
-            {ko.investorFlow.industryAll}
+            <span className="market-tab__label">{ko.investorFlow.industryAll}</span>
+            <span className="market-tab__count">{baseForIndustryCounts.length}</span>
           </button>
-          {industryTabs.map((name) => (
-            <button
-              key={name}
-              type="button"
-              className={
-                industryFilter === name
-                  ? "investor-flow-tab__industry-chip investor-flow-tab__industry-chip--on"
-                  : "investor-flow-tab__industry-chip"
+          <div className="stock-vault-tab__industry-grid-scroll">
+            <div
+              className="stock-vault-tab__industry-grid"
+              style={
+                {
+                  "--stock-vault-industry-rows": String(industryGridRows),
+                  "--stock-vault-industry-cols": String(industryGridCols),
+                } as React.CSSProperties
               }
-              onClick={() => setIndustryFilter((cur) => (cur === name ? "" : name))}
             >
-              {name}
-            </button>
-          ))}
+              {industryOptions.map(({ name, count }) => (
+                <button
+                  key={name}
+                  type="button"
+                  role="tab"
+                  aria-selected={industryFilter === name}
+                  className={
+                    industryFilter === name
+                      ? "market-tab active"
+                      : count > 0
+                        ? "market-tab"
+                        : "market-tab market-tab--empty"
+                  }
+                  onClick={() =>
+                    setIndustryFilter((cur) => (cur === name ? "all" : name))
+                  }
+                >
+                  <span className="market-tab__label">{name}</span>
+                  <span className="market-tab__count">{count}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       ) : null}
 
@@ -400,7 +478,7 @@ export default function InvestorFlowTab() {
                         className="investor-flow-tab__sector-link"
                         onClick={() =>
                           setIndustryFilter((cur) =>
-                            cur === row.industry ? "" : row.industry,
+                            cur === row.industry ? "all" : row.industry,
                           )
                         }
                       >
