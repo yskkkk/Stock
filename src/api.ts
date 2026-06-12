@@ -1893,11 +1893,20 @@ export function cancelTossOpenOrder(orderId: string) {
 }
 
 export function placeTossOrder(body: TossPlaceOrderBody) {
+  const timeoutMs = 1_000;
   return fetchJson<TossPlaceOrderResponse>("/api/live-trading/toss/orders", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(45_000),
+    signal: AbortSignal.timeout(timeoutMs),
+  }).catch((err: unknown) => {
+    if (
+      err instanceof DOMException &&
+      (err.name === "TimeoutError" || err.name === "AbortError")
+    ) {
+      throw new Error(ko.app.liveTradeTossOrderErrTimeout);
+    }
+    throw err;
   });
 }
 

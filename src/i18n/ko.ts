@@ -280,6 +280,8 @@ export const ko = {
     liveTradeTossOrderErrLimitPrice: "지정가를 입력하세요.",
     liveTradeTossOrderErrQty: "매도 수량을 입력하세요.",
     liveTradeTossOrderErrAmount: "매수 금액을 입력하세요.",
+    liveTradeTossOrderErrTimeout:
+      "1초 안에 주문이 접수되지 않았습니다. 주문이 들어가지 않았을 수 있으니 토스 앱에서 확인하세요.",
     liveTradeTossOrderOk: "주문을 접수했습니다.",
     liveTradeTossOpenOrders: "미체결",
     liveTradeTossOpenOrdersNote: "토스 미체결 주문입니다.",
