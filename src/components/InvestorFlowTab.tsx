@@ -7,6 +7,7 @@ import {
   pointerFromElementCenter,
   type BubblePointer,
 } from "../lib/bubblePointerAnchor";
+import { industryGridDimensions } from "../lib/industryGridLayout";
 import {
   formatInvestorNetQty,
   investorChangePctClass,
@@ -260,15 +261,9 @@ export default function InvestorFlowTab() {
     }));
   }, [baseForIndustryCounts, industryTabs]);
 
-  const industryGridRows = useMemo(
-    () => Math.max(16, Math.ceil(industryTabs.length / 8)),
+  const industryGrid = useMemo(
+    () => industryGridDimensions(industryTabs.length),
     [industryTabs.length],
-  );
-
-  const industryGridCols = useMemo(
-    () =>
-      Math.max(1, Math.ceil(industryTabs.length / Math.max(1, industryGridRows))),
-    [industryTabs.length, industryGridRows],
   );
 
   useEffect(() => {
@@ -534,8 +529,8 @@ export default function InvestorFlowTab() {
               className="stock-vault-tab__industry-grid"
               style={
                 {
-                  "--stock-vault-industry-rows": String(industryGridRows),
-                  "--stock-vault-industry-cols": String(industryGridCols),
+                  "--stock-vault-industry-rows": String(industryGrid.rows),
+                  "--stock-vault-industry-cols": String(industryGrid.cols),
                 } as React.CSSProperties
               }
             >

@@ -29,8 +29,8 @@ describe("stock-vault-meta", () => {
   });
 
   it("computes vertical grid row count", () => {
-    expect(stockVaultIndustryGridRows(157)).toBe(20);
-    expect(stockVaultIndustryGridRows(0)).toBe(18);
+    expect(stockVaultIndustryGridRows(157)).toBe(53);
+    expect(stockVaultIndustryGridRows(0)).toBe(1);
   });
 
   it("normalizes dash variants", () => {

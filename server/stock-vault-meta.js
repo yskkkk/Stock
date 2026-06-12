@@ -429,11 +429,12 @@ function collectStockVaultIndustryLabelSet() {
   ]);
 }
 
-/** 그리드 세로 칸 수 (유사 업종 열 묶음용) */
+/** 그리드 세로 칸 수 — 가로 3열(국내 수급 업종별과 동일) */
 export function stockVaultIndustryGridRows(tabCount) {
   const n = Number(tabCount);
-  if (!Number.isFinite(n) || n < 1) return 18;
-  return Math.max(16, Math.min(24, Math.ceil(n / 8)));
+  const cols = 3;
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.ceil(n / cols);
 }
 
 /** Yahoo·키워드 매핑 기준 전체 업종 탭 — 유사 업종끼리 인접·세로 배치 순 */

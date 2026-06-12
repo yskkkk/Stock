@@ -31,6 +31,7 @@ import {
   stockVaultTimeframeLabel,
   stockVaultTimeframeRowClass,
 } from "../lib/stockVaultTimeframe";
+import { industryGridDimensions } from "../lib/industryGridLayout";
 import {
   defaultStockVaultTabUi,
   peekStockVaultTabUi,
@@ -188,12 +189,6 @@ function vaultStateFromResponse(vault: StockVaultResponse) {
     authenticated: Boolean(vault.authenticated),
     favoriteMeta: vault.favoriteMeta ?? {},
     industryTabs: vault.industryTabs?.length ? vault.industryTabs : [],
-    industryGridRows:
-      typeof vault.industryGridRows === "number" && vault.industryGridRows > 0
-        ? vault.industryGridRows
-        : vault.industryTabs?.length
-          ? Math.max(16, Math.ceil(vault.industryTabs.length / 8))
-          : 20,
   };
 }
 
@@ -232,9 +227,6 @@ export default function StockVaultTab({
   >(() => cachedVault?.chartInsights ?? {});
   const [industryTabs, setIndustryTabs] = useState<string[]>(
     () => cachedVault?.industryTabs ?? [],
-  );
-  const [industryGridRows, setIndustryGridRows] = useState(
-    () => cachedVault?.industryGridRows ?? 20,
   );
   const [loading, setLoading] = useState(
     () => !cachedInit && !isStockVaultSessionPinned(),
@@ -308,13 +300,6 @@ export default function StockVaultTab({
       setFavoriteMeta(vault.favoriteMeta ?? {});
       setIndustryTabs((prev) =>
         vault.industryTabs?.length ? vault.industryTabs : prev,
-      );
-      setIndustryGridRows((prev) =>
-        typeof vault.industryGridRows === "number" && vault.industryGridRows > 0
-          ? vault.industryGridRows
-          : vault.industryTabs?.length
-            ? Math.max(16, Math.ceil(vault.industryTabs.length / 8))
-            : prev,
       );
       onVaultChange?.(favoriteVaultSymbols(vault), vault.favoriteMeta);
       updateStockVaultPrefetchVault(vault);
@@ -619,10 +604,9 @@ export default function StockVaultTab({
     }
   }, [industryFilter, industryTabs]);
 
-  const industryGridCols = useMemo(
-    () =>
-      Math.max(1, Math.ceil(industryTabs.length / Math.max(1, industryGridRows))),
-    [industryTabs.length, industryGridRows],
+  const industryGrid = useMemo(
+    () => industryGridDimensions(industryTabs.length),
+    [industryTabs.length],
   );
 
   const marketCounts = useMemo(
@@ -1001,7 +985,7 @@ export default function StockVaultTab({
 
           {industryTabs.length > 0 ? (
             <div
-              className="stock-vault-tab__filters stock-vault-tab__filters--industry"
+              className="stock-vault-tab__filters stock-vault-tab__filters--industry investor-flow-tab__industry-filters"
               role="tablist"
               aria-label={ko.stockVault.filterIndustryAria}
             >
@@ -1016,7 +1000,7 @@ export default function StockVaultTab({
                 }
                 onClick={() => setIndustryFilter("all")}
               >
-                <span className="market-tab__label">{ko.stockVault.filterAll}</span>
+                <span className="market-tab__label">{ko.investorFlow.industryAll}</span>
                 <span className="market-tab__count">{baseFiltered.length}</span>
               </button>
               <div className="stock-vault-tab__industry-grid-scroll">
@@ -1024,8 +1008,8 @@ export default function StockVaultTab({
                   className="stock-vault-tab__industry-grid"
                   style={
                     {
-                      "--stock-vault-industry-rows": String(industryGridRows),
-                      "--stock-vault-industry-cols": String(industryGridCols),
+                      "--stock-vault-industry-rows": String(industryGrid.rows),
+                      "--stock-vault-industry-cols": String(industryGrid.cols),
                     } as React.CSSProperties
                   }
                 >
@@ -1042,7 +1026,9 @@ export default function StockVaultTab({
                           ? "market-tab"
                           : "market-tab market-tab--empty"
                     }
-                    onClick={() => setIndustryFilter(name)}
+                    onClick={() =>
+                      setIndustryFilter((cur) => (cur === name ? "all" : name))
+                    }
                   >
                     <span className="market-tab__label">{name}</span>
                     <span className="market-tab__count">{count}</span>
