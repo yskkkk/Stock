@@ -3,6 +3,7 @@ import type { PicksDailyHistoryQuotesMap } from "../types";
 import { tossRoundTripForHolding } from "./tossHoldingFeeRates";
 import {
   computeTossAccountCombinedPnl,
+  tossHoldingNetReturnPercent,
   tossHoldingNetUnrealizedPnl,
   tossHoldingsNetReturnPct,
 } from "./tossHoldingPnl";
@@ -103,15 +104,9 @@ export function mergeLiveQuotesIntoTossSnapshot(
 
     anyLive = true;
     const mv = price * h.quantity;
-    let returnPercent: number | null = null;
-    if (h.avgBuyPrice != null && h.avgBuyPrice > 0) {
-      returnPercent = ((price - h.avgBuyPrice) / h.avgBuyPrice) * 100;
-      if (!Number.isFinite(returnPercent)) returnPercent = null;
-    }
-    const unreal = tossHoldingNetUnrealizedPnl(
-      { ...h, currentPrice: price, marketValue: mv },
-      holdingFee,
-    );
+    const liveHolding = { ...h, currentPrice: price, marketValue: mv };
+    const returnPercent = tossHoldingNetReturnPercent(liveHolding, holdingFee);
+    const unreal = tossHoldingNetUnrealizedPnl(liveHolding, holdingFee);
     if (unreal != null) {
       if (h.currency === "USD") {
         plUsd += unreal;
@@ -205,11 +200,9 @@ export function mergeTossLedgerPreserveLiveQuotes(
     if (price == null || !Number.isFinite(price) || price <= 0) return h;
 
     const mv = price * h.quantity;
-    let returnPercent: number | null = p.returnPercent ?? null;
-    if (h.avgBuyPrice != null && h.avgBuyPrice > 0) {
-      returnPercent = ((price - h.avgBuyPrice) / h.avgBuyPrice) * 100;
-      if (!Number.isFinite(returnPercent)) returnPercent = null;
-    }
+    const liveHolding = { ...h, currentPrice: price, marketValue: mv };
+    const holdingFee = tossRoundTripForHolding(h.market, null);
+    const returnPercent = tossHoldingNetReturnPercent(liveHolding, holdingFee);
 
     return {
       ...h,

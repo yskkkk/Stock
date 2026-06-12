@@ -1,6 +1,9 @@
 /** 매수·매도 왕복 수수료 기본값 (비율, 0.002 = 0.2%) */
 export const DEFAULT_ROUND_TRIP_FEE_RATE = 0.002;
 
+/** 토스 고정 왕복 수수료 (0.2%) — API 조회값 대신 수익률·손익 표시에 사용 */
+export const TOSS_FIXED_ROUND_TRIP_FEE_RATE = 0.002;
+
 /** @deprecated — DEFAULT_ROUND_TRIP_FEE_RATE 와 동일 */
 export const ROUND_TRIP_FEE_RATE = DEFAULT_ROUND_TRIP_FEE_RATE;
 

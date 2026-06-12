@@ -3,6 +3,7 @@
  */
 import {
   DEFAULT_ROUND_TRIP_FEE_RATE,
+  TOSS_FIXED_ROUND_TRIP_FEE_RATE,
   normalizeRoundTripFeeRate,
   roundTripFeeRateFromOneWay,
 } from "./net-return.js";
@@ -24,11 +25,11 @@ const BITHUMB_FEE_MARKET =
   String(process.env.BITHUMB_FEE_MARKET ?? "KRW-BTC").trim() || "KRW-BTC";
 
 function tossDefaultRoundTrip() {
-  const raw = String(process.env.TOSS_ROUND_TRIP_FEE_RATE ?? "").trim();
-  if (!raw) return DEFAULT_ROUND_TRIP_FEE_RATE;
-  const env = Number(raw);
-  if (Number.isFinite(env) && env >= 0 && env < 0.2) return env;
-  return DEFAULT_ROUND_TRIP_FEE_RATE;
+  return TOSS_FIXED_ROUND_TRIP_FEE_RATE;
+}
+
+function tossFixedFeeLabelKo() {
+  return "고정 왕복 0.2%";
 }
 
 /**
@@ -85,13 +86,8 @@ function tossRoundTripFromRowFees(row, market = "kr") {
   return null;
 }
 
-export function getTossRoundTripFeeRateSync(userId, market = "kr") {
-  const uid = String(userId ?? "").trim();
-  if (!uid) return tossDefaultRoundTrip();
-  const row = readCredentialRowSync(uid, "toss");
-  const rt = tossRoundTripFromRowFees(row, market);
-  if (rt != null) return rt;
-  return tossDefaultRoundTrip();
+export function getTossRoundTripFeeRateSync(_userId, _market = "kr") {
+  return TOSS_FIXED_ROUND_TRIP_FEE_RATE;
 }
 
 export function getTossFeeRatesByMarketSync(userId) {
@@ -260,15 +256,6 @@ export function getUserTradingFeeRatesForApiSync(userId) {
     bithumbRow?.bithumbBidFee != null &&
     bithumbRow?.bithumbAskFee != null &&
     bithumbRow?.bithumbFeesAtMs != null;
-  const tossKrRt = getTossRoundTripFeeRateSync(uid, "kr");
-  const tossUsRt = getTossRoundTripFeeRateSync(uid, "us");
-  const tossFromApi =
-    (tossRow?.tossBidFee != null &&
-      tossRow?.tossAskFee != null &&
-      tossRow?.tossFeesAtMs != null) ||
-    (tossRow?.tossUsBidFee != null &&
-      tossRow?.tossUsAskFee != null &&
-      tossRow?.tossUsFeesAtMs != null);
   return {
     defaultRoundTripFeeRate: DEFAULT_ROUND_TRIP_FEE_RATE,
     bithumb: uid
@@ -288,18 +275,13 @@ export function getUserTradingFeeRatesForApiSync(userId) {
         }
       : null,
     toss: {
-      roundTripFeeRate: normalizeRoundTripFeeRate(tossKrRt),
-      krRoundTripFeeRate: normalizeRoundTripFeeRate(tossKrRt),
-      usRoundTripFeeRate: normalizeRoundTripFeeRate(tossUsRt),
-      bidFee: tossFromApi ? tossRow.tossBidFee : null,
-      askFee: tossFromApi ? tossRow.tossAskFee : null,
-      source: tossFromApi ? "api" : "default",
-      labelKo: feeLabelKo(
-        tossRow?.tossBidFee,
-        tossRow?.tossAskFee,
-        tossKrRt,
-        tossFromApi ? "api" : "default",
-      ),
+      roundTripFeeRate: TOSS_FIXED_ROUND_TRIP_FEE_RATE,
+      krRoundTripFeeRate: TOSS_FIXED_ROUND_TRIP_FEE_RATE,
+      usRoundTripFeeRate: TOSS_FIXED_ROUND_TRIP_FEE_RATE,
+      bidFee: TOSS_FIXED_ROUND_TRIP_FEE_RATE / 2,
+      askFee: TOSS_FIXED_ROUND_TRIP_FEE_RATE / 2,
+      source: "default",
+      labelKo: tossFixedFeeLabelKo(),
       market: tossRow?.tossFeeMarket ?? null,
       updatedAtMs: tossRow?.tossFeesAtMs ?? null,
     },

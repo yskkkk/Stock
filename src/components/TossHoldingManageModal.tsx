@@ -8,6 +8,8 @@ import {
 } from "../api";
 import { ko } from "../i18n/ko";
 import { formatPercent, formatPrice } from "../lib/format";
+import { tossHoldingNetReturnPercent } from "../lib/tossHoldingPnl";
+import { TOSS_FIXED_ROUND_TRIP_FEE_RATE } from "../lib/netReturn";
 import { LiveTradeSymbolCell } from "./LiveTradeSymbolCell";
 
 function fmtRatio(v: number | null | undefined, suffix = "배"): string {
@@ -35,6 +37,7 @@ export default function TossHoldingManageModal({
 }) {
   const market = holding.market === "us" ? "us" : "kr";
   const currency = holding.currency ?? (market === "us" ? "USD" : "KRW");
+  const netReturnPct = tossHoldingNetReturnPercent(holding, TOSS_FIXED_ROUND_TRIP_FEE_RATE);
 
   const [report, setReport] = useState<TossHoldingReportResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -216,9 +219,11 @@ export default function TossHoldingManageModal({
                 <div>
                   <dt>{ko.app.liveTradePfColPnl}</dt>
                   <dd>
-                    {holding.returnPercent != null
-                      ? formatPercent(holding.returnPercent)
-                      : "—"}
+                    {netReturnPct != null
+                      ? formatPercent(netReturnPct)
+                      : holding.returnPercent != null
+                        ? formatPercent(holding.returnPercent)
+                        : "—"}
                   </dd>
                 </div>
               </dl>

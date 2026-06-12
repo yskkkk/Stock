@@ -1,4 +1,9 @@
 import type { LiveTradeHolding, TossTestHolding } from "../api";
+import { TOSS_FIXED_ROUND_TRIP_FEE_RATE } from "./netReturn";
+import {
+  tossHoldingNetReturnPercent,
+  tossHoldingNetUnrealizedPnl,
+} from "./tossHoldingPnl";
 
 /** 토스 보유 스냅샷 → 거래내역 탭 보유 테이블 */
 export function mapTossHoldingsToLiveTrade(
@@ -12,8 +17,9 @@ export function mapTossHoldingsToLiveTrade(
       (h.currentPrice != null && h.currentPrice > 0
         ? h.currentPrice * h.quantity
         : null);
-    const unreal =
-      mv != null && costBasis > 0 ? mv - costBasis : null;
+    const fee = TOSS_FIXED_ROUND_TRIP_FEE_RATE;
+    const unreal = tossHoldingNetUnrealizedPnl(h, fee);
+    const netReturn = tossHoldingNetReturnPercent(h, fee);
     return {
       programId: "toss-account",
       programName: "토스",
@@ -28,7 +34,7 @@ export function mapTossHoldingsToLiveTrade(
       marketValue: mv,
       unrealizedPnl: unreal,
       grossChangePct: h.returnPercent ?? h.dailyChangePercent ?? null,
-      changePct: h.returnPercent ?? h.dailyChangePercent ?? null,
+      changePct: netReturn ?? h.returnPercent ?? h.dailyChangePercent ?? null,
       targetSellPrice: null,
       stopLossPrice: null,
       openedAtMs: null,
