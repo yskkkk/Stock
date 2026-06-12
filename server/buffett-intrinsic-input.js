@@ -14,7 +14,6 @@ import {
   EPS_GROWTH_HISTORY_YEARS,
   epsCagrFromHistory,
   epsGrowthWindow,
-  GROWTH_10Y_CAP,
 } from "./value-invest-growth.js";
 import {
   loadFinancialPeriods,
@@ -159,29 +158,18 @@ function epsFromNetIncomeAndShares(detail, shares) {
   return null;
 }
 
-/** 버핏 DCF 10년 명시구간 성장률 상한 — value-invest-growth 와 동일 */
-const BUFFETT_GROWTH_CAP = GROWTH_10Y_CAP;
-
-/**
- * @param {{ year: number; eps: number }[]} series
+/** @param {{ year: number; eps: number }[]} series
  * @param {{ eps: number | null; forwardEps: number | null; market?: "kr"|"us" }} fundamentals
  */
 function deriveGrowth10y(series, fundamentals) {
   const growth = epsCagrFromHistory(series);
   if (growth != null && Number.isFinite(growth)) {
-    const capped = Math.min(growth, BUFFETT_GROWTH_CAP);
     const window = epsGrowthWindow(series);
     const sourceBase =
       window != null
         ? `EPS CAGR ${window.start.year}→${window.end.year} (${window.periodYears}년${window.fromListing ? ", 상장 기간" : ""})`
         : "EPS CAGR";
-    return {
-      value: capped,
-      source:
-        growth > BUFFETT_GROWTH_CAP
-          ? `${sourceBase} → 보수적 상한 ${BUFFETT_GROWTH_CAP * 100}%`
-          : sourceBase,
-    };
+    return { value: growth, source: sourceBase };
   }
 
   const eps = fundamentals.eps;
@@ -189,17 +177,12 @@ function deriveGrowth10y(series, fundamentals) {
   if (eps != null && eps > 0 && fwd != null && fwd > 0) {
     const implied = fwd / eps - 1;
     if (Number.isFinite(implied)) {
-      const capped = Math.min(implied, BUFFETT_GROWTH_CAP);
       return {
-        value: capped,
+        value: implied,
         source:
-          implied > BUFFETT_GROWTH_CAP
-            ? (fundamentals.market === "kr"
-                ? `Naver Forward EPS ÷ Trailing EPS → 보수적 상한 ${BUFFETT_GROWTH_CAP * 100}%`
-                : `Yahoo Forward EPS ÷ Trailing EPS → 보수적 상한 ${BUFFETT_GROWTH_CAP * 100}%`)
-            : (fundamentals.market === "kr"
-                ? "Naver Forward EPS ÷ Trailing EPS"
-                : "Yahoo Forward EPS ÷ Trailing EPS"),
+          fundamentals.market === "kr"
+            ? "Naver Forward EPS ÷ Trailing EPS"
+            : "Yahoo Forward EPS ÷ Trailing EPS",
       };
     }
   }

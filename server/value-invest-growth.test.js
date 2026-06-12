@@ -3,7 +3,6 @@ import {
   epsCagrFromHistory,
   epsGrowthWindow,
   deriveValueInvestGrowth10y,
-  GROWTH_10Y_CAP,
 } from "./value-invest-growth.js";
 
 function cagr(startEps, endEps, periodYears) {
@@ -78,7 +77,7 @@ describe("deriveValueInvestGrowth10y", () => {
     expect(r.source).toMatch(/CAGR/);
   });
 
-  it("1년 50% → 25% 상한", () => {
+  it("1년 50% — 상한 없이 그대로", () => {
     const r = deriveValueInvestGrowth10y({
       eps: null,
       forwardEps: null,
@@ -88,23 +87,20 @@ describe("deriveValueInvestGrowth10y", () => {
         { year: 2024, eps: 15 },
       ],
     });
-    expect(r.value).toBe(GROWTH_10Y_CAP);
+    expect(r.value).toBeCloseTo(0.5, 4);
   });
 
-  it("반도체 사이클 — CAGR은 YoY 급등보다 완만", () => {
+  it("NVIDIA 1년 급성장 — 상한 없음", () => {
     const r = deriveValueInvestGrowth10y({
       eps: null,
       forwardEps: null,
       revenueGrowth: null,
       epsHistory: [
-        { year: 2021, eps: 5765 },
-        { year: 2022, eps: 8057 },
-        { year: 2023, eps: 1457 },
-        { year: 2024, eps: 6253 },
+        { year: 2023, eps: 1.74 },
+        { year: 2024, eps: 11.93 },
       ],
     });
-    expect(r.value).toBeCloseTo(cagr(5765, 6253, 3), 4);
-    expect(r.value).toBeLessThan(GROWTH_10Y_CAP);
+    expect(r.value).toBeCloseTo(cagr(1.74, 11.93, 1), 3);
   });
 });
 

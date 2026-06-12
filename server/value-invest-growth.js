@@ -1,9 +1,6 @@
 /**
- * 10년 수익 모델 — 성장률 산출 (연간 EPS 이력 CAGR, 1년 Forward÷Trailing을 10년 CAGR로 쓰지 않음)
+ * 10년 수익 모델 — 성장률 산출 (연간 EPS 이력 CAGR)
  */
-
-/** 10년 복리 가정 자동 상한 */
-export const GROWTH_10Y_CAP = 0.25;
 
 /** EPS CAGR 산출에 쓰는 최대 연수 */
 export const EPS_GROWTH_HISTORY_YEARS = 10;
@@ -49,16 +46,12 @@ export function epsCagrFromHistory(series, maxYears = EPS_GROWTH_HISTORY_YEARS) 
 /**
  * @param {{ year: number; eps: number }[]} series
  */
-function formatEpsCagrSource(series, rawGrowth, cappedGrowth) {
+function formatEpsCagrSource(series) {
   const window = epsGrowthWindow(series);
   if (!window) return "EPS CAGR";
   const { start, end, periodYears, fromListing } = window;
   const spanNote = fromListing ? `, 상장 ${periodYears}년` : "";
-  const base = `EPS CAGR ${start.year}→${end.year} (${periodYears}년${spanNote})`;
-  if (rawGrowth != null && cappedGrowth != null && rawGrowth > GROWTH_10Y_CAP) {
-    return `${base} → 10년 상한 ${GROWTH_10Y_CAP * 100}%`;
-  }
-  return base;
+  return `EPS CAGR ${start.year}→${end.year} (${periodYears}년${spanNote})`;
 }
 
 /**
@@ -75,34 +68,20 @@ export function deriveValueInvestGrowth10y(f) {
 
   const histGrowth = epsCagrFromHistory(f.epsHistory ?? []);
   if (histGrowth != null && Number.isFinite(histGrowth)) {
-    if (histGrowth > GROWTH_10Y_CAP) {
-      warnings.push(
-        `EPS CAGR ${(histGrowth * 100).toFixed(1)}% — 10년 복리 가정은 ${GROWTH_10Y_CAP * 100}%로 상한`,
-      );
-      return {
-        value: GROWTH_10Y_CAP,
-        source: formatEpsCagrSource(f.epsHistory ?? [], histGrowth, GROWTH_10Y_CAP),
-        warnings,
-      };
-    }
     if (histGrowth < -0.4) {
       warnings.push(`EPS CAGR ${(histGrowth * 100).toFixed(1)}% — 음수 성장 구간`);
     }
     return {
       value: histGrowth,
-      source: formatEpsCagrSource(f.epsHistory ?? [], histGrowth, histGrowth),
+      source: formatEpsCagrSource(f.epsHistory ?? []),
       warnings,
     };
   }
 
   const rg = f.revenueGrowth;
   if (rg != null && Number.isFinite(rg)) {
-    const capped = Math.min(rg, GROWTH_10Y_CAP);
-    if (rg > GROWTH_10Y_CAP) {
-      warnings.push(`매출 성장률 ${(rg * 100).toFixed(1)}% — 10년 상한 ${GROWTH_10Y_CAP * 100}% 적용`);
-    }
     return {
-      value: capped,
+      value: rg,
       source: "Yahoo revenueGrowth",
       warnings,
     };
@@ -112,16 +91,6 @@ export function deriveValueInvestGrowth10y(f) {
   const fwd = f.forwardEps;
   if (eps != null && eps > 0 && fwd != null && fwd > 0) {
     const implied1y = fwd / eps - 1;
-    if (implied1y > GROWTH_10Y_CAP) {
-      warnings.push(
-        `Forward EPS(${fwd.toLocaleString()})는 차기 1년 컨센서스, Trailing EPS(${eps.toLocaleString()}) 대비 +${(implied1y * 100).toFixed(0)}%입니다. 이 비율을 10년 매년 복리로 쓰면 비현실적이므로 10년 성장률은 ${GROWTH_10Y_CAP * 100}% 상한을 적용했습니다.`,
-      );
-      return {
-        value: GROWTH_10Y_CAP,
-        source: `Forward÷Trailing +${(implied1y * 100).toFixed(0)}% (1년) → 10년 상한 ${GROWTH_10Y_CAP * 100}%`,
-        warnings,
-      };
-    }
     if (implied1y < -0.5) {
       warnings.push(`Forward÷Trailing ${(implied1y * 100).toFixed(0)}% — 급격한 이익 감소 구간`);
     }
