@@ -47,7 +47,8 @@ export function calcTerminalPv(epsAtEnd, growthTerminal, years, discountRate) {
   if (!Number.isFinite(discountRate) || discountRate <= 0) return null;
   const g = Number.isFinite(growthTerminal) ? growthTerminal : 0;
   const gap = discountRate - g;
-  if (gap <= 0.005) return null;
+  // 부동소수점 오차 허용: gap ≤ 0.005 (1/1000 단위 반올림 비교)
+  if (Math.round(gap * 1000) <= 5) return null;
 
   const epsNext = epsAtEnd * (1 + g);
   const terminal = epsNext / gap;

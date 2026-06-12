@@ -19,9 +19,10 @@ export const PER_HISTORY_MAX_YEARS = 10;
 
 /**
  * @param {{ time?: unknown; timeSec?: number }} candle
+ * @param {"kr"|"us"|string} [market]
  * @returns {number | null}
  */
-export function candleCalendarYear(candle) {
+export function candleCalendarYear(candle, market = "us") {
   const t = candle?.time;
   if (t && typeof t === "object" && "year" in t) {
     const y = Number(/** @type {{ year?: unknown }} */ (t).year);
@@ -36,7 +37,9 @@ export function candleCalendarYear(candle) {
           : t
         : null;
   if (sec == null) return null;
-  return new Date(sec * 1000).getFullYear();
+  // KR 마켓은 KST(UTC+9) 기준 연도 — UTC 서버에서도 연말 경계 오류 없도록
+  const offsetSec = market === "kr" ? 9 * 3600 : 0;
+  return new Date((sec + offsetSec) * 1000).getUTCFullYear();
 }
 
 /**
@@ -44,9 +47,10 @@ export function candleCalendarYear(candle) {
  * @param {{ year: number; eps: number }[]} epsHistory
  * @param {{ candles?: { time?: unknown; timeSec?: number; close: number }[] } | null} candleData
  * @param {number} [maxYears]
+ * @param {"kr"|"us"|string} [market]
  * @returns {{ avg: number | null; perByYear: { year: number; per: number; avgPrice: number }[]; source: string | null }}
  */
-export function computeHistoricalAveragePer(epsHistory, candleData, maxYears = PER_HISTORY_MAX_YEARS) {
+export function computeHistoricalAveragePer(epsHistory, candleData, maxYears = PER_HISTORY_MAX_YEARS, market = "us") {
   const candles = Array.isArray(candleData?.candles) ? candleData.candles : [];
   if (!candles.length || !epsHistory.length) return { avg: null, perByYear: [], source: null };
 
@@ -54,7 +58,7 @@ export function computeHistoricalAveragePer(epsHistory, candleData, maxYears = P
   const pricesByYear = new Map();
   for (const c of candles) {
     if (!Number.isFinite(c.close) || c.close <= 0) continue;
-    const year = candleCalendarYear(c);
+    const year = candleCalendarYear(c, market);
     if (year == null) continue;
     if (!pricesByYear.has(year)) pricesByYear.set(year, []);
     pricesByYear.get(year).push(c.close);
@@ -67,7 +71,7 @@ export function computeHistoricalAveragePer(epsHistory, candleData, maxYears = P
     if (!prices?.length) continue;
     const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
     const per = avgPrice / eps;
-    if (Number.isFinite(per) && per > 1 && per < 150) {
+    if (Number.isFinite(per) && per > 1 && per < 300) {
       perByYear.push({ year, per: Math.round(per * 100) / 100, avgPrice: Math.round(avgPrice * 100) / 100 });
     }
   }
@@ -245,7 +249,7 @@ export async function loadValueInvestReturn(symbol, opts = {}) {
     sourcesPatch(fundamentals);
   }
 
-  const historicalPer = computeHistoricalAveragePer(epsHistory, candleData);
+  const historicalPer = computeHistoricalAveragePer(epsHistory, candleData, undefined, fundamentals.market);
 
   return buildValueInvestInputsFromFundamentals(fundamentals, { ...opts, epsHistory, historicalPer });
 }

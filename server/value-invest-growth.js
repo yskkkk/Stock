@@ -32,7 +32,11 @@ export function epsGrowthWindow(series, maxYears = EPS_GROWTH_HISTORY_YEARS) {
   const periodYears = end.year - start.year;
   if (periodYears < 1) return null;
 
-  return { start, end, periodYears, fromListing };
+  // 구간 내 양수 EPS 없는 연도 수 (CAGR 왜곡 감지용)
+  const positiveInRange = sorted.filter((s) => s.year >= start.year && s.year <= end.year);
+  const gapYearsCount = (periodYears + 1) - positiveInRange.length;
+
+  return { start, end, periodYears, fromListing, gapYearsCount };
 }
 
 /**
@@ -163,6 +167,12 @@ export function deriveValueInvestGrowth10y(f) {
   const epsHistory = f.epsHistory ?? [];
   const histGrowth = epsCagrFromHistory(epsHistory);
   if (histGrowth != null && Number.isFinite(histGrowth)) {
+    const window = epsGrowthWindow(epsHistory);
+    if (window != null && window.gapYearsCount > 0) {
+      warnings.push(
+        `EPS CAGR 구간 ${window.periodYears}년 내 음수/결손 ${window.gapYearsCount}개 연도 포함 — CAGR 왜곡 가능`,
+      );
+    }
     const shortHistory = shouldCapShortEpsHistory(epsHistory);
     const applied =
       shortHistory && histGrowth > GROWTH_10Y_CAP ? GROWTH_10Y_CAP : histGrowth;

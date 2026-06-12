@@ -18,19 +18,19 @@ export const EPS_AVERAGE_MAX_YEARS = 10;
 /**
  * @param {{ year: number; eps: number }[]} series
  * @param {number} [maxYears]
- * @returns {{ avg: number | null; years: { year: number; eps: number }[]; source: string | null }}
+ * @returns {{ avg: number | null; years: { year: number; eps: number }[]; source: string | null; negativeYearsCount: number }}
  */
 export function averageEpsFromHistory(series, maxYears = EPS_AVERAGE_MAX_YEARS) {
-  const positive = (series ?? [])
-    .filter((s) => s.year > 0 && s.eps > 0)
-    .sort((a, b) => a.year - b.year);
+  const valid = (series ?? []).filter((s) => s.year > 0);
+  const negativeYearsCount = valid.filter((s) => s.eps <= 0).length;
+  const positive = valid.filter((s) => s.eps > 0).sort((a, b) => a.year - b.year);
   if (positive.length === 0) {
-    return { avg: null, years: [], source: null };
+    return { avg: null, years: [], source: null, negativeYearsCount };
   }
   const recent = positive.slice(-maxYears);
   const avg = recent.reduce((sum, row) => sum + row.eps, 0) / recent.length;
   if (!Number.isFinite(avg) || avg <= 0) {
-    return { avg: null, years: [], source: null };
+    return { avg: null, years: [], source: null, negativeYearsCount };
   }
   const start = recent[0].year;
   const end = recent[recent.length - 1].year;
@@ -38,7 +38,7 @@ export function averageEpsFromHistory(series, maxYears = EPS_AVERAGE_MAX_YEARS) 
     recent.length < maxYears
       ? `연간 EPS ${start}–${end} 평균 (${recent.length}개 실적, API 가용 ${recent.length}년)`
       : `연간 EPS ${start}–${end} 평균 (${recent.length}개 실적)`;
-  return { avg, years: recent, source: span };
+  return { avg, years: recent, source: span, negativeYearsCount };
 }
 
 /**
