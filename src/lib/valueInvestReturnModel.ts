@@ -18,6 +18,49 @@ export interface ValueInvestReturnYearRow {
   eps: number;
 }
 
+export interface ValueInvestYearlyProjectionRow {
+  year: number;
+  eps: number;
+  dividend: number;
+  cumulativeDividend: number;
+  impliedPrice: number | null;
+}
+
+/** 연도별 EPS·배당·PER 적용 주가 — 입력 검증 없이 표시용 */
+export function buildValueInvestYearlyProjection(input: {
+  currentEps: number;
+  growthRate: number;
+  payoutRatio: number;
+  averagePer: number;
+  years: number;
+}): ValueInvestYearlyProjectionRow[] {
+  const g = Number.isFinite(input.growthRate) ? input.growthRate : 0;
+  const payout = Number.isFinite(input.payoutRatio)
+    ? Math.max(0, Math.min(1, input.payoutRatio))
+    : 0;
+  const per = Number.isFinite(input.averagePer) ? input.averagePer : 0;
+  const n = Math.max(1, Math.min(30, Math.floor(input.years) || 10));
+  let eps = Number.isFinite(input.currentEps) ? input.currentEps : 0;
+  let cumDiv = 0;
+  const rows: ValueInvestYearlyProjectionRow[] = [];
+
+  for (let t = 1; t <= n; t++) {
+    eps *= 1 + g;
+    const dividend = round2(eps * payout) ?? eps * payout;
+    cumDiv += dividend;
+    const impliedPrice =
+      per > 0 && Number.isFinite(eps) ? round2(eps * per) : null;
+    rows.push({
+      year: t,
+      eps: round2(eps) ?? eps,
+      dividend,
+      cumulativeDividend: round2(cumDiv) ?? cumDiv,
+      impliedPrice,
+    });
+  }
+  return rows;
+}
+
 export interface ValueInvestReturnResult {
   years: number;
   yearlyEps: ValueInvestReturnYearRow[];
