@@ -161,21 +161,20 @@ const BUFFETT_GROWTH_CAP = 0.25;
  * @param {{ eps: number | null; forwardEps: number | null }} fundamentals
  */
 function deriveGrowth10y(series, fundamentals) {
-  const positive = series.filter((s) => s.eps > 0);
-  if (positive.length >= 3) {
-    const first = positive[0];
-    const last = positive[positive.length - 1];
-    const span = last.year - first.year;
-    if (span >= 2 && first.eps > 0 && last.eps > 0) {
-      const cagr = (last.eps / first.eps) ** (1 / span) - 1;
-      if (Number.isFinite(cagr)) {
-        const capped = Math.min(cagr, BUFFETT_GROWTH_CAP);
+  const sorted = series.filter((s) => s.eps > 0).sort((a, b) => a.year - b.year);
+  if (sorted.length >= 2) {
+    const prev = sorted[sorted.length - 2];
+    const curr = sorted[sorted.length - 1];
+    if (prev.eps > 0 && curr.eps > 0) {
+      const growth = (curr.eps - prev.eps) / prev.eps;
+      if (Number.isFinite(growth)) {
+        const capped = Math.min(growth, BUFFETT_GROWTH_CAP);
         return {
           value: capped,
           source:
-            cagr > BUFFETT_GROWTH_CAP
-              ? `연간 EPS CAGR ${first.year}–${last.year} (${positive.length}개 실적) → 보수적 상한 ${BUFFETT_GROWTH_CAP * 100}%`
-              : `연간 EPS CAGR ${first.year}–${last.year} (${positive.length}개 실적)`,
+            growth > BUFFETT_GROWTH_CAP
+              ? `전년 대비 EPS 성장률 ${prev.year}→${curr.year} → 보수적 상한 ${BUFFETT_GROWTH_CAP * 100}%`
+              : `전년 대비 EPS 성장률 ${prev.year}→${curr.year}`,
         };
       }
     }
