@@ -359,6 +359,16 @@ export function pollerGuardSync(id, fn) {
 }
 
 /** @param {string} id @param {boolean} enabled */
+/** @param {string} desc */
+function pollerSummaryKo(desc) {
+  const s = String(desc ?? "").trim();
+  if (!s) return "";
+  const dot = s.indexOf(". ");
+  if (dot > 0 && dot <= 140) return s.slice(0, dot + 1);
+  if (s.length <= 96) return s;
+  return `${s.slice(0, 93)}…`;
+}
+
 export function setPollerRuntimeEnabled(id, enabled) {
   const entry = POLLER_CATALOG[id];
   if (!entry) {
@@ -387,6 +397,7 @@ export function listPollersStatusSync() {
       id,
       labelKo: entry.labelKo,
       groupKo: entry.groupKo,
+      summaryKo: pollerSummaryKo(entry.descriptionKo),
       descriptionKo: entry.descriptionKo,
       intervalMs: resolveIntervalMs(entry),
       envDisable: entry.envDisable,

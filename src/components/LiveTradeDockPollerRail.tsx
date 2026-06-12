@@ -28,23 +28,6 @@ function pollerPopoverStyle(anchor: HTMLElement): CSSProperties {
   };
 }
 
-function detailPopoverStyle(anchor: HTMLElement): CSSProperties {
-  const r = anchor.getBoundingClientRect();
-  const maxW = Math.min(340, window.innerWidth * 0.92);
-  let left = r.left;
-  left = Math.min(Math.max(8, left), window.innerWidth - maxW - 8);
-  const top = Math.max(8, r.top - 8);
-  return {
-    position: "fixed",
-    left,
-    top,
-    transform: "translateY(-100%)",
-    width: maxW,
-    maxWidth: maxW,
-    zIndex: OVERLAY_Z + 2,
-  };
-}
-
 function passwordPopoverStyle(anchor: HTMLElement): CSSProperties {
   const r = anchor.getBoundingClientRect();
   const w = Math.min(240, window.innerWidth * 0.88);
@@ -80,6 +63,15 @@ function formatLastTick(ms: number | null): string {
     second: "2-digit",
     hour12: false,
   });
+}
+
+function pollerCardSummary(p: PollerStatusRow): string {
+  const s = (p.summaryKo || p.descriptionKo || "").trim();
+  if (!s) return "";
+  const dot = s.indexOf(". ");
+  if (dot > 0 && dot <= 140) return s.slice(0, dot + 1);
+  if (s.length <= 96) return s;
+  return `${s.slice(0, 93)}…`;
 }
 
 function pollerStatusLabel(p: PollerStatusRow): string {
@@ -191,36 +183,95 @@ function AdminPasswordBubble({
   );
 }
 
-function PollerCard({
+function PollerDetailPanel({
   poller,
-  onToggleRequest,
-  onDetail,
+  onClose,
 }: {
   poller: PollerStatusRow;
-  onToggleRequest: (p: PollerStatusRow, anchor: HTMLElement) => void;
-  onDetail: (p: PollerStatusRow, anchor: HTMLElement) => void;
+  onClose: () => void;
 }) {
-  const cardRef = useRef<HTMLDivElement>(null);
+  return (
+    <aside className="dock-poller-rail__detail-panel" role="region" aria-label={poller.labelKo}>
+      <div className="dock-poller-rail__detail-panel-head">
+        <div className="dock-poller-rail__detail-panel-titles">
+          <strong className="dock-poller-rail__detail-title">{poller.labelKo}</strong>
+          <span className="dock-poller-rail__detail-group">{poller.groupKo}</span>
+        </div>
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm dock-poller-rail__detail-close"
+          onClick={onClose}
+          aria-label={ko.app.liveTradeCancelEdit}
+        >
+          ×
+        </button>
+      </div>
+      <p className="dock-poller-rail__detail-body">{poller.descriptionKo}</p>
+      <dl className="dock-poller-rail__detail-meta">
+        <div>
+          <dt>{ko.app.liveTradeSideDockPollersInterval}</dt>
+          <dd>{formatIntervalMs(poller.intervalMs)}</dd>
+        </div>
+        <div>
+          <dt>{ko.app.liveTradeSideDockPollersLastTick}</dt>
+          <dd>{formatLastTick(poller.lastTickAtMs)}</dd>
+        </div>
+        <div>
+          <dt>tick</dt>
+          <dd>{poller.tickCount.toLocaleString("ko-KR")}</dd>
+        </div>
+        <div>
+          <dt>{ko.app.liveTradeSideDockPollersEnvHint}</dt>
+          <dd>{poller.envDisable}</dd>
+        </div>
+      </dl>
+      {poller.lastError ? (
+        <p className="dock-poller-rail__detail-err" role="alert">
+          {poller.lastError}
+        </p>
+      ) : null}
+    </aside>
+  );
+}
+
+function PollerCard({
+  poller,
+  selected,
+  onToggleRequest,
+  onDetailToggle,
+}: {
+  poller: PollerStatusRow;
+  selected: boolean;
+  onToggleRequest: (p: PollerStatusRow, anchor: HTMLElement) => void;
+  onDetailToggle: (p: PollerStatusRow) => void;
+}) {
   const toggleRef = useRef<HTMLButtonElement>(null);
   const canToggle = poller.runtimeToggleable && poller.bootEnabled && poller.bootStarted;
   const nextEnabled = !poller.runtimeEnabled;
+  const summary = pollerCardSummary(poller);
 
   return (
     <article
-      ref={cardRef}
-      className={`dock-poller-rail__card${
-        poller.effectiveEnabled ? " dock-poller-rail__card--on" : ""
-      }${poller.running ? " dock-poller-rail__card--busy" : ""}`}
+      className={[
+        "dock-poller-rail__card",
+        poller.effectiveEnabled ? "dock-poller-rail__card--on" : "",
+        poller.running ? "dock-poller-rail__card--busy" : "",
+        selected ? "dock-poller-rail__card--selected" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
     >
       <button
         type="button"
         className="dock-poller-rail__card-head"
-        onClick={() => {
-          if (cardRef.current) onDetail(poller, cardRef.current);
-        }}
+        aria-expanded={selected}
+        onClick={() => onDetailToggle(poller)}
         title={ko.app.liveTradeSideDockPollersDetail}
       >
         <span className="dock-poller-rail__card-title">{poller.labelKo}</span>
+        {summary ? (
+          <span className="dock-poller-rail__card-summary">{summary}</span>
+        ) : null}
         <span className="dock-poller-rail__card-group">{poller.groupKo}</span>
         <span
           className={`dock-poller-rail__card-status${
@@ -232,37 +283,39 @@ function PollerCard({
           {pollerStatusLabel(poller)}
         </span>
       </button>
-      <dl className="dock-poller-rail__card-meta">
-        <div>
-          <dt>{ko.app.liveTradeSideDockPollersInterval}</dt>
-          <dd>{formatIntervalMs(poller.intervalMs)}</dd>
-        </div>
-        <div>
-          <dt>{ko.app.liveTradeSideDockPollersLastTick}</dt>
-          <dd>{formatLastTick(poller.lastTickAtMs)}</dd>
-        </div>
-      </dl>
-      {canToggle ? (
-        <button
-          ref={toggleRef}
-          type="button"
-          className={`btn btn--sm dock-poller-rail__toggle${
-            nextEnabled ? " btn--primary" : " btn--ghost"
-          }`}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (toggleRef.current) onToggleRequest(poller, toggleRef.current);
-          }}
-        >
-          {nextEnabled
-            ? ko.app.liveTradeSideDockPollersStart
-            : ko.app.liveTradeSideDockPollersStop}
-        </button>
-      ) : (
-        <p className="dock-poller-rail__env-hint">
-          {ko.app.liveTradeSideDockPollersEnvHint}: {poller.envDisable}
-        </p>
-      )}
+      <div className="dock-poller-rail__card-foot">
+        <dl className="dock-poller-rail__card-meta">
+          <div>
+            <dt>{ko.app.liveTradeSideDockPollersInterval}</dt>
+            <dd>{formatIntervalMs(poller.intervalMs)}</dd>
+          </div>
+          <div>
+            <dt>{ko.app.liveTradeSideDockPollersLastTick}</dt>
+            <dd>{formatLastTick(poller.lastTickAtMs)}</dd>
+          </div>
+        </dl>
+        {canToggle ? (
+          <button
+            ref={toggleRef}
+            type="button"
+            className={`btn btn--sm dock-poller-rail__toggle${
+              nextEnabled ? " btn--primary" : " btn--ghost"
+            }`}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (toggleRef.current) onToggleRequest(poller, toggleRef.current);
+            }}
+          >
+            {nextEnabled
+              ? ko.app.liveTradeSideDockPollersStart
+              : ko.app.liveTradeSideDockPollersStop}
+          </button>
+        ) : (
+          <p className="dock-poller-rail__env-hint">
+            {poller.envDisable}
+          </p>
+        )}
+      </div>
     </article>
   );
 }
@@ -277,10 +330,7 @@ export default function LiveTradeDockPollerRail({
   const [popoverStyle, setPopoverStyle] = useState<CSSProperties>({});
   const [pollers, setPollers] = useState<PollerStatusRow[]>([]);
   const [loadErr, setLoadErr] = useState<string | null>(null);
-  const [detail, setDetail] = useState<{
-    poller: PollerStatusRow;
-    style: CSSProperties;
-  } | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [toggleTarget, setToggleTarget] = useState<{
     poller: PollerStatusRow;
     anchor: HTMLElement;
@@ -289,6 +339,8 @@ export default function LiveTradeDockPollerRail({
   const [toggleErr, setToggleErr] = useState<string | null>(null);
   const anchorRef = useRef<HTMLSpanElement>(null);
   const toggleAnchorRef = useRef<HTMLElement | null>(null);
+
+  const detailPoller = detailId ? (pollers.find((p) => p.id === detailId) ?? null) : null;
 
   const reload = useCallback(async () => {
     try {
@@ -330,12 +382,14 @@ export default function LiveTradeDockPollerRail({
         return;
       }
       if ((t as HTMLElement).closest?.(".dock-poller-rail__password-pop")) return;
-      if ((t as HTMLElement).closest?.(".dock-poller-rail__detail-pop")) return;
       setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        setDetail(null);
+        if (detailId) {
+          setDetailId(null);
+          return;
+        }
         setToggleTarget(null);
         setOpen(false);
       }
@@ -346,11 +400,11 @@ export default function LiveTradeDockPollerRail({
       document.removeEventListener("mousedown", onDoc);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open]);
+  }, [open, detailId]);
 
   useEffect(() => {
     if (!open) {
-      setDetail(null);
+      setDetailId(null);
       setToggleTarget(null);
       setToggleErr(null);
     }
@@ -426,7 +480,7 @@ export default function LiveTradeDockPollerRail({
         ? createPortal(
             <div
               id="app-live-trade-side-dock-pollers-popover"
-              className="app-live-trade-side-dock__api-popover app-live-trade-side-dock__pollers-popover app-live-trade-side-dock__api-popover--portal"
+              className="app-live-trade-side-dock__auth-popover app-live-trade-side-dock__api-popover app-live-trade-side-dock__pollers-popover app-live-trade-side-dock__api-popover--portal"
               style={popoverStyle}
               role="dialog"
               aria-label={ko.app.liveTradeSideDockPollersTitle}
@@ -445,42 +499,21 @@ export default function LiveTradeDockPollerRail({
                     <PollerCard
                       key={p.id}
                       poller={p}
+                      selected={detailId === p.id}
                       onToggleRequest={(row, anchor) => {
                         setToggleErr(null);
                         setToggleTarget({ poller: row, anchor });
                       }}
-                      onDetail={(row, anchor) => {
-                        setDetail({ poller: row, style: detailPopoverStyle(anchor) });
+                      onDetailToggle={(row) => {
+                        setDetailId((cur) => (cur === row.id ? null : row.id));
                       }}
                     />
                   ))}
                 </div>
               )}
-            </div>,
-            document.body,
-          )
-        : null}
-
-      {detail
-        ? createPortal(
-            <div
-              className="dock-poller-rail__detail-pop"
-              style={detail.style}
-              role="tooltip"
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              <strong className="dock-poller-rail__detail-title">{detail.poller.labelKo}</strong>
-              <p className="dock-poller-rail__detail-body">{detail.poller.descriptionKo}</p>
-              <p className="dock-poller-rail__detail-env">
-                {ko.app.liveTradeSideDockPollersEnvHint}: {detail.poller.envDisable}
-              </p>
-              <button
-                type="button"
-                className="btn btn--ghost btn--sm dock-poller-rail__detail-close"
-                onClick={() => setDetail(null)}
-              >
-                {ko.app.liveTradeCancelEdit}
-              </button>
+              {detailPoller ? (
+                <PollerDetailPanel poller={detailPoller} onClose={() => setDetailId(null)} />
+              ) : null}
             </div>,
             document.body,
           )

@@ -2514,6 +2514,7 @@ export interface PollerStatusRow {
   id: string;
   labelKo: string;
   groupKo: string;
+  summaryKo: string;
   descriptionKo: string;
   intervalMs: number;
   envDisable: string;
