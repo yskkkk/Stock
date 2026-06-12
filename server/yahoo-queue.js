@@ -5,12 +5,12 @@ let rateLimitUntil = 0;
 
 function maxConcurrent() {
   const n = Number(process.env.YAHOO_MAX_CONCURRENT);
-  return Number.isFinite(n) && n >= 1 ? Math.min(8, Math.floor(n)) : 4;
+  return Number.isFinite(n) && n >= 1 ? Math.min(8, Math.floor(n)) : 3;
 }
 
 function minGapMs() {
   const n = Number(process.env.YAHOO_REQUEST_GAP_MS);
-  return Number.isFinite(n) && n >= 0 ? n : 250;
+  return Number.isFinite(n) && n >= 0 ? n : 400;
 }
 
 function sleep(ms) {
@@ -36,7 +36,7 @@ async function acquire() {
   active += 1;
 }
 
-export function markRateLimited(ms = 8000) {
+export function markRateLimited(ms = 12_000) {
   rateLimitUntil = Math.max(rateLimitUntil, Date.now() + ms);
 }
 

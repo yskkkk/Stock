@@ -1,4 +1,4 @@
-import { loadStock } from "./stock-data.js";
+import { loadStock, VAULT_RESCAN_LOAD_OPTS } from "./stock-data.js";
 import { detectDailyMaAlignment } from "./ma-align-detect.js";
 import { isGoldenCrossTradable } from "./golden-cross-tradable.js";
 import { normalizeVaultScanTimeframe } from "./vault-scan-timeframe.js";
@@ -12,8 +12,18 @@ import {
 } from "./stock-vault-store.js";
 
 const BATCH_SIZE = (() => {
-  const n = Number(process.env.STOCK_MA_ALIGN_INTRADAY_BATCH ?? 8);
-  return Number.isFinite(n) && n >= 1 ? Math.min(n, 16) : 8;
+  const n = Number(process.env.STOCK_MA_ALIGN_INTRADAY_BATCH ?? 6);
+  return Number.isFinite(n) && n >= 1 ? Math.min(n, 16) : 6;
+})();
+
+const US_BATCH_SIZE = (() => {
+  const n = Number(process.env.STOCK_MA_ALIGN_INTRADAY_US_BATCH ?? 4);
+  return Number.isFinite(n) && n >= 1 ? Math.min(n, 12) : 4;
+})();
+
+const BATCH_DELAY_MS = (() => {
+  const n = Number(process.env.STOCK_MA_ALIGN_INTRADAY_BATCH_DELAY_MS ?? 280);
+  return Number.isFinite(n) && n >= 0 ? Math.min(n, 5_000) : 280;
 })();
 
 /** @param {number} ms */
@@ -33,7 +43,7 @@ async function rescanVaultMaAlignItem(item, scanDate) {
   const tf = normalizeVaultScanTimeframe(item.timeframe);
   const chartTf = tf === "1wk" ? "1wk" : "1d";
   try {
-    const data = await loadStock(sym, chartTf, { live: true });
+    const data = await loadStock(sym, chartTf, VAULT_RESCAN_LOAD_OPTS);
     const tradable = await isGoldenCrossTradable(data, item.market, {
       timeframe: tf,
     });
@@ -43,7 +53,7 @@ async function rescanVaultMaAlignItem(item, scanDate) {
     }
     let candles = Array.isArray(data?.candles) ? data.candles : [];
     if (tf === "1wk") {
-      const daily = await loadStock(sym, "1d", { live: true });
+      const daily = await loadStock(sym, "1d", VAULT_RESCAN_LOAD_OPTS);
       candles = candlesForWeeklyMaScan(
         candles,
         Array.isArray(daily?.candles) ? daily.candles : [],
@@ -98,13 +108,16 @@ export async function runMaAlignVaultIntradayRefresh(market, scanDate) {
 
   /** @type {Array<Awaited<ReturnType<typeof rescanVaultMaAlignItem>>>} */
   const results = [];
-  for (let i = 0; i < items.length; i += BATCH_SIZE) {
-    const batch = items.slice(i, i + BATCH_SIZE);
+  const batchSize = market === "us" ? US_BATCH_SIZE : BATCH_SIZE;
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
     const batchResults = await Promise.all(
       batch.map((item) => rescanVaultMaAlignItem(item, scanDate)),
     );
     results.push(...batchResults);
-    if (i + BATCH_SIZE < items.length) await delay(150);
+    if (i + batchSize < items.length && BATCH_DELAY_MS > 0) {
+      await delay(BATCH_DELAY_MS);
+    }
   }
 
   const kept = results.filter((r) => r.status === "kept").length;

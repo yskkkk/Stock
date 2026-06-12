@@ -25,13 +25,13 @@ const POLL_MS = (() => {
 })();
 
 const INTRADAY_RESCAN_MS = (() => {
-  const n = Number(process.env.STOCK_VAULT_INTRADAY_RESCAN_MS ?? 60_000);
-  return Number.isFinite(n) && n >= 30_000 ? Math.min(n, 3_600_000) : 60_000;
+  const n = Number(process.env.STOCK_VAULT_INTRADAY_RESCAN_MS ?? 180_000);
+  return Number.isFinite(n) && n >= 30_000 ? Math.min(n, 3_600_000) : 180_000;
 })();
 
 const INTRADAY_TICK_MS = (() => {
-  const n = Number(process.env.STOCK_VAULT_INTRADAY_TICK_MS ?? 60_000);
-  return Number.isFinite(n) && n >= 15_000 ? Math.min(n, 300_000) : 60_000;
+  const n = Number(process.env.STOCK_VAULT_INTRADAY_TICK_MS ?? 90_000);
+  return Number.isFinite(n) && n >= 15_000 ? Math.min(n, 300_000) : 90_000;
 })();
 
 /** KR 장후 시간외 종료 18:00 KST */

@@ -23,6 +23,14 @@ const SCAN_CANDLE_CACHE_MS = Math.max(
   Number(process.env.SCAN_CANDLE_CACHE_MS) || 120_000,
 );
 const LIVE_CACHE_MS = 8_000;
+const YAHOO_FETCH_MAX_ATTEMPTS = 3;
+
+/** 종목보관 intraday 재검증 — 5분 캐시·2y 일봉(가벼운 Yahoo 요청) */
+export const VAULT_RESCAN_LOAD_OPTS = { live: false, scan: true };
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
 const CACHE_STALE_MS = 7 * 24 * 60 * 60_000;
 /** 캔들 캐시 무한 증가 방지 — 장시간 가동 시 메모리·GC 악화 원인 제거 */
 const MAX_CACHE_KEYS = 360;
@@ -361,6 +369,27 @@ async function fetchRemote(symbol, timeframe, loadOpts = {}) {
   return data;
 }
 
+async function fetchRemoteWithRetry(symbol, timeframe, loadOpts = {}) {
+  let lastErr;
+  for (let attempt = 0; attempt < YAHOO_FETCH_MAX_ATTEMPTS; attempt++) {
+    try {
+      return await fetchRemote(symbol, timeframe, loadOpts);
+    } catch (err) {
+      lastErr = err;
+      const code =
+        err && typeof err === "object" && "code" in err
+          ? String(/** @type {{ code?: unknown }} */ (err).code)
+          : "";
+      if (code === "RATE_LIMIT" && attempt + 1 < YAHOO_FETCH_MAX_ATTEMPTS) {
+        await sleep(1500 * (attempt + 1));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastErr;
+}
+
 export function queueRequest(task) {
   return queueYahooRequest(task);
 }
@@ -390,12 +419,18 @@ export async function loadStock(symbol, timeframe, options = {}) {
   const task = (async () => {
     const stale = readCache(cacheKey, { allowStale: true });
     try {
-      const data = await fetchRemote(sym, tf, options);
+      const data = await fetchRemoteWithRetry(sym, tf, options);
       setCacheEntry(cacheKey, data);
       return data;
-    } catch {
+    } catch (err) {
       if (stale) return { ...stale.data, stale: true, updatedAt: Date.now() };
-      throw new Error(`종목 데이터를 가져올 수 없습니다: ${sym}`);
+      const detail =
+        err instanceof Error
+          ? err.message
+          : err && typeof err === "object" && "code" in err
+            ? String(/** @type {{ code?: unknown }} */ (err).code)
+            : String(err);
+      throw new Error(`종목 데이터를 가져올 수 없습니다: ${sym} (${detail})`);
     } finally {
       inflight.delete(inflightKey);
     }
