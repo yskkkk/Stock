@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchLiveTradingMinuteQuotes, type TossTestSnapshot } from "../api";
 import {
   mergeLiveQuotesIntoTossSnapshot,
+  mergeTossLedgerPreserveLiveQuotes,
   tossSnapshotSymbolKey,
 } from "../lib/tossSnapshotLiveQuotes";
 import { useUsdKrwRate } from "./useUsdKrwRate";
@@ -17,13 +18,28 @@ export function useTossSnapshotLiveQuotes(
   const symbolsKey = useMemo(() => tossSnapshotSymbolKey(snapshot), [snapshot]);
   const hasHoldings = Boolean(symbolsKey);
   const { rate: usdKrwRate } = useUsdKrwRate(hasHoldings && enabled);
-  const [liveSnapshot, setLiveSnapshot] = useState<TossTestSnapshot | null>(
-    () => snapshot,
+  const quotesRef = useRef<import("../types").PicksDailyHistoryQuotesMap>({});
+  const [liveSnapshot, setLiveSnapshot] = useState<TossTestSnapshot | null>(() => snapshot);
+
+  const applyQuotes = useCallback(
+    (base: TossTestSnapshot) =>
+      mergeLiveQuotesIntoTossSnapshot(base, quotesRef.current, usdKrwRate),
+    [usdKrwRate],
   );
 
   useEffect(() => {
-    if (snapshot) setLiveSnapshot(snapshot);
-  }, [snapshot]);
+    if (!snapshot) {
+      setLiveSnapshot(null);
+      return;
+    }
+    setLiveSnapshot((prev) => {
+      const base =
+        prev && tossSnapshotSymbolKey(prev) === symbolsKey && symbolsKey
+          ? mergeTossLedgerPreserveLiveQuotes(snapshot, prev)
+          : snapshot;
+      return applyQuotes(base);
+    });
+  }, [snapshot, symbolsKey, applyQuotes]);
 
   useEffect(() => {
     if (!enabled || !snapshot || !symbolsKey) return;
@@ -35,13 +51,10 @@ export function useTossSnapshotLiveQuotes(
       void fetchLiveTradingMinuteQuotes(syms)
         .then((res) => {
           if (cancelled) return;
+          quotesRef.current = res.quotes ?? {};
           setLiveSnapshot((prev) => {
             const base = prev ?? snapshot;
-            return mergeLiveQuotesIntoTossSnapshot(
-              base,
-              res.quotes ?? {},
-              usdKrwRate,
-            );
+            return applyQuotes(base);
           });
         })
         .catch(() => {
@@ -55,7 +68,7 @@ export function useTossSnapshotLiveQuotes(
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [enabled, snapshot, symbolsKey, usdKrwRate, pollMs]);
+  }, [enabled, snapshot, symbolsKey, pollMs, applyQuotes]);
 
   return liveSnapshot;
 }

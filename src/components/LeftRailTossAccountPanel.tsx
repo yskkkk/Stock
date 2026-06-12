@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { fetchAuthMe, fetchLiveTradingStatus, fetchUserCredentials } from "../api";
 import TossAccountSnapshotCard from "./TossAccountSnapshotCard";
 import TossAccountTitle from "./TossAccountTitle";
@@ -45,9 +45,13 @@ export function TossAccountRailCore({
     void reloadOrderMeta();
   }, [user, reloadOrderMeta]);
 
+  const hadSnapshotRef = useRef(Boolean(snapshot));
+  if (snapshot) hadSnapshotRef.current = true;
+
   if (authChecked && !user) return null;
 
-  const pending = !authChecked || (loading && !snapshot);
+  const pending =
+    !authChecked || (loading && !snapshot && !hadSnapshotRef.current);
 
   const head = (
     <div className="bithumb-account-rail-wrap__head">

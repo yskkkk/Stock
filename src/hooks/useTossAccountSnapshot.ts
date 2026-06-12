@@ -14,6 +14,7 @@ import {
   rememberTossSnapshotUserId,
   writeTossSnapshotCache,
 } from "../lib/tossSnapshotClientCache";
+import { tossSnapshotLedgerFingerprint } from "../lib/tossSnapshotLiveQuotes";
 
 /** 파일 캐시·클라이언트 캐시 — 1초 (거래소 API 미호출) */
 export const TOSS_LEDGER_POLL_MS = 1_000;
@@ -96,7 +97,16 @@ export function useTossAccountSnapshot(opts?: {
           typeof out.syncedAtMs === "number" && out.syncedAtMs > 0
             ? out.syncedAtMs
             : Date.now();
-        setSnapshot(out.snapshot);
+        setSnapshot((prev) => {
+          if (
+            prev &&
+            tossSnapshotLedgerFingerprint(prev) ===
+              tossSnapshotLedgerFingerprint(out.snapshot)
+          ) {
+            return prev;
+          }
+          return out.snapshot;
+        });
         setFeeLabelKo(out.feeLabelKo ?? null);
         setUpdatedAtMs(syncedAt);
         setErr(out.stale ? (out.messageKo ?? null) : null);
@@ -136,7 +146,16 @@ export function useTossAccountSnapshot(opts?: {
         rememberTossSnapshotUserId(me.user.id);
         const cached = hydrateFromClientCache(me.user.id);
         if (cached && !refresh) {
-          setSnapshot(cached.snapshot);
+          setSnapshot((prev) => {
+            if (
+              prev &&
+              tossSnapshotLedgerFingerprint(prev) ===
+                tossSnapshotLedgerFingerprint(cached.snapshot)
+            ) {
+              return prev;
+            }
+            return cached.snapshot;
+          });
           setFeeLabelKo(cached.feeLabelKo);
           setUpdatedAtMs(cached.updatedAtMs);
         }

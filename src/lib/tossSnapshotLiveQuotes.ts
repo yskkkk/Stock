@@ -178,3 +178,53 @@ export function tossSnapshotSymbolKey(snapshot: TossTestSnapshot | null): string
       .join(",") ?? ""
   );
 }
+
+/** 잔고·수량 갱신 시 1분봉 시세·손익 표시는 유지 */
+export function mergeTossLedgerPreserveLiveQuotes(
+  ledger: TossTestSnapshot,
+  live: TossTestSnapshot,
+): TossTestSnapshot {
+  const symKeyL = tossSnapshotSymbolKey(ledger);
+  const symKeyLive = tossSnapshotSymbolKey(live);
+  if (!symKeyL || symKeyL !== symKeyLive) return ledger;
+
+  const liveByKey = new Map(
+    live.holdings.map((h) => [`${h.market}:${h.symbol.trim().toUpperCase()}`, h]),
+  );
+
+  const holdings = ledger.holdings.map((h) => {
+    const p = liveByKey.get(`${h.market}:${h.symbol.trim().toUpperCase()}`);
+    const price = p?.currentPrice;
+    if (price == null || !Number.isFinite(price) || price <= 0) return h;
+
+    const mv = price * h.quantity;
+    let returnPercent: number | null = p.returnPercent ?? null;
+    if (h.avgBuyPrice != null && h.avgBuyPrice > 0) {
+      returnPercent = ((price - h.avgBuyPrice) / h.avgBuyPrice) * 100;
+      if (!Number.isFinite(returnPercent)) returnPercent = null;
+    }
+
+    return {
+      ...h,
+      currentPrice: price,
+      marketValue: mv,
+      returnPercent,
+      dailyChangePercent: p.dailyChangePercent ?? h.dailyChangePercent,
+    };
+  });
+
+  return { ...ledger, holdings };
+}
+
+/** 동일 잔고·보유면 setState 생략용 */
+export function tossSnapshotLedgerFingerprint(snapshot: TossTestSnapshot): string {
+  return JSON.stringify({
+    krw: snapshot.cash?.krw,
+    usd: snapshot.cash?.usd,
+    holdings: snapshot.holdings.map((h) => ({
+      k: `${h.market}:${h.symbol.trim().toUpperCase()}`,
+      q: h.quantity,
+      a: h.avgBuyPrice,
+    })),
+  });
+}

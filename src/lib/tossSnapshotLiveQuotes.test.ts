@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { mergeLiveQuotesIntoTossSnapshot } from "./tossSnapshotLiveQuotes";
+import {
+  mergeLiveQuotesIntoTossSnapshot,
+  mergeTossLedgerPreserveLiveQuotes,
+} from "./tossSnapshotLiveQuotes";
 import type { TossTestSnapshot } from "../api";
 
 const base: TossTestSnapshot = {
@@ -56,5 +59,22 @@ describe("mergeLiveQuotesIntoTossSnapshot", () => {
       1300,
     );
     expect(out.summary?.profitLossKrw).toBe(20 * 1300);
+  });
+});
+
+describe("mergeTossLedgerPreserveLiveQuotes", () => {
+  it("keeps live prices when ledger cash updates", () => {
+    const live = mergeLiveQuotesIntoTossSnapshot(
+      base,
+      { "005930.KS": { price: 72_000 } },
+      null,
+    );
+    const ledger: TossTestSnapshot = {
+      ...base,
+      cash: { krw: 60_000, usd: 10 },
+    };
+    const merged = mergeTossLedgerPreserveLiveQuotes(ledger, live);
+    expect(merged.cash.krw).toBe(60_000);
+    expect(merged.holdings[0]?.currentPrice).toBe(72_000);
   });
 });

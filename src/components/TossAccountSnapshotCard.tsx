@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useStickyNumber } from "../hooks/useStickyNumber";
 import type { TossTestHolding, TossTestSnapshot } from "../api";
 import { ko } from "../i18n/ko";
 import { useBithumbBalanceHidden } from "../hooks/useBithumbBalanceHidden";
@@ -73,16 +74,21 @@ export default function TossAccountSnapshotCard({
     .join(" ");
 
   const feesLine = feeLabelKo?.trim() || null;
-  const plKrw =
+  const plKrw = useStickyNumber(
     summary?.profitLossKrw != null && Number.isFinite(summary.profitLossKrw)
       ? summary.profitLossKrw
-      : null;
+      : null,
+  );
   const plUp = plKrw != null && plKrw >= 0;
-  const returnPct =
+  const returnPct = useStickyNumber(
     summary?.totalReturnPct != null && Number.isFinite(summary.totalReturnPct)
       ? summary.totalReturnPct
-      : null;
+      : null,
+  );
   const retUp = returnPct != null && returnPct >= 0;
+  const cashKrw = useStickyNumber(
+    cash?.krw != null && Number.isFinite(cash.krw) ? cash.krw : null,
+  );
 
   return (
     <div className={rootClass} aria-label={ko.app.liveTradeTossAccountSectionAria}>
@@ -133,7 +139,7 @@ export default function TossAccountSnapshotCard({
               {ko.app.liveTradeTossCashKrw}
             </span>
             <span className="account-snapshot__cash-value" aria-hidden={balanceHidden || undefined}>
-              {formatPrice(cash.krw, "KRW")}
+              {formatPrice(cashKrw ?? cash.krw, "KRW")}
             </span>
           </div>
           {cash.usd > 0 ? (
