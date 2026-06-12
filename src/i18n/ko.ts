@@ -503,6 +503,7 @@ export const ko = {
     liveTradeSideDockPollersEnvHint: "env",
     liveTradeSideDockPollersToggleNeedPassword: "관리자 비밀번호",
     liveTradeSideDockPollersLoadErr: "폴링 목록을 불러오지 못했습니다.",
+    liveTradeSideDockPollersLoading: "대기중",
     liveTradeSideDockPollersEmpty: "등록된 폴링이 없습니다.",
     liveTradeSideDockPollersNever: "—",
     footerInquiry: "문의",

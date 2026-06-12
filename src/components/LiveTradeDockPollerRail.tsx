@@ -15,6 +15,7 @@ import {
 } from "../api";
 import { ko } from "../i18n/ko";
 import LiveTradeDockYsHead from "./LiveTradeDockYsHead";
+import DockPanelCenterLoading from "./DockPanelCenterLoading";
 
 const POLLER_POPOVER_GAP_PX = 9;
 const LIST_POLL_MS = 2_000;
@@ -78,9 +79,10 @@ function pollerCardSummary(p: PollerStatusRow): string {
 
 function pollerStatusLabel(p: PollerStatusRow): string {
   if (!p.bootEnabled) return ko.app.liveTradeSideDockPollersBootOff;
-  if (!p.effectiveEnabled) return ko.app.liveTradeSideDockPollersStopped;
+  if (!p.runtimeEnabled) return ko.app.liveTradeSideDockPollersStopped;
+  if (!p.bootStarted) return ko.app.liveTradeSideDockPollersLoading;
   if (p.running) return ko.app.liveTradeSideDockPollersRunning;
-  return p.runtimeEnabled ? ko.app.liveTradeSideDockPollersRunning : ko.app.liveTradeSideDockPollersStopped;
+  return ko.app.liveTradeSideDockPollersRunning;
 }
 
 function PollerIcon({ className }: { className?: string }) {
@@ -386,6 +388,7 @@ export default function LiveTradeDockPollerRail({
   const [popoverStyle, setPopoverStyle] = useState<CSSProperties>({});
   const [pollers, setPollers] = useState<PollerStatusRow[]>([]);
   const [loadErr, setLoadErr] = useState<string | null>(null);
+  const [loadedOnce, setLoadedOnce] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [toggleTarget, setToggleTarget] = useState<{
     poller: PollerStatusRow;
@@ -406,6 +409,8 @@ export default function LiveTradeDockPollerRail({
       setLoadErr(null);
     } catch (e) {
       setLoadErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoadedOnce(true);
     }
   }, []);
 
@@ -424,7 +429,10 @@ export default function LiveTradeDockPollerRail({
   }, [open]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setLoadedOnce(false);
+      return;
+    }
     void reload();
     const id = window.setInterval(() => void reload(), LIST_POLL_MS);
     return () => window.clearInterval(id);
@@ -548,6 +556,8 @@ export default function LiveTradeDockPollerRail({
                 <p className="dock-poller-rail__err" role="alert">
                   {loadErr}
                 </p>
+              ) : !loadedOnce ? (
+                <DockPanelCenterLoading label={ko.app.liveTradeSideDockPollersLoading} />
               ) : pollers.length === 0 ? (
                 <p className="dock-poller-rail__empty">{ko.app.liveTradeSideDockPollersEmpty}</p>
               ) : (
