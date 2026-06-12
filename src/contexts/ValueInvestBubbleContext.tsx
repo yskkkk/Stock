@@ -332,6 +332,7 @@ function InputField({
 type Ctx = {
   showValueInvestBubble: (anchor: HTMLElement, target: ValueInvestBubbleTarget) => void;
   closeValueInvestBubble: () => void;
+  openSymbol: string | null;
 };
 
 const ValueInvestBubbleContext = createContext<Ctx | null>(null);
@@ -444,7 +445,9 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
     };
     const onPointer = (e: PointerEvent) => {
       const el = bubbleRef.current;
-      if (el?.contains(e.target as Node)) return;
+      const target = e.target as Node;
+      if (el?.contains(target)) return;
+      if ((target as Element).closest?.(".earnings-icon-rail__bubble")) return;
       closeValueInvestBubble();
     };
     window.addEventListener("keydown", onKey);
@@ -740,8 +743,12 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
       : null;
 
   const ctx = useMemo(
-    () => ({ showValueInvestBubble, closeValueInvestBubble }),
-    [showValueInvestBubble, closeValueInvestBubble],
+    () => ({
+      showValueInvestBubble,
+      closeValueInvestBubble,
+      openSymbol: open?.symbol ?? null,
+    }),
+    [showValueInvestBubble, closeValueInvestBubble, open?.symbol],
   );
 
   registerValueInvestBubbleApi(ctx);

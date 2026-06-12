@@ -29,7 +29,7 @@ export default function StockEarningsHoverBubbleBody({
   tvChartUrl?: string | null;
   price?: number | null;
   currency?: string | null;
-  onAfterAction?: () => void;
+  onAfterAction?: (action: "chart" | "financials") => void;
 }) {
   const [finSummary, setFinSummary] = useState<
     EarningsBubbleFinancialSummary | null | "loading"

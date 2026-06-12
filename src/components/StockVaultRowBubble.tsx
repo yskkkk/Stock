@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { useOptionalValueInvestBubble } from "../contexts/ValueInvestBubbleContext";
 import StockEarningsHoverBubbleBody from "./StockEarningsHoverBubbleBody";
 import { tradingViewChartUrl } from "../lib/tradingviewSymbols";
 
@@ -114,7 +115,10 @@ export function useStockVaultRowBubble() {
   const tipId = useId();
   const hideTimerRef = useRef<number | null>(null);
   const bubbleRef = useRef<HTMLDivElement | null>(null);
+  const tipRef = useRef<TipState | null>(null);
   const [tip, setTip] = useState<TipState | null>(null);
+  const valueInvest = useOptionalValueInvestBubble();
+  tipRef.current = tip;
 
   const clearHideTimer = useCallback(() => {
     if (hideTimerRef.current != null) {
@@ -126,10 +130,12 @@ export function useStockVaultRowBubble() {
   const scheduleHideTip = useCallback(() => {
     clearHideTimer();
     hideTimerRef.current = window.setTimeout(() => {
+      const sym = tipRef.current?.symbol;
+      if (sym && valueInvest?.openSymbol === sym) return;
       setTip(null);
       hideTimerRef.current = null;
     }, HIDE_DELAY_MS);
-  }, [clearHideTimer]);
+  }, [clearHideTimer, valueInvest?.openSymbol]);
 
   const showTip = useCallback(
     (el: HTMLElement, target: StockVaultRowBubbleTarget) => {

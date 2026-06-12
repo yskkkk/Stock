@@ -10,6 +10,7 @@ import {
 import { useLeftRailLazyFollow } from "../hooks/useLeftRailLazyFollow";
 import { createPortal } from "react-dom";
 import { fetchSectorEarnings } from "../api";
+import { useOptionalValueInvestBubble } from "../contexts/ValueInvestBubbleContext";
 import StockEarningsHoverBubbleBody from "./StockEarningsHoverBubbleBody";
 import {
   formatMacroCountdown,
@@ -137,7 +138,10 @@ export default function EarningsUpcomingIconRail({
   });
   const [now, setNow] = useState(() => Date.now());
   const [tip, setTip] = useState<TipState | null>(null);
+  const tipRef = useRef<TipState | null>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const valueInvest = useOptionalValueInvestBubble();
+  tipRef.current = tip;
 
   useEffect(() => {
     let cancelled = false;
@@ -200,8 +204,13 @@ export default function EarningsUpcomingIconRail({
 
   const scheduleHideTip = useCallback(() => {
     clearHideTimer();
-    hideTimerRef.current = setTimeout(() => setTip(null), HIDE_DELAY_MS);
-  }, [clearHideTimer]);
+    hideTimerRef.current = setTimeout(() => {
+      const sym = tipRef.current?.row.symbol;
+      if (sym && valueInvest?.openSymbol === sym) return;
+      setTip(null);
+      hideTimerRef.current = null;
+    }, HIDE_DELAY_MS);
+  }, [clearHideTimer, valueInvest?.openSymbol]);
 
   if (upcoming.length === 0) return null;
 

@@ -21,7 +21,8 @@ export default function StockHoverBubbleActions({
   price?: number | null;
   currency?: string | null;
   tvChartUrl?: string | null;
-  onAfterAction?: () => void;
+  /** 차트·재무제표 등 — 버핏은 실적 말풍선을 유지 */
+  onAfterAction?: (action: "chart" | "financials") => void;
 }) {
   const valueInvest = useOptionalValueInvestBubble();
   const base =
@@ -33,8 +34,6 @@ export default function StockHoverBubbleActions({
       ? `stock-vault-tab__bubble-btn stock-vault-tab__bubble-btn--${kind}`
       : `earnings-icon-rail__bubble-btn earnings-icon-rail__bubble-btn--${kind}`;
 
-  const done = () => onAfterAction?.();
-
   return (
     <div className={base}>
       {tvChartUrl ? (
@@ -44,7 +43,7 @@ export default function StockHoverBubbleActions({
           target="_blank"
           rel="noopener noreferrer"
           aria-label={`${name} ${ko.stockVault.openTradingViewChart}`}
-          onClick={done}
+          onClick={() => onAfterAction?.("chart")}
         >
           {ko.stockVault.bubbleBtnChart}
         </a>
@@ -55,7 +54,7 @@ export default function StockHoverBubbleActions({
         aria-label={`${name} ${ko.stockVault.openFinancialsTab}`}
         onClick={() => {
           dispatchOpenFinancialsTab({ symbol, name, market });
-          done();
+          onAfterAction?.("financials");
         }}
       >
         {ko.stockVault.bubbleBtnFinancials}
@@ -78,7 +77,6 @@ export default function StockHoverBubbleActions({
           } else {
             dispatchOpenFinancialsTab({ symbol, name, market });
           }
-          done();
         }}
       >
         {ko.stockVault.bubbleBtnBuffett}

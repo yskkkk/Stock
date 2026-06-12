@@ -14,6 +14,7 @@ export type ValueInvestBubbleBridgeApi = {
     target: ValueInvestBubbleBridgeTarget,
   ) => void;
   closeValueInvestBubble: () => void;
+  openSymbol: string | null;
 };
 
 const WIN_KEY = "__stockValueInvestBubbleApi";
@@ -32,5 +33,9 @@ export function readValueInvestBubbleApi(): ValueInvestBubbleBridgeApi | null {
   const raw = (window as unknown as Record<string, unknown>)[WIN_KEY];
   if (!raw || typeof raw !== "object") return null;
   const api = raw as ValueInvestBubbleBridgeApi;
-  return typeof api.showValueInvestBubble === "function" ? api : null;
+  if (typeof api.showValueInvestBubble !== "function") return null;
+  return {
+    ...api,
+    openSymbol: api.openSymbol ?? null,
+  };
 }
