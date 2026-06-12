@@ -1071,6 +1071,8 @@ export const ko = {
     viewSector: "업종별",
     industryFilterAria: "업종 필터",
     industryAll: "전체 업종",
+    industryExpand: "업종 펼치기",
+    industryCollapse: "업종 접기",
     sectorSummaryTitle: "업종별 수급 합계",
     colName: "종목",
     colIndustry: "업종",

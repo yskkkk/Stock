@@ -567,6 +567,46 @@ html[data-theme="light"] .stock-vault-tab__trend--down {
   min-width: 0;
 }
 
+.stock-vault-tab__industry-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.35rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.stock-vault-tab__industry-expand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.18rem;
+  margin-left: auto;
+  padding: 0.1rem 0.38rem;
+  border: 1px solid color-mix(in srgb, var(--card-border) 88%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  color: var(--muted);
+  font-size: 0.64rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.stock-vault-tab__industry-expand:hover {
+  color: var(--text-dim);
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--card-border));
+}
+
+.stock-vault-tab__industry-expand-chevron {
+  font-size: 0.58rem;
+  line-height: 1;
+}
+
+.stock-vault-tab__industry-selected-chip {
+  max-width: min(100%, 12rem);
+}
+
 .stock-vault-tab__filters--industry .market-tab--industry-all {
   display: inline-flex;
   align-items: center;

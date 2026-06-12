@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FavoriteTrackPanel from "./FavoriteTrackPanel";
+import IndustryFilterPanel from "./IndustryFilterPanel";
 import {
   fetchGoldenCrossHistory,
   fetchGoldenCrossStatus,
@@ -984,59 +985,17 @@ export default function StockVaultTab({
           </div>
 
           {industryTabs.length > 0 ? (
-            <div
-              className="stock-vault-tab__filters stock-vault-tab__filters--industry investor-flow-tab__industry-filters"
-              role="tablist"
-              aria-label={ko.stockVault.filterIndustryAria}
-            >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={industryFilter === "all"}
-                className={
-                  industryFilter === "all"
-                    ? "market-tab market-tab--industry-all active"
-                    : "market-tab market-tab--industry-all"
-                }
-                onClick={() => setIndustryFilter("all")}
-              >
-                <span className="market-tab__label">{ko.investorFlow.industryAll}</span>
-                <span className="market-tab__count">{baseFiltered.length}</span>
-              </button>
-              <div className="stock-vault-tab__industry-grid-scroll">
-                <div
-                  className="stock-vault-tab__industry-grid"
-                  style={
-                    {
-                      "--stock-vault-industry-rows": String(industryGrid.rows),
-                      "--stock-vault-industry-cols": String(industryGrid.cols),
-                    } as React.CSSProperties
-                  }
-                >
-                  {industryOptions.map(({ name, count }) => (
-                  <button
-                    key={name}
-                    type="button"
-                    role="tab"
-                    aria-selected={industryFilter === name}
-                    className={
-                      industryFilter === name
-                        ? "market-tab active"
-                        : count > 0
-                          ? "market-tab"
-                          : "market-tab market-tab--empty"
-                    }
-                    onClick={() =>
-                      setIndustryFilter((cur) => (cur === name ? "all" : name))
-                    }
-                  >
-                    <span className="market-tab__label">{name}</span>
-                    <span className="market-tab__count">{count}</span>
-                  </button>
-                ))}
-                </div>
-              </div>
-            </div>
+            <IndustryFilterPanel
+              ariaLabel={ko.stockVault.filterIndustryAria}
+              totalCount={baseFiltered.length}
+              industryFilter={industryFilter}
+              onSelectAll={() => setIndustryFilter("all")}
+              industryOptions={industryOptions}
+              industryGrid={industryGrid}
+              onToggleIndustry={(name) =>
+                setIndustryFilter((cur) => (cur === name ? "all" : name))
+              }
+            />
           ) : null}
         </div>
 
