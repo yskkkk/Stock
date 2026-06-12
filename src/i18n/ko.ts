@@ -1127,7 +1127,7 @@ export const ko = {
     empty: "보관된 종목이 없습니다.",
     kindTabAria: "탐색 유형",
     scanConditionAria: "탐색 조건 선택",
-    intersectionHint: "교집합 {n}건",
+    intersectionHint: "교집합 {n}건 · Ctrl+클릭으로 조건 추가",
     selectScanCondition: "탐색 조건을 하나 이상 선택하세요.",
     emptyIntersection: "선택한 조건을 모두 만족하는 종목이 없습니다.",
     tabGolden: "골든크로스",

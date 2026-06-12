@@ -538,18 +538,30 @@ export default function StockVaultTab({
     [meta],
   );
 
-  const toggleScanSource = useCallback((source: StockVaultScanSource) => {
-    setIndustryFilter("all");
-    setSelectedScanSources((prev) => {
-      const set = new Set(prev);
-      if (set.has(source)) {
-        set.delete(source);
-      } else {
-        set.add(source);
+  const toggleScanSource = useCallback(
+    (source: StockVaultScanSource, ev?: React.MouseEvent) => {
+      setIndustryFilter("all");
+      const multi = Boolean(ev?.ctrlKey || ev?.metaKey);
+      setSelectedScanSources((prev) => {
+        if (multi) {
+          const set = new Set(prev);
+          if (set.has(source)) set.delete(source);
+          else set.add(source);
+          const next = STOCK_VAULT_SCAN_SOURCES.filter((s) => set.has(s));
+          return next.length ? next : [source];
+        }
+        if (prev.length === 1 && prev[0] === source) return prev;
+        return [source];
+      });
+      if (
+        source === "ma120_near" &&
+        countItemsByScanSource(items, "ma120_near", timeframeFilter) === 0
+      ) {
+        void reload(true);
       }
-      return STOCK_VAULT_SCAN_SOURCES.filter((s) => set.has(s));
-    });
-  }, []);
+    },
+    [items, timeframeFilter, reload],
+  );
 
   useEffect(() => {
     if (timeframeFilter !== "1wk") return;
@@ -945,7 +957,7 @@ export default function StockVaultTab({
                         : "market-tab market-tab--toggle"
                     }
                     aria-pressed={active}
-                    onClick={() => toggleScanSource(source)}
+                    onClick={(ev) => toggleScanSource(source, ev)}
                   >
                     {SCAN_SOURCE_LABEL[source]}
                     <span className="market-tab__count">{scanSourceCounts[source]}</span>

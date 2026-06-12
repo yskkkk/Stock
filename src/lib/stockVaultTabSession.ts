@@ -11,7 +11,7 @@ export type StockVaultTabUiState = {
   selectedScanDate: string | null;
 };
 
-const UI_STORAGE_KEY = "stock-vault-tab-ui-v1";
+const UI_STORAGE_KEY = "stock-vault-tab-ui-v2";
 
 let memoryUi: StockVaultTabUiState | null = null;
 

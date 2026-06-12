@@ -66,10 +66,26 @@ export function isStockVaultSessionPinned(): boolean {
   return stockVaultSessionPinned;
 }
 
+function isStockVaultBundleStale(bundle: StockVaultPrefetch): boolean {
+  const ma120Count =
+    bundle.vault.items?.filter((it) => it.source === "ma120_near").length ?? 0;
+  const krScanned = Boolean(
+    bundle.scanStatus?.ma120Near?.state?.krLastScanDate,
+  );
+  return krScanned && ma120Count === 0;
+}
+
 function getCached<T>(key: CacheKey): T | null {
   const row = cache.get(key);
   if (!row) return null;
-  if (key === "stockVault" && stockVaultSessionPinned) return row.data as T;
+  if (key === "stockVault") {
+    const bundle = row.data as StockVaultPrefetch;
+    if (isStockVaultBundleStale(bundle)) {
+      cache.delete("stockVault");
+      return null;
+    }
+    if (stockVaultSessionPinned) return row.data as T;
+  }
   if (Date.now() - row.at > TTL_MS[key]) return null;
   return row.data as T;
 }
