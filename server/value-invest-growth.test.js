@@ -102,6 +102,22 @@ describe("deriveValueInvestGrowth10y", () => {
     });
     expect(r.value).toBeCloseTo(cagr(1.74, 11.93, 1), 3);
   });
+
+  it("EPS CAGR detail — 구간·식·결과", () => {
+    const r = deriveValueInvestGrowth10y({
+      eps: null,
+      forwardEps: null,
+      revenueGrowth: null,
+      epsHistory: [
+        { year: 2023, eps: 10 },
+        { year: 2024, eps: 12 },
+      ],
+    });
+    expect(r.detail?.method).toBe("eps_cagr");
+    expect(r.detail?.lines.join("\n")).toMatch(/2023→2024/);
+    expect(r.detail?.lines.join("\n")).toMatch(/10 ÷ 12|12 ÷ 10/);
+    expect(r.detail?.lines.at(-1)).toMatch(/20\.0%/);
+  });
 });
 
 describe("epsGrowthWindow", () => {

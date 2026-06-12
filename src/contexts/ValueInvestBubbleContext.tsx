@@ -291,6 +291,8 @@ function InputField({
   step = "any",
   suffix,
   source,
+  sourceDetail,
+  sourceDetailTitle,
   projectionColumn,
   projectionRows,
   historicalEpsRows,
@@ -305,6 +307,8 @@ function InputField({
   step?: string;
   suffix?: string;
   source?: string;
+  sourceDetail?: string[];
+  sourceDetailTitle?: string;
   projectionColumn?: ProjectionColumn;
   projectionRows?: ValueInvestYearlyProjectionRow[];
   historicalEpsRows?: { year: number; eps: number }[];
@@ -317,11 +321,13 @@ function InputField({
   const [hover, setHover] = useState(false);
   const [pctDraft, setPctDraft] = useState<string | null>(null);
   const pctMode = onPctRateChange != null;
+  const showSourceDetail = hover && sourceDetail != null && sourceDetail.length > 0;
   const showHistorical =
-    hover && historicalEpsRows && historicalEpsRows.length > 0;
+    hover && !showSourceDetail && historicalEpsRows && historicalEpsRows.length > 0;
   const showProjection =
-    hover && projectionColumn && projectionRows && projectionRows.length > 0;
-  const showTable = showHistorical || showProjection;
+    hover && !showSourceDetail && projectionColumn && projectionRows && projectionRows.length > 0;
+  const showPop = showSourceDetail || showHistorical || showProjection;
+  const labelHint = Boolean(sourceDetail?.length || projectionColumn);
 
   useEffect(() => {
     if (!pctMode) return;
@@ -360,19 +366,25 @@ function InputField({
     <label className="value-invest-bubble__field">
       <span
         className={
-          projectionColumn
+          labelHint
             ? "value-invest-bubble__field-label value-invest-bubble__field-label--hint"
             : "value-invest-bubble__field-label"
         }
-        title={projectionColumn ? ko.valueInvest.labelHoverHint : undefined}
+        title={
+          showSourceDetail
+            ? ko.valueInvest.sourceHoverHint
+            : projectionColumn
+              ? ko.valueInvest.labelHoverHint
+              : undefined
+        }
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
         onFocus={() => setHover(true)}
         onBlur={() => setHover(false)}
-        tabIndex={0}
+        tabIndex={labelHint ? 0 : undefined}
       >
         {label}
-        {showTable ? (
+        {showPop ? (
           <span
             className="value-invest-bubble__hover-pop"
             role="tooltip"
@@ -380,13 +392,21 @@ function InputField({
             onMouseLeave={() => setHover(false)}
           >
             <span className="value-invest-bubble__hover-pop-title">
-              {showHistorical
-                ? ko.valueInvest.epsHistoryTitle
-                : projectionColumn
-                  ? `${projectionColumnLabel(projectionColumn)} · ${ko.valueInvest.projectionTitle}`
-                  : ko.valueInvest.projectionTitle}
+              {showSourceDetail
+                ? (sourceDetailTitle ?? ko.valueInvest.growthCalcTitle)
+                : showHistorical
+                  ? ko.valueInvest.epsHistoryTitle
+                  : projectionColumn
+                    ? `${projectionColumnLabel(projectionColumn)} · ${ko.valueInvest.projectionTitle}`
+                    : ko.valueInvest.projectionTitle}
             </span>
-            {showHistorical ? (
+            {showSourceDetail ? (
+              <ul className="value-invest-bubble__source-detail">
+                {sourceDetail!.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            ) : showHistorical ? (
               <HistoricalEpsTable rows={historicalEpsRows!} currency={currency} />
             ) : projectionColumn ? (
               <YearlyProjectionTable
@@ -687,8 +707,6 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
                     value=""
                     suffix="%"
                     step="0.1"
-                    projectionColumn="eps"
-                    projectionRows={projectionRows}
                     currency={currency}
                     onChange={() => {}}
                     pctRate={inputs.growthRate}
@@ -696,6 +714,8 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
                       setInputs((cur) => (cur ? { ...cur, growthRate: rate } : cur))
                     }
                     source={payload?.growthSource ?? undefined}
+                    sourceDetail={payload?.growthDetail?.lines}
+                    sourceDetailTitle={ko.valueInvest.growthCalcTitle}
                   />
                   <InputField
                     label={ko.valueInvest.averagePer}

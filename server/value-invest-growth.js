@@ -54,6 +54,47 @@ function formatEpsCagrSource(series) {
   return `EPS CAGR ${start.year}→${end.year} (${periodYears}년${spanNote})`;
 }
 
+/** @param {number} v */
+function fmtEpsNum(v) {
+  if (!Number.isFinite(v)) return "—";
+  if (Math.abs(v) >= 100) return Math.round(v).toLocaleString("ko-KR");
+  const rounded = Math.round(v * 100) / 100;
+  return Number.isInteger(rounded) ? String(rounded) : String(rounded);
+}
+
+/** @param {number} v */
+function fmtPct(v) {
+  if (!Number.isFinite(v)) return "—";
+  return `${(v * 100).toFixed(1)}%`;
+}
+
+/**
+ * @param {{ year: number; eps: number }[]} series
+ * @param {number} value
+ */
+function buildEpsCagrDetail(series, value) {
+  const window = epsGrowthWindow(series);
+  if (!window) {
+    return { method: "eps_cagr", lines: ["연간 EPS 이력 CAGR", `결과: ${fmtPct(value)}`] };
+  }
+  const { start, end, periodYears, fromListing } = window;
+  const startEps = fmtEpsNum(start.eps);
+  const endEps = fmtEpsNum(end.eps);
+  return {
+    method: "eps_cagr",
+    lines: [
+      "연간 EPS 이력으로 CAGR 산출",
+      fromListing
+        ? `구간: ${start.year}→${end.year} (상장 ${periodYears}년, 전체 이력)`
+        : `구간: ${start.year}→${end.year} (최근 ${periodYears}년)`,
+      `시작 EPS (${start.year}): ${startEps}`,
+      `종료 EPS (${end.year}): ${endEps}`,
+      `식: (${endEps} ÷ ${startEps})^(1/${periodYears}) − 1`,
+      `결과: ${fmtPct(value)}`,
+    ],
+  };
+}
+
 /**
  * @param {{
  *   eps: number | null;
@@ -74,6 +115,7 @@ export function deriveValueInvestGrowth10y(f) {
     return {
       value: histGrowth,
       source: formatEpsCagrSource(f.epsHistory ?? []),
+      detail: buildEpsCagrDetail(f.epsHistory ?? [], histGrowth),
       warnings,
     };
   }
@@ -83,6 +125,14 @@ export function deriveValueInvestGrowth10y(f) {
     return {
       value: rg,
       source: "Yahoo revenueGrowth",
+      detail: {
+        method: "revenue_growth",
+        lines: [
+          "EPS 이력 부족 → Yahoo revenueGrowth 사용",
+          "Yahoo Finance 매출 성장률 필드",
+          `결과: ${fmtPct(rg)}`,
+        ],
+      },
       warnings,
     };
   }
@@ -94,12 +144,24 @@ export function deriveValueInvestGrowth10y(f) {
     if (implied1y < -0.5) {
       warnings.push(`Forward÷Trailing ${(implied1y * 100).toFixed(0)}% — 급격한 이익 감소 구간`);
     }
+    const trailing = fmtEpsNum(eps);
+    const forward = fmtEpsNum(fwd);
     return {
       value: implied1y,
       source: "Forward EPS ÷ Trailing EPS (차기 1년 추정)",
+      detail: {
+        method: "forward_trailing",
+        lines: [
+          "EPS 이력 부족 → Forward÷Trailing 폴백",
+          `Trailing EPS: ${trailing}`,
+          `Forward EPS: ${forward}`,
+          `식: (${forward} ÷ ${trailing}) − 1`,
+          `결과: ${fmtPct(implied1y)} (차기 1년 추정, 10년 CAGR 아님)`,
+        ],
+      },
       warnings,
     };
   }
 
-  return { value: null, source: null, warnings };
+  return { value: null, source: null, detail: null, warnings };
 }

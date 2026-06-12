@@ -1045,6 +1045,8 @@ export const ko = {
     projectionPer: "PER",
     projectionImpliedPrice: "주가",
     labelHoverHint: "연도별 표 보기",
+    growthCalcTitle: "성장률 산출 (서버)",
+    sourceHoverHint: "계산 방식 보기",
     warningsTitle: "참고",
     disclaimer:
       "실제 시장·재무 데이터 기반 추정이며 투자 권유가 아닙니다. 말풍선 값은 직접 수정해 시나리오를 바꿀 수 있습니다.",

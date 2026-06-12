@@ -102,6 +102,27 @@
   color: var(--text-dim);
 }
 
+.value-invest-bubble__hover-pop:has(.value-invest-bubble__source-detail) {
+  min-width: min(13rem, calc(100vw - 24px));
+  max-width: min(18rem, calc(100vw - 24px));
+}
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.62rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.value-invest-bubble__source-detail li + li {
+  margin-top: 0.18rem;
+}
+
+.value-invest-bubble__source-detail li:last-child {
+  font-weight: 650;
+  color: var(--text);
+}
+
 .value-invest-bubble__proj-table {
   width: 100%;
   border-collapse: collapse;

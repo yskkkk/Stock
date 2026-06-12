@@ -347,6 +347,11 @@ export interface ValueInvestReturnResult {
   fairBuyPrice: number | null;
 }
 
+export interface ValueInvestGrowthDetail {
+  method: "eps_cagr" | "revenue_growth" | "forward_trailing";
+  lines: string[];
+}
+
 export interface ValueInvestReturnResponse {
   symbol: string;
   name: string;
@@ -356,6 +361,7 @@ export interface ValueInvestReturnResponse {
   inputSources: Record<string, string>;
   payoutSource: string | null;
   growthSource: string | null;
+  growthDetail: ValueInvestGrowthDetail | null;
   warnings: string[];
   result: ValueInvestReturnResult | null;
   missing: string[];

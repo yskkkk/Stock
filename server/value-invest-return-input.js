@@ -92,6 +92,7 @@ export function buildValueInvestInputsFromFundamentals(f, opts = {}) {
   });
   const growthRate = growth.value;
   const growthSource = growth.source;
+  const growthDetail = growth.detail ?? null;
   const warnings = [...growth.warnings];
 
   if (growthRate == null) {
@@ -175,6 +176,7 @@ export function buildValueInvestInputsFromFundamentals(f, opts = {}) {
     inputSources: sources,
     payoutSource,
     growthSource,
+    growthDetail,
     historicalPerData: historicalPerData ?? null,
     warnings,
     result,
