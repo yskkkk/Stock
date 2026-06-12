@@ -317,9 +317,6 @@ function railTabShort(
   if (id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.liveRail) {
     return { glyph: <DockRailBanknoteIcon />, label: ko.app.liveTradeLeftRailTitle };
   }
-  if (id === "activity") {
-    return { glyph: "▶", label: ko.app.liveTradeSideDockRailActivity };
-  }
   if (id === "form") {
     return { glyph: <DockRailWebsiteIcon />, label: ko.app.liveTradeSideDockRailForm };
   }

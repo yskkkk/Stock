@@ -62,13 +62,10 @@ import DockPanelCenterLoading from "./DockPanelCenterLoading";
 import LiveTradeAuthPanel, {
   LiveTradeCardSidePanelInline,
   LiveTradeCollapsibleCard,
-  LiveTradeSidePanelPortal,
   notifyLiveTradeAuthChange,
   useLiveTradeAuth,
   useLiveTradeCardSidePanelOptional,
 } from "./LiveTradeAuthAndCredentials";
-
-const LIVE_TRADE_ACTIVITY_PANEL_ID = "activity";
 import { programDisplayStatus } from "../lib/liveProgramDisplay";
 import { ko } from "../i18n/ko";
 import { LiveTradeFeeRatesProvider } from "../contexts/LiveTradeFeeRatesContext";
@@ -253,13 +250,6 @@ export default function LiveTradingTab({
       user.id !== adminViewUserId,
   );
 
-  useEffect(() => {
-    if (!portalSourceOnly) return;
-    const reg = sidePanel?.registerSideTab;
-    if (!reg) return;
-    return reg("activity", ko.app.liveTradeActivityTitle);
-  }, [portalSourceOnly, sidePanel?.registerSideTab]);
-
   const reload = useCallback(async (userOverride?: AuthUser | null) => {
     const activeUser = userOverride !== undefined ? userOverride : user;
     if (!activeUser) {
@@ -384,8 +374,6 @@ export default function LiveTradingTab({
   /** 메인 실매매 탭 — 도크 미사용 시 또는 가동 중일 때 */
   const showRunningPanelInline =
     !portalSourceOnly && (!hideCardDock || activeRunCount > 0);
-  const showRunningPanelInDock =
-    portalSourceOnly && sidePanel?.panel?.id === LIVE_TRADE_ACTIVITY_PANEL_ID;
 
   const portfolioAdminView = useMemo(
     () =>
@@ -980,39 +968,19 @@ export default function LiveTradingTab({
               ) : null}
             </div>
           ) : null}
-          {showRunningPanelInline || showRunningPanelInDock ? (
+          {showRunningPanelInline ? (
             <>
-              {showRunningPanelInline ? (
-                <LiveSimRunningPanel
-                  programs={programs}
-                  busy={busy}
-                  refreshKey={portfolioRefreshKey}
-                  adminViewUserId={adminReadOnly ? adminViewUserId : null}
-                  readOnly={adminReadOnly}
-                  onStop={(id) => void handleSimStop(id)}
-                  onDisarm={(id) => void handleDisarm(id)}
-                  onProgramUpdated={() => void reload()}
-                  onOpenHoldingChart={onOpenHoldingChart}
-                />
-              ) : null}
-              {showRunningPanelInDock && sidePanel ? (
-                <LiveTradeSidePanelPortal
-                  active
-                  hostEl={sidePanel.bodyHostEl}
-                >
-                  <LiveSimRunningPanel
-                    programs={programs}
-                    busy={busy}
-                    refreshKey={portfolioRefreshKey}
-                    adminViewUserId={adminReadOnly ? adminViewUserId : null}
-                    readOnly={adminReadOnly}
-                    onStop={(id) => void handleSimStop(id)}
-                    onDisarm={(id) => void handleDisarm(id)}
-                    onProgramUpdated={() => void reload()}
-                    onOpenHoldingChart={onOpenHoldingChart}
-                  />
-                </LiveTradeSidePanelPortal>
-              ) : null}
+              <LiveSimRunningPanel
+                programs={programs}
+                busy={busy}
+                refreshKey={portfolioRefreshKey}
+                adminViewUserId={adminReadOnly ? adminViewUserId : null}
+                readOnly={adminReadOnly}
+                onStop={(id) => void handleSimStop(id)}
+                onDisarm={(id) => void handleDisarm(id)}
+                onProgramUpdated={() => void reload()}
+                onOpenHoldingChart={onOpenHoldingChart}
+              />
               {!portalSourceOnly && !showMainProgramsList ? (
                 <>
                   <LiveTradeHistoryScenarioTabs
