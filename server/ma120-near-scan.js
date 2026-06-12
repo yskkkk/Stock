@@ -167,7 +167,11 @@ async function scanOneSymbol(item, market, scanDate) {
 
     const distancePct = ma120NearDistancePct(price, ma.ma120);
     if (distancePct == null) return null;
-    const ma120Approach = detectMa120NearApproach(price, candles, ma.ma120);
+    let ma120Approach = detectMa120NearApproach(price, candles, ma.ma120);
+    const ma120Side = price >= ma.ma120 ? "above" : "below";
+    if (ma120Approach === "flat") {
+      ma120Approach = ma120Side === "below" ? "from_below" : "from_above";
+    }
 
     return {
       symbol: sym,
@@ -180,6 +184,7 @@ async function scanOneSymbol(item, market, scanDate) {
       ma120: ma.ma120,
       distancePct,
       ma120Approach,
+      ma120Side,
     };
   } catch (e) {
     liveTradeLogWarn(

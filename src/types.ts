@@ -524,6 +524,7 @@ export interface StockVaultItem {
   ma120?: number;
   distancePct?: number;
   ma120Approach?: "from_below" | "from_above" | "flat";
+  ma120Side?: "above" | "below";
   addedAtMs: number;
   updatedAtMs: number;
   favorited?: boolean;
@@ -705,6 +706,7 @@ export interface Ma120NearHistoryHit {
   ma120?: number;
   distancePct?: number;
   ma120Approach?: "from_below" | "from_above" | "flat";
+  ma120Side?: "above" | "below";
 }
 
 export interface GoldenCrossHistoryEntry {

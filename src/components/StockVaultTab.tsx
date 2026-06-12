@@ -665,12 +665,12 @@ export default function StockVaultTab({
       if (it.source !== "ma120_near") continue;
       if (marketFilter !== "all" && it.market !== marketFilter) continue;
       const sym = it.symbol.trim().toUpperCase();
-      const approach = resolveMa120Approach(it, chartInsights[sym]);
+      const approach = resolveMa120Approach(it, chartInsights[sym], quotes[sym]?.price);
       if (approach === "from_below") counts.from_below += 1;
       else if (approach === "from_above") counts.from_above += 1;
     }
     return counts;
-  }, [displayItems, marketFilter, timeframeFilter, chartInsights]);
+  }, [displayItems, marketFilter, timeframeFilter, chartInsights, quotes]);
 
   const showMa120ApproachFilters =
     selectedScanSources.includes("ma120_near") && timeframeFilter === "1d";
@@ -742,7 +742,11 @@ export default function StockVaultTab({
     return rows.filter((row) => {
       if (!row.ma120Near) return false;
       const sym = row.symbol.trim().toUpperCase();
-      const approach = resolveMa120Approach(row.ma120Near, chartInsights[sym]);
+      const approach = resolveMa120Approach(
+        row.ma120Near,
+        chartInsights[sym],
+        quotes[sym]?.price,
+      );
       return ma120ApproachFilter === approach;
     });
   }, [
@@ -752,6 +756,7 @@ export default function StockVaultTab({
     showMa120ApproachFilters,
     ma120ApproachFilter,
     chartInsights,
+    quotes,
   ]);
 
   const intersectionActive =
@@ -1428,6 +1433,7 @@ export default function StockVaultTab({
                             resolveMa120Approach(
                               row.ma120Near,
                               chartInsights[symKey],
+                              quote?.price,
                             ),
                             {
                               fromBelow: ko.stockVault.maApproachFromBelow,

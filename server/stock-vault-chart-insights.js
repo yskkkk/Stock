@@ -64,14 +64,16 @@ export function detectMaTrend(candles) {
  * @returns {"from_below"|"from_above"|"flat"}
  */
 export function detectMaApproach(price, prevPrice, ma, distNow, distPrev) {
-  if (!Number.isFinite(distPrev) || distPrev <= 0) return "flat";
+  const sideBelow = price < ma ? "from_below" : price > ma ? "from_above" : "flat";
+  if (!Number.isFinite(distPrev) || distPrev <= 0) return sideBelow;
   const gettingCloser = distNow < distPrev * 0.985;
-  if (!gettingCloser) return "flat";
-  if (price < ma && price >= prevPrice) return "from_below";
-  if (price > ma && price <= prevPrice) return "from_above";
-  if (price < ma) return "from_below";
-  if (price > ma) return "from_above";
-  return "flat";
+  if (gettingCloser) {
+    if (price < ma && price >= prevPrice) return "from_below";
+    if (price > ma && price <= prevPrice) return "from_above";
+    if (price < ma) return "from_below";
+    if (price > ma) return "from_above";
+  }
+  return sideBelow;
 }
 
 /**

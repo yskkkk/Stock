@@ -55,23 +55,36 @@ export function formatMa120NearLabel(
 }
 
 export function resolveMa120Approach(
-  item: { ma120Approach?: "from_below" | "from_above" | "flat"; ma120?: number | null },
-  insight?: { daily?: { near?: Array<{ period: number; approach?: string }> } } | null,
+  item: {
+    ma120Approach?: "from_below" | "from_above" | "flat";
+    ma120Side?: "above" | "below";
+    ma120?: number | null;
+  },
+  insight?: {
+    daily?: {
+      near?: Array<{ period: number; approach?: string; side?: string }>;
+    };
+  } | null,
+  currentPrice?: number | null,
 ): "from_below" | "from_above" | "flat" {
-  if (
-    item.ma120Approach === "from_below" ||
-    item.ma120Approach === "from_above" ||
-    item.ma120Approach === "flat"
-  ) {
+  if (item.ma120Approach === "from_below" || item.ma120Approach === "from_above") {
     return item.ma120Approach;
   }
+  if (item.ma120Side === "below") return "from_below";
+  if (item.ma120Side === "above") return "from_above";
+
   const hit = insight?.daily?.near?.find((n) => n.period === 120);
-  if (
-    hit?.approach === "from_below" ||
-    hit?.approach === "from_above" ||
-    hit?.approach === "flat"
-  ) {
+  if (hit?.approach === "from_below" || hit?.approach === "from_above") {
     return hit.approach;
+  }
+  if (hit?.side === "below") return "from_below";
+  if (hit?.side === "above") return "from_above";
+
+  const ma120 = Number(item.ma120);
+  const price = Number(currentPrice);
+  if (Number.isFinite(ma120) && ma120 > 0 && Number.isFinite(price) && price > 0) {
+    if (price < ma120) return "from_below";
+    if (price > ma120) return "from_above";
   }
   return "flat";
 }

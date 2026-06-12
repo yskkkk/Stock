@@ -119,6 +119,11 @@ function normalizeStore(raw) {
           row?.ma120Approach === "flat")
           ? row.ma120Approach
           : undefined,
+      ma120Side:
+        source === "ma120_near" &&
+        (row?.ma120Side === "above" || row?.ma120Side === "below")
+          ? row.ma120Side
+          : undefined,
       addedAtMs:
         typeof row?.addedAtMs === "number" && Number.isFinite(row.addedAtMs)
           ? row.addedAtMs
@@ -235,6 +240,10 @@ export function upsertStockVaultItemSync(input) {
         source === "ma120_near" && input.ma120Approach != null
           ? input.ma120Approach
           : prev.ma120Approach,
+      ma120Side:
+        source === "ma120_near" && input.ma120Side != null
+          ? input.ma120Side
+          : prev.ma120Side,
       updatedAtMs: now,
     };
   } else {
@@ -254,6 +263,7 @@ export function upsertStockVaultItemSync(input) {
       ma120: source === "ma120_near" ? input.ma120 : undefined,
       distancePct: source === "ma120_near" ? input.distancePct : undefined,
       ma120Approach: source === "ma120_near" ? input.ma120Approach : undefined,
+      ma120Side: source === "ma120_near" ? input.ma120Side : undefined,
       addedAtMs: now,
       updatedAtMs: now,
     });
@@ -401,6 +411,7 @@ export function mergeMa120NearHitsIntoVaultSync(hits) {
       ma120: hit.ma120,
       distancePct: hit.distancePct,
       ma120Approach: hit.ma120Approach,
+      ma120Side: hit.ma120Side,
     });
   }
 }

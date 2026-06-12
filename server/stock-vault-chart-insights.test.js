@@ -34,6 +34,17 @@ test("detectMaApproach — from_above when falling toward MA", () => {
   );
 });
 
+test("detectMaApproach — side fallback when not getting closer", () => {
+  assert.equal(
+    detectMaApproach(98, 97, 100, 2, 2.1),
+    "from_below",
+  );
+  assert.equal(
+    detectMaApproach(102, 103, 100, 2, 2.1),
+    "from_above",
+  );
+});
+
 test("buildTimeframeChartInsight — includes trend and near hits", () => {
   const flat = Array.from({ length: 140 }, () => ({ close: 50 }));
   const insight = buildTimeframeChartInsight(flat, 50.2);

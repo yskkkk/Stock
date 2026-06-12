@@ -56,6 +56,10 @@ function normalizeEntry(raw) {
             h?.ma120Approach === "flat"
               ? h.ma120Approach
               : undefined,
+          ma120Side:
+            h?.ma120Side === "above" || h?.ma120Side === "below"
+              ? h.ma120Side
+              : undefined,
         }))
         .filter((h) => h.symbol)
     : [];
