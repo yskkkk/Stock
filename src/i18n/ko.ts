@@ -271,6 +271,15 @@ export const ko = {
       "실주문이 꺼져 있어 시뮬레이션으로만 처리됩니다. «토스 API 연동»에서 «실주문 허용»을 켜고 서버 TOSS_LIVE_ORDERS_ENABLED=1이 필요합니다.",
     liveTradeTossOrderConfirmBuy: "시장가 매수 주문을 넣을까요?",
     liveTradeTossOrderConfirmSell: "매도 주문을 넣을까요?",
+    liveTradeTossOrderConfirmLimitBuy:
+      "지정가 {price}에 {amount} 매수 주문을 넣을까요?",
+    liveTradeTossOrderConfirmLimitSell:
+      "지정가 {price}에 {qty}주 매도 주문을 넣을까요?",
+    liveTradeTossOrderConfirmFarPrice:
+      "지정가 {price}가 현재가 {current} 대비 {pct}% 차이입니다. 주문할까요?",
+    liveTradeTossOrderErrLimitPrice: "지정가를 입력하세요.",
+    liveTradeTossOrderErrQty: "매도 수량을 입력하세요.",
+    liveTradeTossOrderErrAmount: "매수 금액을 입력하세요.",
     liveTradeTossOrderOk: "주문을 접수했습니다.",
     liveTradeTossOpenOrders: "미체결",
     liveTradeTossOpenOrdersNote: "토스 미체결 주문입니다.",

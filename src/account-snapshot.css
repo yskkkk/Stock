@@ -393,13 +393,19 @@ html[data-theme="light"] .account-snapshot__balance-card {
 }
 
 .toss-order-panel__sim {
-  margin: 0;
+  margin: 0 0 0.35rem;
   padding: 0.38rem 0.45rem;
   border-radius: 8px;
   background: color-mix(in srgb, var(--warn, #f59e0b) 12%, transparent);
   color: var(--text-dim, #94a3b8);
   font-size: 0.62rem;
   line-height: 1.45;
+}
+
+.toss-order-panel__current {
+  margin: 0.15rem 0 0;
+  font-size: 0.62rem;
+  color: var(--text-dim, #94a3b8);
 }
 
 .toss-order-panel__form {

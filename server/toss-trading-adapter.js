@@ -177,6 +177,13 @@ function tossReadyForUser(userId) {
   return Boolean(creds.apiKey && creds.secret);
 }
 
+function formatTossOrderPriceValue(price, market) {
+  const p = Number(price);
+  if (!Number.isFinite(p) || p <= 0) return null;
+  if (market === "us") return p.toFixed(2);
+  return String(Math.round(p));
+}
+
 function tossOrderSymbol(symbol, market) {
   const raw = String(symbol ?? "").trim().toUpperCase();
   if (market === "kr") {
@@ -355,9 +362,13 @@ export async function placeManualTossOrderForUser(userId, order) {
         if (!Number.isFinite(price) || price <= 0) {
           return { ok: false, error: "지정가를 입력하세요." };
         }
+        const priceValue = formatTossOrderPriceValue(price, market);
+        if (!priceValue) {
+          return { ok: false, error: "지정가를 입력하세요." };
+        }
         body.price = {
           currency: market === "us" ? "USD" : "KRW",
-          value: String(price),
+          value: priceValue,
         };
       }
       body.amount = {
@@ -375,9 +386,13 @@ export async function placeManualTossOrderForUser(userId, order) {
         if (!Number.isFinite(price) || price <= 0) {
           return { ok: false, error: "지정가를 입력하세요." };
         }
+        const priceValue = formatTossOrderPriceValue(price, market);
+        if (!priceValue) {
+          return { ok: false, error: "지정가를 입력하세요." };
+        }
         body.price = {
           currency: market === "us" ? "USD" : "KRW",
-          value: String(price),
+          value: priceValue,
         };
       }
     }
