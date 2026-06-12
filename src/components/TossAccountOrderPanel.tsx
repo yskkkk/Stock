@@ -263,11 +263,7 @@ const TossAccountOrderPanel = forwardRef<
             };
       const res = await placeTossOrder(body);
       if (!mountedRef.current) return;
-      if (res.simulated) {
-        setMsg(res.messageKo ?? ko.app.liveTradeTossOrderSimBanner);
-      } else {
-        setMsg(ko.app.liveTradeTossOrderOk);
-      }
+      setMsg(ko.app.liveTradeTossOrderOk);
       if (res.openOrders) setOpenOrders(res.openOrders);
       setDraft(null);
       onChanged?.();
@@ -325,12 +321,6 @@ const TossAccountOrderPanel = forwardRef<
           {ko.app.liveTradeTossOpenInApp}
         </a>
       </div>
-
-      {simulated ? (
-        <p className="toss-order-panel__sim" role="status">
-          {ko.app.liveTradeTossOrderSimBanner}
-        </p>
-      ) : null}
 
       {draft ? (
         <div className="toss-order-panel__form">

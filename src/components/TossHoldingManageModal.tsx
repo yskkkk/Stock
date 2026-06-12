@@ -138,11 +138,7 @@ export default function TossHoldingManageModal({
         amount: action === "buy" ? Number(targetBuyAmount) : undefined,
         quantity: action !== "buy" ? holding.quantity : undefined,
       });
-      setMsg(
-        res.simulated
-          ? ko.app.liveTradeTossOrderSimBanner
-          : ko.app.liveTradeTossOrderOk,
-      );
+      setMsg(ko.app.liveTradeTossOrderOk);
       onChanged?.();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -281,9 +277,6 @@ export default function TossHoldingManageModal({
 
             <section className="toss-holding-modal__section">
               <h3>{ko.app.liveTradeTossPlanTitle}</h3>
-              {simulated ? (
-                <p className="toss-holding-modal__sim">{ko.app.liveTradeTossOrderSimBanner}</p>
-              ) : null}
               <div className="toss-holding-modal__plan-grid">
                 <label>
                   <span>{ko.app.liveTradeTossTargetBuy}</span>
