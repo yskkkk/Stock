@@ -130,7 +130,7 @@ function roundDisplay(n: number) {
   return Math.round(n * 100) / 100;
 }
 
-type ProjectionHighlight = "eps" | "dividend" | "price" | "all";
+type ProjectionColumn = "eps" | "dividend" | "cumulativeDividend" | "price";
 
 function moneyUnitSuffix(currency?: string, eps = false) {
   if (currency === "KRW") return eps ? ko.valueInvest.unitEpsKr : ko.valueInvest.unitKrw;
@@ -151,47 +151,65 @@ function fmtProjectionValue(
   return mode === "eps" ? `${n} USD/주` : formatPrice(n, currency ?? "USD");
 }
 
+function projectionColumnLabel(column: ProjectionColumn) {
+  switch (column) {
+    case "eps":
+      return ko.valueInvest.projectionEps;
+    case "dividend":
+      return ko.valueInvest.projectionDividend;
+    case "cumulativeDividend":
+      return ko.valueInvest.projectionCumDiv;
+    case "price":
+      return ko.valueInvest.projectionImpliedPrice;
+  }
+}
+
+function projectionColumnValue(
+  row: ValueInvestYearlyProjectionRow,
+  column: ProjectionColumn,
+  currency?: string,
+) {
+  switch (column) {
+    case "eps":
+      return fmtProjectionValue(row.eps, currency, "eps");
+    case "dividend":
+      return fmtProjectionValue(row.dividend, currency);
+    case "cumulativeDividend":
+      return fmtProjectionValue(row.cumulativeDividend, currency);
+    case "price":
+      return fmtProjectionValue(row.impliedPrice, currency);
+  }
+}
+
 function YearlyProjectionTable({
   rows,
   currency,
-  highlight = "all",
+  column,
 }: {
   rows: ValueInvestYearlyProjectionRow[];
   currency?: string;
-  highlight?: ProjectionHighlight;
+  column: ProjectionColumn;
 }) {
   if (!rows.length) {
     return <p className="value-invest-bubble__proj-empty">—</p>;
   }
-  const col = (key: ProjectionHighlight) =>
-    highlight === "all" || highlight === key
-      ? "value-invest-bubble__proj-col--highlight"
-      : undefined;
+
+  const valueLabel = projectionColumnLabel(column);
 
   return (
-    <table className="value-invest-bubble__proj-table">
+    <table className="value-invest-bubble__proj-table value-invest-bubble__proj-table--single">
       <thead>
         <tr>
           <th>{ko.valueInvest.projectionYear}</th>
-          <th className={col("eps")}>{ko.valueInvest.projectionEps}</th>
-          <th className={col("dividend")}>{ko.valueInvest.projectionDividend}</th>
-          <th className={col("dividend")}>{ko.valueInvest.projectionCumDiv}</th>
-          <th className={col("price")}>{ko.valueInvest.projectionImpliedPrice}</th>
+          <th>{valueLabel}</th>
         </tr>
       </thead>
       <tbody>
         {rows.map((row) => (
           <tr key={row.year}>
             <td>{row.year}</td>
-            <td className={col("eps")}>{fmtProjectionValue(row.eps, currency, "eps")}</td>
-            <td className={col("dividend")}>
-              {fmtProjectionValue(row.dividend, currency)}
-            </td>
-            <td className={col("dividend")}>
-              {fmtProjectionValue(row.cumulativeDividend, currency)}
-            </td>
-            <td className={col("price")}>
-              {fmtProjectionValue(row.impliedPrice, currency)}
+            <td className="value-invest-bubble__proj-col--highlight">
+              {projectionColumnValue(row, column, currency)}
             </td>
           </tr>
         ))}
@@ -207,7 +225,7 @@ function InputField({
   step = "any",
   suffix,
   source,
-  hoverHighlight,
+  projectionColumn,
   projectionRows,
   currency,
 }: {
@@ -217,18 +235,23 @@ function InputField({
   step?: string;
   suffix?: string;
   source?: string;
-  hoverHighlight?: ProjectionHighlight;
+  projectionColumn?: ProjectionColumn;
   projectionRows?: ValueInvestYearlyProjectionRow[];
   currency?: string;
 }) {
   const [hover, setHover] = useState(false);
-  const showTable = hover && projectionRows && projectionRows.length > 0;
+  const showTable =
+    hover && projectionColumn && projectionRows && projectionRows.length > 0;
 
   return (
     <label className="value-invest-bubble__field">
       <span
-        className="value-invest-bubble__field-label value-invest-bubble__field-label--hint"
-        title={ko.valueInvest.labelHoverHint}
+        className={
+          projectionColumn
+            ? "value-invest-bubble__field-label value-invest-bubble__field-label--hint"
+            : "value-invest-bubble__field-label"
+        }
+        title={projectionColumn ? ko.valueInvest.labelHoverHint : undefined}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
         onFocus={() => setHover(true)}
@@ -244,13 +267,17 @@ function InputField({
             onMouseLeave={() => setHover(false)}
           >
             <span className="value-invest-bubble__hover-pop-title">
-              {ko.valueInvest.projectionTitle}
+              {projectionColumn
+                ? `${projectionColumnLabel(projectionColumn)} · ${ko.valueInvest.projectionTitle}`
+                : ko.valueInvest.projectionTitle}
             </span>
-            <YearlyProjectionTable
-              rows={projectionRows}
-              currency={currency}
-              highlight={hoverHighlight ?? "all"}
-            />
+            {projectionColumn ? (
+              <YearlyProjectionTable
+                rows={projectionRows}
+                currency={currency}
+                column={projectionColumn}
+              />
+            ) : null}
           </span>
         ) : null}
       </span>
@@ -484,8 +511,6 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
                     label={ko.valueInvest.currentPrice}
                     value={String(inputs.currentPrice)}
                     suffix={priceSuffix}
-                    hoverHighlight="all"
-                    projectionRows={projectionRows}
                     currency={currency}
                     onChange={(v) =>
                       setInputs((cur) =>
@@ -498,7 +523,7 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
                     label={ko.valueInvest.currentEps}
                     value={String(inputs.currentEps)}
                     suffix={epsSuffix}
-                    hoverHighlight="eps"
+                    projectionColumn="eps"
                     projectionRows={projectionRows}
                     currency={currency}
                     onChange={(v) =>
@@ -511,7 +536,7 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
                     value={pctInput(inputs.growthRate)}
                     suffix="%"
                     step="0.1"
-                    hoverHighlight="eps"
+                    projectionColumn="eps"
                     projectionRows={projectionRows}
                     currency={currency}
                     onChange={(v) =>
@@ -526,7 +551,7 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
                     value={String(inputs.averagePer)}
                     step="0.1"
                     suffix={ko.valueInvest.unitPer}
-                    hoverHighlight="price"
+                    projectionColumn="price"
                     projectionRows={projectionRows}
                     currency={currency}
                     onChange={(v) =>
@@ -541,7 +566,7 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
                     value={pctInput(inputs.payoutRatio)}
                     suffix="%"
                     step="0.1"
-                    hoverHighlight="dividend"
+                    projectionColumn="dividend"
                     projectionRows={projectionRows}
                     currency={currency}
                     onChange={(v) =>
@@ -556,9 +581,6 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
                     value={pctInput(inputs.targetReturnRate)}
                     suffix="%"
                     step="0.1"
-                    hoverHighlight="all"
-                    projectionRows={projectionRows}
-                    currency={currency}
                     onChange={(v) =>
                       setInputs((cur) =>
                         cur ? { ...cur, targetReturnRate: parsePctInput(v) } : cur,
@@ -570,9 +592,6 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
                     value={String(inputs.years)}
                     step="1"
                     suffix={ko.valueInvest.yearsUnit}
-                    hoverHighlight="all"
-                    projectionRows={projectionRows}
-                    currency={currency}
                     onChange={(v) =>
                       setInputs((cur) =>
                         cur
