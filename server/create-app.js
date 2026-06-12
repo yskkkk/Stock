@@ -2721,9 +2721,11 @@ export function createApp() {
       }
       const targetRaw = req.query.targetReturn;
       const yearsRaw = req.query.years;
+      const priceRaw = req.query.price;
       const targetReturnRate =
         targetRaw != null && targetRaw !== "" ? Number(targetRaw) : undefined;
       const years = yearsRaw != null && yearsRaw !== "" ? Number(yearsRaw) : undefined;
+      const price = priceRaw != null && priceRaw !== "" ? Number(priceRaw) : undefined;
       if (
         targetReturnRate != null &&
         (!Number.isFinite(targetReturnRate) || targetReturnRate < 0 || targetReturnRate > 1)
@@ -2732,13 +2734,18 @@ export function createApp() {
         return;
       }
       if (years != null && (!Number.isFinite(years) || years < 1 || years > 30)) {
-        res.status(400).json({ error: "years는 1~30 사이여야 합니다." });
+        res.status(400).json({ error: "years는 1~30 사이어야 합니다." });
+        return;
+      }
+      if (price != null && (!Number.isFinite(price) || price <= 0)) {
+        res.status(400).json({ error: "price는 양수여야 합니다." });
         return;
       }
       try {
         const data = await loadValueInvestReturn(req.params.symbol, {
           targetReturnRate,
           years,
+          price,
         });
         res.json(data);
       } catch (err) {

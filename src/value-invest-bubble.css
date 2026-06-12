@@ -1,8 +1,8 @@
 .value-invest-bubble {
   position: fixed;
   z-index: 10060;
-  width: min(300px, calc(100vw - 16px));
-  max-height: min(78dvh, 520px);
+  width: min(340px, calc(100vw - 16px));
+  max-height: min(82dvh, 580px);
   overflow: auto;
   padding: 0.65rem 0.7rem 0.7rem;
   border-radius: 0.65rem;
@@ -169,4 +169,56 @@
   padding-left: 1rem;
   font-size: 0.66rem;
   color: var(--warn, #c9a227);
+}
+
+.value-invest-bubble__warnings {
+  margin: 0 0 0.4rem;
+  padding-left: 1rem;
+  font-size: 0.64rem;
+  color: var(--warn, #c9a227);
+  list-style: disc;
+}
+
+.value-invest-bubble__warnings-title {
+  list-style: none;
+  margin-left: -1rem;
+  font-weight: 600;
+}
+
+.value-invest-bubble__formulas {
+  margin-top: 0.45rem;
+  padding-top: 0.4rem;
+  border-top: 1px dashed var(--card-border);
+}
+
+.value-invest-bubble__formulas-title {
+  margin: 0 0 0.25rem;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.value-invest-bubble__formulas ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.28rem;
+}
+
+.value-invest-bubble__formulas li {
+  display: grid;
+  gap: 0.06rem;
+}
+
+.value-invest-bubble__formula-label {
+  font-size: 0.62rem;
+  color: var(--muted);
+}
+
+.value-invest-bubble__formula-expr {
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+  word-break: break-all;
+  color: var(--text);
 }

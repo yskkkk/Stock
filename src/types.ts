@@ -354,6 +354,7 @@ export interface ValueInvestReturnResponse {
   inputSources: Record<string, string>;
   payoutSource: string | null;
   growthSource: string | null;
+  warnings: string[];
   result: ValueInvestReturnResult | null;
   missing: string[];
   computable: boolean;

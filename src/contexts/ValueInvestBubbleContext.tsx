@@ -15,6 +15,7 @@ import { fetchValueInvestReturn } from "../api";
 import { ko } from "../i18n/ko";
 import { formatPercent, formatPrice } from "../lib/format";
 import {
+  buildValueInvestFormulaLines,
   calcValueInvestReturn,
   type ValueInvestReturnInput,
 } from "../lib/valueInvestReturnModel";
@@ -22,8 +23,8 @@ import type { ValueInvestReturnInputs, ValueInvestReturnResponse } from "../type
 
 const VIEWPORT_PAD = 8;
 const GAP = 10;
-const EST_W = 300;
-const EST_H = 380;
+const EST_W = 340;
+const EST_H = 460;
 
 export type ValueInvestBubbleTarget = {
   symbol: string;
@@ -214,10 +215,26 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
       const seq = ++fetchSeq.current;
       void (async () => {
         try {
-          const data = await fetchValueInvestReturn(target.symbol);
+          const livePrice =
+            target.price != null && Number.isFinite(target.price) && target.price > 0
+              ? target.price
+              : undefined;
+          const data = await fetchValueInvestReturn(target.symbol, { price: livePrice });
           if (seq !== fetchSeq.current) return;
-          setPayload(data);
-          setInputs({ ...data.inputs });
+          const mergedInputs = { ...data.inputs };
+          if (livePrice != null) {
+            mergedInputs.currentPrice = livePrice;
+          }
+          setPayload({
+            ...data,
+            inputSources: {
+              ...data.inputSources,
+              ...(livePrice != null
+                ? { currentPrice: ko.valueInvest.livePriceSource }
+                : {}),
+            },
+          });
+          setInputs(mergedInputs);
         } catch (err: unknown) {
           if (seq !== fetchSeq.current) return;
           setError(err instanceof Error ? err.message : String(err));
@@ -265,9 +282,9 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
     };
   }, [open, closeValueInvestBubble]);
 
-  const result = useMemo(() => {
+  const calcInput = useMemo((): ValueInvestReturnInput | null => {
     if (!inputs) return null;
-    const calcInput: ValueInvestReturnInput = {
+    return {
       currentPrice: inputs.currentPrice,
       currentEps: inputs.currentEps,
       growthRate: inputs.growthRate,
@@ -276,8 +293,25 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
       targetReturnRate: inputs.targetReturnRate,
       years: inputs.years,
     };
-    return calcValueInvestReturn(calcInput);
   }, [inputs]);
+
+  const result = useMemo(() => {
+    if (!calcInput) return null;
+    return calcValueInvestReturn(calcInput);
+  }, [calcInput]);
+
+  const formulaLines = useMemo(() => {
+    if (!calcInput || !result) return [];
+    return buildValueInvestFormulaLines(calcInput, result, {
+      epsAtEnd: ko.valueInvest.formulaEpsAtEnd,
+      totalEps: ko.valueInvest.formulaTotalEps,
+      futurePrice: ko.valueInvest.formulaFuturePrice,
+      dividends: ko.valueInvest.formulaDividends,
+      totalReturn: ko.valueInvest.formulaTotalReturn,
+      cagr: ko.valueInvest.formulaCagr,
+      fairPrice: ko.valueInvest.formulaFairPrice,
+    });
+  }, [calcInput, result]);
 
   const currency = payload?.currency ?? open?.currency ?? undefined;
 
@@ -411,6 +445,17 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
                   </ul>
                 ) : null}
 
+                {payload?.warnings?.length ? (
+                  <ul className="value-invest-bubble__warnings">
+                    <li className="value-invest-bubble__warnings-title">
+                      {ko.valueInvest.warningsTitle}
+                    </li>
+                    {payload.warnings.map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                ) : null}
+
                 {result ? (
                   <section className="value-invest-bubble__results" aria-label={ko.valueInvest.resultsTitle}>
                     <div className="value-invest-bubble__result-grid">
@@ -453,6 +498,28 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
                         <dd>{fmtMoney(result.epsAtEnd, currency)}</dd>
                       </div>
                     </dl>
+                    {formulaLines.length ? (
+                      <section
+                        className="value-invest-bubble__formulas"
+                        aria-label={ko.valueInvest.formulasTitle}
+                      >
+                        <p className="value-invest-bubble__formulas-title">
+                          {ko.valueInvest.formulasTitle}
+                        </p>
+                        <ul>
+                          {formulaLines.map((line) => (
+                            <li key={line.label}>
+                              <span className="value-invest-bubble__formula-label">
+                                {line.label}
+                              </span>
+                              <span className="value-invest-bubble__formula-expr">
+                                {line.formula}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </section>
+                    ) : null}
                   </section>
                 ) : (
                   <p className="value-invest-bubble__muted">{ko.valueInvest.unavailable}</p>

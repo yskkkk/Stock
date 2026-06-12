@@ -96,3 +96,54 @@ export function calcValueInvestReturn(
     fairBuyPrice,
   };
 }
+
+export type ValueInvestFormulaLine = { label: string; formula: string };
+
+export function buildValueInvestFormulaLines(
+  input: ValueInvestReturnInput,
+  result: ValueInvestReturnResult,
+  labels: {
+    epsAtEnd: string;
+    totalEps: string;
+    futurePrice: string;
+    dividends: string;
+    totalReturn: string;
+    cagr: string;
+    fairPrice: string;
+  },
+): ValueInvestFormulaLine[] {
+  const n = result.years;
+  const gPct = round2(input.growthRate * 100);
+  const tgtPct = round2(input.targetReturnRate * 100);
+
+  return [
+    {
+      label: labels.epsAtEnd,
+      formula: `${input.currentEps} × (1 + ${gPct}%)^${n} ≈ ${result.epsAtEnd ?? "—"}`,
+    },
+    {
+      label: labels.totalEps,
+      formula: `Σ ${n}년 EPS ≈ ${result.totalEps ?? "—"}`,
+    },
+    {
+      label: labels.futurePrice,
+      formula: `${result.epsAtEnd ?? "—"} × ${input.averagePer} ≈ ${result.futurePrice ?? "—"}`,
+    },
+    {
+      label: labels.dividends,
+      formula: `${result.totalEps ?? "—"} × ${round2(input.payoutRatio * 100)}% ≈ ${result.totalDividends ?? "—"}`,
+    },
+    {
+      label: labels.totalReturn,
+      formula: `${result.futurePrice ?? "—"} + ${result.totalDividends ?? "—"} ≈ ${result.totalReturn ?? "—"}`,
+    },
+    {
+      label: labels.cagr,
+      formula: `(${result.totalReturn ?? "—"} ÷ ${input.currentPrice})^(1/${n}) − 1 ≈ ${result.cagrPct ?? "—"}%`,
+    },
+    {
+      label: labels.fairPrice,
+      formula: `${result.totalReturn ?? "—"} ÷ (1 + ${tgtPct}%)^${n} ≈ ${result.fairBuyPrice ?? "—"}`,
+    },
+  ];
+}

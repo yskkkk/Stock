@@ -3,12 +3,15 @@
  */
 import { calcValueInvestReturn } from "./value-invest-return-model.js";
 import { loadStockFundamentals } from "./stock-fundamentals.js";
+import { deriveValueInvestGrowth10y } from "./value-invest-growth.js";
+import { loadAnnualEpsHistory } from "./value-invest-eps-history.js";
 
 const DEFAULT_TARGET_RETURN = 0.15;
 const DEFAULT_YEARS = 10;
 
 /**
  * @param {Awaited<ReturnType<typeof loadStockFundamentals>>} f
+ * @param {{ targetReturnRate?: number; years?: number; epsHistory?: { year: number; eps: number }[] }} opts
  */
 export function buildValueInvestInputsFromFundamentals(f, opts = {}) {
   const targetReturnRate = opts.targetReturnRate ?? DEFAULT_TARGET_RETURN;
@@ -29,24 +32,20 @@ export function buildValueInvestInputsFromFundamentals(f, opts = {}) {
     sources.currentEps = f.source;
   }
 
-  let growthRate = null;
-  let growthSource = null;
-  if (
-    f.forwardEps != null &&
-    f.forwardEps > 0 &&
-    currentEps != null &&
-    currentEps > 0
-  ) {
-    growthRate = f.forwardEps / currentEps - 1;
-    growthSource = "Forward EPS ÷ Trailing EPS";
-  } else if (f.revenueGrowth != null && Number.isFinite(f.revenueGrowth)) {
-    growthRate = f.revenueGrowth;
-    growthSource = "Yahoo revenueGrowth";
-  }
+  const growth = deriveValueInvestGrowth10y({
+    eps: currentEps,
+    forwardEps: f.forwardEps,
+    revenueGrowth: f.revenueGrowth,
+    epsHistory: opts.epsHistory ?? [],
+  });
+  const growthRate = growth.value;
+  const growthSource = growth.source;
+  const warnings = [...growth.warnings];
+
   if (growthRate == null) {
     missing.push("예상 이익 성장률");
   } else {
-    sources.growthRate = growthSource;
+    sources.growthRate = growthSource ?? "";
   }
 
   const averagePer = f.per;
@@ -68,6 +67,11 @@ export function buildValueInvestInputsFromFundamentals(f, opts = {}) {
   ) {
     payoutRatio = (f.dividendYield * currentPrice) / currentEps;
     payoutSource = "배당수익률×주가÷EPS";
+    if (payoutRatio > 1) {
+      warnings.push(
+        `배당 성향 추정 ${(payoutRatio * 100).toFixed(0)}% — EPS 대비 배당이 과대 추정되어 100%로 제한`,
+      );
+    }
   }
   if (payoutRatio == null) {
     payoutRatio = 0;
@@ -106,6 +110,7 @@ export function buildValueInvestInputsFromFundamentals(f, opts = {}) {
     inputSources: sources,
     payoutSource,
     growthSource,
+    warnings,
     result,
     missing,
     computable: Boolean(result && missing.length <= 1),
@@ -117,9 +122,24 @@ export function buildValueInvestInputsFromFundamentals(f, opts = {}) {
 
 /**
  * @param {string} symbol
- * @param {{ targetReturnRate?: number; years?: number }} [opts]
+ * @param {{ targetReturnRate?: number; years?: number; price?: number }} [opts]
  */
 export async function loadValueInvestReturn(symbol, opts = {}) {
-  const fundamentals = await loadStockFundamentals(symbol);
-  return buildValueInvestInputsFromFundamentals(fundamentals, opts);
+  const [fundamentals, epsHistory] = await Promise.all([
+    loadStockFundamentals(symbol),
+    loadAnnualEpsHistory(symbol).catch(() => []),
+  ]);
+
+  if (opts.price != null && Number.isFinite(opts.price) && opts.price > 0) {
+    fundamentals.price = opts.price;
+    sourcesPatch(fundamentals);
+  }
+
+  return buildValueInvestInputsFromFundamentals(fundamentals, { ...opts, epsHistory });
+}
+
+/** @param {Awaited<ReturnType<typeof loadStockFundamentals>>} f */
+function sourcesPatch(f) {
+  const base = f.source ? String(f.source) : "";
+  f.source = base.includes("실시간") ? base : base ? `${base} · 실시간 주가` : "실시간 주가";
 }

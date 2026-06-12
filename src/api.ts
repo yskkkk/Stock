@@ -2008,9 +2008,17 @@ export function fetchBuffettIntrinsicValue(symbol: string, signal?: AbortSignal)
   );
 }
 
-export function fetchValueInvestReturn(symbol: string, signal?: AbortSignal) {
+export function fetchValueInvestReturn(
+  symbol: string,
+  opts?: { price?: number; signal?: AbortSignal },
+) {
+  const signal = opts?.signal;
+  const q =
+    opts?.price != null && Number.isFinite(opts.price) && opts.price > 0
+      ? `?price=${encodeURIComponent(String(opts.price))}`
+      : "";
   return fetchJson<ValueInvestReturnResponse>(
-    `/api/stock/${encodeURIComponent(symbol)}/value-invest-return`,
+    `/api/stock/${encodeURIComponent(symbol)}/value-invest-return${q}`,
     signal ? { signal } : undefined,
   );
 }
