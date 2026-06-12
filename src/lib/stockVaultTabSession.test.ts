@@ -36,4 +36,17 @@ describe("stockVaultTabSession", () => {
     expect(ui?.marketFilter).toBe("all");
     expect(ui?.selectedScanDate).toBeNull();
   });
+
+  it("keeps only one ma120 approach filter", () => {
+    saveStockVaultTabUi({
+      ...defaultStockVaultTabUi(),
+      ma120ApproachFilter: ["from_below", "from_above"],
+    });
+    expect(peekStockVaultTabUi()?.ma120ApproachFilter).toBe("from_above");
+    saveStockVaultTabUi({
+      ...defaultStockVaultTabUi(),
+      ma120ApproachFilter: "from_below",
+    });
+    expect(peekStockVaultTabUi()?.ma120ApproachFilter).toBe("from_below");
+  });
 });

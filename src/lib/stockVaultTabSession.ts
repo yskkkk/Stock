@@ -7,7 +7,8 @@ export type Ma120ApproachFilter = "from_below" | "from_above";
 export type StockVaultTabUiState = {
   filter: "all" | "favorite";
   selectedScanSources: StockVaultScanSource[];
-  ma120ApproachFilter: Ma120ApproachFilter[];
+  /** null = 전체, 하단·상단 중 하나만 */
+  ma120ApproachFilter: Ma120ApproachFilter | null;
   timeframeFilter: StockVaultTimeframe;
   marketFilter: "all" | "kr" | "us";
   industryFilter: string;
@@ -35,11 +36,17 @@ function normalizeMarketFilter(
 }
 
 function normalizeMa120ApproachFilter(
-  value: Ma120ApproachFilter[] | undefined,
-): Ma120ApproachFilter[] {
-  if (!value?.length) return [];
-  const allowed = new Set<Ma120ApproachFilter>(["from_below", "from_above"]);
-  return value.filter((v) => allowed.has(v));
+  value: Ma120ApproachFilter | Ma120ApproachFilter[] | null | undefined,
+): Ma120ApproachFilter | null {
+  if (value == null) return null;
+  if (Array.isArray(value)) {
+    const picked = value.filter(
+      (v): v is Ma120ApproachFilter => v === "from_below" || v === "from_above",
+    );
+    return picked.length ? picked[picked.length - 1]! : null;
+  }
+  if (value === "from_below" || value === "from_above") return value;
+  return null;
 }
 
 function normalizeUiState(raw: Partial<StockVaultTabUiState> | null): StockVaultTabUiState {

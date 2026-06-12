@@ -266,8 +266,8 @@ export default function StockVaultTab({
     StockVaultScanSource[]
   >(() => [...uiInit.selectedScanSources]);
   const [ma120ApproachFilter, setMa120ApproachFilter] = useState<
-    Ma120ApproachFilter[]
-  >(() => [...uiInit.ma120ApproachFilter]);
+    Ma120ApproachFilter | null
+  >(() => uiInit.ma120ApproachFilter);
   const [timeframeFilter, setTimeframeFilter] = useState<StockVaultTimeframe>(
     () => uiInit.timeframeFilter,
   );
@@ -629,7 +629,7 @@ export default function StockVaultTab({
         else set.add(source);
         const next = STOCK_VAULT_SCAN_SOURCES.filter((s) => set.has(s));
         if (!next.includes("ma120_near")) {
-          setMa120ApproachFilter([]);
+          setMa120ApproachFilter(null);
         }
         return next;
       });
@@ -644,14 +644,9 @@ export default function StockVaultTab({
     [items, snapshotItems, timeframeFilter, reload],
   );
 
-  const toggleMa120ApproachFilter = useCallback((approach: Ma120ApproachFilter) => {
+  const selectMa120ApproachFilter = useCallback((approach: Ma120ApproachFilter) => {
     setIndustryFilter("all");
-    setMa120ApproachFilter((prev) => {
-      const set = new Set(prev);
-      if (set.has(approach)) set.delete(approach);
-      else set.add(approach);
-      return (["from_below", "from_above"] as const).filter((a) => set.has(a));
-    });
+    setMa120ApproachFilter((prev) => (prev === approach ? null : approach));
   }, []);
 
   useEffect(() => {
@@ -660,7 +655,7 @@ export default function StockVaultTab({
       const next = prev.filter((s) => s !== "ma120_near");
       return next.length ? next : ["golden_cross"];
     });
-    setMa120ApproachFilter([]);
+    setMa120ApproachFilter(null);
   }, [timeframeFilter]);
 
   const ma120ApproachCounts = useMemo(() => {
@@ -741,17 +736,14 @@ export default function StockVaultTab({
       industryFilter === "all"
         ? baseFiltered
         : baseFiltered.filter((row) => getRowIndustry(row) === industryFilter);
-    if (
-      !showMa120ApproachFilters ||
-      ma120ApproachFilter.length === 0
-    ) {
+    if (!showMa120ApproachFilters || ma120ApproachFilter == null) {
       return rows;
     }
     return rows.filter((row) => {
       if (!row.ma120Near) return false;
       const sym = row.symbol.trim().toUpperCase();
       const approach = resolveMa120Approach(row.ma120Near, chartInsights[sym]);
-      return ma120ApproachFilter.includes(approach);
+      return ma120ApproachFilter === approach;
     });
   }, [
     baseFiltered,
@@ -1113,7 +1105,7 @@ export default function StockVaultTab({
                       ["from_above", ko.stockVault.ma120ApproachFromAbove],
                     ] as const
                   ).map(([approach, label]) => {
-                    const active = ma120ApproachFilter.includes(approach);
+                    const active = ma120ApproachFilter === approach;
                     return (
                       <button
                         key={approach}
@@ -1124,7 +1116,7 @@ export default function StockVaultTab({
                             : "market-tab market-tab--toggle stock-vault-tab__ma120-approach-btn"
                         }
                         aria-pressed={active}
-                        onClick={() => toggleMa120ApproachFilter(approach)}
+                        onClick={() => selectMa120ApproachFilter(approach)}
                       >
                         {label}
                         <span className="market-tab__count">
