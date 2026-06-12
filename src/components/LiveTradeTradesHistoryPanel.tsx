@@ -16,6 +16,11 @@ import { tradeFillDisplayByTradeId } from "../lib/liveTradeBuySellPrices";
 import { formatTradeSideLabel } from "../lib/liveTradeSideDisplay";
 import { liveTradeRecordMatchesExchange } from "../lib/liveTradeTradesExchangeFilter";
 import { exchangeAccountPnlSummary } from "../lib/exchangeAccountPnlSummary";
+import {
+  collectKstMonths,
+  collectKstYears,
+  filterTradesByKstPeriod,
+} from "../lib/liveTradeHistoryPeriodFilter";
 import { programTradesPnlSummary } from "../lib/programTradesPnlSummary";
 import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
 import {
@@ -268,6 +273,13 @@ export default function LiveTradeTradesHistoryPanel({
         ? Boolean(status?.bithumb?.ready)
         : true;
   const useSharedTrades = sharedTrades !== undefined;
+  const showPeriodFilter =
+    workspaceMode &&
+    (scenario === "live-toss" ||
+      scenario === "live-bithumb" ||
+      scenario === "sim");
+  const [filterYear, setFilterYear] = useState<number | null>(null);
+  const [filterMonth, setFilterMonth] = useState<number | null>(null);
   const [trades, setTrades] = useState<LiveTradeRecord[]>([]);
   const [nextOlderEndDay, setNextOlderEndDay] = useState<string | null>(null);
   const [hasOlder, setHasOlder] = useState(false);
@@ -368,19 +380,39 @@ export default function LiveTradeTradesHistoryPanel({
     return sourceTrades.filter((t) => liveTradeRecordMatchesExchange(t, exchange));
   }, [sourceTrades, exchange, loadAll, scenario]);
 
+  const availableYears = useMemo(
+    () => collectKstYears(filteredTrades),
+    [filteredTrades],
+  );
+  const availableMonths = useMemo(
+    () => collectKstMonths(filteredTrades, filterYear),
+    [filteredTrades, filterYear],
+  );
+
+  const periodFilteredTrades = useMemo(() => {
+    if (!showPeriodFilter || (filterYear == null && filterMonth == null)) {
+      return filteredTrades;
+    }
+    return filterTradesByKstPeriod(filteredTrades, filterYear, filterMonth);
+  }, [filteredTrades, filterYear, filterMonth, showPeriodFilter]);
+
+  const periodFilterActive = filterYear != null || filterMonth != null;
+
   const { rate: usdKrwRate } = useUsdKrwRate(
     (scenario === "live-toss" || scenario === "live-bithumb") &&
-      (filteredTrades.length > 0 || holdings.length > 0),
+      (periodFilteredTrades.length > 0 || holdings.length > 0),
   );
 
   const pnlSummary = useMemo(() => {
     const pid = String(programId ?? "").trim();
-    if (pid) return programTradesPnlSummary(filteredTrades);
+    if (pid) return programTradesPnlSummary(periodFilteredTrades);
     if (scenario === "live-toss" || scenario === "live-bithumb") {
-      return exchangeAccountPnlSummary(filteredTrades, holdings, { usdKrwRate });
+      return exchangeAccountPnlSummary(periodFilteredTrades, holdings, {
+        usdKrwRate,
+      });
     }
     return null;
-  }, [programId, scenario, filteredTrades, holdings, usdKrwRate]);
+  }, [programId, scenario, periodFilteredTrades, holdings, usdKrwRate]);
 
   const displayReturnPct =
     programReturnPct != null && Number.isFinite(programReturnPct)
@@ -474,6 +506,62 @@ export default function LiveTradeTradesHistoryPanel({
         </p>
       ) : null}
 
+      {showPeriodFilter && filteredTrades.length > 0 ? (
+        <div
+          className="live-trade-history__period-filters"
+          role="group"
+          aria-label={ko.app.liveTradeHistoryFilterAria}
+        >
+          <label className="live-trade-history__period-filter">
+            <span className="live-trade-history__period-filter-label">
+              {ko.app.liveTradeHistoryFilterYear}
+            </span>
+            <select
+              className="live-trade-history__period-select"
+              value={filterYear ?? ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                const nextYear = v ? Number(v) : null;
+                setFilterYear(
+                  nextYear != null && Number.isFinite(nextYear) ? nextYear : null,
+                );
+                setFilterMonth(null);
+              }}
+            >
+              <option value="">{ko.app.liveTradeHistoryFilterAll}</option>
+              {availableYears.map((year) => (
+                <option key={year} value={year}>
+                  {ko.app.liveTradeHistoryFilterYearOption(year)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="live-trade-history__period-filter">
+            <span className="live-trade-history__period-filter-label">
+              {ko.app.liveTradeHistoryFilterMonth}
+            </span>
+            <select
+              className="live-trade-history__period-select"
+              value={filterMonth ?? ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                const nextMonth = v ? Number(v) : null;
+                setFilterMonth(
+                  nextMonth != null && Number.isFinite(nextMonth) ? nextMonth : null,
+                );
+              }}
+            >
+              <option value="">{ko.app.liveTradeHistoryFilterAll}</option>
+              {availableMonths.map((month) => (
+                <option key={month} value={month}>
+                  {ko.app.liveTradeHistoryFilterMonthOption(month)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      ) : null}
+
       {(useSharedTrades ? sharedTradesLoading : loading) && filteredTrades.length === 0 ? (
         <p className="live-trade-history__muted">
           {scenario === "live-bithumb"
@@ -488,9 +576,11 @@ export default function LiveTradeTradesHistoryPanel({
               ? ko.app.liveTradeTradesEmptyExchange
               : ko.app.liveTradePfNoTrades}
         </p>
+      ) : periodFilteredTrades.length === 0 ? (
+        <p className="live-trade-history__muted">{ko.app.liveTradePfNoTrades}</p>
       ) : (
         <div className="live-trade-history__scroll">
-          {pnlSummary && !suppressAccountSummary && filteredTrades.length > 0 ? (
+          {pnlSummary && !suppressAccountSummary && periodFilteredTrades.length > 0 ? (
             <div className="live-trade-history__pnl-summary" role="status">
               <div className="live-trade-history__pnl-row">
                 <span className="live-trade-history__pnl-label">
@@ -527,7 +617,7 @@ export default function LiveTradeTradesHistoryPanel({
             </div>
           ) : null}
           <LiveTradeTradesHistoryTable
-            trades={filteredTrades}
+            trades={periodFilteredTrades}
             loadAll={loadAll}
             hideProgramColumn={Boolean(programId?.trim())}
           />
@@ -543,14 +633,18 @@ export default function LiveTradeTradesHistoryPanel({
               {ko.app.liveTradeAllTradesLoadingMore}
             </p>
           ) : null}
-          {loadAll && trades.length > 0 ? (
+          {loadAll && periodFilteredTrades.length > 0 ? (
             <p className="live-trade-history__foot live-trade-history__foot--end">
-              {ko.app.liveTradeAllTradesDockCount.replace(
-                "{count}",
-                String(trades.length),
-              )}
+              {periodFilterActive
+                ? ko.app.liveTradeHistoryFilterCountFiltered
+                    .replace("{total}", String(filteredTrades.length))
+                    .replace("{count}", String(periodFilteredTrades.length))
+                : ko.app.liveTradeAllTradesDockCount.replace(
+                    "{count}",
+                    String(periodFilteredTrades.length),
+                  )}
             </p>
-          ) : !loadAll && !hasOlder && trades.length > 0 ? (
+          ) : !loadAll && !hasOlder && periodFilteredTrades.length > 0 ? (
             <p className="live-trade-history__foot live-trade-history__foot--end">
               {ko.app.liveTradeAllTradesEnd}
             </p>

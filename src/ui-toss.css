@@ -4505,6 +4505,43 @@ html[data-theme="light"] .live-trading-tab__program-actions .btn:hover:not(:disa
   line-height: 1.45;
 }
 
+.live-trade-history__period-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.75rem;
+  margin: 0 0 0.5rem;
+}
+
+.live-trade-history__period-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.live-trade-history__period-filter-label {
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.live-trade-history__period-select {
+  min-width: 5.5rem;
+  max-width: 100%;
+  padding: 0.28rem 1.6rem 0.28rem 0.5rem;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+}
+
 .live-trade-history__scroll {
   max-height: min(70vh, 42rem);
   overflow-x: auto;
