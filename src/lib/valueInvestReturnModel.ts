@@ -170,7 +170,7 @@ export function buildValueInvestFormulaLines(
     },
     {
       label: labels.futurePrice,
-      formula: `${result.epsAtEnd ?? "—"} × ${input.averagePer} ≈ ${result.futurePrice ?? "—"}`,
+      formula: `${result.epsAtEnd ?? "—"} × ${input.averagePer}배 ≈ ${result.futurePrice ?? "—"}`,
     },
     {
       label: labels.dividends,

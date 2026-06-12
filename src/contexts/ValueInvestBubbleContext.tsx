@@ -130,7 +130,25 @@ function roundDisplay(n: number) {
   return Math.round(n * 100) / 100;
 }
 
-type ProjectionColumn = "eps" | "dividend" | "cumulativeDividend" | "price";
+type ProjectionColumn = "eps" | "dividend" | "cumulativeDividend" | "price" | "per";
+
+function kstCalendarYear(): number {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+  }).formatToParts(new Date());
+  const y = parts.find((p) => p.type === "year")?.value;
+  return y ? Number(y) : new Date().getFullYear();
+}
+
+function formatProjectionCalendarYear(offsetYear: number): string {
+  return `${kstCalendarYear() + offsetYear}년`;
+}
+
+function fmtProjectionPer(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value) || value <= 0) return "—";
+  return `${roundDisplay(value)}${ko.valueInvest.unitPer}`;
+}
 
 function moneyUnitSuffix(currency?: string, eps = false) {
   if (currency === "KRW") return eps ? ko.valueInvest.unitEpsKr : ko.valueInvest.unitKrw;
@@ -161,6 +179,8 @@ function projectionColumnLabel(column: ProjectionColumn) {
       return ko.valueInvest.projectionCumDiv;
     case "price":
       return ko.valueInvest.projectionImpliedPrice;
+    case "per":
+      return ko.valueInvest.projectionPer;
   }
 }
 
@@ -168,6 +188,7 @@ function projectionColumnValue(
   row: ValueInvestYearlyProjectionRow,
   column: ProjectionColumn,
   currency?: string,
+  perMultiple?: number,
 ) {
   switch (column) {
     case "eps":
@@ -178,6 +199,8 @@ function projectionColumnValue(
       return fmtProjectionValue(row.cumulativeDividend, currency);
     case "price":
       return fmtProjectionValue(row.impliedPrice, currency);
+    case "per":
+      return fmtProjectionPer(perMultiple);
   }
 }
 
@@ -185,10 +208,12 @@ function YearlyProjectionTable({
   rows,
   currency,
   column,
+  perMultiple,
 }: {
   rows: ValueInvestYearlyProjectionRow[];
   currency?: string;
   column: ProjectionColumn;
+  perMultiple?: number;
 }) {
   if (!rows.length) {
     return <p className="value-invest-bubble__proj-empty">—</p>;
@@ -207,9 +232,9 @@ function YearlyProjectionTable({
       <tbody>
         {rows.map((row) => (
           <tr key={row.year}>
-            <td>{row.year}</td>
+            <td>{formatProjectionCalendarYear(row.year)}</td>
             <td className="value-invest-bubble__proj-col--highlight">
-              {projectionColumnValue(row, column, currency)}
+              {projectionColumnValue(row, column, currency, perMultiple)}
             </td>
           </tr>
         ))}
@@ -227,6 +252,7 @@ function InputField({
   source,
   projectionColumn,
   projectionRows,
+  projectionPer,
   currency,
 }: {
   label: string;
@@ -237,6 +263,7 @@ function InputField({
   source?: string;
   projectionColumn?: ProjectionColumn;
   projectionRows?: ValueInvestYearlyProjectionRow[];
+  projectionPer?: number;
   currency?: string;
 }) {
   const [hover, setHover] = useState(false);
@@ -276,6 +303,7 @@ function InputField({
                 rows={projectionRows}
                 currency={currency}
                 column={projectionColumn}
+                perMultiple={projectionPer}
               />
             ) : null}
           </span>
@@ -551,8 +579,9 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
                     value={String(inputs.averagePer)}
                     step="0.1"
                     suffix={ko.valueInvest.unitPer}
-                    projectionColumn="price"
+                    projectionColumn="per"
                     projectionRows={projectionRows}
+                    projectionPer={inputs.averagePer}
                     currency={currency}
                     onChange={(v) =>
                       setInputs((cur) =>
