@@ -87,8 +87,8 @@ function EarningsIconButton({
             imgClassName="earnings-icon-rail__img"
             wrapClassName="earnings-icon-rail__logo-wrap"
             transparentWrap
-            width={28}
-            height={28}
+            width={32}
+            height={32}
             onError={() => setImgFailed(true)}
           />
         ) : (

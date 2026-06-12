@@ -6688,14 +6688,14 @@ html[data-theme="light"] .feedback-inbox-item {
 }
 
 .earnings-icon-rail--edge .earnings-icon-rail__img {
-  width: 1.28rem;
-  height: 1.28rem;
+  width: 1.48rem;
+  height: 1.48rem;
   border-radius: 0;
 }
 
 .earnings-icon-rail--edge .earnings-icon-rail__logo-wrap {
-  width: 1.28rem;
-  height: 1.28rem;
+  width: 1.48rem;
+  height: 1.48rem;
 }
 
 .earnings-icon-rail__logo-wrap {
@@ -6736,9 +6736,9 @@ html[data-theme="light"] .earnings-icon-rail__logo-wrap.stock-logo-plate--dark {
 }
 
 .earnings-icon-rail--edge .earnings-icon-rail__fallback {
-  width: 1.2rem;
-  height: 1.2rem;
-  font-size: 0.72rem;
+  width: 1.48rem;
+  height: 1.48rem;
+  font-size: 0.78rem;
   background: transparent;
 }
 
