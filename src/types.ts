@@ -270,6 +270,58 @@ export interface StockFundamentalsResponse {
   updatedAt: number;
 }
 
+export type BuffettIntrinsicVerdict =
+  | "below_margin"
+  | "below_intrinsic"
+  | "near_fair"
+  | "rich";
+
+export interface BuffettIntrinsicValueResponse {
+  symbol: string;
+  name: string;
+  currency: string;
+  market: "kr" | "us";
+  updatedAtMs: number;
+  inputs: {
+    eps0: number | null;
+    epsSource: string;
+    forwardEps: number | null;
+    price: number | null;
+    discountRate: number | null;
+    discountRatePct: number | null;
+    discountRateSource: string | null;
+    discountRateAsOfMs: number | null;
+    growth10y: number | null;
+    growth10ySource: string | null;
+    growthTerminal: number | null;
+    growthTerminalSource: string | null;
+    years: number;
+    debtPerShare: number | null;
+    debtPerShareSource: string | null;
+    sharesOutstanding: number | null;
+    marginOfSafety: number;
+  };
+  historicalEps: { year: number; eps: number; label: string }[];
+  outputs: {
+    simpleFairPrice: number | null;
+    explicitPv: number | null;
+    terminalPv: number | null;
+    intrinsicPerShare: number | null;
+    marginOfSafetyPrice: number | null;
+    impliedYield: number | null;
+    hurdleSpread: number | null;
+    verdict: BuffettIntrinsicVerdict | null;
+    yearly: { year: number; eps: number; pv: number }[] | null;
+  };
+  quality: {
+    epsVolatility: number | null;
+    warnings: string[];
+    missing: string[];
+    computable: boolean;
+  };
+  disclaimer: string;
+}
+
 export interface FinancialPeriodRow {
   id: string;
   label: string;

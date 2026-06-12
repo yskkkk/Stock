@@ -5,6 +5,7 @@ import type {
   ChartTimeframe,
   CryptoQuotesResponse,
   CryptoUniverseResponse,
+  BuffettIntrinsicValueResponse,
   StockFundamentalsResponse,
   FinancialPeriodsResponse,
   FinancialStatementDetailResponse,
@@ -1995,6 +1996,13 @@ export function fetchTossSellableQuantity(symbol: string, market: "kr" | "us" | 
 export function fetchStockFundamentals(symbol: string, signal?: AbortSignal) {
   return fetchJson<StockFundamentalsResponse>(
     `/api/stock/${encodeURIComponent(symbol)}/fundamentals`,
+    signal ? { signal } : undefined,
+  );
+}
+
+export function fetchBuffettIntrinsicValue(symbol: string, signal?: AbortSignal) {
+  return fetchJson<BuffettIntrinsicValueResponse>(
+    `/api/stock/${encodeURIComponent(symbol)}/intrinsic-value`,
     signal ? { signal } : undefined,
   );
 }

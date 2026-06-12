@@ -30,6 +30,7 @@ import type {
   StockPick,
   StockSearchQuoteRow,
 } from "../types";
+import BuffettIntrinsicPanel from "./BuffettIntrinsicPanel";
 import StockSearchHotRow, { rowToStockPick } from "./StockSearchHotRow";
 
 const HANGUL_RE = /[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7A3]/;
@@ -687,6 +688,10 @@ export default function FinancialsTab({
                   </div>
                 )}
               </section>
+
+              {selected?.symbol ? (
+                <BuffettIntrinsicPanel symbol={selected.symbol} />
+              ) : null}
 
               {(activePeriodId || periodMetrics) ? (
                 <section

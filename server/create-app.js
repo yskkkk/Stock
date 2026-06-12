@@ -34,6 +34,7 @@ import { loadNews } from "./news.js";
 import { loadCryptoQuotes } from "./crypto-quotes.js";
 import { loadCryptoWatchlistTen } from "./crypto-universe.js";
 import { fetchScanCandles, loadStock } from "./stock-data.js";
+import { loadBuffettIntrinsicValue } from "./buffett-intrinsic-input.js";
 import { loadStockFundamentals } from "./stock-fundamentals.js";
 import {
   loadFinancialPeriods,
@@ -2706,6 +2707,39 @@ export function createApp() {
           return;
         }
         res.status(404).json({ error: message });
+      }
+    }),
+  );
+
+  app.get(
+    "/api/stock/:symbol/intrinsic-value",
+    asyncRoute(async (req, res) => {
+      if (!/^[A-Z0-9.\-^]{1,20}$/i.test(req.params.symbol)) {
+        res.status(400).json({ error: "올바르지 않은 심볼 형식입니다." });
+        return;
+      }
+      const marginRaw = req.query.margin;
+      const margin =
+        marginRaw != null && marginRaw !== ""
+          ? Number(marginRaw)
+          : undefined;
+      if (margin != null && (!Number.isFinite(margin) || margin < 0 || margin > 0.5)) {
+        res.status(400).json({ error: "margin은 0~0.5 사이여야 합니다." });
+        return;
+      }
+      try {
+        const data = await loadBuffettIntrinsicValue(req.params.symbol, {
+          marginOfSafety: margin,
+        });
+        res.json(data);
+      } catch (err) {
+        const code = err && typeof err === "object" && "code" in err ? err.code : "";
+        const message = err instanceof Error ? err.message : "요청 실패";
+        if (code === "BAD_SYMBOL" || code === "UNSUPPORTED") {
+          res.status(400).json({ error: message });
+          return;
+        }
+        res.status(code === "NOT_FOUND" ? 404 : 502).json({ error: message });
       }
     }),
   );
