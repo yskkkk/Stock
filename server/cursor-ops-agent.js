@@ -28,6 +28,7 @@ import {
   unregisterOpsStreamUserCancel,
 } from "./ops-stream-cancel.js";
 import { checkOpsInstructionPolicy } from "./ops-agent-instruction-policy.js";
+import { formatOpsToolEventLine } from "./ops-tool-log-ko.js";
 
 /** @param {Record<string, unknown>} ev */
 function toolCallDetailFromEvent(ev) {
@@ -63,8 +64,8 @@ function applyOpsSsePayloadToCapture(obj, capture) {
       typeof obj.detail === "string" && obj.detail.trim()
         ? obj.detail.trim().slice(0, 6000)
         : "";
-    capture.toolLine = `${name} (${st})`;
-    const line = extra ? `${name} (${st}) — ${extra}` : `${name} (${st})`;
+    const line = formatOpsToolEventLine(name, st, extra);
+    capture.toolLine = line;
     if (!capture.toolLog) capture.toolLog = "";
     capture.toolLog = capture.toolLog ? `${capture.toolLog}\n${line}` : line;
   } else if (t === "done") {

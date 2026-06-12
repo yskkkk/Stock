@@ -1,0 +1,24 @@
+# 로그·진행 표시 — 한글 설명 필수
+
+운영 탭·서버 콘솔·사용자에게 보이는 **진행 로그**는 영문 식별자만 두지 않는다.
+
+## 운영 에이전트 도구 로그
+
+- 저장·표시: `server/ops-tool-log-ko.js` `formatOpsToolEventLine` 사용
+- UI 보강(구 이력): `src/lib/opsToolLogKo.ts`
+- 형식 예: `[파일 읽기] 완료 — 파일: src/App.tsx`
+
+## 서버 이벤트·접근 로그
+
+- `appendServerEventLog(category, message)` — `message`는 **한글로 무슨 일인지** 한 줄
+- HTTP 요약: `access-log.js` `humanAction` 패턴 따르기
+
+## 콘솔·스크립트
+
+- `console.log("[태그]", "한글 설명", …)` — 태그만으로 끝내지 않음
+- 영문 경로·API 이름 뒤에 괄호로 용도 병기 가능
+
+## 금지
+
+- `Read (completed) — {"path":...}` 처럼 도구명·JSON만 노출
+- 의미 없는 약어·내부 id만 단독 출력

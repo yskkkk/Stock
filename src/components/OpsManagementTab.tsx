@@ -17,6 +17,10 @@ import { useOpsDevQueueDisplay } from "../hooks/useOpsDevQueueDisplay";
 import { MOBILE_BACK_PRIORITY } from "../lib/mobileBackStack";
 import { parseOpsDevQueueAgentEntries } from "../lib/opsGlobalQueueRows";
 import { ko } from "../i18n/ko";
+import {
+  formatOpsToolLineDisplay,
+  formatOpsToolLogBlock,
+} from "../lib/opsToolLogKo";
 
 const HISTORY_POLL_MS = 2000;
 
@@ -95,6 +99,8 @@ function OpsManagementLiveStreamContent({
 }) {
   const head = streamHeadlineFromInstruction(streamHeadlineInstruction, 72);
   const titleText = head ? `${head} · ${ko.app.opsStreamTitle}` : ko.app.opsStreamTitle;
+  const toolLineDisplay = toolLine ? formatOpsToolLineDisplay(toolLine) : "";
+  const toolLogDisplay = toolLog?.trim() ? formatOpsToolLogBlock(toolLog) : "";
 
   return (
     <>
@@ -113,21 +119,21 @@ function OpsManagementLiveStreamContent({
           </span>
         </p>
       ) : null}
-      {toolLine ? (
+      {toolLineDisplay ? (
         <p className="ops-management__stream-row">
           <span className="ops-management__stream-k">{ko.app.opsStreamTool}</span>
           <span className="ops-management__stream-v ops-management__stream-v--mono">
-            {toolLine}
+            {toolLineDisplay}
           </span>
         </p>
       ) : null}
-      {toolLog?.trim() ? (
+      {toolLogDisplay ? (
         <>
           <p className="ops-management__stream-title ops-management__stream-title--sub">
             {ko.app.opsHistoryToolLogTitle}
           </p>
           <pre className="ops-management__stream-pre ops-management__stream-pre--toollog">
-            {toolLog.trim()}
+            {toolLogDisplay}
           </pre>
         </>
       ) : null}
@@ -1077,7 +1083,7 @@ export default function OpsManagementTab({
                           <p className="ops-management__stream-row">
                             <span className="ops-management__stream-k">{ko.app.opsStreamTool}</span>
                             <span className="ops-management__stream-v ops-management__stream-v--mono">
-                              {run.toolLine}
+                              {formatOpsToolLineDisplay(run.toolLine)}
                             </span>
                           </p>
                         ) : null}
@@ -1098,7 +1104,7 @@ export default function OpsManagementTab({
                               {ko.app.opsHistoryToolLogTitle}
                             </p>
                             <pre className="ops-management__stream-pre ops-management__stream-pre--toollog">
-                              {run.toolLog.trim()}
+                              {formatOpsToolLogBlock(run.toolLog)}
                             </pre>
                           </>
                         ) : null}
