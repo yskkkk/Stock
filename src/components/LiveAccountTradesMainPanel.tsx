@@ -21,6 +21,10 @@ import {
 } from "../hooks/useTossAccountSnapshot";
 import { useTossSnapshotLiveQuotes } from "../hooks/useTossSnapshotLiveQuotes";
 import { mapTossHoldingsToLiveTrade } from "../lib/tossHoldingsAsLiveTrade";
+import { useLiveExchangeTrades } from "../hooks/useLiveExchangeTrades";
+import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
+import { exchangeAccountPnlSummary } from "../lib/exchangeAccountPnlSummary";
+import LiveAccountPnlSummaryBar from "./LiveAccountPnlSummaryBar";
 
 export default function LiveAccountTradesMainPanel({
   scenario,
@@ -121,11 +125,35 @@ export default function LiveAccountTradesMainPanel({
     );
   }, [scenario, liveTossSnapshot, portfolio, exchange]);
 
+  const showBalance = scenario !== "sim" && exchange != null;
+
+  const {
+    trades: exchangeTrades,
+    loading: exchangeTradesLoading,
+    err: exchangeTradesErr,
+  } = useLiveExchangeTrades(scenario, showBalance && apiReady);
+  const { rate: usdKrwRate } = useUsdKrwRate(
+    showBalance && scenario === "live-toss" && liveHoldings.length > 0,
+  );
+  const accountPnl = useMemo(() => {
+    if (!showBalance || scenario === "sim") return null;
+    if (exchangeTrades.length === 0 && liveHoldings.length === 0) return null;
+    return exchangeAccountPnlSummary(exchangeTrades, liveHoldings, {
+      usdKrwRate,
+    });
+  }, [showBalance, scenario, exchangeTrades, liveHoldings, usdKrwRate]);
+  const cumulativeReturnBySymbol = useMemo(() => {
+    if (!accountPnl) return undefined;
+    const m = new Map<string, number | null>();
+    for (const [key, row] of accountPnl.bySymbol) {
+      m.set(key, row.totalReturnPct);
+    }
+    return m;
+  }, [accountPnl]);
+
   const holdingsLoading =
     scenario === "live-toss" ? tossSnapshotLoading && !tossSnapshot : pfLoading && !portfolio;
   const holdingsErr = scenario === "live-toss" ? tossSnapshotErr : pfErr;
-
-  const showBalance = scenario !== "sim" && exchange != null;
 
   return (
     <div className="trade-history-main-workspace card">
@@ -153,11 +181,20 @@ export default function LiveAccountTradesMainPanel({
               {holdingsErr}
             </p>
           ) : (
-            <LiveAccountHoldingsTable
-              exchange={exchange}
-              holdings={liveHoldings}
-              onOpenHoldingChart={onOpenHoldingChart}
-            />
+            <>
+              {accountPnl ? <LiveAccountPnlSummaryBar summary={accountPnl} /> : null}
+              {exchangeTradesErr ? (
+                <p className="live-trade-history__err" role="alert">
+                  {exchangeTradesErr}
+                </p>
+              ) : null}
+              <LiveAccountHoldingsTable
+                exchange={exchange}
+                holdings={liveHoldings}
+                cumulativeReturnBySymbol={cumulativeReturnBySymbol}
+                onOpenHoldingChart={onOpenHoldingChart}
+              />
+            </>
           )
         ) : null}
 
@@ -174,7 +211,15 @@ export default function LiveAccountTradesMainPanel({
         {scenario === "sim" ? (
           <LiveTradeHistorySimSection workspaceMode loadAll />
         ) : showBalance && !apiReady ? null : (
-          <LiveTradeTradesHistoryPanel scenario={scenario} loadAll workspaceMode />
+          <LiveTradeTradesHistoryPanel
+            scenario={scenario}
+            loadAll
+            workspaceMode
+            holdings={liveHoldings}
+            sharedTrades={exchangeTrades}
+            sharedTradesLoading={exchangeTradesLoading}
+            suppressAccountSummary
+          />
         )}
       </div>
     </div>

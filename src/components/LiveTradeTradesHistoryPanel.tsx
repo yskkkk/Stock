@@ -3,6 +3,7 @@ import {
   fetchAccessAdminLiveTradingTradeHistory,
   fetchLiveTradingTradeHistory,
   getStoredAccessAdminToken,
+  type LiveTradeHolding,
   type LiveTradeRecord,
 } from "../api";
 import {
@@ -14,7 +15,9 @@ import {
 import { tradeFillDisplayByTradeId } from "../lib/liveTradeBuySellPrices";
 import { formatTradeSideLabel } from "../lib/liveTradeSideDisplay";
 import { liveTradeRecordMatchesExchange } from "../lib/liveTradeTradesExchangeFilter";
+import { exchangeAccountPnlSummary } from "../lib/exchangeAccountPnlSummary";
 import { programTradesPnlSummary } from "../lib/programTradesPnlSummary";
+import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
 import {
   liveTradeHistoryScenarioSub,
 } from "./LiveTradeHistoryScenarioTabs";
@@ -216,6 +219,10 @@ export default function LiveTradeTradesHistoryPanel({
   exchange = null,
   scenario = null,
   loadAll: loadAllProp,
+  holdings = [],
+  sharedTrades,
+  sharedTradesLoading = false,
+  suppressAccountSummary = false,
 }: {
   adminViewUserId?: string | null;
   /** 도크 «등록 프로그램» 패널 안에 삽입 */
@@ -233,6 +240,13 @@ export default function LiveTradeTradesHistoryPanel({
   scenario?: LiveTradeHistoryScenario | null;
   /** true면 전체 일자·최신순(거래소 필터와 함께 사용) */
   loadAll?: boolean;
+  /** 계좌 잔고(실매매 누적 수익률·평가 반영) */
+  holdings?: LiveTradeHolding[];
+  /** 상위에서 이미 불러온 체결(중복 fetch 방지) */
+  sharedTrades?: LiveTradeRecord[];
+  sharedTradesLoading?: boolean;
+  /** 계좌 요약을 상단 잔고 영역에만 표시 */
+  suppressAccountSummary?: boolean;
 }) {
   const loadAll =
     loadAllProp ??
@@ -253,6 +267,7 @@ export default function LiveTradeTradesHistoryPanel({
       : liveExchange === "bithumb"
         ? Boolean(status?.bithumb?.ready)
         : true;
+  const useSharedTrades = sharedTrades !== undefined;
   const [trades, setTrades] = useState<LiveTradeRecord[]>([]);
   const [nextOlderEndDay, setNextOlderEndDay] = useState<string | null>(null);
   const [hasOlder, setHasOlder] = useState(false);
@@ -312,6 +327,7 @@ export default function LiveTradeTradesHistoryPanel({
   );
 
   useEffect(() => {
+    if (useSharedTrades) return;
     if (liveExchange && !apiReady) {
       setTrades([]);
       setNextOlderEndDay(null);
@@ -324,7 +340,7 @@ export default function LiveTradeTradesHistoryPanel({
     setNextOlderEndDay(null);
     setHasOlder(false);
     void fetchPage(null, false);
-  }, [fetchPage, liveExchange, apiReady]);
+  }, [fetchPage, liveExchange, apiReady, useSharedTrades]);
 
   useEffect(() => {
     if (loadAll) return;
@@ -344,19 +360,27 @@ export default function LiveTradeTradesHistoryPanel({
     return () => obs.disconnect();
   }, [hasOlder, nextOlderEndDay, fetchPage, loadAll]);
 
-  const filteredTrades = useMemo(() => {
-    if (scenario || loadAll) return trades;
-    if (!exchange) return trades;
-    return trades.filter((t) => liveTradeRecordMatchesExchange(t, exchange));
-  }, [trades, exchange, loadAll, scenario]);
+  const sourceTrades = useSharedTrades ? (sharedTrades ?? []) : trades;
 
-  const pnlSummary = useMemo(
-    () =>
-      String(programId ?? "").trim()
-        ? programTradesPnlSummary(filteredTrades)
-        : null,
-    [programId, filteredTrades],
+  const filteredTrades = useMemo(() => {
+    if (scenario || loadAll) return sourceTrades;
+    if (!exchange) return sourceTrades;
+    return sourceTrades.filter((t) => liveTradeRecordMatchesExchange(t, exchange));
+  }, [sourceTrades, exchange, loadAll, scenario]);
+
+  const { rate: usdKrwRate } = useUsdKrwRate(
+    (scenario === "live-toss" || scenario === "live-bithumb") &&
+      (filteredTrades.length > 0 || holdings.length > 0),
   );
+
+  const pnlSummary = useMemo(() => {
+    const pid = String(programId ?? "").trim();
+    if (pid) return programTradesPnlSummary(filteredTrades);
+    if (scenario === "live-toss" || scenario === "live-bithumb") {
+      return exchangeAccountPnlSummary(filteredTrades, holdings, { usdKrwRate });
+    }
+    return null;
+  }, [programId, scenario, filteredTrades, holdings, usdKrwRate]);
 
   const displayReturnPct =
     programReturnPct != null && Number.isFinite(programReturnPct)
@@ -450,7 +474,7 @@ export default function LiveTradeTradesHistoryPanel({
         </p>
       ) : null}
 
-      {loading && filteredTrades.length === 0 ? (
+      {(useSharedTrades ? sharedTradesLoading : loading) && filteredTrades.length === 0 ? (
         <p className="live-trade-history__muted">
           {scenario === "live-bithumb"
             ? ko.app.liveTradeTradesFetching
@@ -466,7 +490,7 @@ export default function LiveTradeTradesHistoryPanel({
         </p>
       ) : (
         <div className="live-trade-history__scroll">
-          {pnlSummary && filteredTrades.length > 0 ? (
+          {pnlSummary && !suppressAccountSummary && filteredTrades.length > 0 ? (
             <div className="live-trade-history__pnl-summary" role="status">
               <div className="live-trade-history__pnl-row">
                 <span className="live-trade-history__pnl-label">

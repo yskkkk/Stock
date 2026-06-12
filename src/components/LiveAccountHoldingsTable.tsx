@@ -4,6 +4,7 @@ import { formatLiveTradeQuantity, formatPercent, formatPrice, formatSignedMoney 
 import { liveTradeHoldingMatchesExchange } from "../lib/liveTradeTradesExchangeFilter";
 import type { LiveTradeTradesExchange } from "../lib/liveTradeTradesWorkspace";
 import { ko } from "../i18n/ko";
+import { exchangeSymbolKey } from "../lib/exchangeAccountPnlSummary";
 import {
   LiveHoldingChartSymbol,
   LiveTradeExitPriceCell,
@@ -12,10 +13,12 @@ import {
 export default function LiveAccountHoldingsTable({
   exchange,
   holdings,
+  cumulativeReturnBySymbol,
   onOpenHoldingChart,
 }: {
   exchange: LiveTradeTradesExchange;
   holdings: LiveTradeHolding[];
+  cumulativeReturnBySymbol?: Map<string, number | null>;
   onOpenHoldingChart?: (h: LiveTradeHolding) => void;
 }) {
   const rows = useMemo(
@@ -43,6 +46,7 @@ export default function LiveAccountHoldingsTable({
               <th>{ko.app.liveTradePfColBuyPrice}</th>
               <th>{ko.app.liveTradePfColCurrent}</th>
               <th>{ko.app.recTrackerColChange}</th>
+              <th>{ko.app.liveTradeCumulativeReturn}</th>
               <th className="live-table__col live-table__col--exit">
                 {ko.app.liveTradePfColTargetSell}
               </th>
@@ -58,6 +62,11 @@ export default function LiveAccountHoldingsTable({
             {rows.map((h) => {
               const chgUp = (h.changePct ?? 0) >= 0;
               const pnlUp = (h.unrealizedPnl ?? 0) >= 0;
+              const cumKey = exchangeSymbolKey(h);
+              const cumPct =
+                cumulativeReturnBySymbol?.get(cumKey) ??
+                (cumulativeReturnBySymbol ? null : undefined);
+              const cumUp = (cumPct ?? 0) >= 0;
               return (
                 <tr key={`${h.programId}:${h.market}:${h.symbol}`}>
                   <td data-label={ko.app.liveTradePfColSymbol}>
@@ -90,6 +99,18 @@ export default function LiveAccountHoldingsTable({
                     data-label={ko.app.recTrackerColChange}
                   >
                     {h.changePct != null ? formatPercent(h.changePct) : "—"}
+                  </td>
+                  <td
+                    className={
+                      cumPct == null
+                        ? "live-sim-run__num"
+                        : cumUp
+                          ? "live-sim-run__num live-sim-run__num--up"
+                          : "live-sim-run__num live-sim-run__num--down"
+                    }
+                    data-label={ko.app.liveTradeCumulativeReturn}
+                  >
+                    {cumPct != null ? formatPercent(cumPct) : "—"}
                   </td>
                   <td
                     className="live-sim-run__num live-sim-run__num--exit live-table__col live-table__col--exit"

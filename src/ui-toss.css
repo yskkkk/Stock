@@ -4772,6 +4772,10 @@ html[data-theme="light"] .live-trading-tab__program-actions .btn:hover:not(:disa
   font-size: 0.95rem;
 }
 
+.live-account-pnl-summary {
+  margin: 0 0 0.55rem;
+}
+
 .live-account-holdings__title {
   margin: 0 0 0.45rem;
   font-size: 0.9rem;
