@@ -1,5 +1,6 @@
 import { krInvestorFlowEnabled, runKrInvestorFlowScan } from "./kr-investor-flow.js";
 import { liveTradeLogWarn } from "./live-trade-log.js";
+import { markPollerBootStarted, pollerGuardAsync } from "./poller-registry.js";
 
 const POLL_MS = (() => {
   const n = Number(process.env.STOCK_KR_INVESTOR_FLOW_POLL_MS ?? 600_000);
@@ -18,7 +19,7 @@ export function startKrInvestorFlowPoller() {
   const tick = () => {
     if (running) return;
     running = true;
-    void runKrInvestorFlowScan()
+    void pollerGuardAsync("kr-investor-flow", () => runKrInvestorFlowScan())
       .catch((e) => {
         liveTradeLogWarn(
           "[kr-investor-flow:poller]",
@@ -31,5 +32,6 @@ export function startKrInvestorFlowPoller() {
   };
 
   tick();
+  markPollerBootStarted("kr-investor-flow");
   setInterval(tick, POLL_MS);
 }

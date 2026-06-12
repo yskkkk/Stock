@@ -2510,6 +2510,41 @@ export function postFeedbackMessage(message: string) {
   });
 }
 
+export interface PollerStatusRow {
+  id: string;
+  labelKo: string;
+  groupKo: string;
+  descriptionKo: string;
+  intervalMs: number;
+  envDisable: string;
+  bootEnabled: boolean;
+  bootStarted: boolean;
+  runtimeEnabled: boolean;
+  effectiveEnabled: boolean;
+  runtimeToggleable: boolean;
+  running: boolean;
+  lastTickAtMs: number | null;
+  lastError: string | null;
+  tickCount: number;
+}
+
+export function fetchPollerStatus() {
+  return fetchJson<{ ok: boolean; pollers: PollerStatusRow[] }>(
+    "/api/pollers/status",
+  );
+}
+
+export function togglePollerRuntime(id: string, enabled: boolean, password: string) {
+  return fetchJson<{ ok: boolean; pollers: PollerStatusRow[]; error?: string }>(
+    `/api/admin/pollers/${encodeURIComponent(id)}/toggle`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled, password }),
+    },
+  );
+}
+
 export function fetchFeedbackInbox(token?: string) {
   const headers: Record<string, string> = {};
   const t = token?.trim() ?? "";

@@ -14,6 +14,7 @@ import { notifyGoldenCrossScanTelegram, notifyVaultTimeframeIntersectionTelegram
 import { sendGoldenCrossScanReportEmail, buildScanEmailPayloadFromVaultResult } from "./notifications/golden-cross-scan-email.js";
 import { runMaAlignVaultIntradayRefresh } from "./ma-align-vault-intraday.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
+import { markPollerBootStarted, pollerGuardAsync } from "./poller-registry.js";
 import { isStockTradableBySchedule } from "./market-hours.js";
 import { VAULT_SCAN_TIMEFRAMES } from "./vault-scan-timeframe.js";
 import { buildMarketTimeframeIntersections } from "./vault-scan-intersection.js";
@@ -543,7 +544,7 @@ export function startGoldenCrossScanPoller() {
   const tick = () => {
     if (running || manualScanRunning) return;
     running = true;
-    (async () => {
+    void pollerGuardAsync("golden-cross", async () => {
       for (const market of /** @type {const} */ (["kr", "us"])) {
         try {
           const result = await runGoldenCrossScanIfDue(market);
@@ -562,7 +563,7 @@ export function startGoldenCrossScanPoller() {
           );
         }
       }
-    })()
+    })
       .catch((e) => {
         liveTradeLogWarn(
           "[golden-cross:poller]",
@@ -579,7 +580,7 @@ export function startGoldenCrossScanPoller() {
     if (!stockVaultIntradayRescanEnabled()) return;
     if (intradayRunning || vaultScanRunning || manualScanRunning) return;
     intradayRunning = true;
-    (async () => {
+    void pollerGuardAsync("golden-cross-intraday", async () => {
       for (const market of /** @type {const} */ (["kr", "us"])) {
         try {
           await runVaultIntradayRescanIfDue(market);
@@ -591,7 +592,7 @@ export function startGoldenCrossScanPoller() {
           );
         }
       }
-    })()
+    })
       .catch((e) => {
         liveTradeLogWarn(
           "[stock-vault:intraday]",
@@ -604,6 +605,8 @@ export function startGoldenCrossScanPoller() {
   };
 
   tick();
+  markPollerBootStarted("golden-cross");
+  markPollerBootStarted("golden-cross-intraday");
   setInterval(tick, POLL_MS);
   intradayTick();
   setInterval(intradayTick, INTRADAY_TICK_MS);

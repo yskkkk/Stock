@@ -8,6 +8,7 @@ import { scanOneSymbolCatalog, scanOneSymbolCatalogV2 } from "./catalog-scan-sha
 import { refreshCatalogIndexSync } from "./catalog-store.js";
 import { notifyCatalogScanTelegram } from "./catalog-scan-telegram.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "../live-trade-log.js";
+import { markPollerBootStarted, pollerGuardAsync } from "../poller-registry.js";
 
 /** @returns {{ symbol: string; name: string }[]} */
 export function boxRangeCryptoCatalogItems() {
@@ -82,7 +83,7 @@ export function startCryptoBoxRangeCatalogPoller() {
   const loop = () => {
     if (running) return;
     running = true;
-    runCryptoBoxRangeCatalogScan()
+    pollerGuardAsync("box-crypto-scan", () => runCryptoBoxRangeCatalogScan())
       .catch((e) => {
         liveTradeLogWarn(
           "[box-range:crypto-scan]",
@@ -95,5 +96,6 @@ export function startCryptoBoxRangeCatalogPoller() {
   };
 
   loop();
+  markPollerBootStarted("box-crypto-scan");
   setInterval(loop, BOX_RANGE_CRYPTO_SCAN_MS);
 }

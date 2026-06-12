@@ -7,6 +7,7 @@ import {
 import { isVaultMarketScanRunning } from "./golden-cross-poller.js";
 import { getTradingSessionKey, isStockTradableBySchedule } from "./market-hours.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
+import { markPollerBootStarted, pollerGuardAsync } from "./poller-registry.js";
 import { fetchQuoteSnapshotsForSymbols } from "./picks-live-quotes.js";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
 import { listStockVaultItemsSync } from "./stock-vault-store.js";
@@ -222,7 +223,7 @@ export function startMaAlignMa120WatchPoller() {
   const tick = () => {
     if (running || isVaultMarketScanRunning()) return;
     running = true;
-    runMaAlignMa120NearWatchOnce()
+    void pollerGuardAsync("ma120-near-watch", () => runMaAlignMa120NearWatchOnce())
       .catch((e) => {
         liveTradeLogWarn(
           "[ma-align:ma120:watch]",
@@ -235,5 +236,6 @@ export function startMaAlignMa120WatchPoller() {
   };
 
   tick();
+  markPollerBootStarted("ma120-near-watch");
   setInterval(tick, WATCH_MS);
 }

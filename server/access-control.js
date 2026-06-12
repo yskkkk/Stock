@@ -119,6 +119,14 @@ function readBearerToken(req) {
   return m ? m[1].trim() : "";
 }
 
+/** 말풍선·폼에 입력한 관리자 비밀번호 = ACCESS_ADMIN_TOKEN */
+export function verifyAccessAdminPassword(supplied) {
+  const expected = getAdminToken();
+  if (!expected) return false;
+  const got = String(supplied ?? "").trim();
+  return got.length > 0 && safeEqualBearer(got, expected);
+}
+
 /** Bearer ACCESS_ADMIN_TOKEN 또는 관리자 등록 IP 또는 허용 목록의 위임 관리자 */
 export function isAccessAdminRequest(req) {
   if (!isAccessControlEnabled()) return true;

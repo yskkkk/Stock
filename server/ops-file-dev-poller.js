@@ -8,6 +8,7 @@ import {
   finalizeFileDevApplied,
   finalizeFileDevError,
 } from "./ops-file-dev-store.js";
+import { markPollerBootStarted, pollerGuardAsync } from "./poller-registry.js";
 
 /** @type {Promise<void>} */
 let tickChain = Promise.resolve();
@@ -15,23 +16,25 @@ let tickChain = Promise.resolve();
 function tickOnce() {
   tickChain = tickChain
     .then(async () => {
-      const dis = String(process.env.OPS_FILE_DEV_DISABLED ?? "").trim();
-      if (dis === "1" || dis.toLowerCase() === "true") return;
+      await pollerGuardAsync("ops-file-dev", async () => {
+        const dis = String(process.env.OPS_FILE_DEV_DISABLED ?? "").trim();
+        if (dis === "1" || dis.toLowerCase() === "true") return;
 
-      const claimed = await claimNextPendingFileDevJob();
-      if (!claimed) return;
+        const claimed = await claimNextPendingFileDevJob();
+        if (!claimed) return;
 
-      const { id, requestJson, fingerprint } = claimed;
-      try {
-        const out = applyFileDevPayload(requestJson);
-        const head = out.paths.slice(0, 10).join(", ");
-        const more = out.paths.length > 10 ? ` … 외 ${out.paths.length - 10}개` : "";
-        const summary = `${out.written}개 파일 반영: ${head}${more}`;
-        await finalizeFileDevApplied(id, fingerprint, summary);
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        await finalizeFileDevError(id, msg);
-      }
+        const { id, requestJson, fingerprint } = claimed;
+        try {
+          const out = applyFileDevPayload(requestJson);
+          const head = out.paths.slice(0, 10).join(", ");
+          const more = out.paths.length > 10 ? ` … 외 ${out.paths.length - 10}개` : "";
+          const summary = `${out.written}개 파일 반영: ${head}${more}`;
+          await finalizeFileDevApplied(id, fingerprint, summary);
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          await finalizeFileDevError(id, msg);
+        }
+      });
     })
     .catch(() => {});
 }
@@ -42,6 +45,7 @@ export function startOpsFileDevPoller() {
   );
   if (g.__stockOpsFileDevPollerStarted) return;
   g.__stockOpsFileDevPollerStarted = true;
+  markPollerBootStarted("ops-file-dev");
   setInterval(() => {
     void tickOnce();
   }, FILE_DEV_POLL_MS);

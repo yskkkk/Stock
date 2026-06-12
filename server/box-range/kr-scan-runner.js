@@ -4,6 +4,7 @@ import { scanOneSymbolCatalog, scanOneSymbolCatalogV2 } from "./catalog-scan-sha
 import { refreshCatalogIndexSync } from "./catalog-store.js";
 import { notifyCatalogScanTelegram } from "./catalog-scan-telegram.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "../live-trade-log.js";
+import { markPollerBootStarted, pollerGuardAsync } from "../poller-registry.js";
 
 const BATCH_SIZE = (() => {
   const n = Number(process.env.STOCK_BOX_RANGE_KR_BATCH ?? 6);
@@ -79,7 +80,7 @@ export function startKrBoxRangeCatalogPoller() {
   const loop = () => {
     if (running) return;
     running = true;
-    runKrBoxRangeCatalogScan()
+    pollerGuardAsync("box-kr-scan", () => runKrBoxRangeCatalogScan())
       .catch((e) => {
         liveTradeLogWarn(
           "[box-range:kr-scan]",
@@ -92,5 +93,6 @@ export function startKrBoxRangeCatalogPoller() {
   };
 
   loop();
+  markPollerBootStarted("box-kr-scan");
   setInterval(loop, BOX_RANGE_KR_SCAN_MS);
 }

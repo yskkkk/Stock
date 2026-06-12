@@ -4,6 +4,7 @@ import { scanOneSymbolCatalog, scanOneSymbolCatalogV2 } from "./catalog-scan-sha
 import { refreshCatalogIndexSync } from "./catalog-store.js";
 import { notifyCatalogScanTelegram } from "./catalog-scan-telegram.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "../live-trade-log.js";
+import { markPollerBootStarted, pollerGuardAsync } from "../poller-registry.js";
 
 const BATCH_SIZE = (() => {
   const n = Number(process.env.STOCK_BOX_RANGE_US_BATCH ?? 6);
@@ -79,7 +80,7 @@ export function startSp500BoxRangeCatalogPoller() {
   const loop = () => {
     if (running) return;
     running = true;
-    runSp500BoxRangeCatalogScan()
+    pollerGuardAsync("box-sp500-scan", () => runSp500BoxRangeCatalogScan())
       .catch((e) => {
         liveTradeLogWarn(
           "[box-range:us-scan]",
@@ -92,5 +93,6 @@ export function startSp500BoxRangeCatalogPoller() {
   };
 
   loop();
+  markPollerBootStarted("box-sp500-scan");
   setInterval(loop, BOX_RANGE_SP500_SCAN_MS);
 }

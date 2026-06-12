@@ -9,6 +9,7 @@ import {
   isBoxRangeQuoteFresh,
 } from "./quotes.js";
 import { liveTradeLogWarn } from "../live-trade-log.js";
+import { markPollerBootStarted, pollerGuardAsync } from "../poller-registry.js";
 import { collectWatchSymbolsForProgram } from "./watch-symbols.js";
 import {
   BOX_RANGE_CATALOG_DIR_V2,
@@ -219,7 +220,7 @@ export function startBoxRangeRunnerPoller() {
   const loop = () => {
     if (running) return;
     running = true;
-    tickBoxRangeTrading()
+    pollerGuardAsync("box-range-runner", () => tickBoxRangeTrading())
       .catch((e) => {
         liveTradeLogWarn(
           "[box-range:tick]",
@@ -231,5 +232,6 @@ export function startBoxRangeRunnerPoller() {
       });
   };
   loop();
+  markPollerBootStarted("box-range-runner");
   setInterval(loop, TICK_MS);
 }

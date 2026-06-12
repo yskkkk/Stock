@@ -9,6 +9,7 @@ import { fetchTossAccountRawWithCredentials } from "./toss-openapi.js";
 import { summarizeTossAccountsForDisplay } from "./toss-accounts-summary.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 import { resolveServerDataDir } from "./data-path.js";
+import { markPollerBootStarted, pollerGuardAsync, pollerGuardSync } from "./poller-registry.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -215,14 +216,19 @@ export function startTossLedgerSnapshotPoller() {
 
   let apiRunning = false;
 
+  markPollerBootStarted("toss-ledger-cache");
+  markPollerBootStarted("toss-ledger-api");
+
   setInterval(() => {
-    tickTossLedgerCacheTouch();
+    pollerGuardSync("toss-ledger-cache", () => {
+      tickTossLedgerCacheTouch();
+    });
   }, TOSS_LEDGER_CACHE_TICK_MS);
 
   const loopApi = () => {
     if (apiRunning) return;
     apiRunning = true;
-    tickTossLedgerApiRefreshAsync()
+    pollerGuardAsync("toss-ledger-api", () => tickTossLedgerApiRefreshAsync())
       .catch((e) => {
         liveTradeLogWarn(
           "[toss-ledger] poller",

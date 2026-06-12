@@ -6,6 +6,7 @@ import {
   tickHoldingsBreakingNewsEmail,
 } from "./notifications/holdings-breaking-news-email.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
+import { markPollerBootStarted, pollerGuardAsync } from "./poller-registry.js";
 
 const POLL_MS = (() => {
   const n = Number(process.env.STOCK_HOLDINGS_NEWS_POLL_MS ?? 45_000);
@@ -23,12 +24,14 @@ export async function tickHoldingsNewsPollerOnce() {
     return { ok: false, reason: "disabled" };
   }
   if (running) return { ok: false, reason: "busy" };
-  running = true;
-  try {
-    return await tickHoldingsBreakingNewsEmail();
-  } finally {
-    running = false;
-  }
+  return pollerGuardAsync("holdings-news", async () => {
+    running = true;
+    try {
+      return await tickHoldingsBreakingNewsEmail();
+    } finally {
+      running = false;
+    }
+  });
 }
 
 export function startHoldingsNewsEmailPoller() {
@@ -40,6 +43,8 @@ export function startHoldingsNewsEmailPoller() {
   }
 
   liveTradeLogInfo("[holdings-news] poller on", `intervalMs=${POLL_MS}`);
+
+  markPollerBootStarted("holdings-news");
 
   const run = () => {
     void tickHoldingsNewsPollerOnce().catch((e) => {

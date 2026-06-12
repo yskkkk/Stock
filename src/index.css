@@ -10515,6 +10515,202 @@ html[data-theme="light"]
   z-index: 120;
 }
 
+.app-live-trade-side-dock__pollers-popover {
+  width: min(20rem, calc(100vw - 5.5rem));
+  max-height: min(78vh, 34rem);
+  overflow: auto;
+}
+
+.app-live-trade-side-dock__rail-btn--pollers .dock-poller-rail__icon {
+  display: block;
+}
+
+.dock-poller-rail__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.15rem 0 0.25rem;
+}
+
+.dock-poller-rail__card {
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--card-border, #334155) 55%, transparent);
+  background: color-mix(in srgb, var(--card-bg, #1e293b) 88%, transparent);
+  padding: 0.35rem 0.4rem 0.42rem;
+}
+
+.dock-poller-rail__card--on {
+  border-color: color-mix(in srgb, var(--up, #72a883) 42%, transparent);
+}
+
+.dock-poller-rail__card--busy {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--up, #72a883) 28%, transparent);
+}
+
+.dock-poller-rail__card-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  gap: 0.08rem 0.35rem;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.dock-poller-rail__card-head:hover .dock-poller-rail__card-title {
+  color: var(--up, #72a883);
+}
+
+.dock-poller-rail__card-title {
+  grid-column: 1;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.dock-poller-rail__card-group {
+  grid-column: 1;
+  font-size: 0.58rem;
+  color: var(--muted);
+}
+
+.dock-poller-rail__card-status {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  font-size: 0.58rem;
+  font-weight: 700;
+  padding: 0.1rem 0.32rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.dock-poller-rail__card-status--on {
+  color: var(--up, #72a883);
+  background: color-mix(in srgb, var(--up, #72a883) 14%, transparent);
+}
+
+.dock-poller-rail__card-status--off {
+  color: var(--muted);
+  background: color-mix(in srgb, var(--muted) 12%, transparent);
+}
+
+.dock-poller-rail__card-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.2rem 0.35rem;
+  margin: 0.28rem 0 0.32rem;
+  font-size: 0.58rem;
+}
+
+.dock-poller-rail__card-meta dt {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.dock-poller-rail__card-meta dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.dock-poller-rail__toggle {
+  width: 100%;
+  min-height: 1.55rem;
+}
+
+.dock-poller-rail__env-hint {
+  margin: 0.15rem 0 0;
+  font-size: 0.56rem;
+  line-height: 1.35;
+  color: var(--muted);
+  word-break: break-word;
+}
+
+.dock-poller-rail__err,
+.dock-poller-rail__empty {
+  margin: 0.35rem 0 0;
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.dock-poller-rail__detail-pop {
+  padding: 0.45rem 0.5rem 0.4rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--card-border, #334155) 60%, transparent);
+  background: var(--card-bg, #1e293b);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+
+.dock-poller-rail__detail-title {
+  display: block;
+  font-size: 0.74rem;
+  margin-bottom: 0.25rem;
+}
+
+.dock-poller-rail__detail-body {
+  margin: 0 0 0.3rem;
+  font-size: 0.64rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.dock-poller-rail__detail-env {
+  margin: 0 0 0.35rem;
+  font-size: 0.56rem;
+  color: var(--muted);
+}
+
+.dock-poller-rail__detail-close {
+  margin-left: auto;
+  display: block;
+}
+
+.dock-poller-rail__password-pop {
+  padding: 0.4rem 0.45rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--card-border, #334155) 60%, transparent);
+  background: var(--card-bg, #1e293b);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+
+.dock-poller-rail__password-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+}
+
+.dock-poller-rail__password-input {
+  width: 100%;
+  min-height: 1.75rem;
+  padding: 0.2rem 0.35rem;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--card-border, #334155) 55%, transparent);
+  background: color-mix(in srgb, var(--bg, #0f172a) 70%, transparent);
+  color: inherit;
+  font: inherit;
+}
+
+.dock-poller-rail__password-err {
+  margin: 0.25rem 0 0;
+  font-size: 0.6rem;
+  color: #ef4444;
+}
+
+.dock-poller-rail__password-actions {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 0.35rem;
+  justify-content: flex-end;
+}
+
 .live-trade-dock-api-panel__title {
   margin: 0 0 0.35rem;
   font-size: 0.92rem;

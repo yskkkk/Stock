@@ -15,6 +15,7 @@ import { logoutAuth } from "../api";
 import { FeedbackDockRailButton, type FeedbackCornerHandle } from "./FeedbackCorner";
 import { BithumbBrandMark, TossBrandMark } from "./ExchangeBrandMarks";
 import LiveTradeDockApiRail from "./LiveTradeDockApiRail";
+import LiveTradeDockPollerRail from "./LiveTradeDockPollerRail";
 import LiveTradeDockYsHead from "./LiveTradeDockYsHead";
 import { useDesktopDockLayout } from "../hooks/useDesktopDockLayout";
 import { useNestedVerticalScroll } from "../hooks/useNestedVerticalScroll";
@@ -1045,6 +1046,13 @@ export default function AppLiveTradeSideDock({
             user={user}
             onCredentialsUpdated={onDockAuthChange}
             onPopoverOpen={() => setAuthPopoverOpen(false)}
+          />
+        ) : null}
+        {user ? (
+          <LiveTradeDockPollerRail
+            onPopoverOpen={() => {
+              setAuthPopoverOpen(false);
+            }}
           />
         ) : null}
         <span ref={authAnchorRef} className="app-live-trade-side-dock__auth-anchor">

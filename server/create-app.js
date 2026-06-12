@@ -8,6 +8,7 @@ import {
   isAccessAdminRequest,
   normalizeAccessIp,
   registerAccessControl,
+  verifyAccessAdminPassword,
 } from "./access-control.js";
 import { requireAccessAdmin } from "./route-guards.js";
 import { appendServerEventLog, expressAccessLogger, clientIp as expressClientIp } from "./access-log.js";
@@ -183,6 +184,7 @@ import {
   requireUserAuth,
   resolveUserFromRequest,
 } from "./user-auth.js";
+import { listPollersStatusSync, setPollerRuntimeEnabled } from "./poller-registry.js";
 import { sendChatNoCodeTelegram } from "./ops-chat-no-code-notify.js";
 import { registerUserCredentialRoutes } from "./user-credentials-routes.js";
 import {
@@ -1437,6 +1439,45 @@ export function createApp() {
       setTimeout(() => {
         void restartNodeOrViteDev(httpServer);
       }, 280);
+    }),
+  );
+
+  app.get(
+    "/api/pollers/status",
+    requireUserAuth,
+    (_req, res) => {
+      res.json({ ok: true, pollers: listPollersStatusSync() });
+    },
+  );
+
+  app.post(
+    "/api/admin/pollers/:id/toggle",
+    requireUserAuth,
+    asyncRoute(async (req, res) => {
+      const password = String(req.body?.password ?? "").trim();
+      if (!verifyAccessAdminPassword(password)) {
+        res.status(403).json({
+          ok: false,
+          error: "관리자 비밀번호가 올바르지 않습니다.",
+          code: "ADMIN_PASSWORD_INVALID",
+        });
+        return;
+      }
+      const id = String(req.params.id ?? "").trim();
+      const enabled = req.body?.enabled;
+      if (typeof enabled !== "boolean") {
+        res.status(400).json({ ok: false, error: "enabled(boolean)가 필요합니다." });
+        return;
+      }
+      try {
+        const pollers = setPollerRuntimeEnabled(id, enabled);
+        res.json({ ok: true, pollers });
+      } catch (e) {
+        res.status(400).json({
+          ok: false,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
     }),
   );
 

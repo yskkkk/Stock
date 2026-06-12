@@ -15,6 +15,7 @@ import {
   isIdeCompletionNotified,
   notifyIdeDevelopmentCompleted,
 } from "./ops-ide-completion-notify.js";
+import { markPollerBootStarted, pollerGuardSync } from "./poller-registry.js";
 import {
   clearIdeLeaseOnDisk,
   clearOrphanIdeLeaseIfNeeded,
@@ -486,27 +487,29 @@ function resolveTranscriptFileForScan(root) {
 }
 
 function tick() {
-  try {
-    cleanupStaleMaps();
-    const root = resolveTranscriptRoot();
-    const files = findActiveTranscriptFiles(root);
-    if (!files.length) return;
-    const primary = resolveTranscriptFileForScan(root);
-    const ordered = primary
-      ? [primary, ...files.filter((f) => f !== primary)]
-      : files;
-    const seen = new Set();
-    for (const file of ordered) {
-      if (seen.has(file)) continue;
-      seen.add(file);
-      scanTranscriptFile(file);
+  pollerGuardSync("ide-transcript", () => {
+    try {
+      cleanupStaleMaps();
+      const root = resolveTranscriptRoot();
+      const files = findActiveTranscriptFiles(root);
+      if (!files.length) return;
+      const primary = resolveTranscriptFileForScan(root);
+      const ordered = primary
+        ? [primary, ...files.filter((f) => f !== primary)]
+        : files;
+      const seen = new Set();
+      for (const file of ordered) {
+        if (seen.has(file)) continue;
+        seen.add(file);
+        scanTranscriptFile(file);
+      }
+    } catch (e) {
+      console.warn(
+        "[ops-ide-transcript]",
+        e instanceof Error ? e.message : e,
+      );
     }
-  } catch (e) {
-    console.warn(
-      "[ops-ide-transcript]",
-      e instanceof Error ? e.message : e,
-    );
-  }
+  });
 }
 
 /** @type {fs.FSWatcher | null} */
@@ -533,6 +536,7 @@ export function startOpsIdeTranscriptPoller() {
   );
 
   tick();
+  markPollerBootStarted("ide-transcript");
   setInterval(tick, POLL_MS);
 
   try {

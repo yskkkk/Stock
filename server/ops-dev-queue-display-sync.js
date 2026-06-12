@@ -23,6 +23,7 @@ import {
   clearOrphanIdeLeaseIfNeeded,
   mergeIdeLeaseDiskIntoAgentEntries,
 } from "./ops-ide-lease-disk.js";
+import { markPollerBootStarted, pollerGuardSync } from "./poller-registry.js";
 
 /** UI 폴링과 맞춤(기본 100ms) — `STOCK_DEV_QUEUE_SYNC_MS` */
 export const DEV_QUEUE_DISPLAY_SYNC_MS = (() => {
@@ -128,7 +129,14 @@ export function startDevQueueDisplaySyncPoller() {
     reconcileDevQueueDisplayMirrorOnBoot();
   }
   syncDevQueueDisplayFromRuntimeSync();
+  markPollerBootStarted("dev-queue-sync");
   setInterval(() => {
-    try { _g.__stockDevQueueSyncFn?.(); } catch {}
+    try {
+      pollerGuardSync("dev-queue-sync", () => {
+        _g.__stockDevQueueSyncFn?.();
+      });
+    } catch {
+      /* ignore */
+    }
   }, DEV_QUEUE_DISPLAY_SYNC_MS);
 }

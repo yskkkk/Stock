@@ -10,6 +10,7 @@ import { analyzeTechnicals, meetsTelegramNotifyScore } from "./technical.js";
 import { scheduleRecommendationsTrackerSnapshotRefresh } from "./picks-recommendations-tracker.js";
 import { notifyHighScorePick } from "./telegram-notify.js";
 import { recordPicksDailySnapshot } from "./picks-history-store.js";
+import { isPollerEffectiveEnabled, markPollerBootStarted } from "./poller-registry.js";
 import { readLastScanSnapshotSync, writeLastScanSnapshotSync } from "./picks-live-persist.js";
 import { loadUniverse } from "./universe.js";
 import {
@@ -281,6 +282,10 @@ function applyScreenResult(result, bucket) {
 
 async function runScreening() {
   if (state.running) return screeningPromise;
+  if (!isPollerEffectiveEnabled("screener")) {
+    scheduleNextScan();
+    return;
+  }
 
   clearNextScanTimer();
   nextScanAt = null;
@@ -383,6 +388,7 @@ async function runScreening() {
 }
 
 export function startScreening() {
+  markPollerBootStarted("screener");
   if (!screeningPromise) return runScreening().catch(logScreeningError);
   return screeningPromise;
 }

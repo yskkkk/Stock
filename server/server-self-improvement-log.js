@@ -15,6 +15,7 @@ import {
 } from "./telegram-notify.js";
 import { getOpsAgentQueueMemorySnapshot } from "./ops-agent-job-queue.js";
 import { hasOpsDevCompletionPending } from "./ops-dev-completion-coalesce.js";
+import { markPollerBootStarted, pollerGuardAsync } from "./poller-registry.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.join(__dirname, "..");
@@ -521,12 +522,13 @@ export function startServerSelfImprovementWatcher() {
   rewriteImprovementsMarkdown(store);
 
   const bootDelay = 30_000;
+  markPollerBootStarted("self-improvement");
   setTimeout(() => {
-    void runServerSelfImprovementProbes();
+    void pollerGuardAsync("self-improvement", () => runServerSelfImprovementProbes());
   }, bootDelay);
 
   probeTimer = setInterval(() => {
-    void runServerSelfImprovementProbes();
+    void pollerGuardAsync("self-improvement", () => runServerSelfImprovementProbes());
   }, probeIntervalMs());
   if (typeof probeTimer.unref === "function") probeTimer.unref();
 

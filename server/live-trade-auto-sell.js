@@ -51,6 +51,8 @@ import {
 import { isBoxRangeProgram } from "./box-range/constants.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 
+import { markPollerBootStarted, pollerGuardAsync } from "./poller-registry.js";
+
 import {
 
   evaluateLiveTradeSellDecision,
@@ -566,6 +568,8 @@ export function startLiveTradeAutoSellPoller() {
 
   g.__stockLiveTradeAutoSellStarted = true;
 
+  markPollerBootStarted("live-trade-auto-sell");
+
   let running = false;
 
   const loop = () => {
@@ -574,7 +578,7 @@ export function startLiveTradeAutoSellPoller() {
 
     running = true;
 
-    tickLiveTradeAutoSell()
+    pollerGuardAsync("live-trade-auto-sell", () => tickLiveTradeAutoSell())
 
       .catch((e) => {
 

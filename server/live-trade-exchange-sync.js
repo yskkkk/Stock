@@ -7,6 +7,7 @@ import { getDecryptedCredentialsSync } from "./user-credentials-store.js";
 import { reconcileBithumbHoldingsForUser } from "./live-trade-bithumb-reconcile.js";
 import { persistBithumbExchangeTradesForUser } from "./live-trade-bithumb-exchange-trades.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
+import { markPollerBootStarted, pollerGuardAsync } from "./poller-registry.js";
 
 const LOG_TAG = "[live-trade:exchange-sync]";
 
@@ -106,7 +107,7 @@ export function startLiveTradeExchangeSyncPoller() {
   const loop = () => {
     if (running) return;
     running = true;
-    tickLiveTradeExchangeSync()
+    pollerGuardAsync("live-trade-exchange-sync", () => tickLiveTradeExchangeSync())
       .catch((e) => {
         liveTradeLogWarn(LOG_TAG, e instanceof Error ? e.message : e);
       })
@@ -117,5 +118,6 @@ export function startLiveTradeExchangeSyncPoller() {
   };
 
   liveTradeLogInfo(LOG_TAG, `poller ${POLL_MS}ms`);
+  markPollerBootStarted("live-trade-exchange-sync");
   loop();
 }
