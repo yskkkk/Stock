@@ -34,15 +34,28 @@ export default function ScrollToTopButton({ scrollRef }: ScrollToTopButtonProps)
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const el = resolveScrollEl(scrollRef);
-    if (!el) return;
+    const readScrollY = () => {
+      const el = resolveScrollEl(scrollRef);
+      return Math.max(
+        el?.scrollTop ?? 0,
+        window.scrollY,
+        document.documentElement.scrollTop,
+        document.body.scrollTop,
+      );
+    };
 
     const onScroll = () => {
-      setVisible(el.scrollTop > 200);
+      setVisible(readScrollY() > 0);
     };
     onScroll();
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
+
+    const el = resolveScrollEl(scrollRef);
+    el?.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      el?.removeEventListener("scroll", onScroll);
+      window.removeEventListener("scroll", onScroll);
+    };
   }, [scrollRef]);
 
   const scrollTop = useCallback(() => {
