@@ -1014,6 +1014,8 @@ export const ko = {
     years: "투자 기간",
     yearsUnit: "년",
     fairBuyPrice: "최고 매수가(적정가)",
+    resultCurrentPrice: "현재가",
+    vsFairPrice: (pct: string) => `적정가 대비 ${pct}`,
     cagr: "10년 CAGR",
     futurePrice: "10년 후 예상 주가",
     totalDividends: "10년 총 배당",

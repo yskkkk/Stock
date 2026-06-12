@@ -173,10 +173,16 @@
 }
 
 .value-invest-bubble__result-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.45rem;
+}
+
+.value-invest-bubble__result-pair {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.35rem;
-  margin-bottom: 0.45rem;
 }
 
 .value-invest-bubble__result-card {
@@ -189,6 +195,25 @@
 .value-invest-bubble__result-card--primary {
   border-color: color-mix(in srgb, var(--accent) 35%, var(--card-border));
   background: color-mix(in srgb, var(--accent) 7%, var(--card));
+}
+
+.value-invest-bubble__result-card--current {
+  border-color: color-mix(in srgb, var(--text) 12%, var(--card-border));
+}
+
+.value-invest-bubble__result-gap {
+  display: block;
+  margin-top: 0.12rem;
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.value-invest-bubble__result-gap--over {
+  color: var(--danger, #e05252);
+}
+
+.value-invest-bubble__result-gap--under {
+  color: var(--success, #3d9a5c);
 }
 
 .value-invest-bubble__result-label {

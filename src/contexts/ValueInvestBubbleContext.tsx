@@ -602,6 +602,20 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
   const priceSuffix = moneyUnitSuffix(currency);
   const epsSuffix = moneyUnitSuffix(currency, true);
 
+  const priceGapPct = useMemo(() => {
+    const currentPx = inputs?.currentPrice ?? null;
+    const fairPx = result?.fairBuyPrice ?? null;
+    if (
+      currentPx == null ||
+      fairPx == null ||
+      currentPx <= 0 ||
+      fairPx <= 0
+    ) {
+      return null;
+    }
+    return ((currentPx - fairPx) / fairPx) * 100;
+  }, [inputs?.currentPrice, result?.fairBuyPrice]);
+
   const bubble =
     open && typeof document !== "undefined"
       ? createPortal(
@@ -762,13 +776,36 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
                 {result ? (
                   <section className="value-invest-bubble__results" aria-label={ko.valueInvest.resultsTitle}>
                     <div className="value-invest-bubble__result-grid">
-                      <div className="value-invest-bubble__result-card value-invest-bubble__result-card--primary">
-                        <span className="value-invest-bubble__result-label">
-                          {ko.valueInvest.fairBuyPrice}
-                        </span>
-                        <strong className="value-invest-bubble__result-value">
-                          {fmtMoney(result.fairBuyPrice, currency)}
-                        </strong>
+                      <div className="value-invest-bubble__result-pair">
+                        <div className="value-invest-bubble__result-card value-invest-bubble__result-card--primary">
+                          <span className="value-invest-bubble__result-label">
+                            {ko.valueInvest.fairBuyPrice}
+                          </span>
+                          <strong className="value-invest-bubble__result-value">
+                            {fmtMoney(result.fairBuyPrice, currency)}
+                          </strong>
+                        </div>
+                        <div className="value-invest-bubble__result-card value-invest-bubble__result-card--current">
+                          <span className="value-invest-bubble__result-label">
+                            {ko.valueInvest.resultCurrentPrice}
+                          </span>
+                          <strong className="value-invest-bubble__result-value">
+                            {fmtMoney(inputs?.currentPrice, currency)}
+                          </strong>
+                          {priceGapPct != null ? (
+                            <span
+                              className={
+                                priceGapPct > 0
+                                  ? "value-invest-bubble__result-gap value-invest-bubble__result-gap--over"
+                                  : priceGapPct < 0
+                                    ? "value-invest-bubble__result-gap value-invest-bubble__result-gap--under"
+                                    : "value-invest-bubble__result-gap"
+                              }
+                            >
+                              {ko.valueInvest.vsFairPrice(formatPercent(priceGapPct))}
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
                       <div className="value-invest-bubble__result-card">
                         <span className="value-invest-bubble__result-label">
