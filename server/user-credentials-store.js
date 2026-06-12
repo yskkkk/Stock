@@ -247,6 +247,18 @@ export function listCredentialMetaForUserSync(userId) {
   };
 }
 
+/** 토스 연동 준비된 사용자 ID — 장부 백그라운드 갱신용 */
+export function listTossReadyUserIdsSync() {
+  const uids = new Set();
+  for (const row of readStoreSync().credentials) {
+    if (row?.exchange !== "toss") continue;
+    const uid = String(row.userId ?? "").trim();
+    if (!uid) continue;
+    if (getCredentialMetaSync(uid, "toss").ready) uids.add(uid);
+  }
+  return [...uids];
+}
+
 /**
  * @param {string} userId
  * @param {ExchangeId} exchange

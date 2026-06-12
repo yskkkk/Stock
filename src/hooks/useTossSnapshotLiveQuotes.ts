@@ -17,10 +17,12 @@ export function useTossSnapshotLiveQuotes(
   const symbolsKey = useMemo(() => tossSnapshotSymbolKey(snapshot), [snapshot]);
   const hasHoldings = Boolean(symbolsKey);
   const { rate: usdKrwRate } = useUsdKrwRate(hasHoldings && enabled);
-  const [liveSnapshot, setLiveSnapshot] = useState<TossTestSnapshot | null>(snapshot);
+  const [liveSnapshot, setLiveSnapshot] = useState<TossTestSnapshot | null>(
+    () => snapshot,
+  );
 
   useEffect(() => {
-    setLiveSnapshot(snapshot);
+    if (snapshot) setLiveSnapshot(snapshot);
   }, [snapshot]);
 
   useEffect(() => {

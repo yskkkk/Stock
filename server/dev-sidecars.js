@@ -13,6 +13,7 @@ import { purgeBoxRangeCryptoOutsideHtfSymbolsSync } from "./box-range/crypto-htf
 import { boxRangeDetectEnabled } from "./box-range/constants.js";
 import { startLiveTradeExchangeSyncPoller } from "./live-trade-exchange-sync.js";
 import { startBithumbLedgerPoller } from "./live-trade-bithumb-ledger.js";
+import { startTossLedgerSnapshotPoller } from "./live-trade-toss-ledger.js";
 import { startOpsFileDevPoller } from "./ops-file-dev-poller.js";
 import { startServerSelfImprovementWatcher } from "./server-self-improvement-log.js";
 import { prewarmAppCaches } from "./prewarm-caches.js";
@@ -40,6 +41,7 @@ export function startStockDevSidecarsOnce(modeLabel) {
   startOpsIdeTranscriptPoller();
   startLiveTradeExchangeSyncPoller();
   startBithumbLedgerPoller();
+  startTossLedgerSnapshotPoller();
   startLiveTradeAutoSellPoller();
   purgeBoxRangeCryptoOutsideHtfSymbolsSync();
   startBoxRangeRunnerPoller();

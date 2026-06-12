@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { getDecryptedCredentialsSync } from "./user-credentials-store.js";
 import { fetchTossAccountRawWithCredentials } from "./toss-openapi.js";
 import { summarizeTossAccountsForDisplay } from "./toss-accounts-summary.js";
-import { liveTradeLogWarn } from "./live-trade-log.js";
+import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 import { resolveServerDataDir } from "./data-path.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -152,4 +152,92 @@ export async function refreshTossLedgerSnapshotForUserAsync(userId) {
       messageKo: e instanceof Error ? e.message : String(e),
     };
   }
+}
+
+const TOSS_LEDGER_CACHE_TICK_MS = (() => {
+  const n = Number(process.env.STOCK_TOSS_LEDGER_CACHE_MS ?? 1_000);
+  return Number.isFinite(n) && n >= 500 ? Math.min(n, 5_000) : 1_000;
+})();
+
+const TOSS_LEDGER_API_REFRESH_MS = (() => {
+  const n = Number(process.env.STOCK_TOSS_LEDGER_API_MS ?? 15_000);
+  return Number.isFinite(n) && n >= 5_000 ? Math.min(n, 120_000) : 15_000;
+})();
+
+/**
+ * 파일 캐시 터치 — 클라이언트 1초 폴링 시 디스크에서 즉시 읽기
+ * @param {string} userId
+ */
+export function touchTossLedgerSnapshotCacheSync(userId) {
+  const uid = String(userId ?? "").trim();
+  if (!uid) return false;
+  const cached = getTossLedgerSnapshotCacheSync(uid);
+  if (!cached?.snapshot) return false;
+  persistUserRow(uid, {
+    snapshot: cached.snapshot,
+    feeLabelKo: cached.feeLabelKo ?? null,
+    snapshotSyncedAtMs: cached.syncedAtMs ?? Date.now(),
+  });
+  return true;
+}
+
+export async function tickTossLedgerApiRefreshAsync() {
+  const { listTossReadyUserIdsSync } = await import("./user-credentials-store.js");
+  const uids = listTossReadyUserIdsSync();
+  for (const uid of uids) {
+    try {
+      await refreshTossLedgerSnapshotForUserAsync(uid);
+    } catch {
+      /* 개별 사용자 실패는 다음 턴 */
+    }
+  }
+  return { users: uids.length };
+}
+
+export function tickTossLedgerCacheTouch() {
+  const store = readStoreSync();
+  let touched = 0;
+  for (const uid of Object.keys(store.users ?? {})) {
+    if (touchTossLedgerSnapshotCacheSync(uid)) touched += 1;
+  }
+  return { touched };
+}
+
+/** 토스 장부 — 파일 캐시 1초 터치 + Open API 주기 갱신 */
+export function startTossLedgerSnapshotPoller() {
+  if (process.env.STOCK_TOSS_LEDGER_POLL === "0") return;
+
+  const g = /** @type {typeof globalThis & { __stockTossLedgerPollerStarted?: boolean }} */ (
+    globalThis
+  );
+  if (g.__stockTossLedgerPollerStarted) return;
+  g.__stockTossLedgerPollerStarted = true;
+
+  let apiRunning = false;
+
+  setInterval(() => {
+    tickTossLedgerCacheTouch();
+  }, TOSS_LEDGER_CACHE_TICK_MS);
+
+  const loopApi = () => {
+    if (apiRunning) return;
+    apiRunning = true;
+    tickTossLedgerApiRefreshAsync()
+      .catch((e) => {
+        liveTradeLogWarn(
+          "[toss-ledger] poller",
+          e instanceof Error ? e.message : e,
+        );
+      })
+      .finally(() => {
+        apiRunning = false;
+        setTimeout(loopApi, TOSS_LEDGER_API_REFRESH_MS);
+      });
+  };
+
+  liveTradeLogInfo(
+    "[toss-ledger] poller",
+    `cache ${TOSS_LEDGER_CACHE_TICK_MS}ms · api ${TOSS_LEDGER_API_REFRESH_MS}ms`,
+  );
+  loopApi();
 }

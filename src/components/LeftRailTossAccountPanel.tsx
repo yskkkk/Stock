@@ -47,7 +47,7 @@ export function TossAccountRailCore({
 
   if (authChecked && !user) return null;
 
-  const pending = !authChecked || loading;
+  const pending = !authChecked || (loading && !snapshot);
 
   const head = (
     <div className="bithumb-account-rail-wrap__head">
