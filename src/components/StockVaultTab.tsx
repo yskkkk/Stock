@@ -874,9 +874,6 @@ export default function StockVaultTab({
           {scanNotice ? (
             <p className="stock-vault-tab__scan-notice">{scanNotice}</p>
           ) : null}
-          {!authenticated ? (
-            <p className="stock-vault-tab__desc">{ko.stockVault.loginHint}</p>
-          ) : null}
         </header>
 
         <div className="stock-vault-tab__filters-wrap">

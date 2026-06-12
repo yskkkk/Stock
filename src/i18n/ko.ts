@@ -1100,7 +1100,6 @@ export const ko = {
     favoriteAddAria: "즐겨찾기에 추가",
     favoriteRemoveAria: "즐겨찾기에서 제거",
     loginRequired: "로그인 후 내 보관·즐겨찾기를 사용할 수 있습니다.",
-    loginHint: "골든크로스·정배열 탐색 결과는 공통으로 보이며, 즐겨찾기·삭제는 계정별로 저장됩니다.",
     openTradingViewChart: "TradingView 차트 열기",
     openFinancialsTab: "제무재표 탭 열기",
     bubbleBtnChart: "차트",
