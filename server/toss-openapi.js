@@ -3,6 +3,8 @@
  * @see https://openapi.tossinvest.com/openapi-docs/overview.md
  */
 
+import { queueTossApiRequest } from "./toss-api-queue.js";
+
 const DEFAULT_BASE = "https://openapi.tossinvest.com";
 
 /** @type {Map<string, { accessToken: string; expiresAtMs: number }>} */
@@ -50,12 +52,14 @@ export async function issueTossAccessToken(clientId, clientSecret) {
     client_secret: secret,
   });
 
-  const res = await fetch(`${tossOpenApiBaseUrl()}/oauth2/token`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body,
-    signal: AbortSignal.timeout(30_000),
-  });
+  const res = await queueTossApiRequest(() =>
+    fetch(`${tossOpenApiBaseUrl()}/oauth2/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+      signal: AbortSignal.timeout(30_000),
+    }),
+  );
 
   const text = await res.text();
   /** @type {Record<string, unknown>} */
@@ -114,7 +118,7 @@ export async function resolveTossAccountSeq(accessToken, preferredAccountId) {
  * @param {string} path
  * @param {Record<string, string>} [query]
  */
-export async function tossOpenApiGet(accessToken, accountSeq, path, query) {
+async function tossOpenApiGetOnce(accessToken, accountSeq, path, query) {
   const base = tossOpenApiBaseUrl();
   const url = new URL(path.startsWith("/") ? path : `/${path}`, base);
   if (query) {
@@ -151,6 +155,12 @@ export async function tossOpenApiGet(accessToken, accountSeq, path, query) {
   }
 
   return json;
+}
+
+export async function tossOpenApiGet(accessToken, accountSeq, path, query) {
+  return queueTossApiRequest(() =>
+    tossOpenApiGetOnce(accessToken, accountSeq, path, query),
+  );
 }
 
 /**
@@ -192,33 +202,29 @@ export async function tossOpenApiPost(accessToken, accountSeq, path, body) {
   const acct = String(accountSeq ?? "").trim();
   if (acct) headers["X-Tossinvest-Account"] = acct;
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers,
-    body: body != null ? JSON.stringify(body) : undefined,
-    signal: AbortSignal.timeout(30_000),
+  return queueTossApiRequest(async () => {
+    const res = await fetch(url, {
+      method: "POST",
+      headers,
+      body: body != null ? JSON.stringify(body) : undefined,
+      signal: AbortSignal.timeout(30_000),
+    });
+
+    const text = await res.text();
+    /** @type {Record<string, unknown>} */
+    let json = {};
+    try {
+      json = text ? JSON.parse(text) : {};
+    } catch {
+      json = {};
+    }
+
+    if (!res.ok) {
+      throw new Error(formatTossOpenApiError(json, res.status));
+    }
+
+    return json;
   });
-
-  const text = await res.text();
-  /** @type {Record<string, unknown>} */
-  let json = {};
-  try {
-    json = text ? JSON.parse(text) : {};
-  } catch {
-    json = {};
-  }
-
-  if (!res.ok) {
-    const errObj =
-      json.error && typeof json.error === "object" ? json.error : null;
-    const msg =
-      (errObj && typeof errObj.message === "string" && errObj.message) ||
-      (typeof json.message === "string" && json.message) ||
-      `토스 API 오류 HTTP ${res.status}`;
-    throw new Error(msg);
-  }
-
-  return json;
 }
 
 /**
@@ -282,26 +288,28 @@ export async function tossOpenApiDelete(accessToken, accountSeq, path) {
   const acct = String(accountSeq ?? "").trim();
   if (acct) headers["X-Tossinvest-Account"] = acct;
 
-  const res = await fetch(url, {
-    method: "DELETE",
-    headers,
-    signal: AbortSignal.timeout(30_000),
+  return queueTossApiRequest(async () => {
+    const res = await fetch(url, {
+      method: "DELETE",
+      headers,
+      signal: AbortSignal.timeout(30_000),
+    });
+
+    const text = await res.text();
+    /** @type {Record<string, unknown>} */
+    let json = {};
+    try {
+      json = text ? JSON.parse(text) : {};
+    } catch {
+      json = {};
+    }
+
+    if (!res.ok) {
+      throw new Error(formatTossOpenApiError(json, res.status));
+    }
+
+    return json;
   });
-
-  const text = await res.text();
-  /** @type {Record<string, unknown>} */
-  let json = {};
-  try {
-    json = text ? JSON.parse(text) : {};
-  } catch {
-    json = {};
-  }
-
-  if (!res.ok) {
-    throw new Error(formatTossOpenApiError(json, res.status));
-  }
-
-  return json;
 }
 
 /**

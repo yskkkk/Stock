@@ -15,9 +15,24 @@ import { kstDateKeyFromMs } from "./live-trade-history.js";
 import { listLiveTradeProgramsSync } from "./live-trade-programs-store.js";
 import { getDecryptedCredentialsSync } from "./user-credentials-store.js";
 import { liveTradeLogWarn } from "./live-trade-log.js";
+import { isTossRateLimitError } from "./toss-api-queue.js";
 
-const HISTORY_LOOKBACK_MS = 5 * 365 * 24 * 60 * 60 * 1000;
-const HISTORY_MAX_PAGES = 50;
+const HISTORY_LOOKBACK_DAYS = (() => {
+  const n = Number(process.env.STOCK_TOSS_HISTORY_LOOKBACK_DAYS);
+  return Number.isFinite(n) && n >= 30 ? Math.min(1825, Math.floor(n)) : 730;
+})();
+const HISTORY_LOOKBACK_MS = HISTORY_LOOKBACK_DAYS * 24 * 60 * 60 * 1000;
+const HISTORY_MAX_PAGES = (() => {
+  const n = Number(process.env.STOCK_TOSS_HISTORY_MAX_PAGES);
+  return Number.isFinite(n) && n >= 1 ? Math.min(50, Math.floor(n)) : 30;
+})();
+const HISTORY_CACHE_MS = (() => {
+  const n = Number(process.env.STOCK_TOSS_HISTORY_CACHE_MS);
+  return Number.isFinite(n) && n >= 30_000 ? Math.min(30 * 60_000, Math.floor(n)) : 5 * 60_000;
+})();
+
+/** @type {Map<string, { at: number; trades: object[]; inflight: Promise<object[]> | null }>} */
+const historyCacheByUser = new Map();
 
 /**
  * @param {unknown} v
@@ -123,11 +138,16 @@ export async function fetchAllTossClosedOrdersRaw(
       });
     } catch (e) {
       if (page === 0) throw e;
-      liveTradeLogWarn(
-        "[live-trade:toss-history]",
-        "page failed",
-        e instanceof Error ? e.message : e,
-      );
+      const msg = e instanceof Error ? e.message : String(e);
+      if (isTossRateLimitError(e)) {
+        liveTradeLogWarn(
+          "[live-trade:toss-history]",
+          `page ${page + 1} rate-limited — ${all.length}건까지 사용`,
+          msg,
+        );
+      } else {
+        liveTradeLogWarn("[live-trade:toss-history]", "page failed", msg);
+      }
       break;
     }
 
@@ -187,10 +207,10 @@ export function mergeTossApiAndStoreTrades(apiTrades, storeTrades) {
 }
 
 /**
- * 거래내역 UI — 토스 CLOSED 주문 API
  * @param {string} userId
+ * @returns {Promise<object[]>}
  */
-export async function listTossTradesFromExchangeApiForHistory(userId) {
+async function fetchFreshTossHistoryTradesForUser(userId) {
   const uid = String(userId ?? "").trim();
   if (!uid) return [];
 
@@ -257,4 +277,51 @@ export async function listTossTradesFromExchangeApiForHistory(userId) {
   }
 
   return out.sort((a, b) => b.atMs - a.atMs);
+}
+
+/**
+ * 거래내역 UI — 토스 CLOSED 주문 API (사용자별 캐시·inflight 공유)
+ * @param {string} userId
+ */
+export async function listTossTradesFromExchangeApiForHistory(userId) {
+  const uid = String(userId ?? "").trim();
+  if (!uid) return [];
+
+  const now = Date.now();
+  const row = historyCacheByUser.get(uid);
+  if (row && now - row.at < HISTORY_CACHE_MS && !row.inflight) {
+    return row.trades;
+  }
+  if (row?.inflight) {
+    try {
+      return await row.inflight;
+    } catch {
+      return row.trades ?? [];
+    }
+  }
+
+  const inflight = fetchFreshTossHistoryTradesForUser(uid);
+  historyCacheByUser.set(uid, {
+    at: row?.at ?? 0,
+    trades: row?.trades ?? [],
+    inflight,
+  });
+
+  try {
+    const trades = await inflight;
+    historyCacheByUser.set(uid, { at: Date.now(), trades, inflight: null });
+    return trades;
+  } catch (e) {
+    historyCacheByUser.set(uid, {
+      at: row?.at ?? 0,
+      trades: row?.trades ?? [],
+      inflight: null,
+    });
+    liveTradeLogWarn(
+      "[live-trade:toss-history]",
+      "refresh failed",
+      e instanceof Error ? e.message : e,
+    );
+    return row?.trades ?? [];
+  }
 }
