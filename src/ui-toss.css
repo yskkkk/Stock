@@ -496,6 +496,37 @@ html:not([data-theme="light"]) .main-tab.main-tab--preview {
   font-weight: 600;
 }
 
+.live-holding-sym-wrap {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  max-width: 100%;
+}
+
+.live-holding-buffett-btn {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0.12rem 0.42rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.live-holding-buffett-btn:hover {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.live-holding-buffett-btn--card {
+  align-self: flex-start;
+}
+
 .live-holding-chart-btn {
   display: inline-flex;
   flex-direction: row;
@@ -509,6 +540,7 @@ html:not([data-theme="light"]) .main-tab.main-tab--preview {
   font: inherit;
   text-align: left;
   cursor: pointer;
+  min-width: 0;
 }
 
 .live-holding-chart-btn:hover .live-sim-run__sym,

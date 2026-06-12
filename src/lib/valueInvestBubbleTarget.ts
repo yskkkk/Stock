@@ -1,5 +1,6 @@
-import type { StockPick } from "../types";
+import type { LiveTradeHolding } from "../api";
 import type { ValueInvestBubbleTarget } from "../contexts/ValueInvestBubbleContext";
+import type { StockPick } from "../types";
 
 export function stockPickToValueInvestTarget(pick: StockPick): ValueInvestBubbleTarget {
   return {
@@ -9,6 +10,22 @@ export function stockPickToValueInvestTarget(pick: StockPick): ValueInvestBubble
     price: pick.price ?? null,
     currency: pick.currency ?? null,
   };
+}
+
+export function holdingToValueInvestTarget(h: LiveTradeHolding): ValueInvestBubbleTarget {
+  return {
+    symbol: h.symbol,
+    name: h.name?.trim() || h.symbol,
+    market: h.market === "us" ? "us" : "kr",
+    price: h.currentPrice ?? null,
+    currency: h.currency ?? null,
+  };
+}
+
+export function isStockHoldingMarket(
+  market: LiveTradeHolding["market"],
+): market is "kr" | "us" {
+  return market === "kr" || market === "us";
 }
 
 export function krFlowRowToValueInvestTarget(row: {

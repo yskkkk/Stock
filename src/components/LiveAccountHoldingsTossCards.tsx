@@ -23,6 +23,7 @@ import {
   holdingNetReturnPctFromCost,
   holdingNetUnrealizedPnl,
 } from "../lib/livePortfolioPnl";
+import HoldingBuffettButton from "./HoldingBuffettButton";
 import TossMyStockSummaryCard from "./TossMyStockSummaryCard";
 
 function profitDisplay(
@@ -98,6 +99,14 @@ export default function LiveAccountHoldingsTossCards({
             <TossMyStockSummaryCard
               key={`${h.programId}:${h.market}:${h.symbol}`}
               title={h.name?.trim() || h.symbol}
+              meta={
+                h.market === "kr" || h.market === "us" ? (
+                  <HoldingBuffettButton
+                    holding={h}
+                    className="live-holding-buffett-btn live-holding-buffett-btn--card"
+                  />
+                ) : null
+              }
               onTitleClick={
                 onOpenHoldingChart ? () => onOpenHoldingChart(h) : undefined
               }

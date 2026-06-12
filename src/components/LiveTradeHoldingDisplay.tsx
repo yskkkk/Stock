@@ -7,6 +7,7 @@ import { netReturnPctFromPrices } from "../lib/netReturn";
 import { ko } from "../i18n/ko";
 import { resolveSymbolDisplayName } from "../lib/symbolDisplayName";
 import CryptoCoinIcon from "./CryptoCoinIcon";
+import HoldingBuffettButton from "./HoldingBuffettButton";
 
 function HoldingSymbolLabels({
   holding,
@@ -159,23 +160,29 @@ export function LiveHoldingChartSymbol({
         holding.market,
       );
       return (
-        <span className="live-portfolio__sym-block">
-          <span className="live-portfolio__sym-line">
-            <span className="live-portfolio__sym">{label}</span>
-            {prog ? (
-              <span className="live-portfolio__prog-badge" title={prog}>
-                {prog}
-              </span>
-            ) : null}
+        <span className="live-holding-sym-wrap">
+          <span className="live-portfolio__sym-block">
+            <span className="live-portfolio__sym-line">
+              <span className="live-portfolio__sym">{label}</span>
+              {prog ? (
+                <span className="live-portfolio__prog-badge" title={prog}>
+                  {prog}
+                </span>
+              ) : null}
+            </span>
+            {sublabel ? <span className="live-portfolio__nm">{sublabel}</span> : null}
           </span>
-          {sublabel ? <span className="live-portfolio__nm">{sublabel}</span> : null}
+          <HoldingBuffettButton holding={holding} />
         </span>
       );
     }
     return (
-      <SymbolWithCoinIcon symbol={holding.symbol} market={holding.market}>
-        <HoldingSymbolLabels holding={holding} footer={footer} />
-      </SymbolWithCoinIcon>
+      <span className="live-holding-sym-wrap">
+        <SymbolWithCoinIcon symbol={holding.symbol} market={holding.market}>
+          <HoldingSymbolLabels holding={holding} footer={footer} />
+        </SymbolWithCoinIcon>
+        <HoldingBuffettButton holding={holding} />
+      </span>
     );
   }
 
@@ -188,6 +195,34 @@ export function LiveHoldingChartSymbol({
 
   if (variant === "portfolio") {
     return (
+      <span className="live-holding-sym-wrap">
+        <button
+          type="button"
+          className={cls}
+          onClick={() => onOpen(holding)}
+          aria-pressed={selected}
+          title={ko.app.liveTradeChartOpenLookup}
+        >
+          <span className="live-portfolio__sym-line">
+            <span className="live-portfolio__sym">{label}</span>
+            {(holding.programName ?? holding.programId) ? (
+              <span
+                className="live-portfolio__prog-badge"
+                title={holding.programName ?? holding.programId}
+              >
+                {holding.programName ?? holding.programId}
+              </span>
+            ) : null}
+          </span>
+          {sublabel ? <span className="live-portfolio__nm">{sublabel}</span> : null}
+        </button>
+        <HoldingBuffettButton holding={holding} />
+      </span>
+    );
+  }
+
+  return (
+    <span className="live-holding-sym-wrap">
       <button
         type="button"
         className={cls}
@@ -195,35 +230,13 @@ export function LiveHoldingChartSymbol({
         aria-pressed={selected}
         title={ko.app.liveTradeChartOpenLookup}
       >
-        <span className="live-portfolio__sym-line">
-          <span className="live-portfolio__sym">{label}</span>
-          {(holding.programName ?? holding.programId) ? (
-            <span
-              className="live-portfolio__prog-badge"
-              title={holding.programName ?? holding.programId}
-            >
-              {holding.programName ?? holding.programId}
-            </span>
-          ) : null}
-        </span>
-        {sublabel ? <span className="live-portfolio__nm">{sublabel}</span> : null}
+        <SymbolWithCoinIcon symbol={holding.symbol} market={holding.market}>
+          <span className="live-sim-run__sym">{label}</span>
+          {sublabel ? <span className="live-sim-run__name">{sublabel}</span> : null}
+          {footer}
+        </SymbolWithCoinIcon>
       </button>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      className={cls}
-      onClick={() => onOpen(holding)}
-      aria-pressed={selected}
-      title={ko.app.liveTradeChartOpenLookup}
-    >
-      <SymbolWithCoinIcon symbol={holding.symbol} market={holding.market}>
-        <span className="live-sim-run__sym">{label}</span>
-        {sublabel ? <span className="live-sim-run__name">{sublabel}</span> : null}
-        {footer}
-      </SymbolWithCoinIcon>
-    </button>
+      <HoldingBuffettButton holding={holding} />
+    </span>
   );
 }
