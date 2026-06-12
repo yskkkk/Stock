@@ -11,9 +11,9 @@ import { useOptionalValueInvestBubble } from "../contexts/ValueInvestBubbleConte
 import StockEarningsHoverBubbleBody from "./StockEarningsHoverBubbleBody";
 import { tradingViewChartUrl } from "../lib/tradingviewSymbols";
 
-const HIDE_DELAY_MS = 120;
+const HIDE_DELAY_MS = 420;
 const VIEWPORT_PAD = 8;
-const GAP = 10;
+const GAP = 2;
 const EST_BUBBLE_W = 300;
 const EST_BUBBLE_H = 280;
 
@@ -105,10 +105,11 @@ function positionTip(
 }
 
 function bubblePlacementClass(placement: Placement) {
-  if (placement === "left") {
-    return "earnings-icon-rail__bubble earnings-icon-rail__bubble--left";
-  }
-  return "earnings-icon-rail__bubble";
+  const base = "earnings-icon-rail__bubble";
+  if (placement === "left") return `${base} earnings-icon-rail__bubble--left`;
+  if (placement === "below") return `${base} earnings-icon-rail__bubble--below`;
+  if (placement === "above") return `${base} earnings-icon-rail__bubble--above`;
+  return base;
 }
 
 export function useStockVaultRowBubble() {
@@ -126,6 +127,10 @@ export function useStockVaultRowBubble() {
       hideTimerRef.current = null;
     }
   }, []);
+
+  const keepTipOpen = useCallback(() => {
+    clearHideTimer();
+  }, [clearHideTimer]);
 
   const scheduleHideTip = useCallback(() => {
     clearHideTimer();
@@ -185,7 +190,7 @@ export function useStockVaultRowBubble() {
               top: `${tip.top}px`,
               transform: tip.transform,
             }}
-            onMouseEnter={clearHideTimer}
+            onMouseEnter={keepTipOpen}
             onMouseLeave={scheduleHideTip}
           >
             <StockEarningsHoverBubbleBody

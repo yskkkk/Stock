@@ -6922,6 +6922,66 @@ html[data-theme="light"] .earnings-icon-rail__logo-wrap.stock-logo-plate--dark {
   border-top: 1px solid var(--card-border);
 }
 
+/* 카드↔말풍선 사이 hover 공백 — 마우스가 끊기지 않도록 투명 브릿지 */
+.earnings-icon-rail__bubble::after {
+  content: "";
+  position: absolute;
+  pointer-events: auto;
+}
+
+.earnings-icon-rail__bubble:not(.earnings-icon-rail__bubble--left):not(.earnings-icon-rail__bubble--below):not(.earnings-icon-rail__bubble--above)::after {
+  left: -16px;
+  width: 16px;
+  top: 0;
+  bottom: 0;
+}
+
+.earnings-icon-rail__bubble--left::after {
+  right: -16px;
+  width: 16px;
+  top: 0;
+  bottom: 0;
+}
+
+.earnings-icon-rail__bubble--below::after {
+  top: -16px;
+  height: 16px;
+  left: 0;
+  right: 0;
+}
+
+.earnings-icon-rail__bubble--above::after {
+  bottom: -16px;
+  height: 16px;
+  left: 0;
+  right: 0;
+}
+
+.earnings-icon-rail__bubble--below::before {
+  left: 50%;
+  top: -5px;
+  right: auto;
+  margin-top: 0;
+  margin-left: -4.5px;
+  border-left: 1px solid var(--card-border);
+  border-top: 1px solid var(--card-border);
+  border-bottom: none;
+  border-right: none;
+}
+
+.earnings-icon-rail__bubble--above::before {
+  left: 50%;
+  top: auto;
+  bottom: -5px;
+  right: auto;
+  margin-top: 0;
+  margin-left: -4.5px;
+  border-right: 1px solid var(--card-border);
+  border-bottom: 1px solid var(--card-border);
+  border-left: none;
+  border-top: none;
+}
+
 .earnings-icon-rail__bubble-name {
   margin: 0 0 0.2rem;
   font-size: 0.82rem;

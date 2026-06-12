@@ -1104,7 +1104,11 @@ export default function StockVaultTab({
                   tabIndex={0}
                   aria-label={`${display.label} ${ko.stockVault.rowBubbleAria}`}
                   onFocus={(e) => openRowBubble(e.currentTarget.closest("li") ?? e.currentTarget)}
-                  onBlur={scheduleHideTip}
+                  onBlur={(e) => {
+                    const rel = e.relatedTarget as Node | null;
+                    if (rel && document.getElementById(tipId)?.contains(rel)) return;
+                    scheduleHideTip();
+                  }}
                 >
                   <div className="stock-vault-tab__row-main">
                     <div className="stock-vault-tab__row-head">

@@ -28,7 +28,7 @@ import { ko } from "../i18n/ko";
 import type { SectorEarningsSpotlightItem } from "../types";
 
 const TICK_MS = 1000;
-const HIDE_DELAY_MS = 120;
+const HIDE_DELAY_MS = 420;
 
 type TipState = {
   row: SectorEarningsSpotlightItem;
