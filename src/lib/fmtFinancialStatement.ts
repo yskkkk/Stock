@@ -1,41 +1,19 @@
+import {
+  formatKrEokDisplay,
+  normalizeKrStatementMoneyValue,
+  parseStatementDisplayNumber,
+} from "./statementDisplayUnits";
+
 function normStatementLabel(label: string): string {
   return label.replace(/\s+/g, "").toLowerCase();
 }
 
 function valueLooksUnitized(raw: string): boolean {
-  return /[%원배억조$€£₩]|krw|usd|million|billion|m\b|b\b/i.test(raw);
+  return /[%원배$€£₩]|krw|usd|million|billion|m\b|b\b/i.test(raw) || /[억조]/.test(raw);
 }
 
-/** 1조 = 10,000억 */
-const EOK_PER_JO = 10_000;
-
-function parseStatementDisplayNumber(raw: string): number | null {
-  const s = raw.trim();
-  if (!s || s === "—" || s === "-") return null;
-  const neg = /^\(.*\)$/.test(s);
-  const m = s.replace(/,/g, "").replace(/[()]/g, "").match(/^([+-]?[\d.]+)/);
-  if (!m) return null;
-  let n = Number(m[1]);
-  if (!Number.isFinite(n)) return null;
-  return neg ? -n : n;
-}
-
-function formatJoWonFromEok(eok: number): string {
-  const jo = eok / EOK_PER_JO;
-  const abs = Math.abs(jo);
-  const maxFrac = abs >= 100 ? 1 : 2;
-  const formatted = jo.toLocaleString("ko-KR", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: maxFrac,
-  });
-  return `${formatted}조원`;
-}
-
-function formatEokWon(raw: string, eok: number): string {
-  if (Math.abs(eok) >= EOK_PER_JO) {
-    return formatJoWonFromEok(eok);
-  }
-  return `${raw}억원`;
+function formatEokWon(eok: number): string {
+  return `${formatKrEokDisplay(eok)}억원`;
 }
 
 /** 재무제표 행 라벨·섹션 단위로 표시 단위 추론 */
@@ -80,7 +58,11 @@ export function fmtFinancialStatementCell(
   unitNote?: string,
   market?: "kr" | "us",
 ): string {
-  const raw = String(value ?? "").trim();
+  const normalized =
+    unitNote?.includes("억원") && market !== "us"
+      ? normalizeKrStatementMoneyValue(value, unitNote, label)
+      : String(value ?? "").trim();
+  const raw = normalized;
   if (!raw || raw === "—" || raw === "-") return "—";
   if (valueLooksUnitized(raw)) return raw;
 
@@ -92,7 +74,7 @@ export function fmtFinancialStatementCell(
   if (unit === "억원") {
     const n = parseStatementDisplayNumber(raw);
     if (n == null) return `${raw}억원`;
-    return formatEokWon(raw, n);
+    return formatEokWon(n);
   }
   if (unit === "USD") return `$${raw}`;
   return raw;

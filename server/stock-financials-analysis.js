@@ -4,6 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { normalizeKrStatementMoneyValue } from "./statement-display-units.js";
 import {
   loadFinancialPeriods,
   loadFinancialStatementDetail,
@@ -123,15 +124,23 @@ function mergeComparisonSections(
     rows: (sec.rows ?? []).map((row) => {
       const yoyPrior = yoyByLabel.get(normLabel(row.label));
       const prevAnnounce = prevByLabel.get(normLabel(row.label));
+      const priorValue = yoyPrior?.value
+        ? normalizeKrStatementMoneyValue(yoyPrior.value, sec.unitNote, row.label)
+        : null;
+      const prevAnnounceValue = prevAnnounce?.value
+        ? normalizeKrStatementMoneyValue(prevAnnounce.value, sec.unitNote, row.label)
+        : null;
       const curNum = parseStatementNumber(row.value, sec.unitNote);
-      const yoyNum = yoyPrior?.numeric ?? null;
-      const prevNum = prevAnnounce?.numeric ?? null;
+      const yoyNum = priorValue ? parseStatementNumber(priorValue, sec.unitNote) : null;
+      const prevNum = prevAnnounceValue
+        ? parseStatementNumber(prevAnnounceValue, sec.unitNote)
+        : null;
       return {
         label: row.label,
         value: row.value,
-        priorValue: yoyPrior?.value ?? null,
+        priorValue,
         yoyPct: calcYoyPct(curNum, yoyNum),
-        prevAnnounceValue: prevAnnounce?.value ?? null,
+        prevAnnounceValue,
         prevAnnouncePct: calcYoyPct(curNum, prevNum),
       };
     }),

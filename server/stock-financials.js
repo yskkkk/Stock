@@ -3,6 +3,7 @@
  */
 import { isKrQuoteSymbol, yahooSymbolToKrCode } from "./kr-naver-quote.js";
 import { resolveDisplayName } from "./names-ko.js";
+import { normalizeKrStatementMoneyValue } from "./statement-display-units.js";
 import {
   isLiveFinancialsFetchForced,
   readArchivedFinancialPeriods,
@@ -169,14 +170,18 @@ const YAHOO_CASH_LABELS = {
   freeCashFlow: "잉여현금흐름",
 };
 
-/** @param {Record<string, unknown>} stmt @param {Record<string, string>} labels */
-function yahooRowsFromStatement(stmt, labels) {
+/** @param {Record<string, unknown>} stmt @param {Record<string, string>} labels @param {{ market?: "kr"|"us" }} [opts] */
+function yahooRowsFromStatement(stmt, labels, opts = {}) {
+  const market = opts.market ?? "us";
   /** @type {{ label: string; value: string }[]} */
   const rows = [];
   for (const [field, label] of Object.entries(labels)) {
     if (!(field in stmt)) continue;
-    const value = displayField(stmt[field]);
+    let value = displayField(stmt[field]);
     if (value === "—") continue;
+    if (market === "kr") {
+      value = normalizeKrStatementMoneyValue(value, "단위: 억원", label);
+    }
     rows.push({ label, value });
   }
   return rows;
@@ -474,30 +479,38 @@ export async function loadFinancialStatementDetail(symbol, periodId, options = {
 
   /** @type {object[]} */
   const sections = [];
+  const yahooMarket = isKrQuoteSymbol(sym) ? "kr" : "us";
+  const yahooUnitNote = yahooMarket === "kr" ? "단위: 억원" : "단위: USD (millions)";
   if (income && typeof income === "object") {
     sections.push({
       title: "손익계산서",
+      unitNote: yahooUnitNote,
       rows: yahooRowsFromStatement(
         /** @type {Record<string, unknown>} */ (income),
         YAHOO_INCOME_LABELS,
+        { market: yahooMarket },
       ),
     });
   }
   if (balance && typeof balance === "object") {
     sections.push({
       title: "재무상태표",
+      unitNote: yahooUnitNote,
       rows: yahooRowsFromStatement(
         /** @type {Record<string, unknown>} */ (balance),
         YAHOO_BALANCE_LABELS,
+        { market: yahooMarket },
       ),
     });
   }
   if (cash && typeof cash === "object") {
     sections.push({
       title: "현금흐름표",
+      unitNote: yahooUnitNote,
       rows: yahooRowsFromStatement(
         /** @type {Record<string, unknown>} */ (cash),
         YAHOO_CASH_LABELS,
+        { market: yahooMarket },
       ),
     });
   }
