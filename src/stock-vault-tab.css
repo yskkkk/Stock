@@ -196,26 +196,95 @@
 .stock-vault-tab__history-select-wrap {
   display: flex;
   align-items: center;
-  gap: 0.42rem;
-  margin: 0.28rem 0 0;
+  gap: 0.45rem;
+  margin: 0.32rem 0 0;
   min-width: 0;
+  max-width: 18rem;
 }
 
 .stock-vault-tab__history-select-label {
   flex: 0 0 auto;
   font-size: 0.68rem;
+  font-weight: 600;
   color: var(--muted);
   white-space: nowrap;
 }
 
-.stock-vault-tab__history-select {
-  flex: 1 1 8rem;
+.stock-vault-tab__history-select-shell {
+  position: relative;
+  flex: 1 1 auto;
   min-width: 0;
-  max-width: 12rem;
-  min-height: 1.75rem;
-  padding: 0.18rem 1.6rem 0.18rem 0.5rem;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface) 72%, var(--card));
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.stock-vault-tab__history-select-shell:hover {
+  border-color: color-mix(in srgb, var(--accent-border) 45%, var(--card-border));
+  background: color-mix(in srgb, var(--surface) 58%, var(--card));
+}
+
+.stock-vault-tab__history-select-shell:focus-within {
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-dim) 85%, transparent);
+}
+
+.stock-vault-tab__history-select-shell::after {
+  content: "";
+  position: absolute;
+  right: 0.52rem;
+  top: 50%;
+  width: 0.34rem;
+  height: 0.34rem;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: translateY(-72%) rotate(45deg);
+  pointer-events: none;
+  opacity: 0.72;
+}
+
+.stock-vault-tab__history-select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 1.65rem;
+  margin: 0;
+  padding: 0.22rem 1.55rem 0.22rem 0.55rem;
+  font: inherit;
   font-size: 0.72rem;
-  line-height: 1.2;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-radius: inherit;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
+}
+
+.stock-vault-tab__history-select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+html[data-theme="light"] .stock-vault-tab__history-select-shell {
+  background: color-mix(in srgb, var(--card) 94%, var(--surface));
+  border-color: color-mix(in srgb, var(--muted) 18%, var(--card-border));
+}
+
+html[data-theme="light"] .stock-vault-tab__history-select-shell:hover {
+  border-color: color-mix(in srgb, var(--accent-border) 38%, var(--card-border));
+  background: color-mix(in srgb, var(--card) 88%, var(--accent-dim));
+}
+
+html[data-theme="light"] .stock-vault-tab__history-select-shell:focus-within {
+  border-color: color-mix(in srgb, var(--accent-border) 72%, var(--card-border));
 }
 
 .stock-vault-tab__history-hint {

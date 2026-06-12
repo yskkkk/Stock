@@ -847,21 +847,23 @@ export default function StockVaultTab({
               <span className="stock-vault-tab__history-select-label">
                 {ko.stockVault.historyDateAria}
               </span>
-              <select
-                className="input stock-vault-tab__history-select"
-                aria-label={ko.stockVault.historyDateAria}
-                value={selectedScanDate ?? ""}
-                onChange={(e) =>
-                  setSelectedScanDate(e.target.value.trim() || null)
-                }
-              >
-                <option value="">{ko.stockVault.historyLatest}</option>
-                {historyDates.map((date) => (
-                  <option key={date} value={date}>
-                    {date}
-                  </option>
-                ))}
-              </select>
+              <span className="stock-vault-tab__history-select-shell">
+                <select
+                  className="stock-vault-tab__history-select"
+                  aria-label={ko.stockVault.historyDateAria}
+                  value={selectedScanDate ?? ""}
+                  onChange={(e) =>
+                    setSelectedScanDate(e.target.value.trim() || null)
+                  }
+                >
+                  <option value="">{ko.stockVault.historyLatest}</option>
+                  {historyDates.map((date) => (
+                    <option key={date} value={date}>
+                      {date}
+                    </option>
+                  ))}
+                </select>
+              </span>
             </label>
           ) : null}
           {isHistoricalView && selectedScanDate ? (
