@@ -38,7 +38,8 @@ export function summarizeTossAccountsForDisplay(raw) {
     const marketCountry = String(item?.marketCountry ?? "").trim().toUpperCase();
     const market = marketCountry === "US" ? "us" : "kr";
     const currencyRaw = String(item?.currency ?? "").trim().toUpperCase();
-    const currency = currencyRaw === "USD" ? "USD" : "KRW";
+    const currency =
+      currencyRaw === "USD" || market === "us" ? "USD" : "KRW";
     const avgBuyPrice = parseTossDecimal(item?.averagePurchasePrice);
     const currentPrice = parseTossDecimal(item?.lastPrice);
     const marketValue = parseTossDecimal(item?.marketValue?.amount);
@@ -72,17 +73,20 @@ export function summarizeTossAccountsForDisplay(raw) {
   const mvKrw = parseTossDecimal(ov?.marketValue?.amount?.krw);
   const mvUsd = parseTossDecimal(ov?.marketValue?.amount?.usd);
 
+  const summary = {
+    profitLossKrw: Number.isFinite(plKrw) ? plKrw : null,
+    profitLossUsd: Number.isFinite(plUsd) ? plUsd : null,
+    marketValueKrw: mvKrw > 0 ? mvKrw : null,
+    marketValueUsd: mvUsd > 0 ? mvUsd : null,
+    totalReturnPct: null,
+  };
+
   return {
     cash: {
       krw: cashKrw,
       usd: cashUsd,
     },
-    summary: {
-      profitLossKrw: Number.isFinite(plKrw) ? plKrw : null,
-      profitLossUsd: Number.isFinite(plUsd) ? plUsd : null,
-      marketValueKrw: mvKrw > 0 ? mvKrw : null,
-      marketValueUsd: mvUsd > 0 ? mvUsd : null,
-    },
+    summary,
     holdings,
   };
 }

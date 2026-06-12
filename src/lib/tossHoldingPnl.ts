@@ -120,3 +120,85 @@ export function tossHoldingsNetProfitLossKrw(
   }
   return plKrw;
 }
+
+export type TossSummarySlice = {
+  profitLossKrw?: number | null;
+  profitLossUsd?: number | null;
+  marketValueKrw?: number | null;
+  marketValueUsd?: number | null;
+  totalReturnPct?: number | null;
+};
+
+/** 계좌 전체 평가손익(원)·수익률 — KRW+USD 환산 합산 */
+export function computeTossAccountCombinedPnl(
+  holdings: TossTestHolding[],
+  summary: TossSummarySlice | null | undefined,
+  usdKrwRate: number | null,
+  roundTripFeeRate: number = DEFAULT_ROUND_TRIP_FEE_RATE,
+): { profitLossKrw: number | null; totalReturnPct: number | null } {
+  const fromHoldings = {
+    profitLossKrw: tossHoldingsNetProfitLossKrw(holdings, usdKrwRate, roundTripFeeRate),
+    totalReturnPct: tossHoldingsNetReturnPct(holdings, usdKrwRate, roundTripFeeRate),
+  };
+
+  const hasUsd =
+    holdings.some((h) => h.currency === "USD") ||
+    (summary?.profitLossUsd != null && summary.profitLossUsd !== 0) ||
+    (summary?.marketValueUsd != null && summary.marketValueUsd > 0);
+
+  if (
+    fromHoldings.profitLossKrw != null &&
+    fromHoldings.totalReturnPct != null &&
+    (!hasUsd || (usdKrwRate != null && usdKrwRate > 0))
+  ) {
+    return fromHoldings;
+  }
+
+  if (usdKrwRate != null && usdKrwRate > 0 && summary) {
+    const plK = summary.profitLossKrw;
+    const plU = summary.profitLossUsd;
+    const mvK = summary.marketValueKrw;
+    const mvU = summary.marketValueUsd;
+
+    let profitLossKrw: number | null = null;
+    if (plK != null || plU != null) {
+      profitLossKrw =
+        (plK != null && Number.isFinite(plK) ? plK : 0) +
+        (plU != null && Number.isFinite(plU) ? plU * usdKrwRate : 0);
+    }
+
+    let totalReturnPct = fromHoldings.totalReturnPct;
+    const costKrw =
+      (mvK != null && Number.isFinite(mvK) && plK != null ? mvK - plK : 0) +
+      (mvU != null && Number.isFinite(mvU) && plU != null
+        ? (mvU - plU) * usdKrwRate
+        : 0);
+    if (costKrw > 0 && profitLossKrw != null) {
+      totalReturnPct = (profitLossKrw / costKrw) * 100;
+    }
+
+    if (profitLossKrw != null || totalReturnPct != null) {
+      return {
+        profitLossKrw: profitLossKrw ?? fromHoldings.profitLossKrw,
+        totalReturnPct: totalReturnPct ?? fromHoldings.totalReturnPct,
+      };
+    }
+  }
+
+  if (!hasUsd && fromHoldings.profitLossKrw != null) {
+    return fromHoldings;
+  }
+
+  return {
+    profitLossKrw:
+      fromHoldings.profitLossKrw ??
+      (summary?.profitLossKrw != null && Number.isFinite(summary.profitLossKrw)
+        ? summary.profitLossKrw
+        : null),
+    totalReturnPct:
+      fromHoldings.totalReturnPct ??
+      (summary?.totalReturnPct != null && Number.isFinite(summary.totalReturnPct)
+        ? summary.totalReturnPct
+        : null),
+  };
+}

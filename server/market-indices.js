@@ -5,6 +5,7 @@ import { loadChartQuoteSnapshot } from "./stock-data.js";
 
 const CACHE_MS = 20_000;
 const FETCH_CONCURRENCY = 4;
+const SNAPSHOT_RETRY_ATTEMPTS = 3;
 
 /** @type {{ items: object[]; updatedAt: number; at: number } | null} */
 let cached = null;
@@ -26,6 +27,30 @@ export const MARKET_INDEX_DEFS = [
  * @param {MarketIndexDef} def
  * @param {Awaited<ReturnType<typeof loadChartQuoteSnapshot>>} snap
  */
+function itemHasPrice(item) {
+  return item?.price != null && Number.isFinite(item.price) && item.price > 0;
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function loadChartQuoteSnapshotWithRetry(symbol) {
+  for (let attempt = 0; attempt < SNAPSHOT_RETRY_ATTEMPTS; attempt++) {
+    try {
+      const snap = await loadChartQuoteSnapshot(symbol);
+      if (snap) return snap;
+    } catch (err) {
+      if (err?.code === "RATE_LIMIT" && attempt + 1 < SNAPSHOT_RETRY_ATTEMPTS) {
+        await sleep(1200 * (attempt + 1));
+        continue;
+      }
+    }
+    break;
+  }
+  return null;
+}
+
 function rowFromSnap(def, snap) {
   const price =
     snap?.price != null && Number.isFinite(snap.price) && snap.price > 0
@@ -60,7 +85,7 @@ async function buildFxItem() {
     lookupMarket: "us",
   };
   try {
-    const snap = await loadChartQuoteSnapshot("KRW=X");
+    const snap = await loadChartQuoteSnapshotWithRetry("KRW=X");
     return rowFromSnap(def, snap);
   } catch {
     return rowFromSnap(def, null);
@@ -102,7 +127,7 @@ export async function getMarketIndices() {
   }
 
   const indexItems = await mapPool(MARKET_INDEX_DEFS, (def) =>
-    loadChartQuoteSnapshot(def.symbol),
+    loadChartQuoteSnapshotWithRetry(def.symbol),
   );
   let fxItem;
   try {
@@ -122,6 +147,12 @@ export async function getMarketIndices() {
   }
   const items = [fxItem, ...indexItems];
   const updatedAt = now;
-  cached = { items, updatedAt, at: now };
+  const hasAnyPrice = items.some(itemHasPrice);
+  if (!hasAnyPrice && cached?.items?.some(itemHasPrice)) {
+    return { items: cached.items, updatedAt: cached.updatedAt };
+  }
+  if (hasAnyPrice) {
+    cached = { items, updatedAt, at: now };
+  }
   return { items, updatedAt };
 }

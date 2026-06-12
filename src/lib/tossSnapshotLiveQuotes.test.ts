@@ -32,8 +32,9 @@ describe("mergeLiveQuotesIntoTossSnapshot", () => {
       null,
     );
     expect(out.holdings[0]?.currentPrice).toBe(72_000);
-    expect(out.summary?.profitLossKrw).toBe(20_000);
-    expect(out.summary?.totalReturnPct).toBeCloseTo((20_000 / 700_000) * 100, 4);
+    const netPl = 72_000 * 10 * 0.999 - 70_000 * 10;
+    expect(out.summary?.profitLossKrw).toBe(netPl);
+    expect(out.summary?.totalReturnPct).toBeCloseTo((netPl / 700_000) * 100, 4);
   });
 
   it("converts USD unrealized into KRW total", () => {

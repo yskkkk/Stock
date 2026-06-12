@@ -1,4 +1,5 @@
 import { normalizeCandles } from "./candle-utils.js";
+import { loadChartQuoteSnapshot } from "./stock-data.js";
 import {
   getKstParts,
   kst9amUtcSec,
@@ -172,31 +173,52 @@ export async function getUsdKrwRate() {
   }
 
   const hit = await fetchRateAtKst9am(valuationDate);
-  if (!hit?.price) {
-    if (cached.rate != null && cached.valuationDate) {
-      return {
-        rate: cached.rate,
-        updatedAt: cached.at,
-        valuationDate: cached.valuationDate,
-        basis: "kst_9am",
-        asOfMs: cached.asOfMs,
-      };
-    }
-    throw new Error("원/달러 환율(09:00 KST)을 가져올 수 없습니다.");
+  if (hit?.price) {
+    cached = {
+      rate: hit.price,
+      at: now,
+      valuationDate,
+      asOfMs: hit.asOfMs,
+    };
+    return {
+      rate: hit.price,
+      updatedAt: now,
+      valuationDate,
+      basis: "kst_9am",
+      asOfMs: hit.asOfMs,
+    };
   }
 
-  cached = {
-    rate: hit.price,
-    at: now,
-    valuationDate,
-    asOfMs: hit.asOfMs,
-  };
+  try {
+    const spot = await loadChartQuoteSnapshot(FX_SYMBOL);
+    const px = spot?.price;
+    if (px != null && Number.isFinite(px) && px > 0) {
+      cached = {
+        rate: px,
+        at: now,
+        valuationDate,
+        asOfMs: now,
+      };
+      return {
+        rate: px,
+        updatedAt: now,
+        valuationDate,
+        basis: "spot",
+        asOfMs: now,
+      };
+    }
+  } catch {
+    /* 09:00·스팟 모두 실패 시 캐시·에러 */
+  }
 
-  return {
-    rate: hit.price,
-    updatedAt: now,
-    valuationDate,
-    basis: "kst_9am",
-    asOfMs: hit.asOfMs,
-  };
+  if (cached.rate != null && cached.valuationDate) {
+    return {
+      rate: cached.rate,
+      updatedAt: cached.at,
+      valuationDate: cached.valuationDate,
+      basis: "kst_9am",
+      asOfMs: cached.asOfMs,
+    };
+  }
+  throw new Error("원/달러 환율(09:00 KST)을 가져올 수 없습니다.");
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { TossTestHolding } from "../api";
 import {
+  computeTossAccountCombinedPnl,
   tossHoldingNetReturnPercent,
   tossHoldingNetUnrealizedPnl,
   tossHoldingsNetReturnPct,
@@ -33,6 +34,27 @@ describe("tossHoldingPnl", () => {
     expect(pct).not.toBeNull();
     expect(pct!).toBeLessThan(10);
     expect(pct!).toBeGreaterThan(9);
+  });
+
+  it("combines KRW and USD account PnL via FX", () => {
+    const usHolding: TossTestHolding = {
+      symbol: "IONL",
+      name: "IONL",
+      market: "us",
+      currency: "USD",
+      quantity: 100,
+      avgBuyPrice: 30,
+      currentPrice: 33,
+      marketValue: 3300,
+    };
+    const combined = computeTossAccountCombinedPnl(
+      [krHolding, usHolding],
+      { profitLossKrw: 100_000, profitLossUsd: 300 },
+      1300,
+      0,
+    );
+    expect(combined.profitLossKrw).toBe(100_000 + 300 * 1300);
+    expect(combined.totalReturnPct).not.toBeNull();
   });
 });
 

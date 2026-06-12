@@ -10,11 +10,10 @@ import {
   normalizeRoundTripFeeRate,
 } from "../lib/netReturn";
 import {
+  computeTossAccountCombinedPnl,
   tossHoldingNetMarketValue,
   tossHoldingNetReturnPercent,
   tossHoldingNetUnrealizedPnl,
-  tossHoldingsNetProfitLossKrw,
-  tossHoldingsNetReturnPct,
 } from "../lib/tossHoldingPnl";
 import { LiveTradeSymbolCell } from "./LiveTradeSymbolCell";
 import TossAccountOrderPanel, {
@@ -87,19 +86,9 @@ export default function TossAccountSnapshotCard({
   );
   const { rate: usdKrwRate } = useUsdKrwRate(Boolean(holdings.length));
   const netSummary = useMemo(
-    () => ({
-      profitLossKrw: tossHoldingsNetProfitLossKrw(
-        holdings,
-        usdKrwRate,
-        roundTripFee,
-      ),
-      totalReturnPct: tossHoldingsNetReturnPct(
-        holdings,
-        usdKrwRate,
-        roundTripFee,
-      ),
-    }),
-    [holdings, usdKrwRate, roundTripFee],
+    () =>
+      computeTossAccountCombinedPnl(holdings, summary, usdKrwRate, roundTripFee),
+    [holdings, summary, usdKrwRate, roundTripFee],
   );
   const orderPanelRef = useRef<TossAccountOrderPanelHandle>(null);
   const [manageHolding, setManageHolding] = useState<TossTestHolding | null>(null);
@@ -118,17 +107,13 @@ export default function TossAccountSnapshotCard({
   const plKrw = useStickyNumber(
     netSummary.profitLossKrw != null && Number.isFinite(netSummary.profitLossKrw)
       ? netSummary.profitLossKrw
-      : summary?.profitLossKrw != null && Number.isFinite(summary.profitLossKrw)
-        ? summary.profitLossKrw
-        : null,
+      : null,
   );
   const plUp = plKrw != null && plKrw >= 0;
   const returnPct = useStickyNumber(
     netSummary.totalReturnPct != null && Number.isFinite(netSummary.totalReturnPct)
       ? netSummary.totalReturnPct
-      : summary?.totalReturnPct != null && Number.isFinite(summary.totalReturnPct)
-        ? summary.totalReturnPct
-        : null,
+      : null,
   );
   const retUp = returnPct != null && returnPct >= 0;
   const cashKrw = useStickyNumber(

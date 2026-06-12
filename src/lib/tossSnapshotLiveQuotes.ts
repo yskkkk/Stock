@@ -1,5 +1,13 @@
 import type { TossTestHolding, TossTestSnapshot } from "../api";
 import type { PicksDailyHistoryQuotesMap } from "../types";
+import {
+  DEFAULT_ROUND_TRIP_FEE_RATE,
+  normalizeRoundTripFeeRate,
+} from "./netReturn";
+import {
+  computeTossAccountCombinedPnl,
+  tossHoldingsNetReturnPct,
+} from "./tossHoldingPnl";
 
 function pickTossQuote(
   quotes: PicksDailyHistoryQuotesMap,
@@ -136,21 +144,31 @@ export function mergeLiveQuotesIntoTossSnapshot(
     };
   });
 
-  const totalReturnPct = tossHoldingsReturnPct(holdings, usdKrwRate);
+  const roundTripFee = normalizeRoundTripFeeRate(DEFAULT_ROUND_TRIP_FEE_RATE);
+  const combined = computeTossAccountCombinedPnl(
+    holdings,
+    snapshot.summary,
+    usdKrwRate,
+    roundTripFee,
+  );
+  const totalReturnPct =
+    combined.totalReturnPct ??
+    tossHoldingsNetReturnPct(holdings, usdKrwRate, roundTripFee);
 
   if (!anyLive && !hasKrwPl && !hasUsdPl) {
-    if (totalReturnPct == null) return snapshot;
+    if (totalReturnPct == null && combined.profitLossKrw == null) return snapshot;
     return {
       ...snapshot,
       summary: {
         ...snapshot.summary,
+        profitLossKrw: combined.profitLossKrw ?? snapshot.summary?.profitLossKrw,
         totalReturnPct,
       },
     };
   }
 
-  let profitLossKrw = snapshot.summary?.profitLossKrw ?? null;
-  if (hasKrwPl || hasUsdPl) {
+  let profitLossKrw = combined.profitLossKrw;
+  if (profitLossKrw == null && (hasKrwPl || hasUsdPl)) {
     if (hasUsdPl && usdKrwRate != null && usdKrwRate > 0) {
       profitLossKrw = (hasKrwPl ? plKrw : 0) + plUsd * usdKrwRate;
     } else if (hasKrwPl && !hasUsdPl) {
@@ -163,7 +181,7 @@ export function mergeLiveQuotesIntoTossSnapshot(
     holdings,
     summary: {
       ...snapshot.summary,
-      profitLossKrw,
+      profitLossKrw: profitLossKrw ?? snapshot.summary?.profitLossKrw,
       profitLossUsd: hasUsdPl ? plUsd : snapshot.summary?.profitLossUsd,
       totalReturnPct,
     },
