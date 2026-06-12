@@ -34,6 +34,29 @@ function holdingChgTone(pct: number | null | undefined): "up" | "down" | "flat" 
   return "flat";
 }
 
+function holdingUnrealizedPnl(h: TossTestHolding): number | null {
+  const avg = h.avgBuyPrice;
+  const qty = h.quantity;
+  if (avg == null || !(avg > 0) || !(qty > 0)) return null;
+  const cost = avg * qty;
+  const mv =
+    h.marketValue != null && Number.isFinite(h.marketValue)
+      ? h.marketValue
+      : h.currentPrice != null && Number.isFinite(h.currentPrice) && h.currentPrice > 0
+        ? h.currentPrice * qty
+        : null;
+  if (mv == null) return null;
+  const pnl = mv - cost;
+  return Number.isFinite(pnl) ? pnl : null;
+}
+
+function pnlTone(pnl: number | null | undefined): "up" | "down" | "flat" {
+  if (pnl == null || !Number.isFinite(pnl)) return "flat";
+  if (pnl > 0) return "up";
+  if (pnl < 0) return "down";
+  return "flat";
+}
+
 export default function TossAccountSnapshotCard({
   snapshot,
   feeLabelKo,
@@ -201,6 +224,8 @@ export default function TossAccountSnapshotCard({
           <ul className="account-snapshot__holdings-list">
             {holdings.map((h) => {
               const tone = holdingChgTone(h.returnPercent);
+              const unrealizedPnl = holdingUnrealizedPnl(h);
+              const pnlUpDown = pnlTone(unrealizedPnl);
               const hasAvg =
                 h.avgBuyPrice != null &&
                 Number.isFinite(h.avgBuyPrice) &&
@@ -224,11 +249,23 @@ export default function TossAccountSnapshotCard({
                         className="account-snapshot__holding-name"
                       />
                     </button>
-                    {h.returnPercent != null ? (
-                      <span
-                        className={`account-snapshot__holding-chg account-snapshot__holding-chg--${tone}`}
-                      >
-                        {formatPercent(h.returnPercent)}
+                    {unrealizedPnl != null || h.returnPercent != null ? (
+                      <span className="account-snapshot__holding-pnl-wrap">
+                        {unrealizedPnl != null ? (
+                          <span
+                            className={`account-snapshot__holding-pnl account-snapshot__holding-pnl--${pnlUpDown}`}
+                            aria-hidden={balanceHidden || undefined}
+                          >
+                            {formatSignedMoney(unrealizedPnl, h.currency)}
+                          </span>
+                        ) : null}
+                        {h.returnPercent != null ? (
+                          <span
+                            className={`account-snapshot__holding-chg account-snapshot__holding-chg--${tone}`}
+                          >
+                            {formatPercent(h.returnPercent)}
+                          </span>
+                        ) : null}
                       </span>
                     ) : null}
                   </div>
