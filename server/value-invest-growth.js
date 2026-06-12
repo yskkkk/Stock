@@ -180,8 +180,8 @@ export function deriveValueInvestGrowth10y(f) {
       warnings.push(
         `EPS CAGR ${(histGrowth * 100).toFixed(1)}% — 단기 이력 ${countPositiveEpsYears(epsHistory)}년, 10년 복리 ${GROWTH_10Y_CAP * 100}% 상한`,
       );
-    } else if (histGrowth < -0.4) {
-      warnings.push(`EPS CAGR ${(histGrowth * 100).toFixed(1)}% — 음수 성장 구간`);
+    } else if (histGrowth < -0.15) {
+      warnings.push(`EPS CAGR ${(histGrowth * 100).toFixed(1)}% — 심각한 이익 감소 구간`);
     }
     return {
       value: applied,

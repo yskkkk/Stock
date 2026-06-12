@@ -43,12 +43,12 @@ export function averageEpsFromHistory(series, maxYears = EPS_AVERAGE_MAX_YEARS) 
 
 /**
  * @param {string} symbol
- * @returns {Promise<{ year: number; eps: number }[]>}
+ * @returns {Promise<{ series: { year: number; eps: number }[]; negativeCount: number }>}
  */
 export async function loadAnnualEpsHistory(symbol) {
   const sym = String(symbol ?? "").trim().toUpperCase();
   const periods = await loadFinancialPeriods(sym).catch(() => null);
-  if (!periods?.periods?.length) return [];
+  if (!periods?.periods?.length) return { series: [], negativeCount: 0 };
 
   /** 연도별 중복 제거: KR은 DART·Naver 연말 결산, US는 Naver 우선·Yahoo 보조 */
   /** @type {Map<number, import("./stock-financials.js").FinancialPeriodRow>} */
@@ -87,6 +87,7 @@ export async function loadAnnualEpsHistory(symbol) {
 
   /** @type {{ year: number; eps: number }[]} */
   const series = [];
+  let negativeCount = 0;
   for (let i = 0; i < details.length; i++) {
     const detail = details[i];
     const p = annual[i];
@@ -96,7 +97,8 @@ export async function loadAnnualEpsHistory(symbol) {
       market: periods.market,
     });
     if (periods.market === "kr") {
-      if (m.eps == null || m.eps <= 0) continue;
+      if (m.eps == null) continue;
+      if (m.eps <= 0) { negativeCount++; continue; }
       // DART 구형 공시 — 주당이익 (단위:원) 미조정(액면분할 전) 값 제외
       if (m.eps > 30_000) continue;
     } else if (shares != null && shares > 0) {
@@ -109,12 +111,16 @@ export async function loadAnnualEpsHistory(symbol) {
     } else if (m.eps == null || m.eps <= 0 || !isPlausibleAnnualEps(m.eps, "us")) {
       m = await buildHistoricalPeriodMetrics(sym, p, m, detail);
     }
-    if (m.eps == null || m.eps <= 0) continue;
+    if (m.eps == null) continue;
+    if (m.eps <= 0) { negativeCount++; continue; }
     if (periods.market === "us" && !isPlausibleAnnualEps(m.eps, "us")) continue;
     const y = Number(String(p.label ?? "").slice(0, 4));
     series.push({ year: Number.isFinite(y) ? y : 0, eps: m.eps });
   }
-  return series.filter((s) => s.year > 0).sort((a, b) => a.year - b.year);
+  return {
+    series: series.filter((s) => s.year > 0).sort((a, b) => a.year - b.year),
+    negativeCount,
+  };
 }
 
 /** @param {unknown} v */

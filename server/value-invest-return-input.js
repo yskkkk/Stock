@@ -71,12 +71,12 @@ export function computeHistoricalAveragePer(epsHistory, candleData, maxYears = P
     if (!prices?.length) continue;
     const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
     const per = avgPrice / eps;
-    if (Number.isFinite(per) && per > 1 && per < 300) {
+    if (Number.isFinite(per) && per > 1 && per < 500) {
       perByYear.push({ year, per: Math.round(per * 100) / 100, avgPrice: Math.round(avgPrice * 100) / 100 });
     }
   }
 
-  if (!perByYear.length) return { avg: null, perByYear: [], source: null };
+  if (!perByYear.length) return { avg: null, perByYear: [], source: null, highPerWarning: false };
 
   perByYear.sort((a, b) => a.year - b.year);
   const recent =
@@ -86,16 +86,18 @@ export function computeHistoricalAveragePer(epsHistory, candleData, maxYears = P
   const end = recent[recent.length - 1].year;
   const spanNote =
     recent.length < maxYears ? `, 상장 ${recent.length}년` : "";
+  const avgRounded = Number.isFinite(avg) && avg > 0 ? Math.round(avg * 100) / 100 : null;
   return {
-    avg: Number.isFinite(avg) && avg > 0 ? Math.round(avg * 100) / 100 : null,
+    avg: avgRounded,
     perByYear: recent,
     source: `역사적 평균 PER ${start}→${end} (${recent.length}년${spanNote}, 연평균주가÷EPS)`,
+    highPerWarning: avgRounded != null && avgRounded > 200,
   };
 }
 
 /**
  * @param {Awaited<ReturnType<typeof loadStockFundamentals>>} f
- * @param {{ targetReturnRate?: number; years?: number; epsHistory?: { year: number; eps: number }[]; historicalPer?: ReturnType<typeof computeHistoricalAveragePer> }} opts
+ * @param {{ targetReturnRate?: number; years?: number; epsHistory?: { year: number; eps: number }[]; historicalPer?: ReturnType<typeof computeHistoricalAveragePer>; negativeEpsCount?: number }} opts
  */
 export function buildValueInvestInputsFromFundamentals(f, opts = {}) {
   const targetReturnRate = opts.targetReturnRate ?? DEFAULT_TARGET_RETURN;
@@ -143,6 +145,15 @@ export function buildValueInvestInputsFromFundamentals(f, opts = {}) {
     sources.growthRate = growthSource ?? "";
   }
 
+  // 방안 C: 음수 EPS 비율 30% 초과 시 이익 안정성 경고 (missing 추가)
+  const negativeEpsCount = (opts.negativeEpsCount ?? 0) + (epsAverage.negativeYearsCount ?? 0);
+  const totalEpsYears = epsHistory.length + negativeEpsCount;
+  if (totalEpsYears >= 5 && negativeEpsCount > 0 && negativeEpsCount / totalEpsYears > 0.3) {
+    missing.push(
+      `이익 안정성 부족 — EPS 이력 ${totalEpsYears}년 중 ${negativeEpsCount}년 적자 (${Math.round((negativeEpsCount / totalEpsYears) * 100)}%)`,
+    );
+  }
+
   // 역사적 평균 PER 우선, 없으면 현재 Trailing PER 폴백
   const historicalPerData = opts.historicalPer ?? null;
   const averagePer = (historicalPerData?.avg != null && historicalPerData.avg > 0)
@@ -156,6 +167,13 @@ export function buildValueInvestInputsFromFundamentals(f, opts = {}) {
     missing.push("PER");
   } else {
     sources.averagePer = averagePerSource ?? f.source;
+  }
+
+  // 고PER 경고 — historicalPerData와 warnings 모두 정의된 후
+  if (historicalPerData?.highPerWarning) {
+    warnings.push(
+      `역사적 평균 PER ${historicalPerData.avg?.toFixed(0)}x — 고PER 구간, 이익 성장 둔화 시 급락 리스크`,
+    );
   }
 
   let payoutRatio = null;
@@ -226,6 +244,8 @@ export function buildValueInvestInputsFromFundamentals(f, opts = {}) {
     missing,
     computable: Boolean(result && missing.length <= 1),
     epsHistory: epsAverage.years.length > 0 ? epsAverage.years : epsHistory,
+    negativeEpsCount,
+    totalEpsYears,
     trailingEps,
     disclaimer:
       "실제 시장·재무 데이터 기반 추정이며 투자 권유가 아닙니다. 성장·PER·배당 가정에 따라 결과가 달라집니다.",
@@ -238,20 +258,22 @@ export function buildValueInvestInputsFromFundamentals(f, opts = {}) {
  * @param {{ targetReturnRate?: number; years?: number; price?: number }} [opts]
  */
 export async function loadValueInvestReturn(symbol, opts = {}) {
-  const [fundamentals, epsHistory, candleData] = await Promise.all([
+  const [fundamentals, epsHistoryResult, candleData] = await Promise.all([
     loadStockFundamentals(symbol),
-    loadAnnualEpsHistory(symbol).catch(() => []),
+    loadAnnualEpsHistory(symbol).catch(() => ({ series: [], negativeCount: 0 })),
     loadStock(symbol, "1d").catch(() => null),
   ]);
+  const epsHistoryArr = Array.isArray(epsHistoryResult) ? epsHistoryResult : (epsHistoryResult.series ?? []);
+  const negativeEpsCount = Array.isArray(epsHistoryResult) ? 0 : (epsHistoryResult.negativeCount ?? 0);
 
   if (opts.price != null && Number.isFinite(opts.price) && opts.price > 0) {
     fundamentals.price = opts.price;
     sourcesPatch(fundamentals);
   }
 
-  const historicalPer = computeHistoricalAveragePer(epsHistory, candleData, undefined, fundamentals.market);
+  const historicalPer = computeHistoricalAveragePer(epsHistoryArr, candleData, undefined, fundamentals.market);
 
-  return buildValueInvestInputsFromFundamentals(fundamentals, { ...opts, epsHistory, historicalPer });
+  return buildValueInvestInputsFromFundamentals(fundamentals, { ...opts, epsHistory: epsHistoryArr, historicalPer, negativeEpsCount });
 }
 
 /** @param {Awaited<ReturnType<typeof loadStockFundamentals>>} f */

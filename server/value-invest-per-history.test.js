@@ -181,13 +181,13 @@ describe("역사적 평균 PER 계산", () => {
     expect(r.inputs.averagePer).toBe(299);
   });
 
-  it("T12b: computeHistoricalAveragePer — PER 150~299 범위 포함 (구 상한 150 제거)", () => {
+  it("T12b: computeHistoricalAveragePer — PER 200~499 포함 (상한 500, 구 150 제거)", () => {
     const epsH = [{ year: 2024, eps: 1 }];
-    const candles = makeDailyCandles({ "2024": 200 });
-    // avgPrice=200, eps=1 → per=200 (이전 150 상한이면 제외됐지만 이제 포함)
+    const candles = makeDailyCandles({ "2024": 450 });
+    // avgPrice=450, eps=1 → per=450 (상한 500 이내)
     const r = computeHistoricalAveragePer(epsH, candles);
     expect(r.avg).not.toBeNull();
-    expect(r.avg).toBeCloseTo(200, 0);
+    expect(r.avg).toBeCloseTo(450, 0);
   });
 
   it("T13: computable=true면 result 있음", () => {
@@ -231,5 +231,62 @@ describe("역사적 평균 PER 계산", () => {
     expect(r.inputSources.averagePer ?? "").toMatch(/2020/);
     expect(r.inputSources.averagePer ?? "").toMatch(/2024/);
     expect(r.inputSources.averagePer ?? "").toMatch(/5년/);
+  });
+
+  it("T16: 방안 C — 음수 EPS 비율 30% 초과 시 missing에 이익 안정성 추가", () => {
+    // positives=7, negatives=4 → total=11, ratio=4/11≈36% > 30%
+    const epsHistory = Array.from({ length: 7 }, (_, i) => ({ year: 2018 + i, eps: 5 + i }));
+    const r = buildValueInvestInputsFromFundamentals(baseFundamentals(), {
+      epsHistory,
+      negativeEpsCount: 4,
+    });
+    expect(r.missing.some((m) => m.includes("이익 안정성"))).toBeTruthy();
+  });
+
+  it("T17: 방안 C — 음수 EPS 30% 이하이면 missing에 없음", () => {
+    // positives=8, negatives=2 → total=10, ratio=2/10=20% ≤ 30%
+    const epsHistory = Array.from({ length: 8 }, (_, i) => ({ year: 2017 + i, eps: 5 + i }));
+    const r = buildValueInvestInputsFromFundamentals(baseFundamentals(), {
+      epsHistory,
+      negativeEpsCount: 2,
+    });
+    expect(r.missing.some((m) => m.includes("이익 안정성"))).toBeFalsy();
+  });
+
+  it("T17b: 방안 C — totalYears < 5이면 블록 안 함 (데이터 부족, 판단 보류)", () => {
+    // positives=2, negatives=3 → total=5, but 5 >= 5 and 3/5=60%. Wait, 5 >= 5 → should block
+    // 실제로 4 미만: positives=1, negatives=2 → total=3 < 5 → no block
+    const epsHistory = [{ year: 2024, eps: 5 }];
+    const r = buildValueInvestInputsFromFundamentals(baseFundamentals(), {
+      epsHistory,
+      negativeEpsCount: 2,
+    });
+    expect(r.missing.some((m) => m.includes("이익 안정성"))).toBeFalsy();
+  });
+
+  it("T18: 고PER 경고 — 역사적 평균 PER > 200 시 warnings에 포함", () => {
+    const r = buildValueInvestInputsFromFundamentals(baseFundamentals(), {
+      epsHistory: [{ year: 2023, eps: 1 }, { year: 2024, eps: 1.1 }],
+      historicalPer: { avg: 250, perByYear: [], source: "test", highPerWarning: true },
+    });
+    expect(r.warnings.some((w) => w.includes("고PER"))).toBeTruthy();
+  });
+
+  it("T19: 고PER 경고 없음 — 역사적 평균 PER ≤ 200 시 경고 없음", () => {
+    const r = buildValueInvestInputsFromFundamentals(baseFundamentals(), {
+      epsHistory: [{ year: 2023, eps: 10 }, { year: 2024, eps: 11 }],
+      historicalPer: { avg: 18, perByYear: [], source: "test", highPerWarning: false },
+    });
+    expect(r.warnings.some((w) => w.includes("고PER"))).toBeFalsy();
+  });
+
+  it("T20: negativeEpsCount · totalEpsYears 반환", () => {
+    const epsHistory = Array.from({ length: 7 }, (_, i) => ({ year: 2018 + i, eps: 5 + i }));
+    const r = buildValueInvestInputsFromFundamentals(baseFundamentals(), {
+      epsHistory,
+      negativeEpsCount: 3,
+    });
+    expect(r.negativeEpsCount).toBe(3);
+    expect(r.totalEpsYears).toBe(10);
   });
 });
