@@ -4542,6 +4542,122 @@ html[data-theme="light"] .live-trading-tab__program-actions .btn:hover:not(:disa
   cursor: pointer;
 }
 
+/* 토스 앱 «내 주식» 카드형 보유·거래내역 */
+.toss-my-stock-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.toss-my-stock-card {
+  background: #1b1e23;
+  color: #eceff3;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  padding: 1rem 1.05rem 0.85rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.toss-my-stock-card__head {
+  margin-bottom: 0.35rem;
+}
+
+.toss-my-stock-card__title {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.toss-my-stock-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.55rem;
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  color: rgba(236, 239, 243, 0.62);
+}
+
+.toss-my-stock-card__side {
+  font-weight: 650;
+}
+
+.toss-my-stock-card__rows {
+  margin: 0;
+}
+
+.toss-my-stock-card__row {
+  display: grid;
+  grid-template-columns: minmax(5.5rem, 1fr) minmax(0, auto);
+  gap: 0.25rem 0.75rem;
+  align-items: baseline;
+  padding: 0.42rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.toss-my-stock-card__row:first-child {
+  border-top: none;
+  padding-top: 0.2rem;
+}
+
+.toss-my-stock-card__row--profit {
+  grid-template-columns: minmax(5.5rem, 1fr) minmax(0, auto) auto;
+}
+
+.toss-my-stock-card__label {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: rgba(236, 239, 243, 0.88);
+}
+
+.toss-my-stock-card__value {
+  margin: 0;
+  text-align: right;
+  font-size: 0.92rem;
+  font-weight: 650;
+  color: #f3f4f6;
+  white-space: nowrap;
+}
+
+.toss-my-stock-card__value--up {
+  color: #f04452;
+}
+
+.toss-my-stock-card__value--down {
+  color: #6ea8fe;
+}
+
+.toss-my-stock-card__fee-tax {
+  grid-column: 3;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: #6ea8fe;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.toss-my-stock-card__fee-tax:hover {
+  text-decoration: underline;
+}
+
+.live-account-holdings--toss-cards .live-account-holdings__title {
+  margin: 0 0 0.55rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.trade-history-main-workspace .toss-my-stock-card-list {
+  margin-bottom: 0.35rem;
+}
+
 .live-trade-history__scroll {
   max-height: min(70vh, 42rem);
   overflow-x: auto;

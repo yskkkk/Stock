@@ -32,6 +32,7 @@ import { useLiveTradingStatusPoll } from "../hooks/useLiveTradingStatusPoll";
 import { ko } from "../i18n/ko";
 import LiveTradeApiNotConnectedNotice from "./LiveTradeApiNotConnectedNotice";
 import { LiveTradeSymbolCellFromRecord } from "./LiveTradeSymbolCell";
+import LiveTradeHistoryTossCards from "./LiveTradeHistoryTossCards";
 
 function formatTs(ms: number, withYear = false): string {
   if (!Number.isFinite(ms)) return "—";
@@ -616,11 +617,18 @@ export default function LiveTradeTradesHistoryPanel({
               </div>
             </div>
           ) : null}
-          <LiveTradeTradesHistoryTable
-            trades={periodFilteredTrades}
-            loadAll={loadAll}
-            hideProgramColumn={Boolean(programId?.trim())}
-          />
+          {workspaceMode ? (
+            <LiveTradeHistoryTossCards
+              trades={periodFilteredTrades}
+              loadAll={loadAll}
+            />
+          ) : (
+            <LiveTradeTradesHistoryTable
+              trades={periodFilteredTrades}
+              loadAll={loadAll}
+              hideProgramColumn={Boolean(programId?.trim())}
+            />
+          )}
           {!loadAll && hasOlder && nextOlderEndDay ? (
             <div
               ref={sentinelRef}

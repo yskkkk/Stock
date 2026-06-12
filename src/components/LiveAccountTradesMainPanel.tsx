@@ -6,7 +6,7 @@ import {
 } from "../api";
 import LiveTradeHistorySimSection from "./LiveTradeHistorySimSection";
 import LiveTradeTradesHistoryPanel from "./LiveTradeTradesHistoryPanel";
-import LiveAccountHoldingsTable from "./LiveAccountHoldingsTable";
+import LiveAccountHoldingsTossCards from "./LiveAccountHoldingsTossCards";
 import { BithumbBrandMark, TossBrandMark } from "./ExchangeBrandMarks";
 import { useLiveTradingStatusPoll } from "../hooks/useLiveTradingStatusPoll";
 import LiveTradeApiNotConnectedNotice from "./LiveTradeApiNotConnectedNotice";
@@ -188,11 +188,10 @@ export default function LiveAccountTradesMainPanel({
                   {exchangeTradesErr}
                 </p>
               ) : null}
-              <LiveAccountHoldingsTable
+              <LiveAccountHoldingsTossCards
                 exchange={exchange}
                 holdings={liveHoldings}
                 cumulativeReturnBySymbol={cumulativeReturnBySymbol}
-                onOpenHoldingChart={onOpenHoldingChart}
               />
             </>
           )
