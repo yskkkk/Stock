@@ -1051,8 +1051,8 @@ export const ko = {
   },
   investorFlow: {
     title: "국내 수급",
-    subtitle: "국내 시총 상위 300 · 10분마다 갱신",
-    loading: "수급 데이터 불러오는 중…",
+    subtitle: "시총300",
+    loading: "불러오는 중…",
     empty: "표시할 수급 데이터가 없습니다. 장 마감 후 또는 첫 스캔 완료 후 다시 확인해 주세요.",
     refresh: "새로고침",
     searchPlaceholder: "종목명·코드·업종 검색",
@@ -1064,10 +1064,9 @@ export const ko = {
     rankForeign: "외국인",
     rankInstitution: "기관",
     rankIndividual: "개인",
-    flowBuy: "순매수 상위",
-    flowSell: "순매도 상위",
-    flowHint: "선택 투자자 기준 내림차순",
-    viewList: "전체 목록",
+    flowBuy: "순매수",
+    flowSell: "순매도",
+    viewList: "전체",
     viewSector: "업종별",
     industryFilterAria: "업종 필터",
     industryAll: "전체 업종",
@@ -1094,10 +1093,21 @@ export const ko = {
     holdBubbleNetHint: "기관·개인 일별 보유율은 네이버 미제공 — 당일 순매수 표시",
     groupCount: (n: number) => `${n}종목`,
     bizDate: (d: string | null | undefined) =>
-      d ? `기준일 ${d}` : "기준일 —",
+      d ? d.replace(/^\d{4}-/, "") : null,
+    metaLine: (
+      bizDate: string | null | undefined,
+      count: number,
+      scanned: number,
+    ) => {
+      const date =
+        bizDate && String(bizDate).trim()
+          ? String(bizDate).replace(/^\d{4}-/, "")
+          : null;
+      const n =
+        scanned > 0 ? `${count}/${scanned}종목` : `${count}종목`;
+      return date ? `${date} · ${n}` : n;
+    },
     updatedAt: (t: string) => `갱신 ${t}`,
-    count: (n: number, scanned: number) =>
-      scanned > 0 ? `${n}/${scanned}종목` : `${n}종목`,
   },
   stockVault: {
     title: "종목보관",

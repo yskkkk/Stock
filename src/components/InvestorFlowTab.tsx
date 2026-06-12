@@ -31,21 +31,6 @@ type ViewMode = "list" | "sector";
 
 const POLL_MS = 60_000;
 
-function fmtUpdated(ms: number | undefined): string {
-  if (!ms) return "—";
-  try {
-    return new Date(ms).toLocaleString("ko-KR", {
-      month: "numeric",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-  } catch {
-    return "—";
-  }
-}
-
 function qtyForKey(row: KrInvestorFlowItem, key: RankKey): number | null {
   if (key === "foreign") return row.foreignNetQty ?? null;
   if (key === "institution") return row.institutionNetQty ?? null;
@@ -443,9 +428,12 @@ export default function InvestorFlowTab() {
         <div>
           <h2 className="investor-flow-tab__title">{ko.investorFlow.title}</h2>
           <p className="investor-flow-tab__meta">
-            {ko.investorFlow.subtitle} · {ko.investorFlow.bizDate(data?.bizDate)} ·{" "}
-            {ko.investorFlow.updatedAt(fmtUpdated(data?.updatedAtMs))} ·{" "}
-            {ko.investorFlow.count(data?.itemCount ?? 0, data?.scanned ?? 0)}
+            {ko.investorFlow.subtitle} ·{" "}
+            {ko.investorFlow.metaLine(
+              data?.bizDate,
+              data?.itemCount ?? 0,
+              data?.scanned ?? 0,
+            )}
           </p>
         </div>
         <div className="investor-flow-tab__tools">
@@ -459,7 +447,7 @@ export default function InvestorFlowTab() {
           />
           <button
             type="button"
-            className="btn btn--ghost"
+            className="investor-flow-tab__refresh"
             disabled={loading}
             onClick={() => void load({ refresh: true })}
           >
@@ -481,7 +469,6 @@ export default function InvestorFlowTab() {
             {tab.label}
           </button>
         ))}
-        <span className="investor-flow-tab__flow-hint">{ko.investorFlow.flowHint}</span>
       </div>
 
       <div className="investor-flow-tab__view-tabs market-tabs" role="tablist" aria-label={ko.investorFlow.viewTabsAria}>

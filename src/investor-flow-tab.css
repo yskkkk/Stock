@@ -41,12 +41,40 @@
 .investor-flow-tab__search {
   min-width: 10rem;
   padding: 0.35rem 0.55rem;
-  border: 1px solid var(--card-border);
-  border-radius: var(--radius-sm, 6px);
-  background: var(--bg-elevated);
+  border: none;
+  border-bottom: 1px solid var(--card-border);
+  border-radius: 0;
+  background: transparent;
   color: var(--text);
   font: inherit;
   font-size: 0.78rem;
+}
+
+.investor-flow-tab__search:focus {
+  outline: none;
+  border-bottom-color: color-mix(in srgb, var(--accent) 45%, var(--card-border));
+}
+
+.investor-flow-tab__refresh {
+  margin: 0;
+  padding: 0.28rem 0.45rem;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.investor-flow-tab__refresh:hover:not(:disabled) {
+  color: var(--text-dim);
+}
+
+.investor-flow-tab__refresh:disabled {
+  opacity: 0.65;
+  cursor: default;
 }
 
 .investor-flow-tab__flow-tabs,
@@ -64,6 +92,24 @@
   border: none;
   box-shadow: none;
   border-radius: 0;
+}
+
+.investor-flow-tab__flow-tabs.market-tabs,
+.investor-flow-tab__view-tabs.market-tabs {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.investor-flow-tab .stock-vault-tab__industry-expand {
+  border: none;
+  background: transparent;
+  padding: 0.08rem 0;
+}
+
+.investor-flow-tab .stock-vault-tab__industry-expand:hover {
+  border: none;
+  background: transparent;
 }
 
 .investor-flow-tab__flow-tabs .market-tab,
@@ -99,11 +145,14 @@
   box-shadow: none;
 }
 
-.investor-flow-tab__flow-hint {
-  margin-left: 0.35rem;
-  font-size: 0.66rem;
-  color: var(--muted);
+.investor-flow-tab .market-tabs .market-tab,
+.investor-flow-tab .market-tabs .market-tab.active,
+.investor-flow-tab .market-tabs .market-tab:hover {
+  background: transparent;
+  box-shadow: none;
+  border: none;
 }
+
 
 .investor-flow-tab__industry-filters {
   margin: 0.1rem 0 0.15rem;
