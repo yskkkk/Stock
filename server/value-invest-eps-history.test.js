@@ -27,7 +27,7 @@ test("uses all years when listed less than 10 years", () => {
   const r = averageEpsFromHistory(series);
   assert.equal(r.years.length, 3);
   assert.equal(r.avg, 4);
-  assert.match(r.source ?? "", /상장 10년 미만/);
+  assert.match(r.source ?? "", /API 가용 3년/);
 });
 
 test("skips non-positive eps years", () => {

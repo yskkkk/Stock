@@ -6,6 +6,7 @@ import { loadStockFundamentals } from "./stock-fundamentals.js";
 import { deriveValueInvestGrowth10y } from "./value-invest-growth.js";
 import {
   averageEpsFromHistory,
+  EPS_AVERAGE_MAX_YEARS,
   loadAnnualEpsHistory,
 } from "./value-invest-eps-history.js";
 import { loadStock } from "./stock-data.js";
@@ -126,6 +127,11 @@ export function buildValueInvestInputsFromFundamentals(f, opts = {}) {
   const growthSource = growth.source;
   const growthDetail = growth.detail ?? null;
   const warnings = [...growth.warnings];
+  if (epsHistory.length > 0 && epsHistory.length < EPS_AVERAGE_MAX_YEARS) {
+    warnings.push(
+      `연간 EPS 이력 ${epsHistory.length}년 — Naver/Yahoo API가 최근 ${epsHistory.length}년만 제공`,
+    );
+  }
 
   if (growthRate == null) {
     missing.push("예상 이익 성장률");

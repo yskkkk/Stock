@@ -35,7 +35,7 @@ export function averageEpsFromHistory(series, maxYears = EPS_AVERAGE_MAX_YEARS) 
   const end = recent[recent.length - 1].year;
   const span =
     recent.length < maxYears
-      ? `연간 EPS ${start}–${end} 평균 (${recent.length}개 실적, 상장 ${maxYears}년 미만)`
+      ? `연간 EPS ${start}–${end} 평균 (${recent.length}개 실적, API 가용 ${recent.length}년)`
       : `연간 EPS ${start}–${end} 평균 (${recent.length}개 실적)`;
   return { avg, years: recent, source: span };
 }
@@ -66,8 +66,7 @@ export async function loadAnnualEpsHistory(symbol) {
     (a, b) => (a.endDateMs ?? 0) - (b.endDateMs ?? 0),
   );
 
-  const shares =
-    periods.market === "us" ? await fetchSharesOutstanding(sym) : null;
+  const shares = await fetchSharesOutstanding(sym);
 
   const details = await Promise.all(
     annual.map((p) => loadFinancialStatementDetail(sym, p.id).catch(() => null)),
@@ -83,13 +82,9 @@ export async function loadAnnualEpsHistory(symbol) {
       currency: periods.currency,
       market: periods.market,
     });
-    if (
-      periods.market === "us" &&
-      shares != null &&
-      shares > 0
-    ) {
+    if (shares != null && shares > 0) {
       const fromNi = epsFromNetIncomeAndShares(detail, shares);
-      if (fromNi != null) {
+      if (fromNi != null && (m.eps == null || m.eps <= 0)) {
         m = { ...m, eps: fromNi };
       }
     } else if (periods.market === "us" && (m.eps == null || m.eps <= 0)) {
@@ -147,8 +142,12 @@ function epsFromNetIncomeAndShares(detail, shares) {
         .toLowerCase()
         .replace(/\s+/g, "");
       if (!n.includes("netincome") && !n.includes("당기순이익")) continue;
-      const netIncome = parseStatementNumber(row.value, sec.unitNote ?? "");
+      const unitNote = sec.unitNote ?? "";
+      let netIncome = parseStatementNumber(row.value, unitNote);
       if (netIncome == null || netIncome <= 0) return null;
+      if (unitNote.includes("억원")) netIncome *= 1e8;
+      else if (/million/i.test(unitNote)) netIncome *= 1e6;
+      else if (/billion/i.test(unitNote)) netIncome *= 1e9;
       return netIncome / shares;
     }
   }

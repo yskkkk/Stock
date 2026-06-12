@@ -50,7 +50,7 @@ function formatEpsCagrSource(series) {
   const window = epsGrowthWindow(series);
   if (!window) return "EPS CAGR";
   const { start, end, periodYears, fromListing } = window;
-  const spanNote = fromListing ? `, 상장 ${periodYears}년` : "";
+  const spanNote = fromListing ? `, API 가용 ${periodYears}년` : "";
   return `EPS CAGR ${start.year}→${end.year} (${periodYears}년${spanNote})`;
 }
 
