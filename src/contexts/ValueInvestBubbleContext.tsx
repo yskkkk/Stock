@@ -22,6 +22,10 @@ import {
   type ValueInvestYearlyProjectionRow,
 } from "../lib/valueInvestReturnModel";
 import type { ValueInvestReturnInputs, ValueInvestReturnResponse } from "../types";
+import {
+  registerValueInvestBubbleApi,
+  readValueInvestBubbleApi,
+} from "../lib/valueInvestBubbleBridge";
 
 const VIEWPORT_PAD = 8;
 const GAP = 10;
@@ -332,8 +336,14 @@ type Ctx = {
 
 const ValueInvestBubbleContext = createContext<Ctx | null>(null);
 
+function useResolvedValueInvestBubbleCtx(): Ctx | null {
+  const fromContext = useContext(ValueInvestBubbleContext);
+  if (fromContext) return fromContext;
+  return readValueInvestBubbleApi();
+}
+
 export function useValueInvestBubble() {
-  const ctx = useContext(ValueInvestBubbleContext);
+  const ctx = useResolvedValueInvestBubbleCtx();
   if (!ctx) {
     throw new Error("useValueInvestBubble must be used within ValueInvestBubbleProvider");
   }
@@ -341,7 +351,7 @@ export function useValueInvestBubble() {
 }
 
 export function useOptionalValueInvestBubble(): Ctx | null {
-  return useContext(ValueInvestBubbleContext);
+  return useResolvedValueInvestBubbleCtx();
 }
 
 export function ValueInvestBubbleProvider({ children }: { children: ReactNode }) {
@@ -733,6 +743,9 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
     () => ({ showValueInvestBubble, closeValueInvestBubble }),
     [showValueInvestBubble, closeValueInvestBubble],
   );
+
+  registerValueInvestBubbleApi(ctx);
+  useEffect(() => () => registerValueInvestBubbleApi(null), []);
 
   return (
     <ValueInvestBubbleContext.Provider value={ctx}>

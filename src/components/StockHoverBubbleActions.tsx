@@ -1,4 +1,4 @@
-import { useValueInvestBubble } from "../contexts/ValueInvestBubbleContext";
+import { useOptionalValueInvestBubble } from "../contexts/ValueInvestBubbleContext";
 import { ko } from "../i18n/ko";
 import { dispatchOpenFinancialsTab } from "../lib/openFinancialsTab";
 
@@ -23,7 +23,7 @@ export default function StockHoverBubbleActions({
   tvChartUrl?: string | null;
   onAfterAction?: () => void;
 }) {
-  const { showValueInvestBubble } = useValueInvestBubble();
+  const valueInvest = useOptionalValueInvestBubble();
   const base =
     variant === "vault"
       ? "stock-vault-tab__bubble-actions"
@@ -67,13 +67,17 @@ export default function StockHoverBubbleActions({
         title={ko.valueInvest.bubbleAria}
         onClick={(e) => {
           e.stopPropagation();
-          showValueInvestBubble(e.currentTarget, {
-            symbol,
-            name,
-            market,
-            price: price ?? null,
-            currency: currency ?? null,
-          });
+          if (valueInvest) {
+            valueInvest.showValueInvestBubble(e.currentTarget, {
+              symbol,
+              name,
+              market,
+              price: price ?? null,
+              currency: currency ?? null,
+            });
+          } else {
+            dispatchOpenFinancialsTab({ symbol, name, market });
+          }
           done();
         }}
       >
