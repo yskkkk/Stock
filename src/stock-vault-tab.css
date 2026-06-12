@@ -1032,6 +1032,28 @@ html[data-theme="light"] .stock-vault-tab__row--tf-wk .stock-vault-tab__cross {
   margin-top: auto;
 }
 
+.stock-vault-tab__value-invest {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0.18rem 0.38rem;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm, 6px);
+  background: color-mix(in srgb, var(--card) 92%, var(--surface));
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.64rem;
+  font-weight: 600;
+  line-height: 1.1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.stock-vault-tab__value-invest:hover {
+  color: var(--accent);
+  border-color: var(--accent-border);
+  background: color-mix(in srgb, var(--accent) 10%, var(--card));
+}
+
 .stock-vault-tab__favorite {
   display: inline-flex;
   align-items: center;

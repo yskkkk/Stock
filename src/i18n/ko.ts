@@ -983,6 +983,7 @@ export const ko = {
   },
   valueInvest: {
     bubbleAria: "10년 기대수익·적정가 계산",
+    openBtn: "10년 수익",
     close: "닫기",
     loading: "실데이터 불러오는 중…",
     unavailable: "입력값이 부족해 계산할 수 없습니다.",

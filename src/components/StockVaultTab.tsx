@@ -1138,7 +1138,6 @@ export default function StockVaultTab({
               <li key={row.key} className={rowClassName}>
                 <div
                   className="stock-vault-tab__row-link"
-                  role="button"
                   tabIndex={0}
                   aria-describedby={tipId}
                   aria-label={`${display.label} ${ko.stockVault.rowBubbleAria}`}
@@ -1168,15 +1167,6 @@ export default function StockVaultTab({
                     })
                   }
                   onBlur={scheduleHideTip}
-                  onClick={(e) => {
-                    showValueInvestBubble(e.currentTarget, {
-                      symbol: row.symbol,
-                      name: display.label,
-                      market: row.market,
-                      price: quote?.price ?? null,
-                      currency: cur ?? null,
-                    });
-                  }}
                 >
                   <div className="stock-vault-tab__row-main">
                     <div className="stock-vault-tab__row-head">
@@ -1387,6 +1377,26 @@ export default function StockVaultTab({
                   </div>
                 </div>
                 <div className="stock-vault-tab__row-actions">
+                  {row.market === "kr" || row.market === "us" ? (
+                    <button
+                      type="button"
+                      className="stock-vault-tab__value-invest"
+                      aria-label={`${display.label} ${ko.valueInvest.bubbleAria}`}
+                      title={ko.valueInvest.bubbleAria}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        showValueInvestBubble(e.currentTarget, {
+                          symbol: row.symbol,
+                          name: display.label,
+                          market: row.market,
+                          price: quote?.price ?? null,
+                          currency: cur ?? null,
+                        });
+                      }}
+                    >
+                      {ko.valueInvest.openBtn}
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     className={
