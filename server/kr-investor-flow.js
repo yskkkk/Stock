@@ -2,8 +2,10 @@
  * 국내 주식 — 외국인·기관·개인 순매수 (네이버 증권 trend API)
  * 대상: 국내 시총 상위 300 (기존 스캔 유니버스와 동일)
  */
+import { fetchKrNaverIndustryRawName } from "./kr-naver-industry.js";
 import { yahooSymbolToKrCode } from "./kr-naver-quote.js";
 import { resolveDisplayName } from "./names-ko.js";
+import { localizeIndustry } from "./stock-vault-meta.js";
 import { loadBoxRangeCatalogUniverse } from "./universe.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
@@ -133,6 +135,12 @@ async function scanOneKrInvestorFlow(item) {
 function normalizeStore(raw) {
   const root = /** @type {Record<string, unknown>} */ (raw ?? {});
   const items = Array.isArray(root.items) ? root.items : [];
+  const industryTabs = Array.isArray(root.industryTabs)
+    ? root.industryTabs.map((x) => String(x))
+    : buildIndustryTabs(items);
+  const industrySummary = Array.isArray(root.industrySummary)
+    ? root.industrySummary
+    : buildIndustrySummary(items);
   return {
     version: 1,
     updatedAtMs:
@@ -142,6 +150,8 @@ function normalizeStore(raw) {
     bizDate: typeof root.bizDate === "string" ? root.bizDate : null,
     scanned: typeof root.scanned === "number" ? root.scanned : items.length,
     itemCount: items.length,
+    industryTabs,
+    industrySummary,
     items,
   };
 }
@@ -153,6 +163,8 @@ export function readKrInvestorFlowSnapshotSync() {
     bizDate: null,
     scanned: 0,
     itemCount: 0,
+    industryTabs: [],
+    industrySummary: [],
     items: [],
   }));
 }
@@ -162,6 +174,73 @@ export function krInvestorFlowEnabled() {
     .trim()
     .toLowerCase();
   return v !== "0" && v !== "false" && v !== "off";
+}
+
+/**
+ * @param {Awaited<ReturnType<typeof scanOneKrInvestorFlow>>["row"][]} items
+ */
+async function enrichKrInvestorFlowIndustry(items) {
+  const out = [];
+  for (let i = 0; i < items.length; i += BATCH_SIZE) {
+    const batch = items.slice(i, i + BATCH_SIZE);
+    const rows = await Promise.all(
+      batch.map(async (row) => {
+        if (!row) return null;
+        let industry = "기타";
+        try {
+          const raw = await fetchKrNaverIndustryRawName(row.symbol);
+          industry = localizeIndustry(raw) ?? "기타";
+        } catch {
+          industry = "기타";
+        }
+        return { ...row, industry };
+      }),
+    );
+    for (const row of rows) {
+      if (row) out.push(row);
+    }
+    if (i + BATCH_SIZE < items.length && BATCH_DELAY_MS > 0) {
+      await delay(BATCH_DELAY_MS);
+    }
+  }
+  return out;
+}
+
+/** @param {Array<{ industry?: string; foreignNetQty?: number | null; institutionNetQty?: number | null; individualNetQty?: number | null }>} items */
+function buildIndustrySummary(items) {
+  /** @type {Map<string, { industry: string; count: number; foreignNetQty: number; institutionNetQty: number; individualNetQty: number }>} */
+  const map = new Map();
+  for (const row of items) {
+    const industry = String(row.industry ?? "기타").trim() || "기타";
+    let g = map.get(industry);
+    if (!g) {
+      g = {
+        industry,
+        count: 0,
+        foreignNetQty: 0,
+        institutionNetQty: 0,
+        individualNetQty: 0,
+      };
+      map.set(industry, g);
+    }
+    g.count += 1;
+    g.foreignNetQty += Number(row.foreignNetQty) || 0;
+    g.institutionNetQty += Number(row.institutionNetQty) || 0;
+    g.individualNetQty += Number(row.individualNetQty) || 0;
+  }
+  return [...map.values()].sort((a, b) => b.count - a.count || a.industry.localeCompare(b.industry, "ko"));
+}
+
+/** @param {Array<{ industry?: string }>} items */
+function buildIndustryTabs(items) {
+  const counts = new Map();
+  for (const row of items) {
+    const industry = String(row.industry ?? "기타").trim() || "기타";
+    counts.set(industry, (counts.get(industry) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko"))
+    .map(([name]) => name);
 }
 
 export async function runKrInvestorFlowScan() {
@@ -193,19 +272,25 @@ export async function runKrInvestorFlowScan() {
     }
   }
 
+  const enriched = await enrichKrInvestorFlowIndustry(items);
+  const industryTabs = buildIndustryTabs(enriched);
+  const industrySummary = buildIndustrySummary(enriched);
+
   const snapshot = {
     version: 1,
     updatedAtMs: Date.now(),
     bizDate,
     scanned: list.length,
-    itemCount: items.length,
-    items,
+    itemCount: enriched.length,
+    industryTabs,
+    industrySummary,
+    items: enriched,
   };
   writeJsonStoreSync(STORE_FILE, snapshot);
 
   liveTradeLogInfo("[kr-investor-flow] scan done", {
     scanned: list.length,
-    items: items.length,
+    items: enriched.length,
     errors,
     bizDate,
   });

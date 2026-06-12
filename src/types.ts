@@ -499,6 +499,7 @@ export interface StockVaultResponse {
 export interface KrInvestorFlowItem {
   symbol: string;
   name: string;
+  industry?: string | null;
   bizDate?: string | null;
   closePrice?: number | null;
   foreignNetQty?: number | null;
@@ -508,12 +509,22 @@ export interface KrInvestorFlowItem {
   accumulatedVolume?: number | null;
 }
 
+export interface KrInvestorFlowIndustrySummary {
+  industry: string;
+  count: number;
+  foreignNetQty: number;
+  institutionNetQty: number;
+  individualNetQty: number;
+}
+
 export interface KrInvestorFlowResponse {
   version?: number;
   updatedAtMs?: number;
   bizDate?: string | null;
   scanned?: number;
   itemCount?: number;
+  industryTabs?: string[];
+  industrySummary?: KrInvestorFlowIndustrySummary[];
   items: KrInvestorFlowItem[];
 }
 

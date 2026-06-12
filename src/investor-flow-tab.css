@@ -49,10 +49,121 @@
   font-size: 0.78rem;
 }
 
-.investor-flow-tab__rank-tabs {
+.investor-flow-tab__rank-tabs,
+.investor-flow-tab__flow-tabs,
+.investor-flow-tab__view-tabs {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.25rem;
+}
+
+.investor-flow-tab__flow-hint {
+  margin-left: 0.35rem;
+  font-size: 0.66rem;
+  color: var(--muted);
+}
+
+.investor-flow-tab__industry-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+  max-height: 6.5rem;
+  overflow: auto;
+  padding: 0.15rem 0;
+}
+
+.investor-flow-tab__industry-chip {
+  padding: 0.18rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--card-border) 85%, transparent);
+  background: color-mix(in srgb, var(--surface) 92%, var(--card));
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.66rem;
+  cursor: pointer;
+}
+
+.investor-flow-tab__industry-chip--on {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent-dim) 80%, var(--card));
+  color: var(--text);
+  font-weight: 700;
+}
+
+.investor-flow-tab__sector-summary-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.investor-flow-tab__sector-summary-wrap {
+  overflow: auto;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm, 8px);
+}
+
+.investor-flow-tab__sector-summary-table {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: collapse;
+  font-size: 0.72rem;
+}
+
+.investor-flow-tab__sector-summary-table th,
+.investor-flow-tab__sector-summary-table td {
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
+  text-align: right;
+}
+
+.investor-flow-tab__sector-summary-table th:first-child,
+.investor-flow-tab__sector-summary-table td:first-child {
+  text-align: left;
+}
+
+.investor-flow-tab__sector-link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.investor-flow-tab__sector-row--on {
+  background: color-mix(in srgb, var(--accent-dim) 55%, transparent);
+}
+
+.investor-flow-tab__groups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.investor-flow-tab__group {
+  padding: 0.45rem 0.5rem 0.5rem;
+}
+
+.investor-flow-tab__group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.investor-flow-tab__group-title {
+  margin: 0;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.investor-flow-tab__group-meta {
+  font-size: 0.66rem;
+  color: var(--muted);
 }
 
 .investor-flow-tab__table-wrap {
@@ -64,7 +175,7 @@
 
 .investor-flow-tab__table {
   width: 100%;
-  min-width: 720px;
+  min-width: 820px;
   border-collapse: collapse;
   font-size: 0.76rem;
 }
@@ -85,6 +196,17 @@
   font-size: 0.68rem;
   font-weight: 700;
   color: var(--muted);
+}
+
+.investor-flow-tab__table th.investor-flow-tab__col--industry,
+.investor-flow-tab__table td.investor-flow-tab__col--industry {
+  text-align: left;
+  min-width: 5.5rem;
+  max-width: 8rem;
+  white-space: normal;
+  line-height: 1.25;
+  color: var(--text-dim);
+  font-size: 0.7rem;
 }
 
 .investor-flow-tab__table th.investor-flow-tab__col--name,
