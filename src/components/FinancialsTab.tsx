@@ -88,9 +88,13 @@ function yoyClass(pct: number | null | undefined): string {
 export default function FinancialsTab({
   focusPick = null,
   onFocusPickConsumed,
+  scrollToSection = null,
+  onScrollToSectionConsumed,
 }: {
   focusPick?: StockPick | null;
   onFocusPickConsumed?: () => void;
+  scrollToSection?: "buffett" | null;
+  onScrollToSectionConsumed?: () => void;
 } = {}) {
   const [market, setMarket] = useState<Market>("kr");
   const [input, setInput] = useState("");
@@ -147,6 +151,23 @@ export default function FinancialsTab({
     });
     onFocusPickConsumed?.();
   }, [focusPick, onFocusPickConsumed]);
+
+  useEffect(() => {
+    if (scrollToSection !== "buffett" || !selected?.symbol?.trim()) return;
+    let innerId = 0;
+    const outerId = window.requestAnimationFrame(() => {
+      innerId = window.requestAnimationFrame(() => {
+        document
+          .getElementById("financials-tab-buffett")
+          ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        onScrollToSectionConsumed?.();
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(outerId);
+      if (innerId) window.cancelAnimationFrame(innerId);
+    };
+  }, [scrollToSection, selected?.symbol, onScrollToSectionConsumed]);
 
   useEffect(() => {
     const id = window.setTimeout(() => setDebounced(input.trim()), 260);
@@ -690,7 +711,9 @@ export default function FinancialsTab({
               </section>
 
               {selected?.symbol ? (
-                <BuffettIntrinsicPanel symbol={selected.symbol} />
+                <div id="financials-tab-buffett">
+                  <BuffettIntrinsicPanel symbol={selected.symbol} />
+                </div>
               ) : null}
 
               {(activePeriodId || periodMetrics) ? (

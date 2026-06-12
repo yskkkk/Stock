@@ -884,6 +884,11 @@ html[data-theme="light"] .stock-vault-tab__trend--down {
   color: var(--accent);
 }
 
+.stock-vault-tab__bubble-btn--buffett {
+  border-color: color-mix(in srgb, #8b6914 35%, var(--card-border));
+  color: color-mix(in srgb, #8b6914 88%, var(--text));
+}
+
 .stock-vault-tab__name {
   font-size: 0.78rem;
   font-weight: 600;

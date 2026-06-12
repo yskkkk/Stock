@@ -188,6 +188,7 @@ export default function App() {
   const [usQuoteInKrw, setUsQuoteInKrw] = useState(readUsQuoteKrwPref);
   const [cryptoFocusSymbol, setCryptoFocusSymbol] = useState<string | null>(null);
   const [financialsFocusPick, setFinancialsFocusPick] = useState<StockPick | null>(null);
+  const [financialsScrollTo, setFinancialsScrollTo] = useState<"buffett" | null>(null);
   const [signalFilters, setSignalFilters] = useState<SignalId[]>([]);
   const [filterMode, setFilterMode] = useState<FilterMode>("and");
   const [searchQuery, setSearchQuery] = useState("");
@@ -316,6 +317,7 @@ export default function App() {
         score: 0,
         signals: [],
       });
+      setFinancialsScrollTo(d.scrollTo === "buffett" ? "buffett" : null);
       setAppTab("financials");
     };
     window.addEventListener(OPEN_FINANCIALS_TAB_EVENT, onOpenFinancials);
@@ -895,6 +897,10 @@ export default function App() {
 
   const handleFinancialsFocusConsumed = useCallback(() => {
     setFinancialsFocusPick(null);
+  }, []);
+
+  const handleFinancialsScrollConsumed = useCallback(() => {
+    setFinancialsScrollTo(null);
   }, []);
 
   const deepLinkHandledRef = useRef<string | null>(null);
@@ -1615,6 +1621,8 @@ export default function App() {
         <FinancialsTab
           focusPick={financialsFocusPick}
           onFocusPickConsumed={handleFinancialsFocusConsumed}
+          scrollToSection={financialsScrollTo}
+          onScrollToSectionConsumed={handleFinancialsScrollConsumed}
         />
       ) : appTab === "stockVault" ? (
         <StockVaultTab onVaultChange={syncVaultFromResponse} />

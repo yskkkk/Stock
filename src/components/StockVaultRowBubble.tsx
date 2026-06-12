@@ -19,8 +19,8 @@ import type { StockVaultIndustryFinancials } from "../types";
 const HIDE_DELAY_MS = 120;
 const VIEWPORT_PAD = 8;
 const GAP = 10;
-const EST_BUBBLE_W = 260;
-const EST_BUBBLE_H = 220;
+const EST_BUBBLE_W = 300;
+const EST_BUBBLE_H = 240;
 
 export type StockVaultRowBubbleTarget = {
   symbol: string;
@@ -269,6 +269,22 @@ export function useStockVaultRowBubble() {
                 }}
               >
                 {ko.stockVault.bubbleBtnFinancials}
+              </button>
+              <button
+                type="button"
+                className="stock-vault-tab__bubble-btn stock-vault-tab__bubble-btn--buffett"
+                aria-label={`${tip.name} ${ko.stockVault.openBuffettTab}`}
+                onClick={() => {
+                  dispatchOpenFinancialsTab({
+                    symbol: tip.symbol,
+                    name: tip.name,
+                    market: tip.market,
+                    scrollTo: "buffett",
+                  });
+                  setTip(null);
+                }}
+              >
+                {ko.stockVault.bubbleBtnBuffett}
               </button>
             </div>
           </div>,
