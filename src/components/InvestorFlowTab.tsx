@@ -7,7 +7,6 @@ import {
   pointerFromElementCenter,
   type BubblePointer,
 } from "../lib/bubblePointerAnchor";
-import { industryGridDimensions } from "../lib/industryGridLayout";
 import {
   formatInvestorNetQty,
   investorChangePctClass,
@@ -23,7 +22,6 @@ import InvestorFlowHoldBubble, {
   positionInvestorFlowHoldBubble,
   type InvestorFlowHoldBubbleState,
 } from "./InvestorFlowHoldBubble";
-import IndustryFilterPanel from "./IndustryFilterPanel";
 
 type RankKey = "foreign" | "institution" | "individual";
 type FlowDir = "buy" | "sell";
@@ -393,61 +391,6 @@ export default function InvestorFlowTab() {
     return () => window.clearInterval(id);
   }, [load]);
 
-  const industryTabs = useMemo(() => {
-    if (data?.industryTabs?.length) return data.industryTabs;
-    const set = new Set<string>();
-    for (const row of data?.items ?? []) {
-      set.add(rowIndustry(row));
-    }
-    return [...set].sort((a, b) => a.localeCompare(b, "ko"));
-  }, [data?.industryTabs, data?.items]);
-
-  const baseForIndustryCounts = useMemo(() => {
-    const items = data?.items ?? [];
-    const q = query.trim().toLowerCase();
-    let filtered = items;
-    if (q) {
-      filtered = filtered.filter((row) => {
-        const sym = row.symbol.replace(/\.(KS|KQ)$/i, "").toLowerCase();
-        return (
-          row.name.toLowerCase().includes(q) ||
-          sym.includes(q) ||
-          row.symbol.toLowerCase().includes(q) ||
-          rowIndustry(row).toLowerCase().includes(q)
-        );
-      });
-    }
-    return filtered.filter((row) => {
-      const v = qtyForKey(row, rankKey);
-      if (v == null) return false;
-      return flowDir === "buy" ? v > 0 : v < 0;
-    });
-  }, [data?.items, flowDir, query, rankKey]);
-
-  const industryOptions = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const row of baseForIndustryCounts) {
-      const industry = rowIndustry(row);
-      counts.set(industry, (counts.get(industry) ?? 0) + 1);
-    }
-    return industryTabs.map((name) => ({
-      name,
-      count: counts.get(name) ?? 0,
-    }));
-  }, [baseForIndustryCounts, industryTabs]);
-
-  const industryGrid = useMemo(
-    () => industryGridDimensions(industryTabs.length),
-    [industryTabs.length],
-  );
-
-  useEffect(() => {
-    if (industryFilter === "all") return;
-    if (!industryTabs.includes(industryFilter)) {
-      setIndustryFilter("all");
-    }
-  }, [industryFilter, industryTabs]);
-
   const sectorSummary = useMemo(() => {
     const base = data?.industrySummary ?? [];
     const sorted = sortSummaryRows(base, summarySort, rankKey, flowDir);
@@ -672,20 +615,6 @@ export default function InvestorFlowTab() {
           {ko.investorFlow.viewSector}
         </button>
       </div>
-
-      {industryTabs.length > 0 ? (
-        <IndustryFilterPanel
-          ariaLabel={ko.investorFlow.industryFilterAria}
-          totalCount={baseForIndustryCounts.length}
-          industryFilter={industryFilter}
-          onSelectAll={() => setIndustryFilter("all")}
-          industryOptions={industryOptions}
-          industryGrid={industryGrid}
-          onToggleIndustry={(name) =>
-            setIndustryFilter((cur) => (cur === name ? "all" : name))
-          }
-        />
-      ) : null}
 
       {sectorSummary.length > 0 ? (
         <section className="investor-flow-tab__sector-summary" aria-label={ko.investorFlow.sectorSummaryTitle}>
