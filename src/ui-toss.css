@@ -4667,16 +4667,41 @@ html[data-theme="light"] .live-trading-tab__program-actions .btn:hover:not(:disa
 .toss-my-stock-card__fee-tax--on {
   background: rgba(110, 168, 254, 0.14);
   border-color: rgba(110, 168, 254, 0.55);
+  color: #6ea8fe;
+}
+
+.toss-my-stock-card__fee-tax--off {
+  background: transparent;
+  border-color: rgba(110, 168, 254, 0.28);
+  color: rgba(110, 168, 254, 0.72);
 }
 
 .toss-my-stock-card__fee-tax-check {
-  font-size: 0.68rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.82rem;
+  height: 0.82rem;
+  border: 1.5px solid currentColor;
+  border-radius: 0.18rem;
+  font-size: 0.62rem;
+  font-weight: 800;
   line-height: 1;
+  flex-shrink: 0;
+}
+
+.toss-my-stock-card__fee-tax--on .toss-my-stock-card__fee-tax-check {
+  background: currentColor;
+  color: #0d1117;
 }
 
 .toss-my-stock-card__fee-tax:hover {
   text-decoration: none;
   background: rgba(110, 168, 254, 0.1);
+}
+
+.toss-my-stock-card__fee-tax--on:hover {
+  background: rgba(110, 168, 254, 0.2);
 }
 
 :root[data-theme="light"] .toss-my-stock-card {

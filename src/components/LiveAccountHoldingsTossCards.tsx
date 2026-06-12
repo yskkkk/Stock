@@ -19,10 +19,21 @@ import {
   roundTripFeeForMarket,
 } from "../lib/tossTradeCardEstimates";
 import {
+  holdingGrossReturnPctFromCost,
   holdingNetReturnPctFromCost,
   holdingNetUnrealizedPnl,
 } from "../lib/livePortfolioPnl";
 import TossMyStockSummaryCard from "./TossMyStockSummaryCard";
+
+function profitDisplay(
+  pnl: number | null,
+  pct: number | null,
+  currency?: string,
+): string {
+  if (pnl == null) return "—";
+  const pctPart = pct != null ? ` (${formatPercent(pct)})` : "";
+  return `${formatSignedMoney(pnl, currency)}${pctPart}`;
+}
 
 function qtyWithUnit(qty: number, market: LiveTradeMarket): string {
   const n = formatLiveTradeQuantity(qty, market);
@@ -74,16 +85,14 @@ export default function LiveAccountHoldingsTossCards({
           const tax = estimateSaleTaxAmount(mv, h.market);
           const cumKey = exchangeSymbolKey(h);
           const cumPct = cumulativeReturnBySymbol?.get(cumKey);
-          const pnl = holdingNetUnrealizedPnl(h, roundTrip);
-          const retPct =
+          const grossPnl =
+            h.costBasis > 0 && h.marketValue != null ? h.marketValue - h.costBasis : null;
+          const netPnl = holdingNetUnrealizedPnl(h, roundTrip);
+          const grossPct = holdingGrossReturnPctFromCost(h.costBasis, h.marketValue);
+          const netPct =
             cumPct ?? holdingNetReturnPctFromCost(h.costBasis, h.marketValue, roundTrip);
-          const pnlUp = (pnl ?? 0) >= 0;
-          const profitValue =
-            pnl != null
-              ? `${formatSignedMoney(pnl, h.currency)}${
-                  retPct != null ? ` (${formatPercent(retPct)})` : ""
-                }`
-              : "—";
+          const toneFor = (v: number | null) =>
+            v == null ? "flat" as const : v >= 0 ? "up" as const : "down" as const;
 
           return (
             <TossMyStockSummaryCard
@@ -92,11 +101,21 @@ export default function LiveAccountHoldingsTossCards({
               onTitleClick={
                 onOpenHoldingChart ? () => onOpenHoldingChart(h) : undefined
               }
+              profitToggle={{
+                gross: {
+                  value: profitDisplay(grossPnl, grossPct, h.currency),
+                  tone: toneFor(grossPnl),
+                },
+                net: {
+                  value: profitDisplay(netPnl, netPct, h.currency),
+                  tone: toneFor(netPnl),
+                },
+              }}
               rows={[
                 {
                   label: ko.app.tossMyStockTotalProfit,
-                  value: profitValue,
-                  tone: pnl == null ? "flat" : pnlUp ? "up" : "down",
+                  value: profitDisplay(netPnl, netPct, h.currency),
+                  tone: toneFor(netPnl),
                 },
                 {
                   label: ko.app.tossMyStockTotalAmount,

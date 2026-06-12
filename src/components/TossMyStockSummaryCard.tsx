@@ -7,12 +7,18 @@ export type TossMyStockSummaryRow = {
   tone?: "up" | "down" | "flat";
 };
 
+export type TossProfitToggle = {
+  gross: Pick<TossMyStockSummaryRow, "value" | "tone">;
+  net: Pick<TossMyStockSummaryRow, "value" | "tone">;
+};
+
 export default function TossMyStockSummaryCard({
   title,
   meta,
   rows,
   feeTaxRows = [],
   showFeeTaxLink = false,
+  profitToggle,
   onTitleClick,
 }: {
   title: string;
@@ -20,11 +26,18 @@ export default function TossMyStockSummaryCard({
   rows: TossMyStockSummaryRow[];
   feeTaxRows?: TossMyStockSummaryRow[];
   showFeeTaxLink?: boolean;
+  /** 수수료·세금 토글 시 총 수익 금액·% 전환 (ON=순, OFF=총액) */
+  profitToggle?: TossProfitToggle;
   onTitleClick?: () => void;
 }) {
   const [feeTaxOn, setFeeTaxOn] = useState(true);
+  const displayRows = rows.map((row, idx) => {
+    if (idx !== 0 || !showFeeTaxLink || !profitToggle) return row;
+    const variant = feeTaxOn ? profitToggle.net : profitToggle.gross;
+    return { ...row, value: variant.value, tone: variant.tone };
+  });
   const visibleRows = [
-    ...rows,
+    ...displayRows,
     ...(showFeeTaxLink && feeTaxOn ? feeTaxRows : []),
   ];
 
@@ -72,18 +85,17 @@ export default function TossMyStockSummaryCard({
                 type="button"
                 className={[
                   "toss-my-stock-card__fee-tax",
-                  feeTaxOn ? "toss-my-stock-card__fee-tax--on" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
+                  feeTaxOn
+                    ? "toss-my-stock-card__fee-tax--on"
+                    : "toss-my-stock-card__fee-tax--off",
+                ].join(" ")}
                 aria-pressed={feeTaxOn}
+                aria-label={`${ko.app.tossMyStockFeeTaxLink} ${feeTaxOn ? "켜짐" : "꺼짐"}`}
                 onClick={() => setFeeTaxOn((v) => !v)}
               >
-                {feeTaxOn ? (
-                  <span className="toss-my-stock-card__fee-tax-check" aria-hidden>
-                    ✓
-                  </span>
-                ) : null}
+                <span className="toss-my-stock-card__fee-tax-check" aria-hidden>
+                  {feeTaxOn ? "✓" : ""}
+                </span>
                 {ko.app.tossMyStockFeeTaxLink}
               </button>
             ) : null}

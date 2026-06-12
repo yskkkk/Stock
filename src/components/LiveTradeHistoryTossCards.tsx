@@ -87,16 +87,37 @@ export default function LiveTradeHistoryTossCards({
             : estimateSellFeeAmount(gross, roundTrip);
         const rows: TossMyStockSummaryRow[] = [];
 
+        let profitToggle:
+          | {
+              gross: { value: string; tone: "up" | "down" | "flat" };
+              net: { value: string; tone: "up" | "down" | "flat" };
+            }
+          | undefined;
+
         if (t.side === "sell" && fd?.realizedPnl != null) {
-          const up = fd.realizedPnl >= 0;
-          const pct =
-            fd.realizedPnlPct != null
-              ? ` (${formatPercent(fd.realizedPnlPct)})`
-              : "";
+          const tax = estimateSaleTaxAmount(gross, t.market);
+          const costBasis =
+            fd.buyPrice != null && fd.buyPrice > 0 ? fd.buyPrice * t.quantity : null;
+          const netPnl = fd.realizedPnl;
+          const grossPnl = netPnl + fee + tax;
+          const netPct = fd.realizedPnlPct;
+          const grossPct =
+            costBasis != null && costBasis > 0
+              ? (grossPnl / costBasis) * 100
+              : null;
+          const fmtProfit = (pnl: number, pct: number | null) => {
+            const pctPart = pct != null ? ` (${formatPercent(pct)})` : "";
+            return `${formatSignedMoney(pnl, t.currency)}${pctPart}`;
+          };
+          const toneFor = (v: number) => (v >= 0 ? "up" as const : "down" as const);
+          profitToggle = {
+            gross: { value: fmtProfit(grossPnl, grossPct), tone: toneFor(grossPnl) },
+            net: { value: fmtProfit(netPnl, netPct), tone: toneFor(netPnl) },
+          };
           rows.push({
             label: ko.app.tossMyStockTotalProfit,
-            value: `${formatSignedMoney(fd.realizedPnl, t.currency)}${pct}`,
-            tone: up ? "up" : "down",
+            value: fmtProfit(netPnl, netPct),
+            tone: toneFor(netPnl),
           });
         } else if (t.side === "sell") {
           rows.push({
@@ -126,11 +147,11 @@ export default function LiveTradeHistoryTossCards({
           },
         ];
         if (t.side === "sell") {
-          const tax = estimateSaleTaxAmount(gross, t.market);
-          if (tax > 0) {
+          const sellTax = estimateSaleTaxAmount(gross, t.market);
+          if (sellTax > 0) {
             feeTaxRows.push({
               label: ko.app.tossMyStockSaleTax,
-              value: estMoney(tax, t.currency),
+              value: estMoney(sellTax, t.currency),
             });
           }
         }
@@ -139,6 +160,7 @@ export default function LiveTradeHistoryTossCards({
           <TossMyStockSummaryCard
             key={t.id}
             title={name}
+            profitToggle={profitToggle}
             meta={
               <>
                 <span className="toss-my-stock-card__side">{formatTradeSideLabel(t)}</span>
