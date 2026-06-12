@@ -93,8 +93,29 @@ export default function TossMyStockSummaryCard({
                 aria-label={`${ko.app.tossMyStockFeeTaxLink} ${feeTaxOn ? "켜짐" : "꺼짐"}`}
                 onClick={() => setFeeTaxOn((v) => !v)}
               >
-                <span className="toss-my-stock-card__fee-tax-check" aria-hidden>
-                  {feeTaxOn ? "✓" : ""}
+                <span className="toss-my-stock-card__fee-tax-icon" aria-hidden>
+                  {feeTaxOn ? (
+                    <svg viewBox="0 0 16 16" fill="none">
+                      <circle cx="8" cy="8" r="8" fill="currentColor" />
+                      <path
+                        d="M4.6 8.2 6.9 10.5 11.4 6"
+                        stroke="#fff"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 16 16" fill="none">
+                      <circle
+                        cx="8"
+                        cy="8"
+                        r="6.25"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                      />
+                    </svg>
+                  )}
                 </span>
                 {ko.app.tossMyStockFeeTaxLink}
               </button>
