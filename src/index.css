@@ -6691,6 +6691,11 @@ html[data-theme="light"] .feedback-inbox-item {
   width: 1.48rem;
   height: 1.48rem;
   border-radius: 0;
+  object-fit: contain;
+  image-rendering: auto;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  filter: contrast(1.1) saturate(1.08);
 }
 
 .earnings-icon-rail--edge .earnings-icon-rail__logo-wrap {
@@ -7093,9 +7098,12 @@ html[data-theme="light"] .earnings-icon-rail--edge .earnings-icon-rail__btn--on 
   box-shadow: none;
 }
 
-html[data-theme="light"] .earnings-icon-rail--edge .earnings-icon-rail__img {
+html[data-theme="light"]
+  .earnings-icon-rail--edge
+  .stock-logo-plate--white-strip-fallback
+  .earnings-icon-rail__img {
   mix-blend-mode: multiply;
-  filter: none;
+  filter: contrast(1.1) saturate(1.08);
 }
 
 @media (max-width: 900px) {

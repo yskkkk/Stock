@@ -48,12 +48,14 @@ function EarningsIconButton({
   active,
   onEnter,
   onLeave,
+  stripWhiteBackground = false,
 }: {
   row: SectorEarningsSpotlightItem;
   now: number;
   active: boolean;
   onEnter: (el: HTMLElement, row: SectorEarningsSpotlightItem) => void;
   onLeave: () => void;
+  stripWhiteBackground?: boolean;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
   const logo = stockLogoUrl(row.symbol, row.market);
@@ -87,8 +89,9 @@ function EarningsIconButton({
             imgClassName="earnings-icon-rail__img"
             wrapClassName="earnings-icon-rail__logo-wrap"
             transparentWrap
-            width={32}
-            height={32}
+            stripWhiteBackground={stripWhiteBackground}
+            width={48}
+            height={48}
             onError={() => setImgFailed(true)}
           />
         ) : (
@@ -384,6 +387,7 @@ export default function EarningsUpcomingIconRail({
               active={activeRow?.id === row.id}
               onEnter={openTip}
               onLeave={scheduleHideTip}
+              stripWhiteBackground={variant === "edge"}
             />
           ))}
         </ul>

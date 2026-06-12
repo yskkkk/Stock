@@ -87,3 +87,70 @@ export function resolveLogoNeedsDarkPlate(
   if (img) return analyzeLogoNeedsDarkPlate(img);
   return false;
 }
+
+function clampByte(n: number): number {
+  return Math.max(0, Math.min(255, Math.round(n)));
+}
+
+/** FMP 등 흰 사각 배경 PNG — 근백색 픽셀을 투명 처리 + 대비 소폭 상향 */
+export function applyNearWhiteStripToRgba(
+  data: Uint8ClampedArray,
+  {
+    threshold = 236,
+    feather = 22,
+    sharpen = 1.14,
+  }: { threshold?: number; feather?: number; sharpen?: number } = {},
+): void {
+  const featherStart = threshold - feather;
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    const min = Math.min(r, g, b);
+    if (min >= threshold) {
+      data[i + 3] = 0;
+      continue;
+    }
+    if (min >= featherStart) {
+      const t = (min - featherStart) / feather;
+      data[i + 3] = clampByte(data[i + 3] * (1 - t));
+    }
+    if (data[i + 3] === 0) continue;
+    data[i] = clampByte((r - 128) * sharpen + 128);
+    data[i + 1] = clampByte((g - 128) * sharpen + 128);
+    data[i + 2] = clampByte((b - 128) * sharpen + 128);
+  }
+}
+
+/** @returns data URL PNG or null (CORS·canvas 실패) */
+export function stripLogoNearWhiteBackground(
+  img: HTMLImageElement,
+  opts?: { threshold?: number; feather?: number; sharpen?: number; size?: number },
+): string | null {
+  if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0) {
+    return null;
+  }
+  try {
+    const size = opts?.size ?? 64;
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return null;
+    const nw = img.naturalWidth;
+    const nh = img.naturalHeight;
+    const scale = Math.min(size / nw, size / nh);
+    const dw = nw * scale;
+    const dh = nh * scale;
+    const dx = (size - dw) / 2;
+    const dy = (size - dh) / 2;
+    ctx.clearRect(0, 0, size, size);
+    ctx.drawImage(img, dx, dy, dw, dh);
+    const imageData = ctx.getImageData(0, 0, size, size);
+    applyNearWhiteStripToRgba(imageData.data, opts);
+    ctx.putImageData(imageData, 0, 0);
+    return canvas.toDataURL("image/png");
+  } catch {
+    return null;
+  }
+}
