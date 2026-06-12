@@ -28,6 +28,24 @@ import IndustryFilterPanel from "./IndustryFilterPanel";
 type RankKey = "foreign" | "institution" | "individual";
 type FlowDir = "buy" | "sell";
 type ViewMode = "list" | "sector";
+type ListSortColumn =
+  | "name"
+  | "industry"
+  | "foreign"
+  | "institution"
+  | "individual"
+  | "foreignHold"
+  | "change"
+  | "turnover"
+  | "price";
+type SummarySortColumn =
+  | "industry"
+  | "count"
+  | "foreign"
+  | "institution"
+  | "individual";
+type SortPhase = "desc" | "asc" | "none";
+type SortState<C extends string> = { column: C | null; phase: SortPhase };
 
 const POLL_MS = 60_000;
 
@@ -48,84 +66,233 @@ function rowIndustry(row: KrInvestorFlowItem): string {
   return s || "기타";
 }
 
-function SortInvestorTh({
+function cycleSort<C extends string>(prev: SortState<C>, column: C): SortState<C> {
+  if (prev.column !== column) return { column, phase: "desc" };
+  if (prev.phase === "desc") return { column, phase: "asc" };
+  if (prev.phase === "asc") return { column: null, phase: "none" };
+  return { column, phase: "desc" };
+}
+
+function numCmp(a: number | null | undefined, b: number | null | undefined): number {
+  const av = a != null && Number.isFinite(a) ? a : null;
+  const bv = b != null && Number.isFinite(b) ? b : null;
+  if (av == null && bv == null) return 0;
+  if (av == null) return 1;
+  if (bv == null) return -1;
+  return av - bv;
+}
+
+function compareFlowItem(a: KrInvestorFlowItem, b: KrInvestorFlowItem, col: ListSortColumn): number {
+  switch (col) {
+    case "name":
+      return a.name.localeCompare(b.name, "ko") || a.symbol.localeCompare(b.symbol);
+    case "industry":
+      return rowIndustry(a).localeCompare(rowIndustry(b), "ko");
+    case "foreign":
+      return numCmp(a.foreignNetQty, b.foreignNetQty);
+    case "institution":
+      return numCmp(a.institutionNetQty, b.institutionNetQty);
+    case "individual":
+      return numCmp(a.individualNetQty, b.individualNetQty);
+    case "foreignHold":
+      return numCmp(a.foreignHoldRatio, b.foreignHoldRatio);
+    case "change":
+      return numCmp(a.changePercent, b.changePercent);
+    case "turnover":
+      return numCmp(a.tradingValue, b.tradingValue);
+    case "price":
+      return numCmp(a.closePrice, b.closePrice);
+  }
+}
+
+function compareSummaryRow(
+  a: KrInvestorFlowIndustrySummary,
+  b: KrInvestorFlowIndustrySummary,
+  col: SummarySortColumn,
+): number {
+  switch (col) {
+    case "industry":
+      return a.industry.localeCompare(b.industry, "ko");
+    case "count":
+      return a.count - b.count;
+    case "foreign":
+      return a.foreignNetQty - b.foreignNetQty;
+    case "institution":
+      return a.institutionNetQty - b.institutionNetQty;
+    case "individual":
+      return a.individualNetQty - b.individualNetQty;
+  }
+}
+
+function sortFlowItems(
+  items: KrInvestorFlowItem[],
+  sort: SortState<ListSortColumn>,
+  rankKey: RankKey,
+  flowDir: FlowDir,
+): KrInvestorFlowItem[] {
+  const arr = [...items];
+  if (sort.column && sort.phase !== "none") {
+    const mul = sort.phase === "desc" ? -1 : 1;
+    return arr.sort(
+      (a, b) =>
+        mul * compareFlowItem(a, b, sort.column!) || a.symbol.localeCompare(b.symbol),
+    );
+  }
+  return arr.sort((a, b) => {
+    const av = qtyForKey(a, rankKey) ?? (flowDir === "buy" ? -Infinity : Infinity);
+    const bv = qtyForKey(b, rankKey) ?? (flowDir === "buy" ? -Infinity : Infinity);
+    return flowDir === "buy" ? bv - av : av - bv;
+  });
+}
+
+function sortSummaryRows(
+  items: KrInvestorFlowIndustrySummary[],
+  sort: SortState<SummarySortColumn>,
+  rankKey: RankKey,
+  flowDir: FlowDir,
+): KrInvestorFlowIndustrySummary[] {
+  const arr = [...items];
+  if (sort.column && sort.phase !== "none") {
+    const mul = sort.phase === "desc" ? -1 : 1;
+    return arr.sort(
+      (a, b) =>
+        mul * compareSummaryRow(a, b, sort.column!) || a.industry.localeCompare(b.industry, "ko"),
+    );
+  }
+  return arr.sort((a, b) => {
+    const av = summaryQtyForKey(a, rankKey);
+    const bv = summaryQtyForKey(b, rankKey);
+    return flowDir === "buy" ? bv - av : av - bv;
+  });
+}
+
+function SortFlowTh<C extends string>({
   column,
   label,
-  rankKey,
-  flowDir,
-  onSelect,
+  sort,
+  onCycle,
+  align = "right",
+  className,
 }: {
-  column: RankKey;
+  column: C;
   label: string;
-  rankKey: RankKey;
-  flowDir: FlowDir;
-  onSelect: (key: RankKey) => void;
+  sort: SortState<C>;
+  onCycle: (col: C) => void;
+  align?: "left" | "right";
+  className?: string;
 }) {
-  const active = rankKey === column;
+  const active = sort.column === column && sort.phase !== "none";
+  const ariaSort = active ? (sort.phase === "desc" ? "descending" : "ascending") : "none";
+  const mark = active ? (sort.phase === "desc" ? "▼" : "▲") : "↕";
+  const nextPhase: "desc" | "asc" | "none" =
+    sort.column !== column || sort.phase === "none"
+      ? "desc"
+      : sort.phase === "desc"
+        ? "asc"
+        : "none";
+
   return (
     <th
-      className={active ? "investor-flow-tab__sort-th is-active" : "investor-flow-tab__sort-th"}
-      aria-sort={active ? (flowDir === "buy" ? "descending" : "ascending") : "none"}
+      className={[
+        "investor-flow-tab__sort-th",
+        active ? "is-active" : "",
+        className ?? "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      aria-sort={ariaSort}
     >
       <button
         type="button"
-        className="investor-flow-tab__sort-btn"
-        aria-label={ko.investorFlow.sortColAria(label)}
+        className={`investor-flow-tab__sort-btn${align === "left" ? " investor-flow-tab__sort-btn--left" : ""}`}
+        aria-label={ko.investorFlow.sortColCycle(label, nextPhase)}
         aria-pressed={active}
-        onClick={() => onSelect(column)}
+        onClick={() => onCycle(column)}
       >
         <span>{label}</span>
-        {active ? (
-          <span className="investor-flow-tab__sort-mark" aria-hidden>
-            {flowDir === "buy" ? "▼" : "▲"}
-          </span>
-        ) : null}
+        <span
+          className={`investor-flow-tab__sort-mark${active ? "" : " investor-flow-tab__sort-mark--idle"}`}
+          aria-hidden
+        >
+          {mark}
+        </span>
       </button>
     </th>
   );
 }
 
 function InvestorFlowTableHead({
-  rankKey,
-  flowDir,
-  onSelectRank,
+  listSort,
+  onCycleSort,
   showIndustry,
 }: {
-  rankKey: RankKey;
-  flowDir: FlowDir;
-  onSelectRank: (key: RankKey) => void;
+  listSort: SortState<ListSortColumn>;
+  onCycleSort: (col: ListSortColumn) => void;
   showIndustry?: boolean;
 }) {
   return (
     <tr>
       <th className="investor-flow-tab__col--rank">#</th>
-      <th className="investor-flow-tab__col--name">{ko.investorFlow.colName}</th>
-      {showIndustry ? <th className="investor-flow-tab__col--industry">{ko.investorFlow.colIndustry}</th> : null}
-      <SortInvestorTh
+      <SortFlowTh
+        column="name"
+        label={ko.investorFlow.colName}
+        sort={listSort}
+        onCycle={onCycleSort}
+        align="left"
+        className="investor-flow-tab__col--name"
+      />
+      {showIndustry ? (
+        <SortFlowTh
+          column="industry"
+          label={ko.investorFlow.colIndustry}
+          sort={listSort}
+          onCycle={onCycleSort}
+          align="left"
+          className="investor-flow-tab__col--industry"
+        />
+      ) : null}
+      <SortFlowTh
         column="foreign"
         label={ko.investorFlow.colForeign}
-        rankKey={rankKey}
-        flowDir={flowDir}
-        onSelect={onSelectRank}
+        sort={listSort}
+        onCycle={onCycleSort}
       />
-      <SortInvestorTh
+      <SortFlowTh
         column="institution"
         label={ko.investorFlow.colInstitution}
-        rankKey={rankKey}
-        flowDir={flowDir}
-        onSelect={onSelectRank}
+        sort={listSort}
+        onCycle={onCycleSort}
       />
-      <SortInvestorTh
+      <SortFlowTh
         column="individual"
         label={ko.investorFlow.colIndividual}
-        rankKey={rankKey}
-        flowDir={flowDir}
-        onSelect={onSelectRank}
+        sort={listSort}
+        onCycle={onCycleSort}
       />
-      <th>{ko.investorFlow.colForeignHold}</th>
-      <th>{ko.investorFlow.colChange}</th>
-      <th>{ko.investorFlow.colTurnover}</th>
-      <th>{ko.investorFlow.colPrice}</th>
+      <SortFlowTh
+        column="foreignHold"
+        label={ko.investorFlow.colForeignHold}
+        sort={listSort}
+        onCycle={onCycleSort}
+      />
+      <SortFlowTh
+        column="change"
+        label={ko.investorFlow.colChange}
+        sort={listSort}
+        onCycle={onCycleSort}
+      />
+      <SortFlowTh
+        column="turnover"
+        label={ko.investorFlow.colTurnover}
+        sort={listSort}
+        onCycle={onCycleSort}
+      />
+      <SortFlowTh
+        column="price"
+        label={ko.investorFlow.colPrice}
+        sort={listSort}
+        onCycle={onCycleSort}
+      />
     </tr>
   );
 }
@@ -136,6 +303,14 @@ export default function InvestorFlowTab() {
   const [error, setError] = useState<string | null>(null);
   const [rankKey, setRankKey] = useState<RankKey>("foreign");
   const [flowDir, setFlowDir] = useState<FlowDir>("buy");
+  const [listSort, setListSort] = useState<SortState<ListSortColumn>>({
+    column: "foreign",
+    phase: "desc",
+  });
+  const [summarySort, setSummarySort] = useState<SortState<SummarySortColumn>>({
+    column: "foreign",
+    phase: "desc",
+  });
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [industryFilter, setIndustryFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
@@ -144,6 +319,20 @@ export default function InvestorFlowTab() {
   const [holdLoading, setHoldLoading] = useState(false);
   const [holdError, setHoldError] = useState<string | null>(null);
   const holdFetchSeq = useRef(0);
+
+  const cycleListSort = useCallback((col: ListSortColumn) => {
+    setListSort((prev) => cycleSort(prev, col));
+    if (col === "foreign" || col === "institution" || col === "individual") {
+      setRankKey(col);
+    }
+  }, []);
+
+  const cycleSummarySort = useCallback((col: SummarySortColumn) => {
+    setSummarySort((prev) => cycleSort(prev, col));
+    if (col === "foreign" || col === "institution" || col === "individual") {
+      setRankKey(col);
+    }
+  }, []);
 
   const closeHoldBubble = useCallback(() => {
     setHoldBubble(null);
@@ -261,15 +450,11 @@ export default function InvestorFlowTab() {
 
   const sectorSummary = useMemo(() => {
     const base = data?.industrySummary ?? [];
-    const sorted = [...base].sort((a, b) => {
-      const av = summaryQtyForKey(a, rankKey);
-      const bv = summaryQtyForKey(b, rankKey);
-      return flowDir === "buy" ? bv - av : av - bv;
-    });
+    const sorted = sortSummaryRows(base, summarySort, rankKey, flowDir);
     return flowDir === "buy"
       ? sorted.filter((row) => summaryQtyForKey(row, rankKey) > 0)
       : sorted.filter((row) => summaryQtyForKey(row, rankKey) < 0);
-  }, [data?.industrySummary, flowDir, rankKey]);
+  }, [data?.industrySummary, flowDir, rankKey, summarySort]);
 
   const rows = useMemo(() => {
     const items = data?.items ?? [];
@@ -294,12 +479,8 @@ export default function InvestorFlowTab() {
       if (v == null) return false;
       return flowDir === "buy" ? v > 0 : v < 0;
     });
-    return [...filtered].sort((a, b) => {
-      const av = qtyForKey(a, rankKey) ?? (flowDir === "buy" ? -Infinity : Infinity);
-      const bv = qtyForKey(b, rankKey) ?? (flowDir === "buy" ? -Infinity : Infinity);
-      return flowDir === "buy" ? bv - av : av - bv;
-    });
-  }, [data?.items, flowDir, industryFilter, query, rankKey]);
+    return sortFlowItems(filtered, listSort, rankKey, flowDir);
+  }, [data?.items, flowDir, industryFilter, listSort, query, rankKey]);
 
   const groupedRows = useMemo(() => {
     const map = new Map<string, KrInvestorFlowItem[]>();
@@ -513,28 +694,36 @@ export default function InvestorFlowTab() {
             <table className="investor-flow-tab__sector-summary-table">
               <thead>
                 <tr>
-                  <th>{ko.investorFlow.colIndustry}</th>
-                  <th>{ko.investorFlow.colCount}</th>
-                  <SortInvestorTh
+                  <SortFlowTh
+                    column="industry"
+                    label={ko.investorFlow.colIndustry}
+                    sort={summarySort}
+                    onCycle={cycleSummarySort}
+                    align="left"
+                  />
+                  <SortFlowTh
+                    column="count"
+                    label={ko.investorFlow.colCount}
+                    sort={summarySort}
+                    onCycle={cycleSummarySort}
+                  />
+                  <SortFlowTh
                     column="foreign"
                     label={ko.investorFlow.colForeign}
-                    rankKey={rankKey}
-                    flowDir={flowDir}
-                    onSelect={setRankKey}
+                    sort={summarySort}
+                    onCycle={cycleSummarySort}
                   />
-                  <SortInvestorTh
+                  <SortFlowTh
                     column="institution"
                     label={ko.investorFlow.colInstitution}
-                    rankKey={rankKey}
-                    flowDir={flowDir}
-                    onSelect={setRankKey}
+                    sort={summarySort}
+                    onCycle={cycleSummarySort}
                   />
-                  <SortInvestorTh
+                  <SortFlowTh
                     column="individual"
                     label={ko.investorFlow.colIndividual}
-                    rankKey={rankKey}
-                    flowDir={flowDir}
-                    onSelect={setRankKey}
+                    sort={summarySort}
+                    onCycle={cycleSummarySort}
                   />
                 </tr>
               </thead>
@@ -603,9 +792,8 @@ export default function InvestorFlowTab() {
                 <table className="investor-flow-tab__table">
                   <thead>
                     <InvestorFlowTableHead
-                      rankKey={rankKey}
-                      flowDir={flowDir}
-                      onSelectRank={setRankKey}
+                      listSort={listSort}
+                      onCycleSort={cycleListSort}
                     />
                   </thead>
                   <tbody>
@@ -621,9 +809,8 @@ export default function InvestorFlowTab() {
           <table className="investor-flow-tab__table">
             <thead>
               <InvestorFlowTableHead
-                rankKey={rankKey}
-                flowDir={flowDir}
-                onSelectRank={setRankKey}
+                listSort={listSort}
+                onCycleSort={cycleListSort}
                 showIndustry
               />
             </thead>

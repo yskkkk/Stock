@@ -1059,6 +1059,11 @@ export const ko = {
     investorTabsAria: "투자자 유형",
     sortByLabel: "정렬 기준",
     sortColAria: (col: string) => `${col} 기준 정렬`,
+    sortColCycle: (col: string, phase: "desc" | "asc" | "none") => {
+      if (phase === "desc") return `${col} 내림차순 정렬`;
+      if (phase === "asc") return `${col} 오름차순 정렬`;
+      return `${col} 원래순으로`;
+    },
     flowTabsAria: "매수·매도 구분",
     viewTabsAria: "보기 방식",
     rankForeign: "외국인",

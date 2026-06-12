@@ -328,10 +328,20 @@
   color: var(--accent);
 }
 
+.investor-flow-tab__sort-btn--left {
+  justify-content: flex-start;
+  text-align: left;
+}
+
 .investor-flow-tab__sort-mark {
   font-size: 0.58rem;
   line-height: 1;
   opacity: 0.85;
+}
+
+.investor-flow-tab__sort-mark--idle {
+  opacity: 0.38;
+  font-size: 0.52rem;
 }
 
 .investor-flow-tab__sector-summary-table .investor-flow-tab__sort-th {
