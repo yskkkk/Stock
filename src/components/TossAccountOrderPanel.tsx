@@ -7,20 +7,15 @@ import {
   useState,
 } from "react";
 import {
-  cancelTossOpenOrder,
   fetchLiveTradingMinuteQuotes,
-  fetchTossOpenOrders,
   fetchTossSellableQuantity,
   placeTossOrder,
-  type TossOpenOrder,
-  type TossOpenOrdersResponse,
   type TossTestHolding,
 } from "../api";
-import { formatPrice, formatUpdatedAt } from "../lib/format";
+import { formatPrice } from "../lib/format";
 import { ko } from "../i18n/ko";
 import { LiveTradeSymbolCell } from "./LiveTradeSymbolCell";
 
-const POLL_MS = 8_000;
 const TOSS_TRADE_URL = "https://www.tossinvest.com/";
 
 type OrderDraft = {
@@ -65,20 +60,6 @@ export type TossAccountOrderPanelHandle = {
   openSell: (holding: TossTestHolding) => void;
 };
 
-function formatTs(ms: number): string {
-  try {
-    return new Date(ms).toLocaleString("ko-KR", {
-      month: "numeric",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-  } catch {
-    return "—";
-  }
-}
-
 function sideLabel(side: string): string {
   return side === "sell"
     ? ko.app.liveTradeTossOrderSideSell
@@ -102,10 +83,7 @@ const TossAccountOrderPanel = forwardRef<
   },
   ref,
 ) {
-  const [openOrders, setOpenOrders] = useState<TossOpenOrdersResponse | null>(null);
-  const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [cancelId, setCancelId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [draft, setDraft] = useState<OrderDraft | null>(null);
@@ -115,35 +93,12 @@ const TossAccountOrderPanel = forwardRef<
   const [orderType, setOrderType] = useState<"market" | "limit">("market");
   const mountedRef = useRef(true);
 
-  const simulated = !liveOrdersEnabled || !serverLiveOrdersEnabled;
-
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
     };
   }, []);
-
-  const loadOpenOrders = useCallback(async () => {
-    try {
-      const res = await fetchTossOpenOrders();
-      if (!mountedRef.current) return;
-      setOpenOrders(res);
-      setErr(null);
-    } catch (e) {
-      if (!mountedRef.current) return;
-      setErr(e instanceof Error ? e.message : String(e));
-    } finally {
-      if (mountedRef.current) setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    setLoading(true);
-    void loadOpenOrders();
-    const id = window.setInterval(() => void loadOpenOrders(), POLL_MS);
-    return () => window.clearInterval(id);
-  }, [loadOpenOrders]);
 
   const fillLimitPriceFromQuote = useCallback(async (nextDraft: OrderDraft) => {
     const cp = await resolveDraftCurrentPrice(nextDraft);
@@ -261,38 +216,17 @@ const TossAccountOrderPanel = forwardRef<
               quantity: Number(quantity),
               ...(orderType === "limit" ? { price: Number(price) } : {}),
             };
-      const res = await placeTossOrder(body);
+      await placeTossOrder(body);
       if (!mountedRef.current) return;
       setMsg(ko.app.liveTradeTossOrderOk);
-      if (res.openOrders) setOpenOrders(res.openOrders);
       setDraft(null);
       onChanged?.();
-      void loadOpenOrders();
     } catch (e) {
       if (!mountedRef.current) return;
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
       if (mountedRef.current) setBusy(false);
     }
-  };
-
-  const onCancel = (orderId: string) => {
-    if (!window.confirm(ko.app.liveTradePfCancelOrderConfirm)) return;
-    setCancelId(orderId);
-    setErr(null);
-    void cancelTossOpenOrder(orderId)
-      .then((res) => {
-        if (!mountedRef.current) return;
-        setOpenOrders(res);
-        onChanged?.();
-      })
-      .catch((e) => {
-        if (!mountedRef.current) return;
-        setErr(e instanceof Error ? e.message : String(e));
-      })
-      .finally(() => {
-        if (mountedRef.current) setCancelId(null);
-      });
   };
 
   const rootClass = [
@@ -453,65 +387,6 @@ const TossAccountOrderPanel = forwardRef<
           {err}
         </p>
       ) : null}
-
-      <div className="toss-order-panel__open">
-        <h4 className="toss-order-panel__open-title">{ko.app.liveTradeTossOpenOrders}</h4>
-        {loading && !openOrders ? (
-          <p className="toss-order-panel__muted">{ko.app.liveTradePfLoading}</p>
-        ) : openOrders && !openOrders.ready ? (
-          <p className="toss-order-panel__muted">{openOrders.messageKo}</p>
-        ) : openOrders?.fetchError ? (
-          <p className="toss-order-panel__err" role="alert">
-            {openOrders.fetchError}
-          </p>
-        ) : !openOrders?.orders.length ? (
-          <p className="toss-order-panel__muted">{ko.app.liveTradeTossOpenOrdersEmpty}</p>
-        ) : (
-          <ul className="toss-order-panel__orders">
-            {openOrders.orders.map((o: TossOpenOrder) => (
-              <li key={o.orderId} className="toss-order-panel__order">
-                <div className="toss-order-panel__order-row">
-                  <span className={`toss-order-panel__side toss-order-panel__side--${o.side}`}>
-                    {sideLabel(o.side)}
-                  </span>
-                  <LiveTradeSymbolCell
-                    symbol={o.symbol}
-                    name={o.name}
-                    market={o.market === "us" ? "us" : "kr"}
-                  />
-                </div>
-                <div className="toss-order-panel__order-row">
-                  <span className="toss-order-panel__muted">{formatTs(o.createdAtMs)}</span>
-                  <span>
-                    {o.ordType === "limit" && o.price != null
-                      ? formatPrice(o.price, o.currency)
-                      : o.amount != null
-                        ? formatPrice(o.amount, o.currency)
-                        : o.volume != null
-                          ? `${o.volume}주`
-                          : "—"}
-                  </span>
-                  <button
-                    type="button"
-                    className="btn btn--secondary btn--sm"
-                    disabled={cancelId === o.orderId || simulated}
-                    onClick={() => onCancel(o.orderId)}
-                  >
-                    {cancelId === o.orderId
-                      ? ko.app.liveTradePfCancelOrderBusy
-                      : ko.app.liveTradePfCancelOrder}
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-        {openOrders?.updatedAtMs ? (
-          <p className="toss-order-panel__updated">
-            {formatUpdatedAt(openOrders.updatedAtMs)} {ko.app.liveTradePfUpdated}
-          </p>
-        ) : null}
-      </div>
     </section>
   );
 });
