@@ -294,6 +294,8 @@ const TossAccountOrderPanel = forwardRef<
       if (!mountedRef.current) return;
       if (res.simulated) {
         setMsg(res.messageKo ?? ko.app.liveTradeTossOrderSimBanner);
+      } else if (res.orderId) {
+        setMsg(`${ko.app.liveTradeTossOrderOk} (${res.orderId.slice(0, 12)}…)`);
       } else {
         setMsg(res.messageKo ?? ko.app.liveTradeTossOrderOk);
       }
