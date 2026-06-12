@@ -79,6 +79,7 @@ describe("buildVaultItemsFromScanHistory", () => {
           ],
         },
       ],
+      [],
       { favoriteSymbols: new Set(["AAPL"]) },
     );
 

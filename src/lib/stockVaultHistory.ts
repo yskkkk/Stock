@@ -169,3 +169,32 @@ export function buildVaultItemsFromScanHistory(
 
   return items;
 }
+
+/** 일·주봉 탐색 결과를 날짜 스냅샷용으로 합친다 */
+export function buildFullSnapshotFromScanHistory(
+  scanDate: string,
+  goldenEntries: GoldenCrossHistoryEntry[],
+  maAlignEntries: MaAlignHistoryEntry[],
+  ma120NearEntries: Ma120NearHistoryEntry[] = [],
+  opts: HistoryBuildOpts = {},
+): StockVaultItem[] {
+  const daily = buildVaultItemsFromScanHistory(
+    scanDate,
+    goldenEntries,
+    maAlignEntries,
+    ma120NearEntries,
+    { ...opts, timeframe: "1d" },
+  );
+  const weekly = buildVaultItemsFromScanHistory(
+    scanDate,
+    goldenEntries,
+    maAlignEntries,
+    [],
+    { ...opts, timeframe: "1wk" },
+  );
+  const map = new Map<string, StockVaultItem>();
+  for (const it of [...daily, ...weekly]) {
+    map.set(`${it.source}:${it.market}:${it.symbol.trim().toUpperCase()}`, it);
+  }
+  return [...map.values()];
+}
