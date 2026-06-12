@@ -7,20 +7,14 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { ko } from "../i18n/ko";
-import StockHoverBubbleActions from "./StockHoverBubbleActions";
+import StockEarningsHoverBubbleBody from "./StockEarningsHoverBubbleBody";
 import { tradingViewChartUrl } from "../lib/tradingviewSymbols";
-import {
-  formatVaultIndustryFinancialLines,
-  vaultIndustryFinVerdictClassName,
-} from "../lib/stockVaultIndustryFinancials";
-import type { StockVaultIndustryFinancials } from "../types";
 
 const HIDE_DELAY_MS = 120;
 const VIEWPORT_PAD = 8;
 const GAP = 10;
 const EST_BUBBLE_W = 300;
-const EST_BUBBLE_H = 240;
+const EST_BUBBLE_H = 280;
 
 export type StockVaultRowBubbleTarget = {
   symbol: string;
@@ -28,9 +22,8 @@ export type StockVaultRowBubbleTarget = {
   market: "kr" | "us";
   industry: string | null;
   tvSymbol: string;
-  fin: StockVaultIndustryFinancials | null | undefined;
-  sectorLeader: boolean;
-  sectorLeaderDetail?: string | null;
+  price?: number | null;
+  currency?: string | null;
 };
 
 type Placement = "left" | "right" | "below" | "above";
@@ -111,10 +104,10 @@ function positionTip(
 }
 
 function bubblePlacementClass(placement: Placement) {
-  if (placement === "left") return "stock-vault-tab__bubble stock-vault-tab__bubble--left";
-  if (placement === "below") return "stock-vault-tab__bubble stock-vault-tab__bubble--below";
-  if (placement === "above") return "stock-vault-tab__bubble stock-vault-tab__bubble--above";
-  return "stock-vault-tab__bubble";
+  if (placement === "left") {
+    return "earnings-icon-rail__bubble earnings-icon-rail__bubble--left";
+  }
+  return "earnings-icon-rail__bubble";
 }
 
 export function useStockVaultRowBubble() {
@@ -189,67 +182,14 @@ export function useStockVaultRowBubble() {
             onMouseEnter={clearHideTimer}
             onMouseLeave={scheduleHideTip}
           >
-            <p className="stock-vault-tab__bubble-name">{tip.name}</p>
-            <p className="stock-vault-tab__bubble-code">
-              {tip.symbol.replace(/^KR_/i, "")}
-              {tip.industry ? ` · ${tip.industry}` : ""}
-              {tip.sectorLeader ? (
-                <span
-                  className="stock-vault-tab__bubble-leader"
-                  title={tip.sectorLeaderDetail ?? ko.stockVault.sectorLeaderAria}
-                >
-                  {" "}
-                  · {ko.stockVault.sectorLeader}
-                  {tip.sectorLeaderDetail ? ` (${tip.sectorLeaderDetail})` : ""}
-                </span>
-              ) : null}
-            </p>
-            {tip.fin?.verdictLabel ? (
-              <div className="stock-vault-tab__bubble-fin">
-                <p className="stock-vault-tab__bubble-fin-title">
-                  {ko.stockVault.industryFinTitle}
-                  {tip.fin.peerGroup ? ` · ${tip.fin.peerGroup}` : ""}
-                </p>
-                <div className="stock-vault-tab__bubble-peer">
-                  <span
-                    className={`stock-vault-tab__fin-badge ${vaultIndustryFinVerdictClassName(tip.fin.verdict)}`}
-                  >
-                    {tip.fin.verdictLabel}
-                  </span>
-                  {tip.fin.verdictDetail ? (
-                    <p className="stock-vault-tab__bubble-fin-detail">
-                      {tip.fin.verdictDetail}
-                    </p>
-                  ) : null}
-                </div>
-                {(() => {
-                  const lines = formatVaultIndustryFinancialLines(tip.fin, {
-                    per: ko.financials.per.replace(/\s*\(.+\)\s*$/, ""),
-                    roe: ko.financials.roe,
-                    profitMargin: ko.financials.profitMargin,
-                    peerCount: ko.stockVault.industryFinPeerCount,
-                  });
-                  return (
-                    <>
-                      <p className="stock-vault-tab__bubble-fin-line">{lines.metricLine}</p>
-                      {lines.peerLine ? (
-                        <p className="stock-vault-tab__bubble-fin-muted">{lines.peerLine}</p>
-                      ) : null}
-                    </>
-                  );
-                })()}
-              </div>
-            ) : (
-              <p className="stock-vault-tab__bubble-fin-muted">
-                {ko.stockVault.industryFinLoading}
-              </p>
-            )}
-            <StockHoverBubbleActions
-              variant="vault"
+            <StockEarningsHoverBubbleBody
               symbol={tip.symbol}
               name={tip.name}
               market={tip.market}
+              sectorLabel={tip.industry}
               tvChartUrl={tradingViewChartUrl(tip.tvSymbol)}
+              price={tip.price}
+              currency={tip.currency}
               onAfterAction={() => setTip(null)}
             />
           </div>,

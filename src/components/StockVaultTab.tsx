@@ -9,7 +9,6 @@ import {
   setStockVaultFavorite,
   triggerGoldenCrossScan,
 } from "../api";
-import { useValueInvestBubble } from "../contexts/ValueInvestBubbleContext";
 import { ko } from "../i18n/ko";
 import { formatPercent, formatPrice } from "../lib/format";
 import {
@@ -283,7 +282,6 @@ export default function StockVaultTab({
   const scanPopoverRef = useRef<HTMLDivElement>(null);
   const { tipId, showTip, scheduleHideTip, bubble: rowBubble } =
     useStockVaultRowBubble();
-  const { showValueInvestBubble } = useValueInvestBubble();
 
   const applyVaultResponse = useCallback(
     (vault: StockVaultResponse) => {
@@ -1131,38 +1129,30 @@ export default function StockVaultTab({
                 })),
               ];
               const maPriceClass = maProximityPriceClass(chartInsight?.weekly?.near);
+              const openRowBubble = (el: HTMLElement) =>
+                showTip(el, {
+                  symbol: row.symbol,
+                  name: display.label,
+                  market: row.market,
+                  industry,
+                  tvSymbol,
+                  price: quote?.price ?? null,
+                  currency: cur ?? null,
+                });
+
               return (
-              <li key={row.key} className={rowClassName}>
+              <li
+                key={row.key}
+                className={rowClassName}
+                aria-describedby={tipId}
+                onMouseEnter={(e) => openRowBubble(e.currentTarget)}
+                onMouseLeave={scheduleHideTip}
+              >
                 <div
                   className="stock-vault-tab__row-link"
                   tabIndex={0}
-                  aria-describedby={tipId}
                   aria-label={`${display.label} ${ko.stockVault.rowBubbleAria}`}
-                  onMouseEnter={(e) =>
-                    showTip(e.currentTarget, {
-                      symbol: row.symbol,
-                      name: display.label,
-                      market: row.market,
-                      industry,
-                      tvSymbol,
-                      fin: finRow,
-                      sectorLeader,
-                      sectorLeaderDetail: finRow?.sectorLeaderDetail,
-                    })
-                  }
-                  onMouseLeave={scheduleHideTip}
-                  onFocus={(e) =>
-                    showTip(e.currentTarget, {
-                      symbol: row.symbol,
-                      name: display.label,
-                      market: row.market,
-                      industry,
-                      tvSymbol,
-                      fin: finRow,
-                      sectorLeader,
-                      sectorLeaderDetail: finRow?.sectorLeaderDetail,
-                    })
-                  }
+                  onFocus={(e) => openRowBubble(e.currentTarget.closest("li") ?? e.currentTarget)}
                   onBlur={scheduleHideTip}
                 >
                   <div className="stock-vault-tab__row-main">
@@ -1374,26 +1364,6 @@ export default function StockVaultTab({
                   </div>
                 </div>
                 <div className="stock-vault-tab__row-actions">
-                  {row.market === "kr" || row.market === "us" ? (
-                    <button
-                      type="button"
-                      className="stock-vault-tab__value-invest"
-                      aria-label={`${display.label} ${ko.valueInvest.bubbleAria}`}
-                      title={ko.valueInvest.bubbleAria}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        showValueInvestBubble(e.currentTarget, {
-                          symbol: row.symbol,
-                          name: display.label,
-                          market: row.market,
-                          price: quote?.price ?? null,
-                          currency: cur ?? null,
-                        });
-                      }}
-                    >
-                      {ko.valueInvest.openBtn}
-                    </button>
-                  ) : null}
                   <button
                     type="button"
                     className={

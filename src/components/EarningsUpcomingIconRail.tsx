@@ -10,13 +10,7 @@ import {
 import { useLeftRailLazyFollow } from "../hooks/useLeftRailLazyFollow";
 import { createPortal } from "react-dom";
 import { fetchSectorEarnings } from "../api";
-import {
-  formatEarningsBubbleFinancialLines,
-  loadEarningsBubbleFinancials,
-  type EarningsBubbleFinancialSummary,
-} from "../lib/earningsBubbleFinancials";
-import { peerPerVerdictClassName } from "../lib/peerPerComparison";
-import StockHoverBubbleActions from "./StockHoverBubbleActions";
+import StockEarningsHoverBubbleBody from "./StockEarningsHoverBubbleBody";
 import {
   formatMacroCountdown,
   formatMacroWhen,
@@ -143,9 +137,6 @@ export default function EarningsUpcomingIconRail({
   });
   const [now, setNow] = useState(() => Date.now());
   const [tip, setTip] = useState<TipState | null>(null);
-  const [finSummary, setFinSummary] = useState<
-    EarningsBubbleFinancialSummary | null | "loading"
-  >(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -212,45 +203,10 @@ export default function EarningsUpcomingIconRail({
     hideTimerRef.current = setTimeout(() => setTip(null), HIDE_DELAY_MS);
   }, [clearHideTimer]);
 
-  useEffect(() => {
-    if (!tip?.row?.symbol) {
-      setFinSummary(null);
-      return;
-    }
-    const ac = new AbortController();
-    setFinSummary("loading");
-    void loadEarningsBubbleFinancials(tip.row.symbol, ac.signal)
-      .then((data) => {
-        if (!ac.signal.aborted) setFinSummary(data);
-      })
-      .catch(() => {
-        if (!ac.signal.aborted) setFinSummary(null);
-      });
-    return () => ac.abort();
-  }, [tip?.row?.symbol]);
-
   if (upcoming.length === 0) return null;
 
   const activeRow = tip?.row ?? null;
   const msLeft = activeRow ? activeRow.at - now : 0;
-  const finLabels = {
-    per: ko.financials.per.replace(/\s*\(.+\)\s*$/, ""),
-    eps: ko.financials.eps.replace(/\s*\(.+\)\s*$/, ""),
-    pbr: ko.financials.pbr.replace(/\s*\(.+\)\s*$/, ""),
-    profitMargin: ko.financials.profitMargin,
-    roe: ko.financials.roe,
-    yoyRevenue: ko.macro.earningsBubbleYoyRevenue,
-    yoyNetIncome: ko.macro.earningsBubbleYoyNetIncome,
-    peerMedianPer: ko.financials.peerMedianPer,
-    vsPeerHigh: ko.financials.perVsPeerHigh,
-    vsPeerLow: ko.financials.perVsPeerLow,
-    vsPeerSimilar: ko.financials.perVsPeerSimilar,
-  };
-  const activeFin =
-    finSummary !== "loading" && finSummary != null ? finSummary : null;
-  const finLines = activeFin
-    ? formatEarningsBubbleFinancialLines(activeFin, finLabels)
-    : null;
   const tvChartUrl = tip
     ? tradingViewChartUrl(
         yahooStockSymbolToTradingView(tip.row.symbol, tip.row.market),
@@ -279,65 +235,13 @@ export default function EarningsUpcomingIconRail({
             onMouseEnter={clearHideTimer}
             onMouseLeave={scheduleHideTip}
           >
-            <p className="earnings-icon-rail__bubble-name">{tip.row.name}</p>
-            <p className="earnings-icon-rail__bubble-code">
-              {tip.row.symbol.replace(/^KR_/i, "")}
-              {tip.row.sectorLabel ? ` · ${tip.row.sectorLabel}` : ""}
-            </p>
-            <p className="earnings-icon-rail__bubble-when">
-              {formatMacroWhen(tip.row.at, tip.row.timezone)}
-            </p>
-            <p className="earnings-icon-rail__bubble-countdown" aria-live="polite">
-              {formatSectorEarningsDday(tip.row.at, now, tip.row.timezone)}{" "}
-              <span className="earnings-icon-rail__bubble-sep" aria-hidden>
-                ·
-              </span>{" "}
-              {formatMacroCountdown(msLeft)}
-            </p>
-            {finSummary === "loading" ? (
-              <p className="earnings-icon-rail__bubble-fin earnings-icon-rail__bubble-fin--muted">
-                {ko.macro.earningsBubbleFinancialsLoading}
-              </p>
-            ) : activeFin && finLines ? (
-              <div className="earnings-icon-rail__bubble-fin">
-                <p className="earnings-icon-rail__bubble-fin-title">
-                  {ko.macro.earningsBubbleFinancials} · {activeFin.periodLabel}
-                </p>
-                <p className="earnings-icon-rail__bubble-fin-line">{finLines.line1}</p>
-                {finLines.peerLine ? (
-                  <div className="earnings-icon-rail__bubble-peer">
-                    <span
-                      className={`earnings-icon-rail__bubble-peer-badge ${peerPerVerdictClassName(finLines.peerLine.verdict)}`}
-                    >
-                      {finLines.peerLine.verdictLabel}
-                    </span>
-                    <p className="earnings-icon-rail__bubble-fin-line earnings-icon-rail__bubble-fin-peer-detail">
-                      {finLines.peerLine.detailText}
-                    </p>
-                  </div>
-                ) : null}
-                <p className="earnings-icon-rail__bubble-fin-line">{finLines.line2}</p>
-                {finLines.yoyLines.map((line) => (
-                  <p
-                    key={line.text}
-                    className={
-                      line.yoyPct != null && line.yoyPct >= 0
-                        ? "earnings-icon-rail__bubble-fin-line earnings-icon-rail__bubble-fin-yoy earnings-icon-rail__bubble-fin-yoy--up"
-                        : line.yoyPct != null && line.yoyPct < 0
-                          ? "earnings-icon-rail__bubble-fin-line earnings-icon-rail__bubble-fin-yoy earnings-icon-rail__bubble-fin-yoy--down"
-                          : "earnings-icon-rail__bubble-fin-line earnings-icon-rail__bubble-fin-yoy"
-                    }
-                  >
-                    {line.text}
-                  </p>
-                ))}
-              </div>
-            ) : null}
-            <StockHoverBubbleActions
-              variant="earnings"
+            <StockEarningsHoverBubbleBody
               symbol={tip.row.symbol}
               name={tip.row.name}
               market={tip.row.market === "kr" ? "kr" : "us"}
+              sectorLabel={tip.row.sectorLabel}
+              earningsWhen={formatMacroWhen(tip.row.at, tip.row.timezone)}
+              earningsCountdown={`${formatSectorEarningsDday(tip.row.at, now, tip.row.timezone)} · ${formatMacroCountdown(msLeft)}`}
               tvChartUrl={tvChartUrl}
               onAfterAction={() => setTip(null)}
             />
