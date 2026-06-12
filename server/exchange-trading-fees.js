@@ -73,15 +73,37 @@ export function getBithumbRoundTripFeeRateSync(userId) {
  * @param {string} userId
  * @param {"kr"|"us"|"crypto"} market
  */
-export function getTossRoundTripFeeRateSync(userId) {
+function tossRoundTripFromRowFees(row, market = "kr") {
+  if (!row) return null;
+  const m = String(market ?? "kr").toLowerCase();
+  if (m === "us" && row.tossUsBidFee != null && row.tossUsAskFee != null) {
+    return roundTripFeeRateFromOneWay(row.tossUsBidFee, row.tossUsAskFee);
+  }
+  if (row.tossBidFee != null && row.tossAskFee != null) {
+    return roundTripFeeRateFromOneWay(row.tossBidFee, row.tossAskFee);
+  }
+  return null;
+}
+
+export function getTossRoundTripFeeRateSync(userId, market = "kr") {
   const uid = String(userId ?? "").trim();
   if (!uid) return tossDefaultRoundTrip();
   const row = readCredentialRowSync(uid, "toss");
-  if (row?.tossBidFee != null && row?.tossAskFee != null) {
-    const rt = roundTripFeeRateFromOneWay(row.tossBidFee, row.tossAskFee);
-    if (rt != null) return rt;
-  }
+  const rt = tossRoundTripFromRowFees(row, market);
+  if (rt != null) return rt;
   return tossDefaultRoundTrip();
+}
+
+export function getTossFeeRatesByMarketSync(userId) {
+  const uid = String(userId ?? "").trim();
+  const fees = uid ? getUserTradingFeeRatesForApiSync(uid).toss : null;
+  const kr = getTossRoundTripFeeRateSync(uid, "kr");
+  const us = getTossRoundTripFeeRateSync(uid, "us");
+  return {
+    kr,
+    us,
+    source: fees?.source === "api" ? "api" : "default",
+  };
 }
 
 export function getRoundTripFeeRateForUserMarketSync(userId, market) {
@@ -138,6 +160,7 @@ export function parseTossCommissionFees(body) {
   );
   const roundTripFeeRate = roundTripFeeRateFromOneWay(bid, ask);
   if (roundTripFeeRate == null) return null;
+  if (bid <= 0 && ask <= 0) return null;
   return {
     bidFee: bid,
     askFee: ask,
@@ -155,11 +178,23 @@ export async function refreshTossFeesForUserAsync(userId) {
   if (!uid) return null;
   const creds = getDecryptedCredentialsSync(uid, "toss");
   if (!creds?.apiKey || !creds?.secretKey) return null;
-  const { result } = await fetchTossCommissionsWithCredentials(creds, "KR");
-  const parsed = parseTossCommissionFees(result);
-  if (!parsed) return null;
-  writeTossFeesOnRowSync(uid, parsed);
-  return parsed;
+  let kr = null;
+  let us = null;
+  try {
+    const { result } = await fetchTossCommissionsWithCredentials(creds, "KR");
+    kr = parseTossCommissionFees(result);
+    if (kr) writeTossFeesOnRowSync(uid, kr);
+  } catch {
+    /* KR 수수료 실패 시 US만이라도 시도 */
+  }
+  try {
+    const { result } = await fetchTossCommissionsWithCredentials(creds, "US");
+    us = parseTossCommissionFees(result);
+    if (us) writeTossFeesOnRowSync(uid, us);
+  } catch {
+    /* US 수수료 없으면 KR만 사용 */
+  }
+  return kr ?? us;
 }
 
 export async function refreshBithumbFeesForUserAsync(userId) {
@@ -225,11 +260,15 @@ export function getUserTradingFeeRatesForApiSync(userId) {
     bithumbRow?.bithumbBidFee != null &&
     bithumbRow?.bithumbAskFee != null &&
     bithumbRow?.bithumbFeesAtMs != null;
-  const tossRt = getTossRoundTripFeeRateSync(uid);
+  const tossKrRt = getTossRoundTripFeeRateSync(uid, "kr");
+  const tossUsRt = getTossRoundTripFeeRateSync(uid, "us");
   const tossFromApi =
-    tossRow?.tossBidFee != null &&
-    tossRow?.tossAskFee != null &&
-    tossRow?.tossFeesAtMs != null;
+    (tossRow?.tossBidFee != null &&
+      tossRow?.tossAskFee != null &&
+      tossRow?.tossFeesAtMs != null) ||
+    (tossRow?.tossUsBidFee != null &&
+      tossRow?.tossUsAskFee != null &&
+      tossRow?.tossUsFeesAtMs != null);
   return {
     defaultRoundTripFeeRate: DEFAULT_ROUND_TRIP_FEE_RATE,
     bithumb: uid
@@ -249,14 +288,16 @@ export function getUserTradingFeeRatesForApiSync(userId) {
         }
       : null,
     toss: {
-      roundTripFeeRate: normalizeRoundTripFeeRate(tossRt),
+      roundTripFeeRate: normalizeRoundTripFeeRate(tossKrRt),
+      krRoundTripFeeRate: normalizeRoundTripFeeRate(tossKrRt),
+      usRoundTripFeeRate: normalizeRoundTripFeeRate(tossUsRt),
       bidFee: tossFromApi ? tossRow.tossBidFee : null,
       askFee: tossFromApi ? tossRow.tossAskFee : null,
       source: tossFromApi ? "api" : "default",
       labelKo: feeLabelKo(
         tossRow?.tossBidFee,
         tossRow?.tossAskFee,
-        tossRt,
+        tossKrRt,
         tossFromApi ? "api" : "default",
       ),
       market: tossRow?.tossFeeMarket ?? null,

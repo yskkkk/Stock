@@ -1,5 +1,7 @@
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchAuthMe, fetchLiveTradingStatus, fetchUserCredentials } from "../api";
+import { useLiveTradingStatusPoll } from "../hooks/useLiveTradingStatusPoll";
+import { mergeTossFeeRates, tossFeeRatesFromStatus } from "../lib/tossHoldingFeeRates";
 import TossAccountSnapshotCard from "./TossAccountSnapshotCard";
 import TossAccountTitle from "./TossAccountTitle";
 import DockPanelCenterLoading from "./DockPanelCenterLoading";
@@ -22,11 +24,21 @@ export function TossAccountRailCore({
     snapshot,
     feeLabelKo,
     tossRoundTripFeeRate,
+    tossFeeRatesByMarket,
     updatedAtMs,
     loading,
     err,
     reload,
   } = useTossAccountSnapshot({ poll: true, pollIntervalMs: TOSS_LEDGER_POLL_MS });
+  const status = useLiveTradingStatusPoll();
+  const mergedFeeRates = useMemo(
+    () =>
+      mergeTossFeeRates(
+        tossFeeRatesByMarket,
+        tossFeeRatesFromStatus(status?.feeRates?.toss),
+      ),
+    [tossFeeRatesByMarket, status?.feeRates?.toss],
+  );
   const [liveOrdersEnabled, setLiveOrdersEnabled] = useState(false);
   const [serverLiveOrdersEnabled, setServerLiveOrdersEnabled] = useState(false);
 
@@ -86,6 +98,7 @@ export function TossAccountRailCore({
       snapshot={snapshot}
       feeLabelKo={feeLabelKo}
       tossRoundTripFeeRate={tossRoundTripFeeRate}
+      tossFeeRatesByMarket={mergedFeeRates}
       updatedAtMs={updatedAtMs}
       variant={layout === "dock" ? "inline" : "rail"}
       liveOrdersEnabled={liveOrdersEnabled}

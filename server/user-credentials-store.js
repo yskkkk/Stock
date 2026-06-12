@@ -143,14 +143,27 @@ export function writeTossFeesOnRowSync(userId, fees) {
   );
   if (idx < 0) return;
   const prev = store.credentials[idx];
-  store.credentials[idx] = {
-    ...prev,
-    tossBidFee: fees.bidFee,
-    tossAskFee: fees.askFee,
-    tossFeeMarket: fees.market ?? prev.tossFeeMarket ?? "KR",
-    tossFeesAtMs: Date.now(),
-    updatedAtMs: Date.now(),
-  };
+  const market = String(fees.market ?? "KR").trim().toUpperCase();
+  const at = Date.now();
+  if (market === "US") {
+    store.credentials[idx] = {
+      ...prev,
+      tossUsBidFee: fees.bidFee,
+      tossUsAskFee: fees.askFee,
+      tossUsFeeMarket: "US",
+      tossUsFeesAtMs: at,
+      updatedAtMs: at,
+    };
+  } else {
+    store.credentials[idx] = {
+      ...prev,
+      tossBidFee: fees.bidFee,
+      tossAskFee: fees.askFee,
+      tossFeeMarket: fees.market ?? prev.tossFeeMarket ?? "KR",
+      tossFeesAtMs: at,
+      updatedAtMs: at,
+    };
+  }
   writeStoreSync(store);
 }
 

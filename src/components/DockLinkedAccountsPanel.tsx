@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { useBithumbAccountSnapshot } from "../hooks/useBithumbAccountSnapshot";
 import {
   TOSS_LEDGER_POLL_MS,
@@ -88,6 +88,7 @@ function DockLinkedAccountsPanelInner() {
     snapshot: tossSnapshot,
     feeLabelKo: tossFeeLabelHook,
     tossRoundTripFeeRate: tossRoundTripFeeRateHook,
+    tossFeeRatesByMarket: tossFeeRatesByMarketHook,
     updatedAtMs: tossUpdatedAtMs,
     loading: tossLoading,
     err: tossErr,
@@ -100,6 +101,18 @@ function DockLinkedAccountsPanelInner() {
     status?.feeRates?.toss?.labelKo?.trim() || tossFeeLabelHook || null;
   const tossRoundTripFeeRate =
     status?.feeRates?.toss?.roundTripFeeRate ?? tossRoundTripFeeRateHook ?? null;
+  const tossFeeRatesByMarket = useMemo(() => {
+    const fromStatus = status?.feeRates?.toss;
+    const fromLedger = tossFeeRatesByMarketHook;
+    if (fromStatus) {
+      return {
+        kr: fromStatus.krRoundTripFeeRate ?? fromStatus.roundTripFeeRate,
+        us: fromStatus.usRoundTripFeeRate ?? fromStatus.roundTripFeeRate,
+        source: fromStatus.source,
+      };
+    }
+    return fromLedger;
+  }, [status?.feeRates?.toss, tossFeeRatesByMarketHook]);
 
   const statusPending = status == null;
 
@@ -171,6 +184,7 @@ function DockLinkedAccountsPanelInner() {
         snapshot={tossSnapshot}
         feeLabelKo={tossFeeLabel}
         tossRoundTripFeeRate={tossRoundTripFeeRate}
+        tossFeeRatesByMarket={tossFeeRatesByMarket}
         updatedAtMs={tossUpdatedAtMs}
         variant="inline"
       />

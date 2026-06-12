@@ -1,9 +1,20 @@
 import type { TossTestHolding } from "../api";
 import { holdingNetReturnPctFromCost } from "./livePortfolioPnl";
 import {
+  tossRoundTripForHolding,
+  type TossFeeRatesByMarket,
+} from "./tossHoldingFeeRates";
+import {
   DEFAULT_ROUND_TRIP_FEE_RATE,
   normalizeRoundTripFeeRate,
 } from "./netReturn";
+
+export type TossFeeRateInput = number | TossFeeRatesByMarket;
+
+function feeForHolding(h: TossTestHolding, fee: TossFeeRateInput): number {
+  if (typeof fee === "number") return normalizeRoundTripFeeRate(fee);
+  return tossRoundTripForHolding(h.market, fee);
+}
 
 export function tossHoldingCostBasis(h: TossTestHolding): number | null {
   const avg = h.avgBuyPrice;
@@ -64,14 +75,14 @@ export function tossHoldingNetReturnPercent(
 export function tossHoldingsNetReturnPct(
   holdings: TossTestHolding[],
   usdKrwRate: number | null,
-  roundTripFeeRate: number = DEFAULT_ROUND_TRIP_FEE_RATE,
+  feeInput: TossFeeRateInput = DEFAULT_ROUND_TRIP_FEE_RATE,
 ): number | null {
   let costKrw = 0;
   let netMktKrw = 0;
 
   for (const h of holdings) {
     const cost = tossHoldingCostBasis(h);
-    const netMv = tossHoldingNetMarketValue(h, roundTripFeeRate);
+    const netMv = tossHoldingNetMarketValue(h, feeForHolding(h, feeInput));
     if (cost == null || netMv == null) continue;
 
     if (h.currency === "USD") {
@@ -92,7 +103,7 @@ export function tossHoldingsNetReturnPct(
 export function tossHoldingsNetProfitLossKrw(
   holdings: TossTestHolding[],
   usdKrwRate: number | null,
-  roundTripFeeRate: number = DEFAULT_ROUND_TRIP_FEE_RATE,
+  feeInput: TossFeeRateInput = DEFAULT_ROUND_TRIP_FEE_RATE,
 ): number | null {
   let plKrw = 0;
   let hasKrw = false;
@@ -100,7 +111,7 @@ export function tossHoldingsNetProfitLossKrw(
   let plUsd = 0;
 
   for (const h of holdings) {
-    const pnl = tossHoldingNetUnrealizedPnl(h, roundTripFeeRate);
+    const pnl = tossHoldingNetUnrealizedPnl(h, feeForHolding(h, feeInput));
     if (pnl == null) continue;
     if (h.currency === "USD") {
       plUsd += pnl;
@@ -134,11 +145,11 @@ export function computeTossAccountCombinedPnl(
   holdings: TossTestHolding[],
   summary: TossSummarySlice | null | undefined,
   usdKrwRate: number | null,
-  roundTripFeeRate: number = DEFAULT_ROUND_TRIP_FEE_RATE,
+  feeInput: TossFeeRateInput = DEFAULT_ROUND_TRIP_FEE_RATE,
 ): { profitLossKrw: number | null; totalReturnPct: number | null } {
   const fromHoldings = {
-    profitLossKrw: tossHoldingsNetProfitLossKrw(holdings, usdKrwRate, roundTripFeeRate),
-    totalReturnPct: tossHoldingsNetReturnPct(holdings, usdKrwRate, roundTripFeeRate),
+    profitLossKrw: tossHoldingsNetProfitLossKrw(holdings, usdKrwRate, feeInput),
+    totalReturnPct: tossHoldingsNetReturnPct(holdings, usdKrwRate, feeInput),
   };
 
   const hasUsd =

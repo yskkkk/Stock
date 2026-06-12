@@ -1,9 +1,10 @@
-import type { TossTestSnapshot } from "../api";
+import type { TossFeeRatesByMarket, TossTestSnapshot } from "../api";
 
 export type TossSnapshotCacheRow = {
   snapshot: TossTestSnapshot;
   feeLabelKo?: string | null;
   tossRoundTripFeeRate?: number | null;
+  tossFeeRatesByMarket?: TossFeeRatesByMarket | null;
   syncedAtMs?: number | null;
 };
 

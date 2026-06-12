@@ -3,6 +3,7 @@ import {
   fetchAuthMe,
   fetchTossAccountSnapshot,
   type AuthUser,
+  type TossFeeRatesByMarket,
   type TossTestSnapshot,
 } from "../api";
 import { LIVE_TRADE_AUTH_CHANGE } from "../lib/liveTradeAuthEvents";
@@ -25,6 +26,7 @@ function hydrateFromClientCache(userId: string): {
   snapshot: TossTestSnapshot;
   feeLabelKo: string | null;
   tossRoundTripFeeRate: number | null;
+  tossFeeRatesByMarket: TossFeeRatesByMarket | null;
   updatedAtMs: number | null;
 } | null {
   const row = readTossSnapshotCache(userId);
@@ -36,6 +38,7 @@ function hydrateFromClientCache(userId: string): {
       row.tossRoundTripFeeRate != null && Number.isFinite(row.tossRoundTripFeeRate)
         ? row.tossRoundTripFeeRate
         : null,
+    tossFeeRatesByMarket: row.tossFeeRatesByMarket ?? null,
     updatedAtMs:
       typeof row.syncedAtMs === "number" && row.syncedAtMs > 0
         ? row.syncedAtMs
@@ -67,6 +70,8 @@ export function useTossAccountSnapshot(opts?: {
         ? peek.tossRoundTripFeeRate
         : null,
   );
+  const [tossFeeRatesByMarket, setTossFeeRatesByMarket] =
+    useState<TossFeeRatesByMarket | null>(() => peek?.tossFeeRatesByMarket ?? null);
   const [updatedAtMs, setUpdatedAtMs] = useState<number | null>(() => {
     if (peek?.syncedAtMs != null && peek.syncedAtMs > 0) return peek.syncedAtMs;
     return null;
@@ -86,6 +91,7 @@ export function useTossAccountSnapshot(opts?: {
       snap: TossTestSnapshot,
       fee: string | null,
       roundTrip: number | null,
+      feeRates: TossFeeRatesByMarket | null,
       syncedAt: number | null,
     ) => {
       rememberTossSnapshotUserId(uid);
@@ -93,6 +99,7 @@ export function useTossAccountSnapshot(opts?: {
         snapshot: snap,
         feeLabelKo: fee,
         tossRoundTripFeeRate: roundTrip,
+        tossFeeRatesByMarket: feeRates,
         syncedAtMs: syncedAt,
       });
     },
@@ -126,6 +133,7 @@ export function useTossAccountSnapshot(opts?: {
             ? out.tossRoundTripFeeRate
             : null,
         );
+        setTossFeeRatesByMarket(out.tossFeeRatesByMarket ?? null);
         setUpdatedAtMs(syncedAt);
         setErr(out.stale ? (out.messageKo ?? null) : null);
         if (uid) {
@@ -134,6 +142,7 @@ export function useTossAccountSnapshot(opts?: {
             out.snapshot,
             out.feeLabelKo ?? null,
             out.tossRoundTripFeeRate ?? null,
+            out.tossFeeRatesByMarket ?? null,
             syncedAt,
           );
         }
@@ -144,6 +153,7 @@ export function useTossAccountSnapshot(opts?: {
         setSnapshot(null);
         setFeeLabelKo(null);
         setTossRoundTripFeeRate(null);
+        setTossFeeRatesByMarket(null);
         setUpdatedAtMs(null);
         if (uid) clearTossSnapshotCache(uid);
       }
@@ -164,6 +174,7 @@ export function useTossAccountSnapshot(opts?: {
           setSnapshot(null);
           setFeeLabelKo(null);
           setTossRoundTripFeeRate(null);
+          setTossFeeRatesByMarket(null);
           setUpdatedAtMs(null);
           setErr(null);
           clearTossSnapshotUserId();
@@ -184,6 +195,7 @@ export function useTossAccountSnapshot(opts?: {
           });
           setFeeLabelKo(cached.feeLabelKo);
           setTossRoundTripFeeRate(cached.tossRoundTripFeeRate);
+          setTossFeeRatesByMarket(cached.tossFeeRatesByMarket);
           setUpdatedAtMs(cached.updatedAtMs);
         }
         const out = await fetchTossAccountSnapshot({ refresh });
@@ -247,6 +259,7 @@ export function useTossAccountSnapshot(opts?: {
     snapshot,
     feeLabelKo,
     tossRoundTripFeeRate,
+    tossFeeRatesByMarket,
     updatedAtMs,
     loading,
     err,

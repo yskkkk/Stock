@@ -969,6 +969,7 @@ export function fetchTossAccountSnapshot(opts?: { refresh?: boolean }) {
     snapshot?: TossTestSnapshot;
     feeLabelKo?: string | null;
     tossRoundTripFeeRate?: number | null;
+    tossFeeRatesByMarket?: TossFeeRatesByMarket | null;
     messageKo?: string;
     error?: string;
     fromCache?: boolean;
@@ -1153,6 +1154,8 @@ export interface LiveTradeProgramReturnSummary {
 
 export interface ExchangeTradingFeeRateInfo {
   roundTripFeeRate: number;
+  krRoundTripFeeRate?: number;
+  usRoundTripFeeRate?: number;
   bidFee: number | null;
   askFee: number | null;
   source: "api" | "default" | "env";
@@ -1160,6 +1163,12 @@ export interface ExchangeTradingFeeRateInfo {
   market: string | null;
   updatedAtMs: number | null;
 }
+
+export type TossFeeRatesByMarket = {
+  kr?: number | null;
+  us?: number | null;
+  source?: "api" | "default" | "env";
+};
 
 export interface LiveTradingFeeRates {
   defaultRoundTripFeeRate: number;

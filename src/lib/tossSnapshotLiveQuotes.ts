@@ -1,11 +1,9 @@
-import type { TossTestHolding, TossTestSnapshot } from "../api";
+import type { TossFeeRatesByMarket, TossTestHolding, TossTestSnapshot } from "../api";
 import type { PicksDailyHistoryQuotesMap } from "../types";
-import {
-  DEFAULT_ROUND_TRIP_FEE_RATE,
-  normalizeRoundTripFeeRate,
-} from "./netReturn";
+import { tossRoundTripForHolding } from "./tossHoldingFeeRates";
 import {
   computeTossAccountCombinedPnl,
+  tossHoldingNetUnrealizedPnl,
   tossHoldingsNetReturnPct,
 } from "./tossHoldingPnl";
 
@@ -70,21 +68,12 @@ export function tossHoldingsReturnPct(
   return Number.isFinite(pct) ? pct : null;
 }
 
-function holdingUnrealized(h: TossTestHolding, price: number): number | null {
-  if (!(h.avgBuyPrice != null && h.avgBuyPrice > 0 && Number.isFinite(h.avgBuyPrice))) {
-    return null;
-  }
-  const mv = price * h.quantity;
-  const cost = h.avgBuyPrice * h.quantity;
-  const unreal = mv - cost;
-  return Number.isFinite(unreal) ? unreal : null;
-}
-
 /** 토스 보유 스냅샷에 1분봉 시세를 반영하고 평가 손익을 재계산 */
 export function mergeLiveQuotesIntoTossSnapshot(
   snapshot: TossTestSnapshot,
   quotes: PicksDailyHistoryQuotesMap,
   usdKrwRate: number | null,
+  feeRates?: TossFeeRatesByMarket | null,
 ): TossTestSnapshot {
   if (!snapshot.holdings?.length) return snapshot;
 
@@ -97,11 +86,9 @@ export function mergeLiveQuotesIntoTossSnapshot(
   const holdings = snapshot.holdings.map((h) => {
     const quote = pickTossQuote(quotes, h);
     const price = quote?.price;
+    const holdingFee = tossRoundTripForHolding(h.market, feeRates);
     if (price == null || !Number.isFinite(price) || price <= 0) {
-      const unreal =
-        h.marketValue != null && h.avgBuyPrice != null && h.avgBuyPrice > 0
-          ? h.marketValue - h.avgBuyPrice * h.quantity
-          : null;
+      const unreal = tossHoldingNetUnrealizedPnl(h, holdingFee);
       if (unreal != null && Number.isFinite(unreal)) {
         if (h.currency === "USD") {
           plUsd += unreal;
@@ -121,7 +108,10 @@ export function mergeLiveQuotesIntoTossSnapshot(
       returnPercent = ((price - h.avgBuyPrice) / h.avgBuyPrice) * 100;
       if (!Number.isFinite(returnPercent)) returnPercent = null;
     }
-    const unreal = holdingUnrealized(h, price);
+    const unreal = tossHoldingNetUnrealizedPnl(
+      { ...h, currentPrice: price, marketValue: mv },
+      holdingFee,
+    );
     if (unreal != null) {
       if (h.currency === "USD") {
         plUsd += unreal;
@@ -144,16 +134,15 @@ export function mergeLiveQuotesIntoTossSnapshot(
     };
   });
 
-  const roundTripFee = normalizeRoundTripFeeRate(DEFAULT_ROUND_TRIP_FEE_RATE);
   const combined = computeTossAccountCombinedPnl(
     holdings,
     snapshot.summary,
     usdKrwRate,
-    roundTripFee,
+    feeRates ?? undefined,
   );
   const totalReturnPct =
     combined.totalReturnPct ??
-    tossHoldingsNetReturnPct(holdings, usdKrwRate, roundTripFee);
+    tossHoldingsNetReturnPct(holdings, usdKrwRate, feeRates ?? undefined);
 
   if (!anyLive && !hasKrwPl && !hasUsdPl) {
     if (totalReturnPct == null && combined.profitLossKrw == null) return snapshot;

@@ -1,14 +1,15 @@
 import { useMemo, useRef, useState } from "react";
 import { useStickyNumber } from "../hooks/useStickyNumber";
-import type { TossTestHolding, TossTestSnapshot } from "../api";
+import type { TossFeeRatesByMarket, TossTestHolding, TossTestSnapshot } from "../api";
 import { ko } from "../i18n/ko";
 import { useBithumbBalanceHidden } from "../hooks/useBithumbBalanceHidden";
 import { useTossSnapshotLiveQuotes } from "../hooks/useTossSnapshotLiveQuotes";
 import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
 import {
-  DEFAULT_ROUND_TRIP_FEE_RATE,
-  normalizeRoundTripFeeRate,
-} from "../lib/netReturn";
+  mergeTossFeeRates,
+  tossFeeRatesFromLegacy,
+  tossRoundTripForHolding,
+} from "../lib/tossHoldingFeeRates";
 import {
   computeTossAccountCombinedPnl,
   tossHoldingNetMarketValue,
@@ -56,6 +57,7 @@ export default function TossAccountSnapshotCard({
   snapshot,
   feeLabelKo,
   tossRoundTripFeeRate = null,
+  tossFeeRatesByMarket = null,
   updatedAtMs = null,
   variant = "inline",
   authenticated = true,
@@ -68,6 +70,7 @@ export default function TossAccountSnapshotCard({
   feeLabelKo?: string | null;
   /** 미지정 시 기본 왕복 수수료 */
   tossRoundTripFeeRate?: number | null;
+  tossFeeRatesByMarket?: TossFeeRatesByMarket | null;
   updatedAtMs?: number | null;
   variant?: "inline" | "rail";
   authenticated?: boolean;
@@ -76,19 +79,26 @@ export default function TossAccountSnapshotCard({
   showOrders?: boolean;
   onOrderChanged?: () => void;
 }) {
+  const feeRates = useMemo(
+    () =>
+      mergeTossFeeRates(
+        tossFeeRatesByMarket,
+        tossFeeRatesFromLegacy(tossRoundTripFeeRate, tossFeeRatesByMarket?.source),
+      ),
+    [tossFeeRatesByMarket, tossRoundTripFeeRate],
+  );
   const liveSnapshot = useTossSnapshotLiveQuotes(
     snapshot,
     Boolean(snapshot.holdings?.length),
+    undefined,
+    feeRates,
   );
   const { cash, summary, holdings } = liveSnapshot ?? snapshot;
-  const roundTripFee = normalizeRoundTripFeeRate(
-    tossRoundTripFeeRate ?? DEFAULT_ROUND_TRIP_FEE_RATE,
-  );
   const { rate: usdKrwRate } = useUsdKrwRate(Boolean(holdings.length));
   const netSummary = useMemo(
     () =>
-      computeTossAccountCombinedPnl(holdings, summary, usdKrwRate, roundTripFee),
-    [holdings, summary, usdKrwRate, roundTripFee],
+      computeTossAccountCombinedPnl(holdings, summary, usdKrwRate, feeRates),
+    [holdings, summary, usdKrwRate, feeRates],
   );
   const orderPanelRef = useRef<TossAccountOrderPanelHandle>(null);
   const [manageHolding, setManageHolding] = useState<TossTestHolding | null>(null);
@@ -230,10 +240,11 @@ export default function TossAccountSnapshotCard({
         ) : (
           <ul className="account-snapshot__holdings-list">
             {holdings.map((h) => {
-              const netReturn = tossHoldingNetReturnPercent(h, roundTripFee);
+              const holdingFee = tossRoundTripForHolding(h.market, feeRates);
+              const netReturn = tossHoldingNetReturnPercent(h, holdingFee);
               const tone = holdingChgTone(netReturn ?? h.returnPercent);
-              const unrealizedPnl = tossHoldingNetUnrealizedPnl(h, roundTripFee);
-              const netMarketValue = tossHoldingNetMarketValue(h, roundTripFee);
+              const unrealizedPnl = tossHoldingNetUnrealizedPnl(h, holdingFee);
+              const netMarketValue = tossHoldingNetMarketValue(h, holdingFee);
               const pnlUpDown = pnlTone(unrealizedPnl);
               const hasAvg =
                 h.avgBuyPrice != null &&

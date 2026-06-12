@@ -13,7 +13,7 @@ import { markPollerBootStarted, pollerGuardAsync, pollerGuardSync } from "./poll
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-/** @typedef {{ snapshot?: object | null; feeLabelKo?: string | null; tossRoundTripFeeRate?: number | null; snapshotSyncedAtMs?: number }} TossLedgerUserRow */
+/** @typedef {{ snapshot?: object | null; feeLabelKo?: string | null; tossRoundTripFeeRate?: number | null; tossFeeRatesByMarket?: { kr?: number | null; us?: number | null; source?: string } | null; snapshotSyncedAtMs?: number }} TossLedgerUserRow */
 
 function ledgerFilePath() {
   return path.join(resolveServerDataDir(), "live-trade-toss-ledger.json");
@@ -70,6 +70,7 @@ export function getTossLedgerSnapshotCacheSync(userId) {
     snapshot: row.snapshot,
     feeLabelKo: row.feeLabelKo ?? null,
     tossRoundTripFeeRate: row.tossRoundTripFeeRate ?? null,
+    tossFeeRatesByMarket: row.tossFeeRatesByMarket ?? null,
     syncedAtMs: row.snapshotSyncedAtMs ?? null,
     fromCache: true,
   };
@@ -112,10 +113,12 @@ export async function refreshTossLedgerSnapshotForUserAsync(userId) {
 
     let feeLabelKo = null;
     let tossRoundTripFeeRate = null;
+    let tossFeeRatesByMarket = null;
     try {
       const {
         ensureUserTradingFeesFreshAsync,
         getUserTradingFeeRatesForApiSync,
+        getTossFeeRatesByMarketSync,
         refreshTossFeesForUserAsync,
       } = await import("./exchange-trading-fees.js");
       await refreshTossFeesForUserAsync(uid).catch(() => null);
@@ -123,6 +126,7 @@ export async function refreshTossLedgerSnapshotForUserAsync(userId) {
       const tossFees = getUserTradingFeeRatesForApiSync(uid).toss;
       feeLabelKo = tossFees?.labelKo ?? null;
       tossRoundTripFeeRate = tossFees?.roundTripFeeRate ?? null;
+      tossFeeRatesByMarket = getTossFeeRatesByMarketSync(uid);
     } catch {
       /* 수수료 라벨 없어도 잔고·보유는 표시 */
     }
@@ -132,6 +136,7 @@ export async function refreshTossLedgerSnapshotForUserAsync(userId) {
       snapshot,
       feeLabelKo,
       tossRoundTripFeeRate,
+      tossFeeRatesByMarket,
       snapshotSyncedAtMs: syncedAtMs,
     });
 
@@ -140,6 +145,7 @@ export async function refreshTossLedgerSnapshotForUserAsync(userId) {
       snapshot,
       feeLabelKo,
       tossRoundTripFeeRate,
+      tossFeeRatesByMarket,
       syncedAtMs,
       fromCache: false,
     };
@@ -188,6 +194,7 @@ export function touchTossLedgerSnapshotCacheSync(userId) {
     snapshot: cached.snapshot,
     feeLabelKo: cached.feeLabelKo ?? null,
     tossRoundTripFeeRate: cached.tossRoundTripFeeRate ?? null,
+    tossFeeRatesByMarket: cached.tossFeeRatesByMarket ?? null,
     snapshotSyncedAtMs: cached.syncedAtMs ?? Date.now(),
   });
   return true;

@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { fetchLiveTradingMinuteQuotes, type TossTestSnapshot } from "../api";
+import {
+  fetchLiveTradingMinuteQuotes,
+  type TossFeeRatesByMarket,
+  type TossTestSnapshot,
+} from "../api";
 import {
   mergeLiveQuotesIntoTossSnapshot,
   mergeTossLedgerPreserveLiveQuotes,
@@ -14,6 +18,7 @@ export function useTossSnapshotLiveQuotes(
   snapshot: TossTestSnapshot | null,
   enabled = true,
   pollMs = TOSS_SNAPSHOT_QUOTE_POLL_MS,
+  feeRates?: TossFeeRatesByMarket | null,
 ): TossTestSnapshot | null {
   const symbolsKey = useMemo(() => tossSnapshotSymbolKey(snapshot), [snapshot]);
   const hasHoldings = Boolean(symbolsKey);
@@ -23,8 +28,13 @@ export function useTossSnapshotLiveQuotes(
 
   const applyQuotes = useCallback(
     (base: TossTestSnapshot) =>
-      mergeLiveQuotesIntoTossSnapshot(base, quotesRef.current, usdKrwRate),
-    [usdKrwRate],
+      mergeLiveQuotesIntoTossSnapshot(
+        base,
+        quotesRef.current,
+        usdKrwRate,
+        feeRates,
+      ),
+    [usdKrwRate, feeRates],
   );
 
   useEffect(() => {
