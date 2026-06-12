@@ -198,10 +198,9 @@ export async function loadDartKrFinancialPeriods(symbol) {
   const hit = getCache(cacheKey);
   if (hit) return hit;
 
+  await loadCorpIndex().catch(() => null);
   const corpCode = await resolveDartCorpCode(sym);
   if (!corpCode) return [];
-
-  await loadCorpIndex().catch(() => null);
 
   const currentYear = new Date().getFullYear();
   /** @type {object[]} */

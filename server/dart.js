@@ -1,9 +1,13 @@
 import { inflateRawSync } from "node:zlib";
+import fs from "node:fs";
+import path from "node:path";
+import { resolveServerDataDir } from "./data-path.js";
 
 const BASE = "https://opendart.fss.or.kr/api";
 const CACHE_MS = 10 * 60_000;
 const DART_CACHE_MAX = 220;
 const CORP_INDEX_TTL_MS = 26 * 60 * 60_000;
+const CORP_INDEX_DISK_FILE = path.join(resolveServerDataDir(), "dart-corp-index.json");
 const cache = new Map();
 
 /** @type {{ at: number; corps: Array<{ corpCode: string; corpName: string; stockCode: string }> } | null} */
@@ -109,6 +113,63 @@ function parseCorpXml(xml) {
   return corps;
 }
 
+/** @returns {{ at: number; corps: Array<{ corpCode: string; corpName: string; stockCode: string }> } | null} */
+function readCorpIndexFromDisk() {
+  try {
+    if (!fs.existsSync(CORP_INDEX_DISK_FILE)) return null;
+    const raw = JSON.parse(fs.readFileSync(CORP_INDEX_DISK_FILE, "utf8"));
+    if (!raw || typeof raw !== "object" || !Array.isArray(raw.corps)) return null;
+    const at = typeof raw.at === "number" && Number.isFinite(raw.at) ? raw.at : 0;
+    if (!raw.corps.length) return null;
+    return { at, corps: raw.corps };
+  } catch {
+    return null;
+  }
+}
+
+/** @param {number} at @param {Array<{ corpCode: string; corpName: string; stockCode: string }>} corps */
+function writeCorpIndexToDisk(at, corps) {
+  try {
+    const dir = resolveServerDataDir();
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const tmp = `${CORP_INDEX_DISK_FILE}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify({ at, corps }), "utf8");
+    fs.renameSync(tmp, CORP_INDEX_DISK_FILE);
+  } catch {
+    /* 디스크 캐시 실패는 무시 */
+  }
+}
+
+/** @param {boolean} [force] */
+function hydrateCorpIndexFromDisk(force = false) {
+  const disk = readCorpIndexFromDisk();
+  if (!disk) return null;
+  if (!force && Date.now() - disk.at > CORP_INDEX_TTL_MS * 14) return null;
+  corpIndex = { at: disk.at, corps: disk.corps };
+  cache.set("index:corps", { at: disk.at, corps: disk.corps });
+  return disk.corps;
+}
+
+async function fetchCorpIndexFromApi() {
+  const key = apiKey();
+  const url = `${BASE}/corpCode.xml?crtfc_key=${encodeURIComponent(key)}`;
+  let lastErr = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(45_000) });
+      if (!res.ok) throw new Error("DART 고유번호 목록을 받지 못했습니다.");
+      const buf = Buffer.from(await res.arrayBuffer());
+      const entry = extractFirstZipEntry(buf);
+      if (!entry) throw new Error("DART 고유번호 ZIP 파싱 실패");
+      return parseCorpXml(entry).filter((c) => c.stockCode);
+    } catch (err) {
+      lastErr = err;
+      if (attempt < 2) await new Promise((r) => setTimeout(r, 1200 * (attempt + 1)));
+    }
+  }
+  throw lastErr ?? new Error("DART 고유번호 목록을 받지 못했습니다.");
+}
+
 export async function loadCorpIndex(force = false) {
   if (!isDartEnabled()) return [];
   if (!force && corpIndex && Date.now() - corpIndex.at < CORP_INDEX_TTL_MS) {
@@ -123,21 +184,26 @@ export async function loadCorpIndex(force = false) {
       return hit.corps;
     }
 
-    const key = apiKey();
-    const url = `${BASE}/corpCode.xml?crtfc_key=${encodeURIComponent(key)}`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(30_000) });
-    if (!res.ok) throw new Error("DART 고유번호 목록을 받지 못했습니다.");
+    if (!force) {
+      const diskCorps = hydrateCorpIndexFromDisk(false);
+      if (diskCorps?.length && corpIndex && Date.now() - corpIndex.at < CORP_INDEX_TTL_MS) {
+        return diskCorps;
+      }
+    }
 
-    const buf = Buffer.from(await res.arrayBuffer());
-    const entry = extractFirstZipEntry(buf);
-    if (!entry) throw new Error("DART 고유번호 ZIP 파싱 실패");
-
-    const corps = parseCorpXml(entry).filter((c) => c.stockCode);
-    const at = Date.now();
-    corpIndex = { at, corps };
-    cache.set("index:corps", { at, corps });
-    pruneDartCache();
-    return corps;
+    try {
+      const corps = await fetchCorpIndexFromApi();
+      const at = Date.now();
+      corpIndex = { at, corps };
+      cache.set("index:corps", { at, corps });
+      writeCorpIndexToDisk(at, corps);
+      pruneDartCache();
+      return corps;
+    } catch {
+      const diskCorps = hydrateCorpIndexFromDisk(true);
+      if (diskCorps?.length) return diskCorps;
+      throw new Error("DART 고유번호 목록을 받지 못했습니다.");
+    }
   })()
     .finally(() => {
       corpIndexLoad = null;
@@ -166,7 +232,8 @@ async function resolveCorpCode(symbol) {
   if (hit && Date.now() - hit.at < 24 * 60 * 60_000) return hit.corpCode;
 
   try {
-    const corps = await loadCorpIndex();
+    await loadCorpIndex();
+    const corps = corpIndex?.corps ?? [];
     const found = corps.find((c) => c.stockCode === code);
     if (found?.corpCode) {
       cache.set(`corp:${code}`, { at: Date.now(), corpCode: found.corpCode });
