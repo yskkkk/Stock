@@ -7,7 +7,7 @@ import {
 } from "../api";
 import { LIVE_TRADE_AUTH_CHANGE } from "../lib/liveTradeAuthEvents";
 
-const VISIBLE_POLL_MS = 1000;
+const VISIBLE_POLL_MS = 5_000;
 
 export function useBithumbAccountSnapshot(opts?: { poll?: boolean }) {
   const poll = opts?.poll ?? false;

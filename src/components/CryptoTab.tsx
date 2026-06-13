@@ -54,7 +54,7 @@ type ListQuoteMap = Partial<Record<string, QuoteResponse>>;
 type CryptoChartEngine = "tradingview" | "app";
 
 /** 좌측 코인 목록 시세 — 배치 API 우선, 실패 시 개별 폴백 (너무 촘촘하면 차트와 겹쳐 메인 스레드 과부하) */
-const CRYPTO_LIST_POLL_MS = 5_000;
+const CRYPTO_LIST_POLL_MS = 10_000;
 /** 거래대금 상위 목록 재요청 (서버 캐시 60초) */
 const CRYPTO_UNIVERSE_REFRESH_MS = 180_000;
 

@@ -8,8 +8,8 @@ const BITHUMB_API = "https://api.bithumb.com/public";
 /** @type {{ data: Record<string, Record<string, string>> | null; at: number }} */
 let allTickerCache = { data: null, at: 0 };
 const ALL_TICKER_CACHE_MS = (() => {
-  const n = Number(process.env.BITHUMB_ALL_TICKER_CACHE_MS ?? 2_500);
-  return Number.isFinite(n) && n >= 0 ? Math.min(30_000, Math.floor(n)) : 2_500;
+  const n = Number(process.env.BITHUMB_ALL_TICKER_CACHE_MS ?? 5_000);
+  return Number.isFinite(n) && n >= 0 ? Math.min(30_000, Math.floor(n)) : 5_000;
 })();
 
 export function invalidateBithumbAllTickerCache() {

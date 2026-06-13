@@ -261,7 +261,7 @@ export default function AccessAdminModal({
     if (!open || phase !== "admin" || tab !== "access") return;
     const id = window.setInterval(() => {
       void load(authForApi(), { silent: true });
-    }, 2500);
+    }, 6_000);
     return () => window.clearInterval(id);
   }, [open, phase, tab, load, authForApi]);
 

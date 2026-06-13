@@ -480,8 +480,10 @@ export default function App() {
 
   useEffect(() => {
     void pollPicks();
-    const ms = picks?.running ? 1_500 : 2_000;
-    const id = window.setInterval(() => void pollPicks(), ms);
+    const ms = picks?.running ? 4_000 : 10_000;
+    const id = window.setInterval(() => {
+      if (document.visibilityState !== "hidden") void pollPicks();
+    }, ms);
     return () => window.clearInterval(id);
   }, [pollPicks, picks?.running]);
 

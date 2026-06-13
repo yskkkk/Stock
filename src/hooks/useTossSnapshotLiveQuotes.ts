@@ -11,7 +11,7 @@ import {
 } from "../lib/tossSnapshotLiveQuotes";
 import { useUsdKrwRate } from "./useUsdKrwRate";
 
-export const TOSS_SNAPSHOT_QUOTE_POLL_MS = 1_000;
+export const TOSS_SNAPSHOT_QUOTE_POLL_MS = 5_000;
 
 /** 토스 보유·평가 손익 — 1분봉 시세로 1초 갱신 (계좌 API와 분리) */
 export function useTossSnapshotLiveQuotes(

@@ -3,7 +3,7 @@ import { fetchCryptoQuotes } from "../api";
 import type { QuoteResponse } from "../types";
 
 /** 보유·매매 카드 — 빗썸 KRW 공개 API 시세 */
-export const BITHUMB_CRYPTO_QUOTE_POLL_MS = 1_000;
+export const BITHUMB_CRYPTO_QUOTE_POLL_MS = 5_000;
 
 /**
  * BTC-USDT 등 코인 심볼 — `/api/crypto-quotes`(빗썸) 주기 갱신

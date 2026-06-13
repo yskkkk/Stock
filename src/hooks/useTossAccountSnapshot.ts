@@ -17,8 +17,8 @@ import {
 } from "../lib/tossSnapshotClientCache";
 import { tossSnapshotLedgerFingerprint } from "../lib/tossSnapshotLiveQuotes";
 
-/** 파일 캐시·클라이언트 캐시 — 1초 (거래소 API 미호출) */
-export const TOSS_LEDGER_POLL_MS = 1_000;
+/** 파일 캐시·클라이언트 캐시 — 5초 (거래소 API 15초 주기이므로 실시간성 동일) */
+export const TOSS_LEDGER_POLL_MS = 5_000;
 /** 토스 Open API(잔고·수량) — ACCOUNT 1TPS 보호 */
 export const TOSS_LEDGER_API_REFRESH_MS = 15_000;
 
