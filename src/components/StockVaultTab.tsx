@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useDeferredValue } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, useDeferredValue } from "react";
 import FavoriteTrackPanel from "./FavoriteTrackPanel";
 import IndustryFilterPanel from "./IndustryFilterPanel";
 import {
@@ -101,7 +101,10 @@ import type {
   StockVaultTimeframe,
 } from "../types";
 import { VaultBookmarkIcon, VaultSectorLeaderIcon } from "./StockVaultMarkButton";
-import { useStockVaultRowBubble } from "./StockVaultRowBubble";
+import {
+  StockVaultRowBubblePortal,
+  type StockVaultRowBubbleActions,
+} from "./StockVaultRowBubble";
 import { useLiveTradeAuth } from "./LiveTradeAuthAndCredentials";
 
 const SCAN_SOURCE_LABEL: Record<StockVaultScanSource, string> = {
@@ -379,8 +382,8 @@ export default function StockVaultTab({
   const quoteBatchRef = useRef(0);
   const chartInsightBatchRef = useRef(0);
   const [listVisibleCount, setListVisibleCount] = useState(VAULT_LIST_INITIAL_ROWS);
-  const { tipId, showTip, scheduleHideTip, bubble: rowBubble } =
-    useStockVaultRowBubble();
+  const rowBubbleTipId = useId();
+  const rowBubbleActionsRef = useRef<StockVaultRowBubbleActions | null>(null);
 
   const applyVaultResponse = useCallback(
     (vault: StockVaultResponse) => {
@@ -1515,6 +1518,7 @@ export default function StockVaultTab({
           </p>
         ) : (
           <>
+          <StockVaultRowBubblePortal actionsRef={rowBubbleActionsRef} tipId={rowBubbleTipId} />
           <ul className="stock-vault-tab__list">
             {visibleRows.map((row) => {
               const symKey = row.symbol.trim().toUpperCase();
@@ -1605,34 +1609,46 @@ export default function StockVaultTab({
                 Boolean(row.maAlign) ||
                 Boolean(ma120Label) ||
                 Boolean(bottomLabel);
-              const openRowBubble = (el: HTMLElement) =>
-                showTip(el, {
-                  symbol: row.symbol,
-                  name: display.label,
-                  market: row.market,
-                  industry,
-                  tvSymbol,
-                  price: quote?.price ?? null,
-                  currency: cur ?? null,
-                });
+              const openRowBubble = (
+                el: HTMLElement,
+                opts?: { immediate?: boolean },
+              ) =>
+                rowBubbleActionsRef.current?.showTip(
+                  el,
+                  {
+                    symbol: row.symbol,
+                    name: display.label,
+                    market: row.market,
+                    industry,
+                    tvSymbol,
+                    price: quote?.price ?? null,
+                    currency: cur ?? null,
+                  },
+                  opts,
+                );
 
               return (
               <li
                 key={row.key}
                 className={rowClassName}
-                aria-describedby={tipId}
+                aria-describedby={rowBubbleTipId}
                 onMouseEnter={(e) => openRowBubble(e.currentTarget)}
-                onMouseLeave={scheduleHideTip}
+                onMouseLeave={() => rowBubbleActionsRef.current?.scheduleHideTip()}
               >
                 <div
                   className="stock-vault-tab__row-link"
                   tabIndex={0}
                   aria-label={`${display.label} ${ko.stockVault.rowBubbleAria}`}
-                  onFocus={(e) => openRowBubble(e.currentTarget.closest("li") ?? e.currentTarget)}
+                  onFocus={(e) =>
+                    openRowBubble(
+                      e.currentTarget.closest("li") ?? e.currentTarget,
+                      { immediate: true },
+                    )
+                  }
                   onBlur={(e) => {
                     const rel = e.relatedTarget as Node | null;
-                    if (rel && document.getElementById(tipId)?.contains(rel)) return;
-                    scheduleHideTip();
+                    if (rel && document.getElementById(rowBubbleTipId)?.contains(rel)) return;
+                    rowBubbleActionsRef.current?.scheduleHideTip();
                   }}
                 >
                   <div className="stock-vault-tab__row-top">
@@ -1927,7 +1943,6 @@ export default function StockVaultTab({
           </>
         )}
       </section>
-      {rowBubble}
     </div>
   );
 }

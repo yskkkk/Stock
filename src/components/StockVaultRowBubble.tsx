@@ -5,10 +5,12 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type MutableRefObject,
 } from "react";
 import { createPortal } from "react-dom";
 import { useOptionalValueInvestBubble } from "../contexts/ValueInvestBubbleContext";
 import StockEarningsHoverBubbleBody from "./StockEarningsHoverBubbleBody";
+import { loadEarningsBubbleFinancials } from "../lib/earningsBubbleFinancials";
 import { tradingViewChartUrl } from "../lib/tradingviewSymbols";
 import {
   dispatchStockHoverBubbleOpen,
@@ -18,6 +20,7 @@ import {
 const STOCK_VAULT_ROW_BUBBLE_OWNER = "stock-vault-row";
 
 const HIDE_DELAY_MS = 420;
+const SHOW_DELAY_MS = 200;
 const VIEWPORT_PAD = 8;
 const GAP = 2;
 const EST_BUBBLE_W = 300;
@@ -31,6 +34,12 @@ export type StockVaultRowBubbleTarget = {
   tvSymbol: string;
   price?: number | null;
   currency?: string | null;
+};
+
+export type StockVaultRowBubbleActions = {
+  tipId: string;
+  showTip: (el: HTMLElement, target: StockVaultRowBubbleTarget, opts?: { immediate?: boolean }) => void;
+  scheduleHideTip: () => void;
 };
 
 type Placement = "left" | "right" | "below" | "above";
@@ -118,9 +127,11 @@ function bubblePlacementClass(placement: Placement) {
   return base;
 }
 
-export function useStockVaultRowBubble() {
-  const tipId = useId();
+export function useStockVaultRowBubble(tipIdOverride?: string) {
+  const generatedTipId = useId();
+  const tipId = tipIdOverride ?? generatedTipId;
   const hideTimerRef = useRef<number | null>(null);
+  const showTimerRef = useRef<number | null>(null);
   const bubbleRef = useRef<HTMLDivElement | null>(null);
   const tipRef = useRef<TipState | null>(null);
   const [tip, setTip] = useState<TipState | null>(null);
@@ -134,11 +145,19 @@ export function useStockVaultRowBubble() {
     }
   }, []);
 
+  const clearShowTimer = useCallback(() => {
+    if (showTimerRef.current != null) {
+      window.clearTimeout(showTimerRef.current);
+      showTimerRef.current = null;
+    }
+  }, []);
+
   const keepTipOpen = useCallback(() => {
     clearHideTimer();
   }, [clearHideTimer]);
 
   const scheduleHideTip = useCallback(() => {
+    clearShowTimer();
     clearHideTimer();
     hideTimerRef.current = window.setTimeout(() => {
       const sym = tipRef.current?.symbol;
@@ -146,16 +165,17 @@ export function useStockVaultRowBubble() {
       setTip(null);
       hideTimerRef.current = null;
     }, HIDE_DELAY_MS);
-  }, [clearHideTimer, valueInvest?.openSymbol]);
+  }, [clearHideTimer, clearShowTimer, valueInvest?.openSymbol]);
 
   const closeTip = useCallback(() => {
+    clearShowTimer();
     clearHideTimer();
     setTip(null);
-  }, [clearHideTimer]);
+  }, [clearHideTimer, clearShowTimer]);
 
   useStockHoverBubbleExclusive(STOCK_VAULT_ROW_BUBBLE_OWNER, closeTip);
 
-  const showTip = useCallback(
+  const openTipAt = useCallback(
     (el: HTMLElement, target: StockVaultRowBubbleTarget) => {
       clearHideTimer();
       dispatchStockHoverBubbleOpen({
@@ -170,6 +190,28 @@ export function useStockVaultRowBubble() {
       });
     },
     [clearHideTimer],
+  );
+
+  const showTip = useCallback(
+    (el: HTMLElement, target: StockVaultRowBubbleTarget, opts?: { immediate?: boolean }) => {
+      clearHideTimer();
+      const sym = target.symbol.trim().toUpperCase();
+      if (tipRef.current?.symbol.trim().toUpperCase() === sym) {
+        clearHideTimer();
+        return;
+      }
+      clearShowTimer();
+      void loadEarningsBubbleFinancials(sym).catch(() => {});
+      if (opts?.immediate) {
+        openTipAt(el, target);
+        return;
+      }
+      showTimerRef.current = window.setTimeout(() => {
+        showTimerRef.current = null;
+        openTipAt(el, target);
+      }, SHOW_DELAY_MS);
+    },
+    [clearHideTimer, clearShowTimer, openTipAt],
   );
 
   useLayoutEffect(() => {
@@ -192,7 +234,13 @@ export function useStockVaultRowBubble() {
     );
   }, [tip?.symbol, tip?.name, tip?.anchorRect]);
 
-  useEffect(() => () => clearHideTimer(), [clearHideTimer]);
+  useEffect(
+    () => () => {
+      clearHideTimer();
+      clearShowTimer();
+    },
+    [clearHideTimer, clearShowTimer],
+  );
 
   const bubble =
     tip && typeof document !== "undefined"
@@ -226,4 +274,21 @@ export function useStockVaultRowBubble() {
       : null;
 
   return { tipId, tip, showTip, scheduleHideTip, bubble };
+}
+
+/** 말풍선 state를 분리 — 호버 시 StockVaultTab 전체 리렌더 방지 */
+export function StockVaultRowBubblePortal({
+  actionsRef,
+  tipId,
+}: {
+  actionsRef: MutableRefObject<StockVaultRowBubbleActions | null>;
+  tipId: string;
+}) {
+  const api = useStockVaultRowBubble(tipId);
+  actionsRef.current = {
+    tipId: api.tipId,
+    showTip: api.showTip,
+    scheduleHideTip: api.scheduleHideTip,
+  };
+  return api.bubble;
 }
