@@ -65,10 +65,19 @@ export function getBithumbWsTickerQuote(yahooSymbol) {
  * @param {string[]} yahooSymbols
  */
 export function setBithumbWsTickerWanted(yahooSymbols) {
+  const nextSyms = new Set(
+    (Array.isArray(yahooSymbols) ? yahooSymbols : []).map((s) =>
+      String(s ?? "").trim().toUpperCase(),
+    ).filter(Boolean),
+  );
   const next = new Set();
-  for (const sym of yahooSymbols) {
+  for (const sym of nextSyms) {
     const code = yahooSymbolToKrwCode(sym);
     if (code) next.add(code);
+  }
+  // 불필요한 Yahoo 심볼 캐시 정리
+  for (const sym of byYahooSymbol.keys()) {
+    if (!nextSyms.has(sym)) byYahooSymbol.delete(sym);
   }
   const prevKey = [...wantedKrwCodes].sort().join(",");
   const nextKey = [...next].sort().join(",");

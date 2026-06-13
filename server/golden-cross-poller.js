@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { Worker } from "node:worker_threads";
 import { getKstParts, isKrBusinessDay } from "./kr-business-day.js";
 import { runGoldenCrossMarketScan, wasGoldenCrossScannedSync } from "./golden-cross-scan.js";
 import { runMaAlignMarketScan, wasMaAlignScannedSync } from "./ma-align-scan.js";
@@ -592,6 +593,31 @@ export async function runGoldenCrossScanIfDue(market, now = new Date()) {
   }
 }
 
+const GC_WORKER_URL = new URL("./golden-cross-scan-worker.js", import.meta.url);
+const GC_WORKER_TIMEOUT_MS = 30 * 60_000;
+
+/** 골든크로스 스캔을 별도 Worker Thread에서 실행해 GC 중단이 API 응답을 막지 않도록 함 */
+function spawnGoldenCrossScanWorker(market) {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(GC_WORKER_URL, { workerData: { market } });
+    const timer = setTimeout(() => {
+      worker.terminate();
+      reject(new Error(`[golden-cross:poller] worker timeout market=${market}`));
+    }, GC_WORKER_TIMEOUT_MS);
+    worker.once("message", (msg) => {
+      clearTimeout(timer);
+      worker.terminate();
+      if (msg.ok) resolve(msg.result);
+      else reject(new Error(msg.error));
+    });
+    worker.once("error", (err) => { clearTimeout(timer); reject(err); });
+    worker.once("exit", (code) => {
+      clearTimeout(timer);
+      if (code !== 0) reject(new Error(`[golden-cross:poller] worker exit ${code}`));
+    });
+  });
+}
+
 export function startGoldenCrossScanPoller() {
   if (!goldenCrossScanEnabled()) return;
   const g = /** @type {typeof globalThis & { __stockGoldenCrossScan?: boolean }} */ (
@@ -606,13 +632,15 @@ export function startGoldenCrossScanPoller() {
     running = true;
     void pollerGuardAsync("golden-cross", async () => {
       for (const market of /** @type {const} */ (["kr", "us"])) {
+        if (!shouldRunGoldenCrossScan(market)) continue;
+        vaultScanRunning = true;
         try {
-          const result = await runGoldenCrossScanIfDue(market);
+          const result = await spawnGoldenCrossScanWorker(market);
           if (result) {
-            liveTradeLogInfo("[golden-cross:poller] ran", {
+            liveTradeLogInfo("[golden-cross:poller] worker ran", {
               market,
-              goldenCrossHits: result.goldenCross.hitCount,
-              maAlignHits: result.maAlign.hitCount,
+              goldenCrossHits: result.goldenCross?.hitCount ?? 0,
+              maAlignHits: result.maAlign?.hitCount ?? 0,
               ma120NearHits: result.ma120Near?.hitCount ?? 0,
             });
           }
@@ -622,6 +650,8 @@ export function startGoldenCrossScanPoller() {
             market,
             e instanceof Error ? e.message : e,
           );
+        } finally {
+          vaultScanRunning = false;
         }
       }
     })

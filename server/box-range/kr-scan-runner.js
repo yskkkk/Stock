@@ -1,3 +1,4 @@
+import { Worker } from "node:worker_threads";
 import { loadBoxRangeCatalogUniverse } from "../universe.js";
 import { boxRangeDetectEnabled, BOX_RANGE_KR_SCAN_MS } from "./constants.js";
 import { scanOneSymbolCatalog, scanOneSymbolCatalogV2 } from "./catalog-scan-shared.js";
@@ -5,6 +6,31 @@ import { refreshCatalogIndexSync } from "./catalog-store.js";
 import { notifyCatalogScanTelegram } from "./catalog-scan-telegram.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "../live-trade-log.js";
 import { markPollerBootStarted, pollerGuardAsync } from "../poller-registry.js";
+
+const WORKER_URL = new URL("./catalog-scan-worker.js", import.meta.url);
+const WORKER_TIMEOUT_MS = 40 * 60_000;
+
+/** KR 박스권 스캔을 Worker Thread에서 실행 */
+function runKrScanInWorker() {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(WORKER_URL, { workerData: { scanType: "kr" } });
+    const timer = setTimeout(() => {
+      worker.terminate();
+      reject(new Error("[box-range:kr-scan] worker timeout"));
+    }, WORKER_TIMEOUT_MS);
+    worker.once("message", (msg) => {
+      clearTimeout(timer);
+      worker.terminate();
+      if (msg.ok) resolve(msg.result);
+      else reject(new Error(msg.error));
+    });
+    worker.once("error", (err) => { clearTimeout(timer); reject(err); });
+    worker.once("exit", (code) => {
+      clearTimeout(timer);
+      if (code !== 0) reject(new Error(`[box-range:kr-scan] worker exit code ${code}`));
+    });
+  });
+}
 
 const BATCH_SIZE = (() => {
   const n = Number(process.env.STOCK_BOX_RANGE_KR_BATCH ?? 6);
@@ -80,7 +106,7 @@ export function startKrBoxRangeCatalogPoller() {
   const loop = () => {
     if (running) return;
     running = true;
-    pollerGuardAsync("box-kr-scan", () => runKrBoxRangeCatalogScan())
+    pollerGuardAsync("box-kr-scan", () => runKrScanInWorker())
       .catch((e) => {
         liveTradeLogWarn(
           "[box-range:kr-scan]",
@@ -96,6 +122,7 @@ export function startKrBoxRangeCatalogPoller() {
   // SP500 스캔(즉시 시작)과 겹치지 않도록 1/3 주기 뒤에 첫 실행
   setTimeout(() => {
     loop();
-    setInterval(loop, BOX_RANGE_KR_SCAN_MS);
+    const _iv = setInterval(loop, BOX_RANGE_KR_SCAN_MS);
+    void _iv;
   }, Math.floor(BOX_RANGE_KR_SCAN_MS / 3));
 }

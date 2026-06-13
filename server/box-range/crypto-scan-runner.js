@@ -1,3 +1,4 @@
+import { Worker } from "node:worker_threads";
 import { cryptoYahooUsdtDisplayName } from "../crypto-display-names.js";
 import {
   BOX_RANGE_CRYPTO_HTF_SYMBOLS,
@@ -9,6 +10,31 @@ import { refreshCatalogIndexSync } from "./catalog-store.js";
 import { notifyCatalogScanTelegram } from "./catalog-scan-telegram.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "../live-trade-log.js";
 import { markPollerBootStarted, pollerGuardAsync } from "../poller-registry.js";
+
+const WORKER_URL = new URL("./catalog-scan-worker.js", import.meta.url);
+const WORKER_TIMEOUT_MS = 15 * 60_000;
+
+/** Crypto 박스권 스캔을 Worker Thread에서 실행 */
+function runCryptoScanInWorker() {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(WORKER_URL, { workerData: { scanType: "crypto" } });
+    const timer = setTimeout(() => {
+      worker.terminate();
+      reject(new Error("[box-range:crypto-scan] worker timeout"));
+    }, WORKER_TIMEOUT_MS);
+    worker.once("message", (msg) => {
+      clearTimeout(timer);
+      worker.terminate();
+      if (msg.ok) resolve(msg.result);
+      else reject(new Error(msg.error));
+    });
+    worker.once("error", (err) => { clearTimeout(timer); reject(err); });
+    worker.once("exit", (code) => {
+      clearTimeout(timer);
+      if (code !== 0) reject(new Error(`[box-range:crypto-scan] worker exit code ${code}`));
+    });
+  });
+}
 
 /** @returns {{ symbol: string; name: string }[]} */
 export function boxRangeCryptoCatalogItems() {
@@ -83,7 +109,7 @@ export function startCryptoBoxRangeCatalogPoller() {
   const loop = () => {
     if (running) return;
     running = true;
-    pollerGuardAsync("box-crypto-scan", () => runCryptoBoxRangeCatalogScan())
+    pollerGuardAsync("box-crypto-scan", () => runCryptoScanInWorker())
       .catch((e) => {
         liveTradeLogWarn(
           "[box-range:crypto-scan]",
@@ -99,6 +125,7 @@ export function startCryptoBoxRangeCatalogPoller() {
   // SP500(즉시)·KR(+1/3) 스캔과 겹치지 않도록 2/3 주기 뒤에 첫 실행
   setTimeout(() => {
     loop();
-    setInterval(loop, BOX_RANGE_CRYPTO_SCAN_MS);
+    const _iv = setInterval(loop, BOX_RANGE_CRYPTO_SCAN_MS);
+    void _iv;
   }, Math.floor((BOX_RANGE_CRYPTO_SCAN_MS / 3) * 2));
 }

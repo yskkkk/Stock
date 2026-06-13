@@ -16,6 +16,14 @@ const META_FETCH_CONCURRENCY = 4;
 
 /** @type {Map<string, { at: number; industry: string | null }>} */
 const cache = new Map();
+const VAULT_META_CACHE_MAX = 2_000;
+
+function pruneVaultMetaCache() {
+  if (cache.size <= VAULT_META_CACHE_MAX) return;
+  const sorted = [...cache.entries()].sort((a, b) => a[1].at - b[1].at);
+  const removeCount = Math.ceil(sorted.length * 0.2);
+  for (let i = 0; i < removeCount; i++) cache.delete(sorted[i][0]);
+}
 
 /** @type {ReturnType<typeof setTimeout> | null} */
 let refreshTimer = null;
@@ -606,6 +614,7 @@ async function fetchIndustryForSymbol(symbol, market) {
 
   const resolved = industry ?? "기타";
   cache.set(key, { at: Date.now(), industry: resolved });
+  pruneVaultMetaCache();
   return resolved;
 }
 
@@ -658,6 +667,7 @@ function mergeMetaIntoStore(meta) {
       cache.set(cacheKeyFor(sym, market), { at: now, industry: row.industry });
     }
   }
+  pruneVaultMetaCache();
   persistMetaStore(bySymbol);
 }
 

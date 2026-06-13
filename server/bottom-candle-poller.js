@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { Worker } from "node:worker_threads";
 import { getKstParts } from "./kr-business-day.js";
 import { runBottomCandleMarketScan, getBottomCandleScanStateSync } from "./bottom-candle-scan.js";
 import {
@@ -61,7 +62,7 @@ async function runMarketTimeframeScan(market, scanDate, timeframe) {
 }
 
 /** @param {Date} [now] @param {"manual"|"scheduled"} trigger */
-async function runFullBottomCandleScanInternal(now = new Date(), trigger = "scheduled") {
+export async function runFullBottomCandleScanInternal(now = new Date(), trigger = "scheduled") {
   const runId = randomUUID();
   /** @type {Array<{ market: "kr"|"us"; timeframe: string; scanDate: string; scanned: number; hitCount: number }>} */
   const results = [];
@@ -124,6 +125,31 @@ export function triggerBottomCandleManualScan() {
   return { started: true };
 }
 
+const BC_WORKER_URL = new URL("./bottom-candle-scan-worker.js", import.meta.url);
+const BC_WORKER_TIMEOUT_MS = 30 * 60_000;
+
+/** 바닥봉 스캔을 별도 Worker Thread에서 실행 */
+function spawnBottomCandleScanWorker() {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(BC_WORKER_URL, { workerData: { trigger: "scheduled" } });
+    const timer = setTimeout(() => {
+      worker.terminate();
+      reject(new Error("[bottom-candle:poller] worker timeout"));
+    }, BC_WORKER_TIMEOUT_MS);
+    worker.once("message", (msg) => {
+      clearTimeout(timer);
+      worker.terminate();
+      if (msg.ok) resolve(msg.result);
+      else reject(new Error(msg.error));
+    });
+    worker.once("error", (err) => { clearTimeout(timer); reject(err); });
+    worker.once("exit", (code) => {
+      clearTimeout(timer);
+      if (code !== 0) reject(new Error(`[bottom-candle:poller] worker exit ${code}`));
+    });
+  });
+}
+
 export function startBottomCandleScanPoller() {
   if (!bottomCandleScanEnabled()) return;
   const g = /** @type {typeof globalThis & { __stockBottomCandleScan?: boolean }} */ (
@@ -138,9 +164,7 @@ export function startBottomCandleScanPoller() {
     if (running || manualScanRunning) return;
     running = true;
     scheduledScanRunning = true;
-    void pollerGuardAsync("bottom-candle", async () => {
-      await runFullBottomCandleScanInternal(new Date(), "scheduled");
-    })
+    void pollerGuardAsync("bottom-candle", () => spawnBottomCandleScanWorker())
       .catch((e) => {
         liveTradeLogWarn(
           "[bottom-candle:poller]",
@@ -155,7 +179,8 @@ export function startBottomCandleScanPoller() {
 
   liveTradeLogInfo("[bottom-candle:poller] start", { pollMs: POLL_MS });
   setTimeout(tick, 45_000);
-  setInterval(tick, POLL_MS);
+  const _iv = setInterval(tick, POLL_MS);
+  void _iv;
 }
 
 export { getBottomCandleScanStateSync };

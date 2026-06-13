@@ -1,3 +1,4 @@
+import { Worker } from "node:worker_threads";
 import { loadBoxRangeCatalogUniverse } from "../universe.js";
 import { boxRangeDetectEnabled, BOX_RANGE_SP500_SCAN_MS } from "./constants.js";
 import { scanOneSymbolCatalog, scanOneSymbolCatalogV2 } from "./catalog-scan-shared.js";
@@ -5,6 +6,31 @@ import { refreshCatalogIndexSync } from "./catalog-store.js";
 import { notifyCatalogScanTelegram } from "./catalog-scan-telegram.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "../live-trade-log.js";
 import { markPollerBootStarted, pollerGuardAsync } from "../poller-registry.js";
+
+const WORKER_URL = new URL("./catalog-scan-worker.js", import.meta.url);
+const WORKER_TIMEOUT_MS = 50 * 60_000;
+
+/** SP500 박스권 스캔을 Worker Thread에서 실행해 메인 스레드 GC 중단을 방지 */
+function runSp500ScanInWorker() {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(WORKER_URL, { workerData: { scanType: "us" } });
+    const timer = setTimeout(() => {
+      worker.terminate();
+      reject(new Error("[box-range:us-scan] worker timeout"));
+    }, WORKER_TIMEOUT_MS);
+    worker.once("message", (msg) => {
+      clearTimeout(timer);
+      worker.terminate();
+      if (msg.ok) resolve(msg.result);
+      else reject(new Error(msg.error));
+    });
+    worker.once("error", (err) => { clearTimeout(timer); reject(err); });
+    worker.once("exit", (code) => {
+      clearTimeout(timer);
+      if (code !== 0) reject(new Error(`[box-range:us-scan] worker exit code ${code}`));
+    });
+  });
+}
 
 const BATCH_SIZE = (() => {
   const n = Number(process.env.STOCK_BOX_RANGE_US_BATCH ?? 6);
@@ -80,7 +106,7 @@ export function startSp500BoxRangeCatalogPoller() {
   const loop = () => {
     if (running) return;
     running = true;
-    pollerGuardAsync("box-sp500-scan", () => runSp500BoxRangeCatalogScan())
+    pollerGuardAsync("box-sp500-scan", () => runSp500ScanInWorker())
       .catch((e) => {
         liveTradeLogWarn(
           "[box-range:us-scan]",
@@ -94,5 +120,6 @@ export function startSp500BoxRangeCatalogPoller() {
 
   loop();
   markPollerBootStarted("box-sp500-scan");
-  setInterval(loop, BOX_RANGE_SP500_SCAN_MS);
+  const _iv = setInterval(loop, BOX_RANGE_SP500_SCAN_MS);
+  void _iv;
 }
