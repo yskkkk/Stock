@@ -1319,6 +1319,7 @@ export default function StockVaultTab({
               const chg = quote?.changePercent;
               const chgUp = chg != null && chg >= 0;
               const gcItem = row.goldenCross;
+              const bottomItem = row.bottomCandle;
               const gcRecencyClass = gcItem ? goldenCrossRecencyClass(gcItem) : null;
               const rowClassName = [
                 "stock-vault-tab__row",
@@ -1377,7 +1378,6 @@ export default function StockVaultTab({
                     },
                   )
                 : null;
-              const bottomItem = row.bottomCandle;
               const bottomLabel = bottomItem?.bottomTag
                 ? `${bottomItem.bottomTag}${
                     bottomItem.bottomScore != null ? ` ${bottomItem.bottomScore}pt` : ""
