@@ -34,6 +34,7 @@ import {
   extractScanItemsFromVault,
   listLocalScanSnapshotDates,
   mergeLocalScanSnapshot,
+  mergeScanItemsIntoSnapshot,
   peekLocalScanSnapshot,
   saveLocalScanSnapshot,
 } from "../lib/stockVaultLocalSnapshot";
@@ -364,15 +365,11 @@ export default function StockVaultTab({
   const seedTodaySnapshotFromVault = useCallback(
     (vault: StockVaultResponse) => {
       const today = kstTodayYmd();
-      const cached = peekLocalScanSnapshot(today);
-      if (cached?.length) {
-        if (selectedScanDate == null) setSnapshotItems(cached);
-        return;
-      }
       const incoming = extractScanItemsFromVault(vault.items);
-      if (!incoming.length) return;
-      const saved = saveLocalScanSnapshot(today, incoming);
-      if (selectedScanDate == null) setSnapshotItems(saved);
+      const merged = mergeLocalScanSnapshot(today, incoming);
+      if (selectedScanDate == null) {
+        setSnapshotItems(merged.length ? merged : incoming);
+      }
     },
     [selectedScanDate],
   );
@@ -564,10 +561,12 @@ export default function StockVaultTab({
   }, [selectedScanDate, favoriteSymbolSet, favoriteMeta]);
 
   const displayItems = useMemo(() => {
+    if (isHistoricalView) return snapshotItems ?? [];
     const snap = snapshotItems ?? [];
-    if (isHistoricalView) return snap;
+    const fromVault = extractScanItemsFromVault(items);
+    const merged = mergeScanItemsIntoSnapshot(snap, fromVault);
     const extras = items.filter((it) => it.source === "favorite");
-    return [...snap, ...extras];
+    return [...merged, ...extras];
   }, [snapshotItems, items, isHistoricalView]);
 
   useEffect(() => {
@@ -702,9 +701,8 @@ export default function StockVaultTab({
         return next;
       });
       if (
-        source === "ma120_near" &&
-        countItemsByScanSource(snapshotItems ?? [], "ma120_near", timeframeFilter) === 0 &&
-        countItemsByScanSource(items, "ma120_near", timeframeFilter) === 0
+        (source === "ma120_near" || source === "bottom_candle") &&
+        countItemsByScanSource(displayItems, source, timeframeFilter) === 0
       ) {
         void reload(true);
       }
@@ -879,13 +877,19 @@ export default function StockVaultTab({
           );
           return next;
         });
+        setSnapshotItems((prev) => {
+          if (!prev?.length) return prev;
+          const next = prev.filter((it) => it.symbol.trim().toUpperCase() !== sym);
+          saveLocalScanSnapshot(selectedScanDate ?? kstTodayYmd(), next);
+          return next;
+        });
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
         setRemoving(null);
       }
     },
-    [authenticated, onVaultChange],
+    [authenticated, onVaultChange, selectedScanDate],
   );
 
   const handleToggleFavorite = useCallback(

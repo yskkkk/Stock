@@ -50,6 +50,22 @@ describe("stockVaultLocalSnapshot", () => {
     const rows = extractScanItemsFromVault([
       gc("AAA.KS", 1),
       {
+        id: "bc",
+        symbol: "CCC.KS",
+        name: "C",
+        market: "kr",
+        source: "bottom_candle",
+        timeframe: "1d",
+        scanDate: "2026-06-13",
+        bottomTag: "바닥·전형",
+        bottomScore: 72,
+        addedAtMs: 1,
+        updatedAtMs: 1,
+        favorited: false,
+        favoriteAddedAtMs: null,
+        favoritePrice: null,
+      },
+      {
         id: "fav",
         symbol: "BBB.KS",
         name: "B",
@@ -64,7 +80,21 @@ describe("stockVaultLocalSnapshot", () => {
         favoritePrice: null,
       },
     ]);
-    expect(rows).toHaveLength(1);
-    expect(rows[0]?.symbol).toBe("AAA.KS");
+    expect(rows.map((it) => it.symbol).sort()).toEqual(["AAA.KS", "CCC.KS"]);
+  });
+
+  it("merge keeps daily and weekly rows for same symbol", () => {
+    const daily: StockVaultItem = {
+      ...gc("AAA.KS", 100),
+      source: "bottom_candle",
+      timeframe: "1d",
+    };
+    const weekly: StockVaultItem = {
+      ...gc("AAA.KS", 200),
+      source: "bottom_candle",
+      timeframe: "1wk",
+    };
+    const merged = mergeScanItemsIntoSnapshot([daily], [weekly]);
+    expect(merged).toHaveLength(2);
   });
 });

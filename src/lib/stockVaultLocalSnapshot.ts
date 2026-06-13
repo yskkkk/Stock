@@ -1,3 +1,4 @@
+import { normalizeStockVaultTimeframe } from "./stockVaultTimeframe";
 import type { StockVaultItem, StockVaultScanSource } from "../types";
 
 const STORAGE_KEY = "stock-vault-local-scan-snapshots-v1";
@@ -13,8 +14,10 @@ type SnapshotStore = {
   byDate: Record<string, { items: StockVaultItem[]; updatedAtMs: number }>;
 };
 
-function scanItemKey(item: Pick<StockVaultItem, "source" | "market" | "symbol">) {
-  return `${item.source}:${item.market}:${item.symbol.trim().toUpperCase()}`;
+function scanItemKey(
+  item: Pick<StockVaultItem, "source" | "market" | "symbol" | "timeframe">,
+) {
+  return `${item.source}:${item.market}:${item.symbol.trim().toUpperCase()}:${normalizeStockVaultTimeframe(item.timeframe)}`;
 }
 
 function isScanItem(item: StockVaultItem): boolean {
