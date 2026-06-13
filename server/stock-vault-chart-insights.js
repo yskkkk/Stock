@@ -12,6 +12,7 @@ const STORE_FILE = "stock-vault-chart-insights.json";
 const CHART_CACHE_MS = 30 * 60_000;
 const STORE_TTL_MS = 30 * 60_000;
 const REFRESH_DEBOUNCE_MS = 800;
+const MAX_SYMBOLS_PER_REFRESH = 35;
 const CONCURRENCY = (() => {
   const n = Number(process.env.STOCK_VAULT_CHART_INSIGHTS_CONCURRENCY ?? 8);
   return Number.isFinite(n) && n >= 1 ? Math.min(n, 12) : 8;
@@ -150,9 +151,9 @@ async function loadChartCandles(chartTf, symbol) {
   const data = await loadStock(sym, chartTf);
   const candles = Array.isArray(data?.candles) ? data.candles : [];
   chartCache.set(cacheKey, { at: Date.now(), candles });
-  if (chartCache.size > 2400) {
+  if (chartCache.size > 800) {
     const oldest = [...chartCache.entries()].sort((a, b) => a[1].at - b[1].at);
-    for (let i = 0; i < 400 && i < oldest.length; i++) {
+    for (let i = 0; i < 200 && i < oldest.length; i++) {
       chartCache.delete(oldest[i][0]);
     }
   }
@@ -220,6 +221,29 @@ export function readStockVaultChartInsightsSync() {
   return store.bySymbol ?? {};
 }
 
+/**
+ * @param {Record<string, unknown>} record
+ * @param {string[]} symbols
+ */
+export function pickVaultMapBySymbols(record, symbols) {
+  /** @type {Record<string, object>} */
+  const out = {};
+  for (const raw of symbols) {
+    const sym = String(raw ?? "").trim().toUpperCase();
+    if (!sym) continue;
+    const row = record?.[sym];
+    if (row && typeof row === "object") out[sym] = /** @type {object} */ (row);
+  }
+  return out;
+}
+
+/** @param {unknown} row */
+function symbolInsightStale(row) {
+  if (!row || typeof row !== "object") return true;
+  const ts = Number(/** @type {{ updatedAtMs?: unknown }} */ (row).updatedAtMs);
+  return !Number.isFinite(ts) || Date.now() - ts > STORE_TTL_MS;
+}
+
 function writeInsightsStore(bySymbol) {
   writeJsonStoreSync(STORE_FILE, {
     version: 1,
@@ -247,13 +271,15 @@ export async function refreshStockVaultChartInsightsAsync(symbols, quotes = {}) 
 
   const prev = readStockVaultChartInsightsSync();
   /** @type {Record<string, object>} */
-  const out = { ...prev };
+  const out = pickVaultMapBySymbols(prev, uniq);
+  const staleSyms = uniq.filter((sym) => symbolInsightStale(out[sym]));
+  const batch = staleSyms.slice(0, MAX_SYMBOLS_PER_REFRESH);
   let cursor = 0;
 
   async function worker() {
-    while (cursor < uniq.length) {
+    while (cursor < batch.length) {
       const idx = cursor++;
-      const sym = uniq[idx];
+      const sym = batch[idx];
       const q = quotes[sym];
       const price =
         q?.price != null && Number.isFinite(Number(q.price))
@@ -263,9 +289,15 @@ export async function refreshStockVaultChartInsightsAsync(symbols, quotes = {}) 
     }
   }
 
-  const workers = Math.min(CONCURRENCY, uniq.length);
-  await Promise.all(Array.from({ length: workers }, () => worker()));
+  if (batch.length > 0) {
+    const workers = Math.min(CONCURRENCY, batch.length);
+    await Promise.all(Array.from({ length: workers }, () => worker()));
+  }
   writeInsightsStore(out);
+
+  if (staleSyms.length > batch.length) {
+    scheduleStockVaultChartInsightsRefresh(uniq, quotes);
+  }
   return out;
 }
 

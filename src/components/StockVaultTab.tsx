@@ -386,11 +386,6 @@ export default function StockVaultTab({
     [selectedScanDate],
   );
 
-  const reloadVault = useCallback(async () => {
-    const bundle = await loadStockVault({ refresh: true });
-    applyVaultResponse(bundle.vault);
-  }, [applyVaultResponse]);
-
   const reload = useCallback(async (force = false) => {
     const hadData =
       !force &&
@@ -569,6 +564,42 @@ export default function StockVaultTab({
     return [...merged, ...extras];
   }, [snapshotItems, items, isHistoricalView]);
 
+  const refreshDisplayQuotes = useCallback(async () => {
+    const syms = [
+      ...new Set(
+        displayItems
+          .map((it) => it.symbol.trim().toUpperCase())
+          .filter(Boolean),
+      ),
+    ];
+    if (!syms.length) return;
+    try {
+      const res = await fetchStockVaultQuotes(syms);
+      setQuotes((prev) => {
+        const next = { ...prev };
+        for (const [sym, q] of Object.entries(res.quotes ?? {})) {
+          if (!q?.price || !Number.isFinite(q.price)) continue;
+          next[sym.trim().toUpperCase()] = {
+            price: q.price,
+            changePercent: q.changePercent,
+            currency: q.currency,
+          };
+        }
+        return next;
+      });
+    } catch {
+      /* ignore poll errors */
+    }
+  }, [displayItems]);
+
+  useEffect(() => {
+    if (loading || scanRunning || displayItems.length === 0) return;
+    const id = window.setInterval(() => {
+      void refreshDisplayQuotes();
+    }, QUOTE_POLL_MS);
+    return () => window.clearInterval(id);
+  }, [loading, scanRunning, displayItems.length, refreshDisplayQuotes]);
+
   useEffect(() => {
     if (timeframeFilter !== "1d") return;
     const need = listMa120SymbolsNeedingQuotes(displayItems, quotes, chartInsights);
@@ -637,14 +668,6 @@ export default function StockVaultTab({
       setError(null);
     });
   }, [applyVaultResponse, applyScanStatus, seedTodaySnapshotFromVault]);
-
-  useEffect(() => {
-    if (loading || scanRunning || displayItems.length === 0) return;
-    const id = window.setInterval(() => {
-      void reloadVault();
-    }, QUOTE_POLL_MS);
-    return () => window.clearInterval(id);
-  }, [loading, scanRunning, displayItems.length, reloadVault]);
 
   useEffect(() => {
     if (!scanRunning) return;

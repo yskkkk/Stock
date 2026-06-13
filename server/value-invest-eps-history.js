@@ -15,6 +15,12 @@ import { yahooGet } from "./yahoo.js";
 /** 기준 EPS 산출에 쓰는 최대 연수 (상장 10년 미만이면 가용 연수만) */
 export const EPS_AVERAGE_MAX_YEARS = 10;
 
+const EPS_HISTORY_CACHE_MS = 30 * 60_000;
+const DETAIL_FETCH_CONCURRENCY = 4;
+
+/** @type {Map<string, { at: number; data: { series: { year: number; eps: number }[]; negativeCount: number } }>} */
+const epsHistoryCache = new Map();
+
 /**
  * @param {{ year: number; eps: number }[]} series
  * @param {number} [maxYears]
@@ -45,8 +51,33 @@ export function averageEpsFromHistory(series, maxYears = EPS_AVERAGE_MAX_YEARS) 
  * @param {string} symbol
  * @returns {Promise<{ series: { year: number; eps: number }[]; negativeCount: number }>}
  */
+/**
+ * @param {import("./stock-financials.js").FinancialPeriodRow[]} rows
+ * @param {number} limit
+ * @param {(id: string) => Promise<unknown>} loadDetail
+ */
+async function loadPeriodDetailsBounded(rows, limit, loadDetail) {
+  const slice = rows.slice(-limit);
+  /** @type {Array<unknown | null>} */
+  const details = new Array(slice.length);
+  let cursor = 0;
+  async function worker() {
+    while (cursor < slice.length) {
+      const idx = cursor++;
+      details[idx] = await loadDetail(slice[idx].id).catch(() => null);
+    }
+  }
+  const workers = Math.min(DETAIL_FETCH_CONCURRENCY, slice.length);
+  await Promise.all(Array.from({ length: workers }, () => worker()));
+  return { annual: slice, details };
+}
+
 export async function loadAnnualEpsHistory(symbol) {
   const sym = String(symbol ?? "").trim().toUpperCase();
+  const cached = epsHistoryCache.get(sym);
+  if (cached && Date.now() - cached.at < EPS_HISTORY_CACHE_MS) {
+    return cached.data;
+  }
   const periods = await loadFinancialPeriods(sym).catch(() => null);
   if (!periods?.periods?.length) return { series: [], negativeCount: 0 };
 
@@ -75,14 +106,20 @@ export async function loadAnnualEpsHistory(symbol) {
     if (prefer(p) >= prefer(existing)) byYear.set(y, p);
   }
 
-  const annual = [...byYear.values()].sort(
+  const annualAll = [...byYear.values()].sort(
     (a, b) => (a.endDateMs ?? 0) - (b.endDateMs ?? 0),
+  );
+  const detailLimit = Math.min(
+    annualAll.length,
+    EPS_AVERAGE_MAX_YEARS + 2,
   );
 
   const shares = await fetchSharesOutstanding(sym);
 
-  const details = await Promise.all(
-    annual.map((p) => loadFinancialStatementDetail(sym, p.id).catch(() => null)),
+  const { annual, details } = await loadPeriodDetailsBounded(
+    annualAll,
+    detailLimit,
+    (id) => loadFinancialStatementDetail(sym, id),
   );
 
   /** @type {{ year: number; eps: number }[]} */
@@ -117,10 +154,18 @@ export async function loadAnnualEpsHistory(symbol) {
     const y = Number(String(p.label ?? "").slice(0, 4));
     series.push({ year: Number.isFinite(y) ? y : 0, eps: m.eps });
   }
-  return {
+  const data = {
     series: series.filter((s) => s.year > 0).sort((a, b) => a.year - b.year),
     negativeCount,
   };
+  epsHistoryCache.set(sym, { at: Date.now(), data });
+  if (epsHistoryCache.size > 120) {
+    const oldest = [...epsHistoryCache.entries()].sort((a, b) => a[1].at - b[1].at);
+    for (let i = 0; i < 30 && i < oldest.length; i++) {
+      epsHistoryCache.delete(oldest[i][0]);
+    }
+  }
+  return data;
 }
 
 /** @param {unknown} v */

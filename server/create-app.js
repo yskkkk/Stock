@@ -2368,19 +2368,22 @@ export function createApp() {
       const {
         readStockVaultChartInsightsSync,
         scheduleStockVaultChartInsightsRefresh,
+        pickVaultMapBySymbols,
       } = await import("./stock-vault-chart-insights.js");
-      const chartInsights = readStockVaultChartInsightsSync();
+      const chartInsightsAll = readStockVaultChartInsightsSync();
+      const chartInsights = pickVaultMapBySymbols(chartInsightsAll, symbols);
       if (symbols.length > 0) {
         scheduleStockVaultMetaRefresh(items);
         scheduleStockVaultChartInsightsRefresh(symbols, quotes);
       }
       const industryTabs = listStockVaultIndustryTabs();
+      const industryFinancialsAll = readStockVaultIndustryFinancialsSync();
       res.json({
         items,
         quotes,
         meta,
         chartInsights,
-        industryFinancials: readStockVaultIndustryFinancialsSync(),
+        industryFinancials: pickVaultMapBySymbols(industryFinancialsAll, symbols),
         industryTabs,
         industryGridRows: stockVaultIndustryGridRows(industryTabs.length),
         authenticated,
@@ -2468,6 +2471,7 @@ export function createApp() {
       const {
         readStockVaultChartInsightsSync,
         fetchStockVaultChartInsightsMap,
+        pickVaultMapBySymbols,
       } = await import("./stock-vault-chart-insights.js");
       const { fetchQuoteSnapshotsForSymbols } = await import(
         "./picks-live-quotes.js"
@@ -2480,9 +2484,10 @@ export function createApp() {
       if (symbols.length > 0) {
         quotes = await fetchQuoteSnapshotsForSymbols(symbols);
       }
-      const chartInsights = force
+      const chartInsightsAll = force
         ? await fetchStockVaultChartInsightsMap(symbols, quotes)
         : readStockVaultChartInsightsSync();
+      const chartInsights = pickVaultMapBySymbols(chartInsightsAll, symbols);
       if (!force && symbols.length > 0) {
         const { scheduleStockVaultChartInsightsRefresh } = await import(
           "./stock-vault-chart-insights.js"

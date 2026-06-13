@@ -13,6 +13,10 @@ import { loadStock } from "./stock-data.js";
 
 const DEFAULT_TARGET_RETURN = 0.15;
 const DEFAULT_YEARS = 10;
+const RETURN_CACHE_MS = 15 * 60_000;
+
+/** @type {Map<string, { at: number; data: unknown }>} */
+const returnCache = new Map();
 
 /** 역사적 PER 산출에 쓰는 최대 연수 (EPS 평균과 동일) */
 export const PER_HISTORY_MAX_YEARS = 10;
@@ -257,11 +261,41 @@ export function buildValueInvestInputsFromFundamentals(f, opts = {}) {
  * @param {string} symbol
  * @param {{ targetReturnRate?: number; years?: number; price?: number }} [opts]
  */
+/**
+ * @param {{ candles?: { time?: unknown; timeSec?: number; close: number }[] } | null} candleData
+ * @param {number} maxYears
+ * @param {"kr"|"us"|string} market
+ */
+function trimCandlesForPerHistory(candleData, maxYears, market) {
+  const candles = Array.isArray(candleData?.candles) ? candleData.candles : [];
+  if (!candles.length) return candleData;
+  const currentYear = new Date().getFullYear();
+  const minYear = currentYear - maxYears - 1;
+  const trimmed = candles.filter((c) => {
+    const y = candleCalendarYear(c, market);
+    return y == null || y >= minYear;
+  });
+  if (trimmed.length === candles.length) return candleData;
+  return { ...candleData, candles: trimmed };
+}
+
 export async function loadValueInvestReturn(symbol, opts = {}) {
+  const sym = String(symbol ?? "").trim().toUpperCase();
+  const cacheKey = [
+    sym,
+    opts.targetReturnRate ?? DEFAULT_TARGET_RETURN,
+    opts.years ?? DEFAULT_YEARS,
+    opts.price != null && Number.isFinite(opts.price) ? opts.price : "",
+  ].join("|");
+  const hit = returnCache.get(cacheKey);
+  if (hit && Date.now() - hit.at < RETURN_CACHE_MS) {
+    return hit.data;
+  }
+
   const [fundamentals, epsHistoryResult, candleData] = await Promise.all([
-    loadStockFundamentals(symbol),
-    loadAnnualEpsHistory(symbol).catch(() => ({ series: [], negativeCount: 0 })),
-    loadStock(symbol, "1d").catch(() => null),
+    loadStockFundamentals(sym),
+    loadAnnualEpsHistory(sym).catch(() => ({ series: [], negativeCount: 0 })),
+    loadStock(sym, "1d").catch(() => null),
   ]);
   const epsHistoryArr = Array.isArray(epsHistoryResult) ? epsHistoryResult : (epsHistoryResult.series ?? []);
   const negativeEpsCount = Array.isArray(epsHistoryResult) ? 0 : (epsHistoryResult.negativeCount ?? 0);
@@ -271,9 +305,32 @@ export async function loadValueInvestReturn(symbol, opts = {}) {
     sourcesPatch(fundamentals);
   }
 
-  const historicalPer = computeHistoricalAveragePer(epsHistoryArr, candleData, undefined, fundamentals.market);
+  const trimmedCandles = trimCandlesForPerHistory(
+    candleData,
+    PER_HISTORY_MAX_YEARS,
+    fundamentals.market,
+  );
+  const historicalPer = computeHistoricalAveragePer(
+    epsHistoryArr,
+    trimmedCandles,
+    undefined,
+    fundamentals.market,
+  );
 
-  return buildValueInvestInputsFromFundamentals(fundamentals, { ...opts, epsHistory: epsHistoryArr, historicalPer, negativeEpsCount });
+  const data = buildValueInvestInputsFromFundamentals(fundamentals, {
+    ...opts,
+    epsHistory: epsHistoryArr,
+    historicalPer,
+    negativeEpsCount,
+  });
+  returnCache.set(cacheKey, { at: Date.now(), data });
+  if (returnCache.size > 80) {
+    const oldest = [...returnCache.entries()].sort((a, b) => a[1].at - b[1].at);
+    for (let i = 0; i < 20 && i < oldest.length; i++) {
+      returnCache.delete(oldest[i][0]);
+    }
+  }
+  return data;
 }
 
 /** @param {Awaited<ReturnType<typeof loadStockFundamentals>>} f */
