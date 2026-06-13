@@ -10,6 +10,12 @@ import { createPortal } from "react-dom";
 import { useOptionalValueInvestBubble } from "../contexts/ValueInvestBubbleContext";
 import StockEarningsHoverBubbleBody from "./StockEarningsHoverBubbleBody";
 import { tradingViewChartUrl } from "../lib/tradingviewSymbols";
+import {
+  dispatchStockHoverBubbleOpen,
+  useStockHoverBubbleExclusive,
+} from "../lib/stockHoverBubbleSingleton";
+
+const STOCK_VAULT_ROW_BUBBLE_OWNER = "stock-vault-row";
 
 const HIDE_DELAY_MS = 420;
 const VIEWPORT_PAD = 8;
@@ -142,9 +148,20 @@ export function useStockVaultRowBubble() {
     }, HIDE_DELAY_MS);
   }, [clearHideTimer, valueInvest?.openSymbol]);
 
+  const closeTip = useCallback(() => {
+    clearHideTimer();
+    setTip(null);
+  }, [clearHideTimer]);
+
+  useStockHoverBubbleExclusive(STOCK_VAULT_ROW_BUBBLE_OWNER, closeTip);
+
   const showTip = useCallback(
     (el: HTMLElement, target: StockVaultRowBubbleTarget) => {
       clearHideTimer();
+      dispatchStockHoverBubbleOpen({
+        ownerId: STOCK_VAULT_ROW_BUBBLE_OWNER,
+        symbol: target.symbol,
+      });
       const anchorRect = el.getBoundingClientRect();
       setTip({
         ...target,

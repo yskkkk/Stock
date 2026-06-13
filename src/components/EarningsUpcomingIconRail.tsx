@@ -26,6 +26,12 @@ import StockLogoWithPlate from "./StockLogoWithPlate";
 import { peekMacroPrefetch } from "../lib/tabPrefetch";
 import { ko } from "../i18n/ko";
 import type { SectorEarningsSpotlightItem } from "../types";
+import {
+  dispatchStockHoverBubbleOpen,
+  useStockHoverBubbleExclusive,
+} from "../lib/stockHoverBubbleSingleton";
+
+const EARNINGS_ICON_RAIL_BUBBLE_OWNER = "earnings-icon-rail";
 
 const TICK_MS = 1000;
 const HIDE_DELAY_MS = 420;
@@ -183,6 +189,10 @@ export default function EarningsUpcomingIconRail({
 
   const openTip = useCallback((el: HTMLElement, row: SectorEarningsSpotlightItem) => {
     clearHideTimer();
+    dispatchStockHoverBubbleOpen({
+      ownerId: EARNINGS_ICON_RAIL_BUBBLE_OWNER,
+      symbol: row.symbol,
+    });
     const r = el.getBoundingClientRect();
     const gap = 10;
     const estW = 268;
@@ -211,6 +221,13 @@ export default function EarningsUpcomingIconRail({
       hideTimerRef.current = null;
     }, HIDE_DELAY_MS);
   }, [clearHideTimer, valueInvest?.openSymbol]);
+
+  const closeTip = useCallback(() => {
+    clearHideTimer();
+    setTip(null);
+  }, [clearHideTimer]);
+
+  useStockHoverBubbleExclusive(EARNINGS_ICON_RAIL_BUBBLE_OWNER, closeTip);
 
   if (upcoming.length === 0) return null;
 
