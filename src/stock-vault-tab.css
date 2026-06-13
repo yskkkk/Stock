@@ -1481,3 +1481,61 @@ html[data-theme="light"] .stock-vault-tab__row--tf-wk .stock-vault-tab__cross {
   padding: 0.35rem 0.15rem 0;
 }
 
+.trading-technique-tab__model-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.trading-technique-tab__model-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.72rem 0.85rem;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm, 8px);
+  background: color-mix(in srgb, var(--card) 92%, var(--accent) 8%);
+  color: var(--text);
+  font: inherit;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.trading-technique-tab__model-btn:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--card-border));
+  color: var(--accent);
+}
+
+.trading-technique-tab__model-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trading-technique-tab__model-count {
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.trading-technique-tab__back {
+  flex: 0 0 auto;
+}
+
+.trading-technique-tab .pick-list {
+  margin-top: 0.65rem;
+}
+

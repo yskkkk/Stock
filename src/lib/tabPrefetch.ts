@@ -440,9 +440,6 @@ export function startBackgroundTabPrefetch(): void {
   if (typeof window === "undefined" || prefetchStarted) return;
   prefetchStarted = true;
 
-  /* 종목보관 — 탭 진입 전 즉시 선로드(idle 대기 없음) */
-  void prefetchStockVaultTab().catch(() => {});
-
   scheduleIdle(() => {
     void prefetchMacroBundle().catch(() => {});
     void prefetchRecommendationsTracker().catch(() => {});
@@ -452,4 +449,23 @@ export function startBackgroundTabPrefetch(): void {
     void prefetchPicksDailyHistory().catch(() => {});
     void prefetchStockSearchHotTabs().catch(() => {});
   });
+}
+
+/** 즐겨찾기·보관함 동기화 — idle 시에만 (기동 직후 OOM 방지) */
+export function scheduleStockVaultFavoritesSync(
+  onVault: (vault: StockVaultResponse) => void,
+): () => void {
+  if (typeof window === "undefined") return () => {};
+  let cancelled = false;
+  scheduleIdle(() => {
+    if (cancelled) return;
+    void loadStockVault()
+      .then((bundle) => {
+        if (!cancelled) onVault(bundle.vault);
+      })
+      .catch(() => {});
+  }, 4000);
+  return () => {
+    cancelled = true;
+  };
 }

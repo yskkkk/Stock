@@ -59,7 +59,7 @@ import RecommendationsTab from "./components/RecommendationsTab";
 import TradeHistoryTab from "./components/TradeHistoryTab";
 import BoxRangeTab from "./components/BoxRangeTab";
 import FinancialsTab from "./components/FinancialsTab";
-import StockVaultTab from "./components/StockVaultTab";
+import TradingTechniqueTab from "./components/TradingTechniqueTab";
 import InvestorFlowTab from "./components/InvestorFlowTab";
 import { LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT } from "./lib/liveTradeDockAccount";
 import { LIVE_TRADE_PROGRAM_TRADES_MAIN_EVENT } from "./lib/liveTradeProgramTradesMain";
@@ -120,7 +120,10 @@ import {
 } from "./lib/userPersist";
 import { filterPicksByQuery } from "./lib/searchPicks";
 import { liveHoldingToStockPick } from "./lib/liveHoldingToPick";
-import { startBackgroundTabPrefetch, loadStockVault } from "./lib/tabPrefetch";
+import {
+  startBackgroundTabPrefetch,
+  scheduleStockVaultFavoritesSync,
+} from "./lib/tabPrefetch";
 import { warmOpsDevQueueDisplay } from "./lib/opsDevQueueDisplayClient";
 import { sortPicksList, type SortKey } from "./lib/sortPicks";
 import { yahooStockSymbolToTradingView } from "./lib/tradingviewSymbols";
@@ -524,11 +527,9 @@ export default function App() {
   useEffect(() => {
     if (!configReady) return;
     startBackgroundTabPrefetch();
-    void loadStockVault()
-      .then((data) => {
-        syncVaultFromResponse(data.vault.favoriteSymbols, data.vault.favoriteMeta);
-      })
-      .catch(() => {});
+    return scheduleStockVaultFavoritesSync((vault) => {
+      syncVaultFromResponse(vault.favoriteSymbols, vault.favoriteMeta);
+    });
   }, [configReady, syncVaultFromResponse]);
 
   useEffect(() => {
@@ -1624,7 +1625,12 @@ export default function App() {
           onScrollToSectionConsumed={handleFinancialsScrollConsumed}
         />
       ) : appTab === "stockVault" ? (
-        <StockVaultTab onVaultChange={syncVaultFromResponse} />
+        <TradingTechniqueTab
+          picks={picks}
+          onOpenPick={handleSelect}
+          onNews={handleNews}
+          onReason={handleReason}
+        />
       ) : appTab === "investorFlow" ? (
         <InvestorFlowTab />
       ) : appTab === "liveTrading" ? (
