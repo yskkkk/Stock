@@ -49,6 +49,9 @@ import {
   defaultStockVaultTabUi,
   peekStockVaultTabUi,
   saveStockVaultTabUi,
+  shouldShowVaultLoginHint,
+  markVaultLoginHintShown,
+  clearVaultLoginHintFlag,
   type Ma120ApproachFilter,
 } from "../lib/stockVaultTabSession";
 import {
@@ -89,6 +92,7 @@ import type {
 } from "../types";
 import { VaultBookmarkIcon, VaultSectorLeaderIcon } from "./StockVaultMarkButton";
 import { useStockVaultRowBubble } from "./StockVaultRowBubble";
+import { useLiveTradeAuth } from "./LiveTradeAuthAndCredentials";
 
 const SCAN_SOURCE_LABEL: Record<StockVaultScanSource, string> = {
   golden_cross: ko.stockVault.tabGolden,
@@ -265,6 +269,9 @@ export default function StockVaultTab({
   const cachedInit = peekStockVaultPrefetch();
   const cachedVault = cachedInit ? vaultStateFromResponse(cachedInit.vault) : null;
   const uiInit = peekStockVaultTabUi() ?? defaultStockVaultTabUi();
+  const { user, authChecked, refreshAuth } = useLiveTradeAuth();
+  const vaultAuthSyncedRef = useRef(false);
+  const loginHintTimerRef = useRef<number | null>(null);
 
   const [items, setItems] = useState<StockVaultItem[]>(() => cachedVault?.items ?? []);
   const [quotes, setQuotes] = useState<
@@ -393,6 +400,70 @@ export default function StockVaultTab({
     setScanRunning(Boolean(status.running));
     setScanHint(scanHintFromStatus(status));
   }, []);
+
+  useEffect(() => {
+    if (!authChecked) return;
+    if (!user) {
+      vaultAuthSyncedRef.current = false;
+      clearVaultLoginHintFlag();
+      return;
+    }
+    if (authenticated && vaultAuthSyncedRef.current) return;
+    let cancelled = false;
+    void (async () => {
+      await refreshAuth();
+      const bundle = await refreshStockVaultTab();
+      if (cancelled) return;
+      applyVaultResponse(bundle.vault);
+      applyScanStatus(bundle.scanStatus);
+      setError((err) =>
+        err === ko.stockVault.loginRequired ? null : err,
+      );
+      vaultAuthSyncedRef.current = true;
+      clearVaultLoginHintFlag();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    authChecked,
+    user?.id,
+    authenticated,
+    refreshAuth,
+    applyVaultResponse,
+    applyScanStatus,
+  ]);
+
+  const ensureVaultAuthenticated = useCallback(async () => {
+    if (authenticated) return true;
+    const liveUser = await refreshAuth();
+    if (!liveUser) return false;
+    const bundle = await refreshStockVaultTab();
+    applyVaultResponse(bundle.vault);
+    return Boolean(bundle.vault.authenticated);
+  }, [authenticated, refreshAuth, applyVaultResponse]);
+
+  const showLoginHintOnce = useCallback(() => {
+    if (!shouldShowVaultLoginHint()) return;
+    markVaultLoginHintShown();
+    setError(ko.stockVault.loginRequired);
+    if (loginHintTimerRef.current != null) {
+      window.clearTimeout(loginHintTimerRef.current);
+    }
+    loginHintTimerRef.current = window.setTimeout(() => {
+      setError((cur) => (cur === ko.stockVault.loginRequired ? null : cur));
+      loginHintTimerRef.current = null;
+    }, 8000);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (loginHintTimerRef.current != null) {
+        window.clearTimeout(loginHintTimerRef.current);
+      }
+    },
+    [],
+  );
 
   const seedTodaySnapshotFromVault = useCallback(
     (vault: StockVaultResponse) => {
@@ -923,8 +994,8 @@ export default function StockVaultTab({
 
   const handleRemove = useCallback(
     async (symbol: string) => {
-      if (!authenticated) {
-        setError(ko.stockVault.loginRequired);
+      if (!(await ensureVaultAuthenticated())) {
+        showLoginHintOnce();
         return;
       }
       const sym = symbol.trim().toUpperCase();
@@ -953,13 +1024,13 @@ export default function StockVaultTab({
         setRemoving(null);
       }
     },
-    [authenticated, onVaultChange, selectedScanDate],
+    [ensureVaultAuthenticated, showLoginHintOnce, onVaultChange, selectedScanDate],
   );
 
   const handleToggleFavorite = useCallback(
     async (symbol: string, favorited: boolean, market: "kr" | "us", name: string) => {
-      if (!authenticated) {
-        setError(ko.stockVault.loginRequired);
+      if (!(await ensureVaultAuthenticated())) {
+        showLoginHintOnce();
         return;
       }
       const sym = symbol.trim().toUpperCase();
@@ -1011,7 +1082,7 @@ export default function StockVaultTab({
         setFavoriting(null);
       }
     },
-    [authenticated, quotes, onVaultChange],
+    [ensureVaultAuthenticated, showLoginHintOnce, quotes, onVaultChange],
   );
 
   const handleFavoritePriceSaved = useCallback(

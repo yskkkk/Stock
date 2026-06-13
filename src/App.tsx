@@ -54,7 +54,10 @@ import LiveTradingTab, {
 } from "./components/LiveTradingTab";
 import AppLiveTradeSideDock from "./components/AppLiveTradeSideDock";
 import AppRightDockRailPanels from "./components/AppRightDockRailPanels";
-import { useLiveTradeAuth } from "./components/LiveTradeAuthAndCredentials";
+import {
+  useLiveTradeAuth,
+  LIVE_TRADE_AUTH_CHANGE,
+} from "./components/LiveTradeAuthAndCredentials";
 import RecommendationsTab from "./components/RecommendationsTab";
 import TradeHistoryTab from "./components/TradeHistoryTab";
 import BoxRangeTab from "./components/BoxRangeTab";
@@ -123,6 +126,7 @@ import { liveHoldingToStockPick } from "./lib/liveHoldingToPick";
 import {
   startBackgroundTabPrefetch,
   scheduleStockVaultFavoritesSync,
+  invalidateStockVaultPrefetch,
 } from "./lib/tabPrefetch";
 import { warmOpsDevQueueDisplay } from "./lib/opsDevQueueDisplayClient";
 import { sortPicksList, type SortKey } from "./lib/sortPicks";
@@ -531,6 +535,12 @@ export default function App() {
       syncVaultFromResponse(vault.favoriteSymbols, vault.favoriteMeta);
     });
   }, [configReady, syncVaultFromResponse]);
+
+  useEffect(() => {
+    const onAuth = () => invalidateStockVaultPrefetch();
+    window.addEventListener(LIVE_TRADE_AUTH_CHANGE, onAuth);
+    return () => window.removeEventListener(LIVE_TRADE_AUTH_CHANGE, onAuth);
+  }, []);
 
   useEffect(() => {
     if (

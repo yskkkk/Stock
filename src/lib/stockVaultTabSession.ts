@@ -16,6 +16,7 @@ export type StockVaultTabUiState = {
 };
 
 const UI_STORAGE_KEY = "stock-vault-tab-ui-v3";
+const LOGIN_HINT_KEY = "stock-vault-login-hint-v1";
 
 let memoryUi: StockVaultTabUiState | null = null;
 
@@ -96,5 +97,32 @@ export function saveStockVaultTabUi(state: StockVaultTabUiState): void {
     sessionStorage.setItem(UI_STORAGE_KEY, JSON.stringify(next));
   } catch {
     /* quota */
+  }
+}
+
+export function shouldShowVaultLoginHint(): boolean {
+  if (typeof sessionStorage === "undefined") return true;
+  try {
+    return !sessionStorage.getItem(LOGIN_HINT_KEY);
+  } catch {
+    return true;
+  }
+}
+
+export function markVaultLoginHintShown(): void {
+  if (typeof sessionStorage === "undefined") return;
+  try {
+    sessionStorage.setItem(LOGIN_HINT_KEY, "1");
+  } catch {
+    /* quota */
+  }
+}
+
+export function clearVaultLoginHintFlag(): void {
+  if (typeof sessionStorage === "undefined") return;
+  try {
+    sessionStorage.removeItem(LOGIN_HINT_KEY);
+  } catch {
+    /* ignore */
   }
 }
