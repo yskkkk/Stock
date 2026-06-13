@@ -212,6 +212,18 @@ export const POLLER_CATALOG = {
     descriptionKo:
       "stock-vault 종목이 MA120에 근접했는지 60초마다 확인하고, 조건 충족 시 텔레그램 알림을 보냅니다.",
   },
+  "bottom-candle": {
+    labelKo: "세력 바닥 캔들 스캔",
+    groupKo: "스크리너",
+    intervalMs: () => {
+      const n = Number(process.env.STOCK_BOTTOM_CANDLE_POLL_MS ?? 3_600_000);
+      return Number.isFinite(n) && n >= 300_000 ? Math.min(n, 86_400_000) : 3_600_000;
+    },
+    envDisable: "STOCK_BOTTOM_CANDLE_SCAN=0",
+    isBootEnabled: () => process.env.STOCK_BOTTOM_CANDLE_SCAN !== "0",
+    descriptionKo:
+      "KR·US 유니버스 전 종목을 1시간마다 일봉·주봉에서 세력 바닥 캔들(3캔들·갭·RVOL·점수) 패턴을 탐색해 stock-vault에 반영합니다.",
+  },
   "holdings-news": {
     labelKo: "보유 종목 속보 이메일",
     groupKo: "알림",

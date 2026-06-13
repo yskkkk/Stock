@@ -1,14 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchTechModels, type TechModelRecord } from "../api";
+import { fetchStockVault, fetchTechModels, type TechModelRecord } from "../api";
 import StockVaultTab from "./StockVaultTab";
 import { ko } from "../i18n/ko";
 import { peekLiveTradingPrefetch, prefetchStockVaultTab } from "../lib/tabPrefetch";
+import {
+  BOTTOM_CANDLE_MODEL_ID,
+  isBottomCandleModelId,
+  withBottomCandleTechModel,
+} from "../lib/bottomCandleTechModel";
 import {
   clearSelectedTechModelId,
   peekSelectedTechModelId,
   saveSelectedTechModelId,
 } from "../lib/tradingTechniqueSession";
-import type { PicksResponse, StockVaultFavoriteMeta } from "../types";
+import type { PicksResponse, StockVaultFavoriteMeta, StockVaultItem } from "../types";
 
 function allPickCountByModel(picks: PicksResponse | null): Map<string, number> {
   const counts = new Map<string, number>();
@@ -19,6 +24,15 @@ function allPickCountByModel(picks: PicksResponse | null): Map<string, number> {
     counts.set(id, (counts.get(id) ?? 0) + 1);
   }
   return counts;
+}
+
+function bottomCandleVaultCount(items: StockVaultItem[]): number {
+  const seen = new Set<string>();
+  for (const it of items) {
+    if (it.source !== "bottom_candle") continue;
+    seen.add(`${it.market}:${it.symbol.trim().toUpperCase()}:${it.timeframe ?? "1d"}`);
+  }
+  return seen.size;
 }
 
 export default function TradingTechniqueTab({
@@ -32,14 +46,15 @@ export default function TradingTechniqueTab({
   ) => void;
 }) {
   const prefetched = peekLiveTradingPrefetch();
-  const [models, setModels] = useState<TechModelRecord[]>(
-    () => prefetched?.techModels.models ?? [],
+  const [models, setModels] = useState<TechModelRecord[]>(() =>
+    withBottomCandleTechModel(prefetched?.techModels.models ?? []),
   );
   const [modelsLoading, setModelsLoading] = useState(() => models.length === 0);
   const [modelsError, setModelsError] = useState<string | null>(null);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(() =>
     peekSelectedTechModelId(),
   );
+  const [bottomCandleCount, setBottomCandleCount] = useState(0);
 
   useEffect(() => {
     if (models.length) return;
@@ -50,7 +65,7 @@ export default function TradingTechniqueTab({
       try {
         const res = await fetchTechModels();
         if (cancelled) return;
-        setModels(res.models ?? []);
+        setModels(withBottomCandleTechModel(res.models ?? []));
       } catch (e) {
         if (!cancelled) {
           setModelsError(e instanceof Error ? e.message : String(e));
@@ -63,6 +78,22 @@ export default function TradingTechniqueTab({
       cancelled = true;
     };
   }, [models.length]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const vault = await fetchStockVault();
+        if (cancelled) return;
+        setBottomCandleCount(bottomCandleVaultCount(vault.items ?? []));
+      } catch {
+        /* ignore vault count */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!selectedModelId) return;
@@ -107,7 +138,9 @@ export default function TradingTechniqueTab({
           ) : null}
           <ul className="trading-technique-tab__model-list">
             {models.map((m) => {
-              const count = pickCounts.get(m.id) ?? 0;
+              const count = isBottomCandleModelId(m.id)
+                ? bottomCandleCount
+                : (pickCounts.get(m.id) ?? 0);
               return (
                 <li key={m.id}>
                   <button
@@ -136,6 +169,9 @@ export default function TradingTechniqueTab({
         name: selectedModel?.name ?? ko.tradingTechnique.title,
         onBack: handleBack,
       }}
+      vaultScanPreset={
+        isBottomCandleModelId(selectedModelId) ? [BOTTOM_CANDLE_MODEL_ID] : undefined
+      }
     />
   );
 }

@@ -11,6 +11,7 @@ export const STOCK_VAULT_SCAN_SOURCES: readonly StockVaultScanSource[] = [
   "golden_cross",
   "ma_align",
   "ma120_near",
+  "bottom_candle",
 ];
 
 export type VaultDisplayRow = {
@@ -25,6 +26,7 @@ export type VaultDisplayRow = {
   goldenCross?: StockVaultItem;
   maAlign?: StockVaultItem;
   ma120Near?: StockVaultItem;
+  bottomCandle?: StockVaultItem;
   favorite?: StockVaultItem;
 };
 
@@ -38,16 +40,19 @@ function pickDisplayName(row: {
   goldenCross?: StockVaultItem;
   maAlign?: StockVaultItem;
   ma120Near?: StockVaultItem;
+  bottomCandle?: StockVaultItem;
   favorite?: StockVaultItem;
 }) {
   return (
     row.goldenCross?.name ??
     row.maAlign?.name ??
     row.ma120Near?.name ??
+    row.bottomCandle?.name ??
     row.favorite?.name ??
     row.goldenCross?.symbol ??
     row.maAlign?.symbol ??
     row.ma120Near?.symbol ??
+    row.bottomCandle?.symbol ??
     row.favorite?.symbol ??
     ""
   );
@@ -64,24 +69,40 @@ function buildScanRow(
   const goldenCross = parts.golden_cross;
   const maAlign = parts.ma_align;
   const ma120Near = parts.ma120_near;
+  const bottomCandle = parts.bottom_candle;
   const favorite = parts.favorite;
   const symbol =
-    goldenCross?.symbol ?? maAlign?.symbol ?? ma120Near?.symbol ?? favorite?.symbol ?? "";
+    goldenCross?.symbol ??
+    maAlign?.symbol ??
+    ma120Near?.symbol ??
+    bottomCandle?.symbol ??
+    favorite?.symbol ??
+    "";
   const market =
-    goldenCross?.market ?? maAlign?.market ?? ma120Near?.market ?? favorite?.market ?? "kr";
+    goldenCross?.market ??
+    maAlign?.market ??
+    ma120Near?.market ??
+    bottomCandle?.market ??
+    favorite?.market ??
+    "kr";
   const favorited = Boolean(
-    goldenCross?.favorited || maAlign?.favorited || ma120Near?.favorited || favorite?.favorited,
+    goldenCross?.favorited ||
+      maAlign?.favorited ||
+      ma120Near?.favorited ||
+      bottomCandle?.favorited ||
+      favorite?.favorited,
   );
   const updatedAtMs = Math.max(
     goldenCross?.updatedAtMs ?? 0,
     maAlign?.updatedAtMs ?? 0,
     ma120Near?.updatedAtMs ?? 0,
+    bottomCandle?.updatedAtMs ?? 0,
     favorite?.updatedAtMs ?? 0,
   );
   return {
     key,
     symbol,
-    name: pickDisplayName({ goldenCross, maAlign, ma120Near, favorite }),
+    name: pickDisplayName({ goldenCross, maAlign, ma120Near, bottomCandle, favorite }),
     market,
     timeframe,
     favorited,
@@ -90,6 +111,7 @@ function buildScanRow(
     goldenCross,
     maAlign,
     ma120Near,
+    bottomCandle,
     favorite,
   };
 }
@@ -125,6 +147,8 @@ function buildFavoriteRows(
       row.ma_align = it;
     } else if (it.source === "ma120_near" && matchesTimeframe(it, timeframe)) {
       row.ma120_near = it;
+    } else if (it.source === "bottom_candle" && matchesTimeframe(it, timeframe)) {
+      row.bottom_candle = it;
     } else if (it.source === "favorite") {
       row.favorite = it;
     }

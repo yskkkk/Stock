@@ -480,9 +480,9 @@ export interface FinancialStatementAnalysisResponse extends FinancialStatementDe
   aiOpinion: FinancialAiOpinion;
 }
 
-export type StockVaultSource = "golden_cross" | "ma_align" | "ma120_near" | "favorite";
+export type StockVaultSource = "golden_cross" | "ma_align" | "ma120_near" | "bottom_candle" | "favorite";
 /** 자동 탐색 조건 — stockVaultFilter.STOCK_VAULT_SCAN_SOURCES 와 동기 */
-export type StockVaultScanSource = "golden_cross" | "ma_align" | "ma120_near";
+export type StockVaultScanSource = "golden_cross" | "ma_align" | "ma120_near" | "bottom_candle";
 export type StockVaultTimeframe = "1d" | "1wk";
 export type GoldenCrossKind =
   | "5>20"
@@ -525,6 +525,15 @@ export interface StockVaultItem {
   distancePct?: number;
   ma120Approach?: "from_below" | "from_above" | "flat";
   ma120Side?: "above" | "below";
+  bottomTag?: string;
+  bottomCode?: number;
+  bottomScore?: number;
+  signalDate?: string | null;
+  bottomSl?: number;
+  bottomZoneTop?: number;
+  bottomZoneBot?: number;
+  bottomRvol?: number;
+  bottomClassic?: boolean;
   addedAtMs: number;
   updatedAtMs: number;
   favorited?: boolean;
@@ -792,6 +801,21 @@ export interface StockVaultScanStatus {
   goldenCross: { state: GoldenCrossScanState };
   maAlign: { state: GoldenCrossScanState };
   ma120Near?: { state: GoldenCrossScanState };
+  bottomCandle?: {
+    enabled: boolean;
+    running: boolean;
+    lastManualScan: {
+      atMs: number;
+      results: Array<{
+        market: "kr" | "us";
+        timeframe: string;
+        scanDate: string;
+        scanned: number;
+        hitCount: number;
+      }>;
+    } | null;
+    state: GoldenCrossScanState & { lastRunAtMs?: number | null };
+  };
   state: GoldenCrossScanState;
 }
 

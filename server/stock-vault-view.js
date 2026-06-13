@@ -43,7 +43,8 @@ export function buildStockVaultItemsForUserSync(userId) {
     (it) =>
       it.source === "golden_cross" ||
       it.source === "ma_align" ||
-      it.source === "ma120_near",
+      it.source === "ma120_near" ||
+      it.source === "bottom_candle",
   );
   if (!userId) {
     return {

@@ -93,12 +93,14 @@ const SCAN_SOURCE_LABEL: Record<StockVaultScanSource, string> = {
   golden_cross: ko.stockVault.tabGolden,
   ma_align: ko.stockVault.tabMaAlign,
   ma120_near: ko.stockVault.tabMa120Near,
+  bottom_candle: ko.stockVault.tabBottomCandle,
 };
 
 const SOURCE_BADGE_LABEL: Record<StockVaultScanSource, string> = {
   golden_cross: ko.stockVault.sourceGolden,
   ma_align: ko.stockVault.sourceMaAlign,
   ma120_near: ko.stockVault.sourceMa120Near,
+  bottom_candle: ko.stockVault.sourceBottomCandle,
 };
 
 const SCAN_POLL_MS = 2500;
@@ -163,6 +165,9 @@ function scanHintFromStatus(status: StockVaultScanStatus | null | undefined) {
     ma120State
       ? scanHintFromState(ko.stockVault.lastScanMa120Near, ma120State)
       : null,
+    status.bottomCandle?.state
+      ? scanHintFromState(ko.stockVault.lastScanBottomCandle, status.bottomCandle.state)
+      : null,
   ].filter(Boolean);
   return parts.length ? parts.join(" · ") : null;
 }
@@ -183,7 +188,7 @@ function rowIndustry(meta: StockVaultResponse["meta"], row: VaultDisplayRow) {
 type VaultFilter = "all" | "favorite";
 
 function rowFavoriteTrack(row: VaultDisplayRow) {
-  const src = row.favorite ?? row.goldenCross ?? row.maAlign ?? row.ma120Near;
+  const src = row.favorite ?? row.goldenCross ?? row.maAlign ?? row.ma120Near ?? row.bottomCandle;
   return {
     addedAtMs: src?.favoriteAddedAtMs ?? src?.addedAtMs ?? null,
     favoritePrice: src?.favoritePrice ?? null,
@@ -219,6 +224,7 @@ function vaultStateFromResponse(vault: StockVaultResponse) {
 export default function StockVaultTab({
   onVaultChange,
   techModelHeader,
+  vaultScanPreset,
 }: {
   onVaultChange?: (
     symbols: string[],
@@ -229,6 +235,8 @@ export default function StockVaultTab({
     name: string;
     onBack: () => void;
   };
+  /** 매매기법 진입 시 고정 탐색 조건(예: 바닥 캔들) */
+  vaultScanPreset?: StockVaultScanSource[];
 }) {
   const cachedInit = peekStockVaultPrefetch();
   const cachedVault = cachedInit ? vaultStateFromResponse(cachedInit.vault) : null;
@@ -274,7 +282,9 @@ export default function StockVaultTab({
   const [filter, setFilter] = useState<VaultFilter>(() => uiInit.filter);
   const [selectedScanSources, setSelectedScanSources] = useState<
     StockVaultScanSource[]
-  >(() => [...uiInit.selectedScanSources]);
+  >(() =>
+    vaultScanPreset?.length ? [...vaultScanPreset] : [...uiInit.selectedScanSources],
+  );
   const [ma120ApproachFilter, setMa120ApproachFilter] = useState<
     Ma120ApproachFilter | null
   >(() => uiInit.ma120ApproachFilter);
@@ -691,6 +701,7 @@ export default function StockVaultTab({
 
   const toggleScanSource = useCallback(
     (source: StockVaultScanSource) => {
+      if (vaultScanPreset?.length) return;
       setIndustryFilter("all");
       setSelectedScanSources((prev) => {
         const set = new Set(prev);
@@ -710,8 +721,14 @@ export default function StockVaultTab({
         void reload(true);
       }
     },
-    [items, snapshotItems, timeframeFilter, reload],
+    [items, snapshotItems, timeframeFilter, reload, vaultScanPreset],
   );
+
+  useEffect(() => {
+    if (vaultScanPreset?.length) {
+      setSelectedScanSources([...vaultScanPreset]);
+    }
+  }, [vaultScanPreset]);
 
   const selectMa120ApproachFilter = useCallback((approach: Ma120ApproachFilter) => {
     setIndustryFilter("all");
@@ -719,13 +736,14 @@ export default function StockVaultTab({
   }, []);
 
   useEffect(() => {
+    if (vaultScanPreset?.length) return;
     if (timeframeFilter !== "1wk") return;
     setSelectedScanSources((prev) => {
       const next = prev.filter((s) => s !== "ma120_near");
       return next.length ? next : ["golden_cross"];
     });
     setMa120ApproachFilter(null);
-  }, [timeframeFilter]);
+  }, [timeframeFilter, vaultScanPreset]);
 
   const ma120ApproachCounts = useMemo(() => {
     const counts = { from_below: 0, from_above: 0 };
@@ -1146,6 +1164,7 @@ export default function StockVaultTab({
             </div>
           </div>
 
+          {!vaultScanPreset?.length ? (
           <div
             className="stock-vault-tab__filters stock-vault-tab__filters--kind"
             role="group"
@@ -1177,7 +1196,10 @@ export default function StockVaultTab({
                 {ko.stockVault.intersectionHint.replace("{n}", String(filtered.length))}
               </p>
             ) : null}
-            {showMa120ApproachFilters ? (
+          </div>
+          ) : null}
+
+          {showMa120ApproachFilters ? (
               <div
                 className="stock-vault-tab__filters stock-vault-tab__filters--ma120-approach"
                 role="group"
@@ -1213,7 +1235,6 @@ export default function StockVaultTab({
                 </div>
               </div>
             ) : null}
-          </div>
 
           <div
             className="stock-vault-tab__filters panel-head__filters"
@@ -1338,6 +1359,8 @@ export default function StockVaultTab({
                 gcItem?.crossDate ??
                 gcItem?.scanDate ??
                 row.maAlign?.scanDate ??
+                bottomItem?.signalDate ??
+                bottomItem?.scanDate ??
                 null;
               const sourceLabels =
                 row.scanSources.length > 0
@@ -1382,8 +1405,17 @@ export default function StockVaultTab({
                     },
                   )
                 : null;
+              const bottomItem = row.bottomCandle;
+              const bottomLabel = bottomItem?.bottomTag
+                ? `${bottomItem.bottomTag}${
+                    bottomItem.bottomScore != null ? ` ${bottomItem.bottomScore}pt` : ""
+                  }`
+                : null;
               const hasSignalBadges =
-                Boolean(gcChain) || Boolean(row.maAlign) || Boolean(ma120Label);
+                Boolean(gcChain) ||
+                Boolean(row.maAlign) ||
+                Boolean(ma120Label) ||
+                Boolean(bottomLabel);
               const openRowBubble = (el: HTMLElement) =>
                 showTip(el, {
                   symbol: row.symbol,
@@ -1607,6 +1639,14 @@ export default function StockVaultTab({
                           title={ko.stockVault.ma120NearBadgeHint}
                         >
                           {ma120Label}
+                        </span>
+                      ) : null}
+                      {bottomLabel ? (
+                        <span
+                          className="stock-vault-tab__cross stock-vault-tab__cross--bottom"
+                          title={ko.stockVault.bottomCandleBadgeHint}
+                        >
+                          {bottomLabel}
                         </span>
                       ) : null}
                     </div>

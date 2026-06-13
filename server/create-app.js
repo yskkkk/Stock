@@ -2612,6 +2612,12 @@ export function createApp() {
         getLastGoldenCrossManualScanResult,
         isGoldenCrossManualScanRunning,
       } = await import("./golden-cross-poller.js");
+      const { getBottomCandleScanStateSync } = await import("./bottom-candle-scan.js");
+      const {
+        bottomCandleScanEnabled,
+        getLastBottomCandleManualScanResult,
+        isBottomCandleManualScanRunning,
+      } = await import("./bottom-candle-poller.js");
       res.json({
         enabled: goldenCrossScanEnabled(),
         running: isGoldenCrossManualScanRunning(),
@@ -2619,6 +2625,12 @@ export function createApp() {
         goldenCross: { state: getGoldenCrossScanStateSync() },
         maAlign: { state: getMaAlignScanStateSync() },
         ma120Near: { state: getMa120NearScanStateSync() },
+        bottomCandle: {
+          enabled: bottomCandleScanEnabled(),
+          running: isBottomCandleManualScanRunning(),
+          lastManualScan: getLastBottomCandleManualScanResult(),
+          state: getBottomCandleScanStateSync(),
+        },
         state: getGoldenCrossScanStateSync(),
       });
     }),
@@ -2642,6 +2654,53 @@ export function createApp() {
           error:
             result.reason === "disabled"
               ? "골든크로스 탐색이 비활성화되어 있습니다."
+              : result.reason === "busy"
+                ? "이미 탐색이 진행 중입니다."
+                : "탐색을 시작할 수 없습니다.",
+        });
+        return;
+      }
+      res.json({ started: true });
+    }),
+  );
+
+  app.get(
+    "/api/bottom-candle/status",
+    asyncRoute(async (_req, res) => {
+      const { getBottomCandleScanStateSync } = await import("./bottom-candle-scan.js");
+      const {
+        bottomCandleScanEnabled,
+        getLastBottomCandleManualScanResult,
+        isBottomCandleManualScanRunning,
+      } = await import("./bottom-candle-poller.js");
+      res.json({
+        enabled: bottomCandleScanEnabled(),
+        running: isBottomCandleManualScanRunning(),
+        lastManualScan: getLastBottomCandleManualScanResult(),
+        bottomCandle: { state: getBottomCandleScanStateSync() },
+        state: getBottomCandleScanStateSync(),
+      });
+    }),
+  );
+
+  app.post(
+    "/api/bottom-candle/scan",
+    asyncRoute(async (_req, res) => {
+      const { triggerBottomCandleManualScan } = await import("./bottom-candle-poller.js");
+      const result = triggerBottomCandleManualScan();
+      if (!result.started) {
+        const status =
+          result.reason === "disabled"
+            ? 503
+            : result.reason === "busy"
+              ? 409
+              : 400;
+        res.status(status).json({
+          started: false,
+          reason: result.reason ?? "failed",
+          error:
+            result.reason === "disabled"
+              ? "바닥 캔들 탐색이 비활성화되어 있습니다."
               : result.reason === "busy"
                 ? "이미 탐색이 진행 중입니다."
                 : "탐색을 시작할 수 없습니다.",
