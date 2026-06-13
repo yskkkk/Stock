@@ -2346,6 +2346,19 @@ export function createApp() {
   );
 
   app.get(
+    "/api/stock-vault/favorites",
+    asyncRoute(async (req, res) => {
+      const { buildStockVaultItemsForUserSync } = await import(
+        "./stock-vault-view.js"
+      );
+      const user = resolveUserFromRequest(req);
+      const { authenticated, favoriteSymbols, favoriteMeta } =
+        buildStockVaultItemsForUserSync(user?.id);
+      res.json({ authenticated, favoriteSymbols, favoriteMeta });
+    }),
+  );
+
+  app.get(
     "/api/stock-vault",
     asyncRoute(async (req, res) => {
       const { buildStockVaultItemsForUserSync } = await import(
@@ -2353,14 +2366,30 @@ export function createApp() {
       );
       const { readStockVaultMetaForItemsSync, scheduleStockVaultMetaRefresh, listStockVaultIndustryTabs, stockVaultIndustryGridRows } =
         await import("./stock-vault-meta.js");
-      const { readStockVaultIndustryFinancialsSync } = await import(
-        "./stock-vault-industry-financials.js"
-      );
       const user = resolveUserFromRequest(req);
       const { items, authenticated, favoriteSymbols, favoriteMeta } =
         buildStockVaultItemsForUserSync(user?.id);
       const symbols = items.map((it) => it.symbol);
       const meta = readStockVaultMetaForItemsSync(items);
+      const lite = String(req.query?.lite ?? "") === "1";
+      const industryTabs = listStockVaultIndustryTabs();
+      /** @type {Record<string, unknown>} */
+      const payload = {
+        items,
+        meta,
+        industryTabs,
+        industryGridRows: stockVaultIndustryGridRows(industryTabs.length),
+        authenticated,
+        favoriteSymbols,
+        favoriteMeta,
+      };
+      if (lite) {
+        if (symbols.length > 0) {
+          scheduleStockVaultMetaRefresh(items);
+        }
+        res.json(payload);
+        return;
+      }
       const quotes =
         symbols.length > 0
           ? await fetchQuoteSnapshotsForSymbols(symbols, { maxAgeMs: 120_000 })
@@ -2370,25 +2399,21 @@ export function createApp() {
         scheduleStockVaultChartInsightsRefresh,
         pickVaultMapBySymbols,
       } = await import("./stock-vault-chart-insights.js");
+      const { readStockVaultIndustryFinancialsSync } = await import(
+        "./stock-vault-industry-financials.js"
+      );
       const chartInsightsAll = readStockVaultChartInsightsSync();
       const chartInsights = pickVaultMapBySymbols(chartInsightsAll, symbols);
       if (symbols.length > 0) {
         scheduleStockVaultMetaRefresh(items);
         scheduleStockVaultChartInsightsRefresh(symbols, quotes);
       }
-      const industryTabs = listStockVaultIndustryTabs();
       const industryFinancialsAll = readStockVaultIndustryFinancialsSync();
       res.json({
-        items,
+        ...payload,
         quotes,
-        meta,
         chartInsights,
         industryFinancials: pickVaultMapBySymbols(industryFinancialsAll, symbols),
-        industryTabs,
-        industryGridRows: stockVaultIndustryGridRows(industryTabs.length),
-        authenticated,
-        favoriteSymbols,
-        favoriteMeta,
       });
     }),
   );
@@ -2463,6 +2488,31 @@ export function createApp() {
   );
 
   app.get(
+    "/api/stock-vault/industry-financials",
+    asyncRoute(async (req, res) => {
+      const { readStockVaultIndustryFinancialsSync } = await import(
+        "./stock-vault-industry-financials.js"
+      );
+      const { pickVaultMapBySymbols } = await import(
+        "./stock-vault-chart-insights.js"
+      );
+      const raw = String(req.query?.symbols ?? "").trim();
+      const symbols = raw
+        ? raw
+            .split(/[,\s]+/)
+            .map((s) => s.trim().toUpperCase())
+            .filter(Boolean)
+        : [];
+      const all = readStockVaultIndustryFinancialsSync();
+      const industryFinancials = pickVaultMapBySymbols(
+        all,
+        symbols.length ? symbols : Object.keys(all),
+      );
+      res.json({ industryFinancials, updatedAtMs: Date.now() });
+    }),
+  );
+
+  app.get(
     "/api/stock-vault/chart-insights",
     asyncRoute(async (req, res) => {
       const { buildStockVaultItemsForUserSync } = await import(
@@ -2478,7 +2528,13 @@ export function createApp() {
       );
       const user = resolveUserFromRequest(req);
       const { items } = buildStockVaultItemsForUserSync(user?.id);
-      const symbols = items.map((it) => it.symbol);
+      const rawSyms = String(req.query?.symbols ?? "").trim();
+      const symbols = rawSyms
+        ? rawSyms
+            .split(/[,\s]+/)
+            .map((s) => s.trim().toUpperCase())
+            .filter(Boolean)
+        : items.map((it) => it.symbol);
       const force = String(req.query?.refresh ?? "") === "1";
       let quotes = {};
       if (symbols.length > 0) {

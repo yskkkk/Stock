@@ -7,6 +7,7 @@ import {
   fetchMa120NearHistory,
   fetchMaAlignHistory,
   fetchStockVaultChartInsights,
+  fetchStockVaultIndustryFinancials,
   fetchStockVaultQuotes,
   removeStockVaultItem,
   setStockVaultFavorite,
@@ -45,6 +46,15 @@ import {
   stockVaultTimeframeRowClass,
 } from "../lib/stockVaultTimeframe";
 import { industryGridDimensions } from "../lib/industryGridLayout";
+import {
+  VAULT_CHART_INSIGHT_SYMBOL_BATCH,
+  VAULT_INDUSTRY_FIN_BATCH,
+  VAULT_LIST_INITIAL_ROWS,
+  VAULT_LIST_ROW_STEP,
+  pickQuoteBatch,
+  pruneSymbolRecord,
+  uniqueVaultSymbols,
+} from "../lib/stockVaultMemory";
 import {
   defaultStockVaultTabUi,
   peekStockVaultTabUi,
@@ -116,19 +126,26 @@ const CHART_INSIGHTS_POLL_MS = 120_000;
 function mergeChartInsightMaps(
   prev: Record<string, StockVaultChartInsightSnapshot>,
   incoming: Record<string, StockVaultChartInsightSnapshot> | undefined,
+  keepSymbols?: Iterable<string>,
 ) {
   const next = incoming ?? {};
   const keys = Object.keys(next);
   if (!keys.length) return prev;
+  let merged = prev;
   let changed = false;
   for (const sym of keys) {
     if (prev[sym] !== next[sym]) {
-      changed = true;
-      break;
+      if (!changed) {
+        merged = { ...prev };
+        changed = true;
+      }
+      merged[sym] = next[sym]!;
     }
   }
-  if (!changed && keys.length === Object.keys(prev).length) return prev;
-  return { ...prev, ...next };
+  if (keepSymbols) {
+    return pruneSymbolRecord(merged, keepSymbols);
+  }
+  return merged;
 }
 
 function usePageVisible() {
@@ -359,30 +376,44 @@ export default function StockVaultTab({
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const scanBtnRef = useRef<HTMLButtonElement>(null);
   const scanPopoverRef = useRef<HTMLDivElement>(null);
+  const quoteBatchRef = useRef(0);
+  const chartInsightBatchRef = useRef(0);
+  const [listVisibleCount, setListVisibleCount] = useState(VAULT_LIST_INITIAL_ROWS);
   const { tipId, showTip, scheduleHideTip, bubble: rowBubble } =
     useStockVaultRowBubble();
 
   const applyVaultResponse = useCallback(
     (vault: StockVaultResponse) => {
       setItems(vault.items ?? []);
-      setQuotes(vault.quotes ?? {});
+      if (vault.quotes && Object.keys(vault.quotes).length) {
+        setQuotes(vault.quotes);
+      }
       setMeta(vault.meta ?? {});
-      setIndustryFinancials(vault.industryFinancials ?? {});
-      setChartInsights(
-        vault.chartInsights ??
-          (vault.weeklyMaProximity
-            ? Object.fromEntries(
-                Object.entries(vault.weeklyMaProximity).map(([sym, row]) => [
-                  sym,
-                  {
-                    daily: { trend: "neutral" as const, near: [] },
-                    weekly: { trend: "neutral" as const, near: row.near ?? [] },
-                    updatedAtMs: row.updatedAtMs,
-                  },
-                ]),
-              )
-            : {}),
-      );
+      if (vault.industryFinancials && Object.keys(vault.industryFinancials).length) {
+        setIndustryFinancials(vault.industryFinancials);
+      }
+      if (vault.chartInsights && Object.keys(vault.chartInsights).length) {
+        setChartInsights((prev) =>
+          mergeChartInsightMaps(prev, vault.chartInsights, vault.items?.map((it) => it.symbol)),
+        );
+      } else if (vault.weeklyMaProximity) {
+        setChartInsights((prev) =>
+          mergeChartInsightMaps(
+            prev,
+            Object.fromEntries(
+              Object.entries(vault.weeklyMaProximity!).map(([sym, row]) => [
+                sym,
+                {
+                  daily: { trend: "neutral" as const, near: [] },
+                  weekly: { trend: "neutral" as const, near: row.near ?? [] },
+                  updatedAtMs: row.updatedAtMs,
+                },
+              ]),
+            ),
+            vault.items?.map((it) => it.symbol),
+          ),
+        );
+      }
       setAuthenticated(Boolean(vault.authenticated));
       setFavoriteMeta(vault.favoriteMeta ?? {});
       setIndustryTabs((prev) =>
@@ -546,34 +577,6 @@ export default function StockVaultTab({
 
   const pageVisible = usePageVisible();
 
-  useEffect(() => {
-    if (!pageVisible) return;
-    const insightCount =
-      (snapshotItems?.length ?? 0) +
-      items.filter((it) => it.source === "favorite").length;
-    if (insightCount === 0) return;
-    let cancelled = false;
-    const loadInsights = async (refresh = false) => {
-      if (document.visibilityState === "hidden") return;
-      try {
-        const res = await fetchStockVaultChartInsights({ refresh });
-        if (!cancelled && res.chartInsights) {
-          setChartInsights((prev) => mergeChartInsightMaps(prev, res.chartInsights));
-        }
-      } catch {
-        /* ignore */
-      }
-    };
-    void loadInsights(false);
-    const id = window.setInterval(() => {
-      void loadInsights(false);
-    }, CHART_INSIGHTS_POLL_MS);
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-    };
-  }, [pageVisible, snapshotItems?.length, items.length]);
-
   const refreshHistoryDates = useCallback(async () => {
     try {
       const [gc, ma, ma120] = await Promise.all([
@@ -673,17 +676,75 @@ export default function StockVaultTab({
     return [...merged, ...extras];
   }, [snapshotItems, items, isHistoricalView]);
 
+  const displaySymbolsKey = useMemo(
+    () => uniqueVaultSymbols(displayItems.map((it) => it.symbol)).join(","),
+    [displayItems],
+  );
+
+  useEffect(() => {
+    if (!pageVisible || displayItems.length === 0) return;
+    let cancelled = false;
+    const syms = uniqueVaultSymbols(displayItems.map((it) => it.symbol));
+    const loadFin = async () => {
+      const batch = pickQuoteBatch(syms, 0, VAULT_INDUSTRY_FIN_BATCH);
+      try {
+        const res = await fetchStockVaultIndustryFinancials(batch);
+        if (cancelled) return;
+        setIndustryFinancials((prev) => {
+          const merged = { ...prev, ...(res.industryFinancials ?? {}) };
+          return pruneSymbolRecord(merged, syms);
+        });
+      } catch {
+        /* ignore */
+      }
+    };
+    void loadFin();
+    return () => {
+      cancelled = true;
+    };
+  }, [pageVisible, displayItems.length, displaySymbolsKey]);
+
+  useEffect(() => {
+    if (!pageVisible || displayItems.length === 0) return;
+    const displaySyms = uniqueVaultSymbols(displayItems.map((it) => it.symbol));
+    let cancelled = false;
+    const loadInsights = async (refresh = false) => {
+      if (document.visibilityState === "hidden") return;
+      const batchIndex = chartInsightBatchRef.current;
+      chartInsightBatchRef.current += 1;
+      const symbols = pickQuoteBatch(
+        displaySyms,
+        batchIndex,
+        VAULT_CHART_INSIGHT_SYMBOL_BATCH,
+      );
+      try {
+        const res = await fetchStockVaultChartInsights({ refresh, symbols });
+        if (!cancelled && res.chartInsights) {
+          setChartInsights((prev) =>
+            mergeChartInsightMaps(prev, res.chartInsights, displaySyms),
+          );
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+    void loadInsights(false);
+    const id = window.setInterval(() => {
+      void loadInsights(false);
+    }, CHART_INSIGHTS_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [pageVisible, displayItems.length, displaySymbolsKey]);
+
   const refreshDisplayQuotes = useCallback(async () => {
-    const syms = [
-      ...new Set(
-        displayItems
-          .map((it) => it.symbol.trim().toUpperCase())
-          .filter(Boolean),
-      ),
-    ];
+    const syms = uniqueVaultSymbols(displayItems.map((it) => it.symbol));
     if (!syms.length) return;
+    const batch = pickQuoteBatch(syms, quoteBatchRef.current);
+    quoteBatchRef.current += 1;
     try {
-      const res = await fetchStockVaultQuotes(syms);
+      const res = await fetchStockVaultQuotes(batch);
       setQuotes((prev) => {
         const next = { ...prev };
         for (const [sym, q] of Object.entries(res.quotes ?? {})) {
@@ -694,7 +755,7 @@ export default function StockVaultTab({
             currency: q.currency,
           };
         }
-        return next;
+        return pruneSymbolRecord(next, syms);
       });
     } catch {
       /* ignore poll errors */
@@ -703,6 +764,7 @@ export default function StockVaultTab({
 
   useEffect(() => {
     if (!pageVisible || loading || scanRunning || displayItems.length === 0) return;
+    void refreshDisplayQuotes();
     const id = window.setInterval(() => {
       void refreshDisplayQuotes();
     }, QUOTE_POLL_MS);
@@ -970,6 +1032,25 @@ export default function StockVaultTab({
     selectedScanSources.some((s) => scanSourceCounts[s] > 0);
 
   const deferredFiltered = useDeferredValue(filtered);
+
+  useEffect(() => {
+    setListVisibleCount(VAULT_LIST_INITIAL_ROWS);
+  }, [
+    deferredFiltered.length,
+    selectedScanSources.join(","),
+    marketFilter,
+    industryFilter,
+    timeframeFilter,
+    filter,
+    selectedScanDate,
+  ]);
+
+  const visibleRows = useMemo(
+    () => deferredFiltered.slice(0, listVisibleCount),
+    [deferredFiltered, listVisibleCount],
+  );
+
+  const hasMoreRows = visibleRows.length < deferredFiltered.length;
 
   useEffect(() => {
     if (industryFilter === "all") return;
@@ -1433,8 +1514,9 @@ export default function StockVaultTab({
                   : ko.stockVault.empty}
           </p>
         ) : (
+          <>
           <ul className="stock-vault-tab__list">
-            {deferredFiltered.map((row) => {
+            {visibleRows.map((row) => {
               const symKey = row.symbol.trim().toUpperCase();
               const quote = quotes[symKey];
               const metaRow = meta[symKey];
@@ -1827,6 +1909,22 @@ export default function StockVaultTab({
               );
             })}
           </ul>
+          {hasMoreRows ? (
+            <div className="stock-vault-tab__list-more-wrap">
+              <button
+                type="button"
+                className="stock-vault-tab__list-more"
+                onClick={() =>
+                  setListVisibleCount((n) =>
+                    Math.min(n + VAULT_LIST_ROW_STEP, deferredFiltered.length),
+                  )
+                }
+              >
+                {ko.stockVault.loadMoreRows(visibleRows.length, deferredFiltered.length)}
+              </button>
+            </div>
+          ) : null}
+          </>
         )}
       </section>
       {rowBubble}

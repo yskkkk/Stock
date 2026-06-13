@@ -127,6 +127,7 @@ import {
   startBackgroundTabPrefetch,
   scheduleStockVaultFavoritesSync,
   invalidateStockVaultPrefetch,
+  unpinStockVaultSessionCache,
 } from "./lib/tabPrefetch";
 import { warmOpsDevQueueDisplay } from "./lib/opsDevQueueDisplayClient";
 import { sortPicksList, type SortKey } from "./lib/sortPicks";
@@ -533,10 +534,15 @@ export default function App() {
   useEffect(() => {
     if (!configReady) return;
     startBackgroundTabPrefetch();
-    return scheduleStockVaultFavoritesSync((vault) => {
-      syncVaultFromResponse(vault.favoriteSymbols, vault.favoriteMeta);
+    return scheduleStockVaultFavoritesSync((data) => {
+      syncVaultFromResponse(data.favoriteSymbols, data.favoriteMeta);
     });
   }, [configReady, syncVaultFromResponse]);
+
+  useEffect(() => {
+    if (appTab === "stockVault") return;
+    unpinStockVaultSessionCache();
+  }, [appTab]);
 
   useEffect(() => {
     const onAuth = () => invalidateStockVaultPrefetch();

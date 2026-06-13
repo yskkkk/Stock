@@ -1147,6 +1147,8 @@ export const ko = {
     desc: "일봉·주봉 골든크로스·정배열·120선 근처·바닥 캔들 자동 탐지 종목과 즐겨찾기를 관리합니다.",
     loading: "불러오는 중…",
     empty: "보관된 종목이 없습니다.",
+    loadMoreRows: (shown: number, total: number) =>
+      `더 보기 (${shown}/${total})`,
     kindTabAria: "탐색 유형",
     scanConditionAria: "탐색 조건 선택",
     intersectionHint: "선택 조건 교집합 {n}건",

@@ -2073,11 +2073,40 @@ export function fetchFinancialStatementAnalysis(
   );
 }
 
-export function fetchStockVault(signal?: AbortSignal) {
+export function fetchStockVault(opts?: { lite?: boolean; signal?: AbortSignal }) {
+  const q = opts?.lite ? "?lite=1" : "";
   return fetchJson<import("./types").StockVaultResponse>(
-    "/api/stock-vault",
-    signal ? { signal } : undefined,
+    `/api/stock-vault${q}`,
+    opts?.signal ? { signal: opts.signal } : undefined,
   );
+}
+
+export function fetchStockVaultFavorites(signal?: AbortSignal) {
+  return fetchJson<{
+    authenticated?: boolean;
+    favoriteSymbols?: string[];
+    favoriteMeta?: Record<string, import("./types").StockVaultFavoriteMeta>;
+  }>("/api/stock-vault/favorites", signal ? { signal } : undefined);
+}
+
+export function fetchStockVaultIndustryFinancials(
+  symbols: string[],
+  signal?: AbortSignal,
+) {
+  const uniq = [...new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean))];
+  if (!uniq.length) {
+    return Promise.resolve({
+      industryFinancials: {} as import("./types").StockVaultResponse["industryFinancials"],
+      updatedAtMs: Date.now(),
+    });
+  }
+  const params = new URLSearchParams({ symbols: uniq.join(",") });
+  return fetchJson<{
+    industryFinancials: NonNullable<
+      import("./types").StockVaultResponse["industryFinancials"]
+    >;
+    updatedAtMs: number;
+  }>(`/api/stock-vault/industry-financials?${params}`, signal ? { signal } : undefined);
 }
 
 export function fetchKrInvestorFlow(opts?: {
@@ -2121,9 +2150,18 @@ export function fetchStockVaultQuotes(
 
 export function fetchStockVaultChartInsights(opts?: {
   refresh?: boolean;
+  symbols?: string[];
   signal?: AbortSignal;
 }) {
-  const q = opts?.refresh ? "?refresh=1" : "";
+  const params = new URLSearchParams();
+  if (opts?.refresh) params.set("refresh", "1");
+  if (opts?.symbols?.length) {
+    params.set(
+      "symbols",
+      [...new Set(opts.symbols.map((s) => s.trim().toUpperCase()).filter(Boolean))].join(","),
+    );
+  }
+  const q = params.toString() ? `?${params}` : "";
   return fetchJson<{
     chartInsights: import("./types").StockVaultResponse["chartInsights"];
     updatedAtMs: number;

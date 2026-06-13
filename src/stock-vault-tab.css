@@ -377,6 +377,8 @@ html[data-theme="light"] .stock-vault-tab__history-select-shell:focus-within {
   border: 1px solid var(--card-border);
   border-radius: var(--radius-sm, 8px);
   background: color-mix(in srgb, var(--card) 88%, var(--surface));
+  content-visibility: auto;
+  contain-intrinsic-size: auto 5.75rem;
 }
 
 .stock-vault-tab__row--tf-d {
@@ -1251,6 +1253,30 @@ html[data-theme="light"] .stock-vault-tab__row--tf-wk .stock-vault-tab__cross {
 .stock-vault-tab__row .favorite-track__save-btn {
   font-size: 0.62rem;
   padding: 0.08rem 0.3rem;
+}
+
+.stock-vault-tab__list-more-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 0.55rem 0 0.15rem;
+}
+
+.stock-vault-tab__list-more {
+  margin: 0;
+  padding: 0.35rem 0.85rem;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm, 8px);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.stock-vault-tab__list-more:hover {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--card-border));
 }
 
 .stock-vault-mark {

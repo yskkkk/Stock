@@ -11,6 +11,7 @@ import {
   fetchSectorEarnings,
   fetchStockSearchHot,
   fetchStockVault,
+  fetchStockVaultFavorites,
   fetchTechModels,
   type LiveTradingStatusResponse,
   type TechModelsResponse,
@@ -64,6 +65,10 @@ export function pinStockVaultSessionCache(): void {
 
 export function isStockVaultSessionPinned(): boolean {
   return stockVaultSessionPinned;
+}
+
+export function unpinStockVaultSessionCache(): void {
+  stockVaultSessionPinned = false;
 }
 
 function isStockVaultBundleStale(bundle: StockVaultPrefetch): boolean {
@@ -385,7 +390,7 @@ export function invalidateStockVaultPrefetch(): void {
 }
 
 async function fetchStockVaultBundle(): Promise<StockVaultPrefetch> {
-  const vault = await fetchStockVault();
+  const vault = await fetchStockVault({ lite: true });
   const partial: StockVaultPrefetch = { vault, scanStatus: null };
   pinStockVaultSessionCache();
   setCached("stockVault", partial);
@@ -451,17 +456,25 @@ export function startBackgroundTabPrefetch(): void {
   });
 }
 
-/** 즐겨찾기·보관함 동기화 — idle 시에만 (기동 직후 OOM 방지) */
+/** 즐겨찾기만 — 전체 vault(661KB+) 로드 금지 */
 export function scheduleStockVaultFavoritesSync(
-  onVault: (vault: StockVaultResponse) => void,
+  onFavorites: (data: {
+    favoriteSymbols?: string[];
+    favoriteMeta?: StockVaultResponse["favoriteMeta"];
+  }) => void,
 ): () => void {
   if (typeof window === "undefined") return () => {};
   let cancelled = false;
   scheduleIdle(() => {
     if (cancelled) return;
-    void loadStockVault()
-      .then((bundle) => {
-        if (!cancelled) onVault(bundle.vault);
+    void fetchStockVaultFavorites()
+      .then((data) => {
+        if (!cancelled) {
+          onFavorites({
+            favoriteSymbols: data.favoriteSymbols,
+            favoriteMeta: data.favoriteMeta,
+          });
+        }
       })
       .catch(() => {});
   }, 4000);
