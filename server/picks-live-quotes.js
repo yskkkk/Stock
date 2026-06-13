@@ -31,6 +31,14 @@ const QUOTE_FETCH_MAX_SYMBOLS = (() => {
 
 /** @type {Map<string, { at: number, quote: object | null }>} */
 const cache = new Map();
+const QUOTE_CACHE_MAX = 800;
+
+function pruneQuoteCache() {
+  if (cache.size <= QUOTE_CACHE_MAX) return;
+  const sorted = [...cache.entries()].sort((a, b) => a[1].at - b[1].at);
+  const removeCount = Math.ceil(sorted.length * 0.2);
+  for (let i = 0; i < removeCount; i++) cache.delete(sorted[i][0]);
+}
 
 /**
  * @param {string} symbol
@@ -82,6 +90,7 @@ async function quoteSnapshotCached(symbol, opts = {}) {
     quote = null;
   }
   cache.set(u, { at: Date.now(), quote });
+  pruneQuoteCache();
   return quote;
 }
 

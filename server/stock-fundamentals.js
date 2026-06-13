@@ -21,6 +21,14 @@ const NAVER_UA =
 
 /** @type {Map<string, { at: number; data: unknown }>} */
 const cache = new Map();
+const CACHE_MAX = 300;
+
+function pruneFundamentalsCache() {
+  if (cache.size <= CACHE_MAX) return;
+  const sorted = [...cache.entries()].sort((a, b) => a[1].at - b[1].at);
+  const removeCount = Math.ceil(sorted.length * 0.2);
+  for (let i = 0; i < removeCount; i++) cache.delete(sorted[i][0]);
+}
 
 /** @param {unknown} v */
 function numField(v) {
@@ -182,6 +190,7 @@ async function loadKrNaverFundamentals(symbol) {
   };
 
   cache.set(sym, { at: Date.now(), data: payload });
+  pruneFundamentalsCache();
   return payload;
 }
 
@@ -298,6 +307,7 @@ async function loadYahooFundamentals(symbol) {
   };
 
   cache.set(sym, { at: Date.now(), data: payload });
+  pruneFundamentalsCache();
   return payload;
 }
 

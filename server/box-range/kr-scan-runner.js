@@ -92,7 +92,10 @@ export function startKrBoxRangeCatalogPoller() {
       });
   };
 
-  loop();
   markPollerBootStarted("box-kr-scan");
-  setInterval(loop, BOX_RANGE_KR_SCAN_MS);
+  // SP500 스캔(즉시 시작)과 겹치지 않도록 1/3 주기 뒤에 첫 실행
+  setTimeout(() => {
+    loop();
+    setInterval(loop, BOX_RANGE_KR_SCAN_MS);
+  }, Math.floor(BOX_RANGE_KR_SCAN_MS / 3));
 }

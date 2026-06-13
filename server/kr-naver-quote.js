@@ -17,6 +17,14 @@ const BATCH_SIZE = Math.min(
 
 /** @type {Map<string, { at: number; quote: KrNaverQuote | null }>} */
 const cache = new Map();
+const NAVER_CACHE_MAX = 500;
+
+function pruneNaverCache() {
+  if (cache.size <= NAVER_CACHE_MAX) return;
+  const sorted = [...cache.entries()].sort((a, b) => a[1].at - b[1].at);
+  const removeCount = Math.ceil(sorted.length * 0.2);
+  for (let i = 0; i < removeCount; i++) cache.delete(sorted[i][0]);
+}
 
 export function krNaverQuotesEnabled() {
   const v = String(process.env.KR_NAVER_QUOTE ?? "1").trim().toLowerCase();
@@ -169,6 +177,7 @@ export async function fetchKrNaverQuotesBatch(yahooOrBareSymbols) {
       cache.set(code, { at, quote: q });
       if (q) out.set(code, q);
     }
+    pruneNaverCache();
   }
 
   return out;

@@ -95,7 +95,10 @@ export function startCryptoBoxRangeCatalogPoller() {
       });
   };
 
-  loop();
   markPollerBootStarted("box-crypto-scan");
-  setInterval(loop, BOX_RANGE_CRYPTO_SCAN_MS);
+  // SP500(즉시)·KR(+1/3) 스캔과 겹치지 않도록 2/3 주기 뒤에 첫 실행
+  setTimeout(() => {
+    loop();
+    setInterval(loop, BOX_RANGE_CRYPTO_SCAN_MS);
+  }, Math.floor((BOX_RANGE_CRYPTO_SCAN_MS / 3) * 2));
 }

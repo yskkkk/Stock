@@ -22,8 +22,9 @@ function getCache(key) {
 function setCache(key, data) {
   cache.set(key, { at: Date.now(), data });
   if (cache.size > 300) {
-    const oldest = [...cache.entries()].sort((a, b) => a[1].at - b[1].at)[0];
-    if (oldest) cache.delete(oldest[0]);
+    const sorted = [...cache.entries()].sort((a, b) => a[1].at - b[1].at);
+    const removeCount = Math.ceil(sorted.length * 0.2);
+    for (let i = 0; i < removeCount; i++) cache.delete(sorted[i][0]);
   }
 }
 
