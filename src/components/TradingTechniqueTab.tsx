@@ -1,32 +1,35 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchTechModels, type TechModelRecord } from "../api";
-import PickList from "./PickList";
+import StockVaultTab from "./StockVaultTab";
 import { ko } from "../i18n/ko";
-import { peekLiveTradingPrefetch } from "../lib/tabPrefetch";
+import { peekLiveTradingPrefetch, prefetchStockVaultTab } from "../lib/tabPrefetch";
 import {
   clearSelectedTechModelId,
   peekSelectedTechModelId,
   saveSelectedTechModelId,
 } from "../lib/tradingTechniqueSession";
-import type { Market, PicksResponse, StockPick } from "../types";
+import type { PicksResponse, StockVaultFavoriteMeta } from "../types";
 
-type MarketFilter = "all" | Market;
-
-function allPicks(picks: PicksResponse | null): StockPick[] {
-  if (!picks) return [];
-  return [...(picks.kr ?? []), ...(picks.us ?? []), ...(picks.crypto ?? [])];
+function allPickCountByModel(picks: PicksResponse | null): Map<string, number> {
+  const counts = new Map<string, number>();
+  if (!picks) return counts;
+  for (const p of [...(picks.kr ?? []), ...(picks.us ?? []), ...(picks.crypto ?? [])]) {
+    const id = p.techModelId?.trim();
+    if (!id) continue;
+    counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
+  return counts;
 }
 
 export default function TradingTechniqueTab({
   picks,
-  onOpenPick,
-  onNews,
-  onReason,
+  onVaultChange,
 }: {
   picks: PicksResponse | null;
-  onOpenPick: (pick: StockPick) => void;
-  onNews: (pick: StockPick) => void;
-  onReason: (pick: StockPick) => void;
+  onVaultChange?: (
+    symbols: string[],
+    favoriteMeta?: Record<string, StockVaultFavoriteMeta>,
+  ) => void;
 }) {
   const prefetched = peekLiveTradingPrefetch();
   const [models, setModels] = useState<TechModelRecord[]>(
@@ -37,8 +40,6 @@ export default function TradingTechniqueTab({
   const [selectedModelId, setSelectedModelId] = useState<string | null>(() =>
     peekSelectedTechModelId(),
   );
-  const [market, setMarket] = useState<MarketFilter>("all");
-  const [selectedPick, setSelectedPick] = useState<string | null>(null);
 
   useEffect(() => {
     if (models.length) return;
@@ -63,34 +64,12 @@ export default function TradingTechniqueTab({
     };
   }, [models.length]);
 
-  const pickCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const p of allPicks(picks)) {
-      const id = p.techModelId?.trim();
-      if (!id) continue;
-      counts.set(id, (counts.get(id) ?? 0) + 1);
-    }
-    return counts;
-  }, [picks]);
+  useEffect(() => {
+    if (!selectedModelId) return;
+    void prefetchStockVaultTab().catch(() => {});
+  }, [selectedModelId]);
 
-  const modelPicks = useMemo(() => {
-    if (!selectedModelId) return [];
-    return allPicks(picks).filter((p) => {
-      if (p.techModelId !== selectedModelId) return false;
-      if (market === "all") return true;
-      return p.market === market;
-    });
-  }, [picks, selectedModelId, market]);
-
-  const marketCounts = useMemo(() => {
-    if (!selectedModelId) return { all: 0, kr: 0, us: 0 };
-    const base = allPicks(picks).filter((p) => p.techModelId === selectedModelId);
-    return {
-      all: base.length,
-      kr: base.filter((p) => p.market === "kr").length,
-      us: base.filter((p) => p.market === "us").length,
-    };
-  }, [picks, selectedModelId]);
+  const pickCounts = useMemo(() => allPickCountByModel(picks), [picks]);
 
   const selectedModel = useMemo(
     () => models.find((m) => m.id === selectedModelId) ?? null,
@@ -100,24 +79,12 @@ export default function TradingTechniqueTab({
   const handleSelectModel = useCallback((id: string) => {
     setSelectedModelId(id);
     saveSelectedTechModelId(id);
-    setMarket("all");
-    setSelectedPick(null);
   }, []);
 
   const handleBack = useCallback(() => {
     setSelectedModelId(null);
     clearSelectedTechModelId();
-    setMarket("all");
-    setSelectedPick(null);
   }, []);
-
-  const handlePickSelect = useCallback(
-    (pick: StockPick) => {
-      setSelectedPick(pick.symbol);
-      onOpenPick(pick);
-    },
-    [onOpenPick],
-  );
 
   if (!selectedModelId) {
     return (
@@ -163,66 +130,12 @@ export default function TradingTechniqueTab({
   }
 
   return (
-    <div className="workspace stock-vault-tab trading-technique-tab">
-      <section className="stock-vault-tab__panel card">
-        <header className="stock-vault-tab__head">
-          <div className="stock-vault-tab__head-row">
-            <button
-              type="button"
-              className="stock-vault-tab__head-btn trading-technique-tab__back"
-              onClick={handleBack}
-            >
-              {ko.tradingTechnique.back}
-            </button>
-            <h2 className="stock-vault-tab__title">
-              {selectedModel?.name ?? ko.tradingTechnique.title}
-            </h2>
-          </div>
-        </header>
-
-        <div
-          className="stock-vault-tab__filters panel-head__filters"
-          role="group"
-          aria-label={ko.stockVault.filterMarketAria}
-        >
-          <div className="market-tabs">
-            {(
-              [
-                ["all", ko.stockVault.filterAll, marketCounts.all],
-                ["kr", ko.app.marketKr, marketCounts.kr],
-                ["us", ko.app.marketUs, marketCounts.us],
-              ] as const
-            ).map(([key, label, count]) => (
-              <button
-                key={key}
-                type="button"
-                className={market === key ? "market-tab active" : "market-tab"}
-                aria-pressed={market === key}
-                onClick={() => setMarket(key)}
-              >
-                {label}
-                <span className="market-tab__count">{count}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {modelPicks.length === 0 ? (
-          <p className="stock-vault-tab__muted">{ko.tradingTechnique.emptyPicks}</p>
-        ) : (
-          <PickList
-            picks={modelPicks}
-            totalCount={modelPicks.length}
-            scanning={Boolean(picks?.running)}
-            scanProgress={picks?.progress}
-            scanTotal={picks?.total}
-            selected={selectedPick}
-            onSelect={handlePickSelect}
-            onNews={onNews}
-            onReason={onReason}
-          />
-        )}
-      </section>
-    </div>
+    <StockVaultTab
+      onVaultChange={onVaultChange}
+      techModelHeader={{
+        name: selectedModel?.name ?? ko.tradingTechnique.title,
+        onBack: handleBack,
+      }}
+    />
   );
 }

@@ -218,11 +218,17 @@ function vaultStateFromResponse(vault: StockVaultResponse) {
 
 export default function StockVaultTab({
   onVaultChange,
+  techModelHeader,
 }: {
   onVaultChange?: (
     symbols: string[],
     favoriteMeta?: Record<string, StockVaultFavoriteMeta>,
   ) => void;
+  /** 매매기법 선택 후 — 기존 보관함 UI 위에 표시 */
+  techModelHeader?: {
+    name: string;
+    onBack: () => void;
+  };
 }) {
   const cachedInit = peekStockVaultPrefetch();
   const cachedVault = cachedInit ? vaultStateFromResponse(cachedInit.vault) : null;
@@ -996,7 +1002,18 @@ export default function StockVaultTab({
       <section className="stock-vault-tab__panel card">
         <header className="stock-vault-tab__head">
           <div className="stock-vault-tab__head-row">
-            <h2 className="stock-vault-tab__title">{ko.stockVault.title}</h2>
+            {techModelHeader ? (
+              <button
+                type="button"
+                className="stock-vault-tab__head-btn trading-technique-tab__back"
+                onClick={techModelHeader.onBack}
+              >
+                {ko.tradingTechnique.back}
+              </button>
+            ) : null}
+            <h2 className="stock-vault-tab__title">
+              {techModelHeader?.name ?? ko.stockVault.title}
+            </h2>
             <div className="stock-vault-tab__head-actions">
               <div className="stock-vault-tab__scan-wrap">
                 <button

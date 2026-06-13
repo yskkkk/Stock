@@ -1134,7 +1134,8 @@ export const ko = {
   },
   tradingTechnique: {
     title: "매매기법",
-    selectDesc: "매매기법을 선택하면 해당 기법으로 발견된 종목을 볼 수 있습니다.",
+    selectDesc:
+      "매매기법을 선택하면 골든크로스·정배열·120선 근처 탐색 등 기존 보관함 화면으로 이동합니다.",
     loading: "매매기법 불러오는 중…",
     emptyModels: "등록된 매매기법이 없습니다.",
     emptyPicks: "현재 이 매매기법으로 발견된 종목이 없습니다.",

@@ -1625,12 +1625,7 @@ export default function App() {
           onScrollToSectionConsumed={handleFinancialsScrollConsumed}
         />
       ) : appTab === "stockVault" ? (
-        <TradingTechniqueTab
-          picks={picks}
-          onOpenPick={handleSelect}
-          onNews={handleNews}
-          onReason={handleReason}
-        />
+        <TradingTechniqueTab picks={picks} onVaultChange={syncVaultFromResponse} />
       ) : appTab === "investorFlow" ? (
         <InvestorFlowTab />
       ) : appTab === "liveTrading" ? (
