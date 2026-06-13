@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState, useDeferredValue } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  useDeferredValue,
+  startTransition,
+} from "react";
 import FavoriteTrackPanel from "./FavoriteTrackPanel";
 import IndustryFilterPanel from "./IndustryFilterPanel";
 import {
@@ -7,7 +16,6 @@ import {
   fetchMa120NearHistory,
   fetchMaAlignHistory,
   fetchStockVaultChartInsights,
-  fetchStockVaultIndustryFinancials,
   fetchStockVaultQuotes,
   removeStockVaultItem,
   setStockVaultFavorite,
@@ -48,7 +56,6 @@ import {
 import { industryGridDimensions } from "../lib/industryGridLayout";
 import {
   VAULT_CHART_INSIGHT_SYMBOL_BATCH,
-  VAULT_INDUSTRY_FIN_BATCH,
   VAULT_LIST_INITIAL_ROWS,
   VAULT_LIST_ROW_STEP,
   pickQuoteBatch,
@@ -81,18 +88,8 @@ import {
   listMa120SymbolsNeedingQuotes,
   resolveMa120Approach,
 } from "../lib/stockVaultMaDisplay";
-import {
-  formatMaApproachLabel,
-  formatMaNearLabel,
-  formatTrendLabel,
-  maProximityBadgeClass,
-  maProximityPriceClass,
-  pickChartInsight,
-  trendBadgeClass,
-} from "../lib/stockVaultChartInsights";
 import type {
   StockVaultFavoriteMeta,
-  StockVaultIndustryFinancials,
   StockVaultItem,
   StockVaultResponse,
   StockVaultChartInsightSnapshot,
@@ -100,7 +97,7 @@ import type {
   StockVaultScanStatus,
   StockVaultTimeframe,
 } from "../types";
-import { VaultBookmarkIcon, VaultSectorLeaderIcon } from "./StockVaultMarkButton";
+import { VaultBookmarkIcon } from "./StockVaultMarkButton";
 import {
   StockVaultRowBubblePortal,
   type StockVaultRowBubbleActions,
@@ -257,7 +254,6 @@ function vaultStateFromResponse(vault: StockVaultResponse) {
     items: vault.items ?? [],
     quotes: vault.quotes ?? {},
     meta: vault.meta ?? {},
-    industryFinancials: vault.industryFinancials ?? {},
     chartInsights:
       vault.chartInsights ??
       (vault.weeklyMaProximity
@@ -308,9 +304,6 @@ export default function StockVaultTab({
       }
     >
   >(() => cachedVault?.meta ?? {});
-  const [industryFinancials, setIndustryFinancials] = useState<
-    Record<string, StockVaultIndustryFinancials>
-  >(() => cachedVault?.industryFinancials ?? {});
   const [chartInsights, setChartInsights] = useState<
     Record<string, StockVaultChartInsightSnapshot>
   >(() => cachedVault?.chartInsights ?? {});
@@ -392,9 +385,6 @@ export default function StockVaultTab({
         setQuotes(vault.quotes);
       }
       setMeta(vault.meta ?? {});
-      if (vault.industryFinancials && Object.keys(vault.industryFinancials).length) {
-        setIndustryFinancials(vault.industryFinancials);
-      }
       if (vault.chartInsights && Object.keys(vault.chartInsights).length) {
         setChartInsights((prev) =>
           mergeChartInsightMaps(prev, vault.chartInsights, vault.items?.map((it) => it.symbol)),
@@ -679,160 +669,10 @@ export default function StockVaultTab({
     return [...merged, ...extras];
   }, [snapshotItems, items, isHistoricalView]);
 
-  const displaySymbolsKey = useMemo(
-    () => uniqueVaultSymbols(displayItems.map((it) => it.symbol)).join(","),
-    [displayItems],
+  const getRowIndustry = useCallback(
+    (row: VaultDisplayRow) => rowIndustry(meta, row),
+    [meta],
   );
-
-  useEffect(() => {
-    if (!pageVisible || displayItems.length === 0) return;
-    let cancelled = false;
-    const syms = uniqueVaultSymbols(displayItems.map((it) => it.symbol));
-    const loadFin = async () => {
-      const batch = pickQuoteBatch(syms, 0, VAULT_INDUSTRY_FIN_BATCH);
-      try {
-        const res = await fetchStockVaultIndustryFinancials(batch);
-        if (cancelled) return;
-        setIndustryFinancials((prev) => {
-          const merged = { ...prev, ...(res.industryFinancials ?? {}) };
-          return pruneSymbolRecord(merged, syms);
-        });
-      } catch {
-        /* ignore */
-      }
-    };
-    void loadFin();
-    return () => {
-      cancelled = true;
-    };
-  }, [pageVisible, displayItems.length, displaySymbolsKey]);
-
-  useEffect(() => {
-    if (!pageVisible || displayItems.length === 0) return;
-    const displaySyms = uniqueVaultSymbols(displayItems.map((it) => it.symbol));
-    let cancelled = false;
-    const loadInsights = async (refresh = false) => {
-      if (document.visibilityState === "hidden") return;
-      const batchIndex = chartInsightBatchRef.current;
-      chartInsightBatchRef.current += 1;
-      const symbols = pickQuoteBatch(
-        displaySyms,
-        batchIndex,
-        VAULT_CHART_INSIGHT_SYMBOL_BATCH,
-      );
-      try {
-        const res = await fetchStockVaultChartInsights({ refresh, symbols });
-        if (!cancelled && res.chartInsights) {
-          setChartInsights((prev) =>
-            mergeChartInsightMaps(prev, res.chartInsights, displaySyms),
-          );
-        }
-      } catch {
-        /* ignore */
-      }
-    };
-    void loadInsights(false);
-    const id = window.setInterval(() => {
-      void loadInsights(false);
-    }, CHART_INSIGHTS_POLL_MS);
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-    };
-  }, [pageVisible, displayItems.length, displaySymbolsKey]);
-
-  const refreshDisplayQuotes = useCallback(async () => {
-    const syms = uniqueVaultSymbols(displayItems.map((it) => it.symbol));
-    if (!syms.length) return;
-    const batch = pickQuoteBatch(syms, quoteBatchRef.current);
-    quoteBatchRef.current += 1;
-    try {
-      const res = await fetchStockVaultQuotes(batch);
-      setQuotes((prev) => {
-        const next = { ...prev };
-        for (const [sym, q] of Object.entries(res.quotes ?? {})) {
-          if (!q?.price || !Number.isFinite(q.price)) continue;
-          next[sym.trim().toUpperCase()] = {
-            price: q.price,
-            changePercent: q.changePercent,
-            currency: q.currency,
-          };
-        }
-        return pruneSymbolRecord(next, syms);
-      });
-    } catch {
-      /* ignore poll errors */
-    }
-  }, [displayItems]);
-
-  useEffect(() => {
-    if (!pageVisible || loading || scanRunning || displayItems.length === 0) return;
-    void refreshDisplayQuotes();
-    const id = window.setInterval(() => {
-      void refreshDisplayQuotes();
-    }, QUOTE_POLL_MS);
-    return () => window.clearInterval(id);
-  }, [pageVisible, loading, scanRunning, displayItems.length, refreshDisplayQuotes]);
-
-  useEffect(() => {
-    if (!pageVisible || timeframeFilter !== "1d") return;
-    const need = listMa120SymbolsNeedingQuotes(displayItems, quotes, chartInsights);
-    if (!need.length) return;
-
-    let cancelled = false;
-    const pull = async () => {
-      if (cancelled) return;
-      const pending = listMa120SymbolsNeedingQuotes(displayItems, quotes, chartInsights);
-      if (!pending.length) return;
-      try {
-        const res = await fetchStockVaultQuotes(pending);
-        if (cancelled) return;
-        setQuotes((prev) => {
-          const next = { ...prev };
-          for (const [sym, q] of Object.entries(res.quotes ?? {})) {
-            if (!q?.price || !Number.isFinite(q.price)) continue;
-            next[sym.trim().toUpperCase()] = {
-              price: q.price,
-              changePercent: q.changePercent,
-              currency: q.currency,
-            };
-          }
-          return next;
-        });
-        setSnapshotItems((prev) => {
-          if (!prev?.length) return prev;
-          let changed = false;
-          const nextItems = prev.map((it) => {
-            const sym = it.symbol.trim().toUpperCase();
-            const enriched = enrichMa120ItemSide(it, res.quotes?.[sym]?.price);
-            if (enriched.ma120Side !== it.ma120Side) changed = true;
-            return enriched;
-          });
-          if (!changed) return prev;
-          saveLocalScanSnapshot(selectedScanDate ?? kstTodayYmd(), nextItems);
-          return nextItems;
-        });
-      } catch {
-        /* ignore */
-      }
-    };
-
-    void pull();
-    const id = window.setInterval(() => {
-      void pull();
-    }, MA120_APPROACH_QUOTE_POLL_MS);
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-    };
-  }, [
-    pageVisible,
-    displayItems,
-    timeframeFilter,
-    chartInsights,
-    quotes,
-    selectedScanDate,
-  ]);
 
   useEffect(() => {
     return subscribeStockVaultPrefetch((bundle) => {
@@ -880,32 +720,29 @@ export default function StockVaultTab({
     return () => document.removeEventListener("mousedown", onDocDown);
   }, [scanConfirmOpen]);
 
-  const getRowIndustry = useCallback(
-    (row: VaultDisplayRow) => rowIndustry(meta, row),
-    [meta],
-  );
-
   const toggleScanSource = useCallback(
     (source: StockVaultScanSource) => {
-      setIndustryFilter("all");
-      setSelectedScanSources((prev) => {
-        const set = new Set(prev);
-        if (set.has(source)) set.delete(source);
-        else set.add(source);
-        const next = STOCK_VAULT_SCAN_SOURCES.filter((s) => set.has(s));
-        if (!next.includes("ma120_near")) {
-          setMa120ApproachFilter(null);
-        }
-        return next;
-      });
-      if (
+      const maybeReload =
         (source === "ma120_near" || source === "bottom_candle") &&
-        countItemsByScanSource(displayItems, source, timeframeFilter) === 0
-      ) {
+        countItemsByScanSource(displayItems, source, timeframeFilter) === 0;
+      startTransition(() => {
+        setIndustryFilter("all");
+        setSelectedScanSources((prev) => {
+          const set = new Set(prev);
+          if (set.has(source)) set.delete(source);
+          else set.add(source);
+          const next = STOCK_VAULT_SCAN_SOURCES.filter((s) => set.has(s));
+          if (!next.includes("ma120_near")) {
+            setMa120ApproachFilter(null);
+          }
+          return next;
+        });
+      });
+      if (maybeReload) {
         void reload(true);
       }
     },
-    [items, snapshotItems, timeframeFilter, reload],
+    [displayItems, timeframeFilter, reload],
   );
 
   useEffect(() => {
@@ -955,7 +792,7 @@ export default function StockVaultTab({
     [displayItems, timeframeFilter, visibleScanSources],
   );
 
-  const preMarketRows = useMemo(
+  const scanRowsAllMarkets = useMemo(
     () =>
       buildVaultDisplayRows(displayItems, {
         selectedScanSources,
@@ -968,18 +805,15 @@ export default function StockVaultTab({
 
   const baseFiltered = useMemo(
     () =>
-      buildVaultDisplayRows(displayItems, {
-        selectedScanSources,
-        marketFilter,
-        favoriteOnly: filter === "favorite",
-        timeframeFilter,
-      }),
-    [displayItems, selectedScanSources, marketFilter, filter, timeframeFilter],
+      marketFilter === "all"
+        ? scanRowsAllMarkets
+        : scanRowsAllMarkets.filter((r) => r.market === marketFilter),
+    [scanRowsAllMarkets, marketFilter],
   );
 
   const favoriteCount = useMemo(
-    () => preMarketRows.filter((r) => r.favorited).length,
-    [preMarketRows],
+    () => scanRowsAllMarkets.filter((r) => r.favorited).length,
+    [scanRowsAllMarkets],
   );
 
   const industryOptions = useMemo(() => {
@@ -1055,6 +889,154 @@ export default function StockVaultTab({
 
   const hasMoreRows = visibleRows.length < deferredFiltered.length;
 
+  const listPollSymbols = useMemo(
+    () => uniqueVaultSymbols(visibleRows.map((r) => r.symbol)),
+    [visibleRows],
+  );
+
+  const listPollSymbolsKey = useMemo(
+    () => listPollSymbols.join(","),
+    [listPollSymbols],
+  );
+
+  const needsChartInsights =
+    selectedScanSources.includes("ma120_near") && timeframeFilter === "1d";
+
+  const refreshListQuotes = useCallback(async () => {
+    if (!listPollSymbols.length) return;
+    const batch = pickQuoteBatch(listPollSymbols, quoteBatchRef.current);
+    quoteBatchRef.current += 1;
+    try {
+      const res = await fetchStockVaultQuotes(batch);
+      setQuotes((prev) => {
+        const next = { ...prev };
+        for (const [sym, q] of Object.entries(res.quotes ?? {})) {
+          if (!q?.price || !Number.isFinite(q.price)) continue;
+          next[sym.trim().toUpperCase()] = {
+            price: q.price,
+            changePercent: q.changePercent,
+            currency: q.currency,
+          };
+        }
+        return pruneSymbolRecord(next, listPollSymbols);
+      });
+    } catch {
+      /* ignore poll errors */
+    }
+  }, [listPollSymbols]);
+
+  useEffect(() => {
+    if (!pageVisible || loading || scanRunning || !listPollSymbols.length) return;
+    quoteBatchRef.current = 0;
+    void refreshListQuotes();
+    const id = window.setInterval(() => {
+      void refreshListQuotes();
+    }, QUOTE_POLL_MS);
+    return () => window.clearInterval(id);
+  }, [
+    pageVisible,
+    loading,
+    scanRunning,
+    listPollSymbolsKey,
+    refreshListQuotes,
+  ]);
+
+  useEffect(() => {
+    if (!pageVisible || !needsChartInsights || !listPollSymbols.length) return;
+    let cancelled = false;
+    const loadInsights = async () => {
+      if (document.visibilityState === "hidden") return;
+      const batchIndex = chartInsightBatchRef.current;
+      chartInsightBatchRef.current += 1;
+      const symbols = pickQuoteBatch(
+        listPollSymbols,
+        batchIndex,
+        VAULT_CHART_INSIGHT_SYMBOL_BATCH,
+      );
+      if (!symbols.length) return;
+      try {
+        const res = await fetchStockVaultChartInsights({ refresh: false, symbols });
+        if (!cancelled && res.chartInsights) {
+          setChartInsights((prev) =>
+            mergeChartInsightMaps(prev, res.chartInsights, listPollSymbols),
+          );
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+    chartInsightBatchRef.current = 0;
+    void loadInsights();
+    const id = window.setInterval(() => {
+      void loadInsights();
+    }, CHART_INSIGHTS_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [pageVisible, needsChartInsights, listPollSymbolsKey, listPollSymbols]);
+
+  useEffect(() => {
+    if (!pageVisible || !needsChartInsights) return;
+    const ma120Items = displayItems.filter((it) => it.source === "ma120_near");
+    const need = listMa120SymbolsNeedingQuotes(ma120Items, quotes, chartInsights);
+    if (!need.length) return;
+
+    let cancelled = false;
+    const pull = async () => {
+      if (cancelled) return;
+      const pending = listMa120SymbolsNeedingQuotes(ma120Items, quotes, chartInsights);
+      if (!pending.length) return;
+      try {
+        const res = await fetchStockVaultQuotes(pending);
+        if (cancelled) return;
+        setQuotes((prev) => {
+          const next = { ...prev };
+          for (const [sym, q] of Object.entries(res.quotes ?? {})) {
+            if (!q?.price || !Number.isFinite(q.price)) continue;
+            next[sym.trim().toUpperCase()] = {
+              price: q.price,
+              changePercent: q.changePercent,
+              currency: q.currency,
+            };
+          }
+          return next;
+        });
+        setSnapshotItems((prev) => {
+          if (!prev?.length) return prev;
+          let changed = false;
+          const nextItems = prev.map((it) => {
+            const sym = it.symbol.trim().toUpperCase();
+            const enriched = enrichMa120ItemSide(it, res.quotes?.[sym]?.price);
+            if (enriched.ma120Side !== it.ma120Side) changed = true;
+            return enriched;
+          });
+          if (!changed) return prev;
+          saveLocalScanSnapshot(selectedScanDate ?? kstTodayYmd(), nextItems);
+          return nextItems;
+        });
+      } catch {
+        /* ignore */
+      }
+    };
+
+    void pull();
+    const id = window.setInterval(() => {
+      void pull();
+    }, MA120_APPROACH_QUOTE_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [
+    pageVisible,
+    needsChartInsights,
+    displayItems,
+    chartInsights,
+    quotes,
+    selectedScanDate,
+  ]);
+
   useEffect(() => {
     if (industryFilter === "all") return;
     if (!industryTabs.includes(industryFilter)) {
@@ -1069,11 +1051,11 @@ export default function StockVaultTab({
 
   const marketCounts = useMemo(
     () => ({
-      all: preMarketRows.length,
-      kr: preMarketRows.filter((r) => r.market === "kr").length,
-      us: preMarketRows.filter((r) => r.market === "us").length,
+      all: scanRowsAllMarkets.length,
+      kr: scanRowsAllMarkets.filter((r) => r.market === "kr").length,
+      us: scanRowsAllMarkets.filter((r) => r.market === "us").length,
     }),
-    [preMarketRows],
+    [scanRowsAllMarkets],
   );
 
   const handleRemove = useCallback(
@@ -1562,28 +1544,6 @@ export default function StockVaultTab({
                   : row.favorite
                     ? [ko.stockVault.sourceFavorite]
                     : [];
-              const finRow = industryFinancials[symKey];
-              const sectorLeader = Boolean(finRow?.sectorLeader);
-              const chartInsight = pickChartInsight(chartInsights, symKey);
-              const dailyTrend = chartInsight?.daily?.trend ?? "neutral";
-              const weeklyTrend = chartInsight?.weekly?.trend ?? "neutral";
-              const maNearHitsAll = [
-                ...(chartInsight?.daily?.near ?? []).map((hit) => ({
-                  ...hit,
-                  timeframe: "daily" as const,
-                })),
-                ...(chartInsight?.weekly?.near ?? []).map((hit) => ({
-                  ...hit,
-                  timeframe: "weekly" as const,
-                })),
-              ];
-              const maNearHits = (row.ma120Near
-                ? maNearHitsAll.filter(
-                    (h) => !(h.timeframe === "daily" && h.period === 120),
-                  )
-                : maNearHitsAll
-              ).slice(0, 3);
-              const maPriceClass = maProximityPriceClass(chartInsight?.weekly?.near);
               const gcChain = formatGoldenCrossChain(gcItem?.crosses);
               const ma120Label = row.ma120Near
                 ? formatMa120NearLabel(
@@ -1660,23 +1620,6 @@ export default function StockVaultTab({
                         >
                           {display.label}
                         </span>
-                        {sectorLeader ? (
-                          <span
-                            className="stock-vault-tab__leader"
-                            title={
-                              finRow?.sectorLeaderDetail
-                                ? `${ko.stockVault.sectorLeader} · ${finRow.sectorLeaderDetail}${
-                                    finRow.industryUniversePeerCount
-                                      ? ` · ${ko.stockVault.sectorLeaderUniversePeers(finRow.industryUniversePeerCount)}`
-                                      : ""
-                                  }`
-                                : ko.stockVault.sectorLeaderAria
-                            }
-                            aria-label={ko.stockVault.sectorLeaderAria}
-                          >
-                            <VaultSectorLeaderIcon />
-                          </span>
-                        ) : null}
                         {display.sublabel ? (
                           <span className="stock-vault-tab__sym">{display.sublabel}</span>
                         ) : null}
@@ -1689,14 +1632,7 @@ export default function StockVaultTab({
                       <div className="stock-vault-tab__quote">
                         {quote?.price != null && Number.isFinite(quote.price) ? (
                           <>
-                            <span
-                              className={[
-                                "stock-vault-tab__price",
-                                maPriceClass,
-                              ]
-                                .filter(Boolean)
-                                .join(" ")}
-                            >
+                            <span className="stock-vault-tab__price">
                               {formatPrice(quote.price, cur)}
                             </span>
                             {chg != null && Number.isFinite(chg) ? (
@@ -1777,46 +1713,6 @@ export default function StockVaultTab({
                     <span className={stockVaultTimeframeBadgeClass(row.timeframe)}>
                       {stockVaultTimeframeLabel(row.timeframe)}
                     </span>
-                    <span
-                      className={`stock-vault-tab__trend ${trendBadgeClass(dailyTrend)}`}
-                      title={formatTrendLabel("daily", dailyTrend, {
-                        dailyUp: ko.stockVault.trendDailyUp,
-                        dailyDown: ko.stockVault.trendDailyDown,
-                        dailyNeutral: ko.stockVault.trendDailyNeutral,
-                        weeklyUp: ko.stockVault.trendWeeklyUp,
-                        weeklyDown: ko.stockVault.trendWeeklyDown,
-                        weeklyNeutral: ko.stockVault.trendWeeklyNeutral,
-                      })}
-                    >
-                      {formatTrendLabel("daily", dailyTrend, {
-                        dailyUp: ko.stockVault.trendDailyUp,
-                        dailyDown: ko.stockVault.trendDailyDown,
-                        dailyNeutral: ko.stockVault.trendDailyNeutral,
-                        weeklyUp: ko.stockVault.trendWeeklyUp,
-                        weeklyDown: ko.stockVault.trendWeeklyDown,
-                        weeklyNeutral: ko.stockVault.trendWeeklyNeutral,
-                      })}
-                    </span>
-                    <span
-                      className={`stock-vault-tab__trend ${trendBadgeClass(weeklyTrend)}`}
-                      title={formatTrendLabel("weekly", weeklyTrend, {
-                        dailyUp: ko.stockVault.trendDailyUp,
-                        dailyDown: ko.stockVault.trendDailyDown,
-                        dailyNeutral: ko.stockVault.trendDailyNeutral,
-                        weeklyUp: ko.stockVault.trendWeeklyUp,
-                        weeklyDown: ko.stockVault.trendWeeklyDown,
-                        weeklyNeutral: ko.stockVault.trendWeeklyNeutral,
-                      })}
-                    >
-                      {formatTrendLabel("weekly", weeklyTrend, {
-                        dailyUp: ko.stockVault.trendDailyUp,
-                        dailyDown: ko.stockVault.trendDailyDown,
-                        dailyNeutral: ko.stockVault.trendDailyNeutral,
-                        weeklyUp: ko.stockVault.trendWeeklyUp,
-                        weeklyDown: ko.stockVault.trendWeeklyDown,
-                        weeklyNeutral: ko.stockVault.trendWeeklyNeutral,
-                      })}
-                    </span>
                     {scanDate ? (
                       <span className="stock-vault-tab__scan-date">{scanDate}</span>
                     ) : (
@@ -1854,52 +1750,6 @@ export default function StockVaultTab({
                           {bottomLabel}
                         </span>
                       ) : null}
-                    </div>
-                  ) : null}
-                  {maNearHits.length > 0 ? (
-                    <div className="stock-vault-tab__ma-near-wrap">
-                      {maNearHits.map((hit) => {
-                        const approachLabel = formatMaApproachLabel(hit.approach, {
-                          fromBelow: ko.stockVault.maApproachFromBelow,
-                          fromAbove: ko.stockVault.maApproachFromAbove,
-                          flat: ko.stockVault.maApproachFlat,
-                        });
-                        return (
-                          <span
-                            key={`${row.key}-${hit.timeframe}-ma-${hit.period}`}
-                            className={[
-                              "stock-vault-tab__ma-near",
-                              maProximityBadgeClass(hit.period),
-                              hit.timeframe === "daily"
-                                ? "stock-vault-tab__ma-near--daily"
-                                : "stock-vault-tab__ma-near--weekly",
-                            ]
-                              .filter(Boolean)
-                              .join(" ")}
-                            title={
-                              hit.timeframe === "daily"
-                                ? ko.stockVault.dailyMaNearHint(
-                                    hit.period,
-                                    hit.diffPct,
-                                    hit.side,
-                                    hit.approach,
-                                  )
-                                : ko.stockVault.weeklyMaNearHint(
-                                    hit.period,
-                                    hit.diffPct,
-                                    hit.side,
-                                    hit.approach,
-                                  )
-                            }
-                          >
-                            {formatMaNearLabel(hit.timeframe, hit.period, {
-                              dailyNear: ko.stockVault.dailyMaNear,
-                              weeklyNear: ko.stockVault.weeklyMaNear,
-                            })}
-                            {approachLabel ? ` · ${approachLabel}` : ""}
-                          </span>
-                        );
-                      })}
                     </div>
                   ) : null}
                   {row.favorited ? (() => {
