@@ -701,7 +701,6 @@ export default function StockVaultTab({
 
   const toggleScanSource = useCallback(
     (source: StockVaultScanSource) => {
-      if (vaultScanPreset?.length) return;
       setIndustryFilter("all");
       setSelectedScanSources((prev) => {
         const set = new Set(prev);
@@ -721,7 +720,7 @@ export default function StockVaultTab({
         void reload(true);
       }
     },
-    [items, snapshotItems, timeframeFilter, reload, vaultScanPreset],
+    [items, snapshotItems, timeframeFilter, reload],
   );
 
   useEffect(() => {
@@ -736,11 +735,15 @@ export default function StockVaultTab({
   }, []);
 
   useEffect(() => {
-    if (vaultScanPreset?.length) return;
     if (timeframeFilter !== "1wk") return;
     setSelectedScanSources((prev) => {
       const next = prev.filter((s) => s !== "ma120_near");
-      return next.length ? next : ["golden_cross"];
+      if (next.length) return next;
+      if (vaultScanPreset?.length) {
+        const presetOnWeekly = vaultScanPreset.filter((s) => s !== "ma120_near");
+        return presetOnWeekly.length ? [...presetOnWeekly] : ["golden_cross"];
+      }
+      return ["golden_cross"];
     });
     setMa120ApproachFilter(null);
   }, [timeframeFilter, vaultScanPreset]);
@@ -1164,7 +1167,6 @@ export default function StockVaultTab({
             </div>
           </div>
 
-          {!vaultScanPreset?.length ? (
           <div
             className="stock-vault-tab__filters stock-vault-tab__filters--kind"
             role="group"
@@ -1197,7 +1199,6 @@ export default function StockVaultTab({
               </p>
             ) : null}
           </div>
-          ) : null}
 
           {showMa120ApproachFilters ? (
               <div

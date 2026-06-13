@@ -16,7 +16,6 @@ import {
   getBoxRangeTechModelStub,
   listAllBoxRangeTechModelStubs,
 } from "./box-range/constants.js";
-import { getBottomCandleTechModelStub } from "./bottom-candle/constants.js";
 import { getBoxRangeV2MaProfile } from "./box-range/v2-ma-models.js";
 
 export { getDefaultSignalScoreWeights };
@@ -154,18 +153,11 @@ function writeStoreSync(store) {
 
 export function listTechModelsSync() {
   const store = readStoreSync();
-  const models = store.models.map((m) => ({
-    ...m,
-    maxTechScore: sumTechScoreWeights(m.weights),
-  }));
-  const vaultStubs = [getBottomCandleTechModelStub()];
-  for (const stub of vaultStubs) {
-    if (!models.some((m) => m.id === stub.id)) {
-      models.push({ ...stub, maxTechScore: 0 });
-    }
-  }
   return {
-    models,
+    models: store.models.map((m) => ({
+      ...m,
+      maxTechScore: sumTechScoreWeights(m.weights),
+    })),
     activeModelIds: [...store.activeModelIds],
   };
 }
@@ -194,7 +186,6 @@ export function getActiveTechModelsSync() {
 export function getTechModelByIdSync(id) {
   const sid = String(id ?? "").trim();
   if (sid === BOX_RANGE_MODEL_ID) return getBoxRangeTechModelStub();
-  if (sid === getBottomCandleTechModelStub().id) return getBottomCandleTechModelStub();
   const v2ma = getBoxRangeV2MaProfile(sid);
   if (v2ma) {
     const stub = listAllBoxRangeTechModelStubs().find((m) => m.id === sid);
