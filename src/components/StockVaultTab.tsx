@@ -223,20 +223,11 @@ function vaultStateFromResponse(vault: StockVaultResponse) {
 
 export default function StockVaultTab({
   onVaultChange,
-  techModelHeader,
-  vaultScanPreset,
 }: {
   onVaultChange?: (
     symbols: string[],
     favoriteMeta?: Record<string, StockVaultFavoriteMeta>,
   ) => void;
-  /** 매매기법 선택 후 — 기존 보관함 UI 위에 표시 */
-  techModelHeader?: {
-    name: string;
-    onBack: () => void;
-  };
-  /** 매매기법 진입 시 고정 탐색 조건(예: 바닥 캔들) */
-  vaultScanPreset?: StockVaultScanSource[];
 }) {
   const cachedInit = peekStockVaultPrefetch();
   const cachedVault = cachedInit ? vaultStateFromResponse(cachedInit.vault) : null;
@@ -282,9 +273,7 @@ export default function StockVaultTab({
   const [filter, setFilter] = useState<VaultFilter>(() => uiInit.filter);
   const [selectedScanSources, setSelectedScanSources] = useState<
     StockVaultScanSource[]
-  >(() =>
-    vaultScanPreset?.length ? [...vaultScanPreset] : [...uiInit.selectedScanSources],
-  );
+  >(() => [...uiInit.selectedScanSources]);
   const [ma120ApproachFilter, setMa120ApproachFilter] = useState<
     Ma120ApproachFilter | null
   >(() => uiInit.ma120ApproachFilter);
@@ -724,29 +713,18 @@ export default function StockVaultTab({
   );
 
   useEffect(() => {
-    if (vaultScanPreset?.length) {
-      setSelectedScanSources([...vaultScanPreset]);
-    }
-  }, [vaultScanPreset]);
+    if (timeframeFilter !== "1wk") return;
+    setSelectedScanSources((prev) => {
+      const next = prev.filter((s) => s !== "ma120_near");
+      return next.length ? next : ["golden_cross"];
+    });
+    setMa120ApproachFilter(null);
+  }, [timeframeFilter]);
 
   const selectMa120ApproachFilter = useCallback((approach: Ma120ApproachFilter) => {
     setIndustryFilter("all");
     setMa120ApproachFilter((prev) => (prev === approach ? null : approach));
   }, []);
-
-  useEffect(() => {
-    if (timeframeFilter !== "1wk") return;
-    setSelectedScanSources((prev) => {
-      const next = prev.filter((s) => s !== "ma120_near");
-      if (next.length) return next;
-      if (vaultScanPreset?.length) {
-        const presetOnWeekly = vaultScanPreset.filter((s) => s !== "ma120_near");
-        return presetOnWeekly.length ? [...presetOnWeekly] : ["golden_cross"];
-      }
-      return ["golden_cross"];
-    });
-    setMa120ApproachFilter(null);
-  }, [timeframeFilter, vaultScanPreset]);
 
   const ma120ApproachCounts = useMemo(() => {
     const counts = { from_below: 0, from_above: 0 };
@@ -1023,18 +1001,7 @@ export default function StockVaultTab({
       <section className="stock-vault-tab__panel card">
         <header className="stock-vault-tab__head">
           <div className="stock-vault-tab__head-row">
-            {techModelHeader ? (
-              <button
-                type="button"
-                className="stock-vault-tab__head-btn trading-technique-tab__back"
-                onClick={techModelHeader.onBack}
-              >
-                {ko.tradingTechnique.back}
-              </button>
-            ) : null}
-            <h2 className="stock-vault-tab__title">
-              {techModelHeader?.name ?? ko.stockVault.title}
-            </h2>
+            <h2 className="stock-vault-tab__title">{ko.stockVault.title}</h2>
             <div className="stock-vault-tab__head-actions">
               <div className="stock-vault-tab__scan-wrap">
                 <button

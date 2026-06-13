@@ -59,7 +59,7 @@ import RecommendationsTab from "./components/RecommendationsTab";
 import TradeHistoryTab from "./components/TradeHistoryTab";
 import BoxRangeTab from "./components/BoxRangeTab";
 import FinancialsTab from "./components/FinancialsTab";
-import TradingTechniqueTab from "./components/TradingTechniqueTab";
+import StockVaultTab from "./components/StockVaultTab";
 import InvestorFlowTab from "./components/InvestorFlowTab";
 import { LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT } from "./lib/liveTradeDockAccount";
 import { LIVE_TRADE_PROGRAM_TRADES_MAIN_EVENT } from "./lib/liveTradeProgramTradesMain";
@@ -1625,7 +1625,7 @@ export default function App() {
           onScrollToSectionConsumed={handleFinancialsScrollConsumed}
         />
       ) : appTab === "stockVault" ? (
-        <TradingTechniqueTab onVaultChange={syncVaultFromResponse} />
+        <StockVaultTab onVaultChange={syncVaultFromResponse} />
       ) : appTab === "investorFlow" ? (
         <InvestorFlowTab />
       ) : appTab === "liveTrading" ? (
