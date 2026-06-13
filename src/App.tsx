@@ -563,11 +563,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (appTab !== "screener") return;
     if (!picks || picks.running) return;
     if (resolveNextScanAt(picks) == null) return;
     const id = window.setInterval(() => setRescanClockMs(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, [
+    appTab,
     picks?.running,
     picks?.nextScanAt,
     picks?.updatedAt,

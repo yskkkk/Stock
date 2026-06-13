@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useDeferredValue } from "react";
 import FavoriteTrackPanel from "./FavoriteTrackPanel";
 import IndustryFilterPanel from "./IndustryFilterPanel";
 import {
@@ -107,7 +107,39 @@ const SOURCE_BADGE_LABEL: Record<StockVaultScanSource, string> = {
 const SCAN_POLL_MS = 2500;
 const QUOTE_POLL_MS = 60_000;
 const MA120_APPROACH_QUOTE_POLL_MS = 15_000;
-const CHART_INSIGHTS_POLL_MS = 90_000;
+const CHART_INSIGHTS_POLL_MS = 120_000;
+
+function mergeChartInsightMaps(
+  prev: Record<string, StockVaultChartInsightSnapshot>,
+  incoming: Record<string, StockVaultChartInsightSnapshot> | undefined,
+) {
+  const next = incoming ?? {};
+  const keys = Object.keys(next);
+  if (!keys.length) return prev;
+  let changed = false;
+  for (const sym of keys) {
+    if (prev[sym] !== next[sym]) {
+      changed = true;
+      break;
+    }
+  }
+  if (!changed && keys.length === Object.keys(prev).length) return prev;
+  return { ...prev, ...next };
+}
+
+function usePageVisible() {
+  const [visible, setVisible] = useState(
+    () =>
+      typeof document === "undefined" ||
+      document.visibilityState === "visible",
+  );
+  useEffect(() => {
+    const onVis = () => setVisible(document.visibilityState === "visible");
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, []);
+  return visible;
+}
 
 function fmtDate(ms: number): string {
   try {
@@ -441,21 +473,27 @@ export default function StockVaultTab({
     void reload();
   }, [reload]);
 
+  const pageVisible = usePageVisible();
+
   useEffect(() => {
-    const insightCount = (snapshotItems?.length ?? 0) + items.filter((it) => it.source === "favorite").length;
+    if (!pageVisible) return;
+    const insightCount =
+      (snapshotItems?.length ?? 0) +
+      items.filter((it) => it.source === "favorite").length;
     if (insightCount === 0) return;
     let cancelled = false;
     const loadInsights = async (refresh = false) => {
+      if (document.visibilityState === "hidden") return;
       try {
         const res = await fetchStockVaultChartInsights({ refresh });
         if (!cancelled && res.chartInsights) {
-          setChartInsights(res.chartInsights);
+          setChartInsights((prev) => mergeChartInsightMaps(prev, res.chartInsights));
         }
       } catch {
         /* ignore */
       }
     };
-    void loadInsights(true);
+    void loadInsights(false);
     const id = window.setInterval(() => {
       void loadInsights(false);
     }, CHART_INSIGHTS_POLL_MS);
@@ -463,7 +501,7 @@ export default function StockVaultTab({
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [snapshotItems?.length, items.length]);
+  }, [pageVisible, snapshotItems?.length, items.length]);
 
   const refreshHistoryDates = useCallback(async () => {
     try {
@@ -593,15 +631,15 @@ export default function StockVaultTab({
   }, [displayItems]);
 
   useEffect(() => {
-    if (loading || scanRunning || displayItems.length === 0) return;
+    if (!pageVisible || loading || scanRunning || displayItems.length === 0) return;
     const id = window.setInterval(() => {
       void refreshDisplayQuotes();
     }, QUOTE_POLL_MS);
     return () => window.clearInterval(id);
-  }, [loading, scanRunning, displayItems.length, refreshDisplayQuotes]);
+  }, [pageVisible, loading, scanRunning, displayItems.length, refreshDisplayQuotes]);
 
   useEffect(() => {
-    if (timeframeFilter !== "1d") return;
+    if (!pageVisible || timeframeFilter !== "1d") return;
     const need = listMa120SymbolsNeedingQuotes(displayItems, quotes, chartInsights);
     if (!need.length) return;
 
@@ -652,6 +690,7 @@ export default function StockVaultTab({
       window.clearInterval(id);
     };
   }, [
+    pageVisible,
     displayItems,
     timeframeFilter,
     chartInsights,
@@ -858,6 +897,8 @@ export default function StockVaultTab({
     intersectionActive &&
     filtered.length === 0 &&
     selectedScanSources.some((s) => scanSourceCounts[s] > 0);
+
+  const deferredFiltered = useDeferredValue(filtered);
 
   useEffect(() => {
     if (industryFilter === "all") return;
@@ -1322,7 +1363,7 @@ export default function StockVaultTab({
           </p>
         ) : (
           <ul className="stock-vault-tab__list">
-            {filtered.map((row) => {
+            {deferredFiltered.map((row) => {
               const symKey = row.symbol.trim().toUpperCase();
               const quote = quotes[symKey];
               const metaRow = meta[symKey];
