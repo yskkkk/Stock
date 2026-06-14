@@ -54,6 +54,8 @@ import {
   VAULT_LIST_ROW_STEP,
   VAULT_QUOTE_DRAIN_MS,
   mergeVaultQuotePatch,
+  overlayVaultFavoriteState,
+  patchVaultItemFavorite,
   pickQuoteBatch,
   pruneSymbolRecord,
   symbolsMissingQuotes,
@@ -633,10 +635,11 @@ export default function StockVaultTab({
     }, 5000);
   }, [refreshHistoryDates]);
 
-  const favoriteSymbolSet = useMemo(
-    () => new Set(favoriteVaultSymbols({ items, favoriteSymbols: undefined })),
-    [items],
-  );
+  const favoriteSymbolSet = useMemo(() => {
+    const fromItems = favoriteVaultSymbols({ items, favoriteSymbols: undefined });
+    const fromMeta = Object.keys(favoriteMeta).map((s) => s.trim().toUpperCase());
+    return new Set([...fromItems, ...fromMeta]);
+  }, [items, favoriteMeta]);
 
   const isHistoricalView = selectedScanDate != null;
 
@@ -698,17 +701,24 @@ export default function StockVaultTab({
     return () => {
       cancelled = true;
     };
-  }, [selectedScanDate, favoriteSymbolSet, favoriteMeta]);
+  }, [selectedScanDate]);
 
   const displayItems = useMemo(() => {
-    if (isHistoricalView) return snapshotItems ?? [];
-    const snap = snapshotItems ?? [];
-    if (!items.length) return snap;
-    const fromVault = extractScanItemsFromVault(items);
-    const merged = mergeScanItemsIntoSnapshot(snap, fromVault);
-    const extras = items.filter((it) => it.source === "favorite");
-    return extras.length ? [...merged, ...extras] : merged;
-  }, [snapshotItems, items, isHistoricalView]);
+    let base: StockVaultItem[];
+    if (isHistoricalView) {
+      base = snapshotItems ?? [];
+    } else {
+      const snap = snapshotItems ?? [];
+      if (!items.length) base = snap;
+      else {
+        const fromVault = extractScanItemsFromVault(items);
+        const merged = mergeScanItemsIntoSnapshot(snap, fromVault);
+        const extras = items.filter((it) => it.source === "favorite");
+        base = extras.length ? [...merged, ...extras] : merged;
+      }
+    }
+    return overlayVaultFavoriteState(base, favoriteMeta);
+  }, [snapshotItems, items, isHistoricalView, favoriteMeta]);
 
   const getRowIndustry = useCallback(
     (row: VaultDisplayRow) => rowIndustry(meta, row),
@@ -1192,24 +1202,17 @@ export default function StockVaultTab({
             return next;
           });
         }
-        setItems((prev) => {
-          const nextItems = prev.map((it) => {
-            if (it.symbol.trim().toUpperCase() !== sym) return it;
-            const nextFav = !favorited;
-            const fields = res.meta
-              ? {
-                  favoriteAddedAtMs: res.meta.addedAtMs,
-                  favoritePrice: res.meta.favoritePrice ?? null,
-                }
-              : nextFav
-                ? {}
-                : {
-                    favoriteAddedAtMs: null,
-                    favoritePrice: null,
-                  };
-            return { ...it, favorited: nextFav, ...fields };
-          });
-          return nextItems;
+        const nextFav = !favorited;
+        const patchList = (prev: StockVaultItem[]) =>
+          patchVaultItemFavorite(prev, sym, nextFav, res.meta);
+        setItems(patchList);
+        setSnapshotItems((prev) => {
+          if (!prev?.length) return prev;
+          const next = patchList(prev);
+          if (selectedScanDate == null) {
+            saveLocalScanSnapshot(kstTodayYmd(), next);
+          }
+          return next;
         });
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -1217,7 +1220,7 @@ export default function StockVaultTab({
         setFavoriting(null);
       }
     },
-    [ensureVaultAuthenticated, showLoginHintOnce, quotes, onVaultChange],
+    [ensureVaultAuthenticated, showLoginHintOnce, quotes, onVaultChange, selectedScanDate],
   );
 
   const handleFavoritePriceSaved = useCallback(

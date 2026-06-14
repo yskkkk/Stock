@@ -1,5 +1,7 @@
 /** 종목보관 — 메모리·네트워크 절약용 상수·유틸 */
 
+import type { StockVaultFavoriteMeta, StockVaultItem } from "../types";
+
 export const VAULT_LIST_INITIAL_ROWS = 12;
 export const VAULT_LIST_ROW_STEP = 12;
 export const VAULT_QUOTE_BATCH_SIZE = 8;
@@ -90,4 +92,73 @@ export function pruneSymbolRecord<T>(
   }
   if (!changed && Object.keys(map).length === keep.size) return map;
   return out;
+}
+
+/** favoriteMeta 기준으로 스냅샷·로컬 목록의 favorited 플래그 동기화 */
+export function overlayVaultFavoriteState(
+  items: StockVaultItem[],
+  favoriteMeta: Record<string, StockVaultFavoriteMeta>,
+): StockVaultItem[] {
+  if (!items.length) return items;
+  const metaKeys = Object.keys(favoriteMeta);
+  if (!metaKeys.length && !items.some((it) => it.favorited)) return items;
+
+  let changed = false;
+  const out = items.map((it) => {
+    const sym = it.symbol.trim().toUpperCase();
+    const fm = favoriteMeta[sym];
+    if (fm) {
+      if (
+        it.favorited &&
+        it.favoriteAddedAtMs === fm.addedAtMs &&
+        (it.favoritePrice ?? null) === (fm.favoritePrice ?? null)
+      ) {
+        return it;
+      }
+      changed = true;
+      return {
+        ...it,
+        favorited: true,
+        favoriteAddedAtMs: fm.addedAtMs,
+        favoritePrice: fm.favoritePrice ?? null,
+      };
+    }
+    if (it.favorited || it.favoriteAddedAtMs != null || it.favoritePrice != null) {
+      changed = true;
+      return {
+        ...it,
+        favorited: false,
+        favoriteAddedAtMs: null,
+        favoritePrice: null,
+      };
+    }
+    return it;
+  });
+  return changed ? out : items;
+}
+
+export function patchVaultItemFavorite(
+  items: StockVaultItem[],
+  symbol: string,
+  favorited: boolean,
+  meta: StockVaultFavoriteMeta | null,
+): StockVaultItem[] {
+  const sym = symbol.trim().toUpperCase();
+  return items.map((it) => {
+    if (it.symbol.trim().toUpperCase() !== sym) return it;
+    if (favorited && meta) {
+      return {
+        ...it,
+        favorited: true,
+        favoriteAddedAtMs: meta.addedAtMs,
+        favoritePrice: meta.favoritePrice ?? null,
+      };
+    }
+    return {
+      ...it,
+      favorited: false,
+      favoriteAddedAtMs: null,
+      favoritePrice: null,
+    };
+  });
 }
