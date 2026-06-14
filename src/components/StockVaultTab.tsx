@@ -25,6 +25,7 @@ import {
   buildVaultDisplayRows,
   countItemsByScanSource,
   countScanSourceTotals,
+  countVaultIntersection,
   STOCK_VAULT_SCAN_SOURCES,
   visibleStockVaultScanSources,
   type VaultDisplayRow,
@@ -723,8 +724,15 @@ export default function StockVaultTab({
       base = snapshotItems ?? [];
     } else {
       const snap = snapshotItems ?? [];
-      if (!items.length) base = snap;
-      else {
+      if (!items.length) {
+        const fromCache = extractScanItemsFromVault(
+          peekStockVaultPrefetch()?.vault?.items ??
+            cachedInit?.vault?.items,
+        );
+        base = fromCache.length
+          ? mergeScanItemsIntoSnapshot(snap, fromCache)
+          : snap;
+      } else {
         const fromVault = extractScanItemsFromVault(items);
         const merged = mergeScanItemsIntoSnapshot(snap, fromVault);
         const extras = items.filter((it) => it.source === "favorite");
@@ -732,7 +740,7 @@ export default function StockVaultTab({
       }
     }
     return overlayVaultFavoriteState(base, favoriteMeta);
-  }, [snapshotItems, items, isHistoricalView, favoriteMeta]);
+  }, [snapshotItems, items, isHistoricalView, favoriteMeta, cachedInit?.vault?.items]);
 
   const getRowIndustry = useCallback(
     (row: VaultDisplayRow) => rowIndustry(meta, row),
@@ -790,12 +798,24 @@ export default function StockVaultTab({
   const toggleScanSource = useCallback(
     (source: StockVaultScanSource) => {
       setIndustryFilter("all");
+      setFilter("all");
       setSelectedScanSources((prev) => {
+        const wasSelected = prev.includes(source);
         const set = new Set(prev);
-        if (set.has(source)) set.delete(source);
+        if (wasSelected) set.delete(source);
         else set.add(source);
-        const next = STOCK_VAULT_SCAN_SOURCES.filter((s) => set.has(s));
-        return next.length ? next : [source];
+        let next = STOCK_VAULT_SCAN_SOURCES.filter((s) => set.has(s));
+        if (!next.length) next = [source];
+        if (!wasSelected && next.length >= 2) {
+          const hits = countVaultIntersection(
+            displayItems,
+            next,
+            "all",
+            timeframeFilter,
+          );
+          if (hits === 0) next = [source];
+        }
+        return next;
       });
       const zero =
         countItemsByScanSource(displayItems, source, timeframeFilter) === 0;

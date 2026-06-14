@@ -78,6 +78,21 @@ describe("stockVaultFilter", () => {
     expect(rows).toHaveLength(0);
   });
 
+  it("lists bottom_candle scan source", () => {
+    const items = [
+      item({ symbol: "A.KS", source: "bottom_candle", bottomTag: "저점" }),
+      item({ symbol: "B.KS", source: "golden_cross" }),
+    ];
+    const rows = buildVaultDisplayRows(items, {
+      selectedScanSources: ["bottom_candle"],
+      marketFilter: "all",
+      favoriteOnly: false,
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.symbol).toBe("A.KS");
+    expect(rows[0]?.bottomCandle).toBeTruthy();
+  });
+
   it("lists favorite-only items when favorite filter is on", () => {
     const items = [
       item({ symbol: "A.KS", source: "favorite", favorited: true }),
