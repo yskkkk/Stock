@@ -386,7 +386,7 @@ export default function StockVaultTab({
   }, [industryPanelReady]);
 
   const applyVaultResponse = useCallback(
-    (vault: StockVaultResponse) => {
+    (vault: StockVaultResponse, opts?: { skipFavorites?: boolean }) => {
       setItems(vault.items ?? []);
       if (vault.quotes && Object.keys(vault.quotes).length) {
         setQuotes(vault.quotes);
@@ -415,11 +415,13 @@ export default function StockVaultTab({
         );
       }
       setAuthenticated(Boolean(vault.authenticated));
-      setFavoriteMeta(vault.favoriteMeta ?? {});
+      if (!opts?.skipFavorites) {
+        setFavoriteMeta(vault.favoriteMeta ?? {});
+        onVaultChange?.(favoriteVaultSymbols(vault), vault.favoriteMeta);
+      }
       setIndustryTabs((prev) =>
         vault.industryTabs?.length ? vault.industryTabs : prev,
       );
-      onVaultChange?.(favoriteVaultSymbols(vault), vault.favoriteMeta);
       updateStockVaultPrefetchVault(vault);
     },
     [onVaultChange],
@@ -460,6 +462,7 @@ export default function StockVaultTab({
         if (cancelled) return;
         void refreshAuth().then((liveUser) => {
           if (cancelled || !liveUser) return;
+          setAuthenticated(true);
           vaultAuthSyncedRef.current = true;
           clearVaultLoginHintFlag();
         });
@@ -728,7 +731,7 @@ export default function StockVaultTab({
   useEffect(() => {
     return subscribeStockVaultPrefetch((bundle) => {
       scheduleIdle(() => {
-        applyVaultResponse(bundle.vault);
+        applyVaultResponse(bundle.vault, { skipFavorites: true });
         seedTodaySnapshotFromVault(bundle.vault);
         applyScanStatus(bundle.scanStatus);
         setLoading(false);
@@ -1179,12 +1182,50 @@ export default function StockVaultTab({
         return;
       }
       const sym = symbol.trim().toUpperCase();
+      const nextFav = !favorited;
+      const quotePrice = quotes[sym]?.price;
+      const optimisticMeta: StockVaultFavoriteMeta | null = nextFav
+        ? {
+            name,
+            market,
+            addedAtMs: Date.now(),
+            updatedAtMs: Date.now(),
+            favoritePrice: quotePrice ?? null,
+          }
+        : null;
+
       setFavoriting(sym);
       setError(null);
+
+      let metaRollback: Record<string, StockVaultFavoriteMeta> | null = null;
+      let snapshotRollback: StockVaultItem[] | null = null;
+
+      setFavoriteMeta((prev) => {
+        metaRollback = prev;
+        const next = { ...prev };
+        if (optimisticMeta) next[sym] = optimisticMeta;
+        else delete next[sym];
+        onVaultChange?.(Object.keys(next), next);
+        return next;
+      });
+
+      const applyPatch = (prev: StockVaultItem[]) =>
+        patchVaultItemFavorite(prev, sym, nextFav, optimisticMeta);
+
+      setItems(applyPatch);
+      setSnapshotItems((prev) => {
+        if (!prev?.length) return prev;
+        snapshotRollback = prev;
+        const next = applyPatch(prev);
+        if (selectedScanDate == null) {
+          saveLocalScanSnapshot(kstTodayYmd(), next);
+        }
+        return next;
+      });
+
       try {
-        const quotePrice = quotes[sym]?.price;
-        const res = await setStockVaultFavorite(symbol, !favorited, {
-          favoritePrice: !favorited ? quotePrice : undefined,
+        const res = await setStockVaultFavorite(symbol, nextFav, {
+          favoritePrice: nextFav ? quotePrice : undefined,
           market,
           name,
         });
@@ -1194,7 +1235,7 @@ export default function StockVaultTab({
             onVaultChange?.(Object.keys(next), next);
             return next;
           });
-        } else if (favorited) {
+        } else if (!nextFav) {
           setFavoriteMeta((prev) => {
             const next = { ...prev };
             delete next[sym];
@@ -1202,7 +1243,6 @@ export default function StockVaultTab({
             return next;
           });
         }
-        const nextFav = !favorited;
         const patchList = (prev: StockVaultItem[]) =>
           patchVaultItemFavorite(prev, sym, nextFav, res.meta);
         setItems(patchList);
@@ -1215,6 +1255,16 @@ export default function StockVaultTab({
           return next;
         });
       } catch (e) {
+        if (metaRollback) {
+          setFavoriteMeta(metaRollback);
+          onVaultChange?.(Object.keys(metaRollback), metaRollback);
+        }
+        if (snapshotRollback) {
+          setSnapshotItems(snapshotRollback);
+          if (selectedScanDate == null) {
+            saveLocalScanSnapshot(kstTodayYmd(), snapshotRollback);
+          }
+        }
         setError(e instanceof Error ? e.message : String(e));
       } finally {
         setFavoriting(null);

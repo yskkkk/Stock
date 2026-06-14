@@ -94,45 +94,32 @@ export function pruneSymbolRecord<T>(
   return out;
 }
 
-/** favoriteMeta 기준으로 스냅샷·로컬 목록의 favorited 플래그 동기화 */
+/** favoriteMeta 기준으로 스냅샷·로컬 목록 favorited 보강 (해제는 patchVaultItemFavorite) */
 export function overlayVaultFavoriteState(
   items: StockVaultItem[],
   favoriteMeta: Record<string, StockVaultFavoriteMeta>,
 ): StockVaultItem[] {
-  if (!items.length) return items;
-  const metaKeys = Object.keys(favoriteMeta);
-  if (!metaKeys.length && !items.some((it) => it.favorited)) return items;
+  if (!items.length || !Object.keys(favoriteMeta).length) return items;
 
   let changed = false;
   const out = items.map((it) => {
     const sym = it.symbol.trim().toUpperCase();
     const fm = favoriteMeta[sym];
-    if (fm) {
-      if (
-        it.favorited &&
-        it.favoriteAddedAtMs === fm.addedAtMs &&
-        (it.favoritePrice ?? null) === (fm.favoritePrice ?? null)
-      ) {
-        return it;
-      }
-      changed = true;
-      return {
-        ...it,
-        favorited: true,
-        favoriteAddedAtMs: fm.addedAtMs,
-        favoritePrice: fm.favoritePrice ?? null,
-      };
+    if (!fm) return it;
+    if (
+      it.favorited &&
+      it.favoriteAddedAtMs === fm.addedAtMs &&
+      (it.favoritePrice ?? null) === (fm.favoritePrice ?? null)
+    ) {
+      return it;
     }
-    if (it.favorited || it.favoriteAddedAtMs != null || it.favoritePrice != null) {
-      changed = true;
-      return {
-        ...it,
-        favorited: false,
-        favoriteAddedAtMs: null,
-        favoritePrice: null,
-      };
-    }
-    return it;
+    changed = true;
+    return {
+      ...it,
+      favorited: true,
+      favoriteAddedAtMs: fm.addedAtMs,
+      favoritePrice: fm.favoritePrice ?? null,
+    };
   });
   return changed ? out : items;
 }
@@ -146,12 +133,12 @@ export function patchVaultItemFavorite(
   const sym = symbol.trim().toUpperCase();
   return items.map((it) => {
     if (it.symbol.trim().toUpperCase() !== sym) return it;
-    if (favorited && meta) {
+    if (favorited) {
       return {
         ...it,
         favorited: true,
-        favoriteAddedAtMs: meta.addedAtMs,
-        favoritePrice: meta.favoritePrice ?? null,
+        favoriteAddedAtMs: meta?.addedAtMs ?? it.favoriteAddedAtMs ?? Date.now(),
+        favoritePrice: meta?.favoritePrice ?? it.favoritePrice ?? null,
       };
     }
     return {
