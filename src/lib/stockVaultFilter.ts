@@ -177,6 +177,27 @@ export function countItemsByScanSource(
   ).length;
 }
 
+/** displayItems 1회 순회로 탐색 조건별 개수 */
+export function countScanSourceTotals(
+  items: StockVaultItem[],
+  timeframe: StockVaultTimeframe = "1d",
+): Record<StockVaultScanSource, number> {
+  const tf = normalizeStockVaultTimeframe(timeframe);
+  const counts: Record<StockVaultScanSource, number> = {
+    golden_cross: 0,
+    ma_align: 0,
+    ma120_near: 0,
+    bottom_candle: 0,
+  };
+  for (const it of items) {
+    const src = it.source as StockVaultScanSource;
+    if (!STOCK_VAULT_SCAN_SOURCES.includes(src)) continue;
+    if (normalizeStockVaultTimeframe(it.timeframe) !== tf) continue;
+    counts[src] += 1;
+  }
+  return counts;
+}
+
 export function countFavoriteVaultItems(
   items: StockVaultItem[],
   timeframe: StockVaultTimeframe = "1d",
@@ -218,14 +239,30 @@ export function buildVaultDisplayRows(
 
   if (!selected.length) return [];
 
+  if (selected.length === 1 && !opts.favoriteOnly) {
+    const src = selected[0]!;
+    const rows: VaultDisplayRow[] = [];
+    for (const it of items) {
+      if (it.source !== src) continue;
+      if (!matchesTimeframe(it, timeframe)) continue;
+      rows.push(
+        buildScanRow(symbolMarketTimeframeKey(it), { [src]: it }, [src], timeframe),
+      );
+    }
+    let filtered = rows;
+    if (opts.marketFilter !== "all") {
+      filtered = filtered.filter((r) => r.market === opts.marketFilter);
+    }
+    return sortVaultDisplayRows(filtered);
+  }
+
+  const selectedSet = new Set(selected);
   /** @type {Map<string, Partial<Record<StockVaultScanSource, StockVaultItem>>>} */
   const grouped = new Map();
   for (const it of items) {
-    if (!STOCK_VAULT_SCAN_SOURCES.includes(it.source as StockVaultScanSource)) {
-      continue;
-    }
-    if (!matchesTimeframe(it, timeframe)) continue;
     const src = it.source as StockVaultScanSource;
+    if (!selectedSet.has(src)) continue;
+    if (!matchesTimeframe(it, timeframe)) continue;
     const key = symbolMarketTimeframeKey(it);
     const row = grouped.get(key) ?? {};
     row[src] = it;

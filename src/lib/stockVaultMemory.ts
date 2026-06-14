@@ -1,9 +1,9 @@
 /** 종목보관 — 메모리·네트워크 절약용 상수·유틸 */
 
-export const VAULT_LIST_INITIAL_ROWS = 24;
-export const VAULT_LIST_ROW_STEP = 24;
-export const VAULT_QUOTE_BATCH_SIZE = 10;
-export const VAULT_QUOTE_DRAIN_MS = 650;
+export const VAULT_LIST_INITIAL_ROWS = 12;
+export const VAULT_LIST_ROW_STEP = 12;
+export const VAULT_QUOTE_BATCH_SIZE = 8;
+export const VAULT_QUOTE_DRAIN_MS = 900;
 export const VAULT_CHART_INSIGHT_SYMBOL_BATCH = 40;
 export const VAULT_INDUSTRY_FIN_BATCH = 120;
 

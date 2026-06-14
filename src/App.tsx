@@ -127,6 +127,8 @@ import {
   startBackgroundTabPrefetch,
   scheduleStockVaultFavoritesSync,
   invalidateStockVaultPrefetch,
+  pinStockVaultSessionCache,
+  prefetchStockVaultTab,
   unpinStockVaultSessionCache,
 } from "./lib/tabPrefetch";
 import { warmOpsDevQueueDisplay } from "./lib/opsDevQueueDisplayClient";
@@ -149,6 +151,30 @@ import type {
 } from "./types";
 
 export type { AppTab };
+
+function StockVaultTabGate({
+  onVaultChange,
+}: {
+  onVaultChange?: (
+    symbols: string[],
+    favoriteMeta?: Record<string, StockVaultFavoriteMeta>,
+  ) => void;
+}) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let raf = 0;
+    raf = window.requestAnimationFrame(() => setReady(true));
+    return () => window.cancelAnimationFrame(raf);
+  }, []);
+  if (!ready) {
+    return (
+      <div className="stock-vault-tab" aria-busy="true">
+        <p className="stock-vault-tab__muted">{ko.stockVault.loading}</p>
+      </div>
+    );
+  }
+  return <StockVaultTab onVaultChange={onVaultChange} />;
+}
 
 type StockChartEngine = "tradingview" | "app";
 
@@ -540,7 +566,10 @@ export default function App() {
   }, [configReady, syncVaultFromResponse]);
 
   useEffect(() => {
-    if (appTab === "stockVault") return;
+    if (appTab === "stockVault") {
+      pinStockVaultSessionCache();
+      return;
+    }
     unpinStockVaultSessionCache();
   }, [appTab]);
 
@@ -1568,7 +1597,11 @@ export default function App() {
               <button
                 type="button"
                 className={mainTabClassName("stockVault")}
-                onClick={() => setAppTab("stockVault")}
+                onClick={() => {
+                  pinStockVaultSessionCache();
+                  void prefetchStockVaultTab().catch(() => {});
+                  setAppTab("stockVault");
+                }}
               >
                 {ko.app.tabStockVault}
               </button>
@@ -1645,7 +1678,7 @@ export default function App() {
           onScrollToSectionConsumed={handleFinancialsScrollConsumed}
         />
       ) : appTab === "stockVault" ? (
-        <StockVaultTab onVaultChange={syncVaultFromResponse} />
+        <StockVaultTabGate onVaultChange={syncVaultFromResponse} />
       ) : appTab === "investorFlow" ? (
         <InvestorFlowTab />
       ) : appTab === "liveTrading" ? (

@@ -25,6 +25,7 @@ import { pickChartInsight } from "../lib/stockVaultChartInsights";
 import {
   buildVaultDisplayRows,
   countItemsByScanSource,
+  countScanSourceTotals,
   STOCK_VAULT_SCAN_SOURCES,
   visibleStockVaultScanSources,
   type VaultDisplayRow,
@@ -71,7 +72,9 @@ import {
   isStockVaultSessionPinned,
   loadStockVault,
   peekStockVaultPrefetch,
+  pinStockVaultSessionCache,
   refreshStockVaultTab,
+  scheduleIdle,
   subscribeStockVaultPrefetch,
   updateStockVaultPrefetchVault,
 } from "../lib/tabPrefetch";
@@ -146,6 +149,22 @@ function usePageVisible() {
     return () => document.removeEventListener("visibilitychange", onVis);
   }, []);
   return visible;
+}
+
+function useAfterPaintReady() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let raf1 = 0;
+    let raf2 = 0;
+    raf1 = window.requestAnimationFrame(() => {
+      raf2 = window.requestAnimationFrame(() => setReady(true));
+    });
+    return () => {
+      window.cancelAnimationFrame(raf1);
+      window.cancelAnimationFrame(raf2);
+    };
+  }, []);
+  return ready;
 }
 
 function scanHintFromState(
@@ -257,11 +276,19 @@ export default function StockVaultTab({
   const cachedInit = peekStockVaultPrefetch();
   const cachedVault = cachedInit ? vaultStateFromResponse(cachedInit.vault) : null;
   const uiInit = peekStockVaultTabUi() ?? defaultStockVaultTabUi();
+  const localSnapshotAtInit = useMemo(
+    () => peekLocalScanSnapshot(uiInit.selectedScanDate ?? kstTodayYmd()),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount snapshot only
+    [],
+  );
+  const hasLocalSnapshotAtInit = Boolean(localSnapshotAtInit?.length);
   const { user, authChecked, refreshAuth } = useLiveTradeAuth();
   const vaultAuthSyncedRef = useRef(false);
   const loginHintTimerRef = useRef<number | null>(null);
 
-  const [items, setItems] = useState<StockVaultItem[]>(() => cachedVault?.items ?? []);
+  const [items, setItems] = useState<StockVaultItem[]>(() =>
+    hasLocalSnapshotAtInit ? [] : (cachedVault?.items ?? []),
+  );
   const [quotes, setQuotes] = useState<
     Record<string, { price: number; changePercent?: number; currency?: string }>
   >(() => cachedVault?.quotes ?? {});
@@ -278,7 +305,7 @@ export default function StockVaultTab({
   >(() => cachedVault?.meta ?? {});
   const [chartInsights, setChartInsights] = useState<
     Record<string, StockVaultChartInsightSnapshot>
-  >(() => cachedVault?.chartInsights ?? {});
+  >({});
   const [industryTabs, setIndustryTabs] = useState<string[]>(
     () => cachedVault?.industryTabs ?? [],
   );
@@ -330,24 +357,31 @@ export default function StockVaultTab({
   );
   const [scanConfirmOpen, setScanConfirmOpen] = useState(false);
   const [scanNotice, setScanNotice] = useState<string | null>(null);
-  const [historyDates, setHistoryDates] = useState<string[]>(() => {
-    const local = listLocalScanSnapshotDates();
-    return local.length ? local : [];
-  });
+  const [historyDates, setHistoryDates] = useState<string[]>([]);
   const [selectedScanDate, setSelectedScanDate] = useState<string | null>(
     () => uiInit.selectedScanDate,
   );
-  const [snapshotItems, setSnapshotItems] = useState<StockVaultItem[] | null>(() => {
-    const date = uiInit.selectedScanDate ?? kstTodayYmd();
-    return peekLocalScanSnapshot(date);
-  });
+  const [snapshotItems, setSnapshotItems] = useState<StockVaultItem[] | null>(
+    () => localSnapshotAtInit,
+  );
   const [snapshotLoading, setSnapshotLoading] = useState(false);
+  const listPaintReady = useAfterPaintReady();
+  const [industryPanelReady, setIndustryPanelReady] = useState(false);
   const scanBtnRef = useRef<HTMLButtonElement>(null);
   const scanPopoverRef = useRef<HTMLDivElement>(null);
   const chartInsightBatchRef = useRef(0);
   const [listVisibleCount, setListVisibleCount] = useState(VAULT_LIST_INITIAL_ROWS);
   const rowBubbleTipId = useId();
   const rowBubbleActionsRef = useRef<StockVaultRowBubbleActions | null>(null);
+
+  useEffect(() => {
+    pinStockVaultSessionCache();
+  }, []);
+
+  useEffect(() => {
+    if (industryPanelReady) return;
+    scheduleIdle(() => setIndustryPanelReady(true), 1800);
+  }, [industryPanelReady]);
 
   const applyVaultResponse = useCallback(
     (vault: StockVaultResponse) => {
@@ -405,18 +439,32 @@ export default function StockVaultTab({
     }
     if (authenticated && vaultAuthSyncedRef.current) return;
     let cancelled = false;
-    void (async () => {
-      await refreshAuth();
-      const bundle = await refreshStockVaultTab();
-      if (cancelled) return;
-      applyVaultResponse(bundle.vault);
-      applyScanStatus(bundle.scanStatus);
-      setError((err) =>
-        err === ko.stockVault.loginRequired ? null : err,
-      );
-      vaultAuthSyncedRef.current = true;
-      clearVaultLoginHintFlag();
-    })();
+    const run = () => {
+      void (async () => {
+        await refreshAuth();
+        const bundle = await refreshStockVaultTab();
+        if (cancelled) return;
+        applyVaultResponse(bundle.vault);
+        applyScanStatus(bundle.scanStatus);
+        setError((err) =>
+          err === ko.stockVault.loginRequired ? null : err,
+        );
+        vaultAuthSyncedRef.current = true;
+        clearVaultLoginHintFlag();
+      })();
+    };
+    if (hasLocalSnapshotAtInit) {
+      scheduleIdle(() => {
+        if (cancelled) return;
+        void refreshAuth().then((liveUser) => {
+          if (cancelled || !liveUser) return;
+          vaultAuthSyncedRef.current = true;
+          clearVaultLoginHintFlag();
+        });
+      }, 12000);
+    } else {
+      run();
+    }
     return () => {
       cancelled = true;
     };
@@ -427,6 +475,7 @@ export default function StockVaultTab({
     refreshAuth,
     applyVaultResponse,
     applyScanStatus,
+    hasLocalSnapshotAtInit,
   ]);
 
   const ensureVaultAuthenticated = useCallback(async () => {
@@ -462,12 +511,15 @@ export default function StockVaultTab({
 
   const seedTodaySnapshotFromVault = useCallback(
     (vault: StockVaultResponse) => {
-      const today = kstTodayYmd();
+      if (selectedScanDate != null) return;
       const incoming = extractScanItemsFromVault(vault.items);
-      const merged = mergeLocalScanSnapshot(today, incoming);
-      if (selectedScanDate == null) {
-        setSnapshotItems(merged.length ? merged : incoming);
-      }
+      if (!incoming.length) return;
+      setSnapshotItems((prev) =>
+        mergeScanItemsIntoSnapshot(prev ?? [], incoming),
+      );
+      scheduleIdle(() => {
+        mergeLocalScanSnapshot(kstTodayYmd(), incoming);
+      }, 5000);
     },
     [selectedScanDate],
   );
@@ -526,18 +578,29 @@ export default function StockVaultTab({
 
   useEffect(() => {
     if (cachedInit?.vault) {
-      seedTodaySnapshotFromVault(cachedInit.vault);
+      scheduleIdle(() => seedTodaySnapshotFromVault(cachedInit.vault), 3000);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount seed only
   }, []);
 
   useEffect(() => {
+    const hasLocal = Boolean(snapshotItems?.length);
     if (peekStockVaultPrefetch() || isStockVaultSessionPinned()) {
       setLoading(false);
+      if (!hasLocal) {
+        scheduleIdle(() => void reload(), 400);
+      } else {
+        scheduleIdle(() => void reload(), 15000);
+      }
+      return;
+    }
+    if (hasLocal) {
+      setLoading(false);
+      scheduleIdle(() => void reload(), 15000);
       return;
     }
     void reload();
-  }, [reload]);
+  }, [reload, snapshotItems?.length]);
 
   const pageVisible = usePageVisible();
 
@@ -561,7 +624,13 @@ export default function StockVaultTab({
   }, []);
 
   useEffect(() => {
-    void refreshHistoryDates();
+    scheduleIdle(() => {
+      const local = listLocalScanSnapshotDates();
+      if (local.length) setHistoryDates(local);
+    }, 800);
+    scheduleIdle(() => {
+      void refreshHistoryDates();
+    }, 5000);
   }, [refreshHistoryDates]);
 
   const favoriteSymbolSet = useMemo(
@@ -634,10 +703,11 @@ export default function StockVaultTab({
   const displayItems = useMemo(() => {
     if (isHistoricalView) return snapshotItems ?? [];
     const snap = snapshotItems ?? [];
+    if (!items.length) return snap;
     const fromVault = extractScanItemsFromVault(items);
     const merged = mergeScanItemsIntoSnapshot(snap, fromVault);
     const extras = items.filter((it) => it.source === "favorite");
-    return [...merged, ...extras];
+    return extras.length ? [...merged, ...extras] : merged;
   }, [snapshotItems, items, isHistoricalView]);
 
   const getRowIndustry = useCallback(
@@ -647,11 +717,13 @@ export default function StockVaultTab({
 
   useEffect(() => {
     return subscribeStockVaultPrefetch((bundle) => {
-      applyVaultResponse(bundle.vault);
-      seedTodaySnapshotFromVault(bundle.vault);
-      applyScanStatus(bundle.scanStatus);
-      setLoading(false);
-      setError(null);
+      scheduleIdle(() => {
+        applyVaultResponse(bundle.vault);
+        seedTodaySnapshotFromVault(bundle.vault);
+        applyScanStatus(bundle.scanStatus);
+        setLoading(false);
+        setError(null);
+      }, 1200);
     });
   }, [applyVaultResponse, applyScanStatus, seedTodaySnapshotFromVault]);
 
@@ -736,7 +808,12 @@ export default function StockVaultTab({
 
   const ma120ApproachCounts = useMemo(() => {
     const counts = { from_below: 0, from_above: 0 };
-    if (timeframeFilter !== "1d") return counts;
+    if (
+      timeframeFilter !== "1d" ||
+      !selectedScanSources.includes("ma120_near")
+    ) {
+      return counts;
+    }
     for (const it of displayItems) {
       if (it.source !== "ma120_near") continue;
       if (marketFilter !== "all" && it.market !== marketFilter) continue;
@@ -746,7 +823,7 @@ export default function StockVaultTab({
       else if (approach === "from_above") counts.from_above += 1;
     }
     return counts;
-  }, [displayItems, marketFilter, timeframeFilter, chartInsights, quotes]);
+  }, [displayItems, marketFilter, timeframeFilter, chartInsights, quotes, selectedScanSources]);
 
   const showMa120ApproachFilters =
     selectedScanSources.includes("ma120_near") && timeframeFilter === "1d";
@@ -757,14 +834,8 @@ export default function StockVaultTab({
   );
 
   const scanSourceCounts = useMemo(
-    () =>
-      Object.fromEntries(
-        visibleScanSources.map((source) => [
-          source,
-          countItemsByScanSource(displayItems, source, timeframeFilter),
-        ]),
-      ) as Record<StockVaultScanSource, number>,
-    [displayItems, timeframeFilter, visibleScanSources],
+    () => countScanSourceTotals(displayItems, timeframeFilter),
+    [displayItems, timeframeFilter],
   );
 
   const scanRowsAllMarkets = useMemo(
@@ -893,7 +964,9 @@ export default function StockVaultTab({
   );
 
   useEffect(() => {
-    if (!pageVisible || loading || scanRunning || !listPollSymbols.length) return;
+    if (!listPaintReady || !pageVisible || loading || scanRunning || !listPollSymbols.length) {
+      return;
+    }
     let cancelled = false;
     let batchIdx = 0;
     let timer: number | null = null;
@@ -926,12 +999,13 @@ export default function StockVaultTab({
     };
 
     batchIdx = 0;
-    schedule(80);
+    schedule(350);
     return () => {
       cancelled = true;
       if (timer != null) window.clearTimeout(timer);
     };
   }, [
+    listPaintReady,
     pageVisible,
     loading,
     scanRunning,
@@ -1465,7 +1539,7 @@ export default function StockVaultTab({
             </div>
           </div>
 
-          {industryTabs.length > 0 ? (
+          {industryPanelReady && industryTabs.length > 0 ? (
             <IndustryFilterPanel
               ariaLabel={ko.stockVault.filterIndustryAria}
               totalCount={baseFiltered.length}
@@ -1499,6 +1573,8 @@ export default function StockVaultTab({
                   ? ko.stockVault.emptyIntersection
                   : ko.stockVault.empty}
           </p>
+        ) : !listPaintReady ? (
+          <p className="stock-vault-tab__muted">{ko.stockVault.loading}</p>
         ) : (
           <>
           <ul className="stock-vault-tab__list">

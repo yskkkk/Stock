@@ -21,19 +21,27 @@ function scanItemKey(
 }
 
 function isScanItem(item: StockVaultItem): boolean {
-  return SCAN_SOURCES.has(item.source);
+  return SCAN_SOURCES.has(item.source as StockVaultScanSource);
 }
 
+let storeCache: SnapshotStore | null = null;
+
 function readStore(): SnapshotStore {
+  if (storeCache) return storeCache;
   if (typeof localStorage === "undefined") {
-    return { version: 1, byDate: {} };
+    storeCache = { version: 1, byDate: {} };
+    return storeCache;
   }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { version: 1, byDate: {} };
+    if (!raw) {
+      storeCache = { version: 1, byDate: {} };
+      return storeCache;
+    }
     const parsed = JSON.parse(raw) as Partial<SnapshotStore>;
     if (parsed.version !== 1 || !parsed.byDate || typeof parsed.byDate !== "object") {
-      return { version: 1, byDate: {} };
+      storeCache = { version: 1, byDate: {} };
+      return storeCache;
     }
     const byDate: SnapshotStore["byDate"] = {};
     for (const [date, row] of Object.entries(parsed.byDate)) {
@@ -49,13 +57,16 @@ function readStore(): SnapshotStore {
             : Date.now(),
       };
     }
-    return { version: 1, byDate };
+    storeCache = { version: 1, byDate };
+    return storeCache;
   } catch {
-    return { version: 1, byDate: {} };
+    storeCache = { version: 1, byDate: {} };
+    return storeCache;
   }
 }
 
 function writeStore(store: SnapshotStore): void {
+  storeCache = store;
   if (typeof localStorage === "undefined") return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
@@ -68,7 +79,7 @@ export function peekLocalScanSnapshot(scanDate: string): StockVaultItem[] | null
   const date = scanDate.trim();
   if (!date) return null;
   const row = readStore().byDate[date];
-  return row?.items?.length ? row.items.map((it) => ({ ...it })) : null;
+  return row?.items?.length ? row.items : null;
 }
 
 export function saveLocalScanSnapshot(
@@ -109,10 +120,9 @@ export function mergeLocalScanSnapshot(
 ): StockVaultItem[] {
   const date = scanDate.trim();
   if (!date) return [];
-  const merged = mergeScanItemsIntoSnapshot(
-    peekLocalScanSnapshot(date) ?? [],
-    incoming,
-  );
+  const store = readStore();
+  const existing = store.byDate[date]?.items ?? [];
+  const merged = mergeScanItemsIntoSnapshot(existing, incoming);
   saveLocalScanSnapshot(date, merged);
   return merged;
 }
@@ -127,5 +137,5 @@ export function listLocalScanSnapshotDates(): string[] {
 export function extractScanItemsFromVault(
   items: StockVaultItem[] | undefined,
 ): StockVaultItem[] {
-  return (items ?? []).filter(isScanItem).map((it) => ({ ...it }));
+  return (items ?? []).filter(isScanItem);
 }

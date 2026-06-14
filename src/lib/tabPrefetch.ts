@@ -130,7 +130,7 @@ function writeMacroSessionCache(
   }
 }
 
-function scheduleIdle(fn: () => void, timeoutMs = 2500) {
+export function scheduleIdle(fn: () => void, timeoutMs = 2500) {
   if (typeof window === "undefined") return;
   const ric = window.requestIdleCallback;
   if (typeof ric === "function") {
@@ -369,7 +369,9 @@ export function subscribeStockVaultPrefetch(
   listener: (data: StockVaultPrefetch) => void,
 ): () => void {
   const cached = peekStockVaultPrefetch();
-  if (cached) listener(cached);
+  if (cached) {
+    scheduleIdle(() => listener(cached), 1800);
+  }
   vaultListeners.add(listener);
   return () => vaultListeners.delete(listener);
 }
