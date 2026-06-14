@@ -764,18 +764,14 @@ export default function StockVaultTab({
   }, [scanConfirmOpen]);
 
   const toggleScanSource = useCallback(
-    (source: StockVaultScanSource, additive = false) => {
+    (source: StockVaultScanSource) => {
       setIndustryFilter("all");
       setSelectedScanSources((prev) => {
-        if (additive) {
-          const set = new Set(prev);
-          if (set.has(source)) set.delete(source);
-          else set.add(source);
-          const next = STOCK_VAULT_SCAN_SOURCES.filter((s) => set.has(s));
-          return next.length ? next : [source];
-        }
-        if (prev.length === 1 && prev[0] === source) return prev;
-        return [source];
+        const set = new Set(prev);
+        if (set.has(source)) set.delete(source);
+        else set.add(source);
+        const next = STOCK_VAULT_SCAN_SOURCES.filter((s) => set.has(s));
+        return next.length ? next : [source];
       });
       const zero =
         countItemsByScanSource(displayItems, source, timeframeFilter) === 0;
@@ -1430,7 +1426,7 @@ export default function StockVaultTab({
                         : "market-tab market-tab--toggle"
                     }
                     aria-pressed={active}
-                    onClick={(e) => toggleScanSource(source, e.shiftKey)}
+                    onClick={() => toggleScanSource(source)}
                   >
                     {SCAN_SOURCE_LABEL[source]}
                     <span className="market-tab__count">{scanSourceCounts[source]}</span>
