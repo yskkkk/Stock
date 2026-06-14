@@ -7,7 +7,6 @@ import {
   useState,
   useDeferredValue,
 } from "react";
-import FavoriteTrackPanel from "./FavoriteTrackPanel";
 import IndustryFilterPanel from "./IndustryFilterPanel";
 import {
   fetchGoldenCrossHistory,
@@ -21,11 +20,8 @@ import {
   triggerGoldenCrossScan,
 } from "../api";
 import { ko } from "../i18n/ko";
-import { formatPercent, formatPrice } from "../lib/format";
-import {
-  goldenCrossRecencyClass,
-} from "../lib/goldenCrossRecency";
 import { resolveSymbolDisplayName } from "../lib/symbolDisplayName";
+import { pickChartInsight } from "../lib/stockVaultChartInsights";
 import {
   buildVaultDisplayRows,
   countItemsByScanSource,
@@ -48,17 +44,18 @@ import {
 } from "../lib/stockVaultLocalSnapshot";
 import {
   STOCK_VAULT_TIMEFRAMES,
-  stockVaultTimeframeBadgeClass,
   stockVaultTimeframeLabel,
-  stockVaultTimeframeRowClass,
 } from "../lib/stockVaultTimeframe";
 import { industryGridDimensions } from "../lib/industryGridLayout";
 import {
   VAULT_CHART_INSIGHT_SYMBOL_BATCH,
   VAULT_LIST_INITIAL_ROWS,
   VAULT_LIST_ROW_STEP,
+  VAULT_QUOTE_DRAIN_MS,
+  mergeVaultQuotePatch,
   pickQuoteBatch,
   pruneSymbolRecord,
+  symbolsMissingQuotes,
   uniqueVaultSymbols,
 } from "../lib/stockVaultMemory";
 import {
@@ -81,9 +78,6 @@ import {
 import { yahooStockSymbolToTradingView } from "../lib/tradingviewSymbols";
 import {
   enrichMa120ItemSide,
-  formatGoldenCrossChain,
-  formatMa120NearLabel,
-  formatMaAlignChain,
   listMa120SymbolsNeedingQuotes,
   resolveMa120Approach,
 } from "../lib/stockVaultMaDisplay";
@@ -96,7 +90,7 @@ import type {
   StockVaultScanStatus,
   StockVaultTimeframe,
 } from "../types";
-import { VaultBookmarkIcon } from "./StockVaultMarkButton";
+import StockVaultRow from "./StockVaultRow";
 import {
   StockVaultRowBubblePortal,
   type StockVaultRowBubbleActions,
@@ -108,13 +102,6 @@ const SCAN_SOURCE_LABEL: Record<StockVaultScanSource, string> = {
   ma_align: ko.stockVault.tabMaAlign,
   ma120_near: ko.stockVault.tabMa120Near,
   bottom_candle: ko.stockVault.tabBottomCandle,
-};
-
-const SOURCE_BADGE_LABEL: Record<StockVaultScanSource, string> = {
-  golden_cross: ko.stockVault.sourceGolden,
-  ma_align: ko.stockVault.sourceMaAlign,
-  ma120_near: ko.stockVault.sourceMa120Near,
-  bottom_candle: ko.stockVault.sourceBottomCandle,
 };
 
 const SCAN_POLL_MS = 2500;
@@ -159,20 +146,6 @@ function usePageVisible() {
     return () => document.removeEventListener("visibilitychange", onVis);
   }, []);
   return visible;
-}
-
-function fmtDate(ms: number): string {
-  try {
-    return new Date(ms).toLocaleString("ko-KR", {
-      month: "numeric",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-  } catch {
-    return "—";
-  }
 }
 
 function scanHintFromState(
@@ -371,7 +344,6 @@ export default function StockVaultTab({
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const scanBtnRef = useRef<HTMLButtonElement>(null);
   const scanPopoverRef = useRef<HTMLDivElement>(null);
-  const quoteBatchRef = useRef(0);
   const chartInsightBatchRef = useRef(0);
   const [listVisibleCount, setListVisibleCount] = useState(VAULT_LIST_INITIAL_ROWS);
   const rowBubbleTipId = useId();
@@ -905,43 +877,67 @@ export default function StockVaultTab({
   const needsChartInsights =
     selectedScanSources.includes("ma120_near") && timeframeFilter === "1d";
 
-  const refreshListQuotes = useCallback(async () => {
-    if (!listPollSymbols.length) return;
-    const batch = pickQuoteBatch(listPollSymbols, quoteBatchRef.current);
-    quoteBatchRef.current += 1;
-    try {
-      const res = await fetchStockVaultQuotes(batch);
-      setQuotes((prev) => {
-        const next = { ...prev };
-        for (const [sym, q] of Object.entries(res.quotes ?? {})) {
-          if (!q?.price || !Number.isFinite(q.price)) continue;
-          next[sym.trim().toUpperCase()] = {
-            price: q.price,
-            changePercent: q.changePercent,
-            currency: q.currency,
-          };
-        }
-        return pruneSymbolRecord(next, listPollSymbols);
-      });
-    } catch {
-      /* ignore poll errors */
-    }
-  }, [listPollSymbols]);
+  const quotesRef = useRef(quotes);
+  quotesRef.current = quotes;
+
+  const applyListQuotePatch = useCallback(
+    (
+      incoming: Record<
+        string,
+        { price?: number; changePercent?: number; currency?: string } | undefined
+      >,
+    ) => {
+      setQuotes((prev) => mergeVaultQuotePatch(prev, incoming, listPollSymbols));
+    },
+    [listPollSymbols],
+  );
 
   useEffect(() => {
     if (!pageVisible || loading || scanRunning || !listPollSymbols.length) return;
-    quoteBatchRef.current = 0;
-    void refreshListQuotes();
-    const id = window.setInterval(() => {
-      void refreshListQuotes();
-    }, QUOTE_POLL_MS);
-    return () => window.clearInterval(id);
+    let cancelled = false;
+    let batchIdx = 0;
+    let timer: number | null = null;
+
+    const schedule = (ms: number) => {
+      if (timer != null) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        void tick();
+      }, ms);
+    };
+
+    const tick = async () => {
+      if (cancelled || document.visibilityState === "hidden") return;
+      const missing = symbolsMissingQuotes(listPollSymbols, quotesRef.current);
+      const pool = missing.length > 0 ? missing : listPollSymbols;
+      const batch = pickQuoteBatch(pool, batchIdx);
+      batchIdx += 1;
+      if (!batch.length) {
+        schedule(QUOTE_POLL_MS);
+        return;
+      }
+      try {
+        const res = await fetchStockVaultQuotes(batch);
+        if (cancelled) return;
+        applyListQuotePatch(res.quotes ?? {});
+      } catch {
+        /* ignore poll errors */
+      }
+      schedule(missing.length > batch.length ? VAULT_QUOTE_DRAIN_MS : QUOTE_POLL_MS);
+    };
+
+    batchIdx = 0;
+    schedule(80);
+    return () => {
+      cancelled = true;
+      if (timer != null) window.clearTimeout(timer);
+    };
   }, [
     pageVisible,
     loading,
     scanRunning,
     listPollSymbolsKey,
-    refreshListQuotes,
+    listPollSymbols,
+    applyListQuotePatch,
   ]);
 
   useEffect(() => {
@@ -1515,267 +1511,36 @@ export default function StockVaultTab({
                 metaRow?.nameKo ?? row.name,
                 row.market,
               );
-              const industry = getRowIndustry(row);
-              const tvSymbol = yahooStockSymbolToTradingView(
-                row.symbol,
-                row.market,
-                metaRow?.exchange,
-              );
-              const cur =
-                quote?.currency ?? (row.market === "kr" ? "KRW" : "USD");
-              const chg = quote?.changePercent;
-              const chgUp = chg != null && chg >= 0;
-              const gcItem = row.goldenCross;
-              const bottomItem = row.bottomCandle;
-              const gcRecencyClass = gcItem ? goldenCrossRecencyClass(gcItem) : null;
-              const rowClassName = [
-                "stock-vault-tab__row",
-                stockVaultTimeframeRowClass(row.timeframe),
-                gcRecencyClass,
-              ]
-                .filter(Boolean)
-                .join(" ");
-              const scanDate =
-                gcItem?.crossDate ??
-                gcItem?.scanDate ??
-                row.maAlign?.scanDate ??
-                bottomItem?.signalDate ??
-                bottomItem?.scanDate ??
-                null;
-              const sourceLabels =
-                row.scanSources.length > 0
-                  ? row.scanSources.map((s) => SOURCE_BADGE_LABEL[s])
-                  : row.favorite
-                    ? [ko.stockVault.sourceFavorite]
-                    : [];
-              const gcChain = formatGoldenCrossChain(gcItem?.crosses);
-              const ma120Label = row.ma120Near
-                ? formatMa120NearLabel(
-                    row.ma120Near.distancePct,
-                    resolveMa120Approach(
-                      row.ma120Near,
-                      chartInsights[symKey],
-                      quote?.price,
-                    ),
-                    {
-                      fromBelow: ko.stockVault.maApproachFromBelow,
-                      fromAbove: ko.stockVault.maApproachFromAbove,
-                    },
-                  )
-                : null;
-              const bottomLabel = bottomItem?.bottomTag
-                ? `${bottomItem.bottomTag}${
-                    bottomItem.bottomScore != null ? ` ${bottomItem.bottomScore}pt` : ""
-                  }`
-                : null;
-              const hasSignalBadges =
-                Boolean(gcChain) ||
-                Boolean(row.maAlign) ||
-                Boolean(ma120Label) ||
-                Boolean(bottomLabel);
-              const openRowBubble = (
-                el: HTMLElement,
-                opts?: { immediate?: boolean },
-              ) =>
-                rowBubbleActionsRef.current?.showTip(
-                  el,
-                  {
-                    symbol: row.symbol,
-                    name: display.label,
-                    market: row.market,
-                    industry,
-                    tvSymbol,
-                    price: quote?.price ?? null,
-                    currency: cur ?? null,
-                  },
-                  opts,
-                );
-
+              const favMeta = favoriteMeta[symKey];
+              const track = rowFavoriteTrack(row);
               return (
-              <li
-                key={row.key}
-                className={rowClassName}
-                aria-describedby={rowBubbleTipId}
-                onMouseEnter={(e) => openRowBubble(e.currentTarget)}
-                onMouseLeave={() => rowBubbleActionsRef.current?.scheduleHideTip()}
-              >
-                <div
-                  className="stock-vault-tab__row-link"
-                  tabIndex={0}
-                  aria-label={`${display.label} ${ko.stockVault.rowBubbleAria}`}
-                  onFocus={(e) =>
-                    openRowBubble(
-                      e.currentTarget.closest("li") ?? e.currentTarget,
-                      { immediate: true },
-                    )
+                <StockVaultRow
+                  key={row.key}
+                  row={row}
+                  quote={quote}
+                  displayLabel={display.label}
+                  displaySublabel={display.sublabel}
+                  industry={getRowIndustry(row)}
+                  tvSymbol={yahooStockSymbolToTradingView(
+                    row.symbol,
+                    row.market,
+                    metaRow?.exchange,
+                  )}
+                  chartInsight={
+                    row.ma120Near ? pickChartInsight(chartInsights, symKey) : undefined
                   }
-                  onBlur={(e) => {
-                    const rel = e.relatedTarget as Node | null;
-                    if (rel && document.getElementById(rowBubbleTipId)?.contains(rel)) return;
-                    rowBubbleActionsRef.current?.scheduleHideTip();
-                  }}
-                >
-                  <div className="stock-vault-tab__row-top">
-                    <div className="stock-vault-tab__row-main">
-                      <div className="stock-vault-tab__row-head">
-                        <span
-                          className="stock-vault-tab__name"
-                          title={display.label}
-                        >
-                          {display.label}
-                        </span>
-                        {display.sublabel ? (
-                          <span className="stock-vault-tab__sym">{display.sublabel}</span>
-                        ) : null}
-                        {industry ? (
-                          <span className="stock-vault-tab__sector-inline">{industry}</span>
-                        ) : null}
-                      </div>
-                    </div>
-                    <div className="stock-vault-tab__row-aside">
-                      <div className="stock-vault-tab__quote">
-                        {quote?.price != null && Number.isFinite(quote.price) ? (
-                          <>
-                            <span className="stock-vault-tab__price">
-                              {formatPrice(quote.price, cur)}
-                            </span>
-                            {chg != null && Number.isFinite(chg) ? (
-                              <span
-                                className={
-                                  chgUp
-                                    ? "stock-vault-tab__chg stock-vault-tab__chg--up"
-                                    : "stock-vault-tab__chg stock-vault-tab__chg--down"
-                                }
-                              >
-                                {formatPercent(chg)}
-                              </span>
-                            ) : null}
-                          </>
-                        ) : (
-                          <span className="stock-vault-tab__quote-pending">
-                            {ko.app.stockLookupQuotePending}
-                          </span>
-                        )}
-                      </div>
-                      <div className="stock-vault-tab__row-actions">
-                        <button
-                          type="button"
-                          className={
-                            row.favorited
-                              ? "stock-vault-tab__favorite stock-vault-tab__favorite--on"
-                              : "stock-vault-tab__favorite"
-                          }
-                          aria-label={
-                            row.favorited
-                              ? `${display.label} ${ko.stockVault.favoriteRemoveAria}`
-                              : `${display.label} ${ko.stockVault.favoriteAddAria}`
-                          }
-                          title={
-                            row.favorited
-                              ? ko.stockVault.favoriteRemove
-                              : ko.stockVault.favoriteAdd
-                          }
-                          aria-pressed={Boolean(row.favorited)}
-                          disabled={favoriting === row.symbol}
-                          onClick={() =>
-                            void handleToggleFavorite(
-                              row.symbol,
-                              Boolean(row.favorited),
-                              row.market,
-                              display.label,
-                            )
-                          }
-                        >
-                          <VaultBookmarkIcon filled={Boolean(row.favorited)} />
-                        </button>
-                        {!isHistoricalView ? (
-                          <button
-                            type="button"
-                            className="stock-vault-tab__remove"
-                            aria-label={`${display.label} ${ko.stockVault.removeAria}`}
-                            title={ko.stockVault.remove}
-                            disabled={removing === row.symbol || !authenticated}
-                            onClick={() => void handleRemove(row.symbol)}
-                          >
-                            <span className="stock-vault-tab__remove-icon" aria-hidden>
-                              ×
-                            </span>
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="stock-vault-tab__meta">
-                    <span className="stock-vault-tab__market">
-                      {row.market === "kr" ? ko.app.marketKr : ko.app.marketUs}
-                    </span>
-                    {sourceLabels.map((label) => (
-                      <span key={label} className="stock-vault-tab__source">
-                        {label}
-                      </span>
-                    ))}
-                    <span className={stockVaultTimeframeBadgeClass(row.timeframe)}>
-                      {stockVaultTimeframeLabel(row.timeframe)}
-                    </span>
-                    {scanDate ? (
-                      <span className="stock-vault-tab__scan-date">{scanDate}</span>
-                    ) : (
-                      <span className="stock-vault-tab__added">
-                        {fmtDate(row.updatedAtMs)}
-                      </span>
-                    )}
-                  </div>
-                  {hasSignalBadges ? (
-                    <div className="stock-vault-tab__crosses">
-                      {gcChain ? (
-                        <span className="stock-vault-tab__cross">{gcChain}</span>
-                      ) : null}
-                      {row.maAlign ? (
-                        <span
-                          className="stock-vault-tab__cross stock-vault-tab__cross--align"
-                          title={ko.stockVault.maAlignBadgeHint}
-                        >
-                          {formatMaAlignChain()}
-                        </span>
-                      ) : null}
-                      {ma120Label ? (
-                        <span
-                          className="stock-vault-tab__cross stock-vault-tab__cross--ma120"
-                          title={ko.stockVault.ma120NearBadgeHint}
-                        >
-                          {ma120Label}
-                        </span>
-                      ) : null}
-                      {bottomLabel ? (
-                        <span
-                          className="stock-vault-tab__cross stock-vault-tab__cross--bottom"
-                          title={ko.stockVault.bottomCandleBadgeHint}
-                        >
-                          {bottomLabel}
-                        </span>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  {row.favorited ? (() => {
-                    const track = rowFavoriteTrack(row);
-                    const metaRow = favoriteMeta[symKey];
-                    return (
-                      <FavoriteTrackPanel
-                        symbol={row.symbol}
-                        market={row.market}
-                        addedAtMs={track.addedAtMs ?? metaRow?.addedAtMs}
-                        basePrice={track.favoritePrice ?? metaRow?.favoritePrice}
-                        currentPrice={quote?.price}
-                        currency={cur}
-                        editable={authenticated}
-                        onBasePriceSaved={(price) =>
-                          handleFavoritePriceSaved(row.symbol, price)
-                        }
-                      />
-                    );
-                  })() : null}
-                </div>
-              </li>
+                  favoriteAddedAtMs={track.addedAtMs ?? favMeta?.addedAtMs}
+                  favoritePrice={track.favoritePrice ?? favMeta?.favoritePrice}
+                  isHistoricalView={isHistoricalView}
+                  authenticated={authenticated}
+                  favoriting={favoriting}
+                  removing={removing}
+                  rowBubbleTipId={rowBubbleTipId}
+                  bubbleActionsRef={rowBubbleActionsRef}
+                  onToggleFavorite={handleToggleFavorite}
+                  onRemove={handleRemove}
+                  onFavoritePriceSaved={handleFavoritePriceSaved}
+                />
               );
             })}
           </ul>

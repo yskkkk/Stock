@@ -1,16 +1,27 @@
 /** 종목보관 — 메모리·네트워크 절약용 상수·유틸 */
 
-export const VAULT_LIST_INITIAL_ROWS = 60;
-export const VAULT_LIST_ROW_STEP = 60;
-export const VAULT_QUOTE_BATCH_SIZE = 48;
-export const VAULT_CHART_INSIGHT_SYMBOL_BATCH = 80;
+export const VAULT_LIST_INITIAL_ROWS = 24;
+export const VAULT_LIST_ROW_STEP = 24;
+export const VAULT_QUOTE_BATCH_SIZE = 10;
+export const VAULT_QUOTE_DRAIN_MS = 650;
+export const VAULT_CHART_INSIGHT_SYMBOL_BATCH = 40;
 export const VAULT_INDUSTRY_FIN_BATCH = 120;
+
+export type VaultQuoteRow = {
+  price: number;
+  changePercent?: number;
+  currency?: string;
+};
 
 export function uniqueVaultSymbols(symbols: string[]): string[] {
   return [...new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean))];
 }
 
-export function pickQuoteBatch(symbols: string[], batchIndex: number, size = VAULT_QUOTE_BATCH_SIZE): string[] {
+export function pickQuoteBatch(
+  symbols: string[],
+  batchIndex: number,
+  size = VAULT_QUOTE_BATCH_SIZE,
+): string[] {
   const uniq = uniqueVaultSymbols(symbols);
   if (!uniq.length) return [];
   if (uniq.length <= size) return uniq;
@@ -20,6 +31,48 @@ export function pickQuoteBatch(symbols: string[], batchIndex: number, size = VAU
     batch.push(uniq[(start + i) % uniq.length]!);
   }
   return batch;
+}
+
+export function symbolsMissingQuotes(
+  symbols: string[],
+  quotes: Record<string, VaultQuoteRow | undefined>,
+): string[] {
+  return uniqueVaultSymbols(symbols).filter((sym) => {
+    const q = quotes[sym];
+    return !q?.price || !Number.isFinite(q.price);
+  });
+}
+
+export function mergeVaultQuotePatch(
+  prev: Record<string, VaultQuoteRow>,
+  incoming: Record<string, Partial<VaultQuoteRow> | undefined> | undefined,
+  keepSymbols: Iterable<string>,
+): Record<string, VaultQuoteRow> {
+  const entries = Object.entries(incoming ?? {});
+  if (!entries.length) return prev;
+  let changed = false;
+  const next = { ...prev };
+  for (const [sym, q] of entries) {
+    if (!q?.price || !Number.isFinite(q.price)) continue;
+    const key = sym.trim().toUpperCase();
+    const row: VaultQuoteRow = {
+      price: q.price,
+      changePercent: q.changePercent,
+      currency: q.currency,
+    };
+    const old = prev[key];
+    if (
+      old?.price === row.price &&
+      old?.changePercent === row.changePercent &&
+      old?.currency === row.currency
+    ) {
+      continue;
+    }
+    next[key] = row;
+    changed = true;
+  }
+  if (!changed) return prev;
+  return pruneSymbolRecord(next, keepSymbols);
 }
 
 export function pruneSymbolRecord<T>(

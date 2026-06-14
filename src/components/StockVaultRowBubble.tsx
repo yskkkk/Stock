@@ -20,7 +20,7 @@ import {
 const STOCK_VAULT_ROW_BUBBLE_OWNER = "stock-vault-row";
 
 const HIDE_DELAY_MS = 420;
-const SHOW_DELAY_MS = 200;
+const SHOW_DELAY_MS = 450;
 const VIEWPORT_PAD = 8;
 const GAP = 2;
 const EST_BUBBLE_W = 300;
@@ -182,6 +182,9 @@ export function useStockVaultRowBubble(tipIdOverride?: string) {
         ownerId: STOCK_VAULT_ROW_BUBBLE_OWNER,
         symbol: target.symbol,
       });
+      void loadEarningsBubbleFinancials(target.symbol.trim().toUpperCase()).catch(
+        () => {},
+      );
       const anchorRect = el.getBoundingClientRect();
       setTip({
         ...target,
@@ -201,7 +204,6 @@ export function useStockVaultRowBubble(tipIdOverride?: string) {
         return;
       }
       clearShowTimer();
-      void loadEarningsBubbleFinancials(sym).catch(() => {});
       if (opts?.immediate) {
         openTipAt(el, target);
         return;

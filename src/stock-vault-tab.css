@@ -384,7 +384,35 @@ html[data-theme="light"] .stock-vault-tab__history-select-shell:focus-within {
   border-radius: var(--radius-sm, 8px);
   background: color-mix(in srgb, var(--card) 88%, var(--surface));
   content-visibility: auto;
-  contain-intrinsic-size: auto 5.75rem;
+  contain-intrinsic-size: auto 4.5rem;
+  contain: layout style paint;
+}
+
+.stock-vault-tab__row-hover-zone {
+  display: block;
+  min-width: 0;
+}
+
+.stock-vault-tab__favorite-track-toggle {
+  display: block;
+  width: 100%;
+  margin: 0.12rem 0 0;
+  padding: 0.14rem 0.2rem;
+  border: none;
+  border-radius: var(--radius-sm, 6px);
+  background: color-mix(in srgb, var(--accent-dim) 35%, transparent);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.64rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.stock-vault-tab__favorite-track-toggle:hover {
+  color: var(--text-dim);
 }
 
 .stock-vault-tab__row--tf-d {
