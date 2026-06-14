@@ -240,7 +240,7 @@ function StockVaultRowInner({
                       : ko.stockVault.favoriteAdd
                   }
                   aria-pressed={Boolean(row.favorited)}
-                  disabled={favoriting === row.symbol}
+                  disabled={favoriting === row.symbol.trim().toUpperCase()}
                   onMouseEnter={() => bubbleActionsRef.current?.scheduleHideTip()}
                   onClick={() =>
                     void onToggleFavorite(

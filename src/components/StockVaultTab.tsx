@@ -5,7 +5,6 @@ import {
   useMemo,
   useRef,
   useState,
-  useDeferredValue,
 } from "react";
 import IndustryFilterPanel from "./IndustryFilterPanel";
 import {
@@ -492,6 +491,18 @@ export default function StockVaultTab({
     return Boolean(bundle.vault.authenticated);
   }, [authenticated, refreshAuth, applyVaultResponse]);
 
+  /** 즐겨찾기 토글 — 전체 vault 로드 없이 로그인만 확인 */
+  const ensureVaultFavoriteApi = useCallback(async () => {
+    if (authenticated || user) {
+      if (user && !authenticated) setAuthenticated(true);
+      return true;
+    }
+    const liveUser = await refreshAuth();
+    if (!liveUser) return false;
+    setAuthenticated(true);
+    return true;
+  }, [authenticated, user, refreshAuth]);
+
   const showLoginHintOnce = useCallback(() => {
     if (!shouldShowVaultLoginHint()) return;
     markVaultLoginHintShown();
@@ -923,12 +934,10 @@ export default function StockVaultTab({
     filtered.length === 0 &&
     selectedScanSources.some((s) => scanSourceCounts[s] > 0);
 
-  const deferredFiltered = useDeferredValue(filtered);
-
   useEffect(() => {
     setListVisibleCount(VAULT_LIST_INITIAL_ROWS);
   }, [
-    deferredFiltered.length,
+    filtered.length,
     selectedScanSources.join(","),
     marketFilter,
     industryFilter,
@@ -938,11 +947,11 @@ export default function StockVaultTab({
   ]);
 
   const visibleRows = useMemo(
-    () => deferredFiltered.slice(0, listVisibleCount),
-    [deferredFiltered, listVisibleCount],
+    () => filtered.slice(0, listVisibleCount),
+    [filtered, listVisibleCount],
   );
 
-  const hasMoreRows = visibleRows.length < deferredFiltered.length;
+  const hasMoreRows = visibleRows.length < filtered.length;
 
   const listPollSymbols = useMemo(
     () => uniqueVaultSymbols(visibleRows.map((r) => r.symbol)),
@@ -1177,10 +1186,6 @@ export default function StockVaultTab({
 
   const handleToggleFavorite = useCallback(
     async (symbol: string, favorited: boolean, market: "kr" | "us", name: string) => {
-      if (!(await ensureVaultAuthenticated())) {
-        showLoginHintOnce();
-        return;
-      }
       const sym = symbol.trim().toUpperCase();
       const nextFav = !favorited;
       const quotePrice = quotes[sym]?.price;
@@ -1193,9 +1198,6 @@ export default function StockVaultTab({
             favoritePrice: quotePrice ?? null,
           }
         : null;
-
-      setFavoriting(sym);
-      setError(null);
 
       let metaRollback: Record<string, StockVaultFavoriteMeta> | null = null;
       let snapshotRollback: StockVaultItem[] | null = null;
@@ -1222,6 +1224,26 @@ export default function StockVaultTab({
         }
         return next;
       });
+
+      setFavoriting(sym);
+      setError(null);
+
+      const authed = await ensureVaultFavoriteApi();
+      if (!authed) {
+        if (metaRollback) {
+          setFavoriteMeta(metaRollback);
+          onVaultChange?.(Object.keys(metaRollback), metaRollback);
+        }
+        if (snapshotRollback) {
+          setSnapshotItems(snapshotRollback);
+          if (selectedScanDate == null) {
+            saveLocalScanSnapshot(kstTodayYmd(), snapshotRollback);
+          }
+        }
+        showLoginHintOnce();
+        setFavoriting(null);
+        return;
+      }
 
       try {
         const res = await setStockVaultFavorite(symbol, nextFav, {
@@ -1270,7 +1292,13 @@ export default function StockVaultTab({
         setFavoriting(null);
       }
     },
-    [ensureVaultAuthenticated, showLoginHintOnce, quotes, onVaultChange, selectedScanDate],
+    [
+      ensureVaultFavoriteApi,
+      showLoginHintOnce,
+      quotes,
+      onVaultChange,
+      selectedScanDate,
+    ],
   );
 
   const handleFavoritePriceSaved = useCallback(
@@ -1676,11 +1704,11 @@ export default function StockVaultTab({
                 className="stock-vault-tab__list-more"
                 onClick={() =>
                   setListVisibleCount((n) =>
-                    Math.min(n + VAULT_LIST_ROW_STEP, deferredFiltered.length),
+                    Math.min(n + VAULT_LIST_ROW_STEP, filtered.length),
                   )
                 }
               >
-                {ko.stockVault.loadMoreRows(visibleRows.length, deferredFiltered.length)}
+                {ko.stockVault.loadMoreRows(visibleRows.length, filtered.length)}
               </button>
             </div>
           ) : null}
