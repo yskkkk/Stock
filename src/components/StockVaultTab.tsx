@@ -6,7 +6,6 @@ import {
   useRef,
   useState,
   useDeferredValue,
-  startTransition,
 } from "react";
 import FavoriteTrackPanel from "./FavoriteTrackPanel";
 import IndustryFilterPanel from "./IndustryFilterPanel";
@@ -721,29 +720,33 @@ export default function StockVaultTab({
   }, [scanConfirmOpen]);
 
   const toggleScanSource = useCallback(
-    (source: StockVaultScanSource) => {
-      const maybeReload =
-        (source === "ma120_near" || source === "bottom_candle") &&
-        countItemsByScanSource(displayItems, source, timeframeFilter) === 0;
-      startTransition(() => {
-        setIndustryFilter("all");
-        setSelectedScanSources((prev) => {
+    (source: StockVaultScanSource, additive = false) => {
+      setIndustryFilter("all");
+      setSelectedScanSources((prev) => {
+        if (additive) {
           const set = new Set(prev);
           if (set.has(source)) set.delete(source);
           else set.add(source);
           const next = STOCK_VAULT_SCAN_SOURCES.filter((s) => set.has(s));
-          if (!next.includes("ma120_near")) {
-            setMa120ApproachFilter(null);
-          }
-          return next;
-        });
+          return next.length ? next : [source];
+        }
+        if (prev.length === 1 && prev[0] === source) return prev;
+        return [source];
       });
-      if (maybeReload) {
+      const zero =
+        countItemsByScanSource(displayItems, source, timeframeFilter) === 0;
+      if ((source === "ma120_near" || source === "bottom_candle") && zero) {
         void reload(true);
       }
     },
     [displayItems, timeframeFilter, reload],
   );
+
+  useEffect(() => {
+    if (!selectedScanSources.includes("ma120_near") && ma120ApproachFilter != null) {
+      setMa120ApproachFilter(null);
+    }
+  }, [selectedScanSources, ma120ApproachFilter]);
 
   useEffect(() => {
     if (timeframeFilter !== "1wk") return;
@@ -1357,7 +1360,7 @@ export default function StockVaultTab({
                         : "market-tab market-tab--toggle"
                     }
                     aria-pressed={active}
-                    onClick={() => toggleScanSource(source)}
+                    onClick={(e) => toggleScanSource(source, e.shiftKey)}
                   >
                     {SCAN_SOURCE_LABEL[source]}
                     <span className="market-tab__count">{scanSourceCounts[source]}</span>
@@ -1481,6 +1484,8 @@ export default function StockVaultTab({
           ) : null}
         </div>
 
+        <StockVaultRowBubblePortal actionsRef={rowBubbleActionsRef} tipId={rowBubbleTipId} />
+
         {(loading && displayItems.length === 0 && !isHistoricalView) ||
         (isHistoricalView && snapshotLoading) ? (
           <p className="stock-vault-tab__muted">{ko.stockVault.loading}</p>
@@ -1500,7 +1505,6 @@ export default function StockVaultTab({
           </p>
         ) : (
           <>
-          <StockVaultRowBubblePortal actionsRef={rowBubbleActionsRef} tipId={rowBubbleTipId} />
           <ul className="stock-vault-tab__list">
             {visibleRows.map((row) => {
               const symKey = row.symbol.trim().toUpperCase();

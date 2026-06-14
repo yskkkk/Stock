@@ -305,6 +305,8 @@ html[data-theme="light"] .stock-vault-tab__history-select-shell:focus-within {
   margin-bottom: 0.55rem;
   min-width: 0;
   overflow: visible;
+  position: relative;
+  z-index: 4;
 }
 
 .stock-vault-tab__filters {
@@ -344,6 +346,10 @@ html[data-theme="light"] .stock-vault-tab__history-select-shell:focus-within {
   background: transparent;
   color: var(--muted);
   box-shadow: none;
+  position: relative;
+  z-index: 1;
+  cursor: pointer;
+  touch-action: manipulation;
 }
 
 .stock-vault-tab__filters .market-tab:hover {
