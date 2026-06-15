@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import IndustryFilterPanel from "./IndustryFilterPanel";
+import StockVaultLastScanTable from "./StockVaultLastScanTable";
 import {
   fetchGoldenCrossHistory,
   fetchGoldenCrossStatus,
@@ -25,7 +26,6 @@ import {
   buildVaultDisplayRows,
   countItemsByScanSource,
   countScanSourceTotals,
-  countVaultIntersection,
   STOCK_VAULT_SCAN_SOURCES,
   visibleStockVaultScanSources,
   type VaultDisplayRow,
@@ -43,6 +43,7 @@ import {
   peekLocalScanSnapshot,
   saveLocalScanSnapshot,
 } from "../lib/stockVaultLocalSnapshot";
+import { buildLastScanRows } from "../lib/stockVaultLastScan";
 import {
   STOCK_VAULT_TIMEFRAMES,
   stockVaultTimeframeLabel,
@@ -167,56 +168,6 @@ function useAfterPaintReady() {
     };
   }, []);
   return ready;
-}
-
-function scanHintFromState(
-  label: string,
-  state: {
-    krLastScanDate: string | null;
-    usLastScanDate: string | null;
-    krWeeklyLastScanDate?: string | null;
-    usWeeklyLastScanDate?: string | null;
-  },
-) {
-  const fmt = (
-    tfLabel: string,
-    kr: string | null | undefined,
-    us: string | null | undefined,
-  ) => {
-    if (!kr && !us) return null;
-    const dates = [kr ? `국내 ${kr}` : null, us ? `미국 ${us}` : null]
-      .filter(Boolean)
-      .join(" · ");
-    return `${tfLabel} ${dates}`;
-  };
-  const parts = [
-    fmt(`${label} 일봉`, state.krLastScanDate, state.usLastScanDate),
-    fmt(
-      `${label} 주봉`,
-      state.krWeeklyLastScanDate,
-      state.usWeeklyLastScanDate,
-    ),
-  ].filter(Boolean);
-  return parts.length ? parts.join(" | ") : null;
-}
-
-function scanHintFromStatus(status: StockVaultScanStatus | null | undefined) {
-  if (!status) return null;
-  const gcState = status.goldenCross?.state ?? status.state;
-  const maState = status.maAlign?.state ?? status.state;
-  const ma120State = status.ma120Near?.state;
-  if (!gcState || !maState) return null;
-  const parts = [
-    scanHintFromState(ko.stockVault.lastScanGolden, gcState),
-    scanHintFromState(ko.stockVault.lastScanMaAlign, maState),
-    ma120State
-      ? scanHintFromState(ko.stockVault.lastScanMa120Near, ma120State)
-      : null,
-    status.bottomCandle?.state
-      ? scanHintFromState(ko.stockVault.lastScanBottomCandle, status.bottomCandle.state)
-      : null,
-  ].filter(Boolean);
-  return parts.length ? parts.join(" · ") : null;
 }
 
 function favoriteVaultSymbols(vault: Pick<StockVaultResponse, "favoriteSymbols" | "items">) {
@@ -346,8 +297,8 @@ export default function StockVaultTab({
   const [favoriteMeta, setFavoriteMeta] = useState<
     Record<string, StockVaultFavoriteMeta>
   >(() => cachedVault?.favoriteMeta ?? {});
-  const [scanHint, setScanHint] = useState<string | null>(() =>
-    scanHintFromStatus(cachedInit?.scanStatus),
+  const [lastScanRows, setLastScanRows] = useState(() =>
+    buildLastScanRows(cachedInit?.scanStatus),
   );
   const [removing, setRemoving] = useState<string | null>(null);
   const [favoriting, setFavoriting] = useState<string | null>(null);
@@ -431,7 +382,7 @@ export default function StockVaultTab({
     if (!status) return;
     setScanEnabled(status.enabled);
     setScanRunning(Boolean(status.running));
-    setScanHint(scanHintFromStatus(status));
+    setLastScanRows(buildLastScanRows(status));
   }, []);
 
   useEffect(() => {
@@ -1426,11 +1377,7 @@ export default function StockVaultTab({
               </button>
             </div>
           </div>
-          {scanHint ? (
-            <p className="stock-vault-tab__scan-hint">
-              {ko.stockVault.lastScan}: {scanHint}
-            </p>
-          ) : null}
+          {lastScanRows ? <StockVaultLastScanTable rows={lastScanRows} /> : null}
           {historyDates.length > 0 ? (
             <label className="stock-vault-tab__history-select-wrap">
               <span className="stock-vault-tab__history-select-label">

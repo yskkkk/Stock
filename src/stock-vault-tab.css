@@ -186,6 +186,63 @@
   overflow-wrap: anywhere;
 }
 
+.stock-vault-tab__scan-summary {
+  margin: 0.2rem 0 0.45rem;
+}
+
+.stock-vault-tab__scan-summary-label {
+  margin: 0 0 0.28rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.stock-vault-tab__scan-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.stock-vault-tab__scan-table {
+  width: 100%;
+  max-width: 22rem;
+  border-collapse: collapse;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.stock-vault-tab__scan-table th,
+.stock-vault-tab__scan-table td {
+  padding: 0.12rem 0.3rem;
+  text-align: center;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.stock-vault-tab__scan-table thead th {
+  font-size: 0.64rem;
+  font-weight: 600;
+  color: var(--muted);
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
+}
+
+.stock-vault-tab__scan-table tbody th[scope="row"] {
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-dim);
+  padding-right: 0.45rem;
+}
+
+.stock-vault-tab__scan-table tbody tr + tr th,
+.stock-vault-tab__scan-table tbody tr + tr td {
+  border-top: 1px solid color-mix(in srgb, var(--card-border) 45%, transparent);
+}
+
+.stock-vault-tab__scan-date--empty {
+  opacity: 0.42;
+}
+
 .stock-vault-tab__scan-notice {
   margin: 0;
   font-size: 0.72rem;
