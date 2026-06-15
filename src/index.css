@@ -255,11 +255,6 @@ html[data-theme="light"] .macro-card__brand-bg {
   color: var(--text-dim);
 }
 
-.macro-card__forecast-v--pending {
-  opacity: 0.55;
-  font-weight: 500;
-}
-
 .macro-info-modal .macro-card__values {
   margin-top: 0.35rem;
   margin-bottom: 0;

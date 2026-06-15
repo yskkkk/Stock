@@ -17,7 +17,7 @@ import {
   macroCardNearness,
   macroUrgency,
 } from "../lib/formatMacro";
-import MacroCardValues from "./MacroCardValues";
+import MacroCardValues, { macroCardValuesAriaParts } from "./MacroCardValues";
 import { stockLogoUrl } from "../lib/stockLogoUrl";
 import type { MacroEvent, Market, SectorEarningsSpotlightItem } from "../types";
 import MacroEventInfoModal from "./MacroEventInfoModal";
@@ -246,7 +246,7 @@ function MacroEventCard({
       style={{ "--macro-near": String(nearness) } as CSSProperties}
       data-region={event.region}
       onClick={() => onOpen(event)}
-      aria-label={`${event.name}, ${ko.macro.forecastLabel} ${event.forecast?.trim() || ko.macro.forecastPending}, ${ko.macro.currentLabel} ${event.previous?.trim() || ko.macro.currentPending}`}
+      aria-label={[event.name, ...macroCardValuesAriaParts(event.forecast, event.previous)].join(", ")}
     >
       <div className="macro-card__top">
         <span className="macro-card__code">{codeShort}</span>
@@ -286,8 +286,7 @@ function SectorEarningsCard({
   const urgency = macroUrgency(msLeft);
   const href = `https://finance.yahoo.com/quote/${encodeURIComponent(row.symbol)}`;
   const codeShort = row.symbol.replace(/^KR_/, "");
-  const forecastValue =
-    row.forecast?.trim() || ko.macro.forecastPending;
+  const forecastValue = row.forecast?.trim() ?? "";
 
   return (
     <a
@@ -296,7 +295,11 @@ function SectorEarningsCard({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label={`${row.name} · ${row.symbol} · ${ko.macro.forecastLabel} ${forecastValue}`}
+      aria-label={
+        forecastValue
+          ? `${row.name} · ${row.symbol} · ${ko.macro.forecastLabel} ${forecastValue}`
+          : `${row.name} · ${row.symbol}`
+      }
     >
       <MacroCardBrandBg symbol={row.symbol} market={row.market} name={row.name} />
       <div className="macro-card__top">
@@ -308,14 +311,16 @@ function SectorEarningsCard({
       <p className="macro-card__name" title={row.name}>
         {row.name}
       </p>
-      <p className="macro-card__forecast">
-        <span className="macro-card__forecast-k">{ko.macro.forecastLabel}</span>
-        <span className="macro-card__forecast-sep" aria-hidden>
-          {" "}
-          ·{" "}
-        </span>
-        <span className="macro-card__forecast-v">{forecastValue}</span>
-      </p>
+      {forecastValue ? (
+        <p className="macro-card__forecast">
+          <span className="macro-card__forecast-k">{ko.macro.forecastLabel}</span>
+          <span className="macro-card__forecast-sep" aria-hidden>
+            {" "}
+            ·{" "}
+          </span>
+          <span className="macro-card__forecast-v">{forecastValue}</span>
+        </p>
+      ) : null}
       <p className="macro-card__countdown" aria-live="polite">
         {formatMacroCountdown(msLeft)}
       </p>
