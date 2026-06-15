@@ -1364,6 +1364,9 @@ export const ko = {
     drawClear: "전체 삭제",
     chartEngineTv: "TradingView",
     chartEngineApp: "앱 차트 (지표·미니 드로잉)",
+    openTradingViewApp: "TradingView 앱에서 열기",
+    tvMobileHint:
+      "모바일에서는 TradingView 앱으로 차트를 엽니다. 앱이 없으면 브라우저로 열립니다.",
     tvCopyrightSuffix: " by TradingView",
     tvChartAria: "TradingView 임베드 차트",
   },

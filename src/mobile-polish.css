@@ -308,3 +308,39 @@
   margin: 0.25rem 0;
   font-size: 0.82rem;
 }
+
+/* TradingView — 모바일 앱 런처 (임베드 대신) */
+.tv-mobile-launch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  min-height: 12rem;
+  padding: 1.25rem 1rem;
+  text-align: center;
+}
+
+.tv-mobile-launch__name {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.tv-mobile-launch__sym {
+  margin: 0;
+  font-size: 0.82rem;
+  opacity: 0.72;
+}
+
+.tv-mobile-launch__hint {
+  margin: 0;
+  max-width: 18rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  opacity: 0.78;
+}
+
+.tv-mobile-launch__btn {
+  margin-top: 0.35rem;
+}

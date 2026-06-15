@@ -1,6 +1,8 @@
 import { useOptionalValueInvestBubble } from "../contexts/ValueInvestBubbleContext";
+import { useIsMobilePhone } from "../hooks/useIsMobilePhone";
 import { ko } from "../i18n/ko";
 import { dispatchOpenFinancialsTab } from "../lib/openFinancialsTab";
+import { openTradingViewChartUrl } from "../lib/openTradingViewChart";
 
 type Variant = "vault" | "earnings";
 
@@ -25,6 +27,7 @@ export default function StockHoverBubbleActions({
   onAfterAction?: (action: "chart" | "financials") => void;
 }) {
   const valueInvest = useOptionalValueInvestBubble();
+  const mobile = useIsMobilePhone();
   const base =
     variant === "vault"
       ? "stock-vault-tab__bubble-actions"
@@ -37,16 +40,30 @@ export default function StockHoverBubbleActions({
   return (
     <div className={base}>
       {tvChartUrl ? (
-        <a
-          className={btn("tv")}
-          href={tvChartUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={`${name} ${ko.stockVault.openTradingViewChart}`}
-          onClick={() => onAfterAction?.("chart")}
-        >
-          {ko.stockVault.bubbleBtnChart}
-        </a>
+        mobile ? (
+          <button
+            type="button"
+            className={btn("tv")}
+            aria-label={`${name} ${ko.stockVault.openTradingViewChart}`}
+            onClick={() => {
+              void openTradingViewChartUrl(tvChartUrl);
+              onAfterAction?.("chart");
+            }}
+          >
+            {ko.stockVault.bubbleBtnChart}
+          </button>
+        ) : (
+          <a
+            className={btn("tv")}
+            href={tvChartUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`${name} ${ko.stockVault.openTradingViewChart}`}
+            onClick={() => onAfterAction?.("chart")}
+          >
+            {ko.stockVault.bubbleBtnChart}
+          </a>
+        )
       ) : null}
       <button
         type="button"

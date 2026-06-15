@@ -1,6 +1,8 @@
 import { memo, useEffect, useRef } from "react";
 import type { ChartTimeframe } from "../constants/timeframes";
+import { useIsMobilePhone } from "../hooks/useIsMobilePhone";
 import { ko } from "../i18n/ko";
+import { openTradingViewChart } from "../lib/openTradingViewChart";
 import { chartTimeframeToTradingViewInterval } from "../lib/tradingviewSymbols";
 
 const TV_ADVANCED_EMBED_SRC =
@@ -28,10 +30,20 @@ function TradingViewAdvancedChartInner({
   displayName,
   ariaLabel,
 }: TradingViewAdvancedChartProps) {
+  const mobile = useIsMobilePhone();
   const containerRef = useRef<HTMLDivElement>(null);
   const symSlug = tvSymbol.replace(":", "-");
+  const openedKeyRef = useRef("");
 
   useEffect(() => {
+    if (mobile) {
+      const key = `${tvSymbol}:${timeframe}`;
+      if (openedKeyRef.current === key) return;
+      openedKeyRef.current = key;
+      void openTradingViewChart(tvSymbol, timeframe);
+      return;
+    }
+
     const root = containerRef.current;
     if (!root) return;
 
@@ -67,7 +79,28 @@ function TradingViewAdvancedChartInner({
     return () => {
       clearTradingViewEmbed(root);
     };
-  }, [tvSymbol, timeframe]);
+  }, [tvSymbol, timeframe, mobile]);
+
+  if (mobile) {
+    return (
+      <div
+        className="tv-mobile-launch"
+        role="region"
+        aria-label={ariaLabel}
+      >
+        <p className="tv-mobile-launch__name">{displayName}</p>
+        <p className="tv-mobile-launch__sym">{tvSymbol}</p>
+        <p className="tv-mobile-launch__hint">{ko.crypto.tvMobileHint}</p>
+        <button
+          type="button"
+          className="btn btn--primary tv-mobile-launch__btn"
+          onClick={() => void openTradingViewChart(tvSymbol, timeframe)}
+        >
+          {ko.crypto.openTradingViewApp}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div
