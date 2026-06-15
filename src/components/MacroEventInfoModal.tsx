@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { formatMacroCountdown, formatMacroWhen } from "../lib/formatMacro";
 import { getMacroScenarioSentiment } from "../lib/macroSentiment";
 import { getMacroGuide, ko } from "../i18n/ko";
+import MacroCardValues from "./MacroCardValues";
 import type { MacroEvent } from "../types";
 
 interface MacroEventInfoModalProps {
@@ -81,16 +82,10 @@ export default function MacroEventInfoModal({
                 {formatMacroCountdown(msLeft)}
               </span>
             </p>
-            <p
-              className="macro-info-forecast"
-              title={event.forecast?.trim() ? undefined : ko.macro.forecastHelp}
-            >
-              <span className="macro-info-forecast-k">{ko.macro.forecastLabel}</span>
-              <span className="macro-info-meta__sep">·</span>
-              <span className="macro-info-forecast-v">
-                {event.forecast?.trim() || ko.macro.forecastPending}
-              </span>
-            </p>
+            <MacroCardValues
+              forecast={event.forecast}
+              previous={event.previous}
+            />
           </div>
           <button
             type="button"

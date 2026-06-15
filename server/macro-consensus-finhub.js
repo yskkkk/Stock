@@ -36,6 +36,13 @@ function formatEstimate(val) {
 }
 
 /** @param {unknown} row */
+function getPreviousFromRow(row) {
+  if (!row || typeof row !== "object") return null;
+  const o = /** @type {Record<string, unknown>} */ (row);
+  return formatEstimate(o.prev ?? o.previous);
+}
+
+/** @param {unknown} row */
 function getEstimateFromRow(row) {
   if (!row || typeof row !== "object") return null;
   const o = /** @type {Record<string, unknown>} */ (row);
@@ -165,7 +172,7 @@ function pickFinnhubEstimate(ev, rows) {
   const wantCountry = ev.region === "kr" ? "KR" : "US";
   const windowMs = 72 * 60 * 60 * 1000;
 
-  /** @type {{ est: unknown; strength: number; delta: number; event: string } | null} */
+  /** @type {{ est: unknown; prev: unknown; strength: number; delta: number; event: string } | null} */
   let best = null;
 
   for (const row of rows) {
@@ -176,13 +183,14 @@ function pickFinnhubEstimate(ev, rows) {
     const strength = matchStrength(ev.code, el);
     if (strength <= 0) continue;
     const est = getEstimateFromRow(row);
-    if (est == null) continue;
+    const prev = getPreviousFromRow(row);
+    if (est == null && prev == null) continue;
     const t = parseFinnhubUtcMs(row);
     if (t == null) continue;
     const delta = Math.abs(t - ev.at);
     if (delta > windowMs) continue;
 
-    const cand = { est, strength, delta, event: name };
+    const cand = { est, prev, strength, delta, event: name };
     if (!best) {
       best = cand;
       continue;
@@ -197,12 +205,18 @@ function pickFinnhubEstimate(ev, rows) {
   }
 
   if (!best) return null;
-  const formatted = formatEstimate(best.est);
-  return formatted ? { text: formatted, sourceEvent: best.event } : null;
+  const forecast = formatEstimate(best.est);
+  const previous = formatEstimate(best.prev);
+  if (!forecast && !previous) return null;
+  return {
+    forecast,
+    previous,
+    sourceEvent: best.event,
+  };
 }
 
 /**
- * @param {Array<{ code: string; region: string; at: number; forecast?: string | null }>} events
+ * @param {Array<{ code: string; region: string; at: number; forecast?: string | null; previous?: string | null }>} events
  */
 export async function enrichMacroEventsWithFinnhubConsensus(events) {
   const apiKey = String(process.env.FINNHUB_API_KEY ?? "").trim();
@@ -234,8 +248,12 @@ export async function enrichMacroEventsWithFinnhubConsensus(events) {
       { code: ev.code, region: ev.region, at: ev.at },
       rows,
     );
-    if (picked?.text) {
-      ev.forecast = picked.text;
+    if (!picked) continue;
+    if (picked.forecast && !String(ev.forecast ?? "").trim()) {
+      ev.forecast = picked.forecast;
+    }
+    if (picked.previous && !String(ev.previous ?? "").trim()) {
+      ev.previous = picked.previous;
     }
   }
 }

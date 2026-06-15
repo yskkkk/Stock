@@ -240,6 +240,35 @@ html[data-theme="light"] .macro-card__brand-bg {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.macro-card__values {
+  display: flex;
+  flex-direction: column;
+  gap: 0.06rem;
+  margin-bottom: 0.12rem;
+}
+
+.macro-card__values .macro-card__forecast {
+  margin: 0;
+}
+
+.macro-card__previous .macro-card__forecast-v {
+  color: var(--text-dim);
+}
+
+.macro-card__forecast-v--pending {
+  opacity: 0.55;
+  font-weight: 500;
+}
+
+.macro-info-modal .macro-card__values {
+  margin-top: 0.35rem;
+  margin-bottom: 0;
+}
+
+.macro-info-modal .macro-card__forecast {
+  font-size: 0.74rem;
+}
+
 .macro-card__forecast {
   margin: 0 0 0.18rem;
   font-size: 0.62rem;

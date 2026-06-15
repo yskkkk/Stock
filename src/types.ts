@@ -35,6 +35,8 @@ export interface MacroEvent {
   timezone: string;
   /** macro-releases.json 등에서만 채움; 없으면 UI에서「발표 전」 */
   forecast?: string | null;
+  /** 직전 발표치(현재치) — Finnhub·Forex Factory previous 등 */
+  previous?: string | null;
 }
 
 export interface MacroEventsResponse {

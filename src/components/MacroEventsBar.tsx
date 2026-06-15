@@ -17,7 +17,7 @@ import {
   macroCardNearness,
   macroUrgency,
 } from "../lib/formatMacro";
-import { getMacroSurpriseUpBias } from "../lib/macroSentiment";
+import MacroCardValues from "./MacroCardValues";
 import { stockLogoUrl } from "../lib/stockLogoUrl";
 import type { MacroEvent, Market, SectorEarningsSpotlightItem } from "../types";
 import MacroEventInfoModal from "./MacroEventInfoModal";
@@ -246,7 +246,7 @@ function MacroEventCard({
       style={{ "--macro-near": String(nearness) } as CSSProperties}
       data-region={event.region}
       onClick={() => onOpen(event)}
-      aria-label={`${event.name}, ${ko.macro.forecastLabel} ${event.forecast?.trim() || ko.macro.forecastPending}`}
+      aria-label={`${event.name}, ${ko.macro.forecastLabel} ${event.forecast?.trim() || ko.macro.forecastPending}, ${ko.macro.currentLabel} ${event.previous?.trim() || ko.macro.currentPending}`}
     >
       <div className="macro-card__top">
         <span className="macro-card__code">{codeShort}</span>
@@ -258,18 +258,7 @@ function MacroEventCard({
         </span>
       </div>
       <p className="macro-card__name">{event.name}</p>
-      <p
-        className="macro-card__forecast"
-      >
-        <span className="macro-card__forecast-k">{ko.macro.forecastLabel}</span>
-        <span className="macro-card__forecast-sep" aria-hidden>
-          {" "}
-          ·{" "}
-        </span>
-        <span className="macro-card__forecast-v">
-          {event.forecast?.trim() || ko.macro.forecastPending}
-        </span>
-      </p>
+      <MacroCardValues forecast={event.forecast} previous={event.previous} />
       <p className="macro-card__countdown" aria-live="polite">
         {formatMacroCountdown(msLeft)}
       </p>
@@ -341,7 +330,7 @@ function SectorEarningsCard({
 
 const SECRET_ADMIN_TAPS = 10;
 const SECRET_ADMIN_GAP_MS = 2800;
-const MACRO_SESSION_CACHE_KEY = "stock-macro-bar-v2";
+const MACRO_SESSION_CACHE_KEY = "stock-macro-bar-v3";
 
 function readSessionMacroCache(): {
   events: MacroEvent[];

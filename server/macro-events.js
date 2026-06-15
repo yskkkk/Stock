@@ -216,7 +216,7 @@ function firstFridayOfMonth(year, month, timeZone) {
   return 7;
 }
 
-/** @returns {{ code: string; at: string; tz: string; forecast?: string }[]} */
+/** @returns {{ code: string; at: string; tz: string; forecast?: string; previous?: string }[]} */
 function loadStaticReleases() {
   const file = path.join(__dirname, "data", "macro-releases.json");
   const arr = JSON.parse(fs.readFileSync(file, "utf8"));
@@ -233,7 +233,12 @@ function loadStaticReleases() {
         typeof fc === "string" && fc.trim()
           ? fc.trim()
           : undefined;
-      return { code, at, tz, forecast };
+      const pv = x.previous;
+      const previous =
+        typeof pv === "string" && pv.trim()
+          ? pv.trim()
+          : undefined;
+      return { code, at, tz, forecast, previous };
     })
     .filter(Boolean);
 }
@@ -325,11 +330,16 @@ export function getUpcomingMacroEvents(opts = {}) {
       row.forecast != null && String(row.forecast).trim()
         ? String(row.forecast).trim()
         : undefined;
+    const pv =
+      row.previous != null && String(row.previous).trim()
+        ? String(row.previous).trim()
+        : undefined;
     raw.push({
       code: row.code,
       at,
       tz: row.tz,
       ...(fc ? { forecast: fc } : {}),
+      ...(pv ? { previous: pv } : {}),
     });
   }
 
@@ -362,6 +372,10 @@ export function getUpcomingMacroEvents(opts = {}) {
       forecast:
         row.forecast != null && String(row.forecast).trim()
           ? String(row.forecast).trim()
+          : null,
+      previous:
+        row.previous != null && String(row.previous).trim()
+          ? String(row.previous).trim()
           : null,
     });
   }

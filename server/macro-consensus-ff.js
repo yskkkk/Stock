@@ -15,7 +15,7 @@ let ffRowsCache = { at: 0, rows: [] };
 /** @type {Promise<FfRow[]> | null} */
 let ffInflight = null;
 
-/** @typedef {{ title: string; country: string; at: number; forecast: string }} FfRow */
+/** @typedef {{ title: string; country: string; at: number; forecast: string | null; previous: string | null }} FfRow */
 
 /** @type {Record<string, { country: string; patterns: RegExp[]; prefer?: RegExp }>} */
 const CODE_FF_RULES = {
@@ -85,6 +85,14 @@ const CODE_FF_RULES = {
   },
 };
 
+/** @param {string | null | undefined} raw */
+function normalizeFfValue(raw) {
+  if (raw == null) return null;
+  const s = String(raw).trim();
+  if (!s || s === "-") return null;
+  return s;
+}
+
 /** @param {string} block @param {string} tag */
 function readXmlTag(block, tag) {
   const re = new RegExp(
@@ -140,11 +148,12 @@ function parseFfXmlRows(xml) {
     const country = readXmlTag(block, "country").toUpperCase();
     const date = readXmlTag(block, "date");
     const time = readXmlTag(block, "time");
-    const forecast = readXmlTag(block, "forecast");
-    if (!title || !forecast || forecast === "-") continue;
+    const forecast = normalizeFfValue(readXmlTag(block, "forecast"));
+    const previous = normalizeFfValue(readXmlTag(block, "previous"));
+    if (!forecast && !previous) continue;
     const at = ffLocalToUtcMs(date, time, country);
     if (at == null || !Number.isFinite(at)) continue;
-    out.push({ title, country, at, forecast });
+    out.push({ title, country, at, forecast, previous });
   }
   return out;
 }
@@ -158,17 +167,21 @@ function parseFfJsonRows(rows) {
     const o = /** @type {Record<string, unknown>} */ (row);
     const title = typeof o.title === "string" ? o.title.trim() : "";
     const country = typeof o.country === "string" ? o.country.trim().toUpperCase() : "";
-    const forecast =
-      o.forecast == null ? "" : String(o.forecast).trim();
+    const forecast = normalizeFfValue(
+      o.forecast == null ? null : String(o.forecast),
+    );
+    const previous = normalizeFfValue(
+      o.previous == null ? null : String(o.previous),
+    );
     const date = typeof o.date === "string" ? o.date.trim() : "";
-    if (!title || !forecast || forecast === "-") continue;
+    if (!title || (!forecast && !previous)) continue;
     let at = null;
     if (date.includes("T")) {
       const ms = Date.parse(date);
       if (Number.isFinite(ms)) at = ms;
     }
     if (at == null) continue;
-    out.push({ title, country, at, forecast });
+    out.push({ title, country, at, forecast, previous });
   }
   return out;
 }
@@ -248,12 +261,12 @@ function ffMatchStrength(code, title) {
  * @param {{ code: string; region: string; at: number }} ev
  * @param {FfRow[]} rows
  */
-function pickFfForecast(ev, rows) {
+function pickFfFields(ev, rows) {
   const rule = CODE_FF_RULES[ev.code];
   if (!rule) return null;
   if (ev.region === "kr") return null;
 
-  /** @type {{ text: string; strength: number; delta: number } | null} */
+  /** @type {{ forecast: string | null; previous: string | null; strength: number; delta: number } | null} */
   let best = null;
 
   for (const row of rows) {
@@ -263,7 +276,12 @@ function pickFfForecast(ev, rows) {
     const delta = Math.abs(row.at - ev.at);
     if (delta > MATCH_WINDOW_MS) continue;
 
-    const cand = { text: row.forecast, strength, delta };
+    const cand = {
+      forecast: row.forecast,
+      previous: row.previous,
+      strength,
+      delta,
+    };
     if (!best) {
       best = cand;
       continue;
@@ -277,11 +295,12 @@ function pickFfForecast(ev, rows) {
     }
   }
 
-  return best?.text ?? null;
+  if (!best) return null;
+  return { forecast: best.forecast, previous: best.previous };
 }
 
 /**
- * @param {Array<{ code: string; region: string; at: number; forecast?: string | null }>} events
+ * @param {Array<{ code: string; region: string; at: number; forecast?: string | null; previous?: string | null }>} events
  */
 export async function enrichMacroEventsWithFfConsensus(events) {
   if (!Array.isArray(events) || events.length === 0) return;
@@ -290,11 +309,16 @@ export async function enrichMacroEventsWithFfConsensus(events) {
   if (!rows.length) return;
 
   for (const ev of events) {
-    if (ev.forecast != null && String(ev.forecast).trim()) continue;
-    const picked = pickFfForecast(
+    const picked = pickFfFields(
       { code: ev.code, region: ev.region, at: ev.at },
       rows,
     );
-    if (picked) ev.forecast = picked;
+    if (!picked) continue;
+    if (!String(ev.forecast ?? "").trim() && picked.forecast) {
+      ev.forecast = picked.forecast;
+    }
+    if (!String(ev.previous ?? "").trim() && picked.previous) {
+      ev.previous = picked.previous;
+    }
   }
 }
