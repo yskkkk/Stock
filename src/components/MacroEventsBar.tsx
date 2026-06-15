@@ -18,6 +18,7 @@ import {
   macroUrgency,
 } from "../lib/formatMacro";
 import MacroCardValues, { macroCardValuesAriaParts } from "./MacroCardValues";
+import { getMacroSurpriseUpBias } from "../lib/macroSentiment";
 import { stockLogoUrl } from "../lib/stockLogoUrl";
 import type { MacroEvent, Market, SectorEarningsSpotlightItem } from "../types";
 import MacroEventInfoModal from "./MacroEventInfoModal";
