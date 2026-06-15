@@ -806,15 +806,6 @@ export default function StockVaultTab({
         else set.add(source);
         let next = STOCK_VAULT_SCAN_SOURCES.filter((s) => set.has(s));
         if (!next.length) next = [source];
-        if (!wasSelected && next.length >= 2) {
-          const hits = countVaultIntersection(
-            displayItems,
-            next,
-            "all",
-            timeframeFilter,
-          );
-          if (hits === 0) next = [source];
-        }
         return next;
       });
       const zero =
