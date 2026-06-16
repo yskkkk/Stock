@@ -4,9 +4,9 @@
 //@version=6
 indicator("세력+MA+매집", shorttitle="세력통합", overlay=true, max_boxes_count=500, max_lines_count=500, max_labels_count=500)
 
-// ══ 1·일봉/주봉 이평선 ══════════════════════════════════════════════════
+// ══ 1·일봉/주봉 이평선 (독립) ═══════════════════════════════════════════
 grpMaDisp = "1·이평선 — 표시"
-showMa          = input.bool(true, "이평선 사용", group=grpMaDisp)
+showMa          = input.bool(true, "이평선 사용", group=grpMaDisp, tooltip="OFF면 MA 계산·표시 전부 끔. 다른 지표와 무관")
 dispMaLines     = input.bool(true, "MA 선", group=grpMaDisp)
 dispMaCross     = input.bool(true, "골든·데드 교차점", group=grpMaDisp)
 dispMaWatermark = input.bool(true, "선 위 기간 숫자", group=grpMaDisp)
@@ -21,8 +21,9 @@ brightTransp = input.int(0, "활성 TF 투명도", minval=0, maxval=90, group=gr
 dimTransp    = input.int(72, "비활성 TF 투명도", minval=30, maxval=95, group=grpMaStyle)
 wmStep       = input.int(42, "기간 숫자 간격(봉)", minval=12, maxval=150, group=grpMaStyle)
 
-// ══ 2·상투·바닥 (세력 캔들) ════════════════════════════════════════════
+// ══ 2·상투·바닥 (독립) ═════════════════════════════════════════════════
 grpForceDisp = "2·상투·바닥 — 표시"
+showForce         = input.bool(true, "상투·바닥 탐지", group=grpForceDisp, tooltip="OFF면 패턴 계산·마커 전부 끔. 다른 지표와 무관")
 dispWBottom       = input.bool(true, "W 바닥확인", group=grpForceDisp)
 dispBottomClassic = input.bool(true, "바닥·전형", group=grpForceDisp)
 dispBottomVar     = input.bool(true, "바닥·변주", group=grpForceDisp)
@@ -33,18 +34,18 @@ dispPivot         = input.bool(true, "변곡점(대기)", group=grpForceDisp)
 dispZones         = input.bool(true, "손절·분할매수 박스", group=grpForceDisp)
 dispZoneLabels    = input.bool(true, "구간 가격 라벨", group=grpForceDisp)
 dispBg            = input.bool(true, "바닥·상투 봉 배경", group=grpForceDisp)
-confirmedOnly     = input.bool(true, "확정봉만 마커", group=grpForceDisp, tooltip="상투·바닥 마커만. 매집은 3·매집봉 — 표시에서 별도")
+forceConfirmedOnly = input.bool(true, "확정봉만 마커", group=grpForceDisp)
 
 grpTf = "2·상투·바닥 — 타임프레임"
 tfAuto         = input.bool(true, "차트 TF 자동 보정", group=grpTf, tooltip="주/일/분봉별 갭·RVOL·하락% 자동")
 needWeeklyConf = input.bool(false, "주봉 W 강조", group=grpTf, tooltip="ON=주봉에도 패턴 있을 때 W 마커")
 
 grpScore = "2·상투·바닥 — 점수"
-minScore       = input.int(50, "최소 점수", minval=0, maxval=100, group=grpScore, tooltip="0=전부. 50=보통. 70+=엄격")
+forceMinScore  = input.int(50, "최소 점수", minval=0, maxval=100, group=grpScore, tooltip="0=전부. 50=보통. 70+=엄격")
 showScoreLabel = input.bool(true, "구간 라벨에 점수", group=grpScore)
 
 grpCore = "2·상투·바닥 — 민감도·거래량"
-preset       = input.string("보통", "민감도", options=["느슨", "보통", "엄격"], group=grpCore)
+forcePreset  = input.string("보통", "민감도", options=["느슨", "보통", "엄격"], group=grpCore)
 maxBodyPct   = input.float(35.0, "변곡 몸통/전체(%)", minval=10.0, maxval=50.0, step=1.0, group=grpCore)
 minGapPct    = input.float(0.3, "최소 갭(%)", minval=0.0, maxval=5.0, step=0.1, group=grpCore)
 volLen       = input.int(20, "거래량 이평(봉)", minval=5, maxval=100, group=grpCore)
@@ -77,14 +78,14 @@ cTop     = input.color(color.new(#8E24AA, 0), "상투", group=grpCol)
 cSl      = input.color(color.new(#F44336, 30), "손절선", group=grpCol)
 cZone    = input.color(color.new(#E53935, 88), "분할매수 박스", group=grpCol)
 
-// ══ 3·매집봉 (책 06~07장) ═════════════════════════════════════════════
+// ══ 3·매집봉 (독립) ═══════════════════════════════════════════════════
 grpAccumDisp = "3·매집봉 — 표시"
-showAccum      = input.bool(true, "매집 탐지", group=grpAccumDisp, tooltip="OFF면 매집 계산·마커 모두 끔")
-dispAccum      = input.bool(true, "매집 ▲ 마커", group=grpAccumDisp)
+showAccum          = input.bool(true, "매집 탐지", group=grpAccumDisp, tooltip="OFF면 매집 계산·마커 전부 끔. 다른 지표와 무관")
+dispAccum          = input.bool(true, "매집 ▲ 마커", group=grpAccumDisp)
 accumConfirmedOnly = input.bool(true, "확정봉만 마커", group=grpAccumDisp)
 
 grpAccumCore = "3·매집봉 — 민감도·거래량"
-accumPreset    = input.string("느슨", "매집 민감도", options=["느슨", "보통", "엄격"], group=grpAccumCore, tooltip="단독 '책 매집봉'과 동일. 2·상투·바닥 민감도와 별개")
+accumPreset    = input.string("보통", "민감도", options=["느슨", "보통", "엄격"], group=grpAccumCore)
 accumVolLen    = input.int(20, "거래량 이평(봉)", minval=5, maxval=60, group=grpAccumCore)
 accumMinRvol   = input.float(1.8, "매집 RVOL", minval=1.2, maxval=4.0, step=0.1, group=grpAccumCore)
 accumVolMaUp   = input.bool(true, "거래량 이평 상승 가산", group=grpAccumCore)
@@ -214,10 +215,10 @@ f_tune(bool forWeekly) =>
     int dLb     = forWeekly ? 26 : chartIsDaily ? 20 : dropLookback
     float dPct  = forWeekly ? 8.0 : chartIsDaily ? 5.0 : minDropPct
     int extBase = forWeekly ? 14 : chartIsDaily ? 8 : extendZone
-    float bAdj = preset == "엄격" ? math.min(bBase, 28.0) : preset == "느슨" ? bBase * 1.12 : bBase
-    float gAdj = preset == "엄격" ? math.max(gBase, 0.4) : gBase
-    float rAdj = preset == "엄격" ? math.max(rBase, 1.35) : preset == "느슨" ? math.min(rBase, 1.0) : rBase
-    float dAdj = preset == "엄격" ? dPct * 1.15 : preset == "느슨" ? dPct * 0.75 : dPct
+    float bAdj = forcePreset == "엄격" ? math.min(bBase, 28.0) : forcePreset == "느슨" ? bBase * 1.12 : bBase
+    float gAdj = forcePreset == "엄격" ? math.max(gBase, 0.4) : gBase
+    float rAdj = forcePreset == "엄격" ? math.max(rBase, 1.35) : forcePreset == "느슨" ? math.min(rBase, 1.0) : rBase
+    float dAdj = forcePreset == "엄격" ? dPct * 1.15 : forcePreset == "느슨" ? dPct * 0.75 : dPct
     [tfAuto ? bAdj : maxBodyPct, tfAuto ? gAdj : minGapPct, tfAuto ? vBase : volLen, tfAuto ? rAdj : minRvol, tfAuto ? dLb : dropLookback, tfAuto ? dAdj : minDropPct, extBase]
 
 [effBody, effGap, effVolLen, effRvol, effDropLb, effDropPct, effExtend] = f_tune(chartIsWeekly)
@@ -352,20 +353,20 @@ f_tag(int code) =>
 [wAnyRaw, wClassicRaw, wCodeRaw, wPinBear, wPinBull, wTopRaw, wPivotRaw, wSl, wTop, wBot, wRvolW, wScore] =
      request.security(syminfo.tickerid, "W", f_detect(wBody, wGap, wVolLen, wRvolMin, wDropLb, wDropPct), barmerge.gaps_off, barmerge.lookahead_off)
 
-bool passScore = scoreRaw >= minScore
-bool anyBottom = anyBottomRaw and passScore
+bool passScore = scoreRaw >= forceMinScore
+bool anyBottom = showForce and anyBottomRaw and passScore
 bool bottomClassic = anyBottom and bottomClassicRaw
-bool wConfirmed = needWeeklyConf and not chartIsWeekly and anyBottom and wAnyRaw and wScore >= minScore
+bool wConfirmed = showForce and needWeeklyConf and not chartIsWeekly and anyBottom and wAnyRaw and wScore >= forceMinScore
 int bottomCode = anyBottom ? bottomCodeRaw : 0
-bool pinBear = pinBearRaw and passScore
-bool pinBull = pinBullRaw and passScore
-bool topClassic = topClassicRaw
-bool pivotForming = pivotFormingRaw
+bool pinBear = showForce and pinBearRaw and passScore
+bool pinBull = showForce and pinBullRaw and passScore
+bool topClassic = showForce and topClassicRaw
+bool pivotForming = showForce and pivotFormingRaw
 int bottomScore = anyBottom ? int(math.round(scoreRaw)) : 0
 
 string bottomTag = f_tag(bottomCode) + (showScoreLabel and anyBottom ? " " + str.tostring(bottomScore) + "pt" : "")
 
-bool barOk = not confirmedOnly or barstate.isconfirmed
+bool forceBarOk = not forceConfirmedOnly or barstate.isconfirmed
 
 // ── MA 로직 ──────────────────────────────────────────────────────────
 bool showBoth = tfMode == "일봉+주봉"
@@ -492,23 +493,23 @@ f_drawZone(int tLeft, float sl, float zTop, float zBot, color zCol, string tag, 
         else
             array.push(zoneLbls, label.new(tLeft, lblY, lblTxt, xloc=xloc.bar_time, yloc=yloc.price, style=label.style_label_down, color=color.new(zCol, 15), textcolor=color.white, size=size.small))
 
-if anyBottom and barOk and dispZones
+if anyBottom and forceBarOk and dispZones
     f_drawZone(time, slL, zoneTop, zoneBotSl, wConfirmed ? cWBottom : cBottom, bottomTag, effExtend, true)
 
-if topClassic and barOk and dispZones
+if topClassic and forceBarOk and dispZones
     f_drawZone(time, zoneTop, zoneTop, zoneBotSl, cTop, "상투", effExtend, false)
 
 // ── 세력 캔들·매집 마커 ───────────────────────────────────────────────
-plotshape(barOk and dispWBottom and anyBottom and bottomClassic and wConfirmed, title="W바닥확인", style=shape.triangleup, location=location.belowbar, color=cWBottom, size=size.large, text="W")
-plotshape(barOk and dispBottomClassic and anyBottom and bottomClassic and not wConfirmed, title="바닥·전형", style=shape.triangleup, location=location.belowbar, color=cBottom, size=size.normal, text="바닥")
-plotshape(barOk and dispBottomVar and anyBottom and not bottomClassic, title="바닥·변주", style=shape.triangleup, location=location.belowbar, color=cBottomV, size=size.small, text="변주")
-plotshape(barOk and dispPinBear and pinBear, title="하락 바람개비", style=shape.triangledown, location=location.abovebar, color=cPinDn, size=size.tiny, text="↓")
-plotshape(barOk and dispPinBull and pinBull, title="상승 바람개비", style=shape.triangleup, location=location.belowbar, color=cPinUp, size=size.tiny, text="↑")
-plotshape(barOk and dispTop and topClassic, title="상투", style=shape.triangledown, location=location.abovebar, color=cTop, size=size.normal, text="상투")
-plotshape(barOk and dispPivot and pivotForming, title="변곡점", style=shape.cross, location=location.belowbar, color=color.new(#FFC107, 0), size=size.tiny)
+plotshape(forceBarOk and dispWBottom and anyBottom and bottomClassic and wConfirmed, title="W바닥확인", style=shape.triangleup, location=location.belowbar, color=cWBottom, size=size.large, text="W")
+plotshape(forceBarOk and dispBottomClassic and anyBottom and bottomClassic and not wConfirmed, title="바닥·전형", style=shape.triangleup, location=location.belowbar, color=cBottom, size=size.normal, text="바닥")
+plotshape(forceBarOk and dispBottomVar and anyBottom and not bottomClassic, title="바닥·변주", style=shape.triangleup, location=location.belowbar, color=cBottomV, size=size.small, text="변주")
+plotshape(forceBarOk and dispPinBear and pinBear, title="하락 바람개비", style=shape.triangledown, location=location.abovebar, color=cPinDn, size=size.tiny, text="↓")
+plotshape(forceBarOk and dispPinBull and pinBull, title="상승 바람개비", style=shape.triangleup, location=location.belowbar, color=cPinUp, size=size.tiny, text="↑")
+plotshape(forceBarOk and dispTop and topClassic, title="상투", style=shape.triangledown, location=location.abovebar, color=cTop, size=size.normal, text="상투")
+plotshape(forceBarOk and dispPivot and pivotForming, title="변곡점", style=shape.cross, location=location.belowbar, color=color.new(#FFC107, 0), size=size.tiny)
 plotshape(accumBarOk and dispAccum and anyAccum, title="책 매집봉", style=shape.triangleup, location=location.belowbar, color=cAccum, size=size.normal, text="매집")
 
-bgcolor(dispBg and barOk and anyBottom ? color.new(wConfirmed ? cWBottom : cBottom, 92) : dispBg and barOk and topClassic ? color.new(cTop, 93) : na)
+bgcolor(dispBg and forceBarOk and anyBottom ? color.new(wConfirmed ? cWBottom : cBottom, 92) : dispBg and forceBarOk and topClassic ? color.new(cTop, 93) : na)
 
 // ── MA 워터마크·범례 ─────────────────────────────────────────────────
 int wmPh = int(math.max(wmStep / 5, 3))
@@ -563,12 +564,12 @@ if barstate.islast and showMa and dispMaLegend
     table.cell(legend, 2, 7, showWeeklyTf ? "20↔120" : "", text_color=color.new(color.gray, wAlpha), text_size=size.tiny)
 
 // ── 알림 ─────────────────────────────────────────────────────────────
-alertcondition(anyBottom, "바닥 캔들", "세력 바닥 캔들 — 점수·주봉 확인 통과")
-alertcondition(wConfirmed, "주봉확인 바닥", "일봉+주봉 동시 바닥 캔들")
-alertcondition(bottomClassic, "바닥·전형", "전형 바닥 패턴")
-alertcondition(pinBear, "하락 바람개비", "하락 바람개비")
-alertcondition(topClassic, "상투 캔들", "세력 상투 캔들")
-alertcondition(anyAccum, "책 매집봉", "책 매집봉 신호")
+alertcondition(showForce and anyBottom, "바닥 캔들", "세력 바닥 캔들 — 점수·주봉 확인 통과")
+alertcondition(showForce and wConfirmed, "주봉확인 바닥", "일봉+주봉 동시 바닥 캔들")
+alertcondition(showForce and bottomClassic, "바닥·전형", "전형 바닥 패턴")
+alertcondition(showForce and pinBear, "하락 바람개비", "하락 바람개비")
+alertcondition(showForce and topClassic, "상투 캔들", "세력 상투 캔들")
+alertcondition(showAccum and anyAccum, "책 매집봉", "책 매집봉 신호")
 alertcondition(showMa and gold_5_20_d, "일봉 5-20 골든", "일봉 5·20 MA 골든크로스")
 alertcondition(showMa and dead_5_20_d, "일봉 5-20 데드", "일봉 5·20 MA 데드크로스")
 alertcondition(showMa and gold_20_120_d, "일봉 20-120 골든", "일봉 20·120 MA 골든크로스")
