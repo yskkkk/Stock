@@ -13,7 +13,7 @@ import {
 import { createPortal } from "react-dom";
 import { fetchStockShareStructure } from "../api";
 import { ko } from "../i18n/ko";
-import { dispatchCloseStockVaultBubble } from "../lib/stockHoverBubbleSingleton";
+import { dispatchForceCloseStockHoverBubble } from "../lib/stockHoverBubbleSingleton";
 import type { StockShareStructureResponse } from "../types";
 
 const VIEWPORT_PAD = 8;
@@ -201,7 +201,7 @@ export function StockShareStructureBubbleProvider({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         closeShareStructureModal();
-        dispatchCloseStockVaultBubble();
+        dispatchForceCloseStockHoverBubble();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -217,7 +217,7 @@ export function StockShareStructureBubbleProvider({
       if (modalRef.current?.contains(target)) return;
       if (bubbleEl.contains(target)) return;
       closeShareStructureModal();
-      dispatchCloseStockVaultBubble();
+      dispatchForceCloseStockHoverBubble();
     };
     const timer = window.setTimeout(() => {
       document.addEventListener("pointerdown", onPointerDown, true);

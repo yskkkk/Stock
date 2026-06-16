@@ -15,7 +15,7 @@ import { loadEarningsBubbleFinancials } from "../lib/earningsBubbleFinancials";
 import { tradingViewChartUrl } from "../lib/tradingviewSymbols";
 import {
   dispatchStockHoverBubbleOpen,
-  STOCK_VAULT_BUBBLE_CLOSE_EVENT,
+  STOCK_HOVER_BUBBLE_FORCE_CLOSE_EVENT,
   useStockHoverBubbleExclusive,
 } from "../lib/stockHoverBubbleSingleton";
 
@@ -182,9 +182,9 @@ export function useStockVaultRowBubble(tipIdOverride?: string) {
 
   useEffect(() => {
     const onForceClose = () => closeTip();
-    window.addEventListener(STOCK_VAULT_BUBBLE_CLOSE_EVENT, onForceClose);
+    window.addEventListener(STOCK_HOVER_BUBBLE_FORCE_CLOSE_EVENT, onForceClose);
     return () =>
-      window.removeEventListener(STOCK_VAULT_BUBBLE_CLOSE_EVENT, onForceClose);
+      window.removeEventListener(STOCK_HOVER_BUBBLE_FORCE_CLOSE_EVENT, onForceClose);
   }, [closeTip]);
 
   const openTipAt = useCallback(

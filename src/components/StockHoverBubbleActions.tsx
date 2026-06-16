@@ -104,7 +104,7 @@ export default function StockHoverBubbleActions({
       >
         {ko.stockVault.bubbleBtnBuffett}
       </button>
-      {variant === "vault" && shareStructure ? (
+      {shareStructure ? (
         <button
           type="button"
           className={btn("shares")}

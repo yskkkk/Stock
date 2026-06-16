@@ -11,6 +11,7 @@ import { useLeftRailLazyFollow } from "../hooks/useLeftRailLazyFollow";
 import { createPortal } from "react-dom";
 import { fetchSectorEarnings } from "../api";
 import { useOptionalValueInvestBubble } from "../contexts/ValueInvestBubbleContext";
+import { useOptionalStockShareStructureBubble } from "../contexts/StockShareStructureBubbleContext";
 import StockEarningsHoverBubbleBody from "./StockEarningsHoverBubbleBody";
 import {
   formatMacroCountdown,
@@ -28,6 +29,7 @@ import { ko } from "../i18n/ko";
 import type { SectorEarningsSpotlightItem } from "../types";
 import {
   dispatchStockHoverBubbleOpen,
+  STOCK_HOVER_BUBBLE_FORCE_CLOSE_EVENT,
   useStockHoverBubbleExclusive,
 } from "../lib/stockHoverBubbleSingleton";
 
@@ -147,6 +149,7 @@ export default function EarningsUpcomingIconRail({
   const tipRef = useRef<TipState | null>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const valueInvest = useOptionalValueInvestBubble();
+  const shareStructure = useOptionalStockShareStructureBubble();
   tipRef.current = tip;
 
   useEffect(() => {
@@ -215,19 +218,28 @@ export default function EarningsUpcomingIconRail({
   const scheduleHideTip = useCallback(() => {
     clearHideTimer();
     hideTimerRef.current = setTimeout(() => {
+      shareStructure?.closeShareStructureModal();
       const sym = tipRef.current?.row.symbol;
       if (sym && valueInvest?.openSymbol === sym) return;
       setTip(null);
       hideTimerRef.current = null;
     }, HIDE_DELAY_MS);
-  }, [clearHideTimer, valueInvest?.openSymbol]);
+  }, [clearHideTimer, valueInvest?.openSymbol, shareStructure]);
 
   const closeTip = useCallback(() => {
     clearHideTimer();
+    shareStructure?.closeShareStructureModal();
     setTip(null);
-  }, [clearHideTimer]);
+  }, [clearHideTimer, shareStructure]);
 
   useStockHoverBubbleExclusive(EARNINGS_ICON_RAIL_BUBBLE_OWNER, closeTip);
+
+  useEffect(() => {
+    const onForceClose = () => closeTip();
+    window.addEventListener(STOCK_HOVER_BUBBLE_FORCE_CLOSE_EVENT, onForceClose);
+    return () =>
+      window.removeEventListener(STOCK_HOVER_BUBBLE_FORCE_CLOSE_EVENT, onForceClose);
+  }, [closeTip]);
 
   if (upcoming.length === 0) return null;
 

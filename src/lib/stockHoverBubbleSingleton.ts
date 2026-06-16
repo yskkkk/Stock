@@ -40,9 +40,16 @@ export function useStockHoverBubbleExclusive(
   }, [ownerId, onClose]);
 }
 
-export const STOCK_VAULT_BUBBLE_CLOSE_EVENT = "ystock-stock-vault-bubble-close";
+export const STOCK_HOVER_BUBBLE_FORCE_CLOSE_EVENT =
+  "ystock-stock-hover-bubble-force-close";
 
-export function dispatchCloseStockVaultBubble(): void {
+/** @deprecated use STOCK_HOVER_BUBBLE_FORCE_CLOSE_EVENT */
+export const STOCK_VAULT_BUBBLE_CLOSE_EVENT = STOCK_HOVER_BUBBLE_FORCE_CLOSE_EVENT;
+
+export function dispatchForceCloseStockHoverBubble(): void {
   if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent(STOCK_VAULT_BUBBLE_CLOSE_EVENT));
+  window.dispatchEvent(new CustomEvent(STOCK_HOVER_BUBBLE_FORCE_CLOSE_EVENT));
 }
+
+/** @deprecated use dispatchForceCloseStockHoverBubble */
+export const dispatchCloseStockVaultBubble = dispatchForceCloseStockHoverBubble;
