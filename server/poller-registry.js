@@ -185,6 +185,21 @@ export const POLLER_CATALOG = {
     descriptionKo:
       "스캔 유니버스(KR·US) 종목별 재무제표·펀더멘털을 디스크에 저장합니다. KR 08:50 KST·US 09:20 ET(정규장 10분 전)에 하루 1회 갱신합니다.",
   },
+  "share-structure": {
+    labelKo: "주식 수량 유니버스 스캔",
+    groupKo: "스크리너",
+    intervalMs: () => {
+      const n = Number(process.env.STOCK_SHARE_STRUCTURE_TICK_MS ?? 60_000);
+      return Number.isFinite(n) && n >= 15_000 ? Math.min(n, 300_000) : 60_000;
+    },
+    envDisable: "STOCK_SHARE_STRUCTURE_SCAN=0",
+    isBootEnabled: () => {
+      const v = String(process.env.STOCK_SHARE_STRUCTURE_SCAN ?? "1").toLowerCase();
+      return v !== "0" && v !== "false" && v !== "off";
+    },
+    descriptionKo:
+      "스캔 유니버스(KR·US) 종목별 전체·대주주·유동 주식 수를 디스크에 저장합니다. KR 15:30 KST·US 16:00 ET(정규장 마감) 후 하루 1회 갱신합니다.",
+  },
   "kr-investor-flow": {
     labelKo: "국내 수급 스캔",
     groupKo: "스크리너",

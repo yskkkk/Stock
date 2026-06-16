@@ -1,12 +1,25 @@
 /**
- * 종목 주식 수량 — 전체·대주주·유동 (디스크 캐시, KST 자정·정오 갱신)
+ * 종목 주식 수량 — 전체·대주주·유동 (디스크 캐시, KR·US 정규장 마감 후 유니버스 스캔)
  */
+import { getTradingSessionKey } from "./market-hours.js";
+import { loadUniverse } from "./universe.js";
+import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 import { queueYahooRequest } from "./yahoo-queue.js";
 import { yahooGet } from "./yahoo.js";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
 
 const STORE_FILE = "stock-share-structure.json";
 const FNGUIDE_UA = "Mozilla/5.0 (compatible; StockApp/1.0)";
+
+const SCAN_CONCURRENCY = (() => {
+  const n = Number(process.env.STOCK_SHARE_STRUCTURE_CONCURRENCY ?? 4);
+  return Number.isFinite(n) && n >= 1 ? Math.min(n, 8) : 4;
+})();
+
+const SCAN_BATCH_DELAY_MS = (() => {
+  const n = Number(process.env.STOCK_SHARE_STRUCTURE_BATCH_DELAY_MS ?? 280);
+  return Number.isFinite(n) && n >= 0 ? Math.min(n, 5_000) : 280;
+})();
 
 /** @param {unknown} v */
 function numField(v) {
@@ -25,34 +38,6 @@ function parseCommaNum(s) {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-/** @param {Date} [now] */
-function kstParts(now = new Date()) {
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat("en-US", {
-      timeZone: "Asia/Seoul",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "numeric",
-      minute: "numeric",
-      hour12: false,
-    })
-      .formatToParts(now)
-      .map((p) => [p.type, p.value]),
-  );
-  return {
-    dateKey: `${parts.year}-${parts.month}-${parts.day}`,
-    hour: Number(parts.hour),
-    minute: Number(parts.minute),
-  };
-}
-
-/** KST 반일 슬롯 — 00:xx~11:xx = am, 12:xx~23:xx = pm */
-export function shareStructureSlotId(now = new Date()) {
-  const { dateKey, hour } = kstParts(now);
-  return `${dateKey}-${hour >= 12 ? "pm" : "am"}`;
-}
-
 /**
  * @typedef {Object} ShareStructureEntry
  * @property {number | null} totalShares
@@ -65,23 +50,64 @@ export function shareStructureSlotId(now = new Date()) {
  */
 
 /**
+ * @typedef {Object} ShareStructureMarketMeta
+ * @property {string | null} lastSessionKey
+ * @property {number | null} lastRunAtMs
+ * @property {number} symbolCount
+ * @property {number} okCount
+ * @property {number} failCount
+ */
+
+/**
  * @param {unknown} raw
- * @returns {{ entries: Record<string, ShareStructureEntry>; lastBulkRefreshSlot: string | null }}
+ */
+function normalizeMarketMeta(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const o = /** @type {Record<string, unknown>} */ (raw);
+  return {
+    lastSessionKey:
+      typeof o.lastSessionKey === "string" ? o.lastSessionKey : null,
+    lastRunAtMs:
+      typeof o.lastRunAtMs === "number" && Number.isFinite(o.lastRunAtMs)
+        ? o.lastRunAtMs
+        : null,
+    symbolCount:
+      typeof o.symbolCount === "number" && Number.isFinite(o.symbolCount)
+        ? o.symbolCount
+        : 0,
+    okCount:
+      typeof o.okCount === "number" && Number.isFinite(o.okCount) ? o.okCount : 0,
+    failCount:
+      typeof o.failCount === "number" && Number.isFinite(o.failCount)
+        ? o.failCount
+        : 0,
+  };
+}
+
+/**
+ * @param {unknown} raw
+ * @returns {{ entries: Record<string, ShareStructureEntry>; meta: { kr: ShareStructureMarketMeta | null; us: ShareStructureMarketMeta | null } }}
  */
 function normalizeStore(raw) {
   const entries =
     raw && typeof raw === "object" && raw.entries && typeof raw.entries === "object"
       ? /** @type {Record<string, ShareStructureEntry>} */ (raw.entries)
       : {};
-  const lastBulkRefreshSlot =
-    raw && typeof raw === "object" && typeof raw.lastBulkRefreshSlot === "string"
-      ? raw.lastBulkRefreshSlot
-      : null;
-  return { entries, lastBulkRefreshSlot };
+  const metaRaw =
+    raw && typeof raw === "object" && raw.meta && typeof raw.meta === "object"
+      ? raw.meta
+      : {};
+  return {
+    entries,
+    meta: {
+      kr: normalizeMarketMeta(/** @type {Record<string, unknown>} */ (metaRaw).kr),
+      us: normalizeMarketMeta(/** @type {Record<string, unknown>} */ (metaRaw).us),
+    },
+  };
 }
 
 function emptyStore() {
-  return { entries: {}, lastBulkRefreshSlot: null };
+  return { entries: {}, meta: { kr: null, us: null } };
 }
 
 function readStore() {
@@ -91,6 +117,15 @@ function readStore() {
 /** @param {ReturnType<typeof readStore>} store */
 function writeStore(store) {
   writeJsonStoreSync(STORE_FILE, store);
+}
+
+export function readShareStructureMeta() {
+  return readStore().meta;
+}
+
+/** @param {number} ms */
+function delay(ms) {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 /** @param {string} symbol */
@@ -125,7 +160,6 @@ function deriveFloatPct(total, floatShares, floatPctHint) {
 
 /**
  * @param {string} html
- * @returns {{ totalShares: number | null; majorShareholderShares: number | null; floatShares: number | null; floatPct: number | null } | null}
  */
 function parseFnGuideShareStructure(html) {
   const totalM = html.match(
@@ -164,10 +198,7 @@ async function fetchFnGuideKr(symbol) {
   return { ...parsed, source: "FnGuide" };
 }
 
-/**
- * @param {string} yahooSym
- * @returns {Promise<{ totalShares: number | null; majorShareholderShares: number | null; floatShares: number | null; floatPct: number | null; source: string } | null>}
- */
+/** @param {string} yahooSym */
 async function fetchYahooOne(yahooSym) {
   const data = await queueYahooRequest(() =>
     yahooGet(
@@ -191,10 +222,7 @@ async function fetchYahooOne(yahooSym) {
   };
 }
 
-/**
- * @param {string} symbol
- * @param {"kr"|"us"} market
- */
+/** @param {string} symbol @param {"kr"|"us"} market */
 async function fetchYahooShareStats(symbol, market) {
   if (market === "us") {
     return fetchYahooOne(symbol);
@@ -211,10 +239,7 @@ async function fetchYahooShareStats(symbol, market) {
   return null;
 }
 
-/**
- * @param {string} symbol
- * @param {"kr"|"us"} market
- */
+/** @param {string} symbol @param {"kr"|"us"} market */
 async function fetchLiveShareStructure(symbol, market) {
   const sym = String(symbol ?? "").trim().toUpperCase();
   const m = market === "kr" || market === "us" ? market : isKrSymbol(sym) ? "kr" : "us";
@@ -262,10 +287,11 @@ function toApiPayload(symbol, entry) {
   };
 }
 
-/** @param {ShareStructureEntry | undefined} entry */
-function isEntryFresh(entry) {
+/** @param {string} symbol @param {ShareStructureEntry | undefined} entry */
+function isEntryFresh(symbol, entry) {
   if (!entry?.fetchedAtSlot) return false;
-  return entry.fetchedAtSlot === shareStructureSlotId();
+  const market = isKrSymbol(symbol) ? "kr" : "us";
+  return entry.fetchedAtSlot === getTradingSessionKey(market);
 }
 
 /**
@@ -282,7 +308,7 @@ export async function loadStockShareStructure(symbol, market) {
 
   const store = readStore();
   const cached = store.entries[sym];
-  if (cached && isEntryFresh(cached)) {
+  if (cached && isEntryFresh(sym, cached)) {
     return toApiPayload(sym, cached);
   }
 
@@ -293,7 +319,7 @@ export async function loadStockShareStructure(symbol, market) {
         ? "kr"
         : "us";
   const live = await fetchLiveShareStructure(sym, m);
-  const slot = shareStructureSlotId();
+  const slot = getTradingSessionKey(m);
   const entry = {
     totalShares: live.totalShares,
     majorShareholderShares: live.majorShareholderShares,
@@ -308,41 +334,93 @@ export async function loadStockShareStructure(symbol, market) {
   return toApiPayload(sym, entry);
 }
 
-/** 캐시된 모든 심볼 일괄 갱신 (KST 자정·정오) */
-export async function refreshAllCachedShareStructures() {
+/**
+ * @param {Array<{ symbol: string }>} items
+ * @param {number} limit
+ * @param {(item: { symbol: string }) => Promise<{ ok: boolean; symbol: string }>} worker
+ */
+async function mapConcurrent(items, limit, worker) {
+  /** @type {Promise<{ ok: boolean; symbol: string }>[]} */
+  const results = [];
+  let i = 0;
+  async function run() {
+    while (i < items.length) {
+      const idx = i++;
+      const item = items[idx];
+      results[idx] = await worker(item);
+      if (SCAN_BATCH_DELAY_MS > 0) await delay(SCAN_BATCH_DELAY_MS);
+    }
+  }
+  const runners = Array.from({ length: Math.min(limit, items.length) }, () => run());
+  await Promise.all(runners);
+  return results;
+}
+
+/**
+ * 스캔 유니버스(KR·US) 전체 주식 수량 갱신
+ * @param {"kr"|"us"} market
+ */
+export async function runShareStructureScanForMarket(market) {
+  const uni = await loadUniverse();
+  const list = (market === "kr" ? uni.kr : uni.us).filter((row) => row?.symbol);
+  const sessionKey = getTradingSessionKey(market);
   const store = readStore();
-  const symbols = Object.keys(store.entries);
-  const slot = shareStructureSlotId();
-  let updated = 0;
-  for (const sym of symbols) {
-    const prev = store.entries[sym];
-    const m = isKrSymbol(sym) ? "kr" : "us";
+  const entries = { ...store.entries };
+
+  liveTradeLogInfo("[share-structure] scan start", {
+    market,
+    symbols: list.length,
+    sessionKey,
+  });
+
+  const started = Date.now();
+  const results = await mapConcurrent(list, SCAN_CONCURRENCY, async (row) => {
+    const sym = String(row.symbol).trim().toUpperCase();
     try {
-      const live = await fetchLiveShareStructure(sym, m);
-      store.entries[sym] = {
+      const live = await fetchLiveShareStructure(sym, market);
+      entries[sym] = {
         totalShares: live.totalShares,
         majorShareholderShares: live.majorShareholderShares,
         floatShares: live.floatShares,
         floatPct: live.floatPct,
         source: live.source ?? null,
         fetchedAtMs: Date.now(),
-        fetchedAtSlot: slot,
+        fetchedAtSlot: sessionKey,
       };
-      updated++;
+      return { ok: true, symbol: sym };
     } catch {
-      if (prev) store.entries[sym] = prev;
+      return { ok: false, symbol: sym };
     }
-  }
-  store.lastBulkRefreshSlot = slot;
-  writeStore(store);
-  return { symbols: symbols.length, updated, slot };
-}
+  });
 
-/** KST 00:00·12:00 윈도우(0~4분)에서 1회 실행 */
-export function shouldRunShareStructureBulkRefresh(lastBulkRefreshSlot, now = new Date()) {
-  const { hour, minute } = kstParts(now);
-  if (minute > 4) return false;
-  if (hour !== 0 && hour !== 12) return false;
-  const slot = shareStructureSlotId(now);
-  return lastBulkRefreshSlot !== slot;
+  const okCount = results.filter((r) => r?.ok).length;
+  const failCount = results.length - okCount;
+
+  store.entries = entries;
+  store.meta[market] = {
+    lastSessionKey: sessionKey,
+    lastRunAtMs: Date.now(),
+    symbolCount: list.length,
+    okCount,
+    failCount,
+  };
+  writeStore(store);
+
+  liveTradeLogInfo("[share-structure] scan done", {
+    market,
+    sessionKey,
+    ms: Date.now() - started,
+    okCount,
+    failCount,
+  });
+
+  if (failCount > 0) {
+    liveTradeLogWarn("[share-structure] partial failures", {
+      market,
+      failCount,
+      sample: results.filter((r) => !r?.ok).slice(0, 5).map((r) => r?.symbol),
+    });
+  }
+
+  return { market, sessionKey, symbolCount: list.length, okCount, failCount };
 }
