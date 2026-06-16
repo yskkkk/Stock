@@ -135,6 +135,7 @@ html[data-theme="light"] .account-snapshot__balance-card {
   letter-spacing: -0.01em;
   opacity: 0.82;
   line-height: 1.2;
+  white-space: nowrap;
 }
 
 .account-snapshot--rail .account-snapshot__cash-value {

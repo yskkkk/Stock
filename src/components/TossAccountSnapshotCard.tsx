@@ -221,12 +221,6 @@ export default function TossAccountSnapshotCard({
                     "{rate}",
                     formatPrice(usdKrwRate, "KRW"),
                   )}
-                  {usdKrwValDate ? (
-                    <>
-                      {" · "}
-                      {ko.app.topBarFxBasis.replace("{date}", usdKrwValDate)}
-                    </>
-                  ) : null}
                 </span>
               ) : null}
             </div>

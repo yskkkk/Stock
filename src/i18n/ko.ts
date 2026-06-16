@@ -531,7 +531,7 @@ export const ko = {
     leftRailTossUpdated: "갱신",
     liveTradeTossCashKrw: "주문 가능(원)",
     liveTradeTossCashUsd: "주문 가능(달러)",
-    liveTradeTossCashFxBasis: "기준 {rate}",
+    liveTradeTossCashFxBasis: "1$={rate}",
     liveTradeTossHoldingsTotalEval: "보유 평가금액",
     leftRailBithumbBalanceHide: "잔액 가리기",
     leftRailBithumbBalanceShow: "잔액 보기",
