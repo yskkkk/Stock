@@ -402,6 +402,18 @@ export async function loadKrInvestorFlowHoldingsDetail(symbol, rowHint = null) {
     } catch {
       /* ignore */
     }
+  } else {
+    try {
+      const { loadStockShareStructure } = await import("./stock-share-structure.js");
+      const ss = await loadStockShareStructure(code, "kr");
+      const ref = ss?.totalShares;
+      if (ref != null && Number.isFinite(ref) && ref > 0) {
+        const gap = Math.abs(listedShares - ref) / ref;
+        if (gap > 0.12) listedShares = Math.round(ref);
+      }
+    } catch {
+      /* ignore */
+    }
   }
 
   const foreignHoldSharesResolved =

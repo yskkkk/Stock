@@ -7,6 +7,81 @@ function posNum(v) {
   return v != null && Number.isFinite(v) && v > 0 ? v : null;
 }
 
+/**
+ * FnGuide 발행주식수 파싱 오류 보정 — 유동주식수를 발행주식수로 잡은 경우·Naver 시총/종가 교차검증
+ * @param {{
+ *   totalShares?: number | null;
+ *   publishedFloatShares?: number | null;
+ *   publishedFloatPct?: number | null;
+ * }} input
+ * @param {number | null} [naverListed]
+ */
+export function reconcileKrIssuedShares(input, naverListed = null) {
+  let totalShares = posNum(input.totalShares);
+  const publishedFloat = posNum(input.publishedFloatShares);
+  let publishedFloatPct =
+    input.publishedFloatPct != null && Number.isFinite(input.publishedFloatPct)
+      ? input.publishedFloatPct
+      : null;
+  if (!isPlausibleKrFloatPct(publishedFloatPct)) {
+    publishedFloatPct = null;
+  }
+
+  if (totalShares != null && publishedFloat != null) {
+    const ratio = totalShares / publishedFloat;
+    if (ratio > 0.9 && ratio < 1.1) {
+      if (naverListed != null) totalShares = naverListed;
+      else if (publishedFloatPct != null) {
+        totalShares = deriveIndexAdjustmentShares(
+          publishedFloat,
+          publishedFloatPct,
+          null,
+        );
+      }
+    }
+  }
+
+  if (
+    totalShares != null &&
+    publishedFloat != null &&
+    totalShares < publishedFloat
+  ) {
+    if (naverListed != null) totalShares = naverListed;
+    else if (publishedFloatPct != null) {
+      totalShares = deriveIndexAdjustmentShares(
+        publishedFloat,
+        publishedFloatPct,
+        null,
+      );
+    }
+  }
+
+  if (naverListed != null && totalShares != null) {
+    const gap = Math.abs(totalShares - naverListed) / naverListed;
+    if (gap > 0.12) totalShares = naverListed;
+  }
+
+  return {
+    ...input,
+    totalShares,
+    publishedFloatPct,
+  };
+}
+
+/**
+ * @param {number | null | undefined} total
+ * @param {number | null | undefined} floatShares
+ */
+export function isSuspiciousKrShareTotals(total, floatShares) {
+  const totalN = posNum(total);
+  const floatN = posNum(floatShares);
+  if (totalN == null || floatN == null) return false;
+  if (totalN < floatN) return true;
+  if (Math.abs(totalN - floatN) / floatN < 0.05) return true;
+  if (totalN / floatN > 2.5) return true;
+  return false;
+}
+
 /** @param {Array<number | null | undefined>} vals */
 function sumPos(vals) {
   let sum = 0;
@@ -26,6 +101,20 @@ function sumPos(vals) {
  * @param {number | null} publishedFloatPct
  * @param {number | null} totalShares
  */
+export function isPlausibleKrFloatPct(publishedFloatPct) {
+  return (
+    publishedFloatPct != null &&
+    Number.isFinite(publishedFloatPct) &&
+    publishedFloatPct >= 25 &&
+    publishedFloatPct <= 95
+  );
+}
+
+/**
+ * @param {number | null} publishedFloat
+ * @param {number | null} publishedFloatPct
+ * @param {number | null} totalShares
+ */
 export function deriveIndexAdjustmentShares(
   publishedFloat,
   publishedFloatPct,
@@ -33,9 +122,7 @@ export function deriveIndexAdjustmentShares(
 ) {
   if (
     publishedFloat != null &&
-    publishedFloatPct != null &&
-    publishedFloatPct > 0 &&
-    Number.isFinite(publishedFloatPct)
+    isPlausibleKrFloatPct(publishedFloatPct)
   ) {
     return Math.round(publishedFloat / (publishedFloatPct / 100));
   }
@@ -133,12 +220,12 @@ export function parseFnGuideLabelShareRow(html, label) {
  * }} input
  */
 export function finalizeKrFloatShares(input) {
-  const totalShares = posNum(input.totalShares);
-  const publishedFloat = posNum(input.publishedFloatShares);
-  const publishedFloatPct =
-    input.publishedFloatPct != null && Number.isFinite(input.publishedFloatPct)
-      ? input.publishedFloatPct
-      : null;
+  const reconciled = reconcileKrIssuedShares(input);
+  const totalShares = posNum(reconciled.totalShares);
+  const publishedFloat = posNum(reconciled.publishedFloatShares);
+  const publishedFloatPct = isPlausibleKrFloatPct(reconciled.publishedFloatPct)
+    ? reconciled.publishedFloatPct
+    : null;
 
   const indexAdjustmentShares = deriveIndexAdjustmentShares(
     publishedFloat,

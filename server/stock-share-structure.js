@@ -10,8 +10,10 @@ import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
 import { dartApiGet, isDartEnabled, resolveDartCorpCode } from "./dart.js";
 import {
   finalizeKrFloatShares,
+  isSuspiciousKrShareTotals,
   parseFnGuideLabelShareRow,
   parseFnGuideTitledShareRow,
+  reconcileKrIssuedShares,
   sumStrategicInvestorSharesFromDart,
 } from "./stock-share-structure-float.js";
 import {
@@ -21,6 +23,8 @@ import {
 
 const STORE_FILE = "stock-share-structure.json";
 const FNGUIDE_UA = "Mozilla/5.0 (compatible; StockApp/1.0)";
+const NAVER_DOMESTIC_POLL_URL =
+  "https://polling.finance.naver.com/api/realtime/domestic/stock";
 
 const SCAN_CONCURRENCY = (() => {
   const n = Number(process.env.STOCK_SHARE_STRUCTURE_CONCURRENCY ?? 4);
@@ -235,6 +239,32 @@ async function fetchStrategicInvestorSharesKr(symbol) {
 }
 
 /** @param {string} symbol */
+async function fetchKrListedSharesFromNaver(symbol) {
+  const code = krCode(symbol);
+  try {
+    const res = await fetch(`${NAVER_DOMESTIC_POLL_URL}/${code}`, {
+      headers: { "User-Agent": FNGUIDE_UA, Accept: "application/json" },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!res.ok) return null;
+    const row = (await res.json())?.datas?.[0];
+    const close = Number(row?.closePriceRaw);
+    const mv = Number(row?.marketValueFullRaw);
+    if (
+      !Number.isFinite(close) ||
+      close <= 0 ||
+      !Number.isFinite(mv) ||
+      mv <= 0
+    ) {
+      return null;
+    }
+    return Math.round(mv / close);
+  } catch {
+    return null;
+  }
+}
+
+/** @param {string} symbol */
 async function fetchFnGuideKr(symbol) {
   const gicode = `A${krCode(symbol)}`;
   const res = await fetch(
@@ -243,7 +273,11 @@ async function fetchFnGuideKr(symbol) {
   );
   if (!res.ok) return null;
   const html = await res.text();
-  const components = parseFnGuideShareComponents(html);
+  const naverListed = await fetchKrListedSharesFromNaver(symbol).catch(() => null);
+  const components = reconcileKrIssuedShares(
+    parseFnGuideShareComponents(html),
+    naverListed,
+  );
   if (
     !components.totalShares &&
     !components.publishedFloatShares &&
@@ -415,6 +449,12 @@ function isLegacyShareStructureEntry(entry) {
 function isEntryFresh(symbol, entry) {
   if (!entry?.fetchedAtSlot) return false;
   if (isLegacyShareStructureEntry(entry)) return false;
+  if (
+    isKrSymbol(symbol) &&
+    isSuspiciousKrShareTotals(entry.totalShares, entry.floatShares)
+  ) {
+    return false;
+  }
   const market = isKrSymbol(symbol) ? "kr" : "us";
   return entry.fetchedAtSlot === getTradingSessionKey(market);
 }

@@ -3,13 +3,62 @@ import assert from "node:assert/strict";
 import {
   deriveIndexAdjustmentShares,
   finalizeKrFloatShares,
+  isPlausibleKrFloatPct,
+  isSuspiciousKrShareTotals,
+  reconcileKrIssuedShares,
   sumStrategicInvestorSharesFromDart,
 } from "./stock-share-structure-float.js";
+
+describe("isPlausibleKrFloatPct", () => {
+  it("rejects institutional-style pct mistaken for float pct", () => {
+    assert.equal(isPlausibleKrFloatPct(24.654), false);
+    assert.equal(isPlausibleKrFloatPct(56.37), true);
+  });
+});
+
+describe("reconcileKrIssuedShares", () => {
+  it("fixes float mistaken for total (강원랜드 구 파서)", () => {
+    const out = reconcileKrIssuedShares(
+      {
+        totalShares: 120_603_557,
+        publishedFloatShares: 120_603_557,
+        publishedFloatPct: 56.37,
+      },
+      213_940_500,
+    );
+    assert.equal(out.totalShares, 213_940_500);
+  });
+
+  it("prefers Naver when total diverges >12%", () => {
+    const out = reconcileKrIssuedShares(
+      {
+        totalShares: 489_184_542,
+        publishedFloatShares: 120_603_557,
+        publishedFloatPct: 24.654,
+      },
+      213_940_500,
+    );
+    assert.equal(out.totalShares, 213_940_500);
+    assert.equal(out.publishedFloatPct, null);
+  });
+});
+
+describe("isSuspiciousKrShareTotals", () => {
+  it("flags inflated total vs float", () => {
+    assert.equal(isSuspiciousKrShareTotals(489_184_542, 120_603_557), true);
+    assert.equal(isSuspiciousKrShareTotals(213_940_500, 120_603_557), false);
+  });
+});
 
 describe("deriveIndexAdjustmentShares", () => {
   it("derives index base from KRX float and pct", () => {
     const base = deriveIndexAdjustmentShares(49_477_255, 64.92, 76_211_850);
     assert.ok(Math.abs(base - 76_211_117) < 2_000);
+  });
+
+  it("ignores implausible pct (Yahoo 기관비율 오인)", () => {
+    const base = deriveIndexAdjustmentShares(120_603_557, 24.654, 213_940_500);
+    assert.equal(base, 213_940_500);
   });
 });
 
@@ -46,6 +95,18 @@ describe("finalizeKrFloatShares", () => {
       majorShareholderShares: 3_000_000,
     });
     assert.equal(out.floatShares, null);
+  });
+
+  it("강원랜드 — 발행주식수·유동주식 분리", () => {
+    const out = finalizeKrFloatShares({
+      totalShares: 213_940_500,
+      publishedFloatShares: 120_603_557,
+      publishedFloatPct: 56.37,
+    });
+    assert.equal(out.totalShares, 213_940_500);
+    assert.ok(out.indexAdjustmentShares != null);
+    assert.ok(Math.abs(out.indexAdjustmentShares - 213_949_897) < 5_000);
+    assert.equal(out.floatShares, 120_603_557);
   });
 });
 
