@@ -14,7 +14,10 @@ import {
 import { createPortal } from "react-dom";
 import { fetchStockShareStructure } from "../api";
 import { ko } from "../i18n/ko";
-import { dispatchForceCloseStockHoverBubble } from "../lib/stockHoverBubbleSingleton";
+import {
+  dispatchForceCloseStockHoverBubble,
+  isSameStockBubbleSymbol,
+} from "../lib/stockHoverBubbleSingleton";
 import type { StockShareStructureResponse } from "../types";
 
 const VIEWPORT_PAD = 8;
@@ -187,6 +190,13 @@ export function StockShareStructureBubbleProvider({
 
   const showShareStructureModal = useCallback(
     (anchor: HTMLElement, target: StockShareStructureTarget) => {
+      if (
+        openRef.current &&
+        isSameStockBubbleSymbol(openRef.current.symbol, target.symbol)
+      ) {
+        closeShareStructureModal();
+        return;
+      }
       clearHideTimer();
       const anchorRect = anchor.getBoundingClientRect();
       setOpen({
@@ -216,7 +226,7 @@ export function StockShareStructureBubbleProvider({
         }
       })();
     },
-    [clearHideTimer],
+    [clearHideTimer, closeShareStructureModal],
   );
 
   useEffect(

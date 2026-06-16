@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type MouseEvent,
   type RefObject,
 } from "react";
 import { useLeftRailLazyFollow } from "../hooks/useLeftRailLazyFollow";
@@ -29,6 +30,7 @@ import { ko } from "../i18n/ko";
 import type { SectorEarningsSpotlightItem } from "../types";
 import {
   dispatchStockHoverBubbleOpen,
+  handleStockHoverParentBubbleClick,
   isSameStockBubbleSymbol,
   STOCK_HOVER_BUBBLE_FORCE_CLOSE_EVENT,
   useStockHoverBubbleExclusive,
@@ -225,17 +227,37 @@ export default function EarningsUpcomingIconRail({
     hideTimerRef.current = setTimeout(() => {
       shareStructure?.scheduleCloseShareStructureModal();
       const tipSym = tipRef.current?.row.symbol;
-      if (tipSym && valueInvest?.openSymbol === tipSym) return;
+      if (tipSym && isSameStockBubbleSymbol(tipSym, valueInvest?.openSymbol)) return;
       setTip(null);
       hideTimerRef.current = null;
     }, HIDE_DELAY_MS);
   }, [clearHideTimer, valueInvest?.openSymbol, shareStructure]);
+
+  const closeParentTipOnly = useCallback(() => {
+    clearHideTimer();
+    setTip(null);
+  }, [clearHideTimer]);
 
   const closeTip = useCallback(() => {
     clearHideTimer();
     shareStructure?.closeShareStructureModal();
     setTip(null);
   }, [clearHideTimer, shareStructure]);
+
+  const handleParentBubbleClick = useCallback(
+    (e: MouseEvent) => {
+      const sym = tipRef.current?.row.symbol;
+      if (!sym) return;
+      handleStockHoverParentBubbleClick(
+        e,
+        sym,
+        shareStructure,
+        valueInvest,
+        closeParentTipOnly,
+      );
+    },
+    [shareStructure, valueInvest, closeParentTipOnly],
+  );
 
   useStockHoverBubbleExclusive(EARNINGS_ICON_RAIL_BUBBLE_OWNER, closeTip);
 
@@ -280,6 +302,7 @@ export default function EarningsUpcomingIconRail({
               shareStructure?.keepShareStructureModalOpen();
             }}
             onMouseLeave={scheduleHideTip}
+            onClick={handleParentBubbleClick}
           >
             <StockEarningsHoverBubbleBody
               symbol={tip.row.symbol}

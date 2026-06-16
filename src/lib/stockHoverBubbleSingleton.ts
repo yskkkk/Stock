@@ -42,6 +42,39 @@ export function isSameStockBubbleSymbol(
   return Boolean(ka && kb && ka === kb);
 }
 
+type StockHoverChildBubbleApi = {
+  openSymbol: string | null;
+  closeShareStructureModal?: () => void;
+  closeValueInvestBubble?: () => void;
+};
+
+/** 원래 말풍선 본문 클릭 — 주식수량 열림이면 둘 다 닫기, 버핏만 열림이면 버핏만 닫기 */
+export function handleStockHoverParentBubbleClick(
+  e: { target: EventTarget | null },
+  symbol: string,
+  shareStructure: StockHoverChildBubbleApi | null,
+  valueInvest: StockHoverChildBubbleApi | null,
+  closeParentTip: () => void,
+): void {
+  const target = e.target as HTMLElement | null;
+  if (!target || target.closest("button, a")) return;
+
+  if (
+    shareStructure?.closeShareStructureModal &&
+    isSameStockBubbleSymbol(symbol, shareStructure.openSymbol)
+  ) {
+    shareStructure.closeShareStructureModal();
+    closeParentTip();
+    return;
+  }
+  if (
+    valueInvest?.closeValueInvestBubble &&
+    isSameStockBubbleSymbol(symbol, valueInvest.openSymbol)
+  ) {
+    valueInvest.closeValueInvestBubble();
+  }
+}
+
 export function useStockHoverBubbleExclusive(
   ownerId: string,
   onClose: () => void,

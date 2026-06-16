@@ -5,6 +5,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type MouseEvent,
   type MutableRefObject,
 } from "react";
 import { createPortal } from "react-dom";
@@ -15,6 +16,7 @@ import { loadEarningsBubbleFinancials } from "../lib/earningsBubbleFinancials";
 import { tradingViewChartUrl } from "../lib/tradingviewSymbols";
 import {
   dispatchStockHoverBubbleOpen,
+  handleStockHoverParentBubbleClick,
   isSameStockBubbleSymbol,
   STOCK_HOVER_BUBBLE_FORCE_CLOSE_EVENT,
   useStockHoverBubbleExclusive,
@@ -170,11 +172,17 @@ export function useStockVaultRowBubble(tipIdOverride?: string) {
     hideTimerRef.current = window.setTimeout(() => {
       shareStructure?.scheduleCloseShareStructureModal();
       const sym = tipRef.current?.symbol;
-      if (sym && valueInvest?.openSymbol === sym) return;
+      if (sym && isSameStockBubbleSymbol(sym, valueInvest?.openSymbol)) return;
       setTip(null);
       hideTimerRef.current = null;
     }, HIDE_DELAY_MS);
   }, [clearHideTimer, clearShowTimer, valueInvest?.openSymbol, shareStructure]);
+
+  const closeParentTipOnly = useCallback(() => {
+    clearShowTimer();
+    clearHideTimer();
+    setTip(null);
+  }, [clearHideTimer, clearShowTimer]);
 
   const closeTip = useCallback(() => {
     clearShowTimer();
@@ -182,6 +190,21 @@ export function useStockVaultRowBubble(tipIdOverride?: string) {
     shareStructure?.closeShareStructureModal();
     setTip(null);
   }, [clearHideTimer, clearShowTimer, shareStructure]);
+
+  const handleParentBubbleClick = useCallback(
+    (e: MouseEvent) => {
+      const sym = tipRef.current?.symbol;
+      if (!sym) return;
+      handleStockHoverParentBubbleClick(
+        e,
+        sym,
+        shareStructure,
+        valueInvest,
+        closeParentTipOnly,
+      );
+    },
+    [shareStructure, valueInvest, closeParentTipOnly],
+  );
 
   useStockHoverBubbleExclusive(STOCK_VAULT_ROW_BUBBLE_OWNER, closeTip);
 
@@ -279,6 +302,7 @@ export function useStockVaultRowBubble(tipIdOverride?: string) {
               shareStructure?.keepShareStructureModalOpen();
             }}
             onMouseLeave={scheduleHideTip}
+            onClick={handleParentBubbleClick}
           >
             <StockEarningsHoverBubbleBody
               symbol={tip.symbol}

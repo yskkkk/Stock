@@ -31,6 +31,7 @@ import {
   registerValueInvestBubbleApi,
   readValueInvestBubbleApi,
 } from "../lib/valueInvestBubbleBridge";
+import { isSameStockBubbleSymbol } from "../lib/stockHoverBubbleSingleton";
 
 const VIEWPORT_PAD = 8;
 const GAP = 10;
@@ -747,6 +748,8 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
   const [payload, setPayload] = useState<ValueInvestReturnResponse | null>(null);
   const [inputs, setInputs] = useState<ValueInvestReturnInputs | null>(null);
   const fetchSeq = useRef(0);
+  const openRef = useRef<OpenState | null>(null);
+  openRef.current = open;
 
   const closeValueInvestBubble = useCallback(() => {
     setOpen(null);
@@ -762,6 +765,13 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
       target: ValueInvestBubbleTarget,
       pointer?: BubblePointer | null,
     ) => {
+      if (
+        openRef.current &&
+        isSameStockBubbleSymbol(openRef.current.symbol, target.symbol)
+      ) {
+        closeValueInvestBubble();
+        return;
+      }
       const anchorRect = anchorRectForBubble(anchor, pointer);
       setOpen({
         ...target,
@@ -804,7 +814,7 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
         }
       })();
     },
-    [],
+    [closeValueInvestBubble],
   );
 
   useLayoutEffect(() => {
