@@ -7,6 +7,13 @@ import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 import { queueYahooRequest } from "./yahoo-queue.js";
 import { yahooGet } from "./yahoo.js";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
+import { dartApiGet, isDartEnabled, resolveDartCorpCode } from "./dart.js";
+import {
+  finalizeKrFloatShares,
+  parseFnGuideLabelShareRow,
+  parseFnGuideTitledShareRow,
+  sumStrategicInvestorSharesFromDart,
+} from "./stock-share-structure-float.js";
 
 const STORE_FILE = "stock-share-structure.json";
 const FNGUIDE_UA = "Mozilla/5.0 (compatible; StockApp/1.0)";
@@ -42,6 +49,14 @@ function parseCommaNum(s) {
  * @typedef {Object} ShareStructureEntry
  * @property {number | null} totalShares
  * @property {number | null} majorShareholderShares
+ * @property {number | null} treasuryShares
+ * @property {number | null} employeeStockShares
+ * @property {number | null} lockupShares
+ * @property {number | null} governmentShares
+ * @property {number | null} overseasDrShares
+ * @property {number | null} strategicInvestorShares
+ * @property {number | null} otherNonFloatShares
+ * @property {number | null} indexAdjustmentShares
  * @property {number | null} floatShares
  * @property {number | null} floatPct
  * @property {string | null} source
@@ -161,27 +176,52 @@ function deriveFloatPct(total, floatShares, floatPctHint) {
 /**
  * @param {string} html
  */
-function parseFnGuideShareStructure(html) {
+function parseFnGuideShareComponents(html) {
   const totalM = html.match(
     /발행주식수<span class="csize">\(보통주\/ 우선주\)<\/span><\/div><\/th>\s*<td class="r">([\d,]+)/,
   );
   const floatM = html.match(
     /유동주식수\/비율<\/a>[\s\S]*?<td class="r">([\d,]+)\s*\/\s*([\d.]+)/,
   );
-  const majorM = html.match(
-    /최대주주등&nbsp;\(본인\+특별관계자\)[\s\S]*?<td class="r">\d+<\/td><td class="r">([\d,]+)<\/td><td class="r">([\d.]+)/,
-  );
   const totalShares = totalM ? parseCommaNum(totalM[1]) : null;
-  const floatShares = floatM ? parseCommaNum(floatM[1]) : null;
-  const floatPctHint = floatM ? Number(floatM[2]) : null;
-  const majorShareholderShares = majorM ? parseCommaNum(majorM[1]) : null;
-  if (!totalShares && !floatShares && !majorShareholderShares) return null;
+  const publishedFloatShares = floatM ? parseCommaNum(floatM[1]) : null;
+  const publishedFloatPct = floatM ? Number(floatM[2]) : null;
+  const majorShareholderShares =
+    parseFnGuideTitledShareRow(html, "최대주주등") ??
+    (() => {
+      const majorM = html.match(
+        /최대주주등&nbsp;\(본인\+특별관계자\)[\s\S]*?<td class="r">\d+<\/td><td class="r">([\d,]+)<\/td>/,
+      );
+      return majorM ? parseCommaNum(majorM[1]) : null;
+    })();
+
   return {
     totalShares,
+    publishedFloatShares,
+    publishedFloatPct:
+      publishedFloatPct != null && Number.isFinite(publishedFloatPct)
+        ? publishedFloatPct
+        : null,
     majorShareholderShares,
-    floatShares,
-    floatPct: deriveFloatPct(totalShares, floatShares, floatPctHint),
+    treasuryShares:
+      parseFnGuideTitledShareRow(html, "자기주식") ??
+      parseFnGuideLabelShareRow(html, "자사주"),
+    employeeStockShares: parseFnGuideTitledShareRow(html, "우리사주조합"),
+    lockupShares: parseFnGuideTitledShareRow(html, "보호예수"),
+    governmentShares: parseFnGuideTitledShareRow(html, "정부기관"),
+    overseasDrShares: parseFnGuideTitledShareRow(html, "해외DR"),
+    strategicInvestorShares: null,
   };
+}
+
+/** @param {string} symbol */
+async function fetchStrategicInvestorSharesKr(symbol) {
+  if (!isDartEnabled()) return null;
+  const corpCode = await resolveDartCorpCode(symbol);
+  if (!corpCode) return null;
+  const data = await dartApiGet("/majorstock.json", { corp_code: corpCode });
+  if (!data?.list?.length) return null;
+  return sumStrategicInvestorSharesFromDart(data.list);
 }
 
 /** @param {string} symbol */
@@ -193,9 +233,24 @@ async function fetchFnGuideKr(symbol) {
   );
   if (!res.ok) return null;
   const html = await res.text();
-  const parsed = parseFnGuideShareStructure(html);
-  if (!parsed) return null;
-  return { ...parsed, source: "FnGuide" };
+  const components = parseFnGuideShareComponents(html);
+  if (
+    !components.totalShares &&
+    !components.publishedFloatShares &&
+    !components.majorShareholderShares &&
+    !components.treasuryShares
+  ) {
+    return null;
+  }
+  const strategicInvestorShares = await fetchStrategicInvestorSharesKr(symbol).catch(
+    () => null,
+  );
+  const finalized = finalizeKrFloatShares({
+    ...components,
+    strategicInvestorShares,
+  });
+  if (!finalized) return null;
+  return { ...finalized, source: "FnGuide" };
 }
 
 /** @param {string} yahooSym */
@@ -249,14 +304,27 @@ async function fetchLiveShareStructure(symbol, market) {
     const fg = await fetchFnGuideKr(sym).catch(() => null);
     if (fg) {
       const totalShares = fg.totalShares ?? yahoo?.totalShares ?? null;
+      const indexAdjustmentShares =
+        fg.indexAdjustmentShares ?? fg.totalShares ?? totalShares;
       const floatShares = fg.floatShares ?? yahoo?.floatShares ?? null;
       const majorShareholderShares =
         fg.majorShareholderShares ?? yahoo?.majorShareholderShares ?? null;
       return {
         totalShares,
+        indexAdjustmentShares,
         majorShareholderShares,
+        treasuryShares: fg.treasuryShares ?? null,
+        employeeStockShares: fg.employeeStockShares ?? null,
+        lockupShares: fg.lockupShares ?? null,
+        governmentShares: fg.governmentShares ?? null,
+        overseasDrShares: fg.overseasDrShares ?? null,
+        strategicInvestorShares: fg.strategicInvestorShares ?? null,
+        otherNonFloatShares: fg.otherNonFloatShares ?? null,
         floatShares,
-        floatPct: deriveFloatPct(totalShares, floatShares, fg.floatPct),
+        floatPct:
+          floatShares != null && indexAdjustmentShares != null && indexAdjustmentShares > 0
+            ? fg.floatPct ?? deriveFloatPct(indexAdjustmentShares, floatShares, fg.floatPct)
+            : fg.floatPct ?? deriveFloatPct(totalShares, floatShares, fg.floatPct),
         source: yahoo ? `FnGuide+${yahoo.source}` : "FnGuide",
       };
     }
@@ -278,7 +346,15 @@ function toApiPayload(symbol, entry) {
   return {
     symbol,
     totalShares: entry.totalShares,
+    indexAdjustmentShares: entry.indexAdjustmentShares ?? null,
     majorShareholderShares: entry.majorShareholderShares,
+    treasuryShares: entry.treasuryShares ?? null,
+    employeeStockShares: entry.employeeStockShares ?? null,
+    lockupShares: entry.lockupShares ?? null,
+    governmentShares: entry.governmentShares ?? null,
+    overseasDrShares: entry.overseasDrShares ?? null,
+    strategicInvestorShares: entry.strategicInvestorShares ?? null,
+    otherNonFloatShares: entry.otherNonFloatShares ?? null,
     floatShares: entry.floatShares,
     floatPct: entry.floatPct,
     source: entry.source,
@@ -322,7 +398,15 @@ export async function loadStockShareStructure(symbol, market) {
   const slot = getTradingSessionKey(m);
   const entry = {
     totalShares: live.totalShares,
+    indexAdjustmentShares: live.indexAdjustmentShares ?? live.totalShares,
     majorShareholderShares: live.majorShareholderShares,
+    treasuryShares: live.treasuryShares ?? null,
+    employeeStockShares: live.employeeStockShares ?? null,
+    lockupShares: live.lockupShares ?? null,
+    governmentShares: live.governmentShares ?? null,
+    overseasDrShares: live.overseasDrShares ?? null,
+    strategicInvestorShares: live.strategicInvestorShares ?? null,
+    otherNonFloatShares: live.otherNonFloatShares ?? null,
     floatShares: live.floatShares,
     floatPct: live.floatPct,
     source: live.source ?? null,
@@ -380,7 +464,15 @@ export async function runShareStructureScanForMarket(market) {
       const live = await fetchLiveShareStructure(sym, market);
       entries[sym] = {
         totalShares: live.totalShares,
+        indexAdjustmentShares: live.indexAdjustmentShares ?? live.totalShares,
         majorShareholderShares: live.majorShareholderShares,
+        treasuryShares: live.treasuryShares ?? null,
+        employeeStockShares: live.employeeStockShares ?? null,
+        lockupShares: live.lockupShares ?? null,
+        governmentShares: live.governmentShares ?? null,
+        overseasDrShares: live.overseasDrShares ?? null,
+        strategicInvestorShares: live.strategicInvestorShares ?? null,
+        otherNonFloatShares: live.otherNonFloatShares ?? null,
         floatShares: live.floatShares,
         floatPct: live.floatPct,
         source: live.source ?? null,

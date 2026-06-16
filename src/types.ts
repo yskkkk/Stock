@@ -514,7 +514,15 @@ export interface StockVaultFavoriteMeta {
 export interface StockShareStructureResponse {
   symbol: string;
   totalShares: number | null;
+  indexAdjustmentShares?: number | null;
   majorShareholderShares: number | null;
+  treasuryShares?: number | null;
+  employeeStockShares?: number | null;
+  lockupShares?: number | null;
+  governmentShares?: number | null;
+  overseasDrShares?: number | null;
+  strategicInvestorShares?: number | null;
+  otherNonFloatShares?: number | null;
   floatShares: number | null;
   floatPct: number | null;
   source: string | null;

@@ -19,7 +19,7 @@ import type { StockShareStructureResponse } from "../types";
 const VIEWPORT_PAD = 8;
 const GAP = 10;
 const EST_W = 300;
-const EST_H = 220;
+const EST_H = 320;
 
 export type StockShareStructureTarget = {
   symbol: string;
@@ -240,6 +240,41 @@ export function StockShareStructureBubbleProvider({
           key: "major",
           label: ko.stockVault.shareStructureMajor,
           value: fmtShares(payload.majorShareholderShares),
+        },
+        {
+          key: "treasury",
+          label: ko.stockVault.shareStructureTreasury,
+          value: fmtShares(payload.treasuryShares),
+        },
+        {
+          key: "lockup",
+          label: ko.stockVault.shareStructureLockup,
+          value: fmtShares(payload.lockupShares),
+        },
+        {
+          key: "employee",
+          label: ko.stockVault.shareStructureEmployee,
+          value: fmtShares(payload.employeeStockShares),
+        },
+        {
+          key: "strategic",
+          label: ko.stockVault.shareStructureStrategic,
+          value: fmtShares(payload.strategicInvestorShares),
+        },
+        {
+          key: "government",
+          label: ko.stockVault.shareStructureGovernment,
+          value: fmtShares(payload.governmentShares),
+        },
+        {
+          key: "overseasDr",
+          label: ko.stockVault.shareStructureOverseasDr,
+          value: fmtShares(payload.overseasDrShares),
+        },
+        {
+          key: "otherNonFloat",
+          label: ko.stockVault.shareStructureOtherNonFloat,
+          value: fmtShares(payload.otherNonFloatShares),
         },
         {
           key: "float",
