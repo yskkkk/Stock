@@ -27,6 +27,7 @@ const SOURCE_BADGE_LABEL: Record<StockVaultScanSource, string> = {
   ma_align: ko.stockVault.sourceMaAlign,
   ma120_near: ko.stockVault.sourceMa120Near,
   bottom_candle: ko.stockVault.sourceBottomCandle,
+  book_accum: ko.stockVault.sourceBookAccum,
 };
 
 function fmtDate(ms: number): string {
@@ -101,6 +102,7 @@ function StockVaultRowInner({
   const chgUp = chg != null && chg >= 0;
   const gcItem = row.goldenCross;
   const bottomItem = row.bottomCandle;
+  const bookAccumItem = row.bookAccum;
   const gcRecencyClass = gcItem ? goldenCrossRecencyClass(gcItem) : null;
   const rowClassName = [
     "stock-vault-tab__row",
@@ -115,6 +117,8 @@ function StockVaultRowInner({
     row.maAlign?.scanDate ??
     bottomItem?.signalDate ??
     bottomItem?.scanDate ??
+    bookAccumItem?.signalDate ??
+    bookAccumItem?.scanDate ??
     null;
   const sourceLabels =
     row.scanSources.length > 0
@@ -138,11 +142,24 @@ function StockVaultRowInner({
         bottomItem.bottomScore != null ? ` ${bottomItem.bottomScore}pt` : ""
       }`
     : null;
+  const bookAccumLabel =
+    bookAccumItem != null
+      ? `매집${
+          bookAccumItem.accumScore != null
+            ? ` ${bookAccumItem.accumScore}pt`
+            : ""
+        }${
+          bookAccumItem.accumRvol != null
+            ? ` RVOL ${bookAccumItem.accumRvol.toFixed(1)}`
+            : ""
+        }`
+      : null;
   const hasSignalBadges =
     Boolean(gcChain) ||
     Boolean(row.maAlign) ||
     Boolean(ma120Label) ||
-    Boolean(bottomLabel);
+    Boolean(bottomLabel) ||
+    Boolean(bookAccumLabel);
 
   const bubbleTarget = (): StockVaultRowBubbleTarget => ({
     symbol: row.symbol,
@@ -316,6 +333,14 @@ function StockVaultRowInner({
                   title={ko.stockVault.bottomCandleBadgeHint}
                 >
                   {bottomLabel}
+                </span>
+              ) : null}
+              {bookAccumLabel ? (
+                <span
+                  className="stock-vault-tab__cross stock-vault-tab__cross--accum"
+                  title={ko.stockVault.bookAccumBadgeHint}
+                >
+                  {bookAccumLabel}
                 </span>
               ) : null}
             </div>

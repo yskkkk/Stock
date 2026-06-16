@@ -2669,6 +2669,7 @@ export function createApp() {
       const { getGoldenCrossScanStateSync } = await import("./golden-cross-scan.js");
       const { getMaAlignScanStateSync } = await import("./ma-align-scan.js");
       const { getMa120NearScanStateSync } = await import("./ma120-near-scan.js");
+      const { getBookAccumulationScanStateSync } = await import("./book-accumulation-scan.js");
       const {
         goldenCrossScanEnabled,
         getLastGoldenCrossManualScanResult,
@@ -2687,6 +2688,7 @@ export function createApp() {
         goldenCross: { state: getGoldenCrossScanStateSync() },
         maAlign: { state: getMaAlignScanStateSync() },
         ma120Near: { state: getMa120NearScanStateSync() },
+        bookAccum: { state: getBookAccumulationScanStateSync() },
         bottomCandle: {
           enabled: bottomCandleScanEnabled(),
           running: isBottomCandleManualScanRunning(),

@@ -5,12 +5,18 @@ import { runGoldenCrossMarketScan, wasGoldenCrossScannedSync } from "./golden-cr
 import { runMaAlignMarketScan, wasMaAlignScannedSync } from "./ma-align-scan.js";
 import { runMa120NearMarketScan, wasMa120NearScannedSync } from "./ma120-near-scan.js";
 import {
+  runBookAccumulationMarketScan,
+  wasBookAccumulationScannedSync,
+} from "./book-accumulation-scan.js";
+import {
   clearGoldenCrossVaultItemsSync,
   clearMaAlignVaultItemsSync,
   clearMa120NearVaultItemsSync,
+  clearBookAccumVaultItemsSync,
   mergeGoldenCrossHitsIntoVaultSync,
   mergeMaAlignHitsIntoVaultSync,
   mergeMa120NearHitsIntoVaultSync,
+  mergeBookAccumHitsIntoVaultSync,
 } from "./stock-vault-store.js";
 import { appendGoldenCrossHistoryEntrySync } from "./golden-cross-history-store.js";
 import { appendMaAlignHistoryEntrySync } from "./ma-align-history-store.js";
@@ -139,6 +145,10 @@ function emptyMa120NearMarketResult(market, scanDate) {
   return { market, scanDate, scanned: 0, hits: [], hitCount: 0 };
 }
 
+function emptyBookAccumMarketResult(market, scanDate) {
+  return { market, scanDate, scanned: 0, hits: [], hitCount: 0 };
+}
+
 /**
  * @param {"kr"|"us"} market
  * @param {string} scanDate
@@ -164,12 +174,16 @@ async function runVaultMarketScansForTimeframe(
     runGoldenCrossMarketScan(market, scanDate, scanOpts),
     runMaAlignMarketScan(market, scanDate, scanOpts),
     ...(timeframe === "1d"
-      ? [runMa120NearMarketScan(market, scanDate, { persistState: persistScanState })]
+      ? [
+          runMa120NearMarketScan(market, scanDate, { persistState: persistScanState }),
+          runBookAccumulationMarketScan(market, scanDate, { persistState: persistScanState }),
+        ]
       : []),
   ]);
   const gcSettled = settled[0];
   const maSettled = settled[1];
   const ma120Settled = timeframe === "1d" ? settled[2] : null;
+  const bookAccumSettled = timeframe === "1d" ? settled[3] : null;
 
   /** @type {Awaited<ReturnType<typeof runGoldenCrossMarketScan>>} */
   let goldenCross = emptyGoldenCrossMarketResult(market, scanDate);
@@ -278,6 +292,26 @@ async function runVaultMarketScansForTimeframe(
     }
   }
 
+  /** @type {Awaited<ReturnType<typeof runBookAccumulationMarketScan>>} */
+  let bookAccum = emptyBookAccumMarketResult(market, scanDate);
+  if (timeframe === "1d" && bookAccumSettled) {
+    if (bookAccumSettled.status === "fulfilled") {
+      bookAccum = bookAccumSettled.value;
+      clearBookAccumVaultItemsSync({ market });
+      if (bookAccum.hits.length) {
+        mergeBookAccumHitsIntoVaultSync(bookAccum.hits);
+      }
+    } else {
+      liveTradeLogWarn(
+        "[stock-vault:scan:book-accum]",
+        market,
+        bookAccumSettled.reason instanceof Error
+          ? bookAccumSettled.reason.message
+          : bookAccumSettled.reason,
+      );
+    }
+  }
+
   liveTradeLogInfo("[stock-vault:scan] timeframe done", {
     market,
     scanDate,
@@ -286,12 +320,14 @@ async function runVaultMarketScansForTimeframe(
     goldenCrossHits: goldenCross.hitCount,
     maAlignHits: maAlign.hitCount,
     ma120NearHits: ma120Near.hitCount,
+    bookAccumHits: bookAccum.hitCount,
     goldenCrossOk: gcSettled.status === "fulfilled",
     maAlignOk: maSettled.status === "fulfilled",
     ma120NearOk: ma120Settled?.status === "fulfilled",
+    bookAccumOk: bookAccumSettled?.status === "fulfilled",
   });
 
-  return { goldenCross, maAlign, ma120Near, timeframe };
+  return { goldenCross, maAlign, ma120Near, bookAccum, timeframe };
 }
 
 /**
@@ -357,6 +393,7 @@ export async function runVaultMarketScans(
     goldenCross: daily.goldenCross,
     maAlign: daily.maAlign,
     ma120Near: daily.ma120Near,
+    bookAccum: daily.bookAccum,
     byTimeframe,
   };
 }
@@ -409,6 +446,8 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
   const maAlignResults = [];
   /** @type {Array<{ market: "kr"|"us"; scanDate: string; scanned: number; hitCount: number }>} */
   const ma120NearResults = [];
+  /** @type {Array<{ market: "kr"|"us"; scanDate: string; scanned: number; hitCount: number }>} */
+  const bookAccumResults = [];
   /** @type {import("./notifications/golden-cross-scan-email.js").GoldenCrossEmailMarket[]} */
   const goldenCrossEmailMarkets = [];
   /** @type {import("./notifications/golden-cross-scan-email.js").MaAlignEmailMarket[]} */
@@ -422,6 +461,7 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
     let goldenCross = emptyGoldenCrossMarketResult(market, scanDate);
     let maAlign = emptyMaAlignMarketResult(market, scanDate);
     let ma120Near = emptyMa120NearMarketResult(market, scanDate);
+    let bookAccum = emptyBookAccumMarketResult(market, scanDate);
     let byTimeframe = null;
     try {
       const scanResult = await runVaultMarketScans(
@@ -433,6 +473,7 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
       goldenCross = scanResult.goldenCross;
       maAlign = scanResult.maAlign;
       ma120Near = scanResult.ma120Near;
+      bookAccum = scanResult.bookAccum ?? emptyBookAccumMarketResult(market, scanDate);
       byTimeframe = scanResult.byTimeframe;
     } catch (e) {
       liveTradeLogWarn(
@@ -483,6 +524,12 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
       scanned: ma120Near.scanned,
       hitCount: ma120Near.hitCount,
     });
+    bookAccumResults.push({
+      market,
+      scanDate,
+      scanned: bookAccum.scanned,
+      hitCount: bookAccum.hitCount,
+    });
   }
 
   try {
@@ -508,6 +555,7 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
     goldenCross: goldenCrossResults,
     maAlign: maAlignResults,
     ma120Near: ma120NearResults,
+    bookAccum: bookAccumResults,
   };
   return lastManualScanResult;
 }
@@ -546,7 +594,8 @@ export function shouldRunGoldenCrossScan(market, now = new Date()) {
     if (
       !wasGoldenCrossScannedSync(market, dateKey, timeframe) ||
       !wasMaAlignScannedSync(market, dateKey, timeframe) ||
-      (timeframe === "1d" && !wasMa120NearScannedSync(market, dateKey))
+      (timeframe === "1d" && !wasMa120NearScannedSync(market, dateKey)) ||
+      (timeframe === "1d" && !wasBookAccumulationScannedSync(market, dateKey))
     ) {
       return market === "kr"
         ? isKrMarketFullyClosed(now)

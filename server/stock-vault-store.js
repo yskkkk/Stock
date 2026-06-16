@@ -12,7 +12,7 @@ function vaultStoreFile() {
   return process.env.STOCK_VAULT_STORE_TEST_FILE?.trim() || "stock-vault.json";
 }
 
-/** @typedef {"golden_cross"|"ma_align"|"ma120_near"|"bottom_candle"} StockVaultSource */
+/** @typedef {"golden_cross"|"ma_align"|"ma120_near"|"bottom_candle"|"book_accum"} StockVaultSource */
 
 /**
  * @typedef {{
@@ -37,6 +37,8 @@ function vaultStoreFile() {
  *   bottomZoneBot?: number;
  *   bottomRvol?: number;
  *   bottomClassic?: boolean;
+ *   accumScore?: number;
+ *   accumRvol?: number;
  *   addedAtMs: number;
  *   updatedAtMs: number;
  * }} StockVaultItem
@@ -52,6 +54,7 @@ function normalizeSource(source) {
   if (source === "ma_align") return "ma_align";
   if (source === "ma120_near") return "ma120_near";
   if (source === "bottom_candle") return "bottom_candle";
+  if (source === "book_accum") return "book_accum";
   return null;
 }
 
@@ -151,11 +154,11 @@ function normalizeStore(raw) {
           ? row.bottomScore
           : undefined,
       signalDate:
-        source === "bottom_candle" &&
+        (source === "bottom_candle" || source === "book_accum") &&
         typeof row?.signalDate === "string" &&
         row.signalDate.trim()
           ? row.signalDate.trim()
-          : source === "bottom_candle" &&
+          : (source === "bottom_candle" || source === "book_accum") &&
               typeof row?.scanDate === "string" &&
               row.scanDate.trim()
             ? row.scanDate.trim()
@@ -186,6 +189,18 @@ function normalizeStore(raw) {
           : undefined,
       bottomClassic:
         source === "bottom_candle" ? Boolean(row?.bottomClassic) : undefined,
+      accumScore:
+        source === "book_accum" &&
+        typeof row?.accumScore === "number" &&
+        Number.isFinite(row.accumScore)
+          ? row.accumScore
+          : undefined,
+      accumRvol:
+        source === "book_accum" &&
+        typeof row?.accumRvol === "number" &&
+        Number.isFinite(row.accumRvol)
+          ? row.accumRvol
+          : undefined,
       addedAtMs:
         typeof row?.addedAtMs === "number" && Number.isFinite(row.addedAtMs)
           ? row.addedAtMs
@@ -319,7 +334,7 @@ export function upsertStockVaultItemSync(input) {
           ? input.bottomScore
           : prev.bottomScore,
       signalDate:
-        source === "bottom_candle"
+        source === "bottom_candle" || source === "book_accum"
           ? input.signalDate != null
             ? input.signalDate
             : input.scanDate != null
@@ -346,6 +361,14 @@ export function upsertStockVaultItemSync(input) {
         source === "bottom_candle" && input.bottomClassic != null
           ? input.bottomClassic
           : prev.bottomClassic,
+      accumScore:
+        source === "book_accum" && input.accumScore != null
+          ? input.accumScore
+          : prev.accumScore,
+      accumRvol:
+        source === "book_accum" && input.accumRvol != null
+          ? input.accumRvol
+          : prev.accumRvol,
       updatedAtMs: now,
     };
   } else {
@@ -370,7 +393,7 @@ export function upsertStockVaultItemSync(input) {
       bottomCode: source === "bottom_candle" ? input.bottomCode : undefined,
       bottomScore: source === "bottom_candle" ? input.bottomScore : undefined,
       signalDate:
-        source === "bottom_candle"
+        source === "bottom_candle" || source === "book_accum"
           ? (input.signalDate ?? input.scanDate ?? null)
           : undefined,
       bottomSl: source === "bottom_candle" ? input.bottomSl : undefined,
@@ -378,6 +401,8 @@ export function upsertStockVaultItemSync(input) {
       bottomZoneBot: source === "bottom_candle" ? input.bottomZoneBot : undefined,
       bottomRvol: source === "bottom_candle" ? input.bottomRvol : undefined,
       bottomClassic: source === "bottom_candle" ? input.bottomClassic : undefined,
+      accumScore: source === "book_accum" ? input.accumScore : undefined,
+      accumRvol: source === "book_accum" ? input.accumRvol : undefined,
       addedAtMs: now,
       updatedAtMs: now,
     });
@@ -626,6 +651,48 @@ export function mergeBottomCandleHitsIntoVaultSync(hits) {
       bottomZoneBot: hit.bottomZoneBot ?? undefined,
       bottomRvol: hit.bottomRvol ?? undefined,
       bottomClassic: hit.bottomClassic,
+    });
+  }
+}
+
+export function clearBookAccumVaultItemsSync(opts = {}) {
+  const marketFilter = opts.market === "kr" || opts.market === "us" ? opts.market : null;
+  const preserveFavorites = opts.preserveFavorites !== false;
+  const favorited = preserveFavorites ? listAllFavoritedSymbolsSync() : new Set();
+  const store = readStore();
+  const before = store.items.length;
+  store.items = store.items.filter((it) => {
+    if (it.source !== "book_accum") return true;
+    if (marketFilter && it.market !== marketFilter) return true;
+    if (favorited.has(it.symbol)) return true;
+    return false;
+  });
+  if (store.items.length !== before) {
+    writeStore(store);
+  }
+  return before - store.items.length;
+}
+
+/**
+ * @param {Array<{ symbol: string; name: string; market: "kr"|"us"; scanDate: string; timeframe?: import("./vault-scan-timeframe.js").VaultScanTimeframe; signalDate?: string | null; accumScore?: number; accumRvol?: number | null }>} hits
+ */
+export function mergeBookAccumHitsIntoVaultSync(hits) {
+  const dismissed = new Set(readStore().dismissed ?? []);
+  for (const hit of hits) {
+    const sym = String(hit.symbol ?? "")
+      .trim()
+      .toUpperCase();
+    if (!sym || dismissed.has(sym)) continue;
+    upsertStockVaultItemSync({
+      symbol: hit.symbol,
+      name: hit.name,
+      market: hit.market,
+      source: "book_accum",
+      timeframe: hit.timeframe ?? VAULT_SCAN_TIMEFRAME_DEFAULT,
+      scanDate: hit.scanDate,
+      signalDate: hit.signalDate ?? hit.scanDate,
+      accumScore: hit.accumScore,
+      accumRvol: hit.accumRvol ?? undefined,
     });
   }
 }

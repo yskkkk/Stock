@@ -12,6 +12,7 @@ export const STOCK_VAULT_SCAN_SOURCES: readonly StockVaultScanSource[] = [
   "ma_align",
   "ma120_near",
   "bottom_candle",
+  "book_accum",
 ];
 
 export type VaultDisplayRow = {
@@ -27,6 +28,7 @@ export type VaultDisplayRow = {
   maAlign?: StockVaultItem;
   ma120Near?: StockVaultItem;
   bottomCandle?: StockVaultItem;
+  bookAccum?: StockVaultItem;
   favorite?: StockVaultItem;
 };
 
@@ -41,6 +43,7 @@ function pickDisplayName(row: {
   maAlign?: StockVaultItem;
   ma120Near?: StockVaultItem;
   bottomCandle?: StockVaultItem;
+  bookAccum?: StockVaultItem;
   favorite?: StockVaultItem;
 }) {
   return (
@@ -48,11 +51,13 @@ function pickDisplayName(row: {
     row.maAlign?.name ??
     row.ma120Near?.name ??
     row.bottomCandle?.name ??
+    row.bookAccum?.name ??
     row.favorite?.name ??
     row.goldenCross?.symbol ??
     row.maAlign?.symbol ??
     row.ma120Near?.symbol ??
     row.bottomCandle?.symbol ??
+    row.bookAccum?.symbol ??
     row.favorite?.symbol ??
     ""
   );
@@ -70,12 +75,14 @@ function buildScanRow(
   const maAlign = parts.ma_align;
   const ma120Near = parts.ma120_near;
   const bottomCandle = parts.bottom_candle;
+  const bookAccum = parts.book_accum;
   const favorite = parts.favorite;
   const symbol =
     goldenCross?.symbol ??
     maAlign?.symbol ??
     ma120Near?.symbol ??
     bottomCandle?.symbol ??
+    bookAccum?.symbol ??
     favorite?.symbol ??
     "";
   const market =
@@ -83,6 +90,7 @@ function buildScanRow(
     maAlign?.market ??
     ma120Near?.market ??
     bottomCandle?.market ??
+    bookAccum?.market ??
     favorite?.market ??
     "kr";
   const favorited = Boolean(
@@ -90,6 +98,7 @@ function buildScanRow(
       maAlign?.favorited ||
       ma120Near?.favorited ||
       bottomCandle?.favorited ||
+      bookAccum?.favorited ||
       favorite?.favorited,
   );
   const updatedAtMs = Math.max(
@@ -97,12 +106,13 @@ function buildScanRow(
     maAlign?.updatedAtMs ?? 0,
     ma120Near?.updatedAtMs ?? 0,
     bottomCandle?.updatedAtMs ?? 0,
+    bookAccum?.updatedAtMs ?? 0,
     favorite?.updatedAtMs ?? 0,
   );
   return {
     key,
     symbol,
-    name: pickDisplayName({ goldenCross, maAlign, ma120Near, bottomCandle, favorite }),
+    name: pickDisplayName({ goldenCross, maAlign, ma120Near, bottomCandle, bookAccum, favorite }),
     market,
     timeframe,
     favorited,
@@ -112,6 +122,7 @@ function buildScanRow(
     maAlign,
     ma120Near,
     bottomCandle,
+    bookAccum,
     favorite,
   };
 }
@@ -149,6 +160,8 @@ function buildFavoriteRows(
       row.ma120_near = it;
     } else if (it.source === "bottom_candle" && matchesTimeframe(it, timeframe)) {
       row.bottom_candle = it;
+    } else if (it.source === "book_accum" && matchesTimeframe(it, timeframe)) {
+      row.book_accum = it;
     } else if (it.source === "favorite") {
       row.favorite = it;
     }
@@ -188,6 +201,7 @@ export function countScanSourceTotals(
     ma_align: 0,
     ma120_near: 0,
     bottom_candle: 0,
+    book_accum: 0,
   };
   for (const it of items) {
     const src = it.source as StockVaultScanSource;
@@ -312,11 +326,17 @@ export function countVaultIntersection(
 }
 
 /** 일봉 전용 탐색 조건 — 주봉 탭에서는 숨김 */
+const DAILY_ONLY_SCAN_SOURCES = new Set<StockVaultScanSource>([
+  "ma120_near",
+  "bottom_candle",
+  "book_accum",
+]);
+
 export function visibleStockVaultScanSources(
   timeframe: StockVaultTimeframe,
 ): StockVaultScanSource[] {
   if (timeframe === "1wk") {
-    return STOCK_VAULT_SCAN_SOURCES.filter((s) => s !== "ma120_near");
+    return STOCK_VAULT_SCAN_SOURCES.filter((s) => !DAILY_ONLY_SCAN_SOURCES.has(s));
   }
   return [...STOCK_VAULT_SCAN_SOURCES];
 }

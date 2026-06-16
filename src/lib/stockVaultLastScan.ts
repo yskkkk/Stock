@@ -45,6 +45,13 @@ export function buildLastScanRows(
           status.bottomCandle.state,
         )
       : null,
+    status.bookAccum?.state
+      ? rowFromState(
+          "book_accum",
+          ko.stockVault.lastScanBookAccum,
+          status.bookAccum.state,
+        )
+      : null,
   ].filter((row): row is StockVaultLastScanRow => row != null);
 
   return rows.length ? rows : null;
