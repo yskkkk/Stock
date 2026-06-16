@@ -14,4 +14,8 @@ describe("formatPrice USDT", () => {
   it("keeps KRW as integer won", () => {
     expect(formatPrice(1, "KRW")).toBe("1원");
   });
+
+  it("puts dollar sign after USD amount", () => {
+    expect(formatPrice(12672.37, "USD")).toBe("12,672.37$");
+  });
 });

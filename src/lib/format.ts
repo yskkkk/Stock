@@ -54,10 +54,9 @@ export function formatPrice(value: number | undefined, currency?: string) {
   const frac = isUsdtLikeCurrency(currency)
     ? usdtPriceFractionDigits(value)
     : { minimumFractionDigits: 2, maximumFractionDigits: 2 };
-  return (
-    new Intl.NumberFormat("ko-KR", frac).format(value) +
-    (currency ? ` ${currency}` : "")
-  );
+  const num = new Intl.NumberFormat("ko-KR", frac).format(value);
+  if (currency === "USD") return `${num}$`;
+  return num + (currency ? ` ${currency}` : "");
 }
 
 export function formatPercent(value: number | undefined) {
@@ -76,12 +75,12 @@ export function formatSignedMoney(value: number, currency?: string) {
   const frac = isUsdtLikeCurrency(currency)
     ? usdtPriceFractionDigits(v)
     : { minimumFractionDigits: 2, maximumFractionDigits: 2 };
-  return (
-    `${sign}${new Intl.NumberFormat("ko-KR", {
-      minimumFractionDigits: frac.minimumFractionDigits,
-      maximumFractionDigits: frac.maximumFractionDigits,
-    }).format(v)}${currency ? ` ${currency}` : ""}`
-  );
+  const num = new Intl.NumberFormat("ko-KR", {
+    minimumFractionDigits: frac.minimumFractionDigits,
+    maximumFractionDigits: frac.maximumFractionDigits,
+  }).format(v);
+  if (currency === "USD") return `${sign}${num}$`;
+  return `${sign}${num}${currency ? ` ${currency}` : ""}`;
 }
 
 export function formatNewsDate(ts: number) {
