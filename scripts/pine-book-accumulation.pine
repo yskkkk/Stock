@@ -1,41 +1,36 @@
 // This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
-// 책 06~07장 — 세력 본전·20일선 변곡·눌림목·매집봉·상투거래량 (독립 indicator)
+// 책 06~07장 — 매집봉만 (거래량·본전·연속·상투 제외) · 가격 20일선 없음
 // TradingView Pine v6 · 일봉 권장
 
 //@version=6
-indicator("책 매집봉 (06~07장)", shorttitle="책매집", overlay=true, max_boxes_count=200, max_lines_count=200, max_labels_count=200)
+indicator("책 매집봉", shorttitle="책매집", overlay=true, max_lines_count=100, max_labels_count=100)
 
 // ── 입력 ─────────────────────────────────────────────────────────────
-grpCore = "핵심"
+grpCore = "매집봉"
 preset         = input.string("보통", "민감도", options=["느슨", "보통", "엄격"], group=grpCore)
-maLen          = input.int(20, "가격 MA", minval=5, maxval=60, group=grpCore)
-volLen         = input.int(20, "거래량 MA", minval=5, maxval=60, group=grpCore)
+volLen         = input.int(20, "거래량 MA", minval=5, maxval=60, group=grpCore, tooltip="책: 20일 거래량 이평선 기준")
 minRvol        = input.float(1.8, "매집 RVOL", minval=1.2, maxval=4.0, step=0.1, group=grpCore)
-needDrop       = input.bool(true, "하락 선행", group=grpCore, tooltip="고점 대비 하락 후 매집만")
+needDrop       = input.bool(true, "하락 선행", group=grpCore)
 dropLb         = input.int(40, "하락 참조(봉)", minval=10, maxval=120, group=grpCore)
 minDropPct     = input.float(8.0, "최소 하락(%)", minval=3.0, maxval=40.0, step=0.5, group=grpCore)
+needVolMaUp    = input.bool(true, "거래량이평 상승", group=grpCore, tooltip="책: 거래량 이평이 꺾인 뒤 분출")
 
-grpCtx = "맥락 (책)"
+grpCtx = "본전 (책 06장)"
+useCost        = input.bool(true, "본전 맥락", group=grpCtx)
 costTolPct     = input.float(3.0, "본전 허용(%)", minval=1.0, maxval=8.0, step=0.5, group=grpCtx)
 pivotLen       = input.int(5, "스윙 저점(봉)", minval=3, maxval=15, group=grpCtx)
-inflectWin     = input.int(8, "변곡 후 유효(봉)", minval=3, maxval=30, group=grpCtx)
-phaseA         = input.int(8, "A구간 거래량(봉)", minval=3, maxval=30, group=grpCtx)
-phaseB         = input.int(5, "B구간 거래량(봉)", minval=2, maxval=20, group=grpCtx)
 recoverDays    = input.int(5, "본전 회복(봉)", minval=3, maxval=10, group=grpCtx)
-pbLen          = input.int(6, "눌림목 횡보(봉)", minval=3, maxval=20, group=grpCtx)
-pbRangePct     = input.float(6.0, "눌림 횡보폭(%)", minval=2.0, maxval=15.0, step=0.5, group=grpCtx)
-dryVolMult     = input.float(0.85, "눌림 거래량 배수", minval=0.5, maxval=1.0, step=0.05, group=grpCtx, tooltip="횡보 구간 평균거래량 < 거래량MA×이값")
 consecWin      = input.int(3, "연속 매집 창(봉)", minval=2, maxval=10, group=grpCtx)
 minConsec      = input.int(2, "연속 매집 최소(회)", minval=1, maxval=5, group=grpCtx)
 
 grpShape = "캔들 형태"
 minUpperPct    = input.float(25.0, "윗꼬리/전체(%)", minval=10.0, maxval=60.0, step=1.0, group=grpShape)
-maxBodyPct     = input.float(45.0, "변곡 몸통/전체(%)", minval=15.0, maxval=70.0, step=1.0, group=grpShape)
-allowSmallBull = input.bool(true, "소양봉 매집", group=grpShape)
+maxBodyPct     = input.float(45.0, "작은 몸통/전체(%)", minval=15.0, maxval=70.0, step=1.0, group=grpShape)
+allowSmallBull = input.bool(true, "소양봉 허용", group=grpShape)
 
 grpScore = "신호"
 minScore       = input.int(55, "최소 점수", minval=0, maxval=100, group=grpScore)
-needContext    = input.bool(true, "맥락 1개 이상", group=grpScore, tooltip="본전·변곡·눌림목 중 하나 필수")
+needCostCtx    = input.bool(false, "본전 터치 필수", group=grpScore)
 showScore      = input.bool(true, "점수 라벨", group=grpScore)
 
 grpPeak = "상투거래량"
@@ -45,35 +40,30 @@ minRisePct     = input.float(15.0, "최소 상승(%)", minval=5.0, maxval=60.0, 
 peakRvol       = input.float(2.5, "상투 RVOL", minval=1.5, maxval=5.0, step=0.1, group=grpPeak)
 
 grpVis = "표시"
-showMa20       = input.bool(true, "20일선", group=grpVis)
 showCost       = input.bool(true, "본전선", group=grpVis)
 showSl         = input.bool(true, "손절선", group=grpVis)
-showInflect    = input.bool(true, "상승변곡점", group=grpVis)
 confirmedOnly  = input.bool(true, "확정봉만", group=grpVis)
 
 grpCol = "색"
-cMa      = input.color(color.new(#FF7043, 0), "20일선", group=grpCol)
 cCost    = input.color(color.new(#78909C, 0), "본전", group=grpCol)
 cHigh    = input.color(color.new(#E53935, 0), "고신뢰 매집", group=grpCol)
 cStd     = input.color(color.new(#FB8C00, 0), "일반 매집", group=grpCol)
-cInflect = input.color(color.new(#FFC107, 0), "변곡", group=grpCol)
 cPeak    = input.color(color.new(#8E24AA, 0), "상투거래량", group=grpCol)
 cSl      = input.color(color.new(#F44336, 35), "손절", group=grpCol)
 
 // ── 민감도 ───────────────────────────────────────────────────────────
 float effRvol = preset == "엄격" ? math.max(minRvol, 2.2) : preset == "느슨" ? math.min(minRvol, 1.5) : minRvol
-int effInfWin = preset == "엄격" ? math.max(inflectWin, 6) : inflectWin
 int effConsec = preset == "엄격" ? math.max(minConsec, 2) : minConsec
 
-// ── 선계산 (매 bar) ──────────────────────────────────────────────────
-float ma = ta.sma(close, maLen)
+// ── 선계산 ───────────────────────────────────────────────────────────
 float volMa = ta.sma(volume, volLen)
 float rvol = volMa > 0 ? volume / volMa : 1.0
+bool volMaUp = volMa > volMa[3]
+
 float rng = high - low
 float body = math.abs(close - open)
 float bodyPct = rng > 0 ? body / rng * 100.0 : 100.0
-float upperWick = high - math.max(open, close)
-float upperPct = rng > 0 ? upperWick / rng * 100.0 : 0.0
+float upperPct = rng > 0 ? (high - math.max(open, close)) / rng * 100.0 : 0.0
 
 float hiRef = ta.highest(high, dropLb)
 float dropPct = hiRef > 0 ? (hiRef - close) / hiRef * 100.0 : 0.0
@@ -83,31 +73,18 @@ float loRise = ta.lowest(low, riseLb)
 float risePct = loRise > 0 ? (close - loRise) / loRise * 100.0 : 0.0
 bool hadRise = risePct >= minRisePct
 
-bool maUp = ma > ma[5]
-bool aboveMa = close > ma
-bool volMaUp = volMa > volMa[3]
-
-bool inflectUp = ma[1] < ma[2] and ma > ma[1]
-float maPivot = ta.pivotlow(ma, pivotLen, pivotLen)
-
-float pbRange = ta.highest(high, pbLen) - ta.lowest(low, pbLen)
-float pbRangeRatio = close > 0 ? pbRange / close * 100.0 : 100.0
-float pbVolAvg = ta.sma(volume, pbLen)
-bool volDry = pbVolAvg < volMa * dryVolMult
-
 // ── 본전 (세력 1차 매집원가) ─────────────────────────────────────────
 var float costBasis = na
 float plVal = ta.pivotlow(low, pivotLen, pivotLen)
 bool plHit = not na(plVal)
-if plHit
+if useCost and plHit
     float plRvol = volMa[pivotLen] > 0 ? volume[pivotLen] / volMa[pivotLen] : 1.0
     float plDrop = hiRef[pivotLen] > 0 ? (hiRef[pivotLen] - close[pivotLen]) / hiRef[pivotLen] * 100.0 : 0.0
     bool plDropOk = not needDrop or plDrop >= minDropPct * 0.75
     if plRvol >= effRvol * 0.9 and plDropOk
         costBasis := plVal
 
-bool atCost = not na(costBasis) and costBasis > 0 and math.abs(close - costBasis) / costBasis * 100.0 <= costTolPct
-bool touchCost = not na(costBasis) and costBasis > 0 and low <= costBasis * (1.0 + costTolPct / 100.0) and high >= costBasis * (1.0 - costTolPct / 100.0)
+bool touchCost = useCost and not na(costBasis) and costBasis > 0 and low <= costBasis * (1.0 + costTolPct / 100.0) and high >= costBasis * (1.0 - costTolPct / 100.0)
 
 var int costTouches = 0
 if touchCost and not touchCost[1]
@@ -116,59 +93,25 @@ if touchCost and not touchCost[1]
 // ── 본전 5일 회복 ────────────────────────────────────────────────────
 var int breachBar = na
 var float breachLow = na
-if not na(costBasis) and close < costBasis and (na(breachBar) or close[1] >= costBasis)
+if useCost and not na(costBasis) and close < costBasis and (na(breachBar) or close[1] >= costBasis)
     breachBar := bar_index
     breachLow := low
-if not na(costBasis) and close >= costBasis
+if useCost and not na(costBasis) and close >= costBasis
     breachBar := na
     breachLow := na
 
 int sinceBreach = not na(breachBar) ? bar_index - breachBar : 10000
-bool recover5d = not na(costBasis) and sinceBreach > 0 and sinceBreach <= recoverDays and close > costBasis
+bool recover5d = useCost and not na(costBasis) and sinceBreach > 0 and sinceBreach <= recoverDays and close > costBasis
 
-// ── A < B 거래량 (변곡 기준) ─────────────────────────────────────────
-var float volA_snap = na
-var int inflectBar = na
-var bool volAbOk = false
-
-if inflectUp
-    volA_snap := ta.sma(volume[1], phaseA)
-    inflectBar := bar_index
-    volAbOk := false
-
-if not na(inflectBar) and bar_index - inflectBar == phaseB
-    float volB_avg = ta.sma(volume, phaseB)
-    volAbOk := not na(volA_snap) and volB_avg > volA_snap
-
-int sinceInflect = not na(inflectBar) ? bar_index - inflectBar : 10000
-bool nearInflect = sinceInflect >= 0 and sinceInflect <= effInfWin
-
-// ── 20일선 쌍바닥 (MA W) ─────────────────────────────────────────────
-var float maLowPrev = na
-var float maLowLast = na
-if not na(maPivot)
-    maLowPrev := maLowLast
-    maLowLast := maPivot
-
-bool maW = not na(maLowPrev) and not na(maLowLast) and maLowLast > maLowPrev
-
-// ── 매집봉 형태·거래량 ─────────────────────────────────────────────────
+// ── 매집봉 (책 정의) ─────────────────────────────────────────────────
 bool shapeUpper = upperPct >= minUpperPct
-bool shapePivot = bodyPct <= maxBodyPct
+bool shapeSmall = bodyPct <= maxBodyPct
 bool shapeSmallBull = allowSmallBull and close > open and bodyPct <= maxBodyPct * 0.85
-bool shapeOk = shapeUpper or shapePivot or shapeSmallBull
+bool shapeOk = shapeUpper or shapeSmall or shapeSmallBull
 
-bool volOk = rvol >= effRvol and (volMaUp or rvol >= effRvol * 1.15)
+bool volOk = rvol >= effRvol and (not needVolMaUp or volMaUp or rvol >= effRvol * 1.2)
 bool peakDistrib = hadRise and rvol >= peakRvol and close > open and bodyPct >= 55.0
 bool accumRaw = volOk and shapeOk and not peakDistrib and (not needDrop or hadDrop)
-
-// ── 맥락 ─────────────────────────────────────────────────────────────
-bool ctxCost = touchCost or atCost
-bool ctxInflect = nearInflect and (inflectUp or volAbOk or sinceInflect <= 3)
-bool ctxPullback = maUp and aboveMa and pbRangeRatio <= pbRangePct and volDry[1]
-bool ctxRecover = recover5d
-int ctxCount = (ctxCost ? 1 : 0) + (ctxInflect ? 1 : 0) + (ctxPullback ? 1 : 0) + (ctxRecover ? 1 : 0)
-bool ctxOk = not needContext or ctxCount >= 1
 
 // ── 연속 매집 ────────────────────────────────────────────────────────
 int consecCnt = 0
@@ -182,60 +125,45 @@ for i = 0 to consecWin - 1
         consecCnt += 1
 
 bool consecOk = consecCnt >= effConsec
-
-// ── 급등 3조건 (횡보·20일선·매집) ────────────────────────────────────
-bool narrowRange = pbRangeRatio <= pbRangePct * 1.2
-bool surge3 = narrowRange and maUp and accumRaw
+bool ctxOk = not needCostCtx or touchCost or recover5d
 
 // ── 점수 ─────────────────────────────────────────────────────────────
-f_score(bool acc, bool cCost, bool cInf, bool cPb, bool cRec, bool cAb, bool cW, bool cCon, bool c3, float rv, bool shUp, bool shPv) =>
+f_score(bool acc, bool cTouch, bool cRec, bool cCon, float rv, bool shUp, bool shSm) =>
     float sc = 0.0
     if acc
-        sc += math.min(25.0, rv / effRvol * 15.0)
-        sc += shUp ? 12.0 : shPv ? 8.0 : 5.0
-        sc += cCost ? 18.0 : 0.0
-        sc += cInf ? 15.0 : 0.0
-        sc += cPb ? 14.0 : 0.0
-        sc += cRec ? 10.0 : 0.0
-        sc += cAb ? 12.0 : 0.0
-        sc += cW ? 8.0 : 0.0
-        sc += cCon ? 10.0 : 0.0
-        sc += c3 ? 6.0 : 0.0
-        sc += costTouches >= 2 ? 8.0 : costTouches >= 1 ? 4.0 : 0.0
+        sc += math.min(30.0, rv / effRvol * 18.0)
+        sc += shUp ? 15.0 : shSm ? 10.0 : 6.0
+        sc += needVolMaUp and volMaUp ? 12.0 : 0.0
+        sc += cTouch ? 20.0 : 0.0
+        sc += cRec ? 15.0 : 0.0
+        sc += cCon ? 12.0 : 0.0
+        sc += costTouches >= 2 ? 10.0 : costTouches >= 1 ? 5.0 : 0.0
     math.min(100.0, sc)
 
-float score = f_score(accumRaw and ctxOk, ctxCost, ctxInflect, ctxPullback, ctxRecover, volAbOk, maW, consecOk, surge3, rvol, shapeUpper, shapePivot)
+float score = f_score(accumRaw and ctxOk, touchCost, recover5d, consecOk, rvol, shapeUpper, shapeSmall)
 bool accumHigh = accumRaw and ctxOk and score >= math.max(minScore, 70)
 bool accumStd = accumRaw and ctxOk and score >= minScore and not accumHigh
 
 int tagCode =
-     accumHigh and ctxRecover ? 5 :
-     accumHigh and ctxCost and consecOk ? 4 :
-     accumHigh and ctxInflect and volAbOk ? 3 :
-     accumHigh and ctxPullback ? 2 :
-     accumHigh and ctxCost ? 1 :
-     accumStd ? 6 : 0
+     accumHigh and recover5d ? 3 :
+     accumHigh and consecOk ? 2 :
+     accumHigh and touchCost ? 1 :
+     accumStd ? 4 : 0
 
 f_tag(int c) =>
     c == 1 ? "본전매집" :
-     c == 2 ? "눌림매집" :
-     c == 3 ? "변곡매집" :
-     c == 4 ? "연속매집" :
-     c == 5 ? "회복매집" :
-     c == 6 ? "매집" : ""
+     c == 2 ? "연속매집" :
+     c == 3 ? "회복매집" :
+     c == 4 ? "매집" : ""
 
 bool barOk = not confirmedOnly or barstate.isconfirmed
-float slPrice = ctxRecover and not na(breachLow) ? breachLow : math.min(low, low[1])
+float slPrice = recover5d and not na(breachLow) ? breachLow : math.min(low, low[1])
 
 // ── 그리기 ───────────────────────────────────────────────────────────
-plot(showMa20 ? ma : na, "20일선", color=color.new(cMa, 0), linewidth=2)
-plot(showCost and not na(costBasis) ? costBasis : na, "본전", color=color.new(cCost, 0), linewidth=1, style=plot.style_linebr)
-
-plot(barOk and showInflect and inflectUp ? ma : na, "상승변곡", color=cInflect, linewidth=4, style=plot.style_circles)
+plot(showCost and useCost and not na(costBasis) ? costBasis : na, "본전", color=color.new(cCost, 0), linewidth=1, style=plot.style_linebr)
 
 plotshape(barOk and accumHigh, title="고신뢰 매집", style=shape.triangleup, location=location.belowbar, color=cHigh, size=size.normal, text="매집")
 plotshape(barOk and accumStd, title="매집", style=shape.triangleup, location=location.belowbar, color=cStd, size=size.small, text="·")
-
 plotshape(barOk and showPeak and peakDistrib, title="상투거래량", style=shape.triangledown, location=location.abovebar, color=cPeak, size=size.normal, text="상투")
 
 bgcolor(barOk and accumHigh ? color.new(cHigh, 92) : barOk and accumStd ? color.new(cStd, 94) : na)
@@ -252,7 +180,6 @@ if barOk and (accumHigh or accumStd) and showSl
     array.push(slPool, line.new(t0, slPrice, t1, slPrice, xloc=xloc.bar_time, color=cSl, width=1, style=line.style_dashed))
 
 var label[] accumLbls = array.new_label()
-
 f_trimLbl() =>
     while array.size(accumLbls) > 12
         label.delete(array.shift(accumLbls))
@@ -263,14 +190,11 @@ if barOk and accumHigh and showScore
     array.push(accumLbls, label.new(bar_index, low, lbl, style=label.style_label_up, color=color.new(cHigh, 15), textcolor=color.white, size=size.small))
 
 // ── 알림 ─────────────────────────────────────────────────────────────
-alertcondition(accumHigh, "고신뢰 매집봉", "책 06~07장 고신뢰 매집봉")
-alertcondition(accumStd, "매집봉", "책 매집봉 신호")
-alertcondition(peakDistrib, "상투거래량", "상승 후 극단 거래량 — 출금 경계")
-alertcondition(inflectUp and volAbOk, "변곡 A<B", "20일선 상승변곡 + B거래량>A")
+alertcondition(accumHigh, "고신뢰 매집봉", "책 고신뢰 매집봉")
+alertcondition(accumStd, "매집봉", "책 매집봉")
+alertcondition(peakDistrib, "상투거래량", "상승 후 극단 거래량")
 
 // ── 데이터 윈도우 ────────────────────────────────────────────────────
 plot(accumHigh or accumStd ? 1 : 0, "매집 신호", display=display.data_window)
 plot(score, "매집 점수", display=display.data_window)
 plot(rvol, "RVOL", display=display.data_window)
-plot(not na(costBasis) ? costBasis : na, "본전가", display=display.data_window)
-plot(costTouches, "본전 터치", display=display.data_window)
