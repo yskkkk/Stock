@@ -140,6 +140,53 @@ export type TossSummarySlice = {
   totalReturnPct?: number | null;
 };
 
+/** 보유 종목 순평가액 합계(원) — USD는 환율 환산, summary 폴백 */
+export function tossHoldingsTotalNetMarketValueKrw(
+  holdings: TossTestHolding[],
+  summary: TossSummarySlice | null | undefined,
+  usdKrwRate: number | null,
+  feeInput: TossFeeRateInput = DEFAULT_ROUND_TRIP_FEE_RATE,
+): number | null {
+  let krw = 0;
+  let usd = 0;
+  let hasAny = false;
+
+  for (const h of holdings) {
+    const netMv = tossHoldingNetMarketValue(h, feeForHolding(h, feeInput));
+    if (netMv == null || !(netMv > 0)) continue;
+    hasAny = true;
+    if (h.currency === "USD") {
+      usd += netMv;
+    } else {
+      krw += netMv;
+    }
+  }
+
+  if (hasAny) {
+    if (usd > 0) {
+      if (!(usdKrwRate != null && usdKrwRate > 0)) {
+        return krw > 0 ? Math.round(krw) : null;
+      }
+      return Math.round(krw + usd * usdKrwRate);
+    }
+    return Math.round(krw);
+  }
+
+  if (!summary) return null;
+  const mvK = summary.marketValueKrw;
+  const mvU = summary.marketValueUsd;
+  const hasK = mvK != null && Number.isFinite(mvK) && mvK > 0;
+  const hasU = mvU != null && Number.isFinite(mvU) && mvU > 0;
+  if (!hasK && !hasU) return null;
+  if (hasU) {
+    if (!(usdKrwRate != null && usdKrwRate > 0)) {
+      return hasK ? Math.round(mvK!) : null;
+    }
+    return Math.round((hasK ? mvK! : 0) + mvU! * usdKrwRate);
+  }
+  return Math.round(mvK!);
+}
+
 /** 계좌 전체 평가손익(원)·수익률 — KRW+USD 환산 합산 */
 export function computeTossAccountCombinedPnl(
   holdings: TossTestHolding[],

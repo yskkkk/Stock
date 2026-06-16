@@ -187,7 +187,7 @@ html[data-theme="light"] .account-snapshot__balance-card {
 
 .account-snapshot--balance-hidden .account-snapshot__cash-value,
 .account-snapshot--balance-hidden .account-snapshot__cash-sub,
-.account-snapshot--balance-hidden .account-snapshot__pl-value,
+.account-snapshot--balance-hidden .account-snapshot__pl-value--money,
 .account-snapshot--balance-hidden .account-snapshot__holding-pnl,
 .account-snapshot--balance-hidden .account-snapshot__holding-val,
 .account-snapshot--balance-hidden .account-snapshot__holding-price-amt {

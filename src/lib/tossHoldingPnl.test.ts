@@ -5,6 +5,7 @@ import {
   tossHoldingNetReturnPercent,
   tossHoldingNetUnrealizedPnl,
   tossHoldingsNetReturnPct,
+  tossHoldingsTotalNetMarketValueKrw,
 } from "./tossHoldingPnl";
 
 const krHolding: TossTestHolding = {
@@ -34,6 +35,29 @@ describe("tossHoldingPnl", () => {
     expect(pct).not.toBeNull();
     expect(pct!).toBeLessThan(10);
     expect(pct!).toBeGreaterThan(9);
+  });
+
+  it("aggregates net market value in KRW across holdings", () => {
+    const usHolding: TossTestHolding = {
+      symbol: "IONL",
+      name: "IONL",
+      market: "us",
+      currency: "USD",
+      quantity: 100,
+      avgBuyPrice: 30,
+      currentPrice: 33,
+      marketValue: 3300,
+    };
+    const total = tossHoldingsTotalNetMarketValueKrw(
+      [krHolding, usHolding],
+      null,
+      1400,
+      0.002,
+    );
+    expect(total).not.toBeNull();
+    const krNet = Math.round(1_100_000 * 0.999);
+    const usNet = Math.round(3_300 * 0.999);
+    expect(total).toBe(krNet + usNet * 1400);
   });
 
   it("combines KRW and USD account PnL via FX", () => {

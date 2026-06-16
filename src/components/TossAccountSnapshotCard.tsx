@@ -15,6 +15,7 @@ import {
   tossHoldingNetMarketValue,
   tossHoldingNetReturnPercent,
   tossHoldingNetUnrealizedPnl,
+  tossHoldingsTotalNetMarketValueKrw,
 } from "../lib/tossHoldingPnl";
 import { LiveTradeSymbolCell } from "./LiveTradeSymbolCell";
 import TossAccountOrderPanel, {
@@ -101,6 +102,11 @@ export default function TossAccountSnapshotCard({
       computeTossAccountCombinedPnl(holdings, summary, usdKrwRate, feeRates),
     [holdings, summary, usdKrwRate, feeRates],
   );
+  const holdingsTotalKrw = useMemo(
+    () =>
+      tossHoldingsTotalNetMarketValueKrw(holdings, summary, usdKrwRate, feeRates),
+    [holdings, summary, usdKrwRate, feeRates],
+  );
   const orderPanelRef = useRef<TossAccountOrderPanelHandle>(null);
   const [manageHolding, setManageHolding] = useState<TossTestHolding | null>(null);
   const [balanceHidden, toggleBalanceHidden] = useBithumbBalanceHidden();
@@ -128,6 +134,11 @@ export default function TossAccountSnapshotCard({
       : null,
   );
   const retUp = returnPct != null && returnPct >= 0;
+  const holdingsTotalSticky = useStickyNumber(
+    holdingsTotalKrw != null && Number.isFinite(holdingsTotalKrw)
+      ? holdingsTotalKrw
+      : null,
+  );
   const cashKrw = useStickyNumber(
     cash?.krw != null && Number.isFinite(cash.krw) ? cash.krw : null,
   );
@@ -222,13 +233,31 @@ export default function TossAccountSnapshotCard({
           ) : null}
         </div>
 
-        {plKrw != null ? (
+        {holdingsTotalSticky != null ? (
           <div className="account-snapshot__pl">
+            <span className="account-snapshot__pl-label">
+              {ko.app.liveTradeTossHoldingsTotalEval}
+            </span>
+            <span
+              className="account-snapshot__pl-value account-snapshot__pl-value--money"
+              aria-hidden={balanceHidden || undefined}
+            >
+              {formatPrice(holdingsTotalSticky, "KRW")}
+            </span>
+          </div>
+        ) : null}
+
+        {plKrw != null ? (
+          <div
+            className={`account-snapshot__pl${
+              holdingsTotalSticky != null ? " account-snapshot__pl--compact" : ""
+            }`}
+          >
             <span className="account-snapshot__pl-label">
               {ko.app.liveTradePfUnrealized}
             </span>
             <span
-              className={`account-snapshot__pl-value ${
+              className={`account-snapshot__pl-value account-snapshot__pl-value--money ${
                 plUp ? "account-snapshot__pl-value--up" : "account-snapshot__pl-value--down"
               }`}
               aria-hidden={balanceHidden || undefined}
@@ -246,7 +275,6 @@ export default function TossAccountSnapshotCard({
               className={`account-snapshot__pl-value ${
                 retUp ? "account-snapshot__pl-value--up" : "account-snapshot__pl-value--down"
               }`}
-              aria-hidden={balanceHidden || undefined}
             >
               {formatPercent(returnPct)}
             </span>
