@@ -94,7 +94,8 @@ export default function TossAccountSnapshotCard({
     feeRates,
   );
   const { cash, summary, holdings } = liveSnapshot ?? snapshot;
-  const { rate: usdKrwRate } = useUsdKrwRate(Boolean(holdings.length));
+  const needsFxRate = cash.usd > 0 || holdings.length > 0;
+  const { rate: usdKrwRate } = useUsdKrwRate(needsFxRate);
   const netSummary = useMemo(
     () =>
       computeTossAccountCombinedPnl(holdings, summary, usdKrwRate, feeRates),
@@ -129,6 +130,10 @@ export default function TossAccountSnapshotCard({
   const cashKrw = useStickyNumber(
     cash?.krw != null && Number.isFinite(cash.krw) ? cash.krw : null,
   );
+  const cashUsdKrw =
+    cash.usd > 0 && usdKrwRate != null && usdKrwRate > 0
+      ? Math.round(cash.usd * usdKrwRate)
+      : null;
 
   return (
     <div className={rootClass} aria-label={ko.app.liveTradeTossAccountSectionAria}>
@@ -190,6 +195,14 @@ export default function TossAccountSnapshotCard({
               <span className="account-snapshot__cash-value" aria-hidden={balanceHidden || undefined}>
                 {formatPrice(cash.usd, "USD")}
               </span>
+              {cashUsdKrw != null ? (
+                <span
+                  className="account-snapshot__cash-sub"
+                  aria-hidden={balanceHidden || undefined}
+                >
+                  {formatPrice(cashUsdKrw, "KRW")}
+                </span>
+              ) : null}
             </div>
           ) : null}
         </div>

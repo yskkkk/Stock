@@ -119,8 +119,20 @@ html[data-theme="light"] .account-snapshot__balance-card {
   color: var(--text);
 }
 
+.account-snapshot__cash-sub {
+  font-size: 0.64rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  letter-spacing: -0.01em;
+}
+
 .account-snapshot--rail .account-snapshot__cash-value {
   font-size: 0.78rem;
+}
+
+.account-snapshot--rail .account-snapshot__cash-sub {
+  font-size: 0.6rem;
 }
 
 .account-snapshot__pl {
@@ -160,6 +172,7 @@ html[data-theme="light"] .account-snapshot__balance-card {
 }
 
 .account-snapshot__values--hidden .account-snapshot__cash-value,
+.account-snapshot__values--hidden .account-snapshot__cash-sub,
 .account-snapshot__values--hidden .account-snapshot__pl-value {
   filter: blur(7px);
   user-select: none;
