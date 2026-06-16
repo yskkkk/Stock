@@ -187,15 +187,56 @@
 }
 
 .stock-vault-tab__scan-summary {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
   margin: 0.2rem 0 0.45rem;
+  max-width: 100%;
 }
 
-.stock-vault-tab__scan-summary-label {
-  margin: 0 0 0.28rem;
+.stock-vault-tab__scan-summary-trigger {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
   font-size: 0.72rem;
   font-weight: 600;
   line-height: 1.35;
   color: var(--muted);
+  cursor: help;
+  text-decoration: underline dotted color-mix(in srgb, var(--muted) 55%, transparent);
+  text-underline-offset: 0.14em;
+}
+
+.stock-vault-tab__scan-summary-trigger:hover,
+.stock-vault-tab__scan-summary-trigger:focus-visible {
+  color: var(--text);
+}
+
+.stock-vault-tab__scan-bubble {
+  position: absolute;
+  top: calc(100% + 0.32rem);
+  left: 0;
+  z-index: 14;
+  padding: 0.42rem 0.48rem 0.48rem;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.stock-vault-tab__scan-bubble::before {
+  content: "";
+  position: absolute;
+  top: -0.34rem;
+  left: 0.85rem;
+  width: 0.62rem;
+  height: 0.62rem;
+  background: var(--card);
+  border-top: 1px solid var(--card-border);
+  border-left: 1px solid var(--card-border);
+  transform: rotate(45deg);
 }
 
 .stock-vault-tab__scan-table-wrap {
@@ -204,8 +245,9 @@
 }
 
 .stock-vault-tab__scan-table {
-  width: 100%;
-  max-width: 22rem;
+  width: max-content;
+  min-width: 14.5rem;
+  max-width: min(22rem, calc(100vw - 2rem));
   border-collapse: collapse;
   font-size: 0.68rem;
   line-height: 1.35;
