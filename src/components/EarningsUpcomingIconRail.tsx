@@ -218,7 +218,7 @@ export default function EarningsUpcomingIconRail({
   const scheduleHideTip = useCallback(() => {
     clearHideTimer();
     hideTimerRef.current = setTimeout(() => {
-      shareStructure?.closeShareStructureModal();
+      shareStructure?.scheduleCloseShareStructureModal();
       const sym = tipRef.current?.row.symbol;
       if (sym && valueInvest?.openSymbol === sym) return;
       setTip(null);

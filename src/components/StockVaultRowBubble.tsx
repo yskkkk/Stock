@@ -163,7 +163,7 @@ export function useStockVaultRowBubble(tipIdOverride?: string) {
     clearShowTimer();
     clearHideTimer();
     hideTimerRef.current = window.setTimeout(() => {
-      shareStructure?.closeShareStructureModal();
+      shareStructure?.scheduleCloseShareStructureModal();
       const sym = tipRef.current?.symbol;
       if (sym && valueInvest?.openSymbol === sym) return;
       setTip(null);

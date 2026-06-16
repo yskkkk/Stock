@@ -115,8 +115,12 @@ type Ctx = {
     target: StockShareStructureTarget,
   ) => void;
   closeShareStructureModal: () => void;
+  keepShareStructureModalOpen: () => void;
+  scheduleCloseShareStructureModal: () => void;
   openSymbol: string | null;
 };
+
+const SHARE_MODAL_HIDE_DELAY_MS = 420;
 
 const StockShareStructureBubbleContext = createContext<Ctx | null>(null);
 
@@ -138,16 +142,42 @@ export function StockShareStructureBubbleProvider({
     null,
   );
   const fetchSeq = useRef(0);
+  const hideTimerRef = useRef<number | null>(null);
+
+  const clearHideTimer = useCallback(() => {
+    if (hideTimerRef.current != null) {
+      window.clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+  }, []);
 
   const closeShareStructureModal = useCallback(() => {
+    clearHideTimer();
     setOpen(null);
     setLoading(false);
     setError(null);
     setPayload(null);
-  }, []);
+  }, [clearHideTimer]);
+
+  const keepShareStructureModalOpen = useCallback(() => {
+    clearHideTimer();
+  }, [clearHideTimer]);
+
+  const scheduleCloseShareStructureModal = useCallback(() => {
+    clearHideTimer();
+    hideTimerRef.current = window.setTimeout(() => {
+      if (modalRef.current?.matches(":hover")) {
+        hideTimerRef.current = null;
+        return;
+      }
+      closeShareStructureModal();
+      hideTimerRef.current = null;
+    }, SHARE_MODAL_HIDE_DELAY_MS);
+  }, [clearHideTimer, closeShareStructureModal]);
 
   const showShareStructureModal = useCallback(
     (anchor: HTMLElement, target: StockShareStructureTarget) => {
+      clearHideTimer();
       const anchorRect = anchor.getBoundingClientRect();
       setOpen({
         ...target,
@@ -175,7 +205,14 @@ export function StockShareStructureBubbleProvider({
         }
       })();
     },
-    [],
+    [clearHideTimer],
+  );
+
+  useEffect(
+    () => () => {
+      clearHideTimer();
+    },
+    [clearHideTimer],
   );
 
   useLayoutEffect(() => {
@@ -347,6 +384,8 @@ export function StockShareStructureBubbleProvider({
               top: `${open.top}px`,
               transform: open.transform,
             }}
+            onMouseEnter={keepShareStructureModalOpen}
+            onMouseLeave={scheduleCloseShareStructureModal}
           >
             <div className="stock-share-structure-modal__head">
               <div>
@@ -395,9 +434,17 @@ export function StockShareStructureBubbleProvider({
     () => ({
       showShareStructureModal,
       closeShareStructureModal,
+      keepShareStructureModalOpen,
+      scheduleCloseShareStructureModal,
       openSymbol: open?.symbol ?? null,
     }),
-    [showShareStructureModal, closeShareStructureModal, open?.symbol],
+    [
+      showShareStructureModal,
+      closeShareStructureModal,
+      keepShareStructureModalOpen,
+      scheduleCloseShareStructureModal,
+      open?.symbol,
+    ],
   );
 
   return (
