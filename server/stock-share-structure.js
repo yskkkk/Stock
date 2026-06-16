@@ -7,6 +7,7 @@ import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 import { queueYahooRequest } from "./yahoo-queue.js";
 import { yahooGet } from "./yahoo.js";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
+import { yahooSymbolToKrCode } from "./kr-naver-quote.js";
 import { dartApiGet, isDartEnabled, resolveDartCorpCode } from "./dart.js";
 import {
   finalizeKrFloatShares,
@@ -159,19 +160,42 @@ function delay(ms) {
 
 /** @param {string} symbol */
 function isKrSymbol(symbol) {
-  const s = String(symbol ?? "")
-    .trim()
-    .toUpperCase()
-    .replace(/^KR_/, "");
-  return /^\d{6}$/.test(s);
+  return yahooSymbolToKrCode(symbol) != null;
 }
 
-/** @param {string} symbol */
+/** @param {string} symbol @returns {string | null} */
 function krCode(symbol) {
-  return String(symbol ?? "")
-    .trim()
-    .replace(/^KR_/i, "")
-    .padStart(6, "0");
+  return yahooSymbolToKrCode(symbol);
+}
+
+/**
+ * 캐시·FnGuide gicode용 KR 6자리 / US 심볼
+ * @param {string} symbol
+ * @param {"kr"|"us"|undefined} [market]
+ */
+function normalizeShareStructureKey(symbol, market) {
+  const raw = String(symbol ?? "").trim().toUpperCase();
+  if (!raw) return "";
+  const kr = yahooSymbolToKrCode(raw);
+  if (kr) return kr;
+  if (market === "kr") {
+    const fromKrPrefix = yahooSymbolToKrCode(raw.replace(/^KR_/i, ""));
+    if (fromKrPrefix) return fromKrPrefix;
+  }
+  return raw;
+}
+
+/** @param {ReturnType<typeof readStore>} store */
+function purgeKrShareStructureAliasKeys(store) {
+  let changed = false;
+  for (const key of Object.keys(store.entries)) {
+    const canonical = yahooSymbolToKrCode(key);
+    if (canonical && canonical !== key) {
+      delete store.entries[key];
+      changed = true;
+    }
+  }
+  return changed;
 }
 
 /**
@@ -241,6 +265,7 @@ async function fetchStrategicInvestorSharesKr(symbol) {
 /** @param {string} symbol */
 async function fetchKrListedSharesFromNaver(symbol) {
   const code = krCode(symbol);
+  if (!code) return null;
   try {
     const res = await fetch(`${NAVER_DOMESTIC_POLL_URL}/${code}`, {
       headers: { "User-Agent": FNGUIDE_UA, Accept: "application/json" },
@@ -266,7 +291,9 @@ async function fetchKrListedSharesFromNaver(symbol) {
 
 /** @param {string} symbol */
 async function fetchFnGuideKr(symbol) {
-  const gicode = `A${krCode(symbol)}`;
+  const code = krCode(symbol);
+  if (!code) return null;
+  const gicode = `A${code}`;
   const res = await fetch(
     `https://comp.fnguide.com/SVO2/ASP/SVD_Main.asp?gicode=${encodeURIComponent(gicode)}`,
     { headers: { "User-Agent": FNGUIDE_UA } },
@@ -346,6 +373,7 @@ async function fetchYahooShareStats(symbol, market) {
     return fetchYahooOne(symbol);
   }
   const code = krCode(symbol);
+  if (!code) return null;
   for (const suffix of [".KS", ".KQ"]) {
     try {
       const hit = await fetchYahooOne(`${code}${suffix}`);
@@ -464,25 +492,35 @@ function isEntryFresh(symbol, entry) {
  * @param {"kr"|"us" | undefined} [market]
  */
 export async function loadStockShareStructure(symbol, market) {
-  const sym = String(symbol ?? "").trim().toUpperCase();
-  if (!sym) {
+  const rawSym = String(symbol ?? "").trim().toUpperCase();
+  if (!rawSym) {
     const err = new Error("심볼이 필요합니다.");
     /** @type {Error & { code?: string }} */ (err).code = "BAD_SYMBOL";
     throw err;
   }
 
+  const m =
+    market === "kr" || market === "us"
+      ? market
+      : isKrSymbol(rawSym)
+        ? "kr"
+        : "us";
+  const sym = normalizeShareStructureKey(rawSym, m);
+  if (m === "kr" && !krCode(sym)) {
+    const err = new Error("올바르지 않은 국내 종목 코드입니다.");
+    /** @type {Error & { code?: string }} */ (err).code = "BAD_SYMBOL";
+    throw err;
+  }
+
   const store = readStore();
+  if (purgeKrShareStructureAliasKeys(store)) {
+    writeStore(store);
+  }
   const cached = store.entries[sym];
   if (cached && isEntryFresh(sym, cached)) {
     return toApiPayload(sym, cached);
   }
 
-  const m =
-    market === "kr" || market === "us"
-      ? market
-      : isKrSymbol(sym)
-        ? "kr"
-        : "us";
   const live = await fetchLiveShareStructure(sym, m);
   const slot = getTradingSessionKey(m);
   const entry = {
