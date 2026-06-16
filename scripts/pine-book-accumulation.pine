@@ -1,22 +1,22 @@
 // This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
-// 책 06~07장 — 매집봉만 (거래량·본전·연속·상투 제외) · 가격 20일선 없음
+// 책 06~07장 — 매집봉 탐지 (차트 표시: 매집 마커만)
 // TradingView Pine v6 · 일봉 권장
 
 //@version=6
-indicator("책 매집봉", shorttitle="책매집", overlay=true, max_lines_count=100, max_labels_count=100)
+indicator("책 매집봉", shorttitle="책매집", overlay=true)
 
 // ── 입력 ─────────────────────────────────────────────────────────────
 grpCore = "매집봉"
 preset         = input.string("보통", "민감도", options=["느슨", "보통", "엄격"], group=grpCore)
-volLen         = input.int(20, "거래량 MA", minval=5, maxval=60, group=grpCore, tooltip="책: 20일 거래량 이평선 기준")
+volLen         = input.int(20, "거래량 MA", minval=5, maxval=60, group=grpCore)
 minRvol        = input.float(1.8, "매집 RVOL", minval=1.2, maxval=4.0, step=0.1, group=grpCore)
 needDrop       = input.bool(true, "하락 선행", group=grpCore)
 dropLb         = input.int(40, "하락 참조(봉)", minval=10, maxval=120, group=grpCore)
 minDropPct     = input.float(8.0, "최소 하락(%)", minval=3.0, maxval=40.0, step=0.5, group=grpCore)
-needVolMaUp    = input.bool(true, "거래량이평 상승", group=grpCore, tooltip="책: 거래량 이평이 꺾인 뒤 분출")
+needVolMaUp    = input.bool(true, "거래량이평 상승", group=grpCore)
 
-grpCtx = "본전 (책 06장)"
-useCost        = input.bool(true, "본전 맥락", group=grpCtx)
+grpCtx = "본전 (필터)"
+useCost        = input.bool(true, "본전 맥락 반영", group=grpCtx)
 costTolPct     = input.float(3.0, "본전 허용(%)", minval=1.0, maxval=8.0, step=0.5, group=grpCtx)
 pivotLen       = input.int(5, "스윙 저점(봉)", minval=3, maxval=15, group=grpCtx)
 recoverDays    = input.int(5, "본전 회복(봉)", minval=3, maxval=10, group=grpCtx)
@@ -31,25 +31,15 @@ allowSmallBull = input.bool(true, "소양봉 허용", group=grpShape)
 grpScore = "신호"
 minScore       = input.int(55, "최소 점수", minval=0, maxval=100, group=grpScore)
 needCostCtx    = input.bool(false, "본전 터치 필수", group=grpScore)
-showScore      = input.bool(true, "점수 라벨", group=grpScore)
 
-grpPeak = "상투거래량"
-showPeak       = input.bool(true, "상투거래량 표시", group=grpPeak)
+grpPeak = "상투 제외 (표시 없음)"
 riseLb         = input.int(30, "상승 참조(봉)", minval=10, maxval=80, group=grpPeak)
 minRisePct     = input.float(15.0, "최소 상승(%)", minval=5.0, maxval=60.0, step=1.0, group=grpPeak)
 peakRvol       = input.float(2.5, "상투 RVOL", minval=1.5, maxval=5.0, step=0.1, group=grpPeak)
 
 grpVis = "표시"
-showCost       = input.bool(true, "본전선", group=grpVis)
-showSl         = input.bool(true, "손절선", group=grpVis)
 confirmedOnly  = input.bool(true, "확정봉만", group=grpVis)
-
-grpCol = "색"
-cCost    = input.color(color.new(#78909C, 0), "본전", group=grpCol)
-cHigh    = input.color(color.new(#E53935, 0), "고신뢰 매집", group=grpCol)
-cStd     = input.color(color.new(#FB8C00, 0), "일반 매집", group=grpCol)
-cPeak    = input.color(color.new(#8E24AA, 0), "상투거래량", group=grpCol)
-cSl      = input.color(color.new(#F44336, 35), "손절", group=grpCol)
+cAccum         = input.color(color.new(#E53935, 0), "매집 색", group=grpVis)
 
 // ── 민감도 ───────────────────────────────────────────────────────────
 float effRvol = preset == "엄격" ? math.max(minRvol, 2.2) : preset == "느슨" ? math.min(minRvol, 1.5) : minRvol
@@ -73,7 +63,7 @@ float loRise = ta.lowest(low, riseLb)
 float risePct = loRise > 0 ? (close - loRise) / loRise * 100.0 : 0.0
 bool hadRise = risePct >= minRisePct
 
-// ── 본전 (세력 1차 매집원가) ─────────────────────────────────────────
+// ── 본전 (필터용) ────────────────────────────────────────────────────
 var float costBasis = na
 float plVal = ta.pivotlow(low, pivotLen, pivotLen)
 bool plHit = not na(plVal)
@@ -90,20 +80,16 @@ var int costTouches = 0
 if touchCost and not touchCost[1]
     costTouches += 1
 
-// ── 본전 5일 회복 ────────────────────────────────────────────────────
 var int breachBar = na
-var float breachLow = na
 if useCost and not na(costBasis) and close < costBasis and (na(breachBar) or close[1] >= costBasis)
     breachBar := bar_index
-    breachLow := low
 if useCost and not na(costBasis) and close >= costBasis
     breachBar := na
-    breachLow := na
 
 int sinceBreach = not na(breachBar) ? bar_index - breachBar : 10000
 bool recover5d = useCost and not na(costBasis) and sinceBreach > 0 and sinceBreach <= recoverDays and close > costBasis
 
-// ── 매집봉 (책 정의) ─────────────────────────────────────────────────
+// ── 매집봉 ───────────────────────────────────────────────────────────
 bool shapeUpper = upperPct >= minUpperPct
 bool shapeSmall = bodyPct <= maxBodyPct
 bool shapeSmallBull = allowSmallBull and close > open and bodyPct <= maxBodyPct * 0.85
@@ -113,7 +99,6 @@ bool volOk = rvol >= effRvol and (not needVolMaUp or volMaUp or rvol >= effRvol 
 bool peakDistrib = hadRise and rvol >= peakRvol and close > open and bodyPct >= 55.0
 bool accumRaw = volOk and shapeOk and not peakDistrib and (not needDrop or hadDrop)
 
-// ── 연속 매집 ────────────────────────────────────────────────────────
 int consecCnt = 0
 for i = 0 to consecWin - 1
     float rv_i = volMa[i] > 0 ? volume[i] / volMa[i] : 1.0
@@ -127,7 +112,6 @@ for i = 0 to consecWin - 1
 bool consecOk = consecCnt >= effConsec
 bool ctxOk = not needCostCtx or touchCost or recover5d
 
-// ── 점수 ─────────────────────────────────────────────────────────────
 f_score(bool acc, bool cTouch, bool cRec, bool cCon, float rv, bool shUp, bool shSm) =>
     float sc = 0.0
     if acc
@@ -141,60 +125,15 @@ f_score(bool acc, bool cTouch, bool cRec, bool cCon, float rv, bool shUp, bool s
     math.min(100.0, sc)
 
 float score = f_score(accumRaw and ctxOk, touchCost, recover5d, consecOk, rvol, shapeUpper, shapeSmall)
-bool accumHigh = accumRaw and ctxOk and score >= math.max(minScore, 70)
-bool accumStd = accumRaw and ctxOk and score >= minScore and not accumHigh
-
-int tagCode =
-     accumHigh and recover5d ? 3 :
-     accumHigh and consecOk ? 2 :
-     accumHigh and touchCost ? 1 :
-     accumStd ? 4 : 0
-
-f_tag(int c) =>
-    c == 1 ? "본전매집" :
-     c == 2 ? "연속매집" :
-     c == 3 ? "회복매집" :
-     c == 4 ? "매집" : ""
+bool anyAccum = accumRaw and ctxOk and score >= minScore
 
 bool barOk = not confirmedOnly or barstate.isconfirmed
-float slPrice = recover5d and not na(breachLow) ? breachLow : math.min(low, low[1])
 
-// ── 그리기 ───────────────────────────────────────────────────────────
-plot(showCost and useCost and not na(costBasis) ? costBasis : na, "본전", color=color.new(cCost, 0), linewidth=1, style=plot.style_linebr)
+// ── 표시: 매집봉만 ───────────────────────────────────────────────────
+plotshape(barOk and anyAccum, title="매집봉", style=shape.triangleup, location=location.belowbar, color=cAccum, size=size.normal, text="매집")
 
-plotshape(barOk and accumHigh, title="고신뢰 매집", style=shape.triangleup, location=location.belowbar, color=cHigh, size=size.normal, text="매집")
-plotshape(barOk and accumStd, title="매집", style=shape.triangleup, location=location.belowbar, color=cStd, size=size.small, text="·")
-plotshape(barOk and showPeak and peakDistrib, title="상투거래량", style=shape.triangledown, location=location.abovebar, color=cPeak, size=size.normal, text="상투")
+alertcondition(anyAccum, "매집봉", "책 매집봉")
 
-bgcolor(barOk and accumHigh ? color.new(cHigh, 92) : barOk and accumStd ? color.new(cStd, 94) : na)
-
-var line[] slPool = array.new_line()
-f_trimSl() =>
-    while array.size(slPool) > 12
-        line.delete(array.shift(slPool))
-
-if barOk and (accumHigh or accumStd) and showSl
-    f_trimSl()
-    int t0 = time
-    int t1 = time + timeframe.in_seconds() * 1000 * 12
-    array.push(slPool, line.new(t0, slPrice, t1, slPrice, xloc=xloc.bar_time, color=cSl, width=1, style=line.style_dashed))
-
-var label[] accumLbls = array.new_label()
-f_trimLbl() =>
-    while array.size(accumLbls) > 12
-        label.delete(array.shift(accumLbls))
-
-if barOk and accumHigh and showScore
-    f_trimLbl()
-    string lbl = f_tag(tagCode) + " " + str.tostring(int(math.round(score)))
-    array.push(accumLbls, label.new(bar_index, low, lbl, style=label.style_label_up, color=color.new(cHigh, 15), textcolor=color.white, size=size.small))
-
-// ── 알림 ─────────────────────────────────────────────────────────────
-alertcondition(accumHigh, "고신뢰 매집봉", "책 고신뢰 매집봉")
-alertcondition(accumStd, "매집봉", "책 매집봉")
-alertcondition(peakDistrib, "상투거래량", "상승 후 극단 거래량")
-
-// ── 데이터 윈도우 ────────────────────────────────────────────────────
-plot(accumHigh or accumStd ? 1 : 0, "매집 신호", display=display.data_window)
-plot(score, "매집 점수", display=display.data_window)
+plot(anyAccum ? 1 : 0, "매집", display=display.data_window)
+plot(score, "점수", display=display.data_window)
 plot(rvol, "RVOL", display=display.data_window)
