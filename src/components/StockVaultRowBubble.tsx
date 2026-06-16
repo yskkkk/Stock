@@ -178,12 +178,6 @@ export function useStockVaultRowBubble(tipIdOverride?: string) {
     }, HIDE_DELAY_MS);
   }, [clearHideTimer, clearShowTimer, valueInvest?.openSymbol, shareStructure]);
 
-  const closeParentTipOnly = useCallback(() => {
-    clearShowTimer();
-    clearHideTimer();
-    setTip(null);
-  }, [clearHideTimer, clearShowTimer]);
-
   const closeTip = useCallback(() => {
     clearShowTimer();
     clearHideTimer();
@@ -195,15 +189,9 @@ export function useStockVaultRowBubble(tipIdOverride?: string) {
     (e: MouseEvent) => {
       const sym = tipRef.current?.symbol;
       if (!sym) return;
-      handleStockHoverParentBubbleClick(
-        e,
-        sym,
-        shareStructure,
-        valueInvest,
-        closeParentTipOnly,
-      );
+      handleStockHoverParentBubbleClick(e, sym, shareStructure, valueInvest);
     },
-    [shareStructure, valueInvest, closeParentTipOnly],
+    [shareStructure, valueInvest],
   );
 
   useStockHoverBubbleExclusive(STOCK_VAULT_ROW_BUBBLE_OWNER, closeTip);

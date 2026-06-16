@@ -233,11 +233,6 @@ export default function EarningsUpcomingIconRail({
     }, HIDE_DELAY_MS);
   }, [clearHideTimer, valueInvest?.openSymbol, shareStructure]);
 
-  const closeParentTipOnly = useCallback(() => {
-    clearHideTimer();
-    setTip(null);
-  }, [clearHideTimer]);
-
   const closeTip = useCallback(() => {
     clearHideTimer();
     shareStructure?.closeShareStructureModal();
@@ -248,15 +243,9 @@ export default function EarningsUpcomingIconRail({
     (e: MouseEvent) => {
       const sym = tipRef.current?.row.symbol;
       if (!sym) return;
-      handleStockHoverParentBubbleClick(
-        e,
-        sym,
-        shareStructure,
-        valueInvest,
-        closeParentTipOnly,
-      );
+      handleStockHoverParentBubbleClick(e, sym, shareStructure, valueInvest);
     },
-    [shareStructure, valueInvest, closeParentTipOnly],
+    [shareStructure, valueInvest],
   );
 
   useStockHoverBubbleExclusive(EARNINGS_ICON_RAIL_BUBBLE_OWNER, closeTip);
