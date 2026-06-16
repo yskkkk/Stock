@@ -171,9 +171,12 @@ html[data-theme="light"] .account-snapshot__balance-card {
   color: var(--down, #dc2626);
 }
 
-.account-snapshot__values--hidden .account-snapshot__cash-value,
-.account-snapshot__values--hidden .account-snapshot__cash-sub,
-.account-snapshot__values--hidden .account-snapshot__pl-value {
+.account-snapshot--balance-hidden .account-snapshot__cash-value,
+.account-snapshot--balance-hidden .account-snapshot__cash-sub,
+.account-snapshot--balance-hidden .account-snapshot__pl-value,
+.account-snapshot--balance-hidden .account-snapshot__holding-pnl,
+.account-snapshot--balance-hidden .account-snapshot__holding-val,
+.account-snapshot--balance-hidden .account-snapshot__holding-price-amt {
   filter: blur(7px);
   user-select: none;
   pointer-events: none;
@@ -289,12 +292,6 @@ html[data-theme="light"] .account-snapshot__balance-card {
 
 .account-snapshot__holding-pnl--flat {
   color: var(--muted);
-}
-
-.account-snapshot__values--hidden .account-snapshot__holding-pnl {
-  filter: blur(7px);
-  user-select: none;
-  pointer-events: none;
 }
 
 .account-snapshot__holding-chg {

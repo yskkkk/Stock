@@ -110,6 +110,7 @@ export default function TossAccountSnapshotCard({
     "toss-account-snapshot",
     isRail ? "account-snapshot--rail bithumb-account-rail" : "live-trading-tab__cred-snapshot",
     authenticated ? "" : "live-trading-tab__cred-snapshot--unauth",
+    balanceHidden ? "account-snapshot--balance-hidden" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -157,11 +158,7 @@ export default function TossAccountSnapshotCard({
         </div>
       ) : null}
 
-      <section
-        className={`account-snapshot__balance-card${
-          balanceHidden ? " account-snapshot__values--hidden" : ""
-        }`}
-      >
+      <section className="account-snapshot__balance-card">
         <header className="account-snapshot__balance-head">
           <h3 className="account-snapshot__balance-title">
             {ko.app.liveTradeCredTestBalance}
@@ -307,7 +304,10 @@ export default function TossAccountSnapshotCard({
                       {formatLiveTradeQuantity(h.quantity, h.market)}주
                     </span>
                     {netMarketValue != null ? (
-                      <span className="account-snapshot__holding-val">
+                      <span
+                        className="account-snapshot__holding-val"
+                        aria-hidden={balanceHidden || undefined}
+                      >
                         {formatPrice(netMarketValue, h.currency)}
                       </span>
                     ) : null}
@@ -335,7 +335,12 @@ export default function TossAccountSnapshotCard({
                       {hasAvg ? (
                         <span>
                           {ko.app.liveTradePfColAvg}{" "}
-                          {formatPrice(h.avgBuyPrice!, h.currency)}
+                          <span
+                            className="account-snapshot__holding-price-amt"
+                            aria-hidden={balanceHidden || undefined}
+                          >
+                            {formatPrice(h.avgBuyPrice!, h.currency)}
+                          </span>
                         </span>
                       ) : null}
                       {hasAvg && hasCur ? (
@@ -344,7 +349,12 @@ export default function TossAccountSnapshotCard({
                       {hasCur ? (
                         <span>
                           {ko.app.liveTradePfColCurrent}{" "}
-                          {formatPrice(h.currentPrice!, h.currency)}
+                          <span
+                            className="account-snapshot__holding-price-amt"
+                            aria-hidden={balanceHidden || undefined}
+                          >
+                            {formatPrice(h.currentPrice!, h.currency)}
+                          </span>
                         </span>
                       ) : null}
                     </div>
