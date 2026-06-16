@@ -17,6 +17,7 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 0.5rem 0.75rem;
+  padding-inline: 0.55rem;
 }
 
 .investor-flow-tab__title {
@@ -87,7 +88,7 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  padding: 0;
+  padding: 0 0.55rem;
   background: transparent;
   border: none;
   box-shadow: none;
@@ -158,16 +159,31 @@
   margin: 0.1rem 0 0.15rem;
 }
 
+.investor-flow-tab__sector-summary {
+  padding-inline: 0.55rem;
+}
+
 .investor-flow-tab__sector-summary-title {
   margin: 0 0 0.35rem;
+  padding-inline: 0.12rem;
   font-size: 0.82rem;
   font-weight: 700;
 }
 
 .investor-flow-tab__sector-summary-wrap {
   overflow: auto;
+  max-height: calc((0.35rem * 2 + 1.05rem) * 11);
+  margin-inline: 0.12rem;
   border: 1px solid var(--card-border);
   border-radius: var(--radius-sm, 8px);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.investor-flow-tab__sector-summary-wrap::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .investor-flow-tab__sector-summary-table {

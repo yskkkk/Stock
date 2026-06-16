@@ -657,7 +657,7 @@ export default function InvestorFlowTab() {
                 </tr>
               </thead>
               <tbody>
-                {sectorSummary.slice(0, 24).map((row) => (
+                {sectorSummary.map((row) => (
                   <tr
                     key={row.industry}
                     className={
