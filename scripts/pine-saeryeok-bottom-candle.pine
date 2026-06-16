@@ -4,103 +4,121 @@
 //@version=6
 indicator("세력+MA+매집", shorttitle="세력통합", overlay=true, max_boxes_count=500, max_lines_count=500, max_labels_count=500)
 
-// ── 표시 선택 (체크박스) ─────────────────────────────────────────────
-grpDisp = "표시 선택"
-dispWBottom      = input.bool(true, "W 바닥확인", group=grpDisp)
-dispBottomClassic = input.bool(true, "바닥·전형", group=grpDisp)
-dispBottomVar    = input.bool(true, "바닥·변주", group=grpDisp)
-dispPinBear      = input.bool(true, "하락 바람개비", group=grpDisp)
-dispPinBull      = input.bool(true, "상승 바람개비", group=grpDisp)
-dispTop          = input.bool(true, "상투 캔들", group=grpDisp)
-dispPivot        = input.bool(true, "변곡점", group=grpDisp)
-dispAccum        = input.bool(true, "책 매집봉", group=grpDisp)
-dispMaLines      = input.bool(true, "MA 선", group=grpDisp)
-dispMaCross      = input.bool(true, "MA 교차점", group=grpDisp)
-dispMaWatermark  = input.bool(true, "MA 워터마크", group=grpDisp)
-dispMaLegend     = input.bool(true, "MA 범례", group=grpDisp)
-dispZones        = input.bool(true, "손절·분할 구간", group=grpDisp)
-dispZoneLabels   = input.bool(true, "구간 라벨", group=grpDisp)
-dispBg           = input.bool(true, "바닥·상투 배경", group=grpDisp)
+// ── ① 표시 — 차트에 무엇을 그릴지 (체크만, 탐지 로직 무관) ─────────────
+grpDispForce = "① 표시 · 세력·매집 마커"
+dispWBottom       = input.bool(true, "W 바닥확인", group=grpDispForce, tooltip="일봉 바닥 + 주봉 동시 확인 시 W 삼각형")
+dispBottomClassic = input.bool(true, "바닥·전형", group=grpDispForce)
+dispBottomVar     = input.bool(true, "바닥·변주", group=grpDispForce)
+dispPinBear       = input.bool(true, "하락 바람개비", group=grpDispForce)
+dispPinBull       = input.bool(true, "상승 바람개비", group=grpDispForce)
+dispTop           = input.bool(true, "상투 캔들", group=grpDispForce)
+dispPivot         = input.bool(true, "변곡점(대기)", group=grpDispForce)
+dispAccum         = input.bool(true, "책 매집봉 ▲", group=grpDispForce, tooltip="③ 매집 그룹 탐지 결과 마커")
 
-// ── 세력 캔들 입력 ───────────────────────────────────────────────────
-grpTf = "타임프레임"
-tfAuto         = input.bool(true, "TF 자동 보정", group=grpTf, tooltip="주/일/분봉별 갭·RVOL·하락% 자동")
-needWeeklyConf = input.bool(false, "주봉 W 강조", group=grpTf, tooltip="OFF=일봉 단독 신호. ON=주봉에도 패턴 있을 때 W 마커(일봉 신호는 유지)")
+grpDispMa = "① 표시 · MA"
+dispMaLines     = input.bool(true, "이동평균 선", group=grpDispMa)
+dispMaCross     = input.bool(true, "골든·데드 교차점", group=grpDispMa)
+dispMaWatermark = input.bool(true, "선 위 숫자(워터마크)", group=grpDispMa)
+dispMaLegend    = input.bool(true, "우하단 범례", group=grpDispMa)
 
-grpScore = "신호 점수"
-minScore       = input.int(50, "최소 점수", minval=0, maxval=100, group=grpScore, tooltip="0=전부 표시. 50=보통. 70+=엄격")
-showScoreLabel = input.bool(true, "라벨에 점수", group=grpScore)
+grpDispZone = "① 표시 · 구간·배경"
+dispZones      = input.bool(true, "손절선·분할매수 박스", group=grpDispZone)
+dispZoneLabels = input.bool(true, "구간 가격 라벨", group=grpDispZone)
+dispBg         = input.bool(true, "바닥·상투 봉 배경색", group=grpDispZone)
 
-grpCore = "핵심"
-preset       = input.string("보통", "민감도", options=["느슨", "보통", "엄격"], group=grpCore)
-maxBodyPct   = input.float(35.0, "변곡점 몸통/전체(%)", minval=10.0, maxval=50.0, step=1.0, group=grpCore)
+// ── ② 세력 캔들 — 탐지·민감도 (마커가 나올지 결정) ───────────────────
+grpTf = "② 세력 · 타임프레임"
+tfAuto         = input.bool(true, "차트 TF별 자동 보정", group=grpTf, tooltip="주/일/분봉에 맞게 갭·RVOL·하락% 자동 조정")
+needWeeklyConf = input.bool(false, "주봉 W 강조", group=grpTf, tooltip="ON=주봉에도 패턴 있을 때만 W 마커. 일봉 신호는 그대로")
+
+grpScore = "② 세력 · 점수 필터"
+minScore       = input.int(50, "최소 점수(미만 숨김)", minval=0, maxval=100, group=grpScore, tooltip="0=전부. 50=보통. 70+=엄격")
+showScoreLabel = input.bool(true, "구간 라벨에 점수 표기", group=grpScore)
+
+grpCore = "② 세력 · 민감도·거래량"
+preset       = input.string("보통", "민감도 프리셋", options=["느슨", "보통", "엄격"], group=grpCore)
+maxBodyPct   = input.float(35.0, "변곡 몸통/전체(%)", minval=10.0, maxval=50.0, step=1.0, group=grpCore)
 minGapPct    = input.float(0.3, "최소 갭(%)", minval=0.0, maxval=5.0, step=0.1, group=grpCore)
-volLen       = input.int(20, "거래량 MA", minval=5, maxval=100, group=grpCore)
-minRvol      = input.float(1.2, "③번 거래량 RVOL", minval=0.8, maxval=3.0, step=0.05, group=grpCore)
-needDrop     = input.bool(true, "하락 추세 선행", group=grpCore)
-dropLookback = input.int(20, "하락 참조(봉)", minval=5, maxval=120, group=grpCore)
-minDropPct   = input.float(5.0, "최소 하락(%)", minval=1.0, maxval=40.0, step=0.5, group=grpCore)
+volLen       = input.int(20, "거래량 이평(봉)", minval=5, maxval=100, group=grpCore)
+minRvol      = input.float(1.2, "③번봉 RVOL 하한", minval=0.8, maxval=3.0, step=0.05, group=grpCore)
+needDrop     = input.bool(true, "하락 추세 선행 필수", group=grpCore)
+dropLookback = input.int(20, "하락 참조 구간(봉)", minval=5, maxval=120, group=grpCore)
+minDropPct   = input.float(5.0, "최소 하락폭(%)", minval=1.0, maxval=40.0, step=0.5, group=grpCore)
 
-grpPat = "패턴"
-showBottom     = input.bool(true, "바닥 캔들", group=grpPat)
-showBottomVar  = input.bool(true, "변주 바닥", group=grpPat)
+grpPat = "② 세력 · 패턴 종류"
+showBottom     = input.bool(true, "바닥(전형·3봉)", group=grpPat, tooltip="탐지 ON/OFF. ① 표시 체크와 별개")
+showBottomVar  = input.bool(true, "바닥 변주", group=grpPat)
 showPinwheel   = input.bool(true, "바람개비", group=grpPat)
-showTop        = input.bool(true, "상투 캔들", group=grpPat)
+showTop        = input.bool(true, "상투", group=grpPat)
 allowNoGap     = input.bool(true, "갭 없는 바닥 허용", group=grpPat)
 allowFallBull  = input.bool(true, "하락양봉 변곡 허용", group=grpPat)
 
-grpTrade = "매매 구간"
-showSlZone   = input.bool(true, "손절·분할매수 구간", group=grpTrade)
-extendZone   = input.int(8, "구간 우측 연장(봉)", minval=0, maxval=60, group=grpTrade)
-maxZones     = input.int(15, "최대 구간 수", minval=1, maxval=100, group=grpTrade)
+grpTrade = "② 세력 · 매매 구간(박스)"
+showSlZone   = input.bool(true, "손절·분할 구간 계산", group=grpTrade, tooltip="① 표시·구간 체크와 함께 켜야 차트에 그림")
+extendZone   = input.int(8, "박스 우측 연장(봉)", minval=0, maxval=60, group=grpTrade)
+maxZones     = input.int(15, "최대 박스 개수", minval=1, maxval=100, group=grpTrade)
 
-grpVis = "캔들 표시"
-showLabels = input.bool(true, "라벨", group=grpVis)
-confirmedOnly = input.bool(true, "확정봉만 표시", group=grpVis)
+grpVis = "② 세력 · 차트 표시 옵션"
+showLabels    = input.bool(true, "구간·패턴 텍스트 라벨", group=grpVis)
+confirmedOnly = input.bool(true, "확정봉에서만 마커", group=grpVis)
 
-grpCol = "캔들 색"
+grpCol = "② 세력 · 색상"
 cBottom  = input.color(color.new(#E53935, 0), "바닥", group=grpCol)
 cBottomV = input.color(color.new(#FF7043, 0), "변주 바닥", group=grpCol)
-cWBottom = input.color(color.new(#C62828, 0), "주봉확인", group=grpCol)
+cWBottom = input.color(color.new(#C62828, 0), "W 주봉확인", group=grpCol)
 cPinUp   = input.color(color.new(#43A047, 0), "상승 바람개비", group=grpCol)
 cPinDn   = input.color(color.new(#1E88E5, 0), "하락 바람개비", group=grpCol)
 cTop     = input.color(color.new(#8E24AA, 0), "상투", group=grpCol)
 cSl      = input.color(color.new(#F44336, 30), "손절선", group=grpCol)
-cZone    = input.color(color.new(#E53935, 88), "분할매수", group=grpCol)
-cAccum   = input.color(color.new(#D84315, 0), "책 매집", group=grpCol)
+cZone    = input.color(color.new(#E53935, 88), "분할매수 박스", group=grpCol)
 
-// ── 책 매집봉 (06~07장) ───────────────────────────────────────────────
-grpAccum = "책 매집봉"
-accumPreset    = input.string("보통", "민감도", options=["느슨", "보통", "엄격"], group=grpAccum)
-accumVolLen    = input.int(20, "거래량 MA", minval=5, maxval=60, group=grpAccum)
-accumMinRvol   = input.float(1.8, "매집 RVOL", minval=1.2, maxval=4.0, step=0.1, group=grpAccum)
-accumNeedDrop  = input.bool(true, "하락 선행", group=grpAccum)
-accumDropLb    = input.int(40, "하락 참조(봉)", minval=10, maxval=120, group=grpAccum)
-accumMinDrop   = input.float(8.0, "최소 하락(%)", minval=3.0, maxval=40.0, step=0.5, group=grpAccum)
-accumVolMaUp   = input.bool(true, "거래량이평 상승", group=grpAccum)
-accumUseCost   = input.bool(true, "본전 맥락", group=grpAccum)
-accumCostTol   = input.float(3.0, "본전 허용(%)", minval=1.0, maxval=8.0, step=0.5, group=grpAccum)
-accumPivotLen  = input.int(5, "스윙 저점(봉)", minval=3, maxval=15, group=grpAccum)
-accumRecover   = input.int(5, "본전 회복(봉)", minval=3, maxval=10, group=grpAccum)
-accumConsecWin = input.int(3, "연속 창(봉)", minval=2, maxval=10, group=grpAccum)
-accumMinConsec = input.int(2, "연속 최소(회)", minval=1, maxval=5, group=grpAccum)
-accumUpperPct  = input.float(25.0, "윗꼬리/전체(%)", minval=10.0, maxval=60.0, step=1.0, group=grpAccum)
-accumBodyPct   = input.float(45.0, "작은 몸통/전체(%)", minval=15.0, maxval=70.0, step=1.0, group=grpAccum)
-accumSmallBull = input.bool(true, "소양봉 허용", group=grpAccum)
-accumMinScore  = input.int(55, "최소 점수", minval=0, maxval=100, group=grpAccum)
-accumNeedCost  = input.bool(false, "본전 터치 필수", group=grpAccum)
-accumRiseLb    = input.int(30, "상투제외 상승(봉)", minval=10, maxval=80, group=grpAccum)
-accumMinRise   = input.float(15.0, "상투제외 상승(%)", minval=5.0, maxval=60.0, step=1.0, group=grpAccum)
-accumPeakRvol  = input.float(2.5, "상투제외 RVOL", minval=1.5, maxval=5.0, step=0.1, group=grpAccum)
+// ── ③ 책 매집봉 (06~07장) — 탐지 조건 ───────────────────────────────
+grpAccumCore = "③ 매집 · 민감도·거래량"
+accumPreset    = input.string("보통", "민감도 프리셋", options=["느슨", "보통", "엄격"], group=grpAccumCore)
+accumVolLen    = input.int(20, "거래량 이평(봉)", minval=5, maxval=60, group=grpAccumCore)
+accumMinRvol   = input.float(1.8, "매집 RVOL 하한", minval=1.2, maxval=4.0, step=0.1, group=grpAccumCore)
+accumVolMaUp   = input.bool(true, "거래량 이평 상승 가산", group=grpAccumCore)
+accumNeedDrop  = input.bool(true, "하락 선행 필수", group=grpAccumCore)
+accumDropLb    = input.int(40, "하락 참조(봉)", minval=10, maxval=120, group=grpAccumCore)
+accumMinDrop   = input.float(8.0, "최소 하락(%)", minval=3.0, maxval=40.0, step=0.5, group=grpAccumCore)
 
-// ── MA 입력 ──────────────────────────────────────────────────────────
-grpMa = "MA 표시"
-showMa         = input.bool(true, "MA·교차 표시", group=grpMa)
-tfMode         = input.string("일봉+주봉", "표시 TF", options=["일봉+주봉", "일봉만", "주봉만"], group=grpMa)
-wmStep         = input.int(42, "워터마크 간격(봉)", minval=12, maxval=150, group=grpMa)
-smoothWeekly   = input.bool(true, "주봉 선형 보간 (일·분봉)", group=grpMa, tooltip="전주 확정 MA → 금주 MA를 주 안에서 직선 보간합니다(계단·뾰족 모서리 제거). 교차점 판정·표시는 확정 주봉 MA(lookahead_off)를 유지합니다.")
-brightTransp   = input.int(0, "활성 TF 투명도", minval=0, maxval=90, group=grpMa)
-dimTransp      = input.int(72, "비활성 TF 투명도", minval=30, maxval=95, group=grpMa)
+grpAccumCost = "③ 매집 · 본전(매수단가)"
+accumUseCost   = input.bool(true, "본전 맥락 사용", group=grpAccumCost)
+accumCostTol   = input.float(3.0, "본전 터치 허용(%)", minval=1.0, maxval=8.0, step=0.5, group=grpAccumCost)
+accumPivotLen  = input.int(5, "스윙 저점(봉)", minval=3, maxval=15, group=grpAccumCost)
+accumRecover   = input.int(5, "본전 회복 기한(봉)", minval=3, maxval=10, group=grpAccumCost)
+accumNeedCost  = input.bool(false, "본전 터치 없으면 제외", group=grpAccumCost)
+
+grpAccumShape = "③ 매집 · 캔들 형태"
+accumUpperPct  = input.float(25.0, "긴 윗꼬리/전체(%)", minval=10.0, maxval=60.0, step=1.0, group=grpAccumShape)
+accumBodyPct   = input.float(45.0, "작은 몸통/전체(%)", minval=15.0, maxval=70.0, step=1.0, group=grpAccumShape)
+accumSmallBull = input.bool(true, "소양봉 형태 허용", group=grpAccumShape)
+
+grpAccumConsec = "③ 매집 · 연속·점수"
+accumConsecWin = input.int(3, "연속 검사 창(봉)", minval=2, maxval=10, group=grpAccumConsec)
+accumMinConsec = input.int(2, "연속 최소 횟수", minval=1, maxval=5, group=grpAccumConsec)
+accumMinScore  = input.int(55, "최소 점수(미만 숨김)", minval=0, maxval=100, group=grpAccumConsec)
+
+grpAccumFilter = "③ 매집 · 상투(분산) 제외"
+accumRiseLb    = input.int(30, "선행 상승 참조(봉)", minval=10, maxval=80, group=grpAccumFilter)
+accumMinRise   = input.float(15.0, "선행 상승(%)", minval=5.0, maxval=60.0, step=1.0, group=grpAccumFilter)
+accumPeakRvol  = input.float(2.5, "분산봉 RVOL 하한", minval=1.5, maxval=5.0, step=0.1, group=grpAccumFilter)
+
+grpAccumCol = "③ 매집 · 색상"
+cAccum = input.color(color.new(#D84315, 0), "매집 마커", group=grpAccumCol)
+
+// ── ④ 일·주 MA — 선·교차 ────────────────────────────────────────────
+grpMaOn = "④ MA · 켜기·타임프레임"
+showMa = input.bool(true, "MA 기능 전체", group=grpMaOn, tooltip="OFF면 선·교차·워터마크·범례 모두 비활성")
+tfMode = input.string("일봉+주봉", "그릴 MA", options=["일봉+주봉", "일봉만", "주봉만"], group=grpMaOn)
+
+grpMaStyle = "④ MA · 선 스타일"
+smoothWeekly = input.bool(true, "주봉 선형 보간", group=grpMaStyle, tooltip="일·분봉 차트에서 주봉 MA 계단 제거. 교차 판정은 확정 주봉값 유지")
+brightTransp = input.int(0, "활성 TF 투명도", minval=0, maxval=90, group=grpMaStyle)
+dimTransp    = input.int(72, "비활성 TF 투명도", minval=30, maxval=95, group=grpMaStyle)
+
+grpMaWm = "④ MA · 워터마크"
+wmStep = input.int(42, "숫자 라벨 간격(봉)", minval=12, maxval=150, group=grpMaWm, tooltip="① 표시·워터마크 체크와 함께 사용")
 
 // ── 세력 캔들 TF ──────────────────────────────────────────────────────
 int tfSec = timeframe.in_seconds()
