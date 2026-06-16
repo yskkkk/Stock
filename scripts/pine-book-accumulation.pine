@@ -1,5 +1,5 @@
 // This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
-// 책 06~07장 — 매집봉 탐지 (차트 표시: 매집 마커만)
+// 책 06~07장 — 매집봉 (단독). 통합 버전: pine-saeryeok-bottom-candle.pine «표시 선택»→책 매집봉
 // TradingView Pine v6 · 일봉 권장
 
 //@version=6

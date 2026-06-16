@@ -1,8 +1,26 @@
 // This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
-// 세력 바닥·바람개비·상투 캔들 + 일봉·주봉 MA 골든/데드 접점 — TradingView Pine v6
+// 세력 바닥·바람개비·상투 + 일봉·주봉 MA + 책 매집봉 — TradingView Pine v6
 
 //@version=6
-indicator("세력캔들 + MA 접점", shorttitle="세력+MA", overlay=true, max_boxes_count=500, max_lines_count=500, max_labels_count=500)
+indicator("세력+MA+매집", shorttitle="세력통합", overlay=true, max_boxes_count=500, max_lines_count=500, max_labels_count=500)
+
+// ── 표시 선택 (체크박스) ─────────────────────────────────────────────
+grpDisp = "표시 선택"
+dispWBottom      = input.bool(true, "W 바닥확인", group=grpDisp)
+dispBottomClassic = input.bool(true, "바닥·전형", group=grpDisp)
+dispBottomVar    = input.bool(true, "바닥·변주", group=grpDisp)
+dispPinBear      = input.bool(true, "하락 바람개비", group=grpDisp)
+dispPinBull      = input.bool(true, "상승 바람개비", group=grpDisp)
+dispTop          = input.bool(true, "상투 캔들", group=grpDisp)
+dispPivot        = input.bool(true, "변곡점", group=grpDisp)
+dispAccum        = input.bool(true, "책 매집봉", group=grpDisp)
+dispMaLines      = input.bool(true, "MA 선", group=grpDisp)
+dispMaCross      = input.bool(true, "MA 교차점", group=grpDisp)
+dispMaWatermark  = input.bool(true, "MA 워터마크", group=grpDisp)
+dispMaLegend     = input.bool(true, "MA 범례", group=grpDisp)
+dispZones        = input.bool(true, "손절·분할 구간", group=grpDisp)
+dispZoneLabels   = input.bool(true, "구간 라벨", group=grpDisp)
+dispBg           = input.bool(true, "바닥·상투 배경", group=grpDisp)
 
 // ── 세력 캔들 입력 ───────────────────────────────────────────────────
 grpTf = "타임프레임"
@@ -38,7 +56,6 @@ maxZones     = input.int(15, "최대 구간 수", minval=1, maxval=100, group=gr
 
 grpVis = "캔들 표시"
 showLabels = input.bool(true, "라벨", group=grpVis)
-showBg     = input.bool(true, "③번 배경", group=grpVis)
 confirmedOnly = input.bool(true, "확정봉만 표시", group=grpVis)
 
 grpCol = "캔들 색"
@@ -50,13 +67,36 @@ cPinDn   = input.color(color.new(#1E88E5, 0), "하락 바람개비", group=grpCo
 cTop     = input.color(color.new(#8E24AA, 0), "상투", group=grpCol)
 cSl      = input.color(color.new(#F44336, 30), "손절선", group=grpCol)
 cZone    = input.color(color.new(#E53935, 88), "분할매수", group=grpCol)
+cAccum   = input.color(color.new(#D84315, 0), "책 매집", group=grpCol)
+
+// ── 책 매집봉 (06~07장) ───────────────────────────────────────────────
+grpAccum = "책 매집봉"
+accumPreset    = input.string("보통", "민감도", options=["느슨", "보통", "엄격"], group=grpAccum)
+accumVolLen    = input.int(20, "거래량 MA", minval=5, maxval=60, group=grpAccum)
+accumMinRvol   = input.float(1.8, "매집 RVOL", minval=1.2, maxval=4.0, step=0.1, group=grpAccum)
+accumNeedDrop  = input.bool(true, "하락 선행", group=grpAccum)
+accumDropLb    = input.int(40, "하락 참조(봉)", minval=10, maxval=120, group=grpAccum)
+accumMinDrop   = input.float(8.0, "최소 하락(%)", minval=3.0, maxval=40.0, step=0.5, group=grpAccum)
+accumVolMaUp   = input.bool(true, "거래량이평 상승", group=grpAccum)
+accumUseCost   = input.bool(true, "본전 맥락", group=grpAccum)
+accumCostTol   = input.float(3.0, "본전 허용(%)", minval=1.0, maxval=8.0, step=0.5, group=grpAccum)
+accumPivotLen  = input.int(5, "스윙 저점(봉)", minval=3, maxval=15, group=grpAccum)
+accumRecover   = input.int(5, "본전 회복(봉)", minval=3, maxval=10, group=grpAccum)
+accumConsecWin = input.int(3, "연속 창(봉)", minval=2, maxval=10, group=grpAccum)
+accumMinConsec = input.int(2, "연속 최소(회)", minval=1, maxval=5, group=grpAccum)
+accumUpperPct  = input.float(25.0, "윗꼬리/전체(%)", minval=10.0, maxval=60.0, step=1.0, group=grpAccum)
+accumBodyPct   = input.float(45.0, "작은 몸통/전체(%)", minval=15.0, maxval=70.0, step=1.0, group=grpAccum)
+accumSmallBull = input.bool(true, "소양봉 허용", group=grpAccum)
+accumMinScore  = input.int(55, "최소 점수", minval=0, maxval=100, group=grpAccum)
+accumNeedCost  = input.bool(false, "본전 터치 필수", group=grpAccum)
+accumRiseLb    = input.int(30, "상투제외 상승(봉)", minval=10, maxval=80, group=grpAccum)
+accumMinRise   = input.float(15.0, "상투제외 상승(%)", minval=5.0, maxval=60.0, step=1.0, group=grpAccum)
+accumPeakRvol  = input.float(2.5, "상투제외 RVOL", minval=1.5, maxval=5.0, step=0.1, group=grpAccum)
 
 // ── MA 입력 ──────────────────────────────────────────────────────────
 grpMa = "MA 표시"
 showMa         = input.bool(true, "MA·교차 표시", group=grpMa)
 tfMode         = input.string("일봉+주봉", "표시 TF", options=["일봉+주봉", "일봉만", "주봉만"], group=grpMa)
-showLegend     = input.bool(true, "범례 (우하단)", group=grpMa)
-showWatermark  = input.bool(true, "선 워터마크 (5·20·60·120)", group=grpMa)
 wmStep         = input.int(42, "워터마크 간격(봉)", minval=12, maxval=150, group=grpMa)
 smoothWeekly   = input.bool(true, "주봉 선형 보간 (일·분봉)", group=grpMa, tooltip="전주 확정 MA → 금주 MA를 주 안에서 직선 보간합니다(계단·뾰족 모서리 제거). 교차점 판정·표시는 확정 주봉 MA(lookahead_off)를 유지합니다.")
 brightTransp   = input.int(0, "활성 TF 투명도", minval=0, maxval=90, group=grpMa)
@@ -228,10 +268,99 @@ string bottomTag = f_tag(bottomCode) + (showScoreLabel and anyBottom ? " " + str
 
 bool barOk = not confirmedOnly or barstate.isconfirmed
 
+// ── 책 매집봉 감지 ───────────────────────────────────────────────────
+float accumEffRvol = accumPreset == "엄격" ? math.max(accumMinRvol, 2.2) : accumPreset == "느슨" ? math.min(accumMinRvol, 1.5) : accumMinRvol
+int accumEffConsec = accumPreset == "엄격" ? math.max(accumMinConsec, 2) : accumMinConsec
+
+float aVolMa = ta.sma(volume, accumVolLen)
+float aRvol = aVolMa > 0 ? volume / aVolMa : 1.0
+bool aVolMaUp = aVolMa > aVolMa[3]
+
+float aRng = high - low
+float aBody = math.abs(close - open)
+float aBodyPct = aRng > 0 ? aBody / aRng * 100.0 : 100.0
+float aUpperPct = aRng > 0 ? (high - math.max(open, close)) / aRng * 100.0 : 0.0
+
+float aHiRef = ta.highest(high, accumDropLb)
+float aDropPct = aHiRef > 0 ? (aHiRef - close) / aHiRef * 100.0 : 0.0
+bool aHadDrop = aDropPct >= accumMinDrop
+
+float aLoRise = ta.lowest(low, accumRiseLb)
+float aRisePct = aLoRise > 0 ? (close - aLoRise) / aLoRise * 100.0 : 0.0
+bool aHadRise = aRisePct >= accumMinRise
+
+var float aCostBasis = na
+float aPlVal = ta.pivotlow(low, accumPivotLen, accumPivotLen)
+bool aPlHit = not na(aPlVal)
+if accumUseCost and aPlHit
+    float aPlRvol = aVolMa[accumPivotLen] > 0 ? volume[accumPivotLen] / aVolMa[accumPivotLen] : 1.0
+    float aPlDrop = aHiRef[accumPivotLen] > 0 ? (aHiRef[accumPivotLen] - close[accumPivotLen]) / aHiRef[accumPivotLen] * 100.0 : 0.0
+    bool aPlDropOk = not accumNeedDrop or aPlDrop >= accumMinDrop * 0.75
+    if aPlRvol >= accumEffRvol * 0.9 and aPlDropOk
+        aCostBasis := aPlVal
+
+bool aTouchCost = accumUseCost and not na(aCostBasis) and aCostBasis > 0 and low <= aCostBasis * (1.0 + accumCostTol / 100.0) and high >= aCostBasis * (1.0 - accumCostTol / 100.0)
+
+var int aCostTouches = 0
+if aTouchCost and not aTouchCost[1]
+    aCostTouches += 1
+
+var int aBreachBar = na
+if accumUseCost and not na(aCostBasis) and close < aCostBasis and (na(aBreachBar) or close[1] >= aCostBasis)
+    aBreachBar := bar_index
+if accumUseCost and not na(aCostBasis) and close >= aCostBasis
+    aBreachBar := na
+
+int aSinceBreach = not na(aBreachBar) ? bar_index - aBreachBar : 10000
+bool aRecover5d = accumUseCost and not na(aCostBasis) and aSinceBreach > 0 and aSinceBreach <= accumRecover and close > aCostBasis
+
+bool aShapeUpper = aUpperPct >= accumUpperPct
+bool aShapeSmall = aBodyPct <= accumBodyPct
+bool aShapeSmallBull = accumSmallBull and close > open and aBodyPct <= accumBodyPct * 0.85
+bool aShapeOk = aShapeUpper or aShapeSmall or aShapeSmallBull
+
+bool aVolOk = aRvol >= accumEffRvol and (not accumVolMaUp or aVolMaUp or aRvol >= accumEffRvol * 1.2)
+bool aPeakDistrib = aHadRise and aRvol >= accumPeakRvol and close > open and aBodyPct >= 55.0
+bool aAccumRaw = aVolOk and aShapeOk and not aPeakDistrib and (not accumNeedDrop or aHadDrop)
+
+int aConsecCnt = 0
+for i = 0 to accumConsecWin - 1
+    float arv = aVolMa[i] > 0 ? volume[i] / aVolMa[i] : 1.0
+    float arng = high[i] - low[i]
+    float aup = arng > 0 ? (high[i] - math.max(open[i], close[i])) / arng * 100.0 : 0.0
+    float abd = arng > 0 ? math.abs(close[i] - open[i]) / arng * 100.0 : 100.0
+    bool ash = aup >= accumUpperPct or abd <= accumBodyPct
+    if arv >= accumEffRvol * 0.92 and ash
+        aConsecCnt += 1
+
+bool aConsecOk = aConsecCnt >= accumEffConsec
+bool aCtxOk = not accumNeedCost or aTouchCost or aRecover5d
+
+f_accumScore(bool acc, bool cTouch, bool cRec, bool cCon, float rv, bool shUp, bool shSm) =>
+    float sc = 0.0
+    if acc
+        sc += math.min(30.0, rv / accumEffRvol * 18.0)
+        sc += shUp ? 15.0 : shSm ? 10.0 : 6.0
+        sc += accumVolMaUp and aVolMaUp ? 12.0 : 0.0
+        sc += cTouch ? 20.0 : 0.0
+        sc += cRec ? 15.0 : 0.0
+        sc += cCon ? 12.0 : 0.0
+        sc += aCostTouches >= 2 ? 10.0 : aCostTouches >= 1 ? 5.0 : 0.0
+    math.min(100.0, sc)
+
+float aScore = f_accumScore(aAccumRaw and aCtxOk, aTouchCost, aRecover5d, aConsecOk, aRvol, aShapeUpper, aShapeSmall)
+bool anyAccum = aAccumRaw and aCtxOk and aScore >= accumMinScore
+
 // ── MA 로직 ──────────────────────────────────────────────────────────
 bool showBoth = tfMode == "일봉+주봉"
-bool showDaily = showMa and (showBoth or tfMode == "일봉만")
-bool showWeekly = showMa and (showBoth or tfMode == "주봉만")
+bool showDailyTf = showBoth or tfMode == "일봉만"
+bool showWeeklyTf = showBoth or tfMode == "주봉만"
+bool showDaily = showMa and dispMaLines and showDailyTf
+bool showWeekly = showMa and dispMaLines and showWeeklyTf
+bool showDailyCross = showMa and dispMaCross and showDailyTf
+bool showWeeklyCross = showMa and dispMaCross and showWeeklyTf
+bool showDailyWm = showMa and dispMaWatermark and showDailyTf
+bool showWeeklyWm = showMa and dispMaWatermark and showWeeklyTf
 
 color dailySpecA = #FFEE58
 color dailySpecZ = #C62828
@@ -312,10 +441,10 @@ plot(showWeekly ? ma20_w : na, color=color.new(c20_w, wAlpha), linewidth=2, titl
 plot(showWeekly ? ma60_w : na, color=color.new(c60_w, wAlpha), linewidth=2, title="[주] 60 MA")
 plot(showWeekly ? ma120_w : na, color=color.new(c120_w, wAlpha), linewidth=2, title="[주] 120 MA")
 
-plot(showDaily and (gold_5_20_d or dead_5_20_d) ? ma5_d : na, style=plot.style_circles, linewidth=5, color=color_5_20_d, title="[일] 5-20 교차점")
-plot(showDaily and (gold_20_120_d or dead_20_120_d) ? ma20_d : na, style=plot.style_circles, linewidth=5, color=color_20_120_d, title="[일] 20-120 교차점")
-plot(showWeekly and (gold_5_20_w or dead_5_20_w) ? ma5_w_step : na, style=plot.style_circles, linewidth=5, color=color_5_20_w, title="[주] 5-20 교차점")
-plot(showWeekly and (gold_20_120_w or dead_20_120_w) ? ma20_w_step : na, style=plot.style_circles, linewidth=5, color=color_20_120_w, title="[주] 20-120 교차점")
+plot(showDailyCross and (gold_5_20_d or dead_5_20_d) ? ma5_d : na, style=plot.style_circles, linewidth=5, color=color_5_20_d, title="[일] 5-20 교차점")
+plot(showDailyCross and (gold_20_120_d or dead_20_120_d) ? ma20_d : na, style=plot.style_circles, linewidth=5, color=color_20_120_d, title="[일] 20-120 교차점")
+plot(showWeeklyCross and (gold_5_20_w or dead_5_20_w) ? ma5_w_step : na, style=plot.style_circles, linewidth=5, color=color_5_20_w, title="[주] 5-20 교차점")
+plot(showWeeklyCross and (gold_20_120_w or dead_20_120_w) ? ma20_w_step : na, style=plot.style_circles, linewidth=5, color=color_20_120_w, title="[주] 20-120 교차점")
 
 // ── 세력 캔들 구간 ───────────────────────────────────────────────────
 var box[]  zoneBoxes = array.new_box()
@@ -336,10 +465,10 @@ f_drawZone(int tLeft, float sl, float zTop, float zBot, color zCol, string tag, 
     int tRight = tLeft + extBars * tfMs
     float top = math.max(zTop, zBot)
     float bot = math.min(zTop, zBot)
-    if showSlZone
+    if showSlZone and dispZones
         array.push(slLines, line.new(tLeft, sl, tRight, sl, xloc=xloc.bar_time, color=cSl, width=2, style=line.style_dashed))
         array.push(zoneBoxes, box.new(tLeft, top, tRight, bot, xloc=xloc.bar_time, border_color=color.new(zCol, 40), bgcolor=cZone, border_width=1))
-    if showLabels
+    if showLabels and dispZoneLabels
         float lblY = labelBelow ? math.min(low, bot) : top
         string lblTxt = tag + "\n손절 " + str.tostring(sl, format.mintick) + "\n분할 " + str.tostring(bot, format.mintick) + "~" + str.tostring(top, format.mintick)
         if labelBelow
@@ -347,43 +476,44 @@ f_drawZone(int tLeft, float sl, float zTop, float zBot, color zCol, string tag, 
         else
             array.push(zoneLbls, label.new(tLeft, lblY, lblTxt, xloc=xloc.bar_time, yloc=yloc.price, style=label.style_label_down, color=color.new(zCol, 15), textcolor=color.white, size=size.small))
 
-if anyBottom and barOk
+if anyBottom and barOk and dispZones
     f_drawZone(time, slL, zoneTop, zoneBotSl, wConfirmed ? cWBottom : cBottom, bottomTag, effExtend, true)
 
-if topClassic and barOk
+if topClassic and barOk and dispZones
     f_drawZone(time, zoneTop, zoneTop, zoneBotSl, cTop, "상투", effExtend, false)
 
-// ── 세력 캔들 마커 ───────────────────────────────────────────────────
-plotshape(barOk and anyBottom and bottomClassic and wConfirmed, title="W바닥확인", style=shape.triangleup, location=location.belowbar, color=cWBottom, size=size.large, text="W")
-plotshape(barOk and anyBottom and bottomClassic and not wConfirmed, title="바닥·전형", style=shape.triangleup, location=location.belowbar, color=cBottom, size=size.normal, text="바닥")
-plotshape(barOk and anyBottom and not bottomClassic, title="바닥·변주", style=shape.triangleup, location=location.belowbar, color=cBottomV, size=size.small, text="변주")
-plotshape(barOk and pinBear, title="하락 바람개비", style=shape.triangledown, location=location.abovebar, color=cPinDn, size=size.tiny, text="↓")
-plotshape(barOk and pinBull, title="상승 바람개비", style=shape.triangleup, location=location.belowbar, color=cPinUp, size=size.tiny, text="↑")
-plotshape(barOk and topClassic, title="상투", style=shape.triangledown, location=location.abovebar, color=cTop, size=size.normal, text="상투")
-plotshape(barOk and pivotForming, title="변곡점", style=shape.cross, location=location.belowbar, color=color.new(#FFC107, 0), size=size.tiny)
+// ── 세력 캔들·매집 마커 ───────────────────────────────────────────────
+plotshape(barOk and dispWBottom and anyBottom and bottomClassic and wConfirmed, title="W바닥확인", style=shape.triangleup, location=location.belowbar, color=cWBottom, size=size.large, text="W")
+plotshape(barOk and dispBottomClassic and anyBottom and bottomClassic and not wConfirmed, title="바닥·전형", style=shape.triangleup, location=location.belowbar, color=cBottom, size=size.normal, text="바닥")
+plotshape(barOk and dispBottomVar and anyBottom and not bottomClassic, title="바닥·변주", style=shape.triangleup, location=location.belowbar, color=cBottomV, size=size.small, text="변주")
+plotshape(barOk and dispPinBear and pinBear, title="하락 바람개비", style=shape.triangledown, location=location.abovebar, color=cPinDn, size=size.tiny, text="↓")
+plotshape(barOk and dispPinBull and pinBull, title="상승 바람개비", style=shape.triangleup, location=location.belowbar, color=cPinUp, size=size.tiny, text="↑")
+plotshape(barOk and dispTop and topClassic, title="상투", style=shape.triangledown, location=location.abovebar, color=cTop, size=size.normal, text="상투")
+plotshape(barOk and dispPivot and pivotForming, title="변곡점", style=shape.cross, location=location.belowbar, color=color.new(#FFC107, 0), size=size.tiny)
+plotshape(barOk and dispAccum and anyAccum, title="책 매집봉", style=shape.triangleup, location=location.belowbar, color=cAccum, size=size.normal, text="매집")
 
-bgcolor(showBg and barOk and anyBottom ? color.new(wConfirmed ? cWBottom : cBottom, 92) : showBg and barOk and topClassic ? color.new(cTop, 93) : na)
+bgcolor(dispBg and barOk and anyBottom ? color.new(wConfirmed ? cWBottom : cBottom, 92) : dispBg and barOk and topClassic ? color.new(cTop, 93) : na)
 
 // ── MA 워터마크·범례 ─────────────────────────────────────────────────
 int wmPh = int(math.max(wmStep / 5, 3))
 int wmTa = math.min(dAlpha + 40, 88)
 int wmTw = math.min(wAlpha + 40, 88)
 
-if showMa and showWatermark and showDaily and not na(ma5_d) and bar_index % wmStep == 0
+if showMa and showDailyWm and not na(ma5_d) and bar_index % wmStep == 0
     label.new(bar_index, ma5_d, "5", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_none, textcolor=color.new(c5_d, wmTa), size=size.tiny)
-if showMa and showWatermark and showDaily and not na(ma20_d) and bar_index % wmStep == wmPh
+if showMa and showDailyWm and not na(ma20_d) and bar_index % wmStep == wmPh
     label.new(bar_index, ma20_d, "20", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_none, textcolor=color.new(c20_d, wmTa), size=size.tiny)
-if showMa and showWatermark and showDaily and not na(ma60_d) and bar_index % wmStep == wmPh * 2
+if showMa and showDailyWm and not na(ma60_d) and bar_index % wmStep == wmPh * 2
     label.new(bar_index, ma60_d, "60", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_none, textcolor=color.new(c60_d, wmTa), size=size.tiny)
-if showMa and showWatermark and showDaily and not na(ma120_d) and bar_index % wmStep == wmPh * 3
+if showMa and showDailyWm and not na(ma120_d) and bar_index % wmStep == wmPh * 3
     label.new(bar_index, ma120_d, "120", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_none, textcolor=color.new(c120_d, wmTa), size=size.tiny)
-if showMa and showWatermark and showWeekly and not na(ma5_w) and bar_index % wmStep == 1
+if showMa and showWeeklyWm and not na(ma5_w) and bar_index % wmStep == 1
     label.new(bar_index, ma5_w, "5", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_none, textcolor=color.new(c5_w, wmTw), size=size.tiny)
-if showMa and showWatermark and showWeekly and not na(ma20_w) and bar_index % wmStep == wmPh + 1
+if showMa and showWeeklyWm and not na(ma20_w) and bar_index % wmStep == wmPh + 1
     label.new(bar_index, ma20_w, "20", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_none, textcolor=color.new(c20_w, wmTw), size=size.tiny)
-if showMa and showWatermark and showWeekly and not na(ma60_w) and bar_index % wmStep == wmPh * 2 + 1
+if showMa and showWeeklyWm and not na(ma60_w) and bar_index % wmStep == wmPh * 2 + 1
     label.new(bar_index, ma60_w, "60", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_none, textcolor=color.new(c60_w, wmTw), size=size.tiny)
-if showMa and showWatermark and showWeekly and not na(ma120_w) and bar_index % wmStep == wmPh * 3 + 1
+if showMa and showWeeklyWm and not na(ma120_w) and bar_index % wmStep == wmPh * 3 + 1
     label.new(bar_index, ma120_w, "120", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_none, textcolor=color.new(c120_w, wmTw), size=size.tiny)
 
 var table legend = table.new(position.bottom_right, 3, 8, bgcolor=na, frame_color=color.new(color.gray, 70), border_width=1)
@@ -393,28 +523,28 @@ f_leg_label(int row, string label) =>
 
 f_leg_ma(int row, string label, color cD, color cW) =>
     f_leg_label(row, label)
-    table.cell(legend, 1, row, showDaily ? "━━" : "", text_color=color.new(cD, dAlpha), text_size=size.tiny)
-    table.cell(legend, 2, row, showWeekly ? "━━" : "", text_color=color.new(cW, wAlpha), text_size=size.tiny)
+    table.cell(legend, 1, row, showDailyTf ? "━━" : "", text_color=color.new(cD, dAlpha), text_size=size.tiny)
+    table.cell(legend, 2, row, showWeeklyTf ? "━━" : "", text_color=color.new(cW, wAlpha), text_size=size.tiny)
 
-if barstate.islast and showMa and showLegend
+if barstate.islast and showMa and dispMaLegend
     string smoothHint = needWeeklySmooth ? " · 주봉보간" : ""
     string modeHint = (showBoth ? (weeklyPrimary ? "강조: 주봉" : "강조: 일봉") : tfMode) + smoothHint
     table.cell(legend, 0, 0, "MA 색상", text_color=color.white, text_size=size.small, text_halign=text.align_left)
-    table.cell(legend, 1, 0, showDaily ? "일봉" : "", text_color=color.new(dailySpecA, dAlpha), text_size=size.tiny)
-    table.cell(legend, 2, 0, showWeekly ? "주봉" : "", text_color=color.new(weeklySpecA, wAlpha), text_size=size.tiny)
+    table.cell(legend, 1, 0, showDailyTf ? "일봉" : "", text_color=color.new(dailySpecA, dAlpha), text_size=size.tiny)
+    table.cell(legend, 2, 0, showWeeklyTf ? "주봉" : "", text_color=color.new(weeklySpecA, wAlpha), text_size=size.tiny)
     f_leg_ma(1, "5일", c5_d, c5_w)
     f_leg_ma(2, "20일", c20_d, c20_w)
     f_leg_ma(3, "60일", c60_d, c60_w)
     f_leg_ma(4, "120일", c120_d, c120_w)
     f_leg_label(5, "교차")
-    table.cell(legend, 1, 5, showDaily ? "골든 ●" : "", text_color=color.new(color.green, dAlpha), text_size=size.tiny)
-    table.cell(legend, 2, 5, showWeekly ? "골든 ●" : "", text_color=color.new(color.green, wAlpha), text_size=size.tiny)
+    table.cell(legend, 1, 5, showDailyTf ? "골든 ●" : "", text_color=color.new(color.green, dAlpha), text_size=size.tiny)
+    table.cell(legend, 2, 5, showWeeklyTf ? "골든 ●" : "", text_color=color.new(color.green, wAlpha), text_size=size.tiny)
     f_leg_label(6, "")
-    table.cell(legend, 1, 6, showDaily ? "데드 ●" : "", text_color=color.new(color.red, dAlpha), text_size=size.tiny)
-    table.cell(legend, 2, 6, showWeekly ? "데드 ●" : "", text_color=color.new(color.red, wAlpha), text_size=size.tiny)
+    table.cell(legend, 1, 6, showDailyTf ? "데드 ●" : "", text_color=color.new(color.red, dAlpha), text_size=size.tiny)
+    table.cell(legend, 2, 6, showWeeklyTf ? "데드 ●" : "", text_color=color.new(color.red, wAlpha), text_size=size.tiny)
     table.cell(legend, 0, 7, modeHint, text_color=color.gray, text_size=size.tiny, text_halign=text.align_left)
-    table.cell(legend, 1, 7, showDaily ? "5↔20" : "", text_color=color.new(color.gray, dAlpha), text_size=size.tiny)
-    table.cell(legend, 2, 7, showWeekly ? "20↔120" : "", text_color=color.new(color.gray, wAlpha), text_size=size.tiny)
+    table.cell(legend, 1, 7, showDailyTf ? "5↔20" : "", text_color=color.new(color.gray, dAlpha), text_size=size.tiny)
+    table.cell(legend, 2, 7, showWeeklyTf ? "20↔120" : "", text_color=color.new(color.gray, wAlpha), text_size=size.tiny)
 
 // ── 알림 ─────────────────────────────────────────────────────────────
 alertcondition(anyBottom, "바닥 캔들", "세력 바닥 캔들 — 점수·주봉 확인 통과")
@@ -422,6 +552,7 @@ alertcondition(wConfirmed, "주봉확인 바닥", "일봉+주봉 동시 바닥 �
 alertcondition(bottomClassic, "바닥·전형", "전형 바닥 패턴")
 alertcondition(pinBear, "하락 바람개비", "하락 바람개비")
 alertcondition(topClassic, "상투 캔들", "세력 상투 캔들")
+alertcondition(anyAccum, "책 매집봉", "책 매집봉 신호")
 alertcondition(showMa and gold_5_20_d, "일봉 5-20 골든", "일봉 5·20 MA 골든크로스")
 alertcondition(showMa and dead_5_20_d, "일봉 5-20 데드", "일봉 5·20 MA 데드크로스")
 alertcondition(showMa and gold_20_120_d, "일봉 20-120 골든", "일봉 20·120 MA 골든크로스")
@@ -438,3 +569,6 @@ plot(bottomScore, "바닥 점수", display=display.data_window)
 plot(wScore, "주봉 점수", display=display.data_window)
 plot(wAnyRaw ? 1 : 0, "주봉(raw)", display=display.data_window)
 plot(rvol3, "③ RVOL", display=display.data_window)
+plot(anyAccum ? 1 : 0, "매집 신호", display=display.data_window)
+plot(aScore, "매집 점수", display=display.data_window)
+plot(aRvol, "매집 RVOL", display=display.data_window)
