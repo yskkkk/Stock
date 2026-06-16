@@ -14,6 +14,10 @@ import {
   parseFnGuideTitledShareRow,
   sumStrategicInvestorSharesFromDart,
 } from "./stock-share-structure-float.js";
+import {
+  parseYahooShareStructure,
+  YAHOO_SHARE_STRUCTURE_MODULES,
+} from "./stock-share-structure-yahoo.js";
 
 const STORE_FILE = "stock-share-structure.json";
 const FNGUIDE_UA = "Mozilla/5.0 (compatible; StockApp/1.0)";
@@ -56,6 +60,12 @@ function parseCommaNum(s) {
  * @property {number | null} overseasDrShares
  * @property {number | null} strategicInvestorShares
  * @property {number | null} otherNonFloatShares
+ * @property {number | null} institutionalShares
+ * @property {number | null} institutionalTotalPct
+ * @property {number | null} institutionalFloatPct
+ * @property {number | null} sharesShort
+ * @property {number | null} shortPctOfFloat
+ * @property {number | null} institutionCount
  * @property {number | null} indexAdjustmentShares
  * @property {number | null} floatShares
  * @property {number | null} floatPct
@@ -257,23 +267,42 @@ async function fetchFnGuideKr(symbol) {
 async function fetchYahooOne(yahooSym) {
   const data = await queueYahooRequest(() =>
     yahooGet(
-      `/v10/finance/quoteSummary/${encodeURIComponent(yahooSym)}?modules=defaultKeyStatistics`,
+      `/v10/finance/quoteSummary/${encodeURIComponent(yahooSym)}?modules=${YAHOO_SHARE_STRUCTURE_MODULES}`,
     ),
   );
-  const stats = data?.quoteSummary?.result?.[0]?.defaultKeyStatistics;
-  const totalShares =
-    numField(stats?.sharesOutstanding) ?? numField(stats?.impliedSharesOutstanding);
-  if (totalShares == null || totalShares <= 0) return null;
-  const floatShares = numField(stats?.floatShares);
-  const insiderPct = numField(stats?.heldPercentInsiders);
-  const majorShareholderShares =
-    insiderPct != null && insiderPct >= 0 ? totalShares * insiderPct : null;
+  const parsed = parseYahooShareStructure(data?.quoteSummary?.result?.[0]);
+  if (!parsed) return null;
   return {
-    totalShares,
-    majorShareholderShares,
-    floatShares,
-    floatPct: deriveFloatPct(totalShares, floatShares, null),
+    ...parsed,
     source: `Yahoo ${yahooSym}`,
+  };
+}
+
+/**
+ * FnGuide·DART KR 결과에 Yahoo 보조 필드(기관·공매도 등) 병합
+ * @param {Record<string, unknown>} base
+ * @param {Awaited<ReturnType<typeof fetchYahooOne>> | null} yahoo
+ */
+function mergeYahooSupplement(base, yahoo) {
+  if (!yahoo) return base;
+  return {
+    ...base,
+    majorShareholderShares:
+      base.majorShareholderShares ?? yahoo.majorShareholderShares ?? null,
+    floatShares: base.floatShares ?? yahoo.floatShares ?? null,
+    floatPct: base.floatPct ?? yahoo.floatPct ?? null,
+    otherNonFloatShares:
+      base.otherNonFloatShares ?? yahoo.otherNonFloatShares ?? null,
+    institutionalShares: yahoo.institutionalShares ?? null,
+    institutionalTotalPct: yahoo.institutionalTotalPct ?? null,
+    institutionalFloatPct: yahoo.institutionalFloatPct ?? null,
+    sharesShort: yahoo.sharesShort ?? null,
+    shortPctOfFloat: yahoo.shortPctOfFloat ?? null,
+    institutionCount: yahoo.institutionCount ?? null,
+    source:
+      typeof base.source === "string" && base.source
+        ? `${base.source}+${yahoo.source}`
+        : yahoo.source,
   };
 }
 
@@ -309,24 +338,27 @@ async function fetchLiveShareStructure(symbol, market) {
       const floatShares = fg.floatShares ?? yahoo?.floatShares ?? null;
       const majorShareholderShares =
         fg.majorShareholderShares ?? yahoo?.majorShareholderShares ?? null;
-      return {
-        totalShares,
-        indexAdjustmentShares,
-        majorShareholderShares,
-        treasuryShares: fg.treasuryShares ?? null,
-        employeeStockShares: fg.employeeStockShares ?? null,
-        lockupShares: fg.lockupShares ?? null,
-        governmentShares: fg.governmentShares ?? null,
-        overseasDrShares: fg.overseasDrShares ?? null,
-        strategicInvestorShares: fg.strategicInvestorShares ?? null,
-        otherNonFloatShares: fg.otherNonFloatShares ?? null,
-        floatShares,
-        floatPct:
-          floatShares != null && indexAdjustmentShares != null && indexAdjustmentShares > 0
-            ? fg.floatPct ?? deriveFloatPct(indexAdjustmentShares, floatShares, fg.floatPct)
-            : fg.floatPct ?? deriveFloatPct(totalShares, floatShares, fg.floatPct),
-        source: yahoo ? `FnGuide+${yahoo.source}` : "FnGuide",
-      };
+      return mergeYahooSupplement(
+        {
+          totalShares,
+          indexAdjustmentShares,
+          majorShareholderShares,
+          treasuryShares: fg.treasuryShares ?? null,
+          employeeStockShares: fg.employeeStockShares ?? null,
+          lockupShares: fg.lockupShares ?? null,
+          governmentShares: fg.governmentShares ?? null,
+          overseasDrShares: fg.overseasDrShares ?? null,
+          strategicInvestorShares: fg.strategicInvestorShares ?? null,
+          otherNonFloatShares: fg.otherNonFloatShares ?? null,
+          floatShares,
+          floatPct:
+            floatShares != null && indexAdjustmentShares != null && indexAdjustmentShares > 0
+              ? fg.floatPct ?? deriveFloatPct(indexAdjustmentShares, floatShares, fg.floatPct)
+              : fg.floatPct ?? deriveFloatPct(totalShares, floatShares, fg.floatPct),
+          source: "FnGuide",
+        },
+        yahoo,
+      );
     }
     if (yahoo) return yahoo;
   } else if (yahoo) {
@@ -355,6 +387,12 @@ function toApiPayload(symbol, entry) {
     overseasDrShares: entry.overseasDrShares ?? null,
     strategicInvestorShares: entry.strategicInvestorShares ?? null,
     otherNonFloatShares: entry.otherNonFloatShares ?? null,
+    institutionalShares: entry.institutionalShares ?? null,
+    institutionalTotalPct: entry.institutionalTotalPct ?? null,
+    institutionalFloatPct: entry.institutionalFloatPct ?? null,
+    sharesShort: entry.sharesShort ?? null,
+    shortPctOfFloat: entry.shortPctOfFloat ?? null,
+    institutionCount: entry.institutionCount ?? null,
     floatShares: entry.floatShares,
     floatPct: entry.floatPct,
     source: entry.source,
@@ -363,9 +401,20 @@ function toApiPayload(symbol, entry) {
   };
 }
 
+/** @param {ShareStructureEntry | undefined} entry */
+function isLegacyShareStructureEntry(entry) {
+  if (!entry || typeof entry !== "object") return false;
+  return !(
+    "institutionalTotalPct" in entry ||
+    "sharesShort" in entry ||
+    "institutionCount" in entry
+  );
+}
+
 /** @param {string} symbol @param {ShareStructureEntry | undefined} entry */
 function isEntryFresh(symbol, entry) {
   if (!entry?.fetchedAtSlot) return false;
+  if (isLegacyShareStructureEntry(entry)) return false;
   const market = isKrSymbol(symbol) ? "kr" : "us";
   return entry.fetchedAtSlot === getTradingSessionKey(market);
 }
@@ -407,6 +456,12 @@ export async function loadStockShareStructure(symbol, market) {
     overseasDrShares: live.overseasDrShares ?? null,
     strategicInvestorShares: live.strategicInvestorShares ?? null,
     otherNonFloatShares: live.otherNonFloatShares ?? null,
+    institutionalShares: live.institutionalShares ?? null,
+    institutionalTotalPct: live.institutionalTotalPct ?? null,
+    institutionalFloatPct: live.institutionalFloatPct ?? null,
+    sharesShort: live.sharesShort ?? null,
+    shortPctOfFloat: live.shortPctOfFloat ?? null,
+    institutionCount: live.institutionCount ?? null,
     floatShares: live.floatShares,
     floatPct: live.floatPct,
     source: live.source ?? null,
@@ -473,6 +528,12 @@ export async function runShareStructureScanForMarket(market) {
         overseasDrShares: live.overseasDrShares ?? null,
         strategicInvestorShares: live.strategicInvestorShares ?? null,
         otherNonFloatShares: live.otherNonFloatShares ?? null,
+        institutionalShares: live.institutionalShares ?? null,
+        institutionalTotalPct: live.institutionalTotalPct ?? null,
+        institutionalFloatPct: live.institutionalFloatPct ?? null,
+        sharesShort: live.sharesShort ?? null,
+        shortPctOfFloat: live.shortPctOfFloat ?? null,
+        institutionCount: live.institutionCount ?? null,
         floatShares: live.floatShares,
         floatPct: live.floatPct,
         source: live.source ?? null,

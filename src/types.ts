@@ -523,6 +523,12 @@ export interface StockShareStructureResponse {
   overseasDrShares?: number | null;
   strategicInvestorShares?: number | null;
   otherNonFloatShares?: number | null;
+  institutionalShares?: number | null;
+  institutionalTotalPct?: number | null;
+  institutionalFloatPct?: number | null;
+  sharesShort?: number | null;
+  shortPctOfFloat?: number | null;
+  institutionCount?: number | null;
   floatShares: number | null;
   floatPct: number | null;
   source: string | null;

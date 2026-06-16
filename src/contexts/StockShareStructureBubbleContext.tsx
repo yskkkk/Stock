@@ -277,6 +277,47 @@ export function StockShareStructureBubbleProvider({
           value: fmtShares(payload.otherNonFloatShares),
         },
         {
+          key: "institutional",
+          label: ko.stockVault.shareStructureInstitutional,
+          value: fmtShares(payload.institutionalShares),
+        },
+        {
+          key: "institutionalTotalPct",
+          label: ko.stockVault.shareStructureInstitutionalTotalPct,
+          value:
+            payload.institutionalTotalPct != null &&
+            Number.isFinite(payload.institutionalTotalPct)
+              ? `${payload.institutionalTotalPct.toFixed(2)}%`
+              : null,
+        },
+        {
+          key: "institutionalFloatPct",
+          label: ko.stockVault.shareStructureInstitutionalFloatPct,
+          value:
+            payload.institutionalFloatPct != null &&
+            Number.isFinite(payload.institutionalFloatPct)
+              ? `${payload.institutionalFloatPct.toFixed(2)}%`
+              : null,
+        },
+        {
+          key: "institutionCount",
+          label: ko.stockVault.shareStructureInstitutionCount,
+          value: fmtShares(payload.institutionCount),
+        },
+        {
+          key: "sharesShort",
+          label: ko.stockVault.shareStructureShort,
+          value: fmtShares(payload.sharesShort),
+        },
+        {
+          key: "shortPct",
+          label: ko.stockVault.shareStructureShortPct,
+          value:
+            payload.shortPctOfFloat != null && Number.isFinite(payload.shortPctOfFloat)
+              ? `${payload.shortPctOfFloat.toFixed(2)}%`
+              : null,
+        },
+        {
           key: "float",
           label: ko.stockVault.shareStructureFloat,
           value: fmtShares(payload.floatShares),
