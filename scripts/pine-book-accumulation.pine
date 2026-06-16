@@ -44,6 +44,7 @@ cAccum         = input.color(color.new(#E53935, 0), "매집 색", group=grpVis)
 // ── 민감도 ───────────────────────────────────────────────────────────
 float effRvol = preset == "엄격" ? math.max(minRvol, 2.2) : preset == "느슨" ? math.min(minRvol, 1.5) : minRvol
 int effConsec = preset == "엄격" ? math.max(minConsec, 2) : minConsec
+int effMinScore = preset == "느슨" ? math.min(minScore, 45) : preset == "엄격" ? math.max(minScore, 65) : minScore
 
 // ── 선계산 ───────────────────────────────────────────────────────────
 float volMa = ta.sma(volume, volLen)
@@ -125,7 +126,7 @@ f_score(bool acc, bool cTouch, bool cRec, bool cCon, float rv, bool shUp, bool s
     math.min(100.0, sc)
 
 float score = f_score(accumRaw and ctxOk, touchCost, recover5d, consecOk, rvol, shapeUpper, shapeSmall)
-bool anyAccum = accumRaw and ctxOk and score >= minScore
+bool anyAccum = accumRaw and ctxOk and score >= effMinScore
 
 bool barOk = not confirmedOnly or barstate.isconfirmed
 

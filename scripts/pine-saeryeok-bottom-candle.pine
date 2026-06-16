@@ -33,7 +33,7 @@ dispPivot         = input.bool(true, "변곡점(대기)", group=grpForceDisp)
 dispZones         = input.bool(true, "손절·분할매수 박스", group=grpForceDisp)
 dispZoneLabels    = input.bool(true, "구간 가격 라벨", group=grpForceDisp)
 dispBg            = input.bool(true, "바닥·상투 봉 배경", group=grpForceDisp)
-confirmedOnly     = input.bool(true, "확정봉만 마커", group=grpForceDisp, tooltip="매집 마커에도 동일 적용")
+confirmedOnly     = input.bool(true, "확정봉만 마커", group=grpForceDisp, tooltip="상투·바닥 마커만. 매집은 3·매집봉 — 표시에서 별도")
 
 grpTf = "2·상투·바닥 — 타임프레임"
 tfAuto         = input.bool(true, "차트 TF 자동 보정", group=grpTf, tooltip="주/일/분봉별 갭·RVOL·하락% 자동")
@@ -79,10 +79,12 @@ cZone    = input.color(color.new(#E53935, 88), "분할매수 박스", group=grpC
 
 // ══ 3·매집봉 (책 06~07장) ═════════════════════════════════════════════
 grpAccumDisp = "3·매집봉 — 표시"
-dispAccum = input.bool(true, "매집 ▲ 마커", group=grpAccumDisp)
+showAccum      = input.bool(true, "매집 탐지", group=grpAccumDisp, tooltip="OFF면 매집 계산·마커 모두 끔")
+dispAccum      = input.bool(true, "매집 ▲ 마커", group=grpAccumDisp)
+accumConfirmedOnly = input.bool(true, "확정봉만 마커", group=grpAccumDisp)
 
 grpAccumCore = "3·매집봉 — 민감도·거래량"
-accumPreset    = input.string("보통", "민감도", options=["느슨", "보통", "엄격"], group=grpAccumCore)
+accumPreset    = input.string("느슨", "매집 민감도", options=["느슨", "보통", "엄격"], group=grpAccumCore, tooltip="단독 '책 매집봉'과 동일. 2·상투·바닥 민감도와 별개")
 accumVolLen    = input.int(20, "거래량 이평(봉)", minval=5, maxval=60, group=grpAccumCore)
 accumMinRvol   = input.float(1.8, "매집 RVOL", minval=1.2, maxval=4.0, step=0.1, group=grpAccumCore)
 accumVolMaUp   = input.bool(true, "거래량 이평 상승 가산", group=grpAccumCore)
@@ -114,6 +116,90 @@ accumPeakRvol  = input.float(2.5, "분산봉 RVOL", minval=1.5, maxval=5.0, step
 
 grpAccumCol = "3·매집봉 — 색상"
 cAccum = input.color(color.new(#D84315, 0), "매집 마커", group=grpAccumCol)
+
+// ── 책 매집봉 감지 (세력·security 이전 — 단독 스크립트와 동일 순서) ───
+float accumEffRvol = accumPreset == "엄격" ? math.max(accumMinRvol, 2.2) : accumPreset == "느슨" ? math.min(accumMinRvol, 1.5) : accumMinRvol
+int accumEffConsec = accumPreset == "엄격" ? math.max(accumMinConsec, 2) : accumMinConsec
+int accumEffMinScore = accumPreset == "느슨" ? math.min(accumMinScore, 45) : accumPreset == "엄격" ? math.max(accumMinScore, 65) : accumMinScore
+
+float aVolMa = math.sum(volume, accumVolLen) / float(accumVolLen)
+float aRvol = aVolMa > 0 ? volume / aVolMa : 1.0
+bool aVolMaUp = aVolMa > aVolMa[3]
+
+float aRng = high - low
+float aBody = math.abs(close - open)
+float aBodyPct = aRng > 0 ? aBody / aRng * 100.0 : 100.0
+float aUpperPct = aRng > 0 ? (high - math.max(open, close)) / aRng * 100.0 : 0.0
+
+float aHiRef = ta.highest(high, accumDropLb)
+float aDropPct = aHiRef > 0 ? (aHiRef - close) / aHiRef * 100.0 : 0.0
+bool aHadDrop = aDropPct >= accumMinDrop
+
+float aLoRise = ta.lowest(low, accumRiseLb)
+float aRisePct = aLoRise > 0 ? (close - aLoRise) / aLoRise * 100.0 : 0.0
+bool aHadRise = aRisePct >= accumMinRise
+
+var float aCostBasis = na
+float aPlVal = ta.pivotlow(low, accumPivotLen, accumPivotLen)
+bool aPlHit = not na(aPlVal)
+if accumUseCost and aPlHit
+    float aPlRvol = aVolMa[accumPivotLen] > 0 ? volume[accumPivotLen] / aVolMa[accumPivotLen] : 1.0
+    float aPlDrop = aHiRef[accumPivotLen] > 0 ? (aHiRef[accumPivotLen] - close[accumPivotLen]) / aHiRef[accumPivotLen] * 100.0 : 0.0
+    bool aPlDropOk = not accumNeedDrop or aPlDrop >= accumMinDrop * 0.75
+    if aPlRvol >= accumEffRvol * 0.9 and aPlDropOk
+        aCostBasis := aPlVal
+
+bool aTouchCost = accumUseCost and not na(aCostBasis) and aCostBasis > 0 and low <= aCostBasis * (1.0 + accumCostTol / 100.0) and high >= aCostBasis * (1.0 - accumCostTol / 100.0)
+
+var int aCostTouches = 0
+if aTouchCost and not aTouchCost[1]
+    aCostTouches += 1
+
+var int aBreachBar = na
+if accumUseCost and not na(aCostBasis) and close < aCostBasis and (na(aBreachBar) or close[1] >= aCostBasis)
+    aBreachBar := bar_index
+if accumUseCost and not na(aCostBasis) and close >= aCostBasis
+    aBreachBar := na
+
+int aSinceBreach = not na(aBreachBar) ? bar_index - aBreachBar : 10000
+bool aRecover5d = accumUseCost and not na(aCostBasis) and aSinceBreach > 0 and aSinceBreach <= accumRecover and close > aCostBasis
+
+bool aShapeUpper = aUpperPct >= accumUpperPct
+bool aShapeSmall = aBodyPct <= accumBodyPct
+bool aShapeSmallBull = accumSmallBull and close > open and aBodyPct <= accumBodyPct * 0.85
+bool aShapeOk = aShapeUpper or aShapeSmall or aShapeSmallBull
+
+bool aVolOk = aRvol >= accumEffRvol and (not accumVolMaUp or aVolMaUp or aRvol >= accumEffRvol * 1.2)
+bool aPeakDistrib = aHadRise and aRvol >= accumPeakRvol and close > open and aBodyPct >= 55.0
+bool aAccumRaw = aVolOk and aShapeOk and not aPeakDistrib and (not accumNeedDrop or aHadDrop)
+
+int aConsecCnt = 0
+for i = 0 to accumConsecWin - 1
+    float arv = aVolMa[i] > 0 ? volume[i] / aVolMa[i] : 1.0
+    float arng = high[i] - low[i]
+    float aup = arng > 0 ? (high[i] - math.max(open[i], close[i])) / arng * 100.0 : 0.0
+    float abd = arng > 0 ? math.abs(close[i] - open[i]) / arng * 100.0 : 100.0
+    bool ash = aup >= accumUpperPct or abd <= accumBodyPct
+    if arv >= accumEffRvol * 0.92 and ash
+        aConsecCnt += 1
+
+bool aConsecOk = aConsecCnt >= accumEffConsec
+bool aCtxOk = not accumNeedCost or aTouchCost or aRecover5d
+
+bool aScoreAcc = aAccumRaw and aCtxOk
+float aScore = 0.0
+if aScoreAcc
+    aScore += math.min(30.0, aRvol / accumEffRvol * 18.0)
+    aScore += aShapeUpper ? 15.0 : aShapeSmall ? 10.0 : 6.0
+    aScore += accumVolMaUp and aVolMaUp ? 12.0 : 0.0
+    aScore += aTouchCost ? 20.0 : 0.0
+    aScore += aRecover5d ? 15.0 : 0.0
+    aScore += aConsecOk ? 12.0 : 0.0
+    aScore += aCostTouches >= 2 ? 10.0 : aCostTouches >= 1 ? 5.0 : 0.0
+aScore := math.min(100.0, aScore)
+
+bool anyAccum = showAccum and aAccumRaw and aCtxOk and aScore >= accumEffMinScore
+bool accumBarOk = not accumConfirmedOnly or barstate.isconfirmed
 
 // ── 세력 캔들 TF ──────────────────────────────────────────────────────
 int tfSec = timeframe.in_seconds()
@@ -281,89 +367,6 @@ string bottomTag = f_tag(bottomCode) + (showScoreLabel and anyBottom ? " " + str
 
 bool barOk = not confirmedOnly or barstate.isconfirmed
 
-// ── 책 매집봉 감지 ───────────────────────────────────────────────────
-float accumEffRvol = accumPreset == "엄격" ? math.max(accumMinRvol, 2.2) : accumPreset == "느슨" ? math.min(accumMinRvol, 1.5) : accumMinRvol
-int accumEffConsec = accumPreset == "엄격" ? math.max(accumMinConsec, 2) : accumMinConsec
-
-float aVolMa = ta.sma(volume, accumVolLen)
-float aRvol = aVolMa > 0 ? volume / aVolMa : 1.0
-bool aVolMaUp = aVolMa > aVolMa[3]
-
-float aRng = high - low
-float aBody = math.abs(close - open)
-float aBodyPct = aRng > 0 ? aBody / aRng * 100.0 : 100.0
-float aUpperPct = aRng > 0 ? (high - math.max(open, close)) / aRng * 100.0 : 0.0
-
-float aHiRef = ta.highest(high, accumDropLb)
-float aDropPct = aHiRef > 0 ? (aHiRef - close) / aHiRef * 100.0 : 0.0
-bool aHadDrop = aDropPct >= accumMinDrop
-
-float aLoRise = ta.lowest(low, accumRiseLb)
-float aRisePct = aLoRise > 0 ? (close - aLoRise) / aLoRise * 100.0 : 0.0
-bool aHadRise = aRisePct >= accumMinRise
-
-var float aCostBasis = na
-float aPlVal = ta.pivotlow(low, accumPivotLen, accumPivotLen)
-bool aPlHit = not na(aPlVal)
-if accumUseCost and aPlHit
-    float aPlRvol = aVolMa[accumPivotLen] > 0 ? volume[accumPivotLen] / aVolMa[accumPivotLen] : 1.0
-    float aPlDrop = aHiRef[accumPivotLen] > 0 ? (aHiRef[accumPivotLen] - close[accumPivotLen]) / aHiRef[accumPivotLen] * 100.0 : 0.0
-    bool aPlDropOk = not accumNeedDrop or aPlDrop >= accumMinDrop * 0.75
-    if aPlRvol >= accumEffRvol * 0.9 and aPlDropOk
-        aCostBasis := aPlVal
-
-bool aTouchCost = accumUseCost and not na(aCostBasis) and aCostBasis > 0 and low <= aCostBasis * (1.0 + accumCostTol / 100.0) and high >= aCostBasis * (1.0 - accumCostTol / 100.0)
-
-var int aCostTouches = 0
-if aTouchCost and not aTouchCost[1]
-    aCostTouches += 1
-
-var int aBreachBar = na
-if accumUseCost and not na(aCostBasis) and close < aCostBasis and (na(aBreachBar) or close[1] >= aCostBasis)
-    aBreachBar := bar_index
-if accumUseCost and not na(aCostBasis) and close >= aCostBasis
-    aBreachBar := na
-
-int aSinceBreach = not na(aBreachBar) ? bar_index - aBreachBar : 10000
-bool aRecover5d = accumUseCost and not na(aCostBasis) and aSinceBreach > 0 and aSinceBreach <= accumRecover and close > aCostBasis
-
-bool aShapeUpper = aUpperPct >= accumUpperPct
-bool aShapeSmall = aBodyPct <= accumBodyPct
-bool aShapeSmallBull = accumSmallBull and close > open and aBodyPct <= accumBodyPct * 0.85
-bool aShapeOk = aShapeUpper or aShapeSmall or aShapeSmallBull
-
-bool aVolOk = aRvol >= accumEffRvol and (not accumVolMaUp or aVolMaUp or aRvol >= accumEffRvol * 1.2)
-bool aPeakDistrib = aHadRise and aRvol >= accumPeakRvol and close > open and aBodyPct >= 55.0
-bool aAccumRaw = aVolOk and aShapeOk and not aPeakDistrib and (not accumNeedDrop or aHadDrop)
-
-int aConsecCnt = 0
-for i = 0 to accumConsecWin - 1
-    float arv = aVolMa[i] > 0 ? volume[i] / aVolMa[i] : 1.0
-    float arng = high[i] - low[i]
-    float aup = arng > 0 ? (high[i] - math.max(open[i], close[i])) / arng * 100.0 : 0.0
-    float abd = arng > 0 ? math.abs(close[i] - open[i]) / arng * 100.0 : 100.0
-    bool ash = aup >= accumUpperPct or abd <= accumBodyPct
-    if arv >= accumEffRvol * 0.92 and ash
-        aConsecCnt += 1
-
-bool aConsecOk = aConsecCnt >= accumEffConsec
-bool aCtxOk = not accumNeedCost or aTouchCost or aRecover5d
-
-f_accumScore(bool acc, bool cTouch, bool cRec, bool cCon, float rv, bool shUp, bool shSm) =>
-    float sc = 0.0
-    if acc
-        sc += math.min(30.0, rv / accumEffRvol * 18.0)
-        sc += shUp ? 15.0 : shSm ? 10.0 : 6.0
-        sc += accumVolMaUp and aVolMaUp ? 12.0 : 0.0
-        sc += cTouch ? 20.0 : 0.0
-        sc += cRec ? 15.0 : 0.0
-        sc += cCon ? 12.0 : 0.0
-        sc += aCostTouches >= 2 ? 10.0 : aCostTouches >= 1 ? 5.0 : 0.0
-    math.min(100.0, sc)
-
-float aScore = f_accumScore(aAccumRaw and aCtxOk, aTouchCost, aRecover5d, aConsecOk, aRvol, aShapeUpper, aShapeSmall)
-bool anyAccum = aAccumRaw and aCtxOk and aScore >= accumMinScore
-
 // ── MA 로직 ──────────────────────────────────────────────────────────
 bool showBoth = tfMode == "일봉+주봉"
 bool showDailyTf = showBoth or tfMode == "일봉만"
@@ -503,7 +506,7 @@ plotshape(barOk and dispPinBear and pinBear, title="하락 바람개비", style=
 plotshape(barOk and dispPinBull and pinBull, title="상승 바람개비", style=shape.triangleup, location=location.belowbar, color=cPinUp, size=size.tiny, text="↑")
 plotshape(barOk and dispTop and topClassic, title="상투", style=shape.triangledown, location=location.abovebar, color=cTop, size=size.normal, text="상투")
 plotshape(barOk and dispPivot and pivotForming, title="변곡점", style=shape.cross, location=location.belowbar, color=color.new(#FFC107, 0), size=size.tiny)
-plotshape(barOk and dispAccum and anyAccum, title="책 매집봉", style=shape.triangleup, location=location.belowbar, color=cAccum, size=size.normal, text="매집")
+plotshape(accumBarOk and dispAccum and anyAccum, title="책 매집봉", style=shape.triangleup, location=location.belowbar, color=cAccum, size=size.normal, text="매집")
 
 bgcolor(dispBg and barOk and anyBottom ? color.new(wConfirmed ? cWBottom : cBottom, 92) : dispBg and barOk and topClassic ? color.new(cTop, 93) : na)
 
