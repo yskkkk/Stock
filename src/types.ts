@@ -511,6 +511,17 @@ export interface StockVaultFavoriteMeta {
   favoritePrice?: number | null;
 }
 
+export interface StockShareStructureResponse {
+  symbol: string;
+  totalShares: number | null;
+  majorShareholderShares: number | null;
+  floatShares: number | null;
+  floatPct: number | null;
+  source: string | null;
+  fetchedAtMs: number;
+  fetchedAtSlot: string;
+}
+
 export interface StockVaultItem {
   id: string;
   symbol: string;

@@ -9,6 +9,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { useOptionalValueInvestBubble } from "../contexts/ValueInvestBubbleContext";
+import { useOptionalStockShareStructureBubble } from "../contexts/StockShareStructureBubbleContext";
 import StockEarningsHoverBubbleBody from "./StockEarningsHoverBubbleBody";
 import { loadEarningsBubbleFinancials } from "../lib/earningsBubbleFinancials";
 import { tradingViewChartUrl } from "../lib/tradingviewSymbols";
@@ -136,6 +137,7 @@ export function useStockVaultRowBubble(tipIdOverride?: string) {
   const tipRef = useRef<TipState | null>(null);
   const [tip, setTip] = useState<TipState | null>(null);
   const valueInvest = useOptionalValueInvestBubble();
+  const shareStructure = useOptionalStockShareStructureBubble();
   tipRef.current = tip;
 
   const clearHideTimer = useCallback(() => {
@@ -162,10 +164,11 @@ export function useStockVaultRowBubble(tipIdOverride?: string) {
     hideTimerRef.current = window.setTimeout(() => {
       const sym = tipRef.current?.symbol;
       if (sym && valueInvest?.openSymbol === sym) return;
+      if (sym && shareStructure?.openSymbol === sym) return;
       setTip(null);
       hideTimerRef.current = null;
     }, HIDE_DELAY_MS);
-  }, [clearHideTimer, clearShowTimer, valueInvest?.openSymbol]);
+  }, [clearHideTimer, clearShowTimer, valueInvest?.openSymbol, shareStructure?.openSymbol]);
 
   const closeTip = useCallback(() => {
     clearShowTimer();
@@ -264,6 +267,7 @@ export function useStockVaultRowBubble(tipIdOverride?: string) {
               symbol={tip.symbol}
               name={tip.name}
               market={tip.market}
+              variant="vault"
               sectorLabel={tip.industry}
               tvChartUrl={tradingViewChartUrl(tip.tvSymbol)}
               price={tip.price}

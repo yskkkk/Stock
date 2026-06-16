@@ -1,4 +1,5 @@
 import { useOptionalValueInvestBubble } from "../contexts/ValueInvestBubbleContext";
+import { useOptionalStockShareStructureBubble } from "../contexts/StockShareStructureBubbleContext";
 import { useIsMobilePhone } from "../hooks/useIsMobilePhone";
 import { ko } from "../i18n/ko";
 import { dispatchOpenFinancialsTab } from "../lib/openFinancialsTab";
@@ -27,12 +28,13 @@ export default function StockHoverBubbleActions({
   onAfterAction?: (action: "chart" | "financials") => void;
 }) {
   const valueInvest = useOptionalValueInvestBubble();
+  const shareStructure = useOptionalStockShareStructureBubble();
   const mobile = useIsMobilePhone();
   const base =
     variant === "vault"
       ? "stock-vault-tab__bubble-actions"
       : "earnings-icon-rail__bubble-actions";
-  const btn = (kind: "tv" | "fin" | "buffett") =>
+  const btn = (kind: "tv" | "fin" | "buffett" | "shares") =>
     variant === "vault"
       ? `stock-vault-tab__bubble-btn stock-vault-tab__bubble-btn--${kind}`
       : `earnings-icon-rail__bubble-btn earnings-icon-rail__bubble-btn--${kind}`;
@@ -102,6 +104,26 @@ export default function StockHoverBubbleActions({
       >
         {ko.stockVault.bubbleBtnBuffett}
       </button>
+      {variant === "vault" && shareStructure ? (
+        <button
+          type="button"
+          className={btn("shares")}
+          aria-label={`${name} ${ko.stockVault.shareStructureTitle}`}
+          title={ko.stockVault.shareStructureTitle}
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const bubble =
+              e.currentTarget.closest('[role="tooltip"]') ?? e.currentTarget;
+            shareStructure.showShareStructureModal(
+              bubble instanceof HTMLElement ? bubble : e.currentTarget,
+              { symbol, name, market },
+            );
+          }}
+        >
+          {ko.stockVault.bubbleBtnShareStructure}
+        </button>
+      ) : null}
     </div>
   );
 }

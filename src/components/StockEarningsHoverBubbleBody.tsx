@@ -18,6 +18,7 @@ export default function StockEarningsHoverBubbleBody({
   tvChartUrl,
   price,
   currency,
+  variant = "earnings",
   onAfterAction,
 }: {
   symbol: string;
@@ -29,6 +30,7 @@ export default function StockEarningsHoverBubbleBody({
   tvChartUrl?: string | null;
   price?: number | null;
   currency?: string | null;
+  variant?: "vault" | "earnings";
   onAfterAction?: (action: "chart" | "financials") => void;
 }) {
   const [finSummary, setFinSummary] = useState<
@@ -132,7 +134,7 @@ export default function StockEarningsHoverBubbleBody({
         </div>
       ) : null}
       <StockHoverBubbleActions
-        variant="earnings"
+        variant={variant}
         symbol={symbol}
         name={name}
         market={market}

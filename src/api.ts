@@ -2044,6 +2044,19 @@ export function fetchValueInvestReturn(
   );
 }
 
+export function fetchStockShareStructure(
+  symbol: string,
+  opts?: { market?: "kr" | "us"; signal?: AbortSignal },
+) {
+  const params = new URLSearchParams();
+  if (opts?.market) params.set("market", opts.market);
+  const q = params.toString() ? `?${params.toString()}` : "";
+  return fetchJson<import("./types").StockShareStructureResponse>(
+    `/api/stock/${encodeURIComponent(symbol)}/share-structure${q}`,
+    opts?.signal ? { signal: opts.signal } : undefined,
+  );
+}
+
 export function fetchFinancialPeriods(symbol: string, signal?: AbortSignal) {
   return fetchJson<FinancialPeriodsResponse>(
     `/api/stock/${encodeURIComponent(symbol)}/financials/periods`,

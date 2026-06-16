@@ -1,0 +1,99 @@
+.stock-share-structure-modal {
+  position: fixed;
+  z-index: 10070;
+  width: min(300px, calc(100vw - 16px));
+  padding: 0.6rem 0.65rem 0.65rem;
+  border-radius: 0.65rem;
+  border: 1px solid var(--card-border);
+  background: color-mix(in srgb, var(--card) 96%, white);
+  box-shadow: var(--shadow);
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+.stock-share-structure-modal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.4rem;
+  margin-bottom: 0.45rem;
+}
+
+.stock-share-structure-modal__name {
+  margin: 0;
+  font-size: 0.84rem;
+  font-weight: 650;
+}
+
+.stock-share-structure-modal__sym {
+  margin: 0.08rem 0 0;
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.stock-share-structure-modal__close {
+  flex-shrink: 0;
+  width: 1.55rem;
+  height: 1.55rem;
+  border: none;
+  border-radius: 0.35rem;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.stock-share-structure-modal__close:hover {
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  color: var(--text);
+}
+
+.stock-share-structure-modal__rows {
+  display: grid;
+  gap: 0.38rem;
+  margin: 0;
+}
+
+.stock-share-structure-modal__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.stock-share-structure-modal__row dt {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.stock-share-structure-modal__row dd {
+  margin: 0;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.stock-share-structure-modal__muted,
+.stock-share-structure-modal__loading,
+.stock-share-structure-modal__error {
+  margin: 0.2rem 0 0;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.stock-share-structure-modal__error {
+  color: color-mix(in srgb, #dc2626 75%, var(--text));
+}
+
+.stock-share-structure-modal__source {
+  margin: 0.45rem 0 0;
+  font-size: 0.62rem;
+  color: var(--muted);
+}
+
+.stock-vault-tab__bubble-btn--shares {
+  border-color: color-mix(in srgb, #0d9488 35%, var(--card-border));
+  color: color-mix(in srgb, #0d9488 88%, var(--text));
+}

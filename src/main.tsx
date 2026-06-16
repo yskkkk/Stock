@@ -8,6 +8,7 @@ import App from "./App";
 import MobileServerGate from "./components/MobileServerGate";
 import { LiveTradeCardSidePanelProvider } from "./components/LiveTradeAuthAndCredentials";
 import { ValueInvestBubbleProvider } from "./contexts/ValueInvestBubbleContext";
+import { StockShareStructureBubbleProvider } from "./contexts/StockShareStructureBubbleContext";
 import { UiFeatureToggleProvider } from "./contexts/UiFeatureToggleContext";
 import "./index.css";
 import "./theme.css";
@@ -24,6 +25,7 @@ import "./financials-tab.css";
 import "./stock-vault-tab.css";
 import "./investor-flow-tab.css";
 import "./value-invest-bubble.css";
+import "./stock-share-structure-modal.css";
 import "./account-snapshot.css";
 import "./scroll-to-top-button.css";
 
@@ -80,13 +82,15 @@ try {
     <StrictMode>
       <AppErrorBoundary>
         <ValueInvestBubbleProvider>
-          <UiFeatureToggleProvider>
-            <LiveTradeCardSidePanelProvider>
-              <MobileServerGate>
-                <App />
-              </MobileServerGate>
-            </LiveTradeCardSidePanelProvider>
-          </UiFeatureToggleProvider>
+          <StockShareStructureBubbleProvider>
+            <UiFeatureToggleProvider>
+              <LiveTradeCardSidePanelProvider>
+                <MobileServerGate>
+                  <App />
+                </MobileServerGate>
+              </LiveTradeCardSidePanelProvider>
+            </UiFeatureToggleProvider>
+          </StockShareStructureBubbleProvider>
         </ValueInvestBubbleProvider>
       </AppErrorBoundary>
     </StrictMode>,
