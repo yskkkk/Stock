@@ -42,6 +42,29 @@ export function isSameStockBubbleSymbol(
   return Boolean(ka && kb && ka === kb);
 }
 
+/** 종목 호버 원래 말풍선(실적·보관함 행) */
+export const STOCK_HOVER_PARENT_BUBBLE_SELECTOR = ".earnings-icon-rail__bubble";
+
+export function isInsideStockHoverParentBubble(target: Node | null): boolean {
+  const el =
+    target instanceof Element
+      ? target
+      : target?.parentElement instanceof Element
+        ? target.parentElement
+        : null;
+  return Boolean(el?.closest(STOCK_HOVER_PARENT_BUBBLE_SELECTOR));
+}
+
+export function isStockHoverParentBubbleInteractive(target: Node | null): boolean {
+  const el =
+    target instanceof Element
+      ? target
+      : target?.parentElement instanceof Element
+        ? target.parentElement
+        : null;
+  return Boolean(el?.closest("button, a"));
+}
+
 type StockHoverChildBubbleApi = {
   openSymbol: string | null;
   closeShareStructureModal?: () => void;

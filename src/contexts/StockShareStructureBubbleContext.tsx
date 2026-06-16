@@ -16,7 +16,9 @@ import { fetchStockShareStructure } from "../api";
 import { ko } from "../i18n/ko";
 import {
   dispatchForceCloseStockHoverBubble,
+  isInsideStockHoverParentBubble,
   isSameStockBubbleSymbol,
+  isStockHoverParentBubbleInteractive,
 } from "../lib/stockHoverBubbleSingleton";
 import type { StockShareStructureResponse } from "../types";
 
@@ -273,7 +275,17 @@ export function StockShareStructureBubbleProvider({
       const target = e.target;
       if (!(target instanceof Node)) return;
       if (modalRef.current?.contains(target)) return;
-      if (bubbleEl.contains(target)) return;
+      if ((target as Element).closest?.(".value-invest-bubble")) return;
+
+      const onParentBubble =
+        bubbleEl.contains(target) || isInsideStockHoverParentBubble(target);
+
+      if (onParentBubble) {
+        if (isStockHoverParentBubbleInteractive(target)) return;
+        closeShareStructureModal();
+        return;
+      }
+
       closeShareStructureModal();
       dispatchForceCloseStockHoverBubble();
     };
