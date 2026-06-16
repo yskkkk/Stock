@@ -1114,9 +1114,11 @@ export const ko = {
     holdBubbleLoading: "보유 데이터 불러오는 중…",
     holdBubbleListed: "상장주식수",
     holdBubbleForeignHold: "외국인 보유",
+    holdBubbleForeignTotal: "외국인 총보유",
+    holdBubbleInstitutionTotal: "기관 총보유",
+    holdBubbleIndividualTotal: "개인 총보유",
     holdBubbleInstitutionNet: "기관 순매수",
     holdBubbleIndividualNet: "개인 순매수",
-    holdBubbleNetHint: "기관·개인 일별 보유율은 네이버 미제공 — 당일 순매수 표시",
     groupCount: (n: number) => `${n}종목`,
     bizDate: (d: string | null | undefined) =>
       d ? d.replace(/^\d{4}-/, "") : null,

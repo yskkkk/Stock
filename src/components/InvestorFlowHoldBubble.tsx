@@ -142,6 +142,8 @@ export default function InvestorFlowHoldBubble({
   const payload = detail;
   const foreignRatio = payload?.foreignHoldRatio ?? null;
   const foreignShares = payload?.foreignHoldShares ?? null;
+  const instTotal = payload?.institutionHoldShares ?? null;
+  const indiTotal = payload?.individualHoldShares ?? null;
 
   return createPortal(
     <div
@@ -194,6 +196,18 @@ export default function InvestorFlowHoldBubble({
             <dd>{holdLine(foreignRatio, foreignShares)}</dd>
           </div>
           <div>
+            <dt>{ko.investorFlow.holdBubbleForeignTotal}</dt>
+            <dd>{formatInvestorHoldShares(foreignShares)}</dd>
+          </div>
+          <div>
+            <dt>{ko.investorFlow.holdBubbleInstitutionTotal}</dt>
+            <dd>{formatInvestorHoldShares(instTotal)}</dd>
+          </div>
+          <div>
+            <dt>{ko.investorFlow.holdBubbleIndividualTotal}</dt>
+            <dd>{formatInvestorHoldShares(indiTotal)}</dd>
+          </div>
+          <div>
             <dt>{ko.investorFlow.holdBubbleInstitutionNet}</dt>
             <dd className={investorNetQtyClass(payload.institutionNetQty)}>
               {formatInvestorNetQty(payload.institutionNetQty)}
@@ -206,10 +220,6 @@ export default function InvestorFlowHoldBubble({
             </dd>
           </div>
         </dl>
-      ) : null}
-
-      {payload && !loading ? (
-        <p className="investor-flow-hold-bubble__hint">{ko.investorFlow.holdBubbleNetHint}</p>
       ) : null}
     </div>,
     document.body,

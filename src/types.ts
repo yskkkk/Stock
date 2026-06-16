@@ -662,6 +662,8 @@ export interface KrInvestorFlowHoldingsDetail {
   listedShares?: number | null;
   foreignHoldRatio?: number | null;
   foreignHoldShares?: number | null;
+  institutionHoldShares?: number | null;
+  individualHoldShares?: number | null;
   foreignNetQty?: number | null;
   institutionNetQty?: number | null;
   individualNetQty?: number | null;

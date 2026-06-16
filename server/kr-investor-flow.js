@@ -372,7 +372,7 @@ export async function loadKrInvestorFlowHoldingsDetail(symbol, rowHint = null) {
 
   const closeRaw = Number(poll.closePriceRaw);
   const marketValueRaw = Number(poll.marketValueFullRaw);
-  const listedShares =
+  let listedShares =
     Number.isFinite(closeRaw) &&
     closeRaw > 0 &&
     Number.isFinite(marketValueRaw) &&
@@ -391,6 +391,24 @@ export async function loadKrInvestorFlowHoldingsDetail(symbol, rowHint = null) {
       ? Math.round((listedShares * foreignHoldRatio) / 100)
       : null;
 
+  // Naver poll에서 상장주식수를 산출할 수 없는 경우 — 다른 소스(FnGuide 등)로 보충
+  if (listedShares == null) {
+    try {
+      const { loadStockShareStructure } = await import("./stock-share-structure.js");
+      const ss = await loadStockShareStructure(code, "kr");
+      if (ss?.totalShares != null && Number.isFinite(ss.totalShares) && ss.totalShares > 0) {
+        listedShares = Math.round(ss.totalShares);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const foreignHoldSharesResolved =
+    listedShares != null && foreignHoldRatio != null
+      ? Math.round((listedShares * foreignHoldRatio) / 100)
+      : foreignHoldShares;
+
   const tradingValueRaw = Number(poll.accumulatedTradingValueRaw);
   const changePercentRaw = Number(poll.fluctuationsRatioRaw);
 
@@ -402,7 +420,9 @@ export async function loadKrInvestorFlowHoldingsDetail(symbol, rowHint = null) {
       resolveDisplayName(sym),
     listedShares,
     foreignHoldRatio,
-    foreignHoldShares,
+    foreignHoldShares: foreignHoldSharesResolved,
+    institutionHoldShares: null,
+    individualHoldShares: null,
     foreignNetQty:
       typeof rowHint?.foreignNetQty === "number" ? rowHint.foreignNetQty : null,
     institutionNetQty:
