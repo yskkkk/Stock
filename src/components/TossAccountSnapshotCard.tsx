@@ -95,7 +95,7 @@ export default function TossAccountSnapshotCard({
   );
   const { cash, summary, holdings } = liveSnapshot ?? snapshot;
   const needsFxRate = cash.usd > 0 || holdings.length > 0;
-  const { rate: usdKrwRate } = useUsdKrwRate(needsFxRate);
+  const { rate: usdKrwRate, valuationDate: usdKrwValDate } = useUsdKrwRate(needsFxRate);
   const netSummary = useMemo(
     () =>
       computeTossAccountCombinedPnl(holdings, summary, usdKrwRate, feeRates),
@@ -135,6 +135,10 @@ export default function TossAccountSnapshotCard({
     cash.usd > 0 && usdKrwRate != null && usdKrwRate > 0
       ? Math.round(cash.usd * usdKrwRate)
       : null;
+  const fxBasisTitle =
+    usdKrwValDate != null && usdKrwValDate !== ""
+      ? ko.app.quoteCurrencyFxBasis.replace("{date}", usdKrwValDate)
+      : ko.app.topBarFxAria;
 
   return (
     <div className={rootClass} aria-label={ko.app.liveTradeTossAccountSectionAria}>
@@ -198,6 +202,20 @@ export default function TossAccountSnapshotCard({
                   aria-hidden={balanceHidden || undefined}
                 >
                   {formatPrice(cashUsdKrw, "KRW")}
+                </span>
+              ) : null}
+              {usdKrwRate != null && usdKrwRate > 0 ? (
+                <span className="account-snapshot__cash-fx" title={fxBasisTitle}>
+                  {ko.app.liveTradeTossCashFxBasis.replace(
+                    "{rate}",
+                    formatPrice(usdKrwRate, "KRW"),
+                  )}
+                  {usdKrwValDate ? (
+                    <>
+                      {" · "}
+                      {ko.app.topBarFxBasis.replace("{date}", usdKrwValDate)}
+                    </>
+                  ) : null}
                 </span>
               ) : null}
             </div>

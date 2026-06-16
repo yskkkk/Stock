@@ -531,6 +531,7 @@ export const ko = {
     leftRailTossUpdated: "갱신",
     liveTradeTossCashKrw: "주문 가능(원)",
     liveTradeTossCashUsd: "주문 가능(달러)",
+    liveTradeTossCashFxBasis: "기준 {rate}",
     leftRailBithumbBalanceHide: "잔액 가리기",
     leftRailBithumbBalanceShow: "잔액 보기",
     liveTradeActivitySub: "실매매·시뮬 프로그램의 보유·목표가·최근 체결을 20초마다 갱신합니다.",
