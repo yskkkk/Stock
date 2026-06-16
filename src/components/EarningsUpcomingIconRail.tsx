@@ -29,6 +29,7 @@ import { ko } from "../i18n/ko";
 import type { SectorEarningsSpotlightItem } from "../types";
 import {
   dispatchStockHoverBubbleOpen,
+  isSameStockBubbleSymbol,
   STOCK_HOVER_BUBBLE_FORCE_CLOSE_EVENT,
   useStockHoverBubbleExclusive,
 } from "../lib/stockHoverBubbleSingleton";
@@ -216,11 +217,15 @@ export default function EarningsUpcomingIconRail({
   }, [clearHideTimer]);
 
   const scheduleHideTip = useCallback(() => {
+    const sym = tipRef.current?.row.symbol;
+    if (isSameStockBubbleSymbol(sym, shareStructure?.openSymbol)) {
+      return;
+    }
     clearHideTimer();
     hideTimerRef.current = setTimeout(() => {
       shareStructure?.scheduleCloseShareStructureModal();
-      const sym = tipRef.current?.row.symbol;
-      if (sym && valueInvest?.openSymbol === sym) return;
+      const tipSym = tipRef.current?.row.symbol;
+      if (tipSym && valueInvest?.openSymbol === tipSym) return;
       setTip(null);
       hideTimerRef.current = null;
     }, HIDE_DELAY_MS);
@@ -270,7 +275,10 @@ export default function EarningsUpcomingIconRail({
                   ? "translate(-100%, -50%)"
                   : "translate(0, -50%)",
             }}
-            onMouseEnter={clearHideTimer}
+            onMouseEnter={() => {
+              clearHideTimer();
+              shareStructure?.keepShareStructureModalOpen();
+            }}
             onMouseLeave={scheduleHideTip}
           >
             <StockEarningsHoverBubbleBody

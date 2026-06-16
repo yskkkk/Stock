@@ -17,6 +17,13 @@
   justify-content: space-between;
   gap: 0.4rem;
   margin-bottom: 0.45rem;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.stock-share-structure-modal__head:active {
+  cursor: grabbing;
 }
 
 .stock-share-structure-modal__name {

@@ -8,6 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
@@ -36,6 +37,7 @@ type OpenState = StockShareStructureTarget & {
   top: number;
   placement: Placement;
   transform: string;
+  manualPos?: { left: number; top: number } | null;
 };
 
 function clamp(n: number, min: number, max: number) {
@@ -143,6 +145,9 @@ export function StockShareStructureBubbleProvider({
   );
   const fetchSeq = useRef(0);
   const hideTimerRef = useRef<number | null>(null);
+  const draggingRef = useRef(false);
+  const openRef = useRef<OpenState | null>(null);
+  openRef.current = open;
 
   const clearHideTimer = useCallback(() => {
     if (hideTimerRef.current != null) {
@@ -170,6 +175,11 @@ export function StockShareStructureBubbleProvider({
         hideTimerRef.current = null;
         return;
       }
+      const trigger = openRef.current?.bubbleEl;
+      if (trigger?.matches(":hover")) {
+        hideTimerRef.current = null;
+        return;
+      }
       closeShareStructureModal();
       hideTimerRef.current = null;
     }, SHARE_MODAL_HIDE_DELAY_MS);
@@ -183,6 +193,7 @@ export function StockShareStructureBubbleProvider({
         ...target,
         bubbleEl: anchor,
         anchorRect,
+        manualPos: null,
         ...positionModal(anchorRect),
       });
       setLoading(true);
@@ -216,7 +227,7 @@ export function StockShareStructureBubbleProvider({
   );
 
   useLayoutEffect(() => {
-    if (!open || !modalRef.current) return;
+    if (!open || !modalRef.current || open.manualPos) return;
     const modal = modalRef.current;
     const mw = modal.offsetWidth;
     const mh = modal.offsetHeight;
@@ -265,7 +276,69 @@ export function StockShareStructureBubbleProvider({
     };
   }, [open, closeShareStructureModal]);
 
-  const code = open?.symbol.replace(/^KR_/i, "") ?? "";
+  const onHeadPointerDown = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      if (e.button !== 0) return;
+      if ((e.target as HTMLElement).closest("button")) return;
+      const modal = modalRef.current;
+      if (!modal) return;
+      e.preventDefault();
+      keepShareStructureModalOpen();
+      const rect = modal.getBoundingClientRect();
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const originLeft = rect.left;
+      const originTop = rect.top;
+      draggingRef.current = true;
+      setOpen((current) =>
+        current
+          ? {
+              ...current,
+              manualPos: { left: originLeft, top: originTop },
+              left: originLeft,
+              top: originTop,
+              transform: "none",
+            }
+          : current,
+      );
+
+      const onMove = (ev: PointerEvent) => {
+        const w = modal.offsetWidth;
+        const h = modal.offsetHeight;
+        const left = clamp(
+          originLeft + (ev.clientX - startX),
+          VIEWPORT_PAD,
+          window.innerWidth - VIEWPORT_PAD - w,
+        );
+        const top = clamp(
+          originTop + (ev.clientY - startY),
+          VIEWPORT_PAD,
+          window.innerHeight - VIEWPORT_PAD - h,
+        );
+        setOpen((current) =>
+          current
+            ? {
+                ...current,
+                manualPos: { left, top },
+                left,
+                top,
+                transform: "none",
+              }
+            : current,
+        );
+      };
+      const onUp = () => {
+        draggingRef.current = false;
+        document.removeEventListener("pointermove", onMove);
+        document.removeEventListener("pointerup", onUp);
+      };
+      document.addEventListener("pointermove", onMove);
+      document.addEventListener("pointerup", onUp);
+    },
+    [keepShareStructureModalOpen],
+  );
+
+  const code = open?.symbol.replace(/^KR_/i, "").replace(/\.(KS|KQ)$/i, "") ?? "";
   const rows = payload
     ? [
         {
@@ -385,9 +458,15 @@ export function StockShareStructureBubbleProvider({
               transform: open.transform,
             }}
             onMouseEnter={keepShareStructureModalOpen}
-            onMouseLeave={scheduleCloseShareStructureModal}
+            onMouseLeave={() => {
+              if (draggingRef.current) return;
+              scheduleCloseShareStructureModal();
+            }}
           >
-            <div className="stock-share-structure-modal__head">
+            <div
+              className="stock-share-structure-modal__head"
+              onPointerDown={onHeadPointerDown}
+            >
               <div>
                 <p id={`${modalId}-title`} className="stock-share-structure-modal__name">
                   {open.name}

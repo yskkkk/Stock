@@ -15,6 +15,7 @@ import { loadEarningsBubbleFinancials } from "../lib/earningsBubbleFinancials";
 import { tradingViewChartUrl } from "../lib/tradingviewSymbols";
 import {
   dispatchStockHoverBubbleOpen,
+  isSameStockBubbleSymbol,
   STOCK_HOVER_BUBBLE_FORCE_CLOSE_EVENT,
   useStockHoverBubbleExclusive,
 } from "../lib/stockHoverBubbleSingleton";
@@ -160,6 +161,10 @@ export function useStockVaultRowBubble(tipIdOverride?: string) {
   }, [clearHideTimer]);
 
   const scheduleHideTip = useCallback(() => {
+    const tipSym = tipRef.current?.symbol;
+    if (isSameStockBubbleSymbol(tipSym, shareStructure?.openSymbol)) {
+      return;
+    }
     clearShowTimer();
     clearHideTimer();
     hideTimerRef.current = window.setTimeout(() => {
@@ -269,7 +274,10 @@ export function useStockVaultRowBubble(tipIdOverride?: string) {
               top: `${tip.top}px`,
               transform: tip.transform,
             }}
-            onMouseEnter={keepTipOpen}
+            onMouseEnter={() => {
+              keepTipOpen();
+              shareStructure?.keepShareStructureModalOpen();
+            }}
             onMouseLeave={scheduleHideTip}
           >
             <StockEarningsHoverBubbleBody

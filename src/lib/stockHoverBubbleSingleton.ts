@@ -25,6 +25,23 @@ export function dispatchStockHoverBubbleOpen(
   );
 }
 
+/** 말풍선·주식수량 모달 — 심볼 비교용 (`.KS`/`.KQ` 무시) */
+export function stockBubbleSymbolKey(symbol: string | null | undefined): string {
+  return String(symbol ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/\.(KS|KQ)$/i, "");
+}
+
+export function isSameStockBubbleSymbol(
+  a: string | null | undefined,
+  b: string | null | undefined,
+): boolean {
+  const ka = stockBubbleSymbolKey(a);
+  const kb = stockBubbleSymbolKey(b);
+  return Boolean(ka && kb && ka === kb);
+}
+
 export function useStockHoverBubbleExclusive(
   ownerId: string,
   onClose: () => void,
