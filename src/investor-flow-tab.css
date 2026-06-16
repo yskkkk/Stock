@@ -251,6 +251,7 @@
 
 .investor-flow-tab__table-wrap {
   overflow: auto;
+  margin-inline: 0.67rem;
   border: 1px solid var(--card-border);
   border-radius: var(--radius-sm, 8px);
   background: color-mix(in srgb, var(--card) 92%, var(--surface));
