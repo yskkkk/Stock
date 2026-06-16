@@ -13,6 +13,7 @@ import {
 import { createPortal } from "react-dom";
 import { fetchStockShareStructure } from "../api";
 import { ko } from "../i18n/ko";
+import { dispatchCloseStockVaultBubble } from "../lib/stockHoverBubbleSingleton";
 import type { StockShareStructureResponse } from "../types";
 
 const VIEWPORT_PAD = 8;
@@ -29,6 +30,7 @@ export type StockShareStructureTarget = {
 type Placement = "left" | "right" | "below" | "above";
 
 type OpenState = StockShareStructureTarget & {
+  bubbleEl: HTMLElement;
   anchorRect: DOMRectReadOnly;
   left: number;
   top: number;
@@ -149,6 +151,7 @@ export function StockShareStructureBubbleProvider({
       const anchorRect = anchor.getBoundingClientRect();
       setOpen({
         ...target,
+        bubbleEl: anchor,
         anchorRect,
         ...positionModal(anchorRect),
       });
@@ -196,10 +199,33 @@ export function StockShareStructureBubbleProvider({
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeShareStructureModal();
+      if (e.key === "Escape") {
+        closeShareStructureModal();
+        dispatchCloseStockVaultBubble();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+  }, [open, closeShareStructureModal]);
+
+  useEffect(() => {
+    if (!open) return;
+    const bubbleEl = open.bubbleEl;
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target;
+      if (!(target instanceof Node)) return;
+      if (modalRef.current?.contains(target)) return;
+      if (bubbleEl.contains(target)) return;
+      closeShareStructureModal();
+      dispatchCloseStockVaultBubble();
+    };
+    const timer = window.setTimeout(() => {
+      document.addEventListener("pointerdown", onPointerDown, true);
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("pointerdown", onPointerDown, true);
+    };
   }, [open, closeShareStructureModal]);
 
   const code = open?.symbol.replace(/^KR_/i, "") ?? "";
@@ -245,8 +271,6 @@ export function StockShareStructureBubbleProvider({
               top: `${open.top}px`,
               transform: open.transform,
             }}
-            onMouseEnter={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
           >
             <div className="stock-share-structure-modal__head">
               <div>
@@ -286,11 +310,6 @@ export function StockShareStructureBubbleProvider({
                 {ko.stockVault.shareStructureError}
               </p>
             )}
-            {payload?.source ? (
-              <p className="stock-share-structure-modal__source">
-                {ko.stockVault.shareStructureSource(payload.source)}
-              </p>
-            ) : null}
           </div>,
           document.body,
         )

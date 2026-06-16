@@ -15,6 +15,7 @@ import { loadEarningsBubbleFinancials } from "../lib/earningsBubbleFinancials";
 import { tradingViewChartUrl } from "../lib/tradingviewSymbols";
 import {
   dispatchStockHoverBubbleOpen,
+  STOCK_VAULT_BUBBLE_CLOSE_EVENT,
   useStockHoverBubbleExclusive,
 } from "../lib/stockHoverBubbleSingleton";
 
@@ -162,21 +163,29 @@ export function useStockVaultRowBubble(tipIdOverride?: string) {
     clearShowTimer();
     clearHideTimer();
     hideTimerRef.current = window.setTimeout(() => {
+      shareStructure?.closeShareStructureModal();
       const sym = tipRef.current?.symbol;
       if (sym && valueInvest?.openSymbol === sym) return;
-      if (sym && shareStructure?.openSymbol === sym) return;
       setTip(null);
       hideTimerRef.current = null;
     }, HIDE_DELAY_MS);
-  }, [clearHideTimer, clearShowTimer, valueInvest?.openSymbol, shareStructure?.openSymbol]);
+  }, [clearHideTimer, clearShowTimer, valueInvest?.openSymbol, shareStructure]);
 
   const closeTip = useCallback(() => {
     clearShowTimer();
     clearHideTimer();
+    shareStructure?.closeShareStructureModal();
     setTip(null);
-  }, [clearHideTimer, clearShowTimer]);
+  }, [clearHideTimer, clearShowTimer, shareStructure]);
 
   useStockHoverBubbleExclusive(STOCK_VAULT_ROW_BUBBLE_OWNER, closeTip);
+
+  useEffect(() => {
+    const onForceClose = () => closeTip();
+    window.addEventListener(STOCK_VAULT_BUBBLE_CLOSE_EVENT, onForceClose);
+    return () =>
+      window.removeEventListener(STOCK_VAULT_BUBBLE_CLOSE_EVENT, onForceClose);
+  }, [closeTip]);
 
   const openTipAt = useCallback(
     (el: HTMLElement, target: StockVaultRowBubbleTarget) => {

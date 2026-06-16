@@ -39,3 +39,10 @@ export function useStockHoverBubbleExclusive(
       window.removeEventListener(STOCK_HOVER_BUBBLE_OPEN_EVENT, onOpen);
   }, [ownerId, onClose]);
 }
+
+export const STOCK_VAULT_BUBBLE_CLOSE_EVENT = "ystock-stock-vault-bubble-close";
+
+export function dispatchCloseStockVaultBubble(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(STOCK_VAULT_BUBBLE_CLOSE_EVENT));
+}
