@@ -82,7 +82,7 @@ function pollerStatusLabel(p: PollerStatusRow): string {
   if (!p.runtimeEnabled) return ko.app.liveTradeSideDockPollersStopped;
   if (!p.bootStarted) return ko.app.liveTradeSideDockPollersLoading;
   if (p.running) return ko.app.liveTradeSideDockPollersRunning;
-  return ko.app.liveTradeSideDockPollersRunning;
+  return ko.app.liveTradeSideDockPollersIdle;
 }
 
 function PollerIcon({ className }: { className?: string }) {

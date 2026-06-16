@@ -504,6 +504,7 @@ export const ko = {
     liveTradeSideDockPollersInterval: "주기",
     liveTradeSideDockPollersLastTick: "마지막 tick",
     liveTradeSideDockPollersRunning: "실행 중",
+    liveTradeSideDockPollersIdle: "가동중",
     liveTradeSideDockPollersStopped: "중지됨",
     liveTradeSideDockPollersBootOff: "부팅 off",
     liveTradeSideDockPollersStart: "실행",
