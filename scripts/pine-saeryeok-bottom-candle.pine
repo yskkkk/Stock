@@ -1,0 +1,440 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// 세력 바닥·바람개비·상투 캔들 + 일봉·주봉 MA 골든/데드 접점 — TradingView Pine v6
+
+//@version=6
+indicator("세력캔들 + MA 접점", shorttitle="세력+MA", overlay=true, max_boxes_count=500, max_lines_count=500, max_labels_count=500)
+
+// ── 세력 캔들 입력 ───────────────────────────────────────────────────
+grpTf = "타임프레임"
+tfAuto         = input.bool(true, "TF 자동 보정", group=grpTf, tooltip="주/일/분봉별 갭·RVOL·하락% 자동")
+needWeeklyConf = input.bool(false, "주봉 W 강조", group=grpTf, tooltip="OFF=일봉 단독 신호. ON=주봉에도 패턴 있을 때 W 마커(일봉 신호는 유지)")
+
+grpScore = "신호 점수"
+minScore       = input.int(50, "최소 점수", minval=0, maxval=100, group=grpScore, tooltip="0=전부 표시. 50=보통. 70+=엄격")
+showScoreLabel = input.bool(true, "라벨에 점수", group=grpScore)
+
+grpCore = "핵심"
+preset       = input.string("보통", "민감도", options=["느슨", "보통", "엄격"], group=grpCore)
+maxBodyPct   = input.float(35.0, "변곡점 몸통/전체(%)", minval=10.0, maxval=50.0, step=1.0, group=grpCore)
+minGapPct    = input.float(0.3, "최소 갭(%)", minval=0.0, maxval=5.0, step=0.1, group=grpCore)
+volLen       = input.int(20, "거래량 MA", minval=5, maxval=100, group=grpCore)
+minRvol      = input.float(1.2, "③번 거래량 RVOL", minval=0.8, maxval=3.0, step=0.05, group=grpCore)
+needDrop     = input.bool(true, "하락 추세 선행", group=grpCore)
+dropLookback = input.int(20, "하락 참조(봉)", minval=5, maxval=120, group=grpCore)
+minDropPct   = input.float(5.0, "최소 하락(%)", minval=1.0, maxval=40.0, step=0.5, group=grpCore)
+
+grpPat = "패턴"
+showBottom     = input.bool(true, "바닥 캔들", group=grpPat)
+showBottomVar  = input.bool(true, "변주 바닥", group=grpPat)
+showPinwheel   = input.bool(true, "바람개비", group=grpPat)
+showTop        = input.bool(true, "상투 캔들", group=grpPat)
+allowNoGap     = input.bool(true, "갭 없는 바닥 허용", group=grpPat)
+allowFallBull  = input.bool(true, "하락양봉 변곡 허용", group=grpPat)
+
+grpTrade = "매매 구간"
+showSlZone   = input.bool(true, "손절·분할매수 구간", group=grpTrade)
+extendZone   = input.int(8, "구간 우측 연장(봉)", minval=0, maxval=60, group=grpTrade)
+maxZones     = input.int(15, "최대 구간 수", minval=1, maxval=100, group=grpTrade)
+
+grpVis = "캔들 표시"
+showLabels = input.bool(true, "라벨", group=grpVis)
+showBg     = input.bool(true, "③번 배경", group=grpVis)
+confirmedOnly = input.bool(true, "확정봉만 표시", group=grpVis)
+
+grpCol = "캔들 색"
+cBottom  = input.color(color.new(#E53935, 0), "바닥", group=grpCol)
+cBottomV = input.color(color.new(#FF7043, 0), "변주 바닥", group=grpCol)
+cWBottom = input.color(color.new(#C62828, 0), "주봉확인", group=grpCol)
+cPinUp   = input.color(color.new(#43A047, 0), "상승 바람개비", group=grpCol)
+cPinDn   = input.color(color.new(#1E88E5, 0), "하락 바람개비", group=grpCol)
+cTop     = input.color(color.new(#8E24AA, 0), "상투", group=grpCol)
+cSl      = input.color(color.new(#F44336, 30), "손절선", group=grpCol)
+cZone    = input.color(color.new(#E53935, 88), "분할매수", group=grpCol)
+
+// ── MA 입력 ──────────────────────────────────────────────────────────
+grpMa = "MA 표시"
+showMa         = input.bool(true, "MA·교차 표시", group=grpMa)
+tfMode         = input.string("일봉+주봉", "표시 TF", options=["일봉+주봉", "일봉만", "주봉만"], group=grpMa)
+showLegend     = input.bool(true, "범례 (우하단)", group=grpMa)
+showWatermark  = input.bool(true, "선 워터마크 (5·20·60·120)", group=grpMa)
+wmStep         = input.int(42, "워터마크 간격(봉)", minval=12, maxval=150, group=grpMa)
+smoothWeekly   = input.bool(true, "주봉 선형 보간 (일·분봉)", group=grpMa, tooltip="전주 확정 MA → 금주 MA를 주 안에서 직선 보간합니다(계단·뾰족 모서리 제거). 교차점 판정·표시는 확정 주봉 MA(lookahead_off)를 유지합니다.")
+brightTransp   = input.int(0, "활성 TF 투명도", minval=0, maxval=90, group=grpMa)
+dimTransp      = input.int(72, "비활성 TF 투명도", minval=30, maxval=95, group=grpMa)
+
+// ── 세력 캔들 TF ──────────────────────────────────────────────────────
+int tfSec = timeframe.in_seconds()
+bool chartIsWeekly = tfSec >= 604800
+bool chartIsDaily  = tfSec >= 86400 and not chartIsWeekly
+
+f_tune(bool forWeekly) =>
+    float bBase = forWeekly ? 38.0 : chartIsDaily ? 35.0 : 32.0
+    float gBase = forWeekly ? 0.12 : chartIsDaily ? 0.25 : 0.18
+    int vBase   = forWeekly ? 12 : volLen
+    float rBase = forWeekly ? 1.1 : chartIsDaily ? 1.2 : 1.15
+    int dLb     = forWeekly ? 26 : chartIsDaily ? 20 : dropLookback
+    float dPct  = forWeekly ? 8.0 : chartIsDaily ? 5.0 : minDropPct
+    int extBase = forWeekly ? 14 : chartIsDaily ? 8 : extendZone
+    float bAdj = preset == "엄격" ? math.min(bBase, 28.0) : preset == "느슨" ? bBase * 1.12 : bBase
+    float gAdj = preset == "엄격" ? math.max(gBase, 0.4) : gBase
+    float rAdj = preset == "엄격" ? math.max(rBase, 1.35) : preset == "느슨" ? math.min(rBase, 1.0) : rBase
+    float dAdj = preset == "엄격" ? dPct * 1.15 : preset == "느슨" ? dPct * 0.75 : dPct
+    [tfAuto ? bAdj : maxBodyPct, tfAuto ? gAdj : minGapPct, tfAuto ? vBase : volLen, tfAuto ? rAdj : minRvol, tfAuto ? dLb : dropLookback, tfAuto ? dAdj : minDropPct, extBase]
+
+[effBody, effGap, effVolLen, effRvol, effDropLb, effDropPct, effExtend] = f_tune(chartIsWeekly)
+[wBody, wGap, wVolLen, wRvolMin, wDropLb, wDropPct, wExtend] = f_tune(true)
+
+// ── 세력 캔들 유틸 ───────────────────────────────────────────────────
+f_rng() =>
+    high - low
+
+f_body() =>
+    math.abs(close - open)
+
+f_bodyPctOff(int off) =>
+    float r = f_rng()[off]
+    r > 0 ? f_body()[off] / r * 100.0 : 100.0
+
+f_bull() =>
+    close > open
+
+f_bear() =>
+    close < open
+
+f_inflection(int off, float bodyMax) =>
+    f_bodyPctOff(off) <= bodyMax
+
+f_gapDn(int off, float gapMin) =>
+    gapMin <= 0 ? open[off] < close[off + 1] : close[off + 1] > 0 and (close[off + 1] - open[off]) / close[off + 1] * 100.0 >= gapMin
+
+f_gapUp(int off, float gapMin) =>
+    gapMin <= 0 ? open[off] > close[off + 1] : close[off + 1] > 0 and (open[off] - close[off + 1]) / close[off + 1] * 100.0 >= gapMin
+
+f_fallBull(int off) =>
+    open[off] < close[off + 1] and f_bull()[off]
+
+f_riseBear(int off) =>
+    open[off] > close[off + 1] and f_bear()[off]
+
+f_pivot2(float bodyMax) =>
+    f_inflection(1, bodyMax) or (allowFallBull and f_fallBull(1))
+
+f_pivot2Top(float bodyMax) =>
+    f_inflection(1, bodyMax) or f_riseBear(1)
+
+f_gapStory(float gapMin) =>
+    bool gDual = f_gapDn(1, gapMin) and f_gapUp(0, gapMin)
+    bool gAny = f_gapDn(1, gapMin) or f_gapUp(0, gapMin)
+    bool gBreak = close > high[1]
+    bool gTri = low[1] <= low[2] and low[1] <= low[0]
+    [gDual, gAny, gBreak, gTri, gDual or gAny or gBreak or gTri]
+
+f_scoreBottom(bool anyB, int tagCode, bool gDual, bool gAny, bool gBreak, bool gTri, float rvol0, float rvolMin, float body2, float bodyMax, float dropPct, float dropMin) =>
+    float sc = 0.0
+    if anyB
+        sc += gDual ? 25.0 : gAny ? 12.0 : 0.0
+        sc += gBreak ? 20.0 : 0.0
+        sc += gTri ? 10.0 : 0.0
+        sc += rvol0 >= rvolMin ? math.min(20.0, rvol0 / rvolMin * 12.0) : 0.0
+        sc += body2 <= bodyMax ? math.min(15.0, (bodyMax - body2) / math.max(bodyMax, 1.0) * 15.0) : 0.0
+        sc += dropPct >= dropMin ? math.min(10.0, dropPct / math.max(dropMin, 0.1) * 8.0) : 0.0
+        sc += tagCode == 1 ? 8.0 : tagCode == 2 ? 5.0 : tagCode == 5 ? 4.0 : 2.0
+    math.min(100.0, sc)
+
+f_detect(float bodyMax, float gapMin, int vLen, float rvolMin, int dropLb, float dropMin) =>
+    float volMa0 = ta.sma(volume, vLen)
+    float rvol0 = volMa0 > 0 ? volume / volMa0 : 1.0
+    float hiRef = ta.highest(high, dropLb)
+    float loRef = ta.lowest(low, dropLb)
+    float dropPct0 = hiRef > 0 ? (hiRef - close) / hiRef * 100.0 : 0.0
+    float risePct0 = loRef > 0 ? (close - loRef) / loRef * 100.0 : 0.0
+    bool hadDrop0 = dropPct0 >= dropMin
+    bool hadRise0 = risePct0 >= dropMin
+
+    bool ctxDrop = not needDrop or hadDrop0
+    bool ctxRise = not needDrop or hadRise0
+    bool volOk = rvol0 >= rvolMin
+
+    [gDual, gAny, gBreak, gTri, gapOk] = f_gapStory(gapMin)
+    float body2 = f_bodyPctOff(1)
+
+    bool bClassic =
+         showBottom and ctxDrop and volOk and gapOk and
+         f_bear()[2] and f_pivot2(bodyMax) and f_bull()
+
+    bool bNoGap =
+         showBottomVar and allowNoGap and ctxDrop and volOk and gapOk and
+         f_bear()[2] and f_inflection(1, bodyMax) and f_bull() and
+         not gDual and not gAny
+
+    bool bGapPivot =
+         showBottomVar and ctxDrop and volOk and gapOk and
+         f_bear()[2] and f_inflection(1, bodyMax) and f_gapUp(1, gapMin) and
+         f_bull() and f_gapUp(0, gapMin)
+
+    bool bFallBull =
+         showBottomVar and allowFallBull and ctxDrop and volOk and gapOk and
+         f_bear()[2] and f_fallBull(1) and f_bull()
+
+    bool bGapFallBull =
+         showBottomVar and allowFallBull and ctxDrop and volOk and gapOk and
+         f_bear()[2] and f_fallBull(1) and f_fallBull(0)
+
+    bool anyB = bClassic or bNoGap or bGapPivot or bFallBull or bGapFallBull
+
+    int tagCode =
+         bClassic and gDual ? 1 :
+         bClassic ? 5 :
+         bGapPivot ? 2 :
+         bFallBull ? 3 :
+         bGapFallBull ? 4 :
+         bNoGap ? 5 : 0
+
+    float score = f_scoreBottom(anyB, tagCode, gDual, gAny, gBreak, gTri, rvol0, rvolMin, body2, bodyMax, dropPct0, dropMin)
+
+    bool pBear = showPinwheel and ctxDrop and f_bear()[2] and f_pivot2(bodyMax) and f_bear()
+    bool pBull = showPinwheel and ctxRise and f_bull()[2] and f_pivot2Top(bodyMax) and f_bull()
+    bool tClassic = showTop and ctxRise and volOk and f_bull()[2] and f_pivot2Top(bodyMax) and f_bear() and f_gapUp(1, gapMin) and f_gapDn(0, gapMin)
+    bool pivotWait = (f_inflection(0, bodyMax) or (allowFallBull and f_fallBull(0))) and f_bear()[1] and ctxDrop
+
+    [anyB, bClassic, tagCode, pBear, pBull, tClassic, pivotWait, low[1], close, high[1], rvol0, score]
+
+f_tag(int code) =>
+    code == 1 ? "바닥·전형" :
+     code == 2 ? "바닥·갭변곡" :
+     code == 3 ? "바닥·하락양" :
+     code == 4 ? "바닥·갭하양" :
+     code == 5 ? "바닥·무갭" : ""
+
+// ── 세력 캔들 감지 ───────────────────────────────────────────────────
+[anyBottomRaw, bottomClassicRaw, bottomCodeRaw, pinBearRaw, pinBullRaw, topClassicRaw, pivotFormingRaw, slL, zoneTop, zoneBotSl, rvol3, scoreRaw] =
+     f_detect(effBody, effGap, effVolLen, effRvol, effDropLb, effDropPct)
+
+[wAnyRaw, wClassicRaw, wCodeRaw, wPinBear, wPinBull, wTopRaw, wPivotRaw, wSl, wTop, wBot, wRvolW, wScore] =
+     request.security(syminfo.tickerid, "W", f_detect(wBody, wGap, wVolLen, wRvolMin, wDropLb, wDropPct), barmerge.gaps_off, barmerge.lookahead_off)
+
+bool passScore = scoreRaw >= minScore
+bool anyBottom = anyBottomRaw and passScore
+bool bottomClassic = anyBottom and bottomClassicRaw
+bool wConfirmed = needWeeklyConf and not chartIsWeekly and anyBottom and wAnyRaw and wScore >= minScore
+int bottomCode = anyBottom ? bottomCodeRaw : 0
+bool pinBear = pinBearRaw and passScore
+bool pinBull = pinBullRaw and passScore
+bool topClassic = topClassicRaw
+bool pivotForming = pivotFormingRaw
+int bottomScore = anyBottom ? int(math.round(scoreRaw)) : 0
+
+string bottomTag = f_tag(bottomCode) + (showScoreLabel and anyBottom ? " " + str.tostring(bottomScore) + "pt" : "")
+
+bool barOk = not confirmedOnly or barstate.isconfirmed
+
+// ── MA 로직 ──────────────────────────────────────────────────────────
+bool showBoth = tfMode == "일봉+주봉"
+bool showDaily = showMa and (showBoth or tfMode == "일봉만")
+bool showWeekly = showMa and (showBoth or tfMode == "주봉만")
+
+color dailySpecA = #FFEE58
+color dailySpecZ = #C62828
+color weeklySpecA = #40C4FF
+color weeklySpecZ = #7E57C2
+color c5_d = color.from_gradient(5, 5, 120, dailySpecA, dailySpecZ)
+color c20_d = color.from_gradient(20, 5, 120, dailySpecA, dailySpecZ)
+color c60_d = color.from_gradient(60, 5, 120, dailySpecA, dailySpecZ)
+color c120_d = color.from_gradient(120, 5, 120, dailySpecA, dailySpecZ)
+color c5_w = color.from_gradient(5, 5, 120, weeklySpecA, weeklySpecZ)
+color c20_w = color.from_gradient(20, 5, 120, weeklySpecA, weeklySpecZ)
+color c60_w = color.from_gradient(60, 5, 120, weeklySpecA, weeklySpecZ)
+color c120_w = color.from_gradient(120, 5, 120, weeklySpecA, weeklySpecZ)
+
+bool weeklyPrimary = timeframe.isweekly or timeframe.ismonthly
+bool dailyPrimary = not weeklyPrimary
+
+int dAlpha = showBoth and dailyPrimary ? brightTransp : showBoth ? dimTransp : brightTransp
+int wAlpha = showBoth and weeklyPrimary ? brightTransp : showBoth ? dimTransp : brightTransp
+
+bool needWeeklySmooth = smoothWeekly and not timeframe.isweekly and not timeframe.ismonthly
+
+f_interp_week(float curr, float prev) =>
+    int t0 = time("W")
+    int t1 = time_close("W")
+    float span = float(t1 - t0)
+    float frac = span > 0 ? math.min(math.max((time - t0) / span, 0.0), 1.0) : 1.0
+    prev + (curr - prev) * frac
+
+f_week_plot(float currDev, float prevFin, float step) =>
+    needWeeklySmooth ? f_interp_week(currDev, prevFin) : step
+
+float ma5_d = request.security(syminfo.tickerid, "D", ta.sma(close, 5), barmerge.gaps_off, barmerge.lookahead_off)
+float ma20_d = request.security(syminfo.tickerid, "D", ta.sma(close, 20), barmerge.gaps_off, barmerge.lookahead_off)
+float ma60_d = request.security(syminfo.tickerid, "D", ta.sma(close, 60), barmerge.gaps_off, barmerge.lookahead_off)
+float ma120_d = request.security(syminfo.tickerid, "D", ta.sma(close, 120), barmerge.gaps_off, barmerge.lookahead_off)
+
+float ma5_w_step = request.security(syminfo.tickerid, "W", ta.sma(close, 5), barmerge.gaps_off, barmerge.lookahead_off)
+float ma20_w_step = request.security(syminfo.tickerid, "W", ta.sma(close, 20), barmerge.gaps_off, barmerge.lookahead_off)
+float ma60_w_step = request.security(syminfo.tickerid, "W", ta.sma(close, 60), barmerge.gaps_off, barmerge.lookahead_off)
+float ma120_w_step = request.security(syminfo.tickerid, "W", ta.sma(close, 120), barmerge.gaps_off, barmerge.lookahead_off)
+float ma5_w_curr = request.security(syminfo.tickerid, "W", ta.sma(close, 5), barmerge.gaps_off, barmerge.lookahead_on)
+float ma20_w_curr = request.security(syminfo.tickerid, "W", ta.sma(close, 20), barmerge.gaps_off, barmerge.lookahead_on)
+float ma60_w_curr = request.security(syminfo.tickerid, "W", ta.sma(close, 60), barmerge.gaps_off, barmerge.lookahead_on)
+float ma120_w_curr = request.security(syminfo.tickerid, "W", ta.sma(close, 120), barmerge.gaps_off, barmerge.lookahead_on)
+float ma5_w_prev = request.security(syminfo.tickerid, "W", ta.sma(close, 5)[1], barmerge.gaps_off, barmerge.lookahead_on)
+float ma20_w_prev = request.security(syminfo.tickerid, "W", ta.sma(close, 20)[1], barmerge.gaps_off, barmerge.lookahead_on)
+float ma60_w_prev = request.security(syminfo.tickerid, "W", ta.sma(close, 60)[1], barmerge.gaps_off, barmerge.lookahead_on)
+float ma120_w_prev = request.security(syminfo.tickerid, "W", ta.sma(close, 120)[1], barmerge.gaps_off, barmerge.lookahead_on)
+float ma5_w = f_week_plot(ma5_w_curr, ma5_w_prev, ma5_w_step)
+float ma20_w = f_week_plot(ma20_w_curr, ma20_w_prev, ma20_w_step)
+float ma60_w = f_week_plot(ma60_w_curr, ma60_w_prev, ma60_w_step)
+float ma120_w = f_week_plot(ma120_w_curr, ma120_w_prev, ma120_w_step)
+
+bool gold_5_20_d = ta.crossover(ma5_d, ma20_d)
+bool dead_5_20_d = ta.crossunder(ma5_d, ma20_d)
+bool gold_20_120_d = ta.crossover(ma20_d, ma120_d)
+bool dead_20_120_d = ta.crossunder(ma20_d, ma120_d)
+
+bool gold_5_20_w = ta.crossover(ma5_w_step, ma20_w_step)
+bool dead_5_20_w = ta.crossunder(ma5_w_step, ma20_w_step)
+bool gold_20_120_w = ta.crossover(ma20_w_step, ma120_w_step)
+bool dead_20_120_w = ta.crossunder(ma20_w_step, ma120_w_step)
+
+color color_5_20_d = gold_5_20_d ? color.new(color.green, dAlpha) : dead_5_20_d ? color.new(color.red, dAlpha) : na
+color color_20_120_d = gold_20_120_d ? color.new(color.green, dAlpha) : dead_20_120_d ? color.new(color.red, dAlpha) : na
+color color_5_20_w = gold_5_20_w ? color.new(color.green, wAlpha) : dead_5_20_w ? color.new(color.red, wAlpha) : na
+color color_20_120_w = gold_20_120_w ? color.new(color.green, wAlpha) : dead_20_120_w ? color.new(color.red, wAlpha) : na
+
+// ── MA 선·교차 (뒤 레이어) ───────────────────────────────────────────
+plot(showDaily ? ma5_d : na, color=color.new(c5_d, dAlpha), linewidth=2, title="[일] 5 MA")
+plot(showDaily ? ma20_d : na, color=color.new(c20_d, dAlpha), linewidth=2, title="[일] 20 MA")
+plot(showDaily ? ma60_d : na, color=color.new(c60_d, dAlpha), linewidth=2, title="[일] 60 MA")
+plot(showDaily ? ma120_d : na, color=color.new(c120_d, dAlpha), linewidth=2, title="[일] 120 MA")
+
+plot(showWeekly ? ma5_w : na, color=color.new(c5_w, wAlpha), linewidth=2, title="[주] 5 MA")
+plot(showWeekly ? ma20_w : na, color=color.new(c20_w, wAlpha), linewidth=2, title="[주] 20 MA")
+plot(showWeekly ? ma60_w : na, color=color.new(c60_w, wAlpha), linewidth=2, title="[주] 60 MA")
+plot(showWeekly ? ma120_w : na, color=color.new(c120_w, wAlpha), linewidth=2, title="[주] 120 MA")
+
+plot(showDaily and (gold_5_20_d or dead_5_20_d) ? ma5_d : na, style=plot.style_circles, linewidth=5, color=color_5_20_d, title="[일] 5-20 교차점")
+plot(showDaily and (gold_20_120_d or dead_20_120_d) ? ma20_d : na, style=plot.style_circles, linewidth=5, color=color_20_120_d, title="[일] 20-120 교차점")
+plot(showWeekly and (gold_5_20_w or dead_5_20_w) ? ma5_w_step : na, style=plot.style_circles, linewidth=5, color=color_5_20_w, title="[주] 5-20 교차점")
+plot(showWeekly and (gold_20_120_w or dead_20_120_w) ? ma20_w_step : na, style=plot.style_circles, linewidth=5, color=color_20_120_w, title="[주] 20-120 교차점")
+
+// ── 세력 캔들 구간 ───────────────────────────────────────────────────
+var box[]  zoneBoxes = array.new_box()
+var line[] slLines   = array.new_line()
+var label[] zoneLbls = array.new_label()
+
+f_trimZones() =>
+    while array.size(zoneBoxes) > maxZones
+        box.delete(array.shift(zoneBoxes))
+    while array.size(slLines) > maxZones
+        line.delete(array.shift(slLines))
+    while array.size(zoneLbls) > maxZones
+        label.delete(array.shift(zoneLbls))
+
+f_drawZone(int tLeft, float sl, float zTop, float zBot, color zCol, string tag, int extBars, bool labelBelow) =>
+    f_trimZones()
+    int tfMs = timeframe.in_seconds() * 1000
+    int tRight = tLeft + extBars * tfMs
+    float top = math.max(zTop, zBot)
+    float bot = math.min(zTop, zBot)
+    if showSlZone
+        array.push(slLines, line.new(tLeft, sl, tRight, sl, xloc=xloc.bar_time, color=cSl, width=2, style=line.style_dashed))
+        array.push(zoneBoxes, box.new(tLeft, top, tRight, bot, xloc=xloc.bar_time, border_color=color.new(zCol, 40), bgcolor=cZone, border_width=1))
+    if showLabels
+        float lblY = labelBelow ? math.min(low, bot) : top
+        string lblTxt = tag + "\n손절 " + str.tostring(sl, format.mintick) + "\n분할 " + str.tostring(bot, format.mintick) + "~" + str.tostring(top, format.mintick)
+        if labelBelow
+            array.push(zoneLbls, label.new(tLeft, lblY, lblTxt, xloc=xloc.bar_time, yloc=yloc.price, style=label.style_label_up, color=color.new(zCol, 15), textcolor=color.white, size=size.small))
+        else
+            array.push(zoneLbls, label.new(tLeft, lblY, lblTxt, xloc=xloc.bar_time, yloc=yloc.price, style=label.style_label_down, color=color.new(zCol, 15), textcolor=color.white, size=size.small))
+
+if anyBottom and barOk
+    f_drawZone(time, slL, zoneTop, zoneBotSl, wConfirmed ? cWBottom : cBottom, bottomTag, effExtend, true)
+
+if topClassic and barOk
+    f_drawZone(time, zoneTop, zoneTop, zoneBotSl, cTop, "상투", effExtend, false)
+
+// ── 세력 캔들 마커 ───────────────────────────────────────────────────
+plotshape(barOk and anyBottom and bottomClassic and wConfirmed, title="W바닥확인", style=shape.triangleup, location=location.belowbar, color=cWBottom, size=size.large, text="W")
+plotshape(barOk and anyBottom and bottomClassic and not wConfirmed, title="바닥·전형", style=shape.triangleup, location=location.belowbar, color=cBottom, size=size.normal, text="바닥")
+plotshape(barOk and anyBottom and not bottomClassic, title="바닥·변주", style=shape.triangleup, location=location.belowbar, color=cBottomV, size=size.small, text="변주")
+plotshape(barOk and pinBear, title="하락 바람개비", style=shape.triangledown, location=location.abovebar, color=cPinDn, size=size.tiny, text="↓")
+plotshape(barOk and pinBull, title="상승 바람개비", style=shape.triangleup, location=location.belowbar, color=cPinUp, size=size.tiny, text="↑")
+plotshape(barOk and topClassic, title="상투", style=shape.triangledown, location=location.abovebar, color=cTop, size=size.normal, text="상투")
+plotshape(barOk and pivotForming, title="변곡점", style=shape.cross, location=location.belowbar, color=color.new(#FFC107, 0), size=size.tiny)
+
+bgcolor(showBg and barOk and anyBottom ? color.new(wConfirmed ? cWBottom : cBottom, 92) : showBg and barOk and topClassic ? color.new(cTop, 93) : na)
+
+// ── MA 워터마크·범례 ─────────────────────────────────────────────────
+int wmPh = int(math.max(wmStep / 5, 3))
+int wmTa = math.min(dAlpha + 40, 88)
+int wmTw = math.min(wAlpha + 40, 88)
+
+if showMa and showWatermark and showDaily and not na(ma5_d) and bar_index % wmStep == 0
+    label.new(bar_index, ma5_d, "5", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_none, textcolor=color.new(c5_d, wmTa), size=size.tiny)
+if showMa and showWatermark and showDaily and not na(ma20_d) and bar_index % wmStep == wmPh
+    label.new(bar_index, ma20_d, "20", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_none, textcolor=color.new(c20_d, wmTa), size=size.tiny)
+if showMa and showWatermark and showDaily and not na(ma60_d) and bar_index % wmStep == wmPh * 2
+    label.new(bar_index, ma60_d, "60", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_none, textcolor=color.new(c60_d, wmTa), size=size.tiny)
+if showMa and showWatermark and showDaily and not na(ma120_d) and bar_index % wmStep == wmPh * 3
+    label.new(bar_index, ma120_d, "120", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_none, textcolor=color.new(c120_d, wmTa), size=size.tiny)
+if showMa and showWatermark and showWeekly and not na(ma5_w) and bar_index % wmStep == 1
+    label.new(bar_index, ma5_w, "5", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_none, textcolor=color.new(c5_w, wmTw), size=size.tiny)
+if showMa and showWatermark and showWeekly and not na(ma20_w) and bar_index % wmStep == wmPh + 1
+    label.new(bar_index, ma20_w, "20", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_none, textcolor=color.new(c20_w, wmTw), size=size.tiny)
+if showMa and showWatermark and showWeekly and not na(ma60_w) and bar_index % wmStep == wmPh * 2 + 1
+    label.new(bar_index, ma60_w, "60", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_none, textcolor=color.new(c60_w, wmTw), size=size.tiny)
+if showMa and showWatermark and showWeekly and not na(ma120_w) and bar_index % wmStep == wmPh * 3 + 1
+    label.new(bar_index, ma120_w, "120", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_none, textcolor=color.new(c120_w, wmTw), size=size.tiny)
+
+var table legend = table.new(position.bottom_right, 3, 8, bgcolor=na, frame_color=color.new(color.gray, 70), border_width=1)
+
+f_leg_label(int row, string label) =>
+    table.cell(legend, 0, row, label, text_color=color.silver, text_size=size.tiny, text_halign=text.align_left)
+
+f_leg_ma(int row, string label, color cD, color cW) =>
+    f_leg_label(row, label)
+    table.cell(legend, 1, row, showDaily ? "━━" : "", text_color=color.new(cD, dAlpha), text_size=size.tiny)
+    table.cell(legend, 2, row, showWeekly ? "━━" : "", text_color=color.new(cW, wAlpha), text_size=size.tiny)
+
+if barstate.islast and showMa and showLegend
+    string smoothHint = needWeeklySmooth ? " · 주봉보간" : ""
+    string modeHint = (showBoth ? (weeklyPrimary ? "강조: 주봉" : "강조: 일봉") : tfMode) + smoothHint
+    table.cell(legend, 0, 0, "MA 색상", text_color=color.white, text_size=size.small, text_halign=text.align_left)
+    table.cell(legend, 1, 0, showDaily ? "일봉" : "", text_color=color.new(dailySpecA, dAlpha), text_size=size.tiny)
+    table.cell(legend, 2, 0, showWeekly ? "주봉" : "", text_color=color.new(weeklySpecA, wAlpha), text_size=size.tiny)
+    f_leg_ma(1, "5일", c5_d, c5_w)
+    f_leg_ma(2, "20일", c20_d, c20_w)
+    f_leg_ma(3, "60일", c60_d, c60_w)
+    f_leg_ma(4, "120일", c120_d, c120_w)
+    f_leg_label(5, "교차")
+    table.cell(legend, 1, 5, showDaily ? "골든 ●" : "", text_color=color.new(color.green, dAlpha), text_size=size.tiny)
+    table.cell(legend, 2, 5, showWeekly ? "골든 ●" : "", text_color=color.new(color.green, wAlpha), text_size=size.tiny)
+    f_leg_label(6, "")
+    table.cell(legend, 1, 6, showDaily ? "데드 ●" : "", text_color=color.new(color.red, dAlpha), text_size=size.tiny)
+    table.cell(legend, 2, 6, showWeekly ? "데드 ●" : "", text_color=color.new(color.red, wAlpha), text_size=size.tiny)
+    table.cell(legend, 0, 7, modeHint, text_color=color.gray, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(legend, 1, 7, showDaily ? "5↔20" : "", text_color=color.new(color.gray, dAlpha), text_size=size.tiny)
+    table.cell(legend, 2, 7, showWeekly ? "20↔120" : "", text_color=color.new(color.gray, wAlpha), text_size=size.tiny)
+
+// ── 알림 ─────────────────────────────────────────────────────────────
+alertcondition(anyBottom, "바닥 캔들", "세력 바닥 캔들 — 점수·주봉 확인 통과")
+alertcondition(wConfirmed, "주봉확인 바닥", "일봉+주봉 동시 바닥 캔들")
+alertcondition(bottomClassic, "바닥·전형", "전형 바닥 패턴")
+alertcondition(pinBear, "하락 바람개비", "하락 바람개비")
+alertcondition(topClassic, "상투 캔들", "세력 상투 캔들")
+alertcondition(showMa and gold_5_20_d, "일봉 5-20 골든", "일봉 5·20 MA 골든크로스")
+alertcondition(showMa and dead_5_20_d, "일봉 5-20 데드", "일봉 5·20 MA 데드크로스")
+alertcondition(showMa and gold_20_120_d, "일봉 20-120 골든", "일봉 20·120 MA 골든크로스")
+alertcondition(showMa and dead_20_120_d, "일봉 20-120 데드", "일봉 20·120 MA 데드크로스")
+alertcondition(showMa and gold_5_20_w, "주봉 5-20 골든", "주봉 5·20 MA 골든크로스")
+alertcondition(showMa and dead_5_20_w, "주봉 5-20 데드", "주봉 5·20 MA 데드크로스")
+alertcondition(showMa and gold_20_120_w, "주봉 20-120 골든", "주봉 20·120 MA 골든크로스")
+alertcondition(showMa and dead_20_120_w, "주봉 20-120 데드", "주봉 20·120 MA 데드크로스")
+
+// ── 데이터 윈도우 ────────────────────────────────────────────────────
+plot(anyBottom ? 1 : 0, "바닥 신호", display=display.data_window)
+plot(anyBottomRaw ? 1 : 0, "바닥(raw)", display=display.data_window)
+plot(bottomScore, "바닥 점수", display=display.data_window)
+plot(wScore, "주봉 점수", display=display.data_window)
+plot(wAnyRaw ? 1 : 0, "주봉(raw)", display=display.data_window)
+plot(rvol3, "③ RVOL", display=display.data_window)
