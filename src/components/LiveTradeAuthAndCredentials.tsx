@@ -184,6 +184,8 @@ const LIVE_TRADE_CARD_TAB_ORDER = [
   LIVE_TRADE_DOCK_RAIL_TAB_IDS.trades,
 ] as const;
 
+export { LIVE_TRADE_CARD_TAB_ORDER };
+
 export function defaultLiveTradeSideTabTitles(): Record<string, string> {
   return {
     [LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth]: ko.app.liveTradeSideDockRailAuth,

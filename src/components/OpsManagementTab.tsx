@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   clearStockOpsInstructionDraft,
@@ -13,6 +13,7 @@ import {
   type OpsCursorAgentPendingResponse,
 } from "../api";
 import { useMobileBackHandler } from "../hooks/useMobileBackHandler";
+import { useIsMobilePhone } from "../hooks/useIsMobilePhone";
 import { useOpsDevQueueDisplay } from "../hooks/useOpsDevQueueDisplay";
 import { MOBILE_BACK_PRIORITY } from "../lib/mobileBackStack";
 import { parseOpsDevQueueAgentEntries } from "../lib/opsGlobalQueueRows";
@@ -75,6 +76,110 @@ function OpsQueueUnifiedSeqBadge({ seq }: { seq?: number | null }) {
     </span>
   );
 }
+
+export type OpsInstructionEditorHandle = {
+  getValue: () => string;
+  setValue: (value: string) => void;
+  clear: () => void;
+};
+
+/** 요청 입력·제출 — 상위 OpsManagementTab(이력·큐)과 분리해 타이핑 시 전체 리렌더 방지 */
+const OpsInstructionEditor = forwardRef<
+  OpsInstructionEditorHandle,
+  {
+    available: boolean;
+    submitting: boolean;
+    error: string | null;
+    onClearError: () => void;
+    onSubmit: (instruction: string) => void | Promise<void>;
+    onRetryFromError: (instruction: string) => void;
+  }
+>(function OpsInstructionEditor(
+  { available, submitting, error, onClearError, onSubmit, onRetryFromError },
+  ref,
+) {
+  const mobile = useIsMobilePhone();
+  const [instruction, setInstruction] = useState("");
+  const instructionRef = useRef(instruction);
+  instructionRef.current = instruction;
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      getValue: () => instructionRef.current,
+      setValue: (value: string) => setInstruction(value),
+      clear: () => setInstruction(""),
+    }),
+    [],
+  );
+
+  const handleSubmit = useCallback(() => {
+    if (!available || submitting) return;
+    const ins = instructionRef.current.trim();
+    if (!ins) return;
+    setInstruction("");
+    void onSubmit(ins);
+  }, [available, submitting, onSubmit]);
+
+  return (
+    <>
+      <div className="ops-management__fields">
+        <label className="ops-management__label" htmlFor="ops-instruction">
+          {ko.app.opsInstructionLabel}
+        </label>
+        <textarea
+          id="ops-instruction"
+          className="ops-management__textarea ops-management__textarea--request"
+          value={instruction}
+          onChange={(e) => setInstruction(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter" || e.repeat) return;
+            if (!(e.ctrlKey || e.metaKey)) return;
+            e.preventDefault();
+            handleSubmit();
+          }}
+          placeholder={ko.app.opsInstructionPlaceholder}
+          rows={mobile ? 5 : 10}
+          disabled={!available}
+          spellCheck={false}
+        />
+
+        <div className="ops-management__actions">
+          <button
+            type="button"
+            className="btn btn--primary ops-management__submit"
+            disabled={!available || submitting || !instruction.trim()}
+            onClick={handleSubmit}
+          >
+            {ko.app.opsSubmit}
+          </button>
+        </div>
+      </div>
+
+      {error ? (
+        <div className="ops-management__live-error-wrap">
+          <div className="alert alert--error ops-management__out" role="alert">
+            {error}
+          </div>
+          {instruction.trim() ? (
+            <button
+              type="button"
+              className="btn btn--secondary ops-management__history-retry"
+              disabled={!available}
+              aria-label={ko.app.opsLiveErrorRetryAria}
+              onClick={() => {
+                onClearError();
+                onRetryFromError(instruction);
+              }}
+            >
+              {ko.app.opsHistoryRetryFromError}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </>
+  );
+});
 
 function OpsManagementLiveStreamContent({
   streamHeadlineInstruction,
@@ -396,7 +501,7 @@ export default function OpsManagementTab({
 }: {
   available: boolean;
 }) {
-  const [instruction, setInstruction] = useState("");
+  const instructionEditorRef = useRef<OpsInstructionEditorHandle>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resultText, setResultText] = useState<string | null>(null);
@@ -603,7 +708,7 @@ export default function OpsManagementTab({
     (ins: string) => {
       const t = ins.trim();
       if (!t) return;
-      setInstruction(t);
+      instructionEditorRef.current?.setValue(t);
       enqueueAgentInstructionOnServerOnly(t);
     },
     [enqueueAgentInstructionOnServerOnly],
@@ -613,7 +718,7 @@ export default function OpsManagementTab({
     (ins: string) => {
       const t = ins.trim();
       if (!t) return;
-      setInstruction(t);
+      instructionEditorRef.current?.setValue(t);
       enqueueAgentInstructionOnServerOnly(t);
       setProgressModalRunId(null);
     },
@@ -661,14 +766,13 @@ export default function OpsManagementTab({
     }
   }, []);
 
-  const handleMainSubmit = useCallback(async () => {
-    if (!available || submitting) return;
-    const ins = instruction.trim();
-    if (!ins) return;
-    setInstruction("");
-    const ok = await enqueueOrRunInstruction(ins);
-    if (!ok) setInstruction(ins);
-  }, [available, submitting, instruction, enqueueOrRunInstruction]);
+  const handleEditorSubmit = useCallback(
+    async (ins: string) => {
+      const ok = await enqueueOrRunInstruction(ins);
+      if (!ok) instructionEditorRef.current?.setValue(ins);
+    },
+    [enqueueOrRunInstruction],
+  );
 
   const showMyIpJobsPanel = hasMyIpServerActivity || submitting;
 
@@ -856,60 +960,15 @@ export default function OpsManagementTab({
           </div>
         ) : null}
 
-            <div className="ops-management__fields">
-              <label className="ops-management__label" htmlFor="ops-instruction">
-                {ko.app.opsInstructionLabel}
-              </label>
-              <textarea
-                id="ops-instruction"
-                className="ops-management__textarea ops-management__textarea--request"
-                value={instruction}
-                onChange={(e) => setInstruction(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key !== "Enter" || e.repeat) return;
-                  if (!(e.ctrlKey || e.metaKey)) return;
-                  e.preventDefault();
-                  void handleMainSubmit();
-                }}
-                placeholder={ko.app.opsInstructionPlaceholder}
-                rows={10}
-                disabled={!available}
-                spellCheck={false}
-              />
-
-              <div className="ops-management__actions">
-                <button
-                  type="button"
-                  className="btn btn--primary ops-management__submit"
-                  disabled={!available || submitting || !instruction.trim()}
-                  onClick={() => void handleMainSubmit()}
-                >
-                  {ko.app.opsSubmit}
-                </button>
-              </div>
-            </div>
-
-            {error ? (
-              <div className="ops-management__live-error-wrap">
-                <div className="alert alert--error ops-management__out" role="alert">
-                  {error}
-                </div>
-                {instruction.trim() ? (
-                  <button
-                    type="button"
-                    className="btn btn--secondary ops-management__history-retry"
-                    disabled={!available}
-                    aria-label={ko.app.opsLiveErrorRetryAria}
-                    onClick={() => {
-                      setError(null);
-                      enqueueAgentInstructionOnServerOnly(instruction);
-                    }}
-                  >
-                    {ko.app.opsHistoryRetryFromError}
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
+        <OpsInstructionEditor
+          ref={instructionEditorRef}
+          available={available}
+          submitting={submitting}
+          error={error}
+          onClearError={() => setError(null)}
+          onSubmit={handleEditorSubmit}
+          onRetryFromError={enqueueAgentInstructionOnServerOnly}
+        />
 
             {resultText != null && !error ? (
               <div className="ops-management__out card">

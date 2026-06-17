@@ -22,6 +22,7 @@ import { useNestedVerticalScroll } from "../hooks/useNestedVerticalScroll";
 import { refreshLiveTradingStatusNow } from "../hooks/useLiveTradingStatusPoll";
 import { invalidateLiveTradingPrefetch } from "../lib/tabPrefetch";
 import LiveTradeAuthPanel, {
+  LIVE_TRADE_CARD_TAB_ORDER,
   LIVE_TRADE_DOCK_RAIL_TAB_IDS,
   LIVE_TRADE_RIGHT_PANEL_HOST_ID,
   LiveTradeCardSidePanel,
@@ -352,13 +353,16 @@ export default function AppLiveTradeSideDock({
   const authAnchorRef = useRef<HTMLSpanElement>(null);
   const ctx = useLiveTradeCardSidePanelOptional();
   const closePanel = ctx?.closePanel;
-  const allSideTabs =
-    (ctx?.sideTabs?.length ?? 0) > 0
-      ? ctx!.sideTabs
-      : Object.entries(defaultLiveTradeSideTabTitles()).map(([id, title]) => ({
-          id,
-          title,
-        }));
+  const allSideTabs = useMemo(() => {
+    const titles: Record<string, string> = { ...defaultLiveTradeSideTabTitles() };
+    for (const tab of ctx?.sideTabs ?? []) {
+      titles[tab.id] = tab.title;
+    }
+    return LIVE_TRADE_CARD_TAB_ORDER.filter((id) => titles[id]).map((id) => ({
+      id,
+      title: titles[id]!,
+    }));
+  }, [ctx?.sideTabs]);
   const railTabs = allSideTabs.filter(
     (t) =>
       t.id !== LIVE_TRADE_DOCK_RAIL_TAB_IDS.auth &&
@@ -631,6 +635,12 @@ export default function AppLiveTradeSideDock({
 
   const onRailTab = useCallback(
     (id: string, title: string) => {
+      if (!user && id !== LIVE_TRADE_DOCK_RAIL_TAB_IDS.trades) {
+        setLogoutConfirmOpen(false);
+        setAuthPopoverOpen(true);
+        window.dispatchEvent(new CustomEvent("live-trade-dock-close-api-popover"));
+        return;
+      }
       if (id === LIVE_TRADE_DOCK_RAIL_TAB_IDS.trades) {
         openTradeHistoryInMain();
         return;
@@ -674,6 +684,7 @@ export default function AppLiveTradeSideDock({
       accountRailProvider,
       openTradeHistoryInMain,
       closePanel,
+      user,
     ],
   );
 
