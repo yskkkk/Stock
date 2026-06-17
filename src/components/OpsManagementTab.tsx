@@ -1,4 +1,13 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import {
+  forwardRef,
+  memo,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import {
   clearStockOpsInstructionDraft,
@@ -61,6 +70,15 @@ function normalizeOpQueueId(id: unknown): string {
   return String(id ?? "").trim();
 }
 
+function opsHistorySnapshotKey(entries: OpsAgentHistoryEntry[]): string {
+  return entries
+    .map(
+      (e) =>
+        `${e.id}:${e.state ?? ""}:${e.updatedAtMs ?? ""}:${e.finishedAtMs ?? ""}:${e.workspaceAppliedAtMs ?? ""}`,
+    )
+    .join("|");
+}
+
 function streamHeadlineFromInstruction(text: string, maxChars: number): string {
   const line = text.split(/\r?\n/).find((l) => l.trim().length > 0) ?? "";
   const t = line.trim();
@@ -84,65 +102,77 @@ export type OpsInstructionEditorHandle = {
 };
 
 /** 요청 입력·제출 — 상위 OpsManagementTab(이력·큐)과 분리해 타이핑 시 전체 리렌더 방지 */
-const OpsInstructionEditor = forwardRef<
-  OpsInstructionEditorHandle,
-  {
-    available: boolean;
-    submitting: boolean;
-    error: string | null;
-    onClearError: () => void;
-    onSubmit: (instruction: string) => void | Promise<void>;
-    onRetryFromError: (instruction: string) => void;
-  }
->(function OpsInstructionEditor(
-  { available, submitting, error, onClearError, onSubmit, onRetryFromError },
-  ref,
-) {
-  const mobile = useIsMobilePhone();
-  const [instruction, setInstruction] = useState("");
-  const instructionRef = useRef(instruction);
-  instructionRef.current = instruction;
-
-  useImperativeHandle(
+const OpsInstructionEditor = memo(
+  forwardRef<
+    OpsInstructionEditorHandle,
+    {
+      available: boolean;
+      submitting: boolean;
+      error: string | null;
+      onClearError: () => void;
+      onSubmit: (instruction: string) => void | Promise<void>;
+      onRetryFromError: (instruction: string) => void;
+      onEditingChange?: (editing: boolean) => void;
+    }
+  >(function OpsInstructionEditor(
+    {
+      available,
+      submitting,
+      error,
+      onClearError,
+      onSubmit,
+      onRetryFromError,
+      onEditingChange,
+    },
     ref,
-    () => ({
-      getValue: () => instructionRef.current,
-      setValue: (value: string) => setInstruction(value),
-      clear: () => setInstruction(""),
-    }),
-    [],
-  );
+  ) {
+    const mobile = useIsMobilePhone();
+    const [instruction, setInstruction] = useState("");
+    const instructionRef = useRef(instruction);
+    instructionRef.current = instruction;
 
-  const handleSubmit = useCallback(() => {
-    if (!available || submitting) return;
-    const ins = instructionRef.current.trim();
-    if (!ins) return;
-    setInstruction("");
-    void onSubmit(ins);
-  }, [available, submitting, onSubmit]);
+    useImperativeHandle(
+      ref,
+      () => ({
+        getValue: () => instructionRef.current,
+        setValue: (value: string) => setInstruction(value),
+        clear: () => setInstruction(""),
+      }),
+      [],
+    );
 
-  return (
-    <>
-      <div className="ops-management__fields">
-        <label className="ops-management__label" htmlFor="ops-instruction">
-          {ko.app.opsInstructionLabel}
-        </label>
-        <textarea
-          id="ops-instruction"
-          className="ops-management__textarea ops-management__textarea--request"
-          value={instruction}
-          onChange={(e) => setInstruction(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key !== "Enter" || e.repeat) return;
-            if (!(e.ctrlKey || e.metaKey)) return;
-            e.preventDefault();
-            handleSubmit();
-          }}
-          placeholder={ko.app.opsInstructionPlaceholder}
-          rows={mobile ? 5 : 10}
-          disabled={!available}
-          spellCheck={false}
-        />
+    const handleSubmit = useCallback(() => {
+      if (!available || submitting) return;
+      const ins = instructionRef.current.trim();
+      if (!ins) return;
+      setInstruction("");
+      void onSubmit(ins);
+    }, [available, submitting, onSubmit]);
+
+    return (
+      <>
+        <div className="ops-management__fields">
+          <label className="ops-management__label" htmlFor="ops-instruction">
+            {ko.app.opsInstructionLabel}
+          </label>
+          <textarea
+            id="ops-instruction"
+            className="ops-management__textarea ops-management__textarea--request"
+            value={instruction}
+            onChange={(e) => setInstruction(e.target.value)}
+            onFocus={() => onEditingChange?.(true)}
+            onBlur={() => onEditingChange?.(false)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter" || e.repeat) return;
+              if (!(e.ctrlKey || e.metaKey)) return;
+              e.preventDefault();
+              handleSubmit();
+            }}
+            placeholder={ko.app.opsInstructionPlaceholder}
+            rows={mobile ? 5 : 10}
+            disabled={!available}
+            spellCheck={false}
+          />
 
         <div className="ops-management__actions">
           <button
@@ -179,7 +209,8 @@ const OpsInstructionEditor = forwardRef<
       ) : null}
     </>
   );
-});
+  }),
+);
 
 function OpsManagementLiveStreamContent({
   streamHeadlineInstruction,
@@ -502,6 +533,8 @@ export default function OpsManagementTab({
   available: boolean;
 }) {
   const instructionEditorRef = useRef<OpsInstructionEditorHandle>(null);
+  const editorEditingRef = useRef(false);
+  const refreshAfterEditRef = useRef<(() => void) | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resultText, setResultText] = useState<string | null>(null);
@@ -529,9 +562,23 @@ export default function OpsManagementTab({
   });
 
   useEffect(() => {
-    if (!queueSnap) return;
+    if (!queueSnap || editorEditingRef.current) return;
     const entries = parseOpsDevQueueAgentEntries(queueSnap.agentEntries);
-    setServerQueue(entries);
+    setServerQueue((prev) => {
+      const prevKey = prev
+        .map(
+          (q) =>
+            `${q.id}:${q.status}:${q.unifiedQueueSeq ?? ""}:${q.instructionPreview}:${q.requestIp}`,
+        )
+        .join("|");
+      const nextKey = entries
+        .map(
+          (q) =>
+            `${q.id}:${q.status}:${q.unifiedQueueSeq ?? ""}:${q.instructionPreview}:${q.requestIp}`,
+        )
+        .join("|");
+      return prevKey === nextKey ? prev : entries;
+    });
     const rawIp = queueSnap.viewerIp;
     const ip =
       rawIp === null || rawIp === undefined ? null : String(rawIp).trim() || null;
@@ -599,9 +646,14 @@ export default function OpsManagementTab({
     let cancelled = false;
 
     const pullHistory = () => {
+      if (editorEditingRef.current) return;
       void fetchOpsAgentHistory()
         .then((r) => {
-          if (!cancelled) setHistoryRuns(Array.isArray(r.entries) ? r.entries : []);
+          if (cancelled || editorEditingRef.current) return;
+          const entries = Array.isArray(r.entries) ? r.entries : [];
+          setHistoryRuns((prev) =>
+            opsHistorySnapshotKey(prev) === opsHistorySnapshotKey(entries) ? prev : entries,
+          );
         })
         .catch(() => {
           /* 다음 폴링에서 재시도 */
@@ -609,10 +661,15 @@ export default function OpsManagementTab({
     };
 
     const pullPending = () => {
+      if (editorEditingRef.current) return;
       void fetchOpsCursorAgentPending()
         .then((p) => {
-          if (cancelled) return;
-          setRemotePending(p);
+          if (cancelled || editorEditingRef.current) return;
+          setRemotePending((prev) => {
+            const prevKey = `${prev?.instruction ?? ""}:${prev?.startedAtMs ?? ""}`;
+            const nextKey = `${p.instruction ?? ""}:${p.startedAtMs ?? ""}`;
+            return prevKey === nextKey ? prev : p;
+          });
         })
         .catch(() => {
           /* 접근 게이트 복귀 직후 등 — 조용히 무시 */
@@ -623,6 +680,8 @@ export default function OpsManagementTab({
       pullHistory();
       pullPending();
     };
+
+    refreshAfterEditRef.current = refreshAll;
 
     refreshAll();
 
@@ -640,6 +699,7 @@ export default function OpsManagementTab({
 
     return () => {
       cancelled = true;
+      refreshAfterEditRef.current = null;
       window.clearInterval(histId);
       window.clearInterval(pendId);
       document.removeEventListener("visibilitychange", onVisibility);
@@ -773,6 +833,13 @@ export default function OpsManagementTab({
     },
     [enqueueOrRunInstruction],
   );
+
+  const clearEditorError = useCallback(() => setError(null), []);
+
+  const handleEditorEditingChange = useCallback((editing: boolean) => {
+    editorEditingRef.current = editing;
+    if (!editing) refreshAfterEditRef.current?.();
+  }, []);
 
   const showMyIpJobsPanel = hasMyIpServerActivity || submitting;
 
@@ -965,9 +1032,10 @@ export default function OpsManagementTab({
           available={available}
           submitting={submitting}
           error={error}
-          onClearError={() => setError(null)}
+          onClearError={clearEditorError}
           onSubmit={handleEditorSubmit}
           onRetryFromError={enqueueAgentInstructionOnServerOnly}
+          onEditingChange={handleEditorEditingChange}
         />
 
             {resultText != null && !error ? (

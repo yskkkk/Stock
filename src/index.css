@@ -12116,6 +12116,7 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
     .app-live-trade-side-dock__rail-tabs,
   .app-live-trade-side-dock__rail--mobile-bottom
     .app-live-trade-side-dock__rail-footer {
+    display: contents;
     flex-direction: row;
     align-items: stretch;
     margin-top: 0;
@@ -12127,27 +12128,37 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
 
   .app-live-trade-side-dock__rail--mobile-bottom
     .app-live-trade-side-dock__rail-tabs {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     width: auto;
-    min-width: min-content;
+    min-width: 0;
     max-width: none;
-    justify-content: space-evenly;
+    justify-content: flex-start;
   }
 
   .app-live-trade-side-dock__rail--mobile-bottom
     .app-live-trade-side-dock__rail-footer {
     flex: 0 0 auto;
-    border-left: 1px solid
-      color-mix(in srgb, var(--card-border, #e2e8f0) 55%, transparent);
   }
 
   .app-live-trade-side-dock__rail--mobile-bottom
     .app-live-trade-side-dock__rail-btn {
-    flex: 1 1 0;
-    min-width: 2.5rem;
-    max-width: 3.25rem;
+    width: auto;
+    flex: 0 0 auto;
+    min-width: 2.75rem;
+    max-width: none;
     min-height: var(--mobile-dock-bar-height);
-    padding: 0.35rem 0.35rem;
+    padding: 0.35rem 0.5rem;
+  }
+
+  .app-live-trade-side-dock__rail--mobile-bottom
+    .app-live-trade-side-dock__rail-btn--auth,
+  .app-live-trade-side-dock__rail--mobile-bottom
+    .app-live-trade-side-dock__rail-btn--logout,
+  .app-live-trade-side-dock__rail--mobile-bottom
+    .app-live-trade-side-dock__rail-btn--feedback,
+  .app-live-trade-side-dock__rail--mobile-bottom
+    .app-live-trade-side-dock__rail-btn--exchange {
+    flex: 0 0 auto;
   }
 
   .app-live-trade-side-dock__rail--mobile-bottom
@@ -12609,6 +12620,8 @@ html[data-theme="light"] .fx-calc-rail__input-wrap {
   .ops-management__aside {
     max-height: min(52dvh, 520px);
     order: 2;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 420px;
   }
 
   .ops-management__main {
