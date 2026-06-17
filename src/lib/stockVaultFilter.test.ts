@@ -107,4 +107,29 @@ describe("stockVaultFilter", () => {
     expect(rows[0]?.symbol).toBe("A.KS");
     expect(rows[0]?.favorite).toBeTruthy();
   });
+
+  it("groupByScanDate — 동일 종목·다른 탐색 일자는 행 분리", () => {
+    const items = [
+      item({
+        id: "gc-1",
+        symbol: "A.KS",
+        source: "golden_cross",
+        scanDate: "2026-06-10",
+      }),
+      item({
+        id: "gc-2",
+        symbol: "A.KS",
+        source: "golden_cross",
+        scanDate: "2026-06-08",
+      }),
+    ];
+    const rows = buildVaultDisplayRows(items, {
+      selectedScanSources: ["golden_cross"],
+      marketFilter: "all",
+      favoriteOnly: false,
+      groupByScanDate: true,
+    });
+    expect(rows).toHaveLength(2);
+    expect(new Set(rows.map((r) => r.key)).size).toBe(2);
+  });
 });

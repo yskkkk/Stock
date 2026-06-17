@@ -30,7 +30,14 @@ import {
   visibleStockVaultScanSources,
   type VaultDisplayRow,
 } from "../lib/stockVaultFilter";
-import { kstTodayYmd } from "../lib/kstDate";
+import {
+  isStockVaultAllScanDates,
+  isStockVaultLatestScanDate,
+  isStockVaultSpecificScanDate,
+  STOCK_VAULT_SCAN_DATE_ALL,
+  stockVaultSnapshotPersistDate,
+  shouldPersistStockVaultSnapshot,
+} from "../lib/stockVaultScanDate";
 import {
   buildFullSnapshotFromScanHistory,
   mergeScanHistoryDates,
@@ -230,11 +237,13 @@ export default function StockVaultTab({
   const cachedInit = peekStockVaultPrefetch();
   const cachedVault = cachedInit ? vaultStateFromResponse(cachedInit.vault) : null;
   const uiInit = peekStockVaultTabUi() ?? defaultStockVaultTabUi();
-  const localSnapshotAtInit = useMemo(
-    () => peekLocalScanSnapshot(uiInit.selectedScanDate ?? kstTodayYmd()),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount snapshot only
-    [],
-  );
+  const localSnapshotAtInit = useMemo(() => {
+    if (isStockVaultAllScanDates(uiInit.selectedScanDate)) return null;
+    if (uiInit.selectedScanDate) {
+      return peekLocalScanSnapshot(uiInit.selectedScanDate);
+    }
+    return peekLocalScanSnapshot(kstTodayYmd());
+  }, []);
   const hasLocalSnapshotAtInit = Boolean(localSnapshotAtInit?.length);
   const { user, authChecked, refreshAuth } = useLiveTradeAuth();
   const vaultAuthSyncedRef = useRef(false);
@@ -271,7 +280,7 @@ export default function StockVaultTab({
         !(cachedVault?.items?.length) &&
         !isStockVaultSessionPinned() &&
         !hasLocalToday &&
-        !uiInit.selectedScanDate
+        isStockVaultLatestScanDate(uiInit.selectedScanDate)
       );
     },
   );
@@ -500,7 +509,7 @@ export default function StockVaultTab({
         today,
         extractScanItemsFromVault(vault.items),
       );
-      if (selectedScanDate == null) setSnapshotItems(merged);
+      if (isStockVaultLatestScanDate(selectedScanDate)) setSnapshotItems(merged);
     },
     [selectedScanDate],
   );
@@ -608,12 +617,66 @@ export default function StockVaultTab({
     return new Set([...fromItems, ...fromMeta]);
   }, [items, favoriteMeta]);
 
+  const isAllScanDatesView = isStockVaultAllScanDates(selectedScanDate);
   const isHistoricalView = selectedScanDate != null;
 
+  const loadScanSnapshotForDate = useCallback(
+    async (scanDate: string) => {
+      const cached = peekLocalScanSnapshot(scanDate);
+      if (cached?.length) return cached;
+      const [gc, ma, ma120] = await Promise.all([
+        fetchGoldenCrossHistory({ scanDate, detail: true }),
+        fetchMaAlignHistory({ scanDate, detail: true }),
+        fetchMa120NearHistory({ scanDate, detail: true }),
+      ]);
+      const built = buildFullSnapshotFromScanHistory(
+        scanDate,
+        gc.entries ?? [],
+        ma.entries ?? [],
+        ma120.entries ?? [],
+        {
+          favoriteSymbols: favoriteSymbolSet,
+          favoriteMeta,
+        },
+      );
+      if (built.length) saveLocalScanSnapshot(scanDate, built);
+      return built;
+    },
+    [favoriteSymbolSet, favoriteMeta],
+  );
+
   useEffect(() => {
+    if (isAllScanDatesView) {
+      if (!historyDates.length) {
+        setSnapshotItems([]);
+        setSnapshotLoading(false);
+        return;
+      }
+      let cancelled = false;
+      setSnapshotLoading(true);
+      void (async () => {
+        try {
+          const chunks = await Promise.all(
+            historyDates.map((date) => loadScanSnapshotForDate(date)),
+          );
+          if (cancelled) return;
+          setSnapshotItems(chunks.flat());
+        } catch (e) {
+          if (!cancelled) {
+            setError(e instanceof Error ? e.message : String(e));
+          }
+        } finally {
+          if (!cancelled) setSnapshotLoading(false);
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }
+
     const effectiveDate = selectedScanDate ?? kstTodayYmd();
 
-    if (!selectedScanDate) {
+    if (isStockVaultLatestScanDate(selectedScanDate)) {
       setSnapshotItems(peekLocalScanSnapshot(effectiveDate) ?? []);
       setSnapshotLoading(false);
       return;
@@ -630,32 +693,8 @@ export default function StockVaultTab({
     setSnapshotLoading(true);
     void (async () => {
       try {
-        const [gc, ma, ma120] = await Promise.all([
-          fetchGoldenCrossHistory({
-            scanDate: effectiveDate,
-            detail: true,
-          }),
-          fetchMaAlignHistory({
-            scanDate: effectiveDate,
-            detail: true,
-          }),
-          fetchMa120NearHistory({
-            scanDate: effectiveDate,
-            detail: true,
-          }),
-        ]);
+        const built = await loadScanSnapshotForDate(effectiveDate);
         if (cancelled) return;
-        const built = buildFullSnapshotFromScanHistory(
-          effectiveDate,
-          gc.entries ?? [],
-          ma.entries ?? [],
-          ma120.entries ?? [],
-          {
-            favoriteSymbols: favoriteSymbolSet,
-            favoriteMeta,
-          },
-        );
-        saveLocalScanSnapshot(effectiveDate, built);
         setSnapshotItems(built);
       } catch (e) {
         if (!cancelled) {
@@ -668,7 +707,12 @@ export default function StockVaultTab({
     return () => {
       cancelled = true;
     };
-  }, [selectedScanDate]);
+  }, [
+    selectedScanDate,
+    isAllScanDatesView,
+    historyDates,
+    loadScanSnapshotForDate,
+  ]);
 
   const displayItems = useMemo(() => {
     let base: StockVaultItem[];
@@ -833,8 +877,9 @@ export default function StockVaultTab({
         marketFilter: "all",
         favoriteOnly: filter === "favorite",
         timeframeFilter,
+        groupByScanDate: isAllScanDatesView,
       }),
-    [displayItems, selectedScanSources, filter, timeframeFilter],
+    [displayItems, selectedScanSources, filter, timeframeFilter, isAllScanDatesView],
   );
 
   const baseFiltered = useMemo(
@@ -1068,7 +1113,11 @@ export default function StockVaultTab({
             return enriched;
           });
           if (!changed) return prev;
-          saveLocalScanSnapshot(selectedScanDate ?? kstTodayYmd(), nextItems);
+          if (!shouldPersistStockVaultSnapshot(selectedScanDate)) return prev;
+          saveLocalScanSnapshot(
+            stockVaultSnapshotPersistDate(selectedScanDate, kstTodayYmd()),
+            nextItems,
+          );
           return nextItems;
         });
       } catch {
@@ -1137,7 +1186,11 @@ export default function StockVaultTab({
         setSnapshotItems((prev) => {
           if (!prev?.length) return prev;
           const next = prev.filter((it) => it.symbol.trim().toUpperCase() !== sym);
-          saveLocalScanSnapshot(selectedScanDate ?? kstTodayYmd(), next);
+          if (!shouldPersistStockVaultSnapshot(selectedScanDate)) return next;
+          saveLocalScanSnapshot(
+            stockVaultSnapshotPersistDate(selectedScanDate, kstTodayYmd()),
+            next,
+          );
           return next;
         });
       } catch (e) {
@@ -1184,7 +1237,7 @@ export default function StockVaultTab({
         if (!prev?.length) return prev;
         snapshotRollback = prev;
         const next = applyPatch(prev);
-        if (selectedScanDate == null) {
+        if (isStockVaultLatestScanDate(selectedScanDate)) {
           saveLocalScanSnapshot(kstTodayYmd(), next);
         }
         return next;
@@ -1201,7 +1254,7 @@ export default function StockVaultTab({
         }
         if (snapshotRollback) {
           setSnapshotItems(snapshotRollback);
-          if (selectedScanDate == null) {
+          if (isStockVaultLatestScanDate(selectedScanDate)) {
             saveLocalScanSnapshot(kstTodayYmd(), snapshotRollback);
           }
         }
@@ -1236,7 +1289,7 @@ export default function StockVaultTab({
         setSnapshotItems((prev) => {
           if (!prev?.length) return prev;
           const next = patchList(prev);
-          if (selectedScanDate == null) {
+          if (isStockVaultLatestScanDate(selectedScanDate)) {
             saveLocalScanSnapshot(kstTodayYmd(), next);
           }
           return next;
@@ -1248,7 +1301,7 @@ export default function StockVaultTab({
         }
         if (snapshotRollback) {
           setSnapshotItems(snapshotRollback);
-          if (selectedScanDate == null) {
+          if (isStockVaultLatestScanDate(selectedScanDate)) {
             saveLocalScanSnapshot(kstTodayYmd(), snapshotRollback);
           }
         }
@@ -1396,6 +1449,9 @@ export default function StockVaultTab({
                   }
                 >
                   <option value="">{ko.stockVault.historyLatest}</option>
+                  <option value={STOCK_VAULT_SCAN_DATE_ALL}>
+                    {ko.stockVault.historyAll}
+                  </option>
                   {historyDates.map((date) => (
                     <option key={date} value={date}>
                       {date}
@@ -1405,9 +1461,13 @@ export default function StockVaultTab({
               </span>
             </label>
           ) : null}
-          {isHistoricalView && selectedScanDate ? (
+          {isAllScanDatesView ? (
             <p className="stock-vault-tab__history-hint">
-              {ko.stockVault.historyViewHint(selectedScanDate)}
+              {ko.stockVault.historyAllViewHint}
+            </p>
+          ) : isStockVaultSpecificScanDate(selectedScanDate) ? (
+            <p className="stock-vault-tab__history-hint">
+              {ko.stockVault.historyViewHint(selectedScanDate!)}
             </p>
           ) : null}
           {scanNotice ? (

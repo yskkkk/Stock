@@ -107,7 +107,7 @@ export function buildVaultItemsFromScanHistory(
         c === "5>120",
     );
     items.push({
-      id: `hist-gc-${hit.market}-${sym}`,
+      id: `hist-gc-${hit.market}-${sym}-${scanDate}`,
       symbol: sym,
       name: hit.name,
       market: hit.market,
@@ -129,7 +129,7 @@ export function buildVaultItemsFromScanHistory(
     const favorited = favorites.has(sym);
     const fm = meta[sym];
     items.push({
-      id: `hist-ma-${hit.market}-${sym}`,
+      id: `hist-ma-${hit.market}-${sym}-${scanDate}`,
       symbol: sym,
       name: hit.name,
       market: hit.market,
@@ -149,7 +149,7 @@ export function buildVaultItemsFromScanHistory(
     const favorited = favorites.has(sym);
     const fm = meta[sym];
     items.push({
-      id: `hist-ma120-${hit.market}-${sym}`,
+      id: `hist-ma120-${hit.market}-${sym}-${scanDate}`,
       symbol: sym,
       name: hit.name,
       market: hit.market,

@@ -38,6 +38,16 @@ function symbolMarketTimeframeKey(
   return `${item.market}:${item.symbol.trim().toUpperCase()}:${normalizeStockVaultTimeframe(item.timeframe)}`;
 }
 
+function vaultDisplayRowKey(
+  item: StockVaultItem,
+  groupByScanDate: boolean,
+) {
+  const base = symbolMarketTimeframeKey(item);
+  if (!groupByScanDate) return base;
+  const date = String(item.scanDate ?? item.crossDate ?? "").trim();
+  return date ? `${base}@${date}` : base;
+}
+
 function pickDisplayName(row: {
   goldenCross?: StockVaultItem;
   maAlign?: StockVaultItem;
@@ -229,9 +239,12 @@ export function buildVaultDisplayRows(
     marketFilter: "all" | "kr" | "us";
     favoriteOnly: boolean;
     timeframeFilter?: StockVaultTimeframe;
+    /** 동일 종목이 여러 탐색 일자에 있을 때 행을 분리 */
+    groupByScanDate?: boolean;
   },
 ): VaultDisplayRow[] {
   const timeframe = normalizeStockVaultTimeframe(opts.timeframeFilter);
+  const groupByScanDate = Boolean(opts.groupByScanDate);
   const selected = opts.selectedScanSources.filter((s) =>
     STOCK_VAULT_SCAN_SOURCES.includes(s),
   );
@@ -260,7 +273,12 @@ export function buildVaultDisplayRows(
       if (it.source !== src) continue;
       if (!matchesTimeframe(it, timeframe)) continue;
       rows.push(
-        buildScanRow(symbolMarketTimeframeKey(it), { [src]: it }, [src], timeframe),
+        buildScanRow(
+          vaultDisplayRowKey(it, groupByScanDate),
+          { [src]: it },
+          [src],
+          timeframe,
+        ),
       );
     }
     let filtered = rows;
@@ -277,7 +295,7 @@ export function buildVaultDisplayRows(
     const src = it.source as StockVaultScanSource;
     if (!selectedSet.has(src)) continue;
     if (!matchesTimeframe(it, timeframe)) continue;
-    const key = symbolMarketTimeframeKey(it);
+    const key = vaultDisplayRowKey(it, groupByScanDate);
     const row = grouped.get(key) ?? {};
     row[src] = it;
     grouped.set(key, row);
@@ -305,7 +323,7 @@ export function sortVaultDisplayRows(rows: VaultDisplayRow[]): VaultDisplayRow[]
   }
   const sortedGc = sortGoldenCrossItems(withGc.map((r) => r.goldenCross!));
   const gcRows = sortedGc.map(
-    (gc) => withGc.find((r) => r.goldenCross!.id === gc.id)!,
+    (gc) => withGc.find((r) => r.goldenCross === gc)!,
   );
   const rest = [...withoutGc].sort((a, b) => b.updatedAtMs - a.updatedAtMs);
   return [...gcRows, ...rest];
