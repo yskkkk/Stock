@@ -81,16 +81,8 @@ import {
   getServerRestartPasswordExpected,
   verifyServerRestartPassword,
 } from "./server-restart-auth.js";
-import {
-  clearOpsAgentHistoryAsync,
-  prependPolicyRejectedOpsEntry,
-  readOpsAgentHistorySync,
-  removeOpsAgentHistoryEntryById,
-  setOpsHistoryWorkspaceApplied,
-} from "./ops-agent-history-store.js";
 import { checkOpsInstructionPolicy } from "./ops-agent-instruction-policy.js";
 import { getOpsAgentPendingForIp } from "./ops-agent-pending-store.js";
-import { triggerOpsStreamUserCancel } from "./ops-stream-cancel.js";
 import {
   appendRecordModePendingJob,
   mergeRecordModeQueueFromClient,
@@ -297,16 +289,6 @@ export function createApp() {
   async function respondInstructionPolicyBlock(req, res, bad) {
     const rip = normalizeAccessIp(expressClientIp(req));
     const rejectedId = randomUUID();
-    try {
-      await prependPolicyRejectedOpsEntry({
-        id: rejectedId,
-        requestIp: rip,
-        policyCode: bad.code,
-        userMessage: bad.messageKo,
-      });
-    } catch {
-      /* 디스크 오류 등 */
-    }
     appendServerEventLog(
       "ops-agent",
       `instruction policy reject code=${bad.code} id=${rejectedId}`,
@@ -1874,92 +1856,6 @@ export function createApp() {
         ...snap,
         viewerIp,
       });
-    }),
-  );
-
-  app.get(
-    "/api/ops/cursor-agent-history",
-    asyncRoute(async (req, res) => {
-      if (!isAccessAdminRequest(req)) {
-        res.status(403).json({
-          error: "관리자만 Cursor 에이전트 연동을 사용할 수 있습니다.",
-          code: "FORBIDDEN",
-        });
-        return;
-      }
-      res.json({ entries: readOpsAgentHistorySync() });
-    }),
-  );
-
-  app.delete(
-    "/api/ops/cursor-agent-history/:id",
-    asyncRoute(async (req, res) => {
-      if (!isAccessAdminRequest(req)) {
-        res.status(403).json({
-          error: "관리자만 Cursor 에이전트 연동을 사용할 수 있습니다.",
-          code: "FORBIDDEN",
-        });
-        return;
-      }
-      const id = String(req.params?.id ?? "").trim();
-      if (!id) {
-        res.status(400).json({ error: "id가 필요합니다." });
-        return;
-      }
-      await removeOpsAgentHistoryEntryById(id);
-      triggerOpsStreamUserCancel(id);
-      res.json({ ok: true });
-    }),
-  );
-
-  app.post(
-    "/api/ops/cursor-agent-history/:id/workspace-applied",
-    asyncRoute(async (req, res) => {
-      if (!isAccessAdminRequest(req)) {
-        res.status(403).json({
-          error: "관리자만 Cursor 에이전트 연동을 사용할 수 있습니다.",
-          code: "FORBIDDEN",
-        });
-        return;
-      }
-      const id = String(req.params?.id ?? "").trim();
-      if (!id) {
-        res.status(400).json({ error: "id가 필요합니다." });
-        return;
-      }
-      const raw = req.body?.applied;
-      const applied = raw === true || raw === 1 || raw === "1" || raw === "true";
-      const cleared =
-        raw === false || raw === 0 || raw === "0" || raw === "false" || raw === null;
-      if (!applied && !cleared) {
-        res.status(400).json({ error: "body에 applied: true 또는 false가 필요합니다." });
-        return;
-      }
-      const ok = await setOpsHistoryWorkspaceApplied(id, applied);
-      if (!ok) {
-        res.status(404).json({ error: "해당 이력이 없거나 실행 중이라 표시를 바꿀 수 없습니다." });
-        return;
-      }
-      res.json({ ok: true, entries: readOpsAgentHistorySync() });
-    }),
-  );
-
-  app.delete(
-    "/api/ops/cursor-agent-history",
-    asyncRoute(async (req, res) => {
-      if (!isAccessAdminRequest(req)) {
-        res.status(403).json({
-          error: "관리자만 Cursor 에이전트 연동을 사용할 수 있습니다.",
-          code: "FORBIDDEN",
-        });
-        return;
-      }
-      const snapshot = readOpsAgentHistorySync();
-      for (const e of snapshot) {
-        if (e.state === "running") triggerOpsStreamUserCancel(e.id);
-      }
-      await clearOpsAgentHistoryAsync();
-      res.json({ ok: true });
     }),
   );
 

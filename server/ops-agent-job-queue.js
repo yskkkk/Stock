@@ -12,13 +12,7 @@ import {
   isIdeCompletionNotified,
   notifyIdeDevelopmentCompleted,
 } from "./ops-ide-completion-notify.js";
-import { opsIdePromptFingerprint } from "./ops-ide-prompt-match.js";
-import {
-  findActiveIdeHistoryIdForPromptSync,
-  finalizeOpsAgentEntry,
-  trimStoredTextForOpsHistory,
-  upsertOpsAgentHistoryFromQueueSync,
-} from "./ops-agent-history-store.js";
+import { opsIdePromptFingerprint, opsIdePromptsMatch } from "./ops-ide-prompt-match.js";
 import { buildIdeQueueGrant } from "./ops-ide-queue-grant.js";
 import {
   clearOpsWebAgentBusyMarkerSync,
@@ -29,10 +23,6 @@ import {
   mergeIdeLeaseDiskIntoAgentEntries,
   readIdeLeaseDiskSync,
 } from "./ops-ide-lease-disk.js";
-import {
-  metaToPersistEntry,
-} from "./ops-dev-queue-live-store.js";
-import { opsIdePromptsMatch } from "./ops-ide-prompt-match.js";
 import {
   loadPersistedQueueSlots,
   persistQueueSlots,
@@ -90,6 +80,13 @@ const PREVIEW_MAX = 220;
 const TOOLTIP_MAX = 900;
 const TOOLTIP_MAX_LINES = 4;
 
+/** @param {string} s @param {number} maxChars */
+function trimQueueInstructionText(s, maxChars) {
+  const t = String(s ?? "");
+  if (t.length <= maxChars) return t;
+  return `${t.slice(0, maxChars)}\n\n…(이하 저장 생략)`;
+}
+
 /** IDE 턴이 메모리 큐에서 아직 열려 있는지(해제 전) */
 export function isIdeDevQueueTurnOpen() {
   return active && runningSlot?.source === "ide";
@@ -134,6 +131,17 @@ function tooltipInstruction(instruction) {
   return `${chunk.slice(0, TOOLTIP_MAX - 1)}…`;
 }
 
+/** @param {string} prompt */
+function findActiveIdeSlotByPrompt(prompt) {
+  const probe = String(prompt ?? "").trim();
+  if (!probe) return null;
+  for (const s of slots) {
+    if (s.source !== "ide" || !s.meta) continue;
+    if (opsIdePromptsMatch(instructionTextFromMeta(s.meta), probe)) return s;
+  }
+  return null;
+}
+
 /** @param {{ requestIp?: string | null; instruction?: string; historyRunId?: string | null; source?: 'web' | 'ide' }} meta */
 function buildQueueMeta(meta) {
   const source = meta.source === "ide" ? "ide" : "web";
@@ -142,8 +150,8 @@ function buildQueueMeta(meta) {
       ? meta.historyRunId.trim()
       : "";
   if (!id && source === "ide") {
-    const activeId = findActiveIdeHistoryIdForPromptSync(meta.instruction);
-    if (activeId) id = activeId;
+    const activeSlot = findActiveIdeSlotByPrompt(meta.instruction);
+    if (activeSlot) id = activeSlot.id;
   }
   if (!id) id = randomUUID();
   return {
@@ -154,7 +162,7 @@ function buildQueueMeta(meta) {
         : sanitizeQueueIp(meta.requestIp),
     instructionPreview: previewInstruction(meta.instruction),
     instructionTooltip: tooltipInstruction(meta.instruction),
-    instructionBody: trimStoredTextForOpsHistory(
+    instructionBody: trimQueueInstructionText(
       String(meta.instruction ?? ""),
       OPS_QUEUE_INSTRUCTION_BODY_MAX,
     ),
@@ -183,58 +191,17 @@ function instructionTextFromMeta(meta) {
   return String(meta.instructionPreview ?? "").trim();
 }
 
-/** @param {QueueSlot} slot */
-function syncIdeHistoryWaiting(slot) {
-  if (!slot.meta) return;
-  upsertOpsAgentHistoryFromQueueSync(
-    metaToPersistEntry(slot.meta, "waiting"),
-  );
-}
-
-/** @param {QueueSlot} slot */
-function syncIdeHistoryRunning(slot) {
-  if (!slot.meta) return;
-  upsertOpsAgentHistoryFromQueueSync(
-    metaToPersistEntry(slot.meta, "running"),
-  );
-}
-
 /**
  * @param {QueueSlot} slot
  * @param {"ok" | "error" | "cancelled"} state
  * @param {string | null} [error]
  */
-function syncIdeHistoryFinalize(slot, state, error = null) {
+function finalizeIdeQueueSlot(slot, state, error = null) {
   if (!slot.meta) return;
-  const started =
-    typeof slot.runStartedAtMs === "number" && Number.isFinite(slot.runStartedAtMs)
-      ? slot.runStartedAtMs
-      : Date.now();
-  const instruction = instructionTextFromMeta(slot.meta);
-  void finalizeOpsAgentEntry(slot.id, {
-    state,
-    instruction,
-    requestIp: "cursor-ide",
-    phaseLine: "Cursor IDE (단일 개발 큐)",
-    cursorLine: "",
-    thinkingLine: "",
-    toolLine: "",
-    toolLog: "",
-    streamText: "",
-    statusText: state === "ok" ? "IDE 세션 종료" : null,
-    resultText:
-      state === "ok"
-        ? "Cursor IDE에서 요청이 완료되어 개발 큐에서 해제되었습니다."
-        : null,
-    durationMs: Math.max(0, Date.now() - started),
-    runtimeLabel: "ide",
-    error,
-  }).catch(() => {
-    /* ignore */
-  });
 
   if (state === "ok" && !slot.devNotifySent) {
     slot.devNotifySent = true;
+    const instruction = instructionTextFromMeta(slot.meta);
     const preview = String(slot.meta.instructionPreview ?? "").trim();
     const baseRequest = instruction || preview;
     const pending = slot.pendingIdeNotify;
@@ -337,17 +304,16 @@ async function drainQueue() {
     return;
   }
 
-  let ideHistoryFinalized = false;
-  const finishIdeHistory = (/** @type {"ok" | "error" | "cancelled"} */ state, err = null) => {
-    if (ideHistoryFinalized) return;
-    ideHistoryFinalized = true;
-    syncIdeHistoryFinalize(slot, state, err);
+  let ideQueueFinalized = false;
+  const finishIdeQueue = (/** @type {"ok" | "error" | "cancelled"} */ state, err = null) => {
+    if (ideQueueFinalized) return;
+    ideQueueFinalized = true;
+    finalizeIdeQueueSlot(slot, state, err);
   };
 
   try {
     slot.runStartedAtMs = Date.now();
     slot.gitRevAtStart = getRepoHeadRev();
-    syncIdeHistoryRunning(slot);
     const waitedMs = Date.now() - (slot.meta?.enqueuedAtMs ?? Date.now());
     const queueSeq =
       slots.findIndex((s) => s.id === slot.id) >= 0
@@ -370,10 +336,10 @@ async function drainQueue() {
         resolve();
       };
     });
-    finishIdeHistory("ok");
+    finishIdeQueue("ok");
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    finishIdeHistory("error", msg || "IDE 큐 오류");
+    finishIdeQueue("error", msg || "IDE 큐 오류");
     slot.grantReject?.(e);
   } finally {
     slots.shift();
@@ -419,15 +385,6 @@ export function enqueueOpsAgentJob(fn, onQueued, meta, onCommittedToQueue) {
     });
     slots.push(slot);
     persistSlots();
-    if (queueMeta) {
-      try {
-        upsertOpsAgentHistoryFromQueueSync(
-          metaToPersistEntry(queueMeta, "waiting"),
-        );
-      } catch {
-        /* 디스크 오류 — 스트림·큐는 계속 */
-      }
-    }
     bumpDevQueueDisplayMirror();
     try {
       onCommittedToQueue?.();
@@ -463,17 +420,6 @@ function queueSeqAndStatusForSlotId(slotId) {
 /** @param {string} prompt */
 export function hasActiveIdeSlotForPrompt(prompt) {
   return findActiveIdeSlotByPrompt(prompt) != null;
-}
-
-/** @param {string} prompt */
-function findActiveIdeSlotByPrompt(prompt) {
-  const probe = String(prompt ?? "").trim();
-  if (!probe) return null;
-  for (const s of slots) {
-    if (s.source !== "ide" || !s.meta) continue;
-    if (opsIdePromptsMatch(instructionTextFromMeta(s.meta), probe)) return s;
-  }
-  return null;
 }
 
 /**
@@ -604,11 +550,6 @@ export function registerIdeDevQueueSlot(input) {
   });
   slots.push(slot);
   persistSlots();
-  try {
-    syncIdeHistoryWaiting(slot);
-  } catch {
-    /* 디스크 오류 — 큐는 계속 */
-  }
   bumpDevQueueDisplayMirror();
   void drainQueue();
 
@@ -701,7 +642,7 @@ export function abandonIdeDevQueueSlot(leaseId) {
   } catch {
     /* ignore */
   }
-  syncIdeHistoryFinalize(slot, "cancelled");
+  finalizeIdeQueueSlot(slot, "cancelled");
   bumpDevQueueDisplayMirror();
   if (!active) {
     clearOpsWebAgentBusyMarkerSync();

@@ -5,11 +5,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  finalizeOrphanIdeAgentHistoryIdsSync,
-  filterOpsQueueEntriesNotInTerminalHistorySync,
-  upsertOpsAgentHistoryFromQueueSync,
-} from "./ops-agent-history-store.js";
 import { mergeIdeLeaseDiskIntoAgentEntries } from "./ops-ide-lease-disk.js";
 import { enrichAgentEntriesWithUnifiedSeq } from "./ops-unified-queue-seq.js";
 
@@ -123,13 +118,6 @@ export function metaToPersistEntry(meta, status) {
   };
 }
 
-function syncAgentHistoryFromPersistEntry(entry) {
-  const st = String(entry.status ?? "");
-  if (st === "running" || st === "waiting") {
-    upsertOpsAgentHistoryFromQueueSync(entry);
-  }
-}
-
 /** @deprecated display-sync 미러 사용 — 호환용 no-op */
 export function persistDevQueueUpsert(_entry) {}
 
@@ -182,29 +170,14 @@ function normalizeMirrorEntry(e) {
  * @param {Array<Record<string, unknown>>} runtimeEntries
  */
 export function writeDevQueueDisplayMirrorFromRuntime(runtimeEntries) {
-  const prev = readLiveRawSync();
-  const prevIds = new Set(
-    prev.agentEntries
-      .map((e) => String(e.id ?? "").trim())
-      .filter(Boolean),
-  );
-
-  let toWrite = sortLiveEntries(
+  const toWrite = sortLiveEntries(
     (Array.isArray(runtimeEntries) ? runtimeEntries : [])
       .map(normalizeMirrorEntry)
       .filter(Boolean)
       .filter((e) => String(e.requestIp ?? "").trim() !== RECORD_MODE_REQUEST_IP),
   );
-  toWrite = filterOpsQueueEntriesNotInTerminalHistorySync(toWrite);
-
-  const nextIds = new Set(
-    toWrite.map((e) => String(e.id ?? "").trim()).filter(Boolean),
-  );
-  const droppedIds = [...prevIds].filter((id) => !nextIds.has(id));
 
   writeLiveRawSync({ updatedAtMs: Date.now(), agentEntries: toWrite });
-  if (droppedIds.length) finalizeOrphanIdeAgentHistoryIdsSync(droppedIds);
-  for (const row of toWrite) syncAgentHistoryFromPersistEntry(row);
 }
 
 /**
@@ -214,16 +187,11 @@ export function writeDevQueueDisplayMirrorFromRuntime(runtimeEntries) {
 export function sweepStalePersistedDevQueueSync(maxRunningAgeMs = 45 * 60 * 1000) {
   const live = readLiveRawSync();
   const now = Date.now();
-  /** @type {string[]} */
-  const droppedIds = [];
   const next = live.agentEntries.filter((e) => {
     if (e.status !== "running") return true;
     const at = typeof e.enqueuedAtMs === "number" ? e.enqueuedAtMs : 0;
-    const keep = at <= 0 || now - at < maxRunningAgeMs;
-    if (!keep && e.id) droppedIds.push(String(e.id));
-    return keep;
+    return at <= 0 || now - at < maxRunningAgeMs;
   });
-  if (droppedIds.length) finalizeOrphanIdeAgentHistoryIdsSync(droppedIds);
   if (next.length === live.agentEntries.length) return;
   if (next.length === 0) persistDevQueueClear();
   else {
@@ -236,15 +204,11 @@ export function sweepStalePersistedDevQueueSync(maxRunningAgeMs = 45 * 60 * 1000
 export function readDevQueueDisplaySnapshotSync() {
   const live = loadLiveFromDiskSync();
   memoryLive = live;
-  const filtered = filterOpsQueueEntriesNotInTerminalHistorySync(
-    live.agentEntries.filter(
-      (e) => String(e.requestIp ?? "").trim() !== RECORD_MODE_REQUEST_IP,
-    ),
+  const filtered = live.agentEntries.filter(
+    (e) => String(e.requestIp ?? "").trim() !== RECORD_MODE_REQUEST_IP,
   );
   const withLease = mergeIdeLeaseDiskIntoAgentEntries(filtered);
-  const agentEntries = enrichAgentEntriesWithUnifiedSeq(
-    filterOpsQueueEntriesNotInTerminalHistorySync(withLease),
-  );
+  const agentEntries = enrichAgentEntriesWithUnifiedSeq(withLease);
   return {
     updatedAtMs: live.updatedAtMs,
     agentEntries,
@@ -272,12 +236,5 @@ export function readDevQueueLiveAgentEntriesSync() {
   return readLiveRawSync().agentEntries;
 }
 
-/** 서버 기동·복구 — 영속 큐의 대기·실행 중 항목을 이력 파일에 맞춤 */
-export function reconcilePersistQueueToAgentHistorySync() {
-  for (const e of readLiveRawSync().agentEntries) {
-    const st = String(e.status ?? "");
-    if (st === "running" || st === "waiting") {
-      upsertOpsAgentHistoryFromQueueSync(e);
-    }
-  }
-}
+/** @deprecated — 실행 이력 제거 후 no-op */
+export function reconcilePersistQueueToAgentHistorySync() {}

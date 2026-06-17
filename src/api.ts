@@ -320,36 +320,6 @@ export type OpsAgentSseEvent =
     }
   | { type: "error"; message: string };
 
-export type OpsAgentHistoryEntry = {
-  id: string;
-  state?: "waiting" | "running" | "ok" | "error" | "cancelled" | "rejected";
-  startedAtMs?: number;
-  updatedAtMs?: number;
-  /** 완료 후에만 설정 (진행 중이면 null) */
-  finishedAtMs: number | null;
-  instruction: string;
-  /** HTTP 요청 클라이언트 IP (프록시 시 X-Forwarded-For 첫 값 등) */
-  requestIp?: string;
-  error: string | null;
-  phaseLine: string;
-  cursorLine: string;
-  thinkingLine: string;
-  toolLine: string;
-  /** read_file / write 등 도구 호출 누적(줄바꿈 구분) */
-  toolLog?: string;
-  streamText: string;
-  statusText: string | null;
-  resultText: string | null;
-  durationMs: number | null;
-  runtimeLabel: string | null;
-  /** 사용자가 워크스페이스 반영 완료로 표시한 시각 — 재실행 UI에서 차단 */
-  workspaceAppliedAtMs?: number | null;
-};
-
-export type OpsAgentHistoryResponse = {
-  entries: OpsAgentHistoryEntry[];
-};
-
 export type OpsCursorAgentPendingResponse = {
   instruction: string;
   startedAtMs: number | null;
@@ -567,58 +537,6 @@ export function fetchOpsCursorAgentQueue() {
     entries: snap.agentEntries,
     viewerIp: snap.viewerIp ?? null,
   }));
-}
-
-/** 관리자 전용 — 서버에 저장된 에이전트 실행 이력 */
-export function fetchOpsAgentHistory() {
-  const t = getStoredAccessAdminToken();
-  const headers: Record<string, string> = {};
-  if (t) headers.Authorization = `Bearer ${t}`;
-  return fetchJson<OpsAgentHistoryResponse>("/api/ops/cursor-agent-history", {
-    headers: Object.keys(headers).length ? headers : undefined,
-  });
-}
-
-/** 관리자 전용 — 서버 실행 이력 전체 삭제 */
-export function deleteOpsAgentHistory() {
-  const t = getStoredAccessAdminToken();
-  const headers: Record<string, string> = {};
-  if (t) headers.Authorization = `Bearer ${t}`;
-  return fetchJson<{ ok: boolean }>("/api/ops/cursor-agent-history", {
-    method: "DELETE",
-    headers: Object.keys(headers).length ? headers : undefined,
-  });
-}
-
-/** 관리자 전용 — 완료·오류·중단·실행 중 포함 실행 이력 한 건 삭제 (실행 중이면 서버에서 중단) */
-export function deleteOpsAgentHistoryEntry(id: string) {
-  const t = getStoredAccessAdminToken();
-  const headers: Record<string, string> = {};
-  if (t) headers.Authorization = `Bearer ${t}`;
-  return fetchJson<{ ok: boolean }>(
-    `/api/ops/cursor-agent-history/${encodeURIComponent(id)}`,
-    {
-      method: "DELETE",
-      headers: Object.keys(headers).length ? headers : undefined,
-    },
-  );
-}
-
-/** 관리자 전용 — 실행 이력에「워크스페이스에 반영함」표시(재실행 버튼 비활성화용) */
-export function postOpsAgentHistoryWorkspaceApplied(id: string, applied: boolean) {
-  const t = getStoredAccessAdminToken();
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json; charset=utf-8",
-  };
-  if (t) headers.Authorization = `Bearer ${t}`;
-  return fetchJson<OpsAgentHistoryResponse>(
-    `/api/ops/cursor-agent-history/${encodeURIComponent(id)}/workspace-applied`,
-    {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ applied }),
-    },
-  );
 }
 
 /** 관리자 전용 — 서버에서 해당 SSE 실행만 사용자 취소(abort) */

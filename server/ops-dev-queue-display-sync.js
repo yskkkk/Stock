@@ -9,12 +9,7 @@ import {
   recoverIdeDevQueueFromPersistedState,
 } from "./ops-agent-job-queue.js";
 import {
-  collapseIdeAgentHistoryDuplicatesSync,
-  finalizeOrphanIdeAgentHistoryOnBootSync,
-} from "./ops-agent-history-store.js";
-import {
   clearOrphanDevQueueDisplayOnBootSync,
-  reconcilePersistQueueToAgentHistorySync,
   sweepStalePersistedDevQueueSync,
   writeDevQueueDisplayMirrorFromRuntime,
 } from "./ops-dev-queue-live-store.js";
@@ -100,18 +95,14 @@ export function releaseDevQueueDisplayPreserve() {}
  */
 export function reconcileDevQueueDisplayMirrorOnBoot() {
   sweepStalePersistedDevQueueSync();
-  collapseIdeAgentHistoryDuplicatesSync();
   const { entries: memory } = getOpsAgentQueueMemorySnapshot();
   if (memory.length === 0) {
-    // persist 파일(SSOT) 우선 복구, 없으면 lease·display 파일 폴백
     const { recovered } = recoverIdeDevQueueFromPersistedState();
     if (recovered === 0) {
       clearOrphanDevQueueDisplayOnBootSync();
       clearIdeLeaseOnDisk();
-      finalizeOrphanIdeAgentHistoryOnBootSync();
     }
   }
-  reconcilePersistQueueToAgentHistorySync();
   syncDevQueueDisplayFromRuntimeSync();
 }
 

@@ -13,13 +13,6 @@ import { normalizeOpsCompletionText } from "./ops-dev-completion-coalesce.js";
 import { notifyOpsAgentCompleted } from "./telegram-notify.js";
 import { normalizeAccessIp } from "./access-control.js";
 import {
-  finalizeOpsAgentEntry,
-  patchOpsAgentEntry,
-  prependPolicyRejectedOpsEntry,
-  prependRunningOpsEntry,
-  promoteOpsAgentEntryToRunning,
-} from "./ops-agent-history-store.js";
-import {
   clearOpsAgentPending,
   setOpsAgentPending,
 } from "./ops-agent-pending-store.js";
@@ -510,35 +503,11 @@ export async function streamOpsCursorAgentSse(req, res, body) {
   };
 
   let runId = /** @type {string | null} */ (null);
-  /** @type {ReturnType<typeof setTimeout> | null} */
-  let patchTimer = null;
 
   const userCancelAc = new AbortController();
 
-  const flushPatchSoon = () => {
-    if (!runId) return;
-    if (patchTimer) clearTimeout(patchTimer);
-    patchTimer = setTimeout(() => {
-      patchTimer = null;
-      void patchOpsAgentEntry(runId, {
-        phaseLine: capture.phaseLine,
-        cursorLine: capture.cursorLine,
-        thinkingLine: capture.thinkingLine,
-        toolLine: capture.toolLine,
-        toolLog: capture.toolLog,
-        streamText: capture.streamText,
-        statusText: capture.statusText,
-        resultText: capture.resultText,
-        durationMs: capture.durationMs,
-        runtimeLabel: capture.runtimeLabel,
-        error: capture.error,
-      });
-    }, 450);
-  };
-
   const writeSse = (obj) => {
     applyOpsSsePayloadToCapture(obj, capture);
-    flushPatchSoon();
     writeOpsAgentSseEvent(res, obj);
   };
 
@@ -561,38 +530,10 @@ export async function streamOpsCursorAgentSse(req, res, body) {
 
     writeSse({ type: "phase", message: "에이전트 실행 준비 중…" });
 
-    if (historyRunId) {
-      runId = historyRunId;
-      try {
-        const promoted = await promoteOpsAgentEntryToRunning(historyRunId);
-        if (!promoted) {
-          await prependRunningOpsEntry(historyRunId, instruction, requestIp);
-        }
-        registerOpsStreamUserCancel(historyRunId, userCancelAc);
-        writeSse({ type: "meta", requestId: historyRunId });
-        logOpsAgentExecutionStarted("SSE", historyRunId, instruction, requestIp);
-      } catch {
-        try {
-          await prependRunningOpsEntry(historyRunId, instruction, requestIp);
-          registerOpsStreamUserCancel(historyRunId, userCancelAc);
-          writeSse({ type: "meta", requestId: historyRunId });
-          logOpsAgentExecutionStarted("SSE", historyRunId, instruction, requestIp);
-        } catch {
-          /* 디스크 오류 등 — 스트림은 계속 */
-        }
-      }
-    } else {
-      const id = randomUUID();
-      try {
-        await prependRunningOpsEntry(id, instruction, requestIp);
-        runId = id;
-        registerOpsStreamUserCancel(id, userCancelAc);
-        writeSse({ type: "meta", requestId: id });
-        logOpsAgentExecutionStarted("SSE", id, instruction, requestIp);
-      } catch {
-        /* 디스크 오류 등 — 스트림은 계속 */
-      }
-    }
+    runId = historyRunId || randomUUID();
+    registerOpsStreamUserCancel(runId, userCancelAc);
+    writeSse({ type: "meta", requestId: runId });
+    logOpsAgentExecutionStarted("SSE", runId, instruction, requestIp);
 
     ensureCursorRipgrepPath();
 
@@ -694,9 +635,8 @@ export async function streamOpsCursorAgentSse(req, res, body) {
       clearOpsAgentPending(requestIp);
     }
 
-    if (patchTimer) {
-      clearTimeout(patchTimer);
-      patchTimer = null;
+    if (runId) {
+      unregisterOpsStreamUserCancel(runId);
     }
 
     let state = /** @type {"ok" | "error" | "cancelled"} */ ("ok");
@@ -711,30 +651,6 @@ export async function streamOpsCursorAgentSse(req, res, body) {
         : state === "error"
           ? (capture.error ?? "알 수 없는 오류")
           : null;
-
-    if (runId) {
-      try {
-        await finalizeOpsAgentEntry(runId, {
-          state,
-          instruction: capture.instruction,
-          requestIp,
-          phaseLine: capture.phaseLine,
-          cursorLine: capture.cursorLine,
-          thinkingLine: capture.thinkingLine,
-          toolLine: capture.toolLine,
-          toolLog: capture.toolLog,
-          streamText: capture.streamText,
-          statusText: capture.statusText,
-          resultText: capture.resultText,
-          durationMs: capture.durationMs,
-          runtimeLabel: capture.runtimeLabel,
-          error: errorStored,
-        });
-      } catch {
-        /* disk full 등 */
-      }
-      unregisterOpsStreamUserCancel(runId);
-    }
 
     if (
       capture.instruction ||
@@ -802,16 +718,6 @@ export async function runOpsCursorAgent(input) {
   const pol = checkOpsInstructionPolicy(instruction);
   if (!pol.ok) {
     const rid = randomUUID();
-    try {
-      await prependPolicyRejectedOpsEntry({
-        id: rid,
-        requestIp: reqIpNorm,
-        policyCode: pol.code,
-        userMessage: pol.messageKo,
-      });
-    } catch {
-      /* ignore */
-    }
     appendServerEventLog(
       "ops-agent",
       `instruction policy reject (API run) code=${pol.code} id=${rid}`,

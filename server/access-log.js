@@ -92,8 +92,7 @@ function shouldSkipAccessLog(req) {
   if (path === "/api/server-open-request") return true;
   if (path === "/api/config") return true;
   if (path === "/api/access/status") return true;
-  /** 운영 탭 이력·대기열 폴링 — 로그만 과다 */
-  if (path === "/api/ops/cursor-agent-history") return true;
+  /** 운영 탭 대기열 폴링 — 로그만 과다 */
   if (path === "/api/ops/cursor-agent-queue") return true;
   if (path === "/api/ops/dev-queue-display") return true;
   if (path === "/api/ops/record-mode") return true;
@@ -161,13 +160,6 @@ function humanAction(req) {
   if (method === "PUT" && path === "/api/ops/record-mode") return "운영 기록 모드 큐 저장";
   if (method === "GET" && path === "/api/ops/file-dev-queue") return "운영 파일 반영 큐 조회";
   if (method === "PUT" && path === "/api/ops/file-dev-queue") return "운영 파일 반영 큐 저장";
-  if (
-    method === "POST" &&
-    path.startsWith("/api/ops/cursor-agent-history/") &&
-    path.endsWith("/workspace-applied")
-  ) {
-    return "에이전트 실행 이력 작업 반영 표시";
-  }
   if (method === "POST" && path === "/api/ops/dev-queue/ide/release")
     return "IDE 개발 큐 해제";
   if (method === "POST" && path === "/api/ops/dev-queue/ide/release-active")

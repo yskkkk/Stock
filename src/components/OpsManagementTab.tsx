@@ -11,13 +11,8 @@ import {
 import { createPortal } from "react-dom";
 import {
   clearStockOpsInstructionDraft,
-  deleteOpsAgentHistory,
-  deleteOpsAgentHistoryEntry,
-  fetchOpsAgentHistory,
   fetchOpsCursorAgentPending,
   fetchOpsCursorAgentStream,
-  postOpsAgentHistoryWorkspaceApplied,
-  type OpsAgentHistoryEntry,
   type OpsAgentQueueEntry,
   type OpsCursorAgentPendingResponse,
 } from "../api";
@@ -25,14 +20,10 @@ import { useMobileBackHandler } from "../hooks/useMobileBackHandler";
 import { useIsMobilePhone } from "../hooks/useIsMobilePhone";
 import { useOpsDevQueueDisplay } from "../hooks/useOpsDevQueueDisplay";
 import { MOBILE_BACK_PRIORITY } from "../lib/mobileBackStack";
-import { parseOpsDevQueueAgentEntries, filterActiveOpsQueueEntries, isActiveOpsHistoryRun } from "../lib/opsGlobalQueueRows";
+import { parseOpsDevQueueAgentEntries } from "../lib/opsGlobalQueueRows";
 import { ko } from "../i18n/ko";
-import {
-  formatOpsToolLineDisplay,
-  formatOpsToolLogBlock,
-} from "../lib/opsToolLogKo";
 
-const HISTORY_POLL_MS = 2000;
+const PENDING_POLL_MS = 2000;
 
 function formatHistoryTs(ms: number): string {
   try {
@@ -45,15 +36,6 @@ function formatHistoryTs(ms: number): string {
   }
 }
 
-function historyStateLabel(s: OpsAgentHistoryEntry["state"]): string {
-  if (s === "waiting") return ko.app.opsHistoryStatusWaiting;
-  if (s === "running") return ko.app.opsHistoryStatusRunning;
-  if (s === "error") return ko.app.opsHistoryStatusError;
-  if (s === "cancelled") return ko.app.opsHistoryStatusCancelled;
-  if (s === "rejected") return ko.app.opsHistoryStatusRejected;
-  return ko.app.opsHistoryStatusOk;
-}
-
 function opsQueueSourceLabel(
   source: OpsAgentQueueEntry["source"] | undefined,
   requestIp: string,
@@ -63,27 +45,6 @@ function opsQueueSourceLabel(
   if (source === "web") return ko.app.opsGlobalQueueSourceWeb;
   if (requestIp.trim() === "cursor-ide") return ko.app.opsGlobalQueueSourceIde;
   return ko.app.opsGlobalQueueSourceWeb;
-}
-
-/** 큐·기록 행 id 비교용(공백·타입 불일치로 서버 행이 중복 삽입되는 것 방지) */
-function normalizeOpQueueId(id: unknown): string {
-  return String(id ?? "").trim();
-}
-
-function opsHistorySnapshotKey(entries: OpsAgentHistoryEntry[]): string {
-  return entries
-    .map(
-      (e) =>
-        `${e.id}:${e.state ?? ""}:${e.updatedAtMs ?? ""}:${e.finishedAtMs ?? ""}:${e.workspaceAppliedAtMs ?? ""}`,
-    )
-    .join("|");
-}
-
-function streamHeadlineFromInstruction(text: string, maxChars: number): string {
-  const line = text.split(/\r?\n/).find((l) => l.trim().length > 0) ?? "";
-  const t = line.trim();
-  if (!t) return "";
-  return t.length > maxChars ? `${t.slice(0, maxChars - 1)}…` : t;
 }
 
 function OpsQueueUnifiedSeqBadge({ seq }: { seq?: number | null }) {
@@ -101,7 +62,7 @@ export type OpsInstructionEditorHandle = {
   clear: () => void;
 };
 
-/** 요청 입력·제출 — 상위 OpsManagementTab(이력·큐)과 분리해 타이핑 시 전체 리렌더 방지 */
+/** 요청 입력·제출 — 상위 OpsManagementTab(큐)과 분리해 타이핑 시 전체 리렌더 방지 */
 const OpsInstructionEditor = memo(
   forwardRef<
     OpsInstructionEditorHandle,
@@ -212,102 +173,18 @@ const OpsInstructionEditor = memo(
   }),
 );
 
-function OpsManagementLiveStreamContent({
-  streamHeadlineInstruction,
-  phaseLine,
-  cursorLine,
-  toolLine,
-  toolLog,
-  thinkingLine,
-  streamText,
-  suppressHeadline = false,
-}: {
-  streamHeadlineInstruction: string;
-  phaseLine: string;
-  cursorLine: string;
-  toolLine: string;
-  /** 누적 도구·파일 요청 로그(이력용) */
-  toolLog?: string;
-  thinkingLine: string;
-  streamText: string;
-  /** 카드 바깥에 제목을 이미 렌더한 경우(저장 진행 로그 등) */
-  suppressHeadline?: boolean;
-}) {
-  const head = streamHeadlineFromInstruction(streamHeadlineInstruction, 72);
-  const titleText = head ? `${head} · ${ko.app.opsStreamTitle}` : ko.app.opsStreamTitle;
-  const toolLineDisplay = toolLine ? formatOpsToolLineDisplay(toolLine) : "";
-  const toolLogDisplay = toolLog?.trim() ? formatOpsToolLogBlock(toolLog) : "";
-
-  return (
-    <>
-      {!suppressHeadline ? <p className="ops-management__stream-title">{titleText}</p> : null}
-      {phaseLine ? (
-        <p className="ops-management__stream-row">
-          <span className="ops-management__stream-k">{ko.app.opsStreamPhase}</span>
-          <span className="ops-management__stream-v">{phaseLine}</span>
-        </p>
-      ) : null}
-      {cursorLine ? (
-        <p className="ops-management__stream-row">
-          <span className="ops-management__stream-k">{ko.app.opsStreamCursorStatus}</span>
-          <span className="ops-management__stream-v ops-management__stream-v--mono">
-            {cursorLine}
-          </span>
-        </p>
-      ) : null}
-      {toolLineDisplay ? (
-        <p className="ops-management__stream-row">
-          <span className="ops-management__stream-k">{ko.app.opsStreamTool}</span>
-          <span className="ops-management__stream-v ops-management__stream-v--mono">
-            {toolLineDisplay}
-          </span>
-        </p>
-      ) : null}
-      {toolLogDisplay ? (
-        <>
-          <p className="ops-management__stream-title ops-management__stream-title--sub">
-            {ko.app.opsHistoryToolLogTitle}
-          </p>
-          <pre className="ops-management__stream-pre ops-management__stream-pre--toollog">
-            {toolLogDisplay}
-          </pre>
-        </>
-      ) : null}
-      {thinkingLine ? (
-        <p className="ops-management__stream-row ops-management__stream-row--thinking">
-          <span className="ops-management__stream-k">{ko.app.opsStreamThinking}</span>
-          <span className="ops-management__stream-v">{thinkingLine}</span>
-        </p>
-      ) : null}
-      {streamText ? (
-        <pre className="ops-management__stream-pre">{streamText}</pre>
-      ) : null}
-    </>
-  );
-}
-
 function OpsAgentQueueProgressModal({
   runId,
   queueEntries,
-  historyRuns,
-  available,
   onClose,
-  onRetryInstruction,
 }: {
   runId: string;
   queueEntries: OpsAgentQueueEntry[];
-  historyRuns: OpsAgentHistoryEntry[];
-  available: boolean;
   onClose: () => void;
-  onRetryInstruction: (instruction: string) => void;
 }) {
   const queueRow = useMemo(
     () => queueEntries.find((q) => q.id === runId) ?? null,
     [queueEntries, runId],
-  );
-  const hist = useMemo(
-    () => historyRuns.find((r) => r.id === runId) ?? null,
-    [historyRuns, runId],
   );
 
   useEffect(() => {
@@ -324,46 +201,20 @@ function OpsAgentQueueProgressModal({
   }, [onClose]);
 
   const headlineInstruction =
-    hist?.instruction?.trim().length
-      ? hist.instruction
-      : queueRow?.instructionBody?.trim().length
-        ? queueRow.instructionBody
-        : queueRow?.instructionTooltip?.trim().length
-          ? queueRow.instructionTooltip
-          : queueRow?.instructionPreview ?? "";
+    queueRow?.instructionBody?.trim().length
+      ? queueRow.instructionBody
+      : queueRow?.instructionTooltip?.trim().length
+        ? queueRow.instructionTooltip
+        : queueRow?.instructionPreview ?? "";
 
   const statusLabel =
-    hist != null
-      ? historyStateLabel(hist.state ?? "ok")
-      : queueRow?.status === "waiting"
-        ? ko.app.opsAgentQueueWaiting
-        : queueRow?.status === "running"
-          ? ko.app.opsHistoryStatusRunning
-          : ko.app.opsHistoryStatusOk;
+    queueRow?.status === "waiting"
+      ? ko.app.opsAgentQueueWaiting
+      : queueRow?.status === "running"
+        ? ko.app.opsHistoryStatusRunning
+        : ko.app.opsHistoryStatusOk;
 
-  const tsMs =
-    hist != null
-      ? (hist.state === "running" || hist.state === "waiting"
-          ? hist.updatedAtMs ?? hist.startedAtMs ?? Date.now()
-          : hist.finishedAtMs ?? hist.updatedAtMs ?? hist.startedAtMs ?? Date.now())
-      : queueRow?.enqueuedAtMs ?? Date.now();
-
-  const hasStreamFields = Boolean(
-    hist &&
-      (hist.phaseLine ||
-        hist.cursorLine ||
-        hist.thinkingLine ||
-        hist.toolLine ||
-        hist.streamText ||
-        (hist.toolLog?.trim() ?? "")),
-  );
-
-  const histState = hist?.state;
-  const showResult =
-    hist != null &&
-    histState !== "running" &&
-    histState !== "waiting" &&
-    hist.resultText != null;
+  const tsMs = queueRow?.enqueuedAtMs ?? Date.now();
 
   if (typeof document === "undefined") return null;
 
@@ -415,13 +266,13 @@ function OpsAgentQueueProgressModal({
           </button>
         </header>
         <div className="news-modal-body ops-queue-progress-modal__body">
-          {hist == null && queueRow == null ? (
+          {queueRow == null ? (
             <p className="ops-queue-progress-stale" role="status">
               {ko.app.opsQueueProgressStale}
             </p>
           ) : null}
 
-          {!hist && queueRow?.status === "waiting" ? (
+          {queueRow?.status === "waiting" ? (
             <p className="ops-queue-progress-notice" role="status">
               {ko.app.opsQueueProgressWaitingNotice}
             </p>
@@ -432,93 +283,6 @@ function OpsAgentQueueProgressModal({
               <p className="ops-management__history-instruction-label">{ko.app.opsInstructionLabel}</p>
               <pre className="ops-management__history-instruction">{headlineInstruction}</pre>
             </>
-          ) : null}
-
-          {hasStreamFields && hist ? (
-            <div className="ops-management__stream ops-management__stream--archive card">
-              <p className="ops-management__stream-title">{ko.app.opsHistoryStreamArchived}</p>
-              <OpsManagementLiveStreamContent
-                suppressHeadline
-                streamHeadlineInstruction={hist.instruction}
-                phaseLine={hist.phaseLine ?? ""}
-                cursorLine={hist.cursorLine ?? ""}
-                toolLine={hist.toolLine ?? ""}
-                toolLog={hist.toolLog ?? ""}
-                thinkingLine={hist.thinkingLine ?? ""}
-                streamText={hist.streamText ?? ""}
-              />
-            </div>
-          ) : null}
-
-          {hist &&
-          (hist.state === "running" || hist.state === "waiting") &&
-          !hasStreamFields ? (
-            <p className="ops-queue-progress-notice" role="status">
-              {ko.app.opsQueueProgressLogPending}
-            </p>
-          ) : null}
-
-          {hist?.error ? (
-            <div className="ops-management__history-error-wrap">
-              <div className="alert alert--error ops-management__history-error" role="alert">
-                {hist.error}
-              </div>
-              {hist.state !== "rejected" && headlineInstruction.trim() ? (
-                <button
-                  type="button"
-                  className="btn btn--secondary ops-management__history-retry"
-                  disabled={!available || Boolean(hist?.workspaceAppliedAtMs)}
-                  aria-label={ko.app.opsHistoryRetryFromErrorAria}
-                  title={
-                    hist?.workspaceAppliedAtMs
-                      ? ko.app.opsHistoryRetryBlockedApplied
-                      : undefined
-                  }
-                  onClick={() => {
-                    if (hist?.workspaceAppliedAtMs) {
-                      window.alert(ko.app.opsHistoryRetryBlockedApplied);
-                      return;
-                    }
-                    onRetryInstruction(headlineInstruction);
-                  }}
-                >
-                  {ko.app.opsHistoryRetryFromError}
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-
-          {showResult ? (
-            <div className="ops-management__history-result card">
-              {hist.statusText ? (
-                <p className="ops-management__meta">
-                  <span className="ops-management__meta-k">{ko.app.opsStatusLabel}</span>
-                  <span className="ops-management__meta-v">{hist.statusText}</span>
-                  {hist.runtimeLabel ? (
-                    <>
-                      <span className="ops-management__meta-sep" aria-hidden>
-                        ·
-                      </span>
-                      <span className="ops-management__meta-k">{ko.app.opsRuntimeLabel}</span>
-                      <span className="ops-management__meta-v">{hist.runtimeLabel}</span>
-                    </>
-                  ) : null}
-                  {hist.durationMs != null ? (
-                    <>
-                      <span className="ops-management__meta-sep" aria-hidden>
-                        ·
-                      </span>
-                      <span className="ops-management__meta-k">{ko.app.opsDurationLabel}</span>
-                      <span className="ops-management__meta-v">
-                        {(hist.durationMs / 1000).toFixed(1)}s
-                      </span>
-                    </>
-                  ) : null}
-                </p>
-              ) : null}
-              <p className="ops-management__result-label">{ko.app.opsResultLabel}</p>
-              <pre className="ops-management__result">{hist.resultText}</pre>
-            </div>
           ) : null}
         </div>
       </div>
@@ -542,7 +306,6 @@ export default function OpsManagementTab({
   const [durationMs, setDurationMs] = useState<number | null>(null);
   const [runtimeLabel, setRuntimeLabel] = useState<string | null>(null);
 
-  const [historyRuns, setHistoryRuns] = useState<OpsAgentHistoryEntry[]>([]);
   const [serverQueue, setServerQueue] = useState<OpsAgentQueueEntry[]>([]);
   const [viewerIp, setViewerIp] = useState<string | null>(null);
   const [remotePending, setRemotePending] = useState<OpsCursorAgentPendingResponse | null>(
@@ -585,45 +348,12 @@ export default function OpsManagementTab({
     setViewerIp((prev) => (prev === ip ? prev : ip));
   }, [queueSnap]);
 
-  const activeServerQueue = useMemo(
-    () => filterActiveOpsQueueEntries(serverQueue, historyRuns),
-    [serverQueue, historyRuns],
-  );
-
-  const serverQueueSeqById = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const q of activeServerQueue) {
-      if (typeof q.unifiedQueueSeq === "number" && Number.isFinite(q.unifiedQueueSeq)) {
-        m.set(normalizeOpQueueId(q.id), q.unifiedQueueSeq);
-      }
-    }
-    return m;
-  }, [activeServerQueue]);
+  const activeServerQueue = serverQueue;
 
   const myQueueJobs = useMemo(() => {
     const ip = viewerIp?.trim() || null;
-    const serverMine = ip ? activeServerQueue.filter((q) => q.requestIp === ip) : [];
-    return serverMine;
+    return ip ? activeServerQueue.filter((q) => q.requestIp === ip) : [];
   }, [activeServerQueue, viewerIp]);
-
-  const myIpRunningHistory = useMemo(() => {
-    if (!viewerIp) return [];
-    return historyRuns.filter(
-      (r) =>
-        isActiveOpsHistoryRun(r) && (r.requestIp ?? "").trim() === viewerIp,
-    );
-  }, [historyRuns, viewerIp]);
-
-  /** 큐에 이미 같은 id의 "실행 중" 카드가 있으면 이력 쪽 카드는 렌더하지 않음(동일 진행 줄 이중 노출 방지). */
-  const myIpQueueRunningIds = useMemo(
-    () => new Set(myQueueJobs.filter((q) => q.status === "running").map((q) => q.id)),
-    [myQueueJobs],
-  );
-
-  const myIpRunningHistoryDeduped = useMemo(
-    () => myIpRunningHistory.filter((r) => !myIpQueueRunningIds.has(r.id)),
-    [myIpRunningHistory, myIpQueueRunningIds],
-  );
 
   const remotePendingInstruction = String(remotePending?.instruction ?? "").trim();
 
@@ -632,9 +362,7 @@ export default function OpsManagementTab({
     Boolean(remotePendingInstruction) && !myQueueJobs.some((q) => q.status === "running");
 
   const hasMyIpServerActivity =
-    Boolean(remotePendingInstruction) ||
-    myQueueJobs.length > 0 ||
-    myIpRunningHistory.length > 0;
+    Boolean(remotePendingInstruction) || myQueueJobs.length > 0;
 
   /** 예전 초안 저장 키를 비워 둠 (새로고침·재방문 후에도 텍스트는 복원하지 않음) */
   useEffect(() => {
@@ -643,28 +371,12 @@ export default function OpsManagementTab({
 
   useEffect(() => {
     if (!available) {
-      setHistoryRuns([]);
       setServerQueue([]);
       setViewerIp(null);
       setRemotePending(null);
       return;
     }
     let cancelled = false;
-
-    const pullHistory = () => {
-      if (editorEditingRef.current) return;
-      void fetchOpsAgentHistory()
-        .then((r) => {
-          if (cancelled || editorEditingRef.current) return;
-          const entries = Array.isArray(r.entries) ? r.entries : [];
-          setHistoryRuns((prev) =>
-            opsHistorySnapshotKey(prev) === opsHistorySnapshotKey(entries) ? prev : entries,
-          );
-        })
-        .catch(() => {
-          /* 다음 폴링에서 재시도 */
-        });
-    };
 
     const pullPending = () => {
       if (editorEditingRef.current) return;
@@ -682,23 +394,17 @@ export default function OpsManagementTab({
         });
     };
 
-    const refreshAll = () => {
-      pullHistory();
-      pullPending();
-    };
+    refreshAfterEditRef.current = pullPending;
 
-    refreshAfterEditRef.current = refreshAll;
+    pullPending();
 
-    refreshAll();
-
-    const histId = window.setInterval(pullHistory, HISTORY_POLL_MS);
-    const pendId = window.setInterval(pullPending, HISTORY_POLL_MS);
+    const pendId = window.setInterval(pullPending, PENDING_POLL_MS);
 
     const onVisibility = () => {
-      if (document.visibilityState === "visible") refreshAll();
+      if (document.visibilityState === "visible") pullPending();
     };
     const onPageShow = (ev: PageTransitionEvent) => {
-      if (ev.persisted) refreshAll();
+      if (ev.persisted) pullPending();
     };
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("pageshow", onPageShow);
@@ -706,7 +412,6 @@ export default function OpsManagementTab({
     return () => {
       cancelled = true;
       refreshAfterEditRef.current = null;
-      window.clearInterval(histId);
       window.clearInterval(pendId);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("pageshow", onPageShow);
@@ -770,68 +475,6 @@ export default function OpsManagementTab({
     });
   }, [available]);
 
-  const retryFromHistoryPanel = useCallback(
-    (ins: string) => {
-      const t = ins.trim();
-      if (!t) return;
-      instructionEditorRef.current?.setValue(t);
-      enqueueAgentInstructionOnServerOnly(t);
-    },
-    [enqueueAgentInstructionOnServerOnly],
-  );
-
-  const retryFromQueueModal = useCallback(
-    (ins: string) => {
-      const t = ins.trim();
-      if (!t) return;
-      instructionEditorRef.current?.setValue(t);
-      enqueueAgentInstructionOnServerOnly(t);
-      setProgressModalRunId(null);
-    },
-    [enqueueAgentInstructionOnServerOnly],
-  );
-
-  const clearHistory = useCallback(async () => {
-    if (typeof window !== "undefined" && !window.confirm(ko.app.opsHistoryClearConfirm)) {
-      return;
-    }
-    try {
-      await deleteOpsAgentHistory();
-      setHistoryRuns([]);
-    } catch {
-      /* 다음 폴링으로 동기화 */
-    }
-  }, []);
-
-  const deleteHistoryEntry = useCallback(async (run: OpsAgentHistoryEntry) => {
-    const msg =
-      run.state === "running" || run.state === "waiting"
-        ? ko.app.opsHistoryDeleteRunningConfirm
-        : ko.app.opsHistoryDeleteEntryConfirm;
-    if (typeof window !== "undefined" && !window.confirm(msg)) {
-      return;
-    }
-    try {
-      await deleteOpsAgentHistoryEntry(run.id);
-      setHistoryRuns((prev) => prev.filter((r) => r.id !== run.id));
-    } catch {
-      void fetchOpsAgentHistory()
-        .then((r) => setHistoryRuns(Array.isArray(r.entries) ? r.entries : []))
-        .catch(() => {
-          /* 폴링으로 보완 */
-        });
-    }
-  }, []);
-
-  const setWorkspaceApplied = useCallback(async (run: OpsAgentHistoryEntry, applied: boolean) => {
-    try {
-      const r = await postOpsAgentHistoryWorkspaceApplied(run.id, applied);
-      setHistoryRuns(Array.isArray(r.entries) ? r.entries : []);
-    } catch {
-      window.alert(ko.app.opsHistoryMarkAppliedError);
-    }
-  }, []);
-
   const handleEditorSubmit = useCallback(
     async (ins: string) => {
       const ok = await enqueueOrRunInstruction(ins);
@@ -850,7 +493,7 @@ export default function OpsManagementTab({
   const showMyIpJobsPanel = hasMyIpServerActivity || submitting;
 
   return (
-    <div className="ops-management ops-management--split">
+    <div className="ops-management">
       <div className="ops-management__main">
         {available ? (
           <>
@@ -938,50 +581,6 @@ export default function OpsManagementTab({
                       <span className="ops-management__my-ip-pending-badge">
                         {ko.app.opsRemotePendingBadge}
                       </span>
-                    </div>
-                  ) : null}
-
-                  {myIpRunningHistoryDeduped.length > 0 ? (
-                    <div className="ops-management__my-ip-running-block">
-                      <p className="ops-management__my-ip-subtitle">{ko.app.opsMyIpHistoryRunning}</p>
-                      <div
-                        className="ops-agent-queue-track"
-                        role="group"
-                        aria-label={ko.app.opsMyIpHistoryRunning}
-                      >
-                        {myIpRunningHistoryDeduped.map((run) => {
-                          const line =
-                            run.instruction.split(/\r?\n/).find(Boolean) ?? run.instruction;
-                          const prev =
-                            line.length > 200 ? `${line.slice(0, 197)}…` : line;
-                          return (
-                            <button
-                              key={run.id}
-                              type="button"
-                              className="ops-agent-queue-card ops-agent-queue-card--running"
-                              aria-label={`${ko.app.opsMyIpHistoryRunning}: ${prev.trim() || "—"}`}
-                              onClick={() => setProgressModalRunId(run.id)}
-                            >
-                              <div className="ops-agent-queue-card__top">
-                                <OpsQueueUnifiedSeqBadge
-                                  seq={serverQueueSeqById.get(normalizeOpQueueId(run.id)) ?? null}
-                                />
-                                <span className="ops-agent-queue-card__status">
-                                  {ko.app.opsHistoryStatusRunning}
-                                </span>
-                                <span className="ops-agent-queue-card__meta ops-management__stream-v--mono">
-                                  {formatHistoryTs(
-                                    run.updatedAtMs ?? run.startedAtMs ?? Date.now(),
-                                  )}
-                                </span>
-                              </div>
-                              <p className="ops-agent-queue-card__preview" title={line}>
-                                {prev.trim() ? prev : "—"}
-                              </p>
-                            </button>
-                          );
-                        })}
-                      </div>
                     </div>
                   ) : null}
 
@@ -1079,257 +678,11 @@ export default function OpsManagementTab({
 
       </div>
 
-      <aside className="ops-management__aside card" aria-label={ko.app.opsHistoryTitle}>
-        <div className="ops-management__history-bar">
-          <h4 className="ops-management__history-title">{ko.app.opsHistoryTitle}</h4>
-          {historyRuns.length > 0 ? (
-            <button
-              type="button"
-              className="btn btn--ghost btn--sm ops-management__history-clear"
-              onClick={() => void clearHistory()}
-            >
-              {ko.app.opsHistoryClearAll}
-            </button>
-          ) : null}
-        </div>
-        {historyRuns.length === 0 ? (
-          <p className="ops-management__history-empty">{ko.app.opsHistoryEmpty}</p>
-        ) : (
-          <ul className="ops-management__history-list">
-            {historyRuns.map((run) => {
-              const state = run.state ?? "ok";
-              const summaryLine =
-                run.instruction.split(/\r?\n/).find(Boolean) ?? run.instruction;
-              const header =
-                summaryLine.length > 120 ? `${summaryLine.slice(0, 117)}…` : summaryLine;
-              const showArchiveStream = Boolean(
-                run.phaseLine ||
-                  run.cursorLine ||
-                  run.thinkingLine ||
-                  run.toolLine ||
-                  run.streamText ||
-                  (run.toolLog?.trim() ?? ""),
-              );
-              const tsMs =
-                state === "running" || state === "waiting"
-                  ? (run.updatedAtMs ?? run.startedAtMs ?? Date.now())
-                  : (run.finishedAtMs ?? run.updatedAtMs ?? run.startedAtMs ?? Date.now());
-              const badgeClass =
-                state === "running"
-                  ? "ops-history__badge--pending"
-                  : state === "waiting"
-                    ? "ops-history__badge--waiting"
-                    : state === "ok"
-                      ? "ops-history__badge--ok"
-                      : state === "rejected"
-                        ? "ops-history__badge--rejected"
-                        : "ops-history__badge--err";
-
-              return (
-                <li key={run.id} className="ops-management__history-item">
-                  <details className="ops-management__history-details">
-                    <summary className="ops-management__history-summary">
-                      <span className={`ops-history__badge ${badgeClass}`}>
-                        {historyStateLabel(state)}
-                      </span>
-                      <span className="ops-management__history-when">{formatHistoryTs(tsMs)}</span>
-                      {run.requestIp ? (
-                        <span
-                          className="ops-management__history-ip-inline ops-management__stream-v--mono"
-                          title={ko.app.opsHistoryRequestIp}
-                        >
-                          {run.requestIp}
-                        </span>
-                      ) : null}
-                      {run.workspaceAppliedAtMs ? (
-                        <span
-                          className="ops-history__badge ops-history__badge--applied"
-                          title={formatHistoryTs(run.workspaceAppliedAtMs)}
-                        >
-                          {ko.app.opsHistoryWorkspaceAppliedBadge}
-                        </span>
-                      ) : null}
-                      <span className="ops-management__history-snippet">{header}</span>
-                      <button
-                        type="button"
-                        className="btn btn--ghost btn--sm ops-management__history-delete"
-                        aria-label={ko.app.opsHistoryDeleteEntryAria}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                        }}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          void deleteHistoryEntry(run);
-                        }}
-                      >
-                        {ko.app.opsHistoryDeleteEntry}
-                      </button>
-                    </summary>
-
-                    {state === "running" || state === "waiting" ? null : (
-                      <>
-                        <p className="ops-management__history-instruction-label">
-                          {ko.app.opsHistoryInstructionReplay}
-                        </p>
-                        <pre className="ops-management__history-instruction">{run.instruction}</pre>
-                      </>
-                    )}
-
-                    {state !== "running" && state !== "waiting" ? (
-                      <div className="ops-management__history-applied-row">
-                        <button
-                          type="button"
-                          className="btn btn--ghost btn--sm"
-                          disabled={!available}
-                          onClick={() => void setWorkspaceApplied(run, !run.workspaceAppliedAtMs)}
-                        >
-                          {run.workspaceAppliedAtMs
-                            ? ko.app.opsHistoryUnmarkWorkspaceApplied
-                            : ko.app.opsHistoryMarkWorkspaceApplied}
-                        </button>
-                      </div>
-                    ) : null}
-
-                    {showArchiveStream ? (
-                      <div className="ops-management__stream ops-management__stream--archive card">
-                        <p className="ops-management__stream-title">
-                          {ko.app.opsHistoryStreamArchived}
-                        </p>
-                        {run.phaseLine ? (
-                          <p className="ops-management__stream-row">
-                            <span className="ops-management__stream-k">{ko.app.opsStreamPhase}</span>
-                            <span className="ops-management__stream-v">{run.phaseLine}</span>
-                          </p>
-                        ) : null}
-                        {run.cursorLine ? (
-                          <p className="ops-management__stream-row">
-                            <span className="ops-management__stream-k">
-                              {ko.app.opsStreamCursorStatus}
-                            </span>
-                            <span className="ops-management__stream-v ops-management__stream-v--mono">
-                              {run.cursorLine}
-                            </span>
-                          </p>
-                        ) : null}
-                        {run.toolLine ? (
-                          <p className="ops-management__stream-row">
-                            <span className="ops-management__stream-k">{ko.app.opsStreamTool}</span>
-                            <span className="ops-management__stream-v ops-management__stream-v--mono">
-                              {formatOpsToolLineDisplay(run.toolLine)}
-                            </span>
-                          </p>
-                        ) : null}
-                        {run.thinkingLine ? (
-                          <p className="ops-management__stream-row ops-management__stream-row--thinking">
-                            <span className="ops-management__stream-k">
-                              {ko.app.opsStreamThinking}
-                            </span>
-                            <span className="ops-management__stream-v">{run.thinkingLine}</span>
-                          </p>
-                        ) : null}
-                        {run.streamText ? (
-                          <pre className="ops-management__stream-pre">{run.streamText}</pre>
-                        ) : null}
-                        {run.toolLog?.trim() ? (
-                          <>
-                            <p className="ops-management__stream-title ops-management__stream-title--sub">
-                              {ko.app.opsHistoryToolLogTitle}
-                            </p>
-                            <pre className="ops-management__stream-pre ops-management__stream-pre--toollog">
-                              {formatOpsToolLogBlock(run.toolLog)}
-                            </pre>
-                          </>
-                        ) : null}
-                      </div>
-                    ) : null}
-
-                    {run.error ? (
-                      <div className="ops-management__history-error-wrap">
-                        <div className="alert alert--error ops-management__history-error" role="alert">
-                          {run.error}
-                        </div>
-                        {state !== "running" &&
-                        state !== "waiting" &&
-                        state !== "rejected" &&
-                        run.instruction.trim().length > 0 ? (
-                          <button
-                            type="button"
-                            className="btn btn--secondary ops-management__history-retry"
-                            disabled={!available || Boolean(run.workspaceAppliedAtMs)}
-                            aria-label={ko.app.opsHistoryRetryFromErrorAria}
-                            title={
-                              run.workspaceAppliedAtMs
-                                ? ko.app.opsHistoryRetryBlockedApplied
-                                : undefined
-                            }
-                            onClick={() => {
-                              if (run.workspaceAppliedAtMs) {
-                                window.alert(ko.app.opsHistoryRetryBlockedApplied);
-                                return;
-                              }
-                              retryFromHistoryPanel(run.instruction);
-                            }}
-                          >
-                            {ko.app.opsHistoryRetryFromError}
-                          </button>
-                        ) : null}
-                      </div>
-                    ) : null}
-                    {run.resultText != null &&
-                    state !== "running" &&
-                    state !== "waiting" ? (
-                      <div className="ops-management__history-result card">
-                        {run.statusText ? (
-                          <p className="ops-management__meta">
-                            <span className="ops-management__meta-k">{ko.app.opsStatusLabel}</span>
-                            <span className="ops-management__meta-v">{run.statusText}</span>
-                            {run.runtimeLabel ? (
-                              <>
-                                <span className="ops-management__meta-sep" aria-hidden>
-                                  ·
-                                </span>
-                                <span className="ops-management__meta-k">
-                                  {ko.app.opsRuntimeLabel}
-                                </span>
-                                <span className="ops-management__meta-v">{run.runtimeLabel}</span>
-                              </>
-                            ) : null}
-                            {run.durationMs != null ? (
-                              <>
-                                <span className="ops-management__meta-sep" aria-hidden>
-                                  ·
-                                </span>
-                                <span className="ops-management__meta-k">
-                                  {ko.app.opsDurationLabel}
-                                </span>
-                                <span className="ops-management__meta-v">
-                                  {(run.durationMs / 1000).toFixed(1)}s
-                                </span>
-                              </>
-                            ) : null}
-                          </p>
-                        ) : null}
-                        <p className="ops-management__result-label">{ko.app.opsResultLabel}</p>
-                        <pre className="ops-management__result">{run.resultText}</pre>
-                      </div>
-                    ) : null}
-                  </details>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </aside>
-
       {progressModalRunId ? (
         <OpsAgentQueueProgressModal
           runId={progressModalRunId}
           queueEntries={activeServerQueue}
-          historyRuns={historyRuns}
-          available={available}
           onClose={() => setProgressModalRunId(null)}
-          onRetryInstruction={retryFromQueueModal}
         />
       ) : null}
     </div>
