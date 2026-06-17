@@ -217,6 +217,28 @@ export async function fetchQuoteSnapshotsForSymbols(symbols, opts = {}) {
 }
 
 /**
+ * @param {object | null | undefined} row
+ * @returns {object | null}
+ */
+function snapshotRowToQuote(row) {
+  if (!row || row.price == null || !Number.isFinite(row.price)) return null;
+  const src =
+    typeof row.priceSource === "string" && row.priceSource
+      ? row.priceSource
+      : typeof row.interval === "string" && row.interval
+        ? row.interval
+        : "1m";
+  return {
+    price: row.price,
+    changePercent: row.changePercent,
+    currency: row.currency,
+    quotedAtMs: row.quotedAtMs,
+    interval: src,
+    priceSource: src,
+  };
+}
+
+/**
  * 스크리너 전체 재스캔 중에는 청크마다 이미 시세가 들어가므로 추가 Yahoo 호출을 생략한다.
  *
  * @param {{ running?: boolean; kr?: unknown[]; us?: unknown[] }} state
@@ -228,23 +250,25 @@ export async function mergeLiveQuotesIntoPicksState(state) {
   const usIn = Array.isArray(state.us) ? state.us : [];
   const cryptoIn = Array.isArray(state.crypto) ? state.crypto : [];
 
-  const [kr, us, crypto] = await Promise.all([
-    Promise.all(
-      krIn.map(async (p) =>
-        mergeQuoteIntoPick(p, await quoteSnapshotCached(p?.symbol)),
-      ),
-    ),
-    Promise.all(
-      usIn.map(async (p) =>
-        mergeQuoteIntoPick(p, await quoteSnapshotCached(p?.symbol)),
-      ),
-    ),
-    Promise.all(
-      cryptoIn.map(async (p) =>
-        mergeQuoteIntoPick(p, await quoteSnapshotCached(p?.symbol)),
-      ),
-    ),
-  ]);
+  const symbols = [
+    ...krIn.map((p) => String(p?.symbol ?? "").trim()).filter(Boolean),
+    ...usIn.map((p) => String(p?.symbol ?? "").trim()).filter(Boolean),
+    ...cryptoIn.map((p) => String(p?.symbol ?? "").trim()).filter(Boolean),
+  ];
+  const quotes = await fetchQuoteSnapshotsForSymbols(symbols);
 
-  return { ...state, kr, us, crypto };
+  const pickQuote = (/** @type {unknown} */ pick) => {
+    const sym = String(pick?.symbol ?? "")
+      .trim()
+      .toUpperCase();
+    if (!sym) return null;
+    return snapshotRowToQuote(quotes[sym]) ?? snapshotRowToQuote(quotes[sym.replace(/\.(KS|KQ)$/i, "")]);
+  };
+
+  return {
+    ...state,
+    kr: krIn.map((p) => mergeQuoteIntoPick(p, pickQuote(p))),
+    us: usIn.map((p) => mergeQuoteIntoPick(p, pickQuote(p))),
+    crypto: cryptoIn.map((p) => mergeQuoteIntoPick(p, pickQuote(p))),
+  };
 }

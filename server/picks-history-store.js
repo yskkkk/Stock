@@ -81,13 +81,26 @@ function ensureDirSync() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
+/** @type {{ mtimeMs: number; data: { version: number; days: DailyPicksRow[] } } | null} */
+let historyStoreCache = null;
+
 /** @returns {{ version: number; days: DailyPicksRow[] }} */
 export function readHistorySync() {
   try {
-    if (!fs.existsSync(HISTORY_FILE)) return { version: 1, days: [] };
+    if (!fs.existsSync(HISTORY_FILE)) {
+      historyStoreCache = null;
+      return { version: 1, days: [] };
+    }
+    const stat = fs.statSync(HISTORY_FILE);
+    if (historyStoreCache && historyStoreCache.mtimeMs === stat.mtimeMs) {
+      return historyStoreCache.data;
+    }
     const raw = fs.readFileSync(HISTORY_FILE, "utf8");
     const o = JSON.parse(raw);
-    if (!o || typeof o !== "object" || !Array.isArray(o.days)) return { version: 1, days: [] };
+    if (!o || typeof o !== "object" || !Array.isArray(o.days)) {
+      historyStoreCache = null;
+      return { version: 1, days: [] };
+    }
     const days = o.days
       .map((row) => {
         if (!row || typeof row !== "object") return null;
@@ -107,8 +120,11 @@ export function readHistorySync() {
         return daily;
       })
       .filter(Boolean);
-    return { version: 1, days };
+    const data = { version: 1, days };
+    historyStoreCache = { mtimeMs: stat.mtimeMs, data };
+    return data;
   } catch {
+    historyStoreCache = null;
     return { version: 1, days: [] };
   }
 }
@@ -194,6 +210,7 @@ function tightenDayRowAnchors(row) {
 export function writeHistorySync(data) {
   ensureDirSync();
   fs.writeFileSync(HISTORY_FILE, JSON.stringify(data, null, 0), "utf8");
+  historyStoreCache = null;
 }
 
 /**

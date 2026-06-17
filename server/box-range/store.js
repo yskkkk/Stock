@@ -201,6 +201,14 @@ export function readBoxRangeStoreSync() {
   }
 }
 
+/** Windows rename 재시도 — CPU busy-wait 대신 블로킹 sleep */
+function syncSleepMs(ms) {
+  if (ms <= 0) return;
+  const buf = new SharedArrayBuffer(4);
+  const arr = new Int32Array(buf);
+  Atomics.wait(arr, 0, 0, ms);
+}
+
 export function writeBoxRangeStoreSync(store) {
   const dir = resolveServerDataDir();
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -215,8 +223,7 @@ export function writeBoxRangeStoreSync(store) {
     } catch (e) {
       if (i === 4) { try { fs.unlinkSync(tmp); } catch {} throw e; }
       if (e.code !== "EPERM" && e.code !== "EBUSY") { try { fs.unlinkSync(tmp); } catch {} throw e; }
-      const deadline = Date.now() + 60;
-      while (Date.now() < deadline) {} // 60ms busy-wait
+      syncSleepMs(60);
     }
   }
   const mtime = fs.statSync(file).mtimeMs;

@@ -57,9 +57,16 @@ function readLiveRawSync() {
  * @param {{ updatedAtMs: number; agentEntries: Array<Record<string, unknown>> }} live
  */
 function writeLiveRawSync(live) {
+  const entries = live.agentEntries;
+  if (
+    memoryLive &&
+    JSON.stringify(memoryLive.agentEntries) === JSON.stringify(entries)
+  ) {
+    return memoryLive;
+  }
   const payload = {
     updatedAtMs: Date.now(),
-    agentEntries: live.agentEntries,
+    agentEntries: entries,
     recordItems: [],
   };
   const line = `${JSON.stringify(payload, null, 0)}\n`;

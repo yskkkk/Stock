@@ -19,18 +19,34 @@ function defaultStore() {
   return { users: [] };
 }
 
+/** @type {{ mtimeMs: number; data: ReturnType<typeof defaultStore> } | null} */
+let usersStoreCache = null;
+
 function readStoreSync() {
   try {
     const file = usersFilePath();
-    if (!fs.existsSync(file)) return defaultStore();
+    if (!fs.existsSync(file)) {
+      usersStoreCache = null;
+      return defaultStore();
+    }
+    const stat = fs.statSync(file);
+    if (usersStoreCache && usersStoreCache.mtimeMs === stat.mtimeMs) {
+      return usersStoreCache.data;
+    }
     const o = JSON.parse(fs.readFileSync(file, "utf8"));
-    if (!o || typeof o !== "object" || !Array.isArray(o.users)) return defaultStore();
-    return {
+    if (!o || typeof o !== "object" || !Array.isArray(o.users)) {
+      usersStoreCache = null;
+      return defaultStore();
+    }
+    const data = {
       users: o.users
         .map((u) => normalizeUser(u))
         .filter(Boolean),
     };
+    usersStoreCache = { mtimeMs: stat.mtimeMs, data };
+    return data;
   } catch {
+    usersStoreCache = null;
     return defaultStore();
   }
 }
@@ -38,6 +54,7 @@ function readStoreSync() {
 function writeStoreSync(store) {
   ensureDirSync();
   fs.writeFileSync(usersFilePath(), JSON.stringify(store, null, 0), "utf8");
+  usersStoreCache = null;
 }
 
 /** @param {unknown} raw */
@@ -181,6 +198,7 @@ export function migrateLegacyUsersEmailVerifiedSync() {
   if (updated > 0) {
     ensureDirSync();
     fs.writeFileSync(file, JSON.stringify(raw, null, 0), "utf8");
+    usersStoreCache = null;
   }
   return { updated };
 }

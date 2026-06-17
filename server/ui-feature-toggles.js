@@ -16,15 +16,28 @@ function ensureDataDir() {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
 
+/** @type {{ mtimeMs: number; data: { overrides: Record<string, { enabled: boolean; updatedAtMs: number }> } } | null} */
+let uiFeatureStoreCache = null;
+
 /** @returns {{ overrides: Record<string, { enabled: boolean; updatedAtMs: number }> }} */
 function readStore() {
   try {
-    if (!fs.existsSync(STORE_FILE)) return { overrides: {} };
+    if (!fs.existsSync(STORE_FILE)) {
+      uiFeatureStoreCache = null;
+      return { overrides: {} };
+    }
+    const stat = fs.statSync(STORE_FILE);
+    if (uiFeatureStoreCache && uiFeatureStoreCache.mtimeMs === stat.mtimeMs) {
+      return uiFeatureStoreCache.data;
+    }
     const o = JSON.parse(fs.readFileSync(STORE_FILE, "utf8"));
     const overrides =
       o?.overrides && typeof o.overrides === "object" ? o.overrides : {};
-    return { overrides };
+    const data = { overrides };
+    uiFeatureStoreCache = { mtimeMs: stat.mtimeMs, data };
+    return data;
   } catch {
+    uiFeatureStoreCache = null;
     return { overrides: {} };
   }
 }
@@ -44,6 +57,7 @@ function writeStore(store) {
     ),
     "utf8",
   );
+  uiFeatureStoreCache = null;
 }
 
 export function resolveUiFeatureEnabled(id) {
@@ -55,13 +69,18 @@ export function resolveUiFeatureEnabled(id) {
 }
 
 export function getUiFeaturesPublicSnapshot() {
+  const store = readStore();
   /** @type {Record<string, boolean>} */
   const features = {};
   for (const row of UI_FEATURE_CATALOG) {
-    features[row.id] = resolveUiFeatureEnabled(row.id);
+    const override = store.overrides[row.id];
+    features[row.id] =
+      override && typeof override.enabled === "boolean"
+        ? override.enabled
+        : row.defaultEnabled;
   }
   let updatedAtMs = 0;
-  for (const o of Object.values(readStore().overrides)) {
+  for (const o of Object.values(store.overrides)) {
     if (Number(o?.updatedAtMs) > updatedAtMs) updatedAtMs = Number(o.updatedAtMs);
   }
   return { features, updatedAtMs };

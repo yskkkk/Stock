@@ -20,10 +20,10 @@ import {
 } from "./ops-ide-lease-disk.js";
 import { markPollerBootStarted, pollerGuardSync } from "./poller-registry.js";
 
-/** UI 폴링과 맞춤(기본 100ms) — `STOCK_DEV_QUEUE_SYNC_MS` */
+/** UI 폴링과 맞춤 — 기본 250ms(과거 100ms). `STOCK_DEV_QUEUE_SYNC_MS` */
 export const DEV_QUEUE_DISPLAY_SYNC_MS = (() => {
-  const raw = Number(process.env.STOCK_DEV_QUEUE_SYNC_MS ?? 100);
-  return Number.isFinite(raw) && raw >= 50 ? Math.min(raw, 10_000) : 100;
+  const raw = Number(process.env.STOCK_DEV_QUEUE_SYNC_MS ?? 250);
+  return Number.isFinite(raw) && raw >= 50 ? Math.min(raw, 10_000) : 250;
 })();
 
 /** Vite server.restart() 시 모듈이 다시 로드되므로 globalThis 사용 */

@@ -22,7 +22,10 @@ import {
   writeIdeLeaseDiskImmediate,
 } from "./ops-ide-lease-disk.js";
 
-const POLL_MS = 100;
+const POLL_MS = (() => {
+  const n = Number(process.env.STOCK_IDE_TRANSCRIPT_POLL_MS ?? 300);
+  return Number.isFinite(n) && n >= 100 ? Math.min(n, 5000) : 300;
+})();
 /**
  * 마지막 assistant가 텍스트만·transcript 유휴 N ms 후 턴 종료(release).
  * `STOCK_IDE_TURN_END_IDLE_MS` (기본 4s, 최소 2s·최대 30s)

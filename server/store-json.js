@@ -30,6 +30,14 @@ export function ensureDataDirSync() {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
 
+/** @type {Map<string, { mtimeMs: number; data: unknown }>} */
+const readCache = new Map();
+
+/** @param {string} fileName */
+export function invalidateJsonStoreReadCache(fileName) {
+  readCache.delete(fileName);
+}
+
 /**
  * @param {string} fileName
  * @param {(raw: unknown) => T} normalize
@@ -40,9 +48,19 @@ export function ensureDataDirSync() {
 export function readJsonStoreSync(fileName, normalize, empty) {
   const file = dataFilePath(fileName);
   try {
-    if (!fs.existsSync(file)) return empty();
+    if (!fs.existsSync(file)) {
+      readCache.delete(fileName);
+      return empty();
+    }
+    const stat = fs.statSync(file);
+    const hit = readCache.get(fileName);
+    if (hit && hit.mtimeMs === stat.mtimeMs) {
+      return /** @type {T} */ (hit.data);
+    }
     const raw = JSON.parse(fs.readFileSync(file, "utf8"));
-    return normalize(raw);
+    const data = normalize(raw);
+    readCache.set(fileName, { mtimeMs: stat.mtimeMs, data });
+    return data;
   } catch (e) {
     if (fs.existsSync(file)) {
       const bak = `${file}.corrupt-${Date.now()}`;
@@ -68,4 +86,5 @@ export function writeJsonStoreSync(fileName, data, serialize) {
   const tmp = `${file}.tmp`;
   fs.writeFileSync(tmp, body, "utf8");
   fs.renameSync(tmp, file);
+  readCache.delete(fileName);
 }

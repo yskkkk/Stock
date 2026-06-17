@@ -1216,6 +1216,7 @@ export function createApp() {
         const snap = await buildLiveTradePortfolioSnapshot({
           programId: trade.programId,
           userId,
+          forceFreshQuotes: true,
         });
         res.json({ ok: true, trade, portfolio: snap });
       } catch (e) {
@@ -1249,6 +1250,7 @@ export function createApp() {
               ? String(pfFilter).trim()
               : null,
           userId,
+          forceFreshQuotes: true,
         });
         const programs = listLiveTradeProgramsForUserSync(userId);
         const nameById = new Map(programs.map((p) => [p.id, p.name]));
@@ -1293,6 +1295,7 @@ export function createApp() {
               ? String(pfFilter).trim()
               : null,
           userId,
+          forceFreshQuotes: true,
         });
         const programs = listLiveTradeProgramsForUserSync(userId);
         const nameById = new Map(programs.map((p) => [p.id, p.name]));
