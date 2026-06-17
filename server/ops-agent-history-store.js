@@ -587,9 +587,10 @@ export function prependWaitingOpsEntry(id, instruction, requestIp = "") {
       requestIp: rip,
       workspaceAppliedAtMs: null,
     };
-    const withoutDupes = prev.filter(
-      (e) => !isDropableIdeInstructionDuplicate(e, ins, useId),
-    );
+    const withoutDupes = prev.filter((e) => {
+      if (e.id === useId) return false;
+      return !isDropableIdeInstructionDuplicate(e, ins, useId);
+    });
     const next = [entry, ...withoutDupes].slice(0, OPS_AGENT_HISTORY_MAX);
     await writeHistoryListAsync(next);
   });
@@ -631,9 +632,10 @@ export function prependRunningOpsEntry(id, instruction, requestIp = "") {
       requestIp: rip,
       workspaceAppliedAtMs: null,
     };
-    const withoutDupes = prev.filter(
-      (e) => !isDropableIdeInstructionDuplicate(e, ins, useId),
-    );
+    const withoutDupes = prev.filter((e) => {
+      if (e.id === useId) return false;
+      return !isDropableIdeInstructionDuplicate(e, ins, useId);
+    });
     const next = [entry, ...withoutDupes].slice(0, OPS_AGENT_HISTORY_MAX);
     await writeHistoryListAsync(next);
   });
