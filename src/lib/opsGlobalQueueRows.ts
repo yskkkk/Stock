@@ -1,4 +1,4 @@
-import type { OpsAgentQueueEntry, OpsAgentQueueSource } from "../api";
+import type { OpsAgentHistoryEntry, OpsAgentQueueEntry, OpsAgentQueueSource } from "../api";
 import { ko } from "../i18n/ko";
 
 const QUEUE_TITLE_DISPLAY_MAX = 52;
@@ -90,6 +90,30 @@ export function parseOpsDevQueueAgentEntries(agentRaw: unknown[]): OpsAgentQueue
   return agentRaw
     .map(parseOpsDevQueueAgentEntry)
     .filter((x): x is OpsAgentQueueEntry => x != null);
+}
+
+function isTerminalOpsHistoryEntry(h: OpsAgentHistoryEntry): boolean {
+  if (h.finishedAtMs != null) return true;
+  const st = h.state;
+  return st != null && st !== "running" && st !== "waiting";
+}
+
+/** 이력에서 완료된 id는 큐 카드에서 제외 — 서버 필터 보조 */
+export function filterActiveOpsQueueEntries(
+  queue: OpsAgentQueueEntry[],
+  history: OpsAgentHistoryEntry[],
+): OpsAgentQueueEntry[] {
+  if (!queue.length || !history.length) return queue;
+  const terminalIds = new Set(
+    history.filter(isTerminalOpsHistoryEntry).map((h) => h.id.trim()).filter(Boolean),
+  );
+  if (!terminalIds.size) return queue;
+  return queue.filter((q) => !terminalIds.has(q.id.trim()));
+}
+
+export function isActiveOpsHistoryRun(h: OpsAgentHistoryEntry): boolean {
+  if (isTerminalOpsHistoryEntry(h)) return false;
+  return h.state === "running" || h.state === "waiting" || h.state == null;
 }
 
 export function buildOpsGlobalQueueRows(agentRaw: unknown[]): OpsGlobalQueueRow[] {

@@ -57,6 +57,57 @@ function isOpsAgentHistoryTerminal(row) {
   return st === "ok" || st === "error" || st === "cancelled" || st === "rejected";
 }
 
+/**
+ * 큐 미러·API — 이력에서 이미 끝난 항목은 실행/대기 목록에서 제외(잔상 running 방지).
+ * @param {Array<Record<string, unknown>>} entries
+ */
+export function filterOpsQueueEntriesNotInTerminalHistorySync(entries) {
+  const list = Array.isArray(entries) ? entries : [];
+  if (!list.length) return list;
+
+  const history = readRawListSync()
+    .map((o) => parseHistoryRecord(/** @type {Record<string, unknown>} */ (o)))
+    .filter(Boolean);
+
+  const terminalIds = new Set();
+  /** @type {Set<string>} */
+  const terminalIdeFp = new Set();
+  /** @type {Map<string, Set<string>>} */
+  const terminalWebFpByIp = new Map();
+
+  for (const h of history) {
+    if (!isOpsAgentHistoryTerminal(h)) continue;
+    terminalIds.add(h.id);
+    const fp = opsIdePromptFingerprint(h.instruction);
+    if (!fp) continue;
+    const rip = sanitizeRequestIpForStore(h.requestIp);
+    if (rip === "cursor-ide" || rip === "claude-code") {
+      terminalIdeFp.add(fp);
+      continue;
+    }
+    if (!terminalWebFpByIp.has(rip)) terminalWebFpByIp.set(rip, new Set());
+    terminalWebFpByIp.get(rip).add(fp);
+  }
+
+  return list.filter((e) => {
+    const id = String(e.id ?? "").trim();
+    if (id && terminalIds.has(id)) return false;
+    const ins = String(e.instructionBody ?? e.instructionPreview ?? "").trim();
+    const fp = opsIdePromptFingerprint(ins);
+    if (!fp) return true;
+    const rip = sanitizeRequestIpForStore(e.requestIp);
+    if (
+      (rip === "cursor-ide" || rip === "claude-code" || e.source === "ide") &&
+      terminalIdeFp.has(fp)
+    ) {
+      return false;
+    }
+    const webSet = terminalWebFpByIp.get(rip);
+    if (webSet?.has(fp)) return false;
+    return true;
+  });
+}
+
 /** @param {Record<string, unknown>} o */
 function parseHistoryRecord(o) {
   if (typeof o.id !== "string" || typeof o.instruction !== "string") {

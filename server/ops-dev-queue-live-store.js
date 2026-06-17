@@ -7,6 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   finalizeOrphanIdeAgentHistoryIdsSync,
+  filterOpsQueueEntriesNotInTerminalHistorySync,
   upsertOpsAgentHistoryFromQueueSync,
 } from "./ops-agent-history-store.js";
 import { mergeIdeLeaseDiskIntoAgentEntries } from "./ops-ide-lease-disk.js";
@@ -181,14 +182,28 @@ function normalizeMirrorEntry(e) {
  * @param {Array<Record<string, unknown>>} runtimeEntries
  */
 export function writeDevQueueDisplayMirrorFromRuntime(runtimeEntries) {
-  const toWrite = sortLiveEntries(
+  const prev = readLiveRawSync();
+  const prevIds = new Set(
+    prev.agentEntries
+      .map((e) => String(e.id ?? "").trim())
+      .filter(Boolean),
+  );
+
+  let toWrite = sortLiveEntries(
     (Array.isArray(runtimeEntries) ? runtimeEntries : [])
       .map(normalizeMirrorEntry)
       .filter(Boolean)
       .filter((e) => String(e.requestIp ?? "").trim() !== RECORD_MODE_REQUEST_IP),
   );
+  toWrite = filterOpsQueueEntriesNotInTerminalHistorySync(toWrite);
+
+  const nextIds = new Set(
+    toWrite.map((e) => String(e.id ?? "").trim()).filter(Boolean),
+  );
+  const droppedIds = [...prevIds].filter((id) => !nextIds.has(id));
 
   writeLiveRawSync({ updatedAtMs: Date.now(), agentEntries: toWrite });
+  if (droppedIds.length) finalizeOrphanIdeAgentHistoryIdsSync(droppedIds);
   for (const row of toWrite) syncAgentHistoryFromPersistEntry(row);
 }
 
@@ -221,11 +236,15 @@ export function sweepStalePersistedDevQueueSync(maxRunningAgeMs = 45 * 60 * 1000
 export function readDevQueueDisplaySnapshotSync() {
   const live = loadLiveFromDiskSync();
   memoryLive = live;
-  const filtered = live.agentEntries.filter(
-    (e) => String(e.requestIp ?? "").trim() !== RECORD_MODE_REQUEST_IP,
+  const filtered = filterOpsQueueEntriesNotInTerminalHistorySync(
+    live.agentEntries.filter(
+      (e) => String(e.requestIp ?? "").trim() !== RECORD_MODE_REQUEST_IP,
+    ),
   );
   const withLease = mergeIdeLeaseDiskIntoAgentEntries(filtered);
-  const agentEntries = enrichAgentEntriesWithUnifiedSeq(withLease);
+  const agentEntries = enrichAgentEntriesWithUnifiedSeq(
+    filterOpsQueueEntriesNotInTerminalHistorySync(withLease),
+  );
   return {
     updatedAtMs: live.updatedAtMs,
     agentEntries,

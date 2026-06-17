@@ -25,7 +25,7 @@ import { useMobileBackHandler } from "../hooks/useMobileBackHandler";
 import { useIsMobilePhone } from "../hooks/useIsMobilePhone";
 import { useOpsDevQueueDisplay } from "../hooks/useOpsDevQueueDisplay";
 import { MOBILE_BACK_PRIORITY } from "../lib/mobileBackStack";
-import { parseOpsDevQueueAgentEntries } from "../lib/opsGlobalQueueRows";
+import { parseOpsDevQueueAgentEntries, filterActiveOpsQueueEntries, isActiveOpsHistoryRun } from "../lib/opsGlobalQueueRows";
 import { ko } from "../i18n/ko";
 import {
   formatOpsToolLineDisplay,
@@ -585,26 +585,32 @@ export default function OpsManagementTab({
     setViewerIp((prev) => (prev === ip ? prev : ip));
   }, [queueSnap]);
 
+  const activeServerQueue = useMemo(
+    () => filterActiveOpsQueueEntries(serverQueue, historyRuns),
+    [serverQueue, historyRuns],
+  );
+
   const serverQueueSeqById = useMemo(() => {
     const m = new Map<string, number>();
-    for (const q of serverQueue) {
+    for (const q of activeServerQueue) {
       if (typeof q.unifiedQueueSeq === "number" && Number.isFinite(q.unifiedQueueSeq)) {
         m.set(normalizeOpQueueId(q.id), q.unifiedQueueSeq);
       }
     }
     return m;
-  }, [serverQueue]);
+  }, [activeServerQueue]);
 
   const myQueueJobs = useMemo(() => {
     const ip = viewerIp?.trim() || null;
-    const serverMine = ip ? serverQueue.filter((q) => q.requestIp === ip) : [];
+    const serverMine = ip ? activeServerQueue.filter((q) => q.requestIp === ip) : [];
     return serverMine;
-  }, [serverQueue, viewerIp]);
+  }, [activeServerQueue, viewerIp]);
 
   const myIpRunningHistory = useMemo(() => {
     if (!viewerIp) return [];
     return historyRuns.filter(
-      (r) => r.state === "running" && (r.requestIp ?? "").trim() === viewerIp,
+      (r) =>
+        isActiveOpsHistoryRun(r) && (r.requestIp ?? "").trim() === viewerIp,
     );
   }, [historyRuns, viewerIp]);
 
@@ -860,10 +866,10 @@ export default function OpsManagementTab({
                 aria-live="polite"
                 aria-relevant="additions removals"
               >
-                {serverQueue.length === 0 ? (
+                {activeServerQueue.length === 0 ? (
                   <span className="ops-management__server-queue-empty">{ko.app.opsAgentQueueEmpty}</span>
                 ) : (
-                  serverQueue.map((q) => (
+                  activeServerQueue.map((q) => (
                     <button
                       key={q.id}
                       type="button"
@@ -1319,7 +1325,7 @@ export default function OpsManagementTab({
       {progressModalRunId ? (
         <OpsAgentQueueProgressModal
           runId={progressModalRunId}
-          queueEntries={serverQueue}
+          queueEntries={activeServerQueue}
           historyRuns={historyRuns}
           available={available}
           onClose={() => setProgressModalRunId(null)}
