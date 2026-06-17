@@ -1,0 +1,32 @@
+매집봉 서버 스캔 + 종목보관함 필터 구현 완료
+
+## 기본값 (요청 반영)
+- 민감도: 느슨
+- 매집 RVOL: 1.6
+- 하락 참조 봉: 40
+- 최소 하락: 6%
+
+## 서버
+- server/book-accumulation-detect.js — Pine 매집봉 포팅
+- server/book-accumulation-scan.js — KR300·US S&P500 일봉 유니버스 스캔
+- server/book-accumulation/constants.js — BOOK_ACCUM_SERVER_DEFAULTS
+- 일봉 탐색(POST /api/golden-cross/scan) 시 골든/정배열/120선과 병렬 실행 (1d만)
+- stock-vault-store: source book_accum, accumScore·accumRvol·signalDate
+- /api/golden-cross/status 에 bookAccum.state 추가
+
+## UI
+- 종목보관함 탐색 조건에 「매집봉」 필터 추가 (일봉 전용, 주봉 탭 숨김)
+- 행 배지: 매집 {점수}pt RVOL {값}
+- 마지막 탐색 표에 「매집」 행
+- 일봉 탐색 확인 문구에 매집봉 포함
+
+## 스캔 결과 (방금 수동 실행)
+- KR 일봉: 300종목 스캔 → 매집 12건
+- US 일봉: 500종목 스캔 → 매집 1건
+- 주봉·US 주봉 스캔은 매집 제외(기존 MA 스캔만)
+
+## 검증
+- vitest: book-accumulation-detect.test.js, stockVaultFilter, stockVaultLastScan 통과
+- 커밋: 760754a (main push 완료)
+
+보관함에서 「매집봉」 탭을 켜면 오늘 스캔 결과를 바로 볼 수 있습니다.

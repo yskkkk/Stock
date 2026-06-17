@@ -1,5 +1,6 @@
-import { memo, useState, type MutableRefObject } from "react";
+import { memo, useState, type MutableRefObject, type MouseEvent } from "react";
 import FavoriteTrackPanel from "./FavoriteTrackPanel";
+import { useIsMobilePhone } from "../hooks/useIsMobilePhone";
 import { ko } from "../i18n/ko";
 import { formatPercent, formatPrice } from "../lib/format";
 import { goldenCrossRecencyClass } from "../lib/goldenCrossRecency";
@@ -97,6 +98,7 @@ function StockVaultRowInner({
   onFavoritePriceSaved,
 }: StockVaultRowProps) {
   const [favoriteTrackOpen, setFavoriteTrackOpen] = useState(false);
+  const mobile = useIsMobilePhone();
   const cur = quote?.currency ?? (row.market === "kr" ? "KRW" : "USD");
   const chg = quote?.changePercent;
   const chgUp = chg != null && chg >= 0;
@@ -174,30 +176,51 @@ function StockVaultRowInner({
   const openRowBubble = (el: HTMLElement, opts?: { immediate?: boolean }) =>
     bubbleActionsRef.current?.showTip(el, bubbleTarget(), opts);
 
+  const toggleRowBubble = (el: HTMLElement) =>
+    bubbleActionsRef.current?.toggleTip(el, bubbleTarget());
+
+  const handleMobileRowTap = (e: MouseEvent<HTMLElement>) => {
+    if ((e.target as Element).closest("button, a")) return;
+    const zone =
+      e.currentTarget.closest(".stock-vault-tab__row-hover-zone") ?? e.currentTarget;
+    toggleRowBubble(zone as HTMLElement);
+  };
+
   return (
     <li className={rowClassName}>
       <div
         className="stock-vault-tab__row-hover-zone"
         aria-describedby={rowBubbleTipId}
-        onMouseEnter={(e) => openRowBubble(e.currentTarget)}
-        onMouseLeave={() => bubbleActionsRef.current?.scheduleHideTip()}
+        onMouseEnter={mobile ? undefined : (e) => openRowBubble(e.currentTarget)}
+        onMouseLeave={
+          mobile ? undefined : () => bubbleActionsRef.current?.scheduleHideTip()
+        }
       >
         <div
           className="stock-vault-tab__row-link"
           tabIndex={0}
           aria-label={`${displayLabel} ${ko.stockVault.rowBubbleAria}`}
-          onFocus={(e) =>
-            openRowBubble(
-              e.currentTarget.closest(".stock-vault-tab__row-hover-zone") ??
-                e.currentTarget,
-              { immediate: true },
-            )
+          onClick={mobile ? handleMobileRowTap : undefined}
+          onFocus={
+            mobile
+              ? undefined
+              : (e) =>
+                  openRowBubble(
+                    e.currentTarget.closest(".stock-vault-tab__row-hover-zone") ??
+                      e.currentTarget,
+                    { immediate: true },
+                  )
           }
-          onBlur={(e) => {
-            const rel = e.relatedTarget as Node | null;
-            if (rel && document.getElementById(rowBubbleTipId)?.contains(rel)) return;
-            bubbleActionsRef.current?.scheduleHideTip();
-          }}
+          onBlur={
+            mobile
+              ? undefined
+              : (e) => {
+                  const rel = e.relatedTarget as Node | null;
+                  if (rel && document.getElementById(rowBubbleTipId)?.contains(rel))
+                    return;
+                  bubbleActionsRef.current?.scheduleHideTip();
+                }
+          }
         >
           <div className="stock-vault-tab__row-top">
             <div className="stock-vault-tab__row-main">
@@ -258,7 +281,9 @@ function StockVaultRowInner({
                   }
                   aria-pressed={Boolean(row.favorited)}
                   disabled={favoriting === row.symbol.trim().toUpperCase()}
-                  onMouseEnter={() => bubbleActionsRef.current?.scheduleHideTip()}
+                  onMouseEnter={
+                    mobile ? undefined : () => bubbleActionsRef.current?.scheduleHideTip()
+                  }
                   onClick={() =>
                     void onToggleFavorite(
                       row.symbol,
@@ -277,7 +302,11 @@ function StockVaultRowInner({
                     aria-label={`${displayLabel} ${ko.stockVault.removeAria}`}
                     title={ko.stockVault.remove}
                     disabled={removing === row.symbol || !authenticated}
-                    onMouseEnter={() => bubbleActionsRef.current?.scheduleHideTip()}
+                    onMouseEnter={
+                      mobile
+                        ? undefined
+                        : () => bubbleActionsRef.current?.scheduleHideTip()
+                    }
                     onClick={() => void onRemove(row.symbol)}
                   >
                     <span className="stock-vault-tab__remove-icon" aria-hidden>

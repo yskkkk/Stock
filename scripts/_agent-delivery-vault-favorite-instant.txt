@@ -1,0 +1,14 @@
+종목보관 북마크 — 화면 즉시 반영
+
+증상: 북마크 한 번 눌러도 바로 안 바뀜
+
+원인
+1. ensureVaultAuthenticated가 클릭마다 전체 vault API 후에야 UI 갱신
+2. useDeferredValue(filtered)로 목록·북마크 표시가 한 박자 늦음
+
+수정
+- 클릭 즉시 favoriteMeta + 스냅샷 optimistic 반영, 그 다음 로그인/API
+- 즐겨찾기 전용 ensureVaultFavoriteApi (refreshAuth만, vault 700건 로드 없음)
+- 목록 deferred 제거 → filtered 즉시 렌더
+
+파일: StockVaultTab.tsx, StockVaultRow.tsx

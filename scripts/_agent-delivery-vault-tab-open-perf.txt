@@ -1,0 +1,57 @@
+종목보관 탭 진입 렉 — 추가 수정 (2026-06-14)
+
+증상
+- 종목보관 탭을 누르는 순간부터 UI가 멈추거나 OOM에 가까운 렉
+
+원인 (탭 진입 시 동시에 터지던 것)
+1. localStorage 스냅샷(~700종) 매번 JSON.parse + 배열 복사
+2. vault 캐시 items와 스냅샷 이중 적재 → displayItems·필터 집계가 같은 데이터를 두 번 처리
+3. 마운트 직후 reload / auth vault refresh / history 3 API / prefetch subscribe apply가 한꺼번에 state 폭주
+4. ma120 접근 필터 카운트가 ma120 미선택 시에도 전체 displayItems 순회
+
+적용한 수정
+
+1) localStorage 캐시 (stockVaultLocalSnapshot.ts)
+- readStore() 결과를 모듈 storeCache에 유지 — 탭 재진입 시 재파싱 방지
+- peekLocalScanSnapshot은 배열 참조 그대로 반환 (불필요 .map 복사 제거)
+- mergeLocalScanSnapshot은 store에서 existing 직접 참조
+
+2) 필터 집계 (stockVaultFilter.ts)
+- countScanSourceTotals() 단일 패스
+- buildVaultDisplayRows 단일 소스 선택 시 해당 소스만 순회 (fast path)
+
+3) 탭 마운트 (StockVaultTab.tsx)
+- 로컬 스냅샷 있으면 items=[] 로 시작 → vault 700건과 중복 적재 방지
+- chartInsights 초기 {}
+- pinStockVaultSessionCache() 마운트 즉시
+- listPaintReady (2× rAF) 후에만 목록·시세 폴링 시작 (초기 12행)
+- reload: 로컬 데이터 있으면 15초 idle 후 백그라운드
+- auth vault full refresh: 로컬 스냅샷 있으면 12초 후 토큰만 갱신 (vault 재로드 생략)
+- historyDates: 마운트 시 동기 localStorage 스캔 제거 → 800ms idle 후 로컬, 5초 idle 후 서버 병합
+- industry 패널 1.8초 후
+- prefetch subscribe apply 1.2s idle
+- ma120ApproachCounts: ma120_near 미선택 시 즉시 0 반환
+
+4) App.tsx
+- 탭 클릭 시 pin + prefetch
+- StockVaultTabGate: 1× rAF 후 본 컴포넌트 마운트 (탭 전환 프레임 확보)
+
+5) tabPrefetch.ts
+- subscribeStockVaultPrefetch 초기 cached notify 1.8s idle (마운트 직후 apply 방지)
+- scheduleIdle export
+
+6) stockVaultMemory.ts
+- 초기 12행, 시세 배치 8, drain 900ms
+
+기능 유지
+- StockVaultTab 전체 (골든크로스·MA정렬·MA120·바닥캔들·관심·스캔·필터·호버 버블) 그대로
+- 호버 시 차트/재무/버핏 상세
+
+확인 방법
+1. 종목보관 탭 클릭 → 탭 전환 즉시 반응, 필터 버튼 바로 클릭 가능
+2. 목록은 짧은 로딩 후 12행부터 표시, 스크롤 시 추가
+3. 바닥캔들 28건 등에서 탭 진입 시 브라우저 멈춤·다중 호버 팝업 없어야 함
+
+커밋 파일
+- src/App.tsx, StockVaultTab.tsx
+- src/lib/stockVaultFilter.ts, stockVaultLocalSnapshot.ts, stockVaultMemory.ts, tabPrefetch.ts

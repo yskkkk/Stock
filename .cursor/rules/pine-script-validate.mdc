@@ -1,0 +1,36 @@
+---
+description: Pine Script 작성·수정 후 로컬 검증·컴파일 오류 제로까지 전달
+globs: scripts/**/*.pine
+alwaysApply: false
+---
+
+# Pine Script — 전달 전 검증 필수
+
+Pine(`.pine`) **작성·수정 후 사용자에게 넘기기 전** 반드시 로컬 검증을 돌리고 **컴파일/문법 오류 0** 확인.
+
+## 필수 절차
+
+1. 저장 후 검증 실행:
+   ```powershell
+   npm run pine:validate -- scripts/대상.pine
+   ```
+   (또는 `python -m pinescript_validator.cli scripts/대상.pine`)
+
+2. **error 0** 아니면 수정 → 재검증. warning은 Pine v6 관례(튜플·ta.* 조건부 호출·bool `nz`/`ta.change` 등)면 함께 수정.
+
+3. **strategy**(`strategy()`)면 가능할 때 `pinets run` 등으로 샘플 실행·백테스트 1회.
+
+4. 사용자 전달: 파일 경로 + TradingView 붙여넣기 안내만. 미검증 스크립트 **전달 금지**.
+
+## Pine v6 흔한 함정 (미리 피하기)
+
+- 삼항(`?:`)으로 **튜플 반환** → `if/else` 함수
+- `ta.sma`/`ta.highest`/`f_rvol` 등 **조건식 안에서만 호출** → 함수 맨 앞에서 매 bar 선계산
+- `ta.change(bool)`, `nz(bool)` → `ta.crossover(x ? 1 : 0, 0)` 또는 `x and not x[1]`
+- `request.security` + 조건부 `f_detect` → **매 bar 호출** 후 플래그로 마스크
+
+## 검증 도구
+
+- 1순위: `npm run pine:validate -- scripts/xxx.pine`
+- 설치: `py -m pip install git+https://github.com/Poryaei/pine-script-validator.git`
+- 보조: TradingView Pine Editor 컴파일 (TV 전용 CE 경고는 에디터에서 최종 확인)

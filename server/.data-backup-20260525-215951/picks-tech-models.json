@@ -1,0 +1,1 @@
+{"models":[{"id":"default","name":"기본","weights":{"ma_align":2,"ma_golden":4,"ma20":1,"ma50":1,"ma5_align":1,"rsi":2,"volume":4,"volume_surge":4,"macd":1,"high_60":1,"vp_breakout":0,"bull_bar":4},"createdAtMs":1779387211845,"updatedAtMs":1779567817344}],"activeModelIds":["default"]}

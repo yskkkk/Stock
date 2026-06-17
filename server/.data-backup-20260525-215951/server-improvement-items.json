@@ -1,0 +1,127 @@
+{
+  "items": [
+    {
+      "id": "process-uncaughtException",
+      "status": "open",
+      "severity": "error",
+      "area": "process",
+      "problem": "uncaughtException: callback is not a function",
+      "suggestion": "비동기 오류를 await/catch로 처리하고, 폴링·훅 tick에서 throw가 밖으로 나가지 않게 방어하세요.",
+      "evidence": "누적 1회",
+      "firstSeenAtMs": 1779603408726,
+      "lastSeenAtMs": 1779678241758,
+      "occurrences": 192071
+    },
+    {
+      "id": "logfreq-7d669592b2",
+      "status": "open",
+      "severity": "warn",
+      "area": "auto-git",
+      "problem": "오늘 로그에서 반복 오류: npm ci failed, falling back to npm install (16회)",
+      "suggestion": "해당 영역 코드·설정·로그를 따라가며 재발 방지 패치를 적용하세요.",
+      "evidence": "server/.logs 오늘 INTERNAL 16회",
+      "firstSeenAtMs": 1779603708651,
+      "lastSeenAtMs": 1779713982681,
+      "occurrences": 366
+    },
+    {
+      "id": "log-auto-git-7d669592b2",
+      "status": "open",
+      "severity": "warn",
+      "area": "auto-git",
+      "problem": "npm ci failed, falling back to npm install",
+      "suggestion": "해당 영역 코드·설정·로그를 따라가며 재발 방지 패치를 적용하세요.",
+      "evidence": "server/.logs 접근 로그 INTERNAL auto-git",
+      "firstSeenAtMs": 1779606051097,
+      "lastSeenAtMs": 1779678211811,
+      "occurrences": 296
+    },
+    {
+      "id": "log-auto-git-38f5374cb1",
+      "status": "open",
+      "severity": "warn",
+      "area": "auto-git",
+      "problem": "npm run build failed — will still restart after pull",
+      "suggestion": "해당 영역 코드·설정·로그를 따라가며 재발 방지 패치를 적용하세요.",
+      "evidence": "server/.logs 접근 로그 INTERNAL auto-git",
+      "firstSeenAtMs": 1779606070592,
+      "lastSeenAtMs": 1779678231603,
+      "occurrences": 282
+    },
+    {
+      "id": "logfreq-38f5374cb1",
+      "status": "open",
+      "severity": "warn",
+      "area": "auto-git",
+      "problem": "오늘 로그에서 반복 오류: npm run build failed — will still restart after pull (14회)",
+      "suggestion": "해당 영역 코드·설정·로그를 따라가며 재발 방지 패치를 적용하세요.",
+      "evidence": "server/.logs 오늘 INTERNAL 14회",
+      "firstSeenAtMs": 1779606224849,
+      "lastSeenAtMs": 1779713982682,
+      "occurrences": 316
+    },
+    {
+      "id": "ops-dev-notify-pending-stale",
+      "status": "open",
+      "severity": "warn",
+      "area": "telegram",
+      "problem": "개발 완료 텔레그램 pending이 10분 이상 디스크에 남아 있습니다.",
+      "suggestion": "flushOpsDevNotifyPendingFromDisk·coalesce 타이머·프로세스 재기동 경로를 점검하세요.",
+      "evidence": "pending since 2026-05-24 16:45:46.769 KST",
+      "firstSeenAtMs": 1779609625037,
+      "lastSeenAtMs": 1779613525048,
+      "occurrences": 14
+    },
+    {
+      "id": "log-auto-git-980b43e036",
+      "status": "open",
+      "severity": "error",
+      "area": "auto-git",
+      "problem": "stash pop failed after pull (resolve conflicts manually): Command failed: git stash pop",
+      "suggestion": "로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.",
+      "evidence": "server/.logs 접근 로그 INTERNAL auto-git",
+      "firstSeenAtMs": 1779675416724,
+      "lastSeenAtMs": 1779677863262,
+      "occurrences": 2
+    },
+    {
+      "id": "process-unhandledRejection",
+      "status": "open",
+      "severity": "error",
+      "area": "process",
+      "problem": "unhandledRejection: EBUSY: resource busy or locked, watch 'C:\\Stock\\public\\branding\\toss-try1.png'",
+      "suggestion": "비동기 오류를 await/catch로 처리하고, 폴링·훅 tick에서 throw가 밖으로 나가지 않게 방어하세요.",
+      "evidence": "누적 3회",
+      "firstSeenAtMs": 1779684614829,
+      "lastSeenAtMs": 1779684646663,
+      "occurrences": 3
+    },
+    {
+      "id": "log-auto-git-710018c2f7",
+      "status": "open",
+      "severity": "warn",
+      "area": "auto-git",
+      "problem": "fetch origin main failed: Command failed: git fetch origin main",
+      "suggestion": "로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.",
+      "evidence": "server/.logs 접근 로그 INTERNAL auto-git",
+      "firstSeenAtMs": 1779699779455,
+      "lastSeenAtMs": 1779700143452,
+      "occurrences": 6
+    },
+    {
+      "id": "logfreq-710018c2f7",
+      "status": "open",
+      "severity": "warn",
+      "area": "auto-git",
+      "problem": "오늘 로그에서 반복 오류: fetch origin main failed (6회)",
+      "suggestion": "로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.",
+      "evidence": "server/.logs 오늘 INTERNAL 6회",
+      "firstSeenAtMs": 1779700125599,
+      "lastSeenAtMs": 1779713982682,
+      "occurrences": 48
+    }
+  ],
+  "lastProbeAtMs": 1779713982683,
+  "lastProbeSummary": "probes 완료 · 열린 10건 · 이번 기록 3건",
+  "updatedAtMs": 1779713982683
+}

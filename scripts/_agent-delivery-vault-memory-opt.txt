@@ -1,0 +1,23 @@
+종목보관 메모리·렉 개선 적용
+
+1) API 분리
+- GET /api/stock-vault/favorites — 즐겨찾기만 (~62B). 기동 sync에 사용
+- GET /api/stock-vault?lite=1 — items·meta만 (~241KB, 기존 661KB 대비 약 64%↓)
+- GET /api/stock-vault/industry-financials?symbols= — 업종 재무 lazy
+- chart-insights?symbols= — 필요 종목만 배치 요청
+
+2) 클라이언트
+- tabPrefetch: lite vault 로드, favorites 전용 sync, unpinStockVaultSessionCache
+- App: 매매기법 탭 벗어나면 vault 캐시 pin 해제
+- StockVaultTab:
+  · 처음 60행만 DOM 생성, 「더 보기」로 점진 추가
+  · content-visibility: auto (화면 밖 행 렌더 부담↓)
+  · 시세 48종목씩 순환 poll (718종 일괄 X)
+  · chartInsights·industryFinancials lazy + pruneSymbolRecord로 state 정리
+
+3) 체감
+- 기동 직후 661KB vault 로드 제거 → favorites 62B
+- 탭 진입 시에도 quotes·industryFin·chartInsights 즉시 안 실음
+- 목록 DOM·폴링 부하 대폭 감소
+
+재확인: 매매기법 탭 열기 → 목록·시세·더 보기 동작, 즐겨찾기 토글(다른 탭).

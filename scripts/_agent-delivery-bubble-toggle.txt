@@ -1,0 +1,11 @@
+말풍선 토글 동작 반영
+
+1. 버핏(가치투자) 패널
+   - 버핏 버튼 다시 클릭 → 같은 종목이면 패널만 닫힘
+   - 원래 말풍선 본문(버튼·링크 제외) 클릭 → 버핏 패널만 닫힘, 말풍선은 유지
+
+2. 주식 수량 패널
+   - 주식 수량 버튼 다시 클릭 → 같은 종목이면 수량 패널만 닫힘
+   - 원래 말풍선 본문 클릭 → 수량 패널 + 원래 말풍선 둘 다 닫힘
+
+적용: StockHoverBubbleActions(버튼 토글), StockVaultRowBubble·EarningsUpcomingIconRail(본문 클릭), ValueInvest/ShareStructure 컨텍스트

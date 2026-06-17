@@ -14,6 +14,7 @@ import { useOptionalStockShareStructureBubble } from "../contexts/StockShareStru
 import StockEarningsHoverBubbleBody from "./StockEarningsHoverBubbleBody";
 import { loadEarningsBubbleFinancials } from "../lib/earningsBubbleFinancials";
 import { tradingViewChartUrl } from "../lib/tradingviewSymbols";
+import { useIsMobilePhone } from "../hooks/useIsMobilePhone";
 import {
   dispatchStockHoverBubbleOpen,
   handleStockHoverParentBubbleClick,
@@ -44,6 +45,7 @@ export type StockVaultRowBubbleTarget = {
 export type StockVaultRowBubbleActions = {
   tipId: string;
   showTip: (el: HTMLElement, target: StockVaultRowBubbleTarget, opts?: { immediate?: boolean }) => void;
+  toggleTip: (el: HTMLElement, target: StockVaultRowBubbleTarget) => void;
   scheduleHideTip: () => void;
 };
 
@@ -142,6 +144,7 @@ export function useStockVaultRowBubble(tipIdOverride?: string) {
   const [tip, setTip] = useState<TipState | null>(null);
   const valueInvest = useOptionalValueInvestBubble();
   const shareStructure = useOptionalStockShareStructureBubble();
+  const mobile = useIsMobilePhone();
   tipRef.current = tip;
 
   const clearHideTimer = useCallback(() => {
@@ -163,6 +166,7 @@ export function useStockVaultRowBubble(tipIdOverride?: string) {
   }, [clearHideTimer]);
 
   const scheduleHideTip = useCallback(() => {
+    if (mobile) return;
     const tipSym = tipRef.current?.symbol;
     if (isSameStockBubbleSymbol(tipSym, shareStructure?.openSymbol)) {
       return;
@@ -176,7 +180,7 @@ export function useStockVaultRowBubble(tipIdOverride?: string) {
       setTip(null);
       hideTimerRef.current = null;
     }, HIDE_DELAY_MS);
-  }, [clearHideTimer, clearShowTimer, valueInvest?.openSymbol, shareStructure]);
+  }, [mobile, clearHideTimer, clearShowTimer, valueInvest?.openSymbol, shareStructure]);
 
   const closeTip = useCallback(() => {
     clearShowTimer();
@@ -244,6 +248,19 @@ export function useStockVaultRowBubble(tipIdOverride?: string) {
     [clearHideTimer, clearShowTimer, openTipAt],
   );
 
+  const toggleTip = useCallback(
+    (el: HTMLElement, target: StockVaultRowBubbleTarget) => {
+      clearShowTimer();
+      const sym = target.symbol.trim().toUpperCase();
+      if (tipRef.current?.symbol.trim().toUpperCase() === sym) {
+        closeTip();
+        return;
+      }
+      openTipAt(el, target);
+    },
+    [clearShowTimer, closeTip, openTipAt],
+  );
+
   useLayoutEffect(() => {
     if (!tip || !bubbleRef.current) return;
     const bubble = bubbleRef.current;
@@ -272,6 +289,27 @@ export function useStockVaultRowBubble(tipIdOverride?: string) {
     [clearHideTimer, clearShowTimer],
   );
 
+  useEffect(() => {
+    if (!mobile || !tip) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeTip();
+    };
+    const onPointer = (e: PointerEvent) => {
+      const target = e.target as Node;
+      if (bubbleRef.current?.contains(target)) return;
+      if ((target as Element).closest?.(".stock-vault-tab__row-hover-zone")) return;
+      if ((target as Element).closest?.(".value-invest-bubble__hover-pop--portal")) return;
+      if ((target as Element).closest?.(".stock-share-structure-modal")) return;
+      closeTip();
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("pointerdown", onPointer, true);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("pointerdown", onPointer, true);
+    };
+  }, [mobile, tip, closeTip]);
+
   const bubble =
     tip && typeof document !== "undefined"
       ? createPortal(
@@ -285,11 +323,15 @@ export function useStockVaultRowBubble(tipIdOverride?: string) {
               top: `${tip.top}px`,
               transform: tip.transform,
             }}
-            onMouseEnter={() => {
-              keepTipOpen();
-              shareStructure?.keepShareStructureModalOpen();
-            }}
-            onMouseLeave={scheduleHideTip}
+            onMouseEnter={
+              mobile
+                ? undefined
+                : () => {
+                    keepTipOpen();
+                    shareStructure?.keepShareStructureModalOpen();
+                  }
+            }
+            onMouseLeave={mobile ? undefined : scheduleHideTip}
             onClick={handleParentBubbleClick}
           >
             <StockEarningsHoverBubbleBody
@@ -308,7 +350,7 @@ export function useStockVaultRowBubble(tipIdOverride?: string) {
         )
       : null;
 
-  return { tipId, tip, showTip, scheduleHideTip, bubble };
+  return { tipId, tip, showTip, toggleTip, scheduleHideTip, bubble };
 }
 
 /** 말풍선 state를 분리 — 호버 시 StockVaultTab 전체 리렌더 방지 */
@@ -323,6 +365,7 @@ export function StockVaultRowBubblePortal({
   actionsRef.current = {
     tipId: api.tipId,
     showTip: api.showTip,
+    toggleTip: api.toggleTip,
     scheduleHideTip: api.scheduleHideTip,
   };
   return api.bubble;

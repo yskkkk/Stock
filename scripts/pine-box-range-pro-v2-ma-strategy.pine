@@ -37,14 +37,8 @@ float merge_mid = input.float(2.5, "병합: 중심 허용(%)", minval=0.2, maxva
 float merge_h = input.float(35.0, "병합: 높이 차(%)", minval=5.0, maxval=50.0, step=1.0)
 int merge_bars = input.int(8, "병합: 좌우 봉 간격", minval=0)
 
-bool min_h_tf_preset = input.bool(true, "TF별 최소 박스높이% 프리셋", group=grpV2, tooltip="1H 1% / 4H 3% / 1D 3% — 납작한 박스 제외")
-float min_h_man = input.float(3.0, "최소 박스높이(%)", minval=0.1, maxval=15.0, step=0.5, group=grpV2)
-float min_box_h_pct = min_h_tf_preset ? (active_tf == "60" ? 1.0 : active_tf == "240" ? 3.0 : 3.0) : min_h_man
-
 string grpExit = "분할매도"
-bool trail_tf_preset = input.bool(true, "TF별 트레일% 프리셋", group=grpExit, tooltip="1H 1% / 4H 1.5% / 1D 2%")
-float trail_pct_man = input.float(2.0, "트레일링 폭(%)", minval=0.2, maxval=20.0, step=0.1, group=grpExit)
-float trail_pct = trail_tf_preset ? (active_tf == "60" ? 1.0 : active_tf == "240" ? 1.5 : 2.0) : trail_pct_man
+float trail_pct = input.float(2.0, "트레일링 폭(%)", minval=0.2, maxval=20.0, step=0.1, group=grpExit, tooltip="상단 도달 시 50% 익절 후, 나머지는 고점*(1-폭%) 트레일링 스탑")
 
 // === 일봉 MA ===
 float ma5 = request.security(syminfo.tickerid, "D", ta.sma(close, 5), barmerge.gaps_off, barmerge.lookahead_off)
@@ -86,6 +80,7 @@ var float[] dipLows = array.new_float()
 var color[] boxColors = array.new_color()
 var bool[] tp1Done = array.new_bool()
 var float[] peakAfterTp = array.new_float()
+
 f_box_color(int idx) =>
     int r = (idx * 73 + 50) % 206 + 30
     int g = (idx * 131 + 90) % 206 + 30
@@ -296,7 +291,8 @@ if is_tf and barstate.isconfirmed
             [boxTop, boxBot, midPx] = f_compute_box_v2(oldOff, newOff)
             if not na(midPx) and boxTop > boxBot
                 float hPct = f_box_h_pct(boxTop, boxBot)
-                bool sizeOk = hPct >= min_box_h_pct and hPct <= max_box_pct * 1.5
+                float minHpct = active_tf == "60" ? 1.0 : active_tf == "240" ? 3.0 : 0.1
+                bool sizeOk = hPct >= minHpct and hPct <= max_box_pct * 1.5
                 if sizeOk
                     [tSc, bSc] = f_reject_score(oldOff, newOff, boxTop, boxBot)
                     if tSc >= rej_score and bSc >= rej_score
@@ -357,8 +353,9 @@ if sz > 0
                 if show_buy
                     label.new(bar_index, bottom, "매수 " + orderId, style=label.style_label_up, color=bc, textcolor=color.white, size=size.small)
                 strategy.entry(orderId, strategy.long)
-                strategy.exit(orderId + "_tp50", from_entry=orderId, limit=top, qty_percent=50)
         else
+            // TP/SL은 \"바로\" 조건이지만 Strategy Tester 체결은 process_orders_on_close 기준(봉 마감)입니다.
+            // 1) 기본 손절: dipLow 이탈
             if not na(dipLow) and low <= dipLow
                 float ret = entry > 0 ? ((dipLow - entry) / entry) * 100.0 : 0.0
                 total_return += ret
@@ -373,6 +370,7 @@ if sz > 0
                 array.set(peakAfterTp, i, na)
                 strategy.close(orderId)
             else
+                // 2) 1차 익절: 상단 도달 시 50% 매도 (한 번만)
                 if not didTp1 and high >= top
                     win_trades += 1
                     sig_tp := true
@@ -380,7 +378,9 @@ if sz > 0
                         label.new(bar_index, top, "익절50 " + orderId, style=label.style_label_down, color=bc, textcolor=color.black, size=size.small)
                     array.set(tp1Done, i, true)
                     array.set(peakAfterTp, i, high)
+                    strategy.close(orderId, qty_percent=50)
 
+                // 3) 잔여분: 고점 갱신마다 올라가는 트레일링 스탑
                 bool nowTp1 = array.get(tp1Done, i)
                 if nowTp1
                     float p = array.get(peakAfterTp, i)
@@ -394,7 +394,7 @@ if sz > 0
                             label.new(bar_index, stopPx, "트레일 " + orderId, style=label.style_label_down, color=bc, textcolor=color.white, size=size.small)
                         array.set(entryPrices, i, na)
                         array.set(triggered, i, false)
-                        array.set(dead, i, true)
+                        array.set(dead, i, true)  // 박스 재사용 금지
                         array.set(tp1Done, i, false)
                         array.set(peakAfterTp, i, na)
                         strategy.close(orderId)

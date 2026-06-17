@@ -23,10 +23,10 @@ let memoryUi: StockVaultTabUiState | null = null;
 function normalizeScanSources(
   sources: StockVaultScanSource[] | undefined,
 ): StockVaultScanSource[] {
-  if (!sources?.length) return ["golden_cross"];
+  if (sources === undefined) return ["golden_cross"];
+  if (!sources.length) return [];
   const allowed = new Set(STOCK_VAULT_SCAN_SOURCES);
-  const picked = sources.filter((s) => allowed.has(s));
-  return picked.length ? [...picked] : ["golden_cross"];
+  return sources.filter((s) => allowed.has(s));
 }
 
 function normalizeMarketFilter(

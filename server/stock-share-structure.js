@@ -168,6 +168,14 @@ function krCode(symbol) {
   return yahooSymbolToKrCode(symbol);
 }
 
+/** KR 6자리·`.KS`/`.KQ` 심볼은 market 힌트와 무관하게 kr로 조회 */
+function resolveShareStructureMarket(symbol, marketHint) {
+  const raw = String(symbol ?? "").trim().toUpperCase();
+  if (yahooSymbolToKrCode(raw)) return "kr";
+  if (marketHint === "kr" || marketHint === "us") return marketHint;
+  return "us";
+}
+
 /**
  * 캐시·FnGuide gicode용 KR 6자리 / US 심볼
  * @param {string} symbol
@@ -388,7 +396,7 @@ async function fetchYahooShareStats(symbol, market) {
 /** @param {string} symbol @param {"kr"|"us"} market */
 async function fetchLiveShareStructure(symbol, market) {
   const sym = String(symbol ?? "").trim().toUpperCase();
-  const m = market === "kr" || market === "us" ? market : isKrSymbol(sym) ? "kr" : "us";
+  const m = resolveShareStructureMarket(sym, market);
 
   const yahoo = await fetchYahooShareStats(sym, m).catch(() => null);
   if (m === "kr") {
@@ -499,12 +507,7 @@ export async function loadStockShareStructure(symbol, market) {
     throw err;
   }
 
-  const m =
-    market === "kr" || market === "us"
-      ? market
-      : isKrSymbol(rawSym)
-        ? "kr"
-        : "us";
+  const m = resolveShareStructureMarket(rawSym, market);
   const sym = normalizeShareStructureKey(rawSym, m);
   if (m === "kr" && !krCode(sym)) {
     const err = new Error("올바르지 않은 국내 종목 코드입니다.");

@@ -1,0 +1,16 @@
+종목보관 북마크 — 즐겨찾기 해제
+
+증상
+- 채워진 북마크를 다시 눌러도 즐겨찾기가 해제되지 않음
+
+원인
+- 로컬 스냅샷 목록의 favorited만 보고 UI 표시
+- 해제 시 favoriteMeta는 갱신돼도 snapshotItems·localStorage는 그대로
+- favoriteMeta 변경 시 스냅샷을 localStorage에서 다시 읽어 이전 favorited로 덮어씀
+
+수정
+- favoriteMeta 기준 overlayVaultFavoriteState로 목록 favorited 동기화
+- 해제/등록 시 snapshotItems + 오늘 스냅샷 localStorage 함께 갱신
+- 스냅샷 reload effect는 selectedScanDate 변경 시만 (즐겨찾기 토글마다 재로드 안 함)
+
+파일: StockVaultTab.tsx, stockVaultMemory.ts

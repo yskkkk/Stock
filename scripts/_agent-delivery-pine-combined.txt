@@ -1,0 +1,23 @@
+세력캔들 + MA 접점 Pine 스크립트 통합 완료
+
+파일: scripts/pine-saeryeok-bottom-candle.pine
+인디케이터명: "세력캔들 + MA 접점" (shorttitle: 세력+MA)
+버전: Pine v6
+
+통합 내용
+- 세력 바닥·바람개비·상투 캔들 (기존 전체 로직 유지)
+- 일봉·주봉 5/20/60/120 MA 선 + 골든/데드 교차점
+- 주봉 선형 보간, 워터마크, 우하단 범례
+- MA 알림 8종 추가 (일·주 5-20, 20-120 골든/데드)
+
+입력 그룹
+- 타임프레임 / 신호 점수 / 핵심 / 패턴 / 매매 구간 / 캔들 표시 / 캔들 색
+- MA 표시 (신규): MA·교차 ON/OFF, 표시 TF, 범례, 워터마크, 주봉 보간, 투명도
+
+사용법
+TradingView Pine Editor에 scripts/pine-saeryeok-bottom-candle.pine 전체 붙여넣기.
+MA만 쓰려면 설정 > MA 표시 > MA·교차 표시 ON, 캔들 패턴은 패턴 그룹에서 OFF 가능.
+
+검증: npm run pine:validate — 0 error
+
+참고: scripts/pine-daily-weekly-ma-cross.pine 은 MA 단독 v6로 유지(하위 호환).

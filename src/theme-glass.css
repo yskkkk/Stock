@@ -154,7 +154,9 @@ html[data-theme="light"][data-light-palette="glass"] #root {
 
 html[data-theme="light"][data-light-palette="glass"] .card,
 html[data-theme="light"][data-light-palette="glass"] .top-bar.card,
-html[data-theme="light"][data-light-palette="glass"] .picks-panel {
+html[data-theme="light"][data-light-palette="glass"]
+  .workspace:not(.workspace--stock-lookup)
+  .picks-panel {
   position: relative;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.46) !important;
@@ -179,7 +181,9 @@ html[data-theme="light"][data-light-palette="glass"] .input {
 
 html[data-theme="light"][data-light-palette="glass"] .card::after,
 html[data-theme="light"][data-light-palette="glass"] .top-bar.card::after,
-html[data-theme="light"][data-light-palette="glass"] .picks-panel::after {
+html[data-theme="light"][data-light-palette="glass"]
+  .workspace:not(.workspace--stock-lookup)
+  .picks-panel::after {
   content: "";
   position: absolute;
   inset: -55% -85%;
@@ -198,26 +202,10 @@ html[data-theme="light"][data-light-palette="glass"] .picks-panel::after {
   pointer-events: none;
 }
 
-html[data-theme="light"][data-light-palette="glass"] .picks-panel::after {
+html[data-theme="light"][data-light-palette="glass"]
+  .workspace:not(.workspace--stock-lookup)
+  .picks-panel::after {
   animation-delay: 2.2s;
-}
-
-/* 종목검색 — 글래스 시트·sheen 제거(이중 패널 방지) */
-html[data-theme="light"][data-light-palette="glass"]
-  .workspace--stock-lookup
-  .picks-panel.card {
-  background: var(--card) !important;
-  border-color: var(--card-border) !important;
-  box-shadow: none !important;
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
-}
-
-html[data-theme="light"][data-light-palette="glass"]
-  .workspace--stock-lookup
-  .picks-panel.card::after {
-  display: none !important;
-  content: none !important;
 }
 
 html[data-theme="light"][data-light-palette="glass"] .top-bar.card::after {

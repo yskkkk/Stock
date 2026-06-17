@@ -1,0 +1,103 @@
+YSTOCK 웹 렉·Out of Memory 원인 분석 (2026-06-14)
+
+■ 증상
+Chrome 「앗, 이런!」 오류 코드 Out of Memory — 탭 메모리 고갈로 크래시.
+서버 :5173 접속 직후 또는 매매기법(종목보관) 탭 사용 시 특히 심함.
+
+■ 측정 (로컬 dev 서버 기준)
+/api/stock-vault 응답: 약 661KB, items 718건
+  - items          203KB
+  - industryFinancials 246KB  ← 최대
+  - chartInsights  107KB
+  - quotes          66KB (718종목 일괄)
+  - meta            36KB
+
+vault items 구성:
+  - ma_align 400, golden_cross 143, ma120_near 135, bottom_candle 40
+
+기동 후 idle prefetch 추가:
+  - recommendations-tracker ~188KB (361건)
+  - picks/daily-history ~90KB
+  - crypto·liveTrading·macro·stockSearchHot 등 추가
+
+→ 페이지 로드 후 4~5초 안에 JSON만 합쳐도 1MB+ 수신, JS 객체·캐시·React state로 3~5배 이상 메모리 점유.
+
+────────────────────────────────
+1순위: /api/stock-vault 과대 페이로드 + 전량 DOM 렌더
+────────────────────────────────
+- 718건을 한 API에 items·quotes·chartInsights·industryFinancials 전부 실어 보냄.
+- StockVaultTab은 가상 스크롤 없이 deferredFiltered.map으로 행 전부 DOM 생성.
+- 행 1개당 버블·즐겨찾기·업종재무·MA뱃지 등 → 수백~수천 DOM 노드 × 718.
+- 매매기법 탭 진입 시 이 목록이 한 번에 그려지면서 메인 원인.
+
+────────────────────────────────
+2순위: 탭 미진입인데도 vault 전량 선로드
+────────────────────────────────
+App.tsx configReady 후:
+  - startBackgroundTabPrefetch() → tracker·history·crypto 등 idle 로드
+  - scheduleStockVaultFavoritesSync() → 4초 후 loadStockVault() 전체 661KB
+    (즐겨찾기 심볼만 필요한데 items·quotes·industryFinancials까지 전부)
+
+loadStockVault()는 pinStockVaultSessionCache()로 세션 내내 Map 캐시 고정 → GC 안 됨.
+
+────────────────────────────────
+3순위: StockVaultTab 폴링·중복 fetch
+────────────────────────────────
+탭이 열려 있는 동안 동시에:
+  - 시세 poll 60초 (displayItems 전 종목)
+  - MA120 접근 poll 15초 (1d일 때)
+  - chart-insights poll 120초
+  - 스캔 중 golden-cross status 2.5초
+  - App 전역 picks poll 4~10초
+
+setQuotes / setChartInsights 때마다 718행 전체 리렌더.
+
+추가로 vault API 중복:
+  - favorites sync 1회
+  - StockVaultTab mount reload
+  - 로그인 시 refreshStockVaultTab() auth effect
+  → 같은 661KB를 짧은 시간에 여러 번 파싱·상태 반영 가능.
+
+────────────────────────────────
+4순위: industryFinancials 246KB 항상 동봉
+────────────────────────────────
+업종 대장주·동종 재무 비교용 데이터가 vault API에 항상 포함.
+행 hover/버블에만 쓰이는데 초기 로드·메모리·파싱 비용 큼.
+
+────────────────────────────────
+5순위: 보조 요인
+────────────────────────────────
+- localStorage stock-vault-local-scan-snapshots-v1 에 일별 스냅샷 중복 저장
+- 좌측 레일 빗썸·토스 계좌 폴링 (전 탭 상시)
+- recommendations-tracker prefetch + 시세 배치 merge
+- chartInsights mergeChartInsightMaps로 state 누적 (키 증가 시 prev 복사)
+
+────────────────────────────────
+왜 「기동 직후」에도 OOM이 나는가
+────────────────────────────────
+기본 탭은 stockLookup이지만, 4초 후 favorites sync가 vault 661KB를
+pinStockVaultSessionCache와 함께 올림. idle prefetch와 겹치면
+짧은 시간에 대용량 JSON 다중 파싱 → 힙 급증.
+이후 매매기법 탭만 열어도 718행 DOM + 폴링이 임계치 넘김.
+
+────────────────────────────────
+권장 수정 방향 (우선순위)
+────────────────────────────────
+A. API 분리·축소
+   - GET /api/stock-vault/favorites (심볼·meta만) — 기동 sync 전용
+   - industryFinancials·chartInsights는 탭 진입·hover 시 lazy
+   - quotes는 화면에 보이는 종목만 batch
+
+B. UI
+   - StockVaultTab 목록 가상 스크롤 (react-window 등)
+   - 탭 벗어나면 vault 캐시 unpin / 컴포넌트 unmount 시 폴링 정리 (일부는 pageVisible로 되어 있으나 데이터는 잔류)
+
+C. prefetch
+   - scheduleStockVaultFavoritesSync → lightweight API로 교체
+   - vault 전량은 stockVault 탭 commit 시에만 loadStockVault
+
+D. 서버 데이터
+   - ma_align 400건 등 vault items 증가 추세 — 스캔 보관 정책·만료 검토
+
+■ 요약 한 줄
+661KB vault API를 탭 밖에서도 미리 받고, 718행을 가상화 없이 그리며, 여러 폴링이 겹쳐 Chrome 탭 메모리가 한계를 넘는 구조가 근본 원인.

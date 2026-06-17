@@ -1,0 +1,24 @@
+세력+MA+매집 Pine 통합 완료
+
+파일: scripts/pine-saeryeok-bottom-candle.pine
+지표명: 세력+MA+매집 (shorttitle: 세력통합)
+
+통합 내용
+- 세력 바닥·바람개비·상투 (기존)
+- 일봉·주봉 MA 골든/데드 (기존)
+- 책 06~07장 매집봉 (pine-book-accumulation.pine 로직)
+
+표시 선택 (체크박스) — 설정 상단 grpDisp
+- W 바닥확인 / 바닥·전형 / 바닥·변주
+- 하락·상승 바람개비 / 상투 / 변곡점
+- 책 매집봉
+- MA 선 / 교차점 / 워터마크 / 범례
+- 손절·분할 구간 / 구간 라벨 / 바닥·상투 배경
+
+매집봉 세부 설정은 «책 매집봉» 그룹 (기존 단독 스크립트와 동일).
+단독 스크립트 pine-book-accumulation.pine 은 유지(주석에 통합 파일 안내).
+
+검증: npm run pine:validate — 0 error
+커밋: 0bb6409
+
+TradingView에 scripts/pine-saeryeok-bottom-candle.pine 붙여넣기 후 «표시 선택»에서 원하는 항목만 켜면 됩니다.

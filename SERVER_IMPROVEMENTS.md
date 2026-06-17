@@ -14,63 +14,77 @@
 
 ## 열린 항목
 
-### [ERROR] process — 2026-05-24 15:43:38.651 KST
+### [ERROR] process — 2026-06-17 02:49:13.098 KST
 
-<!-- id:process-uncaughtException -->
+<!-- id:process-unhandledRejection -->
 
-**문제**: uncaughtException: EPIPE: broken pipe, write
+**문제**: unhandledRejection: fetch failed
 
 **개선 제안**: 비동기 오류를 await/catch로 처리하고, 폴링·훅 tick에서 throw가 밖으로 나가지 않게 방어하세요.
 
-**근거**: 누적 35322회
+**근거**: 누적 6회
 
-_재발 192060회 (최초 2026-05-24 15:16:48.726 KST)_
-
----
-
-### [WARN] auto-git — 2026-05-25 02:55:05.597 KST
-
-<!-- id:logfreq-7d669592b2 -->
-
-**문제**: 오늘 로그에서 반복 오류: npm ci failed, falling back to npm install (3회)
-
-**개선 제안**: 해당 영역 코드·설정·로그를 따라가며 재발 방지 패치를 적용하세요.
-
-**근거**: server/.logs 오늘 INTERNAL 3회
-
-_재발 125회 (최초 2026-05-24 15:21:48.651 KST)_
+_재발 110회 (최초 2026-06-17 01:16:33.055 KST)_
 
 ---
 
-### [WARN] auto-git — 2026-05-25 01:53:23.300 KST
+### [ERROR] process — 2026-06-14 19:10:15.684 KST
 
-<!-- id:log-auto-git-7d669592b2 -->
+<!-- id:process-uncaughtException -->
 
-**문제**: npm ci failed, falling back to npm install
+**문제**: uncaughtException: EPERM: operation not permitted, rename 'C:\Stock\server\.data\live-trade-toss-ledger.json.13968.1781431815625.tmp' -> 'C:\Stock\server\.data\live-trade-toss-ledger.json'
 
-**개선 제안**: 해당 영역 코드·설정·로그를 따라가며 재발 방지 패치를 적용하세요.
+**개선 제안**: 비동기 오류를 await/catch로 처리하고, 폴링·훅 tick에서 throw가 밖으로 나가지 않게 방어하세요.
+
+**근거**: 누적 2회
+
+_재발 17617회 (최초 2026-05-27 07:14:23.020 KST)_
+
+---
+
+### [WARN] telegram — 2026-06-17 02:49:06.937 KST
+
+<!-- id:telegram-stock-send-error -->
+
+**문제**: 종목 알림 전송 오류: fetch failed
+
+**개선 제안**: 텔레그램 API 응답·rate limit·메시지 포맷을 점검하세요.
+
+**근거**: 0분 전 status ?
+
+_재발 41회 (최초 2026-06-16 16:21:41.545 KST)_
+
+---
+
+### [WARN] telegram — 2026-06-17 02:49:06.920 KST
+
+<!-- id:env-ops-telegram-probe-fail -->
+
+**문제**: ops 텔레그램 연결 검증 실패: fetch failed
+
+**개선 제안**: 봇 토큰·채팅 ID·봇 초대 여부를 확인하세요.
+
+**근거**: fetch failed
+
+_재발 41회 (최초 2026-06-16 16:21:41.526 KST)_
+
+---
+
+### [WARN] auto-git — 2026-06-13 21:16:24.120 KST
+
+<!-- id:log-auto-git-710018c2f7 -->
+
+**문제**: fetch origin main failed: Command failed: git fetch origin main
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
 
 **근거**: server/.logs 접근 로그 INTERNAL auto-git
 
-_재발 6회 (최초 2026-05-24 16:00:51.097 KST)_
+_재발 6회 (최초 2026-05-27 21:08:34.715 KST)_
 
 ---
 
-### [WARN] auto-git — 2026-05-24 23:56:46.992 KST
-
-<!-- id:logfreq-38f5374cb1 -->
-
-**문제**: 오늘 로그에서 반복 오류: npm run build failed — will still restart after pull (3회)
-
-**개선 제안**: 해당 영역 코드·설정·로그를 따라가며 재발 방지 패치를 적용하세요.
-
-**근거**: server/.logs 오늘 INTERNAL 3회
-
-_재발 103회 (최초 2026-05-24 16:03:44.849 KST)_
-
----
-
-### [WARN] telegram — 2026-05-24 18:05:25.048 KST
+### [WARN] telegram — 2026-06-07 22:19:49.025 KST
 
 <!-- id:ops-dev-notify-pending-stale -->
 
@@ -78,24 +92,12 @@ _재발 103회 (최초 2026-05-24 16:03:44.849 KST)_
 
 **개선 제안**: flushOpsDevNotifyPendingFromDisk·coalesce 타이머·프로세스 재기동 경로를 점검하세요.
 
-**근거**: pending since 2026-05-24 16:45:46.769 KST
+**근거**: pending since 2026-06-07 22:08:16.615 KST
 
-_재발 14회 (최초 2026-05-24 17:00:25.037 KST)_
-
----
-
-### [WARN] auto-git — 2026-05-24 16:01:10.592 KST
-
-<!-- id:log-auto-git-38f5374cb1 -->
-
-**문제**: npm run build failed — will still restart after pull
-
-**개선 제안**: 해당 영역 코드·설정·로그를 따라가며 재발 방지 패치를 적용하세요.
-
-**근거**: server/.logs 접근 로그 INTERNAL auto-git
+_재발 5회 (최초 2026-05-28 07:59:33.276 KST)_
 
 ---
 
 ## 최근 자동 점검
 
-2026-05-25 02:55:05.600 KST — probes 완료 · 열린 6건 · 이번 기록 1건
+2026-06-17 13:08:54.974 KST — probes 완료 · 열린 6건 · 이번 기록 0건

@@ -32,7 +32,7 @@ describe("stockVaultTabSession", () => {
       selectedScanDate: "  ",
     });
     const ui = peekStockVaultTabUi();
-    expect(ui?.selectedScanSources).toEqual(["golden_cross"]);
+    expect(ui?.selectedScanSources).toEqual([]);
     expect(ui?.marketFilter).toBe("all");
     expect(ui?.selectedScanDate).toBeNull();
   });

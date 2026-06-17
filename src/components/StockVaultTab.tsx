@@ -756,9 +756,7 @@ export default function StockVaultTab({
         const set = new Set(prev);
         if (wasSelected) set.delete(source);
         else set.add(source);
-        let next = STOCK_VAULT_SCAN_SOURCES.filter((s) => set.has(s));
-        if (!next.length) next = [source];
-        return next;
+        return STOCK_VAULT_SCAN_SOURCES.filter((s) => set.has(s));
       });
       const zero =
         countItemsByScanSource(displayItems, source, timeframeFilter) === 0;
@@ -786,7 +784,7 @@ export default function StockVaultTab({
       const next = prev.filter(
         (s) => s !== "ma120_near" && s !== "book_accum",
       );
-      return next.length ? next : ["golden_cross"];
+      return next;
     });
     setMa120ApproachFilter(null);
   }, [timeframeFilter]);
@@ -895,9 +893,6 @@ export default function StockVaultTab({
 
   const intersectionActive =
     filter !== "favorite" && selectedScanSources.length >= 2;
-
-  const showSelectScanCondition =
-    filter !== "favorite" && selectedScanSources.length === 0;
 
   const showEmptyIntersection =
     intersectionActive &&
@@ -1610,9 +1605,7 @@ export default function StockVaultTab({
           <p className="stock-vault-tab__muted">
             {isHistoricalView
               ? ko.stockVault.historyEmpty
-              : showSelectScanCondition
-                ? ko.stockVault.selectScanCondition
-                : showEmptyIntersection
+              : showEmptyIntersection
                   ? ko.stockVault.emptyIntersection
                   : ko.stockVault.empty}
           </p>

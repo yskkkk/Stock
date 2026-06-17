@@ -1,0 +1,20 @@
+매매기법 탭 — 조건 칩 클릭 렉 원인·수정
+
+왜 로컬 데이터인데 렉이 났는지
+1. 탐색 조건(골든크로스/정배열/120선/바닥캔들)을 바꿀 때마다 buildVaultDisplayRows가 전 종목(~700+)에 두 번 돌고, 화면에 최대 60행 DOM을 통째로 갈아엎음
+2. 카드 한 줄마다 chartInsights(일·주 추세, MA 근접 칩), sectorLeader(재무 API) 등을 동기 계산·렌더 — 로컬 목록과 무관한 무거운 UI
+3. 시세·차트 인사이트 폴링이 “현재 필터에 보이는 종목”이 아니라 vault 전체 symbol 기준 — 탭 전환·setState와 겹치면 메인 스레드가 막힘
+
+수정 (기능 의도 유지)
+- 카드: 종목명·업종·시세·신호 배지·날짜만 (일/주 추세·MA근접·업종대장 아이콘 제거 → 호버 말풍선에서 재무/차트/버핏)
+- buildVaultDisplayRows 1회 + 시장 필터는 slice
+- 시세 폴링: 현재 visibleRows 종목만
+- chartInsights: 120선 근처 탭일 때만 + visibleRows만
+- 탐색 조건 토글: startTransition (UI 우선 응답)
+- 업종 재무 일괄 fetch 제거 (말풍선 hover 시 기존 prefetch)
+
+확인
+- 골든크로스 ↔ 바닥캔들 등 칩을 빠르게 왔다 갔다 해도 멈춤 없이 목록 전환
+- 행 hover 시 말풍선·재무는 이전과 동일
+
+변경 파일: src/components/StockVaultTab.tsx

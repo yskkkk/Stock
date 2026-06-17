@@ -1,0 +1,29 @@
+매매기법 탭 + OOM 수정 완료
+
+1) 탭 이름
+- 상단 탭 「종목보관」→「매매기법」
+
+2) 중간 선택 단계
+- 매매기법 탭 클릭 → 서버 등록 매매기법 목록 표시 (/api/picks/tech-models)
+- 기법 선택 → 해당 techModelId로 스크리너가 발견한 종목 목록 표시
+- 「매매기법 선택」으로 다시 목록으로 돌아감
+- 종목 클릭 시 스크리너 탭으로 이동해 차트 열림 (기존 추천목록과 동일)
+
+3) OOM(Out of Memory) 근본 대응
+- 원인: 앱 기동 직후 stock-vault 전체 API를 즉시 2번 호출
+  (startBackgroundTabPrefetch 즉시 선로드 + App.tsx loadStockVault 중복)
+  → 대용량 vault·chartInsights 응답이 탭 미진입 상태에서 메모리 압박
+- 수정:
+  · 기동 시 stock-vault 즉시 prefetch 제거
+  · 즐겨찾기 동기화만 idle(약 4초 후) 1회로 지연 (scheduleStockVaultFavoritesSync)
+  · 나머지 탭 prefetch는 기존처럼 idle 후 실행
+
+변경 파일
+- src/components/TradingTechniqueTab.tsx (신규)
+- src/lib/tradingTechniqueSession.ts (신규)
+- src/App.tsx
+- src/lib/tabPrefetch.ts
+- src/i18n/ko.ts
+- src/stock-vault-tab.css
+
+참고: 기존 StockVaultTab(골든크로스·정배열 보관함 UI)은 코드에 남아 있으나 탭에서는 TradingTechniqueTab으로 교체됨. 보관함 UI가 다시 필요하면 알려주세요.

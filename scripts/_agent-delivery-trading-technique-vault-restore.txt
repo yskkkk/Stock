@@ -1,0 +1,17 @@
+매매기법 탭 — 기존 보관함 UI 복원
+
+요청: PickList로 교체하지 말고, 서버에 이미 구현된 StockVaultTab(골든크로스·정배열·120선·즐겨찾기·스캔·업종 필터 등)을 매매기법 선택 뒤에 그대로 표시.
+
+변경
+1) TradingTechniqueTab
+   - 1단계: 서버 매매기법 목록 선택 (유지)
+   - 2단계: StockVaultTab 전체 렌더 (기존 보관함 UI)
+   - 기법 선택 시 prefetchStockVaultTab()으로 vault 데이터 로드
+
+2) StockVaultTab
+   - techModelHeader prop 추가 — 「매매기법 선택」 뒤로가기 + 선택한 기법명을 제목으로 표시
+   - 나머지 기능(탐색·스캔·필터·목록) 변경 없음
+
+3) App.tsx — onVaultChange(즐겨찾기 동기화) 다시 연결
+
+OOM 완화(이전 턴)는 유지 — 기동 직후 vault 즉시 로드 없음, 기법 선택 후 탭 진입 시 로드.

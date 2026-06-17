@@ -1,0 +1,23 @@
+종목보관(매매기법) 행 호버 렉 수정
+
+원인
+- useStockVaultRowBubble()가 StockVaultTab 안에 있어 setTip()마다 탭 전체(60+행) 리렌더
+- 호버 즉시 StockEarningsHoverBubbleBody 마운트 + 재무 API 2회
+
+조치
+1. StockVaultRowBubblePortal — 말풍선 state를 별도 컴포넌트로 분리, 호버 시 탭 리렌더 없음
+2. SHOW_DELAY_MS 200 — 짧게 스칠 때는 말풍선·API 미실행
+3. showTip 시 loadEarningsBubbleFinancials 선 prefetch (지연 중 캐시 워밍)
+4. 같은 종목 재호버 시 setTip 생략
+5. 키보드 포커스는 immediate: true 로 기존처럼 즉시 표시
+
+변경 파일
+- src/components/StockVaultRowBubble.tsx
+- src/components/StockVaultTab.tsx
+
+기능 유지
+- 차트/재무/버핏 버튼, 버핏 연동, 다른 말풍선 exclusive 닫기, aria-describedby
+
+확인 방법
+- 매매기법 탭에서 행에 마우스 올려 UI 멈춤 없이 0.2초 후 말풍선 표시
+- 키보드 Tab 포커스 시 즉시 말풍선
