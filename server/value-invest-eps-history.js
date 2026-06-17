@@ -22,6 +22,7 @@ const DETAIL_FETCH_CONCURRENCY = 4;
 const epsHistoryCache = new Map();
 
 /**
+ * 기준 EPS = (10년 전 연말 EPS + 최근 연말 EPS) ÷ 2
  * @param {{ year: number; eps: number }[]} series
  * @param {number} [maxYears]
  * @returns {{ avg: number | null; years: { year: number; eps: number }[]; source: string | null; negativeYearsCount: number }}
@@ -33,18 +34,39 @@ export function averageEpsFromHistory(series, maxYears = EPS_AVERAGE_MAX_YEARS) 
   if (positive.length === 0) {
     return { avg: null, years: [], source: null, negativeYearsCount };
   }
-  const recent = positive.slice(-maxYears);
-  const avg = recent.reduce((sum, row) => sum + row.eps, 0) / recent.length;
+
+  const end = positive[positive.length - 1];
+  const targetYear = end.year - maxYears;
+  let start =
+    positive.find((s) => s.year === targetYear) ??
+    positive.filter((s) => s.year <= targetYear).at(-1) ??
+    positive[0];
+
+  if (start.year === end.year) {
+    return {
+      avg: end.eps,
+      years: [end],
+      source: `기준 EPS ${end.year} (이력 1년)`,
+      negativeYearsCount,
+    };
+  }
+
+  const avg = (start.eps + end.eps) / 2;
   if (!Number.isFinite(avg) || avg <= 0) {
     return { avg: null, years: [], source: null, negativeYearsCount };
   }
-  const start = recent[0].year;
-  const end = recent[recent.length - 1].year;
-  const span =
-    recent.length < maxYears
-      ? `연간 EPS ${start}–${end} 평균 (${recent.length}개 실적, API 가용 ${recent.length}년)`
-      : `연간 EPS ${start}–${end} 평균 (${recent.length}개 실적)`;
-  return { avg, years: recent, source: span, negativeYearsCount };
+
+  const gapYears = end.year - start.year;
+  const spanNote =
+    gapYears < maxYears ? `, 실제 ${gapYears}년 간격` : "";
+  const source = `기준 EPS (${start.year} + ${end.year}) ÷ 2${spanNote}`;
+
+  return {
+    avg,
+    years: [start, end],
+    source,
+    negativeYearsCount,
+  };
 }
 
 /**
