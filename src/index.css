@@ -12099,10 +12099,13 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
     flex: 1 1 auto;
     flex-direction: row;
     align-items: stretch;
-    justify-content: flex-start;
+    justify-content: space-evenly;
+    gap: 0.2rem;
     overflow-x: auto;
     overflow-y: hidden;
     min-height: 0;
+    padding-inline: max(0.4rem, env(safe-area-inset-left, 0px))
+      max(0.4rem, env(safe-area-inset-right, 0px));
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }
@@ -12143,11 +12146,12 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   .app-live-trade-side-dock__rail--mobile-bottom
     .app-live-trade-side-dock__rail-btn {
     width: auto;
-    flex: 0 0 auto;
-    min-width: 2.75rem;
-    max-width: none;
+    flex: 1 1 0;
+    min-width: 2.5rem;
+    max-width: 3.125rem;
     min-height: var(--mobile-dock-bar-height);
-    padding: 0.35rem 0.5rem;
+    padding: 0.3rem 0.25rem;
+    box-sizing: border-box;
   }
 
   .app-live-trade-side-dock__rail--mobile-bottom
@@ -12158,7 +12162,8 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
     .app-live-trade-side-dock__rail-btn--feedback,
   .app-live-trade-side-dock__rail--mobile-bottom
     .app-live-trade-side-dock__rail-btn--exchange {
-    flex: 0 0 auto;
+    flex: 1 1 0;
+    max-width: 3.125rem;
   }
 
   .app-live-trade-side-dock__rail--mobile-bottom
