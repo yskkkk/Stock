@@ -251,34 +251,6 @@ export function buildVaultDisplayRows(
     return sortVaultDisplayRows(rows);
   }
 
-  if (!selected.length && !opts.favoriteOnly) {
-    /** @type {Map<string, Partial<Record<StockVaultScanSource, StockVaultItem>>>} */
-    const grouped = new Map();
-    for (const it of items) {
-      const src = it.source as StockVaultScanSource;
-      if (!STOCK_VAULT_SCAN_SOURCES.includes(src)) continue;
-      if (!matchesTimeframe(it, timeframe)) continue;
-      const key = symbolMarketTimeframeKey(it);
-      const row = grouped.get(key) ?? {};
-      row[src] = it;
-      grouped.set(key, row);
-    }
-
-    const rows: VaultDisplayRow[] = [];
-    for (const [key, parts] of grouped) {
-      const scanSources = STOCK_VAULT_SCAN_SOURCES.filter(
-        (src) => parts[src],
-      ) as StockVaultScanSource[];
-      rows.push(buildScanRow(key, parts, scanSources, timeframe));
-    }
-
-    let filtered = rows;
-    if (opts.marketFilter !== "all") {
-      filtered = filtered.filter((r) => r.market === opts.marketFilter);
-    }
-    return sortVaultDisplayRows(filtered);
-  }
-
   if (!selected.length) return [];
 
   if (selected.length === 1 && !opts.favoriteOnly) {

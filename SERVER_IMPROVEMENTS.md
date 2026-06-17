@@ -42,6 +42,20 @@ _재발 17617회 (최초 2026-05-27 07:14:23.020 KST)_
 
 ---
 
+### [WARN] telegram — 2026-06-17 15:43:55.492 KST
+
+<!-- id:ops-dev-notify-pending-stale -->
+
+**문제**: 개발 완료 텔레그램 pending이 10분 이상 디스크에 남아 있습니다.
+
+**개선 제안**: flushOpsDevNotifyPendingFromDisk·coalesce 타이머·프로세스 재기동 경로를 점검하세요.
+
+**근거**: pending since 2026-06-17 15:21:25.083 KST
+
+_재발 8회 (최초 2026-05-28 07:59:33.276 KST)_
+
+---
+
 ### [WARN] telegram — 2026-06-17 02:49:06.937 KST
 
 <!-- id:telegram-stock-send-error -->
@@ -84,20 +98,6 @@ _재발 6회 (최초 2026-05-27 21:08:34.715 KST)_
 
 ---
 
-### [WARN] telegram — 2026-06-07 22:19:49.025 KST
-
-<!-- id:ops-dev-notify-pending-stale -->
-
-**문제**: 개발 완료 텔레그램 pending이 10분 이상 디스크에 남아 있습니다.
-
-**개선 제안**: flushOpsDevNotifyPendingFromDisk·coalesce 타이머·프로세스 재기동 경로를 점검하세요.
-
-**근거**: pending since 2026-06-07 22:08:16.615 KST
-
-_재발 5회 (최초 2026-05-28 07:59:33.276 KST)_
-
----
-
 ## 최근 자동 점검
 
-2026-06-17 13:08:54.974 KST — probes 완료 · 열린 6건 · 이번 기록 0건
+2026-06-17 15:53:55.819 KST — probes 완료 · 열린 6건 · 이번 기록 0건

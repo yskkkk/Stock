@@ -65,7 +65,7 @@ describe("stockVaultFilter", () => {
     expect(countVaultIntersection(items, ["golden_cross", "ma_align"])).toBe(1);
   });
 
-  it("returns union when no scan source selected", () => {
+  it("returns empty list when no scan source selected", () => {
     const items = [
       item({ symbol: "A.KS", source: "golden_cross" }),
       item({ symbol: "B.KS", source: "ma_align" }),
@@ -75,8 +75,7 @@ describe("stockVaultFilter", () => {
       marketFilter: "all",
       favoriteOnly: false,
     });
-    expect(rows).toHaveLength(2);
-    expect(rows.map((r) => r.symbol).sort()).toEqual(["A.KS", "B.KS"]);
+    expect(rows).toHaveLength(0);
   });
 
   it("lists bottom_candle scan source", () => {
