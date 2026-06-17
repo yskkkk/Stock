@@ -825,12 +825,7 @@ export default function StockVaultTab({
 
   useEffect(() => {
     if (timeframeFilter !== "1wk") return;
-    setSelectedScanSources((prev) => {
-      const next = prev.filter(
-        (s) => s !== "ma120_near" && s !== "book_accum",
-      );
-      return next;
-    });
+    setSelectedScanSources((prev) => prev.filter((s) => s !== "ma120_near"));
     setMa120ApproachFilter(null);
   }, [timeframeFilter]);
 

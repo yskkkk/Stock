@@ -657,6 +657,8 @@ export function mergeBottomCandleHitsIntoVaultSync(hits) {
 
 export function clearBookAccumVaultItemsSync(opts = {}) {
   const marketFilter = opts.market === "kr" || opts.market === "us" ? opts.market : null;
+  const timeframeFilter =
+    opts.timeframe == null ? null : normalizeVaultScanTimeframe(opts.timeframe);
   const preserveFavorites = opts.preserveFavorites !== false;
   const favorited = preserveFavorites ? listAllFavoritedSymbolsSync() : new Set();
   const store = readStore();
@@ -664,6 +666,12 @@ export function clearBookAccumVaultItemsSync(opts = {}) {
   store.items = store.items.filter((it) => {
     if (it.source !== "book_accum") return true;
     if (marketFilter && it.market !== marketFilter) return true;
+    if (
+      timeframeFilter &&
+      normalizeVaultScanTimeframe(it.timeframe) !== timeframeFilter
+    ) {
+      return true;
+    }
     if (favorited.has(it.symbol)) return true;
     return false;
   });

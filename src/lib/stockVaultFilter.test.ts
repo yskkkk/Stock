@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildVaultDisplayRows,
   countVaultIntersection,
+  visibleStockVaultScanSources,
 } from "./stockVaultFilter";
 import type { StockVaultItem } from "../types";
 
@@ -131,5 +132,12 @@ describe("stockVaultFilter", () => {
     });
     expect(rows).toHaveLength(2);
     expect(new Set(rows.map((r) => r.key)).size).toBe(2);
+  });
+
+  it("주봉 탭 — 바닥캔들·매집봉 필터 표시", () => {
+    const weekly = visibleStockVaultScanSources("1wk");
+    expect(weekly).toContain("bottom_candle");
+    expect(weekly).toContain("book_accum");
+    expect(weekly).not.toContain("ma120_near");
   });
 });

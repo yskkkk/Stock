@@ -1,10 +1,16 @@
 import { loadStock } from "./stock-data.js";
 import { detectBookAccumulationLatest } from "./book-accumulation-detect.js";
+import { candlesForWeeklyMaScan } from "./weekly-candle-trim.js";
 import { isGoldenCrossTradable } from "./golden-cross-tradable.js";
 import { resolveDisplayName } from "./names-ko.js";
 import { loadUniverse } from "./universe.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
+import {
+  normalizeVaultScanTimeframe,
+  vaultScanChartTimeframe,
+  vaultScanStateDateField,
+} from "./vault-scan-timeframe.js";
 
 const STATE_FILE = "book-accumulation-scan-state.json";
 
@@ -34,7 +40,7 @@ function delay(ms) {
 /** @param {unknown} raw */
 function normalizeState(raw) {
   const lastRuns = Array.isArray(raw?.lastRuns)
-    ? raw.lastRuns.slice(0, 28).map((row) => ({
+    ? raw.lastRuns.slice(0, 48).map((row) => ({
         market: row?.market === "us" ? "us" : "kr",
         scanDate: typeof row?.scanDate === "string" ? row.scanDate : "",
         scanned:
@@ -49,6 +55,7 @@ function normalizeState(raw) {
           typeof row?.atMs === "number" && Number.isFinite(row.atMs)
             ? row.atMs
             : Date.now(),
+        timeframe: normalizeVaultScanTimeframe(row?.timeframe),
       }))
     : [];
   return {
@@ -56,6 +63,14 @@ function normalizeState(raw) {
       typeof raw?.krLastScanDate === "string" ? raw.krLastScanDate : null,
     usLastScanDate:
       typeof raw?.usLastScanDate === "string" ? raw.usLastScanDate : null,
+    krWeeklyLastScanDate:
+      typeof raw?.krWeeklyLastScanDate === "string"
+        ? raw.krWeeklyLastScanDate
+        : null,
+    usWeeklyLastScanDate:
+      typeof raw?.usWeeklyLastScanDate === "string"
+        ? raw.usWeeklyLastScanDate
+        : null,
     lastRunAtMs:
       typeof raw?.lastRunAtMs === "number" && Number.isFinite(raw.lastRunAtMs)
         ? raw.lastRunAtMs
@@ -71,6 +86,8 @@ function readState() {
     () => ({
       krLastScanDate: null,
       usLastScanDate: null,
+      krWeeklyLastScanDate: null,
+      usWeeklyLastScanDate: null,
       lastRunAtMs: null,
       lastRuns: [],
     }),
@@ -86,20 +103,30 @@ function writeState(state) {
  * @param {{ symbol: string; name: string }} item
  * @param {"kr"|"us"} market
  * @param {string} scanDate
+ * @param {import("./vault-scan-timeframe.js").VaultScanTimeframe} [timeframe]
  */
-async function scanOneSymbol(item, market, scanDate) {
+async function scanOneSymbol(item, market, scanDate, timeframe = "1d") {
+  const tf = normalizeVaultScanTimeframe(timeframe);
+  const chartTf = vaultScanChartTimeframe(tf);
   const sym = String(item.symbol ?? "")
     .trim()
     .toUpperCase();
   if (!sym) return { ok: true, hit: null };
   try {
-    const data = await loadStock(sym, "1d", { live: true, scan: true });
-    const tradable = await isGoldenCrossTradable(data, market, { timeframe: "1d" });
+    const data = await loadStock(sym, chartTf, { live: true, scan: true });
+    const tradable = await isGoldenCrossTradable(data, market, { timeframe: tf });
     if (!tradable.ok) {
-      liveTradeLogInfo("[book-accum:scan] skip", sym, tradable.reason);
+      liveTradeLogInfo("[book-accum:scan] skip", sym, tf, tradable.reason);
       return { ok: true, hit: null };
     }
-    const candles = Array.isArray(data?.candles) ? data.candles : [];
+    let candles = Array.isArray(data?.candles) ? data.candles : [];
+    if (tf === "1wk") {
+      const daily = await loadStock(sym, "1d", { live: true, scan: true });
+      candles = candlesForWeeklyMaScan(
+        candles,
+        Array.isArray(daily?.candles) ? daily.candles : [],
+      );
+    }
     const det = detectBookAccumulationLatest(candles);
     if (!det.anyAccum) return { ok: true, hit: null };
     return {
@@ -111,7 +138,7 @@ async function scanOneSymbol(item, market, scanDate) {
           String(item.name ?? data?.quote?.name ?? sym).trim() || sym,
         ),
         market,
-        timeframe: "1d",
+        timeframe: tf,
         scanDate,
         signalDate: det.signalDate ?? scanDate,
         accumScore: det.score,
@@ -122,6 +149,7 @@ async function scanOneSymbol(item, market, scanDate) {
     liveTradeLogWarn(
       "[book-accum:scan]",
       sym,
+      tf,
       e instanceof Error ? e.message : e,
     );
     return { ok: false, hit: null };
@@ -131,10 +159,11 @@ async function scanOneSymbol(item, market, scanDate) {
 /**
  * @param {"kr"|"us"} market
  * @param {string} scanDate
- * @param {{ persistState?: boolean }} [opts]
+ * @param {{ persistState?: boolean; timeframe?: import("./vault-scan-timeframe.js").VaultScanTimeframe }} [opts]
  */
 export async function runBookAccumulationMarketScan(market, scanDate, opts = {}) {
   const persistState = opts.persistState !== false;
+  const timeframe = normalizeVaultScanTimeframe(opts.timeframe);
   const uni = await loadUniverse();
   const list =
     market === "kr"
@@ -148,6 +177,7 @@ export async function runBookAccumulationMarketScan(market, scanDate, opts = {})
   liveTradeLogInfo("[book-accum:scan] start", {
     market,
     scanDate,
+    timeframe,
     symbols: list.length,
   });
 
@@ -158,7 +188,7 @@ export async function runBookAccumulationMarketScan(market, scanDate, opts = {})
   for (let i = 0; i < list.length; i += BATCH_SIZE) {
     const batch = list.slice(i, i + BATCH_SIZE);
     const results = await Promise.all(
-      batch.map((item) => scanOneSymbol(item, market, scanDate)),
+      batch.map((item) => scanOneSymbol(item, market, scanDate, timeframe)),
     );
     for (const r of results) {
       if (!r.ok) {
@@ -174,8 +204,8 @@ export async function runBookAccumulationMarketScan(market, scanDate, opts = {})
 
   if (persistState) {
     const state = readState();
-    if (market === "kr") state.krLastScanDate = scanDate;
-    else state.usLastScanDate = scanDate;
+    const field = vaultScanStateDateField(market, timeframe);
+    state[field] = scanDate;
     state.lastRunAtMs = Date.now();
     state.lastRuns.unshift({
       market,
@@ -183,14 +213,16 @@ export async function runBookAccumulationMarketScan(market, scanDate, opts = {})
       scanned: list.length,
       hits: hits.length,
       atMs: Date.now(),
+      timeframe,
     });
-    state.lastRuns = state.lastRuns.slice(0, 28);
+    state.lastRuns = state.lastRuns.slice(0, 48);
     writeState(state);
   }
 
   const out = {
     market,
     scanDate,
+    timeframe,
     scanned: list.length,
     hits,
     hitCount: hits.length,
@@ -199,6 +231,7 @@ export async function runBookAccumulationMarketScan(market, scanDate, opts = {})
   liveTradeLogInfo("[book-accum:scan] done", {
     market,
     scanDate,
+    timeframe,
     scanned: list.length,
     hits: hits.length,
     errors,
@@ -209,10 +242,15 @@ export async function runBookAccumulationMarketScan(market, scanDate, opts = {})
 /**
  * @param {"kr"|"us"} market
  * @param {string} scanDate
+ * @param {import("./vault-scan-timeframe.js").VaultScanTimeframe} [timeframe]
  */
-export function wasBookAccumulationScannedSync(market, scanDate) {
+export function wasBookAccumulationScannedSync(
+  market,
+  scanDate,
+  timeframe = "1d",
+) {
   const state = readState();
-  const field = market === "us" ? "usLastScanDate" : "krLastScanDate";
+  const field = vaultScanStateDateField(market, timeframe);
   return state[field] === scanDate;
 }
 

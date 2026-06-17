@@ -169,21 +169,27 @@ async function runVaultMarketScansForTimeframe(
   const appendHistory = opts.appendHistory !== false;
   const scanOpts = { persistState: persistScanState, timeframe };
 
+  const dailyOnlyScans =
+    timeframe === "1d"
+      ? [
+          runMa120NearMarketScan(market, scanDate, { persistState: persistScanState }),
+        ]
+      : [];
+
   /** @type {PromiseSettledResult<Awaited<ReturnType<typeof runGoldenCrossMarketScan>>>[]} */
   const settled = await Promise.allSettled([
     runGoldenCrossMarketScan(market, scanDate, scanOpts),
     runMaAlignMarketScan(market, scanDate, scanOpts),
-    ...(timeframe === "1d"
-      ? [
-          runMa120NearMarketScan(market, scanDate, { persistState: persistScanState }),
-          runBookAccumulationMarketScan(market, scanDate, { persistState: persistScanState }),
-        ]
-      : []),
+    ...dailyOnlyScans,
+    runBookAccumulationMarketScan(market, scanDate, {
+      persistState: persistScanState,
+      timeframe,
+    }),
   ]);
   const gcSettled = settled[0];
   const maSettled = settled[1];
   const ma120Settled = timeframe === "1d" ? settled[2] : null;
-  const bookAccumSettled = timeframe === "1d" ? settled[3] : null;
+  const bookAccumSettled = settled[timeframe === "1d" ? 3 : 2];
 
   /** @type {Awaited<ReturnType<typeof runGoldenCrossMarketScan>>} */
   let goldenCross = emptyGoldenCrossMarketResult(market, scanDate);
@@ -294,10 +300,10 @@ async function runVaultMarketScansForTimeframe(
 
   /** @type {Awaited<ReturnType<typeof runBookAccumulationMarketScan>>} */
   let bookAccum = emptyBookAccumMarketResult(market, scanDate);
-  if (timeframe === "1d" && bookAccumSettled) {
+  if (bookAccumSettled) {
     if (bookAccumSettled.status === "fulfilled") {
       bookAccum = bookAccumSettled.value;
-      clearBookAccumVaultItemsSync({ market });
+      clearBookAccumVaultItemsSync({ market, timeframe });
       if (bookAccum.hits.length) {
         mergeBookAccumHitsIntoVaultSync(bookAccum.hits);
       }
@@ -595,7 +601,7 @@ export function shouldRunGoldenCrossScan(market, now = new Date()) {
       !wasGoldenCrossScannedSync(market, dateKey, timeframe) ||
       !wasMaAlignScannedSync(market, dateKey, timeframe) ||
       (timeframe === "1d" && !wasMa120NearScannedSync(market, dateKey)) ||
-      (timeframe === "1d" && !wasBookAccumulationScannedSync(market, dateKey))
+      !wasBookAccumulationScannedSync(market, dateKey, timeframe)
     ) {
       return market === "kr"
         ? isKrMarketFullyClosed(now)

@@ -343,12 +343,8 @@ export function countVaultIntersection(
   }).length;
 }
 
-/** 일봉 전용 탐색 조건 — 주봉 탭에서는 숨김 */
-const DAILY_ONLY_SCAN_SOURCES = new Set<StockVaultScanSource>([
-  "ma120_near",
-  "bottom_candle",
-  "book_accum",
-]);
+/** 일봉 전용 탐색 조건 — 주봉 탭에서는 120선 근처만 숨김 */
+const DAILY_ONLY_SCAN_SOURCES = new Set<StockVaultScanSource>(["ma120_near"]);
 
 export function visibleStockVaultScanSources(
   timeframe: StockVaultTimeframe,
