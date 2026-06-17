@@ -148,8 +148,8 @@ function deriveGrowth10y(series, fundamentals) {
     const window = epsGrowthWindow(series);
     const sourceBase =
       window != null
-        ? `EPS 전년대비 평균 ${window.start.year}→${window.end.year} (${window.periodYears}년${window.fromListing ? ", 상장 기간" : ""})`
-        : "EPS 전년대비 평균";
+        ? `EPS 연간화 성장률 평균 ${window.start.year}→${window.end.year} (${window.periodYears}년${window.fromListing ? ", 상장 기간" : ""})`
+        : "EPS 연간화 성장률 평균";
     return { value: growth, source: sourceBase };
   }
 

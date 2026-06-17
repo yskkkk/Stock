@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildEpsGrowthByYear,
+  epsAnnualizedGrowthBetween,
   GROWTH_10Y_CAP,
   epsAvgYoyGrowthFromHistory,
   epsCagrFromHistory,
@@ -12,33 +13,62 @@ function cagr(startEps, endEps, periodYears) {
   return (endEps / startEps) ** (1 / periodYears) - 1;
 }
 
-function avgYoy(series) {
+function avgAnnualized(series) {
   const sorted = series
     .filter((s) => s.year > 0 && s.eps > 0)
     .sort((a, b) => a.year - b.year);
   const rates = [];
   for (let i = 1; i < sorted.length; i++) {
-    rates.push(sorted[i].eps / sorted[i - 1].eps - 1);
+    const rate = epsAnnualizedGrowthBetween(sorted[i - 1], sorted[i]);
+    if (rate != null) rates.push(rate);
   }
   return rates.reduce((a, b) => a + b, 0) / rates.length;
 }
 
+describe("epsAnnualizedGrowthBetween", () => {
+  it("5년 갭 1000→2000 — 연간 약 14.9%", () => {
+    const r = epsAnnualizedGrowthBetween(
+      { year: 2020, eps: 1000 },
+      { year: 2025, eps: 2000 },
+    );
+    expect(r).toBeCloseTo(cagr(1000, 2000, 5), 4);
+    expect(r).toBeCloseTo(0.1487, 3);
+  });
+
+  it("1년 갭 — 전년대비와 동일", () => {
+    expect(
+      epsAnnualizedGrowthBetween(
+        { year: 2023, eps: 10 },
+        { year: 2024, eps: 12 },
+      ),
+    ).toBeCloseTo(0.2, 4);
+  });
+});
+
 describe("buildEpsGrowthByYear", () => {
-  it("첫 해 YoY null, 이후 전년대비 %", () => {
+  it("첫 해 null, 이후 구간 연간화 %", () => {
+    const rows = buildEpsGrowthByYear([
+      { year: 2020, eps: 1000 },
+      { year: 2025, eps: 2000 },
+    ]);
+    expect(rows).toHaveLength(2);
+    expect(rows[0].yoyPct).toBeNull();
+    expect(rows[1].yoyPct).toBeCloseTo(cagr(1000, 2000, 5) * 100, 2);
+  });
+
+  it("매년 1년 갭 — 전년대비 %", () => {
     const rows = buildEpsGrowthByYear([
       { year: 2023, eps: 2131 },
       { year: 2024, eps: 4950 },
       { year: 2025, eps: 6564 },
     ]);
-    expect(rows).toHaveLength(3);
-    expect(rows[0].yoyPct).toBeNull();
     expect(rows[1].yoyPct).toBeCloseTo(((4950 / 2131) - 1) * 100, 2);
     expect(rows[2].yoyPct).toBeCloseTo(((6564 / 4950) - 1) * 100, 2);
   });
 });
 
 describe("epsAvgYoyGrowthFromHistory", () => {
-  it("3개 연도 — 전년대비 2개 평균", () => {
+  it("3개 연도 — 구간 2개 연간화 평균", () => {
     const series = [
       { year: 2022, eps: 6 },
       { year: 2023, eps: 7 },
@@ -46,10 +76,10 @@ describe("epsAvgYoyGrowthFromHistory", () => {
     ];
     const r = epsAvgYoyGrowthFromHistory(series);
     expect(r).not.toBeNull();
-    expect(r).toBeCloseTo(avgYoy(series), 4);
+    expect(r).toBeCloseTo(avgAnnualized(series), 4);
   });
 
-  it("2개 연도 — 1년 YoY", () => {
+  it("2개 연도·1년 갭", () => {
     const series = [
       { year: 2023, eps: 10 },
       { year: 2024, eps: 12 },
@@ -57,28 +87,37 @@ describe("epsAvgYoyGrowthFromHistory", () => {
     expect(epsAvgYoyGrowthFromHistory(series)).toBeCloseTo(0.2, 4);
   });
 
+  it("2개 연도·10년 갭 1000→2000 — 100% 아님, 연간화 ≈7.18%", () => {
+    const series = [
+      { year: 2015, eps: 1000 },
+      { year: 2025, eps: 2000 },
+    ];
+    const r = epsAvgYoyGrowthFromHistory(series);
+    expect(r).toBeCloseTo(cagr(1000, 2000, 10), 4);
+    expect(r).toBeLessThan(0.1);
+  });
+
   it("1개 연도만 있으면 null", () => {
     expect(epsAvgYoyGrowthFromHistory([{ year: 2024, eps: 10 }])).toBeNull();
   });
 
-  it("10개 연도 — 구간 내 전년대비 평균", () => {
+  it("10개 연도 — 매년 구간 연간화 평균", () => {
     const series = Array.from({ length: 10 }, (_, i) => ({
       year: 2015 + i,
       eps: 5 + i,
     }));
     const r = epsAvgYoyGrowthFromHistory(series);
-    expect(r).toBeCloseTo(avgYoy(series), 4);
-    expect(r).not.toBeCloseTo(cagr(5, 14, 9), 4);
+    expect(r).toBeCloseTo(avgAnnualized(series), 4);
   });
 
-  it("불규칙 성장 — CAGR과 다른 산술평균", () => {
+  it("불규칙 성장 — 구간별 연간화 후 평균", () => {
     const series = [
       { year: 2021, eps: 5 },
       { year: 2022, eps: 15 },
       { year: 2023, eps: 18 },
     ];
     const r = epsAvgYoyGrowthFromHistory(series);
-    expect(r).toBeCloseTo(avgYoy(series), 4);
+    expect(r).toBeCloseTo(avgAnnualized(series), 4);
     expect(r).not.toBeCloseTo(cagr(5, 18, 2), 4);
   });
 });
@@ -97,7 +136,7 @@ describe("epsCagrFromHistory", () => {
 });
 
 describe("deriveValueInvestGrowth10y", () => {
-  it("이력 있으면 EPS 전년대비 평균 우선", () => {
+  it("이력 있으면 EPS 연간화 평균 우선", () => {
     const r = deriveValueInvestGrowth10y({
       eps: 8,
       forwardEps: 9,
@@ -108,10 +147,10 @@ describe("deriveValueInvestGrowth10y", () => {
       ],
     });
     expect(r.value).toBeCloseTo(0.1, 4);
-    expect(r.source).toMatch(/전년대비 평균/);
+    expect(r.source).toMatch(/연간화 성장률 평균/);
   });
 
-  it("4년 이상 이력 — 전년대비 평균 (상한 없음)", () => {
+  it("4년 이상 이력 — 연간화 평균 (상한 없음)", () => {
     const series = [
       { year: 2020, eps: 8 },
       { year: 2021, eps: 9 },
@@ -124,7 +163,7 @@ describe("deriveValueInvestGrowth10y", () => {
       revenueGrowth: null,
       epsHistory: series,
     });
-    expect(r.value).toBeCloseTo(avgYoy(series), 4);
+    expect(r.value).toBeCloseTo(avgAnnualized(series), 4);
   });
 
   it("3년 이하 이력 — 25% 상한", () => {
@@ -156,7 +195,7 @@ describe("deriveValueInvestGrowth10y", () => {
     expect(r.value).toBe(GROWTH_10Y_CAP);
   });
 
-  it("EPS 전년대비 평균 detail — 구간·연도별·결과", () => {
+  it("EPS 연간화 detail — 구간·식·결과", () => {
     const r = deriveValueInvestGrowth10y({
       eps: null,
       forwardEps: null,
@@ -202,6 +241,6 @@ describe("epsGrowthWindow", () => {
     expect(w.periodYears).toBe(3);
     expect(w.fromListing).toBe(true);
     const r = epsAvgYoyGrowthFromHistory(series);
-    expect(r).toBeCloseTo(avgYoy(series), 4);
+    expect(r).toBeCloseTo(avgAnnualized(series), 4);
   });
 });
