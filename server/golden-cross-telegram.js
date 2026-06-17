@@ -34,6 +34,95 @@ function goldenCrossTelegramEnabled() {
   return String(process.env.STOCK_GOLDEN_CROSS_TELEGRAM ?? "1").trim() !== "0";
 }
 
+const MARKET_LABEL = {
+  kr: "국내 시총 상위",
+  us: "미국 S&amp;P500",
+  all: "국내 시총 상위 · 미국 S&amp;P500",
+};
+
+const SCAN_TRIGGER_LABEL = {
+  manual: "수동 탐색",
+  scheduled: "자동 탐색",
+};
+
+/**
+ * @param {{ trigger: "manual"|"scheduled"; market?: "kr"|"us"|"all"; scanDate?: string }} opts
+ */
+export function buildVaultScanStartTelegramHtml(opts) {
+  const triggerKo = SCAN_TRIGGER_LABEL[opts.trigger] ?? "탐색";
+  const marketKo = MARKET_LABEL[opts.market ?? "all"] ?? MARKET_LABEL.all;
+  const lines = [
+    `<b>🔍 종목보관 탐색 시작</b>`,
+    opts.scanDate
+      ? `<i>${esc(opts.scanDate)} · ${triggerKo}</i>`
+      : `<i>${triggerKo}</i>`,
+    "",
+    `<b>대상</b> ${marketKo}`,
+    "<b>항목</b>",
+    "· 일봉 — 골든크로스, 정배열, 120선 근처(±3%), 매집봉",
+    "· 주봉 — 골든크로스, 정배열, 매집봉",
+  ];
+  return lines.join("\n");
+}
+
+/**
+ * @param {Parameters<typeof buildVaultScanStartTelegramHtml>[0]} opts
+ */
+export async function notifyVaultScanStartTelegram(opts) {
+  if (!goldenCrossTelegramEnabled()) return { sent: false, reason: "disabled" };
+  if (!isTelegramNotifyEnabled()) return { sent: false, reason: "telegram_off" };
+
+  const text = buildVaultScanStartTelegramHtml(opts);
+  try {
+    await sendStockTelegramMessage(text);
+    return { sent: true };
+  } catch (e) {
+    liveTradeLogWarn(
+      "[golden-cross:telegram:start]",
+      opts.market ?? "all",
+      e instanceof Error ? e.message : e,
+    );
+    return { sent: false, reason: "send_failed" };
+  }
+}
+
+/**
+ * @param {{ trigger: "manual"|"scheduled"; scanDate?: string }} opts
+ */
+export function buildBottomCandleScanStartTelegramHtml(opts) {
+  const triggerKo = SCAN_TRIGGER_LABEL[opts.trigger] ?? "탐색";
+  const lines = [
+    `<b>🔍 바닥캔들 탐색 시작</b>`,
+    opts.scanDate
+      ? `<i>${esc(opts.scanDate)} · ${triggerKo}</i>`
+      : `<i>${triggerKo}</i>`,
+    "",
+    `<b>대상</b> ${MARKET_LABEL.all}`,
+    "<b>항목</b> 일봉·주봉 세력 바닥 3캔들",
+  ];
+  return lines.join("\n");
+}
+
+/**
+ * @param {Parameters<typeof buildBottomCandleScanStartTelegramHtml>[0]} opts
+ */
+export async function notifyBottomCandleScanStartTelegram(opts) {
+  if (!goldenCrossTelegramEnabled()) return { sent: false, reason: "disabled" };
+  if (!isTelegramNotifyEnabled()) return { sent: false, reason: "telegram_off" };
+
+  const text = buildBottomCandleScanStartTelegramHtml(opts);
+  try {
+    await sendStockTelegramMessage(text);
+    return { sent: true };
+  } catch (e) {
+    liveTradeLogWarn(
+      "[bottom-candle:telegram:start]",
+      e instanceof Error ? e.message : e,
+    );
+    return { sent: false, reason: "send_failed" };
+  }
+}
+
 /**
  * @param {"kr"|"us"} market
  * @param {string} scanDate

@@ -9,6 +9,7 @@ import {
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 import { markPollerBootStarted, pollerGuardAsync } from "./poller-registry.js";
 import { VAULT_SCAN_TIMEFRAMES } from "./vault-scan-timeframe.js";
+import { notifyBottomCandleScanStartTelegram } from "./golden-cross-telegram.js";
 
 const POLL_MS = (() => {
   const n = Number(process.env.STOCK_BOTTOM_CANDLE_POLL_MS ?? 3_600_000);
@@ -64,6 +65,11 @@ async function runMarketTimeframeScan(market, scanDate, timeframe) {
 /** @param {Date} [now] @param {"manual"|"scheduled"} trigger */
 export async function runFullBottomCandleScanInternal(now = new Date(), trigger = "scheduled") {
   const runId = randomUUID();
+  const kstDate = getKstParts(now).dateKey;
+  await notifyBottomCandleScanStartTelegram({
+    trigger,
+    scanDate: kstDate,
+  }).catch(() => {});
   /** @type {Array<{ market: "kr"|"us"; timeframe: string; scanDate: string; scanned: number; hitCount: number }>} */
   const results = [];
 

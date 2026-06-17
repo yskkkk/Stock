@@ -21,7 +21,11 @@ import {
 import { appendGoldenCrossHistoryEntrySync } from "./golden-cross-history-store.js";
 import { appendMaAlignHistoryEntrySync } from "./ma-align-history-store.js";
 import { appendMa120NearHistoryEntrySync } from "./ma120-near-history-store.js";
-import { notifyGoldenCrossScanTelegram, notifyVaultTimeframeIntersectionTelegram } from "./golden-cross-telegram.js";
+import {
+  notifyGoldenCrossScanTelegram,
+  notifyVaultScanStartTelegram,
+  notifyVaultTimeframeIntersectionTelegram,
+} from "./golden-cross-telegram.js";
 import { sendGoldenCrossScanReportEmail, buildScanEmailPayloadFromVaultResult } from "./notifications/golden-cross-scan-email.js";
 import { runMaAlignVaultIntradayRefresh } from "./ma-align-vault-intraday.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
@@ -445,6 +449,12 @@ export async function runVaultIntradayRescanIfDue(market, now = new Date()) {
 /** @param {Date} [now] */
 async function runGoldenCrossManualScanInternal(now = new Date()) {
   const runId = randomUUID();
+  const kstDate = getKstParts(now).dateKey;
+  await notifyVaultScanStartTelegram({
+    trigger: "manual",
+    market: "all",
+    scanDate: kstDate,
+  }).catch(() => {});
 
   /** @type {Array<{ market: "kr"|"us"; scanDate: string; scanned: number; hitCount: number }>} */
   const goldenCrossResults = [];
@@ -620,6 +630,11 @@ export async function runGoldenCrossScanIfDue(market, now = new Date()) {
       : localMinutesOfDay("us", now).dateKey;
 
   const runId = randomUUID();
+  await notifyVaultScanStartTelegram({
+    trigger: "scheduled",
+    market,
+    scanDate,
+  }).catch(() => {});
   vaultScanRunning = true;
   try {
     const { goldenCross, maAlign, ma120Near, byTimeframe } = await runVaultMarketScans(
