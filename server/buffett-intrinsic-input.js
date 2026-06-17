@@ -12,7 +12,7 @@ import { fetchRiskFreeRate } from "./risk-free-rate.js";
 import { loadStockFundamentals } from "./stock-fundamentals.js";
 import {
   EPS_GROWTH_HISTORY_YEARS,
-  epsCagrFromHistory,
+  epsAvgYoyGrowthFromHistory,
   epsGrowthWindow,
 } from "./value-invest-growth.js";
 import {
@@ -143,13 +143,13 @@ async function fetchHistoricalEpsSeries(symbol, market) {
  * @param {{ eps: number | null; forwardEps: number | null; market?: "kr"|"us" }} fundamentals
  */
 function deriveGrowth10y(series, fundamentals) {
-  const growth = epsCagrFromHistory(series);
+  const growth = epsAvgYoyGrowthFromHistory(series);
   if (growth != null && Number.isFinite(growth)) {
     const window = epsGrowthWindow(series);
     const sourceBase =
       window != null
-        ? `EPS CAGR ${window.start.year}→${window.end.year} (${window.periodYears}년${window.fromListing ? ", 상장 기간" : ""})`
-        : "EPS CAGR";
+        ? `EPS 전년대비 평균 ${window.start.year}→${window.end.year} (${window.periodYears}년${window.fromListing ? ", 상장 기간" : ""})`
+        : "EPS 전년대비 평균";
     return { value: growth, source: sourceBase };
   }
 

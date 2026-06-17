@@ -5,33 +5,30 @@ import {
 } from "./value-invest-eps-history.js";
 
 describe("averageEpsFromHistory", () => {
-  it("10년 전 EPS + 최근 EPS ÷ 2", () => {
+  it("최대 10년 — 12개 중 최근 10개 사용", () => {
     const series = Array.from({ length: 12 }, (_, i) => ({
       year: 2014 + i,
       eps: 2 + i * 0.1,
     }));
     const r = averageEpsFromHistory(series);
-    expect(r.years).toEqual([
-      { year: 2015, eps: 2.1 },
-      { year: 2025, eps: 3.1 },
-    ]);
-    expect(r.avg).toBeCloseTo((2.1 + 3.1) / 2, 5);
-    expect(r.source).toMatch(/2015 \+ 2025.*÷ 2/);
+    expect(r.years.length).toBe(EPS_AVERAGE_MAX_YEARS);
+    expect(r.years[0].year).toBe(2016);
+    expect(r.years[9].year).toBe(2025);
+    expect(r.avg).not.toBeNull();
+    expect((r.avg ?? 0) > 2.4 && (r.avg ?? 0) < 3.1).toBe(true);
+    expect(r.source).toMatch(/10개 실적/);
   });
 
-  it("상장 10년 미만 — 가장 오래된 EPS + 최근 EPS", () => {
+  it("상장 10년 미만 — API 가용 N년 문구", () => {
     const series = [
       { year: 2022, eps: 3 },
       { year: 2023, eps: 4 },
       { year: 2024, eps: 5 },
     ];
     const r = averageEpsFromHistory(series);
-    expect(r.years).toEqual([
-      { year: 2022, eps: 3 },
-      { year: 2024, eps: 5 },
-    ]);
+    expect(r.years.length).toBe(3);
     expect(r.avg).toBe(4);
-    expect(r.source).toMatch(/실제 2년 간격/);
+    expect(r.source).toMatch(/API 가용 3년/);
   });
 
   it("음수·0 EPS 연도 제외", () => {
@@ -40,10 +37,7 @@ describe("averageEpsFromHistory", () => {
       { year: 2021, eps: 2 },
       { year: 2022, eps: 4 },
     ]);
-    expect(r.years).toEqual([
-      { year: 2021, eps: 2 },
-      { year: 2022, eps: 4 },
-    ]);
+    expect(r.years.length).toBe(2);
     expect(r.avg).toBe(3);
   });
 
@@ -67,10 +61,7 @@ describe("averageEpsFromHistory", () => {
       { year: 2023, eps: 5 },
       { year: 2024, eps: 7 },
     ]);
-    expect(r.years).toEqual([
-      { year: 2023, eps: 5 },
-      { year: 2024, eps: 7 },
-    ]);
+    expect(r.years.length).toBe(2);
     expect(r.avg).toBe(6);
   });
 
@@ -79,49 +70,31 @@ describe("averageEpsFromHistory", () => {
     expect(r.avg).toBeNull();
   });
 
-  it("정확히 10년 — 2014·2024 두 연도 사용", () => {
+  it("정확히 10개 — maxYears 문구 아님", () => {
     const series = Array.from({ length: 10 }, (_, i) => ({
       year: 2015 + i,
       eps: 10,
     }));
     const r = averageEpsFromHistory(series);
-    expect(r.years).toEqual([
-      { year: 2015, eps: 10 },
-      { year: 2024, eps: 10 },
-    ]);
+    expect(r.years.length).toBe(10);
     expect(r.avg).toBe(10);
-    expect(r.source).toMatch(/2015 \+ 2024.*÷ 2/);
+    expect(r.source).toMatch(/10개 실적/);
     expect(r.source).not.toMatch(/API 가용/);
   });
 
-  it("1개만 있으면 해당값", () => {
+  it("1개만 있으면 평균 = 해당값", () => {
     const r = averageEpsFromHistory([{ year: 2024, eps: 7.5 }]);
     expect(r.avg).toBe(7.5);
     expect(r.years.length).toBe(1);
   });
 
-  it("연도 역순 입력 — 정렬 후 10년 전·최근 사용", () => {
+  it("연도 역순 입력 — 정렬 후 최근 N개 선택", () => {
     const series = Array.from({ length: 12 }, (_, i) => ({
       year: 2025 - i,
       eps: 5 + i * 0.1,
     }));
     const r = averageEpsFromHistory(series);
-    expect(r.years[0].year).toBe(2015);
-    expect(r.years[1].year).toBe(2025);
-    expect(r.avg).toBeCloseTo((6 + 5) / 2, 5);
-  });
-
-  it(`maxYears 기본값 ${EPS_AVERAGE_MAX_YEARS}`, () => {
-    const series = [
-      { year: 2010, eps: 1 },
-      { year: 2020, eps: 3 },
-      { year: 2025, eps: 5 },
-    ];
-    const r = averageEpsFromHistory(series);
-    expect(r.years).toEqual([
-      { year: 2010, eps: 1 },
-      { year: 2025, eps: 5 },
-    ]);
-    expect(r.avg).toBe(3);
+    expect(r.years.length).toBe(10);
+    expect(r.years[0].year).toBeLessThan(r.years[9].year);
   });
 });

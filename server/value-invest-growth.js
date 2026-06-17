@@ -1,5 +1,5 @@
 /**
- * 10년 수익 모델 — 성장률 산출 (연간 EPS 이력 CAGR)
+ * 10년 수익 모델 — 성장률 산출 (연간 EPS 전년대비 평균)
  */
 
 /** 10년 복리 가정 상한 (단기 EPS 이력·1년 추정 폴백) */
@@ -37,6 +37,38 @@ export function epsGrowthWindow(series, maxYears = EPS_GROWTH_HISTORY_YEARS) {
   const gapYearsCount = (periodYears + 1) - positiveInRange.length;
 
   return { start, end, periodYears, fromListing, gapYearsCount };
+}
+
+/**
+ * 구간 내 연속 연말 EPS 전년대비 성장률의 산술평균
+ * @param {{ year: number; eps: number }[]} series
+ * @param {number} [maxYears]
+ */
+export function epsAvgYoyGrowthFromHistory(series, maxYears = EPS_GROWTH_HISTORY_YEARS) {
+  const window = epsGrowthWindow(series, maxYears);
+  if (!window) return null;
+
+  const sorted = (series ?? [])
+    .filter((s) => s.year > 0 && s.eps > 0)
+    .sort((a, b) => a.year - b.year);
+  const inRange = sorted.filter(
+    (s) => s.year >= window.start.year && s.year <= window.end.year,
+  );
+  if (inRange.length < 2) return null;
+
+  /** @type {number[]} */
+  const yoyRates = [];
+  for (let i = 1; i < inRange.length; i++) {
+    const prev = inRange[i - 1].eps;
+    const curr = inRange[i].eps;
+    if (prev <= 0) continue;
+    const yoy = curr / prev - 1;
+    if (Number.isFinite(yoy)) yoyRates.push(yoy);
+  }
+  if (yoyRates.length === 0) return null;
+
+  const avg = yoyRates.reduce((sum, r) => sum + r, 0) / yoyRates.length;
+  return Number.isFinite(avg) ? avg : null;
 }
 
 /**
@@ -80,12 +112,12 @@ function shouldCapShortEpsHistory(series) {
  * @param {number} [rawGrowth]
  * @param {number} [appliedGrowth]
  */
-function formatEpsCagrSource(series, rawGrowth, appliedGrowth) {
+function formatEpsAvgYoySource(series, rawGrowth, appliedGrowth) {
   const window = epsGrowthWindow(series);
-  if (!window) return "EPS CAGR";
+  if (!window) return "EPS 전년대비 평균";
   const { start, end, periodYears, fromListing } = window;
   const spanNote = fromListing ? `, API 가용 ${periodYears}년` : "";
-  const base = `EPS CAGR ${start.year}→${end.year} (${periodYears}년${spanNote})`;
+  const base = `EPS 전년대비 평균 ${start.year}→${end.year} (${periodYears}년${spanNote})`;
   if (
     rawGrowth != null &&
     appliedGrowth != null &&
@@ -116,29 +148,46 @@ function fmtPct(v) {
  * @param {number} rawGrowth
  * @param {number} appliedGrowth
  */
-function buildEpsCagrDetail(series, rawGrowth, appliedGrowth) {
+function buildEpsAvgYoyDetail(series, rawGrowth, appliedGrowth) {
   const window = epsGrowthWindow(series);
   if (!window) {
-    return { method: "eps_cagr", lines: ["연간 EPS 이력 CAGR", `결과: ${fmtPct(appliedGrowth)}`] };
+    return {
+      method: "eps_avg_yoy",
+      lines: ["연간 EPS 전년대비 평균", `결과: ${fmtPct(appliedGrowth)}`],
+    };
   }
   const { start, end, periodYears, fromListing } = window;
-  const startEps = fmtEpsNum(start.eps);
-  const endEps = fmtEpsNum(end.eps);
+  const sorted = (series ?? [])
+    .filter((s) => s.year > 0 && s.eps > 0)
+    .sort((a, b) => a.year - b.year);
+  const inRange = sorted.filter(
+    (s) => s.year >= start.year && s.year <= end.year,
+  );
   const capped =
     rawGrowth > GROWTH_10Y_CAP &&
     appliedGrowth === GROWTH_10Y_CAP &&
     shouldCapShortEpsHistory(series);
   /** @type {string[]} */
   const lines = [
-    "연말 결산 EPS 이력 CAGR (분기·전망 제외)",
+    "연말 결산 EPS 전년대비 성장률 평균 (분기·전망 제외)",
     fromListing
       ? `구간: ${start.year}→${end.year} (API 가용 ${periodYears}년, 연말 실적 전체)`
       : `구간: ${start.year}→${end.year} (최근 ${periodYears}년 연말 실적)`,
-    `시작 EPS (${start.year}): ${startEps}`,
-    `종료 EPS (${end.year}): ${endEps}`,
-    `식: (${endEps} ÷ ${startEps})^(1/${periodYears}) − 1`,
-    `원 CAGR: ${fmtPct(rawGrowth)}`,
+    `시작 EPS (${start.year}): ${fmtEpsNum(start.eps)}`,
+    `종료 EPS (${end.year}): ${fmtEpsNum(end.eps)}`,
   ];
+  for (let i = 1; i < inRange.length; i++) {
+    const prev = inRange[i - 1];
+    const curr = inRange[i];
+    const yoy = curr.eps / prev.eps - 1;
+    lines.push(
+      `${curr.year}: ${fmtEpsNum(prev.eps)}→${fmtEpsNum(curr.eps)} (${fmtPct(yoy)})`,
+    );
+  }
+  lines.push(
+    `식: 전년대비 성장률 ${inRange.length - 1}개 연도 산술평균`,
+    `원 평균: ${fmtPct(rawGrowth)}`,
+  );
   if (capped) {
     lines.push(
       `단기 이력 ${countPositiveEpsYears(series)}년 — 10년 복리 가정 ${fmtPct(GROWTH_10Y_CAP)} 상한`,
@@ -146,7 +195,7 @@ function buildEpsCagrDetail(series, rawGrowth, appliedGrowth) {
   }
   lines.push(`적용: ${fmtPct(appliedGrowth)}`);
   return {
-    method: "eps_cagr",
+    method: "eps_avg_yoy",
     lines,
     table: buildEpsGrowthByYear(series),
   };
@@ -165,12 +214,12 @@ export function deriveValueInvestGrowth10y(f) {
   const warnings = [];
 
   const epsHistory = f.epsHistory ?? [];
-  const histGrowth = epsCagrFromHistory(epsHistory);
+  const histGrowth = epsAvgYoyGrowthFromHistory(epsHistory);
   if (histGrowth != null && Number.isFinite(histGrowth)) {
     const window = epsGrowthWindow(epsHistory);
     if (window != null && window.gapYearsCount > 0) {
       warnings.push(
-        `EPS CAGR 구간 ${window.periodYears}년 내 음수/결손 ${window.gapYearsCount}개 연도 포함 — CAGR 왜곡 가능`,
+        `EPS 전년대비 평균 구간 ${window.periodYears}년 내 음수/결손 ${window.gapYearsCount}개 연도 포함 — 성장률 왜곡 가능`,
       );
     }
     const shortHistory = shouldCapShortEpsHistory(epsHistory);
@@ -178,15 +227,15 @@ export function deriveValueInvestGrowth10y(f) {
       shortHistory && histGrowth > GROWTH_10Y_CAP ? GROWTH_10Y_CAP : histGrowth;
     if (shortHistory && histGrowth > GROWTH_10Y_CAP) {
       warnings.push(
-        `EPS CAGR ${(histGrowth * 100).toFixed(1)}% — 단기 이력 ${countPositiveEpsYears(epsHistory)}년, 10년 복리 ${GROWTH_10Y_CAP * 100}% 상한`,
+        `EPS 전년대비 평균 ${(histGrowth * 100).toFixed(1)}% — 단기 이력 ${countPositiveEpsYears(epsHistory)}년, 10년 복리 ${GROWTH_10Y_CAP * 100}% 상한`,
       );
     } else if (histGrowth < -0.15) {
-      warnings.push(`EPS CAGR ${(histGrowth * 100).toFixed(1)}% — 심각한 이익 감소 구간`);
+      warnings.push(`EPS 전년대비 평균 ${(histGrowth * 100).toFixed(1)}% — 심각한 이익 감소 구간`);
     }
     return {
       value: applied,
-      source: formatEpsCagrSource(epsHistory, histGrowth, applied),
-      detail: buildEpsCagrDetail(epsHistory, histGrowth, applied),
+      source: formatEpsAvgYoySource(epsHistory, histGrowth, applied),
+      detail: buildEpsAvgYoyDetail(epsHistory, histGrowth, applied),
       warnings,
     };
   }

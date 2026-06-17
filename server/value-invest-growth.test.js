@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildEpsGrowthByYear,
   GROWTH_10Y_CAP,
+  epsAvgYoyGrowthFromHistory,
   epsCagrFromHistory,
   epsGrowthWindow,
   deriveValueInvestGrowth10y,
@@ -9,6 +10,17 @@ import {
 
 function cagr(startEps, endEps, periodYears) {
   return (endEps / startEps) ** (1 / periodYears) - 1;
+}
+
+function avgYoy(series) {
+  const sorted = series
+    .filter((s) => s.year > 0 && s.eps > 0)
+    .sort((a, b) => a.year - b.year);
+  const rates = [];
+  for (let i = 1; i < sorted.length; i++) {
+    rates.push(sorted[i].eps / sorted[i - 1].eps - 1);
+  }
+  return rates.reduce((a, b) => a + b, 0) / rates.length;
 }
 
 describe("buildEpsGrowthByYear", () => {
@@ -25,61 +37,67 @@ describe("buildEpsGrowthByYear", () => {
   });
 });
 
-describe("epsCagrFromHistory", () => {
-  it("3개 연도 — 구간 CAGR (2022→2024)", () => {
-    const r = epsCagrFromHistory([
+describe("epsAvgYoyGrowthFromHistory", () => {
+  it("3개 연도 — 전년대비 2개 평균", () => {
+    const series = [
       { year: 2022, eps: 6 },
       { year: 2023, eps: 7 },
       { year: 2024, eps: 7.5 },
-    ]);
+    ];
+    const r = epsAvgYoyGrowthFromHistory(series);
     expect(r).not.toBeNull();
-    expect(r).toBeCloseTo(cagr(6, 7.5, 2), 4);
+    expect(r).toBeCloseTo(avgYoy(series), 4);
   });
 
-  it("2개 연도 — 1년 CAGR = YoY", () => {
-    const r = epsCagrFromHistory([
+  it("2개 연도 — 1년 YoY", () => {
+    const series = [
       { year: 2023, eps: 10 },
       { year: 2024, eps: 12 },
-    ]);
-    expect(r).toBeCloseTo(0.2, 4);
+    ];
+    expect(epsAvgYoyGrowthFromHistory(series)).toBeCloseTo(0.2, 4);
   });
 
   it("1개 연도만 있으면 null", () => {
-    expect(epsCagrFromHistory([{ year: 2024, eps: 10 }])).toBeNull();
+    expect(epsAvgYoyGrowthFromHistory([{ year: 2024, eps: 10 }])).toBeNull();
   });
 
-  it("10개 연도 — 2015→2024 9년 CAGR", () => {
+  it("10개 연도 — 구간 내 전년대비 평균", () => {
     const series = Array.from({ length: 10 }, (_, i) => ({
       year: 2015 + i,
       eps: 5 + i,
     }));
-    const r = epsCagrFromHistory(series);
-    expect(r).toBeCloseTo(cagr(5, 14, 9), 4);
+    const r = epsAvgYoyGrowthFromHistory(series);
+    expect(r).toBeCloseTo(avgYoy(series), 4);
+    expect(r).not.toBeCloseTo(cagr(5, 14, 9), 4);
   });
 
-  it("5개 연도 — 2020→2024 4년 CAGR", () => {
-    const r = epsCagrFromHistory([
+  it("불규칙 성장 — CAGR과 다른 산술평균", () => {
+    const series = [
+      { year: 2021, eps: 5 },
+      { year: 2022, eps: 15 },
+      { year: 2023, eps: 18 },
+    ];
+    const r = epsAvgYoyGrowthFromHistory(series);
+    expect(r).toBeCloseTo(avgYoy(series), 4);
+    expect(r).not.toBeCloseTo(cagr(5, 18, 2), 4);
+  });
+});
+
+describe("epsCagrFromHistory", () => {
+  it("CAGR은 여전히 별도 함수로 유지", () => {
+    const series = [
       { year: 2020, eps: 100 },
       { year: 2021, eps: 50 },
       { year: 2022, eps: 30 },
       { year: 2023, eps: 8 },
       { year: 2024, eps: 10 },
-    ]);
-    expect(r).toBeCloseTo(cagr(100, 10, 4), 4);
-  });
-
-  it("불규칙 성장 — 2021→2023 2년 CAGR", () => {
-    const r = epsCagrFromHistory([
-      { year: 2021, eps: 5 },
-      { year: 2022, eps: 15 },
-      { year: 2023, eps: 18 },
-    ]);
-    expect(r).toBeCloseTo(cagr(5, 18, 2), 4);
+    ];
+    expect(epsCagrFromHistory(series)).toBeCloseTo(cagr(100, 10, 4), 4);
   });
 });
 
 describe("deriveValueInvestGrowth10y", () => {
-  it("이력 있으면 EPS CAGR 우선", () => {
+  it("이력 있으면 EPS 전년대비 평균 우선", () => {
     const r = deriveValueInvestGrowth10y({
       eps: 8,
       forwardEps: 9,
@@ -90,22 +108,23 @@ describe("deriveValueInvestGrowth10y", () => {
       ],
     });
     expect(r.value).toBeCloseTo(0.1, 4);
-    expect(r.source).toMatch(/CAGR/);
+    expect(r.source).toMatch(/전년대비 평균/);
   });
 
-  it("1년 50% — 4년 이상 이력이면 상한 없음", () => {
+  it("4년 이상 이력 — 전년대비 평균 (상한 없음)", () => {
+    const series = [
+      { year: 2020, eps: 8 },
+      { year: 2021, eps: 9 },
+      { year: 2022, eps: 10 },
+      { year: 2023, eps: 15 },
+    ];
     const r = deriveValueInvestGrowth10y({
       eps: null,
       forwardEps: null,
       revenueGrowth: null,
-      epsHistory: [
-        { year: 2020, eps: 8 },
-        { year: 2021, eps: 9 },
-        { year: 2022, eps: 10 },
-        { year: 2023, eps: 15 },
-      ],
+      epsHistory: series,
     });
-    expect(r.value).toBeCloseTo(cagr(8, 15, 3), 4);
+    expect(r.value).toBeCloseTo(avgYoy(series), 4);
   });
 
   it("3년 이하 이력 — 25% 상한", () => {
@@ -137,7 +156,7 @@ describe("deriveValueInvestGrowth10y", () => {
     expect(r.value).toBe(GROWTH_10Y_CAP);
   });
 
-  it("EPS CAGR detail — 구간·식·결과", () => {
+  it("EPS 전년대비 평균 detail — 구간·연도별·결과", () => {
     const r = deriveValueInvestGrowth10y({
       eps: null,
       forwardEps: null,
@@ -147,7 +166,7 @@ describe("deriveValueInvestGrowth10y", () => {
         { year: 2024, eps: 12 },
       ],
     });
-    expect(r.detail?.method).toBe("eps_cagr");
+    expect(r.detail?.method).toBe("eps_avg_yoy");
     expect(r.detail?.lines.join("\n")).toMatch(/2023→2024/);
     expect(r.detail?.lines.join("\n")).toMatch(/적용: 20\.0%/);
   });
@@ -182,7 +201,7 @@ describe("epsGrowthWindow", () => {
     expect(w.end.year).toBe(2024);
     expect(w.periodYears).toBe(3);
     expect(w.fromListing).toBe(true);
-    const r = epsCagrFromHistory(series);
-    expect(r).toBeCloseTo(cagr(100, 160, 3), 4);
+    const r = epsAvgYoyGrowthFromHistory(series);
+    expect(r).toBeCloseTo(avgYoy(series), 4);
   });
 });

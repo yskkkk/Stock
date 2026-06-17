@@ -350,7 +350,7 @@ export interface ValueInvestReturnResult {
 }
 
 export interface ValueInvestGrowthDetail {
-  method: "eps_cagr" | "revenue_growth" | "forward_trailing";
+  method: "eps_avg_yoy" | "revenue_growth" | "forward_trailing";
   lines: string[];
   table?: { year: number; eps: number; yoyPct: number | null }[];
 }
