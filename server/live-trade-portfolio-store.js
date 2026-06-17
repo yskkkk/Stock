@@ -36,6 +36,12 @@ import {
 
 import { resolveServerDataDir } from "./data-path.js";
 
+/** 폴링 GET용 시세 캐시 TTL — `LIVE_PORTFOLIO_QUOTE_TTL_MS` (기본 15s) */
+const PORTFOLIO_QUOTE_TTL_MS = (() => {
+  const n = Number(process.env.LIVE_PORTFOLIO_QUOTE_TTL_MS ?? 15_000);
+  return Number.isFinite(n) && n >= 0 ? Math.min(120_000, Math.floor(n)) : 15_000;
+})();
+
 function portfolioFilePath() {
   return path.join(resolveServerDataDir(), "live-trade-portfolio.json");
 }
@@ -1064,9 +1070,12 @@ export async function buildLiveTradePortfolioSnapshot(opts = {}) {
   );
 
   const symbols = [...new Set(positions.map((p) => p.symbol))];
+  const forceFreshQuotes =
+    opts.forceFreshQuotes === true || opts.exchangeSyncLive === true;
+  const quoteMaxAgeMs = forceFreshQuotes ? 0 : PORTFOLIO_QUOTE_TTL_MS;
   const quotes =
     symbols.length > 0
-      ? await fetchQuoteSnapshotsForSymbols(symbols, { maxAgeMs: 0 })
+      ? await fetchQuoteSnapshotsForSymbols(symbols, { maxAgeMs: quoteMaxAgeMs })
       : {};
 
   /** @type {object[]} */

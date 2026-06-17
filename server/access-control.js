@@ -152,16 +152,29 @@ function getBootstrapIps() {
     .filter(Boolean);
 }
 
+/** @type {{ mtimeMs: number; data: { requests: unknown[]; allowed: unknown[] } } | null} */
+let accessStoreCache = null;
+
 export function readAccessStore() {
   try {
-    if (!fs.existsSync(STORE_FILE)) return { requests: [], allowed: [] };
+    if (!fs.existsSync(STORE_FILE)) {
+      accessStoreCache = null;
+      return { requests: [], allowed: [] };
+    }
+    const stat = fs.statSync(STORE_FILE);
+    if (accessStoreCache && accessStoreCache.mtimeMs === stat.mtimeMs) {
+      return accessStoreCache.data;
+    }
     const raw = fs.readFileSync(STORE_FILE, "utf8");
     const data = JSON.parse(raw);
-    return {
+    const normalized = {
       requests: Array.isArray(data.requests) ? data.requests : [],
       allowed: Array.isArray(data.allowed) ? data.allowed : [],
     };
+    accessStoreCache = { mtimeMs: stat.mtimeMs, data: normalized };
+    return normalized;
   } catch {
+    accessStoreCache = null;
     return { requests: [], allowed: [] };
   }
 }
@@ -169,6 +182,7 @@ export function readAccessStore() {
 function writeAccessStore(data) {
   ensureDir();
   fs.writeFileSync(STORE_FILE, JSON.stringify(data, null, 2), "utf8");
+  accessStoreCache = null;
 }
 
 function isPathPublic(pathname, method) {
