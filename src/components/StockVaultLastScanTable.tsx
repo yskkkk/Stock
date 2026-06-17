@@ -83,27 +83,26 @@ export default function StockVaultLastScanTable({
   if (!rows.length) return null;
 
   return (
-    <div
-      className="stock-vault-tab__scan-summary"
-      onMouseEnter={show}
-      onMouseLeave={scheduleHide}
-      onFocusCapture={show}
-      onBlurCapture={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-          scheduleHide();
-        }
-      }}
-    >
+    <div className="stock-vault-tab__scan-summary">
       <button
         type="button"
         className="stock-vault-tab__scan-summary-trigger"
         aria-expanded={open}
         aria-haspopup="true"
+        onMouseEnter={show}
+        onMouseLeave={scheduleHide}
+        onFocus={show}
+        onBlur={scheduleHide}
       >
         {ko.stockVault.lastScan}
       </button>
       {open ? (
-        <div className="stock-vault-tab__scan-bubble" role="tooltip">
+        <div
+          className="stock-vault-tab__scan-bubble"
+          role="tooltip"
+          onMouseEnter={show}
+          onMouseLeave={scheduleHide}
+        >
           <ScanTable rows={rows} />
         </div>
       ) : null}
