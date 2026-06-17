@@ -38,6 +38,7 @@ import {
   stockVaultSnapshotPersistDate,
   shouldPersistStockVaultSnapshot,
 } from "../lib/stockVaultScanDate";
+import { kstTodayYmd } from "../lib/kstDate";
 import {
   buildFullSnapshotFromScanHistory,
   mergeScanHistoryDates,
