@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { applyTheme, readStoredTheme } from "./lib/theme";
 import { ensureMobileBackNavigation } from "./lib/initMobileBack";
 import { registerPwaServiceWorker } from "./lib/registerPwa";
+import { installMobileResumeGuard } from "./lib/mobileResumeGuard";
 import AppErrorBoundary from "./components/AppErrorBoundary";
 import App from "./App";
 import MobileServerGate from "./components/MobileServerGate";
@@ -37,6 +38,7 @@ declare global {
 
 applyTheme(readStoredTheme());
 registerPwaServiceWorker();
+installMobileResumeGuard();
 ensureMobileBackNavigation();
 
 function renderFatal(message: string) {

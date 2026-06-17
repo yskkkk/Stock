@@ -80,6 +80,7 @@ import { useBoxRangeChartOverlay } from "./hooks/useBoxRangeChartOverlay";
 import BoxRangeChartHint from "./components/BoxRangeChartHint";
 import { shouldDrawBoxOnChart } from "./lib/boxRangeChartPrimitive";
 import { useMobilePullToRefresh } from "./hooks/useMobilePullToRefresh";
+import { useMobileAppSessionPersist } from "./hooks/useMobileAppSessionPersist";
 import { usePicksLiveQuotes } from "./hooks/usePicksLiveQuotes";
 import { MOBILE_BACK_PRIORITY } from "./lib/mobileBackStack";
 import { mergeQuotesIntoPicks } from "./lib/mergePickQuotes";
@@ -134,6 +135,11 @@ import {
 import { warmOpsDevQueueDisplay } from "./lib/opsDevQueueDisplayClient";
 import { sortPicksList, type SortKey } from "./lib/sortPicks";
 import { yahooStockSymbolToTradingView } from "./lib/tradingviewSymbols";
+import {
+  readMobileAppSession,
+  sessionPickToStockPick,
+} from "./lib/mobileAppSession";
+import { armMobileResumeCooldown } from "./lib/mobileResumeGuard";
 import { failedCountLabel, ko, nextRescanCountdown } from "./i18n/ko";
 import type {
   Candle,
@@ -189,7 +195,13 @@ function readUsQuoteKrwPref(): boolean {
   }
 }
 
+function readRestoredMobileSession() {
+  if (typeof window === "undefined") return null;
+  return readMobileAppSession();
+}
+
 export default function App() {
+  const restoredMobileSession = useMemo(() => readRestoredMobileSession(), []);
   const showProfitModelButton = useUiFeature("profitModelButton");
   const enableThemeModeToggle = useUiFeature("themeModeToggle");
   const showOpsDevQueueUi = useUiFeature("opsDevQueueUi");
@@ -226,9 +238,15 @@ export default function App() {
   const [filterMode, setFilterMode] = useState<FilterMode>("and");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("score");
-  const [screenerSelected, setScreenerSelected] = useState<StockPick | null>(null);
-  const [lookupSelected, setLookupSelected] = useState<StockPick | null>(null);
-  const [timeframe, setTimeframe] = useState<ChartTimeframe>("1m");
+  const [screenerSelected, setScreenerSelected] = useState<StockPick | null>(() =>
+    sessionPickToStockPick(restoredMobileSession?.screenerSelected ?? null),
+  );
+  const [lookupSelected, setLookupSelected] = useState<StockPick | null>(() =>
+    sessionPickToStockPick(restoredMobileSession?.lookupSelected ?? null),
+  );
+  const [timeframe, setTimeframe] = useState<ChartTimeframe>(
+    () => restoredMobileSession?.timeframe ?? "1m",
+  );
   const [quote, setQuote] = useState<QuoteResponse | null>(null);
   const [candles, setCandles] = useState<Candle[]>([]);
   const [dailyCandles, setDailyCandles] = useState<Candle[]>([]);
@@ -520,6 +538,15 @@ export default function App() {
 
     let cancelled = false;
     let intervalId: number | null = null;
+    let lastAllowedAt = 0;
+    let resumeGraceUntil = 0;
+
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      armMobileResumeCooldown(12_000);
+      resumeGraceUntil = Date.now() + 12_000;
+    };
+    document.addEventListener("visibilitychange", onVisibility);
 
     async function tick() {
       try {
@@ -532,7 +559,16 @@ export default function App() {
           }
           return;
         }
+        if (s.state === "allowed") {
+          lastAllowedAt = Date.now();
+        }
         if (s.state !== "allowed" && !accessAdmin && !adminIpConsole) {
+          if (
+            lastAllowedAt > 0 &&
+            Date.now() < resumeGraceUntil
+          ) {
+            return;
+          }
           if (intervalId != null) {
             window.clearInterval(intervalId);
             intervalId = null;
@@ -553,6 +589,7 @@ export default function App() {
     void tick();
     return () => {
       cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibility);
       if (intervalId != null) window.clearInterval(intervalId);
     };
   }, [configReady, accessAdmin, adminIpConsole]);
@@ -742,6 +779,25 @@ export default function App() {
     pullHint: ko.app.pullToRefreshHint,
     releaseHint: ko.app.pullToRefreshRelease,
   });
+  useMobileAppSessionPersist({
+    appTab,
+    screenerSelected,
+    lookupSelected,
+    timeframe,
+    scrollRootRef: appScrollRef,
+  });
+
+  useEffect(() => {
+    const scrollTop = restoredMobileSession?.scrollTop;
+    if (!scrollTop || scrollTop <= 0) return;
+    const root = appScrollRef.current;
+    if (!root) return;
+    let raf = 0;
+    raf = window.requestAnimationFrame(() => {
+      root.scrollTop = scrollTop;
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [restoredMobileSession?.scrollTop]);
 
   /** 모바일: 목록 아래 차트가 잘리지 않도록 선택 시 차트 블록으로 스크롤 */
   useEffect(() => {

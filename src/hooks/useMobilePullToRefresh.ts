@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, type RefObject } from "react";
+import { isMobileResumeCooldownActive } from "../lib/mobileResumeGuard";
 
 const MQ = "(max-width: 900px)";
 const THRESHOLD_PX = 96;
@@ -84,8 +85,18 @@ export function useMobilePullToRefresh(
       lastPullRef.current = 0;
     };
 
+    const disarm = () => {
+      armedRef.current = false;
+      resetIndicator();
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") disarm();
+    };
+
     const onTouchStart = (e: TouchEvent) => {
       if (!isTouchNarrowViewport()) return;
+      if (isMobileResumeCooldownActive()) return;
       if (visibleAriaModalOpen()) {
         resetIndicator();
         return;
@@ -148,17 +159,20 @@ export function useMobilePullToRefresh(
       armedRef.current = false;
       const pull = lastPullRef.current;
       resetIndicator();
+      if (isMobileResumeCooldownActive()) return;
       if (pull >= THRESHOLD_PX) {
         window.location.reload();
       }
     };
 
+    document.addEventListener("visibilitychange", onVisibility);
     scrollEl.addEventListener("touchstart", onTouchStart, { passive: true });
     scrollEl.addEventListener("touchmove", onTouchMove, { passive: false });
     scrollEl.addEventListener("touchend", finish);
     scrollEl.addEventListener("touchcancel", finish);
 
     return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
       scrollEl.removeEventListener("touchstart", onTouchStart);
       scrollEl.removeEventListener("touchmove", onTouchMove);
       scrollEl.removeEventListener("touchend", finish);
