@@ -1289,13 +1289,14 @@ export const ko = {
     lastScanMa120Near: "120선",
     lastScanBottomCandle: "바닥",
     lastScanBookAccum: "매집",
-    bottomCandleBadgeHint: "세력 바닥 3캔들(변곡·갭·RVOL·점수 50+) — 1시간마다 유니버스 전체 스캔",
+    bottomCandleBadgeHint:
+      "세력 바닥 3캔들(변곡·갭·RVOL·점수 50+) — 일·주봉, 1시간마다 유니버스 전체 스캔",
     bookAccumBadgeHint:
-      "책 매집봉(느슨·RVOL 1.6·하락 40봉·6%) — 일봉 탐색 시 국내 시총 상위·미국 S&P500 스캔",
+      "책 매집봉(느슨·RVOL 1.6·하락 40봉·6%) — 일·주봉 탐색, 국내 시총 상위·미국 S&P500",
     scanRun: "일봉 탐색",
-    scanConfirmLead: "일봉·주봉 골든크로스·정배열·120선 근처·매집봉 탐색을 실행할까요?",
+    scanConfirmLead: "일봉·주봉 골든크로스·정배열·120선·바닥캔들·매집봉 탐색을 실행할까요?",
     scanConfirmBody:
-      "국내 시총 상위·미국 S&P500 종목의 일봉·주봉에서 MA 교차(5→20·60·120 골든, 5↔20·20↔120 골든·데드), 정배열(MA5>20>60>120), 일봉 120선 ±3% 근처, 일봉 매집봉(느슨·RVOL 1.6)을 각각 찾아 보관함에 추가합니다. 수분 걸릴 수 있습니다.",
+      "국내 시총 상위·미국 S&P500 종목의 일봉·주봉에서 MA 교차·정배열, 일봉 120선 ±3% 근처, 일·주봉 바닥캔들·매집봉을 찾아 보관함에 추가합니다. 수분 걸릴 수 있습니다.",
     scanConfirmOk: "탐색 시작",
     scanConfirmCancel: "취소",
     scanRunning: "탐색 중…",
