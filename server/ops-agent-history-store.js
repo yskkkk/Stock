@@ -49,6 +49,14 @@ function isPlainObject(x) {
   return x !== null && typeof x === "object" && !Array.isArray(x);
 }
 
+/** @param {{ state?: string | null; finishedAtMs?: number | null } | null | undefined} row */
+function isOpsAgentHistoryTerminal(row) {
+  if (!row) return false;
+  if (row.finishedAtMs != null) return true;
+  const st = row.state;
+  return st === "ok" || st === "error" || st === "cancelled" || st === "rejected";
+}
+
 /** @param {Record<string, unknown>} o */
 function parseHistoryRecord(o) {
   if (typeof o.id !== "string" || typeof o.instruction !== "string") {
@@ -417,6 +425,7 @@ export function upsertOpsAgentHistoryFromQueueSync(queueEntry) {
   }
 
   const prevRow = targetIdx >= 0 ? prev[targetIdx] : null;
+  if (isOpsAgentHistoryTerminal(prevRow)) return;
 
   const now = Date.now();
   const wasRunning = prevRow?.state === "running";
@@ -681,6 +690,8 @@ export function patchOpsAgentEntry(id, patch) {
     if (i === -1) return;
 
     const cur = list[i];
+    if (isOpsAgentHistoryTerminal(cur)) return;
+
     const streamPatch =
       patch.streamText !== undefined
         ? trimStoredTextForOpsHistory(patch.streamText, OPS_AGENT_FIELD_MAX_CHARS)

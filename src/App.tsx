@@ -1300,8 +1300,9 @@ export default function App() {
       : "";
   const showTopScanStrip = Boolean(picks && appTab === "screener");
   const { user: liveTradeUser } = useLiveTradeAuth();
-  const showDesktopSideDock = desktopDockLayout && appTab !== "ops";
-  const showLiveTradeDockPortals = showDesktopSideDock && Boolean(liveTradeUser);
+  const showSideDock = appTab !== "ops";
+  const showDesktopSideDock = desktopDockLayout && showSideDock;
+  const showLiveTradeDockPortals = showSideDock && Boolean(liveTradeUser);
   const showEarningsViewportRail = desktopDockLayout && appTab !== "ops";
 
   useEffect(() => {
@@ -2305,13 +2306,13 @@ export default function App() {
       </div>
       <div
         className={
-          showDesktopSideDock
+          showSideDock
             ? "app__right-panel app__right-panel--dock"
             : "app__right-panel"
         }
-        aria-hidden={showDesktopSideDock ? undefined : true}
+        aria-hidden={showSideDock ? undefined : true}
       >
-        {showDesktopSideDock ? (
+        {showSideDock ? (
           <>
             <AppRightDockRailPanels
               onOpenLiveTrading={openLiveTradingProgram}
@@ -2345,7 +2346,7 @@ export default function App() {
         onOpenOps={() => setAppTab("ops")}
         feedbackRef={feedbackRef}
         feedbackOpenKind={footerFeedbackKind}
-        hideFeedbackLink={desktopDockLayout}
+        hideFeedbackLink={showSideDock}
       />
       </div>
       <ScrollToTopButton scrollRef={appScrollRef} />

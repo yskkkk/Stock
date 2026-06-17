@@ -203,7 +203,7 @@ function OpsAgentQueueProgressModal({
         ? ko.app.opsAgentQueueWaiting
         : queueRow?.status === "running"
           ? ko.app.opsHistoryStatusRunning
-          : ko.app.opsHistoryStatusRunning;
+          : ko.app.opsHistoryStatusOk;
 
   const tsMs =
     hist != null

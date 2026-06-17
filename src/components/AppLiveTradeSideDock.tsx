@@ -923,7 +923,7 @@ export default function AppLiveTradeSideDock({
     "app-live-trade-side-dock__rail-scroll--dragging",
   );
 
-  if (!wide || !authChecked) return null;
+  if (!authChecked) return null;
 
   const authRailSelected = user
     ? logoutConfirmOpen ||
@@ -944,6 +944,7 @@ export default function AppLiveTradeSideDock({
     <nav
       className={[
         "app-live-trade-side-dock__rail app-live-trade-side-dock__rail--portal",
+        wide ? "" : "app-live-trade-side-dock__rail--mobile-bottom",
         open
           ? "app-live-trade-side-dock__rail--dock-open"
           : "app-live-trade-side-dock__rail--dock-collapsed",
@@ -951,6 +952,7 @@ export default function AppLiveTradeSideDock({
       data-live-trade-side-dock-rail
       aria-label={ko.app.liveTradeSideDockRailAria}
     >
+      {wide ? (
       <button
         type="button"
         className="app-live-trade-side-dock__fold app-live-trade-side-dock__rail-btn"
@@ -966,6 +968,7 @@ export default function AppLiveTradeSideDock({
           <DockFoldChevron open={open} />
         </span>
       </button>
+      ) : null}
       <div
         ref={railScrollRef}
         className="app-live-trade-side-dock__rail-scroll"
@@ -1165,6 +1168,8 @@ export default function AppLiveTradeSideDock({
     <div
       ref={dockRef}
       className={`app-live-trade-side-dock${
+        wide ? "" : " app-live-trade-side-dock--mobile"
+      }${
         open ? " app-live-trade-side-dock--open" : " app-live-trade-side-dock--collapsed"
       }${resizing ? " app-live-trade-side-dock--resizing" : ""}`}
       data-live-trade-side-dock

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, type ReactNode } from "react";
-import { useDesktopDockLayout } from "../hooks/useDesktopDockLayout";
 import { logoutAuth } from "../api";
 import { invalidateLiveTradingPrefetch } from "../lib/tabPrefetch";
 import { refreshLiveTradingStatusNow } from "../hooks/useLiveTradingStatusPoll";
@@ -38,7 +37,6 @@ export default function AppRightDockRailPanels({
 }: {
   onOpenLiveTrading?: () => void;
 }) {
-  const wide = useDesktopDockLayout();
   const { user, authChecked, registrationOpen } = useLiveTradeAuth();
   const ctx = useLiveTradeCardSidePanelOptional();
   const registerSideTab = ctx?.registerSideTab;
@@ -65,7 +63,7 @@ export default function AppRightDockRailPanels({
     notifyLiveTradeAuthChange();
   }, []);
 
-  if (!wide || !authChecked || !ctx) return null;
+  if (!authChecked || !ctx) return null;
 
   const ids = LIVE_TRADE_DOCK_RAIL_TAB_IDS;
 
