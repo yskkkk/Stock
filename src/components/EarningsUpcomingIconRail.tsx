@@ -29,6 +29,11 @@ import { peekMacroPrefetch } from "../lib/tabPrefetch";
 import { ko } from "../i18n/ko";
 import type { SectorEarningsSpotlightItem } from "../types";
 import {
+  clampAnchorBubbleInViewport,
+  positionAnchorBubble,
+  type AnchorBubblePlacement,
+} from "../lib/viewportAnchorBubblePosition";
+import {
   dispatchStockHoverBubbleOpen,
   handleStockHoverParentBubbleClick,
   isSameStockBubbleSymbol,
@@ -40,12 +45,15 @@ const EARNINGS_ICON_RAIL_BUBBLE_OWNER = "earnings-icon-rail";
 
 const TICK_MS = 1000;
 const HIDE_DELAY_MS = 420;
+const EST_BUBBLE_W = 268;
+const EST_BUBBLE_H = 240;
 
 type TipState = {
   row: SectorEarningsSpotlightItem;
   left: number;
   top: number;
-  placement: "left" | "right";
+  placement: AnchorBubblePlacement;
+  transform: string;
 };
 
 function EarningsIconButton({
@@ -199,22 +207,19 @@ export default function EarningsUpcomingIconRail({
       ownerId: EARNINGS_ICON_RAIL_BUBBLE_OWNER,
       symbol: row.symbol,
     });
-    const r = el.getBoundingClientRect();
-    const gap = 10;
-    const estW = 268;
-    const pad = 8;
-    // edge 레일은 화면/본문 왼쪽 — 말풍선은 아이콘 오른쪽(본문 방향)으로
-    let placement: TipState["placement"] = "right";
-    let left = r.right + gap;
-    if (left + estW > window.innerWidth - pad) {
-      placement = "left";
-      left = Math.max(pad, r.left - gap);
-    }
+    const anchor = el.getBoundingClientRect();
+    const positioned = positionAnchorBubble(anchor, EST_BUBBLE_W, EST_BUBBLE_H);
+    const clamped = clampAnchorBubbleInViewport(
+      positioned.left,
+      positioned.top,
+      EST_BUBBLE_W,
+      EST_BUBBLE_H,
+      positioned.transform,
+    );
     setTip({
       row,
-      left,
-      top: r.top + r.height / 2,
-      placement,
+      ...positioned,
+      ...clamped,
     });
   }, [clearHideTimer]);
 
@@ -276,15 +281,16 @@ export default function EarningsUpcomingIconRail({
             className={
               tip.placement === "left"
                 ? "earnings-icon-rail__bubble earnings-icon-rail__bubble--left"
-                : "earnings-icon-rail__bubble"
+                : tip.placement === "below"
+                  ? "earnings-icon-rail__bubble earnings-icon-rail__bubble--below"
+                  : tip.placement === "above"
+                    ? "earnings-icon-rail__bubble earnings-icon-rail__bubble--above"
+                    : "earnings-icon-rail__bubble"
             }
             style={{
               left: `${tip.left}px`,
               top: `${tip.top}px`,
-              transform:
-                tip.placement === "left"
-                  ? "translate(-100%, -50%)"
-                  : "translate(0, -50%)",
+              transform: tip.transform,
             }}
             onMouseEnter={() => {
               clearHideTimer();

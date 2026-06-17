@@ -28,6 +28,11 @@ import {
   type BubblePointer,
 } from "../lib/bubblePointerAnchor";
 import {
+  clampAnchorBubbleInViewport,
+  positionAnchorBubble,
+  type AnchorBubblePlacement,
+} from "../lib/viewportAnchorBubblePosition";
+import {
   registerValueInvestBubbleApi,
   readValueInvestBubbleApi,
 } from "../lib/valueInvestBubbleBridge";
@@ -46,7 +51,7 @@ export type ValueInvestBubbleTarget = {
   currency?: string | null;
 };
 
-type Placement = "left" | "right" | "below" | "above";
+type Placement = AnchorBubblePlacement;
 
 type OpenState = ValueInvestBubbleTarget & {
   anchorRect: DOMRectReadOnly;
@@ -56,65 +61,12 @@ type OpenState = ValueInvestBubbleTarget & {
   transform: string;
 };
 
-function clamp(n: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, n));
-}
-
 function positionBubble(
   anchor: DOMRectReadOnly,
   bubbleW = EST_W,
   bubbleH = EST_H,
-): Pick<OpenState, "left" | "top" | "placement" | "transform"> {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  const fitsRight = anchor.right + GAP + bubbleW <= vw - VIEWPORT_PAD;
-  const fitsLeft = anchor.left - GAP - bubbleW >= VIEWPORT_PAD;
-  const fitsBelow = anchor.bottom + GAP + bubbleH <= vh - VIEWPORT_PAD;
-  const fitsAbove = anchor.top - GAP - bubbleH >= VIEWPORT_PAD;
-
-  if (fitsRight) {
-    return {
-      left: anchor.right + GAP,
-      top: clamp(
-        anchor.top + anchor.height / 2,
-        VIEWPORT_PAD + bubbleH / 2,
-        vh - VIEWPORT_PAD - bubbleH / 2,
-      ),
-      placement: "right",
-      transform: "translate(0, -50%)",
-    };
-  }
-  if (fitsLeft) {
-    return {
-      left: anchor.left - GAP,
-      top: clamp(
-        anchor.top + anchor.height / 2,
-        VIEWPORT_PAD + bubbleH / 2,
-        vh - VIEWPORT_PAD - bubbleH / 2,
-      ),
-      placement: "left",
-      transform: "translate(-100%, -50%)",
-    };
-  }
-  if (fitsBelow || (!fitsAbove && anchor.top < vh / 2)) {
-    const left = clamp(
-      anchor.left + anchor.width / 2,
-      VIEWPORT_PAD + bubbleW / 2,
-      vw - VIEWPORT_PAD - bubbleW / 2,
-    );
-    return { left, top: anchor.bottom + GAP, placement: "below", transform: "translate(-50%, 0)" };
-  }
-  const left = clamp(
-    anchor.left + anchor.width / 2,
-    VIEWPORT_PAD + bubbleW / 2,
-    vw - VIEWPORT_PAD - bubbleW / 2,
-  );
-  return {
-    left,
-    top: anchor.top - GAP,
-    placement: "above",
-    transform: "translate(-50%, -100%)",
-  };
+) {
+  return positionAnchorBubble(anchor, bubbleW, bubbleH);
 }
 
 function placementClass(placement: Placement) {
@@ -824,15 +776,23 @@ export function ValueInvestBubbleProvider({ children }: { children: ReactNode })
     const bh = bubble.offsetHeight;
     if (!bw || !bh) return;
     const next = positionBubble(open.anchorRect, bw, bh);
+    const clamped = clampAnchorBubbleInViewport(
+      next.left,
+      next.top,
+      bw,
+      bh,
+      next.transform,
+    );
+    const positioned = { ...next, ...clamped };
     if (
-      next.left === open.left &&
-      next.top === open.top &&
-      next.placement === open.placement &&
-      next.transform === open.transform
+      positioned.left === open.left &&
+      positioned.top === open.top &&
+      positioned.placement === open.placement &&
+      positioned.transform === open.transform
     ) {
       return;
     }
-    setOpen((cur) => (cur ? { ...cur, ...next } : cur));
+    setOpen((cur) => (cur ? { ...cur, ...positioned } : cur));
   }, [open?.symbol, open?.anchorRect, inputs, loading, error, payload]);
 
   useEffect(() => {

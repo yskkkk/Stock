@@ -17,15 +17,15 @@ import { ko } from "../i18n/ko";
 import LiveTradeDockYsHead from "./LiveTradeDockYsHead";
 import DockPanelCenterLoading from "./DockPanelCenterLoading";
 
+import { dockRailPopoverPortalStyle } from "../lib/dockRailPopoverPortalStyle";
+
 const POLLER_POPOVER_GAP_PX = 9;
 const LIST_POLL_MS = 2_000;
 const OVERLAY_Z = 10050;
 
 function pollerPopoverStyle(anchor: HTMLElement): CSSProperties {
-  const r = anchor.getBoundingClientRect();
   return {
-    right: Math.max(8, window.innerWidth - r.left + POLLER_POPOVER_GAP_PX),
-    bottom: Math.max(8, window.innerHeight - r.bottom),
+    ...dockRailPopoverPortalStyle(anchor, POLLER_POPOVER_GAP_PX, 320),
     zIndex: OVERLAY_Z,
     pointerEvents: "auto",
   };

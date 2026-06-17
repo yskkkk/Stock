@@ -14,6 +14,7 @@ import {
   claimSignalHint,
   releaseSignalHint,
 } from "../lib/signalHintCoordinator";
+import { MOBILE_LAYOUT_MAX_WIDTH } from "../lib/viewportAnchorBubblePosition";
 
 const LONG_PRESS_MS = 480;
 const HIDE_DELAY_MS = 80;
@@ -38,6 +39,7 @@ type SignalHintWrapProps = {
 const TIP_VIEWPORT_PAD_PX = 12;
 /** 말풍선 max-width(min(20rem, calc(100vw - 24px))) 상한의 절반 — 가로 overflow·도크 흔들림 방지 */
 const TIP_CENTER_CLAMP_HALF_PX = 168;
+const TIP_EST_HEIGHT_PX = 96;
 
 function clampTipCenterX(centerX: number): number {
   if (typeof window === "undefined") return centerX;
@@ -54,11 +56,26 @@ function clampTipCenterX(centerX: number): number {
 
 function measureTipPos(el: HTMLElement): TipPos {
   const r = el.getBoundingClientRect();
-  const aboveTop = r.top - 10;
-  const placement = aboveTop < 72 ? "below" : "above";
+  const vw = typeof window !== "undefined" ? window.innerWidth : 390;
+  const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+  const pad = TIP_VIEWPORT_PAD_PX;
+  const mobile = vw <= MOBILE_LAYOUT_MAX_WIDTH;
+  const fitsBelow = r.bottom + 10 + TIP_EST_HEIGHT_PX <= vh - pad;
+  const fitsAbove = r.top - 10 - TIP_EST_HEIGHT_PX >= pad;
+  let placement: TipPos["placement"] =
+    r.top - 10 < 72 ? "below" : "above";
+  if (mobile) {
+    placement = fitsBelow || (!fitsAbove && r.top < vh / 2) ? "below" : "above";
+  }
+  let top = placement === "above" ? r.top - 10 : r.bottom + 10;
+  if (placement === "above") {
+    top = Math.max(pad + TIP_EST_HEIGHT_PX, top);
+  } else {
+    top = Math.min(top, vh - pad - TIP_EST_HEIGHT_PX);
+  }
   return {
     left: clampTipCenterX(r.left + r.width / 2),
-    top: placement === "above" ? r.top - 10 : r.bottom + 10,
+    top,
     placement,
   };
 }

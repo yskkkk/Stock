@@ -71,6 +71,8 @@ import {
   readDockPanelWidthPref,
 } from "../lib/liveTradeDockPanelWidth";
 
+import { dockRailPopoverPortalStyle } from "../lib/dockRailPopoverPortalStyle";
+
 const AUTH_POPOVER_GAP_PX = 9;
 const LOGOUT_CONFIRM_POPOVER_ID = "app-live-trade-side-dock-logout-popover";
 
@@ -90,11 +92,7 @@ function dockPanelWidthFromOpenDrag(
 }
 
 function authPopoverPortalStyle(anchor: HTMLElement): CSSProperties {
-  const r = anchor.getBoundingClientRect();
-  return {
-    right: Math.max(8, window.innerWidth - r.left + AUTH_POPOVER_GAP_PX),
-    bottom: Math.max(8, window.innerHeight - r.bottom),
-  };
+  return dockRailPopoverPortalStyle(anchor, AUTH_POPOVER_GAP_PX, 300);
 }
 
 function wheelDeltaY(e: WheelEvent): number {

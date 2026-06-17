@@ -20,7 +20,11 @@ import {
   isSameStockBubbleSymbol,
   isStockHoverParentBubbleInteractive,
 } from "../lib/stockHoverBubbleSingleton";
-import type { StockShareStructureResponse } from "../types";
+import {
+  clampAnchorBubbleInViewport,
+  positionAnchorBubble,
+  type AnchorBubblePlacement,
+} from "../lib/viewportAnchorBubblePosition";
 
 const VIEWPORT_PAD = 8;
 const GAP = 10;
@@ -33,7 +37,7 @@ export type StockShareStructureTarget = {
   market: "kr" | "us";
 };
 
-type Placement = "left" | "right" | "below" | "above";
+type Placement = AnchorBubblePlacement;
 
 type OpenState = StockShareStructureTarget & {
   bubbleEl: HTMLElement;
@@ -45,70 +49,12 @@ type OpenState = StockShareStructureTarget & {
   manualPos?: { left: number; top: number } | null;
 };
 
-function clamp(n: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, n));
-}
-
 function positionModal(
   anchor: DOMRectReadOnly,
   modalW = EST_W,
   modalH = EST_H,
-): Pick<OpenState, "left" | "top" | "placement" | "transform"> {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  const fitsRight = anchor.right + GAP + modalW <= vw - VIEWPORT_PAD;
-  const fitsLeft = anchor.left - GAP - modalW >= VIEWPORT_PAD;
-  const fitsBelow = anchor.bottom + GAP + modalH <= vh - VIEWPORT_PAD;
-  const fitsAbove = anchor.top - GAP - modalH >= VIEWPORT_PAD;
-
-  if (fitsRight) {
-    return {
-      left: anchor.right + GAP,
-      top: clamp(
-        anchor.top + anchor.height / 2,
-        VIEWPORT_PAD + modalH / 2,
-        vh - VIEWPORT_PAD - modalH / 2,
-      ),
-      placement: "right",
-      transform: "translate(0, -50%)",
-    };
-  }
-  if (fitsLeft) {
-    return {
-      left: anchor.left - GAP,
-      top: clamp(
-        anchor.top + anchor.height / 2,
-        VIEWPORT_PAD + modalH / 2,
-        vh - VIEWPORT_PAD - modalH / 2,
-      ),
-      placement: "left",
-      transform: "translate(-100%, -50%)",
-    };
-  }
-  if (fitsBelow || (!fitsAbove && anchor.top < vh / 2)) {
-    const left = clamp(
-      anchor.left + anchor.width / 2,
-      VIEWPORT_PAD + modalW / 2,
-      vw - VIEWPORT_PAD - modalW / 2,
-    );
-    return {
-      left,
-      top: anchor.bottom + GAP,
-      placement: "below",
-      transform: "translate(-50%, 0)",
-    };
-  }
-  const left = clamp(
-    anchor.left + anchor.width / 2,
-    VIEWPORT_PAD + modalW / 2,
-    vw - VIEWPORT_PAD - modalW / 2,
-  );
-  return {
-    left,
-    top: anchor.top - GAP,
-    placement: "above",
-    transform: "translate(-50%, -100%)",
-  };
+) {
+  return positionAnchorBubble(anchor, modalW, modalH);
 }
 
 function fmtShares(value: number | null | undefined) {
@@ -245,15 +191,23 @@ export function StockShareStructureBubbleProvider({
     const mh = modal.offsetHeight;
     if (!mw || !mh) return;
     const next = positionModal(open.anchorRect, mw, mh);
+    const clamped = clampAnchorBubbleInViewport(
+      next.left,
+      next.top,
+      mw,
+      mh,
+      next.transform,
+    );
+    const positioned = { ...next, ...clamped };
     if (
-      next.left === open.left &&
-      next.top === open.top &&
-      next.placement === open.placement &&
-      next.transform === open.transform
+      positioned.left === open.left &&
+      positioned.top === open.top &&
+      positioned.placement === open.placement &&
+      positioned.transform === open.transform
     ) {
       return;
     }
-    setOpen((current) => (current ? { ...current, ...next } : current));
+    setOpen((current) => (current ? { ...current, ...positioned } : current));
   }, [open?.symbol, open?.name, open?.anchorRect, payload, loading, error]);
 
   useEffect(() => {

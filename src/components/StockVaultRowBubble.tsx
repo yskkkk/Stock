@@ -16,6 +16,11 @@ import { loadEarningsBubbleFinancials } from "../lib/earningsBubbleFinancials";
 import { tradingViewChartUrl } from "../lib/tradingviewSymbols";
 import { useIsMobilePhone } from "../hooks/useIsMobilePhone";
 import {
+  clampAnchorBubbleInViewport,
+  positionAnchorBubble,
+  type AnchorBubblePlacement,
+} from "../lib/viewportAnchorBubblePosition";
+import {
   dispatchStockHoverBubbleOpen,
   handleStockHoverParentBubbleClick,
   isSameStockBubbleSymbol,
@@ -49,7 +54,7 @@ export type StockVaultRowBubbleActions = {
   scheduleHideTip: () => void;
 };
 
-type Placement = "left" | "right" | "below" | "above";
+type Placement = AnchorBubblePlacement;
 
 type TipState = StockVaultRowBubbleTarget & {
   anchorRect: DOMRectReadOnly;
@@ -59,71 +64,12 @@ type TipState = StockVaultRowBubbleTarget & {
   transform: string;
 };
 
-function clamp(n: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, n));
-}
-
 function positionTip(
   anchor: DOMRectReadOnly,
   bubbleW = EST_BUBBLE_W,
   bubbleH = EST_BUBBLE_H,
-): Pick<TipState, "left" | "top" | "placement" | "transform"> {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-
-  const fitsRight = anchor.right + GAP + bubbleW <= vw - VIEWPORT_PAD;
-  const fitsLeft = anchor.left - GAP - bubbleW >= VIEWPORT_PAD;
-  const fitsBelow = anchor.bottom + GAP + bubbleH <= vh - VIEWPORT_PAD;
-  const fitsAbove = anchor.top - GAP - bubbleH >= VIEWPORT_PAD;
-
-  if (fitsRight) {
-    return {
-      left: anchor.right + GAP,
-      top: clamp(
-        anchor.top + anchor.height / 2,
-        VIEWPORT_PAD + bubbleH / 2,
-        vh - VIEWPORT_PAD - bubbleH / 2,
-      ),
-      placement: "right",
-      transform: "translate(0, -50%)",
-    };
-  }
-  if (fitsLeft) {
-    return {
-      left: anchor.left - GAP,
-      top: clamp(
-        anchor.top + anchor.height / 2,
-        VIEWPORT_PAD + bubbleH / 2,
-        vh - VIEWPORT_PAD - bubbleH / 2,
-      ),
-      placement: "left",
-      transform: "translate(-100%, -50%)",
-    };
-  }
-  if (fitsBelow || (!fitsAbove && anchor.top < vh / 2)) {
-    const left = clamp(
-      anchor.left + anchor.width / 2,
-      VIEWPORT_PAD + bubbleW / 2,
-      vw - VIEWPORT_PAD - bubbleW / 2,
-    );
-    return {
-      left,
-      top: anchor.bottom + GAP,
-      placement: "below",
-      transform: "translate(-50%, 0)",
-    };
-  }
-  const left = clamp(
-    anchor.left + anchor.width / 2,
-    VIEWPORT_PAD + bubbleW / 2,
-    vw - VIEWPORT_PAD - bubbleW / 2,
-  );
-  return {
-    left,
-    top: anchor.top - GAP,
-    placement: "above",
-    transform: "translate(-50%, -100%)",
-  };
+) {
+  return positionAnchorBubble(anchor, bubbleW, bubbleH, { gap: GAP });
 }
 
 function bubblePlacementClass(placement: Placement) {
@@ -268,16 +214,24 @@ export function useStockVaultRowBubble(tipIdOverride?: string) {
     const bh = bubble.offsetHeight;
     if (!bw || !bh) return;
     const next = positionTip(tip.anchorRect, bw, bh);
+    const clamped = clampAnchorBubbleInViewport(
+      next.left,
+      next.top,
+      bw,
+      bh,
+      next.transform,
+    );
+    const positioned = { ...next, ...clamped };
     if (
-      next.left === tip.left &&
-      next.top === tip.top &&
-      next.placement === tip.placement &&
-      next.transform === tip.transform
+      positioned.left === tip.left &&
+      positioned.top === tip.top &&
+      positioned.placement === tip.placement &&
+      positioned.transform === tip.transform
     ) {
       return;
     }
     setTip((current) =>
-      current ? { ...current, ...next } : current,
+      current ? { ...current, ...positioned } : current,
     );
   }, [tip?.symbol, tip?.name, tip?.anchorRect]);
 
