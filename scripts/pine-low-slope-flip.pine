@@ -1,0 +1,207 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// 일봉 캔들 저가(low) 피벗 3점 — 연결선 기울기 부호 전환 (YSTOCK server/candle-low-slope-detect.js 동기)
+//@version=6
+indicator("저점 기울기 전환", shorttitle="저점기울", overlay=true, max_lines_count=500, max_labels_count=500)
+
+grpCore = "저점 기울기 — 서버 동기"
+showLowSlope  = input.bool(true, "탐지 사용", group=grpCore, tooltip="YSTOCK 종목보관함 low_slope_flip 과 동일 로직")
+pivotLeft     = input.int(3, "피벗 좌(봉)", minval=1, maxval=8, group=grpCore, tooltip="STOCK_LOW_SLOPE_PIVOT_LEFT 기본 3")
+pivotRight    = input.int(3, "피벗 우(봉)", minval=1, maxval=8, group=grpCore, tooltip="STOCK_LOW_SLOPE_PIVOT_RIGHT 기본 3")
+minPivotGap   = input.int(4, "근접 저점 병합(봉)", minval=2, maxval=12, group=grpCore, tooltip="mergeNearbyPivotLows minPivotGap")
+recentBars    = input.int(8, "최근 유효(봉)", minval=1, maxval=30, group=grpCore, tooltip="STOCK_LOW_SLOPE_RECENT_BARS — 마지막 피벗이 N봉 이내")
+confirmedOnly = input.bool(true, "확정봉만 신호", group=grpCore)
+
+grpDisp = "표시"
+dispLines   = input.bool(true, "저점 연결선 (p0→p1→p2)", group=grpDisp)
+dispMarkers = input.bool(true, "전환 마커", group=grpDisp)
+dispPivots  = input.bool(false, "병합 피벗 점", group=grpDisp)
+dispBg      = input.bool(true, "신호 봉 배경", group=grpDisp)
+extendLine  = input.int(0, "연결선 우측 연장(봉)", minval=0, maxval=30, group=grpDisp)
+
+grpCol = "색상"
+cDownUp = input.color(color.new(#00897B, 0), "하락→상승", group=grpCol)
+cUpDown = input.color(color.new(#C62828, 0), "상승→하락", group=grpCol)
+cLineDn = input.color(color.new(#26A69A, 0), "하락→상승 선", group=grpCol)
+cLineUp = input.color(color.new(#EF5350, 0), "상승→하락 선", group=grpCol)
+cPivot  = input.color(color.new(#78909C, 35), "피벗 점", group=grpCol)
+
+// ── 서버 findPivotLows: 좌우 N봉에서 더 낮은 low 가 없으면 피벗 (동일가 허용) ──
+f_isPivotLow(offset, left, right) =>
+    bool ok = true
+    float center = low[offset]
+    if bar_index < offset + left
+        ok := false
+    else
+        for i = 0 to left + right
+            int rel = offset + left - i
+            if rel != offset and low[rel] < center
+                ok := false
+                break
+    ok
+
+f_slopeSign(float a, float b) =>
+    float d = b - a
+    d > 0 ? 1 : d < 0 ? -1 : 0
+
+// 서버 mergeNearbyPivotLows
+f_mergePivotLows(array<int> barArr, array<float> lowArr, int minGap) =>
+    array<int> mergedBars = array.new_int()
+    array<float> mergedLows = array.new_float()
+    int n = array.size(barArr)
+    if n > 0
+        for i = 0 to n - 1
+            int b = array.get(barArr, i)
+            float l = array.get(lowArr, i)
+            int m = array.size(mergedBars)
+            if m > 0
+                int lastB = array.get(mergedBars, m - 1)
+                float lastL = array.get(mergedLows, m - 1)
+                if b - lastB < minGap
+                    if l < lastL
+                        array.set(mergedLows, m - 1, l)
+                        array.set(mergedBars, m - 1, b)
+                    continue
+            array.push(mergedBars, b)
+            array.push(mergedLows, l)
+    [mergedBars, mergedLows]
+
+// 서버 detectCandleLowSlopeFlipLatest — 뒤에서부터 최근 유효 전환 1건
+f_detectLatestFlip(array<int> mergedBars, array<float> mergedLows, int recent) =>
+    int flip = 0
+    int outP0b = na
+    int outP1b = na
+    int outP2b = na
+    float outP0l = na
+    float outP1l = na
+    float outP2l = na
+    int n = array.size(mergedBars)
+    if n >= 3
+        for k = n - 1 to 2
+            int p2b = array.get(mergedBars, k)
+            int p1b = array.get(mergedBars, k - 1)
+            int p0b = array.get(mergedBars, k - 2)
+            float p2l = array.get(mergedLows, k)
+            float p1l = array.get(mergedLows, k - 1)
+            float p0l = array.get(mergedLows, k - 2)
+            if bar_index - p2b > recent
+                continue
+            int signPrev = f_slopeSign(p0l, p1l)
+            int signCurr = f_slopeSign(p1l, p2l)
+            if signPrev != 0 and signCurr != 0 and signPrev != signCurr
+                flip := signPrev < 0 and signCurr > 0 ? 1 : -1
+                outP0b := p0b
+                outP1b := p1b
+                outP2b := p2b
+                outP0l := p0l
+                outP1l := p1l
+                outP2l := p2l
+                break
+    [flip, outP0b, outP1b, outP2b, outP0l, outP1l, outP2l]
+
+var array<int> rawPivotBars = array.new_int()
+var array<float> rawPivotLows = array.new_float()
+
+var int sigFlip = 0
+var int sigP0b = na
+var int sigP1b = na
+var int sigP2b = na
+var float sigP0l = na
+var float sigP1l = na
+var float sigP2l = na
+
+var line ln01 = na
+var line ln12 = na
+
+bool canScan = showLowSlope and bar_index >= pivotLeft + pivotRight + minPivotGap * 2 + 4
+
+if canScan and bar_index >= pivotRight
+    bool pivotHit = f_isPivotLow(pivotRight, pivotLeft, pivotRight)
+    if pivotHit
+        int pBar = bar_index - pivotRight
+        float pLow = low[pivotRight]
+        array.push(rawPivotBars, pBar)
+        array.push(rawPivotLows, pLow)
+        while array.size(rawPivotBars) > 240
+            array.shift(rawPivotBars)
+            array.shift(rawPivotLows)
+
+[mergedBars, mergedLows] = f_mergePivotLows(rawPivotBars, rawPivotLows, minPivotGap)
+[flip, p0b, p1b, p2b, p0l, p1l, p2l] = f_detectLatestFlip(mergedBars, mergedLows, recentBars)
+
+bool passBar = not confirmedOnly or barstate.isconfirmed
+bool newSignal = canScan and passBar and flip != 0 and p2b == bar_index - pivotRight
+
+if canScan and passBar
+    if flip != 0
+        sigFlip := flip
+        sigP0b := p0b
+        sigP1b := p1b
+        sigP2b := p2b
+        sigP0l := p0l
+        sigP1l := p1l
+        sigP2l := p2l
+    else if not na(sigP2b) and bar_index - sigP2b > recentBars
+        sigFlip := 0
+        sigP0b := na
+        sigP1b := na
+        sigP2b := na
+        sigP0l := na
+        sigP1l := na
+        sigP2l := na
+
+bool signalActive = showLowSlope and sigFlip != 0 and not na(sigP2b) and bar_index - sigP2b <= recentBars
+bool downToUp = signalActive and sigFlip == 1
+bool upToDown = signalActive and sigFlip == -1
+
+color sigCol = downToUp ? cDownUp : upToDown ? cUpDown : color.gray
+color lineCol = downToUp ? cLineDn : upToDown ? cLineUp : color.gray
+
+if canScan and passBar and not signalActive
+    if not na(ln01)
+        line.delete(ln01)
+        ln01 := na
+    if not na(ln12)
+        line.delete(ln12)
+        ln12 := na
+
+if dispBg and signalActive and passBar
+    bgcolor(downToUp ? color.new(cDownUp, 92) : color.new(cUpDown, 92))
+
+if dispMarkers and newSignal
+    string txt = flip == 1 ? "저점\n↓→↑" : "저점\n↑→↓"
+    color mkCol = flip == 1 ? cDownUp : cUpDown
+    label.new(bar_index, p2l, txt, style=label.style_label_up, color=mkCol, textcolor=color.white, size=size.small)
+
+if dispPivots and newSignal
+    label.new(sigP0b, sigP0l, "p0", style=label.style_circle, color=cPivot, textcolor=color.white, size=size.tiny)
+    label.new(sigP1b, sigP1l, "p1", style=label.style_circle, color=cPivot, textcolor=color.white, size=size.tiny)
+    label.new(p2b, p2l, "p2", style=label.style_circle, color=sigCol, textcolor=color.white, size=size.tiny)
+
+if dispLines and signalActive and passBar
+    if not na(ln01)
+        line.delete(ln01)
+    if not na(ln12)
+        line.delete(ln12)
+    int x2 = bar_index + extendLine
+    ln01 := line.new(sigP0b, sigP0l, sigP1b, sigP1l, color=lineCol, width=2)
+    ln12 := line.new(sigP1b, sigP1l, sigP2b, sigP2l, color=lineCol, width=2)
+    if extendLine > 0
+        float slope12 = sigP2l - sigP1l
+        float extendY = sigP2l + slope12 * float(extendLine) / float(math.max(sigP2b - sigP1b, 1))
+        line.new(sigP2b, sigP2l, x2, extendY, color=color.new(lineCol, 55), width=1, style=line.style_dotted)
+
+plotshape(dispMarkers and newSignal and flip == 1 ? p2l : na, title="하락→상승", style=shape.triangleup, location=location.absolute, color=cDownUp, size=size.tiny)
+plotshape(dispMarkers and newSignal and flip == -1 ? p2l : na, title="상승→하락", style=shape.triangledown, location=location.absolute, color=cUpDown, size=size.tiny)
+
+alertcondition(newSignal and flip == 1, title="저점 기울기 하락→상승", message="저점 기울기 전환: 하락→상승 (down_to_up)")
+alertcondition(newSignal and flip == -1, title="저점 기울기 상승→하락", message="저점 기울기 전환: 상승→하락 (up_to_down)")
+alertcondition(newSignal, title="저점 기울기 전환(전체)", message="저점 기울기 부호 전환 신호")
+
+// 우하단 상태 (서버 lowSlopeFlip 값)
+var table tStat = table.new(position.bottom_right, 1, 3, bgcolor=color.new(color.black, 82), border_width=1)
+if barstate.islast and showLowSlope
+    table.cell(tStat, 0, 0, "저점 기울기", text_color=color.white, text_size=size.small)
+    string st = not signalActive ? "—" : downToUp ? "down_to_up" : "up_to_down"
+    table.cell(tStat, 0, 1, st, text_color=sigCol, text_size=size.normal)
+    string age = not na(sigP2b) ? str.tostring(bar_index - sigP2b) + "봉 전 p2" : ""
+    table.cell(tStat, 0, 2, age, text_color=color.gray, text_size=size.tiny)
