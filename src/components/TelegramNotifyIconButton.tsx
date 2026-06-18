@@ -17,6 +17,8 @@ export default function TelegramNotifyIconButton({
     >
       <a
         href={TELEGRAM_CHANNEL_URL}
+        target="_blank"
+        rel="noopener noreferrer"
         className="live-trade-header-strip__telegram-channel-link"
         title={ko.app.telegramChannelAria}
         aria-label={ko.app.telegramChannelAria}
