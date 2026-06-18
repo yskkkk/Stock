@@ -56,11 +56,12 @@ const SCAN_KIND_LABEL = {
   ma120Near: "120선 근처",
   bookAccum: "매집봉",
   bottomCandle: "바닥캔들",
+  lowSlopeFlip: "저점기울기",
 };
 
 const MARKET_ORDER = ["kr", "us"];
 const TIMEFRAME_ORDER = ["1d", "1wk"];
-const KIND_ORDER = ["goldenCross", "maAlign", "ma120Near", "bookAccum", "bottomCandle"];
+const KIND_ORDER = ["goldenCross", "maAlign", "ma120Near", "lowSlopeFlip", "bookAccum", "bottomCandle"];
 
 /**
  * @param {number} ms
@@ -77,7 +78,7 @@ export function formatScanDurationMs(ms) {
  * @typedef {{
  *   market: "kr"|"us";
  *   timeframe: import("./vault-scan-timeframe.js").VaultScanTimeframe;
- *   kind: "goldenCross"|"maAlign"|"ma120Near"|"bookAccum"|"bottomCandle";
+ *   kind: "goldenCross"|"maAlign"|"ma120Near"|"bookAccum"|"bottomCandle"|"lowSlopeFlip";
  *   durationMs: number;
  *   hitCount?: number;
  *   ok: boolean;
@@ -168,7 +169,7 @@ export function buildVaultScanStartTelegramHtml(opts) {
     "",
     `<b>대상</b> ${marketKo}`,
     "<b>항목</b>",
-    "· 일봉 — 골든크로스, 정배열, 120선 근처(±3%), 매집봉",
+    "· 일봉 — 골든크로스, 정배열, 120선 근처(±3%), 저점 기울기 전환, 매집봉",
     "· 주봉 — 골든크로스, 정배열, 매집봉",
   ];
   return lines.join("\n");

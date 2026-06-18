@@ -482,9 +482,9 @@ export interface FinancialStatementAnalysisResponse extends FinancialStatementDe
   aiOpinion: FinancialAiOpinion;
 }
 
-export type StockVaultSource = "golden_cross" | "ma_align" | "ma120_near" | "bottom_candle" | "book_accum" | "favorite";
+export type StockVaultSource = "golden_cross" | "ma_align" | "ma120_near" | "bottom_candle" | "book_accum" | "low_slope_flip" | "favorite";
 /** 자동 탐색 조건 — stockVaultFilter.STOCK_VAULT_SCAN_SOURCES 와 동기 */
-export type StockVaultScanSource = "golden_cross" | "ma_align" | "ma120_near" | "bottom_candle" | "book_accum";
+export type StockVaultScanSource = "golden_cross" | "ma_align" | "ma120_near" | "bottom_candle" | "book_accum" | "low_slope_flip";
 export type StockVaultTimeframe = "1d" | "1wk";
 export type GoldenCrossKind =
   | "5>20"
@@ -563,6 +563,8 @@ export interface StockVaultItem {
   bottomClassic?: boolean;
   accumScore?: number;
   accumRvol?: number;
+  lowSlopeFlip?: "down_to_up" | "up_to_down";
+  pivotLow?: number;
   addedAtMs: number;
   updatedAtMs: number;
   favorited?: boolean;
@@ -838,6 +840,7 @@ export interface StockVaultScanStatus {
   goldenCross: { state: GoldenCrossScanState };
   maAlign: { state: GoldenCrossScanState };
   ma120Near?: { state: GoldenCrossScanState };
+  lowSlopeFlip?: { state: GoldenCrossScanState };
   bookAccum?: { state: GoldenCrossScanState };
   bottomCandle?: {
     enabled: boolean;

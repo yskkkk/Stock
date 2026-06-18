@@ -52,6 +52,13 @@ export function buildLastScanRows(
           status.bookAccum.state,
         )
       : null,
+    status.lowSlopeFlip?.state
+      ? rowFromState(
+          "low_slope_flip",
+          ko.stockVault.lastScanLowSlope,
+          status.lowSlopeFlip.state,
+        )
+      : null,
   ].filter((row): row is StockVaultLastScanRow => row != null);
 
   return rows.length ? rows : null;

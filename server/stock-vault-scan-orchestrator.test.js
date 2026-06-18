@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 const gcScan = vi.fn();
 const maScan = vi.fn();
 const ma120Scan = vi.fn();
+const lowSlopeScan = vi.fn();
 const bookAccumScan = vi.fn();
 
 vi.mock("./golden-cross-scan.js", () => ({
@@ -19,6 +20,11 @@ vi.mock("./ma-align-scan.js", () => ({
 vi.mock("./ma120-near-scan.js", () => ({
   runMa120NearMarketScan: (...args) => ma120Scan(...args),
   wasMa120NearScannedSync: () => false,
+}));
+
+vi.mock("./candle-low-slope-scan.js", () => ({
+  runCandleLowSlopeMarketScan: (...args) => lowSlopeScan(...args),
+  wasCandleLowSlopeScannedSync: () => false,
 }));
 
 vi.mock("./book-accumulation-scan.js", () => ({
@@ -65,8 +71,12 @@ beforeEach(() => {
   gcScan.mockReset();
   maScan.mockReset();
   ma120Scan.mockReset();
+  lowSlopeScan.mockReset();
   bookAccumScan.mockReset();
   ma120Scan.mockImplementation(async (market, scanDate) =>
+    emptyMarketResult(market, scanDate),
+  );
+  lowSlopeScan.mockImplementation(async (market, scanDate) =>
     emptyMarketResult(market, scanDate),
   );
   bookAccumScan.mockImplementation(async (market, scanDate) =>
@@ -107,7 +117,7 @@ test("runVaultMarketScans runs golden cross and ma align in parallel", async () 
     listStockVaultItemsSync().filter((it) => it.source === "ma_align").length,
     1,
   );
-  assert.equal(result.timings?.length, 7);
+  assert.equal(result.timings?.length, 8);
 });
 
 test("runVaultMarketScans still merges ma align when golden cross fails", async () => {

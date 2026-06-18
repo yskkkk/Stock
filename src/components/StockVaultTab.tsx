@@ -115,6 +115,7 @@ const SCAN_SOURCE_LABEL: Record<StockVaultScanSource, string> = {
   golden_cross: ko.stockVault.tabGolden,
   ma_align: ko.stockVault.tabMaAlign,
   ma120_near: ko.stockVault.tabMa120Near,
+  low_slope_flip: ko.stockVault.tabLowSlopeFlip,
   bottom_candle: ko.stockVault.tabBottomCandle,
   book_accum: ko.stockVault.tabBookAccum,
 };
@@ -807,6 +808,7 @@ export default function StockVaultTab({
         countItemsByScanSource(displayItems, source, timeframeFilter) === 0;
       if (
         (source === "ma120_near" ||
+          source === "low_slope_flip" ||
           source === "bottom_candle" ||
           source === "book_accum") &&
         zero
@@ -825,7 +827,9 @@ export default function StockVaultTab({
 
   useEffect(() => {
     if (timeframeFilter !== "1wk") return;
-    setSelectedScanSources((prev) => prev.filter((s) => s !== "ma120_near"));
+    setSelectedScanSources((prev) =>
+      prev.filter((s) => s !== "ma120_near" && s !== "low_slope_flip"),
+    );
     setMa120ApproachFilter(null);
   }, [timeframeFilter]);
 

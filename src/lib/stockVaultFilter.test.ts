@@ -139,5 +139,11 @@ describe("stockVaultFilter", () => {
     expect(weekly).toContain("bottom_candle");
     expect(weekly).toContain("book_accum");
     expect(weekly).not.toContain("ma120_near");
+    expect(weekly).not.toContain("low_slope_flip");
+  });
+
+  it("일봉 탭 — 저점기울기 필터 표시", () => {
+    const daily = visibleStockVaultScanSources("1d");
+    expect(daily).toContain("low_slope_flip");
   });
 });

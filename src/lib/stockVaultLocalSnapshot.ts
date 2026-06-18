@@ -6,6 +6,7 @@ const SCAN_SOURCES = new Set<StockVaultScanSource>([
   "golden_cross",
   "ma_align",
   "ma120_near",
+  "low_slope_flip",
   "bottom_candle",
   "book_accum",
 ]);

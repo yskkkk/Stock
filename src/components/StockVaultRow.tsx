@@ -29,6 +29,7 @@ const SOURCE_BADGE_LABEL: Record<StockVaultScanSource, string> = {
   ma120_near: ko.stockVault.sourceMa120Near,
   bottom_candle: ko.stockVault.sourceBottomCandle,
   book_accum: ko.stockVault.sourceBookAccum,
+  low_slope_flip: ko.stockVault.sourceLowSlopeFlip,
 };
 
 function fmtDate(ms: number): string {
@@ -105,6 +106,7 @@ function StockVaultRowInner({
   const gcItem = row.goldenCross;
   const bottomItem = row.bottomCandle;
   const bookAccumItem = row.bookAccum;
+  const lowSlopeItem = row.lowSlopeFlip;
   const gcRecencyClass = gcItem ? goldenCrossRecencyClass(gcItem) : null;
   const rowClassName = [
     "stock-vault-tab__row",
@@ -121,6 +123,8 @@ function StockVaultRowInner({
     bottomItem?.scanDate ??
     bookAccumItem?.signalDate ??
     bookAccumItem?.scanDate ??
+    lowSlopeItem?.signalDate ??
+    lowSlopeItem?.scanDate ??
     null;
   const sourceLabels =
     row.scanSources.length > 0
@@ -156,10 +160,17 @@ function StockVaultRowInner({
             : ""
         }`
       : null;
+  const lowSlopeLabel =
+    lowSlopeItem?.lowSlopeFlip != null
+      ? lowSlopeItem.lowSlopeFlip === "down_to_up"
+        ? ko.stockVault.lowSlopeDownToUp
+        : ko.stockVault.lowSlopeUpToDown
+      : null;
   const hasSignalBadges =
     Boolean(gcChain) ||
     Boolean(row.maAlign) ||
     Boolean(ma120Label) ||
+    Boolean(lowSlopeLabel) ||
     Boolean(bottomLabel) ||
     Boolean(bookAccumLabel);
 
@@ -354,6 +365,14 @@ function StockVaultRowInner({
                   title={ko.stockVault.ma120NearBadgeHint}
                 >
                   {ma120Label}
+                </span>
+              ) : null}
+              {lowSlopeLabel ? (
+                <span
+                  className="stock-vault-tab__cross stock-vault-tab__cross--low-slope"
+                  title={ko.stockVault.lowSlopeFlipBadgeHint}
+                >
+                  {lowSlopeLabel}
                 </span>
               ) : null}
               {bottomLabel ? (

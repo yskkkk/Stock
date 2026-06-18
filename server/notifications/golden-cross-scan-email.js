@@ -103,6 +103,22 @@ function timeframeLabel(tf) {
  * }} BottomCandleEmailMarket
  */
 
+/**
+ * @typedef {{
+ *   market: "kr"|"us";
+ *   scanDate: string;
+ *   timeframe?: import("../vault-scan-timeframe.js").VaultScanTimeframe;
+ *   scanned: number;
+ *   hits: Array<{
+ *     symbol: string;
+ *     name: string;
+ *     signalDate?: string;
+ *     lowSlopeFlip?: "down_to_up"|"up_to_down";
+ *     pivotLow?: number;
+ *   }>;
+ * }} LowSlopeFlipEmailMarket
+ */
+
 const EMAIL_TABLE_HEAD =
   `<tr style="background:#f1f5f9"><th>종목</th><th>코드</th><th>현재가</th><th>등락률</th><th>업종</th></tr>`;
 
@@ -177,6 +193,7 @@ export function listGoldenCrossEmailRecipientsSync() {
  *   maAlign: { scanned: number; hits: MaAlignEmailMarket["hits"] };
  *   ma120Near?: { scanned: number; hits: Ma120NearEmailMarket["hits"] };
  *   bookAccum?: { scanned: number; hits: BookAccumEmailMarket["hits"] };
+ *   lowSlopeFlip?: { scanned: number; hits: LowSlopeFlipEmailMarket["hits"] };
  * }>} byTimeframe
  */
 export function buildScanEmailPayloadFromVaultResult(market, scanDate, byTimeframe) {
@@ -188,6 +205,8 @@ export function buildScanEmailPayloadFromVaultResult(market, scanDate, byTimefra
   const ma120Near = [];
   /** @type {BookAccumEmailMarket[]} */
   const bookAccum = [];
+  /** @type {LowSlopeFlipEmailMarket[]} */
+  const lowSlopeFlip = [];
   for (const tf of /** @type {const} */ (["1d", "1wk"])) {
     const block = byTimeframe?.[tf];
     if (!block) continue;
@@ -214,6 +233,15 @@ export function buildScanEmailPayloadFromVaultResult(market, scanDate, byTimefra
         hits: block.ma120Near.hits,
       });
     }
+    if (tf === "1d" && block.lowSlopeFlip) {
+      lowSlopeFlip.push({
+        market,
+        scanDate,
+        timeframe: "1d",
+        scanned: block.lowSlopeFlip.scanned,
+        hits: block.lowSlopeFlip.hits,
+      });
+    }
     if (block.bookAccum) {
       bookAccum.push({
         market,
@@ -224,7 +252,7 @@ export function buildScanEmailPayloadFromVaultResult(market, scanDate, byTimefra
       });
     }
   }
-  return { goldenCross, maAlign, ma120Near, bookAccum };
+  return { goldenCross, maAlign, ma120Near, bookAccum, lowSlopeFlip };
 }
 
 /**
@@ -412,6 +440,64 @@ function buildMa120NearSection(markets) {
   return { textParts, htmlParts };
 }
 
+function formatLowSlopeFlipLabel(flip) {
+  if (flip === "down_to_up") return "하락→상승";
+  if (flip === "up_to_down") return "상승→하락";
+  return "—";
+}
+
+/**
+ * @param {LowSlopeFlipEmailMarket[]} markets
+ */
+function buildLowSlopeFlipSection(markets) {
+  /** @type {string[]} */
+  const textParts = ["[저점 기울기] 일봉 캔들 저점 연결선 기울기 부호 전환", ""];
+  /** @type {string[]} */
+  const htmlParts = [`<h2 style="color:#1e40af;">저점 기울기 전환</h2>`];
+
+  for (const block of markets) {
+    const marketKo = block.market === "kr" ? "국내 시총 300" : "S&P 500";
+    const tfKo = timeframeLabel(block.timeframe);
+    textParts.push(`${marketKo} · ${tfKo} · ${block.scanDate} · ${block.hits.length}건`);
+    htmlParts.push(
+      `<h3>${marketKo} · <strong>${tfKo}</strong> <small style="color:#64748b">${block.scanDate} · ${block.hits.length}건</small></h3>`,
+    );
+    if (!block.hits.length) {
+      textParts.push("· 없음", "");
+      htmlParts.push("<p>없음</p>");
+      continue;
+    }
+    htmlParts.push(
+      `<table cellpadding="6" cellspacing="0" border="1" style="border-collapse:collapse;font-size:0.85em;margin-bottom:16px;width:100%;"><tr style="background:#f1f5f9"><th>종목</th><th>코드</th><th>현재가</th><th>등락률</th><th>전환</th><th>신호일</th><th>업종</th></tr>`,
+    );
+    for (const h of block.hits) {
+      const cells = scanEmailHitCells(h, block.market);
+      const chgNum = Number(h.changePercent);
+      const chgStyle =
+        Number.isFinite(chgNum) && chgNum >= 0
+          ? "color:#15803d;font-weight:600"
+          : Number.isFinite(chgNum)
+            ? "color:#b91c1c;font-weight:600"
+            : "";
+      textParts.push(
+        `${formatScanEmailHitLine(h, block.market)} · ${formatLowSlopeFlipLabel(h.lowSlopeFlip)} · ${h.signalDate ?? "—"}`,
+      );
+      htmlParts.push(`<tr>
+<td>${escapeHtml(cells.name)}</td>
+<td>${escapeHtml(cells.code)}</td>
+<td style="text-align:right;font-family:monospace">${escapeHtml(cells.price)}</td>
+<td style="text-align:right;font-family:monospace;${chgStyle}">${escapeHtml(cells.change)}</td>
+<td>${escapeHtml(formatLowSlopeFlipLabel(h.lowSlopeFlip))}</td>
+<td>${escapeHtml(h.signalDate ?? "—")}</td>
+<td>${escapeHtml(cells.industry)}</td>
+</tr>`);
+    }
+    htmlParts.push("</table>");
+    textParts.push("");
+  }
+  return { textParts, htmlParts };
+}
+
 /**
  * @param {BookAccumEmailMarket[]} markets
  */
@@ -570,6 +656,7 @@ export function buildGoldenCrossScanEmailContent(input) {
   const maAlign = Array.isArray(input.maAlign) ? input.maAlign : [];
   const ma120Near = Array.isArray(input.ma120Near) ? input.ma120Near : [];
   const bookAccum = Array.isArray(input.bookAccum) ? input.bookAccum : [];
+  const lowSlopeFlip = Array.isArray(input.lowSlopeFlip) ? input.lowSlopeFlip : [];
   const bottomCandle = Array.isArray(input.bottomCandle) ? input.bottomCandle : [];
   const intersections =
     input.intersections ?? buildEmailTimeframeIntersections(goldenCross, maAlign);
@@ -577,6 +664,7 @@ export function buildGoldenCrossScanEmailContent(input) {
   const maAlignHits = maAlign.reduce((s, m) => s + m.hits.length, 0);
   const ma120NearHits = ma120Near.reduce((s, m) => s + m.hits.length, 0);
   const bookAccumHits = bookAccum.reduce((s, m) => s + m.hits.length, 0);
+  const lowSlopeFlipHits = lowSlopeFlip.reduce((s, m) => s + m.hits.length, 0);
   const bottomCandleHits = bottomCandle.reduce((s, m) => s + m.hits.length, 0);
   const intersectionGc = intersections.reduce(
     (s, m) => s + (m.goldenCross?.length ?? 0),
@@ -587,12 +675,13 @@ export function buildGoldenCrossScanEmailContent(input) {
     0,
   );
   const now = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
-  const subject = `[YSTOCK] 탐색 리포트 — 골든 ${goldenCrossHits} · 정배열 ${maAlignHits} · 120선 ${ma120NearHits} · 매집 ${bookAccumHits} · 바닥 ${bottomCandleHits} · ${now}`;
+  const subject = `[YSTOCK] 탐색 리포트 — 골든 ${goldenCrossHits} · 정배열 ${maAlignHits} · 120선 ${ma120NearHits} · 저점기울기 ${lowSlopeFlipHits} · 매집 ${bookAccumHits} · 바닥 ${bottomCandleHits} · ${now}`;
 
   const ix = buildIntersectionSection(intersections);
   const gc = buildGoldenCrossSection(goldenCross);
   const ma = buildMaAlignSection(maAlign);
   const ma120 = buildMa120NearSection(ma120Near);
+  const lowSlope = buildLowSlopeFlipSection(lowSlopeFlip);
   const book = buildBookAccumSection(bookAccum);
   const bottom = buildBottomCandleSection(bottomCandle);
 
@@ -608,7 +697,7 @@ export function buildGoldenCrossScanEmailContent(input) {
     `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>${subject}</title></head>`,
     `<body style="font-family:'Malgun Gothic',sans-serif;line-height:1.6;max-width:900px;margin:0 auto;padding:20px;">`,
     `<h1 style="color:#1e40af;font-size:1.2em;">탐색 리포트</h1>`,
-    `<p>${now} · 골든 <strong>${goldenCrossHits}</strong> · 정배열 <strong>${maAlignHits}</strong> · 120선 <strong>${ma120NearHits}</strong> · 매집 <strong>${bookAccumHits}</strong> · 바닥 <strong>${bottomCandleHits}</strong> · 교집합 <strong>${intersectionGc + intersectionMa}</strong></p>`,
+    `<p>${now} · 골든 <strong>${goldenCrossHits}</strong> · 정배열 <strong>${maAlignHits}</strong> · 120선 <strong>${ma120NearHits}</strong> · 저점기울기 <strong>${lowSlopeFlipHits}</strong> · 매집 <strong>${bookAccumHits}</strong> · 바닥 <strong>${bottomCandleHits}</strong> · 교집합 <strong>${intersectionGc + intersectionMa}</strong></p>`,
   ];
 
   if (goldenCross.length || maAlign.length) {
@@ -626,6 +715,10 @@ export function buildGoldenCrossScanEmailContent(input) {
   if (ma120Near.length) {
     textParts.push(...ma120.textParts);
     htmlParts.push(...ma120.htmlParts);
+  }
+  if (lowSlopeFlip.length) {
+    textParts.push(...lowSlope.textParts);
+    htmlParts.push(...lowSlope.htmlParts);
   }
   if (bookAccum.length) {
     textParts.push(...book.textParts);
@@ -653,11 +746,13 @@ export function buildGoldenCrossScanEmailContent(input) {
     maAlignHits,
     ma120NearHits,
     bookAccumHits,
+    lowSlopeFlipHits,
     bottomCandleHits,
     totalHits:
       goldenCrossHits +
       maAlignHits +
       ma120NearHits +
+      lowSlopeFlipHits +
       bookAccumHits +
       bottomCandleHits,
   };
@@ -693,6 +788,7 @@ export async function sendGoldenCrossScanReportEmail(opts) {
   const maAlign = Array.isArray(opts.maAlign) ? opts.maAlign : [];
   const ma120Near = Array.isArray(opts.ma120Near) ? opts.ma120Near : [];
   const bookAccum = Array.isArray(opts.bookAccum) ? opts.bookAccum : [];
+  const lowSlopeFlip = Array.isArray(opts.lowSlopeFlip) ? opts.lowSlopeFlip : [];
   const bottomCandle = Array.isArray(opts.bottomCandle) ? opts.bottomCandle : [];
   const dryRun = Boolean(opts.dryRun);
   const recipients = opts.to
@@ -713,12 +809,14 @@ export async function sendGoldenCrossScanReportEmail(opts) {
     maAlignEnriched,
     ma120NearEnriched,
     bookAccumEnriched,
+    lowSlopeFlipEnriched,
     bottomCandleEnriched,
   ] = await Promise.all([
     enrichScanEmailMarkets(goldenCross),
     enrichScanEmailMarkets(maAlign),
     enrichScanEmailMarkets(ma120Near),
     enrichScanEmailMarkets(bookAccum),
+    enrichScanEmailMarkets(lowSlopeFlip),
     enrichScanEmailMarkets(bottomCandle),
   ]);
 
@@ -730,6 +828,7 @@ export async function sendGoldenCrossScanReportEmail(opts) {
     maAlignHits,
     ma120NearHits,
     bookAccumHits,
+    lowSlopeFlipHits,
     bottomCandleHits,
     totalHits,
   } = buildGoldenCrossScanEmailContent({
@@ -737,6 +836,7 @@ export async function sendGoldenCrossScanReportEmail(opts) {
     maAlign: maAlignEnriched,
     ma120Near: ma120NearEnriched,
     bookAccum: bookAccumEnriched,
+    lowSlopeFlip: lowSlopeFlipEnriched,
     bottomCandle: bottomCandleEnriched,
   });
   if (dryRun) {
@@ -748,6 +848,7 @@ export async function sendGoldenCrossScanReportEmail(opts) {
       maAlignHits,
       ma120NearHits,
       bookAccumHits,
+      lowSlopeFlipHits,
       bottomCandleHits,
       totalHits,
       sent: 0,
@@ -778,6 +879,7 @@ export async function sendGoldenCrossScanReportEmail(opts) {
     maAlignHits,
     ma120NearHits,
     bookAccumHits,
+    lowSlopeFlipHits,
     bottomCandleHits,
     totalHits,
     sent,

@@ -11,6 +11,7 @@ export const STOCK_VAULT_SCAN_SOURCES: readonly StockVaultScanSource[] = [
   "golden_cross",
   "ma_align",
   "ma120_near",
+  "low_slope_flip",
   "bottom_candle",
   "book_accum",
 ];
@@ -27,6 +28,7 @@ export type VaultDisplayRow = {
   goldenCross?: StockVaultItem;
   maAlign?: StockVaultItem;
   ma120Near?: StockVaultItem;
+  lowSlopeFlip?: StockVaultItem;
   bottomCandle?: StockVaultItem;
   bookAccum?: StockVaultItem;
   favorite?: StockVaultItem;
@@ -52,6 +54,7 @@ function pickDisplayName(row: {
   goldenCross?: StockVaultItem;
   maAlign?: StockVaultItem;
   ma120Near?: StockVaultItem;
+  lowSlopeFlip?: StockVaultItem;
   bottomCandle?: StockVaultItem;
   bookAccum?: StockVaultItem;
   favorite?: StockVaultItem;
@@ -60,12 +63,14 @@ function pickDisplayName(row: {
     row.goldenCross?.name ??
     row.maAlign?.name ??
     row.ma120Near?.name ??
+    row.lowSlopeFlip?.name ??
     row.bottomCandle?.name ??
     row.bookAccum?.name ??
     row.favorite?.name ??
     row.goldenCross?.symbol ??
     row.maAlign?.symbol ??
     row.ma120Near?.symbol ??
+    row.lowSlopeFlip?.symbol ??
     row.bottomCandle?.symbol ??
     row.bookAccum?.symbol ??
     row.favorite?.symbol ??
@@ -84,6 +89,7 @@ function buildScanRow(
   const goldenCross = parts.golden_cross;
   const maAlign = parts.ma_align;
   const ma120Near = parts.ma120_near;
+  const lowSlopeFlip = parts.low_slope_flip;
   const bottomCandle = parts.bottom_candle;
   const bookAccum = parts.book_accum;
   const favorite = parts.favorite;
@@ -91,6 +97,7 @@ function buildScanRow(
     goldenCross?.symbol ??
     maAlign?.symbol ??
     ma120Near?.symbol ??
+    lowSlopeFlip?.symbol ??
     bottomCandle?.symbol ??
     bookAccum?.symbol ??
     favorite?.symbol ??
@@ -99,6 +106,7 @@ function buildScanRow(
     goldenCross?.market ??
     maAlign?.market ??
     ma120Near?.market ??
+    lowSlopeFlip?.market ??
     bottomCandle?.market ??
     bookAccum?.market ??
     favorite?.market ??
@@ -107,6 +115,7 @@ function buildScanRow(
     goldenCross?.favorited ||
       maAlign?.favorited ||
       ma120Near?.favorited ||
+      lowSlopeFlip?.favorited ||
       bottomCandle?.favorited ||
       bookAccum?.favorited ||
       favorite?.favorited,
@@ -115,6 +124,7 @@ function buildScanRow(
     goldenCross?.updatedAtMs ?? 0,
     maAlign?.updatedAtMs ?? 0,
     ma120Near?.updatedAtMs ?? 0,
+    lowSlopeFlip?.updatedAtMs ?? 0,
     bottomCandle?.updatedAtMs ?? 0,
     bookAccum?.updatedAtMs ?? 0,
     favorite?.updatedAtMs ?? 0,
@@ -131,6 +141,7 @@ function buildScanRow(
     goldenCross,
     maAlign,
     ma120Near,
+    lowSlopeFlip,
     bottomCandle,
     bookAccum,
     favorite,
@@ -168,6 +179,8 @@ function buildFavoriteRows(
       row.ma_align = it;
     } else if (it.source === "ma120_near" && matchesTimeframe(it, timeframe)) {
       row.ma120_near = it;
+    } else if (it.source === "low_slope_flip" && matchesTimeframe(it, timeframe)) {
+      row.low_slope_flip = it;
     } else if (it.source === "bottom_candle" && matchesTimeframe(it, timeframe)) {
       row.bottom_candle = it;
     } else if (it.source === "book_accum" && matchesTimeframe(it, timeframe)) {
@@ -210,6 +223,7 @@ export function countScanSourceTotals(
     golden_cross: 0,
     ma_align: 0,
     ma120_near: 0,
+    low_slope_flip: 0,
     bottom_candle: 0,
     book_accum: 0,
   };
@@ -344,7 +358,10 @@ export function countVaultIntersection(
 }
 
 /** 일봉 전용 탐색 조건 — 주봉 탭에서는 120선 근처만 숨김 */
-const DAILY_ONLY_SCAN_SOURCES = new Set<StockVaultScanSource>(["ma120_near"]);
+const DAILY_ONLY_SCAN_SOURCES = new Set<StockVaultScanSource>([
+  "ma120_near",
+  "low_slope_flip",
+]);
 
 export function visibleStockVaultScanSources(
   timeframe: StockVaultTimeframe,

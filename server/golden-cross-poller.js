@@ -6,6 +6,10 @@ import { runGoldenCrossMarketScan, wasGoldenCrossScannedSync } from "./golden-cr
 import { runMaAlignMarketScan, wasMaAlignScannedSync } from "./ma-align-scan.js";
 import { runMa120NearMarketScan, wasMa120NearScannedSync } from "./ma120-near-scan.js";
 import {
+  runCandleLowSlopeMarketScan,
+  wasCandleLowSlopeScannedSync,
+} from "./candle-low-slope-scan.js";
+import {
   runBookAccumulationMarketScan,
   wasBookAccumulationScannedSync,
 } from "./book-accumulation-scan.js";
@@ -13,10 +17,12 @@ import {
   clearGoldenCrossVaultItemsSync,
   clearMaAlignVaultItemsSync,
   clearMa120NearVaultItemsSync,
+  clearLowSlopeFlipVaultItemsSync,
   clearBookAccumVaultItemsSync,
   mergeGoldenCrossHitsIntoVaultSync,
   mergeMaAlignHitsIntoVaultSync,
   mergeMa120NearHitsIntoVaultSync,
+  mergeLowSlopeFlipHitsIntoVaultSync,
   mergeBookAccumHitsIntoVaultSync,
 } from "./stock-vault-store.js";
 import { appendGoldenCrossHistoryEntrySync } from "./golden-cross-history-store.js";
@@ -155,6 +161,10 @@ function emptyBookAccumMarketResult(market, scanDate) {
   return { market, scanDate, scanned: 0, hits: [], hitCount: 0 };
 }
 
+function emptyLowSlopeMarketResult(market, scanDate) {
+  return { market, scanDate, scanned: 0, hits: [], hitCount: 0 };
+}
+
 /** @param {() => Promise<unknown>} run */
 async function timeMarketScan(run) {
   const t0 = performance.now();
@@ -194,6 +204,9 @@ async function runVaultMarketScansForTimeframe(
             runMa120NearMarketScan(market, scanDate, { persistState: persistScanState }),
           ),
           timeMarketScan(() =>
+            runCandleLowSlopeMarketScan(market, scanDate, { persistState: persistScanState }),
+          ),
+          timeMarketScan(() =>
             runBookAccumulationMarketScan(market, scanDate, {
               persistState: persistScanState,
               timeframe,
@@ -214,7 +227,8 @@ async function runVaultMarketScansForTimeframe(
   const gcTimed = timedResults[0];
   const maTimed = timedResults[1];
   const ma120Timed = timeframe === "1d" ? timedResults[2] : null;
-  const bookTimed = timeframe === "1d" ? timedResults[3] : timedResults[2];
+  const lowSlopeTimed = timeframe === "1d" ? timedResults[3] : null;
+  const bookTimed = timeframe === "1d" ? timedResults[4] : timedResults[2];
 
   /** @type {Awaited<ReturnType<typeof runGoldenCrossMarketScan>>} */
   let goldenCross = emptyGoldenCrossMarketResult(market, scanDate);
@@ -325,6 +339,28 @@ async function runVaultMarketScansForTimeframe(
     }
   }
 
+  /** @type {Awaited<ReturnType<typeof runCandleLowSlopeMarketScan>>} */
+  let lowSlope = emptyLowSlopeMarketResult(market, scanDate);
+  if (timeframe === "1d" && lowSlopeTimed) {
+    if (lowSlopeTimed.ok) {
+      lowSlope = /** @type {Awaited<ReturnType<typeof runCandleLowSlopeMarketScan>>} */ (
+        lowSlopeTimed.result
+      );
+      clearLowSlopeFlipVaultItemsSync({ market });
+      if (lowSlope.hits.length) {
+        mergeLowSlopeFlipHitsIntoVaultSync(lowSlope.hits);
+      }
+    } else {
+      liveTradeLogWarn(
+        "[stock-vault:scan:low-slope]",
+        market,
+        lowSlopeTimed.error instanceof Error
+          ? lowSlopeTimed.error.message
+          : lowSlopeTimed.error,
+      );
+    }
+  }
+
   /** @type {Awaited<ReturnType<typeof runBookAccumulationMarketScan>>} */
   let bookAccum = emptyBookAccumMarketResult(market, scanDate);
   if (bookTimed.ok) {
@@ -373,6 +409,18 @@ async function runVaultMarketScansForTimeframe(
           },
         ]
       : []),
+    ...(timeframe === "1d" && lowSlopeTimed
+      ? [
+          {
+            market,
+            timeframe,
+            kind: "lowSlopeFlip",
+            durationMs: lowSlopeTimed.durationMs,
+            hitCount: lowSlope.hitCount,
+            ok: lowSlopeTimed.ok,
+          },
+        ]
+      : []),
     {
       market,
       timeframe,
@@ -391,14 +439,16 @@ async function runVaultMarketScansForTimeframe(
     goldenCrossHits: goldenCross.hitCount,
     maAlignHits: maAlign.hitCount,
     ma120NearHits: ma120Near.hitCount,
+    lowSlopeHits: lowSlope.hitCount,
     bookAccumHits: bookAccum.hitCount,
     goldenCrossOk: gcTimed.ok,
     maAlignOk: maTimed.ok,
     ma120NearOk: ma120Timed?.ok,
+    lowSlopeOk: lowSlopeTimed?.ok,
     bookAccumOk: bookTimed.ok,
   });
 
-  return { goldenCross, maAlign, ma120Near, bookAccum, timeframe, timings };
+  return { goldenCross, maAlign, ma120Near, lowSlope, bookAccum, timeframe, timings };
 }
 
 /**
@@ -468,6 +518,7 @@ export async function runVaultMarketScans(
     goldenCross: daily.goldenCross,
     maAlign: daily.maAlign,
     ma120Near: daily.ma120Near,
+    lowSlope: daily.lowSlope,
     bookAccum: daily.bookAccum,
     byTimeframe,
     timings,
@@ -531,6 +582,8 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
   const ma120NearResults = [];
   /** @type {Array<{ market: "kr"|"us"; scanDate: string; scanned: number; hitCount: number }>} */
   const bookAccumResults = [];
+  /** @type {Array<{ market: "kr"|"us"; scanDate: string; scanned: number; hitCount: number }>} */
+  const lowSlopeResults = [];
   /** @type {import("./notifications/golden-cross-scan-email.js").GoldenCrossEmailMarket[]} */
   const goldenCrossEmailMarkets = [];
   /** @type {import("./notifications/golden-cross-scan-email.js").MaAlignEmailMarket[]} */
@@ -539,6 +592,8 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
   const ma120NearEmailMarkets = [];
   /** @type {import("./notifications/golden-cross-scan-email.js").BookAccumEmailMarket[]} */
   const bookAccumEmailMarkets = [];
+  /** @type {import("./notifications/golden-cross-scan-email.js").LowSlopeFlipEmailMarket[]} */
+  const lowSlopeEmailMarkets = [];
   /** @type {import("./golden-cross-telegram.js").VaultScanTimingRow[]} */
   const allTimings = [];
 
@@ -551,6 +606,7 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
     let maAlign = emptyMaAlignMarketResult(market, scanDate);
     let ma120Near = emptyMa120NearMarketResult(market, scanDate);
     let bookAccum = emptyBookAccumMarketResult(market, scanDate);
+    let lowSlope = emptyLowSlopeMarketResult(market, scanDate);
     let byTimeframe = null;
     try {
       const scanResult = await runVaultMarketScans(
@@ -563,6 +619,7 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
       maAlign = scanResult.maAlign;
       ma120Near = scanResult.ma120Near;
       bookAccum = scanResult.bookAccum ?? emptyBookAccumMarketResult(market, scanDate);
+      lowSlope = scanResult.lowSlope ?? emptyLowSlopeMarketResult(market, scanDate);
       byTimeframe = scanResult.byTimeframe;
       if (scanResult.timings?.length) allTimings.push(...scanResult.timings);
     } catch (e) {
@@ -582,6 +639,7 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
       maAlignEmailMarkets.push(...payload.maAlign);
       ma120NearEmailMarkets.push(...payload.ma120Near);
       bookAccumEmailMarkets.push(...payload.bookAccum);
+      lowSlopeEmailMarkets.push(...payload.lowSlopeFlip);
     } else {
       goldenCrossEmailMarkets.push({
         market,
@@ -622,6 +680,12 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
       scanned: bookAccum.scanned,
       hitCount: bookAccum.hitCount,
     });
+    lowSlopeResults.push({
+      market,
+      scanDate,
+      scanned: lowSlope.scanned,
+      hitCount: lowSlope.hitCount,
+    });
   }
 
   try {
@@ -630,6 +694,7 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
       maAlign: maAlignEmailMarkets,
       ma120Near: ma120NearEmailMarkets,
       bookAccum: bookAccumEmailMarkets,
+      lowSlopeFlip: lowSlopeEmailMarkets,
     });
     liveTradeLogInfo("[stock-vault:scan:email]", {
       sent: emailResult.sent,
@@ -637,6 +702,7 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
       maAlignHits: emailResult.maAlignHits,
       ma120NearHits: emailResult.ma120NearHits,
       bookAccumHits: emailResult.bookAccumHits,
+      lowSlopeFlipHits: emailResult.lowSlopeFlipHits,
       recipients: emailResult.recipients,
     });
   } catch (e) {
@@ -660,6 +726,7 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
     maAlign: maAlignResults,
     ma120Near: ma120NearResults,
     bookAccum: bookAccumResults,
+    lowSlope: lowSlopeResults,
   };
   return lastManualScanResult;
 }
@@ -699,6 +766,7 @@ export function shouldRunGoldenCrossScan(market, now = new Date()) {
       !wasGoldenCrossScannedSync(market, dateKey, timeframe) ||
       !wasMaAlignScannedSync(market, dateKey, timeframe) ||
       (timeframe === "1d" && !wasMa120NearScannedSync(market, dateKey)) ||
+      (timeframe === "1d" && !wasCandleLowSlopeScannedSync(market, dateKey)) ||
       !wasBookAccumulationScannedSync(market, dateKey, timeframe)
     ) {
       return market === "kr"
