@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 
 const gcScan = vi.fn();
 const maScan = vi.fn();
+const ma120Scan = vi.fn();
+const bookAccumScan = vi.fn();
 
 vi.mock("./golden-cross-scan.js", () => ({
   runGoldenCrossMarketScan: (...args) => gcScan(...args),
@@ -14,8 +16,21 @@ vi.mock("./ma-align-scan.js", () => ({
   wasMaAlignScannedSync: () => false,
 }));
 
+vi.mock("./ma120-near-scan.js", () => ({
+  runMa120NearMarketScan: (...args) => ma120Scan(...args),
+  wasMa120NearScannedSync: () => false,
+}));
+
+vi.mock("./book-accumulation-scan.js", () => ({
+  runBookAccumulationMarketScan: (...args) => bookAccumScan(...args),
+  wasBookAccumulationScannedSync: () => false,
+}));
+
 vi.mock("./golden-cross-telegram.js", () => ({
   notifyGoldenCrossScanTelegram: vi.fn(async () => ({ sent: false })),
+  notifyVaultScanStartTelegram: vi.fn(async () => ({ sent: false })),
+  notifyVaultScanDoneTelegram: vi.fn(async () => ({ sent: false })),
+  notifyVaultTimeframeIntersectionTelegram: vi.fn(async () => ({ sent: false })),
 }));
 
 vi.mock("./golden-cross-history-store.js", () => ({
@@ -26,17 +41,37 @@ vi.mock("./ma-align-history-store.js", () => ({
   appendMaAlignHistoryEntrySync: vi.fn(),
 }));
 
+vi.mock("./ma120-near-history-store.js", () => ({
+  appendMa120NearHistoryEntrySync: vi.fn(),
+}));
+
 import {
   listStockVaultItemsSync,
   upsertStockVaultItemSync,
 } from "./stock-vault-store.js";
 import { runVaultMarketScans } from "./golden-cross-poller.js";
 
+const emptyMarketResult = (market, scanDate) => ({
+  market,
+  scanDate,
+  scanned: 0,
+  hits: [],
+  hitCount: 0,
+});
+
 beforeEach(() => {
   const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   process.env.STOCK_VAULT_STORE_TEST_FILE = `stock-vault-test-${id}.json`;
   gcScan.mockReset();
   maScan.mockReset();
+  ma120Scan.mockReset();
+  bookAccumScan.mockReset();
+  ma120Scan.mockImplementation(async (market, scanDate) =>
+    emptyMarketResult(market, scanDate),
+  );
+  bookAccumScan.mockImplementation(async (market, scanDate) =>
+    emptyMarketResult(market, scanDate),
+  );
 });
 
 test("runVaultMarketScans runs golden cross and ma align in parallel", async () => {
@@ -72,6 +107,7 @@ test("runVaultMarketScans runs golden cross and ma align in parallel", async () 
     listStockVaultItemsSync().filter((it) => it.source === "ma_align").length,
     1,
   );
+  assert.equal(result.timings?.length, 7);
 });
 
 test("runVaultMarketScans still merges ma align when golden cross fails", async () => {

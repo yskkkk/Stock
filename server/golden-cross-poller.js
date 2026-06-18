@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { performance } from "node:perf_hooks";
 import { Worker } from "node:worker_threads";
 import { getKstParts, isKrBusinessDay } from "./kr-business-day.js";
 import { runGoldenCrossMarketScan, wasGoldenCrossScannedSync } from "./golden-cross-scan.js";
@@ -23,6 +24,7 @@ import { appendMaAlignHistoryEntrySync } from "./ma-align-history-store.js";
 import { appendMa120NearHistoryEntrySync } from "./ma120-near-history-store.js";
 import {
   notifyGoldenCrossScanTelegram,
+  notifyVaultScanDoneTelegram,
   notifyVaultScanStartTelegram,
   notifyVaultTimeframeIntersectionTelegram,
 } from "./golden-cross-telegram.js";
@@ -153,6 +155,16 @@ function emptyBookAccumMarketResult(market, scanDate) {
   return { market, scanDate, scanned: 0, hits: [], hitCount: 0 };
 }
 
+/** @param {() => Promise<unknown>} run */
+async function timeMarketScan(run) {
+  const t0 = performance.now();
+  try {
+    return { ok: true, result: await run(), durationMs: performance.now() - t0 };
+  } catch (error) {
+    return { ok: false, error, durationMs: performance.now() - t0 };
+  }
+}
+
 /**
  * @param {"kr"|"us"} market
  * @param {string} scanDate
@@ -173,32 +185,43 @@ async function runVaultMarketScansForTimeframe(
   const appendHistory = opts.appendHistory !== false;
   const scanOpts = { persistState: persistScanState, timeframe };
 
-  const dailyOnlyScans =
+  const timedResults =
     timeframe === "1d"
-      ? [
-          runMa120NearMarketScan(market, scanDate, { persistState: persistScanState }),
-        ]
-      : [];
+      ? await Promise.all([
+          timeMarketScan(() => runGoldenCrossMarketScan(market, scanDate, scanOpts)),
+          timeMarketScan(() => runMaAlignMarketScan(market, scanDate, scanOpts)),
+          timeMarketScan(() =>
+            runMa120NearMarketScan(market, scanDate, { persistState: persistScanState }),
+          ),
+          timeMarketScan(() =>
+            runBookAccumulationMarketScan(market, scanDate, {
+              persistState: persistScanState,
+              timeframe,
+            }),
+          ),
+        ])
+      : await Promise.all([
+          timeMarketScan(() => runGoldenCrossMarketScan(market, scanDate, scanOpts)),
+          timeMarketScan(() => runMaAlignMarketScan(market, scanDate, scanOpts)),
+          timeMarketScan(() =>
+            runBookAccumulationMarketScan(market, scanDate, {
+              persistState: persistScanState,
+              timeframe,
+            }),
+          ),
+        ]);
 
-  /** @type {PromiseSettledResult<Awaited<ReturnType<typeof runGoldenCrossMarketScan>>>[]} */
-  const settled = await Promise.allSettled([
-    runGoldenCrossMarketScan(market, scanDate, scanOpts),
-    runMaAlignMarketScan(market, scanDate, scanOpts),
-    ...dailyOnlyScans,
-    runBookAccumulationMarketScan(market, scanDate, {
-      persistState: persistScanState,
-      timeframe,
-    }),
-  ]);
-  const gcSettled = settled[0];
-  const maSettled = settled[1];
-  const ma120Settled = timeframe === "1d" ? settled[2] : null;
-  const bookAccumSettled = settled[timeframe === "1d" ? 3 : 2];
+  const gcTimed = timedResults[0];
+  const maTimed = timedResults[1];
+  const ma120Timed = timeframe === "1d" ? timedResults[2] : null;
+  const bookTimed = timeframe === "1d" ? timedResults[3] : timedResults[2];
 
   /** @type {Awaited<ReturnType<typeof runGoldenCrossMarketScan>>} */
   let goldenCross = emptyGoldenCrossMarketResult(market, scanDate);
-  if (gcSettled.status === "fulfilled") {
-    goldenCross = gcSettled.value;
+  if (gcTimed.ok) {
+    goldenCross = /** @type {Awaited<ReturnType<typeof runGoldenCrossMarketScan>>} */ (
+      gcTimed.result
+    );
     clearGoldenCrossVaultItemsSync({ market, timeframe });
     if (goldenCross.hits.length) {
       mergeGoldenCrossHitsIntoVaultSync(goldenCross.hits);
@@ -236,16 +259,16 @@ async function runVaultMarketScansForTimeframe(
       "[stock-vault:scan:golden-cross]",
       market,
       timeframe,
-      gcSettled.reason instanceof Error
-        ? gcSettled.reason.message
-        : gcSettled.reason,
+      gcTimed.error instanceof Error ? gcTimed.error.message : gcTimed.error,
     );
   }
 
   /** @type {Awaited<ReturnType<typeof runMaAlignMarketScan>>} */
   let maAlign = emptyMaAlignMarketResult(market, scanDate);
-  if (maSettled.status === "fulfilled") {
-    maAlign = maSettled.value;
+  if (maTimed.ok) {
+    maAlign = /** @type {Awaited<ReturnType<typeof runMaAlignMarketScan>>} */ (
+      maTimed.result
+    );
     clearMaAlignVaultItemsSync({ market, timeframe });
     if (maAlign.hits.length) {
       mergeMaAlignHitsIntoVaultSync(maAlign.hits);
@@ -266,17 +289,17 @@ async function runVaultMarketScansForTimeframe(
       "[stock-vault:scan:ma-align]",
       market,
       timeframe,
-      maSettled.reason instanceof Error
-        ? maSettled.reason.message
-        : maSettled.reason,
+      maTimed.error instanceof Error ? maTimed.error.message : maTimed.error,
     );
   }
 
   /** @type {Awaited<ReturnType<typeof runMa120NearMarketScan>>} */
   let ma120Near = emptyMa120NearMarketResult(market, scanDate);
-  if (timeframe === "1d" && ma120Settled) {
-    if (ma120Settled.status === "fulfilled") {
-      ma120Near = ma120Settled.value;
+  if (timeframe === "1d" && ma120Timed) {
+    if (ma120Timed.ok) {
+      ma120Near = /** @type {Awaited<ReturnType<typeof runMa120NearMarketScan>>} */ (
+        ma120Timed.result
+      );
       clearMa120NearVaultItemsSync({ market });
       if (ma120Near.hits.length) {
         mergeMa120NearHitsIntoVaultSync(ma120Near.hits);
@@ -295,32 +318,70 @@ async function runVaultMarketScansForTimeframe(
       liveTradeLogWarn(
         "[stock-vault:scan:ma120-near]",
         market,
-        ma120Settled.reason instanceof Error
-          ? ma120Settled.reason.message
-          : ma120Settled.reason,
+        ma120Timed.error instanceof Error
+          ? ma120Timed.error.message
+          : ma120Timed.error,
       );
     }
   }
 
   /** @type {Awaited<ReturnType<typeof runBookAccumulationMarketScan>>} */
   let bookAccum = emptyBookAccumMarketResult(market, scanDate);
-  if (bookAccumSettled) {
-    if (bookAccumSettled.status === "fulfilled") {
-      bookAccum = bookAccumSettled.value;
+  if (bookTimed.ok) {
+    bookAccum = /** @type {Awaited<ReturnType<typeof runBookAccumulationMarketScan>>} */ (
+      bookTimed.result
+    );
       clearBookAccumVaultItemsSync({ market, timeframe });
       if (bookAccum.hits.length) {
         mergeBookAccumHitsIntoVaultSync(bookAccum.hits);
       }
-    } else {
-      liveTradeLogWarn(
-        "[stock-vault:scan:book-accum]",
-        market,
-        bookAccumSettled.reason instanceof Error
-          ? bookAccumSettled.reason.message
-          : bookAccumSettled.reason,
-      );
-    }
+  } else {
+    liveTradeLogWarn(
+      "[stock-vault:scan:book-accum]",
+      market,
+      bookTimed.error instanceof Error ? bookTimed.error.message : bookTimed.error,
+    );
   }
+
+  /** @type {import("./golden-cross-telegram.js").VaultScanTimingRow[]} */
+  const timings = [
+    {
+      market,
+      timeframe,
+      kind: "goldenCross",
+      durationMs: gcTimed.durationMs,
+      hitCount: goldenCross.hitCount,
+      ok: gcTimed.ok,
+    },
+    {
+      market,
+      timeframe,
+      kind: "maAlign",
+      durationMs: maTimed.durationMs,
+      hitCount: maAlign.hitCount,
+      ok: maTimed.ok,
+    },
+    ...(timeframe === "1d" && ma120Timed
+      ? [
+          {
+            market,
+            timeframe,
+            kind: "ma120Near",
+            durationMs: ma120Timed.durationMs,
+            hitCount: ma120Near.hitCount,
+            ok: ma120Timed.ok,
+          },
+        ]
+      : []),
+    {
+      market,
+      timeframe,
+      kind: "bookAccum",
+      durationMs: bookTimed.durationMs,
+      hitCount: bookAccum.hitCount,
+      ok: bookTimed.ok,
+    },
+  ];
 
   liveTradeLogInfo("[stock-vault:scan] timeframe done", {
     market,
@@ -331,13 +392,13 @@ async function runVaultMarketScansForTimeframe(
     maAlignHits: maAlign.hitCount,
     ma120NearHits: ma120Near.hitCount,
     bookAccumHits: bookAccum.hitCount,
-    goldenCrossOk: gcSettled.status === "fulfilled",
-    maAlignOk: maSettled.status === "fulfilled",
-    ma120NearOk: ma120Settled?.status === "fulfilled",
-    bookAccumOk: bookAccumSettled?.status === "fulfilled",
+    goldenCrossOk: gcTimed.ok,
+    maAlignOk: maTimed.ok,
+    ma120NearOk: ma120Timed?.ok,
+    bookAccumOk: bookTimed.ok,
   });
 
-  return { goldenCross, maAlign, ma120Near, bookAccum, timeframe };
+  return { goldenCross, maAlign, ma120Near, bookAccum, timeframe, timings };
 }
 
 /**
@@ -356,8 +417,10 @@ export async function runVaultMarketScans(
 ) {
   /** @type {Record<import("./vault-scan-timeframe.js").VaultScanTimeframe, { goldenCross: Awaited<ReturnType<typeof runGoldenCrossMarketScan>>; maAlign: Awaited<ReturnType<typeof runMaAlignMarketScan>>; ma120Near: Awaited<ReturnType<typeof runMa120NearMarketScan>> }>} */
   const byTimeframe = {};
+  /** @type {import("./golden-cross-telegram.js").VaultScanTimingRow[]} */
+  const timings = [];
   for (const timeframe of VAULT_SCAN_TIMEFRAMES) {
-    byTimeframe[timeframe] = await runVaultMarketScansForTimeframe(
+    const tfResult = await runVaultMarketScansForTimeframe(
       market,
       scanDate,
       runId,
@@ -365,6 +428,8 @@ export async function runVaultMarketScans(
       timeframe,
       opts,
     );
+    byTimeframe[timeframe] = tfResult;
+    timings.push(...tfResult.timings);
   }
 
   if (opts.notifyGoldenCrossTelegram !== false) {
@@ -405,6 +470,7 @@ export async function runVaultMarketScans(
     ma120Near: daily.ma120Near,
     bookAccum: daily.bookAccum,
     byTimeframe,
+    timings,
   };
 }
 
@@ -450,6 +516,7 @@ export async function runVaultIntradayRescanIfDue(market, now = new Date()) {
 async function runGoldenCrossManualScanInternal(now = new Date()) {
   const runId = randomUUID();
   const kstDate = getKstParts(now).dateKey;
+  const startedAt = performance.now();
   await notifyVaultScanStartTelegram({
     trigger: "manual",
     market: "all",
@@ -468,6 +535,8 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
   const goldenCrossEmailMarkets = [];
   /** @type {import("./notifications/golden-cross-scan-email.js").MaAlignEmailMarket[]} */
   const maAlignEmailMarkets = [];
+  /** @type {import("./golden-cross-telegram.js").VaultScanTimingRow[]} */
+  const allTimings = [];
 
   for (const market of /** @type {const} */ (["kr", "us"])) {
     const scanDate =
@@ -491,6 +560,7 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
       ma120Near = scanResult.ma120Near;
       bookAccum = scanResult.bookAccum ?? emptyBookAccumMarketResult(market, scanDate);
       byTimeframe = scanResult.byTimeframe;
+      if (scanResult.timings?.length) allTimings.push(...scanResult.timings);
     } catch (e) {
       liveTradeLogWarn(
         "[golden-cross:manual]",
@@ -566,6 +636,14 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
     );
   }
 
+  await notifyVaultScanDoneTelegram({
+    trigger: "manual",
+    market: "all",
+    scanDate: kstDate,
+    totalDurationMs: performance.now() - startedAt,
+    rows: allTimings,
+  }).catch(() => {});
+
   lastManualScanResult = {
     atMs: Date.now(),
     goldenCross: goldenCrossResults,
@@ -630,19 +708,24 @@ export async function runGoldenCrossScanIfDue(market, now = new Date()) {
       : localMinutesOfDay("us", now).dateKey;
 
   const runId = randomUUID();
+  const startedAt = performance.now();
   await notifyVaultScanStartTelegram({
     trigger: "scheduled",
     market,
     scanDate,
   }).catch(() => {});
   vaultScanRunning = true;
+  /** @type {import("./golden-cross-telegram.js").VaultScanTimingRow[]} */
+  let scanTimings = [];
   try {
-    const { goldenCross, maAlign, ma120Near, byTimeframe } = await runVaultMarketScans(
+    const scanResult = await runVaultMarketScans(
       market,
       scanDate,
       runId,
       "scheduled",
     );
+    scanTimings = scanResult.timings ?? [];
+    const { goldenCross, maAlign, byTimeframe } = scanResult;
     try {
       const payload = buildScanEmailPayloadFromVaultResult(
         market,
@@ -657,6 +740,13 @@ export async function runGoldenCrossScanIfDue(market, now = new Date()) {
         e instanceof Error ? e.message : e,
       );
     }
+    await notifyVaultScanDoneTelegram({
+      trigger: "scheduled",
+      market,
+      scanDate,
+      totalDurationMs: performance.now() - startedAt,
+      rows: scanTimings,
+    }).catch(() => {});
     return { goldenCross, maAlign, ma120Near: byTimeframe["1d"]?.ma120Near };
   } finally {
     vaultScanRunning = false;

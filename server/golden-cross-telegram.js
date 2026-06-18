@@ -45,6 +45,115 @@ const SCAN_TRIGGER_LABEL = {
   scheduled: "자동 탐색",
 };
 
+const MARKET_SHORT_LABEL = {
+  kr: "국내",
+  us: "미국",
+};
+
+const SCAN_KIND_LABEL = {
+  goldenCross: "골든크로스",
+  maAlign: "정배열",
+  ma120Near: "120선 근처",
+  bookAccum: "매집봉",
+  bottomCandle: "바닥캔들",
+};
+
+const MARKET_ORDER = ["kr", "us"];
+const TIMEFRAME_ORDER = ["1d", "1wk"];
+const KIND_ORDER = ["goldenCross", "maAlign", "ma120Near", "bookAccum", "bottomCandle"];
+
+/**
+ * @param {number} ms
+ */
+export function formatScanDurationMs(ms) {
+  const totalSec = Math.max(0, Math.round(Number(ms) / 1000));
+  if (totalSec < 60) return `${totalSec}초`;
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  return sec ? `${min}분 ${sec}초` : `${min}분`;
+}
+
+/**
+ * @typedef {{
+ *   market: "kr"|"us";
+ *   timeframe: import("./vault-scan-timeframe.js").VaultScanTimeframe;
+ *   kind: "goldenCross"|"maAlign"|"ma120Near"|"bookAccum"|"bottomCandle";
+ *   durationMs: number;
+ *   hitCount?: number;
+ *   ok: boolean;
+ * }} VaultScanTimingRow
+ */
+
+/**
+ * @param {VaultScanTimingRow[]} rows
+ */
+function sortAndGroupScanTimingRows(rows) {
+  const sorted = [...rows].sort((a, b) => {
+    const mi = MARKET_ORDER.indexOf(a.market) - MARKET_ORDER.indexOf(b.market);
+    if (mi) return mi;
+    const ti = TIMEFRAME_ORDER.indexOf(a.timeframe) - TIMEFRAME_ORDER.indexOf(b.timeframe);
+    if (ti) return ti;
+    return KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind);
+  });
+
+  /** @type {Array<{ market: "kr"|"us"; timeframe: import("./vault-scan-timeframe.js").VaultScanTimeframe; items: VaultScanTimingRow[] }>} */
+  const groups = [];
+  for (const row of sorted) {
+    const last = groups[groups.length - 1];
+    if (last && last.market === row.market && last.timeframe === row.timeframe) {
+      last.items.push(row);
+    } else {
+      groups.push({
+        market: row.market,
+        timeframe: row.timeframe,
+        items: [row],
+      });
+    }
+  }
+  return groups;
+}
+
+/**
+ * @param {VaultScanTimingRow[]} rows
+ * @param {(group: { market: "kr"|"us"; timeframe: import("./vault-scan-timeframe.js").VaultScanTimeframe; items: VaultScanTimingRow[] }) => string[]} [renderGroup]
+ */
+function buildScanDoneTelegramHtmlFromRows(
+  title,
+  opts,
+  rows,
+  renderGroup,
+) {
+  const triggerKo = SCAN_TRIGGER_LABEL[opts.trigger] ?? "탐색";
+  const datePart = opts.scanDate ? `${esc(opts.scanDate)} · ` : "";
+  const lines = [
+    `<b>${title}</b>`,
+    `<i>${datePart}${triggerKo} · 총 ${formatScanDurationMs(opts.totalDurationMs)}</i>`,
+    "",
+  ];
+
+  for (const group of sortAndGroupScanTimingRows(rows)) {
+    const tfKo = TIMEFRAME_LABEL[group.timeframe] ?? group.timeframe;
+    const marketKo = MARKET_SHORT_LABEL[group.market] ?? group.market;
+    lines.push(`<b>${marketKo} · ${tfKo}</b>`);
+    if (renderGroup) {
+      lines.push(...renderGroup(group));
+    } else {
+      for (const row of group.items) {
+        const label = SCAN_KIND_LABEL[row.kind] ?? row.kind;
+        const dur = formatScanDurationMs(row.durationMs);
+        if (row.ok) {
+          lines.push(`· ${label} ${dur} · ${row.hitCount ?? 0}건`);
+        } else {
+          lines.push(`· ${label} ${dur} · 실패`);
+        }
+      }
+    }
+    lines.push("");
+  }
+
+  return lines.join("\n").trim();
+}
+
 /**
  * @param {{ trigger: "manual"|"scheduled"; market?: "kr"|"us"|"all"; scanDate?: string }} opts
  */
@@ -117,6 +226,82 @@ export async function notifyBottomCandleScanStartTelegram(opts) {
   } catch (e) {
     liveTradeLogWarn(
       "[bottom-candle:telegram:start]",
+      e instanceof Error ? e.message : e,
+    );
+    return { sent: false, reason: "send_failed" };
+  }
+}
+
+/**
+ * @param {{
+ *   trigger: "manual"|"scheduled";
+ *   market?: "kr"|"us"|"all";
+ *   scanDate?: string;
+ *   totalDurationMs: number;
+ *   rows: VaultScanTimingRow[];
+ * }} opts
+ */
+export function buildVaultScanDoneTelegramHtml(opts) {
+  return buildScanDoneTelegramHtmlFromRows(
+    "✅ 종목보관 탐색 완료",
+    opts,
+    opts.rows,
+  );
+}
+
+/**
+ * @param {Parameters<typeof buildVaultScanDoneTelegramHtml>[0]} opts
+ */
+export async function notifyVaultScanDoneTelegram(opts) {
+  if (!goldenCrossTelegramEnabled()) return { sent: false, reason: "disabled" };
+  if (!isTelegramNotifyEnabled()) return { sent: false, reason: "telegram_off" };
+  if (!opts.rows?.length) return { sent: false, reason: "empty" };
+
+  const text = buildVaultScanDoneTelegramHtml(opts);
+  try {
+    await sendStockTelegramMessage(text);
+    return { sent: true };
+  } catch (e) {
+    liveTradeLogWarn(
+      "[golden-cross:telegram:done]",
+      opts.market ?? "all",
+      e instanceof Error ? e.message : e,
+    );
+    return { sent: false, reason: "send_failed" };
+  }
+}
+
+/**
+ * @param {{
+ *   trigger: "manual"|"scheduled";
+ *   scanDate?: string;
+ *   totalDurationMs: number;
+ *   rows: VaultScanTimingRow[];
+ * }} opts
+ */
+export function buildBottomCandleScanDoneTelegramHtml(opts) {
+  return buildScanDoneTelegramHtmlFromRows(
+    "✅ 바닥캔들 탐색 완료",
+    opts,
+    opts.rows,
+  );
+}
+
+/**
+ * @param {Parameters<typeof buildBottomCandleScanDoneTelegramHtml>[0]} opts
+ */
+export async function notifyBottomCandleScanDoneTelegram(opts) {
+  if (!goldenCrossTelegramEnabled()) return { sent: false, reason: "disabled" };
+  if (!isTelegramNotifyEnabled()) return { sent: false, reason: "telegram_off" };
+  if (!opts.rows?.length) return { sent: false, reason: "empty" };
+
+  const text = buildBottomCandleScanDoneTelegramHtml(opts);
+  try {
+    await sendStockTelegramMessage(text);
+    return { sent: true };
+  } catch (e) {
+    liveTradeLogWarn(
+      "[bottom-candle:telegram:done]",
       e instanceof Error ? e.message : e,
     );
     return { sent: false, reason: "send_failed" };

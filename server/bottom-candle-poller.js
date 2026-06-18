@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { performance } from "node:perf_hooks";
 import { Worker } from "node:worker_threads";
 import { getKstParts } from "./kr-business-day.js";
 import { runBottomCandleMarketScan, getBottomCandleScanStateSync } from "./bottom-candle-scan.js";
@@ -9,7 +10,10 @@ import {
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 import { markPollerBootStarted, pollerGuardAsync } from "./poller-registry.js";
 import { VAULT_SCAN_TIMEFRAMES } from "./vault-scan-timeframe.js";
-import { notifyBottomCandleScanStartTelegram } from "./golden-cross-telegram.js";
+import {
+  notifyBottomCandleScanDoneTelegram,
+  notifyBottomCandleScanStartTelegram,
+} from "./golden-cross-telegram.js";
 
 const POLL_MS = (() => {
   const n = Number(process.env.STOCK_BOTTOM_CANDLE_POLL_MS ?? 3_600_000);
@@ -66,19 +70,31 @@ async function runMarketTimeframeScan(market, scanDate, timeframe) {
 export async function runFullBottomCandleScanInternal(now = new Date(), trigger = "scheduled") {
   const runId = randomUUID();
   const kstDate = getKstParts(now).dateKey;
+  const startedAt = performance.now();
   await notifyBottomCandleScanStartTelegram({
     trigger,
     scanDate: kstDate,
   }).catch(() => {});
   /** @type {Array<{ market: "kr"|"us"; timeframe: string; scanDate: string; scanned: number; hitCount: number }>} */
   const results = [];
+  /** @type {import("./golden-cross-telegram.js").VaultScanTimingRow[]} */
+  const timings = [];
 
   for (const market of /** @type {const} */ (["kr", "us"])) {
     const scanDate =
       market === "kr" ? getKstParts(now).dateKey : localUsDateKey(now);
     for (const timeframe of VAULT_SCAN_TIMEFRAMES) {
+      const t0 = performance.now();
       try {
         const result = await runMarketTimeframeScan(market, scanDate, timeframe);
+        timings.push({
+          market,
+          timeframe,
+          kind: "bottomCandle",
+          durationMs: performance.now() - t0,
+          hitCount: result.hitCount,
+          ok: true,
+        });
         results.push({
           market,
           timeframe,
@@ -95,6 +111,13 @@ export async function runFullBottomCandleScanInternal(now = new Date(), trigger 
           scanned: result.scanned,
         });
       } catch (e) {
+        timings.push({
+          market,
+          timeframe,
+          kind: "bottomCandle",
+          durationMs: performance.now() - t0,
+          ok: false,
+        });
         liveTradeLogWarn(
           "[bottom-candle:scan]",
           market,
@@ -104,6 +127,13 @@ export async function runFullBottomCandleScanInternal(now = new Date(), trigger 
       }
     }
   }
+
+  await notifyBottomCandleScanDoneTelegram({
+    trigger,
+    scanDate: kstDate,
+    totalDurationMs: performance.now() - startedAt,
+    rows: timings,
+  }).catch(() => {});
 
   lastManualScanResult = { atMs: Date.now(), results };
   return lastManualScanResult;
