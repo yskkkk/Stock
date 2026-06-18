@@ -193,6 +193,7 @@ export function listGoldenCrossEmailRecipientsSync() {
  *   maAlign: { scanned: number; hits: MaAlignEmailMarket["hits"] };
  *   ma120Near?: { scanned: number; hits: Ma120NearEmailMarket["hits"] };
  *   bookAccum?: { scanned: number; hits: BookAccumEmailMarket["hits"] };
+ *   lowSlope?: { scanned: number; hits: LowSlopeFlipEmailMarket["hits"] };
  *   lowSlopeFlip?: { scanned: number; hits: LowSlopeFlipEmailMarket["hits"] };
  * }>} byTimeframe
  */
@@ -233,14 +234,17 @@ export function buildScanEmailPayloadFromVaultResult(market, scanDate, byTimefra
         hits: block.ma120Near.hits,
       });
     }
-    if (tf === "1d" && block.lowSlopeFlip) {
-      lowSlopeFlip.push({
-        market,
-        scanDate,
-        timeframe: "1d",
-        scanned: block.lowSlopeFlip.scanned,
-        hits: block.lowSlopeFlip.hits,
-      });
+    if (tf === "1d") {
+      const lowSlopeBlock = block.lowSlope ?? block.lowSlopeFlip;
+      if (lowSlopeBlock) {
+        lowSlopeFlip.push({
+          market,
+          scanDate,
+          timeframe: "1d",
+          scanned: lowSlopeBlock.scanned,
+          hits: lowSlopeBlock.hits,
+        });
+      }
     }
     if (block.bookAccum) {
       bookAccum.push({

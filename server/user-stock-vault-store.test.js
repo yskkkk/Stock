@@ -52,6 +52,31 @@ test("buildStockVaultItemsForUserSync merges global golden cross and user favori
   }
 });
 
+test("buildStockVaultItemsForUserSync includes low_slope_flip auto items", () => {
+  const sym = `ZXLS${Date.now()}.KS`;
+  try {
+    upsertStockVaultItemSync({
+      symbol: sym,
+      name: "저점기울기",
+      market: "kr",
+      source: "low_slope_flip",
+      timeframe: "1d",
+      scanDate: "2026-06-18",
+      lowSlopeFlip: "down_to_up",
+      pivotLow: 12345,
+    });
+
+    const guest = buildStockVaultItemsForUserSync(null);
+    assert.ok(
+      guest.items.some(
+        (it) => it.symbol === sym && it.source === "low_slope_flip",
+      ),
+    );
+  } finally {
+    removeStockVaultItemSync(sym);
+  }
+});
+
 test("user favorites and dismiss are scoped per account", () => {
   const userA = `userA-${Date.now()}`;
   const userB = `userB-${Date.now()}`;
