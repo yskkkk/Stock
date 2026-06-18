@@ -121,7 +121,7 @@ test("buildGoldenCrossScanEmailContent includes hits with quote columns", () => 
       },
     ],
   });
-  assert.match(subject, /일봉·주봉 탐색/);
+  assert.match(subject, /탐색 리포트/);
   assert.match(text, /일봉·주봉 교집합/);
   assert.match(text, /일봉/);
   assert.match(html, /주봉/);
@@ -166,4 +166,74 @@ test("buildGoldenCrossScanEmailContent lists daily-weekly intersection", () => {
   assert.match(html, /일봉·주봉 교집합/);
   const ixBlock = text.split("[MA 교차]")[0];
   assert.doesNotMatch(ixBlock, /SK하이닉스/);
+});
+
+test("buildGoldenCrossScanEmailContent includes ma120 book accum and bottom candle", () => {
+  const { subject, text, html } = buildGoldenCrossScanEmailContent({
+    goldenCross: [],
+    maAlign: [],
+    ma120Near: [
+      {
+        market: "kr",
+        scanDate: "2026-06-10",
+        timeframe: "1d",
+        scanned: 300,
+        hits: [
+          {
+            symbol: "005930.KS",
+            name: "삼성전자",
+            distancePct: 2.1,
+            ma120Approach: "from_below",
+          },
+        ],
+      },
+    ],
+    bookAccum: [
+      {
+        market: "us",
+        scanDate: "2026-06-10",
+        timeframe: "1d",
+        scanned: 500,
+        hits: [
+          {
+            symbol: "INTC",
+            name: "Intel Corporation",
+            signalDate: "2026-06-09",
+            accumScore: 72,
+            accumRvol: 1.8,
+          },
+        ],
+      },
+    ],
+    bottomCandle: [
+      {
+        market: "kr",
+        scanDate: "2026-06-10",
+        timeframe: "1wk",
+        scanned: 300,
+        hits: [
+          {
+            symbol: "000660.KS",
+            name: "SK하이닉스",
+            signalDate: "2026-06-08",
+            bottomTag: "BC1",
+            bottomScore: 55,
+            bottomRvol: 2.1,
+          },
+        ],
+      },
+    ],
+  });
+  assert.match(subject, /120선 1/);
+  assert.match(subject, /매집 1/);
+  assert.match(subject, /바닥 1/);
+  assert.match(text, /\[120선 근처\]/);
+  assert.match(text, /\[매집봉\]/);
+  assert.match(text, /\[바닥캔들\]/);
+  assert.match(text, /하단접근/);
+  assert.match(text, /Intel Corporation|인텔/);
+  assert.match(text, /SK하이닉스/);
+  assert.match(html, /120선 근처/);
+  assert.match(html, /매집봉/);
+  assert.match(html, /바닥캔들/);
 });

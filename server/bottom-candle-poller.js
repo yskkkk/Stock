@@ -14,6 +14,7 @@ import {
   notifyBottomCandleScanDoneTelegram,
   notifyBottomCandleScanStartTelegram,
 } from "./golden-cross-telegram.js";
+import { sendGoldenCrossScanReportEmail } from "./notifications/golden-cross-scan-email.js";
 
 const POLL_MS = (() => {
   const n = Number(process.env.STOCK_BOTTOM_CANDLE_POLL_MS ?? 3_600_000);
@@ -77,6 +78,8 @@ export async function runFullBottomCandleScanInternal(now = new Date(), trigger 
   }).catch(() => {});
   /** @type {Array<{ market: "kr"|"us"; timeframe: string; scanDate: string; scanned: number; hitCount: number }>} */
   const results = [];
+  /** @type {import("./notifications/golden-cross-scan-email.js").BottomCandleEmailMarket[]} */
+  const bottomCandleEmailMarkets = [];
   /** @type {import("./golden-cross-telegram.js").VaultScanTimingRow[]} */
   const timings = [];
 
@@ -87,6 +90,13 @@ export async function runFullBottomCandleScanInternal(now = new Date(), trigger 
       const t0 = performance.now();
       try {
         const result = await runMarketTimeframeScan(market, scanDate, timeframe);
+        bottomCandleEmailMarkets.push({
+          market,
+          scanDate,
+          timeframe,
+          scanned: result.scanned,
+          hits: result.hits,
+        });
         timings.push({
           market,
           timeframe,
@@ -126,6 +136,22 @@ export async function runFullBottomCandleScanInternal(now = new Date(), trigger 
         );
       }
     }
+  }
+
+  try {
+    const emailResult = await sendGoldenCrossScanReportEmail({
+      bottomCandle: bottomCandleEmailMarkets,
+    });
+    liveTradeLogInfo("[bottom-candle:scan:email]", {
+      sent: emailResult.sent,
+      bottomCandleHits: emailResult.bottomCandleHits,
+      recipients: emailResult.recipients,
+    });
+  } catch (e) {
+    liveTradeLogWarn(
+      "[bottom-candle:scan:email]",
+      e instanceof Error ? e.message : e,
+    );
   }
 
   await notifyBottomCandleScanDoneTelegram({

@@ -535,6 +535,10 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
   const goldenCrossEmailMarkets = [];
   /** @type {import("./notifications/golden-cross-scan-email.js").MaAlignEmailMarket[]} */
   const maAlignEmailMarkets = [];
+  /** @type {import("./notifications/golden-cross-scan-email.js").Ma120NearEmailMarket[]} */
+  const ma120NearEmailMarkets = [];
+  /** @type {import("./notifications/golden-cross-scan-email.js").BookAccumEmailMarket[]} */
+  const bookAccumEmailMarkets = [];
   /** @type {import("./golden-cross-telegram.js").VaultScanTimingRow[]} */
   const allTimings = [];
 
@@ -576,6 +580,8 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
       );
       goldenCrossEmailMarkets.push(...payload.goldenCross);
       maAlignEmailMarkets.push(...payload.maAlign);
+      ma120NearEmailMarkets.push(...payload.ma120Near);
+      bookAccumEmailMarkets.push(...payload.bookAccum);
     } else {
       goldenCrossEmailMarkets.push({
         market,
@@ -622,11 +628,15 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
     const emailResult = await sendGoldenCrossScanReportEmail({
       goldenCross: goldenCrossEmailMarkets,
       maAlign: maAlignEmailMarkets,
+      ma120Near: ma120NearEmailMarkets,
+      bookAccum: bookAccumEmailMarkets,
     });
     liveTradeLogInfo("[stock-vault:scan:email]", {
       sent: emailResult.sent,
       goldenCrossHits: emailResult.goldenCrossHits,
       maAlignHits: emailResult.maAlignHits,
+      ma120NearHits: emailResult.ma120NearHits,
+      bookAccumHits: emailResult.bookAccumHits,
       recipients: emailResult.recipients,
     });
   } catch (e) {
