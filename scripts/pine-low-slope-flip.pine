@@ -164,8 +164,8 @@ if canScan and passBar and not signalActive
         line.delete(ln12)
         ln12 := na
 
-if dispBg and signalActive and passBar
-    bgcolor(downToUp ? color.new(cDownUp, 92) : color.new(cUpDown, 92))
+color bgCol = dispBg and signalActive and passBar ? (downToUp ? color.new(cDownUp, 92) : color.new(cUpDown, 92)) : na
+bgcolor(bgCol)
 
 if dispMarkers and newSignal
     string txt = flip == 1 ? "저점\n↓→↑" : "저점\n↑→↓"
