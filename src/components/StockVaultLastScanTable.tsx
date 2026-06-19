@@ -6,8 +6,14 @@ import {
 } from "../lib/stockVaultLastScan";
 import { stockVaultTimeframeLabel } from "../lib/stockVaultTimeframe";
 
-function ScanDateCell({ date }: { date: string | null }) {
-  const cell = formatLastScanDateCell(date);
+function ScanDateCell({
+  date,
+  atMs,
+}: {
+  date: string | null;
+  atMs: number | null;
+}) {
+  const cell = formatLastScanDateCell(date, atMs);
   return (
     <td
       className={cell.empty ? "stock-vault-tab__scan-date--empty" : undefined}
@@ -44,10 +50,10 @@ function ScanTable({ rows }: { rows: StockVaultLastScanRow[] }) {
           {rows.map((row) => (
             <tr key={row.key}>
               <th scope="row">{row.label}</th>
-              <ScanDateCell date={row.dailyKr} />
-              <ScanDateCell date={row.dailyUs} />
-              <ScanDateCell date={row.weeklyKr} />
-              <ScanDateCell date={row.weeklyUs} />
+              <ScanDateCell date={row.dailyKr} atMs={row.dailyKrAtMs} />
+              <ScanDateCell date={row.dailyUs} atMs={row.dailyUsAtMs} />
+              <ScanDateCell date={row.weeklyKr} atMs={row.weeklyKrAtMs} />
+              <ScanDateCell date={row.weeklyUs} atMs={row.weeklyUsAtMs} />
             </tr>
           ))}
         </tbody>
