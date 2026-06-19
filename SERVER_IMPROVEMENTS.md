@@ -14,6 +14,20 @@
 
 ## 열린 항목
 
+### [ERROR] process — 2026-06-19 00:54:40.564 KST
+
+<!-- id:process-uncaughtException -->
+
+**문제**: uncaughtException: EPERM: operation not permitted, rename 'C:\Stock\server\.data\live-trade-toss-ledger.json.16848.1781798080540.tmp' -> 'C:\Stock\server\.data\live-trade-toss-ledger.json'
+
+**개선 제안**: 비동기 오류를 await/catch로 처리하고, 폴링·훅 tick에서 throw가 밖으로 나가지 않게 방어하세요.
+
+**근거**: 누적 1회
+
+_재발 17618회 (최초 2026-05-27 07:14:23.020 KST)_
+
+---
+
 ### [ERROR] process — 2026-06-17 02:49:13.098 KST
 
 <!-- id:process-unhandledRejection -->
@@ -28,35 +42,7 @@ _재발 110회 (최초 2026-06-17 01:16:33.055 KST)_
 
 ---
 
-### [ERROR] process — 2026-06-14 19:10:15.684 KST
-
-<!-- id:process-uncaughtException -->
-
-**문제**: uncaughtException: EPERM: operation not permitted, rename 'C:\Stock\server\.data\live-trade-toss-ledger.json.13968.1781431815625.tmp' -> 'C:\Stock\server\.data\live-trade-toss-ledger.json'
-
-**개선 제안**: 비동기 오류를 await/catch로 처리하고, 폴링·훅 tick에서 throw가 밖으로 나가지 않게 방어하세요.
-
-**근거**: 누적 2회
-
-_재발 17617회 (최초 2026-05-27 07:14:23.020 KST)_
-
----
-
-### [WARN] telegram — 2026-06-17 15:43:55.492 KST
-
-<!-- id:ops-dev-notify-pending-stale -->
-
-**문제**: 개발 완료 텔레그램 pending이 10분 이상 디스크에 남아 있습니다.
-
-**개선 제안**: flushOpsDevNotifyPendingFromDisk·coalesce 타이머·프로세스 재기동 경로를 점검하세요.
-
-**근거**: pending since 2026-06-17 15:21:25.083 KST
-
-_재발 8회 (최초 2026-05-28 07:59:33.276 KST)_
-
----
-
-### [WARN] telegram — 2026-06-17 02:49:06.937 KST
+### [WARN] telegram — 2026-06-18 22:52:39.184 KST
 
 <!-- id:telegram-stock-send-error -->
 
@@ -66,11 +52,11 @@ _재발 8회 (최초 2026-05-28 07:59:33.276 KST)_
 
 **근거**: 0분 전 status ?
 
-_재발 41회 (최초 2026-06-16 16:21:41.545 KST)_
+_재발 43회 (최초 2026-06-16 16:21:41.545 KST)_
 
 ---
 
-### [WARN] telegram — 2026-06-17 02:49:06.920 KST
+### [WARN] telegram — 2026-06-18 22:52:39.169 KST
 
 <!-- id:env-ops-telegram-probe-fail -->
 
@@ -80,7 +66,21 @@ _재발 41회 (최초 2026-06-16 16:21:41.545 KST)_
 
 **근거**: fetch failed
 
-_재발 41회 (최초 2026-06-16 16:21:41.526 KST)_
+_재발 43회 (최초 2026-06-16 16:21:41.526 KST)_
+
+---
+
+### [WARN] telegram — 2026-06-17 19:09:00.552 KST
+
+<!-- id:ops-dev-notify-pending-stale -->
+
+**문제**: 개발 완료 텔레그램 pending이 10분 이상 디스크에 남아 있습니다.
+
+**개선 제안**: flushOpsDevNotifyPendingFromDisk·coalesce 타이머·프로세스 재기동 경로를 점검하세요.
+
+**근거**: pending since 2026-06-17 17:00:34.030 KST
+
+_재발 32회 (최초 2026-05-28 07:59:33.276 KST)_
 
 ---
 
@@ -100,4 +100,4 @@ _재발 6회 (최초 2026-05-27 21:08:34.715 KST)_
 
 ## 최근 자동 점검
 
-2026-06-17 16:59:03.740 KST — probes 완료 · 열린 6건 · 이번 기록 0건
+2026-06-19 10:48:39.565 KST — probes 완료 · 열린 6건 · 이번 기록 0건
