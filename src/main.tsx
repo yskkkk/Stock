@@ -27,6 +27,7 @@ import "./stock-vault-tab.css";
 import "./investor-flow-tab.css";
 import "./value-invest-bubble.css";
 import "./stock-share-structure-modal.css";
+import "./bubble-opaque.css";
 import "./account-snapshot.css";
 import "./scroll-to-top-button.css";
 
