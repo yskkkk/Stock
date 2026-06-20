@@ -467,7 +467,11 @@ plot(showWeeklyCross and (gold_20_120_w or dead_20_120_w) ? ma20_w_step : na, st
 float zoneLblAtr = ta.atr(14)
 int zoneLblClashBars = 6
 int zoneLblXStep = 3
-float zoneLblGap = zoneLblAtr * 0.35
+float zoneLblHalf = zoneLblAtr * 1.5
+float zoneLblGap = zoneLblAtr * 0.4
+float zoneLblStep = zoneLblAtr * 1.35
+float zoneLblPad = zoneLblAtr * 0.15
+float zoneLblMaxReach = zoneLblAtr * 3.8
 
 type ZoneLblRec
     int b
@@ -475,6 +479,8 @@ type ZoneLblRec
     float sl
     float top
     float bot
+    float sigLo
+    float sigHi
     string tag
     bool isBtm
     color col
@@ -522,6 +528,18 @@ f_xClash(int xb, LblSlot[] slots) =>
         j += 1
     cl
 
+f_yClash(int xb, float yMin, float yMax, LblSlot[] slots) =>
+    bool cl = false
+    int n = array.size(slots)
+    int j = 0
+    while j < n
+        LblSlot s = array.get(slots, j)
+        if math.abs(xb - s.xb) <= zoneLblClashBars and yMax + zoneLblPad >= s.yMin and yMin - zoneLblPad <= s.yMax
+            cl := true
+            break
+        j += 1
+    cl
+
 f_findXBar(int sigB, LblSlot[] slots) =>
     int xBar = sigB
     for attempt = 0 to 8
@@ -537,16 +555,36 @@ f_lblTxt(ZoneLblRec r) =>
 
 f_drawLblRec(ZoneLblRec r, LblSlot[] slots) =>
     int xBar = f_findXBar(r.b, slots)
+    float half = zoneLblHalf
+    float lblY = na
+    float connEnd = na
+    float yMin = na
+    float yMax = na
+    int vLane = 0
+    for attempt = 0 to 5
+        float reach = math.min(zoneLblGap + zoneLblStep * vLane, zoneLblMaxReach)
+        if r.isBtm
+            connEnd := r.sigLo - reach
+            lblY := connEnd - half
+        else
+            connEnd := r.sigHi + reach
+            lblY := connEnd + half
+        yMin := lblY - half
+        yMax := lblY + half
+        bool candleOk = r.isBtm ? yMax <= r.sigLo - zoneLblGap * 0.2 : yMin >= r.sigHi + zoneLblGap * 0.2
+        bool lblOk = not f_yClash(xBar, yMin, yMax, slots)
+        if candleOk and lblOk
+            break
+        vLane += 1
     string txt = f_lblTxt(r)
+    string sz = vLane >= 2 ? size.tiny : size.small
     if r.isBtm
-        float connY = r.sigLo - zoneLblGap
-        array.push(lblConnLines, line.new(r.b, r.sigLo, xBar, connY, xloc=xloc.bar_index, extend=extend.none, color=color.new(r.col, 0), width=2, style=line.style_dotted))
-        array.push(zoneLbls, label.new(xBar, txt, xloc=xloc.bar_index, yloc=yloc.belowbar, style=label.style_label_center, color=color.new(r.col, 15), textcolor=color.white, size=size.small))
+        array.push(lblConnLines, line.new(r.b, r.sigLo, xBar, connEnd, xloc=xloc.bar_index, extend=extend.none, color=color.new(r.col, 0), width=2, style=line.style_dotted))
+        array.push(zoneLbls, label.new(xBar, lblY, txt, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_center, color=color.new(r.col, 15), textcolor=color.white, size=sz))
     else
-        float connY = r.sigHi + zoneLblGap
-        array.push(lblConnLines, line.new(r.b, r.sigHi, xBar, connY, xloc=xloc.bar_index, extend=extend.none, color=color.new(r.col, 0), width=2, style=line.style_dotted))
-        array.push(zoneLbls, label.new(xBar, txt, xloc=xloc.bar_index, yloc=yloc.abovebar, style=label.style_label_center, color=color.new(r.col, 15), textcolor=color.white, size=size.small))
-    LblSlot.new(xBar)
+        array.push(lblConnLines, line.new(r.b, r.sigHi, xBar, connEnd, xloc=xloc.bar_index, extend=extend.none, color=color.new(r.col, 0), width=2, style=line.style_dotted))
+        array.push(zoneLbls, label.new(xBar, lblY, txt, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_center, color=color.new(r.col, 15), textcolor=color.white, size=sz))
+    LblSlot.new(xBar, yMin, yMax)
 
 f_redrawZoneLbls() =>
     f_clearLblDraw()
@@ -583,7 +621,7 @@ bool zoneLblOn = showLabels and dispZoneLabels
 if anyBottom and forceBarOk and dispZones
     f_drawZone(bar_index, time, slL, zoneTop, zoneBotSl, wConfirmed ? cWBottom : cBottom, bottomTag, effExtend)
     if zoneLblOn
-        f_pushLblRec(bar_index, time, slL, zoneTop, zoneBotSl, bottomTag, true, wConfirmed ? cWBottom : cBottom)
+        f_pushLblRec(bar_index, time, slL, zoneTop, zoneBotSl, low, high, bottomTag, true, wConfirmed ? cWBottom : cBottom)
 
 if topClassic and forceBarOk and dispZones
     f_drawZone(bar_index, time, zoneTop, zoneTop, zoneBotSl, cTop, "상투", effExtend)
