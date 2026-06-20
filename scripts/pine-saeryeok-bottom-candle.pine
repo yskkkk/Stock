@@ -465,15 +465,9 @@ plot(showWeeklyCross and (gold_20_120_w or dead_20_120_w) ? ma20_w_step : na, st
 
 // ── 세력 캔들 구간 ───────────────────────────────────────────────────
 float zoneLblAtr = ta.atr(14)
-int zoneLblClashBars = 8
-int zoneLblNear = 7
-int zoneLblXStep = 4
-float zoneLblHalf = zoneLblAtr * 1.55
-float zoneLblHalfSm = zoneLblAtr * 1.05
-float zoneLblGap = zoneLblAtr * 0.38
-float zoneLblStep = zoneLblAtr * 1.45
-float zoneLblPad = zoneLblAtr * 0.12
-float zoneLblMaxReach = zoneLblAtr * 4.8
+int zoneLblClashBars = 6
+int zoneLblXStep = 3
+float zoneLblGap = zoneLblAtr * 0.35
 
 type ZoneLblRec
     int b
@@ -506,8 +500,8 @@ f_trimLblRecs() =>
     while array.size(lblRecs) > maxZones
         array.shift(lblRecs)
 
-f_pushLblRec(int b, int t, float sl, float top, float bot, string tag, bool isBtm, color col) =>
-    array.push(lblRecs, ZoneLblRec.new(b, t, sl, top, bot, tag, isBtm, col))
+f_pushLblRec(int b, int t, float sl, float top, float bot, float sigLo, float sigHi, string tag, bool isBtm, color col) =>
+    array.push(lblRecs, ZoneLblRec.new(b, t, sl, top, bot, sigLo, sigHi, tag, isBtm, col))
     f_trimLblRecs()
 
 f_clearLblDraw() =>
@@ -516,104 +510,43 @@ f_clearLblDraw() =>
     while array.size(zoneLbls) > 0
         label.delete(array.shift(zoneLbls))
 
-f_histLo(int b) =>
-    int off = bar_index - b
-    off >= 0 ? low[off] : low
-
-f_histHi(int b) =>
-    int off = bar_index - b
-    off >= 0 ? high[off] : high
-
-f_nearLoAt(int b) =>
-    int span = math.min(zoneLblNear, b + 1)
-    float lo = f_histLo(b)
-    for i = 1 to span - 1
-        int off = bar_index - b + i
-        if off >= 0
-            lo := math.min(lo, low[off])
-    lo
-
-f_nearHiAt(int b) =>
-    int span = math.min(zoneLblNear, b + 1)
-    float hi = f_histHi(b)
-    for i = 1 to span - 1
-        int off = bar_index - b + i
-        if off >= 0
-            hi := math.max(hi, high[off])
-    hi
-
-f_lblYBounds(bool isBtm, float anchorLo, float anchorHi, int vLane) =>
-    float half = vLane >= 2 ? zoneLblHalfSm : zoneLblHalf
-    float connEnd = isBtm ? anchorLo - zoneLblGap - zoneLblStep * vLane : anchorHi + zoneLblGap + zoneLblStep * vLane
-    float reach = isBtm ? anchorLo - connEnd : connEnd - anchorHi
-    if reach > zoneLblMaxReach
-        connEnd := isBtm ? anchorLo - zoneLblMaxReach : anchorHi + zoneLblMaxReach
-    float lblY = isBtm ? connEnd - half : connEnd + half
-    float yMin = lblY - half
-    float yMax = lblY + half
-    [lblY, connEnd, yMin, yMax, half]
-
-f_yClash(int xb, float yMin, float yMax, LblSlot[] slots) =>
+f_xClash(int xb, LblSlot[] slots) =>
     bool cl = false
     int n = array.size(slots)
     int j = 0
     while j < n
         LblSlot s = array.get(slots, j)
-        if math.abs(xb - s.xb) <= zoneLblClashBars and yMax + zoneLblPad >= s.yMin and yMin - zoneLblPad <= s.yMax
+        if math.abs(xb - s.xb) <= zoneLblClashBars
             cl := true
             break
         j += 1
     cl
 
-f_findLane(ZoneLblRec r, LblSlot[] slots) =>
-    float anchorLo = f_histLo(r.b)
-    float anchorHi = f_histHi(r.b)
-    float clrLo = f_nearLoAt(r.b)
-    float clrHi = f_nearHiAt(r.b)
-    int vLane = 0
-    int xLane = 0
-    int xBar = r.b
-    float lblY = na
-    float connEnd = na
-    float yMin = na
-    float yMax = na
-    for attempt = 0 to 17
-        vLane := attempt < 3 ? 0 : attempt < 6 ? 1 : attempt < 9 ? 2 : attempt < 12 ? 3 : 4
-        xLane := attempt % 3 - 1
-        xBar := r.b + xLane * zoneLblXStep
-        [ly, ce, yMn, yMx, _] = f_lblYBounds(r.isBtm, anchorLo, anchorHi, vLane)
-        bool candleCl = r.isBtm ? yMx > clrLo - zoneLblGap * 0.25 : yMn < clrHi + zoneLblGap * 0.25
-        bool lblCl = f_yClash(xBar, yMn, yMx, slots)
-        if not candleCl and not lblCl
-            lblY := ly
-            connEnd := ce
-            yMin := yMn
-            yMax := yMx
+f_findXBar(int sigB, LblSlot[] slots) =>
+    int xBar = sigB
+    for attempt = 0 to 8
+        int mag = attempt == 0 ? 0 : int(math.ceil(attempt / 2.0))
+        int sgn = attempt % 2 == 1 ? -1 : 1
+        xBar := sigB + (attempt == 0 ? 0 : mag * sgn * zoneLblXStep)
+        if not f_xClash(xBar, slots)
             break
-    if na(lblY)
-        [ly, ce, yMn, yMx, _] = f_lblYBounds(r.isBtm, anchorLo, anchorHi, vLane)
-        lblY := ly
-        connEnd := ce
-        yMin := yMn
-        yMax := yMx
-    [vLane, xBar, lblY, connEnd, yMin, yMax]
+    xBar
 
 f_lblTxt(ZoneLblRec r) =>
     r.tag + "\n손절 " + str.tostring(r.sl, format.mintick) + "\n분할 " + str.tostring(r.bot, format.mintick) + "~" + str.tostring(r.top, format.mintick)
 
 f_drawLblRec(ZoneLblRec r, LblSlot[] slots) =>
-    float wLo = f_histLo(r.b)
-    float wHi = f_histHi(r.b)
+    int xBar = f_findXBar(r.b, slots)
     string txt = f_lblTxt(r)
-    [vLane, xBar, lblY, connEnd, yMin, yMax] = f_findLane(r, slots)
-    string sz = vLane >= 2 ? size.tiny : size.small
     if r.isBtm
-        array.push(lblConnLines, line.new(r.b, wLo, xBar, connEnd, xloc=xloc.bar_index, extend=extend.none, color=color.new(r.col, 0), width=2, style=line.style_dotted))
-        array.push(zoneLbls, label.new(xBar, lblY, txt, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_center, color=color.new(r.col, 15), textcolor=color.white, size=sz))
+        float connY = r.sigLo - zoneLblGap
+        array.push(lblConnLines, line.new(r.b, r.sigLo, xBar, connY, xloc=xloc.bar_index, extend=extend.none, color=color.new(r.col, 0), width=2, style=line.style_dotted))
+        array.push(zoneLbls, label.new(xBar, txt, xloc=xloc.bar_index, yloc=yloc.belowbar, style=label.style_label_center, color=color.new(r.col, 15), textcolor=color.white, size=size.small))
     else
-        array.push(lblConnLines, line.new(r.b, wHi, xBar, connEnd, xloc=xloc.bar_index, extend=extend.none, color=color.new(r.col, 0), width=2, style=line.style_dotted))
-        array.push(zoneLbls, label.new(xBar, lblY, txt, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_center, color=color.new(r.col, 15), textcolor=color.white, size=sz))
-    LblSlot.new(xBar, yMin, yMax)
+        float connY = r.sigHi + zoneLblGap
+        array.push(lblConnLines, line.new(r.b, r.sigHi, xBar, connY, xloc=xloc.bar_index, extend=extend.none, color=color.new(r.col, 0), width=2, style=line.style_dotted))
+        array.push(zoneLbls, label.new(xBar, txt, xloc=xloc.bar_index, yloc=yloc.abovebar, style=label.style_label_center, color=color.new(r.col, 15), textcolor=color.white, size=size.small))
+    LblSlot.new(xBar)
 
 f_redrawZoneLbls() =>
     f_clearLblDraw()
@@ -655,7 +588,7 @@ if anyBottom and forceBarOk and dispZones
 if topClassic and forceBarOk and dispZones
     f_drawZone(bar_index, time, zoneTop, zoneTop, zoneBotSl, cTop, "상투", effExtend)
     if zoneLblOn
-        f_pushLblRec(bar_index, time, zoneTop, zoneTop, zoneBotSl, "상투", false, cTop)
+        f_pushLblRec(bar_index, time, zoneTop, zoneTop, zoneBotSl, low, high, "상투", false, cTop)
 
 if barstate.islast and zoneLblOn
     f_redrawZoneLbls()
