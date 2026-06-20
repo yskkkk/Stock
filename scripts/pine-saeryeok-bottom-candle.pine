@@ -465,14 +465,18 @@ plot(showWeeklyCross and (gold_20_120_w or dead_20_120_w) ? ma20_w_step : na, st
 
 // ── 세력 캔들 구간 ───────────────────────────────────────────────────
 float zoneLblAtr = ta.atr(14)
+int zoneLblProx = 25
+int zoneLblMem = 12
+float zoneLblLane = zoneLblAtr * 1.42
+float zoneLblStub = zoneLblAtr * 0.10
 var box[]  zoneBoxes = array.new_box()
 var line[] slLines   = array.new_line()
 var line[] lblConnLines = array.new_line()
 var label[] zoneLbls = array.new_label()
-var int zoneLblLastBarB = na
-var int zoneLblStackB = 0
-var int zoneLblLastBarT = na
-var int zoneLblStackT = 0
+var int[] recentBBars = array.new_int()
+var float[] recentBY = array.new_float()
+var int[] recentTBars = array.new_int()
+var float[] recentTY = array.new_float()
 
 f_trimZones() =>
     while array.size(zoneBoxes) > maxZones
@@ -484,7 +488,40 @@ f_trimZones() =>
     while array.size(zoneLbls) > maxZones
         label.delete(array.shift(zoneLbls))
 
-f_drawZone(int bLeft, int tLeft, float sl, float zTop, float zBot, color zCol, string tag, int extBars, bool labelBelow, int lblStack) =>
+f_pushRecent(int[] bars, float[] ys, int b, float y) =>
+    array.push(bars, b)
+    array.push(ys, y)
+    while array.size(bars) > zoneLblMem
+        array.shift(bars)
+        array.shift(ys)
+
+f_laneClash(bool below, float ctr, int[] bars, float[] ys) =>
+    bool hit = false
+    int n = array.size(bars)
+    if n > 0
+        float half = zoneLblLane * 0.52
+        for i = 0 to n - 1
+            int bPast = array.get(bars, i)
+            if bar_index - bPast > zoneLblProx
+                continue
+            float pCtr = array.get(ys, i)
+            if math.abs(ctr - pCtr) < half * 2.05
+                hit := true
+                break
+    hit
+
+f_nextLane(bool below, float[] ys, int[] bars) =>
+    int lane = 0
+    float half = zoneLblLane * 0.52
+    bool clash = true
+    while clash and lane < 10
+        float ctr = below ? low - zoneLblStub - zoneLblLane * lane - half : high + zoneLblStub + zoneLblLane * lane + half
+        clash := f_laneClash(below, ctr, bars, ys)
+        if clash
+            lane += 1
+    lane
+
+f_drawZone(int bLeft, int tLeft, float sl, float zTop, float zBot, color zCol, string tag, int extBars, bool labelBelow) =>
     f_trimZones()
     int tfMs = timeframe.in_seconds() * 1000
     int tRight = tLeft + extBars * tfMs
@@ -494,36 +531,29 @@ f_drawZone(int bLeft, int tLeft, float sl, float zTop, float zBot, color zCol, s
         array.push(slLines, line.new(tLeft, sl, tRight, sl, xloc=xloc.bar_time, color=cSl, width=2, style=line.style_dashed))
         array.push(zoneBoxes, box.new(tLeft, top, tRight, bot, xloc=xloc.bar_time, border_color=color.new(zCol, 40), bgcolor=cZone, border_width=1))
     if showLabels and dispZoneLabels
-        float stub = zoneLblAtr * 0.12
-        float lblHalf = zoneLblAtr * 0.55
+        float half = zoneLblLane * 0.52
+        int lane = labelBelow ? f_nextLane(true, recentBY, recentBBars) : f_nextLane(false, recentTY, recentTBars)
         string lblTxt = tag + "\n손절 " + str.tostring(sl, format.mintick) + "\n분할 " + str.tostring(bot, format.mintick) + "~" + str.tostring(top, format.mintick)
         if labelBelow
-            if lblStack == 0
-                array.push(lblConnLines, line.new(bLeft, low, bLeft, low - stub, xloc=xloc.bar_index, extend=extend.none, color=color.new(zCol, 0), width=2, style=line.style_dotted))
-                array.push(zoneLbls, label.new(bLeft, 0.0, lblTxt, xloc=xloc.bar_index, yloc=yloc.belowbar, style=label.style_label_center, color=color.new(zCol, 15), textcolor=color.white, size=size.small))
-            else
-                float lblY = low - stub - zoneLblAtr * (1.05 + lblStack * 1.15)
-                array.push(lblConnLines, line.new(bLeft, low, bLeft, lblY + lblHalf, xloc=xloc.bar_index, extend=extend.none, color=color.new(zCol, 0), width=2, style=line.style_dotted))
-                array.push(zoneLbls, label.new(bLeft, lblY, lblTxt, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_center, color=color.new(zCol, 15), textcolor=color.white, size=size.small))
-        else if lblStack == 0
-            array.push(lblConnLines, line.new(bLeft, high, bLeft, high + stub, xloc=xloc.bar_index, extend=extend.none, color=color.new(zCol, 0), width=2, style=line.style_dotted))
-            array.push(zoneLbls, label.new(bLeft, 0.0, lblTxt, xloc=xloc.bar_index, yloc=yloc.abovebar, style=label.style_label_center, color=color.new(zCol, 15), textcolor=color.white, size=size.small))
-        else
-            float lblY = high + stub + zoneLblAtr * (1.05 + lblStack * 1.15)
-            array.push(lblConnLines, line.new(bLeft, high, bLeft, lblY - lblHalf, xloc=xloc.bar_index, extend=extend.none, color=color.new(zCol, 0), width=2, style=line.style_dotted))
+            float lblY = low - zoneLblStub - zoneLblLane * lane - half
+            float connEnd = lblY + half
+            array.push(lblConnLines, line.new(bLeft, low, bLeft, connEnd, xloc=xloc.bar_index, extend=extend.none, color=color.new(zCol, 0), width=2, style=line.style_dotted))
             array.push(zoneLbls, label.new(bLeft, lblY, lblTxt, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_center, color=color.new(zCol, 15), textcolor=color.white, size=size.small))
+            f_pushRecent(recentBBars, recentBY, bLeft, lblY)
+        else
+            float lblY = high + zoneLblStub + zoneLblLane * lane + half
+            float connEnd = lblY - half
+            array.push(lblConnLines, line.new(bLeft, high, bLeft, connEnd, xloc=xloc.bar_index, extend=extend.none, color=color.new(zCol, 0), width=2, style=line.style_dotted))
+            array.push(zoneLbls, label.new(bLeft, lblY, lblTxt, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_center, color=color.new(zCol, 15), textcolor=color.white, size=size.small))
+            f_pushRecent(recentTBars, recentTY, bLeft, lblY)
 
 bool zoneLblOn = showLabels and dispZoneLabels
 
 if anyBottom and forceBarOk and dispZones
-    zoneLblStackB := not na(zoneLblLastBarB) and bar_index - zoneLblLastBarB <= 8 ? zoneLblStackB + 1 : 0
-    zoneLblLastBarB := bar_index
-    f_drawZone(bar_index, time, slL, zoneTop, zoneBotSl, wConfirmed ? cWBottom : cBottom, bottomTag, effExtend, true, zoneLblStackB)
+    f_drawZone(bar_index, time, slL, zoneTop, zoneBotSl, wConfirmed ? cWBottom : cBottom, bottomTag, effExtend, true)
 
 if topClassic and forceBarOk and dispZones
-    zoneLblStackT := not na(zoneLblLastBarT) and bar_index - zoneLblLastBarT <= 8 ? zoneLblStackT + 1 : 0
-    zoneLblLastBarT := bar_index
-    f_drawZone(bar_index, time, zoneTop, zoneTop, zoneBotSl, cTop, "상투", effExtend, false, zoneLblStackT)
+    f_drawZone(bar_index, time, zoneTop, zoneTop, zoneBotSl, cTop, "상투", effExtend, false)
 
 // ── 세력 캔들·매집 마커 ───────────────────────────────────────────────
 plotshape(forceBarOk and dispWBottom and anyBottom and bottomClassic and wConfirmed and not zoneLblOn, title="W바닥확인", style=shape.triangleup, location=location.belowbar, color=cWBottom, size=size.large, text="W")
