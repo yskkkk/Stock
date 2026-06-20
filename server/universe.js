@@ -10,6 +10,14 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const KR_TARGET = 300;
 const US_TARGET = 500;
 
+/** Yahoo screener exchange=NMS (Nasdaq Global Select/Market/Capital) */
+const NASDAQ_EXCHANGE = "NMS";
+
+const NASDAQ_EQUITY_TARGET = (() => {
+  const n = Number(process.env.STOCK_NASDAQ_UNIVERSE_TARGET ?? 4500);
+  return Number.isFinite(n) && n >= 500 ? Math.min(n, 8000) : 4500;
+})();
+
 const BOX_SCAN_KR_TARGET = (() => {
   const n = Number(process.env.STOCK_BOX_RANGE_KR_TARGET ?? KR_TARGET);
   return Number.isFinite(n) && n >= 50 ? Math.min(n, 500) : KR_TARGET;
@@ -172,6 +180,80 @@ async function fetchUniverseRegion(region, target) {
   }
 
   return out.slice(0, target);
+}
+
+/**
+ * 거래소 필터(NMS=나스닥 등) — EQUITY screener 페이지네이션
+ * @param {string} region
+ * @param {string} exchange
+ * @param {number} target
+ */
+export async function fetchExchangeEquityUniverse(region, exchange, target) {
+  await getYahooSession();
+  const out = [];
+  const seen = new Set();
+  const ex = String(exchange ?? "").trim();
+  if (!ex) return [];
+
+  for (
+    let offset = 0;
+    offset < Math.max(target * 3, 1000) && out.length < target;
+    offset += 250
+  ) {
+    try {
+      const page = await fetchScreenerPage(
+        region,
+        offset,
+        250,
+        ex,
+      );
+      for (const item of page) {
+        if (!seen.has(item.symbol)) {
+          seen.add(item.symbol);
+          out.push(item);
+        }
+      }
+      if (page.length < 50) break;
+    } catch (e) {
+      console.warn(
+        "[universe] exchange screener:",
+        ex,
+        e instanceof Error ? e.message : e,
+      );
+      break;
+    }
+  }
+
+  return out.slice(0, target);
+}
+
+/** 나스닥 상장 EQUITY (Yahoo exchange NMS) */
+export async function fetchNasdaqEquityUniverse(
+  target = NASDAQ_EQUITY_TARGET,
+) {
+  const list = await fetchExchangeEquityUniverse("us", NASDAQ_EXCHANGE, target);
+  console.info("[universe] NASDAQ equity", { count: list.length, target });
+  return list;
+}
+
+/**
+ * 매집봉 고속 스캔 유니버스
+ * @param {"sp500"|"nasdaq"|"us"} scope
+ */
+export async function loadBookAccumScanUniverse(scope = "sp500") {
+  const key = String(scope ?? "sp500")
+    .trim()
+    .toLowerCase();
+  if (key === "nasdaq") {
+    const us = await fetchNasdaqEquityUniverse();
+    return { kr: [], us, scope: "nasdaq" };
+  }
+  const uni = await loadUniverse();
+  return {
+    kr: Array.isArray(uni?.kr) ? uni.kr : [],
+    us: Array.isArray(uni?.us) ? uni.us : [],
+    scope: key === "us" ? "us" : "sp500",
+  };
 }
 
 /**

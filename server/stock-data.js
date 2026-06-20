@@ -28,6 +28,48 @@ const YAHOO_FETCH_MAX_ATTEMPTS = 3;
 /** 종목보관 intraday 재검증 — 5분 캐시·2y 일봉(가벼운 Yahoo 요청) */
 export const VAULT_RESCAN_LOAD_OPTS = { live: false, scan: true };
 
+/** @type {{ maxAgeMs: number; maxKeys: number } | null} */
+let activeScanSession = null;
+
+/**
+ * 대량 스캔 세션 — 캐시 TTL·상한 확장 (웹 live 캐시와 분리)
+ * @param {{ maxAgeMs?: number; maxKeys?: number }} [sessionOpts]
+ * @param {() => Promise<T> | T} fn
+ * @returns {Promise<T>}
+ * @template T
+ */
+export async function runStockDataScanSession(sessionOpts, fn) {
+  const prev = activeScanSession;
+  activeScanSession = {
+    maxAgeMs: Math.max(
+      60_000,
+      Number(sessionOpts?.maxAgeMs ?? process.env.STOCK_SCAN_SESSION_CACHE_MS) || 900_000,
+    ),
+    maxKeys: Math.max(
+      360,
+      Number(sessionOpts?.maxKeys ?? process.env.STOCK_SCAN_SESSION_MAX_KEYS) || 8000,
+    ),
+  };
+  try {
+    return await fn();
+  } finally {
+    activeScanSession = prev;
+  }
+}
+
+export function isStockDataScanSessionActive() {
+  return activeScanSession != null;
+}
+
+/** @param {object} [options] */
+export function resolveBulkScanLoadOpts(options = {}) {
+  if (options.scanSession === false) return options;
+  if (activeScanSession || options.scanSession) {
+    return { live: false, scan: true, ...options, scanSession: true };
+  }
+  return options;
+}
+
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -38,14 +80,19 @@ const MAX_CACHE_KEYS = 360;
 const cache = new Map();
 const inflight = new Map();
 
+function scanSessionMaxKeys() {
+  return activeScanSession?.maxKeys ?? MAX_CACHE_KEYS;
+}
+
 function pruneStockDataCache() {
   const now = Date.now();
   for (const [key, entry] of cache) {
     if (now - entry.savedAt > CACHE_STALE_MS) cache.delete(key);
   }
-  if (cache.size <= MAX_CACHE_KEYS) return;
+  const cap = scanSessionMaxKeys();
+  if (cache.size <= cap) return;
   const sorted = [...cache.entries()].sort((a, b) => a[1].savedAt - b[1].savedAt);
-  const remove = cache.size - MAX_CACHE_KEYS;
+  const remove = cache.size - cap;
   for (let i = 0; i < remove; i++) cache.delete(sorted[i][0]);
 }
 
@@ -397,14 +444,18 @@ export async function loadStock(symbol, timeframe, options = {}) {
   const tf = Object.prototype.hasOwnProperty.call(TIMEFRAME_MAP, timeframe)
     ? timeframe
     : "1d";
-  const { live = false } = options;
+  const opts = resolveBulkScanLoadOpts(options);
+  const live = opts.live === true;
   const sym = symbol.toUpperCase();
   /** v2: 일봉 요청이 range=max일 때 Yahoo가 월봉으로 다운샘플링하던 캐시 무효화 */
   const cacheKey = `${sym}:${tf}:v3`;
   const inflightKey = `${cacheKey}:${live ? "live" : "cached"}`;
 
+  const sessionMaxAge = activeScanSession?.maxAgeMs;
   if (!live) {
-    const fresh = readCache(cacheKey);
+    const fresh = readCache(cacheKey, {
+      maxAgeMs: sessionMaxAge ?? CACHE_FRESH_MS,
+    });
     if (fresh) return fresh.data;
   } else {
     const entry = getCacheEntry(cacheKey);
@@ -418,7 +469,7 @@ export async function loadStock(symbol, timeframe, options = {}) {
   const task = (async () => {
     const stale = readCache(cacheKey, { allowStale: true });
     try {
-      const data = await fetchRemoteWithRetry(sym, tf, options);
+      const data = await fetchRemoteWithRetry(sym, tf, opts);
       setCacheEntry(cacheKey, data);
       return data;
     } catch (err) {

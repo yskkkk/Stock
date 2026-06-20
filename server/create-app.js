@@ -2677,6 +2677,61 @@ export function createApp() {
   );
 
   app.get(
+    "/api/book-accum/fast-scan/status",
+    asyncRoute(async (_req, res) => {
+      const {
+        bookAccumFastScanEnabled,
+        getBookAccumulationFastScanStateSync,
+        getLastBookAccumFastScanResult,
+        isBookAccumFastScanRunning,
+      } = await import("./book-accumulation-fast-poller.js");
+      res.json({
+        enabled: bookAccumFastScanEnabled(),
+        running: isBookAccumFastScanRunning(),
+        lastRun: getLastBookAccumFastScanResult(),
+        state: getBookAccumulationFastScanStateSync(),
+      });
+    }),
+  );
+
+  app.post(
+    "/api/book-accum/fast-scan",
+    requireAccessAdmin,
+    asyncRoute(async (req, res) => {
+      const { triggerBookAccumFastScan } = await import(
+        "./book-accumulation-fast-poller.js"
+      );
+      const body = req.body && typeof req.body === "object" ? req.body : {};
+      const result = triggerBookAccumFastScan({
+        scope: body.scope,
+        market: body.market,
+        timeframes: body.timeframes,
+        mergeVault: body.mergeVault,
+      });
+      if (!result.started) {
+        const status =
+          result.reason === "disabled"
+            ? 503
+            : result.reason === "busy"
+              ? 409
+              : 400;
+        res.status(status).json({
+          started: false,
+          reason: result.reason ?? "failed",
+          error:
+            result.reason === "disabled"
+              ? "매집봉 고속 스캔이 비활성화되어 있습니다."
+              : result.reason === "busy"
+                ? "이미 고속 스캔이 진행 중입니다."
+                : "스캔을 시작할 수 없습니다.",
+        });
+        return;
+      }
+      res.json({ started: true });
+    }),
+  );
+
+  app.get(
     "/api/golden-cross/history",
     asyncRoute(async (req, res) => {
       const {
