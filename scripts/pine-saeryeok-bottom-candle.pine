@@ -466,11 +466,10 @@ plot(showWeeklyCross and (gold_20_120_w or dead_20_120_w) ? ma20_w_step : na, st
 // ── 세력 캔들 구간 ───────────────────────────────────────────────────
 float zoneLblAtr = ta.atr(14)
 int zoneLblProx = 25
-int zoneLblNear = 5
-float zoneLblHalf = zoneLblAtr * 1.05
-float zoneLblGap = zoneLblAtr * 0.22
-float zoneLblStep = zoneLblHalf * 2.25
-float zoneLblStub = zoneLblAtr * 0.10
+int zoneLblNear = 7
+float zoneLblHalf = zoneLblAtr * 1.55
+float zoneLblGap = zoneLblAtr * 0.35
+float zoneLblStep = zoneLblAtr * 3.5
 
 type ZoneLblRec
     int b
@@ -534,9 +533,6 @@ f_nearHiAt(int b) =>
             hi := math.max(hi, high[off])
     hi
 
-f_laneCtrHist(bool below, int lane, float hLo, float hHi) =>
-    below ? hLo - zoneLblGap - zoneLblHalf - zoneLblStep * lane : hHi + zoneLblGap + zoneLblHalf + zoneLblStep * lane
-
 f_nearLane(int b, int[] bars) =>
     int lane = 0
     int n = array.size(bars)
@@ -552,32 +548,21 @@ f_lblTxt(ZoneLblRec r) =>
 f_drawLblRec(ZoneLblRec r, int lane) =>
     float hLo = f_nearLoAt(r.b)
     float hHi = f_nearHiAt(r.b)
+    float wLo = f_histLo(r.b)
+    float wHi = f_histHi(r.b)
     string txt = f_lblTxt(r)
-    float ctr = na
     if r.isBtm
-        if lane == 0
-            array.push(lblConnLines, line.new(r.b, hLo, r.b, hLo - zoneLblStub, xloc=xloc.bar_index, extend=extend.none, color=color.new(r.col, 0), width=2, style=line.style_dotted))
-            array.push(zoneLbls, label.new(r.b, 0.0, txt, xloc=xloc.bar_index, yloc=yloc.belowbar, style=label.style_label_center, color=color.new(r.col, 15), textcolor=color.white, size=size.small))
-            ctr := hLo - zoneLblGap - zoneLblHalf
-        else
-            float lblY = f_laneCtrHist(true, lane, hLo, hHi)
-            float connEnd = math.min(lblY + zoneLblHalf, hLo - zoneLblGap)
-            lblY := connEnd - zoneLblHalf
-            array.push(lblConnLines, line.new(r.b, hLo, r.b, connEnd, xloc=xloc.bar_index, extend=extend.none, color=color.new(r.col, 0), width=2, style=line.style_dotted))
-            array.push(zoneLbls, label.new(r.b, lblY, txt, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_center, color=color.new(r.col, 15), textcolor=color.white, size=size.small))
-            ctr := lblY
-    else if lane == 0
-        array.push(lblConnLines, line.new(r.b, hHi, r.b, hHi + zoneLblStub, xloc=xloc.bar_index, extend=extend.none, color=color.new(r.col, 0), width=2, style=line.style_dotted))
-        array.push(zoneLbls, label.new(r.b, 0.0, txt, xloc=xloc.bar_index, yloc=yloc.abovebar, style=label.style_label_center, color=color.new(r.col, 15), textcolor=color.white, size=size.small))
-        ctr := hHi + zoneLblGap + zoneLblHalf
-    else
-        float lblY = f_laneCtrHist(false, lane, hLo, hHi)
-        float connEnd = math.max(lblY - zoneLblHalf, hHi + zoneLblGap)
-        lblY := connEnd + zoneLblHalf
-        array.push(lblConnLines, line.new(r.b, hHi, r.b, connEnd, xloc=xloc.bar_index, extend=extend.none, color=color.new(r.col, 0), width=2, style=line.style_dotted))
+        float connEnd = hLo - zoneLblGap - zoneLblStep * lane
+        float lblY = connEnd - zoneLblHalf
+        array.push(lblConnLines, line.new(r.b, wLo, r.b, connEnd, xloc=xloc.bar_index, extend=extend.none, color=color.new(r.col, 0), width=2, style=line.style_dotted))
         array.push(zoneLbls, label.new(r.b, lblY, txt, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_center, color=color.new(r.col, 15), textcolor=color.white, size=size.small))
-        ctr := lblY
-    ctr
+        lblY
+    else
+        float connEnd = hHi + zoneLblGap + zoneLblStep * lane
+        float lblY = connEnd + zoneLblHalf
+        array.push(lblConnLines, line.new(r.b, wHi, r.b, connEnd, xloc=xloc.bar_index, extend=extend.none, color=color.new(r.col, 0), width=2, style=line.style_dotted))
+        array.push(zoneLbls, label.new(r.b, lblY, txt, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_center, color=color.new(r.col, 15), textcolor=color.white, size=size.small))
+        lblY
 
 f_redrawZoneLbls() =>
     f_clearLblDraw()
