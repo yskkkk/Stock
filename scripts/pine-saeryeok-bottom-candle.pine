@@ -484,31 +484,6 @@ f_trimZones() =>
     while array.size(zoneLbls) > maxZones
         label.delete(array.shift(zoneLbls))
 
-f_zoneLblPos(bool below, float anchorY, int lblStack) =>
-    int span = math.min(4, bar_index + 1)
-    float hiNear = math.max(high, ta.highest(high, span))
-    float loNear = math.min(low, ta.lowest(low, span))
-    float gap = zoneLblAtr * 0.20
-    float lblHalf = zoneLblAtr * 0.58
-    float stackStep = lblHalf * 2.35
-    float stackOff = lblStack * stackStep
-    float edge = below ? loNear - gap - stackOff : hiNear + gap + stackOff
-    float lblCenter = below ? edge - lblHalf : edge + lblHalf
-    float maxDist = zoneLblAtr * 2.6
-    lblCenter := below ? math.max(lblCenter, anchorY - maxDist) : math.min(lblCenter, anchorY + maxDist)
-    float connEnd = below ? lblCenter + lblHalf : lblCenter - lblHalf
-    if below
-        float maxConn = loNear - gap - stackOff
-        if connEnd > maxConn
-            connEnd := maxConn
-            lblCenter := connEnd - lblHalf
-    else
-        float minConn = hiNear + gap + stackOff
-        if connEnd < minConn
-            connEnd := minConn
-            lblCenter := connEnd + lblHalf
-    [connEnd, lblCenter]
-
 f_drawZone(int bLeft, int tLeft, float sl, float zTop, float zBot, color zCol, string tag, int extBars, bool labelBelow, int lblStack) =>
     f_trimZones()
     int tfMs = timeframe.in_seconds() * 1000
@@ -519,11 +494,24 @@ f_drawZone(int bLeft, int tLeft, float sl, float zTop, float zBot, color zCol, s
         array.push(slLines, line.new(tLeft, sl, tRight, sl, xloc=xloc.bar_time, color=cSl, width=2, style=line.style_dashed))
         array.push(zoneBoxes, box.new(tLeft, top, tRight, bot, xloc=xloc.bar_time, border_color=color.new(zCol, 40), bgcolor=cZone, border_width=1))
     if showLabels and dispZoneLabels
-        float anchorY = labelBelow ? low : high
-        [connEnd, lblCenter] = f_zoneLblPos(labelBelow, anchorY, lblStack)
+        float stub = zoneLblAtr * 0.12
+        float lblHalf = zoneLblAtr * 0.55
         string lblTxt = tag + "\n손절 " + str.tostring(sl, format.mintick) + "\n분할 " + str.tostring(bot, format.mintick) + "~" + str.tostring(top, format.mintick)
-        array.push(lblConnLines, line.new(bLeft, anchorY, bLeft, connEnd, xloc=xloc.bar_index, extend=extend.none, color=color.new(zCol, 0), width=2, style=line.style_dashed))
-        array.push(zoneLbls, label.new(bLeft, lblCenter, lblTxt, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_center, color=color.new(zCol, 15), textcolor=color.white, size=size.small))
+        if labelBelow
+            if lblStack == 0
+                array.push(lblConnLines, line.new(bLeft, low, bLeft, low - stub, xloc=xloc.bar_index, extend=extend.none, color=color.new(zCol, 0), width=2, style=line.style_dotted))
+                array.push(zoneLbls, label.new(bLeft, 0.0, lblTxt, xloc=xloc.bar_index, yloc=yloc.belowbar, style=label.style_label_center, color=color.new(zCol, 15), textcolor=color.white, size=size.small))
+            else
+                float lblY = low - stub - zoneLblAtr * (1.05 + lblStack * 1.15)
+                array.push(lblConnLines, line.new(bLeft, low, bLeft, lblY + lblHalf, xloc=xloc.bar_index, extend=extend.none, color=color.new(zCol, 0), width=2, style=line.style_dotted))
+                array.push(zoneLbls, label.new(bLeft, lblY, lblTxt, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_center, color=color.new(zCol, 15), textcolor=color.white, size=size.small))
+        else if lblStack == 0
+            array.push(lblConnLines, line.new(bLeft, high, bLeft, high + stub, xloc=xloc.bar_index, extend=extend.none, color=color.new(zCol, 0), width=2, style=line.style_dotted))
+            array.push(zoneLbls, label.new(bLeft, 0.0, lblTxt, xloc=xloc.bar_index, yloc=yloc.abovebar, style=label.style_label_center, color=color.new(zCol, 15), textcolor=color.white, size=size.small))
+        else
+            float lblY = high + stub + zoneLblAtr * (1.05 + lblStack * 1.15)
+            array.push(lblConnLines, line.new(bLeft, high, bLeft, lblY - lblHalf, xloc=xloc.bar_index, extend=extend.none, color=color.new(zCol, 0), width=2, style=line.style_dotted))
+            array.push(zoneLbls, label.new(bLeft, lblY, lblTxt, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_center, color=color.new(zCol, 15), textcolor=color.white, size=size.small))
 
 bool zoneLblOn = showLabels and dispZoneLabels
 
