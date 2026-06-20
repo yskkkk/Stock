@@ -467,8 +467,10 @@ plot(showWeeklyCross and (gold_20_120_w or dead_20_120_w) ? ma20_w_step : na, st
 float zoneLblAtr = ta.atr(14)
 int zoneLblProx = 25
 int zoneLblMem = 12
-float zoneLblLane = zoneLblAtr * 1.42
-float zoneLblStub = zoneLblAtr * 0.10
+int zoneLblNear = 5
+float zoneLblHalf = zoneLblAtr * 1.05
+float zoneLblGap = zoneLblAtr * 0.22
+float zoneLblStep = zoneLblHalf * 2.25
 var box[]  zoneBoxes = array.new_box()
 var line[] slLines   = array.new_line()
 var line[] lblConnLines = array.new_line()
@@ -488,6 +490,12 @@ f_trimZones() =>
     while array.size(zoneLbls) > maxZones
         label.delete(array.shift(zoneLbls))
 
+f_nearLo() =>
+    ta.lowest(low, math.min(zoneLblNear, bar_index + 1))
+
+f_nearHi() =>
+    ta.highest(high, math.min(zoneLblNear, bar_index + 1))
+
 f_pushRecent(int[] bars, float[] ys, int b, float y) =>
     array.push(bars, b)
     array.push(ys, y)
@@ -495,28 +503,28 @@ f_pushRecent(int[] bars, float[] ys, int b, float y) =>
         array.shift(bars)
         array.shift(ys)
 
-f_laneClash(bool below, float ctr, int[] bars, float[] ys) =>
+f_laneClash(float ctr, int[] bars, float[] ys) =>
     bool hit = false
     int n = array.size(bars)
     if n > 0
-        float half = zoneLblLane * 0.52
         for i = 0 to n - 1
             int bPast = array.get(bars, i)
             if bar_index - bPast > zoneLblProx
                 continue
             float pCtr = array.get(ys, i)
-            if math.abs(ctr - pCtr) < half * 2.05
+            if math.abs(ctr - pCtr) < zoneLblStep * 0.92
                 hit := true
                 break
     hit
 
+f_laneCtr(bool below, int lane) =>
+    below ? f_nearLo() - zoneLblGap - zoneLblHalf - zoneLblStep * lane : f_nearHi() + zoneLblGap + zoneLblHalf + zoneLblStep * lane
+
 f_nextLane(bool below, float[] ys, int[] bars) =>
     int lane = 0
-    float half = zoneLblLane * 0.52
     bool clash = true
     while clash and lane < 10
-        float ctr = below ? low - zoneLblStub - zoneLblLane * lane - half : high + zoneLblStub + zoneLblLane * lane + half
-        clash := f_laneClash(below, ctr, bars, ys)
+        clash := f_laneClash(f_laneCtr(below, lane), bars, ys)
         if clash
             lane += 1
     lane
@@ -531,18 +539,18 @@ f_drawZone(int bLeft, int tLeft, float sl, float zTop, float zBot, color zCol, s
         array.push(slLines, line.new(tLeft, sl, tRight, sl, xloc=xloc.bar_time, color=cSl, width=2, style=line.style_dashed))
         array.push(zoneBoxes, box.new(tLeft, top, tRight, bot, xloc=xloc.bar_time, border_color=color.new(zCol, 40), bgcolor=cZone, border_width=1))
     if showLabels and dispZoneLabels
-        float half = zoneLblLane * 0.52
         int lane = labelBelow ? f_nextLane(true, recentBY, recentBBars) : f_nextLane(false, recentTY, recentTBars)
+        float lblY = f_laneCtr(labelBelow, lane)
         string lblTxt = tag + "\n손절 " + str.tostring(sl, format.mintick) + "\n분할 " + str.tostring(bot, format.mintick) + "~" + str.tostring(top, format.mintick)
         if labelBelow
-            float lblY = low - zoneLblStub - zoneLblLane * lane - half
-            float connEnd = lblY + half
+            float connEnd = math.min(lblY + zoneLblHalf, f_nearLo() - zoneLblGap)
+            lblY := connEnd - zoneLblHalf
             array.push(lblConnLines, line.new(bLeft, low, bLeft, connEnd, xloc=xloc.bar_index, extend=extend.none, color=color.new(zCol, 0), width=2, style=line.style_dotted))
             array.push(zoneLbls, label.new(bLeft, lblY, lblTxt, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_center, color=color.new(zCol, 15), textcolor=color.white, size=size.small))
             f_pushRecent(recentBBars, recentBY, bLeft, lblY)
         else
-            float lblY = high + zoneLblStub + zoneLblLane * lane + half
-            float connEnd = lblY - half
+            float connEnd = math.max(lblY - zoneLblHalf, f_nearHi() + zoneLblGap)
+            lblY := connEnd + zoneLblHalf
             array.push(lblConnLines, line.new(bLeft, high, bLeft, connEnd, xloc=xloc.bar_index, extend=extend.none, color=color.new(zCol, 0), width=2, style=line.style_dotted))
             array.push(zoneLbls, label.new(bLeft, lblY, lblTxt, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_center, color=color.new(zCol, 15), textcolor=color.white, size=size.small))
             f_pushRecent(recentTBars, recentTY, bLeft, lblY)
