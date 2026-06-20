@@ -397,7 +397,6 @@ bool dailyPrimary = not weeklyPrimary
 
 int dAlpha = showBoth and dailyPrimary ? brightTransp : showBoth ? dimTransp : brightTransp
 int wAlpha = showBoth and weeklyPrimary ? brightTransp : showBoth ? dimTransp : brightTransp
-int dLineAlpha = brightTransp
 
 bool needWeeklySmooth = smoothWeekly and not timeframe.isweekly and not timeframe.ismonthly
 
@@ -449,10 +448,10 @@ color color_5_20_w = gold_5_20_w ? color.new(color.green, wAlpha) : dead_5_20_w 
 color color_20_120_w = gold_20_120_w ? color.new(color.green, wAlpha) : dead_20_120_w ? color.new(color.red, wAlpha) : na
 
 // ── MA 선·교차 (뒤 레이어) ───────────────────────────────────────────
-plot(showDaily ? ma5_d : na, color=color.new(c5_d, dLineAlpha), linewidth=4, title="[일] 5 MA")
-plot(showDaily ? ma20_d : na, color=color.new(c20_d, dLineAlpha), linewidth=3, title="[일] 20 MA")
-plot(showDaily ? ma60_d : na, color=color.new(c60_d, dLineAlpha), linewidth=2, title="[일] 60 MA")
-plot(showDaily ? ma120_d : na, color=color.new(c120_d, dLineAlpha), linewidth=2, title="[일] 120 MA")
+plot(showDaily ? ma5_d : na, color=color.new(c5_d, dAlpha), linewidth=2, title="[일] 5 MA")
+plot(showDaily ? ma20_d : na, color=color.new(c20_d, dAlpha), linewidth=2, title="[일] 20 MA")
+plot(showDaily ? ma60_d : na, color=color.new(c60_d, dAlpha), linewidth=2, title="[일] 60 MA")
+plot(showDaily ? ma120_d : na, color=color.new(c120_d, dAlpha), linewidth=2, title="[일] 120 MA")
 
 plot(showWeekly ? ma5_w : na, color=color.new(c5_w, wAlpha), linewidth=2, title="[주] 5 MA")
 plot(showWeekly ? ma20_w : na, color=color.new(c20_w, wAlpha), linewidth=2, title="[주] 20 MA")
