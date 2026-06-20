@@ -98,23 +98,6 @@ function pivotLowValue(candles, bi, len) {
   return pl;
 }
 
-/** @param {{ open?: number; high?: number; low?: number; close?: number }} c */
-function candleShape(c) {
-  const high = Number(c?.high);
-  const low = Number(c?.low);
-  const open = Number(c?.open);
-  const close = Number(c?.close);
-  const rng = high - low;
-  if (!Number.isFinite(rng) || rng <= 0) {
-    return { bodyPct: 100, isSmallBull: false };
-  }
-  const body = Math.abs(close - open);
-  return {
-    bodyPct: (body / rng) * 100,
-    isSmallBull: close > open,
-  };
-}
-
 /**
  * @param {Array<{ open?: number; high?: number; low?: number; close?: number; volume?: number; time?: unknown }>} candles
  * @param {BookAccumDetectOpts} [opts]
@@ -145,7 +128,6 @@ export function detectBookAccumulationLatest(candles, opts = {}) {
     const rvol = volMa0 > 0 ? volume / volMa0 : 1;
     const volMaUp = bi >= 3 && volMa[bi] > volMa[bi - 3];
 
-    const { bodyPct, isSmallBull } = candleShape(c);
     const hiRef = highestHigh(candles, o.dropLb, bi);
     const close = Number(c?.close) || 0;
     const dropPct = hiRef > 0 ? ((hiRef - close) / hiRef) * 100 : 0;
@@ -199,29 +181,20 @@ export function detectBookAccumulationLatest(candles, opts = {}) {
       sinceBreach <= o.recoverDays &&
       close > costBasis;
 
-    const shapeSmall = bodyPct <= o.maxBodyPct;
-    const shapeSmallBull =
-      o.allowSmallBull && isSmallBull && bodyPct <= o.maxBodyPct * 0.85;
-    const shapeOk = shapeSmall || shapeSmallBull;
-
     const volOk =
       rvol >= effRvol &&
       (!o.needVolMaUp || volMaUp || rvol >= effRvol * 1.2);
     const open = Number(c?.open) || 0;
     const peakDistrib =
-      hadRise && rvol >= o.peakRvol && close > open && bodyPct >= 55;
-    const accumRaw = volOk && shapeOk && !peakDistrib && (!o.needDrop || hadDrop);
+      hadRise && rvol >= o.peakRvol && close > open;
+    const accumRaw = volOk && !peakDistrib && (!o.needDrop || hadDrop);
 
     let consecCnt = 0;
     for (let j = 0; j < o.consecWin; j++) {
       const idx = bi - j;
       if (idx < 0) break;
       const arv = volMa[idx] > 0 ? (Number(candles[idx]?.volume) || 0) / volMa[idx] : 1;
-      const sh = candleShape(candles[idx]);
-      const ash =
-        sh.bodyPct <= o.maxBodyPct ||
-        (o.allowSmallBull && sh.isSmallBull && sh.bodyPct <= o.maxBodyPct * 0.85);
-      if (arv >= effRvol * 0.92 && ash) consecCnt += 1;
+      if (arv >= effRvol * 0.92) consecCnt += 1;
     }
     const consecOk = consecCnt >= effConsec;
     const ctxOk = !o.needCostCtx || touchCost || recover5d;
@@ -229,7 +202,6 @@ export function detectBookAccumulationLatest(candles, opts = {}) {
     let score = 0;
     if (accumRaw && ctxOk) {
       score += Math.min(30, (rvol / effRvol) * 18);
-      score += shapeSmall ? 10 : 6;
       if (o.needVolMaUp && volMaUp) score += 12;
       if (touchCost) score += 20;
       if (recover5d) score += 15;
