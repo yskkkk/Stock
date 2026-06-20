@@ -106,12 +106,11 @@ function candleShape(c) {
   const close = Number(c?.close);
   const rng = high - low;
   if (!Number.isFinite(rng) || rng <= 0) {
-    return { bodyPct: 100, upperPct: 0, isSmallBull: false };
+    return { bodyPct: 100, isSmallBull: false };
   }
   const body = Math.abs(close - open);
   return {
     bodyPct: (body / rng) * 100,
-    upperPct: ((high - Math.max(open, close)) / rng) * 100,
     isSmallBull: close > open,
   };
 }
@@ -146,7 +145,7 @@ export function detectBookAccumulationLatest(candles, opts = {}) {
     const rvol = volMa0 > 0 ? volume / volMa0 : 1;
     const volMaUp = bi >= 3 && volMa[bi] > volMa[bi - 3];
 
-    const { bodyPct, upperPct, isSmallBull } = candleShape(c);
+    const { bodyPct, isSmallBull } = candleShape(c);
     const hiRef = highestHigh(candles, o.dropLb, bi);
     const close = Number(c?.close) || 0;
     const dropPct = hiRef > 0 ? ((hiRef - close) / hiRef) * 100 : 0;
@@ -200,11 +199,10 @@ export function detectBookAccumulationLatest(candles, opts = {}) {
       sinceBreach <= o.recoverDays &&
       close > costBasis;
 
-    const shapeUpper = upperPct >= o.minUpperPct;
     const shapeSmall = bodyPct <= o.maxBodyPct;
     const shapeSmallBull =
       o.allowSmallBull && isSmallBull && bodyPct <= o.maxBodyPct * 0.85;
-    const shapeOk = shapeUpper || shapeSmall || shapeSmallBull;
+    const shapeOk = shapeSmall || shapeSmallBull;
 
     const volOk =
       rvol >= effRvol &&
@@ -220,7 +218,9 @@ export function detectBookAccumulationLatest(candles, opts = {}) {
       if (idx < 0) break;
       const arv = volMa[idx] > 0 ? (Number(candles[idx]?.volume) || 0) / volMa[idx] : 1;
       const sh = candleShape(candles[idx]);
-      const ash = sh.upperPct >= o.minUpperPct || sh.bodyPct <= o.maxBodyPct;
+      const ash =
+        sh.bodyPct <= o.maxBodyPct ||
+        (o.allowSmallBull && sh.isSmallBull && sh.bodyPct <= o.maxBodyPct * 0.85);
       if (arv >= effRvol * 0.92 && ash) consecCnt += 1;
     }
     const consecOk = consecCnt >= effConsec;
@@ -229,7 +229,7 @@ export function detectBookAccumulationLatest(candles, opts = {}) {
     let score = 0;
     if (accumRaw && ctxOk) {
       score += Math.min(30, (rvol / effRvol) * 18);
-      score += shapeUpper ? 15 : shapeSmall ? 10 : 6;
+      score += shapeSmall ? 10 : 6;
       if (o.needVolMaUp && volMaUp) score += 12;
       if (touchCost) score += 20;
       if (recover5d) score += 15;

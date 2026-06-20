@@ -101,7 +101,6 @@ accumRecover   = input.int(5, "본전 회복(봉)", minval=3, maxval=10, group=g
 accumNeedCost  = input.bool(false, "본전 터치 필수", group=grpAccumCost)
 
 grpAccumShape = "3·매집봉 — 캔들 형태"
-accumUpperPct  = input.float(25.0, "윗꼬리/전체(%)", minval=10.0, maxval=60.0, step=1.0, group=grpAccumShape)
 accumBodyPct   = input.float(45.0, "작은 몸통/전체(%)", minval=15.0, maxval=70.0, step=1.0, group=grpAccumShape)
 accumSmallBull = input.bool(true, "소양봉 허용", group=grpAccumShape)
 
@@ -130,7 +129,6 @@ bool aVolMaUp = aVolMa > aVolMa[3]
 float aRng = high - low
 float aBody = math.abs(close - open)
 float aBodyPct = aRng > 0 ? aBody / aRng * 100.0 : 100.0
-float aUpperPct = aRng > 0 ? (high - math.max(open, close)) / aRng * 100.0 : 0.0
 
 float aHiRef = ta.highest(high, accumDropLb)
 float aDropPct = aHiRef > 0 ? (aHiRef - close) / aHiRef * 100.0 : 0.0
@@ -165,10 +163,9 @@ if accumUseCost and not na(aCostBasis) and close >= aCostBasis
 int aSinceBreach = not na(aBreachBar) ? bar_index - aBreachBar : 10000
 bool aRecover5d = accumUseCost and not na(aCostBasis) and aSinceBreach > 0 and aSinceBreach <= accumRecover and close > aCostBasis
 
-bool aShapeUpper = aUpperPct >= accumUpperPct
 bool aShapeSmall = aBodyPct <= accumBodyPct
 bool aShapeSmallBull = accumSmallBull and close > open and aBodyPct <= accumBodyPct * 0.85
-bool aShapeOk = aShapeUpper or aShapeSmall or aShapeSmallBull
+bool aShapeOk = aShapeSmall or aShapeSmallBull
 
 bool aVolOk = aRvol >= accumEffRvol and (not accumVolMaUp or aVolMaUp or aRvol >= accumEffRvol * 1.2)
 bool aPeakDistrib = aHadRise and aRvol >= accumPeakRvol and close > open and aBodyPct >= 55.0
@@ -178,9 +175,8 @@ int aConsecCnt = 0
 for i = 0 to accumConsecWin - 1
     float arv = aVolMa[i] > 0 ? volume[i] / aVolMa[i] : 1.0
     float arng = high[i] - low[i]
-    float aup = arng > 0 ? (high[i] - math.max(open[i], close[i])) / arng * 100.0 : 0.0
     float abd = arng > 0 ? math.abs(close[i] - open[i]) / arng * 100.0 : 100.0
-    bool ash = aup >= accumUpperPct or abd <= accumBodyPct
+    bool ash = abd <= accumBodyPct or (accumSmallBull and close[i] > open[i] and abd <= accumBodyPct * 0.85)
     if arv >= accumEffRvol * 0.92 and ash
         aConsecCnt += 1
 
@@ -191,7 +187,7 @@ bool aScoreAcc = aAccumRaw and aCtxOk
 float aScore = 0.0
 if aScoreAcc
     aScore += math.min(30.0, aRvol / accumEffRvol * 18.0)
-    aScore += aShapeUpper ? 15.0 : aShapeSmall ? 10.0 : 6.0
+    aScore += aShapeSmall ? 10.0 : 6.0
     aScore += accumVolMaUp and aVolMaUp ? 12.0 : 0.0
     aScore += aTouchCost ? 20.0 : 0.0
     aScore += aRecover5d ? 15.0 : 0.0

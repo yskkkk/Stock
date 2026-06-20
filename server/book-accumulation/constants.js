@@ -16,7 +16,6 @@ export const BOOK_ACCUM_SERVER_DEFAULTS = {
   recoverDays: 5,
   consecWin: 3,
   minConsec: 2,
-  minUpperPct: 25.0,
   maxBodyPct: 45.0,
   allowSmallBull: true,
   minScore: 55,

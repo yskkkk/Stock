@@ -24,7 +24,6 @@ consecWin      = input.int(3, "연속 매집 창(봉)", minval=2, maxval=10, gro
 minConsec      = input.int(2, "연속 매집 최소(회)", minval=1, maxval=5, group=grpCtx)
 
 grpShape = "캔들 형태"
-minUpperPct    = input.float(25.0, "윗꼬리/전체(%)", minval=10.0, maxval=60.0, step=1.0, group=grpShape)
 maxBodyPct     = input.float(45.0, "작은 몸통/전체(%)", minval=15.0, maxval=70.0, step=1.0, group=grpShape)
 allowSmallBull = input.bool(true, "소양봉 허용", group=grpShape)
 
@@ -54,7 +53,6 @@ bool volMaUp = volMa > volMa[3]
 float rng = high - low
 float body = math.abs(close - open)
 float bodyPct = rng > 0 ? body / rng * 100.0 : 100.0
-float upperPct = rng > 0 ? (high - math.max(open, close)) / rng * 100.0 : 0.0
 
 float hiRef = ta.highest(high, dropLb)
 float dropPct = hiRef > 0 ? (hiRef - close) / hiRef * 100.0 : 0.0
@@ -91,10 +89,9 @@ int sinceBreach = not na(breachBar) ? bar_index - breachBar : 10000
 bool recover5d = useCost and not na(costBasis) and sinceBreach > 0 and sinceBreach <= recoverDays and close > costBasis
 
 // ── 매집봉 ───────────────────────────────────────────────────────────
-bool shapeUpper = upperPct >= minUpperPct
 bool shapeSmall = bodyPct <= maxBodyPct
 bool shapeSmallBull = allowSmallBull and close > open and bodyPct <= maxBodyPct * 0.85
-bool shapeOk = shapeUpper or shapeSmall or shapeSmallBull
+bool shapeOk = shapeSmall or shapeSmallBull
 
 bool volOk = rvol >= effRvol and (not needVolMaUp or volMaUp or rvol >= effRvol * 1.2)
 bool peakDistrib = hadRise and rvol >= peakRvol and close > open and bodyPct >= 55.0
@@ -104,20 +101,19 @@ int consecCnt = 0
 for i = 0 to consecWin - 1
     float rv_i = volMa[i] > 0 ? volume[i] / volMa[i] : 1.0
     float rng_i = high[i] - low[i]
-    float up_i = rng_i > 0 ? (high[i] - math.max(open[i], close[i])) / rng_i * 100.0 : 0.0
     float bd_i = rng_i > 0 ? math.abs(close[i] - open[i]) / rng_i * 100.0 : 100.0
-    bool sh_i = up_i >= minUpperPct or bd_i <= maxBodyPct
+    bool sh_i = bd_i <= maxBodyPct or (allowSmallBull and close[i] > open[i] and bd_i <= maxBodyPct * 0.85)
     if rv_i >= effRvol * 0.92 and sh_i
         consecCnt += 1
 
 bool consecOk = consecCnt >= effConsec
 bool ctxOk = not needCostCtx or touchCost or recover5d
 
-f_score(bool acc, bool cTouch, bool cRec, bool cCon, float rv, bool shUp, bool shSm) =>
+f_score(bool acc, bool cTouch, bool cRec, bool cCon, float rv, bool shSm) =>
     float sc = 0.0
     if acc
         sc += math.min(30.0, rv / effRvol * 18.0)
-        sc += shUp ? 15.0 : shSm ? 10.0 : 6.0
+        sc += shSm ? 10.0 : 6.0
         sc += needVolMaUp and volMaUp ? 12.0 : 0.0
         sc += cTouch ? 20.0 : 0.0
         sc += cRec ? 15.0 : 0.0
@@ -125,7 +121,7 @@ f_score(bool acc, bool cTouch, bool cRec, bool cCon, float rv, bool shUp, bool s
         sc += costTouches >= 2 ? 10.0 : costTouches >= 1 ? 5.0 : 0.0
     math.min(100.0, sc)
 
-float score = f_score(accumRaw and ctxOk, touchCost, recover5d, consecOk, rvol, shapeUpper, shapeSmall)
+float score = f_score(accumRaw and ctxOk, touchCost, recover5d, consecOk, rvol, shapeSmall)
 bool anyAccum = accumRaw and ctxOk and score >= effMinScore
 
 bool barOk = not confirmedOnly or barstate.isconfirmed
