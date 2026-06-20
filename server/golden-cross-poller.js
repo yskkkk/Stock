@@ -204,9 +204,6 @@ async function runVaultMarketScansForTimeframe(
             runMa120NearMarketScan(market, scanDate, { persistState: persistScanState }),
           ),
           timeMarketScan(() =>
-            runCandleLowSlopeMarketScan(market, scanDate, { persistState: persistScanState }),
-          ),
-          timeMarketScan(() =>
             runBookAccumulationMarketScan(market, scanDate, {
               persistState: persistScanState,
               timeframe,
@@ -216,6 +213,9 @@ async function runVaultMarketScansForTimeframe(
       : await Promise.all([
           timeMarketScan(() => runGoldenCrossMarketScan(market, scanDate, scanOpts)),
           timeMarketScan(() => runMaAlignMarketScan(market, scanDate, scanOpts)),
+          timeMarketScan(() =>
+            runCandleLowSlopeMarketScan(market, scanDate, { persistState: persistScanState }),
+          ),
           timeMarketScan(() =>
             runBookAccumulationMarketScan(market, scanDate, {
               persistState: persistScanState,
@@ -227,8 +227,8 @@ async function runVaultMarketScansForTimeframe(
   const gcTimed = timedResults[0];
   const maTimed = timedResults[1];
   const ma120Timed = timeframe === "1d" ? timedResults[2] : null;
-  const lowSlopeTimed = timeframe === "1d" ? timedResults[3] : null;
-  const bookTimed = timeframe === "1d" ? timedResults[4] : timedResults[2];
+  const lowSlopeTimed = timeframe === "1wk" ? timedResults[2] : null;
+  const bookTimed = timedResults[3];
 
   /** @type {Awaited<ReturnType<typeof runGoldenCrossMarketScan>>} */
   let goldenCross = emptyGoldenCrossMarketResult(market, scanDate);
@@ -341,7 +341,7 @@ async function runVaultMarketScansForTimeframe(
 
   /** @type {Awaited<ReturnType<typeof runCandleLowSlopeMarketScan>>} */
   let lowSlope = emptyLowSlopeMarketResult(market, scanDate);
-  if (timeframe === "1d" && lowSlopeTimed) {
+  if (timeframe === "1wk" && lowSlopeTimed) {
     if (lowSlopeTimed.ok) {
       lowSlope = /** @type {Awaited<ReturnType<typeof runCandleLowSlopeMarketScan>>} */ (
         lowSlopeTimed.result
@@ -409,7 +409,7 @@ async function runVaultMarketScansForTimeframe(
           },
         ]
       : []),
-    ...(timeframe === "1d" && lowSlopeTimed
+    ...(timeframe === "1wk" && lowSlopeTimed
       ? [
           {
             market,
@@ -514,11 +514,12 @@ export async function runVaultMarketScans(
   }
 
   const daily = byTimeframe["1d"];
+  const weekly = byTimeframe["1wk"];
   return {
     goldenCross: daily.goldenCross,
     maAlign: daily.maAlign,
     ma120Near: daily.ma120Near,
-    lowSlope: daily.lowSlope,
+    lowSlope: weekly.lowSlope,
     bookAccum: daily.bookAccum,
     byTimeframe,
     timings,
@@ -766,7 +767,7 @@ export function shouldRunGoldenCrossScan(market, now = new Date()) {
       !wasGoldenCrossScannedSync(market, dateKey, timeframe) ||
       !wasMaAlignScannedSync(market, dateKey, timeframe) ||
       (timeframe === "1d" && !wasMa120NearScannedSync(market, dateKey)) ||
-      (timeframe === "1d" && !wasCandleLowSlopeScannedSync(market, dateKey)) ||
+      (timeframe === "1wk" && !wasCandleLowSlopeScannedSync(market, dateKey)) ||
       !wasBookAccumulationScannedSync(market, dateKey, timeframe)
     ) {
       return market === "kr"

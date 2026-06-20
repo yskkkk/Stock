@@ -5,8 +5,14 @@ import { resolveDisplayName } from "./names-ko.js";
 import { loadUniverse } from "./universe.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
+import { candlesForWeeklyMaScan } from "./weekly-candle-trim.js";
+import {
+  vaultScanChartTimeframe,
+  vaultScanStateDateField,
+} from "./vault-scan-timeframe.js";
 
 const STATE_FILE = "candle-low-slope-scan-state.json";
+const LOW_SLOPE_SCAN_TIMEFRAME = /** @type {const} */ ("1wk");
 
 const BATCH_SIZE = (() => {
   const n = Number(
@@ -72,6 +78,14 @@ function normalizeState(raw) {
       typeof raw?.krLastScanDate === "string" ? raw.krLastScanDate : null,
     usLastScanDate:
       typeof raw?.usLastScanDate === "string" ? raw.usLastScanDate : null,
+    krWeeklyLastScanDate:
+      typeof raw?.krWeeklyLastScanDate === "string"
+        ? raw.krWeeklyLastScanDate
+        : null,
+    usWeeklyLastScanDate:
+      typeof raw?.usWeeklyLastScanDate === "string"
+        ? raw.usWeeklyLastScanDate
+        : null,
     lastRunAtMs:
       typeof raw?.lastRunAtMs === "number" && Number.isFinite(raw.lastRunAtMs)
         ? raw.lastRunAtMs
@@ -87,6 +101,8 @@ function readState() {
     () => ({
       krLastScanDate: null,
       usLastScanDate: null,
+      krWeeklyLastScanDate: null,
+      usWeeklyLastScanDate: null,
       lastRunAtMs: null,
       lastRuns: [],
     }),
@@ -109,13 +125,21 @@ async function scanOneSymbol(item, market, scanDate) {
     .toUpperCase();
   if (!sym) return null;
   try {
-    const data = await loadStock(sym, "1d", { live: true, scan: true });
-    const tradable = await isGoldenCrossTradable(data, market, { timeframe: "1d" });
+    const chartTf = vaultScanChartTimeframe(LOW_SLOPE_SCAN_TIMEFRAME);
+    const data = await loadStock(sym, chartTf, { live: true, scan: true });
+    const tradable = await isGoldenCrossTradable(data, market, {
+      timeframe: LOW_SLOPE_SCAN_TIMEFRAME,
+    });
     if (!tradable.ok) {
       liveTradeLogInfo("[low-slope:scan] skip", sym, tradable.reason);
       return null;
     }
-    const candles = Array.isArray(data?.candles) ? data.candles : [];
+    let candles = Array.isArray(data?.candles) ? data.candles : [];
+    const daily = await loadStock(sym, "1d", { live: true, scan: true });
+    candles = candlesForWeeklyMaScan(
+      candles,
+      Array.isArray(daily?.candles) ? daily.candles : [],
+    );
     const det = detectCandleLowSlopeFlipLatest(candles, {
       pivotLeft: PIVOT_LEFT,
       pivotRight: PIVOT_RIGHT,
@@ -164,6 +188,7 @@ export async function runCandleLowSlopeMarketScan(market, scanDate, opts = {}) {
   liveTradeLogInfo("[low-slope:scan] start", {
     market,
     scanDate,
+    timeframe: LOW_SLOPE_SCAN_TIMEFRAME,
     symbols: list.length,
     pivotLeft: PIVOT_LEFT,
     pivotRight: PIVOT_RIGHT,
@@ -188,7 +213,7 @@ export async function runCandleLowSlopeMarketScan(market, scanDate, opts = {}) {
 
   if (persistState) {
     const state = readState();
-    const field = market === "kr" ? "krLastScanDate" : "usLastScanDate";
+    const field = vaultScanStateDateField(market, LOW_SLOPE_SCAN_TIMEFRAME);
     state[field] = scanDate;
     state.lastRuns.unshift({
       market,
@@ -205,7 +230,7 @@ export async function runCandleLowSlopeMarketScan(market, scanDate, opts = {}) {
   const out = {
     market,
     scanDate,
-    timeframe: /** @type {const} */ ("1d"),
+    timeframe: LOW_SLOPE_SCAN_TIMEFRAME,
     scanned: list.length,
     hits,
     hitCount: hits.length,
@@ -226,6 +251,6 @@ export function getCandleLowSlopeScanStateSync() {
 /** @param {"kr"|"us"} market @param {string} scanDate */
 export function wasCandleLowSlopeScannedSync(market, scanDate) {
   const state = readState();
-  const field = market === "kr" ? "krLastScanDate" : "usLastScanDate";
+  const field = vaultScanStateDateField(market, LOW_SLOPE_SCAN_TIMEFRAME);
   return state[field] === scanDate;
 }

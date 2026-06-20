@@ -1294,7 +1294,7 @@ export const ko = {
     lastScanBookAccum: "매집",
     lastScanLowSlope: "저점기울",
     lowSlopeFlipBadgeHint:
-      "일봉 캔들 저점(pivot) 연결선의 기울기 부호가 바뀐 종목 — 하락→상승·상승→하락",
+      "주봉 캔들 저점(pivot) 연결선의 기울기 부호가 바뀐 종목 — 하락→상승·상승→하락",
     lowSlopeDownToUp: "하락→상승",
     lowSlopeUpToDown: "상승→하락",
     bottomCandleBadgeHint:
@@ -1304,7 +1304,7 @@ export const ko = {
     scanRun: "일봉 탐색",
     scanConfirmLead: "일봉·주봉 골든크로스·정배열·120선·저점기울기·바닥캔들·매집봉 탐색을 실행할까요?",
     scanConfirmBody:
-      "국내 시총 상위·미국 S&P500 종목의 일봉·주봉에서 MA 교차·정배열, 일봉 120선 ±3% 근처, 일봉 저점 기울기 전환, 일·주봉 바닥캔들·매집봉을 찾아 보관함에 추가합니다. 수분 걸릴 수 있습니다.",
+      "국내 시총 상위·미국 S&P500 종목의 일봉·주봉에서 MA 교차·정배열, 일봉 120선 ±3% 근처, 주봉 저점 기울기 전환, 일·주봉 바닥캔들·매집봉을 찾아 보관함에 추가합니다. 수분 걸릴 수 있습니다.",
     scanConfirmOk: "탐색 시작",
     scanConfirmCancel: "취소",
     scanRunning: "탐색 중…",

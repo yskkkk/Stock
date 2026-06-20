@@ -109,6 +109,26 @@ describe("stockVaultFilter", () => {
     expect(rows[0]?.favorite).toBeTruthy();
   });
 
+  it("favorite filter — other timeframe favorited scan still shows row", () => {
+    const items = [
+      item({
+        symbol: "A.KS",
+        source: "golden_cross",
+        timeframe: "1d",
+        favorited: true,
+      }),
+    ];
+    const rows = buildVaultDisplayRows(items, {
+      selectedScanSources: [],
+      marketFilter: "all",
+      favoriteOnly: true,
+      timeframeFilter: "1wk",
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.symbol).toBe("A.KS");
+    expect(rows[0]?.favorite).toBeTruthy();
+  });
+
   it("groupByScanDate — 동일 종목·다른 탐색 일자는 행 분리", () => {
     const items = [
       item({
@@ -134,16 +154,16 @@ describe("stockVaultFilter", () => {
     expect(new Set(rows.map((r) => r.key)).size).toBe(2);
   });
 
-  it("주봉 탭 — 바닥캔들·매집봉 필터 표시", () => {
+  it("주봉 탭 — 바닥캔들·매집봉·저점기울기 필터 표시", () => {
     const weekly = visibleStockVaultScanSources("1wk");
     expect(weekly).toContain("bottom_candle");
     expect(weekly).toContain("book_accum");
+    expect(weekly).toContain("low_slope_flip");
     expect(weekly).not.toContain("ma120_near");
-    expect(weekly).not.toContain("low_slope_flip");
   });
 
-  it("일봉 탭 — 저점기울기 필터 표시", () => {
+  it("일봉 탭 — 저점기울기 필터 숨김", () => {
     const daily = visibleStockVaultScanSources("1d");
-    expect(daily).toContain("low_slope_flip");
+    expect(daily).not.toContain("low_slope_flip");
   });
 });

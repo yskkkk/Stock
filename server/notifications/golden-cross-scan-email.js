@@ -234,13 +234,13 @@ export function buildScanEmailPayloadFromVaultResult(market, scanDate, byTimefra
         hits: block.ma120Near.hits,
       });
     }
-    if (tf === "1d") {
+    if (tf === "1wk") {
       const lowSlopeBlock = block.lowSlope ?? block.lowSlopeFlip;
       if (lowSlopeBlock) {
         lowSlopeFlip.push({
           market,
           scanDate,
-          timeframe: "1d",
+          timeframe: "1wk",
           scanned: lowSlopeBlock.scanned,
           hits: lowSlopeBlock.hits,
         });

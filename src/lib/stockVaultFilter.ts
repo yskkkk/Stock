@@ -187,6 +187,9 @@ function buildFavoriteRows(
       row.book_accum = it;
     } else if (it.source === "favorite") {
       row.favorite = it;
+    } else if (it.favorited) {
+      // 다른 봉구간 즐겨찾기 — scan 소스 미매칭 시에도 카드 본문 유지
+      row.favorite = row.favorite ?? it;
     }
     grouped.set(key, row);
   }
@@ -196,7 +199,9 @@ function buildFavoriteRows(
     const scanSources = STOCK_VAULT_SCAN_SOURCES.filter(
       (src) => parts[src],
     ) as StockVaultScanSource[];
-    rows.push(buildScanRow(key, parts, scanSources, timeframe));
+    const built = buildScanRow(key, parts, scanSources, timeframe);
+    if (!built.symbol.trim()) continue;
+    rows.push(built);
   }
   return rows;
 }
@@ -357,17 +362,21 @@ export function countVaultIntersection(
   }).length;
 }
 
-/** 일봉 전용 탐색 조건 — 주봉 탭에서는 120선 근처만 숨김 */
-const DAILY_ONLY_SCAN_SOURCES = new Set<StockVaultScanSource>([
-  "ma120_near",
-  "low_slope_flip",
-]);
+/** 일봉 전용 탐색 조건 */
+const DAILY_ONLY_SCAN_SOURCES = new Set<StockVaultScanSource>(["ma120_near"]);
+
+/** 주봉 전용 탐색 조건 */
+const WEEKLY_ONLY_SCAN_SOURCES = new Set<StockVaultScanSource>(["low_slope_flip"]);
 
 export function visibleStockVaultScanSources(
   timeframe: StockVaultTimeframe,
 ): StockVaultScanSource[] {
   if (timeframe === "1wk") {
-    return STOCK_VAULT_SCAN_SOURCES.filter((s) => !DAILY_ONLY_SCAN_SOURCES.has(s));
+    return STOCK_VAULT_SCAN_SOURCES.filter(
+      (s) => !DAILY_ONLY_SCAN_SOURCES.has(s),
+    );
   }
-  return [...STOCK_VAULT_SCAN_SOURCES];
+  return STOCK_VAULT_SCAN_SOURCES.filter(
+    (s) => !WEEKLY_ONLY_SCAN_SOURCES.has(s),
+  );
 }

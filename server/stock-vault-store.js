@@ -766,7 +766,7 @@ export function mergeLowSlopeFlipHitsIntoVaultSync(hits) {
       name: hit.name,
       market: hit.market,
       source: "low_slope_flip",
-      timeframe: "1d",
+      timeframe: "1wk",
       scanDate: hit.scanDate,
       signalDate: hit.signalDate ?? hit.scanDate,
       lowSlopeFlip: hit.lowSlopeFlip,
