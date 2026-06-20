@@ -379,14 +379,14 @@ bool showWeeklyCross = showMa and dispMaCross and showWeeklyTf
 bool showDailyWm = showMa and dispMaWatermark and showDailyTf
 bool showWeeklyWm = showMa and dispMaWatermark and showWeeklyTf
 
-color dailySpecA = #FFB380
-color dailySpecZ = #6B1515
+color dailySpecA = #FFECB3
+color dailySpecZ = #250505
 color weeklySpecA = #40C4FF
 color weeklySpecZ = #7E57C2
-color c5_d = #6B1515
-color c20_d = #B8390E
-color c60_d = #E8650A
-color c120_d = #FFB380
+color c5_d = #250505
+color c20_d = #FF4D00
+color c60_d = #FFB300
+color c120_d = #FFECB3
 color c5_w = color.from_gradient(5, 5, 120, weeklySpecA, weeklySpecZ)
 color c20_w = color.from_gradient(20, 5, 120, weeklySpecA, weeklySpecZ)
 color c60_w = color.from_gradient(60, 5, 120, weeklySpecA, weeklySpecZ)
@@ -397,6 +397,7 @@ bool dailyPrimary = not weeklyPrimary
 
 int dAlpha = showBoth and dailyPrimary ? brightTransp : showBoth ? dimTransp : brightTransp
 int wAlpha = showBoth and weeklyPrimary ? brightTransp : showBoth ? dimTransp : brightTransp
+int dLineAlpha = showBoth and not dailyPrimary ? math.min(dimTransp, 25) : brightTransp
 
 bool needWeeklySmooth = smoothWeekly and not timeframe.isweekly and not timeframe.ismonthly
 
@@ -448,10 +449,10 @@ color color_5_20_w = gold_5_20_w ? color.new(color.green, wAlpha) : dead_5_20_w 
 color color_20_120_w = gold_20_120_w ? color.new(color.green, wAlpha) : dead_20_120_w ? color.new(color.red, wAlpha) : na
 
 // ── MA 선·교차 (뒤 레이어) ───────────────────────────────────────────
-plot(showDaily ? ma5_d : na, color=color.new(c5_d, dAlpha), linewidth=2, title="[일] 5 MA")
-plot(showDaily ? ma20_d : na, color=color.new(c20_d, dAlpha), linewidth=2, title="[일] 20 MA")
-plot(showDaily ? ma60_d : na, color=color.new(c60_d, dAlpha), linewidth=2, title="[일] 60 MA")
-plot(showDaily ? ma120_d : na, color=color.new(c120_d, dAlpha), linewidth=2, title="[일] 120 MA")
+plot(showDaily ? ma5_d : na, color=color.new(c5_d, dLineAlpha), linewidth=3, title="[일] 5 MA")
+plot(showDaily ? ma20_d : na, color=color.new(c20_d, dLineAlpha), linewidth=2, title="[일] 20 MA")
+plot(showDaily ? ma60_d : na, color=color.new(c60_d, dLineAlpha), linewidth=2, title="[일] 60 MA")
+plot(showDaily ? ma120_d : na, color=color.new(c120_d, dLineAlpha), linewidth=1, title="[일] 120 MA")
 
 plot(showWeekly ? ma5_w : na, color=color.new(c5_w, wAlpha), linewidth=2, title="[주] 5 MA")
 plot(showWeekly ? ma20_w : na, color=color.new(c20_w, wAlpha), linewidth=2, title="[주] 20 MA")
