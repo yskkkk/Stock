@@ -480,16 +480,20 @@ f_trimZones() =>
     while array.size(zoneLbls) > maxZones
         label.delete(array.shift(zoneLbls))
 
-f_clearLblY(bool below, int extBars) =>
-    int span = math.min(extBars + 24, bar_index + 1)
+f_zoneLblPos(bool below, int extBars, float anchorY) =>
+    int span = math.min(extBars + 10, bar_index + 1)
     float hiMax = ta.highest(high, span)
     float loMin = ta.lowest(low, span)
     float barRng = hiMax - loMin
-    float pad = math.max(barRng * 0.22, zoneLblAtr * 0.85, syminfo.mintick * 80.0)
-    float estLbl = math.max(barRng * 0.26, zoneLblAtr * 1.05)
-    float edgeY = below ? loMin - pad : hiMax + pad
-    float lblY = below ? edgeY - estLbl : edgeY + estLbl
-    [edgeY, lblY]
+    float gap = math.max(barRng * 0.04, zoneLblAtr * 0.20, syminfo.mintick * 12.0)
+    float halfLbl = math.max(barRng * 0.065, zoneLblAtr * 0.30)
+    float connEnd = below ? loMin - gap : hiMax + gap
+    float lblCenter = below ? connEnd - halfLbl : connEnd + halfLbl
+    float maxReach = zoneLblAtr * 2.4
+    if math.abs(anchorY - connEnd) > maxReach
+        connEnd := below ? anchorY - maxReach : anchorY + maxReach
+        lblCenter := below ? connEnd - halfLbl : connEnd + halfLbl
+    [connEnd, lblCenter]
 
 f_drawZone(int tLeft, float sl, float zTop, float zBot, color zCol, string tag, int extBars, bool labelBelow) =>
     f_trimZones()
@@ -501,14 +505,11 @@ f_drawZone(int tLeft, float sl, float zTop, float zBot, color zCol, string tag, 
         array.push(slLines, line.new(tLeft, sl, tRight, sl, xloc=xloc.bar_time, color=cSl, width=2, style=line.style_dashed))
         array.push(zoneBoxes, box.new(tLeft, top, tRight, bot, xloc=xloc.bar_time, border_color=color.new(zCol, 40), bgcolor=cZone, border_width=1))
     if showLabels and dispZoneLabels
-        float anchorY = labelBelow ? math.min(low, bot) : math.max(high, top)
-        [edgeY, lblY] = f_clearLblY(labelBelow, extBars)
+        float anchorY = labelBelow ? low : high
+        [connEnd, lblCenter] = f_zoneLblPos(labelBelow, extBars, anchorY)
         string lblTxt = tag + "\n손절 " + str.tostring(sl, format.mintick) + "\n분할 " + str.tostring(bot, format.mintick) + "~" + str.tostring(top, format.mintick)
-        array.push(lblConnLines, line.new(tLeft, anchorY, tLeft, edgeY, xloc=xloc.bar_time, color=color.new(zCol, 40), width=1, style=line.style_dotted))
-        if labelBelow
-            array.push(zoneLbls, label.new(tLeft, lblY, lblTxt, xloc=xloc.bar_time, yloc=yloc.price, style=label.style_label_down, color=color.new(zCol, 15), textcolor=color.white, size=size.small))
-        else
-            array.push(zoneLbls, label.new(tLeft, lblY, lblTxt, xloc=xloc.bar_time, yloc=yloc.price, style=label.style_label_up, color=color.new(zCol, 15), textcolor=color.white, size=size.small))
+        array.push(lblConnLines, line.new(tLeft, anchorY, tLeft, connEnd, xloc=xloc.bar_time, color=color.new(zCol, 30), width=1, style=line.style_dotted))
+        array.push(zoneLbls, label.new(tLeft, lblCenter, lblTxt, xloc=xloc.bar_time, yloc=yloc.price, style=label.style_label_center, color=color.new(zCol, 15), textcolor=color.white, size=size.small))
 
 if anyBottom and forceBarOk and dispZones
     f_drawZone(time, slL, zoneTop, zoneBotSl, wConfirmed ? cWBottom : cBottom, bottomTag, effExtend, true)
