@@ -6,7 +6,7 @@ import { detectBookAccumulationLatest } from "./book-accumulation-detect.js";
 import { candlesForWeeklyMaScan } from "./weekly-candle-trim.js";
 import { isGoldenCrossTradable } from "./golden-cross-tradable.js";
 import { resolveDisplayName } from "./names-ko.js";
-import { loadBookAccumScanUniverse } from "./universe.js";
+import { loadBookAccumScanUniverse, BOOK_ACCUM_US_UNIVERSE_SCOPE } from "./universe.js";
 import { loadStock, runStockDataScanSession } from "./stock-data.js";
 import { runWithYahooScanTune } from "./yahoo-queue.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
@@ -18,6 +18,9 @@ import {
 import { normalizeVaultScanTimeframe } from "./vault-scan-timeframe.js";
 
 const STATE_FILE = "book-accumulation-fast-scan-state.json";
+
+/** 매집봉 고속 스캔 — 일봉·주봉 항상 (탐지 로직은 vault와 동일) */
+export const BOOK_ACCUM_FAST_TIMEFRAMES = /** @type {const} */ (["1d", "1wk"]);
 
 const FAST_LOAD_OPTS = { live: false, scan: true, scanSession: true };
 
@@ -205,30 +208,36 @@ function normalizeTimeframeSet(timeframes) {
 
 /**
  * @param {{
- *   scope?: "sp500"|"nasdaq"|"us";
+ *   scope?: "sp500"|"nasdaq"|"toss-us"|"us";
  *   market?: "kr"|"us";
  *   scanDate: string;
- *   timeframes?: import("./vault-scan-timeframe.js").VaultScanTimeframe[];
  *   mergeVault?: boolean;
  *   persistState?: boolean;
  * }} opts
  */
 export async function runBookAccumulationFastScan(opts) {
-  const scope = String(opts.scope ?? "nasdaq").trim().toLowerCase();
+  const scope = String(opts.scope ?? BOOK_ACCUM_US_UNIVERSE_SCOPE)
+    .trim()
+    .toLowerCase();
   const market =
-    opts.market ?? (scope === "nasdaq" || scope === "us" ? "us" : "kr");
+    opts.market ??
+    (scope === "toss-us" ||
+    scope === "toss" ||
+    scope === "us-full" ||
+    scope === "us" ||
+    scope === "nasdaq"
+      ? "us"
+      : "kr");
   const scanDate = String(opts.scanDate ?? "").trim();
   if (!scanDate) throw new Error("scanDate required");
 
-  const tfSet = normalizeTimeframeSet(
-    new Set(Array.isArray(opts.timeframes) ? opts.timeframes : ["1d", "1wk"]),
-  );
+  const tfSet = normalizeTimeframeSet(new Set(BOOK_ACCUM_FAST_TIMEFRAMES));
   const mergeVault = opts.mergeVault !== false;
   const persistState = opts.persistState !== false;
 
   const startedAt = performance.now();
   const uni = await loadBookAccumScanUniverse(
-    scope === "kr" ? "sp500" : scope,
+    market === "kr" ? "sp500" : BOOK_ACCUM_US_UNIVERSE_SCOPE,
   );
   const list =
     market === "kr"
@@ -274,7 +283,7 @@ export async function runBookAccumulationFastScan(opts) {
   };
 
   await runWithYahooScanTune(yahooTune, () =>
-    runStockDataScanSession({}, runLoop),
+    runStockDataScanSession({ maxKeys: 22_000, maxAgeMs: 900_000 }, runLoop),
   );
 
   if (mergeVault && hits.length) {

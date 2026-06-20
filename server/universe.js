@@ -13,10 +13,23 @@ const US_TARGET = 500;
 /** Yahoo screener exchange=NMS (Nasdaq Global Select/Market/Capital) */
 const NASDAQ_EXCHANGE = "NMS";
 
+/** 토스증권 미국주식 — NASDAQ·NYSE·NYSE American (Yahoo NMS·NYQ·ASE) */
+const TOSS_US_EXCHANGES = ["NMS", "NYQ", "ASE"];
+
 const NASDAQ_EQUITY_TARGET = (() => {
   const n = Number(process.env.STOCK_NASDAQ_UNIVERSE_TARGET ?? 4500);
   return Number.isFinite(n) && n >= 500 ? Math.min(n, 8000) : 4500;
 })();
+
+/** @type {number} 토스 미국주식 거래 가능 규모(~1만) */
+export const TOSS_US_EQUITY_TARGET = (() => {
+  const n = Number(process.env.STOCK_TOSS_US_UNIVERSE_TARGET ?? 10_000);
+  return Number.isFinite(n) && n >= 500 ? Math.min(n, 12_000) : 10_000;
+})();
+
+const TOSS_US_UNIVERSE_CACHE_MS = 6 * 60 * 60_000;
+/** @type {{ list: Array<{ symbol: string; name: string }>; at: number } | null} */
+let tossUsUniverseCache = null;
 
 const BOX_SCAN_KR_TARGET = (() => {
   const n = Number(process.env.STOCK_BOX_RANGE_KR_TARGET ?? KR_TARGET);
@@ -197,7 +210,7 @@ export async function fetchExchangeEquityUniverse(region, exchange, target) {
 
   for (
     let offset = 0;
-    offset < Math.max(target * 3, 1000) && out.length < target;
+    offset < Math.max(target * 4, 16_000) && out.length < target;
     offset += 250
   ) {
     try {
@@ -237,13 +250,97 @@ export async function fetchNasdaqEquityUniverse(
 }
 
 /**
- * 매집봉 고속 스캔 유니버스
- * @param {"sp500"|"nasdaq"|"us"} scope
+ * US region EQUITY — exchange 필터 없이 screener 페이지네이션
+ * @param {number} target
  */
-export async function loadBookAccumScanUniverse(scope = "sp500") {
-  const key = String(scope ?? "sp500")
+async function fetchUsEquityRegionWide(target) {
+  await getYahooSession();
+  const out = [];
+  const seen = new Set();
+
+  for (
+    let offset = 0;
+    offset < 24_000 && out.length < target;
+    offset += 250
+  ) {
+    try {
+      const page = await fetchScreenerPage("us", offset, 250);
+      for (const item of page) {
+        if (!seen.has(item.symbol)) {
+          seen.add(item.symbol);
+          out.push(item);
+        }
+      }
+      if (page.length < 50) break;
+    } catch (e) {
+      console.warn(
+        "[universe] US region screener:",
+        e instanceof Error ? e.message : e,
+      );
+      break;
+    }
+  }
+
+  return out.slice(0, target);
+}
+
+/**
+ * 토스증권 미국주식 범위 — NMS·NYQ·ASE 병합 + 부족 시 US region 보충
+ * @param {number} [target]
+ */
+export async function fetchTossUsEquityUniverse(
+  target = TOSS_US_EQUITY_TARGET,
+) {
+  if (
+    tossUsUniverseCache?.list?.length &&
+    Date.now() - tossUsUniverseCache.at < TOSS_US_UNIVERSE_CACHE_MS
+  ) {
+    return tossUsUniverseCache.list.slice(0, target);
+  }
+
+  /** @type {Array<{ symbol: string; name: string }>[]} */
+  const parts = [];
+  const perEx = Math.ceil(target / TOSS_US_EXCHANGES.length) + 200;
+  for (const ex of TOSS_US_EXCHANGES) {
+    parts.push(await fetchExchangeEquityUniverse("us", ex, perEx));
+  }
+  let merged = mergeSymbolUniverse(...parts);
+  if (merged.length < target * 0.75) {
+    merged = mergeSymbolUniverse(
+      merged,
+      await fetchUsEquityRegionWide(target),
+    );
+  }
+  merged = merged.slice(0, target);
+  tossUsUniverseCache = { list: merged, at: Date.now() };
+  console.info("[universe] toss-us equity", {
+    count: merged.length,
+    target,
+    exchanges: TOSS_US_EXCHANGES,
+  });
+  return merged;
+}
+
+/** 매집봉(US) 스캔 SSOT scope */
+export const BOOK_ACCUM_US_UNIVERSE_SCOPE = "toss-us";
+
+/**
+ * 매집봉 스캔 유니버스
+ * @param {"sp500"|"nasdaq"|"toss-us"|"us"} scope
+ */
+export async function loadBookAccumScanUniverse(scope = BOOK_ACCUM_US_UNIVERSE_SCOPE) {
+  const key = String(scope ?? BOOK_ACCUM_US_UNIVERSE_SCOPE)
     .trim()
     .toLowerCase();
+  if (
+    key === "toss-us" ||
+    key === "toss" ||
+    key === "us-full" ||
+    key === "us"
+  ) {
+    const us = await fetchTossUsEquityUniverse();
+    return { kr: [], us, scope: BOOK_ACCUM_US_UNIVERSE_SCOPE };
+  }
   if (key === "nasdaq") {
     const us = await fetchNasdaqEquityUniverse();
     return { kr: [], us, scope: "nasdaq" };
@@ -252,7 +349,7 @@ export async function loadBookAccumScanUniverse(scope = "sp500") {
   return {
     kr: Array.isArray(uni?.kr) ? uni.kr : [],
     us: Array.isArray(uni?.us) ? uni.us : [],
-    scope: key === "us" ? "us" : "sp500",
+    scope: "sp500",
   };
 }
 

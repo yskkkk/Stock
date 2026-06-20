@@ -2703,9 +2703,6 @@ export function createApp() {
       );
       const body = req.body && typeof req.body === "object" ? req.body : {};
       const result = triggerBookAccumFastScan({
-        scope: body.scope,
-        market: body.market,
-        timeframes: body.timeframes,
         mergeVault: body.mergeVault,
       });
       if (!result.started) {

@@ -1,15 +1,16 @@
 import { Worker } from "node:worker_threads";
-import { getKstParts } from "./kr-business-day.js";
 import {
   bookAccumFastScanEnabled,
   getBookAccumulationFastScanStateSync,
+  BOOK_ACCUM_FAST_TIMEFRAMES,
 } from "./book-accumulation-fast-scan.js";
+import { BOOK_ACCUM_US_UNIVERSE_SCOPE } from "./universe.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 
 const WORKER_URL = new URL("./book-accumulation-fast-worker.js", import.meta.url);
 const WORKER_TIMEOUT_MS = (() => {
-  const n = Number(process.env.STOCK_BOOK_ACCUM_FAST_TIMEOUT_MS ?? 90 * 60_000);
-  return Number.isFinite(n) && n >= 60_000 ? Math.min(n, 180 * 60_000) : 90 * 60_000;
+  const n = Number(process.env.STOCK_BOOK_ACCUM_FAST_TIMEOUT_MS ?? 240 * 60_000);
+  return Number.isFinite(n) && n >= 60_000 ? Math.min(n, 360 * 60_000) : 240 * 60_000;
 })();
 
 let fastScanRunning = false;
@@ -61,12 +62,7 @@ function localUsDateKey(now = new Date()) {
 }
 
 /**
- * @param {{
- *   scope?: "sp500"|"nasdaq"|"us";
- *   market?: "kr"|"us";
- *   timeframes?: ("1d"|"1wk")[];
- *   mergeVault?: boolean;
- * }} [body]
+ * @param {{ mergeVault?: boolean }} [body]
  * @returns {{ started: boolean; reason?: string }}
  */
 export function triggerBookAccumFastScan(body = {}) {
@@ -77,18 +73,14 @@ export function triggerBookAccumFastScan(body = {}) {
     return { started: false, reason: "busy" };
   }
 
-  const scope = String(body.scope ?? "nasdaq").trim().toLowerCase();
-  const market =
-    body.market ?? (scope === "nasdaq" || scope === "us" ? "us" : "kr");
   const now = new Date();
-  const scanDate =
-    market === "kr" ? getKstParts(now).dateKey : localUsDateKey(now);
+  const scanDate = localUsDateKey(now);
 
   const scanOpts = {
-    scope,
-    market,
+    scope: BOOK_ACCUM_US_UNIVERSE_SCOPE,
+    market: "us",
     scanDate,
-    timeframes: Array.isArray(body.timeframes) ? body.timeframes : ["1d", "1wk"],
+    timeframes: [...BOOK_ACCUM_FAST_TIMEFRAMES],
     mergeVault: body.mergeVault !== false,
   };
 

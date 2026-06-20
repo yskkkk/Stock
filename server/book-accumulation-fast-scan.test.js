@@ -31,6 +31,13 @@ beforeEach(() => {
   loadStock.mockReset();
 });
 
+test("BOOK_ACCUM_FAST_TIMEFRAMES always includes daily and weekly", async () => {
+  const { BOOK_ACCUM_FAST_TIMEFRAMES } = await import(
+    "./book-accumulation-fast-scan.js"
+  );
+  assert.deepEqual(BOOK_ACCUM_FAST_TIMEFRAMES, ["1d", "1wk"]);
+});
+
 test("scanOneSymbolBookAccumFast fetches 1d once for both timeframes", async () => {
   const daily = {
     candles: [{ close: 1 }, { close: 2 }, { close: 3 }],
