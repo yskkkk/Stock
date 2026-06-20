@@ -469,6 +469,10 @@ var box[]  zoneBoxes = array.new_box()
 var line[] slLines   = array.new_line()
 var line[] lblConnLines = array.new_line()
 var label[] zoneLbls = array.new_label()
+var int zoneLblLastBarB = na
+var int zoneLblStackB = 0
+var int zoneLblLastBarT = na
+var int zoneLblStackT = 0
 
 f_trimZones() =>
     while array.size(zoneBoxes) > maxZones
@@ -480,22 +484,18 @@ f_trimZones() =>
     while array.size(zoneLbls) > maxZones
         label.delete(array.shift(zoneLbls))
 
-f_zoneLblPos(bool below, int extBars, float anchorY) =>
-    int span = math.min(extBars + 10, bar_index + 1)
+f_zoneLblPos(bool below, int extBars, int lblStack) =>
+    int span = math.min(extBars + 12, bar_index + 1)
     float hiMax = ta.highest(high, span)
     float loMin = ta.lowest(low, span)
-    float barRng = hiMax - loMin
-    float gap = math.max(barRng * 0.04, zoneLblAtr * 0.20, syminfo.mintick * 12.0)
-    float halfLbl = math.max(barRng * 0.065, zoneLblAtr * 0.30)
-    float connEnd = below ? loMin - gap : hiMax + gap
-    float lblCenter = below ? connEnd - halfLbl : connEnd + halfLbl
-    float maxReach = zoneLblAtr * 2.4
-    if math.abs(anchorY - connEnd) > maxReach
-        connEnd := below ? anchorY - maxReach : anchorY + maxReach
-        lblCenter := below ? connEnd - halfLbl : connEnd + halfLbl
+    float gap = zoneLblAtr * 0.35
+    float lblH = zoneLblAtr * 1.45
+    float stackOff = lblStack * lblH * 1.15
+    float connEnd = below ? loMin - gap - stackOff : hiMax + gap + stackOff
+    float lblCenter = below ? connEnd - lblH * 0.55 : connEnd + lblH * 0.55
     [connEnd, lblCenter]
 
-f_drawZone(int tLeft, float sl, float zTop, float zBot, color zCol, string tag, int extBars, bool labelBelow) =>
+f_drawZone(int bLeft, int tLeft, float sl, float zTop, float zBot, color zCol, string tag, int extBars, bool labelBelow, int lblStack) =>
     f_trimZones()
     int tfMs = timeframe.in_seconds() * 1000
     int tRight = tLeft + extBars * tfMs
@@ -506,16 +506,20 @@ f_drawZone(int tLeft, float sl, float zTop, float zBot, color zCol, string tag, 
         array.push(zoneBoxes, box.new(tLeft, top, tRight, bot, xloc=xloc.bar_time, border_color=color.new(zCol, 40), bgcolor=cZone, border_width=1))
     if showLabels and dispZoneLabels
         float anchorY = labelBelow ? low : high
-        [connEnd, lblCenter] = f_zoneLblPos(labelBelow, extBars, anchorY)
+        [connEnd, lblCenter] = f_zoneLblPos(labelBelow, extBars, lblStack)
         string lblTxt = tag + "\n손절 " + str.tostring(sl, format.mintick) + "\n분할 " + str.tostring(bot, format.mintick) + "~" + str.tostring(top, format.mintick)
-        array.push(lblConnLines, line.new(tLeft, anchorY, tLeft, connEnd, xloc=xloc.bar_time, color=color.new(zCol, 30), width=1, style=line.style_dotted))
-        array.push(zoneLbls, label.new(tLeft, lblCenter, lblTxt, xloc=xloc.bar_time, yloc=yloc.price, style=label.style_label_center, color=color.new(zCol, 15), textcolor=color.white, size=size.small))
+        array.push(lblConnLines, line.new(bLeft, anchorY, bLeft, connEnd, xloc=xloc.bar_index, color=color.new(zCol, 0), width=2, style=line.style_dashed))
+        array.push(zoneLbls, label.new(bLeft, lblCenter, lblTxt, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_center, color=color.new(zCol, 15), textcolor=color.white, size=size.small))
 
 if anyBottom and forceBarOk and dispZones
-    f_drawZone(time, slL, zoneTop, zoneBotSl, wConfirmed ? cWBottom : cBottom, bottomTag, effExtend, true)
+    zoneLblStackB := bar_index - zoneLblLastBarB <= 10 ? zoneLblStackB + 1 : 0
+    zoneLblLastBarB := bar_index
+    f_drawZone(bar_index, time, slL, zoneTop, zoneBotSl, wConfirmed ? cWBottom : cBottom, bottomTag, effExtend, true, zoneLblStackB)
 
 if topClassic and forceBarOk and dispZones
-    f_drawZone(time, zoneTop, zoneTop, zoneBotSl, cTop, "상투", effExtend, false)
+    zoneLblStackT := bar_index - zoneLblLastBarT <= 10 ? zoneLblStackT + 1 : 0
+    zoneLblLastBarT := bar_index
+    f_drawZone(bar_index, time, zoneTop, zoneTop, zoneBotSl, cTop, "상투", effExtend, false, zoneLblStackT)
 
 // ── 세력 캔들·매집 마커 ───────────────────────────────────────────────
 plotshape(forceBarOk and dispWBottom and anyBottom and bottomClassic and wConfirmed, title="W바닥확인", style=shape.triangleup, location=location.belowbar, color=cWBottom, size=size.large, text="W")
