@@ -484,15 +484,29 @@ f_trimZones() =>
     while array.size(zoneLbls) > maxZones
         label.delete(array.shift(zoneLbls))
 
-f_zoneLblPos(bool below, int extBars, int lblStack) =>
-    int span = math.min(extBars + 12, bar_index + 1)
-    float hiMax = ta.highest(high, span)
-    float loMin = ta.lowest(low, span)
-    float gap = zoneLblAtr * 0.35
-    float lblH = zoneLblAtr * 1.45
-    float stackOff = lblStack * lblH * 1.15
-    float connEnd = below ? loMin - gap - stackOff : hiMax + gap + stackOff
-    float lblCenter = below ? connEnd - lblH * 0.55 : connEnd + lblH * 0.55
+f_zoneLblPos(bool below, float anchorY, int lblStack) =>
+    int span = math.min(4, bar_index + 1)
+    float hiNear = math.max(high, ta.highest(high, span))
+    float loNear = math.min(low, ta.lowest(low, span))
+    float gap = zoneLblAtr * 0.20
+    float lblHalf = zoneLblAtr * 0.58
+    float stackStep = lblHalf * 2.35
+    float stackOff = lblStack * stackStep
+    float edge = below ? loNear - gap - stackOff : hiNear + gap + stackOff
+    float lblCenter = below ? edge - lblHalf : edge + lblHalf
+    float maxDist = zoneLblAtr * 2.6
+    lblCenter := below ? math.max(lblCenter, anchorY - maxDist) : math.min(lblCenter, anchorY + maxDist)
+    float connEnd = below ? lblCenter + lblHalf : lblCenter - lblHalf
+    if below
+        float maxConn = loNear - gap - stackOff
+        if connEnd > maxConn
+            connEnd := maxConn
+            lblCenter := connEnd - lblHalf
+    else
+        float minConn = hiNear + gap + stackOff
+        if connEnd < minConn
+            connEnd := minConn
+            lblCenter := connEnd + lblHalf
     [connEnd, lblCenter]
 
 f_drawZone(int bLeft, int tLeft, float sl, float zTop, float zBot, color zCol, string tag, int extBars, bool labelBelow, int lblStack) =>
@@ -506,28 +520,30 @@ f_drawZone(int bLeft, int tLeft, float sl, float zTop, float zBot, color zCol, s
         array.push(zoneBoxes, box.new(tLeft, top, tRight, bot, xloc=xloc.bar_time, border_color=color.new(zCol, 40), bgcolor=cZone, border_width=1))
     if showLabels and dispZoneLabels
         float anchorY = labelBelow ? low : high
-        [connEnd, lblCenter] = f_zoneLblPos(labelBelow, extBars, lblStack)
+        [connEnd, lblCenter] = f_zoneLblPos(labelBelow, anchorY, lblStack)
         string lblTxt = tag + "\n손절 " + str.tostring(sl, format.mintick) + "\n분할 " + str.tostring(bot, format.mintick) + "~" + str.tostring(top, format.mintick)
-        array.push(lblConnLines, line.new(bLeft, anchorY, bLeft, connEnd, xloc=xloc.bar_index, color=color.new(zCol, 0), width=2, style=line.style_dashed))
+        array.push(lblConnLines, line.new(bLeft, anchorY, bLeft, connEnd, xloc=xloc.bar_index, extend=extend.none, color=color.new(zCol, 0), width=2, style=line.style_dashed))
         array.push(zoneLbls, label.new(bLeft, lblCenter, lblTxt, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_center, color=color.new(zCol, 15), textcolor=color.white, size=size.small))
 
+bool zoneLblOn = showLabels and dispZoneLabels
+
 if anyBottom and forceBarOk and dispZones
-    zoneLblStackB := bar_index - zoneLblLastBarB <= 10 ? zoneLblStackB + 1 : 0
+    zoneLblStackB := not na(zoneLblLastBarB) and bar_index - zoneLblLastBarB <= 8 ? zoneLblStackB + 1 : 0
     zoneLblLastBarB := bar_index
     f_drawZone(bar_index, time, slL, zoneTop, zoneBotSl, wConfirmed ? cWBottom : cBottom, bottomTag, effExtend, true, zoneLblStackB)
 
 if topClassic and forceBarOk and dispZones
-    zoneLblStackT := bar_index - zoneLblLastBarT <= 10 ? zoneLblStackT + 1 : 0
+    zoneLblStackT := not na(zoneLblLastBarT) and bar_index - zoneLblLastBarT <= 8 ? zoneLblStackT + 1 : 0
     zoneLblLastBarT := bar_index
     f_drawZone(bar_index, time, zoneTop, zoneTop, zoneBotSl, cTop, "상투", effExtend, false, zoneLblStackT)
 
 // ── 세력 캔들·매집 마커 ───────────────────────────────────────────────
-plotshape(forceBarOk and dispWBottom and anyBottom and bottomClassic and wConfirmed, title="W바닥확인", style=shape.triangleup, location=location.belowbar, color=cWBottom, size=size.large, text="W")
-plotshape(forceBarOk and dispBottomClassic and anyBottom and bottomClassic and not wConfirmed, title="바닥·전형", style=shape.triangleup, location=location.belowbar, color=cBottom, size=size.normal, text="바닥")
-plotshape(forceBarOk and dispBottomVar and anyBottom and not bottomClassic, title="바닥·변주", style=shape.triangleup, location=location.belowbar, color=cBottomV, size=size.small, text="변주")
+plotshape(forceBarOk and dispWBottom and anyBottom and bottomClassic and wConfirmed and not zoneLblOn, title="W바닥확인", style=shape.triangleup, location=location.belowbar, color=cWBottom, size=size.large, text="W")
+plotshape(forceBarOk and dispBottomClassic and anyBottom and bottomClassic and not wConfirmed and not zoneLblOn, title="바닥·전형", style=shape.triangleup, location=location.belowbar, color=cBottom, size=size.normal, text="바닥")
+plotshape(forceBarOk and dispBottomVar and anyBottom and not bottomClassic and not zoneLblOn, title="바닥·변주", style=shape.triangleup, location=location.belowbar, color=cBottomV, size=size.small, text="변주")
 plotshape(forceBarOk and dispPinBear and pinBear, title="하락 바람개비", style=shape.triangledown, location=location.abovebar, color=cPinDn, size=size.tiny, text="↓")
 plotshape(forceBarOk and dispPinBull and pinBull, title="상승 바람개비", style=shape.triangleup, location=location.belowbar, color=cPinUp, size=size.tiny, text="↑")
-plotshape(forceBarOk and dispTop and topClassic, title="상투", style=shape.triangledown, location=location.abovebar, color=cTop, size=size.normal, text="상투")
+plotshape(forceBarOk and dispTop and topClassic and not zoneLblOn, title="상투", style=shape.triangledown, location=location.abovebar, color=cTop, size=size.normal, text="상투")
 plotshape(forceBarOk and dispPivot and pivotForming, title="변곡점", style=shape.cross, location=location.belowbar, color=color.new(#FFC107, 0), size=size.tiny)
 plotshape(accumBarOk and dispAccum and anyAccum, title="책 매집봉", style=shape.triangleup, location=location.belowbar, color=cAccum, size=size.normal, text="매집")
 
