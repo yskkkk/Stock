@@ -537,26 +537,13 @@ f_nearHiAt(int b) =>
 f_laneCtrHist(bool below, int lane, float hLo, float hHi) =>
     below ? hLo - zoneLblGap - zoneLblHalf - zoneLblStep * lane : hHi + zoneLblGap + zoneLblHalf + zoneLblStep * lane
 
-f_laneClashB(int b, float ctr, int[] bars, float[] ys) =>
-    bool hit = false
+f_nearLane(int b, int[] bars) =>
+    int lane = 0
     int n = array.size(bars)
     if n > 0
-        for i = 0 to n - 1
-            int bPast = array.get(bars, i)
-            if math.abs(b - bPast) > zoneLblProx
-                continue
-            if math.abs(ctr - array.get(ys, i)) < zoneLblStep * 0.92
-                hit := true
-                break
-    hit
-
-f_nextLaneHist(bool below, int b, float hLo, float hHi, int[] bars, float[] ys) =>
-    int lane = 0
-    bool clash = true
-    while clash and lane < 10
-        clash := f_laneClashB(b, f_laneCtrHist(below, lane, hLo, hHi), bars, ys)
-        if clash
-            lane += 1
+        for j = 0 to n - 1
+            if math.abs(b - array.get(bars, j)) <= zoneLblProx
+                lane += 1
     lane
 
 f_lblTxt(ZoneLblRec r) =>
@@ -602,27 +589,19 @@ f_redrawZoneLbls() =>
         int n = array.size(lblRecs)
         if n > 0
             int[] dBB = array.new_int()
-            float[] dBY = array.new_float()
             int[] dTB = array.new_int()
-            float[] dTY = array.new_float()
             for i = 0 to n - 1
                 ZoneLblRec r = array.get(lblRecs, i)
                 if r.t >= visL and r.t <= visR and r.isBtm
-                    float hLo = f_nearLoAt(r.b)
-                    float hHi = f_nearHiAt(r.b)
-                    int lane = f_nextLaneHist(true, r.b, hLo, hHi, dBB, dBY)
-                    float ctr = f_drawLblRec(r, lane)
+                    int lane = f_nearLane(r.b, dBB)
+                    f_drawLblRec(r, lane)
                     array.push(dBB, r.b)
-                    array.push(dBY, ctr)
             for i = 0 to n - 1
                 ZoneLblRec r = array.get(lblRecs, i)
                 if r.t >= visL and r.t <= visR and not r.isBtm
-                    float hLo = f_nearLoAt(r.b)
-                    float hHi = f_nearHiAt(r.b)
-                    int lane = f_nextLaneHist(false, r.b, hLo, hHi, dTB, dTY)
-                    float ctr = f_drawLblRec(r, lane)
+                    int lane = f_nearLane(r.b, dTB)
+                    f_drawLblRec(r, lane)
                     array.push(dTB, r.b)
-                    array.push(dTY, ctr)
 
 f_drawZone(int bLeft, int tLeft, float sl, float zTop, float zBot, color zCol, string tag, int extBars) =>
     f_trimZoneBoxes()
