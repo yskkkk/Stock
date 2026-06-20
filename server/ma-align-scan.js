@@ -167,6 +167,9 @@ export async function runMaAlignMarketScan(market, scanDate, opts = {}) {
 
   /** @type {Awaited<ReturnType<typeof scanOneSymbol>>[]} */
   const hits = [];
+  const onProgress = typeof opts.onProgress === "function" ? opts.onProgress : null;
+  const total = list.length;
+  onProgress?.({ scanned: 0, total, phase: "running" });
 
   for (let i = 0; i < list.length; i += BATCH_SIZE) {
     const batch = list.slice(i, i + BATCH_SIZE);
@@ -176,10 +179,16 @@ export async function runMaAlignMarketScan(market, scanDate, opts = {}) {
     for (const r of results) {
       if (r) hits.push(r);
     }
+    onProgress?.({
+      scanned: Math.min(i + batch.length, total),
+      total,
+      phase: "running",
+    });
     if (i + BATCH_SIZE < list.length && BATCH_DELAY_MS > 0) {
       await delay(BATCH_DELAY_MS);
     }
   }
+  onProgress?.({ scanned: total, total, phase: "done" });
 
   if (persistState) {
     const state = readState();

@@ -186,6 +186,9 @@ export async function runBookAccumulationMarketScan(market, scanDate, opts = {})
   /** @type {NonNullable<Awaited<ReturnType<typeof scanOneSymbol>>["hit"]>[]} */
   const hits = [];
   let errors = 0;
+  const onProgress = typeof opts.onProgress === "function" ? opts.onProgress : null;
+  const total = list.length;
+  onProgress?.({ scanned: 0, total, phase: "running" });
 
   for (let i = 0; i < list.length; i += BATCH_SIZE) {
     const batch = list.slice(i, i + BATCH_SIZE);
@@ -199,10 +202,16 @@ export async function runBookAccumulationMarketScan(market, scanDate, opts = {})
       }
       if (r.hit) hits.push(r.hit);
     }
+    onProgress?.({
+      scanned: Math.min(i + batch.length, total),
+      total,
+      phase: "running",
+    });
     if (i + BATCH_SIZE < list.length && BATCH_DELAY_MS > 0) {
       await delay(BATCH_DELAY_MS);
     }
   }
+  onProgress?.({ scanned: total, total, phase: "done" });
 
   if (persistState) {
     const state = readState();

@@ -1308,6 +1308,7 @@ export const ko = {
     scanConfirmOk: "탐색 시작",
     scanConfirmCancel: "취소",
     scanRunning: "탐색 중…",
+    scanProgressAria: "스캔 진행",
     scanDone: "탐색 완료",
     scanBusy: "이미 탐색이 진행 중입니다.",
     scanDisabled: "골든크로스 탐색이 비활성화되어 있습니다.",

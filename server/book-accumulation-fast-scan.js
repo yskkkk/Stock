@@ -16,6 +16,11 @@ import {
   mergeBookAccumHitsIntoVaultSync,
 } from "./stock-vault-store.js";
 import { normalizeVaultScanTimeframe } from "./vault-scan-timeframe.js";
+import {
+  beginVaultScanProgressSession,
+  endVaultScanProgressSession,
+  vaultScanProgressReporter,
+} from "./vault-scan-progress.js";
 
 const STATE_FILE = "book-accumulation-fast-scan-state.json";
 
@@ -259,10 +264,16 @@ export async function runBookAccumulationFastScan(opts) {
   const batchSize = fastBatchSize();
   const batchDelay = fastBatchDelayMs();
   const yahooTune = fastYahooTune();
+  const onProgress = vaultScanProgressReporter("book_accum_fast", market, "1d");
+  const total = list.length;
 
   /** @type {NonNullable<ReturnType<typeof buildHitIfAny>>[]} */
   const hits = [];
   let errors = 0;
+
+  beginVaultScanProgressSession(`book-accum-fast-${scanDate}-${Date.now()}`);
+  try {
+  onProgress({ scanned: 0, total, phase: "running" });
 
   const runLoop = async () => {
     for (let i = 0; i < list.length; i += batchSize) {
@@ -276,10 +287,16 @@ export async function runBookAccumulationFastScan(opts) {
         if (!r.ok) errors += 1;
         else if (r.hits.length) hits.push(...r.hits);
       }
+      onProgress({
+        scanned: Math.min(i + batch.length, total),
+        total,
+        phase: "running",
+      });
       if (i + batchSize < list.length && batchDelay > 0) {
         await delay(batchDelay);
       }
     }
+    onProgress({ scanned: total, total, phase: "done" });
   };
 
   await runWithYahooScanTune(yahooTune, () =>
@@ -339,6 +356,9 @@ export async function runBookAccumulationFastScan(opts) {
   });
 
   return out;
+  } finally {
+    endVaultScanProgressSession();
+  }
 }
 
 export function getBookAccumulationFastScanStateSync() {

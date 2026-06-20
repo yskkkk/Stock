@@ -15,6 +15,11 @@ import {
   notifyBottomCandleScanStartTelegram,
 } from "./golden-cross-telegram.js";
 import { sendGoldenCrossScanReportEmail } from "./notifications/golden-cross-scan-email.js";
+import {
+  beginVaultScanProgressSession,
+  endVaultScanProgressSession,
+  vaultScanProgressReporter,
+} from "./vault-scan-progress.js";
 
 const POLL_MS = (() => {
   const n = Number(process.env.STOCK_BOTTOM_CANDLE_POLL_MS ?? 3_600_000);
@@ -32,6 +37,10 @@ export function bottomCandleScanEnabled() {
 
 export function isBottomCandleManualScanRunning() {
   return manualScanRunning;
+}
+
+export function isBottomCandleScanRunning() {
+  return manualScanRunning || scheduledScanRunning;
 }
 
 export function getLastBottomCandleManualScanResult() {
@@ -60,6 +69,7 @@ async function runMarketTimeframeScan(market, scanDate, timeframe) {
   const result = await runBottomCandleMarketScan(market, scanDate, {
     timeframe,
     persistState: true,
+    onProgress: vaultScanProgressReporter("bottom_candle", market, timeframe),
   });
   if (result.hits.length) {
     mergeBottomCandleHitsIntoVaultSync(result.hits);
@@ -76,6 +86,8 @@ export async function runFullBottomCandleScanInternal(now = new Date(), trigger 
     trigger,
     scanDate: kstDate,
   }).catch(() => {});
+  beginVaultScanProgressSession(runId);
+  try {
   /** @type {Array<{ market: "kr"|"us"; timeframe: string; scanDate: string; scanned: number; hitCount: number }>} */
   const results = [];
   /** @type {import("./notifications/golden-cross-scan-email.js").BottomCandleEmailMarket[]} */
@@ -163,6 +175,9 @@ export async function runFullBottomCandleScanInternal(now = new Date(), trigger 
 
   lastManualScanResult = { atMs: Date.now(), results };
   return lastManualScanResult;
+  } finally {
+    endVaultScanProgressSession();
+  }
 }
 
 /** @returns {{ started: boolean; reason?: string }} */

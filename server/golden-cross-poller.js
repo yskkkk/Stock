@@ -41,6 +41,11 @@ import { markPollerBootStarted, pollerGuardAsync } from "./poller-registry.js";
 import { isStockTradableBySchedule } from "./market-hours.js";
 import { VAULT_SCAN_TIMEFRAMES } from "./vault-scan-timeframe.js";
 import { buildMarketTimeframeIntersections } from "./vault-scan-intersection.js";
+import {
+  beginVaultScanProgressSession,
+  endVaultScanProgressSession,
+  vaultScanProgressReporter,
+} from "./vault-scan-progress.js";
 
 const POLL_MS = (() => {
   const n = Number(process.env.STOCK_GOLDEN_CROSS_POLL_MS ?? 300_000);
@@ -194,32 +199,62 @@ async function runVaultMarketScansForTimeframe(
   const persistScanState = opts.persistScanState !== false;
   const appendHistory = opts.appendHistory !== false;
   const scanOpts = { persistState: persistScanState, timeframe };
+  const progress = (kind) =>
+    vaultScanProgressReporter(kind, market, timeframe);
 
   const timedResults =
     timeframe === "1d"
       ? await Promise.all([
-          timeMarketScan(() => runGoldenCrossMarketScan(market, scanDate, scanOpts)),
-          timeMarketScan(() => runMaAlignMarketScan(market, scanDate, scanOpts)),
           timeMarketScan(() =>
-            runMa120NearMarketScan(market, scanDate, { persistState: persistScanState }),
+            runGoldenCrossMarketScan(market, scanDate, {
+              ...scanOpts,
+              onProgress: progress("golden_cross"),
+            }),
+          ),
+          timeMarketScan(() =>
+            runMaAlignMarketScan(market, scanDate, {
+              ...scanOpts,
+              onProgress: progress("ma_align"),
+            }),
+          ),
+          timeMarketScan(() =>
+            runMa120NearMarketScan(market, scanDate, {
+              persistState: persistScanState,
+              onProgress: progress("ma120_near"),
+            }),
           ),
           timeMarketScan(() =>
             runBookAccumulationMarketScan(market, scanDate, {
               persistState: persistScanState,
               timeframe,
+              onProgress: progress("book_accum"),
             }),
           ),
         ])
       : await Promise.all([
-          timeMarketScan(() => runGoldenCrossMarketScan(market, scanDate, scanOpts)),
-          timeMarketScan(() => runMaAlignMarketScan(market, scanDate, scanOpts)),
           timeMarketScan(() =>
-            runCandleLowSlopeMarketScan(market, scanDate, { persistState: persistScanState }),
+            runGoldenCrossMarketScan(market, scanDate, {
+              ...scanOpts,
+              onProgress: progress("golden_cross"),
+            }),
+          ),
+          timeMarketScan(() =>
+            runMaAlignMarketScan(market, scanDate, {
+              ...scanOpts,
+              onProgress: progress("ma_align"),
+            }),
+          ),
+          timeMarketScan(() =>
+            runCandleLowSlopeMarketScan(market, scanDate, {
+              persistState: persistScanState,
+              onProgress: progress("low_slope_flip"),
+            }),
           ),
           timeMarketScan(() =>
             runBookAccumulationMarketScan(market, scanDate, {
               persistState: persistScanState,
               timeframe,
+              onProgress: progress("book_accum"),
             }),
           ),
         ]);
@@ -742,6 +777,7 @@ export function triggerGoldenCrossManualScan() {
   }
   manualScanRunning = true;
   vaultScanRunning = true;
+  beginVaultScanProgressSession(runId);
   void runGoldenCrossManualScanInternal()
     .catch((e) => {
       liveTradeLogWarn(
@@ -750,6 +786,7 @@ export function triggerGoldenCrossManualScan() {
       );
     })
     .finally(() => {
+      endVaultScanProgressSession();
       manualScanRunning = false;
       vaultScanRunning = false;
     });
@@ -796,6 +833,7 @@ export async function runGoldenCrossScanIfDue(market, now = new Date()) {
   vaultScanRunning = true;
   /** @type {import("./golden-cross-telegram.js").VaultScanTimingRow[]} */
   let scanTimings = [];
+  beginVaultScanProgressSession(runId);
   try {
     const scanResult = await runVaultMarketScans(
       market,
@@ -828,6 +866,7 @@ export async function runGoldenCrossScanIfDue(market, now = new Date()) {
     }).catch(() => {});
     return { goldenCross, maAlign, ma120Near: byTimeframe["1d"]?.ma120Near };
   } finally {
+    endVaultScanProgressSession();
     vaultScanRunning = false;
   }
 }

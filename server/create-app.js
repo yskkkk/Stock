@@ -2574,16 +2574,30 @@ export function createApp() {
         goldenCrossScanEnabled,
         getLastGoldenCrossManualScanResult,
         isGoldenCrossManualScanRunning,
+        isVaultMarketScanRunning,
       } = await import("./golden-cross-poller.js");
       const { getBottomCandleScanStateSync } = await import("./bottom-candle-scan.js");
       const {
         bottomCandleScanEnabled,
         getLastBottomCandleManualScanResult,
         isBottomCandleManualScanRunning,
+        isBottomCandleScanRunning,
       } = await import("./bottom-candle-poller.js");
+      const { isBookAccumFastScanRunning } = await import(
+        "./book-accumulation-fast-poller.js"
+      );
+      const { getVaultScanProgressSync } = await import("./vault-scan-progress.js");
+      const vaultRunning = isVaultMarketScanRunning();
+      const bottomRunning = isBottomCandleScanRunning();
+      const bookAccumFastRunning = isBookAccumFastScanRunning();
+      const progress = getVaultScanProgressSync();
       res.json({
         enabled: goldenCrossScanEnabled(),
-        running: isGoldenCrossManualScanRunning(),
+        running: vaultRunning || bottomRunning || bookAccumFastRunning,
+        vaultRunning,
+        bottomCandleRunning: bottomRunning,
+        bookAccumFastRunning,
+        progress,
         lastManualScan: getLastGoldenCrossManualScanResult(),
         goldenCross: { state: getGoldenCrossScanStateSync() },
         maAlign: { state: getMaAlignScanStateSync() },
@@ -2592,7 +2606,7 @@ export function createApp() {
         bookAccum: { state: getBookAccumulationScanStateSync() },
         bottomCandle: {
           enabled: bottomCandleScanEnabled(),
-          running: isBottomCandleManualScanRunning(),
+          running: isBottomCandleScanRunning(),
           lastManualScan: getLastBottomCandleManualScanResult(),
           state: getBottomCandleScanStateSync(),
         },

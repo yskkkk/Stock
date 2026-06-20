@@ -807,9 +807,31 @@ export interface Ma120NearHistoryResponse {
   entries?: Ma120NearHistoryEntry[];
 }
 
+export interface VaultScanProgressRow {
+  kind: string;
+  market: "kr" | "us" | null;
+  timeframe: "1d" | "1wk" | null;
+  scanned: number;
+  total: number;
+  phase: "running" | "done" | "pending" | "error";
+  label: string;
+  pct: number;
+  atMs: number;
+}
+
+export interface VaultScanProgress {
+  sessionId: string | null;
+  active: boolean;
+  rows: VaultScanProgressRow[];
+}
+
 export interface StockVaultScanStatus {
   enabled: boolean;
   running: boolean;
+  vaultRunning?: boolean;
+  bottomCandleRunning?: boolean;
+  bookAccumFastRunning?: boolean;
+  progress?: VaultScanProgress | null;
   lastManualScan: {
     atMs: number;
     goldenCross: Array<{

@@ -8,6 +8,7 @@ import {
 } from "react";
 import IndustryFilterPanel from "./IndustryFilterPanel";
 import StockVaultLastScanTable from "./StockVaultLastScanTable";
+import { StockVaultScanProgress } from "./StockVaultScanProgress";
 import {
   fetchGoldenCrossHistory,
   fetchGoldenCrossStatus,
@@ -62,6 +63,7 @@ import {
   VAULT_LIST_INITIAL_ROWS,
   VAULT_LIST_ROW_STEP,
   VAULT_QUOTE_DRAIN_MS,
+  mergeFavoriteMetaItems,
   mergeVaultQuotePatch,
   overlayVaultFavoriteState,
   patchVaultItemFavorite,
@@ -103,6 +105,7 @@ import type {
   StockVaultScanSource,
   StockVaultScanStatus,
   StockVaultTimeframe,
+  VaultScanProgress,
 } from "../types";
 import StockVaultRow from "./StockVaultRow";
 import {
@@ -320,6 +323,10 @@ export default function StockVaultTab({
   const [scanRunning, setScanRunning] = useState(() =>
     Boolean(cachedInit?.scanStatus?.running),
   );
+  const [scanProgress, setScanProgress] = useState<VaultScanProgress | null>(
+    () => cachedInit?.scanStatus?.progress ?? null,
+  );
+  const anyScanRunning = scanRunning || Boolean(scanProgress?.active);
   const [scanConfirmOpen, setScanConfirmOpen] = useState(false);
   const [scanNotice, setScanNotice] = useState<string | null>(null);
   const [historyDates, setHistoryDates] = useState<string[]>([]);
@@ -394,6 +401,7 @@ export default function StockVaultTab({
     if (!status) return;
     setScanEnabled(status.enabled);
     setScanRunning(Boolean(status.running));
+    setScanProgress(status.progress ?? null);
     setLastScanRows(buildLastScanRows(status));
   }, []);
 
@@ -737,8 +745,18 @@ export default function StockVaultTab({
         base = extras.length ? [...merged, ...extras] : merged;
       }
     }
-    return overlayVaultFavoriteState(base, favoriteMeta);
-  }, [snapshotItems, items, isHistoricalView, favoriteMeta, cachedInit?.vault?.items]);
+    return overlayVaultFavoriteState(
+      mergeFavoriteMetaItems(base, favoriteMeta, timeframeFilter),
+      favoriteMeta,
+    );
+  }, [
+    snapshotItems,
+    items,
+    isHistoricalView,
+    favoriteMeta,
+    timeframeFilter,
+    cachedInit?.vault?.items,
+  ]);
 
   const getRowIndustry = useCallback(
     (row: VaultDisplayRow) => rowIndustry(meta, row),
@@ -758,27 +776,38 @@ export default function StockVaultTab({
   }, [applyVaultResponse, applyScanStatus, seedTodaySnapshotFromVault]);
 
   useEffect(() => {
-    if (!scanRunning) return;
-    const id = window.setInterval(() => {
-      void (async () => {
-        try {
-          const status = await fetchGoldenCrossStatus();
-          applyScanStatus(status);
-          if (!status.running) {
-            const bundle = await refreshStockVaultTab();
-            applyVaultResponse(bundle.vault);
-            mergeTodaySnapshotFromVault(bundle.vault);
-            applyScanStatus(bundle.scanStatus);
-            void refreshHistoryDates();
-            setScanNotice(ko.stockVault.scanDone);
-          }
-        } catch {
-          /* ignore poll errors */
+    if (!pageVisible) return;
+    let wasRunning = anyScanRunning;
+    const tick = async () => {
+      try {
+        const status = await fetchGoldenCrossStatus();
+        const nowRunning = Boolean(status.running) || Boolean(status.progress?.active);
+        applyScanStatus(status);
+        if (wasRunning && !nowRunning) {
+          const bundle = await refreshStockVaultTab();
+          applyVaultResponse(bundle.vault);
+          mergeTodaySnapshotFromVault(bundle.vault);
+          applyScanStatus(bundle.scanStatus);
+          void refreshHistoryDates();
+          setScanNotice(ko.stockVault.scanDone);
         }
-      })();
-    }, SCAN_POLL_MS);
+        wasRunning = nowRunning;
+      } catch {
+        /* ignore poll errors */
+      }
+    };
+    void tick();
+    const ms = anyScanRunning ? SCAN_POLL_MS : 12_000;
+    const id = window.setInterval(tick, ms);
     return () => window.clearInterval(id);
-  }, [scanRunning, applyScanStatus, applyVaultResponse, mergeTodaySnapshotFromVault, refreshHistoryDates]);
+  }, [
+    pageVisible,
+    anyScanRunning,
+    applyScanStatus,
+    applyVaultResponse,
+    mergeTodaySnapshotFromVault,
+    refreshHistoryDates,
+  ]);
 
   useEffect(() => {
     if (!scanConfirmOpen) return;
@@ -827,9 +856,7 @@ export default function StockVaultTab({
 
   useEffect(() => {
     if (timeframeFilter !== "1wk") return;
-    setSelectedScanSources((prev) =>
-      prev.filter((s) => s !== "ma120_near" && s !== "low_slope_flip"),
-    );
+    setSelectedScanSources((prev) => prev.filter((s) => s !== "ma120_near"));
     setMa120ApproachFilter(null);
   }, [timeframeFilter]);
 
@@ -1381,13 +1408,16 @@ export default function StockVaultTab({
                   ref={scanBtnRef}
                   type="button"
                   className="stock-vault-tab__head-btn"
-                  disabled={!scanEnabled || scanRunning}
+                  disabled={!scanEnabled || anyScanRunning}
                   aria-expanded={scanConfirmOpen}
                   aria-haspopup="dialog"
                   onClick={() => setScanConfirmOpen((open) => !open)}
                 >
-                  {scanRunning ? ko.stockVault.scanRunning : ko.stockVault.scanRun}
+                  {anyScanRunning ? ko.stockVault.scanRunning : ko.stockVault.scanRun}
                 </button>
+                {anyScanRunning && scanProgress?.rows?.length ? (
+                  <StockVaultScanProgress rows={scanProgress.rows} />
+                ) : null}
                 {scanConfirmOpen ? (
                   <div
                     ref={scanPopoverRef}
