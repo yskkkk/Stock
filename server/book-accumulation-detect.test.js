@@ -8,14 +8,18 @@ import {
 
 test("BOOK_ACCUM_SERVER_DEFAULTS matches user preset", () => {
   assert.equal(BOOK_ACCUM_SERVER_DEFAULTS.preset, "느슨");
-  assert.equal(BOOK_ACCUM_SERVER_DEFAULTS.minRvol, 1.6);
-  assert.equal(BOOK_ACCUM_SERVER_DEFAULTS.dropLb, 40);
-  assert.equal(BOOK_ACCUM_SERVER_DEFAULTS.minDropPct, 6);
+  assert.equal(BOOK_ACCUM_SERVER_DEFAULTS.minRvol, 1.5);
+  assert.equal(BOOK_ACCUM_SERVER_DEFAULTS.needDrop, false);
+  assert.equal(BOOK_ACCUM_SERVER_DEFAULTS.needCostCtx, true);
+  assert.equal(BOOK_ACCUM_SERVER_DEFAULTS.costTolPct, 5);
+  assert.equal(BOOK_ACCUM_SERVER_DEFAULTS.pivotLen, 10);
+  assert.equal(BOOK_ACCUM_SERVER_DEFAULTS.riseLb, 20);
+  assert.equal(BOOK_ACCUM_SERVER_DEFAULTS.minRisePct, 5);
 });
 
 test("resolveBookAccumEffRvol uses minRvol for loose preset", () => {
-  assert.equal(resolveBookAccumEffRvol("느슨", 1.6), 1.6);
-  assert.equal(resolveBookAccumEffRvol("엄격", 1.6), 2.2);
+  assert.equal(resolveBookAccumEffRvol("느슨", 1.5), 1.5);
+  assert.equal(resolveBookAccumEffRvol("엄격", 1.5), 2.2);
 });
 
 test("detectBookAccumulationLatest returns empty below min candles", () => {
