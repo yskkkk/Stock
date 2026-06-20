@@ -464,8 +464,10 @@ plot(showWeeklyCross and (gold_5_20_w or dead_5_20_w) ? ma5_w_step : na, style=p
 plot(showWeeklyCross and (gold_20_120_w or dead_20_120_w) ? ma20_w_step : na, style=plot.style_circles, linewidth=5, color=color_20_120_w, title="[주] 20-120 교차점")
 
 // ── 세력 캔들 구간 ───────────────────────────────────────────────────
+float zoneLblAtr = ta.atr(14)
 var box[]  zoneBoxes = array.new_box()
 var line[] slLines   = array.new_line()
+var line[] lblConnLines = array.new_line()
 var label[] zoneLbls = array.new_label()
 
 f_trimZones() =>
@@ -473,8 +475,21 @@ f_trimZones() =>
         box.delete(array.shift(zoneBoxes))
     while array.size(slLines) > maxZones
         line.delete(array.shift(slLines))
+    while array.size(lblConnLines) > maxZones
+        line.delete(array.shift(lblConnLines))
     while array.size(zoneLbls) > maxZones
         label.delete(array.shift(zoneLbls))
+
+f_clearLblY(bool below, int extBars) =>
+    int span = math.min(extBars + 4, 500)
+    float hiMax = high
+    float loMin = low
+    for i = 0 to span
+        hiMax := math.max(hiMax, high[i])
+        loMin := math.min(loMin, low[i])
+    float barRng = hiMax - loMin
+    float pad = math.max(barRng * 0.14, zoneLblAtr * 0.45, syminfo.mintick * 40.0)
+    below ? loMin - pad : hiMax + pad
 
 f_drawZone(int tLeft, float sl, float zTop, float zBot, color zCol, string tag, int extBars, bool labelBelow) =>
     f_trimZones()
@@ -486,12 +501,14 @@ f_drawZone(int tLeft, float sl, float zTop, float zBot, color zCol, string tag, 
         array.push(slLines, line.new(tLeft, sl, tRight, sl, xloc=xloc.bar_time, color=cSl, width=2, style=line.style_dashed))
         array.push(zoneBoxes, box.new(tLeft, top, tRight, bot, xloc=xloc.bar_time, border_color=color.new(zCol, 40), bgcolor=cZone, border_width=1))
     if showLabels and dispZoneLabels
-        float lblY = labelBelow ? math.min(low, bot) : top
+        float anchorY = labelBelow ? math.min(low, bot) : math.max(high, top)
+        float lblY = f_clearLblY(labelBelow, extBars)
         string lblTxt = tag + "\n손절 " + str.tostring(sl, format.mintick) + "\n분할 " + str.tostring(bot, format.mintick) + "~" + str.tostring(top, format.mintick)
+        array.push(lblConnLines, line.new(tLeft, anchorY, tLeft, lblY, xloc=xloc.bar_time, color=color.new(zCol, 40), width=1, style=line.style_dotted))
         if labelBelow
-            array.push(zoneLbls, label.new(tLeft, lblY, lblTxt, xloc=xloc.bar_time, yloc=yloc.price, style=label.style_label_up, color=color.new(zCol, 15), textcolor=color.white, size=size.small))
-        else
             array.push(zoneLbls, label.new(tLeft, lblY, lblTxt, xloc=xloc.bar_time, yloc=yloc.price, style=label.style_label_down, color=color.new(zCol, 15), textcolor=color.white, size=size.small))
+        else
+            array.push(zoneLbls, label.new(tLeft, lblY, lblTxt, xloc=xloc.bar_time, yloc=yloc.price, style=label.style_label_up, color=color.new(zCol, 15), textcolor=color.white, size=size.small))
 
 if anyBottom and forceBarOk and dispZones
     f_drawZone(time, slL, zoneTop, zoneBotSl, wConfirmed ? cWBottom : cBottom, bottomTag, effExtend, true)
