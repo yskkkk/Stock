@@ -188,25 +188,18 @@ export function triggerBottomCandleManualScan() {
 }
 
 const BC_WORKER_URL = new URL("./bottom-candle-scan-worker.js", import.meta.url);
-const BC_WORKER_TIMEOUT_MS = 30 * 60_000;
 
 /** 바닥봉 스캔을 별도 Worker Thread에서 실행 */
 function spawnBottomCandleScanWorker() {
   return new Promise((resolve, reject) => {
     const worker = new Worker(BC_WORKER_URL, { workerData: { trigger: "scheduled" } });
-    const timer = setTimeout(() => {
-      worker.terminate();
-      reject(new Error("[bottom-candle:poller] worker timeout"));
-    }, BC_WORKER_TIMEOUT_MS);
     worker.once("message", (msg) => {
-      clearTimeout(timer);
       worker.terminate();
       if (msg.ok) resolve(msg.result);
       else reject(new Error(msg.error));
     });
-    worker.once("error", (err) => { clearTimeout(timer); reject(err); });
+    worker.once("error", (err) => reject(err));
     worker.once("exit", (code) => {
-      clearTimeout(timer);
       if (code !== 0) reject(new Error(`[bottom-candle:poller] worker exit ${code}`));
     });
   });

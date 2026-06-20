@@ -832,25 +832,18 @@ export async function runGoldenCrossScanIfDue(market, now = new Date()) {
 }
 
 const GC_WORKER_URL = new URL("./golden-cross-scan-worker.js", import.meta.url);
-const GC_WORKER_TIMEOUT_MS = 30 * 60_000;
 
 /** 골든크로스 스캔을 별도 Worker Thread에서 실행해 GC 중단이 API 응답을 막지 않도록 함 */
 function spawnGoldenCrossScanWorker(market) {
   return new Promise((resolve, reject) => {
     const worker = new Worker(GC_WORKER_URL, { workerData: { market } });
-    const timer = setTimeout(() => {
-      worker.terminate();
-      reject(new Error(`[golden-cross:poller] worker timeout market=${market}`));
-    }, GC_WORKER_TIMEOUT_MS);
     worker.once("message", (msg) => {
-      clearTimeout(timer);
       worker.terminate();
       if (msg.ok) resolve(msg.result);
       else reject(new Error(msg.error));
     });
-    worker.once("error", (err) => { clearTimeout(timer); reject(err); });
+    worker.once("error", (err) => reject(err));
     worker.once("exit", (code) => {
-      clearTimeout(timer);
       if (code !== 0) reject(new Error(`[golden-cross:poller] worker exit ${code}`));
     });
   });
