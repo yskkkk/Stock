@@ -187,9 +187,13 @@ export function detectBookAccumulationLatest(candles, opts = {}) {
     const open = Number(c?.open) || 0;
     const peakDistrib =
       hadRise && rvol >= o.peakRvol && close > open;
-    const bullBar = close >= open;
+    const range = high - low;
+    const bodyPct =
+      range > 0 ? (Math.abs(close - open) / range) * 100 : 0;
+    const longBearBar =
+      close < open && bodyPct > (o.maxBearBodyPct ?? 35);
     const accumRaw =
-      volOk && !peakDistrib && bullBar && (!o.needDrop || hadDrop);
+      volOk && !peakDistrib && !longBearBar && (!o.needDrop || hadDrop);
 
     let consecCnt = 0;
     for (let j = 0; j < o.consecWin; j++) {

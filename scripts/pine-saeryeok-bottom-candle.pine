@@ -106,6 +106,7 @@ accumMinConsec = input.int(2, "연속 최소(회)", minval=1, maxval=5, group=gr
 accumMinScore  = input.int(55, "최소 점수", minval=0, maxval=100, group=grpAccumConsec)
 
 grpAccumFilter = "3·매집봉 — 상투(분산) 제외"
+accumMaxBearBody = input.float(35.0, "장대음봉 몸통/전체(%)", minval=20.0, maxval=70.0, step=1.0, group=grpAccumFilter, tooltip="음봉이어도 몸통이 이 비율 이하면 도지·단봉으로 매집 가능. 초과 시 장대음봉으로 제외")
 accumRiseLb    = input.int(30, "선행 상승(봉)", minval=10, maxval=80, group=grpAccumFilter)
 accumMinRise   = input.float(15.0, "선행 상승(%)", minval=5.0, maxval=60.0, step=1.0, group=grpAccumFilter)
 accumPeakRvol  = input.float(2.5, "분산봉 RVOL", minval=1.5, maxval=5.0, step=0.1, group=grpAccumFilter)
@@ -157,8 +158,9 @@ bool aRecover5d = accumUseCost and not na(aCostBasis) and aSinceBreach > 0 and a
 
 bool aVolOk = aRvol >= accumEffRvol and (not accumVolMaUp or aVolMaUp or aRvol >= accumEffRvol * 1.2)
 bool aPeakDistrib = aHadRise and aRvol >= accumPeakRvol and close > open
-bool aBullBar = close >= open
-bool aAccumRaw = aVolOk and not aPeakDistrib and aBullBar and (not accumNeedDrop or aHadDrop)
+float aBodyPct = (high - low) > 0 ? math.abs(close - open) / (high - low) * 100.0 : 0.0
+bool aLongBear = close < open and aBodyPct > accumMaxBearBody
+bool aAccumRaw = aVolOk and not aPeakDistrib and not aLongBear and (not accumNeedDrop or aHadDrop)
 
 int aConsecCnt = 0
 for i = 0 to accumConsecWin - 1

@@ -21,4 +21,5 @@ export const BOOK_ACCUM_SERVER_DEFAULTS = {
   riseLb: 20,
   minRisePct: 5.0,
   peakRvol: 2.5,
+  maxBearBodyPct: 35,
 };
