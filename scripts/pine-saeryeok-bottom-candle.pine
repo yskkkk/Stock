@@ -157,7 +157,8 @@ bool aRecover5d = accumUseCost and not na(aCostBasis) and aSinceBreach > 0 and a
 
 bool aVolOk = aRvol >= accumEffRvol and (not accumVolMaUp or aVolMaUp or aRvol >= accumEffRvol * 1.2)
 bool aPeakDistrib = aHadRise and aRvol >= accumPeakRvol and close > open
-bool aAccumRaw = aVolOk and not aPeakDistrib and (not accumNeedDrop or aHadDrop)
+bool aBullBar = close >= open
+bool aAccumRaw = aVolOk and not aPeakDistrib and aBullBar and (not accumNeedDrop or aHadDrop)
 
 int aConsecCnt = 0
 for i = 0 to accumConsecWin - 1

@@ -83,7 +83,8 @@ bool recover5d = useCost and not na(costBasis) and sinceBreach > 0 and sinceBrea
 // ── 매집봉 ───────────────────────────────────────────────────────────
 bool volOk = rvol >= effRvol and (not needVolMaUp or volMaUp or rvol >= effRvol * 1.2)
 bool peakDistrib = hadRise and rvol >= peakRvol and close > open
-bool accumRaw = volOk and not peakDistrib and (not needDrop or hadDrop)
+bool bullBar = close >= open
+bool accumRaw = volOk and not peakDistrib and bullBar and (not needDrop or hadDrop)
 
 int consecCnt = 0
 for i = 0 to consecWin - 1

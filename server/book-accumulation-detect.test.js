@@ -1,6 +1,7 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import {
+  BOOK_ACCUM_MIN_CANDLES,
   BOOK_ACCUM_SERVER_DEFAULTS,
   detectBookAccumulationLatest,
   resolveBookAccumEffRvol,
@@ -34,4 +35,30 @@ test("detectBookAccumulationLatest returns empty below min candles", () => {
   const hit = detectBookAccumulationLatest(candles);
   assert.equal(hit.anyAccum, false);
   assert.equal(hit.signalDate, null);
+});
+
+test("detectBookAccumulationLatest excludes bearish bar even on high RVOL", () => {
+  const baseVol = 1_000_000;
+  const candles = Array.from({ length: BOOK_ACCUM_MIN_CANDLES }, (_, i) => ({
+    open: 100,
+    high: 101,
+    low: 99,
+    close: 100,
+    volume: baseVol,
+    time: { year: 2026, month: 1, day: 1 + (i % 28) },
+  }));
+  const last = candles.length - 1;
+  candles[last] = {
+    open: 100,
+    high: 100.5,
+    low: 88,
+    close: 90,
+    volume: baseVol * 5,
+    time: { year: 2026, month: 3, day: 15 },
+  };
+  const hit = detectBookAccumulationLatest(candles, {
+    needCostCtx: false,
+    needDrop: false,
+  });
+  assert.equal(hit.anyAccum, false);
 });
