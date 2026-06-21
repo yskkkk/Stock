@@ -393,6 +393,18 @@ export function startScreening() {
   return screeningPromise;
 }
 
+/** 전체 스캔 SSOT — 1회 스크리닝 실행 후 완료까지 대기 */
+export async function runScreeningOnce() {
+  const p = startScreening();
+  if (p) await p;
+  return {
+    kr: state.kr.length,
+    us: state.us.length,
+    crypto: state.crypto.length,
+    failedCount: state.failedCount,
+  };
+}
+
 export function forceRescreen() {
   if (state.running) {
     return { ok: false, message: "이미 분석이 진행 중입니다." };

@@ -150,7 +150,7 @@ async function main() {
   const { runShareStructureScanForMarket } = await import(
     "../server/stock-share-structure.js"
   );
-  const { runScreening } = await import("../server/screener.js");
+  const { runScreeningOnce } = await import("../server/screener.js");
 
   /** @type {Promise<{ label: string; ok: boolean; durationMs: number; error?: string }>[]} */
   const tasks = [
@@ -167,7 +167,7 @@ async function main() {
     runTask("financials-us", () => runFinancialsArchiveForMarket("us")),
     runTask("share-structure-kr", () => runShareStructureScanForMarket("kr")),
     runTask("share-structure-us", () => runShareStructureScanForMarket("us")),
-    runTask("screener", () => runScreening()),
+    runTask("screener", () => runScreeningOnce()),
   ];
 
   const results = await Promise.allSettled(tasks);
