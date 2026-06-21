@@ -3,7 +3,10 @@ import { detectBookAccumulationLatest } from "./book-accumulation-detect.js";
 import { candlesForWeeklyMaScan } from "./weekly-candle-trim.js";
 import { isGoldenCrossTradable } from "./golden-cross-tradable.js";
 import { resolveDisplayName } from "./names-ko.js";
-import { loadBookAccumScanUniverse, BOOK_ACCUM_US_UNIVERSE_SCOPE } from "./universe.js";
+import {
+  loadBookAccumScanUniverse,
+  resolveBookAccumUniverseScope,
+} from "./universe.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
 import {
@@ -164,9 +167,8 @@ async function scanOneSymbol(item, market, scanDate, timeframe = "1d") {
 export async function runBookAccumulationMarketScan(market, scanDate, opts = {}) {
   const persistState = opts.persistState !== false;
   const timeframe = normalizeVaultScanTimeframe(opts.timeframe);
-  const uni = await loadBookAccumScanUniverse(
-    market === "kr" ? "sp500" : BOOK_ACCUM_US_UNIVERSE_SCOPE,
-  );
+  const accumScope = resolveBookAccumUniverseScope(market, timeframe);
+  const uni = await loadBookAccumScanUniverse(accumScope);
   const list =
     market === "kr"
       ? Array.isArray(uni?.kr)
@@ -180,6 +182,7 @@ export async function runBookAccumulationMarketScan(market, scanDate, opts = {})
     market,
     scanDate,
     timeframe,
+    universe: uni.scope ?? accumScope,
     symbols: list.length,
   });
 

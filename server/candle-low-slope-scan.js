@@ -2,7 +2,7 @@ import { loadStock } from "./stock-data.js";
 import { detectCandleLowSlopeFlipLatest } from "./candle-low-slope-detect.js";
 import { isGoldenCrossTradable } from "./golden-cross-tradable.js";
 import { resolveDisplayName } from "./names-ko.js";
-import { loadUniverse } from "./universe.js";
+import { loadVaultScanUniverse } from "./universe.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
 import { candlesForWeeklyMaScan } from "./weekly-candle-trim.js";
@@ -175,7 +175,7 @@ async function scanOneSymbol(item, market, scanDate) {
  */
 export async function runCandleLowSlopeMarketScan(market, scanDate, opts = {}) {
   const persistState = opts.persistState !== false;
-  const uni = await loadUniverse();
+  const uni = await loadVaultScanUniverse(market, LOW_SLOPE_SCAN_TIMEFRAME);
   const list =
     market === "kr"
       ? Array.isArray(uni?.kr)
@@ -189,6 +189,7 @@ export async function runCandleLowSlopeMarketScan(market, scanDate, opts = {}) {
     market,
     scanDate,
     timeframe: LOW_SLOPE_SCAN_TIMEFRAME,
+    universe: uni.scope,
     symbols: list.length,
     pivotLeft: PIVOT_LEFT,
     pivotRight: PIVOT_RIGHT,

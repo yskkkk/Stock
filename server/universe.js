@@ -321,8 +321,134 @@ export async function fetchTossUsEquityUniverse(
   return merged;
 }
 
-/** 매집봉(US) 스캔 SSOT scope */
+/** 매집봉(US) 일봉 스캔 SSOT scope */
 export const BOOK_ACCUM_US_UNIVERSE_SCOPE = "toss-us";
+
+/** US vault 주봉 스캔 — 나스닥(NMS) 전종목 */
+export const US_VAULT_WEEKLY_UNIVERSE_SCOPE = "nasdaq";
+
+/** @param {unknown} timeframe */
+function isWeeklyVaultTimeframe(timeframe) {
+  const v = String(timeframe ?? "")
+    .trim()
+    .toLowerCase();
+  return v === "1wk" || v === "weekly" || v === "week" || v === "w";
+}
+
+/**
+ * @param {"kr"|"us"} market
+ * @param {unknown} [timeframe]
+ */
+export function resolveVaultScanUniverseScope(market, timeframe = "1d") {
+  if (market === "kr") return "kr-top";
+  return isWeeklyVaultTimeframe(timeframe)
+    ? US_VAULT_WEEKLY_UNIVERSE_SCOPE
+    : "sp500";
+}
+
+/**
+ * @param {"kr"|"us"} market
+ * @param {unknown} [timeframe]
+ */
+export function resolveBookAccumUniverseScope(market, timeframe = "1d") {
+  if (market === "kr") return "sp500";
+  return isWeeklyVaultTimeframe(timeframe)
+    ? US_VAULT_WEEKLY_UNIVERSE_SCOPE
+    : BOOK_ACCUM_US_UNIVERSE_SCOPE;
+}
+
+/**
+ * @param {"nasdaq"|"toss-us"|"toss"|"us-full"|"us"|"sp500"} primaryScope
+ */
+async function resolveUsEquityUniverse(primaryScope) {
+  const key = String(primaryScope ?? "")
+    .trim()
+    .toLowerCase();
+  /** @type {Array<{ symbol: string; name: string }>} */
+  let us = [];
+  let scope = key;
+
+  try {
+    if (key === "nasdaq") {
+      us = await fetchNasdaqEquityUniverse();
+    } else if (
+      key === "toss-us" ||
+      key === "toss" ||
+      key === "us-full" ||
+      key === "us"
+    ) {
+      us = await fetchTossUsEquityUniverse();
+      scope = "toss-us";
+    } else if (key === "sp500") {
+      const uni = await loadUniverse();
+      us = Array.isArray(uni.us) ? uni.us : [];
+      scope = "sp500";
+    }
+  } catch (e) {
+    console.warn(
+      "[universe] US equity primary fetch failed:",
+      key,
+      e instanceof Error ? e.message : e,
+    );
+  }
+
+  if (us.length < 50 && key !== "nasdaq") {
+    try {
+      const nd = await fetchNasdaqEquityUniverse();
+      if (nd.length > us.length) {
+        us = nd;
+        scope =
+          key === "toss-us" || key === "toss" || key === "us-full" || key === "us"
+            ? "nasdaq-fallback"
+            : "nasdaq";
+      }
+    } catch {
+      /* fallback chain */
+    }
+  }
+
+  if (us.length < 50) {
+    try {
+      const uni = await loadUniverse();
+      const sp = Array.isArray(uni.us) ? uni.us : [];
+      if (sp.length > us.length) {
+        us = sp;
+        scope = "sp500-fallback";
+      }
+    } catch {
+      /* fallback chain */
+    }
+  }
+
+  return { us, scope };
+}
+
+/**
+ * 종목보관함 vault 스캔 유니버스 — US 주봉은 나스닥, US 일봉·KR은 기존
+ * @param {"kr"|"us"} market
+ * @param {unknown} [timeframe]
+ */
+export async function loadVaultScanUniverse(market, timeframe = "1d") {
+  if (market === "kr") {
+    const uni = await loadUniverse();
+    return {
+      kr: Array.isArray(uni.kr) ? uni.kr : [],
+      us: [],
+      scope: "kr-top",
+    };
+  }
+  const scopeKey = resolveVaultScanUniverseScope(market, timeframe);
+  if (scopeKey === "sp500") {
+    const uni = await loadUniverse();
+    return {
+      kr: [],
+      us: Array.isArray(uni.us) ? uni.us : [],
+      scope: "sp500",
+    };
+  }
+  const { us, scope } = await resolveUsEquityUniverse(US_VAULT_WEEKLY_UNIVERSE_SCOPE);
+  return { kr: [], us, scope };
+}
 
 /**
  * 매집봉 스캔 유니버스
@@ -332,25 +458,16 @@ export async function loadBookAccumScanUniverse(scope = BOOK_ACCUM_US_UNIVERSE_S
   const key = String(scope ?? BOOK_ACCUM_US_UNIVERSE_SCOPE)
     .trim()
     .toLowerCase();
-  if (
-    key === "toss-us" ||
-    key === "toss" ||
-    key === "us-full" ||
-    key === "us"
-  ) {
-    const us = await fetchTossUsEquityUniverse();
-    return { kr: [], us, scope: BOOK_ACCUM_US_UNIVERSE_SCOPE };
+  if (key === "sp500") {
+    const uni = await loadUniverse();
+    return {
+      kr: Array.isArray(uni.kr) ? uni.kr : [],
+      us: Array.isArray(uni.us) ? uni.us : [],
+      scope: "sp500",
+    };
   }
-  if (key === "nasdaq") {
-    const us = await fetchNasdaqEquityUniverse();
-    return { kr: [], us, scope: "nasdaq" };
-  }
-  const uni = await loadUniverse();
-  return {
-    kr: Array.isArray(uni?.kr) ? uni.kr : [],
-    us: Array.isArray(uni?.us) ? uni.us : [],
-    scope: "sp500",
-  };
+  const { us, scope: resolvedScope } = await resolveUsEquityUniverse(key);
+  return { kr: [], us, scope: resolvedScope };
 }
 
 /**

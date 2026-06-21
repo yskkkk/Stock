@@ -90,12 +90,11 @@ async function main() {
 
   const { bookAccumFastScanEnabled, runBookAccumulationFastScan } =
     await import("../server/book-accumulation-fast-scan.js");
-  const { BOOK_ACCUM_US_UNIVERSE_SCOPE } = await import("../server/universe.js");
   if (bookAccumFastScanEnabled()) {
     tasks.push(
-      runTask("book-accum-fast(toss-us)", () =>
+      runTask("book-accum-fast(nasdaq)", () =>
         runBookAccumulationFastScan({
-          scope: BOOK_ACCUM_US_UNIVERSE_SCOPE,
+          scope: "nasdaq",
           market: "us",
           scanDate: localUsDateKey(),
           mergeVault: true,

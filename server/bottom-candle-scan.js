@@ -3,7 +3,7 @@ import { detectBottomCandleLatest } from "./bottom-candle-detect.js";
 import { candlesForWeeklyMaScan } from "./weekly-candle-trim.js";
 import { isGoldenCrossTradable } from "./golden-cross-tradable.js";
 import { resolveDisplayName } from "./names-ko.js";
-import { loadUniverse } from "./universe.js";
+import { loadVaultScanUniverse } from "./universe.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
 import {
@@ -169,7 +169,7 @@ async function scanOneSymbol(item, market, scanDate, timeframe = "1d") {
 export async function runBottomCandleMarketScan(market, scanDate, opts = {}) {
   const persistState = opts.persistState !== false;
   const timeframe = normalizeVaultScanTimeframe(opts.timeframe);
-  const uni = await loadUniverse();
+  const uni = await loadVaultScanUniverse(market, timeframe);
   const list =
     market === "kr"
       ? Array.isArray(uni?.kr)
@@ -183,6 +183,7 @@ export async function runBottomCandleMarketScan(market, scanDate, opts = {}) {
     market,
     scanDate,
     timeframe,
+    universe: uni.scope,
     symbols: list.length,
   });
 
