@@ -51,8 +51,8 @@ minGapPct    = input.float(0.3, "최소 갭(%)", minval=0.0, maxval=5.0, step=0.
 volLen       = input.int(20, "거래량 이평(봉)", minval=5, maxval=100, group=grpCore)
 minRvol      = input.float(1.2, "③번봉 RVOL", minval=0.8, maxval=3.0, step=0.05, group=grpCore)
 needDrop     = input.bool(true, "하락 추세 선행", group=grpCore)
-dropLookback = input.int(20, "하락 참조(봉)", minval=5, maxval=120, group=grpCore)
-minDropPct   = input.float(5.0, "최소 하락(%)", minval=1.0, maxval=40.0, step=0.5, group=grpCore)
+dropLookback = input.int(20, "하락 참조(봉)", minval=5, maxval=120, group=grpCore, tooltip="이 기간 종가 평균 대비 하락률")
+minDropPct   = input.float(3.0, "최소 하락(%)", minval=1.0, maxval=40.0, step=0.5, group=grpCore, tooltip="N봉 종가 평균 대비 현재가 하락률")
 
 grpPat = "2·상투·바닥 — 패턴 종류"
 showBottom     = input.bool(true, "바닥(전형·3봉)", group=grpPat)
@@ -196,7 +196,7 @@ f_tune(bool forWeekly) =>
     int vBase   = forWeekly ? 12 : volLen
     float rBase = forWeekly ? 1.1 : chartIsDaily ? 1.2 : 1.15
     int dLb     = forWeekly ? 26 : chartIsDaily ? 20 : dropLookback
-    float dPct  = forWeekly ? 8.0 : chartIsDaily ? 5.0 : minDropPct
+    float dPct  = forWeekly ? 6.0 : chartIsDaily ? 3.0 : minDropPct
     int extBase = forWeekly ? 14 : chartIsDaily ? 8 : extendZone
     float bAdj = forcePreset == "엄격" ? math.min(bBase, 28.0) : forcePreset == "느슨" ? bBase * 1.12 : bBase
     float gAdj = forcePreset == "엄격" ? math.max(gBase, 0.4) : gBase
@@ -258,7 +258,7 @@ f_scoreBottom(bool anyB, int tagCode, bool gDual, bool gAny, bool gBreak, bool g
         sc += gDual ? 25.0 : gAny ? 12.0 : 0.0
         sc += gBreak ? 20.0 : 0.0
         sc += gTri ? 10.0 : 0.0
-        sc += rvol0 >= rvolMin ? math.min(20.0, rvol0 / rvolMin * 12.0) : 0.0
+        sc += math.min(25.0, rvol0 / math.max(rvolMin, 0.5) * 15.0)
         sc += body2 <= bodyMax ? math.min(15.0, (bodyMax - body2) / math.max(bodyMax, 1.0) * 15.0) : 0.0
         sc += dropPct >= dropMin ? math.min(10.0, dropPct / math.max(dropMin, 0.1) * 8.0) : 0.0
         sc += tagCode == 1 ? 8.0 : tagCode == 2 ? 5.0 : tagCode == 5 ? 4.0 : 2.0
@@ -267,9 +267,9 @@ f_scoreBottom(bool anyB, int tagCode, bool gDual, bool gAny, bool gBreak, bool g
 f_detect(float bodyMax, float gapMin, int vLen, float rvolMin, int dropLb, float dropMin) =>
     float volMa0 = ta.sma(volume, vLen)
     float rvol0 = volMa0 > 0 ? volume / volMa0 : 1.0
-    float hiRef = ta.highest(high, dropLb)
+    float avgRef = ta.sma(close, dropLb)
     float loRef = ta.lowest(low, dropLb)
-    float dropPct0 = hiRef > 0 ? (hiRef - close) / hiRef * 100.0 : 0.0
+    float dropPct0 = avgRef > 0 ? (avgRef - close) / avgRef * 100.0 : 0.0
     float risePct0 = loRef > 0 ? (close - loRef) / loRef * 100.0 : 0.0
     bool hadDrop0 = dropPct0 >= dropMin
     bool hadRise0 = risePct0 >= dropMin
@@ -282,25 +282,24 @@ f_detect(float bodyMax, float gapMin, int vLen, float rvolMin, int dropLb, float
     float body2 = f_bodyPctOff(1)
 
     bool bClassic =
-         showBottom and ctxDrop and volOk and gapOk and
+         showBottom and ctxDrop and
          f_bear()[2] and f_pivot2(bodyMax) and f_bull()
 
     bool bNoGap =
-         showBottomVar and allowNoGap and ctxDrop and volOk and gapOk and
-         f_bear()[2] and f_inflection(1, bodyMax) and f_bull() and
-         not gDual and not gAny
+         showBottomVar and allowNoGap and ctxDrop and
+         f_bear()[2] and f_pivot2(bodyMax) and f_bull()
 
     bool bGapPivot =
-         showBottomVar and ctxDrop and volOk and gapOk and
-         f_bear()[2] and f_inflection(1, bodyMax) and f_gapUp(1, gapMin) and
+         showBottomVar and ctxDrop and
+         f_bear()[2] and f_pivot2(bodyMax) and f_gapUp(1, gapMin) and
          f_bull() and f_gapUp(0, gapMin)
 
     bool bFallBull =
-         showBottomVar and allowFallBull and ctxDrop and volOk and gapOk and
+         showBottomVar and allowFallBull and ctxDrop and
          f_bear()[2] and f_fallBull(1) and f_bull()
 
     bool bGapFallBull =
-         showBottomVar and allowFallBull and ctxDrop and volOk and gapOk and
+         showBottomVar and allowFallBull and ctxDrop and
          f_bear()[2] and f_fallBull(1) and f_fallBull(0)
 
     bool anyB = bClassic or bNoGap or bGapPivot or bFallBull or bGapFallBull

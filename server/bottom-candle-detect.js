@@ -42,7 +42,7 @@ export function tuneBottomCandleParams(forWeekly, opts = {}) {
   const tfAuto = opts.tfAuto !== false;
   const volLen = opts.volLen ?? 20;
   const dropLookback = opts.dropLookback ?? 20;
-  const minDropPct = opts.minDropPct ?? 5;
+  const minDropPct = opts.minDropPct ?? 3;
   const maxBodyPct = opts.maxBodyPct ?? 35;
   const minGapPct = opts.minGapPct ?? 0.3;
   const minRvol = opts.minRvol ?? 1.2;
@@ -52,7 +52,7 @@ export function tuneBottomCandleParams(forWeekly, opts = {}) {
   const vBase = forWeekly ? 12 : volLen;
   const rBase = forWeekly ? 1.1 : chartIsDaily ? 1.2 : 1.15;
   const dLb = forWeekly ? 26 : chartIsDaily ? 20 : dropLookback;
-  const dPct = forWeekly ? 8 : chartIsDaily ? 5 : minDropPct;
+  const dPct = forWeekly ? 6 : chartIsDaily ? 3 : minDropPct;
 
   const bAdj =
     preset === "엄격" ? Math.min(bBase, 28) : preset === "느슨" ? bBase * 1.12 : bBase;
@@ -120,6 +120,22 @@ function lowestLow(candles, lookback, barIndex) {
     if (Number.isFinite(l) && l < lo) lo = l;
   }
   return lo < Infinity ? lo : null;
+}
+
+/**
+ * @param {Array<{ close?: number }>} candles
+ * @param {number} period
+ * @param {number} barIndex
+ */
+function closeSmaAt(candles, period, barIndex) {
+  if (barIndex < period - 1) return null;
+  let sum = 0;
+  for (let j = 0; j < period; j++) {
+    const cl = Number(candles[barIndex - j]?.close);
+    if (!Number.isFinite(cl)) return null;
+    sum += cl;
+  }
+  return sum / period;
 }
 
 /** @param {{ open?: number; high?: number; low?: number; close?: number }} c */
@@ -284,7 +300,7 @@ function scoreBottom(
   sc += gap.gDual ? 25 : gap.gAny ? 12 : 0;
   sc += gap.gBreak ? 20 : 0;
   sc += gap.gTri ? 10 : 0;
-  sc += rvol0 >= rvolMin ? Math.min(20, (rvol0 / rvolMin) * 12) : 0;
+  sc += Math.min(25, (rvol0 / Math.max(rvolMin, 0.5)) * 15);
   sc +=
     body2 <= bodyMax
       ? Math.min(15, ((bodyMax - body2) / Math.max(bodyMax, 1)) * 15)
@@ -340,12 +356,12 @@ export function detectBottomCandleAtBar(candles, barIndex = candles.length - 1, 
   const rvol0 =
     volMa0 != null && volMa0 > 0 && Number.isFinite(vol0) ? vol0 / volMa0 : 1;
 
-  const hiRef = highestHigh(candles, dropLb, barIndex);
+  const avgRef = closeSmaAt(candles, dropLb, barIndex);
   const loRef = lowestLow(candles, dropLb, barIndex);
   const close0 = Number(candles[barIndex]?.close);
   const dropPct0 =
-    hiRef != null && hiRef > 0 && Number.isFinite(close0)
-      ? ((hiRef - close0) / hiRef) * 100
+    avgRef != null && avgRef > 0 && Number.isFinite(close0)
+      ? ((avgRef - close0) / avgRef) * 100
       : 0;
   const risePct0 =
     loRef != null && loRef > 0 && Number.isFinite(close0)
@@ -354,7 +370,6 @@ export function detectBottomCandleAtBar(candles, barIndex = candles.length - 1, 
 
   const hadDrop0 = dropPct0 >= dropMin;
   const ctxDrop = !needDrop || hadDrop0;
-  const volOk = rvol0 >= rvolMin;
 
   const gap = gapStory(candles, barIndex, gapMin);
   const body2 = bodyPctOff(candles, barIndex, 1, bodyMax);
@@ -371,8 +386,6 @@ export function detectBottomCandleAtBar(candles, barIndex = candles.length - 1, 
   const bClassic =
     showBottom &&
     ctxDrop &&
-    volOk &&
-    gap.gapOk &&
     isBear(c2) &&
     pivot2 &&
     isBull(c0);
@@ -381,21 +394,15 @@ export function detectBottomCandleAtBar(candles, barIndex = candles.length - 1, 
     showBottomVar &&
     allowNoGap &&
     ctxDrop &&
-    volOk &&
-    gap.gapOk &&
     isBear(c2) &&
-    isInflection(candles, barIndex, 1, bodyMax) &&
-    isBull(c0) &&
-    !gap.gDual &&
-    !gap.gAny;
+    pivot2 &&
+    isBull(c0);
 
   const bGapPivot =
     showBottomVar &&
     ctxDrop &&
-    volOk &&
-    gap.gapOk &&
     isBear(c2) &&
-    isInflection(candles, barIndex, 1, bodyMax) &&
+    pivot2 &&
     gapUp(candles, barIndex, 1, gapMin) &&
     isBull(c0) &&
     gapUp(candles, barIndex, 0, gapMin);
@@ -404,8 +411,6 @@ export function detectBottomCandleAtBar(candles, barIndex = candles.length - 1, 
     showBottomVar &&
     allowFallBull &&
     ctxDrop &&
-    volOk &&
-    gap.gapOk &&
     isBear(c2) &&
     fallBull(candles, barIndex, 1) &&
     isBull(c0);
@@ -414,8 +419,6 @@ export function detectBottomCandleAtBar(candles, barIndex = candles.length - 1, 
     showBottomVar &&
     allowFallBull &&
     ctxDrop &&
-    volOk &&
-    gap.gapOk &&
     isBear(c2) &&
     fallBull(candles, barIndex, 1) &&
     fallBull(candles, barIndex, 0);
