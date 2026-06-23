@@ -1,30 +1,19 @@
 #!/usr/bin/env node
 /**
  * 서버 폴러 스케줄에 등록된 종목 스캔을 즉시 1회 실행.
- * env로 꺼져 있어도 이 스크립트는 전 범위를 강제 실행(스크리너·박스권 포함).
+ * 사용자가 env·도크로 끈 스캔은 건너뛰고, 미완료·장애 복구 대상만 실행.
  * 완료 후 Windows PC 자동 종료(30s, STOCK_ALL_SCANS_SHUTDOWN=0 이면 생략).
  * Usage: node scripts/run-all-scheduled-scans.mjs
  */
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { loadEnvFile } from "../server/load-env.js";
+import {
+  listScheduledScanRecoveryPlan,
+  SCHEDULED_SCAN_TASKS,
+} from "../server/scheduled-scan-policy.js";
 
 loadEnvFile();
-
-/** 전체 스캔 SSOT — 개별 폴러 env=0 이어도 여기서 켠다 */
-function forceEnableAllScheduledScans() {
-  Object.assign(process.env, {
-    STOCK_GOLDEN_CROSS_SCAN: "1",
-    STOCK_BOTTOM_CANDLE_SCAN: "1",
-    STOCK_BOOK_ACCUM_FAST_SCAN: "1",
-    STOCK_BOX_RANGE_DETECT: "1",
-    STOCK_KR_INVESTOR_FLOW: "1",
-    STOCK_FINANCIALS_ARCHIVE: "1",
-    STOCK_SHARE_STRUCTURE_SCAN: "1",
-    STOCK_SCREENER_POLL: "1",
-  });
-  console.log("[all-scans] forced all scan flags ON");
-}
 
 function localUsDateKey(now = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -126,49 +115,116 @@ async function runBookAccumFastAllMarkets() {
   }));
 }
 
+/** @param {string} taskId */
+function taskRunner(taskId) {
+  switch (taskId) {
+    case "vault":
+      return runVaultScans;
+    case "bottom-candle":
+      return async () => {
+        const { runFullBottomCandleScanInternal } = await import(
+          "../server/bottom-candle-poller.js"
+        );
+        return runFullBottomCandleScanInternal(new Date(), "manual");
+      };
+    case "book-accum-fast":
+      return runBookAccumFastAllMarkets;
+    case "box-us":
+      return async () => {
+        const { runSp500BoxRangeCatalogScan } = await import(
+          "../server/box-range/sp500-scan-runner.js"
+        );
+        return runSp500BoxRangeCatalogScan();
+      };
+    case "box-kr":
+      return async () => {
+        const { runKrBoxRangeCatalogScan } = await import(
+          "../server/box-range/kr-scan-runner.js"
+        );
+        return runKrBoxRangeCatalogScan();
+      };
+    case "box-crypto":
+      return async () => {
+        const { runCryptoBoxRangeCatalogScan } = await import(
+          "../server/box-range/crypto-scan-runner.js"
+        );
+        return runCryptoBoxRangeCatalogScan();
+      };
+    case "kr-investor-flow":
+      return async () => {
+        const { runKrInvestorFlowScan } = await import(
+          "../server/kr-investor-flow.js"
+        );
+        return runKrInvestorFlowScan();
+      };
+    case "financials-kr":
+      return async () => {
+        const { runFinancialsArchiveForMarket } = await import(
+          "../server/stock-financials-archive.js"
+        );
+        return runFinancialsArchiveForMarket("kr");
+      };
+    case "financials-us":
+      return async () => {
+        const { runFinancialsArchiveForMarket } = await import(
+          "../server/stock-financials-archive.js"
+        );
+        return runFinancialsArchiveForMarket("us");
+      };
+    case "share-structure-kr":
+      return async () => {
+        const { runShareStructureScanForMarket } = await import(
+          "../server/stock-share-structure.js"
+        );
+        return runShareStructureScanForMarket("kr");
+      };
+    case "share-structure-us":
+      return async () => {
+        const { runShareStructureScanForMarket } = await import(
+          "../server/stock-share-structure.js"
+        );
+        return runShareStructureScanForMarket("us");
+      };
+    case "screener":
+      return async () => {
+        const { runScreeningOnce } = await import("../server/screener.js");
+        return runScreeningOnce();
+      };
+    default:
+      return null;
+  }
+}
+
 async function main() {
-  forceEnableAllScheduledScans();
   const startedAt = Date.now();
-  console.log("[all-scans] trigger at", new Date().toISOString());
+  const now = new Date();
+  console.log("[all-scans] trigger at", now.toISOString());
+  console.log("[all-scans] recovery mode — user-stopped scans are skipped");
 
-  const { runFullBottomCandleScanInternal } = await import(
-    "../server/bottom-candle-poller.js"
-  );
-  const { runSp500BoxRangeCatalogScan } = await import(
-    "../server/box-range/sp500-scan-runner.js"
-  );
-  const { runKrBoxRangeCatalogScan } = await import(
-    "../server/box-range/kr-scan-runner.js"
-  );
-  const { runCryptoBoxRangeCatalogScan } = await import(
-    "../server/box-range/crypto-scan-runner.js"
-  );
-  const { runKrInvestorFlowScan } = await import("../server/kr-investor-flow.js");
-  const { runFinancialsArchiveForMarket } = await import(
-    "../server/stock-financials-archive.js"
-  );
-  const { runShareStructureScanForMarket } = await import(
-    "../server/stock-share-structure.js"
-  );
-  const { runScreeningOnce } = await import("../server/screener.js");
+  const plan = await listScheduledScanRecoveryPlan(now);
+  for (const row of plan) {
+    if (row.run) continue;
+    console.log(
+      `[all-scans] skip ${row.label} (${row.stopReason ?? "skip"})`,
+    );
+  }
 
+  const taskById = new Map(SCHEDULED_SCAN_TASKS.map((t) => [t.id, t]));
   /** @type {Promise<{ label: string; ok: boolean; durationMs: number; error?: string }>[]} */
-  const tasks = [
-    runTask("vault(golden-cross·정배열·120·저점기울기·매집)", runVaultScans),
-    runTask("bottom-candle", () =>
-      runFullBottomCandleScanInternal(new Date(), "manual"),
-    ),
-    runTask("book-accum-fast(kr+us)", runBookAccumFastAllMarkets),
-    runTask("box-us", () => runSp500BoxRangeCatalogScan()),
-    runTask("box-kr", () => runKrBoxRangeCatalogScan()),
-    runTask("box-crypto", () => runCryptoBoxRangeCatalogScan()),
-    runTask("kr-investor-flow", () => runKrInvestorFlowScan()),
-    runTask("financials-kr", () => runFinancialsArchiveForMarket("kr")),
-    runTask("financials-us", () => runFinancialsArchiveForMarket("us")),
-    runTask("share-structure-kr", () => runShareStructureScanForMarket("kr")),
-    runTask("share-structure-us", () => runShareStructureScanForMarket("us")),
-    runTask("screener", () => runScreeningOnce()),
-  ];
+  const tasks = [];
+
+  for (const row of plan) {
+    if (!row.run) continue;
+    const meta = taskById.get(row.id);
+    const fn = taskRunner(row.id);
+    if (!meta || !fn) continue;
+    tasks.push(runTask(meta.label, fn));
+  }
+
+  if (!tasks.length) {
+    console.log("[all-scans] nothing to recover — all scans skipped or complete");
+    return;
+  }
 
   const results = await Promise.allSettled(tasks);
   const summary = results.map((r, i) =>

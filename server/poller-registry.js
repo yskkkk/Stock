@@ -330,6 +330,55 @@ function writeOverridesSync(overrides) {
   fs.renameSync(tmp, fp);
 }
 
+/** @typedef {{ enabled: boolean; stoppedBy?: "user" | "system"; stoppedAtMs?: number; stopReason?: string }} PollerOverrideMeta */
+
+/** @param {unknown} raw */
+function normalizePollerOverride(raw) {
+  if (typeof raw === "boolean") {
+    return { enabled: raw, stoppedBy: raw ? undefined : "user" };
+  }
+  if (raw && typeof raw === "object") {
+    const o = /** @type {Record<string, unknown>} */ (raw);
+    const enabled = o.enabled !== false;
+    const stoppedBy =
+      o.stoppedBy === "user" || o.stoppedBy === "system"
+        ? o.stoppedBy
+        : enabled
+          ? undefined
+          : "user";
+    return {
+      enabled,
+      stoppedBy,
+      stoppedAtMs:
+        typeof o.stoppedAtMs === "number" && Number.isFinite(o.stoppedAtMs)
+          ? o.stoppedAtMs
+          : undefined,
+      stopReason: typeof o.stopReason === "string" ? o.stopReason : undefined,
+    };
+  }
+  return { enabled: true };
+}
+
+/** @param {string} id */
+export function readPollerOverrideMetaSync(id) {
+  const overrides = readOverridesSync();
+  if (!Object.prototype.hasOwnProperty.call(overrides, id)) {
+    return { enabled: true };
+  }
+  return normalizePollerOverride(overrides[id]);
+}
+
+/** @param {string} id */
+export function isPollerUserStopped(id) {
+  const meta = readPollerOverrideMetaSync(id);
+  return meta.enabled === false && meta.stoppedBy === "user";
+}
+
+export function listUserStoppedPollerIdsSync() {
+  const overrides = readOverridesSync();
+  return Object.keys(overrides).filter((id) => isPollerUserStopped(id));
+}
+
 /** @type {Record<string, { bootStarted?: boolean; running?: boolean; lastTickAtMs?: number; lastError?: string | null; tickCount?: number }>} */
 const runtime = {};
 
@@ -373,11 +422,7 @@ export function markPollerBootStarted(id) {
 
 /** @param {string} id */
 export function isPollerRuntimeEnabled(id) {
-  const overrides = readOverridesSync();
-  if (Object.prototype.hasOwnProperty.call(overrides, id)) {
-    return Boolean(overrides[id]);
-  }
-  return true;
+  return readPollerOverrideMetaSync(id).enabled !== false;
 }
 
 /** @param {string} id */
@@ -438,7 +483,12 @@ function pollerSummaryKo(desc) {
   return `${s.slice(0, 93)}…`;
 }
 
-export function setPollerRuntimeEnabled(id, enabled) {
+/**
+ * @param {string} id
+ * @param {boolean} enabled
+ * @param {{ stoppedBy?: "user" | "system"; stopReason?: string }} [meta]
+ */
+export function setPollerRuntimeEnabled(id, enabled, meta = {}) {
   const entry = POLLER_CATALOG[id];
   if (!entry) {
     throw new Error(`unknown poller: ${id}`);
@@ -447,7 +497,16 @@ export function setPollerRuntimeEnabled(id, enabled) {
     throw new Error("이 폴러는 런타임 토글이 지원되지 않습니다. env 변경 후 재기동하세요.");
   }
   const overrides = readOverridesSync();
-  overrides[id] = Boolean(enabled);
+  if (enabled) {
+    overrides[id] = true;
+  } else {
+    overrides[id] = {
+      enabled: false,
+      stoppedBy: meta.stoppedBy === "system" ? "system" : "user",
+      stoppedAtMs: Date.now(),
+      ...(meta.stopReason ? { stopReason: meta.stopReason } : {}),
+    };
+  }
   writeOverridesSync(overrides);
   if (enabled) {
     tryLazyStartPoller(id);
@@ -460,9 +519,7 @@ export function listPollersStatusSync() {
   return Object.entries(POLLER_CATALOG).map(([id, entry]) => {
     const bootEnabled = entry.isBootEnabled();
     const bootStarted = Boolean(runtime[id]?.bootStarted);
-    const runtimeEnabled = Object.prototype.hasOwnProperty.call(overrides, id)
-      ? Boolean(overrides[id])
-      : true;
+    const runtimeEnabled = readPollerOverrideMetaSync(id).enabled !== false;
     const effective = bootEnabled && bootStarted && runtimeEnabled;
     const st = runtime[id] ?? {};
     return {

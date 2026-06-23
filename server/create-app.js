@@ -1460,7 +1460,10 @@ export function createApp() {
         return;
       }
       try {
-        const pollers = setPollerRuntimeEnabled(id, enabled);
+        const pollers = setPollerRuntimeEnabled(id, enabled, {
+          stoppedBy: enabled ? undefined : "user",
+          stopReason: enabled ? undefined : "dock UI",
+        });
         res.json({ ok: true, pollers });
       } catch (e) {
         res.status(400).json({
