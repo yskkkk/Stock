@@ -1,6 +1,11 @@
 /** 종목보관 — 메모리·네트워크 절약용 상수·유틸 */
 
-import type { StockVaultFavoriteMeta, StockVaultItem } from "../types";
+import { normalizeStockVaultTimeframe } from "./stockVaultTimeframe";
+import type {
+  StockVaultFavoriteMeta,
+  StockVaultItem,
+  StockVaultTimeframe,
+} from "../types";
 
 export const VAULT_LIST_INITIAL_ROWS = 12;
 export const VAULT_LIST_ROW_STEP = 12;
@@ -92,6 +97,44 @@ export function pruneSymbolRecord<T>(
   }
   if (!changed && Object.keys(map).length === keep.size) return map;
   return out;
+}
+
+/** favoriteMeta에만 있는 종목 — source favorite 항목으로 보강 */
+export function mergeFavoriteMetaItems(
+  items: StockVaultItem[],
+  favoriteMeta: Record<string, StockVaultFavoriteMeta>,
+  timeframe: StockVaultTimeframe = "1d",
+): StockVaultItem[] {
+  const metaKeys = Object.keys(favoriteMeta);
+  if (!metaKeys.length) return items;
+
+  const tf = normalizeStockVaultTimeframe(timeframe);
+  const symbolsPresent = new Set(
+    items.map((it) => it.symbol.trim().toUpperCase()),
+  );
+  const extras: StockVaultItem[] = [];
+
+  for (const rawSym of metaKeys) {
+    const sym = rawSym.trim().toUpperCase();
+    if (!sym || symbolsPresent.has(sym)) continue;
+    const fm = favoriteMeta[rawSym] ?? favoriteMeta[sym];
+    if (!fm) continue;
+    extras.push({
+      id: `favorite-meta-${sym}`,
+      symbol: sym,
+      name: fm.name?.trim() || sym,
+      market: fm.market,
+      source: "favorite",
+      timeframe: tf,
+      addedAtMs: fm.addedAtMs,
+      updatedAtMs: fm.updatedAtMs,
+      favorited: true,
+      favoriteAddedAtMs: fm.addedAtMs,
+      favoritePrice: fm.favoritePrice ?? null,
+    });
+  }
+
+  return extras.length ? [...items, ...extras] : items;
 }
 
 /** favoriteMeta 기준으로 스냅샷·로컬 목록 favorited 보강 (해제는 patchVaultItemFavorite) */

@@ -85,6 +85,7 @@ export default function StockHoverBubbleActions({
         title={ko.valueInvest.bubbleAria}
         onClick={(e) => {
           e.stopPropagation();
+          shareStructure?.closeShareStructureModal();
           if (valueInvest) {
             valueInvest.showValueInvestBubble(
               e.currentTarget,
@@ -113,6 +114,7 @@ export default function StockHoverBubbleActions({
           onClick={(e) => {
             e.stopPropagation();
             e.preventDefault();
+            valueInvest?.closeValueInvestBubble();
             const bubble =
               e.currentTarget.closest('[role="tooltip"]') ?? e.currentTarget;
             shareStructure.showShareStructureModal(
