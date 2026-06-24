@@ -292,7 +292,6 @@ async function runScreening() {
 
   const prevKr = [...state.kr];
   const prevUs = [...state.us];
-  const prevCrypto = [...state.crypto];
   const prevFailures = [...state.failures];
   const prevUpdatedAt = state.updatedAt;
 
@@ -300,7 +299,7 @@ async function runScreening() {
   state.startedAt = Date.now();
   state.failedCount = 0;
   state.failures = [];
-  state.message = "시총 상위 종목·코인 목록 불러오는 중…";
+  state.message = "시총 상위 종목 목록 불러오는 중…";
   state.progress = 0;
 
   const draft = { kr: [], us: [], crypto: [] };
@@ -340,19 +339,19 @@ async function runScreening() {
         state.progress += chunk.length;
         state.kr = mergeLivePicksWhileRunning(prevKr, draft.kr);
         state.us = mergeLivePicksWhileRunning(prevUs, draft.us);
-        state.crypto = mergeLivePicksWhileRunning(prevCrypto, draft.crypto);
+        state.crypto = [];
         state.updatedAt = Date.now();
       }
 
       state.kr = finalizePicksAfterScan(prevKr, draft.kr, processedSymbols);
       state.us = finalizePicksAfterScan(prevUs, draft.us, processedSymbols);
-      state.crypto = finalizePicksAfterScan(prevCrypto, draft.crypto, processedSymbols);
+      state.crypto = [];
       state.updatedAt = Date.now();
       recordPicksDailySnapshot(
         [...state.kr],
         [...state.us],
         state.updatedAt,
-        [...state.crypto],
+        [],
       );
       scheduleRecommendationsTrackerSnapshotRefresh();
       const failMsg =

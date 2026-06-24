@@ -2,6 +2,7 @@ import { readFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { loadCryptoWatchlistTen } from "./crypto-universe.js";
+import { boxRangeCryptoScanEnabled } from "./box-range/constants.js";
 import { parseKrxListCsvAll } from "./kr-stock-search-index.js";
 import { resolveDisplayName } from "./names-ko.js";
 import { getYahooSession, yahooPost } from "./yahoo.js";
@@ -741,14 +742,16 @@ export async function loadBoxRangeCatalogUniverse() {
   const us = mergeSymbolUniverse(sp500, usFallback).slice(0, US_TARGET);
 
   let crypto = [];
-  try {
-    const { assets } = await loadCryptoWatchlistTen();
-    crypto = assets.map((a) => ({
-      symbol: a.symbol,
-      name: a.name ?? a.symbol,
-    }));
-  } catch {
-    crypto = [];
+  if (boxRangeCryptoScanEnabled()) {
+    try {
+      const { assets } = await loadCryptoWatchlistTen();
+      crypto = assets.map((a) => ({
+        symbol: a.symbol,
+        name: a.name ?? a.symbol,
+      }));
+    } catch {
+      crypto = [];
+    }
   }
 
   const meta = {
@@ -803,14 +806,16 @@ export async function loadUniverse() {
     .slice(0, US_TARGET);
 
   let crypto = [];
-  try {
-    const { assets } = await loadCryptoWatchlistTen();
-    crypto = assets.map((a) => ({
-      symbol: a.symbol,
-      name: a.name ?? a.symbol,
-    }));
-  } catch {
-    crypto = [];
+  if (boxRangeCryptoScanEnabled()) {
+    try {
+      const { assets } = await loadCryptoWatchlistTen();
+      crypto = assets.map((a) => ({
+        symbol: a.symbol,
+        name: a.name ?? a.symbol,
+      }));
+    } catch {
+      crypto = [];
+    }
   }
 
   const payload = { kr, us, crypto };

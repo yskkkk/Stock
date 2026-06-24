@@ -30,7 +30,6 @@ function forceEnableAllScheduledScans() {
     STOCK_FINANCIALS_ARCHIVE: "1",
     STOCK_SHARE_STRUCTURE_SCAN: "1",
     STOCK_SCREENER_POLL: "1",
-    STOCK_BOX_RANGE_CRYPTO_SCAN: "0",
   });
   console.log("[all-scans] forced all scan flags ON");
 }

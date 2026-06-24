@@ -51,6 +51,10 @@ export function boxRangeCryptoCatalogItem() {
 }
 
 export async function runCryptoBoxRangeCatalogScan() {
+  if (!boxRangeCryptoScanEnabled()) {
+    liveTradeLogInfo("[box-range:crypto-scan] skipped (crypto scan disabled)");
+    return { scanned: 0, hits: 0, skipped: true };
+  }
   const items = boxRangeCryptoCatalogItems();
   liveTradeLogInfo(
     "[box-range:crypto-scan] start",

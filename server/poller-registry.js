@@ -4,7 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { resolveServerDataDir } from "./data-path.js";
-import { boxRangeDetectEnabled, boxRangeCryptoScanEnabled } from "./box-range/constants.js";
+import { boxRangeDetectEnabled } from "./box-range/constants.js";
 
 /** @typedef {{
  *   labelKo: string;
@@ -123,11 +123,10 @@ export const POLLER_CATALOG = {
     labelKo: "암호화폐 박스권 카탈로그 스캔",
     groupKo: "박스권",
     intervalMs: 30 * 60 * 1000,
-    envDisable: "STOCK_BOX_RANGE_DETECT=1 · STOCK_BOX_RANGE_CRYPTO_SCAN=1 필요",
-    isBootEnabled: () =>
-      boxRangeDetectEnabled() && boxRangeCryptoScanEnabled(),
+    envDisable: "코인 스캔 비활성(스캔 범위에서 제외)",
+    isBootEnabled: () => false,
     descriptionKo:
-      "암호화폐 HTF 유니버스 박스권 탐지 스캔·카탈로그 갱신. 기본 30분 간격.",
+      "비활성 — 코인은 스캔 범위에서 제외됨.",
   },
   "ops-file-dev": {
     labelKo: "파일 반영 큐",

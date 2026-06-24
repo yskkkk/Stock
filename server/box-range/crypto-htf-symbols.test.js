@@ -2,11 +2,16 @@ import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import {
   BOX_RANGE_CRYPTO_HTF_SYMBOLS,
+  boxRangeCryptoScanEnabled,
   isBoxRangeCryptoHtfManaged,
   isBoxRangeCryptoHtfSymbol,
 } from "./constants.js";
 
 describe("box-range crypto HTF symbols", () => {
+  it("crypto catalog scan is disabled", () => {
+    assert.equal(boxRangeCryptoScanEnabled(), false);
+  });
+
   it("allows BTC, ETH, SOL", () => {
     assert.deepEqual(BOX_RANGE_CRYPTO_HTF_SYMBOLS, ["BTC-USDT", "ETH-USDT", "SOL-USDT"]);
     assert.equal(isBoxRangeCryptoHtfSymbol("BTC-USDT"), true);

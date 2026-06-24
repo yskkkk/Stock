@@ -183,9 +183,9 @@ export function boxRangeDetectEnabled() {
   return String(process.env.STOCK_BOX_RANGE_DETECT ?? "0").trim() === "1";
 }
 
-/** 코인 박스권 카탈로그 스캔 — 기본 OFF (STOCK_BOX_RANGE_CRYPTO_SCAN=1 일 때만) */
+/** 코인 박스권 카탈로그 스캔 — 비활성(요청에 따라 스캔 범위 제외) */
 export function boxRangeCryptoScanEnabled() {
-  return String(process.env.STOCK_BOX_RANGE_CRYPTO_SCAN ?? "0").trim() === "1";
+  return false;
 }
 
 /** 시세: STOCK_BOX_RANGE_QUOTE_* · WS: STOCK_BOX_RANGE_WS(0=off), STOCK_BITHUMB_WS_TICKER, STOCK_BOX_RANGE_WS_MAX_STALE_MS, BITHUMB_WS_* */
