@@ -434,17 +434,31 @@ export default function OpsManagementTab({
           if (ev.type === "phase") {
             setStatusText(ev.message);
           } else if (ev.type === "cursor_status") {
-            const d = ev.detail?.trim() ? ` · ${ev.detail.trim()}` : "";
-            setStatusText(`${ev.status}${d}`.slice(0, 280));
+            setStatusText(
+              (ev.message ?? `${ev.status}${ev.detail?.trim() ? ` · ${ev.detail.trim()}` : ""}`).slice(
+                0,
+                280,
+              ),
+            );
           } else if (ev.type === "done") {
             setResultText(ev.result);
-            setStatusText(ev.status);
+            setStatusText(ev.message ?? ev.status);
             setDurationMs(
               typeof ev.durationMs === "number" && Number.isFinite(ev.durationMs)
                 ? ev.durationMs
                 : null,
             );
-            setRuntimeLabel(typeof ev.runtime === "string" ? ev.runtime : null);
+            setRuntimeLabel(
+              typeof ev.runtimeLabel === "string" && ev.runtimeLabel.trim()
+                ? ev.runtimeLabel
+                : typeof ev.runtime === "string"
+                  ? ev.runtime === "local"
+                    ? "로컬"
+                    : ev.runtime === "cloud"
+                      ? "클라우드"
+                      : ev.runtime
+                  : null,
+            );
           } else if (ev.type === "error") {
             throw new Error(ev.message);
           }

@@ -19,19 +19,14 @@ const forceAll =
   process.argv.includes("--force") ||
   String(process.env.STOCK_ALL_SCANS_FORCE ?? "").trim() === "1";
 
-/** 전체 스캔 SSOT — 개별 폴러 env=0 이어도 강제 실행 시 켠다 */
+/** 종목보관 스캔만 — 개별 폴러 env=0 이어도 강제 실행 시 켠다 */
 function forceEnableAllScheduledScans() {
   Object.assign(process.env, {
     STOCK_GOLDEN_CROSS_SCAN: "1",
     STOCK_BOTTOM_CANDLE_SCAN: "1",
     STOCK_BOOK_ACCUM_FAST_SCAN: "1",
-    STOCK_BOX_RANGE_DETECT: "1",
-    STOCK_KR_INVESTOR_FLOW: "1",
-    STOCK_FINANCIALS_ARCHIVE: "1",
-    STOCK_SHARE_STRUCTURE_SCAN: "1",
-    STOCK_SCREENER_POLL: "1",
   });
-  console.log("[all-scans] forced all scan flags ON");
+  console.log("[all-scans] forced vault scan flags ON");
 }
 
 function localUsDateKey(now = new Date()) {
@@ -147,60 +142,6 @@ function taskRunner(taskId) {
       };
     case "book-accum-fast":
       return runBookAccumFastAllMarkets;
-    case "box-us":
-      return async () => {
-        const { runSp500BoxRangeCatalogScan } = await import(
-          "../server/box-range/sp500-scan-runner.js"
-        );
-        return runSp500BoxRangeCatalogScan();
-      };
-    case "box-kr":
-      return async () => {
-        const { runKrBoxRangeCatalogScan } = await import(
-          "../server/box-range/kr-scan-runner.js"
-        );
-        return runKrBoxRangeCatalogScan();
-      };
-    case "kr-investor-flow":
-      return async () => {
-        const { runKrInvestorFlowScan } = await import(
-          "../server/kr-investor-flow.js"
-        );
-        return runKrInvestorFlowScan();
-      };
-    case "financials-kr":
-      return async () => {
-        const { runFinancialsArchiveForMarket } = await import(
-          "../server/stock-financials-archive.js"
-        );
-        return runFinancialsArchiveForMarket("kr");
-      };
-    case "financials-us":
-      return async () => {
-        const { runFinancialsArchiveForMarket } = await import(
-          "../server/stock-financials-archive.js"
-        );
-        return runFinancialsArchiveForMarket("us");
-      };
-    case "share-structure-kr":
-      return async () => {
-        const { runShareStructureScanForMarket } = await import(
-          "../server/stock-share-structure.js"
-        );
-        return runShareStructureScanForMarket("kr");
-      };
-    case "share-structure-us":
-      return async () => {
-        const { runShareStructureScanForMarket } = await import(
-          "../server/stock-share-structure.js"
-        );
-        return runShareStructureScanForMarket("us");
-      };
-    case "screener":
-      return async () => {
-        const { runScreeningOnce } = await import("../server/screener.js");
-        return runScreeningOnce();
-      };
     default:
       return null;
   }
@@ -253,7 +194,7 @@ async function main() {
 
   if (forceAll) {
     forceEnableAllScheduledScans();
-    console.log("[all-scans] force mode — all scheduled tasks");
+    console.log("[all-scans] force mode — vault scheduled tasks only");
     metas = SCHEDULED_SCAN_TASKS.map((t) => ({ id: t.id, label: t.label }));
   } else {
     console.log("[all-scans] recovery mode — user-stopped scans are skipped");

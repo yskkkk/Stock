@@ -1,17 +1,12 @@
 /**
  * 스케줄 스캔 일괄 실행 정책 — 사용자 중지 vs 장애 복구 구분
  */
-import { boxRangeDetectEnabled } from "./box-range/constants.js";
 import { bottomCandleScanEnabled } from "./bottom-candle-poller.js";
 import { bookAccumFastScanEnabled } from "./book-accumulation-fast-scan.js";
 import {
   goldenCrossScanEnabled,
   shouldRunGoldenCrossScan,
 } from "./golden-cross-poller.js";
-import { krInvestorFlowEnabled } from "./kr-investor-flow.js";
-import { financialsArchiveEnabled } from "./stock-financials-archive-schedule.js";
-import { shareStructureScanEnabled } from "./stock-share-structure-schedule.js";
-import { screeningPollerEnabled } from "./screener.js";
 import {
   isPollerUserStopped,
   listUserStoppedPollerIdsSync,
@@ -76,64 +71,6 @@ export const SCHEDULED_SCAN_TASKS = [
     isConfiguredEnabled: () => bookAccumFastScanEnabled(),
     shouldRecover: () => true,
   },
-  {
-    id: "box-us",
-    label: "box-us",
-    pollerIds: ["box-sp500-scan"],
-    isConfiguredEnabled: () =>
-      boxRangeDetectEnabled() &&
-      process.env.STOCK_BOX_RANGE_SP500_SCAN !== "0",
-  },
-  {
-    id: "box-kr",
-    label: "box-kr",
-    pollerIds: ["box-kr-scan"],
-    isConfiguredEnabled: () =>
-      boxRangeDetectEnabled() &&
-      process.env.STOCK_BOX_RANGE_KR_SCAN !== "0",
-  },
-  {
-    id: "kr-investor-flow",
-    label: "kr-investor-flow",
-    pollerIds: ["kr-investor-flow"],
-    isConfiguredEnabled: () => krInvestorFlowEnabled(),
-    shouldRecover: () => true,
-  },
-  {
-    id: "financials-kr",
-    label: "financials-kr",
-    pollerIds: ["financials-archive"],
-    isConfiguredEnabled: () => financialsArchiveEnabled(),
-    shouldRecover: () => true,
-  },
-  {
-    id: "financials-us",
-    label: "financials-us",
-    pollerIds: ["financials-archive"],
-    isConfiguredEnabled: () => financialsArchiveEnabled(),
-    shouldRecover: () => true,
-  },
-  {
-    id: "share-structure-kr",
-    label: "share-structure-kr",
-    pollerIds: ["share-structure"],
-    isConfiguredEnabled: () => shareStructureScanEnabled(),
-    shouldRecover: () => true,
-  },
-  {
-    id: "share-structure-us",
-    label: "share-structure-us",
-    pollerIds: ["share-structure"],
-    isConfiguredEnabled: () => shareStructureScanEnabled(),
-    shouldRecover: () => true,
-  },
-  {
-    id: "screener",
-    label: "screener",
-    pollerIds: ["screener"],
-    isConfiguredEnabled: () => screeningPollerEnabled(),
-    shouldRecover: () => true,
-  },
 ];
 
 /** @param {ScheduledScanTask} task */
@@ -175,8 +112,15 @@ export async function listScheduledScanRecoveryPlan(now = new Date()) {
   return rows;
 }
 
-/** force-enable로 잘못 돌았을 가능성이 큰 opt-in 스캔 */
-export const OPT_IN_SCAN_TASK_IDS = ["box-us", "box-kr", "screener"];
+/** 일괄 스캔 SSOT — 종목보관(vault) 관련만 */
+export const VAULT_SCHEDULED_SCAN_TASK_IDS = [
+  "vault",
+  "bottom-candle",
+  "book-accum-fast",
+];
+
+/** force-enable로 잘못 돌았을 가능성이 있었던 opt-in 스캔(현재 일괄 목록에 없음) */
+export const OPT_IN_SCAN_TASK_IDS = [];
 
 /** 사용자가 도크에서 끈 폴러 — all-scans 후 재기동됐을 수 있음 */
 export const INTRADAY_POLLER_IDS = [

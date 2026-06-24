@@ -307,16 +307,18 @@ export type OpsAgentSseEvent =
   | { type: "meta"; requestId: string }
   | { type: "phase"; message: string }
   | { type: "delta"; text: string }
-  | { type: "cursor_status"; status: string; detail: string }
+  | { type: "cursor_status"; status: string; detail: string; message?: string }
   | { type: "thinking"; text: string }
   | { type: "tool"; name: string; toolStatus: string; detail?: string }
   | {
       type: "done";
       ok: true;
       status: string;
+      message?: string;
       result: string;
       durationMs?: number;
       runtime?: string;
+      runtimeLabel?: string;
     }
   | { type: "error"; message: string };
 

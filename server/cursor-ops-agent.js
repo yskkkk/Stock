@@ -22,6 +22,11 @@ import {
 } from "./ops-stream-cancel.js";
 import { checkOpsInstructionPolicy } from "./ops-agent-instruction-policy.js";
 import { formatOpsToolEventLine } from "./ops-tool-log-ko.js";
+import {
+  cursorAgentStatusKo,
+  formatOpsCursorStatusLine,
+  opsAgentRuntimeKo,
+} from "./ops-cursor-status-ko.js";
 
 /** @param {Record<string, unknown>} ev */
 function toolCallDetailFromEvent(ev) {
@@ -44,10 +49,11 @@ function applyOpsSsePayloadToCapture(obj, capture) {
   } else if (t === "delta") {
     capture.streamText += String(obj.text ?? "");
   } else if (t === "cursor_status") {
-    const d = String(obj.detail ?? "").trim();
-    capture.cursorLine = d
-      ? `${String(obj.status ?? "")}: ${d}`
-      : String(obj.status ?? "");
+    const line = formatOpsCursorStatusLine(
+      String(obj.status ?? ""),
+      String(obj.detail ?? ""),
+    );
+    capture.cursorLine = line;
   } else if (t === "thinking") {
     capture.thinkingLine = String(obj.text ?? "").slice(0, 800);
   } else if (t === "tool") {
@@ -63,7 +69,13 @@ function applyOpsSsePayloadToCapture(obj, capture) {
     capture.toolLog = capture.toolLog ? `${capture.toolLog}\n${line}` : line;
   } else if (t === "done") {
     capture.statusText =
-      typeof obj.status === "string" ? obj.status : obj.status != null ? String(obj.status) : null;
+      typeof obj.message === "string" && obj.message.trim()
+        ? obj.message.trim()
+        : typeof obj.status === "string"
+          ? cursorAgentStatusKo(obj.status)
+          : obj.status != null
+            ? String(obj.status)
+            : null;
     const rawRes = String(obj.result ?? "").trim();
     capture.resultText = rawRes ? rawRes : "(내용 없음)";
     capture.durationMs =
@@ -373,10 +385,12 @@ async function runStreamOnce(writeSse, message, agentOptions, signal) {
             }
           }
         } else if (event.type === "status") {
+          const detail = event.message ?? "";
           writeSse({
             type: "cursor_status",
             status: event.status,
-            detail: event.message ?? "",
+            detail,
+            message: formatOpsCursorStatusLine(event.status, detail),
           });
         } else if (event.type === "thinking" && event.text) {
           writeSse({ type: "thinking", text: event.text.slice(0, 800) });
@@ -624,9 +638,11 @@ export async function streamOpsCursorAgentSse(req, res, body) {
       type: "done",
       ok: true,
       status: result.status,
+      message: cursorAgentStatusKo(result.status),
       result: outText,
       durationMs: result.durationMs,
       runtime,
+      runtimeLabel: opsAgentRuntimeKo(runtime),
     });
   } catch (err) {
     sendError(err instanceof Error ? err.message : String(err));
