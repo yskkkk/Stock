@@ -38,7 +38,11 @@ import {
   notifyVaultScanStartTelegram,
   notifyVaultTimeframeIntersectionTelegram,
 } from "./golden-cross-telegram.js";
-import { sendGoldenCrossScanReportEmail, buildScanEmailPayloadFromVaultResult } from "./notifications/golden-cross-scan-email.js";
+import { buildScanEmailPayloadFromVaultResult } from "./notifications/golden-cross-scan-email.js";
+import {
+  queueScanReportEmail,
+  endScanReportCoalesceWindow,
+} from "./notifications/scan-report-email-coalesce.js";
 import { runMaAlignVaultIntradayRefresh } from "./ma-align-vault-intraday.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 import { markPollerBootStarted, pollerGuardAsync } from "./poller-registry.js";
@@ -787,22 +791,15 @@ async function runGoldenCrossManualScanInternal(now = new Date()) {
   }
 
   try {
-    const emailResult = await sendGoldenCrossScanReportEmail({
+    await queueScanReportEmail({
       goldenCross: goldenCrossEmailMarkets,
       maAlign: maAlignEmailMarkets,
       ma120Near: ma120NearEmailMarkets,
       bookAccum: bookAccumEmailMarkets,
       lowSlopeFlip: lowSlopeEmailMarkets,
     });
-    liveTradeLogInfo("[stock-vault:scan:email]", {
-      sent: emailResult.sent,
-      goldenCrossHits: emailResult.goldenCrossHits,
-      maAlignHits: emailResult.maAlignHits,
-      ma120NearHits: emailResult.ma120NearHits,
-      bookAccumHits: emailResult.bookAccumHits,
-      lowSlopeFlipHits: emailResult.lowSlopeFlipHits,
-      recipients: emailResult.recipients,
-    });
+    endScanReportCoalesceWindow();
+    liveTradeLogInfo("[stock-vault:scan:email]", { queued: true, coalesced: true });
   } catch (e) {
     liveTradeLogWarn(
       "[stock-vault:scan:email]",
@@ -911,7 +908,8 @@ export async function runGoldenCrossScanIfDue(market, now = new Date()) {
         scanDate,
         byTimeframe,
       );
-      await sendGoldenCrossScanReportEmail(payload);
+      await queueScanReportEmail(payload);
+      endScanReportCoalesceWindow();
     } catch (e) {
       liveTradeLogWarn(
         "[stock-vault:scan:email]",

@@ -279,6 +279,23 @@ async function main() {
   }
 
   const summary = await runScheduledTasks(metas);
+  try {
+    const { flushScanReportEmailNow } = await import(
+      "../server/notifications/scan-report-email-coalesce.js"
+    );
+    const emailFlush = await flushScanReportEmailNow();
+    if (emailFlush.sent) {
+      console.log("[all-scans] scan report email sent", {
+        totalHits: emailFlush.totalHits,
+        recipients: emailFlush.recipients?.length ?? 0,
+      });
+    }
+  } catch (e) {
+    console.warn(
+      "[all-scans] scan report email flush",
+      e instanceof Error ? e.message : e,
+    );
+  }
   console.log(
     "[all-scans] finished",
     JSON.stringify(

@@ -18,7 +18,10 @@ import {
   notifyBottomCandleScanDoneTelegram,
   notifyBottomCandleScanStartTelegram,
 } from "./golden-cross-telegram.js";
-import { sendGoldenCrossScanReportEmail } from "./notifications/golden-cross-scan-email.js";
+import {
+  queueScanReportEmail,
+  endScanReportCoalesceWindow,
+} from "./notifications/scan-report-email-coalesce.js";
 import {
   beginVaultScanProgressSession,
   endVaultScanProgressSession,
@@ -166,14 +169,11 @@ export async function runFullBottomCandleScanInternal(now = new Date(), trigger 
   }
 
   try {
-    const emailResult = await sendGoldenCrossScanReportEmail({
+    await queueScanReportEmail({
       bottomCandle: bottomCandleEmailMarkets,
     });
-    liveTradeLogInfo("[bottom-candle:scan:email]", {
-      sent: emailResult.sent,
-      bottomCandleHits: emailResult.bottomCandleHits,
-      recipients: emailResult.recipients,
-    });
+    endScanReportCoalesceWindow();
+    liveTradeLogInfo("[bottom-candle:scan:email]", { queued: true, coalesced: true });
   } catch (e) {
     liveTradeLogWarn(
       "[bottom-candle:scan:email]",

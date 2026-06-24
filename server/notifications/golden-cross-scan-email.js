@@ -783,7 +783,7 @@ function escapeHtml(s) {
  *   to?: string | string[];
  * }} opts
  */
-export async function sendGoldenCrossScanReportEmail(opts) {
+export async function sendGoldenCrossScanReportEmailNow(opts) {
   const goldenCross = Array.isArray(opts.goldenCross)
     ? opts.goldenCross
     : Array.isArray(opts.markets)
