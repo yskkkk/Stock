@@ -2,7 +2,7 @@
 /**
  * 서버 폴러 스케줄에 등록된 종목 스캔을 즉시 1회 실행.
  * 사용자가 env·도크로 끈 스캔은 건너뛰고, 미완료·장애 복구 대상만 실행.
- * 완료 후 Windows PC 자동 종료(30s, STOCK_ALL_SCANS_SHUTDOWN=0 이면 생략).
+ * 완료 후 PC 자동 종료는 기본 OFF (--shutdown 또는 STOCK_ALL_SCANS_SHUTDOWN=1).
  * Usage: node scripts/run-all-scheduled-scans.mjs
  */
 import { randomUUID } from "node:crypto";
@@ -70,10 +70,10 @@ async function runTask(label, fn) {
 }
 
 function scheduleShutdownAfterAllScans() {
-  if (String(process.env.STOCK_ALL_SCANS_SHUTDOWN ?? "1").trim() === "0") {
-    console.log("[all-scans] shutdown skipped STOCK_ALL_SCANS_SHUTDOWN=0");
-    return;
-  }
+  const enabled =
+    process.argv.includes("--shutdown") ||
+    String(process.env.STOCK_ALL_SCANS_SHUTDOWN ?? "0").trim() === "1";
+  if (!enabled) return;
   if (process.platform === "win32") {
     console.log("[all-scans] PC shutdown in 30s (cancel: shutdown /a)");
     spawn("shutdown", ["/s", "/t", "30", "/c", "Stock all-scans finished"], {
