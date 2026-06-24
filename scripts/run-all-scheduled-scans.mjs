@@ -30,6 +30,8 @@ function forceEnableAllScheduledScans() {
     STOCK_FINANCIALS_ARCHIVE: "1",
     STOCK_SHARE_STRUCTURE_SCAN: "1",
     STOCK_SCREENER_POLL: "1",
+    STOCK_SCREENER_CRYPTO: "0",
+    STOCK_BOX_RANGE_CRYPTO_SCAN: "0",
   });
   console.log("[all-scans] forced all scan flags ON");
 }
@@ -161,13 +163,6 @@ function taskRunner(taskId) {
         );
         return runKrBoxRangeCatalogScan();
       };
-    case "box-crypto":
-      return async () => {
-        const { runCryptoBoxRangeCatalogScan } = await import(
-          "../server/box-range/crypto-scan-runner.js"
-        );
-        return runCryptoBoxRangeCatalogScan();
-      };
     case "kr-investor-flow":
       return async () => {
         const { runKrInvestorFlowScan } = await import(
@@ -213,23 +208,55 @@ function taskRunner(taskId) {
   }
 }
 
+/** vault·매집 fast가 동일 vault를 쓰므로 순차 실행 */
+const VAULT_SEQUENTIAL_TASK_IDS = ["vault", "book-accum-fast"];
+
+/** @param {Array<{ id: string; label: string }>} metas */
+async function runScheduledTasks(metas) {
+  /** @type {Array<{ label: string; ok: boolean; durationMs: number; error?: string }>} */
+  const summary = [];
+  const sequential = metas.filter((m) => VAULT_SEQUENTIAL_TASK_IDS.includes(m.id));
+  const parallel = metas.filter((m) => !VAULT_SEQUENTIAL_TASK_IDS.includes(m.id));
+
+  for (const meta of sequential) {
+    const fn = taskRunner(meta.id);
+    if (!fn) continue;
+    summary.push(await runTask(meta.label, fn));
+  }
+
+  if (parallel.length) {
+    const results = await Promise.allSettled(
+      parallel.map((meta) => {
+        const fn = taskRunner(meta.id);
+        if (!fn) return Promise.resolve({ label: meta.label, ok: false, error: "no-runner" });
+        return runTask(meta.label, fn);
+      }),
+    );
+    for (const r of results) {
+      summary.push(
+        r.status === "fulfilled"
+          ? r.value
+          : { label: "parallel-task", ok: false, error: String(r.reason) },
+      );
+    }
+  }
+
+  return summary;
+}
+
 async function main() {
   const startedAt = Date.now();
   const now = new Date();
   console.log("[all-scans] trigger at", now.toISOString());
 
   const taskById = new Map(SCHEDULED_SCAN_TASKS.map((t) => [t.id, t]));
-  /** @type {Promise<{ label: string; ok: boolean; durationMs: number; error?: string }>[]} */
-  const tasks = [];
+  /** @type {Array<{ id: string; label: string }>} */
+  let metas = [];
 
   if (forceAll) {
     forceEnableAllScheduledScans();
     console.log("[all-scans] force mode — all scheduled tasks");
-    for (const meta of SCHEDULED_SCAN_TASKS) {
-      const fn = taskRunner(meta.id);
-      if (!fn) continue;
-      tasks.push(runTask(meta.label, fn));
-    }
+    metas = SCHEDULED_SCAN_TASKS.map((t) => ({ id: t.id, label: t.label }));
   } else {
     console.log("[all-scans] recovery mode — user-stopped scans are skipped");
     const plan = await listScheduledScanRecoveryPlan(now);
@@ -242,23 +269,17 @@ async function main() {
     for (const row of plan) {
       if (!row.run) continue;
       const meta = taskById.get(row.id);
-      const fn = taskRunner(row.id);
-      if (!meta || !fn) continue;
-      tasks.push(runTask(meta.label, fn));
+      if (!meta) continue;
+      metas.push({ id: meta.id, label: meta.label });
     }
   }
 
-  if (!tasks.length) {
+  if (!metas.length) {
     console.log("[all-scans] nothing to run");
     return;
   }
 
-  const results = await Promise.allSettled(tasks);
-  const summary = results.map((r, i) =>
-    r.status === "fulfilled"
-      ? r.value
-      : { label: `task-${i}`, ok: false, error: String(r.reason) },
-  );
+  const summary = await runScheduledTasks(metas);
   console.log(
     "[all-scans] finished",
     JSON.stringify(

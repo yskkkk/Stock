@@ -4,6 +4,10 @@ import { Worker } from "node:worker_threads";
 import { getKstParts } from "./kr-business-day.js";
 import { runBottomCandleMarketScan, getBottomCandleScanStateSync } from "./bottom-candle-scan.js";
 import {
+  assessScanVaultMerge,
+  applyVaultScanMerge,
+} from "./scan-vault-merge.js";
+import {
   clearBottomCandleVaultItemsSync,
   mergeBottomCandleHitsIntoVaultSync,
 } from "./stock-vault-store.js";
@@ -65,16 +69,25 @@ function localUsDateKey(now = new Date()) {
  * @param {import("./vault-scan-timeframe.js").VaultScanTimeframe} timeframe
  */
 async function runMarketTimeframeScan(market, scanDate, timeframe) {
-  clearBottomCandleVaultItemsSync({ market, timeframe });
   const result = await runBottomCandleMarketScan(market, scanDate, {
     timeframe,
     persistState: true,
     onProgress: vaultScanProgressReporter("bottom_candle", market, timeframe),
   });
-  if (result.hits.length) {
-    mergeBottomCandleHitsIntoVaultSync(result.hits);
-  }
-  return result;
+  const merge = applyVaultScanMerge(
+    assessScanVaultMerge({
+      scanned: result.scanned,
+      hitCount: result.hitCount,
+      errors: result.errors ?? 0,
+    }),
+    {
+      clear: () => clearBottomCandleVaultItemsSync({ market, timeframe }),
+      merge: (hits) =>
+        mergeBottomCandleHitsIntoVaultSync(/** @type {typeof result.hits} */ (hits)),
+    },
+    result.hits,
+  );
+  return { ...result, mergeOutcome: merge.outcome };
 }
 
 /** @param {Date} [now] @param {"manual"|"scheduled"} trigger */
@@ -131,6 +144,8 @@ export async function runFullBottomCandleScanInternal(now = new Date(), trigger 
           timeframe,
           hitCount: result.hitCount,
           scanned: result.scanned,
+          errors: result.errors ?? 0,
+          mergeOutcome: result.mergeOutcome,
         });
       } catch (e) {
         timings.push({

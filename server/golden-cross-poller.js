@@ -25,6 +25,10 @@ import {
   mergeLowSlopeFlipHitsIntoVaultSync,
   mergeBookAccumHitsIntoVaultSync,
 } from "./stock-vault-store.js";
+import {
+  assessScanVaultMerge,
+  applyVaultScanMerge,
+} from "./scan-vault-merge.js";
 import { appendGoldenCrossHistoryEntrySync } from "./golden-cross-history-store.js";
 import { appendMaAlignHistoryEntrySync } from "./ma-align-history-store.js";
 import { appendMa120NearHistoryEntrySync } from "./ma120-near-history-store.js";
@@ -265,16 +269,35 @@ async function runVaultMarketScansForTimeframe(
   const lowSlopeTimed = timeframe === "1wk" ? timedResults[2] : null;
   const bookTimed = timedResults[3];
 
+  /** @type {ReturnType<typeof assessScanVaultMerge> | undefined} */
+  let gcMerge;
+  /** @type {ReturnType<typeof assessScanVaultMerge> | undefined} */
+  let maMerge;
+  /** @type {ReturnType<typeof assessScanVaultMerge> | undefined} */
+  let ma120Merge;
+  /** @type {ReturnType<typeof assessScanVaultMerge> | undefined} */
+  let lowSlopeMerge;
+  /** @type {ReturnType<typeof assessScanVaultMerge> | undefined} */
+  let bookMerge;
+
   /** @type {Awaited<ReturnType<typeof runGoldenCrossMarketScan>>} */
   let goldenCross = emptyGoldenCrossMarketResult(market, scanDate);
   if (gcTimed.ok) {
     goldenCross = /** @type {Awaited<ReturnType<typeof runGoldenCrossMarketScan>>} */ (
       gcTimed.result
     );
-    clearGoldenCrossVaultItemsSync({ market, timeframe });
-    if (goldenCross.hits.length) {
-      mergeGoldenCrossHitsIntoVaultSync(goldenCross.hits);
-    }
+    gcMerge = applyVaultScanMerge(
+      assessScanVaultMerge({
+        scanned: goldenCross.scanned,
+        hitCount: goldenCross.hitCount,
+        errors: goldenCross.errors ?? 0,
+      }),
+      {
+        clear: () => clearGoldenCrossVaultItemsSync({ market, timeframe }),
+        merge: (hits) => mergeGoldenCrossHitsIntoVaultSync(/** @type {typeof goldenCross.hits} */ (hits)),
+      },
+      goldenCross.hits,
+    );
     if (appendHistory) {
       appendGoldenCrossHistoryEntrySync({
         runId,
@@ -318,10 +341,17 @@ async function runVaultMarketScansForTimeframe(
     maAlign = /** @type {Awaited<ReturnType<typeof runMaAlignMarketScan>>} */ (
       maTimed.result
     );
-    clearMaAlignVaultItemsSync({ market, timeframe });
-    if (maAlign.hits.length) {
-      mergeMaAlignHitsIntoVaultSync(maAlign.hits);
-    }
+    maMerge = applyVaultScanMerge(
+      assessScanVaultMerge({
+        scanned: maAlign.scanned,
+        hitCount: maAlign.hitCount,
+      }),
+      {
+        clear: () => clearMaAlignVaultItemsSync({ market, timeframe }),
+        merge: (hits) => mergeMaAlignHitsIntoVaultSync(/** @type {typeof maAlign.hits} */ (hits)),
+      },
+      maAlign.hits,
+    );
     if (appendHistory) {
       appendMaAlignHistoryEntrySync({
         runId,
@@ -349,10 +379,18 @@ async function runVaultMarketScansForTimeframe(
       ma120Near = /** @type {Awaited<ReturnType<typeof runMa120NearMarketScan>>} */ (
         ma120Timed.result
       );
-      clearMa120NearVaultItemsSync({ market });
-      if (ma120Near.hits.length) {
-        mergeMa120NearHitsIntoVaultSync(ma120Near.hits);
-      }
+      ma120Merge = applyVaultScanMerge(
+        assessScanVaultMerge({
+          scanned: ma120Near.scanned,
+          hitCount: ma120Near.hitCount,
+        }),
+        {
+          clear: () => clearMa120NearVaultItemsSync({ market }),
+          merge: (hits) =>
+            mergeMa120NearHitsIntoVaultSync(/** @type {typeof ma120Near.hits} */ (hits)),
+        },
+        ma120Near.hits,
+      );
       if (appendHistory) {
         appendMa120NearHistoryEntrySync({
           runId,
@@ -381,10 +419,18 @@ async function runVaultMarketScansForTimeframe(
       lowSlope = /** @type {Awaited<ReturnType<typeof runCandleLowSlopeMarketScan>>} */ (
         lowSlopeTimed.result
       );
-      clearLowSlopeFlipVaultItemsSync({ market });
-      if (lowSlope.hits.length) {
-        mergeLowSlopeFlipHitsIntoVaultSync(lowSlope.hits);
-      }
+      lowSlopeMerge = applyVaultScanMerge(
+        assessScanVaultMerge({
+          scanned: lowSlope.scanned,
+          hitCount: lowSlope.hitCount,
+        }),
+        {
+          clear: () => clearLowSlopeFlipVaultItemsSync({ market }),
+          merge: (hits) =>
+            mergeLowSlopeFlipHitsIntoVaultSync(/** @type {typeof lowSlope.hits} */ (hits)),
+        },
+        lowSlope.hits,
+      );
     } else {
       liveTradeLogWarn(
         "[stock-vault:scan:low-slope]",
@@ -402,10 +448,19 @@ async function runVaultMarketScansForTimeframe(
     bookAccum = /** @type {Awaited<ReturnType<typeof runBookAccumulationMarketScan>>} */ (
       bookTimed.result
     );
-      clearBookAccumVaultItemsSync({ market, timeframe });
-      if (bookAccum.hits.length) {
-        mergeBookAccumHitsIntoVaultSync(bookAccum.hits);
-      }
+    bookMerge = applyVaultScanMerge(
+      assessScanVaultMerge({
+        scanned: bookAccum.scanned,
+        hitCount: bookAccum.hitCount,
+        errors: bookAccum.errors ?? 0,
+      }),
+      {
+        clear: () => clearBookAccumVaultItemsSync({ market, timeframe }),
+        merge: (hits) =>
+          mergeBookAccumHitsIntoVaultSync(/** @type {typeof bookAccum.hits} */ (hits)),
+      },
+      bookAccum.hits,
+    );
   } else {
     liveTradeLogWarn(
       "[stock-vault:scan:book-accum]",
@@ -481,6 +536,13 @@ async function runVaultMarketScansForTimeframe(
     ma120NearOk: ma120Timed?.ok,
     lowSlopeOk: lowSlopeTimed?.ok,
     bookAccumOk: bookTimed.ok,
+    vaultMerge: {
+      goldenCross: gcMerge?.outcome,
+      maAlign: maMerge?.outcome,
+      ma120Near: ma120Merge?.outcome,
+      lowSlopeFlip: lowSlopeMerge?.outcome,
+      bookAccum: bookMerge?.outcome,
+    },
   });
 
   return { goldenCross, maAlign, ma120Near, lowSlope, bookAccum, timeframe, timings };

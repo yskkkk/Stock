@@ -24,7 +24,22 @@ describe("screening-queue", () => {
     expect(scanScopeKrActive).toBe(false);
     expect(scanScopeUsActive).toBe(true);
     expect(label).toBe("국내 300 · S&P 500");
+    expect(queue.map((q) => q.market)).toEqual(["us"]);
+  });
+
+  it("buildScreeningQueue includes crypto when STOCK_SCREENER_CRYPTO=1", () => {
+    const prev = process.env.STOCK_SCREENER_CRYPTO;
+    process.env.STOCK_SCREENER_CRYPTO = "1";
+    vi.spyOn(marketHours, "isMarketOpenBySchedule").mockImplementation((m) => m !== "kr");
+    vi.spyOn(marketHours, "isStockTradableBySchedule").mockImplementation((m) => m !== "kr");
+    const { queue } = buildScreeningQueue({
+      kr: [],
+      us: [{ symbol: "AAPL" }],
+      crypto: [{ symbol: "BTC-KRW" }],
+    });
     expect(queue.map((q) => q.market)).toEqual(["us", "crypto"]);
+    if (prev === undefined) delete process.env.STOCK_SCREENER_CRYPTO;
+    else process.env.STOCK_SCREENER_CRYPTO = prev;
   });
 
   it("buildScreeningQueue includes KR when market open", () => {

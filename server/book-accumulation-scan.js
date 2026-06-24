@@ -226,6 +226,7 @@ export async function runBookAccumulationMarketScan(market, scanDate, opts = {})
       scanDate,
       scanned: list.length,
       hits: hits.length,
+      errors,
       atMs: Date.now(),
       timeframe,
     });

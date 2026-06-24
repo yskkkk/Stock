@@ -2,6 +2,7 @@ import { readFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { loadCryptoWatchlistTen } from "./crypto-universe.js";
+import { parseKrxListCsvAll } from "./kr-stock-search-index.js";
 import { resolveDisplayName } from "./names-ko.js";
 import { getYahooSession, yahooPost } from "./yahoo.js";
 
@@ -27,9 +28,18 @@ export const TOSS_US_EQUITY_TARGET = (() => {
   return Number.isFinite(n) && n >= 500 ? Math.min(n, 12_000) : 10_000;
 })();
 
+/** @type {number} 토스 국내주식 — KRX 전체 상장 (~2.5천) */
+export const TOSS_KR_EQUITY_TARGET = (() => {
+  const n = Number(process.env.STOCK_TOSS_KR_UNIVERSE_TARGET ?? 3_000);
+  return Number.isFinite(n) && n >= 500 ? Math.min(n, 5_000) : 3_000;
+})();
+
 const TOSS_US_UNIVERSE_CACHE_MS = 6 * 60 * 60_000;
+const KR_FULL_UNIVERSE_CACHE_MS = 6 * 60 * 60_000;
 /** @type {{ list: Array<{ symbol: string; name: string }>; at: number } | null} */
 let tossUsUniverseCache = null;
+/** @type {{ list: Array<{ symbol: string; name: string }>; at: number } | null} */
+let krFullUniverseCache = null;
 
 const BOX_SCAN_KR_TARGET = (() => {
   const n = Number(process.env.STOCK_BOX_RANGE_KR_TARGET ?? KR_TARGET);
@@ -321,8 +331,11 @@ export async function fetchTossUsEquityUniverse(
   return merged;
 }
 
-/** 매집봉(US) 일봉 스캔 SSOT scope */
+/** 매집봉(US) 스캔 SSOT scope — 토스 미국주식 전체 */
 export const BOOK_ACCUM_US_UNIVERSE_SCOPE = "toss-us";
+
+/** 매집봉(KR) 스캔 SSOT scope — KRX 전체 상장 */
+export const BOOK_ACCUM_KR_UNIVERSE_SCOPE = "kr-full";
 
 /** US vault 주봉 스캔 — 나스닥(NMS) 전종목 */
 export const US_VAULT_WEEKLY_UNIVERSE_SCOPE = "nasdaq";
@@ -350,11 +363,9 @@ export function resolveVaultScanUniverseScope(market, timeframe = "1d") {
  * @param {"kr"|"us"} market
  * @param {unknown} [timeframe]
  */
-export function resolveBookAccumUniverseScope(market, timeframe = "1d") {
-  if (market === "kr") return "sp500";
-  return isWeeklyVaultTimeframe(timeframe)
-    ? US_VAULT_WEEKLY_UNIVERSE_SCOPE
-    : BOOK_ACCUM_US_UNIVERSE_SCOPE;
+export function resolveBookAccumUniverseScope(market, _timeframe = "1d") {
+  if (market === "kr") return BOOK_ACCUM_KR_UNIVERSE_SCOPE;
+  return BOOK_ACCUM_US_UNIVERSE_SCOPE;
 }
 
 /**
@@ -451,13 +462,78 @@ export async function loadVaultScanUniverse(market, timeframe = "1d") {
 }
 
 /**
+ * 토스증권 국내주식 범위 — KRX 전체 상장 (KOSPI·KOSDAQ)
+ * @param {number} [target]
+ */
+export async function fetchKrFullEquityUniverse(
+  target = TOSS_KR_EQUITY_TARGET,
+) {
+  if (
+    krFullUniverseCache?.list?.length &&
+    Date.now() - krFullUniverseCache.at < KR_FULL_UNIVERSE_CACHE_MS
+  ) {
+    return krFullUniverseCache.list.slice(0, target);
+  }
+
+  /** @type {Array<{ symbol: string; name: string }>} */
+  let list = [];
+  try {
+    const res = await fetch(KRX_LIST_CSV_URL, {
+      headers: { "User-Agent": SP500_FETCH_UA },
+      signal: AbortSignal.timeout(45_000),
+    });
+    if (!res.ok) throw new Error(`KRX list HTTP ${res.status}`);
+    const rows = parseKrxListCsvAll(await res.text());
+    if (rows.length < 500) {
+      throw new Error(`KRX 목록 수 부족 (${rows.length})`);
+    }
+    list = rows.map(({ symbol, name }) => ({ symbol, name }));
+  } catch (e) {
+    console.warn(
+      "[universe] kr-full CSV:",
+      e instanceof Error ? e.message : e,
+    );
+  }
+
+  if (list.length < 500) {
+    try {
+      const uni = await loadUniverse();
+      const krTop = Array.isArray(uni.kr) ? uni.kr : [];
+      if (krTop.length > list.length) list = krTop;
+    } catch {
+      /* fallback chain */
+    }
+  }
+
+  if (list.length < 50) {
+    list = loadFallback("universe-kr.json");
+  }
+
+  list = list.slice(0, target);
+  krFullUniverseCache = { list, at: Date.now() };
+  console.info("[universe] kr-full equity", { count: list.length, target });
+  return list;
+}
+
+/**
  * 매집봉 스캔 유니버스
- * @param {"sp500"|"nasdaq"|"toss-us"|"us"} scope
+ * @param {"kr-full"|"krx-all"|"toss-kr"|"sp500"|"nasdaq"|"toss-us"|"us"} scope
  */
 export async function loadBookAccumScanUniverse(scope = BOOK_ACCUM_US_UNIVERSE_SCOPE) {
   const key = String(scope ?? BOOK_ACCUM_US_UNIVERSE_SCOPE)
     .trim()
     .toLowerCase();
+
+  if (
+    key === "kr-full" ||
+    key === "krx-all" ||
+    key === "toss-kr" ||
+    key === BOOK_ACCUM_KR_UNIVERSE_SCOPE
+  ) {
+    const kr = await fetchKrFullEquityUniverse();
+    return { kr, us: [], scope: BOOK_ACCUM_KR_UNIVERSE_SCOPE };
+  }
+
   if (key === "sp500") {
     const uni = await loadUniverse();
     return {

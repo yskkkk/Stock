@@ -93,14 +93,6 @@ export const SCHEDULED_SCAN_TASKS = [
       process.env.STOCK_BOX_RANGE_KR_SCAN !== "0",
   },
   {
-    id: "box-crypto",
-    label: "box-crypto",
-    pollerIds: ["box-crypto-scan"],
-    isConfiguredEnabled: () =>
-      boxRangeDetectEnabled() &&
-      process.env.STOCK_BOX_RANGE_CRYPTO_SCAN !== "0",
-  },
-  {
     id: "kr-investor-flow",
     label: "kr-investor-flow",
     pollerIds: ["kr-investor-flow"],
@@ -184,12 +176,7 @@ export async function listScheduledScanRecoveryPlan(now = new Date()) {
 }
 
 /** force-enable로 잘못 돌았을 가능성이 큰 opt-in 스캔 */
-export const OPT_IN_SCAN_TASK_IDS = [
-  "box-us",
-  "box-kr",
-  "box-crypto",
-  "screener",
-];
+export const OPT_IN_SCAN_TASK_IDS = ["box-us", "box-kr", "screener"];
 
 /** 사용자가 도크에서 끈 폴러 — all-scans 후 재기동됐을 수 있음 */
 export const INTRADAY_POLLER_IDS = [

@@ -6,11 +6,20 @@ import { detectBookAccumulationLatest } from "./book-accumulation-detect.js";
 import { candlesForWeeklyMaScan } from "./weekly-candle-trim.js";
 import { isGoldenCrossTradable } from "./golden-cross-tradable.js";
 import { resolveDisplayName } from "./names-ko.js";
-import { loadBookAccumScanUniverse, BOOK_ACCUM_US_UNIVERSE_SCOPE } from "./universe.js";
+import {
+  loadBookAccumScanUniverse,
+  BOOK_ACCUM_US_UNIVERSE_SCOPE,
+  BOOK_ACCUM_KR_UNIVERSE_SCOPE,
+  resolveBookAccumUniverseScope,
+} from "./universe.js";
 import { loadStock, runStockDataScanSession } from "./stock-data.js";
 import { runWithYahooScanTune } from "./yahoo-queue.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
+import {
+  assessScanVaultMerge,
+  applyVaultScanMerge,
+} from "./scan-vault-merge.js";
 import {
   clearBookAccumVaultItemsSync,
   mergeBookAccumHitsIntoVaultSync,
@@ -241,9 +250,10 @@ export async function runBookAccumulationFastScan(opts) {
   const persistState = opts.persistState !== false;
 
   const startedAt = performance.now();
-  const uni = await loadBookAccumScanUniverse(
-    market === "kr" ? "sp500" : BOOK_ACCUM_US_UNIVERSE_SCOPE,
-  );
+  const accumScope =
+    opts.scope ??
+    resolveBookAccumUniverseScope(market, [...tfSet][0] ?? "1d");
+  const uni = await loadBookAccumScanUniverse(accumScope);
   const list =
     market === "kr"
       ? Array.isArray(uni?.kr)
@@ -303,15 +313,25 @@ export async function runBookAccumulationFastScan(opts) {
     runStockDataScanSession({ maxKeys: 22_000, maxAgeMs: 900_000 }, runLoop),
   );
 
-  if (mergeVault && hits.length) {
-    for (const tf of tfSet) {
-      clearBookAccumVaultItemsSync({ market, timeframe: tf });
-    }
-    mergeBookAccumHitsIntoVaultSync(hits);
-  } else if (mergeVault) {
-    for (const tf of tfSet) {
-      clearBookAccumVaultItemsSync({ market, timeframe: tf });
-    }
+  let vaultMerge;
+  if (mergeVault) {
+    vaultMerge = applyVaultScanMerge(
+      assessScanVaultMerge({
+        scanned: list.length,
+        hitCount: hits.length,
+        errors,
+      }),
+      {
+        clear: () => {
+          for (const tf of tfSet) {
+            clearBookAccumVaultItemsSync({ market, timeframe: tf });
+          }
+        },
+        merge: (mergedHits) =>
+          mergeBookAccumHitsIntoVaultSync(/** @type {typeof hits} */ (mergedHits)),
+      },
+      hits,
+    );
   }
 
   const durationMs = Math.round(performance.now() - startedAt);
@@ -338,6 +358,8 @@ export async function runBookAccumulationFastScan(opts) {
       scanDate,
       scanned: list.length,
       hitCount: hits.length,
+      errors,
+      mergeOutcome: vaultMerge?.outcome ?? null,
       durationMs,
       timeframes: [...tfSet].join(","),
       atMs: Date.now(),
@@ -352,6 +374,7 @@ export async function runBookAccumulationFastScan(opts) {
     scanned: list.length,
     hits: hits.length,
     errors,
+    mergeOutcome: vaultMerge?.outcome ?? null,
     durationMs,
   });
 
