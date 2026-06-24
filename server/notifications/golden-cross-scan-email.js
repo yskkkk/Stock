@@ -82,6 +82,7 @@ function timeframeLabel(tf) {
  *     signalDate?: string;
  *     accumScore?: number;
  *     accumRvol?: number;
+ *     accumCount?: number;
  *   }>;
  * }} BookAccumEmailMarket
  */
@@ -528,7 +529,7 @@ function buildBookAccumSection(markets) {
     );
     for (const h of block.hits) {
       textParts.push(
-        `${formatScanEmailHitLine(h, block.market)} · 점수 ${formatOptionalNumber(h.accumScore, 0)} · RVOL ${formatOptionalNumber(h.accumRvol, 2)} · ${h.signalDate ?? "—"}`,
+        `${formatScanEmailHitLine(h, block.market)} · 매집 ${formatOptionalNumber(h.accumCount, 0)}건 · 점수 ${formatOptionalNumber(h.accumScore, 0)} · RVOL ${formatOptionalNumber(h.accumRvol, 2)} · 최근 ${h.signalDate ?? "—"}`,
       );
       htmlParts.push(renderSignalHitRowHtml(h, block.market));
     }

@@ -23,8 +23,18 @@ vi.mock("./golden-cross-tradable.js", () => ({
 vi.mock("./book-accumulation-detect.js", () => ({
   detectBookAccumulationLatest: (candles) =>
     candles.length >= 3
-      ? { anyAccum: true, score: 70, rvol: 2, signalDate: "2026-06-20" }
-      : { anyAccum: false },
+      ? {
+          anyAccum: true,
+          hitCount: 2,
+          hits: [
+            { signalDate: "2026-06-18", score: 65, rvol: 1.8 },
+            { signalDate: "2026-06-20", score: 70, rvol: 2 },
+          ],
+          score: 70,
+          rvol: 2,
+          signalDate: "2026-06-20",
+        }
+      : { anyAccum: false, hitCount: 0, hits: [] },
 }));
 
 beforeEach(() => {

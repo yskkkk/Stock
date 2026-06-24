@@ -563,6 +563,8 @@ export interface StockVaultItem {
   bottomClassic?: boolean;
   accumScore?: number;
   accumRvol?: number;
+  /** 스캔 구간 내 매집봉 총 건수 */
+  accumCount?: number;
   lowSlopeFlip?: "down_to_up" | "up_to_down";
   pivotLow?: number;
   addedAtMs: number;

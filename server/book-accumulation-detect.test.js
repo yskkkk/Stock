@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   BOOK_ACCUM_MIN_CANDLES,
   BOOK_ACCUM_SERVER_DEFAULTS,
+  detectBookAccumulationBars,
   detectBookAccumulationLatest,
   resolveBookAccumEffRvol,
 } from "./book-accumulation-detect.js";
@@ -61,6 +62,41 @@ test("detectBookAccumulationLatest excludes long bearish bar on high RVOL", () =
     needDrop: false,
   });
   assert.equal(hit.anyAccum, false);
+});
+
+test("detectBookAccumulationBars counts every qualifying bar in range", () => {
+  const baseVol = 1_000_000;
+  const candles = Array.from({ length: BOOK_ACCUM_MIN_CANDLES }, (_, i) => ({
+    open: 100,
+    high: 101,
+    low: 99,
+    close: 100,
+    volume: baseVol,
+    time: { year: 2026, month: 1, day: 1 + (i % 28) },
+  }));
+  const hiRvol = {
+    open: 100,
+    high: 101,
+    low: 99,
+    close: 100,
+    volume: baseVol * 5,
+  };
+  candles[BOOK_ACCUM_MIN_CANDLES - 5] = {
+    ...hiRvol,
+    time: { year: 2026, month: 2, day: 10 },
+  };
+  candles[BOOK_ACCUM_MIN_CANDLES - 1] = {
+    ...hiRvol,
+    time: { year: 2026, month: 3, day: 15 },
+  };
+  const det = detectBookAccumulationBars(candles, {
+    needCostCtx: false,
+    needDrop: false,
+    minScore: 30,
+  });
+  assert.ok(det.hitCount >= 2);
+  assert.equal(det.hits[0].signalDate, "2026-02-10");
+  assert.equal(det.latest?.signalDate, "2026-03-15");
 });
 
 test("detectBookAccumulationLatest allows short-body bearish (doji) bar", () => {

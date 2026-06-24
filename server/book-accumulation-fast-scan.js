@@ -112,8 +112,9 @@ function writeState(state) {
  */
 function buildHitIfAny(timeframe, data, candles, scanDate, item, market) {
   const det = detectBookAccumulationLatest(candles);
-  if (!det.anyAccum) return null;
+  if (det.hitCount < 1) return null;
   const sym = String(item.symbol ?? "").trim().toUpperCase();
+  const latest = det.hits.at(-1);
   return {
     symbol: sym,
     name: resolveDisplayName(
@@ -123,9 +124,10 @@ function buildHitIfAny(timeframe, data, candles, scanDate, item, market) {
     market,
     timeframe,
     scanDate,
-    signalDate: det.signalDate ?? scanDate,
-    accumScore: det.score,
-    accumRvol: det.rvol,
+    signalDate: latest?.signalDate ?? det.signalDate ?? scanDate,
+    accumCount: det.hitCount,
+    accumScore: latest?.score ?? det.score,
+    accumRvol: latest?.rvol ?? det.rvol,
   };
 }
 

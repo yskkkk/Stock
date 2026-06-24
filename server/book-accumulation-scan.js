@@ -131,7 +131,8 @@ async function scanOneSymbol(item, market, scanDate, timeframe = "1d") {
       );
     }
     const det = detectBookAccumulationLatest(candles);
-    if (!det.anyAccum) return { ok: true, hit: null };
+    if (det.hitCount < 1) return { ok: true, hit: null };
+    const latest = det.hits.at(-1);
     return {
       ok: true,
       hit: {
@@ -143,9 +144,10 @@ async function scanOneSymbol(item, market, scanDate, timeframe = "1d") {
         market,
         timeframe: tf,
         scanDate,
-        signalDate: det.signalDate ?? scanDate,
-        accumScore: det.score,
-        accumRvol: det.rvol,
+        signalDate: latest?.signalDate ?? det.signalDate ?? scanDate,
+        accumCount: det.hitCount,
+        accumScore: latest?.score ?? det.score,
+        accumRvol: latest?.rvol ?? det.rvol,
       },
     };
   } catch (e) {

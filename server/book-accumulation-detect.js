@@ -101,11 +101,21 @@ function pivotLowValue(candles, bi, len) {
 /**
  * @param {Array<{ open?: number; high?: number; low?: number; close?: number; volume?: number; time?: unknown }>} candles
  * @param {BookAccumDetectOpts} [opts]
+ * @returns {{
+ *   hitCount: number;
+ *   hits: Array<{ signalDate: string; score: number; rvol: number }>;
+ *   latest: { signalDate: string; score: number; rvol: number } | null;
+ * }}
  */
-export function detectBookAccumulationLatest(candles, opts = {}) {
+export function detectBookAccumulationBars(candles, opts = {}) {
+  const empty = {
+    hitCount: 0,
+    hits: /** @type {Array<{ signalDate: string; score: number; rvol: number }>} */ ([]),
+    latest: null,
+  };
   const o = resolveOpts(opts);
   if (!Array.isArray(candles) || candles.length < BOOK_ACCUM_MIN_CANDLES) {
-    return { anyAccum: false, score: 0, rvol: null, signalDate: null };
+    return empty;
   }
 
   const volMa = volSma(candles, o.volLen);
@@ -118,8 +128,8 @@ export function detectBookAccumulationLatest(candles, opts = {}) {
   let breachBar = null;
   let prevTouchCost = false;
 
-  /** @type {{ anyAccum: boolean; score: number; rvol: number | null; signalDate: string | null }} */
-  let lastHit = { anyAccum: false, score: 0, rvol: null, signalDate: null };
+  /** @type {Array<{ signalDate: string; score: number; rvol: number }>} */
+  const hits = [];
 
   for (let bi = 0; bi < candles.length; bi++) {
     const c = candles[bi];
@@ -217,15 +227,34 @@ export function detectBookAccumulationLatest(candles, opts = {}) {
     }
 
     const anyAccum = accumRaw && ctxOk && score >= effMinScore;
-    if (bi === candles.length - 1) {
-      lastHit = {
-        anyAccum,
-        score: anyAccum ? Math.round(score) : 0,
-        rvol: anyAccum ? Math.round(rvol * 100) / 100 : null,
-        signalDate: anyAccum ? candleTimeToDateKey(c.time) : null,
-      };
+    if (anyAccum) {
+      const signalDate = candleTimeToDateKey(c.time);
+      if (signalDate) {
+        hits.push({
+          signalDate,
+          score: Math.round(score),
+          rvol: Math.round(rvol * 100) / 100,
+        });
+      }
     }
   }
 
-  return lastHit;
+  const latest = hits.at(-1) ?? null;
+  return { hitCount: hits.length, hits, latest };
+}
+
+/**
+ * @param {Array<{ open?: number; high?: number; low?: number; close?: number; volume?: number; time?: unknown }>} candles
+ * @param {BookAccumDetectOpts} [opts]
+ */
+export function detectBookAccumulationLatest(candles, opts = {}) {
+  const { hitCount, hits, latest } = detectBookAccumulationBars(candles, opts);
+  return {
+    anyAccum: hitCount > 0,
+    hitCount,
+    hits,
+    score: latest?.score ?? 0,
+    rvol: latest?.rvol ?? null,
+    signalDate: latest?.signalDate ?? null,
+  };
 }

@@ -1300,7 +1300,8 @@ export const ko = {
     bottomCandleBadgeHint:
       "세력 바닥 3캔들(변곡·갭·RVOL·점수 50+) — 일·주봉, 1시간마다 유니버스 전체 스캔",
     bookAccumBadgeHint:
-      "책 매집봉(느슨·RVOL 1.6·하락 40봉·6%) — 일·주봉 탐색, 국내 시총 상위·미국 S&P500",
+      "책 매집봉(느슨·RVOL 1.5) — 스캔 구간(일봉 2년·주봉 50년) 내 매집봉 전건 집계",
+    bookAccumCountUnit: "건",
     scanRun: "일봉 탐색",
     scanConfirmLead: "일봉·주봉 골든크로스·정배열·120선·저점기울기·바닥캔들·매집봉 탐색을 실행할까요?",
     scanConfirmBody:

@@ -151,6 +151,10 @@ function StockVaultRowInner({
   const bookAccumLabel =
     bookAccumItem != null
       ? `매집${
+          bookAccumItem.accumCount != null && bookAccumItem.accumCount > 0
+            ? ` ${bookAccumItem.accumCount}${ko.stockVault.bookAccumCountUnit}`
+            : ""
+        }${
           bookAccumItem.accumScore != null
             ? ` ${bookAccumItem.accumScore}pt`
             : ""

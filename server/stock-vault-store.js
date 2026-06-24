@@ -39,6 +39,7 @@ function vaultStoreFile() {
  *   bottomClassic?: boolean;
  *   accumScore?: number;
  *   accumRvol?: number;
+ *   accumCount?: number;
  *   lowSlopeFlip?: "down_to_up"|"up_to_down";
  *   pivotLow?: number;
  *   addedAtMs: number;
@@ -207,6 +208,13 @@ function normalizeStore(raw) {
         typeof row?.accumRvol === "number" &&
         Number.isFinite(row.accumRvol)
           ? row.accumRvol
+          : undefined,
+      accumCount:
+        source === "book_accum" &&
+        typeof row?.accumCount === "number" &&
+        Number.isFinite(row.accumCount) &&
+        row.accumCount > 0
+          ? Math.floor(row.accumCount)
           : undefined,
       lowSlopeFlip:
         source === "low_slope_flip" &&
@@ -387,6 +395,10 @@ export function upsertStockVaultItemSync(input) {
         source === "book_accum" && input.accumRvol != null
           ? input.accumRvol
           : prev.accumRvol,
+      accumCount:
+        source === "book_accum" && input.accumCount != null
+          ? input.accumCount
+          : prev.accumCount,
       lowSlopeFlip:
         source === "low_slope_flip" && input.lowSlopeFlip != null
           ? input.lowSlopeFlip
@@ -429,6 +441,7 @@ export function upsertStockVaultItemSync(input) {
       bottomClassic: source === "bottom_candle" ? input.bottomClassic : undefined,
       accumScore: source === "book_accum" ? input.accumScore : undefined,
       accumRvol: source === "book_accum" ? input.accumRvol : undefined,
+      accumCount: source === "book_accum" ? input.accumCount : undefined,
       lowSlopeFlip: source === "low_slope_flip" ? input.lowSlopeFlip : undefined,
       pivotLow: source === "low_slope_flip" ? input.pivotLow : undefined,
       addedAtMs: now,
@@ -710,7 +723,7 @@ export function clearBookAccumVaultItemsSync(opts = {}) {
 }
 
 /**
- * @param {Array<{ symbol: string; name: string; market: "kr"|"us"; scanDate: string; timeframe?: import("./vault-scan-timeframe.js").VaultScanTimeframe; signalDate?: string | null; accumScore?: number; accumRvol?: number | null }>} hits
+ * @param {Array<{ symbol: string; name: string; market: "kr"|"us"; scanDate: string; timeframe?: import("./vault-scan-timeframe.js").VaultScanTimeframe; signalDate?: string | null; accumScore?: number; accumRvol?: number | null; accumCount?: number }>} hits
  */
 export function mergeBookAccumHitsIntoVaultSync(hits) {
   const dismissed = new Set(readStore().dismissed ?? []);
@@ -729,6 +742,7 @@ export function mergeBookAccumHitsIntoVaultSync(hits) {
       signalDate: hit.signalDate ?? hit.scanDate,
       accumScore: hit.accumScore,
       accumRvol: hit.accumRvol ?? undefined,
+      accumCount: hit.accumCount,
     });
   }
 }
