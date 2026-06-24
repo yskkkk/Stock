@@ -15,6 +15,25 @@ import {
 
 loadEnvFile();
 
+const forceAll =
+  process.argv.includes("--force") ||
+  String(process.env.STOCK_ALL_SCANS_FORCE ?? "").trim() === "1";
+
+/** 전체 스캔 SSOT — 개별 폴러 env=0 이어도 강제 실행 시 켠다 */
+function forceEnableAllScheduledScans() {
+  Object.assign(process.env, {
+    STOCK_GOLDEN_CROSS_SCAN: "1",
+    STOCK_BOTTOM_CANDLE_SCAN: "1",
+    STOCK_BOOK_ACCUM_FAST_SCAN: "1",
+    STOCK_BOX_RANGE_DETECT: "1",
+    STOCK_KR_INVESTOR_FLOW: "1",
+    STOCK_FINANCIALS_ARCHIVE: "1",
+    STOCK_SHARE_STRUCTURE_SCAN: "1",
+    STOCK_SCREENER_POLL: "1",
+  });
+  console.log("[all-scans] forced all scan flags ON");
+}
+
 function localUsDateKey(now = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/New_York",
@@ -99,7 +118,6 @@ async function runBookAccumFastAllMarkets() {
       market === "kr" ? getKstParts(now).dateKey : localUsDateKey(now);
     results.push(
       await runBookAccumulationFastScan({
-        scope: market === "kr" ? "sp500" : "nasdaq",
         market,
         scanDate,
         mergeVault: true,
@@ -199,30 +217,39 @@ async function main() {
   const startedAt = Date.now();
   const now = new Date();
   console.log("[all-scans] trigger at", now.toISOString());
-  console.log("[all-scans] recovery mode — user-stopped scans are skipped");
-
-  const plan = await listScheduledScanRecoveryPlan(now);
-  for (const row of plan) {
-    if (row.run) continue;
-    console.log(
-      `[all-scans] skip ${row.label} (${row.stopReason ?? "skip"})`,
-    );
-  }
 
   const taskById = new Map(SCHEDULED_SCAN_TASKS.map((t) => [t.id, t]));
   /** @type {Promise<{ label: string; ok: boolean; durationMs: number; error?: string }>[]} */
   const tasks = [];
 
-  for (const row of plan) {
-    if (!row.run) continue;
-    const meta = taskById.get(row.id);
-    const fn = taskRunner(row.id);
-    if (!meta || !fn) continue;
-    tasks.push(runTask(meta.label, fn));
+  if (forceAll) {
+    forceEnableAllScheduledScans();
+    console.log("[all-scans] force mode — all scheduled tasks");
+    for (const meta of SCHEDULED_SCAN_TASKS) {
+      const fn = taskRunner(meta.id);
+      if (!fn) continue;
+      tasks.push(runTask(meta.label, fn));
+    }
+  } else {
+    console.log("[all-scans] recovery mode — user-stopped scans are skipped");
+    const plan = await listScheduledScanRecoveryPlan(now);
+    for (const row of plan) {
+      if (row.run) continue;
+      console.log(
+        `[all-scans] skip ${row.label} (${row.stopReason ?? "skip"})`,
+      );
+    }
+    for (const row of plan) {
+      if (!row.run) continue;
+      const meta = taskById.get(row.id);
+      const fn = taskRunner(row.id);
+      if (!meta || !fn) continue;
+      tasks.push(runTask(meta.label, fn));
+    }
   }
 
   if (!tasks.length) {
-    console.log("[all-scans] nothing to recover — all scans skipped or complete");
+    console.log("[all-scans] nothing to run");
     return;
   }
 
