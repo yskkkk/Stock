@@ -18,7 +18,6 @@ describe("screening-queue", () => {
       buildScreeningQueue({
       kr: [{ symbol: "005930.KS", name: "Samsung" }],
       us: [{ symbol: "AAPL", name: "Apple" }],
-      crypto: [{ symbol: "BTC-KRW", name: "Bitcoin" }],
     });
     expect(includeKr).toBe(false);
     expect(scanScopeKrActive).toBe(false);
@@ -27,19 +26,14 @@ describe("screening-queue", () => {
     expect(queue.map((q) => q.market)).toEqual(["us"]);
   });
 
-  it("buildScreeningQueue includes crypto when STOCK_SCREENER_CRYPTO=1", () => {
-    const prev = process.env.STOCK_SCREENER_CRYPTO;
-    process.env.STOCK_SCREENER_CRYPTO = "1";
-    vi.spyOn(marketHours, "isMarketOpenBySchedule").mockImplementation((m) => m !== "kr");
-    vi.spyOn(marketHours, "isStockTradableBySchedule").mockImplementation((m) => m !== "kr");
+  it("buildScreeningQueue excludes crypto from universe", () => {
+    vi.spyOn(marketHours, "isMarketOpenBySchedule").mockReturnValue(true);
     const { queue } = buildScreeningQueue({
-      kr: [],
+      kr: [{ symbol: "005930.KS" }],
       us: [{ symbol: "AAPL" }],
       crypto: [{ symbol: "BTC-KRW" }],
     });
-    expect(queue.map((q) => q.market)).toEqual(["us", "crypto"]);
-    if (prev === undefined) delete process.env.STOCK_SCREENER_CRYPTO;
-    else process.env.STOCK_SCREENER_CRYPTO = prev;
+    expect(queue.map((q) => q.market)).toEqual(["kr", "us"]);
   });
 
   it("buildScreeningQueue includes KR when market open", () => {

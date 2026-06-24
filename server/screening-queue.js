@@ -17,11 +17,6 @@ export function scanScopeMarketFlags() {
   };
 }
 
-/** 스크리너 큐에 코인 포함 — 기본 OFF (STOCK_SCREENER_CRYPTO=1) */
-export function screenerCryptoEnabled() {
-  return String(process.env.STOCK_SCREENER_CRYPTO ?? "0").trim() === "1";
-}
-
 /**
  * 장 마감·휴장 시장은 스캔 큐에서 제외 (국내 정규장 외 KR 미포함).
  * @param {Universe} universe
@@ -34,9 +29,6 @@ export function buildScreeningQueue(universe) {
     for (const s of universe.kr) queue.push({ ...s, market: "kr" });
   }
   for (const s of universe.us) queue.push({ ...s, market: "us" });
-  if (screenerCryptoEnabled()) {
-    for (const s of universe.crypto ?? []) queue.push({ ...s, market: "crypto" });
-  }
   const { krActive, usActive } = scanScopeMarketFlags();
   return {
     queue,

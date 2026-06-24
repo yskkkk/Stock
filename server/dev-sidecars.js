@@ -10,7 +10,7 @@ import { startSp500BoxRangeCatalogPoller } from "./box-range/sp500-scan-runner.j
 import { startKrBoxRangeCatalogPoller } from "./box-range/kr-scan-runner.js";
 import { startCryptoBoxRangeCatalogPoller } from "./box-range/crypto-scan-runner.js";
 import { purgeBoxRangeCryptoOutsideHtfSymbolsSync } from "./box-range/crypto-htf-purge.js";
-import { boxRangeDetectEnabled } from "./box-range/constants.js";
+import { boxRangeDetectEnabled, boxRangeCryptoScanEnabled } from "./box-range/constants.js";
 import { startLiveTradeExchangeSyncPoller } from "./live-trade-exchange-sync.js";
 import { startBithumbLedgerPoller } from "./live-trade-bithumb-ledger.js";
 import { startTossLedgerSnapshotPoller } from "./live-trade-toss-ledger.js";
@@ -81,7 +81,9 @@ export function startStockDevSidecarsOnce(modeLabel) {
   if (boxRangeDetectEnabled()) {
     startSp500BoxRangeCatalogPoller();
     startKrBoxRangeCatalogPoller();
-    startCryptoBoxRangeCatalogPoller();
+    if (boxRangeCryptoScanEnabled()) {
+      startCryptoBoxRangeCatalogPoller();
+    }
   } else {
     appendServerEventLog("server", "box-range detect off (STOCK_BOX_RANGE_DETECT≠1)");
   }
