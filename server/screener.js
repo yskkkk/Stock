@@ -234,7 +234,7 @@ async function screenSymbol(item, market) {
       }
     }
     for (const pick of bestNotifyBySymbol.values()) {
-      notifyHighScorePick(pick);
+      if (screeningPollerEnabled()) notifyHighScorePick(pick);
     }
     if (!picks.length) return { type: "skip" };
     return { type: "picks", picks };
@@ -273,7 +273,7 @@ function applyScreenResult(result, bucket) {
     sortPicks(bucket.kr);
     sortPicks(bucket.us);
     sortPicks(bucket.crypto);
-    notifyHighScorePick(result.pick);
+    if (screeningPollerEnabled()) notifyHighScorePick(result.pick);
   } else if (result.type === "error" && result.failure) {
     state.failedCount += 1;
     state.failures.push(result.failure);

@@ -131,6 +131,7 @@ const ok = await sendStockPickTelegramNow(pick, {
   bypassDedup: true,
   bypassScore: true,
   recordSent: false,
+  force: true,
 });
 
 if (!ok) {

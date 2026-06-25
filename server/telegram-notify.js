@@ -140,6 +140,11 @@ export function isTelegramNotifyEnabled() {
   return Boolean(token && chatIds.length > 0);
 }
 
+/** 가중점수 스크리너 picks 텔레그램·실매매 트리거 — 운영자 요청으로 항상 OFF */
+export function weightedScorePickNotifyEnabled() {
+  return false;
+}
+
 /**
  * 주식·박스권·경제지표 알림 — 설정된 모든 수신처(채널·DM)로 전송.
  * @returns {Promise<boolean>} 하나라도 성공하면 true
@@ -814,6 +819,7 @@ export function getTelegramNotifyStatus() {
   );
   return {
     enabled: isTelegramNotifyEnabled(),
+    weightedScorePickTelegram: weightedScorePickNotifyEnabled(),
     channelConfigured: Boolean(channelId),
     destinationCount: chatIds.length,
     minConditionsRequired: minMet,
@@ -1175,6 +1181,7 @@ export function buildStockPickTelegramMessage(pick) {
  * @param {{ bypassDedup?: boolean; bypassScore?: boolean; recordSent?: boolean }} [opts]
  */
 export async function sendStockPickTelegramNow(pick, opts = {}) {
+  if (!weightedScorePickNotifyEnabled() && opts.force !== true) return false;
   if (!isTelegramNotifyEnabled()) return false;
   const bypassDedup = opts.bypassDedup !== false;
   const bypassScore = opts.bypassScore !== false;
@@ -1205,6 +1212,8 @@ export async function sendStockPickTelegramNow(pick, opts = {}) {
 
 /** 스캔 중 고득점(임계 초과)이면 텔레그램 알림 — 정규장 여부와 무관 */
 export function notifyHighScorePick(pick) {
+  if (!weightedScorePickNotifyEnabled()) return;
+
   const weights = pick.techModelWeights;
   if (!meetsTelegramNotifyScore(pick.score, weights)) return;
 
