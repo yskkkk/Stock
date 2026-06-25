@@ -28,9 +28,9 @@ function screenConcurrency() {
 
 const DEFAULT_SCREEN_INTERVAL_MS = 60_000;
 
-/** 자동 1분 스캔 — 기본 OFF (STOCK_SCREENER_POLL=1 로만 기동) */
+/** 가중점수 스크리너 탐지 — 비활성(운영자 요청) · 코인 제외 */
 export function screeningPollerEnabled() {
-  return String(process.env.STOCK_SCREENER_POLL ?? "0").trim() === "1";
+  return false;
 }
 
 function screenIntervalMs() {
@@ -281,6 +281,7 @@ function applyScreenResult(result, bucket) {
 }
 
 async function runScreening() {
+  if (!screeningPollerEnabled()) return;
   if (state.running) return screeningPromise;
   if (!isPollerEffectiveEnabled("screener")) {
     scheduleNextScan();
@@ -369,7 +370,7 @@ async function runScreening() {
     } catch (err) {
       state.kr = prevKr;
       state.us = prevUs;
-      state.crypto = prevCrypto;
+      state.crypto = [];
       state.failures = prevFailures;
       state.failedCount = prevFailures.length;
       state.updatedAt = prevUpdatedAt;
@@ -387,6 +388,7 @@ async function runScreening() {
 }
 
 export function startScreening() {
+  if (!screeningPollerEnabled()) return null;
   markPollerBootStarted("screener");
   if (!screeningPromise) return runScreening().catch(logScreeningError);
   return screeningPromise;
@@ -394,6 +396,9 @@ export function startScreening() {
 
 /** 전체 스캔 SSOT — 1회 스크리닝 실행 후 완료까지 대기 */
 export async function runScreeningOnce() {
+  if (!screeningPollerEnabled()) {
+    return { skipped: true, kr: 0, us: 0, crypto: 0, failedCount: 0 };
+  }
   const p = startScreening();
   if (p) await p;
   return {
@@ -405,6 +410,9 @@ export async function runScreeningOnce() {
 }
 
 export function forceRescreen() {
+  if (!screeningPollerEnabled()) {
+    return { ok: false, message: "스크리너 탐지가 비활성화되어 있습니다." };
+  }
   if (state.running) {
     return { ok: false, message: "이미 분석이 진행 중입니다." };
   }
@@ -425,10 +433,10 @@ export function ensureScreening() {
 }
 
 const _snap = readLastScanSnapshotSync();
-if (_snap && (_snap.kr.length > 0 || _snap.us.length > 0 || _snap.crypto.length > 0)) {
+if (_snap && (_snap.kr.length > 0 || _snap.us.length > 0)) {
   state.kr = _snap.kr;
   state.us = _snap.us;
-  state.crypto = _snap.crypto;
+  state.crypto = [];
   if (_snap.updatedAt > 0) state.updatedAt = _snap.updatedAt;
   if (_snap.message) state.message = _snap.message;
 }

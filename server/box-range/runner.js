@@ -14,6 +14,7 @@ import { collectWatchSymbolsForProgram } from "./watch-symbols.js";
 import {
   BOX_RANGE_CATALOG_DIR_V2,
   BOX_RANGE_TIMEFRAMES,
+  boxRangeCryptoScanEnabled,
   boxRangeDetectEnabled,
   isBoxRangeCryptoHtfManaged,
   isBoxRangeCryptoHtfSymbol,
@@ -87,6 +88,7 @@ async function runDetectionForTf(program, symbol, timeframe) {
  * @param {import("../live-trade-programs-store.js").LiveTradeProgram} program
  */
 async function tickCryptoProgram(program) {
+  if (!boxRangeCryptoScanEnabled()) return;
   const symbols = await collectWatchSymbolsForProgram(program);
   const live = program.status === "armed";
   const sim = program.status === "sim";

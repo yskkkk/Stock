@@ -1,5 +1,5 @@
 /**
- * Vite dev·preview·`server/index.js` 공통 — 폴러·스크리너는 프로세스당 1회만 기동.
+ * Vite dev·preview·`server/index.js` 공통 — 폴러는 프로세스당 1회만 기동.
  */
 import { appendServerEventLog } from "./access-log.js";
 import { startDevQueueDisplaySyncPoller } from "./ops-dev-queue-display-sync.js";
@@ -23,7 +23,6 @@ import { startFinancialsArchivePoller } from "./stock-financials-archive-poller.
 import { startStockShareStructurePoller } from "./stock-share-structure-poller.js";
 import { startMaAlignMa120WatchPoller } from "./ma-align-ma120-watch.js";
 import { startHoldingsNewsEmailPoller } from "./holdings-news-poller.js";
-import { screeningPollerEnabled, startScreening } from "./screener.js";
 import { registerPollerLazyStarter } from "./poller-registry.js";
 
 function registerDevSidecarPollers() {
@@ -46,15 +45,6 @@ function registerDevSidecarPollers() {
   registerPollerLazyStarter("ma120-near-watch", startMaAlignMa120WatchPoller);
   registerPollerLazyStarter("holdings-news", startHoldingsNewsEmailPoller);
   registerPollerLazyStarter("self-improvement", startServerSelfImprovementWatcher);
-  registerPollerLazyStarter("screener", () => {
-    if (screeningPollerEnabled()) {
-      startScreening().catch(logScreeningError);
-    }
-  });
-}
-
-function logScreeningError(err) {
-  console.warn("[screener]", err instanceof Error ? err.message : err);
 }
 
 /** @param {string} [modeLabel] */
@@ -91,9 +81,4 @@ export function startStockDevSidecarsOnce(modeLabel) {
   startHoldingsNewsEmailPoller();
   startServerSelfImprovementWatcher();
   setTimeout(() => prewarmAppCaches(), 400);
-  setTimeout(() => {
-    if (screeningPollerEnabled()) {
-      startScreening().catch(logScreeningError);
-    }
-  }, 1500);
 }

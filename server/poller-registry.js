@@ -269,10 +269,10 @@ export const POLLER_CATALOG = {
       const n = Number(process.env.SCREEN_INTERVAL_MS ?? 60_000);
       return Number.isFinite(n) && n >= 30_000 ? n : 60_000;
     },
-    envDisable: "STOCK_SCREENER_POLL=1 (opt-in)",
-    isBootEnabled: () => process.env.STOCK_SCREENER_POLL === "1",
+    envDisable: "운영자 요청으로 비활성",
+    isBootEnabled: () => false,
     descriptionKo:
-      "KR·US·crypto picks 전체 스캔을 setTimeout 체인으로 반복합니다. 기본 off, STOCK_SCREENER_POLL=1일 때만 기동.",
+      "비활성 — 가중점수 스크리너 탐지·텔레그램 알림(KR·US picks).",
   },
   "macro-telegram": {
     labelKo: "매크로 일정 텔레그램",

@@ -7,7 +7,7 @@ import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { formatLogTimestampKst } from "./log-kst.js";
 import { dailyServerLogPath, ensureServerLogDirSync } from "./log-paths.js";
-import { getPicksState } from "./screener.js";
+import { getPicksState, screeningPollerEnabled } from "./screener.js";
 import {
   getTelegramNotifyStatus,
   isOpsTelegramNotifyEnabled,
@@ -391,6 +391,7 @@ export async function runServerSelfImprovementProbes() {
     }
   }
 
+  if (screeningPollerEnabled()) {
   const picks = getPicksState();
   if (picks.running) {
     const elapsed = picks.startedAt ? Date.now() - picks.startedAt : 0;
@@ -435,6 +436,7 @@ export async function runServerSelfImprovementProbes() {
       });
       newCount++;
     }
+  }
   }
 
   const q = getOpsAgentQueueMemorySnapshot();

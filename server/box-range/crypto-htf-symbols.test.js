@@ -6,10 +6,28 @@ import {
   isBoxRangeCryptoHtfManaged,
   isBoxRangeCryptoHtfSymbol,
 } from "./constants.js";
+import { startCryptoBoxRangeCatalogPoller } from "./crypto-scan-runner.js";
+import { collectWatchSymbolsForProgram } from "./watch-symbols.js";
 
 describe("box-range crypto HTF symbols", () => {
   it("crypto catalog scan is disabled", () => {
     assert.equal(boxRangeCryptoScanEnabled(), false);
+  });
+
+  it("crypto catalog poller does not start when disabled", () => {
+    const g = /** @type {typeof globalThis & { __stockBoxRangeCryptoScan?: boolean }} */ (
+      globalThis
+    );
+    const prev = g.__stockBoxRangeCryptoScan;
+    delete g.__stockBoxRangeCryptoScan;
+    startCryptoBoxRangeCatalogPoller();
+    assert.equal(g.__stockBoxRangeCryptoScan, undefined);
+    if (prev) g.__stockBoxRangeCryptoScan = prev;
+  });
+
+  it("does not seed HTF symbols for watch when coin scan is off", async () => {
+    const symbols = await collectWatchSymbolsForProgram({ id: "test-empty" });
+    assert.deepEqual(symbols, []);
   });
 
   it("allows BTC, ETH, SOL", () => {
