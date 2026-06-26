@@ -1,5 +1,6 @@
 import { liveTradeCurrency } from "../live-trade-market.js";
 import { resolveDisplayName } from "../names-ko.js";
+import { shouldBlockCryptoTelegram } from "../crypto-telegram-notify.js";
 import {
   isTelegramNotifyEnabled,
   sendStockTelegramMessage,
@@ -32,6 +33,7 @@ function fmtBoxPrice(n, market) {
  * @param {"kr"|"us"|"crypto"} market
  */
 export async function notifyBoxRangeDipRecoveryEntry(box, program, lastPrice, market) {
+  if (shouldBlockCryptoTelegram(market, { market, symbol: box.symbol })) return false;
   if (!isTelegramNotifyEnabled()) {
     liveTradeLogWarn(
       "[box-range:telegram]",

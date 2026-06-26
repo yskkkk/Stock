@@ -7,7 +7,10 @@ import {
   isBoxRangeCryptoHtfSymbol,
 } from "./constants.js";
 import { startCryptoBoxRangeCatalogPoller } from "./crypto-scan-runner.js";
+import { notifyBoxRangeDipRecoveryEntry } from "./box-range-telegram.js";
+import { notifyCatalogScanTelegram } from "./catalog-scan-telegram.js";
 import { collectWatchSymbolsForProgram } from "./watch-symbols.js";
+import { scheduleBoxRangeFsmOnWsPrice } from "./ws-fsm.js";
 
 describe("box-range crypto HTF symbols", () => {
   it("crypto catalog scan is disabled", () => {
@@ -43,5 +46,33 @@ describe("box-range crypto HTF symbols", () => {
     assert.equal(isBoxRangeCryptoHtfManaged("ETH-USDT", "4h"), true);
     assert.equal(isBoxRangeCryptoHtfManaged("BTC-USDT", "1d"), true);
     assert.equal(isBoxRangeCryptoHtfManaged("XRP-USDT", "1h"), false);
+  });
+
+  it("skips crypto box-range telegram when disabled", async () => {
+    const ok = await notifyBoxRangeDipRecoveryEntry(
+      {
+        symbol: "BTC-USDT",
+        timeframe: "4h",
+        top: 100,
+        bottom: 90,
+        mid: 95,
+        dipLow: 89,
+      },
+      { id: "p1", name: "test", status: "sim" },
+      96,
+      "crypto",
+    );
+    assert.equal(ok, false);
+  });
+
+  it("skips crypto catalog scan telegram when disabled", async () => {
+    const out = await notifyCatalogScanTelegram("crypto", { scanned: 3 });
+    assert.equal(out.skipped, true);
+    assert.equal(out.reason, "crypto_telegram_disabled");
+  });
+
+  it("ws-fsm no-ops for crypto when disabled", () => {
+    scheduleBoxRangeFsmOnWsPrice("BTC-USDT");
+    // no throw — debounce map stays empty when disabled
   });
 });

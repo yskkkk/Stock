@@ -5,6 +5,7 @@
  */
 import { pickQuoteFromMap } from "../quote-symbol-resolve.js";
 import { resolveDisplayName } from "../names-ko.js";
+import { shouldBlockCryptoTelegram } from "../crypto-telegram-notify.js";
 import {
   escHtml,
   isTelegramNotifyEnabled,
@@ -210,6 +211,10 @@ export function buildNearPriceMessage(market, hits) {
  * @param {{ scanned?: number; ok?: number; errors?: number; withBoxes?: number }} [scanRun]
  */
 export async function notifyCatalogScanTelegram(market, scanRun = {}) {
+  const m0 = resolveCatalogMarket(market);
+  if (shouldBlockCryptoTelegram(m0)) {
+    return { ok: false, skipped: true, reason: "crypto_telegram_disabled" };
+  }
   const scanOn = scanTelegramEnabled();
   const nearOn = nearTelegramEnabled();
   if (!scanOn && !nearOn) {

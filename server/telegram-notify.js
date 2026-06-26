@@ -23,6 +23,10 @@ import {
   minTelegramScoreRequired,
   resolvePickWeightedScoreBreakdown,
 } from "./technical.js";
+import {
+  cryptoTelegramNotifyEnabled,
+  isCryptoTelegramTarget,
+} from "./crypto-telegram-notify.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DATA_DIR = join(root, "server", ".data");
@@ -820,6 +824,7 @@ export function getTelegramNotifyStatus() {
   return {
     enabled: isTelegramNotifyEnabled(),
     weightedScorePickTelegram: weightedScorePickNotifyEnabled(),
+    cryptoTelegram: cryptoTelegramNotifyEnabled(),
     channelConfigured: Boolean(channelId),
     destinationCount: chatIds.length,
     minConditionsRequired: minMet,
@@ -1181,6 +1186,7 @@ export function buildStockPickTelegramMessage(pick) {
  * @param {{ bypassDedup?: boolean; bypassScore?: boolean; recordSent?: boolean }} [opts]
  */
 export async function sendStockPickTelegramNow(pick, opts = {}) {
+  if (isCryptoTelegramTarget(pick) && opts.force !== true) return false;
   if (!weightedScorePickNotifyEnabled() && opts.force !== true) return false;
   if (!isTelegramNotifyEnabled()) return false;
   const bypassDedup = opts.bypassDedup !== false;
@@ -1212,6 +1218,7 @@ export async function sendStockPickTelegramNow(pick, opts = {}) {
 
 /** 스캔 중 고득점(임계 초과)이면 텔레그램 알림 — 정규장 여부와 무관 */
 export function notifyHighScorePick(pick) {
+  if (isCryptoTelegramTarget(pick)) return;
   if (!weightedScorePickNotifyEnabled()) return;
 
   const weights = pick.techModelWeights;
