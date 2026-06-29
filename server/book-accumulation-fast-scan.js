@@ -14,7 +14,8 @@ import {
 } from "./universe.js";
 import { loadStock, runStockDataScanSession } from "./stock-data.js";
 import { runWithYahooScanTune } from "./yahoo-queue.js";
-import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
+import { finishVaultScanSymbolOnLoadError } from "./vault-scan-symbol-error.js";
+import { liveTradeLogInfo } from "./live-trade-log.js";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
 import {
   assessScanVaultMerge,
@@ -198,12 +199,8 @@ export async function scanOneSymbolBookAccumFast(
 
     return { ok: true, hits };
   } catch (e) {
-    liveTradeLogWarn(
-      "[book-accum:fast]",
-      sym,
-      e instanceof Error ? e.message : e,
-    );
-    return { ok: false, hits: [] };
+    const r = finishVaultScanSymbolOnLoadError("book-accum", sym, undefined, e);
+    return { ok: r.ok, hits: [] };
   }
 }
 

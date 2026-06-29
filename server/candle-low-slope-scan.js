@@ -3,7 +3,8 @@ import { detectCandleLowSlopeFlipLatest } from "./candle-low-slope-detect.js";
 import { isGoldenCrossTradable } from "./golden-cross-tradable.js";
 import { resolveDisplayName } from "./names-ko.js";
 import { loadVaultScanUniverse } from "./universe.js";
-import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
+import { logVaultScanLoadFailure } from "./vault-scan-symbol-error.js";
+import { liveTradeLogInfo } from "./live-trade-log.js";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
 import { candlesForWeeklyMaScan } from "./weekly-candle-trim.js";
 import {
@@ -159,11 +160,7 @@ async function scanOneSymbol(item, market, scanDate) {
       pivotLow: det.pivotLow,
     };
   } catch (e) {
-    liveTradeLogWarn(
-      "[low-slope:scan]",
-      sym,
-      e instanceof Error ? e.message : e,
-    );
+    logVaultScanLoadFailure("low-slope", sym, undefined, e);
     return null;
   }
 }

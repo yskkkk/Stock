@@ -7,7 +7,8 @@ import {
   loadBookAccumScanUniverse,
   resolveBookAccumUniverseScope,
 } from "./universe.js";
-import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
+import { finishVaultScanSymbolOnLoadError } from "./vault-scan-symbol-error.js";
+import { liveTradeLogInfo } from "./live-trade-log.js";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
 import {
   normalizeVaultScanTimeframe,
@@ -151,13 +152,7 @@ async function scanOneSymbol(item, market, scanDate, timeframe = "1d") {
       },
     };
   } catch (e) {
-    liveTradeLogWarn(
-      "[book-accum:scan]",
-      sym,
-      tf,
-      e instanceof Error ? e.message : e,
-    );
-    return { ok: false, hit: null };
+    return finishVaultScanSymbolOnLoadError("book-accum", sym, tf, e);
   }
 }
 

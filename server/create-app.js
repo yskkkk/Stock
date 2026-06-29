@@ -35,6 +35,12 @@ import { loadNews } from "./news.js";
 import { loadCryptoQuotes } from "./crypto-quotes.js";
 import { loadCryptoWatchlistTen } from "./crypto-universe.js";
 import { fetchScanCandles, loadStock } from "./stock-data.js";
+import {
+  isStockChartUnavailableError,
+  isSymbolNotFound,
+  stockChartUnavailableUserMessage,
+  SYMBOL_NOT_FOUND,
+} from "./errors.js";
 import { loadBuffettIntrinsicValue } from "./buffett-intrinsic-input.js";
 import { loadStockShareStructure } from "./stock-share-structure.js";
 import { loadValueInvestReturn } from "./value-invest-return-input.js";
@@ -3169,6 +3175,15 @@ export function createApp() {
         const data = await loadStock(symbol, timeframe, { live });
         res.json(data);
       } catch (err) {
+        if (isSymbolNotFound(err) || isStockChartUnavailableError(err)) {
+          const symbol = req.params.symbol.toUpperCase();
+          res.status(404).json({
+            error: stockChartUnavailableUserMessage(symbol),
+            code: SYMBOL_NOT_FOUND,
+            symbol,
+          });
+          return;
+        }
         const message = err instanceof Error ? err.message : "요청 실패";
         res.status(404).json({ error: message });
       }

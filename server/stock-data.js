@@ -4,7 +4,7 @@ import {
   fetchBithumbKrwChart,
   loadBithumbKrwQuoteSnapshot,
 } from "./bithumb-krw.js";
-import { chartNotFoundError } from "./errors.js";
+import { chartNotFoundError, isSymbolNotFound } from "./errors.js";
 import { resolveDisplayName } from "./names-ko.js";
 import { TIMEFRAME_MAP } from "./timeframes.js";
 import {
@@ -474,12 +474,17 @@ export async function loadStock(symbol, timeframe, options = {}) {
       return data;
     } catch (err) {
       if (stale) return { ...stale.data, stale: true, updatedAt: Date.now() };
+      if (isSymbolNotFound(err)) throw err;
       const detail =
         err instanceof Error
           ? err.message
           : err && typeof err === "object" && "code" in err
             ? String(/** @type {{ code?: unknown }} */ (err).code)
             : String(err);
+      const lower = detail.toLowerCase();
+      if (/no data found|delisted|not found|chart error/.test(lower)) {
+        throw chartNotFoundError(sym, detail);
+      }
       throw new Error(`종목 데이터를 가져올 수 없습니다: ${sym} (${detail})`);
     } finally {
       inflight.delete(inflightKey);

@@ -5,7 +5,8 @@ import { detectMaApproach } from "./stock-vault-chart-insights.js";
 import { isGoldenCrossTradable } from "./golden-cross-tradable.js";
 import { resolveDisplayName } from "./names-ko.js";
 import { loadUniverse } from "./universe.js";
-import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
+import { logVaultScanLoadFailure } from "./vault-scan-symbol-error.js";
+import { liveTradeLogInfo } from "./live-trade-log.js";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
 
 const STATE_FILE = "ma120-near-scan-state.json";
@@ -187,11 +188,7 @@ async function scanOneSymbol(item, market, scanDate) {
       ma120Side,
     };
   } catch (e) {
-    liveTradeLogWarn(
-      "[ma120-near:scan]",
-      sym,
-      e instanceof Error ? e.message : e,
-    );
+    logVaultScanLoadFailure("ma120-near", sym, undefined, e);
     return null;
   }
 }

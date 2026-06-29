@@ -4,7 +4,8 @@ import { candlesForWeeklyMaScan } from "./weekly-candle-trim.js";
 import { isGoldenCrossTradable } from "./golden-cross-tradable.js";
 import { resolveDisplayName } from "./names-ko.js";
 import { loadVaultScanUniverse } from "./universe.js";
-import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
+import { logVaultScanLoadFailure } from "./vault-scan-symbol-error.js";
+import { liveTradeLogInfo } from "./live-trade-log.js";
 import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
 import {
   normalizeVaultScanTimeframe,
@@ -130,12 +131,7 @@ async function scanOneSymbol(item, market, scanDate, timeframe = "1d") {
       scanDate,
     };
   } catch (e) {
-    liveTradeLogWarn(
-      "[ma-align:scan]",
-      sym,
-      tf,
-      e instanceof Error ? e.message : e,
-    );
+    logVaultScanLoadFailure("ma-align", sym, tf, e);
     return null;
   }
 }
