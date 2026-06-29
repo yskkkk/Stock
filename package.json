@@ -12,8 +12,6 @@
     "verify:entry": "node scripts/verify-entry-http.mjs",
     "verify:api-smoke": "node scripts/verify-api-smoke.mjs",
     "verify:express-spa": "node scripts/verify-express-spa-root.mjs",
-    "alarm:test": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/wake-alarm.ps1 -Test",
-    "alarm:register": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/register-wake-alarm.ps1",
     "test": "vitest run",
     "test:ui": "vitest run src/components/DockLinkedAccountsPanel.mount.test.tsx src/components/CryptoTab.mount.test.tsx src/regression",
     "build": "npm run verify && tsc -b && vite build",
