@@ -111,6 +111,15 @@ accumRiseLb    = input.int(30, "선행 상승(봉)", minval=10, maxval=80, group
 accumMinRise   = input.float(15.0, "선행 상승(%)", minval=5.0, maxval=60.0, step=1.0, group=grpAccumFilter)
 accumPeakRvol  = input.float(2.5, "분산봉 RVOL", minval=1.5, maxval=5.0, step=0.1, group=grpAccumFilter)
 
+grpAccumExtend = "3·매집봉 — 확장(선택)"
+accumPeakMode      = input.string("기본", "분산 제외 모드", options=["기본", "장대양봉만", "끔"], group=grpAccumExtend, tooltip="기본=상승 후 대량 양봉 전부 제외. 장대양봉만=몸통 큰 양봉만 분산. 끔=분산 필터 없음")
+accumPeakBodyMin   = input.float(40.0, "분산 최소 몸통(%)", minval=15.0, maxval=80.0, step=1.0, group=grpAccumExtend, tooltip="「장대양봉만」일 때 — 몸통이 이 비율 이상인 양봉만 분산 처리")
+accumWickAccum     = input.bool(false, "윗꼬리 흡수 매집", group=grpAccumExtend, tooltip="대량 거래+윗꼬리 길고 몸통 작으면 분산 제외를 무시. 돌파 직전 매집·공급 테스트 봉용")
+accumWickMult      = input.float(1.2, "흡수 윗꼬리/몸통", minval=0.5, maxval=5.0, step=0.1, group=grpAccumExtend)
+accumWickMaxBody   = input.float(35.0, "흡수 최대 몸통(%)", minval=10.0, maxval=60.0, step=1.0, group=grpAccumExtend)
+accumWickScoreBonus = input.int(8, "흡수 가산점", minval=0, maxval=20, group=grpAccumExtend)
+accumDropRelaxCost = input.bool(false, "본전 맥락 시 하락선행 면제", group=grpAccumExtend, tooltip="본전 터치·회복·재터치 이력이 있으면 40봉 고점 대비 하락 조건 생략")
+
 grpAccumCol = "3·매집봉 — 색상"
 cAccum = input.color(color.new(#D84315, 0), "매집 마커", group=grpAccumCol)
 
@@ -157,10 +166,19 @@ int aSinceBreach = not na(aBreachBar) ? bar_index - aBreachBar : 10000
 bool aRecover5d = accumUseCost and not na(aCostBasis) and aSinceBreach > 0 and aSinceBreach <= accumRecover and close > aCostBasis
 
 bool aVolOk = aRvol >= accumEffRvol and (not accumVolMaUp or aVolMaUp or aRvol >= accumEffRvol * 1.2)
-bool aPeakDistrib = aHadRise and aRvol >= accumPeakRvol and close > open
-float aBodyPct = (high - low) > 0 ? math.abs(close - open) / (high - low) * 100.0 : 0.0
+float aBodyAbs = math.abs(close - open)
+float aBodyPct = (high - low) > 0 ? aBodyAbs / (high - low) * 100.0 : 0.0
+float aUpperWick = high - math.max(open, close)
+bool aPeakDistribBase = aHadRise and aRvol >= accumPeakRvol and close > open
+bool aPeakDistrib =
+     accumPeakMode == "끔" ? false :
+     accumPeakMode == "장대양봉만" ? (aPeakDistribBase and aBodyPct >= accumPeakBodyMin) :
+     aPeakDistribBase
+bool aWickAccumPat = accumWickAccum and aVolOk and aRvol >= accumPeakRvol and aBodyPct <= accumWickMaxBody and close >= open and (aBodyAbs > 0 ? aUpperWick >= aBodyAbs * accumWickMult : aUpperWick > 0)
+bool aPeakBlocked = aPeakDistrib and not aWickAccumPat
 bool aLongBear = close < open and aBodyPct > accumMaxBearBody
-bool aAccumRaw = aVolOk and not aPeakDistrib and not aLongBear and (not accumNeedDrop or aHadDrop)
+bool aDropOk = not accumNeedDrop or aHadDrop or (accumDropRelaxCost and accumUseCost and (aTouchCost or aRecover5d or aCostTouches > 0))
+bool aAccumRaw = aVolOk and not aPeakBlocked and not aLongBear and aDropOk
 
 int aConsecCnt = 0
 for i = 0 to accumConsecWin - 1
@@ -180,6 +198,7 @@ if aScoreAcc
     aScore += aRecover5d ? 15.0 : 0.0
     aScore += aConsecOk ? 12.0 : 0.0
     aScore += aCostTouches >= 2 ? 10.0 : aCostTouches >= 1 ? 5.0 : 0.0
+    aScore += aWickAccumPat ? float(accumWickScoreBonus) : 0.0
 aScore := math.min(100.0, aScore)
 
 bool anyAccum = showAccum and aAccumRaw and aCtxOk and aScore >= accumEffMinScore

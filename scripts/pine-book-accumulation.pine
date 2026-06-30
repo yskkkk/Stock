@@ -33,6 +33,15 @@ riseLb         = input.int(30, "상승 참조(봉)", minval=10, maxval=80, group
 minRisePct     = input.float(15.0, "최소 상승(%)", minval=5.0, maxval=60.0, step=1.0, group=grpPeak)
 peakRvol       = input.float(2.5, "상투 RVOL", minval=1.5, maxval=5.0, step=0.1, group=grpPeak)
 
+grpExtend = "확장(선택)"
+peakMode       = input.string("기본", "분산 제외 모드", options=["기본", "장대양봉만", "끔"], group=grpExtend, tooltip="기본=상승 후 대량 양봉 전부 제외. 장대양봉만=몸통 큰 양봉만 분산. 끔=분산 필터 없음")
+peakBodyMin    = input.float(40.0, "분산 최소 몸통(%)", minval=15.0, maxval=80.0, step=1.0, group=grpExtend)
+wickAccum      = input.bool(false, "윗꼬리 흡수 매집", group=grpExtend, tooltip="대량+윗꼬리 길고 몸통 작으면 분산 제외 무시")
+wickMult       = input.float(1.2, "흡수 윗꼬리/몸통", minval=0.5, maxval=5.0, step=0.1, group=grpExtend)
+wickMaxBody    = input.float(35.0, "흡수 최대 몸통(%)", minval=10.0, maxval=60.0, step=1.0, group=grpExtend)
+wickScoreBonus = input.int(8, "흡수 가산점", minval=0, maxval=20, group=grpExtend)
+dropRelaxCost  = input.bool(false, "본전 맥락 시 하락선행 면제", group=grpExtend)
+
 grpVis = "표시"
 confirmedOnly  = input.bool(true, "확정봉만", group=grpVis)
 cAccum         = input.color(color.new(#E53935, 0), "매집 색", group=grpVis)
@@ -83,10 +92,19 @@ bool recover5d = useCost and not na(costBasis) and sinceBreach > 0 and sinceBrea
 
 // ── 매집봉 ───────────────────────────────────────────────────────────
 bool volOk = rvol >= effRvol and (not needVolMaUp or volMaUp or rvol >= effRvol * 1.2)
-bool peakDistrib = hadRise and rvol >= peakRvol and close > open
-float bodyPct = (high - low) > 0 ? math.abs(close - open) / (high - low) * 100.0 : 0.0
+float bodyAbs = math.abs(close - open)
+float bodyPct = (high - low) > 0 ? bodyAbs / (high - low) * 100.0 : 0.0
+float upperWick = high - math.max(open, close)
+bool peakDistribBase = hadRise and rvol >= peakRvol and close > open
+bool peakDistrib =
+     peakMode == "끔" ? false :
+     peakMode == "장대양봉만" ? (peakDistribBase and bodyPct >= peakBodyMin) :
+     peakDistribBase
+bool wickAccumPat = wickAccum and volOk and rvol >= peakRvol and bodyPct <= wickMaxBody and close >= open and (bodyAbs > 0 ? upperWick >= bodyAbs * wickMult : upperWick > 0)
+bool peakBlocked = peakDistrib and not wickAccumPat
 bool longBear = close < open and bodyPct > maxBearBodyPct
-bool accumRaw = volOk and not peakDistrib and not longBear and (not needDrop or hadDrop)
+bool dropOk = not needDrop or hadDrop or (dropRelaxCost and useCost and (touchCost or recover5d or costTouches > 0))
+bool accumRaw = volOk and not peakBlocked and not longBear and dropOk
 
 int consecCnt = 0
 for i = 0 to consecWin - 1
@@ -97,7 +115,7 @@ for i = 0 to consecWin - 1
 bool consecOk = consecCnt >= effConsec
 bool ctxOk = not needCostCtx or touchCost or recover5d
 
-f_score(bool acc, bool cTouch, bool cRec, bool cCon, float rv) =>
+f_score(bool acc, bool cTouch, bool cRec, bool cCon, float rv, bool wickPat) =>
     float sc = 0.0
     if acc
         sc += math.min(30.0, rv / effRvol * 18.0)
@@ -106,9 +124,10 @@ f_score(bool acc, bool cTouch, bool cRec, bool cCon, float rv) =>
         sc += cRec ? 15.0 : 0.0
         sc += cCon ? 12.0 : 0.0
         sc += costTouches >= 2 ? 10.0 : costTouches >= 1 ? 5.0 : 0.0
+        sc += wickPat ? float(wickScoreBonus) : 0.0
     math.min(100.0, sc)
 
-float score = f_score(accumRaw and ctxOk, touchCost, recover5d, consecOk, rvol)
+float score = f_score(accumRaw and ctxOk, touchCost, recover5d, consecOk, rvol, wickAccumPat)
 bool anyAccum = accumRaw and ctxOk and score >= effMinScore
 
 bool barOk = not confirmedOnly or barstate.isconfirmed
