@@ -66,6 +66,7 @@ import { loadHotStocksByTurnover } from "./stock-search-hot.js";
 import { notifyServerOpenRequest } from "./server-open-request-notify.js";
 import { getMacroEventsCachedAsync } from "./macro-events.js";
 import { fetchSectorEarningsSpotlight } from "./sector-earnings-spotlight.js";
+import { fetchSp500SectorsPayload } from "./sp500-sectors.js";
 import { postFeedback, getFeedbackInbox, postFeedbackAdminReply, deleteFeedbackAdmin } from "./feedback-inbox.js";
 import { runOpsCursorAgent, streamOpsCursorAgentSse, writeOpsAgentSseEvent } from "./cursor-ops-agent.js";
 import {
@@ -1341,6 +1342,13 @@ export function createApp() {
         sectorEarnings = [];
       }
       res.json({ sectorEarnings, updatedAt: Date.now() });
+    }),
+  );
+
+  app.get(
+    "/api/sp500-sectors",
+    asyncRoute(async (_req, res) => {
+      res.json(await fetchSp500SectorsPayload());
     }),
   );
 
