@@ -109,13 +109,14 @@ if (-not $clients.Count) {
 }
 
 if ($SelfTest) {
-  $scriptRoot = $PSScriptRoot
+  $sendScript = Join-Path $PSScriptRoot 'send-wol-magic-packet.ps1'
+  $targets = @($ip, '127.0.0.1', '255.255.255.255') | Where-Object { $_ }
   Start-Job -ScriptBlock {
-    param($dir)
+    param($Script, [string[]]$Targets)
     Start-Sleep -Seconds 2
-    & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $dir 'send-wol-magic-packet.ps1')
-  } -ArgumentList $scriptRoot | Out-Null
-  Write-Host '[WOL test] SelfTest: local magic packet in ~2s...'
+    & $Script -Targets $Targets
+  } -ArgumentList $sendScript, $targets | Out-Null
+  Write-Host "[WOL test] SelfTest: magic packet to $($targets -join ', ') in ~2s..."
 }
 
 $deadline = (Get-Date).AddSeconds($Seconds)

@@ -1,7 +1,7 @@
 # Send WOL magic packet (local test). Usage: .\send-wol-magic-packet.ps1 [-Mac A8-A1-59-BF-42-CC]
 param(
   [string]$Mac = 'A8-A1-59-BF-42-CC',
-  [string]$Broadcast = '',
+  [string[]]$Targets = @(),
   [int[]]$Ports = @(7, 9)
 )
 
@@ -14,8 +14,8 @@ $macBytes = for ($i = 0; $i -lt 12; $i += 2) { [Convert]::ToByte($hex.Substring(
 $payload = [byte[]](,0xFF * 6)
 for ($r = 0; $r -lt 16; $r++) { $payload += $macBytes }
 
-if (-not $Broadcast) {
-  $Broadcast = '255.255.255.255'
+if (-not $Targets -or $Targets.Count -eq 0) {
+  $Targets = @('255.255.255.255')
   $ad = Get-NetAdapter | Where-Object { (Normalize-Mac $_.MacAddress) -eq $hex -and $_.Status -eq 'Up' } | Select-Object -First 1
   if ($ad) {
     $ip = Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $ad.ifIndex -ErrorAction SilentlyContinue |
@@ -29,16 +29,18 @@ if (-not $Broadcast) {
       if ([BitConverter]::IsLittleEndian) { [array]::Reverse($maskArr) }
       $bcast = New-Object byte[] 4
       for ($i = 0; $i -lt 4; $i++) { $bcast[$i] = [byte]($ipBytes[$i] -bor ($maskArr[$i] -bxor 255)) }
-      $Broadcast = ([System.Net.IPAddress]::new($bcast)).ToString()
+      $Targets = @($ip.IPAddress, ([System.Net.IPAddress]::new($bcast)).ToString(), '255.255.255.255')
     }
   }
 }
 
 $udp = New-Object System.Net.Sockets.UdpClient
 $udp.EnableBroadcast = $true
-foreach ($port in $Ports) {
-  $end = New-Object System.Net.IPEndPoint([System.Net.IPAddress]::Parse($Broadcast), $port)
-  [void]$udp.Send($payload, $payload.Length, $end)
-  Write-Host "[WOL send] -> $Broadcast`:$port  MAC=$Mac  len=$($payload.Length)"
+foreach ($target in ($Targets | Select-Object -Unique)) {
+  foreach ($port in $Ports) {
+    $end = New-Object System.Net.IPEndPoint([System.Net.IPAddress]::Parse($target), $port)
+    [void]$udp.Send($payload, $payload.Length, $end)
+    Write-Host "[WOL send] -> ${target}:$port  MAC=$Mac  len=$($payload.Length)"
+  }
 }
 $udp.Close()
