@@ -402,11 +402,17 @@
 
 .sp500-wheel-mini__seg {
   cursor: pointer;
-  transition: opacity 0.15s, filter 0.15s;
+  transition:
+    opacity 0.18s ease,
+    filter 0.18s ease;
 }
 
 .sp500-wheel-mini__seg:hover {
-  filter: brightness(1.12);
+  filter: brightness(1.08);
+}
+
+.sp500-wheel-mini__seg--lifted {
+  filter: brightness(0.78) saturate(1.25) drop-shadow(0 2px 5px rgba(0, 0, 0, 0.28));
 }
 
 .sp500-wheel-mini__seg--dim {
@@ -464,6 +470,7 @@
 }
 
 .sp500-wheel-mini__legend-btn:hover,
+.sp500-wheel-mini__legend-btn--hovered,
 .sp500-wheel-mini__legend-btn.active {
   background: var(--accent-dim);
   border-color: var(--accent-border);

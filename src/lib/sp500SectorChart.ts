@@ -94,6 +94,29 @@ export function donutArcPath(
   ].join(" ");
 }
 
+/** 범례·호버 시 조각을 중심에서 밀어 넣은 팝아웃 경로 */
+export function donutArcPathPopOut(
+  cx: number,
+  cy: number,
+  r0: number,
+  r1: number,
+  a0: number,
+  a1: number,
+  offset = 6,
+  expand = 4,
+): string {
+  const mid = (a0 + a1) / 2;
+  const shift = polarPoint(0, 0, offset, mid);
+  return donutArcPath(
+    cx + shift.x,
+    cy + shift.y,
+    Math.max(0, r0 - expand * 0.12),
+    r1 + expand,
+    a0,
+    a1,
+  );
+}
+
 export type DonutSegment = {
   sector: string;
   sectorKo: string;

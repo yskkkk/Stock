@@ -4,6 +4,7 @@ import { useSp500Sector } from "../contexts/Sp500SectorContext";
 import {
   buildDonutSegments,
   donutArcPath,
+  donutArcPathPopOut,
   fmtSectorPct,
   fmtSp500DateAdded,
   sp500DateSortMs,
@@ -80,6 +81,7 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
     openSectorDetail,
   } = useSp500Sector();
   const [sortKey, setSortKey] = useState<SortKey>("symbol");
+  const [hoveredSector, setHoveredSector] = useState<string | null>(null);
   const rowBubbleTipId = useId();
   const bubbleActionsRef = useRef<StockVaultRowBubbleActions | null>(null);
   const mobile = useIsMobilePhone();
@@ -95,6 +97,16 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
         ? data.sectors.find((s) => s.sector === selectedSector) ?? null
         : null,
     [data, selectedSector],
+  );
+
+  const focusSector = hoveredSector ?? selectedSector;
+
+  const focusRow = useMemo(
+    () =>
+      focusSector && data
+        ? data.sectors.find((s) => s.sector === focusSector) ?? null
+        : null,
+    [data, focusSector],
   );
 
   const sectorCompanies = useMemo(() => {
@@ -220,56 +232,72 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
             role="img"
             aria-hidden="true"
           >
-            {segments.map((seg) => {
-              const dimmed = selectedSector && selectedSector !== seg.sector;
+            {[...segments]
+              .sort((a, b) => {
+                const aLift = hoveredSector === a.sector ? 1 : 0;
+                const bLift = hoveredSector === b.sector ? 1 : 0;
+                return aLift - bLift;
+              })
+              .map((seg) => {
+              const lifted = hoveredSector === seg.sector;
+              const dimmed = focusSector && focusSector !== seg.sector;
+              const segClass = [
+                "sp500-wheel-mini__seg",
+                lifted ? "sp500-wheel-mini__seg--lifted" : "",
+                dimmed ? "sp500-wheel-mini__seg--dim" : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
               return (
                 <path
                   key={seg.sector}
-                  className={
-                    dimmed
-                      ? "sp500-wheel-mini__seg sp500-wheel-mini__seg--dim"
-                      : "sp500-wheel-mini__seg"
+                  className={segClass}
+                  d={
+                    lifted
+                      ? donutArcPathPopOut(cx, cy, r0, r1, seg.a0, seg.a1)
+                      : donutArcPath(cx, cy, r0, r1, seg.a0, seg.a1)
                   }
-                  d={donutArcPath(cx, cy, r0, r1, seg.a0, seg.a1)}
                   fill={seg.color}
                   onClick={() => openSectorDetail(seg.sector, "list")}
+                  onMouseEnter={() => setHoveredSector(seg.sector)}
+                  onMouseLeave={() => setHoveredSector(null)}
                 />
               );
             })}
             <text
               className="sp500-wheel-mini__center-label"
               x={cx}
-              y={cy - (selected ? 10 : 4)}
+              y={cy - (focusRow ? 10 : 4)}
               textAnchor="middle"
             >
-              {selected ? selected.sectorKo : "S&P 500"}
+              {focusRow ? focusRow.sectorKo : "S&P 500"}
             </text>
-            {selected ? (
+            {focusRow ? (
               <text
                 className="sp500-wheel-mini__center-en"
                 x={cx}
                 y={cy + 4}
                 textAnchor="middle"
               >
-                {selected.sector}
+                {focusRow.sector}
               </text>
             ) : null}
             <text
               className="sp500-wheel-mini__center-value"
               x={cx}
-              y={cy + (selected ? 22 : 16)}
+              y={cy + (focusRow ? 22 : 16)}
               textAnchor="middle"
             >
-              {selected ? selected.count : data.total}
+              {focusRow ? focusRow.count : data.total}
             </text>
-            {selected ? (
+            {focusRow ? (
               <text
                 className="sp500-wheel-mini__center-sub"
                 x={cx}
                 y={cy + 36}
                 textAnchor="middle"
               >
-                {fmtSectorPct(selected.pct)}
+                {fmtSectorPct(focusRow.pct)}
               </text>
             ) : null}
           </svg>
@@ -282,9 +310,15 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
                   className={
                     selectedSector === s.sector
                       ? "sp500-wheel-mini__legend-btn active"
-                      : "sp500-wheel-mini__legend-btn"
+                      : hoveredSector === s.sector
+                        ? "sp500-wheel-mini__legend-btn sp500-wheel-mini__legend-btn--hovered"
+                        : "sp500-wheel-mini__legend-btn"
                   }
                   onClick={() => openSectorDetail(s.sector, "list")}
+                  onMouseEnter={() => setHoveredSector(s.sector)}
+                  onMouseLeave={() => setHoveredSector(null)}
+                  onFocus={() => setHoveredSector(s.sector)}
+                  onBlur={() => setHoveredSector(null)}
                 >
                   <span
                     className="sp500-wheel-mini__swatch"
