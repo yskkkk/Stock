@@ -4,6 +4,11 @@ chcp 65001 >nul
 title Stock dev:guard
 cd /d "%~dp0.."
 
+rem 로그인 직후 PATH에 node/npm 없을 수 있음
+if exist "C:\Program Files\nodejs\npm.cmd" (
+  set "PATH=C:\Program Files\nodejs;%PATH%"
+)
+
 set "PORT=5173"
 if defined VITE_DEV_PORT set "PORT=%VITE_DEV_PORT%"
 
