@@ -33,7 +33,7 @@ function sortCompanies(
   return copy;
 }
 
-function Sp500SectorWheelMiniInner() {
+function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean }) {
   const [data, setData] = useState<Sp500SectorsPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -90,16 +90,16 @@ function Sp500SectorWheelMiniInner() {
 
   if (loading) {
     return (
-      <aside className="sp500-wheel-mini card" aria-busy="true">
-        <p className="sp500-wheel-mini__muted">{ko.stockVault.sp500SectorLoading}</p>
+      <aside className={embedded ? "sp500-wheel-mini sp500-wheel-mini--embedded" : "sp500-wheel-mini card"} aria-busy="true">
+        <p className="sp500-wheel-mini__muted">{ko.app.sp500SectorLoading}</p>
       </aside>
     );
   }
 
   if (error || !data) {
     return (
-      <aside className="sp500-wheel-mini card" role="alert">
-        <p className="sp500-wheel-mini__error">{ko.stockVault.sp500SectorError}</p>
+      <aside className={embedded ? "sp500-wheel-mini sp500-wheel-mini--embedded" : "sp500-wheel-mini card"} role="alert">
+        <p className="sp500-wheel-mini__error">{ko.app.sp500SectorError}</p>
       </aside>
     );
   }
@@ -111,26 +111,33 @@ function Sp500SectorWheelMiniInner() {
 
   return (
     <aside
-      className="sp500-wheel-mini card"
-      aria-label={ko.stockVault.sp500SectorAria}
+      className={embedded ? "sp500-wheel-mini sp500-wheel-mini--embedded" : "sp500-wheel-mini card"}
+      aria-label={ko.app.sp500SectorAria}
     >
-      <div className="sp500-wheel-mini__head">
-        <div>
-          <h3 className="sp500-wheel-mini__title">{ko.stockVault.sp500SectorTitle}</h3>
-          <p className="sp500-wheel-mini__sub">
-            {data.weightBasisLabel ?? ko.stockVault.sp500SectorBasis} · {data.total}
-            {ko.stockVault.sp500SectorCompaniesUnit}
-          </p>
+      {!embedded ? (
+        <div className="sp500-wheel-mini__head">
+          <div>
+            <h3 className="sp500-wheel-mini__title">{ko.app.sp500SectorTitle}</h3>
+            <p className="sp500-wheel-mini__sub">
+              {data.weightBasisLabel ?? ko.app.sp500SectorBasis} · {data.total}
+              {ko.app.sp500SectorCompaniesUnit}
+            </p>
+          </div>
+          <a
+            className="sp500-wheel-mini__full-link"
+            href="/sp500-sector-wheel.html"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {ko.app.sp500SectorOpenFull}
+          </a>
         </div>
-        <a
-          className="sp500-wheel-mini__full-link"
-          href="/sp500-sector-wheel.html"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {ko.stockVault.sp500SectorOpenFull}
-        </a>
-      </div>
+      ) : (
+        <p className="sp500-wheel-mini__sub sp500-wheel-mini__sub--embedded">
+          {data.weightBasisLabel ?? ko.app.sp500SectorBasis} · {data.total}
+          {ko.app.sp500SectorCompaniesUnit}
+        </p>
+      )}
 
       <div className="sp500-wheel-mini__tabs" role="tablist">
         <button
@@ -140,7 +147,7 @@ function Sp500SectorWheelMiniInner() {
           aria-selected={panel === "chart"}
           onClick={() => setPanel("chart")}
         >
-          {ko.stockVault.sp500SectorTabChart}
+          {ko.app.sp500SectorTabChart}
         </button>
         <button
           type="button"
@@ -149,7 +156,7 @@ function Sp500SectorWheelMiniInner() {
           aria-selected={panel === "list"}
           onClick={() => setPanel("list")}
         >
-          {ko.stockVault.sp500SectorTabList}
+          {ko.app.sp500SectorTabList}
         </button>
       </div>
 
@@ -232,7 +239,7 @@ function Sp500SectorWheelMiniInner() {
         <div className="sp500-wheel-mini__list-panel">
           <div className="sp500-wheel-mini__list-toolbar">
             <label className="sp500-wheel-mini__sort-label" htmlFor="sp500-mini-sort">
-              {ko.stockVault.sp500SectorSort}
+              {ko.app.sp500SectorSort}
             </label>
             <select
               id="sp500-mini-sort"
@@ -240,9 +247,9 @@ function Sp500SectorWheelMiniInner() {
               value={sortKey}
               onChange={(e) => setSortKey(e.target.value as SortKey)}
             >
-              <option value="symbol">{ko.stockVault.sp500SectorSortSymbol}</option>
-              <option value="name">{ko.stockVault.sp500SectorSortName}</option>
-              <option value="sub">{ko.stockVault.sp500SectorSortSub}</option>
+              <option value="symbol">{ko.app.sp500SectorSortSymbol}</option>
+              <option value="name">{ko.app.sp500SectorSortName}</option>
+              <option value="sub">{ko.app.sp500SectorSortSub}</option>
             </select>
             {selected ? (
               <button
@@ -250,7 +257,7 @@ function Sp500SectorWheelMiniInner() {
                 className="sp500-wheel-mini__clear"
                 onClick={() => setSelectedSector(null)}
               >
-                {ko.stockVault.sp500SectorClearFilter}
+                {ko.app.sp500SectorClearFilter}
               </button>
             ) : null}
           </div>
@@ -258,11 +265,11 @@ function Sp500SectorWheelMiniInner() {
           {selected ? (
             <p className="sp500-wheel-mini__filter-note">
               {selected.sectorKo} · {sectorCompanies.length}
-              {ko.stockVault.sp500SectorCompaniesUnit}
+              {ko.app.sp500SectorCompaniesUnit}
             </p>
           ) : (
             <p className="sp500-wheel-mini__filter-note">
-              {ko.stockVault.sp500SectorPickHint}
+              {ko.app.sp500SectorPickHint}
             </p>
           )}
 
@@ -270,10 +277,10 @@ function Sp500SectorWheelMiniInner() {
             <table className="sp500-wheel-mini__table">
               <thead>
                 <tr>
-                  <th>{ko.stockVault.sp500SectorColSymbol}</th>
-                  <th>{ko.stockVault.sp500SectorColName}</th>
-                  {!selected ? <th>{ko.stockVault.sp500SectorColSector}</th> : null}
-                  <th>{ko.stockVault.sp500SectorColSub}</th>
+                  <th>{ko.app.sp500SectorColSymbol}</th>
+                  <th>{ko.app.sp500SectorColName}</th>
+                  {!selected ? <th>{ko.app.sp500SectorColSector}</th> : null}
+                  <th>{ko.app.sp500SectorColSub}</th>
                 </tr>
               </thead>
               <tbody>
@@ -297,7 +304,7 @@ function Sp500SectorWheelMiniInner() {
           </div>
           {!selected && data.companies.length > 40 ? (
             <p className="sp500-wheel-mini__more">
-              {ko.stockVault.sp500SectorMore.replace("{n}", String(data.companies.length - 40))}
+              {ko.app.sp500SectorMore.replace("{n}", String(data.companies.length - 40))}
             </p>
           ) : null}
         </div>

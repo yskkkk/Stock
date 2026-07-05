@@ -18,6 +18,7 @@ import {
 import BullishReasonModal from "./components/BullishReasonModal";
 import AccessAdminModal from "./components/AccessAdminModal";
 import AppSiteFooter from "./components/AppSiteFooter";
+import AppSp500SectorPanel from "./components/AppSp500SectorPanel";
 import ScrollToTopButton from "./components/ScrollToTopButton";
 import AppThemeCorner from "./components/AppThemeCorner";
 import { useMainTabWithPreview } from "./hooks/useMainTabWithPreview";
@@ -1694,6 +1695,8 @@ export default function App() {
         </div>
       </header>
       </div>
+
+      <AppSp500SectorPanel />
 
       {picksError && !/npm\s+run\s+dev/i.test(picksError) ? (
         <div className="alert alert--error" role="alert">
