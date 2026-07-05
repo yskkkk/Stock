@@ -19,6 +19,36 @@
 .sp500-sector-tab .sp500-wheel-mini {
   width: 100%;
   max-width: 100%;
+  box-sizing: border-box;
+}
+
+.sp500-sector-tab .sp500-wheel-mini__tabs,
+.sp500-sector-tab .sp500-wheel-mini__head,
+.sp500-sector-tab .sp500-wheel-mini__chart-panel,
+.sp500-sector-tab .sp500-wheel-mini__list-panel {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.sp500-sector-tab .sp500-wheel-mini__chart-panel {
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 1rem 1.25rem;
+}
+
+.sp500-sector-tab .sp500-wheel-mini__svg {
+  width: 100%;
+  max-width: 100%;
+}
+
+.sp500-sector-tab .sp500-wheel-mini__legend {
+  max-height: none;
+}
+
+@media (max-width: 720px) {
+  .sp500-sector-tab .sp500-wheel-mini__chart-panel {
+    grid-template-columns: 1fr;
+    justify-items: stretch;
+  }
 }
 
 .app-sp500-sector-panel {
