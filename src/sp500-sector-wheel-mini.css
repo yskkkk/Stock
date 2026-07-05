@@ -585,6 +585,27 @@
   cursor: pointer;
 }
 
+.sp500-wheel-mini__row-hover-zone:hover td {
+  background: color-mix(in srgb, var(--accent-dim) 55%, transparent);
+}
+
+.sp500-wheel-mini__name {
+  min-width: 8.5rem;
+}
+
+.sp500-wheel-mini__name-ko {
+  display: block;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.sp500-wheel-mini__name-en {
+  display: block;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
 .sp500-wheel-mini__row:hover td {
   background: color-mix(in srgb, var(--accent-dim) 65%, transparent);
 }

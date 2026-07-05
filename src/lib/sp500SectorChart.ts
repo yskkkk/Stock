@@ -8,6 +8,7 @@ export type Sp500SectorRow = {
 export type Sp500CompanyRow = {
   symbol: string;
   name: string;
+  nameKo?: string | null;
   sector: string;
   sectorKo: string;
   subIndustry: string;

@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useId, useMemo, useRef, useState } from "react";
 import { ko } from "../i18n/ko";
 import { useSp500Sector } from "../contexts/Sp500SectorContext";
 import {
@@ -7,10 +7,39 @@ import {
   fmtSectorPct,
   fmtSp500DateAdded,
   sp500DateSortMs,
+  type Sp500CompanyRow,
   type Sp500SectorsPayload,
 } from "../lib/sp500SectorChart";
+import { useIsMobilePhone } from "../hooks/useIsMobilePhone";
+import { getMappedSymbolName } from "../lib/symbolDisplayName";
+import { yahooStockSymbolToTradingView } from "../lib/tradingviewSymbols";
+import {
+  StockVaultRowBubblePortal,
+  type StockVaultRowBubbleActions,
+  type StockVaultRowBubbleTarget,
+} from "./StockVaultRowBubble";
 
 type SortKey = "symbol" | "name" | "sub" | "date-desc" | "date-asc";
+
+function companyKoName(c: Sp500CompanyRow): string | null {
+  const koName = c.nameKo?.trim() || getMappedSymbolName(c.symbol);
+  return koName || null;
+}
+
+function companySortName(c: Sp500CompanyRow): string {
+  return companyKoName(c) ?? c.name;
+}
+
+function bubbleTarget(c: Sp500CompanyRow): StockVaultRowBubbleTarget {
+  const nameKo = companyKoName(c);
+  return {
+    symbol: c.symbol,
+    name: nameKo ?? c.name,
+    market: "us",
+    industry: c.sectorKo,
+    tvSymbol: yahooStockSymbolToTradingView(c.symbol, "us"),
+  };
+}
 
 function sortCompanies(
   list: Sp500SectorsPayload["companies"],
@@ -24,13 +53,13 @@ function sortCompanies(
     }
     const va =
       sortKey === "name"
-        ? a.name
+        ? companySortName(a)
         : sortKey === "sub"
           ? a.subIndustry
           : a.symbol;
     const vb =
       sortKey === "name"
-        ? b.name
+        ? companySortName(b)
         : sortKey === "sub"
           ? b.subIndustry
           : b.symbol;
@@ -51,6 +80,9 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
     openSectorDetail,
   } = useSp500Sector();
   const [sortKey, setSortKey] = useState<SortKey>("symbol");
+  const rowBubbleTipId = useId();
+  const bubbleActionsRef = useRef<StockVaultRowBubbleActions | null>(null);
+  const mobile = useIsMobilePhone();
 
   const segments = useMemo(
     () => (data ? buildDonutSegments(data.sectors, data.total) : []),
@@ -80,6 +112,17 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
     },
     [setPanelTab, setSelectedSector],
   );
+
+  const showRowBubble = useCallback(
+    (el: HTMLElement, company: Sp500CompanyRow) => {
+      bubbleActionsRef.current?.showTip(el, bubbleTarget(company));
+    },
+    [],
+  );
+
+  const hideRowBubble = useCallback(() => {
+    bubbleActionsRef.current?.scheduleHideTip();
+  }, []);
 
   if (loading) {
     return (
@@ -314,19 +357,46 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
                 {(selected
                   ? sectorCompanies
                   : sortCompanies(data.companies, sortKey).slice(0, 40)
-                ).map((c) => (
+                ).map((c) => {
+                  const nameKo = companyKoName(c);
+                  return (
                   <tr
                     key={c.symbol}
-                    className="sp500-wheel-mini__row"
-                    onClick={() => pickSector(c.sector)}
+                    className="sp500-wheel-mini__row sp500-wheel-mini__row-hover-zone"
+                    onMouseEnter={
+                      mobile
+                        ? undefined
+                        : (e) =>
+                            showRowBubble(
+                              e.currentTarget,
+                              c,
+                            )
+                    }
+                    onMouseLeave={mobile ? undefined : hideRowBubble}
+                    onClick={(e) => {
+                      if (mobile) {
+                        bubbleActionsRef.current?.toggleTip(
+                          e.currentTarget,
+                          bubbleTarget(c),
+                        );
+                        return;
+                      }
+                      pickSector(c.sector);
+                    }}
                   >
                     <td className="sp500-wheel-mini__sym">{c.symbol}</td>
-                    <td>{c.name}</td>
+                    <td className="sp500-wheel-mini__name">
+                      {nameKo ? (
+                        <span className="sp500-wheel-mini__name-ko">{nameKo}</span>
+                      ) : null}
+                      <span className="sp500-wheel-mini__name-en">{c.name}</span>
+                    </td>
                     {!selected ? <td>{c.sectorKo}</td> : null}
                     <td className="sp500-wheel-mini__sub">{c.subIndustry}</td>
                     <td className="sp500-wheel-mini__date">{fmtSp500DateAdded(c.dateAdded)}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -337,6 +407,7 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
           ) : null}
         </div>
       )}
+      <StockVaultRowBubblePortal actionsRef={bubbleActionsRef} tipId={rowBubbleTipId} />
     </aside>
   );
 }

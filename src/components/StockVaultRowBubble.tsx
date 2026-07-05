@@ -252,6 +252,7 @@ export function useStockVaultRowBubble(tipIdOverride?: string) {
       const target = e.target as Node;
       if (bubbleRef.current?.contains(target)) return;
       if ((target as Element).closest?.(".stock-vault-tab__row-hover-zone")) return;
+      if ((target as Element).closest?.(".sp500-wheel-mini__row-hover-zone")) return;
       if ((target as Element).closest?.(".value-invest-bubble__hover-pop--portal")) return;
       if ((target as Element).closest?.(".stock-share-structure-modal")) return;
       closeTip();

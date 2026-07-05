@@ -1,6 +1,8 @@
 /**
  * S&P 500 GICS 섹터·종목 (datasets/s-and-p-500-companies CSV).
  */
+import { getKoreanStockName } from "./names-ko.js";
+
 const SP500_CSV_URL =
   "https://raw.githubusercontent.com/datasets/s-and-p-500-companies/master/data/constituents.csv";
 
@@ -98,6 +100,7 @@ function parseSp500CsvWithSectors(csvText) {
     companies.push({
       symbol,
       name: cols[secIdx >= 0 ? secIdx : 1] ?? symbol,
+      nameKo: getKoreanStockName(symbol) ?? null,
       sector,
       sectorKo: GICS_SECTOR_KO[sector] ?? sector,
       subIndustry: cols[subIdx >= 0 ? subIdx : 3] ?? "",
