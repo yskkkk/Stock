@@ -41,6 +41,9 @@ const t = {
     footerFeedbackPlaceholder:
       "\ubd88\ud3b8\u00b7\ubb38\uc758 \ub0b4\uc6a9\uc744 \uc801\uc5b4 \uc8fc\uc138\uc694\u2026",
     footerCopyright: "@ysk \uc5b4\ub514\uac14\uc5b4",
+    footerSp500Sector: "S&P500 \uc139\ud130",
+    footerSp500SectorTitle:
+      "S&P 500 GICS \uc0b0\uc5c5 \uad6c\uc131 \uc6d0\ud615 \ucc28\ud2b8",
     pullToRefreshHint: "\uC544\uB798\uB85C \uB2F9\uACA8 \uC0C8\uB85C\uACE0\uCE68",
     pullToRefreshRelease: "\uB193\uC73C\uBA74 \uC0C8\uB85C\uACE0\uCE68",
     lightPaletteHint: "\uB208\uC5D0 \uD3B8\uD55C \uD1A4",

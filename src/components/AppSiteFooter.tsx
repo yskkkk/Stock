@@ -122,6 +122,10 @@ export default function AppSiteFooter({
           {ko.mobile.downloadIphone}
         </FooterLink>
 
+        <FooterLink href="/sp500-sector-wheel.html" title={ko.app.footerSp500SectorTitle}>
+          {ko.app.footerSp500Sector}
+        </FooterLink>
+
         {accessAdmin ? (
           <ServerRestartButton linkClassName="app-site-footer__link" textLink />
         ) : null}
