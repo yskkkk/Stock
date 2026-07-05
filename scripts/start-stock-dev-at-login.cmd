@@ -1,10 +1,8 @@
 @echo off
-setlocal
-chcp 65001 >nul
+setlocal EnableExtensions
 title Stock dev:guard
 cd /d "%~dp0.."
 
-rem 로그인 직후 PATH에 node/npm 없을 수 있음
 if exist "C:\Program Files\nodejs\npm.cmd" (
   set "PATH=C:\Program Files\nodejs;%PATH%"
 )
@@ -13,24 +11,29 @@ set "PORT=5173"
 if defined VITE_DEV_PORT set "PORT=%VITE_DEV_PORT%"
 
 echo.
-echo [Stock] auto-start  %DATE% %TIME%
+echo [Stock] auto-start %DATE% %TIME%
 echo [Stock] folder: %CD%
-echo [Stock] port:   %PORT%
+echo [Stock] port: %PORT%
 echo.
 
-rem 로그인 직후 PATH·네트워크 준비 대기
 timeout /t 5 /nobreak >nul
 
-powershell -NoProfile -Command ^
-  "try { $r=Invoke-WebRequest -Uri 'http://127.0.0.1:%PORT%/api/access/status' -UseBasicParsing -TimeoutSec 6; exit ([int]($r.StatusCode -ge 200 -and $r.StatusCode -lt 500)) } catch { exit 1 }"
-if %errorlevel%==0 (
-  echo [Stock] already running on http://127.0.0.1:%PORT% — skip
+where npm >nul 2>&1
+if errorlevel 1 (
+  echo [Stock] ERROR: npm not found. Install Node.js or fix PATH.
+  pause
+  exit /b 1
+)
+
+curl.exe -sf -o nul -m 8 "http://127.0.0.1:%PORT%/api/access/status"
+if not errorlevel 1 (
+  echo [Stock] already running: http://127.0.0.1:%PORT%
   echo.
   pause
   exit /b 0
 )
 
-echo [Stock] npm run dev:guard
+echo [Stock] starting: npm run dev:guard
 echo.
 call npm run dev:guard
 echo.
