@@ -49,6 +49,90 @@ TREND_COLORS = {
 
 _slide_no = 0
 
+# 티커 → 한글 회사명 (발표 자료 가독성)
+TICKER_KO: dict[str, str] = {
+    "NVDA": "엔비디아", "AVGO": "브로드컴", "MRVL": "마벨", "AMD": "AMD",
+    "INTC": "인텔", "TSM": "TSMC", "MU": "마이크론", "GFS": "글로벌파운드리",
+    "AMAT": "어플라이드 머티리얼즈", "LRCX": "램리서치", "KLAC": "KLA", "ASML": "ASML",
+    "ARM": "ARM 홀딩스", "ON": "온세미", "MPWR": "모노리틱 파워", "AMKR": "암코",
+    "VRT": "버티브", "ETN": "이튼", "PWR": "콴타 서비스", "CAT": "캐터필러",
+    "GNRC": "제네락", "STX": "씨게이트", "ABB": "ABB", "EQIX": "에퀴닉스",
+    "DLR": "디지털 리얼티", "ANET": "아리스타", "SMCI": "슈퍼마이크로",
+    "CEG": "컨스텔레이션 에너지", "VST": "비스트라", "TLN": "탈렌 에너지",
+    "D": "도미니언 에너지", "NEE": "넥스트에라", "OKLO": "오클로", "SMR": "뉴스케일",
+    "NNE": "나노 뉴클리어", "CCJ": "카메코", "BWXT": "BWX 테크놀로지",
+    "LEU": "센트러스 에너지", "GEV": "GE 버노바", "BE": "블룸에너지",
+    "IONQ": "아이온큐", "RGTI": "리게티", "QBTS": "디웨이브", "QUBT": "퀀텀컴퓨팅",
+    "IBM": "IBM", "GOOGL": "알파벳(구글)", "MSFT": "마이크로소프트", "AMZN": "아마존",
+    "META": "메타", "PANW": "팔로알토", "CRWD": "크라우드스트라이크",
+    "NET": "클라우드플레어", "ZS": "지스케일러", "LAES": "실스큐", "WKEY": "와이즈키",
+    "NXPI": "NXP", "TSLA": "테슬라", "ISRG": "인튜이티브 서지컬",
+    "TER": "테라다인", "CGNX": "코그넥스", "ROK": "로크웰", "FANUY": "파낙",
+    "SYM": "심보틱", "AVAV": "에어로바이론먼트", "KTOS": "크라토스",
+    "SPCX": "스페이스X", "RKLB": "로켓랩", "FLY": "파이어플라이",
+    "ASTS": "AST 스페이스모바일", "IRDM": "이리듐", "GSAT": "글로벌스타",
+    "PL": "플래닛랩스", "BKSY": "블랙스카이", "LUNR": "인튜이티브 머신스",
+    "LMT": "록히드마틴", "NOC": "노스롭 그루먼", "RTX": "RTX", "LHX": "L3해리스",
+    "GD": "제너럴다이내믹스", "HII": "헌팅턴 잉걸스",
+    "LLY": "일라이 릴리", "NVO": "노보 노디스크", "AMGN": "암젠", "VKTX": "바이킹",
+    "GPCR": "스트럭처", "TMO": "써모피셔", "DHR": "다나허", "ILMN": "일루미나",
+    "CRSP": "크리스퍼", "DXCM": "덱스컴", "MP": "MP 머티리얼즈",
+    "USAR": "USA 레어어스", "FCX": "프리포트 맥모란", "SCCO": "서던 코퍼",
+    "PLTR": "팔란티어", "BHP": "BHP", "RIO": "리오틴토", "TECK": "텍",
+    "ALB": "알버말", "HUT": "헛 8",
+    "SOXX": "반도체 ETF", "NUKZ": "원자력 ETF", "ARKX": "우주 ETF",
+    "BOTZ": "로봇 ETF", "HACK": "사이버 ETF", "XBI": "바이오 ETF",
+}
+NAME_KO: dict[str, str] = {
+    "Intel": "INTC · 인텔", "TSMC": "TSM · TSMC", "Samsung": "삼성전자",
+    "Micron": "MU · 마이크론", "Google": "GOOGL · 알파벳", "Alphabet": "GOOGL · 알파벳",
+    "Microsoft": "MSFT · 마이크로소프트", "Amazon": "AMZN · 아마존",
+    "Vertiv": "VRT · 버티브", "Eaton": "ETN · 이튼", "Caterpillar": "CAT · 캐터필러",
+    "IonQ": "IONQ · 아이온큐", "Rocket Lab": "RKLB · 로켓랩", "SpaceX": "SPCX · 스페이스X",
+    "Figure AI": "피겨 AI(비상장)", "Tesla": "TSLA · 테슬라", "Nvidia": "NVDA · 엔비디아",
+}
+
+
+def t(sym: str) -> str:
+    s = sym.strip().upper()
+    ko = TICKER_KO.get(s)
+    return f"{s} · {ko}" if ko else sym.strip()
+
+
+def ts(*syms: str, sep: str = "   ") -> str:
+    return sep.join(t(s) for s in syms)
+
+
+def ts_block(*syms: str) -> str:
+    return "\n".join(t(s) for s in syms)
+
+
+def ts_cell(raw: str) -> str:
+    import re
+    parts = re.split(r"[\s·,/]+", raw.strip())
+    out = []
+    for p in parts:
+        if not p:
+            continue
+        u = p.upper()
+        if u in TICKER_KO:
+            out.append(t(u))
+        elif p in NAME_KO:
+            out.append(NAME_KO[p])
+        else:
+            out.append(p)
+    return "\n".join(out)
+
+
+def annotate(text: str) -> str:
+    import re
+    for tick in sorted(TICKER_KO, key=len, reverse=True):
+        ko = TICKER_KO[tick]
+        text = re.sub(rf"\b{tick}\b", f"{tick}({ko})", text)
+    for name, labeled in NAME_KO.items():
+        text = text.replace(name, labeled)
+    return text
+
 
 def _korean_font() -> str:
     for name in ("Malgun Gothic", "AppleGothic", "NanumGothic", "DejaVu Sans"):
@@ -185,7 +269,7 @@ def chart_demand_heatmap() -> Path:
 
 
 def chart_glp1_share() -> Path:
-    labels = ["Eli Lilly (LLY)", "Novo Nordisk (NVO)", "기타"]
+    labels = ["LLY · 일라이 릴리", "NVO · 노보 노디스크", "기타"]
     sizes = [62, 31, 7]
     colors = ["#06B6D4", "#8B5CF6", "#CBD5E1"]
     fig, ax = plt.subplots(figsize=(7, 5))
@@ -223,8 +307,8 @@ def chart_ionq_vs_google() -> Path:
     x = range(len(categories))
     w = 0.35
     fig, ax = plt.subplots(figsize=(9, 5))
-    ax.bar([i - w / 2 for i in x], ionq, w, label="IonQ (Trapped Ion)", color="#06B6D4", edgecolor="white")
-    ax.bar([i + w / 2 for i in x], google, w, label="Google (Superconducting)", color="#8B5CF6", edgecolor="white")
+    ax.bar([i - w / 2 for i in x], ionq, w, label="IonQ · 아이온큐", color="#06B6D4", edgecolor="white")
+    ax.bar([i + w / 2 for i in x], google, w, label="Google · 알파벳", color="#8B5CF6", edgecolor="white")
     ax.set_xticks(list(x))
     ax.set_xticklabels(categories, fontsize=10)
     ax.set_ylim(0, 110)
@@ -265,9 +349,9 @@ def chart_value_chain() -> Path:
     ax.axis("off")
     boxes = [
         (0.3, 2.2, "Hyperscaler\nCapex $600B+", "#0F172A", "white"),
-        (2.5, 3.0, "1차: 칩\nNVDA·AVGO·MRVL", "#8B5CF6", "white"),
-        (2.5, 1.2, "2차: 물리 인프라\nVRT·ETN·PWR·CAT", "#06B6D4", "white"),
-        (5.5, 2.2, "3차: 전력 생산\nCEG·VST·TLN", "#10B981", "white"),
+        (2.5, 3.0, "1차: 칩\n엔비디아·브로드컴·마벨", "#8B5CF6", "white"),
+        (2.5, 1.2, "2차: 물리 인프라\n버티브·이튼·콴타·캐터필러", "#06B6D4", "white"),
+        (5.5, 2.2, "3차: 전력\n컨스텔레이션·비스트라", "#10B981", "white"),
         (8.0, 2.2, "AI 서비스\nMSFT·META·GOOGL", "#F59E0B", "white"),
     ]
     for x, y, text, bg, fg in boxes:
@@ -431,10 +515,11 @@ def add_bullets(slide, items: list[str], left=0.55, top=1.35, width=4.3, size=13
     tf.word_wrap = True
     for i, item in enumerate(items):
         p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
-        p.text = f"▸  {item}"
+        p.text = f"•  {annotate(item)}"
         p.font.size = Pt(size)
         p.font.color.rgb = color
-        p.space_after = Pt(8)
+        p.space_after = Pt(10)
+        p.line_spacing = 1.2
 
 
 def add_paragraphs(slide, paragraphs: list[str], left=0.55, top=1.3, width=9.0, size=12, color=DARK, spacing=10):
@@ -444,11 +529,11 @@ def add_paragraphs(slide, paragraphs: list[str], left=0.55, top=1.3, width=9.0, 
     tf.word_wrap = True
     for i, para in enumerate(paragraphs):
         p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
-        p.text = para
+        p.text = annotate(para)
         p.font.size = Pt(size)
         p.font.color.rgb = color
         p.space_after = Pt(spacing)
-        p.line_spacing = 1.15
+        p.line_spacing = 1.25
 
 
 def add_callout(slide, title: str, lines: list[str], left=0.45, top=1.15, width=9.1, accent=CYAN):
@@ -472,7 +557,7 @@ def add_callout(slide, title: str, lines: list[str], left=0.45, top=1.15, width=
     p0.font.color.rgb = accent
     for line in lines:
         p = tf.add_paragraph()
-        p.text = line
+        p.text = annotate(line)
         p.font.size = Pt(10)
         p.font.color.rgb = DARK
         p.space_after = Pt(3)
@@ -542,9 +627,38 @@ def section_divider(prs: Presentation, num: str, title: str, subtitle: str, colo
     add_footer(slide)
 
 
-def add_table(slide, headers, rows, left=0.4, top=1.3, col_widths=None):
+def _set_ticker_cell(cell, raw: str) -> None:
+    """표 종목 열: 티커(굵게) + 한글명(회색)."""
+    if raw in NAME_KO:
+        cell.text = NAME_KO[raw]
+        for p in cell.text_frame.paragraphs:
+            p.font.size = Pt(10)
+            p.font.color.rgb = DARK
+        return
+    sym = raw.strip().upper()
+    ko = TICKER_KO.get(sym, "")
+    if not ko:
+        cell.text = raw
+        for p in cell.text_frame.paragraphs:
+            p.font.size = Pt(10)
+        return
+    cell.text = f"{sym}\n{ko}"
+    tf = cell.text_frame
+    p1 = tf.paragraphs[0]
+    p1.font.bold = True
+    p1.font.size = Pt(11)
+    p1.font.color.rgb = NAVY
+    if len(tf.paragraphs) > 1:
+        p2 = tf.paragraphs[1]
+        p2.font.size = Pt(10)
+        p2.font.color.rgb = MUTED
+
+
+def add_table(slide, headers, rows, left=0.4, top=1.3, col_widths=None, ticker_cols: set[int] | None = None):
+    ticker_cols = ticker_cols or set()
     nr, nc = len(rows) + 1, len(headers)
-    tbl = slide.shapes.add_table(nr, nc, Inches(left), Inches(top), Inches(9.2), Inches(0.32 * nr + 0.2)).table
+    row_h = 0.42 if ticker_cols else 0.36
+    tbl = slide.shapes.add_table(nr, nc, Inches(left), Inches(top), Inches(9.2), Inches(row_h * nr + 0.25)).table
     if col_widths:
         for i, w in enumerate(col_widths):
             tbl.columns[i].width = Inches(w)
@@ -555,18 +669,30 @@ def add_table(slide, headers, rows, left=0.4, top=1.3, col_widths=None):
         c.fill.fore_color.rgb = NAVY
         for p in c.text_frame.paragraphs:
             p.font.bold = True
-            p.font.size = Pt(9)
+            p.font.size = Pt(11)
             p.font.color.rgb = WHITE
     for i, row in enumerate(rows, 1):
         bg = OFF_WHITE if i % 2 else WHITE
         for j, val in enumerate(row):
             c = tbl.cell(i, j)
-            c.text = val
             c.fill.solid()
             c.fill.fore_color.rgb = bg
-            for p in c.text_frame.paragraphs:
-                p.font.size = Pt(8)
-                p.font.color.rgb = DARK
+            if j in ticker_cols:
+                _set_ticker_cell(c, val)
+            elif isinstance(val, str) and any(x in val for x in (" · ", "\n")) and j == 1 and "티커" in headers[1]:
+                c.text = val
+                for p in c.text_frame.paragraphs:
+                    p.font.size = Pt(9)
+                    p.font.color.rgb = DARK
+            else:
+                c.text = annotate(val) if isinstance(val, str) else str(val)
+                for p in c.text_frame.paragraphs:
+                    p.font.size = Pt(10)
+                    p.font.color.rgb = DARK
+            c.margin_left = Inches(0.06)
+            c.margin_right = Inches(0.04)
+            c.margin_top = Inches(0.04)
+            c.margin_bottom = Inches(0.04)
 
 
 def add_native_bar_chart(slide, title: str, categories, series_name, values, left=5.0, top=1.4):
@@ -683,6 +809,7 @@ def build() -> Path:
             "파란색 '핵심 해석' 박스는 차트·표를 어떻게 읽어야 하는지, 투자적으로 무엇을 의미하는지 요약합니다.",
             "슬라이드 하단 번호는 순서이며, PowerPoint '발표자 노트'에 보충 설명을 넣어 두었습니다.",
             "★ Rating은 기술·수요·정부 지원·실현 가능성을 종합한 상대 평가이며, 매수 추천이 아닙니다.",
+            "종목 표기: NVDA · 엔비디아 형식 — 앞은 티커(미국 주식 코드), 뒤는 한글 회사명입니다.",
         ],
         notes="청중이 자료만 받아도 따라올 수 있게 구조를 안내하는 슬라이드.")
 
@@ -858,18 +985,18 @@ def build() -> Path:
     slide_title(slide, "3-Layer Physical Stack", "칩 → 랙 → 건물·그리드")
     layers = [
         ("Layer 1", "칩 · 인터커넥트",
-         "NVDA·AVGO·MRVL — AI 연산 자체. CUDA·커스텀 ASIC moat.",
+         f"{ts_block('NVDA','AVGO','MRVL')}\n— GPU·커스텀 ASIC. AI 연산의 핵심.",
          "GPU·ASIC", "#8B5CF6"),
         ("Layer 2", "랙 전력 · 냉각",
-         "VRT·ETN·ABB — 랙 안팎의 전력분배·액침냉각. AI DC 매출 비중 급증.",
+         f"{ts_block('VRT','ETN','ABB')}\n— 랙 전력분배·액침냉각. AI DC 매출 비중 급증.",
          "전력·열", "#06B6D4"),
         ("Layer 3", "건물 · 백업 · 그리드",
-         "CAT·PWR·GNRC·STX — DC 건설, 송전선, 디젤 백업, 학습 데이터 저장.",
+         f"{ts_block('CAT','PWR','GNRC','STX')}\n— DC 건설·송전·백업발전·데이터 저장.",
          "건설·전력망", "#10B981"),
     ]
     for i, (layer, name, desc, tag, hex_c) in enumerate(layers):
-        top = 1.35 + i * 1.85
-        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.5), Inches(top), Inches(9), Inches(1.6))
+        top = 1.35 + i * 1.95
+        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.5), Inches(top), Inches(9), Inches(1.75))
         card.fill.solid()
         card.fill.fore_color.rgb = WHITE
         card.line.color.rgb = LIGHT_LINE
@@ -885,7 +1012,7 @@ def build() -> Path:
         p.font.bold = True
         p.font.color.rgb = WHITE
         p.alignment = PP_ALIGN.CENTER
-        tb2 = slide.shapes.add_textbox(Inches(2.0), Inches(top + 0.15), Inches(7.3), Inches(1.35))
+        tb2 = slide.shapes.add_textbox(Inches(2.0), Inches(top + 0.12), Inches(7.3), Inches(1.45))
         tf2 = tb2.text_frame
         tf2.word_wrap = True
         p1 = tf2.paragraphs[0]
@@ -895,22 +1022,22 @@ def build() -> Path:
         p1.font.color.rgb = NAVY
         p2 = tf2.add_paragraph()
         p2.text = desc
-        p2.font.size = Pt(11)
+        p2.font.size = Pt(10)
         p2.font.color.rgb = DARK
     add_notes(slide, "Layer 2가 투자 포커스 — 공급 제약 + 백로그")
 
     slide = blank_slide(prs)
     slide_title(slide, "핵심 종목 — AI 인프라", "역할 · 재무 포인트 · 리스크")
     add_table(slide,
-        ["티커", "하는 일", "왜 지금?", "주의점"],
+        ["종목", "하는 일", "왜 지금?", "주의점"],
         [
             ["VRT", "랙 전력·액침냉각", "백로그 $15B, S&P500 편입", "밸류에이션 높음"],
-            ["ETN", "변압기·스위치기어", "VRT 대비 저변동, AI 15%+", "순수 AI 플레이 아님"],
+            ["ETN", "변압기·스위치기어", "버티브 대비 저변동, AI 15%+", "순수 AI 플레이 아님"],
             ["PWR", "송전·DC EPC", "전력망 병목 직접 해소", "규제·인허가 지연"],
             ["NVDA", "GPU 풀스택", "AI 1차 수혜, FCF 풍부", "커스텀 ASIC 대체"],
             ["AVGO", "Google/Meta ASIC", "다년 계약·네트워킹", "고객 집중"],
             ["CAT", "DC 건설·발전기", "AI 안 보이는 수혜", "경기 민감성"],
-        ], top=1.25, col_widths=[0.65, 2.0, 2.5, 2.0])
+        ], top=1.25, col_widths=[1.1, 1.9, 2.4, 2.0], ticker_cols={0})
 
     # ── SECTION 03 Nuclear ──
     section_divider(prs, "03", "원자력 · AI 전력", "Nuclear Renaissance · PPA → SMR", RGBColor(0x05, 0x4A, 0x3A),
@@ -943,13 +1070,13 @@ def build() -> Path:
     slide = blank_slide(prs)
     slide_title(slide, "투자 3-Bucket Framework", "같은 '원자력 테마' 안에서도 전혀 다른 주식")
     buckets = [
-        ("Bucket 1", "Cash-flow 유틸", "CEG · VST · TLN · D",
+        ("Bucket 1", "Cash-flow 유틸", ts_block("CEG", "VST", "TLN", "D"),
          "이미 돌아가는 원전 + 20년 PPA. AI DC 전력을 '팔고' 있는 상태. 배당·FCF 가능.",
          "중간", "#10B981"),
-        ("Bucket 2", "SMR Pure-play", "OKLO · SMR · NNE",
+        ("Bucket 2", "SMR Pure-play", ts_block("OKLO", "SMR", "NNE"),
          "아직 매출 거의 없음. NRC 인허가·건설·고객 LOI가 핵심. 5–10년 binary 옵션.",
          "매우 높음", "#F59E0B"),
-        ("Bucket 3", "연료·인프라", "CCJ · BWXT · LEU · GEV",
+        ("Bucket 3", "연료·인프라", ts_block("CCJ", "BWXT", "LEU", "GEV"),
          "우라늄·핵연료·터빈. 원전 대수가 늘면 같이 성장. 방산 수요도 겹침.",
          "중간", "#06B6D4"),
     ]
@@ -970,8 +1097,8 @@ def build() -> Path:
         p.font.color.rgb = RGBColor(r, g, b)
         p2 = tf.add_paragraph()
         p2.text = tickers
-        p2.font.size = Pt(12)
-        p2.font.bold = True
+        p2.font.size = Pt(10)
+        p2.font.bold = False
         p2.font.color.rgb = NAVY
         p3 = tf.add_paragraph()
         p3.text = desc
@@ -1011,15 +1138,15 @@ def build() -> Path:
     slide = blank_slide(prs)
     slide_title(slide, "CHIPS 주요 수혜 기업", "누가 얼마를 받았고, 무엇을 짓는가")
     add_table(slide,
-        ["기업", "지원 규모", "프로젝트", "투자자 관점"],
+        ["종목", "지원 규모", "프로젝트", "투자자 관점"],
         [
-            ["Intel", "$8.5B+대출", "AZ·OH·OR 18A", "턴어라운드, 고위험"],
-            ["TSMC", "$6.6B", "Arizona Fab21", "품질·실행력 최상"],
+            ["INTC", "$8.5B+대출", "AZ·OH·OR 18A", "턴어라운드, 고위험"],
+            ["TSM", "$6.6B", "Arizona Fab21", "품질·실행력 최상"],
             ["Samsung", "$6.4B", "Taylor 2nm", "메모리+로직"],
-            ["Micron", "$6.16B", "NY·Idaho DRAM", "AI HBM 수혜"],
+            ["MU", "$6.16B", "NY·Idaho DRAM", "AI HBM 수혜"],
             ["AMAT", "—(간접)", "장비 1위", "Capex cycle 레버리지"],
             ["ASML", "—(간접)", "EUV 독점", "필수 인프라"],
-        ], top=1.25, col_widths=[0.9, 1.3, 2.2, 2.5])
+        ], top=1.25, col_widths=[1.1, 1.2, 2.2, 2.4], ticker_cols={0})
 
     # ── SECTION 05 Quantum ──
     section_divider(prs, "05", "양자 · PQC", "FTQC 2028–30 · Security Migration", RGBColor(0x78, 0x35, 0x0F),
@@ -1065,13 +1192,13 @@ def build() -> Path:
     slide = blank_slide(prs)
     slide_title(slide, "양자 + PQC 종목 맵", "구분별로 수익 시점이 다름")
     add_table(slide,
-        ["구분", "대표 티커", "무엇을 파는가", "언제 돈이 되는가"],
+        ["구분", "대표 종목", "무엇을 파는가", "언제 돈이 되는가"],
         [
-            ["하드웨어", "IONQ RGTI QBTS", "양자 프로세서·클라우드", "2028 FTQC 전후"],
-            ["빅테크", "IBM GOOGL MSFT", "QaaS·연구·생태계", "지금~지속"],
-            ["PQC 소프트", "PANW CRWD NET ZS", "TLS·방화벽·제로트러스트", "2026–31 rush"],
-            ["PQC 하드웨어", "LAES WKEY NXPI", "보안 칩·HSM", "2027 인증 의무"],
-        ], top=1.25, col_widths=[1.1, 2.2, 2.5, 2.2])
+            ["하드웨어", ts_cell("IONQ RGTI QBTS"), "양자 프로세서·클라우드", "2028 FTQC 전후"],
+            ["빅테크", ts_cell("IBM GOOGL MSFT"), "QaaS·연구·생태계", "지금~지속"],
+            ["PQC 소프트", ts_cell("PANW CRWD NET ZS"), "TLS·방화벽·제로트러스트", "2026–31 rush"],
+            ["PQC 하드웨어", ts_cell("LAES WKEY NXPI"), "보안 칩·HSM", "2027 인증 의무"],
+        ], top=1.25, col_widths=[1.0, 2.6, 2.3, 2.0])
 
     # ── SECTION 06 Robotics ──
     section_divider(prs, "06", "자율 · 로보틱스", "Factory Floor → Humanoid", RGBColor(0x7F, 0x1D, 0x1D),
@@ -1122,13 +1249,13 @@ def build() -> Path:
     slide = blank_slide(prs)
     slide_title(slide, "우주 경제 — 4축 투자 맵", "각 축의 역할과 대표 종목")
     cols = [
-        ("Launch · 발사", "SPCX RKLB FLY",
+        ("Launch · 발사", ts_block("SPCX", "RKLB", "FLY"),
          "로켓·엔진. 발사 횟수·성공률·단가가 KPI.", "#3B82F6"),
-        ("Connectivity · 통신", "ASTS IRDM GSAT",
+        ("Connectivity · 통신", ts_block("ASTS", "IRDM", "GSAT"),
          "우주에서 스마트폰·IoT 직연결. 스펙트럼·위성 수가 핵심.", "#8B5CF6"),
-        ("Earth Obs · 관측", "PL BKSY",
+        ("Earth Obs · 관측", ts_block("PL", "BKSY"),
          "위성 이미지 + AI 분석. 농업·보험·군사.", "#06B6D4"),
-        ("Defense · 방산", "LMT NOC RTX LHX",
+        ("Defense · 방산", ts_block("LMT", "NOC", "RTX", "LHX"),
          "위성·미사일·전자전. 정부 예산 연동.", "#10B981"),
     ]
     for i, (title, tickers, desc, hex_c) in enumerate(cols):
@@ -1156,8 +1283,8 @@ def build() -> Path:
         tf2.word_wrap = True
         p2 = tf2.paragraphs[0]
         p2.text = tickers
-        p2.font.size = Pt(14)
-        p2.font.bold = True
+        p2.font.size = Pt(9)
+        p2.font.bold = False
         p2.font.color.rgb = NAVY
         p3 = tf2.add_paragraph()
         p3.text = desc
@@ -1249,10 +1376,10 @@ def build() -> Path:
     add_table(slide,
         ["투자 기간", "무엇을 볼 것인가", "왜?", "ETF 예시"],
         [
-            ["0–2년", "VRT ETN CEG LLY AMAT", "백로그·PPA·매출 증명", "SOXX NUKZ"],
-            ["3–5년", "OKLO IONQ RKLB TSLA", "마일스톤·로드맵", "ARKX BOTZ"],
-            ["5–10년", "PQC·Gene edit·Lunar", "규제 deadline", "HACK XBI"],
-        ], top=1.3, col_widths=[1.0, 2.8, 2.5, 1.2])
+            ["0–2년", ts_cell("VRT ETN CEG LLY AMAT"), "백로그·PPA·매출 증명", "SOXX · NUKZ"],
+            ["3–5년", ts_cell("OKLO IONQ RKLB TSLA"), "마일스톤·로드맵", "ARKX · BOTZ"],
+            ["5–10년", "PQC · 유전자편집 · 달 탐사", "규제 deadline", "HACK · XBI"],
+        ], top=1.3, col_widths=[0.9, 3.2, 2.3, 1.3])
     add_callout(slide, "리스크 체크리스트", [
         "□ 밸류에이션: AI 인프라주는 이미 많이 올랐는지 PER·backlog 대비 확인",
         "□ 실행 리스크: SMR·휴머노이드·양자는 '연기'가 일상적",
