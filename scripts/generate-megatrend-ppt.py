@@ -18,7 +18,7 @@ from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.util import Inches, Pt
 
 OUT = Path(__file__).resolve().parent.parent / "reports" / "megatrend-investment-report-2026.pptx"
-OUT_FALLBACK = OUT.with_name("megatrend-investment-report-2026-v2.pptx")
+OUT_FALLBACK = OUT.with_name("megatrend-investment-report-2026-v3.pptx")
 CHART_DIR = Path(tempfile.mkdtemp(prefix="megatrend-charts-"))
 
 # ── Palette ──────────────────────────────────────────────────────────
@@ -437,7 +437,73 @@ def add_bullets(slide, items: list[str], left=0.55, top=1.35, width=4.3, size=13
         p.space_after = Pt(8)
 
 
-def section_divider(prs: Presentation, num: str, title: str, subtitle: str, color: RGBColor) -> None:
+def add_paragraphs(slide, paragraphs: list[str], left=0.55, top=1.3, width=9.0, size=12, color=DARK, spacing=10):
+    """Multi-sentence explanatory body text."""
+    box = slide.shapes.add_textbox(Inches(left), Inches(top), Inches(width), Inches(5.8))
+    tf = box.text_frame
+    tf.word_wrap = True
+    for i, para in enumerate(paragraphs):
+        p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+        p.text = para
+        p.font.size = Pt(size)
+        p.font.color.rgb = color
+        p.space_after = Pt(spacing)
+        p.line_spacing = 1.15
+
+
+def add_callout(slide, title: str, lines: list[str], left=0.45, top=1.15, width=9.1, accent=CYAN):
+    """Key insight / how-to-read box."""
+    h = min(2.8, 0.42 + 0.26 * len(lines))
+    card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(left), Inches(top), Inches(width), Inches(h))
+    card.fill.solid()
+    card.fill.fore_color.rgb = WHITE
+    card.line.color.rgb = accent
+    stripe = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(left), Inches(top), Inches(0.08), Inches(h))
+    stripe.fill.solid()
+    stripe.fill.fore_color.rgb = accent
+    stripe.line.fill.background()
+    tb = slide.shapes.add_textbox(Inches(left + 0.22), Inches(top + 0.08), Inches(width - 0.35), Inches(h - 0.12))
+    tf = tb.text_frame
+    tf.word_wrap = True
+    p0 = tf.paragraphs[0]
+    p0.text = title
+    p0.font.size = Pt(11)
+    p0.font.bold = True
+    p0.font.color.rgb = accent
+    for line in lines:
+        p = tf.add_paragraph()
+        p.text = line
+        p.font.size = Pt(10)
+        p.font.color.rgb = DARK
+        p.space_after = Pt(3)
+
+
+def add_notes(slide, text: str) -> None:
+    slide.notes_slide.notes_text_frame.text = text
+
+
+def chart_slide(prs, title: str, subtitle: str, chart_path: Path, callout_title: str,
+                callout_lines: list[str], notes: str, img_top=2.05, img_h=4.5):
+    """Chart + top explainer callout."""
+    slide = blank_slide(prs)
+    slide_title(slide, title, subtitle)
+    add_callout(slide, callout_title, callout_lines, top=1.18)
+    slide.shapes.add_picture(str(chart_path), Inches(0.45), Inches(img_top), width=Inches(9.1))
+    add_notes(slide, notes)
+    return slide
+
+
+def narrative_slide(prs, title: str, subtitle: str, paragraphs: list[str], notes: str = ""):
+    slide = blank_slide(prs)
+    slide_title(slide, title, subtitle)
+    add_paragraphs(slide, paragraphs, size=13, spacing=12)
+    if notes:
+        add_notes(slide, notes)
+    return slide
+
+
+def section_divider(prs: Presentation, num: str, title: str, subtitle: str, color: RGBColor,
+                    overview: list[str] | None = None) -> None:
     slide = blank_slide(prs)
     set_bg(slide, color)
     # decorative circle
@@ -463,6 +529,16 @@ def section_divider(prs: Presentation, num: str, title: str, subtitle: str, colo
     p2.font.size = Pt(16)
     p2.font.color.rgb = MUTED
     p2.space_before = Pt(12)
+    if overview:
+        p3 = tf.add_paragraph()
+        p3.text = ""
+        p3.space_before = Pt(18)
+        for line in overview:
+            p4 = tf.add_paragraph()
+            p4.text = f"• {line}"
+            p4.font.size = Pt(13)
+            p4.font.color.rgb = RGBColor(0xCB, 0xD5, 0xE1)
+            p4.space_after = Pt(6)
     add_footer(slide)
 
 
@@ -561,6 +637,9 @@ def build() -> Path:
         if i == 1:
             p.line_spacing = 1.1
     add_footer(slide, "CONFIDENTIAL — For Discussion Purposes")
+    add_notes(slide,
+        "발표 목적: 2026–2035 주식시장 메가트렌드와 수요 타이밍, 관련 종목을 한 번에 이해할 수 있도록 구성. "
+        "투자 권유가 아닌 리서치 자료입니다.")
 
     # ── 2. TOC ──
     slide = blank_slide(prs)
@@ -597,6 +676,25 @@ def build() -> Path:
         p2.font.size = Pt(9)
         p2.font.color.rgb = MUTED
 
+    # ── 2b. How to read ──
+    narrative_slide(prs, "이 자료 읽는 법", "발표자 없이도 이해할 수 있도록 구성",
+        [
+            "각 섹션은 ①왜 중요한지(배경) → ②데이터(차트) → ③어떤 회사가 수혜인지(종목) 순서로 읽으면 됩니다.",
+            "파란색 '핵심 해석' 박스는 차트·표를 어떻게 읽어야 하는지, 투자적으로 무엇을 의미하는지 요약합니다.",
+            "슬라이드 하단 번호는 순서이며, PowerPoint '발표자 노트'에 보충 설명을 넣어 두었습니다.",
+            "★ Rating은 기술·수요·정부 지원·실현 가능성을 종합한 상대 평가이며, 매수 추천이 아닙니다.",
+        ],
+        notes="청중이 자료만 받아도 따라올 수 있게 구조를 안내하는 슬라이드.")
+
+    # ── 2c. Disclaimer ──
+    narrative_slide(prs, "면책 및 데이터 출처", "해석 시 유의사항",
+        [
+            "시가총액·매출·백로그 수치는 2026년 7월 전후 공개 자료 기준이며, 주가 변동에 따라 즉시 달라질 수 있습니다.",
+            "수요 시점(예: 2028 FTQC)은 기업 로드맵·애널리스트 추정치이며, 기술·규제 지연 시 2–3년 밀릴 수 있습니다.",
+            "출처: Morgan Stanley Big Picture 2026, McKinsey/Gartner Tech Trends, CHIPS Act 공식 문서, Morningstar, IonQ IR, Goldman Sachs AI Capex 리포트 등.",
+            "본 자료는 교육·토론 목적이며, 특정 종목 매수·매도를 권유하지 않습니다.",
+        ])
+
     # ── 3. Agenda / Key message ──
     slide = blank_slide(prs)
     slide_title(slide, "오늘의 핵심 논지", "The Great Broadening — 2026")
@@ -606,327 +704,570 @@ def build() -> Path:
         ("8", "메가트렌드", "#10B981"),
         ("180+", "분석 종목", "#F59E0B"),
     ])
-    add_bullets(slide, [
-        "메가캡 AI에서 전력·장비·실물자산으로 수익 분산",
-        "지금 수요 집중: AI 2차 인프라 · GLP-1 · 원전 PPA · CHIPS 장비",
-        "다음 Wave (2028–32): SMR · FTQC · Humanoid · PQC 의무화",
-    ], top=3.0, width=9.0, size=15)
+    add_paragraphs(slide, [
+        "2023–25년 주식시장은 'AI = Nvidia·Microsoft 등 소수 메가캡'으로 수익이 집중됐습니다. "
+        "2026년부터 Morgan Stanley가 말하는 Great Broadening(수익의 대확산)이 시작됩니다.",
+        "이유: AI를 돌리려면 GPU만으로는 부족하고, 전력·변압기·냉각·송전·건물이 먼저 필요합니다. "
+        "이 '2차 파생' 산업은 주문이 2–3년치 백로그로 쌓이며, GPU 교체 주기와 무관하게 매출이 이어집니다.",
+        "동시에 GLP-1(비만약)·원전 PPA·CHIPS 반도체 리쇼어링은 각각 지금 cash flow가 발생하는 축입니다. "
+        "양자·휴머노이드·SMR은 2028년 이후 본격화되는 '다음 파도'입니다.",
+    ], top=2.95, size=12, spacing=10)
+    add_notes(slide, "청중에게 '왜 메가캡 AI만 보면 안 되는지'를 먼저 각인시키는 슬라이드.")
 
     # ── SECTION 01 ──
-    section_divider(prs, "01", "Executive Summary", "시장 전망 · 수요 타이밍 · 투자 Horizon", NAVY)
+    section_divider(prs, "01", "Executive Summary", "시장 전망 · 수요 타이밍 · 투자 Horizon", NAVY,
+        overview=[
+            "8대 메가트렌드의 시장 규모와 '언제' 수요가 몰리는지 정리",
+            "AI capex가 실제로 어디로 흐르는지 숫자로 확인",
+            "투자 기간(0–2년 / 3–5년 / 5–10년)별 우선순위 제시",
+        ])
+
+    narrative_slide(prs, "Executive Summary — 한 줄 요약", "2026년 주식시장의 구조 변화",
+        [
+            "핵심 변화: AI 투자 금액은 커지지만, 그 돈의 대부분은 칩 회사가 아니라 전력·인프라·건설 회사로 갑니다.",
+            "전력 병목: 미국 전력망의 70%가 25년 이상 노후입니다. AI 데이터센터는 2030년까지 전력 수요를 2배 가까이 올립니다.",
+            "지정학: 중국과의 기술 경쟁으로 반도체·희토류·방산·사이버 보안에 정부 예산이 구조적으로 붙습니다.",
+            "인구·건강: GLP-1는 단순 다이어트약이 아니라 당뇨·심혈관·수면 무호흡 등 대사질환 치료의 새 표준으로 자리 잡는 중입니다.",
+        ],
+        notes="섹션 01 전체를 관통하는 4가지 메시지.")
+
+    chart_slide(prs,
+        "하이퍼스케일러 AI Capex 폭발적 성장",
+        "Microsoft · Meta · Amazon · Alphabet · Oracle 합산",
+        charts["capex"],
+        "이 차트가 말하는 것",
+        [
+            "2024년 $250B → 2027년 $1T: 역사상 가장 가파른 기업 투자 사이클 중 하나",
+            "숫자는 '가이던스' 기반 — 이미 발표된 계획이므로 허수가 아님",
+            "투자 함의: 이 금액의 75% 이상이 인프라·전력·냉각으로 간다면, NVDA만으로는 부족",
+        ],
+        "발표 시: '1조 달러가 어디로 가는가'로 다음 슬라이드 연결")
 
     slide = blank_slide(prs)
-    slide_title(slide, "하이퍼스케일러 AI Capex 폭발적 성장")
-    add_image(slide, charts["capex"], top=1.25, width=9.1)
-
-    slide = blank_slide(prs)
-    slide_title(slide, "AI Capex는 칩이 아닌 물리 인프라로")
-    add_image(slide, charts["allocation"], left=0.5, top=1.3, width=4.8)
+    slide_title(slide, "AI Capex는 칩이 아닌 물리 인프라로", "Goldman Sachs: DC 건설·전력·냉각이 capex의 대부분")
+    add_callout(slide, "왜 80%가 칩이 아닌가?", [
+        "AI 랙 1개(Blackwell 세대)는 약 120kW — 이전 세대(30kW)의 4배 전력",
+        "GPU 가격은 떨어질 수 있지만, '전기를 끌어오는 비용'과 '열을 식히는 비용'은 계속 증가",
+        "그래서 Vertiv(냉각)·Eaton(변압기)·Caterpillar(건설)가 NVDA와 같이 또는 더 오른 것",
+    ], top=1.15)
+    add_image(slide, charts["allocation"], left=0.5, top=2.55, width=4.6)
     add_bullets(slide, [
-        "Goldman: capex의 ~75%가 DC·전력·냉각",
-        "Vertiv +270% YoY, 백로그 $15B",
-        "변압기 납기 5년 — 공급 제약",
-        "2차 파생 = multi-year backlog",
-    ], left=5.5, top=1.5, width=4.2, size=12)
+        "Vertiv: 백로그 $15B, 주문이 출하의 2.9배 → 2027년까지 매출 가시성",
+        "변압기·스위치기어 납기 최대 5년 → 공급 부족 = 가격 결정력",
+        "투자자 관점: 'AI 테마주'가 아닌 '산업 장비주'로 보는 것이 정확",
+        "리스크: DC 건설 지연 시 단기 주가 조정, but 백로그는 오히려 늘어남",
+    ], left=5.35, top=2.65, width=4.3, size=11)
+    add_notes(slide, "2차 파생(Second Derivative) 개념을 반드시 설명할 것.")
+
+    chart_slide(prs,
+        "데이터센터 전력 수요",
+        "미국 전체 전력 대비 DC 비중",
+        charts["dc_power"],
+        "해석 가이드",
+        [
+            "4.4% → 9%: '작아 보이지만' 절대량은 거대 — 신규 발전 설비 없이는 불가능",
+            "지역별 전기요금 상승 → 정치·규제 리스크 (유틸리티 투자 시 주의)",
+            "원자력·가스·태양+저장이 AI 전력의 3대 축",
+        ],
+        "전력이 왜 원자력 섹션으로 이어지는지 설명")
+
+    chart_slide(prs,
+        "2030 메가트렌드 시장 규모 비교",
+        "절대 규모가 큰 순 (로그 스케일 근사)",
+        charts["market"],
+        "읽는 법",
+        [
+            "AI Infra(capex)가 압도적 — 단기 자금 유입 최대",
+            "GLP-1·Utilities도 수천억 달러 — 이미 상업 매출 발생 중",
+            "Quantum·Humanoid는 작지만 성장률(CAGR) 최고 → 장기 옵션",
+        ],
+        "규모 vs 성장률 트레이드오프 강조")
+
+    chart_slide(prs,
+        "메가트렌드별 수요 강도 Heatmap",
+        "연도별로 '돈이 몰리는 세기' (0–100 상대 지수)",
+        charts["heatmap"],
+        "색이 진할수록 = 그 시기에 수요·정책·capex가 집중",
+        [
+            "AI·바이오·반도체: 2025–26이 이미 정점 구간",
+            "양자·로보·우주: 2028 이후 진해짐 → 지금은 '포지셔닝' 단계",
+            "100은 '절대 매수 신호'가 아니라 구조적 수요 강도",
+        ],
+        "Heatmap은 본 보고서의 '수요 시점' 예측의 핵심 도구")
 
     slide = blank_slide(prs)
-    slide_title(slide, "데이터센터 전력 수요")
-    add_image(slide, charts["dc_power"])
-
-    slide = blank_slide(prs)
-    slide_title(slide, "2030 메가트렌드 시장 규모 비교")
-    add_image(slide, charts["market"])
-
-    slide = blank_slide(prs)
-    slide_title(slide, "메가트렌드별 수요 강도 Heatmap")
-    add_image(slide, charts["heatmap"], top=1.2, width=9.2)
-    add_bullets(slide, [
-        "100 = 구조적 수요 정점",
-        "AI·바이오·반도체: 지금",
-        "양자·로보·우주: 2028+",
-    ], left=0.5, top=6.0, width=9, size=10)
-
-    slide = blank_slide(prs)
-    slide_title(slide, "8대 메가트렌드 한눈에")
+    slide_title(slide, "8대 메가트렌드 한눈에", "이름 · 규모 · Peak · 현재 단계")
+    add_callout(slide, "표 사용법", [
+        "'수요 Peak' = 주가·실적·정책이 동시에 몰리기 쉬운 구간 (정확한 날짜 아님)",
+        "'단계' = 백로그(주문잔고) / PPA(전력계약) / Fab(공장) 등 현재 산업 위치",
+    ], top=1.12, width=9.0)
     add_table(slide,
         ["#", "트렌드", "2030 규모", "수요 Peak", "단계"],
         [
-            ["1", "AI 물리 인프라", "$600B+ capex", "2025–32", "백로그"],
-            ["2", "원자력·전력", "$1.4T 유틸", "25–28 / 30–35", "PPA"],
-            ["3", "반도체·CHIPS", "$52.7B+", "건설 peak", "Fab"],
-            ["4", "양자+PQC", "$11.5B QC", "PQC 26–31", "상용화"],
-            ["5", "로보틱스", "$4–18B", "28–32", "파일럿"],
-            ["6", "우주", "$2T(2040)", "26–35", "IPO"],
-            ["7", "GLP-1", "$150–190B", "24–30", "Peak"],
-            ["8", "경제안보", "$12B+", "25–30", "정책"],
-        ], top=1.25, col_widths=[0.35, 1.8, 1.8, 1.6, 1.2])
+            ["1", "AI 물리 인프라", "$600B+ capex", "2025–32", "백로그 폭발"],
+            ["2", "원자력·전력", "$1.4T 유틸투자", "25–28 / 30–35", "PPA 체결 rush"],
+            ["3", "반도체·CHIPS", "$52.7B+", "건설 25–27", "Fab 가동 시작"],
+            ["4", "양자+PQC", "$11.5B QC", "PQC 26–31", "조기 상용화"],
+            ["5", "로보틱스", "$4–18B", "28–32", "파일럿→양산"],
+            ["6", "우주", "$2T(2040)", "26–35", "IPO·발사 cadence"],
+            ["7", "GLP-1", "$150–190B", "24–30", "수요>공급"],
+            ["8", "경제안보", "$12B+", "25–30", "정책 주도"],
+        ], top=1.85, col_widths=[0.35, 1.8, 1.8, 1.6, 1.5])
 
-    slide = blank_slide(prs)
-    slide_title(slide, "투자 Horizon별 섹터 매력도")
-    add_image(slide, charts["horizon"])
+    chart_slide(prs,
+        "투자 Horizon별 섹터 매력도",
+        "지금 당장 vs 3년 후 vs 10년 후 — 무엇에 베팅할 것인가",
+        charts["horizon"],
+        "막대가 높을수록 = 해당 기간에 상대적 투자 매력",
+        [
+            "0–2년: AI 인프라·GLP-1 — 이미 매출·백로그로 증명",
+            "3–5년: 원자력 SMR·양자 — LOI·건설·규제 마일스톤 구간",
+            "5–10년: PQC 의무화·바이오 팩토리 — regulation-driven",
+        ],
+        "개인 투자 기간에 맞춰 섹션을 선택하도록 안내")
 
     # ── SECTION 02 AI ──
-    section_divider(prs, "02", "AI 물리 인프라", "Electrons, Not Tokens · 2025–2032", SLATE)
+    section_divider(prs, "02", "AI 물리 인프라", "Electrons, Not Tokens · 2025–2032", SLATE,
+        overview=[
+            "GPU 다음으로 돈이 가는 '전기·냉각·건설' 레이어",
+            "3-Layer Stack으로 어떤 회사가 어느 단계인지 구분",
+            "백로그·납기가 핵심 KPI",
+        ])
+
+    narrative_slide(prs, "AI 물리 인프라란?", "2차 파생(Second Derivative) 투자의 정의",
+        [
+            "1차 파생: AI 수요가 직접 올리는 회사 — Nvidia(GPU), Microsoft(Azure), OpenAI(API). 토큰·클라우드 사용량에 매출이 연동됩니다.",
+            "2차 파생: AI를 '물리적으로 가능하게' 하는 회사 — 전력을 공급하고, 열을 식히고, 건물을 짓습니다. GPU 수요가 늘면 이들 주문도 늘지만, GPU 가격 하락과 무관하게 성장할 수 있습니다.",
+            "왜 지금인가: Blackwell 등 차세대 칩은 전력 밀도가 급증해 액체 냉각이 사실상 필수가 됐고, 미국 전력망은 이 속도로 확장되지 않아 병목이 발생합니다.",
+            "핵심 지표: book-to-bill(주문/매출 비율), backlog(잔고), lead time(납기) — PER보다 이 숫자가 더 중요한 구간입니다.",
+        ])
+
+    chart_slide(prs,
+        "AI Value Chain — 자금이 흐르는 곳",
+        "하이퍼스케일러 capex → 1차·2차·3차 수혜자",
+        charts["value_chain"],
+        "다이어그램 읽기",
+        [
+            "왼쪽: MSFT·META 등이 총 capex 결정",
+            "중간 2차(청색): 2026년 주가 상승의 중심 — VRT·ETN·PWR",
+            "오른쪽 3차(녹색): 전력 생산 — CEG·VST (원자력 섹션과 연결)",
+        ],
+        "Value chain을 그린 뒤 각 레이어 종목 슬라이드로")
 
     slide = blank_slide(prs)
-    slide_title(slide, "AI Value Chain — 자금이 흐르는 곳")
-    add_image(slide, charts["value_chain"], top=1.5, width=9.2)
-
-    slide = blank_slide(prs)
-    slide_title(slide, "3-Layer Physical Stack")
+    slide_title(slide, "3-Layer Physical Stack", "칩 → 랙 → 건물·그리드")
     layers = [
-        ("Layer 1", "칩 · 인터커넥트", "NVDA  AVGO  MRVL", "#8B5CF6"),
-        ("Layer 2", "랙 전력 · 냉각", "VRT  ETN  ABB  Schneider", "#06B6D4"),
-        ("Layer 3", "건물 · 백업 · 그리드", "CAT  PWR  GNRC  STX", "#10B981"),
+        ("Layer 1", "칩 · 인터커넥트",
+         "NVDA·AVGO·MRVL — AI 연산 자체. CUDA·커스텀 ASIC moat.",
+         "GPU·ASIC", "#8B5CF6"),
+        ("Layer 2", "랙 전력 · 냉각",
+         "VRT·ETN·ABB — 랙 안팎의 전력분배·액침냉각. AI DC 매출 비중 급증.",
+         "전력·열", "#06B6D4"),
+        ("Layer 3", "건물 · 백업 · 그리드",
+         "CAT·PWR·GNRC·STX — DC 건설, 송전선, 디젤 백업, 학습 데이터 저장.",
+         "건설·전력망", "#10B981"),
     ]
-    for i, (layer, name, tickers, hex_c) in enumerate(layers):
-        top = 1.4 + i * 1.75
-        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.5), Inches(top), Inches(9), Inches(1.45))
+    for i, (layer, name, desc, tag, hex_c) in enumerate(layers):
+        top = 1.35 + i * 1.85
+        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.5), Inches(top), Inches(9), Inches(1.6))
         card.fill.solid()
         card.fill.fore_color.rgb = WHITE
         card.line.color.rgb = LIGHT_LINE
         r, g, b = int(hex_c[1:3], 16), int(hex_c[3:5], 16), int(hex_c[5:7], 16)
-        tag = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.65), Inches(top + 0.25), Inches(1.3), Inches(0.95))
-        tag.fill.solid()
-        tag.fill.fore_color.rgb = RGBColor(r, g, b)
-        tag.line.fill.background()
-        tb = slide.shapes.add_textbox(Inches(0.65), Inches(top + 0.35), Inches(1.3), Inches(0.8))
-        tf = tb.text_frame
-        p = tf.paragraphs[0]
+        tag_shape = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.65), Inches(top + 0.2), Inches(1.2), Inches(1.2))
+        tag_shape.fill.solid()
+        tag_shape.fill.fore_color.rgb = RGBColor(r, g, b)
+        tag_shape.line.fill.background()
+        tb = slide.shapes.add_textbox(Inches(0.65), Inches(top + 0.45), Inches(1.2), Inches(0.7))
+        p = tb.text_frame.paragraphs[0]
         p.text = layer
-        p.font.size = Pt(11)
+        p.font.size = Pt(10)
         p.font.bold = True
         p.font.color.rgb = WHITE
         p.alignment = PP_ALIGN.CENTER
-        tb2 = slide.shapes.add_textbox(Inches(2.2), Inches(top + 0.2), Inches(7), Inches(1.1))
+        tb2 = slide.shapes.add_textbox(Inches(2.0), Inches(top + 0.15), Inches(7.3), Inches(1.35))
         tf2 = tb2.text_frame
+        tf2.word_wrap = True
         p1 = tf2.paragraphs[0]
-        p1.text = name
-        p1.font.size = Pt(16)
+        p1.text = f"{name}  ({tag})"
+        p1.font.size = Pt(14)
         p1.font.bold = True
         p1.font.color.rgb = NAVY
         p2 = tf2.add_paragraph()
-        p2.text = tickers
-        p2.font.size = Pt(12)
-        p2.font.color.rgb = MUTED
+        p2.text = desc
+        p2.font.size = Pt(11)
+        p2.font.color.rgb = DARK
+    add_notes(slide, "Layer 2가 투자 포커스 — 공급 제약 + 백로그")
 
     slide = blank_slide(prs)
-    slide_title(slide, "핵심 종목 — AI 인프라")
+    slide_title(slide, "핵심 종목 — AI 인프라", "역할 · 재무 포인트 · 리스크")
     add_table(slide,
-        ["티커", "시총", "역할", "백로그/가이드", "Rating"],
+        ["티커", "하는 일", "왜 지금?", "주의점"],
         [
-            ["VRT", "~$50B", "랙 전력·냉각", "$15B backlog", "★★★★★"],
-            ["ETN", "~$140B", "변압기·SWGR", "AI 15-20% rev", "★★★★★"],
-            ["PWR", "~$60B", "송전 EPC", "$44B backlog", "★★★★★"],
-            ["NVDA", "~$3T", "GPU", "Rubin roadmap", "★★★★★"],
-            ["AVGO", "~$1T", "Custom ASIC", "Multi-yr wins", "★★★★★"],
-            ["CAT", "~$180B", "DC 건설", "$63B backlog", "★★★★★"],
-        ], top=1.25, col_widths=[0.7, 0.9, 2.0, 2.2, 1.0])
+            ["VRT", "랙 전력·액침냉각", "백로그 $15B, S&P500 편입", "밸류에이션 높음"],
+            ["ETN", "변압기·스위치기어", "VRT 대비 저변동, AI 15%+", "순수 AI 플레이 아님"],
+            ["PWR", "송전·DC EPC", "전력망 병목 직접 해소", "규제·인허가 지연"],
+            ["NVDA", "GPU 풀스택", "AI 1차 수혜, FCF 풍부", "커스텀 ASIC 대체"],
+            ["AVGO", "Google/Meta ASIC", "다년 계약·네트워킹", "고객 집중"],
+            ["CAT", "DC 건설·발전기", "AI 안 보이는 수혜", "경기 민감성"],
+        ], top=1.25, col_widths=[0.65, 2.0, 2.5, 2.0])
 
     # ── SECTION 03 Nuclear ──
-    section_divider(prs, "03", "원자력 · AI 전력", "Nuclear Renaissance · PPA → SMR", RGBColor(0x05, 0x4A, 0x3A))
+    section_divider(prs, "03", "원자력 · AI 전력", "Nuclear Renaissance · PPA → SMR", RGBColor(0x05, 0x4A, 0x3A),
+        overview=[
+            "AI DC는 24시간 풀가동 — 태양광만으로는 부족, baseload 전력 필요",
+            "지금: 기존 원전 PPA / 나중: SMR 신규 건설",
+            "리스크·수익 프로필이 다른 3-Bucket으로 분류",
+        ])
+
+    narrative_slide(prs, "왜 AI가 원자력을 찾는가?", "전력 병목의 논리",
+        [
+            "AI 학습·추론 클러스터는 24/7 가동됩니다. 태양광은 밤에 멈추고, 배터리만으로 GW급을 버티기 어렵습니다.",
+            "가스 발전은 가능하지만 탄소·가격 변동 이슈가 있고, 빅테크는 RE100(재생에너지 100%) 목표와 충돌합니다.",
+            "원자력은 (1) 연중 무중단 baseload (2) 20년 장기 PPA 가능 (3) GW 단위 확장 — 세 가지를 동시에 만족합니다.",
+            "2024–26년 Microsoft–Constellation(TMI 재가동), Meta–6.6GW 패키지 등이 '선례'가 됐고, 이후 발주는 이 선례를 따릅니다.",
+        ])
+
+    chart_slide(prs,
+        "빅테크 원자력 확보 경쟁",
+        "Meta 6.6GW 패키지 구성 (2026.1 발표)",
+        charts["nuclear"],
+        "차트 설명",
+        [
+            "녹색 = 이미 돌아가는 원전에서 전력 공급 (CEG, VST) → 매출·현금흐름 즉시",
+            "주황 = SMR(소형모듈로) — 2030–35 가동 예정 → 지금은 주가에 '옵션' 반영",
+            "투자 시: Bucket 1(유틸)과 Bucket 2(SMR)는 완전히 다른 리스크",
+        ],
+        "SMR은 pre-revenue — Oklo·NuScale 주의")
 
     slide = blank_slide(prs)
-    slide_title(slide, "빅테크 원자력 확보 경쟁")
-    add_image(slide, charts["nuclear"])
-
-    slide = blank_slide(prs)
-    slide_title(slide, "투자 3-Bucket Framework")
+    slide_title(slide, "투자 3-Bucket Framework", "같은 '원자력 테마' 안에서도 전혀 다른 주식")
     buckets = [
-        ("Bucket 1", "Cash-flow 유틸", "CEG · VST · TLN · D", "지금 PPA 수익", "#10B981", "Moderate"),
-        ("Bucket 2", "SMR Pure-play", "OKLO · SMR · NNE", "2030–35 옵션", "#F59E0B", "Very High"),
-        ("Bucket 3", "연료·인프라", "CCJ · BWXT · LEU · GEV", "방산+상업", "#06B6D4", "Moderate"),
+        ("Bucket 1", "Cash-flow 유틸", "CEG · VST · TLN · D",
+         "이미 돌아가는 원전 + 20년 PPA. AI DC 전력을 '팔고' 있는 상태. 배당·FCF 가능.",
+         "중간", "#10B981"),
+        ("Bucket 2", "SMR Pure-play", "OKLO · SMR · NNE",
+         "아직 매출 거의 없음. NRC 인허가·건설·고객 LOI가 핵심. 5–10년 binary 옵션.",
+         "매우 높음", "#F59E0B"),
+        ("Bucket 3", "연료·인프라", "CCJ · BWXT · LEU · GEV",
+         "우라늄·핵연료·터빈. 원전 대수가 늘면 같이 성장. 방산 수요도 겹침.",
+         "중간", "#06B6D4"),
     ]
-    for i, (b, title, tickers, desc, hex_c, risk) in enumerate(buckets):
-        top = 1.35 + i * 1.85
-        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.5), Inches(top), Inches(9), Inches(1.55))
+    for i, (b, title, tickers, desc, risk, hex_c) in enumerate(buckets):
+        top = 1.3 + i * 1.9
+        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.5), Inches(top), Inches(9), Inches(1.65))
         card.fill.solid()
         card.fill.fore_color.rgb = WHITE
         card.line.color.rgb = LIGHT_LINE
         r, g, b = int(hex_c[1:3], 16), int(hex_c[3:5], 16), int(hex_c[5:7], 16)
-        tb = slide.shapes.add_textbox(Inches(0.7), Inches(top + 0.15), Inches(8.5), Inches(1.3))
+        tb = slide.shapes.add_textbox(Inches(0.7), Inches(top + 0.12), Inches(8.5), Inches(1.45))
         tf = tb.text_frame
+        tf.word_wrap = True
         p = tf.paragraphs[0]
-        p.text = f"{b}  |  {title}"
-        p.font.size = Pt(15)
+        p.text = f"{b}  |  {title}  |  리스크: {risk}"
+        p.font.size = Pt(13)
         p.font.bold = True
         p.font.color.rgb = RGBColor(r, g, b)
         p2 = tf.add_paragraph()
-        p2.text = f"{tickers}   —   {desc}   |   Risk: {risk}"
+        p2.text = tickers
         p2.font.size = Pt(12)
-        p2.font.color.rgb = DARK
+        p2.font.bold = True
+        p2.font.color.rgb = NAVY
+        p3 = tf.add_paragraph()
+        p3.text = desc
+        p3.font.size = Pt(10)
+        p3.font.color.rgb = DARK
 
     # ── SECTION 04 Semi ──
-    section_divider(prs, "04", "반도체 · CHIPS", "Reshoring · 48D Cliff Dec 2026", RGBColor(0x3B, 0x1D, 0x6E))
+    section_divider(prs, "04", "반도체 · CHIPS", "Reshoring · 48D Cliff Dec 2026", RGBColor(0x3B, 0x1D, 0x6E),
+        overview=[
+            "미국 advanced logic 점유율 12% → 22% 회복 중",
+            "2026.12.31 48D 세액공제 착공 마감 = 긴급 건설 rush",
+            "Fab vs 장비사 — 수혜 구조가 다름",
+        ])
 
-    slide = blank_slide(prs)
-    slide_title(slide, "CHIPS Act 현황")
-    add_kpi_row(slide, [
-        ("$38.7B", "39B 중 배정", "#8B5CF6"),
-        ("35%", "48D Tax Credit", "#06B6D4"),
-        ("12/31/26", "착공 마감", "#F43F5E"),
-        ("22%", "US Adv Logic Share", "#10B981"),
-    ])
-    add_bullets(slide, [
-        "Intel $8.5B + $11B loan + Secure Enclave $3B",
-        "TSMC AZ 4nm HVM · Intel 18A · Samsung 2nm",
-        "Fab: INTC TSM MU GFS  |  장비: AMAT LRCX KLAC ASML",
-        "장비사 = CHIPS 무관하게 capex cycle 수혜",
-    ], top=3.1, width=9.0, size=14)
-
-    slide = blank_slide(prs)
-    slide_title(slide, "CHIPS 주요 수혜 기업")
-    add_table(slide,
-        ["기업", "CHIPS 지원", "프로젝트", "상태"],
+    narrative_slide(prs, "CHIPS Act를 이해해야 하는 이유", "지정학 + AI = 반도체 리쇼어링",
         [
-            ["Intel", "$8.5B+대출", "AZ, OH, OR", "18A HVM"],
-            ["TSMC", "$6.6B", "Arizona Fab21", "4nm 가동"],
-            ["Samsung", "$6.4B", "Taylor TX", "2nm 2026"],
-            ["Micron", "$6.16B", "NY, Idaho", "DRAM megafab"],
-            ["AMAT", "—", "장비 #1", "Capex cycle"],
-            ["ASML", "—", "EUV 독점", "필수"],
-        ], top=1.25, col_widths=[1.0, 1.5, 2.5, 2.0])
+            "첨단 칩의 90% 이상이 대만(TSMC)에 집중돼 있다는 것은 미국에게 국가 안보 리스크입니다. 2022년 CHIPS Act는 이를 해소하기 위한 $52.7B+ 패키지입니다.",
+            "직접 지원: Intel $8.5B, TSMC $6.6B, Samsung, Micron 등 — fab 건설·현대화.",
+            "48D 세액공제: 건설 투자의 35%를 세금으로 돌려받음. 단, 2026년 12월 31일 이전 착공해야 함 → 지금이 건설 피크.",
+            "투자 포인트: (A) Fab 운영사 Intel·TSM — turnaround/성장 (B) 장비사 AMAT·LRCX·ASML — fab가 늘면 주문이 늘음, CHIPS 의존도 낮음.",
+        ])
+
+    slide = blank_slide(prs)
+    slide_title(slide, "CHIPS Act 현황 — 숫자로 보기", "2026년 7월 기준")
+    add_kpi_row(slide, [
+        ("$38.7B", "/39B 배정 완료", "#8B5CF6"),
+        ("35%", "48D Tax Credit", "#06B6D4"),
+        ("12/31/26", "착공 Dead-line", "#F43F5E"),
+        ("22%", "US Adv Logic", "#10B981"),
+    ], top=1.25)
+    add_paragraphs(slide, [
+        "Intel Ohio는 2030으로 지연됐지만, '착공'만 2026 안에 하면 세액공제는 유지 — 실제 wafer 출하는 몇 년 뒤일 수 있음.",
+        "Intel 18A(Arizona)는 이미 HVM(대량생산) — 미국 내 2nm급 파운드리의 상징적 마일스톤.",
+        "Secure Enclave: Intel에 DoD $3B — 군·정보기관용 보안 칩 공급망.",
+    ], top=2.85, size=12)
+
+    slide = blank_slide(prs)
+    slide_title(slide, "CHIPS 주요 수혜 기업", "누가 얼마를 받았고, 무엇을 짓는가")
+    add_table(slide,
+        ["기업", "지원 규모", "프로젝트", "투자자 관점"],
+        [
+            ["Intel", "$8.5B+대출", "AZ·OH·OR 18A", "턴어라운드, 고위험"],
+            ["TSMC", "$6.6B", "Arizona Fab21", "품질·실행력 최상"],
+            ["Samsung", "$6.4B", "Taylor 2nm", "메모리+로직"],
+            ["Micron", "$6.16B", "NY·Idaho DRAM", "AI HBM 수혜"],
+            ["AMAT", "—(간접)", "장비 1위", "Capex cycle 레버리지"],
+            ["ASML", "—(간접)", "EUV 독점", "필수 인프라"],
+        ], top=1.25, col_widths=[0.9, 1.3, 2.2, 2.5])
 
     # ── SECTION 05 Quantum ──
-    section_divider(prs, "05", "양자 · PQC", "FTQC 2028–30 · Security Migration", RGBColor(0x78, 0x35, 0x0F))
+    section_divider(prs, "05", "양자 · PQC", "FTQC 2028–30 · Security Migration", RGBColor(0x78, 0x35, 0x0F),
+        overview=[
+            "양자컴퓨팅: 아직 초기 상용화, but 로드맵이 2028–30으로 수렴",
+            "PQC(포스트퀀텀 암호): 지금 당장 마이그레이션 시작 — regulation driven",
+            "하드웨어 vs 보안 — 수익 시점이 다름",
+        ])
 
-    slide = blank_slide(prs)
-    slide_title(slide, "양자컴퓨팅 시장 성장")
-    add_image(slide, charts["quantum"])
-
-    slide = blank_slide(prs)
-    slide_title(slide, "IonQ vs Google — 기술 포지셔닝")
-    add_image(slide, charts["ionq"], top=1.2, width=9.0)
-    add_bullets(slide, [
-        "IonQ: 상용 매출 $64.7M(Q1'26), RPO $470M",
-        "Google: below-threshold QEC 최초 실증",
-        "PQC: PANW CRWD NET LAES — 2030–31 의무화",
-    ], left=0.5, top=6.05, width=9, size=10)
-
-    slide = blank_slide(prs)
-    slide_title(slide, "양자 + PQC 종목 맵")
-    add_table(slide,
-        ["구분", "티커", "포지션", "수요 시점"],
+    narrative_slide(prs, "양자컴퓨팅 + PQC — 왜 둘 다 중요한가?", "공격 기술과 방어 기술이 동시에 움직임",
         [
-            ["하드웨어", "IONQ RGTI QBTS", "Trapped ion / SC", "2028 FTQC"],
-            ["빅테크", "IBM GOOGL MSFT", "Cloud + R&D", "2029"],
-            ["PQC", "PANW CRWD NET", "TLS·Zero Trust", "2026–31"],
-            ["Secure HW", "LAES WKEY NXPI", "Root of Trust", "2027 ANSSI"],
-        ], top=1.3, col_widths=[1.2, 2.5, 2.5, 2.0])
+            "양자컴퓨터가 충분히 강력해지면, 오늘 RSA로 암호화된 데이터를 나중에 해독할 수 있습니다(지금 훔쳐 두고 나중에 푼다 = Harvest Now, Decrypt Later).",
+            "그래서 NIST가 2024년 PQC 표준(FIPS 203/204/205)을 확정했고, 미국 정부는 2030–31까지 연방기관·계약업체의 마이그레이션을 요구합니다.",
+            "양자 '하드웨어' 투자(IonQ 등)는 2028 FTQC(장애허용 양자컴퓨터) 전후가 관건이고, PQC 투자(PANW, CRWD 등)는 지금부터 5년간 매출이 발생합니다.",
+            "결론: 단기 현금흐름은 PQC·클라우드 접근(QaaS)이, 장기 옵션은 하드웨어 pure-play가 큽니다.",
+        ])
+
+    chart_slide(prs,
+        "양자컴퓨팅 시장 성장",
+        "하드웨어 + 클라우드 + 서비스 합산",
+        charts["quantum"],
+        "시장 단계",
+        [
+            "2025–27: 파일럿·클라우드 접근·정부 R&D — 매출은 작지만 CAGR 40%+",
+            "2028–30: FTQC 목표 연도 — 로드맵 달성 여부가 주가 분기점",
+            "PQC 시장은 양자 시장보다 절대 규모가 클 수 있음(엔터프라이즈 전체 마이그레이션)",
+        ],
+        "IonQ Q1'26 매출 $64.7M — pure-play 중 유일한 상업 스케일")
+
+    slide = blank_slide(prs)
+    slide_title(slide, "IonQ vs Google — 누가 앞서는가?", "기술 경로가 다르면 '우위'도 다름")
+    add_callout(slide, "비교 전제", [
+        "IonQ = 상장 pure-play, 매출·RPO로 검증 가능",
+        "Google = Alphabet 내부, 연구·QEC에서 선행, 상용 매출은 작음",
+        "점수는 상대 비교(0–100)이며 절대 기술 등급이 아님",
+    ], top=1.12)
+    add_image(slide, charts["ionq"], top=2.35, width=9.0)
+    add_notes(slide,
+        "IonQ: 트랩드 이온, 게이트 충실도 99.99%, all-to-all 연결, Q1'26 RPO $470M. "
+        "Google Willow: below-threshold QEC 2024 최초 실증, 큐비트 수·확장성 우위. "
+        "투자: IonQ=상용 베팅, GOOGL=간접 R&D 옵션.")
+
+    slide = blank_slide(prs)
+    slide_title(slide, "양자 + PQC 종목 맵", "구분별로 수익 시점이 다름")
+    add_table(slide,
+        ["구분", "대표 티커", "무엇을 파는가", "언제 돈이 되는가"],
+        [
+            ["하드웨어", "IONQ RGTI QBTS", "양자 프로세서·클라우드", "2028 FTQC 전후"],
+            ["빅테크", "IBM GOOGL MSFT", "QaaS·연구·생태계", "지금~지속"],
+            ["PQC 소프트", "PANW CRWD NET ZS", "TLS·방화벽·제로트러스트", "2026–31 rush"],
+            ["PQC 하드웨어", "LAES WKEY NXPI", "보안 칩·HSM", "2027 인증 의무"],
+        ], top=1.25, col_widths=[1.1, 2.2, 2.5, 2.2])
 
     # ── SECTION 06 Robotics ──
-    section_divider(prs, "06", "자율 · 로보틱스", "Factory Floor → Humanoid", RGBColor(0x7F, 0x1D, 0x1D))
+    section_divider(prs, "06", "자율 · 로보틱스", "Factory Floor → Humanoid", RGBColor(0x7F, 0x1D, 0x1D),
+        overview=[
+            "AI가 '분석'에서 '행동'으로 — Physical AI",
+            "지금: 창고·공장 / 다음: 휴머노이드",
+            "비상장 Figure AI가 valuation 선도",
+        ])
+
+    narrative_slide(prs, "Autonomy Stack이란?", "Jensen Huang: '움직이는 모든 것이 자율화된다'",
+        [
+            "1단계(지금): 창고·공장 — Amazon 75만 대+, Symbotic(Walmart), Fanuc·ABB 산업로봇에 AI 비전·경로계획 탑재.",
+            "2단계(2026–28): 물류·검사·위험 작업 — 드론(AVAV), 수술로봇(ISRG)은 이미 수익화.",
+            "3단계(2028–32): 휴머노이드 — Tesla Optimus, Figure AI, Boston Dynamics Atlas. 아직 '매출'보다 '파일럿·생산속도'가 뉴스.",
+            "투자 현실: pure-play 휴머노이드 상장사는 거의 없음(TSLA, UBTECH). 부품·SI(NVDA, TER, CGNX)가 안전한 간접 노출.",
+        ])
 
     slide = blank_slide(prs)
-    slide_title(slide, "Autonomy Stack — 3 Layers")
+    slide_title(slide, "로보틱스 — 지표와 종목", "2026년 확인해야 할 마일스톤")
     add_kpi_row(slide, [
         ("750K+", "Amazon Robots", "#F43F5E"),
-        ("1/hr", "Figure BotQ", "#06B6D4"),
+        ("1대/시간", "Figure BotQ", "#06B6D4"),
         ("37.9%", "CAGR 26-30", "#10B981"),
         ("$39B", "Figure AI Val", "#8B5CF6"),
-    ])
-    add_bullets(slide, [
-        "Ground: TSLA Optimus · UBTECH · AMZN · SYM",
-        "Components: NVDA TER CGNX ABB FANUY ROK",
-        "Medical: ISRG  |  Defense drones: AVAV KTOS",
-        "비상장 Figure/Agility → 간접 노출만",
-    ], top=3.1, width=9.0, size=14)
+    ], top=1.25)
+    add_paragraphs(slide, [
+        "Tesla Optimus: 공장 내 테스트 중이나 Musk 본인도 '아직 material usage 아님' 인정 — 2027 consumer 판매가 re-rating 트리거.",
+        "Figure AI: 비상장, BotQ 공장 1대/시간 생산 — valuation $39B는 '기대'가 반영된 수치.",
+        "확인할 것: 외부 유료 고객 계약 공개, 단가·내구시간·작업 성공률 — 데모 영상만으로는 부족.",
+    ], top=2.85, size=12)
 
     # ── SECTION 07 Space ──
-    section_divider(prs, "07", "우주 경제", "SpaceX IPO · Launch Economy", RGBColor(0x1E, 0x3A, 0x8A))
+    section_divider(prs, "07", "우주 경제", "SpaceX IPO · Launch Economy", RGBColor(0x1E, 0x3A, 0x8A),
+        overview=[
+            "발사 비용 하락 → 위성·국방·통신 수요 폭발",
+            "SpaceX IPO = 섹터 벤치마크 탄생",
+            "Launch / Connect / Observe / Defense 4축",
+        ])
+
+    narrative_slide(prs, "우주 경제가 커지는 이유", "더 싸게, 더 자주, 더 많이 올린다",
+        [
+            "SpaceX가 Falcon 9 재사용으로 kg당 발사 비용을 10배 이상 낮췄습니다. '우주는 정부 전용'에서 '민간 인프라'로 바뀌는 전환점입니다.",
+            "2026년 SpaceX 상장(SPCX)은 우주 경제에 '가격 표'가 생긴 것 — 다른 우주주는 SpaceX 대비 할인·프리미엄으로 거래됩니다.",
+            "수요 4대 축: (1) Starlink류 위성통신 (2) Earth Observation AI (3) 국방·정찰 (4) 달·궤도 서비스.",
+            "Rocket Lab(RKLB): 미국 2위 발사, Neutron으로 중형 시장 진입 시도 — SpaceX 다음으로 순수 플레이에 가까움.",
+        ])
 
     slide = blank_slide(prs)
-    slide_title(slide, "우주 경제 — 투자 맵")
+    slide_title(slide, "우주 경제 — 4축 투자 맵", "각 축의 역할과 대표 종목")
     cols = [
-        ("Launch", "SPCX RKLB FLY", "#3B82F6"),
-        ("Connectivity", "ASTS IRDM GSAT", "#8B5CF6"),
-        ("Earth Obs", "PL BKSY", "#06B6D4"),
-        ("Defense", "LMT NOC RTX LHX", "#10B981"),
+        ("Launch · 발사", "SPCX RKLB FLY",
+         "로켓·엔진. 발사 횟수·성공률·단가가 KPI.", "#3B82F6"),
+        ("Connectivity · 통신", "ASTS IRDM GSAT",
+         "우주에서 스마트폰·IoT 직연결. 스펙트럼·위성 수가 핵심.", "#8B5CF6"),
+        ("Earth Obs · 관측", "PL BKSY",
+         "위성 이미지 + AI 분석. 농업·보험·군사.", "#06B6D4"),
+        ("Defense · 방산", "LMT NOC RTX LHX",
+         "위성·미사일·전자전. 정부 예산 연동.", "#10B981"),
     ]
-    for i, (title, tickers, hex_c) in enumerate(cols):
+    for i, (title, tickers, desc, hex_c) in enumerate(cols):
         row, col = divmod(i, 2)
         left = 0.5 + col * 4.7
-        top = 1.4 + row * 2.6
-        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(left), Inches(top), Inches(4.4), Inches(2.2))
+        top = 1.35 + row * 2.75
+        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(left), Inches(top), Inches(4.4), Inches(2.45))
         card.fill.solid()
         card.fill.fore_color.rgb = WHITE
         card.line.color.rgb = LIGHT_LINE
         r, g, b = int(hex_c[1:3], 16), int(hex_c[3:5], 16), int(hex_c[5:7], 16)
-        hdr = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(left), Inches(top), Inches(4.4), Inches(0.55))
+        hdr = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(left), Inches(top), Inches(4.4), Inches(0.5))
         hdr.fill.solid()
         hdr.fill.fore_color.rgb = RGBColor(r, g, b)
         hdr.line.fill.background()
-        tb = slide.shapes.add_textbox(Inches(left), Inches(top + 0.08), Inches(4.4), Inches(0.5))
+        tb = slide.shapes.add_textbox(Inches(left), Inches(top + 0.06), Inches(4.4), Inches(0.45))
         p = tb.text_frame.paragraphs[0]
         p.text = title
-        p.font.size = Pt(14)
+        p.font.size = Pt(12)
         p.font.bold = True
         p.font.color.rgb = WHITE
         p.alignment = PP_ALIGN.CENTER
-        tb2 = slide.shapes.add_textbox(Inches(left + 0.2), Inches(top + 0.75), Inches(4), Inches(1.2))
-        p2 = tb2.text_frame.paragraphs[0]
+        tb2 = slide.shapes.add_textbox(Inches(left + 0.15), Inches(top + 0.58), Inches(4.1), Inches(1.7))
+        tf2 = tb2.text_frame
+        tf2.word_wrap = True
+        p2 = tf2.paragraphs[0]
         p2.text = tickers
-        p2.font.size = Pt(16)
+        p2.font.size = Pt(14)
         p2.font.bold = True
         p2.font.color.rgb = NAVY
-        p2.alignment = PP_ALIGN.CENTER
-    add_bullets(slide, ["RKLB Q1'26: $200M rev (+63%), backlog $2.2B+  |  PwC: $2T by 2040"],
-                top=6.2, width=9, size=11)
+        p3 = tf2.add_paragraph()
+        p3.text = desc
+        p3.font.size = Pt(9)
+        p3.font.color.rgb = DARK
 
     # ── SECTION 08 Bio ──
-    section_divider(prs, "08", "바이오 · GLP-1", "Code Meets Cell · $150–190B", RGBColor(0x83, 0x15, 0x5C))
+    section_divider(prs, "08", "바이오 · GLP-1", "Code Meets Cell · $150–190B", RGBColor(0x83, 0x15, 0x5C),
+        overview=[
+            "비만약 → 대사질환 표준요법",
+            "LLY·NVO duopoly, 2030까지 93%",
+            "다음: oral·triple agonist·근손실 개선",
+        ])
+
+    narrative_slide(prs, "GLP-1 — 왜 메가트렌드인가?", "Morgan Stanley 'Code Meets Cell'",
+        [
+            "GLP-1(세마글루타이드·티르제파타이드)는 체중 감량뿐 아니라 당뇨, 심혈관 위험 감소, 수면무호흡 등으로 적응증이 확장 중입니다.",
+            "2030년 시장 $150–200B, 환자 5,900만 명(TD Cowen) — 역대 단일 약물 클래스 중 최대 규모 후보.",
+            "LLY 62% + NVO 31% = 사실상 duopoly. 신규 진입자(AMGN, VKTX)는 '더 나은 효능·oral·근육 보존'으로 틈새를 노림.",
+            "리스크: Medicare 가격 협상, 공급 과잉(2028+), oral·제네릭으로 가격 하락 — but volume이 compensating.",
+        ])
 
     slide = blank_slide(prs)
-    slide_title(slide, "GLP-1 시장 지배 구조")
-    add_image(slide, charts["glp1"], left=0.5, top=1.3, width=4.5)
+    slide_title(slide, "GLP-1 시장 구조", "누가 얼마나 가져가는가")
+    add_callout(slide, "차트 읽기", [
+        "2030년 duopoly 93% — 신규 진입이 어렵지만, oral·triple agonist가 game changer 될 수 있음",
+        "투자: LLY/NVO=core · AMGN/VKTX=optionality · TMO/DHR=피킹스앤샤벨",
+    ], top=1.12, width=4.8, left=0.45)
+    add_image(slide, charts["glp1"], left=0.5, top=2.2, width=4.5)
     add_bullets(slide, [
-        "2030: $150B+ (JPM $200B)",
-        "59M 환자 (TD Cowen)",
-        "LLY: orforglipron(oral), retatrutide",
-        "NVO: CagriSema FDA review",
-        "Challenger: AMGN VKTX GPCR",
-        "Tools: TMO DHR ILMN CRSP",
-    ], left=5.3, top=1.5, width=4.3, size=12)
+        "LLY: Mounjaro/Zepbound + orforglipron(oral) + retatrutide(triple)",
+        "NVO: Ozempic/Wegovy + CagriSema(amylin combo)",
+        "다음 승자 조건: (1) oral 순응도 (2) 근손실 적음 (3) 심장·간 데이터",
+        "공급: 2026부터 점진적 완화, but 여전히 병목 구간",
+    ], left=5.2, top=2.3, width=4.5, size=11)
 
     # ── SECTION 09 Security ──
-    section_divider(prs, "09", "경제안보", "Critical Minerals · Defense · Cyber", RGBColor(0x0F, 0x4C, 0x4A))
+    section_divider(prs, "09", "경제안보", "Critical Minerals · Defense · Cyber", RGBColor(0x0F, 0x4C, 0x4A),
+        overview=[
+            "중국 의존 탈피 = 미국 정책 최우선",
+            "희토류·구리·방산·사이버 4축",
+            "MP Materials = 희토류의 대표 수혜",
+        ])
+
+    narrative_slide(prs, "경제안보 투자란?", "Multipolar World — Morgan Stanley 테마",
+        [
+            "미·중 기술 경쟁으로 '공급망을 자국에 둔다'는 정책이 CHIPS, IRA, DPA, Project Vault($12B)로 구체화됩니다.",
+            "희토류: NdFeB 자석은 EV·풍력·미사일·AI 서버에 필수. 중국이 정제의 대부분을 장악 → MP Materials가 미국 유일 통합 체인.",
+            "구리: 전력망·DC·EV 모두 구리 소비 증가. FCX 등 미국/칠레 광산.",
+            "방산: 우크라·중동·대만 긴장으로 예산 구조적 증가. LMT·NOC·RTX.",
+            "사이버: PQC 마이그레이션 + AI 공격 증가 → CRWD·PANW.",
+        ])
 
     slide = blank_slide(prs)
-    slide_title(slide, "경제안보 투자 축")
+    slide_title(slide, "경제안보 — 정책과 종목", "정부 돈이 따라오는 곳")
     add_kpi_row(slide, [
         ("$12B", "Project Vault", "#14B8A6"),
-        ("15%", "DoD in MP", "#06B6D4"),
-        ("$110/kg", "NdPr Floor", "#F59E0B"),
-        ("43", "Critical Min Stocks", "#8B5CF6"),
-    ])
-    add_bullets(slide, [
-        "희토류: MP USAR  |  구리: FCX SCCO BHP",
-        "방산: LMT NOC RTX GD LHX HII",
-        "Gov AI: PLTR  |  Cyber: CRWD PANW",
-        "MP: magnet production Dec 2025 시작",
-    ], top=3.1, width=9.0, size=14)
+        ("15%", "DoD→MP 지분", "#06B6D4"),
+        ("$110/kg", "NdPr 가격 바닥", "#F59E0B"),
+        ("43+", "Critical Min", "#8B5CF6"),
+    ], top=1.25)
+    add_paragraphs(slide, [
+        "MP Materials: DoD 15% 지분 + NdPr $110/kg 10년 floor → 중국 수출 중단 후 미국 내 magnet 생산(2025.12~).",
+        "PLTR: 정부·군 AI 소프트웨어 — '실적 모멘텀 + 정책' 겹침.",
+        "주의: 정책 테마주는 선거·행정 변경 시 변동성 극대 — 계약·지급 실적을 분기별 확인.",
+    ], top=2.85, size=12)
 
     # ── SECTION 10 Conclusion ──
-    section_divider(prs, "10", "결론 · Appendix", "Action Framework", NAVY)
+    section_divider(prs, "10", "결론 · Appendix", "Action Framework", NAVY,
+        overview=[
+            "기간별 액션 플랜",
+            "ETF·리스크 체크리스트",
+            "면책",
+        ])
 
-    slide = blank_slide(prs)
-    slide_title(slide, "트렌드별 커버리지")
-    add_image(slide, charts["stock_count"], top=1.2, width=9.2)
-
-    slide = blank_slide(prs)
-    slide_title(slide, "투자 실행 프레임워크")
-    add_table(slide,
-        ["Horizon", "액션", "대표 ETF"],
+    chart_slide(prs,
+        "트렌드별 커버리지",
+        "본 보고서에서 분석한 종목 수 (각 20+)",
+        charts["stock_count"],
+        "의미",
         [
-            ["0–2년", "AI infra · GLP-1 · Nuclear PPA · Semi equip", "SOXX, NUKZ"],
-            ["3–5년", "SMR · Quantum · Humanoid · Space", "ARKX, BOTZ"],
-            ["5–10년", "PQC · Bio-factory · Lunar", "HACK, XBI"],
-        ], top=1.5, col_widths=[1.5, 5.5, 2.2])
-    add_bullets(slide, [
-        "DC 지연 = VRT/PWR 백로그 연장 (장기 positive)",
-        "Capped Real Rates → 실물·성장주 우호",
-        "면책: 투자 권유 아님 — 최신 공시 확인 필수",
-    ], top=3.8, width=9, size=12)
+            "종목 수가 많다 = 테마 내 분산·세부 niches 존재",
+            "ETF로 broad exposure, 개별주로 conviction bet",
+        ],
+        "종목 리스트 전체는 채팅 보고서 원문 참조")
+
+    slide = blank_slide(prs)
+    slide_title(slide, "투자 실행 프레임워크", "내 기간에 맞는 섹션을 고른다")
+    add_table(slide,
+        ["투자 기간", "무엇을 볼 것인가", "왜?", "ETF 예시"],
+        [
+            ["0–2년", "VRT ETN CEG LLY AMAT", "백로그·PPA·매출 증명", "SOXX NUKZ"],
+            ["3–5년", "OKLO IONQ RKLB TSLA", "마일스톤·로드맵", "ARKX BOTZ"],
+            ["5–10년", "PQC·Gene edit·Lunar", "규제 deadline", "HACK XBI"],
+        ], top=1.3, col_widths=[1.0, 2.8, 2.5, 1.2])
+    add_callout(slide, "리스크 체크리스트", [
+        "□ 밸류에이션: AI 인프라주는 이미 많이 올랐는지 PER·backlog 대비 확인",
+        "□ 실행 리스크: SMR·휴머노이드·양자는 '연기'가 일상적",
+        "□ 정치 리스크: 유틸 요금·약가 협상·CHIPS 예산 삭감",
+        "□ 분산: 한 테마에 올인보다 Horizon별 버킷 구성",
+    ], top=3.5)
+
+    narrative_slide(prs, "최종 정리", "한 페이지로 돌아보기",
+        [
+            "2026–30년 주식시장의 중심축은 'AI가 만든 전기·실물·안보 수요'입니다. GPU 한 종목이 아니라, 전기를 공급하고(CEG), 식히고(VRT), 반도체를 만들고(AMAT), 약을 팔고(LLY) 하는 회사들이 같이 움직입니다.",
+            "지금 당장 수요가 몰린 곳: AI 2차 인프라, GLP-1, 운영 원전 PPA, CHIPS fab·장비.",
+            "3–5년 후 본격화: SMR 가동, FTQC, 휴머노이드 B2B, 우주 Neutron.",
+            "5–10년 regulation play: PQC 전면 의무화, 바이오 팩토리, 달 경제.",
+            "Great Broadening — 좁은 승자에서 넓은 기회로. 본 자료는 투자 권유가 아닙니다.",
+        ])
 
     # ── Thank you ──
     slide = blank_slide(prs)
