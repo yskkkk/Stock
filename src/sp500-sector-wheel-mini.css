@@ -42,15 +42,14 @@
 }
 
 .sp500-sector-tab .sp500-wheel-mini__svg {
-  flex: 1 1 44%;
-  width: 100%;
-  min-width: 0;
-  max-width: none;
+  flex: 0 0 auto;
+  width: min(250px, 28vw);
+  max-width: 250px;
   height: auto;
 }
 
 .sp500-sector-tab .sp500-wheel-mini__legend {
-  flex: 1 1 56%;
+  flex: 1 1 auto;
   min-width: 0;
   max-height: none;
   display: grid;
@@ -70,8 +69,9 @@
 
   .sp500-sector-tab .sp500-wheel-mini__svg {
     flex: none;
-    width: 100%;
-    max-width: 100%;
+    width: min(240px, 82vw);
+    max-width: 240px;
+    margin-inline: auto;
   }
 
   .sp500-sector-tab .sp500-wheel-mini__legend {
