@@ -190,15 +190,25 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
             <text
               className="sp500-wheel-mini__center-label"
               x={cx}
-              y={cy - 6}
+              y={cy - (selected ? 10 : 4)}
               textAnchor="middle"
             >
               {selected ? selected.sectorKo : "S&P 500"}
             </text>
+            {selected ? (
+              <text
+                className="sp500-wheel-mini__center-en"
+                x={cx}
+                y={cy + 4}
+                textAnchor="middle"
+              >
+                {selected.sector}
+              </text>
+            ) : null}
             <text
               className="sp500-wheel-mini__center-value"
               x={cx}
-              y={cy + 14}
+              y={cy + (selected ? 22 : 16)}
               textAnchor="middle"
             >
               {selected ? selected.count : data.total}
@@ -207,7 +217,7 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
               <text
                 className="sp500-wheel-mini__center-sub"
                 x={cx}
-                y={cy + 28}
+                y={cy + 36}
                 textAnchor="middle"
               >
                 {fmtSectorPct(selected.pct)}
@@ -233,7 +243,10 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
                       background: segments.find((x) => x.sector === s.sector)?.color,
                     }}
                   />
-                  <span className="sp500-wheel-mini__legend-label">{s.sectorKo}</span>
+                  <span className="sp500-wheel-mini__legend-text">
+                    <span className="sp500-wheel-mini__legend-label">{s.sectorKo}</span>
+                    <span className="sp500-wheel-mini__legend-en">{s.sector}</span>
+                  </span>
                   <span className="sp500-wheel-mini__legend-pct">{fmtSectorPct(s.pct)}</span>
                 </button>
               </li>

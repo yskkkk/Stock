@@ -310,12 +310,12 @@
 
 .sp500-wheel-mini__chart-panel {
   display: grid;
-  grid-template-columns: minmax(140px, 200px) 1fr;
-  gap: 0.75rem 1rem;
+  grid-template-columns: minmax(220px, 340px) minmax(0, 1fr);
+  gap: 1rem 1.25rem;
   align-items: start;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
   .sp500-wheel-mini__chart-panel {
     grid-template-columns: 1fr;
     justify-items: center;
@@ -324,7 +324,7 @@
 
 .sp500-wheel-mini__svg {
   width: 100%;
-  max-width: 200px;
+  max-width: 340px;
   height: auto;
   display: block;
 }
@@ -343,18 +343,25 @@
 }
 
 .sp500-wheel-mini__center-label {
-  font-size: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  fill: var(--text);
+}
+
+.sp500-wheel-mini__center-en {
+  font-size: 8px;
   fill: var(--muted);
 }
 
 .sp500-wheel-mini__center-value {
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 700;
   fill: var(--text);
 }
 
 .sp500-wheel-mini__center-sub {
-  font-size: 8px;
+  font-size: 11px;
+  font-weight: 600;
   fill: var(--muted);
 }
 
@@ -364,23 +371,23 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-  max-height: 220px;
+  gap: 0.32rem;
+  max-height: min(360px, 70vh);
   overflow: auto;
 }
 
 .sp500-wheel-mini__legend-btn {
   width: 100%;
   display: grid;
-  grid-template-columns: 12px 1fr auto;
-  gap: 0.45rem;
-  align-items: center;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  align-items: start;
   border: 1px solid transparent;
   background: transparent;
   color: var(--text);
   border-radius: var(--radius-sm);
-  padding: 0.28rem 0.4rem;
-  font-size: 0.76rem;
+  padding: 0.42rem 0.5rem;
+  font-size: 0.9rem;
   cursor: pointer;
   text-align: left;
 }
@@ -392,20 +399,39 @@
 }
 
 .sp500-wheel-mini__swatch {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border-radius: 3px;
+  margin-top: 0.12rem;
+}
+
+.sp500-wheel-mini__legend-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.08rem;
+  min-width: 0;
 }
 
 .sp500-wheel-mini__legend-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: normal;
+  word-break: keep-all;
+}
+
+.sp500-wheel-mini__legend-en {
+  font-size: 0.78em;
+  line-height: 1.25;
+  color: var(--muted);
+  white-space: normal;
 }
 
 .sp500-wheel-mini__legend-pct {
   color: var(--muted);
+  font-size: 0.92em;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
+  padding-top: 0.1rem;
 }
 
 .sp500-wheel-mini__list-panel {
@@ -523,7 +549,8 @@
 
 html[data-theme="light"] .sp500-wheel-mini__center-label,
 html[data-theme="light"] .sp500-wheel-mini__center-value,
-html[data-theme="light"] .sp500-wheel-mini__center-sub {
+html[data-theme="light"] .sp500-wheel-mini__center-sub,
+html[data-theme="light"] .sp500-wheel-mini__center-en {
   fill: currentColor;
 }
 
