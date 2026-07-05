@@ -43,6 +43,14 @@ function Sp500SectorWheelMicroInner() {
     setHoveredSector(null);
   }, []);
 
+  const pickTipSector = useCallback(
+    (sector: string) => {
+      openSectorDetail(sector, "list");
+      hideTip();
+    },
+    [hideTip, openSectorDetail],
+  );
+
   if (loading) {
     return (
       <div
@@ -165,29 +173,33 @@ function Sp500SectorWheelMicroInner() {
         <div
           id="sp500-wheel-micro-tip"
           className="sp500-wheel-micro__tip"
-          role="tooltip"
+          role="region"
+          aria-label={ko.app.sp500SectorTitle}
           onMouseEnter={showTip}
         >
           <p className="sp500-wheel-micro__tip-title">{ko.app.sp500SectorTitle}</p>
           <ul className="sp500-wheel-micro__tip-list">
             {sortedSectors.map((s) => (
-              <li
-                key={s.sector}
-                className={
-                  hoveredSector === s.sector
-                    ? "sp500-wheel-micro__tip-row sp500-wheel-micro__tip-row--hovered"
-                    : "sp500-wheel-micro__tip-row"
-                }
-                onMouseEnter={() => setHoveredSector(s.sector)}
-                onMouseLeave={() => setHoveredSector(null)}
-              >
-                <span
-                  className="sp500-wheel-micro__tip-swatch"
-                  style={{ background: sectorColors.get(s.sector) }}
-                  aria-hidden
-                />
-                <span className="sp500-wheel-micro__tip-name">{s.sectorKo}</span>
-                <span className="sp500-wheel-micro__tip-pct">{fmtSectorPct(s.pct)}</span>
+              <li key={s.sector}>
+                <button
+                  type="button"
+                  className={
+                    hoveredSector === s.sector
+                      ? "sp500-wheel-micro__tip-row sp500-wheel-micro__tip-row--hovered"
+                      : "sp500-wheel-micro__tip-row"
+                  }
+                  onClick={() => pickTipSector(s.sector)}
+                  onMouseEnter={() => setHoveredSector(s.sector)}
+                  onMouseLeave={() => setHoveredSector(null)}
+                >
+                  <span
+                    className="sp500-wheel-micro__tip-swatch"
+                    style={{ background: sectorColors.get(s.sector) }}
+                    aria-hidden
+                  />
+                  <span className="sp500-wheel-micro__tip-name">{s.sectorKo}</span>
+                  <span className="sp500-wheel-micro__tip-pct">{fmtSectorPct(s.pct)}</span>
+                </button>
               </li>
             ))}
           </ul>
