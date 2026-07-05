@@ -272,6 +272,12 @@ export function fetchSectorEarnings() {
   );
 }
 
+export function fetchSp500Sectors() {
+  return fetchJson<import("./lib/sp500SectorChart").Sp500SectorsPayload>(
+    "/api/sp500-sectors",
+  );
+}
+
 export function refreshPicks() {
   return fetchJson<RefreshResponse>("/api/picks/refresh", { method: "POST" });
 }

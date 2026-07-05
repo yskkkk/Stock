@@ -108,6 +108,7 @@ import type {
   VaultScanProgress,
 } from "../types";
 import StockVaultRow from "./StockVaultRow";
+import Sp500SectorWheelMini from "./Sp500SectorWheelMini";
 import {
   StockVaultRowBubblePortal,
   type StockVaultRowBubbleActions,
@@ -1692,13 +1693,16 @@ export default function StockVaultTab({
             {error}
           </p>
         ) : filtered.length === 0 ? (
-          <p className="stock-vault-tab__muted">
-            {isHistoricalView
-              ? ko.stockVault.historyEmpty
-              : showEmptyIntersection
-                  ? ko.stockVault.emptyIntersection
-                  : ko.stockVault.empty}
-          </p>
+          <div className="stock-vault-tab__empty-board">
+            <Sp500SectorWheelMini />
+            <p className="stock-vault-tab__muted stock-vault-tab__empty-msg">
+              {isHistoricalView
+                ? ko.stockVault.historyEmpty
+                : showEmptyIntersection
+                    ? ko.stockVault.emptyIntersection
+                    : ko.stockVault.empty}
+            </p>
+          </div>
         ) : !listPaintReady ? (
           <p className="stock-vault-tab__muted">{ko.stockVault.loading}</p>
         ) : (

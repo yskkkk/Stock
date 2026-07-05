@@ -21,6 +21,7 @@ import "./mobile-polish.css";
 import "./ui-nowrap-lines.css";
 import "./app-site-footer.css";
 import "./app-theme-corner.css";
+import "./sp500-sector-wheel-mini.css";
 import "./stock-lookup-flat.css";
 import "./financials-tab.css";
 import "./stock-vault-tab.css";
