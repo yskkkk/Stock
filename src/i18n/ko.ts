@@ -28,6 +28,8 @@ export const ko = {
     footerFeedbackTitle: "불편·문의",
     footerFeedbackPlaceholder: "불편·문의 내용을 적어 주세요…",
     footerCopyright: "@ysk 어디갔어",
+    footerSp500Sector: "S&P500 섹터",
+    footerSp500SectorTitle: "S&P 500 GICS 산업 구성 원형 차트",
     pullToRefreshHint: "아래로 당겨 새로고침",
     pullToRefreshRelease: "놓으면 새로고침",
     lightPaletteHint: "눈에 편한 톤",
