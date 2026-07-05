@@ -27,6 +27,13 @@ const TIMEFRAMES: readonly ChartTimeframe[] = [
   "1d",
 ];
 
+/** 새로고침·재진입 시 종목 검색으로 복귀 — 보조 탭은 기본 탭으로 저장하지 않음 */
+const EPHEMERAL_MAIN_TABS: ReadonlySet<AppTab> = new Set(["sp500Sector"]);
+
+export function resolvePersistedAppTab(tab: AppTab): AppTab {
+  return EPHEMERAL_MAIN_TABS.has(tab) ? "stockLookup" : tab;
+}
+
 type SessionPickV1 = {
   symbol: string;
   name: string;
@@ -110,7 +117,7 @@ export function readMobileAppSession(): MobileAppSessionV1 | null {
     return {
       version: 1,
       savedAt,
-      appTab: normalizeTab(parsed.appTab),
+      appTab: resolvePersistedAppTab(normalizeTab(parsed.appTab)),
       screenerSelected: normalizePick(parsed.screenerSelected),
       lookupSelected: normalizePick(parsed.lookupSelected),
       timeframe: normalizeTimeframe(parsed.timeframe),
@@ -135,7 +142,7 @@ export function writeMobileAppSession(input: {
   const next: MobileAppSessionV1 = {
     version: 1,
     savedAt: Date.now(),
-    appTab: input.appTab,
+    appTab: resolvePersistedAppTab(input.appTab),
     screenerSelected: pickToSessionPick(input.screenerSelected),
     lookupSelected: pickToSessionPick(input.lookupSelected),
     timeframe: normalizeTimeframe(input.timeframe),
