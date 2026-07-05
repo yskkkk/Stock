@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ko } from "../i18n/ko";
 import { useSp500Sector } from "../contexts/Sp500SectorContext";
@@ -11,6 +11,8 @@ import {
   type DonutSegment,
   type Sp500SectorRow,
 } from "../lib/sp500SectorChart";
+
+const HOVER_DWELL_MS = 1000;
 
 type DonutSvgProps = {
   segments: DonutSegment[];
@@ -182,6 +184,8 @@ function Sp500SectorWheelMicroInner() {
   const mobile = useIsMobilePhone();
   const [expanded, setExpanded] = useState(false);
   const [hoveredSector, setHoveredSector] = useState<string | null>(null);
+  const openTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const segments = useMemo(
     () => (data ? buildDonutSegments(data.sectors, data.total) : []),
@@ -197,14 +201,71 @@ function Sp500SectorWheelMicroInner() {
     [data, focusSector],
   );
 
-  const collapse = useCallback(() => {
-    setExpanded(false);
-    setHoveredSector(null);
+  const clearOpenTimer = useCallback(() => {
+    if (openTimerRef.current) {
+      clearTimeout(openTimerRef.current);
+      openTimerRef.current = null;
+    }
   }, []);
 
-  const expand = useCallback(() => {
-    if (!mobile) setExpanded(true);
-  }, [mobile]);
+  const clearCloseTimer = useCallback(() => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }, []);
+
+  const collapse = useCallback(() => {
+    clearOpenTimer();
+    clearCloseTimer();
+    setExpanded(false);
+    setHoveredSector(null);
+  }, [clearCloseTimer, clearOpenTimer]);
+
+  const scheduleOpen = useCallback(() => {
+    if (mobile) return;
+    clearOpenTimer();
+    openTimerRef.current = setTimeout(() => {
+      setExpanded(true);
+      openTimerRef.current = null;
+    }, HOVER_DWELL_MS);
+  }, [clearOpenTimer, mobile]);
+
+  const scheduleClose = useCallback(() => {
+    if (mobile) return;
+    clearCloseTimer();
+    closeTimerRef.current = setTimeout(() => {
+      collapse();
+      closeTimerRef.current = null;
+    }, HOVER_DWELL_MS);
+  }, [clearCloseTimer, collapse, mobile]);
+
+  const onMicroEnter = useCallback(() => {
+    clearCloseTimer();
+    scheduleOpen();
+  }, [clearCloseTimer, scheduleOpen]);
+
+  const onMicroLeave = useCallback(() => {
+    clearOpenTimer();
+    if (expanded) scheduleClose();
+  }, [clearOpenTimer, expanded, scheduleClose]);
+
+  const onPanelEnter = useCallback(() => {
+    clearOpenTimer();
+    clearCloseTimer();
+  }, [clearCloseTimer, clearOpenTimer]);
+
+  const onPanelLeave = useCallback(() => {
+    scheduleClose();
+  }, [scheduleClose]);
+
+  useEffect(
+    () => () => {
+      clearOpenTimer();
+      clearCloseTimer();
+    },
+    [clearCloseTimer, clearOpenTimer],
+  );
 
   const pickSector = useCallback(
     (sector: string) => {
@@ -231,17 +292,13 @@ function Sp500SectorWheelMicroInner() {
   const expandOverlay =
     expanded && typeof document !== "undefined"
       ? createPortal(
-          <div
-            className="sp500-wheel-micro-expand"
-            onMouseLeave={mobile ? undefined : collapse}
-            onClick={mobile ? collapse : undefined}
-          >
+          <div className="sp500-wheel-micro-expand">
             <div
               className="sp500-wheel-micro-expand__panel"
               role="dialog"
               aria-label={ko.app.sp500SectorTitle}
-              onClick={(e) => e.stopPropagation()}
-              onMouseEnter={mobile ? undefined : expand}
+              onMouseEnter={mobile ? undefined : onPanelEnter}
+              onMouseLeave={mobile ? undefined : onPanelLeave}
             >
               <div className="sp500-wheel-micro-expand__head">
                 <div>
@@ -332,7 +389,8 @@ function Sp500SectorWheelMicroInner() {
             }
             openPanel("chart");
           }}
-          onMouseEnter={expand}
+          onMouseEnter={mobile ? undefined : onMicroEnter}
+          onMouseLeave={mobile ? undefined : onMicroLeave}
         >
           <Sp500SectorDonutSvg
             segments={segments}
