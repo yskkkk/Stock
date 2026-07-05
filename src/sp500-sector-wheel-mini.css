@@ -218,10 +218,11 @@
   width: min(920px, 100%);
   max-height: min(88vh, 680px);
   overflow: auto;
-  padding: 0.35rem 0.2rem;
-  background: transparent;
-  border: none;
-  box-shadow: none;
+  padding: 1rem 1.15rem 1.1rem;
+  border-radius: var(--radius);
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.32);
   pointer-events: auto;
 }
 
