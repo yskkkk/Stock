@@ -1,0 +1,1938 @@
+[
+  {
+    "symbol": "MMM",
+    "nameKo": "쓰리엠 (3M)"
+  },
+  {
+    "symbol": "AOS",
+    "nameKo": "A O 스미스"
+  },
+  {
+    "symbol": "ABT",
+    "nameKo": "애보트 래보라토리"
+  },
+  {
+    "symbol": "ABBV",
+    "nameKo": "애브비"
+  },
+  {
+    "symbol": "ACN",
+    "nameKo": "액센추어"
+  },
+  {
+    "symbol": "ADBE",
+    "nameKo": "어도비"
+  },
+  {
+    "symbol": "AMD",
+    "nameKo": "AMD(어드밴스드 마이크로 디바이시스)"
+  },
+  {
+    "symbol": "AFL",
+    "nameKo": "애플랙"
+  },
+  {
+    "symbol": "A",
+    "nameKo": "애질런트 테크놀로지스"
+  },
+  {
+    "symbol": "APD",
+    "nameKo": "에어 프로덕츠 앤 케미컬스"
+  },
+  {
+    "symbol": "ABNB",
+    "nameKo": "에어비앤비"
+  },
+  {
+    "symbol": "AKAM",
+    "nameKo": "아카마이 테크놀로지"
+  },
+  {
+    "symbol": "ALB",
+    "nameKo": "앨버말"
+  },
+  {
+    "symbol": "ARE",
+    "nameKo": "알렉산드리아 리얼에스테이트 이쿼티"
+  },
+  {
+    "symbol": "ALGN",
+    "nameKo": "얼라인테크놀로지"
+  },
+  {
+    "symbol": "ALLE",
+    "nameKo": "얼리지언"
+  },
+  {
+    "symbol": "LNT",
+    "nameKo": "얼라이언트 에너지"
+  },
+  {
+    "symbol": "ALL",
+    "nameKo": "올스테이트"
+  },
+  {
+    "symbol": "GOOGL",
+    "nameKo": "알파벳 A"
+  },
+  {
+    "symbol": "GOOG",
+    "nameKo": "알파벳 C"
+  },
+  {
+    "symbol": "MO",
+    "nameKo": "알트리아그룹"
+  },
+  {
+    "symbol": "AMZN",
+    "nameKo": "아마존"
+  },
+  {
+    "symbol": "AMCR",
+    "nameKo": "앰코"
+  },
+  {
+    "symbol": "AEE",
+    "nameKo": "애머런"
+  },
+  {
+    "symbol": "AEP",
+    "nameKo": "아메리칸일렉트릭"
+  },
+  {
+    "symbol": "AXP",
+    "nameKo": "아메리칸 익스프레스"
+  },
+  {
+    "symbol": "AIG",
+    "nameKo": "아메리칸 인터내셔널 그룹"
+  },
+  {
+    "symbol": "AMT",
+    "nameKo": "아메리칸 타워"
+  },
+  {
+    "symbol": "AWK",
+    "nameKo": "아메리칸 워터 웍스"
+  },
+  {
+    "symbol": "AMP",
+    "nameKo": "아메리프라이즈 파이낸셜"
+  },
+  {
+    "symbol": "AME",
+    "nameKo": "아메텍"
+  },
+  {
+    "symbol": "AMGN",
+    "nameKo": "암젠"
+  },
+  {
+    "symbol": "APH",
+    "nameKo": "암페놀"
+  },
+  {
+    "symbol": "ADI",
+    "nameKo": "애널로그 디바이시스"
+  },
+  {
+    "symbol": "AON",
+    "nameKo": "에이온"
+  },
+  {
+    "symbol": "APO",
+    "nameKo": "아폴로 글로벌 매니지먼트"
+  },
+  {
+    "symbol": "AAPL",
+    "nameKo": "애플"
+  },
+  {
+    "symbol": "AMAT",
+    "nameKo": "어플라이드머티리얼즈"
+  },
+  {
+    "symbol": "APP",
+    "nameKo": "앱러빈"
+  },
+  {
+    "symbol": "APTV",
+    "nameKo": "앱티브"
+  },
+  {
+    "symbol": "ACGL",
+    "nameKo": "아치 캐피털 그룹"
+  },
+  {
+    "symbol": "ADM",
+    "nameKo": "아처 대니얼스 미들랜드"
+  },
+  {
+    "symbol": "ARES",
+    "nameKo": "아레스 매니지먼트"
+  },
+  {
+    "symbol": "ANET",
+    "nameKo": "아리스타 네트웍스"
+  },
+  {
+    "symbol": "AJG",
+    "nameKo": "아서 J 갤러거 앤 코"
+  },
+  {
+    "symbol": "AIZ",
+    "nameKo": "어슈런트"
+  },
+  {
+    "symbol": "ATO",
+    "nameKo": "애트모스 에너지"
+  },
+  {
+    "symbol": "ADSK",
+    "nameKo": "오토데스크"
+  },
+  {
+    "symbol": "ADP",
+    "nameKo": "오토매틱 데이터 프로세싱"
+  },
+  {
+    "symbol": "AZO",
+    "nameKo": "오토존"
+  },
+  {
+    "symbol": "AVB",
+    "nameKo": "아발론베이 커뮤니티"
+  },
+  {
+    "symbol": "AVY",
+    "nameKo": "에이버리 데니슨"
+  },
+  {
+    "symbol": "AXON",
+    "nameKo": "액손 엔터프라이스"
+  },
+  {
+    "symbol": "BKR",
+    "nameKo": "베이커휴즈"
+  },
+  {
+    "symbol": "BALL",
+    "nameKo": "볼"
+  },
+  {
+    "symbol": "BAC",
+    "nameKo": "뱅크오브아메리카"
+  },
+  {
+    "symbol": "BAX",
+    "nameKo": "박스터 인터내셔널"
+  },
+  {
+    "symbol": "BDX",
+    "nameKo": "벡톤 디킨슨 앤 코"
+  },
+  {
+    "symbol": "BRK-B",
+    "nameKo": "버크셔 해서웨이 클래스 B"
+  },
+  {
+    "symbol": "BBY",
+    "nameKo": "베스트 바이"
+  },
+  {
+    "symbol": "TECH",
+    "nameKo": "바이오-테크네"
+  },
+  {
+    "symbol": "BIIB",
+    "nameKo": "바이오젠"
+  },
+  {
+    "symbol": "BLK",
+    "nameKo": "블랙록"
+  },
+  {
+    "symbol": "BX",
+    "nameKo": "블랙스톤"
+  },
+  {
+    "symbol": "XYZ",
+    "nameKo": "블록"
+  },
+  {
+    "symbol": "BNY",
+    "nameKo": "뉴욕멜론은행"
+  },
+  {
+    "symbol": "BA",
+    "nameKo": "보잉"
+  },
+  {
+    "symbol": "BKNG",
+    "nameKo": "부킹닷컴"
+  },
+  {
+    "symbol": "BSX",
+    "nameKo": "보스턴 사이언티픽"
+  },
+  {
+    "symbol": "BMY",
+    "nameKo": "브리스톨-마이어스 스큅"
+  },
+  {
+    "symbol": "AVGO",
+    "nameKo": "브로드컴"
+  },
+  {
+    "symbol": "BR",
+    "nameKo": "브로드리지 파이낸셜 솔루션스"
+  },
+  {
+    "symbol": "BRO",
+    "nameKo": "브라운 & 브라운"
+  },
+  {
+    "symbol": "BF-B",
+    "nameKo": "브라운-포먼 클래스 B"
+  },
+  {
+    "symbol": "BLDR",
+    "nameKo": "빌더스 퍼스트소스"
+  },
+  {
+    "symbol": "BG",
+    "nameKo": "번지 글로벌"
+  },
+  {
+    "symbol": "CHRW",
+    "nameKo": "CH 로빈슨 월드와이드"
+  },
+  {
+    "symbol": "CDNS",
+    "nameKo": "케이던스"
+  },
+  {
+    "symbol": "CPT",
+    "nameKo": "캠든 프로퍼티 트러스트"
+  },
+  {
+    "symbol": "COF",
+    "nameKo": "캐피털 원 파이낸셜"
+  },
+  {
+    "symbol": "CAH",
+    "nameKo": "카디널 헬스"
+  },
+  {
+    "symbol": "CCL",
+    "nameKo": "카니발"
+  },
+  {
+    "symbol": "CARR",
+    "nameKo": "캐리어 글로벌"
+  },
+  {
+    "symbol": "CVNA",
+    "nameKo": "카바나"
+  },
+  {
+    "symbol": "CASY",
+    "nameKo": "케이시스 제너럴 스토어스"
+  },
+  {
+    "symbol": "CAT",
+    "nameKo": "캐터필러"
+  },
+  {
+    "symbol": "CBOE",
+    "nameKo": "Cboe 글로벌 마켓"
+  },
+  {
+    "symbol": "CBRE",
+    "nameKo": "CBRE 그룹"
+  },
+  {
+    "symbol": "COR",
+    "nameKo": "센코라"
+  },
+  {
+    "symbol": "CNC",
+    "nameKo": "센틴"
+  },
+  {
+    "symbol": "CNP",
+    "nameKo": "센터포인트 에너지"
+  },
+  {
+    "symbol": "CF",
+    "nameKo": "CF 인더스트리스 홀딩스"
+  },
+  {
+    "symbol": "CRL",
+    "nameKo": "찰스 리버 래보라토리스 인터내셔널"
+  },
+  {
+    "symbol": "SCHW",
+    "nameKo": "찰스 슈왑"
+  },
+  {
+    "symbol": "CHTR",
+    "nameKo": "차터커뮤니케이션"
+  },
+  {
+    "symbol": "CVX",
+    "nameKo": "셰브론"
+  },
+  {
+    "symbol": "CMG",
+    "nameKo": "치폴레 멕시칸 그릴"
+  },
+  {
+    "symbol": "CB",
+    "nameKo": "처브"
+  },
+  {
+    "symbol": "CHD",
+    "nameKo": "처치 & 드와이트"
+  },
+  {
+    "symbol": "CIEN",
+    "nameKo": "시에나"
+  },
+  {
+    "symbol": "CI",
+    "nameKo": "시그나"
+  },
+  {
+    "symbol": "CINF",
+    "nameKo": "신시내티 파이낸셜"
+  },
+  {
+    "symbol": "CTAS",
+    "nameKo": "신타스"
+  },
+  {
+    "symbol": "CSCO",
+    "nameKo": "시스코"
+  },
+  {
+    "symbol": "C",
+    "nameKo": "씨티그룹"
+  },
+  {
+    "symbol": "CFG",
+    "nameKo": "시티즌스 파이낸셜 그룹"
+  },
+  {
+    "symbol": "CLX",
+    "nameKo": "크로락스"
+  },
+  {
+    "symbol": "CME",
+    "nameKo": "CME 그룹"
+  },
+  {
+    "symbol": "CMS",
+    "nameKo": "CMS 에너지"
+  },
+  {
+    "symbol": "KO",
+    "nameKo": "코카콜라"
+  },
+  {
+    "symbol": "CTSH",
+    "nameKo": "코그니전트 테크놀로지 솔루션"
+  },
+  {
+    "symbol": "COHR",
+    "nameKo": "코히런트"
+  },
+  {
+    "symbol": "COIN",
+    "nameKo": "코인베이스"
+  },
+  {
+    "symbol": "CL",
+    "nameKo": "콜게이트-팜올리브"
+  },
+  {
+    "symbol": "CMCSA",
+    "nameKo": "컴캐스트"
+  },
+  {
+    "symbol": "FIX",
+    "nameKo": "컴포트 시스템즈 USA"
+  },
+  {
+    "symbol": "COP",
+    "nameKo": "코노코필립스"
+  },
+  {
+    "symbol": "ED",
+    "nameKo": "콘솔리데이티드 에디슨"
+  },
+  {
+    "symbol": "STZ",
+    "nameKo": "컨스텔레이션 브랜즈"
+  },
+  {
+    "symbol": "CEG",
+    "nameKo": "컨스텔레이션에너지"
+  },
+  {
+    "symbol": "COO",
+    "nameKo": "쿠퍼 컴퍼니스"
+  },
+  {
+    "symbol": "CPRT",
+    "nameKo": "코파트"
+  },
+  {
+    "symbol": "GLW",
+    "nameKo": "코닝"
+  },
+  {
+    "symbol": "CPAY",
+    "nameKo": "콜페이"
+  },
+  {
+    "symbol": "CTVA",
+    "nameKo": "코르테바"
+  },
+  {
+    "symbol": "CSGP",
+    "nameKo": "코스타"
+  },
+  {
+    "symbol": "COST",
+    "nameKo": "코스트코"
+  },
+  {
+    "symbol": "CRWD",
+    "nameKo": "크라우드스트라이크"
+  },
+  {
+    "symbol": "CCI",
+    "nameKo": "크라운 캐슬"
+  },
+  {
+    "symbol": "CMI",
+    "nameKo": "커민스"
+  },
+  {
+    "symbol": "CVS",
+    "nameKo": "CVS 헬스"
+  },
+  {
+    "symbol": "DHR",
+    "nameKo": "다나허"
+  },
+  {
+    "symbol": "DRI",
+    "nameKo": "다든 레스토랑"
+  },
+  {
+    "symbol": "DDOG",
+    "nameKo": "데이터독"
+  },
+  {
+    "symbol": "DVA",
+    "nameKo": "다비타"
+  },
+  {
+    "symbol": "DECK",
+    "nameKo": "덱커 아웃도어"
+  },
+  {
+    "symbol": "DE",
+    "nameKo": "디어"
+  },
+  {
+    "symbol": "DELL",
+    "nameKo": "델"
+  },
+  {
+    "symbol": "DAL",
+    "nameKo": "델타 에어라인스"
+  },
+  {
+    "symbol": "DVN",
+    "nameKo": "데번 에너지"
+  },
+  {
+    "symbol": "DXCM",
+    "nameKo": "덱스컴"
+  },
+  {
+    "symbol": "FANG",
+    "nameKo": "다이아몬드백에너지"
+  },
+  {
+    "symbol": "DLR",
+    "nameKo": "디지털 리얼티 트러스트"
+  },
+  {
+    "symbol": "DG",
+    "nameKo": "달러 제너럴"
+  },
+  {
+    "symbol": "DLTR",
+    "nameKo": "달러트리"
+  },
+  {
+    "symbol": "D",
+    "nameKo": "도미니언 에너지"
+  },
+  {
+    "symbol": "DPZ",
+    "nameKo": "도미노피자"
+  },
+  {
+    "symbol": "DASH",
+    "nameKo": "도어대시"
+  },
+  {
+    "symbol": "DOV",
+    "nameKo": "도버"
+  },
+  {
+    "symbol": "DOW",
+    "nameKo": "다우"
+  },
+  {
+    "symbol": "DHI",
+    "nameKo": "D.R. 호턴"
+  },
+  {
+    "symbol": "DTE",
+    "nameKo": "DTE 에너지"
+  },
+  {
+    "symbol": "DUK",
+    "nameKo": "듀크 에너지"
+  },
+  {
+    "symbol": "DD",
+    "nameKo": "듀폰"
+  },
+  {
+    "symbol": "ETN",
+    "nameKo": "이튼"
+  },
+  {
+    "symbol": "EBAY",
+    "nameKo": "이베이"
+  },
+  {
+    "symbol": "ECHO",
+    "nameKo": "에코스타"
+  },
+  {
+    "symbol": "ECL",
+    "nameKo": "이콜랩"
+  },
+  {
+    "symbol": "EIX",
+    "nameKo": "에디슨 인터내셔널"
+  },
+  {
+    "symbol": "EW",
+    "nameKo": "에드워즈 라이프사이언시스"
+  },
+  {
+    "symbol": "EA",
+    "nameKo": "일렉트로닉아츠"
+  },
+  {
+    "symbol": "ELV",
+    "nameKo": "엘레반스 헬스"
+  },
+  {
+    "symbol": "EME",
+    "nameKo": "엠코 그룹"
+  },
+  {
+    "symbol": "EMR",
+    "nameKo": "에머슨 일렉트릭"
+  },
+  {
+    "symbol": "ETR",
+    "nameKo": "엔터지"
+  },
+  {
+    "symbol": "EOG",
+    "nameKo": "EOG 리소시스"
+  },
+  {
+    "symbol": "EFX",
+    "nameKo": "에퀴팩스"
+  },
+  {
+    "symbol": "EQIX",
+    "nameKo": "이퀴닉스"
+  },
+  {
+    "symbol": "EQR",
+    "nameKo": "에퀴티 레지덴셜"
+  },
+  {
+    "symbol": "ERIE",
+    "nameKo": "이리 인뎀니티"
+  },
+  {
+    "symbol": "ESS",
+    "nameKo": "에섹스 프로퍼티 트러스트"
+  },
+  {
+    "symbol": "EL",
+    "nameKo": "에스티 로더"
+  },
+  {
+    "symbol": "EG",
+    "nameKo": "에베레스트 그룹"
+  },
+  {
+    "symbol": "EVRG",
+    "nameKo": "에버지"
+  },
+  {
+    "symbol": "ES",
+    "nameKo": "에버소스 에너지"
+  },
+  {
+    "symbol": "EXC",
+    "nameKo": "엑셀론"
+  },
+  {
+    "symbol": "EXE",
+    "nameKo": "익스팬드 에너지"
+  },
+  {
+    "symbol": "EXPE",
+    "nameKo": "익스피디아"
+  },
+  {
+    "symbol": "EXPD",
+    "nameKo": "익스페디터스 인터내셔널 오브 워싱턴"
+  },
+  {
+    "symbol": "EXR",
+    "nameKo": "엑스트라 스페이스 스토리지"
+  },
+  {
+    "symbol": "XOM",
+    "nameKo": "엑슨 모빌"
+  },
+  {
+    "symbol": "FDS",
+    "nameKo": "팩트셋 리서치 시스템즈"
+  },
+  {
+    "symbol": "FICO",
+    "nameKo": "페어 아이작"
+  },
+  {
+    "symbol": "FAST",
+    "nameKo": "패스널"
+  },
+  {
+    "symbol": "FRT",
+    "nameKo": "페더럴 리얼티 인베스트먼트 트러스트"
+  },
+  {
+    "symbol": "FDX",
+    "nameKo": "페덱스"
+  },
+  {
+    "symbol": "FDXF",
+    "nameKo": "페덱스 프레이트 홀딩 컴퍼니"
+  },
+  {
+    "symbol": "FIS",
+    "nameKo": "피델리티 내셔널 인포메이션 서비스"
+  },
+  {
+    "symbol": "FITB",
+    "nameKo": "피프스 서드 뱅코프"
+  },
+  {
+    "symbol": "FSLR",
+    "nameKo": "퍼스트 솔라"
+  },
+  {
+    "symbol": "FE",
+    "nameKo": "퍼스트에너지"
+  },
+  {
+    "symbol": "FISV",
+    "nameKo": "파이서브"
+  },
+  {
+    "symbol": "FLEX",
+    "nameKo": "플렉스"
+  },
+  {
+    "symbol": "F",
+    "nameKo": "포드 모터"
+  },
+  {
+    "symbol": "FTNT",
+    "nameKo": "포티넷"
+  },
+  {
+    "symbol": "FTV",
+    "nameKo": "포티브"
+  },
+  {
+    "symbol": "FOXA",
+    "nameKo": "폭스 A"
+  },
+  {
+    "symbol": "FOX",
+    "nameKo": "폭스 B"
+  },
+  {
+    "symbol": "BEN",
+    "nameKo": "프랭클린 리소시스"
+  },
+  {
+    "symbol": "FCX",
+    "nameKo": "프리포트 맥모란"
+  },
+  {
+    "symbol": "GRMN",
+    "nameKo": "가민"
+  },
+  {
+    "symbol": "IT",
+    "nameKo": "가트너"
+  },
+  {
+    "symbol": "GE",
+    "nameKo": "GE 에어로스페이스"
+  },
+  {
+    "symbol": "GEHC",
+    "nameKo": "GE헬스케어"
+  },
+  {
+    "symbol": "GEV",
+    "nameKo": "GE 버노바"
+  },
+  {
+    "symbol": "GEN",
+    "nameKo": "젠 디지털"
+  },
+  {
+    "symbol": "GNRC",
+    "nameKo": "제네락 홀딩스"
+  },
+  {
+    "symbol": "GD",
+    "nameKo": "제너럴 다이내믹스"
+  },
+  {
+    "symbol": "GIS",
+    "nameKo": "제너럴 밀즈"
+  },
+  {
+    "symbol": "GM",
+    "nameKo": "제너럴 모터스"
+  },
+  {
+    "symbol": "GPC",
+    "nameKo": "제뉴인 파츠"
+  },
+  {
+    "symbol": "GILD",
+    "nameKo": "길리어드"
+  },
+  {
+    "symbol": "GPN",
+    "nameKo": "글로벌 페이먼츠"
+  },
+  {
+    "symbol": "GL",
+    "nameKo": "글로브 라이프"
+  },
+  {
+    "symbol": "GDDY",
+    "nameKo": "고대디"
+  },
+  {
+    "symbol": "GS",
+    "nameKo": "골드만삭스"
+  },
+  {
+    "symbol": "HAL",
+    "nameKo": "할리버튼"
+  },
+  {
+    "symbol": "HIG",
+    "nameKo": "하트포드 인슈어런스 그룹"
+  },
+  {
+    "symbol": "HAS",
+    "nameKo": "해즈브로"
+  },
+  {
+    "symbol": "HCA",
+    "nameKo": "HCA 헬스케어"
+  },
+  {
+    "symbol": "DOC",
+    "nameKo": "헬스피크 프로퍼티스"
+  },
+  {
+    "symbol": "HSIC",
+    "nameKo": "헨리 셰인"
+  },
+  {
+    "symbol": "HSY",
+    "nameKo": "허쉬"
+  },
+  {
+    "symbol": "HPE",
+    "nameKo": "휴렛팩커드엔터프라이즈"
+  },
+  {
+    "symbol": "HLT",
+    "nameKo": "힐튼 월드와이드 홀딩스"
+  },
+  {
+    "symbol": "HD",
+    "nameKo": "홈디포"
+  },
+  {
+    "symbol": "HONA",
+    "nameKo": "허니웰 에어로스페이스"
+  },
+  {
+    "symbol": "HON",
+    "nameKo": "허니웰"
+  },
+  {
+    "symbol": "HRL",
+    "nameKo": "호멜 푸즈"
+  },
+  {
+    "symbol": "HST",
+    "nameKo": "호스트 호텔스 & 리조트"
+  },
+  {
+    "symbol": "HWM",
+    "nameKo": "하우멧 에어로스페이스"
+  },
+  {
+    "symbol": "HUBB",
+    "nameKo": "허벨"
+  },
+  {
+    "symbol": "HUM",
+    "nameKo": "휴마나"
+  },
+  {
+    "symbol": "HBAN",
+    "nameKo": "헌팅턴 뱅크셰어스"
+  },
+  {
+    "symbol": "HII",
+    "nameKo": "헌팅턴 잉걸스 인더스트리즈"
+  },
+  {
+    "symbol": "IBM",
+    "nameKo": "IBM(인터내셔널 비지니스 머신)"
+  },
+  {
+    "symbol": "IEX",
+    "nameKo": "아이덱스"
+  },
+  {
+    "symbol": "IDXX",
+    "nameKo": "아이덱스 래보라토리스"
+  },
+  {
+    "symbol": "ITW",
+    "nameKo": "일리노이 툴 웍스"
+  },
+  {
+    "symbol": "INCY",
+    "nameKo": "인사이트"
+  },
+  {
+    "symbol": "IR",
+    "nameKo": "잉가솔랜드"
+  },
+  {
+    "symbol": "PODD",
+    "nameKo": "인슐릿"
+  },
+  {
+    "symbol": "INTC",
+    "nameKo": "인텔"
+  },
+  {
+    "symbol": "IBKR",
+    "nameKo": "인터랙티브 브로커스 그룹"
+  },
+  {
+    "symbol": "ICE",
+    "nameKo": "인터컨티넨털 익스체인지"
+  },
+  {
+    "symbol": "IFF",
+    "nameKo": "인터내셔널 플레이버스 & 프레그런스"
+  },
+  {
+    "symbol": "IP",
+    "nameKo": "인터내셔널 페이퍼"
+  },
+  {
+    "symbol": "INTU",
+    "nameKo": "인튜이트"
+  },
+  {
+    "symbol": "ISRG",
+    "nameKo": "인튜이티브서지컬"
+  },
+  {
+    "symbol": "IVZ",
+    "nameKo": "인베스코"
+  },
+  {
+    "symbol": "INVH",
+    "nameKo": "인비테이션 홈스"
+  },
+  {
+    "symbol": "IQV",
+    "nameKo": "아이큐비아 홀딩스"
+  },
+  {
+    "symbol": "IRM",
+    "nameKo": "아이언 마운틴"
+  },
+  {
+    "symbol": "JBHT",
+    "nameKo": "J.B 헌트 운송 서비스"
+  },
+  {
+    "symbol": "JBL",
+    "nameKo": "자빌"
+  },
+  {
+    "symbol": "JKHY",
+    "nameKo": "잭 헨리 & 어소시에이츠"
+  },
+  {
+    "symbol": "J",
+    "nameKo": "제이콥스 솔루션스"
+  },
+  {
+    "symbol": "JNJ",
+    "nameKo": "존슨앤드존슨"
+  },
+  {
+    "symbol": "JCI",
+    "nameKo": "존슨 컨트롤스 인터내셔널"
+  },
+  {
+    "symbol": "JPM",
+    "nameKo": "제이피모간체이스"
+  },
+  {
+    "symbol": "KVUE",
+    "nameKo": "켄뷰"
+  },
+  {
+    "symbol": "KDP",
+    "nameKo": "큐리그닥터페퍼"
+  },
+  {
+    "symbol": "KEY",
+    "nameKo": "키코프"
+  },
+  {
+    "symbol": "KEYS",
+    "nameKo": "키사이트 테크놀로지스"
+  },
+  {
+    "symbol": "KMB",
+    "nameKo": "킴벌리클라크"
+  },
+  {
+    "symbol": "KIM",
+    "nameKo": "킴코 리얼티"
+  },
+  {
+    "symbol": "KMI",
+    "nameKo": "킨더 모건"
+  },
+  {
+    "symbol": "KHC",
+    "nameKo": "크래프트하인즈"
+  },
+  {
+    "symbol": "KR",
+    "nameKo": "크로거"
+  },
+  {
+    "symbol": "LHX",
+    "nameKo": "L3 해리스 테크놀러지스"
+  },
+  {
+    "symbol": "LH",
+    "nameKo": "랩코프 홀딩스"
+  },
+  {
+    "symbol": "LRCX",
+    "nameKo": "램리서치"
+  },
+  {
+    "symbol": "LVS",
+    "nameKo": "라스베이거스 샌즈"
+  },
+  {
+    "symbol": "LDOS",
+    "nameKo": "레이도스 홀딩스"
+  },
+  {
+    "symbol": "LEN",
+    "nameKo": "레나 Class A"
+  },
+  {
+    "symbol": "LII",
+    "nameKo": "레녹스 인터내셔널"
+  },
+  {
+    "symbol": "LLY",
+    "nameKo": "일라이 릴리"
+  },
+  {
+    "symbol": "LIN",
+    "nameKo": "린데"
+  },
+  {
+    "symbol": "LYV",
+    "nameKo": "라이브 네이션 엔터테인먼트"
+  },
+  {
+    "symbol": "LMT",
+    "nameKo": "록히드 마틴"
+  },
+  {
+    "symbol": "L",
+    "nameKo": "로우스"
+  },
+  {
+    "symbol": "LOW",
+    "nameKo": "로우스 컴퍼니"
+  },
+  {
+    "symbol": "LULU",
+    "nameKo": "룰루레몬"
+  },
+  {
+    "symbol": "LITE",
+    "nameKo": "루멘텀 홀딩스"
+  },
+  {
+    "symbol": "LYB",
+    "nameKo": "라이온델바젤 인더스트리스"
+  },
+  {
+    "symbol": "MTB",
+    "nameKo": "M&T 뱅크"
+  },
+  {
+    "symbol": "MPC",
+    "nameKo": "매러선 페트롤리엄"
+  },
+  {
+    "symbol": "MAR",
+    "nameKo": "메리어트"
+  },
+  {
+    "symbol": "MRSH",
+    "nameKo": "마쉬 앤 맥레넌 컴퍼니스"
+  },
+  {
+    "symbol": "MLM",
+    "nameKo": "마틴 마리에타 머터리얼스"
+  },
+  {
+    "symbol": "MRVL",
+    "nameKo": "마벨"
+  },
+  {
+    "symbol": "MAS",
+    "nameKo": "매스코"
+  },
+  {
+    "symbol": "MA",
+    "nameKo": "마스터카드"
+  },
+  {
+    "symbol": "MKC",
+    "nameKo": "맥코믹 앤 컴퍼니 무의결권주"
+  },
+  {
+    "symbol": "MCD",
+    "nameKo": "맥도날드"
+  },
+  {
+    "symbol": "MCK",
+    "nameKo": "매케슨"
+  },
+  {
+    "symbol": "MDT",
+    "nameKo": "메드트로닉"
+  },
+  {
+    "symbol": "MRK",
+    "nameKo": "머크 앤 코"
+  },
+  {
+    "symbol": "META",
+    "nameKo": "메타"
+  },
+  {
+    "symbol": "MET",
+    "nameKo": "메트라이프"
+  },
+  {
+    "symbol": "MTD",
+    "nameKo": "메틀러 톨레도 인터내셔널"
+  },
+  {
+    "symbol": "MGM",
+    "nameKo": "MGM 리조트 인터내셔널"
+  },
+  {
+    "symbol": "MCHP",
+    "nameKo": "마이크로칩"
+  },
+  {
+    "symbol": "MU",
+    "nameKo": "마이크론"
+  },
+  {
+    "symbol": "MSFT",
+    "nameKo": "마이크로소프트"
+  },
+  {
+    "symbol": "MAA",
+    "nameKo": "미드아메리카 아파트 커뮤니티"
+  },
+  {
+    "symbol": "MRNA",
+    "nameKo": "모더나"
+  },
+  {
+    "symbol": "TAP",
+    "nameKo": "몰슨 쿠어스 베버리지 Class B"
+  },
+  {
+    "symbol": "MDLZ",
+    "nameKo": "몬델리즈"
+  },
+  {
+    "symbol": "MPWR",
+    "nameKo": "모놀리식 파워 시스템즈"
+  },
+  {
+    "symbol": "MNST",
+    "nameKo": "몬스터베버리지"
+  },
+  {
+    "symbol": "MCO",
+    "nameKo": "무디스"
+  },
+  {
+    "symbol": "MS",
+    "nameKo": "모간스탠리"
+  },
+  {
+    "symbol": "MOS",
+    "nameKo": "모자이크"
+  },
+  {
+    "symbol": "MSI",
+    "nameKo": "모토로라 솔루션스"
+  },
+  {
+    "symbol": "NDAQ",
+    "nameKo": "나스닥"
+  },
+  {
+    "symbol": "NTAP",
+    "nameKo": "넷앱"
+  },
+  {
+    "symbol": "NFLX",
+    "nameKo": "넷플릭스"
+  },
+  {
+    "symbol": "NEM",
+    "nameKo": "뉴몬트"
+  },
+  {
+    "symbol": "NWSA",
+    "nameKo": "뉴스코프 A"
+  },
+  {
+    "symbol": "NWS",
+    "nameKo": "뉴스코프 B"
+  },
+  {
+    "symbol": "NEE",
+    "nameKo": "넥스트에라 에너지"
+  },
+  {
+    "symbol": "NKE",
+    "nameKo": "나이키"
+  },
+  {
+    "symbol": "NI",
+    "nameKo": "나이소스"
+  },
+  {
+    "symbol": "NDSN",
+    "nameKo": "노드슨"
+  },
+  {
+    "symbol": "NSC",
+    "nameKo": "노퍽서던"
+  },
+  {
+    "symbol": "NTRS",
+    "nameKo": "노던 트러스트"
+  },
+  {
+    "symbol": "NOC",
+    "nameKo": "노스롭 그루만"
+  },
+  {
+    "symbol": "NCLH",
+    "nameKo": "노르웨이지안 크루즈 라인 홀딩스"
+  },
+  {
+    "symbol": "NRG",
+    "nameKo": "NRG 에너지"
+  },
+  {
+    "symbol": "NUE",
+    "nameKo": "뉴코"
+  },
+  {
+    "symbol": "NVDA",
+    "nameKo": "엔비디아"
+  },
+  {
+    "symbol": "NXPI",
+    "nameKo": "NXP반도체"
+  },
+  {
+    "symbol": "ORLY",
+    "nameKo": "오라일리오토"
+  },
+  {
+    "symbol": "OXY",
+    "nameKo": "옥시덴털 페트롤리움"
+  },
+  {
+    "symbol": "ODFL",
+    "nameKo": "올드도미니언"
+  },
+  {
+    "symbol": "OMC",
+    "nameKo": "옴니콤 그룹"
+  },
+  {
+    "symbol": "ON",
+    "nameKo": "온세미컨덕터"
+  },
+  {
+    "symbol": "OKE",
+    "nameKo": "원오케이"
+  },
+  {
+    "symbol": "ORCL",
+    "nameKo": "오라클"
+  },
+  {
+    "symbol": "OTIS",
+    "nameKo": "오티스 월드와이드"
+  },
+  {
+    "symbol": "PCAR",
+    "nameKo": "파카"
+  },
+  {
+    "symbol": "PKG",
+    "nameKo": "패키징 코퍼레이션 오브 아메리카"
+  },
+  {
+    "symbol": "PLTR",
+    "nameKo": "팔란티어"
+  },
+  {
+    "symbol": "PANW",
+    "nameKo": "팔로알토네트웍스"
+  },
+  {
+    "symbol": "PSKY",
+    "nameKo": "파라마운트 스카이댄스"
+  },
+  {
+    "symbol": "PH",
+    "nameKo": "파커-하니핀"
+  },
+  {
+    "symbol": "PAYX",
+    "nameKo": "페이첵스"
+  },
+  {
+    "symbol": "PYPL",
+    "nameKo": "페이팔"
+  },
+  {
+    "symbol": "PNR",
+    "nameKo": "펜테어"
+  },
+  {
+    "symbol": "PEP",
+    "nameKo": "펩시코"
+  },
+  {
+    "symbol": "PFE",
+    "nameKo": "화이자"
+  },
+  {
+    "symbol": "PCG",
+    "nameKo": "퍼시픽 가스 & 일렉트릭"
+  },
+  {
+    "symbol": "PM",
+    "nameKo": "필립 모리스 인터내셔널"
+  },
+  {
+    "symbol": "PSX",
+    "nameKo": "필립스 66"
+  },
+  {
+    "symbol": "PNW",
+    "nameKo": "피너클 웨스트 캐피털"
+  },
+  {
+    "symbol": "PNC",
+    "nameKo": "PNC 파이낸셜 서비스"
+  },
+  {
+    "symbol": "PPG",
+    "nameKo": "PPG 인더스트리스"
+  },
+  {
+    "symbol": "PFG",
+    "nameKo": "프린시펄 파이낸셜 그룹"
+  },
+  {
+    "symbol": "PG",
+    "nameKo": "P&G(프록터 & 갬블)"
+  },
+  {
+    "symbol": "PGR",
+    "nameKo": "프로그레시브"
+  },
+  {
+    "symbol": "PLD",
+    "nameKo": "프로로지스"
+  },
+  {
+    "symbol": "PRU",
+    "nameKo": "푸르덴셜 파이낸셜"
+  },
+  {
+    "symbol": "PEG",
+    "nameKo": "퍼블릭 서비스 엔터프라이즈"
+  },
+  {
+    "symbol": "PSA",
+    "nameKo": "퍼블릭 스토리지"
+  },
+  {
+    "symbol": "PHM",
+    "nameKo": "풀티 그룹"
+  },
+  {
+    "symbol": "PWR",
+    "nameKo": "콴타 서비스"
+  },
+  {
+    "symbol": "QCOM",
+    "nameKo": "퀄컴"
+  },
+  {
+    "symbol": "DGX",
+    "nameKo": "퀘스트 다이아그노스틱스"
+  },
+  {
+    "symbol": "Q",
+    "nameKo": "큐니티 일렉트로닉스"
+  },
+  {
+    "symbol": "RL",
+    "nameKo": "랄프 로렌"
+  },
+  {
+    "symbol": "RJF",
+    "nameKo": "레이먼드 제임스 파이낸셜"
+  },
+  {
+    "symbol": "O",
+    "nameKo": "리얼티 인컴"
+  },
+  {
+    "symbol": "REG",
+    "nameKo": "리젠시센터"
+  },
+  {
+    "symbol": "REGN",
+    "nameKo": "리제네론"
+  },
+  {
+    "symbol": "RF",
+    "nameKo": "리전스 파이낸셜"
+  },
+  {
+    "symbol": "RSG",
+    "nameKo": "리퍼블릭 서비스"
+  },
+  {
+    "symbol": "RMD",
+    "nameKo": "레스메드"
+  },
+  {
+    "symbol": "RVTY",
+    "nameKo": "레비티"
+  },
+  {
+    "symbol": "HOOD",
+    "nameKo": "로빈후드"
+  },
+  {
+    "symbol": "ROK",
+    "nameKo": "로크웰 오토메이션"
+  },
+  {
+    "symbol": "ROL",
+    "nameKo": "롤린스"
+  },
+  {
+    "symbol": "ROP",
+    "nameKo": "로퍼"
+  },
+  {
+    "symbol": "ROST",
+    "nameKo": "로스스토어"
+  },
+  {
+    "symbol": "RCL",
+    "nameKo": "로얄 캐리비안 크루즈"
+  },
+  {
+    "symbol": "SPGI",
+    "nameKo": "S&P 글로벌"
+  },
+  {
+    "symbol": "CRM",
+    "nameKo": "세일즈포스"
+  },
+  {
+    "symbol": "SNDK",
+    "nameKo": "샌디스크"
+  },
+  {
+    "symbol": "SBAC",
+    "nameKo": "SBA 커뮤니케이션스"
+  },
+  {
+    "symbol": "STX",
+    "nameKo": "씨게이트"
+  },
+  {
+    "symbol": "SRE",
+    "nameKo": "셈프라 에너지"
+  },
+  {
+    "symbol": "NOW",
+    "nameKo": "서비스나우"
+  },
+  {
+    "symbol": "SHW",
+    "nameKo": "셔윈-윌리엄즈"
+  },
+  {
+    "symbol": "SPG",
+    "nameKo": "사이먼 프로퍼티 그룹"
+  },
+  {
+    "symbol": "SWKS",
+    "nameKo": "스카이웍스 솔루션스"
+  },
+  {
+    "symbol": "SJM",
+    "nameKo": "J.M. 스머커"
+  },
+  {
+    "symbol": "SW",
+    "nameKo": "스머핏 웨스트락"
+  },
+  {
+    "symbol": "SNA",
+    "nameKo": "스냅-온"
+  },
+  {
+    "symbol": "SOLV",
+    "nameKo": "솔벤텀"
+  },
+  {
+    "symbol": "SO",
+    "nameKo": "서던"
+  },
+  {
+    "symbol": "LUV",
+    "nameKo": "사우스웨스트 에어라인스"
+  },
+  {
+    "symbol": "SWK",
+    "nameKo": "스탠리 블랙 & 데커"
+  },
+  {
+    "symbol": "SBUX",
+    "nameKo": "스타벅스"
+  },
+  {
+    "symbol": "STT",
+    "nameKo": "스테이트 스트리트"
+  },
+  {
+    "symbol": "STLD",
+    "nameKo": "스틸 다이내믹스"
+  },
+  {
+    "symbol": "STE",
+    "nameKo": "스테리스"
+  },
+  {
+    "symbol": "SYK",
+    "nameKo": "스트라이커"
+  },
+  {
+    "symbol": "SMCI",
+    "nameKo": "슈퍼마이크로"
+  },
+  {
+    "symbol": "SYF",
+    "nameKo": "싱크로니 파이낸셜"
+  },
+  {
+    "symbol": "SNPS",
+    "nameKo": "시높시스"
+  },
+  {
+    "symbol": "SYY",
+    "nameKo": "시스코"
+  },
+  {
+    "symbol": "TMUS",
+    "nameKo": "T모바일"
+  },
+  {
+    "symbol": "TROW",
+    "nameKo": "티 로웨 프라이스 그룹"
+  },
+  {
+    "symbol": "TTWO",
+    "nameKo": "테이크-투 인터랙티브 소프트웨어"
+  },
+  {
+    "symbol": "TPR",
+    "nameKo": "태피스트리"
+  },
+  {
+    "symbol": "TRGP",
+    "nameKo": "타르가 리소스"
+  },
+  {
+    "symbol": "TGT",
+    "nameKo": "타겟"
+  },
+  {
+    "symbol": "TEL",
+    "nameKo": "TE 커넥티비티"
+  },
+  {
+    "symbol": "TDY",
+    "nameKo": "텔레다인 테크놀로지스"
+  },
+  {
+    "symbol": "TER",
+    "nameKo": "테라다인"
+  },
+  {
+    "symbol": "TSLA",
+    "nameKo": "테슬라"
+  },
+  {
+    "symbol": "TXN",
+    "nameKo": "텍사스인스트루먼트"
+  },
+  {
+    "symbol": "TPL",
+    "nameKo": "텍사스 퍼시픽 랜드"
+  },
+  {
+    "symbol": "TXT",
+    "nameKo": "텍스트론"
+  },
+  {
+    "symbol": "TMO",
+    "nameKo": "써모 피셔 사이언티픽"
+  },
+  {
+    "symbol": "TJX",
+    "nameKo": "TJX 컴퍼니스"
+  },
+  {
+    "symbol": "TKO",
+    "nameKo": "TKO 그룹 홀딩스"
+  },
+  {
+    "symbol": "TTD",
+    "nameKo": "트레이드데스크"
+  },
+  {
+    "symbol": "TSCO",
+    "nameKo": "트랙터 서플라이"
+  },
+  {
+    "symbol": "TT",
+    "nameKo": "트레인 테크놀로지"
+  },
+  {
+    "symbol": "TDG",
+    "nameKo": "트랜스다임 그룹"
+  },
+  {
+    "symbol": "TRV",
+    "nameKo": "트래블러스 컴퍼니스"
+  },
+  {
+    "symbol": "TRMB",
+    "nameKo": "트림블"
+  },
+  {
+    "symbol": "TFC",
+    "nameKo": "트루이스트 파이낸셜"
+  },
+  {
+    "symbol": "TYL",
+    "nameKo": "타일러 테크놀로지스"
+  },
+  {
+    "symbol": "TSN",
+    "nameKo": "타이슨 푸드"
+  },
+  {
+    "symbol": "USB",
+    "nameKo": "US 뱅코프"
+  },
+  {
+    "symbol": "UBER",
+    "nameKo": "우버"
+  },
+  {
+    "symbol": "ULTA",
+    "nameKo": "울타 뷰티"
+  },
+  {
+    "symbol": "UNP",
+    "nameKo": "유니온 퍼시픽"
+  },
+  {
+    "symbol": "UAL",
+    "nameKo": "유나이티드 에어라인스 홀딩스"
+  },
+  {
+    "symbol": "UPS",
+    "nameKo": "UPS(유나이티드 파셀 서비스)"
+  },
+  {
+    "symbol": "URI",
+    "nameKo": "유나이티드 렌탈스"
+  },
+  {
+    "symbol": "UNH",
+    "nameKo": "유나이티드헬스 그룹"
+  },
+  {
+    "symbol": "UHS",
+    "nameKo": "유니버셜 헬스 서비스"
+  },
+  {
+    "symbol": "VLO",
+    "nameKo": "발레로 에너지"
+  },
+  {
+    "symbol": "VEEV",
+    "nameKo": "비바 시스템즈"
+  },
+  {
+    "symbol": "VTR",
+    "nameKo": "벤타스"
+  },
+  {
+    "symbol": "VLTO",
+    "nameKo": "베랄토"
+  },
+  {
+    "symbol": "VRSN",
+    "nameKo": "버리사인"
+  },
+  {
+    "symbol": "VRSK",
+    "nameKo": "베리스크"
+  },
+  {
+    "symbol": "VZ",
+    "nameKo": "버라이존"
+  },
+  {
+    "symbol": "VRTX",
+    "nameKo": "버텍스"
+  },
+  {
+    "symbol": "VRT",
+    "nameKo": "버티브 홀딩스"
+  },
+  {
+    "symbol": "VTRS",
+    "nameKo": "비아트리스"
+  },
+  {
+    "symbol": "VICI",
+    "nameKo": "비치 프로퍼티스"
+  },
+  {
+    "symbol": "V",
+    "nameKo": "비자"
+  },
+  {
+    "symbol": "VST",
+    "nameKo": "비스트라 에너지"
+  },
+  {
+    "symbol": "VMC",
+    "nameKo": "벌칸 머티리얼스"
+  },
+  {
+    "symbol": "WRB",
+    "nameKo": "W. R. 버클리"
+  },
+  {
+    "symbol": "GWW",
+    "nameKo": "W W 그레인저"
+  },
+  {
+    "symbol": "WAB",
+    "nameKo": "웨스팅하우스 에어 브레이크 테크놀로지"
+  },
+  {
+    "symbol": "WMT",
+    "nameKo": "월마트"
+  },
+  {
+    "symbol": "DIS",
+    "nameKo": "월트 디즈니"
+  },
+  {
+    "symbol": "WBD",
+    "nameKo": "워너브라더스디스커버리"
+  },
+  {
+    "symbol": "WM",
+    "nameKo": "웨이스트 매니지먼트"
+  },
+  {
+    "symbol": "WAT",
+    "nameKo": "워터스"
+  },
+  {
+    "symbol": "WEC",
+    "nameKo": "WEC 에너지 그룹"
+  },
+  {
+    "symbol": "WFC",
+    "nameKo": "웰스파고"
+  },
+  {
+    "symbol": "WELL",
+    "nameKo": "웰타워"
+  },
+  {
+    "symbol": "WST",
+    "nameKo": "웨스트 파마슈티컬 서비시즈"
+  },
+  {
+    "symbol": "WDC",
+    "nameKo": "웨스턴디지털"
+  },
+  {
+    "symbol": "WY",
+    "nameKo": "와이어하우저"
+  },
+  {
+    "symbol": "WSM",
+    "nameKo": "윌리엄 소노마"
+  },
+  {
+    "symbol": "WMB",
+    "nameKo": "윌리엄스 컴퍼니즈"
+  },
+  {
+    "symbol": "WTW",
+    "nameKo": "윌리스 타워스 왓슨"
+  },
+  {
+    "symbol": "WDAY",
+    "nameKo": "워크데이"
+  },
+  {
+    "symbol": "WYNN",
+    "nameKo": "윈 리조트"
+  },
+  {
+    "symbol": "XEL",
+    "nameKo": "엑셀에너지"
+  },
+  {
+    "symbol": "XYL",
+    "nameKo": "자일럼"
+  },
+  {
+    "symbol": "YUM",
+    "nameKo": "염 브랜즈"
+  },
+  {
+    "symbol": "ZBRA",
+    "nameKo": "지브라 테크놀로지스"
+  },
+  {
+    "symbol": "ZBH",
+    "nameKo": "짐머 바이오멧 홀딩스"
+  },
+  {
+    "symbol": "ZTS",
+    "nameKo": "조에티스"
+  }
+]

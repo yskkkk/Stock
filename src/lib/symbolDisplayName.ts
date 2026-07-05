@@ -3,6 +3,7 @@ import { displayStockSymbol } from "./format";
 import krList from "../../server/data/universe-kr.json";
 import usList from "../../server/data/universe-us.json";
 import usKoList from "../../server/data/names-ko-us.json";
+import sp500KoList from "../../server/data/names-ko-sp500.json";
 
 type NameRow = { symbol: string; name?: string; nameKo?: string };
 
@@ -51,7 +52,7 @@ function lookupMappedName(symbol: string): string | null {
   return null;
 }
 
-for (const row of [...krList, ...usList, ...usKoList] as NameRow[]) {
+for (const row of [...krList, ...usList, ...usKoList, ...sp500KoList] as NameRow[]) {
   registerSymbolName(row.symbol, row.nameKo ?? row.name ?? "");
 }
 for (const asset of CRYPTO_ASSETS) {

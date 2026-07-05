@@ -54,6 +54,7 @@ function loadJson(file) {
 loadJson("universe-kr.json");
 loadJson("universe-us.json");
 loadJson("names-ko-us.json");
+loadJson("names-ko-sp500.json");
 
 /** 한글 포함 여부 */
 export function hasHangul(text) {

@@ -1,7 +1,14 @@
 /**
  * S&P 500 GICS 섹터·종목 (datasets/s-and-p-500-companies CSV).
  */
-import { getKoreanStockName } from "./names-ko.js";
+import { getKoreanStockName, hasHangul } from "./names-ko.js";
+import { resolveUsKoreanStockNamesBatch } from "./us-naver-korean-name.js";
+
+const PINION_KO_MAP_URL =
+  "https://raw.githubusercontent.com/pinion05/kr-us-stock-name-ticker-maps/main/data/us/us-stock-ticker-to-ko-en-coverage100.json";
+
+/** @type {Map<string, string> | null} */
+let pinionKoByTicker = null;
 
 const SP500_CSV_URL =
   "https://raw.githubusercontent.com/datasets/s-and-p-500-companies/master/data/constituents.csv";
@@ -111,6 +118,56 @@ function parseSp500CsvWithSectors(csvText) {
   return companies;
 }
 
+/** @returns {Promise<Map<string, string>>} */
+async function loadPinionKoByTicker() {
+  if (pinionKoByTicker) return pinionKoByTicker;
+  /** @type {Map<string, string>} */
+  const map = new Map();
+  try {
+    const res = await fetch(PINION_KO_MAP_URL, {
+      headers: { "User-Agent": FETCH_UA },
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      for (const [ticker, row] of Object.entries(data ?? {})) {
+        const ko = String(row?.name_ko ?? "").trim();
+        if (ko && hasHangul(ko)) map.set(String(ticker).toUpperCase(), ko);
+      }
+    }
+  } catch {
+    /* offline — names-ko-sp500.json 정적 맵만 사용 */
+  }
+  pinionKoByTicker = map;
+  return map;
+}
+
+/**
+ * @param {Array<{ symbol: string; nameKo: string | null }>} companies
+ */
+async function enrichSp500KoreanNames(companies) {
+  const pinion = await loadPinionKoByTicker();
+  const missing = companies
+    .filter((c) => !c.nameKo || !hasHangul(c.nameKo))
+    .map((c) => c.symbol);
+  const naverMap = missing.length
+    ? await resolveUsKoreanStockNamesBatch(missing, 10)
+    : new Map();
+
+  for (const c of companies) {
+    if (c.nameKo && hasHangul(c.nameKo)) continue;
+    const sym = c.symbol;
+    const dotSym = sym.replace(/-/g, ".");
+    const ko =
+      getKoreanStockName(sym) ??
+      naverMap.get(sym) ??
+      pinion.get(sym) ??
+      pinion.get(dotSym) ??
+      null;
+    if (ko && hasHangul(ko)) c.nameKo = ko;
+  }
+}
+
 /**
  * @param {Array<{ sector: string; sectorKo: string }>} companies
  */
@@ -153,6 +210,7 @@ export async function fetchSp500SectorsPayload() {
   if (companies.length < 400) {
     throw new Error(`S&P 500 구성종목 수 부족 (${companies.length})`);
   }
+  await enrichSp500KoreanNames(companies);
 
   const summary = buildSectorSummary(companies);
   const payload = {
