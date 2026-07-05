@@ -107,6 +107,7 @@ html {
 .app__shell > .workspace.box-range-tab,
 .app__shell > .workspace.financials-tab,
 .app__shell > .workspace.stock-vault-tab,
+.app__shell > .workspace.sp500-sector-tab,
 .app__shell > .trade-history-workspace,
 .app__shell > .live-trade-tab-root,
 .app__shell > .crypto-workspace {
@@ -118,6 +119,7 @@ html {
 .app__shell > .workspace.workspace--rec-tracker > .picks-panel.card,
 .app__shell > .workspace.financials-tab > .card:not(.financials-tab__search),
 .app__shell > .workspace.stock-vault-tab > .stock-vault-tab__panel.card,
+.app__shell > .workspace.sp500-sector-tab > .sp500-wheel-mini.card,
 .app__shell > .workspace.ops-workspace > .card,
 .app__shell .live-trade-program-trades-main.card,
 .app__shell .trade-history-main-workspace.card,
@@ -155,6 +157,7 @@ html {
 .macro-bar.card,
 .financials-tab__panel.card,
 .stock-vault-tab__panel.card,
+.sp500-sector-tab .sp500-wheel-mini.card,
 .news-modal.card,
 .access-admin-modal.card,
 .feedback-modal.card {

@@ -14,12 +14,15 @@
 .sp500-sector-tab {
   width: 100%;
   max-width: 100%;
+  align-self: stretch;
 }
 
 .sp500-sector-tab .sp500-wheel-mini {
+  display: block;
   width: 100%;
-  max-width: 100%;
+  max-width: none;
   box-sizing: border-box;
+  align-self: stretch;
 }
 
 .sp500-sector-tab .sp500-wheel-mini__tabs,
@@ -27,27 +30,54 @@
 .sp500-sector-tab .sp500-wheel-mini__chart-panel,
 .sp500-sector-tab .sp500-wheel-mini__list-panel {
   width: 100%;
+  max-width: none;
   box-sizing: border-box;
 }
 
 .sp500-sector-tab .sp500-wheel-mini__chart-panel {
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-  gap: 1rem 1.25rem;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 1.1rem 1.35rem;
 }
 
 .sp500-sector-tab .sp500-wheel-mini__svg {
+  flex: 1 1 44%;
   width: 100%;
-  max-width: 100%;
+  min-width: 0;
+  max-width: none;
+  height: auto;
 }
 
 .sp500-sector-tab .sp500-wheel-mini__legend {
+  flex: 1 1 56%;
+  min-width: 0;
   max-height: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.34rem 0.85rem;
+  align-content: start;
 }
 
-@media (max-width: 720px) {
+.sp500-sector-tab .sp500-wheel-mini__list-panel .sp500-wheel-mini__table {
+  width: 100%;
+}
+
+@media (max-width: 900px) {
   .sp500-sector-tab .sp500-wheel-mini__chart-panel {
+    flex-direction: column;
+  }
+
+  .sp500-sector-tab .sp500-wheel-mini__svg {
+    flex: none;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .sp500-sector-tab .sp500-wheel-mini__legend {
+    flex: none;
+    width: 100%;
     grid-template-columns: 1fr;
-    justify-items: stretch;
   }
 }
 

@@ -12903,12 +12903,26 @@ html[data-theme="light"] .fx-calc-rail__input-wrap {
   flex: 0 0 auto;
 }
 
+.workspace.sp500-sector-tab {
+  grid-template-columns: 1fr;
+  max-width: 100%;
+  width: 100%;
+  align-self: stretch;
+  min-height: auto;
+  flex: 0 0 auto;
+}
+
 .app.app--box-range .app__shell > .workspace.box-range-tab {
   flex: 0 0 auto;
   min-height: auto;
 }
 
 .app.app--stock-vault .app__shell > .workspace.stock-vault-tab {
+  flex: 0 0 auto;
+  min-height: auto;
+}
+
+.app.app--sp500-sector .app__shell > .workspace.sp500-sector-tab {
   flex: 0 0 auto;
   min-height: auto;
 }
