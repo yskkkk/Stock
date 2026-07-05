@@ -223,14 +223,21 @@
 }
 
 .sp500-wheel-micro__center--focus {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
 }
 
+.sp500-wheel-micro__center-value {
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--text);
+  pointer-events: none;
+}
+
 .sp500-wheel-micro__center-sub {
-  font-size: 10px;
-  font-weight: 600;
-  fill: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+  fill: var(--text);
   pointer-events: none;
 }
 

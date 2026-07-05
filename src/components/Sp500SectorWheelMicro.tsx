@@ -117,15 +117,23 @@ function Sp500SectorWheelMicroInner() {
               <text
                 className="sp500-wheel-micro__center sp500-wheel-micro__center--focus"
                 x={cx}
-                y={cy - 2}
+                y={cy - 6}
                 textAnchor="middle"
               >
                 {focusRow.sectorKo}
               </text>
               <text
+                className="sp500-wheel-micro__center-value"
+                x={cx}
+                y={cy + 10}
+                textAnchor="middle"
+              >
+                {focusRow.count}
+              </text>
+              <text
                 className="sp500-wheel-micro__center-sub"
                 x={cx}
-                y={cy + 12}
+                y={cy + 22}
                 textAnchor="middle"
               >
                 {fmtSectorPct(focusRow.pct)}

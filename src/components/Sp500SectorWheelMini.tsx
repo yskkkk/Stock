@@ -288,18 +288,10 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
               y={cy + (focusRow ? 22 : 16)}
               textAnchor="middle"
             >
-              {focusRow ? focusRow.count : data.total}
+              {focusRow
+                ? `${focusRow.count} · ${fmtSectorPct(focusRow.pct)}`
+                : data.total}
             </text>
-            {focusRow ? (
-              <text
-                className="sp500-wheel-mini__center-sub"
-                x={cx}
-                y={cy + 36}
-                textAnchor="middle"
-              >
-                {fmtSectorPct(focusRow.pct)}
-              </text>
-            ) : null}
           </svg>
 
           <ul className="sp500-wheel-mini__legend">
