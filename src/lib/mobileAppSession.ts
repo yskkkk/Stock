@@ -14,6 +14,7 @@ const APP_TABS: readonly AppTab[] = [
   "financials",
   "stockVault",
   "investorFlow",
+  "sp500Sector",
   "ops",
 ];
 

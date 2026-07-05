@@ -6,12 +6,9 @@ import {
   useMemo,
   useState,
   type ReactNode,
-  type RefObject,
 } from "react";
 import { fetchSp500Sectors } from "../api";
 import type { Sp500SectorsPayload } from "../lib/sp500SectorChart";
-
-const PANEL_OPEN_KEY = "ystock-sp500-sector-open-v1";
 
 export type Sp500SectorPanelTab = "chart" | "list";
 
@@ -19,8 +16,6 @@ type Sp500SectorContextValue = {
   data: Sp500SectorsPayload | null;
   loading: boolean;
   error: string | null;
-  panelOpen: boolean;
-  setPanelOpen: (open: boolean) => void;
   selectedSector: string | null;
   setSelectedSector: (sector: string | null) => void;
   panelTab: Sp500SectorPanelTab;
@@ -31,25 +26,16 @@ type Sp500SectorContextValue = {
 
 const Sp500SectorContext = createContext<Sp500SectorContextValue | null>(null);
 
-function readPanelOpen(): boolean {
-  try {
-    return sessionStorage.getItem(PANEL_OPEN_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
 export function Sp500SectorProvider({
   children,
-  panelRef,
+  onNavigateToTab,
 }: {
   children: ReactNode;
-  panelRef: RefObject<HTMLElement | null>;
+  onNavigateToTab: () => void;
 }) {
   const [data, setData] = useState<Sp500SectorsPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [panelOpen, setPanelOpenState] = useState(readPanelOpen);
   const [selectedSector, setSelectedSector] = useState<string | null>(null);
   const [panelTab, setPanelTab] = useState<Sp500SectorPanelTab>("chart");
 
@@ -72,38 +58,21 @@ export function Sp500SectorProvider({
     };
   }, []);
 
-  const setPanelOpen = useCallback((open: boolean) => {
-    setPanelOpenState(open);
-    try {
-      sessionStorage.setItem(PANEL_OPEN_KEY, open ? "1" : "0");
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  const scrollToPanel = useCallback(() => {
-    requestAnimationFrame(() => {
-      panelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    });
-  }, [panelRef]);
-
   const openPanel = useCallback(
     (tab: Sp500SectorPanelTab = "chart") => {
       setPanelTab(tab);
-      setPanelOpen(true);
-      scrollToPanel();
+      onNavigateToTab();
     },
-    [scrollToPanel, setPanelOpen],
+    [onNavigateToTab],
   );
 
   const openSectorDetail = useCallback(
     (sector: string, tab: Sp500SectorPanelTab = "list") => {
       setSelectedSector(sector);
       setPanelTab(tab);
-      setPanelOpen(true);
-      scrollToPanel();
+      onNavigateToTab();
     },
-    [scrollToPanel, setPanelOpen],
+    [onNavigateToTab],
   );
 
   const value = useMemo(
@@ -111,8 +80,6 @@ export function Sp500SectorProvider({
       data,
       loading,
       error,
-      panelOpen,
-      setPanelOpen,
       selectedSector,
       setSelectedSector,
       panelTab,
@@ -124,8 +91,6 @@ export function Sp500SectorProvider({
       data,
       loading,
       error,
-      panelOpen,
-      setPanelOpen,
       selectedSector,
       panelTab,
       openSectorDetail,

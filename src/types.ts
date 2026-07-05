@@ -13,6 +13,7 @@ export type AppTab =
   | "financials"
   | "stockVault"
   | "investorFlow"
+  | "sp500Sector"
   | "ops";
 
 /** 실매매·시뮬 포트폴리오 시장 */

@@ -11,6 +11,16 @@
   margin: 0;
 }
 
+.sp500-sector-tab {
+  width: 100%;
+  max-width: 100%;
+}
+
+.sp500-sector-tab .sp500-wheel-mini {
+  width: 100%;
+  max-width: 100%;
+}
+
 .app-sp500-sector-panel {
   margin: 0.45rem 0 0.65rem;
   padding: 0.55rem 0.75rem 0.75rem;

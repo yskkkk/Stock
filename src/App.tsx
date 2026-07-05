@@ -18,7 +18,7 @@ import {
 import BullishReasonModal from "./components/BullishReasonModal";
 import AccessAdminModal from "./components/AccessAdminModal";
 import AppSiteFooter from "./components/AppSiteFooter";
-import AppSp500SectorPanel from "./components/AppSp500SectorPanel";
+import Sp500SectorTab from "./components/Sp500SectorTab";
 import Sp500SectorWheelMicro from "./components/Sp500SectorWheelMicro";
 import { Sp500SectorProvider } from "./contexts/Sp500SectorContext";
 import ScrollToTopButton from "./components/ScrollToTopButton";
@@ -221,7 +221,6 @@ export default function App() {
     mainTabClassName,
   } = useMainTabWithPreview("stockLookup");
   const prevAppTabRef = useRef<AppTab>("stockLookup");
-  const sp500PanelRef = useRef<HTMLElement>(null);
   /** 실거래 보유 → 종목검색: 탭 진입 시 lookupSelected 초기화 effect 건너뜀 */
   const skipLookupResetRef = useRef(false);
   /** 실거래에서 넘어온 심볼 — 종목검색 탭에서 자동 검색 */
@@ -743,7 +742,8 @@ export default function App() {
       appTab === "boxRange" ||
       appTab === "financials" ||
       appTab === "stockVault" ||
-      appTab === "investorFlow"
+      appTab === "investorFlow" ||
+      appTab === "sp500Sector"
     ) {
       return null;
     }
@@ -807,7 +807,7 @@ export default function App() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!workspacePick) return;
-    if (appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault" || appTab === "investorFlow") return;
+    if (appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault" || appTab === "investorFlow" || appTab === "sp500Sector") return;
     if (window.innerWidth > 900) return;
     const el = stockChartSectionRef.current;
     if (!el) return;
@@ -1155,7 +1155,7 @@ export default function App() {
 
   useEffect(() => {
     const pick = workspacePickRef.current;
-    if (!pick || appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault" || appTab === "investorFlow") return;
+    if (!pick || appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault" || appTab === "investorFlow" || appTab === "sp500Sector") return;
     loadChart(pick, timeframe);
     const refreshMs = timeframe === "1m" ? 1_000 : 8_000;
     const id = window.setInterval(() => {
@@ -1394,6 +1394,8 @@ export default function App() {
                   ? "app app--stock-vault"
                 : appTab === "investorFlow"
                   ? "app app--investor-flow"
+                : appTab === "sp500Sector"
+                  ? "app app--sp500-sector"
                 : appTab === "liveTrading"
                 ? "app app--live-trade"
                 : appTab === "ops"
@@ -1412,7 +1414,7 @@ export default function App() {
           .join("")
           .trim()}
       >
-      <Sp500SectorProvider panelRef={sp500PanelRef}>
+      <Sp500SectorProvider onNavigateToTab={() => setAppTab("sp500Sector")}>
       <div className="app__sp500-micro-anchor">
         <Sp500SectorWheelMicro />
       </div>
@@ -1661,6 +1663,13 @@ export default function App() {
               </button>
               <button
                 type="button"
+                className={mainTabClassName("sp500Sector")}
+                onClick={() => setAppTab("sp500Sector")}
+              >
+                {ko.app.tabSp500Sector}
+              </button>
+              <button
+                type="button"
                 className={mainTabClassName("stockVault")}
                 onClick={() => {
                   pinStockVaultSessionCache();
@@ -1702,8 +1711,6 @@ export default function App() {
         </div>
       </header>
       </div>
-
-      <AppSp500SectorPanel ref={sp500PanelRef} />
 
       {picksError && !/npm\s+run\s+dev/i.test(picksError) ? (
         <div className="alert alert--error" role="alert">
@@ -1748,6 +1755,8 @@ export default function App() {
         <StockVaultTabGate onVaultChange={syncVaultFromResponse} />
       ) : appTab === "investorFlow" ? (
         <InvestorFlowTab />
+      ) : appTab === "sp500Sector" ? (
+        <Sp500SectorTab />
       ) : appTab === "liveTrading" ? (
         <div className="live-trade-tab-root">
           <LiveTradingTab
