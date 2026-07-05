@@ -50,8 +50,20 @@ Set-NicAdv 'ReduceSpeedOnPowerDown' 0
 Set-NicAdv '*ModernStandbyWoLMagicPacket' 0
 Set-NicAdv 'EEELinkAdvertisement' 0
 Set-NicAdv 'WakeOnLink' 0
+Set-NicAdv 'AutoPowerSaveModeEnabled' 0
+Set-NicAdv 'SipsEnabled' 0
 
-# Fast startup off
+# ACPI S5 wake registry hints (Intel)
+$cls = 'HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}'
+Get-ChildItem $cls -ErrorAction SilentlyContinue | ForEach-Object {
+  $p = Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue
+  if ($p -and $p.DriverDesc -match 'I219') {
+    New-ItemProperty -Path $_.PSPath -Name '*WakeOnMagicPacket' -Value '1' -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $_.PSPath -Name 'EnablePME' -Value '1' -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $_.PSPath -Name 'PnPCapabilities' -Value 0x118 -PropertyType DWord -Force | Out-Null
+    Write-Host "[WOL] Registry: $($p.DriverDesc)"
+  }
+}
 $fp = 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power'
 Set-ItemProperty -Path $fp -Name HiberbootEnabled -Value 0 -Type DWord -Force
 Write-Host '[WOL] Fast startup (HiberbootEnabled) -> 0'
