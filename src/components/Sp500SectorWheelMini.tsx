@@ -5,10 +5,12 @@ import {
   buildDonutSegments,
   donutArcPath,
   fmtSectorPct,
+  fmtSp500DateAdded,
+  sp500DateSortMs,
   type Sp500SectorsPayload,
 } from "../lib/sp500SectorChart";
 
-type SortKey = "symbol" | "name" | "sub";
+type SortKey = "symbol" | "name" | "sub" | "date-desc" | "date-asc";
 
 function sortCompanies(
   list: Sp500SectorsPayload["companies"],
@@ -16,6 +18,10 @@ function sortCompanies(
 ) {
   const copy = [...list];
   copy.sort((a, b) => {
+    if (sortKey === "date-desc" || sortKey === "date-asc") {
+      const cmp = sp500DateSortMs(a.dateAdded) - sp500DateSortMs(b.dateAdded);
+      return sortKey === "date-desc" ? -cmp : cmp;
+    }
     const va =
       sortKey === "name"
         ? a.name
@@ -268,6 +274,8 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
               <option value="symbol">{ko.app.sp500SectorSortSymbol}</option>
               <option value="name">{ko.app.sp500SectorSortName}</option>
               <option value="sub">{ko.app.sp500SectorSortSub}</option>
+              <option value="date-desc">{ko.app.sp500SectorSortDateDesc}</option>
+              <option value="date-asc">{ko.app.sp500SectorSortDateAsc}</option>
             </select>
             {selected ? (
               <button
@@ -299,6 +307,7 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
                   <th>{ko.app.sp500SectorColName}</th>
                   {!selected ? <th>{ko.app.sp500SectorColSector}</th> : null}
                   <th>{ko.app.sp500SectorColSub}</th>
+                  <th>{ko.app.sp500SectorColDateAdded}</th>
                 </tr>
               </thead>
               <tbody>
@@ -315,6 +324,7 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
                     <td>{c.name}</td>
                     {!selected ? <td>{c.sectorKo}</td> : null}
                     <td className="sp500-wheel-mini__sub">{c.subIndustry}</td>
+                    <td className="sp500-wheel-mini__date">{fmtSp500DateAdded(c.dateAdded)}</td>
                   </tr>
                 ))}
               </tbody>

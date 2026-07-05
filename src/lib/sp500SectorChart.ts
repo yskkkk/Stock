@@ -47,6 +47,25 @@ export function fmtSectorPct(n: number): string {
   return `${n.toFixed(1)}%`;
 }
 
+export function fmtSp500DateAdded(raw: string): string {
+  const s = String(raw ?? "").trim();
+  if (!s) return "—";
+  const t = new Date(s).getTime();
+  if (Number.isNaN(t)) return s;
+  const d = new Date(t);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+export function sp500DateSortMs(raw: string): number {
+  const s = String(raw ?? "").trim();
+  if (!s) return 0;
+  const t = new Date(s).getTime();
+  return Number.isNaN(t) ? 0 : t;
+}
+
 export function polarPoint(cx: number, cy: number, r: number, angleDeg: number) {
   const rad = ((angleDeg - 90) * Math.PI) / 180;
   return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };

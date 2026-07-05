@@ -530,6 +530,13 @@
   font-size: 0.72rem;
 }
 
+.sp500-wheel-mini__date {
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .sp500-wheel-mini__more {
   margin: 0;
   font-size: 0.74rem;
