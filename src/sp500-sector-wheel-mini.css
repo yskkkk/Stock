@@ -700,6 +700,14 @@
   white-space: nowrap;
 }
 
+.sp500-wheel-mini__mktcap {
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+}
+
 .sp500-wheel-mini__more {
   margin: 0;
   font-size: 0.74rem;

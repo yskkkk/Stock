@@ -3,6 +3,7 @@
  */
 import { getKoreanStockName, hasHangul } from "./names-ko.js";
 import { resolveUsKoreanStockNamesBatch } from "./us-naver-korean-name.js";
+import { yahooGet } from "./yahoo.js";
 
 const PINION_KO_MAP_URL =
   "https://raw.githubusercontent.com/pinion05/kr-us-stock-name-ticker-maps/main/data/us/us-stock-ticker-to-ko-en-coverage100.json";
@@ -17,6 +18,7 @@ const FETCH_UA =
   "Mozilla/5.0 (compatible; StockDashboard/1.0; +https://github.com/yskkkk/Stock)";
 
 const CACHE_MS = 6 * 60 * 60 * 1000;
+const MKT_CAP_BATCH = 50;
 
 /** @type {{ data: object; at: number } | null} */
 let cached = null;
@@ -113,6 +115,7 @@ function parseSp500CsvWithSectors(csvText) {
       subIndustry: cols[subIdx >= 0 ? subIdx : 3] ?? "",
       headquarters: cols[hqIdx >= 0 ? hqIdx : 4] ?? "",
       dateAdded: cols[addedIdx >= 0 ? addedIdx : 5] ?? "",
+      marketCap: null,
     });
   }
   return companies;
@@ -169,6 +172,54 @@ async function enrichSp500KoreanNames(companies) {
 }
 
 /**
+ * @param {string[]} symbols
+ * @returns {Promise<Map<string, number>>}
+ */
+async function fetchUsMarketCapsBatch(symbols) {
+  const list = (Array.isArray(symbols) ? symbols : [])
+    .map((s) => String(s ?? "").trim().toUpperCase())
+    .filter(Boolean);
+  /** @type {Map<string, number>} */
+  const out = new Map();
+  if (!list.length) return out;
+  try {
+    const data = await yahooGet(
+      `/v7/finance/quote?symbols=${list.map((s) => encodeURIComponent(s)).join(",")}`,
+    );
+    const rows = Array.isArray(data?.quoteResponse?.result)
+      ? data.quoteResponse.result
+      : [];
+    for (const row of rows) {
+      const sym = String(row?.symbol ?? "")
+        .trim()
+        .toUpperCase();
+      const cap = Number(row?.marketCap);
+      if (sym && Number.isFinite(cap) && cap > 0) out.set(sym, cap);
+    }
+  } catch {
+    /* batch 실패 — 해당 청크는 null 유지 */
+  }
+  return out;
+}
+
+/**
+ * @param {Array<{ symbol: string; marketCap: number | null }>} companies
+ */
+async function enrichSp500MarketCaps(companies) {
+  const symbols = companies.map((c) => c.symbol);
+  for (let i = 0; i < symbols.length; i += MKT_CAP_BATCH) {
+    const chunk = symbols.slice(i, i + MKT_CAP_BATCH);
+    const caps = await fetchUsMarketCapsBatch(chunk);
+    const chunkSet = new Set(chunk);
+    for (const c of companies) {
+      if (!chunkSet.has(c.symbol)) continue;
+      const cap = caps.get(c.symbol);
+      if (cap != null) c.marketCap = cap;
+    }
+  }
+}
+
+/**
  * @param {Array<{ sector: string; sectorKo: string }>} companies
  */
 function buildSectorSummary(companies) {
@@ -211,6 +262,7 @@ export async function fetchSp500SectorsPayload() {
     throw new Error(`S&P 500 구성종목 수 부족 (${companies.length})`);
   }
   await enrichSp500KoreanNames(companies);
+  await enrichSp500MarketCaps(companies);
 
   const summary = buildSectorSummary(companies);
   const payload = {

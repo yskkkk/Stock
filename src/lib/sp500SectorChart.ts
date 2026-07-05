@@ -14,6 +14,7 @@ export type Sp500CompanyRow = {
   subIndustry: string;
   headquarters: string;
   dateAdded: string;
+  marketCap?: number | null;
 };
 
 export type Sp500SectorsPayload = {
@@ -65,6 +66,22 @@ export function sp500DateSortMs(raw: string): number {
   if (!s) return 0;
   const t = new Date(s).getTime();
   return Number.isNaN(t) ? 0 : t;
+}
+
+export function sp500MarketCapSortValue(raw: number | null | undefined): number {
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : -1;
+}
+
+/** 미국 대형주 시가총액 — USD */
+export function fmtSp500MarketCap(raw: number | null | undefined): string {
+  const v = Number(raw);
+  if (!Number.isFinite(v) || v <= 0) return "—";
+  const abs = Math.abs(v);
+  if (abs >= 1e12) return `$${(v / 1e12).toFixed(2)}T`;
+  if (abs >= 1e9) return `$${(v / 1e9).toFixed(1)}B`;
+  if (abs >= 1e6) return `$${(v / 1e6).toFixed(1)}M`;
+  return `$${v.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 }
 
 export function polarPoint(cx: number, cy: number, r: number, angleDeg: number) {

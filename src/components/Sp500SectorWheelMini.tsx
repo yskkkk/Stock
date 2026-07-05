@@ -7,7 +7,9 @@ import {
   donutArcPathPopOut,
   fmtSectorPct,
   fmtSp500DateAdded,
+  fmtSp500MarketCap,
   sp500DateSortMs,
+  sp500MarketCapSortValue,
   type Sp500CompanyRow,
   type Sp500SectorsPayload,
 } from "../lib/sp500SectorChart";
@@ -20,7 +22,7 @@ import {
   type StockVaultRowBubbleTarget,
 } from "./StockVaultRowBubble";
 
-type SortKey = "symbol" | "name" | "sub" | "date-desc" | "date-asc";
+type SortKey = "symbol" | "name" | "sub" | "date-desc" | "date-asc" | "mktcap-desc";
 
 function companyKoName(c: Sp500CompanyRow): string | null {
   const koName = c.nameKo?.trim() || getMappedSymbolName(c.symbol);
@@ -48,6 +50,11 @@ function sortCompanies(
 ) {
   const copy = [...list];
   copy.sort((a, b) => {
+    if (sortKey === "mktcap-desc") {
+      const cmp =
+        sp500MarketCapSortValue(b.marketCap) - sp500MarketCapSortValue(a.marketCap);
+      return cmp !== 0 ? cmp : a.symbol.localeCompare(b.symbol, "en", { sensitivity: "base" });
+    }
     if (sortKey === "date-desc" || sortKey === "date-asc") {
       const cmp = sp500DateSortMs(a.dateAdded) - sp500DateSortMs(b.dateAdded);
       return sortKey === "date-desc" ? -cmp : cmp;
@@ -345,6 +352,7 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
               <option value="sub">{ko.app.sp500SectorSortSub}</option>
               <option value="date-desc">{ko.app.sp500SectorSortDateDesc}</option>
               <option value="date-asc">{ko.app.sp500SectorSortDateAsc}</option>
+              <option value="mktcap-desc">{ko.app.sp500SectorSortMktCap}</option>
             </select>
             {selected ? (
               <button
@@ -376,6 +384,7 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
                   <th>{ko.app.sp500SectorColName}</th>
                   {!selected ? <th>{ko.app.sp500SectorColSector}</th> : null}
                   <th>{ko.app.sp500SectorColSub}</th>
+                  <th>{ko.app.sp500SectorColMarketCap}</th>
                   <th>{ko.app.sp500SectorColDateAdded}</th>
                 </tr>
               </thead>
@@ -419,6 +428,7 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
                     </td>
                     {!selected ? <td>{c.sectorKo}</td> : null}
                     <td className="sp500-wheel-mini__sub">{c.subIndustry}</td>
+                    <td className="sp500-wheel-mini__mktcap">{fmtSp500MarketCap(c.marketCap)}</td>
                     <td className="sp500-wheel-mini__date">{fmtSp500DateAdded(c.dateAdded)}</td>
                   </tr>
                   );
