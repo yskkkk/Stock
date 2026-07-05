@@ -3,7 +3,8 @@
 param(
   [string]$TargetMac = 'A8-A1-59-BF-42-CC',
   [int[]]$Ports = @(7, 9),
-  [int]$Seconds = 120
+  [int]$Seconds = 120,
+  [switch]$SelfTest
 )
 
 $ErrorActionPreference = 'Stop'
@@ -46,9 +47,11 @@ Write-Host "[WOL test] Target MAC: $TargetMac"
 if ($ad) { Write-Host "[WOL test] Adapter: $($ad.Name)  IP: $ip" }
 Write-Host "[WOL test] Ports: $($Ports -join ', ')   Timeout: ${Seconds}s"
 Write-Host ''
-Write-Host 'Now on router/phone: WOL -> PC 켜기 (or send magic packet).'
-Write-Host 'If packet arrives here, router+LAN path is OK.'
-Write-Host 'If PC still wont wake from shutdown -> BIOS ErP / Wake on LAN.'
+Write-Host 'IMPORTANT: Many routers (incl. LG U+) do NOT send WOL when PC is already online.'
+Write-Host 'Router [PC 켜기] may do nothing while this test runs.'
+Write-Host 'Use a phone WOL app on same Wi-Fi instead (always sends).'
+Write-Host ''
+Write-Host 'If packet arrives -> LAN path OK. Shutdown-only fail -> BIOS ErP/WOL.'
 Write-Host ''
 
 $clients = @()
@@ -70,6 +73,16 @@ foreach ($port in $Ports) {
 if (-not $clients.Count) {
   Write-Host '[WOL test] ERROR: no ports open. Try: scripts\test-wol-packet-receive.cmd (admin)'
   exit 1
+}
+
+if ($SelfTest) {
+  $scriptRoot = $PSScriptRoot
+  Start-Job -ScriptBlock {
+    param($dir)
+    Start-Sleep -Seconds 2
+    & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $dir 'send-wol-magic-packet.ps1')
+  } -ArgumentList $scriptRoot | Out-Null
+  Write-Host '[WOL test] SelfTest: local magic packet in ~2s...'
 }
 
 $deadline = (Get-Date).AddSeconds($Seconds)
@@ -101,7 +114,9 @@ foreach ($entry in $clients) { $entry.Client.Close() }
 if (-not $got) {
   Write-Host ''
   Write-Host '[WOL test] TIMEOUT: no matching magic packet.'
-  Write-Host 'Check: router WOL MAC, same LAN/Wi-Fi, AP isolation off, try phone WOL app.'
+  Write-Host 'If you used router [PC 켜기]: retry with phone WOL app (same Wi-Fi).'
+  Write-Host 'Router often skips send when PC IP responds on LAN.'
+  Write-Host 'Phone app MAC: A8-A1-59-BF-42-CC  broadcast 255.255.255.255 port 9'
   exit 2
 }
 
