@@ -1412,6 +1412,10 @@ export default function App() {
           .join("")
           .trim()}
       >
+      <Sp500SectorProvider panelRef={sp500PanelRef}>
+      <div className="app__sp500-micro-anchor">
+        <Sp500SectorWheelMicro />
+      </div>
       {showEarningsViewportRail ? (
         <div className="app__viewport-earnings-rail">
           <EarningsUpcomingIconRail variant="edge" pageScrollRef={appScrollRef} />
@@ -1434,10 +1438,8 @@ export default function App() {
         </div>
       ) : null}
       <div className="app__shell">
-      <Sp500SectorProvider panelRef={sp500PanelRef}>
       <div className="app__shell-body">
       <div className="app__viewport-top">
-        <Sp500SectorWheelMicro />
         <AppThemeCorner
           colorMode={colorMode}
           lightPalette={lightPalette}
@@ -2367,7 +2369,6 @@ export default function App() {
         }
       />
       </div>
-      </Sp500SectorProvider>
       </div>
       <div
         className={
@@ -2403,6 +2404,7 @@ export default function App() {
           </>
         ) : null}
       </div>
+      </Sp500SectorProvider>
       </div>
 
       <AppSiteFooter

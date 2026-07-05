@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState, type MouseEvent } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { ko } from "../i18n/ko";
 import { useSp500Sector } from "../contexts/Sp500SectorContext";
 import {
@@ -7,36 +7,28 @@ import {
   fmtSectorPct,
 } from "../lib/sp500SectorChart";
 
-type TipState = {
-  x: number;
-  y: number;
-  label: string;
-};
-
 function Sp500SectorWheelMicroInner() {
   const { data, loading, error, openSectorDetail, openPanel } = useSp500Sector();
-  const [tip, setTip] = useState<TipState | null>(null);
+  const [tipOpen, setTipOpen] = useState(false);
 
   const segments = useMemo(
     () => (data ? buildDonutSegments(data.sectors, data.total) : []),
     [data],
   );
 
-  const hideTip = useCallback(() => setTip(null), []);
-
-  const showTip = useCallback(
-    (e: MouseEvent, sectorKo: string, pct: number, count: number) => {
-      setTip({
-        x: e.clientX,
-        y: e.clientY,
-        label: ko.app.sp500SectorMicroTip
-          .replace("{name}", sectorKo)
-          .replace("{pct}", fmtSectorPct(pct))
-          .replace("{count}", String(count)),
-      });
-    },
-    [],
+  const sortedSectors = useMemo(
+    () => (data ? [...data.sectors].sort((a, b) => b.pct - a.pct) : []),
+    [data],
   );
+
+  const sectorColors = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const seg of segments) map.set(seg.sector, seg.color);
+    return map;
+  }, [segments]);
+
+  const showTip = useCallback(() => setTipOpen(true), []);
+  const hideTip = useCallback(() => setTipOpen(false), []);
 
   if (loading) {
     return (
@@ -63,8 +55,12 @@ function Sp500SectorWheelMicroInner() {
         type="button"
         className="sp500-wheel-micro"
         aria-label={ko.app.sp500SectorMicroAria}
+        aria-describedby={tipOpen ? "sp500-wheel-micro-tip" : undefined}
         onClick={() => openPanel("chart")}
+        onMouseEnter={showTip}
+        onFocus={showTip}
         onMouseLeave={hideTip}
+        onBlur={hideTip}
       >
         <svg viewBox="0 0 200 200" className="sp500-wheel-micro__svg" aria-hidden>
           {segments.map((seg) => (
@@ -73,24 +69,50 @@ function Sp500SectorWheelMicroInner() {
               className="sp500-wheel-micro__seg"
               d={donutArcPath(cx, cy, r0, r1, seg.a0, seg.a1)}
               fill={seg.color}
-              onMouseEnter={(e) => showTip(e, seg.sectorKo, seg.pct, seg.count)}
-              onMouseMove={(e) => showTip(e, seg.sectorKo, seg.pct, seg.count)}
-              onMouseLeave={hideTip}
               onClick={(e) => {
                 e.stopPropagation();
                 openSectorDetail(seg.sector, "list");
               }}
             />
           ))}
+          <text
+            className="sp500-wheel-micro__center"
+            x={cx}
+            y={cy - 3}
+            textAnchor="middle"
+          >
+            S&P
+          </text>
+          <text
+            className="sp500-wheel-micro__center"
+            x={cx}
+            y={cy + 11}
+            textAnchor="middle"
+          >
+            500
+          </text>
         </svg>
       </button>
-      {tip ? (
+      {tipOpen ? (
         <div
+          id="sp500-wheel-micro-tip"
           className="sp500-wheel-micro__tip"
-          style={{ left: tip.x, top: tip.y }}
           role="tooltip"
         >
-          {tip.label}
+          <p className="sp500-wheel-micro__tip-title">{ko.app.sp500SectorTitle}</p>
+          <ul className="sp500-wheel-micro__tip-list">
+            {sortedSectors.map((s) => (
+              <li key={s.sector} className="sp500-wheel-micro__tip-row">
+                <span
+                  className="sp500-wheel-micro__tip-swatch"
+                  style={{ background: sectorColors.get(s.sector) }}
+                  aria-hidden
+                />
+                <span className="sp500-wheel-micro__tip-name">{s.sectorKo}</span>
+                <span className="sp500-wheel-micro__tip-pct">{fmtSectorPct(s.pct)}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
     </div>
