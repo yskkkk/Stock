@@ -198,8 +198,7 @@
   justify-content: center;
   padding: max(1rem, env(safe-area-inset-top, 0px)) max(1rem, env(safe-area-inset-right, 0px))
     max(1rem, env(safe-area-inset-bottom, 0px)) max(1rem, env(safe-area-inset-left, 0px));
-  background: color-mix(in srgb, var(--bg) 28%, rgba(0, 0, 0, 0.52));
-  backdrop-filter: blur(3px);
+  background: transparent;
 }
 
 .sp500-wheel-micro-expand__panel {
