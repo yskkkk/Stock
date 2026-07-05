@@ -7,6 +7,38 @@ param(
   [switch]$SelfTest
 )
 
+function New-WolUdpListener([int]$port) {
+  $socket = New-Object System.Net.Sockets.Socket(
+    [System.Net.Sockets.AddressFamily]::InterNetwork,
+    [System.Net.Sockets.SocketType]::Dgram,
+    [System.Net.Sockets.ProtocolType]::Udp
+  )
+  $socket.SetSocketOption(
+    [System.Net.Sockets.SocketOptionLevel]::Socket,
+    [System.Net.Sockets.SocketOptionName]::ReuseAddress,
+    $true
+  ) | Out-Null
+  if ([System.Net.Sockets.Socket]::OSSupportsIPv4) {
+    try {
+      $socket.SetSocketOption(
+        [System.Net.Sockets.SocketOptionLevel]::Socket,
+        [System.Net.Sockets.SocketOptionName]::ExclusiveAddressUse,
+        $false
+      ) | Out-Null
+    } catch { }
+  }
+  $socket.Bind([System.Net.IPEndPoint]::new([System.Net.IPAddress]::Any, $port))
+  $client = New-Object System.Net.Sockets.UdpClient
+  $client.Client = $socket
+  $client
+}
+
+function Get-PortOwnerPid([int]$port) {
+  $line = netstat -ano | Select-String "UDP\s+\S+:$port\s" | Select-Object -First 1
+  if (-not $line) { return $null }
+  ($line -split '\s+')[-1]
+}
+
 $ErrorActionPreference = 'Stop'
 
 function Normalize-Mac([string]$mac) {
@@ -57,12 +89,13 @@ Write-Host ''
 $clients = @()
 foreach ($port in $Ports) {
   try {
-    $c = New-Object System.Net.Sockets.UdpClient($port)
-    $c.Client.SetSocketOption(
-      [System.Net.Sockets.SocketOptionLevel]::Socket,
-      [System.Net.Sockets.SocketOptionName]::ReuseAddress,
-      $true
-    ) | Out-Null
+    $owner = Get-PortOwnerPid $port
+    if ($owner -and $owner -ne $PID) {
+      $pname = (Get-Process -Id $owner -ErrorAction SilentlyContinue).ProcessName
+      Write-Host "[WOL test] WARN: UDP :$port in use by PID $owner ($pname)"
+      Write-Host "[WOL test]       Close other wol-test window or run: wol-test-stop"
+    }
+    $c = New-WolUdpListener $port
     $clients += [PSCustomObject]@{ Port = $port; Client = $c }
     Write-Host "[WOL test] Listening UDP :$port"
   } catch {
