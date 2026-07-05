@@ -79,6 +79,88 @@
   margin: 0 0 0.45rem;
 }
 
+.sp500-wheel-micro-wrap {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+.sp500-wheel-micro {
+  display: block;
+  width: 2.05rem;
+  height: 2.05rem;
+  padding: 0;
+  margin: 0;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--card) 92%, var(--bg));
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.sp500-wheel-micro:hover {
+  transform: scale(1.06);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.sp500-wheel-micro--loading {
+  width: 2.05rem;
+  height: 2.05rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 25%, transparent);
+  animation: sp500-micro-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes sp500-micro-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+.sp500-wheel-micro__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.sp500-wheel-micro__seg {
+  cursor: pointer;
+  transition: filter 0.12s ease;
+}
+
+.sp500-wheel-micro__seg:hover {
+  filter: brightness(1.15);
+}
+
+.sp500-wheel-micro__tip {
+  position: fixed;
+  z-index: 12000;
+  transform: translate(10px, -120%);
+  max-width: 14rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 8px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text);
+  background: color-mix(in srgb, var(--card) 94%, var(--bg));
+  border: 1px solid var(--card-border);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.app__viewport-top .sp500-wheel-micro-wrap {
+  order: -1;
+  margin-right: 0.12rem;
+}
+
 .sp500-wheel-mini {
   padding: 0.85rem 1rem 1rem;
   max-width: 100%;

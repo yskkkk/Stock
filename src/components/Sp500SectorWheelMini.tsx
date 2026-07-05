@@ -1,6 +1,6 @@
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { fetchSp500Sectors } from "../api";
+import { memo, useCallback, useMemo, useState } from "react";
 import { ko } from "../i18n/ko";
+import { useSp500Sector } from "../contexts/Sp500SectorContext";
 import {
   buildDonutSegments,
   donutArcPath,
@@ -34,33 +34,17 @@ function sortCompanies(
 }
 
 function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean }) {
-  const [data, setData] = useState<Sp500SectorsPayload | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedSector, setSelectedSector] = useState<string | null>(null);
+  const {
+    data,
+    loading,
+    error,
+    selectedSector,
+    setSelectedSector,
+    panelTab,
+    setPanelTab,
+    openSectorDetail,
+  } = useSp500Sector();
   const [sortKey, setSortKey] = useState<SortKey>("symbol");
-  const [panel, setPanel] = useState<"chart" | "list">("chart");
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    fetchSp500Sectors()
-      .then((payload) => {
-        if (cancelled) return;
-        setData(payload);
-      })
-      .catch((e) => {
-        if (cancelled) return;
-        setError(e instanceof Error ? e.message : String(e));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const segments = useMemo(
     () => (data ? buildDonutSegments(data.sectors, data.total) : []),
@@ -83,14 +67,22 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
     );
   }, [data, selectedSector, sortKey]);
 
-  const pickSector = useCallback((sector: string) => {
-    setSelectedSector(sector);
-    setPanel("list");
-  }, []);
+  const pickSector = useCallback(
+    (sector: string) => {
+      setSelectedSector(sector);
+      setPanelTab("list");
+    },
+    [setPanelTab, setSelectedSector],
+  );
 
   if (loading) {
     return (
-      <aside className={embedded ? "sp500-wheel-mini sp500-wheel-mini--embedded" : "sp500-wheel-mini card"} aria-busy="true">
+      <aside
+        className={
+          embedded ? "sp500-wheel-mini sp500-wheel-mini--embedded" : "sp500-wheel-mini card"
+        }
+        aria-busy="true"
+      >
         <p className="sp500-wheel-mini__muted">{ko.app.sp500SectorLoading}</p>
       </aside>
     );
@@ -98,7 +90,12 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
 
   if (error || !data) {
     return (
-      <aside className={embedded ? "sp500-wheel-mini sp500-wheel-mini--embedded" : "sp500-wheel-mini card"} role="alert">
+      <aside
+        className={
+          embedded ? "sp500-wheel-mini sp500-wheel-mini--embedded" : "sp500-wheel-mini card"
+        }
+        role="alert"
+      >
         <p className="sp500-wheel-mini__error">{ko.app.sp500SectorError}</p>
       </aside>
     );
@@ -111,7 +108,9 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
 
   return (
     <aside
-      className={embedded ? "sp500-wheel-mini sp500-wheel-mini--embedded" : "sp500-wheel-mini card"}
+      className={
+        embedded ? "sp500-wheel-mini sp500-wheel-mini--embedded" : "sp500-wheel-mini card"
+      }
       aria-label={ko.app.sp500SectorAria}
     >
       {!embedded ? (
@@ -143,24 +142,28 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
         <button
           type="button"
           role="tab"
-          className={panel === "chart" ? "sp500-wheel-mini__tab active" : "sp500-wheel-mini__tab"}
-          aria-selected={panel === "chart"}
-          onClick={() => setPanel("chart")}
+          className={
+            panelTab === "chart" ? "sp500-wheel-mini__tab active" : "sp500-wheel-mini__tab"
+          }
+          aria-selected={panelTab === "chart"}
+          onClick={() => setPanelTab("chart")}
         >
           {ko.app.sp500SectorTabChart}
         </button>
         <button
           type="button"
           role="tab"
-          className={panel === "list" ? "sp500-wheel-mini__tab active" : "sp500-wheel-mini__tab"}
-          aria-selected={panel === "list"}
-          onClick={() => setPanel("list")}
+          className={
+            panelTab === "list" ? "sp500-wheel-mini__tab active" : "sp500-wheel-mini__tab"
+          }
+          aria-selected={panelTab === "list"}
+          onClick={() => setPanelTab("list")}
         >
           {ko.app.sp500SectorTabList}
         </button>
       </div>
 
-      {panel === "chart" ? (
+      {panelTab === "chart" ? (
         <div className="sp500-wheel-mini__chart-panel">
           <svg
             className="sp500-wheel-mini__svg"
@@ -180,7 +183,7 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
                   }
                   d={donutArcPath(cx, cy, r0, r1, seg.a0, seg.a1)}
                   fill={seg.color}
-                  onClick={() => pickSector(seg.sector)}
+                  onClick={() => openSectorDetail(seg.sector, "list")}
                 />
               );
             })}
@@ -222,11 +225,13 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
                       ? "sp500-wheel-mini__legend-btn active"
                       : "sp500-wheel-mini__legend-btn"
                   }
-                  onClick={() => pickSector(s.sector)}
+                  onClick={() => openSectorDetail(s.sector, "list")}
                 >
                   <span
                     className="sp500-wheel-mini__swatch"
-                    style={{ background: segments.find((x) => x.sector === s.sector)?.color }}
+                    style={{
+                      background: segments.find((x) => x.sector === s.sector)?.color,
+                    }}
                   />
                   <span className="sp500-wheel-mini__legend-label">{s.sectorKo}</span>
                   <span className="sp500-wheel-mini__legend-pct">{fmtSectorPct(s.pct)}</span>

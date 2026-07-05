@@ -19,6 +19,8 @@ import BullishReasonModal from "./components/BullishReasonModal";
 import AccessAdminModal from "./components/AccessAdminModal";
 import AppSiteFooter from "./components/AppSiteFooter";
 import AppSp500SectorPanel from "./components/AppSp500SectorPanel";
+import Sp500SectorWheelMicro from "./components/Sp500SectorWheelMicro";
+import { Sp500SectorProvider } from "./contexts/Sp500SectorContext";
 import ScrollToTopButton from "./components/ScrollToTopButton";
 import AppThemeCorner from "./components/AppThemeCorner";
 import { useMainTabWithPreview } from "./hooks/useMainTabWithPreview";
@@ -219,6 +221,7 @@ export default function App() {
     mainTabClassName,
   } = useMainTabWithPreview("stockLookup");
   const prevAppTabRef = useRef<AppTab>("stockLookup");
+  const sp500PanelRef = useRef<HTMLElement>(null);
   /** 실거래 보유 → 종목검색: 탭 진입 시 lookupSelected 초기화 effect 건너뜀 */
   const skipLookupResetRef = useRef(false);
   /** 실거래에서 넘어온 심볼 — 종목검색 탭에서 자동 검색 */
@@ -1431,8 +1434,10 @@ export default function App() {
         </div>
       ) : null}
       <div className="app__shell">
+      <Sp500SectorProvider panelRef={sp500PanelRef}>
       <div className="app__shell-body">
       <div className="app__viewport-top">
+        <Sp500SectorWheelMicro />
         <AppThemeCorner
           colorMode={colorMode}
           lightPalette={lightPalette}
@@ -1696,7 +1701,7 @@ export default function App() {
       </header>
       </div>
 
-      <AppSp500SectorPanel />
+      <AppSp500SectorPanel ref={sp500PanelRef} />
 
       {picksError && !/npm\s+run\s+dev/i.test(picksError) ? (
         <div className="alert alert--error" role="alert">
@@ -2362,6 +2367,7 @@ export default function App() {
         }
       />
       </div>
+      </Sp500SectorProvider>
       </div>
       <div
         className={

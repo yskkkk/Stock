@@ -1,37 +1,20 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { forwardRef, memo, useCallback } from "react";
 import { ko } from "../i18n/ko";
+import { useSp500Sector } from "../contexts/Sp500SectorContext";
 import Sp500SectorWheelMini from "./Sp500SectorWheelMini";
 
-const STORAGE_KEY = "ystock-sp500-sector-open-v1";
-
-function readOpen(): boolean {
-  try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (raw === "0") return false;
-    if (raw === "1") return true;
-  } catch {
-    /* ignore */
-  }
-  return true;
-}
-
-function AppSp500SectorPanelInner() {
-  const [open, setOpen] = useState(readOpen);
-
-  useEffect(() => {
-    try {
-      sessionStorage.setItem(STORAGE_KEY, open ? "1" : "0");
-    } catch {
-      /* ignore */
-    }
-  }, [open]);
-
-  const toggle = useCallback(() => setOpen((v) => !v), []);
+const AppSp500SectorPanelInner = forwardRef<HTMLElement>(function AppSp500SectorPanelInner(
+  _props,
+  ref,
+) {
+  const { panelOpen, setPanelOpen } = useSp500Sector();
+  const toggle = useCallback(() => setPanelOpen(!panelOpen), [panelOpen, setPanelOpen]);
 
   return (
     <section
+      ref={ref}
       className={
-        open
+        panelOpen
           ? "app-sp500-sector-panel card"
           : "app-sp500-sector-panel app-sp500-sector-panel--collapsed card"
       }
@@ -41,11 +24,11 @@ function AppSp500SectorPanelInner() {
         <button
           type="button"
           className="app-sp500-sector-panel__toggle"
-          aria-expanded={open}
+          aria-expanded={panelOpen}
           onClick={toggle}
         >
           <span className="app-sp500-sector-panel__chevron" aria-hidden>
-            {open ? "▾" : "▸"}
+            {panelOpen ? "▾" : "▸"}
           </span>
           <span className="app-sp500-sector-panel__label">{ko.app.sp500SectorTitle}</span>
         </button>
@@ -58,10 +41,10 @@ function AppSp500SectorPanelInner() {
           {ko.app.sp500SectorOpenFull}
         </a>
       </div>
-      {open ? <Sp500SectorWheelMini embedded /> : null}
+      {panelOpen ? <Sp500SectorWheelMini embedded /> : null}
     </section>
   );
-}
+});
 
 const AppSp500SectorPanel = memo(AppSp500SectorPanelInner);
 export default AppSp500SectorPanel;

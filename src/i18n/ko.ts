@@ -50,6 +50,8 @@ export const ko = {
     sp500SectorColSector: "섹터",
     sp500SectorColSub: "세부업종",
     sp500SectorMore: "외 {n}종목 — 전체 보기에서 확인",
+    sp500SectorMicroAria: "S&P 500 섹터 구성 — 클릭하면 상세 패널",
+    sp500SectorMicroTip: "{name} · {pct} · {count}종목",
     pullToRefreshHint: "아래로 당겨 새로고침",
     pullToRefreshRelease: "놓으면 새로고침",
     lightPaletteHint: "눈에 편한 톤",
