@@ -252,3 +252,10 @@ export async function runBottomCandleMarketScan(market, scanDate, opts = {}) {
 export function getBottomCandleScanStateSync() {
   return readState();
 }
+
+/** @param {"kr"|"us"} market @param {string} scanDate @param {import("./vault-scan-timeframe.js").VaultScanTimeframe} [timeframe] */
+export function wasBottomCandleScannedSync(market, scanDate, timeframe = "1d") {
+  const state = readState();
+  const field = vaultScanStateDateField(market, timeframe);
+  return state[field] === scanDate;
+}
