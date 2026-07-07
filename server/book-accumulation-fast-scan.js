@@ -72,6 +72,10 @@ function delay(ms) {
 /** @param {unknown} raw */
 function normalizeState(raw) {
   return {
+    krLastFastScanDate:
+      typeof raw?.krLastFastScanDate === "string" ? raw.krLastFastScanDate : null,
+    usLastFastScanDate:
+      typeof raw?.usLastFastScanDate === "string" ? raw.usLastFastScanDate : null,
     lastRunAtMs:
       typeof raw?.lastRunAtMs === "number" && Number.isFinite(raw.lastRunAtMs)
         ? raw.lastRunAtMs
@@ -93,6 +97,8 @@ function normalizeState(raw) {
 
 function readState() {
   return readJsonStoreSync(STATE_FILE, normalizeState, () => ({
+    krLastFastScanDate: null,
+    usLastFastScanDate: null,
     lastRunAtMs: null,
     lastRuns: [],
   }));
@@ -350,6 +356,8 @@ export async function runBookAccumulationFastScan(opts) {
 
   if (persistState) {
     const state = readState();
+    const dateField = market === "kr" ? "krLastFastScanDate" : "usLastFastScanDate";
+    state[dateField] = scanDate;
     state.lastRunAtMs = Date.now();
     state.lastRuns.unshift({
       scope: out.scope,
@@ -385,6 +393,17 @@ export async function runBookAccumulationFastScan(opts) {
 
 export function getBookAccumulationFastScanStateSync() {
   return readState();
+}
+
+/** @param {"kr"|"us"} market @param {string} scanDate */
+export function wasBookAccumFastScannedSync(market, scanDate) {
+  const state = readState();
+  const field =
+    market === "kr" ? "krLastFastScanDate" : "usLastFastScanDate";
+  if (state[field] === scanDate) return true;
+  return state.lastRuns.some(
+    (row) => row.market === market && row.scanDate === scanDate,
+  );
 }
 
 export function bookAccumFastScanEnabled() {

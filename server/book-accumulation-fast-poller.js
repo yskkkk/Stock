@@ -4,7 +4,7 @@ import {
   getBookAccumulationFastScanStateSync,
   BOOK_ACCUM_FAST_TIMEFRAMES,
 } from "./book-accumulation-fast-scan.js";
-import { BOOK_ACCUM_US_UNIVERSE_SCOPE } from "./universe.js";
+import { getKstParts } from "./kr-business-day.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 
 const WORKER_URL = new URL("./book-accumulation-fast-worker.js", import.meta.url);
@@ -62,7 +62,7 @@ function localUsDateKey(now = new Date()) {
 }
 
 /**
- * @param {{ mergeVault?: boolean }} [body]
+ * @param {{ mergeVault?: boolean; market?: "kr"|"us" }} [body]
  * @returns {{ started: boolean; reason?: string }}
  */
 export function triggerBookAccumFastScan(body = {}) {
@@ -74,37 +74,45 @@ export function triggerBookAccumFastScan(body = {}) {
   }
 
   const now = new Date();
-  const scanDate = localUsDateKey(now);
-
-  const scanOpts = {
-    scope: BOOK_ACCUM_US_UNIVERSE_SCOPE,
-    market: "us",
-    scanDate,
-    timeframes: [...BOOK_ACCUM_FAST_TIMEFRAMES],
-    mergeVault: body.mergeVault !== false,
-  };
+  /** @type {Array<"kr"|"us">} */
+  const markets =
+    body.market === "kr" || body.market === "us" ? [body.market] : ["kr", "us"];
 
   fastScanRunning = true;
-  liveTradeLogInfo("[book-accum:fast] trigger", scanOpts);
+  liveTradeLogInfo("[book-accum:fast] trigger", { markets });
 
-  void spawnBookAccumFastScanWorker(scanOpts)
-    .then((result) => {
-      lastFastScanResult = { atMs: Date.now(), result };
-      liveTradeLogInfo("[book-accum:fast] worker done", {
-        scanned: result.scanned,
-        hitCount: result.hitCount,
-        durationMs: result.durationMs,
-      });
-    })
-    .catch((e) => {
+  void (async () => {
+    /** @type {unknown[]} */
+    const results = [];
+    try {
+      for (const market of markets) {
+        const scanDate =
+          market === "kr" ? getKstParts(now).dateKey : localUsDateKey(now);
+        const scanOpts = {
+          market,
+          scanDate,
+          timeframes: [...BOOK_ACCUM_FAST_TIMEFRAMES],
+          mergeVault: body.mergeVault !== false,
+        };
+        const result = await spawnBookAccumFastScanWorker(scanOpts);
+        results.push(result);
+        liveTradeLogInfo("[book-accum:fast] worker done", {
+          market,
+          scanned: result.scanned,
+          hitCount: result.hitCount,
+          durationMs: result.durationMs,
+        });
+      }
+      lastFastScanResult = { atMs: Date.now(), result: results.at(-1) };
+    } catch (e) {
       liveTradeLogWarn(
         "[book-accum:fast]",
         e instanceof Error ? e.message : e,
       );
-    })
-    .finally(() => {
+    } finally {
       fastScanRunning = false;
-    });
+    }
+  })();
 
   return { started: true };
 }
