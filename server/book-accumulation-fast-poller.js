@@ -17,6 +17,11 @@ let fastScanRunning = false;
 /** @type {{ atMs: number; result: object } | null} */
 let lastFastScanResult = null;
 
+export {
+  bookAccumFastScanEnabled,
+  getBookAccumulationFastScanStateSync,
+} from "./book-accumulation-fast-scan.js";
+
 export function isBookAccumFastScanRunning() {
   return fastScanRunning;
 }
