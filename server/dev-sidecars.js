@@ -74,6 +74,7 @@ export function startStockDevSidecarsOnce(modeLabel) {
   }
   startOpsFileDevPoller();
   startGoldenCrossScanPoller();
+  startBottomCandleScanPoller();
   startKrInvestorFlowPoller();
   startFinancialsArchivePoller();
   startStockShareStructurePoller();
