@@ -29,11 +29,6 @@ const NEAR_PCT = (() => {
   return Number.isFinite(n) && n > 0 ? Math.min(n, 10) : 1;
 })();
 
-const MAX_NEAR_LINES = (() => {
-  const n = Number(process.env.STOCK_BOX_RANGE_SCAN_TG_NEAR_MAX ?? 40);
-  return Number.isFinite(n) && n >= 5 ? Math.min(n, 80) : 40;
-})();
-
 const QUOTE_CHUNK = (() => {
   const n = Number(process.env.STOCK_BOX_RANGE_SCAN_TG_QUOTE_CHUNK ?? 80);
   return Number.isFinite(n) && n >= 10 ? Math.min(n, 150) : 80;
@@ -190,17 +185,13 @@ export function buildNearPriceMessage(market, hits) {
     return lines.join("\n");
   }
 
-  const show = hits.slice(0, MAX_NEAR_LINES);
-  for (const h of show) {
+  for (const h of hits) {
     lines.push(
       "",
       `<b>${escHtml(h.displayName || h.symbol)}</b> · ${escHtml(h.timeframe)} · ${escHtml(h.levelLabel)}`,
       `현재 ${escHtml(fmtPrice(h.price, m))} · ${escHtml(h.levelLabel)} ${escHtml(fmtPrice(h.level, m))} (<b>${h.pct.toFixed(2)}%</b>)`,
       `박스 중심 ${escHtml(fmtPrice(h.mid, m))}`,
     );
-  }
-  if (hits.length > show.length) {
-    lines.push("", `… 외 ${hits.length - show.length}건 (상위 ${MAX_NEAR_LINES}건만 표시)`);
   }
   lines.push("", `총 ${hits.length}건`);
   return lines.join("\n");

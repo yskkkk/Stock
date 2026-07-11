@@ -339,12 +339,9 @@ export function buildGoldenCrossTelegramHtml(
     const group = hits.filter((h) => h.crosses.includes(cross));
     if (!group.length) continue;
     lines.push(`<b>${CROSS_LABEL[cross] ?? cross}</b> (${group.length})`);
-    for (const h of group.slice(0, 40)) {
+    for (const h of group) {
       const code = h.symbol.replace(/\.(KS|KQ)$/i, "");
       lines.push(`· ${esc(h.name)} <code>${esc(code)}</code>`);
-    }
-    if (group.length > 40) {
-      lines.push(`… 외 ${group.length - 40}종목`);
     }
     lines.push("");
   }
@@ -407,7 +404,7 @@ export function buildVaultIntersectionTelegramHtml(intersection) {
   }
   if (gc.length) {
     lines.push(`<b>골든크로스 (${gc.length})</b>`);
-    for (const pair of gc.slice(0, 25)) {
+    for (const pair of gc) {
       const code = pair.daily.symbol.replace(/\.(KS|KQ)$/i, "");
       const d = (pair.daily.crosses ?? [])
         .map((c) => IX_CROSS_LABEL[c] ?? c)
@@ -419,16 +416,14 @@ export function buildVaultIntersectionTelegramHtml(intersection) {
         `· ${esc(pair.daily.name)} <code>${esc(code)}</code> 일${d || "—"} 주${w || "—"}`,
       );
     }
-    if (gc.length > 25) lines.push(`… 외 ${gc.length - 25}종목`);
     lines.push("");
   }
   if (ma.length) {
     lines.push(`<b>정배열 (${ma.length})</b>`);
-    for (const pair of ma.slice(0, 25)) {
+    for (const pair of ma) {
       const code = pair.daily.symbol.replace(/\.(KS|KQ)$/i, "");
       lines.push(`· ${esc(pair.daily.name)} <code>${esc(code)}</code>`);
     }
-    if (ma.length > 25) lines.push(`… 외 ${ma.length - 25}종목`);
   }
   return lines.join("\n").trim();
 }

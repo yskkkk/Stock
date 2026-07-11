@@ -1109,6 +1109,81 @@ function buildMessage(pick) {
 
 
 
+/** 텔레그램 단일 메시지 최대 길이(문자) */
+const TELEGRAM_MAX_LEN = 4096;
+
+/**
+ * 4096자 제한을 넘어도 **내용을 잘라내지 않고** 줄 경계로 나눠 전부 보낸다.
+ * (요약·말줄임 없이 메시지만으로 전체 확인 가능하도록.)
+ * @param {string} text
+ * @param {number} [limit]
+ * @returns {string[]}
+ */
+function splitTextForTelegram(text, limit = TELEGRAM_MAX_LEN) {
+  const src = String(text ?? "");
+  if (src.length <= limit) return [src];
+  /** @type {string[]} */
+  const chunks = [];
+  let cur = "";
+  const flush = () => {
+    if (cur.length) {
+      chunks.push(cur);
+      cur = "";
+    }
+  };
+  for (const rawLine of src.split("\n")) {
+    let line = rawLine;
+    // 한 줄 자체가 한계를 넘으면(드묾) 안전하게 하드 분할
+    while (line.length > limit) {
+      flush();
+      chunks.push(line.slice(0, limit));
+      line = line.slice(limit);
+    }
+    const candidate = cur.length ? `${cur}\n${line}` : line;
+    if (candidate.length > limit) {
+      flush();
+      cur = line;
+    } else {
+      cur = candidate;
+    }
+  }
+  flush();
+  return chunks.length ? chunks : [""];
+}
+
+/**
+ * 한 조각(payload attempts)을 HTML→plain 폴백까지 시도해 전송.
+ * @param {Record<string, unknown>[]} attempts
+ * @param {{ token: string; chatId: string }} auth
+ * @returns {Promise<boolean>}
+ */
+async function sendTelegramPayloadWithFallback(attempts, auth) {
+  let lastFail = null;
+  for (let i = 0; i < attempts.length; i += 1) {
+    const payload = attempts[i];
+    const result = await postTelegramSendMessage(payload, auth);
+    if (result.ok) return true;
+    lastFail = result;
+    const htmlErr = isHtmlEntityParseError(result.description, result.errText);
+    const markupErr = isBadReplyMarkupError(result.description, result.errText);
+    if (i === 0 && markupErr && attempts.length > 1) continue;
+    if (payload.parse_mode === "HTML" && htmlErr && i + 1 < attempts.length) continue;
+    if (i + 1 < attempts.length) continue;
+    break;
+  }
+  recordTelegramSendError(
+    lastFail?.status,
+    lastFail?.description,
+    lastFail?.errText,
+  );
+  console.error(
+    "[telegram] send failed:",
+    lastFail?.status,
+    lastFail?.description || lastFail?.errText?.slice(0, 200),
+  );
+  return false;
+}
+
 /**
  * @param {string} text
  * @param {object} [replyMarkup]
@@ -1125,52 +1200,35 @@ export async function sendTelegramMessage(text, replyMarkup, creds) {
     disable_web_page_preview: true,
   };
 
-  /** @type {Record<string, unknown>[]} */
-  const attempts = [];
-  const trimmed = text.slice(0, 4096);
-  if (replyMarkup && typeof replyMarkup === "object") {
-    attempts.push({
-      ...base,
-      text: trimmed,
-      parse_mode: "HTML",
-      reply_markup: replyMarkup,
-    });
-    attempts.push({ ...base, text: trimmed, parse_mode: "HTML" });
-    attempts.push({ ...base, text: htmlToPlainText(trimmed) });
-  } else {
-    attempts.push({ ...base, text: trimmed, parse_mode: "HTML" });
-    attempts.push({ ...base, text: htmlToPlainText(trimmed) });
-  }
-
-  let lastFail = null;
-  for (let i = 0; i < attempts.length; i += 1) {
-    const payload = attempts[i];
-    const result = await postTelegramSendMessage(payload, auth);
-    if (result.ok) {
-      if (i > 0) { /* fallback 성공 — 로그 생략 */ }
-      lastTelegramSendError = null;
-      return true;
+  const chunks = splitTextForTelegram(text);
+  let allOk = true;
+  for (let c = 0; c < chunks.length; c += 1) {
+    const chunkText = chunks[c];
+    const isLast = c === chunks.length - 1;
+    // inline 버튼은 마지막 조각에만 붙인다.
+    const markup = isLast ? replyMarkup : undefined;
+    /** @type {Record<string, unknown>[]} */
+    const attempts = [];
+    if (markup && typeof markup === "object") {
+      attempts.push({
+        ...base,
+        text: chunkText,
+        parse_mode: "HTML",
+        reply_markup: markup,
+      });
+      attempts.push({ ...base, text: chunkText, parse_mode: "HTML" });
+      attempts.push({ ...base, text: htmlToPlainText(chunkText) });
+    } else {
+      attempts.push({ ...base, text: chunkText, parse_mode: "HTML" });
+      attempts.push({ ...base, text: htmlToPlainText(chunkText) });
     }
-    lastFail = result;
-    const htmlErr = isHtmlEntityParseError(result.description, result.errText);
-    const markupErr = isBadReplyMarkupError(result.description, result.errText);
-    if (i === 0 && markupErr && attempts.length > 1) continue;
-    if (payload.parse_mode === "HTML" && htmlErr && i + 1 < attempts.length) continue;
-    if (i + 1 < attempts.length) continue;
-    break;
+
+    const ok = await sendTelegramPayloadWithFallback(attempts, auth);
+    if (!ok) allOk = false;
   }
 
-  recordTelegramSendError(
-    lastFail?.status,
-    lastFail?.description,
-    lastFail?.errText,
-  );
-  console.error(
-    "[telegram] send failed:",
-    lastFail?.status,
-    lastFail?.description || lastFail?.errText?.slice(0, 200),
-  );
-  return false;
+  if (allOk) lastTelegramSendError = null;
+  return allOk;
 }
 
 
