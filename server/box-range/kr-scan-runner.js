@@ -2,6 +2,10 @@ import { Worker } from "node:worker_threads";
 import { loadBoxRangeCatalogUniverse } from "../universe.js";
 import { boxRangeDetectEnabled, BOX_RANGE_KR_SCAN_MS } from "./constants.js";
 import { scanOneSymbolCatalog, scanOneSymbolCatalogV2 } from "./catalog-scan-shared.js";
+import {
+  shouldRunCatalogScan,
+  markCatalogScanRan,
+} from "./catalog-scan-schedule.js";
 import { refreshCatalogIndexSync } from "./catalog-store.js";
 import { notifyCatalogScanTelegram } from "./catalog-scan-telegram.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "../live-trade-log.js";
@@ -105,8 +109,12 @@ export function startKrBoxRangeCatalogPoller() {
   let running = false;
   const loop = () => {
     if (running) return;
+    const now = new Date();
+    const decision = shouldRunCatalogScan("kr", now);
+    if (!decision.run) return;
     running = true;
     pollerGuardAsync("box-kr-scan", () => runKrScanInWorker())
+      .then(() => markCatalogScanRan("kr", decision.sessionKey))
       .catch((e) => {
         liveTradeLogWarn(
           "[box-range:kr-scan]",
