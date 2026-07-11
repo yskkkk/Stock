@@ -2,7 +2,15 @@ import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { Worker } from "node:worker_threads";
 import { getKstParts } from "./kr-business-day.js";
-import { runBottomCandleMarketScan, getBottomCandleScanStateSync } from "./bottom-candle-scan.js";
+import {
+  runBottomCandleMarketScan,
+  getBottomCandleScanStateSync,
+  wasBottomCandleScannedSync,
+} from "./bottom-candle-scan.js";
+import {
+  isKrMarketFullyClosed,
+  isUsMarketFullyClosed,
+} from "./golden-cross-poller.js";
 import {
   assessScanVaultMerge,
   applyVaultScanMerge,
@@ -28,9 +36,15 @@ import {
   vaultScanProgressReporter,
 } from "./vault-scan-progress.js";
 
+// 골든크로스와 동일한 폴링 주기(기본 5분) — 매시간 무조건 반복하지 않고
+// tick마다 «장 완전 마감 + 이 세션 미스캔» 조건일 때만 실제 스캔.
 const POLL_MS = (() => {
-  const n = Number(process.env.STOCK_BOTTOM_CANDLE_POLL_MS ?? 3_600_000);
-  return Number.isFinite(n) && n >= 300_000 ? Math.min(n, 86_400_000) : 3_600_000;
+  const n = Number(
+    process.env.STOCK_BOTTOM_CANDLE_POLL_MS ??
+      process.env.STOCK_GOLDEN_CROSS_POLL_MS ??
+      300_000,
+  );
+  return Number.isFinite(n) && n >= 60_000 ? Math.min(n, 86_400_000) : 300_000;
 })();
 
 let manualScanRunning = false;
@@ -40,6 +54,26 @@ let lastManualScanResult = null;
 
 export function bottomCandleScanEnabled() {
   return String(process.env.STOCK_BOTTOM_CANDLE_SCAN ?? "1").trim() !== "0";
+}
+
+/**
+ * 골든크로스와 동일한 스캔 due 판정 — 장이 **완전 마감**되었고 그 세션(날짜)의
+ * 일봉·주봉을 아직 안 돌렸을 때만 true. 장중·주말·휴장·이미 스캔한 세션은 false.
+ * @param {"kr"|"us"} market
+ * @param {Date} [now]
+ */
+export function shouldRunBottomCandleScan(market, now = new Date()) {
+  if (!bottomCandleScanEnabled()) return false;
+  const dateKey =
+    market === "kr" ? getKstParts(now).dateKey : localUsDateKey(now);
+  for (const timeframe of VAULT_SCAN_TIMEFRAMES) {
+    if (!wasBottomCandleScannedSync(market, dateKey, timeframe)) {
+      return market === "kr"
+        ? isKrMarketFullyClosed(now)
+        : isUsMarketFullyClosed(now);
+    }
+  }
+  return false;
 }
 
 export function isBottomCandleManualScanRunning() {
@@ -93,8 +127,16 @@ async function runMarketTimeframeScan(market, scanDate, timeframe) {
   return { ...result, mergeOutcome: merge.outcome };
 }
 
-/** @param {Date} [now] @param {"manual"|"scheduled"} trigger */
-export async function runFullBottomCandleScanInternal(now = new Date(), trigger = "scheduled") {
+/**
+ * @param {Date} [now]
+ * @param {"manual"|"scheduled"} trigger
+ * @param {Array<"kr"|"us">} [markets] — 스캔 대상 시장(기본 kr·us 모두)
+ */
+export async function runFullBottomCandleScanInternal(
+  now = new Date(),
+  trigger = "scheduled",
+  markets = ["kr", "us"],
+) {
   const runId = randomUUID();
   const kstDate = getKstParts(now).dateKey;
   const startedAt = performance.now();
@@ -111,7 +153,7 @@ export async function runFullBottomCandleScanInternal(now = new Date(), trigger 
   /** @type {import("./golden-cross-telegram.js").VaultScanTimingRow[]} */
   const timings = [];
 
-  for (const market of /** @type {const} */ (["kr", "us"])) {
+  for (const market of markets) {
     const scanDate =
       market === "kr" ? getKstParts(now).dateKey : localUsDateKey(now);
     for (const timeframe of VAULT_SCAN_TIMEFRAMES) {
@@ -219,10 +261,15 @@ export function triggerBottomCandleManualScan() {
 
 const BC_WORKER_URL = new URL("./bottom-candle-scan-worker.js", import.meta.url);
 
-/** 바닥봉 스캔을 별도 Worker Thread에서 실행 */
-function spawnBottomCandleScanWorker() {
+/**
+ * 바닥봉 스캔을 별도 Worker Thread에서 실행
+ * @param {Array<"kr"|"us">} [markets] — due 시장만 스캔(기본 kr·us)
+ */
+function spawnBottomCandleScanWorker(markets = ["kr", "us"]) {
   return new Promise((resolve, reject) => {
-    const worker = new Worker(BC_WORKER_URL, { workerData: { trigger: "scheduled" } });
+    const worker = new Worker(BC_WORKER_URL, {
+      workerData: { trigger: "scheduled", markets },
+    });
     worker.once("message", (msg) => {
       worker.terminate();
       if (msg.ok) resolve(msg.result);
@@ -247,9 +294,14 @@ export function startBottomCandleScanPoller() {
   let running = false;
   const tick = () => {
     if (running || manualScanRunning) return;
+    const now = new Date();
+    const dueMarkets = /** @type {Array<"kr"|"us">} */ (["kr", "us"]).filter(
+      (m) => shouldRunBottomCandleScan(m, now),
+    );
+    if (!dueMarkets.length) return;
     running = true;
     scheduledScanRunning = true;
-    void pollerGuardAsync("bottom-candle", () => spawnBottomCandleScanWorker())
+    void pollerGuardAsync("bottom-candle", () => spawnBottomCandleScanWorker(dueMarkets))
       .catch((e) => {
         liveTradeLogWarn(
           "[bottom-candle:poller]",

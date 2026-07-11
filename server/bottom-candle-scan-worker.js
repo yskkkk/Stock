@@ -4,16 +4,19 @@
  */
 import { workerData, parentPort } from "node:worker_threads";
 
-const { trigger } = workerData ?? {};
+const { trigger, markets } = workerData ?? {};
 
 async function run() {
   try {
     const { runFullBottomCandleScanInternal } = await import(
       "./bottom-candle-poller.js"
     );
+    const scanMarkets =
+      Array.isArray(markets) && markets.length ? markets : ["kr", "us"];
     const result = await runFullBottomCandleScanInternal(
       new Date(),
       trigger ?? "scheduled",
+      scanMarkets,
     );
     parentPort?.postMessage({ ok: true, result });
   } catch (e) {
