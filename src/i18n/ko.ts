@@ -1197,6 +1197,7 @@ export const ko = {
   tabLowSlopeFlip: "저점 기울기",
   tabBottomCandle: "바닥 캔들",
     tabBookAccum: "매집봉",
+    tabGranville: "그랜빌",
     timeframeFilterAria: "봉 구간 필터",
     timeframeDaily: "일봉",
     timeframeWeekly: "주봉",
@@ -1219,6 +1220,7 @@ export const ko = {
     sourceBottomCandle: "바닥 캔들",
     sourceBookAccum: "매집봉",
     sourceLowSlopeFlip: "저점 기울기",
+    sourceGranville: "그랜빌",
     sourceFavorite: "즐겨찾기",
     remove: "삭제",
     removeAria: "보관함에서 삭제",
@@ -1322,6 +1324,7 @@ export const ko = {
     lastScanBottomCandle: "바닥",
     lastScanBookAccum: "매집",
     lastScanLowSlope: "저점기울",
+    lastScanGranville: "그랜빌",
     lowSlopeFlipBadgeHint:
       "주봉 캔들 저점(pivot) 연결선의 기울기 부호가 바뀐 종목 — 하락→상승·상승→하락",
     lowSlopeDownToUp: "하락→상승",
@@ -1331,6 +1334,8 @@ export const ko = {
     bookAccumBadgeHint:
       "책 매집봉(느슨·RVOL 1.5) — 스캔 구간(일봉 2년·주봉 50년) 내 매집봉 전건 집계",
     bookAccumCountUnit: "건",
+    granvilleBadgeHint:
+      "그랜빌 8법칙 — 일봉 기준선(MA200) 대비 주가 위치·이평선 기울기로 판별. 매수1~4만 보관함에 표시. 각 정규장 마감 후 세션당 1회 스캔.",
     scanRun: "일봉 탐색",
     scanConfirmLead: "일봉·주봉 골든크로스·정배열·120선·저점기울기·바닥캔들·매집봉 탐색을 실행할까요?",
     scanConfirmBody:

@@ -17,6 +17,10 @@ import {
   stockVaultTimeframeRowClass,
 } from "../lib/stockVaultTimeframe";
 import type { StockVaultChartInsightSnapshot, StockVaultScanSource } from "../types";
+import {
+  granvilleSummaryLabel,
+  granvilleDescription,
+} from "../../shared/granville-rules.js";
 import { VaultBookmarkIcon } from "./StockVaultMarkButton";
 import {
   type StockVaultRowBubbleActions,
@@ -30,6 +34,7 @@ const SOURCE_BADGE_LABEL: Record<StockVaultScanSource, string> = {
   bottom_candle: ko.stockVault.sourceBottomCandle,
   book_accum: ko.stockVault.sourceBookAccum,
   low_slope_flip: ko.stockVault.sourceLowSlopeFlip,
+  granville: ko.stockVault.sourceGranville,
 };
 
 function fmtDate(ms: number): string {
@@ -107,6 +112,7 @@ function StockVaultRowInner({
   const bottomItem = row.bottomCandle;
   const bookAccumItem = row.bookAccum;
   const lowSlopeItem = row.lowSlopeFlip;
+  const granvilleItem = row.granville;
   const gcRecencyClass = gcItem ? goldenCrossRecencyClass(gcItem) : null;
   const rowClassName = [
     "stock-vault-tab__row",
@@ -125,6 +131,8 @@ function StockVaultRowInner({
     bookAccumItem?.scanDate ??
     lowSlopeItem?.signalDate ??
     lowSlopeItem?.scanDate ??
+    granvilleItem?.signalDate ??
+    granvilleItem?.scanDate ??
     null;
   const sourceLabels =
     row.scanSources.length > 0
@@ -170,13 +178,26 @@ function StockVaultRowInner({
         ? ko.stockVault.lowSlopeDownToUp
         : ko.stockVault.lowSlopeUpToDown
       : null;
+  const granvilleLabel = granvilleItem?.granvilleSignal
+    ? granvilleSummaryLabel(
+        granvilleItem.granvilleSignal,
+        granvilleItem.granvilleMaPeriod,
+      )
+    : null;
+  const granvilleDesc = granvilleItem?.granvilleSignal
+    ? granvilleDescription(
+        granvilleItem.granvilleSignal,
+        granvilleItem.granvilleMaPeriod,
+      )
+    : null;
   const hasSignalBadges =
     Boolean(gcChain) ||
     Boolean(row.maAlign) ||
     Boolean(ma120Label) ||
     Boolean(lowSlopeLabel) ||
     Boolean(bottomLabel) ||
-    Boolean(bookAccumLabel);
+    Boolean(bookAccumLabel) ||
+    Boolean(granvilleLabel);
 
   const bubbleTarget = (): StockVaultRowBubbleTarget => ({
     symbol: row.symbol,
@@ -186,6 +207,8 @@ function StockVaultRowInner({
     tvSymbol,
     price: quote?.price ?? null,
     currency: cur ?? null,
+    granvilleSummary: granvilleLabel,
+    granvilleDesc,
   });
 
   const openRowBubble = (el: HTMLElement, opts?: { immediate?: boolean }) =>
@@ -393,6 +416,14 @@ function StockVaultRowInner({
                   title={ko.stockVault.bookAccumBadgeHint}
                 >
                   {bookAccumLabel}
+                </span>
+              ) : null}
+              {granvilleLabel ? (
+                <span
+                  className="stock-vault-tab__cross stock-vault-tab__cross--granville"
+                  title={granvilleDesc ?? ko.stockVault.granvilleBadgeHint}
+                >
+                  {granvilleLabel}
                 </span>
               ) : null}
             </div>

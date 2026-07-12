@@ -46,7 +46,8 @@ export function buildStockVaultItemsForUserSync(userId) {
       it.source === "ma120_near" ||
       it.source === "low_slope_flip" ||
       it.source === "bottom_candle" ||
-      it.source === "book_accum",
+      it.source === "book_accum" ||
+      it.source === "granville",
   );
   if (!userId) {
     return {

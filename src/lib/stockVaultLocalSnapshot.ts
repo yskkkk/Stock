@@ -9,6 +9,7 @@ const SCAN_SOURCES = new Set<StockVaultScanSource>([
   "low_slope_flip",
   "bottom_candle",
   "book_accum",
+  "granville",
 ]);
 
 type SnapshotStore = {

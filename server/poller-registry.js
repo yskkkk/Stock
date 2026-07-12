@@ -238,6 +238,22 @@ export const POLLER_CATALOG = {
     descriptionKo:
       "KR·US 유니버스 전 종목을 1시간마다 일봉·주봉에서 세력 바닥 캔들(3캔들·갭·RVOL·점수) 패턴을 탐색해 stock-vault에 반영합니다.",
   },
+  granville: {
+    labelKo: "그랜빌 8법칙 스캔",
+    groupKo: "스크리너",
+    intervalMs: () => {
+      const n = Number(
+        process.env.STOCK_GRANVILLE_POLL_MS ??
+          process.env.STOCK_GOLDEN_CROSS_POLL_MS ??
+          300_000,
+      );
+      return Number.isFinite(n) && n >= 60_000 ? Math.min(n, 86_400_000) : 300_000;
+    },
+    envDisable: "STOCK_GRANVILLE_SCAN=0",
+    isBootEnabled: () => process.env.STOCK_GRANVILLE_SCAN !== "0",
+    descriptionKo:
+      "KR·US 유니버스 전 종목의 일봉 기준선(MA200)에서 그랜빌 8법칙 중 매수 신호(매수1~4)를 탐색해 stock-vault에 반영합니다. 각 정규장 마감 후 세션당 1회 실행하며, 부팅 시 직전 거래일이 비어 있으면 백필합니다.",
+  },
   "holdings-news": {
     labelKo: "보유 종목 속보 이메일",
     groupKo: "알림",

@@ -14,6 +14,7 @@ export const STOCK_VAULT_SCAN_SOURCES: readonly StockVaultScanSource[] = [
   "low_slope_flip",
   "bottom_candle",
   "book_accum",
+  "granville",
 ];
 
 export type VaultDisplayRow = {
@@ -31,6 +32,7 @@ export type VaultDisplayRow = {
   lowSlopeFlip?: StockVaultItem;
   bottomCandle?: StockVaultItem;
   bookAccum?: StockVaultItem;
+  granville?: StockVaultItem;
   favorite?: StockVaultItem;
 };
 
@@ -57,6 +59,7 @@ function pickDisplayName(row: {
   lowSlopeFlip?: StockVaultItem;
   bottomCandle?: StockVaultItem;
   bookAccum?: StockVaultItem;
+  granville?: StockVaultItem;
   favorite?: StockVaultItem;
 }) {
   return (
@@ -66,6 +69,7 @@ function pickDisplayName(row: {
     row.lowSlopeFlip?.name ??
     row.bottomCandle?.name ??
     row.bookAccum?.name ??
+    row.granville?.name ??
     row.favorite?.name ??
     row.goldenCross?.symbol ??
     row.maAlign?.symbol ??
@@ -73,6 +77,7 @@ function pickDisplayName(row: {
     row.lowSlopeFlip?.symbol ??
     row.bottomCandle?.symbol ??
     row.bookAccum?.symbol ??
+    row.granville?.symbol ??
     row.favorite?.symbol ??
     ""
   );
@@ -92,6 +97,7 @@ function buildScanRow(
   const lowSlopeFlip = parts.low_slope_flip;
   const bottomCandle = parts.bottom_candle;
   const bookAccum = parts.book_accum;
+  const granville = parts.granville;
   const favorite = parts.favorite;
   const symbol =
     goldenCross?.symbol ??
@@ -100,6 +106,7 @@ function buildScanRow(
     lowSlopeFlip?.symbol ??
     bottomCandle?.symbol ??
     bookAccum?.symbol ??
+    granville?.symbol ??
     favorite?.symbol ??
     "";
   const market =
@@ -109,6 +116,7 @@ function buildScanRow(
     lowSlopeFlip?.market ??
     bottomCandle?.market ??
     bookAccum?.market ??
+    granville?.market ??
     favorite?.market ??
     "kr";
   const favorited = Boolean(
@@ -118,6 +126,7 @@ function buildScanRow(
       lowSlopeFlip?.favorited ||
       bottomCandle?.favorited ||
       bookAccum?.favorited ||
+      granville?.favorited ||
       favorite?.favorited,
   );
   const updatedAtMs = Math.max(
@@ -127,12 +136,13 @@ function buildScanRow(
     lowSlopeFlip?.updatedAtMs ?? 0,
     bottomCandle?.updatedAtMs ?? 0,
     bookAccum?.updatedAtMs ?? 0,
+    granville?.updatedAtMs ?? 0,
     favorite?.updatedAtMs ?? 0,
   );
   return {
     key,
     symbol,
-    name: pickDisplayName({ goldenCross, maAlign, ma120Near, bottomCandle, bookAccum, favorite }),
+    name: pickDisplayName({ goldenCross, maAlign, ma120Near, bottomCandle, bookAccum, granville, favorite }),
     market,
     timeframe,
     favorited,
@@ -144,6 +154,7 @@ function buildScanRow(
     lowSlopeFlip,
     bottomCandle,
     bookAccum,
+    granville,
     favorite,
   };
 }
@@ -185,6 +196,8 @@ function buildFavoriteRows(
       row.bottom_candle = it;
     } else if (it.source === "book_accum" && matchesTimeframe(it, timeframe)) {
       row.book_accum = it;
+    } else if (it.source === "granville" && matchesTimeframe(it, timeframe)) {
+      row.granville = it;
     } else if (it.source === "favorite") {
       row.favorite = it;
     } else if (it.favorited) {
@@ -231,6 +244,7 @@ export function countScanSourceTotals(
     low_slope_flip: 0,
     bottom_candle: 0,
     book_accum: 0,
+    granville: 0,
   };
   for (const it of items) {
     const src = it.source as StockVaultScanSource;
@@ -363,7 +377,10 @@ export function countVaultIntersection(
 }
 
 /** 일봉 전용 탐색 조건 */
-const DAILY_ONLY_SCAN_SOURCES = new Set<StockVaultScanSource>(["ma120_near"]);
+const DAILY_ONLY_SCAN_SOURCES = new Set<StockVaultScanSource>([
+  "ma120_near",
+  "granville",
+]);
 
 /** 주봉 전용 탐색 조건 */
 const WEEKLY_ONLY_SCAN_SOURCES = new Set<StockVaultScanSource>(["low_slope_flip"]);

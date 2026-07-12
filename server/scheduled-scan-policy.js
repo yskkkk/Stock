@@ -12,6 +12,10 @@ import {
   listUserStoppedPollerIdsSync,
 } from "./poller-registry.js";
 import { getBottomCandleScanStateSync } from "./bottom-candle-scan.js";
+import {
+  granvilleScanEnabled,
+  dueGranvilleScanDate,
+} from "./granville-poller.js";
 import { getKstParts } from "./kr-business-day.js";
 
 /** @typedef {{
@@ -66,6 +70,15 @@ export const SCHEDULED_SCAN_TASKS = [
     shouldRecover: bottomCandleNeedsRecovery,
   },
   {
+    id: "granville",
+    label: "granville(그랜빌 8법칙·매수)",
+    pollerIds: ["granville"],
+    isConfiguredEnabled: () => granvilleScanEnabled(),
+    shouldRecover: (now = new Date()) =>
+      dueGranvilleScanDate("kr", now) != null ||
+      dueGranvilleScanDate("us", now) != null,
+  },
+  {
     id: "book-accum-fast",
     label: "book-accum-fast(kr+us)",
     isConfiguredEnabled: () => bookAccumFastScanEnabled(),
@@ -116,6 +129,7 @@ export async function listScheduledScanRecoveryPlan(now = new Date()) {
 export const VAULT_SCHEDULED_SCAN_TASK_IDS = [
   "vault",
   "bottom-candle",
+  "granville",
   "book-accum-fast",
 ];
 

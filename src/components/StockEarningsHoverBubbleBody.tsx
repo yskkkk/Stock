@@ -18,6 +18,8 @@ export default function StockEarningsHoverBubbleBody({
   tvChartUrl,
   price,
   currency,
+  granvilleSummary,
+  granvilleDesc,
   variant = "earnings",
   onAfterAction,
 }: {
@@ -30,6 +32,8 @@ export default function StockEarningsHoverBubbleBody({
   tvChartUrl?: string | null;
   price?: number | null;
   currency?: string | null;
+  granvilleSummary?: string | null;
+  granvilleDesc?: string | null;
   variant?: "vault" | "earnings";
   onAfterAction?: (action: "chart" | "financials") => void;
 }) {
@@ -86,6 +90,18 @@ export default function StockEarningsHoverBubbleBody({
         {code}
         {sectorLabel ? ` · ${sectorLabel}` : ""}
       </p>
+      {granvilleSummary ? (
+        <div className="earnings-icon-rail__bubble-granville">
+          <p className="earnings-icon-rail__bubble-granville-title">
+            {granvilleSummary}
+          </p>
+          {granvilleDesc ? (
+            <p className="earnings-icon-rail__bubble-granville-desc">
+              {granvilleDesc}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       {earningsWhen ? (
         <p className="earnings-icon-rail__bubble-when">{earningsWhen}</p>
       ) : null}

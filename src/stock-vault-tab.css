@@ -1289,6 +1289,23 @@ html[data-theme="light"] .stock-vault-tab__tf-tab--wk.active {
   border: 1px solid color-mix(in srgb, #b45309 35%, transparent);
 }
 
+.stock-vault-tab__cross--granville,
+.stock-vault-tab__row--tf-d .stock-vault-tab__cross--granville {
+  font-weight: 600;
+  color: #c4b5fd;
+  background: color-mix(in srgb, #7c3aed 20%, transparent);
+  border: 1px solid color-mix(in srgb, #7c3aed 42%, transparent);
+}
+
+html[data-theme="light"]
+  .stock-vault-tab__row--tf-d
+  .stock-vault-tab__cross--granville,
+html[data-theme="light"] .stock-vault-tab__cross--granville {
+  color: #6d28d9;
+  background: color-mix(in srgb, #7c3aed 10%, #fff);
+  border: 1px solid color-mix(in srgb, #7c3aed 32%, transparent);
+}
+
 .stock-vault-tab__filters--ma120-approach {
   margin-top: 0.35rem;
   padding-left: 0.15rem;

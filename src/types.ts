@@ -483,9 +483,10 @@ export interface FinancialStatementAnalysisResponse extends FinancialStatementDe
   aiOpinion: FinancialAiOpinion;
 }
 
-export type StockVaultSource = "golden_cross" | "ma_align" | "ma120_near" | "bottom_candle" | "book_accum" | "low_slope_flip" | "favorite";
+export type StockVaultSource = "golden_cross" | "ma_align" | "ma120_near" | "bottom_candle" | "book_accum" | "low_slope_flip" | "granville" | "favorite";
 /** 자동 탐색 조건 — stockVaultFilter.STOCK_VAULT_SCAN_SOURCES 와 동기 */
-export type StockVaultScanSource = "golden_cross" | "ma_align" | "ma120_near" | "bottom_candle" | "book_accum" | "low_slope_flip";
+export type StockVaultScanSource = "golden_cross" | "ma_align" | "ma120_near" | "bottom_candle" | "book_accum" | "low_slope_flip" | "granville";
+export type GranvilleSignalId = "buy1" | "buy2" | "buy3" | "buy4" | "sell1" | "sell2" | "sell3" | "sell4";
 export type StockVaultTimeframe = "1d" | "1wk";
 export type GoldenCrossKind =
   | "5>20"
@@ -568,6 +569,12 @@ export interface StockVaultItem {
   accumCount?: number;
   lowSlopeFlip?: "down_to_up" | "up_to_down";
   pivotLow?: number;
+  /** 그랜빌 8법칙 신호 id (매수1~4·매도1~4) */
+  granvilleSignal?: GranvilleSignalId;
+  granvilleCode?: number;
+  granvilleSide?: "buy" | "sell";
+  granvilleMaPeriod?: number;
+  granvilleDisparity?: number;
   addedAtMs: number;
   updatedAtMs: number;
   favorited?: boolean;

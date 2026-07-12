@@ -12,7 +12,7 @@ function vaultStoreFile() {
   return process.env.STOCK_VAULT_STORE_TEST_FILE?.trim() || "stock-vault.json";
 }
 
-/** @typedef {"golden_cross"|"ma_align"|"ma120_near"|"bottom_candle"|"book_accum"|"low_slope_flip"} StockVaultSource */
+/** @typedef {"golden_cross"|"ma_align"|"ma120_near"|"bottom_candle"|"book_accum"|"low_slope_flip"|"granville"} StockVaultSource */
 
 /**
  * @typedef {{
@@ -42,6 +42,11 @@ function vaultStoreFile() {
  *   accumCount?: number;
  *   lowSlopeFlip?: "down_to_up"|"up_to_down";
  *   pivotLow?: number;
+ *   granvilleSignal?: "buy1"|"buy2"|"buy3"|"buy4"|"sell1"|"sell2"|"sell3"|"sell4";
+ *   granvilleCode?: number;
+ *   granvilleSide?: "buy"|"sell";
+ *   granvilleMaPeriod?: number;
+ *   granvilleDisparity?: number;
  *   addedAtMs: number;
  *   updatedAtMs: number;
  * }} StockVaultItem
@@ -59,6 +64,7 @@ function normalizeSource(source) {
   if (source === "bottom_candle") return "bottom_candle";
   if (source === "book_accum") return "book_accum";
   if (source === "low_slope_flip") return "low_slope_flip";
+  if (source === "granville") return "granville";
   return null;
 }
 
@@ -360,7 +366,10 @@ export function upsertStockVaultItemSync(input) {
           ? input.bottomScore
           : prev.bottomScore,
       signalDate:
-        source === "bottom_candle" || source === "book_accum" || source === "low_slope_flip"
+        source === "bottom_candle" ||
+        source === "book_accum" ||
+        source === "low_slope_flip" ||
+        source === "granville"
           ? input.signalDate != null
             ? input.signalDate
             : input.scanDate != null
@@ -407,6 +416,26 @@ export function upsertStockVaultItemSync(input) {
         source === "low_slope_flip" && input.pivotLow != null
           ? input.pivotLow
           : prev.pivotLow,
+      granvilleSignal:
+        source === "granville" && input.granvilleSignal != null
+          ? input.granvilleSignal
+          : prev.granvilleSignal,
+      granvilleCode:
+        source === "granville" && input.granvilleCode != null
+          ? input.granvilleCode
+          : prev.granvilleCode,
+      granvilleSide:
+        source === "granville" && input.granvilleSide != null
+          ? input.granvilleSide
+          : prev.granvilleSide,
+      granvilleMaPeriod:
+        source === "granville" && input.granvilleMaPeriod != null
+          ? input.granvilleMaPeriod
+          : prev.granvilleMaPeriod,
+      granvilleDisparity:
+        source === "granville" && input.granvilleDisparity != null
+          ? input.granvilleDisparity
+          : prev.granvilleDisparity,
       updatedAtMs: now,
     };
   } else {
@@ -431,7 +460,10 @@ export function upsertStockVaultItemSync(input) {
       bottomCode: source === "bottom_candle" ? input.bottomCode : undefined,
       bottomScore: source === "bottom_candle" ? input.bottomScore : undefined,
       signalDate:
-        source === "bottom_candle" || source === "book_accum" || source === "low_slope_flip"
+        source === "bottom_candle" ||
+        source === "book_accum" ||
+        source === "low_slope_flip" ||
+        source === "granville"
           ? (input.signalDate ?? input.scanDate ?? null)
           : undefined,
       bottomSl: source === "bottom_candle" ? input.bottomSl : undefined,
@@ -444,6 +476,13 @@ export function upsertStockVaultItemSync(input) {
       accumCount: source === "book_accum" ? input.accumCount : undefined,
       lowSlopeFlip: source === "low_slope_flip" ? input.lowSlopeFlip : undefined,
       pivotLow: source === "low_slope_flip" ? input.pivotLow : undefined,
+      granvilleSignal: source === "granville" ? input.granvilleSignal : undefined,
+      granvilleCode: source === "granville" ? input.granvilleCode : undefined,
+      granvilleSide: source === "granville" ? input.granvilleSide : undefined,
+      granvilleMaPeriod:
+        source === "granville" ? input.granvilleMaPeriod : undefined,
+      granvilleDisparity:
+        source === "granville" ? input.granvilleDisparity : undefined,
       addedAtMs: now,
       updatedAtMs: now,
     });
@@ -785,6 +824,51 @@ export function mergeLowSlopeFlipHitsIntoVaultSync(hits) {
       signalDate: hit.signalDate ?? hit.scanDate,
       lowSlopeFlip: hit.lowSlopeFlip,
       pivotLow: hit.pivotLow,
+    });
+  }
+}
+
+export function clearGranvilleVaultItemsSync(opts = {}) {
+  const marketFilter = opts.market === "kr" || opts.market === "us" ? opts.market : null;
+  const preserveFavorites = opts.preserveFavorites !== false;
+  const favorited = preserveFavorites ? listAllFavoritedSymbolsSync() : new Set();
+  const store = readStore();
+  const before = store.items.length;
+  store.items = store.items.filter((it) => {
+    if (it.source !== "granville") return true;
+    if (marketFilter && it.market !== marketFilter) return true;
+    if (favorited.has(it.symbol)) return true;
+    return false;
+  });
+  if (store.items.length !== before) {
+    writeStore(store);
+  }
+  return before - store.items.length;
+}
+
+/**
+ * @param {Array<{ symbol: string; name: string; market: "kr"|"us"; scanDate: string; signalDate?: string | null; granvilleSignal?: "buy1"|"buy2"|"buy3"|"buy4"|"sell1"|"sell2"|"sell3"|"sell4"; granvilleCode?: number; granvilleSide?: "buy"|"sell"; granvilleMaPeriod?: number; granvilleDisparity?: number | null }>} hits
+ */
+export function mergeGranvilleHitsIntoVaultSync(hits) {
+  const dismissed = new Set(readStore().dismissed ?? []);
+  for (const hit of hits) {
+    const sym = String(hit.symbol ?? "")
+      .trim()
+      .toUpperCase();
+    if (!sym || dismissed.has(sym)) continue;
+    upsertStockVaultItemSync({
+      symbol: hit.symbol,
+      name: hit.name,
+      market: hit.market,
+      source: "granville",
+      timeframe: "1d",
+      scanDate: hit.scanDate,
+      signalDate: hit.signalDate ?? hit.scanDate,
+      granvilleSignal: hit.granvilleSignal,
+      granvilleCode: hit.granvilleCode,
+      granvilleSide: hit.granvilleSide,
+      granvilleMaPeriod: hit.granvilleMaPeriod,
+      granvilleDisparity: hit.granvilleDisparity ?? undefined,
     });
   }
 }

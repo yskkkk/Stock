@@ -140,6 +140,13 @@ function taskRunner(taskId) {
         );
         return runFullBottomCandleScanInternal(new Date(), "manual");
       };
+    case "granville":
+      return async () => {
+        const { runFullGranvilleScanInternal } = await import(
+          "../server/granville-poller.js"
+        );
+        return runFullGranvilleScanInternal(new Date(), "manual");
+      };
     case "book-accum-fast":
       return runBookAccumFastAllMarkets;
     default:
@@ -147,8 +154,8 @@ function taskRunner(taskId) {
   }
 }
 
-/** vault·매집 fast가 동일 vault를 쓰므로 순차 실행 */
-const VAULT_SEQUENTIAL_TASK_IDS = ["vault", "book-accum-fast"];
+/** vault·매집 fast·그랜빌이 동일 vault를 쓰므로 순차 실행 */
+const VAULT_SEQUENTIAL_TASK_IDS = ["vault", "granville", "book-accum-fast"];
 
 /** @param {Array<{ id: string; label: string }>} metas */
 async function runScheduledTasks(metas) {

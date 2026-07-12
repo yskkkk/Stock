@@ -7120,6 +7120,32 @@ html[data-theme="light"] .earnings-icon-rail__logo-wrap.stock-logo-plate--dark {
   color: var(--text-dim);
 }
 
+.earnings-icon-rail__bubble-granville {
+  margin: 0 0 0.32rem;
+  padding: 0.3rem 0.4rem;
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, #7c3aed 14%, transparent);
+  border: 1px solid color-mix(in srgb, #7c3aed 32%, transparent);
+}
+
+.earnings-icon-rail__bubble-granville-title {
+  margin: 0 0 0.18rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: color-mix(in srgb, #c4b5fd 88%, var(--text));
+}
+
+html[data-theme="light"] .earnings-icon-rail__bubble-granville-title {
+  color: #6d28d9;
+}
+
+.earnings-icon-rail__bubble-granville-desc {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+
 .earnings-icon-rail__bubble-countdown {
   margin: 0;
   font-size: 0.76rem;

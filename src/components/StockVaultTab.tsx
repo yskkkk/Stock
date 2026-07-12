@@ -121,6 +121,7 @@ const SCAN_SOURCE_LABEL: Record<StockVaultScanSource, string> = {
   low_slope_flip: ko.stockVault.tabLowSlopeFlip,
   bottom_candle: ko.stockVault.tabBottomCandle,
   book_accum: ko.stockVault.tabBookAccum,
+  granville: ko.stockVault.tabGranville,
 };
 
 const SCAN_POLL_MS = 2500;

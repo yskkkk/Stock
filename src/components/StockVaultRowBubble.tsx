@@ -45,6 +45,8 @@ export type StockVaultRowBubbleTarget = {
   tvSymbol: string;
   price?: number | null;
   currency?: string | null;
+  granvilleSummary?: string | null;
+  granvilleDesc?: string | null;
 };
 
 export type StockVaultRowBubbleActions = {
@@ -298,6 +300,8 @@ export function useStockVaultRowBubble(tipIdOverride?: string) {
               tvChartUrl={tradingViewChartUrl(tip.tvSymbol)}
               price={tip.price}
               currency={tip.currency}
+              granvilleSummary={tip.granvilleSummary}
+              granvilleDesc={tip.granvilleDesc}
               onAfterAction={() => setTip(null)}
             />
           </div>,
