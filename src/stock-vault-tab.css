@@ -1308,6 +1308,22 @@ html[data-theme="light"] .stock-vault-tab__cross--granville {
   border: 1px solid color-mix(in srgb, #7c3aed 32%, transparent);
 }
 
+.stock-vault-tab__cross--granville-sell,
+.stock-vault-tab__row--tf-d .stock-vault-tab__cross--granville-sell {
+  color: #fca5a5;
+  background: color-mix(in srgb, #dc2626 20%, transparent);
+  border: 1px solid color-mix(in srgb, #dc2626 42%, transparent);
+}
+
+html[data-theme="light"]
+  .stock-vault-tab__row--tf-d
+  .stock-vault-tab__cross--granville-sell,
+html[data-theme="light"] .stock-vault-tab__cross--granville-sell {
+  color: #b91c1c;
+  background: color-mix(in srgb, #dc2626 10%, #fff);
+  border: 1px solid color-mix(in srgb, #dc2626 32%, transparent);
+}
+
 .stock-vault-tab__filters--ma120-approach {
   margin-top: 0.35rem;
   padding-left: 0.15rem;

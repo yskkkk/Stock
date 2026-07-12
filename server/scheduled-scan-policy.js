@@ -71,7 +71,7 @@ export const SCHEDULED_SCAN_TASKS = [
   },
   {
     id: "granville",
-    label: "granville(그랜빌 8법칙·매수)",
+    label: "granville(그랜빌 8법칙·매수·매도)",
     pollerIds: ["granville"],
     isConfiguredEnabled: () => granvilleScanEnabled(),
     shouldRecover: (now = new Date()) =>

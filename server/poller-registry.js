@@ -252,7 +252,7 @@ export const POLLER_CATALOG = {
     envDisable: "STOCK_GRANVILLE_SCAN=0",
     isBootEnabled: () => process.env.STOCK_GRANVILLE_SCAN !== "0",
     descriptionKo:
-      "KR·US 유니버스 전 종목의 일봉 기준선(MA200)에서 그랜빌 8법칙 중 매수 신호(매수1~4)를 탐색해 stock-vault에 반영합니다. 각 정규장 마감 후 세션당 1회 실행하며, 부팅 시 직전 거래일이 비어 있으면 백필합니다.",
+      "KR·US 유니버스 전 종목의 일봉 기준선(MA200)에서 그랜빌 8법칙 매수(매수1~4)·매도(매도1~4) 신호를 탐색해 stock-vault에 반영합니다. 각 정규장 마감 후 세션당 1회 실행하며, 부팅 시 직전 거래일이 비어 있으면 백필합니다.",
   },
   "holdings-news": {
     labelKo: "보유 종목 속보 이메일",

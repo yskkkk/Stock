@@ -1,6 +1,6 @@
 /**
  * 그랜빌 8법칙 유니버스 스캔 — 일봉 기준선(MA200).
- * 매수 신호(매수1~4)만 종목보관함(vault)에 반영한다(관심 후보 성격).
+ * 매수(매수1~4)·매도(매도1~4) 신호를 모두 종목보관함(vault)에 반영한다.
  */
 
 import { loadStock } from "./stock-data.js";
@@ -105,8 +105,8 @@ async function scanOneSymbol(item, market, scanDate) {
     }
     const candles = Array.isArray(data?.candles) ? data.candles : [];
     const det = detectGranvilleLatest(candles, { maPeriod: GRANVILLE_MA_PERIOD });
-    // 매수 신호만 보관함 반영
-    if (!det.signal || det.side !== "buy") return { ok: true, hit: null };
+    // 매수·매도 신호 모두 보관함 반영
+    if (!det.signal) return { ok: true, hit: null };
     return {
       ok: true,
       hit: {

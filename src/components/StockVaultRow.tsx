@@ -420,7 +420,11 @@ function StockVaultRowInner({
               ) : null}
               {granvilleLabel ? (
                 <span
-                  className="stock-vault-tab__cross stock-vault-tab__cross--granville"
+                  className={
+                    granvilleItem?.granvilleSide === "sell"
+                      ? "stock-vault-tab__cross stock-vault-tab__cross--granville stock-vault-tab__cross--granville-sell"
+                      : "stock-vault-tab__cross stock-vault-tab__cross--granville"
+                  }
                   title={granvilleDesc ?? ko.stockVault.granvilleBadgeHint}
                 >
                   {granvilleLabel}

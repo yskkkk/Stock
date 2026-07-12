@@ -166,13 +166,15 @@ function normalizeStore(raw) {
       signalDate:
         (source === "bottom_candle" ||
           source === "book_accum" ||
-          source === "low_slope_flip") &&
+          source === "low_slope_flip" ||
+          source === "granville") &&
         typeof row?.signalDate === "string" &&
         row.signalDate.trim()
           ? row.signalDate.trim()
           : (source === "bottom_candle" ||
                 source === "book_accum" ||
-                source === "low_slope_flip") &&
+                source === "low_slope_flip" ||
+                source === "granville") &&
               typeof row?.scanDate === "string" &&
               row.scanDate.trim()
             ? row.scanDate.trim()
@@ -232,6 +234,35 @@ function normalizeStore(raw) {
         typeof row?.pivotLow === "number" &&
         Number.isFinite(row.pivotLow)
           ? row.pivotLow
+          : undefined,
+      granvilleSignal:
+        source === "granville" &&
+        typeof row?.granvilleSignal === "string" &&
+        /^(buy|sell)[1-4]$/.test(row.granvilleSignal)
+          ? row.granvilleSignal
+          : undefined,
+      granvilleCode:
+        source === "granville" &&
+        typeof row?.granvilleCode === "number" &&
+        Number.isFinite(row.granvilleCode)
+          ? row.granvilleCode
+          : undefined,
+      granvilleSide:
+        source === "granville" &&
+        (row?.granvilleSide === "buy" || row?.granvilleSide === "sell")
+          ? row.granvilleSide
+          : undefined,
+      granvilleMaPeriod:
+        source === "granville" &&
+        typeof row?.granvilleMaPeriod === "number" &&
+        Number.isFinite(row.granvilleMaPeriod)
+          ? row.granvilleMaPeriod
+          : undefined,
+      granvilleDisparity:
+        source === "granville" &&
+        typeof row?.granvilleDisparity === "number" &&
+        Number.isFinite(row.granvilleDisparity)
+          ? row.granvilleDisparity
           : undefined,
       addedAtMs:
         typeof row?.addedAtMs === "number" && Number.isFinite(row.addedAtMs)
