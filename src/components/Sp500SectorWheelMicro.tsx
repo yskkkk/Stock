@@ -186,6 +186,8 @@ function Sp500SectorWheelMicroInner() {
   const [hoveredSector, setHoveredSector] = useState<string | null>(null);
   const openTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const microWrapRef = useRef<HTMLDivElement | null>(null);
 
   const segments = useMemo(
     () => (data ? buildDonutSegments(data.sectors, data.total) : []),
@@ -267,6 +269,27 @@ function Sp500SectorWheelMicroInner() {
     [clearCloseTimer, clearOpenTimer],
   );
 
+  // 팝업이 떠 있는 동안 외부 영역 클릭·Esc 시 닫기
+  useEffect(() => {
+    if (!expanded) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target as Node | null;
+      if (!target) return;
+      if (panelRef.current?.contains(target)) return;
+      if (microWrapRef.current?.contains(target)) return;
+      collapse();
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") collapse();
+    };
+    window.addEventListener("pointerdown", onPointerDown, true);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown, true);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [expanded, collapse]);
+
   const pickSector = useCallback(
     (sector: string) => {
       openSectorDetail(sector, "list");
@@ -294,6 +317,7 @@ function Sp500SectorWheelMicroInner() {
       ? createPortal(
           <div className="sp500-wheel-micro-expand">
             <div
+              ref={panelRef}
               className="sp500-wheel-micro-expand__panel"
               role="dialog"
               aria-label={ko.app.sp500SectorTitle}
@@ -376,7 +400,7 @@ function Sp500SectorWheelMicroInner() {
 
   return (
     <>
-      <div className="sp500-wheel-micro-wrap">
+      <div className="sp500-wheel-micro-wrap" ref={microWrapRef}>
         <button
           type="button"
           className="sp500-wheel-micro"
