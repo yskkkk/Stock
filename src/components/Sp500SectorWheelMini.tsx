@@ -88,6 +88,7 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
     openSectorDetail,
   } = useSp500Sector();
   const [sortKey, setSortKey] = useState<SortKey>("symbol");
+  const [query, setQuery] = useState("");
   const [hoveredSector, setHoveredSector] = useState<string | null>(null);
   const rowBubbleTipId = useId();
   const bubbleActionsRef = useRef<StockVaultRowBubbleActions | null>(null);
@@ -123,6 +124,34 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
       sortKey,
     );
   }, [data, selectedSector, sortKey]);
+
+  const normalizedQuery = query.trim().toLowerCase();
+
+  const matchesQuery = useCallback(
+    (c: Sp500CompanyRow) => {
+      if (!normalizedQuery) return true;
+      const nameKo = companyKoName(c)?.toLowerCase() ?? "";
+      return (
+        c.symbol.toLowerCase().includes(normalizedQuery) ||
+        c.name.toLowerCase().includes(normalizedQuery) ||
+        nameKo.includes(normalizedQuery)
+      );
+    },
+    [normalizedQuery],
+  );
+
+  // 검색어가 있으면 섹터 선택과 무관하게 전 종목에서 티커·한글명·영문명으로 필터.
+  const visibleCompanies = useMemo(() => {
+    if (!data) return [];
+    if (normalizedQuery) {
+      return sortCompanies(data.companies, sortKey).filter(matchesQuery);
+    }
+    if (selectedSector) return sectorCompanies;
+    return sortCompanies(data.companies, sortKey).slice(0, 40);
+  }, [data, normalizedQuery, sortKey, selectedSector, sectorCompanies, matchesQuery]);
+
+  // 단일 섹터만 보고 있을 때만 섹터 컬럼 숨김(검색 중엔 여러 섹터가 섞이므로 표시)
+  const showSectorCol = !selected || Boolean(normalizedQuery);
 
   const pickSector = useCallback(
     (sector: string) => {
@@ -337,6 +366,27 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
         </div>
       ) : (
         <div className="sp500-wheel-mini__list-panel">
+          <div className="sp500-wheel-mini__search-row">
+            <input
+              type="search"
+              className="sp500-wheel-mini__search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={ko.app.sp500SectorSearchPlaceholder}
+              aria-label={ko.app.sp500SectorSearchAria}
+            />
+            {query ? (
+              <button
+                type="button"
+                className="sp500-wheel-mini__search-clear"
+                onClick={() => setQuery("")}
+                aria-label={ko.app.sp500SectorSearchClear}
+                title={ko.app.sp500SectorSearchClear}
+              >
+                ×
+              </button>
+            ) : null}
+          </div>
           <div className="sp500-wheel-mini__list-toolbar">
             <label className="sp500-wheel-mini__sort-label" htmlFor="sp500-mini-sort">
               {ko.app.sp500SectorSort}
@@ -365,7 +415,16 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
             ) : null}
           </div>
 
-          {selected ? (
+          {normalizedQuery ? (
+            <p className="sp500-wheel-mini__filter-note">
+              {visibleCompanies.length > 0
+                ? ko.app.sp500SectorSearchCount.replace(
+                    "{n}",
+                    String(visibleCompanies.length),
+                  )
+                : ko.app.sp500SectorSearchEmpty}
+            </p>
+          ) : selected ? (
             <p className="sp500-wheel-mini__filter-note">
               {selected.sectorKo} · {sectorCompanies.length}
               {ko.app.sp500SectorCompaniesUnit}
@@ -382,17 +441,14 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
                 <tr>
                   <th>{ko.app.sp500SectorColSymbol}</th>
                   <th>{ko.app.sp500SectorColName}</th>
-                  {!selected ? <th>{ko.app.sp500SectorColSector}</th> : null}
+                  {showSectorCol ? <th>{ko.app.sp500SectorColSector}</th> : null}
                   <th>{ko.app.sp500SectorColSub}</th>
                   <th>{ko.app.sp500SectorColMarketCap}</th>
                   <th>{ko.app.sp500SectorColDateAdded}</th>
                 </tr>
               </thead>
               <tbody>
-                {(selected
-                  ? sectorCompanies
-                  : sortCompanies(data.companies, sortKey).slice(0, 40)
-                ).map((c) => {
+                {visibleCompanies.map((c) => {
                   const nameKo = companyKoName(c);
                   return (
                   <tr
@@ -426,7 +482,7 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
                       ) : null}
                       <span className="sp500-wheel-mini__name-en">{c.name}</span>
                     </td>
-                    {!selected ? <td>{c.sectorKo}</td> : null}
+                    {showSectorCol ? <td>{c.sectorKo}</td> : null}
                     <td className="sp500-wheel-mini__sub">{c.subIndustry}</td>
                     <td className="sp500-wheel-mini__mktcap">{fmtSp500MarketCap(c.marketCap)}</td>
                     <td className="sp500-wheel-mini__date">{fmtSp500DateAdded(c.dateAdded)}</td>
@@ -436,7 +492,7 @@ function Sp500SectorWheelMiniInner({ embedded = false }: { embedded?: boolean })
               </tbody>
             </table>
           </div>
-          {!selected && data.companies.length > 40 ? (
+          {!normalizedQuery && !selected && data.companies.length > 40 ? (
             <p className="sp500-wheel-mini__more">
               {ko.app.sp500SectorMore.replace("{n}", String(data.companies.length - 40))}
             </p>

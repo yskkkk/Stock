@@ -583,6 +583,56 @@
   min-height: 0;
 }
 
+.sp500-wheel-mini__search-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.sp500-wheel-mini__search {
+  width: 100%;
+  font-size: 0.82rem;
+  padding: 0.4rem 1.9rem 0.4rem 0.6rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--card-border);
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.sp500-wheel-mini__search:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent, #2563eb) 60%, var(--card-border));
+}
+
+.sp500-wheel-mini__search::placeholder {
+  color: var(--muted);
+}
+
+.sp500-wheel-mini__search-clear {
+  position: absolute;
+  right: 0.35rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.3rem;
+  height: 1.3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--card-border) 40%, transparent);
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sp500-wheel-mini__search-clear:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--card-border) 65%, transparent);
+}
+
 .sp500-wheel-mini__list-toolbar {
   display: flex;
   flex-wrap: wrap;
