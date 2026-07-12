@@ -2,6 +2,7 @@ import type { CSSProperties, KeyboardEvent, ReactNode, RefObject } from "react";
 import { ko } from "../i18n/ko";
 import type { FeedbackCornerHandle } from "./FeedbackCorner";
 import ServerRestartButton from "./ServerRestartButton";
+import { useUiFeature } from "../contexts/UiFeatureToggleContext";
 
 const FOOTER_TEXT: CSSProperties = {
   fontFamily: '"Segoe UI", Arial, Helvetica, sans-serif',
@@ -85,6 +86,7 @@ export default function AppSiteFooter({
   feedbackOpenKind = null,
   hideFeedbackLink = false,
 }: AppSiteFooterProps) {
+  const showSp500SectorLink = useUiFeature("footerSp500SectorLink");
   return (
     <footer className="app-site-footer" style={FOOTER_TEXT} aria-label={ko.app.siteFooterAria}>
       <div className="app-site-footer__center">
@@ -122,9 +124,11 @@ export default function AppSiteFooter({
           {ko.mobile.downloadIphone}
         </FooterLink>
 
-        <FooterLink href="/sp500-sector-wheel.html" title={ko.app.footerSp500SectorTitle}>
-          {ko.app.footerSp500Sector}
-        </FooterLink>
+        {showSp500SectorLink ? (
+          <FooterLink href="/sp500-sector-wheel.html" title={ko.app.footerSp500SectorTitle}>
+            {ko.app.footerSp500Sector}
+          </FooterLink>
+        ) : null}
 
         {accessAdmin ? (
           <ServerRestartButton linkClassName="app-site-footer__link" textLink />

@@ -40,6 +40,12 @@ export const UI_FEATURE_CATALOG = [
     description: "내장 차트 드로잉 툴바의 광선(ray) 도구",
     defaultEnabled: true,
   },
+  {
+    id: "footerSp500SectorLink",
+    label: "S&P500 섹터 (하단 링크)",
+    description: "사이트 하단 내비게이션의 「S&P500 섹터」 링크",
+    defaultEnabled: false,
+  },
 ];
 
 /** @type {Record<string, (typeof UI_FEATURE_CATALOG)[number]>} */

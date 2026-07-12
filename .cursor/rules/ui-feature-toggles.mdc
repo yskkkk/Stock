@@ -22,6 +22,7 @@ alwaysApply: true
 | opsDevQueueUi | 개발 대기열 스트립 | false |
 | themeModeToggle | 라이트/다크 테마 전환 | true |
 | chartDrawRay | 차트 광선 그리기 | true |
+| footerSp500SectorLink | S&P500 섹터 (하단 링크) | false |
 
 ## 관련 파일
 
