@@ -892,6 +892,31 @@ export interface StockVaultScanStatus {
   state: GoldenCrossScanState;
 }
 
+export type ScanCoverageStatus = "ok" | "partial" | "missing" | "pending" | "na";
+
+export interface ScanCoverageDaySource {
+  expected: Array<"kr" | "us">;
+  ran: Array<"kr" | "us">;
+  due: Array<"kr" | "us">;
+  status: ScanCoverageStatus;
+  detail: Record<string, number>;
+}
+
+export interface ScanCoverageDay {
+  date: string;
+  krBusiness: boolean;
+  usBusiness: boolean;
+  hasMissing: boolean;
+  sources: Record<string, ScanCoverageDaySource>;
+}
+
+export interface ScanCoverageResponse {
+  updatedAtMs: number;
+  today: string;
+  sources: Array<{ id: string; label: string; timeframes: Array<"1d" | "1wk"> }>;
+  days: ScanCoverageDay[];
+}
+
 export interface DartCompanyRow {
   corpCode: string;
   corpName: string;

@@ -363,10 +363,42 @@
 .stock-vault-tab__history-select-wrap {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.4rem;
   margin: 0.32rem 0 0;
   min-width: 0;
-  max-width: 18rem;
+  max-width: 20rem;
+}
+
+.stock-vault-tab__history-select-field {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.stock-vault-tab__scan-cal-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface) 72%, var(--card));
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.stock-vault-tab__scan-cal-btn:hover {
+  border-color: var(--accent-border);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--surface) 55%, var(--card));
 }
 
 .stock-vault-tab__history-select-label {
@@ -1804,5 +1836,286 @@ html[data-theme="light"] .stock-vault-tab__row--tf-wk .stock-vault-tab__cross {
 
 .trading-technique-tab .pick-list {
   margin-top: 0.65rem;
+}
+
+/* ── 스캔 커버리지 달력 ─────────────────────────────── */
+.scan-cal__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 4rem 1rem 2rem;
+  background: color-mix(in srgb, #000 55%, transparent);
+  overflow-y: auto;
+}
+
+.scan-cal__panel {
+  width: min(40rem, 100%);
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md, 0.75rem);
+  box-shadow: 0 18px 48px color-mix(in srgb, #000 45%, transparent);
+  padding: 1rem 1.1rem 1.1rem;
+  color: var(--text);
+}
+
+.scan-cal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+
+.scan-cal__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.scan-cal__subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.scan-cal__close {
+  flex: 0 0 auto;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.2rem;
+}
+
+.scan-cal__close:hover {
+  color: var(--text);
+}
+
+.scan-cal__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.85rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.scan-cal__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.scan-cal__dot {
+  display: inline-block;
+  width: 0.62rem;
+  height: 0.62rem;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.scan-cal__dot--ok {
+  background: #22c55e;
+}
+.scan-cal__dot--partial {
+  background: #f59e0b;
+}
+.scan-cal__dot--missing {
+  background: #ef4444;
+}
+.scan-cal__dot--pending {
+  background: #64748b;
+}
+.scan-cal__dot--na {
+  background: color-mix(in srgb, var(--muted) 40%, transparent);
+}
+
+.scan-cal__msg {
+  font-size: 0.8rem;
+  color: var(--muted);
+  padding: 0.6rem 0;
+}
+.scan-cal__msg--error {
+  color: #ef4444;
+}
+.scan-cal__msg--hint {
+  text-align: center;
+}
+
+.scan-cal__months {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.scan-cal__month-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.3rem;
+}
+
+.scan-cal__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.25rem;
+}
+
+.scan-cal__wd {
+  text-align: center;
+  font-size: 0.64rem;
+  color: var(--muted);
+  padding-bottom: 0.15rem;
+}
+
+.scan-cal__cell {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  min-height: 2rem;
+  border: 1px solid var(--card-border);
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, var(--surface) 70%, var(--card));
+  color: var(--text);
+  font-size: 0.72rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition:
+    border-color 0.12s ease,
+    transform 0.1s ease;
+}
+
+.scan-cal__cell:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent-border);
+}
+
+.scan-cal__cell--blank {
+  border: none;
+  background: transparent;
+  cursor: default;
+}
+
+.scan-cal__cell--ok {
+  background: color-mix(in srgb, #22c55e 22%, var(--card));
+  border-color: color-mix(in srgb, #22c55e 45%, transparent);
+}
+.scan-cal__cell--partial {
+  background: color-mix(in srgb, #f59e0b 24%, var(--card));
+  border-color: color-mix(in srgb, #f59e0b 48%, transparent);
+}
+.scan-cal__cell--missing {
+  background: color-mix(in srgb, #ef4444 26%, var(--card));
+  border-color: color-mix(in srgb, #ef4444 52%, transparent);
+}
+.scan-cal__cell--pending {
+  background: color-mix(in srgb, #64748b 20%, var(--card));
+  border-color: color-mix(in srgb, #64748b 42%, transparent);
+}
+.scan-cal__cell--na {
+  background: transparent;
+  color: var(--muted);
+  border-color: color-mix(in srgb, var(--card-border) 55%, transparent);
+  cursor: default;
+}
+
+.scan-cal__cell--selected {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.scan-cal__cell--today .scan-cal__cell-num {
+  text-decoration: underline;
+  font-weight: 800;
+}
+
+.scan-cal__cell-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.scan-cal__cell-miss {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  font-size: 0.56rem;
+  font-weight: 700;
+  color: #fff;
+  background: #ef4444;
+  border-radius: 999px;
+  min-width: 0.85rem;
+  height: 0.85rem;
+  line-height: 0.85rem;
+  text-align: center;
+  padding: 0 0.15rem;
+}
+
+.scan-cal__detail {
+  margin-top: 0.9rem;
+  border-top: 1px solid color-mix(in srgb, var(--card-border) 60%, transparent);
+  padding-top: 0.7rem;
+}
+
+.scan-cal__detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.scan-cal__detail-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.scan-cal__goto {
+  border: 1px solid var(--accent-border);
+  background: color-mix(in srgb, var(--accent-dim) 60%, transparent);
+  color: var(--accent);
+  border-radius: var(--radius-sm);
+  font-size: 0.7rem;
+  padding: 0.22rem 0.55rem;
+  cursor: pointer;
+}
+
+.scan-cal__goto:hover {
+  background: color-mix(in srgb, var(--accent-dim) 90%, transparent);
+}
+
+.scan-cal__detail-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.3rem 0.75rem;
+}
+
+.scan-cal__detail-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.74rem;
+}
+
+.scan-cal__detail-src {
+  font-weight: 600;
+  flex: 0 0 auto;
+}
+
+.scan-cal__detail-status {
+  color: var(--muted);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 

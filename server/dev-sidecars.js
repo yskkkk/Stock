@@ -19,6 +19,7 @@ import { prewarmAppCaches } from "./prewarm-caches.js";
 import { startGoldenCrossScanPoller } from "./golden-cross-poller.js";
 import { startBottomCandleScanPoller } from "./bottom-candle-poller.js";
 import { startGranvilleScanPoller } from "./granville-poller.js";
+import { startScanCoverageLedgerPoller } from "./scan-coverage-poller.js";
 import { startKrInvestorFlowPoller } from "./kr-investor-flow-poller.js";
 import { startFinancialsArchivePoller } from "./stock-financials-archive-poller.js";
 import { startStockShareStructurePoller } from "./stock-share-structure-poller.js";
@@ -41,6 +42,7 @@ function registerDevSidecarPollers() {
   registerPollerLazyStarter("golden-cross-intraday", startGoldenCrossScanPoller);
   registerPollerLazyStarter("bottom-candle", startBottomCandleScanPoller);
   registerPollerLazyStarter("granville", startGranvilleScanPoller);
+  registerPollerLazyStarter("scan-coverage", startScanCoverageLedgerPoller);
   registerPollerLazyStarter("kr-investor-flow", startKrInvestorFlowPoller);
   registerPollerLazyStarter("financials-archive", startFinancialsArchivePoller);
   registerPollerLazyStarter("share-structure", startStockShareStructurePoller);
@@ -78,6 +80,7 @@ export function startStockDevSidecarsOnce(modeLabel) {
   startGoldenCrossScanPoller();
   startBottomCandleScanPoller();
   startGranvilleScanPoller();
+  startScanCoverageLedgerPoller();
   startKrInvestorFlowPoller();
   startFinancialsArchivePoller();
   startStockShareStructurePoller();

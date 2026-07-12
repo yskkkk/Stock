@@ -2171,6 +2171,16 @@ export function fetchGoldenCrossStatus(signal?: AbortSignal) {
   );
 }
 
+export function fetchStockVaultScanCoverage(
+  days = 45,
+  signal?: AbortSignal,
+) {
+  return fetchJson<import("./types").ScanCoverageResponse>(
+    `/api/stock-vault/scan-coverage?days=${encodeURIComponent(String(days))}`,
+    signal ? { signal } : undefined,
+  );
+}
+
 export function triggerGoldenCrossScan() {
   return fetchJson<{ started: boolean; reason?: string; error?: string }>(
     "/api/golden-cross/scan",

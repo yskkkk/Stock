@@ -2632,6 +2632,18 @@ export function createApp() {
     }),
   );
 
+  app.get(
+    "/api/stock-vault/scan-coverage",
+    asyncRoute(async (req, res) => {
+      const { getScanCoverageCalendar } = await import("./scan-coverage.js");
+      const days = Number(req.query?.days);
+      const calendar = await getScanCoverageCalendar({
+        days: Number.isFinite(days) ? days : 45,
+      });
+      res.json(calendar);
+    }),
+  );
+
   app.post(
     "/api/golden-cross/scan",
     asyncRoute(async (_req, res) => {

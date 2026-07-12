@@ -254,6 +254,18 @@ export const POLLER_CATALOG = {
     descriptionKo:
       "KR·US 유니버스 전 종목의 일봉 기준선(MA200)에서 그랜빌 8법칙 매수(매수1~4)·매도(매도1~4) 신호를 탐색해 stock-vault에 반영합니다. 각 정규장 마감 후 세션당 1회 실행하며, 부팅 시 직전 거래일이 비어 있으면 백필합니다.",
   },
+  "scan-coverage": {
+    labelKo: "스캔 커버리지 원장",
+    groupKo: "스크리너",
+    intervalMs: () => {
+      const n = Number(process.env.STOCK_SCAN_COVERAGE_REFRESH_MS ?? 300_000);
+      return Number.isFinite(n) && n >= 60_000 ? Math.min(n, 3_600_000) : 300_000;
+    },
+    envDisable: "STOCK_SCAN_COVERAGE=0",
+    isBootEnabled: () => process.env.STOCK_SCAN_COVERAGE !== "0",
+    descriptionKo:
+      "각 스캔의 실행 기록(lastRuns)을 영업일별 커버리지 원장에 병합해 「어느 날 어떤 스캔이 돌았는지」를 보존합니다(달력). 부팅 시 직전 정규장 세션이 비어 있는 vault 스캔을 기존 due 로직으로 재실행합니다.",
+  },
   "holdings-news": {
     labelKo: "보유 종목 속보 이메일",
     groupKo: "알림",

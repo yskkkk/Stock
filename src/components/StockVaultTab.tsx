@@ -8,6 +8,7 @@ import {
 } from "react";
 import IndustryFilterPanel from "./IndustryFilterPanel";
 import StockVaultLastScanTable from "./StockVaultLastScanTable";
+import StockVaultScanCalendar from "./StockVaultScanCalendar";
 import { StockVaultScanProgress } from "./StockVaultScanProgress";
 import {
   fetchGoldenCrossHistory,
@@ -338,6 +339,7 @@ export default function StockVaultTab({
     () => localSnapshotAtInit,
   );
   const [snapshotLoading, setSnapshotLoading] = useState(false);
+  const [scanCalOpen, setScanCalOpen] = useState(false);
   const listPaintReady = useAfterPaintReady();
   const [industryPanelReady, setIndustryPanelReady] = useState(false);
   const scanBtnRef = useRef<HTMLButtonElement>(null);
@@ -1466,31 +1468,61 @@ export default function StockVaultTab({
           </div>
           {lastScanRows ? <StockVaultLastScanTable rows={lastScanRows} /> : null}
           {historyDates.length > 0 ? (
-            <label className="stock-vault-tab__history-select-wrap">
-              <span className="stock-vault-tab__history-select-label">
-                {ko.stockVault.historyDateAria}
-              </span>
-              <span className="stock-vault-tab__history-select-shell">
-                <select
-                  className="stock-vault-tab__history-select"
-                  aria-label={ko.stockVault.historyDateAria}
-                  value={selectedScanDate ?? ""}
-                  onChange={(e) =>
-                    setSelectedScanDate(e.target.value.trim() || null)
-                  }
-                >
-                  <option value="">{ko.stockVault.historyLatest}</option>
-                  <option value={STOCK_VAULT_SCAN_DATE_ALL}>
-                    {ko.stockVault.historyAll}
-                  </option>
-                  {historyDates.map((date) => (
-                    <option key={date} value={date}>
-                      {date}
+            <div className="stock-vault-tab__history-select-wrap">
+              <label className="stock-vault-tab__history-select-field">
+                <span className="stock-vault-tab__history-select-label">
+                  {ko.stockVault.historyDateAria}
+                </span>
+                <span className="stock-vault-tab__history-select-shell">
+                  <select
+                    className="stock-vault-tab__history-select"
+                    aria-label={ko.stockVault.historyDateAria}
+                    value={selectedScanDate ?? ""}
+                    onChange={(e) =>
+                      setSelectedScanDate(e.target.value.trim() || null)
+                    }
+                  >
+                    <option value="">{ko.stockVault.historyLatest}</option>
+                    <option value={STOCK_VAULT_SCAN_DATE_ALL}>
+                      {ko.stockVault.historyAll}
                     </option>
-                  ))}
-                </select>
-              </span>
-            </label>
+                    {historyDates.map((date) => (
+                      <option key={date} value={date}>
+                        {date}
+                      </option>
+                    ))}
+                  </select>
+                </span>
+              </label>
+              <button
+                type="button"
+                className="stock-vault-tab__scan-cal-btn"
+                aria-label={ko.stockVault.scanCalendarOpen}
+                title={ko.stockVault.scanCalendarOpen}
+                onClick={() => setScanCalOpen(true)}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="4" width="18" height="18" rx="2" />
+                  <path d="M16 2v4M8 2v4M3 10h18" />
+                </svg>
+              </button>
+            </div>
+          ) : null}
+          {scanCalOpen ? (
+            <StockVaultScanCalendar
+              onClose={() => setScanCalOpen(false)}
+              onSelectDate={(date) => setSelectedScanDate(date)}
+            />
           ) : null}
           {isAllScanDatesView ? (
             <p className="stock-vault-tab__history-hint">
