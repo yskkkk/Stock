@@ -1948,30 +1948,90 @@ html[data-theme="light"] .stock-vault-tab__row--tf-wk .stock-vault-tab__cross {
   text-align: center;
 }
 
-.scan-cal__months {
+.scan-cal__nav {
   display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
 }
 
-.scan-cal__month-label {
-  font-size: 0.78rem;
+.scan-cal__nav-btn {
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 70%, var(--card));
+  color: var(--text);
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    transform 0.1s ease;
+}
+
+.scan-cal__nav-btn:hover:not(:disabled) {
+  border-color: var(--accent-border);
+  background: color-mix(in srgb, var(--accent-dim) 55%, transparent);
+  transform: translateY(-1px);
+}
+
+.scan-cal__nav-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.scan-cal__nav-select {
+  min-width: 9.5rem;
+  text-align: center;
+  text-align-last: center;
+  font-size: 0.9rem;
   font-weight: 700;
   color: var(--text);
-  margin-bottom: 0.3rem;
+  background: color-mix(in srgb, var(--surface) 70%, var(--card));
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  padding: 0.4rem 1.1rem;
+  cursor: pointer;
+  appearance: none;
+}
+
+.scan-cal__nav-select:hover {
+  border-color: var(--accent-border);
+}
+
+.scan-cal__month {
+  border: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
+  border-radius: 0.7rem;
+  padding: 0.7rem 0.7rem 0.75rem;
+  background: color-mix(in srgb, var(--surface) 40%, var(--card));
 }
 
 .scan-cal__grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 0.25rem;
+  gap: 0.3rem;
 }
 
 .scan-cal__wd {
   text-align: center;
-  font-size: 0.64rem;
+  font-size: 0.66rem;
+  font-weight: 600;
   color: var(--muted);
-  padding-bottom: 0.15rem;
+  padding-bottom: 0.3rem;
+}
+
+.scan-cal__wd--sun {
+  color: #ef4444;
+}
+.scan-cal__wd--sat {
+  color: #3b82f6;
 }
 
 .scan-cal__cell {
@@ -2029,16 +2089,21 @@ html[data-theme="light"] .stock-vault-tab__row--tf-wk .stock-vault-tab__cross {
 
 .scan-cal__cell--selected {
   outline: 2px solid var(--accent);
-  outline-offset: -1px;
+  outline-offset: 1px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.scan-cal__cell--today {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 65%, transparent);
 }
 
 .scan-cal__cell--today .scan-cal__cell-num {
-  text-decoration: underline;
   font-weight: 800;
 }
 
 .scan-cal__cell-num {
   font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
 }
 
 .scan-cal__cell-miss {

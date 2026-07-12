@@ -54,6 +54,7 @@ export default function StockVaultScanCalendar({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
+  const [activeYm, setActiveYm] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -61,7 +62,7 @@ export default function StockVaultScanCalendar({
     const ctrl = new AbortController();
     setLoading(true);
     setError(false);
-    fetchStockVaultScanCoverage(45, ctrl.signal)
+    fetchStockVaultScanCoverage(120, ctrl.signal)
       .then((res) => {
         if (cancelled) return;
         setData(res);
@@ -115,12 +116,40 @@ export default function StockVaultScanCalendar({
     }
     return [...byMonth.entries()].map(([ym, list]) => {
       const first = list[0];
-      const [, mm] = ym.split("-");
+      const [yy, mm] = ym.split("-");
       const [fy, fmo, fd] = first.date.split("-").map(Number);
       const leadBlanks = new Date(fy, fmo - 1, fd).getDay();
-      return { ym, monthLabel: `${Number(mm)}월`, list, leadBlanks };
+      const miss = list.filter(
+        (d) => dayLevelStatus(d) === "missing" || dayLevelStatus(d) === "partial",
+      ).length;
+      return {
+        ym,
+        label: `${yy}년 ${Number(mm)}월`,
+        monthLabel: `${Number(mm)}월`,
+        list,
+        leadBlanks,
+        miss,
+      };
     });
   }, [data]);
+
+  const activeIdx = useMemo(() => {
+    if (!months.length) return -1;
+    const target = activeYm ?? data?.today?.slice(0, 7) ?? months[months.length - 1].ym;
+    const i = months.findIndex((m) => m.ym === target);
+    return i >= 0 ? i : months.length - 1;
+  }, [months, activeYm, data]);
+
+  const activeMonth = activeIdx >= 0 ? months[activeIdx] : null;
+
+  const goMonth = useCallback(
+    (delta: number) => {
+      const next = activeIdx + delta;
+      if (next < 0 || next >= months.length) return;
+      setActiveYm(months[next].ym);
+    },
+    [activeIdx, months],
+  );
 
   const selectedDay = selected ? dayByDate.get(selected) : null;
 
@@ -174,52 +203,93 @@ export default function StockVaultScanCalendar({
           </p>
         ) : (
           <>
-            <div className="scan-cal__months">
-              {months.map((mo) => (
-                <div key={mo.ym} className="scan-cal__month">
-                  <div className="scan-cal__month-label">
-                    {mo.ym.slice(0, 4)} · {mo.monthLabel}
-                  </div>
-                  <div className="scan-cal__grid">
-                    {WEEKDAYS.map((w) => (
-                      <div key={w} className="scan-cal__wd">
-                        {w}
-                      </div>
-                    ))}
-                    {Array.from({ length: mo.leadBlanks }).map((_, i) => (
-                      <div key={`b${i}`} className="scan-cal__cell scan-cal__cell--blank" />
-                    ))}
-                    {mo.list.map((d) => {
-                      const st = dayLevelStatus(d);
-                      const miss = missingCount(d);
-                      const dnum = Number(d.date.slice(8, 10));
-                      const isToday = d.date === data?.today;
-                      return (
-                        <button
-                          key={d.date}
-                          type="button"
-                          className={[
-                            "scan-cal__cell",
-                            `scan-cal__cell--${st}`,
-                            selected === d.date ? "scan-cal__cell--selected" : "",
-                            isToday ? "scan-cal__cell--today" : "",
-                          ]
-                            .filter(Boolean)
-                            .join(" ")}
-                          onClick={() => setSelected(d.date)}
-                          title={`${d.date} · ${statusLabel(st as ScanCoverageStatus)}`}
-                        >
-                          <span className="scan-cal__cell-num">{dnum}</span>
-                          {miss > 0 ? (
-                            <span className="scan-cal__cell-miss">{miss}</span>
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
+            <div className="scan-cal__nav">
+              <button
+                type="button"
+                className="scan-cal__nav-btn"
+                onClick={() => goMonth(-1)}
+                disabled={activeIdx <= 0}
+                aria-label="이전 달"
+              >
+                ‹
+              </button>
+              <select
+                className="scan-cal__nav-select"
+                value={activeMonth?.ym ?? ""}
+                onChange={(e) => setActiveYm(e.target.value)}
+                aria-label={ko.stockVault.scanCalendarTitle}
+              >
+                {months.map((mo) => (
+                  <option key={mo.ym} value={mo.ym}>
+                    {mo.label}
+                    {mo.miss > 0 ? ` (${mo.miss})` : ""}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="scan-cal__nav-btn"
+                onClick={() => goMonth(1)}
+                disabled={activeIdx >= months.length - 1}
+                aria-label="다음 달"
+              >
+                ›
+              </button>
             </div>
+
+            {activeMonth ? (
+              <div className="scan-cal__month">
+                <div className="scan-cal__grid">
+                  {WEEKDAYS.map((w, wi) => (
+                    <div
+                      key={w}
+                      className={[
+                        "scan-cal__wd",
+                        wi === 0 ? "scan-cal__wd--sun" : "",
+                        wi === 6 ? "scan-cal__wd--sat" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
+                      {w}
+                    </div>
+                  ))}
+                  {Array.from({ length: activeMonth.leadBlanks }).map((_, i) => (
+                    <div
+                      key={`b${i}`}
+                      className="scan-cal__cell scan-cal__cell--blank"
+                    />
+                  ))}
+                  {activeMonth.list.map((d) => {
+                    const st = dayLevelStatus(d);
+                    const miss = missingCount(d);
+                    const dnum = Number(d.date.slice(8, 10));
+                    const isToday = d.date === data?.today;
+                    return (
+                      <button
+                        key={d.date}
+                        type="button"
+                        className={[
+                          "scan-cal__cell",
+                          `scan-cal__cell--${st}`,
+                          selected === d.date ? "scan-cal__cell--selected" : "",
+                          isToday ? "scan-cal__cell--today" : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                        onClick={() => setSelected(d.date)}
+                        title={`${d.date} · ${statusLabel(st as ScanCoverageStatus)}`}
+                      >
+                        <span className="scan-cal__cell-num">{dnum}</span>
+                        {miss > 0 ? (
+                          <span className="scan-cal__cell-miss">{miss}</span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
 
             <div className="scan-cal__detail">
               {selectedDay ? (
