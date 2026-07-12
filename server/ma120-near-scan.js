@@ -1,5 +1,6 @@
 import { loadStock } from "./stock-data.js";
 import { getDailyMaValues, isPriceNearMa120 } from "./ma-align-detect.js";
+import { truncateCandlesAsOf } from "./candle-asof.js";
 import { buildDailyClosesIndex } from "./daily-bar-index.js";
 import { detectMaApproach } from "./stock-vault-chart-insights.js";
 import { isGoldenCrossTradable } from "./golden-cross-tradable.js";
@@ -142,23 +143,30 @@ export function detectMa120NearApproach(price, candles, ma120) {
  * @param {"kr"|"us"} market
  * @param {string} scanDate
  */
-async function scanOneSymbol(item, market, scanDate) {
+async function scanOneSymbol(item, market, scanDate, asOf = null) {
   const sym = String(item.symbol ?? "")
     .trim()
     .toUpperCase();
   if (!sym) return null;
+  const live = !asOf;
   try {
-    const data = await loadStock(sym, "1d", { live: true });
+    const data = await loadStock(sym, "1d", { live, scan: !!asOf });
     const tradable = await isGoldenCrossTradable(data, market, { timeframe: "1d" });
     if (!tradable.ok) {
       liveTradeLogInfo("[ma120-near:scan] skip", sym, tradable.reason);
       return null;
     }
-    const candles = Array.isArray(data?.candles) ? data.candles : [];
+    const candles = truncateCandlesAsOf(
+      Array.isArray(data?.candles) ? data.candles : [],
+      asOf,
+    );
     const ma = getDailyMaValues(candles);
     if (!ma) return null;
 
-    let price = Number(data?.quote?.price ?? data?.quote?.regularMarketPrice);
+    // asOf(백필)에서는 실시간 시세가 그 날짜의 가격이 아니므로 기준일 종가를 사용.
+    let price = asOf
+      ? Number(candles[candles.length - 1]?.close)
+      : Number(data?.quote?.price ?? data?.quote?.regularMarketPrice);
     if (!Number.isFinite(price) || price <= 0) {
       const lastClose = Number(candles[candles.length - 1]?.close);
       if (Number.isFinite(lastClose) && lastClose > 0) price = lastClose;
@@ -196,10 +204,11 @@ async function scanOneSymbol(item, market, scanDate) {
 /**
  * @param {"kr"|"us"} market
  * @param {string} scanDate
- * @param {{ persistState?: boolean }} [opts]
+ * @param {{ persistState?: boolean; asOf?: string | null }} [opts]
  */
 export async function runMa120NearMarketScan(market, scanDate, opts = {}) {
   const persistState = opts.persistState !== false;
+  const asOf = opts.asOf ?? null;
   const uni = await loadUniverse();
   const list =
     market === "kr"
@@ -226,7 +235,7 @@ export async function runMa120NearMarketScan(market, scanDate, opts = {}) {
   for (let i = 0; i < list.length; i += BATCH_SIZE) {
     const batch = list.slice(i, i + BATCH_SIZE);
     const results = await Promise.all(
-      batch.map((item) => scanOneSymbol(item, market, scanDate)),
+      batch.map((item) => scanOneSymbol(item, market, scanDate, asOf)),
     );
     for (const r of results) {
       if (r) hits.push(r);

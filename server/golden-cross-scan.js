@@ -1,5 +1,6 @@
 import { loadStock } from "./stock-data.js";
 import { detectDailyGoldenCrossDetail } from "./golden-cross-detect.js";
+import { truncateCandlesAsOf } from "./candle-asof.js";
 import { candlesForWeeklyMaScan } from "./weekly-candle-trim.js";
 import { isGoldenCrossTradable } from "./golden-cross-tradable.js";
 import { resolveDisplayName } from "./names-ko.js";
@@ -93,15 +94,17 @@ function writeState(state) {
  * @param {string} scanDate
  * @param {import("./vault-scan-timeframe.js").VaultScanTimeframe} [timeframe]
  */
-async function scanOneSymbol(item, market, scanDate, timeframe = "1d") {
+async function scanOneSymbol(item, market, scanDate, timeframe = "1d", asOf = null) {
   const tf = normalizeVaultScanTimeframe(timeframe);
   const chartTf = vaultScanChartTimeframe(tf);
+  // asOf(백필)일 때는 과거 기준일까지 봉이 필요하므로 넓은 창(scan)으로 로드.
+  const loadOpts = asOf ? { live: false, scan: true } : { live: true };
   const sym = String(item.symbol ?? "")
     .trim()
     .toUpperCase();
   if (!sym) return { ok: true, hit: null };
   try {
-    const data = await loadStock(sym, chartTf, { live: true });
+    const data = await loadStock(sym, chartTf, loadOpts);
     const tradable = await isGoldenCrossTradable(data, market, { timeframe: tf });
     if (!tradable.ok) {
       liveTradeLogInfo("[golden-cross:scan] skip", sym, tf, tradable.reason);
@@ -109,11 +112,13 @@ async function scanOneSymbol(item, market, scanDate, timeframe = "1d") {
     }
     let candles = Array.isArray(data?.candles) ? data.candles : [];
     if (tf === "1wk") {
-      const daily = await loadStock(sym, "1d", { live: true });
+      const daily = await loadStock(sym, "1d", loadOpts);
       candles = candlesForWeeklyMaScan(
-        candles,
-        Array.isArray(daily?.candles) ? daily.candles : [],
+        truncateCandlesAsOf(candles, asOf),
+        truncateCandlesAsOf(Array.isArray(daily?.candles) ? daily.candles : [], asOf),
       );
+    } else {
+      candles = truncateCandlesAsOf(candles, asOf);
     }
     const { crosses, crossDate } = detectDailyGoldenCrossDetail(candles);
     if (!crosses.length) return { ok: true, hit: null };
@@ -140,11 +145,12 @@ async function scanOneSymbol(item, market, scanDate, timeframe = "1d") {
 /**
  * @param {"kr"|"us"} market
  * @param {string} scanDate
- * @param {{ persistState?: boolean; timeframe?: import("./vault-scan-timeframe.js").VaultScanTimeframe }} [opts]
+ * @param {{ persistState?: boolean; timeframe?: import("./vault-scan-timeframe.js").VaultScanTimeframe; asOf?: string | null }} [opts]
  */
 export async function runGoldenCrossMarketScan(market, scanDate, opts = {}) {
   const persistState = opts.persistState !== false;
   const timeframe = normalizeVaultScanTimeframe(opts.timeframe);
+  const asOf = opts.asOf ?? null;
   const uni = await loadVaultScanUniverse(market, timeframe);
   const list =
     market === "kr"
@@ -173,7 +179,7 @@ export async function runGoldenCrossMarketScan(market, scanDate, opts = {}) {
   for (let i = 0; i < list.length; i += BATCH_SIZE) {
     const batch = list.slice(i, i + BATCH_SIZE);
     const results = await Promise.all(
-      batch.map((item) => scanOneSymbol(item, market, scanDate, timeframe)),
+      batch.map((item) => scanOneSymbol(item, market, scanDate, timeframe, asOf)),
     );
     for (const r of results) {
       if (!r.ok) {

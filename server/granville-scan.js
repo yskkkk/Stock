@@ -5,6 +5,7 @@
 
 import { loadStock } from "./stock-data.js";
 import { detectGranvilleLatest } from "./granville-detect.js";
+import { truncateCandlesAsOf } from "./candle-asof.js";
 import { isGoldenCrossTradable } from "./golden-cross-tradable.js";
 import { resolveDisplayName } from "./names-ko.js";
 import { loadVaultScanUniverse } from "./universe.js";
@@ -91,19 +92,23 @@ function writeState(state) {
  * @param {"kr"|"us"} market
  * @param {string} scanDate
  */
-async function scanOneSymbol(item, market, scanDate) {
+async function scanOneSymbol(item, market, scanDate, asOf = null) {
   const sym = String(item.symbol ?? "")
     .trim()
     .toUpperCase();
   if (!sym) return { ok: true, hit: null };
+  const live = !asOf;
   try {
-    const data = await loadStock(sym, "1d", { live: true, scan: true });
+    const data = await loadStock(sym, "1d", { live, scan: true });
     const tradable = await isGoldenCrossTradable(data, market, { timeframe: "1d" });
     if (!tradable.ok) {
       liveTradeLogInfo("[granville:scan] skip", sym, tradable.reason);
       return { ok: true, hit: null };
     }
-    const candles = Array.isArray(data?.candles) ? data.candles : [];
+    const candles = truncateCandlesAsOf(
+      Array.isArray(data?.candles) ? data.candles : [],
+      asOf,
+    );
     const det = detectGranvilleLatest(candles, { maPeriod: GRANVILLE_MA_PERIOD });
     // 매수·매도 신호 모두 보관함 반영
     if (!det.signal) return { ok: true, hit: null };
@@ -133,10 +138,11 @@ async function scanOneSymbol(item, market, scanDate) {
 /**
  * @param {"kr"|"us"} market
  * @param {string} scanDate
- * @param {{ persistState?: boolean; onProgress?: (p: { scanned: number; total: number; phase: string }) => void }} [opts]
+ * @param {{ persistState?: boolean; asOf?: string | null; onProgress?: (p: { scanned: number; total: number; phase: string }) => void }} [opts]
  */
 export async function runGranvilleMarketScan(market, scanDate, opts = {}) {
   const persistState = opts.persistState !== false;
+  const asOf = opts.asOf ?? null;
   const uni = await loadVaultScanUniverse(market, "1d");
   const list =
     market === "kr"
@@ -165,7 +171,7 @@ export async function runGranvilleMarketScan(market, scanDate, opts = {}) {
   for (let i = 0; i < list.length; i += BATCH_SIZE) {
     const batch = list.slice(i, i + BATCH_SIZE);
     const results = await Promise.all(
-      batch.map((entry) => scanOneSymbol(entry, market, scanDate)),
+      batch.map((entry) => scanOneSymbol(entry, market, scanDate, asOf)),
     );
     for (const r of results) {
       if (!r.ok) {

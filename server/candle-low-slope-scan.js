@@ -1,5 +1,6 @@
 import { loadStock } from "./stock-data.js";
 import { detectCandleLowSlopeFlipLatest } from "./candle-low-slope-detect.js";
+import { truncateCandlesAsOf } from "./candle-asof.js";
 import { isGoldenCrossTradable } from "./golden-cross-tradable.js";
 import { resolveDisplayName } from "./names-ko.js";
 import { loadVaultScanUniverse } from "./universe.js";
@@ -120,14 +121,15 @@ function writeState(state) {
  * @param {"kr"|"us"} market
  * @param {string} scanDate
  */
-async function scanOneSymbol(item, market, scanDate) {
+async function scanOneSymbol(item, market, scanDate, asOf = null) {
   const sym = String(item.symbol ?? "")
     .trim()
     .toUpperCase();
   if (!sym) return null;
+  const live = !asOf;
   try {
     const chartTf = vaultScanChartTimeframe(LOW_SLOPE_SCAN_TIMEFRAME);
-    const data = await loadStock(sym, chartTf, { live: true, scan: true });
+    const data = await loadStock(sym, chartTf, { live, scan: true });
     const tradable = await isGoldenCrossTradable(data, market, {
       timeframe: LOW_SLOPE_SCAN_TIMEFRAME,
     });
@@ -136,10 +138,10 @@ async function scanOneSymbol(item, market, scanDate) {
       return null;
     }
     let candles = Array.isArray(data?.candles) ? data.candles : [];
-    const daily = await loadStock(sym, "1d", { live: true, scan: true });
+    const daily = await loadStock(sym, "1d", { live, scan: true });
     candles = candlesForWeeklyMaScan(
-      candles,
-      Array.isArray(daily?.candles) ? daily.candles : [],
+      truncateCandlesAsOf(candles, asOf),
+      truncateCandlesAsOf(Array.isArray(daily?.candles) ? daily.candles : [], asOf),
     );
     const det = detectCandleLowSlopeFlipLatest(candles, {
       pivotLeft: PIVOT_LEFT,
@@ -168,10 +170,11 @@ async function scanOneSymbol(item, market, scanDate) {
 /**
  * @param {"kr"|"us"} market
  * @param {string} scanDate
- * @param {{ persistState?: boolean }} [opts]
+ * @param {{ persistState?: boolean; asOf?: string | null }} [opts]
  */
 export async function runCandleLowSlopeMarketScan(market, scanDate, opts = {}) {
   const persistState = opts.persistState !== false;
+  const asOf = opts.asOf ?? null;
   const uni = await loadVaultScanUniverse(market, LOW_SLOPE_SCAN_TIMEFRAME);
   const list =
     market === "kr"
@@ -202,7 +205,7 @@ export async function runCandleLowSlopeMarketScan(market, scanDate, opts = {}) {
   for (let i = 0; i < list.length; i += BATCH_SIZE) {
     const batch = list.slice(i, i + BATCH_SIZE);
     const results = await Promise.all(
-      batch.map((item) => scanOneSymbol(item, market, scanDate)),
+      batch.map((item) => scanOneSymbol(item, market, scanDate, asOf)),
     );
     for (const r of results) {
       if (r) hits.push(r);

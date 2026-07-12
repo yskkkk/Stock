@@ -179,6 +179,26 @@ export function getScanCoverageRunsSync() {
 }
 
 /**
+ * 백필 등에서 「이 스캔이 이 영업일에 실행됨」을 원장에 직접 기록.
+ * (과거 세션 백필은 스캔 상태의 latest 포인터를 뒤로 되돌리지 않기 위해
+ *  persistState 없이 돌리고, 대신 여기로 원장에만 남긴다.)
+ * @param {ScanCoverageSource} source
+ * @param {"kr"|"us"} market
+ * @param {"1d"|"1wk"} timeframe
+ * @param {string} dateKey
+ * @param {number} [atMs]
+ */
+export function recordScanCoverageRunSync(source, market, timeframe, dateKey, atMs = Date.now()) {
+  if (!SOURCE_IDS.has(source) || !isValidDateKey(dateKey)) return false;
+  const ledger = readLedger();
+  const runs = { ...ledger.runs };
+  const key = `${source}|${market}|${normTf(timeframe)}|${dateKey}`;
+  if (!runs[key] || runs[key] < atMs) runs[key] = atMs;
+  writeJsonStoreSync(LEDGER_FILE, { runs, updatedAtMs: Date.now() });
+  return true;
+}
+
+/**
  * 특정 (source, market, timeframe, dateKey) 스캔 실행 여부.
  * @param {ScanCoverageSource} source
  * @param {"kr"|"us"} market
@@ -189,6 +209,56 @@ export function wasScanCoveredSync(source, market, timeframe, dateKey) {
   const runs = getScanCoverageRunsSync();
   const atMs = runs[`${source}|${market}|${normTf(timeframe)}|${dateKey}`];
   return typeof atMs === "number" && atMs > 0 ? atMs : null;
+}
+
+/**
+ * 백필 대상 — 최근 `days` 영업일 중 「세션 마감 완료 + 원장 미기록」인
+ * (source, market, timeframe, date) 목록과, 시장별 최신 완료 세션(latest).
+ * 달력의 sessionComplete 판정과 동일 로직을 사용해 drift 를 방지한다.
+ * @param {{ days?: number }} [opts]
+ * @returns {{ today: string; latest: { kr: string|null; us: string|null }; targets: Array<{ source: ScanCoverageSource; market: "kr"|"us"; timeframe: "1d"|"1wk"; date: string; isLatest: boolean }> }}
+ */
+export function getScanBackfillTargetsSync(opts = {}) {
+  const days = Math.min(Math.max(Number(opts.days) || 10, 1), KEEP_DAYS);
+  const runs = getScanCoverageRunsSync();
+  const nowParts = getKstParts();
+  const today = nowParts.dateKey;
+  const krClosedToday = nowParts.minutesOfDay >= 15 * 60 + 30;
+
+  /** @param {string} date @param {"kr"|"us"} market */
+  function sessionComplete(date, market) {
+    if (date < today) return true;
+    if (date > today) return false;
+    if (market === "kr") return krClosedToday;
+    return false;
+  }
+
+  /** @type {{ kr: string|null; us: string|null }} */
+  const latest = { kr: null, us: null };
+  /** @type {Array<{ source: ScanCoverageSource; market: "kr"|"us"; timeframe: "1d"|"1wk"; date: string; isLatest: boolean }>} */
+  const targets = [];
+
+  for (let i = 0; i < days; i++) {
+    const date = shiftDateKey(today, -i);
+    const krBiz = isKrBusinessDay(date);
+    const usBiz = !isUsWeekend(date);
+    for (const market of /** @type {Array<"kr"|"us">} */ (["kr", "us"])) {
+      const biz = market === "kr" ? krBiz : usBiz;
+      if (!biz) continue;
+      if (!sessionComplete(date, market)) continue;
+      if (!latest[market]) latest[market] = date; // 최신→과거 순회 → 첫 완료가 최신
+      for (const src of SCAN_COVERAGE_SOURCES) {
+        for (const tf of src.timeframes) {
+          const atMs = runs[`${src.id}|${market}|${tf}|${date}`];
+          if (!(typeof atMs === "number" && atMs > 0)) {
+            targets.push({ source: src.id, market, timeframe: tf, date, isLatest: false });
+          }
+        }
+      }
+    }
+  }
+  for (const t of targets) t.isLatest = t.date === latest[t.market];
+  return { today, latest, targets };
 }
 
 /**
