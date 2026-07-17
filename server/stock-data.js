@@ -13,7 +13,10 @@ import {
   krNaverQuotesEnabled,
   naverQuoteToSnapshot,
 } from "./kr-naver-quote.js";
-import { queueYahooRequest } from "./yahoo-queue.js";
+import {
+  queueYahooRequest,
+  waitForYahooQueueReady,
+} from "./yahoo-queue.js";
 import { clearYahooSession, getYahooSession, yahooGet, YAHOO_UA } from "./yahoo.js";
 
 const CACHE_FRESH_MS = 5 * 60_000;
@@ -23,7 +26,11 @@ const SCAN_CANDLE_CACHE_MS = Math.max(
   Number(process.env.SCAN_CANDLE_CACHE_MS) || 120_000,
 );
 const LIVE_CACHE_MS = 8_000;
-const YAHOO_FETCH_MAX_ATTEMPTS = 3;
+/** rate-limit·일시 네트워크 오류까지 포함 — cool-down 대기 후 재시도 */
+const YAHOO_FETCH_MAX_ATTEMPTS = (() => {
+  const n = Number(process.env.YAHOO_FETCH_MAX_ATTEMPTS ?? 8);
+  return Number.isFinite(n) && n >= 2 ? Math.min(n, 16) : 8;
+})();
 
 /** 종목보관 intraday 재검증 — 5분 캐시·2y 일봉(가벼운 Yahoo 요청) */
 export const VAULT_RESCAN_LOAD_OPTS = { live: false, scan: true };
@@ -70,9 +77,6 @@ export function resolveBulkScanLoadOpts(options = {}) {
   return options;
 }
 
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
 const CACHE_STALE_MS = 7 * 24 * 60 * 60_000;
 /** 캔들 캐시 무한 증가 방지 — 장시간 가동 시 메모리·GC 악화 원인 제거 */
 const MAX_CACHE_KEYS = 360;
@@ -416,24 +420,77 @@ async function fetchRemote(symbol, timeframe, loadOpts = {}) {
   return data;
 }
 
+/**
+ * Yahoo/네트워크 일시 오류 — rate limit·연결 끊김·세션·타임아웃 등.
+ * @param {unknown} err
+ */
+function isTransientYahooError(err) {
+  if (!err) return false;
+  const code =
+    typeof err === "object" && err && "code" in err
+      ? String(/** @type {{ code?: unknown }} */ (err).code)
+      : "";
+  if (code === "RATE_LIMIT" || code === "UND_ERR_CONNECT_TIMEOUT" || code === "ABORT_ERR") {
+    return true;
+  }
+  const name =
+    err instanceof Error
+      ? err.name
+      : typeof err === "object" && err && "name" in err
+        ? String(/** @type {{ name?: unknown }} */ (err).name)
+        : "";
+  if (name === "TimeoutError" || name === "AbortError") return true;
+  const msg = (
+    err instanceof Error
+      ? err.message
+      : typeof err === "object" && err && "message" in err
+        ? String(/** @type {{ message?: unknown }} */ (err).message)
+        : String(err)
+  ).toLowerCase();
+  return /rate|too many|fetch failed|network|econnreset|econnrefused|etimedout|socket|yahoo session|aborted|timeout|503|502|504|und_err/.test(
+    msg,
+  );
+}
+
+/**
+ * @param {unknown} err
+ */
+function errorCodeOf(err) {
+  if (err && typeof err === "object" && "code" in err) {
+    return String(/** @type {{ code?: unknown }} */ (err).code ?? "");
+  }
+  return "";
+}
+
 async function fetchRemoteWithRetry(symbol, timeframe, loadOpts = {}) {
   let lastErr;
+  let clearedSession = false;
   for (let attempt = 0; attempt < YAHOO_FETCH_MAX_ATTEMPTS; attempt++) {
     try {
       return await fetchRemote(symbol, timeframe, loadOpts);
     } catch (err) {
       lastErr = err;
-      const code =
-        err && typeof err === "object" && "code" in err
-          ? String(/** @type {{ code?: unknown }} */ (err).code)
-          : "";
-      if (code === "RATE_LIMIT" && attempt + 1 < YAHOO_FETCH_MAX_ATTEMPTS) {
-        await sleep(1500 * (attempt + 1));
-        continue;
+      if (!isTransientYahooError(err) || attempt + 1 >= YAHOO_FETCH_MAX_ATTEMPTS) {
+        throw err;
       }
-      throw err;
+      const code = errorCodeOf(err);
+      // crumb/세션이 꼬인 채 반복 429 되는 경우 — 한 번 세션 갱신
+      if (
+        (code === "RATE_LIMIT" || /yahoo session/i.test(String(err?.message ?? ""))) &&
+        !clearedSession &&
+        attempt >= 1
+      ) {
+        clearYahooSession();
+        clearedSession = true;
+      }
+      // cool-down 이 끝날 때까지 기다린 뒤 짧은 지터 — 이전처럼 1.5s만 자고 재시도하지 않음
+      await waitForYahooQueueReady({
+        minWaitMs: 600 * (attempt + 1),
+        jitterMs: 400,
+      });
     }
   }
+  throw lastErr;
 }
 
 export function queueRequest(task) {
@@ -485,7 +542,21 @@ export async function loadStock(symbol, timeframe, options = {}) {
       if (/no data found|delisted|not found|chart error/.test(lower)) {
         throw chartNotFoundError(sym, detail);
       }
-      throw new Error(`종목 데이터를 가져올 수 없습니다: ${sym} (${detail})`);
+      const wrapped = new Error(`종목 데이터를 가져올 수 없습니다: ${sym} (${detail})`);
+      const code = errorCodeOf(err);
+      if (code) {
+        /** @type {{ code?: string; retryAfterMs?: number }} */ (wrapped).code = code;
+      }
+      if (
+        err &&
+        typeof err === "object" &&
+        "retryAfterMs" in err &&
+        typeof /** @type {{ retryAfterMs?: unknown }} */ (err).retryAfterMs === "number"
+      ) {
+        /** @type {{ retryAfterMs?: number }} */ (wrapped).retryAfterMs =
+          /** @type {{ retryAfterMs: number }} */ (err).retryAfterMs;
+      }
+      throw wrapped;
     } finally {
       inflight.delete(inflightKey);
     }

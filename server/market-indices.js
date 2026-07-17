@@ -2,6 +2,7 @@
  * 주요 지수·환율 시세 — Yahoo 차트 스냅샷(일봉·전일대비).
  */
 import { loadChartQuoteSnapshot } from "./stock-data.js";
+import { waitForYahooQueueReady } from "./yahoo-queue.js";
 
 const CACHE_MS = 20_000;
 const FETCH_CONCURRENCY = 4;
@@ -31,10 +32,6 @@ function itemHasPrice(item) {
   return item?.price != null && Number.isFinite(item.price) && item.price > 0;
 }
 
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
 async function loadChartQuoteSnapshotWithRetry(symbol) {
   for (let attempt = 0; attempt < SNAPSHOT_RETRY_ATTEMPTS; attempt++) {
     try {
@@ -42,7 +39,7 @@ async function loadChartQuoteSnapshotWithRetry(symbol) {
       if (snap) return snap;
     } catch (err) {
       if (err?.code === "RATE_LIMIT" && attempt + 1 < SNAPSHOT_RETRY_ATTEMPTS) {
-        await sleep(1200 * (attempt + 1));
+        await waitForYahooQueueReady({ minWaitMs: 800 * (attempt + 1), jitterMs: 300 });
         continue;
       }
     }
