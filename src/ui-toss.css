@@ -110,7 +110,8 @@ html {
 .app__shell > .workspace.sp500-sector-tab,
 .app__shell > .trade-history-workspace,
 .app__shell > .live-trade-tab-root,
-.app__shell > .crypto-workspace {
+.app__shell > .crypto-workspace,
+.app__shell .account-manage-tab {
   gap: var(--tab-stack-gap);
 }
 
