@@ -15,6 +15,7 @@ const APP_TABS: readonly AppTab[] = [
   "stockVault",
   "investorFlow",
   "sp500Sector",
+  "nasdaqEtf",
   "accountManage",
   "ops",
 ];
@@ -29,7 +30,10 @@ const TIMEFRAMES: readonly ChartTimeframe[] = [
 ];
 
 /** 새로고침·재진입 시 종목 검색으로 복귀 — 보조 탭은 기본 탭으로 저장하지 않음 */
-const EPHEMERAL_MAIN_TABS: ReadonlySet<AppTab> = new Set(["sp500Sector"]);
+const EPHEMERAL_MAIN_TABS: ReadonlySet<AppTab> = new Set([
+  "sp500Sector",
+  "nasdaqEtf",
+]);
 
 export function resolvePersistedAppTab(tab: AppTab): AppTab {
   return EPHEMERAL_MAIN_TABS.has(tab) ? "stockLookup" : tab;

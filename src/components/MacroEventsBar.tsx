@@ -380,10 +380,13 @@ function writeSessionMacroCache(
 type MacroEventsBarProps = {
   /** 제목 문구를 연속으로 눌렀을 때만 호출 (접근 관리 등). */
   onSecretAdminOpen?: () => void;
+  /** 매크로 카드 왼쪽 — 나스닥 ETF 탭으로 이동 */
+  onOpenNasdaqEtf?: () => void;
 };
 
 export default function MacroEventsBar({
   onSecretAdminOpen,
+  onOpenNasdaqEtf,
 }: MacroEventsBarProps) {
   const cachedInit = readSessionMacroCache() ?? peekMacroPrefetch();
   const [events, setEvents] = useState<MacroEvent[]>(() => cachedInit?.events ?? []);
@@ -563,13 +566,64 @@ export default function MacroEventsBar({
           </div>
         </div>
         <div
-          className={macroTrackWrapClass(eventsTrackEdge)}
+          className={[
+            macroTrackWrapClass(eventsTrackEdge),
+            onOpenNasdaqEtf ? "macro-bar__track-wrap--with-etf" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
           style={
             {
               "--macro-edge-pull": String(eventsTrackEdge.pull),
             } as CSSProperties
           }
         >
+          {onOpenNasdaqEtf ? (
+            <button
+              type="button"
+              className="macro-bar__etf-btn"
+              onClick={onOpenNasdaqEtf}
+              title={ko.macro.nasdaqEtfBtnHint}
+              aria-label={ko.macro.nasdaqEtfBtnHint}
+            >
+              <span className="macro-bar__etf-btn-mark" aria-hidden>
+                <svg viewBox="0 0 32 32" width="22" height="22" fill="none">
+                  <rect
+                    x="3"
+                    y="3"
+                    width="26"
+                    height="26"
+                    rx="8"
+                    fill="url(#macroEtfGrad)"
+                    opacity="0.9"
+                  />
+                  <path
+                    d="M8 21.5V10.5h3.1l3.2 7.1 3.2-7.1H20.6v11h-2.55v-6.55l-2.85 6.05h-2.4L10.05 14.95V21.5H8z"
+                    fill="#fff"
+                  />
+                  <defs>
+                    <linearGradient
+                      id="macroEtfGrad"
+                      x1="4"
+                      y1="4"
+                      x2="28"
+                      y2="28"
+                      gradientUnits="userSpaceOnUse"
+                    >
+                      <stop stopColor="#5b8def" />
+                      <stop offset="1" stopColor="#3d6fd4" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </span>
+              <span className="macro-bar__etf-btn-text">
+                <span className="macro-bar__etf-btn-kicker">NASDAQ</span>
+                <span className="macro-bar__etf-btn-label">
+                  {ko.macro.nasdaqEtfBtn}
+                </span>
+              </span>
+            </button>
+          ) : null}
           <div className="macro-bar__track" ref={eventsTrackRef}>
             {loading && barItems.length === 0 && (
               <p className="macro-bar__status">{ko.macro.loading}</p>

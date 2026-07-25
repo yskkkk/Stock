@@ -14,6 +14,7 @@ export type AppTab =
   | "stockVault"
   | "investorFlow"
   | "sp500Sector"
+  | "nasdaqEtf"
   | "accountManage"
   | "ops";
 

@@ -278,6 +278,27 @@ export function fetchSp500Sectors() {
   );
 }
 
+export type NasdaqEtfRow = {
+  symbol: string;
+  name: string;
+  exchange: string | null;
+  exchangeDisp: string | null;
+  price: number | null;
+  changePercent: number | null;
+  netAssets: number | null;
+};
+
+export type NasdaqEtfsPayload = {
+  etfs: NasdaqEtfRow[];
+  count: number;
+  updatedAt: number;
+  source: string;
+};
+
+export function fetchNasdaqEtfs() {
+  return fetchJson<NasdaqEtfsPayload>("/api/nasdaq-etfs");
+}
+
 export function refreshPicks() {
   return fetchJson<RefreshResponse>("/api/picks/refresh", { method: "POST" });
 }

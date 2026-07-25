@@ -20,6 +20,7 @@ import AccessAdminModal from "./components/AccessAdminModal";
 import AppSiteFooter from "./components/AppSiteFooter";
 import Sp500SectorTab from "./components/Sp500SectorTab";
 import AccountManageTab from "./components/AccountManageTab";
+import NasdaqEtfTab from "./components/NasdaqEtfTab";
 import Sp500SectorWheelMicro from "./components/Sp500SectorWheelMicro";
 import { Sp500SectorProvider } from "./contexts/Sp500SectorContext";
 import ScrollToTopButton from "./components/ScrollToTopButton";
@@ -745,6 +746,7 @@ export default function App() {
       appTab === "stockVault" ||
       appTab === "investorFlow" ||
       appTab === "sp500Sector" ||
+      appTab === "nasdaqEtf" ||
       appTab === "accountManage"
     ) {
       return null;
@@ -809,7 +811,7 @@ export default function App() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!workspacePick) return;
-    if (appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault" || appTab === "investorFlow" || appTab === "sp500Sector" || appTab === "accountManage") return;
+    if (appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault" || appTab === "investorFlow" || appTab === "sp500Sector" || appTab === "nasdaqEtf" || appTab === "accountManage") return;
     if (window.innerWidth > 900) return;
     const el = stockChartSectionRef.current;
     if (!el) return;
@@ -1002,6 +1004,14 @@ export default function App() {
     setAppTab("stockLookup");
   }, []);
 
+  const handleOpenNasdaqEtfSymbol = useCallback((pick: StockPick) => {
+    skipLookupResetRef.current = true;
+    setLookupSeedQuery(pick.symbol);
+    setLookupSelected(pick);
+    setLookupMarketTab(pick.market === "crypto" ? "us" : pick.market);
+    setAppTab("stockLookup");
+  }, []);
+
   const handleCryptoFocusConsumed = useCallback(() => {
     setCryptoFocusSymbol(null);
   }, []);
@@ -1157,7 +1167,7 @@ export default function App() {
 
   useEffect(() => {
     const pick = workspacePickRef.current;
-    if (!pick || appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault" || appTab === "investorFlow" || appTab === "sp500Sector" || appTab === "accountManage") return;
+    if (!pick || appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault" || appTab === "investorFlow" || appTab === "sp500Sector" || appTab === "nasdaqEtf" || appTab === "accountManage") return;
     loadChart(pick, timeframe);
     const refreshMs = timeframe === "1m" ? 1_000 : 8_000;
     const id = window.setInterval(() => {
@@ -1398,6 +1408,8 @@ export default function App() {
                   ? "app app--investor-flow"
                 : appTab === "sp500Sector"
                   ? "app app--sp500-sector"
+                : appTab === "nasdaqEtf"
+                  ? "app app--nasdaq-etf"
                 : appTab === "accountManage"
                   ? "app app--account-manage"
                 : appTab === "liveTrading"
@@ -1494,7 +1506,10 @@ export default function App() {
           className={`top-bar__grid${showTopScanStrip ? " top-bar__grid--with-scan" : ""}`}
         >
           <div className="top-bar__macro">
-            <MacroEventsBar onSecretAdminOpen={() => setShowAccessAdmin(true)} />
+            <MacroEventsBar
+              onSecretAdminOpen={() => setShowAccessAdmin(true)}
+              onOpenNasdaqEtf={() => setAppTab("nasdaqEtf")}
+            />
           </div>
           <div className="top-bar__header-left">
             <div className="top-bar__brand">
@@ -1674,6 +1689,13 @@ export default function App() {
               </button>
               <button
                 type="button"
+                className={mainTabClassName("nasdaqEtf")}
+                onClick={() => setAppTab("nasdaqEtf")}
+              >
+                {ko.app.tabNasdaqEtf}
+              </button>
+              <button
+                type="button"
                 className={mainTabClassName("accountManage")}
                 onClick={() => setAppTab("accountManage")}
               >
@@ -1768,6 +1790,8 @@ export default function App() {
         <InvestorFlowTab />
       ) : appTab === "sp500Sector" ? (
         <Sp500SectorTab />
+      ) : appTab === "nasdaqEtf" ? (
+        <NasdaqEtfTab onOpenSymbol={handleOpenNasdaqEtfSymbol} />
       ) : appTab === "accountManage" ? (
         <AccountManageTab />
       ) : appTab === "liveTrading" ? (
