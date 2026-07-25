@@ -7,10 +7,32 @@ import { getYahooSession, yahooGet, yahooPost } from "./yahoo.js";
 /** Nasdaq Global Select / Global Market / Capital Market */
 const NASDAQ_ETF_EXCHANGES = ["NMS", "NGM", "NAS", "NCM"];
 
-const TARGET = (() => {
-  const n = Number(process.env.STOCK_NASDAQ_ETF_TARGET ?? 2500);
-  return Number.isFinite(n) && n >= 100 ? Math.min(n, 5000) : 2500;
+/** 거래소당 스크리너 상한 — 신규·소형 ETF(예: IQQ)가 AUM 하위권에 있어도 포함 */
+const PER_EXCHANGE_MAX = (() => {
+  const n = Number(process.env.STOCK_NASDAQ_ETF_PER_EX ?? 2500);
+  return Number.isFinite(n) && n >= 500 ? Math.min(n, 5000) : 2500;
 })();
+
+const TARGET = (() => {
+  const n = Number(process.env.STOCK_NASDAQ_ETF_TARGET ?? 6000);
+  return Number.isFinite(n) && n >= 100 ? Math.min(n, 12_000) : 6000;
+})();
+
+/**
+ * Yahoo가 quoteType=EQUITY로 잘못 태깅하거나 AUM 하위라 스크리너 끝단에 있는 ETF 보강.
+ * (예: 2026년 상장 iShares Nasdaq 100 ETF — IQQ)
+ */
+const SUPPLEMENTAL_ETF_SYMBOLS = [
+  "IQQ",
+  "IQQQ",
+  "QQQM",
+  "QQQ",
+  "TQQQ",
+  "SQQQ",
+  "QYLD",
+  "QQQI",
+];
+
 
 const CACHE_MS = 6 * 60 * 60 * 1000;
 const NAVER_UA =
@@ -112,19 +134,16 @@ async function fetchEtfScreenerPage(region, offset, size, exchange) {
 /**
  * @param {string} region
  * @param {string} exchange
- * @param {number} target
+ * @param {number} maxCount
  */
-async function fetchExchangeEtfUniverse(region, exchange, target) {
+async function fetchExchangeEtfUniverse(region, exchange, maxCount) {
   const out = [];
   const seen = new Set();
   const ex = String(exchange ?? "").trim();
   if (!ex) return [];
+  const cap = Math.max(500, Number(maxCount) || PER_EXCHANGE_MAX);
 
-  for (
-    let offset = 0;
-    offset < Math.max(target * 4, 8_000) && out.length < target;
-    offset += 250
-  ) {
+  for (let offset = 0; offset < Math.max(cap * 2, 8_000) && out.length < cap; offset += 250) {
     try {
       const page = await fetchEtfScreenerPage(region, offset, 250, ex);
       for (const item of page) {
@@ -133,7 +152,9 @@ async function fetchExchangeEtfUniverse(region, exchange, target) {
           out.push(item);
         }
       }
-      if (page.length < 50) break;
+      // 페이지가 비면 종료. 짧아도 offset을 더 밀어 AUM 하위·신규 티커를 놓치지 않음
+      if (page.length === 0) break;
+      if (page.length < 25 && offset >= 1500) break;
     } catch (e) {
       console.warn(
         "[nasdaq-etf] screener:",
@@ -145,6 +166,81 @@ async function fetchExchangeEtfUniverse(region, exchange, target) {
   }
 
   return out;
+}
+
+/**
+ * @param {string} symbol
+ * @returns {Promise<object | null>}
+ */
+async function fetchQuoteAsNasdaqEtfRow(symbol) {
+  const sym = String(symbol ?? "").trim().toUpperCase();
+  if (!sym) return null;
+  try {
+    const data = await yahooGet(
+      `/v7/finance/quote?symbols=${encodeURIComponent(sym)}`,
+    );
+    const r = data?.quoteResponse?.result?.[0];
+    if (!r) return null;
+    const exchange = String(r.exchange ?? "").trim().toUpperCase();
+    if (!NASDAQ_ETF_EXCHANGES.includes(exchange)) return null;
+    const name = resolveDisplayName(sym, r.shortName, r.longName);
+    const qt = String(r.quoteType ?? "").toUpperCase();
+    const looksEtf =
+      qt === "ETF" ||
+      /ETF|UCITS|Trust|Fund\b/i.test(String(r.shortName ?? "")) ||
+      /ETF|UCITS|Trust|Fund\b/i.test(String(r.longName ?? ""));
+    if (!looksEtf) return null;
+    const priceRaw = r.regularMarketPrice;
+    const changeRaw = r.regularMarketChangePercent;
+    return {
+      symbol: sym,
+      name,
+      nameKo: null,
+      description: null,
+      categoryKo: null,
+      exchange,
+      exchangeDisp: String(r.fullExchangeName ?? "").trim() || null,
+      price:
+        typeof priceRaw === "number" && Number.isFinite(priceRaw)
+          ? priceRaw
+          : null,
+      changePercent:
+        typeof changeRaw === "number" && Number.isFinite(changeRaw)
+          ? changeRaw
+          : null,
+      netAssets: null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * @param {Map<string, object>} bySym
+ */
+async function mergeSupplementalEtfs(bySym) {
+  const missing = SUPPLEMENTAL_ETF_SYMBOLS.filter((s) => !bySym.has(s));
+  // 검색으로 NASDAQ 표기 ETF 추가 후보
+  try {
+    const data = await yahooGet(
+      `/v1/finance/search?q=${encodeURIComponent("iShares Nasdaq 100 ETF")}&quotesCount=15&newsCount=0`,
+    );
+    for (const q of data?.quotes ?? []) {
+      const sym = String(q.symbol ?? "").trim().toUpperCase();
+      if (!sym || bySym.has(sym) || missing.includes(sym)) continue;
+      if (String(q.quoteType ?? "").toUpperCase() === "ETF" || /ETF/i.test(String(q.shortname ?? ""))) {
+        missing.push(sym);
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+
+  for (const sym of missing) {
+    if (bySym.has(sym)) continue;
+    const row = await fetchQuoteAsNasdaqEtfRow(sym);
+    if (row) bySym.set(sym, row);
+  }
 }
 
 /** @returns {Promise<Map<string, string>>} */
@@ -349,18 +445,26 @@ export async function fetchNasdaqEtfsPayload(opts = {}) {
   }
 
   await getYahooSession();
-  const perEx = Math.ceil(TARGET / NASDAQ_ETF_EXCHANGES.length) + 200;
   /** @type {Map<string, object>} */
   const bySym = new Map();
 
   for (const ex of NASDAQ_ETF_EXCHANGES) {
-    const part = await fetchExchangeEtfUniverse("us", ex, perEx);
+    const part = await fetchExchangeEtfUniverse("us", ex, PER_EXCHANGE_MAX);
     for (const row of part) {
       if (!bySym.has(row.symbol)) bySym.set(row.symbol, row);
     }
   }
 
-  const etfs = [...bySym.values()].sort((a, b) => {
+  try {
+    await mergeSupplementalEtfs(bySym);
+  } catch (e) {
+    console.warn(
+      "[nasdaq-etf] supplemental:",
+      e instanceof Error ? e.message : e,
+    );
+  }
+
+  let etfs = [...bySym.values()].sort((a, b) => {
     const an = a.netAssets;
     const bn = b.netAssets;
     if (an != null && bn != null && an !== bn) return bn - an;
@@ -368,6 +472,8 @@ export async function fetchNasdaqEtfsPayload(opts = {}) {
     if (an == null && bn != null) return 1;
     return String(a.symbol).localeCompare(String(b.symbol));
   });
+
+  if (etfs.length > TARGET) etfs = etfs.slice(0, TARGET);
 
   try {
     await enrichKoreanMeta(etfs);

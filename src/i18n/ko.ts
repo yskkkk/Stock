@@ -83,7 +83,7 @@ export const ko = {
     nasdaqEtfTitle: "나스닥 ETF",
     nasdaqEtfAria: "나스닥 상장 ETF 목록",
     nasdaqEtfSubtitle:
-      "Yahoo Finance 나스닥 상장 ETF · 한글명·설명은 네이버 증권(가능 시) 기준입니다.",
+      "Yahoo Finance 나스닥 상장 ETF · 한글명·설명은 네이버 증권(가능 시) 기준. 신규·소형 ETF도 검색으로 찾을 수 있습니다.",
     nasdaqEtfSearch: "심볼·영문·한글명·설명 검색",
     nasdaqEtfLoading: "ETF 목록 불러오는 중…",
     nasdaqEtfEmpty: "표시할 ETF가 없습니다.",
