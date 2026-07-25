@@ -270,10 +270,122 @@
   color: var(--down);
 }
 
+.nasdaq-etf-tab__row--clickable {
+  cursor: pointer;
+}
+
+.nasdaq-etf-tab__row--clickable:hover > td {
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+.nasdaq-etf-tab__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  justify-content: flex-end;
+}
+
 .nasdaq-etf-tab__open {
   font-size: 0.72rem;
   padding: 0.25rem 0.55rem;
   white-space: nowrap;
+}
+
+.nasdaq-etf-tab__back {
+  margin: 0 0 0.35rem;
+  padding-left: 0;
+  font-size: 0.78rem;
+}
+
+.nasdaq-etf-tab__title-sub {
+  margin-left: 0.55rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.nasdaq-etf-tab__head-actions {
+  display: flex;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+
+.nasdaq-etf-tab__note {
+  margin: 0;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--muted);
+  border: 1px dashed var(--card-border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface) 40%, transparent);
+}
+
+.nasdaq-etf-tab__panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 0.75rem;
+}
+
+.nasdaq-etf-tab__panel {
+  padding: 0.85rem 1rem;
+}
+
+.nasdaq-etf-tab__panel-title {
+  margin: 0 0 0.65rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.nasdaq-etf-tab__bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.nasdaq-etf-tab__bar-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 0.18rem;
+}
+
+.nasdaq-etf-tab__bar-track {
+  height: 0.42rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 70%, var(--card-border));
+  overflow: hidden;
+}
+
+.nasdaq-etf-tab__bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, #5b8def 75%, var(--accent)),
+    #5b8def
+  );
+}
+
+.nasdaq-etf-tab__bar-fill--sector {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 70%, #34d399),
+    var(--accent)
+  );
+}
+
+.nasdaq-etf-tab__detail--standalone {
+  margin: 0;
+}
+
+.nasdaq-etf-tab--detail .nasdaq-etf-tab__table-wrap {
+  max-height: min(55vh, 36rem);
 }
 
 @media (max-width: 720px) {

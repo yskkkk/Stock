@@ -303,6 +303,40 @@ export function fetchNasdaqEtfs(opts?: { refresh?: boolean }) {
   return fetchJson<NasdaqEtfsPayload>(`/api/nasdaq-etfs${q}`);
 }
 
+export type NasdaqEtfHoldingRow = {
+  symbol: string;
+  name: string;
+  nameKo: string | null;
+  weight: number | null;
+};
+
+export type NasdaqEtfHoldingsPayload = {
+  symbol: string;
+  name: string;
+  family: string | null;
+  category: string | null;
+  holdings: NasdaqEtfHoldingRow[];
+  sectors: Array<{ key: string; label: string; weight: number }>;
+  allocation: {
+    stock: number | null;
+    bond: number | null;
+    cash: number | null;
+    other: number | null;
+    preferred: number | null;
+    convertible: number | null;
+  } | null;
+  updatedAt: number;
+  source: string;
+  note: string | null;
+};
+
+export function fetchNasdaqEtfHoldings(symbol: string) {
+  const sym = encodeURIComponent(String(symbol ?? "").trim());
+  return fetchJson<NasdaqEtfHoldingsPayload>(
+    `/api/nasdaq-etfs/${sym}/holdings`,
+  );
+}
+
 export function refreshPicks() {
   return fetchJson<RefreshResponse>("/api/picks/refresh", { method: "POST" });
 }

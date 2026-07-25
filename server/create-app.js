@@ -67,7 +67,7 @@ import { notifyServerOpenRequest } from "./server-open-request-notify.js";
 import { getMacroEventsCachedAsync } from "./macro-events.js";
 import { fetchSectorEarningsSpotlight } from "./sector-earnings-spotlight.js";
 import { fetchSp500SectorsPayload } from "./sp500-sectors.js";
-import { fetchNasdaqEtfsPayload } from "./nasdaq-etf.js";
+import { fetchNasdaqEtfsPayload, fetchNasdaqEtfHoldingsPayload } from "./nasdaq-etf.js";
 import { postFeedback, getFeedbackInbox, postFeedbackAdminReply, deleteFeedbackAdmin } from "./feedback-inbox.js";
 import { runOpsCursorAgent, streamOpsCursorAgentSse, writeOpsAgentSseEvent } from "./cursor-ops-agent.js";
 import {
@@ -1360,6 +1360,18 @@ export function createApp() {
         String(req.query?.refresh ?? "").trim() === "1" ||
         String(req.query?.force ?? "").trim() === "1";
       res.json(await fetchNasdaqEtfsPayload({ force }));
+    }),
+  );
+
+  app.get(
+    "/api/nasdaq-etfs/:symbol/holdings",
+    asyncRoute(async (req, res) => {
+      const symbol = String(req.params?.symbol ?? "").trim();
+      if (!symbol) {
+        res.status(400).json({ error: "symbol required" });
+        return;
+      }
+      res.json(await fetchNasdaqEtfHoldingsPayload(symbol));
     }),
   );
 

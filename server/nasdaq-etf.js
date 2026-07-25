@@ -387,3 +387,173 @@ export async function fetchNasdaqEtfsPayload(opts = {}) {
   cached = { data, at: Date.now() };
   return data;
 }
+
+const HOLDINGS_CACHE_MS = 60 * 60 * 1000;
+/** @type {Map<string, { data: object; at: number }>} */
+const holdingsCache = new Map();
+
+const SECTOR_KO = {
+  technology: "정보기술",
+  communication_services: "커뮤니케이션",
+  consumer_cyclical: "임의소비재",
+  consumer_defensive: "필수소비재",
+  financial_services: "금융",
+  healthcare: "헬스케어",
+  industrials: "산업재",
+  basic_materials: "소재",
+  energy: "에너지",
+  utilities: "유틸리티",
+  realestate: "부동산",
+};
+
+/**
+ * @param {unknown} raw
+ * @returns {number | null}
+ */
+function yahooPct(raw) {
+  if (raw == null) return null;
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  if (typeof raw === "object" && raw && "raw" in /** @type {object} */ (raw)) {
+    const n = Number(/** @type {{ raw?: unknown }} */ (raw).raw);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+/**
+ * @param {unknown} sectors
+ * @returns {Array<{ key: string; label: string; weight: number }>}
+ */
+function parseSectorWeightings(sectors) {
+  if (!Array.isArray(sectors)) return [];
+  /** @type {Array<{ key: string; label: string; weight: number }>} */
+  const out = [];
+  for (const row of sectors) {
+    if (!row || typeof row !== "object") continue;
+    for (const [key, val] of Object.entries(row)) {
+      const weight = yahooPct(val);
+      if (weight == null || weight <= 0) continue;
+      out.push({
+        key,
+        label: SECTOR_KO[key] ?? key.replace(/_/g, " "),
+        weight,
+      });
+    }
+  }
+  return out.sort((a, b) => b.weight - a.weight);
+}
+
+/**
+ * @param {string} symbol
+ */
+export async function fetchNasdaqEtfHoldingsPayload(symbol) {
+  const sym = String(symbol ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/\./g, "-");
+  if (!sym) {
+    return {
+      symbol: "",
+      holdings: [],
+      sectors: [],
+      allocation: null,
+      updatedAt: Date.now(),
+      source: "yahoo-topHoldings",
+      note: null,
+    };
+  }
+
+  const hit = holdingsCache.get(sym);
+  const now = Date.now();
+  if (hit && now - hit.at < HOLDINGS_CACHE_MS) return hit.data;
+
+  await getYahooSession();
+  const data = await yahooGet(
+    `/v10/finance/quoteSummary/${encodeURIComponent(sym)}?modules=topHoldings,fundProfile,price`,
+  );
+  const row = data?.quoteSummary?.result?.[0] ?? {};
+  const th = row.topHoldings ?? {};
+  const price = row.price ?? {};
+  const fund = row.fundProfile ?? {};
+
+  const rawHoldings = Array.isArray(th.holdings) ? th.holdings : [];
+  const holdings = rawHoldings
+    .map((h) => {
+      const hSym = String(h?.symbol ?? "").trim().toUpperCase();
+      if (!hSym) return null;
+      const weight = yahooPct(h?.holdingPercent);
+      const name = String(h?.holdingName ?? "").trim() || hSym;
+      const nameKo = getKoreanStockName(hSym);
+      return {
+        symbol: hSym,
+        name,
+        nameKo: nameKo && hasHangul(nameKo) ? nameKo : null,
+        weight: weight != null ? weight : null,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0));
+
+  // 보유 종목 한글명 보강 (소량)
+  try {
+    const { resolveUsKoreanStockNamesBatch } = await import(
+      "./us-naver-korean-name.js"
+    );
+    const missing = holdings
+      .filter((h) => !h.nameKo)
+      .map((h) => h.symbol)
+      .slice(0, 20);
+    if (missing.length) {
+      const map = await resolveUsKoreanStockNamesBatch(missing, 6);
+      for (const h of holdings) {
+        if (h.nameKo) continue;
+        const ko = map.get(h.symbol);
+        if (ko && hasHangul(ko)) h.nameKo = ko;
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+
+  const allocation = {
+    stock: yahooPct(th.stockPosition),
+    bond: yahooPct(th.bondPosition),
+    cash: yahooPct(th.cashPosition),
+    other: yahooPct(th.otherPosition),
+    preferred: yahooPct(th.preferredPosition),
+    convertible: yahooPct(th.convertiblePosition),
+  };
+
+  const family = String(fund.family ?? "").trim() || null;
+  const category = String(fund.categoryName ?? "").trim() || null;
+  const etfName =
+    String(price.longName ?? price.shortName ?? "").trim() || sym;
+
+  /** @type {string | null} */
+  let note = null;
+  if (holdings.length === 0) {
+    note =
+      "이 ETF는 Yahoo에서 개별 보유 종목 목록을 제공하지 않습니다(채권형·파생 중심 등). 자산·자산 배분은 아래를 참고하세요.";
+  } else if (holdings.length <= 3) {
+    note =
+      "레버리지·인버스 등 일부 ETF는 파생·현금성 비중이 커 상위 보유 종목이 적게 표시될 수 있습니다.";
+  } else {
+    note =
+      "Yahoo Finance 상위 보유 종목 기준입니다. 전체 포트폴리오의 일부만 표시될 수 있습니다.";
+  }
+
+  const payload = {
+    symbol: sym,
+    name: etfName,
+    family,
+    category,
+    holdings,
+    sectors: parseSectorWeightings(th.sectorWeightings),
+    allocation,
+    updatedAt: now,
+    source: "yahoo-topHoldings",
+    note,
+  };
+  holdingsCache.set(sym, { data: payload, at: now });
+  return payload;
+}

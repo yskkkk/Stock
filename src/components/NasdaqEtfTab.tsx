@@ -1,5 +1,17 @@
-import { useCallback, useEffect, useMemo, useState, Fragment } from "react";
-import { fetchNasdaqEtfs, type NasdaqEtfRow } from "../api";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  Fragment,
+  type MouseEvent,
+} from "react";
+import {
+  fetchNasdaqEtfHoldings,
+  fetchNasdaqEtfs,
+  type NasdaqEtfHoldingsPayload,
+  type NasdaqEtfRow,
+} from "../api";
 import { ko } from "../i18n/ko";
 import type { StockPick } from "../types";
 import DockPanelCenterLoading from "./DockPanelCenterLoading";
@@ -28,10 +40,14 @@ function formatChange(n: number | null | undefined): string {
   return `${sign}${n.toFixed(2)}%`;
 }
 
-/** 목록용 한 줄 미리보기(말줄임은 CSS) */
+function formatWeight(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return "—";
+  const pct = n <= 1 ? n * 100 : n;
+  return `${pct.toFixed(2)}%`;
+}
+
 function descPreview(text: string | null | undefined): string {
   const s = String(text ?? "").replace(/\s+/g, " ").trim();
-  if (!s) return "";
   return s;
 }
 
@@ -46,6 +62,12 @@ export default function NasdaqEtfTab({ onOpenSymbol }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [expandedSym, setExpandedSym] = useState<string | null>(null);
+  const [selected, setSelected] = useState<NasdaqEtfRow | null>(null);
+  const [holdings, setHoldings] = useState<NasdaqEtfHoldingsPayload | null>(
+    null,
+  );
+  const [holdingsLoading, setHoldingsLoading] = useState(false);
+  const [holdingsError, setHoldingsError] = useState<string | null>(null);
 
   const load = useCallback(async (refresh = false) => {
     setLoading(true);
@@ -67,17 +89,38 @@ export default function NasdaqEtfTab({ onOpenSymbol }: Props) {
     void load(false);
   }, [load]);
 
+  useEffect(() => {
+    if (!selected) {
+      setHoldings(null);
+      setHoldingsError(null);
+      return;
+    }
+    let cancelled = false;
+    setHoldingsLoading(true);
+    setHoldingsError(null);
+    void fetchNasdaqEtfHoldings(selected.symbol)
+      .then((data) => {
+        if (!cancelled) setHoldings(data);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHoldings(null);
+          setHoldingsError(ko.app.nasdaqEtfHoldingsError);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setHoldingsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selected]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return rows;
     return rows.filter((r) => {
-      const hay = [
-        r.symbol,
-        r.name,
-        r.nameKo,
-        r.description,
-        r.categoryKo,
-      ]
+      const hay = [r.symbol, r.name, r.nameKo, r.description, r.categoryKo]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
@@ -85,7 +128,7 @@ export default function NasdaqEtfTab({ onOpenSymbol }: Props) {
     });
   }, [rows, query]);
 
-  const openRow = (row: NasdaqEtfRow) => {
+  const openChart = (row: Pick<NasdaqEtfRow, "symbol" | "name" | "nameKo" | "price" | "changePercent">) => {
     onOpenSymbol?.({
       symbol: row.symbol,
       name: row.nameKo || row.name || row.symbol,
@@ -98,11 +141,208 @@ export default function NasdaqEtfTab({ onOpenSymbol }: Props) {
     });
   };
 
-  const toggleDesc = (symbol: string) => {
+  const openHoldingChart = (h: {
+    symbol: string;
+    name: string;
+    nameKo: string | null;
+  }) => {
+    onOpenSymbol?.({
+      symbol: h.symbol,
+      name: h.nameKo || h.name || h.symbol,
+      market: "us",
+      score: 0,
+      signals: [],
+    });
+  };
+
+  const toggleDesc = (symbol: string, e: MouseEvent) => {
+    e.stopPropagation();
     setExpandedSym((prev) => (prev === symbol ? null : symbol));
   };
 
-  const colSpan = onOpenSymbol ? 8 : 7;
+  const colSpan = 8;
+
+  if (selected) {
+    const alloc = holdings?.allocation;
+    const allocRows = alloc
+      ? (
+          [
+            ["stock", ko.app.nasdaqEtfAllocStock, alloc.stock],
+            ["bond", ko.app.nasdaqEtfAllocBond, alloc.bond],
+            ["cash", ko.app.nasdaqEtfAllocCash, alloc.cash],
+            ["other", ko.app.nasdaqEtfAllocOther, alloc.other],
+          ] as const
+        ).filter(([, , w]) => w != null && w > 0)
+      : [];
+
+    return (
+      <div
+        className="workspace nasdaq-etf-tab nasdaq-etf-tab--detail"
+        aria-label={ko.app.nasdaqEtfHoldingsTitle}
+      >
+        <header className="nasdaq-etf-tab__head">
+          <div>
+            <button
+              type="button"
+              className="btn btn--ghost nasdaq-etf-tab__back"
+              onClick={() => setSelected(null)}
+            >
+              ← {ko.app.nasdaqEtfHoldingsBack}
+            </button>
+            <h2 className="nasdaq-etf-tab__title">
+              {selected.symbol}
+              <span className="nasdaq-etf-tab__title-sub">
+                {selected.nameKo || selected.name}
+              </span>
+            </h2>
+            <p className="nasdaq-etf-tab__sub">
+              {ko.app.nasdaqEtfHoldingsTitle}
+              {selected.categoryKo ? ` · ${selected.categoryKo}` : ""}
+              {holdings?.family ? ` · ${holdings.family}` : ""}
+            </p>
+          </div>
+          <div className="nasdaq-etf-tab__head-actions">
+            {onOpenSymbol ? (
+              <button
+                type="button"
+                className="btn btn--secondary"
+                onClick={() => openChart(selected)}
+              >
+                {ko.app.nasdaqEtfOpenChart}
+              </button>
+            ) : null}
+          </div>
+        </header>
+
+        {selected.description ? (
+          <div className="nasdaq-etf-tab__detail card nasdaq-etf-tab__detail--standalone">
+            <div className="nasdaq-etf-tab__detail-label">
+              {ko.app.nasdaqEtfColDesc}
+            </div>
+            <p className="nasdaq-etf-tab__detail-body">{selected.description}</p>
+          </div>
+        ) : null}
+
+        {holdingsLoading ? (
+          <DockPanelCenterLoading label={ko.app.nasdaqEtfHoldingsLoading} />
+        ) : holdingsError ? (
+          <p className="nasdaq-etf-tab__empty" role="alert">
+            {holdingsError}
+          </p>
+        ) : holdings ? (
+          <>
+            {holdings.note ? (
+              <p className="nasdaq-etf-tab__note">{holdings.note}</p>
+            ) : null}
+
+            <div className="nasdaq-etf-tab__panels">
+              {allocRows.length > 0 ? (
+                <section className="card nasdaq-etf-tab__panel">
+                  <h3 className="nasdaq-etf-tab__panel-title">
+                    {ko.app.nasdaqEtfHoldingsAllocation}
+                  </h3>
+                  <ul className="nasdaq-etf-tab__bars">
+                    {allocRows.map(([key, label, weight]) => (
+                      <li key={key}>
+                        <div className="nasdaq-etf-tab__bar-meta">
+                          <span>{label}</span>
+                          <span>{formatWeight(weight)}</span>
+                        </div>
+                        <div className="nasdaq-etf-tab__bar-track">
+                          <div
+                            className="nasdaq-etf-tab__bar-fill"
+                            style={{
+                              width: `${Math.min(100, (weight ?? 0) * 100)}%`,
+                            }}
+                          />
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+
+              {holdings.sectors.length > 0 ? (
+                <section className="card nasdaq-etf-tab__panel">
+                  <h3 className="nasdaq-etf-tab__panel-title">
+                    {ko.app.nasdaqEtfHoldingsSectors}
+                  </h3>
+                  <ul className="nasdaq-etf-tab__bars">
+                    {holdings.sectors.map((s) => (
+                      <li key={s.key}>
+                        <div className="nasdaq-etf-tab__bar-meta">
+                          <span>{s.label}</span>
+                          <span>{formatWeight(s.weight)}</span>
+                        </div>
+                        <div className="nasdaq-etf-tab__bar-track">
+                          <div
+                            className="nasdaq-etf-tab__bar-fill nasdaq-etf-tab__bar-fill--sector"
+                            style={{
+                              width: `${Math.min(100, s.weight * 100)}%`,
+                            }}
+                          />
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+            </div>
+
+            <div className="nasdaq-etf-tab__table-wrap card">
+              {holdings.holdings.length === 0 ? (
+                <p className="nasdaq-etf-tab__empty">
+                  {ko.app.nasdaqEtfHoldingsEmpty}
+                </p>
+              ) : (
+                <table className="nasdaq-etf-tab__table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>{ko.app.nasdaqEtfHoldingsColSymbol}</th>
+                      <th>{ko.app.nasdaqEtfHoldingsColName}</th>
+                      <th>{ko.app.nasdaqEtfHoldingsColWeight}</th>
+                      {onOpenSymbol ? <th /> : null}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {holdings.holdings.map((h, i) => (
+                      <tr key={h.symbol}>
+                        <td className="nasdaq-etf-tab__num">{i + 1}</td>
+                        <td className="nasdaq-etf-tab__sym">{h.symbol}</td>
+                        <td className="nasdaq-etf-tab__identity">
+                          <div className="nasdaq-etf-tab__name-ko">
+                            {h.nameKo || h.name}
+                          </div>
+                          {h.nameKo ? (
+                            <div className="nasdaq-etf-tab__name">{h.name}</div>
+                          ) : null}
+                        </td>
+                        <td className="nasdaq-etf-tab__num">
+                          {formatWeight(h.weight)}
+                        </td>
+                        {onOpenSymbol ? (
+                          <td>
+                            <button
+                              type="button"
+                              className="btn btn--ghost nasdaq-etf-tab__open"
+                              onClick={() => openHoldingChart(h)}
+                            >
+                              {ko.app.nasdaqEtfOpenChart}
+                            </button>
+                          </td>
+                        ) : null}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -112,7 +352,9 @@ export default function NasdaqEtfTab({ onOpenSymbol }: Props) {
       <header className="nasdaq-etf-tab__head">
         <div>
           <h2 className="nasdaq-etf-tab__title">{ko.app.nasdaqEtfTitle}</h2>
-          <p className="nasdaq-etf-tab__sub">{ko.app.nasdaqEtfSubtitle}</p>
+          <p className="nasdaq-etf-tab__sub">
+            {ko.app.nasdaqEtfSubtitle} {ko.app.nasdaqEtfHoldingsHint}
+          </p>
         </div>
         <button
           type="button"
@@ -161,7 +403,7 @@ export default function NasdaqEtfTab({ onOpenSymbol }: Props) {
                 <th>{ko.app.nasdaqEtfColPrice}</th>
                 <th>{ko.app.nasdaqEtfColChange}</th>
                 <th>{ko.app.nasdaqEtfColAum}</th>
-                {onOpenSymbol ? <th /> : null}
+                <th />
               </tr>
             </thead>
             <tbody>
@@ -184,9 +426,10 @@ export default function NasdaqEtfTab({ onOpenSymbol }: Props) {
                     <tr
                       className={
                         open
-                          ? "nasdaq-etf-tab__row nasdaq-etf-tab__row--open"
-                          : "nasdaq-etf-tab__row"
+                          ? "nasdaq-etf-tab__row nasdaq-etf-tab__row--open nasdaq-etf-tab__row--clickable"
+                          : "nasdaq-etf-tab__row nasdaq-etf-tab__row--clickable"
                       }
+                      onClick={() => setSelected(row)}
                     >
                       <td className="nasdaq-etf-tab__sym">{row.symbol}</td>
                       <td className="nasdaq-etf-tab__identity">
@@ -207,7 +450,7 @@ export default function NasdaqEtfTab({ onOpenSymbol }: Props) {
                                 : "nasdaq-etf-tab__desc-btn"
                             }
                             aria-expanded={open}
-                            onClick={() => toggleDesc(row.symbol)}
+                            onClick={(e) => toggleDesc(row.symbol, e)}
                           >
                             <span className="nasdaq-etf-tab__desc-preview">
                               {preview}
@@ -234,17 +477,30 @@ export default function NasdaqEtfTab({ onOpenSymbol }: Props) {
                       <td className="nasdaq-etf-tab__num">
                         {formatAum(row.netAssets)}
                       </td>
-                      {onOpenSymbol ? (
-                        <td>
+                      <td className="nasdaq-etf-tab__actions">
+                        <button
+                          type="button"
+                          className="btn btn--ghost nasdaq-etf-tab__open"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelected(row);
+                          }}
+                        >
+                          {ko.app.nasdaqEtfOpenHoldings}
+                        </button>
+                        {onOpenSymbol ? (
                           <button
                             type="button"
                             className="btn btn--ghost nasdaq-etf-tab__open"
-                            onClick={() => openRow(row)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openChart(row);
+                            }}
                           >
                             {ko.app.nasdaqEtfOpenChart}
                           </button>
-                        </td>
-                      ) : null}
+                        ) : null}
+                      </td>
                     </tr>
                     {open && hasDesc ? (
                       <tr className="nasdaq-etf-tab__detail-row">
