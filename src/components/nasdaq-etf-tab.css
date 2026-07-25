@@ -115,10 +115,40 @@
 }
 
 .nasdaq-etf-tab__name {
-  max-width: 22rem;
+  max-width: 14rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.nasdaq-etf-tab__name-ko {
+  max-width: 12rem;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nasdaq-etf-tab__desc {
+  max-width: 22rem;
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: var(--text-dim);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.nasdaq-etf-tab__cat {
+  max-width: 8rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .nasdaq-etf-tab__num {
@@ -143,7 +173,11 @@
 }
 
 @media (max-width: 720px) {
-  .nasdaq-etf-tab__name {
-    max-width: 10rem;
+  .nasdaq-etf-tab__name,
+  .nasdaq-etf-tab__name-ko {
+    max-width: 8rem;
+  }
+  .nasdaq-etf-tab__desc {
+    max-width: 12rem;
   }
 }

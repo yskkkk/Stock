@@ -39,11 +39,11 @@ export default function NasdaqEtfTab({ onOpenSymbol }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (refresh = false) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchNasdaqEtfs();
+      const data = await fetchNasdaqEtfs({ refresh });
       setRows(Array.isArray(data.etfs) ? data.etfs : []);
       setUpdatedAt(data.updatedAt ?? Date.now());
     } catch {
@@ -55,23 +55,31 @@ export default function NasdaqEtfTab({ onOpenSymbol }: Props) {
   }, []);
 
   useEffect(() => {
-    void load();
+    void load(false);
   }, [load]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return rows;
-    return rows.filter(
-      (r) =>
-        r.symbol.toLowerCase().includes(q) ||
-        (r.name ?? "").toLowerCase().includes(q),
-    );
+    return rows.filter((r) => {
+      const hay = [
+        r.symbol,
+        r.name,
+        r.nameKo,
+        r.description,
+        r.categoryKo,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    });
   }, [rows, query]);
 
   const openRow = (row: NasdaqEtfRow) => {
     onOpenSymbol?.({
       symbol: row.symbol,
-      name: row.name || row.symbol,
+      name: row.nameKo || row.name || row.symbol,
       market: "us",
       score: 0,
       signals: [],
@@ -94,7 +102,7 @@ export default function NasdaqEtfTab({ onOpenSymbol }: Props) {
         <button
           type="button"
           className="btn btn--secondary"
-          onClick={() => void load()}
+          onClick={() => void load(true)}
           disabled={loading}
         >
           {ko.app.nasdaqEtfRefresh}
@@ -132,8 +140,10 @@ export default function NasdaqEtfTab({ onOpenSymbol }: Props) {
             <thead>
               <tr>
                 <th>{ko.app.nasdaqEtfColSymbol}</th>
+                <th>{ko.app.nasdaqEtfColNameKo}</th>
                 <th>{ko.app.nasdaqEtfColName}</th>
-                <th>{ko.app.nasdaqEtfColExchange}</th>
+                <th>{ko.app.nasdaqEtfColDesc}</th>
+                <th>{ko.app.nasdaqEtfColCategory}</th>
                 <th>{ko.app.nasdaqEtfColPrice}</th>
                 <th>{ko.app.nasdaqEtfColChange}</th>
                 <th>{ko.app.nasdaqEtfColAum}</th>
@@ -154,9 +164,20 @@ export default function NasdaqEtfTab({ onOpenSymbol }: Props) {
                 return (
                   <tr key={row.symbol}>
                     <td className="nasdaq-etf-tab__sym">{row.symbol}</td>
-                    <td className="nasdaq-etf-tab__name">{row.name}</td>
-                    <td>
-                      {row.exchangeDisp || row.exchange || "Nasdaq"}
+                    <td className="nasdaq-etf-tab__name-ko">
+                      {row.nameKo || "—"}
+                    </td>
+                    <td className="nasdaq-etf-tab__name" title={row.name}>
+                      {row.name}
+                    </td>
+                    <td
+                      className="nasdaq-etf-tab__desc"
+                      title={row.description ?? undefined}
+                    >
+                      {row.description || "—"}
+                    </td>
+                    <td className="nasdaq-etf-tab__cat">
+                      {row.categoryKo || "—"}
                     </td>
                     <td className="nasdaq-etf-tab__num">{formatUsd(row.price)}</td>
                     <td className={`nasdaq-etf-tab__num ${chClass}`.trim()}>

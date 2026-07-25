@@ -1355,8 +1355,11 @@ export function createApp() {
 
   app.get(
     "/api/nasdaq-etfs",
-    asyncRoute(async (_req, res) => {
-      res.json(await fetchNasdaqEtfsPayload());
+    asyncRoute(async (req, res) => {
+      const force =
+        String(req.query?.refresh ?? "").trim() === "1" ||
+        String(req.query?.force ?? "").trim() === "1";
+      res.json(await fetchNasdaqEtfsPayload({ force }));
     }),
   );
 

@@ -281,6 +281,9 @@ export function fetchSp500Sectors() {
 export type NasdaqEtfRow = {
   symbol: string;
   name: string;
+  nameKo: string | null;
+  description: string | null;
+  categoryKo: string | null;
   exchange: string | null;
   exchangeDisp: string | null;
   price: number | null;
@@ -295,8 +298,9 @@ export type NasdaqEtfsPayload = {
   source: string;
 };
 
-export function fetchNasdaqEtfs() {
-  return fetchJson<NasdaqEtfsPayload>("/api/nasdaq-etfs");
+export function fetchNasdaqEtfs(opts?: { refresh?: boolean }) {
+  const q = opts?.refresh ? "?refresh=1" : "";
+  return fetchJson<NasdaqEtfsPayload>(`/api/nasdaq-etfs${q}`);
 }
 
 export function refreshPicks() {

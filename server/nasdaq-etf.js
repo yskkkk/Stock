@@ -1,8 +1,8 @@
 /**
- * 나스닥 상장 ETF 목록 (Yahoo Finance screener, quoteType=ETF).
+ * 나스닥 상장 ETF 목록 (Yahoo screener + 네이버 한글명·설명).
  */
-import { resolveDisplayName } from "./names-ko.js";
-import { getYahooSession, yahooPost } from "./yahoo.js";
+import { getKoreanStockName, hasHangul, resolveDisplayName } from "./names-ko.js";
+import { getYahooSession, yahooGet, yahooPost } from "./yahoo.js";
 
 /** Nasdaq Global Select / Global Market / Capital Market */
 const NASDAQ_ETF_EXCHANGES = ["NMS", "NGM", "NAS", "NCM"];
@@ -13,9 +13,32 @@ const TARGET = (() => {
 })();
 
 const CACHE_MS = 6 * 60 * 60 * 1000;
+const NAVER_UA =
+  "Mozilla/5.0 (compatible; StockDashboard/1.0; +https://github.com/yskkkk/Stock)";
+const PINION_KO_MAP_URL =
+  "https://raw.githubusercontent.com/pinion05/kr-us-stock-name-ticker-maps/main/data/us/us-stock-ticker-to-ko-en-coverage100.json";
+
+const BRAND_KO = [
+  [/Invesco/i, "인베스코"],
+  [/ProShares/i, "프로셰어즈"],
+  [/Vanguard/i, "뱅가드"],
+  [/Direxion/i, "디렉시온"],
+  [/iShares/i, "아이셰어즈"],
+  [/SPDR/i, "SPDR"],
+  [/Schwab/i, "슈왑"],
+  [/Fidelity/i, "피델리티"],
+  [/Global\s*X/i, "글로벌X"],
+  [/ARK/i, "ARK"],
+  [/First\s*Trust/i, "퍼스트트러스트"],
+  [/WisdomTree/i, "위즈덤트리"],
+  [/VanEck/i, "밴엑"],
+  [/Amplify/i, "앰플리파이"],
+];
 
 /** @type {{ data: object; at: number } | null} */
 let cached = null;
+/** @type {Map<string, string> | null} */
+let pinionKoByTicker = null;
 
 /**
  * @param {string} region
@@ -45,7 +68,6 @@ async function fetchEtfScreenerPage(region, offset, size, exchange) {
   try {
     data = await yahooPost("/v1/finance/screener", body);
   } catch {
-    // fundnetassets 미지원 시 시총 정렬로 재시도
     data = await yahooPost("/v1/finance/screener", {
       ...body,
       sortField: "intradaymarketcap",
@@ -57,7 +79,9 @@ async function fetchEtfScreenerPage(region, offset, size, exchange) {
     .map((q) => {
       const symbol = String(q.symbol ?? "").trim().toUpperCase();
       if (!symbol) return null;
-      const exchangeCode = String(q.exchange ?? exchange ?? "").trim().toUpperCase();
+      const exchangeCode = String(q.exchange ?? exchange ?? "")
+        .trim()
+        .toUpperCase();
       const exchDisp = String(q.exchDisp ?? q.fullExchangeName ?? "").trim();
       const priceRaw = q.regularMarketPrice ?? q.intradayprice;
       const changeRaw = q.regularMarketChangePercent ?? q.percentchange;
@@ -65,6 +89,9 @@ async function fetchEtfScreenerPage(region, offset, size, exchange) {
       return {
         symbol,
         name: resolveDisplayName(symbol, q.shortName, q.longName),
+        nameKo: null,
+        description: null,
+        categoryKo: null,
         exchange: exchangeCode || null,
         exchangeDisp: exchDisp || null,
         price:
@@ -120,25 +147,204 @@ async function fetchExchangeEtfUniverse(region, exchange, target) {
   return out;
 }
 
+/** @returns {Promise<Map<string, string>>} */
+async function loadPinionKoByTicker() {
+  if (pinionKoByTicker) return pinionKoByTicker;
+  /** @type {Map<string, string>} */
+  const map = new Map();
+  try {
+    const res = await fetch(PINION_KO_MAP_URL, {
+      headers: { "User-Agent": NAVER_UA },
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      for (const [ticker, row] of Object.entries(data ?? {})) {
+        const ko = String(row?.name_ko ?? "").trim();
+        if (ko && hasHangul(ko)) map.set(String(ticker).toUpperCase(), ko);
+      }
+    }
+  } catch {
+    /* offline */
+  }
+  pinionKoByTicker = map;
+  return map;
+}
+
 /**
+ * @param {string} code
+ * @returns {Promise<object | null>}
+ */
+async function fetchNaverEtfBasicRaw(code) {
+  const c = String(code ?? "").trim();
+  if (!c) return null;
+  try {
+    const res = await fetch(
+      `https://api.stock.naver.com/etf/${encodeURIComponent(c)}/basic`,
+      {
+        headers: { "user-agent": NAVER_UA },
+        signal: AbortSignal.timeout(10_000),
+      },
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data?.code === "StockConflict") return null;
+    if (!data || typeof data !== "object") return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * @param {string} symbol
  * @returns {Promise<{
- *   etfs: Array<{
- *     symbol: string;
- *     name: string;
- *     exchange: string | null;
- *     exchangeDisp: string | null;
- *     price: number | null;
- *     changePercent: number | null;
- *     netAssets: number | null;
- *   }>;
+ *   tip: string | null;
+ *   large: string | null;
+ *   middle: string | null;
+ * } | null>}
+ */
+async function fetchNaverEtfMeta(symbol) {
+  const sym = String(symbol ?? "").trim().toUpperCase();
+  if (!sym) return null;
+  for (const code of [`${sym}.O`, `${sym}.N`, sym]) {
+    const data = await fetchNaverEtfBasicRaw(code);
+    if (!data) continue;
+    const tip = String(data.indexOrEtfToolTip ?? "").trim();
+    const large = String(data.largeCodeName ?? "").trim();
+    const middle = String(data.middleCodeName ?? "").trim();
+    if (tip || large || middle) {
+      return {
+        tip: tip || null,
+        large: large && hasHangul(large) ? large : null,
+        middle: middle && hasHangul(middle) ? middle : null,
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * @param {string} englishName
+ * @param {string} symbol
+ * @param {{ large: string | null; middle: string | null } | null} naver
+ */
+function buildNameKo(englishName, symbol, naver) {
+  const mapped = getKoreanStockName(symbol);
+  if (mapped && hasHangul(mapped)) return mapped;
+
+  let brand = null;
+  for (const [re, ko] of BRAND_KO) {
+    if (re.test(englishName)) {
+      brand = ko;
+      break;
+    }
+  }
+  if (brand) return `${brand} ${symbol}`;
+
+  if (naver?.middle) return `${naver.middle} · ${symbol}`;
+  if (naver?.large) return `${naver.large} · ${symbol}`;
+  return null;
+}
+
+/**
+ * @param {string} symbol
+ */
+async function fetchYahooEtfDescription(symbol) {
+  const sym = String(symbol ?? "").trim().toUpperCase();
+  if (!sym) return null;
+  try {
+    const data = await yahooGet(
+      `/v10/finance/quoteSummary/${encodeURIComponent(sym)}?modules=assetProfile,fundProfile`,
+    );
+    const row = data?.quoteSummary?.result?.[0];
+    const summary = String(row?.assetProfile?.longBusinessSummary ?? "").trim();
+    if (summary) return summary;
+    const family = String(row?.fundProfile?.family ?? "").trim();
+    const category = String(row?.fundProfile?.categoryName ?? "").trim();
+    if (family || category) {
+      return [family, category].filter(Boolean).join(" · ");
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+/**
+ * @param {Array<object>} etfs
+ * @param {number} concurrency
+ */
+async function enrichKoreanMeta(etfs, concurrency = 10) {
+  const pinion = await loadPinionKoByTicker();
+
+  for (const row of etfs) {
+    const sym = row.symbol;
+    const pinionKo = pinion.get(sym) ?? pinion.get(sym.replace(/-/g, "."));
+    if (pinionKo && hasHangul(pinionKo)) {
+      row.nameKo = pinionKo;
+      continue;
+    }
+    const quick = buildNameKo(row.name || "", sym, null);
+    if (quick && hasHangul(quick)) row.nameKo = quick;
+  }
+
+  const naverTargets = etfs.slice(0, 700);
+  const limit = Math.max(1, Math.min(concurrency, 12));
+  /** @type {object[]} */
+  const needYahooDesc = [];
+
+  for (let i = 0; i < naverTargets.length; i += limit) {
+    const chunk = naverTargets.slice(i, i + limit);
+    await Promise.all(
+      chunk.map(async (row) => {
+        const naver = await fetchNaverEtfMeta(row.symbol);
+        if (!naver) {
+          if (!row.description) needYahooDesc.push(row);
+          return;
+        }
+        if (!row.nameKo || !hasHangul(row.nameKo)) {
+          const built = buildNameKo(row.name || "", row.symbol, naver);
+          if (built && hasHangul(built)) row.nameKo = built;
+        }
+        if (naver.tip) row.description = naver.tip;
+        else needYahooDesc.push(row);
+
+        const cat = [naver.large, naver.middle].filter(Boolean).join(" · ");
+        row.categoryKo = cat || null;
+      }),
+    );
+  }
+
+  for (const row of etfs.slice(700)) {
+    if (!row.description) needYahooDesc.push(row);
+  }
+
+  const yahooTargets = needYahooDesc.filter((r) => !r.description).slice(0, 80);
+  for (let i = 0; i < yahooTargets.length; i += 4) {
+    const chunk = yahooTargets.slice(i, i + 4);
+    await Promise.all(
+      chunk.map(async (row) => {
+        const desc = await fetchYahooEtfDescription(row.symbol);
+        if (desc) row.description = desc;
+      }),
+    );
+  }
+}
+
+/**
+ * @param {{ force?: boolean }} [opts]
+ * @returns {Promise<{
+ *   etfs: Array<object>;
  *   count: number;
  *   updatedAt: number;
  *   source: string;
  * }>}
  */
-export async function fetchNasdaqEtfsPayload() {
+export async function fetchNasdaqEtfsPayload(opts = {}) {
+  const force = Boolean(opts.force);
   const now = Date.now();
-  if (cached && now - cached.at < CACHE_MS) {
+  if (!force && cached && now - cached.at < CACHE_MS) {
     return cached.data;
   }
 
@@ -163,12 +369,21 @@ export async function fetchNasdaqEtfsPayload() {
     return String(a.symbol).localeCompare(String(b.symbol));
   });
 
+  try {
+    await enrichKoreanMeta(etfs);
+  } catch (e) {
+    console.warn(
+      "[nasdaq-etf] korean enrich:",
+      e instanceof Error ? e.message : e,
+    );
+  }
+
   const data = {
     etfs,
     count: etfs.length,
-    updatedAt: now,
-    source: "yahoo-screener-etf-nasdaq",
+    updatedAt: Date.now(),
+    source: "yahoo-screener-etf-nasdaq+naver",
   };
-  cached = { data, at: now };
+  cached = { data, at: Date.now() };
   return data;
 }
