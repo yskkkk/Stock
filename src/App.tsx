@@ -21,6 +21,7 @@ import AppSiteFooter from "./components/AppSiteFooter";
 import Sp500SectorTab from "./components/Sp500SectorTab";
 import AccountManageTab from "./components/AccountManageTab";
 import NasdaqEtfTab from "./components/NasdaqEtfTab";
+import RedditMentionsTab from "./components/RedditMentionsTab";
 import Sp500SectorWheelMicro from "./components/Sp500SectorWheelMicro";
 import { Sp500SectorProvider } from "./contexts/Sp500SectorContext";
 import ScrollToTopButton from "./components/ScrollToTopButton";
@@ -747,6 +748,7 @@ export default function App() {
       appTab === "investorFlow" ||
       appTab === "sp500Sector" ||
       appTab === "nasdaqEtf" ||
+      appTab === "redditMentions" ||
       appTab === "accountManage"
     ) {
       return null;
@@ -811,7 +813,7 @@ export default function App() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!workspacePick) return;
-    if (appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault" || appTab === "investorFlow" || appTab === "sp500Sector" || appTab === "nasdaqEtf" || appTab === "accountManage") return;
+    if (appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault" || appTab === "investorFlow" || appTab === "sp500Sector" || appTab === "nasdaqEtf" || appTab === "redditMentions" || appTab === "accountManage") return;
     if (window.innerWidth > 900) return;
     const el = stockChartSectionRef.current;
     if (!el) return;
@@ -1167,7 +1169,7 @@ export default function App() {
 
   useEffect(() => {
     const pick = workspacePickRef.current;
-    if (!pick || appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault" || appTab === "investorFlow" || appTab === "sp500Sector" || appTab === "nasdaqEtf" || appTab === "accountManage") return;
+    if (!pick || appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault" || appTab === "investorFlow" || appTab === "sp500Sector" || appTab === "nasdaqEtf" || appTab === "redditMentions" || appTab === "accountManage") return;
     loadChart(pick, timeframe);
     const refreshMs = timeframe === "1m" ? 1_000 : 8_000;
     const id = window.setInterval(() => {
@@ -1410,6 +1412,8 @@ export default function App() {
                   ? "app app--sp500-sector"
                 : appTab === "nasdaqEtf"
                   ? "app app--nasdaq-etf"
+                : appTab === "redditMentions"
+                  ? "app app--reddit-mentions"
                 : appTab === "accountManage"
                   ? "app app--account-manage"
                 : appTab === "liveTrading"
@@ -1696,6 +1700,13 @@ export default function App() {
               </button>
               <button
                 type="button"
+                className={mainTabClassName("redditMentions")}
+                onClick={() => setAppTab("redditMentions")}
+              >
+                {ko.app.tabRedditMentions}
+              </button>
+              <button
+                type="button"
                 className={mainTabClassName("accountManage")}
                 onClick={() => setAppTab("accountManage")}
               >
@@ -1792,6 +1803,8 @@ export default function App() {
         <Sp500SectorTab />
       ) : appTab === "nasdaqEtf" ? (
         <NasdaqEtfTab onOpenSymbol={handleOpenNasdaqEtfSymbol} />
+      ) : appTab === "redditMentions" ? (
+        <RedditMentionsTab onOpenSymbol={handleOpenNasdaqEtfSymbol} />
       ) : appTab === "accountManage" ? (
         <AccountManageTab />
       ) : appTab === "liveTrading" ? (

@@ -15,6 +15,7 @@ export type AppTab =
   | "investorFlow"
   | "sp500Sector"
   | "nasdaqEtf"
+  | "redditMentions"
   | "accountManage"
   | "ops";
 

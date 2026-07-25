@@ -341,6 +341,46 @@ export function fetchNasdaqEtfHoldings(symbol: string) {
   );
 }
 
+export type RedditMentionRow = {
+  rank: number;
+  symbol: string;
+  name: string;
+  mentions: number;
+  upvotes: number;
+  rank24hAgo: number | null;
+  mentions24hAgo: number | null;
+  mentionsDelta: number;
+  rankDelta: number | null;
+};
+
+export type RedditMentionsPayload = {
+  filter: string;
+  filterLabelKo: string;
+  page: number;
+  pages: number;
+  count: number;
+  results: RedditMentionRow[];
+  updatedAt: number;
+  source: string;
+  sourceNote: string;
+  filters: Array<{ id: string; labelKo: string }>;
+};
+
+export function fetchRedditMentions(opts?: {
+  filter?: string;
+  page?: number;
+  pages?: number;
+}) {
+  const q = new URLSearchParams();
+  if (opts?.filter) q.set("filter", opts.filter);
+  if (opts?.page) q.set("page", String(opts.page));
+  if (opts?.pages) q.set("pages", String(opts.pages));
+  const qs = q.toString();
+  return fetchJson<RedditMentionsPayload>(
+    `/api/reddit-mentions${qs ? `?${qs}` : ""}`,
+  );
+}
+
 export function refreshPicks() {
   return fetchJson<RefreshResponse>("/api/picks/refresh", { method: "POST" });
 }

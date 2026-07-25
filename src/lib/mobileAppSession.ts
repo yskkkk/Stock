@@ -16,6 +16,7 @@ const APP_TABS: readonly AppTab[] = [
   "investorFlow",
   "sp500Sector",
   "nasdaqEtf",
+  "redditMentions",
   "accountManage",
   "ops",
 ];
@@ -33,6 +34,7 @@ const TIMEFRAMES: readonly ChartTimeframe[] = [
 const EPHEMERAL_MAIN_TABS: ReadonlySet<AppTab> = new Set([
   "sp500Sector",
   "nasdaqEtf",
+  "redditMentions",
 ]);
 
 export function resolvePersistedAppTab(tab: AppTab): AppTab {

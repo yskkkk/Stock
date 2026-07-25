@@ -112,7 +112,8 @@ html {
 .app__shell > .live-trade-tab-root,
 .app__shell > .crypto-workspace,
 .app__shell .account-manage-tab,
-.app__shell .nasdaq-etf-tab {
+.app__shell .nasdaq-etf-tab,
+.app__shell .reddit-mentions-tab {
   gap: var(--tab-stack-gap);
 }
 

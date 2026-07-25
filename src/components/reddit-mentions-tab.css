@@ -1,0 +1,193 @@
+.workspace.reddit-mentions-tab {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.25rem 0 1.25rem;
+  gap: var(--tab-stack-gap, 0.75rem);
+  align-self: stretch;
+  box-sizing: border-box;
+  grid-template-columns: 1fr;
+}
+
+.app.app--reddit-mentions .app__shell .reddit-mentions-tab {
+  width: 100%;
+  max-width: 100%;
+}
+
+.reddit-mentions-tab__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.reddit-mentions-tab__title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.reddit-mentions-tab__sub {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.45;
+  max-width: 48rem;
+}
+
+.reddit-mentions-tab__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.75rem;
+  padding: 0.7rem 0.9rem;
+}
+
+.reddit-mentions-tab__filter-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.reddit-mentions-tab__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  flex: 1 1 auto;
+}
+
+.reddit-mentions-tab__chip {
+  padding: 0.28rem 0.65rem;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--bg) 70%, var(--surface));
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.reddit-mentions-tab__chip:hover {
+  color: var(--text);
+  border-color: var(--accent-border);
+}
+
+.reddit-mentions-tab__chip.active {
+  color: var(--text);
+  border-color: color-mix(in srgb, #ff4500 45%, var(--card-border));
+  background: color-mix(in srgb, #ff4500 12%, var(--surface));
+}
+
+.reddit-mentions-tab__meta {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.reddit-mentions-tab__note {
+  margin: 0;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: var(--muted);
+  border: 1px dashed var(--card-border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface) 40%, transparent);
+}
+
+.reddit-mentions-tab__empty {
+  margin: 0;
+  padding: 1.25rem 0.25rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.reddit-mentions-tab__table-wrap {
+  overflow: auto;
+  max-height: min(70vh, 42rem);
+  padding: 0;
+}
+
+.reddit-mentions-tab__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.reddit-mentions-tab__table th,
+.reddit-mentions-tab__table td {
+  padding: 0.55rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
+  vertical-align: middle;
+}
+
+.reddit-mentions-tab__table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--card) 92%, var(--surface));
+  white-space: nowrap;
+}
+
+.reddit-mentions-tab__row.is-clickable {
+  cursor: pointer;
+}
+
+.reddit-mentions-tab__row.is-clickable:hover > td {
+  background: color-mix(in srgb, #ff4500 6%, transparent);
+}
+
+.reddit-mentions-tab__rank {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, #ff4500 70%, var(--text));
+  width: 3rem;
+}
+
+.reddit-mentions-tab__sym {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.reddit-mentions-tab__name {
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reddit-mentions-tab__num {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+.reddit-mentions-tab__num.is-up {
+  color: var(--up);
+}
+
+.reddit-mentions-tab__num.is-down {
+  color: var(--down);
+}
+
+.reddit-mentions-tab__open {
+  font-size: 0.72rem;
+  padding: 0.25rem 0.55rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .reddit-mentions-tab__name {
+    max-width: 8rem;
+  }
+}

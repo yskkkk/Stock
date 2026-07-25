@@ -68,6 +68,7 @@ import { getMacroEventsCachedAsync } from "./macro-events.js";
 import { fetchSectorEarningsSpotlight } from "./sector-earnings-spotlight.js";
 import { fetchSp500SectorsPayload } from "./sp500-sectors.js";
 import { fetchNasdaqEtfsPayload, fetchNasdaqEtfHoldingsPayload } from "./nasdaq-etf.js";
+import { fetchRedditMentionsPayload } from "./reddit-mentions.js";
 import { postFeedback, getFeedbackInbox, postFeedbackAdminReply, deleteFeedbackAdmin } from "./feedback-inbox.js";
 import { runOpsCursorAgent, streamOpsCursorAgentSse, writeOpsAgentSseEvent } from "./cursor-ops-agent.js";
 import {
@@ -1372,6 +1373,16 @@ export function createApp() {
         return;
       }
       res.json(await fetchNasdaqEtfHoldingsPayload(symbol));
+    }),
+  );
+
+  app.get(
+    "/api/reddit-mentions",
+    asyncRoute(async (req, res) => {
+      const filter = String(req.query?.filter ?? "all-stocks").trim();
+      const page = Number(req.query?.page) || 1;
+      const pages = Number(req.query?.pages) || 1;
+      res.json(await fetchRedditMentionsPayload({ filter, page, pages }));
     }),
   );
 
