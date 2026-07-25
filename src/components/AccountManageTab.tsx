@@ -1,0 +1,777 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  fetchSp500Sectors,
+  fetchTossHoldingsManage,
+  type TossTestHolding,
+} from "../api";
+import { ko } from "../i18n/ko";
+import {
+  accountSlicesToDonut,
+  buildAccountAllocationSlices,
+  tossHoldingsToAccountRows,
+  type AccountAllocMode,
+  type AccountHoldingRow,
+} from "../lib/accountAllocation";
+import {
+  donutArcPath,
+  donutArcPathPopOut,
+  fmtSectorPct,
+} from "../lib/sp500SectorChart";
+import {
+  mergeTossFeeRates,
+  tossFeeRatesFromLegacy,
+} from "../lib/tossHoldingFeeRates";
+import {
+  computeTossAccountCombinedPnl,
+  tossHoldingsTotalNetMarketValueKrw,
+} from "../lib/tossHoldingPnl";
+import { formatPercent, formatSignedMoney } from "../lib/format";
+import { useBithumbAccountSnapshot } from "../hooks/useBithumbAccountSnapshot";
+import {
+  TOSS_LEDGER_POLL_MS,
+  useTossAccountSnapshot,
+} from "../hooks/useTossAccountSnapshot";
+import { useLiveTradingStatusPoll } from "../hooks/useLiveTradingStatusPoll";
+import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
+import { useTossSnapshotLiveQuotes } from "../hooks/useTossSnapshotLiveQuotes";
+import LiveTradeAuthPanel, {
+  useLiveTradeAuth,
+} from "./LiveTradeAuthAndCredentials";
+import { LiveTradeExchangePicker } from "./LiveTradeExchangePicker";
+import LiveTradeApiNotConnectedNotice from "./LiveTradeApiNotConnectedNotice";
+import TossAccountSnapshotCard from "./TossAccountSnapshotCard";
+import BithumbAccountSnapshotCard from "./BithumbAccountSnapshotCard";
+import TossHoldingManageModal from "./TossHoldingManageModal";
+import DockPanelCenterLoading from "./DockPanelCenterLoading";
+import type { LiveTradeTradesExchange } from "../lib/liveTradeTradesWorkspace";
+import "./account-manage-tab.css";
+
+type PanelTab = "chart" | "list";
+
+function formatKrw(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return "—";
+  return `${Math.round(n).toLocaleString("ko-KR")}원`;
+}
+
+export default function AccountManageTab() {
+  const { user, registrationOpen, authChecked, refreshAuth } = useLiveTradeAuth();
+  const status = useLiveTradingStatusPoll();
+  const tossReady = Boolean(status?.toss?.ready);
+  const bithumbReady = Boolean(status?.bithumb?.ready);
+
+  const [provider, setProvider] = useState<LiveTradeTradesExchange>(() =>
+    tossReady ? "toss" : bithumbReady ? "bithumb" : "toss",
+  );
+  const [panelTab, setPanelTab] = useState<PanelTab>("chart");
+  const [allocMode, setAllocMode] = useState<AccountAllocMode>("sector");
+  const [focusKey, setFocusKey] = useState<string | null>(null);
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  const [manageHolding, setManageHolding] = useState<TossTestHolding | null>(null);
+  const [enrichMap, setEnrichMap] = useState<
+    Map<
+      string,
+      { industry?: string | null; sectorEn?: string | null; sectorKo?: string | null }
+    >
+  >(() => new Map());
+
+  useEffect(() => {
+    if (tossReady && !bithumbReady) setProvider("toss");
+    else if (bithumbReady && !tossReady) setProvider("bithumb");
+  }, [tossReady, bithumbReady]);
+
+  const {
+    snapshot: tossSnapshot,
+    feeLabelKo: tossFeeLabelHook,
+    tossRoundTripFeeRate: tossRoundTripFeeRateHook,
+    tossFeeRatesByMarket: tossFeeRatesByMarketHook,
+    updatedAtMs: tossUpdatedAtMs,
+    loading: tossLoading,
+    err: tossErr,
+    reload: reloadToss,
+  } = useTossAccountSnapshot({
+    poll: Boolean(user) && provider === "toss",
+    pollIntervalMs: TOSS_LEDGER_POLL_MS,
+  });
+
+  const {
+    snapshot: bithumbSnapshot,
+    feeLabelKo: bithumbFeeLabel,
+    updatedAtMs: bithumbUpdatedAtMs,
+    loading: bithumbLoading,
+    err: bithumbErr,
+    reload: reloadBithumb,
+  } = useBithumbAccountSnapshot({
+    poll: Boolean(user) && provider === "bithumb",
+  });
+
+  const tossFeeRatesByMarket = useMemo(() => {
+    const fromStatus = status?.feeRates?.toss;
+    if (fromStatus) {
+      return {
+        kr: fromStatus.krRoundTripFeeRate ?? fromStatus.roundTripFeeRate,
+        us: fromStatus.usRoundTripFeeRate ?? fromStatus.roundTripFeeRate,
+        source: fromStatus.source,
+      };
+    }
+    return mergeTossFeeRates(
+      tossFeeRatesByMarketHook,
+      tossFeeRatesFromLegacy(tossRoundTripFeeRateHook, tossFeeRatesByMarketHook?.source),
+    );
+  }, [status?.feeRates?.toss, tossFeeRatesByMarketHook, tossRoundTripFeeRateHook]);
+
+  const feeRates = tossFeeRatesByMarket;
+  const liveSnapshot = useTossSnapshotLiveQuotes(
+    tossSnapshot,
+    Boolean(user && provider === "toss" && tossSnapshot?.holdings?.length),
+    undefined,
+    feeRates,
+  );
+  const activeToss = liveSnapshot ?? tossSnapshot;
+  const needsFx = Boolean(
+    activeToss &&
+      (activeToss.cash.usd > 0 ||
+        activeToss.holdings.some((h) => h.market === "us" || h.currency === "USD")),
+  );
+  const { rate: usdKrwRate } = useUsdKrwRate(needsFx);
+
+  // 업종·S&P GICS 보강
+  useEffect(() => {
+    if (!user || provider !== "toss" || !activeToss?.holdings?.length) return;
+    let cancelled = false;
+    void (async () => {
+      const map = new Map<
+        string,
+        { industry?: string | null; sectorEn?: string | null; sectorKo?: string | null }
+      >();
+      try {
+        const [manage, sp500] = await Promise.all([
+          fetchTossHoldingsManage().catch(() => null),
+          fetchSp500Sectors().catch(() => null),
+        ]);
+        if (cancelled) return;
+        const gics = new Map<string, { sector: string; sectorKo: string }>();
+        for (const c of sp500?.companies ?? []) {
+          gics.set(String(c.symbol).toUpperCase(), {
+            sector: c.sector,
+            sectorKo: c.sectorKo || c.sector,
+          });
+        }
+        for (const h of manage?.holdings ?? []) {
+          const sym = String(h.symbol ?? "").toUpperCase();
+          const g = gics.get(sym);
+          map.set(sym, {
+            industry: h.industry ?? null,
+            sectorEn: g?.sector ?? null,
+            sectorKo: g?.sectorKo ?? h.industry ?? null,
+          });
+        }
+        for (const h of activeToss.holdings) {
+          const sym = String(h.symbol ?? "").toUpperCase();
+          if (map.has(sym)) continue;
+          const g = gics.get(sym);
+          if (g) {
+            map.set(sym, {
+              industry: g.sectorKo,
+              sectorEn: g.sector,
+              sectorKo: g.sectorKo,
+            });
+          }
+        }
+        setEnrichMap(map);
+      } catch {
+        if (!cancelled) setEnrichMap(new Map());
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, provider, activeToss?.holdings]);
+
+  const holdingRows: AccountHoldingRow[] = useMemo(() => {
+    if (provider === "toss" && activeToss) {
+      return tossHoldingsToAccountRows(
+        activeToss.holdings,
+        usdKrwRate,
+        feeRates,
+        enrichMap,
+      );
+    }
+    if (provider === "bithumb" && bithumbSnapshot) {
+      return (bithumbSnapshot.holdings ?? []).map((h) => {
+        const mv =
+          h.marketValue != null && Number.isFinite(h.marketValue) && h.marketValue > 0
+            ? h.marketValue
+            : h.currentPrice != null && h.quantity > 0
+              ? h.currentPrice * h.quantity
+              : 0;
+        return {
+          symbol: h.symbol || h.currency,
+          name: h.symbol || h.currency,
+          market: "crypto" as const,
+          currency: h.currency,
+          quantity: h.quantity,
+          valueKrw: mv,
+          returnPercent:
+            h.returnPercent != null && Number.isFinite(h.returnPercent)
+              ? h.returnPercent
+              : null,
+          industry: null,
+          sectorEn: null,
+          sectorKo: null,
+        };
+      });
+    }
+    return [];
+  }, [provider, activeToss, bithumbSnapshot, usdKrwRate, feeRates, enrichMap]);
+
+  const cashKrw = useMemo(() => {
+    if (provider === "toss" && activeToss) {
+      const krw = activeToss.cash.krw ?? 0;
+      const usd = activeToss.cash.usd ?? 0;
+      const fx =
+        usdKrwRate != null && Number.isFinite(usdKrwRate) && usdKrwRate > 0
+          ? usd * usdKrwRate
+          : 0;
+      return krw + fx;
+    }
+    if (provider === "bithumb" && bithumbSnapshot) {
+      return Number(bithumbSnapshot.krw?.total) || 0;
+    }
+    return 0;
+  }, [provider, activeToss, bithumbSnapshot, usdKrwRate]);
+
+  const labels = useMemo(
+    () => ({
+      cash: ko.app.accountManageCash,
+      other: ko.app.accountManageOther,
+      marketKr: ko.app.accountManageMarketKr,
+      marketUs: ko.app.accountManageMarketUs,
+      marketCrypto: ko.app.accountManageMarketCrypto,
+    }),
+    [],
+  );
+
+  const slices = useMemo(
+    () => buildAccountAllocationSlices(holdingRows, cashKrw, allocMode, labels),
+    [holdingRows, cashKrw, allocMode, labels],
+  );
+
+  const { segments, total } = useMemo(
+    () => accountSlicesToDonut(slices),
+    [slices],
+  );
+
+  const filteredRows = useMemo(() => {
+    if (!focusKey) return holdingRows;
+    if (focusKey === "__cash__") return [];
+    const slice = slices.find((s) => s.key === focusKey);
+    if (!slice) return holdingRows;
+    const set = new Set(slice.symbols.map((s) => s.toUpperCase()));
+    return holdingRows.filter((r) => set.has(r.symbol.toUpperCase()));
+  }, [focusKey, holdingRows, slices]);
+
+  const netSummary = useMemo(() => {
+    if (provider !== "toss" || !activeToss) return null;
+    return computeTossAccountCombinedPnl(
+      activeToss.holdings,
+      activeToss.summary,
+      usdKrwRate,
+      feeRates,
+    );
+  }, [provider, activeToss, usdKrwRate, feeRates]);
+
+  const holdingsTotalKrw = useMemo(() => {
+    if (provider === "toss" && activeToss) {
+      return tossHoldingsTotalNetMarketValueKrw(
+        activeToss.holdings,
+        activeToss.summary,
+        usdKrwRate,
+        feeRates,
+      );
+    }
+    return holdingRows.reduce((s, r) => s + r.valueKrw, 0);
+  }, [provider, activeToss, usdKrwRate, feeRates, holdingRows]);
+
+  const onRefresh = useCallback(() => {
+    if (provider === "toss") void reloadToss?.(true);
+    else void reloadBithumb?.(true);
+  }, [provider, reloadToss, reloadBithumb]);
+
+  const cx = 100;
+  const cy = 100;
+  const r0 = 52;
+  const r1 = 88;
+
+  if (!authChecked) {
+    return (
+      <div className="account-manage-tab" aria-label={ko.app.accountManageAria}>
+        <DockPanelCenterLoading label={ko.app.accountManageLoading} />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="account-manage-tab" aria-label={ko.app.accountManageAria}>
+        <header className="account-manage-tab__head">
+          <h2 className="account-manage-tab__title">{ko.app.accountManageTitle}</h2>
+          <p className="account-manage-tab__sub">{ko.app.accountManageLoginHint}</p>
+        </header>
+        <LiveTradeAuthPanel
+          user={null}
+          registrationOpen={registrationOpen}
+          onAuthChange={() => void refreshAuth()}
+          variant="card"
+        />
+      </div>
+    );
+  }
+
+  const loading =
+    provider === "toss" ? tossLoading && !tossSnapshot : bithumbLoading && !bithumbSnapshot;
+  const err = provider === "toss" ? tossErr : bithumbErr;
+  const ready = provider === "toss" ? tossReady : bithumbReady;
+  const updatedAtMs = provider === "toss" ? tossUpdatedAtMs : bithumbUpdatedAtMs;
+
+  return (
+    <div className="account-manage-tab" aria-label={ko.app.accountManageAria}>
+      <header className="account-manage-tab__head">
+        <div>
+          <h2 className="account-manage-tab__title">{ko.app.accountManageTitle}</h2>
+          <p className="account-manage-tab__sub">
+            {ko.app.accountManageSubtitle}
+            {user.email ? ` · ${user.email}` : ""}
+          </p>
+        </div>
+        <button
+          type="button"
+          className="btn btn--secondary account-manage-tab__refresh"
+          onClick={onRefresh}
+          disabled={loading}
+        >
+          {ko.app.accountManageRefresh}
+        </button>
+      </header>
+
+      <div className="account-manage-tab__exchange">
+        <LiveTradeExchangePicker
+          selected={provider}
+          onSelect={setProvider}
+          compact
+        />
+      </div>
+
+      {!ready ? (
+        <LiveTradeApiNotConnectedNotice exchange={provider} />
+      ) : loading ? (
+        <DockPanelCenterLoading label={ko.app.accountManageLoading} />
+      ) : err ? (
+        <p className="account-manage-tab__error" role="alert">
+          {err}
+        </p>
+      ) : (
+        <>
+          <div className="account-manage-tab__summary">
+            <div className="account-manage-tab__stat">
+              <span className="account-manage-tab__stat-label">
+                {ko.app.accountManageTotal}
+              </span>
+              <span className="account-manage-tab__stat-value">
+                {formatKrw((holdingsTotalKrw ?? 0) + cashKrw)}
+              </span>
+            </div>
+            <div className="account-manage-tab__stat">
+              <span className="account-manage-tab__stat-label">
+                {ko.app.accountManageHoldings}
+              </span>
+              <span className="account-manage-tab__stat-value">
+                {formatKrw(holdingsTotalKrw)}
+              </span>
+            </div>
+            <div className="account-manage-tab__stat">
+              <span className="account-manage-tab__stat-label">
+                {ko.app.accountManageCash}
+              </span>
+              <span className="account-manage-tab__stat-value">{formatKrw(cashKrw)}</span>
+            </div>
+            {netSummary?.profitLossKrw != null ? (
+              <div className="account-manage-tab__stat">
+                <span className="account-manage-tab__stat-label">
+                  {ko.app.liveTradePfUnrealized}
+                </span>
+                <span
+                  className={[
+                    "account-manage-tab__stat-value",
+                    netSummary.profitLossKrw > 0
+                      ? "is-up"
+                      : netSummary.profitLossKrw < 0
+                        ? "is-down"
+                        : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  {formatSignedMoney(netSummary.profitLossKrw, "KRW")}
+                  {netSummary.totalReturnPct != null
+                    ? ` (${formatPercent(netSummary.totalReturnPct)})`
+                    : ""}
+                </span>
+              </div>
+            ) : null}
+            {updatedAtMs ? (
+              <div className="account-manage-tab__stat account-manage-tab__stat--muted">
+                <span className="account-manage-tab__stat-label">
+                  {ko.app.accountManageUpdated}
+                </span>
+                <span className="account-manage-tab__stat-value">
+                  {new Date(updatedAtMs).toLocaleTimeString("ko-KR", {
+                    timeZone: "Asia/Seoul",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                    hour12: false,
+                  })}
+                </span>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="account-manage-tab__grid">
+            <aside className="account-manage-tab__wheel card" aria-label={ko.app.accountManageChartTitle}>
+              <div className="account-manage-tab__wheel-head">
+                <div>
+                  <h3 className="account-manage-tab__wheel-title">
+                    {ko.app.accountManageChartTitle}
+                  </h3>
+                  <p className="account-manage-tab__wheel-sub">
+                    {ko.app.accountManageChartBasis} · {formatKrw(total)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="account-manage-tab__mode" role="group">
+                {(
+                  [
+                    ["sector", ko.app.accountManageGroupSector],
+                    ["market", ko.app.accountManageGroupMarket],
+                    ["symbol", ko.app.accountManageGroupSymbol],
+                  ] as const
+                ).map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className={
+                      allocMode === id
+                        ? "account-manage-tab__mode-btn active"
+                        : "account-manage-tab__mode-btn"
+                    }
+                    onClick={() => {
+                      setAllocMode(id);
+                      setFocusKey(null);
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="account-manage-tab__tabs" role="tablist">
+                <button
+                  type="button"
+                  role="tab"
+                  className={
+                    panelTab === "chart"
+                      ? "account-manage-tab__tab active"
+                      : "account-manage-tab__tab"
+                  }
+                  aria-selected={panelTab === "chart"}
+                  onClick={() => setPanelTab("chart")}
+                >
+                  {ko.app.accountManageTabChart}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  className={
+                    panelTab === "list"
+                      ? "account-manage-tab__tab active"
+                      : "account-manage-tab__tab"
+                  }
+                  aria-selected={panelTab === "list"}
+                  onClick={() => setPanelTab("list")}
+                >
+                  {ko.app.accountManageTabList}
+                </button>
+              </div>
+
+              {segments.length === 0 ? (
+                <p className="account-manage-tab__empty">{ko.app.accountManageEmpty}</p>
+              ) : panelTab === "chart" ? (
+                <div className="account-manage-tab__chart-panel">
+                  <svg
+                    className="account-manage-tab__svg"
+                    viewBox="0 0 200 200"
+                    role="img"
+                    aria-hidden="true"
+                  >
+                    {[...segments]
+                      .sort((a, b) => {
+                        const aLift = hoveredKey === a.sector || focusKey === a.sector ? 1 : 0;
+                        const bLift = hoveredKey === b.sector || focusKey === b.sector ? 1 : 0;
+                        return aLift - bLift;
+                      })
+                      .map((seg) => {
+                        const lifted =
+                          hoveredKey === seg.sector || focusKey === seg.sector;
+                        const dimmed = focusKey && focusKey !== seg.sector;
+                        return (
+                          <path
+                            key={seg.sector}
+                            className={[
+                              "account-manage-tab__seg",
+                              lifted ? "account-manage-tab__seg--lifted" : "",
+                              dimmed ? "account-manage-tab__seg--dim" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                            d={
+                              lifted
+                                ? donutArcPathPopOut(cx, cy, r0, r1, seg.a0, seg.a1)
+                                : donutArcPath(cx, cy, r0, r1, seg.a0, seg.a1)
+                            }
+                            fill={seg.color}
+                            onClick={() =>
+                              setFocusKey((prev) =>
+                                prev === seg.sector ? null : seg.sector,
+                              )
+                            }
+                            onMouseEnter={() => setHoveredKey(seg.sector)}
+                            onMouseLeave={() => setHoveredKey(null)}
+                          />
+                        );
+                      })}
+                    <circle cx={cx} cy={cy} r={r0 - 2} className="account-manage-tab__hole" />
+                    <text
+                      x={cx}
+                      y={cy - 4}
+                      textAnchor="middle"
+                      className="account-manage-tab__center-label"
+                    >
+                      {focusKey
+                        ? segments.find((s) => s.sector === focusKey)?.sectorKo ?? ""
+                        : ko.app.accountManageTotal}
+                    </text>
+                    <text
+                      x={cx}
+                      y={cy + 14}
+                      textAnchor="middle"
+                      className="account-manage-tab__center-pct"
+                    >
+                      {focusKey
+                        ? fmtSectorPct(
+                            segments.find((s) => s.sector === focusKey)?.pct ?? 0,
+                          )
+                        : fmtSectorPct(100)}
+                    </text>
+                  </svg>
+                  <ul className="account-manage-tab__legend">
+                    {segments.map((seg) => {
+                      const slice = slices.find((s) => s.key === seg.sector);
+                      return (
+                        <li key={seg.sector}>
+                          <button
+                            type="button"
+                            className={[
+                              "account-manage-tab__legend-btn",
+                              focusKey === seg.sector ? "active" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                            onClick={() =>
+                              setFocusKey((prev) =>
+                                prev === seg.sector ? null : seg.sector,
+                              )
+                            }
+                            onMouseEnter={() => setHoveredKey(seg.sector)}
+                            onMouseLeave={() => setHoveredKey(null)}
+                          >
+                            <span
+                              className="account-manage-tab__swatch"
+                              style={{ background: seg.color }}
+                            />
+                            <span className="account-manage-tab__legend-name">
+                              {seg.sectorKo}
+                            </span>
+                            <span className="account-manage-tab__legend-pct">
+                              {fmtSectorPct(seg.pct)}
+                            </span>
+                            <span className="account-manage-tab__legend-val">
+                              {formatKrw(slice?.valueKrw)}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ) : (
+                <ul className="account-manage-tab__slice-list">
+                  {segments.map((seg) => {
+                    const slice = slices.find((s) => s.key === seg.sector);
+                    return (
+                      <li key={seg.sector} className="account-manage-tab__slice-row">
+                        <span
+                          className="account-manage-tab__swatch"
+                          style={{ background: seg.color }}
+                        />
+                        <span className="account-manage-tab__slice-name">
+                          {seg.sectorKo}
+                        </span>
+                        <span className="account-manage-tab__slice-meta">
+                          {seg.sector === "__cash__"
+                            ? ""
+                            : ko.app.accountManageSliceCount.replace(
+                                "{n}",
+                                String(seg.count),
+                              )}
+                        </span>
+                        <span>{fmtSectorPct(seg.pct)}</span>
+                        <span>{formatKrw(slice?.valueKrw)}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+
+              {focusKey ? (
+                <button
+                  type="button"
+                  className="account-manage-tab__clear"
+                  onClick={() => setFocusKey(null)}
+                >
+                  {ko.app.accountManageClearFilter}
+                </button>
+              ) : (
+                <p className="account-manage-tab__hint">{ko.app.accountManagePickHint}</p>
+              )}
+            </aside>
+
+            <section className="account-manage-tab__holdings card">
+              <h3 className="account-manage-tab__holdings-title">
+                {focusKey
+                  ? segments.find((s) => s.sector === focusKey)?.sectorKo ??
+                    ko.app.accountManageTabList
+                  : ko.app.accountManageTabList}
+              </h3>
+              {filteredRows.length === 0 ? (
+                <p className="account-manage-tab__empty">
+                  {focusKey === "__cash__"
+                    ? formatKrw(cashKrw)
+                    : ko.app.accountManageEmpty}
+                </p>
+              ) : (
+                <div className="account-manage-tab__table-wrap">
+                  <table className="account-manage-tab__table">
+                    <thead>
+                      <tr>
+                        <th>{ko.app.liveTradePfColSymbol}</th>
+                        <th>{ko.app.accountManageGroupSector}</th>
+                        <th>{ko.app.liveTradePfColQty}</th>
+                        <th>{ko.app.accountManageSliceValue}</th>
+                        <th>{ko.app.liveTradePfReturn}</th>
+                        {provider === "toss" ? <th /> : null}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredRows.map((row) => {
+                        const raw =
+                          provider === "toss"
+                            ? activeToss?.holdings.find(
+                                (h) =>
+                                  h.symbol.toUpperCase() === row.symbol.toUpperCase(),
+                              )
+                            : null;
+                        return (
+                          <tr key={`${row.market}:${row.symbol}`}>
+                            <td>
+                              <strong>{row.symbol}</strong>
+                              <div className="account-manage-tab__name">{row.name}</div>
+                            </td>
+                            <td>{row.sectorKo || row.industry || "—"}</td>
+                            <td>{row.quantity}</td>
+                            <td>{formatKrw(row.valueKrw)}</td>
+                            <td
+                              className={
+                                row.returnPercent != null && row.returnPercent > 0
+                                  ? "is-up"
+                                  : row.returnPercent != null && row.returnPercent < 0
+                                    ? "is-down"
+                                    : ""
+                              }
+                            >
+                              {row.returnPercent != null
+                                ? formatPercent(row.returnPercent)
+                                : "—"}
+                            </td>
+                            {provider === "toss" && raw ? (
+                              <td>
+                                <button
+                                  type="button"
+                                  className="btn btn--ghost account-manage-tab__manage-btn"
+                                  onClick={() => setManageHolding(raw)}
+                                >
+                                  관리
+                                </button>
+                              </td>
+                            ) : provider === "toss" ? (
+                              <td />
+                            ) : null}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          </div>
+
+          <details className="account-manage-tab__raw card">
+            <summary>계좌 상세(잔고·주문)</summary>
+            {provider === "toss" && activeToss ? (
+              <TossAccountSnapshotCard
+                snapshot={activeToss}
+                feeLabelKo={
+                  status?.feeRates?.toss?.labelKo?.trim() || tossFeeLabelHook || null
+                }
+                tossRoundTripFeeRate={
+                  status?.feeRates?.toss?.roundTripFeeRate ??
+                  tossRoundTripFeeRateHook ??
+                  null
+                }
+                tossFeeRatesByMarket={feeRates}
+                updatedAtMs={tossUpdatedAtMs}
+                authenticated
+                showOrders
+              />
+            ) : provider === "bithumb" && bithumbSnapshot ? (
+              <BithumbAccountSnapshotCard
+                snapshot={bithumbSnapshot}
+                feeLabelKo={bithumbFeeLabel}
+                updatedAtMs={bithumbUpdatedAtMs}
+                variant="inline"
+              />
+            ) : null}
+          </details>
+        </>
+      )}
+
+      {manageHolding ? (
+        <TossHoldingManageModal
+          holding={manageHolding}
+          onClose={() => setManageHolding(null)}
+        />
+      ) : null}
+    </div>
+  );
+}

@@ -19,6 +19,7 @@ import BullishReasonModal from "./components/BullishReasonModal";
 import AccessAdminModal from "./components/AccessAdminModal";
 import AppSiteFooter from "./components/AppSiteFooter";
 import Sp500SectorTab from "./components/Sp500SectorTab";
+import AccountManageTab from "./components/AccountManageTab";
 import Sp500SectorWheelMicro from "./components/Sp500SectorWheelMicro";
 import { Sp500SectorProvider } from "./contexts/Sp500SectorContext";
 import ScrollToTopButton from "./components/ScrollToTopButton";
@@ -743,7 +744,8 @@ export default function App() {
       appTab === "financials" ||
       appTab === "stockVault" ||
       appTab === "investorFlow" ||
-      appTab === "sp500Sector"
+      appTab === "sp500Sector" ||
+      appTab === "accountManage"
     ) {
       return null;
     }
@@ -807,7 +809,7 @@ export default function App() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!workspacePick) return;
-    if (appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault" || appTab === "investorFlow" || appTab === "sp500Sector") return;
+    if (appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault" || appTab === "investorFlow" || appTab === "sp500Sector" || appTab === "accountManage") return;
     if (window.innerWidth > 900) return;
     const el = stockChartSectionRef.current;
     if (!el) return;
@@ -1155,7 +1157,7 @@ export default function App() {
 
   useEffect(() => {
     const pick = workspacePickRef.current;
-    if (!pick || appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault" || appTab === "investorFlow" || appTab === "sp500Sector") return;
+    if (!pick || appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault" || appTab === "investorFlow" || appTab === "sp500Sector" || appTab === "accountManage") return;
     loadChart(pick, timeframe);
     const refreshMs = timeframe === "1m" ? 1_000 : 8_000;
     const id = window.setInterval(() => {
@@ -1396,6 +1398,8 @@ export default function App() {
                   ? "app app--investor-flow"
                 : appTab === "sp500Sector"
                   ? "app app--sp500-sector"
+                : appTab === "accountManage"
+                  ? "app app--account-manage"
                 : appTab === "liveTrading"
                 ? "app app--live-trade"
                 : appTab === "ops"
@@ -1670,6 +1674,13 @@ export default function App() {
               </button>
               <button
                 type="button"
+                className={mainTabClassName("accountManage")}
+                onClick={() => setAppTab("accountManage")}
+              >
+                {ko.app.tabAccountManage}
+              </button>
+              <button
+                type="button"
                 className={mainTabClassName("stockVault")}
                 onClick={() => {
                   pinStockVaultSessionCache();
@@ -1757,6 +1768,8 @@ export default function App() {
         <InvestorFlowTab />
       ) : appTab === "sp500Sector" ? (
         <Sp500SectorTab />
+      ) : appTab === "accountManage" ? (
+        <AccountManageTab />
       ) : appTab === "liveTrading" ? (
         <div className="live-trade-tab-root">
           <LiveTradingTab

@@ -1,0 +1,336 @@
+.account-manage-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0.25rem 0 1.5rem;
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.account-manage-tab__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.account-manage-tab__title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.account-manage-tab__sub {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.4;
+  max-width: 40rem;
+}
+
+.account-manage-tab__refresh {
+  flex: 0 0 auto;
+}
+
+.account-manage-tab__exchange {
+  max-width: 28rem;
+}
+
+.account-manage-tab__error {
+  color: #ef4444;
+  font-size: 0.85rem;
+}
+
+.account-manage-tab__empty {
+  color: var(--muted);
+  font-size: 0.85rem;
+  padding: 0.75rem 0;
+}
+
+.account-manage-tab__summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 0.55rem;
+}
+
+.account-manage-tab__stat {
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm, 0.5rem);
+  background: color-mix(in srgb, var(--surface) 55%, var(--card));
+  padding: 0.55rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.account-manage-tab__stat--muted .account-manage-tab__stat-value {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.account-manage-tab__stat-label {
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.account-manage-tab__stat-value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.account-manage-tab__stat-value.is-up {
+  color: #22c55e;
+}
+.account-manage-tab__stat-value.is-down {
+  color: #ef4444;
+}
+
+.account-manage-tab__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 0.85rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .account-manage-tab__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.account-manage-tab__wheel,
+.account-manage-tab__holdings,
+.account-manage-tab__raw {
+  padding: 0.85rem 1rem 1rem;
+}
+
+.account-manage-tab__wheel-title,
+.account-manage-tab__holdings-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.account-manage-tab__wheel-sub {
+  margin: 0.2rem 0 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.account-manage-tab__mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.7rem 0 0.5rem;
+}
+
+.account-manage-tab__mode-btn,
+.account-manage-tab__tab {
+  border: 1px solid var(--card-border);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  padding: 0.28rem 0.7rem;
+  cursor: pointer;
+}
+
+.account-manage-tab__mode-btn.active,
+.account-manage-tab__tab.active {
+  color: var(--text);
+  border-color: var(--accent-border);
+  background: color-mix(in srgb, var(--accent-dim) 55%, transparent);
+  font-weight: 700;
+}
+
+.account-manage-tab__tabs {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.65rem;
+}
+
+.account-manage-tab__chart-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 11rem) minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+}
+
+@media (max-width: 520px) {
+  .account-manage-tab__chart-panel {
+    grid-template-columns: 1fr;
+  }
+}
+
+.account-manage-tab__svg {
+  width: 100%;
+  max-width: 11rem;
+  height: auto;
+  justify-self: center;
+}
+
+.account-manage-tab__seg {
+  cursor: pointer;
+  transition: opacity 0.12s ease;
+}
+
+.account-manage-tab__seg--dim {
+  opacity: 0.35;
+}
+
+.account-manage-tab__hole {
+  fill: var(--card);
+}
+
+.account-manage-tab__center-label {
+  fill: var(--muted);
+  font-size: 7px;
+}
+
+.account-manage-tab__center-pct {
+  fill: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.account-manage-tab__legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  max-height: 16rem;
+  overflow: auto;
+}
+
+.account-manage-tab__legend-btn {
+  display: grid;
+  grid-template-columns: 0.65rem minmax(0, 1fr) auto auto;
+  gap: 0.35rem;
+  align-items: center;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.72rem;
+  padding: 0.22rem 0.3rem;
+  border-radius: 0.35rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.account-manage-tab__legend-btn:hover,
+.account-manage-tab__legend-btn.active {
+  background: color-mix(in srgb, var(--accent-dim) 40%, transparent);
+}
+
+.account-manage-tab__swatch {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.account-manage-tab__legend-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-manage-tab__legend-pct,
+.account-manage-tab__legend-val {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.account-manage-tab__hint,
+.account-manage-tab__clear {
+  margin-top: 0.55rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.account-manage-tab__clear {
+  border: 1px solid var(--card-border);
+  background: transparent;
+  border-radius: var(--radius-sm);
+  padding: 0.25rem 0.55rem;
+  cursor: pointer;
+  color: var(--accent);
+}
+
+.account-manage-tab__slice-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.account-manage-tab__slice-row {
+  display: grid;
+  grid-template-columns: 0.65rem minmax(0, 1.4fr) auto auto auto;
+  gap: 0.4rem;
+  align-items: center;
+  font-size: 0.76rem;
+}
+
+.account-manage-tab__table-wrap {
+  overflow: auto;
+  max-height: 28rem;
+}
+
+.account-manage-tab__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.account-manage-tab__table th,
+.account-manage-tab__table td {
+  padding: 0.4rem 0.45rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
+  text-align: left;
+  vertical-align: top;
+}
+
+.account-manage-tab__table th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.7rem;
+  position: sticky;
+  top: 0;
+  background: var(--card);
+}
+
+.account-manage-tab__name {
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.account-manage-tab__table .is-up {
+  color: #22c55e;
+}
+.account-manage-tab__table .is-down {
+  color: #ef4444;
+}
+
+.account-manage-tab__manage-btn {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.4rem;
+}
+
+.account-manage-tab__raw {
+  margin-top: 0.25rem;
+}
+
+.account-manage-tab__raw summary {
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
