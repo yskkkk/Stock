@@ -106,6 +106,11 @@
   padding: 0.85rem 1rem 1rem;
 }
 
+.account-manage-tab__wheel {
+  position: relative;
+  overflow: visible;
+}
+
 .account-manage-tab__wheel-title,
 .account-manage-tab__holdings-title {
   margin: 0;
@@ -262,6 +267,89 @@
   color: var(--accent);
 }
 
+.account-manage-tab__bubble {
+  position: absolute;
+  z-index: 30;
+  min-width: 11.5rem;
+  max-width: 15rem;
+  padding: 0.55rem 0.7rem 0.65rem;
+  border-radius: 0.65rem;
+  border: 1px solid var(--card-border);
+  background: color-mix(in srgb, var(--card) 92%, #000 8%);
+  box-shadow: 0 10px 28px color-mix(in srgb, #000 28%, transparent);
+  pointer-events: none;
+  font-size: 0.74rem;
+  color: var(--text);
+}
+
+.account-manage-tab__bubble::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  top: 14px;
+  width: 10px;
+  height: 10px;
+  background: inherit;
+  border-left: 1px solid var(--card-border);
+  border-bottom: 1px solid var(--card-border);
+  transform: rotate(45deg);
+}
+
+.account-manage-tab__bubble-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.8rem;
+}
+
+.account-manage-tab__bubble-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: var(--muted);
+  margin-top: 0.15rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.account-manage-tab__bubble-row span:last-child {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.account-manage-tab__bubble-syms {
+  margin-top: 0.45rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
+}
+
+.account-manage-tab__bubble-syms-label {
+  font-size: 0.66rem;
+  color: var(--muted);
+  margin-bottom: 0.25rem;
+}
+
+.account-manage-tab__bubble-syms ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.account-manage-tab__bubble-syms li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.account-manage-tab__bubble-more {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
 .account-manage-tab__slice-list {
   list-style: none;
   margin: 0;
@@ -277,6 +365,13 @@
   gap: 0.4rem;
   align-items: center;
   font-size: 0.76rem;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: 0.2rem 0.25rem;
+}
+
+.account-manage-tab__slice-row:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 .account-manage-tab__table-wrap {

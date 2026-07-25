@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   fetchSp500Sectors,
   fetchTossHoldingsManage,
@@ -53,6 +53,12 @@ function formatKrw(n: number | null | undefined): string {
   return `${Math.round(n).toLocaleString("ko-KR")}원`;
 }
 
+function formatAllocPct(n: number): string {
+  if (!Number.isFinite(n)) return "—";
+  if (n > 0 && n < 0.1) return `${n.toFixed(2)}%`;
+  return fmtSectorPct(n);
+}
+
 export default function AccountManageTab() {
   const { user, registrationOpen, authChecked, refreshAuth } = useLiveTradeAuth();
   const status = useLiveTradingStatusPoll();
@@ -70,9 +76,20 @@ export default function AccountManageTab() {
   const [enrichMap, setEnrichMap] = useState<
     Map<
       string,
-      { industry?: string | null; sectorEn?: string | null; sectorKo?: string | null }
+      {
+        industry?: string | null;
+        subIndustry?: string | null;
+        sectorEn?: string | null;
+        sectorKo?: string | null;
+      }
     >
   >(() => new Map());
+  const [hoverBubble, setHoverBubble] = useState<{
+    key: string;
+    x: number;
+    y: number;
+  } | null>(null);
+  const wheelRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (tossReady && !bithumbReady) setProvider("toss");
@@ -134,14 +151,19 @@ export default function AccountManageTab() {
   );
   const { rate: usdKrwRate } = useUsdKrwRate(needsFx);
 
-  // 업종·S&P GICS 보강
+  // 업종·S&P GICS·상세업종 보강
   useEffect(() => {
     if (!user || provider !== "toss" || !activeToss?.holdings?.length) return;
     let cancelled = false;
     void (async () => {
       const map = new Map<
         string,
-        { industry?: string | null; sectorEn?: string | null; sectorKo?: string | null }
+        {
+          industry?: string | null;
+          subIndustry?: string | null;
+          sectorEn?: string | null;
+          sectorKo?: string | null;
+        }
       >();
       try {
         const [manage, sp500] = await Promise.all([
@@ -149,20 +171,27 @@ export default function AccountManageTab() {
           fetchSp500Sectors().catch(() => null),
         ]);
         if (cancelled) return;
-        const gics = new Map<string, { sector: string; sectorKo: string }>();
+        const gics = new Map<
+          string,
+          { sector: string; sectorKo: string; subIndustry: string }
+        >();
         for (const c of sp500?.companies ?? []) {
           gics.set(String(c.symbol).toUpperCase(), {
             sector: c.sector,
             sectorKo: c.sectorKo || c.sector,
+            subIndustry: String(c.subIndustry ?? "").trim(),
           });
         }
         for (const h of manage?.holdings ?? []) {
           const sym = String(h.symbol ?? "").toUpperCase();
           const g = gics.get(sym);
+          const industry = h.industry ?? null;
           map.set(sym, {
-            industry: h.industry ?? null,
+            industry,
+            // 상세: Yahoo/Naver 업종 우선, 없으면 S&P subIndustry
+            subIndustry: industry || g?.subIndustry || null,
             sectorEn: g?.sector ?? null,
-            sectorKo: g?.sectorKo ?? h.industry ?? null,
+            sectorKo: g?.sectorKo ?? industry ?? null,
           });
         }
         for (const h of activeToss.holdings) {
@@ -171,7 +200,8 @@ export default function AccountManageTab() {
           const g = gics.get(sym);
           if (g) {
             map.set(sym, {
-              industry: g.sectorKo,
+              industry: g.subIndustry || g.sectorKo,
+              subIndustry: g.subIndustry || g.sectorKo,
               sectorEn: g.sector,
               sectorKo: g.sectorKo,
             });
@@ -216,6 +246,7 @@ export default function AccountManageTab() {
               ? h.returnPercent
               : null,
           industry: null,
+          subIndustry: null,
           sectorEn: null,
           sectorKo: null,
         };
@@ -296,6 +327,40 @@ export default function AccountManageTab() {
     if (provider === "toss") void reloadToss?.(true);
     else void reloadBithumb?.(true);
   }, [provider, reloadToss, reloadBithumb]);
+
+  const showHoverBubble = useCallback(
+    (key: string, clientX: number, clientY: number) => {
+      const root = wheelRef.current;
+      if (!root) {
+        setHoverBubble({ key, x: clientX, y: clientY });
+        return;
+      }
+      const rect = root.getBoundingClientRect();
+      setHoverBubble({
+        key,
+        x: clientX - rect.left,
+        y: clientY - rect.top,
+      });
+    },
+    [],
+  );
+
+  const hideHoverBubble = useCallback(() => {
+    setHoverBubble(null);
+    setHoveredKey(null);
+  }, []);
+
+  const hoverSlice = hoverBubble
+    ? slices.find((s) => s.key === hoverBubble.key)
+    : null;
+  const hoverSeg = hoverBubble
+    ? segments.find((s) => s.sector === hoverBubble.key)
+    : null;
+  const hoverRows = useMemo(() => {
+    if (!hoverSlice) return [];
+    const set = new Set(hoverSlice.symbols.map((s) => s.toUpperCase()));
+    return holdingRows.filter((r) => set.has(r.symbol.toUpperCase())).slice(0, 6);
+  }, [hoverSlice, holdingRows]);
 
   const cx = 100;
   const cy = 100;
@@ -437,7 +502,11 @@ export default function AccountManageTab() {
           </div>
 
           <div className="account-manage-tab__grid">
-            <aside className="account-manage-tab__wheel card" aria-label={ko.app.accountManageChartTitle}>
+            <aside
+              ref={wheelRef}
+              className="account-manage-tab__wheel card"
+              aria-label={ko.app.accountManageChartTitle}
+            >
               <div className="account-manage-tab__wheel-head">
                 <div>
                   <h3 className="account-manage-tab__wheel-title">
@@ -453,6 +522,7 @@ export default function AccountManageTab() {
                 {(
                   [
                     ["sector", ko.app.accountManageGroupSector],
+                    ["subIndustry", ko.app.accountManageGroupSubIndustry],
                     ["market", ko.app.accountManageGroupMarket],
                     ["symbol", ko.app.accountManageGroupSymbol],
                   ] as const
@@ -468,6 +538,7 @@ export default function AccountManageTab() {
                     onClick={() => {
                       setAllocMode(id);
                       setFocusKey(null);
+                      hideHoverBubble();
                     }}
                   >
                     {label}
@@ -545,8 +616,14 @@ export default function AccountManageTab() {
                                 prev === seg.sector ? null : seg.sector,
                               )
                             }
-                            onMouseEnter={() => setHoveredKey(seg.sector)}
-                            onMouseLeave={() => setHoveredKey(null)}
+                            onMouseEnter={(e) => {
+                              setHoveredKey(seg.sector);
+                              showHoverBubble(seg.sector, e.clientX, e.clientY);
+                            }}
+                            onMouseMove={(e) => {
+                              showHoverBubble(seg.sector, e.clientX, e.clientY);
+                            }}
+                            onMouseLeave={hideHoverBubble}
                           />
                         );
                       })}
@@ -568,10 +645,10 @@ export default function AccountManageTab() {
                       className="account-manage-tab__center-pct"
                     >
                       {focusKey
-                        ? fmtSectorPct(
+                        ? formatAllocPct(
                             segments.find((s) => s.sector === focusKey)?.pct ?? 0,
                           )
-                        : fmtSectorPct(100)}
+                        : formatAllocPct(100)}
                     </text>
                   </svg>
                   <ul className="account-manage-tab__legend">
@@ -592,8 +669,14 @@ export default function AccountManageTab() {
                                 prev === seg.sector ? null : seg.sector,
                               )
                             }
-                            onMouseEnter={() => setHoveredKey(seg.sector)}
-                            onMouseLeave={() => setHoveredKey(null)}
+                            onMouseEnter={(e) => {
+                              setHoveredKey(seg.sector);
+                              showHoverBubble(seg.sector, e.clientX, e.clientY);
+                            }}
+                            onMouseMove={(e) => {
+                              showHoverBubble(seg.sector, e.clientX, e.clientY);
+                            }}
+                            onMouseLeave={hideHoverBubble}
                           >
                             <span
                               className="account-manage-tab__swatch"
@@ -603,7 +686,7 @@ export default function AccountManageTab() {
                               {seg.sectorKo}
                             </span>
                             <span className="account-manage-tab__legend-pct">
-                              {fmtSectorPct(seg.pct)}
+                              {formatAllocPct(seg.pct)}
                             </span>
                             <span className="account-manage-tab__legend-val">
                               {formatKrw(slice?.valueKrw)}
@@ -619,7 +702,23 @@ export default function AccountManageTab() {
                   {segments.map((seg) => {
                     const slice = slices.find((s) => s.key === seg.sector);
                     return (
-                      <li key={seg.sector} className="account-manage-tab__slice-row">
+                      <li
+                        key={seg.sector}
+                        className="account-manage-tab__slice-row"
+                        onMouseEnter={(e) => {
+                          setHoveredKey(seg.sector);
+                          showHoverBubble(seg.sector, e.clientX, e.clientY);
+                        }}
+                        onMouseMove={(e) => {
+                          showHoverBubble(seg.sector, e.clientX, e.clientY);
+                        }}
+                        onMouseLeave={hideHoverBubble}
+                        onClick={() =>
+                          setFocusKey((prev) =>
+                            prev === seg.sector ? null : seg.sector,
+                          )
+                        }
+                      >
                         <span
                           className="account-manage-tab__swatch"
                           style={{ background: seg.color }}
@@ -635,13 +734,74 @@ export default function AccountManageTab() {
                                 String(seg.count),
                               )}
                         </span>
-                        <span>{fmtSectorPct(seg.pct)}</span>
+                        <span>{formatAllocPct(seg.pct)}</span>
                         <span>{formatKrw(slice?.valueKrw)}</span>
                       </li>
                     );
                   })}
                 </ul>
               )}
+
+              {hoverBubble && hoverSlice && hoverSeg ? (
+                <div
+                  className="account-manage-tab__bubble"
+                  style={{
+                    left: Math.min(
+                      Math.max(12, hoverBubble.x + 14),
+                      (wheelRef.current?.clientWidth ?? 320) - 200,
+                    ),
+                    top: Math.max(8, hoverBubble.y - 12),
+                  }}
+                  role="tooltip"
+                >
+                  <div className="account-manage-tab__bubble-head">
+                    <span
+                      className="account-manage-tab__swatch"
+                      style={{ background: hoverSeg.color }}
+                    />
+                    <strong>{hoverSlice.label}</strong>
+                  </div>
+                  <div className="account-manage-tab__bubble-row">
+                    <span>{ko.app.accountManageSliceValue}</span>
+                    <span>{formatKrw(hoverSlice.valueKrw)}</span>
+                  </div>
+                  <div className="account-manage-tab__bubble-row">
+                    <span>비중</span>
+                    <span>{formatAllocPct(hoverSeg.pct)}</span>
+                  </div>
+                  {hoverSlice.key !== "__cash__" ? (
+                    <div className="account-manage-tab__bubble-row">
+                      <span>{ko.app.accountManageHoldings}</span>
+                      <span>
+                        {ko.app.accountManageSliceCount.replace(
+                          "{n}",
+                          String(hoverSlice.count),
+                        )}
+                      </span>
+                    </div>
+                  ) : null}
+                  {hoverRows.length > 0 ? (
+                    <div className="account-manage-tab__bubble-syms">
+                      <div className="account-manage-tab__bubble-syms-label">
+                        {ko.app.accountManageBubbleSymbols}
+                      </div>
+                      <ul>
+                        {hoverRows.map((r) => (
+                          <li key={r.symbol}>
+                            <span>{r.symbol}</span>
+                            <span>{formatKrw(r.valueKrw)}</span>
+                          </li>
+                        ))}
+                        {hoverSlice.symbols.length > hoverRows.length ? (
+                          <li className="account-manage-tab__bubble-more">
+                            외 {hoverSlice.symbols.length - hoverRows.length}종목
+                          </li>
+                        ) : null}
+                      </ul>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
 
               {focusKey ? (
                 <button
@@ -652,7 +812,9 @@ export default function AccountManageTab() {
                   {ko.app.accountManageClearFilter}
                 </button>
               ) : (
-                <p className="account-manage-tab__hint">{ko.app.accountManagePickHint}</p>
+                <p className="account-manage-tab__hint">
+                  {ko.app.accountManagePickHint} {ko.app.accountManageHoverHint}
+                </p>
               )}
             </aside>
 
@@ -675,7 +837,11 @@ export default function AccountManageTab() {
                     <thead>
                       <tr>
                         <th>{ko.app.liveTradePfColSymbol}</th>
-                        <th>{ko.app.accountManageGroupSector}</th>
+                        <th>
+                          {allocMode === "subIndustry"
+                            ? ko.app.accountManageGroupSubIndustry
+                            : ko.app.accountManageGroupSector}
+                        </th>
                         <th>{ko.app.liveTradePfColQty}</th>
                         <th>{ko.app.accountManageSliceValue}</th>
                         <th>{ko.app.liveTradePfReturn}</th>
@@ -697,7 +863,11 @@ export default function AccountManageTab() {
                               <strong>{row.symbol}</strong>
                               <div className="account-manage-tab__name">{row.name}</div>
                             </td>
-                            <td>{row.sectorKo || row.industry || "—"}</td>
+                            <td>
+                              {allocMode === "subIndustry"
+                                ? row.subIndustry || row.industry || row.sectorKo || "—"
+                                : row.sectorKo || row.industry || "—"}
+                            </td>
                             <td>{row.quantity}</td>
                             <td>{formatKrw(row.valueKrw)}</td>
                             <td

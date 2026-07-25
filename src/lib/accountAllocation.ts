@@ -17,7 +17,7 @@ import {
 import { tossHoldingNetMarketValue } from "./tossHoldingPnl";
 import { DEFAULT_ROUND_TRIP_FEE_RATE } from "./netReturn";
 
-export type AccountAllocMode = "sector" | "market" | "symbol";
+export type AccountAllocMode = "sector" | "subIndustry" | "market" | "symbol";
 
 export type AccountAllocSlice = {
   key: string;
@@ -38,6 +38,8 @@ export type AccountHoldingRow = {
   valueKrw: number;
   returnPercent: number | null;
   industry: string | null;
+  /** GICS/Yahoo 상세 업종(표시용) */
+  subIndustry: string | null;
   sectorEn: string | null;
   sectorKo: string | null;
 };
@@ -134,6 +136,13 @@ export function buildAccountAllocationSlices(
       bump(key, label, row.valueKrw, row.symbol);
       continue;
     }
+    if (mode === "subIndustry") {
+      const detail = (row.subIndustry || row.industry || row.sectorKo || "").trim();
+      const key = detail || labels.other;
+      bump(key, key || labels.other, row.valueKrw, row.symbol, row.sectorEn);
+      continue;
+    }
+    // sector — GICS 대분류(있으면) 우선, 없으면 업종
     const sectorKo = (row.sectorKo || row.industry || "").trim();
     const key = sectorKo || labels.other;
     bump(key, key || labels.other, row.valueKrw, row.symbol, row.sectorEn);
@@ -182,7 +191,12 @@ export function tossHoldingsToAccountRows(
   feeRates: TossFeeRatesByMarket | number | null,
   enrich: Map<
     string,
-    { industry?: string | null; sectorEn?: string | null; sectorKo?: string | null }
+    {
+      industry?: string | null;
+      subIndustry?: string | null;
+      sectorEn?: string | null;
+      sectorKo?: string | null;
+    }
   >,
 ): AccountHoldingRow[] {
   const rate =
@@ -206,6 +220,8 @@ export function tossHoldingsToAccountRows(
       valueKrw = Math.round(net * rate);
     }
     const meta = enrich.get(String(h.symbol ?? "").toUpperCase()) ?? {};
+    const industry = meta.industry ?? null;
+    const subIndustry = (meta.subIndustry || industry || null) as string | null;
     out.push({
       symbol: h.symbol,
       name: h.name || h.symbol,
@@ -217,9 +233,10 @@ export function tossHoldingsToAccountRows(
         h.returnPercent != null && Number.isFinite(h.returnPercent)
           ? h.returnPercent
           : null,
-      industry: meta.industry ?? null,
+      industry,
+      subIndustry,
       sectorEn: meta.sectorEn ?? null,
-      sectorKo: meta.sectorKo ?? meta.industry ?? null,
+      sectorKo: meta.sectorKo ?? industry ?? null,
     });
   }
   return out;
