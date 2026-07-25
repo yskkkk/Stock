@@ -295,47 +295,114 @@ export default function NasdaqEtfTab({ onOpenSymbol }: Props) {
                   {ko.app.nasdaqEtfHoldingsEmpty}
                 </p>
               ) : (
-                <table className="nasdaq-etf-tab__table">
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>{ko.app.nasdaqEtfHoldingsColSymbol}</th>
-                      <th>{ko.app.nasdaqEtfHoldingsColName}</th>
-                      <th>{ko.app.nasdaqEtfHoldingsColWeight}</th>
-                      {onOpenSymbol ? <th /> : null}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {holdings.holdings.map((h, i) => (
-                      <tr key={h.symbol}>
-                        <td className="nasdaq-etf-tab__num">{i + 1}</td>
-                        <td className="nasdaq-etf-tab__sym">{h.symbol}</td>
-                        <td className="nasdaq-etf-tab__identity">
-                          <div className="nasdaq-etf-tab__name-ko">
-                            {h.nameKo || h.name}
-                          </div>
-                          {h.nameKo ? (
-                            <div className="nasdaq-etf-tab__name">{h.name}</div>
+                <>
+                  <div className="nasdaq-etf-tab__weight-summary">
+                    <div className="nasdaq-etf-tab__weight-summary-text">
+                      <strong>
+                        {ko.app.nasdaqEtfHoldingsSumShown.replace(
+                          "{n}",
+                          String(holdings.holdings.length),
+                        )}
+                      </strong>
+                      <span>{formatWeight(holdings.holdingsWeightSum ?? 0)}</span>
+                      <span className="nasdaq-etf-tab__weight-sep" aria-hidden>
+                        ·
+                      </span>
+                      <strong>{ko.app.nasdaqEtfHoldingsOther}</strong>
+                      <span>
+                        {formatWeight(
+                          holdings.holdingsOtherWeight ??
+                            Math.max(
+                              0,
+                              1 - (holdings.holdingsWeightSum ?? 0),
+                            ),
+                        )}
+                      </span>
+                    </div>
+                    <div className="nasdaq-etf-tab__weight-stack" aria-hidden>
+                      <div
+                        className="nasdaq-etf-tab__weight-stack-shown"
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            (holdings.holdingsWeightSum ?? 0) * 100,
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                    <p className="nasdaq-etf-tab__weight-hint">
+                      {ko.app.nasdaqEtfHoldingsTopOnly}
+                    </p>
+                  </div>
+                  <table className="nasdaq-etf-tab__table">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>{ko.app.nasdaqEtfHoldingsColSymbol}</th>
+                        <th>{ko.app.nasdaqEtfHoldingsColName}</th>
+                        <th>{ko.app.nasdaqEtfHoldingsColWeight}</th>
+                        {onOpenSymbol ? <th /> : null}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {holdings.holdings.map((h, i) => (
+                        <tr key={h.symbol}>
+                          <td className="nasdaq-etf-tab__num">{i + 1}</td>
+                          <td className="nasdaq-etf-tab__sym">{h.symbol}</td>
+                          <td className="nasdaq-etf-tab__identity">
+                            <div className="nasdaq-etf-tab__name-ko">
+                              {h.nameKo || h.name}
+                            </div>
+                            {h.nameKo ? (
+                              <div className="nasdaq-etf-tab__name">{h.name}</div>
+                            ) : null}
+                          </td>
+                          <td className="nasdaq-etf-tab__num">
+                            {formatWeight(h.weight)}
+                          </td>
+                          {onOpenSymbol ? (
+                            <td>
+                              <button
+                                type="button"
+                                className="btn btn--ghost nasdaq-etf-tab__open"
+                                onClick={() => openHoldingChart(h)}
+                              >
+                                {ko.app.nasdaqEtfOpenChart}
+                              </button>
+                            </td>
                           ) : null}
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="nasdaq-etf-tab__tfoot">
+                        <td colSpan={3}>
+                          {ko.app.nasdaqEtfHoldingsSumShown.replace(
+                            "{n}",
+                            String(holdings.holdings.length),
+                          )}
                         </td>
                         <td className="nasdaq-etf-tab__num">
-                          {formatWeight(h.weight)}
+                          {formatWeight(holdings.holdingsWeightSum ?? 0)}
                         </td>
-                        {onOpenSymbol ? (
-                          <td>
-                            <button
-                              type="button"
-                              className="btn btn--ghost nasdaq-etf-tab__open"
-                              onClick={() => openHoldingChart(h)}
-                            >
-                              {ko.app.nasdaqEtfOpenChart}
-                            </button>
-                          </td>
-                        ) : null}
+                        {onOpenSymbol ? <td /> : null}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                      <tr className="nasdaq-etf-tab__tfoot nasdaq-etf-tab__tfoot--other">
+                        <td colSpan={3}>{ko.app.nasdaqEtfHoldingsOther}</td>
+                        <td className="nasdaq-etf-tab__num">
+                          {formatWeight(
+                            holdings.holdingsOtherWeight ??
+                              Math.max(
+                                0,
+                                1 - (holdings.holdingsWeightSum ?? 0),
+                              ),
+                          )}
+                        </td>
+                        {onOpenSymbol ? <td /> : null}
+                      </tr>
+                    </tfoot>
+                  </table>
+                </>
               )}
             </div>
           </>

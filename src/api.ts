@@ -316,6 +316,10 @@ export type NasdaqEtfHoldingsPayload = {
   family: string | null;
   category: string | null;
   holdings: NasdaqEtfHoldingRow[];
+  /** 표시된 상위 보유 비중 합(0~1). Yahoo는 보통 상위 10개만 줌 → 100% 미만 */
+  holdingsWeightSum?: number;
+  /** 1 - holdingsWeightSum (미표시 나머지) */
+  holdingsOtherWeight?: number;
   sectors: Array<{ key: string; label: string; weight: number }>;
   allocation: {
     stock: number | null;

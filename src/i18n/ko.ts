@@ -112,6 +112,10 @@ export const ko = {
     nasdaqEtfHoldingsColSymbol: "심볼",
     nasdaqEtfHoldingsColName: "종목",
     nasdaqEtfHoldingsColWeight: "비중",
+    nasdaqEtfHoldingsSumShown: "상위 {n}개 합계",
+    nasdaqEtfHoldingsOther: "기타(미표시)",
+    nasdaqEtfHoldingsTopOnly:
+      "Yahoo는 상위 보유만 공개합니다. 합계가 100%가 아닌 것은 정상입니다.",
     nasdaqEtfHoldingsSectors: "섹터 비중",
     nasdaqEtfHoldingsAllocation: "자산 배분",
     nasdaqEtfAllocStock: "주식",

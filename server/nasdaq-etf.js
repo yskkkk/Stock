@@ -531,15 +531,21 @@ export async function fetchNasdaqEtfHoldingsPayload(symbol) {
 
   /** @type {string | null} */
   let note = null;
+  const holdingsWeightSum = holdings.reduce(
+    (s, h) =>
+      s +
+      (typeof h.weight === "number" && Number.isFinite(h.weight) ? h.weight : 0),
+    0,
+  );
   if (holdings.length === 0) {
     note =
-      "이 ETF는 Yahoo에서 개별 보유 종목 목록을 제공하지 않습니다(채권형·파생 중심 등). 자산·자산 배분은 아래를 참고하세요.";
+      "이 ETF는 Yahoo에서 개별 보유 종목 목록을 제공하지 않습니다(채권형·파생 중심 등). 섹터·자산 배분은 아래를 참고하세요.";
   } else if (holdings.length <= 3) {
     note =
-      "레버리지·인버스 등 일부 ETF는 파생·현금성 비중이 커 상위 보유 종목이 적게 표시될 수 있습니다.";
+      "레버리지·인버스 등 일부 ETF는 파생·현금성 비중이 커 상위 보유 종목이 적게 표시될 수 있습니다. Yahoo는 전체 종목이 아니라 상위 보유만 제공합니다.";
   } else {
     note =
-      "Yahoo Finance 상위 보유 종목 기준입니다. 전체 포트폴리오의 일부만 표시될 수 있습니다.";
+      "Yahoo Finance는 ETF 전체 종목이 아니라 상위 보유(보통 10개)만 제공합니다. 아래 합계가 100%가 아닌 것은 나머지 수백~수천 종목이 ‘기타(미표시)’로 묶여 있기 때문입니다.";
   }
 
   const payload = {
@@ -548,6 +554,8 @@ export async function fetchNasdaqEtfHoldingsPayload(symbol) {
     family,
     category,
     holdings,
+    holdingsWeightSum,
+    holdingsOtherWeight: Math.max(0, 1 - holdingsWeightSum),
     sectors: parseSectorWeightings(th.sectorWeightings),
     allocation,
     updatedAt: now,
