@@ -108,42 +108,146 @@
   white-space: nowrap;
 }
 
+.nasdaq-etf-tab__row--open > td {
+  border-bottom-color: transparent;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
 .nasdaq-etf-tab__sym {
   font-family: var(--font-mono);
   font-weight: 700;
   letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
-.nasdaq-etf-tab__name {
-  max-width: 14rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--muted);
-  font-size: 0.74rem;
+.nasdaq-etf-tab__identity {
+  min-width: 9rem;
+  max-width: 16rem;
 }
 
 .nasdaq-etf-tab__name-ko {
-  max-width: 12rem;
   font-weight: 650;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.nasdaq-etf-tab__desc {
-  max-width: 22rem;
-  font-size: 0.74rem;
-  line-height: 1.4;
-  color: var(--text-dim);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+.nasdaq-etf-tab__name {
+  margin-top: 0.12rem;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.nasdaq-etf-tab__desc-cell {
+  min-width: 12rem;
+  max-width: 28rem;
+  width: 32%;
+}
+
+.nasdaq-etf-tab__desc-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.28rem 0.45rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.nasdaq-etf-tab__desc-btn:hover,
+.nasdaq-etf-tab__desc-btn.is-open {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--card-border));
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+}
+
+.nasdaq-etf-tab__desc-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 1px;
+}
+
+.nasdaq-etf-tab__desc-preview {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.74rem;
+  color: var(--text-dim);
+}
+
+.nasdaq-etf-tab__desc-toggle {
+  flex: 0 0 auto;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.nasdaq-etf-tab__desc-empty {
+  color: var(--muted);
+}
+
+.nasdaq-etf-tab__detail-row > td {
+  padding: 0 0.75rem 0.7rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  vertical-align: top;
+}
+
+.nasdaq-etf-tab__detail {
+  padding: 0.65rem 0.8rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--card-border));
+  border-radius: 0.65rem;
+  background: color-mix(in srgb, var(--card) 88%, var(--surface));
+  box-shadow: 0 6px 18px color-mix(in srgb, #000 8%, transparent);
+}
+
+.nasdaq-etf-tab__detail-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.55rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+.nasdaq-etf-tab__detail-cat {
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.nasdaq-etf-tab__detail-body {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 .nasdaq-etf-tab__cat {
-  max-width: 8rem;
+  max-width: 8.5rem;
   font-size: 0.72rem;
   color: var(--muted);
   white-space: nowrap;
@@ -173,11 +277,12 @@
 }
 
 @media (max-width: 720px) {
-  .nasdaq-etf-tab__name,
-  .nasdaq-etf-tab__name-ko {
-    max-width: 8rem;
+  .nasdaq-etf-tab__identity {
+    max-width: 9rem;
   }
-  .nasdaq-etf-tab__desc {
-    max-width: 12rem;
+  .nasdaq-etf-tab__desc-cell {
+    min-width: 8rem;
+    max-width: 14rem;
+    width: auto;
   }
 }
