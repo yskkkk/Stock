@@ -1,5 +1,10 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { fetchAuthMe, fetchLiveTradingStatus, fetchUserCredentials } from "../api";
+import {
+  fetchAuthMe,
+  fetchLiveTradingStatus,
+  fetchUserCredentials,
+  type TossTestHolding,
+} from "../api";
 import { useLiveTradingStatusPoll } from "../hooks/useLiveTradingStatusPoll";
 import { mergeTossFeeRates, tossFeeRatesFromStatus } from "../lib/tossHoldingFeeRates";
 import TossAccountSnapshotCard from "./TossAccountSnapshotCard";
@@ -13,9 +18,11 @@ import { ko } from "../i18n/ko";
 
 export function TossAccountRailCore({
   onOpenLiveTrading,
+  onOpenHoldingChart,
   layout = "rail-aside",
 }: {
   onOpenLiveTrading?: () => void;
+  onOpenHoldingChart?: (h: TossTestHolding) => void;
   layout?: "rail-aside" | "dock";
 }) {
   const {
@@ -103,6 +110,7 @@ export function TossAccountRailCore({
       variant={layout === "dock" ? "inline" : "rail"}
       liveOrdersEnabled={liveOrdersEnabled}
       serverLiveOrdersEnabled={serverLiveOrdersEnabled}
+      onOpenHoldingChart={onOpenHoldingChart}
       onOrderChanged={() => {
         void reload(true, true);
         void reloadOrderMeta();
@@ -144,8 +152,10 @@ export function TossAccountRailCore({
 
 function LeftRailTossAccountPanelInner({
   onOpenLiveTrading,
+  onOpenHoldingChart,
 }: {
   onOpenLiveTrading?: () => void;
+  onOpenHoldingChart?: (h: TossTestHolding) => void;
 }) {
   const [authChecked, setAuthChecked] = useState(false);
 
@@ -167,7 +177,11 @@ function LeftRailTossAccountPanelInner({
   }
 
   return (
-    <TossAccountRailCore onOpenLiveTrading={onOpenLiveTrading} layout="rail-aside" />
+    <TossAccountRailCore
+      onOpenLiveTrading={onOpenLiveTrading}
+      onOpenHoldingChart={onOpenHoldingChart}
+      layout="rail-aside"
+    />
   );
 }
 

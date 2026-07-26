@@ -23,6 +23,7 @@ import { navigateToTradeHistoryTab } from "../lib/liveTradeDockAccount";
 import type { LiveTradeTradesExchange } from "../lib/liveTradeTradesWorkspace";
 import LiveTradeApiNotConnectedNotice from "./LiveTradeApiNotConnectedNotice";
 import { ko } from "../i18n/ko";
+import type { TossTestHolding } from "../api";
 
 type LinkedProvider = LiveTradeTradesExchange;
 
@@ -43,7 +44,11 @@ function applyAccountView(
   }
 }
 
-function DockLinkedAccountsPanelInner() {
+function DockLinkedAccountsPanelInner({
+  onOpenHoldingChart,
+}: {
+  onOpenHoldingChart?: (h: TossTestHolding) => void;
+}) {
   const { user, authChecked } = useLiveTradeAuth();
   const status = useLiveTradingStatusPoll();
   const bithumbReady = Boolean(status?.bithumb?.ready);
@@ -187,6 +192,7 @@ function DockLinkedAccountsPanelInner() {
         tossFeeRatesByMarket={tossFeeRatesByMarket}
         updatedAtMs={tossUpdatedAtMs}
         variant="inline"
+        onOpenHoldingChart={onOpenHoldingChart}
       />
     );
 

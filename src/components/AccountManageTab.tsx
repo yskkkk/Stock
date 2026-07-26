@@ -59,7 +59,11 @@ function formatAllocPct(n: number): string {
   return fmtSectorPct(n);
 }
 
-export default function AccountManageTab() {
+export default function AccountManageTab({
+  onOpenHoldingChart,
+}: {
+  onOpenHoldingChart?: (h: TossTestHolding) => void;
+}) {
   const { user, registrationOpen, authChecked, refreshAuth } = useLiveTradeAuth();
   const status = useLiveTradingStatusPoll();
   const tossReady = Boolean(status?.toss?.ready);
@@ -860,8 +864,36 @@ export default function AccountManageTab() {
                         return (
                           <tr key={`${row.market}:${row.symbol}`}>
                             <td>
-                              <strong>{row.symbol}</strong>
-                              <div className="account-manage-tab__name">{row.name}</div>
+                              <button
+                                type="button"
+                                className="account-manage-tab__sym-btn"
+                                title={
+                                  onOpenHoldingChart
+                                    ? ko.app.liveTradeChartOpenLookup
+                                    : undefined
+                                }
+                                disabled={!onOpenHoldingChart}
+                                onClick={() => {
+                                  if (!onOpenHoldingChart) return;
+                                  if (raw) {
+                                    onOpenHoldingChart(raw);
+                                    return;
+                                  }
+                                  if (row.market !== "kr" && row.market !== "us") return;
+                                  onOpenHoldingChart({
+                                    symbol: row.symbol,
+                                    name: row.name,
+                                    market: row.market,
+                                    currency: row.market === "us" ? "USD" : "KRW",
+                                    quantity: row.quantity,
+                                    avgBuyPrice: null,
+                                    returnPercent: row.returnPercent,
+                                  });
+                                }}
+                              >
+                                <strong>{row.symbol}</strong>
+                                <div className="account-manage-tab__name">{row.name}</div>
+                              </button>
                             </td>
                             <td>
                               {allocMode === "subIndustry"
@@ -923,6 +955,7 @@ export default function AccountManageTab() {
                 updatedAtMs={tossUpdatedAtMs}
                 authenticated
                 showOrders
+                onOpenHoldingChart={onOpenHoldingChart}
               />
             ) : provider === "bithumb" && bithumbSnapshot ? (
               <BithumbAccountSnapshotCard

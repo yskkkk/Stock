@@ -432,6 +432,28 @@
   color: var(--muted);
 }
 
+.account-manage-tab__sym-btn {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.account-manage-tab__sym-btn:disabled {
+  cursor: default;
+}
+
+.account-manage-tab__sym-btn:not(:disabled):hover .account-manage-tab__name,
+.account-manage-tab__sym-btn:not(:disabled):hover strong {
+  color: var(--accent);
+}
+
 .account-manage-tab__table .is-up {
   color: #22c55e;
 }

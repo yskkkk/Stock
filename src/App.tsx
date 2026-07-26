@@ -14,6 +14,7 @@ import {
   refreshPicks,
   resetTelegramAlertHistory,
   type LiveTradeHolding,
+  type TossTestHolding,
 } from "./api";
 import BullishReasonModal from "./components/BullishReasonModal";
 import AccessAdminModal from "./components/AccessAdminModal";
@@ -129,7 +130,7 @@ import {
   persistProfitSell,
 } from "./lib/userPersist";
 import { filterPicksByQuery } from "./lib/searchPicks";
-import { liveHoldingToStockPick } from "./lib/liveHoldingToPick";
+import { liveHoldingToStockPick, tossHoldingToStockPick } from "./lib/liveHoldingToPick";
 import {
   startBackgroundTabPrefetch,
   scheduleStockVaultFavoritesSync,
@@ -961,6 +962,15 @@ export default function App() {
     setAppTab("stockLookup");
   }, []);
 
+  const handleTossHoldingChart = useCallback((h: TossTestHolding) => {
+    const pick = tossHoldingToStockPick(h);
+    skipLookupResetRef.current = true;
+    setLookupSeedQuery(pick.symbol);
+    setLookupSelected(pick);
+    setLookupMarketTab(pick.market);
+    setAppTab("stockLookup");
+  }, []);
+
   const openAdminLiveTradeView = useCallback(
     (p: { programId: string; userId?: string; name: string }) => {
       const uid = String(p.userId ?? "").trim();
@@ -1452,6 +1462,7 @@ export default function App() {
             />
             <LeftRailTossAccountPanel
               onOpenLiveTrading={openLiveTradingProgram}
+              onOpenHoldingChart={handleTossHoldingChart}
             />
             <LiveTradingLeftRailPanel
               onOpenLiveTrading={() => setAppTab("liveTrading")}
@@ -1806,7 +1817,7 @@ export default function App() {
       ) : appTab === "redditMentions" ? (
         <RedditMentionsTab onOpenSymbol={handleOpenNasdaqEtfSymbol} />
       ) : appTab === "accountManage" ? (
-        <AccountManageTab />
+        <AccountManageTab onOpenHoldingChart={handleTossHoldingChart} />
       ) : appTab === "liveTrading" ? (
         <div className="live-trade-tab-root">
           <LiveTradingTab
@@ -2441,6 +2452,7 @@ export default function App() {
           <>
             <AppRightDockRailPanels
               onOpenLiveTrading={openLiveTradingProgram}
+              onOpenHoldingChart={handleTossHoldingChart}
             />
             <AppLiveTradeSideDock
               pageScrollRef={appScrollRef}

@@ -1,4 +1,4 @@
-import type { LiveTradeHolding } from "../api";
+import type { LiveTradeHolding, TossTestHolding } from "../api";
 import type { StockPick } from "../types";
 
 export function liveHoldingKey(h: { market: string; symbol: string }): string {
@@ -15,6 +15,20 @@ export function liveHoldingToStockPick(h: LiveTradeHolding): StockPick {
     signals: [],
     price: h.currentPrice ?? undefined,
     changePercent: h.changePct ?? undefined,
+    currency: h.currency,
+  };
+}
+
+/** 토스 계좌 보유 → 종목 검색(차트)용 StockPick */
+export function tossHoldingToStockPick(h: TossTestHolding): StockPick {
+  return {
+    symbol: h.symbol,
+    name: h.name,
+    market: h.market,
+    score: 0,
+    signals: [],
+    price: h.currentPrice ?? undefined,
+    changePercent: h.returnPercent ?? h.dailyChangePercent ?? undefined,
     currency: h.currency,
   };
 }

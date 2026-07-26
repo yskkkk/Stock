@@ -1,5 +1,5 @@
 import { useCallback, useEffect, type ReactNode } from "react";
-import { logoutAuth } from "../api";
+import { logoutAuth, type TossTestHolding } from "../api";
 import { invalidateLiveTradingPrefetch } from "../lib/tabPrefetch";
 import { refreshLiveTradingStatusNow } from "../hooks/useLiveTradingStatusPoll";
 import { ko } from "../i18n/ko";
@@ -34,8 +34,10 @@ function DockRailPanelPortal({
 /** 로그인·빗썸·실매매 — 우측 도크 패널 본문(포털) */
 export default function AppRightDockRailPanels({
   onOpenLiveTrading,
+  onOpenHoldingChart,
 }: {
   onOpenLiveTrading?: () => void;
+  onOpenHoldingChart?: (h: TossTestHolding) => void;
 }) {
   const { user, authChecked, registrationOpen } = useLiveTradeAuth();
   const ctx = useLiveTradeCardSidePanelOptional();
@@ -91,7 +93,7 @@ export default function AppRightDockRailPanels({
       {user ? (
         <>
           <DockRailPanelPortal tabId={ids.bithumb}>
-            <DockLinkedAccountsPanel />
+            <DockLinkedAccountsPanel onOpenHoldingChart={onOpenHoldingChart} />
           </DockRailPanelPortal>
           <DockRailPanelPortal tabId={ids.liveRail}>
             <LiveTradingRailCore

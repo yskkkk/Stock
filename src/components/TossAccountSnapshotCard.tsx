@@ -66,6 +66,7 @@ export default function TossAccountSnapshotCard({
   serverLiveOrdersEnabled = false,
   showOrders = true,
   onOrderChanged,
+  onOpenHoldingChart,
 }: {
   snapshot: TossTestSnapshot;
   feeLabelKo?: string | null;
@@ -79,6 +80,8 @@ export default function TossAccountSnapshotCard({
   serverLiveOrdersEnabled?: boolean;
   showOrders?: boolean;
   onOrderChanged?: () => void;
+  /** 종목명 클릭 시 종목 검색(차트) 탭으로 */
+  onOpenHoldingChart?: (h: TossTestHolding) => void;
 }) {
   const feeRates = useMemo(
     () =>
@@ -310,7 +313,18 @@ export default function TossAccountSnapshotCard({
                     <button
                       type="button"
                       className="account-snapshot__holding-open"
-                      onClick={() => setManageHolding(h)}
+                      title={
+                        onOpenHoldingChart
+                          ? ko.app.liveTradeChartOpenLookup
+                          : ko.app.liveTradeTossHoldingManage
+                      }
+                      onClick={() => {
+                        if (onOpenHoldingChart) {
+                          onOpenHoldingChart(h);
+                          return;
+                        }
+                        setManageHolding(h);
+                      }}
                     >
                       <LiveTradeSymbolCell
                         symbol={h.symbol}
