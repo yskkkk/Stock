@@ -368,6 +368,43 @@ async function fetchYahooEtfDescription(symbol) {
 }
 
 /**
+ * @param {string} englishName
+ * @param {string} symbol
+ */
+function fallbackDescriptionKo(englishName, symbol) {
+  const text = `${englishName} ${symbol}`;
+  if (/NASDAQ[-\s]?100|Nasdaq[-\s]?100|QQQ\b/i.test(text) || ["IQQ", "QQQ", "QQQM", "TQQQ", "SQQQ", "QQQI"].includes(symbol)) {
+    return "나스닥100(Nasdaq-100) 지수를 추종하거나 관련 전략을 쓰는 ETF입니다. 나스닥에 상장된 비금융 대형·성장주 비중이 높습니다.";
+  }
+  if (/S&P\s*500|SPDR S&P|IVV|VOO|SPY/i.test(text) || ["SPY", "IVV", "VOO", "SPL"].includes(symbol)) {
+    return "S&P500 지수를 추종하는 ETF로, 미국 대형주 시장 전반에 분산 투자합니다.";
+  }
+  if (/bond|treasury|agg|채권|고정수익/i.test(text) || /\bBND\b|\bTLT\b|\bIEF\b/i.test(text)) {
+    return "채권·고정수익에 투자하는 ETF입니다. 금리·신용 환경에 따라 가격이 변동할 수 있습니다.";
+  }
+  if (/3x|ultra|leveraged|bull|2x/i.test(text)) {
+    return "레버리지 ETF로, 기초 지수·자산의 일일 수익률을 배수로 추종합니다. 장기 보유 시 복리 효과로 성과가 달라질 수 있습니다.";
+  }
+  if (/short|bear|inverse|-1x|-2x|-3x/i.test(text)) {
+    return "인버스(하락 추종) ETF로, 기초 자산과 반대 방향의 일일 성과를 목표로 합니다. 단기 헤지 성격이 강합니다.";
+  }
+  if (/semiconductor|SOX|chip/i.test(text) || ["SOXL", "SOXS", "SMH"].includes(symbol)) {
+    return "반도체·관련 기업에 집중 투자하는 ETF입니다.";
+  }
+  if (/gold|silver|metal|commodity|원유|oil/i.test(text)) {
+    return "원자재·상품 관련 ETF입니다. 현물·선물·관련 기업 등으로 구성될 수 있습니다.";
+  }
+  if (/dividend|income|yield|배당/i.test(text)) {
+    return "배당·인컴 전략을 쓰는 ETF입니다. 배당 수익률과 자본 이득을 함께 추구합니다.";
+  }
+  if (/growth|value|momentum|factor/i.test(text)) {
+    return "특정 팩터(성장·가치·모멘텀 등)를 반영하는 주식형 ETF입니다.";
+  }
+  const label = String(englishName || symbol).trim() || symbol;
+  return `${label}(${symbol})에 투자하는 나스닥 상장 ETF입니다. 세부 구성·전략은 발행사 자료를 참고하세요.`;
+}
+
+/**
  * @param {Array<object>} etfs
  * @param {number} concurrency
  */
@@ -379,19 +416,20 @@ async function enrichKoreanMeta(etfs, concurrency = 10) {
     const pinionKo = pinion.get(sym) ?? pinion.get(sym.replace(/-/g, "."));
     if (pinionKo && hasHangul(pinionKo)) {
       row.nameKo = pinionKo;
-      continue;
+    } else {
+      const quick = buildNameKo(row.name || "", sym, null);
+      if (quick && hasHangul(quick)) row.nameKo = quick;
     }
-    const quick = buildNameKo(row.name || "", sym, null);
-    if (quick && hasHangul(quick)) row.nameKo = quick;
   }
 
-  const naverTargets = etfs.slice(0, 700);
+  // 설명이 비어 있는 종목 전부 네이버 보강 (AUM 하위·신규 ETF 포함)
+  const needNaver = etfs.filter((r) => !r.description || !r.categoryKo);
   const limit = Math.max(1, Math.min(concurrency, 12));
   /** @type {object[]} */
   const needYahooDesc = [];
 
-  for (let i = 0; i < naverTargets.length; i += limit) {
-    const chunk = naverTargets.slice(i, i + limit);
+  for (let i = 0; i < needNaver.length; i += limit) {
+    const chunk = needNaver.slice(i, i + limit);
     await Promise.all(
       chunk.map(async (row) => {
         const naver = await fetchNaverEtfMeta(row.symbol);
@@ -404,19 +442,26 @@ async function enrichKoreanMeta(etfs, concurrency = 10) {
           if (built && hasHangul(built)) row.nameKo = built;
         }
         if (naver.tip) row.description = naver.tip;
-        else needYahooDesc.push(row);
+        else if (!row.description) needYahooDesc.push(row);
 
         const cat = [naver.large, naver.middle].filter(Boolean).join(" · ");
-        row.categoryKo = cat || null;
+        if (cat) row.categoryKo = cat;
       }),
     );
   }
 
-  for (const row of etfs.slice(700)) {
+  for (const row of etfs) {
     if (!row.description) needYahooDesc.push(row);
   }
 
-  const yahooTargets = needYahooDesc.filter((r) => !r.description).slice(0, 80);
+  // 중복 제거
+  const yahooSeen = new Set();
+  const yahooTargets = needYahooDesc.filter((r) => {
+    if (r.description || yahooSeen.has(r.symbol)) return false;
+    yahooSeen.add(r.symbol);
+    return true;
+  });
+
   for (let i = 0; i < yahooTargets.length; i += 4) {
     const chunk = yahooTargets.slice(i, i + 4);
     await Promise.all(
@@ -425,6 +470,13 @@ async function enrichKoreanMeta(etfs, concurrency = 10) {
         if (desc) row.description = desc;
       }),
     );
+  }
+
+  // 최후: 이름 패턴 기반 한글 안내문
+  for (const row of etfs) {
+    if (row.description) continue;
+    const fb = fallbackDescriptionKo(row.name || "", row.symbol);
+    if (fb) row.description = fb;
   }
 }
 
@@ -550,40 +602,11 @@ function parseSectorWeightings(sectors) {
 }
 
 /**
- * @param {string} symbol
+ * @param {unknown} th
  */
-export async function fetchNasdaqEtfHoldingsPayload(symbol) {
-  const sym = String(symbol ?? "")
-    .trim()
-    .toUpperCase()
-    .replace(/\./g, "-");
-  if (!sym) {
-    return {
-      symbol: "",
-      holdings: [],
-      sectors: [],
-      allocation: null,
-      updatedAt: Date.now(),
-      source: "yahoo-topHoldings",
-      note: null,
-    };
-  }
-
-  const hit = holdingsCache.get(sym);
-  const now = Date.now();
-  if (hit && now - hit.at < HOLDINGS_CACHE_MS) return hit.data;
-
-  await getYahooSession();
-  const data = await yahooGet(
-    `/v10/finance/quoteSummary/${encodeURIComponent(sym)}?modules=topHoldings,fundProfile,price`,
-  );
-  const row = data?.quoteSummary?.result?.[0] ?? {};
-  const th = row.topHoldings ?? {};
-  const price = row.price ?? {};
-  const fund = row.fundProfile ?? {};
-
-  const rawHoldings = Array.isArray(th.holdings) ? th.holdings : [];
-  const holdings = rawHoldings
+function mapYahooHoldings(th) {
+  const rawHoldings = Array.isArray(th?.holdings) ? th.holdings : [];
+  return rawHoldings
     .map((h) => {
       const hSym = String(h?.symbol ?? "").trim().toUpperCase();
       if (!hSym) return null;
@@ -599,8 +622,101 @@ export async function fetchNasdaqEtfHoldingsPayload(symbol) {
     })
     .filter(Boolean)
     .sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0));
+}
 
-  // 보유 종목 한글명 보강 (소량)
+/**
+ * 나스닥100 추종 ETF — Yahoo가 보유목록을 아직 안 줄 때 QQQ로 참고 구성
+ * @param {string} symbol
+ * @param {string} etfName
+ */
+function isNasdaq100Tracker(symbol, etfName) {
+  const sym = String(symbol ?? "").toUpperCase();
+  if (["IQQ", "QQQ", "QQQM", "QQQI", "QTOP", "QNXT"].includes(sym)) return true;
+  return /NASDAQ[-\s]?100|Nasdaq[-\s]?100/i.test(String(etfName ?? ""));
+}
+
+/**
+ * @param {string} symbol
+ */
+export async function fetchNasdaqEtfHoldingsPayload(symbol) {
+  const sym = String(symbol ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/\./g, "-");
+  if (!sym) {
+    return {
+      symbol: "",
+      name: "",
+      description: null,
+      holdings: [],
+      sectors: [],
+      allocation: null,
+      updatedAt: Date.now(),
+      source: "yahoo-topHoldings",
+      note: null,
+    };
+  }
+
+  const hit = holdingsCache.get(sym);
+  const now = Date.now();
+  if (hit && now - hit.at < HOLDINGS_CACHE_MS) return hit.data;
+
+  await getYahooSession();
+  const data = await yahooGet(
+    `/v10/finance/quoteSummary/${encodeURIComponent(sym)}?modules=topHoldings,fundProfile,assetProfile,price`,
+  );
+  const row = data?.quoteSummary?.result?.[0] ?? {};
+  let th = row.topHoldings ?? {};
+  const price = row.price ?? {};
+  const fund = row.fundProfile ?? {};
+
+  let holdings = mapYahooHoldings(th);
+  let sectors = parseSectorWeightings(th.sectorWeightings);
+  let allocation = {
+    stock: yahooPct(th.stockPosition),
+    bond: yahooPct(th.bondPosition),
+    cash: yahooPct(th.cashPosition),
+    other: yahooPct(th.otherPosition),
+    preferred: yahooPct(th.preferredPosition),
+    convertible: yahooPct(th.convertiblePosition),
+  };
+
+  const family = String(fund.family ?? "").trim() || null;
+  const category = String(fund.categoryName ?? "").trim() || null;
+  const etfName =
+    String(price.longName ?? price.shortName ?? "").trim() || sym;
+
+  /** @type {string | null} */
+  let proxyOf = null;
+  if (holdings.length === 0 && isNasdaq100Tracker(sym, etfName) && sym !== "QQQ") {
+    try {
+      const proxyData = await yahooGet(
+        `/v10/finance/quoteSummary/QQQ?modules=topHoldings`,
+      );
+      const pTh = proxyData?.quoteSummary?.result?.[0]?.topHoldings ?? {};
+      const proxyHoldings = mapYahooHoldings(pTh);
+      if (proxyHoldings.length) {
+        holdings = proxyHoldings;
+        if (!sectors.length) sectors = parseSectorWeightings(pTh.sectorWeightings);
+        if (allocation.stock == null && allocation.bond == null) {
+          allocation = {
+            stock: yahooPct(pTh.stockPosition),
+            bond: yahooPct(pTh.bondPosition),
+            cash: yahooPct(pTh.cashPosition),
+            other: yahooPct(pTh.otherPosition),
+            preferred: yahooPct(pTh.preferredPosition),
+            convertible: yahooPct(pTh.convertiblePosition),
+          };
+        }
+        proxyOf = "QQQ";
+        th = pTh;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  // 보유 종목 한글명 보강
   try {
     const { resolveUsKoreanStockNamesBatch } = await import(
       "./us-naver-korean-name.js"
@@ -621,31 +737,33 @@ export async function fetchNasdaqEtfHoldingsPayload(symbol) {
     /* ignore */
   }
 
-  const allocation = {
-    stock: yahooPct(th.stockPosition),
-    bond: yahooPct(th.bondPosition),
-    cash: yahooPct(th.cashPosition),
-    other: yahooPct(th.otherPosition),
-    preferred: yahooPct(th.preferredPosition),
-    convertible: yahooPct(th.convertiblePosition),
-  };
-
-  const family = String(fund.family ?? "").trim() || null;
-  const category = String(fund.categoryName ?? "").trim() || null;
-  const etfName =
-    String(price.longName ?? price.shortName ?? "").trim() || sym;
-
   /** @type {string | null} */
-  let note = null;
+  let description = String(row?.assetProfile?.longBusinessSummary ?? "").trim() || null;
+  try {
+    const naver = await fetchNaverEtfMeta(sym);
+    if (naver?.tip) description = naver.tip;
+  } catch {
+    /* ignore */
+  }
+  if (!description) {
+    description = fallbackDescriptionKo(etfName, sym);
+  }
+
   const holdingsWeightSum = holdings.reduce(
     (s, h) =>
       s +
       (typeof h.weight === "number" && Number.isFinite(h.weight) ? h.weight : 0),
     0,
   );
-  if (holdings.length === 0) {
+
+  /** @type {string | null} */
+  let note = null;
+  if (proxyOf) {
     note =
-      "이 ETF는 Yahoo에서 개별 보유 종목 목록을 제공하지 않습니다(채권형·파생 중심 등). 섹터·자산 배분은 아래를 참고하세요.";
+      `${sym}은(는) Yahoo에 개별 보유 목록이 아직 없습니다. 동일하게 나스닥100을 추종하는 ${proxyOf}의 상위 보유를 참고용으로 표시합니다. 실제 비중은 운용사 공시와 다를 수 있습니다.`;
+  } else if (holdings.length === 0) {
+    note =
+      "이 ETF는 Yahoo에서 개별 보유 종목 목록을 제공하지 않습니다(채권형·파생 중심·신규 상장 등). 설명이 있으면 위를 참고하세요.";
   } else if (holdings.length <= 3) {
     note =
       "레버리지·인버스 등 일부 ETF는 파생·현금성 비중이 커 상위 보유 종목이 적게 표시될 수 있습니다. Yahoo는 전체 종목이 아니라 상위 보유만 제공합니다.";
@@ -657,15 +775,17 @@ export async function fetchNasdaqEtfHoldingsPayload(symbol) {
   const payload = {
     symbol: sym,
     name: etfName,
+    description,
     family,
     category,
     holdings,
     holdingsWeightSum,
     holdingsOtherWeight: Math.max(0, 1 - holdingsWeightSum),
-    sectors: parseSectorWeightings(th.sectorWeightings),
+    sectors,
     allocation,
+    proxyOf,
     updatedAt: now,
-    source: "yahoo-topHoldings",
+    source: proxyOf ? `yahoo-topHoldings-proxy:${proxyOf}` : "yahoo-topHoldings",
     note,
   };
   holdingsCache.set(sym, { data: payload, at: now });

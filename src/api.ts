@@ -313,6 +313,7 @@ export type NasdaqEtfHoldingRow = {
 export type NasdaqEtfHoldingsPayload = {
   symbol: string;
   name: string;
+  description?: string | null;
   family: string | null;
   category: string | null;
   holdings: NasdaqEtfHoldingRow[];
@@ -329,6 +330,7 @@ export type NasdaqEtfHoldingsPayload = {
     preferred: number | null;
     convertible: number | null;
   } | null;
+  proxyOf?: string | null;
   updatedAt: number;
   source: string;
   note: string | null;

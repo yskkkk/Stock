@@ -214,12 +214,14 @@ export default function NasdaqEtfTab({ onOpenSymbol }: Props) {
           </div>
         </header>
 
-        {selected.description ? (
+        {(selected.description || holdings?.description) ? (
           <div className="nasdaq-etf-tab__detail card nasdaq-etf-tab__detail--standalone">
             <div className="nasdaq-etf-tab__detail-label">
               {ko.app.nasdaqEtfColDesc}
             </div>
-            <p className="nasdaq-etf-tab__detail-body">{selected.description}</p>
+            <p className="nasdaq-etf-tab__detail-body">
+              {selected.description || holdings?.description}
+            </p>
           </div>
         ) : null}
 
