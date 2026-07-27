@@ -272,6 +272,13 @@ function writeRunningBusyMarker() {
   });
 }
 
+function logDrainQueueError(e) {
+  console.warn(
+    "[ops-queue] drain:",
+    e instanceof Error ? e.message : e,
+  );
+}
+
 async function drainQueue() {
   if (active) return;
   const slot = slots[0];
@@ -299,7 +306,7 @@ async function drainQueue() {
       persistSlots();
       clearOpsWebAgentBusyMarkerSync();
       bumpDevQueueDisplayMirror();
-      void drainQueue();
+      void drainQueue().catch(logDrainQueueError);
     }
     return;
   }
@@ -349,7 +356,7 @@ async function drainQueue() {
     persistSlots();
     clearOpsWebAgentBusyMarkerSync();
     bumpDevQueueDisplayMirror();
-    void drainQueue();
+    void drainQueue().catch(logDrainQueueError);
   }
 }
 
@@ -398,7 +405,7 @@ export function enqueueOpsAgentJob(fn, onQueued, meta, onCommittedToQueue) {
         /* ignore */
       }
     }
-    void drainQueue();
+    void drainQueue().catch(logDrainQueueError);
   });
 }
 
@@ -551,7 +558,7 @@ export function registerIdeDevQueueSlot(input) {
   slots.push(slot);
   persistSlots();
   bumpDevQueueDisplayMirror();
-  void drainQueue();
+  void drainQueue().catch(logDrainQueueError);
 
   const leaseId = slot.id;
   const { queueSeq, queueStatus } = queueSeqAndStatusForSlotId(leaseId);
@@ -646,7 +653,7 @@ export function abandonIdeDevQueueSlot(leaseId) {
   bumpDevQueueDisplayMirror();
   if (!active) {
     clearOpsWebAgentBusyMarkerSync();
-    void drainQueue();
+    void drainQueue().catch(logDrainQueueError);
   }
   return { ok: true, cancelled: true };
 }

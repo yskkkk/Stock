@@ -73,7 +73,12 @@ function scheduleSettleFlush(ms = settleMs()) {
   if (flushTimer) clearTimeout(flushTimer);
   flushTimer = setTimeout(() => {
     flushTimer = null;
-    void flushScanReportEmailNow();
+    void flushScanReportEmailNow().catch((e) => {
+      console.warn(
+        "[scan-report-email] flush:",
+        e instanceof Error ? e.message : e,
+      );
+    });
   }, ms);
 }
 

@@ -383,7 +383,13 @@ export function startAutoGitSync({ httpServer }) {
       );
       stopping = false;
       timer = setInterval(() => {
-        void tick();
+        void tick().catch((e) => {
+          appendServerEventLog(
+            "auto-git",
+            `tick error: ${e instanceof Error ? e.message : String(e)}`,
+            "error",
+          );
+        });
       }, intervalMs);
       if (typeof timer.unref === "function") timer.unref();
     }
@@ -396,7 +402,13 @@ export function startAutoGitSync({ httpServer }) {
   };
 
   timer = setInterval(() => {
-    void tick();
+    void tick().catch((e) => {
+      appendServerEventLog(
+        "auto-git",
+        `tick error: ${e instanceof Error ? e.message : String(e)}`,
+        "error",
+      );
+    });
   }, intervalMs);
   if (typeof timer.unref === "function") timer.unref();
 
