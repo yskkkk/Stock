@@ -262,22 +262,26 @@ export function startGranvilleScanPoller() {
 
   let running = false;
   const tick = () => {
-    if (running || manualScanRunning) return;
-    const now = new Date();
-    const dueMarkets = /** @type {Array<"kr"|"us">} */ (["kr", "us"]).filter(
-      (m) => dueGranvilleScanDate(m, now) != null,
-    );
-    if (!dueMarkets.length) return;
-    running = true;
-    scheduledScanRunning = true;
-    void pollerGuardAsync("granville", () => spawnGranvilleScanWorker(dueMarkets))
-      .catch((e) => {
-        liveTradeLogWarn("[granville:poller]", e instanceof Error ? e.message : e);
-      })
-      .finally(() => {
-        running = false;
-        scheduledScanRunning = false;
-      });
+    try {
+      if (running || manualScanRunning) return;
+      const now = new Date();
+      const dueMarkets = /** @type {Array<"kr"|"us">} */ (["kr", "us"]).filter(
+        (m) => dueGranvilleScanDate(m, now) != null,
+      );
+      if (!dueMarkets.length) return;
+      running = true;
+      scheduledScanRunning = true;
+      void pollerGuardAsync("granville", () => spawnGranvilleScanWorker(dueMarkets))
+        .catch((e) => {
+          liveTradeLogWarn("[granville:poller]", e instanceof Error ? e.message : e);
+        })
+        .finally(() => {
+          running = false;
+          scheduledScanRunning = false;
+        });
+    } catch (e) {
+      liveTradeLogWarn("[granville:poller:tick]", e instanceof Error ? e.message : e);
+    }
   };
 
   liveTradeLogInfo("[granville:poller] start", { pollMs: POLL_MS, maPeriod: Number(process.env.STOCK_GRANVILLE_MA_PERIOD ?? 200) });

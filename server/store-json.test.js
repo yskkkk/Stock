@@ -1,0 +1,62 @@
+import { test, beforeEach, afterEach } from "vitest";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { readJsonStoreSync, writeJsonStoreSync, invalidateJsonStoreReadCache } from "./store-json.js";
+
+/** @type {string | undefined} */
+let prevDataDir;
+/** @type {string | undefined} */
+let tmpDir;
+
+beforeEach(() => {
+  prevDataDir = process.env.STOCK_DATA_DIR;
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "store-json-test-"));
+  process.env.STOCK_DATA_DIR = tmpDir;
+  invalidateJsonStoreReadCache("granville-scan-state.json");
+  invalidateJsonStoreReadCache("corrupt-sample.json");
+  invalidateJsonStoreReadCache("sample.json");
+});
+
+afterEach(() => {
+  if (prevDataDir === undefined) delete process.env.STOCK_DATA_DIR;
+  else process.env.STOCK_DATA_DIR = prevDataDir;
+  if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+});
+
+test("readJsonStoreSync strips UTF-8 BOM before parse", () => {
+  const fileName = "granville-scan-state.json";
+  fs.writeFileSync(path.join(tmpDir, fileName), "\uFEFF{}", "utf8");
+
+  const state = readJsonStoreSync(
+    fileName,
+    (raw) => ({ ok: raw && typeof raw === "object" }),
+    () => ({ ok: false }),
+  );
+
+  assert.equal(state.ok, true);
+});
+
+test("readJsonStoreSync restores defaults on corrupt JSON", () => {
+  const fileName = "corrupt-sample.json";
+  fs.writeFileSync(path.join(tmpDir, fileName), "{not-json", "utf8");
+
+  const state = readJsonStoreSync(
+    fileName,
+    () => ({ ok: true }),
+    () => ({ ok: false }),
+  );
+
+  assert.deepEqual(state, { ok: false });
+  const backups = fs.readdirSync(tmpDir).filter((f) => f.includes(".corrupt-"));
+  assert.ok(backups.length >= 1);
+});
+
+test("writeJsonStoreSync writes without BOM", () => {
+  const fileName = "sample.json";
+  writeJsonStoreSync(fileName, { n: 1 });
+  const raw = fs.readFileSync(path.join(tmpDir, fileName), "utf8");
+  assert.notEqual(raw.charCodeAt(0), 0xfeff);
+  assert.equal(JSON.parse(raw).n, 1);
+});

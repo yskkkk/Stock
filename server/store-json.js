@@ -38,6 +38,11 @@ export function invalidateJsonStoreReadCache(fileName) {
   readCache.delete(fileName);
 }
 
+/** @param {string} text */
+function stripUtf8Bom(text) {
+  return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+}
+
 /**
  * @param {string} fileName
  * @param {(raw: unknown) => T} normalize
@@ -57,7 +62,7 @@ export function readJsonStoreSync(fileName, normalize, empty) {
     if (hit && hit.mtimeMs === stat.mtimeMs) {
       return /** @type {T} */ (hit.data);
     }
-    const raw = JSON.parse(fs.readFileSync(file, "utf8"));
+    const raw = JSON.parse(stripUtf8Bom(fs.readFileSync(file, "utf8")));
     const data = normalize(raw);
     readCache.set(fileName, { mtimeMs: stat.mtimeMs, data });
     return data;
@@ -69,6 +74,11 @@ export function readJsonStoreSync(fileName, normalize, empty) {
       } catch {
         /* ignore */
       }
+    }
+    if (e instanceof SyntaxError) {
+      readCache.delete(fileName);
+      console.warn(`[store-json] corrupt ${fileName}, restored defaults (backed up)`);
+      return empty();
     }
     throw new StoreCorruptError(file, e);
   }
