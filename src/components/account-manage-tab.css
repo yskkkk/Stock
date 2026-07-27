@@ -140,6 +140,11 @@
   font-variant-numeric: tabular-nums;
 }
 
+.account-manage-tab__stat-pct {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
 .account-manage-tab__stat-value.is-up {
   color: #22c55e;
 }

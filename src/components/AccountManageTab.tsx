@@ -333,6 +333,23 @@ export default function AccountManageTab({
     return holdingRows.reduce((s, r) => s + r.valueKrw, 0);
   }, [provider, activeToss, usdKrwRate, feeRates, holdingRows]);
 
+  const holdingsReturnPct = useMemo(() => {
+    if (netSummary?.totalReturnPct != null && Number.isFinite(netSummary.totalReturnPct)) {
+      return netSummary.totalReturnPct;
+    }
+    let weighted = 0;
+    let weightSum = 0;
+    for (const r of holdingRows) {
+      if (r.returnPercent == null || !Number.isFinite(r.returnPercent)) continue;
+      const w = r.valueKrw > 0 ? r.valueKrw : 0;
+      if (w <= 0) continue;
+      weighted += r.returnPercent * w;
+      weightSum += w;
+    }
+    if (weightSum <= 0) return null;
+    return weighted / weightSum;
+  }, [netSummary, holdingRows]);
+
   const onRefresh = useCallback(() => {
     if (provider === "toss") void reloadToss?.(true);
     else void reloadBithumb?.(true);
@@ -502,13 +519,30 @@ export default function AccountManageTab({
               <span className="account-manage-tab__stat-label">
                 {ko.app.accountManageHoldings}
               </span>
-              <span className="account-manage-tab__stat-value">
+              <span
+                className={[
+                  "account-manage-tab__stat-value",
+                  holdingsReturnPct != null && holdingsReturnPct > 0
+                    ? "is-up"
+                    : holdingsReturnPct != null && holdingsReturnPct < 0
+                      ? "is-down"
+                      : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
                 <span
                   className="account-manage-tab__money"
                   aria-hidden={balanceHidden || undefined}
                 >
                   {formatKrw(holdingsTotalKrw)}
                 </span>
+                {holdingsReturnPct != null ? (
+                  <span className="account-manage-tab__stat-pct">
+                    {" "}
+                    ({formatPercent(holdingsReturnPct)})
+                  </span>
+                ) : null}
               </span>
             </div>
             <div className="account-manage-tab__stat">
