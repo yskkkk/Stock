@@ -16,6 +16,7 @@ import {
 } from "./tossHoldingFeeRates";
 import { tossHoldingNetMarketValue } from "./tossHoldingPnl";
 import { DEFAULT_ROUND_TRIP_FEE_RATE } from "./netReturn";
+import { resolveSymbolDisplayName } from "./symbolDisplayName";
 
 export type AccountAllocMode = "sector" | "subIndustry" | "market" | "symbol";
 
@@ -79,6 +80,18 @@ export function accountSliceColor(slice: {
   return hashColor(slice.key);
 }
 
+/** 종목별 차트·범례 라벨 — 로컬 한글명 맵 우선 */
+export function accountSymbolSliceLabel(
+  row: Pick<AccountHoldingRow, "symbol" | "name" | "market">,
+  otherLabel: string,
+): string {
+  const sym = row.symbol.trim() || row.name.trim();
+  const { label, sublabel } = resolveSymbolDisplayName(sym, row.name, row.market);
+  const ticker = (sublabel || sym).trim();
+  if (label && label !== ticker) return `${ticker} · ${label}`;
+  return label || ticker || row.name.trim() || otherLabel;
+}
+
 export function buildAccountAllocationSlices(
   rows: AccountHoldingRow[],
   cashKrw: number,
@@ -122,10 +135,8 @@ export function buildAccountAllocationSlices(
     if (!(row.valueKrw > 0)) continue;
     if (mode === "symbol") {
       const sym = row.symbol.trim() || row.name.trim();
-      const name = (row.name || "").trim();
-      const label =
-        name && name !== sym ? `${sym} · ${name}` : sym || name || labels.other;
-      bump(sym || name, label, row.valueKrw, sym || name, row.sectorEn);
+      const label = accountSymbolSliceLabel(row, labels.other);
+      bump(sym || label, label, row.valueKrw, sym || label, row.sectorEn);
       continue;
     }
     if (mode === "market") {
@@ -226,9 +237,10 @@ export function tossHoldingsToAccountRows(
     const meta = enrich.get(String(h.symbol ?? "").toUpperCase()) ?? {};
     const industry = meta.industry ?? null;
     const subIndustry = (meta.subIndustry || industry || null) as string | null;
+    const { label: displayName } = resolveSymbolDisplayName(h.symbol, h.name, market);
     out.push({
       symbol: h.symbol,
-      name: h.name || h.symbol,
+      name: displayName || h.name || h.symbol,
       market,
       currency: h.currency,
       quantity: h.quantity,
