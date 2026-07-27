@@ -2015,6 +2015,94 @@ export function saveTossHoldingPlan(
   );
 }
 
+export type TossRebalanceSchedule = {
+  enabled: boolean;
+  dayOfMonth: number;
+  mode: "proportional_buy";
+  markets: Array<"kr" | "us">;
+  cashUsePct: number;
+  lastRunYmd: string | null;
+  lastRunAtMs: number | null;
+  lastResult: {
+    ok?: boolean;
+    placedCount?: number;
+    errorCount?: number;
+    errors?: Array<{ symbol?: string; error?: string }>;
+    placed?: Array<{ symbol?: string; amount?: number; orderId?: string }>;
+  } | null;
+  updatedAtMs: number | null;
+};
+
+export type TossRebalanceBuyPlan = {
+  market: "kr" | "us";
+  currency: "KRW" | "USD";
+  cashAvailable: number;
+  cashToSpend: number;
+  orders: Array<{
+    symbol: string;
+    name: string;
+    market: string;
+    amount: number;
+    weightPct: number;
+  }>;
+};
+
+export type TossRebalanceScheduleResponse = {
+  ok: boolean;
+  schedule: TossRebalanceSchedule | null;
+  preview?: {
+    ok: boolean;
+    ready: boolean;
+    syncedAtMs?: number | null;
+    plans: TossRebalanceBuyPlan[];
+  };
+  error?: string;
+};
+
+export function fetchTossRebalanceSchedule() {
+  return fetchJson<TossRebalanceScheduleResponse>(
+    "/api/live-trading/toss/rebalance-schedule",
+  );
+}
+
+export function saveTossRebalanceSchedule(
+  body: Partial<TossRebalanceSchedule> & {
+    enabled?: boolean;
+    dayOfMonth?: number;
+    markets?: Array<"kr" | "us">;
+    cashUsePct?: number;
+  },
+) {
+  return fetchJson<TossRebalanceScheduleResponse>(
+    "/api/live-trading/toss/rebalance-schedule",
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+}
+
+export function runTossRebalanceSchedule(body?: {
+  dryRun?: boolean;
+  force?: boolean;
+}) {
+  return fetchJson<{
+    ok: boolean;
+    dryRun?: boolean;
+    skipped?: boolean;
+    reason?: string;
+    error?: string;
+    placed?: Array<{ symbol: string; amount: number; orderId?: string }>;
+    errors?: Array<{ symbol: string; error?: string }>;
+    plans?: TossRebalanceBuyPlan[];
+  }>("/api/live-trading/toss/rebalance-schedule/run", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body ?? {}),
+  });
+}
+
 export function executeTossHoldingPlanOrder(
   symbol: string,
   body: {

@@ -1,0 +1,229 @@
+.account-rebalance-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.account-rebalance-modal {
+  width: min(32rem, 100%);
+  max-height: min(90vh, 44rem);
+  overflow: auto;
+  padding: 1rem 1.1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.account-rebalance-modal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.account-rebalance-modal__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.account-rebalance-modal__sub {
+  margin: 0.3rem 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.account-rebalance-modal__enable {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.account-rebalance-modal__cal {
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm, 0.5rem);
+  padding: 0.65rem 0.7rem 0.75rem;
+  background: color-mix(in srgb, var(--surface) 55%, var(--card));
+}
+
+.account-rebalance-modal__cal-head {
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 0.45rem;
+}
+
+.account-rebalance-modal__weekday,
+.account-rebalance-modal__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.25rem;
+}
+
+.account-rebalance-modal__weekday span {
+  text-align: center;
+  font-size: 0.68rem;
+  color: var(--muted);
+  padding: 0.15rem 0;
+}
+
+.account-rebalance-modal__cell {
+  aspect-ratio: 1;
+  border: 1px solid transparent;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.account-rebalance-modal__cell.is-empty {
+  pointer-events: none;
+}
+
+.account-rebalance-modal__cell.is-disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.account-rebalance-modal__cell:not(.is-disabled):hover {
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
+.account-rebalance-modal__cell.is-active {
+  color: var(--accent, #5eead4);
+  border-color: rgba(94, 234, 212, 0.45);
+  background: color-mix(in srgb, var(--accent, #5eead4) 16%, transparent);
+}
+
+.account-rebalance-modal__cal-hint {
+  margin: 0.55rem 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.account-rebalance-modal__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.account-rebalance-modal__row--col {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.account-rebalance-modal__label {
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.account-rebalance-modal__chips {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.account-rebalance-modal__chip {
+  margin: 0;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.account-rebalance-modal__chip.is-active {
+  color: var(--accent, #5eead4);
+  border-color: rgba(94, 234, 212, 0.45);
+  background: color-mix(in srgb, var(--accent, #5eead4) 14%, transparent);
+}
+
+.account-rebalance-modal__preview h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.82rem;
+}
+
+.account-rebalance-modal__plan {
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm, 0.5rem);
+  padding: 0.55rem 0.65rem;
+  margin-bottom: 0.45rem;
+}
+
+.account-rebalance-modal__plan-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  margin-bottom: 0.35rem;
+}
+
+.account-rebalance-modal__plan ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.account-rebalance-modal__plan li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.account-rebalance-modal__plan li em {
+  font-style: normal;
+  color: var(--muted);
+  margin-left: 0.35rem;
+  font-size: 0.72rem;
+}
+
+.account-rebalance-modal__hint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.account-rebalance-modal__last {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.account-rebalance-modal__err {
+  margin: 0;
+  color: #ef4444;
+  font-size: 0.8rem;
+}
+
+.account-rebalance-modal__msg {
+  margin: 0;
+  color: var(--accent, #5eead4);
+  font-size: 0.8rem;
+}
+
+.account-rebalance-modal__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  margin-top: 0.25rem;
+}

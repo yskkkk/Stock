@@ -278,6 +278,18 @@ export const POLLER_CATALOG = {
     descriptionKo:
       "빗썸·토스·실매매 포트폴리오 보유 심볼에 대한 속보를 주기 조회해 이메일로 발송합니다. 기본 off, env opt-in.",
   },
+  "toss-rebalance-schedule": {
+    labelKo: "토스 월별 비중 유지 매수",
+    groupKo: "실매매",
+    intervalMs: () => {
+      const n = Number(process.env.STOCK_TOSS_REBALANCE_POLL_MS ?? 15 * 60_000);
+      return Number.isFinite(n) && n >= 60_000 ? Math.min(n, 60 * 60_000) : 15 * 60_000;
+    },
+    envDisable: "STOCK_TOSS_REBALANCE_POLL=0",
+    isBootEnabled: () => process.env.STOCK_TOSS_REBALANCE_POLL !== "0",
+    descriptionKo:
+      "계좌관리에서 등록한 월별 스케줄(매월 N일)에 맞춰 국내는 원화·미국은 달러 현금으로 현재 보유 비중을 유지하며 시장가 매수합니다. 실주문 허용·TOSS_LIVE_ORDERS_ENABLED 필요.",
+  },
   "self-improvement": {
     labelKo: "서버 자가진단",
     groupKo: "운영",

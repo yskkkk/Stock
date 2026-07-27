@@ -25,6 +25,7 @@ import { startFinancialsArchivePoller } from "./stock-financials-archive-poller.
 import { startStockShareStructurePoller } from "./stock-share-structure-poller.js";
 import { startMaAlignMa120WatchPoller } from "./ma-align-ma120-watch.js";
 import { startHoldingsNewsEmailPoller } from "./holdings-news-poller.js";
+import { startTossRebalanceSchedulePoller } from "./toss-rebalance-schedule-poller.js";
 import { registerPollerLazyStarter } from "./poller-registry.js";
 
 function registerDevSidecarPollers() {
@@ -48,6 +49,7 @@ function registerDevSidecarPollers() {
   registerPollerLazyStarter("share-structure", startStockShareStructurePoller);
   registerPollerLazyStarter("ma120-near-watch", startMaAlignMa120WatchPoller);
   registerPollerLazyStarter("holdings-news", startHoldingsNewsEmailPoller);
+  registerPollerLazyStarter("toss-rebalance-schedule", startTossRebalanceSchedulePoller);
   registerPollerLazyStarter("self-improvement", startServerSelfImprovementWatcher);
 }
 
@@ -86,6 +88,7 @@ export function startStockDevSidecarsOnce(modeLabel) {
   startStockShareStructurePoller();
   startMaAlignMa120WatchPoller();
   startHoldingsNewsEmailPoller();
+  startTossRebalanceSchedulePoller();
   startServerSelfImprovementWatcher();
   setTimeout(() => prewarmAppCaches(), 400);
 }

@@ -49,6 +49,7 @@ import LiveTradeApiNotConnectedNotice from "./LiveTradeApiNotConnectedNotice";
 import TossAccountSnapshotCard from "./TossAccountSnapshotCard";
 import BithumbAccountSnapshotCard from "./BithumbAccountSnapshotCard";
 import TossHoldingManageModal from "./TossHoldingManageModal";
+import AccountRebalanceScheduleModal from "./AccountRebalanceScheduleModal";
 import DockPanelCenterLoading from "./DockPanelCenterLoading";
 import type { LiveTradeTradesExchange } from "../lib/liveTradeTradesWorkspace";
 import "./account-manage-tab.css";
@@ -74,7 +75,7 @@ function formatAccountMoney(
   usdKrwRate: number | null,
 ): string {
   const v = krwToDisplay(n, currency, usdKrwRate);
-  if (v == null) return "??;
+  if (v == null) return "—";
   return formatPrice(v, currency);
 }
 
@@ -84,12 +85,12 @@ function formatAccountSignedMoney(
   usdKrwRate: number | null,
 ): string {
   const v = krwToDisplay(n, currency, usdKrwRate);
-  if (v == null) return "??;
+  if (v == null) return "—";
   return formatSignedMoney(v, currency);
 }
 
 function formatAllocPct(n: number): string {
-  if (!Number.isFinite(n)) return "??;
+  if (!Number.isFinite(n)) return "—";
   if (n > 0 && n < 0.1) return `${n.toFixed(2)}%`;
   return fmtSectorPct(n);
 }
@@ -131,6 +132,7 @@ export default function AccountManageTab({
   const wheelRef = useRef<HTMLElement | null>(null);
   const [balanceHidden, toggleBalanceHidden] = useBithumbBalanceHidden();
   const [displayCurrency, setDisplayCurrency] = useAccountManageDisplayCurrency();
+  const [rebalanceOpen, setRebalanceOpen] = useState(false);
 
   useEffect(() => {
     if (tossReady && !bithumbReady) setProvider("toss");
@@ -197,7 +199,7 @@ export default function AccountManageTab({
     [displayCurrency, usdKrwRate],
   );
 
-  // ????S&P GICS??????? ??
+  // 업종·S&P GICS·상세업종 보강
   useEffect(() => {
     if (!user || provider !== "toss" || !activeToss?.holdings?.length) return;
     let cancelled = false;
@@ -234,7 +236,7 @@ export default function AccountManageTab({
           const industry = h.industry ?? null;
           map.set(sym, {
             industry,
-            // ???: Yahoo/Naver ??? ???, ?????S&P subIndustry
+            // 상세: Yahoo/Naver 업종 우선, 없으면 S&P subIndustry
             subIndustry: industry || g?.subIndustry || null,
             sectorEn: g?.sector ?? null,
             sectorKo: g?.sectorKo ?? industry ?? null,
@@ -489,7 +491,7 @@ export default function AccountManageTab({
           <h2 className="account-manage-tab__title">{ko.app.accountManageTitle}</h2>
           <p className="account-manage-tab__sub">
             {ko.app.accountManageSubtitle}
-            {user.email ? ` ? ${user.email}` : ""}
+            {user.email ? ` · ${user.email}` : ""}
           </p>
         </div>
         <div className="account-manage-tab__head-actions">
@@ -539,6 +541,15 @@ export default function AccountManageTab({
         <>
           <div className="account-manage-tab__summary-wrap">
             <div className="account-manage-tab__summary-toolbar">
+              {provider === "toss" ? (
+                <button
+                  type="button"
+                  className="bithumb-balance-hide-btn account-manage-tab__hide-btn account-manage-tab__hide-btn--summary"
+                  onClick={() => setRebalanceOpen(true)}
+                >
+                  {ko.app.accountManageRebalanceOpen}
+                </button>
+              ) : null}
               <div
                 className="account-manage-tab__currency-toggle"
                 role="group"
@@ -567,7 +578,7 @@ export default function AccountManageTab({
                   disabled={!(usdKrwRate != null && usdKrwRate > 0)}
                   title={
                     usdKrwRate != null && usdKrwRate > 0
-                      ? `1$=${Math.round(usdKrwRate).toLocaleString("ko-KR")}?`
+                      ? `1$=${Math.round(usdKrwRate).toLocaleString("ko-KR")}원`
                       : undefined
                   }
                   onClick={() => setDisplayCurrency("USD")}
@@ -703,7 +714,7 @@ export default function AccountManageTab({
                     {ko.app.accountManageChartTitle}
                   </h3>
                   <p className="account-manage-tab__wheel-sub">
-                    {ko.app.accountManageChartBasis} ?{" "}
+                    {ko.app.accountManageChartBasis} ·{" "}
                     <span
                       className="account-manage-tab__money"
                       aria-hidden={balanceHidden || undefined}
@@ -975,7 +986,7 @@ export default function AccountManageTab({
                     </span>
                   </div>
                   <div className="account-manage-tab__bubble-row">
-                    <span>??</span>
+                    <span>비중</span>
                     <span>{formatAllocPct(hoverSeg.pct)}</span>
                   </div>
                   {hoverSlice.key !== "__cash__" ? (
@@ -1010,7 +1021,7 @@ export default function AccountManageTab({
                         ))}
                         {hoverSlice.symbols.length > hoverRows.length ? (
                           <li className="account-manage-tab__bubble-more">
-                            ??{hoverSlice.symbols.length - hoverRows.length}??
+                            외 {hoverSlice.symbols.length - hoverRows.length}종목
                           </li>
                         ) : null}
                       </ul>
@@ -1124,8 +1135,8 @@ export default function AccountManageTab({
                                     ? labels.marketCrypto
                                     : labels.marketKr
                                 : allocMode === "subIndustry"
-                                  ? row.subIndustry || row.industry || row.sectorKo || "??
-                                  : row.sectorKo || row.industry || "??}
+                                  ? row.subIndustry || row.industry || row.sectorKo || "—"
+                                  : row.sectorKo || row.industry || "—"}
                             </td>
                             <td>{row.quantity}</td>
                             <td>
@@ -1170,7 +1181,7 @@ export default function AccountManageTab({
                                   ) : null}
                                 </span>
                               ) : (
-                                "??
+                                "—"
                               )}
                             </td>
                             {provider === "toss" && raw ? (
@@ -1180,7 +1191,8 @@ export default function AccountManageTab({
                                   className="btn btn--ghost account-manage-tab__manage-btn"
                                   onClick={() => setManageHolding(raw)}
                                 >
-                                  ???                                </button>
+                                  관리
+                                </button>
                               </td>
                             ) : provider === "toss" ? (
                               <td />
@@ -1196,7 +1208,7 @@ export default function AccountManageTab({
           </div>
 
           <details className="account-manage-tab__raw card">
-            <summary>?? ???(??????)</summary>
+            <summary>계좌 상세(잔고·주문)</summary>
             {provider === "toss" && activeToss ? (
               <TossAccountSnapshotCard
                 snapshot={activeToss}
@@ -1231,6 +1243,9 @@ export default function AccountManageTab({
           holding={manageHolding}
           onClose={() => setManageHolding(null)}
         />
+      ) : null}
+      {rebalanceOpen ? (
+        <AccountRebalanceScheduleModal onClose={() => setRebalanceOpen(false)} />
       ) : null}
     </div>
   );

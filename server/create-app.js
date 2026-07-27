@@ -179,6 +179,14 @@ import {
   saveTossHoldingPlanForUser,
 } from "./toss-holdings-report.js";
 import {
+  getTossRebalanceScheduleSync,
+  upsertTossRebalanceScheduleSync,
+} from "./toss-rebalance-schedule-store.js";
+import {
+  previewTossRebalanceScheduleForUser,
+  runTossRebalanceScheduleForUser,
+} from "./toss-rebalance-schedule.js";
+import {
   analyzeSimProgramFeedback,
   applySimProgramFeedbackPatch,
   buildSimCreationRecommendations,
@@ -1153,6 +1161,65 @@ export function createApp() {
       try {
         const symbol = String(req.params.symbol ?? "").trim();
         const payload = saveTossHoldingPlanForUser(req.user.id, symbol, req.body ?? {});
+        res.json(payload);
+      } catch (e) {
+        res.status(400).json({
+          ok: false,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }),
+  );
+
+  app.get(
+    "/api/live-trading/toss/rebalance-schedule",
+    requireUserAuth,
+    asyncRoute(async (req, res) => {
+      try {
+        const schedule = getTossRebalanceScheduleSync(req.user.id);
+        const preview = await previewTossRebalanceScheduleForUser(req.user.id, schedule);
+        res.json({
+          ok: true,
+          schedule,
+          preview,
+        });
+      } catch (e) {
+        res.status(400).json({
+          ok: false,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }),
+  );
+
+  app.put(
+    "/api/live-trading/toss/rebalance-schedule",
+    requireUserAuth,
+    asyncRoute(async (req, res) => {
+      try {
+        const schedule = upsertTossRebalanceScheduleSync(req.user.id, req.body ?? {});
+        const preview = await previewTossRebalanceScheduleForUser(req.user.id, schedule);
+        res.json({ ok: true, schedule, preview });
+      } catch (e) {
+        res.status(400).json({
+          ok: false,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }),
+  );
+
+  app.post(
+    "/api/live-trading/toss/rebalance-schedule/run",
+    requireUserAuth,
+    asyncRoute(async (req, res) => {
+      try {
+        const dryRun = Boolean(req.body?.dryRun);
+        const force = Boolean(req.body?.force);
+        const payload = await runTossRebalanceScheduleForUser(req.user.id, {
+          dryRun,
+          force,
+        });
         res.json(payload);
       } catch (e) {
         res.status(400).json({
