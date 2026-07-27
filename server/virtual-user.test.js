@@ -15,6 +15,7 @@ import {
   knownFingerprintsForPersona,
   shouldEscalateSatisfaction,
 } from "./virtual-user-satisfaction.js";
+import { isCursorApiExhaustedError } from "./virtual-user-api-guard.js";
 
 describe("virtual-user-runner", () => {
   it("picks multiple seeds without early cut", () => {
@@ -159,6 +160,21 @@ describe("virtual-user-satisfaction", () => {
         level: 2,
       }),
     ).toBe(false);
+  });
+});
+
+describe("virtual-user-api-guard", () => {
+  it("detects quota and rate-limit exhaustion", () => {
+    expect(isCursorApiExhaustedError("Error 429 Too Many Requests")).toBe(true);
+    expect(isCursorApiExhaustedError("insufficient_quota")).toBe(true);
+    expect(isCursorApiExhaustedError("CURSOR_API_KEY is not set")).toBe(true);
+    expect(
+      isCursorApiExhaustedError(
+        "CURSOR_API_KEY" + String.fromCharCode(0xac00) + " " + "missing",
+      ),
+    ).toBe(true);
+    expect(isCursorApiExhaustedError("selector timeout on tab")).toBe(false);
+
   });
 });
 

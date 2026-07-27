@@ -91,6 +91,16 @@ export function registerVirtualUserRoutes(app, asyncRoute) {
           patch.intervalMs = Math.min(n, 60 * 60_000);
         }
       }
+      // 사용자가 다시 켜면 API 소진 정지 해제
+      if (patch.enabled === true || patch.autoImplement === true) {
+        patch.pausedByApiExhaustion = false;
+        patch.pausedAtMs = null;
+        patch.pausedReason = null;
+        if (patch.enabled === true && patch.autoImplement === undefined) {
+          patch.autoImplement = true;
+        }
+        if (patch.lastError === undefined) patch.lastError = null;
+      }
       const result = patchVirtualUserContinuousSync(patch);
       rescheduleVirtualUserContinuousPoller();
       res.json({ ...result, busy: isVirtualUserContinuousBusy() });

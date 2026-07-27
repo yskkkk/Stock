@@ -14,6 +14,10 @@ import {
   updateRecordModeItemStatus,
 } from "./ops-record-mode-store.js";
 import { markPollerBootStarted } from "./poller-registry.js";
+import { maybePauseVirtualUserFromAgentError } from "./virtual-user-api-guard.js";
+import {
+  getVirtualUserContinuousSync,
+} from "./virtual-user-store.js";
 
 let started = false;
 
@@ -54,6 +58,7 @@ async function runRecordModeAgentJob(id, instruction) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     appendRecordModeActivityLog({ event: "error", id, instruction, message: msg });
+    maybePauseVirtualUserFromAgentError(e);
     await removeRecordModeQueueItem(id);
   } finally {
     /** 다음 `pending`을 폴링 주기를 기다리지 않고 바로 집어감 */
@@ -66,6 +71,9 @@ async function runRecordModeAgentJob(id, instruction) {
 async function tickRecordModePoller() {
   const apiKey = String(process.env.CURSOR_API_KEY ?? "").trim();
   if (!apiKey) return;
+
+  const vu = getVirtualUserContinuousSync();
+  if (vu.pausedByApiExhaustion) return;
 
   const claimed = await claimNextPendingRecordJob();
   if (!claimed) return;

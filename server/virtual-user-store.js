@@ -48,6 +48,9 @@ const MAX_DETAIL_LEN = 4_000;
  *   notifyTelegram: boolean;
  *   autoImplement: boolean;
  *   autoImplementMinSeverity: "blocker"|"major"|"minor"|"nit";
+ *   pausedByApiExhaustion: boolean;
+ *   pausedAtMs: number | null;
+ *   pausedReason: string | null;
  *   lastTickAtMs: number | null;
  *   lastSessionId: string | null;
  *   lastError: string | null;
@@ -111,6 +114,9 @@ export function defaultContinuousConfig() {
     notifyTelegram: false,
     autoImplement: true,
     autoImplementMinSeverity: /** @type {const} */ ("minor"),
+    pausedByApiExhaustion: false,
+    pausedAtMs: null,
+    pausedReason: null,
     lastTickAtMs: null,
     lastSessionId: null,
     lastError: null,
@@ -140,6 +146,13 @@ function normalizeContinuous(raw) {
     notifyTelegram: o.notifyTelegram === true,
     autoImplement: o.autoImplement !== false,
     autoImplementMinSeverity,
+    pausedByApiExhaustion: o.pausedByApiExhaustion === true,
+    pausedAtMs:
+      o.pausedAtMs == null ? null : Number(o.pausedAtMs) || null,
+    pausedReason:
+      o.pausedReason == null || o.pausedReason === ""
+        ? null
+        : String(o.pausedReason).slice(0, 500),
     lastTickAtMs:
       o.lastTickAtMs == null ? null : Number(o.lastTickAtMs) || null,
     lastSessionId:

@@ -11,6 +11,10 @@ import {
   patchVirtualFeedbackSync,
 } from "./virtual-user-store.js";
 import { appendServerEventLog } from "./access-log.js";
+import {
+  hasCursorApiKey,
+  pauseVirtualUserForApiExhaustion,
+} from "./virtual-user-api-guard.js";
 
 const SEV_RANK = { blocker: 4, major: 3, minor: 2, nit: 1 };
 
@@ -38,8 +42,18 @@ export async function maybeAutoImplementVirtualFeedback(item, opts = {}) {
   }
 
   const cfg = getVirtualUserContinuousSync();
+  if (cfg.pausedByApiExhaustion && opts.force !== true) {
+    return { ok: false, skipped: true, reason: "api-exhausted" };
+  }
   const autoOn = opts.force === true || cfg.autoImplement !== false;
   if (!autoOn) return { ok: false, skipped: true, reason: "auto-off" };
+
+  if (!hasCursorApiKey()) {
+    pauseVirtualUserForApiExhaustion(
+      "CURSOR_API_KEY 없음 — 자동 구현을 정지했습니다.",
+    );
+    return { ok: false, skipped: true, reason: "no-api-key" };
+  }
 
   const minSev = String(cfg.autoImplementMinSeverity || "minor");
   if (!severityOk(item.severity, minSev)) {

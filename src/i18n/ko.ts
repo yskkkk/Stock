@@ -1714,9 +1714,11 @@ export const ko = {
     vuContinuousOff: "연속 탐색 꺼짐",
     vuContinuousBusy: "탐색 실행 중…",
     vuContinuousHint:
-      "서버 기동 중 주기적으로 브라우저를 돌립니다. minor 이상 피드백은 자동으로 에이전트 큐에 들어가 웹을 고칩니다. 텔레그램은 기본 끔.",
+      "서버 기동 시 연속 탐색·자동 구현이 기본으로 켜집니다. minor 이상 피드백은 에이전트 큐로 들어가 웹을 고칩니다. Cursor API 토큰/쿼터가 소진되면 자동 정지됩니다.",
     vuContinuousLast: "최근 실행",
     vuContinuousCreated: "이번 {n}건",
+    vuContinuousPausedApi:
+      "Cursor API 토큰/쿼터 소진으로 정지됨. 키·쿼터 확인 후 연속 탐색을 다시 켜 주세요.",
     vuAutoImplementOn: "자동 구현 켜짐",
     vuAutoImplementOff: "자동 구현 꺼짐",
     vuVersions: "코드 버전·롤백",

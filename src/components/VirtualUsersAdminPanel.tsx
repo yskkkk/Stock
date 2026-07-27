@@ -330,6 +330,14 @@ export default function VirtualUsersAdminPanel({
           </button>
         </div>
         <p className="vu-admin__hint">{ko.access.vuContinuousHint}</p>
+        {continuous?.pausedByApiExhaustion ? (
+          <p className="vu-admin__paused" role="status">
+            {ko.access.vuContinuousPausedApi}
+            {continuous.pausedReason
+              ? ` (${continuous.pausedReason.slice(0, 120)})`
+              : ""}
+          </p>
+        ) : null}
         {continuous ? (
           <div className="vu-admin__continuous-row">
             <button

@@ -2844,6 +2844,9 @@ export type VirtualUserContinuous = {
   notifyTelegram: boolean;
   autoImplement?: boolean;
   autoImplementMinSeverity?: "blocker" | "major" | "minor" | "nit";
+  pausedByApiExhaustion?: boolean;
+  pausedAtMs?: number | null;
+  pausedReason?: string | null;
   lastTickAtMs: number | null;
   lastSessionId: string | null;
   lastError: string | null;

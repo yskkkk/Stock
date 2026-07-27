@@ -1,7 +1,7 @@
 /**
  * 가상 사용자 연속 탐색 폴러
- * - 서버 기동 중 주기적으로 Playwright+시드 피드백
- * - 포화 시 러너가 만족도를 올려 새 이슈를 찾음
+ * - 서버 기동 시 기본 ON (부족점 탐색 → 자동 구현)
+ * - Cursor API 토큰/쿼터 소진 시 자동 정지
  */
 import { appendServerEventLog } from "./access-log.js";
 import { markPollerBootStarted, pollerGuardAsync } from "./poller-registry.js";
@@ -10,6 +10,11 @@ import {
   patchVirtualUserContinuousSync,
 } from "./virtual-user-store.js";
 import { runVirtualUserSession } from "./virtual-user-runner.js";
+import {
+  ensureVirtualUserAutoImproveOnBoot,
+  hasCursorApiKey,
+  pauseVirtualUserForApiExhaustion,
+} from "./virtual-user-api-guard.js";
 
 const POLLER_ID = "virtual-user-continuous";
 
@@ -36,7 +41,18 @@ export async function tickVirtualUserContinuousOnce() {
   if (running) return { ok: false, reason: "busy" };
   return pollerGuardAsync(POLLER_ID, async () => {
     const cfg = getVirtualUserContinuousSync();
+    if (cfg.pausedByApiExhaustion) {
+      return { ok: false, reason: "api-exhausted", error: cfg.pausedReason };
+    }
     if (!cfg.enabled) return { ok: false, reason: "disabled" };
+
+    // 자동 구현이 켜져 있는데 키가 없으면 전체 루프 정지
+    if (cfg.autoImplement !== false && !hasCursorApiKey()) {
+      pauseVirtualUserForApiExhaustion(
+        "CURSOR_API_KEY 없음 — 가상 사용자 자동 개선을 정지했습니다.",
+      );
+      return { ok: false, reason: "no-api-key" };
+    }
 
     running = true;
     try {
@@ -95,10 +111,11 @@ export function startVirtualUserContinuousPoller() {
   if (started) return;
   started = true;
 
+  const boot = ensureVirtualUserAutoImproveOnBoot();
   const cfg = getVirtualUserContinuousSync();
   appendServerEventLog(
     "virtual-user",
-    `continuous poller on intervalMs=${cfg.intervalMs} enabled=${cfg.enabled}`,
+    `continuous poller on intervalMs=${cfg.intervalMs} enabled=${cfg.enabled} autoImplement=${cfg.autoImplement} boot=${boot.reason || "ok"}`,
   );
   markPollerBootStarted(POLLER_ID);
 

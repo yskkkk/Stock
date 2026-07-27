@@ -21,6 +21,17 @@
   line-height: 1.4;
 }
 
+.vu-admin__paused {
+  margin: 0 0 0.45rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: var(--radius-sm, 0.4rem);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: #b45309;
+  background: color-mix(in srgb, #f59e0b 16%, transparent);
+  border: 1px solid color-mix(in srgb, #f59e0b 35%, transparent);
+}
+
 .vu-admin__meta {
   margin: 0;
   font-size: 0.72rem;
