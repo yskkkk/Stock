@@ -39,8 +39,13 @@ export function invalidateJsonStoreReadCache(fileName) {
 }
 
 /** @param {string} text */
-function stripUtf8Bom(text) {
-  return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+export function stripUtf8Bom(text) {
+  return String(text).trimStart().replace(/^\uFEFF/, "");
+}
+
+/** @param {string} text */
+export function parseJsonText(text) {
+  return JSON.parse(stripUtf8Bom(text));
 }
 
 /**
@@ -62,9 +67,18 @@ export function readJsonStoreSync(fileName, normalize, empty) {
     if (hit && hit.mtimeMs === stat.mtimeMs) {
       return /** @type {T} */ (hit.data);
     }
-    const raw = JSON.parse(stripUtf8Bom(fs.readFileSync(file, "utf8")));
+    const text = fs.readFileSync(file, "utf8");
+    const cleaned = stripUtf8Bom(text);
+    const raw = JSON.parse(cleaned);
     const data = normalize(raw);
     readCache.set(fileName, { mtimeMs: stat.mtimeMs, data });
+    if (text !== cleaned) {
+      try {
+        writeJsonStoreSync(fileName, data);
+      } catch {
+        /* ignore heal write failure */
+      }
+    }
     return data;
   } catch (e) {
     if (fs.existsSync(file)) {
@@ -78,7 +92,13 @@ export function readJsonStoreSync(fileName, normalize, empty) {
     if (e instanceof SyntaxError) {
       readCache.delete(fileName);
       console.warn(`[store-json] corrupt ${fileName}, restored defaults (backed up)`);
-      return empty();
+      const defaults = empty();
+      try {
+        writeJsonStoreSync(fileName, defaults);
+      } catch {
+        /* ignore heal write failure */
+      }
+      return defaults;
     }
     throw new StoreCorruptError(file, e);
   }

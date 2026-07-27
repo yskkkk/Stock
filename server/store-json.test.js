@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { readJsonStoreSync, writeJsonStoreSync, invalidateJsonStoreReadCache } from "./store-json.js";
+import { readJsonStoreSync, writeJsonStoreSync, invalidateJsonStoreReadCache, stripUtf8Bom } from "./store-json.js";
 
 /** @type {string | undefined} */
 let prevDataDir;
@@ -36,6 +36,26 @@ test("readJsonStoreSync strips UTF-8 BOM before parse", () => {
   );
 
   assert.equal(state.ok, true);
+  const healed = fs.readFileSync(path.join(tmpDir, fileName), "utf8");
+  assert.notEqual(healed.charCodeAt(0), 0xfeff);
+});
+
+test("readJsonStoreSync strips BOM after leading whitespace", () => {
+  const fileName = "granville-scan-state.json";
+  fs.writeFileSync(path.join(tmpDir, fileName), " \uFEFF{}", "utf8");
+
+  const state = readJsonStoreSync(
+    fileName,
+    (raw) => ({ ok: raw && typeof raw === "object" }),
+    () => ({ ok: false }),
+  );
+
+  assert.equal(state.ok, true);
+});
+
+test("stripUtf8Bom removes BOM at start", () => {
+  assert.equal(stripUtf8Bom("\uFEFF{}"), "{}");
+  assert.equal(stripUtf8Bom(" \uFEFF{}"), "{}");
 });
 
 test("readJsonStoreSync restores defaults on corrupt JSON", () => {
@@ -51,6 +71,8 @@ test("readJsonStoreSync restores defaults on corrupt JSON", () => {
   assert.deepEqual(state, { ok: false });
   const backups = fs.readdirSync(tmpDir).filter((f) => f.includes(".corrupt-"));
   assert.ok(backups.length >= 1);
+  const healed = fs.readFileSync(path.join(tmpDir, fileName), "utf8");
+  assert.equal(JSON.parse(healed).ok, false);
 });
 
 test("writeJsonStoreSync writes without BOM", () => {
