@@ -7,6 +7,7 @@ import {
 import { ko } from "../i18n/ko";
 import {
   accountSlicesToDonut,
+  accountSymbolSliceLabel,
   buildAccountAllocationSlices,
   tossHoldingsToAccountRows,
   type AccountAllocMode,
@@ -26,6 +27,8 @@ import {
   tossHoldingsTotalNetMarketValueKrw,
 } from "../lib/tossHoldingPnl";
 import { formatPercent, formatSignedMoney } from "../lib/format";
+import { resolveSymbolDisplayName } from "../lib/symbolDisplayName";
+import { useBithumbBalanceHidden } from "../hooks/useBithumbBalanceHidden";
 import { useBithumbAccountSnapshot } from "../hooks/useBithumbAccountSnapshot";
 import {
   TOSS_LEDGER_POLL_MS,
@@ -94,6 +97,7 @@ export default function AccountManageTab({
     y: number;
   } | null>(null);
   const wheelRef = useRef<HTMLElement | null>(null);
+  const [balanceHidden, toggleBalanceHidden] = useBithumbBalanceHidden();
 
   useEffect(() => {
     if (tossReady && !bithumbReady) setProvider("toss");
@@ -232,6 +236,8 @@ export default function AccountManageTab({
     }
     if (provider === "bithumb" && bithumbSnapshot) {
       return (bithumbSnapshot.holdings ?? []).map((h) => {
+        const sym = h.symbol || h.currency;
+        const { label: cryptoName } = resolveSymbolDisplayName(sym, h.symbol, "crypto");
         const mv =
           h.marketValue != null && Number.isFinite(h.marketValue) && h.marketValue > 0
             ? h.marketValue
@@ -239,8 +245,8 @@ export default function AccountManageTab({
               ? h.currentPrice * h.quantity
               : 0;
         return {
-          symbol: h.symbol || h.currency,
-          name: h.symbol || h.currency,
+          symbol: sym,
+          name: cryptoName || sym,
           market: "crypto" as const,
           currency: h.currency,
           quantity: h.quantity,
@@ -403,7 +409,15 @@ export default function AccountManageTab({
   const updatedAtMs = provider === "toss" ? tossUpdatedAtMs : bithumbUpdatedAtMs;
 
   return (
-    <div className="account-manage-tab" aria-label={ko.app.accountManageAria}>
+    <div
+      className={[
+        "account-manage-tab",
+        balanceHidden ? "account-manage-tab--balance-hidden" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      aria-label={ko.app.accountManageAria}
+    >
       <header className="account-manage-tab__head">
         <div>
           <h2 className="account-manage-tab__title">{ko.app.accountManageTitle}</h2>
@@ -412,14 +426,26 @@ export default function AccountManageTab({
             {user.email ? ` · ${user.email}` : ""}
           </p>
         </div>
-        <button
-          type="button"
-          className="btn btn--secondary account-manage-tab__refresh"
-          onClick={onRefresh}
-          disabled={loading}
-        >
-          {ko.app.accountManageRefresh}
-        </button>
+        <div className="account-manage-tab__head-actions">
+          <button
+            type="button"
+            className="bithumb-balance-hide-btn"
+            onClick={toggleBalanceHidden}
+            aria-pressed={balanceHidden}
+          >
+            {balanceHidden
+              ? ko.app.leftRailBithumbBalanceShow
+              : ko.app.leftRailBithumbBalanceHide}
+          </button>
+          <button
+            type="button"
+            className="btn btn--secondary account-manage-tab__refresh"
+            onClick={onRefresh}
+            disabled={loading}
+          >
+            {ko.app.accountManageRefresh}
+          </button>
+        </div>
       </header>
 
       <div className="account-manage-tab__exchange">
@@ -446,7 +472,12 @@ export default function AccountManageTab({
                 {ko.app.accountManageTotal}
               </span>
               <span className="account-manage-tab__stat-value">
-                {formatKrw((holdingsTotalKrw ?? 0) + cashKrw)}
+                <span
+                  className="account-manage-tab__money"
+                  aria-hidden={balanceHidden || undefined}
+                >
+                  {formatKrw((holdingsTotalKrw ?? 0) + cashKrw)}
+                </span>
               </span>
             </div>
             <div className="account-manage-tab__stat">
@@ -454,14 +485,26 @@ export default function AccountManageTab({
                 {ko.app.accountManageHoldings}
               </span>
               <span className="account-manage-tab__stat-value">
-                {formatKrw(holdingsTotalKrw)}
+                <span
+                  className="account-manage-tab__money"
+                  aria-hidden={balanceHidden || undefined}
+                >
+                  {formatKrw(holdingsTotalKrw)}
+                </span>
               </span>
             </div>
             <div className="account-manage-tab__stat">
               <span className="account-manage-tab__stat-label">
                 {ko.app.accountManageCash}
               </span>
-              <span className="account-manage-tab__stat-value">{formatKrw(cashKrw)}</span>
+              <span className="account-manage-tab__stat-value">
+                <span
+                  className="account-manage-tab__money"
+                  aria-hidden={balanceHidden || undefined}
+                >
+                  {formatKrw(cashKrw)}
+                </span>
+              </span>
             </div>
             {netSummary?.profitLossKrw != null ? (
               <div className="account-manage-tab__stat">
@@ -480,7 +523,12 @@ export default function AccountManageTab({
                     .filter(Boolean)
                     .join(" ")}
                 >
-                  {formatSignedMoney(netSummary.profitLossKrw, "KRW")}
+                  <span
+                    className="account-manage-tab__money"
+                    aria-hidden={balanceHidden || undefined}
+                  >
+                    {formatSignedMoney(netSummary.profitLossKrw, "KRW")}
+                  </span>
                   {netSummary.totalReturnPct != null
                     ? ` (${formatPercent(netSummary.totalReturnPct)})`
                     : ""}
@@ -517,7 +565,13 @@ export default function AccountManageTab({
                     {ko.app.accountManageChartTitle}
                   </h3>
                   <p className="account-manage-tab__wheel-sub">
-                    {ko.app.accountManageChartBasis} · {formatKrw(total)}
+                    {ko.app.accountManageChartBasis} ·{" "}
+                    <span
+                      className="account-manage-tab__money"
+                      aria-hidden={balanceHidden || undefined}
+                    >
+                      {formatKrw(total)}
+                    </span>
                   </p>
                 </div>
               </div>
@@ -692,7 +746,10 @@ export default function AccountManageTab({
                             <span className="account-manage-tab__legend-pct">
                               {formatAllocPct(seg.pct)}
                             </span>
-                            <span className="account-manage-tab__legend-val">
+                            <span
+                              className="account-manage-tab__legend-val account-manage-tab__money"
+                              aria-hidden={balanceHidden || undefined}
+                            >
                               {formatKrw(slice?.valueKrw)}
                             </span>
                           </button>
@@ -739,7 +796,12 @@ export default function AccountManageTab({
                               )}
                         </span>
                         <span>{formatAllocPct(seg.pct)}</span>
-                        <span>{formatKrw(slice?.valueKrw)}</span>
+                        <span
+                          className="account-manage-tab__money"
+                          aria-hidden={balanceHidden || undefined}
+                        >
+                          {formatKrw(slice?.valueKrw)}
+                        </span>
                       </li>
                     );
                   })}
@@ -767,7 +829,12 @@ export default function AccountManageTab({
                   </div>
                   <div className="account-manage-tab__bubble-row">
                     <span>{ko.app.accountManageSliceValue}</span>
-                    <span>{formatKrw(hoverSlice.valueKrw)}</span>
+                    <span
+                      className="account-manage-tab__money"
+                      aria-hidden={balanceHidden || undefined}
+                    >
+                      {formatKrw(hoverSlice.valueKrw)}
+                    </span>
                   </div>
                   <div className="account-manage-tab__bubble-row">
                     <span>비중</span>
@@ -792,8 +859,15 @@ export default function AccountManageTab({
                       <ul>
                         {hoverRows.map((r) => (
                           <li key={r.symbol}>
-                            <span>{r.symbol}</span>
-                            <span>{formatKrw(r.valueKrw)}</span>
+                            <span>
+                              {accountSymbolSliceLabel(r, r.symbol)}
+                            </span>
+                            <span
+                              className="account-manage-tab__money"
+                              aria-hidden={balanceHidden || undefined}
+                            >
+                              {formatKrw(r.valueKrw)}
+                            </span>
                           </li>
                         ))}
                         {hoverSlice.symbols.length > hoverRows.length ? (
@@ -831,9 +905,16 @@ export default function AccountManageTab({
               </h3>
               {filteredRows.length === 0 ? (
                 <p className="account-manage-tab__empty">
-                  {focusKey === "__cash__"
-                    ? formatKrw(cashKrw)
-                    : ko.app.accountManageEmpty}
+                  {focusKey === "__cash__" ? (
+                    <span
+                      className="account-manage-tab__money"
+                      aria-hidden={balanceHidden || undefined}
+                    >
+                      {formatKrw(cashKrw)}
+                    </span>
+                  ) : (
+                    ko.app.accountManageEmpty
+                  )}
                 </p>
               ) : (
                 <div className="account-manage-tab__table-wrap">
@@ -909,7 +990,14 @@ export default function AccountManageTab({
                                   : row.sectorKo || row.industry || "—"}
                             </td>
                             <td>{row.quantity}</td>
-                            <td>{formatKrw(row.valueKrw)}</td>
+                            <td>
+                              <span
+                                className="account-manage-tab__money"
+                                aria-hidden={balanceHidden || undefined}
+                              >
+                                {formatKrw(row.valueKrw)}
+                              </span>
+                            </td>
                             <td
                               className={
                                 row.returnPercent != null && row.returnPercent > 0

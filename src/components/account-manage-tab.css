@@ -40,6 +40,19 @@
   flex: 0 0 auto;
 }
 
+.account-manage-tab__head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex: 0 0 auto;
+}
+
+.account-manage-tab--balance-hidden .account-manage-tab__money {
+  filter: blur(7px);
+  user-select: none;
+  pointer-events: none;
+}
+
 .account-manage-tab__exchange {
   width: 100%;
   max-width: none;
