@@ -33,30 +33,34 @@ async function fetchKr10yBondYield() {
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < CACHE_MS) return hit.data;
 
-  const res = await fetch(NAVER_BOND_URL, {
-    headers: { "User-Agent": NAVER_UA, Accept: "application/json" },
-    signal: AbortSignal.timeout(12_000),
-  });
-  if (!res.ok) return null;
-  const body = await res.json();
-  const ratePct = parseYieldPct(body?.result?.closePrice);
-  if (ratePct == null) return null;
+  try {
+    const res = await fetch(NAVER_BOND_URL, {
+      headers: { "User-Agent": NAVER_UA, Accept: "application/json" },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!res.ok) return null;
+    const body = await res.json();
+    const ratePct = parseYieldPct(body?.result?.closePrice);
+    if (ratePct == null) return null;
 
-  let asOfMs = null;
-  const traded = body?.result?.localTradedAt;
-  if (typeof traded === "string") {
-    const t = Date.parse(traded);
-    if (Number.isFinite(t)) asOfMs = t;
+    let asOfMs = null;
+    const traded = body?.result?.localTradedAt;
+    if (typeof traded === "string") {
+      const t = Date.parse(traded);
+      if (Number.isFinite(t)) asOfMs = t;
+    }
+
+    const data = {
+      rate: ratePct,
+      ratePct: ratePct * 100,
+      source: "Naver Finance · 한국 국채 10년 (KR10YT=RR)",
+      asOfMs,
+    };
+    cache.set(key, { at: Date.now(), data });
+    return data;
+  } catch {
+    return hit?.data ?? null;
   }
-
-  const data = {
-    rate: ratePct,
-    ratePct: ratePct * 100,
-    source: "Naver Finance · 한국 국채 10년 (KR10YT=RR)",
-    asOfMs,
-  };
-  cache.set(key, { at: Date.now(), data });
-  return data;
 }
 
 /** @returns {Promise<{ rate: number; ratePct: number; source: string; asOfMs: number | null } | null>} */

@@ -130,13 +130,20 @@ async function loadKrNaverFundamentals(symbol) {
   const hit = cache.get(sym);
   if (hit && Date.now() - hit.at < CACHE_MS) return hit.data;
 
-  const [integrationRes, quote] = await Promise.all([
-    fetch(`${NAVER_INTEGRATION_URL}/${code}/integration`, {
-      headers: { "User-Agent": NAVER_UA, Accept: "application/json" },
-      signal: AbortSignal.timeout(12_000),
-    }),
-    fetchKrNaverQuoteForSymbol(sym),
-  ]);
+  let integrationRes;
+  let quote;
+  try {
+    [integrationRes, quote] = await Promise.all([
+      fetch(`${NAVER_INTEGRATION_URL}/${code}/integration`, {
+        headers: { "User-Agent": NAVER_UA, Accept: "application/json" },
+        signal: AbortSignal.timeout(12_000),
+      }),
+      fetchKrNaverQuoteForSymbol(sym),
+    ]);
+  } catch (e) {
+    if (hit) return hit.data;
+    throw e;
+  }
 
   if (!integrationRes.ok) {
     const err = new Error("재무 데이터를 찾을 수 없습니다.");

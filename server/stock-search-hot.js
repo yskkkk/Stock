@@ -67,35 +67,43 @@ function parseNaverQuantRows(html) {
 }
 
 async function fetchKrHotByTradingValue() {
-  const res = await fetch(NAVER_QUANT_URL, {
-    headers: { "User-Agent": UA },
-    signal: AbortSignal.timeout(12_000),
-  });
-  if (!res.ok) throw new Error(`Naver quant HTTP ${res.status}`);
-  const html = Buffer.from(await res.arrayBuffer()).toString("latin1");
-  const parsed = parseNaverQuantRows(html);
-  if (parsed.length === 0) throw new Error("Naver 거래대금 순위 파싱 실패");
+  try {
+    const res = await fetch(NAVER_QUANT_URL, {
+      headers: { "User-Agent": UA },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!res.ok) throw new Error(`Naver quant HTTP ${res.status}`);
+    const html = Buffer.from(await res.arrayBuffer()).toString("latin1");
+    const parsed = parseNaverQuantRows(html);
+    if (parsed.length === 0) throw new Error("Naver 거래대금 순위 파싱 실패");
 
-  const symbols = parsed.map((r) => `${r.code}.KS`);
-  const naverMap = await fetchKrNaverQuotesBatch(symbols);
+    const symbols = parsed.map((r) => `${r.code}.KS`);
+    const naverMap = await fetchKrNaverQuotesBatch(symbols);
 
-  return parsed.map((row) => {
-    const sym = `${row.code}.KS`;
-    const nq = naverMap.get(row.code);
-    return {
-      symbol: sym,
-      name: nq?.name?.trim() || row.name || sym,
-      market: "kr",
-      price: row.price,
-      changePercent:
-        row.changePercent ??
-        (nq?.changePercent != null && Number.isFinite(nq.changePercent)
-          ? nq.changePercent
-          : undefined),
-      currency: "KRW",
-      turnover: row.turnover,
-    };
-  });
+    return parsed.map((row) => {
+      const sym = `${row.code}.KS`;
+      const nq = naverMap.get(row.code);
+      return {
+        symbol: sym,
+        name: nq?.name?.trim() || row.name || sym,
+        market: "kr",
+        price: row.price,
+        changePercent:
+          row.changePercent ??
+          (nq?.changePercent != null && Number.isFinite(nq.changePercent)
+            ? nq.changePercent
+            : undefined),
+        currency: "KRW",
+        turnover: row.turnover,
+      };
+    });
+  } catch (e) {
+    console.warn(
+      "[stock-search-hot:kr]",
+      e instanceof Error ? e.message : e,
+    );
+    throw e;
+  }
 }
 
 async function fetchUsHotByTradingValue() {
@@ -139,12 +147,17 @@ export async function loadHotStocksByTurnover(market) {
   const hit = cache.get(key);
   if (hit && now - hit.at < CACHE_MS) return hit.payload;
 
-  const quotes =
-    market === "kr"
-      ? await fetchKrHotByTradingValue()
-      : await fetchUsHotByTradingValue();
+  try {
+    const quotes =
+      market === "kr"
+        ? await fetchKrHotByTradingValue()
+        : await fetchUsHotByTradingValue();
 
-  const payload = { quotes, updatedAt: now };
-  cache.set(key, { at: now, payload });
-  return payload;
+    const payload = { quotes, updatedAt: now };
+    cache.set(key, { at: now, payload });
+    return payload;
+  } catch {
+    if (hit) return hit.payload;
+    return { quotes: [], updatedAt: now };
+  }
 }

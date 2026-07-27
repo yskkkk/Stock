@@ -1574,7 +1574,12 @@ export function createApp() {
         message: "재기동을 시작했습니다. 잠시 후 페이지가 새로고침됩니다.",
       });
       setTimeout(() => {
-        void restartNodeOrViteDev(httpServer);
+        void restartNodeOrViteDev(httpServer).catch((e) => {
+          console.warn(
+            "[restart] admin trigger failed:",
+            e instanceof Error ? e.message : e,
+          );
+        });
       }, 280);
     }),
   );
