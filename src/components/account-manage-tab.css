@@ -47,8 +47,31 @@
   flex: 0 0 auto;
 }
 
+.account-manage-tab__summary-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.account-manage-tab__summary-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.account-manage-tab__hide-btn {
+  font-size: 0.72rem;
+  padding: 0.28rem 0.65rem;
+}
+
+.account-manage-tab__hide-btn--summary {
+  font-size: 0.78rem;
+  padding: 0.32rem 0.75rem;
+}
+
 .account-manage-tab--balance-hidden .account-manage-tab__money {
-  filter: blur(7px);
+  filter: blur(8px);
   user-select: none;
   pointer-events: none;
 }

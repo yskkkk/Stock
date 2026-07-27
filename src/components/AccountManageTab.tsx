@@ -429,13 +429,18 @@ export default function AccountManageTab({
         <div className="account-manage-tab__head-actions">
           <button
             type="button"
-            className="bithumb-balance-hide-btn"
+            className="bithumb-balance-hide-btn account-manage-tab__hide-btn"
             onClick={toggleBalanceHidden}
             aria-pressed={balanceHidden}
+            title={
+              balanceHidden
+                ? ko.app.accountManageMoneyShow
+                : ko.app.accountManageMoneyHide
+            }
           >
             {balanceHidden
-              ? ko.app.leftRailBithumbBalanceShow
-              : ko.app.leftRailBithumbBalanceHide}
+              ? ko.app.accountManageMoneyShow
+              : ko.app.accountManageMoneyHide}
           </button>
           <button
             type="button"
@@ -466,6 +471,19 @@ export default function AccountManageTab({
         </p>
       ) : (
         <>
+          <div className="account-manage-tab__summary-wrap">
+            <div className="account-manage-tab__summary-toolbar">
+              <button
+                type="button"
+                className="bithumb-balance-hide-btn account-manage-tab__hide-btn account-manage-tab__hide-btn--summary"
+                onClick={toggleBalanceHidden}
+                aria-pressed={balanceHidden}
+              >
+                {balanceHidden
+                  ? ko.app.accountManageMoneyShow
+                  : ko.app.accountManageMoneyHide}
+              </button>
+            </div>
           <div className="account-manage-tab__summary">
             <div className="account-manage-tab__stat">
               <span className="account-manage-tab__stat-label">
@@ -528,10 +546,10 @@ export default function AccountManageTab({
                     aria-hidden={balanceHidden || undefined}
                   >
                     {formatSignedMoney(netSummary.profitLossKrw, "KRW")}
+                    {netSummary.totalReturnPct != null
+                      ? ` (${formatPercent(netSummary.totalReturnPct)})`
+                      : ""}
                   </span>
-                  {netSummary.totalReturnPct != null
-                    ? ` (${formatPercent(netSummary.totalReturnPct)})`
-                    : ""}
                 </span>
               </div>
             ) : null}
@@ -551,6 +569,7 @@ export default function AccountManageTab({
                 </span>
               </div>
             ) : null}
+          </div>
           </div>
 
           <div className="account-manage-tab__grid">
