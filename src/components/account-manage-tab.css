@@ -38,6 +38,22 @@
 
 .account-manage-tab__refresh {
   flex: 0 0 auto;
+  min-width: 6.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.account-manage-tab__refresh--busy {
+  cursor: wait;
+}
+
+.account-manage-tab--refreshing .account-manage-tab__summary,
+.account-manage-tab--refreshing .account-manage-tab__grid {
+  opacity: 0.72;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
 }
 
 .account-manage-tab__head-actions {

@@ -131,6 +131,7 @@ export default function AccountManageTab({
   const [balanceHidden, toggleBalanceHidden] = useBithumbBalanceHidden();
   const [displayCurrency, setDisplayCurrency] = useAccountManageDisplayCurrency();
   const [rebalanceOpen, setRebalanceOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (tossReady && !bithumbReady) setProvider("toss");
@@ -197,7 +198,7 @@ export default function AccountManageTab({
     [displayCurrency, usdKrwRate],
   );
 
-  // ??�S&P GICS�???? ??
+  // ???S&P GICS????? ??
   useEffect(() => {
     if (!user || provider !== "toss" || !activeToss?.holdings?.length) return;
     let cancelled = false;
@@ -399,10 +400,16 @@ export default function AccountManageTab({
     return weighted / weightSum;
   }, [netSummary, holdingRows]);
 
-  const onRefresh = useCallback(() => {
-    if (provider === "toss") void reloadToss?.(true);
-    else void reloadBithumb?.(true);
-  }, [provider, reloadToss, reloadBithumb]);
+  const onRefresh = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      if (provider === "toss") await reloadToss?.(true);
+      else await reloadBithumb?.(true);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [provider, reloadToss, reloadBithumb, refreshing]);
 
   const showHoverBubble = useCallback(
     (key: string, clientX: number, clientY: number) => {
@@ -482,6 +489,7 @@ export default function AccountManageTab({
       className={[
         "account-manage-tab",
         balanceHidden ? "account-manage-tab--balance-hidden" : "",
+        refreshing ? "account-manage-tab--refreshing" : "",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -492,7 +500,7 @@ export default function AccountManageTab({
           <h2 className="account-manage-tab__title">{ko.app.accountManageTitle}</h2>
           <p className="account-manage-tab__sub">
             {ko.app.accountManageSubtitle}
-            {user.email ? ` � ${user.email}` : ""}
+            {user.email ? ` ? ${user.email}` : ""}
           </p>
         </div>
         <div className="account-manage-tab__head-actions">
@@ -513,11 +521,27 @@ export default function AccountManageTab({
           </button>
           <button
             type="button"
-            className="btn btn--secondary account-manage-tab__refresh"
-            onClick={onRefresh}
-            disabled={loading}
+            className={[
+              "btn btn--secondary account-manage-tab__refresh",
+              refreshing ? "account-manage-tab__refresh--busy" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            onClick={() => void onRefresh()}
+            disabled={loading || refreshing}
+            aria-busy={refreshing || undefined}
           >
-            {ko.app.accountManageRefresh}
+            {refreshing ? (
+              <>
+                <span
+                  className="btn-inline-spinner"
+                  aria-hidden
+                />
+                {ko.app.accountManageRefreshing}
+              </>
+            ) : (
+              ko.app.accountManageRefresh
+            )}
           </button>
         </div>
       </header>
@@ -715,7 +739,7 @@ export default function AccountManageTab({
                     {ko.app.accountManageChartTitle}
                   </h3>
                   <p className="account-manage-tab__wheel-sub">
-                    {ko.app.accountManageChartBasis} �{" "}
+                    {ko.app.accountManageChartBasis} ?{" "}
                     <span
                       className="account-manage-tab__money"
                       aria-hidden={balanceHidden || undefined}
@@ -1137,7 +1161,7 @@ export default function AccountManageTab({
                                     : labels.marketKr
                                 : allocMode === "subIndustry"
                                   ? row.subIndustry || row.industry || row.sectorKo || "?"
-                                  : row.sectorKo || row.industry || "—"}
+                                  : row.sectorKo || row.industry || "?"}
                             </td>
                             <td>{row.quantity}</td>
                             <td>
@@ -1182,13 +1206,13 @@ export default function AccountManageTab({
                                   ) : null}
                                 </span>
                               ) : (
-                                "—"
+                                "?"
                               )}
                             </td>
                             <td className="account-manage-tab__weight">
                               {total > 0 && row.valueKrw > 0
                                 ? formatAllocPct((row.valueKrw / total) * 100)
-                                : "—"}
+                                : "?"}
                             </td>
                           </tr>
                         );
@@ -1201,7 +1225,7 @@ export default function AccountManageTab({
           </div>
 
           <details className="account-manage-tab__raw card">
-            <summary>계좌 상세(잔고·주문)</summary>
+            <summary>?? ??(?????)</summary>
             {provider === "toss" && activeToss ? (
               <TossAccountSnapshotCard
                 snapshot={activeToss}

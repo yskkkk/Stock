@@ -168,6 +168,7 @@ export const ko = {
     accountManageBubbleSymbols: "포함 종목",
     accountManageClearFilter: "전체 보기",
     accountManageRefresh: "새로고침",
+    accountManageRefreshing: "갱신 중…",
     accountManageMoneyHide: "금액 가리기",
     accountManageMoneyShow: "금액 보기",
     accountManageCurrencyKrw: "원화",
