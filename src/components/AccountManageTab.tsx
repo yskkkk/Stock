@@ -201,7 +201,7 @@ export default function AccountManageTab({
     [displayCurrency, usdKrwRate],
   );
 
-  // ???S&P GICS????? ??
+  // 업종·S&P GICS·상세업종 보강
   useEffect(() => {
     if (!user || provider !== "toss" || !activeToss?.holdings?.length) return;
     let cancelled = false;
@@ -238,7 +238,7 @@ export default function AccountManageTab({
           const industry = h.industry ?? null;
           map.set(sym, {
             industry,
-            // ??: Yahoo/Naver ?? ??, ??? S&P subIndustry
+            // 상세: Yahoo/Naver 업종 우선, 없으면 S&P subIndustry
             subIndustry: industry || g?.subIndustry || null,
             sectorEn: g?.sector ?? null,
             sectorKo: g?.sectorKo ?? industry ?? null,
@@ -1089,7 +1089,7 @@ export default function AccountManageTab({
                     </span>
                   </div>
                   <div className="account-manage-tab__bubble-row">
-                    <span>??</span>
+                    <span>비중</span>
                     <span>{formatAllocPct(hoverSeg.pct)}</span>
                   </div>
                   {hoverSlice.key !== "__cash__" ? (
@@ -1124,7 +1124,7 @@ export default function AccountManageTab({
                         ))}
                         {hoverSlice.symbols.length > hoverRows.length ? (
                           <li className="account-manage-tab__bubble-more">
-                            ? {hoverSlice.symbols.length - hoverRows.length}??
+                            외 {hoverSlice.symbols.length - hoverRows.length}종목
                           </li>
                         ) : null}
                       </ul>
@@ -1303,7 +1303,7 @@ export default function AccountManageTab({
           </div>
 
           <details className="account-manage-tab__raw card">
-            <summary>?? ??(?????)</summary>
+            <summary>계좌 상세(잔고·주문)</summary>
             {provider === "toss" && activeToss ? (
               <TossAccountSnapshotCard
                 snapshot={activeToss}
