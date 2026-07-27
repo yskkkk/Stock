@@ -244,6 +244,15 @@ export default function AccountManageTab({
             : h.currentPrice != null && h.quantity > 0
               ? h.currentPrice * h.quantity
               : 0;
+        const cost =
+          h.avgBuyPrice != null &&
+          Number.isFinite(h.avgBuyPrice) &&
+          h.avgBuyPrice > 0 &&
+          h.quantity > 0
+            ? h.avgBuyPrice * h.quantity
+            : null;
+        const pnl =
+          cost != null && mv > 0 && Number.isFinite(mv) ? mv - cost : null;
         return {
           symbol: sym,
           name: cryptoName || sym,
@@ -255,6 +264,8 @@ export default function AccountManageTab({
             h.returnPercent != null && Number.isFinite(h.returnPercent)
               ? h.returnPercent
               : null,
+          unrealizedPnlKrw:
+            pnl != null && Number.isFinite(pnl) ? Math.round(pnl) : null,
           industry: null,
           subIndustry: null,
           sectorEn: null,
@@ -1057,12 +1068,36 @@ export default function AccountManageTab({
                                   ? "is-up"
                                   : row.returnPercent != null && row.returnPercent < 0
                                     ? "is-down"
-                                    : ""
+                                    : row.unrealizedPnlKrw != null &&
+                                        row.unrealizedPnlKrw > 0
+                                      ? "is-up"
+                                      : row.unrealizedPnlKrw != null &&
+                                          row.unrealizedPnlKrw < 0
+                                        ? "is-down"
+                                        : ""
                               }
                             >
-                              {row.returnPercent != null
-                                ? formatPercent(row.returnPercent)
-                                : "—"}
+                              {row.returnPercent != null ||
+                              row.unrealizedPnlKrw != null ? (
+                                <span className="account-manage-tab__return-cell">
+                                  {row.unrealizedPnlKrw != null ? (
+                                    <span
+                                      className="account-manage-tab__money"
+                                      aria-hidden={balanceHidden || undefined}
+                                    >
+                                      {formatSignedMoney(row.unrealizedPnlKrw, "KRW")}
+                                    </span>
+                                  ) : null}
+                                  {row.returnPercent != null ? (
+                                    <span className="account-manage-tab__return-pct">
+                                      {row.unrealizedPnlKrw != null ? " " : null}
+                                      ({formatPercent(row.returnPercent)})
+                                    </span>
+                                  ) : null}
+                                </span>
+                              ) : (
+                                "—"
+                              )}
                             </td>
                             {provider === "toss" && raw ? (
                               <td>

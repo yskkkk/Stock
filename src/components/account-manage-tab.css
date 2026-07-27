@@ -140,9 +140,17 @@
   font-variant-numeric: tabular-nums;
 }
 
-.account-manage-tab__stat-pct {
-  font-weight: 700;
+.account-manage-tab__return-cell {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15rem;
   font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.account-manage-tab__return-pct {
+  font-weight: 700;
 }
 
 .account-manage-tab__stat-value.is-up {

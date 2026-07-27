@@ -14,7 +14,7 @@ import {
   tossRoundTripForHolding,
   type TossFeeRatesByMarket,
 } from "./tossHoldingFeeRates";
-import { tossHoldingNetMarketValue } from "./tossHoldingPnl";
+import { tossHoldingNetMarketValue, tossHoldingNetUnrealizedPnl } from "./tossHoldingPnl";
 import { DEFAULT_ROUND_TRIP_FEE_RATE } from "./netReturn";
 import { resolveSymbolDisplayName } from "./symbolDisplayName";
 
@@ -38,6 +38,8 @@ export type AccountHoldingRow = {
   quantity: number;
   valueKrw: number;
   returnPercent: number | null;
+  /** 평가손익(원) — 수수료 반영 순평가 기준 */
+  unrealizedPnlKrw: number | null;
   industry: string | null;
   /** GICS/Yahoo 상세 업종(표시용) */
   subIndustry: string | null;
@@ -230,9 +232,17 @@ export function tossHoldingsToAccountRows(
     if (net == null || !(net > 0)) continue;
     const market = h.market === "us" ? "us" : "kr";
     let valueKrw = net;
+    const pnlNative = tossHoldingNetUnrealizedPnl(h, fee);
+    let unrealizedPnlKrw: number | null =
+      pnlNative != null && Number.isFinite(pnlNative) ? pnlNative : null;
     if (market === "us") {
       if (!rate) continue;
       valueKrw = Math.round(net * rate);
+      if (unrealizedPnlKrw != null) {
+        unrealizedPnlKrw = Math.round(unrealizedPnlKrw * rate);
+      }
+    } else if (unrealizedPnlKrw != null) {
+      unrealizedPnlKrw = Math.round(unrealizedPnlKrw);
     }
     const meta = enrich.get(String(h.symbol ?? "").toUpperCase()) ?? {};
     const industry = meta.industry ?? null;
@@ -249,6 +259,7 @@ export function tossHoldingsToAccountRows(
         h.returnPercent != null && Number.isFinite(h.returnPercent)
           ? h.returnPercent
           : null,
+      unrealizedPnlKrw,
       industry,
       subIndustry,
       sectorEn: meta.sectorEn ?? null,
