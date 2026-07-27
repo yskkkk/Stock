@@ -48,7 +48,6 @@ import { LiveTradeExchangePicker } from "./LiveTradeExchangePicker";
 import LiveTradeApiNotConnectedNotice from "./LiveTradeApiNotConnectedNotice";
 import TossAccountSnapshotCard from "./TossAccountSnapshotCard";
 import BithumbAccountSnapshotCard from "./BithumbAccountSnapshotCard";
-import TossHoldingManageModal from "./TossHoldingManageModal";
 import AccountRebalanceScheduleModal from "./AccountRebalanceScheduleModal";
 import DockPanelCenterLoading from "./DockPanelCenterLoading";
 import type { LiveTradeTradesExchange } from "../lib/liveTradeTradesWorkspace";
@@ -112,7 +111,6 @@ export default function AccountManageTab({
   const [allocMode, setAllocMode] = useState<AccountAllocMode>("symbol");
   const [focusKey, setFocusKey] = useState<string | null>(null);
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
-  const [manageHolding, setManageHolding] = useState<TossTestHolding | null>(null);
   const [enrichMap, setEnrichMap] = useState<
     Map<
       string,
@@ -199,7 +197,7 @@ export default function AccountManageTab({
     [displayCurrency, usdKrwRate],
   );
 
-  // ??�S&P GICS�???? ??
+  // ??�S&P GICS�???? ??
   useEffect(() => {
     if (!user || provider !== "toss" || !activeToss?.holdings?.length) return;
     let cancelled = false;
@@ -494,7 +492,7 @@ export default function AccountManageTab({
           <h2 className="account-manage-tab__title">{ko.app.accountManageTitle}</h2>
           <p className="account-manage-tab__sub">
             {ko.app.accountManageSubtitle}
-            {user.email ? ` � ${user.email}` : ""}
+            {user.email ? ` � ${user.email}` : ""}
           </p>
         </div>
         <div className="account-manage-tab__head-actions">
@@ -717,7 +715,7 @@ export default function AccountManageTab({
                     {ko.app.accountManageChartTitle}
                   </h3>
                   <p className="account-manage-tab__wheel-sub">
-                    {ko.app.accountManageChartBasis} �{" "}
+                    {ko.app.accountManageChartBasis} �{" "}
                     <span
                       className="account-manage-tab__money"
                       aria-hidden={balanceHidden || undefined}
@@ -1084,7 +1082,6 @@ export default function AccountManageTab({
                         <th>{ko.app.liveTradePfColQty}</th>
                         <th>{ko.app.accountManageSliceValue}</th>
                         <th>{ko.app.liveTradePfReturn}</th>
-                        {provider === "toss" ? <th /> : null}
                       </tr>
                     </thead>
                     <tbody>
@@ -1139,7 +1136,7 @@ export default function AccountManageTab({
                                     : labels.marketKr
                                 : allocMode === "subIndustry"
                                   ? row.subIndustry || row.industry || row.sectorKo || "?"
-                                  : row.sectorKo || row.industry || "?"}
+                                  : row.sectorKo || row.industry || "—"}
                             </td>
                             <td>{row.quantity}</td>
                             <td>
@@ -1184,22 +1181,9 @@ export default function AccountManageTab({
                                   ) : null}
                                 </span>
                               ) : (
-                                "?"
+                                "—"
                               )}
                             </td>
-                            {provider === "toss" && raw ? (
-                              <td>
-                                <button
-                                  type="button"
-                                  className="btn btn--ghost account-manage-tab__manage-btn"
-                                  onClick={() => setManageHolding(raw)}
-                                >
-                                  ??
-                                </button>
-                              </td>
-                            ) : provider === "toss" ? (
-                              <td />
-                            ) : null}
                           </tr>
                         );
                       })}
@@ -1211,7 +1195,7 @@ export default function AccountManageTab({
           </div>
 
           <details className="account-manage-tab__raw card">
-            <summary>?? ??(??�??)</summary>
+            <summary>계좌 상세(잔고·주문)</summary>
             {provider === "toss" && activeToss ? (
               <TossAccountSnapshotCard
                 snapshot={activeToss}
@@ -1241,12 +1225,6 @@ export default function AccountManageTab({
         </>
       )}
 
-      {manageHolding ? (
-        <TossHoldingManageModal
-          holding={manageHolding}
-          onClose={() => setManageHolding(null)}
-        />
-      ) : null}
       {rebalanceOpen ? (
         <AccountRebalanceScheduleModal onClose={() => setRebalanceOpen(false)} />
       ) : null}
