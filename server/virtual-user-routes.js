@@ -84,6 +84,7 @@ export function registerVirtualUserRoutes(app, asyncRoute) {
         personaId: body.personaId ? String(body.personaId) : undefined,
         maxPerPersona: body.maxPerPersona,
         notifyTelegram: body.notifyTelegram !== false,
+        useBrowser: body.useBrowser !== false,
       });
       if (!result.ok) {
         res.status(400).json(result);

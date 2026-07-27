@@ -1452,6 +1452,7 @@ export default function App() {
         <button
           type="button"
           className="app__nasdaq-etf-micro"
+          data-vu="nasdaq-etf-micro"
           onClick={() => setAppTab("nasdaqEtf")}
           title={ko.macro.nasdaqEtfBtnHint}
           aria-label={ko.macro.nasdaqEtfBtnHint}
@@ -1668,6 +1669,7 @@ export default function App() {
               <button
                 type="button"
                 className={mainTabClassName("stockLookup")}
+                data-vu="tab-stockLookup"
                 onClick={() => setAppTab("stockLookup")}
               >
                 {ko.app.tabStockLookup}
@@ -1675,6 +1677,7 @@ export default function App() {
               <button
                 type="button"
                 className={mainTabClassName("crypto")}
+                data-vu="tab-crypto"
                 onClick={() => setAppTab("crypto")}
               >
                 {ko.app.tabCrypto}
@@ -1682,6 +1685,7 @@ export default function App() {
               <button
                 type="button"
                 className={mainTabClassName("screener")}
+                data-vu="tab-screener"
                 onClick={() => setAppTab("screener")}
               >
                 {ko.app.tabScreener}
@@ -1689,6 +1693,7 @@ export default function App() {
               <button
                 type="button"
                 className={mainTabClassName("recommendations")}
+                data-vu="tab-recommendations"
                 onClick={() => setAppTab("recommendations")}
               >
                 {ko.app.tabRecommendations}
@@ -1719,6 +1724,7 @@ export default function App() {
               <button
                 type="button"
                 className={mainTabClassName("redditMentions")}
+                data-vu="tab-redditMentions"
                 onClick={() => setAppTab("redditMentions")}
                 onMouseEnter={() => {
                   void prefetchRedditMentions("all-stocks");
@@ -1732,6 +1738,7 @@ export default function App() {
               <button
                 type="button"
                 className={mainTabClassName("accountManage")}
+                data-vu="tab-accountManage"
                 onClick={() => setAppTab("accountManage")}
               >
                 {ko.app.tabAccountManage}

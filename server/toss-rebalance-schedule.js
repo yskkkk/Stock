@@ -10,6 +10,7 @@ import {
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 import { isMarketOpenBySchedule } from "./market-hours.js";
 import { getKstParts, isKrBusinessDay } from "./kr-business-day.js";
+import { rejectIfVirtualUserLiveOrder } from "./virtual-user-order-guard.js";
 
 const MIN_BUY_KRW = 1_000;
 const MIN_BUY_USD = 1;
@@ -332,10 +333,14 @@ export async function runTossRebalanceScheduleForUser(userId, opts = {}) {
  * }} [opts]
  */
 export async function runTossProportionalBuyNowForUser(userId, opts = {}) {
+  const dryRun = Boolean(opts.dryRun);
+  if (!dryRun) {
+    const blocked = rejectIfVirtualUserLiveOrder();
+    if (blocked) return blocked;
+  }
   const uid = String(userId ?? "").trim();
   if (!uid) return { ok: false, error: "로그인이 필요합니다." };
 
-  const dryRun = Boolean(opts.dryRun);
   const schedule = getTossRebalanceScheduleSync(uid);
   const marketsRaw = Array.isArray(opts.markets) ? opts.markets : schedule?.markets;
   const markets = (marketsRaw?.length ? marketsRaw : ["kr", "us"]).filter(

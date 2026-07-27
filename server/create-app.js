@@ -219,6 +219,7 @@ import {
   readFileDevQueueSync,
 } from "./ops-file-dev-store.js";
 import { registerVirtualUserRoutes } from "./virtual-user-routes.js";
+import { virtualUserRequestMiddleware } from "./virtual-user-order-guard.js";
 
 function asyncRoute(handler) {
   return (req, res, next) => {
@@ -322,6 +323,7 @@ export function createApp() {
   }
 
   app.use(express.json());
+  app.use(virtualUserRequestMiddleware);
   app.use(expressAccessLogger);
   registerAccessControl(app);
   registerUiFeatureToggleRoutes(app);

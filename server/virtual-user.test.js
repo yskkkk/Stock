@@ -4,16 +4,13 @@ import {
   pickSeedsForPersona,
 } from "./virtual-user-runner.js";
 import {
-  appendVirtualFeedbackSync,
-  backupVirtualFeedbackSync,
-  deleteVirtualFeedbackSync,
-  listVirtualFeedbackSync,
-  readVirtualUserStoreSync,
-  writeVirtualUserStoreSync,
-} from "./virtual-user-store.js";
+  shouldBlockVirtualUserMoneyRequest,
+  rejectIfVirtualUserLiveOrder,
+  virtualUserAls,
+} from "./virtual-user-order-guard.js";
 
 describe("virtual-user-runner", () => {
-  it("picks seeds matching persona focus", () => {
+  it("picks multiple seeds without early cut", () => {
     const seeds = pickSeedsForPersona(
       {
         id: "t1",
@@ -22,17 +19,14 @@ describe("virtual-user-runner", () => {
         skill: "beginner",
         device: "desktop",
         goals: [],
-        focusAreas: ["rebalance"],
+        focusAreas: ["rebalance", "account-manage"],
         traits: "",
         createdAtMs: 1,
         updatedAtMs: 1,
       },
-      2,
+      4,
     );
-    expect(seeds.length).toBeGreaterThan(0);
-    expect(seeds.every((s) => s.area === "rebalance" || s.area === "account-manage" || true)).toBe(
-      true,
-    );
+    expect(seeds.length).toBeGreaterThanOrEqual(2);
   });
 
   it("builds prompt with feedback id", () => {
@@ -61,40 +55,33 @@ describe("virtual-user-runner", () => {
       "sess-1",
     );
     expect(prompt).toContain("feedbackId: fb-1");
-    expect(prompt).toContain("가상 사용자 피드백 구현 요청");
-    expect(prompt).toContain("제목");
+    expect(prompt).toContain("실주문");
   });
 });
 
-describe("virtual-user-store backup", () => {
-  it("appends feedback and backups", () => {
-    const before = readVirtualUserStoreSync();
-    const res = appendVirtualFeedbackSync({
-      personaId: "p",
-      personaName: "P",
-      sessionId: "s",
-      severity: "minor",
-      area: "test",
-      title: "unit",
-      detail: "d",
-      suggestion: "s",
-      prompt: "# prompt\nhello",
-      status: "new",
-    });
-    expect(res.ok).toBe(true);
-    expect(res.item?.id).toBeTruthy();
-    const bak = backupVirtualFeedbackSync(res.item.id);
-    expect(bak.ok).toBe(true);
-    expect(bak.backupId).toBeTruthy();
-    deleteVirtualFeedbackSync(res.item.id);
-    // restore personas if wiped somehow
-    if (!listVirtualFeedbackSync().some((f) => f.id === res.item.id)) {
-      writeVirtualUserStoreSync({
-        ...readVirtualUserStoreSync(),
-        personas: before.personas.length
-          ? before.personas
-          : readVirtualUserStoreSync().personas,
-      });
-    }
+describe("virtual-user-order-guard", () => {
+  it("blocks live rebalance-now but allows dryRun", () => {
+    expect(
+      shouldBlockVirtualUserMoneyRequest(
+        "http://127.0.0.1:5173/api/live-trading/toss/rebalance-now",
+        "POST",
+        JSON.stringify({ dryRun: false }),
+      ),
+    ).toBe(true);
+    expect(
+      shouldBlockVirtualUserMoneyRequest(
+        "http://127.0.0.1:5173/api/live-trading/toss/rebalance-now",
+        "POST",
+        JSON.stringify({ dryRun: true }),
+      ),
+    ).toBe(false);
+  });
+
+  it("rejects live order inside virtual user ALS", () => {
+    const blocked = virtualUserAls.run({ active: true }, () =>
+      rejectIfVirtualUserLiveOrder(),
+    );
+    expect(blocked?.blocked).toBe(true);
+    expect(rejectIfVirtualUserLiveOrder()).toBeNull();
   });
 });

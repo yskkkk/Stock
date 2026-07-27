@@ -12,6 +12,7 @@ import {
   CRYPTO_MIN_ORDER_KRW,
 } from "./live-trade-market.js";
 import { clampBithumbSellVolumeToAvailable, getBithumbExchangeQtyMaps } from "./live-trade-bithumb-reconcile.js";
+import { rejectIfVirtualUserLiveOrder } from "./virtual-user-order-guard.js";
 import {
   deductBithumbLedgerAvailable,
   refreshBithumbLedgerForUser,
@@ -277,6 +278,8 @@ export async function fetchBithumbAccounts() {
  * @param {{ credentials?: BithumbCredentials | null }} [options]
  */
 export async function executeBithumbLiveBuyOrder(program, pick, options = {}) {
+  const blocked = rejectIfVirtualUserLiveOrder();
+  if (blocked) return blocked;
   const credentials = options.credentials ?? null;
   const status = getBithumbTradingStatusFromCredentials(credentials);
   if (!status.ready) {
@@ -498,6 +501,8 @@ export async function checkBithumbMarketSellSlippage(market, volume, credentials
 }
 
 export async function executeBithumbLiveSellOrder(input, options = {}) {
+  const blocked = rejectIfVirtualUserLiveOrder();
+  if (blocked) return { ...blocked, success: false };
   const credentials = options.credentials ?? envCredentials();
   const status = getBithumbTradingStatusFromCredentials(credentials);
   if (!status.ready) {

@@ -2887,7 +2887,12 @@ export function fetchVirtualUsers(adminToken?: string) {
 }
 
 export function runVirtualUsers(
-  body?: { personaId?: string; maxPerPersona?: number; notifyTelegram?: boolean },
+  body?: {
+    personaId?: string;
+    maxPerPersona?: number;
+    notifyTelegram?: boolean;
+    useBrowser?: boolean;
+  },
   adminToken?: string,
 ) {
   return fetchJson<{
@@ -2895,6 +2900,8 @@ export function runVirtualUsers(
     sessionId?: string;
     createdCount?: number;
     feedback?: VirtualFeedback[];
+    warnings?: string[];
+    mode?: string;
     error?: string;
   }>("/api/virtual-users/run", {
     method: "POST",

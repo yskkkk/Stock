@@ -274,6 +274,7 @@ export default function AccountRebalanceScheduleModal({
           <button
             type="button"
             className="btn btn--ghost btn--sm"
+            data-vu="account-rebalance-close"
             onClick={onClose}
           >
             {ko.app.accountManageRebalanceClose}
@@ -554,6 +555,7 @@ export default function AccountRebalanceScheduleModal({
               <button
                 type="button"
                 className="btn btn--ghost"
+                data-vu="account-rebalance-dry-run"
                 disabled={running || saving || buyingNow}
                 onClick={() => void onPreviewRun()}
               >
@@ -562,6 +564,7 @@ export default function AccountRebalanceScheduleModal({
               <button
                 type="button"
                 className="btn btn--primary account-rebalance-modal__buy-now"
+                data-vu="account-rebalance-buy-now"
                 disabled={saving || running || buyingNow || !buyNowAllowed}
                 title={
                   buyNowAllowed
@@ -577,6 +580,7 @@ export default function AccountRebalanceScheduleModal({
               <button
                 type="button"
                 className="btn btn--ghost"
+                data-vu="account-rebalance-save"
                 disabled={saving || running || buyingNow}
                 onClick={() => void onSave()}
               >

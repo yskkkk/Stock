@@ -25,6 +25,7 @@ import {
   tossOpenApiPost,
   tossOpenApiBaseUrl,
 } from "./toss-openapi.js";
+import { rejectIfVirtualUserLiveOrder } from "./virtual-user-order-guard.js";
 
 /** 국내 주식 실매매 자동매도 파이프라인(스크리너) 지원 여부 */
 export const KR_LIVE_AUTO_SELL_SUPPORTED = false;
@@ -332,6 +333,8 @@ export async function fetchTossSellableQuantityForUser(userId, symbol, market) {
  * }} order
  */
 export async function placeManualTossOrderForUser(userId, order) {
+  const blocked = rejectIfVirtualUserLiveOrder();
+  if (blocked) return blocked;
   const uid = String(userId ?? "").trim();
   if (!uid) return { ok: false, error: "로그인이 필요합니다." };
   if (!tossReadyForUser(uid)) {
@@ -443,6 +446,8 @@ export function pickMeetsProgramThreshold(program, pick) {
  * @param {{ userId?: string }} [opts]
  */
 export async function executeLiveBuyOrder(program, pick, opts = {}) {
+  const blocked = rejectIfVirtualUserLiveOrder();
+  if (blocked) return blocked;
   const userId = String(opts.userId ?? program.userId ?? "").trim();
   if (!tossReadyForUser(userId)) {
     const status = getTossTradingStatusForUser(userId);
@@ -543,6 +548,8 @@ export async function executeLiveBuyOrder(program, pick, opts = {}) {
  * @param {{ userId?: string }} [opts]
  */
 export async function executeLiveSellOrder(program, order, opts = {}) {
+  const blocked = rejectIfVirtualUserLiveOrder();
+  if (blocked) return blocked;
   const userId = String(opts.userId ?? program.userId ?? "").trim();
   if (!tossReadyForUser(userId)) {
     const status = getTossTradingStatusForUser(userId);

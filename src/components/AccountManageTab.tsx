@@ -630,6 +630,7 @@ export default function AccountManageTab({
                   <button
                     type="button"
                     className="bithumb-balance-hide-btn account-manage-tab__hide-btn account-manage-tab__hide-btn--summary"
+                    data-vu="account-rebalance-open"
                     onClick={() => setRebalanceOpen(true)}
                   >
                     {ko.app.accountManageRebalanceOpen}
@@ -637,6 +638,7 @@ export default function AccountManageTab({
                   <button
                     type="button"
                     className="bithumb-balance-hide-btn account-manage-tab__hide-btn account-manage-tab__hide-btn--summary account-manage-tab__hide-btn--accent"
+                    data-vu="account-rebalance-buy-now-toolbar"
                     disabled={buyingNow || !buyNowToolbarAllowed}
                     title={
                       buyNowToolbarAllowed

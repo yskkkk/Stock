@@ -71,13 +71,22 @@ export default function VirtualUsersAdminPanel({
     setErr(null);
     setMsg(null);
     try {
-      const res = await runVirtualUsers({ notifyTelegram: true }, adminToken);
+      const res = await runVirtualUsers(
+        { notifyTelegram: true, useBrowser: true },
+        adminToken,
+      );
       if (!res.ok) {
         setErr(res.error || ko.access.vuRunFail);
         return;
       }
+      const warn =
+        res.warnings?.length
+          ? ` · 경고 ${res.warnings.length}건`
+          : "";
       setMsg(
-        ko.access.vuRunOk.replace("{n}", String(res.createdCount ?? 0)),
+        `${ko.access.vuRunOk.replace("{n}", String(res.createdCount ?? 0))}${warn}${
+          res.mode ? ` (${res.mode})` : ""
+        }`,
       );
       await reload();
     } catch (e) {
