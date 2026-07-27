@@ -1447,6 +1447,19 @@ export default function App() {
       <Sp500SectorProvider onNavigateToTab={() => setAppTab("sp500Sector")}>
       <div className="app__sp500-micro-anchor">
         <Sp500SectorWheelMicro />
+        <button
+          type="button"
+          className="app__nasdaq-etf-micro"
+          onClick={() => setAppTab("nasdaqEtf")}
+          title={ko.macro.nasdaqEtfBtnHint}
+          aria-label={ko.macro.nasdaqEtfBtnHint}
+          aria-pressed={appTab === "nasdaqEtf"}
+        >
+          <span className="app__nasdaq-etf-micro-kicker" aria-hidden>
+            NQ
+          </span>
+          <span className="app__nasdaq-etf-micro-label">ETF</span>
+        </button>
       </div>
       {showEarningsViewportRail ? (
         <div className="app__viewport-earnings-rail">
@@ -1523,7 +1536,6 @@ export default function App() {
           <div className="top-bar__macro">
             <MacroEventsBar
               onSecretAdminOpen={() => setShowAccessAdmin(true)}
-              onOpenNasdaqEtf={() => setAppTab("nasdaqEtf")}
             />
           </div>
           <div className="top-bar__header-left">
@@ -1701,13 +1713,6 @@ export default function App() {
                 onClick={() => setAppTab("sp500Sector")}
               >
                 {ko.app.tabSp500Sector}
-              </button>
-              <button
-                type="button"
-                className={mainTabClassName("nasdaqEtf")}
-                onClick={() => setAppTab("nasdaqEtf")}
-              >
-                {ko.app.tabNasdaqEtf}
               </button>
               <button
                 type="button"

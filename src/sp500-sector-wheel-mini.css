@@ -162,13 +162,67 @@
   left: max(0.22rem, env(safe-area-inset-left, 0px));
   z-index: 12050;
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.28rem;
   pointer-events: none;
   overflow: visible;
 }
 
-.app__sp500-micro-anchor > .sp500-wheel-micro-wrap {
+.app__sp500-micro-anchor > .sp500-wheel-micro-wrap,
+.app__sp500-micro-anchor > .app__nasdaq-etf-micro {
   pointer-events: auto;
+}
+
+.app__nasdaq-etf-micro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.02rem;
+  margin: 0;
+  padding: 0.18rem 0.28rem;
+  min-width: 2.35rem;
+  max-width: 3.1rem;
+  border: 1px solid var(--card-border);
+  border-radius: 0.45rem;
+  background: color-mix(in srgb, var(--card) 92%, var(--bg));
+  color: inherit;
+  font: inherit;
+  line-height: 1.05;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  transition:
+    box-shadow 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.app__nasdaq-etf-micro:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+  border-color: color-mix(in srgb, #5b8def 45%, var(--card-border));
+}
+
+.app__nasdaq-etf-micro[aria-pressed="true"] {
+  border-color: color-mix(in srgb, #5b8def 55%, var(--card-border));
+  background: color-mix(in srgb, #5b8def 14%, var(--card));
+}
+
+.app__nasdaq-etf-micro-kicker {
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #5b8def;
+}
+
+.app__nasdaq-etf-micro-label {
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .sp500-wheel-micro {
