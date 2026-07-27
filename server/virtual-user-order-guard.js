@@ -3,6 +3,9 @@
  * 1) AsyncLocalStorage / X-Virtual-User 헤더
  * 2) Playwright route abort
  */
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { AsyncLocalStorage } from "async_hooks";
 
 /** @type {AsyncLocalStorage<{ active: boolean }>} */
@@ -32,11 +35,25 @@ export function virtualUserRequestMiddleware(req, _res, next) {
 /** 실주문·체결로 이어질 수 있는 API (브라우저 route 차단용) */
 export const VIRTUAL_USER_BLOCKED_ORDER_PATHS = [
   /\/api\/live-trading\/toss\/rebalance-now(?:\?|$)/i,
+  /\/api\/live-trading\/toss\/rebalance-schedule\/run(?:\?|$)/i,
   /\/api\/live-trading\/toss\/holdings\/[^/]+\/execute(?:\?|$)/i,
   /\/api\/live-trading\/toss\/.*order/i,
   /\/api\/live-trading\/bithumb\/.*order/i,
   /\/api\/live-trading\/.*\/place/i,
   /\/api\/toss\/.*order/i,
+];
+
+/** 서버 주문 어댑터 — rejectIfVirtualUserLiveOrder 호출 필수(정적 프로브) */
+export const LIVE_ORDER_GUARD_ENTRYPOINTS = [
+  { file: "toss-trading-adapter.js", fn: "placeManualTossOrderForUser" },
+  { file: "toss-trading-adapter.js", fn: "executeLiveBuyOrder" },
+  { file: "toss-trading-adapter.js", fn: "executeLiveSellOrder" },
+  { file: "bithumb-trading-adapter.js", fn: "executeBithumbLiveBuyOrder" },
+  { file: "bithumb-trading-adapter.js", fn: "executeBithumbLiveSellOrder" },
+  { file: "bithumb-trading-adapter.js", fn: "executeBithumbMarketBuyKrw" },
+  { file: "bithumb-trading-adapter.js", fn: "executeBithumbMarketBuyVolume" },
+  { file: "toss-rebalance-schedule.js", fn: "runTossProportionalBuyNowForUser" },
+  { file: "toss-rebalance-schedule.js", fn: "runTossRebalanceScheduleForUser" },
 ];
 
 /**
@@ -50,7 +67,7 @@ export function shouldBlockVirtualUserMoneyRequest(url, method = "GET", postBody
   if (m === "GET" || m === "HEAD" || m === "OPTIONS") return false;
 
   // dry-run 미리보기는 허용
-  if (/\/rebalance-now/i.test(u)) {
+  if (/\/rebalance-now/i.test(u) || /\/rebalance-schedule\/run/i.test(u)) {
     try {
       const body = postBody ? JSON.parse(postBody) : {};
       if (body && body.dryRun === true) return false;
@@ -61,6 +78,38 @@ export function shouldBlockVirtualUserMoneyRequest(url, method = "GET", postBody
   }
 
   return VIRTUAL_USER_BLOCKED_ORDER_PATHS.some((re) => re.test(u));
+}
+
+/**
+ * 정적 프로브 — 실주문 진입점에 ALS 가드가 빠졌는지 확인
+ * @param {string} [serverDir]
+ * @returns {string[]} 누락된 "file::fn" 목록
+ */
+export function findLiveOrderGuardGaps(serverDir) {
+  const root = serverDir ?? path.dirname(fileURLToPath(import.meta.url));
+  /** @type {string[]} */
+  const gaps = [];
+  for (const { file, fn } of LIVE_ORDER_GUARD_ENTRYPOINTS) {
+    const fp = path.join(root, file);
+    if (!fs.existsSync(fp)) {
+      gaps.push(`${file}::${fn}`);
+      continue;
+    }
+    const src = fs.readFileSync(fp, "utf8");
+    const fnRe = new RegExp(
+      `(?:export\\s+async\\s+function|async\\s+function|export\\s+function)\\s+${fn}\\s*\\(`,
+    );
+    const m = fnRe.exec(src);
+    if (!m || m.index == null) {
+      gaps.push(`${file}::${fn}`);
+      continue;
+    }
+    const chunk = src.slice(m.index, m.index + 900);
+    if (!chunk.includes("rejectIfVirtualUserLiveOrder")) {
+      gaps.push(`${file}::${fn}`);
+    }
+  }
+  return gaps;
 }
 
 /**

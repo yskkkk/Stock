@@ -211,6 +211,10 @@ export async function runTossRebalanceScheduleForUser(userId, opts = {}) {
   if (!uid) return { ok: false, error: "로그인이 필요합니다." };
 
   const dryRun = Boolean(opts.dryRun);
+  if (!dryRun) {
+    const blocked = rejectIfVirtualUserLiveOrder();
+    if (blocked) return blocked;
+  }
   const force = Boolean(opts.force);
   const schedule = getTossRebalanceScheduleSync(uid);
   if (!schedule?.enabled && !force) {

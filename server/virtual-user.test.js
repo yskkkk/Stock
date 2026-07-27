@@ -7,6 +7,7 @@ import {
   shouldBlockVirtualUserMoneyRequest,
   rejectIfVirtualUserLiveOrder,
   virtualUserAls,
+  findLiveOrderGuardGaps,
 } from "./virtual-user-order-guard.js";
 import {
   clampSatisfactionLevel,
@@ -219,6 +220,27 @@ describe("virtual-user-order-guard", () => {
         JSON.stringify({ dryRun: true }),
       ),
     ).toBe(false);
+  });
+
+  it("blocks rebalance-schedule run but allows dryRun", () => {
+    expect(
+      shouldBlockVirtualUserMoneyRequest(
+        "http://127.0.0.1:5173/api/live-trading/toss/rebalance-schedule/run",
+        "POST",
+        JSON.stringify({ dryRun: false }),
+      ),
+    ).toBe(true);
+    expect(
+      shouldBlockVirtualUserMoneyRequest(
+        "http://127.0.0.1:5173/api/live-trading/toss/rebalance-schedule/run",
+        "POST",
+        JSON.stringify({ dryRun: true }),
+      ),
+    ).toBe(false);
+  });
+
+  it("findLiveOrderGuardGaps is empty for current adapters", () => {
+    expect(findLiveOrderGuardGaps()).toEqual([]);
   });
 
   it("rejects live order inside virtual user ALS", () => {

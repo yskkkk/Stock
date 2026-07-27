@@ -6,6 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { findLiveOrderGuardGaps } from "./virtual-user-order-guard.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, ".data");
@@ -230,6 +231,27 @@ function probeUnexpectedPollerGaps() {
 }
 
 /**
+ * toss/bithumb 실주문 진입점 ALS 가드 누락
+ * @returns {BackendFinding[]}
+ */
+function probeLiveOrderGuardGaps() {
+  const gaps = findLiveOrderGuardGaps(__dirname);
+  if (!gaps.length) return [];
+  return [
+    {
+      area: "backend-orders-guard",
+      areaLabel: "백엔드 주문 가드",
+      severity: "blocker",
+      title: "가상 사용자·실주문 차단이 서버에서도 반드시 막혀야 한다",
+      detail: `실주문 진입점에 rejectIfVirtualUserLiveOrder 가드가 없습니다: ${gaps.join(", ")}. 클라이언트 route abort만으로는 부족합니다.`,
+      suggestion:
+        "toss/bithumb live order 경로에서 rejectIfVirtualUserLiveOrder 등 가드가 빠지지 않았는지 확인·보강한다. 폴링과 무관하다.",
+      minSatisfaction: 3,
+    },
+  ];
+}
+
+/**
  * 자가개선 백로그에서 실동작 결함만 추출
  * @returns {Promise<BackendFinding[]>}
  */
@@ -287,15 +309,16 @@ async function findingsFromSelfImprovement() {
  * @returns {Promise<BackendFinding[]>}
  */
 export async function collectVirtualUserBackendFindings() {
-  const [apis, files, selfImp, pollers] = await Promise.all([
+  const [apis, files, selfImp, pollers, orderGuards] = await Promise.all([
     probeCriticalApis(),
     Promise.resolve(probeCorruptDataFiles()),
     findingsFromSelfImprovement(),
     Promise.resolve(probeUnexpectedPollerGaps()),
+    Promise.resolve(probeLiveOrderGuardGaps()),
   ]);
   /** @type {Map<string, BackendFinding>} */
   const map = new Map();
-  for (const f of [...files, ...apis, ...selfImp, ...pollers]) {
+  for (const f of [...files, ...apis, ...selfImp, ...pollers, ...orderGuards]) {
     const key = `${f.area}::${f.title}`.toLowerCase();
     if (map.has(key)) continue;
     if (shouldSkipBackendImprovementItem(f)) continue;
