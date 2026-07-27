@@ -692,12 +692,19 @@ function isBadReplyMarkupError(description, errText) {
  */
 async function postTelegramSendMessage(payload, creds) {
   const url = `https://api.telegram.org/bot${creds.token}/sendMessage`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const errText = await res.text();
+  let res;
+  let errText = "";
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    errText = await res.text();
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, status: null, description: msg, errText: msg };
+  }
   let description = "";
   try {
     const j = JSON.parse(errText);

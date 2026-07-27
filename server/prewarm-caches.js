@@ -12,8 +12,12 @@ function probeTelegramOnce() {
   );
   if (g.__stockTelegramProbed) return;
   g.__stockTelegramProbed = true;
-  void probeStockTelegramSetup();
-  void probeOpsTelegramSetup();
+  void probeStockTelegramSetup().catch((e) => {
+    console.warn("[prewarm] telegram stock probe:", e instanceof Error ? e.message : e);
+  });
+  void probeOpsTelegramSetup().catch((e) => {
+    console.warn("[prewarm] telegram ops probe:", e instanceof Error ? e.message : e);
+  });
 }
 
 /** API 첫 요청 지연 줄이기 — 주요 탭 데이터 백그라운드 선로드 */

@@ -21,6 +21,13 @@ import {
 
 let started = false;
 
+function logRecordModeTickError(e) {
+  console.warn(
+    "[ops-record-mode] tick:",
+    e instanceof Error ? e.message : e,
+  );
+}
+
 /**
  * @param {string} id
  * @param {string} instruction
@@ -63,7 +70,7 @@ async function runRecordModeAgentJob(id, instruction) {
   } finally {
     /** 다음 `pending`을 폴링 주기를 기다리지 않고 바로 집어감 */
     setImmediate(() => {
-      void tickRecordModePoller();
+      void tickRecordModePoller().catch(logRecordModeTickError);
     });
   }
 }
@@ -107,9 +114,9 @@ export function startOpsRecordModePoller() {
   started = true;
   markPollerBootStarted("ops-record-mode");
   setInterval(() => {
-    void tickRecordModePoller();
+    void tickRecordModePoller().catch(logRecordModeTickError);
   }, RECORD_MODE_POLL_MS);
   setTimeout(() => {
-    void tickRecordModePoller();
+    void tickRecordModePoller().catch(logRecordModeTickError);
   }, 3000);
 }
