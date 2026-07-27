@@ -33,7 +33,7 @@ describe("accountAllocation symbol labels", () => {
       marketUs: "해외",
       marketCrypto: "코인",
     });
-    expect(slices[0]?.label).toBe("000120 · CJ대한통운");
+    expect(slices[0]?.label).toBe("000120.KS · CJ대한통운");
   });
 
   it("formats US mapped Korean names with ticker", () => {
