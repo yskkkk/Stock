@@ -280,3 +280,94 @@ export async function runTossRebalanceScheduleForUser(userId, opts = {}) {
 
   return result;
 }
+
+/**
+ * 즉시 비중 유지 매수 — 스케줄 날짜·당일 실행 여부와 무관. lastRunYmd를 갱신하지 않음.
+ * @param {string} userId
+ * @param {{
+ *   dryRun?: boolean;
+ *   markets?: Array<"kr"|"us">;
+ *   cashUsePct?: number;
+ * }} [opts]
+ */
+export async function runTossProportionalBuyNowForUser(userId, opts = {}) {
+  const uid = String(userId ?? "").trim();
+  if (!uid) return { ok: false, error: "로그인이 필요합니다." };
+
+  const dryRun = Boolean(opts.dryRun);
+  const schedule = getTossRebalanceScheduleSync(uid);
+  const marketsRaw = Array.isArray(opts.markets) ? opts.markets : schedule?.markets;
+  const markets = (marketsRaw?.length ? marketsRaw : ["kr", "us"]).filter(
+    (m) => m === "kr" || m === "us",
+  );
+  const cashUsePct =
+    opts.cashUsePct != null
+      ? Number(opts.cashUsePct)
+      : (schedule?.cashUsePct ?? 100);
+
+  const preview = await previewTossRebalanceScheduleForUser(uid, {
+    ...(schedule ?? {}),
+    markets,
+    cashUsePct,
+  });
+  if (!preview.ready) {
+    return { ok: false, error: "계좌 스냅샷을 불러오지 못했습니다." };
+  }
+
+  /** @type {Array<object>} */
+  const placed = [];
+  /** @type {Array<object>} */
+  const errors = [];
+
+  for (const plan of preview.plans) {
+    for (const row of plan.orders) {
+      if (dryRun) {
+        placed.push({ ...row, dryRun: true });
+        continue;
+      }
+      const res = await placeManualTossOrderForUser(uid, {
+        symbol: row.symbol,
+        market: row.market,
+        side: "buy",
+        orderType: "market",
+        amount: row.amount,
+      });
+      if (res.ok) {
+        placed.push({
+          ...row,
+          orderId: res.orderId ?? null,
+          fillPrice: res.fillPrice ?? null,
+        });
+      } else {
+        errors.push({
+          ...row,
+          error: res.error ?? "주문 실패",
+        });
+      }
+    }
+  }
+
+  const result = {
+    ok: errors.length === 0,
+    dryRun,
+    immediate: true,
+    placed,
+    errors,
+    plans: preview.plans,
+  };
+
+  if (!dryRun) {
+    liveTradeLogInfo(
+      "[toss-rebalance-now]",
+      `user=${uid} markets=${markets.join("+")} cashUsePct=${cashUsePct} placed=${placed.length} errors=${errors.length}`,
+    );
+    if (errors.length) {
+      liveTradeLogWarn(
+        "[toss-rebalance-now] errors",
+        errors.map((e) => `${e.symbol}:${e.error}`).join(", "),
+      );
+    }
+  }
+
+  return result;
+}

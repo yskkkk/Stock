@@ -184,6 +184,7 @@ import {
 } from "./toss-rebalance-schedule-store.js";
 import {
   previewTossRebalanceScheduleForUser,
+  runTossProportionalBuyNowForUser,
   runTossRebalanceScheduleForUser,
 } from "./toss-rebalance-schedule.js";
 import {
@@ -1219,6 +1220,31 @@ export function createApp() {
         const payload = await runTossRebalanceScheduleForUser(req.user.id, {
           dryRun,
           force,
+        });
+        res.json(payload);
+      } catch (e) {
+        res.status(400).json({
+          ok: false,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }),
+  );
+
+  app.post(
+    "/api/live-trading/toss/rebalance-now",
+    requireUserAuth,
+    asyncRoute(async (req, res) => {
+      try {
+        const body = req.body ?? {};
+        const dryRun = Boolean(body.dryRun);
+        const markets = Array.isArray(body.markets) ? body.markets : undefined;
+        const cashUsePct =
+          body.cashUsePct != null ? Number(body.cashUsePct) : undefined;
+        const payload = await runTossProportionalBuyNowForUser(req.user.id, {
+          dryRun,
+          markets,
+          cashUsePct,
         });
         res.json(payload);
       } catch (e) {

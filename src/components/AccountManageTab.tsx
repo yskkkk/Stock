@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   fetchSp500Sectors,
   fetchTossHoldingsManage,
+  runTossRebalanceNow,
   type TossTestHolding,
 } from "../api";
 import { ko } from "../i18n/ko";
@@ -131,6 +132,7 @@ export default function AccountManageTab({
   const [balanceHidden, toggleBalanceHidden] = useBithumbBalanceHidden();
   const [displayCurrency, setDisplayCurrency] = useAccountManageDisplayCurrency();
   const [rebalanceOpen, setRebalanceOpen] = useState(false);
+  const [buyingNow, setBuyingNow] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -411,6 +413,38 @@ export default function AccountManageTab({
     }
   }, [provider, reloadToss, reloadBithumb, refreshing]);
 
+  const onBuyNowFromToolbar = useCallback(async () => {
+    if (buyingNow) return;
+    if (!window.confirm(ko.app.accountManageRebalanceNowConfirm)) return;
+    setBuyingNow(true);
+    try {
+      const res = await runTossRebalanceNow({ dryRun: false });
+      const placed = res.placed?.length ?? 0;
+      const failed = res.errors?.length ?? 0;
+      if (placed === 0 && failed === 0) {
+        window.alert(ko.app.accountManageRebalanceNowNone);
+      } else if (failed > 0) {
+        const detail = res.errors?.[0]?.error
+          ? ` ? ${res.errors[0].error}`
+          : "";
+        window.alert(
+          `${ko.app.accountManageRebalanceNowFail
+            .replace("{ok}", String(placed))
+            .replace("{total}", String(placed + failed))}${detail}`,
+        );
+      } else {
+        window.alert(
+          ko.app.accountManageRebalanceNowOk.replace("{n}", String(placed)),
+        );
+      }
+      await reloadToss?.(true);
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBuyingNow(false);
+    }
+  }, [buyingNow, reloadToss]);
+
   const showHoverBubble = useCallback(
     (key: string, clientX: number, clientY: number) => {
       const root = wheelRef.current;
@@ -567,13 +601,25 @@ export default function AccountManageTab({
           <div className="account-manage-tab__summary-wrap">
             <div className="account-manage-tab__summary-toolbar">
               {provider === "toss" ? (
-                <button
-                  type="button"
-                  className="bithumb-balance-hide-btn account-manage-tab__hide-btn account-manage-tab__hide-btn--summary"
-                  onClick={() => setRebalanceOpen(true)}
-                >
-                  {ko.app.accountManageRebalanceOpen}
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className="bithumb-balance-hide-btn account-manage-tab__hide-btn account-manage-tab__hide-btn--summary"
+                    onClick={() => setRebalanceOpen(true)}
+                  >
+                    {ko.app.accountManageRebalanceOpen}
+                  </button>
+                  <button
+                    type="button"
+                    className="bithumb-balance-hide-btn account-manage-tab__hide-btn account-manage-tab__hide-btn--summary account-manage-tab__hide-btn--accent"
+                    disabled={buyingNow}
+                    onClick={() => void onBuyNowFromToolbar()}
+                  >
+                    {buyingNow
+                      ? ko.app.accountManageRebalanceNowRunning
+                      : ko.app.accountManageRebalanceNow}
+                  </button>
+                </>
               ) : null}
               <div
                 className="account-manage-tab__currency-toggle"
@@ -1256,7 +1302,10 @@ export default function AccountManageTab({
       )}
 
       {rebalanceOpen ? (
-        <AccountRebalanceScheduleModal onClose={() => setRebalanceOpen(false)} />
+        <AccountRebalanceScheduleModal
+          onClose={() => setRebalanceOpen(false)}
+          onOrdersPlaced={() => void reloadToss?.(true)}
+        />
       ) : null}
     </div>
   );

@@ -2119,6 +2119,26 @@ export function runTossRebalanceSchedule(body?: {
   });
 }
 
+export function runTossRebalanceNow(body?: {
+  dryRun?: boolean;
+  markets?: Array<"kr" | "us">;
+  cashUsePct?: number;
+}) {
+  return fetchJson<{
+    ok: boolean;
+    dryRun?: boolean;
+    immediate?: boolean;
+    error?: string;
+    placed?: Array<{ symbol: string; amount: number; orderId?: string }>;
+    errors?: Array<{ symbol: string; error?: string }>;
+    plans?: TossRebalanceBuyPlan[];
+  }>("/api/live-trading/toss/rebalance-now", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body ?? {}),
+  });
+}
+
 export function executeTossHoldingPlanOrder(
   symbol: string,
   body: {

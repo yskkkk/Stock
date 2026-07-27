@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   fetchTossRebalanceSchedule,
+  runTossRebalanceNow,
   runTossRebalanceSchedule,
   saveTossRebalanceSchedule,
   type TossRebalanceBuyPlan,
@@ -49,8 +50,10 @@ function planEmptyHint(plan: TossRebalanceBuyPlan): string {
 
 export default function AccountRebalanceScheduleModal({
   onClose,
+  onOrdersPlaced,
 }: {
   onClose: () => void;
+  onOrdersPlaced?: () => void;
 }) {
   const now = useMemo(() => new Date(), []);
   const [year] = useState(now.getFullYear());
@@ -58,6 +61,7 @@ export default function AccountRebalanceScheduleModal({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
+  const [buyingNow, setBuyingNow] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [enabled, setEnabled] = useState(false);
@@ -158,6 +162,51 @@ export default function AccountRebalanceScheduleModal({
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
       setRunning(false);
+    }
+  };
+
+  const onBuyNow = async () => {
+    if (!window.confirm(ko.app.accountManageRebalanceNowConfirm)) return;
+    setBuyingNow(true);
+    setErr(null);
+    setMsg(null);
+    try {
+      await saveTossRebalanceSchedule({
+        enabled,
+        dayOfMonth,
+        cashUsePct,
+        markets,
+      });
+      const res = await runTossRebalanceNow({
+        dryRun: false,
+        markets,
+        cashUsePct,
+      });
+      setPlans(res.plans ?? []);
+      const placed = res.placed?.length ?? 0;
+      const failed = res.errors?.length ?? 0;
+      if (placed === 0 && failed === 0) {
+        setMsg(ko.app.accountManageRebalanceNowNone);
+      } else if (failed > 0) {
+        const detail = res.errors?.[0]?.error
+          ? ` — ${res.errors[0].error}`
+          : "";
+        setErr(
+          `${ko.app.accountManageRebalanceNowFail
+            .replace("{ok}", String(placed))
+            .replace("{total}", String(placed + failed))}${detail}`,
+        );
+        if (placed > 0) onOrdersPlaced?.();
+      } else {
+        setMsg(
+          ko.app.accountManageRebalanceNowOk.replace("{n}", String(placed)),
+        );
+        onOrdersPlaced?.();
+      }
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBuyingNow(false);
     }
   };
 
@@ -481,15 +530,25 @@ export default function AccountRebalanceScheduleModal({
               <button
                 type="button"
                 className="btn btn--ghost"
-                disabled={running || saving}
+                disabled={running || saving || buyingNow}
                 onClick={() => void onPreviewRun()}
               >
                 {ko.app.accountManageRebalanceDryRun}
               </button>
               <button
                 type="button"
-                className="btn btn--primary"
-                disabled={saving || running}
+                className="btn btn--primary account-rebalance-modal__buy-now"
+                disabled={saving || running || buyingNow}
+                onClick={() => void onBuyNow()}
+              >
+                {buyingNow
+                  ? ko.app.accountManageRebalanceNowRunning
+                  : ko.app.accountManageRebalanceNowRun}
+              </button>
+              <button
+                type="button"
+                className="btn btn--ghost"
+                disabled={saving || running || buyingNow}
                 onClick={() => void onSave()}
               >
                 {saving

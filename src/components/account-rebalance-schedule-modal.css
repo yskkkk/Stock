@@ -359,6 +359,11 @@ html:not([data-theme="light"]) .account-rebalance-modal__badge.is-usd {
 .account-rebalance-modal__foot {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 0.45rem;
   margin-top: 0.25rem;
+}
+
+.account-rebalance-modal__buy-now {
+  font-weight: 800;
 }
