@@ -3743,7 +3743,8 @@ button.chip.chip--on,
 }
 .access-admin-body--feedback,
 .access-admin-body--telegram,
-.access-admin-body--live-trade {
+.access-admin-body--live-trade,
+.access-admin-body--virtual-users {
   max-height: min(70vh, 520px);
   overflow: auto;
 }

@@ -28,8 +28,15 @@ import {
 import type { FeedbackInboxItem } from "../types";
 import { ko } from "../i18n/ko";
 import { dispatchUiFeaturesChanged } from "../contexts/UiFeatureToggleContext";
+import VirtualUsersAdminPanel from "./VirtualUsersAdminPanel";
 
-type AdminTab = "access" | "feedback" | "telegram" | "liveTrade" | "uiFeatures";
+type AdminTab =
+  | "access"
+  | "feedback"
+  | "virtualUsers"
+  | "telegram"
+  | "liveTrade"
+  | "uiFeatures";
 
 function liveTradeStatusLabel(status: AccessAdminLiveTradeProgram["status"]): string {
   if (status === "armed") return ko.app.liveTradeStatusArmed;
@@ -530,6 +537,15 @@ export default function AccessAdminModal({
               <button
                 type="button"
                 role="tab"
+                aria-selected={tab === "virtualUsers"}
+                className={`access-admin-tab${tab === "virtualUsers" ? " access-admin-tab--active" : ""}`}
+                onClick={() => setTab("virtualUsers")}
+              >
+                {ko.access.adminTabVirtualUsers}
+              </button>
+              <button
+                type="button"
+                role="tab"
                 aria-selected={tab === "liveTrade"}
                 className={`access-admin-tab${tab === "liveTrade" ? " access-admin-tab--active" : ""}`}
                 onClick={() => {
@@ -909,6 +925,12 @@ export default function AccessAdminModal({
                     ))}
                   </ul>
                 )}
+              </div>
+            )}
+
+            {tab === "virtualUsers" && (
+              <div className="access-admin-body access-admin-body--virtual-users">
+                <VirtualUsersAdminPanel adminToken={authForApi()} />
               </div>
             )}
 

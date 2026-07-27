@@ -2821,6 +2821,156 @@ export function postFeedbackMessage(message: string) {
   });
 }
 
+export type VirtualPersona = {
+  id: string;
+  name: string;
+  enabled: boolean;
+  skill: "beginner" | "intermediate" | "power";
+  device: "desktop" | "mobile";
+  goals: string[];
+  focusAreas: string[];
+  traits: string;
+  createdAtMs: number;
+  updatedAtMs: number;
+};
+
+export type VirtualFeedbackStatus = "new" | "queued" | "done" | "dismissed";
+export type VirtualFeedbackSeverity = "blocker" | "major" | "minor" | "nit";
+
+export type VirtualFeedback = {
+  id: string;
+  personaId: string;
+  personaName: string;
+  sessionId: string;
+  at: string;
+  createdAtMs: number;
+  status: VirtualFeedbackStatus;
+  severity: VirtualFeedbackSeverity;
+  area: string;
+  title: string;
+  detail: string;
+  suggestion: string;
+  prompt: string;
+  implementJobId: string | null;
+  implementQueuedAtMs: number | null;
+  telegramSentAtMs: number | null;
+  backupCount: number;
+  lastBackupId: string | null;
+};
+
+function virtualUserHeaders(adminToken?: string): Record<string, string> {
+  const t = (adminToken ?? getStoredAccessAdminToken()).trim();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json; charset=utf-8",
+  };
+  if (t) headers.Authorization = `Bearer ${t}`;
+  return headers;
+}
+
+export function fetchVirtualUsers(adminToken?: string) {
+  return fetchJson<{
+    ok: boolean;
+    personas: VirtualPersona[];
+    feedback: VirtualFeedback[];
+    sessions: Array<{
+      id: string;
+      startedAtMs: number;
+      finishedAtMs: number | null;
+      personaIds: string[];
+      feedbackIds: string[];
+      ok: boolean;
+    }>;
+  }>("/api/virtual-users", {
+    headers: virtualUserHeaders(adminToken),
+  });
+}
+
+export function runVirtualUsers(
+  body?: { personaId?: string; maxPerPersona?: number; notifyTelegram?: boolean },
+  adminToken?: string,
+) {
+  return fetchJson<{
+    ok: boolean;
+    sessionId?: string;
+    createdCount?: number;
+    feedback?: VirtualFeedback[];
+    error?: string;
+  }>("/api/virtual-users/run", {
+    method: "POST",
+    headers: virtualUserHeaders(adminToken),
+    body: JSON.stringify(body ?? {}),
+  });
+}
+
+export function patchVirtualPersona(
+  id: string,
+  patch: Partial<Pick<VirtualPersona, "enabled" | "name" | "traits">>,
+  adminToken?: string,
+) {
+  return fetchJson<{ ok: boolean; persona?: VirtualPersona; personas?: VirtualPersona[] }>(
+    `/api/virtual-users/personas/${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      headers: virtualUserHeaders(adminToken),
+      body: JSON.stringify(patch),
+    },
+  );
+}
+
+export function implementVirtualFeedback(id: string, adminToken?: string) {
+  return fetchJson<{
+    ok: boolean;
+    jobId?: string;
+    item?: VirtualFeedback;
+    backup?: { backupId?: string; dir?: string } | null;
+    message?: string;
+    error?: string;
+  }>(`/api/virtual-users/feedback/${encodeURIComponent(id)}/implement`, {
+    method: "POST",
+    headers: virtualUserHeaders(adminToken),
+    body: "{}",
+  });
+}
+
+export function backupVirtualFeedback(id: string, adminToken?: string) {
+  return fetchJson<{
+    ok: boolean;
+    backupId?: string;
+    dir?: string;
+    item?: VirtualFeedback;
+    error?: string;
+  }>(`/api/virtual-users/feedback/${encodeURIComponent(id)}/backup`, {
+    method: "POST",
+    headers: virtualUserHeaders(adminToken),
+    body: "{}",
+  });
+}
+
+export function setVirtualFeedbackStatus(
+  id: string,
+  status: VirtualFeedbackStatus,
+  adminToken?: string,
+) {
+  return fetchJson<{ ok: boolean; item?: VirtualFeedback }>(
+    `/api/virtual-users/feedback/${encodeURIComponent(id)}/status`,
+    {
+      method: "POST",
+      headers: virtualUserHeaders(adminToken),
+      body: JSON.stringify({ status }),
+    },
+  );
+}
+
+export function deleteVirtualFeedback(id: string, adminToken?: string) {
+  return fetchJson<{ ok: boolean }>(
+    `/api/virtual-users/feedback/${encodeURIComponent(id)}`,
+    {
+      method: "DELETE",
+      headers: virtualUserHeaders(adminToken),
+    },
+  );
+}
+
 export interface PollerStatusRow {
   id: string;
   labelKo: string;

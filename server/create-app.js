@@ -218,6 +218,7 @@ import {
   mergeFileDevQueueFromClient,
   readFileDevQueueSync,
 } from "./ops-file-dev-store.js";
+import { registerVirtualUserRoutes } from "./virtual-user-routes.js";
 
 function asyncRoute(handler) {
   return (req, res, next) => {
@@ -2196,6 +2197,8 @@ export function createApp() {
   app.post("/api/feedback/admin/delete", (req, res) => {
     deleteFeedbackAdmin(req, res);
   });
+
+  registerVirtualUserRoutes(app, asyncRoute);
 
   app.get("/api/telegram/sent", requireAccessAdmin, (_req, res) => {
     if (!isTelegramNotifyEnabled()) {
