@@ -178,7 +178,7 @@ async function tickProgram(program) {
   if (!isBoxRangeProgram(program)) return;
   if (program.markets?.kr) await tickCatalogProgram(program, "kr");
   if (program.markets?.us) await tickCatalogProgram(program, "us");
-  if (program.markets?.crypto) {
+  if (program.markets?.crypto && boxRangeCryptoScanEnabled()) {
     await tickCatalogProgram(program, "crypto");
     await tickCryptoProgram(program);
   }

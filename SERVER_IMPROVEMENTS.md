@@ -14,21 +14,21 @@
 
 ## 열린 항목
 
-### [ERROR] process — 2026-06-19 00:54:40.564 KST
+### [ERROR] process — 2026-07-13 05:37:11.106 KST
 
 <!-- id:process-uncaughtException -->
 
-**문제**: uncaughtException: EPERM: operation not permitted, rename 'C:\Stock\server\.data\live-trade-toss-ledger.json.16848.1781798080540.tmp' -> 'C:\Stock\server\.data\live-trade-toss-ledger.json'
+**문제**: uncaughtException: 데이터 파일을 읽을 수 없습니다: C:\Stock\server\.data\granville-scan-state.json (Unexpected token '﻿', "﻿{}" is not valid JSON)
 
 **개선 제안**: 비동기 오류를 await/catch로 처리하고, 폴링·훅 tick에서 throw가 밖으로 나가지 않게 방어하세요.
 
 **근거**: 누적 1회
 
-_재발 17618회 (최초 2026-05-27 07:14:23.020 KST)_
+_재발 17619회 (최초 2026-05-27 07:14:23.020 KST)_
 
 ---
 
-### [ERROR] process — 2026-06-17 02:49:13.098 KST
+### [ERROR] process — 2026-07-06 02:31:45.046 KST
 
 <!-- id:process-unhandledRejection -->
 
@@ -36,9 +36,79 @@ _재발 17618회 (최초 2026-05-27 07:14:23.020 KST)_
 
 **개선 제안**: 비동기 오류를 await/catch로 처리하고, 폴링·훅 tick에서 throw가 밖으로 나가지 않게 방어하세요.
 
-**근거**: 누적 6회
+**근거**: 누적 1회
 
-_재발 110회 (최초 2026-06-17 01:16:33.055 KST)_
+_재발 114회 (최초 2026-06-17 01:16:33.055 KST)_
+
+---
+
+### [WARN] auto-git — 2026-07-25 23:58:24.637 KST
+
+<!-- id:logfreq-710018c2f7 -->
+
+**문제**: 오늘 로그에서 반복 오류: fetch origin main failed (4회)
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 오늘 INTERNAL 4회
+
+_재발 251회 (최초 2026-07-25 01:06:17.532 KST)_
+
+---
+
+### [WARN] telegram — 2026-07-25 08:43:11.945 KST
+
+<!-- id:telegram-stock-send-error -->
+
+**문제**: 종목 알림 전송 오류: fetch failed
+
+**개선 제안**: 텔레그램 API 응답·rate limit·메시지 포맷을 점검하세요.
+
+**근거**: 0분 전 status ?
+
+_재발 49회 (최초 2026-06-16 16:21:41.545 KST)_
+
+---
+
+### [WARN] telegram — 2026-07-25 08:43:11.920 KST
+
+<!-- id:env-ops-telegram-probe-fail -->
+
+**문제**: ops 텔레그램 연결 검증 실패: fetch failed
+
+**개선 제안**: 봇 토큰·채팅 ID·봇 초대 여부를 확인하세요.
+
+**근거**: fetch failed
+
+_재발 49회 (최초 2026-06-16 16:21:41.526 KST)_
+
+---
+
+### [WARN] auto-git — 2026-07-25 01:10:27.224 KST
+
+<!-- id:log-auto-git-710018c2f7 -->
+
+**문제**: fetch origin main failed: Command failed: git fetch origin main
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+_재발 14회 (최초 2026-05-27 21:08:34.715 KST)_
+
+---
+
+### [WARN] screener — 2026-06-25 03:14:07.371 KST
+
+<!-- id:screener-stale-results -->
+
+**문제**: 마지막 스캔 결과가 43분 전입니다.
+
+**개선 제안**: startScreening·타이머·오류 로그를 확인해 자동 재스캔이 멈추지 않게 하세요.
+
+**근거**: 분석 완료 · 매수 후보 1개
+
+_재발 9회 (최초 2026-06-25 02:34:37.492 KST)_
 
 ---
 
@@ -56,48 +126,6 @@ _재발 33회 (최초 2026-05-28 07:59:33.276 KST)_
 
 ---
 
-### [WARN] telegram — 2026-06-18 22:52:39.184 KST
-
-<!-- id:telegram-stock-send-error -->
-
-**문제**: 종목 알림 전송 오류: fetch failed
-
-**개선 제안**: 텔레그램 API 응답·rate limit·메시지 포맷을 점검하세요.
-
-**근거**: 0분 전 status ?
-
-_재발 43회 (최초 2026-06-16 16:21:41.545 KST)_
-
----
-
-### [WARN] telegram — 2026-06-18 22:52:39.169 KST
-
-<!-- id:env-ops-telegram-probe-fail -->
-
-**문제**: ops 텔레그램 연결 검증 실패: fetch failed
-
-**개선 제안**: 봇 토큰·채팅 ID·봇 초대 여부를 확인하세요.
-
-**근거**: fetch failed
-
-_재발 43회 (최초 2026-06-16 16:21:41.526 KST)_
-
----
-
-### [WARN] auto-git — 2026-06-13 21:16:24.120 KST
-
-<!-- id:log-auto-git-710018c2f7 -->
-
-**문제**: fetch origin main failed: Command failed: git fetch origin main
-
-**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
-
-**근거**: server/.logs 접근 로그 INTERNAL auto-git
-
-_재발 6회 (최초 2026-05-27 21:08:34.715 KST)_
-
----
-
 ## 최근 자동 점검
 
-2026-06-23 18:29:24.792 KST — probes 완료 · 열린 6건 · 이번 기록 1건
+2026-07-27 15:28:47.012 KST — probes 완료 · 열린 8건 · 이번 기록 0건

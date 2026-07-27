@@ -183,7 +183,7 @@ export function boxRangeDetectEnabled() {
   return String(process.env.STOCK_BOX_RANGE_DETECT ?? "0").trim() === "1";
 }
 
-/** 코인 박스권 카탈로그 스캔 — 비활성(요청에 따라 스캔 범위 제외) */
+/** 코인 박스권 카탈로그 스캔·러너 tick·텔레그램 알림 — 비활성(운영자 요청) */
 export function boxRangeCryptoScanEnabled() {
   return false;
 }

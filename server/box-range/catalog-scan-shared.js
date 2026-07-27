@@ -4,6 +4,7 @@ import {
   BOX_RANGE_CATALOG_DIR_V2,
   BOX_RANGE_PINE_MAX_STORE,
   BOX_RANGE_PRO_TIMEFRAMES,
+  boxRangeCryptoScanEnabled,
   boxRangeDetectEnabled,
   isBoxRangeCryptoHtfSymbol,
 } from "./constants.js";
@@ -54,6 +55,9 @@ export async function loadCandlesForBoxScan(symbol, timeframe) {
  */
 export async function scanOneSymbolCatalog(item, catalogMarket) {
   if (!boxRangeDetectEnabled()) {
+    return { ok: true, symbol: String(item.symbol ?? "").trim().toUpperCase(), boxes: 0, skipped: true };
+  }
+  if (catalogMarket === "crypto" && !boxRangeCryptoScanEnabled()) {
     return { ok: true, symbol: String(item.symbol ?? "").trim().toUpperCase(), boxes: 0, skipped: true };
   }
   const sym = String(item.symbol ?? "").trim().toUpperCase();
@@ -120,6 +124,9 @@ export async function scanOneSymbolCatalog(item, catalogMarket) {
  */
 export async function scanOneSymbolCatalogV2(item, catalogMarket) {
   if (!boxRangeDetectEnabled()) {
+    return { ok: true, symbol: String(item.symbol ?? "").trim().toUpperCase(), boxes: 0, skipped: true };
+  }
+  if (catalogMarket === "crypto" && !boxRangeCryptoScanEnabled()) {
     return { ok: true, symbol: String(item.symbol ?? "").trim().toUpperCase(), boxes: 0, skipped: true };
   }
   const sym = String(item.symbol ?? "").trim().toUpperCase();

@@ -7,7 +7,7 @@ import {
   startBithumbWsTickerHub,
   stopBithumbWsTickerHub,
 } from "../bithumb-ws-ticker.js";
-import { isBoxRangeProgram } from "./constants.js";
+import { boxRangeCryptoScanEnabled, isBoxRangeCryptoHtfSymbol, isBoxRangeProgram } from "./constants.js";
 import { collectWatchSymbolsForProgram } from "./watch-symbols.js";
 import { scheduleBoxRangeFsmOnWsPrice } from "./ws-fsm.js";
 
@@ -38,7 +38,10 @@ export async function syncBoxRangeWsSubscriptions() {
   const symbols = new Set();
   for (const p of programs) {
     const syms = await collectWatchSymbolsForProgram(p);
-    for (const s of syms) symbols.add(s);
+    for (const s of syms) {
+      if (!boxRangeCryptoScanEnabled() && isBoxRangeCryptoHtfSymbol(s)) continue;
+      symbols.add(s);
+    }
   }
 
   startBithumbWsTickerHub({

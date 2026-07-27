@@ -3,6 +3,7 @@ import {
   listSimActiveProgramsSync,
 } from "../live-trade-programs-store.js";
 import {
+  boxRangeCryptoScanEnabled,
   isBoxRangeCryptoHtfManaged,
   isBoxRangeCryptoHtfSymbol,
   isBoxRangeProgram,
@@ -36,6 +37,7 @@ function activeBoxRangePrograms() {
  * @param {string} yahooSymbol
  */
 export function scheduleBoxRangeFsmOnWsPrice(yahooSymbol) {
+  if (!boxRangeCryptoScanEnabled()) return;
   if (process.env.STOCK_BOX_RANGE_WS === "0") return;
   const sym = String(yahooSymbol ?? "").trim().toUpperCase();
   if (!sym || !isBoxRangeCryptoHtfSymbol(sym)) return;
@@ -65,6 +67,7 @@ function logFsmErr(e) {
  * @param {string} symbol
  */
 export async function runBoxRangeFsmForSymbol(symbol) {
+  if (!boxRangeCryptoScanEnabled()) return;
   const sym = String(symbol ?? "").trim().toUpperCase();
   const programs = activeBoxRangePrograms();
   if (!programs.length) return;
