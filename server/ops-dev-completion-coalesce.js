@@ -49,6 +49,13 @@ let flushTimer = null;
 
 let flushInFlight = false;
 
+function logCoalesceTickError(label, e) {
+  console.warn(
+    `[ops-dev-coalesce] ${label}:`,
+    e instanceof Error ? e.message : e,
+  );
+}
+
 /** @type {{
  *   userRequest: string;
  *   completion: string;
@@ -267,7 +274,9 @@ export function scheduleOpsDevCompletionTelegram(opts) {
   if (!tryReserveOpsDevNotifySchedule(dedupKey)) return;
 
   if (process.env.OPS_DEV_NOTIFY_COALESCE === "0") {
-    void flushOpsDevCompletionNow(opts, dedupKey);
+    void flushOpsDevCompletionNow(opts, dedupKey).catch((e) =>
+      logCoalesceTickError("flush-now", e),
+    );
     return;
   }
 
@@ -320,7 +329,7 @@ export function scheduleOpsDevCompletionTelegram(opts) {
     }
     const prev = pending;
     pending = null;
-    void flushSnapNow(prev);
+    void flushSnapNow(prev).catch((e) => logCoalesceTickError("flush-snap", e));
   }
 
   if (!pending || priority >= pending.priority) {
@@ -349,7 +358,7 @@ export function scheduleOpsDevCompletionTelegram(opts) {
   const waitMs = debounceMs(priority);
   flushTimer = setTimeout(() => {
     flushTimer = null;
-    void flushPending();
+    void flushPending().catch((e) => logCoalesceTickError("flush-pending", e));
   }, waitMs);
 }
 
@@ -357,41 +366,45 @@ export function scheduleOpsDevCompletionTelegram(opts) {
  * @param {Parameters<typeof scheduleOpsDevCompletionTelegram>[0]} opts
  */
 async function flushOpsDevCompletionNow(opts, dedupKey) {
-  const key = dedupKey ?? buildOpsDevNotifyDedupKey(opts);
-  // dedupKey가 전달된 경우 호출자(scheduleOpsDevCompletionTelegram)가 이미 예약 완료
-  if (!dedupKey && !tryReserveOpsDevNotifySchedule(key)) return;
-  const userRequest = trimBlock(
-    opts.userRequest ?? opts.title ?? "",
-    REQUEST_MAX,
-  );
-  let completion = "";
-  if ((opts.state ?? "ok") === "cancelled") {
-    completion = "사용자가 요청을 중단했습니다.";
-  } else if (opts.state === "error") {
-    completion =
-      trimBlock(opts.errorText ?? opts.agentResponse, COMPLETION_MAX) ||
-      "알 수 없는 오류";
-  } else {
-    completion =
-      trimBlock(opts.agentResponse, COMPLETION_MAX) || "(응답 없음)";
+  try {
+    const key = dedupKey ?? buildOpsDevNotifyDedupKey(opts);
+    // dedupKey가 전달된 경우 호출자(scheduleOpsDevCompletionTelegram)가 이미 예약 완료
+    if (!dedupKey && !tryReserveOpsDevNotifySchedule(key)) return;
+    const userRequest = trimBlock(
+      opts.userRequest ?? opts.title ?? "",
+      REQUEST_MAX,
+    );
+    let completion = "";
+    if ((opts.state ?? "ok") === "cancelled") {
+      completion = "사용자가 요청을 중단했습니다.";
+    } else if (opts.state === "error") {
+      completion =
+        trimBlock(opts.errorText ?? opts.agentResponse, COMPLETION_MAX) ||
+        "알 수 없는 오류";
+    } else {
+      completion =
+        trimBlock(opts.agentResponse, COMPLETION_MAX) || "(응답 없음)";
+    }
+    const snap = {
+      userRequest: userRequest || "(요청 없음)",
+      completion,
+      title: String(opts.title ?? "").trim() || "개발 완료",
+      priority: Number(opts.priority) || 1,
+      at: Date.now(),
+      turnId: String(opts.turnId ?? "").trim() || null,
+      sessionId: String(opts.sessionId ?? "").trim() || null,
+      transcriptPath: String(opts.transcriptPath ?? "").trim() || null,
+      gitRevAtStart: String(opts.gitRevAtStart ?? "").trim() || null,
+      userLineIndex:
+        typeof opts.userLineIndex === "number" ? opts.userLineIndex : -1,
+    };
+    if ((opts.state ?? "ok") === "ok") {
+      await settleAndRefreshBeforeSend(snap);
+    }
+    await sendCompletionMessage(snap, key);
+  } catch (e) {
+    logCoalesceTickError("flush-now-body", e);
   }
-  const snap = {
-    userRequest: userRequest || "(요청 없음)",
-    completion,
-    title: String(opts.title ?? "").trim() || "개발 완료",
-    priority: Number(opts.priority) || 1,
-    at: Date.now(),
-    turnId: String(opts.turnId ?? "").trim() || null,
-    sessionId: String(opts.sessionId ?? "").trim() || null,
-    transcriptPath: String(opts.transcriptPath ?? "").trim() || null,
-    gitRevAtStart: String(opts.gitRevAtStart ?? "").trim() || null,
-    userLineIndex:
-      typeof opts.userLineIndex === "number" ? opts.userLineIndex : -1,
-  };
-  if ((opts.state ?? "ok") === "ok") {
-    await settleAndRefreshBeforeSend(snap);
-  }
-  await sendCompletionMessage(snap, key);
 }
 
 /**
@@ -399,14 +412,19 @@ async function flushOpsDevCompletionNow(opts, dedupKey) {
  * @returns {Promise<boolean>}
  */
 async function flushSnapNow(snap) {
-  const key = buildOpsDevNotifyDedupKeyFromSnap(snap);
-  if (shouldSkipOpsDevNotify(key)) {
-    releaseOpsDevNotifySchedule(key);
+  try {
+    const key = buildOpsDevNotifyDedupKeyFromSnap(snap);
+    if (shouldSkipOpsDevNotify(key)) {
+      releaseOpsDevNotifySchedule(key);
+      return false;
+    }
+    // 락 획득은 sendCompletionMessage에서만 수행 — 여기서 먼저 획득하면 settle 대기 중 이중 락 발생
+    await settleAndRefreshBeforeSend(snap);
+    return sendCompletionMessage(snap, key);
+  } catch (e) {
+    logCoalesceTickError("flush-snap-body", e);
     return false;
   }
-  // 락 획득은 sendCompletionMessage에서만 수행 — 여기서 먼저 획득하면 settle 대기 중 이중 락 발생
-  await settleAndRefreshBeforeSend(snap);
-  return sendCompletionMessage(snap, key);
 }
 
 async function flushPending() {
@@ -418,6 +436,8 @@ async function flushPending() {
     pending = null;
     clearPendingDisk();
     await flushSnapNow(snap);
+  } catch (e) {
+    logCoalesceTickError("flush-pending-body", e);
   } finally {
     flushInFlight = false;
   }
@@ -458,7 +478,9 @@ export async function flushOpsDevNotifyPendingFromDisk(opts = {}) {
   if (age < wait - 300) {
     const delay = Math.max(500, wait - age);
     setTimeout(() => {
-      void flushOpsDevNotifyPendingFromDisk(opts);
+      void flushOpsDevNotifyPendingFromDisk(opts).catch((e) =>
+        logCoalesceTickError("flush-disk-retry", e),
+      );
     }, delay);
     return false;
   }
@@ -467,8 +489,13 @@ export async function flushOpsDevNotifyPendingFromDisk(opts = {}) {
     clearPendingDisk();
     return false;
   }
-  await settleAndRefreshBeforeSend(snap);
-  return sendCompletionMessage(snap, key);
+  try {
+    await settleAndRefreshBeforeSend(snap);
+    return sendCompletionMessage(snap, key);
+  } catch (e) {
+    logCoalesceTickError("flush-disk", e);
+    return false;
+  }
 }
 
 /**
@@ -493,9 +520,9 @@ async function sendCompletionMessage(snap, dedupKey) {
     releaseOpsDevNotifySchedule(dedupKey);
     const turnId = String(snap.turnId ?? "").trim();
     if (turnId.startsWith("ide-turn:")) {
-      void import("./ops-ide-completion-notify.js").then((m) =>
-        m.markIdeCompletionTurnNotified(turnId),
-      );
+      void import("./ops-ide-completion-notify.js")
+        .then((m) => m.markIdeCompletionTurnNotified(turnId))
+        .catch((e) => logCoalesceTickError("mark-ide-notified", e));
     }
     console.info("[telegram:ops] dev completion (coalesced) sent");
   } else {
@@ -504,9 +531,9 @@ async function sendCompletionMessage(snap, dedupKey) {
     unmarkOpsDevNotifySent(dedupKey);
     const turnId = String(snap.turnId ?? "").trim();
     if (turnId.startsWith("ide-turn:")) {
-      void import("./ops-ide-completion-notify.js").then((m) =>
-        m.unmarkIdeCompletionTurnNotified(turnId),
-      );
+      void import("./ops-ide-completion-notify.js")
+        .then((m) => m.unmarkIdeCompletionTurnNotified(turnId))
+        .catch((e) => logCoalesceTickError("unmark-ide-notified", e));
     }
     console.warn(
       "[telegram:ops] dev completion (coalesced) failed — 토큰·chat_id·HTML 본문 확인",
@@ -517,5 +544,7 @@ async function sendCompletionMessage(snap, dedupKey) {
 
 clearStaleOpsDevNotifyLocks();
 setTimeout(() => {
-  void flushOpsDevNotifyPendingFromDisk({ boot: true });
+  void flushOpsDevNotifyPendingFromDisk({ boot: true }).catch((e) =>
+    logCoalesceTickError("flush-disk-boot", e),
+  );
 }, 2500);

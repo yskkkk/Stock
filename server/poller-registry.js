@@ -513,9 +513,10 @@ export async function pollerGuardAsync(id, fn) {
     runtime[id].lastError = null;
     runtime[id].tickCount = (runtime[id].tickCount ?? 0) + 1;
   } catch (e) {
-    runtime[id].lastError = e instanceof Error ? e.message : String(e);
-    // 호출부(runner.js)에서 .catch()로 처리 — UnhandledRejection 없음
-    throw e;
+    const msg = e instanceof Error ? e.message : String(e);
+    runtime[id].lastError = msg;
+    console.warn(`[poller:${id}] tick:`, msg);
+    // reject를 밖으로 던지지 않음 — setInterval·void tick unhandledRejection 방지
   } finally {
     runtime[id].running = false;
   }

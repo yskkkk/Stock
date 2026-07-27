@@ -1201,41 +1201,48 @@ export async function sendTelegramMessage(text, replyMarkup, creds) {
   const chatId = (creds?.chatId ?? process.env.TELEGRAM_CHAT_ID)?.trim();
   if (!token || !chatId) return false;
 
-  const auth = { token, chatId };
-  const base = {
-    chat_id: chatId,
-    disable_web_page_preview: true,
-  };
+  try {
+    const auth = { token, chatId };
+    const base = {
+      chat_id: chatId,
+      disable_web_page_preview: true,
+    };
 
-  const chunks = splitTextForTelegram(text);
-  let allOk = true;
-  for (let c = 0; c < chunks.length; c += 1) {
-    const chunkText = chunks[c];
-    const isLast = c === chunks.length - 1;
-    // inline 버튼은 마지막 조각에만 붙인다.
-    const markup = isLast ? replyMarkup : undefined;
-    /** @type {Record<string, unknown>[]} */
-    const attempts = [];
-    if (markup && typeof markup === "object") {
-      attempts.push({
-        ...base,
-        text: chunkText,
-        parse_mode: "HTML",
-        reply_markup: markup,
-      });
-      attempts.push({ ...base, text: chunkText, parse_mode: "HTML" });
-      attempts.push({ ...base, text: htmlToPlainText(chunkText) });
-    } else {
-      attempts.push({ ...base, text: chunkText, parse_mode: "HTML" });
-      attempts.push({ ...base, text: htmlToPlainText(chunkText) });
+    const chunks = splitTextForTelegram(text);
+    let allOk = true;
+    for (let c = 0; c < chunks.length; c += 1) {
+      const chunkText = chunks[c];
+      const isLast = c === chunks.length - 1;
+      // inline 버튼은 마지막 조각에만 붙인다.
+      const markup = isLast ? replyMarkup : undefined;
+      /** @type {Record<string, unknown>[]} */
+      const attempts = [];
+      if (markup && typeof markup === "object") {
+        attempts.push({
+          ...base,
+          text: chunkText,
+          parse_mode: "HTML",
+          reply_markup: markup,
+        });
+        attempts.push({ ...base, text: chunkText, parse_mode: "HTML" });
+        attempts.push({ ...base, text: htmlToPlainText(chunkText) });
+      } else {
+        attempts.push({ ...base, text: chunkText, parse_mode: "HTML" });
+        attempts.push({ ...base, text: htmlToPlainText(chunkText) });
+      }
+
+      const ok = await sendTelegramPayloadWithFallback(attempts, auth);
+      if (!ok) allOk = false;
     }
 
-    const ok = await sendTelegramPayloadWithFallback(attempts, auth);
-    if (!ok) allOk = false;
+    if (allOk) lastTelegramSendError = null;
+    return allOk;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    recordTelegramSendError(undefined, msg, msg);
+    console.warn("[telegram] send:", msg);
+    return false;
   }
-
-  if (allOk) lastTelegramSendError = null;
-  return allOk;
 }
 
 

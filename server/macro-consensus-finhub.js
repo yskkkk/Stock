@@ -105,22 +105,30 @@ async function loadFinnhubEconomicRows(fromYmd, toYmd, apiKey) {
   const url = `https://finnhub.io/api/v1/calendar/economic?from=${encodeURIComponent(fromYmd)}&to=${encodeURIComponent(toYmd)}&token=${encodeURIComponent(apiKey)}`;
 
   finnhubInflight = (async () => {
-    const res = await fetch(url, {
-      headers: { Accept: "application/json" },
-    });
-    if (!res.ok) {
-      throw new Error(`Finnhub economic calendar ${res.status}`);
+    try {
+      const res = await fetch(url, {
+        headers: { Accept: "application/json" },
+      });
+      if (!res.ok) {
+        throw new Error(`Finnhub economic calendar ${res.status}`);
+      }
+      const data = await res.json();
+      const rows = Array.isArray(data.economicCalendar) ? data.economicCalendar : [];
+      finnhubRowsCache = {
+        key: apiKey,
+        from: fromYmd,
+        to: toYmd,
+        at: Date.now(),
+        rows,
+      };
+      return rows;
+    } catch (e) {
+      console.warn(
+        "[macro-consensus:finnhub] fetch:",
+        e instanceof Error ? e.message : e,
+      );
+      return finnhubRowsCache?.rows ?? [];
     }
-    const data = await res.json();
-    const rows = Array.isArray(data.economicCalendar) ? data.economicCalendar : [];
-    finnhubRowsCache = {
-      key: apiKey,
-      from: fromYmd,
-      to: toYmd,
-      at: Date.now(),
-      rows,
-    };
-    return rows;
   })();
 
   try {

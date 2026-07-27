@@ -469,5 +469,10 @@ export async function fetchSectorEarningsSpotlight() {
 }
 
 export function prewarmSectorEarningsCache() {
-  void fetchSectorEarningsSpotlight();
+  void fetchSectorEarningsSpotlight().catch((e) => {
+    console.warn(
+      "[sector-earnings] prewarm:",
+      e instanceof Error ? e.message : e,
+    );
+  });
 }
