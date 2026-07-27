@@ -1624,7 +1624,9 @@ export default function LiveTradeAuthPanel({
   };
 
   useEffect(() => {
-    if (mode !== "register" || !codeSent || codeVerified) return;
+    if ((mode !== "register" && mode !== "login") || !codeSent || codeVerified) {
+      return;
+    }
     const code = verificationCode.replace(/\D/g, "");
     if (code.length !== 6 || verifyInFlight.current) return;
 
@@ -1636,7 +1638,7 @@ export default function LiveTradeAuthPanel({
       try {
         const checked = validateAuthEmail(email);
         if (!checked.ok) return;
-        await verifyAuthEmailCode(checked.value, code);
+        await verifyAuthEmailCode(checked.value, code, mode);
         if (cancelled) return;
         setCodeVerified(true);
         setCodeMsg(ko.app.liveTradeAuthVerifyDone);
@@ -1667,7 +1669,7 @@ export default function LiveTradeAuthPanel({
         setEmailErr(checked.error);
         return;
       }
-      const res = await sendAuthEmailVerificationCode(checked.value);
+      const res = await sendAuthEmailVerificationCode(checked.value, mode);
       setVerificationCode("");
       setCodeVerified(false);
       setCodeSent(true);
@@ -1694,6 +1696,15 @@ export default function LiveTradeAuthPanel({
     setPasswordErr(null);
     setCodeErr(null);
     try {
+      const code = verificationCode.trim().replace(/\s/g, "");
+      if (!/^\d{6}$/.test(code)) {
+        setCodeErr(ko.app.liveTradeAuthVerificationRequired);
+        return;
+      }
+      if (!codeSent || !codeVerified) {
+        setCodeErr(ko.app.liveTradeAuthVerificationRequired);
+        return;
+      }
       if (mode === "login") {
         const checkedEmail = validateAuthEmail(email);
         if (!checkedEmail.ok) {
@@ -1704,7 +1715,7 @@ export default function LiveTradeAuthPanel({
           setPasswordErr("비밀번호를 입력하세요.");
           return;
         }
-        await loginAuth(checkedEmail.value, password);
+        await loginAuth(checkedEmail.value, password, code);
       } else {
         const checked = validateAuthCredentials(email, password, {
           register: true,
@@ -1713,19 +1724,6 @@ export default function LiveTradeAuthPanel({
           if (checked.field === "이메일") setEmailErr(checked.error);
           else if (checked.field === "비밀번호") setPasswordErr(checked.error);
           else setErr(checked.error);
-          return;
-        }
-        const code = verificationCode.trim().replace(/\s/g, "");
-        if (!/^\d{6}$/.test(code)) {
-          setCodeErr(ko.app.liveTradeAuthVerificationRequired);
-          return;
-        }
-        if (!codeSent) {
-          setCodeErr(ko.app.liveTradeAuthVerificationRequired);
-          return;
-        }
-        if (!codeVerified) {
-          setCodeErr(ko.app.liveTradeAuthVerificationRequired);
           return;
         }
         await registerAuth(
@@ -1746,13 +1744,11 @@ export default function LiveTradeAuthPanel({
 
   const showRegister = registrationOpen;
   const canSubmit =
-    mode === "register"
-      ? showRegister &&
-        codeVerified &&
-        emailValid &&
-        passwordValid &&
-        !verifyCodeBusy
-      : emailValid && passwordValid;
+    codeVerified &&
+    emailValid &&
+    passwordValid &&
+    !verifyCodeBusy &&
+    (mode === "login" || showRegister);
   const isPopover = variant === "popover";
 
   return (
@@ -1875,7 +1871,7 @@ export default function LiveTradeAuthPanel({
           ) : null}
         </label>
 
-        {mode === "register" ? (
+        {mode === "register" || mode === "login" ? (
           <>
             <div className="live-trading-tab__auth-code-block">
               <span className="live-trading-tab__label">

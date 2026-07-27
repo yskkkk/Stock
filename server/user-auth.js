@@ -22,9 +22,11 @@ import {
   validateAuthPassword,
 } from "./stock-input-validation.js";
 import {
+  assertEmailVerificationCode,
   assertRegistrationVerificationCode,
-  checkRegistrationVerificationCode,
-  sendRegistrationVerificationCode,
+  checkEmailVerificationCode,
+  normalizeEmailVerifyPurpose,
+  sendEmailVerificationCode,
 } from "./email-verification.js";
 import { isEmailSendingConfigured } from "./email-sender.js";
 import { liveTradeLogInfo } from "./live-trade-log.js";
@@ -190,7 +192,8 @@ export function registerUserAuthRoutes(app) {
 
   app.post("/api/auth/email/send-code", async (req, res) => {
     try {
-      if (!isRegistrationOpen()) {
+      const purpose = normalizeEmailVerifyPurpose(req.body?.purpose);
+      if (purpose === "register" && !isRegistrationOpen()) {
         res.status(403).json({
           error: "회원가입이 닫혀 있습니다. 관리자에게 문의하세요.",
           code: "REGISTRATION_CLOSED",
@@ -205,13 +208,15 @@ export function registerUserAuthRoutes(app) {
         });
         return;
       }
-      const result = await sendRegistrationVerificationCode(req.body?.email);
+      const result = await sendEmailVerificationCode(req.body?.email, purpose);
       res.json(result);
     } catch (e) {
       const code =
         e && typeof e === "object" && "code" in e ? String(e.code) : undefined;
       let status = 400;
-      if (code === "EMAIL_ALREADY_REGISTERED") status = 409;
+      if (code === "EMAIL_ALREADY_REGISTERED" || code === "EMAIL_NOT_REGISTERED") {
+        status = 409;
+      }
       if (code === "SEND_COOLDOWN") status = 429;
       if (code === "EMAIL_NOT_CONFIGURED") status = 503;
       res.status(status).json({
@@ -227,18 +232,20 @@ export function registerUserAuthRoutes(app) {
 
   app.post("/api/auth/email/verify-code", (req, res) => {
     try {
-      if (!isRegistrationOpen()) {
+      const purpose = normalizeEmailVerifyPurpose(req.body?.purpose);
+      if (purpose === "register" && !isRegistrationOpen()) {
         res.status(403).json({
           error: "회원가입이 닫혀 있습니다. 관리자에게 문의하세요.",
           code: "REGISTRATION_CLOSED",
         });
         return;
       }
-      checkRegistrationVerificationCode(
+      checkEmailVerificationCode(
         req.body?.email,
         req.body?.verificationCode ?? req.body?.code,
+        purpose,
       );
-      res.json({ ok: true });
+      res.json({ ok: true, purpose });
     } catch (e) {
       const code =
         e && typeof e === "object" && "code" in e ? String(e.code) : undefined;
@@ -329,6 +336,23 @@ export function registerUserAuthRoutes(app) {
         res.status(401).json({
           error: "이메일 또는 비밀번호가 올바르지 않습니다.",
           code: "INVALID_CREDENTIALS",
+        });
+        return;
+      }
+      try {
+        assertEmailVerificationCode(
+          email,
+          req.body?.verificationCode ?? req.body?.code,
+          "login",
+        );
+      } catch (e) {
+        const code =
+          e && typeof e === "object" && "code" in e ? String(e.code) : undefined;
+        const status =
+          code === "CODE_MISMATCH" || code === "VERIFY_LOCKED" ? 401 : 400;
+        res.status(status).json({
+          error: e instanceof Error ? e.message : String(e),
+          code,
         });
         return;
       }

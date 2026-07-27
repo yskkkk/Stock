@@ -896,32 +896,47 @@ export function fetchAuthMe() {
   return fetchJson<AuthMeResponse>("/api/auth/me");
 }
 
-export function loginAuth(email: string, password: string) {
+export function loginAuth(
+  email: string,
+  password: string,
+  verificationCode: string,
+) {
   return fetchJson<{ ok: boolean; user: AuthUser }>("/api/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, verificationCode }),
   });
 }
 
-export function sendAuthEmailVerificationCode(email: string) {
+export function sendAuthEmailVerificationCode(
+  email: string,
+  purpose: "register" | "login" = "register",
+) {
   return fetchJson<{
     ok: boolean;
+    purpose?: "register" | "login";
     expiresInSec: number;
     devCode?: string;
   }>("/api/auth/email/send-code", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, purpose }),
   });
 }
 
-export function verifyAuthEmailCode(email: string, verificationCode: string) {
-  return fetchJson<{ ok: boolean }>("/api/auth/email/verify-code", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, verificationCode }),
-  });
+export function verifyAuthEmailCode(
+  email: string,
+  verificationCode: string,
+  purpose: "register" | "login" = "register",
+) {
+  return fetchJson<{ ok: boolean; purpose?: "register" | "login" }>(
+    "/api/auth/email/verify-code",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, verificationCode, purpose }),
+    },
+  );
 }
 
 export function registerAuth(

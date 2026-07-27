@@ -62,6 +62,12 @@ function normalizePending(raw) {
     codeHash,
     codeSalt,
     expiresAtMs,
+    purpose:
+      String(o.purpose ?? "").trim().toLowerCase() === "login"
+        ? "login"
+        : String(o.purpose ?? "").trim().toLowerCase() === "register"
+          ? "register"
+          : null,
     attempts:
       typeof o.attempts === "number" && o.attempts >= 0
         ? Math.floor(o.attempts)
@@ -83,11 +89,12 @@ export function getPendingVerificationSync(email) {
 }
 
 /**
- * @param {{ email: string; codeHash: string; codeSalt: string; expiresAtMs: number; lastSendAtMs: number }} entry
+ * @param {{ email: string; codeHash: string; codeSalt: string; expiresAtMs: number; lastSendAtMs: number; purpose?: string | null }} entry
  */
 export function upsertPendingVerificationSync(entry) {
   const email = normalizeUserEmail(entry.email);
   const store = readStoreSync();
+  const purposeRaw = String(entry.purpose ?? "").trim().toLowerCase();
   const next = {
     email,
     codeHash: entry.codeHash,
@@ -95,6 +102,12 @@ export function upsertPendingVerificationSync(entry) {
     expiresAtMs: entry.expiresAtMs,
     attempts: 0,
     lastSendAtMs: entry.lastSendAtMs,
+    purpose:
+      purposeRaw === "login"
+        ? "login"
+        : purposeRaw === "register"
+          ? "register"
+          : null,
   };
   store.pending = store.pending.filter((p) => p.email !== email);
   store.pending.push(next);

@@ -1,5 +1,5 @@
 /**
- * 회원가입 이메일 인증번호 발송·검증
+ * 회원가입·로그인 이메일 인증번호 발송·검증
  */
 import crypto from "node:crypto";
 import { sendTransactionalEmail, isEmailSendingConfigured } from "./email-sender.js";
@@ -16,6 +16,8 @@ import {
 
 const SEND_COOLDOWN_MS = 60 * 1000;
 
+/** @typedef {"register" | "login"} EmailVerifyPurpose */
+
 function hashVerificationCode(code, saltHex) {
   return crypto
     .createHash("sha256")
@@ -25,6 +27,16 @@ function hashVerificationCode(code, saltHex) {
 
 function generateSixDigitCode() {
   return String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
+}
+
+/**
+ * @param {unknown} purpose
+ * @returns {EmailVerifyPurpose}
+ */
+export function normalizeEmailVerifyPurpose(purpose) {
+  return String(purpose ?? "").trim().toLowerCase() === "login"
+    ? "login"
+    : "register";
 }
 
 /**
@@ -52,8 +64,9 @@ export function validateVerificationCodeFormat(code) {
 
 /**
  * @param {string} email
+ * @param {EmailVerifyPurpose | string} [purpose]
  */
-export async function sendRegistrationVerificationCode(email) {
+export async function sendEmailVerificationCode(email, purpose = "register") {
   if (!isEmailSendingConfigured()) {
     const err = new Error(
       "이메일 발송이 설정되지 않았습니다. 관리자에게 SMTP 설정을 요청하세요.",
@@ -69,10 +82,18 @@ export async function sendRegistrationVerificationCode(email) {
     throw err;
   }
   const norm = checked.value;
+  const kind = normalizeEmailVerifyPurpose(purpose);
+  const existing = findUserByEmailSync(norm);
 
-  if (findUserByEmailSync(norm)) {
-    const err = new Error("이미 등록된 이메일입니다.");
-    err.code = "EMAIL_ALREADY_REGISTERED";
+  if (kind === "register") {
+    if (existing) {
+      const err = new Error("이미 등록된 이메일입니다.");
+      err.code = "EMAIL_ALREADY_REGISTERED";
+      throw err;
+    }
+  } else if (!existing) {
+    const err = new Error("가입된 이메일이 아닙니다.");
+    err.code = "EMAIL_NOT_REGISTERED";
     throw err;
   }
 
@@ -98,31 +119,38 @@ export async function sendRegistrationVerificationCode(email) {
     codeSalt,
     expiresAtMs,
     lastSendAtMs: now,
+    purpose: kind,
   });
 
   const ttlMin = Math.round(getVerificationTtlMs() / 60_000);
-  const subject = "[YSTOCK] 회원가입 이메일 인증번호";
+  const subject =
+    kind === "login"
+      ? "[YSTOCK] 로그인 이메일 인증번호"
+      : "[YSTOCK] 회원가입 이메일 인증번호";
+  const lead =
+    kind === "login"
+      ? "YSTOCK 로그인 인증번호입니다."
+      : "YSTOCK 회원가입 인증번호입니다.";
   const text =
-    `YSTOCK 회원가입 인증번호입니다.\n\n` +
+    `${lead}\n\n` +
     `인증번호: ${code}\n` +
     `유효 시간: ${ttlMin}분\n\n` +
-    `본인이 요청하지 않았다면 이 메일을 무시하세요.\n` +
-    `가입 완료 후 이 주소로 알림을 보낼 수 있습니다.`;
+    `본인이 요청하지 않았다면 이 메일을 무시하세요.\n`;
 
   await sendTransactionalEmail({
     to: norm,
     subject,
     text,
     html:
-      `<p>YSTOCK 회원가입 인증번호입니다.</p>` +
+      `<p>${lead}</p>` +
       `<p style="font-size:1.35rem;font-weight:700;letter-spacing:0.2em">${code}</p>` +
       `<p>유효 시간: ${ttlMin}분</p>` +
-      `<p style="color:#64748b;font-size:0.9rem">본인이 요청하지 않았다면 무시하세요. ` +
-      `가입 후 이 이메일로 알림을 받을 수 있습니다.</p>`,
+      `<p style="color:#64748b;font-size:0.9rem">본인이 요청하지 않았다면 무시하세요.</p>`,
   });
 
   const out = {
     ok: true,
+    purpose: kind,
     expiresInSec: Math.floor(getVerificationTtlMs() / 1000),
   };
   if (process.env.EMAIL_VERIFY_MOCK === "1") {
@@ -133,11 +161,21 @@ export async function sendRegistrationVerificationCode(email) {
 
 /**
  * @param {string} email
- * @param {string} code
- * @param {{ consume?: boolean }} [opts]
  */
-function matchRegistrationVerificationCode(email, code, opts = {}) {
+export async function sendRegistrationVerificationCode(email) {
+  return sendEmailVerificationCode(email, "register");
+}
+
+/**
+ * @param {string} email
+ * @param {string} code
+ * @param {{ consume?: boolean; purpose?: EmailVerifyPurpose | string }} [opts]
+ */
+function matchEmailVerificationCode(email, code, opts = {}) {
   const consume = opts.consume !== false;
+  const expectedPurpose = opts.purpose
+    ? normalizeEmailVerifyPurpose(opts.purpose)
+    : null;
   const e = validateAuthEmail(email);
   if (!e.ok) {
     const err = new Error(e.error);
@@ -172,6 +210,19 @@ function matchRegistrationVerificationCode(email, code, opts = {}) {
     err.code = "CODE_EXPIRED";
     throw err;
   }
+  if (
+    expectedPurpose &&
+    pending.purpose &&
+    pending.purpose !== expectedPurpose
+  ) {
+    const err = new Error(
+      expectedPurpose === "login"
+        ? "로그인용 인증번호를 다시 받아 주세요."
+        : "회원가입용 인증번호를 다시 받아 주세요.",
+    );
+    err.code = "CODE_PURPOSE_MISMATCH";
+    throw err;
+  }
 
   const got = hashVerificationCode(c.value, pending.codeSalt);
   if (got !== pending.codeHash) {
@@ -186,12 +237,36 @@ function matchRegistrationVerificationCode(email, code, opts = {}) {
 }
 
 /**
+ * @param {string} email
+ * @param {string} code
+ * @param {EmailVerifyPurpose | string} [purpose]
+ */
+export function checkEmailVerificationCode(email, code, purpose) {
+  return matchEmailVerificationCode(email, code, {
+    consume: false,
+    purpose,
+  });
+}
+
+/**
+ * @param {string} email
+ * @param {string} code
+ * @param {EmailVerifyPurpose | string} [purpose]
+ */
+export function assertEmailVerificationCode(email, code, purpose) {
+  return matchEmailVerificationCode(email, code, {
+    consume: true,
+    purpose,
+  });
+}
+
+/**
  * 가입 전 인증번호 일치 확인(소모하지 않음)
  * @param {string} email
  * @param {string} code
  */
 export function checkRegistrationVerificationCode(email, code) {
-  return matchRegistrationVerificationCode(email, code, { consume: false });
+  return checkEmailVerificationCode(email, code, "register");
 }
 
 /**
@@ -199,5 +274,5 @@ export function checkRegistrationVerificationCode(email, code) {
  * @param {string} code
  */
 export function assertRegistrationVerificationCode(email, code) {
-  return matchRegistrationVerificationCode(email, code, { consume: true });
+  return assertEmailVerificationCode(email, code, "register");
 }
