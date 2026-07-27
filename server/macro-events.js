@@ -472,5 +472,7 @@ export async function getMacroEventsCachedAsync() {
 
 /** 서버 기동 시 일정·Finnhub 예상치 미리 채움 */
 export function prewarmMacroEventsCache() {
-  void getMacroEventsCachedAsync();
+  void getMacroEventsCachedAsync().catch((e) => {
+    console.warn("[macro-events] prewarm:", e instanceof Error ? e.message : e);
+  });
 }

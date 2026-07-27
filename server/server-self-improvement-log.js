@@ -525,12 +525,21 @@ export function startServerSelfImprovementWatcher() {
 
   const bootDelay = 30_000;
   markPollerBootStarted("self-improvement");
+  const runSelfImprovementProbeTick = () =>
+    pollerGuardAsync("self-improvement", () => runServerSelfImprovementProbes()).catch(
+      (e) => {
+        console.warn(
+          "[self-improvement] probe tick:",
+          e instanceof Error ? e.message : e,
+        );
+      },
+    );
   setTimeout(() => {
-    void pollerGuardAsync("self-improvement", () => runServerSelfImprovementProbes());
+    void runSelfImprovementProbeTick();
   }, bootDelay);
 
   probeTimer = setInterval(() => {
-    void pollerGuardAsync("self-improvement", () => runServerSelfImprovementProbes());
+    void runSelfImprovementProbeTick();
   }, probeIntervalMs());
   if (typeof probeTimer.unref === "function") probeTimer.unref();
 

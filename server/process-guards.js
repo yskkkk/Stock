@@ -14,11 +14,19 @@ export function installProcessGuards() {
 
   process.on("unhandledRejection", (reason) => {
     logProcessError("unhandledRejection", reason);
-    recordProcessRuntimeIssue("unhandledRejection", reason);
+    try {
+      recordProcessRuntimeIssue("unhandledRejection", reason);
+    } catch (e) {
+      logProcessError("recordProcessRuntimeIssue", e);
+    }
   });
 
   process.on("uncaughtException", (err) => {
     logProcessError("uncaughtException", err);
-    recordProcessRuntimeIssue("uncaughtException", err);
+    try {
+      recordProcessRuntimeIssue("uncaughtException", err);
+    } catch (e) {
+      logProcessError("recordProcessRuntimeIssue", e);
+    }
   });
 }

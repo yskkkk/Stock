@@ -328,6 +328,11 @@ export function notifyIdeDevelopmentCompleted(opts) {
 
       sessionId,
 
+    }).catch((e) => {
+      console.warn(
+        "[telegram:ops] chat-no-code notify:",
+        e instanceof Error ? e.message : e,
+      );
     });
 
     return false;
