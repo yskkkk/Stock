@@ -2831,8 +2831,21 @@ export type VirtualPersona = {
   goals: string[];
   focusAreas: string[];
   traits: string;
+  satisfactionLevel?: number;
+  lastEscalatedAtMs?: number | null;
   createdAtMs: number;
   updatedAtMs: number;
+};
+
+export type VirtualUserContinuous = {
+  enabled: boolean;
+  intervalMs: number;
+  useBrowser: boolean;
+  notifyTelegram: boolean;
+  lastTickAtMs: number | null;
+  lastSessionId: string | null;
+  lastError: string | null;
+  lastCreatedCount: number;
 };
 
 export type VirtualFeedbackStatus = "new" | "queued" | "done" | "dismissed";
@@ -2881,8 +2894,31 @@ export function fetchVirtualUsers(adminToken?: string) {
       feedbackIds: string[];
       ok: boolean;
     }>;
+    continuous?: VirtualUserContinuous;
+    busy?: boolean;
+    satisfactionLabels?: Record<string, string>;
   }>("/api/virtual-users", {
     headers: virtualUserHeaders(adminToken),
+  });
+}
+
+export function patchVirtualUserContinuous(
+  patch: Partial<
+    Pick<
+      VirtualUserContinuous,
+      "enabled" | "intervalMs" | "useBrowser" | "notifyTelegram"
+    >
+  >,
+  adminToken?: string,
+) {
+  return fetchJson<{
+    ok: boolean;
+    continuous?: VirtualUserContinuous;
+    busy?: boolean;
+  }>("/api/virtual-users/continuous", {
+    method: "PATCH",
+    headers: virtualUserHeaders(adminToken),
+    body: JSON.stringify(patch),
   });
 }
 
@@ -2903,6 +2939,7 @@ export function runVirtualUsers(
     warnings?: string[];
     mode?: string;
     error?: string;
+    escalations?: Array<{ personaId: string; from: number; to: number }>;
   }>("/api/virtual-users/run", {
     method: "POST",
     headers: virtualUserHeaders(adminToken),

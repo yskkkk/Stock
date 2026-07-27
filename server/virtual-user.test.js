@@ -8,6 +8,13 @@ import {
   rejectIfVirtualUserLiveOrder,
   virtualUserAls,
 } from "./virtual-user-order-guard.js";
+import {
+  clampSatisfactionLevel,
+  feedbackFingerprint,
+  isFeedbackDuplicate,
+  knownFingerprintsForPersona,
+  shouldEscalateSatisfaction,
+} from "./virtual-user-satisfaction.js";
 
 describe("virtual-user-runner", () => {
   it("picks multiple seeds without early cut", () => {
@@ -21,6 +28,8 @@ describe("virtual-user-runner", () => {
         goals: [],
         focusAreas: ["rebalance", "account-manage"],
         traits: "",
+        satisfactionLevel: 1,
+        lastEscalatedAtMs: null,
         createdAtMs: 1,
         updatedAtMs: 1,
       },
@@ -29,7 +38,48 @@ describe("virtual-user-runner", () => {
     expect(seeds.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("builds prompt with feedback id", () => {
+  it("unlocks deeper seeds at higher satisfaction", () => {
+    const low = pickSeedsForPersona(
+      {
+        id: "t1",
+        name: "t",
+        enabled: true,
+        skill: "beginner",
+        device: "desktop",
+        goals: [],
+        focusAreas: ["rebalance", "account-manage"],
+        traits: "",
+        satisfactionLevel: 1,
+        lastEscalatedAtMs: null,
+        createdAtMs: 1,
+        updatedAtMs: 1,
+      },
+      8,
+      { satisfactionLevel: 1 },
+    );
+    const high = pickSeedsForPersona(
+      {
+        id: "t1",
+        name: "t",
+        enabled: true,
+        skill: "beginner",
+        device: "desktop",
+        goals: [],
+        focusAreas: ["rebalance", "account-manage"],
+        traits: "",
+        satisfactionLevel: 5,
+        lastEscalatedAtMs: null,
+        createdAtMs: 1,
+        updatedAtMs: 1,
+      },
+      8,
+      { satisfactionLevel: 5 },
+    );
+    expect(high.length).toBeGreaterThanOrEqual(low.length);
+    expect(high.some((s) => (s.minSatisfaction ?? 1) >= 4)).toBe(true);
+  });
+
+  it("builds prompt with feedback id and satisfaction", () => {
     const prompt = buildVirtualFeedbackPrompt(
       "fb-1",
       {
@@ -41,6 +91,8 @@ describe("virtual-user-runner", () => {
         goals: ["목표1"],
         focusAreas: ["rebalance"],
         traits: "조심스럽다",
+        satisfactionLevel: 3,
+        lastEscalatedAtMs: null,
         createdAtMs: 1,
         updatedAtMs: 1,
       },
@@ -56,6 +108,57 @@ describe("virtual-user-runner", () => {
     );
     expect(prompt).toContain("feedbackId: fb-1");
     expect(prompt).toContain("실주문");
+    expect(prompt).toContain("satisfaction: 3");
+  });
+});
+
+describe("virtual-user-satisfaction", () => {
+  it("fingerprints and detects duplicates", () => {
+    const fp = feedbackFingerprint("rebalance", "[브라우저] tab-x 실패");
+    expect(fp).toContain("rebalance::");
+    const known = knownFingerprintsForPersona(
+      [
+        {
+          personaId: "p1",
+          area: "rebalance",
+          title: "시장 켜짐/꺼짐·통화 구분이 한눈에 안 들어온다",
+          status: "new",
+        },
+      ],
+      "p1",
+    );
+    expect(
+      isFeedbackDuplicate(known, {
+        area: "rebalance",
+        title: "시장 켜짐/꺼짐·통화 구분이 한눈에 안 들어온다",
+      }),
+    ).toBe(true);
+    expect(
+      isFeedbackDuplicate(known, {
+        area: "rebalance",
+        title: "완전히 다른 제목",
+      }),
+    ).toBe(false);
+  });
+
+  it("escalates when saturated", () => {
+    expect(clampSatisfactionLevel(99)).toBe(5);
+    expect(
+      shouldEscalateSatisfaction({
+        emitted: 0,
+        skippedDup: 4,
+        candidateCount: 5,
+        level: 2,
+      }),
+    ).toBe(true);
+    expect(
+      shouldEscalateSatisfaction({
+        emitted: 3,
+        skippedDup: 0,
+        candidateCount: 3,
+        level: 2,
+      }),
+    ).toBe(false);
   });
 });
 

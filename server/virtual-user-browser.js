@@ -91,9 +91,14 @@ async function clickTabByText(page, text, timeoutMs = 8_000) {
 /**
  * @param {import("./virtual-user-store.js").VirtualPersona} persona
  * @param {string} sessionId
+ * @param {{ satisfactionLevel?: number }} [opts]
  * @returns {Promise<{ ok: boolean; observations: VuBrowserObservation[]; error?: string; mode: string }>}
  */
-export async function runVirtualUserBrowserJourney(persona, sessionId) {
+export async function runVirtualUserBrowserJourney(persona, sessionId, opts = {}) {
+  const satisfactionLevel = Math.min(
+    5,
+    Math.max(1, Math.round(Number(opts.satisfactionLevel ?? persona.satisfactionLevel ?? 1)) || 1),
+  );
   const pw = await loadPlaywright();
   if (!pw) {
     return {
@@ -369,6 +374,22 @@ export async function runVirtualUserBrowserJourney(persona, sessionId) {
         },
       },
       {
+        id: "tab-stock-vault",
+        run: async () => {
+          await clickTabByText(page, "종목보관");
+          await page.waitForTimeout(800);
+          observations.push({
+            ok: true,
+            step: "tab-stock-vault",
+            area: "stock-vault",
+            severity: satisfactionLevel >= 3 ? "nit" : "minor",
+            detail: `종목보관 탭 진입 (만족도 ${satisfactionLevel}). 필터·목록 가독성 확인.`,
+            suggestion: "홈(종목보관) 첫 화면 안내·필터 기본값을 유지한다.",
+            screenshot: await shot(page, `${persona.id}_vault`),
+          });
+        },
+      },
+      {
         id: "tab-stock-lookup",
         run: async () => {
           await clickTabByText(page, "종목 검색");
@@ -386,22 +407,45 @@ export async function runVirtualUserBrowserJourney(persona, sessionId) {
       },
     ];
 
-    // 포커스 영역에 맞는 스텝 우선 + 전부 수행(중도 종료 금지)
+    const coreIds = new Set([
+      "tab-account-manage",
+      "rebalance-schedule-preview",
+      "tab-stock-lookup",
+    ]);
+    if (satisfactionLevel >= 2) {
+      coreIds.add("tab-reddit");
+      coreIds.add("nasdaq-etf-micro");
+    }
+    if (satisfactionLevel >= 3) {
+      coreIds.add("tab-screener");
+      coreIds.add("tab-recommendations");
+      coreIds.add("tab-stock-vault");
+    }
+    const stepsForLevel =
+      satisfactionLevel >= 4
+        ? steps
+        : steps.filter((s) => coreIds.has(s.id));
+
     const focus = new Set(persona.focusAreas || []);
     const ordered = [
-      ...steps.filter((s) => {
-        if (!focus.size) return true;
+      ...stepsForLevel.filter((s) => {
+        if (!focus.size || satisfactionLevel >= 3) return true;
         if (s.id.includes("account") || s.id.includes("rebalance"))
           return focus.has("account-manage") || focus.has("rebalance") || focus.has("orders");
-        if (s.id.includes("reddit") || s.id.includes("etf") || s.id.includes("screener") || s.id.includes("reco"))
+        if (
+          s.id.includes("reddit") ||
+          s.id.includes("etf") ||
+          s.id.includes("screener") ||
+          s.id.includes("reco") ||
+          s.id.includes("vault")
+        )
           return focus.has("navigation") || focus.has("mobile") || true;
         return true;
       }),
     ];
-    // 중복 제거 후 전부 순서 유지
     const seen = new Set();
     const finalSteps = [];
-    for (const s of [...ordered, ...steps]) {
+    for (const s of [...ordered, ...stepsForLevel]) {
       if (seen.has(s.id)) continue;
       seen.add(s.id);
       finalSteps.push(s);

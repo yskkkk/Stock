@@ -5,10 +5,12 @@ import {
   fetchVirtualUsers,
   implementVirtualFeedback,
   patchVirtualPersona,
+  patchVirtualUserContinuous,
   runVirtualUsers,
   setVirtualFeedbackStatus,
   type VirtualFeedback,
   type VirtualPersona,
+  type VirtualUserContinuous,
 } from "../api";
 import { ko } from "../i18n/ko";
 import "./virtual-users-admin.css";
@@ -27,6 +29,21 @@ function statusLabel(s: VirtualFeedback["status"]): string {
   return ko.access.vuStatusNew;
 }
 
+function formatLastTick(ms: number | null | undefined): string {
+  if (ms == null || !Number.isFinite(ms)) return "—";
+  try {
+    return new Date(ms).toLocaleString("ko-KR", {
+      month: "numeric",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  } catch {
+    return "—";
+  }
+}
+
 export default function VirtualUsersAdminPanel({
   adminToken,
 }: {
@@ -34,6 +51,11 @@ export default function VirtualUsersAdminPanel({
 }) {
   const [personas, setPersonas] = useState<VirtualPersona[]>([]);
   const [feedback, setFeedback] = useState<VirtualFeedback[]>([]);
+  const [continuous, setContinuous] = useState<VirtualUserContinuous | null>(
+    null,
+  );
+  const [busyPoller, setBusyPoller] = useState(false);
+  const [satLabels, setSatLabels] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [running, setRunning] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -49,6 +71,9 @@ export default function VirtualUsersAdminPanel({
       const res = await fetchVirtualUsers(adminToken);
       setPersonas(res.personas ?? []);
       setFeedback(res.feedback ?? []);
+      setContinuous(res.continuous ?? null);
+      setBusyPoller(Boolean(res.busy));
+      setSatLabels(res.satisfactionLabels ?? {});
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -60,10 +85,36 @@ export default function VirtualUsersAdminPanel({
     void reload();
   }, [reload]);
 
+  useEffect(() => {
+    if (!continuous?.enabled) return;
+    const t = window.setInterval(() => {
+      void reload();
+    }, 20_000);
+    return () => window.clearInterval(t);
+  }, [continuous?.enabled, reload]);
+
   const visible = useMemo(() => {
     if (filter === "all") return feedback;
     return feedback.filter((f) => f.status === filter);
   }, [feedback, filter]);
+
+  const onToggleContinuous = async () => {
+    if (!continuous) return;
+    setActionId("continuous");
+    setErr(null);
+    try {
+      const res = await patchVirtualUserContinuous(
+        { enabled: !continuous.enabled },
+        adminToken,
+      );
+      if (res.continuous) setContinuous(res.continuous);
+      setBusyPoller(Boolean(res.busy));
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setActionId(null);
+    }
+  };
 
   const onRun = async () => {
     if (running) return;
@@ -83,8 +134,11 @@ export default function VirtualUsersAdminPanel({
         res.warnings?.length
           ? ` · 경고 ${res.warnings.length}건`
           : "";
+      const esc = res.escalations?.length
+        ? ` · 만족도 상승 ${res.escalations.length}명`
+        : "";
       setMsg(
-        `${ko.access.vuRunOk.replace("{n}", String(res.createdCount ?? 0))}${warn}${
+        `${ko.access.vuRunOk.replace("{n}", String(res.createdCount ?? 0))}${warn}${esc}${
           res.mode ? ` (${res.mode})` : ""
         }`,
       );
@@ -192,6 +246,41 @@ export default function VirtualUsersAdminPanel({
     <div className="vu-admin">
       <p className="vu-admin__intro">{ko.access.vuIntro}</p>
 
+      <section className="vu-admin__section" aria-label={ko.access.vuContinuous}>
+        <div className="vu-admin__section-head">
+          <h3>{ko.access.vuContinuous}</h3>
+          <button
+            type="button"
+            className={
+              continuous?.enabled
+                ? "vu-admin__persona-toggle is-on"
+                : "vu-admin__persona-toggle is-off"
+            }
+            disabled={!continuous || actionId === "continuous"}
+            onClick={() => void onToggleContinuous()}
+          >
+            {busyPoller
+              ? ko.access.vuContinuousBusy
+              : continuous?.enabled
+                ? ko.access.vuContinuousOn
+                : ko.access.vuContinuousOff}
+          </button>
+        </div>
+        <p className="vu-admin__hint">{ko.access.vuContinuousHint}</p>
+        {continuous ? (
+          <p className="vu-admin__meta">
+            {ko.access.vuContinuousLast}: {formatLastTick(continuous.lastTickAtMs)}
+            {continuous.lastCreatedCount > 0
+              ? ` · ${ko.access.vuContinuousCreated.replace(
+                  "{n}",
+                  String(continuous.lastCreatedCount),
+                )}`
+              : ""}
+            {continuous.lastError ? ` · ${continuous.lastError}` : ""}
+          </p>
+        ) : null}
+      </section>
+
       <section className="vu-admin__section" aria-label={ko.access.vuPersonas}>
         <div className="vu-admin__section-head">
           <h3>{ko.access.vuPersonas}</h3>
@@ -215,29 +304,34 @@ export default function VirtualUsersAdminPanel({
           </div>
         </div>
         <ul className="vu-admin__persona-list">
-          {personas.map((p) => (
-            <li key={p.id} className={p.enabled ? "" : "is-off"}>
-              <button
-                type="button"
-                className={
-                  p.enabled
-                    ? "vu-admin__persona-toggle is-on"
-                    : "vu-admin__persona-toggle is-off"
-                }
-                disabled={actionId === `p-${p.id}`}
-                onClick={() => void onTogglePersona(p)}
-              >
-                {p.enabled ? ko.access.vuPersonaOn : ko.access.vuPersonaOff}
-              </button>
-              <div className="vu-admin__persona-body">
-                <strong>{p.name}</strong>
-                <span>
-                  {p.skill} · {p.device}
-                </span>
-                {p.traits ? <em>{p.traits}</em> : null}
-              </div>
-            </li>
-          ))}
+          {personas.map((p) => {
+            const sat = p.satisfactionLevel ?? 1;
+            const satLabel = satLabels[String(sat)] || String(sat);
+            return (
+              <li key={p.id} className={p.enabled ? "" : "is-off"}>
+                <button
+                  type="button"
+                  className={
+                    p.enabled
+                      ? "vu-admin__persona-toggle is-on"
+                      : "vu-admin__persona-toggle is-off"
+                  }
+                  disabled={actionId === `p-${p.id}`}
+                  onClick={() => void onTogglePersona(p)}
+                >
+                  {p.enabled ? ko.access.vuPersonaOn : ko.access.vuPersonaOff}
+                </button>
+                <div className="vu-admin__persona-body">
+                  <strong>{p.name}</strong>
+                  <span>
+                    {p.skill} · {p.device} · {ko.access.vuSatisfaction} {sat}/5 (
+                    {satLabel})
+                  </span>
+                  {p.traits ? <em>{p.traits}</em> : null}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </section>
 

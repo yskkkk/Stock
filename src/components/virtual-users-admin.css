@@ -14,6 +14,20 @@
   line-height: 1.45;
 }
 
+.vu-admin__hint {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.vu-admin__meta {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--text-dim, var(--muted));
+  font-variant-numeric: tabular-nums;
+}
+
 .vu-admin__section {
   border: 1px solid var(--card-border);
   border-radius: var(--radius-sm, 0.5rem);

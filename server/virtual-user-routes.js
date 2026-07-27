@@ -5,16 +5,24 @@ import { requireAccessAdmin } from "./route-guards.js";
 import {
   backupVirtualFeedbackSync,
   deleteVirtualFeedbackSync,
+  getVirtualUserContinuousSync,
   listVirtualBackupsSync,
   listVirtualFeedbackSync,
   listVirtualPersonasSync,
   patchVirtualFeedbackSync,
+  patchVirtualUserContinuousSync,
   readVirtualUserStoreSync,
   updateVirtualPersonaSync,
 } from "./virtual-user-store.js";
 import { runVirtualUserSession } from "./virtual-user-runner.js";
 import { appendRecordModePendingJob } from "./ops-record-mode-store.js";
 import { notifyVirtualUserFeedback } from "./virtual-user-telegram.js";
+import {
+  isVirtualUserContinuousBusy,
+  rescheduleVirtualUserContinuousPoller,
+  tickVirtualUserContinuousOnce,
+} from "./virtual-user-poller.js";
+import { satisfactionLabelKo } from "./virtual-user-satisfaction.js";
 
 /**
  * @param {(handler: (req: any, res: any) => Promise<void>) => import("express").RequestHandler} asyncRoute
@@ -31,6 +39,65 @@ export function registerVirtualUserRoutes(app, asyncRoute) {
         personas: store.personas,
         feedback: store.feedback,
         sessions: store.sessions.slice(0, 20),
+        continuous: store.continuous,
+        busy: isVirtualUserContinuousBusy(),
+        satisfactionLabels: {
+          1: satisfactionLabelKo(1),
+          2: satisfactionLabelKo(2),
+          3: satisfactionLabelKo(3),
+          4: satisfactionLabelKo(4),
+          5: satisfactionLabelKo(5),
+        },
+      });
+    }),
+  );
+
+  app.get(
+    "/api/virtual-users/continuous",
+    requireAccessAdmin,
+    asyncRoute(async (_req, res) => {
+      res.json({
+        ok: true,
+        continuous: getVirtualUserContinuousSync(),
+        busy: isVirtualUserContinuousBusy(),
+      });
+    }),
+  );
+
+  app.patch(
+    "/api/virtual-users/continuous",
+    requireAccessAdmin,
+    asyncRoute(async (req, res) => {
+      const body = req.body ?? {};
+      /** @type {Record<string, unknown>} */
+      const patch = {};
+      if (body.enabled !== undefined) patch.enabled = Boolean(body.enabled);
+      if (body.useBrowser !== undefined) patch.useBrowser = Boolean(body.useBrowser);
+      if (body.notifyTelegram !== undefined) {
+        patch.notifyTelegram = Boolean(body.notifyTelegram);
+      }
+      if (body.intervalMs !== undefined) {
+        const n = Number(body.intervalMs);
+        if (Number.isFinite(n) && n >= 60_000) {
+          patch.intervalMs = Math.min(n, 60 * 60_000);
+        }
+      }
+      const result = patchVirtualUserContinuousSync(patch);
+      rescheduleVirtualUserContinuousPoller();
+      res.json({ ...result, busy: isVirtualUserContinuousBusy() });
+    }),
+  );
+
+  app.post(
+    "/api/virtual-users/continuous/tick",
+    requireAccessAdmin,
+    asyncRoute(async (_req, res) => {
+      const result = await tickVirtualUserContinuousOnce();
+      res.json({
+        ok: result?.ok !== false,
+        result,
+        continuous: getVirtualUserContinuousSync(),
+        busy: isVirtualUserContinuousBusy(),
       });
     }),
   );

@@ -290,6 +290,18 @@ export const POLLER_CATALOG = {
     descriptionKo:
       "계좌관리에서 등록한 월별 스케줄(매월 N일)에 맞춰 국내는 원화·미국은 달러 현금으로 현재 보유 비중을 유지하며 시장가 매수합니다. 실주문 허용·TOSS_LIVE_ORDERS_ENABLED 필요.",
   },
+  "virtual-user-continuous": {
+    labelKo: "가상 사용자 연속 탐색",
+    groupKo: "운영",
+    intervalMs: () => {
+      const n = Number(process.env.STOCK_VIRTUAL_USER_CONTINUOUS_MS ?? 8 * 60_000);
+      return Number.isFinite(n) && n >= 60_000 ? Math.min(n, 60 * 60_000) : 8 * 60_000;
+    },
+    envDisable: "STOCK_VIRTUAL_USER_CONTINUOUS=0",
+    isBootEnabled: () => process.env.STOCK_VIRTUAL_USER_CONTINUOUS !== "0",
+    descriptionKo:
+      "서버 기동 중 Playwright로 웹을 주기 탐색하며 UX 피드백을 쌓습니다. 동일 이슈가 포화되면 페르소나 만족도를 올려 더 까다로운 피드백을 찾습니다. 관리자 «가상 사용자»에서 연속 탐색 on/off.",
+  },
   "self-improvement": {
     labelKo: "서버 자가진단",
     groupKo: "운영",

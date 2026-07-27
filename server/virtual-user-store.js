@@ -33,9 +33,24 @@ const MAX_DETAIL_LEN = 4_000;
  *   goals: string[];
  *   focusAreas: string[];
  *   traits: string;
+ *   satisfactionLevel: number;
+ *   lastEscalatedAtMs: number | null;
  *   createdAtMs: number;
  *   updatedAtMs: number;
  * }} VirtualPersona
+ */
+
+/**
+ * @typedef {{
+ *   enabled: boolean;
+ *   intervalMs: number;
+ *   useBrowser: boolean;
+ *   notifyTelegram: boolean;
+ *   lastTickAtMs: number | null;
+ *   lastSessionId: string | null;
+ *   lastError: string | null;
+ *   lastCreatedCount: number;
+ * }} VirtualUserContinuous
  */
 
 /**
@@ -79,8 +94,53 @@ const MAX_DETAIL_LEN = 4_000;
  *   personas: VirtualPersona[];
  *   feedback: VirtualFeedback[];
  *   sessions: VirtualSession[];
+ *   continuous: VirtualUserContinuous;
  * }} VirtualUserStore
  */
+
+const DEFAULT_CONTINUOUS_INTERVAL_MS = 8 * 60_000;
+
+/** @returns {VirtualUserContinuous} */
+export function defaultContinuousConfig() {
+  return {
+    enabled: true,
+    intervalMs: DEFAULT_CONTINUOUS_INTERVAL_MS,
+    useBrowser: true,
+    notifyTelegram: false,
+    lastTickAtMs: null,
+    lastSessionId: null,
+    lastError: null,
+    lastCreatedCount: 0,
+  };
+}
+
+/** @param {unknown} raw @returns {VirtualUserContinuous} */
+function normalizeContinuous(raw) {
+  const d = defaultContinuousConfig();
+  if (!raw || typeof raw !== "object") return d;
+  const o = /** @type {Record<string, unknown>} */ (raw);
+  const interval = Number(o.intervalMs);
+  return {
+    enabled: o.enabled !== false,
+    intervalMs:
+      Number.isFinite(interval) && interval >= 60_000
+        ? Math.min(interval, 60 * 60_000)
+        : d.intervalMs,
+    useBrowser: o.useBrowser !== false,
+    notifyTelegram: o.notifyTelegram === true,
+    lastTickAtMs:
+      o.lastTickAtMs == null ? null : Number(o.lastTickAtMs) || null,
+    lastSessionId:
+      o.lastSessionId == null || o.lastSessionId === ""
+        ? null
+        : String(o.lastSessionId).slice(0, 80),
+    lastError:
+      o.lastError == null || o.lastError === ""
+        ? null
+        : String(o.lastError).slice(0, 500),
+    lastCreatedCount: Math.max(0, Number(o.lastCreatedCount) || 0),
+  };
+}
 
 function ensureDataDir() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -102,6 +162,8 @@ function defaultPersonas() {
       ],
       focusAreas: ["account-manage", "rebalance", "auth"],
       traits: "용어에 약하고, 켜짐/꺼짐·원화/달러 구분이 안 보이면 바로 막힌다.",
+      satisfactionLevel: 1,
+      lastEscalatedAtMs: null,
       createdAtMs: now,
       updatedAtMs: now,
     },
@@ -117,6 +179,8 @@ function defaultPersonas() {
       ],
       focusAreas: ["account-manage", "rebalance", "orders"],
       traits: "통화 혼동·애프터장 주문을 싫어한다. 짧은 안내 문구를 중시한다.",
+      satisfactionLevel: 1,
+      lastEscalatedAtMs: null,
       createdAtMs: now,
       updatedAtMs: now,
     },
@@ -132,6 +196,8 @@ function defaultPersonas() {
       ],
       focusAreas: ["account-manage", "rebalance", "navigation", "mobile"],
       traits: "터치 타깃·확인 다이얼로그·스크롤 깊이에 민감하다.",
+      satisfactionLevel: 1,
+      lastEscalatedAtMs: null,
       createdAtMs: now,
       updatedAtMs: now,
     },
@@ -141,10 +207,11 @@ function defaultPersonas() {
 /** @returns {VirtualUserStore} */
 function emptyStore() {
   return {
-    version: 1,
+    version: 2,
     personas: defaultPersonas(),
     feedback: [],
     sessions: [],
+    continuous: defaultContinuousConfig(),
   };
 }
 
@@ -167,6 +234,8 @@ function normalizePersona(raw) {
     : [];
   const createdAtMs = Number(o.createdAtMs);
   const updatedAtMs = Number(o.updatedAtMs);
+  const sat = Math.round(Number(o.satisfactionLevel ?? 1));
+  const lastEsc = o.lastEscalatedAtMs == null ? null : Number(o.lastEscalatedAtMs);
   return {
     id,
     name: name.slice(0, 80),
@@ -176,6 +245,9 @@ function normalizePersona(raw) {
     goals,
     focusAreas,
     traits: String(o.traits ?? "").slice(0, 400),
+    satisfactionLevel:
+      Number.isFinite(sat) && sat >= 1 && sat <= 5 ? sat : 1,
+    lastEscalatedAtMs: lastEsc != null && Number.isFinite(lastEsc) ? lastEsc : null,
     createdAtMs: Number.isFinite(createdAtMs) ? createdAtMs : Date.now(),
     updatedAtMs: Number.isFinite(updatedAtMs) ? updatedAtMs : Date.now(),
   };
@@ -247,10 +319,11 @@ export function readVirtualUserStoreSync() {
     const sessions = Array.isArray(raw.sessions) ? raw.sessions : [];
     /** @type {VirtualUserStore} */
     const store = {
-      version: 1,
+      version: 2,
       personas: personas.length ? /** @type {VirtualPersona[]} */ (personas) : defaultPersonas(),
       feedback: /** @type {VirtualFeedback[]} */ (feedback).slice(0, MAX_FEEDBACK),
       sessions: /** @type {VirtualSession[]} */ (sessions).slice(0, 100),
+      continuous: normalizeContinuous(raw.continuous),
     };
     return store;
   } catch {
@@ -262,14 +335,58 @@ export function readVirtualUserStoreSync() {
 export function writeVirtualUserStoreSync(store) {
   ensureDataDir();
   const payload = {
-    version: 1,
+    version: 2,
     personas: store.personas,
     feedback: store.feedback.slice(0, MAX_FEEDBACK),
     sessions: store.sessions.slice(0, 100),
+    continuous: normalizeContinuous(store.continuous),
   };
   const tmp = `${STORE_PATH}.${process.pid}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(payload, null, 2), "utf8");
   fs.renameSync(tmp, STORE_PATH);
+}
+
+export function getVirtualUserContinuousSync() {
+  return normalizeContinuous(readVirtualUserStoreSync().continuous);
+}
+
+/**
+ * @param {Partial<VirtualUserContinuous>} patch
+ */
+export function patchVirtualUserContinuousSync(patch) {
+  const store = readVirtualUserStoreSync();
+  const cur = normalizeContinuous(store.continuous);
+  store.continuous = normalizeContinuous({ ...cur, ...patch });
+  writeVirtualUserStoreSync(store);
+  return { ok: true, continuous: store.continuous };
+}
+
+/**
+ * @param {string} id
+ * @param {number} [delta]
+ */
+export function bumpPersonaSatisfactionSync(id, delta = 1) {
+  const store = readVirtualUserStoreSync();
+  const idx = store.personas.findIndex((p) => p.id === id);
+  if (idx < 0) return { ok: false, error: "페르소나를 찾을 수 없습니다." };
+  const cur = store.personas[idx];
+  const nextLevel = Math.min(
+    5,
+    Math.max(1, (cur.satisfactionLevel || 1) + (Number(delta) || 1)),
+  );
+  if (nextLevel === cur.satisfactionLevel) {
+    return { ok: true, persona: cur, escalated: false };
+  }
+  const next = normalizePersona({
+    ...cur,
+    satisfactionLevel: nextLevel,
+    lastEscalatedAtMs: Date.now(),
+    updatedAtMs: Date.now(),
+  });
+  if (!next) return { ok: false, error: "잘못된 페르소나입니다." };
+  store.personas[idx] = next;
+  writeVirtualUserStoreSync(store);
+  return { ok: true, persona: next, escalated: true, personas: store.personas };
 }
 
 export function listVirtualPersonasSync() {
@@ -298,6 +415,12 @@ export function updateVirtualPersonaSync(id, patch) {
   if (patch.focusAreas !== undefined) merged.focusAreas = patch.focusAreas;
   if (patch.skill !== undefined) merged.skill = patch.skill;
   if (patch.device !== undefined) merged.device = patch.device;
+  if (patch.satisfactionLevel !== undefined) {
+    merged.satisfactionLevel = patch.satisfactionLevel;
+  }
+  if (patch.lastEscalatedAtMs !== undefined) {
+    merged.lastEscalatedAtMs = patch.lastEscalatedAtMs;
+  }
   merged.updatedAtMs = Date.now();
   const next = normalizePersona(merged);
   if (!next) return { ok: false, error: "잘못된 페르소나입니다." };
