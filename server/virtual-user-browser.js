@@ -78,6 +78,23 @@ async function clickVu(page, vu, timeoutMs = 8_000) {
 }
 
 /**
+ * count() 대신 waitFor — SPA 리렌더·탭 전환 중 execution context destroyed 방지
+ * @param {import("playwright").Page} page
+ * @param {string} selector
+ * @param {number} [timeoutMs]
+ * @returns {Promise<import("playwright").Locator | null>}
+ */
+async function waitVisibleLocator(page, selector, timeoutMs = 8_000) {
+  const loc = page.locator(selector).first();
+  try {
+    await loc.waitFor({ state: "visible", timeout: timeoutMs });
+    return loc;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * @param {import("playwright").Page} page
  * @param {string} text
  * @param {number} [timeoutMs]
@@ -309,54 +326,86 @@ export async function runVirtualUserBrowserJourney(persona, sessionId, opts = {}
       {
         id: "rebalance-schedule-preview",
         run: async () => {
-          const openBtn = page
-            .locator(
-              '[data-vu="account-rebalance-open"], button:has-text("스케줄")',
-            )
-            .first();
-          if ((await openBtn.count()) === 0) {
+          await page
+            .waitForSelector(".account-manage-tab", { timeout: 10_000 })
+            .catch(() => {});
+          await page
+            .waitForSelector('[data-vu="account-manage-ready"]', {
+              timeout: 12_000,
+            })
+            .catch(() => {});
+
+          const openBtn = await waitVisibleLocator(
+            page,
+            '[data-vu="account-rebalance-open"]',
+            6_000,
+          );
+          if (!openBtn) {
             observations.push({
               ok: true,
               step: "rebalance-schedule-preview",
               area: "rebalance",
               severity: "minor",
               detail:
-                "스케줄 버튼을 찾지 못함(토스 미연동·비로그인 가능). 실주문 없이 탐색만 수행.",
+                "스케줄 버튼을 찾지 못함(토스 미연동·비로그인·로딩 중 가능). 실주문 없이 탐색만 수행.",
               suggestion: "연동 시에만 스케줄/즉시매수가 보이게 하거나 안내한다.",
               screenshot: await shot(page, `${persona.id}_no_schedule`),
             });
             return;
           }
           await openBtn.click({ timeout: 8_000 });
-          await page.waitForTimeout(700);
 
-          const dry = page
-            .locator(
-              '[data-vu="account-rebalance-dry-run"], button:has-text("미리보기")',
-            )
-            .first();
-          if ((await dry.count()) > 0) {
+          const modal = await waitVisibleLocator(
+            page,
+            '[data-vu="account-rebalance-modal"]',
+            8_000,
+          );
+          if (!modal) {
+            observations.push({
+              ok: true,
+              step: "rebalance-schedule-preview",
+              area: "rebalance",
+              severity: "minor",
+              detail: "스케줄 버튼 클릭 후 모달이 열리지 않음.",
+              suggestion: "모달 마운트·data-vu 마커를 유지한다.",
+              screenshot: await shot(page, `${persona.id}_no_schedule`),
+            });
+            return;
+          }
+
+          await page
+            .waitForSelector('[data-vu="account-rebalance-ready"]', {
+              timeout: 15_000,
+            })
+            .catch(() => {});
+
+          const dry = await waitVisibleLocator(
+            page,
+            '.account-rebalance-modal [data-vu="account-rebalance-dry-run"]',
+            5_000,
+          );
+          if (dry) {
             await dry.click({ timeout: 8_000 });
             await page.waitForTimeout(1200);
           }
 
-          // 즉시 매수 버튼이 있어도 confirm은 dialog handler가 dismiss
-          const buy = page
-            .locator(
-              '[data-vu="account-rebalance-buy-now"], button:has-text("즉시 매수")',
-            )
-            .first();
-          if ((await buy.count()) > 0) {
+          // 모달 안 즉시 매수만 — 툴바 버튼(동일 문구)과 구분. confirm은 dialog handler가 dismiss
+          const buy = await waitVisibleLocator(
+            page,
+            '.account-rebalance-modal [data-vu="account-rebalance-buy-now"]',
+            3_000,
+          );
+          if (buy) {
             await buy.click({ timeout: 5_000 }).catch(() => {});
             await page.waitForTimeout(400);
           }
 
-          const close = page
-            .locator(
-              '.account-rebalance-modal button:has-text("닫기"), [data-vu="account-rebalance-close"]',
-            )
-            .first();
-          if ((await close.count()) > 0) {
+          const close = await waitVisibleLocator(
+            page,
+            '[data-vu="account-rebalance-close"]',
+            5_000,
+          );
+          if (close) {
             await close.click({ timeout: 5_000 }).catch(() => {});
           }
 
