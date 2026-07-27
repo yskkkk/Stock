@@ -28,6 +28,7 @@ import {
   tossHoldingsTotalNetMarketValueKrw,
 } from "../lib/tossHoldingPnl";
 import { formatPercent, formatPrice, formatSignedMoney } from "../lib/format";
+import { anySelectedMarketRegularOpen } from "../lib/marketRegularHours";
 import { resolveSymbolDisplayName } from "../lib/symbolDisplayName";
 import { useBithumbBalanceHidden } from "../hooks/useBithumbBalanceHidden";
 import {
@@ -415,14 +416,36 @@ export default function AccountManageTab({
 
   const onBuyNowFromToolbar = useCallback(async () => {
     if (buyingNow) return;
+    if (!anySelectedMarketRegularOpen(["kr", "us"])) {
+      window.alert(ko.app.accountManageRebalanceNowHoursBlocked);
+      return;
+    }
     if (!window.confirm(ko.app.accountManageRebalanceNowConfirm)) return;
     setBuyingNow(true);
     try {
       const res = await runTossRebalanceNow({ dryRun: false });
+      if (!res.ok) {
+        window.alert(res.error || ko.app.accountManageRebalanceNowHoursBlocked);
+        return;
+      }
       const placed = res.placed?.length ?? 0;
       const failed = res.errors?.length ?? 0;
+      const skipped = res.skippedMarkets ?? [];
+      const skipNote =
+        skipped.length > 0
+          ? `\n${ko.app.accountManageRebalanceNowSkipped.replace(
+              "{markets}",
+              skipped
+                .map((m) =>
+                  m === "us"
+                    ? ko.app.accountManageMarketUs
+                    : ko.app.accountManageMarketKr,
+                )
+                .join(", "),
+            )}`
+          : "";
       if (placed === 0 && failed === 0) {
-        window.alert(ko.app.accountManageRebalanceNowNone);
+        window.alert(`${ko.app.accountManageRebalanceNowNone}${skipNote}`);
       } else if (failed > 0) {
         const detail = res.errors?.[0]?.error
           ? ` ? ${res.errors[0].error}`
@@ -430,11 +453,11 @@ export default function AccountManageTab({
         window.alert(
           `${ko.app.accountManageRebalanceNowFail
             .replace("{ok}", String(placed))
-            .replace("{total}", String(placed + failed))}${detail}`,
+            .replace("{total}", String(placed + failed))}${detail}${skipNote}`,
         );
       } else {
         window.alert(
-          ko.app.accountManageRebalanceNowOk.replace("{n}", String(placed)),
+          `${ko.app.accountManageRebalanceNowOk.replace("{n}", String(placed))}${skipNote}`,
         );
       }
       await reloadToss?.(true);
@@ -444,6 +467,8 @@ export default function AccountManageTab({
       setBuyingNow(false);
     }
   }, [buyingNow, reloadToss]);
+
+  const buyNowToolbarAllowed = anySelectedMarketRegularOpen(["kr", "us"]);
 
   const showHoverBubble = useCallback(
     (key: string, clientX: number, clientY: number) => {
@@ -612,7 +637,12 @@ export default function AccountManageTab({
                   <button
                     type="button"
                     className="bithumb-balance-hide-btn account-manage-tab__hide-btn account-manage-tab__hide-btn--summary account-manage-tab__hide-btn--accent"
-                    disabled={buyingNow}
+                    disabled={buyingNow || !buyNowToolbarAllowed}
+                    title={
+                      buyNowToolbarAllowed
+                        ? undefined
+                        : ko.app.accountManageRebalanceNowHoursHint
+                    }
                     onClick={() => void onBuyNowFromToolbar()}
                   >
                     {buyingNow

@@ -2071,6 +2071,9 @@ export type TossRebalanceScheduleResponse = {
     ready: boolean;
     syncedAtMs?: number | null;
     plans: TossRebalanceBuyPlan[];
+    regularOpen?: { kr: boolean; us: boolean };
+    regularOpenMarkets?: Array<"kr" | "us">;
+    regularClosedMarkets?: Array<"kr" | "us">;
   };
   error?: string;
 };
@@ -2129,9 +2132,13 @@ export function runTossRebalanceNow(body?: {
     dryRun?: boolean;
     immediate?: boolean;
     error?: string;
+    reason?: string;
     placed?: Array<{ symbol: string; amount: number; orderId?: string }>;
     errors?: Array<{ symbol: string; error?: string }>;
     plans?: TossRebalanceBuyPlan[];
+    skippedMarkets?: Array<"kr" | "us">;
+    closedMarkets?: Array<"kr" | "us">;
+    regularOpen?: { kr: boolean; us: boolean };
   }>("/api/live-trading/toss/rebalance-now", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

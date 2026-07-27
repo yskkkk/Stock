@@ -9,6 +9,7 @@ import {
 } from "../api";
 import { ko } from "../i18n/ko";
 import { formatPercent, formatPrice } from "../lib/format";
+import { anySelectedMarketRegularOpen } from "../lib/marketRegularHours";
 import "./account-rebalance-schedule-modal.css";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -166,6 +167,10 @@ export default function AccountRebalanceScheduleModal({
   };
 
   const onBuyNow = async () => {
+    if (!anySelectedMarketRegularOpen(markets)) {
+      setErr(ko.app.accountManageRebalanceNowHoursBlocked);
+      return;
+    }
     if (!window.confirm(ko.app.accountManageRebalanceNowConfirm)) return;
     setBuyingNow(true);
     setErr(null);
@@ -182,11 +187,29 @@ export default function AccountRebalanceScheduleModal({
         markets,
         cashUsePct,
       });
+      if (!res.ok) {
+        setErr(res.error || ko.app.accountManageRebalanceNowHoursBlocked);
+        return;
+      }
       setPlans(res.plans ?? []);
       const placed = res.placed?.length ?? 0;
       const failed = res.errors?.length ?? 0;
+      const skipped = res.skippedMarkets ?? [];
+      const skipNote =
+        skipped.length > 0
+          ? ` ${ko.app.accountManageRebalanceNowSkipped.replace(
+              "{markets}",
+              skipped
+                .map((m) =>
+                  m === "us"
+                    ? ko.app.accountManageMarketUs
+                    : ko.app.accountManageMarketKr,
+                )
+                .join(", "),
+            )}`
+          : "";
       if (placed === 0 && failed === 0) {
-        setMsg(ko.app.accountManageRebalanceNowNone);
+        setMsg(`${ko.app.accountManageRebalanceNowNone}${skipNote}`);
       } else if (failed > 0) {
         const detail = res.errors?.[0]?.error
           ? ` — ${res.errors[0].error}`
@@ -194,12 +217,12 @@ export default function AccountRebalanceScheduleModal({
         setErr(
           `${ko.app.accountManageRebalanceNowFail
             .replace("{ok}", String(placed))
-            .replace("{total}", String(placed + failed))}${detail}`,
+            .replace("{total}", String(placed + failed))}${detail}${skipNote}`,
         );
         if (placed > 0) onOrdersPlaced?.();
       } else {
         setMsg(
-          ko.app.accountManageRebalanceNowOk.replace("{n}", String(placed)),
+          `${ko.app.accountManageRebalanceNowOk.replace("{n}", String(placed))}${skipNote}`,
         );
         onOrdersPlaced?.();
       }
@@ -224,6 +247,7 @@ export default function AccountRebalanceScheduleModal({
   const monthLabel = `${year}년 ${monthIndex + 1}월`;
   const krOn = markets.includes("kr");
   const usOn = markets.includes("us");
+  const buyNowAllowed = anySelectedMarketRegularOpen(markets);
 
   return (
     <div
@@ -538,7 +562,12 @@ export default function AccountRebalanceScheduleModal({
               <button
                 type="button"
                 className="btn btn--primary account-rebalance-modal__buy-now"
-                disabled={saving || running || buyingNow}
+                disabled={saving || running || buyingNow || !buyNowAllowed}
+                title={
+                  buyNowAllowed
+                    ? undefined
+                    : ko.app.accountManageRebalanceNowHoursHint
+                }
                 onClick={() => void onBuyNow()}
               >
                 {buyingNow
@@ -556,6 +585,9 @@ export default function AccountRebalanceScheduleModal({
                   : ko.app.accountManageRebalanceSave}
               </button>
             </footer>
+            <p className="account-rebalance-modal__hint">
+              {ko.app.accountManageRebalanceNowHoursHint}
+            </p>
           </>
         )}
       </div>

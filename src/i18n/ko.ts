@@ -210,10 +210,15 @@ export const ko = {
     accountManageRebalanceNowRun: "지금 즉시 매수",
     accountManageRebalanceNowRunning: "매수 중…",
     accountManageRebalanceNowConfirm:
-      "켜진 시장의 남은 현금(국내=원화·미국=달러)을 현재 보유 비중대로 시장가 매수합니다.\n실제 주문이 나갑니다. 계속할까요?",
+      "켜진 시장 중 정규장만 남은 현금(국내=원화·미국=달러)을 현재 보유 비중대로 시장가 매수합니다.\n시간외·애프터는 제외됩니다. 실제 주문이 나갑니다. 계속할까요?",
     accountManageRebalanceNowOk: "즉시 매수 {n}건 접수",
     accountManageRebalanceNowFail: "즉시 매수 일부 실패 ({ok}/{total})",
     accountManageRebalanceNowNone: "매수할 주문이 없습니다. 현금·보유를 확인하세요.",
+    accountManageRebalanceNowHoursHint:
+      "즉시 매수는 정규장에만 가능합니다 (국내 09:00–15:30 · 미국 09:30–16:00 ET). 시간외·애프터에서는 소수점 매수가 되지 않습니다.",
+    accountManageRebalanceNowHoursBlocked: "지금은 정규장이 아니라 즉시 매수를 할 수 없습니다.",
+    accountManageRebalanceNowSkipped:
+      "정규장이 아닌 시장은 건너뛰었습니다: {markets}",
     accountManageRebalanceSave: "스케줄 저장",
     accountManageRebalanceSaving: "저장 중…",
     accountManageRebalanceSaved: "스케줄을 저장했습니다.",

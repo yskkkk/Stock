@@ -8,9 +8,42 @@ import {
   upsertTossRebalanceScheduleSync,
 } from "./toss-rebalance-schedule-store.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
+import { isMarketOpenBySchedule } from "./market-hours.js";
+import { getKstParts, isKrBusinessDay } from "./kr-business-day.js";
 
 const MIN_BUY_KRW = 1_000;
 const MIN_BUY_USD = 1;
+
+const REGULAR_HOURS_HINT =
+  "즉시 매수는 정규장에만 가능합니다 (국내 09:00–15:30 KST · 미국 09:30–16:00 ET). 시간외·애프터에서는 소수점 매수가 되지 않습니다.";
+
+/**
+ * 즉시 매수용 정규장 여부 (KR은 영업일도 확인)
+ * @param {"kr"|"us"} market
+ * @param {Date} [now]
+ */
+export function isRebalanceRegularSession(market, now = new Date()) {
+  if (!isMarketOpenBySchedule(market, now)) return false;
+  if (market === "kr") {
+    return isKrBusinessDay(getKstParts(now).dateKey);
+  }
+  return true;
+}
+
+/**
+ * @param {Array<"kr"|"us">} markets
+ * @param {Date} [now]
+ */
+export function splitMarketsByRegularSession(markets, now = new Date()) {
+  const open = [];
+  const closed = [];
+  for (const m of markets) {
+    if (m !== "kr" && m !== "us") continue;
+    if (isRebalanceRegularSession(m, now)) open.push(m);
+    else closed.push(m);
+  }
+  return { open, closed };
+}
 
 /**
  * @param {number} [ms]
@@ -151,12 +184,20 @@ export async function previewTossRebalanceScheduleForUser(userId, schedule = nul
   const plans = markets.map((m) =>
     buildProportionalBuyPlan(snapshot, /** @type {"kr"|"us"} */ (m), cashUsePct),
   );
+  const { open: regularOpenMarkets, closed: regularClosedMarkets } =
+    splitMarketsByRegularSession(/** @type {Array<"kr"|"us">} */ (markets));
   return {
     ok: true,
     ready: Boolean(snapshot),
     schedule: sched,
     syncedAtMs: cache?.syncedAtMs ?? null,
     plans,
+    regularOpen: {
+      kr: isRebalanceRegularSession("kr"),
+      us: isRebalanceRegularSession("us"),
+    },
+    regularOpenMarkets,
+    regularClosedMarkets,
   };
 }
 
@@ -305,9 +346,27 @@ export async function runTossProportionalBuyNowForUser(userId, opts = {}) {
       ? Number(opts.cashUsePct)
       : (schedule?.cashUsePct ?? 100);
 
+  const { open: openMarkets, closed: closedMarkets } =
+    splitMarketsByRegularSession(/** @type {Array<"kr"|"us">} */ (markets));
+
+  // 실주문은 정규장만 — 시간외·애프터는 소수점 매수 불가
+  const marketsForRun = dryRun ? markets : openMarkets;
+  if (!dryRun && marketsForRun.length === 0) {
+    return {
+      ok: false,
+      error: REGULAR_HOURS_HINT,
+      reason: "outside_regular_hours",
+      closedMarkets,
+      regularOpen: {
+        kr: isRebalanceRegularSession("kr"),
+        us: isRebalanceRegularSession("us"),
+      },
+    };
+  }
+
   const preview = await previewTossRebalanceScheduleForUser(uid, {
     ...(schedule ?? {}),
-    markets,
+    markets: marketsForRun,
     cashUsePct,
   });
   if (!preview.ready) {
@@ -354,12 +413,21 @@ export async function runTossProportionalBuyNowForUser(userId, opts = {}) {
     placed,
     errors,
     plans: preview.plans,
+    skippedMarkets: dryRun ? [] : closedMarkets,
+    regularOpen: preview.regularOpen,
   };
+
+  if (!dryRun && closedMarkets.length) {
+    liveTradeLogInfo(
+      "[toss-rebalance-now]",
+      `skipped outside regular hours: ${closedMarkets.join(",")}`,
+    );
+  }
 
   if (!dryRun) {
     liveTradeLogInfo(
       "[toss-rebalance-now]",
-      `user=${uid} markets=${markets.join("+")} cashUsePct=${cashUsePct} placed=${placed.length} errors=${errors.length}`,
+      `user=${uid} markets=${marketsForRun.join("+")} cashUsePct=${cashUsePct} placed=${placed.length} errors=${errors.length}`,
     );
     if (errors.length) {
       liveTradeLogWarn(

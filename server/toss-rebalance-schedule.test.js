@@ -1,5 +1,8 @@
-import { describe, expect, it } from "vitest";
-import { buildProportionalBuyPlan } from "./toss-rebalance-schedule.js";
+import { describe, expect, it, vi, afterEach } from "vitest";
+import {
+  buildProportionalBuyPlan,
+  isRebalanceRegularSession,
+} from "./toss-rebalance-schedule.js";
 
 describe("buildProportionalBuyPlan", () => {
   it("splits KRW cash by holding weights", () => {
@@ -61,5 +64,29 @@ describe("buildProportionalBuyPlan", () => {
     expect(plan.orders).toHaveLength(1);
     expect(plan.orders[0].symbol).toBe("GOOGL");
     expect(plan.orders[0].amount).toBe(100);
+  });
+});
+
+describe("isRebalanceRegularSession", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("false in US after-hours", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-26T23:30:00.000Z")); // 19:30 ET Tue
+    expect(isRebalanceRegularSession("us")).toBe(false);
+  });
+
+  it("true in US regular session", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-26T14:00:00.000Z")); // 10:00 ET Tue
+    expect(isRebalanceRegularSession("us")).toBe(true);
+  });
+
+  it("false in KR after close", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-26T07:00:00.000Z")); // 16:00 KST Tue
+    expect(isRebalanceRegularSession("kr")).toBe(false);
   });
 });
