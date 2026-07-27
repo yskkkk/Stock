@@ -302,6 +302,22 @@ export const POLLER_CATALOG = {
     descriptionKo:
       "서버 기동 중 Playwright로 웹을 주기 탐색하며 UX 피드백을 쌓습니다. 동일 이슈가 포화되면 페르소나 만족도를 올려 더 까다로운 피드백을 찾습니다. 관리자 «가상 사용자»에서 연속 탐색 on/off.",
   },
+  "ops-record-mode": {
+    labelKo: "기록 모드 에이전트 큐",
+    groupKo: "운영",
+    intervalMs: () => {
+      const n = Number(process.env.OPS_RECORD_MODE_POLL_MS ?? 30_000);
+      return Number.isFinite(n) && n >= 3_000 ? Math.min(n, 120_000) : 30_000;
+    },
+    envDisable: "OPS_RECORD_MODE_DISABLED=1 또는 CURSOR_API_KEY 없음",
+    isBootEnabled: () => {
+      const dis = String(process.env.OPS_RECORD_MODE_DISABLED ?? "").trim();
+      if (dis === "1" || dis.toLowerCase() === "true") return false;
+      return Boolean(String(process.env.CURSOR_API_KEY ?? "").trim());
+    },
+    descriptionKo:
+      "가상 사용자 자동 구현·기록 모드 큐(pending)를 Cursor 에이전트로 순차 실행합니다. 실행 전후 코드 버전 스냅샷이 쌓이며 관리자 UI에서 롤백할 수 있습니다.",
+  },
   "self-improvement": {
     labelKo: "서버 자가진단",
     groupKo: "운영",

@@ -2842,10 +2842,25 @@ export type VirtualUserContinuous = {
   intervalMs: number;
   useBrowser: boolean;
   notifyTelegram: boolean;
+  autoImplement?: boolean;
+  autoImplementMinSeverity?: "blocker" | "major" | "minor" | "nit";
   lastTickAtMs: number | null;
   lastSessionId: string | null;
   lastError: string | null;
   lastCreatedCount: number;
+};
+
+export type CodeVersion = {
+  id: string;
+  label: string;
+  kind: "baseline" | "pre-feedback" | "post-agent" | "manual" | "rollback";
+  commitSha: string;
+  commitShort: string;
+  branch: string;
+  feedbackId: string | null;
+  jobId: string | null;
+  createdAtMs: number;
+  note: string;
 };
 
 export type VirtualFeedbackStatus = "new" | "queued" | "done" | "dismissed";
@@ -2906,7 +2921,12 @@ export function patchVirtualUserContinuous(
   patch: Partial<
     Pick<
       VirtualUserContinuous,
-      "enabled" | "intervalMs" | "useBrowser" | "notifyTelegram"
+      | "enabled"
+      | "intervalMs"
+      | "useBrowser"
+      | "notifyTelegram"
+      | "autoImplement"
+      | "autoImplementMinSeverity"
     >
   >,
   adminToken?: string,
@@ -2919,6 +2939,35 @@ export function patchVirtualUserContinuous(
     method: "PATCH",
     headers: virtualUserHeaders(adminToken),
     body: JSON.stringify(patch),
+  });
+}
+
+export function fetchCodeVersions(adminToken?: string) {
+  return fetchJson<{
+    ok: boolean;
+    baselineId: string | null;
+    versions: CodeVersion[];
+    headShort?: string;
+    branch?: string;
+    dirty?: boolean;
+  }>("/api/code-versions", {
+    headers: virtualUserHeaders(adminToken),
+  });
+}
+
+export function rollbackCodeVersion(id: string, adminToken?: string) {
+  return fetchJson<{
+    ok: boolean;
+    error?: string;
+    target?: CodeVersion;
+    resultVersion?: CodeVersion | null;
+    head?: string;
+    versions?: CodeVersion[];
+    warning?: string | null;
+  }>(`/api/code-versions/${encodeURIComponent(id)}/rollback`, {
+    method: "POST",
+    headers: virtualUserHeaders(adminToken),
+    body: "{}",
   });
 }
 

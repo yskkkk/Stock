@@ -13,6 +13,7 @@ import {
   revertRecordModeJobToPending,
   updateRecordModeItemStatus,
 } from "./ops-record-mode-store.js";
+import { markPollerBootStarted } from "./poller-registry.js";
 
 let started = false;
 
@@ -32,6 +33,24 @@ async function runRecordModeAgentJob(id, instruction) {
       message: tail.length > 0 ? tail : null,
     });
     await updateRecordModeItemStatus(id, "done", null);
+    try {
+      const { createCodeVersionSync } = await import("./code-version-store.js");
+      const { listVirtualFeedbackSync, patchVirtualFeedbackSync } = await import(
+        "./virtual-user-store.js"
+      );
+      createCodeVersionSync({
+        label: `에이전트 완료 · ${id.slice(0, 8)}`,
+        kind: "post-agent",
+        jobId: id,
+        note: "record-mode agent finished",
+      });
+      const fb = listVirtualFeedbackSync().find((f) => f.implementJobId === id);
+      if (fb) {
+        patchVirtualFeedbackSync(fb.id, { status: "done" });
+      }
+    } catch {
+      /* version bookkeeping optional */
+    }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     appendRecordModeActivityLog({ event: "error", id, instruction, message: msg });
@@ -76,7 +95,9 @@ async function tickRecordModePoller() {
 
 export function startOpsRecordModePoller() {
   if (started) return;
+  if (process.env.OPS_RECORD_MODE_DISABLED === "1") return;
   started = true;
+  markPollerBootStarted("ops-record-mode");
   setInterval(() => {
     void tickRecordModePoller();
   }, RECORD_MODE_POLL_MS);

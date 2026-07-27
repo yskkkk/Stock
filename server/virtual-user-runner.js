@@ -16,6 +16,7 @@ import {
 } from "./virtual-user-store.js";
 import { notifyVirtualUserFeedback } from "./virtual-user-telegram.js";
 import { runVirtualUserBrowserJourney } from "./virtual-user-browser.js";
+import { maybeAutoImplementVirtualFeedback } from "./virtual-user-auto-implement.js";
 import {
   allowedSeveritiesForSatisfaction,
   feedbackFingerprint,
@@ -344,6 +345,18 @@ async function emitFeedback(persona, sessionId, seed, notify, extra = "", known)
       /* optional */
     }
   }
+
+  try {
+    const auto = await maybeAutoImplementVirtualFeedback(item);
+    if (auto.ok && auto.jobId) {
+      item.status = "queued";
+      item.implementJobId = auto.jobId;
+      item.implementQueuedAtMs = Date.now();
+    }
+  } catch {
+    /* auto-implement optional — 피드백 자체는 유지 */
+  }
+
   return { skipped: false, item };
 }
 

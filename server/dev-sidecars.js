@@ -27,6 +27,8 @@ import { startMaAlignMa120WatchPoller } from "./ma-align-ma120-watch.js";
 import { startHoldingsNewsEmailPoller } from "./holdings-news-poller.js";
 import { startTossRebalanceSchedulePoller } from "./toss-rebalance-schedule-poller.js";
 import { startVirtualUserContinuousPoller } from "./virtual-user-poller.js";
+import { startOpsRecordModePoller } from "./ops-record-mode-poller.js";
+import { ensureBaselineCodeVersionSync } from "./code-version-store.js";
 import { registerPollerLazyStarter } from "./poller-registry.js";
 
 function registerDevSidecarPollers() {
@@ -52,6 +54,7 @@ function registerDevSidecarPollers() {
   registerPollerLazyStarter("holdings-news", startHoldingsNewsEmailPoller);
   registerPollerLazyStarter("toss-rebalance-schedule", startTossRebalanceSchedulePoller);
   registerPollerLazyStarter("virtual-user-continuous", startVirtualUserContinuousPoller);
+  registerPollerLazyStarter("ops-record-mode", startOpsRecordModePoller);
   registerPollerLazyStarter("self-improvement", startServerSelfImprovementWatcher);
 }
 
@@ -92,6 +95,12 @@ export function startStockDevSidecarsOnce(modeLabel) {
   startHoldingsNewsEmailPoller();
   startTossRebalanceSchedulePoller();
   startVirtualUserContinuousPoller();
+  try {
+    ensureBaselineCodeVersionSync();
+  } catch {
+    /* baseline optional at boot */
+  }
+  startOpsRecordModePoller();
   startServerSelfImprovementWatcher();
   setTimeout(() => prewarmAppCaches(), 400);
 }

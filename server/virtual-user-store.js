@@ -46,6 +46,8 @@ const MAX_DETAIL_LEN = 4_000;
  *   intervalMs: number;
  *   useBrowser: boolean;
  *   notifyTelegram: boolean;
+ *   autoImplement: boolean;
+ *   autoImplementMinSeverity: "blocker"|"major"|"minor"|"nit";
  *   lastTickAtMs: number | null;
  *   lastSessionId: string | null;
  *   lastError: string | null;
@@ -107,6 +109,8 @@ export function defaultContinuousConfig() {
     intervalMs: DEFAULT_CONTINUOUS_INTERVAL_MS,
     useBrowser: true,
     notifyTelegram: false,
+    autoImplement: true,
+    autoImplementMinSeverity: /** @type {const} */ ("minor"),
     lastTickAtMs: null,
     lastSessionId: null,
     lastError: null,
@@ -120,6 +124,12 @@ function normalizeContinuous(raw) {
   if (!raw || typeof raw !== "object") return d;
   const o = /** @type {Record<string, unknown>} */ (raw);
   const interval = Number(o.intervalMs);
+  const minSev = String(o.autoImplementMinSeverity ?? "minor");
+  /** @type {VirtualUserContinuous["autoImplementMinSeverity"]} */
+  const autoImplementMinSeverity =
+    minSev === "blocker" || minSev === "major" || minSev === "nit"
+      ? minSev
+      : "minor";
   return {
     enabled: o.enabled !== false,
     intervalMs:
@@ -128,6 +138,8 @@ function normalizeContinuous(raw) {
         : d.intervalMs,
     useBrowser: o.useBrowser !== false,
     notifyTelegram: o.notifyTelegram === true,
+    autoImplement: o.autoImplement !== false,
+    autoImplementMinSeverity,
     lastTickAtMs:
       o.lastTickAtMs == null ? null : Number(o.lastTickAtMs) || null,
     lastSessionId:

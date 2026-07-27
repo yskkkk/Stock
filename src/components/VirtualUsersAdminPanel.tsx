@@ -2,12 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   backupVirtualFeedback,
   deleteVirtualFeedback,
+  fetchCodeVersions,
   fetchVirtualUsers,
   implementVirtualFeedback,
   patchVirtualPersona,
   patchVirtualUserContinuous,
+  rollbackCodeVersion,
   runVirtualUsers,
   setVirtualFeedbackStatus,
+  type CodeVersion,
   type VirtualFeedback,
   type VirtualPersona,
   type VirtualUserContinuous,
@@ -44,6 +47,14 @@ function formatLastTick(ms: number | null | undefined): string {
   }
 }
 
+function versionKindLabel(k: CodeVersion["kind"]): string {
+  if (k === "baseline") return ko.access.vuVersionBaseline;
+  if (k === "pre-feedback") return "피드백 직전";
+  if (k === "post-agent") return "에이전트 후";
+  if (k === "rollback") return "롤백 결과";
+  return "수동";
+}
+
 export default function VirtualUsersAdminPanel({
   adminToken,
 }: {
@@ -54,6 +65,8 @@ export default function VirtualUsersAdminPanel({
   const [continuous, setContinuous] = useState<VirtualUserContinuous | null>(
     null,
   );
+  const [versions, setVersions] = useState<CodeVersion[]>([]);
+  const [baselineId, setBaselineId] = useState<string | null>(null);
   const [busyPoller, setBusyPoller] = useState(false);
   const [satLabels, setSatLabels] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -68,12 +81,19 @@ export default function VirtualUsersAdminPanel({
     setBusy(true);
     setErr(null);
     try {
-      const res = await fetchVirtualUsers(adminToken);
+      const [res, ver] = await Promise.all([
+        fetchVirtualUsers(adminToken),
+        fetchCodeVersions(adminToken).catch(() => null),
+      ]);
       setPersonas(res.personas ?? []);
       setFeedback(res.feedback ?? []);
       setContinuous(res.continuous ?? null);
       setBusyPoller(Boolean(res.busy));
       setSatLabels(res.satisfactionLabels ?? {});
+      if (ver?.ok) {
+        setVersions(ver.versions ?? []);
+        setBaselineId(ver.baselineId ?? null);
+      }
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -109,6 +129,49 @@ export default function VirtualUsersAdminPanel({
       );
       if (res.continuous) setContinuous(res.continuous);
       setBusyPoller(Boolean(res.busy));
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const onToggleAutoImplement = async () => {
+    if (!continuous) return;
+    setActionId("auto-impl");
+    setErr(null);
+    try {
+      const res = await patchVirtualUserContinuous(
+        { autoImplement: continuous.autoImplement === false },
+        adminToken,
+      );
+      if (res.continuous) setContinuous(res.continuous);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const onRollback = async (v: CodeVersion) => {
+    if (!window.confirm(ko.access.vuVersionRollbackConfirm)) return;
+    setActionId(`rb-${v.id}`);
+    setErr(null);
+    setMsg(null);
+    try {
+      const res = await rollbackCodeVersion(v.id, adminToken);
+      if (!res.ok) {
+        setErr(res.error || ko.access.vuVersionRollbackFail);
+        return;
+      }
+      setMsg(
+        ko.access.vuVersionRollbackOk.replace(
+          "{sha}",
+          res.resultVersion?.commitShort || res.head?.slice(0, 10) || v.commitShort,
+        ),
+      );
+      if (res.versions) setVersions(res.versions);
+      else await reload();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -268,17 +331,73 @@ export default function VirtualUsersAdminPanel({
         </div>
         <p className="vu-admin__hint">{ko.access.vuContinuousHint}</p>
         {continuous ? (
-          <p className="vu-admin__meta">
-            {ko.access.vuContinuousLast}: {formatLastTick(continuous.lastTickAtMs)}
-            {continuous.lastCreatedCount > 0
-              ? ` · ${ko.access.vuContinuousCreated.replace(
-                  "{n}",
-                  String(continuous.lastCreatedCount),
-                )}`
-              : ""}
-            {continuous.lastError ? ` · ${continuous.lastError}` : ""}
-          </p>
+          <div className="vu-admin__continuous-row">
+            <button
+              type="button"
+              className={
+                continuous.autoImplement !== false
+                  ? "vu-admin__persona-toggle is-on"
+                  : "vu-admin__persona-toggle is-off"
+              }
+              disabled={actionId === "auto-impl"}
+              onClick={() => void onToggleAutoImplement()}
+            >
+              {continuous.autoImplement !== false
+                ? ko.access.vuAutoImplementOn
+                : ko.access.vuAutoImplementOff}
+            </button>
+            <p className="vu-admin__meta">
+              {ko.access.vuContinuousLast}:{" "}
+              {formatLastTick(continuous.lastTickAtMs)}
+              {continuous.lastCreatedCount > 0
+                ? ` · ${ko.access.vuContinuousCreated.replace(
+                    "{n}",
+                    String(continuous.lastCreatedCount),
+                  )}`
+                : ""}
+              {continuous.lastError ? ` · ${continuous.lastError}` : ""}
+            </p>
+          </div>
         ) : null}
+      </section>
+
+      <section className="vu-admin__section" aria-label={ko.access.vuVersions}>
+        <div className="vu-admin__section-head">
+          <h3>{ko.access.vuVersions}</h3>
+        </div>
+        <p className="vu-admin__hint">{ko.access.vuVersionsHint}</p>
+        {versions.length === 0 ? (
+          <p className="access-admin-muted">{ko.access.vuVersionEmpty}</p>
+        ) : (
+          <ul className="vu-admin__version-list">
+            {versions.slice(0, 24).map((v) => (
+              <li key={v.id} className="vu-admin__version-item">
+                <div className="vu-admin__version-body">
+                  <strong>
+                    {v.id === baselineId ? (
+                      <span className="vu-admin__baseline-badge">
+                        {ko.access.vuVersionBaseline}
+                      </span>
+                    ) : null}{" "}
+                    {v.label}
+                  </strong>
+                  <span>
+                    {versionKindLabel(v.kind)} · {v.commitShort}
+                    {v.branch ? ` · ${v.branch}` : ""}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--sm"
+                  disabled={actionId === `rb-${v.id}`}
+                  onClick={() => void onRollback(v)}
+                >
+                  {ko.access.vuVersionRollback}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="vu-admin__section" aria-label={ko.access.vuPersonas}>

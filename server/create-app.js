@@ -219,6 +219,7 @@ import {
   readFileDevQueueSync,
 } from "./ops-file-dev-store.js";
 import { registerVirtualUserRoutes } from "./virtual-user-routes.js";
+import { registerCodeVersionRoutes } from "./code-version-routes.js";
 import { virtualUserRequestMiddleware } from "./virtual-user-order-guard.js";
 
 function asyncRoute(handler) {
@@ -2201,6 +2202,7 @@ export function createApp() {
   });
 
   registerVirtualUserRoutes(app, asyncRoute);
+  registerCodeVersionRoutes(app, asyncRoute);
 
   app.get("/api/telegram/sent", requireAccessAdmin, (_req, res) => {
     if (!isTelegramNotifyEnabled()) {

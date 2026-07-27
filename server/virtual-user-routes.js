@@ -15,8 +15,8 @@ import {
   updateVirtualPersonaSync,
 } from "./virtual-user-store.js";
 import { runVirtualUserSession } from "./virtual-user-runner.js";
-import { appendRecordModePendingJob } from "./ops-record-mode-store.js";
 import { notifyVirtualUserFeedback } from "./virtual-user-telegram.js";
+import { maybeAutoImplementVirtualFeedback } from "./virtual-user-auto-implement.js";
 import {
   isVirtualUserContinuousBusy,
   rescheduleVirtualUserContinuousPoller,
@@ -75,6 +75,15 @@ export function registerVirtualUserRoutes(app, asyncRoute) {
       if (body.useBrowser !== undefined) patch.useBrowser = Boolean(body.useBrowser);
       if (body.notifyTelegram !== undefined) {
         patch.notifyTelegram = Boolean(body.notifyTelegram);
+      }
+      if (body.autoImplement !== undefined) {
+        patch.autoImplement = Boolean(body.autoImplement);
+      }
+      if (body.autoImplementMinSeverity !== undefined) {
+        const s = String(body.autoImplementMinSeverity);
+        if (["blocker", "major", "minor", "nit"].includes(s)) {
+          patch.autoImplementMinSeverity = s;
+        }
       }
       if (body.intervalMs !== undefined) {
         const n = Number(body.intervalMs);
@@ -171,11 +180,6 @@ export function registerVirtualUserRoutes(app, asyncRoute) {
         res.status(404).json({ ok: false, error: "피드백을 찾을 수 없습니다." });
         return;
       }
-      const prompt = String(item.prompt ?? "").trim();
-      if (!prompt || prompt === "(생성 중)") {
-        res.status(400).json({ ok: false, error: "구현용 프롬프트가 비어 있습니다." });
-        return;
-      }
 
       let backup = null;
       try {
@@ -184,32 +188,33 @@ export function registerVirtualUserRoutes(app, asyncRoute) {
         backup = null;
       }
 
-      const queued = await appendRecordModePendingJob(prompt);
-      if (!queued.ok) {
+      const auto = await maybeAutoImplementVirtualFeedback(item, { force: true });
+      if (!auto.ok) {
         res.status(400).json({
           ok: false,
           error:
-            queued.code === "QUEUE_FULL"
-              ? "기록 모드 큐가 가득 찼습니다."
-              : "구현 요청을 큐에 넣지 못했습니다.",
-          code: queued.code,
+            auto.reason === "queue-fail" || auto.reason === "QUEUE_FULL"
+              ? "기록 모드 큐가 가득 찼거나 넣을 수 없습니다."
+              : auto.reason === "empty-prompt"
+                ? "구현용 프롬프트가 비어 있습니다."
+                : auto.reason === "already-handled" || auto.reason === "has-job"
+                  ? "이미 구현 큐에 있거나 처리된 피드백입니다."
+                  : "구현 요청을 큐에 넣지 못했습니다.",
+          reason: auto.reason,
           backup,
         });
         return;
       }
 
-      const patched = patchVirtualFeedbackSync(id, {
-        status: "queued",
-        implementJobId: queued.id,
-        implementQueuedAtMs: Date.now(),
-      });
-
+      const patched = listVirtualFeedbackSync().find((f) => f.id === id);
       res.json({
         ok: true,
-        jobId: queued.id,
-        item: patched.ok ? patched.item : item,
+        jobId: auto.jobId,
+        item: patched || item,
         backup: backup?.ok ? backup : null,
-        message: "기록 모드 큐에 넣었습니다. Cursor 에이전트가 순차 실행합니다.",
+        preVersion: auto.preVersion || null,
+        message:
+          "기록 모드 큐에 넣었습니다. Cursor 에이전트가 순차 실행하며, 관리자에서 버전 롤백이 가능합니다.",
       });
     }),
   );

@@ -28,6 +28,61 @@
   font-variant-numeric: tabular-nums;
 }
 
+.vu-admin__continuous-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+
+.vu-admin__version-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 12rem;
+  overflow: auto;
+}
+
+.vu-admin__version-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0.45rem;
+  border-radius: var(--radius-sm, 0.4rem);
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+}
+
+.vu-admin__version-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+  font-size: 0.75rem;
+}
+
+.vu-admin__version-body strong {
+  font-size: 0.78rem;
+}
+
+.vu-admin__version-body span {
+  color: var(--muted);
+}
+
+.vu-admin__baseline-badge {
+  display: inline-block;
+  margin-right: 0.25rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: var(--accent, #0f766e);
+  background: color-mix(in srgb, var(--accent, #14b8a6) 18%, transparent);
+}
+
 .vu-admin__section {
   border: 1px solid var(--card-border);
   border-radius: var(--radius-sm, 0.5rem);
