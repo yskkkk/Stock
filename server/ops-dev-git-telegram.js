@@ -61,3 +61,20 @@ export function notifyOpsAutoGitPulled(opts) {
     priority: 1,
   });
 }
+
+/**
+ * @param {{ phase?: string; detail?: string; errorText?: string }} opts
+ */
+export function notifyOpsAutoGitFailed(opts) {
+  if (!autoGitTelegramNotifyEnabled()) return;
+  const errorText = String(opts.errorText ?? opts.detail ?? "").trim();
+  if (!errorText) return;
+  scheduleOpsDevCompletionTelegram({
+    title: "auto-git 오류",
+    userRequest: String(opts.phase ?? "auto-git sync").trim() || "auto-git sync",
+    agentResponse: String(opts.detail ?? "").trim() || errorText,
+    state: "error",
+    errorText,
+    priority: 2,
+  });
+}
