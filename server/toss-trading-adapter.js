@@ -247,6 +247,8 @@ async function resolveTossApiSession(userId) {
  * @param {Record<string, unknown>} body
  */
 async function submitTossOrder(accessToken, accountSeq, body) {
+  const blocked = rejectIfVirtualUserLiveOrder();
+  if (blocked) throw new Error(blocked.error);
   const json = await tossOpenApiPost(accessToken, accountSeq, "/api/v1/orders", body);
   const orderId = parseTossOrderIdFromResponse(json);
   if (!orderId) {

@@ -157,6 +157,11 @@ async function bithumbPrivateRequestWithCredentials(
   bodyParams,
   credentials,
 ) {
+  const p = String(path ?? "");
+  if (method === "POST" && /\/v1\/orders$/i.test(p)) {
+    const blocked = rejectIfVirtualUserLiveOrder();
+    if (blocked) throw new Error(blocked.error);
+  }
   const status = getBithumbTradingStatusFromCredentials(credentials);
   if (!status.ready) {
     throw new Error(status.messageKo);
@@ -755,6 +760,8 @@ export function estimateBithumbBuyQuantity(yahooSymbol, price, amountKrw) {
 }
 
 export async function executeBithumbMarketBuyKrw(market, krw) {
+  const blocked = rejectIfVirtualUserLiveOrder();
+  if (blocked) return blocked;
   const status = getBithumbTradingStatus();
   if (!status.ready) {
     return { ok: false, error: status.messageKo };
@@ -792,6 +799,8 @@ export async function executeBithumbMarketBuyKrw(market, krw) {
 }
 
 export async function executeBithumbMarketBuyVolume(market, volume) {
+  const blocked = rejectIfVirtualUserLiveOrder();
+  if (blocked) return blocked;
   const status = getBithumbTradingStatus();
   if (!status.ready) {
     return { ok: false, error: status.messageKo };
