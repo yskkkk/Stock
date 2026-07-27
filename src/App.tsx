@@ -22,7 +22,9 @@ import AppSiteFooter from "./components/AppSiteFooter";
 import Sp500SectorTab from "./components/Sp500SectorTab";
 import AccountManageTab from "./components/AccountManageTab";
 import NasdaqEtfTab from "./components/NasdaqEtfTab";
-import RedditMentionsTab from "./components/RedditMentionsTab";
+import RedditMentionsTab, {
+  prefetchRedditMentions,
+} from "./components/RedditMentionsTab";
 import Sp500SectorWheelMicro from "./components/Sp500SectorWheelMicro";
 import { Sp500SectorProvider } from "./contexts/Sp500SectorContext";
 import ScrollToTopButton from "./components/ScrollToTopButton";
@@ -1718,6 +1720,12 @@ export default function App() {
                 type="button"
                 className={mainTabClassName("redditMentions")}
                 onClick={() => setAppTab("redditMentions")}
+                onMouseEnter={() => {
+                  void prefetchRedditMentions("all-stocks");
+                }}
+                onFocus={() => {
+                  void prefetchRedditMentions("all-stocks");
+                }}
               >
                 {ko.app.tabRedditMentions}
               </button>

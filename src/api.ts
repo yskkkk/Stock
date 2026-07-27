@@ -347,6 +347,7 @@ export type RedditMentionRow = {
   rank: number;
   symbol: string;
   name: string;
+  nameKo?: string | null;
   mentions: number;
   upvotes: number;
   rank24hAgo: number | null;

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchRedditMentions,
   type RedditMentionRow,
@@ -13,6 +13,35 @@ type Props = {
   onOpenSymbol?: (pick: StockPick) => void;
 };
 
+/** 탭 전환 체감용 — 직전 성공 응답 재사용 */
+let redditMentionsMemory: {
+  filter: string;
+  payload: RedditMentionsPayload;
+} | null = null;
+
+const inflight = new Map<string, Promise<RedditMentionsPayload>>();
+
+export function prefetchRedditMentions(filter = "all-stocks") {
+  const key = `${filter}:1:1`;
+  if (inflight.has(key)) return inflight.get(key)!;
+  if (
+    redditMentionsMemory?.filter === filter &&
+    Date.now() - (redditMentionsMemory.payload.updatedAt ?? 0) < 4 * 60 * 1000
+  ) {
+    return Promise.resolve(redditMentionsMemory.payload);
+  }
+  const p = fetchRedditMentions({ filter, page: 1, pages: 1 })
+    .then((data) => {
+      redditMentionsMemory = { filter, payload: data };
+      return data;
+    })
+    .finally(() => {
+      inflight.delete(key);
+    });
+  inflight.set(key, p);
+  return p;
+}
+
 function formatDelta(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return "—";
   if (n === 0) return "0";
@@ -21,27 +50,32 @@ function formatDelta(n: number | null | undefined): string {
 
 export default function RedditMentionsTab({ onOpenSymbol }: Props) {
   const [filter, setFilter] = useState("all-stocks");
-  const [payload, setPayload] = useState<RedditMentionsPayload | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [payload, setPayload] = useState<RedditMentionsPayload | null>(() =>
+    redditMentionsMemory?.filter === "all-stocks"
+      ? redditMentionsMemory.payload
+      : null,
+  );
+  const [loading, setLoading] = useState(() => !redditMentionsMemory?.payload);
   const [error, setError] = useState<string | null>(null);
+  const reqSeq = useRef(0);
 
-  const load = useCallback(async (nextFilter = filter) => {
+  const load = useCallback(async (nextFilter: string) => {
+    const seq = ++reqSeq.current;
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchRedditMentions({
-        filter: nextFilter,
-        page: 1,
-        pages: 1,
-      });
+      const data = await prefetchRedditMentions(nextFilter);
+      if (seq !== reqSeq.current) return;
       setPayload(data);
+      redditMentionsMemory = { filter: nextFilter, payload: data };
     } catch {
+      if (seq !== reqSeq.current) return;
       setError(ko.app.redditMentionsError);
-      setPayload(null);
+      setPayload((prev) => prev);
     } finally {
-      setLoading(false);
+      if (seq === reqSeq.current) setLoading(false);
     }
-  }, [filter]);
+  }, []);
 
   useEffect(() => {
     void load(filter);
@@ -50,7 +84,7 @@ export default function RedditMentionsTab({ onOpenSymbol }: Props) {
   const openChart = (row: RedditMentionRow) => {
     onOpenSymbol?.({
       symbol: row.symbol,
-      name: row.name || row.symbol,
+      name: row.nameKo || row.name || row.symbol,
       market: "us",
       score: 0,
       signals: [],
@@ -65,6 +99,7 @@ export default function RedditMentionsTab({ onOpenSymbol }: Props) {
     { id: "investing", labelKo: "r/investing" },
     { id: "options", labelKo: "r/options" },
   ];
+  const showInitialLoading = loading && rows.length === 0;
 
   return (
     <div
@@ -84,9 +119,11 @@ export default function RedditMentionsTab({ onOpenSymbol }: Props) {
           type="button"
           className="btn btn--secondary"
           onClick={() => void load(filter)}
-          disabled={loading}
+          disabled={loading && rows.length === 0}
         >
-          {ko.app.redditMentionsRefresh}
+          {loading && rows.length > 0
+            ? ko.app.redditMentionsRefreshing
+            : ko.app.redditMentionsRefresh}
         </button>
       </header>
 
@@ -105,6 +142,9 @@ export default function RedditMentionsTab({ onOpenSymbol }: Props) {
                   : "reddit-mentions-tab__chip"
               }
               onClick={() => setFilter(f.id)}
+              onMouseEnter={() => {
+                void prefetchRedditMentions(f.id);
+              }}
             >
               {f.labelKo}
             </button>
@@ -115,6 +155,9 @@ export default function RedditMentionsTab({ onOpenSymbol }: Props) {
           {payload?.updatedAt
             ? ` · ${new Date(payload.updatedAt).toLocaleString("ko-KR")}`
             : null}
+          {loading && rows.length > 0
+            ? ` · ${ko.app.redditMentionsRefreshing}`
+            : null}
         </span>
       </div>
 
@@ -122,7 +165,7 @@ export default function RedditMentionsTab({ onOpenSymbol }: Props) {
         <p className="reddit-mentions-tab__note">{payload.sourceNote}</p>
       ) : null}
 
-      {loading && rows.length === 0 ? (
+      {showInitialLoading ? (
         <DockPanelCenterLoading label={ko.app.redditMentionsLoading} />
       ) : error && rows.length === 0 ? (
         <p className="reddit-mentions-tab__empty" role="alert">
@@ -133,12 +176,19 @@ export default function RedditMentionsTab({ onOpenSymbol }: Props) {
           {ko.app.redditMentionsEmpty}
         </p>
       ) : (
-        <div className="reddit-mentions-tab__table-wrap card">
+        <div
+          className={
+            loading
+              ? "reddit-mentions-tab__table-wrap card is-refreshing"
+              : "reddit-mentions-tab__table-wrap card"
+          }
+        >
           <table className="reddit-mentions-tab__table">
             <thead>
               <tr>
                 <th>{ko.app.redditMentionsColRank}</th>
                 <th>{ko.app.redditMentionsColSymbol}</th>
+                <th>{ko.app.redditMentionsColNameKo}</th>
                 <th>{ko.app.redditMentionsColName}</th>
                 <th>{ko.app.redditMentionsColMentions}</th>
                 <th>{ko.app.redditMentionsColDelta}</th>
@@ -151,8 +201,7 @@ export default function RedditMentionsTab({ onOpenSymbol }: Props) {
               {rows.map((row) => {
                 const md = row.mentionsDelta;
                 const rd = row.rankDelta;
-                const mdClass =
-                  md > 0 ? "is-up" : md < 0 ? "is-down" : "";
+                const mdClass = md > 0 ? "is-up" : md < 0 ? "is-down" : "";
                 const rdClass =
                   rd != null && rd > 0
                     ? "is-up"
@@ -173,6 +222,9 @@ export default function RedditMentionsTab({ onOpenSymbol }: Props) {
                   >
                     <td className="reddit-mentions-tab__rank">{row.rank}</td>
                     <td className="reddit-mentions-tab__sym">{row.symbol}</td>
+                    <td className="reddit-mentions-tab__name-ko">
+                      {row.nameKo || "—"}
+                    </td>
                     <td className="reddit-mentions-tab__name">{row.name}</td>
                     <td className="reddit-mentions-tab__num">
                       {row.mentions.toLocaleString("en-US")}

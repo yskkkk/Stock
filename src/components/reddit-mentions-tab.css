@@ -159,10 +159,24 @@
 }
 
 .reddit-mentions-tab__name {
-  max-width: 18rem;
+  max-width: 14rem;
+  color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.reddit-mentions-tab__name-ko {
+  font-weight: 700;
+  max-width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reddit-mentions-tab__table-wrap.is-refreshing {
+  opacity: 0.72;
+  transition: opacity 0.15s ease;
 }
 
 .reddit-mentions-tab__num {
