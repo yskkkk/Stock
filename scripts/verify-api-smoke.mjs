@@ -104,6 +104,28 @@ const okOr404 = (r) =>
 await expect("picks", "GET", "/api/picks", (r) => okJson(r) && "running" in r.json && Array.isArray(r.json.kr));
 await expect("picks-refresh", "POST", "/api/picks/refresh", okJson);
 await expect("macro-events", "GET", "/api/macro-events", okJson);
+await expect(
+  "stock-vault-lite",
+  "GET",
+  "/api/stock-vault?lite=1",
+  (r) => okJson(r) && Array.isArray(r.json.items),
+);
+await expect(
+  "stock-vault",
+  "GET",
+  "/api/stock-vault",
+  (r) =>
+    okJson(r) &&
+    Array.isArray(r.json.items) &&
+    r.json.quotes &&
+    typeof r.json.quotes === "object",
+);
+await expect(
+  "stock-vault-favorites",
+  "GET",
+  "/api/stock-vault/favorites",
+  (r) => okJson(r) && Array.isArray(r.json.favoriteSymbols),
+);
 await expect("sector-earnings", "GET", "/api/sector-earnings", okJson);
 await expect(
   "config",

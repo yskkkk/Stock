@@ -100,6 +100,10 @@ function probeCorruptDataFiles() {
   /** @type {BackendFinding[]} */
   const out = [];
   const candidates = [
+    "stock-vault.json",
+    "user-stock-vault.json",
+    "stock-vault-meta-cache.json",
+    "stock-vault-chart-insights.json",
     "granville-scan-state.json",
     "ops-record-mode-queue.json",
     "virtual-users.json",

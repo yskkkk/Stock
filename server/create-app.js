@@ -2401,13 +2401,26 @@ export function createApp() {
   app.get(
     "/api/stock-vault/favorites",
     asyncRoute(async (req, res) => {
-      const { buildStockVaultItemsForUserSync } = await import(
-        "./stock-vault-view.js"
-      );
-      const user = resolveUserFromRequest(req);
-      const { authenticated, favoriteSymbols, favoriteMeta } =
-        buildStockVaultItemsForUserSync(user?.id);
-      res.json({ authenticated, favoriteSymbols, favoriteMeta });
+      try {
+        const { buildStockVaultItemsForUserSync } = await import(
+          "./stock-vault-view.js"
+        );
+        const user = resolveUserFromRequest(req);
+        const { authenticated, favoriteSymbols, favoriteMeta } =
+          buildStockVaultItemsForUserSync(user?.id);
+        res.json({ authenticated, favoriteSymbols, favoriteMeta });
+      } catch (err) {
+        if (err instanceof StoreCorruptError) {
+          res.status(503).json({
+            error: err.message,
+            code: err.code,
+            filePath: err.filePath,
+          });
+          return;
+        }
+        const message = err instanceof Error ? err.message : "요청 실패";
+        res.status(502).json({ error: message });
+      }
     }),
   );
 
@@ -2582,45 +2595,60 @@ export function createApp() {
   app.get(
     "/api/stock-vault/chart-insights",
     asyncRoute(async (req, res) => {
-      const { buildStockVaultItemsForUserSync } = await import(
-        "./stock-vault-view.js"
-      );
-      const {
-        readStockVaultChartInsightsSync,
-        fetchStockVaultChartInsightsMap,
-        pickVaultMapBySymbols,
-      } = await import("./stock-vault-chart-insights.js");
-      const { fetchQuoteSnapshotsForSymbols } = await import(
-        "./picks-live-quotes.js"
-      );
-      const user = resolveUserFromRequest(req);
-      const { items } = buildStockVaultItemsForUserSync(user?.id);
-      const rawSyms = String(req.query?.symbols ?? "").trim();
-      const symbols = rawSyms
-        ? rawSyms
-            .split(/[,\s]+/)
-            .map((s) => s.trim().toUpperCase())
-            .filter(Boolean)
-        : items.map((it) => it.symbol);
-      const force = String(req.query?.refresh ?? "") === "1";
-      let quotes = {};
-      if (symbols.length > 0) {
-        quotes = await fetchQuoteSnapshotsForSymbols(symbols);
-      }
-      const chartInsightsAll = force
-        ? await fetchStockVaultChartInsightsMap(symbols, quotes)
-        : readStockVaultChartInsightsSync();
-      const chartInsights = pickVaultMapBySymbols(chartInsightsAll, symbols);
-      if (!force && symbols.length > 0) {
-        const { scheduleStockVaultChartInsightsRefresh } = await import(
-          "./stock-vault-chart-insights.js"
+      try {
+        const { buildStockVaultItemsForUserSync } = await import(
+          "./stock-vault-view.js"
         );
-        scheduleStockVaultChartInsightsRefresh(symbols, quotes);
+        const {
+          readStockVaultChartInsightsSync,
+          fetchStockVaultChartInsightsMap,
+          pickVaultMapBySymbols,
+          scheduleStockVaultChartInsightsRefresh,
+        } = await import("./stock-vault-chart-insights.js");
+        const user = resolveUserFromRequest(req);
+        const { items } = buildStockVaultItemsForUserSync(user?.id);
+        const rawSyms = String(req.query?.symbols ?? "").trim();
+        const symbols = rawSyms
+          ? rawSyms
+              .split(/[,\s]+/)
+              .map((s) => s.trim().toUpperCase())
+              .filter(Boolean)
+          : items.map((it) => it.symbol);
+        const force = String(req.query?.refresh ?? "") === "1";
+        let quotes = {};
+        if (symbols.length > 0) {
+          if (force) {
+            quotes = await fetchQuoteSnapshotsForSymbols(symbols);
+          } else {
+            quotes = readCachedQuoteSnapshotsForSymbols(symbols, {
+              maxAgeMs: 120_000,
+            });
+            scheduleQuoteSnapshotsRefresh(symbols, { maxAgeMs: 120_000 });
+          }
+        }
+        const chartInsightsAll = force
+          ? await fetchStockVaultChartInsightsMap(symbols, quotes)
+          : readStockVaultChartInsightsSync();
+        const chartInsights = pickVaultMapBySymbols(chartInsightsAll, symbols);
+        if (!force && symbols.length > 0) {
+          scheduleStockVaultChartInsightsRefresh(symbols, quotes);
+        }
+        res.json({
+          chartInsights,
+          updatedAtMs: Date.now(),
+        });
+      } catch (err) {
+        if (err instanceof StoreCorruptError) {
+          res.status(503).json({
+            error: err.message,
+            code: err.code,
+            filePath: err.filePath,
+          });
+          return;
+        }
+        const message = err instanceof Error ? err.message : "요청 실패";
+        res.status(502).json({ error: message });
       }
-      res.json({
-        chartInsights,
-        updatedAtMs: Date.now(),
-      });
     }),
   );
 
