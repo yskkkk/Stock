@@ -566,6 +566,7 @@ export default function AccountManageTab({
         .filter(Boolean)
         .join(" ")}
       aria-label={ko.app.accountManageAria}
+      {...(!loading && ready ? { "data-vu": "account-manage-ready" } : {})}
     >
       <header className="account-manage-tab__head">
         <div>

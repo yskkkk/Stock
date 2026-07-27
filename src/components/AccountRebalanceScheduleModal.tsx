@@ -260,6 +260,7 @@ export default function AccountRebalanceScheduleModal({
         role="dialog"
         aria-modal="true"
         aria-label={ko.app.accountManageRebalanceTitle}
+        data-vu="account-rebalance-modal"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="account-rebalance-modal__head">
@@ -282,11 +283,16 @@ export default function AccountRebalanceScheduleModal({
         </header>
 
         {loading ? (
-          <p className="account-rebalance-modal__hint">
+          <p
+            className="account-rebalance-modal__hint"
+            data-vu="account-rebalance-loading"
+            role="status"
+            aria-live="polite"
+          >
             {ko.app.accountManageRebalanceLoading}
           </p>
         ) : (
-          <>
+          <div data-vu="account-rebalance-ready">
             <label className="account-rebalance-modal__enable">
               <input
                 type="checkbox"
@@ -592,7 +598,7 @@ export default function AccountRebalanceScheduleModal({
             <p className="account-rebalance-modal__hint">
               {ko.app.accountManageRebalanceNowHoursHint}
             </p>
-          </>
+          </div>
         )}
       </div>
     </div>
