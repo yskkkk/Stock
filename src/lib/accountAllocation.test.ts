@@ -16,6 +16,7 @@ describe("accountAllocation symbol labels", () => {
           currency: "KRW",
           quantity: 10,
           avgBuyPrice: 1000,
+          currentPrice: 1050,
           returnPercent: 5,
         },
       ],
@@ -24,6 +25,7 @@ describe("accountAllocation symbol labels", () => {
       new Map(),
     );
     expect(rows[0]?.name).toBe("CJ대한통운");
+    expect(rows[0]?.unrealizedPnlKrw).not.toBeNull();
     const slices = buildAccountAllocationSlices(rows, 0, "symbol", {
       cash: "현금",
       other: "기타",
