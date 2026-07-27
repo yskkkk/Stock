@@ -1082,6 +1082,7 @@ export default function AccountManageTab({
                         <th>{ko.app.liveTradePfColQty}</th>
                         <th>{ko.app.accountManageSliceValue}</th>
                         <th>{ko.app.liveTradePfReturn}</th>
+                        <th>{ko.app.accountManageColWeight}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1183,6 +1184,11 @@ export default function AccountManageTab({
                               ) : (
                                 "—"
                               )}
+                            </td>
+                            <td className="account-manage-tab__weight">
+                              {total > 0 && row.valueKrw > 0
+                                ? formatAllocPct((row.valueKrw / total) * 100)
+                                : "—"}
                             </td>
                           </tr>
                         );

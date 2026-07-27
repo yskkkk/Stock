@@ -200,6 +200,7 @@ export const ko = {
     accountManageUpdated: "갱신",
     accountManageSliceCount: "{n}종목",
     accountManageSliceValue: "평가",
+    accountManageColWeight: "비중",
     accountManageNoExchange: "연동된 거래소 API가 없습니다. 실거래 탭에서 키를 연결하세요.",
     tabOps: "운영",
     liveTradeSimFeedbackApplied: "프로그램 설정에 반영했습니다.",
