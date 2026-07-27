@@ -16,6 +16,11 @@ import {
   shouldEscalateSatisfaction,
 } from "./virtual-user-satisfaction.js";
 import { isCursorApiExhaustedError } from "./virtual-user-api-guard.js";
+import {
+  isIntentionalDisableText,
+  isPollIntervalTuneText,
+  shouldSkipBackendImprovementItem,
+} from "./virtual-user-backend-probe.js";
 
 describe("virtual-user-runner", () => {
   it("picks multiple seeds without early cut", () => {
@@ -158,6 +163,26 @@ describe("virtual-user-satisfaction", () => {
         skippedDup: 0,
         candidateCount: 3,
         level: 2,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("virtual-user-backend-probe", () => {
+  it("skips intentional disables and poll-interval tunes", () => {
+    expect(isIntentionalDisableText("운영자 요청으로 비활성")).toBe(true);
+    expect(isPollIntervalTuneText("폴링 주기를 줄이세요")).toBe(true);
+    expect(
+      shouldSkipBackendImprovementItem({
+        problem: "STOCK_FOO_MS 를 조정하세요",
+        suggestion: "intervalMs 변경",
+      }),
+    ).toBe(true);
+    expect(
+      shouldSkipBackendImprovementItem({
+        id: "process-uncaughtException",
+        problem: "JSON parse failed on granville-scan-state.json",
+        suggestion: "로더에 try/catch 추가",
       }),
     ).toBe(false);
   });

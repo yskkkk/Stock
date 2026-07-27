@@ -18,6 +18,10 @@ import { notifyVirtualUserFeedback } from "./virtual-user-telegram.js";
 import { runVirtualUserBrowserJourney } from "./virtual-user-browser.js";
 import { maybeAutoImplementVirtualFeedback } from "./virtual-user-auto-implement.js";
 import {
+  BACKEND_SCENARIO_SEEDS,
+  collectVirtualUserBackendFindings,
+} from "./virtual-user-backend-probe.js";
+import {
   allowedSeveritiesForSatisfaction,
   feedbackFingerprint,
   isFeedbackDuplicate,
@@ -252,6 +256,8 @@ export function buildVirtualFeedbackPrompt(
     "- [ ] 문제 재현 경로를 코드에서 확인했다",
     "- [ ] UI/카피/동작 중 필요한 것만 고쳤다",
     "- [ ] 실주문·출금 등 돈이 나가는 경로를 늘리지 않았다",
+    "- [ ] 백엔드 이슈면 폴링 주기 조정 대신 실제 실패 원인(예외·깨진 JSON·5xx·가드 누락)을 고쳤다",
+    "- [ ] 폴링 주기·의도적(운영자/개발자 요청) 비활성 기능은 바꾸지 않았다",
     "- [ ] 커밋·푸시까지 완료했다",
   ].join("\n");
 }
@@ -266,7 +272,7 @@ export function pickSeedsForPersona(persona, maxItems = 4, opts = {}) {
     opts.satisfactionLevel ?? persona.satisfactionLevel ?? 1,
   );
   const allowed = allowedSeveritiesForSatisfaction(sat);
-  const pool = SCENARIO_SEEDS.filter((s) => {
+  const pool = [...SCENARIO_SEEDS, ...BACKEND_SCENARIO_SEEDS].filter((s) => {
     const minSat = s.minSatisfaction ?? 1;
     if (sat < minSat) return false;
     if (!allowed.has(s.severity)) return false;
@@ -276,8 +282,9 @@ export function pickSeedsForPersona(persona, maxItems = 4, opts = {}) {
       const focusHit = persona.focusAreas.some(
         (a) => a === s.area || s.area.startsWith(a) || a.startsWith(s.area),
       );
-      // 만족도 3+ 이면 포커스 밖 영역도 일부 허용(새 이슈 탐색)
-      if (!focusHit && sat < 3) return false;
+      const isBackend = String(s.area).startsWith("backend");
+      // 만족도 2+ 또는 backend 시드는 포커스 밖도 허용
+      if (!focusHit && !isBackend && sat < 3) return false;
     }
     return true;
   });
@@ -288,7 +295,9 @@ export function pickSeedsForPersona(persona, maxItems = 4, opts = {}) {
     if (db !== da) return db - da;
     return 0;
   });
-  const list = sorted.length ? sorted : SCENARIO_SEEDS.filter((s) => (s.minSatisfaction ?? 1) <= 1);
+  const list = sorted.length
+    ? sorted
+    : SCENARIO_SEEDS.filter((s) => (s.minSatisfaction ?? 1) <= 1);
   const cap = Math.max(1, maxItems + Math.max(0, sat - 1));
   return list.slice(0, Math.min(12, cap));
 }
@@ -571,6 +580,36 @@ export async function runVirtualUserSession(opts = {}) {
     }
   }
 
+  // 백엔드 실동작 결함 (세션당 1회) — 의도적 중지·폴링 주기 제외
+  try {
+    const backendPersona = personas[0];
+    const backendKnown = knownFingerprintsForPersona(
+      listVirtualFeedbackSync(),
+      backendPersona.id,
+    );
+    const findings = await collectVirtualUserBackendFindings();
+    for (const f of findings) {
+      const result = await emitFeedback(
+        backendPersona,
+        sessionId,
+        f,
+        notify,
+        continuous
+          ? "백엔드 프로브 · 운영자/개발자 요청 비활성·폴링 주기 튜닝 제외"
+          : "백엔드 프로브",
+        backendKnown,
+      );
+      if (result.skipped) continue;
+      if (result.item) {
+        created.push(result.item);
+        feedbackIds.push(result.item.id);
+      }
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    personaErrors.push(`backend-probe: ${msg}`);
+  }
+
   appendVirtualSessionSync({
     id: sessionId,
     startedAtMs,
@@ -593,7 +632,7 @@ export async function runVirtualUserSession(opts = {}) {
     })),
     escalations,
     warnings: personaErrors,
-    mode: useBrowser ? "browser+seeds" : "seeds",
+    mode: useBrowser ? "browser+seeds+backend" : "seeds+backend",
     continuous,
   };
 }

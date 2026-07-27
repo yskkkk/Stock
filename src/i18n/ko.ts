@@ -1707,7 +1707,7 @@ export const ko = {
     liveTradeServerRunningEmpty: "서버에 가동 중인 프로그램이 없습니다.",
     liveTradeServerRunningView: "보기",
     vuIntro:
-      "가상 사용자가 Playwright로 웹을 탐색하며 UX 피드백을 남깁니다. 서버가 켜져 있으면 연속 탐색이 자동으로 돌고, 같은 피드백이 포화되면 만족도를 올려 더 까다로운 이슈를 찾습니다. 실주문 API는 이중 차단. 「구현」은 기록 모드 큐→Cursor 에이전트.",
+      "가상 사용자가 UI·백엔드 실동작 결함을 찾아 에이전트 큐로 보냅니다(의도적 중지·폴링 주기 튜닝 제외). 서버 기동 시 연속 탐색·자동 구현이 기본 ON이며, Cursor API 소진 시 정지합니다.",
     vuPersonas: "페르소나",
     vuContinuous: "연속 탐색",
     vuContinuousOn: "연속 탐색 켜짐",
