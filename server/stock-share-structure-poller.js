@@ -51,8 +51,18 @@ async function tickMarket(market) {
 
 function tick() {
   if (!shareStructureScanEnabled()) return;
-  void tickMarket("kr");
-  void tickMarket("us");
+  void tickMarket("kr").catch((e) => {
+    liveTradeLogWarn(
+      "[share-structure:kr]",
+      e instanceof Error ? e.message : e,
+    );
+  });
+  void tickMarket("us").catch((e) => {
+    liveTradeLogWarn(
+      "[share-structure:us]",
+      e instanceof Error ? e.message : e,
+    );
+  });
 }
 
 export function startStockShareStructurePoller() {

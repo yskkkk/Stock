@@ -249,21 +249,29 @@ async function loadFinnhubEarningsBulkRows(fromYmd, toYmd, token, needInternatio
   }
 
   finnhubEarningsInflight = (async () => {
-    async function fetchOne(international) {
-      const intl = international ? "&international=true" : "";
-      const url = `https://finnhub.io/api/v1/calendar/earnings?from=${encodeURIComponent(fromYmd)}&to=${encodeURIComponent(toYmd)}${intl}&token=${encodeURIComponent(token)}`;
-      const res = await fetch(url, { headers: { Accept: "application/json" } });
-      if (!res.ok) throw new Error(`Finnhub earnings ${res.status}`);
-      const data = await res.json().catch(() => null);
-      return Array.isArray(data?.earningsCalendar) ? data.earningsCalendar : [];
+    try {
+      async function fetchOne(international) {
+        const intl = international ? "&international=true" : "";
+        const url = `https://finnhub.io/api/v1/calendar/earnings?from=${encodeURIComponent(fromYmd)}&to=${encodeURIComponent(toYmd)}${intl}&token=${encodeURIComponent(token)}`;
+        const res = await fetch(url, { headers: { Accept: "application/json" } });
+        if (!res.ok) throw new Error(`Finnhub earnings ${res.status}`);
+        const data = await res.json().catch(() => null);
+        return Array.isArray(data?.earningsCalendar) ? data.earningsCalendar : [];
+      }
+      const parts = await Promise.all([
+        fetchOne(false),
+        ...(needInternational ? [fetchOne(true)] : []),
+      ]);
+      const rows = parts.flat();
+      finnhubEarningsCache = { key: cacheKey, at: Date.now(), rows };
+      return rows;
+    } catch (e) {
+      console.warn(
+        "[sector-earnings:finnhub] fetch:",
+        e instanceof Error ? e.message : e,
+      );
+      return finnhubEarningsCache?.rows ?? [];
     }
-    const parts = await Promise.all([
-      fetchOne(false),
-      ...(needInternational ? [fetchOne(true)] : []),
-    ]);
-    const rows = parts.flat();
-    finnhubEarningsCache = { key: cacheKey, at: Date.now(), rows };
-    return rows;
   })();
 
   try {

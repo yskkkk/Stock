@@ -87,6 +87,9 @@ async function fetchJson(pathName, timeoutMs = 12_000) {
       json = null;
     }
     return { ok: res.ok, status: res.status, json, textHead: text.slice(0, 200) };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, status: 0, json: null, textHead: msg.slice(0, 200) };
   } finally {
     clearTimeout(t);
   }

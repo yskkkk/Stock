@@ -167,7 +167,8 @@ export async function tickLiveTradeAutoSell() {
 
         key,
 
-        loadCandlesForSellHorizon(symbol, horizon).then((rows) => {
+        loadCandlesForSellHorizon(symbol, horizon)
+          .then((rows) => {
 
           candleCache.set(key, rows);
 
@@ -175,7 +176,16 @@ export async function tickLiveTradeAutoSell() {
 
           return rows;
 
-        }),
+        })
+          .catch((e) => {
+            candleInflight.delete(key);
+            liveTradeLogWarn(
+              "[live-trade:auto-sell:candles]",
+              symbol,
+              e instanceof Error ? e.message : e,
+            );
+            return [];
+          }),
 
       );
 

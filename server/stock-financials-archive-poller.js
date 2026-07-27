@@ -41,8 +41,18 @@ async function tickMarket(market) {
 
 function tick() {
   if (!financialsArchiveEnabled()) return;
-  void tickMarket("kr");
-  void tickMarket("us");
+  void tickMarket("kr").catch((e) => {
+    liveTradeLogWarn(
+      `[financials-archive:kr]`,
+      e instanceof Error ? e.message : e,
+    );
+  });
+  void tickMarket("us").catch((e) => {
+    liveTradeLogWarn(
+      `[financials-archive:us]`,
+      e instanceof Error ? e.message : e,
+    );
+  });
 }
 
 export function startFinancialsArchivePoller() {
