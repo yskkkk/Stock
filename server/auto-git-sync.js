@@ -90,26 +90,212 @@ function sleepMs(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function gitDirPath() {
+  return path.join(repoRoot, ".git");
+}
+
+/** @returns {string | null} */
+function gitOperationInProgressLabel() {
+  const gitDir = gitDirPath();
+  if (existsSync(path.join(gitDir, "MERGE_HEAD"))) return "merge";
+  if (existsSync(path.join(gitDir, "REBASE_HEAD"))) return "rebase";
+  if (existsSync(path.join(gitDir, "CHERRY_PICK_HEAD"))) return "cherry-pick";
+  if (
+    existsSync(path.join(gitDir, "rebase-merge")) ||
+    existsSync(path.join(gitDir, "rebase-apply"))
+  ) {
+    return "rebase";
+  }
+  return null;
+}
+
+/**
+ * @param {string} porcelain
+ */
+function parsePorcelainStatus(porcelain) {
+  const lines = porcelain.split("\n").filter(Boolean);
+  /** @type {string[]} */
+  const conflicts = [];
+  /** @type {string[]} */
+  const trackedDirty = [];
+  /** @type {string[]} */
+  const untracked = [];
+  for (const line of lines) {
+    const xy = line.slice(0, 2);
+    const file = line.slice(3).trim();
+    if (/^(UU|AA|DD|AU|UA|DU|UD)/.test(xy)) {
+      conflicts.push(file);
+    } else if (xy === "??") {
+      untracked.push(file);
+    } else {
+      trackedDirty.push(file);
+    }
+  }
+  return { conflicts, trackedDirty, untracked, lines };
+}
+
+function isTransientGitLockError(detail) {
+  return /index\.lock|locked by another|cannot lock ref|permission denied/i.test(
+    detail,
+  );
+}
+
+function isNoLocalChangesToStash(detail) {
+  return /no local changes to save/i.test(detail);
+}
+
+function isUnmergedStashError(detail) {
+  return /needs merge|unmerged|merge conflict|cannot stash/i.test(detail);
+}
+
 /** @returns {string} */
 function describeGitWorktree() {
   try {
     const branch = execGitOut(["rev-parse", "--abbrev-ref", "HEAD"]);
-    const lines = execGitOut(["status", "--porcelain"])
-      .split("\n")
-      .filter(Boolean);
-    const conflicts = lines
-      .filter((l) => /^(UU|AA|DD|AU|UA|DU|UD)/.test(l))
-      .map((l) => l.slice(3).trim());
+    const op = gitOperationInProgressLabel();
+    const porcelain = execGitOut(["status", "--porcelain"]);
+    const { conflicts, trackedDirty, untracked } =
+      parsePorcelainStatus(porcelain);
     const parts = [`branch=${branch}`];
+    if (op) parts.push(`${op}=in-progress`);
     if (conflicts.length) {
       parts.push(`conflicts=${conflicts.join(", ")}`);
-    } else if (lines.length) {
-      parts.push(`dirty=${lines.length} files`);
+    } else if (trackedDirty.length) {
+      parts.push(`dirty=${trackedDirty.length} tracked`);
+    }
+    if (untracked.length) {
+      parts.push(`untracked=${untracked.length}`);
     }
     return parts.join(" · ");
   } catch {
     return "(git status unavailable)";
   }
+}
+
+/**
+ * @returns {Promise<{ ok: true; stashed: boolean } | { ok: false; detail: string; blocking?: boolean }>}
+ */
+async function gitStashBeforePullWithRetry() {
+  const porcelain = execGitOut(["status", "--porcelain"]);
+  if (!porcelain) {
+    return { ok: true, stashed: false };
+  }
+
+  const op = gitOperationInProgressLabel();
+  if (op) {
+    return {
+      ok: false,
+      detail: `${op} in progress — resolve or abort before auto-git pull`,
+      blocking: true,
+    };
+  }
+
+  const { conflicts, trackedDirty, untracked } = parsePorcelainStatus(porcelain);
+  if (conflicts.length) {
+    return {
+      ok: false,
+      detail: `unmerged paths: ${conflicts.join(", ")}`,
+      blocking: true,
+    };
+  }
+
+  if (!trackedDirty.length) {
+    if (untracked.length) {
+      appendServerEventLog(
+        "auto-git",
+        `untracked-only dirty (${untracked.length} files) — skip stash, ff-only pull`,
+      );
+    }
+    return { ok: true, stashed: false };
+  }
+
+  const maxAttempts = 3;
+  const baseDelayMs = 1000;
+  /** @type {{ message: string; stderr: string } | null} */
+  let lastErr = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const result = execGitTry(["stash", "push", "-m", "auto-git-sync pre-pull"]);
+    if (result.ok) {
+      if (attempt > 1) {
+        appendServerEventLog(
+          "auto-git",
+          `stash OK (attempt ${attempt}/${maxAttempts})`,
+        );
+      }
+      return { ok: true, stashed: true };
+    }
+
+    const detail = gitErrorDetail(result);
+    lastErr = result;
+
+    if (isNoLocalChangesToStash(detail)) {
+      return { ok: true, stashed: false };
+    }
+    if (isUnmergedStashError(detail)) {
+      return { ok: false, detail, blocking: true };
+    }
+
+    if (attempt < maxAttempts && isTransientGitLockError(detail)) {
+      const delayMs = baseDelayMs * 2 ** (attempt - 1);
+      appendServerEventLog(
+        "auto-git",
+        `stash failed (attempt ${attempt}/${maxAttempts}): ${detail} — retry in ${delayMs / 1000}s`,
+        "warn",
+      );
+      await sleepMs(delayMs);
+      continue;
+    }
+    break;
+  }
+
+  const detail = gitErrorDetail(
+    /** @type {{ message: string; stderr: string }} */ (lastErr),
+  );
+  return { ok: false, detail };
+}
+
+/**
+ * @param {string} remote
+ * @param {string} branch
+ * @returns {Promise<{ ok: true } | { ok: false; detail: string }>}
+ */
+async function gitPullFfOnlyWithRetry(remote, branch) {
+  const maxAttempts = 3;
+  const baseDelayMs = 2000;
+  /** @type {{ message: string; stderr: string } | null} */
+  let lastErr = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const result = execGitTry(["pull", "--ff-only", remote, branch]);
+    if (result.ok) {
+      if (attempt > 1) {
+        appendServerEventLog(
+          "auto-git",
+          `pull ${remote} ${branch} OK (attempt ${attempt}/${maxAttempts})`,
+        );
+      }
+      return { ok: true };
+    }
+    lastErr = result;
+    const detail = gitErrorDetail(result);
+    if (attempt < maxAttempts && isTransientGitLockError(detail)) {
+      const delayMs = baseDelayMs * 2 ** (attempt - 1);
+      appendServerEventLog(
+        "auto-git",
+        `pull ${remote} ${branch} failed (attempt ${attempt}/${maxAttempts}): ${detail} — retry in ${delayMs / 1000}s`,
+        "warn",
+      );
+      await sleepMs(delayMs);
+      continue;
+    }
+    break;
+  }
+  return {
+    ok: false,
+    detail: gitErrorDetail(
+      /** @type {{ message: string; stderr: string }} */ (lastErr),
+    ),
+  };
 }
 
 /**
@@ -371,41 +557,74 @@ export function startAutoGitSync({ httpServer }) {
       `${formatLogTimestampKst()} ${remoteRef} ahead of HEAD → pull --ff-only`,
     );
 
+    const opInProgress = gitOperationInProgressLabel();
+    if (opInProgress) {
+      appendServerEventLog(
+        "auto-git",
+        `${opInProgress} in progress — skip pull (resolve or abort first) · ${describeGitWorktree()}`,
+        "warn",
+      );
+      return;
+    }
+
+    const prePullPorcelain = execGitOut(["status", "--porcelain"]);
+    const { conflicts: prePullConflicts } = parsePorcelainStatus(prePullPorcelain);
+    if (prePullConflicts.length) {
+      appendServerEventLog(
+        "auto-git",
+        `unmerged paths — skip pull: ${prePullConflicts.join(", ")} · ${describeGitWorktree()}`,
+        "warn",
+      );
+      return;
+    }
+
     let stashed = false;
     if (truthy(process.env.AUTO_GIT_STASH_BEFORE_PULL)) {
-      const dirty = execGitOut(["status", "--porcelain"]);
-      if (dirty) {
-        appendServerEventLog(
-          "auto-git",
-          "stashing local changes before pull…",
-        );
-        try {
-          execGitQuiet(["stash", "push", "-m", "auto-git-sync pre-pull"]);
-          stashed = true;
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
-          appendServerEventLog("auto-git", `stash failed: ${msg}`, "error");
+      if (prePullPorcelain) {
+        const { trackedDirty } = parsePorcelainStatus(prePullPorcelain);
+        if (trackedDirty.length) {
+          appendServerEventLog(
+            "auto-git",
+            "stashing local changes before pull…",
+          );
+        }
+        const stashResult = await gitStashBeforePullWithRetry();
+        if (!stashResult.ok) {
+          appendServerEventLog(
+            "auto-git",
+            `stash failed: ${stashResult.detail}`,
+            "error",
+          );
+          appendServerEventLog("auto-git", `worktree: ${describeGitWorktree()}`, "error");
+          notifyOpsAutoGitFailed({
+            phase: `stash before pull ${remote}/${branch}`,
+            detail: describeGitWorktree(),
+            errorText: stashResult.detail,
+          });
           return;
+        }
+        stashed = stashResult.stashed;
+        if (stashed) {
+          appendServerEventLog("auto-git", "stashed local changes before pull");
         }
       }
     }
 
-    try {
-      execGitQuiet(["pull", "--ff-only", remote, branch]);
-      appendServerEventLog("auto-git", `pulled ${remote} ${branch}`);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      appendServerEventLog("auto-git", `pull failed: ${msg}`, "error");
+    const pullResult = await gitPullFfOnlyWithRetry(remote, branch);
+    if (!pullResult.ok) {
+      appendServerEventLog("auto-git", `pull failed: ${pullResult.detail}`, "error");
+      appendServerEventLog("auto-git", `worktree: ${describeGitWorktree()}`, "error");
       if (stashed) {
         restoreStashedChangesAfterPullFailure();
       }
       notifyOpsAutoGitFailed({
         phase: `pull ${remote}/${branch}`,
         detail: describeGitWorktree(),
-        errorText: msg,
+        errorText: pullResult.detail,
       });
       return;
     }
+    appendServerEventLog("auto-git", `pulled ${remote} ${branch}`);
 
     if (stashed) {
       const restored = restoreStashedChangesAfterPull();
