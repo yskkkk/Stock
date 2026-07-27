@@ -201,7 +201,7 @@ export default function AccountManageTab({
     [displayCurrency, usdKrwRate],
   );
 
-  // 업종·S&P GICS·상세업종 보강
+  // ???S&P GICS????? ??
   useEffect(() => {
     if (!user || provider !== "toss" || !activeToss?.holdings?.length) return;
     let cancelled = false;
@@ -238,7 +238,7 @@ export default function AccountManageTab({
           const industry = h.industry ?? null;
           map.set(sym, {
             industry,
-            // 상세: Yahoo/Naver 업종 우선, 없으면 S&P subIndustry
+            // ??: Yahoo/Naver ?? ??, ??? S&P subIndustry
             subIndustry: industry || g?.subIndustry || null,
             sectorEn: g?.sector ?? null,
             sectorKo: g?.sectorKo ?? industry ?? null,
@@ -318,21 +318,34 @@ export default function AccountManageTab({
     return [];
   }, [provider, activeToss, bithumbSnapshot, usdKrwRate, feeRates, enrichMap]);
 
-  const cashKrw = useMemo(() => {
+  const cashNativeKrw = useMemo(() => {
     if (provider === "toss" && activeToss) {
-      const krw = activeToss.cash.krw ?? 0;
-      const usd = activeToss.cash.usd ?? 0;
-      const fx =
-        usdKrwRate != null && Number.isFinite(usdKrwRate) && usdKrwRate > 0
-          ? usd * usdKrwRate
-          : 0;
-      return krw + fx;
+      return Number(activeToss.cash.krw) || 0;
     }
     if (provider === "bithumb" && bithumbSnapshot) {
       return Number(bithumbSnapshot.krw?.total) || 0;
     }
     return 0;
-  }, [provider, activeToss, bithumbSnapshot, usdKrwRate]);
+  }, [provider, activeToss, bithumbSnapshot]);
+
+  const cashNativeUsd = useMemo(() => {
+    if (provider === "toss" && activeToss) {
+      return Number(activeToss.cash.usd) || 0;
+    }
+    return 0;
+  }, [provider, activeToss]);
+
+  /** ??????? ? ?? ??? ??? ??? ?? */
+  const cashKrw = useMemo(() => {
+    if (provider === "toss" && activeToss) {
+      const fx =
+        usdKrwRate != null && Number.isFinite(usdKrwRate) && usdKrwRate > 0
+          ? cashNativeUsd * usdKrwRate
+          : 0;
+      return cashNativeKrw + fx;
+    }
+    return cashNativeKrw;
+  }, [provider, activeToss, cashNativeKrw, cashNativeUsd, usdKrwRate]);
 
   const labels = useMemo(
     () => ({
@@ -744,19 +757,63 @@ export default function AccountManageTab({
                 ) : null}
               </span>
             </div>
-            <div className="account-manage-tab__stat">
-              <span className="account-manage-tab__stat-label">
-                {ko.app.accountManageCash}
-              </span>
-              <span className="account-manage-tab__stat-value">
-                <span
-                  className="account-manage-tab__money"
-                  aria-hidden={balanceHidden || undefined}
-                >
-                  {money(cashKrw)}
+            {provider === "toss" ? (
+              <>
+                <div className="account-manage-tab__stat">
+                  <span className="account-manage-tab__stat-label">
+                    {ko.app.accountManageCashKrw}
+                  </span>
+                  <span className="account-manage-tab__stat-value">
+                    <span
+                      className="account-manage-tab__money"
+                      aria-hidden={balanceHidden || undefined}
+                    >
+                      {formatPrice(cashNativeKrw, "KRW")}
+                    </span>
+                  </span>
+                </div>
+                <div className="account-manage-tab__stat">
+                  <span className="account-manage-tab__stat-label">
+                    {ko.app.accountManageCashUsd}
+                  </span>
+                  <span className="account-manage-tab__stat-value">
+                    <span
+                      className="account-manage-tab__money"
+                      aria-hidden={balanceHidden || undefined}
+                    >
+                      {formatPrice(cashNativeUsd, "USD")}
+                    </span>
+                    {cashNativeUsd > 0 &&
+                    usdKrwRate != null &&
+                    usdKrwRate > 0 ? (
+                      <span
+                        className="account-manage-tab__stat-sub"
+                        aria-hidden={balanceHidden || undefined}
+                      >
+                        {formatPrice(
+                          Math.round(cashNativeUsd * usdKrwRate),
+                          "KRW",
+                        )}
+                      </span>
+                    ) : null}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="account-manage-tab__stat">
+                <span className="account-manage-tab__stat-label">
+                  {ko.app.accountManageCash}
                 </span>
-              </span>
-            </div>
+                <span className="account-manage-tab__stat-value">
+                  <span
+                    className="account-manage-tab__money"
+                    aria-hidden={balanceHidden || undefined}
+                  >
+                    {money(cashKrw)}
+                  </span>
+                </span>
+              </div>
+            )}
             {netSummary?.profitLossKrw != null ? (
               <div className="account-manage-tab__stat">
                 <span className="account-manage-tab__stat-label">
@@ -1089,7 +1146,7 @@ export default function AccountManageTab({
                     </span>
                   </div>
                   <div className="account-manage-tab__bubble-row">
-                    <span>비중</span>
+                    <span>??</span>
                     <span>{formatAllocPct(hoverSeg.pct)}</span>
                   </div>
                   {hoverSlice.key !== "__cash__" ? (
@@ -1124,7 +1181,7 @@ export default function AccountManageTab({
                         ))}
                         {hoverSlice.symbols.length > hoverRows.length ? (
                           <li className="account-manage-tab__bubble-more">
-                            외 {hoverSlice.symbols.length - hoverRows.length}종목
+                            ? {hoverSlice.symbols.length - hoverRows.length}??
                           </li>
                         ) : null}
                       </ul>
@@ -1158,12 +1215,32 @@ export default function AccountManageTab({
               {filteredRows.length === 0 ? (
                 <p className="account-manage-tab__empty">
                   {focusKey === "__cash__" ? (
-                    <span
-                      className="account-manage-tab__money"
-                      aria-hidden={balanceHidden || undefined}
-                    >
-                      {money(cashKrw)}
-                    </span>
+                    provider === "toss" ? (
+                      <span
+                        className="account-manage-tab__cash-split"
+                        aria-hidden={balanceHidden || undefined}
+                      >
+                        <span>
+                          {ko.app.accountManageCashKrw}{" "}
+                          <span className="account-manage-tab__money">
+                            {formatPrice(cashNativeKrw, "KRW")}
+                          </span>
+                        </span>
+                        <span>
+                          {ko.app.accountManageCashUsd}{" "}
+                          <span className="account-manage-tab__money">
+                            {formatPrice(cashNativeUsd, "USD")}
+                          </span>
+                        </span>
+                      </span>
+                    ) : (
+                      <span
+                        className="account-manage-tab__money"
+                        aria-hidden={balanceHidden || undefined}
+                      >
+                        {money(cashKrw)}
+                      </span>
+                    )
                   ) : (
                     ko.app.accountManageEmpty
                   )}
@@ -1303,7 +1380,7 @@ export default function AccountManageTab({
           </div>
 
           <details className="account-manage-tab__raw card">
-            <summary>계좌 상세(잔고·주문)</summary>
+            <summary>?? ??(?????)</summary>
             {provider === "toss" && activeToss ? (
               <TossAccountSnapshotCard
                 snapshot={activeToss}

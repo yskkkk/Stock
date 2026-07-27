@@ -161,6 +161,8 @@ export const ko = {
     accountManageGroupMarket: "시장",
     accountManageGroupSymbol: "종목",
     accountManageCash: "현금",
+    accountManageCashKrw: "원화 현금",
+    accountManageCashUsd: "달러 현금",
     accountManageOther: "기타",
     accountManageMarketKr: "국내",
     accountManageMarketUs: "미국",

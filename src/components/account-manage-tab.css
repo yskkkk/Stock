@@ -163,15 +163,9 @@
 
 .account-manage-tab__summary {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
   gap: 0.55rem;
   width: 100%;
-}
-
-@media (max-width: 900px) {
-  .account-manage-tab__summary {
-    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
-  }
 }
 
 .account-manage-tab__stat {
@@ -198,6 +192,23 @@
   font-size: 0.95rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.account-manage-tab__stat-sub {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.account-manage-tab__cash-split {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: flex-start;
 }
 
 .account-manage-tab__return-cell {
