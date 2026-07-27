@@ -13,7 +13,7 @@
  *   AUTO_GIT_SYNC_INTERVAL_MS — 기본 60000 (1분), 최소 10000
  *   AUTO_GIT_REMOTE — 기본 origin
  *   AUTO_GIT_BRANCH — 비우면 현재 체크아웃 브랜치명 사용
- *   AUTO_GIT_STASH_BEFORE_PULL=1 — pull 전에 로컬 변경이 있으면 `git stash push` 후 pull, 성공 시 `stash pop` (pop 충돌 시 수동 처리)
+ *   AUTO_GIT_STASH_BEFORE_PULL=1 — pull 전에 로컬 변경이 있으면 `git stash push` 후 pull, 성공 시 `stash apply`+`drop` (충돌 시 stash 유지·수동 처리)
  *   AUTO_GIT_POST_PULL_CMD — pull 이후 추가 셸. 실패 시 기본은 재시작 진행(경고). `AUTO_GIT_RESTART_ONLY_IF_BUILD_OK=1`이면 빌드·후크 실패 시 재시작 안 함
  *   AUTO_GIT_SKIP_NPM_REFRESH=1 — 긴급 시에만: npm ci/install·build 생략하고 바로 재시작
  *
@@ -32,7 +32,10 @@ import { fileURLToPath } from "node:url";
 import { appendServerEventLog } from "./access-log.js";
 import { formatLogTimestampKst } from "./log-kst.js";
 import { summarizeGitPullRangeForNotify } from "./ops-agent-git-push.js";
-import { notifyOpsAutoGitPulled } from "./ops-dev-git-telegram.js";
+import {
+  notifyOpsAutoGitFailed,
+  notifyOpsAutoGitPulled,
+} from "./ops-dev-git-telegram.js";
 import {
   isViteIntegratedRestartActive,
   restartNodeOrViteDev,
@@ -60,8 +63,152 @@ function execGitQuiet(args) {
   execFileSync("git", args, { cwd: repoRoot, stdio: "ignore" });
 }
 
-function execGitInherit(args) {
-  execFileSync("git", args, { cwd: repoRoot, stdio: "inherit" });
+/** @param {string[]} args @returns {{ ok: true } | { ok: false; message: string; stderr: string }} */
+function execGitTry(args) {
+  try {
+    execFileSync("git", args, {
+      cwd: repoRoot,
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+    return { ok: true };
+  } catch (e) {
+    const err = /** @type {NodeJS.ErrnoException & { stderr?: Buffer | string }} */ (
+      e
+    );
+    const stderr =
+      err.stderr != null ? String(err.stderr).trim() : "";
+    const message = e instanceof Error ? e.message : String(e);
+    return { ok: false, message, stderr };
+  }
+}
+
+function gitErrorDetail(result) {
+  return [result.stderr, result.message].filter(Boolean).join(" — ");
+}
+
+function sleepMs(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** @returns {string} */
+function describeGitWorktree() {
+  try {
+    const branch = execGitOut(["rev-parse", "--abbrev-ref", "HEAD"]);
+    const lines = execGitOut(["status", "--porcelain"])
+      .split("\n")
+      .filter(Boolean);
+    const conflicts = lines
+      .filter((l) => /^(UU|AA|DD|AU|UA|DU|UD)/.test(l))
+      .map((l) => l.slice(3).trim());
+    const parts = [`branch=${branch}`];
+    if (conflicts.length) {
+      parts.push(`conflicts=${conflicts.join(", ")}`);
+    } else if (lines.length) {
+      parts.push(`dirty=${lines.length} files`);
+    }
+    return parts.join(" · ");
+  } catch {
+    return "(git status unavailable)";
+  }
+}
+
+/**
+ * pull 성공 후 stash 복원. apply→drop 로 pop 실패 시 stash 유지.
+ * @returns {boolean}
+ */
+function restoreStashedChangesAfterPull() {
+  appendServerEventLog(
+    "auto-git",
+    "pull OK — restoring stashed local changes (stash apply)…",
+  );
+  const apply = execGitTry(["stash", "apply"]);
+  if (!apply.ok) {
+    const detail = gitErrorDetail(apply);
+    appendServerEventLog(
+      "auto-git",
+      `stash apply failed after pull (resolve conflicts manually): ${detail}`,
+      "error",
+    );
+    appendServerEventLog("auto-git", `worktree: ${describeGitWorktree()}`, "error");
+    appendServerEventLog(
+      "auto-git",
+      "stash kept — resolve conflicts then run git stash drop",
+      "error",
+    );
+    return false;
+  }
+  const drop = execGitTry(["stash", "drop"]);
+  if (!drop.ok) {
+    appendServerEventLog(
+      "auto-git",
+      `stash apply OK but drop failed: ${gitErrorDetail(drop)}`,
+      "warn",
+    );
+  }
+  appendServerEventLog("auto-git", "restored stashed changes after pull");
+  return true;
+}
+
+/** pull 실패 시 stash 복원 */
+function restoreStashedChangesAfterPullFailure() {
+  const pop = execGitTry(["stash", "pop"]);
+  if (!pop.ok) {
+    appendServerEventLog(
+      "auto-git",
+      `pull failed and stash pop also failed — ${gitErrorDetail(pop)}`,
+      "error",
+    );
+    appendServerEventLog("auto-git", `worktree: ${describeGitWorktree()}`, "error");
+    return false;
+  }
+  return true;
+}
+
+/**
+ * @param {string} remote
+ * @param {string} branch
+ * @returns {Promise<boolean>}
+ */
+async function gitFetchWithRetry(remote, branch) {
+  const maxAttempts = 3;
+  const baseDelayMs = 2000;
+  /** @type {{ ok: false; message: string; stderr: string } | null} */
+  let lastErr = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const result = execGitTry(["fetch", remote, branch]);
+    if (result.ok) {
+      if (attempt > 1) {
+        appendServerEventLog(
+          "auto-git",
+          `fetch ${remote} ${branch} OK (attempt ${attempt}/${maxAttempts})`,
+        );
+      }
+      return true;
+    }
+    lastErr = result;
+    const detail = gitErrorDetail(result);
+    if (attempt < maxAttempts) {
+      const delayMs = baseDelayMs * 2 ** (attempt - 1);
+      appendServerEventLog(
+        "auto-git",
+        `fetch ${remote} ${branch} failed (attempt ${attempt}/${maxAttempts}): ${detail} — retry in ${delayMs / 1000}s`,
+        "warn",
+      );
+      await sleepMs(delayMs);
+    }
+  }
+  const detail = gitErrorDetail(/** @type {{ message: string; stderr: string }} */ (lastErr));
+  appendServerEventLog(
+    "auto-git",
+    `fetch ${remote} ${branch} failed after ${maxAttempts} attempts: ${detail}`,
+    "error",
+  );
+  notifyOpsAutoGitFailed({
+    phase: `fetch ${remote}/${branch}`,
+    detail: describeGitWorktree(),
+    errorText: detail,
+  });
+  return false;
 }
 
 /** @param {string} remoteRef */
@@ -176,21 +323,23 @@ export function startAutoGitSync({ httpServer }) {
       }
     }
 
+    if (branch === "HEAD") {
+      appendServerEventLog(
+        "auto-git",
+        "detached HEAD — skip pull (checkout a branch first)",
+        "warn",
+      );
+      return;
+    }
+
     const remoteRef = `${remote}/${branch}`;
 
     if (existsSync(PAUSE_FILE)) {
       return;
     }
 
-    try {
-      execGitQuiet(["fetch", remote, branch]);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      appendServerEventLog(
-        "auto-git",
-        `fetch ${remote} ${branch} failed: ${msg}`,
-        "warn",
-      );
+    const fetched = await gitFetchWithRetry(remote, branch);
+    if (!fetched) {
       return;
     }
 
@@ -248,34 +397,26 @@ export function startAutoGitSync({ httpServer }) {
       const msg = e instanceof Error ? e.message : String(e);
       appendServerEventLog("auto-git", `pull failed: ${msg}`, "error");
       if (stashed) {
-        try {
-          execGitQuiet(["stash", "pop"]);
-        } catch {
-          appendServerEventLog(
-            "auto-git",
-            "pull failed and stash pop also failed — check repo manually",
-            "error",
-          );
-        }
+        restoreStashedChangesAfterPullFailure();
       }
+      notifyOpsAutoGitFailed({
+        phase: `pull ${remote}/${branch}`,
+        detail: describeGitWorktree(),
+        errorText: msg,
+      });
       return;
     }
 
     if (stashed) {
-      try {
-        appendServerEventLog(
-          "auto-git",
-          "pull OK — restoring stashed local changes (stash pop)…",
-        );
-        execGitQuiet(["stash", "pop"]);
-        appendServerEventLog("auto-git", "restored stashed changes after pull");
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        appendServerEventLog(
-          "auto-git",
-          `stash pop failed after pull (resolve conflicts manually): ${msg}`,
-          "error",
-        );
+      const restored = restoreStashedChangesAfterPull();
+      if (!restored) {
+        notifyOpsAutoGitFailed({
+          phase: `stash restore after pull ${remote}/${branch}`,
+          detail: describeGitWorktree(),
+          errorText:
+            "stash apply failed after pull — resolve conflicts manually (stash kept)",
+        });
+        return;
       }
     }
 
