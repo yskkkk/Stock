@@ -91,7 +91,7 @@ export default function TossAccountSnapshotCard({
       ),
     [tossFeeRatesByMarket, tossRoundTripFeeRate],
   );
-  const liveSnapshot = useTossSnapshotLiveQuotes(
+  const { snapshot: liveSnapshot } = useTossSnapshotLiveQuotes(
     snapshot,
     Boolean(snapshot.holdings?.length),
     undefined,

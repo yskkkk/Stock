@@ -60,7 +60,7 @@ export default function LiveAccountTradesMainPanel({
     poll: scenario === "live-toss" && apiReady,
     pollIntervalMs: TOSS_LEDGER_POLL_MS,
   });
-  const liveTossSnapshot = useTossSnapshotLiveQuotes(
+  const { snapshot: liveTossSnapshot } = useTossSnapshotLiveQuotes(
     tossSnapshot,
     scenario === "live-toss" && apiReady,
   );
