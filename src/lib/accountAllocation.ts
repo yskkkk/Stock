@@ -121,7 +121,11 @@ export function buildAccountAllocationSlices(
   for (const row of rows) {
     if (!(row.valueKrw > 0)) continue;
     if (mode === "symbol") {
-      bump(row.symbol, row.name || row.symbol, row.valueKrw, row.symbol, row.sectorEn);
+      const sym = row.symbol.trim() || row.name.trim();
+      const name = (row.name || "").trim();
+      const label =
+        name && name !== sym ? `${sym} · ${name}` : sym || name || labels.other;
+      bump(sym || name, label, row.valueKrw, sym || name, row.sectorEn);
       continue;
     }
     if (mode === "market") {

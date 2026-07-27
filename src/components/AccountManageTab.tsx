@@ -73,7 +73,7 @@ export default function AccountManageTab({
     tossReady ? "toss" : bithumbReady ? "bithumb" : "toss",
   );
   const [panelTab, setPanelTab] = useState<PanelTab>("chart");
-  const [allocMode, setAllocMode] = useState<AccountAllocMode>("sector");
+  const [allocMode, setAllocMode] = useState<AccountAllocMode>("symbol");
   const [focusKey, setFocusKey] = useState<string | null>(null);
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const [manageHolding, setManageHolding] = useState<TossTestHolding | null>(null);
@@ -525,10 +525,10 @@ export default function AccountManageTab({
               <div className="account-manage-tab__mode" role="group">
                 {(
                   [
+                    ["symbol", ko.app.accountManageGroupSymbol],
                     ["sector", ko.app.accountManageGroupSector],
                     ["subIndustry", ko.app.accountManageGroupSubIndustry],
                     ["market", ko.app.accountManageGroupMarket],
-                    ["symbol", ko.app.accountManageGroupSymbol],
                   ] as const
                 ).map(([id, label]) => (
                   <button
@@ -844,7 +844,9 @@ export default function AccountManageTab({
                         <th>
                           {allocMode === "subIndustry"
                             ? ko.app.accountManageGroupSubIndustry
-                            : ko.app.accountManageGroupSector}
+                            : allocMode === "symbol"
+                              ? ko.app.accountManageGroupMarket
+                              : ko.app.accountManageGroupSector}
                         </th>
                         <th>{ko.app.liveTradePfColQty}</th>
                         <th>{ko.app.accountManageSliceValue}</th>
@@ -896,9 +898,15 @@ export default function AccountManageTab({
                               </button>
                             </td>
                             <td>
-                              {allocMode === "subIndustry"
-                                ? row.subIndustry || row.industry || row.sectorKo || "—"
-                                : row.sectorKo || row.industry || "—"}
+                              {allocMode === "symbol"
+                                ? row.market === "us"
+                                  ? labels.marketUs
+                                  : row.market === "crypto"
+                                    ? labels.marketCrypto
+                                    : labels.marketKr
+                                : allocMode === "subIndustry"
+                                  ? row.subIndustry || row.industry || row.sectorKo || "—"
+                                  : row.sectorKo || row.industry || "—"}
                             </td>
                             <td>{row.quantity}</td>
                             <td>{formatKrw(row.valueKrw)}</td>
