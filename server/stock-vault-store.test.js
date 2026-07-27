@@ -1,5 +1,8 @@
 import { test, beforeEach } from "vitest";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { resolveServerDataDir } from "./data-path.js";
 import {
   listStockVaultItemsSync,
   mergeGoldenCrossHitsIntoVaultSync,
@@ -63,4 +66,13 @@ test("test garbage names are not persisted in vault store", () => {
     scanDate: "2026-05-29",
   });
   assert.ok(!listStockVaultItemsSync().some((it) => it.symbol === sym));
+});
+
+test("corrupt vault store falls back to empty items", () => {
+  const fileName = process.env.STOCK_VAULT_STORE_TEST_FILE;
+  assert.ok(fileName);
+  const fp = path.join(resolveServerDataDir(), fileName);
+  fs.mkdirSync(path.dirname(fp), { recursive: true });
+  fs.writeFileSync(fp, "{not-json", "utf8");
+  assert.deepEqual(listStockVaultItemsSync(), []);
 });
