@@ -78,6 +78,46 @@
   flex-wrap: wrap;
 }
 
+.account-manage-tab__toolbar-grow {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.account-manage-tab__refresh-indicator {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 0;
+  min-height: 1.1rem;
+  pointer-events: none;
+}
+
+.account-manage-tab__refresh-spinner {
+  display: inline-block;
+  box-sizing: border-box;
+  width: 0.85rem;
+  height: 0.85rem;
+  border: 2px solid color-mix(in srgb, var(--muted) 35%, transparent);
+  border-top-color: var(--accent, #14b8a6);
+  border-radius: 50%;
+  animation: account-manage-refresh-spin 0.7s linear infinite;
+  flex: none;
+}
+
+.account-manage-tab__refresh-spinner--inline {
+  width: 0.7rem;
+  height: 0.7rem;
+  margin-left: 0.35rem;
+  vertical-align: -0.05rem;
+}
+
+@keyframes account-manage-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .account-manage-tab__currency-toggle {
   display: inline-flex;
   border: 1px solid rgba(148, 163, 184, 0.32);
@@ -184,6 +224,8 @@
 }
 
 .account-manage-tab__stat-label {
+  display: inline-flex;
+  align-items: center;
   font-size: 0.68rem;
   color: var(--muted);
 }

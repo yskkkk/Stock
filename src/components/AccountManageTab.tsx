@@ -638,6 +638,22 @@ export default function AccountManageTab({
         <>
           <div className="account-manage-tab__summary-wrap">
             <div className="account-manage-tab__summary-toolbar">
+              {refreshing ? (
+                <span
+                  className="account-manage-tab__refresh-indicator"
+                  role="status"
+                  aria-live="polite"
+                  aria-label={ko.app.accountManageRefreshing}
+                  title={ko.app.accountManageRefreshing}
+                >
+                  <span
+                    className="account-manage-tab__refresh-spinner"
+                    aria-hidden
+                  />
+                </span>
+              ) : (
+                <span className="account-manage-tab__toolbar-grow" aria-hidden />
+              )}
               {provider === "toss" ? (
                 <>
                   <button
@@ -843,19 +859,27 @@ export default function AccountManageTab({
                 </span>
               </div>
             ) : null}
-            {updatedAtMs ? (
+            {updatedAtMs || refreshing ? (
               <div className="account-manage-tab__stat account-manage-tab__stat--muted">
                 <span className="account-manage-tab__stat-label">
                   {ko.app.accountManageUpdated}
+                  {refreshing ? (
+                    <span
+                      className="account-manage-tab__refresh-spinner account-manage-tab__refresh-spinner--inline"
+                      aria-hidden
+                    />
+                  ) : null}
                 </span>
                 <span className="account-manage-tab__stat-value">
-                  {new Date(updatedAtMs).toLocaleTimeString("ko-KR", {
-                    timeZone: "Asia/Seoul",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    second: "2-digit",
-                    hour12: false,
-                  })}
+                  {updatedAtMs
+                    ? new Date(updatedAtMs).toLocaleTimeString("ko-KR", {
+                        timeZone: "Asia/Seoul",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                        hour12: false,
+                      })
+                    : "?"}
                 </span>
               </div>
             ) : null}
