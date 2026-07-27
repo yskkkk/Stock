@@ -131,26 +131,131 @@
 
 .account-rebalance-modal__chips {
   display: flex;
-  gap: 0.35rem;
+  flex-wrap: wrap;
+  gap: 0.45rem;
 }
 
 .account-rebalance-modal__chip {
   margin: 0;
-  padding: 0.28rem 0.65rem;
-  border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.32);
-  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 0.55rem;
+  border: 1.5px solid rgba(148, 163, 184, 0.4);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
   color: var(--muted);
   font: inherit;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
 }
 
-.account-rebalance-modal__chip.is-active {
-  color: var(--accent, #5eead4);
-  border-color: rgba(94, 234, 212, 0.45);
-  background: color-mix(in srgb, var(--accent, #5eead4) 14%, transparent);
+.account-rebalance-modal__chip-name {
+  font-weight: 800;
+}
+
+.account-rebalance-modal__chip-cur {
+  font-size: 0.68rem;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.account-rebalance-modal__chip-state {
+  margin-left: 0.1rem;
+  padding: 0.08rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.account-rebalance-modal__chip-state.is-on {
+  color: #0f172a;
+  background: #5eead4;
+}
+
+.account-rebalance-modal__chip-state.is-off {
+  color: #64748b;
+  background: rgba(148, 163, 184, 0.28);
+}
+
+.account-rebalance-modal__chip.is-on {
+  color: var(--text, inherit);
+  border-color: rgba(20, 184, 166, 0.75);
+  background: color-mix(in srgb, #14b8a6 18%, var(--card));
+  box-shadow: inset 0 0 0 1px rgba(20, 184, 166, 0.25);
+}
+
+.account-rebalance-modal__chip.is-off {
+  color: var(--muted);
+  border-color: rgba(148, 163, 184, 0.35);
+  border-style: dashed;
+  background: transparent;
+  opacity: 0.78;
+}
+
+.account-rebalance-modal__cash-sum {
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm, 0.5rem);
+  padding: 0.55rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  background: color-mix(in srgb, var(--surface) 50%, var(--card));
+}
+
+.account-rebalance-modal__cash-sum-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.account-rebalance-modal__cash-sum-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.account-rebalance-modal__cash-sum-row strong {
+  margin-left: auto;
+  font-weight: 800;
+}
+
+.account-rebalance-modal__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  height: 1.2rem;
+  padding: 0 0.28rem;
+  border-radius: 0.3rem;
+  font-size: 0.65rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.account-rebalance-modal__badge.is-krw {
+  color: #1e3a5f;
+  background: #bfdbfe;
+}
+
+.account-rebalance-modal__badge.is-usd {
+  color: #14532d;
+  background: #bbf7d0;
+}
+
+html:not([data-theme="light"]) .account-rebalance-modal__badge.is-krw {
+  color: #bfdbfe;
+  background: rgba(59, 130, 246, 0.28);
+}
+
+html:not([data-theme="light"]) .account-rebalance-modal__badge.is-usd {
+  color: #bbf7d0;
+  background: rgba(34, 197, 94, 0.28);
 }
 
 .account-rebalance-modal__preview h3 {
@@ -165,12 +270,42 @@
   margin-bottom: 0.45rem;
 }
 
+.account-rebalance-modal__plan.is-krw {
+  border-left: 3px solid #3b82f6;
+}
+
+.account-rebalance-modal__plan.is-usd {
+  border-left: 3px solid #22c55e;
+}
+
+.account-rebalance-modal__plan.is-off {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
 .account-rebalance-modal__plan-head {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 0.5rem;
   font-size: 0.78rem;
   margin-bottom: 0.35rem;
+}
+
+.account-rebalance-modal__plan-head strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.account-rebalance-modal__off-tag {
+  flex-shrink: 0;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #64748b;
+  background: rgba(148, 163, 184, 0.25);
 }
 
 .account-rebalance-modal__plan ul {

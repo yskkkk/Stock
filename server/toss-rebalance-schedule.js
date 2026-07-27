@@ -93,6 +93,7 @@ export function buildProportionalBuyPlan(snapshot, market, cashUsePct = 100) {
       currency,
       cashAvailable: Number.isFinite(cashAll) ? cashAll : 0,
       cashToSpend: cash,
+      holdingsCount: weighted.length,
       orders: /** @type {Array<{ symbol: string; name: string; market: string; amount: number; weightPct: number }>} */ ([]),
     };
   }
@@ -124,6 +125,7 @@ export function buildProportionalBuyPlan(snapshot, market, cashUsePct = 100) {
     currency,
     cashAvailable: Number.isFinite(cashAll) ? cashAll : 0,
     cashToSpend: cash,
+    holdingsCount: weighted.length,
     orders,
   };
 }

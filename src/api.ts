@@ -2053,6 +2053,7 @@ export type TossRebalanceBuyPlan = {
   currency: "KRW" | "USD";
   cashAvailable: number;
   cashToSpend: number;
+  holdingsCount?: number;
   orders: Array<{
     symbol: string;
     name: string;

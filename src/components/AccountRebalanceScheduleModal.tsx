@@ -20,6 +20,33 @@ function formatPlanMoney(amount: number, currency: "KRW" | "USD"): string {
   return formatPrice(amount, currency);
 }
 
+function cashLabelFor(currency: "KRW" | "USD"): string {
+  return currency === "USD"
+    ? ko.app.accountManageRebalanceCashUsd
+    : ko.app.accountManageRebalanceCashKrw;
+}
+
+function planTitle(market: "kr" | "us"): string {
+  return market === "us"
+    ? ko.app.accountManageRebalancePlanUs
+    : ko.app.accountManageRebalancePlanKr;
+}
+
+function planEmptyHint(plan: TossRebalanceBuyPlan): string {
+  const cashLabel = cashLabelFor(plan.currency);
+  const holdings = plan.holdingsCount ?? 0;
+  if (plan.cashAvailable > 0 && holdings <= 0) {
+    return ko.app.accountManageRebalanceNoHoldings.replace(
+      "{cashLabel}",
+      cashLabel,
+    );
+  }
+  if (!(plan.cashAvailable > 0)) {
+    return ko.app.accountManageRebalanceNoCash.replace("{cashLabel}", cashLabel);
+  }
+  return ko.app.accountManageRebalanceNoOrders;
+}
+
 export default function AccountRebalanceScheduleModal({
   onClose,
 }: {
@@ -134,7 +161,20 @@ export default function AccountRebalanceScheduleModal({
     }
   };
 
+  const planByMarket = useMemo(() => {
+    const map = new Map<string, TossRebalanceBuyPlan>();
+    for (const p of plans) map.set(p.market, p);
+    return map;
+  }, [plans]);
+  const cashSummary = useMemo(() => {
+    const kr = plans.find((p) => p.currency === "KRW");
+    const us = plans.find((p) => p.currency === "USD");
+    return { kr, us };
+  }, [plans]);
+
   const monthLabel = `${year}년 ${monthIndex + 1}월`;
+  const krOn = markets.includes("kr");
+  const usOn = markets.includes("us");
 
   return (
     <div
@@ -224,7 +264,7 @@ export default function AccountRebalanceScheduleModal({
               </p>
             </section>
 
-            <div className="account-rebalance-modal__row">
+            <div className="account-rebalance-modal__row account-rebalance-modal__row--col">
               <span className="account-rebalance-modal__label">
                 {ko.app.accountManageRebalanceMarkets}
               </span>
@@ -232,28 +272,59 @@ export default function AccountRebalanceScheduleModal({
                 <button
                   type="button"
                   className={
-                    markets.includes("kr")
-                      ? "account-rebalance-modal__chip is-active"
-                      : "account-rebalance-modal__chip"
+                    krOn
+                      ? "account-rebalance-modal__chip is-on"
+                      : "account-rebalance-modal__chip is-off"
                   }
-                  aria-pressed={markets.includes("kr")}
+                  aria-pressed={krOn}
                   onClick={() => toggleMarket("kr")}
                 >
-                  {ko.app.accountManageMarketKr}
+                  <span className="account-rebalance-modal__chip-name">
+                    {ko.app.accountManageMarketKr}
+                  </span>
+                  <span className="account-rebalance-modal__chip-cur">원화</span>
+                  <span
+                    className={
+                      krOn
+                        ? "account-rebalance-modal__chip-state is-on"
+                        : "account-rebalance-modal__chip-state is-off"
+                    }
+                  >
+                    {krOn
+                      ? ko.app.accountManageRebalanceMarketOn
+                      : ko.app.accountManageRebalanceMarketOff}
+                  </span>
                 </button>
                 <button
                   type="button"
                   className={
-                    markets.includes("us")
-                      ? "account-rebalance-modal__chip is-active"
-                      : "account-rebalance-modal__chip"
+                    usOn
+                      ? "account-rebalance-modal__chip is-on"
+                      : "account-rebalance-modal__chip is-off"
                   }
-                  aria-pressed={markets.includes("us")}
+                  aria-pressed={usOn}
                   onClick={() => toggleMarket("us")}
                 >
-                  {ko.app.accountManageMarketUs}
+                  <span className="account-rebalance-modal__chip-name">
+                    {ko.app.accountManageMarketUs}
+                  </span>
+                  <span className="account-rebalance-modal__chip-cur">달러</span>
+                  <span
+                    className={
+                      usOn
+                        ? "account-rebalance-modal__chip-state is-on"
+                        : "account-rebalance-modal__chip-state is-off"
+                    }
+                  >
+                    {usOn
+                      ? ko.app.accountManageRebalanceMarketOn
+                      : ko.app.accountManageRebalanceMarketOff}
+                  </span>
                 </button>
               </div>
+              <p className="account-rebalance-modal__hint">
+                {ko.app.accountManageRebalanceMarketHint}
+              </p>
             </div>
 
             <label className="account-rebalance-modal__row account-rebalance-modal__row--col">
@@ -273,36 +344,93 @@ export default function AccountRebalanceScheduleModal({
               />
             </label>
 
+            {(cashSummary.kr || cashSummary.us) && (
+              <section
+                className="account-rebalance-modal__cash-sum"
+                aria-label={ko.app.accountManageRebalanceCashSummary}
+              >
+                <div className="account-rebalance-modal__cash-sum-title">
+                  {ko.app.accountManageRebalanceCashSummary}
+                </div>
+                <div className="account-rebalance-modal__cash-sum-row">
+                  <span className="account-rebalance-modal__badge is-krw">원</span>
+                  <span>{ko.app.accountManageRebalanceCashKrw}</span>
+                  <strong>
+                    {cashSummary.kr
+                      ? formatPlanMoney(cashSummary.kr.cashAvailable, "KRW")
+                      : "—"}
+                  </strong>
+                </div>
+                <div className="account-rebalance-modal__cash-sum-row">
+                  <span className="account-rebalance-modal__badge is-usd">$</span>
+                  <span>{ko.app.accountManageRebalanceCashUsd}</span>
+                  <strong>
+                    {cashSummary.us
+                      ? formatPlanMoney(cashSummary.us.cashAvailable, "USD")
+                      : "—"}
+                  </strong>
+                </div>
+              </section>
+            )}
+
             <section className="account-rebalance-modal__preview">
               <h3>{ko.app.accountManageRebalancePreview}</h3>
-              {plans.length === 0 ? (
-                <p className="account-rebalance-modal__hint">
-                  {ko.app.accountManageRebalancePreviewEmpty}
-                </p>
-              ) : (
-                plans.map((plan) => (
-                  <div key={plan.market} className="account-rebalance-modal__plan">
+              {(["kr", "us"] as const).map((m) => {
+                const on = markets.includes(m);
+                const plan = planByMarket.get(m);
+                return (
+                  <div
+                    key={m}
+                    className={[
+                      "account-rebalance-modal__plan",
+                      on ? "" : "is-off",
+                      m === "us" ? "is-usd" : "is-krw",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
                     <div className="account-rebalance-modal__plan-head">
                       <strong>
-                        {plan.market === "us"
-                          ? ko.app.accountManageMarketUs
-                          : ko.app.accountManageMarketKr}
+                        <span
+                          className={[
+                            "account-rebalance-modal__badge",
+                            m === "us" ? "is-usd" : "is-krw",
+                          ].join(" ")}
+                        >
+                          {m === "us" ? "$" : "원"}
+                        </span>
+                        {planTitle(m)}
                       </strong>
-                      <span>
-                        {ko.app.accountManageRebalanceCashUse
-                          .replace(
-                            "{avail}",
-                            formatPlanMoney(plan.cashAvailable, plan.currency),
-                          )
-                          .replace(
-                            "{spend}",
-                            formatPlanMoney(plan.cashToSpend, plan.currency),
-                          )}
-                      </span>
+                      {!on ? (
+                        <span className="account-rebalance-modal__off-tag">
+                          {ko.app.accountManageRebalanceMarketOff}
+                        </span>
+                      ) : plan ? (
+                        <span>
+                          {ko.app.accountManageRebalanceCashUse
+                            .replace("{cashLabel}", cashLabelFor(plan.currency))
+                            .replace(
+                              "{avail}",
+                              formatPlanMoney(plan.cashAvailable, plan.currency),
+                            )
+                            .replace(
+                              "{spend}",
+                              formatPlanMoney(plan.cashToSpend, plan.currency),
+                            )}
+                        </span>
+                      ) : null}
                     </div>
-                    {plan.orders.length === 0 ? (
+                    {!on ? (
                       <p className="account-rebalance-modal__hint">
-                        {ko.app.accountManageRebalanceNoOrders}
+                        {ko.app.accountManageRebalanceMarketOffHint}
+                      </p>
+                    ) : !plan ? (
+                      <p className="account-rebalance-modal__hint">
+                        {ko.app.accountManageRebalancePreviewEmpty}
+                      </p>
+                    ) : plan.orders.length === 0 ? (
+                      <p className="account-rebalance-modal__hint">
+                        {planEmptyHint(plan)}
                       </p>
                     ) : (
                       <ul>
@@ -321,8 +449,8 @@ export default function AccountRebalanceScheduleModal({
                       </ul>
                     )}
                   </div>
-                ))
-              )}
+                );
+              })}
             </section>
 
             {schedule?.lastRunYmd ? (
