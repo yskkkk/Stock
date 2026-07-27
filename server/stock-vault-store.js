@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { resolveDisplayName } from "./names-ko.js";
 import { listAllFavoritedSymbolsSync } from "./user-stock-vault-store.js";
-import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
+import { readJsonStoreSync, writeJsonStoreSync, StoreCorruptError } from "./store-json.js";
 import { normalizeMaCrossKinds } from "./golden-cross-detect.js";
 import {
   normalizeVaultScanTimeframe,
@@ -295,13 +295,20 @@ function emptyStore() {
 
 function readStore() {
   const empty = emptyStore();
-  const raw = readJsonStoreSync(vaultStoreFile(), (v) => v, () => empty);
-  const normalized = normalizeStore(raw);
-  const rawLen = Array.isArray(raw?.items) ? raw.items.length : 0;
-  if (rawLen !== normalized.items.length) {
-    writeStore(normalized);
+  try {
+    const raw = readJsonStoreSync(vaultStoreFile(), (v) => v, () => empty);
+    const normalized = normalizeStore(raw);
+    const rawLen = Array.isArray(raw?.items) ? raw.items.length : 0;
+    if (rawLen !== normalized.items.length) {
+      writeStore(normalized);
+    }
+    return normalized;
+  } catch (e) {
+    if (e instanceof StoreCorruptError) {
+      return empty;
+    }
+    throw e;
   }
-  return normalized;
 }
 
 /** @param {StockVaultStore} data */

@@ -209,6 +209,8 @@ import { isCredentialsCryptoReady } from "./credentials-crypto.js";
 import {
   fetchQuoteSnapshotsForSymbols,
   mergeLiveQuotesIntoPicksState,
+  readCachedQuoteSnapshotsForSymbols,
+  scheduleQuoteSnapshotsRefresh,
 } from "./picks-live-quotes.js";
 import { enrichUnifiedQueueAgentAndRecord } from "./ops-unified-queue-seq.js";
 import { readDevQueueDisplaySnapshotSync } from "./ops-dev-queue-live-store.js";
@@ -2412,60 +2414,74 @@ export function createApp() {
   app.get(
     "/api/stock-vault",
     asyncRoute(async (req, res) => {
-      const { buildStockVaultItemsForUserSync } = await import(
-        "./stock-vault-view.js"
-      );
-      const { readStockVaultMetaForItemsSync, scheduleStockVaultMetaRefresh, listStockVaultIndustryTabs, stockVaultIndustryGridRows } =
-        await import("./stock-vault-meta.js");
-      const user = resolveUserFromRequest(req);
-      const { items, authenticated, favoriteSymbols, favoriteMeta } =
-        buildStockVaultItemsForUserSync(user?.id);
-      const symbols = items.map((it) => it.symbol);
-      const meta = readStockVaultMetaForItemsSync(items);
-      const lite = String(req.query?.lite ?? "") === "1";
-      const industryTabs = listStockVaultIndustryTabs();
-      /** @type {Record<string, unknown>} */
-      const payload = {
-        items,
-        meta,
-        industryTabs,
-        industryGridRows: stockVaultIndustryGridRows(industryTabs.length),
-        authenticated,
-        favoriteSymbols,
-        favoriteMeta,
-      };
-      if (lite) {
+      try {
+        const { buildStockVaultItemsForUserSync } = await import(
+          "./stock-vault-view.js"
+        );
+        const { readStockVaultMetaForItemsSync, scheduleStockVaultMetaRefresh, listStockVaultIndustryTabs, stockVaultIndustryGridRows } =
+          await import("./stock-vault-meta.js");
+        const user = resolveUserFromRequest(req);
+        const { items, authenticated, favoriteSymbols, favoriteMeta } =
+          buildStockVaultItemsForUserSync(user?.id);
+        const symbols = items.map((it) => it.symbol);
+        const meta = readStockVaultMetaForItemsSync(items);
+        const lite = String(req.query?.lite ?? "") === "1";
+        const industryTabs = listStockVaultIndustryTabs();
+        /** @type {Record<string, unknown>} */
+        const payload = {
+          items,
+          meta,
+          industryTabs,
+          industryGridRows: stockVaultIndustryGridRows(industryTabs.length),
+          authenticated,
+          favoriteSymbols,
+          favoriteMeta,
+        };
+        if (lite) {
+          if (symbols.length > 0) {
+            scheduleStockVaultMetaRefresh(items);
+          }
+          res.json(payload);
+          return;
+        }
+        const quotes =
+          symbols.length > 0
+            ? readCachedQuoteSnapshotsForSymbols(symbols, { maxAgeMs: 120_000 })
+            : {};
+        const {
+          readStockVaultChartInsightsSync,
+          scheduleStockVaultChartInsightsRefresh,
+          pickVaultMapBySymbols,
+        } = await import("./stock-vault-chart-insights.js");
+        const { readStockVaultIndustryFinancialsSync } = await import(
+          "./stock-vault-industry-financials.js"
+        );
+        const chartInsightsAll = readStockVaultChartInsightsSync();
+        const chartInsights = pickVaultMapBySymbols(chartInsightsAll, symbols);
         if (symbols.length > 0) {
           scheduleStockVaultMetaRefresh(items);
+          scheduleStockVaultChartInsightsRefresh(symbols, quotes);
+          scheduleQuoteSnapshotsRefresh(symbols, { maxAgeMs: 120_000 });
         }
-        res.json(payload);
-        return;
+        const industryFinancialsAll = readStockVaultIndustryFinancialsSync();
+        res.json({
+          ...payload,
+          quotes,
+          chartInsights,
+          industryFinancials: pickVaultMapBySymbols(industryFinancialsAll, symbols),
+        });
+      } catch (err) {
+        if (err instanceof StoreCorruptError) {
+          res.status(503).json({
+            error: err.message,
+            code: err.code,
+            filePath: err.filePath,
+          });
+          return;
+        }
+        const message = err instanceof Error ? err.message : "요청 실패";
+        res.status(502).json({ error: message });
       }
-      const quotes =
-        symbols.length > 0
-          ? await fetchQuoteSnapshotsForSymbols(symbols, { maxAgeMs: 120_000 })
-          : {};
-      const {
-        readStockVaultChartInsightsSync,
-        scheduleStockVaultChartInsightsRefresh,
-        pickVaultMapBySymbols,
-      } = await import("./stock-vault-chart-insights.js");
-      const { readStockVaultIndustryFinancialsSync } = await import(
-        "./stock-vault-industry-financials.js"
-      );
-      const chartInsightsAll = readStockVaultChartInsightsSync();
-      const chartInsights = pickVaultMapBySymbols(chartInsightsAll, symbols);
-      if (symbols.length > 0) {
-        scheduleStockVaultMetaRefresh(items);
-        scheduleStockVaultChartInsightsRefresh(symbols, quotes);
-      }
-      const industryFinancialsAll = readStockVaultIndustryFinancialsSync();
-      res.json({
-        ...payload,
-        quotes,
-        chartInsights,
-        industryFinancials: pickVaultMapBySymbols(industryFinancialsAll, symbols),
-      });
     }),
   );
 

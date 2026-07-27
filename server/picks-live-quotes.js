@@ -134,6 +134,92 @@ async function mapPool(symbols, worker) {
 }
 
 /**
+ * @param {Record<string, { price: number; changePercent?: number; currency?: string; quotedAtMs?: number; interval?: string; priceSource?: string }>} out
+ * @param {string} key
+ * @param {object | null | undefined} q
+ */
+function storeQuoteSnapshot(out, key, q) {
+  if (!key || !q || q.price == null || !Number.isFinite(q.price)) return;
+  const src =
+    typeof q.priceSource === "string" && q.priceSource
+      ? q.priceSource
+      : typeof q.interval === "string" && q.interval
+        ? q.interval
+        : "1m";
+  out[key] = {
+    price: q.price,
+    changePercent:
+      typeof q.changePercent === "number" && Number.isFinite(q.changePercent)
+        ? q.changePercent
+        : undefined,
+    currency: typeof q.currency === "string" ? q.currency : undefined,
+    quotedAtMs:
+      typeof q.quotedAtMs === "number" && q.quotedAtMs > 0 ? q.quotedAtMs : Date.now(),
+    interval: src,
+    priceSource: src,
+  };
+}
+
+/**
+ * @param {Record<string, { price: number; changePercent?: number; currency?: string; quotedAtMs?: number; interval?: string; priceSource?: string }>} out
+ * @param {string[]} requested
+ */
+function aliasQuoteSnapshotKeys(out, requested) {
+  for (const raw of requested) {
+    if (out[raw]) continue;
+    const norm = normalizeYahooQuoteSymbol(raw, inferMarketFromSymbol(raw));
+    if (out[norm]) out[raw] = out[norm];
+    const bare = raw.replace(/\.(KS|KQ)$/i, "");
+    if (bare !== raw && out[bare]) out[raw] = out[bare];
+  }
+}
+
+/**
+ * 프로세스 캐시에 있는 시세만 즉시 반환 — 네트워크 호출 없음.
+ *
+ * @param {string[]} symbols
+ * @param {{ maxAgeMs?: number; market?: "kr" | "us" }} [opts]
+ * @returns {Record<string, { price: number; changePercent?: number; currency?: string; quotedAtMs?: number; interval?: string; priceSource?: string }>}
+ */
+export function readCachedQuoteSnapshotsForSymbols(symbols, opts = {}) {
+  const requested = (Array.isArray(symbols) ? symbols : [])
+    .map((s) => String(s ?? "").trim().toUpperCase())
+    .filter(Boolean);
+  const uniq = expandSymbolsForYahooQuotes(
+    requested,
+    opts.market === "us" ? "us" : "kr",
+  ).slice(0, QUOTE_FETCH_MAX_SYMBOLS);
+  const maxAgeMs =
+    typeof opts.maxAgeMs === "number" && Number.isFinite(opts.maxAgeMs)
+      ? Math.max(0, opts.maxAgeMs)
+      : TTL_MS;
+  const now = Date.now();
+
+  /** @type {Record<string, { price: number; changePercent?: number; currency?: string; quotedAtMs?: number; interval?: string; priceSource?: string }>} */
+  const out = {};
+  for (const sym of uniq) {
+    const hit = cache.get(sym);
+    if (!hit?.quote) continue;
+    if (maxAgeMs > 0 && now - hit.at >= maxAgeMs) continue;
+    storeQuoteSnapshot(out, sym, hit.quote);
+  }
+  aliasQuoteSnapshotKeys(out, requested);
+  return out;
+}
+
+/**
+ * @param {string[]} symbols
+ * @param {{ maxAgeMs?: number; market?: "kr" | "us" }} [opts]
+ */
+export function scheduleQuoteSnapshotsRefresh(symbols, opts = {}) {
+  const rows = (Array.isArray(symbols) ? symbols : [])
+    .map((s) => String(s ?? "").trim().toUpperCase())
+    .filter(Boolean);
+  if (!rows.length) return;
+  void fetchQuoteSnapshotsForSymbols(rows, opts).catch(() => {});
+}
+
+/**
  * @param {string[]} symbols
  * @param {{ maxAgeMs?: number; market?: "kr" | "us" }} [opts]
  * @returns {Promise<Record<string, { price: number; changePercent?: number; currency?: string; quotedAtMs?: number }>>}
@@ -152,31 +238,6 @@ export async function fetchQuoteSnapshotsForSymbols(symbols, opts = {}) {
   /** @type {Record<string, { price: number; changePercent?: number; currency?: string; quotedAtMs?: number }>} */
   const out = {};
 
-  const storeQuote = (/** @type {string} */ key, /** @type {object} */ q) => {
-    if (!key || q.price == null || !Number.isFinite(q.price)) return;
-    const src =
-      typeof q.priceSource === "string" && q.priceSource
-        ? q.priceSource
-        : typeof q.interval === "string" && q.interval
-          ? q.interval
-          : "1m";
-    const row = {
-      price: q.price,
-      changePercent:
-        typeof q.changePercent === "number" && Number.isFinite(q.changePercent)
-          ? q.changePercent
-          : undefined,
-      currency: typeof q.currency === "string" ? q.currency : undefined,
-      quotedAtMs:
-        typeof q.quotedAtMs === "number" && q.quotedAtMs > 0
-          ? q.quotedAtMs
-          : Date.now(),
-      interval: src,
-      priceSource: src,
-    };
-    out[key] = row;
-  };
-
   const krSymbols = uniq.filter((sym) => isKrQuoteSymbol(sym));
   const naverByCode =
     krSymbols.length > 0 ? await fetchKrNaverQuotesBatch(krSymbols) : new Map();
@@ -186,13 +247,12 @@ export async function fetchQuoteSnapshotsForSymbols(symbols, opts = {}) {
       const code = yahooSymbolToKrCode(sym);
       const nq = code ? naverByCode.get(code) : null;
       if (nq) {
-        storeQuote(sym, naverQuoteToSnapshot(nq));
+        storeQuoteSnapshot(out, sym, naverQuoteToSnapshot(nq));
         return;
       }
     }
     const q = await quoteSnapshotCached(sym, cacheOpts);
-    if (!q || q.price == null || !Number.isFinite(q.price)) return;
-    storeQuote(sym, q);
+    storeQuoteSnapshot(out, sym, q);
   });
 
   const missing = uniq.filter((sym) => !out[sym]);
@@ -200,19 +260,11 @@ export async function fetchQuoteSnapshotsForSymbols(symbols, opts = {}) {
     await mapPool(missing, async (sym) => {
       cache.delete(sym);
       const q = await quoteSnapshotCached(sym, { maxAgeMs: 0 });
-      if (!q || q.price == null || !Number.isFinite(q.price)) return;
-      storeQuote(sym, q);
+      storeQuoteSnapshot(out, sym, q);
     });
   }
 
-  for (const raw of requested) {
-    if (out[raw]) continue;
-    const norm = normalizeYahooQuoteSymbol(raw, inferMarketFromSymbol(raw));
-    if (out[norm]) out[raw] = out[norm];
-    const bare = raw.replace(/\.(KS|KQ)$/i, "");
-    if (bare !== raw && out[bare]) out[raw] = out[bare];
-  }
-
+  aliasQuoteSnapshotKeys(out, requested);
   return out;
 }
 
