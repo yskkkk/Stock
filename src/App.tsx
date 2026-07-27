@@ -1543,7 +1543,17 @@ export default function App() {
           </div>
           <div className="top-bar__header-left">
             <div className="top-bar__brand">
-              <div className="top-bar__brand-lockup">
+              <button
+                type="button"
+                className="top-bar__brand-lockup"
+                aria-label={ko.app.brandHomeAria}
+                title={ko.app.brandHomeAria}
+                onClick={() => {
+                  pinStockVaultSessionCache();
+                  void prefetchStockVaultTab().catch(() => {});
+                  setAppTab("stockVault");
+                }}
+              >
                 <span className="brand-mark" aria-hidden>
                   <img
                     className="brand-mark__img"
@@ -1555,7 +1565,7 @@ export default function App() {
                   />
                 </span>
                 <h1>{ko.app.title}</h1>
-              </div>
+              </button>
               <div className="top-bar__brand-main">
                 <p className="top-bar__brand-tags">
                   <span className="top-bar__brand-tags__row">

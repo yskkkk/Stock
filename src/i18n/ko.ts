@@ -2,6 +2,7 @@
 export const ko = {
   app: {
     title: "YSTOCK",
+    brandHomeAria: "홈 — 종목보관",
     subtitle: "국내 300 · S&P 500",
     scanScopeKr: "국내 300",
     scanScopeUs: "S&P 500",

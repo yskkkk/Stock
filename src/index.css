@@ -1720,6 +1720,24 @@ html[data-theme="light"] .top-bar__brand-tags__scope--off {
   align-items: center;
   gap: 0.45rem;
   min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-sm, 6px);
+}
+
+.top-bar__brand-lockup:hover {
+  opacity: 0.88;
+}
+
+.top-bar__brand-lockup:focus-visible {
+  outline: 2px solid var(--accent-border);
+  outline-offset: 2px;
 }
 
 .top-bar__brand-lockup h1 {
