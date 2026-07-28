@@ -5,6 +5,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { isAbortLikeError } from "./fetch-abort-guard.js";
 import {
   shouldBlockVirtualUserMoneyRequest,
 } from "./virtual-user-order-guard.js";
@@ -195,30 +196,39 @@ export async function runVirtualUserBrowserJourney(persona, sessionId, opts = {}
       },
     });
 
-    // 돈이 나가는 요청 차단
+    // 돈이 나가는 요청 차단 — route handler reject는 Playwright가 await하지 않아 try/catch 필수
     await context.route("**/*", async (route) => {
-      const req = route.request();
-      const u = req.url();
-      const method = req.method();
-      let post = "";
       try {
-        post = req.postData() || "";
-      } catch {
-        post = "";
+        const req = route.request();
+        const u = req.url();
+        const method = req.method();
+        let post = "";
+        try {
+          post = req.postData() || "";
+        } catch {
+          post = "";
+        }
+        if (shouldBlockVirtualUserMoneyRequest(u, method, post)) {
+          await route.fulfill({
+            status: 403,
+            contentType: "application/json",
+            body: JSON.stringify({
+              ok: false,
+              blocked: true,
+              error: "가상 사용자: 실주문 API 차단",
+            }),
+          });
+          return;
+        }
+        await route.continue();
+      } catch (e) {
+        if (isAbortLikeError(e)) return;
+        try {
+          await route.abort();
+        } catch {
+          /* navigation teardown */
+        }
       }
-      if (shouldBlockVirtualUserMoneyRequest(u, method, post)) {
-        await route.fulfill({
-          status: 403,
-          contentType: "application/json",
-          body: JSON.stringify({
-            ok: false,
-            blocked: true,
-            error: "가상 사용자: 실주문 API 차단",
-          }),
-        });
-        return;
-      }
-      await route.continue();
     });
 
     const page = await context.newPage();
