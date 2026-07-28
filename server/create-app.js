@@ -299,6 +299,24 @@ function respondIdeDevQueueError(res, err) {
   res.status(500).json({ error: msg, code: code || undefined });
 }
 
+/** @param {import("express").Response} res @param {unknown} err @param {{ defaultStatus?: number; code?: string }} [opts] */
+function respondRouteError(res, err, opts = {}) {
+  if (res.headersSent) return;
+  if (err instanceof StoreCorruptError) {
+    res.status(503).json({
+      error: err.message,
+      code: err.code,
+      filePath: err.filePath,
+    });
+    return;
+  }
+  const message = err instanceof Error ? err.message : "요청 실패";
+  res.status(opts.defaultStatus ?? 502).json({
+    error: message,
+    ...(opts.code ? { code: opts.code } : {}),
+  });
+}
+
 export function createApp() {
   const app = express();
   app.set("trust proxy", 1);
@@ -336,7 +354,11 @@ export function createApp() {
   registerAccountHoldingStyleRoutes(app);
 
   app.get("/api/health", (_req, res) => {
-    res.json({ ok: true, atMs: Date.now() });
+    try {
+      res.json({ ok: true, atMs: Date.now() });
+    } catch (err) {
+      respondRouteError(res, err, { defaultStatus: 500, code: "HEALTH_ERROR" });
+    }
   });
 
   app.post(
@@ -364,20 +386,28 @@ export function createApp() {
     "/api/picks",
     requireAccessAdmin,
     asyncRoute(async (_req, res) => {
-      ensureScreening();
-      const base = getPicksState();
-      let merged = base;
       try {
-        merged = await mergeLiveQuotesIntoPicksState(base);
-      } catch {
-        /* 시세 병합 실패 시 스크리너 스냅샷만 반환 */
+        ensureScreening();
+        const base = getPicksState();
+        let merged = base;
+        try {
+          merged = await mergeLiveQuotesIntoPicksState(base);
+        } catch {
+          /* 시세 병합 실패 시 스크리너 스냅샷만 반환 */
+        }
+        res.json(enrichPicksStateWithHistory(merged));
+      } catch (err) {
+        respondRouteError(res, err);
       }
-      res.json(enrichPicksStateWithHistory(merged));
     }),
   );
 
   app.get("/api/picks/daily-history", requireAccessAdmin, (_req, res) => {
-    res.json(getPicksDailyHistoryForApi());
+    try {
+      res.json(getPicksDailyHistoryForApi());
+    } catch (err) {
+      respondRouteError(res, err);
+    }
   });
 
   app.get(
@@ -1431,7 +1461,19 @@ export function createApp() {
   app.get(
     "/api/macro-events",
     asyncRoute(async (_req, res) => {
-      res.json(await getMacroEventsCachedAsync());
+      try {
+        res.json(await getMacroEventsCachedAsync());
+      } catch (err) {
+        console.warn(
+          "[macro-events] route:",
+          err instanceof Error ? err.message : err,
+        );
+        res.json({
+          events: [],
+          updatedAt: Date.now(),
+          forecastsEnriched: false,
+        });
+      }
     }),
   );
 
@@ -1488,17 +1530,21 @@ export function createApp() {
   );
 
   app.get("/api/config", (req, res) => {
-    const adminReq = isAccessAdminRequest(req);
-    const cursorKey = String(process.env.CURSOR_API_KEY ?? "").trim();
-    res.json({
-      dartEnabled: isDartEnabled(),
-      telegramNotify: getTelegramNotifyStatus(),
-      feedbackInboxEnabled: true,
-      telegramResetAllowed: adminReq,
-      adminIpConsole: isAccessAdminIp(req),
-      accessAdmin: adminReq,
-      opsCursorAgentAvailable: adminReq && Boolean(cursorKey),
-    });
+    try {
+      const adminReq = isAccessAdminRequest(req);
+      const cursorKey = String(process.env.CURSOR_API_KEY ?? "").trim();
+      res.json({
+        dartEnabled: isDartEnabled(),
+        telegramNotify: getTelegramNotifyStatus(),
+        feedbackInboxEnabled: true,
+        telegramResetAllowed: adminReq,
+        adminIpConsole: isAccessAdminIp(req),
+        accessAdmin: adminReq,
+        opsCursorAgentAvailable: adminReq && Boolean(cursorKey),
+      });
+    } catch (err) {
+      respondRouteError(res, err, { defaultStatus: 500, code: "CONFIG_ERROR" });
+    }
   });
 
   app.post(
@@ -2559,43 +2605,51 @@ export function createApp() {
   app.get(
     "/api/stock-vault/quotes",
     asyncRoute(async (req, res) => {
-      const raw = String(req.query.symbols ?? "").trim();
-      const symbols = raw
-        ? raw
-            .split(/[,\s]+/)
-            .map((s) => s.trim())
-            .filter(Boolean)
-        : [];
-      const quotes =
-        symbols.length > 0
-          ? await fetchQuoteSnapshotsForSymbols(symbols, { maxAgeMs: 0 })
-          : {};
-      res.json({ quotes, updatedAtMs: Date.now() });
+      try {
+        const raw = String(req.query.symbols ?? "").trim();
+        const symbols = raw
+          ? raw
+              .split(/[,\s]+/)
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : [];
+        const quotes =
+          symbols.length > 0
+            ? await fetchQuoteSnapshotsForSymbols(symbols, { maxAgeMs: 0 })
+            : {};
+        res.json({ quotes, updatedAtMs: Date.now() });
+      } catch (err) {
+        respondRouteError(res, err);
+      }
     }),
   );
 
   app.get(
     "/api/stock-vault/industry-financials",
     asyncRoute(async (req, res) => {
-      const { readStockVaultIndustryFinancialsSync } = await import(
-        "./stock-vault-industry-financials.js"
-      );
-      const { pickVaultMapBySymbols } = await import(
-        "./stock-vault-chart-insights.js"
-      );
-      const raw = String(req.query?.symbols ?? "").trim();
-      const symbols = raw
-        ? raw
-            .split(/[,\s]+/)
-            .map((s) => s.trim().toUpperCase())
-            .filter(Boolean)
-        : [];
-      const all = readStockVaultIndustryFinancialsSync();
-      const industryFinancials = pickVaultMapBySymbols(
-        all,
-        symbols.length ? symbols : Object.keys(all),
-      );
-      res.json({ industryFinancials, updatedAtMs: Date.now() });
+      try {
+        const { readStockVaultIndustryFinancialsSync } = await import(
+          "./stock-vault-industry-financials.js"
+        );
+        const { pickVaultMapBySymbols } = await import(
+          "./stock-vault-chart-insights.js"
+        );
+        const raw = String(req.query?.symbols ?? "").trim();
+        const symbols = raw
+          ? raw
+              .split(/[,\s]+/)
+              .map((s) => s.trim().toUpperCase())
+              .filter(Boolean)
+          : [];
+        const all = readStockVaultIndustryFinancialsSync();
+        const industryFinancials = pickVaultMapBySymbols(
+          all,
+          symbols.length ? symbols : Object.keys(all),
+        );
+        res.json({ industryFinancials, updatedAtMs: Date.now() });
+      } catch (err) {
+        respondRouteError(res, err);
+      }
     }),
   );
 
@@ -2820,12 +2874,16 @@ export function createApp() {
   app.get(
     "/api/stock-vault/scan-coverage",
     asyncRoute(async (req, res) => {
-      const { getScanCoverageCalendar } = await import("./scan-coverage.js");
-      const days = Number(req.query?.days);
-      const calendar = await getScanCoverageCalendar({
-        days: Number.isFinite(days) ? days : 45,
-      });
-      res.json(calendar);
+      try {
+        const { getScanCoverageCalendar } = await import("./scan-coverage.js");
+        const days = Number(req.query?.days);
+        const calendar = await getScanCoverageCalendar({
+          days: Number.isFinite(days) ? days : 45,
+        });
+        res.json(calendar);
+      } catch (err) {
+        respondRouteError(res, err);
+      }
     }),
   );
 

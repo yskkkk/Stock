@@ -218,10 +218,11 @@ function firstFridayOfMonth(year, month, timeZone) {
 
 /** @returns {{ code: string; at: string; tz: string; forecast?: string; previous?: string }[]} */
 function loadStaticReleases() {
-  const file = path.join(__dirname, "data", "macro-releases.json");
-  const arr = JSON.parse(fs.readFileSync(file, "utf8"));
-  if (!Array.isArray(arr)) return [];
-  return arr
+  try {
+    const file = path.join(__dirname, "data", "macro-releases.json");
+    const arr = JSON.parse(fs.readFileSync(file, "utf8"));
+    if (!Array.isArray(arr)) return [];
+    return arr
     .map((x) => {
       if (!x || typeof x !== "object") return null;
       const code = typeof x.code === "string" ? x.code.trim() : "";
@@ -241,6 +242,13 @@ function loadStaticReleases() {
       return { code, at, tz, forecast, previous };
     })
     .filter(Boolean);
+  } catch (err) {
+    console.warn(
+      "[macro-events] static releases:",
+      err instanceof Error ? err.message : err,
+    );
+    return [];
+  }
 }
 
 /** @param {Date} from @param {Date} to */
@@ -438,7 +446,16 @@ let macroCache = { at: 0, data: null };
 let macroEnrichInflight = null;
 
 async function refreshMacroCache() {
-  const events = getUpcomingMacroEvents();
+  /** @type {ReturnType<typeof getUpcomingMacroEvents>} */
+  let events = [];
+  try {
+    events = getUpcomingMacroEvents();
+  } catch (err) {
+    console.warn(
+      "[macro-events] getUpcoming:",
+      err instanceof Error ? err.message : err,
+    );
+  }
   await enrichMacroEventsConsensus(events).catch(() => {});
   const data = {
     events,
@@ -470,7 +487,7 @@ export async function getMacroEventsCachedAsync() {
   await macroEnrichInflight;
   return (
     macroCache.data ?? {
-      events: getUpcomingMacroEvents(),
+      events: [],
       updatedAt: Date.now(),
       forecastsEnriched: false,
     }
