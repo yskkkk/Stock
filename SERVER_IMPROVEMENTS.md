@@ -70,6 +70,60 @@ _재발 17619회 (최초 2026-05-27 07:14:23.020 KST)_
 
 ---
 
+### [WARN] auto-git — 2026-07-29 04:43:05.250 KST
+
+<!-- id:log-auto-git-d6a73dfb1b -->
+
+**문제**: remote origin/main touches locally modified files — skip pull to avoid stash conflict: server/create-app.js · branch=main · dirty=8 tracked
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+---
+
+### [WARN] auto-git — 2026-07-29 04:42:05.276 KST
+
+<!-- id:log-auto-git-0ce60febcc -->
+
+**문제**: remote origin/main touches locally modified files — skip pull to avoid stash conflict: server/create-app.js · branch=main · dirty=5 tracked
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+_재발 52회 (최초 2026-07-29 03:48:42.257 KST)_
+
+---
+
+### [WARN] auto-git — 2026-07-29 03:45:22.993 KST
+
+<!-- id:log-auto-git-64857f3c0a -->
+
+**문제**: remote origin/main touches locally modified files — skip pull to avoid stash conflict: server/create-app.js · branch=main · dirty=4 tracked
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+_재발 9회 (최초 2026-07-29 03:43:36.136 KST)_
+
+---
+
+### [WARN] auto-git — 2026-07-29 03:43:13.892 KST
+
+<!-- id:log-auto-git-4ea38edb09 -->
+
+**문제**: remote origin/main touches locally modified files — skip pull to avoid stash conflict: server/create-app.js · branch=main · dirty=2 tracked
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+_재발 19회 (최초 2026-07-29 03:38:39.619 KST)_
+
+---
+
 ### [WARN] auto-git — 2026-07-28 23:11:56.299 KST
 
 <!-- id:logfreq-93b2d9dc1e -->
@@ -404,4 +458,4 @@ _재발 33회 (최초 2026-05-28 07:59:33.276 KST)_
 
 ## 최근 자동 점검
 
-2026-07-29 03:17:20.502 KST — probes 완료 · 열린 30건 · 이번 기록 0건
+2026-07-29 04:51:08.395 KST — probes 완료 · 열린 34건 · 이번 기록 0건
