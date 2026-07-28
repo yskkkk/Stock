@@ -2920,6 +2920,11 @@ export function fetchVirtualUsers(adminToken?: string) {
     }>;
     continuous?: VirtualUserContinuous;
     busy?: boolean;
+    codeVersions?: {
+      baselineId: string | null;
+      lockedBaselineSha?: string | null;
+      versions: CodeVersion[];
+    };
     narrative?: {
       discomfortCount: number;
       improvedCount: number;

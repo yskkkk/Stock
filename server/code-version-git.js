@@ -155,3 +155,71 @@ export function tryCreateGitTag(tagName, sha, message) {
     return { ok: false };
   }
 }
+
+/**
+ * 가상 사용자 기능 도입 직전 커밋 SHA (부모가 있으면 그 SHA)
+ * 서버 재기동·현재 HEAD와 무관 — git 히스토리에서 한 번 해석
+ * @returns {string} full sha or ""
+ */
+export function resolvePreVirtualUserCommitSha() {
+  const paths = [
+    "server/virtual-user-store.js",
+    "server/virtual-user-runner.js",
+    "server/virtual-user-routes.js",
+  ];
+  for (const p of paths) {
+    try {
+      const out = gitOut([
+        "log",
+        "--diff-filter=A",
+        "--format=%H",
+        "--reverse",
+        "--",
+        p,
+      ]);
+      const first = out.split(/\r?\n/).map((s) => s.trim()).find(Boolean);
+      if (!first) continue;
+      try {
+        return gitOut(["rev-parse", `${first}^`]);
+      } catch {
+        return first;
+      }
+    } catch {
+      /* try next path */
+    }
+  }
+  try {
+    const out = gitOut([
+      "log",
+      "--reverse",
+      "--format=%H",
+      "--grep=feat(virtual-user)",
+      "--",
+    ]);
+    const first = out.split(/\r?\n/).map((s) => s.trim()).find(Boolean);
+    if (!first) return "";
+    try {
+      return gitOut(["rev-parse", `${first}^`]);
+    } catch {
+      return first;
+    }
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * 커밋이 존재하면 short+full 반환
+ * @param {string} sha
+ * @returns {{ ok: boolean; sha?: string; short?: string }}
+ */
+export function resolveCommitSha(sha) {
+  const s = String(sha ?? "").trim();
+  if (!s) return { ok: false };
+  try {
+    const full = gitOut(["rev-parse", s]);
+    return { ok: true, sha: full, short: full.slice(0, 10) };
+  } catch {
+    return { ok: false };
+  }
+}

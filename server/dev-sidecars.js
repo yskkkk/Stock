@@ -29,6 +29,7 @@ import { startTossRebalanceSchedulePoller } from "./toss-rebalance-schedule-poll
 import { startVirtualUserContinuousPoller } from "./virtual-user-poller.js";
 import { startOpsRecordModePoller } from "./ops-record-mode-poller.js";
 import { ensureBaselineCodeVersionSync } from "./code-version-store.js";
+import { migrateBaselineToPreVirtualUserSync } from "./code-version-store.js";
 import { registerPollerLazyStarter } from "./poller-registry.js";
 
 function registerDevSidecarPollers() {
@@ -96,9 +97,10 @@ export function startStockDevSidecarsOnce(modeLabel) {
   startTossRebalanceSchedulePoller();
   startVirtualUserContinuousPoller();
   try {
+    migrateBaselineToPreVirtualUserSync();
     ensureBaselineCodeVersionSync();
   } catch {
-    /* baseline optional at boot */
+    /* baseline optional at boot — 재기동으로 baseline을 새로 잡지 않음 */
   }
   startOpsRecordModePoller();
   startServerSelfImprovementWatcher();

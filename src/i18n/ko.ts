@@ -1723,14 +1723,15 @@ export const ko = {
     vuAutoImplementOff: "자동 구현 꺼짐",
     vuVersions: "코드 버전·롤백",
     vuVersionsHint:
-      "피드백 자동 구현 전후 git 스냅샷이 쌓입니다. 「최초 기준」은 현재 서버 코드로 고정됩니다. 원하는 버전 「롤백」을 누르면 그 트리로 새 커밋·푸시합니다.",
-    vuVersionBaseline: "최초 기준",
+      "「가상 사용자 도입 직전 기준」은 기능 추가 직전 커밋으로 한 번 고정됩니다. 서버 재기동·현재 HEAD와 무관합니다. 피드백 자동 구현 전후 스냅샷이 쌓이며, 「롤백」은 그 트리로 새 커밋·푸시합니다.",
+    vuVersionBaseline: "도입 직전 기준",
     vuVersionRollback: "롤백",
     vuVersionRollbackConfirm:
       "이 버전 트리로 코드를 되돌릴까요?\n새 커밋으로 복원한 뒤 push 합니다(히스토리 강제 삭제 없음).",
     vuVersionRollbackOk: "롤백 완료: {sha}",
     vuVersionRollbackFail: "롤백에 실패했습니다.",
-    vuVersionEmpty: "버전이 없습니다. 서버 재기동 시 최초 기준이 만들어집니다.",
+    vuVersionEmpty:
+      "버전이 아직 없습니다. 가상 사용자 탭을 열거나 자동 구현이 돌면 「도입 직전 기준」이 만들어집니다(서버 재기동 불필요).",
     vuSatisfaction: "만족도",
     vuFeedback: "피드백 목록",
     vuFeedbackEmpty: "피드백이 없습니다. 연속 탐색이 켜져 있거나 「가상 사용자 실행」을 눌러 주세요.",

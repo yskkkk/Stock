@@ -1,6 +1,6 @@
 /**
  * 코드 버전 목록 SSOT — server/.data/code-versions.json
- * baseline = 최초 기준점 (현재 HEAD로 한 번 고정)
+ * baseline = 가상 사용자 도입 직전 커밋 (서버 재기동·현재 HEAD와 무관, 한 번 고정)
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -12,6 +12,8 @@ import {
   getCodeHeadSha,
   getCodeHeadShort,
   getCodeWorktreeState,
+  resolveCommitSha,
+  resolvePreVirtualUserCommitSha,
   restoreCodeTreeFromCommit,
   tryCreateGitTag,
 } from "./code-version-git.js";
@@ -40,6 +42,7 @@ const MAX_VERSIONS = 80;
  * @typedef {{
  *   version: number;
  *   baselineId: string | null;
+ *   lockedBaselineSha: string | null;
  *   versions: CodeVersion[];
  * }} CodeVersionStore
  */
@@ -50,7 +53,12 @@ function ensureDir() {
 
 /** @returns {CodeVersionStore} */
 function emptyStore() {
-  return { version: 1, baselineId: null, versions: [] };
+  return {
+    version: 2,
+    baselineId: null,
+    lockedBaselineSha: null,
+    versions: [],
+  };
 }
 
 /** @param {unknown} raw @returns {CodeVersion | null} */
@@ -101,9 +109,14 @@ export function readCodeVersionStoreSync() {
       raw.baselineId == null || raw.baselineId === ""
         ? null
         : String(raw.baselineId);
+    const lockedBaselineSha =
+      raw.lockedBaselineSha == null || raw.lockedBaselineSha === ""
+        ? null
+        : String(raw.lockedBaselineSha);
     return {
-      version: 1,
+      version: 2,
       baselineId,
+      lockedBaselineSha,
       versions: /** @type {CodeVersion[]} */ (versions).slice(0, MAX_VERSIONS),
     };
   } catch {
@@ -111,17 +124,38 @@ export function readCodeVersionStoreSync() {
   }
 }
 
-/** @param {CodeVersionStore} store */
-export function writeCodeVersionStoreSync(store) {
+/**
+ * baseline 항목은 항상 목록에 남김 (MAX 슬라이스에 밀려 사라지지 않게)
+ * @param {CodeVersionStore} store
+ */
+function persistStoreKeepingBaseline(store) {
   ensureDir();
+  const baseline =
+    (store.baselineId &&
+      store.versions.find((v) => v.id === store.baselineId)) ||
+    store.versions.find((v) => v.kind === "baseline") ||
+    null;
+  let versions = store.versions.slice(0, MAX_VERSIONS);
+  if (baseline && !versions.some((v) => v.id === baseline.id)) {
+    versions = [baseline, ...versions.filter((v) => v.id !== baseline.id)].slice(
+      0,
+      MAX_VERSIONS,
+    );
+  }
   const payload = {
-    version: 1,
+    version: 2,
     baselineId: store.baselineId,
-    versions: store.versions.slice(0, MAX_VERSIONS),
+    lockedBaselineSha: store.lockedBaselineSha,
+    versions,
   };
   const tmp = `${STORE_PATH}.${process.pid}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(payload, null, 2), "utf8");
   fs.renameSync(tmp, STORE_PATH);
+}
+
+/** @param {CodeVersionStore} store */
+export function writeCodeVersionStoreSync(store) {
+  persistStoreKeepingBaseline(store);
 }
 
 export function listCodeVersionsSync() {
@@ -137,6 +171,7 @@ export function listCodeVersionsSync() {
  *   note?: string;
  *   commitIfDirty?: boolean;
  *   dirtyCommitMessage?: string;
+ *   commitSha?: string | null;
  * }} input
  */
 export function createCodeVersionSync(input) {
@@ -146,12 +181,18 @@ export function createCodeVersionSync(input) {
         `chore(version): snapshot before ${input.label}`.slice(0, 200),
     );
   }
-  const head = getCodeHeadSha();
+  let head = String(input.commitSha ?? "").trim() || getCodeHeadSha();
+  if (input.commitSha) {
+    const resolved = resolveCommitSha(input.commitSha);
+    if (!resolved.ok || !resolved.sha) {
+      return { ok: false, error: `커밋을 찾을 수 없습니다: ${input.commitSha}` };
+    }
+    head = resolved.sha;
+  }
   if (!head) {
     return { ok: false, error: "git HEAD를 읽을 수 없습니다." };
   }
   const store = readCodeVersionStoreSync();
-  // 동일 SHA+kind 연속 중복 방지(짧은 간격)
   const last = store.versions[0];
   if (
     last &&
@@ -165,7 +206,7 @@ export function createCodeVersionSync(input) {
   /** @type {CodeVersion} */
   const item = {
     id: randomUUID(),
-    label: String(input.label ?? "").slice(0, 120) || getCodeHeadShort(),
+    label: String(input.label ?? "").slice(0, 120) || head.slice(0, 10),
     kind: input.kind || "manual",
     commitSha: head,
     commitShort: head.slice(0, 10),
@@ -181,48 +222,179 @@ export function createCodeVersionSync(input) {
 }
 
 /**
- * 최초 기준점 — 없으면 현재 HEAD로 고정
- * @param {{ force?: boolean }} [opts]
+ * @param {string} sha
+ * @param {string} label
+ * @param {string} note
+ * @returns {CodeVersion}
+ */
+function makeBaselineItem(sha, label, note) {
+  return {
+    id: randomUUID(),
+    label,
+    kind: "baseline",
+    commitSha: sha,
+    commitShort: sha.slice(0, 10),
+    branch: getCodeBranch(),
+    feedbackId: null,
+    jobId: null,
+    createdAtMs: Date.now(),
+    note,
+  };
+}
+
+/**
+ * 가상 사용자 도입 직전 기준점.
+ * - 서버 재기동해도 현재 HEAD로 다시 잡지 않음
+ * - lockedBaselineSha 또는 git 히스토리(pre-VU)로 고정
+ * @param {{ force?: boolean; pinToPreVirtualUser?: boolean }} [opts]
  */
 export function ensureBaselineCodeVersionSync(opts = {}) {
   const store = readCodeVersionStoreSync();
+  const pinToPreVu = opts.pinToPreVirtualUser !== false;
+
+  // 1) 이미 잠긴 SHA + 목록에 baseline 있으면 유지 (재기동 무시)
   if (!opts.force && store.baselineId) {
     const existing = store.versions.find((v) => v.id === store.baselineId);
-    if (existing) return { ok: true, version: existing, created: false };
+    if (existing) {
+      if (!store.lockedBaselineSha) {
+        store.lockedBaselineSha = existing.commitSha;
+        writeCodeVersionStoreSync(store);
+      }
+      return { ok: true, version: existing, created: false };
+    }
+    // baselineId는 있는데 항목이 목록에서 밀림 → locked SHA로 복구
+    const locked = store.lockedBaselineSha || existing?.commitSha;
+    if (locked) {
+      const resolved = resolveCommitSha(locked);
+      if (resolved.ok && resolved.sha) {
+        const restored = makeBaselineItem(
+          resolved.sha,
+          "가상 사용자 도입 직전 기준",
+          "목록에서 유실된 baseline을 lockedBaselineSha로 복구 (재기동 HEAD 아님)",
+        );
+        store.versions = [
+          restored,
+          ...store.versions.filter((v) => v.kind !== "baseline"),
+        ];
+        store.baselineId = restored.id;
+        store.lockedBaselineSha = resolved.sha;
+        writeCodeVersionStoreSync(store);
+        return { ok: true, version: restored, created: true, restored: true };
+      }
+    }
   }
 
-  const { dirty } = getCodeWorktreeState();
-  if (dirty) {
-    commitDirtyWorktreeIfNeeded(
-      "chore(version): baseline snapshot of current server code",
-    );
+  // 2) locked SHA만 있으면 그것으로 재구성
+  if (!opts.force && store.lockedBaselineSha) {
+    const resolved = resolveCommitSha(store.lockedBaselineSha);
+    if (resolved.ok && resolved.sha) {
+      const item = makeBaselineItem(
+        resolved.sha,
+        "가상 사용자 도입 직전 기준",
+        "lockedBaselineSha에서 복구",
+      );
+      store.versions = [
+        item,
+        ...store.versions.filter((v) => v.kind !== "baseline"),
+      ];
+      store.baselineId = item.id;
+      store.lockedBaselineSha = resolved.sha;
+      writeCodeVersionStoreSync(store);
+      return { ok: true, version: item, created: true, restored: true };
+    }
   }
 
-  const created = createCodeVersionSync({
-    label: "최초 기준 (baseline)",
-    kind: "baseline",
-    note: "가상 사용자 자동 개선 전 최초 서버 코드 기준점",
-  });
-  if (!created.ok || !created.version) {
-    return { ok: false, error: created.error || "baseline 생성 실패" };
+  // 3) 신규 생성: 가상 사용자 도입 직전 커밋 우선 (현재 HEAD 아님)
+  let targetSha = "";
+  if (pinToPreVu) {
+    targetSha = resolvePreVirtualUserCommitSha();
+  }
+  if (!targetSha) {
+    const { dirty } = getCodeWorktreeState();
+    if (dirty) {
+      commitDirtyWorktreeIfNeeded(
+        "chore(version): snapshot before locking pre-virtual-user baseline",
+      );
+    }
+    targetSha = getCodeHeadSha();
+  }
+  const resolved = resolveCommitSha(targetSha);
+  if (!resolved.ok || !resolved.sha) {
+    return { ok: false, error: "baseline 커밋을 결정할 수 없습니다." };
   }
 
-  const next = readCodeVersionStoreSync();
-  next.baselineId = created.version.id;
-  // baseline을 목록 맨 앞에 유지
-  next.versions = [
-    created.version,
-    ...next.versions.filter((v) => v.id !== created.version.id),
-  ].slice(0, MAX_VERSIONS);
-  writeCodeVersionStoreSync(next);
-
-  tryCreateGitTag(
-    `ystock-baseline-${created.version.commitShort}`,
-    created.version.commitSha,
-    "YSTOCK code baseline",
+  const item = makeBaselineItem(
+    resolved.sha,
+    "가상 사용자 도입 직전 기준",
+    pinToPreVu && targetSha === resolvePreVirtualUserCommitSha()
+      ? "가상 사용자 기능 커밋 직전 트리. 서버 재기동·현재 HEAD와 무관하게 고정."
+      : "baseline 잠금 (pre-VU SHA를 못 찾아 당시 HEAD 사용). 이후 재기동으로 덮지 않음.",
   );
 
-  return { ok: true, version: created.version, created: true };
+  // 중복 baseline 정리
+  store.versions = [
+    item,
+    ...store.versions.filter((v) => v.kind !== "baseline"),
+  ].slice(0, MAX_VERSIONS);
+  store.baselineId = item.id;
+  store.lockedBaselineSha = resolved.sha;
+  writeCodeVersionStoreSync(store);
+
+  tryCreateGitTag(
+    `ystock-baseline-pre-vu-${item.commitShort}`,
+    item.commitSha,
+    "YSTOCK pre-virtual-user baseline",
+  );
+
+  return { ok: true, version: item, created: true };
+}
+
+/**
+ * 기존 baseline이 가상 사용자 도입 이후면 pre-VU로 재고정 (force와 별도·안전한 마이그레이션)
+ */
+export function migrateBaselineToPreVirtualUserSync() {
+  const pre = resolvePreVirtualUserCommitSha();
+  if (!pre) return { ok: false, error: "pre-VU 커밋을 찾지 못했습니다." };
+  const resolved = resolveCommitSha(pre);
+  if (!resolved.ok || !resolved.sha) {
+    return { ok: false, error: "pre-VU SHA 해석 실패" };
+  }
+
+  const store = readCodeVersionStoreSync();
+  const current = store.baselineId
+    ? store.versions.find((v) => v.id === store.baselineId)
+    : null;
+
+  // 이미 같은 SHA면 locked만 보강
+  if (current && current.commitSha === resolved.sha) {
+    store.lockedBaselineSha = resolved.sha;
+    if (current.label.includes("최초 기준")) {
+      current.label = "가상 사용자 도입 직전 기준";
+      current.note =
+        "가상 사용자 기능 커밋 직전 트리. 서버 재기동·현재 HEAD와 무관하게 고정.";
+    }
+    writeCodeVersionStoreSync(store);
+    return { ok: true, version: current, migrated: false };
+  }
+
+  const item = makeBaselineItem(
+    resolved.sha,
+    "가상 사용자 도입 직전 기준",
+    "가상 사용자 기능 커밋 직전 트리로 재고정. 서버 재기동으로 덮지 않음.",
+  );
+  store.versions = [
+    item,
+    ...store.versions.filter((v) => v.kind !== "baseline"),
+  ].slice(0, MAX_VERSIONS);
+  store.baselineId = item.id;
+  store.lockedBaselineSha = resolved.sha;
+  writeCodeVersionStoreSync(store);
+  tryCreateGitTag(
+    `ystock-baseline-pre-vu-${item.commitShort}`,
+    item.commitSha,
+    "YSTOCK pre-virtual-user baseline",
+  );
+  return { ok: true, version: item, migrated: true };
 }
 
 /**

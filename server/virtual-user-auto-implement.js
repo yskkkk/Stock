@@ -5,6 +5,7 @@ import { appendRecordModePendingJob } from "./ops-record-mode-store.js";
 import {
   createCodeVersionSync,
   ensureBaselineCodeVersionSync,
+  migrateBaselineToPreVirtualUserSync,
 } from "./code-version-store.js";
 import {
   getVirtualUserContinuousSync,
@@ -60,6 +61,7 @@ export async function maybeAutoImplementVirtualFeedback(item, opts = {}) {
     return { ok: false, skipped: true, reason: "severity-gate" };
   }
 
+  migrateBaselineToPreVirtualUserSync();
   ensureBaselineCodeVersionSync();
 
   const pre = createCodeVersionSync({

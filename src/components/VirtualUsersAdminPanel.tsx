@@ -97,7 +97,14 @@ export default function VirtualUsersAdminPanel({
       setBusyPoller(Boolean(res.busy));
       setSatLabels(res.satisfactionLabels ?? {});
       setNarrative(res.narrative ?? null);
-      if (ver?.ok) {
+      const fromVu = res.codeVersions;
+      if (ver?.ok && (ver.versions?.length ?? 0) > 0) {
+        setVersions(ver.versions ?? []);
+        setBaselineId(ver.baselineId ?? null);
+      } else if (fromVu?.versions?.length) {
+        setVersions(fromVu.versions);
+        setBaselineId(fromVu.baselineId ?? null);
+      } else if (ver?.ok) {
         setVersions(ver.versions ?? []);
         setBaselineId(ver.baselineId ?? null);
       }

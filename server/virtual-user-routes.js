@@ -25,6 +25,12 @@ import {
 import { satisfactionLabelKo } from "./virtual-user-satisfaction.js";
 import { enrichVirtualFeedbackNarrativesSync } from "./virtual-user-feedback-enrich.js";
 import { ensureDefaultPersonasPresentSync } from "./virtual-user-store.js";
+import {
+  ensureBaselineCodeVersionSync,
+  listCodeVersionsSync,
+  migrateBaselineToPreVirtualUserSync,
+  readCodeVersionStoreSync,
+} from "./code-version-store.js";
 
 /**
  * @param {(handler: (req: any, res: any) => Promise<void>) => import("express").RequestHandler} asyncRoute
@@ -37,7 +43,14 @@ export function registerVirtualUserRoutes(app, asyncRoute) {
     asyncRoute(async (_req, res) => {
       ensureDefaultPersonasPresentSync();
       enrichVirtualFeedbackNarrativesSync();
+      try {
+        migrateBaselineToPreVirtualUserSync();
+        ensureBaselineCodeVersionSync();
+      } catch {
+        /* baseline optional for list */
+      }
       const store = readVirtualUserStoreSync();
+      const codeStore = readCodeVersionStoreSync();
       const discomfortCount = store.feedback.filter((f) =>
         String(f.discomfort || f.detail || f.title || "").trim(),
       ).length;
@@ -57,6 +70,11 @@ export function registerVirtualUserRoutes(app, asyncRoute) {
         sessions: store.sessions.slice(0, 20),
         continuous: store.continuous,
         busy: isVirtualUserContinuousBusy(),
+        codeVersions: {
+          baselineId: codeStore.baselineId,
+          lockedBaselineSha: codeStore.lockedBaselineSha,
+          versions: listCodeVersionsSync(),
+        },
         narrative: {
           discomfortCount,
           improvedCount,

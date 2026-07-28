@@ -6,6 +6,7 @@ import {
   createCodeVersionSync,
   ensureBaselineCodeVersionSync,
   listCodeVersionsSync,
+  migrateBaselineToPreVirtualUserSync,
   readCodeVersionStoreSync,
   rollbackToCodeVersionSync,
 } from "./code-version-store.js";
@@ -20,12 +21,14 @@ export function registerCodeVersionRoutes(app, asyncRoute) {
     "/api/code-versions",
     requireAccessAdmin,
     asyncRoute(async (_req, res) => {
+      migrateBaselineToPreVirtualUserSync();
       ensureBaselineCodeVersionSync();
       const store = readCodeVersionStoreSync();
       const wt = getCodeWorktreeState();
       res.json({
         ok: true,
         baselineId: store.baselineId,
+        lockedBaselineSha: store.lockedBaselineSha,
         versions: store.versions,
         headShort: getCodeHeadShort(),
         branch: getCodeBranch(),
@@ -39,7 +42,17 @@ export function registerCodeVersionRoutes(app, asyncRoute) {
     requireAccessAdmin,
     asyncRoute(async (req, res) => {
       const force = req.body?.force === true;
-      const result = ensureBaselineCodeVersionSync({ force });
+      const result = force
+        ? ensureBaselineCodeVersionSync({
+            force: true,
+            pinToPreVirtualUser: true,
+          })
+        : (() => {
+            const m = migrateBaselineToPreVirtualUserSync();
+            return m.ok
+              ? m
+              : ensureBaselineCodeVersionSync({ pinToPreVirtualUser: true });
+          })();
       if (!result.ok) {
         res.status(400).json(result);
         return;
@@ -47,8 +60,9 @@ export function registerCodeVersionRoutes(app, asyncRoute) {
       res.json({
         ok: true,
         version: result.version,
-        created: result.created,
+        created: Boolean(result.created || result.migrated),
         versions: listCodeVersionsSync(),
+        lockedBaselineSha: readCodeVersionStoreSync().lockedBaselineSha,
       });
     }),
   );
