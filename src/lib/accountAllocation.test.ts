@@ -44,3 +44,66 @@ describe("accountAllocation symbol labels", () => {
     expect(label).toBe("VRSK · 베리스크");
   });
 });
+
+describe("accountAllocation style mode", () => {
+  it("splits growth / value / cash", () => {
+    const rows = [
+      {
+        symbol: "AAPL",
+        name: "Apple",
+        market: "us" as const,
+        quantity: 1,
+        valueKrw: 400,
+        returnPercent: null,
+        unrealizedPnlKrw: null,
+        industry: null,
+        subIndustry: null,
+        sectorEn: "Information Technology",
+        sectorKo: "정보기술",
+      },
+      {
+        symbol: "XOM",
+        name: "Exxon",
+        market: "us" as const,
+        quantity: 1,
+        valueKrw: 300,
+        returnPercent: null,
+        unrealizedPnlKrw: null,
+        industry: null,
+        subIndustry: null,
+        sectorEn: "Energy",
+        sectorKo: "에너지",
+      },
+      {
+        symbol: "005930.KS",
+        name: "삼성전자",
+        market: "kr" as const,
+        quantity: 1,
+        valueKrw: 200,
+        returnPercent: null,
+        unrealizedPnlKrw: null,
+        industry: "반도체",
+        subIndustry: "반도체",
+        sectorEn: null,
+        sectorKo: null,
+      },
+    ];
+    const slices = buildAccountAllocationSlices(rows, 100, "style", {
+      cash: "현금",
+      other: "기타",
+      marketKr: "국내",
+      marketUs: "해외",
+      marketCrypto: "코인",
+      styleGrowth: "성장주",
+      styleValue: "가치·방어주",
+    });
+    expect(slices.map((s) => s.key)).toEqual([
+      "__growth__",
+      "__value__",
+      "__cash__",
+    ]);
+    expect(slices.find((s) => s.key === "__growth__")?.valueKrw).toBe(600);
+    expect(slices.find((s) => s.key === "__value__")?.valueKrw).toBe(300);
+    expect(slices.find((s) => s.key === "__cash__")?.valueKrw).toBe(100);
+  });
+});

@@ -18,7 +18,15 @@ import { tossHoldingNetMarketValue, tossHoldingNetUnrealizedPnl } from "./tossHo
 import { DEFAULT_ROUND_TRIP_FEE_RATE } from "./netReturn";
 import { resolveSymbolDisplayName } from "./symbolDisplayName";
 
-export type AccountAllocMode = "sector" | "subIndustry" | "market" | "symbol";
+export type AccountAllocMode =
+  | "sector"
+  | "subIndustry"
+  | "market"
+  | "symbol"
+  | "style";
+
+/** 보유 성향: 성장주 vs 가치·방어주 */
+export type AccountHoldingStyle = "growth" | "value";
 
 export type AccountAllocSlice = {
   key: string;
@@ -46,6 +54,63 @@ export type AccountHoldingRow = {
   sectorEn: string | null;
   sectorKo: string | null;
 };
+
+const STYLE_GROWTH_GICS = new Set([
+  "Information Technology",
+  "Communication Services",
+  "Consumer Discretionary",
+]);
+
+const STYLE_VALUE_GICS = new Set([
+  "Utilities",
+  "Consumer Staples",
+  "Financials",
+  "Energy",
+  "Materials",
+  "Real Estate",
+  "Industrials",
+  "Health Care",
+]);
+
+/** 업종·종목명 키워드(한/영) — GICS 없을 때 */
+const STYLE_GROWTH_RE =
+  /반도체|소프트웨어|인터넷|게임|바이오|2차전지|이차전지|전기차|디스플레이|플랫폼|클라우드|AI|인공지능|로봇|우주|핀테크|IT\b|tech|software|semiconductor|biotech|internet|cloud|battery|ev\b|nvidia|tesla|meta|alphabet|amazon|apple|microsoft|netflix|crypto|bitcoin|이더/i;
+
+const STYLE_VALUE_RE =
+  /은행|보험|증권|유틸리티|전력|가스|통신|식품|유통|철강|화학|건설|운송|물류|지주|정유|에너지|담배|필수|배당|utility|bank|insurance|telecom|staple|reit|realty|oil|gas|steel|chemical|defense|방산|담배/i;
+
+/**
+ * 보유 종목을 성장주 / 가치·방어주로 분류.
+ * GICS → 키워드 → 코인=성장, 그 외=가치(방어) 순.
+ */
+export function classifyAccountHoldingStyle(
+  row: Pick<
+    AccountHoldingRow,
+    "market" | "sectorEn" | "sectorKo" | "industry" | "subIndustry" | "name" | "symbol"
+  >,
+): AccountHoldingStyle {
+  if (row.market === "crypto") return "growth";
+
+  const gics = String(row.sectorEn ?? "").trim();
+  if (gics && STYLE_GROWTH_GICS.has(gics)) return "growth";
+  if (gics && STYLE_VALUE_GICS.has(gics)) return "value";
+
+  const blob = [
+    row.sectorKo,
+    row.industry,
+    row.subIndustry,
+    row.name,
+    row.symbol,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  if (STYLE_GROWTH_RE.test(blob)) return "growth";
+  if (STYLE_VALUE_RE.test(blob)) return "value";
+
+  // Health Care 등 GICS 미매칭·애매 → 방어 쪽
+  return "value";
+}
 
 const FALLBACK_COLORS = [
   "#38bdf8",
@@ -75,6 +140,8 @@ export function accountSliceColor(slice: {
   sectorEn?: string | null;
 }): string {
   if (slice.key === "__cash__") return "#64748b";
+  if (slice.key === "__growth__") return "#38bdf8";
+  if (slice.key === "__value__") return "#34d399";
   if (slice.sectorEn) {
     const c = sp500SectorColor(slice.sectorEn);
     if (c !== "#64748b" || slice.sectorEn === "Unknown") return c;
@@ -104,6 +171,8 @@ export function buildAccountAllocationSlices(
     marketKr: string;
     marketUs: string;
     marketCrypto: string;
+    styleGrowth?: string;
+    styleValue?: string;
   },
 ): AccountAllocSlice[] {
   const map = new Map<string, AccountAllocSlice>();
@@ -153,6 +222,16 @@ export function buildAccountAllocationSlices(
       bump(key, label, row.valueKrw, row.symbol);
       continue;
     }
+    if (mode === "style") {
+      const style = classifyAccountHoldingStyle(row);
+      const key = style === "growth" ? "__growth__" : "__value__";
+      const label =
+        style === "growth"
+          ? labels.styleGrowth || "성장주"
+          : labels.styleValue || "가치·방어주";
+      bump(key, label, row.valueKrw, row.symbol);
+      continue;
+    }
     if (mode === "subIndustry") {
       const detail = (row.subIndustry || row.industry || row.sectorKo || "").trim();
       const key = detail || labels.other;
@@ -174,6 +253,14 @@ export function buildAccountAllocationSlices(
       count: 0,
       symbols: [],
     });
+  }
+
+  // 성향 차트: 성장→가치→현금 고정 순(비중 큰 순 정렬보다 읽기 쉬움)
+  if (mode === "style") {
+    const order = ["__growth__", "__value__", "__cash__"];
+    return order
+      .map((k) => map.get(k))
+      .filter((s): s is AccountAllocSlice => Boolean(s));
   }
 
   return [...map.values()].sort((a, b) => b.valueKrw - a.valueKrw);

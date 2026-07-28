@@ -112,7 +112,9 @@ export default function AccountManageTab({
   const [panelTab, setPanelTab] = useState<PanelTab>("chart");
   const [allocMode, setAllocMode] = useState<AccountAllocMode>("symbol");
   const [focusKey, setFocusKey] = useState<string | null>(null);
+  const [styleFocusKey, setStyleFocusKey] = useState<string | null>(null);
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  const [styleHoveredKey, setStyleHoveredKey] = useState<string | null>(null);
   const [enrichMap, setEnrichMap] = useState<
     Map<
       string,
@@ -354,6 +356,8 @@ export default function AccountManageTab({
       marketKr: ko.app.accountManageMarketKr,
       marketUs: ko.app.accountManageMarketUs,
       marketCrypto: ko.app.accountManageMarketCrypto,
+      styleGrowth: ko.app.accountManageStyleGrowth,
+      styleValue: ko.app.accountManageStyleValue,
     }),
     [],
   );
@@ -368,14 +372,26 @@ export default function AccountManageTab({
     [slices],
   );
 
+  const styleSlices = useMemo(
+    () => buildAccountAllocationSlices(holdingRows, cashKrw, "style", labels),
+    [holdingRows, cashKrw, labels],
+  );
+
+  const { segments: styleSegments } = useMemo(
+    () => accountSlicesToDonut(styleSlices),
+    [styleSlices],
+  );
+
   const filteredRows = useMemo(() => {
-    if (!focusKey) return holdingRows;
-    if (focusKey === "__cash__") return [];
-    const slice = slices.find((s) => s.key === focusKey);
+    const key = styleFocusKey ?? focusKey;
+    const source = styleFocusKey ? styleSlices : slices;
+    if (!key) return holdingRows;
+    if (key === "__cash__") return [];
+    const slice = source.find((s) => s.key === key);
     if (!slice) return holdingRows;
     const set = new Set(slice.symbols.map((s) => s.toUpperCase()));
     return holdingRows.filter((r) => set.has(r.symbol.toUpperCase()));
-  }, [focusKey, holdingRows, slices]);
+  }, [focusKey, styleFocusKey, holdingRows, slices, styleSlices]);
 
   const netSummary = useMemo(() => {
     if (provider !== "toss" || !activeToss) return null;
@@ -503,13 +519,18 @@ export default function AccountManageTab({
   const hideHoverBubble = useCallback(() => {
     setHoverBubble(null);
     setHoveredKey(null);
+    setStyleHoveredKey(null);
   }, []);
 
   const hoverSlice = hoverBubble
-    ? slices.find((s) => s.key === hoverBubble.key)
+    ? (styleSlices.find((s) => s.key === hoverBubble.key) ??
+      slices.find((s) => s.key === hoverBubble.key) ??
+      null)
     : null;
   const hoverSeg = hoverBubble
-    ? segments.find((s) => s.sector === hoverBubble.key)
+    ? (styleSegments.find((s) => s.sector === hoverBubble.key) ??
+      segments.find((s) => s.sector === hoverBubble.key) ??
+      null)
     : null;
   const hoverRows = useMemo(() => {
     if (!hoverSlice) return [];
@@ -943,6 +964,7 @@ export default function AccountManageTab({
                     onClick={() => {
                       setAllocMode(id);
                       setFocusKey(null);
+                      setStyleFocusKey(null);
                       hideHoverBubble();
                     }}
                   >
@@ -1016,13 +1038,15 @@ export default function AccountManageTab({
                                 : donutArcPath(cx, cy, r0, r1, seg.a0, seg.a1)
                             }
                             fill={seg.color}
-                            onClick={() =>
+                            onClick={() => {
+                              setStyleFocusKey(null);
                               setFocusKey((prev) =>
                                 prev === seg.sector ? null : seg.sector,
-                              )
-                            }
+                              );
+                            }}
                             onMouseEnter={(e) => {
                               setHoveredKey(seg.sector);
+                              setStyleHoveredKey(null);
                               showHoverBubble(seg.sector, e.clientX, e.clientY);
                             }}
                             onMouseMove={(e) => {
@@ -1069,13 +1093,15 @@ export default function AccountManageTab({
                             ]
                               .filter(Boolean)
                               .join(" ")}
-                            onClick={() =>
+                            onClick={() => {
+                              setStyleFocusKey(null);
                               setFocusKey((prev) =>
                                 prev === seg.sector ? null : seg.sector,
-                              )
-                            }
+                              );
+                            }}
                             onMouseEnter={(e) => {
                               setHoveredKey(seg.sector);
+                              setStyleHoveredKey(null);
                               showHoverBubble(seg.sector, e.clientX, e.clientY);
                             }}
                             onMouseMove={(e) => {
@@ -1115,17 +1141,19 @@ export default function AccountManageTab({
                         className="account-manage-tab__slice-row"
                         onMouseEnter={(e) => {
                           setHoveredKey(seg.sector);
+                          setStyleHoveredKey(null);
                           showHoverBubble(seg.sector, e.clientX, e.clientY);
                         }}
                         onMouseMove={(e) => {
                           showHoverBubble(seg.sector, e.clientX, e.clientY);
                         }}
                         onMouseLeave={hideHoverBubble}
-                        onClick={() =>
+                        onClick={() => {
+                          setStyleFocusKey(null);
                           setFocusKey((prev) =>
                             prev === seg.sector ? null : seg.sector,
-                          )
-                        }
+                          );
+                        }}
                       >
                         <span
                           className="account-manage-tab__swatch"
@@ -1154,6 +1182,187 @@ export default function AccountManageTab({
                   })}
                 </ul>
               )}
+
+              {panelTab === "chart" && styleSegments.length > 0 ? (
+                <div className="account-manage-tab__style-block">
+                  <div className="account-manage-tab__style-head">
+                    <h4 className="account-manage-tab__style-title">
+                      {ko.app.accountManageStyleChartTitle}
+                    </h4>
+                    <p className="account-manage-tab__wheel-sub">
+                      {ko.app.accountManageStyleChartSub}
+                    </p>
+                  </div>
+                  <div className="account-manage-tab__chart-panel">
+                    <svg
+                      className="account-manage-tab__svg"
+                      viewBox="0 0 200 200"
+                      role="img"
+                      aria-label={ko.app.accountManageStyleChartTitle}
+                    >
+                      {[...styleSegments]
+                        .sort((a, b) => {
+                          const aLift =
+                            styleHoveredKey === a.sector ||
+                            styleFocusKey === a.sector
+                              ? 1
+                              : 0;
+                          const bLift =
+                            styleHoveredKey === b.sector ||
+                            styleFocusKey === b.sector
+                              ? 1
+                              : 0;
+                          return aLift - bLift;
+                        })
+                        .map((seg) => {
+                          const lifted =
+                            styleHoveredKey === seg.sector ||
+                            styleFocusKey === seg.sector;
+                          const dimmed =
+                            styleFocusKey && styleFocusKey !== seg.sector;
+                          return (
+                            <path
+                              key={`style-${seg.sector}`}
+                              className={[
+                                "account-manage-tab__seg",
+                                lifted ? "account-manage-tab__seg--lifted" : "",
+                                dimmed ? "account-manage-tab__seg--dim" : "",
+                              ]
+                                .filter(Boolean)
+                                .join(" ")}
+                              d={
+                                lifted
+                                  ? donutArcPathPopOut(
+                                      cx,
+                                      cy,
+                                      r0,
+                                      r1,
+                                      seg.a0,
+                                      seg.a1,
+                                    )
+                                  : donutArcPath(cx, cy, r0, r1, seg.a0, seg.a1)
+                              }
+                              fill={seg.color}
+                              onClick={() => {
+                                setFocusKey(null);
+                                setStyleFocusKey((prev) =>
+                                  prev === seg.sector ? null : seg.sector,
+                                );
+                              }}
+                              onMouseEnter={(e) => {
+                                setStyleHoveredKey(seg.sector);
+                                setHoveredKey(null);
+                                showHoverBubble(
+                                  seg.sector,
+                                  e.clientX,
+                                  e.clientY,
+                                );
+                              }}
+                              onMouseMove={(e) => {
+                                showHoverBubble(
+                                  seg.sector,
+                                  e.clientX,
+                                  e.clientY,
+                                );
+                              }}
+                              onMouseLeave={hideHoverBubble}
+                            />
+                          );
+                        })}
+                      <circle
+                        cx={cx}
+                        cy={cy}
+                        r={r0 - 2}
+                        className="account-manage-tab__hole"
+                      />
+                      <text
+                        x={cx}
+                        y={cy - 4}
+                        textAnchor="middle"
+                        className="account-manage-tab__center-label"
+                      >
+                        {styleFocusKey
+                          ? (styleSegments.find((s) => s.sector === styleFocusKey)
+                              ?.sectorKo ?? "")
+                          : ko.app.accountManageGroupStyle}
+                      </text>
+                      <text
+                        x={cx}
+                        y={cy + 14}
+                        textAnchor="middle"
+                        className="account-manage-tab__center-pct"
+                      >
+                        {styleFocusKey
+                          ? formatAllocPct(
+                              styleSegments.find((s) => s.sector === styleFocusKey)
+                                ?.pct ?? 0,
+                            )
+                          : formatAllocPct(100)}
+                      </text>
+                    </svg>
+                    <ul className="account-manage-tab__legend">
+                      {styleSegments.map((seg) => {
+                        const slice = styleSlices.find(
+                          (s) => s.key === seg.sector,
+                        );
+                        return (
+                          <li key={`style-leg-${seg.sector}`}>
+                            <button
+                              type="button"
+                              className={[
+                                "account-manage-tab__legend-btn",
+                                styleFocusKey === seg.sector ? "active" : "",
+                              ]
+                                .filter(Boolean)
+                                .join(" ")}
+                              onClick={() => {
+                                setFocusKey(null);
+                                setStyleFocusKey((prev) =>
+                                  prev === seg.sector ? null : seg.sector,
+                                );
+                              }}
+                              onMouseEnter={(e) => {
+                                setStyleHoveredKey(seg.sector);
+                                setHoveredKey(null);
+                                showHoverBubble(
+                                  seg.sector,
+                                  e.clientX,
+                                  e.clientY,
+                                );
+                              }}
+                              onMouseMove={(e) => {
+                                showHoverBubble(
+                                  seg.sector,
+                                  e.clientX,
+                                  e.clientY,
+                                );
+                              }}
+                              onMouseLeave={hideHoverBubble}
+                            >
+                              <span
+                                className="account-manage-tab__swatch"
+                                style={{ background: seg.color }}
+                              />
+                              <span className="account-manage-tab__legend-name">
+                                {seg.sectorKo}
+                              </span>
+                              <span className="account-manage-tab__legend-pct">
+                                {formatAllocPct(seg.pct)}
+                              </span>
+                              <span
+                                className="account-manage-tab__legend-val account-manage-tab__money"
+                                aria-hidden={balanceHidden || undefined}
+                              >
+                                {money(slice?.valueKrw)}
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                </div>
+              ) : null}
 
               {hoverBubble && hoverSlice && hoverSeg ? (
                 <div
@@ -1228,11 +1437,14 @@ export default function AccountManageTab({
                 </div>
               ) : null}
 
-              {focusKey ? (
+              {focusKey || styleFocusKey ? (
                 <button
                   type="button"
                   className="account-manage-tab__clear"
-                  onClick={() => setFocusKey(null)}
+                  onClick={() => {
+                    setFocusKey(null);
+                    setStyleFocusKey(null);
+                  }}
                 >
                   {ko.app.accountManageClearFilter}
                 </button>
@@ -1245,14 +1457,17 @@ export default function AccountManageTab({
 
             <section className="account-manage-tab__holdings card">
               <h3 className="account-manage-tab__holdings-title">
-                {focusKey
-                  ? segments.find((s) => s.sector === focusKey)?.sectorKo ??
-                    ko.app.accountManageTabList
-                  : ko.app.accountManageTabList}
+                {styleFocusKey
+                  ? styleSegments.find((s) => s.sector === styleFocusKey)
+                      ?.sectorKo ?? ko.app.accountManageTabList
+                  : focusKey
+                    ? segments.find((s) => s.sector === focusKey)?.sectorKo ??
+                      ko.app.accountManageTabList
+                    : ko.app.accountManageTabList}
               </h3>
               {filteredRows.length === 0 ? (
                 <p className="account-manage-tab__empty">
-                  {focusKey === "__cash__" ? (
+                  {focusKey === "__cash__" || styleFocusKey === "__cash__" ? (
                     provider === "toss" ? (
                       <span
                         className="account-manage-tab__cash-split"

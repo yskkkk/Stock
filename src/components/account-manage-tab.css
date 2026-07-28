@@ -338,6 +338,22 @@
   color: var(--muted);
 }
 
+.account-manage-tab__style-block {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--card-border);
+}
+
+.account-manage-tab__style-head {
+  margin-bottom: 0.45rem;
+}
+
+.account-manage-tab__style-title {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
 .account-manage-tab__mode {
   display: flex;
   flex-wrap: wrap;
