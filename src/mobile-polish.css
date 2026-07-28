@@ -31,6 +31,163 @@
 
   .filter-bar .chip,
   .filter-bar .filter-presets .btn {
+    min-width: 44px;
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+
+  /* 터치 타깃 — min-width·min-height 44px (레이아웃 골격 유지, 패딩만 보강) */
+  .top-bar .main-tab {
+    min-width: 44px;
+    min-height: 44px;
+    padding-inline: 0.55rem;
+    touch-action: manipulation;
+  }
+
+  .top-bar__brand-lockup {
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+
+  .tag--picks-history-btn,
+  .tag--telegram-btn {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.35rem 0.55rem;
+    touch-action: manipulation;
+  }
+
+  .app-theme-corner__mode-toggle,
+  .app-theme-corner__mode-toggle-track {
+    min-width: 44px;
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+
+  .light-palette-swatch {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    box-sizing: border-box;
+    touch-action: manipulation;
+  }
+
+  .app-theme-corner--top .light-palette-picker--corner {
+    grid-template-columns: repeat(3, 44px);
+    gap: 0.4rem 0.5rem;
+  }
+
+  .sp500-wheel-micro,
+  .sp500-wheel-micro--loading,
+  .app__nasdaq-etf-micro {
+    min-width: 44px;
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+
+  .sp500-wheel-mini__tab,
+  .sp500-wheel-mini__legend-btn,
+  .sp500-wheel-micro-expand__open-tab,
+  .app-sp500-sector-panel__toggle {
+    min-width: 44px;
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+
+  .chip,
+  .signal-filter .chip,
+  .signal-filter .seg,
+  .signal-filter .filter-clear,
+  .timeframe-seg .seg,
+  .chart-toolbar__toggles .chip,
+  .chart-draw-btn {
+    min-width: 44px;
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+
+  .workspace:not(.crypto-workspace)
+    .picks-panel:not(.crypto-panel)
+    .panel-head__filters
+    .market-tab {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.35rem 0.55rem;
+    touch-action: manipulation;
+  }
+
+  .pick-action {
+    min-width: 44px;
+    min-height: 44px;
+    padding-inline: 0.45rem;
+    justify-content: center;
+    touch-action: manipulation;
+  }
+
+  .stock-vault-mark,
+  .stock-vault-mark--inline {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.35rem;
+    box-sizing: border-box;
+    touch-action: manipulation;
+  }
+
+  .scroll-to-top-btn {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+
+  .app-live-trade-side-dock__rail--mobile-bottom .app-live-trade-side-dock__rail-btn {
+    min-width: 44px;
+    max-width: none;
+    flex: 1 1 44px;
+    touch-action: manipulation;
+  }
+
+  .live-trading-tab__auth-submit,
+  .live-trading-tab__auth-send-code {
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+
+  .quote-currency-toggle,
+  .account-manage-tab__currency-toggle {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.35rem 0.45rem;
+    touch-action: manipulation;
+  }
+
+  .market-indices-belt__item--btn {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.35rem 0.45rem;
+    align-items: center;
+    touch-action: manipulation;
+  }
+
+  .app-site-footer__link {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.35rem 0.45rem;
+    touch-action: manipulation;
+  }
+
+  .live-trading-tab__auth-tab {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.35rem 0.5rem;
+    touch-action: manipulation;
+  }
+
+  .btn.btn--sm,
+  .live-trading-tab__auth-send-btn {
+    min-width: 44px;
     min-height: 44px;
     touch-action: manipulation;
   }
