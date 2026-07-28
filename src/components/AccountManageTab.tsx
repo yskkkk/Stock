@@ -839,7 +839,10 @@ export default function AccountManageTab({
                       return (
                         <span
                           key={m}
-                          className="account-manage-tab__rebalance-hour-chip"
+                          className={[
+                            "account-manage-tab__rebalance-hour-chip",
+                            m === "us" ? "is-usd" : "is-krw",
+                          ].join(" ")}
                         >
                           <span
                             className={[
@@ -853,6 +856,11 @@ export default function AccountManageTab({
                             {m === "us"
                               ? ko.app.accountManageMarketUs
                               : ko.app.accountManageMarketKr}
+                          </span>
+                          <span className="account-manage-tab__rebalance-hour-cur">
+                            {m === "us"
+                              ? ko.app.accountManageCurrencyUsd
+                              : ko.app.accountManageCurrencyKrw}
                           </span>
                           <span
                             className={[
