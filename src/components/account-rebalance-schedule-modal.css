@@ -139,7 +139,12 @@
   flex: 1 1 calc(50% - 0.25rem);
 }
 
-.account-rebalance-modal__chip {
+  .account-rebalance-modal__retry {
+    align-self: stretch;
+    justify-content: center;
+  }
+
+  .account-rebalance-modal__chip {
   margin: 0;
   display: inline-flex;
   flex-direction: column;
@@ -169,11 +174,25 @@
 }
 
 .account-rebalance-modal__chip-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.22rem;
+  width: 100%;
+}
+
+.account-rebalance-modal__chip-meta-row {
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 0.28rem;
-  width: 100%;
+}
+
+.account-rebalance-modal__chip-meta-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.02em;
 }
 
 .account-rebalance-modal__chip-name {
@@ -187,7 +206,7 @@
 }
 
 .account-rebalance-modal__chip-state {
-  margin-left: 0.1rem;
+  margin-left: 0;
   padding: 0.08rem 0.4rem;
   border-radius: 999px;
   font-size: 0.65rem;
@@ -421,10 +440,10 @@ html:not([data-theme="light"]) .account-rebalance-modal__badge.is-usd {
 }
 
 .account-rebalance-modal__plan-head-meta {
-  display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.28rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.22rem;
 }
 
 .account-rebalance-modal__plan-cash {
@@ -486,6 +505,23 @@ html:not([data-theme="light"]) .account-rebalance-modal__badge.is-usd {
   font-size: 0.8rem;
 }
 
+.account-rebalance-modal__load-err {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.55rem;
+  padding: 0.65rem 0.7rem;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: var(--radius-sm, 0.5rem);
+  background: color-mix(in srgb, #ef4444 8%, var(--card));
+}
+
+.account-rebalance-modal__retry {
+  align-self: flex-start;
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
 .account-rebalance-modal__msg {
   margin: 0;
   color: var(--accent, #5eead4);
@@ -544,6 +580,11 @@ html:not([data-theme="light"]) .account-rebalance-modal__badge.is-usd {
       44rem
     );
     padding-bottom: 0.35rem;
+  }
+
+  .account-rebalance-modal__retry {
+    align-self: stretch;
+    justify-content: center;
   }
 
   .account-rebalance-modal__foot {

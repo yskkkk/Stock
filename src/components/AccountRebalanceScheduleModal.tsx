@@ -89,6 +89,7 @@ export default function AccountRebalanceScheduleModal({
   const [running, setRunning] = useState(false);
   const [buyingNow, setBuyingNow] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [enabled, setEnabled] = useState(false);
   const [dayOfMonth, setDayOfMonth] = useState(1);
@@ -105,7 +106,7 @@ export default function AccountRebalanceScheduleModal({
 
   const load = useCallback(async () => {
     setLoading(true);
-    setErr(null);
+    setLoadError(null);
     try {
       const res = await fetchTossRebalanceSchedule();
       const s = res.schedule;
@@ -120,7 +121,7 @@ export default function AccountRebalanceScheduleModal({
       }
       setPlans(res.preview?.plans ?? []);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
+      setLoadError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
@@ -310,23 +311,33 @@ export default function AccountRebalanceScheduleModal({
           </span>
         </span>
         <span className="account-rebalance-modal__chip-meta">
-          <span
-            className={[
-              "account-rebalance-modal__chip-state",
-              on ? "is-on" : "is-off",
-            ].join(" ")}
-          >
-            {on
-              ? ko.app.accountManageRebalanceMarketOn
-              : ko.app.accountManageRebalanceMarketOff}
+          <span className="account-rebalance-modal__chip-meta-row">
+            <span className="account-rebalance-modal__chip-meta-label">
+              {ko.app.accountManageRebalanceMarketScheduleLabel}
+            </span>
+            <span
+              className={[
+                "account-rebalance-modal__chip-state",
+                on ? "is-on" : "is-off",
+              ].join(" ")}
+            >
+              {on
+                ? ko.app.accountManageRebalanceMarketOn
+                : ko.app.accountManageRebalanceMarketOff}
+            </span>
           </span>
-          <span
-            className={[
-              "account-rebalance-modal__chip-hours",
-              hoursOpen ? "is-open" : "is-closed",
-            ].join(" ")}
-          >
-            {marketHoursLabel(m)}
+          <span className="account-rebalance-modal__chip-meta-row">
+            <span className="account-rebalance-modal__chip-meta-label">
+              {ko.app.accountManageRebalanceMarketSessionLabel}
+            </span>
+            <span
+              className={[
+                "account-rebalance-modal__chip-hours",
+                hoursOpen ? "is-open" : "is-closed",
+              ].join(" ")}
+            >
+              {marketHoursLabel(m)}
+            </span>
           </span>
         </span>
       </button>
@@ -376,6 +387,27 @@ export default function AccountRebalanceScheduleModal({
             >
               {ko.app.accountManageRebalanceLoading}
             </p>
+          ) : loadError ? (
+            <div
+              className="account-rebalance-modal__load-err"
+              data-vu="account-rebalance-load-err"
+            >
+              <p className="account-rebalance-modal__err" role="alert">
+                {loadError}
+              </p>
+              <p className="account-rebalance-modal__hint">
+                {ko.app.accountManageRebalanceLoadErrHint}
+              </p>
+              <button
+                type="button"
+                className="btn btn--primary account-rebalance-modal__retry"
+                data-vu="account-rebalance-retry"
+                disabled={loading}
+                onClick={() => void load()}
+              >
+                {ko.app.accountManageRebalanceRetry}
+              </button>
+            </div>
           ) : (
             <>
             <label className="account-rebalance-modal__enable">
@@ -459,11 +491,10 @@ export default function AccountRebalanceScheduleModal({
               />
             </label>
 
-            {(cashSummary.kr || cashSummary.us) && (
-              <section
-                className="account-rebalance-modal__cash-sum"
-                aria-label={ko.app.accountManageRebalanceCashSummary}
-              >
+            <section
+              className="account-rebalance-modal__cash-sum"
+              aria-label={ko.app.accountManageRebalanceCashSummary}
+            >
                 <div className="account-rebalance-modal__cash-sum-title">
                   {ko.app.accountManageRebalanceCashSummary}
                 </div>
@@ -506,7 +537,6 @@ export default function AccountRebalanceScheduleModal({
                   })}
                 </div>
               </section>
-            )}
 
             <section className="account-rebalance-modal__preview">
               <h3>{ko.app.accountManageRebalancePreview}</h3>
@@ -544,23 +574,33 @@ export default function AccountRebalanceScheduleModal({
                         </span>
                       </div>
                       <div className="account-rebalance-modal__plan-head-meta">
-                        <span
-                          className={[
-                            "account-rebalance-modal__chip-state",
-                            on ? "is-on" : "is-off",
-                          ].join(" ")}
-                        >
-                          {on
-                            ? ko.app.accountManageRebalanceMarketOn
-                            : ko.app.accountManageRebalanceMarketOff}
+                        <span className="account-rebalance-modal__chip-meta-row">
+                          <span className="account-rebalance-modal__chip-meta-label">
+                            {ko.app.accountManageRebalanceMarketScheduleLabel}
+                          </span>
+                          <span
+                            className={[
+                              "account-rebalance-modal__chip-state",
+                              on ? "is-on" : "is-off",
+                            ].join(" ")}
+                          >
+                            {on
+                              ? ko.app.accountManageRebalanceMarketOn
+                              : ko.app.accountManageRebalanceMarketOff}
+                          </span>
                         </span>
-                        <span
-                          className={[
-                            "account-rebalance-modal__chip-hours",
-                            hoursOpen ? "is-open" : "is-closed",
-                          ].join(" ")}
-                        >
-                          {marketHoursLabel(m)}
+                        <span className="account-rebalance-modal__chip-meta-row">
+                          <span className="account-rebalance-modal__chip-meta-label">
+                            {ko.app.accountManageRebalanceMarketSessionLabel}
+                          </span>
+                          <span
+                            className={[
+                              "account-rebalance-modal__chip-hours",
+                              hoursOpen ? "is-open" : "is-closed",
+                            ].join(" ")}
+                          >
+                            {marketHoursLabel(m)}
+                          </span>
                         </span>
                       </div>
                       {on && plan ? (

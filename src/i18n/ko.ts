@@ -199,6 +199,11 @@ export const ko = {
       "매월 선택한 날에 국내 보유는 원화 현금, 미국 보유는 달러 현금으로 현재 비중을 유지하며 시장가 매수합니다. 「지금 즉시 매수」로 같은 방식으로 바로 실행할 수 있습니다. 실주문 허용이 켜져 있어야 합니다.",
     accountManageRebalanceClose: "닫기",
     accountManageRebalanceLoading: "스케줄 불러오는 중…",
+    accountManageRebalanceLoadErrHint:
+      "네트워크·API 연결을 확인한 뒤 다시 불러오기를 눌러 주세요.",
+    accountManageRebalanceRetry: "다시 불러오기",
+    accountManageRebalanceMarketScheduleLabel: "스케줄",
+    accountManageRebalanceMarketSessionLabel: "장",
     accountManageRebalanceEnable: "스케줄 사용",
     accountManageRebalanceDayHint: "매월 {n}일에 실행 (29~31일은 달마다 없어 1~28만 선택)",
     accountManageRebalanceMarkets: "대상 시장 (스케줄 켜짐/꺼짐 · 통화)",
@@ -213,7 +218,8 @@ export const ko = {
     accountManageRebalancePreview: "미리보기 (시장별 · 원통화)",
     accountManageRebalancePreviewHint:
       "국내는 원화, 미국은 달러로 각각 표시됩니다. 통화를 섞지 않습니다.",
-    accountManageRebalancePreviewEmpty: "미리볼 주문이 없습니다. 저장·미리보기를 눌러 주세요.",
+    accountManageRebalancePreviewEmpty:
+      "미리볼 주문이 없습니다. 「미리보기 실행」 또는 「스케줄 저장」을 눌러 주세요.",
     accountManageRebalanceCashUse: "{cashLabel} 가용 {avail} → 이번 사용 {spend}",
     accountManageRebalanceCashKrw: "원화 현금",
     accountManageRebalanceCashUsd: "달러 현금",
