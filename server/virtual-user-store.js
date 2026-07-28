@@ -224,9 +224,27 @@ function defaultPersonas() {
       goals: [
         "좁은 화면에서 관리자·계좌·스케줄 진입 경로를 찾는다",
         "중요 액션(즉시 매수)이 실수로 눌리지 않는지 본다",
+        "가로 넘침·작은 터치·모달 footer 가림을 찾는다",
       ],
       focusAreas: ["account-manage", "rebalance", "navigation", "mobile"],
-      traits: "터치 타깃·확인 다이얼로그·스크롤 깊이에 민감하다.",
+      traits: "터치 타깃·확인 다이얼로그·스크롤 깊이에 민감하다. 레이아웃 틀을 바꾸라는 말은 하지 않고 쓰면서 불편한 점만 지적한다.",
+      satisfactionLevel: 1,
+      lastEscalatedAtMs: null,
+      createdAtMs: now,
+      updatedAtMs: now,
+    },
+    {
+      id: "vu-mobile-beginner",
+      name: "모바일 초보",
+      enabled: true,
+      skill: "beginner",
+      device: "mobile",
+      goals: [
+        "한 손으로 계좌관리·탭 이동이 되는지 본다",
+        "글자·버튼이 잘리거나 너무 작아 못 누르는 곳을 찾는다",
+      ],
+      focusAreas: ["account-manage", "navigation", "mobile"],
+      traits: "용어에 약하고 엄지로 누르기 어려운 UI에 바로 막힌다. 화면 구조를 바꾸기보다 누르기·읽기만 편해지길 원한다.",
       satisfactionLevel: 1,
       lastEscalatedAtMs: null,
       createdAtMs: now,
@@ -440,6 +458,24 @@ export function bumpPersonaSatisfactionSync(id, delta = 1) {
 
 export function listVirtualPersonasSync() {
   return readVirtualUserStoreSync().personas;
+}
+
+/**
+ * 기본 페르소나 중 저장소에 없는 id만 추가 (기존 설정·만족도는 유지)
+ * @returns {{ ok: true; added: string[] }}
+ */
+export function ensureDefaultPersonasPresentSync() {
+  const store = readVirtualUserStoreSync();
+  const have = new Set(store.personas.map((p) => p.id));
+  /** @type {string[]} */
+  const added = [];
+  for (const p of defaultPersonas()) {
+    if (have.has(p.id)) continue;
+    store.personas.push(p);
+    added.push(p.id);
+  }
+  if (added.length) writeVirtualUserStoreSync(store);
+  return { ok: true, added };
 }
 
 export function listVirtualFeedbackSync() {

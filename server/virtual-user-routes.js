@@ -24,6 +24,7 @@ import {
 } from "./virtual-user-poller.js";
 import { satisfactionLabelKo } from "./virtual-user-satisfaction.js";
 import { enrichVirtualFeedbackNarrativesSync } from "./virtual-user-feedback-enrich.js";
+import { ensureDefaultPersonasPresentSync } from "./virtual-user-store.js";
 
 /**
  * @param {(handler: (req: any, res: any) => Promise<void>) => import("express").RequestHandler} asyncRoute
@@ -34,6 +35,7 @@ export function registerVirtualUserRoutes(app, asyncRoute) {
     "/api/virtual-users",
     requireAccessAdmin,
     asyncRoute(async (_req, res) => {
+      ensureDefaultPersonasPresentSync();
       enrichVirtualFeedbackNarrativesSync();
       const store = readVirtualUserStoreSync();
       const discomfortCount = store.feedback.filter((f) =>

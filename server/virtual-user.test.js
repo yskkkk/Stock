@@ -121,6 +121,59 @@ describe("virtual-user-runner", () => {
     expect(prompt).toContain("실주문");
     expect(prompt).toContain("satisfaction: 3");
   });
+
+  it("mobile prompt forbids changing layout frame", () => {
+    const prompt = buildVirtualFeedbackPrompt(
+      "fb-m",
+      {
+        id: "vu-mobile-power",
+        name: "모바일",
+        enabled: true,
+        skill: "power",
+        device: "mobile",
+        goals: ["g"],
+        focusAreas: ["mobile"],
+        traits: "t",
+        satisfactionLevel: 1,
+        lastEscalatedAtMs: null,
+        createdAtMs: 0,
+        updatedAtMs: 0,
+      },
+      {
+        severity: "major",
+        area: "mobile",
+        title: "가로 넘침",
+        detail: "잘림",
+        suggestion: "줄바꿈",
+      },
+      "sess-m",
+    );
+    expect(prompt).toContain("앱 틀");
+    expect(prompt).toContain("바꾸지 말");
+    expect(prompt).toContain("device: mobile");
+  });
+
+  it("prioritizes mobile seeds for mobile personas", () => {
+    const seeds = pickSeedsForPersona(
+      {
+        id: "vu-mobile-beginner",
+        name: "모바일 초보",
+        enabled: true,
+        skill: "beginner",
+        device: "mobile",
+        goals: ["g"],
+        focusAreas: ["mobile", "account-manage"],
+        traits: "t",
+        satisfactionLevel: 1,
+        lastEscalatedAtMs: null,
+        createdAtMs: 0,
+        updatedAtMs: 0,
+      },
+      4,
+    );
+    expect(seeds.some((s) => s.area === "mobile")).toBe(true);
+    expect(seeds[0].area).toBe("mobile");
+  });
 });
 
 describe("virtual-user-satisfaction", () => {

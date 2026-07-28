@@ -97,10 +97,72 @@ const SCENARIO_SEEDS = [
     severity: "major",
     title: "좁은 화면에서 모달 하단 액션이 가려질 수 있다",
     detail: "스케줄 모달 footer 버튼이 wrap·safe-area 없이 겹치면 탭이 어렵다.",
-    suggestion: "모달 footer wrap + 즉시 매수 강조.",
+    suggestion:
+      "모달 footer wrap + 즉시 매수 강조. 레이아웃 틀(3열·좌측 열)은 건드리지 않는다.",
+    devices: ["mobile"],
+    skills: ["power", "intermediate", "beginner"],
+    minSatisfaction: 1,
+  },
+  {
+    area: "mobile",
+    areaLabel: "모바일",
+    severity: "major",
+    title: "가로로 밀려 스크롤하거나 버튼이 잘린다",
+    detail:
+      "390px 전후에서 표·툴바·칩 줄이 화면 밖으로 나가면 한 손으로 쓰기 불편하다.",
+    suggestion:
+      "줄바꿈·min-width 완화·overflow만 기존 컴포넌트 안에서 고친다. 앱 골격·좌측 열 구조는 변경 금지.",
+    devices: ["mobile"],
+    skills: ["beginner", "intermediate", "power"],
+    minSatisfaction: 1,
+  },
+  {
+    area: "mobile",
+    areaLabel: "모바일",
+    severity: "minor",
+    title: "메인 탭이 많아 현재 탭을 찾기 어렵다",
+    detail: "가로 스크롤 탭에서 활성 표시가 약하면 어디에 있는지 헤맨다.",
+    suggestion:
+      "활성 탭 대비·스크롤 위치만 보강한다. 탭 구조·개수 재배치는 하지 않는다.",
+    devices: ["mobile"],
+    skills: ["beginner", "intermediate", "power"],
+    minSatisfaction: 2,
+  },
+  {
+    area: "mobile",
+    areaLabel: "모바일",
+    severity: "minor",
+    title: "계좌관리 요약 카드가 세로로 너무 길어 핵심이 아래로 밀린다",
+    detail: "현금·비중·버튼이 한 화면에 안 들어오면 스크롤 피로가 크다.",
+    suggestion:
+      "카드 안 간격·폰트·접기만 조정한다. 좌측 열·3열 그리드 틀은 바꾸지 않는다.",
+    devices: ["mobile"],
+    skills: ["beginner", "intermediate"],
+    minSatisfaction: 2,
+  },
+  {
+    area: "mobile",
+    areaLabel: "모바일",
+    severity: "nit",
+    title: "터치 타깃이 손가락보다 작아 오탭이 난다",
+    detail: "작은 칩·아이콘이 인접하면 잘못된 탭을 누른다.",
+    suggestion:
+      "주요 액션 min 터치 영역(패딩)만 확보한다. 버튼 위치 골격은 유지한다.",
+    devices: ["mobile"],
+    skills: ["power", "intermediate", "beginner"],
+    minSatisfaction: 3,
+  },
+  {
+    area: "mobile",
+    areaLabel: "모바일",
+    severity: "nit",
+    title: "safe-area(노치·홈바)에 하단 버튼이 겹친다",
+    detail: "iPhone 홈 인디케이터에 footer가 가려지면 탭이 불안하다.",
+    suggestion:
+      "env(safe-area-inset-*) padding만 추가한다. 전체 레이아웃 틀은 유지한다.",
     devices: ["mobile"],
     skills: ["power", "intermediate"],
-    minSatisfaction: 1,
+    minSatisfaction: 4,
   },
   {
     area: "account-manage",
@@ -173,17 +235,6 @@ const SCENARIO_SEEDS = [
     minSatisfaction: 4,
   },
   {
-    area: "mobile",
-    areaLabel: "모바일",
-    severity: "nit",
-    title: "터치 타깃이 손가락보다 작아 오탭이 난다",
-    detail: "작은 칩·아이콘이 인접하면 잘못된 탭을 누른다.",
-    suggestion: "주요 액션 최소 터치 영역을 확보한다.",
-    devices: ["mobile"],
-    skills: ["power", "intermediate"],
-    minSatisfaction: 4,
-  },
-  {
     area: "navigation",
     areaLabel: "탐색",
     severity: "nit",
@@ -220,11 +271,17 @@ export function buildVirtualFeedbackPrompt(
   extra = "",
 ) {
   const sat = clampSatisfactionLevel(persona.satisfactionLevel ?? 1);
+  const mobile = persona.device === "mobile";
   return [
     "# 가상 사용자 피드백 구현 요청",
     "",
     "당신은 Stock 앱(React+Vite+Express) 코딩 에이전트다. 아래 UX 피드백을 **최소 diff**로 반영하라.",
     "관련 없는 리팩터·좌측 열 레이아웃 변경 금지. 실주문/돈이 나가는 동작은 추가하지 말 것. 끝나면 git commit 후 git push.",
+    ...(mobile
+      ? [
+          "모바일 UI: **앱 틀(3열 그리드·좌측 열·메인 탭 골격)은 바꾸지 말고**, 패딩·줄바꿈·터치 영역·safe-area·모달 footer wrap·폰트/간격만 기존 컴포넌트 안에서 고친다.",
+        ]
+      : []),
     "",
     "## 메타",
     `- feedbackId: ${feedbackId}`,
@@ -255,6 +312,9 @@ export function buildVirtualFeedbackPrompt(
     "## 구현 체크",
     "- [ ] 문제 재현 경로를 코드에서 확인했다",
     "- [ ] UI/카피/동작 중 필요한 것만 고쳤다",
+    mobile
+      ? "- [ ] 레이아웃 틀(3열·좌측 열·탭 골격)을 바꾸지 않고 터치/간격/줄바꿈만 고쳤다"
+      : "- [ ] 좌측 열·3열 그리드 레이아웃을 깨지 않았다",
     "- [ ] 실주문·출금 등 돈이 나가는 경로를 늘리지 않았다",
     "- [ ] 백엔드 이슈면 폴링 주기 조정 대신 실제 실패 원인(예외·깨진 JSON·5xx·가드 누락)을 고쳤다",
     "- [ ] 폴링 주기·의도적(운영자/개발자 요청) 비활성 기능은 바꾸지 않았다",
@@ -288,8 +348,13 @@ export function pickSeedsForPersona(persona, maxItems = 4, opts = {}) {
     }
     return true;
   });
-  // 만족도 높을수록 심화 시드 우선
+  // 만족도 높을수록 심화 시드 우선 · 모바일 페르소나는 mobile 영역 우선
   const sorted = [...pool].sort((a, b) => {
+    if (persona.device === "mobile") {
+      const am = a.area === "mobile" ? 1 : 0;
+      const bm = b.area === "mobile" ? 1 : 0;
+      if (bm !== am) return bm - am;
+    }
     const da = a.minSatisfaction ?? 1;
     const db = b.minSatisfaction ?? 1;
     if (db !== da) return db - da;

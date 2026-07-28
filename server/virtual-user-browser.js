@@ -9,6 +9,7 @@ import { isAbortLikeError } from "./fetch-abort-guard.js";
 import {
   shouldBlockVirtualUserMoneyRequest,
 } from "./virtual-user-order-guard.js";
+import { probeMobileUiDiscomfort } from "./virtual-user-mobile-probe.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SCREENSHOT_DIR = path.join(__dirname, ".data", "virtual-user-screenshots");
@@ -220,6 +221,9 @@ export async function runVirtualUserBrowserJourney(persona, sessionId, opts = {}
       viewport: mobile
         ? { width: 390, height: 844 }
         : { width: 1440, height: 900 },
+      isMobile: mobile,
+      hasTouch: mobile,
+      deviceScaleFactor: mobile ? 3 : 1,
       userAgent: mobile
         ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
         : undefined,
@@ -536,6 +540,20 @@ export async function runVirtualUserBrowserJourney(persona, sessionId, opts = {}
         },
       },
       {
+        id: "mobile-ui-probe",
+        run: async () => {
+          if (!mobile) return;
+          const mobileObs = await probeMobileUiDiscomfort(page, persona.id);
+          const shotPath = await shot(page, `${persona.id}_mobile_ui`);
+          for (const o of mobileObs) {
+            observations.push({
+              ...o,
+              screenshot: o.screenshot ?? shotPath,
+            });
+          }
+        },
+      },
+      {
         id: "tab-stock-vault",
         run: async () => {
           await clickTabByText(page, "종목보관");
@@ -574,19 +592,31 @@ export async function runVirtualUserBrowserJourney(persona, sessionId, opts = {}
       "rebalance-schedule-preview",
       "tab-stock-lookup",
     ]);
+    if (mobile) {
+      coreIds.add("mobile-ui-probe");
+    }
     if (satisfactionLevel >= 2) {
       coreIds.add("tab-reddit");
-      coreIds.add("nasdaq-etf-micro");
+      if (!mobile) coreIds.add("nasdaq-etf-micro");
     }
     if (satisfactionLevel >= 3) {
       coreIds.add("tab-screener");
       coreIds.add("tab-recommendations");
       coreIds.add("tab-stock-vault");
+      if (mobile) coreIds.add("mobile-ui-probe");
     }
-    const stepsForLevel =
+    let stepsForLevel =
       satisfactionLevel >= 4
         ? steps
         : steps.filter((s) => coreIds.has(s.id));
+    // 모바일: 좌측 열 ETF 마이크로는 데스크톱 전용 — 스킵해 오탐 피드백 방지
+    if (mobile) {
+      stepsForLevel = stepsForLevel.filter((s) => s.id !== "nasdaq-etf-micro");
+      if (!stepsForLevel.some((s) => s.id === "mobile-ui-probe")) {
+        const probe = steps.find((s) => s.id === "mobile-ui-probe");
+        if (probe) stepsForLevel = [...stepsForLevel, probe];
+      }
+    }
 
     const focus = new Set(persona.focusAreas || []);
     const ordered = [

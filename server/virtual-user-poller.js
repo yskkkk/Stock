@@ -8,6 +8,7 @@ import { markPollerBootStarted, pollerGuardAsync } from "./poller-registry.js";
 import {
   getVirtualUserContinuousSync,
   patchVirtualUserContinuousSync,
+  ensureDefaultPersonasPresentSync,
 } from "./virtual-user-store.js";
 import { runVirtualUserSession } from "./virtual-user-runner.js";
 import {
@@ -113,6 +114,18 @@ export function startVirtualUserContinuousPoller() {
   started = true;
 
   const boot = ensureVirtualUserAutoImproveOnBoot();
+  try {
+    const personas = ensureDefaultPersonasPresentSync();
+    if (personas.added.length) {
+      appendServerEventLog(
+        "virtual-user",
+        `personas added ${personas.added.join(",")}`,
+      );
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    appendServerEventLog("virtual-user", `personas ensure fail ${msg}`);
+  }
   try {
     const enriched = enrichVirtualFeedbackNarrativesSync();
     appendServerEventLog(

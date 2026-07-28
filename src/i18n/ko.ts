@@ -1707,7 +1707,7 @@ export const ko = {
     liveTradeServerRunningEmpty: "서버에 가동 중인 프로그램이 없습니다.",
     liveTradeServerRunningView: "보기",
     vuIntro:
-      "가상 사용자가 UI·백엔드 실동작 결함을 찾아 에이전트 큐로 보냅니다(의도적 중지·폴링 주기 튜닝 제외). 서버 기동 시 연속 탐색·자동 구현이 기본 ON이며, Cursor API 소진 시 정지합니다.",
+      "가상 사용자가 데스크톱·모바일(좁은 화면)에서 UI·백엔드 실동작 결함을 찾아 에이전트 큐로 보냅니다. 모바일은 레이아웃 틀을 바꾸지 않고 터치·간격·줄바꿈만 고치도록 요청합니다. 의도적 중지·폴링 주기 튜닝은 제외합니다.",
     vuPersonas: "페르소나",
     vuContinuous: "연속 탐색",
     vuContinuousOn: "연속 탐색 켜짐",
