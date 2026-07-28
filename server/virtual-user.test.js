@@ -186,6 +186,13 @@ describe("virtual-user-backend-probe", () => {
         suggestion: "로더에 try/catch 추가",
       }),
     ).toBe(false);
+    expect(
+      shouldSkipBackendImprovementItem({
+        id: "process-unhandledRejection",
+        problem: "unhandledRejection: [canceled] This operation was aborted",
+        evidence: "누적 1회",
+      }),
+    ).toBe(true);
   });
 });
 
