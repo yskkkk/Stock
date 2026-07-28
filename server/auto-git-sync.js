@@ -25,7 +25,7 @@
  * 장기 SSE 등으로 `httpServer.close()`가 멈추면 재시작을 중단하고 서버·auto-git 폴링을 유지합니다.
  * (닫기 상한: `RESPAWN_CLOSE_TIMEOUT_MS`, 기본 25000)
  */
-import { existsSync } from "node:fs";
+import { existsSync, statSync, unlinkSync } from "node:fs";
 import { execFileSync, execSync, spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -45,6 +45,11 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 const PAUSE_FILE = path.join(repoRoot, ".auto-git-sync.pause");
+/** index.lock 이 이보다 오래 유지되면 비정상 종료로 보고 제거 */
+const GIT_INDEX_LOCK_STALE_MS = 90_000;
+/** 다른 git 프로세스가 index.lock 을 놓을 때까지 대기 상한 */
+const GIT_INDEX_LOCK_WAIT_MS = 15_000;
+const GIT_INDEX_LOCK_POLL_MS = 500;
 
 function truthy(v) {
   const s = String(v ?? "").toLowerCase();
@@ -63,27 +68,35 @@ function execGitQuiet(args) {
   execFileSync("git", args, { cwd: repoRoot, stdio: "ignore" });
 }
 
-/** @param {string[]} args @returns {{ ok: true } | { ok: false; message: string; stderr: string }} */
+/** @param {string[]} args @returns {{ ok: true } | { ok: false; message: string; stderr: string; stdout: string }} */
 function execGitTry(args) {
   try {
     execFileSync("git", args, {
       cwd: repoRoot,
-      stdio: ["ignore", "ignore", "pipe"],
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
     });
     return { ok: true };
   } catch (e) {
-    const err = /** @type {NodeJS.ErrnoException & { stderr?: Buffer | string }} */ (
+    const err = /** @type {NodeJS.ErrnoException & { stderr?: Buffer | string; stdout?: Buffer | string }} */ (
       e
     );
     const stderr =
       err.stderr != null ? String(err.stderr).trim() : "";
+    const stdout =
+      err.stdout != null ? String(err.stdout).trim() : "";
     const message = e instanceof Error ? e.message : String(e);
-    return { ok: false, message, stderr };
+    return { ok: false, message, stderr, stdout };
   }
 }
 
 function gitErrorDetail(result) {
-  return [result.stderr, result.message].filter(Boolean).join(" — ");
+  const parts = [result.stderr, result.stdout, result.message].filter(Boolean);
+  let detail = parts.join(" — ");
+  if (!detail && gitIndexLockExists()) {
+    detail = describeGitIndexLockState();
+  }
+  return detail;
 }
 
 function sleepMs(ms) {
@@ -92,6 +105,102 @@ function sleepMs(ms) {
 
 function gitDirPath() {
   return path.join(repoRoot, ".git");
+}
+
+function gitIndexLockPath() {
+  return path.join(gitDirPath(), "index.lock");
+}
+
+function gitIndexLockExists() {
+  return existsSync(gitIndexLockPath());
+}
+
+/** @returns {number | null} */
+function gitIndexLockAgeMs() {
+  const lockPath = gitIndexLockPath();
+  if (!existsSync(lockPath)) return null;
+  try {
+    return Date.now() - statSync(lockPath).mtimeMs;
+  } catch {
+    return null;
+  }
+}
+
+/** @returns {string} */
+function describeGitIndexLockState() {
+  const ageMs = gitIndexLockAgeMs();
+  if (ageMs == null) return "index.lock present";
+  return `index.lock present (${Math.round(ageMs / 1000)}s) — another git process may be running`;
+}
+
+/**
+ * 비정상 종료로 남은 index.lock 제거.
+ * @returns {{ cleared: boolean; ageMs?: number | null; error?: string }}
+ */
+function clearStaleGitIndexLock() {
+  const lockPath = gitIndexLockPath();
+  if (!existsSync(lockPath)) return { cleared: false };
+  const ageMs = gitIndexLockAgeMs();
+  if (ageMs == null || ageMs < GIT_INDEX_LOCK_STALE_MS) {
+    return { cleared: false, ageMs };
+  }
+  try {
+    unlinkSync(lockPath);
+    return { cleared: true, ageMs };
+  } catch (e) {
+    return {
+      cleared: false,
+      ageMs,
+      error: e instanceof Error ? e.message : String(e),
+    };
+  }
+}
+
+/**
+ * index 쓰기(git stash 등) 전 lock 해소 대기·stale lock 정리.
+ * @returns {Promise<{ ok: true } | { ok: false; detail: string }>}
+ */
+async function prepareGitIndexForWrite() {
+  if (!gitIndexLockExists()) return { ok: true };
+
+  const initialAgeMs = gitIndexLockAgeMs();
+  appendServerEventLog(
+    "auto-git",
+    `${describeGitIndexLockState()} — waiting before index write…`,
+    "warn",
+  );
+
+  const deadline = Date.now() + GIT_INDEX_LOCK_WAIT_MS;
+  while (Date.now() < deadline) {
+    if (!gitIndexLockExists()) return { ok: true };
+
+    const stale = clearStaleGitIndexLock();
+    if (stale.cleared) {
+      appendServerEventLog(
+        "auto-git",
+        `removed stale index.lock (${Math.round((stale.ageMs ?? 0) / 1000)}s old)`,
+        "warn",
+      );
+      return { ok: true };
+    }
+    if (stale.error) {
+      return {
+        ok: false,
+        detail: `cannot remove stale index.lock: ${stale.error}`,
+      };
+    }
+
+    await sleepMs(GIT_INDEX_LOCK_POLL_MS);
+  }
+
+  if (!gitIndexLockExists()) return { ok: true };
+  return {
+    ok: false,
+    detail:
+      initialAgeMs != null && initialAgeMs >= GIT_INDEX_LOCK_STALE_MS
+        ? `${describeGitIndexLockState()} — stale lock could not be removed`
+        : `${describeGitIndexLockState()} — timed out waiting for lock release`,
+  };
 }
 
 /** @returns {string | null} */
@@ -138,6 +247,16 @@ function isTransientGitLockError(detail) {
   return /index\.lock|locked by another|cannot lock ref|permission denied/i.test(
     detail,
   );
+}
+
+/** git stash 는 index.lock 시 stderr 없이 exit 1 만 반환하는 경우가 있다. */
+function isLikelySilentIndexLockFailure(result) {
+  if (result.ok) return false;
+  if (!gitIndexLockExists()) return false;
+  const detail = [result.stderr, result.stdout, result.message]
+    .filter(Boolean)
+    .join(" ");
+  return !detail || /^Command failed:/i.test(detail);
 }
 
 function isNoLocalChangesToStash(detail) {
@@ -245,6 +364,22 @@ async function gitStashBeforePullWithRetry() {
   let lastErr = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const prep = await prepareGitIndexForWrite();
+    if (!prep.ok) {
+      lastErr = { message: prep.detail, stderr: "", stdout: "" };
+      if (attempt < maxAttempts) {
+        const delayMs = baseDelayMs * 2 ** (attempt - 1);
+        appendServerEventLog(
+          "auto-git",
+          `stash blocked (attempt ${attempt}/${maxAttempts}): ${prep.detail} — retry in ${delayMs / 1000}s`,
+          "warn",
+        );
+        await sleepMs(delayMs);
+        continue;
+      }
+      break;
+    }
+
     const result = execGitTry(["stash", "push", "-m", "auto-git-sync pre-pull"]);
     if (result.ok) {
       if (attempt > 1) {
@@ -266,7 +401,9 @@ async function gitStashBeforePullWithRetry() {
       return { ok: false, detail, blocking: true };
     }
 
-    if (attempt < maxAttempts && isTransientGitLockError(detail)) {
+    const lockFailure =
+      isTransientGitLockError(detail) || isLikelySilentIndexLockFailure(result);
+    if (attempt < maxAttempts && lockFailure) {
       const delayMs = baseDelayMs * 2 ** (attempt - 1);
       appendServerEventLog(
         "auto-git",
