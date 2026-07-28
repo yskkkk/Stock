@@ -16,6 +16,10 @@ import {
   knownFingerprintsForPersona,
   shouldEscalateSatisfaction,
 } from "./virtual-user-satisfaction.js";
+import {
+  buildContinuousNoveltySeeds,
+  noveltyTickKey,
+} from "./virtual-user-novelty.js";
 import { isCursorApiExhaustedError } from "./virtual-user-api-guard.js";
 import {
   isIntentionalDisableText,
@@ -205,6 +209,24 @@ describe("virtual-user-satisfaction", () => {
     ).toBe(false);
   });
 
+  it("allows done fingerprints to revisit after TTL", () => {
+    const now = 1_000_000_000_000;
+    const known = knownFingerprintsForPersona(
+      [
+        {
+          personaId: "p1",
+          area: "rebalance",
+          title: "완료된 이슈",
+          status: "done",
+          implementDoneAtMs: now - 8 * 24 * 60 * 60 * 1000,
+        },
+      ],
+      "p1",
+      { allowDoneRevisitAfterMs: 7 * 24 * 60 * 60 * 1000, nowMs: now },
+    );
+    expect(known.size).toBe(0);
+  });
+
   it("escalates when saturated", () => {
     expect(clampSatisfactionLevel(99)).toBe(5);
     expect(
@@ -369,5 +391,67 @@ describe("virtual-user-order-guard", () => {
       Promise.resolve().then(() => rejectIfVirtualUserLiveOrder()),
     );
     expect(blocked?.blocked).toBe(true);
+  });
+});
+
+describe("virtual-user-novelty", () => {
+  it("still yields seeds when every base title is already known", () => {
+    const pool = [
+      {
+        area: "rebalance",
+        title: "시장 켜짐/꺼짐·통화 구분이 한눈에 안 들어온다",
+        detail: "d",
+        suggestion: "s",
+        severity: "major",
+        minSatisfaction: 1,
+        skills: ["beginner"],
+      },
+    ];
+    const known = new Set([
+      feedbackFingerprint(pool[0].area, pool[0].title),
+    ]);
+    const seeds = buildContinuousNoveltySeeds({
+      pool,
+      known,
+      fingerprint: feedbackFingerprint,
+      maxItems: 3,
+      personaId: "vu-beginner-kr",
+      atMs: Date.now(),
+      angleOffset: 2,
+    });
+    expect(seeds.length).toBeGreaterThanOrEqual(1);
+    expect(
+      seeds.every((s) => !known.has(feedbackFingerprint(s.area, s.title))),
+    ).toBe(true);
+    expect(noveltyTickKey().length).toBeGreaterThan(5);
+  });
+
+  it("continuous pickSeeds never returns empty under saturated known set", () => {
+    const persona = {
+      id: "vu-beginner-kr",
+      name: "t",
+      enabled: true,
+      skill: "beginner",
+      device: "desktop",
+      goals: [],
+      focusAreas: ["rebalance", "account-manage"],
+      traits: "",
+      satisfactionLevel: 5,
+      lastEscalatedAtMs: null,
+      createdAtMs: 1,
+      updatedAtMs: 1,
+    };
+    const base = pickSeedsForPersona(persona, 8, { satisfactionLevel: 5 });
+    const known = new Set(
+      base.map((s) => feedbackFingerprint(s.area, s.title)),
+    );
+    const novelty = pickSeedsForPersona(persona, 4, {
+      satisfactionLevel: 5,
+      known,
+      continuousNovelty: true,
+      noveltyAngleOffset: 4,
+      atMs: Date.now(),
+    });
+    expect(novelty.length).toBeGreaterThanOrEqual(1);
   });
 });

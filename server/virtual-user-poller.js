@@ -67,23 +67,37 @@ export async function tickVirtualUserContinuousOnce() {
 
     running = true;
     try {
+      const personaOffset = Math.max(0, Math.floor(Number(cfg.nextPersonaIndex) || 0));
+      const angleOffset = Math.max(
+        0,
+        Math.floor(Number(cfg.noveltyAngleOffset) || 0),
+      );
       // 연속 모드: 브라우저로 동일 origin(5173) 로드 금지 — Vite 이벤트 루프 기아 방지
       const result = await runVirtualUserSession({
         notifyTelegram: cfg.notifyTelegram === true,
         useBrowser: false,
         continuous: true,
-        maxPerPersona: 4,
+        maxPerPersona: 5,
+        personaOffset,
+        maxPersonasPerTick: 2,
+        noveltyAngleOffset: angleOffset,
       });
+      const created = Number(result.createdCount) || 0;
+      const emptyStreak =
+        created > 0 ? 0 : Math.max(0, Number(cfg.emptyExploreStreak) || 0) + 1;
       patchVirtualUserContinuousSync({
         lastTickAtMs: Date.now(),
         lastSessionId: result.sessionId || null,
         lastError: result.ok ? null : String(result.error || "실패"),
-        lastCreatedCount: Number(result.createdCount) || 0,
+        lastCreatedCount: created,
+        nextPersonaIndex: personaOffset + 2,
+        noveltyAngleOffset: angleOffset + 1 + emptyStreak,
+        emptyExploreStreak: emptyStreak,
       });
       if (result.ok) {
         appendServerEventLog(
           "virtual-user",
-          `explore tick ok created=${result.createdCount ?? 0} (backend-only; agent via 3min idle scan)`,
+          `explore tick ok created=${created} emptyStreak=${emptyStreak} personaOff=${personaOffset} angle=${angleOffset} (novelty; agent via 3min idle scan)`,
         );
       }
       // 탐색 직후 에이전트 전송하지 않음 — 3분 스캔 + 개발 중 아님일 때만
@@ -182,14 +196,16 @@ export function startVirtualUserContinuousPoller() {
     appendServerEventLog("virtual-user", `narrative enrich fail ${msg}`);
   }
 
-  // intervalMs는 에이전트 스캔 주기 표시용. enabled는 boot 헬퍼·디스크 값 존중(재기동마다 강제 ON 금지)
+  // intervalMs는 에이전트 스캔 주기. 연속 탐색은 무한 개선을 위해 기본 ON
   patchVirtualUserContinuousSync({
+    enabled: true,
     intervalMs: IMPLEMENT_SCAN_MS,
+    autoImplement: true,
   });
   const after = getVirtualUserContinuousSync();
   appendServerEventLog(
     "virtual-user",
-    `explore=continuous(backend-only) gap=${EXPLORE_GAP_MS}ms · implementScan=${after.intervalMs}ms enabled=${after.enabled} autoImplement=${after.autoImplement} boot=${boot.reason || "ok"}`,
+    `explore=continuous(novelty) gap=${EXPLORE_GAP_MS}ms · implementScan=${after.intervalMs}ms enabled=${after.enabled} autoImplement=${after.autoImplement} boot=${boot.reason || "ok"}`,
   );
   markPollerBootStarted(POLLER_ID);
 

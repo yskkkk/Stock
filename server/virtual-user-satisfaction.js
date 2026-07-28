@@ -32,15 +32,30 @@ export function feedbackFingerprint(area, title) {
 }
 
 /**
- * @param {Array<{ personaId?: string; area?: string; title?: string; status?: string }>} feedback
+ * @param {Array<{ personaId?: string; area?: string; title?: string; status?: string; implementDoneAtMs?: number|null; createdAtMs?: number }>} feedback
  * @param {string} personaId
+ * @param {{ allowDoneRevisitAfterMs?: number; nowMs?: number }} [opts]
+ *   allowDoneRevisitAfterMs>0 이면 완료된 지문이 일정 시간 후 재탐색 가능
  */
-export function knownFingerprintsForPersona(feedback, personaId) {
+export function knownFingerprintsForPersona(feedback, personaId, opts = {}) {
+  const revisitAfter = Number(opts.allowDoneRevisitAfterMs);
+  const now = Number(opts.nowMs) || Date.now();
   /** @type {Set<string>} */
   const set = new Set();
   for (const f of feedback || []) {
     if (String(f.personaId ?? "") !== personaId) continue;
     if (f.status === "dismissed") continue;
+    if (
+      f.status === "done" &&
+      Number.isFinite(revisitAfter) &&
+      revisitAfter > 0
+    ) {
+      const doneAt =
+        Number(f.implementDoneAtMs) || Number(f.createdAtMs) || 0;
+      if (doneAt > 0 && now - doneAt >= revisitAfter) {
+        continue;
+      }
+    }
     set.add(feedbackFingerprint(String(f.area ?? ""), String(f.title ?? "")));
   }
   return set;

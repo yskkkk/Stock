@@ -29,6 +29,7 @@ import {
   shouldEscalateSatisfaction,
   clampSatisfactionLevel,
 } from "./virtual-user-satisfaction.js";
+import { buildContinuousNoveltySeeds } from "./virtual-user-novelty.js";
 
 /**
  * @typedef {{
@@ -253,6 +254,28 @@ const SCENARIO_SEEDS = [
     skills: ["beginner", "intermediate", "power"],
     minSatisfaction: 5,
   },
+  {
+    area: "account-manage",
+    areaLabel: "계좌관리",
+    severity: "minor",
+    title: "성장주·가치(방어)·현금 성향 비중이 한눈에 안 들어온다",
+    detail:
+      "종목·섹터 차트만 있고 성장/가치 성향이 없으면 포트 리스크 감각을 못 잡는다.",
+    suggestion:
+      "보유 비중 아래에 성장·가치·현금 도넛을 유지하고, 성향 지정 UI와 연결한다.",
+    skills: ["beginner", "intermediate", "power"],
+    minSatisfaction: 2,
+  },
+  {
+    area: "account-manage",
+    areaLabel: "계좌관리",
+    severity: "nit",
+    title: "성향 「자동」과 「지정」의 차이를 사용자가 모른다",
+    detail: "드롭다운에 자동·성장·가치가 있어도 정책 우선순위가 안 보이면 신뢰가 없다.",
+    suggestion: "분류 기준(우선순위) 접기 안내와 툴팁을 유지·보강한다.",
+    skills: ["beginner", "intermediate", "power"],
+    minSatisfaction: 3,
+  },
 ];
 
 /**
@@ -324,7 +347,13 @@ export function buildVirtualFeedbackPrompt(
 /**
  * @param {import("./virtual-user-store.js").VirtualPersona} persona
  * @param {number} [maxItems]
- * @param {{ satisfactionLevel?: number }} [opts]
+ * @param {{
+ *   satisfactionLevel?: number;
+ *   known?: Set<string>;
+ *   continuousNovelty?: boolean;
+ *   noveltyAngleOffset?: number;
+ *   atMs?: number;
+ * }} [opts]
  */
 export function pickSeedsForPersona(persona, maxItems = 4, opts = {}) {
   const sat = clampSatisfactionLevel(
@@ -347,8 +376,26 @@ export function pickSeedsForPersona(persona, maxItems = 4, opts = {}) {
     }
     return true;
   });
-  // 만족도 높을수록 심화 시드 우선 · 모바일 페르소나는 mobile 영역 우선
-  const sorted = [...pool].sort((a, b) => {
+  const list = pool.length
+    ? pool
+    : SCENARIO_SEEDS.filter((s) => (s.minSatisfaction ?? 1) <= 1);
+  const cap = Math.max(1, maxItems + Math.max(0, sat - 1));
+  const maxTake = Math.min(12, cap);
+
+  if (opts.continuousNovelty && opts.known) {
+    return buildContinuousNoveltySeeds({
+      pool: list,
+      known: opts.known,
+      fingerprint: feedbackFingerprint,
+      maxItems: maxTake,
+      personaId: persona.id,
+      atMs: opts.atMs,
+      angleOffset: opts.noveltyAngleOffset ?? 0,
+    });
+  }
+
+  // 비연속: 심화·모바일 우선(기존)
+  const sorted = [...list].sort((a, b) => {
     if (persona.device === "mobile") {
       const am = a.area === "mobile" ? 1 : 0;
       const bm = b.area === "mobile" ? 1 : 0;
@@ -359,11 +406,7 @@ export function pickSeedsForPersona(persona, maxItems = 4, opts = {}) {
     if (db !== da) return db - da;
     return 0;
   });
-  const list = sorted.length
-    ? sorted
-    : SCENARIO_SEEDS.filter((s) => (s.minSatisfaction ?? 1) <= 1);
-  const cap = Math.max(1, maxItems + Math.max(0, sat - 1));
-  return list.slice(0, Math.min(12, cap));
+  return sorted.slice(0, maxTake);
 }
 
 /**
@@ -435,6 +478,9 @@ async function emitFeedback(persona, sessionId, seed, notify, extra = "", known)
  *   notifyTelegram?: boolean;
  *   useBrowser?: boolean;
  *   continuous?: boolean;
+ *   personaOffset?: number;
+ *   maxPersonasPerTick?: number;
+ *   noveltyAngleOffset?: number;
  * }} [opts]
  */
 export async function runVirtualUserSession(opts = {}) {
@@ -444,12 +490,29 @@ export async function runVirtualUserSession(opts = {}) {
   const notify = opts.notifyTelegram !== false;
   const useBrowser = opts.useBrowser !== false;
   const continuous = opts.continuous === true;
+  const noveltyAngleOffset = Math.max(
+    0,
+    Math.floor(Number(opts.noveltyAngleOffset) || 0),
+  );
 
-  const personas = listVirtualPersonasSync().filter((p) => {
+  let personas = listVirtualPersonasSync().filter((p) => {
     if (!p.enabled) return false;
     if (opts.personaId) return p.id === opts.personaId;
     return true;
   });
+
+  if (continuous && !opts.personaId && personas.length > 1) {
+    const maxP = Math.min(
+      personas.length,
+      Math.max(1, Math.floor(Number(opts.maxPersonasPerTick) || 2)),
+    );
+    const offset = Math.max(0, Math.floor(Number(opts.personaOffset) || 0));
+    const rotated = [];
+    for (let i = 0; i < maxP; i++) {
+      rotated.push(personas[(offset + i) % personas.length]);
+    }
+    personas = rotated;
+  }
 
   if (!personas.length) {
     return {
@@ -461,6 +524,8 @@ export async function runVirtualUserSession(opts = {}) {
   }
 
   const allFeedback = listVirtualFeedbackSync();
+  /** 완료 피드백은 7일 후 재검증 허용 — 무한 개선 루프 */
+  const DONE_REVISIT_MS = 7 * 24 * 60 * 60 * 1000;
 
   /** @type {string[]} */
   const feedbackIds = [];
@@ -472,7 +537,10 @@ export async function runVirtualUserSession(opts = {}) {
   const escalations = [];
 
   for (let persona of personas) {
-    const known = knownFingerprintsForPersona(allFeedback, persona.id);
+    const known = knownFingerprintsForPersona(allFeedback, persona.id, {
+      allowDoneRevisitAfterMs: continuous ? DONE_REVISIT_MS : 0,
+      nowMs: startedAtMs,
+    });
     let emitted = 0;
     let skippedDup = 0;
     let candidateCount = 0;
@@ -552,6 +620,10 @@ export async function runVirtualUserSession(opts = {}) {
 
       const seeds = pickSeedsForPersona(persona, maxPer, {
         satisfactionLevel: sat,
+        known,
+        continuousNovelty: continuous,
+        noveltyAngleOffset,
+        atMs: startedAtMs,
       });
       for (const seed of seeds) {
         candidateCount += 1;
@@ -561,7 +633,7 @@ export async function runVirtualUserSession(opts = {}) {
           seed,
           notify,
           continuous
-            ? `연속 탐색 모드 · 만족도 ${sat}(${satisfactionLabelKo(sat)})`
+            ? `연속 탐색 모드 · 만족도 ${sat}(${satisfactionLabelKo(sat)}) · 무한 개선`
             : "",
           known,
         );
@@ -595,6 +667,10 @@ export async function runVirtualUserSession(opts = {}) {
           // 상승 직후 한 번 더 심화 시드 시도
           const more = pickSeedsForPersona(persona, Math.max(2, Math.ceil(maxPer / 2)), {
             satisfactionLevel: bump.persona.satisfactionLevel,
+            known,
+            continuousNovelty: continuous,
+            noveltyAngleOffset: noveltyAngleOffset + 1,
+            atMs: startedAtMs,
           });
           for (const seed of more) {
             candidateCount += 1;
@@ -612,6 +688,34 @@ export async function runVirtualUserSession(opts = {}) {
               feedbackIds.push(result.item.id);
               emitted += 1;
             }
+          }
+        }
+      }
+
+      // 연속 모드: 여전히 0건이면 각도+1 노벨티로 한 번 더 강제 발굴
+      if (continuous && emitted === 0) {
+        const forced = pickSeedsForPersona(persona, Math.max(2, maxPer), {
+          satisfactionLevel: Math.max(sat, 3),
+          known,
+          continuousNovelty: true,
+          noveltyAngleOffset: noveltyAngleOffset + emitted + 3,
+          atMs: startedAtMs + 1,
+        });
+        for (const seed of forced) {
+          candidateCount += 1;
+          const result = await emitFeedback(
+            persona,
+            sessionId,
+            seed,
+            notify,
+            "연속 탐색 포화 돌파 · 강제 재검증",
+            known,
+          );
+          if (result.skipped) skippedDup += 1;
+          else if (result.item) {
+            created.push(result.item);
+            feedbackIds.push(result.item.id);
+            emitted += 1;
           }
         }
       }

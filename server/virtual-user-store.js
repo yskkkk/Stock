@@ -55,6 +55,9 @@ const MAX_DETAIL_LEN = 4_000;
  *   lastSessionId: string | null;
  *   lastError: string | null;
  *   lastCreatedCount: number;
+ *   nextPersonaIndex: number;
+ *   noveltyAngleOffset: number;
+ *   emptyExploreStreak: number;
  * }} VirtualUserContinuous
  */
 
@@ -127,6 +130,9 @@ export function defaultContinuousConfig() {
     lastSessionId: null,
     lastError: null,
     lastCreatedCount: 0,
+    nextPersonaIndex: 0,
+    noveltyAngleOffset: 0,
+    emptyExploreStreak: 0,
   };
 }
 
@@ -170,6 +176,12 @@ function normalizeContinuous(raw) {
         ? null
         : String(o.lastError).slice(0, 500),
     lastCreatedCount: Math.max(0, Number(o.lastCreatedCount) || 0),
+    nextPersonaIndex: Math.max(0, Math.floor(Number(o.nextPersonaIndex) || 0)),
+    noveltyAngleOffset: Math.max(
+      0,
+      Math.floor(Number(o.noveltyAngleOffset) || 0),
+    ),
+    emptyExploreStreak: Math.max(0, Math.floor(Number(o.emptyExploreStreak) || 0)),
   };
 }
 

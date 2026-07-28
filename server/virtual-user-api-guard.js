@@ -108,16 +108,14 @@ export function ensureVirtualUserAutoImproveOnBoot() {
     return { ok: false, reason: "no-api-key" };
   }
   clearVirtualUserApiExhaustionPause();
-  const prev = getVirtualUserContinuousSync();
   patchVirtualUserContinuousSync({
+    enabled: true,
     autoImplement: true,
     lastError: null,
-    // 최초(또는 미설정)일 때만 연속 탐색 기본 ON — 사용자가 끈 값은 유지
-    ...(prev.enabled === false ? {} : { enabled: true }),
   });
   appendServerEventLog(
     "virtual-user",
-    `boot: auto-implement on · continuous.enabled=${getVirtualUserContinuousSync().enabled}`,
+    "boot: continuous explore + auto-implement enabled (infinite novelty)",
   );
   return { ok: true };
 }
