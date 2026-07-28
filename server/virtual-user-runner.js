@@ -406,7 +406,11 @@ async function emitFeedback(persona, sessionId, seed, notify, extra = "", known)
     sessionId,
     extra,
   );
-  const patched = patchVirtualFeedbackSync(res.item.id, { prompt });
+  const patched = patchVirtualFeedbackSync(res.item.id, {
+    prompt,
+    improvementSummary:
+      "개발 대기열에 쌓임(FIFO). 앞선 건이 끝나면 에이전트로 전송됩니다. 탐색은 개발 중에도 계속됩니다.",
+  });
   const item = patched.ok && patched.item ? patched.item : { ...res.item, prompt };
 
   if (notify) {
@@ -421,7 +425,7 @@ async function emitFeedback(persona, sessionId, seed, notify, extra = "", known)
     }
   }
 
-  // 직렬 실행: 세션 종료·완료 콜백에서 dispatchNext가 1건만 집어 바로 실행
+  // 피드백은 여기까지 저장·적재. 에이전트 전송은 dispatchNext가 FIFO 1건만 담당.
   return { skipped: false, item };
 }
 

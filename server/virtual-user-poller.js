@@ -50,17 +50,13 @@ export async function tickVirtualUserContinuousOnce() {
   if (running) return { ok: false, reason: "busy" };
   return pollerGuardAsync(POLLER_ID, async () => {
     const cfg = getVirtualUserContinuousSync();
-    if (cfg.pausedByApiExhaustion) {
-      return { ok: false, reason: "api-exhausted", error: cfg.pausedReason };
-    }
     if (!cfg.enabled) return { ok: false, reason: "disabled" };
 
-    // 자동 구현이 켜져 있는데 키가 없으면 전체 루프 정지
+    // 탐색은 API 키와 무관하게 피드백을 계속 쌓는다. 키 없을 때만 구현 쪽을 멈춘다.
     if (cfg.autoImplement !== false && !hasCursorApiKey()) {
       pauseVirtualUserForApiExhaustion(
-        "CURSOR_API_KEY 없음 — 가상 사용자 자동 개선을 정지했습니다.",
+        "CURSOR_API_KEY 없음 — 에이전트 구현만 정지(피드백 탐색은 계속).",
       );
-      return { ok: false, reason: "no-api-key" };
     }
 
     running = true;
@@ -80,14 +76,16 @@ export async function tickVirtualUserContinuousOnce() {
       if (result.ok) {
         appendServerEventLog(
           "virtual-user",
-          `continuous tick ok created=${result.createdCount ?? 0} escalations=${result.escalations?.length ?? 0}`,
+          `continuous tick ok created=${result.createdCount ?? 0} (feedback stacks; agent serial FIFO)`,
         );
       }
-      // 세션 안에서도 dispatch 하지만, 안전망으로 한 번 더
-      try {
-        await dispatchNextVirtualUserImplement();
-      } catch {
-        /* optional */
+      // 에이전트 슬롯이 비면 대기열(new)에서 가장 오래된 1건만 전송
+      if (!getVirtualUserContinuousSync().pausedByApiExhaustion) {
+        try {
+          await dispatchNextVirtualUserImplement();
+        } catch {
+          /* optional */
+        }
       }
       return result;
     } catch (e) {

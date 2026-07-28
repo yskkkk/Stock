@@ -2930,8 +2930,10 @@ export function fetchVirtualUsers(
     };
     narrative?: {
       discomfortCount: number;
-      improvedCount: number;
+      waitingCount?: number;
+      runningCount?: number;
       queuedCount: number;
+      improvedCount: number;
       total: number;
     };
     satisfactionLabels?: Record<string, string>;

@@ -71,8 +71,10 @@ export default function VirtualUsersAdminPanel({
   const [satLabels, setSatLabels] = useState<Record<string, string>>({});
   const [narrative, setNarrative] = useState<{
     discomfortCount: number;
-    improvedCount: number;
+    waitingCount?: number;
+    runningCount?: number;
     queuedCount: number;
+    improvedCount: number;
     total: number;
   } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -499,10 +501,19 @@ export default function VirtualUsersAdminPanel({
             )}
           </span>
           <span className="vu-admin__stat vu-admin__stat--queued">
+            {(ko.access.vuNarrativeWaiting ?? "개발 대기 {n}").replace(
+              "{n}",
+              String(
+                narrative?.waitingCount ??
+                  feedback.filter((f) => f.status === "new").length,
+              ),
+            )}
+          </span>
+          <span className="vu-admin__stat vu-admin__stat--queued">
             {ko.access.vuNarrativeQueued.replace(
               "{n}",
               String(
-                narrative?.queuedCount ??
+                narrative?.runningCount ??
                   feedback.filter((f) => f.status === "queued").length,
               ),
             )}

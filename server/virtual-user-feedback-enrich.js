@@ -183,9 +183,17 @@ export function enrichVirtualFeedbackNarrativesSync() {
 
     if (item.status === "queued") {
       const hasImp = String(item.improvementSummary ?? "").trim();
+      if (!hasImp || hasImp.startsWith("구현 대기") || hasImp.startsWith("개발 대기")) {
+        patch.improvementSummary =
+          "에이전트 실행 중 — 완료되면 대기열의 다음 피드백을 전송합니다.";
+      }
+    }
+
+    if (item.status === "new") {
+      const hasImp = String(item.improvementSummary ?? "").trim();
       if (!hasImp) {
         patch.improvementSummary =
-          "구현 대기 중 — 아래 프롬프트로 에이전트 큐에 등록됨.";
+          "개발 대기열에 쌓임(FIFO). 앞선 건이 끝나면 에이전트로 전송됩니다.";
       }
     }
 

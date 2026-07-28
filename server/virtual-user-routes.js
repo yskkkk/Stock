@@ -47,14 +47,16 @@ export function registerVirtualUserRoutes(app, asyncRoute) {
       const discomfortCount = store.feedback.filter((f) =>
         String(f.discomfort || f.detail || f.title || "").trim(),
       ).length;
+      const waitingCount = store.feedback.filter((f) => f.status === "new").length;
+      const runningCount = store.feedback.filter(
+        (f) => f.status === "queued",
+      ).length;
       const improvedCount = store.feedback.filter(
         (f) =>
           f.status === "done" &&
           String(f.improvementSummary || "").trim() &&
-          !String(f.improvementSummary).startsWith("구현 대기"),
-      ).length;
-      const queuedCount = store.feedback.filter(
-        (f) => f.status === "queued",
+          !String(f.improvementSummary).startsWith("구현 대기") &&
+          !String(f.improvementSummary).startsWith("개발 대기"),
       ).length;
       res.json({
         ok: true,
@@ -70,8 +72,10 @@ export function registerVirtualUserRoutes(app, asyncRoute) {
         },
         narrative: {
           discomfortCount,
+          waitingCount,
+          runningCount,
+          queuedCount: waitingCount,
           improvedCount,
-          queuedCount,
           total: store.feedback.length,
         },
         satisfactionLabels: {

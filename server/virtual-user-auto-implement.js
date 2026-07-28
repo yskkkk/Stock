@@ -1,7 +1,7 @@
 /**
  * 가상 사용자 피드백 → 에이전트 직렬 실행
- * - 한 번에 하나만 record-mode에 넣고 바로 실행
- * - 완료되면 다음 new 피드백을 이어서 보냄
+ * - 피드백은 탐색 중·개발 중에도 계속 쌓임(status=new 대기열)
+ * - 에이전트 전송만 FIFO 1건씩: 앞 건 완료 후 다음 new를 보냄
  */
 import { appendRecordModePendingJob, readRecordModeQueueSync } from "./ops-record-mode-store.js";
 import {
