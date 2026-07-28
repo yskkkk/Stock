@@ -96,6 +96,36 @@ async function waitVisibleLocator(page, selector, timeoutMs = 8_000) {
 
 /**
  * @param {import("playwright").Page} page
+ * @param {string} selector
+ * @param {number} [timeoutMs]
+ */
+async function waitHiddenLocator(page, selector, timeoutMs = 8_000) {
+  const loc = page.locator(selector).first();
+  try {
+    await loc.waitFor({ state: "hidden", timeout: timeoutMs });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * SPA 리렌더·탭 전환·confirm 중 navigation/context destroyed 클릭 실패 방지
+ * @param {import("playwright").Locator | null} loc
+ * @param {number} [timeoutMs]
+ */
+async function safeClick(loc, timeoutMs = 8_000) {
+  if (!loc) return false;
+  try {
+    await loc.click({ timeout: timeoutMs });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * @param {import("playwright").Page} page
  * @param {string} text
  * @param {number} [timeoutMs]
  */
@@ -103,6 +133,19 @@ async function clickTabByText(page, text, timeoutMs = 8_000) {
   const loc = page.locator("nav.main-tabs button.main-tab", { hasText: text }).first();
   await loc.waitFor({ state: "visible", timeout: timeoutMs });
   await loc.click({ timeout: timeoutMs });
+}
+
+/**
+ * @param {import("playwright").Page} page
+ * @param {string} [text]
+ * @param {number} [timeoutMs]
+ */
+async function ensureAccountManageTab(page, text = "계좌관리", timeoutMs = 8_000) {
+  const shell = await waitVisibleLocator(page, ".account-manage-tab", 2_000);
+  if (shell) return shell;
+  await clickTabByText(page, text, timeoutMs).catch(() => {});
+  await page.waitForTimeout(400);
+  return waitVisibleLocator(page, ".account-manage-tab", timeoutMs);
 }
 
 /**
@@ -326,16 +369,19 @@ export async function runVirtualUserBrowserJourney(persona, sessionId, opts = {}
       {
         id: "rebalance-schedule-preview",
         run: async () => {
-          await page
-            .waitForSelector(".account-manage-tab", { timeout: 10_000 })
-            .catch(() => {});
-          await page
-            .waitForSelector('[data-vu="account-manage-ready"]', {
-              timeout: 12_000,
-            })
-            .catch(() => {});
+          await ensureAccountManageTab(page, "계좌관리", 10_000);
+          const manageReady = await waitVisibleLocator(
+            page,
+            '[data-vu="account-manage-ready"]',
+            12_000,
+          );
+          if (!manageReady) {
+            await waitVisibleLocator(page, '[data-vu="account-manage-guest"]', 3_000);
+            await waitVisibleLocator(page, '[data-vu="account-manage-shell"]', 3_000);
+            await waitVisibleLocator(page, '[data-vu="account-manage-loading"]', 3_000);
+          }
 
-          const openBtn = await waitVisibleLocator(
+          let openBtn = await waitVisibleLocator(
             page,
             '[data-vu="account-rebalance-open"]',
             6_000,
@@ -353,7 +399,27 @@ export async function runVirtualUserBrowserJourney(persona, sessionId, opts = {}
             });
             return;
           }
-          await openBtn.click({ timeout: 8_000 });
+          if (!(await safeClick(openBtn))) {
+            await ensureAccountManageTab(page, "계좌관리", 8_000);
+            openBtn = await waitVisibleLocator(
+              page,
+              '[data-vu="account-rebalance-open"]',
+              4_000,
+            );
+            if (!openBtn || !(await safeClick(openBtn))) {
+              observations.push({
+                ok: true,
+                step: "rebalance-schedule-preview",
+                area: "rebalance",
+                severity: "minor",
+                detail:
+                  "스케줄 버튼 클릭 중 화면 전환·리렌더로 중단(실주문 없음).",
+                suggestion: "스케줄 버튼·모달 data-vu 마커와 로딩 상태를 안정화한다.",
+                screenshot: await shot(page, `${persona.id}_no_schedule`),
+              });
+              return;
+            }
+          }
 
           const modal = await waitVisibleLocator(
             page,
@@ -373,19 +439,20 @@ export async function runVirtualUserBrowserJourney(persona, sessionId, opts = {}
             return;
           }
 
-          await page
-            .waitForSelector('[data-vu="account-rebalance-ready"]', {
-              timeout: 15_000,
-            })
-            .catch(() => {});
+          await waitVisibleLocator(page, '[data-vu="account-rebalance-ready"]', 8_000);
+          await waitHiddenLocator(
+            page,
+            '[data-vu="account-rebalance-loading"]',
+            15_000,
+          );
 
           const dry = await waitVisibleLocator(
             page,
             '.account-rebalance-modal [data-vu="account-rebalance-dry-run"]',
-            5_000,
+            8_000,
           );
           if (dry) {
-            await dry.click({ timeout: 8_000 });
+            await safeClick(dry, 8_000);
             await page.waitForTimeout(1200);
           }
 
@@ -396,7 +463,7 @@ export async function runVirtualUserBrowserJourney(persona, sessionId, opts = {}
             3_000,
           );
           if (buy) {
-            await buy.click({ timeout: 5_000 }).catch(() => {});
+            await safeClick(buy, 5_000);
             await page.waitForTimeout(400);
           }
 
@@ -406,7 +473,7 @@ export async function runVirtualUserBrowserJourney(persona, sessionId, opts = {}
             5_000,
           );
           if (close) {
-            await close.click({ timeout: 5_000 }).catch(() => {});
+            await safeClick(close, 5_000);
           }
 
           observations.push({

@@ -282,17 +282,18 @@ export default function AccountRebalanceScheduleModal({
           </button>
         </header>
 
-        {loading ? (
-          <p
-            className="account-rebalance-modal__hint"
-            data-vu="account-rebalance-loading"
-            role="status"
-            aria-live="polite"
-          >
-            {ko.app.accountManageRebalanceLoading}
-          </p>
-        ) : (
-          <div data-vu="account-rebalance-ready">
+        <div data-vu="account-rebalance-ready">
+          {loading ? (
+            <p
+              className="account-rebalance-modal__hint"
+              data-vu="account-rebalance-loading"
+              role="status"
+              aria-live="polite"
+            >
+              {ko.app.accountManageRebalanceLoading}
+            </p>
+          ) : (
+            <>
             <label className="account-rebalance-modal__enable">
               <input
                 type="checkbox"
@@ -598,8 +599,9 @@ export default function AccountRebalanceScheduleModal({
             <p className="account-rebalance-modal__hint">
               {ko.app.accountManageRebalanceNowHoursHint}
             </p>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
