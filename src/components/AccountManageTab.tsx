@@ -1483,7 +1483,7 @@ export default function AccountManageTab({
                     </span>
                   </div>
                   <div className="account-manage-tab__bubble-row">
-                    <span>??</span>
+                    <span>{ko.app.accountManageColWeight}</span>
                     <span>{formatAllocPct(hoverSeg.pct)}</span>
                   </div>
                   {hoverSlice.key !== "__cash__" ? (
@@ -1778,7 +1778,7 @@ export default function AccountManageTab({
           </div>
 
           <details className="account-manage-tab__raw card">
-            <summary>?? ??(?????)</summary>
+            <summary>{ko.app.accountManageRawSummary}</summary>
             {provider === "toss" && activeToss ? (
               <TossAccountSnapshotCard
                 snapshot={activeToss}
