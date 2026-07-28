@@ -2905,7 +2905,10 @@ function virtualUserHeaders(adminToken?: string): Record<string, string> {
   return headers;
 }
 
-export function fetchVirtualUsers(adminToken?: string) {
+export function fetchVirtualUsers(
+  adminToken?: string,
+  signal?: AbortSignal,
+) {
   return fetchJson<{
     ok: boolean;
     personas: VirtualPersona[];
@@ -2934,6 +2937,7 @@ export function fetchVirtualUsers(adminToken?: string) {
     satisfactionLabels?: Record<string, string>;
   }>("/api/virtual-users", {
     headers: virtualUserHeaders(adminToken),
+    signal,
   });
 }
 

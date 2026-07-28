@@ -21,15 +21,23 @@ export function registerCodeVersionRoutes(app, asyncRoute) {
     "/api/code-versions",
     requireAccessAdmin,
     asyncRoute(async (_req, res) => {
-      migrateBaselineToPreVirtualUserSync();
-      ensureBaselineCodeVersionSync();
+      // 읽기 우선 — git migrate는 목록을 막지 않음
       const store = readCodeVersionStoreSync();
+      if (!store.baselineId || store.versions.length === 0) {
+        try {
+          migrateBaselineToPreVirtualUserSync();
+          ensureBaselineCodeVersionSync();
+        } catch {
+          /* optional */
+        }
+      }
+      const next = readCodeVersionStoreSync();
       const wt = getCodeWorktreeState();
       res.json({
         ok: true,
-        baselineId: store.baselineId,
-        lockedBaselineSha: store.lockedBaselineSha,
-        versions: store.versions,
+        baselineId: next.baselineId,
+        lockedBaselineSha: next.lockedBaselineSha,
+        versions: next.versions,
         headShort: getCodeHeadShort(),
         branch: getCodeBranch(),
         dirty: wt.dirty,

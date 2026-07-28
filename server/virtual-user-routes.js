@@ -23,14 +23,12 @@ import {
   tickVirtualUserContinuousOnce,
 } from "./virtual-user-poller.js";
 import { satisfactionLabelKo } from "./virtual-user-satisfaction.js";
-import { enrichVirtualFeedbackNarrativesSync } from "./virtual-user-feedback-enrich.js";
 import { ensureDefaultPersonasPresentSync } from "./virtual-user-store.js";
 import {
-  ensureBaselineCodeVersionSync,
   listCodeVersionsSync,
-  migrateBaselineToPreVirtualUserSync,
   readCodeVersionStoreSync,
 } from "./code-version-store.js";
+import { scheduleVirtualUserAdminHydration } from "./virtual-user-admin-hydrate.js";
 
 /**
  * @param {(handler: (req: any, res: any) => Promise<void>) => import("express").RequestHandler} asyncRoute
@@ -41,14 +39,9 @@ export function registerVirtualUserRoutes(app, asyncRoute) {
     "/api/virtual-users",
     requireAccessAdmin,
     asyncRoute(async (_req, res) => {
+      // 목록은 빠르게 읽기만 — enrich/git는 백그라운드 (기존 피드백 유지)
       ensureDefaultPersonasPresentSync();
-      enrichVirtualFeedbackNarrativesSync();
-      try {
-        migrateBaselineToPreVirtualUserSync();
-        ensureBaselineCodeVersionSync();
-      } catch {
-        /* baseline optional for list */
-      }
+      scheduleVirtualUserAdminHydration();
       const store = readVirtualUserStoreSync();
       const codeStore = readCodeVersionStoreSync();
       const discomfortCount = store.feedback.filter((f) =>

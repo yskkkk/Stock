@@ -6,8 +6,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { listCodeVersionsSync } from "./code-version-store.js";
 import {
-  patchVirtualFeedbackSync,
   readVirtualUserStoreSync,
+  writeVirtualUserStoreSync,
 } from "./virtual-user-store.js";
 
 /**
@@ -111,7 +111,8 @@ function findActivityMessageForJob(jobId) {
 }
 
 /**
- * 기존·신규 피드백에 불편함/개선/버전/프롬프트를 채운다.
+ * 기존·신규 피드백에 불편함/개선·버전/프롬프트를 채운다.
+ * 항목마다 파일 쓰지 않고 한 번에 저장한다.
  * @returns {{ ok: true; updated: number; total: number }}
  */
 export function enrichVirtualFeedbackNarrativesSync() {
@@ -119,6 +120,8 @@ export function enrichVirtualFeedbackNarrativesSync() {
   const versions = listCodeVersionsSync();
   const personasById = new Map(store.personas.map((p) => [p.id, p]));
   let updated = 0;
+  /** @type {typeof store.feedback} */
+  const nextFeedback = [];
 
   for (const item of store.feedback) {
     /** @type {Record<string, unknown>} */
@@ -153,23 +156,19 @@ export function enrichVirtualFeedbackNarrativesSync() {
       String(item.prompt).trim() === "(생성 중)";
     if (promptEmpty) {
       const persona = personasById.get(item.personaId);
-      patch.prompt = rebuildPromptFallback(item, persona, discomfort);
+      patch.prompt = rebuildPromptFallback(
+        item,
+        persona,
+        String(patch.discomfort ?? discomfort),
+      );
     }
 
     if (item.status === "done") {
       const hasImp = String(item.improvementSummary ?? "").trim();
       if (!hasImp) {
-        const fromLog = item.implementJobId
-          ? findActivityMessageForJob(item.implementJobId)
-          : null;
+        // 목록 API를 막지 않도록 활동 로그 전체 스캔은 생략 (이미 implementResult 있으면 사용)
         const fromResult = String(item.implementResult ?? "").trim();
-        patch.improvementSummary = buildImprovementSummary(
-          fromResult || fromLog || "",
-          item,
-        );
-        if (fromLog && !fromResult) {
-          patch.implementResult = String(fromLog).slice(0, 4_000);
-        }
+        patch.improvementSummary = buildImprovementSummary(fromResult, item);
       }
       if (item.implementDoneAtMs == null && item.implementQueuedAtMs != null) {
         const post = versions.find(
@@ -190,9 +189,17 @@ export function enrichVirtualFeedbackNarrativesSync() {
       }
     }
 
-    if (Object.keys(patch).length === 0) continue;
-    const res = patchVirtualFeedbackSync(item.id, patch);
-    if (res.ok) updated += 1;
+    if (Object.keys(patch).length === 0) {
+      nextFeedback.push(item);
+      continue;
+    }
+    nextFeedback.push({ ...item, ...patch });
+    updated += 1;
+  }
+
+  if (updated > 0) {
+    store.feedback = nextFeedback;
+    writeVirtualUserStoreSync(store);
   }
 
   return { ok: true, updated, total: store.feedback.length };

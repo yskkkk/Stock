@@ -86,11 +86,11 @@ export default function VirtualUsersAdminPanel({
   const reload = useCallback(async () => {
     setBusy(true);
     setErr(null);
+    const ac = new AbortController();
+    const timer = window.setTimeout(() => ac.abort(), 20_000);
     try {
-      const [res, ver] = await Promise.all([
-        fetchVirtualUsers(adminToken),
-        fetchCodeVersions(adminToken).catch(() => null),
-      ]);
+      // 코드 버전(git)과 Promise.all 하지 않음 — git lock 시 목록이 영원히 로딩됨
+      const res = await fetchVirtualUsers(adminToken, ac.signal);
       setPersonas(res.personas ?? []);
       setFeedback(res.feedback ?? []);
       setContinuous(res.continuous ?? null);
@@ -98,19 +98,29 @@ export default function VirtualUsersAdminPanel({
       setSatLabels(res.satisfactionLabels ?? {});
       setNarrative(res.narrative ?? null);
       const fromVu = res.codeVersions;
-      if (ver?.ok && (ver.versions?.length ?? 0) > 0) {
-        setVersions(ver.versions ?? []);
-        setBaselineId(ver.baselineId ?? null);
-      } else if (fromVu?.versions?.length) {
+      if (fromVu?.versions?.length) {
         setVersions(fromVu.versions);
         setBaselineId(fromVu.baselineId ?? null);
-      } else if (ver?.ok) {
-        setVersions(ver.versions ?? []);
-        setBaselineId(ver.baselineId ?? null);
       }
+      // 버전 상세는 백그라운드 (실패해도 피드백 목록 유지)
+      void fetchCodeVersions(adminToken)
+        .then((ver) => {
+          if (ver?.ok && (ver.versions?.length ?? 0) > 0) {
+            setVersions(ver.versions ?? []);
+            setBaselineId(ver.baselineId ?? null);
+          }
+        })
+        .catch(() => {});
     } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
+      const msg =
+        e instanceof Error && e.name === "AbortError"
+          ? "불러오기 시간 초과 — 다시 새로고침 해 주세요."
+          : e instanceof Error
+            ? e.message
+            : String(e);
+      setErr(msg);
     } finally {
+      window.clearTimeout(timer);
       setBusy(false);
     }
   }, [adminToken]);
@@ -549,7 +559,7 @@ export default function VirtualUsersAdminPanel({
             {msg}
           </p>
         ) : null}
-        {busy && feedback.length === 0 ? (
+        {busy && feedback.length === 0 && !err ? (
           <p className="access-admin-muted">{ko.access.vuLoading}</p>
         ) : visible.length === 0 ? (
           <p className="access-admin-muted">{ko.access.vuFeedbackEmpty}</p>
