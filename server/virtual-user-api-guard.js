@@ -93,8 +93,9 @@ export function clearVirtualUserApiExhaustionPause() {
 }
 
 /**
- * 서버 기동 시: API 키 있으면 연속 탐색+자동 구현을 기본 ON
- * (소진 정지 상태였어도 키가 있으면 재개)
+ * 서버 기동 시: API 키 있으면 자동 구현 ON.
+ * 연속 탐색 enabled는 디스크 값을 존중(관리자가 끈 상태를 재기동으로 덮지 않음).
+ * 키가 있고 소진 정지였으면 정지만 해제.
  */
 export function ensureVirtualUserAutoImproveOnBoot() {
   if (process.env.STOCK_VIRTUAL_USER_CONTINUOUS === "0") {
@@ -107,14 +108,16 @@ export function ensureVirtualUserAutoImproveOnBoot() {
     return { ok: false, reason: "no-api-key" };
   }
   clearVirtualUserApiExhaustionPause();
+  const prev = getVirtualUserContinuousSync();
   patchVirtualUserContinuousSync({
-    enabled: true,
     autoImplement: true,
     lastError: null,
+    // 최초(또는 미설정)일 때만 연속 탐색 기본 ON — 사용자가 끈 값은 유지
+    ...(prev.enabled === false ? {} : { enabled: true }),
   });
   appendServerEventLog(
     "virtual-user",
-    "boot: continuous explore + auto-implement enabled",
+    `boot: auto-implement on · continuous.enabled=${getVirtualUserContinuousSync().enabled}`,
   );
   return { ok: true };
 }

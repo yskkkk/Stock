@@ -1707,14 +1707,14 @@ export const ko = {
     liveTradeServerRunningEmpty: "서버에 가동 중인 프로그램이 없습니다.",
     liveTradeServerRunningView: "보기",
     vuIntro:
-      "탐색은 쉬지 않고 피드백을 계속 쌓습니다. 에이전트 전송만 3분마다 스캔하며, 서버가 개발 중이면 보내지 않습니다(코드 충돌 방지).",
+      "탐색은 쉬지 않고 피드백을 계속 쌓습니다(연속 모드는 백엔드 점검만 — 같은 탭에 브라우저 부하를 걸지 않음). 에이전트 전송만 3분마다 스캔하며, 서버가 개발 중이면 보내지 않습니다.",
     vuPersonas: "페르소나",
     vuContinuous: "연속 탐색",
     vuContinuousOn: "연속 탐색 켜짐",
     vuContinuousOff: "연속 탐색 꺼짐",
     vuContinuousBusy: "탐색 실행 중…",
     vuContinuousHint:
-      "탐색은 세션이 끝나는 대로 바로 이어집니다(3분 텀 없음). 에이전트에는 3분마다, 다른 개발이 없을 때만 맨 앞 피드백 1건을 보냅니다.",
+      "탐색은 백엔드 프로브로 계속 쌓입니다(같은 웹 서버에 브라우저를 걸지 않아 화면이 안 멈추게). 에이전트에는 3분마다, 다른 개발이 없을 때만 맨 앞 1건을 보냅니다. UI 브라우저 점검은 「가상 사용자 실행」에서.",
     vuContinuousLast: "최근 실행",
     vuContinuousCreated: "이번 {n}건",
     vuContinuousPausedApi:

@@ -1,6 +1,7 @@
 /**
  * 가상 사용자 연속 탐색 폴러
- * - 탐색: 세션 끝나자마자 바로 다음(3분 텀 없음) — 피드백은 대기 없이 계속 쌓임
+ * - 탐색: 세션 끝나면 짧게 쉬고 바로 다음 — 피드백은 대기 없이 계속 쌓임
+ * - 연속 탐색에서는 Playwright로 같은 Vite(5173)를 열지 않음(자기 부하시 웹 로딩 불가)
  * - 에이전트 전송: 3분마다 스캔, 서버가 개발 중(에이전트 실행 중)이 아닐 때만 1건 FIFO
  * - 에이전트 1건 제한 이유: ops 큐·워킹트리 동시 수정 충돌 방지
  */
@@ -24,8 +25,8 @@ import { isOpsAgentJobRunning } from "./ops-agent-job-queue.js";
 const POLLER_ID = "virtual-user-continuous";
 /** 에이전트 전송 스캔 주기 */
 const IMPLEMENT_SCAN_MS = 3 * 60_000;
-/** 탐색 세션 사이 최소 간격(거의 연속, 숨 돌릴 틈만) */
-const EXPLORE_GAP_MS = 2_000;
+/** 백엔드 전용 연속 탐색 세션 간격 */
+const EXPLORE_GAP_MS = 5_000;
 
 let started = false;
 let running = false;
@@ -66,9 +67,10 @@ export async function tickVirtualUserContinuousOnce() {
 
     running = true;
     try {
+      // 연속 모드: 브라우저로 동일 origin(5173) 로드 금지 — Vite 이벤트 루프 기아 방지
       const result = await runVirtualUserSession({
         notifyTelegram: cfg.notifyTelegram === true,
-        useBrowser: cfg.useBrowser !== false,
+        useBrowser: false,
         continuous: true,
         maxPerPersona: 4,
       });
@@ -81,7 +83,7 @@ export async function tickVirtualUserContinuousOnce() {
       if (result.ok) {
         appendServerEventLog(
           "virtual-user",
-          `explore tick ok created=${result.createdCount ?? 0} (stack only; agent via 3min idle scan)`,
+          `explore tick ok created=${result.createdCount ?? 0} (backend-only; agent via 3min idle scan)`,
         );
       }
       // 탐색 직후 에이전트 전송하지 않음 — 3분 스캔 + 개발 중 아님일 때만
@@ -180,16 +182,14 @@ export function startVirtualUserContinuousPoller() {
     appendServerEventLog("virtual-user", `narrative enrich fail ${msg}`);
   }
 
-  // intervalMs는 에이전트 스캔 주기 표시용으로 3분 고정
+  // intervalMs는 에이전트 스캔 주기 표시용. enabled는 boot 헬퍼·디스크 값 존중(재기동마다 강제 ON 금지)
   patchVirtualUserContinuousSync({
-    enabled: true,
     intervalMs: IMPLEMENT_SCAN_MS,
-    autoImplement: true,
   });
   const after = getVirtualUserContinuousSync();
   appendServerEventLog(
     "virtual-user",
-    `explore=continuous gap=${EXPLORE_GAP_MS}ms · implementScan=${after.intervalMs}ms enabled=${after.enabled} autoImplement=${after.autoImplement} boot=${boot.reason || "ok"}`,
+    `explore=continuous(backend-only) gap=${EXPLORE_GAP_MS}ms · implementScan=${after.intervalMs}ms enabled=${after.enabled} autoImplement=${after.autoImplement} boot=${boot.reason || "ok"}`,
   );
   markPollerBootStarted(POLLER_ID);
 
