@@ -31,7 +31,8 @@
 
   .filter-bar .chip,
   .filter-bar .filter-presets .btn {
-    min-height: 36px;
+    min-height: 44px;
+    touch-action: manipulation;
   }
 
   .live-portfolio__summary-hero .live-portfolio__metric,

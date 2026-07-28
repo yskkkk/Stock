@@ -5256,7 +5256,7 @@ html[data-theme="light"] .access-admin-ui-feature-badge--off {
 
   html[data-theme="light"] .app-theme-corner .light-palette-picker.light-palette-picker--corner {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1.75rem));
+    grid-template-columns: repeat(3, 44px);
     grid-auto-rows: auto;
     gap: 0.36rem 0.42rem;
     width: max-content;
@@ -5267,9 +5267,10 @@ html[data-theme="light"] .access-admin-ui-feature-badge--off {
   }
 
   html[data-theme="light"] .app-theme-corner .light-palette-swatch {
-    width: 1.65rem;
-    height: 1.65rem;
+    width: 44px;
+    height: 44px;
     box-sizing: border-box;
+    touch-action: manipulation;
   }
 
   /* 개발 대기열·운영이 스크롤 시 top-bar에 가려지지 않도록 상단 블록 통째로 고정 */
@@ -5433,9 +5434,10 @@ html[data-theme="light"] .access-admin-ui-feature-badge--off {
   }
 
   .timeframe-seg .seg {
-    min-height: 32px;
+    min-height: 44px;
     padding: 0.26rem 0.42rem;
     font-size: 0.68rem;
+    touch-action: manipulation;
   }
 
   .chart-toolbar {
@@ -5447,7 +5449,8 @@ html[data-theme="light"] .access-admin-ui-feature-badge--off {
   .chart-toolbar__toggles .chip {
     padding: 0.18rem 0.46rem;
     font-size: 0.65rem;
-    min-height: 32px;
+    min-height: 44px;
+    touch-action: manipulation;
   }
 
   .filter-bar.card {
@@ -5466,7 +5469,7 @@ html[data-theme="light"] .access-admin-ui-feature-badge--off {
   .signal-filter .chip,
   .signal-filter .seg,
   .signal-filter .filter-clear {
-    min-height: 34px;
+    min-height: 44px;
     padding: 0.22rem 0.48rem;
     font-size: 0.68rem;
     touch-action: manipulation;

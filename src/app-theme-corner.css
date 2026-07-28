@@ -233,6 +233,29 @@
   }
 }
 
+@media (max-width: 900px) {
+  .app-theme-corner__mode-toggle {
+    padding: 0.35rem 0.25rem;
+  }
+
+  .app-theme-corner__mode-toggle-track {
+    min-height: 44px;
+    width: calc(5.5rem + 4px);
+  }
+
+  .app-theme-corner--top .light-palette-picker--corner {
+    grid-template-columns: repeat(3, 44px);
+    gap: 0.4rem 0.5rem;
+  }
+
+  .app-theme-corner--top .light-palette-swatch {
+    width: 44px;
+    height: 44px;
+    box-sizing: border-box;
+    touch-action: manipulation;
+  }
+}
+
 /* 상단 메인 탭·재분석 — 배경·테두리 없이(텍스트형, 최종 로드) */
 html[data-theme="light"] .top-bar .main-tabs,
 html:not([data-theme="light"]) .top-bar .main-tabs {
