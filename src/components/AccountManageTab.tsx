@@ -10,6 +10,7 @@ import {
 import { ko } from "../i18n/ko";
 import {
   accountSlicesToDonut,
+  accountSymbolSliceLabel,
   buildAccountAllocationSlices,
   tossHoldingsToAccountRows,
   type AccountAllocMode,
