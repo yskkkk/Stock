@@ -524,7 +524,11 @@ export default function AccountManageTab({
 
   if (!authChecked) {
     return (
-      <div className="account-manage-tab" aria-label={ko.app.accountManageAria}>
+      <div
+        className="account-manage-tab"
+        aria-label={ko.app.accountManageAria}
+        data-vu="account-manage-loading"
+      >
         <DockPanelCenterLoading label={ko.app.accountManageLoading} />
       </div>
     );
@@ -532,7 +536,11 @@ export default function AccountManageTab({
 
   if (!user) {
     return (
-      <div className="account-manage-tab" aria-label={ko.app.accountManageAria}>
+      <div
+        className="account-manage-tab"
+        aria-label={ko.app.accountManageAria}
+        data-vu="account-manage-guest"
+      >
         <header className="account-manage-tab__head">
           <h2 className="account-manage-tab__title">{ko.app.accountManageTitle}</h2>
           <p className="account-manage-tab__sub">{ko.app.accountManageLoginHint}</p>
@@ -556,6 +564,11 @@ export default function AccountManageTab({
       ? quotesUpdatedAtMs ?? tossUpdatedAtMs
       : bithumbUpdatedAtMs;
 
+  const contentReady =
+    ready &&
+    !loading &&
+    (provider !== "toss" || Boolean(tossSnapshot) || Boolean(bithumbSnapshot));
+
   return (
     <div
       className={[
@@ -566,7 +579,7 @@ export default function AccountManageTab({
         .filter(Boolean)
         .join(" ")}
       aria-label={ko.app.accountManageAria}
-      {...(!loading && ready ? { "data-vu": "account-manage-ready" } : {})}
+      data-vu={contentReady ? "account-manage-ready" : "account-manage-shell"}
     >
       <header className="account-manage-tab__head">
         <div>
