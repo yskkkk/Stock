@@ -86,15 +86,20 @@ const NAVER_DOMESTIC_POLL_URL =
 
 /** @param {string} code 6-digit */
 async function fetchKrDomesticPollRow(code) {
-  const res = await fetch(`${NAVER_DOMESTIC_POLL_URL}/${code}`, {
-    headers: { "User-Agent": UA, Accept: "application/json" },
-    signal: AbortSignal.timeout(12_000),
-  });
-  if (!res.ok) throw new Error(`Naver poll HTTP ${res.status}`);
-  const data = await res.json();
-  const row = Array.isArray(data?.datas) ? data.datas[0] : null;
-  if (!row || typeof row !== "object") return null;
-  return /** @type {Record<string, unknown>} */ (row);
+  try {
+    const res = await fetch(`${NAVER_DOMESTIC_POLL_URL}/${code}`, {
+      headers: { "User-Agent": UA, Accept: "application/json" },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!res.ok) throw new Error(`Naver poll HTTP ${res.status}`);
+    const data = await res.json();
+    const row = Array.isArray(data?.datas) ? data.datas[0] : null;
+    if (!row || typeof row !== "object") return null;
+    return /** @type {Record<string, unknown>} */ (row);
+  } catch (e) {
+    if (e instanceof Error && /Naver poll HTTP/.test(e.message)) throw e;
+    return null;
+  }
 }
 
 /** @param {string} bizdate YYYYMMDD */
@@ -108,18 +113,23 @@ function formatBizDate(bizdate) {
  * @param {string} code 6-digit
  */
 async function fetchKrInvestorTrend(code) {
-  const res = await fetch(
-    `${NAVER_TREND_URL}/${code}/trend?pageSize=1&bizDate=`,
-    {
-      headers: { "User-Agent": UA, Accept: "application/json" },
-      signal: AbortSignal.timeout(12_000),
-    },
-  );
-  if (!res.ok) throw new Error(`Naver trend HTTP ${res.status}`);
-  const rows = await res.json();
-  const row = Array.isArray(rows) ? rows[0] : null;
-  if (!row || typeof row !== "object") return null;
-  return row;
+  try {
+    const res = await fetch(
+      `${NAVER_TREND_URL}/${code}/trend?pageSize=1&bizDate=`,
+      {
+        headers: { "User-Agent": UA, Accept: "application/json" },
+        signal: AbortSignal.timeout(12_000),
+      },
+    );
+    if (!res.ok) throw new Error(`Naver trend HTTP ${res.status}`);
+    const rows = await res.json();
+    const row = Array.isArray(rows) ? rows[0] : null;
+    if (!row || typeof row !== "object") return null;
+    return row;
+  } catch (e) {
+    if (e instanceof Error && /Naver trend HTTP/.test(e.message)) throw e;
+    return null;
+  }
 }
 
 /**

@@ -397,6 +397,22 @@ export async function buildRecommendationsTrackerPayload(opts = {}) {
         trackerCache = { key: cacheKey, at: Date.now(), payload };
       }
       return payload;
+    } catch (e) {
+      console.warn(
+        "[recommendations-tracker] build:",
+        e instanceof Error ? e.message : e,
+      );
+      if (trackerCache?.payload) return trackerCache.payload;
+      return {
+        updatedAtMs: Date.now(),
+        dates: [],
+        summary: rollupCounts([]),
+        signalStats: [],
+        scoreStats: [],
+        symbolStats: [],
+        modelStats: [],
+        items: [],
+      };
     } finally {
       trackerInflight = null;
     }
