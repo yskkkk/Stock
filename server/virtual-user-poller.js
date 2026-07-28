@@ -15,6 +15,7 @@ import {
   hasCursorApiKey,
   pauseVirtualUserForApiExhaustion,
 } from "./virtual-user-api-guard.js";
+import { enrichVirtualFeedbackNarrativesSync } from "./virtual-user-feedback-enrich.js";
 
 const POLLER_ID = "virtual-user-continuous";
 
@@ -112,6 +113,16 @@ export function startVirtualUserContinuousPoller() {
   started = true;
 
   const boot = ensureVirtualUserAutoImproveOnBoot();
+  try {
+    const enriched = enrichVirtualFeedbackNarrativesSync();
+    appendServerEventLog(
+      "virtual-user",
+      `narrative enrich updated=${enriched.updated}/${enriched.total}`,
+    );
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    appendServerEventLog("virtual-user", `narrative enrich fail ${msg}`);
+  }
   const cfg = getVirtualUserContinuousSync();
   appendServerEventLog(
     "virtual-user",

@@ -22,6 +22,10 @@ import {
   isPollIntervalTuneText,
   shouldSkipBackendImprovementItem,
 } from "./virtual-user-backend-probe.js";
+import {
+  buildDiscomfortText,
+  buildImprovementSummary,
+} from "./virtual-user-feedback-enrich.js";
 
 describe("virtual-user-runner", () => {
   it("picks multiple seeds without early cut", () => {
@@ -169,6 +173,29 @@ describe("virtual-user-satisfaction", () => {
   });
 });
 
+describe("virtual-user-feedback-enrich", () => {
+  it("builds discomfort and improvement summaries", () => {
+    expect(
+      buildDiscomfortText({
+        title: "탭 실패",
+        detail: "타임아웃",
+      }),
+    ).toContain("탭 실패");
+    expect(
+      buildImprovementSummary("고쳤다\n커밋 완료", {
+        title: "탭 실패",
+        suggestion: "셀렉터 수정",
+      }),
+    ).toContain("고쳤다");
+    expect(
+      buildImprovementSummary("", {
+        title: "탭 실패",
+        suggestion: "셀렉터 수정",
+      }),
+    ).toContain("셀렉터 수정");
+  });
+});
+
 describe("virtual-user-backend-probe", () => {
   it("skips intentional disables and poll-interval tunes", () => {
     expect(isIntentionalDisableText("운영자 요청으로 비활성")).toBe(true);
@@ -256,5 +283,29 @@ describe("virtual-user-order-guard", () => {
     );
     expect(blocked?.blocked).toBe(true);
     expect(rejectIfVirtualUserLiveOrder()).toBeNull();
+  });
+
+  it("blocks rebalance-schedule/run but allows dryRun", () => {
+    expect(
+      shouldBlockVirtualUserMoneyRequest(
+        "http://127.0.0.1:5173/api/live-trading/toss/rebalance-schedule/run",
+        "POST",
+        JSON.stringify({ dryRun: false }),
+      ),
+    ).toBe(true);
+    expect(
+      shouldBlockVirtualUserMoneyRequest(
+        "http://127.0.0.1:5173/api/live-trading/toss/rebalance-schedule/run",
+        "POST",
+        JSON.stringify({ dryRun: true }),
+      ),
+    ).toBe(false);
+  });
+
+  it("rejects live order after await when ALS was set at request start", async () => {
+    const blocked = await virtualUserAls.run({ active: true }, () =>
+      Promise.resolve().then(() => rejectIfVirtualUserLiveOrder()),
+    );
+    expect(blocked?.blocked).toBe(true);
   });
 });

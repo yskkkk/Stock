@@ -49,15 +49,29 @@ async function runRecordModeAgentJob(id, instruction) {
       const { listVirtualFeedbackSync, patchVirtualFeedbackSync } = await import(
         "./virtual-user-store.js"
       );
-      createCodeVersionSync({
-        label: `에이전트 완료 · ${id.slice(0, 8)}`,
+      const {
+        buildImprovementSummary,
+        buildDiscomfortText,
+      } = await import("./virtual-user-feedback-enrich.js");
+      const fb = listVirtualFeedbackSync().find((f) => f.implementJobId === id);
+      const post = createCodeVersionSync({
+        label: fb
+          ? `에이전트 완료 · ${String(fb.title).slice(0, 36)}`
+          : `에이전트 완료 · ${id.slice(0, 8)}`,
         kind: "post-agent",
         jobId: id,
-        note: "record-mode agent finished",
+        feedbackId: fb?.id ?? null,
+        note: tail.slice(0, 240) || "record-mode agent finished",
       });
-      const fb = listVirtualFeedbackSync().find((f) => f.implementJobId === id);
       if (fb) {
-        patchVirtualFeedbackSync(fb.id, { status: "done" });
+        patchVirtualFeedbackSync(fb.id, {
+          status: "done",
+          implementDoneAtMs: Date.now(),
+          implementResult: tail.slice(0, 4_000),
+          improvementSummary: buildImprovementSummary(tail, fb),
+          discomfort: buildDiscomfortText(fb),
+          postVersionId: post.ok && post.version ? post.version.id : null,
+        });
       }
     } catch {
       /* version bookkeeping optional */

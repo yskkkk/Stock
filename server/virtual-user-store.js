@@ -72,9 +72,15 @@ const MAX_DETAIL_LEN = 4_000;
  *   title: string;
  *   detail: string;
  *   suggestion: string;
+ *   discomfort: string;
+ *   improvementSummary: string;
+ *   implementResult: string;
  *   prompt: string;
  *   implementJobId: string | null;
  *   implementQueuedAtMs: number | null;
+ *   implementDoneAtMs: number | null;
+ *   preVersionId: string | null;
+ *   postVersionId: string | null;
  *   telegramSentAtMs: number | null;
  *   backupCount: number;
  *   lastBackupId: string | null;
@@ -306,6 +312,12 @@ function normalizeFeedback(raw) {
     title: String(o.title ?? "").slice(0, MAX_TITLE_LEN),
     detail: String(o.detail ?? "").slice(0, MAX_DETAIL_LEN),
     suggestion: String(o.suggestion ?? "").slice(0, MAX_DETAIL_LEN),
+    discomfort: String(o.discomfort ?? "").slice(0, MAX_DETAIL_LEN),
+    improvementSummary: String(o.improvementSummary ?? "").slice(
+      0,
+      MAX_DETAIL_LEN,
+    ),
+    implementResult: String(o.implementResult ?? "").slice(0, MAX_DETAIL_LEN),
     prompt: String(o.prompt ?? "").slice(0, MAX_PROMPT_LEN),
     implementJobId:
       o.implementJobId == null || o.implementJobId === ""
@@ -315,6 +327,18 @@ function normalizeFeedback(raw) {
       o.implementQueuedAtMs == null
         ? null
         : Number(o.implementQueuedAtMs) || null,
+    implementDoneAtMs:
+      o.implementDoneAtMs == null
+        ? null
+        : Number(o.implementDoneAtMs) || null,
+    preVersionId:
+      o.preVersionId == null || o.preVersionId === ""
+        ? null
+        : String(o.preVersionId).slice(0, 80),
+    postVersionId:
+      o.postVersionId == null || o.postVersionId === ""
+        ? null
+        : String(o.postVersionId).slice(0, 80),
     telegramSentAtMs:
       o.telegramSentAtMs == null ? null : Number(o.telegramSentAtMs) || null,
     backupCount: Math.max(0, Number(o.backupCount) || 0),
@@ -460,6 +484,15 @@ export function updateVirtualPersonaSync(id, patch) {
 export function appendVirtualFeedbackSync(input) {
   const store = readVirtualUserStoreSync();
   const now = Date.now();
+  const title = String(input.title ?? "").slice(0, MAX_TITLE_LEN);
+  const detail = String(input.detail ?? "").slice(0, MAX_DETAIL_LEN);
+  const discomfortRaw = String(input.discomfort ?? "").trim();
+  const discomfort = (
+    discomfortRaw ||
+    (title && detail && !detail.includes(title)
+      ? `${title}\n\n${detail}`
+      : detail || title)
+  ).slice(0, MAX_DETAIL_LEN);
   /** @type {VirtualFeedback} */
   const item = {
     id: randomUUID(),
@@ -471,12 +504,21 @@ export function appendVirtualFeedbackSync(input) {
     status: input.status ?? "new",
     severity: input.severity ?? "minor",
     area: String(input.area ?? ""),
-    title: String(input.title ?? "").slice(0, MAX_TITLE_LEN),
-    detail: String(input.detail ?? "").slice(0, MAX_DETAIL_LEN),
+    title,
+    detail,
     suggestion: String(input.suggestion ?? "").slice(0, MAX_DETAIL_LEN),
+    discomfort,
+    improvementSummary: String(input.improvementSummary ?? "").slice(
+      0,
+      MAX_DETAIL_LEN,
+    ),
+    implementResult: String(input.implementResult ?? "").slice(0, MAX_DETAIL_LEN),
     prompt: String(input.prompt ?? "").slice(0, MAX_PROMPT_LEN),
     implementJobId: null,
     implementQueuedAtMs: null,
+    implementDoneAtMs: null,
+    preVersionId: null,
+    postVersionId: null,
     telegramSentAtMs: null,
     backupCount: 0,
     lastBackupId: null,

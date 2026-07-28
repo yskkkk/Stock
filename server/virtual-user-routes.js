@@ -23,6 +23,7 @@ import {
   tickVirtualUserContinuousOnce,
 } from "./virtual-user-poller.js";
 import { satisfactionLabelKo } from "./virtual-user-satisfaction.js";
+import { enrichVirtualFeedbackNarrativesSync } from "./virtual-user-feedback-enrich.js";
 
 /**
  * @param {(handler: (req: any, res: any) => Promise<void>) => import("express").RequestHandler} asyncRoute
@@ -33,7 +34,20 @@ export function registerVirtualUserRoutes(app, asyncRoute) {
     "/api/virtual-users",
     requireAccessAdmin,
     asyncRoute(async (_req, res) => {
+      enrichVirtualFeedbackNarrativesSync();
       const store = readVirtualUserStoreSync();
+      const discomfortCount = store.feedback.filter((f) =>
+        String(f.discomfort || f.detail || f.title || "").trim(),
+      ).length;
+      const improvedCount = store.feedback.filter(
+        (f) =>
+          f.status === "done" &&
+          String(f.improvementSummary || "").trim() &&
+          !String(f.improvementSummary).startsWith("구현 대기"),
+      ).length;
+      const queuedCount = store.feedback.filter(
+        (f) => f.status === "queued",
+      ).length;
       res.json({
         ok: true,
         personas: store.personas,
@@ -41,6 +55,12 @@ export function registerVirtualUserRoutes(app, asyncRoute) {
         sessions: store.sessions.slice(0, 20),
         continuous: store.continuous,
         busy: isVirtualUserContinuousBusy(),
+        narrative: {
+          discomfortCount,
+          improvedCount,
+          queuedCount,
+          total: store.feedback.length,
+        },
         satisfactionLabels: {
           1: satisfactionLabelKo(1),
           2: satisfactionLabelKo(2),

@@ -69,6 +69,12 @@ export default function VirtualUsersAdminPanel({
   const [baselineId, setBaselineId] = useState<string | null>(null);
   const [busyPoller, setBusyPoller] = useState(false);
   const [satLabels, setSatLabels] = useState<Record<string, string>>({});
+  const [narrative, setNarrative] = useState<{
+    discomfortCount: number;
+    improvedCount: number;
+    queuedCount: number;
+    total: number;
+  } | null>(null);
   const [busy, setBusy] = useState(false);
   const [running, setRunning] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -90,6 +96,7 @@ export default function VirtualUsersAdminPanel({
       setContinuous(res.continuous ?? null);
       setBusyPoller(Boolean(res.busy));
       setSatLabels(res.satisfactionLabels ?? {});
+      setNarrative(res.narrative ?? null);
       if (ver?.ok) {
         setVersions(ver.versions ?? []);
         setBaselineId(ver.baselineId ?? null);
@@ -462,6 +469,39 @@ export default function VirtualUsersAdminPanel({
         </ul>
       </section>
 
+      <section className="vu-admin__section" aria-label={ko.access.vuNarrative}>
+        <div className="vu-admin__section-head">
+          <h3>{ko.access.vuNarrative}</h3>
+        </div>
+        <p className="vu-admin__hint">{ko.access.vuNarrativeHint}</p>
+        <div className="vu-admin__narrative-stats">
+          <span className="vu-admin__stat vu-admin__stat--discomfort">
+            {ko.access.vuNarrativeDiscomfort.replace(
+              "{n}",
+              String(narrative?.discomfortCount ?? feedback.length),
+            )}
+          </span>
+          <span className="vu-admin__stat vu-admin__stat--queued">
+            {ko.access.vuNarrativeQueued.replace(
+              "{n}",
+              String(
+                narrative?.queuedCount ??
+                  feedback.filter((f) => f.status === "queued").length,
+              ),
+            )}
+          </span>
+          <span className="vu-admin__stat vu-admin__stat--improved">
+            {ko.access.vuNarrativeImproved.replace(
+              "{n}",
+              String(
+                narrative?.improvedCount ??
+                  feedback.filter((f) => f.status === "done").length,
+              ),
+            )}
+          </span>
+        </div>
+      </section>
+
       <section className="vu-admin__section" aria-label={ko.access.vuFeedback}>
         <div className="vu-admin__section-head">
           <h3>
@@ -529,12 +569,32 @@ export default function VirtualUsersAdminPanel({
                     </time>
                   </div>
                   <h4 className="vu-admin__title">{it.title}</h4>
-                  <p className="vu-admin__detail">{it.detail}</p>
-                  {it.suggestion ? (
-                    <p className="vu-admin__suggest">
-                      <strong>{ko.access.vuSuggestion}</strong> {it.suggestion}
+
+                  <div className="vu-admin__block vu-admin__block--discomfort">
+                    <strong>{ko.access.vuBlockDiscomfort}</strong>
+                    <p>
+                      {(it.discomfort || it.detail || it.title || "").trim() ||
+                        "—"}
                     </p>
+                  </div>
+                  {it.suggestion ? (
+                    <div className="vu-admin__block vu-admin__block--suggest">
+                      <strong>{ko.access.vuBlockSuggestion}</strong>
+                      <p>{it.suggestion}</p>
+                    </div>
                   ) : null}
+                  <div className="vu-admin__block vu-admin__block--improve">
+                    <strong>{ko.access.vuBlockImprovement}</strong>
+                    <p>
+                      {it.improvementSummary?.trim()
+                        ? it.improvementSummary
+                        : it.status === "done"
+                          ? ko.access.vuImprovementPending
+                          : it.status === "queued"
+                            ? "구현 대기 중 — 프롬프트를 열어 에이전트에 준 내용을 확인할 수 있습니다."
+                            : ko.access.vuImprovementPending}
+                    </p>
+                  </div>
 
                   <div className="vu-admin__item-actions">
                     <button
@@ -603,7 +663,14 @@ export default function VirtualUsersAdminPanel({
                   ) : null}
 
                   {open ? (
-                    <pre className="vu-admin__prompt">{it.prompt}</pre>
+                    <div className="vu-admin__block vu-admin__block--prompt">
+                      <strong>{ko.access.vuBlockPrompt}</strong>
+                      <pre className="vu-admin__prompt">
+                        {it.prompt?.trim()
+                          ? it.prompt
+                          : ko.access.vuPromptEmpty}
+                      </pre>
+                    </div>
                   ) : null}
                 </li>
               );

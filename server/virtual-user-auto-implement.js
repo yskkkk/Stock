@@ -109,6 +109,12 @@ export async function maybeAutoImplementVirtualFeedback(item, opts = {}) {
     implementJobId: queued.id,
     implementQueuedAtMs: Date.now(),
     prompt: instruction,
+    preVersionId: pre.ok && pre.version ? pre.version.id : null,
+    improvementSummary:
+      "구현 대기 중 — 아래 프롬프트로 에이전트 큐에 등록됨.",
+    discomfort:
+      String(item.discomfort || "").trim() ||
+      [item.title, item.detail].filter(Boolean).join("\n\n"),
   });
 
   appendServerEventLog(

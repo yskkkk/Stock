@@ -244,7 +244,7 @@ export function buildVirtualFeedbackPrompt(
       ? persona.goals.map((g) => `- ${g}`)
       : ["- (목표 없음)"]),
     "",
-    "## 문제 (사용자 관찰)",
+    "## 불편함 (사용자 관찰)",
     seed.title,
     "",
     seed.detail,
@@ -324,6 +324,7 @@ async function emitFeedback(persona, sessionId, seed, notify, extra = "", known)
     title: seed.title,
     detail: seed.detail,
     suggestion: seed.suggestion,
+    discomfort: [seed.title, seed.detail].filter(Boolean).join("\n\n"),
     prompt: "(생성 중)",
     status: "new",
   });

@@ -2882,9 +2882,15 @@ export type VirtualFeedback = {
   title: string;
   detail: string;
   suggestion: string;
+  discomfort?: string;
+  improvementSummary?: string;
+  implementResult?: string;
   prompt: string;
   implementJobId: string | null;
   implementQueuedAtMs: number | null;
+  implementDoneAtMs?: number | null;
+  preVersionId?: string | null;
+  postVersionId?: string | null;
   telegramSentAtMs: number | null;
   backupCount: number;
   lastBackupId: string | null;
@@ -2914,6 +2920,12 @@ export function fetchVirtualUsers(adminToken?: string) {
     }>;
     continuous?: VirtualUserContinuous;
     busy?: boolean;
+    narrative?: {
+      discomfortCount: number;
+      improvedCount: number;
+      queuedCount: number;
+      total: number;
+    };
     satisfactionLabels?: Record<string, string>;
   }>("/api/virtual-users", {
     headers: virtualUserHeaders(adminToken),
