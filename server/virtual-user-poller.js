@@ -1,7 +1,8 @@
 /**
  * 가상 사용자 연속 탐색 폴러
- * - 서버 기동 시 기본 ON (부족점 탐색 → 자동 구현)
- * - Cursor API 토큰/쿼터 소진 시 자동 정지
+ * - 탐색: 세션 끝나자마자 바로 다음(3분 텀 없음) — 피드백은 대기 없이 계속 쌓임
+ * - 에이전트 전송: 3분마다 스캔, 서버가 개발 중(에이전트 실행 중)이 아닐 때만 1건 FIFO
+ * - 에이전트 1건 제한 이유: ops 큐·워킹트리 동시 수정 충돌 방지
  */
 import { appendServerEventLog } from "./access-log.js";
 import { markPollerBootStarted, pollerGuardAsync } from "./poller-registry.js";
@@ -18,32 +19,37 @@ import {
 } from "./virtual-user-api-guard.js";
 import { enrichVirtualFeedbackNarrativesSync } from "./virtual-user-feedback-enrich.js";
 import { dispatchNextVirtualUserImplement } from "./virtual-user-auto-implement.js";
+import { isOpsAgentJobRunning } from "./ops-agent-job-queue.js";
 
 const POLLER_ID = "virtual-user-continuous";
+/** 에이전트 전송 스캔 주기 */
 const IMPLEMENT_SCAN_MS = 3 * 60_000;
+/** 탐색 세션 사이 최소 간격(거의 연속, 숨 돌릴 틈만) */
+const EXPLORE_GAP_MS = 2_000;
 
 let started = false;
 let running = false;
-/** @type {ReturnType<typeof setInterval> | null} */
-let timer = null;
+/** @type {ReturnType<typeof setTimeout> | null} */
+let exploreTimer = null;
 /** @type {ReturnType<typeof setInterval> | null} */
 let implementTimer = null;
 
-function intervalMsFromStore() {
-  const cfg = getVirtualUserContinuousSync();
-  const n = Number(cfg.intervalMs);
-  // 최소 3분 · 기본 3분
-  return Number.isFinite(n) && n >= 60_000
-    ? Math.min(Math.max(n, 3 * 60_000), 60 * 60_000)
-    : IMPLEMENT_SCAN_MS;
-}
-
 export function getVirtualUserContinuousPollIntervalMs() {
-  return intervalMsFromStore();
+  return IMPLEMENT_SCAN_MS;
 }
 
 export function isVirtualUserContinuousBusy() {
   return running;
+}
+
+/** 서버에서 코딩 에이전트가 돌고 있으면 true (VU·IDE·기록모드 공통 ops 큐) */
+export function isServerDevelopingSync() {
+  try {
+    if (isOpsAgentJobRunning()) return true;
+  } catch {
+    /* optional */
+  }
+  return false;
 }
 
 export async function tickVirtualUserContinuousOnce() {
@@ -52,7 +58,6 @@ export async function tickVirtualUserContinuousOnce() {
     const cfg = getVirtualUserContinuousSync();
     if (!cfg.enabled) return { ok: false, reason: "disabled" };
 
-    // 탐색은 API 키와 무관하게 피드백을 계속 쌓는다. 키 없을 때만 구현 쪽을 멈춘다.
     if (cfg.autoImplement !== false && !hasCursorApiKey()) {
       pauseVirtualUserForApiExhaustion(
         "CURSOR_API_KEY 없음 — 에이전트 구현만 정지(피드백 탐색은 계속).",
@@ -76,17 +81,10 @@ export async function tickVirtualUserContinuousOnce() {
       if (result.ok) {
         appendServerEventLog(
           "virtual-user",
-          `continuous tick ok created=${result.createdCount ?? 0} (feedback stacks; agent serial FIFO)`,
+          `explore tick ok created=${result.createdCount ?? 0} (stack only; agent via 3min idle scan)`,
         );
       }
-      // 에이전트 슬롯이 비면 대기열(new)에서 가장 오래된 1건만 전송
-      if (!getVirtualUserContinuousSync().pausedByApiExhaustion) {
-        try {
-          await dispatchNextVirtualUserImplement();
-        } catch {
-          /* optional */
-        }
-      }
+      // 탐색 직후 에이전트 전송하지 않음 — 3분 스캔 + 개발 중 아님일 때만
       return result;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -94,7 +92,7 @@ export async function tickVirtualUserContinuousOnce() {
         lastTickAtMs: Date.now(),
         lastError: msg,
       });
-      appendServerEventLog("virtual-user", `continuous tick fail ${msg}`);
+      appendServerEventLog("virtual-user", `explore tick fail ${msg}`);
       return { ok: false, error: msg };
     } finally {
       running = false;
@@ -102,15 +100,49 @@ export async function tickVirtualUserContinuousOnce() {
   });
 }
 
-function scheduleNext() {
-  if (timer) {
-    clearInterval(timer);
-    timer = null;
+function scheduleExploreSoon(delayMs = EXPLORE_GAP_MS) {
+  if (exploreTimer) {
+    clearTimeout(exploreTimer);
+    exploreTimer = null;
   }
-  const ms = intervalMsFromStore();
-  timer = setInterval(() => {
-    void tickVirtualUserContinuousOnce().catch(() => {});
-  }, ms);
+  if (!started) return;
+  exploreTimer = setTimeout(() => {
+    exploreTimer = null;
+    void (async () => {
+      const cfg = getVirtualUserContinuousSync();
+      if (!cfg.enabled) {
+        scheduleExploreSoon(5_000);
+        return;
+      }
+      try {
+        await tickVirtualUserContinuousOnce();
+      } catch {
+        /* continue loop */
+      }
+      scheduleExploreSoon(EXPLORE_GAP_MS);
+    })();
+  }, delayMs);
+}
+
+/**
+ * 3분마다: 개발 중이 아니면 대기 피드백 1건만 에이전트로
+ */
+async function tickImplementScanOnce() {
+  if (isServerDevelopingSync()) {
+    appendServerEventLog(
+      "virtual-user",
+      "implement scan skip — server developing",
+    );
+    return { ok: false, reason: "developing" };
+  }
+  const cfg = getVirtualUserContinuousSync();
+  if (cfg.pausedByApiExhaustion) {
+    return { ok: false, reason: "api-exhausted" };
+  }
+  if (cfg.autoImplement === false) {
+    return { ok: false, reason: "auto-off" };
+  }
+  return dispatchNextVirtualUserImplement();
 }
 
 export function startVirtualUserContinuousPoller() {
@@ -147,34 +179,38 @@ export function startVirtualUserContinuousPoller() {
     const msg = e instanceof Error ? e.message : String(e);
     appendServerEventLog("virtual-user", `narrative enrich fail ${msg}`);
   }
-  const cfg = getVirtualUserContinuousSync();
-  // 탐색·구현 스캔 주기 3분으로 맞춤 (기존 8분 저장값 덮어씀)
-  if (Number(cfg.intervalMs) !== IMPLEMENT_SCAN_MS) {
-    patchVirtualUserContinuousSync({ intervalMs: IMPLEMENT_SCAN_MS });
-  }
+
+  // intervalMs는 에이전트 스캔 주기 표시용으로 3분 고정
+  patchVirtualUserContinuousSync({
+    enabled: true,
+    intervalMs: IMPLEMENT_SCAN_MS,
+    autoImplement: true,
+  });
   const after = getVirtualUserContinuousSync();
   appendServerEventLog(
     "virtual-user",
-    `continuous poller on intervalMs=${after.intervalMs} enabled=${after.enabled} autoImplement=${after.autoImplement} boot=${boot.reason || "ok"}`,
+    `explore=continuous gap=${EXPLORE_GAP_MS}ms · implementScan=${after.intervalMs}ms enabled=${after.enabled} autoImplement=${after.autoImplement} boot=${boot.reason || "ok"}`,
   );
   markPollerBootStarted(POLLER_ID);
 
-  // 부팅 직후는 Vite/프론트 준비 여유 후 탐색 + 대기 피드백 1건 실행
-  setTimeout(() => {
-    void tickVirtualUserContinuousOnce().catch(() => {});
-    void dispatchNextVirtualUserImplement().catch(() => {});
-  }, 45_000);
+  // 탐색: 거의 연속 루프
+  scheduleExploreSoon(45_000);
 
-  scheduleNext();
-
+  // 에이전트 전송: 3분마다, 개발 중 아닐 때만
   if (implementTimer) clearInterval(implementTimer);
   implementTimer = setInterval(() => {
-    void dispatchNextVirtualUserImplement().catch(() => {});
+    void tickImplementScanOnce().catch(() => {});
   }, IMPLEMENT_SCAN_MS);
+  setTimeout(() => {
+    void tickImplementScanOnce().catch(() => {});
+  }, 60_000);
 }
 
-/** 관리 UI에서 interval·enabled 바뀐 뒤 재스케줄 */
+/** 관리 UI에서 enabled 바뀐 뒤 탐색 루프 유지 */
 export function rescheduleVirtualUserContinuousPoller() {
   if (!started) return;
-  scheduleNext();
+  const cfg = getVirtualUserContinuousSync();
+  if (cfg.enabled && !exploreTimer && !running) {
+    scheduleExploreSoon(EXPLORE_GAP_MS);
+  }
 }

@@ -16,7 +16,6 @@ import {
 } from "./virtual-user-store.js";
 import { notifyVirtualUserFeedback } from "./virtual-user-telegram.js";
 import { runVirtualUserBrowserJourney } from "./virtual-user-browser.js";
-import { dispatchNextVirtualUserImplement } from "./virtual-user-auto-implement.js";
 import {
   BACKEND_SCENARIO_SEEDS,
   collectVirtualUserBackendFindings,
@@ -409,7 +408,7 @@ async function emitFeedback(persona, sessionId, seed, notify, extra = "", known)
   const patched = patchVirtualFeedbackSync(res.item.id, {
     prompt,
     improvementSummary:
-      "개발 대기열에 쌓임(FIFO). 앞선 건이 끝나면 에이전트로 전송됩니다. 탐색은 개발 중에도 계속됩니다.",
+      "개발 대기열에 쌓임. 3분마다 스캔하며 서버가 개발 중이 아닐 때 순서대로 에이전트에 전송됩니다.",
   });
   const item = patched.ok && patched.item ? patched.item : { ...res.item, prompt };
 
@@ -680,13 +679,7 @@ export async function runVirtualUserSession(opts = {}) {
     error: personaErrors.length ? personaErrors.join(" | ") : null,
   });
 
-  // 피드백이 있으면 에이전트 1건만 바로 실행 (완료 후 다음 건 이어서)
-  try {
-    await dispatchNextVirtualUserImplement();
-  } catch {
-    /* auto-implement optional */
-  }
-
+  // 에이전트 전송은 폴러의 3분 스캔(개발 중 아님)에서만 — 여기서 바로 보내지 않음
   return {
     ok: true,
     sessionId,

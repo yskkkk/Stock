@@ -15,6 +15,7 @@ import {
   patchVirtualFeedbackSync,
 } from "./virtual-user-store.js";
 import { appendServerEventLog } from "./access-log.js";
+import { isOpsAgentJobRunning } from "./ops-agent-job-queue.js";
 import {
   hasCursorApiKey,
   pauseVirtualUserForApiExhaustion,
@@ -112,6 +113,9 @@ export async function maybeAutoImplementVirtualFeedback(item, opts = {}) {
   if (opts.force !== true && hasActiveVirtualUserImplementJobSync()) {
     return { ok: false, skipped: true, reason: "serial-busy" };
   }
+  if (opts.force !== true && isOpsAgentJobRunning()) {
+    return { ok: false, skipped: true, reason: "server-developing" };
+  }
 
   const minSev = String(cfg.autoImplementMinSeverity || "minor");
   if (!severityOk(item.severity, minSev)) {
@@ -201,6 +205,9 @@ export async function maybeAutoImplementVirtualFeedback(item, opts = {}) {
 export async function dispatchNextVirtualUserImplement(opts = {}) {
   const run = async () => {
     reclaimOrphanQueuedFeedbackSync();
+    if (opts.force !== true && isOpsAgentJobRunning()) {
+      return { ok: false, skipped: true, reason: "server-developing" };
+    }
     if (opts.force !== true && hasActiveVirtualUserImplementJobSync()) {
       return { ok: false, skipped: true, reason: "serial-busy" };
     }

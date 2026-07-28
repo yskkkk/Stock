@@ -83,14 +83,7 @@ async function runRecordModeAgentJob(id, instruction) {
           discomfort: buildDiscomfortText(fb),
           postVersionId: post.ok && post.version ? post.version.id : null,
         });
-        try {
-          const { dispatchNextVirtualUserImplement } = await import(
-            "./virtual-user-auto-implement.js"
-          );
-          await dispatchNextVirtualUserImplement();
-        } catch {
-          /* next implement optional */
-        }
+        // 다음 VU 피드백은 3분 스캔에서만 — 여기서 바로 dispatch 하지 않음
       }
     } catch {
       /* version bookkeeping optional */
@@ -113,10 +106,7 @@ async function runRecordModeAgentJob(id, instruction) {
           improvementSummary: `에이전트 실패 후 재시도 대기: ${msg.slice(0, 200)}`,
         });
       }
-      const { dispatchNextVirtualUserImplement } = await import(
-        "./virtual-user-auto-implement.js"
-      );
-      await dispatchNextVirtualUserImplement();
+      // 실패 직후 즉시 다음 전송 안 함 — 3분 스캔 + idle 조건
     } catch {
       /* optional */
     }
