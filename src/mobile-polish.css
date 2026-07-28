@@ -100,7 +100,12 @@
   .signal-filter .seg,
   .signal-filter .filter-clear,
   .timeframe-seg .seg,
-  .chart-toolbar__toggles .chip,
+  .chart-toolbar__toggles .chip {
+    min-width: 0;
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+
   .chart-draw-btn {
     min-width: 44px;
     min-height: 44px;
@@ -111,10 +116,77 @@
     .picks-panel:not(.crypto-panel)
     .panel-head__filters
     .market-tab {
-    min-width: 44px;
+    min-width: 0;
     min-height: 44px;
     padding: 0.35rem 0.55rem;
     touch-action: manipulation;
+  }
+
+  /* picks 패널 헤더·칩 줄 — 390px 전후 가로 잘림 방지 */
+  .workspace:not(.crypto-workspace) .picks-panel:not(.crypto-panel) > .panel-head {
+    min-width: 0;
+    max-width: 100%;
+    overflow: visible;
+  }
+
+  .picks-panel:not(.crypto-panel) .panel-head__filters {
+    flex-wrap: wrap;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .picks-panel:not(.crypto-panel) .panel-head__filters .market-tabs {
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 100%;
+  }
+
+  .picks-panel:not(.crypto-panel) .panel-head__filters .market-tab {
+    min-width: 0;
+    flex: 0 1 auto;
+  }
+
+  /* 차트 툴바 — 코인 외 종목도 좁은 화면에서 세로 스택 */
+  .chart-panel > .chart-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    row-gap: 0.35rem;
+  }
+
+  .chart-toolbar__toggles {
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .chart-toolbar__toggles .chip {
+    min-width: 0;
+  }
+
+  /* 표·툴바 래퍼 — 페이지 가로 스크롤 대신 내부 스크롤만 */
+  .investor-flow-tab__table-wrap,
+  .financials-tab__statement-table-wrap,
+  .live-sim-run__table-wrap,
+  .live-portfolio__table-wrap,
+  .account-manage-tab__table-wrap {
+    max-width: 100%;
+    min-width: 0;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .account-manage-tab__head {
+    flex-wrap: wrap;
+    gap: 0.65rem;
+  }
+
+  .account-manage-tab__refresh {
+    min-width: 0;
+  }
+
+  .account-manage-tab__summary-toolbar {
+    justify-content: flex-start;
   }
 
   .pick-action {
@@ -240,6 +312,11 @@
 }
 
 @media (max-width: 720px) {
+  .live-sim-run__table--stacked.live-sim-run__table--trades,
+  .live-portfolio__table--stacked {
+    min-width: 0;
+  }
+
   .live-portfolio__table--stacked tbody tr:last-child,
   .live-sim-run__table--stacked tbody tr:last-child {
     margin-bottom: 0;
@@ -256,6 +333,58 @@
     padding-bottom: 0.5rem;
     margin-bottom: 0.15rem;
     border-bottom: 1px solid var(--card-border, rgba(148, 163, 184, 0.14));
+  }
+}
+
+@media (max-width: 600px) {
+  .panel-head__filters {
+    flex-wrap: wrap;
+  }
+
+  .panel-head__filters .market-tabs {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .market-tab {
+    min-width: 0;
+    flex: 0 1 auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .picks-panel:not(.crypto-panel) .panel-head__filters--lookup-center {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.4rem;
+  }
+
+  .picks-panel:not(.crypto-panel)
+    .panel-head__filters--lookup-center
+    .market-tabs,
+  .picks-panel:not(.crypto-panel)
+    .panel-head__filters--lookup-center
+    .panel-head__quote-toggle {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .top-bar__right {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .top-bar__tools {
+    flex-wrap: wrap;
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .filter-chips,
+  .signal-filter {
+    min-width: 0;
+    max-width: 100%;
   }
 }
 

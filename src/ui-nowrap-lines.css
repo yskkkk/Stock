@@ -65,3 +65,20 @@
     display: none;
   }
 }
+
+@media (max-width: 480px) {
+  .scan-status--compact .scan-status__secondary,
+  .scan-status--bar.scan-status--compact .scan-status__secondary {
+    flex-wrap: wrap;
+    flex-shrink: 1;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .scan-status__eta,
+  .scan-status__time,
+  .scan-status__next {
+    flex-shrink: 1;
+    white-space: normal;
+  }
+}

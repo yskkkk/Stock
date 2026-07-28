@@ -642,6 +642,9 @@
 .account-manage-tab__table-wrap {
   overflow: auto;
   max-height: 28rem;
+  max-width: 100%;
+  min-width: 0;
+  -webkit-overflow-scrolling: touch;
 }
 
 .account-manage-tab__table {
