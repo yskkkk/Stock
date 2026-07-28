@@ -597,6 +597,7 @@ export default function AccountManageTab({
             ? "account-rebalance-open-wheel"
             : "account-rebalance-open"
         }
+        title={ko.app.accountManageRebalanceMarketHint}
         onClick={() => setRebalanceOpen(true)}
       >
         {ko.app.accountManageRebalanceOpen}
@@ -620,7 +621,7 @@ export default function AccountManageTab({
         disabled={buyingNow || !buyNowToolbarAllowed}
         title={
           buyNowToolbarAllowed
-            ? undefined
+            ? ko.app.accountManageRebalanceNowConfirm.split("\n")[0]
             : ko.app.accountManageRebalanceNowHoursHint
         }
         onClick={() => void onBuyNowFromToolbar()}
@@ -1144,7 +1145,12 @@ export default function AccountManageTab({
                     role="group"
                     aria-label={ko.app.accountManageRebalanceTitle}
                   >
-                    {renderRebalanceActionButtons("wheel")}
+                    <span className="account-manage-tab__wheel-rebalance-label">
+                      {ko.app.accountManageRebalanceTitle}
+                    </span>
+                    <div className="account-manage-tab__wheel-rebalance-actions">
+                      {renderRebalanceActionButtons("wheel")}
+                    </div>
                   </div>
                 ) : null}
               </div>
