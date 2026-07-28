@@ -226,6 +226,15 @@ describe("virtual-user-satisfaction", () => {
   });
 });
 
+describe("virtual-user-auto-implement serial", () => {
+  it("exports dispatch and active-job helpers", async () => {
+    const mod = await import("./virtual-user-auto-implement.js");
+    expect(typeof mod.dispatchNextVirtualUserImplement).toBe("function");
+    expect(typeof mod.hasActiveVirtualUserImplementJobSync).toBe("function");
+    expect(typeof mod.maybeAutoImplementVirtualFeedback).toBe("function");
+  });
+});
+
 describe("virtual-user-feedback-enrich", () => {
   it("builds discomfort and improvement summaries", () => {
     expect(

@@ -1714,12 +1714,12 @@ export const ko = {
     vuContinuousOff: "연속 탐색 꺼짐",
     vuContinuousBusy: "탐색 실행 중…",
     vuContinuousHint:
-      "서버 기동 시 연속 탐색·자동 구현이 기본으로 켜집니다. minor 이상 피드백은 에이전트 큐로 들어가 웹을 고칩니다. Cursor API 토큰/쿼터가 소진되면 자동 정지됩니다.",
+      "3분마다 탐색합니다. 피드백이 있으면 에이전트를 바로 1건 실행하고, 끝나면 다음 건을 이어서 보냅니다. Cursor API 소진 시 자동 정지됩니다.",
     vuContinuousLast: "최근 실행",
     vuContinuousCreated: "이번 {n}건",
     vuContinuousPausedApi:
       "Cursor API 토큰/쿼터 소진으로 정지됨. 키·쿼터 확인 후 연속 탐색을 다시 켜 주세요.",
-    vuAutoImplementOn: "자동 구현 켜짐",
+    vuAutoImplementOn: "자동 구현 켜짐 (직렬·즉시)",
     vuAutoImplementOff: "자동 구현 꺼짐",
     vuVersions: "코드 버전·롤백",
     vuVersionsHint:
@@ -1739,7 +1739,7 @@ export const ko = {
     vuNarrativeHint:
       "가상 사용자가 느낀 불편함, 에이전트에 준 프롬프트, 반영·개선 결과를 한곳에서 봅니다. 이미 큐에 들어간 항목도 보강됩니다.",
     vuNarrativeDiscomfort: "불편 발견 {n}",
-    vuNarrativeQueued: "구현 대기 {n}",
+    vuNarrativeQueued: "실행 중 {n}",
     vuNarrativeImproved: "개선 완료 {n}",
     vuBlockDiscomfort: "느낀 불편함",
     vuBlockSuggestion: "기대 개선",
@@ -1757,7 +1757,7 @@ export const ko = {
     vuPersonaOff: "꺼짐",
     vuFilterAll: "전체",
     vuStatusNew: "신규",
-    vuStatusQueued: "구현 대기",
+    vuStatusQueued: "실행 중",
     vuStatusDone: "완료",
     vuStatusDismissed: "보류",
     vuSeverityBlocker: "차단",

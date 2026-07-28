@@ -109,7 +109,7 @@ const MAX_DETAIL_LEN = 4_000;
  * }} VirtualUserStore
  */
 
-const DEFAULT_CONTINUOUS_INTERVAL_MS = 8 * 60_000;
+const DEFAULT_CONTINUOUS_INTERVAL_MS = 3 * 60_000;
 
 /** @returns {VirtualUserContinuous} */
 export function defaultContinuousConfig() {

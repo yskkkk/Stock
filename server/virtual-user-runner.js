@@ -16,7 +16,7 @@ import {
 } from "./virtual-user-store.js";
 import { notifyVirtualUserFeedback } from "./virtual-user-telegram.js";
 import { runVirtualUserBrowserJourney } from "./virtual-user-browser.js";
-import { maybeAutoImplementVirtualFeedback } from "./virtual-user-auto-implement.js";
+import { dispatchNextVirtualUserImplement } from "./virtual-user-auto-implement.js";
 import {
   BACKEND_SCENARIO_SEEDS,
   collectVirtualUserBackendFindings,
@@ -421,17 +421,7 @@ async function emitFeedback(persona, sessionId, seed, notify, extra = "", known)
     }
   }
 
-  try {
-    const auto = await maybeAutoImplementVirtualFeedback(item);
-    if (auto.ok && auto.jobId) {
-      item.status = "queued";
-      item.implementJobId = auto.jobId;
-      item.implementQueuedAtMs = Date.now();
-    }
-  } catch {
-    /* auto-implement optional — 피드백 자체는 유지 */
-  }
-
+  // 직렬 실행: 세션 종료·완료 콜백에서 dispatchNext가 1건만 집어 바로 실행
   return { skipped: false, item };
 }
 
@@ -685,6 +675,13 @@ export async function runVirtualUserSession(opts = {}) {
     ok: personaErrors.length === 0,
     error: personaErrors.length ? personaErrors.join(" | ") : null,
   });
+
+  // 피드백이 있으면 에이전트 1건만 바로 실행 (완료 후 다음 건 이어서)
+  try {
+    await dispatchNextVirtualUserImplement();
+  } catch {
+    /* auto-implement optional */
+  }
 
   return {
     ok: true,

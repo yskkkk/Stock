@@ -1,7 +1,9 @@
 /**
- * 가상 사용자 피드백 → 기록 모드 에이전트 자동 큐
+ * 가상 사용자 피드백 → 에이전트 직렬 실행
+ * - 한 번에 하나만 record-mode에 넣고 바로 실행
+ * - 완료되면 다음 new 피드백을 이어서 보냄
  */
-import { appendRecordModePendingJob } from "./ops-record-mode-store.js";
+import { appendRecordModePendingJob, readRecordModeQueueSync } from "./ops-record-mode-store.js";
 import {
   createCodeVersionSync,
   ensureBaselineCodeVersionSync,
@@ -9,6 +11,7 @@ import {
 } from "./code-version-store.js";
 import {
   getVirtualUserContinuousSync,
+  listVirtualFeedbackSync,
   patchVirtualFeedbackSync,
 } from "./virtual-user-store.js";
 import { appendServerEventLog } from "./access-log.js";
@@ -18,6 +21,9 @@ import {
 } from "./virtual-user-api-guard.js";
 
 const SEV_RANK = { blocker: 4, major: 3, minor: 2, nit: 1 };
+
+/** @type {Promise<unknown> | null} */
+let dispatchChain = null;
 
 /**
  * @param {string} severity
@@ -30,16 +36,63 @@ function severityOk(severity, minSeverity) {
 }
 
 /**
+ * 가상 사용자 구현 잡이 record-mode에서 아직 pending/running인지
+ */
+export function hasActiveVirtualUserImplementJobSync() {
+  const activeFb = listVirtualFeedbackSync().filter(
+    (f) => f.status === "queued" && f.implementJobId,
+  );
+  if (!activeFb.length) return false;
+  let queue;
+  try {
+    queue = readRecordModeQueueSync();
+  } catch {
+    return activeFb.length > 0;
+  }
+  const items = queue?.items || [];
+  return activeFb.some((f) => {
+    const job = items.find((it) => it.id === f.implementJobId);
+    return job && (job.status === "pending" || job.status === "running");
+  });
+}
+
+/**
+ * queued인데 잡이 큐에 없으면 new로 되돌려 다시 집어갈 수 있게 함
+ */
+function reclaimOrphanQueuedFeedbackSync() {
+  let queueItems = [];
+  try {
+    queueItems = readRecordModeQueueSync()?.items || [];
+  } catch {
+    return 0;
+  }
+  const ids = new Set(queueItems.map((it) => it.id));
+  let n = 0;
+  for (const f of listVirtualFeedbackSync()) {
+    if (f.status !== "queued" || !f.implementJobId) continue;
+    if (ids.has(f.implementJobId)) continue;
+    patchVirtualFeedbackSync(f.id, {
+      status: "new",
+      implementJobId: null,
+      implementQueuedAtMs: null,
+      improvementSummary: "",
+    });
+    n += 1;
+  }
+  return n;
+}
+
+/**
  * @param {import("./virtual-user-store.js").VirtualFeedback} item
  * @param {{ force?: boolean }} [opts]
  */
 export async function maybeAutoImplementVirtualFeedback(item, opts = {}) {
   if (!item?.id) return { ok: false, skipped: true, reason: "no-item" };
-  if (item.status === "queued" || item.status === "done") {
-    return { ok: false, skipped: true, reason: "already-handled" };
+  if (item.status === "done") {
+    return { ok: false, skipped: true, reason: "already-done" };
   }
-  if (item.implementJobId) {
-    return { ok: false, skipped: true, reason: "has-job" };
+  if (item.status === "queued" && item.implementJobId) {
+    return { ok: false, skipped: true, reason: "already-queued" };
   }
 
   const cfg = getVirtualUserContinuousSync();
@@ -54,6 +107,10 @@ export async function maybeAutoImplementVirtualFeedback(item, opts = {}) {
       "CURSOR_API_KEY 없음 — 자동 구현을 정지했습니다.",
     );
     return { ok: false, skipped: true, reason: "no-api-key" };
+  }
+
+  if (opts.force !== true && hasActiveVirtualUserImplementJobSync()) {
+    return { ok: false, skipped: true, reason: "serial-busy" };
   }
 
   const minSev = String(cfg.autoImplementMinSeverity || "minor");
@@ -112,8 +169,7 @@ export async function maybeAutoImplementVirtualFeedback(item, opts = {}) {
     implementQueuedAtMs: Date.now(),
     prompt: instruction,
     preVersionId: pre.ok && pre.version ? pre.version.id : null,
-    improvementSummary:
-      "구현 대기 중 — 아래 프롬프트로 에이전트 큐에 등록됨.",
+    improvementSummary: "에이전트 실행 중 — 완료되면 다음 피드백을 이어서 실행합니다.",
     discomfort:
       String(item.discomfort || "").trim() ||
       [item.title, item.detail].filter(Boolean).join("\n\n"),
@@ -124,11 +180,71 @@ export async function maybeAutoImplementVirtualFeedback(item, opts = {}) {
     `auto-implement queued feedback=${item.id} job=${queued.id}`,
   );
 
+  try {
+    const { kickOpsRecordModePoller } = await import("./ops-record-mode-poller.js");
+    kickOpsRecordModePoller();
+  } catch {
+    /* poller kick optional */
+  }
+
   return {
     ok: true,
-    skipped: false,
     jobId: queued.id,
     preVersion: pre.ok ? pre.version : null,
-    baseline: baseline.version ?? null,
   };
+}
+
+/**
+ * 대기 중인 new 피드백 중 가장 오래된 1건만 에이전트로 보냄
+ * @param {{ force?: boolean }} [opts]
+ */
+export async function dispatchNextVirtualUserImplement(opts = {}) {
+  const run = async () => {
+    reclaimOrphanQueuedFeedbackSync();
+    if (opts.force !== true && hasActiveVirtualUserImplementJobSync()) {
+      return { ok: false, skipped: true, reason: "serial-busy" };
+    }
+
+    const cfg = getVirtualUserContinuousSync();
+    if (cfg.pausedByApiExhaustion && opts.force !== true) {
+      return { ok: false, skipped: true, reason: "api-exhausted" };
+    }
+    if (opts.force !== true && cfg.autoImplement === false) {
+      return { ok: false, skipped: true, reason: "auto-off" };
+    }
+
+    const minSev = String(cfg.autoImplementMinSeverity || "minor");
+    const candidates = listVirtualFeedbackSync()
+      .filter(
+        (f) =>
+          f.status === "new" &&
+          severityOk(f.severity, minSev) &&
+          String(f.prompt || "").trim() &&
+          String(f.prompt).trim() !== "(생성 중)",
+      )
+      .sort((a, b) => a.createdAtMs - b.createdAtMs);
+
+    for (const item of candidates) {
+      const r = await maybeAutoImplementVirtualFeedback(item, opts);
+      if (r.ok) {
+        appendServerEventLog(
+          "virtual-user",
+          `dispatch next implement feedback=${item.id}`,
+        );
+        return r;
+      }
+      if (r.reason === "serial-busy" || r.reason === "api-exhausted") {
+        return r;
+      }
+    }
+    return { ok: false, skipped: true, reason: "none" };
+  };
+
+  const prev = dispatchChain || Promise.resolve();
+  const next = prev.then(run, run);
+  dispatchChain = next.then(
+    () => null,
+    () => null,
+  );
+  return next;
 }
