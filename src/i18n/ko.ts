@@ -161,6 +161,8 @@ export const ko = {
     accountManageStyleValue: "가치·방어주",
     accountManageStyleCol: "성향",
     accountManageStyleAuto: "자동",
+    /** 자동 옵션 표시: 자동 · 성장주 */
+    accountManageStyleAutoOption: "자동 · {style}",
     accountManageStylePolicyTitle: "분류 기준 (우선순위)",
     accountManageStylePolicyHint:
       "종목별로 「성장/가치」를 지정하면 포트폴리오가 바뀌어도 유지됩니다. 「자동」은 정책 규칙으로 돌아갑니다.",
@@ -181,6 +183,7 @@ export const ko = {
     accountManagePickHint: "차트에서 조각을 누르면 해당 비중만 목록에 표시합니다.",
     accountManageHoverHint: "마우스 올리면 말풍선으로 상세가 보입니다.",
     accountManageBubbleSymbols: "포함 종목",
+    accountManageBubbleMore: "외 {n}개",
     accountManageClearFilter: "전체 보기",
     accountManageRefresh: "새로고침",
     accountManageRefreshing: "갱신 중…",
@@ -189,6 +192,7 @@ export const ko = {
     accountManageCurrencyKrw: "원화",
     accountManageCurrencyUsd: "달러",
     accountManageCurrencyAria: "금액 표시 통화",
+    accountManageCurrencyUsdRate: "1$={rate}원",
     accountManageRebalanceOpen: "스케줄",
     accountManageRebalanceTitle: "월별 비중 유지 매수",
     accountManageRebalanceSubtitle:

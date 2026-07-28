@@ -550,7 +550,7 @@ export default function AccountManageTab({
         window.alert(`${ko.app.accountManageRebalanceNowNone}${skipNote}`);
       } else if (failed > 0) {
         const detail = res.errors?.[0]?.error
-          ? ` ? ${res.errors[0].error}`
+          ? ` ${res.errors[0].error}`
           : "";
         window.alert(
           `${ko.app.accountManageRebalanceNowFail
@@ -680,7 +680,7 @@ export default function AccountManageTab({
           <h2 className="account-manage-tab__title">{ko.app.accountManageTitle}</h2>
           <p className="account-manage-tab__sub">
             {ko.app.accountManageSubtitle}
-            {user.email ? ` · ${user.email}` : ""}
+            {user.email ? ` ${user.email}` : ""}
           </p>
         </div>
         <div className="account-manage-tab__head-actions">
@@ -818,7 +818,10 @@ export default function AccountManageTab({
                   disabled={!(usdKrwRate != null && usdKrwRate > 0)}
                   title={
                     usdKrwRate != null && usdKrwRate > 0
-                      ? `1$=${Math.round(usdKrwRate).toLocaleString("ko-KR")}?`
+                      ? ko.app.accountManageCurrencyUsdRate.replace(
+                          "{rate}",
+                          Math.round(usdKrwRate).toLocaleString("ko-KR"),
+                        )
                       : undefined
                   }
                   onClick={() => setDisplayCurrency("USD")}
@@ -1006,7 +1009,7 @@ export default function AccountManageTab({
                     {ko.app.accountManageChartTitle}
                   </h3>
                   <p className="account-manage-tab__wheel-sub">
-                    {ko.app.accountManageChartBasis} ?{" "}
+                    {ko.app.accountManageChartBasis}{" "}
                     <span
                       className="account-manage-tab__money"
                       aria-hidden={balanceHidden || undefined}
@@ -1514,7 +1517,10 @@ export default function AccountManageTab({
                         ))}
                         {hoverSlice.symbols.length > hoverRows.length ? (
                           <li className="account-manage-tab__bubble-more">
-                            ? {hoverSlice.symbols.length - hoverRows.length}?
+                            {ko.app.accountManageBubbleMore.replace(
+                              "{n}",
+                              String(hoverSlice.symbols.length - hoverRows.length),
+                            )}
                           </li>
                         ) : null}
                       </ul>
@@ -1664,11 +1670,12 @@ export default function AccountManageTab({
                                   title={
                                     overrideStyle
                                       ? ko.app.accountManageStylePolicyHint
-                                      : `${ko.app.accountManageStyleAuto} ? ${
+                                      : ko.app.accountManageStyleAutoOption.replace(
+                                          "{style}",
                                           resolved.style === "growth"
                                             ? ko.app.accountManageStyleGrowth
-                                            : ko.app.accountManageStyleValue
-                                        }`
+                                            : ko.app.accountManageStyleValue,
+                                        )
                                   }
                                   onChange={(e) => {
                                     const v = e.target.value;
@@ -1681,11 +1688,12 @@ export default function AccountManageTab({
                                   }}
                                 >
                                   <option value="auto">
-                                    {ko.app.accountManageStyleAuto}
-                                    {" ? "}
-                                    {resolved.style === "growth"
-                                      ? ko.app.accountManageStyleGrowth
-                                      : ko.app.accountManageStyleValue}
+                                    {ko.app.accountManageStyleAutoOption.replace(
+                                      "{style}",
+                                      resolved.style === "growth"
+                                        ? ko.app.accountManageStyleGrowth
+                                        : ko.app.accountManageStyleValue,
+                                    )}
                                   </option>
                                   <option value="growth">
                                     {ko.app.accountManageStyleGrowth}
