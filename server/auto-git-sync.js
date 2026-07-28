@@ -148,6 +148,36 @@ function isUnmergedStashError(detail) {
   return /needs merge|unmerged|merge conflict|cannot stash/i.test(detail);
 }
 
+/**
+ * @param {string} fromRev
+ * @param {string} toRev
+ * @returns {string[]}
+ */
+function listFilesChangedBetweenRevs(fromRev, toRev) {
+  try {
+    return execGitOut(["diff", "--name-only", fromRev, toRev])
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * pull로 바뀔 파일과 로컬 수정 파일이 겹치면 stash→pull→apply 충돌이 잦다.
+ * @param {string} remoteRef
+ * @param {string[]} trackedDirty
+ * @returns {string[]}
+ */
+function remotePullOverlapsDirtyFiles(remoteRef, trackedDirty) {
+  if (!trackedDirty.length) return [];
+  const pullFiles = listFilesChangedBetweenRevs("HEAD", remoteRef);
+  if (!pullFiles.length) return [];
+  const dirtySet = new Set(trackedDirty);
+  return pullFiles.filter((f) => dirtySet.has(f));
+}
+
 /** @returns {string} */
 function describeGitWorktree() {
   try {
@@ -298,23 +328,39 @@ async function gitPullFfOnlyWithRetry(remote, branch) {
   };
 }
 
+function isStashApply3wayUnsupported(detail) {
+  return /--3way.*unknown|unknown option.*3way|unrecognized.*3way/i.test(
+    detail,
+  );
+}
+
 /**
- * pull 성공 후 stash 복원. apply→drop 로 pop 실패 시 stash 유지.
+ * stash 복원. apply(--3way)→drop 으로 pop 대신 stash 유지·수동 복구 가능.
+ * @param {{ context: "after-pull" | "after-pull-failed" }} opts
  * @returns {boolean}
  */
-function restoreStashedChangesAfterPull() {
-  appendServerEventLog(
-    "auto-git",
-    "pull OK — restoring stashed local changes (stash apply)…",
-  );
-  const apply = execGitTry(["stash", "apply"]);
+function restoreStashedChanges(opts) {
+  const { context } = opts;
+  const label =
+    context === "after-pull"
+      ? "pull OK — restoring stashed local changes (stash apply --3way)…"
+      : "pull failed — restoring stashed local changes (stash apply --3way)…";
+  appendServerEventLog("auto-git", label);
+
+  let apply = execGitTry(["stash", "apply", "--3way"]);
+  if (
+    !apply.ok &&
+    isStashApply3wayUnsupported(gitErrorDetail(apply))
+  ) {
+    apply = execGitTry(["stash", "apply"]);
+  }
   if (!apply.ok) {
     const detail = gitErrorDetail(apply);
-    appendServerEventLog(
-      "auto-git",
-      `stash apply failed after pull (resolve conflicts manually): ${detail}`,
-      "error",
-    );
+    const prefix =
+      context === "after-pull"
+        ? "stash apply failed after pull (resolve conflicts manually)"
+        : "pull failed and stash apply also failed";
+    appendServerEventLog("auto-git", `${prefix}: ${detail}`, "error");
     appendServerEventLog("auto-git", `worktree: ${describeGitWorktree()}`, "error");
     appendServerEventLog(
       "auto-git",
@@ -331,22 +377,7 @@ function restoreStashedChangesAfterPull() {
       "warn",
     );
   }
-  appendServerEventLog("auto-git", "restored stashed changes after pull");
-  return true;
-}
-
-/** pull 실패 시 stash 복원 */
-function restoreStashedChangesAfterPullFailure() {
-  const pop = execGitTry(["stash", "pop"]);
-  if (!pop.ok) {
-    appendServerEventLog(
-      "auto-git",
-      `pull failed and stash pop also failed — ${gitErrorDetail(pop)}`,
-      "error",
-    );
-    appendServerEventLog("auto-git", `worktree: ${describeGitWorktree()}`, "error");
-    return false;
-  }
+  appendServerEventLog("auto-git", "restored stashed changes");
   return true;
 }
 
@@ -583,6 +614,17 @@ export function startAutoGitSync({ httpServer }) {
       if (prePullPorcelain) {
         const { trackedDirty } = parsePorcelainStatus(prePullPorcelain);
         if (trackedDirty.length) {
+          const overlapping = remotePullOverlapsDirtyFiles(remoteRef, trackedDirty);
+          if (overlapping.length) {
+            const detail = `remote ${remoteRef} touches locally modified files — skip pull to avoid stash conflict: ${overlapping.join(", ")} · ${describeGitWorktree()}`;
+            appendServerEventLog("auto-git", detail, "warn");
+            notifyOpsAutoGitFailed({
+              phase: `pull ${remote}/${branch} blocked (local/remote overlap)`,
+              detail: describeGitWorktree(),
+              errorText: overlapping.join(", "),
+            });
+            return;
+          }
           appendServerEventLog(
             "auto-git",
             "stashing local changes before pull…",
@@ -615,7 +657,15 @@ export function startAutoGitSync({ httpServer }) {
       appendServerEventLog("auto-git", `pull failed: ${pullResult.detail}`, "error");
       appendServerEventLog("auto-git", `worktree: ${describeGitWorktree()}`, "error");
       if (stashed) {
-        restoreStashedChangesAfterPullFailure();
+        const restored = restoreStashedChanges({ context: "after-pull-failed" });
+        if (!restored) {
+          notifyOpsAutoGitFailed({
+            phase: `stash restore after failed pull ${remote}/${branch}`,
+            detail: describeGitWorktree(),
+            errorText:
+              "pull failed and stash apply also failed — resolve conflicts manually (stash kept)",
+          });
+        }
       }
       notifyOpsAutoGitFailed({
         phase: `pull ${remote}/${branch}`,
@@ -627,7 +677,7 @@ export function startAutoGitSync({ httpServer }) {
     appendServerEventLog("auto-git", `pulled ${remote} ${branch}`);
 
     if (stashed) {
-      const restored = restoreStashedChangesAfterPull();
+      const restored = restoreStashedChanges({ context: "after-pull" });
       if (!restored) {
         notifyOpsAutoGitFailed({
           phase: `stash restore after pull ${remote}/${branch}`,
