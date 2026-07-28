@@ -680,7 +680,7 @@ export default function AccountManageTab({
           <h2 className="account-manage-tab__title">{ko.app.accountManageTitle}</h2>
           <p className="account-manage-tab__sub">
             {ko.app.accountManageSubtitle}
-            {user.email ? ` ? ${user.email}` : ""}
+            {user.email ? ` · ${user.email}` : ""}
           </p>
         </div>
         <div className="account-manage-tab__head-actions">
@@ -1514,7 +1514,7 @@ export default function AccountManageTab({
                         ))}
                         {hoverSlice.symbols.length > hoverRows.length ? (
                           <li className="account-manage-tab__bubble-more">
-                            ? {hoverSlice.symbols.length - hoverRows.length}??
+                            ? {hoverSlice.symbols.length - hoverRows.length}?
                           </li>
                         ) : null}
                       </ul>
