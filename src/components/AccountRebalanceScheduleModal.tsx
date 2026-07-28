@@ -9,7 +9,10 @@ import {
 } from "../api";
 import { ko } from "../i18n/ko";
 import { formatPercent, formatPrice } from "../lib/format";
-import { anySelectedMarketRegularOpen } from "../lib/marketRegularHours";
+import {
+  anySelectedMarketRegularOpen,
+  isMarketRegularOpenClient,
+} from "../lib/marketRegularHours";
 import "./account-rebalance-schedule-modal.css";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -32,6 +35,22 @@ function planTitle(market: "kr" | "us"): string {
   return market === "us"
     ? ko.app.accountManageRebalancePlanUs
     : ko.app.accountManageRebalancePlanKr;
+}
+
+function currencyBadgeLabel(market: "kr" | "us"): string {
+  return market === "us" ? "$" : "원";
+}
+
+function currencyShortLabel(market: "kr" | "us"): string {
+  return market === "us"
+    ? ko.app.accountManageCurrencyUsd
+    : ko.app.accountManageCurrencyKrw;
+}
+
+function marketHoursLabel(market: "kr" | "us"): string {
+  return isMarketRegularOpenClient(market)
+    ? ko.app.accountManageRebalanceMarketRegularOpen
+    : ko.app.accountManageRebalanceMarketRegularClosed;
 }
 
 function planEmptyHint(plan: TossRebalanceBuyPlan): string {
@@ -71,6 +90,12 @@ export default function AccountRebalanceScheduleModal({
   const [markets, setMarkets] = useState<Array<"kr" | "us">>(["kr", "us"]);
   const [schedule, setSchedule] = useState<TossRebalanceSchedule | null>(null);
   const [plans, setPlans] = useState<TossRebalanceBuyPlan[]>([]);
+  const [, setHoursTick] = useState(0);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setHoursTick((t) => t + 1), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -245,9 +270,63 @@ export default function AccountRebalanceScheduleModal({
   }, [plans]);
 
   const monthLabel = `${year}년 ${monthIndex + 1}월`;
-  const krOn = markets.includes("kr");
-  const usOn = markets.includes("us");
   const buyNowAllowed = anySelectedMarketRegularOpen(markets);
+
+  const renderMarketChip = (m: "kr" | "us") => {
+    const on = markets.includes(m);
+    const hoursOpen = isMarketRegularOpenClient(m);
+    const marketName =
+      m === "us" ? ko.app.accountManageMarketUs : ko.app.accountManageMarketKr;
+    return (
+      <button
+        key={m}
+        type="button"
+        className={
+          on
+            ? "account-rebalance-modal__chip is-on"
+            : "account-rebalance-modal__chip is-off"
+        }
+        aria-pressed={on}
+        aria-label={`${marketName} ${currencyShortLabel(m)} ${on ? ko.app.accountManageRebalanceMarketOn : ko.app.accountManageRebalanceMarketOff} ${marketHoursLabel(m)}`}
+        onClick={() => toggleMarket(m)}
+      >
+        <span className="account-rebalance-modal__chip-top">
+          <span className="account-rebalance-modal__chip-name">{marketName}</span>
+          <span
+            className={[
+              "account-rebalance-modal__badge",
+              m === "us" ? "is-usd" : "is-krw",
+            ].join(" ")}
+          >
+            {currencyBadgeLabel(m)}
+          </span>
+          <span className="account-rebalance-modal__chip-cur">
+            {currencyShortLabel(m)}
+          </span>
+        </span>
+        <span className="account-rebalance-modal__chip-meta">
+          <span
+            className={[
+              "account-rebalance-modal__chip-state",
+              on ? "is-on" : "is-off",
+            ].join(" ")}
+          >
+            {on
+              ? ko.app.accountManageRebalanceMarketOn
+              : ko.app.accountManageRebalanceMarketOff}
+          </span>
+          <span
+            className={[
+              "account-rebalance-modal__chip-hours",
+              hoursOpen ? "is-open" : "is-closed",
+            ].join(" ")}
+          >
+            {marketHoursLabel(m)}
+          </span>
+        </span>
+      </button>
+    );
+  };
 
   return (
     <div
@@ -350,58 +429,8 @@ export default function AccountRebalanceScheduleModal({
                 {ko.app.accountManageRebalanceMarkets}
               </span>
               <div className="account-rebalance-modal__chips">
-                <button
-                  type="button"
-                  className={
-                    krOn
-                      ? "account-rebalance-modal__chip is-on"
-                      : "account-rebalance-modal__chip is-off"
-                  }
-                  aria-pressed={krOn}
-                  onClick={() => toggleMarket("kr")}
-                >
-                  <span className="account-rebalance-modal__chip-name">
-                    {ko.app.accountManageMarketKr}
-                  </span>
-                  <span className="account-rebalance-modal__chip-cur">원화</span>
-                  <span
-                    className={
-                      krOn
-                        ? "account-rebalance-modal__chip-state is-on"
-                        : "account-rebalance-modal__chip-state is-off"
-                    }
-                  >
-                    {krOn
-                      ? ko.app.accountManageRebalanceMarketOn
-                      : ko.app.accountManageRebalanceMarketOff}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className={
-                    usOn
-                      ? "account-rebalance-modal__chip is-on"
-                      : "account-rebalance-modal__chip is-off"
-                  }
-                  aria-pressed={usOn}
-                  onClick={() => toggleMarket("us")}
-                >
-                  <span className="account-rebalance-modal__chip-name">
-                    {ko.app.accountManageMarketUs}
-                  </span>
-                  <span className="account-rebalance-modal__chip-cur">달러</span>
-                  <span
-                    className={
-                      usOn
-                        ? "account-rebalance-modal__chip-state is-on"
-                        : "account-rebalance-modal__chip-state is-off"
-                    }
-                  >
-                    {usOn
-                      ? ko.app.accountManageRebalanceMarketOn
-                      : ko.app.accountManageRebalanceMarketOff}
-                  </span>
-                </button>
+                {renderMarketChip("kr")}
+                {renderMarketChip("us")}
               </div>
               <p className="account-rebalance-modal__hint">
                 {ko.app.accountManageRebalanceMarketHint}
@@ -478,9 +507,17 @@ export default function AccountRebalanceScheduleModal({
                             m === "us" ? "is-usd" : "is-krw",
                           ].join(" ")}
                         >
-                          {m === "us" ? "$" : "원"}
+                          {currencyBadgeLabel(m)}
                         </span>
                         {planTitle(m)}
+                        <span
+                          className={[
+                            "account-rebalance-modal__chip-hours",
+                            isMarketRegularOpenClient(m) ? "is-open" : "is-closed",
+                          ].join(" ")}
+                        >
+                          {marketHoursLabel(m)}
+                        </span>
                       </strong>
                       {!on ? (
                         <span className="account-rebalance-modal__off-tag">

@@ -135,12 +135,19 @@
   gap: 0.45rem;
 }
 
+.account-rebalance-modal__chips .account-rebalance-modal__chip {
+  flex: 1 1 calc(50% - 0.25rem);
+}
+
 .account-rebalance-modal__chip {
   margin: 0;
   display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.4rem 0.7rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  padding: 0.45rem 0.65rem;
+  min-height: 44px;
+  min-width: min(100%, 9.5rem);
   border-radius: 0.55rem;
   border: 1.5px solid rgba(148, 163, 184, 0.4);
   background: color-mix(in srgb, var(--surface) 70%, transparent);
@@ -150,6 +157,23 @@
   font-weight: 700;
   cursor: pointer;
   transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
+  touch-action: manipulation;
+}
+
+.account-rebalance-modal__chip-top {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  width: 100%;
+}
+
+.account-rebalance-modal__chip-meta {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+  width: 100%;
 }
 
 .account-rebalance-modal__chip-name {
@@ -179,6 +203,35 @@
 .account-rebalance-modal__chip-state.is-off {
   color: #64748b;
   background: rgba(148, 163, 184, 0.28);
+}
+
+.account-rebalance-modal__chip-hours {
+  padding: 0.08rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1.35;
+}
+
+.account-rebalance-modal__chip-hours.is-open {
+  color: #14532d;
+  background: #bbf7d0;
+}
+
+.account-rebalance-modal__chip-hours.is-closed {
+  color: #64748b;
+  background: rgba(148, 163, 184, 0.32);
+}
+
+html:not([data-theme="light"]) .account-rebalance-modal__chip-hours.is-open {
+  color: #bbf7d0;
+  background: rgba(34, 197, 94, 0.28);
+}
+
+html:not([data-theme="light"]) .account-rebalance-modal__chip-hours.is-closed {
+  color: #94a3b8;
+  background: rgba(100, 116, 139, 0.28);
 }
 
 .account-rebalance-modal__chip.is-on {
@@ -295,6 +348,7 @@ html:not([data-theme="light"]) .account-rebalance-modal__badge.is-usd {
 .account-rebalance-modal__plan-head strong {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.35rem;
 }
 

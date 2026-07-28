@@ -170,6 +170,33 @@
   background: color-mix(in srgb, var(--accent, #14b8a6) 14%, transparent);
 }
 
+.account-manage-tab__rebalance-hours {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 1 1 100%;
+  order: -2;
+}
+
+.account-manage-tab__rebalance-hour-chip {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+  padding: 0.22rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  background: color-mix(in srgb, var(--surface) 65%, var(--card));
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.account-manage-tab__rebalance-hour-name {
+  color: var(--text, inherit);
+}
+
 .account-manage-tab--balance-hidden .account-manage-tab__money {
   filter: blur(8px);
   user-select: none;

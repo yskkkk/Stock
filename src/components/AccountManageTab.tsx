@@ -35,7 +35,7 @@ import {
   tossHoldingsTotalNetMarketValueKrw,
 } from "../lib/tossHoldingPnl";
 import { formatPercent, formatPrice, formatSignedMoney } from "../lib/format";
-import { anySelectedMarketRegularOpen } from "../lib/marketRegularHours";
+import { anySelectedMarketRegularOpen, isMarketRegularOpenClient } from "../lib/marketRegularHours";
 import { resolveSymbolDisplayName } from "../lib/symbolDisplayName";
 import { useBithumbBalanceHidden } from "../hooks/useBithumbBalanceHidden";
 import {
@@ -61,6 +61,7 @@ import AccountRebalanceScheduleModal from "./AccountRebalanceScheduleModal";
 import DockPanelCenterLoading from "./DockPanelCenterLoading";
 import type { LiveTradeTradesExchange } from "../lib/liveTradeTradesWorkspace";
 import "./account-manage-tab.css";
+import "./account-rebalance-schedule-modal.css";
 
 type PanelTab = "chart" | "list";
 
@@ -149,6 +150,12 @@ export default function AccountManageTab({
   const [rebalanceOpen, setRebalanceOpen] = useState(false);
   const [buyingNow, setBuyingNow] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [, setHoursTick] = useState(0);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setHoursTick((t) => t + 1), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (tossReady && !bithumbReady) setProvider("toss");
@@ -765,6 +772,45 @@ export default function AccountManageTab({
               )}
               {provider === "toss" ? (
                 <>
+                  <div
+                    className="account-manage-tab__rebalance-hours"
+                    role="group"
+                    aria-label={ko.app.accountManageRebalanceMarketHoursAria}
+                  >
+                    {(["kr", "us"] as const).map((m) => {
+                      const hoursOpen = isMarketRegularOpenClient(m);
+                      return (
+                        <span
+                          key={m}
+                          className="account-manage-tab__rebalance-hour-chip"
+                        >
+                          <span
+                            className={[
+                              "account-rebalance-modal__badge",
+                              m === "us" ? "is-usd" : "is-krw",
+                            ].join(" ")}
+                          >
+                            {m === "us" ? "$" : "원"}
+                          </span>
+                          <span className="account-manage-tab__rebalance-hour-name">
+                            {m === "us"
+                              ? ko.app.accountManageMarketUs
+                              : ko.app.accountManageMarketKr}
+                          </span>
+                          <span
+                            className={[
+                              "account-rebalance-modal__chip-hours",
+                              hoursOpen ? "is-open" : "is-closed",
+                            ].join(" ")}
+                          >
+                            {hoursOpen
+                              ? ko.app.accountManageRebalanceMarketRegularOpen
+                              : ko.app.accountManageRebalanceMarketRegularClosed}
+                          </span>
+                        </span>
+                      );
+                    })}
+                  </div>
                   <button
                     type="button"
                     className="bithumb-balance-hide-btn account-manage-tab__hide-btn account-manage-tab__hide-btn--summary"

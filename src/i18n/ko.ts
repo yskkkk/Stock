@@ -204,6 +204,9 @@ export const ko = {
     accountManageRebalanceMarkets: "대상 시장 (켜기/끄기)",
     accountManageRebalanceMarketOn: "켜짐",
     accountManageRebalanceMarketOff: "꺼짐",
+    accountManageRebalanceMarketRegularOpen: "정규장",
+    accountManageRebalanceMarketRegularClosed: "장마감",
+    accountManageRebalanceMarketHoursAria: "시장별 정규장 여부",
     accountManageRebalanceMarketHint:
       "국내는 원화 현금만, 미국은 달러 현금만 사용합니다. 서로 섞지 않습니다.",
     accountManageRebalanceCashPct: "현금 사용 비율 {n}% (시장별 통화)",
