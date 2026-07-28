@@ -558,6 +558,10 @@ export default function AccountRebalanceScheduleModal({
               </p>
             ) : null}
 
+            <p className="account-rebalance-modal__hint account-rebalance-modal__foot-hint">
+              {ko.app.accountManageRebalanceNowHoursHint}
+            </p>
+
             <footer className="account-rebalance-modal__foot">
               <button
                 type="button"
@@ -596,9 +600,6 @@ export default function AccountRebalanceScheduleModal({
                   : ko.app.accountManageRebalanceSave}
               </button>
             </footer>
-            <p className="account-rebalance-modal__hint">
-              {ko.app.accountManageRebalanceNowHoursHint}
-            </p>
             </>
           )}
         </div>
