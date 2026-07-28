@@ -392,6 +392,29 @@
   overflow: visible;
 }
 
+.account-manage-tab__wheel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.45rem;
+}
+
+.account-manage-tab__wheel-rebalance {
+  display: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+@media (max-width: 900px) {
+  .account-manage-tab__wheel-rebalance {
+    display: inline-flex;
+    flex: 1 1 100%;
+    justify-content: flex-start;
+  }
+}
+
 .account-manage-tab__wheel-title,
 .account-manage-tab__holdings-title {
   margin: 0;

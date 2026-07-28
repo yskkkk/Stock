@@ -592,7 +592,8 @@
     row-gap: 0.32rem;
   }
 
-  .account-manage-tab__hide-btn--summary {
+  .account-manage-tab__hide-btn--summary,
+  .account-manage-tab__hide-btn--wheel {
     font-size: 0.72rem;
     padding: 0.28rem 0.55rem;
     min-height: 44px;

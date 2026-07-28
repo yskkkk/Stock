@@ -580,6 +580,58 @@ export default function AccountManageTab({
 
   const buyNowToolbarAllowed = anySelectedMarketRegularOpen(["kr", "us"]);
 
+  const renderRebalanceActionButtons = (variant: "toolbar" | "wheel") => (
+    <>
+      <button
+        type="button"
+        className={[
+          "bithumb-balance-hide-btn",
+          "account-manage-tab__hide-btn",
+          "account-manage-tab__hide-btn--summary",
+          variant === "wheel" ? "account-manage-tab__hide-btn--wheel" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        data-vu={
+          variant === "wheel"
+            ? "account-rebalance-open-wheel"
+            : "account-rebalance-open"
+        }
+        onClick={() => setRebalanceOpen(true)}
+      >
+        {ko.app.accountManageRebalanceOpen}
+      </button>
+      <button
+        type="button"
+        className={[
+          "bithumb-balance-hide-btn",
+          "account-manage-tab__hide-btn",
+          "account-manage-tab__hide-btn--summary",
+          "account-manage-tab__hide-btn--accent",
+          variant === "wheel" ? "account-manage-tab__hide-btn--wheel" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        data-vu={
+          variant === "wheel"
+            ? "account-rebalance-buy-now-wheel"
+            : "account-rebalance-buy-now-toolbar"
+        }
+        disabled={buyingNow || !buyNowToolbarAllowed}
+        title={
+          buyNowToolbarAllowed
+            ? undefined
+            : ko.app.accountManageRebalanceNowHoursHint
+        }
+        onClick={() => void onBuyNowFromToolbar()}
+      >
+        {buyingNow
+          ? ko.app.accountManageRebalanceNowRunning
+          : ko.app.accountManageRebalanceNow}
+      </button>
+    </>
+  );
+
   const showHoverBubble = useCallback(
     (key: string, clientX: number, clientY: number) => {
       const root = wheelRef.current;
@@ -811,30 +863,7 @@ export default function AccountManageTab({
                       );
                     })}
                   </div>
-                  <button
-                    type="button"
-                    className="bithumb-balance-hide-btn account-manage-tab__hide-btn account-manage-tab__hide-btn--summary"
-                    data-vu="account-rebalance-open"
-                    onClick={() => setRebalanceOpen(true)}
-                  >
-                    {ko.app.accountManageRebalanceOpen}
-                  </button>
-                  <button
-                    type="button"
-                    className="bithumb-balance-hide-btn account-manage-tab__hide-btn account-manage-tab__hide-btn--summary account-manage-tab__hide-btn--accent"
-                    data-vu="account-rebalance-buy-now-toolbar"
-                    disabled={buyingNow || !buyNowToolbarAllowed}
-                    title={
-                      buyNowToolbarAllowed
-                        ? undefined
-                        : ko.app.accountManageRebalanceNowHoursHint
-                    }
-                    onClick={() => void onBuyNowFromToolbar()}
-                  >
-                    {buyingNow
-                      ? ko.app.accountManageRebalanceNowRunning
-                      : ko.app.accountManageRebalanceNow}
-                  </button>
+                  {renderRebalanceActionButtons("toolbar")}
                 </>
               ) : null}
               <div
@@ -1074,6 +1103,15 @@ export default function AccountManageTab({
                     </span>
                   </p>
                 </div>
+                {provider === "toss" ? (
+                  <div
+                    className="account-manage-tab__wheel-rebalance"
+                    role="group"
+                    aria-label={ko.app.accountManageRebalanceTitle}
+                  >
+                    {renderRebalanceActionButtons("wheel")}
+                  </div>
+                ) : null}
               </div>
 
               <div className="account-manage-tab__mode" role="group">
