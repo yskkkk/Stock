@@ -15,6 +15,7 @@ import {
 } from "./telegram-notify.js";
 import { getOpsAgentQueueMemorySnapshot } from "./ops-agent-job-queue.js";
 import { hasOpsDevCompletionPending } from "./ops-dev-completion-coalesce.js";
+import { isAbortLikeError } from "./fetch-abort-guard.js";
 import { markPollerBootStarted, pollerGuardAsync } from "./poller-registry.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -276,6 +277,7 @@ export function recordServerEventForImprovement(category, message, level) {
  * @param {unknown} reason
  */
 export function recordProcessRuntimeIssue(label, reason) {
+  if (isAbortLikeError(reason)) return;
   processIssueCount++;
   const msg = reason instanceof Error ? reason.message : String(reason ?? "");
   recordServerImprovementNote({

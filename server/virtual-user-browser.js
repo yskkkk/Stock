@@ -126,6 +126,39 @@ async function safeClick(loc, timeoutMs = 8_000) {
 }
 
 /**
+ * navigation/route inflight 중 close 시 reject가 process unhandledRejection으로 새는 것 방지
+ * @param {import("playwright").BrowserContext | null | undefined} context
+ * @param {import("playwright").Browser | null | undefined} browser
+ */
+async function safeClosePlaywright(context, browser) {
+  if (context) {
+    try {
+      await context.unroute("**/*");
+    } catch (e) {
+      if (!isAbortLikeError(e)) {
+        /* navigation teardown */
+      }
+    }
+    try {
+      await context.close();
+    } catch (e) {
+      if (!isAbortLikeError(e)) {
+        /* context already closed */
+      }
+    }
+  }
+  if (browser) {
+    try {
+      await browser.close();
+    } catch (e) {
+      if (!isAbortLikeError(e)) {
+        /* browser already closed */
+      }
+    }
+  }
+}
+
+/**
  * @param {import("playwright").Page} page
  * @param {string} text
  * @param {number} [timeoutMs]
@@ -175,13 +208,15 @@ export async function runVirtualUserBrowserJourney(persona, sessionId, opts = {}
   const url = baseUrl();
   const mobile = persona.device === "mobile";
   let browser = null;
+  /** @type {import("playwright").BrowserContext | null} */
+  let context = null;
 
   try {
     browser = await pw.chromium.launch({
       headless: !headed(),
       args: ["--disable-dev-shm-usage"],
     });
-    const context = await browser.newContext({
+    context = await browser.newContext({
       viewport: mobile
         ? { width: 390, height: 844 }
         : { width: 1440, height: 900 },
@@ -271,8 +306,9 @@ export async function runVirtualUserBrowserJourney(persona, sessionId, opts = {}
         suggestion: "VIRTUAL_USER_BASE_URL과 로컬 서버(5173) 기동을 확인한다.",
         screenshot: await shot(page, `${persona.id}_home_fail`),
       });
-      await context.close();
-      await browser.close();
+      await safeClosePlaywright(context, browser);
+      context = null;
+      browser = null;
       return { ok: false, mode: "browser", observations, error: "앱 진입 실패" };
     }
 
@@ -593,8 +629,8 @@ export async function runVirtualUserBrowserJourney(persona, sessionId, opts = {}
       }
     }
 
-    await context.close();
-    await browser.close();
+    await safeClosePlaywright(context, browser);
+    context = null;
     browser = null;
 
     return {
@@ -603,11 +639,9 @@ export async function runVirtualUserBrowserJourney(persona, sessionId, opts = {}
       observations,
     };
   } catch (e) {
-    try {
-      if (browser) await browser.close();
-    } catch {
-      /* ignore */
-    }
+    await safeClosePlaywright(context, browser);
+    context = null;
+    browser = null;
     return {
       ok: false,
       mode: "browser",

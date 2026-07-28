@@ -6,6 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isAbortLikeError } from "./fetch-abort-guard.js";
 import { findLiveOrderGuardGaps } from "./virtual-user-order-guard.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -56,6 +57,12 @@ export function shouldSkipBackendImprovementItem(item) {
   // 텔레그램 env 미설정만 반복적으로 찍히는 warn은 동작 결함보다 설정 이슈 — minor로 남길 수는 있으나
   // 「동작해야 하는데 못함」이 아니면 스킵
   if (/TELEGRAM_OPS_BOT_TOKEN|env-ops-telegram-disabled/i.test(blob)) return true;
+  // fetch/route abort·navigation cancel — 실동작 장애가 아님
+  if (/process-unhandledRejection/i.test(String(item?.id ?? ""))) {
+    const problem = String(item?.problem ?? "");
+    const bare = problem.replace(/^unhandledRejection:\s*/i, "").trim();
+    if (isAbortLikeError(bare) || isAbortLikeError(problem)) return true;
+  }
   return false;
 }
 
