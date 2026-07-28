@@ -42,6 +42,31 @@
     min-height: 44px;
     padding-inline: 0.55rem;
     touch-action: manipulation;
+    scroll-margin-inline: max(0.5rem, env(safe-area-inset-left, 0px))
+      max(0.5rem, env(safe-area-inset-right, 0px));
+  }
+
+  /* 가로 스크롤 메인 탭 — 비활성/활성 대비 강화 */
+  .top-bar .main-tab:not(.active) {
+    opacity: 0.52;
+  }
+
+  .top-bar .main-tab.active {
+    opacity: 1;
+  }
+
+  .top-bar .main-tab.active::after {
+    height: 3px;
+    bottom: 0.04rem;
+    left: 0.18rem;
+    right: 0.18rem;
+    background: var(--accent);
+    box-shadow: 0 1px 5px color-mix(in srgb, var(--accent) 55%, transparent);
+  }
+
+  html[data-theme="light"] .top-bar .main-tab.active::after {
+    background: var(--accent-ink, var(--accent));
+    box-shadow: none;
   }
 
   .top-bar__brand-lockup {

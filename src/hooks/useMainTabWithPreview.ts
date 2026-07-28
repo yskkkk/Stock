@@ -24,7 +24,7 @@ export function useMainTabWithPreview(initial: AppTab = "stockLookup") {
     [committedTab],
   );
 
-  /** 모바일: 가로 스크롤 탭에서 활성 탭이 보이도록 스크롤 */
+  /** 모바일: 가로 스크롤 탭에서 활성 탭이 중앙에 오도록 스크롤 */
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (window.innerWidth > 900) return;
@@ -32,7 +32,21 @@ export function useMainTabWithPreview(initial: AppTab = "stockLookup") {
     if (!nav) return;
     const active = nav.querySelector<HTMLElement>(".main-tab.active");
     if (!active) return;
+    const scrollParent = nav.closest<HTMLElement>(".top-bar__right");
     const t = window.setTimeout(() => {
+      if (scrollParent) {
+        const parentRect = scrollParent.getBoundingClientRect();
+        const activeRect = active.getBoundingClientRect();
+        const targetLeft =
+          scrollParent.scrollLeft +
+          (activeRect.left - parentRect.left) -
+          (parentRect.width - activeRect.width) / 2;
+        scrollParent.scrollTo({
+          left: Math.max(0, targetLeft),
+          behavior: "smooth",
+        });
+        return;
+      }
       active.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
     }, 60);
     return () => window.clearTimeout(t);

@@ -287,6 +287,17 @@ html[data-theme="light"] .top-bar .main-tab.active {
   color: var(--accent-ink, var(--accent)) !important;
 }
 
+@media (max-width: 900px) {
+  html[data-theme="light"] .top-bar .main-tab:not(.active),
+  html:not([data-theme="light"]) .top-bar .main-tab:not(.active) {
+    color: var(--muted) !important;
+  }
+
+  html:not([data-theme="light"]) .top-bar .main-tab.active {
+    color: var(--accent) !important;
+  }
+}
+
 html[data-theme="light"] .top-bar .top-bar__rescan.btn,
 html[data-theme="light"] .top-bar .top-bar__rescan.btn--secondary,
 html:not([data-theme="light"]) .top-bar .top-bar__rescan.btn,
