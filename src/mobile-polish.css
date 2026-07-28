@@ -31,9 +31,22 @@
 
   .filter-bar .chip,
   .filter-bar .filter-presets .btn {
-    min-width: 44px;
+    min-width: 0;
     min-height: 44px;
     touch-action: manipulation;
+  }
+
+  .filter-bar.card,
+  .filter-bar .signal-filter,
+  .signal-filter .filter-chips,
+  .signal-filter .filter-presets,
+  .signal-filter .filter-mode-seg {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .signal-filter .filter-mode-seg {
+    flex-wrap: wrap;
   }
 
   /* 터치 타깃 — min-width·min-height 44px (레이아웃 골격 유지, 패딩만 보강) */
@@ -46,27 +59,35 @@
       max(0.5rem, env(safe-area-inset-right, 0px));
   }
 
-  /* 가로 스크롤 메인 탭 — 비활성/활성 대비 강화 */
+  /* 가로 스크롤 메인 탭 — 비활성/활성 대비·밑줄 강화 */
   .top-bar .main-tab:not(.active) {
-    opacity: 0.52;
+    opacity: 0.45;
+    font-weight: 600;
   }
 
-  .top-bar .main-tab.active {
+  .top-bar .main-tab.active,
+  .top-bar .main-tab[aria-current="page"] {
     opacity: 1;
+    font-weight: 800;
+    font-size: 0.78rem;
   }
 
-  .top-bar .main-tab.active::after {
-    height: 3px;
-    bottom: 0.04rem;
-    left: 0.18rem;
-    right: 0.18rem;
+  .top-bar .main-tab.active::after,
+  .top-bar .main-tab[aria-current="page"]::after {
+    height: 3.5px;
+    bottom: 0.02rem;
+    left: 0.12rem;
+    right: 0.12rem;
     background: var(--accent);
-    box-shadow: 0 1px 5px color-mix(in srgb, var(--accent) 55%, transparent);
+    box-shadow:
+      0 1px 6px color-mix(in srgb, var(--accent) 60%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
   }
 
-  html[data-theme="light"] .top-bar .main-tab.active::after {
+  html[data-theme="light"] .top-bar .main-tab.active::after,
+  html[data-theme="light"] .top-bar .main-tab[aria-current="page"]::after {
     background: var(--accent-ink, var(--accent));
-    box-shadow: none;
+    box-shadow: 0 1px 4px color-mix(in srgb, var(--accent-ink, var(--accent)) 35%, transparent);
   }
 
   .top-bar__brand-lockup {
@@ -410,6 +431,143 @@
   .signal-filter {
     min-width: 0;
     max-width: 100%;
+  }
+}
+
+/* 390px 전후 — 표·툴바·칩 줄 페이지 가로 스크롤 방지 */
+@media (max-width: 420px) {
+  .panel-head__filters {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .picks-panel:not(.crypto-panel) .panel-head__filters .market-tabs {
+    flex-wrap: wrap;
+    width: 100%;
+    gap: 0.32rem;
+  }
+
+  .picks-panel:not(.crypto-panel) .panel-head__filters .market-tab,
+  .panel-head__filters .market-tab {
+    min-width: 0;
+    flex: 1 1 calc(33.333% - 0.32rem);
+    max-width: 100%;
+    font-size: 0.68rem;
+    padding-inline: 0.32rem;
+  }
+
+  .account-manage-tab__head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .account-manage-tab__head-actions {
+    flex-wrap: wrap;
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .account-manage-tab__refresh {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .account-manage-tab__tabs,
+  .account-manage-tab__mode {
+    flex-wrap: wrap;
+  }
+
+  .account-manage-tab__summary-toolbar {
+    justify-content: flex-start;
+  }
+
+  .account-manage-tab__currency-toggle {
+    flex-wrap: wrap;
+  }
+
+  .ops-management__head .market-tabs.ops-management__subtabs {
+    flex-wrap: wrap;
+  }
+
+  .ops-management__head .market-tabs.ops-management__subtabs .market-tab {
+    min-width: 0;
+    flex: 1 1 auto;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .timeframe-seg.segmented.compact {
+    flex-wrap: wrap;
+  }
+
+  .timeframe-seg .seg {
+    flex: 1 1 calc(25% - 0.28rem);
+    min-width: 0;
+  }
+
+  .live-trading-tab__segment {
+    flex-wrap: wrap;
+    border-radius: 12px;
+  }
+
+  .live-trading-tab__segment-btn {
+    min-width: 0;
+    flex: 1 1 calc(50% - 0.18rem);
+    font-size: 0.72rem;
+    padding-inline: 0.38rem;
+  }
+
+  .access-admin-tabs {
+    gap: 0.28rem;
+  }
+
+  .access-admin-tab {
+    flex: 1 1 calc(50% - 0.18rem);
+    min-width: 0;
+    min-height: 44px;
+    text-align: center;
+  }
+
+  .feedback-modal__actions,
+  .access-admin-live-trade-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .feedback-modal__actions .btn,
+  .access-admin-live-trade-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .pick-item .pick-actions {
+    flex-wrap: wrap;
+  }
+
+  .pick-action {
+    flex: 1 1 calc(50% - 0.2rem);
+    min-width: 0;
+  }
+
+  .quote-bar {
+    min-width: 0;
+  }
+
+  .quote-bar__price {
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 100%;
+  }
+
+  .app-page-top .app-page-top__corner-text {
+    white-space: normal;
+    min-height: 44px;
+    padding-inline: 0.35rem;
+  }
+
+  .live-portfolio__head-tools,
+  .live-sim-run__head-tools {
+    flex-wrap: wrap;
   }
 }
 

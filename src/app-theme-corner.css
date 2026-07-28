@@ -296,6 +296,12 @@ html[data-theme="light"] .top-bar .main-tab.active {
   html:not([data-theme="light"]) .top-bar .main-tab.active {
     color: var(--accent) !important;
   }
+
+  html[data-theme="light"] .top-bar .main-tab.active,
+  html:not([data-theme="light"]) .top-bar .main-tab.active {
+    background: color-mix(in srgb, var(--accent) 16%, transparent) !important;
+    border-radius: 8px !important;
+  }
 }
 
 html[data-theme="light"] .top-bar .top-bar__rescan.btn,
