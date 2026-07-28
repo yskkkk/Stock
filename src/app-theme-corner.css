@@ -299,7 +299,7 @@ html[data-theme="light"] .top-bar .main-tab.active {
 
   html[data-theme="light"] .top-bar .main-tab.active,
   html:not([data-theme="light"]) .top-bar .main-tab.active {
-    background: color-mix(in srgb, var(--accent) 16%, transparent) !important;
+    background: color-mix(in srgb, var(--accent) 24%, transparent) !important;
     border-radius: 8px !important;
   }
 }

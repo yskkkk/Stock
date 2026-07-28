@@ -60,8 +60,8 @@
   }
 
   /* 가로 스크롤 메인 탭 — 비활성/활성 대비·밑줄 강화 */
-  .top-bar .main-tab:not(.active) {
-    opacity: 0.45;
+  .top-bar .main-tab:not(.active):not([aria-current="page"]) {
+    opacity: 0.32;
     font-weight: 600;
   }
 
@@ -69,19 +69,25 @@
   .top-bar .main-tab[aria-current="page"] {
     opacity: 1;
     font-weight: 800;
-    font-size: 0.78rem;
+    font-size: 0.8rem;
+    color: var(--accent);
+  }
+
+  html[data-theme="light"] .top-bar .main-tab.active,
+  html[data-theme="light"] .top-bar .main-tab[aria-current="page"] {
+    color: var(--accent-ink, var(--accent));
   }
 
   .top-bar .main-tab.active::after,
   .top-bar .main-tab[aria-current="page"]::after {
-    height: 3.5px;
-    bottom: 0.02rem;
-    left: 0.12rem;
-    right: 0.12rem;
+    height: 4px;
+    bottom: 0;
+    left: 0.1rem;
+    right: 0.1rem;
     background: var(--accent);
     box-shadow:
-      0 1px 6px color-mix(in srgb, var(--accent) 60%, transparent),
-      0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
+      0 2px 8px color-mix(in srgb, var(--accent) 70%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
   }
 
   html[data-theme="light"] .top-bar .main-tab.active::after,
@@ -416,9 +422,10 @@
     justify-content: center;
   }
 
+  /* 탭 가로 스크롤·활성 탭 중앙 정렬 유지 — nowrap 필수 */
   .top-bar__right {
-    flex-wrap: wrap;
-    overflow-x: visible;
+    flex-wrap: nowrap;
+    overflow-x: auto;
   }
 
   .top-bar__tools {

@@ -44,7 +44,9 @@ export function useMainTabWithPreview(initial: AppTab = "stockLookup") {
 
     const scrollActiveTabIntoView = () => {
       if (cancelled) return;
-      const active = nav.querySelector<HTMLElement>(".main-tab.active");
+      const active =
+        nav.querySelector<HTMLElement>(".main-tab[aria-current='page']") ??
+        nav.querySelector<HTMLElement>(".main-tab.active");
       if (!active) return;
       const scrollParent = nav.closest<HTMLElement>(".top-bar__right");
       const behavior: ScrollBehavior = mainTabScrollBootRef.current ? "instant" : "smooth";
@@ -73,7 +75,7 @@ export function useMainTabWithPreview(initial: AppTab = "stockLookup") {
       raf = window.requestAnimationFrame(() => {
         raf = window.requestAnimationFrame(scrollActiveTabIntoView);
       });
-      timeoutId = window.setTimeout(scrollActiveTabIntoView, 120);
+      timeoutId = window.setTimeout(scrollActiveTabIntoView, 160);
     };
 
     scheduleScroll();
