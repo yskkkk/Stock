@@ -225,6 +225,7 @@ export default function App() {
     committedTab,
     setAppTab,
     mainTabClassName,
+    mainTabsNavRef,
   } = useMainTabWithPreview("stockLookup");
   const prevAppTabRef = useRef<AppTab>("stockLookup");
   /** 실거래 보유 → 종목검색: 탭 진입 시 lookupSelected 초기화 effect 건너뜀 */
@@ -1675,7 +1676,7 @@ export default function App() {
           </div>
 
           <div className="top-bar__right">
-            <nav className="main-tabs" aria-label={ko.app.mainNav}>
+            <nav ref={mainTabsNavRef} className="main-tabs" aria-label={ko.app.mainNav}>
               <button
                 type="button"
                 className={mainTabClassName("stockLookup")}

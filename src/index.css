@@ -5096,6 +5096,8 @@ html[data-theme="light"] .access-admin-ui-feature-badge--off {
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
+    scroll-padding-inline: max(0.35rem, env(safe-area-inset-left, 0px))
+      max(0.35rem, env(safe-area-inset-right, 0px));
     scrollbar-width: thin;
   }
 
@@ -5209,12 +5211,14 @@ html[data-theme="light"] .access-admin-ui-feature-badge--off {
   }
 
   .main-tab {
-    flex: 1 1 0;
+    flex: 0 0 auto;
     min-width: 0;
     justify-content: center;
     min-height: 40px;
     padding: 0.32rem 0.5rem;
     font-size: 0.74rem;
+    white-space: nowrap;
+    position: relative;
     touch-action: manipulation;
   }
 
@@ -5689,7 +5693,7 @@ html[data-theme="light"] .access-admin-ui-feature-badge--off {
   }
 
   .main-tab {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     min-width: 0;
     justify-content: center;
   }
@@ -5949,6 +5953,26 @@ html[data-theme="light"] .access-admin-ui-feature-badge--off {
     background: transparent;
   }
 
+  .top-bar .main-tab:not(.active) {
+    opacity: 0.68;
+  }
+
+  .top-bar .main-tab.active {
+    opacity: 1;
+  }
+
+  .top-bar .main-tab.active::after {
+    content: "";
+    position: absolute;
+    left: 0.28rem;
+    right: 0.28rem;
+    bottom: 0.06rem;
+    height: 2.5px;
+    border-radius: 999px;
+    background: var(--accent);
+    pointer-events: none;
+  }
+
   html:not([data-theme="light"]) .main-tab.active {
     font-weight: 800;
     background: transparent;
@@ -5963,6 +5987,10 @@ html[data-theme="light"] .access-admin-ui-feature-badge--off {
     background: transparent;
     box-shadow: none;
     border: none;
+  }
+
+  html[data-theme="light"] .top-bar .main-tab.active::after {
+    background: var(--accent-ink, var(--accent));
   }
 
   .picks-panel.card {
