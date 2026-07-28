@@ -72,16 +72,36 @@ const STYLE_VALUE_GICS = new Set([
   "Health Care",
 ]);
 
-/** 업종·종목명 키워드(한/영) — GICS 없을 때 */
+/**
+ * 포트폴리오에서 성장으로 보는 티커(대문자).
+ * ITA=항공·방산 ETF(GICS Industrials라 가치로 떨어지던 것), IQQ 등 메타 없는 ETF 포함.
+ */
+const STYLE_GROWTH_TICKERS = new Set([
+  "GOOGL",
+  "GOOG",
+  "GOOGL.O",
+  "GOOG.O",
+  "IQQ",
+  "ITA",
+]);
+
+/** 업종·종목명 키워드(한/영) — GICS 없을 때·방산 ETF 보정 */
 const STYLE_GROWTH_RE =
-  /반도체|소프트웨어|인터넷|게임|바이오|2차전지|이차전지|전기차|디스플레이|플랫폼|클라우드|AI|인공지능|로봇|우주|핀테크|IT\b|tech|software|semiconductor|biotech|internet|cloud|battery|ev\b|nvidia|tesla|meta|alphabet|amazon|apple|microsoft|netflix|crypto|bitcoin|이더/i;
+  /반도체|소프트웨어|인터넷|게임|바이오|2차전지|이차전지|전기차|디스플레이|플랫폼|클라우드|AI|인공지능|로봇|우주|핀테크|구글|alphabet|googl|항공우주|방산|국방|aerospace|defense|IT\b|tech|software|semiconductor|biotech|internet|cloud|battery|ev\b|nvidia|tesla|meta|amazon|apple|microsoft|netflix|crypto|bitcoin|이더/i;
 
 const STYLE_VALUE_RE =
-  /은행|보험|증권|유틸리티|전력|가스|통신|식품|유통|철강|화학|건설|운송|물류|지주|정유|에너지|담배|필수|배당|utility|bank|insurance|telecom|staple|reit|realty|oil|gas|steel|chemical|defense|방산|담배/i;
+  /은행|보험|증권|유틸리티|전력|가스|통신|식품|유통|철강|화학|건설|운송|물류|지주|정유|에너지|담배|필수|배당|utility|bank|insurance|telecom|staple|reit|realty|oil|gas|steel|chemical/i;
+
+function normalizeStyleTicker(symbol: string): string {
+  return String(symbol ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/\.(KS|KQ|KN|N|O|L|TO)$/i, "");
+}
 
 /**
  * 보유 종목을 성장주 / 가치·방어주로 분류.
- * GICS → 키워드 → 코인=성장, 그 외=가치(방어) 순.
+ * 티커 화이트리스트 → 코인 → GICS → 키워드 → 기본 가치(방어).
  */
 export function classifyAccountHoldingStyle(
   row: Pick<
@@ -89,11 +109,13 @@ export function classifyAccountHoldingStyle(
     "market" | "sectorEn" | "sectorKo" | "industry" | "subIndustry" | "name" | "symbol"
   >,
 ): AccountHoldingStyle {
-  if (row.market === "crypto") return "growth";
+  const ticker = normalizeStyleTicker(row.symbol);
+  if (ticker && STYLE_GROWTH_TICKERS.has(ticker)) return "growth";
+  if (STYLE_GROWTH_TICKERS.has(String(row.symbol ?? "").trim().toUpperCase())) {
+    return "growth";
+  }
 
-  const gics = String(row.sectorEn ?? "").trim();
-  if (gics && STYLE_GROWTH_GICS.has(gics)) return "growth";
-  if (gics && STYLE_VALUE_GICS.has(gics)) return "value";
+  if (row.market === "crypto") return "growth";
 
   const blob = [
     row.sectorKo,
@@ -105,10 +127,16 @@ export function classifyAccountHoldingStyle(
     .filter(Boolean)
     .join(" ");
 
+  // 방산·항공우주는 GICS Industrials여도 성장으로 (ITA 등)
+  if (/항공우주|방산|국방|aerospace|defense/i.test(blob)) return "growth";
+
+  const gics = String(row.sectorEn ?? "").trim();
+  if (gics && STYLE_GROWTH_GICS.has(gics)) return "growth";
+  if (gics && STYLE_VALUE_GICS.has(gics)) return "value";
+
   if (STYLE_GROWTH_RE.test(blob)) return "growth";
   if (STYLE_VALUE_RE.test(blob)) return "value";
 
-  // Health Care 등 GICS 미매칭·애매 → 방어 쪽
   return "value";
 }
 

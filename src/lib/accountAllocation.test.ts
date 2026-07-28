@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   accountSymbolSliceLabel,
   buildAccountAllocationSlices,
+  classifyAccountHoldingStyle,
   tossHoldingsToAccountRows,
 } from "./accountAllocation";
 
@@ -105,5 +106,41 @@ describe("accountAllocation style mode", () => {
     expect(slices.find((s) => s.key === "__growth__")?.valueKrw).toBe(600);
     expect(slices.find((s) => s.key === "__value__")?.valueKrw).toBe(300);
     expect(slices.find((s) => s.key === "__cash__")?.valueKrw).toBe(100);
+  });
+
+  it("treats GOOGL / IQQ / ITA as growth even if Industrials or no GICS", () => {
+    expect(
+      classifyAccountHoldingStyle({
+        symbol: "GOOGL",
+        name: "Alphabet",
+        market: "us",
+        sectorEn: "Communication Services",
+        sectorKo: null,
+        industry: null,
+        subIndustry: null,
+      }),
+    ).toBe("growth");
+    expect(
+      classifyAccountHoldingStyle({
+        symbol: "IQQ",
+        name: "IQQ",
+        market: "us",
+        sectorEn: null,
+        sectorKo: null,
+        industry: null,
+        subIndustry: null,
+      }),
+    ).toBe("growth");
+    expect(
+      classifyAccountHoldingStyle({
+        symbol: "ITA",
+        name: "iShares U.S. Aerospace & Defense ETF",
+        market: "us",
+        sectorEn: "Industrials",
+        sectorKo: null,
+        industry: "Aerospace & Defense",
+        subIndustry: "Aerospace & Defense",
+      }),
+    ).toBe("growth");
   });
 });
