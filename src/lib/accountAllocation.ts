@@ -5,6 +5,9 @@
 
 import type { TossTestHolding } from "../api";
 import {
+  classifyAccountHoldingStyle as classifyStyleFromPolicy,
+} from "../../shared/account-holding-style-policy.js";
+import {
   buildDonutSegments,
   sp500SectorColor,
   type DonutSegment,
@@ -55,89 +58,17 @@ export type AccountHoldingRow = {
   sectorKo: string | null;
 };
 
-const STYLE_GROWTH_GICS = new Set([
-  "Information Technology",
-  "Communication Services",
-  "Consumer Discretionary",
-]);
-
-const STYLE_VALUE_GICS = new Set([
-  "Utilities",
-  "Consumer Staples",
-  "Financials",
-  "Energy",
-  "Materials",
-  "Real Estate",
-  "Industrials",
-  "Health Care",
-]);
-
 /**
- * 포트폴리오에서 성장으로 보는 티커(대문자).
- * ITA=항공·방산 ETF(GICS Industrials라 가치로 떨어지던 것), IQQ 등 메타 없는 ETF 포함.
- */
-const STYLE_GROWTH_TICKERS = new Set([
-  "GOOGL",
-  "GOOG",
-  "GOOGL.O",
-  "GOOG.O",
-  "IQQ",
-  "ITA",
-]);
-
-/** 업종·종목명 키워드(한/영) — GICS 없을 때·방산 ETF 보정 */
-const STYLE_GROWTH_RE =
-  /반도체|소프트웨어|인터넷|게임|바이오|2차전지|이차전지|전기차|디스플레이|플랫폼|클라우드|AI|인공지능|로봇|우주|핀테크|구글|alphabet|googl|항공우주|방산|국방|aerospace|defense|IT\b|tech|software|semiconductor|biotech|internet|cloud|battery|ev\b|nvidia|tesla|meta|amazon|apple|microsoft|netflix|crypto|bitcoin|이더/i;
-
-const STYLE_VALUE_RE =
-  /은행|보험|증권|유틸리티|전력|가스|통신|식품|유통|철강|화학|건설|운송|물류|지주|정유|에너지|담배|필수|배당|utility|bank|insurance|telecom|staple|reit|realty|oil|gas|steel|chemical/i;
-
-function normalizeStyleTicker(symbol: string): string {
-  return String(symbol ?? "")
-    .trim()
-    .toUpperCase()
-    .replace(/\.(KS|KQ|KN|N|O|L|TO)$/i, "");
-}
-
-/**
- * 보유 종목을 성장주 / 가치·방어주로 분류.
- * 티커 화이트리스트 → 코인 → GICS → 키워드 → 기본 가치(방어).
+ * 정책 SSOT(`shared/account-holding-style-policy.js`) + 사용자 오버라이드.
  */
 export function classifyAccountHoldingStyle(
   row: Pick<
     AccountHoldingRow,
     "market" | "sectorEn" | "sectorKo" | "industry" | "subIndustry" | "name" | "symbol"
   >,
+  userOverrides?: Record<string, AccountHoldingStyle> | null,
 ): AccountHoldingStyle {
-  const ticker = normalizeStyleTicker(row.symbol);
-  if (ticker && STYLE_GROWTH_TICKERS.has(ticker)) return "growth";
-  if (STYLE_GROWTH_TICKERS.has(String(row.symbol ?? "").trim().toUpperCase())) {
-    return "growth";
-  }
-
-  if (row.market === "crypto") return "growth";
-
-  const blob = [
-    row.sectorKo,
-    row.industry,
-    row.subIndustry,
-    row.name,
-    row.symbol,
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  // 방산·항공우주는 GICS Industrials여도 성장으로 (ITA 등)
-  if (/항공우주|방산|국방|aerospace|defense/i.test(blob)) return "growth";
-
-  const gics = String(row.sectorEn ?? "").trim();
-  if (gics && STYLE_GROWTH_GICS.has(gics)) return "growth";
-  if (gics && STYLE_VALUE_GICS.has(gics)) return "value";
-
-  if (STYLE_GROWTH_RE.test(blob)) return "growth";
-  if (STYLE_VALUE_RE.test(blob)) return "value";
-
-  return "value";
+  return classifyStyleFromPolicy(row, userOverrides ?? undefined);
 }
 
 const FALLBACK_COLORS = [
@@ -202,6 +133,7 @@ export function buildAccountAllocationSlices(
     styleGrowth?: string;
     styleValue?: string;
   },
+  styleOverrides?: Record<string, AccountHoldingStyle> | null,
 ): AccountAllocSlice[] {
   const map = new Map<string, AccountAllocSlice>();
 
@@ -251,7 +183,7 @@ export function buildAccountAllocationSlices(
       continue;
     }
     if (mode === "style") {
-      const style = classifyAccountHoldingStyle(row);
+      const style = classifyAccountHoldingStyle(row, styleOverrides);
       const key = style === "growth" ? "__growth__" : "__value__";
       const label =
         style === "growth"

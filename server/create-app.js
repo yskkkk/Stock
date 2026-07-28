@@ -201,6 +201,7 @@ import {
 import { listPollersStatusSync, setPollerRuntimeEnabled } from "./poller-registry.js";
 import { sendChatNoCodeTelegram } from "./ops-chat-no-code-notify.js";
 import { registerUserCredentialRoutes } from "./user-credentials-routes.js";
+import { registerAccountHoldingStyleRoutes } from "./account-holding-style-routes.js";
 import {
   getBithumbTradingStatusForUserSync,
   listCredentialMetaForUserSync,
@@ -332,6 +333,7 @@ export function createApp() {
   registerUiFeatureToggleRoutes(app);
   registerUserAuthRoutes(app);
   registerUserCredentialRoutes(app);
+  registerAccountHoldingStyleRoutes(app);
 
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true, atMs: Date.now() });

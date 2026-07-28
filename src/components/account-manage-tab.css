@@ -354,6 +354,41 @@
   font-weight: 700;
 }
 
+.account-manage-tab__style-policy {
+  margin: 0.45rem 0 0;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.account-manage-tab__style-policy summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.account-manage-tab__style-policy ol {
+  margin: 0.35rem 0 0.25rem;
+  padding-left: 1.15rem;
+}
+
+.account-manage-tab__style-policy p {
+  margin: 0.25rem 0 0;
+}
+
+.account-manage-tab__style-select-wrap {
+  display: block;
+}
+
+.account-manage-tab__style-select {
+  max-width: 9.5rem;
+  font-size: 0.72rem;
+  padding: 0.2rem 0.35rem;
+  border-radius: 6px;
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  color: var(--text);
+}
+
 .account-manage-tab__mode {
   display: flex;
   flex-wrap: wrap;

@@ -1,19 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  fetchAccountHoldingStyle,
   fetchSp500Sectors,
   fetchTossHoldingsManage,
+  putAccountHoldingStyleOverride,
   runTossRebalanceNow,
   type TossTestHolding,
 } from "../api";
 import { ko } from "../i18n/ko";
 import {
   accountSlicesToDonut,
-  accountSymbolSliceLabel,
   buildAccountAllocationSlices,
   tossHoldingsToAccountRows,
   type AccountAllocMode,
   type AccountHoldingRow,
+  type AccountHoldingStyle,
 } from "../lib/accountAllocation";
+import {
+  normalizeAccountStyleTicker,
+  resolveAccountHoldingStyle,
+} from "../../shared/account-holding-style-policy.js";
 import {
   donutArcPath,
   donutArcPathPopOut,
@@ -115,6 +121,11 @@ export default function AccountManageTab({
   const [styleFocusKey, setStyleFocusKey] = useState<string | null>(null);
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const [styleHoveredKey, setStyleHoveredKey] = useState<string | null>(null);
+  const [styleOverrides, setStyleOverrides] = useState<
+    Record<string, AccountHoldingStyle>
+  >({});
+  const [stylePolicyLines, setStylePolicyLines] = useState<string[]>([]);
+  const [styleSavingSym, setStyleSavingSym] = useState<string | null>(null);
   const [enrichMap, setEnrichMap] = useState<
     Map<
       string,
@@ -201,6 +212,54 @@ export default function AccountManageTab({
     (n: number | null | undefined) =>
       formatAccountSignedMoney(n, displayCurrency, usdKrwRate),
     [displayCurrency, usdKrwRate],
+  );
+
+  // ????? ??(????) ? ????? ?? ??? ??
+  useEffect(() => {
+    if (!user) {
+      setStyleOverrides({});
+      setStylePolicyLines([]);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const snap = await fetchAccountHoldingStyle();
+        if (cancelled || !snap?.ok) return;
+        setStyleOverrides(snap.overrides ?? {});
+        setStylePolicyLines(
+          Array.isArray(snap.policy?.priority) ? snap.policy.priority : [],
+        );
+      } catch {
+        if (!cancelled) {
+          setStyleOverrides({});
+          setStylePolicyLines([]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  const onSetHoldingStyle = useCallback(
+    async (symbol: string, next: AccountHoldingStyle | "auto") => {
+      const sym = String(symbol || "").trim();
+      if (!sym || styleSavingSym) return;
+      setStyleSavingSym(sym);
+      try {
+        const style = next === "auto" ? null : next;
+        const snap = await putAccountHoldingStyleOverride(sym, style);
+        if (snap?.ok && snap.overrides) {
+          setStyleOverrides(snap.overrides);
+        }
+      } catch {
+        /* keep previous */
+      } finally {
+        setStyleSavingSym(null);
+      }
+    },
+    [styleSavingSym],
   );
 
   // ???S&P GICS????? ??
@@ -363,8 +422,15 @@ export default function AccountManageTab({
   );
 
   const slices = useMemo(
-    () => buildAccountAllocationSlices(holdingRows, cashKrw, allocMode, labels),
-    [holdingRows, cashKrw, allocMode, labels],
+    () =>
+      buildAccountAllocationSlices(
+        holdingRows,
+        cashKrw,
+        allocMode,
+        labels,
+        styleOverrides,
+      ),
+    [holdingRows, cashKrw, allocMode, labels, styleOverrides],
   );
 
   const { segments, total } = useMemo(
@@ -373,8 +439,15 @@ export default function AccountManageTab({
   );
 
   const styleSlices = useMemo(
-    () => buildAccountAllocationSlices(holdingRows, cashKrw, "style", labels),
-    [holdingRows, cashKrw, labels],
+    () =>
+      buildAccountAllocationSlices(
+        holdingRows,
+        cashKrw,
+        "style",
+        labels,
+        styleOverrides,
+      ),
+    [holdingRows, cashKrw, labels, styleOverrides],
   );
 
   const { segments: styleSegments } = useMemo(
@@ -1192,6 +1265,19 @@ export default function AccountManageTab({
                     <p className="account-manage-tab__wheel-sub">
                       {ko.app.accountManageStyleChartSub}
                     </p>
+                    {stylePolicyLines.length > 0 ? (
+                      <details className="account-manage-tab__style-policy">
+                        <summary>
+                          {ko.app.accountManageStylePolicyTitle}
+                        </summary>
+                        <ol>
+                          {stylePolicyLines.map((line) => (
+                            <li key={line}>{line}</li>
+                          ))}
+                        </ol>
+                        <p>{ko.app.accountManageStylePolicyHint}</p>
+                      </details>
+                    ) : null}
                   </div>
                   <div className="account-manage-tab__chart-panel">
                     <svg
@@ -1504,6 +1590,7 @@ export default function AccountManageTab({
                     <thead>
                       <tr>
                         <th>{ko.app.liveTradePfColSymbol}</th>
+                        <th>{ko.app.accountManageStyleCol}</th>
                         <th>
                           {allocMode === "subIndustry"
                             ? ko.app.accountManageGroupSubIndustry
@@ -1526,6 +1613,13 @@ export default function AccountManageTab({
                                   h.symbol.toUpperCase() === row.symbol.toUpperCase(),
                               )
                             : null;
+                        const ticker = normalizeAccountStyleTicker(row.symbol);
+                        const overrideStyle = styleOverrides[ticker];
+                        const resolved = resolveAccountHoldingStyle(
+                          row,
+                          styleOverrides,
+                        );
+                        const selectVal = overrideStyle ?? "auto";
                         return (
                           <tr key={`${row.market}:${row.symbol}`}>
                             <td>
@@ -1559,6 +1653,48 @@ export default function AccountManageTab({
                                 <strong>{row.symbol}</strong>
                                 <div className="account-manage-tab__name">{row.name}</div>
                               </button>
+                            </td>
+                            <td>
+                              <label className="account-manage-tab__style-select-wrap">
+                                <select
+                                  className="account-manage-tab__style-select"
+                                  aria-label={ko.app.accountManageStyleCol}
+                                  value={selectVal}
+                                  disabled={styleSavingSym === row.symbol}
+                                  title={
+                                    overrideStyle
+                                      ? ko.app.accountManageStylePolicyHint
+                                      : `${ko.app.accountManageStyleAuto} ? ${
+                                          resolved.style === "growth"
+                                            ? ko.app.accountManageStyleGrowth
+                                            : ko.app.accountManageStyleValue
+                                        }`
+                                  }
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    void onSetHoldingStyle(
+                                      row.symbol,
+                                      v === "auto"
+                                        ? "auto"
+                                        : (v as AccountHoldingStyle),
+                                    );
+                                  }}
+                                >
+                                  <option value="auto">
+                                    {ko.app.accountManageStyleAuto}
+                                    {" ? "}
+                                    {resolved.style === "growth"
+                                      ? ko.app.accountManageStyleGrowth
+                                      : ko.app.accountManageStyleValue}
+                                  </option>
+                                  <option value="growth">
+                                    {ko.app.accountManageStyleGrowth}
+                                  </option>
+                                  <option value="value">
+                                    {ko.app.accountManageStyleValue}
+                                  </option>
+                                </select>
+                              </label>
                             </td>
                             <td>
                               {allocMode === "symbol"

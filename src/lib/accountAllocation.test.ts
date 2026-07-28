@@ -5,6 +5,9 @@ import {
   classifyAccountHoldingStyle,
   tossHoldingsToAccountRows,
 } from "./accountAllocation";
+import {
+  resolveAccountHoldingStyle,
+} from "../../shared/account-holding-style-policy.js";
 
 describe("accountAllocation symbol labels", () => {
   it("uses mapped Korean name in symbol mode legend", () => {
@@ -142,5 +145,21 @@ describe("accountAllocation style mode", () => {
         subIndustry: "Aerospace & Defense",
       }),
     ).toBe("growth");
+  });
+
+  it("user override beats seed and GICS", () => {
+    const row = {
+      symbol: "GOOGL",
+      name: "Alphabet",
+      market: "us" as const,
+      sectorEn: "Communication Services",
+      sectorKo: null,
+      industry: null,
+      subIndustry: null,
+    };
+    expect(classifyAccountHoldingStyle(row, { GOOGL: "value" })).toBe("value");
+    expect(resolveAccountHoldingStyle(row, { GOOGL: "value" }).source).toBe(
+      "override",
+    );
   });
 });

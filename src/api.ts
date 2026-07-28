@@ -1025,6 +1025,43 @@ export function fetchTossAccountSnapshot(opts?: { refresh?: boolean }) {
   }>(`/api/user/toss/account-snapshot${q}`);
 }
 
+export type AccountHoldingStyleOverride = "growth" | "value";
+
+export type AccountHoldingStyleSnapshot = {
+  ok: boolean;
+  policy?: {
+    version: number;
+    priority: string[];
+    growthGics: string[];
+    valueGics: string[];
+    seedTickers: Record<string, AccountHoldingStyleOverride>;
+  };
+  overrides: Record<string, AccountHoldingStyleOverride>;
+  seededAtMs?: number | null;
+  updatedAtMs?: number | null;
+  error?: string;
+};
+
+export function fetchAccountHoldingStyle() {
+  return fetchJson<AccountHoldingStyleSnapshot>(
+    "/api/user/account-holding-style",
+  );
+}
+
+export function putAccountHoldingStyleOverride(
+  symbol: string,
+  style: AccountHoldingStyleOverride | null,
+) {
+  return fetchJson<AccountHoldingStyleSnapshot & { ticker?: string }>(
+    "/api/user/account-holding-style/override",
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbol, style }),
+    },
+  );
+}
+
 export function saveUserCredential(
   exchange: "bithumb" | "toss",
   body: {
