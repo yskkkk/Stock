@@ -228,11 +228,51 @@
   padding: 0.75rem 0;
 }
 
+.account-manage-tab__summary-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 0.55rem;
+  width: 100%;
+}
+
+.account-manage-tab__summary-row > .account-manage-tab__summary--primary,
+.account-manage-tab__summary-row > .account-manage-tab__summary-more,
+.account-manage-tab__summary-row
+  > .account-manage-tab__summary-more
+  > .account-manage-tab__summary--secondary {
+  display: contents;
+}
+
+.account-manage-tab__summary-row > .account-manage-tab__summary-more > summary {
+  display: none;
+}
+
 .account-manage-tab__summary {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
   gap: 0.55rem;
   width: 100%;
+}
+
+.account-manage-tab__summary-more {
+  margin: 0;
+  min-width: 0;
+}
+
+.account-manage-tab__summary-more > summary {
+  list-style: none;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: var(--muted);
+  padding: 0.32rem 0.45rem;
+  border-radius: var(--radius-sm, 0.5rem);
+  border: 1px dashed color-mix(in srgb, var(--card-border) 85%, transparent);
+  touch-action: manipulation;
+}
+
+.account-manage-tab__summary-more > summary::-webkit-details-marker {
+  display: none;
 }
 
 .account-manage-tab__stat {

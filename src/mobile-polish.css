@@ -579,6 +579,102 @@
 }
 
 @media (max-width: 560px) {
+  .account-manage-tab__head-actions .account-manage-tab__hide-btn {
+    display: none;
+  }
+
+  .account-manage-tab__summary-wrap {
+    gap: 0.28rem;
+  }
+
+  .account-manage-tab__summary-toolbar {
+    gap: 0.32rem;
+    row-gap: 0.32rem;
+  }
+
+  .account-manage-tab__hide-btn--summary {
+    font-size: 0.72rem;
+    padding: 0.28rem 0.55rem;
+    min-height: 44px;
+  }
+
+  .account-manage-tab__summary-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.28rem;
+  }
+
+  .account-manage-tab__summary-row > .account-manage-tab__summary--primary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.32rem;
+  }
+
+  .account-manage-tab__summary-row > .account-manage-tab__summary-more {
+    display: block;
+  }
+
+  .account-manage-tab__summary-row
+    > .account-manage-tab__summary-more
+    > .account-manage-tab__summary--secondary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.32rem;
+    margin-top: 0.28rem;
+  }
+
+  .account-manage-tab__summary-row > .account-manage-tab__summary-more > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 44px;
+    margin: 0;
+  }
+
+  .account-manage-tab__summary-row
+    > .account-manage-tab__summary-more
+    > summary::after {
+    content: "▾";
+    font-size: 0.68rem;
+    opacity: 0.65;
+  }
+
+  .account-manage-tab__summary-row
+    > .account-manage-tab__summary-more[open]
+    > summary::after {
+    transform: rotate(180deg);
+  }
+
+  .account-manage-tab__stat {
+    padding: 0.38rem 0.48rem;
+    gap: 0.1rem;
+  }
+
+  .account-manage-tab__stat-label {
+    font-size: 0.62rem;
+  }
+
+  .account-manage-tab__stat-value {
+    font-size: 0.82rem;
+  }
+
+  .account-manage-tab__stat-sub {
+    font-size: 0.65rem;
+  }
+
+  .account-manage-tab__stat--muted {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.32rem 0.48rem;
+  }
+
+  .account-manage-tab__stat--muted .account-manage-tab__stat-value {
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+
   .live-portfolio__summary-hero {
     grid-template-columns: 1fr;
   }

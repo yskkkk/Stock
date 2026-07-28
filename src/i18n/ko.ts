@@ -244,6 +244,7 @@ export const ko = {
     accountManageTotal: "총평가",
     accountManageHoldings: "보유",
     accountManageUpdated: "갱신",
+    accountManageSummaryMore: "손익·갱신",
     accountManageSliceCount: "{n}종목",
     accountManageSliceValue: "평가",
     accountManageColWeight: "비중",

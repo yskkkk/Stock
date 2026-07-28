@@ -841,118 +841,31 @@ export default function AccountManageTab({
                   : ko.app.accountManageMoneyHide}
               </button>
             </div>
-          <div className="account-manage-tab__summary">
-            <div className="account-manage-tab__stat">
-              <span className="account-manage-tab__stat-label">
-                {ko.app.accountManageTotal}
-              </span>
-              <span className="account-manage-tab__stat-value">
-                <span
-                  className="account-manage-tab__money"
-                  aria-hidden={balanceHidden || undefined}
-                >
-                  {money((holdingsTotalKrw ?? 0) + cashKrw)}
-                </span>
-              </span>
-            </div>
-            <div className="account-manage-tab__stat">
-              <span className="account-manage-tab__stat-label">
-                {ko.app.accountManageHoldings}
-              </span>
-              <span
-                className={[
-                  "account-manage-tab__stat-value",
-                  holdingsReturnPct != null && holdingsReturnPct > 0
-                    ? "is-up"
-                    : holdingsReturnPct != null && holdingsReturnPct < 0
-                      ? "is-down"
-                      : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-              >
-                <span
-                  className="account-manage-tab__money"
-                  aria-hidden={balanceHidden || undefined}
-                >
-                  {money(holdingsTotalKrw)}
-                </span>
-                {holdingsReturnPct != null ? (
-                  <span className="account-manage-tab__stat-pct">
-                    {" "}
-                    ({formatPercent(holdingsReturnPct)})
-                  </span>
-                ) : null}
-              </span>
-            </div>
-            {provider === "toss" ? (
-              <>
-                <div className="account-manage-tab__stat">
-                  <span className="account-manage-tab__stat-label">
-                    {ko.app.accountManageCashKrw}
-                  </span>
-                  <span className="account-manage-tab__stat-value">
-                    <span
-                      className="account-manage-tab__money"
-                      aria-hidden={balanceHidden || undefined}
-                    >
-                      {formatPrice(cashNativeKrw, "KRW")}
-                    </span>
-                  </span>
-                </div>
-                <div className="account-manage-tab__stat">
-                  <span className="account-manage-tab__stat-label">
-                    {ko.app.accountManageCashUsd}
-                  </span>
-                  <span className="account-manage-tab__stat-value">
-                    <span
-                      className="account-manage-tab__money"
-                      aria-hidden={balanceHidden || undefined}
-                    >
-                      {formatPrice(cashNativeUsd, "USD")}
-                    </span>
-                    {cashNativeUsd > 0 &&
-                    usdKrwRate != null &&
-                    usdKrwRate > 0 ? (
-                      <span
-                        className="account-manage-tab__stat-sub"
-                        aria-hidden={balanceHidden || undefined}
-                      >
-                        {formatPrice(
-                          Math.round(cashNativeUsd * usdKrwRate),
-                          "KRW",
-                        )}
-                      </span>
-                    ) : null}
-                  </span>
-                </div>
-              </>
-            ) : (
+          <div className="account-manage-tab__summary-row">
+            <div className="account-manage-tab__summary account-manage-tab__summary--primary">
               <div className="account-manage-tab__stat">
                 <span className="account-manage-tab__stat-label">
-                  {ko.app.accountManageCash}
+                  {ko.app.accountManageTotal}
                 </span>
                 <span className="account-manage-tab__stat-value">
                   <span
                     className="account-manage-tab__money"
                     aria-hidden={balanceHidden || undefined}
                   >
-                    {money(cashKrw)}
+                    {money((holdingsTotalKrw ?? 0) + cashKrw)}
                   </span>
                 </span>
               </div>
-            )}
-            {netSummary?.profitLossKrw != null ? (
               <div className="account-manage-tab__stat">
                 <span className="account-manage-tab__stat-label">
-                  {ko.app.liveTradePfUnrealized}
+                  {ko.app.accountManageHoldings}
                 </span>
                 <span
                   className={[
                     "account-manage-tab__stat-value",
-                    netSummary.profitLossKrw > 0
+                    holdingsReturnPct != null && holdingsReturnPct > 0
                       ? "is-up"
-                      : netSummary.profitLossKrw < 0
+                      : holdingsReturnPct != null && holdingsReturnPct < 0
                         ? "is-down"
                         : "",
                   ]
@@ -963,37 +876,133 @@ export default function AccountManageTab({
                     className="account-manage-tab__money"
                     aria-hidden={balanceHidden || undefined}
                   >
-                    {signedMoney(netSummary.profitLossKrw)}
-                    {netSummary.totalReturnPct != null
-                      ? ` (${formatPercent(netSummary.totalReturnPct)})`
-                      : ""}
+                    {money(holdingsTotalKrw)}
                   </span>
-                </span>
-              </div>
-            ) : null}
-            {updatedAtMs || refreshing ? (
-              <div className="account-manage-tab__stat account-manage-tab__stat--muted">
-                <span className="account-manage-tab__stat-label">
-                  {ko.app.accountManageUpdated}
-                  {refreshing ? (
-                    <span
-                      className="account-manage-tab__refresh-spinner account-manage-tab__refresh-spinner--inline"
-                      aria-hidden
-                    />
+                  {holdingsReturnPct != null ? (
+                    <span className="account-manage-tab__stat-pct">
+                      {" "}
+                      ({formatPercent(holdingsReturnPct)})
+                    </span>
                   ) : null}
                 </span>
-                <span className="account-manage-tab__stat-value">
-                  {updatedAtMs
-                    ? new Date(updatedAtMs).toLocaleTimeString("ko-KR", {
-                        timeZone: "Asia/Seoul",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        second: "2-digit",
-                        hour12: false,
-                      })
-                    : "?"}
-                </span>
               </div>
+              {provider === "toss" ? (
+                <>
+                  <div className="account-manage-tab__stat">
+                    <span className="account-manage-tab__stat-label">
+                      {ko.app.accountManageCashKrw}
+                    </span>
+                    <span className="account-manage-tab__stat-value">
+                      <span
+                        className="account-manage-tab__money"
+                        aria-hidden={balanceHidden || undefined}
+                      >
+                        {formatPrice(cashNativeKrw, "KRW")}
+                      </span>
+                    </span>
+                  </div>
+                  <div className="account-manage-tab__stat">
+                    <span className="account-manage-tab__stat-label">
+                      {ko.app.accountManageCashUsd}
+                    </span>
+                    <span className="account-manage-tab__stat-value">
+                      <span
+                        className="account-manage-tab__money"
+                        aria-hidden={balanceHidden || undefined}
+                      >
+                        {formatPrice(cashNativeUsd, "USD")}
+                      </span>
+                      {cashNativeUsd > 0 &&
+                      usdKrwRate != null &&
+                      usdKrwRate > 0 ? (
+                        <span
+                          className="account-manage-tab__stat-sub"
+                          aria-hidden={balanceHidden || undefined}
+                        >
+                          {formatPrice(
+                            Math.round(cashNativeUsd * usdKrwRate),
+                            "KRW",
+                          )}
+                        </span>
+                      ) : null}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div className="account-manage-tab__stat">
+                  <span className="account-manage-tab__stat-label">
+                    {ko.app.accountManageCash}
+                  </span>
+                  <span className="account-manage-tab__stat-value">
+                    <span
+                      className="account-manage-tab__money"
+                      aria-hidden={balanceHidden || undefined}
+                    >
+                      {money(cashKrw)}
+                    </span>
+                  </span>
+                </div>
+              )}
+            </div>
+            {netSummary?.profitLossKrw != null || updatedAtMs || refreshing ? (
+              <details className="account-manage-tab__summary-more">
+                <summary>{ko.app.accountManageSummaryMore}</summary>
+                <div className="account-manage-tab__summary account-manage-tab__summary--secondary">
+                  {netSummary?.profitLossKrw != null ? (
+                    <div className="account-manage-tab__stat">
+                      <span className="account-manage-tab__stat-label">
+                        {ko.app.liveTradePfUnrealized}
+                      </span>
+                      <span
+                        className={[
+                          "account-manage-tab__stat-value",
+                          netSummary.profitLossKrw > 0
+                            ? "is-up"
+                            : netSummary.profitLossKrw < 0
+                              ? "is-down"
+                              : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                      >
+                        <span
+                          className="account-manage-tab__money"
+                          aria-hidden={balanceHidden || undefined}
+                        >
+                          {signedMoney(netSummary.profitLossKrw)}
+                          {netSummary.totalReturnPct != null
+                            ? ` (${formatPercent(netSummary.totalReturnPct)})`
+                            : ""}
+                        </span>
+                      </span>
+                    </div>
+                  ) : null}
+                  {updatedAtMs || refreshing ? (
+                    <div className="account-manage-tab__stat account-manage-tab__stat--muted">
+                      <span className="account-manage-tab__stat-label">
+                        {ko.app.accountManageUpdated}
+                        {refreshing ? (
+                          <span
+                            className="account-manage-tab__refresh-spinner account-manage-tab__refresh-spinner--inline"
+                            aria-hidden
+                          />
+                        ) : null}
+                      </span>
+                      <span className="account-manage-tab__stat-value">
+                        {updatedAtMs
+                          ? new Date(updatedAtMs).toLocaleTimeString("ko-KR", {
+                              timeZone: "Asia/Seoul",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              second: "2-digit",
+                              hour12: false,
+                            })
+                          : "?"}
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
+              </details>
             ) : null}
           </div>
           </div>
