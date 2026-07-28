@@ -1,0 +1,4 @@
+로딩 오류 accountSymbolSliceLabel is not defined — 수정
+
+원인: 성향 정책 작업 중 import 정리하면서 accountSymbolSliceLabel 을 빠뜨림(말풍선에서 사용).
+조치: AccountManageTab import 복구. 새로고침하면 정상.
