@@ -455,9 +455,16 @@ export async function getMacroEventsCachedAsync() {
   }
 
   if (!macroEnrichInflight) {
-    macroEnrichInflight = refreshMacroCache().finally(() => {
-      macroEnrichInflight = null;
-    });
+    macroEnrichInflight = refreshMacroCache()
+      .catch((e) => {
+        console.warn(
+          "[macro-events] enrich:",
+          e instanceof Error ? e.message : e,
+        );
+      })
+      .finally(() => {
+        macroEnrichInflight = null;
+      });
   }
 
   await macroEnrichInflight;

@@ -84,12 +84,16 @@ function naverKeyToEndMs(key) {
 /** @param {string} code @param {"annual"|"quarter"} type */
 async function fetchNaverFinanceSheet(code, type) {
   const url = `${NAVER_FINANCE_URL}/${code}/finance/${type}`;
-  const res = await fetch(url, {
-    headers: { "User-Agent": NAVER_UA, Accept: "application/json" },
-    signal: AbortSignal.timeout(12_000),
-  });
-  if (!res.ok) return null;
-  return res.json();
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": NAVER_UA, Accept: "application/json" },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
 }
 
 /** @param {unknown} body @param {"annual"|"quarter"} kind */

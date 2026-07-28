@@ -1,3 +1,4 @@
+import { isAbortLikeError } from "./fetch-abort-guard.js";
 import { recordProcessRuntimeIssue } from "./server-self-improvement-log.js";
 
 let installed = false;
@@ -13,6 +14,7 @@ export function installProcessGuards() {
   installed = true;
 
   process.on("unhandledRejection", (reason) => {
+    if (isAbortLikeError(reason)) return;
     logProcessError("unhandledRejection", reason);
     try {
       recordProcessRuntimeIssue("unhandledRejection", reason);

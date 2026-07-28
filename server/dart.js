@@ -45,12 +45,16 @@ async function dartGet(path, params) {
 
   const qs = new URLSearchParams({ crtfc_key: key, ...params });
   const url = `${BASE}${path}?${qs.toString()}`;
-  const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
-  if (!res.ok) return null;
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+    if (!res.ok) return null;
 
-  const data = await res.json();
-  if (data.status !== "000") return null;
-  return data;
+    const data = await res.json();
+    if (data.status !== "000") return null;
+    return data;
+  } catch {
+    return null;
+  }
 }
 
 function extractFirstZipEntry(buffer) {
