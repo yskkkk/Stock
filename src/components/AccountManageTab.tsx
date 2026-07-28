@@ -713,6 +713,9 @@ export default function AccountManageTab({
     provider === "toss" ? tossLoading && !tossSnapshot : bithumbLoading && !bithumbSnapshot;
   const err = provider === "toss" ? tossErr : bithumbErr;
   const ready = provider === "toss" ? tossReady : bithumbReady;
+  const hasAccountData =
+    provider === "toss" ? Boolean(tossSnapshot) : Boolean(bithumbSnapshot);
+  const summaryPending = ready && loading && !hasAccountData;
   const updatedAtMs =
     provider === "toss"
       ? quotesUpdatedAtMs ?? tossUpdatedAtMs
@@ -796,15 +799,16 @@ export default function AccountManageTab({
 
       {!ready ? (
         <LiveTradeApiNotConnectedNotice exchange={provider} />
-      ) : loading ? (
-        <DockPanelCenterLoading label={ko.app.accountManageLoading} />
-      ) : err ? (
+      ) : err && !hasAccountData ? (
         <p className="account-manage-tab__error" role="alert">
           {err}
         </p>
       ) : (
         <>
-          <div className="account-manage-tab__summary-wrap">
+          <div
+            className="account-manage-tab__summary-wrap"
+            aria-busy={summaryPending || undefined}
+          >
             <div className="account-manage-tab__summary-toolbar">
               {refreshing ? (
                 <span
@@ -927,7 +931,9 @@ export default function AccountManageTab({
                     className="account-manage-tab__money"
                     aria-hidden={balanceHidden || undefined}
                   >
-                    {money((holdingsTotalKrw ?? 0) + cashKrw)}
+                    {summaryPending
+                      ? "…"
+                      : money((holdingsTotalKrw ?? 0) + cashKrw)}
                   </span>
                 </span>
               </div>
@@ -938,9 +944,13 @@ export default function AccountManageTab({
                 <span
                   className={[
                     "account-manage-tab__stat-value",
-                    holdingsReturnPct != null && holdingsReturnPct > 0
+                    !summaryPending &&
+                    holdingsReturnPct != null &&
+                    holdingsReturnPct > 0
                       ? "is-up"
-                      : holdingsReturnPct != null && holdingsReturnPct < 0
+                      : !summaryPending &&
+                          holdingsReturnPct != null &&
+                          holdingsReturnPct < 0
                         ? "is-down"
                         : "",
                   ]
@@ -951,9 +961,9 @@ export default function AccountManageTab({
                     className="account-manage-tab__money"
                     aria-hidden={balanceHidden || undefined}
                   >
-                    {money(holdingsTotalKrw)}
+                    {summaryPending ? "…" : money(holdingsTotalKrw)}
                   </span>
-                  {holdingsReturnPct != null ? (
+                  {!summaryPending && holdingsReturnPct != null ? (
                     <span className="account-manage-tab__stat-pct">
                       {" "}
                       ({formatPercent(holdingsReturnPct)})
@@ -963,8 +973,14 @@ export default function AccountManageTab({
               </div>
               {provider === "toss" ? (
                 <>
-                  <div className="account-manage-tab__stat">
+                  <div
+                    className="account-manage-tab__stat"
+                    data-vu="account-summary-cash-krw"
+                  >
                     <span className="account-manage-tab__stat-label">
+                      <span className="account-rebalance-modal__badge is-krw">
+                        원
+                      </span>
                       {ko.app.accountManageCashKrw}
                     </span>
                     <span className="account-manage-tab__stat-value">
@@ -972,12 +988,20 @@ export default function AccountManageTab({
                         className="account-manage-tab__money"
                         aria-hidden={balanceHidden || undefined}
                       >
-                        {formatPrice(cashNativeKrw, "KRW")}
+                        {summaryPending
+                          ? "…"
+                          : formatPrice(cashNativeKrw, "KRW")}
                       </span>
                     </span>
                   </div>
-                  <div className="account-manage-tab__stat">
+                  <div
+                    className="account-manage-tab__stat"
+                    data-vu="account-summary-cash-usd"
+                  >
                     <span className="account-manage-tab__stat-label">
+                      <span className="account-rebalance-modal__badge is-usd">
+                        $
+                      </span>
                       {ko.app.accountManageCashUsd}
                     </span>
                     <span className="account-manage-tab__stat-value">
@@ -985,9 +1009,12 @@ export default function AccountManageTab({
                         className="account-manage-tab__money"
                         aria-hidden={balanceHidden || undefined}
                       >
-                        {formatPrice(cashNativeUsd, "USD")}
+                        {summaryPending
+                          ? "…"
+                          : formatPrice(cashNativeUsd, "USD")}
                       </span>
-                      {cashNativeUsd > 0 &&
+                      {!summaryPending &&
+                      cashNativeUsd > 0 &&
                       usdKrwRate != null &&
                       usdKrwRate > 0 ? (
                         <span
@@ -1013,7 +1040,7 @@ export default function AccountManageTab({
                       className="account-manage-tab__money"
                       aria-hidden={balanceHidden || undefined}
                     >
-                      {money(cashKrw)}
+                      {summaryPending ? "…" : money(cashKrw)}
                     </span>
                   </span>
                 </div>
@@ -1082,6 +1109,14 @@ export default function AccountManageTab({
           </div>
           </div>
 
+          {summaryPending ? (
+            <DockPanelCenterLoading label={ko.app.accountManageLoading} />
+          ) : err ? (
+            <p className="account-manage-tab__error" role="alert">
+              {err}
+            </p>
+          ) : (
+            <>
           <div className="account-manage-tab__grid">
             <aside
               ref={wheelRef}
@@ -1898,6 +1933,8 @@ export default function AccountManageTab({
               />
             ) : null}
           </details>
+            </>
+          )}
         </>
       )}
 

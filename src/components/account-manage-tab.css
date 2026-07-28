@@ -320,6 +320,7 @@
 .account-manage-tab__stat-label {
   display: inline-flex;
   align-items: center;
+  gap: 0.28rem;
   font-size: 0.68rem;
   color: var(--muted);
 }
