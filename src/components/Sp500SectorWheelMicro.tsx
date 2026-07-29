@@ -179,7 +179,7 @@ function Sp500SectorDonutSvg({
   );
 }
 
-function Sp500SectorWheelMicroInner() {
+function Sp500SectorWheelMicroInner({ caption }: { caption?: string }) {
   const { data, loading, error, openSectorDetail, openPanel } = useSp500Sector();
   const mobile = useIsMobilePhone();
   const [expanded, setExpanded] = useState(false);
@@ -300,16 +300,40 @@ function Sp500SectorWheelMicroInner() {
 
   if (loading) {
     return (
-      <div
-        className="sp500-wheel-micro sp500-wheel-micro--loading"
-        aria-label={ko.app.sp500SectorAria}
-        aria-busy="true"
-      />
+      <div className="sp500-wheel-micro-wrap sp500-wheel-micro-wrap--busy">
+        <div
+          className="sp500-wheel-micro sp500-wheel-micro--loading"
+          aria-label={ko.app.sp500SectorAria}
+          aria-busy="true"
+        />
+        {caption ? (
+          <span className="sp500-wheel-micro-caption" aria-hidden>
+            {caption}
+          </span>
+        ) : null}
+      </div>
     );
   }
 
   if (error || !data) {
-    return null;
+    if (!caption) return null;
+    return (
+      <div className="sp500-wheel-micro-wrap sp500-wheel-micro-wrap--empty">
+        <button
+          type="button"
+          className="sp500-wheel-micro sp500-wheel-micro--fallback"
+          aria-label={ko.app.sp500SectorMicroAria}
+          onClick={() => openPanel("chart")}
+        >
+          <span className="sp500-wheel-micro-fallback-mark" aria-hidden>
+            S&P
+          </span>
+        </button>
+        <span className="sp500-wheel-micro-caption" aria-hidden>
+          {caption}
+        </span>
+      </div>
+    );
   }
 
   const expandOverlay =
@@ -429,6 +453,11 @@ function Sp500SectorWheelMicroInner() {
             r1={92}
           />
         </button>
+        {caption ? (
+          <span className="sp500-wheel-micro-caption" aria-hidden>
+            {caption}
+          </span>
+        ) : null}
       </div>
       {expandOverlay}
     </>

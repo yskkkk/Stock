@@ -25,7 +25,7 @@ import NasdaqEtfTab from "./components/NasdaqEtfTab";
 import RedditMentionsTab, {
   prefetchRedditMentions,
 } from "./components/RedditMentionsTab";
-import Sp500SectorWheelMicro from "./components/Sp500SectorWheelMicro";
+import AppSp500EtfMicroStack from "./components/AppSp500EtfMicroStack";
 import { Sp500SectorProvider } from "./contexts/Sp500SectorContext";
 import ScrollToTopButton from "./components/ScrollToTopButton";
 import AppThemeCorner from "./components/AppThemeCorner";
@@ -1450,7 +1450,16 @@ export default function App() {
       <Sp500SectorProvider onNavigateToTab={() => setAppTab("sp500Sector")}>
       {showEarningsViewportRail ? (
         <div className="app__viewport-earnings-rail">
-          <EarningsUpcomingIconRail variant="edge" pageScrollRef={appScrollRef} />
+          <EarningsUpcomingIconRail
+            variant="edge"
+            pageScrollRef={appScrollRef}
+            railHeader={
+              <AppSp500EtfMicroStack
+                appTab={appTab}
+                onOpenNasdaqEtf={() => setAppTab("nasdaqEtf")}
+              />
+            }
+          />
         </div>
       ) : null}
       {!desktopDockLayout ? (
@@ -1473,23 +1482,13 @@ export default function App() {
       <div className="app__shell">
       <div className="app__shell-body">
       <div className="app__viewport-top">
-        <div className="app__sp500-micro-anchor" aria-label="S&P500 · 나스닥 ETF">
-          <Sp500SectorWheelMicro />
-          <button
-            type="button"
-            className="app__nasdaq-etf-micro"
-            data-vu="nasdaq-etf-micro"
-            onClick={() => setAppTab("nasdaqEtf")}
-            title={ko.macro.nasdaqEtfBtnHint}
-            aria-label={ko.macro.nasdaqEtfBtnHint}
-            aria-pressed={appTab === "nasdaqEtf"}
-          >
-            <span className="app__nasdaq-etf-micro-kicker" aria-hidden>
-              NQ
-            </span>
-            <span className="app__nasdaq-etf-micro-label">{ko.app.tabNasdaqEtf}</span>
-          </button>
-        </div>
+        {!showEarningsViewportRail ? (
+          <AppSp500EtfMicroStack
+            className="app__sp500-micro-anchor--fallback"
+            appTab={appTab}
+            onOpenNasdaqEtf={() => setAppTab("nasdaqEtf")}
+          />
+        ) : null}
         <AppThemeCorner
           colorMode={colorMode}
           lightPalette={lightPalette}

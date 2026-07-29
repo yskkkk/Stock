@@ -153,7 +153,9 @@
   position: relative;
   flex: 0 0 auto;
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.12rem;
 }
 
 .app__sp500-micro-anchor {
@@ -171,10 +173,35 @@
   overflow: visible;
 }
 
+/* 기업실적 레일 상단 — 세로 스택 */
+.app__sp500-micro-anchor--rail {
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.42rem;
+  width: 100%;
+  max-width: 2.85rem;
+  padding: 0.08rem 0 0.2rem;
+}
+
+.app__sp500-micro-anchor--fallback {
+  max-width: none;
+  align-self: center;
+}
+
 .app__sp500-micro-anchor > .sp500-wheel-micro-wrap,
 .app__sp500-micro-anchor > .app__nasdaq-etf-micro {
   pointer-events: auto;
   flex: 0 0 auto;
+}
+
+.sp500-wheel-micro-caption {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: color-mix(in srgb, var(--text) 78%, #5b8def);
+  text-align: center;
 }
 
 .app__nasdaq-etf-micro {
@@ -182,15 +209,16 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.02rem;
+  gap: 0.1rem;
   margin: 0;
-  padding: 0.18rem 0.28rem;
-  min-width: 2.35rem;
-  max-width: 3.1rem;
+  padding: 0.28rem 0.2rem 0.22rem;
+  width: 2.55rem;
+  min-width: 2.55rem;
+  min-height: 2.55rem;
   border: 1px solid var(--card-border);
-  border-radius: 0.45rem;
+  border-radius: 0.55rem;
   background: color-mix(in srgb, var(--card) 92%, var(--bg));
-  color: inherit;
+  color: #5b8def;
   font: inherit;
   line-height: 1.05;
   cursor: pointer;
@@ -198,17 +226,27 @@
   transition:
     box-shadow 0.15s ease,
     border-color 0.15s ease,
-    background 0.15s ease;
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .app__nasdaq-etf-micro:hover {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
   border-color: color-mix(in srgb, #5b8def 45%, var(--card-border));
+  color: #7aa6f5;
 }
 
 .app__nasdaq-etf-micro[aria-pressed="true"] {
   border-color: color-mix(in srgb, #5b8def 55%, var(--card-border));
   background: color-mix(in srgb, #5b8def 14%, var(--card));
+  color: #8bb4ff;
+}
+
+.app__nasdaq-etf-micro-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
 }
 
 .app__nasdaq-etf-micro-kicker {
@@ -219,19 +257,21 @@
 }
 
 .app__nasdaq-etf-micro-label {
-  font-size: 0.58rem;
-  font-weight: 700;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+  color: inherit;
 }
 
 .sp500-wheel-micro {
   display: block;
-  width: 2.35rem;
-  height: 2.35rem;
+  width: 2.55rem;
+  height: 2.55rem;
   padding: 0;
   margin: 0;
   border: 1px solid var(--card-border);
@@ -240,6 +280,19 @@
   cursor: pointer;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
   transition: box-shadow 0.18s ease;
+}
+
+.sp500-wheel-micro--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sp500-wheel-micro-fallback-mark {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #5b8def;
 }
 
 .sp500-wheel-micro-wrap:hover .sp500-wheel-micro {
@@ -424,8 +477,15 @@
 }
 
 @media (max-width: 1179px) {
-  .app__sp500-micro-anchor {
+  .app__sp500-micro-anchor--rail:not(.app__sp500-micro-anchor--fallback) {
     gap: 0.22rem;
+  }
+
+  .app__sp500-micro-anchor--fallback {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.35rem;
+    max-width: none;
   }
 }
 
@@ -441,6 +501,7 @@
   .app__nasdaq-etf-micro {
     min-width: 44px;
     min-height: 44px;
+    width: auto;
     padding: 0.28rem 0.38rem;
     touch-action: manipulation;
   }

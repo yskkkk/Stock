@@ -6819,6 +6819,21 @@ html[data-theme="light"] .feedback-inbox-item {
   box-sizing: border-box;
 }
 
+.earnings-icon-rail__header {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin: 0 0 0.35rem;
+  padding: 0;
+}
+
+.earnings-icon-rail--edge .earnings-icon-rail__header {
+  margin-bottom: 0.45rem;
+  padding-bottom: 0.2rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
+}
+
 .earnings-icon-rail--edge .earnings-icon-rail__list {
   max-height: min(calc(100dvh - 1.25rem), 720px);
   flex: 1 1 auto;
