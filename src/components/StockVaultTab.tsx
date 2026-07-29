@@ -979,6 +979,17 @@ export default function StockVaultTab({
     filter !== "favorite" &&
     selectedScanSources.length === 0;
 
+  const showEntryHintInEmpty =
+    !loading &&
+    !error &&
+    filtered.length === 0 &&
+    !isHistoricalView &&
+    filter === "all" &&
+    !needsScanCondition &&
+    !showEmptyIntersection;
+
+  const showEntryHintAtTop = !showEntryHintInEmpty;
+
   useEffect(() => {
     setListVisibleCount(VAULT_LIST_INITIAL_ROWS);
   }, [
@@ -1476,7 +1487,7 @@ export default function StockVaultTab({
             <div className="stock-vault-tab__history-select-wrap">
               <label className="stock-vault-tab__history-select-field">
                 <span className="stock-vault-tab__history-select-label">
-                  {ko.stockVault.historyDateAria}
+                  {ko.stockVault.historyDateLabel}
                 </span>
                 <span className="stock-vault-tab__history-select-shell">
                   <select
@@ -1544,7 +1555,9 @@ export default function StockVaultTab({
         </header>
 
         <div className="stock-vault-tab__filters-wrap">
-          <p className="stock-vault-tab__entry-hint">{ko.stockVault.entryHint}</p>
+          {showEntryHintAtTop ? (
+            <p className="stock-vault-tab__entry-hint">{ko.stockVault.entryHint}</p>
+          ) : null}
           <div
             className="stock-vault-tab__filters stock-vault-tab__filters--kind"
             role="group"
@@ -1731,15 +1744,21 @@ export default function StockVaultTab({
             {error}
           </p>
         ) : filtered.length === 0 ? (
-          <p className="stock-vault-tab__muted">
-            {isHistoricalView
-              ? ko.stockVault.historyEmpty
-              : needsScanCondition
-                ? ko.stockVault.selectScanCondition
-                : showEmptyIntersection
-                  ? ko.stockVault.emptyIntersection
-                  : ko.stockVault.empty}
-          </p>
+          showEntryHintInEmpty ? (
+            <p className="stock-vault-tab__entry-hint stock-vault-tab__entry-hint--empty">
+              {ko.stockVault.entryHint}
+            </p>
+          ) : (
+            <p className="stock-vault-tab__muted">
+              {isHistoricalView
+                ? ko.stockVault.historyEmpty
+                : needsScanCondition
+                  ? ko.stockVault.selectScanCondition
+                  : showEmptyIntersection
+                    ? ko.stockVault.emptyIntersection
+                    : ko.stockVault.empty}
+            </p>
+          )
         ) : !listPaintReady ? (
           <p className="stock-vault-tab__muted">{ko.stockVault.loading}</p>
         ) : (

@@ -1388,7 +1388,7 @@ export const ko = {
     title: "종목보관",
     desc: "일봉·주봉 골든크로스·정배열·120선 근처·바닥 캔들 자동 탐지 종목과 즐겨찾기를 관리합니다.",
     entryHint:
-      "기본: 최신 일자 · 전체 · 일봉 · 골든크로스 — 아래 칩으로 조건·즐겨찾기·시장을 바꿀 수 있고, 과거 일자는 상단에서 고릅니다.",
+      "【기본】 최신·전체·일봉·골든크로스 — 조건·즐겨찾기·시장은 아래 칩, 일자는 위에서 변경",
     loading: "불러오는 중…",
     empty: "보관된 종목이 없습니다.",
     loadMoreRows: (shown: number, total: number) =>
@@ -1397,7 +1397,7 @@ export const ko = {
     scanConditionAria: "탐색 조건 선택",
     intersectionHint: "선택 조건 교집합 {n}건",
     selectScanCondition:
-      "아래 탐색 조건 칩(골든크로스 등)을 하나 이상 눌러 주세요.",
+      "아래 탐색 조건 칩(골든크로스 등)을 하나 이상 눌러 주세요. 【기본】은 최신·전체·일봉·골든크로스입니다.",
     emptyIntersection: "선택한 조건을 모두 만족하는 종목이 없습니다.",
     tabGolden: "골든크로스",
     tabMaAlign: "정배열",
@@ -1518,7 +1518,8 @@ export const ko = {
     maApproachFlat: "정체",
     removeFromVault: "보관함에서 제거",
     lastScan: "마지막 스캔",
-    historyDateAria: "탐색 일자 선택",
+    historyDateLabel: "일자",
+    historyDateAria: "탐색 일자 (기본: 최신)",
     historyLatest: "최신",
     historyAll: "전체",
     historyViewHint: (date: string) =>

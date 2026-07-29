@@ -255,6 +255,11 @@
   overflow-wrap: anywhere;
 }
 
+.stock-vault-tab__entry-hint--empty {
+  margin: 0.45rem 0 0;
+  text-align: center;
+}
+
 .stock-vault-tab__desc,
 .stock-vault-tab__scan-hint,
 .stock-vault-tab__muted {
