@@ -3,6 +3,7 @@ import path from "path";
 import crypto, { randomUUID } from "crypto";
 import { fileURLToPath } from "url";
 import { clientIp, stampAccessEventNow } from "./access-log.js";
+import { parseJsonText } from "./store-json.js";
 import { registerAccessAdminLiveTradingRoute } from "./access-admin-live-trading.js";
 
 /**
@@ -166,7 +167,7 @@ export function readAccessStore() {
       return accessStoreCache.data;
     }
     const raw = fs.readFileSync(STORE_FILE, "utf8");
-    const data = JSON.parse(raw);
+    const data = parseJsonText(raw);
     const normalized = {
       requests: Array.isArray(data.requests) ? data.requests : [],
       allowed: Array.isArray(data.allowed) ? data.allowed : [],

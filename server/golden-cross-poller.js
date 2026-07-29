@@ -959,71 +959,87 @@ export function startGoldenCrossScanPoller() {
 
   let running = false;
   const tick = () => {
-    if (running || manualScanRunning) return;
-    running = true;
-    void pollerGuardAsync("golden-cross", async () => {
-      for (const market of /** @type {const} */ (["kr", "us"])) {
-        if (!shouldRunGoldenCrossScan(market)) continue;
-        vaultScanRunning = true;
-        try {
-          const result = await spawnGoldenCrossScanWorker(market);
-          if (result) {
-            liveTradeLogInfo("[golden-cross:poller] worker ran", {
+    try {
+      if (running || manualScanRunning) return;
+      running = true;
+      void pollerGuardAsync("golden-cross", async () => {
+        for (const market of /** @type {const} */ (["kr", "us"])) {
+          if (!shouldRunGoldenCrossScan(market)) continue;
+          vaultScanRunning = true;
+          try {
+            const result = await spawnGoldenCrossScanWorker(market);
+            if (result) {
+              liveTradeLogInfo("[golden-cross:poller] worker ran", {
+                market,
+                goldenCrossHits: result.goldenCross?.hitCount ?? 0,
+                maAlignHits: result.maAlign?.hitCount ?? 0,
+                ma120NearHits: result.ma120Near?.hitCount ?? 0,
+              });
+            }
+          } catch (e) {
+            liveTradeLogWarn(
+              "[golden-cross:poller]",
               market,
-              goldenCrossHits: result.goldenCross?.hitCount ?? 0,
-              maAlignHits: result.maAlign?.hitCount ?? 0,
-              ma120NearHits: result.ma120Near?.hitCount ?? 0,
-            });
+              e instanceof Error ? e.message : e,
+            );
+          } finally {
+            vaultScanRunning = false;
           }
-        } catch (e) {
+        }
+      })
+        .catch((e) => {
           liveTradeLogWarn(
             "[golden-cross:poller]",
-            market,
             e instanceof Error ? e.message : e,
           );
-        } finally {
-          vaultScanRunning = false;
-        }
-      }
-    })
-      .catch((e) => {
-        liveTradeLogWarn(
-          "[golden-cross:poller]",
-          e instanceof Error ? e.message : e,
-        );
-      })
-      .finally(() => {
-        running = false;
-      });
+        })
+        .finally(() => {
+          running = false;
+        });
+    } catch (e) {
+      running = false;
+      liveTradeLogWarn(
+        "[golden-cross:poller:tick]",
+        e instanceof Error ? e.message : e,
+      );
+    }
   };
 
   let intradayRunning = false;
   const intradayTick = () => {
-    if (!stockVaultIntradayRescanEnabled()) return;
-    if (intradayRunning || vaultScanRunning || manualScanRunning) return;
-    intradayRunning = true;
-    void pollerGuardAsync("golden-cross-intraday", async () => {
-      for (const market of /** @type {const} */ (["kr", "us"])) {
-        try {
-          await runVaultIntradayRescanIfDue(market);
-        } catch (e) {
+    try {
+      if (!stockVaultIntradayRescanEnabled()) return;
+      if (intradayRunning || vaultScanRunning || manualScanRunning) return;
+      intradayRunning = true;
+      void pollerGuardAsync("golden-cross-intraday", async () => {
+        for (const market of /** @type {const} */ (["kr", "us"])) {
+          try {
+            await runVaultIntradayRescanIfDue(market);
+          } catch (e) {
+            liveTradeLogWarn(
+              "[stock-vault:intraday]",
+              market,
+              e instanceof Error ? e.message : e,
+            );
+          }
+        }
+      })
+        .catch((e) => {
           liveTradeLogWarn(
             "[stock-vault:intraday]",
-            market,
             e instanceof Error ? e.message : e,
           );
-        }
-      }
-    })
-      .catch((e) => {
-        liveTradeLogWarn(
-          "[stock-vault:intraday]",
-          e instanceof Error ? e.message : e,
-        );
-      })
-      .finally(() => {
-        intradayRunning = false;
-      });
+        })
+        .finally(() => {
+          intradayRunning = false;
+        });
+    } catch (e) {
+      intradayRunning = false;
+      liveTradeLogWarn(
+        "[stock-vault:intraday:tick]",
+        e instanceof Error ? e.message : e,
+      );
+    }
   };
 
   tick();

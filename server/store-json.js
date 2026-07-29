@@ -118,10 +118,13 @@ export function readJsonStoreSync(fileName, normalize, empty) {
     return data;
   } catch (e) {
     backupCorruptFile(file);
-    if (e instanceof SyntaxError) {
-      return restoreJsonStoreDefaults(fileName, empty, "corrupt");
-    }
-    throw new StoreCorruptError(file, e);
+    const reason =
+      e instanceof SyntaxError
+        ? "corrupt"
+        : e instanceof Error
+          ? `read failed (${e.message})`
+          : "read failed";
+    return restoreJsonStoreDefaults(fileName, empty, reason);
   }
 }
 
