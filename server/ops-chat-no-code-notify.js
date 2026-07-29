@@ -7,12 +7,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getRepoHeadRev } from "./ops-agent-git-push.js";
 import {
-  opsIdePromptFingerprint,
   opsIdePromptsMatch,
 } from "./ops-ide-prompt-match.js";
 import { readUserPromptForIdeSession } from "./ops-ide-transcript-text.js";
+import { formatOpsDevTelegramBody } from "./ops-dev-completion-coalesce.js";
 import {
-  escHtml,
   isOpsTelegramNotifyEnabled,
   resolveOpsTelegramCreds,
   sendTelegramMessage,
@@ -158,20 +157,13 @@ export async function sendChatNoCodeTelegram(opts) {
     return false;
   }
 
-  const reqBlock =
-    userRequest.length > 3500
-      ? `${userRequest.slice(0, 3499)}…`
-      : userRequest;
-
-  const lines = [
-    "<b>요청</b>",
-    escHtml(reqBlock),
-    "",
-    "<i>코드 반영 없이 대화 종료</i>",
-  ];
+  const text = formatOpsDevTelegramBody(
+    userRequest,
+    "코드 반영 없이 대화 종료",
+  );
 
   const ok = await sendTelegramMessage(
-    lines.join("\n"),
+    text,
     undefined,
     resolveOpsTelegramCreds(),
   );

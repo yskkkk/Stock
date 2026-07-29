@@ -24,8 +24,6 @@ import { isIdeCompletionNotified } from "./ops-ide-completion-notify.js";
 import {
   getRepoHeadRev,
   getRepoPushSyncState,
-  summarizeGitPullRangeForNotify,
-  summarizeGitReflectionForNotify,
 } from "./ops-agent-git-push.js";
 import {
   escHtml,
@@ -126,7 +124,6 @@ async function waitForGitPushSettled(snap) {
 async function settleAndRefreshBeforeSend(snap) {
   await waitForGitPushSettled(snap);
 
-  const gitRevStart = String(snap.gitRevAtStart ?? "").trim();
   const transcriptPath = String(snap.transcriptPath ?? "").trim();
   const sessionId = String(snap.sessionId ?? "").trim();
   const userLineIndex =
@@ -156,21 +153,6 @@ async function settleAndRefreshBeforeSend(snap) {
         COMPLETION_MAX,
       );
     }
-  }
-
-  const revEnd = getRepoHeadRev();
-  let gitSummary = "";
-  if (gitRevStart && revEnd && gitRevStart !== revEnd) {
-    gitSummary = summarizeGitPullRangeForNotify(gitRevStart, revEnd);
-  } else if (gitRevStart || snap.turnId?.startsWith("ide-turn:")) {
-    gitSummary = summarizeGitReflectionForNotify("local");
-  }
-  if (gitSummary) {
-    const gitShort = trimBlock(gitSummary.split("\n").slice(0, 6).join("\n"), 600);
-    const base = String(snap.completion ?? "")
-      .replace(/\n\n\[반영\][\s\S]*$/u, "")
-      .trim();
-    snap.completion = base ? `${base}\n\n[반영] ${gitShort}` : gitShort;
   }
 }
 
@@ -217,6 +199,31 @@ function trimBlock(text, max) {
   if (!t) return "";
   if (t.length <= max) return t;
   return `${t.slice(0, max - 1)}…`;
+}
+
+/** 텔레그램 본문에서 git·후처리 등 부가 블록 제거 */
+function stripOpsTelegramNoise(text) {
+  let t = String(text ?? "").trim();
+  if (!t) return "";
+  const markers = ["\n\n[반영]", "\n\n[후처리]", "\n\n---\n"];
+  for (const m of markers) {
+    const i = t.indexOf(m);
+    if (i >= 0) t = t.slice(0, i).trim();
+  }
+  if (t.startsWith("[반영]") || t.startsWith("[후처리]")) return "";
+  return t;
+}
+
+/**
+ * 개발자 텔레그램: 입력 프롬프트 + 답변만 (제목·git·부가정보 제외)
+ * @param {string} userRequest
+ * @param {string} answer
+ */
+export function formatOpsDevTelegramBody(userRequest, answer) {
+  const req = trimBlock(userRequest, REQUEST_MAX) || "(요청 없음)";
+  const ans =
+    trimBlock(stripOpsTelegramNoise(answer), COMPLETION_MAX) || "(응답 없음)";
+  return `입력 프롬프트:\n${escHtml(req)}\n\n너의 답변:\n${escHtml(ans)}`;
 }
 
 /**
@@ -299,17 +306,6 @@ export function scheduleOpsDevCompletionTelegram(opts) {
       trimBlock(opts.agentResponse, COMPLETION_MAX) || "(응답 없음)";
   }
 
-  const git = String(opts.gitSummary ?? "").trim();
-  if (git) {
-    const gitShort = trimBlock(
-      git.split("\n").slice(0, 6).join("\n"),
-      600,
-    );
-    completion = completion
-      ? `${completion}\n\n[반영] ${gitShort}`
-      : gitShort;
-  }
-
   const title = String(opts.title ?? "").trim() || "개발 완료";
   const turnId = String(opts.turnId ?? "").trim() || null;
   const sessionId = String(opts.sessionId ?? "").trim() || null;
@@ -346,11 +342,6 @@ export function scheduleOpsDevCompletionTelegram(opts) {
       userLineIndex,
       at: Date.now(),
     };
-  } else if (git && pending) {
-    const extra = trimBlock(git.split("\n").slice(0, 4).join("\n"), 400);
-    if (extra && !pending.completion.includes(extra)) {
-      pending.completion = `${pending.completion}\n\n[반영] ${extra}`;
-    }
   }
 
   writePendingDisk();
@@ -508,12 +499,10 @@ async function sendCompletionMessage(snap, dedupKey) {
   if (shouldSkipOpsDevNotify(dedupKey)) return false;
   if (!tryAcquireOpsDevNotifySend(dedupKey)) return false;
 
-  let body = `요청:\n${snap.userRequest}\n\n완료:\n${snap.completion}`;
-  if (body.length > BODY_MAX) {
-    body = `${body.slice(0, BODY_MAX - 1)}…`;
+  let text = formatOpsDevTelegramBody(snap.userRequest, snap.completion);
+  if (text.length > BODY_MAX) {
+    text = `${text.slice(0, BODY_MAX - 1)}…`;
   }
-
-  const text = [`<b>${escHtml(snap.title)}</b>`, "", escHtml(body)].join("\n");
 
   const ok = await sendTelegramMessage(text, undefined, resolveOpsTelegramCreds());
   if (ok) {
