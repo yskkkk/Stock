@@ -17,6 +17,7 @@ beforeEach(() => {
   invalidateJsonStoreReadCache("granville-scan-state.json");
   invalidateJsonStoreReadCache("corrupt-sample.json");
   invalidateJsonStoreReadCache("sample.json");
+  invalidateJsonStoreReadCache("normalize-fail.json");
   invalidateJsonStoreReadCache("read-fail-sample.json");
 });
 
