@@ -252,6 +252,88 @@
   cursor: pointer;
 }
 
+.vu-admin__section-head--master {
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.vu-admin__master-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0.2rem 0.55rem 0.2rem 0.28rem;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.vu-admin__master-switch:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.vu-admin__master-switch-track {
+  position: relative;
+  display: inline-block;
+  width: 2.4rem;
+  height: 1.35rem;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.35);
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+
+.vu-admin__master-switch-thumb {
+  position: absolute;
+  top: 0.15rem;
+  left: 0.15rem;
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+  transition: transform 0.15s ease;
+}
+
+.vu-admin__master-switch.is-on {
+  border-color: rgba(20, 184, 166, 0.45);
+  background: color-mix(in srgb, #5eead4 22%, var(--card));
+  color: inherit;
+}
+
+.vu-admin__master-switch.is-on .vu-admin__master-switch-track {
+  background: #14b8a6;
+}
+
+.vu-admin__master-switch.is-on .vu-admin__master-switch-thumb {
+  transform: translateX(1.05rem);
+}
+
+.vu-admin__master-switch.is-off {
+  border-color: rgba(148, 163, 184, 0.4);
+  background: transparent;
+  color: var(--muted);
+}
+
+.vu-admin__master-switch-label {
+  min-width: 2.2rem;
+}
+
+.vu-admin__draining {
+  margin: 0.35rem 0 0;
+  padding: 0.4rem 0.55rem;
+  border-radius: 0.45rem;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: #92400e;
+  background: color-mix(in srgb, #fbbf24 18%, var(--card));
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
 .vu-admin__persona-toggle.is-on {
   border: 1px solid rgba(20, 184, 166, 0.5);
   background: #5eead4;

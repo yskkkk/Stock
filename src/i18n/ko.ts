@@ -238,10 +238,13 @@ export const ko = {
     accountManageRebalancePreviewZoneLabel: "미리보기 · 주문 없음",
     accountManageRebalanceRealOrderZoneLabel: "실제 매수 · 정규장만",
     accountManageRebalanceAmountNote:
-      "시장별 원통화(국내 원·미국 $), 매수 수수료 별도",
-    accountManageRebalanceNowRunSub: "실주문 · {amountNote}",
+      "수수료·세금 미포함 · 시장별 원통화(국내 원·미국 $)",
+    accountManageRebalanceNowRunSub: "돈이 나갑니다",
+    accountManageRebalanceNowRunSubAmount:
+      "{summary} · {amountNote} · 돈이 나갑니다",
     accountManageRebalancePreviewHint:
       "아래 금액은 {amountNote}입니다. 「미리보기만 실행」은 계산만 하며 돈이 나가지 않습니다.",
+    accountManageRebalanceSpendLine: "{cashLabel} 이번 사용 {spend}",
     accountManageRebalancePreviewEmpty:
       "미리볼 주문이 없습니다. 「미리보기만 실행」 또는 「스케줄 저장」을 눌러 주세요.",
     accountManageRebalanceCashUse: "{cashLabel} 가용 {avail} → 이번 사용 {spend}",
@@ -265,14 +268,14 @@ export const ko = {
     accountManageRebalanceNowRunning: "매수 중…",
     accountManageRebalanceNowRunSummary: "미리보기 합계 {summary}",
     accountManageRebalanceNowConfirm:
-      "미리보기와 동일 금액({summary})으로 시장가 매수합니다.\n{amountNote} · 정규장만 · 실제 주문. 계속할까요?",
+      "미리보기와 동일하게 시장가 매수합니다.\n\n{summary}\n({amountNote})\n\n정규장(시간외·애프터 제외)만 실행됩니다. 실제 주문이 나갑니다. 계속할까요?",
     accountManageRebalanceNowConfirmGeneric:
-      "켜진 시장 중 정규장만 남은 현금을 현재 보유 비중대로 시장가 매수합니다.\n{amountNote} · 정규장만 · 실제 주문. 계속할까요?",
+      "켜진 시장 중 정규장만 남은 현금(국내=원화·미국=달러)을 현재 보유 비중대로 시장가 매수합니다.\n({amountNote})\n\n시간외·애프터는 제외됩니다. 실제 주문이 나갑니다. 계속할까요?",
     accountManageRebalanceNowOk: "즉시 매수 {n}건 접수",
     accountManageRebalanceNowFail: "즉시 매수 일부 실패 ({ok}/{total})",
     accountManageRebalanceNowNone: "매수할 주문이 없습니다. 현금·보유를 확인하세요.",
     accountManageRebalanceNowHoursHint:
-      "{amountNote} · 정규장(국내 09:00–15:30 · 미국 09:30–16:00 ET)에만 즉시 매수",
+      "국내=원화·미국=달러 현금만 · {amountNote}. 정규장(국내 09:00–15:30 · 미국 09:30–16:00 ET)에만 즉시 매수·시간외·애프터 불가.",
     accountManageRebalanceNowHoursBlocked: "지금은 정규장이 아니라 즉시 매수를 할 수 없습니다.",
     accountManageRebalanceNowSkipped:
       "정규장이 아닌 시장은 건너뛰었습니다: {markets}",
@@ -1767,6 +1770,13 @@ export const ko = {
     vuIntro:
       "탐색은 쉬지 않고 개선점을 발굴하되, 구현은 지금 앱 UI 방향(기존 톤·3열·좌측 열 유지, 최소 diff)을 따릅니다. 에이전트 전송은 3분마다 idle일 때 1건.",
     vuPersonas: "페르소나",
+    vuMaster: "가상 사용자",
+    vuMasterOn: "켜짐",
+    vuMasterOff: "꺼짐",
+    vuMasterHint:
+      "끄면 새 탐색·새 에이전트 전송을 멈춥니다. 이미 진행 중인 프롬프트 개발은 끝난 뒤에 멈춥니다. 서버를 재시작해도 이 스위치 상태를 유지합니다.",
+    vuMasterDraining:
+      "끄는 중 — 진행 중인 작업을 마친 뒤 새 작업은 시작하지 않습니다.",
     vuContinuous: "연속 탐색",
     vuContinuousOn: "연속 탐색 켜짐",
     vuContinuousOff: "연속 탐색 꺼짐",
@@ -1776,7 +1786,7 @@ export const ko = {
     vuContinuousLast: "최근 실행",
     vuContinuousCreated: "이번 {n}건",
     vuContinuousPausedApi:
-      "Cursor API 토큰/쿼터 소진으로 에이전트 구현이 정지됨. 피드백 탐색은 계속됩니다. 키·쿼터 확인 후 자동 구현을 다시 켜 주세요.",
+      "Cursor API 토큰/쿼터 소진으로 에이전트 구현이 정지됨. 피드백 탐색은 계속됩니다. 키·쿼터 확인 후 가상 사용자를 다시 켜 주세요.",
     vuAutoImplementOn: "자동 구현 켜짐 (FIFO 1건씩)",
     vuAutoImplementOff: "자동 구현 꺼짐",
     vuVersions: "코드 버전·롤백",

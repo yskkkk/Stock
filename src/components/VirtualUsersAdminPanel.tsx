@@ -69,6 +69,7 @@ export default function VirtualUsersAdminPanel({
   const [versions, setVersions] = useState<CodeVersion[]>([]);
   const [baselineId, setBaselineId] = useState<string | null>(null);
   const [busyPoller, setBusyPoller] = useState(false);
+  const [draining, setDraining] = useState(false);
   const [satLabels, setSatLabels] = useState<Record<string, string>>({});
   const [narrative, setNarrative] = useState<{
     discomfortCount: number;
@@ -193,6 +194,8 @@ export default function VirtualUsersAdminPanel({
     if (!continuous) return;
     setActionId("continuous");
     setErr(null);
+    setMsg(null);
+    const turningOff = continuous.enabled;
     try {
       const res = await patchVirtualUserContinuous(
         { enabled: !continuous.enabled },
@@ -200,6 +203,12 @@ export default function VirtualUsersAdminPanel({
       );
       if (res.continuous) setContinuous(res.continuous);
       setBusyPoller(Boolean(res.busy));
+      setDraining(Boolean(res.draining) && turningOff);
+      if (turningOff && res.draining) {
+        setMsg(ko.access.vuMasterDraining);
+      } else if (!turningOff) {
+        setDraining(false);
+      }
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -380,27 +389,39 @@ export default function VirtualUsersAdminPanel({
     <div className="vu-admin">
       <p className="vu-admin__intro">{ko.access.vuIntro}</p>
 
-      <section className="vu-admin__section" aria-label={ko.access.vuContinuous}>
-        <div className="vu-admin__section-head">
-          <h3>{ko.access.vuContinuous}</h3>
+      <section className="vu-admin__section" aria-label={ko.access.vuMaster}>
+        <div className="vu-admin__section-head vu-admin__section-head--master">
+          <h3>{ko.access.vuMaster}</h3>
           <button
             type="button"
+            role="switch"
+            aria-checked={Boolean(continuous?.enabled)}
             className={
               continuous?.enabled
-                ? "vu-admin__persona-toggle is-on"
-                : "vu-admin__persona-toggle is-off"
+                ? "vu-admin__master-switch is-on"
+                : "vu-admin__master-switch is-off"
             }
             disabled={!continuous || actionId === "continuous"}
             onClick={() => void onToggleContinuous()}
           >
-            {busyPoller
-              ? ko.access.vuContinuousBusy
-              : continuous?.enabled
-                ? ko.access.vuContinuousOn
-                : ko.access.vuContinuousOff}
+            <span className="vu-admin__master-switch-track" aria-hidden>
+              <span className="vu-admin__master-switch-thumb" />
+            </span>
+            <span className="vu-admin__master-switch-label">
+              {busyPoller
+                ? ko.access.vuContinuousBusy
+                : continuous?.enabled
+                  ? ko.access.vuMasterOn
+                  : ko.access.vuMasterOff}
+            </span>
           </button>
         </div>
-        <p className="vu-admin__hint">{ko.access.vuContinuousHint}</p>
+        <p className="vu-admin__hint">{ko.access.vuMasterHint}</p>
+        {draining && !continuous?.enabled ? (
+          <p className="vu-admin__draining" role="status">
+            {ko.access.vuMasterDraining}
+          </p>
+        ) : null}
         {continuous?.pausedByApiExhaustion ? (
           <p className="vu-admin__paused" role="status">
             {ko.access.vuContinuousPausedApi}
@@ -418,8 +439,15 @@ export default function VirtualUsersAdminPanel({
                   ? "vu-admin__persona-toggle is-on"
                   : "vu-admin__persona-toggle is-off"
               }
-              disabled={actionId === "auto-impl"}
+              disabled={
+                actionId === "auto-impl" || continuous.enabled === false
+              }
               onClick={() => void onToggleAutoImplement()}
+              title={
+                continuous.enabled === false
+                  ? ko.access.vuMasterOff
+                  : undefined
+              }
             >
               {continuous.autoImplement !== false
                 ? ko.access.vuAutoImplementOn

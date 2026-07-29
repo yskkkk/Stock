@@ -100,6 +100,9 @@ export async function maybeAutoImplementVirtualFeedback(item, opts = {}) {
   if (cfg.pausedByApiExhaustion && opts.force !== true) {
     return { ok: false, skipped: true, reason: "api-exhausted" };
   }
+  if (opts.force !== true && cfg.enabled === false) {
+    return { ok: false, skipped: true, reason: "disabled" };
+  }
   const autoOn = opts.force === true || cfg.autoImplement !== false;
   if (!autoOn) return { ok: false, skipped: true, reason: "auto-off" };
 
@@ -215,6 +218,10 @@ export async function dispatchNextVirtualUserImplement(opts = {}) {
     const cfg = getVirtualUserContinuousSync();
     if (cfg.pausedByApiExhaustion && opts.force !== true) {
       return { ok: false, skipped: true, reason: "api-exhausted" };
+    }
+    // 마스터 off면 새 건만 막음(force 수동 구현은 허용). 진행 중 잡은 그대로 완료.
+    if (opts.force !== true && cfg.enabled === false) {
+      return { ok: false, skipped: true, reason: "disabled" };
     }
     if (opts.force !== true && cfg.autoImplement === false) {
       return { ok: false, skipped: true, reason: "auto-off" };

@@ -3015,6 +3015,7 @@ export function patchVirtualUserContinuous(
     ok: boolean;
     continuous?: VirtualUserContinuous;
     busy?: boolean;
+    draining?: boolean;
   }>("/api/virtual-users/continuous", {
     method: "PATCH",
     headers: virtualUserHeaders(adminToken),

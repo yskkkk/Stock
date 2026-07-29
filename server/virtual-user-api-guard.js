@@ -93,9 +93,8 @@ export function clearVirtualUserApiExhaustionPause() {
 }
 
 /**
- * 서버 기동 시: API 키 있으면 자동 구현 ON.
- * 연속 탐색 enabled는 디스크 값을 존중(관리자가 끈 상태를 재기동으로 덮지 않음).
- * 키가 있고 소진 정지였으면 정지만 해제.
+ * 서버 기동 시: API 키 있으면 소진 정지만 해제.
+ * 연속 탐색·자동 구현 on/off는 디스크(관리자 스위치) 값을 존중 — 재기동으로 덮지 않음.
  */
 export function ensureVirtualUserAutoImproveOnBoot() {
   if (process.env.STOCK_VIRTUAL_USER_CONTINUOUS === "0") {
@@ -103,21 +102,20 @@ export function ensureVirtualUserAutoImproveOnBoot() {
   }
   if (!hasCursorApiKey()) {
     pauseVirtualUserForApiExhaustion(
-      "CURSOR_API_KEY 없음 — 자동 개선을 정지합니다. .env에 키를 넣은 뒤 서버를 재시작하거나 관리자에서 연속 탐색을 켜 주세요.",
+      "CURSOR_API_KEY 없음 — 자동 개선을 정지합니다. .env에 키를 넣은 뒤 서버를 재시작하거나 관리자에서 가상 사용자를 켜 주세요.",
     );
     return { ok: false, reason: "no-api-key" };
   }
-  clearVirtualUserApiExhaustionPause();
-  patchVirtualUserContinuousSync({
-    enabled: true,
-    autoImplement: true,
-    lastError: null,
-  });
+  const cur = getVirtualUserContinuousSync();
+  if (cur.pausedByApiExhaustion) {
+    clearVirtualUserApiExhaustionPause();
+  }
+  const after = getVirtualUserContinuousSync();
   appendServerEventLog(
     "virtual-user",
-    "boot: continuous explore + auto-implement enabled (infinite novelty)",
+    `boot: respect admin switch enabled=${after.enabled} autoImplement=${after.autoImplement}`,
   );
-  return { ok: true };
+  return { ok: true, enabled: after.enabled, autoImplement: after.autoImplement };
 }
 
 /**

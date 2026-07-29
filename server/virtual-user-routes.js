@@ -135,19 +135,48 @@ export function registerVirtualUserRoutes(app, asyncRoute) {
           patch.intervalMs = Math.min(n, 60 * 60_000);
         }
       }
-      // 사용자가 다시 켜면 API 소진 정지 해제
-      if (patch.enabled === true || patch.autoImplement === true) {
+      // 마스터 스위치: 끄면 탐색·신규 에이전트 전송 모두 off (진행 중 잡은 완료 후 자연 정지)
+      if (patch.enabled === false && body.autoImplement === undefined) {
+        patch.autoImplement = false;
+      }
+      // 사용자가 다시 켜면 API 소진 정지 해제 + 자동 구현도 같이 켬
+      if (patch.enabled === true) {
         patch.pausedByApiExhaustion = false;
         patch.pausedAtMs = null;
         patch.pausedReason = null;
-        if (patch.enabled === true && patch.autoImplement === undefined) {
+        if (body.autoImplement === undefined) {
           patch.autoImplement = true;
         }
+        if (patch.lastError === undefined) patch.lastError = null;
+      } else if (patch.autoImplement === true) {
+        patch.pausedByApiExhaustion = false;
+        patch.pausedAtMs = null;
+        patch.pausedReason = null;
         if (patch.lastError === undefined) patch.lastError = null;
       }
       const result = patchVirtualUserContinuousSync(patch);
       rescheduleVirtualUserContinuousPoller();
-      res.json({ ...result, busy: isVirtualUserContinuousBusy() });
+      let draining = false;
+      try {
+        const { hasActiveVirtualUserImplementJobSync } = await import(
+          "./virtual-user-auto-implement.js"
+        );
+        draining =
+          patch.enabled === false &&
+          (hasActiveVirtualUserImplementJobSync() ||
+            isVirtualUserContinuousBusy());
+        if (!draining && patch.enabled === false) {
+          const { isOpsAgentJobRunning } = await import("./ops-agent-job-queue.js");
+          draining = isOpsAgentJobRunning();
+        }
+      } catch {
+        /* optional */
+      }
+      res.json({
+        ...result,
+        busy: isVirtualUserContinuousBusy(),
+        draining,
+      });
     }),
   );
 

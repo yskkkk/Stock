@@ -152,6 +152,10 @@ async function tickImplementScanOnce() {
     return { ok: false, reason: "developing" };
   }
   const cfg = getVirtualUserContinuousSync();
+  // 마스터 스위치 off: 새 전송만 중단 — 이미 queued/running 잡은 폴러·에이전트가 끝냄
+  if (cfg.enabled === false) {
+    return { ok: false, reason: "disabled" };
+  }
   if (cfg.pausedByApiExhaustion) {
     return { ok: false, reason: "api-exhausted" };
   }
@@ -196,11 +200,9 @@ export function startVirtualUserContinuousPoller() {
     appendServerEventLog("virtual-user", `narrative enrich fail ${msg}`);
   }
 
-  // intervalMs는 에이전트 스캔 주기. 연속 탐색은 무한 개선을 위해 기본 ON
+  // intervalMs만 맞추고, enabled/autoImplement는 관리자 스위치(디스크) 존중
   patchVirtualUserContinuousSync({
-    enabled: true,
     intervalMs: IMPLEMENT_SCAN_MS,
-    autoImplement: true,
   });
   const after = getVirtualUserContinuousSync();
   appendServerEventLog(
