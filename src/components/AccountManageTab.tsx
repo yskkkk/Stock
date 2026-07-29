@@ -1174,7 +1174,7 @@ export default function AccountManageTab({
                       cashNativeUsd > 0 &&
                       usdKrwRate != null &&
                       usdKrwRate > 0 ? (
-                        <span className="account-manage-tab__stat-sub">
+                        <span className="account-manage-tab__stat-sub account-manage-tab__money">
                           {formatPrice(
                             Math.round(cashNativeUsd * usdKrwRate),
                             "KRW",
