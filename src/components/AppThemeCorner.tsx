@@ -93,7 +93,7 @@ function centerIconOpacityFromT(t: number, dragging: boolean): number {
 }
 
 /** 투명 배경 3D YS — PWA icon-192(사각 매트) 대신 */
-const CENTER_EGG_LOGO_SRC = "/branding/ystock-logo-alpha.png?v=23";
+const CENTER_EGG_LOGO_SRC = "/branding/ystock-logo-alpha.png?v=25";
 
 export default function AppThemeCorner({
   colorMode,

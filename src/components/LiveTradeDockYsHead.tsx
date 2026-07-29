@@ -3,7 +3,7 @@
 import { BithumbBrandMark, TossBrandMark } from "./ExchangeBrandMarks";
 import type { LiveTradeExchangeApiKind } from "./LiveTradeExchangeApiPanel";
 
-const YS_LOGO_SRC = "/branding/ystock-logo-alpha.png?v=24";
+const YS_LOGO_SRC = "/branding/ystock-logo-alpha.png?v=25";
 
 export default function LiveTradeDockYsHead({
   ariaLabel,
@@ -29,7 +29,7 @@ export default function LiveTradeDockYsHead({
           <BithumbBrandMark className="brand-mark__img live-trade-dock-ys-head__exchange-mark" />
         ) : (
           <img
-            className="brand-mark__img"
+            className="brand-mark__img brand-mark__img--ys"
             src={YS_LOGO_SRC}
             alt=""
             width={24}

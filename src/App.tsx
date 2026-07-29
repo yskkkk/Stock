@@ -1541,8 +1541,8 @@ export default function App() {
               >
                 <span className="brand-mark" aria-hidden>
                   <img
-                    className="brand-mark__img"
-                    src="/branding/ystock-logo-mark.png?v=19"
+                    className="brand-mark__img brand-mark__img--ys"
+                    src="/branding/ystock-logo-mark.png?v=20"
                     alt=""
                     width={40}
                     height={40}

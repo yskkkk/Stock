@@ -2480,6 +2480,12 @@ html[data-theme="light"]
   width: 1.5rem;
   height: 1.5rem;
   object-fit: contain;
+  opacity: 1;
+  visibility: visible;
+}
+
+.live-trade-dock-ys-head__brand .brand-mark__img--ys {
+  /* 라이트 대비는 index.css .brand-mark__img--ys */
 }
 
 .live-trading-tab__card-tabs-rail-brand.brand-mark {
