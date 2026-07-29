@@ -414,18 +414,22 @@ export function createApp() {
     "/api/picks/daily-history/quotes",
     requireAccessAdmin,
     asyncRoute(async (req, res) => {
-      const raw = String(req.query.symbols ?? "").trim();
-      const symbols = raw
-        ? raw
-            .split(/[,\s]+/)
-            .map((s) => s.trim())
-            .filter(Boolean)
-        : [];
-      const fresh = String(req.query.fresh ?? "").trim() === "1";
-      const quotes = await fetchQuoteSnapshotsForSymbols(symbols, {
-        maxAgeMs: fresh ? 0 : undefined,
-      });
-      res.json({ quotes });
+      try {
+        const raw = String(req.query.symbols ?? "").trim();
+        const symbols = raw
+          ? raw
+              .split(/[,\s]+/)
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : [];
+        const fresh = String(req.query.fresh ?? "").trim() === "1";
+        const quotes = await fetchQuoteSnapshotsForSymbols(symbols, {
+          maxAgeMs: fresh ? 0 : undefined,
+        });
+        res.json({ quotes });
+      } catch (err) {
+        respondRouteError(res, err);
+      }
     }),
   );
 
@@ -433,44 +437,52 @@ export function createApp() {
     "/api/picks/recommendations-tracker",
     requireAccessAdmin,
     asyncRoute(async (req, res) => {
-      const includeQuotes = String(req.query.quotes ?? "1").trim() !== "0";
-      const forceRefresh = String(req.query.refresh ?? "").trim() === "1";
+      try {
+        const includeQuotes = String(req.query.quotes ?? "1").trim() !== "0";
+        const forceRefresh = String(req.query.refresh ?? "").trim() === "1";
 
-      if (!forceRefresh && !includeQuotes) {
-        const snap = readRecommendationsTrackerSnapshotSync();
-        if (snap) {
-          if (isRecommendationsTrackerSnapshotStale(snap)) {
-            scheduleRecommendationsTrackerSnapshotRefresh();
+        if (!forceRefresh && !includeQuotes) {
+          const snap = readRecommendationsTrackerSnapshotSync();
+          if (snap) {
+            if (isRecommendationsTrackerSnapshotStale(snap)) {
+              scheduleRecommendationsTrackerSnapshotRefresh();
+            }
+            res.json(
+              decorateRecommendationsTrackerResponse(snap.payload, {
+                writtenAtMs: snap.writtenAtMs,
+                fromSnapshot: true,
+              }),
+            );
+            return;
           }
-          res.json(
-            decorateRecommendationsTrackerResponse(snap.payload, {
-              writtenAtMs: snap.writtenAtMs,
-              fromSnapshot: true,
-            }),
-          );
-          return;
         }
-      }
 
-      const payload = await buildRecommendationsTrackerPayload({ includeQuotes });
-      res.json(
-        decorateRecommendationsTrackerResponse(payload, {
-          fromSnapshot: false,
-        }),
-      );
+        const payload = await buildRecommendationsTrackerPayload({ includeQuotes });
+        res.json(
+          decorateRecommendationsTrackerResponse(payload, {
+            fromSnapshot: false,
+          }),
+        );
+      } catch (err) {
+        respondRouteError(res, err);
+      }
     }),
   );
 
   app.get("/api/picks/tech-weights", requireAccessAdmin, (_req, res) => {
-    const meta = getTechWeightsMetaSync();
-    res.json({
-      weights: getActiveSignalScoreWeightsSync(),
-      defaults: getDefaultSignalScoreWeights(),
-      maxTechScore: getMaxTechScoreSync(),
-      revision: meta.revision,
-      updatedAtMs: meta.updatedAtMs,
-      lastBaselineWinRatePct: meta.lastBaselineWinRatePct,
-    });
+    try {
+      const meta = getTechWeightsMetaSync();
+      res.json({
+        weights: getActiveSignalScoreWeightsSync(),
+        defaults: getDefaultSignalScoreWeights(),
+        maxTechScore: getMaxTechScoreSync(),
+        revision: meta.revision,
+        updatedAtMs: meta.updatedAtMs,
+        lastBaselineWinRatePct: meta.lastBaselineWinRatePct,
+      });
+    } catch (err) {
+      respondRouteError(res, err);
+    }
   });
 
   app.post(
@@ -3466,7 +3478,8 @@ export function createApp() {
   const _backfillTimer = setTimeout(() => scheduleRecommendationSignalBackfill(), 5000);
 
   app.use((err, _req, res, _next) => {
-    if (err instanceof StoreCorruptError && !res.headersSent) {
+    if (res.headersSent) return;
+    if (err instanceof StoreCorruptError) {
       res.status(503).json({
         error: err.message,
         code: err.code,
@@ -3475,9 +3488,7 @@ export function createApp() {
       return;
     }
     const message = err instanceof Error ? err.message : "요청 실패";
-    if (!res.headersSent) {
-      res.status(500).json({ error: message });
-    }
+    res.status(500).json({ error: message, code: "API_UNHANDLED" });
   });
 
   return app;

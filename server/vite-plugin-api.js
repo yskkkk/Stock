@@ -108,7 +108,10 @@ function attachStockApiMiddlewares(server) {
           res.statusCode = 500;
           res.setHeader("Content-Type", "application/json; charset=utf-8");
           res.end(
-            JSON.stringify({ error: "서버 오류가 발생했습니다." }),
+            JSON.stringify({
+              error: "서버 오류가 발생했습니다.",
+              code: "API_UNHANDLED",
+            }),
           );
         }
         return;

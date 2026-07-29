@@ -131,7 +131,12 @@ export function setUiFeatureEnabled(id, enabled) {
 /** @param {import("express").Express} app */
 export function registerUiFeatureToggleRoutes(app) {
   app.get("/api/ui-features", (_req, res) => {
-    res.json(getUiFeaturesPublicSnapshot());
+    try {
+      res.json(getUiFeaturesPublicSnapshot());
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "요청 실패";
+      res.status(500).json({ error: message, code: "UI_FEATURES_ERROR" });
+    }
   });
 
   app.get("/api/access/admin/ui-features", requireAccessAdmin, (_req, res) => {
