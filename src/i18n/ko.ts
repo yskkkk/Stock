@@ -204,7 +204,7 @@ export const ko = {
     accountManageCurrencyUsd: "달러",
     accountManageCurrencyAria: "금액 표시 통화",
     accountManageCurrencyUsdRate: "1$={rate}원",
-    accountManageRebalanceOpen: "스케줄",
+    accountManageRebalanceOpen: "미리보기·스케줄",
     accountManageRebalanceTitle: "월별 비중 유지 매수",
     accountManageRebalanceSubtitle:
       "매월 선택한 날에 국내 보유는 원화 현금, 미국 보유는 달러 현금으로 현재 비중을 유지하며 시장가 매수합니다. 「지금 즉시 매수」로 같은 방식으로 바로 실행할 수 있습니다. 실주문 허용이 켜져 있어야 합니다.",
@@ -228,8 +228,10 @@ export const ko = {
     accountManageRebalanceCashPct: "현금 사용 비율 {n}% (시장별 통화)",
     accountManageRebalancePreview: "미리보기 (시장별 · 원통화)",
     accountManageRebalanceSimBadge: "주문 없음",
+    accountManageRebalanceRealBadge: "실제 주문",
     accountManageRebalancePreviewZoneLabel: "미리보기 · 주문 없음",
     accountManageRebalanceRealOrderZoneLabel: "실제 매수 · 정규장만",
+    accountManageRebalanceNowRunSub: "돈이 나갑니다",
     accountManageRebalancePreviewHint:
       "국내는 원화, 미국은 달러로 각각 표시됩니다. 통화를 섞지 않습니다. 아래 「미리보기만 실행」은 계산만 하며 돈이 나가지 않습니다.",
     accountManageRebalancePreviewEmpty:

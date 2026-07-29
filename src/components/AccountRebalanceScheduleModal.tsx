@@ -717,6 +717,9 @@ export default function AccountRebalanceScheduleModal({
               >
                 <p className="account-rebalance-modal__foot-zone-label account-rebalance-modal__foot-zone-label--real">
                   {ko.app.accountManageRebalanceRealOrderZoneLabel}
+                  <span className="account-rebalance-modal__real-badge">
+                    {ko.app.accountManageRebalanceRealBadge}
+                  </span>
                 </p>
                 <p className="account-rebalance-modal__hint account-rebalance-modal__foot-zone-hint">
                   {ko.app.accountManageRebalanceNowHoursHint}
@@ -733,9 +736,16 @@ export default function AccountRebalanceScheduleModal({
                   }
                   onClick={() => void onBuyNow()}
                 >
-                  {buyingNow
-                    ? ko.app.accountManageRebalanceNowRunning
-                    : ko.app.accountManageRebalanceNowRun}
+                  <span className="account-rebalance-modal__btn-real-text">
+                    {buyingNow
+                      ? ko.app.accountManageRebalanceNowRunning
+                      : ko.app.accountManageRebalanceNowRun}
+                  </span>
+                  {!buyingNow ? (
+                    <span className="account-rebalance-modal__btn-real-sub">
+                      {ko.app.accountManageRebalanceNowRunSub}
+                    </span>
+                  ) : null}
                 </button>
               </section>
             </footer>
