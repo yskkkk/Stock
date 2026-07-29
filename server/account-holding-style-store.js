@@ -5,6 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseJsonText } from "./store-json.js";
 import {
   STYLE_SEED_TICKER_OVERRIDES,
   isAccountHoldingStyle,
@@ -44,7 +45,7 @@ export function readAccountHoldingStyleStoreSync(userId) {
     if (!fs.existsSync(file)) {
       return { overrides: {}, seededAtMs: null, updatedAtMs: null };
     }
-    const o = JSON.parse(fs.readFileSync(file, "utf8"));
+    const o = parseJsonText(fs.readFileSync(file, "utf8"));
     /** @type {Record<string, "growth" | "value">} */
     const overrides = {};
     if (o?.overrides && typeof o.overrides === "object") {

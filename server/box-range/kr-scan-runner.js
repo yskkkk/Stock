@@ -108,22 +108,30 @@ export function startKrBoxRangeCatalogPoller() {
 
   let running = false;
   const loop = () => {
-    if (running) return;
-    const now = new Date();
-    const decision = shouldRunCatalogScan("kr", now);
-    if (!decision.run) return;
-    running = true;
-    pollerGuardAsync("box-kr-scan", () => runKrScanInWorker())
-      .then(() => markCatalogScanRan("kr", decision.sessionKey))
-      .catch((e) => {
-        liveTradeLogWarn(
-          "[box-range:kr-scan]",
-          e instanceof Error ? e.message : e,
-        );
-      })
-      .finally(() => {
-        running = false;
-      });
+    try {
+      if (running) return;
+      const now = new Date();
+      const decision = shouldRunCatalogScan("kr", now);
+      if (!decision.run) return;
+      running = true;
+      pollerGuardAsync("box-kr-scan", () => runKrScanInWorker())
+        .then(() => markCatalogScanRan("kr", decision.sessionKey))
+        .catch((e) => {
+          liveTradeLogWarn(
+            "[box-range:kr-scan]",
+            e instanceof Error ? e.message : e,
+          );
+        })
+        .finally(() => {
+          running = false;
+        });
+    } catch (e) {
+      running = false;
+      liveTradeLogWarn(
+        "[box-range:kr-scan:tick]",
+        e instanceof Error ? e.message : e,
+      );
+    }
   };
 
   markPollerBootStarted("box-kr-scan");

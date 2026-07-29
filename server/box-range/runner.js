@@ -222,18 +222,26 @@ export function startBoxRangeRunnerPoller() {
   reconcileBoxRangeLotsFromPortfolioSync();
   let running = false;
   const loop = () => {
-    if (running) return;
-    running = true;
-    pollerGuardAsync("box-range-runner", () => tickBoxRangeTrading())
-      .catch((e) => {
-        liveTradeLogWarn(
-          "[box-range:tick]",
-          e instanceof Error ? e.message : e,
-        );
-      })
-      .finally(() => {
-        running = false;
-      });
+    try {
+      if (running) return;
+      running = true;
+      pollerGuardAsync("box-range-runner", () => tickBoxRangeTrading())
+        .catch((e) => {
+          liveTradeLogWarn(
+            "[box-range:tick]",
+            e instanceof Error ? e.message : e,
+          );
+        })
+        .finally(() => {
+          running = false;
+        });
+    } catch (e) {
+      running = false;
+      liveTradeLogWarn(
+        "[box-range:tick:sync]",
+        e instanceof Error ? e.message : e,
+      );
+    }
   };
   loop();
   markPollerBootStarted("box-range-runner");

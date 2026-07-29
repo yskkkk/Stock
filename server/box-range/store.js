@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { resolveServerDataDir } from "../data-path.js";
+import { parseJsonText } from "../store-json.js";
 import { findMergeBoxIndex } from "./merge.js";
 import {
   isBoxRangeCryptoHtfManaged,
@@ -183,7 +184,7 @@ export function readBoxRangeStoreSync() {
       return _storeCache;
     }
     const stat = fs.statSync(file);
-    const o = JSON.parse(fs.readFileSync(file, "utf8"));
+    const o = parseJsonText(fs.readFileSync(file, "utf8"));
     if (!o || !Array.isArray(o.boxes)) {
       _storeCache = defaultStore();
       _storeCacheMs = now;
