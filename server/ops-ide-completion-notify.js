@@ -52,7 +52,7 @@ import {
 
 import { isOpsTelegramNotifyEnabled } from "./telegram-notify.js";
 
-
+import { parseJsonText } from "./store-json.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -90,7 +90,7 @@ function readIdeSentDisk() {
 
     if (!fs.existsSync(IDE_SENT_FILE)) return {};
 
-    const o = JSON.parse(fs.readFileSync(IDE_SENT_FILE, "utf8"));
+    const o = parseJsonText(fs.readFileSync(IDE_SENT_FILE, "utf8"));
 
     if (!o || typeof o !== "object" || !o.entries) return {};
 

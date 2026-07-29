@@ -48,6 +48,36 @@ export function parseJsonText(text) {
   return JSON.parse(stripUtf8Bom(text));
 }
 
+/** @param {string} file */
+function backupCorruptFile(file) {
+  if (!fs.existsSync(file)) return;
+  const bak = `${file}.corrupt-${Date.now()}`;
+  try {
+    fs.copyFileSync(file, bak);
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * @param {string} fileName
+ * @param {() => T} empty
+ * @param {string} reason
+ * @returns {T}
+ * @template T
+ */
+function restoreJsonStoreDefaults(fileName, empty, reason) {
+  readCache.delete(fileName);
+  console.warn(`[store-json] ${reason} ${fileName}, restored defaults (backed up)`);
+  const defaults = empty();
+  try {
+    writeJsonStoreSync(fileName, defaults);
+  } catch {
+    /* ignore heal write failure */
+  }
+  return defaults;
+}
+
 /**
  * @param {string} fileName
  * @param {(raw: unknown) => T} normalize
@@ -70,7 +100,13 @@ export function readJsonStoreSync(fileName, normalize, empty) {
     const text = fs.readFileSync(file, "utf8");
     const cleaned = stripUtf8Bom(text);
     const raw = JSON.parse(cleaned);
-    const data = normalize(raw);
+    let data;
+    try {
+      data = normalize(raw);
+    } catch {
+      backupCorruptFile(file);
+      return restoreJsonStoreDefaults(fileName, empty, "normalize failed");
+    }
     readCache.set(fileName, { mtimeMs: stat.mtimeMs, data });
     if (text !== cleaned) {
       try {
@@ -81,24 +117,9 @@ export function readJsonStoreSync(fileName, normalize, empty) {
     }
     return data;
   } catch (e) {
-    if (fs.existsSync(file)) {
-      const bak = `${file}.corrupt-${Date.now()}`;
-      try {
-        fs.copyFileSync(file, bak);
-      } catch {
-        /* ignore */
-      }
-    }
+    backupCorruptFile(file);
     if (e instanceof SyntaxError) {
-      readCache.delete(fileName);
-      console.warn(`[store-json] corrupt ${fileName}, restored defaults (backed up)`);
-      const defaults = empty();
-      try {
-        writeJsonStoreSync(fileName, defaults);
-      } catch {
-        /* ignore heal write failure */
-      }
-      return defaults;
+      return restoreJsonStoreDefaults(fileName, empty, "corrupt");
     }
     throw new StoreCorruptError(file, e);
   }

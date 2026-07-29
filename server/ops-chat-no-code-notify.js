@@ -17,6 +17,7 @@ import {
   resolveOpsTelegramCreds,
   sendTelegramMessage,
 } from "./telegram-notify.js";
+import { parseJsonText } from "./store-json.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");
@@ -77,7 +78,7 @@ function getCodeStatusSignature() {
 export function loadChatTurnStateSync() {
   try {
     if (!fs.existsSync(TURN_STATE_PATH)) return null;
-    const o = JSON.parse(fs.readFileSync(TURN_STATE_PATH, "utf8"));
+    const o = parseJsonText(fs.readFileSync(TURN_STATE_PATH, "utf8"));
     return o && typeof o === "object" ? o : null;
   } catch {
     return null;
