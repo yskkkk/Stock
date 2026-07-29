@@ -10,6 +10,8 @@ const SNAPSHOT_RETRY_ATTEMPTS = 3;
 
 /** @type {{ items: object[]; updatedAt: number; at: number } | null} */
 let cached = null;
+/** @type {Promise<{ items: object[]; updatedAt: number }> | null} */
+let inflight = null;
 
 /** @typedef {{ id: string; symbol: string; label: string; region: "kr" | "us"; kind?: "index" | "fx"; lookupMarket?: "kr" | "us" }} MarketIndexDef */
 
@@ -117,12 +119,8 @@ async function mapPool(defs, worker) {
   return out;
 }
 
-export async function getMarketIndices() {
+async function fetchMarketIndicesFresh() {
   const now = Date.now();
-  if (cached && now - cached.at < CACHE_MS) {
-    return { items: cached.items, updatedAt: cached.updatedAt };
-  }
-
   const indexItems = await mapPool(MARKET_INDEX_DEFS, (def) =>
     loadChartQuoteSnapshotWithRetry(def.symbol),
   );
@@ -152,4 +150,35 @@ export async function getMarketIndices() {
     cached = { items, updatedAt, at: now };
   }
   return { items, updatedAt };
+}
+
+function kickMarketIndicesRefresh() {
+  if (inflight) return inflight;
+  inflight = fetchMarketIndicesFresh().finally(() => {
+    inflight = null;
+  });
+  return inflight;
+}
+
+export async function getMarketIndices() {
+  const now = Date.now();
+  if (cached && now - cached.at < CACHE_MS) {
+    return { items: cached.items, updatedAt: cached.updatedAt };
+  }
+  // stale-while-revalidate: 만료 캐시가 있으면 즉시 반환하고 백그라운드 갱신
+  if (cached?.items?.some(itemHasPrice)) {
+    void kickMarketIndicesRefresh();
+    return { items: cached.items, updatedAt: cached.updatedAt };
+  }
+  return kickMarketIndicesRefresh();
+}
+
+/** 서버 기동 시 Yahoo 스냅샷을 미리 채워 첫 페이지 로딩과 겹치게 */
+export function prewarmMarketIndicesCache() {
+  void kickMarketIndicesRefresh().catch((e) => {
+    console.warn(
+      "[market-indices] prewarm:",
+      e instanceof Error ? e.message : e,
+    );
+  });
 }

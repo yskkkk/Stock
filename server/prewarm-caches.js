@@ -2,6 +2,7 @@ import { loadCryptoWatchlistTen } from "./crypto-universe.js";
 import { ensureKrSearchIndex } from "./kr-stock-search-index.js";
 import { warmUniverseCache } from "./universe.js";
 import { prewarmMacroEventsCache } from "./macro-events.js";
+import { prewarmMarketIndicesCache } from "./market-indices.js";
 import { buildRecommendationsTrackerPayload } from "./picks-recommendations-tracker.js";
 import { prewarmSectorEarningsCache } from "./sector-earnings-spotlight.js";
 import { probeOpsTelegramSetup, probeStockTelegramSetup } from "./telegram-notify.js";
@@ -22,6 +23,7 @@ function probeTelegramOnce() {
 
 /** API 첫 요청 지연 줄이기 — 주요 탭 데이터 백그라운드 선로드 */
 export function prewarmAppCaches() {
+  prewarmMarketIndicesCache();
   prewarmMacroEventsCache();
   prewarmSectorEarningsCache();
   probeTelegramOnce();

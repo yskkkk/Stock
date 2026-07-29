@@ -9,7 +9,7 @@ import {
   type SetStateAction,
 } from "react";
 import { fetchMacroEvents, fetchSectorEarnings } from "../api";
-import { peekMacroPrefetch } from "../lib/tabPrefetch";
+import { peekMacroPrefetch, prefetchMacroBundle } from "../lib/tabPrefetch";
 import { ko } from "../i18n/ko";
 import {
   formatMacroCountdown,
@@ -454,19 +454,38 @@ export default function MacroEventsBar({
         });
     };
 
-    pollUntilForecasts();
-
-    void fetchSectorEarnings()
-      .then((data) => {
-        const sec = Array.isArray(data.sectorEarnings) ? data.sectorEarnings : [];
-        applySector(sec);
-        setEvents((ev) => {
-          persist(ev, sec);
-          return ev;
-        });
+    // 부트 프리페치와 동일 인플라이트 공유 — 페이지와 동시에 시작
+    void prefetchMacroBundle()
+      .then((bundle) => {
+        if (cancelled) return;
+        applyMacro(bundle.events);
+        applySector(bundle.sectorEarnings);
+        persist(bundle.events, bundle.sectorEarnings);
+        const needsForecastPoll =
+          bundle.events.length > 0 &&
+          bundle.events.every((e) => !e.forecast?.trim());
+        if (needsForecastPoll) {
+          window.setTimeout(() => pollUntilForecasts(0), 2500);
+        } else {
+          setLoading(false);
+        }
       })
       .catch(() => {
-        /* 실적만 실패 — 지표는 유지 */
+        if (!cancelled) {
+          pollUntilForecasts();
+          void fetchSectorEarnings()
+            .then((data) => {
+              const sec = Array.isArray(data.sectorEarnings)
+                ? data.sectorEarnings
+                : [];
+              applySector(sec);
+              setEvents((ev) => {
+                persist(ev, sec);
+                return ev;
+              });
+            })
+            .catch(() => {});
+        }
       });
 
     return () => {

@@ -104,5 +104,6 @@ export function startStockDevSidecarsOnce(modeLabel) {
   }
   startOpsRecordModePoller();
   startServerSelfImprovementWatcher();
-  setTimeout(() => prewarmAppCaches(), 400);
+  // 지수·지표·실적은 페이지와 동시에 쓰이므로 즉시 프리웜(나머지 무거운 것도 포함)
+  prewarmAppCaches();
 }

@@ -4,6 +4,7 @@ import {
   fetchLiveTradingPortfolio,
   fetchLiveTradingStatus,
   fetchMacroEvents,
+  fetchMarketIndices,
   fetchPicksDailyHistory,
   fetchPicksDailyHistoryQuotes,
   fetchGoldenCrossStatus,
@@ -26,6 +27,7 @@ import { sortCryptoAssetsByTurnover, type CryptoAsset } from "../constants/crypt
 import type {
   MacroEvent,
   Market,
+  MarketIndexItem,
   PicksDailyHistoryResponse,
   RecommendationsTrackerResponse,
   SectorEarningsSpotlightItem,
@@ -34,9 +36,10 @@ import type {
   StockVaultScanStatus,
 } from "../types";
 
-const MACRO_SESSION_CACHE_KEY = "stock-macro-bar-v2";
+const MACRO_SESSION_CACHE_KEY = "stock-macro-bar-v3";
 const TTL_MS = {
   macro: 5 * 60_000,
+  marketIndices: 20_000,
   recTracker: 30_000,
   cryptoUniverse: 90_000,
   cryptoQuotes: 15_000,
@@ -147,6 +150,32 @@ export type MacroPrefetchBundle = {
 
 export function peekMacroPrefetch(): MacroPrefetchBundle | null {
   return getCached<MacroPrefetchBundle>("macro");
+}
+
+export type MarketIndicesPrefetch = {
+  items: MarketIndexItem[];
+  updatedAt: number | null;
+};
+
+export function peekMarketIndicesPrefetch(): MarketIndicesPrefetch | null {
+  return getCached<MarketIndicesPrefetch>("marketIndices");
+}
+
+export async function prefetchMarketIndices(): Promise<MarketIndicesPrefetch> {
+  return dedupe("marketIndices", async () => {
+    const data = await fetchMarketIndices();
+    return {
+      items: data.items ?? [],
+      updatedAt: data.updatedAt ?? null,
+    };
+  });
+}
+
+/** 폴링용 — 클라이언트 TTL을 무시하고 서버에서 다시 받음 */
+export async function refreshMarketIndices(): Promise<MarketIndicesPrefetch> {
+  cache.delete("marketIndices");
+  inflight.delete("marketIndices");
+  return prefetchMarketIndices();
 }
 
 export function peekRecommendationsTracker(): RecommendationsTrackerResponse | null {
@@ -441,14 +470,28 @@ export async function prefetchStockVaultTab(): Promise<StockVaultPrefetch> {
 }
 
 let prefetchStarted = false;
+let shellPrefetchStarted = false;
+
+/**
+ * 페이지 부트와 동시에 — 지수 벨트·지표/실적 발표(첫 페인트 경로).
+ * React mount / configReady / idle 를 기다리지 않음.
+ */
+export function startShellCriticalPrefetch(): void {
+  if (typeof window === "undefined" || shellPrefetchStarted) return;
+  shellPrefetchStarted = true;
+  void prefetchMarketIndices().catch(() => {});
+  void prefetchMacroBundle().catch(() => {});
+}
 
 /** config 로드 후 — 탭 미진입 데이터를 백그라운드로 선요청 */
 export function startBackgroundTabPrefetch(): void {
   if (typeof window === "undefined" || prefetchStarted) return;
   prefetchStarted = true;
 
+  // 셸 크리티컬은 즉시(이미 시작됐으면 no-op)
+  startShellCriticalPrefetch();
+
   scheduleIdle(() => {
-    void prefetchMacroBundle().catch(() => {});
     void prefetchRecommendationsTracker().catch(() => {});
     void prefetchCryptoTabData().catch(() => {});
     void prefetchLiveTradingTab().catch(() => {});

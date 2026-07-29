@@ -458,21 +458,27 @@ export async function fetchSectorEarningsSpotlight() {
   if (cache && now - cache.at < CACHE_MS) {
     return cache.items;
   }
-  if (inflight) return inflight;
 
-  inflight = (async () => {
-    try {
-      const items = await fetchFreshSectorEarnings();
-      cache = { at: Date.now(), items };
-      return items;
-    } catch {
-      cache = { at: Date.now(), items: cache?.items ?? [] };
-      return cache.items;
-    } finally {
-      inflight = null;
-    }
-  })();
+  if (!inflight) {
+    inflight = (async () => {
+      try {
+        const items = await fetchFreshSectorEarnings();
+        cache = { at: Date.now(), items };
+        return items;
+      } catch {
+        if (cache?.items?.length) return cache.items;
+        cache = { at: Date.now(), items: [] };
+        return cache.items;
+      } finally {
+        inflight = null;
+      }
+    })();
+  }
 
+  // stale-while-revalidate: 만료 캐시가 있으면 즉시 반환
+  if (cache?.items?.length) {
+    return cache.items;
+  }
   return inflight;
 }
 

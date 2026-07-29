@@ -10,7 +10,6 @@ import {
 } from "react";
 import { useLeftRailLazyFollow } from "../hooks/useLeftRailLazyFollow";
 import { createPortal } from "react-dom";
-import { fetchSectorEarnings } from "../api";
 import { useOptionalValueInvestBubble } from "../contexts/ValueInvestBubbleContext";
 import { useOptionalStockShareStructureBubble } from "../contexts/StockShareStructureBubbleContext";
 import StockEarningsHoverBubbleBody from "./StockEarningsHoverBubbleBody";
@@ -25,7 +24,7 @@ import {
   yahooStockSymbolToTradingView,
 } from "../lib/tradingviewSymbols";
 import StockLogoWithPlate from "./StockLogoWithPlate";
-import { peekMacroPrefetch } from "../lib/tabPrefetch";
+import { peekMacroPrefetch, prefetchMacroBundle } from "../lib/tabPrefetch";
 import { ko } from "../i18n/ko";
 import type { SectorEarningsSpotlightItem } from "../types";
 import {
@@ -165,10 +164,12 @@ export default function EarningsUpcomingIconRail({
 
   useEffect(() => {
     let cancelled = false;
-    void fetchSectorEarnings()
-      .then((data) => {
+    void prefetchMacroBundle()
+      .then((bundle) => {
         if (cancelled) return;
-        setRows(Array.isArray(data.sectorEarnings) ? data.sectorEarnings : []);
+        setRows(
+          Array.isArray(bundle.sectorEarnings) ? bundle.sectorEarnings : [],
+        );
       })
       .catch(() => {
         if (!cancelled) setRows([]);

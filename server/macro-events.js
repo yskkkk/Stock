@@ -485,14 +485,27 @@ export async function getMacroEventsCachedAsync() {
       });
   }
 
-  await macroEnrichInflight;
-  return (
-    macroCache.data ?? {
-      events: [],
-      updatedAt: Date.now(),
-      forecastsEnriched: false,
-    }
-  );
+  // stale-while-revalidate: 이전 결과가 있으면 즉시 반환(예상치 enrich는 백그라운드)
+  if (macroCache.data) {
+    return macroCache.data;
+  }
+
+  // cold start: 정적 일정만 즉시 반환 — enrich 완료를 기다리지 않음
+  /** @type {ReturnType<typeof getUpcomingMacroEvents>} */
+  let events = [];
+  try {
+    events = getUpcomingMacroEvents();
+  } catch (err) {
+    console.warn(
+      "[macro-events] getUpcoming(cold):",
+      err instanceof Error ? err.message : err,
+    );
+  }
+  return {
+    events,
+    updatedAt: Date.now(),
+    forecastsEnriched: false,
+  };
 }
 
 /** 서버 기동 시 일정·Finnhub 예상치 미리 채움 */

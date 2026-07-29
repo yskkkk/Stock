@@ -1,5 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import "./lib/bootShellPrefetch";
 import { applyTheme, readStoredTheme } from "./lib/theme";
 import { ensureMobileBackNavigation } from "./lib/initMobileBack";
 import { registerPwaServiceWorker } from "./lib/registerPwa";
