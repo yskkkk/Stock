@@ -1109,7 +1109,14 @@ export default function AccountManageTab({
                 </span>
               </div>
               {provider === "toss" ? (
-                <>
+                <div
+                  className="account-manage-tab__cash-group"
+                  role="group"
+                  aria-label={`${ko.app.accountManageCashKrw}, ${ko.app.accountManageCashUsd}`}
+                >
+                  <p className="account-manage-tab__cash-group-hint">
+                    {ko.app.accountManageCashSplitHint}
+                  </p>
                   <div
                     className="account-manage-tab__stat account-manage-tab__stat--cash account-manage-tab__stat--cash-krw"
                     role="group"
@@ -1175,15 +1182,18 @@ export default function AccountManageTab({
                       usdKrwRate != null &&
                       usdKrwRate > 0 ? (
                         <span className="account-manage-tab__stat-sub account-manage-tab__money">
-                          {formatPrice(
-                            Math.round(cashNativeUsd * usdKrwRate),
-                            "KRW",
+                          {ko.app.accountManageCashUsdKrwHint.replace(
+                            "{amount}",
+                            formatPrice(
+                              Math.round(cashNativeUsd * usdKrwRate),
+                              "KRW",
+                            ),
                           )}
                         </span>
                       ) : null}
                     </span>
                   </div>
-                </>
+                </div>
               ) : (
                 <div className="account-manage-tab__stat">
                   <span className="account-manage-tab__stat-label">

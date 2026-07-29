@@ -183,6 +183,8 @@ export const ko = {
     accountManageSummaryAria: "계좌 요약",
     accountManageCashStatHidden: "금액 가림",
     accountManageCashUsdKrwHint: "원화 환산 {amount}",
+    accountManageCashSplitHint:
+      "원화·달러 현금은 통화별로 따로 표시됩니다. 총평가는 환산 합계입니다.",
     accountManageOther: "기타",
     accountManageMarketKr: "국내",
     accountManageMarketUs: "미국",

@@ -368,6 +368,23 @@
   color: color-mix(in srgb, var(--text, inherit) 72%, var(--muted));
 }
 
+.account-manage-tab__cash-group {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 0.55rem;
+  width: 100%;
+}
+
+.account-manage-tab__cash-group-hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--text, inherit) 68%, var(--muted));
+}
+
 .account-manage-tab__stat--cash {
   min-height: 3.1rem;
 }
@@ -1153,6 +1170,15 @@
 }
 
 @media (max-width: 480px) {
+  .account-manage-tab__cash-group {
+    grid-template-columns: 1fr;
+  }
+
+  .account-manage-tab__cash-group-hint {
+    font-size: 0.72rem;
+    line-height: 1.45;
+  }
+
   .account-manage-tab__stat--cash {
     min-height: 3.35rem;
     padding: 0.62rem 0.75rem;
