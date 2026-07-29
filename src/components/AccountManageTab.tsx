@@ -605,6 +605,7 @@ export default function AccountManageTab({
           "bithumb-balance-hide-btn",
           "account-manage-tab__hide-btn",
           "account-manage-tab__hide-btn--summary",
+          "account-manage-tab__hide-btn--schedule",
           variant === "wheel" ? "account-manage-tab__hide-btn--wheel" : "",
           variant === "bridge" ? "account-manage-tab__hide-btn--bridge" : "",
         ]
@@ -617,6 +618,7 @@ export default function AccountManageTab({
               ? "account-rebalance-open-bridge"
               : "account-rebalance-open"
         }
+        aria-label={ko.app.accountManageRebalancePreviewZoneLabel}
         title={ko.app.accountManageRebalanceMarketHint}
         onClick={() => setRebalanceOpen(true)}
       >
@@ -628,7 +630,7 @@ export default function AccountManageTab({
           "bithumb-balance-hide-btn",
           "account-manage-tab__hide-btn",
           "account-manage-tab__hide-btn--summary",
-          "account-manage-tab__hide-btn--accent",
+          "account-manage-tab__hide-btn--real-order",
           variant === "wheel" ? "account-manage-tab__hide-btn--wheel" : "",
           variant === "bridge" ? "account-manage-tab__hide-btn--bridge" : "",
         ]
@@ -642,6 +644,7 @@ export default function AccountManageTab({
               : "account-rebalance-buy-now-toolbar"
         }
         disabled={buyingNow || !buyNowToolbarAllowed}
+        aria-label={ko.app.accountManageRebalanceRealOrderZoneLabel}
         title={
           buyNowToolbarAllowed
             ? ko.app.accountManageRebalanceNowConfirm.split("\n")[0]
