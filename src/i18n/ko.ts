@@ -1388,7 +1388,7 @@ export const ko = {
     title: "종목보관",
     desc: "일봉·주봉 골든크로스·정배열·120선 근처·바닥 캔들 자동 탐지 종목과 즐겨찾기를 관리합니다.",
     entryHint:
-      "기본: 최신 일자 · 전체 · 일봉 — 아래 탐색 조건(골든크로스 등)을 눌러 종목을 보세요. 즐겨찾기·과거 일자는 위 필터에서 바꿀 수 있습니다.",
+      "기본: 최신 일자 · 전체 · 일봉 · 골든크로스 — 아래 칩으로 조건·즐겨찾기·시장을 바꿀 수 있고, 과거 일자는 상단에서 고릅니다.",
     loading: "불러오는 중…",
     empty: "보관된 종목이 없습니다.",
     loadMoreRows: (shown: number, total: number) =>
@@ -1396,7 +1396,8 @@ export const ko = {
     kindTabAria: "탐색 유형",
     scanConditionAria: "탐색 조건 선택",
     intersectionHint: "선택 조건 교집합 {n}건",
-    selectScanCondition: "탐색 조건을 하나 이상 선택하세요.",
+    selectScanCondition:
+      "아래 탐색 조건 칩(골든크로스 등)을 하나 이상 눌러 주세요.",
     emptyIntersection: "선택한 조건을 모두 만족하는 종목이 없습니다.",
     tabGolden: "골든크로스",
     tabMaAlign: "정배열",
