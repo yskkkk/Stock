@@ -492,6 +492,42 @@ export function listVirtualFeedbackSync() {
 
 /**
  * @param {string} id
+ * @returns {VirtualFeedback | null}
+ */
+export function getVirtualFeedbackByIdSync(id) {
+  const key = String(id ?? "").trim();
+  if (!key) return null;
+  return listVirtualFeedbackSync().find((f) => f.id === key) ?? null;
+}
+
+/**
+ * 관리자 목록용 — 전체 prompt(수천자×수백건)를 빼 페이로드를 가볍게
+ * @param {VirtualFeedback} item
+ * @param {{ promptPreviewMax?: number }} [opts]
+ */
+export function slimVirtualFeedbackForList(item, opts = {}) {
+  const previewMax = Math.min(
+    400,
+    Math.max(80, Number(opts.promptPreviewMax) || 160),
+  );
+  const prompt = String(item.prompt ?? "").trim();
+  const hasPrompt = Boolean(prompt) && prompt !== "(생성 중)";
+  return {
+    ...item,
+    detail: String(item.detail ?? "").slice(0, 420),
+    discomfort: String(item.discomfort ?? "").slice(0, 420),
+    suggestion: String(item.suggestion ?? "").slice(0, 280),
+    improvementSummary: String(item.improvementSummary ?? "").slice(0, 360),
+    implementResult: String(item.implementResult ?? "").slice(0, 240),
+    prompt: hasPrompt ? `${prompt.slice(0, previewMax)}${prompt.length > previewMax ? "…" : ""}` : "",
+    promptFull: undefined,
+    hasPrompt,
+    promptChars: hasPrompt ? prompt.length : 0,
+  };
+}
+
+/**
+ * @param {string} id
  * @param {Partial<VirtualPersona>} patch
  */
 export function updateVirtualPersonaSync(id, patch) {

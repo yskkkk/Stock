@@ -5,6 +5,7 @@ import { requireAccessAdmin } from "./route-guards.js";
 import {
   backupVirtualFeedbackSync,
   deleteVirtualFeedbackSync,
+  getVirtualFeedbackByIdSync,
   getVirtualUserContinuousSync,
   listVirtualBackupsSync,
   listVirtualFeedbackSync,
@@ -12,6 +13,7 @@ import {
   patchVirtualFeedbackSync,
   patchVirtualUserContinuousSync,
   readVirtualUserStoreSync,
+  slimVirtualFeedbackForList,
   updateVirtualPersonaSync,
 } from "./virtual-user-store.js";
 import { runVirtualUserSession } from "./virtual-user-runner.js";
@@ -58,17 +60,22 @@ export function registerVirtualUserRoutes(app, asyncRoute) {
           !String(f.improvementSummary).startsWith("구현 대기") &&
           !String(f.improvementSummary).startsWith("개발 대기"),
       ).length;
+      // 전체 prompt 포함 시 ~1MB → 브라우저 abort. 목록은 슬림·최근 200건.
+      const feedback = store.feedback
+        .slice(0, 200)
+        .map((f) => slimVirtualFeedbackForList(f, { promptPreviewMax: 120 }));
       res.json({
         ok: true,
         personas: store.personas,
-        feedback: store.feedback,
+        feedback,
         sessions: store.sessions.slice(0, 20),
         continuous: store.continuous,
         busy: isVirtualUserContinuousBusy(),
         codeVersions: {
           baselineId: codeStore.baselineId,
           lockedBaselineSha: codeStore.lockedBaselineSha,
-          versions: listCodeVersionsSync(),
+          // 상세 버전은 /api/code-versions — 여기선 최근만
+          versions: listCodeVersionsSync().slice(0, 12),
         },
         narrative: {
           discomfortCount,
@@ -194,7 +201,26 @@ export function registerVirtualUserRoutes(app, asyncRoute) {
     "/api/virtual-users/feedback",
     requireAccessAdmin,
     asyncRoute(async (_req, res) => {
-      res.json({ ok: true, feedback: listVirtualFeedbackSync() });
+      res.json({
+        ok: true,
+        feedback: listVirtualFeedbackSync().map((f) =>
+          slimVirtualFeedbackForList(f),
+        ),
+      });
+    }),
+  );
+
+  app.get(
+    "/api/virtual-users/feedback/:id",
+    requireAccessAdmin,
+    asyncRoute(async (req, res) => {
+      const id = String(req.params.id ?? "").trim();
+      const item = getVirtualFeedbackByIdSync(id);
+      if (!item) {
+        res.status(404).json({ ok: false, error: "피드백을 찾을 수 없습니다." });
+        return;
+      }
+      res.json({ ok: true, item });
     }),
   );
 

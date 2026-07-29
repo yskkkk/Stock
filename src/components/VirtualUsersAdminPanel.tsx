@@ -3,6 +3,7 @@ import {
   backupVirtualFeedback,
   deleteVirtualFeedback,
   fetchCodeVersions,
+  fetchVirtualFeedbackDetail,
   fetchVirtualUsers,
   implementVirtualFeedback,
   patchVirtualPersona,
@@ -83,13 +84,15 @@ export default function VirtualUsersAdminPanel({
   const [msg, setMsg] = useState<string | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [promptCache, setPromptCache] = useState<Record<string, string>>({});
+  const [promptLoadingId, setPromptLoadingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "new" | "queued" | "done">("all");
 
   const reload = useCallback(async () => {
     setBusy(true);
     setErr(null);
     const ac = new AbortController();
-    const timer = window.setTimeout(() => ac.abort(), 20_000);
+    const timer = window.setTimeout(() => ac.abort(), 45_000);
     try {
       // 코드 버전(git)과 Promise.all 하지 않음 — git lock 시 목록이 영원히 로딩됨
       const res = await fetchVirtualUsers(adminToken, ac.signal);
@@ -126,6 +129,48 @@ export default function VirtualUsersAdminPanel({
       setBusy(false);
     }
   }, [adminToken]);
+
+  const toggleExpand = useCallback(
+    async (id: string) => {
+      if (expandedId === id) {
+        setExpandedId(null);
+        return;
+      }
+      setExpandedId(id);
+      const row = feedback.find((f) => f.id === id);
+      const cached = promptCache[id];
+      const preview = String(row?.prompt ?? "").trim();
+      const needsFull =
+        Boolean(row?.hasPrompt) ||
+        (preview.endsWith("…") && (row?.promptChars ?? 0) > preview.length);
+      if (cached || !needsFull) return;
+      setPromptLoadingId(id);
+      try {
+        const res = await fetchVirtualFeedbackDetail(id, adminToken);
+        const full = String(res.item?.prompt ?? "").trim();
+        if (full) {
+          setPromptCache((prev) => ({ ...prev, [id]: full }));
+          setFeedback((prev) =>
+            prev.map((f) =>
+              f.id === id
+                ? {
+                    ...f,
+                    ...res.item,
+                    hasPrompt: true,
+                    promptChars: full.length,
+                  }
+                : f,
+            ),
+          );
+        }
+      } catch {
+        /* 미리보기 유지 */
+      } finally {
+        setPromptLoadingId(null);
+      }
+    },
+    [adminToken, expandedId, feedback, promptCache],
+  );
 
   useEffect(() => {
     void reload();
@@ -534,7 +579,12 @@ export default function VirtualUsersAdminPanel({
         <div className="vu-admin__section-head">
           <h3>
             {ko.access.vuFeedback}{" "}
-            <span className="vu-admin__count">{visible.length}</span>
+            <span className="vu-admin__count">
+              {visible.length}
+              {narrative?.total != null && narrative.total > visible.length
+                ? ` / ${narrative.total}`
+                : ""}
+            </span>
           </h3>
           <div className="vu-admin__filters" role="group">
             {(["all", "new", "queued", "done"] as const).map((f) => (
@@ -648,9 +698,7 @@ export default function VirtualUsersAdminPanel({
                     <button
                       type="button"
                       className="btn btn--ghost btn--sm"
-                      onClick={() =>
-                        setExpandedId(open ? null : it.id)
-                      }
+                      onClick={() => void toggleExpand(it.id)}
                     >
                       {open ? ko.access.vuHidePrompt : ko.access.vuShowPrompt}
                     </button>
@@ -693,11 +741,15 @@ export default function VirtualUsersAdminPanel({
                   {open ? (
                     <div className="vu-admin__block vu-admin__block--prompt">
                       <strong>{ko.access.vuBlockPrompt}</strong>
-                      <pre className="vu-admin__prompt">
-                        {it.prompt?.trim()
-                          ? it.prompt
-                          : ko.access.vuPromptEmpty}
-                      </pre>
+                      {promptLoadingId === it.id ? (
+                        <p className="access-admin-muted">{ko.access.vuLoading}</p>
+                      ) : (
+                        <pre className="vu-admin__prompt">
+                          {(promptCache[it.id] || it.prompt)?.trim()
+                            ? promptCache[it.id] || it.prompt
+                            : ko.access.vuPromptEmpty}
+                        </pre>
+                      )}
                     </div>
                   ) : null}
                 </li>

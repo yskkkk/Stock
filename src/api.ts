@@ -2923,6 +2923,9 @@ export type VirtualFeedback = {
   improvementSummary?: string;
   implementResult?: string;
   prompt: string;
+  /** 목록 API에서 전체 prompt 생략 시 */
+  hasPrompt?: boolean;
+  promptChars?: number;
   implementJobId: string | null;
   implementQueuedAtMs: number | null;
   implementDoneAtMs?: number | null;
@@ -2978,6 +2981,20 @@ export function fetchVirtualUsers(
     headers: virtualUserHeaders(adminToken),
     signal,
   });
+}
+
+export function fetchVirtualFeedbackDetail(
+  id: string,
+  adminToken?: string,
+  signal?: AbortSignal,
+) {
+  return fetchJson<{ ok: boolean; item: VirtualFeedback; error?: string }>(
+    `/api/virtual-users/feedback/${encodeURIComponent(id)}`,
+    {
+      headers: virtualUserHeaders(adminToken),
+      signal,
+    },
+  );
 }
 
 export function patchVirtualUserContinuous(
