@@ -104,6 +104,19 @@ function formatAllocPct(n: number): string {
   return fmtSectorPct(n);
 }
 
+function accountCashStatAria(
+  label: string,
+  formattedAmount: string,
+  balanceHidden: boolean,
+  summaryPending: boolean,
+  extra?: string,
+): string {
+  if (summaryPending) return `${label}, ${ko.app.accountManageLoading}`;
+  if (balanceHidden) return `${label}, ${ko.app.accountManageCashStatHidden}`;
+  const base = `${label}, ${formattedAmount}`;
+  return extra ? `${base}, ${extra}` : base;
+}
+
 export default function AccountManageTab({
   onOpenHoldingChart,
 }: {
@@ -808,6 +821,8 @@ export default function AccountManageTab({
         <>
           <div
             className="account-manage-tab__summary-wrap"
+            role="region"
+            aria-label={ko.app.accountManageSummaryAria}
             aria-busy={summaryPending || undefined}
           >
             <div className="account-manage-tab__summary-toolbar">
@@ -983,20 +998,24 @@ export default function AccountManageTab({
               {provider === "toss" ? (
                 <>
                   <div
-                    className="account-manage-tab__stat"
+                    className="account-manage-tab__stat account-manage-tab__stat--cash account-manage-tab__stat--cash-krw"
+                    role="group"
+                    aria-label={accountCashStatAria(
+                      ko.app.accountManageCashKrw,
+                      formatPrice(cashNativeKrw, "KRW"),
+                      balanceHidden,
+                      summaryPending,
+                    )}
                     data-vu="account-summary-cash-krw"
                   >
-                    <span className="account-manage-tab__stat-label">
-                      <span className="account-rebalance-modal__badge is-krw">
+                    <span className="account-manage-tab__stat-label" aria-hidden="true">
+                      <span className="account-rebalance-modal__badge is-krw" aria-hidden="true">
                         원
                       </span>
                       {ko.app.accountManageCashKrw}
                     </span>
-                    <span className="account-manage-tab__stat-value">
-                      <span
-                        className="account-manage-tab__money"
-                        aria-hidden={balanceHidden || undefined}
-                      >
+                    <span className="account-manage-tab__stat-value" aria-hidden="true">
+                      <span className="account-manage-tab__money">
                         {summaryPending
                           ? "…"
                           : formatPrice(cashNativeKrw, "KRW")}
@@ -1004,20 +1023,36 @@ export default function AccountManageTab({
                     </span>
                   </div>
                   <div
-                    className="account-manage-tab__stat"
+                    className="account-manage-tab__stat account-manage-tab__stat--cash account-manage-tab__stat--cash-usd"
+                    role="group"
+                    aria-label={accountCashStatAria(
+                      ko.app.accountManageCashUsd,
+                      formatPrice(cashNativeUsd, "USD"),
+                      balanceHidden,
+                      summaryPending,
+                      !summaryPending &&
+                        cashNativeUsd > 0 &&
+                        usdKrwRate != null &&
+                        usdKrwRate > 0
+                        ? ko.app.accountManageCashUsdKrwHint.replace(
+                            "{amount}",
+                            formatPrice(
+                              Math.round(cashNativeUsd * usdKrwRate),
+                              "KRW",
+                            ),
+                          )
+                        : undefined,
+                    )}
                     data-vu="account-summary-cash-usd"
                   >
-                    <span className="account-manage-tab__stat-label">
-                      <span className="account-rebalance-modal__badge is-usd">
+                    <span className="account-manage-tab__stat-label" aria-hidden="true">
+                      <span className="account-rebalance-modal__badge is-usd" aria-hidden="true">
                         $
                       </span>
                       {ko.app.accountManageCashUsd}
                     </span>
-                    <span className="account-manage-tab__stat-value">
-                      <span
-                        className="account-manage-tab__money"
-                        aria-hidden={balanceHidden || undefined}
-                      >
+                    <span className="account-manage-tab__stat-value" aria-hidden="true">
+                      <span className="account-manage-tab__money">
                         {summaryPending
                           ? "…"
                           : formatPrice(cashNativeUsd, "USD")}
@@ -1026,10 +1061,7 @@ export default function AccountManageTab({
                       cashNativeUsd > 0 &&
                       usdKrwRate != null &&
                       usdKrwRate > 0 ? (
-                        <span
-                          className="account-manage-tab__stat-sub"
-                          aria-hidden={balanceHidden || undefined}
-                        >
+                        <span className="account-manage-tab__stat-sub">
                           {formatPrice(
                             Math.round(cashNativeUsd * usdKrwRate),
                             "KRW",
