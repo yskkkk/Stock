@@ -94,7 +94,61 @@ _재발 17619회 (최초 2026-05-27 07:14:23.020 KST)_
 
 ---
 
-### [WARN] auto-git — 2026-07-30 02:35:13.594 KST
+### [WARN] auto-git — 2026-07-30 03:26:44.995 KST
+
+<!-- id:log-auto-git-95e03a64d8 -->
+
+**문제**: remote origin/main touches locally modified files — skip pull to avoid stash conflict: server/box-range/catalog-scan-schedule.js, server/box-range/catalog-store.js, server/box-range/crypto-scan-runner.js, server/box-range/kr-scan-runner.js, server/box-range/runner.js, server/box-range/sp500-scan-runner.js, server/box-range/store.js, server/live-trade-buy-guard.js, server/live-trade-portfolio-store.js, server/users-store.js · branch=main · dirty=18 tracked
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+_재발 31회 (최초 2026-07-30 02:56:43.367 KST)_
+
+---
+
+### [WARN] auto-git — 2026-07-30 02:54:08.991 KST
+
+<!-- id:log-auto-git-de0792fb0e -->
+
+**문제**: remote origin/main touches locally modified files — skip pull to avoid stash conflict: server/box-range/catalog-scan-schedule.js, server/box-range/catalog-store.js, server/box-range/crypto-scan-runner.js, server/box-range/kr-scan-runner.js, server/box-range/runner.js, server/box-range/sp500-scan-runner.js, server/box-range/store.js, server/live-trade-buy-guard.js, server/live-trade-portfolio-store.js, server/users-store.js · branch=main · dirty=17 tracked
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+---
+
+### [WARN] auto-git — 2026-07-30 02:53:46.665 KST
+
+<!-- id:log-auto-git-070bb2259d -->
+
+**문제**: remote origin/main touches locally modified files — skip pull to avoid stash conflict: server/box-range/catalog-scan-schedule.js, server/box-range/catalog-store.js, server/box-range/crypto-scan-runner.js, server/box-range/kr-scan-runner.js, server/box-range/runner.js, server/box-range/sp500-scan-runner.js, server/box-range/store.js, server/live-trade-buy-guard.js, server/live-trade-portfolio-store.js, server/users-store.js · branch=main · dirty=13 tracked
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+_재발 23회 (최초 2026-07-30 02:49:18.739 KST)_
+
+---
+
+### [WARN] ops-agent — 2026-07-30 02:48:50.753 KST
+
+<!-- id:log-ops-agent-5ad672f46b -->
+
+**문제**: 클라우드 실행 후 로컬 동기화 실패(git pull --ff-only): Command failed: git pull --ff-only origin main — 에이전트 결과는 성공으로 처리
+
+**개선 제안**: 해당 영역 코드·설정·로그를 따라가며 재발 방지 패치를 적용하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL ops-agent
+
+_재발 5회 (최초 2026-07-28 07:27:03.665 KST)_
+
+---
+
+### [WARN] auto-git — 2026-07-30 02:35:19.633 KST
 
 <!-- id:log-auto-git-80b1ee19e9 -->
 
@@ -103,6 +157,8 @@ _재발 17619회 (최초 2026-05-27 07:14:23.020 KST)_
 **개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
 
 **근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+_재발 2회 (최초 2026-07-30 02:35:13.594 KST)_
 
 ---
 
@@ -366,20 +422,6 @@ _재발 88회 (최초 2026-07-28 07:43:50.552 KST)_
 
 ---
 
-### [WARN] ops-agent — 2026-07-28 09:47:12.630 KST
-
-<!-- id:log-ops-agent-5ad672f46b -->
-
-**문제**: 클라우드 실행 후 로컬 동기화 실패(git pull --ff-only): Command failed: git pull --ff-only origin main — 에이전트 결과는 성공으로 처리
-
-**개선 제안**: 해당 영역 코드·설정·로그를 따라가며 재발 방지 패치를 적용하세요.
-
-**근거**: server/.logs 접근 로그 INTERNAL ops-agent
-
-_재발 4회 (최초 2026-07-28 07:27:03.665 KST)_
-
----
-
 ### [WARN] ops-agent — 2026-07-28 09:42:23.443 KST
 
 <!-- id:log-ops-agent-3b63aad91e -->
@@ -574,4 +616,4 @@ _재발 33회 (최초 2026-05-28 07:59:33.276 KST)_
 
 ## 최근 자동 점검
 
-2026-07-30 02:31:53.800 KST — probes 완료 · 열린 41건 · 이번 기록 0건
+2026-07-30 04:19:21.757 KST — probes 완료 · 열린 46건 · 이번 기록 0건
