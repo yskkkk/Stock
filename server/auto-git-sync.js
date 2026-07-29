@@ -753,14 +753,30 @@ export function startAutoGitSync({ httpServer }) {
         if (trackedDirty.length) {
           const overlapping = remotePullOverlapsDirtyFiles(remoteRef, trackedDirty);
           if (overlapping.length) {
-            const detail = `remote ${remoteRef} touches locally modified files — skip pull to avoid stash conflict: ${overlapping.join(", ")} · ${describeGitWorktree()}`;
-            appendServerEventLog("auto-git", detail, "warn");
-            notifyOpsAutoGitFailed({
-              phase: `pull ${remote}/${branch} blocked (local/remote overlap)`,
-              detail: describeGitWorktree(),
-              errorText: overlapping.join(", "),
-            });
-            return;
+            // 예전: overlap이면 pull skip → 가상사용자·에이전트 push가 이 서버에 영구 미반영.
+            // 기본: stash 후 ff-only pull. pop 충돌 시 로컬 WIP만 stash에 남기고 원격은 반영.
+            const blockOnOverlap = truthy(
+              process.env.AUTO_GIT_BLOCK_ON_OVERLAP,
+            );
+            const detail = `remote ${remoteRef} overlaps dirty: ${overlapping.join(", ")} · ${describeGitWorktree()}`;
+            if (blockOnOverlap) {
+              appendServerEventLog(
+                "auto-git",
+                `${detail} — skip pull (AUTO_GIT_BLOCK_ON_OVERLAP=1)`,
+                "warn",
+              );
+              notifyOpsAutoGitFailed({
+                phase: `pull ${remote}/${branch} blocked (local/remote overlap)`,
+                detail: describeGitWorktree(),
+                errorText: overlapping.join(", "),
+              });
+              return;
+            }
+            appendServerEventLog(
+              "auto-git",
+              `${detail} — stash then pull (VU/agent sync; pop may need manual resolve)`,
+              "warn",
+            );
           }
           appendServerEventLog(
             "auto-git",
@@ -785,6 +801,18 @@ export function startAutoGitSync({ httpServer }) {
         stashed = stashResult.stashed;
         if (stashed) {
           appendServerEventLog("auto-git", "stashed local changes before pull");
+        }
+      }
+    } else if (prePullPorcelain) {
+      const { trackedDirty } = parsePorcelainStatus(prePullPorcelain);
+      if (trackedDirty.length) {
+        const overlapping = remotePullOverlapsDirtyFiles(remoteRef, trackedDirty);
+        if (overlapping.length) {
+          appendServerEventLog(
+            "auto-git",
+            `dirty worktree + overlap without AUTO_GIT_STASH_BEFORE_PULL — pull may fail: ${overlapping.join(", ")}`,
+            "warn",
+          );
         }
       }
     }
