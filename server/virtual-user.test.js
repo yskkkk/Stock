@@ -124,6 +124,8 @@ describe("virtual-user-runner", () => {
     expect(prompt).toContain("feedbackId: fb-1");
     expect(prompt).toContain("실주문");
     expect(prompt).toContain("satisfaction: 3");
+    expect(prompt).toContain("UI 방향");
+    expect(prompt).toContain("최소 diff");
   });
 
   it("mobile prompt forbids changing layout frame", () => {

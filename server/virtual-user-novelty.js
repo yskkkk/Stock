@@ -5,6 +5,8 @@
  * 생성형 불편 템플릿으로 항상 새 fingerprint를 만든다.
  */
 
+import { vuUiDirectionSuggestionGuard } from "../shared/virtual-user-ui-direction.js";
+
 /** @typedef {{ id: string; label: string; suffix: string }} NoveltyAngle */
 
 /** @type {NoveltyAngle[]} */
@@ -181,8 +183,10 @@ export function angledNoveltySeed(base, angle, tickKey) {
   return {
     ...base,
     title: `${base.title} · ${angle.label} 재검증 (${tickKey})`,
-    detail: `${base.detail}\n\n[재검증 각도] ${angle.suffix}. 이전 개선 후에도 같은 불편이 남는지 페르소나 관점에서 다시 본다.`,
-    suggestion: `${base.suggestion} (${angle.label}·${angle.suffix} 관점 포함)`,
+    detail: `${base.detail}\n\n[재검증 각도] ${angle.suffix}. 이전 개선 후에도 같은 불편이 남는지 페르소나 관점에서 다시 본다. 리디자인이 아니라 기존 톤 안에서 마찰만 줄인다.`,
+    suggestion: vuUiDirectionSuggestionGuard(
+      `${base.suggestion} (${angle.label}·${angle.suffix} 관점 포함)`,
+    ),
   };
 }
 
@@ -200,7 +204,7 @@ export function generativeNoveltySeed(item, tickKey, personaId, idx) {
     severity: item.severity,
     title: `${item.baseTitle} · ${tickKey} · ${shortPersona}#${idx}`,
     detail: item.detail,
-    suggestion: item.suggestion,
+    suggestion: vuUiDirectionSuggestionGuard(item.suggestion),
     skills: item.skills,
     devices: item.devices,
     minSatisfaction: item.minSatisfaction ?? 1,
@@ -267,9 +271,10 @@ export function buildContinuousNoveltySeeds(p) {
       severity: "nit",
       title: `탐색 포화 돌파 · ${tickKey} · ${String(p.personaId).slice(-6)}`,
       detail:
-        "기존 시드·지문이 소진된 상태에서 추가 개선 각도를 강제 발굴한다. UX·카피·모바일·신뢰·접근성 중 아직 손대지 않은 세부 불편을 찾아 구체적 수정안을 낸다.",
-      suggestion:
-        "현재 제품에서 페르소나가 느끼는 미해결 불편 1가지를 골라 최소 변경으로 개선한다. 좌측 열 레이아웃은 건드리지 않는다.",
+        "기존 시드·지문이 소진된 상태에서 추가 개선 각도를 강제 발굴한다. UX·카피·모바일·신뢰·접근성 중 아직 손대지 않은 세부 불편을 찾아, 현재 앱 톤을 유지한 채 구체적 수정안을 낸다.",
+      suggestion: vuUiDirectionSuggestionGuard(
+        "현재 제품에서 페르소나가 느끼는 미해결 불편 1가지를 골라 최소 변경으로 개선한다. 좌측 열·3열·탭 골격은 건드리지 않는다.",
+      ),
       minSatisfaction: 1,
     });
   }

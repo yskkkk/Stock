@@ -30,6 +30,10 @@ import {
   clampSatisfactionLevel,
 } from "./virtual-user-satisfaction.js";
 import { buildContinuousNoveltySeeds } from "./virtual-user-novelty.js";
+import {
+  buildVuUiDirectionPromptBlock,
+  vuUiDirectionSuggestionGuard,
+} from "../shared/virtual-user-ui-direction.js";
 
 /**
  * @typedef {{
@@ -294,6 +298,7 @@ export function buildVirtualFeedbackPrompt(
 ) {
   const sat = clampSatisfactionLevel(persona.satisfactionLevel ?? 1);
   const mobile = persona.device === "mobile";
+  const suggestion = vuUiDirectionSuggestionGuard(seed.suggestion);
   return [
     "# 가상 사용자 피드백 구현 요청",
     "",
@@ -304,6 +309,8 @@ export function buildVirtualFeedbackPrompt(
           "모바일 UI: **앱 틀(3열 그리드·좌측 열·메인 탭 골격)은 바꾸지 말고**, 패딩·줄바꿈·터치 영역·safe-area·모달 footer wrap·폰트/간격만 기존 컴포넌트 안에서 고친다.",
         ]
       : []),
+    "",
+    buildVuUiDirectionPromptBlock(),
     "",
     "## 메타",
     `- feedbackId: ${feedbackId}`,
@@ -329,11 +336,12 @@ export function buildVirtualFeedbackPrompt(
     seed.detail,
     extra ? `\n### 브라우저 여정 메모\n${extra}\n` : "",
     "## 기대 결과 / 제안",
-    seed.suggestion,
+    suggestion,
     "",
     "## 구현 체크",
     "- [ ] 문제 재현 경로를 코드에서 확인했다",
     "- [ ] UI/카피/동작 중 필요한 것만 고쳤다",
+    "- [ ] 기존 화면 톤(색·간격·BEM·버튼/칩)을 유지했고, 랜딩식 리디자인을 하지 않았다",
     mobile
       ? "- [ ] 레이아웃 틀(3열·좌측 열·탭 골격)을 바꾸지 않고 터치/간격/줄바꿈만 고쳤다"
       : "- [ ] 좌측 열·3열 그리드 레이아웃을 깨지 않았다",

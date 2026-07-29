@@ -1,0 +1,58 @@
+/**
+ * Stock 앱 — 운영자(사용자)가 추구하는 UI 방향 SSOT.
+ * 가상 사용자 피드백·에이전트 구현 프롬프트에 주입한다.
+ *
+ * 원칙: 기존 제품 톤·골격 안에서 마찰만 줄인다. 리디자인·골격 변경은 금지.
+ */
+
+/** @type {string[]} */
+export const VU_UI_DIRECTION_MUST = [
+  "기존 화면의 시각 언어(CSS 변수·BEM 클래스·간격·타이포·버튼/칩/카드 패턴)를 그대로 따른다.",
+  "문제 화면·컴포넌트 안에서만 고친다. 최소 diff · 관련 없는 리팩터 금지.",
+  "3열 골격(좌측 열 | 본문 shell≈1680px | 우측 패널)과 좌측 열(테마·주요지수·환율)을 유지한다.",
+  "테마 토글은 좌측 열 상단에 둔다. 본문 위 전폭 테마 띠로 빼지 않는다.",
+  "웹·Android·iOS 동일 `src/` UI. 네이티브 전용 화면을 만들지 않는다.",
+  "모바일은 패딩·줄바꿈·overflow·터치(~44px)·safe-area·모달 footer wrap·폰트/간격만 기존 컴포넌트 안에서 조정한다.",
+  "카피·빈/로딩/에러 문구는 짧고 한글이 깨지지 않게(UTF-8). 물음표(???) 라벨을 남기지 않는다.",
+  "기능 on/off는 `shared/ui-feature-catalog` + `useUiFeature`로만. compile-time uiFlags 신규 금지.",
+  "계좌관리: 비중 도넛 + 성장·가치·현금 성향, 원화/달러·켜짐/꺼짐·미리보기 vs 즉시매수 구분을 유지·명확화한다.",
+  "같은 맥락의 로딩/빈상태/포커스·중복클릭 방지 등 UX는 요청 범위 안에서만 보강한다.",
+];
+
+/** @type {string[]} */
+export const VU_UI_DIRECTION_MUST_NOT = [
+  "좌측 열·3열 그리드·lazy-follow를 바꾸거나 상단 전폭 띠·빈 열·큰 간격으로 재배치하지 않는다.",
+  "메인 탭 구조/개수 재배치, 대시보드형 카드 남발, 마케팅 랜딩식 히어로·그라데이션 테마로 바꾸지 않는다.",
+  "Inter/Roboto 등 기본 AI 랜딩 톤, 보라 그라데이션, 과도한 glow·둥근 pill 군집으로 리브랜딩하지 않는다.",
+  "실주문·출금 등 돈이 나가는 경로를 늘리거나, 미리보기와 즉시 매수를 시각·카피로 헷갈리게 합치지 않는다.",
+  "폴링 주기만 줄이거나, 운영자/개발자가 의도적으로 끈 기능을 ‘개선’으로 다시 켜지 않는다.",
+  "아이콘에 흰 사각 매트를 남기지 않는다(투명 매트 유지, 교체 시 ?v= bump).",
+];
+
+/** 프롬프트용 요약 블록 */
+export function buildVuUiDirectionPromptBlock() {
+  return [
+    "## UI 방향 (운영자 의도 — 반드시 준수)",
+    "목표는 ‘새 디자인’이 아니라 **지금 앱이 가는 방향과 같은 선에서** 불편만 줄이는 것이다.",
+    "",
+    "### 해야 할 것",
+    ...VU_UI_DIRECTION_MUST.map((s) => `- ${s}`),
+    "",
+    "### 하지 말 것",
+    ...VU_UI_DIRECTION_MUST_NOT.map((s) => `- ${s}`),
+    "",
+    "피드백 suggestion이 위와 충돌하면 **방향(위)을 우선**하고, suggestion은 같은 목적을 기존 패턴으로 달성하는 쪽으로 해석한다.",
+  ].join("\n");
+}
+
+/**
+ * 시드 suggestion 앞에 붙일 한 줄 가드 (노벨티·시드 공통)
+ */
+export function vuUiDirectionSuggestionGuard(suggestion) {
+  const base = String(suggestion || "").trim();
+  const guard =
+    "기존 UI 패턴·골격 유지(좌측 열/3열 금지 변경). 최소 diff로 해당 화면만.";
+  if (!base) return guard;
+  if (base.includes("기존 UI 패턴") || base.includes("최소 diff")) return base;
+  return `${guard} ${base}`;
+}

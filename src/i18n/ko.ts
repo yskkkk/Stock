@@ -227,10 +227,13 @@ export const ko = {
       "국내는 원화 현금만, 미국은 달러 현금만 사용합니다. 서로 섞지 않습니다.",
     accountManageRebalanceCashPct: "현금 사용 비율 {n}% (시장별 통화)",
     accountManageRebalancePreview: "미리보기 (시장별 · 원통화)",
+    accountManageRebalanceSimBadge: "주문 없음",
+    accountManageRebalancePreviewZoneLabel: "미리보기 · 주문 없음",
+    accountManageRebalanceRealOrderZoneLabel: "실제 매수 · 정규장만",
     accountManageRebalancePreviewHint:
-      "국내는 원화, 미국은 달러로 각각 표시됩니다. 통화를 섞지 않습니다.",
+      "국내는 원화, 미국은 달러로 각각 표시됩니다. 통화를 섞지 않습니다. 아래 「미리보기만 실행」은 계산만 하며 돈이 나가지 않습니다.",
     accountManageRebalancePreviewEmpty:
-      "미리볼 주문이 없습니다. 「미리보기 실행」 또는 「스케줄 저장」을 눌러 주세요.",
+      "미리볼 주문이 없습니다. 「미리보기만 실행」 또는 「스케줄 저장」을 눌러 주세요.",
     accountManageRebalanceCashUse: "{cashLabel} 가용 {avail} → 이번 사용 {spend}",
     accountManageRebalanceCashKrw: "원화 현금",
     accountManageRebalanceCashUsd: "달러 현금",
@@ -245,10 +248,10 @@ export const ko = {
     accountManageRebalanceLastRun: "최근 실행: {ymd} ({ok})",
     accountManageRebalanceLastOk: "성공",
     accountManageRebalanceLastFail: "일부 실패",
-    accountManageRebalanceDryRun: "미리보기 실행",
+    accountManageRebalanceDryRun: "미리보기만 실행",
     accountManageRebalanceDryRunOk: "미리보기 {n}건 (실제 주문 없음)",
-    accountManageRebalanceNow: "즉시 매수",
-    accountManageRebalanceNowRun: "지금 즉시 매수",
+    accountManageRebalanceNow: "정규장 · 실제 매수",
+    accountManageRebalanceNowRun: "정규장 · 실제 매수 실행",
     accountManageRebalanceNowRunning: "매수 중…",
     accountManageRebalanceNowConfirm:
       "켜진 시장 중 정규장만 남은 현금(국내=원화·미국=달러)을 현재 보유 비중대로 시장가 매수합니다.\n시간외·애프터는 제외됩니다. 실제 주문이 나갑니다. 계속할까요?",
@@ -1747,7 +1750,7 @@ export const ko = {
     liveTradeServerRunningEmpty: "서버에 가동 중인 프로그램이 없습니다.",
     liveTradeServerRunningView: "보기",
     vuIntro:
-      "탐색은 쉬지 않고 개선점을 계속 발굴합니다(각도 재검증·생성형 불편·완료 후 재방문). 연속 모드는 브라우저로 같은 서버를 두드리지 않습니다. 에이전트 전송은 3분마다, 개발 중이 아닐 때만 1건.",
+      "탐색은 쉬지 않고 개선점을 발굴하되, 구현은 지금 앱 UI 방향(기존 톤·3열·좌측 열 유지, 최소 diff)을 따릅니다. 에이전트 전송은 3분마다 idle일 때 1건.",
     vuPersonas: "페르소나",
     vuContinuous: "연속 탐색",
     vuContinuousOn: "연속 탐색 켜짐",
