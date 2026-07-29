@@ -13,10 +13,12 @@ import {
   RECORD_MODE_ACTIVITY_LOG_FILE,
   ensureServerLogDirSync,
 } from "./log-paths.js";
+import { readJsonStoreSync } from "./store-json.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, ".data");
 const QUEUE_FILE = path.join(DATA_DIR, "ops-record-mode-queue.json");
+const QUEUE_STORE_FILE = "ops-record-mode-queue.json";
 
 const ACTIVITY_FIELD_MAX = 12_000;
 /** 활동 로그 API에서 읽는 최대 줄 수(파일 끝부터) */
@@ -106,20 +108,19 @@ export function purgeRecordModeErrorItemsSync() {
 }
 
 export function readRecordModeQueueSync() {
-  try {
-    if (!fs.existsSync(QUEUE_FILE)) return { items: [] };
-    const raw = fs.readFileSync(QUEUE_FILE, "utf8");
-    const parsed = JSON.parse(raw);
-    if (!isPlainObject(parsed)) return { items: [] };
-    const arr = parsed.items;
-    if (!Array.isArray(arr)) return { items: [] };
-    const items = arr
-      .map((x) => (isPlainObject(x) ? parseItem(/** @type {Record<string, unknown>} */ (x)) : null))
-      .filter(Boolean);
-    return { items: /** @type {RecordModeItem[]} */ (items) };
-  } catch {
-    return { items: [] };
-  }
+  return readJsonStoreSync(
+    QUEUE_STORE_FILE,
+    (parsed) => {
+      if (!isPlainObject(parsed)) return { items: [] };
+      const arr = parsed.items;
+      if (!Array.isArray(arr)) return { items: [] };
+      const items = arr
+        .map((x) => (isPlainObject(x) ? parseItem(/** @type {Record<string, unknown>} */ (x)) : null))
+        .filter(Boolean);
+      return { items: /** @type {RecordModeItem[]} */ (items) };
+    },
+    () => ({ items: [] }),
+  );
 }
 
 /**

@@ -8,9 +8,11 @@ import path from "path";
 import { randomUUID } from "crypto";
 import { execSync } from "child_process";
 import { fileURLToPath } from "url";
+import { readJsonStoreSync, writeJsonStoreSync, parseJsonText } from "./store-json.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, ".data");
+const STORE_FILE = "virtual-users.json";
 const STORE_PATH = path.join(DATA_DIR, "virtual-users.json");
 const BACKUPS_DIR = path.join(DATA_DIR, "virtual-user-backups");
 
@@ -381,33 +383,29 @@ function normalizeFeedback(raw) {
 
 /** @returns {VirtualUserStore} */
 export function readVirtualUserStoreSync() {
-  try {
-    if (!fs.existsSync(STORE_PATH)) {
-      const s = emptyStore();
-      writeVirtualUserStoreSync(s);
-      return s;
-    }
-    const raw = JSON.parse(fs.readFileSync(STORE_PATH, "utf8"));
-    if (!raw || typeof raw !== "object") return emptyStore();
-    const personas = Array.isArray(raw.personas)
-      ? raw.personas.map(normalizePersona).filter(Boolean)
-      : [];
-    const feedback = Array.isArray(raw.feedback)
-      ? raw.feedback.map(normalizeFeedback).filter(Boolean)
-      : [];
-    const sessions = Array.isArray(raw.sessions) ? raw.sessions : [];
-    /** @type {VirtualUserStore} */
-    const store = {
-      version: 2,
-      personas: personas.length ? /** @type {VirtualPersona[]} */ (personas) : defaultPersonas(),
-      feedback: /** @type {VirtualFeedback[]} */ (feedback).slice(0, MAX_FEEDBACK),
-      sessions: /** @type {VirtualSession[]} */ (sessions).slice(0, 100),
-      continuous: normalizeContinuous(raw.continuous),
-    };
-    return store;
-  } catch {
-    return emptyStore();
-  }
+  return readJsonStoreSync(
+    STORE_FILE,
+    (raw) => {
+      if (!raw || typeof raw !== "object") return emptyStore();
+      const personas = Array.isArray(raw.personas)
+        ? raw.personas.map(normalizePersona).filter(Boolean)
+        : [];
+      const feedback = Array.isArray(raw.feedback)
+        ? raw.feedback.map(normalizeFeedback).filter(Boolean)
+        : [];
+      const sessions = Array.isArray(raw.sessions) ? raw.sessions : [];
+      /** @type {VirtualUserStore} */
+      const store = {
+        version: 2,
+        personas: personas.length ? /** @type {VirtualPersona[]} */ (personas) : defaultPersonas(),
+        feedback: /** @type {VirtualFeedback[]} */ (feedback).slice(0, MAX_FEEDBACK),
+        sessions: /** @type {VirtualSession[]} */ (sessions).slice(0, 100),
+        continuous: normalizeContinuous(raw.continuous),
+      };
+      return store;
+    },
+    emptyStore,
+  );
 }
 
 /** @param {VirtualUserStore} store */
@@ -420,9 +418,7 @@ export function writeVirtualUserStoreSync(store) {
     sessions: store.sessions.slice(0, 100),
     continuous: normalizeContinuous(store.continuous),
   };
-  const tmp = `${STORE_PATH}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(payload, null, 2), "utf8");
-  fs.renameSync(tmp, STORE_PATH);
+  writeJsonStoreSync(STORE_FILE, payload);
 }
 
 export function getVirtualUserContinuousSync() {
@@ -720,7 +716,7 @@ export function listVirtualBackupsSync(feedbackId) {
       const dir = path.join(parent, stamp);
       let meta = null;
       try {
-        meta = JSON.parse(fs.readFileSync(path.join(dir, "meta.json"), "utf8"));
+        meta = parseJsonText(fs.readFileSync(path.join(dir, "meta.json"), "utf8"));
       } catch {
         meta = null;
       }

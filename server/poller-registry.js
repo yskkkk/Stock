@@ -4,6 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { resolveServerDataDir } from "./data-path.js";
+import { parseJsonText } from "./store-json.js";
 import { boxRangeDetectEnabled } from "./box-range/constants.js";
 
 /** @typedef {{
@@ -381,7 +382,7 @@ function readOverridesSync() {
   try {
     const fp = overridesPath();
     if (!fs.existsSync(fp)) return {};
-    const o = JSON.parse(fs.readFileSync(fp, "utf8"));
+    const o = parseJsonText(fs.readFileSync(fp, "utf8"));
     return o && typeof o === "object" ? o : {};
   } catch {
     return {};
@@ -533,8 +534,10 @@ export function pollerGuardSync(id, fn) {
     runtime[id].lastError = null;
     runtime[id].tickCount = (runtime[id].tickCount ?? 0) + 1;
   } catch (e) {
-    runtime[id].lastError = e instanceof Error ? e.message : String(e);
-    throw e;
+    const msg = e instanceof Error ? e.message : String(e);
+    runtime[id].lastError = msg;
+    console.warn(`[poller:${id}] tick:`, msg);
+    // reject를 밖으로 던지지 않음 — setInterval·fs.watch tick uncaughtException 방지
   } finally {
     runtime[id].running = false;
   }

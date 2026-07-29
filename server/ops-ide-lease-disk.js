@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { opsIdePromptsMatch } from "./ops-ide-prompt-match.js";
+import { parseJsonText } from "./store-json.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");
@@ -87,7 +88,7 @@ function previewInstruction(instruction) {
 export function readIdeLeaseDiskSync() {
   try {
     if (!fs.existsSync(IDE_LEASE_PATH)) return null;
-    const data = JSON.parse(fs.readFileSync(IDE_LEASE_PATH, "utf8"));
+    const data = parseJsonText(fs.readFileSync(IDE_LEASE_PATH, "utf8"));
     return data && typeof data === "object" ? data : null;
   } catch {
     return null;

@@ -17,11 +17,13 @@ import { getOpsAgentQueueMemorySnapshot } from "./ops-agent-job-queue.js";
 import { hasOpsDevCompletionPending } from "./ops-dev-completion-coalesce.js";
 import { isAbortLikeError } from "./fetch-abort-guard.js";
 import { markPollerBootStarted, pollerGuardAsync } from "./poller-registry.js";
+import { readJsonStoreSync, writeJsonStoreSync, parseJsonText } from "./store-json.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.join(__dirname, "..");
 const DATA_DIR = path.join(__dirname, ".data");
-const STORE_FILE = path.join(DATA_DIR, "server-improvement-items.json");
+const STORE_FILE = "server-improvement-items.json";
+const STORE_PATH = path.join(DATA_DIR, "server-improvement-items.json");
 const NOTES_MD = path.join(REPO_ROOT, "SERVER_IMPROVEMENTS.md");
 const PENDING_NOTIFY_FILE = path.join(DATA_DIR, "ops-dev-notify-pending.json");
 
@@ -60,38 +62,31 @@ function ensureDataDir() {
 
 /** @returns {{ items: ImprovementItem[]; lastProbeAtMs: number; lastProbeSummary: string }} */
 function readStore() {
-  try {
-    if (!fs.existsSync(STORE_FILE)) {
-      return { items: [], lastProbeAtMs: 0, lastProbeSummary: "" };
-    }
-    const o = JSON.parse(fs.readFileSync(STORE_FILE, "utf8"));
-    const items = Array.isArray(o?.items) ? o.items : [];
-    return {
-      items: items.filter((x) => x && typeof x.id === "string"),
-      lastProbeAtMs: Number(o?.lastProbeAtMs) || 0,
-      lastProbeSummary: String(o?.lastProbeSummary ?? ""),
-    };
-  } catch {
-    return { items: [], lastProbeAtMs: 0, lastProbeSummary: "" };
-  }
+  return readJsonStoreSync(
+    STORE_FILE,
+    (o) => {
+      const items = Array.isArray(o?.items) ? o.items : [];
+      return {
+        items: items.filter((x) => x && typeof x.id === "string"),
+        lastProbeAtMs: Number(o?.lastProbeAtMs) || 0,
+        lastProbeSummary: String(o?.lastProbeSummary ?? ""),
+      };
+    },
+    () => ({ items: [], lastProbeAtMs: 0, lastProbeSummary: "" }),
+  );
 }
 
 /** @param {{ items: ImprovementItem[]; lastProbeAtMs?: number; lastProbeSummary?: string }} store */
 function writeStore(store) {
-  ensureDataDir();
-  fs.writeFileSync(
+  writeJsonStoreSync(
     STORE_FILE,
-    JSON.stringify(
-      {
-        items: store.items,
-        lastProbeAtMs: store.lastProbeAtMs ?? 0,
-        lastProbeSummary: store.lastProbeSummary ?? "",
-        updatedAtMs: Date.now(),
-      },
-      null,
-      2,
-    ),
-    "utf8",
+    {
+      items: store.items,
+      lastProbeAtMs: store.lastProbeAtMs ?? 0,
+      lastProbeSummary: store.lastProbeSummary ?? "",
+      updatedAtMs: Date.now(),
+    },
+    (data) => JSON.stringify(data, null, 2),
   );
 }
 
@@ -462,7 +457,7 @@ export async function runServerSelfImprovementProbes() {
   if (hasOpsDevCompletionPending()) {
     try {
       if (fs.existsSync(PENDING_NOTIFY_FILE)) {
-        const raw = JSON.parse(fs.readFileSync(PENDING_NOTIFY_FILE, "utf8"));
+        const raw = parseJsonText(fs.readFileSync(PENDING_NOTIFY_FILE, "utf8"));
         const at = raw?.pending?.at;
         if (typeof at === "number" && Date.now() - at > 10 * 60_000) {
           recordServerImprovementNote({

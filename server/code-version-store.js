@@ -17,9 +17,11 @@ import {
   restoreCodeTreeFromCommit,
   tryCreateGitTag,
 } from "./code-version-git.js";
+import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, ".data");
+const STORE_FILE = "code-versions.json";
 const STORE_PATH = path.join(DATA_DIR, "code-versions.json");
 const MAX_VERSIONS = 80;
 
@@ -98,30 +100,30 @@ function normalizeVersion(raw) {
 
 /** @returns {CodeVersionStore} */
 export function readCodeVersionStoreSync() {
-  try {
-    if (!fs.existsSync(STORE_PATH)) return emptyStore();
-    const raw = JSON.parse(fs.readFileSync(STORE_PATH, "utf8"));
-    if (!raw || typeof raw !== "object") return emptyStore();
-    const versions = Array.isArray(raw.versions)
-      ? raw.versions.map(normalizeVersion).filter(Boolean)
-      : [];
-    const baselineId =
-      raw.baselineId == null || raw.baselineId === ""
-        ? null
-        : String(raw.baselineId);
-    const lockedBaselineSha =
-      raw.lockedBaselineSha == null || raw.lockedBaselineSha === ""
-        ? null
-        : String(raw.lockedBaselineSha);
-    return {
-      version: 2,
-      baselineId,
-      lockedBaselineSha,
-      versions: /** @type {CodeVersion[]} */ (versions).slice(0, MAX_VERSIONS),
-    };
-  } catch {
-    return emptyStore();
-  }
+  return readJsonStoreSync(
+    STORE_FILE,
+    (raw) => {
+      if (!raw || typeof raw !== "object") return emptyStore();
+      const versions = Array.isArray(raw.versions)
+        ? raw.versions.map(normalizeVersion).filter(Boolean)
+        : [];
+      const baselineId =
+        raw.baselineId == null || raw.baselineId === ""
+          ? null
+          : String(raw.baselineId);
+      const lockedBaselineSha =
+        raw.lockedBaselineSha == null || raw.lockedBaselineSha === ""
+          ? null
+          : String(raw.lockedBaselineSha);
+      return {
+        version: 2,
+        baselineId,
+        lockedBaselineSha,
+        versions: /** @type {CodeVersion[]} */ (versions).slice(0, MAX_VERSIONS),
+      };
+    },
+    emptyStore,
+  );
 }
 
 /**
@@ -148,9 +150,7 @@ function persistStoreKeepingBaseline(store) {
     lockedBaselineSha: store.lockedBaselineSha,
     versions,
   };
-  const tmp = `${STORE_PATH}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(payload, null, 2), "utf8");
-  fs.renameSync(tmp, STORE_PATH);
+  writeJsonStoreSync(STORE_FILE, payload, (data) => JSON.stringify(data, null, 2));
 }
 
 /** @param {CodeVersionStore} store */

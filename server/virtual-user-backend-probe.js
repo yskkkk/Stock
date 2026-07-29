@@ -8,6 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isAbortLikeError } from "./fetch-abort-guard.js";
 import { findLiveOrderGuardGaps } from "./virtual-user-order-guard.js";
+import { parseJsonText } from "./store-json.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, ".data");
@@ -126,7 +127,7 @@ function probeCorruptDataFiles() {
     try {
       const raw = fs.readFileSync(fp, "utf8");
       // BOM + "{}" 등 깨진 케이스
-      JSON.parse(raw.replace(/^\uFEFF/, ""));
+      parseJsonText(raw);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       out.push({
@@ -283,7 +284,7 @@ async function findingsFromSelfImprovement() {
     } else {
       const fp = path.join(DATA_DIR, "server-improvement-items.json");
       if (fs.existsSync(fp)) {
-        const o = JSON.parse(fs.readFileSync(fp, "utf8").replace(/^\uFEFF/, ""));
+        const o = parseJsonText(fs.readFileSync(fp, "utf8"));
         items = Array.isArray(o?.items) ? o.items : [];
       }
     }

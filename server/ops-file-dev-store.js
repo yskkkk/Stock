@@ -6,10 +6,12 @@ import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readJsonStoreSync } from "./store-json.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, ".data");
 const QUEUE_FILE = path.join(DATA_DIR, "ops-file-dev-queue.json");
+const QUEUE_STORE_FILE = "ops-file-dev-queue.json";
 
 const MAX_ITEMS = 48;
 const MAX_REQUEST_JSON_CHARS = 900_000;
@@ -108,24 +110,23 @@ function parseItem(o) {
 
 /** @returns {{ appliedFingerprints: string[]; items: FileDevItem[] }} */
 export function readFileDevQueueSync() {
-  try {
-    if (!fs.existsSync(QUEUE_FILE)) return { appliedFingerprints: [], items: [] };
-    const raw = fs.readFileSync(QUEUE_FILE, "utf8");
-    const parsed = JSON.parse(raw);
-    if (!isPlainObject(parsed)) return { appliedFingerprints: [], items: [] };
-    const fpArr = parsed.appliedFingerprints;
-    const appliedFingerprints = Array.isArray(fpArr)
-      ? fpArr.map((x) => String(x ?? "").trim()).filter((x) => x.length >= 32)
-      : [];
-    const arr = parsed.items;
-    if (!Array.isArray(arr)) return { appliedFingerprints, items: [] };
-    const items = arr
-      .map((x) => (isPlainObject(x) ? parseItem(/** @type {Record<string, unknown>} */ (x)) : null))
-      .filter(Boolean);
-    return { appliedFingerprints, items: /** @type {FileDevItem[]} */ (items) };
-  } catch {
-    return { appliedFingerprints: [], items: [] };
-  }
+  return readJsonStoreSync(
+    QUEUE_STORE_FILE,
+    (parsed) => {
+      if (!isPlainObject(parsed)) return { appliedFingerprints: [], items: [] };
+      const fpArr = parsed.appliedFingerprints;
+      const appliedFingerprints = Array.isArray(fpArr)
+        ? fpArr.map((x) => String(x ?? "").trim()).filter((x) => x.length >= 32)
+        : [];
+      const arr = parsed.items;
+      if (!Array.isArray(arr)) return { appliedFingerprints, items: [] };
+      const items = arr
+        .map((x) => (isPlainObject(x) ? parseItem(/** @type {Record<string, unknown>} */ (x)) : null))
+        .filter(Boolean);
+      return { appliedFingerprints, items: /** @type {FileDevItem[]} */ (items) };
+    },
+    () => ({ appliedFingerprints: [], items: [] }),
+  );
 }
 
 /**

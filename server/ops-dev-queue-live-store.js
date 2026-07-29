@@ -7,6 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { mergeIdeLeaseDiskIntoAgentEntries } from "./ops-ide-lease-disk.js";
 import { enrichAgentEntriesWithUnifiedSeq } from "./ops-unified-queue-seq.js";
+import { readJsonStoreSync } from "./store-json.js";
 
 const RECORD_MODE_REQUEST_IP = "record-mode";
 
@@ -40,11 +41,11 @@ function normalizeLive(parsed) {
 }
 
 function loadLiveFromDiskSync() {
-  try {
-    return normalizeLive(JSON.parse(fs.readFileSync(DEV_QUEUE_LIVE_FILE, "utf8")));
-  } catch {
-    return { updatedAtMs: 0, agentEntries: [] };
-  }
+  return readJsonStoreSync(
+    "ops-dev-queue-display.json",
+    normalizeLive,
+    () => ({ updatedAtMs: 0, agentEntries: [] }),
+  );
 }
 
 /** @returns {{ updatedAtMs: number; agentEntries: Array<Record<string, unknown>> }} */
