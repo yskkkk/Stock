@@ -169,7 +169,7 @@ export const ko = {
     accountManageStyleFilterActive: "성향 · {label}",
     accountManageWeightFilterActive: "비중 · {label}",
     accountManageStyleStripHint:
-      "칩·도넛을 누르면 해당 성향만 목록에 표시 · 「성향」 열에서 종목별 지정",
+      "칩·도넛을 누르면 해당 성향만 목록에 표시 · 아래 「성향」 열에서 종목별 지정",
     accountManageTabChart: "원형 차트",
     accountManageTabList: "보유 목록",
     accountManageGroupSector: "업종·섹터",

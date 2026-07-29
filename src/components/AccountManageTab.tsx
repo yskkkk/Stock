@@ -707,6 +707,96 @@ export default function AccountManageTab({
   const r0 = 52;
   const r1 = 88;
 
+  const renderStyleStrip = () =>
+    styleSegments.length > 0 ? (
+      <div
+        className="account-manage-tab__style-strip"
+        role="group"
+        aria-label={ko.app.accountManageStyleChartTitle}
+        data-vu="account-style-strip"
+      >
+        <div className="account-manage-tab__style-strip-main">
+          <svg
+            className="account-manage-tab__style-mini-svg"
+            viewBox="0 0 200 200"
+            role="img"
+            aria-label={ko.app.accountManageStyleChartTitle}
+          >
+            {styleSegments.map((seg) => {
+              const dimmed = styleFocusKey && styleFocusKey !== seg.sector;
+              return (
+                <path
+                  key={`style-mini-${seg.sector}`}
+                  className={[
+                    "account-manage-tab__seg",
+                    dimmed ? "account-manage-tab__seg--dim" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  d={donutArcPath(cx, cy, r0, r1, seg.a0, seg.a1)}
+                  fill={seg.color}
+                  onClick={() => onStyleChipClick(seg.sector)}
+                />
+              );
+            })}
+            <circle cx={cx} cy={cy} r={r0 - 2} className="account-manage-tab__hole" />
+            <text
+              x={cx}
+              y={cy - 2}
+              textAnchor="middle"
+              className="account-manage-tab__style-mini-center"
+            >
+              {styleFocusKey
+                ? formatAllocPct(
+                    styleSegments.find((s) => s.sector === styleFocusKey)?.pct ?? 0,
+                  )
+                : ko.app.accountManageGroupStyle}
+            </text>
+          </svg>
+          <div className="account-manage-tab__style-strip-body">
+            <h4 className="account-manage-tab__style-strip-title">
+              {ko.app.accountManageStyleChartTitle}
+            </h4>
+            <div className="account-manage-tab__style-chips">
+              {styleSegments.map((seg) => {
+                const active = styleFocusKey === seg.sector;
+                return (
+                  <button
+                    key={`style-chip-${seg.sector}`}
+                    type="button"
+                    className={[
+                      "account-manage-tab__style-chip",
+                      active ? "active" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    aria-pressed={active}
+                    aria-label={`${seg.sectorKo} ${formatAllocPct(seg.pct)}`}
+                    onClick={() => onStyleChipClick(seg.sector)}
+                  >
+                    <span
+                      className="account-manage-tab__swatch"
+                      style={{ background: seg.color }}
+                      aria-hidden
+                    />
+                    <span className="account-manage-tab__style-chip-label">
+                      {seg.sectorKo}
+                    </span>
+                    <span className="account-manage-tab__style-chip-pct">
+                      {formatAllocPct(seg.pct)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+        <p className="account-manage-tab__style-strip-hint">
+          {ko.app.accountManageStyleStripHint}
+        </p>
+      </div>
+    ) : null;
+
   if (!authChecked) {
     return (
       <div
@@ -1290,47 +1380,6 @@ export default function AccountManageTab({
                 </button>
               </div>
 
-              {styleSegments.length > 0 ? (
-                <div
-                  className="account-manage-tab__style-strip"
-                  role="group"
-                  aria-label={ko.app.accountManageStyleChartTitle}
-                >
-                  {styleSegments.map((seg) => {
-                    const active = styleFocusKey === seg.sector;
-                    return (
-                      <button
-                        key={`style-chip-${seg.sector}`}
-                        type="button"
-                        className={[
-                          "account-manage-tab__style-chip",
-                          active ? "active" : "",
-                        ]
-                          .filter(Boolean)
-                          .join(" ")}
-                        aria-pressed={active}
-                        onClick={() => onStyleChipClick(seg.sector)}
-                      >
-                        <span
-                          className="account-manage-tab__swatch"
-                          style={{ background: seg.color }}
-                          aria-hidden
-                        />
-                        <span className="account-manage-tab__style-chip-label">
-                          {seg.sectorKo}
-                        </span>
-                        <span className="account-manage-tab__style-chip-pct">
-                          {formatAllocPct(seg.pct)}
-                        </span>
-                      </button>
-                    );
-                  })}
-                  <p className="account-manage-tab__style-strip-hint">
-                    {ko.app.accountManageStyleStripHint}
-                  </p>
-                </div>
-              ) : null}
-
               {segments.length === 0 ? (
                 <p className="account-manage-tab__empty">{ko.app.accountManageEmpty}</p>
               ) : panelTab === "chart" ? (
@@ -1512,13 +1561,12 @@ export default function AccountManageTab({
                 </ul>
               )}
 
+              {renderStyleStrip()}
+
               {panelTab === "chart" && styleSegments.length > 0 ? (
                 <div className="account-manage-tab__style-block">
                   <div className="account-manage-tab__style-head">
-                    <h4 className="account-manage-tab__style-title">
-                      {ko.app.accountManageStyleChartTitle}
-                    </h4>
-                    <p className="account-manage-tab__wheel-sub">
+                    <p className="account-manage-tab__wheel-sub account-manage-tab__style-sub">
                       {ko.app.accountManageStyleChartSub}
                     </p>
                     {stylePolicyLines.length > 0 ? (
