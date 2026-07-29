@@ -293,25 +293,34 @@ export function startBottomCandleScanPoller() {
 
   let running = false;
   const tick = () => {
-    if (running || manualScanRunning) return;
-    const now = new Date();
-    const dueMarkets = /** @type {Array<"kr"|"us">} */ (["kr", "us"]).filter(
-      (m) => shouldRunBottomCandleScan(m, now),
-    );
-    if (!dueMarkets.length) return;
-    running = true;
-    scheduledScanRunning = true;
-    void pollerGuardAsync("bottom-candle", () => spawnBottomCandleScanWorker(dueMarkets))
-      .catch((e) => {
-        liveTradeLogWarn(
-          "[bottom-candle:poller]",
-          e instanceof Error ? e.message : e,
-        );
-      })
-      .finally(() => {
-        running = false;
-        scheduledScanRunning = false;
-      });
+    try {
+      if (running || manualScanRunning) return;
+      const now = new Date();
+      const dueMarkets = /** @type {Array<"kr"|"us">} */ (["kr", "us"]).filter(
+        (m) => shouldRunBottomCandleScan(m, now),
+      );
+      if (!dueMarkets.length) return;
+      running = true;
+      scheduledScanRunning = true;
+      void pollerGuardAsync("bottom-candle", () => spawnBottomCandleScanWorker(dueMarkets))
+        .catch((e) => {
+          liveTradeLogWarn(
+            "[bottom-candle:poller]",
+            e instanceof Error ? e.message : e,
+          );
+        })
+        .finally(() => {
+          running = false;
+          scheduledScanRunning = false;
+        });
+    } catch (e) {
+      running = false;
+      scheduledScanRunning = false;
+      liveTradeLogWarn(
+        "[bottom-candle:poller:tick]",
+        e instanceof Error ? e.message : e,
+      );
+    }
   };
 
   liveTradeLogInfo("[bottom-candle:poller] start", { pollMs: POLL_MS });

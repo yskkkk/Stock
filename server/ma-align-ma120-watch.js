@@ -221,18 +221,26 @@ export function startMaAlignMa120WatchPoller() {
 
   let running = false;
   const tick = () => {
-    if (running || isVaultMarketScanRunning()) return;
-    running = true;
-    void pollerGuardAsync("ma120-near-watch", () => runMaAlignMa120NearWatchOnce())
-      .catch((e) => {
-        liveTradeLogWarn(
-          "[ma-align:ma120:watch]",
-          e instanceof Error ? e.message : e,
-        );
-      })
-      .finally(() => {
-        running = false;
-      });
+    try {
+      if (running || isVaultMarketScanRunning()) return;
+      running = true;
+      void pollerGuardAsync("ma120-near-watch", () => runMaAlignMa120NearWatchOnce())
+        .catch((e) => {
+          liveTradeLogWarn(
+            "[ma-align:ma120:watch]",
+            e instanceof Error ? e.message : e,
+          );
+        })
+        .finally(() => {
+          running = false;
+        });
+    } catch (e) {
+      running = false;
+      liveTradeLogWarn(
+        "[ma-align:ma120:watch:tick]",
+        e instanceof Error ? e.message : e,
+      );
+    }
   };
 
   tick();

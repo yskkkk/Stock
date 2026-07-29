@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { enrichMacroEventsConsensus } from "./macro-consensus.js";
+import { parseJsonText } from "./store-json.js";
 
 /**
  * 정적 일정: `data/macro-releases.json` — 행에 선택 필드 `forecast`(문자열)를 넣으면
@@ -220,7 +221,7 @@ function firstFridayOfMonth(year, month, timeZone) {
 function loadStaticReleases() {
   try {
     const file = path.join(__dirname, "data", "macro-releases.json");
-    const arr = JSON.parse(fs.readFileSync(file, "utf8"));
+    const arr = parseJsonText(fs.readFileSync(file, "utf8"));
     if (!Array.isArray(arr)) return [];
     return arr
     .map((x) => {

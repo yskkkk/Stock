@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { isDartEnabled } from "./dart.js";
 import { resolveServerDataDir } from "./data-path.js";
-import { ensureDataDirSync, readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
+import { ensureDataDirSync, readJsonStoreSync, writeJsonStoreSync, parseJsonText } from "./store-json.js";
 
 const ARCHIVE_DIR = path.join(resolveServerDataDir(), "financials-archive");
 const META_FILE = "financials-archive-meta.json";
@@ -55,7 +55,7 @@ export function readSymbolFinancialArchive(symbol) {
   const file = symbolArchivePath(symbol);
   try {
     if (!fs.existsSync(file)) return null;
-    const raw = JSON.parse(fs.readFileSync(file, "utf8"));
+    const raw = parseJsonText(fs.readFileSync(file, "utf8"));
     if (!raw || typeof raw !== "object") return null;
     return /** @type {import("./stock-financials-archive.js").SymbolFinancialArchive} */ (raw);
   } catch {

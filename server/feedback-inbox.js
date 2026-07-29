@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { fileURLToPath } from "url";
 import { isAccessAdminRequest } from "./access-control.js";
 import { clientIp } from "./access-log.js";
+import { parseJsonText } from "./store-json.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const STORE_PATH = path.join(__dirname, ".data", "feedback-inbox.json");
@@ -44,7 +45,7 @@ function readItems() {
   try {
     if (!fs.existsSync(STORE_PATH)) return [];
     const raw = fs.readFileSync(STORE_PATH, "utf8");
-    const data = JSON.parse(raw);
+    const data = parseJsonText(raw);
     if (!Array.isArray(data)) return [];
     return data.map(normalizeItem).filter(Boolean);
   } catch {

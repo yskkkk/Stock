@@ -18,6 +18,7 @@ beforeEach(() => {
   invalidateJsonStoreReadCache("corrupt-sample.json");
   invalidateJsonStoreReadCache("sample.json");
   invalidateJsonStoreReadCache("normalize-fail.json");
+  invalidateJsonStoreReadCache("read-fail-sample.json");
 });
 
 afterEach(() => {
@@ -91,6 +92,20 @@ test("readJsonStoreSync restores defaults when normalize throws", () => {
   assert.deepEqual(state, { ok: false });
   const backups = fs.readdirSync(tmpDir).filter((f) => f.includes(".corrupt-"));
   assert.ok(backups.length >= 1);
+});
+
+test("readJsonStoreSync restores defaults on read failure without throwing", () => {
+  const fileName = "read-fail-sample.json";
+  // 디렉터리로 위장 — readFileSync 실패 → 기본값 복구(throw 없음)
+  fs.mkdirSync(path.join(tmpDir, fileName));
+
+  const state = readJsonStoreSync(
+    fileName,
+    () => ({ ok: true }),
+    () => ({ ok: false }),
+  );
+
+  assert.deepEqual(state, { ok: false });
 });
 
 test("writeJsonStoreSync writes without BOM", () => {

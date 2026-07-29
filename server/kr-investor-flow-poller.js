@@ -17,18 +17,26 @@ export function startKrInvestorFlowPoller() {
 
   let running = false;
   const tick = () => {
-    if (running) return;
-    running = true;
-    void pollerGuardAsync("kr-investor-flow", () => runKrInvestorFlowScan())
-      .catch((e) => {
-        liveTradeLogWarn(
-          "[kr-investor-flow:poller]",
-          e instanceof Error ? e.message : e,
-        );
-      })
-      .finally(() => {
-        running = false;
-      });
+    try {
+      if (running) return;
+      running = true;
+      void pollerGuardAsync("kr-investor-flow", () => runKrInvestorFlowScan())
+        .catch((e) => {
+          liveTradeLogWarn(
+            "[kr-investor-flow:poller]",
+            e instanceof Error ? e.message : e,
+          );
+        })
+        .finally(() => {
+          running = false;
+        });
+    } catch (e) {
+      running = false;
+      liveTradeLogWarn(
+        "[kr-investor-flow:poller:tick]",
+        e instanceof Error ? e.message : e,
+      );
+    }
   };
 
   tick();

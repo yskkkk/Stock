@@ -7,6 +7,7 @@ import {
   isUiFeatureId,
 } from "../shared/ui-feature-catalog.js";
 import { requireAccessAdmin } from "./route-guards.js";
+import { parseJsonText } from "./store-json.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const STORE_FILE = path.join(__dirname, ".data", "ui-feature-toggles.json");
@@ -30,7 +31,7 @@ function readStore() {
     if (uiFeatureStoreCache && uiFeatureStoreCache.mtimeMs === stat.mtimeMs) {
       return uiFeatureStoreCache.data;
     }
-    const o = JSON.parse(fs.readFileSync(STORE_FILE, "utf8"));
+    const o = parseJsonText(fs.readFileSync(STORE_FILE, "utf8"));
     const overrides =
       o?.overrides && typeof o.overrides === "object" ? o.overrides : {};
     const data = { overrides };
