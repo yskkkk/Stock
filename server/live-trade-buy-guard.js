@@ -2,12 +2,13 @@
  * 실매매·시뮬 매수 중복 방지 — 스크리너 이중 호출·동시 틱·재알림
  */
 import fs from "node:fs";
+import path from "node:path";
 import { normalizeLiveTradeMarket } from "./live-trade-market.js";
 import {
   buildPositionsFromTrades,
   readStoreSync,
 } from "./live-trade-portfolio-store.js";
-import { dataFilePath } from "./store-json.js";
+import { dataFilePath, parseJsonText } from "./store-json.js";
 
 const DEDUP_FILE = dataFilePath("live-trade-dedup.json");
 export const LIVE_TRADE_BUY_DEDUPE_MS = 6 * 60 * 60 * 1000;
@@ -18,7 +19,7 @@ const inFlightKeys = new Set();
 function loadDedupState() {
   try {
     if (!fs.existsSync(DEDUP_FILE)) return new Map();
-    const data = JSON.parse(fs.readFileSync(DEDUP_FILE, "utf8"));
+    const data = parseJsonText(fs.readFileSync(DEDUP_FILE, "utf8"));
     const cutoff = Date.now() - LIVE_TRADE_BUY_DEDUPE_MS;
     const map = new Map();
     for (const [k, t] of Object.entries(data)) {

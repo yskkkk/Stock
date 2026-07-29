@@ -3,6 +3,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { parseJsonText } from "./store-json.js";
 import { randomUUID } from "node:crypto";
 import { fetchQuoteSnapshotsForSymbols } from "./picks-live-quotes.js";
 import { pickQuoteFromMap } from "./quote-symbol-resolve.js";
@@ -167,7 +168,7 @@ export function readStoreSync() {
   try {
     const file = portfolioFilePath();
     if (!fs.existsSync(file)) return defaultStore();
-    const o = JSON.parse(fs.readFileSync(file, "utf8"));
+    const o = parseJsonText(fs.readFileSync(file, "utf8"));
     if (!o || typeof o !== "object" || !Array.isArray(o.trades)) return defaultStore();
     const normalized = o.trades.map(normalizeTrade).filter(Boolean);
     // 과거 레코드에 programName이 없으면 1회 스냅샷으로 채워 넣어(삭제/리네임 후에도 유지)

@@ -1,10 +1,8 @@
 /**
  * 사용자별 거래소 API (BYOK) — server/.data/user-exchange-credentials.json
  */
-import fs from "node:fs";
-import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { fileURLToPath } from "node:url";
+import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
 import {
   decryptSecret,
   encryptSecret,
@@ -30,38 +28,29 @@ import {
   validateTossCredentialSet,
 } from "./stock-input-validation.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = path.join(__dirname, ".data");
-const CREDS_FILE = path.join(DATA_DIR, "user-exchange-credentials.json");
+const CREDS_FILE = "user-exchange-credentials.json";
 
 /** @typedef {"bithumb" | "toss"} ExchangeId */
-
-function ensureDirSync() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-}
 
 function defaultStore() {
   return { credentials: [] };
 }
 
 function readStoreSync() {
-  try {
-    if (!fs.existsSync(CREDS_FILE)) return defaultStore();
-    const o = JSON.parse(fs.readFileSync(CREDS_FILE, "utf8"));
-    if (!o || typeof o !== "object" || !Array.isArray(o.credentials)) {
-      return defaultStore();
-    }
-    return { credentials: o.credentials.filter(Boolean) };
-  } catch {
-    return defaultStore();
-  }
+  return readJsonStoreSync(
+    CREDS_FILE,
+    (o) => {
+      if (!o || typeof o !== "object" || !Array.isArray(o.credentials)) {
+        return defaultStore();
+      }
+      return { credentials: o.credentials.filter(Boolean) };
+    },
+    defaultStore,
+  );
 }
 
 function writeStoreSync(store) {
-  ensureDirSync();
-  const tmp = CREDS_FILE + ".tmp";
-  fs.writeFileSync(tmp, JSON.stringify(store, null, 0), "utf8");
-  fs.renameSync(tmp, CREDS_FILE);
+  writeJsonStoreSync(CREDS_FILE, store);
 }
 
 /** @param {unknown} ex */

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { resolveServerDataDir } from "../data-path.js";
+import { parseJsonText } from "../store-json.js";
 import { readBoxRangeStoreSync, writeBoxRangeStoreSync } from "./store.js";
 import {
   BOX_RANGE_CATALOG_DIR_LEGACY,
@@ -184,7 +185,7 @@ export function readSymbolCatalogSync(
   try {
     const file = symbolFilePath(sym, m, catalogRoot);
     if (!fs.existsSync(file)) return null;
-    const o = JSON.parse(fs.readFileSync(file, "utf8"));
+    const o = parseJsonText(fs.readFileSync(file, "utf8"));
     if (!o || typeof o !== "object") return null;
     const boxes = Array.isArray(o.boxes)
       ? o.boxes.map(normalizeCatalogBox).filter(Boolean)
@@ -406,7 +407,7 @@ export function readCatalogIndexSync(market = "us", catalogRoot = resolveCatalog
   try {
     const file = indexFilePath(m, catalogRoot);
     if (!fs.existsSync(file)) return refreshCatalogIndexSync(m, catalogRoot);
-    return JSON.parse(fs.readFileSync(file, "utf8"));
+    return parseJsonText(fs.readFileSync(file, "utf8"));
   } catch {
     return refreshCatalogIndexSync(m, catalogRoot);
   }

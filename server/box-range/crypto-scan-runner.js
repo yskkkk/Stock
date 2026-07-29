@@ -112,18 +112,26 @@ export function startCryptoBoxRangeCatalogPoller() {
 
   let running = false;
   const loop = () => {
-    if (running) return;
-    running = true;
-    pollerGuardAsync("box-crypto-scan", () => runCryptoScanInWorker())
-      .catch((e) => {
-        liveTradeLogWarn(
-          "[box-range:crypto-scan]",
-          e instanceof Error ? e.message : e,
-        );
-      })
-      .finally(() => {
-        running = false;
-      });
+    try {
+      if (running) return;
+      running = true;
+      pollerGuardAsync("box-crypto-scan", () => runCryptoScanInWorker())
+        .catch((e) => {
+          liveTradeLogWarn(
+            "[box-range:crypto-scan]",
+            e instanceof Error ? e.message : e,
+          );
+        })
+        .finally(() => {
+          running = false;
+        });
+    } catch (e) {
+      running = false;
+      liveTradeLogWarn(
+        "[box-range:crypto-scan:tick]",
+        e instanceof Error ? e.message : e,
+      );
+    }
   };
 
   markPollerBootStarted("box-crypto-scan");

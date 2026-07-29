@@ -108,22 +108,30 @@ export function startSp500BoxRangeCatalogPoller() {
 
   let running = false;
   const loop = () => {
-    if (running) return;
-    const now = new Date();
-    const decision = shouldRunCatalogScan("us", now);
-    if (!decision.run) return;
-    running = true;
-    pollerGuardAsync("box-sp500-scan", () => runSp500ScanInWorker())
-      .then(() => markCatalogScanRan("us", decision.sessionKey))
-      .catch((e) => {
-        liveTradeLogWarn(
-          "[box-range:us-scan]",
-          e instanceof Error ? e.message : e,
-        );
-      })
-      .finally(() => {
-        running = false;
-      });
+    try {
+      if (running) return;
+      const now = new Date();
+      const decision = shouldRunCatalogScan("us", now);
+      if (!decision.run) return;
+      running = true;
+      pollerGuardAsync("box-sp500-scan", () => runSp500ScanInWorker())
+        .then(() => markCatalogScanRan("us", decision.sessionKey))
+        .catch((e) => {
+          liveTradeLogWarn(
+            "[box-range:us-scan]",
+            e instanceof Error ? e.message : e,
+          );
+        })
+        .finally(() => {
+          running = false;
+        });
+    } catch (e) {
+      running = false;
+      liveTradeLogWarn(
+        "[box-range:us-scan:tick]",
+        e instanceof Error ? e.message : e,
+      );
+    }
   };
 
   loop();

@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { resolveServerDataDir } from "./data-path.js";
+import { parseJsonText } from "./store-json.js";
 
 function usersFilePath() {
   return path.join(resolveServerDataDir(), "users.json");
@@ -33,7 +34,7 @@ function readStoreSync() {
     if (usersStoreCache && usersStoreCache.mtimeMs === stat.mtimeMs) {
       return usersStoreCache.data;
     }
-    const o = JSON.parse(fs.readFileSync(file, "utf8"));
+    const o = parseJsonText(fs.readFileSync(file, "utf8"));
     if (!o || typeof o !== "object" || !Array.isArray(o.users)) {
       usersStoreCache = null;
       return defaultStore();
@@ -170,7 +171,7 @@ export function migrateLegacyUsersEmailVerifiedSync() {
   if (!fs.existsSync(file)) return { updated: 0 };
   let raw;
   try {
-    raw = JSON.parse(fs.readFileSync(file, "utf8"));
+    raw = parseJsonText(fs.readFileSync(file, "utf8"));
   } catch {
     return { updated: 0 };
   }

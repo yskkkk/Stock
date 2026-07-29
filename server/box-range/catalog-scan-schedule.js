@@ -7,9 +7,7 @@
  * - 이미 스캔한 세션은 다시 돌지 않는다(주말·휴장 중 반복 금지).
  * - 상태(마지막 스캔 세션)가 없으면 최초 1회 부트스트랩 스캔으로 카탈로그를 채운다.
  */
-import fs from "node:fs";
-import path from "node:path";
-import { resolveServerDataDir } from "../data-path.js";
+import { readJsonStoreSync, writeJsonStoreSync } from "../store-json.js";
 import { isStockTradableBySchedule } from "../market-hours.js";
 import {
   getKstParts,
@@ -23,28 +21,18 @@ import {
 const KR_TRADABLE_END = 18 * 60;
 const US_TRADABLE_END = 20 * 60;
 
-function statePath() {
-  return path.join(resolveServerDataDir(), "box-range-catalog-scan-schedule.json");
-}
+const STATE_FILE = "box-range-catalog-scan-schedule.json";
 
 function readStateSync() {
-  try {
-    const fp = statePath();
-    if (!fs.existsSync(fp)) return {};
-    const o = JSON.parse(fs.readFileSync(fp, "utf8"));
-    return o && typeof o === "object" ? o : {};
-  } catch {
-    return {};
-  }
+  return readJsonStoreSync(
+    STATE_FILE,
+    (o) => (o && typeof o === "object" ? o : {}),
+    () => ({}),
+  );
 }
 
 function writeStateSync(state) {
-  const dir = resolveServerDataDir();
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  const fp = statePath();
-  const tmp = `${fp}.${process.pid}.${Date.now()}.tmp`;
-  fs.writeFileSync(tmp, `${JSON.stringify(state, null, 2)}\n`, "utf8");
-  fs.renameSync(tmp, fp);
+  writeJsonStoreSync(STATE_FILE, state, (data) => `${JSON.stringify(data, null, 2)}\n`);
 }
 
 /** @param {Date} now */

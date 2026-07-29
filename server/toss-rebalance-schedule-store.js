@@ -1,37 +1,27 @@
 /**
  * 토스 계좌 — 월별 비중 유지 매수 스케줄 (사용자별)
  */
-import fs from "node:fs";
-import path from "node:path";
-import { resolveServerDataDir } from "./data-path.js";
+import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
 
-function storePath() {
-  return path.join(resolveServerDataDir(), "toss-rebalance-schedules.json");
-}
+const STORE_FILE = "toss-rebalance-schedules.json";
 
 function defaultStore() {
   return { users: /** @type {Record<string, object>} */ ({}) };
 }
 
 function readStoreSync() {
-  const fp = storePath();
-  try {
-    if (!fs.existsSync(fp)) return defaultStore();
-    const parsed = JSON.parse(fs.readFileSync(fp, "utf8"));
-    if (!parsed?.users || typeof parsed.users !== "object") return defaultStore();
-    return parsed;
-  } catch {
-    return defaultStore();
-  }
+  return readJsonStoreSync(
+    STORE_FILE,
+    (parsed) => {
+      if (!parsed?.users || typeof parsed.users !== "object") return defaultStore();
+      return parsed;
+    },
+    defaultStore,
+  );
 }
 
 function writeStoreSync(store) {
-  const dir = resolveServerDataDir();
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  const fp = storePath();
-  const tmp = `${fp}.${process.pid}.${Date.now()}.tmp`;
-  fs.writeFileSync(tmp, `${JSON.stringify(store, null, 2)}\n`, "utf8");
-  fs.renameSync(tmp, fp);
+  writeJsonStoreSync(STORE_FILE, store, (data) => `${JSON.stringify(data, null, 2)}\n`);
 }
 
 /**
