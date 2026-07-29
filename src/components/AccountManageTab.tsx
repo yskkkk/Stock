@@ -141,6 +141,7 @@ export default function AccountManageTab({
   >({});
   const [stylePolicyLines, setStylePolicyLines] = useState<string[]>([]);
   const [styleSavingSym, setStyleSavingSym] = useState<string | null>(null);
+  const [styleColHighlight, setStyleColHighlight] = useState(false);
   const [enrichMap, setEnrichMap] = useState<
     Map<
       string,
@@ -678,18 +679,25 @@ export default function AccountManageTab({
     setStyleHoveredKey(null);
   }, []);
 
+  const pulseStyleCol = useCallback(() => {
+    setStyleColHighlight(true);
+    window.setTimeout(() => setStyleColHighlight(false), 2400);
+  }, []);
+
   const onStyleChipClick = useCallback(
     (key: string) => {
       setFocusKey(null);
       setStyleFocusKey((prev) => (prev === key ? null : key));
       hideHoverBubble();
+      if (key !== "__cash__") pulseStyleCol();
     },
-    [hideHoverBubble],
+    [hideHoverBubble, pulseStyleCol],
   );
 
   const scrollToStyleAssign = useCallback(() => {
+    pulseStyleCol();
     holdingsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, []);
+  }, [pulseStyleCol]);
 
   const hoverSlice = hoverBubble
     ? (styleSlices.find((s) => s.key === hoverBubble.key) ??
@@ -776,6 +784,31 @@ export default function AccountManageTab({
             <h4 className="account-manage-tab__style-strip-title">
               {ko.app.accountManageStyleChartTitle}
             </h4>
+            <p className="account-manage-tab__style-strip-sub">
+              {ko.app.accountManageStyleChartSub}
+            </p>
+            <div
+              className="account-manage-tab__style-bar"
+              role="img"
+              aria-label={ko.app.accountManageStyleChartTitle}
+            >
+              {styleSegments.map((seg) => (
+                <button
+                  key={`style-bar-${seg.sector}`}
+                  type="button"
+                  className={[
+                    "account-manage-tab__style-bar-seg",
+                    styleFocusKey === seg.sector ? "active" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  style={{ flexGrow: Math.max(seg.pct, 0.5), background: seg.color }}
+                  aria-label={`${styleSegmentLabel(seg)} ${formatAllocPct(seg.pct)}`}
+                  title={`${styleSegmentLabel(seg)} ${formatAllocPct(seg.pct)}`}
+                  onClick={() => onStyleChipClick(seg.sector)}
+                />
+              ))}
+            </div>
             <div className="account-manage-tab__style-chips">
               {styleSegments.map((seg) => {
                 const active = styleFocusKey === seg.sector;
@@ -1992,7 +2025,16 @@ export default function AccountManageTab({
                     <thead>
                       <tr>
                         <th>{ko.app.liveTradePfColSymbol}</th>
-                        <th id="account-holdings-style-col">
+                        <th
+                          id="account-holdings-style-col"
+                          className={[
+                            styleColHighlight || styleFocusKey
+                              ? "account-manage-tab__style-col--highlight"
+                              : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" ")}
+                        >
                           {ko.app.accountManageStyleCol}
                         </th>
                         <th>

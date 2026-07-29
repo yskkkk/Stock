@@ -576,10 +576,9 @@
   color: var(--muted);
 }
 
-.account-manage-tab__style-block {
-  margin-top: 0.65rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--card-border);
+.account-manage-tab__style-block,
+.account-manage-tab__style-list {
+  display: none;
 }
 
 .account-manage-tab__style-strip {
@@ -602,8 +601,8 @@
 
 .account-manage-tab__style-mini-svg {
   flex: 0 0 auto;
-  width: 4.25rem;
-  height: 4.25rem;
+  width: 5rem;
+  height: 5rem;
   touch-action: manipulation;
 }
 
@@ -628,6 +627,48 @@
   font-weight: 700;
   line-height: 1.35;
   color: var(--text);
+}
+
+.account-manage-tab__style-strip-sub {
+  margin: 0.15rem 0 0;
+  font-size: 0.68rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.account-manage-tab__style-bar {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  width: 100%;
+  height: 0.62rem;
+  margin-top: 0.35rem;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--card-border) 55%, transparent);
+}
+
+.account-manage-tab__style-bar-seg {
+  flex-basis: 0;
+  min-width: 0.35rem;
+  padding: 0;
+  border: none;
+  cursor: pointer;
+  opacity: 0.92;
+  transition: opacity 0.12s ease, box-shadow 0.12s ease;
+}
+
+.account-manage-tab__style-bar-seg:hover,
+.account-manage-tab__style-bar-seg.active {
+  opacity: 1;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--text) 35%, transparent);
+}
+
+.account-manage-tab__style-col--highlight {
+  color: var(--accent, #14b8a6);
+  background: color-mix(in srgb, var(--accent-dim) 38%, transparent);
+  box-shadow: inset 0 -2px 0 var(--accent, #14b8a6);
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .account-manage-tab__style-chips {
@@ -889,14 +930,6 @@
 
   .account-manage-tab__style-chip-label {
     white-space: normal;
-  }
-
-  .account-manage-tab__style-block {
-    display: none;
-  }
-
-  .account-manage-tab__style-list {
-    display: none;
   }
 
   .account-manage-tab__style-strip {
