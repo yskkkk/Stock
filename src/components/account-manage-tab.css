@@ -1488,6 +1488,73 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-label--real {
   margin-bottom: 0.5rem;
 }
 
+@media (max-width: 420px) {
+  .account-manage-tab__summary-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .account-manage-tab__toolbar-grow,
+  .account-manage-tab__refresh-indicator {
+    display: none;
+  }
+
+  .account-manage-tab__rebalance-hours {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.45rem;
+    width: 100%;
+    order: 0;
+  }
+
+  .account-manage-tab__rebalance-hour-chip {
+    width: 100%;
+    box-sizing: border-box;
+    justify-content: flex-start;
+    min-height: 44px;
+    padding: 0.38rem 0.55rem;
+    gap: 0.35rem;
+  }
+
+  .account-manage-tab__toolbar-rebalance {
+    order: 0;
+    width: 100%;
+  }
+
+  .account-manage-tab__currency-toggle {
+    width: 100%;
+    align-self: stretch;
+  }
+
+  .account-manage-tab__currency-btn {
+    flex: 1 1 50%;
+    min-height: 44px;
+    padding: 0.45rem 0.75rem;
+  }
+
+  .account-manage-tab__hide-btn--summary {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .account-manage-tab__mode {
+    gap: 0.4rem;
+  }
+
+  .account-manage-tab__mode-btn {
+    display: inline-flex;
+    align-items: center;
+    flex: 1 1 calc(50% - 0.22rem);
+    min-height: 44px;
+    padding: 0.4rem 0.55rem;
+    justify-content: center;
+    text-align: center;
+    touch-action: manipulation;
+  }
+}
+
 @media (max-width: 480px) {
   .account-manage-tab__cash-group {
     grid-template-columns: 1fr;
