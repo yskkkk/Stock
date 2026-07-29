@@ -267,7 +267,7 @@ export const ko = {
     accountManageRebalanceNowFail: "즉시 매수 일부 실패 ({ok}/{total})",
     accountManageRebalanceNowNone: "매수할 주문이 없습니다. 현금·보유를 확인하세요.",
     accountManageRebalanceNowHoursHint:
-      "즉시 매수는 정규장에만 가능합니다 (국내 09:00–15:30 · 미국 09:30–16:00 ET). 시간외·애프터에서는 소수점 매수가 되지 않습니다.",
+      "국내=원화·미국=달러 현금만. 정규장(국내 09:00–15:30 · 미국 09:30–16:00 ET)에만 즉시 매수·시간외·애프터 불가.",
     accountManageRebalanceNowHoursBlocked: "지금은 정규장이 아니라 즉시 매수를 할 수 없습니다.",
     accountManageRebalanceNowSkipped:
       "정규장이 아닌 시장은 건너뛰었습니다: {markets}",

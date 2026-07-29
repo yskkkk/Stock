@@ -617,77 +617,108 @@ export default function AccountManageTab({
   const renderRebalanceActionButtons = (
     variant: "toolbar" | "wheel" | "bridge",
   ) => (
-    <>
-      <button
-        type="button"
-        className={[
-          "bithumb-balance-hide-btn",
-          "account-manage-tab__hide-btn",
-          "account-manage-tab__hide-btn--summary",
-          "account-manage-tab__hide-btn--schedule",
-          variant === "wheel" ? "account-manage-tab__hide-btn--wheel" : "",
-          variant === "bridge" ? "account-manage-tab__hide-btn--bridge" : "",
-        ]
-          .filter(Boolean)
-          .join(" ")}
-        data-vu={
-          variant === "wheel"
-            ? "account-rebalance-open-wheel"
-            : variant === "bridge"
-              ? "account-rebalance-open-bridge"
-              : "account-rebalance-open"
-        }
-        aria-label={ko.app.accountManageRebalancePreviewZoneLabel}
-        title={ko.app.accountManageRebalanceMarketHint}
-        onClick={() => setRebalanceOpen(true)}
-      >
-        <span className="account-manage-tab__rebalance-btn-text">
-          {ko.app.accountManageRebalanceOpen}
-        </span>
-        <span className="account-manage-tab__rebalance-btn-sub account-manage-tab__rebalance-btn-sub--safe">
-          {ko.app.accountManageRebalanceSimBadge}
-        </span>
-      </button>
-      <button
-        type="button"
-        className={[
-          "bithumb-balance-hide-btn",
-          "account-manage-tab__hide-btn",
-          "account-manage-tab__hide-btn--summary",
-          "account-manage-tab__hide-btn--real-order",
-          variant === "wheel" ? "account-manage-tab__hide-btn--wheel" : "",
-          variant === "bridge" ? "account-manage-tab__hide-btn--bridge" : "",
-        ]
-          .filter(Boolean)
-          .join(" ")}
-        data-vu={
-          variant === "wheel"
-            ? "account-rebalance-buy-now-wheel"
-            : variant === "bridge"
-              ? "account-rebalance-buy-now-bridge"
-              : "account-rebalance-buy-now-toolbar"
-        }
-        disabled={buyingNow || !buyNowToolbarAllowed}
-        aria-label={ko.app.accountManageRebalanceRealOrderZoneLabel}
-        title={
-          buyNowToolbarAllowed
-            ? ko.app.accountManageRebalanceNowConfirm.split("\n")[0]
-            : ko.app.accountManageRebalanceNowHoursHint
-        }
-        onClick={() => void onBuyNowFromToolbar()}
-      >
-        <span className="account-manage-tab__rebalance-btn-text">
-          {buyingNow
-            ? ko.app.accountManageRebalanceNowRunning
-            : ko.app.accountManageRebalanceNow}
-        </span>
-        {!buyingNow ? (
-          <span className="account-manage-tab__rebalance-btn-sub account-manage-tab__rebalance-btn-sub--real">
-            {ko.app.accountManageRebalanceNowRunSub}
+    <div className="account-manage-tab__rebalance-actions">
+      <div className="account-manage-tab__rebalance-zone account-manage-tab__rebalance-zone--preview">
+        <span className="account-manage-tab__rebalance-zone-label">
+          {ko.app.accountManageRebalancePreviewZoneLabel}
+          <span className="account-rebalance-modal__sim-badge">
+            {ko.app.accountManageRebalanceSimBadge}
           </span>
-        ) : null}
-      </button>
-    </>
+        </span>
+        <button
+          type="button"
+          className={[
+            "bithumb-balance-hide-btn",
+            "account-manage-tab__hide-btn",
+            "account-manage-tab__hide-btn--summary",
+            "account-manage-tab__hide-btn--schedule",
+            variant === "wheel" ? "account-manage-tab__hide-btn--wheel" : "",
+            variant === "bridge" ? "account-manage-tab__hide-btn--bridge" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          data-vu={
+            variant === "wheel"
+              ? "account-rebalance-open-wheel"
+              : variant === "bridge"
+                ? "account-rebalance-open-bridge"
+                : "account-rebalance-open"
+          }
+          aria-label={ko.app.accountManageRebalancePreviewZoneLabel}
+          title={ko.app.accountManageRebalanceMarketHint}
+          onClick={() => setRebalanceOpen(true)}
+        >
+          <span className="account-manage-tab__rebalance-btn-text">
+            {ko.app.accountManageRebalanceOpen}
+          </span>
+          <span className="account-manage-tab__rebalance-btn-sub account-manage-tab__rebalance-btn-sub--safe">
+            {ko.app.accountManageRebalanceSimBadge}
+          </span>
+        </button>
+      </div>
+      <div className="account-manage-tab__rebalance-zone account-manage-tab__rebalance-zone--real">
+        <span className="account-manage-tab__rebalance-zone-label account-manage-tab__rebalance-zone-label--real">
+          {ko.app.accountManageRebalanceRealOrderZoneLabel}
+          <span className="account-rebalance-modal__real-badge">
+            {ko.app.accountManageRebalanceRealBadge}
+          </span>
+        </span>
+        <p
+          className={[
+            "account-manage-tab__rebalance-zone-hint",
+            buyNowToolbarAllowed
+              ? ""
+              : "account-manage-tab__rebalance-zone-hint--blocked",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          role={buyNowToolbarAllowed ? undefined : "status"}
+        >
+          {buyNowToolbarAllowed
+            ? ko.app.accountManageRebalanceNowHoursHint
+            : ko.app.accountManageRebalanceNowHoursBlocked}
+        </p>
+        <button
+          type="button"
+          className={[
+            "bithumb-balance-hide-btn",
+            "account-manage-tab__hide-btn",
+            "account-manage-tab__hide-btn--summary",
+            "account-manage-tab__hide-btn--real-order",
+            variant === "wheel" ? "account-manage-tab__hide-btn--wheel" : "",
+            variant === "bridge" ? "account-manage-tab__hide-btn--bridge" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          data-vu={
+            variant === "wheel"
+              ? "account-rebalance-buy-now-wheel"
+              : variant === "bridge"
+                ? "account-rebalance-buy-now-bridge"
+                : "account-rebalance-buy-now-toolbar"
+          }
+          disabled={buyingNow || !buyNowToolbarAllowed}
+          aria-label={ko.app.accountManageRebalanceRealOrderZoneLabel}
+          title={
+            buyNowToolbarAllowed
+              ? ko.app.accountManageRebalanceNowConfirm.split("\n")[0]
+              : ko.app.accountManageRebalanceNowHoursBlocked
+          }
+          onClick={() => void onBuyNowFromToolbar()}
+        >
+          <span className="account-manage-tab__rebalance-btn-text">
+            {buyingNow
+              ? ko.app.accountManageRebalanceNowRunning
+              : ko.app.accountManageRebalanceNow}
+          </span>
+          {!buyingNow ? (
+            <span className="account-manage-tab__rebalance-btn-sub account-manage-tab__rebalance-btn-sub--real">
+              {ko.app.accountManageRebalanceNowRunSub}
+            </span>
+          ) : null}
+        </button>
+      </div>
+    </div>
   );
 
   const showHoverBubble = useCallback(

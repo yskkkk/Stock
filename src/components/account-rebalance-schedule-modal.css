@@ -637,6 +637,15 @@ html:not([data-theme="light"]) .account-rebalance-modal__foot-zone-label--real {
   line-height: 1.4;
 }
 
+.account-rebalance-modal__foot-zone-hint--blocked {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+html:not([data-theme="light"]) .account-rebalance-modal__foot-zone-hint--blocked {
+  color: #f87171;
+}
+
 .account-rebalance-modal__foot-zone-actions {
   display: flex;
   flex-wrap: wrap;

@@ -246,6 +246,10 @@
 }
 
 .account-manage-tab__rebalance-zone-label {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.28rem;
   font-size: 0.64rem;
   font-weight: 800;
   line-height: 1.25;
@@ -266,6 +270,15 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-label--real {
   color: var(--muted);
 }
 
+.account-manage-tab__rebalance-zone-hint--blocked {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked {
+  color: #f87171;
+}
+
 .account-manage-tab__rebalance-zone .account-manage-tab__hide-btn {
   align-self: stretch;
   justify-content: center;
@@ -284,8 +297,12 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-label--real {
 .account-manage-tab__toolbar-rebalance {
   display: inline-flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: stretch;
   gap: 0.35rem;
+}
+
+.account-manage-tab__toolbar-rebalance .account-manage-tab__rebalance-actions {
+  flex: 1 1 auto;
 }
 
 .account-manage-tab__summary-toolbar--rebalance {
@@ -624,7 +641,24 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-label--real {
     padding-top: 0.15rem;
   }
 
-  .account-manage-tab__toolbar-rebalance .account-manage-tab__hide-btn {
+  .account-manage-tab__rebalance-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 0.45rem;
+  }
+
+  .account-manage-tab__rebalance-zone {
+    width: 100%;
+  }
+
+  .account-manage-tab__rebalance-zone--real {
+    margin-top: 0.1rem;
+    padding-top: 0.55rem;
+    border-width: 1.5px;
+  }
+
+  .account-manage-tab__toolbar-rebalance .account-manage-tab__hide-btn,
+  .account-manage-tab__rebalance-zone .account-manage-tab__hide-btn {
     flex: 1 1 auto;
     width: 100%;
     min-width: 0;
@@ -633,14 +667,8 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-label--real {
     touch-action: manipulation;
   }
 
-  .account-manage-tab__hide-btn--schedule {
-    order: 1;
-  }
-
   .account-manage-tab__hide-btn--real-order {
-    order: 2;
     min-height: 52px;
-    margin-top: 0.15rem;
     box-shadow: 0 2px 10px rgba(220, 38, 38, 0.22);
   }
 
@@ -667,6 +695,10 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-label--real {
     gap: 0.45rem;
   }
 
+  .account-manage-tab__rebalance-bridge-actions .account-manage-tab__rebalance-actions {
+    width: 100%;
+  }
+
   .account-manage-tab__rebalance-bridge-actions .account-manage-tab__hide-btn {
     flex: 1 1 auto;
     width: 100%;
@@ -677,14 +709,8 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-label--real {
   }
 
   .account-manage-tab__rebalance-bridge-actions .account-manage-tab__hide-btn--real-order {
-    order: 2;
     min-height: 52px;
-    margin-top: 0.15rem;
     box-shadow: 0 2px 10px rgba(220, 38, 38, 0.22);
-  }
-
-  .account-manage-tab__rebalance-bridge-actions .account-manage-tab__hide-btn--schedule {
-    order: 1;
   }
 
   .account-manage-tab__wheel-rebalance {
@@ -703,20 +729,18 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-label--real {
     gap: 0.45rem;
   }
 
+  .account-manage-tab__wheel-rebalance-actions .account-manage-tab__rebalance-actions {
+    width: 100%;
+  }
+
   .account-manage-tab__wheel-rebalance-actions .account-manage-tab__hide-btn {
     width: 100%;
     min-height: 44px;
     touch-action: manipulation;
   }
 
-  .account-manage-tab__wheel-rebalance-actions .account-manage-tab__hide-btn--schedule {
-    order: 1;
-  }
-
   .account-manage-tab__wheel-rebalance-actions .account-manage-tab__hide-btn--real-order {
-    order: 2;
     min-height: 52px;
-    margin-top: 0.15rem;
     box-shadow: 0 2px 10px rgba(220, 38, 38, 0.22);
   }
 }

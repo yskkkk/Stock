@@ -721,8 +721,20 @@ export default function AccountRebalanceScheduleModal({
                     {ko.app.accountManageRebalanceRealBadge}
                   </span>
                 </p>
-                <p className="account-rebalance-modal__hint account-rebalance-modal__foot-zone-hint">
-                  {ko.app.accountManageRebalanceNowHoursHint}
+                <p
+                  className={[
+                    "account-rebalance-modal__hint account-rebalance-modal__foot-zone-hint",
+                    buyNowAllowed
+                      ? ""
+                      : "account-rebalance-modal__foot-zone-hint--blocked",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  role={buyNowAllowed ? undefined : "status"}
+                >
+                  {buyNowAllowed
+                    ? ko.app.accountManageRebalanceNowHoursHint
+                    : ko.app.accountManageRebalanceNowHoursBlocked}
                 </p>
                 <button
                   type="button"
@@ -732,7 +744,7 @@ export default function AccountRebalanceScheduleModal({
                   title={
                     buyNowAllowed
                       ? undefined
-                      : ko.app.accountManageRebalanceNowHoursHint
+                      : ko.app.accountManageRebalanceNowHoursBlocked
                   }
                   onClick={() => void onBuyNow()}
                 >
