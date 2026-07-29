@@ -198,6 +198,27 @@
     flex: 0 1 auto;
   }
 
+  .picks-panel:not(.crypto-panel) .panel-head__filters .market-tab,
+  .panel-head__filters .market-tab {
+    white-space: normal;
+    text-align: center;
+    line-height: 1.25;
+  }
+
+  .rec-tracker-scores .rec-tracker-signals__chips {
+    flex-wrap: wrap;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .rec-tracker-scores .rec-tracker-score-chip,
+  .rec-tracker-signals__chips .rec-tracker-signal-chip,
+  .rec-tracker-signals__chips .rec-tracker-model-chip {
+    max-width: 100%;
+    min-width: 0;
+    white-space: normal;
+  }
+
   /* 차트 툴바 — 코인 외 종목도 좁은 화면에서 세로 스택 */
   .chart-panel > .chart-toolbar {
     flex-direction: column;
@@ -499,6 +520,103 @@
     max-width: 100%;
     font-size: 0.68rem;
     padding-inline: 0.32rem;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.25;
+  }
+
+  .stock-vault-tab__filters {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .stock-vault-tab__filters .market-tabs {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .stock-vault-tab__filters .market-tab {
+    flex: 1 1 calc(50% - 0.2rem);
+    min-width: 0;
+    white-space: normal;
+    text-align: center;
+    overflow: visible;
+    text-overflow: unset;
+  }
+
+  .account-manage-tab__style-strip {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .account-manage-tab__style-chip {
+    flex: 1 1 calc(50% - 0.22rem);
+    min-width: 0;
+    min-height: 44px;
+  }
+
+  .account-manage-tab__tabs .account-manage-tab__tab,
+  .account-manage-tab__mode .account-manage-tab__mode-btn {
+    flex: 1 1 calc(50% - 0.18rem);
+    min-width: 0;
+    min-height: 44px;
+    text-align: center;
+  }
+
+  .live-trading-tab__cred-toolbar {
+    width: 100%;
+    gap: 0.32rem;
+  }
+
+  .live-trading-tab__cred-toolbar .live-trading-tab__cred-btn {
+    flex: 1 1 calc(50% - 0.18rem);
+    min-width: 0;
+    min-height: 44px;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .rec-tracker-signals__chips {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .rec-tracker-scores .rec-tracker-score-chip {
+    flex: 1 1 calc(50% - 0.22rem);
+  }
+
+  .chart-toolbar__toggles .chip {
+    max-width: 100%;
+    white-space: normal;
+    line-height: 1.25;
+  }
+
+  .pick-toolbar {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .pick-toolbar .pick-search,
+  .pick-toolbar .pick-sort {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .toss-holding-modal__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toss-holding-modal__actions .btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  .investor-flow-tab__head,
+  .investor-flow-tab__tools {
+    min-width: 0;
+    width: 100%;
   }
 
   .account-manage-tab__head {
