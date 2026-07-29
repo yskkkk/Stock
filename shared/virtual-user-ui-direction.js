@@ -17,6 +17,7 @@ export const VU_UI_DIRECTION_MUST = [
   "기능 on/off는 `shared/ui-feature-catalog` + `useUiFeature`로만. compile-time uiFlags 신규 금지.",
   "계좌관리: 비중 도넛 + 성장·가치·현금 성향, 원화/달러·켜짐/꺼짐·미리보기 vs 즉시매수 구분을 유지·명확화한다.",
   "같은 맥락의 로딩/빈상태/포커스·중복클릭 방지 등 UX는 요청 범위 안에서만 보강한다.",
+  "단축 버튼·아이콘은 관련 섹션의 명확한 자리(정렬·간격·구역 구분)에 두고, 다른 목록/레일/벨트와 한 줄로 섞이거나 겹치지 않게 배치한다. 완료 후 화면이 ‘꼬인’ 느낌이 없어야 한다.",
 ];
 
 /** @type {string[]} */
@@ -27,6 +28,7 @@ export const VU_UI_DIRECTION_MUST_NOT = [
   "실주문·출금 등 돈이 나가는 경로를 늘리거나, 미리보기와 즉시 매수를 시각·카피로 헷갈리게 합치지 않는다.",
   "폴링 주기만 줄이거나, 운영자/개발자가 의도적으로 끈 기능을 ‘개선’으로 다시 켜지 않는다.",
   "아이콘에 흰 사각 매트를 남기지 않는다(투명 매트 유지, 교체 시 ?v= bump).",
+  "기업 실적 아이콘 레일·지수 벨트·탭 줄에 단축 컨트롤을 끼워 넣어 시각적으로 꼬이거나 겹치게 만들지 않는다.",
 ];
 
 /** 프롬프트용 요약 블록 */
@@ -51,7 +53,7 @@ export function buildVuUiDirectionPromptBlock() {
 export function vuUiDirectionSuggestionGuard(suggestion) {
   const base = String(suggestion || "").trim();
   const guard =
-    "기존 UI 패턴·골격 유지(좌측 열/3열 금지 변경). 최소 diff로 해당 화면만.";
+  "기존 UI 패턴·골격 유지(좌측 열/3열 금지 변경). 단축 UI는 관련 섹션에만 정렬·겹침 없이. 최소 diff로 해당 화면만.";
   if (!base) return guard;
   if (base.includes("기존 UI 패턴") || base.includes("최소 diff")) return base;
   return `${guard} ${base}`;

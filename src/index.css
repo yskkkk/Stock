@@ -79,6 +79,101 @@
   min-width: 0;
 }
 
+/* 주요 지표 발표 왼쪽 — S&P / ETF 세로 스택 (기업 로고 레일과 분리) */
+.macro-bar__track-wrap--with-quick {
+  gap: 0.65rem;
+}
+
+.macro-bar__quick-stack {
+  flex: 0 0 auto;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-width: 3.35rem;
+  padding: 0.2rem 0.15rem;
+  border-right: 1px solid color-mix(in srgb, var(--card-border) 85%, transparent);
+  margin-right: 0.1rem;
+  box-sizing: border-box;
+}
+
+.macro-bar__quick-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.macro-bar__quick-stack .sp500-wheel-micro,
+.macro-bar__quick-stack .sp500-wheel-micro--loading {
+  width: 2.85rem;
+  height: 2.85rem;
+}
+
+.macro-bar__quick-stack .sp500-wheel-micro-caption {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: color-mix(in srgb, var(--text) 72%, #5b8def);
+}
+
+.macro-bar__quick-etf {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.12rem;
+  margin: 0;
+  padding: 0.28rem 0.22rem 0.24rem;
+  min-width: 2.85rem;
+  border: 1px solid color-mix(in srgb, #5b8def 38%, var(--card-border));
+  border-radius: 0.55rem;
+  background:
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, #5b8def 18%, var(--surface)) 0%,
+      color-mix(in srgb, #3d6fd4 10%, var(--surface)) 100%
+    );
+  color: #5b8def;
+  font: inherit;
+  line-height: 1.05;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  transition:
+    box-shadow 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.macro-bar__quick-etf:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+  border-color: color-mix(in srgb, #5b8def 55%, var(--card-border));
+}
+
+.macro-bar__quick-etf--on,
+.macro-bar__quick-etf[aria-pressed="true"] {
+  border-color: color-mix(in srgb, #5b8def 65%, var(--card-border));
+  background:
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, #5b8def 28%, var(--surface)) 0%,
+      color-mix(in srgb, #3d6fd4 14%, var(--surface)) 100%
+    );
+}
+
+.macro-bar__quick-etf-mark {
+  display: flex;
+  line-height: 0;
+}
+
+.macro-bar__quick-etf-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--text) 55%, #5b8def);
+}
+
 .macro-bar__etf-btn {
   flex: 0 0 auto;
   align-self: stretch;
@@ -179,6 +274,11 @@
 .macro-bar__track-wrap--with-etf::before {
   left: min(5.6rem, 22vw);
   margin-left: 0.55rem;
+}
+
+.macro-bar__track-wrap--with-quick::before {
+  left: 3.55rem;
+  margin-left: 0.65rem;
 }
 
 .macro-bar__track-wrap::after {
@@ -6817,21 +6917,6 @@ html[data-theme="light"] .feedback-inbox-item {
   border-right: none;
   background: transparent;
   box-sizing: border-box;
-}
-
-.earnings-icon-rail__header {
-  flex: 0 0 auto;
-  display: flex;
-  justify-content: center;
-  width: 100%;
-  margin: 0 0 0.35rem;
-  padding: 0;
-}
-
-.earnings-icon-rail--edge .earnings-icon-rail__header {
-  margin-bottom: 0.45rem;
-  padding-bottom: 0.2rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
 }
 
 .earnings-icon-rail--edge .earnings-icon-rail__list {

@@ -6,7 +6,6 @@ import {
   useRef,
   useState,
   type MouseEvent,
-  type ReactNode,
   type RefObject,
 } from "react";
 import { useLeftRailLazyFollow } from "../hooks/useLeftRailLazyFollow";
@@ -150,14 +149,11 @@ export default function EarningsUpcomingIconRail({
   variant = "workspace",
   railRef: railRefProp,
   pageScrollRef,
-  railHeader = null,
 }: {
   /** workspace=종목 목록 그리드 열, edge=앱 본문 최좌측 얇은 레일 */
   variant?: "workspace" | "edge";
   railRef?: RefObject<HTMLElement | null>;
   pageScrollRef?: RefObject<HTMLElement | null>;
-  /** edge 레일 상단(S&P·ETF 등) */
-  railHeader?: ReactNode;
 }) {
   const innerRailRef = useRef<HTMLElement>(null);
   const railRef = railRefProp ?? innerRailRef;
@@ -218,10 +214,7 @@ export default function EarningsUpcomingIconRail({
 
   useLeftRailLazyFollow(railRef, pageScrollRef ?? { current: null }, {
     columnSelector: ".app__viewport-earnings-rail",
-    enabled:
-      variant === "edge" &&
-      railMounted &&
-      (upcoming.length > 0 || Boolean(railHeader)),
+    enabled: variant === "edge" && upcoming.length > 0 && railMounted,
   });
 
   const clearHideTimer = useCallback(() => {
@@ -355,9 +348,6 @@ export default function EarningsUpcomingIconRail({
         }
         aria-label={ko.macro.earningsIconRailAria}
       >
-        {railHeader ? (
-          <div className="earnings-icon-rail__header">{railHeader}</div>
-        ) : null}
         <ul className="earnings-icon-rail__list">
           {upcoming.map((row) => (
             <EarningsIconButton

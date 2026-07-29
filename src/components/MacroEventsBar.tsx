@@ -22,6 +22,7 @@ import { getMacroSurpriseUpBias } from "../lib/macroSentiment";
 import { stockLogoUrl } from "../lib/stockLogoUrl";
 import type { MacroEvent, Market, SectorEarningsSpotlightItem } from "../types";
 import MacroEventInfoModal from "./MacroEventInfoModal";
+import AppSp500EtfMicroStack from "./AppSp500EtfMicroStack";
 
 type MacroTrackEdge = { side: "none" | "left" | "right"; pull: number };
 
@@ -382,11 +383,13 @@ type MacroEventsBarProps = {
   onSecretAdminOpen?: () => void;
   /** 매크로 카드 왼쪽 — 나스닥 ETF 탭으로 이동 */
   onOpenNasdaqEtf?: () => void;
+  nasdaqEtfActive?: boolean;
 };
 
 export default function MacroEventsBar({
   onSecretAdminOpen,
   onOpenNasdaqEtf,
+  nasdaqEtfActive = false,
 }: MacroEventsBarProps) {
   const cachedInit = readSessionMacroCache() ?? peekMacroPrefetch();
   const [events, setEvents] = useState<MacroEvent[]>(() => cachedInit?.events ?? []);
@@ -587,7 +590,7 @@ export default function MacroEventsBar({
         <div
           className={[
             macroTrackWrapClass(eventsTrackEdge),
-            onOpenNasdaqEtf ? "macro-bar__track-wrap--with-etf" : "",
+            onOpenNasdaqEtf ? "macro-bar__track-wrap--with-quick" : "",
           ]
             .filter(Boolean)
             .join(" ")}
@@ -598,50 +601,10 @@ export default function MacroEventsBar({
           }
         >
           {onOpenNasdaqEtf ? (
-            <button
-              type="button"
-              className="macro-bar__etf-btn"
-              onClick={onOpenNasdaqEtf}
-              title={ko.macro.nasdaqEtfBtnHint}
-              aria-label={ko.macro.nasdaqEtfBtnHint}
-            >
-              <span className="macro-bar__etf-btn-mark" aria-hidden>
-                <svg viewBox="0 0 32 32" width="22" height="22" fill="none">
-                  <rect
-                    x="3"
-                    y="3"
-                    width="26"
-                    height="26"
-                    rx="8"
-                    fill="url(#macroEtfGrad)"
-                    opacity="0.9"
-                  />
-                  <path
-                    d="M8 21.5V10.5h3.1l3.2 7.1 3.2-7.1H20.6v11h-2.55v-6.55l-2.85 6.05h-2.4L10.05 14.95V21.5H8z"
-                    fill="#fff"
-                  />
-                  <defs>
-                    <linearGradient
-                      id="macroEtfGrad"
-                      x1="4"
-                      y1="4"
-                      x2="28"
-                      y2="28"
-                      gradientUnits="userSpaceOnUse"
-                    >
-                      <stop stopColor="#5b8def" />
-                      <stop offset="1" stopColor="#3d6fd4" />
-                    </linearGradient>
-                  </defs>
-                </svg>
-              </span>
-              <span className="macro-bar__etf-btn-text">
-                <span className="macro-bar__etf-btn-kicker">NASDAQ</span>
-                <span className="macro-bar__etf-btn-label">
-                  {ko.macro.nasdaqEtfBtn}
-                </span>
-              </span>
-            </button>
+            <AppSp500EtfMicroStack
+              onOpenNasdaqEtf={onOpenNasdaqEtf}
+              nasdaqEtfActive={nasdaqEtfActive}
+            />
           ) : null}
           <div className="macro-bar__track" ref={eventsTrackRef}>
             {loading && barItems.length === 0 && (

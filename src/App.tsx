@@ -25,7 +25,6 @@ import NasdaqEtfTab from "./components/NasdaqEtfTab";
 import RedditMentionsTab, {
   prefetchRedditMentions,
 } from "./components/RedditMentionsTab";
-import AppSp500EtfMicroStack from "./components/AppSp500EtfMicroStack";
 import { Sp500SectorProvider } from "./contexts/Sp500SectorContext";
 import ScrollToTopButton from "./components/ScrollToTopButton";
 import AppThemeCorner from "./components/AppThemeCorner";
@@ -1450,16 +1449,7 @@ export default function App() {
       <Sp500SectorProvider onNavigateToTab={() => setAppTab("sp500Sector")}>
       {showEarningsViewportRail ? (
         <div className="app__viewport-earnings-rail">
-          <EarningsUpcomingIconRail
-            variant="edge"
-            pageScrollRef={appScrollRef}
-            railHeader={
-              <AppSp500EtfMicroStack
-                appTab={appTab}
-                onOpenNasdaqEtf={() => setAppTab("nasdaqEtf")}
-              />
-            }
-          />
+          <EarningsUpcomingIconRail variant="edge" pageScrollRef={appScrollRef} />
         </div>
       ) : null}
       {!desktopDockLayout ? (
@@ -1482,13 +1472,6 @@ export default function App() {
       <div className="app__shell">
       <div className="app__shell-body">
       <div className="app__viewport-top">
-        {!showEarningsViewportRail ? (
-          <AppSp500EtfMicroStack
-            className="app__sp500-micro-anchor--fallback"
-            appTab={appTab}
-            onOpenNasdaqEtf={() => setAppTab("nasdaqEtf")}
-          />
-        ) : null}
         <AppThemeCorner
           colorMode={colorMode}
           lightPalette={lightPalette}
@@ -1539,6 +1522,8 @@ export default function App() {
           <div className="top-bar__macro">
             <MacroEventsBar
               onSecretAdminOpen={() => setShowAccessAdmin(true)}
+              onOpenNasdaqEtf={() => setAppTab("nasdaqEtf")}
+              nasdaqEtfActive={appTab === "nasdaqEtf"}
             />
           </div>
           <div className="top-bar__header-left">

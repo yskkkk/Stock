@@ -2,41 +2,71 @@ import Sp500SectorWheelMicro from "./Sp500SectorWheelMicro";
 import { ko } from "../i18n/ko";
 
 type Props = {
-  appTab: string;
   onOpenNasdaqEtf: () => void;
+  nasdaqEtfActive?: boolean;
   className?: string;
 };
 
-/** S&P500 도넛 + NQ ETF — 기업실적 레일 상단 세로 스택 */
+/**
+ * S&P500 · 나스닥 ETF 단축 — 주요 지표 발표(매크로 바) 왼쪽 세로 스택.
+ * 기업실적 아이콘 레일·지수 벨트와 섞지 않는다.
+ */
 export default function AppSp500EtfMicroStack({
-  appTab,
   onOpenNasdaqEtf,
+  nasdaqEtfActive = false,
   className,
 }: Props) {
-  const rootClass = ["app__sp500-micro-anchor", "app__sp500-micro-anchor--rail", className]
-    .filter(Boolean)
-    .join(" ");
+  const rootClass = ["macro-bar__quick-stack", className].filter(Boolean).join(" ");
 
   return (
     <div className={rootClass} aria-label="S&P500 · 나스닥 ETF">
-      <Sp500SectorWheelMicro caption="S&P" />
+      <div className="macro-bar__quick-item">
+        <Sp500SectorWheelMicro caption="S&P" />
+      </div>
       <button
         type="button"
-        className="app__nasdaq-etf-micro"
+        className={
+          nasdaqEtfActive
+            ? "macro-bar__quick-etf macro-bar__quick-etf--on"
+            : "macro-bar__quick-etf"
+        }
         data-vu="nasdaq-etf-micro"
         onClick={onOpenNasdaqEtf}
         title={ko.macro.nasdaqEtfBtnHint}
         aria-label={ko.macro.nasdaqEtfBtnHint}
-        aria-pressed={appTab === "nasdaqEtf"}
+        aria-pressed={nasdaqEtfActive}
       >
-        <span className="app__nasdaq-etf-micro-icon" aria-hidden>
-          <svg viewBox="0 0 24 24" width="20" height="20" focusable="false">
-            <rect x="3" y="13" width="4" height="8" rx="1" fill="currentColor" opacity="0.9" />
-            <rect x="10" y="7" width="4" height="14" rx="1" fill="currentColor" />
-            <rect x="17" y="3" width="4" height="18" rx="1" fill="currentColor" opacity="0.75" />
+        <span className="macro-bar__quick-etf-mark" aria-hidden>
+          <svg viewBox="0 0 32 32" width="26" height="26" fill="none">
+            <rect
+              x="3"
+              y="3"
+              width="26"
+              height="26"
+              rx="8"
+              fill="url(#macroQuickEtfGrad)"
+              opacity="0.95"
+            />
+            <path
+              d="M8 21.5V10.5h3.1l3.2 7.1 3.2-7.1H20.6v11h-2.55v-6.55l-2.85 6.05h-2.4L10.05 14.95V21.5H8z"
+              fill="#fff"
+            />
+            <defs>
+              <linearGradient
+                id="macroQuickEtfGrad"
+                x1="4"
+                y1="4"
+                x2="28"
+                y2="28"
+                gradientUnits="userSpaceOnUse"
+              >
+                <stop stopColor="#5b8def" />
+                <stop offset="1" stopColor="#3d6fd4" />
+              </linearGradient>
+            </defs>
           </svg>
         </span>
-        <span className="app__nasdaq-etf-micro-label">ETF</span>
+        <span className="macro-bar__quick-etf-label">ETF</span>
       </button>
     </div>
   );
