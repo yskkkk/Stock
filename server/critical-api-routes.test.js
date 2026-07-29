@@ -8,6 +8,7 @@ import { loadEnvFile } from "./load-env.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const macroFile = path.join(__dirname, "data", "macro-releases.json");
+const uiFeaturesFile = path.join(__dirname, ".data", "ui-feature-toggles.json");
 
 /** @param {number} port @param {string} route */
 function getJson(port, route) {
@@ -60,16 +61,30 @@ async function startTestServer() {
   };
 }
 
-test("critical GET routes always return JSON (health, config, macro-events)", async () => {
+const CRITICAL_ROUTES = [
+  "/api/health",
+  "/api/config",
+  "/api/macro-events",
+  "/api/ui-features",
+  "/api/stock-vault?lite=1",
+  "/api/stock-vault/favorites",
+  "/api/picks",
+];
+
+test("critical GET routes always return JSON (health, config, macro, vault, picks, ui-features)", async () => {
   const { port, close } = await startTestServer();
   try {
-    for (const route of ["/api/health", "/api/config", "/api/macro-events"]) {
+    for (const route of CRITICAL_ROUTES) {
       const r = await getJson(port, route);
       assert.ok(r.status >= 200 && r.status < 500, `${route} status=${r.status}`);
       assert.ok(r.json != null && typeof r.json === "object", `${route} must be JSON object`);
     }
     const macro = await getJson(port, "/api/macro-events");
     assert.ok(Array.isArray(macro.json?.events), "macro-events.events must be array");
+    const vault = await getJson(port, "/api/stock-vault?lite=1");
+    assert.ok(Array.isArray(vault.json?.items), "stock-vault.items must be array");
+    const ui = await getJson(port, "/api/ui-features");
+    assert.ok(ui.json?.features && typeof ui.json.features === "object");
   } finally {
     await close();
   }
@@ -95,6 +110,57 @@ test("macro-events stays JSON when static file is unreadable", async () => {
   }
 });
 
+test("ui-features stays JSON when toggle store file is corrupt", async () => {
+  const hadFile = fs.existsSync(uiFeaturesFile);
+  const backup = hadFile ? fs.readFileSync(uiFeaturesFile, "utf8") : null;
+  fs.mkdirSync(path.dirname(uiFeaturesFile), { recursive: true });
+  fs.writeFileSync(uiFeaturesFile, "{ broken", "utf8");
+  vi.resetModules();
+  try {
+    const { port, close } = await startTestServer();
+    try {
+      const r = await getJson(port, "/api/ui-features");
+      assert.equal(r.status, 200);
+      assert.ok(r.json != null && typeof r.json === "object");
+      assert.ok(r.json?.features && typeof r.json.features === "object");
+    } finally {
+      await close();
+    }
+  } finally {
+    if (backup != null) fs.writeFileSync(uiFeaturesFile, backup, "utf8");
+    else if (fs.existsSync(uiFeaturesFile)) fs.unlinkSync(uiFeaturesFile);
+    vi.resetModules();
+  }
+});
+
+test("picks returns JSON error object when screener throws", async () => {
+  vi.resetModules();
+  vi.doMock("./screener.js", async (importOriginal) => {
+    const orig = await importOriginal();
+    return {
+      ...orig,
+      getPicksState: () => {
+        throw new Error("simulated picks store failure");
+      },
+    };
+  });
+  try {
+    const { port, close } = await startTestServer();
+    try {
+      const r = await getJson(port, "/api/picks");
+      assert.ok(r.status >= 400 && r.status < 600, `picks status=${r.status}`);
+      assert.ok(r.json != null && typeof r.json === "object", "picks must return JSON");
+      assert.ok(typeof r.json?.error === "string" && r.json.error.length > 0);
+    } finally {
+      await close();
+    }
+  } finally {
+    vi.doUnmock("./screener.js");
+    vi.resetModules();
+  }
+});
+
 afterEach(() => {
   vi.resetModules();
+  vi.doUnmock("./screener.js");
 });
