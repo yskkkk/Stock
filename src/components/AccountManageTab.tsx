@@ -622,7 +622,12 @@ export default function AccountManageTab({
         title={ko.app.accountManageRebalanceMarketHint}
         onClick={() => setRebalanceOpen(true)}
       >
-        {ko.app.accountManageRebalanceOpen}
+        <span className="account-manage-tab__rebalance-btn-text">
+          {ko.app.accountManageRebalanceOpen}
+        </span>
+        <span className="account-manage-tab__rebalance-btn-sub account-manage-tab__rebalance-btn-sub--safe">
+          {ko.app.accountManageRebalanceSimBadge}
+        </span>
       </button>
       <button
         type="button"
@@ -652,9 +657,16 @@ export default function AccountManageTab({
         }
         onClick={() => void onBuyNowFromToolbar()}
       >
-        {buyingNow
-          ? ko.app.accountManageRebalanceNowRunning
-          : ko.app.accountManageRebalanceNow}
+        <span className="account-manage-tab__rebalance-btn-text">
+          {buyingNow
+            ? ko.app.accountManageRebalanceNowRunning
+            : ko.app.accountManageRebalanceNow}
+        </span>
+        {!buyingNow ? (
+          <span className="account-manage-tab__rebalance-btn-sub account-manage-tab__rebalance-btn-sub--real">
+            {ko.app.accountManageRebalanceNowRunSub}
+          </span>
+        ) : null}
       </button>
     </>
   );
