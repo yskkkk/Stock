@@ -1374,6 +1374,8 @@ export const ko = {
   stockVault: {
     title: "종목보관",
     desc: "일봉·주봉 골든크로스·정배열·120선 근처·바닥 캔들 자동 탐지 종목과 즐겨찾기를 관리합니다.",
+    entryHint:
+      "기본: 최신 일자 · 전체 · 일봉 — 아래 탐색 조건(골든크로스 등)을 눌러 종목을 보세요. 즐겨찾기·과거 일자는 위 필터에서 바꿀 수 있습니다.",
     loading: "불러오는 중…",
     empty: "보관된 종목이 없습니다.",
     loadMoreRows: (shown: number, total: number) =>

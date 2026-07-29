@@ -241,6 +241,20 @@
   line-height: 1.45rem;
 }
 
+.stock-vault-tab__entry-hint {
+  margin: 0 0 0.38rem;
+  padding: 0.38rem 0.48rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-dim);
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-sm, 6px);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
 .stock-vault-tab__desc,
 .stock-vault-tab__scan-hint,
 .stock-vault-tab__muted {

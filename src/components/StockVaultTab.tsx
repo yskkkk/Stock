@@ -974,6 +974,11 @@ export default function StockVaultTab({
     filtered.length === 0 &&
     selectedScanSources.some((s) => scanSourceCounts[s] > 0);
 
+  const needsScanCondition =
+    !isHistoricalView &&
+    filter !== "favorite" &&
+    selectedScanSources.length === 0;
+
   useEffect(() => {
     setListVisibleCount(VAULT_LIST_INITIAL_ROWS);
   }, [
@@ -1539,6 +1544,7 @@ export default function StockVaultTab({
         </header>
 
         <div className="stock-vault-tab__filters-wrap">
+          <p className="stock-vault-tab__entry-hint">{ko.stockVault.entryHint}</p>
           <div
             className="stock-vault-tab__filters stock-vault-tab__filters--timeframe"
             role="tablist"
@@ -1728,7 +1734,9 @@ export default function StockVaultTab({
           <p className="stock-vault-tab__muted">
             {isHistoricalView
               ? ko.stockVault.historyEmpty
-              : showEmptyIntersection
+              : needsScanCondition
+                ? ko.stockVault.selectScanCondition
+                : showEmptyIntersection
                   ? ko.stockVault.emptyIntersection
                   : ko.stockVault.empty}
           </p>

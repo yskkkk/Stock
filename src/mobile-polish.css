@@ -248,6 +248,12 @@
     min-width: 0;
   }
 
+  .stock-vault-tab__entry-hint {
+    font-size: 0.74rem;
+    line-height: 1.4;
+    padding: 0.42rem 0.5rem;
+  }
+
   .stock-vault-tab__filters .market-tabs {
     flex-wrap: wrap;
     gap: 0.32rem;
