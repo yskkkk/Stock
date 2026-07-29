@@ -1546,6 +1546,39 @@ export default function StockVaultTab({
         <div className="stock-vault-tab__filters-wrap">
           <p className="stock-vault-tab__entry-hint">{ko.stockVault.entryHint}</p>
           <div
+            className="stock-vault-tab__filters stock-vault-tab__filters--kind"
+            role="group"
+            aria-label={ko.stockVault.scanConditionAria}
+          >
+            <div className="market-tabs market-tabs--vault-scan">
+              {visibleScanSources.map((source) => {
+                const active = selectedScanSources.includes(source);
+                return (
+                  <button
+                    key={source}
+                    type="button"
+                    className={
+                      active
+                        ? "market-tab market-tab--toggle active"
+                        : "market-tab market-tab--toggle"
+                    }
+                    aria-pressed={active}
+                    onClick={() => toggleScanSource(source)}
+                  >
+                    {SCAN_SOURCE_LABEL[source]}
+                    <span className="market-tab__count">{scanSourceCounts[source]}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {intersectionActive ? (
+              <p className="stock-vault-tab__intersection-hint">
+                {ko.stockVault.intersectionHint.replace("{n}", String(filtered.length))}
+              </p>
+            ) : null}
+          </div>
+
+          <div
             className="stock-vault-tab__filters stock-vault-tab__filters--timeframe"
             role="tablist"
             aria-label={ko.stockVault.timeframeFilterAria}
@@ -1577,39 +1610,6 @@ export default function StockVaultTab({
                 </button>
               ))}
             </div>
-          </div>
-
-          <div
-            className="stock-vault-tab__filters stock-vault-tab__filters--kind"
-            role="group"
-            aria-label={ko.stockVault.scanConditionAria}
-          >
-            <div className="market-tabs market-tabs--vault-scan">
-              {visibleScanSources.map((source) => {
-                const active = selectedScanSources.includes(source);
-                return (
-                  <button
-                    key={source}
-                    type="button"
-                    className={
-                      active
-                        ? "market-tab market-tab--toggle active"
-                        : "market-tab market-tab--toggle"
-                    }
-                    aria-pressed={active}
-                    onClick={() => toggleScanSource(source)}
-                  >
-                    {SCAN_SOURCE_LABEL[source]}
-                    <span className="market-tab__count">{scanSourceCounts[source]}</span>
-                  </button>
-                );
-              })}
-            </div>
-            {intersectionActive ? (
-              <p className="stock-vault-tab__intersection-hint">
-                {ko.stockVault.intersectionHint.replace("{n}", String(filtered.length))}
-              </p>
-            ) : null}
           </div>
 
           {showMa120ApproachFilters ? (

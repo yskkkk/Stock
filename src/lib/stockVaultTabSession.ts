@@ -50,10 +50,15 @@ function normalizeMa120ApproachFilter(
   return null;
 }
 
+const DEFAULT_SCAN_SOURCES: StockVaultScanSource[] = ["golden_cross"];
+
 function normalizeUiState(raw: Partial<StockVaultTabUiState> | null): StockVaultTabUiState {
   return {
     filter: raw?.filter === "favorite" ? "favorite" : "all",
-    selectedScanSources: normalizeScanSources(raw?.selectedScanSources),
+    selectedScanSources:
+      raw?.selectedScanSources === undefined
+        ? [...DEFAULT_SCAN_SOURCES]
+        : normalizeScanSources(raw.selectedScanSources),
     ma120ApproachFilter: normalizeMa120ApproachFilter(raw?.ma120ApproachFilter),
     timeframeFilter: normalizeStockVaultTimeframe(raw?.timeframeFilter),
     marketFilter: normalizeMarketFilter(raw?.marketFilter),

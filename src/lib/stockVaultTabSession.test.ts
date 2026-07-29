@@ -24,6 +24,11 @@ describe("stockVaultTabSession", () => {
     expect(ui?.selectedScanDate).toBe("2026-06-10");
   });
 
+  it("defaults to golden_cross scan on first visit", () => {
+    const ui = defaultStockVaultTabUi();
+    expect(ui.selectedScanSources).toEqual(["golden_cross"]);
+  });
+
   it("falls back to defaults for invalid values", () => {
     saveStockVaultTabUi({
       ...defaultStockVaultTabUi(),
