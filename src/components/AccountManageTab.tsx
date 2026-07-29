@@ -593,7 +593,9 @@ export default function AccountManageTab({
 
   const buyNowToolbarAllowed = anySelectedMarketRegularOpen(["kr", "us"]);
 
-  const renderRebalanceActionButtons = (variant: "toolbar" | "wheel") => (
+  const renderRebalanceActionButtons = (
+    variant: "toolbar" | "wheel" | "bridge",
+  ) => (
     <>
       <button
         type="button"
@@ -602,13 +604,16 @@ export default function AccountManageTab({
           "account-manage-tab__hide-btn",
           "account-manage-tab__hide-btn--summary",
           variant === "wheel" ? "account-manage-tab__hide-btn--wheel" : "",
+          variant === "bridge" ? "account-manage-tab__hide-btn--bridge" : "",
         ]
           .filter(Boolean)
           .join(" ")}
         data-vu={
           variant === "wheel"
             ? "account-rebalance-open-wheel"
-            : "account-rebalance-open"
+            : variant === "bridge"
+              ? "account-rebalance-open-bridge"
+              : "account-rebalance-open"
         }
         title={ko.app.accountManageRebalanceMarketHint}
         onClick={() => setRebalanceOpen(true)}
@@ -623,13 +628,16 @@ export default function AccountManageTab({
           "account-manage-tab__hide-btn--summary",
           "account-manage-tab__hide-btn--accent",
           variant === "wheel" ? "account-manage-tab__hide-btn--wheel" : "",
+          variant === "bridge" ? "account-manage-tab__hide-btn--bridge" : "",
         ]
           .filter(Boolean)
           .join(" ")}
         data-vu={
           variant === "wheel"
             ? "account-rebalance-buy-now-wheel"
-            : "account-rebalance-buy-now-toolbar"
+            : variant === "bridge"
+              ? "account-rebalance-buy-now-bridge"
+              : "account-rebalance-buy-now-toolbar"
         }
         disabled={buyingNow || !buyNowToolbarAllowed}
         title={
@@ -900,7 +908,13 @@ export default function AccountManageTab({
                       );
                     })}
                   </div>
-                  {renderRebalanceActionButtons("toolbar")}
+                  <div
+                    className="account-manage-tab__toolbar-rebalance"
+                    role="group"
+                    aria-label={ko.app.accountManageRebalanceTitle}
+                  >
+                    {renderRebalanceActionButtons("toolbar")}
+                  </div>
                 </>
               ) : null}
               <div
@@ -1157,6 +1171,20 @@ export default function AccountManageTab({
               </details>
             ) : null}
           </div>
+            {provider === "toss" ? (
+              <div
+                className="account-manage-tab__summary-toolbar account-manage-tab__summary-toolbar--rebalance"
+                role="group"
+                aria-label={ko.app.accountManageRebalanceTitle}
+              >
+                <span className="account-manage-tab__rebalance-bridge-label">
+                  {ko.app.accountManageRebalanceTitle}
+                </span>
+                <div className="account-manage-tab__rebalance-bridge-actions">
+                  {renderRebalanceActionButtons("bridge")}
+                </div>
+              </div>
+            ) : null}
           </div>
 
           {summaryPending ? (
