@@ -1,28 +1,56 @@
 /**
- * 가상 사용자 피드백 → OPS 텔레그램 간단 알림
+ * 가상 사용자 피드백 → OPS 텔레그램 (입력 프롬프트·답변만)
  */
+import { formatOpsDevTelegramBody } from "./ops-dev-completion-coalesce.js";
 import {
   isOpsTelegramNotifyEnabled,
   resolveOpsTelegramCreds,
   sendTelegramMessage,
 } from "./telegram-notify.js";
 
-function escHtml(s) {
-  return String(s)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+/**
+ * @param {{
+ *   prompt?: string;
+ *   title?: string;
+ *   detail?: string;
+ *   suggestion?: string;
+ *   implementResult?: string;
+ *   improvementSummary?: string;
+ * }} item
+ */
+function resolveVuNotifyPrompt(item) {
+  const prompt = String(item?.prompt ?? "").trim();
+  if (prompt && prompt !== "(생성 중)") return prompt;
+  const title = String(item?.title ?? "").trim();
+  const detail = String(item?.detail ?? "").trim();
+  const suggestion = String(item?.suggestion ?? "").trim();
+  return [title, detail, suggestion ? `제안: ${suggestion}` : ""]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
-function kstNowLabel() {
-  return new Date().toLocaleString("ko-KR", {
-    timeZone: "Asia/Seoul",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
+/**
+ * @param {{
+ *   prompt?: string;
+ *   title?: string;
+ *   detail?: string;
+ *   suggestion?: string;
+ *   implementResult?: string;
+ *   improvementSummary?: string;
+ * }} item
+ */
+function resolveVuNotifyAnswer(item) {
+  const done = String(item?.implementResult ?? "").trim();
+  if (done) return done;
+  const summary = String(item?.improvementSummary ?? "").trim();
+  if (summary) return summary;
+  const title = String(item?.title ?? "").trim();
+  const detail = String(item?.detail ?? "").trim();
+  const suggestion = String(item?.suggestion ?? "").trim();
+  const finding = [title, detail, suggestion ? `제안: ${suggestion}` : ""]
+    .filter(Boolean)
+    .join("\n\n");
+  return finding || "(결과 대기)";
 }
 
 /**
@@ -32,6 +60,11 @@ function kstNowLabel() {
  *   severity?: string;
  *   area?: string;
  *   title?: string;
+ *   detail?: string;
+ *   suggestion?: string;
+ *   prompt?: string;
+ *   implementResult?: string;
+ *   improvementSummary?: string;
  * }} item
  */
 export async function notifyVirtualUserFeedback(item) {
@@ -43,23 +76,13 @@ export async function notifyVirtualUserFeedback(item) {
     return { ok: false, reason: "ops_creds_missing" };
   }
 
-  const sev = String(item?.severity ?? "minor");
-  const title = String(item?.title ?? "").trim() || "(제목 없음)";
-  const persona = String(item?.personaName ?? "").trim() || "가상 사용자";
-  const area = String(item?.area ?? "").trim() || "—";
-  const idShort = String(item?.id ?? "").slice(0, 8);
+  const text = formatOpsDevTelegramBody(
+    resolveVuNotifyPrompt(item),
+    resolveVuNotifyAnswer(item),
+    { requestMax: 2400, answerMax: 1200 },
+  );
 
-  const lines = [
-    "<b>가상 사용자 피드백</b>",
-    "",
-    `👤 ${escHtml(persona)}`,
-    `🏷 ${escHtml(sev)} · ${escHtml(area)}`,
-    `📝 ${escHtml(title.slice(0, 160))}`,
-  ];
-  if (idShort) lines.push(`🆔 <code>${escHtml(idShort)}</code>`);
-  lines.push("", `<i>🕐 ${kstNowLabel()} KST · 관리자 → 가상 사용자</i>`);
-
-  const sent = await sendTelegramMessage(lines.join("\n"), undefined, creds);
+  const sent = await sendTelegramMessage(text, undefined, creds);
   return sent
     ? { ok: true, sentAtMs: Date.now() }
     : { ok: false, reason: "send_failed" };

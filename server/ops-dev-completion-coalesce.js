@@ -218,11 +218,20 @@ function stripOpsTelegramNoise(text) {
  * 개발자 텔레그램: 입력 프롬프트 + 답변만 (제목·git·부가정보 제외)
  * @param {string} userRequest
  * @param {string} answer
+ * @param {{ requestMax?: number; answerMax?: number }} [opts]
  */
-export function formatOpsDevTelegramBody(userRequest, answer) {
-  const req = trimBlock(userRequest, REQUEST_MAX) || "(요청 없음)";
+export function formatOpsDevTelegramBody(userRequest, answer, opts = {}) {
+  const reqMax =
+    Number.isFinite(opts.requestMax) && opts.requestMax > 200
+      ? Math.min(3200, Math.floor(opts.requestMax))
+      : REQUEST_MAX;
+  const ansMax =
+    Number.isFinite(opts.answerMax) && opts.answerMax > 200
+      ? Math.min(3200, Math.floor(opts.answerMax))
+      : COMPLETION_MAX;
+  const req = trimBlock(userRequest, reqMax) || "(요청 없음)";
   const ans =
-    trimBlock(stripOpsTelegramNoise(answer), COMPLETION_MAX) || "(응답 없음)";
+    trimBlock(stripOpsTelegramNoise(answer), ansMax) || "(응답 없음)";
   return `입력 프롬프트:\n${escHtml(req)}\n\n너의 답변:\n${escHtml(ans)}`;
 }
 
