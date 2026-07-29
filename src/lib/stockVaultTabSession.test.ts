@@ -6,6 +6,11 @@ import {
 } from "./stockVaultTabSession";
 
 describe("stockVaultTabSession", () => {
+  it("defaults to golden_cross scan on first visit", () => {
+    saveStockVaultTabUi(defaultStockVaultTabUi());
+    expect(peekStockVaultTabUi()?.selectedScanSources).toEqual(["golden_cross"]);
+  });
+
   it("restores saved filters from memory", () => {
     saveStockVaultTabUi({
       filter: "favorite",

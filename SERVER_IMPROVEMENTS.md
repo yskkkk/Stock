@@ -14,17 +14,41 @@
 
 ## 열린 항목
 
-### [ERROR] process — 2026-07-28 09:24:24.586 KST
+### [ERROR] auto-git — 2026-07-30 01:35:10.982 KST
+
+<!-- id:log-auto-git-4ed933128f -->
+
+**문제**: worktree: branch=main
+
+**개선 제안**: 해당 영역 코드·설정·로그를 따라가며 재발 방지 패치를 적용하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+---
+
+### [ERROR] auto-git — 2026-07-30 01:35:09.619 KST
+
+<!-- id:log-auto-git-1bfa034554 -->
+
+**문제**: pull failed: From github.com:yskkkk/Stock  * branch            main       -> FETCH_HEAD warning: fetch updated the current branch head. fast-forwarding your working tree from commit 70e64743f67af77555eb9cc190269d4d7694fc23. error: Your local changes to the following files would be overwritten by merge: 	src/components/AccountManageTab.tsx 	src/components/AccountRebalanceScheduleModal.tsx 	src/components/account-manage-tab.css 	src/components/account-rebalance-schedule-modal.css 	src/i18n/ko.ts Please commit your changes or stash them before you merge. Aborting fatal: Cannot fast-forward your w
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+---
+
+### [ERROR] process — 2026-07-30 01:34:26.236 KST
 
 <!-- id:process-unhandledRejection -->
 
-**문제**: unhandledRejection: [canceled] This operation was aborted
+**문제**: unhandledRejection: WritableIterable is closed
 
 **개선 제안**: 비동기 오류를 await/catch로 처리하고, 폴링·훅 tick에서 throw가 밖으로 나가지 않게 방어하세요.
 
 **근거**: 누적 1회
 
-_재발 147회 (최초 2026-06-17 01:16:33.055 KST)_
+_재발 153회 (최초 2026-06-17 01:16:33.055 KST)_
 
 ---
 
@@ -67,6 +91,72 @@ _재발 32회 (최초 2026-07-28 07:34:19.167 KST)_
 **근거**: 누적 1회
 
 _재발 17619회 (최초 2026-05-27 07:14:23.020 KST)_
+
+---
+
+### [WARN] auto-git — 2026-07-30 02:35:13.594 KST
+
+<!-- id:log-auto-git-80b1ee19e9 -->
+
+**문제**: remote origin/main touches locally modified files — skip pull to avoid stash conflict: src/lib/stockVaultTabSession.test.ts, src/lib/stockVaultTabSession.ts · branch=main · dirty=6 tracked
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+---
+
+### [WARN] auto-git — 2026-07-30 02:34:48.476 KST
+
+<!-- id:log-auto-git-a2f3011691 -->
+
+**문제**: remote origin/main touches locally modified files — skip pull to avoid stash conflict: src/i18n/ko.ts, src/lib/stockVaultTabSession.test.ts, src/lib/stockVaultTabSession.ts · branch=main · dirty=9 tracked
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+---
+
+### [WARN] auto-git — 2026-07-30 02:34:16.281 KST
+
+<!-- id:log-auto-git-8a54a008ef -->
+
+**문제**: remote origin/main touches locally modified files — skip pull to avoid stash conflict: src/i18n/ko.ts, src/lib/stockVaultTabSession.test.ts, src/lib/stockVaultTabSession.ts · branch=main · dirty=7 tracked
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+_재발 154회 (최초 2026-07-30 01:43:01.254 KST)_
+
+---
+
+### [WARN] auto-git — 2026-07-30 01:34:44.843 KST
+
+<!-- id:log-auto-git-3ec72337be -->
+
+**문제**: remote origin/main touches locally modified files — skip pull to avoid stash conflict: src/components/AccountManageTab.tsx, src/components/account-manage-tab.css, src/i18n/ko.ts · branch=main · dirty=8 tracked
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+_재발 5회 (최초 2026-07-30 01:33:36.632 KST)_
+
+---
+
+### [WARN] auto-git — 2026-07-30 00:18:17.801 KST
+
+<!-- id:log-auto-git-6bec63bd8b -->
+
+**문제**: fetch origin main failed (attempt 1/3): kex_exchange_identification: read: Software caused connection abort  banner exchange: Connection to 20.200.245.247 port 22: Software caused connection abort  fatal: Could not read from remote repository.  Please make sure you have the correct access rights and the repository exists. — Command failed: git fetch origin main kex_exchange_identification: read: Software caused connection abort  banner exchange: Connection to 20.200.245.247 port 22: Software caused connection abort  fatal: Could not read from remote repository.  Please make sure you have the c
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+_재발 3회 (최초 2026-07-28 08:40:48.350 KST)_
 
 ---
 
@@ -189,20 +279,6 @@ _재발 187회 (최초 2026-07-28 07:38:41.013 KST)_
 **근거**: server/.logs 오늘 INTERNAL 3회
 
 _재발 88회 (최초 2026-07-28 07:43:50.552 KST)_
-
----
-
-### [WARN] auto-git — 2026-07-28 14:28:12.405 KST
-
-<!-- id:log-auto-git-6bec63bd8b -->
-
-**문제**: fetch origin main failed (attempt 1/3): kex_exchange_identification: read: Software caused connection abort  banner exchange: Connection to 20.200.245.247 port 22: Software caused connection abort  fatal: Could not read from remote repository.  Please make sure you have the correct access rights and the repository exists. — Command failed: git fetch origin main kex_exchange_identification: read: Software caused connection abort  banner exchange: Connection to 20.200.245.247 port 22: Software caused connection abort  fatal: Could not read from remote repository.  Please make sure you have the c
-
-**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
-
-**근거**: server/.logs 접근 로그 INTERNAL auto-git
-
-_재발 2회 (최초 2026-07-28 08:40:48.350 KST)_
 
 ---
 
@@ -498,4 +574,4 @@ _재발 33회 (최초 2026-05-28 07:59:33.276 KST)_
 
 ## 최근 자동 점검
 
-2026-07-29 23:46:38.913 KST — probes 완료 · 열린 37건 · 이번 기록 0건
+2026-07-30 02:31:53.800 KST — probes 완료 · 열린 41건 · 이번 기록 0건

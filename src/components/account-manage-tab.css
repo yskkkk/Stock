@@ -219,6 +219,59 @@
   cursor: not-allowed;
 }
 
+.account-manage-tab__rebalance-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.4rem;
+}
+
+.account-manage-tab__rebalance-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+  padding: 0.32rem 0.42rem;
+  border-radius: var(--radius-sm, 0.5rem);
+  min-width: 0;
+}
+
+.account-manage-tab__rebalance-zone--preview {
+  border: 1px dashed rgba(148, 163, 184, 0.45);
+  background: color-mix(in srgb, var(--surface) 45%, var(--card));
+}
+
+.account-manage-tab__rebalance-zone--real {
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  background: color-mix(in srgb, #ef4444 8%, var(--card));
+}
+
+.account-manage-tab__rebalance-zone-label {
+  font-size: 0.64rem;
+  font-weight: 800;
+  line-height: 1.25;
+  color: var(--muted);
+}
+
+.account-manage-tab__rebalance-zone-label--real {
+  color: #dc2626;
+}
+
+html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-label--real {
+  color: #f87171;
+}
+
+.account-manage-tab__rebalance-zone-hint {
+  font-size: 0.62rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.account-manage-tab__rebalance-zone .account-manage-tab__hide-btn {
+  align-self: stretch;
+  justify-content: center;
+  touch-action: manipulation;
+}
+
 .account-manage-tab__rebalance-hours {
   display: inline-flex;
   flex-wrap: wrap;
