@@ -157,21 +157,24 @@
 }
 
 .app__sp500-micro-anchor {
-  position: fixed;
-  top: max(0.38rem, calc(0.22rem + env(safe-area-inset-top, 0px)));
-  left: max(0.22rem, env(safe-area-inset-left, 0px));
-  z-index: 12050;
+  position: relative;
+  top: auto;
+  left: auto;
+  z-index: 2;
+  flex: 0 0 auto;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.28rem;
-  pointer-events: none;
+  pointer-events: auto;
   overflow: visible;
 }
 
 .app__sp500-micro-anchor > .sp500-wheel-micro-wrap,
 .app__sp500-micro-anchor > .app__nasdaq-etf-micro {
   pointer-events: auto;
+  flex: 0 0 auto;
 }
 
 .app__nasdaq-etf-micro {
@@ -422,12 +425,7 @@
 
 @media (max-width: 1179px) {
   .app__sp500-micro-anchor {
-    top: max(0.32rem, env(safe-area-inset-top, 0px));
-    left: max(0.18rem, env(safe-area-inset-left, 0px));
-  }
-
-  .app__shell > .app__viewport-top {
-    padding-left: calc(2.55rem + max(0.12rem, env(safe-area-inset-left, 0px)));
+    gap: 0.22rem;
   }
 }
 
@@ -445,10 +443,6 @@
     min-height: 44px;
     padding: 0.28rem 0.38rem;
     touch-action: manipulation;
-  }
-
-  .app__shell > .app__viewport-top {
-    padding-left: calc(3.05rem + max(0.12rem, env(safe-area-inset-left, 0px)));
   }
 
   .sp500-wheel-mini__tab {

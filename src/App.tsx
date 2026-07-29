@@ -1448,23 +1448,6 @@ export default function App() {
           .trim()}
       >
       <Sp500SectorProvider onNavigateToTab={() => setAppTab("sp500Sector")}>
-      <div className="app__sp500-micro-anchor">
-        <Sp500SectorWheelMicro />
-        <button
-          type="button"
-          className="app__nasdaq-etf-micro"
-          data-vu="nasdaq-etf-micro"
-          onClick={() => setAppTab("nasdaqEtf")}
-          title={ko.macro.nasdaqEtfBtnHint}
-          aria-label={ko.macro.nasdaqEtfBtnHint}
-          aria-pressed={appTab === "nasdaqEtf"}
-        >
-          <span className="app__nasdaq-etf-micro-kicker" aria-hidden>
-            NQ
-          </span>
-          <span className="app__nasdaq-etf-micro-label">ETF</span>
-        </button>
-      </div>
       {showEarningsViewportRail ? (
         <div className="app__viewport-earnings-rail">
           <EarningsUpcomingIconRail variant="edge" pageScrollRef={appScrollRef} />
@@ -1490,6 +1473,23 @@ export default function App() {
       <div className="app__shell">
       <div className="app__shell-body">
       <div className="app__viewport-top">
+        <div className="app__sp500-micro-anchor" aria-label="S&P500 · 나스닥 ETF">
+          <Sp500SectorWheelMicro />
+          <button
+            type="button"
+            className="app__nasdaq-etf-micro"
+            data-vu="nasdaq-etf-micro"
+            onClick={() => setAppTab("nasdaqEtf")}
+            title={ko.macro.nasdaqEtfBtnHint}
+            aria-label={ko.macro.nasdaqEtfBtnHint}
+            aria-pressed={appTab === "nasdaqEtf"}
+          >
+            <span className="app__nasdaq-etf-micro-kicker" aria-hidden>
+              NQ
+            </span>
+            <span className="app__nasdaq-etf-micro-label">ETF</span>
+          </button>
+        </div>
         <AppThemeCorner
           colorMode={colorMode}
           lightPalette={lightPalette}
