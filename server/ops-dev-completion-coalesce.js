@@ -33,6 +33,7 @@ import {
   resolveOpsTelegramCreds,
   sendTelegramMessage,
 } from "./telegram-notify.js";
+import { parseJsonText } from "./store-json.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PENDING_FILE = path.join(__dirname, ".data", "ops-dev-notify-pending.json");
@@ -449,7 +450,7 @@ export async function flushOpsDevNotifyPendingFromDisk(opts = {}) {
   let raw = null;
   try {
     if (!fs.existsSync(PENDING_FILE)) return false;
-    raw = JSON.parse(fs.readFileSync(PENDING_FILE, "utf8"));
+    raw = parseJsonText(fs.readFileSync(PENDING_FILE, "utf8"));
   } catch {
     clearPendingDisk();
     return false;

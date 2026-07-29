@@ -7,6 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getRepoHeadRev } from "./ops-agent-git-push.js";
+import { parseJsonText } from "./store-json.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, ".data");
@@ -83,7 +84,7 @@ export function clearStaleOpsDevNotifyLocks(maxAgeMs = 120_000) {
 function readDiskEntries() {
   try {
     if (!fs.existsSync(DEDUP_FILE)) return {};
-    const o = JSON.parse(fs.readFileSync(DEDUP_FILE, "utf8"));
+    const o = parseJsonText(fs.readFileSync(DEDUP_FILE, "utf8"));
     if (!o || typeof o !== "object" || !o.entries) return {};
     return /** @type {Record<string, number>} */ (o.entries);
   } catch {

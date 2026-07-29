@@ -17,6 +17,7 @@ beforeEach(() => {
   invalidateJsonStoreReadCache("granville-scan-state.json");
   invalidateJsonStoreReadCache("corrupt-sample.json");
   invalidateJsonStoreReadCache("sample.json");
+  invalidateJsonStoreReadCache("normalize-fail.json");
 });
 
 afterEach(() => {
@@ -73,6 +74,23 @@ test("readJsonStoreSync restores defaults on corrupt JSON", () => {
   assert.ok(backups.length >= 1);
   const healed = fs.readFileSync(path.join(tmpDir, fileName), "utf8");
   assert.equal(JSON.parse(healed).ok, false);
+});
+
+test("readJsonStoreSync restores defaults when normalize throws", () => {
+  const fileName = "normalize-fail.json";
+  fs.writeFileSync(path.join(tmpDir, fileName), JSON.stringify({ bad: true }), "utf8");
+
+  const state = readJsonStoreSync(
+    fileName,
+    () => {
+      throw new Error("normalize boom");
+    },
+    () => ({ ok: false }),
+  );
+
+  assert.deepEqual(state, { ok: false });
+  const backups = fs.readdirSync(tmpDir).filter((f) => f.includes(".corrupt-"));
+  assert.ok(backups.length >= 1);
 });
 
 test("writeJsonStoreSync writes without BOM", () => {
