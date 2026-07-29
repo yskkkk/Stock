@@ -27,6 +27,7 @@ import { yahooGet } from "./yahoo.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = path.join(__dirname, "data", "sector-earnings-spotlight.json");
+const DISK_CACHE_PATH = path.join(__dirname, ".data", "sector-earnings-cache.json");
 
 const CACHE_MS = Number(process.env.SECTOR_EARNINGS_CACHE_MS) > 60_000
   ? Math.min(6 * 60 * 60_000, Math.floor(Number(process.env.SECTOR_EARNINGS_CACHE_MS)))
@@ -55,6 +56,74 @@ let finnhubEarningsInflight = null;
 let cache = null;
 /** @type {Promise<SectorEarningsItem[]> | null} */
 let inflight = null;
+
+/** @returns {{ at: number; items: SectorEarningsItem[] } | null} */
+function readDiskCache() {
+  try {
+    if (!fs.existsSync(DISK_CACHE_PATH)) return null;
+    const raw = JSON.parse(fs.readFileSync(DISK_CACHE_PATH, "utf8"));
+    const items = Array.isArray(raw?.items) ? raw.items : [];
+    if (!items.length) return null;
+    const at = Number(raw?.at) || 0;
+    // 7일보다 오래된 디스크 캐시는 무시
+    if (at && Date.now() - at > 7 * 24 * 60 * 60_000) return null;
+    return { at, items };
+  } catch {
+    return null;
+  }
+}
+
+/** @param {SectorEarningsItem[]} items */
+function writeDiskCache(items) {
+  if (!Array.isArray(items) || !items.length) return;
+  try {
+    const dir = path.dirname(DISK_CACHE_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const tmp = `${DISK_CACHE_PATH}.tmp`;
+    fs.writeFileSync(
+      tmp,
+      `${JSON.stringify({ at: Date.now(), items })}\n`,
+      "utf8",
+    );
+    fs.renameSync(tmp, DISK_CACHE_PATH);
+  } catch {
+    /* ignore */
+  }
+}
+
+function kickSectorEarningsRefresh() {
+  if (inflight) return inflight;
+  inflight = (async () => {
+    try {
+      const items = await fetchFreshSectorEarnings();
+      if (items.length) {
+        cache = { at: Date.now(), items };
+        writeDiskCache(items);
+      } else if (cache?.items?.length) {
+        cache = { ...cache, at: Date.now() };
+      } else {
+        const disk = readDiskCache();
+        if (disk?.items?.length) {
+          cache = { at: Date.now(), items: disk.items };
+        } else {
+          cache = { at: Date.now(), items: [] };
+        }
+      }
+      return cache.items;
+    } catch {
+      if (cache?.items?.length) return cache.items;
+      const disk = readDiskCache();
+      if (disk?.items?.length) {
+        cache = disk;
+        return disk.items;
+      }
+      return cache?.items ?? [];
+    } finally {
+      inflight = null;
+    }
+  })();
+  return inflight;
+}
 
 /** @param {string} sym */
 function listingTimezone(sym) {
@@ -384,6 +453,7 @@ async function fetchFreshSectorEarnings() {
     if (apiKey && bulkRows.length) {
       const bulk = nextEarningFromBulk(bulkRows, symbol, listingTz, now, horizon);
       if (bulk != null && Number.isFinite(bulk.at)) {
+        // Finnhub만으로 일정 확정 — Yahoo 큐에 묶이지 않게 forecast는 비워 둠
         parsed = {
           at: bulk.at,
           name: resolveDisplayName(symbol),
@@ -396,6 +466,7 @@ async function fetchFreshSectorEarnings() {
     const yahooModules = "calendarEvents%2Cprice%2CearningsTrend";
     const pathStr = `/v10/finance/quoteSummary/${enc}?modules=${yahooModules}`;
 
+    // Finnhub에 없을 때만 Yahoo 폴백 (큐 적체로 전체 API가 멈추지 않게)
     if (!parsed) {
       try {
         const data = await queueYahooRequest(() => yahooGet(pathStr));
@@ -408,13 +479,6 @@ async function fetchFreshSectorEarnings() {
         }
       } catch {
         parsed = null;
-      }
-    } else if (!parsed.forecast) {
-      try {
-        const data = await queueYahooRequest(() => yahooGet(pathStr));
-        parsed.forecast = parseEpsEstimateFromQuoteSummary(data);
-      } catch {
-        /* optional */
       }
     }
 
@@ -459,31 +523,28 @@ export async function fetchSectorEarningsSpotlight() {
     return cache.items;
   }
 
-  if (!inflight) {
-    inflight = (async () => {
-      try {
-        const items = await fetchFreshSectorEarnings();
-        cache = { at: Date.now(), items };
-        return items;
-      } catch {
-        if (cache?.items?.length) return cache.items;
-        cache = { at: Date.now(), items: [] };
-        return cache.items;
-      } finally {
-        inflight = null;
-      }
-    })();
+  // 메모리 만료·없음 → 디스크 즉시 반환(레일 빈 화면 방지) + 백그라운드 갱신
+  if (!cache?.items?.length) {
+    const disk = readDiskCache();
+    if (disk?.items?.length) {
+      cache = disk;
+    }
   }
-
-  // stale-while-revalidate: 만료 캐시가 있으면 즉시 반환
   if (cache?.items?.length) {
+    void kickSectorEarningsRefresh();
     return cache.items;
   }
-  return inflight;
+
+  return kickSectorEarningsRefresh();
 }
 
 export function prewarmSectorEarningsCache() {
-  void fetchSectorEarningsSpotlight().catch((e) => {
+  // 디스크를 먼저 메모리에 올려 첫 HTTP가 Yahoo를 기다리지 않게
+  if (!cache?.items?.length) {
+    const disk = readDiskCache();
+    if (disk?.items?.length) cache = disk;
+  }
+  void kickSectorEarningsRefresh().catch((e) => {
     console.warn(
       "[sector-earnings] prewarm:",
       e instanceof Error ? e.message : e,

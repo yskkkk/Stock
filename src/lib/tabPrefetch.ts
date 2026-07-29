@@ -39,6 +39,7 @@ import type {
 const MACRO_SESSION_CACHE_KEY = "stock-macro-bar-v3";
 const TTL_MS = {
   macro: 5 * 60_000,
+  sectorEarnings: 5 * 60_000,
   marketIndices: 20_000,
   recTracker: 30_000,
   cryptoUniverse: 90_000,
@@ -203,16 +204,79 @@ function notifyRecTracker(data: RecommendationsTrackerResponse) {
 
 export async function prefetchMacroBundle(): Promise<MacroPrefetchBundle> {
   return dedupe("macro", async () => {
-    const [macro, sector] = await Promise.all([
+    const settled = await Promise.allSettled([
       fetchMacroEvents(),
       fetchSectorEarnings(),
     ]);
+    const macro =
+      settled[0].status === "fulfilled"
+        ? settled[0].value
+        : { events: [] as MacroEvent[] };
+    const sector =
+      settled[1].status === "fulfilled"
+        ? settled[1].value
+        : { sectorEarnings: [] as SectorEarningsSpotlightItem[] };
     const events = macro.events ?? [];
-    const sectorEarnings = Array.isArray(sector.sectorEarnings)
+    let sectorEarnings = Array.isArray(sector.sectorEarnings)
       ? sector.sectorEarnings
       : [];
-    if (events.length) writeMacroSessionCache(events, sectorEarnings);
-    return { events, sectorEarnings };
+    const prevMacro = getCached<MacroPrefetchBundle>("macro");
+    const prevSector = getCached<SectorEarningsSpotlightItem[]>("sectorEarnings");
+    if (!sectorEarnings.length) {
+      sectorEarnings =
+        prevSector?.length
+          ? prevSector
+          : prevMacro?.sectorEarnings?.length
+            ? prevMacro.sectorEarnings
+            : [];
+    } else {
+      setCached("sectorEarnings", sectorEarnings);
+    }
+    const mergedEvents = events.length ? events : prevMacro?.events ?? [];
+    if (mergedEvents.length || sectorEarnings.length) {
+      writeMacroSessionCache(mergedEvents, sectorEarnings);
+    }
+    return { events: mergedEvents, sectorEarnings };
+  });
+}
+
+/** 기업 실적 레일 전용 — macro 번들과 분리해 한쪽 지연이 레일을 막지 않음 */
+export async function prefetchSectorEarnings(): Promise<
+  SectorEarningsSpotlightItem[]
+> {
+  const hit = getCached<SectorEarningsSpotlightItem[]>("sectorEarnings");
+  if (hit?.length) return hit;
+
+  return dedupe("sectorEarnings", async () => {
+    try {
+      const data = await fetchSectorEarnings();
+      const list = Array.isArray(data.sectorEarnings) ? data.sectorEarnings : [];
+      if (!list.length) {
+        const prev = getCached<SectorEarningsSpotlightItem[]>("sectorEarnings");
+        if (prev?.length) return prev;
+        const fromMacro = getCached<MacroPrefetchBundle>("macro")?.sectorEarnings;
+        if (fromMacro?.length) return fromMacro;
+        // 빈 결과를 긴 TTL로 굳히지 않음 — 호출자가 재시도
+        throw new Error("sector-earnings-empty");
+      }
+      const prevMacro = getCached<MacroPrefetchBundle>("macro");
+      setCached("macro", {
+        events: prevMacro?.events ?? [],
+        sectorEarnings: list,
+      });
+      writeMacroSessionCache(prevMacro?.events ?? [], list);
+      return list;
+    } catch (e) {
+      const prev = getCached<SectorEarningsSpotlightItem[]>("sectorEarnings");
+      if (prev?.length) return prev;
+      throw e;
+    }
+  }).catch(() => {
+    return (
+      getCached<SectorEarningsSpotlightItem[]>("sectorEarnings") ??
+      getCached<MacroPrefetchBundle>("macro")?.sectorEarnings ??
+      []
+    );
   });
 }
 
@@ -481,6 +545,7 @@ export function startShellCriticalPrefetch(): void {
   shellPrefetchStarted = true;
   void prefetchMarketIndices().catch(() => {});
   void prefetchMacroBundle().catch(() => {});
+  void prefetchSectorEarnings().catch(() => {});
 }
 
 /** config 로드 후 — 탭 미진입 데이터를 백그라운드로 선요청 */

@@ -24,7 +24,7 @@ import {
   yahooStockSymbolToTradingView,
 } from "../lib/tradingviewSymbols";
 import StockLogoWithPlate from "./StockLogoWithPlate";
-import { peekMacroPrefetch, prefetchMacroBundle } from "../lib/tabPrefetch";
+import { peekMacroPrefetch, prefetchSectorEarnings } from "../lib/tabPrefetch";
 import { ko } from "../i18n/ko";
 import type { SectorEarningsSpotlightItem } from "../types";
 import {
@@ -128,6 +128,22 @@ function EarningsIconButton({
 }
 
 const EARNINGS_GRACE_MS = 12 * 60 * 60 * 1000;
+const MACRO_SESSION_CACHE_KEY = "stock-macro-bar-v3";
+
+function readSessionSectorEarnings(): SectorEarningsSpotlightItem[] {
+  try {
+    const raw = sessionStorage.getItem(MACRO_SESSION_CACHE_KEY);
+    if (!raw) return [];
+    const o = JSON.parse(raw) as {
+      sectorEarnings?: SectorEarningsSpotlightItem[];
+      at?: number;
+    };
+    if (typeof o.at !== "number" || Date.now() - o.at > 30 * 60_000) return [];
+    return Array.isArray(o.sectorEarnings) ? o.sectorEarnings : [];
+  } catch {
+    return [];
+  }
+}
 
 export default function EarningsUpcomingIconRail({
   variant = "workspace",
@@ -151,8 +167,9 @@ export default function EarningsUpcomingIconRail({
   );
   const tipId = useId();
   const [rows, setRows] = useState<SectorEarningsSpotlightItem[]>(() => {
-    const cached = peekMacroPrefetch();
-    return cached?.sectorEarnings ?? [];
+    const cached = peekMacroPrefetch()?.sectorEarnings;
+    if (cached?.length) return cached;
+    return readSessionSectorEarnings();
   });
   const [now, setNow] = useState(() => Date.now());
   const [tip, setTip] = useState<TipState | null>(null);
@@ -164,18 +181,23 @@ export default function EarningsUpcomingIconRail({
 
   useEffect(() => {
     let cancelled = false;
-    void prefetchMacroBundle()
-      .then((bundle) => {
-        if (cancelled) return;
-        setRows(
-          Array.isArray(bundle.sectorEarnings) ? bundle.sectorEarnings : [],
-        );
-      })
-      .catch(() => {
-        if (!cancelled) setRows([]);
-      });
+    const apply = (list: SectorEarningsSpotlightItem[]) => {
+      if (!cancelled && list.length) setRows(list);
+    };
+    void prefetchSectorEarnings().then(apply).catch(() => {});
+    // cold API가 늦을 때 재시도
+    const retryIds = [2500, 8000, 20_000].map((ms) =>
+      window.setTimeout(() => {
+        void prefetchSectorEarnings().then(apply).catch(() => {});
+      }, ms),
+    );
+    const id = window.setInterval(() => {
+      void prefetchSectorEarnings().then(apply).catch(() => {});
+    }, 5 * 60 * 1000);
     return () => {
       cancelled = true;
+      window.clearInterval(id);
+      for (const t of retryIds) window.clearTimeout(t);
     };
   }, []);
 
