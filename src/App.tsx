@@ -1487,7 +1487,7 @@ export default function App() {
             <span className="app__nasdaq-etf-micro-kicker" aria-hidden>
               NQ
             </span>
-            <span className="app__nasdaq-etf-micro-label">ETF</span>
+            <span className="app__nasdaq-etf-micro-label">{ko.app.tabNasdaqEtf}</span>
           </button>
         </div>
         <AppThemeCorner
@@ -1728,15 +1728,29 @@ export default function App() {
               <button
                 type="button"
                 className={mainTabClassName("sp500Sector")}
+                data-vu="tab-sp500Sector"
                 onClick={() => setAppTab("sp500Sector")}
+                title={ko.app.sp500SectorTitle}
               >
                 {ko.app.tabSp500Sector}
+              </button>
+              <button
+                type="button"
+                className={mainTabClassName("nasdaqEtf")}
+                data-vu="tab-nasdaqEtf"
+                onClick={() => setAppTab("nasdaqEtf")}
+                title={ko.app.nasdaqEtfTitle}
+                aria-label={ko.app.nasdaqEtfTitle}
+              >
+                {ko.app.tabNasdaqEtf}
               </button>
               <button
                 type="button"
                 className={mainTabClassName("redditMentions")}
                 data-vu="tab-redditMentions"
                 onClick={() => setAppTab("redditMentions")}
+                title={ko.app.redditMentionsTitle}
+                aria-label={ko.app.redditMentionsTitle}
                 onMouseEnter={() => {
                   void prefetchRedditMentions("all-stocks");
                 }}
@@ -1751,6 +1765,8 @@ export default function App() {
                 className={mainTabClassName("accountManage")}
                 data-vu="tab-accountManage"
                 onClick={() => setAppTab("accountManage")}
+                title={ko.app.accountManageTitle}
+                aria-label={ko.app.accountManageTitle}
               >
                 {ko.app.tabAccountManage}
               </button>

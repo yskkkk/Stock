@@ -91,12 +91,6 @@ export default function AppSiteFooter({
     <footer className="app-site-footer" style={FOOTER_TEXT} aria-label={ko.app.siteFooterAria}>
       <div className="app-site-footer__center">
       <nav className="app-site-footer__nav" style={FOOTER_TEXT}>
-        {accessAdmin ? (
-          <FooterLink onClick={onOpenOps} active={appTab === "ops"}>
-            {ko.app.footerDevYsk}
-          </FooterLink>
-        ) : null}
-
         {!hideFeedbackLink ? (
           <FooterLink
             onClick={() => feedbackRef.current?.openSubmit()}

@@ -79,9 +79,9 @@ export const ko = {
     tabFinancials: "재무",
     tabStockVault: "종목보관",
     tabInvestorFlow: "국내 수급",
-    tabSp500Sector: "S&P 섹터",
-    tabNasdaqEtf: "나스닥 ETF",
-    tabRedditMentions: "레딧 관심",
+    tabSp500Sector: "S&P",
+    tabNasdaqEtf: "ETF",
+    tabRedditMentions: "레딧",
     redditMentionsTitle: "레딧 관심 종목",
     redditMentionsAria: "레딧에서 자주 언급되는 종목 순위",
     redditMentionsSubtitle:
@@ -145,7 +145,7 @@ export const ko = {
     nasdaqEtfAllocCash: "현금",
     nasdaqEtfAllocOther: "기타",
     nasdaqEtfHoldingsHint: "행을 클릭하면 구성 종목을 볼 수 있습니다.",
-    tabAccountManage: "계좌관리",
+    tabAccountManage: "계좌",
     accountManageTitle: "계좌관리",
     accountManageAria: "로그인 계좌 정보·보유 비중",
     accountManageSubtitle:
@@ -1145,7 +1145,7 @@ export const ko = {
   macro: {
     title: "주요 지표 발표",
     subtitle: "남은 시간 순 · 지표 및 기업 실적",
-    nasdaqEtfBtn: "나스닥 ETF",
+    nasdaqEtfBtn: "ETF",
     nasdaqEtfBtnHint: "나스닥 상장 ETF 목록",
     live: "진행 중",
     soon: "곧 발표",
