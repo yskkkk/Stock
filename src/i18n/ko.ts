@@ -237,9 +237,11 @@ export const ko = {
     accountManageRebalanceRealBadge: "실제 주문",
     accountManageRebalancePreviewZoneLabel: "미리보기 · 주문 없음",
     accountManageRebalanceRealOrderZoneLabel: "실제 매수 · 정규장만",
-    accountManageRebalanceNowRunSub: "돈이 나갑니다",
+    accountManageRebalanceAmountNote:
+      "시장별 원통화(국내 원·미국 $), 매수 수수료 별도",
+    accountManageRebalanceNowRunSub: "실주문 · {amountNote}",
     accountManageRebalancePreviewHint:
-      "국내는 원화, 미국은 달러로 각각 표시됩니다. 통화를 섞지 않습니다. 아래 「미리보기만 실행」은 계산만 하며 돈이 나가지 않습니다.",
+      "아래 금액은 {amountNote}입니다. 「미리보기만 실행」은 계산만 하며 돈이 나가지 않습니다.",
     accountManageRebalancePreviewEmpty:
       "미리볼 주문이 없습니다. 「미리보기만 실행」 또는 「스케줄 저장」을 눌러 주세요.",
     accountManageRebalanceCashUse: "{cashLabel} 가용 {avail} → 이번 사용 {spend}",
@@ -261,13 +263,16 @@ export const ko = {
     accountManageRebalanceNow: "정규장 · 실제 매수",
     accountManageRebalanceNowRun: "정규장 · 실제 매수 실행",
     accountManageRebalanceNowRunning: "매수 중…",
+    accountManageRebalanceNowRunSummary: "미리보기 합계 {summary}",
     accountManageRebalanceNowConfirm:
-      "켜진 시장 중 정규장만 남은 현금(국내=원화·미국=달러)을 현재 보유 비중대로 시장가 매수합니다.\n시간외·애프터는 제외됩니다. 실제 주문이 나갑니다. 계속할까요?",
+      "미리보기와 동일 금액({summary})으로 시장가 매수합니다.\n{amountNote} · 정규장만 · 실제 주문. 계속할까요?",
+    accountManageRebalanceNowConfirmGeneric:
+      "켜진 시장 중 정규장만 남은 현금을 현재 보유 비중대로 시장가 매수합니다.\n{amountNote} · 정규장만 · 실제 주문. 계속할까요?",
     accountManageRebalanceNowOk: "즉시 매수 {n}건 접수",
     accountManageRebalanceNowFail: "즉시 매수 일부 실패 ({ok}/{total})",
     accountManageRebalanceNowNone: "매수할 주문이 없습니다. 현금·보유를 확인하세요.",
     accountManageRebalanceNowHoursHint:
-      "국내=원화·미국=달러 현금만. 정규장(국내 09:00–15:30 · 미국 09:30–16:00 ET)에만 즉시 매수·시간외·애프터 불가.",
+      "{amountNote} · 정규장(국내 09:00–15:30 · 미국 09:30–16:00 ET)에만 즉시 매수",
     accountManageRebalanceNowHoursBlocked: "지금은 정규장이 아니라 즉시 매수를 할 수 없습니다.",
     accountManageRebalanceNowSkipped:
       "정규장이 아닌 시장은 건너뛰었습니다: {markets}",

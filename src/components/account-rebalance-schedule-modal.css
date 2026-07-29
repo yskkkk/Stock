@@ -637,6 +637,13 @@ html:not([data-theme="light"]) .account-rebalance-modal__foot-zone-label--real {
   line-height: 1.4;
 }
 
+.account-rebalance-modal__foot-zone-summary {
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text, inherit);
+}
+
 .account-rebalance-modal__foot-zone-hint--blocked {
   color: #dc2626;
   font-weight: 700;
