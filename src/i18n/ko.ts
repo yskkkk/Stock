@@ -162,15 +162,21 @@ export const ko = {
     accountManageStyleCashSplit: "현금(원·$)",
     accountManageStyleCol: "성향",
     accountManageStyleAuto: "자동",
+    accountManageStyleSpecified: "지정",
     /** 자동 옵션 표시: 자동 · 성장주 */
     accountManageStyleAutoOption: "자동 · {style}",
+    /** 지정 옵션 표시: 지정 · 성장주 */
+    accountManageStyleSpecifiedOption: "지정 · {style}",
+    accountManageStyleNewDefaultHint: "신규 종목은 자동 분류가 기본입니다.",
+    /** 차트 칩 범례: 자동 2 · 지정 1 */
+    accountManageStyleLegendMix: "자동 {auto} · 지정 {specified}",
     accountManageStylePolicyTitle: "분류 기준 (우선순위)",
     accountManageStylePolicyHint:
       "종목별로 「성장/가치」를 지정하면 포트폴리오가 바뀌어도 유지됩니다. 「자동」은 정책 규칙으로 돌아갑니다.",
     accountManageStyleFilterActive: "성향 · {label}",
     accountManageWeightFilterActive: "비중 · {label}",
     accountManageStyleStripHint:
-      "칩·막대·도넛을 누르면 해당 성향만 목록에 표시 · 「성향」열에서 종목별 지정",
+      "칩·막대·도넛을 누르면 해당 성향만 목록에 표시 · 「성향」열에서 자동/지정 구분",
     accountManageStyleAssignLink: "종목별 성향 지정 ↓",
     accountManageTabChart: "원형 차트",
     accountManageTabList: "보유 목록",

@@ -478,6 +478,25 @@ export default function AccountManageTab({
     [styleSlices],
   );
 
+  const styleSourceCounts = useMemo(() => {
+    const counts: Record<
+      string,
+      { auto: number; specified: number }
+    > = {
+      __growth__: { auto: 0, specified: 0 },
+      __value__: { auto: 0, specified: 0 },
+    };
+    for (const row of holdingRows) {
+      const ticker = normalizeAccountStyleTicker(row.symbol);
+      const overrideStyle = styleOverrides[ticker];
+      const resolved = resolveAccountHoldingStyle(row, styleOverrides);
+      const key = resolved.style === "growth" ? "__growth__" : "__value__";
+      if (overrideStyle) counts[key].specified += 1;
+      else counts[key].auto += 1;
+    }
+    return counts;
+  }, [holdingRows, styleOverrides]);
+
   const filteredRows = useMemo(() => {
     const key = styleFocusKey ?? focusKey;
     const source = styleFocusKey ? styleSlices : slices;
@@ -802,6 +821,9 @@ export default function AccountManageTab({
             <p className="account-manage-tab__style-strip-sub">
               {ko.app.accountManageStyleChartSub}
             </p>
+            <p className="account-manage-tab__style-strip-note">
+              {ko.app.accountManageStyleNewDefaultHint}
+            </p>
             <div
               className="account-manage-tab__style-bar"
               role="img"
@@ -827,6 +849,7 @@ export default function AccountManageTab({
             <div className="account-manage-tab__style-chips">
               {styleSegments.map((seg) => {
                 const active = styleFocusKey === seg.sector;
+                const mix = styleSourceCounts[seg.sector];
                 return (
                   <button
                     key={`style-chip-${seg.sector}`}
@@ -847,7 +870,16 @@ export default function AccountManageTab({
                       aria-hidden
                     />
                     <span className="account-manage-tab__style-chip-label">
-                      {styleSegmentLabel(seg)}
+                      <span className="account-manage-tab__style-chip-name">
+                        {styleSegmentLabel(seg)}
+                      </span>
+                      {mix && (mix.auto > 0 || mix.specified > 0) ? (
+                        <span className="account-manage-tab__style-chip-mix">
+                          {ko.app.accountManageStyleLegendMix
+                            .replace("{auto}", String(mix.auto))
+                            .replace("{specified}", String(mix.specified))}
+                        </span>
+                      ) : null}
                     </span>
                     <span className="account-manage-tab__style-chip-pct">
                       {formatAllocPct(seg.pct)}
@@ -2116,48 +2148,68 @@ export default function AccountManageTab({
                               </button>
                             </td>
                             <td>
-                              <label className="account-manage-tab__style-select-wrap">
-                                <select
-                                  className="account-manage-tab__style-select"
-                                  aria-label={ko.app.accountManageStyleCol}
-                                  value={selectVal}
-                                  disabled={styleSavingSym === row.symbol}
-                                  title={
+                              <div className="account-manage-tab__style-cell">
+                                <span
+                                  className={[
+                                    "account-manage-tab__style-source",
                                     overrideStyle
-                                      ? ko.app.accountManageStylePolicyHint
-                                      : ko.app.accountManageStyleAutoOption.replace(
-                                          "{style}",
-                                          resolved.style === "growth"
-                                            ? ko.app.accountManageStyleGrowth
-                                            : ko.app.accountManageStyleValue,
-                                        )
-                                  }
-                                  onChange={(e) => {
-                                    const v = e.target.value;
-                                    void onSetHoldingStyle(
-                                      row.symbol,
-                                      v === "auto"
-                                        ? "auto"
-                                        : (v as AccountHoldingStyle),
-                                    );
-                                  }}
+                                      ? "account-manage-tab__style-source--specified"
+                                      : "account-manage-tab__style-source--auto",
+                                  ].join(" ")}
                                 >
-                                  <option value="auto">
-                                    {ko.app.accountManageStyleAutoOption.replace(
-                                      "{style}",
-                                      resolved.style === "growth"
-                                        ? ko.app.accountManageStyleGrowth
-                                        : ko.app.accountManageStyleValue,
-                                    )}
-                                  </option>
-                                  <option value="growth">
-                                    {ko.app.accountManageStyleGrowth}
-                                  </option>
-                                  <option value="value">
-                                    {ko.app.accountManageStyleValue}
-                                  </option>
-                                </select>
-                              </label>
+                                  {overrideStyle
+                                    ? ko.app.accountManageStyleSpecified
+                                    : ko.app.accountManageStyleAuto}
+                                </span>
+                                <label className="account-manage-tab__style-select-wrap">
+                                  <select
+                                    className="account-manage-tab__style-select"
+                                    aria-label={ko.app.accountManageStyleCol}
+                                    value={selectVal}
+                                    disabled={styleSavingSym === row.symbol}
+                                    title={
+                                      overrideStyle
+                                        ? ko.app.accountManageStylePolicyHint
+                                        : ko.app.accountManageStyleAutoOption.replace(
+                                            "{style}",
+                                            resolved.style === "growth"
+                                              ? ko.app.accountManageStyleGrowth
+                                              : ko.app.accountManageStyleValue,
+                                          )
+                                    }
+                                    onChange={(e) => {
+                                      const v = e.target.value;
+                                      void onSetHoldingStyle(
+                                        row.symbol,
+                                        v === "auto"
+                                          ? "auto"
+                                          : (v as AccountHoldingStyle),
+                                      );
+                                    }}
+                                  >
+                                    <option value="auto">
+                                      {ko.app.accountManageStyleAutoOption.replace(
+                                        "{style}",
+                                        resolved.style === "growth"
+                                          ? ko.app.accountManageStyleGrowth
+                                          : ko.app.accountManageStyleValue,
+                                      )}
+                                    </option>
+                                    <option value="growth">
+                                      {ko.app.accountManageStyleSpecifiedOption.replace(
+                                        "{style}",
+                                        ko.app.accountManageStyleGrowth,
+                                      )}
+                                    </option>
+                                    <option value="value">
+                                      {ko.app.accountManageStyleSpecifiedOption.replace(
+                                        "{style}",
+                                        ko.app.accountManageStyleValue,
+                                      )}
+                                    </option>
+                                  </select>
+                                </label>
+                              </div>
                             </td>
                             <td>
                               {allocMode === "symbol"

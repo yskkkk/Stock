@@ -794,6 +794,13 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-label--real {
   line-height: 1.35;
 }
 
+.account-manage-tab__style-strip-note {
+  margin: 0.2rem 0 0;
+  font-size: 0.66rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
 .account-manage-tab__style-bar {
   display: flex;
   align-items: stretch;
@@ -868,9 +875,23 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-label--real {
 .account-manage-tab__style-chip-label {
   flex: 1 1 auto;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.08rem;
   line-height: 1.25;
   word-break: keep-all;
   overflow-wrap: anywhere;
+}
+
+.account-manage-tab__style-chip-name {
+  line-height: 1.25;
+}
+
+.account-manage-tab__style-chip-mix {
+  font-size: 0.62rem;
+  font-weight: 500;
+  color: var(--muted);
+  line-height: 1.2;
 }
 
 .account-manage-tab__style-chip-pct {
@@ -1009,6 +1030,39 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-label--real {
 
 .account-manage-tab__style-select-wrap {
   display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.account-manage-tab__style-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.22rem;
+  min-width: 0;
+}
+
+.account-manage-tab__style-source {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.06rem 0.38rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+}
+
+.account-manage-tab__style-source--auto {
+  color: var(--muted);
+  background: color-mix(in srgb, var(--card-border) 55%, transparent);
+  border: 1px solid var(--card-border);
+}
+
+.account-manage-tab__style-source--specified {
+  color: var(--accent, #14b8a6);
+  background: color-mix(in srgb, var(--accent-dim) 45%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-border, #14b8a6) 55%, var(--card-border));
 }
 
 .account-manage-tab__style-select {
@@ -1129,6 +1183,16 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-label--real {
     min-height: 2.5rem;
     font-size: 0.78rem;
     padding: 0.35rem 0.45rem;
+  }
+
+  .account-manage-tab__style-cell {
+    width: 100%;
+  }
+
+  .account-manage-tab__style-source {
+    min-height: 1.35rem;
+    padding: 0.1rem 0.42rem;
+    font-size: 0.64rem;
   }
 
   .account-manage-tab__mode-btn,
