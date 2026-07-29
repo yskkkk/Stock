@@ -8,7 +8,13 @@ import {
   type TossRebalanceSchedule,
 } from "../api";
 import { ko } from "../i18n/ko";
-import { formatPercent, formatPrice } from "../lib/format";
+import { formatPercent } from "../lib/format";
+import {
+  buildRebalanceNowConfirmMessage,
+  formatRebalanceMoney,
+  summarizeRebalancePlanTotals,
+  withRebalanceAmountNote,
+} from "../lib/rebalancePlanSummary";
 import {
   anySelectedMarketRegularOpen,
   isMarketRegularOpenClient,
@@ -22,7 +28,7 @@ function daysInMonth(year: number, monthIndex: number): number {
 }
 
 function formatPlanMoney(amount: number, currency: "KRW" | "USD"): string {
-  return formatPrice(amount, currency);
+  return formatRebalanceMoney(amount, currency);
 }
 
 function cashLabelFor(currency: "KRW" | "USD"): string {
@@ -203,7 +209,7 @@ export default function AccountRebalanceScheduleModal({
       setErr(ko.app.accountManageRebalanceNowHoursBlocked);
       return;
     }
-    if (!window.confirm(ko.app.accountManageRebalanceNowConfirm)) return;
+    if (!window.confirm(buildRebalanceNowConfirmMessage(plans, markets))) return;
     setBuyingNow(true);
     setErr(null);
     setMsg(null);
@@ -278,6 +284,7 @@ export default function AccountRebalanceScheduleModal({
 
   const monthLabel = `${year}년 ${monthIndex + 1}월`;
   const buyNowAllowed = anySelectedMarketRegularOpen(markets);
+  const buyNowPlanSummary = summarizeRebalancePlanTotals(plans, markets);
 
   const renderMarketChip = (m: "kr" | "us") => {
     const on = markets.includes(m);
@@ -546,7 +553,7 @@ export default function AccountRebalanceScheduleModal({
                 </span>
               </h3>
               <p className="account-rebalance-modal__hint account-rebalance-modal__preview-hint">
-                {ko.app.accountManageRebalancePreviewHint}
+                {withRebalanceAmountNote(ko.app.accountManageRebalancePreviewHint)}
               </p>
               {(["kr", "us"] as const).map((m) => {
                 const on = markets.includes(m);
@@ -733,9 +740,20 @@ export default function AccountRebalanceScheduleModal({
                   role={buyNowAllowed ? undefined : "status"}
                 >
                   {buyNowAllowed
-                    ? ko.app.accountManageRebalanceNowHoursHint
+                    ? withRebalanceAmountNote(ko.app.accountManageRebalanceNowHoursHint)
                     : ko.app.accountManageRebalanceNowHoursBlocked}
                 </p>
+                {buyNowAllowed && buyNowPlanSummary ? (
+                  <p
+                    className="account-rebalance-modal__hint account-rebalance-modal__foot-zone-summary"
+                    data-vu="account-rebalance-buy-now-summary"
+                  >
+                    {ko.app.accountManageRebalanceNowRunSummary.replace(
+                      "{summary}",
+                      buyNowPlanSummary,
+                    )}
+                  </p>
+                ) : null}
                 <button
                   type="button"
                   className="btn account-rebalance-modal__btn-real"
@@ -755,7 +773,7 @@ export default function AccountRebalanceScheduleModal({
                   </span>
                   {!buyingNow ? (
                     <span className="account-rebalance-modal__btn-real-sub">
-                      {ko.app.accountManageRebalanceNowRunSub}
+                      {withRebalanceAmountNote(ko.app.accountManageRebalanceNowRunSub)}
                     </span>
                   ) : null}
                 </button>

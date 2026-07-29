@@ -3,6 +3,7 @@ import {
   fetchAccountHoldingStyle,
   fetchSp500Sectors,
   fetchTossHoldingsManage,
+  fetchTossRebalanceSchedule,
   putAccountHoldingStyleOverride,
   runTossRebalanceNow,
   type TossTestHolding,
@@ -35,6 +36,10 @@ import {
   tossHoldingsTotalNetMarketValueKrw,
 } from "../lib/tossHoldingPnl";
 import { formatPercent, formatPrice, formatSignedMoney } from "../lib/format";
+import {
+  buildRebalanceNowConfirmMessage,
+  withRebalanceAmountNote,
+} from "../lib/rebalancePlanSummary";
 import { anySelectedMarketRegularOpen, isMarketRegularOpenClient } from "../lib/marketRegularHours";
 import { resolveSymbolDisplayName } from "../lib/symbolDisplayName";
 import { useBithumbBalanceHidden } from "../hooks/useBithumbBalanceHidden";
@@ -564,7 +569,22 @@ export default function AccountManageTab({
       window.alert(ko.app.accountManageRebalanceNowHoursBlocked);
       return;
     }
-    if (!window.confirm(ko.app.accountManageRebalanceNowConfirm)) return;
+    let confirmMsg = withRebalanceAmountNote(
+      ko.app.accountManageRebalanceNowConfirmGeneric,
+    );
+    try {
+      const sched = await fetchTossRebalanceSchedule();
+      const markets = (
+        sched.schedule?.markets?.length ? sched.schedule.markets : ["kr", "us"]
+      ).filter((m): m is "kr" | "us" => m === "kr" || m === "us");
+      confirmMsg = buildRebalanceNowConfirmMessage(
+        sched.preview?.plans ?? [],
+        markets,
+      );
+    } catch {
+      /* 미리보기 없으면 generic 확인 문구 */
+    }
+    if (!window.confirm(confirmMsg)) return;
     setBuyingNow(true);
     try {
       const res = await runTossRebalanceNow({ dryRun: false });
@@ -675,7 +695,7 @@ export default function AccountManageTab({
           role={buyNowToolbarAllowed ? undefined : "status"}
         >
           {buyNowToolbarAllowed
-            ? ko.app.accountManageRebalanceNowHoursHint
+            ? withRebalanceAmountNote(ko.app.accountManageRebalanceNowHoursHint)
             : ko.app.accountManageRebalanceNowHoursBlocked}
         </p>
         <button
@@ -701,7 +721,7 @@ export default function AccountManageTab({
           aria-label={ko.app.accountManageRebalanceRealOrderZoneLabel}
           title={
             buyNowToolbarAllowed
-              ? ko.app.accountManageRebalanceNowConfirm.split("\n")[0]
+              ? withRebalanceAmountNote(ko.app.accountManageRebalanceNowHoursHint)
               : ko.app.accountManageRebalanceNowHoursBlocked
           }
           onClick={() => void onBuyNowFromToolbar()}
@@ -713,7 +733,7 @@ export default function AccountManageTab({
           </span>
           {!buyingNow ? (
             <span className="account-manage-tab__rebalance-btn-sub account-manage-tab__rebalance-btn-sub--real">
-              {ko.app.accountManageRebalanceNowRunSub}
+              {withRebalanceAmountNote(ko.app.accountManageRebalanceNowRunSub)}
             </span>
           ) : null}
         </button>
