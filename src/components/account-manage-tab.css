@@ -683,11 +683,47 @@
 }
 
 .account-manage-tab__style-strip-hint {
-  flex: 1 1 100%;
+  flex: 1 1 auto;
   margin: 0;
   font-size: 0.68rem;
   color: var(--muted);
   line-height: 1.4;
+}
+
+.account-manage-tab__style-strip-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.55rem;
+  width: 100%;
+}
+
+.account-manage-tab__style-assign-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0.32rem 0.62rem;
+  min-height: 2.35rem;
+  border: 1px solid color-mix(in srgb, var(--accent-border, #14b8a6) 55%, var(--card-border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-dim) 28%, var(--card));
+  color: var(--accent, #14b8a6);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.25;
+  cursor: pointer;
+  touch-action: manipulation;
+  flex: 0 0 auto;
+}
+
+.account-manage-tab__style-assign-link:hover {
+  background: color-mix(in srgb, var(--accent-dim) 45%, var(--card));
+}
+
+.account-manage-tab__holdings {
+  scroll-margin-top: 0.75rem;
 }
 
 .account-manage-tab__style-list {
@@ -838,11 +874,6 @@
     align-items: center;
   }
 
-  .account-manage-tab__style-mini-svg {
-    width: 4.75rem;
-    height: 4.75rem;
-  }
-
   .account-manage-tab__style-chips {
     flex-direction: column;
   }
@@ -860,12 +891,45 @@
     white-space: normal;
   }
 
-  .account-manage-tab__style-block .account-manage-tab__chart-panel {
+  .account-manage-tab__style-block {
     display: none;
+  }
+
+  .account-manage-tab__style-list {
+    display: none;
+  }
+
+  .account-manage-tab__style-strip {
+    margin-top: 0.85rem;
+    padding: 0.72rem 0.75rem;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-border, #14b8a6) 22%, transparent);
+  }
+
+  .account-manage-tab__style-mini-svg {
+    width: 5.25rem;
+    height: 5.25rem;
+  }
+
+  .account-manage-tab__style-mini-center {
+    font-size: 8px;
   }
 
   .account-manage-tab__style-strip-hint {
     font-size: 0.7rem;
+  }
+
+  .account-manage-tab__style-assign-link {
+    min-height: 2.75rem;
+    padding: 0.4rem 0.72rem;
+    font-size: 0.74rem;
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .account-manage-tab__style-strip-footer {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .account-manage-tab__style-select {

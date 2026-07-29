@@ -158,6 +158,7 @@ export default function AccountManageTab({
     y: number;
   } | null>(null);
   const wheelRef = useRef<HTMLElement | null>(null);
+  const holdingsRef = useRef<HTMLElement | null>(null);
   const [balanceHidden, toggleBalanceHidden] = useBithumbBalanceHidden();
   const [displayCurrency, setDisplayCurrency] = useAccountManageDisplayCurrency();
   const [rebalanceOpen, setRebalanceOpen] = useState(false);
@@ -686,6 +687,10 @@ export default function AccountManageTab({
     [hideHoverBubble],
   );
 
+  const scrollToStyleAssign = useCallback(() => {
+    holdingsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
   const hoverSlice = hoverBubble
     ? (styleSlices.find((s) => s.key === hoverBubble.key) ??
       slices.find((s) => s.key === hoverBubble.key) ??
@@ -706,6 +711,20 @@ export default function AccountManageTab({
   const cy = 100;
   const r0 = 52;
   const r1 = 88;
+
+  const styleSegmentLabel = useCallback(
+    (seg: { sector: string; sectorKo: string }) => {
+      if (
+        seg.sector === "__cash__" &&
+        provider === "toss" &&
+        (cashNativeKrw > 0 || cashNativeUsd > 0)
+      ) {
+        return ko.app.accountManageStyleCashSplit;
+      }
+      return seg.sectorKo;
+    },
+    [provider, cashNativeKrw, cashNativeUsd],
+  );
 
   const renderStyleStrip = () =>
     styleSegments.length > 0 ? (
@@ -771,7 +790,7 @@ export default function AccountManageTab({
                       .filter(Boolean)
                       .join(" ")}
                     aria-pressed={active}
-                    aria-label={`${seg.sectorKo} ${formatAllocPct(seg.pct)}`}
+                    aria-label={`${styleSegmentLabel(seg)} ${formatAllocPct(seg.pct)}`}
                     onClick={() => onStyleChipClick(seg.sector)}
                   >
                     <span
@@ -780,7 +799,7 @@ export default function AccountManageTab({
                       aria-hidden
                     />
                     <span className="account-manage-tab__style-chip-label">
-                      {seg.sectorKo}
+                      {styleSegmentLabel(seg)}
                     </span>
                     <span className="account-manage-tab__style-chip-pct">
                       {formatAllocPct(seg.pct)}
@@ -791,9 +810,19 @@ export default function AccountManageTab({
             </div>
           </div>
         </div>
-        <p className="account-manage-tab__style-strip-hint">
-          {ko.app.accountManageStyleStripHint}
-        </p>
+        <div className="account-manage-tab__style-strip-footer">
+          <p className="account-manage-tab__style-strip-hint">
+            {ko.app.accountManageStyleStripHint}
+          </p>
+          <button
+            type="button"
+            className="account-manage-tab__style-assign-link"
+            data-vu="account-style-assign-link"
+            onClick={scrollToStyleAssign}
+          >
+            {ko.app.accountManageStyleAssignLink}
+          </button>
+        </div>
       </div>
     ) : null;
 
@@ -1574,8 +1603,14 @@ export default function AccountManageTab({
               {renderStyleStrip()}
 
               {panelTab === "chart" && styleSegments.length > 0 ? (
-                <div className="account-manage-tab__style-block">
+                <div
+                  className="account-manage-tab__style-block"
+                  data-vu="account-style-block"
+                >
                   <div className="account-manage-tab__style-head">
+                    <h4 className="account-manage-tab__style-title">
+                      {ko.app.accountManageStyleChartTitle}
+                    </h4>
                     <p className="account-manage-tab__wheel-sub account-manage-tab__style-sub">
                       {ko.app.accountManageStyleChartSub}
                     </p>
@@ -1677,8 +1712,12 @@ export default function AccountManageTab({
                         className="account-manage-tab__center-label"
                       >
                         {styleFocusKey
-                          ? (styleSegments.find((s) => s.sector === styleFocusKey)
-                              ?.sectorKo ?? "")
+                          ? styleSegmentLabel(
+                              styleSegments.find((s) => s.sector === styleFocusKey) ?? {
+                                sector: styleFocusKey,
+                                sectorKo: "",
+                              },
+                            )
                           : ko.app.accountManageGroupStyle}
                       </text>
                       <text
@@ -1734,7 +1773,7 @@ export default function AccountManageTab({
                                 style={{ background: seg.color }}
                               />
                               <span className="account-manage-tab__legend-name">
-                                {seg.sectorKo}
+                                {styleSegmentLabel(seg)}
                               </span>
                               <span className="account-manage-tab__legend-pct">
                                 {formatAllocPct(seg.pct)}
@@ -1773,7 +1812,7 @@ export default function AccountManageTab({
                             style={{ background: seg.color }}
                           />
                           <span className="account-manage-tab__legend-name">
-                            {seg.sectorKo}
+                            {styleSegmentLabel(seg)}
                           </span>
                           <span className="account-manage-tab__legend-pct">
                             {formatAllocPct(seg.pct)}
@@ -1900,7 +1939,11 @@ export default function AccountManageTab({
               )}
             </aside>
 
-            <section className="account-manage-tab__holdings card">
+            <section
+              ref={holdingsRef}
+              className="account-manage-tab__holdings card"
+              id="account-holdings-table"
+            >
               <h3 className="account-manage-tab__holdings-title">
                 {styleFocusKey
                   ? styleSegments.find((s) => s.sector === styleFocusKey)
@@ -1949,7 +1992,9 @@ export default function AccountManageTab({
                     <thead>
                       <tr>
                         <th>{ko.app.liveTradePfColSymbol}</th>
-                        <th>{ko.app.accountManageStyleCol}</th>
+                        <th id="account-holdings-style-col">
+                          {ko.app.accountManageStyleCol}
+                        </th>
                         <th>
                           {allocMode === "subIndustry"
                             ? ko.app.accountManageGroupSubIndustry
